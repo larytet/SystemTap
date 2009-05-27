@@ -71,7 +71,8 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
             }
           else if ((found = dataString.find("%DataSet:") == 0))
             {
-              std::tr1::shared_ptr<GraphData> dataSet(new GraphData);
+              std::tr1::shared_ptr<GraphData<double> >
+                dataSet(new GraphData<double>);
               std::string setName;
               int hexColor;
               std::string style;
@@ -82,7 +83,9 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
               dataSet->color[1] = ((hexColor >> 8) & 0xff) / 255.0;
               dataSet->color[2] = (hexColor & 0xff) / 255.0;
               if (style == "dot")
-                dataSet->style = GraphData::DOT;
+                dataSet->style = GraphDataBase::DOT;
+              else if (style == "discreet")
+                  dataSet->style = GraphDataBase::EVENT;
               _dataSets.insert(std::make_pair(setName, dataSet));
               _widget.addGraphData(dataSet);
             }
@@ -96,8 +99,9 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
                 {
                   DataMap::iterator setIter = _dataSets.find(*tokIter);
                   if (setIter != _dataSets.end())
-                    _csv.elements.push_back(CSVData::Element(*tokIter,
-                                                             setIter->second));
+                    _csv.elements
+                      .push_back(CSVData<double>::Element(*tokIter,
+                                                          setIter->second));
                 }
             }
         }
@@ -118,8 +122,8 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
                   std::istringstream stream(*tokIter);
                   double data;
                   stream >>  data;
-                  _csv.elements[i].second
-                    ->data.push_back(std::make_pair(time, data));
+                  _csv.elements[i].second->times.push_back(time);
+                  _csv.elements[i].second->data.push_back(data);
                 }
             }
           else
@@ -131,7 +135,10 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
               stream >> dataSet >> time >> data;
               DataMap::iterator itr = _dataSets.find(dataSet);
               if (itr != _dataSets.end())
-                itr->second->data.push_back(std::make_pair(time, data));
+                {
+                  itr->second->times.push_back(time);
+                  itr->second->data.push_back(data);
+                }
             }
         }
       _buffer.erase(0, ret + 1);

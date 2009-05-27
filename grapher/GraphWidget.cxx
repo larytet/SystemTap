@@ -55,7 +55,7 @@ namespace systemtap
   {
   }
 
-  void GraphWidget::addGraphData(std::tr1::shared_ptr<GraphData> data)
+  void GraphWidget::addGraphData(std::tr1::shared_ptr<GraphDataBase> data)
   {
     _datasets.push_back(data);
   }
@@ -94,9 +94,9 @@ namespace systemtap
              ditr != de;
              ++ditr)
           {
-            if (!(*ditr)->data.empty())
+            if (!(*ditr)->times.empty())
               {
-                double lastDataTime = (*ditr)->data.back().first;
+                double lastDataTime = (*ditr)->times.back();
                 if (lastDataTime > latestTime)
                   latestTime = lastDataTime;
               }
@@ -108,16 +108,16 @@ namespace systemtap
              ditr != de;
              ++ditr)
           {
-            GraphData::List& gdata = (*ditr)->data;
-            if (gdata.size() <= 1)
+            GraphDataBase::TimeList& gtimes = (*ditr)->times;
+            if (gtimes.size() <= 1)
               continue;
             double totalDiff = 0.0;
-            for (GraphData::List::reverse_iterator ritr = gdata.rbegin(),
-                   re = gdata.rend();
-                 ritr + 1 != gdata.rend();
+            for (GraphDataBase::TimeList::reverse_iterator ritr = gtimes.rbegin(),
+                   re = gtimes.rend();
+                 ritr + 1 != gtimes.rend();
                  ritr++)
               {
-                double timeDiff = ritr->first - (ritr + 1)->first;
+                double timeDiff = *ritr - *(ritr + 1);
                 if (timeDiff < minDiff || (timeDiff != 0 && minDiff == 0))
                   minDiff = timeDiff;
                 if (minDiff != 0
@@ -148,32 +148,34 @@ namespace systemtap
          itr != e;
          ++itr)
       {
+        GraphData<double>* realData =
+          static_cast<GraphData<double>*>(itr->get());
         cr->save();
         cr->translate(0.0, height);
         cr->scale(1.0, -1.0);
-        GraphData::List::iterator lower
-          = std::lower_bound((*itr)->data.begin(), (*itr)->data.end(), _left,
-                             GraphData::Compare());
-        GraphData::List::iterator upper
-          = std::upper_bound((*itr)->data.begin(), (*itr)->data.end(), _right,
-                             GraphData::Compare());
-        for (GraphData::List::iterator ditr = lower, de = upper;
+        GraphDataBase::TimeList::iterator lower
+          = std::lower_bound((*itr)->times.begin(), (*itr)->times.end(), _left);
+        GraphDataBase::TimeList::iterator upper
+          = std::upper_bound((*itr)->times.begin(), (*itr)->times.end(),
+                             _right);
+        for (GraphDataBase::TimeList::iterator ditr = lower, de = upper;
              ditr != de;
              ++ditr)
           {
+            size_t dataIndex = ditr - (*itr)->times.begin();
             cr->set_source_rgba((*itr)->color[0], (*itr)->color[1],
                                 (*itr)->color[2], 1.0);
-            if ((*itr)->style == GraphData::BAR)
+            if ((*itr)->style == GraphDataBase::BAR)
               {
-                cr->move_to((ditr->first - _left) * horizScale, 0);
-                cr->line_to((ditr->first - _left) * horizScale,
-                            ditr->second * height / (*itr)->scale);
+                cr->move_to((*ditr - _left) * horizScale, 0);
+                cr->line_to((*ditr - _left) * horizScale,
+                            realData->data[dataIndex] * height / (*itr)->scale);
                 cr->stroke();
               }
             else
               {
-                cr->arc((ditr->first - _left) * horizScale,
-                        ditr->second * height / (*itr)->scale,
+                cr->arc((*ditr - _left) * horizScale,
+                        realData->data[dataIndex] * height / (*itr)->scale,
                         _lineWidth / 2.0, 0.0, M_PI * 2.0);
                 cr->fill();
               }

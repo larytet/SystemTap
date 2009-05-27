@@ -7,9 +7,9 @@ namespace systemtap
 class StapParser
 {
   std::string _buffer;
-  typedef std::map<std::string, std::tr1::shared_ptr<GraphData> > DataMap;
+    typedef std::map<std::string, std::tr1::shared_ptr<GraphData<double> > > DataMap;
   DataMap _dataSets;
-  CSVData _csv;
+  CSVData<double> _csv;
   Gtk::Window& _win;
   GraphWidget& _widget;
 public:
