@@ -1,6 +1,7 @@
 #include "StapParser.hxx"
 
 #include <gtkmm/window.h>
+#include <iostream>
 
 namespace systemtap
 {
@@ -26,6 +27,29 @@ vector<string> commaSplit(const string& inStr, size_t pos = 0)
     }
   return result;
 }
+
+  void StapParser::parseData(std::tr1::shared_ptr<GraphDataBase> gdata,
+                             double time, const string& dataString)
+  {
+    std::istringstream stream(dataString);
+    std::tr1::shared_ptr<GraphData<double> > dblptr;
+    std::tr1::shared_ptr<GraphData<string> > strptr;
+    dblptr = std::tr1::dynamic_pointer_cast<GraphData<double> >(gdata);
+    if (dblptr)
+      {
+        double data;
+        stream >> data;
+        dblptr->times.push_back(time);
+        dblptr->data.push_back(data);
+      }
+    else if ((strptr = std::tr1
+              ::dynamic_pointer_cast<GraphData<string> >(gdata))
+             != 0)
+      {
+        strptr->times.push_back(time);
+        strptr->data.push_back(dataString);
+      }
+  }
   
 bool StapParser::ioCallback(Glib::IOCondition ioCondition)
 {
@@ -71,23 +95,38 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
             }
           else if ((found = dataString.find("%DataSet:") == 0))
             {
-              std::tr1::shared_ptr<GraphData<double> >
-                dataSet(new GraphData<double>);
               std::string setName;
               int hexColor;
+              double scale;
               std::string style;
               std::istringstream stream(dataString.substr(9));
-              stream >> setName >> dataSet->scale >> std::hex >> hexColor
+              stream >> setName >> scale >> std::hex >> hexColor
                      >> style;
-              dataSet->color[0] = (hexColor >> 16) / 255.0;
-              dataSet->color[1] = ((hexColor >> 8) & 0xff) / 255.0;
-              dataSet->color[2] = (hexColor & 0xff) / 255.0;
-              if (style == "dot")
-                dataSet->style = GraphDataBase::DOT;
+              if (style == "bar" || style == "dot")
+                {
+                  std::tr1::shared_ptr<GraphData<double> >
+                    dataSet(new GraphData<double>);
+                  if (style == "dot")
+                    dataSet->style = GraphDataBase::DOT;
+                  dataSet->color[0] = (hexColor >> 16) / 255.0;
+                  dataSet->color[1] = ((hexColor >> 8) & 0xff) / 255.0;
+                  dataSet->color[2] = (hexColor & 0xff) / 255.0;
+                  dataSet->scale = scale;
+                  _dataSets.insert(std::make_pair(setName, dataSet));
+                  _widget.addGraphData(dataSet);
+                }
               else if (style == "discreet")
+                {
+                  std::tr1::shared_ptr<GraphData<string> >
+                    dataSet(new GraphData<string>);
                   dataSet->style = GraphDataBase::EVENT;
-              _dataSets.insert(std::make_pair(setName, dataSet));
-              _widget.addGraphData(dataSet);
+                  dataSet->color[0] = (hexColor >> 16) / 255.0;
+                  dataSet->color[1] = ((hexColor >> 8) & 0xff) / 255.0;
+                  dataSet->color[2] = (hexColor & 0xff) / 255.0;
+                  dataSet->scale = scale;                  
+                  _dataSets.insert(std::make_pair(setName, dataSet));
+                  _widget.addGraphData(dataSet);
+                }
             }
           else if ((found = dataString.find("%CSV:") == 0))
             {
@@ -100,8 +139,8 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
                   DataMap::iterator setIter = _dataSets.find(*tokIter);
                   if (setIter != _dataSets.end())
                     _csv.elements
-                      .push_back(CSVData<double>::Element(*tokIter,
-                                                          setIter->second));
+                      .push_back(CSVData::Element(*tokIter,
+                                                  setIter->second));
                 }
             }
         }
@@ -119,25 +158,20 @@ bool StapParser::ioCallback(Glib::IOCondition ioCondition)
                    tokIter != e;
                    ++tokIter, ++i)
                 {
-                  std::istringstream stream(*tokIter);
-                  double data;
-                  stream >>  data;
-                  _csv.elements[i].second->times.push_back(time);
-                  _csv.elements[i].second->data.push_back(data);
+                  parseData(_csv.elements[i].second, time, *tokIter);
                 }
             }
           else
             {
               std::string dataSet;
               double time;
-              double data;
+              string data;
               std::istringstream stream(dataString);
               stream >> dataSet >> time >> data;
               DataMap::iterator itr = _dataSets.find(dataSet);
               if (itr != _dataSets.end())
                 {
-                  itr->second->times.push_back(time);
-                  itr->second->data.push_back(data);
+                  parseData(itr->second, time, data);
                 }
             }
         }

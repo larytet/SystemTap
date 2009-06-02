@@ -9,6 +9,7 @@ namespace systemtap
 {
   struct GraphDataBase
   {
+    virtual ~GraphDataBase() {}
     enum Style
       { BAR,
         DOT,
@@ -34,10 +35,9 @@ namespace systemtap
     typedef std::vector<data_type> DataList;
     DataList data;
   };
-  template<typename T>
   struct CSVData
   {
-    typedef std::pair<std::string, std::tr1::shared_ptr<GraphData<T> > >
+    typedef std::pair<std::string, std::tr1::shared_ptr<GraphDataBase> >
     Element;
     std::vector<Element> elements;
   };

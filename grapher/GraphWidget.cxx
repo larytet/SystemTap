@@ -2,6 +2,7 @@
 #include <ctime>
 #include <math.h>
 #include <sstream>
+#include <iostream>
 #include <iomanip>
 #include <cairomm/context.h>
 #include "GraphWidget.hxx"
@@ -9,6 +10,8 @@
 
 namespace systemtap
 {
+  using std::string;
+  
   GraphWidget::GraphWidget()
     : _left(0.0), _right(1.0), _top(1.0), _bottom(0.0), _lineWidth(10),
       _autoScaling(true), _autoScrolling(true), _zoomFactor(1.0),
@@ -148,8 +151,10 @@ namespace systemtap
          itr != e;
          ++itr)
       {
-        GraphData<double>* realData =
-          static_cast<GraphData<double>*>(itr->get());
+        std::tr1::shared_ptr<GraphData<double> > realData
+          = std::tr1::dynamic_pointer_cast<GraphData<double> >(*itr);
+        std::tr1::shared_ptr<GraphData<string> > stringData
+          = std::tr1::dynamic_pointer_cast<GraphData<string> >(*itr);
         cr->save();
         cr->translate(0.0, height);
         cr->scale(1.0, -1.0);
@@ -158,6 +163,19 @@ namespace systemtap
         GraphDataBase::TimeList::iterator upper
           = std::upper_bound((*itr)->times.begin(), (*itr)->times.end(),
                              _right);
+        // event bar
+        if ((*itr)->style == GraphDataBase::EVENT)
+        {
+          double eventHeight = height * ((*itr)->scale / 100.0);
+          cr->save();
+          cr->set_line_width(3 * _lineWidth);
+          cr->set_source_rgba((*itr)->color[0], (*itr)->color[1],
+                              (*itr)->color[2], .33);
+          cr->move_to(0, eventHeight);
+          cr->line_to(width, eventHeight);
+          cr->stroke();
+          cr->restore();
+        }
         for (GraphDataBase::TimeList::iterator ditr = lower, de = upper;
              ditr != de;
              ++ditr)
@@ -165,19 +183,38 @@ namespace systemtap
             size_t dataIndex = ditr - (*itr)->times.begin();
             cr->set_source_rgba((*itr)->color[0], (*itr)->color[1],
                                 (*itr)->color[2], 1.0);
-            if ((*itr)->style == GraphDataBase::BAR)
+            if ((*itr)->style == GraphDataBase::BAR && realData)
               {
                 cr->move_to((*ditr - _left) * horizScale, 0);
                 cr->line_to((*ditr - _left) * horizScale,
                             realData->data[dataIndex] * height / (*itr)->scale);
                 cr->stroke();
               }
-            else
+            else if ((*itr)->style == GraphDataBase::DOT && realData)
               {
                 cr->arc((*ditr - _left) * horizScale,
                         realData->data[dataIndex] * height / (*itr)->scale,
                         _lineWidth / 2.0, 0.0, M_PI * 2.0);
                 cr->fill();
+              }
+            else if ((*itr)->style == GraphDataBase::EVENT && stringData)
+              {
+                double eventHeight = height * ((*itr)->scale / 100.0);
+                cr->save();
+                cr->select_font_face("Sans", Cairo::FONT_SLANT_NORMAL,
+                                     Cairo::FONT_WEIGHT_NORMAL);
+                cr->set_font_size(12.0);
+                cr->save();
+                cr->scale(1.0, -1.0);
+                cr->move_to((*ditr - _left) * horizScale,
+                            -eventHeight -3.0 * _lineWidth - 2.0);
+                cr->show_text(stringData->data[dataIndex]);
+                cr->restore();
+                cr->rectangle((*ditr - _left) * horizScale - 1.5 * _lineWidth,
+                              eventHeight - 1.5 * _lineWidth,
+                              3.0 * _lineWidth, 3.0 * _lineWidth);
+                cr->fill();
+                cr->restore();
               }
           }
         cr->restore();
