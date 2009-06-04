@@ -262,7 +262,7 @@ namespace systemtap
     cr->move_to(20.0, height);
     cr->line_to(graphWidth, height);
     cr->stroke();
-    std::vector<double> dash(1);
+    std::valarray<double> dash(1);
     dash[0] = height / 10;
     cr->set_dash(dash, 0);
     double prevTextAdvance = 0;
