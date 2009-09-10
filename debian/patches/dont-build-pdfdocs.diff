@@ -1,7 +1,8 @@
-diff -ruN src-old/configure.ac src/configure.ac
---- src-old/configure.ac	2009-05-23 16:31:32.258967327 +0200
-+++ src/configure.ac	2009-05-23 16:37:34.688932959 +0200
-@@ -188,38 +188,38 @@
+Index: systemtap/configure.ac
+===================================================================
+--- systemtap.orig/configure.ac	2009-09-11 00:17:30.569710756 +0200
++++ systemtap/configure.ac	2009-09-11 00:17:37.053039799 +0200
+@@ -195,38 +195,38 @@
  if test "$building_docs" == "no" -a "$enable_refdocs" == "yes" ; then
     AC_MSG_ERROR([must use --enable-docs with --enable-refdocs])
  fi

@@ -1,9 +1,10 @@
-diff -ruN src-old/configure.ac src/configure.ac
---- src-old/configure.ac	2006-11-11 17:46:20.000000000 +0100
-+++ src/configure.ac	2006-11-11 17:47:16.000000000 +0100
-@@ -112,12 +112,13 @@
- AC_DEFINE_UNQUOTED(DATE, "$date", [Configuration/build date])
- AC_SUBST(DATE, "$date")
+Index: systemtap/configure.ac
+===================================================================
+--- systemtap.orig/configure.ac	2009-09-11 00:15:50.400587290 +0200
++++ systemtap/configure.ac	2009-09-11 00:17:18.956372518 +0200
+@@ -523,12 +523,13 @@
+ # userspace might be 32-bit default, but staprun needs to be
+ # 64-bit.  See also bug #4037.
  
 -processor=`uname -p`
 -case "$processor" in
@@ -20,4 +21,4 @@ diff -ruN src-old/configure.ac src/configure.ac
 +PROCFLAGS=""
  AC_SUBST([PROCFLAGS])
  
- AC_CONFIG_HEADERS([config.h:config.in])
+ # Use tr1/unordered_map if available

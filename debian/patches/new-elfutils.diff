@@ -1,7 +1,8 @@
-diff -ruN src-old/configure.ac src/configure.ac
---- src-old/configure.ac	2009-05-03 02:06:31.223579947 +0200
-+++ src/configure.ac	2009-05-03 02:08:28.843323304 +0200
-@@ -283,11 +283,11 @@
+Index: systemtap/configure.ac
+===================================================================
+--- systemtap.orig/configure.ac	2009-09-11 00:17:37.053039799 +0200
++++ systemtap/configure.ac	2009-09-11 00:17:57.667214082 +0200
+@@ -498,11 +498,11 @@
    save_LIBS="$LIBS"
    AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
      AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],

@@ -1,7 +1,8 @@
-diff -ruN src-old/configure.ac src/configure.ac
---- src-old/configure.ac	2009-01-11 16:32:23.290191000 +0100
-+++ src/configure.ac	2009-01-11 16:36:53.532676423 +0100
-@@ -151,19 +151,19 @@
+Index: systemtap/configure.ac
+===================================================================
+--- systemtap.orig/configure.ac	2009-09-11 00:17:18.956372518 +0200
++++ systemtap/configure.ac	2009-09-11 00:17:30.569710756 +0200
+@@ -168,19 +168,19 @@
      [enable building documentation (default on if latex etc. found).]),
    [enable_docs=$enableval],
    [enable_docs="check"])
@@ -34,9 +35,10 @@ diff -ruN src-old/configure.ac src/configure.ac
     building_docs="yes"
  fi
  AM_CONDITIONAL([BUILD_DOCS], [test "$building_docs" == "yes"])
-diff -ruN src-old/doc/langref.tex src/doc/langref.tex
---- src-old/doc/langref.tex	2009-01-10 15:27:03.000000000 +0100
-+++ src/doc/langref.tex	2009-01-11 16:32:23.430191992 +0100
+Index: systemtap/doc/langref.tex
+===================================================================
+--- systemtap.orig/doc/langref.tex	2009-09-11 00:15:49.967260925 +0200
++++ systemtap/doc/langref.tex	2009-09-11 00:17:30.569710756 +0200
 @@ -10,6 +10,7 @@
  \usepackage{makeidx}
  \usepackage{verbatim}
@@ -45,9 +47,10 @@ diff -ruN src-old/doc/langref.tex src/doc/langref.tex
  \makeindex
  
  \makeatletter
-diff -ruN src-old/doc/Makefile.am src/doc/Makefile.am
---- src-old/doc/Makefile.am	2009-01-10 15:27:03.000000000 +0100
-+++ src/doc/Makefile.am	2009-01-11 16:32:23.430191992 +0100
+Index: systemtap/doc/Makefile.am
+===================================================================
+--- systemtap.orig/doc/Makefile.am	2009-09-11 00:15:49.980546479 +0200
++++ systemtap/doc/Makefile.am	2009-09-11 00:17:30.569710756 +0200
 @@ -22,20 +22,14 @@
  	done
  endif
@@ -75,9 +78,10 @@ diff -ruN src-old/doc/Makefile.am src/doc/Makefile.am
 +	pdflatex -output-directory=$$pwd $<; \
 +	pdflatex -output-directory=$$pwd $<
  
-diff -ruN src-old/doc/tutorial.tex src/doc/tutorial.tex
---- src-old/doc/tutorial.tex	2009-01-10 15:27:03.000000000 +0100
-+++ src/doc/tutorial.tex	2009-01-11 16:32:23.430191992 +0100
+Index: systemtap/doc/tutorial.tex
+===================================================================
+--- systemtap.orig/doc/tutorial.tex	2009-09-11 00:15:50.023883086 +0200
++++ systemtap/doc/tutorial.tex	2009-09-11 00:17:30.569710756 +0200
 @@ -5,7 +5,7 @@
  % later version.
  

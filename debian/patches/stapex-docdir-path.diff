@@ -1,12 +1,13 @@
-diff -ruN src-old/stapex.3stap.in src/stapex.3stap.in
---- src-old/stapex.3stap.in	2007-03-04 20:38:20.000000000 +0100
-+++ src/stapex.3stap.in	2007-08-28 15:59:54.000000000 +0200
-@@ -109,7 +109,7 @@
- .ESAMPLE
+Index: systemtap/stapex.3stap.in
+===================================================================
+--- systemtap.orig/stapex.3stap.in	2009-09-11 00:15:50.180550261 +0200
++++ systemtap/stapex.3stap.in	2009-09-11 00:17:26.119705143 +0200
+@@ -119,7 +119,7 @@
+ it is ordinarily run.
  
  .SH SEE ALSO
 -.BR @prefix@/doc/systemtap*/examples
 +.BR /usr/share/doc/systemtap\-doc/examples
  .IR stap (1)
- .IR stapprobes (5)
- .IR stapfuncs (5)
+ .IR stapprobes (3stap)
+ .IR stapfuncs (3stap)
