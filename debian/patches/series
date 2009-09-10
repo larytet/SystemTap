@@ -7,3 +7,4 @@ vim-filetype-override.diff
 new-elfutils.diff
 stap-env.diff
 grapher-libs.diff
+docs-clean.diff

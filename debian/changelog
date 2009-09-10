@@ -8,8 +8,10 @@ systemtap (0.9.9+0git20090910-1) experimental; urgency=low
     - configure-quot.diff - applied upstream
     - arm-nop.diff - applied upstream 
   * Remove autotools generated files in clean target
+  * New patches:
+    - docs-clean.diff - remove generated files during clean
 
- -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 00:40:38 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 01:21:16 +0200
 
 systemtap (0.9.9-5) unstable; urgency=low
 

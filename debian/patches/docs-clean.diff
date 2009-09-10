@@ -1,0 +1,12 @@
+diff --git a/doc/SystemTap_Tapset_Reference/Makefile.am b/doc/SystemTap_Tapset_Reference/Makefile.am
+index 30c4ffe..4adba34 100644
+--- a/doc/SystemTap_Tapset_Reference/Makefile.am
++++ b/doc/SystemTap_Tapset_Reference/Makefile.am
+@@ -57,3 +57,7 @@ endif
+ 	$(MKDIR_P)  $(HTML_INSTALL_DIR)
+ 	$(INSTALL_DATA) tapsets/* $(HTML_INSTALL_DIR)
+ endif
++
++CLEANFILES=tapsets.xml stamp-* $(PDFDOCS)
++clean-local:
++	rm -rf man3 tapsets
