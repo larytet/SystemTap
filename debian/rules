@@ -3,12 +3,13 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-include /usr/share/dbs/dbs-build.mk
-ifeq (,$(DEB_BUILD_GNU_TYPE))
-  include /usr/share/dbs/dpkg-arch.mk
+include /usr/share/quilt/quilt.make
+
+ifeq (,$(DEB_HOST_GNU_TYPE))
+	DEB_HOST_GNU_TYPE = $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 endif
-ifeq (,$(DEB_HOST_ARCH))
-  DEB_HOST_ARCH = $(shell dpkg-architecture -qDEB_HOST_ARCH)
+ifeq (,$(DEB_BUILD_GNU_TYPE))
+	DEB_HOST_GNU_TYPE = $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 endif
 
 CFLAGS = -Wall -g -D_GNU_SOURCE
@@ -37,23 +38,22 @@ CONF_FLAGS = --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=
 patch: $(patched)
 
 build: build-stamp
-build-stamp: $(patched)
+build-stamp: $(QUILT_STAMPFN)
 	dh build --before dh_auto_configure
-	cd $(BUILD_TREE) && AUTOMAKE=automake-1.11 ACLOCAL=aclocal-1.11 autoreconf -fiv
-	cd $(BUILD_TREE) && CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ./configure $(CONF_FLAGS)
-	cd $(BUILD_TREE) && $(MAKE)
+	AUTOMAKE=automake-1.11 ACLOCAL=aclocal-1.11 autoreconf -fiv
+	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ./configure $(CONF_FLAGS)
+	$(MAKE)
 	dh build --after dh_auto_test
 	touch build-stamp
 
-clean:
+clean: unpatch
 	dh clean
-	rm -rf $(STAMP_DIR) $(SOURCE_DIR)
 
 install: install-stamp
 install-stamp: build-stamp
 	dh install --before dh_auto_install
 
-	cd $(BUILD_TREE) && $(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
 	rm -r debian/tmp/usr/share/systemtap/tapset/test
 
 	# Those files do not realy belong there
@@ -76,10 +76,10 @@ install-stamp: build-stamp
 	install -d $(VIM_ADIR)/syntax
 	install -d $(VIM_ADIR)/indent
 	install -d $(VIM_ADIR)/ftplugin
-	cp $(BUILD_TREE)/vim/filetype.vim $(VIM_ADIR)/ftdetect/stap.vim
-	cp $(BUILD_TREE)/vim/syntax/stap.vim $(VIM_ADIR)/syntax/stap.vim
-	cp $(BUILD_TREE)/vim/indent/stap.vim $(VIM_ADIR)/indent/stap.vim
-	cp $(BUILD_TREE)/vim/ftplugin/stap.vim $(VIM_ADIR)/ftplugin/stap.vim
+	cp vim/filetype.vim $(VIM_ADIR)/ftdetect/stap.vim
+	cp vim/syntax/stap.vim $(VIM_ADIR)/syntax/stap.vim
+	cp vim/indent/stap.vim $(VIM_ADIR)/indent/stap.vim
+	cp vim/ftplugin/stap.vim $(VIM_ADIR)/ftplugin/stap.vim
 	install -d $(VIM_RDIR)
 	cp $(CURDIR)/debian/systemtap.yaml $(VIM_RDIR)/
 
@@ -95,4 +95,4 @@ binary-arch binary-indep: install
 
 binary: binary-indep binary-arch
 
-.PHONY: build clean binary-indep binary-arch binary install patch
+.PHONY: build clean binary-indep binary-arch binary install
