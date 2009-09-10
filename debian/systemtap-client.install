@@ -1,0 +1,5 @@
+usr/bin/stap-client
+usr/bin/stap-find-servers
+usr/bin/stap-client-connect
+usr/share/man/man8/stap-client.8
+usr/bin/stap-env usr/share/systemtap/

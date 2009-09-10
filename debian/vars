@@ -1,0 +1,2 @@
+STRIP_LEVEL=1
+TAR_DIR=systemtap-*

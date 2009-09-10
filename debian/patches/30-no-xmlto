@@ -1,0 +1,33 @@
+diff -ruN src-old/doc/SystemTap_Tapset_Reference/Makefile.am src/doc/SystemTap_Tapset_Reference/Makefile.am
+--- src-old/doc/SystemTap_Tapset_Reference/Makefile.am	2009-05-03 02:02:18.723616203 +0200
++++ src/doc/SystemTap_Tapset_Reference/Makefile.am	2009-05-03 02:13:12.126051597 +0200
+@@ -18,6 +18,9 @@
+ SRCTREE=$(abs_top_srcdir)/
+ DOCPROC=$(abs_builddir)/docproc
+ 
++DOCBOOK_MAN = /usr/share/xml/docbook/stylesheet/docbook-xsl/manpages/docbook.xsl
++DOCBOOK_HTML = /usr/share/xml/docbook/stylesheet/docbook-xsl/html/chunk.xsl
++
+ if BUILD_REFDOCS
+ all: stamp-htmldocs stamp-mandocs
+ tapsets.xml: docproc $(shell find $(SRCTREE) -name '*.stp')
+@@ -29,7 +32,8 @@
+ 	fi
+ 
+ stamp-htmldocs: tapsets.xml
+-	xmlto html -o tapsets tapsets.xml
++	$(MKDIR_P) tapsets
++	xsltproc -o tapsets/ --nonet $(DOCBOOK_HTML) tapsets.xml
+ 	touch stamp-htmldocs
+ 
+ # bump up the allocated space so "xmlto pdf" works
+@@ -37,7 +41,8 @@
+ 	env pool_size=2000000 hash_extra=2000000 xmlto pdf tapsets.xml
+ 
+ stamp-mandocs: tapsets.xml
+-	xmlto man -o man3 tapsets.xml
++	$(MKDIR_P) man3
++	xsltproc --stringparam man.copyright.section.enabled 0 -o man3/ --nonet $(DOCBOOK_MAN) tapsets.xml
+ 	touch stamp-mandocs
+ 
+ #FIXME need to figure out where to install things appropriately

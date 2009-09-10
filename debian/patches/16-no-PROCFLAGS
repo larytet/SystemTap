@@ -1,0 +1,23 @@
+diff -ruN src-old/configure.ac src/configure.ac
+--- src-old/configure.ac	2006-11-11 17:46:20.000000000 +0100
++++ src/configure.ac	2006-11-11 17:47:16.000000000 +0100
+@@ -112,12 +112,13 @@
+ AC_DEFINE_UNQUOTED(DATE, "$date", [Configuration/build date])
+ AC_SUBST(DATE, "$date")
+ 
+-processor=`uname -p`
+-case "$processor" in
+-ppc64) PROCFLAGS=-m64 ;;
+-x86_64) PROCFLAGS=-m64 ;;
+-*) PROCFLAGS=""
+-esac
++#processor=`uname -p`
++#case "$processor" in
++#ppc64) PROCFLAGS=-m64 ;;
++#x86_64) PROCFLAGS=-m64 ;;
++#*) PROCFLAGS=""
++#esac
++PROCFLAGS=""
+ AC_SUBST([PROCFLAGS])
+ 
+ AC_CONFIG_HEADERS([config.h:config.in])

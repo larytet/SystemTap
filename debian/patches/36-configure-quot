@@ -1,0 +1,12 @@
+diff -ruN systemtap-0.9.9-old/configure.ac systemtap-0.9.9/configure.ac
+--- systemtap-0.9.9-old/configure.ac	2009-08-07 16:26:51.749403402 +0200
++++ systemtap-0.9.9/configure.ac	2009-08-07 16:27:27.839380119 +0200
+@@ -298,7 +298,7 @@
+ 
+ AC_ARG_WITH([rpm],
+   [AS_HELP_STRING([--with-rpm],
+-                  [query rpm database for missing debuginfos [yes/no, def. auto=librpm.so]])], [], [with_rpm="auto"])
++                  [query rpm database for missing debuginfos @<:@yes/no, def. auto=librpm.so@:>@])], [], [with_rpm="auto"])
+ 
+ m4_pattern_allow([^AC_MSG_ERROR$])
+ m4_pattern_allow([^AC_MSG_WARN$])

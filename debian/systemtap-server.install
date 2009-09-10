@@ -1,0 +1,10 @@
+usr/bin/stap-server
+usr/bin/stap-serverd
+usr/bin/stap-start-server
+usr/bin/stap-find-or-start-server
+usr/bin/stap-stop-server
+usr/bin/stap-gen-cert
+usr/bin/stap-authorize-cert
+usr/bin/stap-authorize-server-cert
+usr/bin/stap-server-connect
+# TODO stap-env

@@ -1,0 +1,117 @@
+diff -ruN src-old/stap-authorize-server-cert src/stap-authorize-server-cert
+--- src-old/stap-authorize-server-cert	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-authorize-server-cert	2009-05-26 21:42:13.900889129 +0200
+@@ -11,7 +11,7 @@
+ # later version.
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ certfile=$1
+ certdb=$2
+diff -ruN src-old/stap-authorize-signing-cert src/stap-authorize-signing-cert
+--- src-old/stap-authorize-signing-cert	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-authorize-signing-cert	2009-05-26 21:42:31.618304314 +0200
+@@ -11,7 +11,7 @@
+ # later version.
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ certfile=$1
+ certdb=$2
+diff -ruN src-old/stap-client src/stap-client
+--- src-old/stap-client	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-client	2009-05-26 21:42:44.116828762 +0200
+@@ -22,7 +22,7 @@
+ trap 'ignore_signal' SIGHUP SIGPIPE
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ #-----------------------------------------------------------------------------
+ # Helper functions.
+diff -ruN src-old/stap-env src/stap-env
+--- src-old/stap-env	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-env	2009-05-26 21:48:30.339993779 +0200
+@@ -1,5 +1,3 @@
+-#!/bin/bash
+-
+ # Generate a certificate for the systemtap server and add it to the
+ # database of trusted servers for the client.
+ #
+diff -ruN src-old/stap-find-or-start-server src/stap-find-or-start-server
+--- src-old/stap-find-or-start-server	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-find-or-start-server	2009-05-26 21:43:01.368199114 +0200
+@@ -18,7 +18,7 @@
+ # Otherwise, it echoes -1
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ # Is there a server available?
+ ${stap_exec_prefix}stap-find-servers >/dev/null 2>&1 && echo 0 && exit 0
+diff -ruN src-old/stap-find-servers src/stap-find-servers
+--- src-old/stap-find-servers	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-find-servers	2009-05-26 21:43:16.463358788 +0200
+@@ -13,7 +13,7 @@
+ # network. Information about each server found is printed to stdout.
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ #-----------------------------------------------------------------------------
+ # Helper functions.
+diff -ruN src-old/stap-gen-cert src/stap-gen-cert
+--- src-old/stap-gen-cert	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-gen-cert	2009-05-26 21:43:31.053347196 +0200
+@@ -11,7 +11,7 @@
+ # later version.
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ # Obtain a password from stdin and echo it.
+ function user_enter_password
+diff -ruN src-old/stap-server src/stap-server
+--- src-old/stap-server	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-server	2009-05-26 21:43:44.650086914 +0200
+@@ -17,7 +17,7 @@
+ trap 'terminate' SIGTERM SIGINT
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ #-----------------------------------------------------------------------------
+ # Helper functions.
+diff -ruN src-old/stap-serverd src/stap-serverd
+--- src-old/stap-serverd	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-serverd	2009-05-26 21:43:54.794558467 +0200
+@@ -17,7 +17,7 @@
+ trap 'terminate' SIGTERM SIGINT
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ #-----------------------------------------------------------------------------
+ # Helper functions.
+diff -ruN src-old/stap-start-server src/stap-start-server
+--- src-old/stap-start-server	2009-05-23 16:27:03.000000000 +0200
++++ src/stap-start-server	2009-05-26 21:44:09.076687882 +0200
+@@ -13,7 +13,7 @@
+ # process id, if successful.
+ 
+ # Initialize the environment
+-. `dirname $0`/stap-env
++. /usr/share/systemtap/stap-env
+ 
+ # start the server
+ ${stap_exec_prefix}stap-serverd "$@" </dev/null >/dev/null 2>&1 &

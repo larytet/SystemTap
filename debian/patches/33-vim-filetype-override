@@ -1,0 +1,10 @@
+diff -ruN src-old/vim/filetype.vim src/vim/filetype.vim
+--- src-old/vim/filetype.vim	2009-01-24 15:27:07.000000000 +0100
++++ src/vim/filetype.vim	2009-01-25 01:55:06.721589352 +0100
+@@ -6,5 +6,5 @@
+ "   It would be nice to find a way to intelligently detect this.
+ 
+ " SystemTap scripts
+-au BufNewFile,BufRead *.stp			setf stap
++au BufNewFile,BufRead *.stp			set ft=stap
+ 

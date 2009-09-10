@@ -1,0 +1,3 @@
+build-tree/systemtap-*/HACKING
+build-tree/systemtap-*/INTERNALS
+build-tree/systemtap-*/tapset/DEVGUIDE

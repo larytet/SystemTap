@@ -1,0 +1,98 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+include /usr/share/dbs/dbs-build.mk
+ifeq (,$(DEB_BUILD_GNU_TYPE))
+  include /usr/share/dbs/dpkg-arch.mk
+endif
+ifeq (,$(DEB_HOST_ARCH))
+  DEB_HOST_ARCH = $(shell dpkg-architecture -qDEB_HOST_ARCH)
+endif
+
+CFLAGS = -Wall -g -D_GNU_SOURCE
+
+ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -O0
+else
+	CFLAGS += -O2
+endif
+
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	MAKEFLAGS += -j$(NUMJOBS)
+endif
+
+VIM_ADIR = $(CURDIR)/debian/tmp/usr/share/vim/addons
+VIM_RDIR = $(CURDIR)/debian/tmp/usr/share/vim/registry
+
+CONF_FLAGS = --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr \
+	     --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info \
+	     --libdir=\$${prefix}/lib --libexecdir=\$${prefix}/lib --enable-sqlite \
+	     --disable-crash --enable-docs --disable-pie --enable-refdocs \
+	     --enable-server --enable-grapher --sysconfdir=/etc --without-rpm \
+	     --enable-translator
+
+patch: $(patched)
+
+build: build-stamp
+build-stamp: $(patched)
+	dh build --before dh_auto_configure
+	cd $(BUILD_TREE) && AUTOMAKE=automake-1.11 ACLOCAL=aclocal-1.11 autoreconf -fiv
+	cd $(BUILD_TREE) && CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ./configure $(CONF_FLAGS)
+	cd $(BUILD_TREE) && $(MAKE)
+	dh build --after dh_auto_test
+	touch build-stamp
+
+clean:
+	dh clean
+	rm -rf $(STAMP_DIR) $(SOURCE_DIR)
+
+install: install-stamp
+install-stamp: build-stamp
+	dh install --before dh_auto_install
+
+	cd $(BUILD_TREE) && $(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
+	rm -r debian/tmp/usr/share/systemtap/tapset/test
+
+	# Those files do not realy belong there
+	rm debian/tmp/usr/share/doc/systemtap/examples/README
+	rm debian/tmp/usr/share/doc/systemtap/examples/html/*.tmpl
+
+	# make sure that all examples are executable (except tutorial)
+	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp \! -executable -print -exec chmod +x "{}" \;
+	
+	# This file should got into both client and server package
+	# But -server depends on -client
+	mv debian/tmp/usr/share/man/man8/stap-server.8 debian/tmp/usr/share/man/man8/stap-client.8
+	# This file does not document stap-server binary, so let's rename it
+	# mv debian/tmp/usr/share/man/man8/stap-server.8 debian/tmp/usr/share/man/man8/stap-start-server.8
+	# This is not really an executable
+	chmod -x debian/tmp/usr/bin/stap-env
+
+	# Install vim files
+	install -d $(VIM_ADIR)/ftdetect
+	install -d $(VIM_ADIR)/syntax
+	install -d $(VIM_ADIR)/indent
+	install -d $(VIM_ADIR)/ftplugin
+	cp $(BUILD_TREE)/vim/filetype.vim $(VIM_ADIR)/ftdetect/stap.vim
+	cp $(BUILD_TREE)/vim/syntax/stap.vim $(VIM_ADIR)/syntax/stap.vim
+	cp $(BUILD_TREE)/vim/indent/stap.vim $(VIM_ADIR)/indent/stap.vim
+	cp $(BUILD_TREE)/vim/ftplugin/stap.vim $(VIM_ADIR)/ftplugin/stap.vim
+	install -d $(VIM_RDIR)
+	cp $(CURDIR)/debian/systemtap.yaml $(VIM_RDIR)/
+
+	dh install --after dh_auto_install --before dh_compress
+	dh_compress -X.stp -X.wav -Xsocktop -Xsyscalltimes -X.pdf
+	dh install --until dh_fixperms
+	chmod 4755 debian/systemtap-runtime/usr/bin/staprun
+	dh install --after dh_fixperms
+	touch install-stamp
+
+binary-arch binary-indep: install
+	dh $@
+
+binary: binary-indep binary-arch
+
+.PHONY: build clean binary-indep binary-arch binary install patch

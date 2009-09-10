@@ -1,0 +1,4 @@
+usr/share/man/man8/stap-client.8.gz usr/share/man/man8/stap-start-server.8.gz
+usr/share/man/man8/stap-client.8.gz usr/share/man/man8/stap-stop-server.8.gz
+usr/share/man/man8/stap-client.8.gz usr/share/man/man8/stap-authorize-server-cert.8.gz
+usr/share/man/man8/stap-client.8.gz usr/share/man/man8/stap-find-or-start-server.8.gz

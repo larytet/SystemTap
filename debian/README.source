@@ -1,0 +1,23 @@
+This package uses dbs (package name 'dbs') for patch management.  All patches
+are stored under debian/patches directory. They can be applied using the
+following command:
+   
+   % debian/rules patch
+
+Patches can be edited using the following command:
+
+   % dbs-edit-patch <patch name>
+
+<patch name> should not include path name. After this command a directory with
+the same name will be created under /tmp. You can then edit subdirectory 'src'.
+After making changes run script dbs-update-patch (in patch subdirectory, under
+/tmp) to update the patch. If patch with given name does not exist yet, it will
+be created.
+
+NOTE: dbs applies patches in alphanumerical order, so it is better to start
+patch names with a number.
+
+To disable some patches just remove them or move away from debian/patches.
+
+Package can be updated to new upstream version using "uscan" from the
+'devscripts' package. Just run "uscan" in package source directory.

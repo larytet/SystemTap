@@ -1,0 +1,12 @@
+diff -ruN src-old/stapex.3stap.in src/stapex.3stap.in
+--- src-old/stapex.3stap.in	2007-03-04 20:38:20.000000000 +0100
++++ src/stapex.3stap.in	2007-08-28 15:59:54.000000000 +0200
+@@ -109,7 +109,7 @@
+ .ESAMPLE
+ 
+ .SH SEE ALSO
+-.BR @prefix@/doc/systemtap*/examples
++.BR /usr/share/doc/systemtap\-doc/examples
+ .IR stap (1)
+ .IR stapprobes (5)
+ .IR stapfuncs (5)

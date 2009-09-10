@@ -1,0 +1,18 @@
+diff -ruN src-old/configure.ac src/configure.ac
+--- src-old/configure.ac	2009-05-03 02:06:31.223579947 +0200
++++ src/configure.ac	2009-05-03 02:08:28.843323304 +0200
+@@ -283,11 +283,11 @@
+   save_LIBS="$LIBS"
+   AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
+     AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
+-    [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
++    [-ldw -lelf])
+   AC_CHECK_LIB(dw, dwarf_getelf,[],[
+     AC_MSG_ERROR([elfutils, libdw too old, need 0.126+])],
+-    [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
+-  stap_LIBS="-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
++    [-ldw -lelf])
++  stap_LIBS="-ldw -lelf"
+   LIBS="$save_LIBS"
+ else
+   # We built our own and stap_LDFLAGS points at the install.

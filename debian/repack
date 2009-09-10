@@ -1,0 +1,19 @@
+#! /bin/sh
+
+set -e
+
+if test ! $# = 3; then exit 1; fi
+
+new_version="$2"
+symlink="$3"
+
+tarball=`readlink "$symlink"`
+
+rm "$symlink"
+rm -rf "../systemtap-${new_version}"
+mkdir "../systemtap-${new_version}"
+mv "../$tarball" "../systemtap-${new_version}/"
+GZIP=-9 tar -czC ../ -f "../systemtap-${new_version}.tar.gz" "systemtap-${new_version}"
+rm -rf "../systemtap-${new_version}"
+
+uupdate -v "$new_version" "../systemtap-${new_version}.tar.gz"
