@@ -1,2 +1,2 @@
-build-tree/systemtap-*/doc/tutorial
-build-tree/systemtap-*/stap-report
+doc/tutorial
+stap-report
