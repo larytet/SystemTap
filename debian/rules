@@ -48,7 +48,7 @@ build-stamp: $(QUILT_STAMPFN)
 
 clean: unpatch
 	dh clean
-	find . -name configure -o -name aclocal.m4 -o -name Makefile.in -exec rm "{}" \;
+	find . \( -name configure -o -name aclocal.m4 -o -name Makefile.in \) -exec rm "{}" \;
 	rm -f config.in
 
 install: install-stamp
