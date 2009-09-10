@@ -9,4 +9,3 @@ stap-env.diff
 configure-quot.diff
 arm-nop.diff
 grapher-libs.diff
-relocatable-kernel-buildid.diff
