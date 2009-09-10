@@ -1,0 +1,146 @@
+// scsi tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe SCSI activities.  
+// </tapsetdescription>
+%{
+#include <linux/types.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_host.h>
+#include <linux/timer.h>
+#include <linux/blkdev.h>
+%}
+
+/**
+  * probe scsi.ioentry - Prepares a SCSI mid-layer request
+  * @disk_major: The major number of the disk (-1 if no information)
+  * @disk_minor: The minor number of the disk (-1 if no information)
+  * @device_state: The current state of the device.
+  */
+// FIXME describe the device_state
+probe scsi.ioentry
+	= module("scsi_mod").function("scsi_prep_fn@drivers/scsi/scsi_lib.c")!,
+	  kernel.function("scsi_prep_fn@drivers/scsi/scsi_lib.c")?
+{
+	if($req->rq_disk == 0)  {
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		disk_major = $req->rq_disk->major
+		disk_minor = $req->rq_disk->first_minor
+	}
+	device_state = get_devstate_from_req($q)
+	req_addr = $req
+}
+
+/**
+ * probe scsi.iodispatching - SCSI mid-layer dispatched low-level SCSI command
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device.
+ * @data_direction: The data_direction specifies whether this command is from/to the device.
+ *		0 (DMA_BIDIRECTIONAL), 1 (DMA_TO_DEVICE),
+ *		2 (DMA_FROM_DEVICE), 3 (DMA_NONE)
+ * @request_buffer: The request buffer address
+ * @req_bufflen: The request buffer length
+ */
+probe scsi.iodispatching
+	= module("scsi_mod").function("scsi_dispatch_cmd@drivers/scsi/scsi.c")!,
+	  kernel.function("scsi_dispatch_cmd@drivers/scsi/scsi.c")?
+{
+
+	host_no = $cmd->device->host->host_no
+	channel = $cmd->device->channel
+	lun = $cmd->device->lun
+	dev_id = $cmd->device->id
+	device_state = $cmd->device->sdev_state
+	data_direction = $cmd->sc_data_direction
+%( kernel_v >= "2.6.25" %?
+	request_buffer = $cmd->sdb->table->sgl
+	request_bufflen = $cmd->sdb->length
+%:
+	request_buffer = $cmd->request_buffer
+	request_bufflen = $cmd->request_bufflen
+%)
+	req_addr = $cmd->request
+}
+
+/**
+ * probe scsi.iodone - SCSI  command  completed by low level driver and enqueued into the done queue.
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device
+ * @data_direction: The data_direction specifies whether this command is
+ * 		from/to the device.
+ */
+probe scsi.iodone
+	= module("scsi_mod").function("scsi_done@drivers/scsi/scsi.c")!,
+	  kernel.function("scsi_done@drivers/scsi/scsi.c")?
+
+{
+	host_no = $cmd->device->host->host_no
+	channel = $cmd->device->channel
+	lun = $cmd->device->lun
+	dev_id = $cmd->device->id
+	device_state = $cmd->device->sdev_state
+	data_direction = $cmd->sc_data_direction
+	req_addr = $cmd->request
+	scsi_timer_pending = scsi_timer_pending($cmd);
+}
+
+/**
+ * probe scsi.iocompleted - SCSI mid-layer running the completion processing for block device I/O requests
+ * @host_no: The host number
+ * @channel: The channel number
+ * @lun: The lun number
+ * @dev_id: The scsi device id
+ * @device_state: The current state of the device
+ * @data_direction: The data_direction specifies whether this command is from/to
+ * 		the device
+ * @goodbytes: The bytes completed.
+ */
+// mid-layer processes the completed IO
+probe scsi.iocompleted
+	= module("scsi_mod").function("scsi_io_completion@drivers/scsi/scsi_lib.c")!,
+	  kernel.function("scsi_io_completion@drivers/scsi/scsi_lib.c")?
+{
+	host_no = $cmd->device->host->host_no
+	channel = $cmd->device->channel
+	lun = $cmd->device->lun
+	dev_id = $cmd->device->id
+	device_state = $cmd->device->sdev_state
+	data_direction = $cmd->sc_data_direction
+	req_addr = $cmd->request
+	goodbytes = $good_bytes
+}
+
+function scsi_timer_pending:long(var:long)
+%{ /* pure */
+        struct scsi_cmnd *cmd = (struct scsi_cmnd *)((long)THIS->var);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
+        THIS->__retvalue = timer_pending(&cmd->eh_timeout); /* FIXME: deref hazard! */
+#else 
+        struct request *req;
+        struct request_queue *rq;
+        req = (struct request *)kread(&cmd->request);
+        rq = (struct request_queue *)kread(&req->q);
+        THIS->__retvalue = timer_pending(&rq->timeout); /* FIXME: deref hazard! */
+        CATCH_DEREF_FAULT();
+#endif
+%}
+
+function get_devstate_from_req:long(var:long)
+{
+	sdev = @cast(var, "request_queue", "kernel:scsi_mod")->queuedata
+	return @cast(sdev, "scsi_device", "kernel:scsi_mod")->sdev_state
+}

@@ -1,0 +1,188 @@
+// Block I/O tapset
+// Copyright (C) 2006 Intel Corp.
+// Copyright (C) 2006 IBM Corp.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+%{
+#include <linux/bio.h>
+#include <linux/genhd.h>
+%}
+
+/* get i-node number of mapped file */
+function __bio_ino:long(bio:long)
+%{ /* pure */
+    struct bio *bio = (struct bio *)(long)THIS->bio;
+    struct page *bv_page = bio? kread(&(bio->bi_io_vec[0].bv_page)) : NULL;
+    struct address_space *mapping;
+    struct inode *host;
+    THIS->__retvalue = -1;
+    if (bv_page && !PageSlab(bv_page) && !PageSwapCache(bv_page)) {
+        mapping = kread(&(bv_page->mapping));
+        if (mapping && ((unsigned long)mapping & PAGE_MAPPING_ANON) == 0) {
+            host = kread(&(mapping->host));
+            if (host)
+                THIS->__retvalue = kread(&(host->i_ino));
+        }
+    }
+    CATCH_DEREF_FAULT();
+%}
+
+/* returns 0 for read, 1 for write */
+function bio_rw_num:long(rw:long)
+%{ /* pure */
+    long rw = (long)THIS->rw;
+    THIS->__retvalue = (rw & (1 << BIO_RW));
+%}
+
+/* returns R for read, W for write */
+function bio_rw_str(rw)
+{
+    return bio_rw_num(rw) == BIO_READ ? "R" : "W"
+}
+
+/* returns start sector */
+function __bio_start_sect:long(bio:long)
+%{ /* pure */
+    struct bio *bio;
+    struct block_device *bi_bdev;
+    struct hd_struct *bd_part;
+    bio = (struct bio *)(long)THIS->bio;
+    bi_bdev = bio? kread(&(bio->bi_bdev)) : NULL;
+    bd_part = bi_bdev? kread(&(bi_bdev->bd_part)) : NULL;
+    if (bd_part == NULL)
+        THIS->__retvalue = -1;
+    else
+        THIS->__retvalue = kread(&(bd_part->start_sect));
+    CATCH_DEREF_FAULT();
+%}
+
+/* returns the block device name */
+function __bio_devname:string(bio:long)
+%{ /* pure */
+    char b[BDEVNAME_SIZE];
+    struct bio *bio = (struct bio *)(long)THIS->bio;
+    struct block_device *bdev = kread(&(bio->bi_bdev));
+	if (bdev == NULL) {
+		strlcpy(THIS->__retvalue, "N/A", MAXSTRINGLEN);
+	} else {
+		const char *name = bdevname(bdev, b); /* FIXME: deref hazard! */
+		deref_string(THIS->__retvalue, name, MAXSTRINGLEN);
+	}
+	CATCH_DEREF_FAULT();
+%}
+
+global BIO_READ = 0, BIO_WRITE = 1
+
+
+/* probe ioblock.request
+ *
+ *  Fires whenever making a generic block I/O request.
+ *
+ * Context:
+ *  The process makes block I/O request
+ *
+ * Variables:
+ *  devname   - block device name
+ *  ino       - i-node number of the mapped file 
+ *  sector    - beginning sector for the entire bio 
+ *  flags     - see below 
+ *  	BIO_UPTODATE    0       ok after I/O completion
+ *  	BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ *  	BIO_EOF         2       out-out-bounds error
+ *  	BIO_SEG_VALID   3       nr_hw_seg valid 
+ *  	BIO_CLONED      4       doesn't own data
+ *  	BIO_BOUNCED     5       bio is a bounce bio
+ *  	BIO_USER_MAPPED 6       contains user pages
+ *  	BIO_EOPNOTSUPP  7       not supported
+ *  
+ *  rw        - binary trace for read/write request
+ *  vcnt      - bio vector count which represents number of array element (page, 
+ *              offset, length) which make up this I/O request
+ *  idx       - offset into the bio vector array
+ *  phys_segments - number of segments in this bio after physical address
+ *                  coalescing is performed.  
+ *  hw_segments -   number of segments after physical and DMA remapping
+ *              hardware coalescing is performed
+ *  size      - total size in bytes 
+ *  bdev      - target block device
+ *  bdev_contains - points to the device object which contains the
+ *                  partition (when bio structure represents a partition)
+ *  p_start_sect -  points to the start sector of the partition
+ *                  structure of the device
+ */
+probe ioblock.request = kernel.function ("generic_make_request")
+{
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        sector = $bio->bi_sector
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = $bio->bi_idx
+        phys_segments = $bio->bi_phys_segments
+%(kernel_v < "2.6.28" %?
+        hw_segments = $bio->bi_hw_segments
+%)
+        size = $bio->bi_size
+
+        bdev = $bio->bi_bdev
+        bdev_contains = $bio->bi_bdev->bd_contains
+        p_start_sect = __bio_start_sect($bio)
+}
+
+/* probe ioblock.end
+ *
+ *  Fires whenever a block I/O transfer is complete.
+ *
+ * Context:
+ *  The process signals the transfer is done.
+ *
+ * Variables:
+ *  devname   - block device name
+ *  ino       - i-node number of the mapped file
+ *  byte_done - number of bytes transferred 
+ *  sector    - beginning sector for the entire bio
+ *  flags     - see below
+ *      BIO_UPTODATE    0       ok after I/O completion
+ *      BIO_RW_BLOCK    1       RW_AHEAD set, and read/write would block
+ *      BIO_EOF         2       out-out-bounds error
+ *      BIO_SEG_VALID   3       nr_hw_seg valid
+ *      BIO_CLONED      4       doesn't own data
+ *      BIO_BOUNCED     5       bio is a bounce bio
+ *      BIO_USER_MAPPED 6       contains user pages
+ *      BIO_EOPNOTSUPP  7       not supported
+ *  error     - 0 on success
+ *  rw        - binary trace for read/write request 
+ *  vcnt      - bio vector count which represents number of array element (page,
+ *              offset, length) which makes up this I/O request
+ *  idx       - offset into the bio vector array
+ *  phys_segments - number of segments in this bio after physical address
+ *                  coalescing is performed.
+ *  hw_segments -   number of segments after physical and DMA remapping
+ *              hardware coalescing is performed
+ *  size      - total size in bytes 
+ */
+probe ioblock.end = kernel.function("bio_endio")
+{
+        devname = __bio_devname($bio)
+        ino = __bio_ino($bio)
+
+        bytes_done = %( kernel_vr < "2.6.24" %? $bytes_done %: $bio->bi_size %)
+        error = $error
+
+        sector = $bio->bi_sector
+        flags = $bio->bi_flags
+        rw = $bio->bi_rw
+        vcnt = $bio->bi_vcnt
+        idx = $bio->bi_idx
+        phys_segments = $bio->bi_phys_segments
+%(kernel_v < "2.6.28" %?
+        hw_segments = $bio->bi_hw_segments
+%)
+        size = $bio->bi_size
+}

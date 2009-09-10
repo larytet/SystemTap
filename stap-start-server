@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Start a systemtap server
+#
+# Copyright (C) 2008, 2009 Red Hat Inc.
+#
+# This file is part of systemtap, and is free software.  You can
+# redistribute it and/or modify it under the terms of the GNU General
+# Public License (GPL); either version 2, or (at your option) any
+# later version.
+
+# This script attempts to start a systemtap server and echoes the
+# process id, if successful.
+
+# Initialize the environment
+. `dirname $0`/stap-env
+startup_timeout=20
+
+# start the server
+${stap_exec_prefix}stap-serverd "$@" </dev/null >/dev/null 2>&1 &
+server_pid=$!
+
+# Make sure the server is started
+for ((attempt=0; $attempt < $startup_timeout; ++attempt))
+do
+    # Has the server started?
+    if ! (ps -e | grep $server_pid) >/dev/null 2>&1; then
+	sleep 1
+	continue
+    fi
+
+    # Is avahi advertizing the server?
+    if ! (ps -fe | grep avahi-publish-service | grep $server_pid) > /dev/null 2>&1; then
+	sleep 1
+	continue
+    fi
+
+    # The server is ready
+    echo $server_pid
+    exit 0
+done
+
+exit 1 # server did not start

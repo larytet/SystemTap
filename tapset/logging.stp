@@ -1,0 +1,38 @@
+// logging tapset
+// Copyright (C) 2005, 2006, 2007 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+// send a string out with a newline
+// Deprecated.  print* functions are much more efficient.
+function log (msg:string) %{ /* unprivileged */
+	_stp_printf ("%s\n", THIS->msg);
+%}
+
+function warn (msg:string) %{ /* unprivileged */
+    _stp_warn ("%s", THIS->msg);
+%}
+
+// NB: exit() does *not* cause immediate return from current function/probe
+function exit () %{ /* unprivileged */
+    atomic_set (&session_state, STAP_SESSION_STOPPING);
+    _stp_exit ();
+%}
+
+function error (msg:string) %{ /* unprivileged */
+    /* This is an assignment of a local char[] to a global char*.
+       It would normally be just as unsafe as returning a pointer to
+       a local variable from a function.  However, the translated
+       code ensures that upon an error (last_error != NULL), the
+       context stack is only ever unwound, and not reused, before
+       the probe-level stp-error call.  */
+    CONTEXT->last_error = THIS->msg;
+    CONTEXT->last_stmt = NULL;
+%}
+
+function stp_print_binary(n:long, arg1:long, arg2:long, arg3:long, arg4:long) %{
+	_stp_print_binary (THIS->n, THIS->arg1, THIS->arg2, THIS->arg3, THIS->arg4);
+%}

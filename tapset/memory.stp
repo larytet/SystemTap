@@ -1,0 +1,197 @@
+// memory/vm related tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+// Copyright (C) 2006 Intel Corporation.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe memory-related events. 
+// </tapsetdescription>
+%{
+#include <linux/mm.h>
+%}
+
+global VM_FAULT_OOM=0, VM_FAULT_SIGBUS=1, VM_FAULT_MINOR=2, VM_FAULT_MAJOR=3
+global VM_FAULT_NOPAGE=4, VM_FAULT_LOCKED=5, VM_FAULT_ERROR=6
+global FAULT_FLAG_WRITE=1
+
+/**
+ * sfunction vm_fault_contains - Test return value for page fault reason
+ * @value: The fault_type returned by vm.page_fault.return
+ * @test: The type of fault to test for (VM_FAULT_OOM or similar)
+ */
+function vm_fault_contains:long (value:long, test:long)
+%{
+	int res;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+	switch (THIS->test){
+	case 0: res = THIS->value == VM_FAULT_OOM; break;
+	case 1: res = THIS->value == VM_FAULT_SIGBUS; break;
+	case 2: res = THIS->value == VM_FAULT_MINOR; break;
+	case 3: res = THIS->value == VM_FAULT_MAJOR; break;
+	default:
+		res = 0; break;
+	}
+#else
+	switch (THIS->test){
+	case 0: res = THIS->value & VM_FAULT_OOM; break;
+	case 1: res = THIS->value & VM_FAULT_SIGBUS; break;
+	case 2: /* VM_FAULT_MINOR infered by that flags off */
+		res = !((VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_MAJOR) & 
+				 THIS->value);
+		 break;
+	case 3: res = THIS->value & VM_FAULT_MAJOR; break;
+	case 4: res = THIS->value & VM_FAULT_NOPAGE; break;
+	case 5: res = THIS->value & VM_FAULT_LOCKED; break;
+	case 6: res = THIS->value & VM_FAULT_ERROR; break;
+	default:
+		res = 0;
+	}
+#endif
+	THIS->__retvalue = (res != 0);
+	return;
+%}
+
+/**
+ * probe vm.pagefault - Records that a page fault occurred.
+ * @address: The address of the faulting memory access; i.e. the address that caused the page fault.
+ * @write_access: Indicates whether this was a write or read access; <command>1</command> indicates a write, 
+ * while <command>0</command> indicates a read.
+ *
+ * Context: The process which triggered the fault
+ */
+probe vm.pagefault = kernel.function("__handle_mm_fault@mm/memory.c") ?,
+                     kernel.function("handle_mm_fault@mm/memory.c") ?
+{
+%( kernel_v >= "2.6.31" %?
+	write_access = $flags & FAULT_FLAG_WRITE
+%:
+	write_access = $write_access
+%)
+	address =  $address
+}
+
+/**
+ * probe vm.pagefault.return - Indicates what type of fault occurred.
+ * @fault_type: Returns either 
+ * <command>0</command> (VM_FAULT_OOM) for out of memory faults, 
+ * <command>2</command> (VM_FAULT_MINOR) for minor faults, <command>3</command> (VM_FAULT_MAJOR) for 
+ * major faults, or <command>1</command> (VM_FAULT_SIGBUS) if the fault was neither OOM, minor fault, 
+ * nor major fault.
+ */
+probe vm.pagefault.return = kernel.function("__handle_mm_fault@mm/memory.c").return ?,
+                            kernel.function("handle_mm_fault@mm/memory.c").return ?
+{
+	fault_type = $return
+}
+
+/**
+ * sfunction addr_to_node - Returns which node a given address belongs to within a NUMA system.
+ * @addr: The address of the faulting memory access.
+ *
+ */
+function addr_to_node:long(addr:long) %{ /* pure */ 
+	int nid;
+	int pfn = __pa(THIS->addr) >> PAGE_SHIFT;
+	for_each_online_node(nid)
+		if ( NODE_DATA(nid)->node_start_pfn <= pfn &&
+			pfn < (NODE_DATA(nid)->node_start_pfn +
+			NODE_DATA(nid)->node_spanned_pages) )
+		{
+			THIS->__retvalue = nid;
+			break;
+		}
+%}
+
+// Return whether a page to be copied is a zero page.
+function _IS_ZERO_PAGE:long(from:long, vaddr:long) %{ /* pure */
+    THIS->__retvalue = (THIS->from == (long) ZERO_PAGE(THIS->vaddr));
+%}
+
+
+/**
+ * probe vm.write_shared - Attempts at writing to a shared page.
+ * @address: The address of the shared write.
+ *
+ * Context:
+ *  The context is the process attempting the write.
+ *
+ *  Fires when a process attempts to write to a shared page. 
+ *  If a copy is necessary, this will be followed by a 
+ *  <command>vm.write_shared_copy</command>.
+ */
+probe vm.write_shared = kernel.function("do_wp_page") {
+    address = $address
+}
+
+/**
+ * probe vm.write_shared_copy - Page copy for shared page write.
+ * @address: The address of the shared write.
+ * @zero: Boolean indicating whether it is a zero page
+ *         (can do a clear instead of a copy).
+ *
+ * Context:
+ *  The process attempting the write.
+ *
+ *  Fires when a write to a shared page requires a page copy.  This is
+ *  always preceded by a <command>vm.shared_write</command>.
+ */
+probe vm.write_shared_copy = kernel.function("copy_cow_page")? {
+    address = $address
+    zero = _IS_ZERO_PAGE($from, address);
+}
+
+
+/**
+ * probe vm.mmap - Fires when an <command>mmap</command> is requested.
+ * @address: The requested address
+ * @length: The length of the memory segment 
+ *
+ * Context:
+ *  The process calling <command>mmap</command>.
+ */
+probe vm.mmap = kernel.function("do_mmap"), kernel.function("do_mmap2")? {
+    address = $addr
+    length = $len
+}
+
+
+/**
+ * probe vm.munmap - Fires when an <command>munmap</command> is requested.
+ * @address: The requested address
+ * @length: The length of the memory segment 
+ *
+ * Context:
+ *  The process calling <command>munmap</command>.
+ */
+probe vm.munmap = kernel.function("do_munmap") {
+    address = $start
+    length = $len
+}
+
+/**
+ * probe vm.brk - Fires when a <command>brk</command> is requested (i.e. the heap will be resized).
+ * @address: The requested address
+ * @length: The length of the memory segment 
+ *
+ * Context:
+ *  The process calling <command>brk</command>.
+ */
+probe vm.brk = kernel.function("do_brk") {
+    address = $addr
+    length = $len
+}
+
+/**
+ * probe vm.oom_kill - Fires when a thread is selected for termination by the OOM killer.
+ * @task: The task being killed
+ *
+ * Context:
+ *  The process that tried to consume excessive memory, and thus
+ *  triggered the OOM. <remark>(is this correct?)</remark>
+ */
+probe vm.oom_kill = kernel.function("__oom_kill_task") {
+    task = $p
+}

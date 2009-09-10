@@ -1,0 +1,43 @@
+#! /bin/sh
+
+# This test should only be run when the scsi module is loaded (or scsi
+# functionality is built into the kernel).
+
+# We test for scsi functionality by grepping in /proc/kallsyms for
+# 'scsi_dispatch_cmd', which is what 'scsi.iodispatching' maps to.
+# If that mapping changes this grep command will also need changing.
+if ! grep scsi_dispatch_cmd /proc/kallsyms >/dev/null 2>&1 ; then
+	echo "scsi funtionality not present - not running test";
+	exit 0;
+fi
+
+
+stap -p4 - << EOF
+probe scsi.ioentry
+{
+	printf("ppname: %s, %d, %d, %d\n", probefunc(),
+		disk_major, disk_minor, device_state)
+}
+
+probe scsi.iodispatching
+{
+	printf("ppname: %s, %d, %d, %d, %d, %d, %d, %p, %d\n", probefunc(), 
+		host_no, channel, lun, dev_id, device_state, data_direction, 
+		request_buffer, request_bufflen)
+}
+
+
+probe scsi.iodone
+{
+	printf("ppname: %s, %d, %d, %d, %d, %d, %d, %d\n", probefunc(), 
+		host_no, channel, lun, dev_id, device_state, data_direction, 
+		scsi_timer_pending)
+}
+
+probe scsi.iocompleted
+{
+	printf("ppname: %s, %d, %d, %d, %d, %d, %d, %d\n", probefunc(), 
+		host_no, channel, lun, dev_id, device_state, data_direction, 
+		goodbytes)
+}
+EOF

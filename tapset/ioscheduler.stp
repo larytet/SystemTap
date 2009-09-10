@@ -1,0 +1,173 @@
+// IO scheduler tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe IO scheduler activities. 
+// </tapsetdescription>
+%{
+#include <linux/blkdev.h>
+#include <linux/elevator.h>
+%}
+
+/**
+ * probe ioscheduler.elv_next_request - Fires when a request is retrieved from the request queue
+ * @elevator_name: The type of I/O elevator currently enabled
+ */
+probe ioscheduler.elv_next_request
+	=  %( kernel_v >= "2.6.31" %? 
+		kernel.function("blk_peek_request") 
+	   %:
+		kernel.function("elv_next_request")
+	   %)
+{
+%( kernel_v >= "2.6.10" %?
+	elevator_name = kernel_string($q->elevator->elevator_type->elevator_name)
+%:
+	elevator_name = kernel_string($q->elevator->elevator_name)
+%)
+}
+
+/**
+ * probe ioscheduler.elv_next_request.return - Fires when a request retrieval issues a return signal
+ * @req: Address of the request
+ * @req_flags: Request flags
+ * @disk_major: Disk major number of the request
+ * @disk_minor: Disk minor number of the request
+ */
+probe ioscheduler.elv_next_request.return
+        =  %( kernel_v >= "2.6.31" %?
+                kernel.function("blk_peek_request").return
+           %:   
+                kernel.function("elv_next_request").return
+           %)
+{
+	if($return == 0)  {
+		req = 0
+		req_flags = 0
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		req = $return
+%( kernel_v >= "2.6.19" %?
+		req_flags = $return->cmd_flags
+%:
+		req_flags = $return->flags
+%)
+		if($return->rq_disk == 0)  {
+			disk_major = -1
+			disk_minor = -1
+		} else {
+			disk_major = $return->rq_disk->major
+			disk_minor = $return->rq_disk->first_minor
+		}
+	}
+}
+
+/**
+ * probe ioscheduler.elv_add_request - A request was added to the request queue
+ * @elevator_name: The type of I/O elevator currently enabled
+ * @req: Address of the request
+ * @req_flags: Request flags
+ * @disk_major: Disk major number of the request
+ * @disk_minor: Disk minor number of the request
+ */
+// when a request is added to the request queue
+probe ioscheduler.elv_add_request
+	= kernel.function("__elv_add_request")
+{
+%( kernel_v >= "2.6.10" %?
+	elevator_name = kernel_string($q->elevator->elevator_type->elevator_name)
+%:
+	elevator_name = kernel_string($q->elevator->elevator_name)
+%)
+	if($rq == 0)  {
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		if($rq->rq_disk == 0)  {
+			disk_major = -1
+			disk_minor = -1
+		} else {
+			disk_major = $rq->rq_disk->major
+			disk_minor = $rq->rq_disk->first_minor
+		}
+	}
+
+	req = $rq
+%( kernel_v >= "2.6.19" %?
+	req_flags = $rq==0? 0:$rq->cmd_flags
+%:
+	req_flags = $rq==0? 0:$rq->flags
+%)
+}
+
+/**
+ * probe ioscheduler.elv_completed_request - Fires when a request is completed
+ * @elevator_name: The type of I/O elevator currently enabled
+ * @req: Address of the request
+ * @req_flags: Request flags
+ * @disk_major: Disk major number of the request
+ * @disk_minor: Disk minor number of the request
+ */
+probe ioscheduler.elv_completed_request
+	= kernel.function("elv_completed_request")
+{
+%( kernel_v >= "2.6.10" %?
+	elevator_name = kernel_string($q->elevator->elevator_type->elevator_name)
+%:
+	elevator_name = kernel_string($q->elevator->elevator_name)
+%)
+	if($rq == 0)  {
+		disk_major = -1
+		disk_minor = -1
+	} else {
+		if($rq->rq_disk == 0)  {
+			disk_major = -1
+			disk_minor = -1
+		} else {
+			disk_major = $rq->rq_disk->major
+			disk_minor = $rq->rq_disk->first_minor
+		}
+	}
+
+	req = $rq
+%( kernel_v >= "2.6.19" %?
+	req_flags = $rq==0? 0:$rq->cmd_flags
+%:
+	req_flags = $rq==0? 0:$rq->flags
+%)
+}
+
+function disk_major_from_request:long(var_q:long)
+%{ /* pure */
+	struct request_queue *q = (struct request_queue *)((long)THIS->var_q);
+	struct list_head *queue_head = &(q->queue_head);
+
+	if (list_empty(&(q->queue_head))) /* FIXME: deref hazard! */
+		THIS->__retvalue = -1;
+	else  {
+		struct request *rq = list_entry_rq(q->queue_head.next); /* FIXME: deref hazard! */
+		struct gendisk *rq_disk = kread(&(rq->rq_disk));
+		THIS->__retvalue = kread(&(rq_disk->major));
+	}
+	CATCH_DEREF_FAULT();
+%}
+
+function disk_minor_from_request:long(var_q:long)
+%{ /* pure */
+	struct request_queue *q = (struct request_queue *)((long)THIS->var_q);
+	struct list_head *queue_head = &(q->queue_head);
+
+	if (list_empty(&(q->queue_head))) /* FIXME: deref hazard! */
+		THIS->__retvalue = -1;
+	else  {
+		struct request *rq = list_entry_rq(q->queue_head.next); /* FIXME: deref hazard! */
+		struct gendisk *rq_disk = kread(&(rq->rq_disk));
+		THIS->__retvalue = kread(&(rq_disk->first_minor));
+	}
+	CATCH_DEREF_FAULT();
+%}

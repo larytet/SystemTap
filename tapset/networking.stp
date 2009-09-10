@@ -1,0 +1,80 @@
+// networking tapset
+// Copyright (C) 2005, 2006 IBM Corp.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+// <tapsetdescription>
+// This family of probe points is used to probe the activities of the network device. 
+// </tapsetdescription>
+/**
+ * probe netdev.receive - Data recieved from network device.
+ * @dev_name: The name of the device. e.g: eth0, ath1.
+ * @length: The length of the receiving buffer.
+ * @protocol: Protocol of recieved packet.
+ *
+ */
+///    <varlistentry><term>protocol</term>
+///       <listitem><para>The possible values of protocol could be:
+///         <table frame='all'><title>Protocol Values</title>
+///         <tgroup cols='2' align='left' colsep='1' rowsep='1'>
+///         <colspec colname='Value'/>
+///         <colspec colname='Protocol'/>
+///	    <thead>
+///   	    <row><entry>Value(Hex)</entry><entry>Protocol</entry></row>
+///	    </thead>
+///	    <tbody>
+///   	    <row><entry>0001</entry><entry>802.3</entry></row>
+///   	    <row><entry>0002</entry><entry>AX.25</entry></row>
+///   	    <row><entry>0004</entry><entry>802.2</entry></row>
+///   	    <row><entry>0005</entry><entry>SNAP</entry></row>
+///   	    <row><entry>0009</entry><entry>Localtalk</entry></row>
+///   	    <row><entry>0800</entry><entry>IP</entry></row>
+///   	    <row><entry>0805</entry><entry>X.25</entry></row>
+///   	    <row><entry>0806</entry><entry>ARP</entry></row>
+///   	    <row><entry>8035</entry><entry>RARP</entry></row>
+///   	    <row><entry>8100</entry><entry>802.1Q VLAN</entry></row>
+///   	    <row><entry>8137</entry><entry>IPX</entry></row>
+///   	    <row><entry>86DD</entry><entry>IPv6</entry></row>
+///	    </tbody>
+///	    </tgroup>
+///	    </table>
+///       </para></listitem>
+///    </varlistentry>
+///
+///    <varlistentry><term>truesize</term>
+///       <listitem><para>
+///           The size of the received data.
+///       </para></listitem>
+///    </varlistentry>
+///
+///  </variablelist>
+///</para>
+// Main device receive routine, be called when packet arrives on network device
+probe netdev.receive
+	=  kernel.function("netif_receive_skb")
+{
+	dev_name = kernel_string($skb->dev->name)
+	length = $skb->len
+	protocol = $skb->protocol
+	truesize = $skb->truesize
+}
+
+/**
+ * probe netdev.transmit - Network device transmitting buffer
+ * @dev_name: The name of the device. e.g: eth0, ath1.
+ * @length: The length of the transmit buffer.
+ * @protocol: The protocol of this packet.
+ * @truesize: The size of the the data to be transmitted.
+ *
+ */
+// Queue a buffer for transmission to a network device
+probe netdev.transmit
+	=  kernel.function("dev_queue_xmit")
+{
+	dev_name = kernel_string($skb->dev->name)
+	length = $skb->len
+	protocol = $skb->protocol
+	truesize = $skb->truesize
+}

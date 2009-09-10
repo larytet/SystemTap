@@ -1,0 +1,9 @@
+#! stap -wp4
+
+# PR6538: "-w" is above since disk_major/disk_minor are not defined by all aliases.
+
+probe ioscheduler.*
+{
+	printf("ppname: %s, elv_name: %s, %d, %d", probefunc(), 
+		elevator_name, disk_major, disk_minor)
+}
