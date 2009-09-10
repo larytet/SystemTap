@@ -6,8 +6,9 @@ systemtap (0.9.9+0git20090910-1) experimental; urgency=low
   * Removed patches:
     - relocatable-kernel-buildid.diff - applied upstream
     - configure-quot.diff - applied upstream
+    - arm-nop.diff - applied upstream 
 
- -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 00:21:03 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 00:23:10 +0200
 
 systemtap (0.9.9-5) unstable; urgency=low
 

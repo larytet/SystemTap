@@ -6,5 +6,4 @@ no-xmlto.diff
 vim-filetype-override.diff
 new-elfutils.diff
 stap-env.diff
-arm-nop.diff
 grapher-libs.diff
