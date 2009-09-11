@@ -2,7 +2,7 @@ Source: systemtap
 Section: devel
 Priority: optional
 Maintainer: Євгеній Мещеряков <eugen@debian.org>
-Build-Depends: debhelper (>= 7.0.0), quilt (>= 0.46-8), autoconf, automake1.11, bzip2, libelf-dev (>= 0.141),
+Build-Depends: debhelper (>= 7.0.50~), quilt (>= 0.46-8), autoconf, automake1.11, bzip2, libelf-dev (>= 0.141),
  libdw-dev (>= 0.141), libsqlite3-dev, texlive-latex-base, texlive-latex-recommended,
  texlive-latex-extra, texlive-fonts-recommended, libnss3-dev, libnspr4-dev, pkg-config,
  xsltproc, docbook-xsl (>= 1.74.3), docbook-xml, libnss3-tools, libgtkmm-2.4-dev (>= 2.8.0)
