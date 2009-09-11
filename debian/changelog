@@ -1,6 +1,9 @@
 systemtap (0.9.9+0git20090910-1) experimental; urgency=low
 
   * New upstream snapshot
+    - This release supports execution of probe modules by unpriviledged
+      users. This feature is experimental and can cause security problems.
+      Added note to NEWS.Debian
   * Use quilt instead of dbs
   * Strip numeric prefixes and add .diff to patches
   * Removed patches:
@@ -12,7 +15,7 @@ systemtap (0.9.9+0git20090910-1) experimental; urgency=low
     - docs-clean.diff - remove generated files during clean
   * Install NEWS.Debian into all binary packages
 
- -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 21:25:44 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 21:40:00 +0200
 
 systemtap (0.9.9-5) unstable; urgency=low
 

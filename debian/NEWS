@@ -1,3 +1,12 @@
+systemtap (0.9.9+0git20090910-1) experimental; urgency=low
+
+  This release supports execution of precompiled and signed probe modules
+  by unpriviledged users. This feature is experimental and should be used
+  with care. If used incorrectly it can cause security problems. See
+  upstream NEWS file for details.
+
+ -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 21:33:37 +0200
+
 systemtap (0.0.20081220-1) experimental; urgency=low
 
   In this version runtime component (staprun) and documentation were split
