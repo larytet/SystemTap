@@ -8,3 +8,4 @@ new-elfutils.diff
 stap-env.diff
 grapher-libs.diff
 docs-clean.diff
+debversion.diff

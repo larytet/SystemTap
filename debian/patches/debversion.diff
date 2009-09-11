@@ -1,0 +1,22 @@
+Index: systemtap/Makefile.am
+===================================================================
+--- systemtap.orig/Makefile.am	2009-09-11 23:02:12.283260166 +0200
++++ systemtap/Makefile.am	2009-09-11 23:08:04.509221269 +0200
+@@ -71,7 +71,7 @@
+ 			cp "$(srcdir)/git_version.h" "git_version.h"; \
+ 		fi; \
+ 	fi
+-	$(GIT_VERSION_CMD) -k -s $(top_srcdir) -o git_version.h
++	sh $(top_srcdir)/debian/debversion.sh $(top_srcdir)/debian/changelog > git_version.h
+ 	@if test -s "$(srcdir)/git_version.h"; then \
+ 		if cmp "$(srcdir)/git_version.h" "git_version.h"; then :; \
+ 		else \
+@@ -82,7 +82,7 @@
+ 	fi
+ 
+ git_version.h:
+-	$(srcdir)/git_version.sh -k --srcdir $(srcdir) -o git_version.h
++	sh $(top_srcdir)/debian/debversion.sh $(top_srcdir)/debian/changelog > git_version.h
+ 
+ cscope:
+ 	cd $(srcdir) && \
