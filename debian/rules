@@ -34,8 +34,9 @@ DH = dh --with quilt
 patch:
 	dh_quilt_patch
 
+# plus is to enable parallel build
 binary binary-arch binary-indep build clean install:
-	$(DH) $@
+	+$(DH) $@
 
 override_dh_auto_configure:
 	AUTOMAKE=automake-1.11 ACLOCAL=aclocal-1.11 autoreconf -fiv
