@@ -9,7 +9,7 @@ ifeq (,$(DEB_HOST_GNU_TYPE))
 	DEB_HOST_GNU_TYPE = $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 endif
 ifeq (,$(DEB_BUILD_GNU_TYPE))
-	DEB_HOST_GNU_TYPE = $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+	DEB_BUILD_GNU_TYPE = $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 endif
 
 CFLAGS = -Wall -g -D_GNU_SOURCE
