@@ -3,15 +3,6 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-include /usr/share/quilt/quilt.make
-
-ifeq (,$(DEB_HOST_GNU_TYPE))
-	DEB_HOST_GNU_TYPE = $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-endif
-ifeq (,$(DEB_BUILD_GNU_TYPE))
-	DEB_BUILD_GNU_TYPE = $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-endif
-
 CFLAGS = -Wall -g -D_GNU_SOURCE
 
 ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
@@ -19,6 +10,8 @@ ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
 else
 	CFLAGS += -O2
 endif
+CXXFLAGS = $(CFLAGS)
+export CFLAGS CXXFLAGS
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 	NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
@@ -28,43 +21,31 @@ endif
 VIM_ADIR = $(CURDIR)/debian/tmp/usr/share/vim/addons
 VIM_RDIR = $(CURDIR)/debian/tmp/usr/share/vim/registry
 
-CONF_FLAGS = --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr \
-	     --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info \
-	     --libdir=\$${prefix}/lib --libexecdir=\$${prefix}/lib --enable-sqlite \
-	     --disable-crash --enable-docs --disable-pie --enable-refdocs \
-	     --enable-server --enable-grapher --sysconfdir=/etc --without-rpm \
+CONF_FLAGS = --enable-sqlite --disable-crash --enable-docs --disable-pie \
+	     --enable-refdocs --enable-server --enable-grapher --without-rpm \
 	     --enable-translator
 
-patch: $(patched)
+# dh does it wrong...
+CONF_FLAGS += --libexecdir=/usr/lib
 
-build: build-stamp
-build-stamp: $(QUILT_STAMPFN)
-	dh build --before dh_auto_configure
+DH = dh --with quilt
+
+# TODO used $(DH) patch
+patch:
+	dh_quilt_patch
+
+binary binary-arch binary-indep build clean install:
+	$(DH) $@
+
+override_dh_auto_configure:
 	AUTOMAKE=automake-1.11 ACLOCAL=aclocal-1.11 autoreconf -fiv
-	CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ./configure $(CONF_FLAGS)
-	$(MAKE)
-	dh build --after dh_auto_test
-	touch build-stamp
+	dh_auto_configure -- $(CONF_FLAGS)
 
-clean: unpatch
-	dh clean
-	find . \(	\
-		-name configure \
-		-o -name aclocal.m4 \
-		-o -name Makefile.in \
-		-o -name config.{cache,log,status,guess,sub} \
-		-o -name missing \
-		-o -name compile \
-	        -o -name install-sh \
-		-o -name depcomp \
-		-o -name mkinstalldirs \) -exec rm "{}" \;
-	rm -f config.in
+override_dh_auto_test:
+	# Tests cannot be run during build, see #526957
 
-install: install-stamp
-install-stamp: build-stamp
-	dh install --before dh_auto_install
-
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/tmp
+override_dh_auto_install:
+	dh_auto_install
 	rm -r debian/tmp/usr/share/systemtap/tapset/test
 
 	# Those files do not realy belong there
@@ -94,16 +75,27 @@ install-stamp: build-stamp
 	install -d $(VIM_RDIR)
 	cp $(CURDIR)/debian/systemtap.yaml $(VIM_RDIR)/
 
-	dh install --after dh_auto_install --before dh_compress
+override_dh_auto_clean:
+	dh_auto_clean
+	find . \(	\
+		-name configure \
+		-o -name aclocal.m4 \
+		-o -name Makefile.in \
+		-o -name config.{cache,log,status,guess,sub} \
+		-o -name missing \
+		-o -name compile \
+	        -o -name install-sh \
+		-o -name depcomp \
+		-o -name mkinstalldirs \) -exec rm "{}" \;
+	rm -f config.in
+
+override_dh_compress:
 	dh_compress -X.stp -X.wav -Xsocktop -Xsyscalltimes -X.pdf
-	dh install --until dh_fixperms
+
+override_dh_fixperms:
+	dh_fixperms
 	chmod 4755 debian/systemtap-runtime/usr/bin/staprun
-	dh install --after dh_fixperms
-	touch install-stamp
 
-binary-arch binary-indep: install
-	dh $@
-
-binary: binary-indep binary-arch
-
-.PHONY: build clean binary-indep binary-arch binary install
+.PHONY: build clean binary-indep binary-arch binary install patch
+.PHONY: override_dh_auto_configure override_dh_auto_test override_dh_auto_install
+.PHONY: override_dh_auto_clean override_dh_compress override_dh_fixperms
