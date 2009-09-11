@@ -10,8 +10,9 @@ systemtap (0.9.9+0git20090910-1) experimental; urgency=low
   * Remove autotools generated files in clean target
   * New patches:
     - docs-clean.diff - remove generated files during clean
+  * Install NEWS.Debian into all binary packages
 
- -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 01:21:16 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Fri, 11 Sep 2009 21:25:44 +0200
 
 systemtap (0.9.9-5) unstable; urgency=low
 
