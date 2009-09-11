@@ -19,8 +19,9 @@ systemtap (0.9.9+0git20090910-1) experimental; urgency=low
   * Git is now used for packaging
     - Add Vcs-* headers to debian/control
     - Remove uupdate invokation from watch file
+  * Update README.source with information about using quilt
 
- -- Євгеній Мещеряков <eugen@debian.org>  Sat, 12 Sep 2009 00:27:32 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Sat, 12 Sep 2009 00:45:38 +0200
 
 systemtap (0.9.9-5) unstable; urgency=low
 
