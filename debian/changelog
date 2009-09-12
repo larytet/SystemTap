@@ -1,8 +1,9 @@
 systemtap (0.9.9+0git20090910-2) experimental; urgency=low
 
   * Use -regex for find in clean target, hopefully fixes FTBFS on s390
+  * Use © instead of (C) in debian/copyright
 
- -- Євгеній Мещеряков <eugen@debian.org>  Sat, 12 Sep 2009 17:07:33 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Sat, 12 Sep 2009 17:37:42 +0200
 
 systemtap (0.9.9+0git20090910-1) experimental; urgency=low
 
