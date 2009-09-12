@@ -1,8 +1,14 @@
 Index: systemtap/stapex.3stap.in
 ===================================================================
---- systemtap.orig/stapex.3stap.in	2009-09-11 00:15:50.180550261 +0200
-+++ systemtap/stapex.3stap.in	2009-09-11 00:17:26.119705143 +0200
-@@ -119,7 +119,7 @@
+--- systemtap.orig/stapex.3stap.in	2009-09-12 17:07:27.404037877 +0200
++++ systemtap/stapex.3stap.in	2009-09-12 17:40:41.230002008 +0200
+@@ -114,12 +114,12 @@
+ .SH MORE EXAMPLES
+ 
+ Larger examples, demos and samples can be found in
+-@prefix@/doc/systemtap*/examples, each example comes with either a .txt
++@prefix@/share/doc/systemtap\-doc/examples, each example comes with either a .txt
+ or .meta file explaining what the example, sample or demo does and how
  it is ordinarily run.
  
  .SH SEE ALSO
