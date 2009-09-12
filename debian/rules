@@ -78,11 +78,11 @@ override_dh_auto_install:
 
 override_dh_auto_clean:
 	dh_auto_clean
-	find . \(	\
+	find . . -regextype posix-awk \( \
 		-name configure \
 		-o -name aclocal.m4 \
 		-o -name Makefile.in \
-		-o -name config.{cache,log,status,guess,sub} \
+		-o -regex '.*/config.(cache|log|status|guess|sub)' \
 		-o -name missing \
 		-o -name compile \
 	        -o -name install-sh \
