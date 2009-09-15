@@ -78,7 +78,7 @@ override_dh_auto_install:
 
 override_dh_auto_clean:
 	dh_auto_clean
-	find . . -regextype posix-awk \( \
+	find . -regextype posix-awk \( \
 		-name configure \
 		-o -name aclocal.m4 \
 		-o -name Makefile.in \
