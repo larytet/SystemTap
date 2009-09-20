@@ -1,7 +1,7 @@
 systemtap (0.9.9+0git20090920-1) experimental; urgency=low
 
   * New upstream snaphsot
-  * Dont build-depend on bzip2 anymore
+  * Don't build-depend on bzip2 anymore
   * Removed patches:
     - docs-clean.diff - applied upstream
 
