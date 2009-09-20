@@ -716,6 +716,15 @@ utrace_derived_probe_group::emit_probe_decl (systemtap_session& s,
       break;
     }
   s.op->line() << " .engine_attached=0,";
+
+  map<derived_probe*, Dwarf_Addr>::iterator its = s.sdt_semaphore_addr.find(p);
+  if (its == s.sdt_semaphore_addr.end())
+    s.op->line() << " .sdt_sem_address=(unsigned long)0x0,";
+  else
+    s.op->line() << " .sdt_sem_address=(unsigned long)0x"
+                 << hex << its->second << dec << "ULL,";
+
+  s.op->line() << " .tsk=0,";
   s.op->line() << " },";
 }
 
@@ -750,6 +759,8 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "struct utrace_engine_ops ops;";
   s.op->newline() << "unsigned long events;";
   s.op->newline() << "int engine_attached;";
+  s.op->newline() << "struct task_struct *tsk;";
+  s.op->newline() << "unsigned long sdt_sem_address;";
   s.op->newline(-1) << "};";
 
 
@@ -872,6 +883,16 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "break;";
   s.op->indent(-1);
   s.op->newline(-1) << "}";
+
+  s.op->newline() << "if (p->sdt_sem_address != 0) {";
+  s.op->newline(1) << "size_t sdt_semaphore;";
+  // XXX p could get registered to more than one task!
+  s.op->newline() << "p->tsk = tsk;";
+  s.op->newline() << "__access_process_vm (tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 0);";
+  s.op->newline() << "sdt_semaphore += 1;";
+  s.op->newline() << "__access_process_vm (tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 1);";
+  s.op->newline(-1) << "}";
+
   s.op->newline(-1) << "}";
 
   // Since this engine could be attached to multiple threads, don't
@@ -977,25 +998,16 @@ utrace_derived_probe_group::emit_module_init (systemtap_session& s)
 
   s.op->newline() << "/* ---- utrace probes ---- */";
   s.op->newline() << "for (i=0; i<ARRAY_SIZE(stap_utrace_probes); i++) {";
-  s.op->indent(1);
-  s.op->newline() << "struct stap_utrace_probe *p = &stap_utrace_probes[i];";
+  s.op->newline(1) << "struct stap_utrace_probe *p = &stap_utrace_probes[i];";
   s.op->newline() << "probe_point = p->pp;"; // for error messages
   s.op->newline() << "rc = stap_register_task_finder_target(&p->tgt);";
+
+  // NB: if (rc), there is no need (XXX: nor any way) to clean up any
+  // finders already registered, since mere registration does not
+  // cause any utrace or memory allocation actions.  That happens only
+  // later, once the task finder engine starts running.  So, for a
+  // partial initialization requiring unwind, we need do nothing.
   s.op->newline() << "if (rc) break;";
-  s.op->newline(-1) << "}";
-
-  // rollback all utrace probes
-  s.op->newline() << "if (rc) {";
-  s.op->indent(1);
-  s.op->newline() << "for (j=i-1; j>=0; j--) {";
-  s.op->indent(1);
-  s.op->newline() << "struct stap_utrace_probe *p = &stap_utrace_probes[j];";
-
-  s.op->newline() << "if (p->engine_attached) {";
-  s.op->indent(1);
-  s.op->newline() << "stap_utrace_detach_ops(&p->ops);";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
 
   s.op->newline(-1) << "}";
 }
@@ -1009,13 +1021,21 @@ utrace_derived_probe_group::emit_module_exit (systemtap_session& s)
   s.op->newline();
   s.op->newline() << "/* ---- utrace probes ---- */";
   s.op->newline() << "for (i=0; i<ARRAY_SIZE(stap_utrace_probes); i++) {";
-  s.op->indent(1);
-  s.op->newline() << "struct stap_utrace_probe *p = &stap_utrace_probes[i];";
+  s.op->newline(1) << "struct stap_utrace_probe *p = &stap_utrace_probes[i];";
 
   s.op->newline() << "if (p->engine_attached) {";
-  s.op->indent(1);
-  s.op->newline() << "stap_utrace_detach_ops(&p->ops);";
+  s.op->newline(1) << "stap_utrace_detach_ops(&p->ops);";
+
+  s.op->newline() << "if (p->sdt_sem_address) {";
+  s.op->newline(1) << "size_t sdt_semaphore;";
+  // XXX p could get registered to more than one task!
+  s.op->newline() << "__access_process_vm (p->tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 0);";
+  s.op->newline() << "sdt_semaphore -= 1;";
+  s.op->newline() << "__access_process_vm (p->tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 1);";
   s.op->newline(-1) << "}";
+
+  s.op->newline(-1) << "}";
+
   s.op->newline(-1) << "}";
 }
 
@@ -1040,12 +1060,16 @@ register_tapset_utrace(systemtap_session& s)
 	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_BEGIN)
+	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_END)
+	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)
+	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)->bind(TOK_RETURN)
+	->allow_unprivileged()
 	->bind(builder);
     }
 }
