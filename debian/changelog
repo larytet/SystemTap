@@ -2,8 +2,10 @@ systemtap (0.9.9+0git20090920-1) experimental; urgency=low
 
   * New upstream snaphsot
   * Dont build-depend on bzip2 anymore
+  * Removed patches:
+    - docs-clean.diff - applied upstream
 
- -- Євгеній Мещеряков <eugen@debian.org>  Sun, 20 Sep 2009 20:11:33 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Sun, 20 Sep 2009 20:16:30 +0200
 
 systemtap (0.9.9+0git20090910-2) experimental; urgency=low
 
