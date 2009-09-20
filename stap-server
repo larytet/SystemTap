@@ -31,39 +31,39 @@ function initialization {
     # Default options settings
     p_phase=5
     keep_temps=0
+    unprivileged=0
+    stap_options=
 
-    # Request file name.
     zip_client=$1
-    test "X$zip_client" != "X" || \
-	fatal "Client request file not specified"
-    test -f $zip_client || \
-	fatal "Unable to find request file $zip_client"
-
-    # Temp directory we will be working in
     tmpdir_server=$2
-    test "X$tmpdir_server" != "X" || \
-	fatal "Server temporary directory not specified"
-    test -d $tmpdir_server || \
-	fatal "Unable to find temporary directory $tmpdir_server"
+    zip_server=$3
+    ssl_db=$4
+    server_options="$5"
+
+    # This script is not intended to be called directly, so if the arguments
+    # aren't specified correctly, just exit with non-zero
+    test "X$tmpdir_server" != "X" || exit 2
+    test -d $tmpdir_server || exit 3
     tmpdir_env=`dirname $tmpdir_server`
 
-    # Signed reponse file name.
-    zip_server=$3
-    test "X$zip_server" != "X" || \
-	fatal ".zip archive file not specified"
+    # Response file name.
+    test "X$zip_server" != "X" || exit 4
     # Make sure the specified .zip file exists.
-    test -f $zip_server || \
-	fatal "Unable to find .zip archive file $zip_server"
+    test -f $zip_server || exit 5
+
+    # Request file name.
+    test "X$zip_client" != "X" || exit 6
+    test -f $zip_client || exit 7
 
     # Where is the ssl certificate/key database?
-    ssl_db=$4
-    test "X$ssl_db" != "X" || \
-	fatal "SSL certificate database not specified"
-    test -d $ssl_db || \
-	fatal "Unable to find SSL certificate database $ssl_db"
+    test "X$ssl_db" != "X" || exit 8
+    test -d $ssl_db || exit 9
     nss_pw=$ssl_db/pw
-    test -f $nss_pw || \
-	fatal "Unable to find SSL certificate database password file $nss_pw"
+    test -f $nss_pw || exit 10
+
+    # What are the options that the server was started with?
+    eval parse_options "$server_options"
+
     nss_cert=stap-server
 
     touch $tmpdir_server/stdout
@@ -125,7 +125,7 @@ function check_request {
 function server_sysinfo {
     if test "X$sysinfo_server" = "X"; then
 	# Add some info from uname
-	sysinfo_server="`uname -rvm`"
+	sysinfo_server="`uname -r` `get_arch`"
     fi
     echo "$sysinfo_server"
 }
@@ -134,19 +134,9 @@ function server_sysinfo {
 #
 # Make sure that systemtap as described by SYSINFO1 and SYSINFO2 are compaible
 function check_compatibility {
-    # Compatibility is irrelevant if the request is not for phase 5 activity.
-    test $p_phase -lt 5 && return
-
-    # TODO: This needs work
-    # - Make sure the linux kernel matches exactly
-    local sysinfo1=$1
-    local sysinfo2=$2
-
-    if test "$sysinfo1" != "$sysinfo2"; then
-	error "System configuration mismatch"
-	error "  client: $sysinfo1"
-	fatal "  server: $sysinfo2"
-    fi
+    # Compatibility is irrelevant. The client can choose any server
+    # it sees fit
+    return
 }
 
 # function: read_data_file PREFIX
@@ -181,6 +171,13 @@ function read_data_file {
 # Examine the command line. We need not do much checking, but we do need to
 # parse all options in order to discover the ones we're interested in.
 function parse_options {
+    # We need to know in advance if --unprivileged was specified.
+    all_options="$@"" "
+    token=`expr "$all_options" : '.* \(--unprivileged\) .*'`
+    if test "X$token" = "X--unprivileged"; then
+	unprivileged=1
+    fi
+
     while test $# != 0
     do
 	advance_p=0
@@ -188,6 +185,8 @@ function parse_options {
 
         # Start of a new token.
 	first_token=$1
+
+	# Process the option.
 	until test $advance_p != 0
 	do
             # Identify the next option
@@ -195,7 +194,16 @@ function parse_options {
 	    if test $dash_seen = 0; then
 		if test "$first_char" = "-"; then
 		    if test "$first_token" != "-"; then
-	                # It's not a lone dash, so it's an option. Remove the dash.
+	                # It's not a lone dash, so it's an option.
+			# Is it a long option (i.e. --option)?
+			second_char=`expr "$first_token" : '.\(.\).*'`
+			if test "X$second_char" = "X-"; then
+			    advance_p=$(($advance_p + 1))
+			    stap_options="$stap_options $first_token"
+			    break
+			fi
+	                # It's not a lone dash, or a long option, so it's a short option string.
+			# Remove the dash.
 			first_token=`expr "$first_token" : '-\(.*\)'`
 			dash_seen=1
 			first_char=`expr "$first_token" : '\(.\).*'`
@@ -207,7 +215,12 @@ function parse_options {
 	            # If this is the first time, and -e has not been specified,
 	            # then it could be the name of the script file.
 		    if test "X$e_script" = "X" -a "X$script_file" = "X"; then
-			script_file=$first_token
+			script_file="$first_token"
+		    fi
+		    if test "$first_char" != "'"; then
+			stap_options="$stap_options '$first_token'"
+		    else
+			stap_options="$stap_options $first_token"
 		    fi
 		    advance_p=$(($advance_p + 1))
 		    break
@@ -216,30 +229,67 @@ function parse_options {
 	    
             # We are at the start of an option. Look at the first character.
 	    case $first_char in
-		c)
-		    get_arg $first_token "$2"
+		a)
+		    get_arg $first_token $2
+		    if test $unprivileged = 1; then
+			fatal "You can't specify -$first_char and --unprivileged together."
+		    else
+			stap_options="$stap_options -$first_char $stap_arg"
+		    fi
+		    ;;
+		B)
+		    get_arg $first_token $2
+		    if test $unprivileged = 1; then
+			fatal "You can't specify -$first_char and --unprivileged together."
+		    else
+			stap_options="$stap_options -$first_char $stap_arg"
+		    fi
+		    ;;
+		d)
+		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;
 		D)
 		    get_arg $first_token $2
+		    if test $unprivileged = 1; then
+			fatal "You can't specify -$first_char and --unprivileged together."
+		    else
+			stap_options="$stap_options -$first_char $stap_arg"
+		    fi
 		    ;;
 		e)
 		    get_arg $first_token "$2"
+		    stap_options="$stap_options -$first_char '$stap_arg'"
 		    process_e "$stap_arg"
 		    ;;
 		I)
 		    get_arg $first_token $2
+		    if test $unprivileged = 1; then
+			fatal "You can't specify -$first_char and --unprivileged together."
+		    else
+			stap_options="$stap_options -$first_char $stap_arg"
+		    fi
 		    ;;	
 		k)
 		    keep_temps=1
 		    ;;
 		l)
 		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
+		    process_p 2
+		    ;;
+		L)
+		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
+		    process_p 2
 		    ;;
 		m)
 		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;
 		o)
 		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;
 		p)
 		    get_arg $first_token $2
@@ -247,15 +297,31 @@ function parse_options {
 		    ;;
 		r)
 		    get_arg $first_token $2
+		    if test $unprivileged = 1; then
+			fatal "You can't specify -$first_char and --unprivileged together."
+		    else
+			stap_options="$stap_options -$first_char $stap_arg"
+		    fi
 		    ;;	
 		R)
 		    get_arg $first_token $2
+		    if test $unprivileged = 1; then
+			fatal "You can't specify -$first_char and --unprivileged together."
+		    else
+			stap_options="$stap_options -$first_char $stap_arg"
+		    fi
 		    ;;	
 		s)
 		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
+		    ;;	
+		S)
+		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;	
 		x)
 		    get_arg $first_token $2
+		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;
 		*)
 		    # An unknown flag. Ignore it.
@@ -264,6 +330,7 @@ function parse_options {
 
 	    if test $advance_p = 0; then
 	        # Just another flag character. Consume it.
+		stap_options="$stap_options -$first_char"
 		first_token=`expr "$first_token" : '.\(.*\)'`
 		if test "X$first_token" = "X"; then
 		    advance_p=$(($advance_p + 1))
@@ -292,7 +359,6 @@ function get_arg {
 	advance_p=$(($advance_p + 1))
 	first=$1
     fi
-
     stap_arg="$first"
     advance_p=$(($advance_p + 1))
 }
@@ -330,7 +396,7 @@ function call_stap {
 	server_p_phase=$p_phase
     fi
 
-    eval ${stap_exec_prefix}stap "$cmdline" -k -p $server_p_phase \
+    eval ${stap_exec_prefix}stap "$stap_options" -k -p $server_p_phase \
 	>>  $tmpdir_server/stdout \
 	2>> $tmpdir_server/stderr
 
@@ -357,6 +423,14 @@ function create_response {
 
         # Add the contents of the stap temp directory to the server output directory
 	ln -s $tmpdir_stap `basename $tmpdir_stap`
+
+        # Sign the resulting module if --unprivileged was specified.
+	if test $unprivileged = 1 -a $p_phase -ge 4 -a $stap_rc = 0; then
+	    modname=$tmpdir_stap/`grep -m1 '^.*\.ko$' stdout`
+	    if test "X$modname" != "X"; then
+		${stap_exec_prefix}stap-sign-module $modname $ssl_db
+	    fi
+	fi
     fi
 
     # If the user specified -p5, remove the name of the kernel module from stdout.
@@ -376,8 +450,8 @@ function package_response {
     cd $tmpdir_env
 
     # Compress the server's temporary directory into a .zip archive.
-    (rm $zip_server && zip -r $zip_server `basename $tmpdir_server` > /dev/null) || \
-	fatal "zip of request tree, $tmpdir_server, failed"
+    (rm $zip_server && zip -r $zip_server `basename $tmpdir_server` > /dev/null)
+    return $?
 }
 
 # function: fatal [ MESSAGE ]

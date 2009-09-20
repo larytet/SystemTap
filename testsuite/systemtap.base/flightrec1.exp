@@ -30,7 +30,8 @@ expect {
 }
 wait
 
-exec kill -TERM $pid
+# switch file
+exec kill -USR2 $pid
 
 # check output file
 if {[catch {exec rm $test.out}]} {
@@ -40,4 +41,13 @@ if {[catch {exec rm $test.out}]} {
   pass "$test (output file)"
 }
 
+exec kill -TERM $pid
+
+# check switched output file
+if {[catch {exec rm $test.out.1}]} {
+  fail "$test (failed to switch output file)"
+  return -1
+} else {
+  pass "$test (switch output file)"
+}
 
