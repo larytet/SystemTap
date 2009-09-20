@@ -7,4 +7,5 @@ usr/bin/stap-gen-cert
 usr/bin/stap-authorize-cert
 usr/bin/stap-authorize-server-cert
 usr/bin/stap-server-connect
+usr/bin/stap-sign-module
 # TODO stap-env
