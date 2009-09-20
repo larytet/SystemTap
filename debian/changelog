@@ -1,8 +1,9 @@
-systemtap (0.9.9+0git20090910-3) experimental; urgency=low
+systemtap (0.9.9+0git20090920-1) experimental; urgency=low
 
+  * New upstream snaphsot
   * Dont build-depend on bzip2 anymore
 
- -- Євгеній Мещеряков <eugen@debian.org>  Tue, 15 Sep 2009 20:39:35 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Sun, 20 Sep 2009 20:11:33 +0200
 
 systemtap (0.9.9+0git20090910-2) experimental; urgency=low
 
