@@ -30,12 +30,8 @@ CONF_FLAGS += --libexecdir=/usr/lib
 
 DH = dh --with quilt
 
-# TODO used $(DH) patch
-patch:
-	dh_quilt_patch
-
 # plus is to enable parallel build
-binary binary-arch binary-indep build clean install:
+binary binary-arch binary-indep build clean install patch:
 	+$(DH) $@
 
 override_dh_auto_configure:
