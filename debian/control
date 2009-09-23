@@ -62,7 +62,9 @@ Depends: libnss3-tools, avahi-utils, unzip, zip, systemtap (= ${binary:Version})
 Conflicts: stap-client (<< 0.0.20090523~)
 Replaces: stap-client (<< 0.0.20090523~)
 Description: instrumentation system for Linux 2.6 (compile server)
- This package contains compile server for SystemTap.
+ This package contains compile server for SystemTap. It can be used
+ together with systemtap client to compile probes on a remote machine.
+ Probes will be compiled by the server on request of remote clients.
  .
  SystemTap provides infrastructure to simplify the gathering of
  information about the running Linux system.
@@ -72,7 +74,13 @@ Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
 Depends: avahi-utils, unzip, zip, dnsutils, systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Suggests: systemtap-server
 Description: instrumentation system for Linux 2.6 (client for compile server)
- This package contains client for SystemTap compile server.
+ This package contains client for SystemTap compile server. It can be
+ used to compile probes on a remote machine running systemtap-server.
+ This client can be run on a machine without full kernel debug information
+ and development environment required for 'systemtap' package.
+ .
+ If you only want to compile systemtap probes locally just install
+ 'systemtap'  package.
  .
  SystemTap provides infrastructure to simplify the gathering of
  information about the running Linux system.
