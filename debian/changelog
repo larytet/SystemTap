@@ -1,3 +1,9 @@
+systemtap (1.0-1) unstable; urgency=low
+
+  * New upstream release
+
+ -- Євгеній Мещеряков <eugen@debian.org>  Wed, 23 Sep 2009 19:04:06 +0200
+
 systemtap (0.9.9+0git20090920-1) experimental; urgency=low
 
   * New upstream snaphsot
