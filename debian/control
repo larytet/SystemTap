@@ -58,7 +58,8 @@ Description: documentation and examples for SystemTap
 Package: systemtap-server
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
 Depends: libnss3-tools, avahi-utils, unzip, zip, systemtap (= ${binary:Version}),
- systemtap-client (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+ systemtap-client (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
+ net-tools
 Conflicts: stap-client (<< 0.0.20090523~)
 Replaces: stap-client (<< 0.0.20090523~)
 Description: instrumentation system for Linux 2.6 (compile server)

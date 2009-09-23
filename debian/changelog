@@ -6,8 +6,9 @@ systemtap (1.0-1) unstable; urgency=low
   * Install AUTHORS into systemtap package
   * Try to explain what are -client and -server packages for (hopefully
     closes: #545279)
+  * Depend on net-tools in systemtap-server (for netstat)
 
- -- Євгеній Мещеряков <eugen@debian.org>  Wed, 23 Sep 2009 20:03:50 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Wed, 23 Sep 2009 20:18:43 +0200
 
 systemtap (0.9.9+0git20090920-1) experimental; urgency=low
 
