@@ -3,8 +3,9 @@ systemtap (1.0-1) unstable; urgency=low
   * New upstream release
     - stap does not seem to print warnings if -client is not installed
       (probably closes: #545429)
+  * Install AUTHORS into systemtap package
 
- -- Євгеній Мещеряков <eugen@debian.org>  Wed, 23 Sep 2009 19:47:42 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Wed, 23 Sep 2009 19:51:57 +0200
 
 systemtap (0.9.9+0git20090920-1) experimental; urgency=low
 
