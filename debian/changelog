@@ -1,3 +1,15 @@
+systemtap (1.0-2) unstable; urgency=high
+
+  * Fix multiple DoS issues (CVE-2009-2911), thanks to Moritz Muehlenhoff
+    fo reporting. Urgency is high because of security bug.
+    (closes: 551918)
+  * New patches (stolen from RedHat's bugzilla):
+    - SystemTap-1.0-limit-printf-arguments.patch
+    - SystemTap-1.0-limit-dwarf-expression-stack-size.patch
+    - SystemTap-1.0-unwind-table-size-checks.patch
+
+ -- Євгеній Мещеряков <eugen@debian.org>  Wed, 21 Oct 2009 22:05:22 +0200
+
 systemtap (1.0-1) unstable; urgency=low
 
   * New upstream release
