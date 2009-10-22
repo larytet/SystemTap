@@ -1,3 +1,9 @@
+systemtap (1.0-3) unstable; urgency=low
+
+  * Fix Vcs-Browser url
+
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 22 Oct 2009 16:52:13 +0200
+
 systemtap (1.0-2) unstable; urgency=high
 
   * Fix multiple DoS issues (CVE-2009-2911), thanks to Moritz Muehlenhoff

@@ -10,7 +10,7 @@ Build-Conflicts: autoconf2.13, automake1.4
 Standards-Version: 3.8.3
 Homepage: http://sourceware.org/systemtap/
 Vcs-Git: git://git.debian.org/git/collab-maint/systemtap.git
-Vcs-Browser: http://git.debian.org/git/collab-maint/systemtap.git
+Vcs-Browser: http://git.debian.org/?p=collab-maint/systemtap.git
 
 Package: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
