@@ -2,30 +2,6 @@ Index: systemtap/configure.ac
 ===================================================================
 --- systemtap.orig/configure.ac	2010-01-21 09:00:30.000000000 +0100
 +++ systemtap/configure.ac	2010-01-21 09:04:00.483768663 +0100
-@@ -226,15 +226,15 @@
- if test "$building_docs" == "no" -a "$enable_refdocs" == "yes" ; then
-    AC_MSG_ERROR([must use --enable-docs with --enable-refdocs])
- fi
--AC_CHECK_PROG(have_xmlto, xmlto, yes, no)
--if test "$enable_refdocs" == "yes"; then
--   if test "x${have_xmlto}" != "xyes"; then
--      AC_MSG_ERROR([cannot find xmlto for building reference documentation])
--   fi
--fi
--if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
-+#AC_CHECK_PROG(have_xmlto, xmlto, yes, no)
-+#if test "$enable_refdocs" == "yes"; then
-+#   if test "x${have_xmlto}" != "xyes"; then
-+#      AC_MSG_ERROR([cannot find xmlto for building reference documentation])
-+#   fi
-+#fi
-+#if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_docs}" == "yes"; then
-    building_refdocs="yes"
--fi
-+#fi
- AM_CONDITIONAL([BUILD_REFDOCS], [test "$building_refdocs" == "yes"])
- 
- cat > conftest.xml << 'EOF'
 @@ -260,18 +260,18 @@
  fi
  AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
