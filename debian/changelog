@@ -1,8 +1,9 @@
-systemtap (1.0-3) unstable; urgency=low
+systemtap (1.1-1) unstable; urgency=low
 
+  * New upstream release
   * Fix Vcs-Browser url
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 22 Oct 2009 16:52:13 +0200
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 08:45:14 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
