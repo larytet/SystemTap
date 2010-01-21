@@ -6,10 +6,11 @@ systemtap (1.1-1) unstable; urgency=low
   * Pass --enable-publican to configure, build-depend on publican
   * Removed patches:
     - no-PROCFLAGS.diff - fixed upstream
+    - no-xmto.diff - let's try to use xmlto..., build depend on it
   * Updated patches:
     - dont-build-pdfdocs.diff
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:04:39 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:06:33 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
