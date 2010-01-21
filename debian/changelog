@@ -3,7 +3,7 @@ systemtap (1.1-1) unstable; urgency=low
   * New upstream release
   * Fix Vcs-Browser url
   * Update debian/copyright
-  * Pass --enable-publican to configure, build-depend on publican
+  * Pass --disable-publican to configure, not usable in Debian
   * Removed patches:
     - no-PROCFLAGS.diff - fixed upstream
     - no-xmto.diff - let's try to use xmlto..., build depend on it
@@ -16,7 +16,7 @@ systemtap (1.1-1) unstable; urgency=low
     - grapher-libs.diff 
   * Build-depend on libboost-dev and libglademm-2.4-dev, needed for grapher
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:17:13 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:49:23 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
