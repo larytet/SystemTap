@@ -8,12 +8,15 @@
 const char *get_home_directory(void);
 size_t get_file_size(const std::string &path);
 bool file_exists (const std::string &path);
-int copy_file(const char *src, const char *dest);
+bool copy_file(const std::string& src, const std::string& dest,
+               bool verbose=false);
 int create_dir(const char *dir);
 int remove_file_or_dir(const char *dir);
+bool in_group_id (gid_t target_gid);
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
 	      const std::string& delimiters);
-std::string find_executable(const std::string& name);
+std::string find_executable(const std::string& name,
+			    const std::string& env_path = "PATH");
 const std::string cmdstr_quoted(const std::string& cmd);
 std::string git_revision(const std::string& path);
 int stap_system(int verbose, const std::string& command);

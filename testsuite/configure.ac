@@ -1,7 +1,7 @@
 dnl configure.ac --- autoconf input file for systemtap testsuite
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 1.0, systemtap@sources.redhat.com, systemtap)
+AC_INIT([systemtap], 1.1, systemtap@sources.redhat.com, systemtap)
 
 AC_PREREQ(2.59)
 AC_CONFIG_AUX_DIR(..)
@@ -22,6 +22,18 @@ if test -n "$dejazilla"; then
    AC_MSG_NOTICE([A "make *check" will email results to $dejazilla])
 fi
 AC_SUBST(dejazilla)
+
+apps=
+for exp in $srcdir/systemtap.apps/*.exp
+do
+    app=`basename $exp .exp`
+    apps="$app $apps"
+done
+AC_ARG_ENABLE([testapps],
+  AC_HELP_STRING([--enable-testapps=foo bar or all],
+    [enable rebuilding of large external apps for testing <sdt.h> markers]))
+AC_MSG_NOTICE([Will test ${enable_testapps-no} apps from: $apps])
+AC_SUBST(enable_testapps)
 
 AC_CONFIG_FILES(Makefile)
 AC_OUTPUT

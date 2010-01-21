@@ -135,22 +135,45 @@
 !Itapset/timestamp.stp
   </chapter>
 
+  <chapter id="ctime.stp">
+    <title>Time string utility function</title>
+    <para>
+      Utility function to turn seconds since the epoch (as returned by
+      the timestamp function gettimeofday_s()) into a human readable
+      date/time string.
+    </para>
+!Itapset/ctime.stp
+  </chapter>
+
   <chapter id="memory_stp">
     <title>Memory Tapset</title>
  <para>
-      This family of probe points is used to probe memory-related events.
+      This family of probe points is used to probe memory-related events
+      or query the memory usage of the current process.
       It contains the following probe points:
     </para>
 !Itapset/memory.stp
+!Itapset/proc_mem.stp
+  </chapter>
+
+  <chapter id="task_time_stp">
+    <title>Task Time Tapset</title>
+    <para>
+      This tapset defines utility functions to query time related
+      properties of the current tasks, translate those in miliseconds
+      and human readable strings.
+    </para>
+!Itapset/task_time.stp
   </chapter>
 
   <chapter id="iosched.stp">
-    <title>IO Scheduler Tapset</title>
+    <title>IO Scheduler and block IO Tapset</title>
     <para>
-      This family of probe points is used to probe IO scheduler activities.
+      This family of probe points is used to probe block IO layer and IO scheduler activities.
       It contains the following probe points:
     </para>
 !Itapset/ioscheduler.stp
+!Itapset/ioblock.stp
   </chapter>
 
   <chapter id="scsi.stp">
@@ -160,6 +183,15 @@
       It contains the following probe points:
     </para>
 !Itapset/scsi.stp
+  </chapter>
+
+  <chapter id="tty.stp">
+    <title>TTY Tapset</title>
+    <para>
+      This family of probe points is used to probe TTY (Teletype) activities.
+      It contains the following probe points:
+    </para>
+!Itapset/tty.stp
   </chapter>
 
   <chapter id="networking.stp">
@@ -205,5 +237,47 @@
       directory entry pointers to file or full path names.
     </para>
 !Itapset/dentry.stp
+    </chapter>
+  <chapter id="logging.stp">
+    <title>Logging Tapset</title>
+    <para>
+      This family of functions is used to send simple
+      message strings to various destinations.
+    </para>
+!Itapset/logging.stp
+    </chapter>
+  <chapter id="random.stp">
+    <title>Random functions Tapset</title>
+    <para>
+      These functions deal with random number generation.
+    </para>
+!Itapset/random.stp
+    </chapter>
+  <chapter id="conversions.stp">
+    <title>String and data retrieving functions Tapset</title>
+    <para>
+      Functions to retrieve strings and other primitive types from
+      the kernel or a user space programs based on addresses. All
+      strings are of a maximum length given by MAXSTRINGLEN.
+    </para>
+!Itapset/conversions.stp
+    </chapter>
+  <chapter id="string.stp">
+    <title>A collection of standard string functions</title>
+    <para>
+      Functions to get the length, a substring, getting at individual
+      characters, string seaching, escaping, tokenizing, and converting
+      strings to longs.
+    </para>
+!Itapset/string.stp
+    </chapter>
+  <chapter id="ansi.stp">
+    <title>Utility functions for using ansi control chars in logs</title>
+    <para>
+      Utility functions for logging using ansi control characters. This
+      lets you manipulate the cursor position and character color output
+      and attributes of log messages.
+    </para>
+!Itapset/ansi.stp
     </chapter>
 </book>

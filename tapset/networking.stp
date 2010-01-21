@@ -71,7 +71,7 @@ probe netdev.receive
  * probe netdev.transmit - Network device transmitting buffer
  * @dev_name: The name of the device. e.g: eth0, ath1.
  * @length: The length of the transmit buffer.
- * @protocol: The protocol of this packet.
+ * @protocol: The protocol of this packet(defined in include/linux/if_ether.h).
  * @truesize: The size of the data to be transmitted.
  *
  */
@@ -154,7 +154,7 @@ probe netdev.rx
  * @flags: The new flags
  */
 probe netdev.change_rx_flag
-	= kernel.function("dev_change_rx_flags")
+	= kernel.function("dev_change_rx_flags") ?
 {
 	dev_name = get_netdev_name($dev)
 	flags = $flags
@@ -217,7 +217,7 @@ probe netdev.unregister
  * @dev_name: The device that is going to provide the statistics
  */
 probe netdev.get_stats
-	= kernel.function("dev_get_stats")
+	= kernel.function("dev_get_stats") ?
 {
 	dev_name = get_netdev_name($dev)
 }

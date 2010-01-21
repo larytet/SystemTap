@@ -1,3 +1,68 @@
+* What's new in version 1.1
+
+- New tracepoint based tapset for memory subsystem.
+
+- The loading of signed modules by staprun is no longer allowed for
+  ordinary, unprivileged users.  This means that only root, members of
+  the group 'stapdev' and members of the group 'stapusr' can load
+  systemtap modules using staprun, stap or stap-client.  The minimum
+  privilege required to run arbitrary --unprivileged scripts is now
+  'stapusr' membership.
+
+- The stap-server initscript is available. This initscript allows you
+  to start systemtap compile servers as a system service and to manage
+  these servers as a group or individually. The stap-server initscript
+  is installed by the systemtap-server rpm.  The build directory for
+  the uprobes module (/usr/share/systemtap/runtime/uprobes) is made
+  writable by the 'stap-server' group. All of the files generated when
+  building the uprobes module, including the digital signature, are
+  also writable by members of stap-server.
+
+  See initscript/README.stap-server for details.
+
+- Some of the of the compile server client, server and certificate
+  management tools have been moved from $bindir to $libexecdir/systemtap.
+  You should use the new stap-server script or the stap-server initscript
+  for server management where possible. The stap-server script provides the same
+  functionality as the stap-server initscript except that the servers are
+  run by the invoking user by default as opposed to servers started by the
+  stap-server initscript which are run by the user stap-server
+  by default. See stap-server(8) for more information.
+
+  You may continue to use these tools by adding $libexecdir/systemtap to
+  your path. You would need to do this, for example, if you are not root,
+  you want to start a compile server and you are not running systemtap from a
+  private installation. In this case you still need to use stap-start-server.
+
+- Any diagnostic output line that starts with "ERROR", as in
+  error("foo"), will promote a "Pass 5: run failed", and the return
+  code is 1.
+
+- Systemtap now warns about global variables being referenced from other
+  script files.  This aims to protect against unintended local-vs-global 
+  namespace collisions such as:
+
+     % cat some_tapset.stp
+     probe baz.one = bar { foo = $foo; bar = $bar }
+     % cat end_user_script.stp
+     global foo # intended to be private variable
+     probe timer.s(1) { foo ++ }
+     probe baz.* { println(foo, pp()) }
+     % stap end_user_script.stp
+     WARNING: cross-file global variable reference to foo from some_tapset.stp
+
+- Preprocessor conditional for kernel configuration testing:
+  %( CONFIG_foo == "y" %? ... %) 
+
+- ftrace(msg:string) tapset function to send strings to the system-wide
+  ftrace ring-buffer (if any).
+
+- Better support for richer DWARF debuginfo output from GCC 4.5
+  (variable tracking assignments). Kernel modules are now always resolved
+  against all their dependencies to find any info referring to missing
+  symbols. DW_AT_const_value is now supported when no DW_AT_location
+  is available.
+
 * What's new in verson 1.0
 
 - process().mark() probes now use an enabling semaphore to reduce the
@@ -27,7 +92,7 @@
     considered when searching for a suitable server.
 
 - When using the systemtap client and server udp port 5353 must be open
-  in your firewall in order for the clent to find servers using
+  in your firewall in order for the client to find servers using
   avahi-browse.  Also the systemtap server will choose a random port in
   the range 1024-63999 for accepting ssl connections.
 
@@ -126,9 +191,9 @@
 
 - User space PROBE marks are not always found with or without separate
   debuginfo. The .probes section itself is now always put in the main
-  elf file and marked as allocated. When when building pic code the
-  section is marked writable.  fixes the selinux memory check problems
-  seen with programs using STAP_PROBES.
+  elf file and marked as allocated. When building pic code the section
+  is marked writable. The selinux memory check problems seen with
+  programs using STAP_PROBES is fixed.
 
 - statement() probes can now override "address not at start of statement"
   errors in guru mode. They also provide alternative addresses to use
@@ -366,7 +431,7 @@
 - Systemtap initscript is available. This initscript allows you to run
   systemtap scripts as system services (in flight recorder mode) and
   control those scripts individually.
-  See README.initscript for details.
+  See README.systemtap for details.
 
 - The stap "-r DIR" option may be used to identify a hand-made kernel
   build directory.  The tool determines the appropriate release string

@@ -30,6 +30,13 @@
 
 #define N_(x) x
 
+/* NB: PR10601 may make one suspect that intptr_t and uintptr_t aren't
+   right, for example on a 64-bit kernel targeting a 32-bit userspace
+   process.  At least these types are always at least as wide as
+   userspace (since 64-bit userspace doesn't run on a 32-bit kernel).
+   So as long as deref() and {fetch,store}_register() widen/narrow
+   their underlying values to these, there should be no problem. */
+
 #define STACK_TYPE	"intptr_t"  /* Must be the signed type.  */
 #define UTYPE		"uintptr_t" /* Must be the unsigned type.  */
 #define SFORMAT		"%" PRId64 "L"
@@ -76,6 +83,15 @@ struct location
   };
 };
 
+/* Select the C type to use in the emitted code to represent slots in the
+   DWARF expression stack.  For really proper semantics this should be the
+   target address size.  */
+static const char *
+stack_slot_type (struct location *context __attribute__ ((unused)), bool sign)
+{
+  return sign ? STACK_TYPE : UTYPE;
+}
+
 static struct location *
 alloc_location (struct obstack *pool, struct location *origin)
 {
@@ -85,6 +101,8 @@ alloc_location (struct obstack *pool, struct location *origin)
   loc->emit_address = origin->emit_address;
   loc->byte_size = 0;
   loc->frame_base = NULL;
+  loc->ops = NULL;
+  loc->nops = 0;
   return loc;
 }
 
@@ -166,7 +184,8 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 
 #define emit(fmt, ...) obstack_printf (pool, fmt, ## __VA_ARGS__)
 
-  unsigned int stack_depth = 0, max_stack = 0;
+  unsigned int stack_depth;
+  unsigned int max_stack = 0;
   inline void deepen (void)
     {
       if (stack_depth == max_stack)
@@ -188,7 +207,7 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 #define push(fmt, ...) \
   emit ("%*s" STACKFMT " = " fmt ";\n", indent * 2, "", PUSH, ## __VA_ARGS__)
 
-  int tos_register = -1;
+  int tos_register;
   inline void fetch_tos_register (void)
     {
       deepen ();
@@ -197,33 +216,42 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
       tos_register = -1;
     }
 
-  bool tos_value = false;
-  Dwarf_Block implicit_value = { 0, NULL };
+  bool tos_value;
+  Dwarf_Block implicit_value;
+  bool used_deref;
 
-  if (input != NULL)
-    switch (input->type)
-      {
-      case loc_address:
-	push ("addr");
-	break;
+  /* Initialize our state for handling each new piece.  */
+  inline void reset ()
+    {
+      stack_depth = 0;
+      tos_register = -1;
+      tos_value = false;
+      implicit_value.data = NULL;
+      used_deref = false;
 
-      case loc_value:
-	push ("addr");
-	tos_value = true;
-	break;
+      if (input != NULL)
+	switch (input->type)
+	  {
+	  case loc_address:
+	    push ("addr");
+	    break;
 
-      case loc_register:
-	tos_register = input->reg.regno;
-	break;
+	  case loc_value:
+	    push ("addr");
+	    tos_value = true;
+	    break;
 
-      default:
-	abort ();
-	break;
-      }
+	  case loc_register:
+	    tos_register = input->reg.regno;
+	    break;
+
+	  default:
+	    abort ();
+	    break;
+	  }
+    }
 
   size_t i;
-
-  bool used_deref = false;
   inline const char *finish (struct location *piece)
     {
       if (stack_depth > 1)
@@ -246,9 +274,6 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 	      piece->byte_size = implicit_value.length;
 	      piece->constant_block = implicit_value.data;
 	    }
-	  used_deref = false;
-	  tos_value = false;
-	  implicit_value.data = NULL;
 	}
       else if (tos_register == -1)
 	DIE ("stack underflow");
@@ -263,6 +288,7 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
       return NULL;
     }
 
+  reset ();
   struct location *pieces = NULL, **tailpiece = &pieces;
   size_t piece_expr_start = 0;
   Dwarf_Word piece_total_bytes = 0;
@@ -481,7 +507,8 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 	    POP (b);
 	    POP (a);
 	    push ("(%s) " STACKFMT " >> (%s)" STACKFMT,
-		  UTYPE, a, UTYPE, b);
+		  stack_slot_type (loc, true), a,
+		  stack_slot_type (loc, true), b);
 	    break;
 	  }
 
@@ -557,6 +584,9 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 	      *tailpiece = piece;
 	      tailpiece = &piece->next;
 	      piece->next = NULL;
+
+	      /* Reset default conditions for handling the next piece.  */
+	      reset ();
 	    }
 	  break;
 
@@ -658,6 +688,8 @@ location_from_address (struct obstack *pool,
   loc->emit_address = *input == NULL ? emit_address : (*input)->emit_address;
   loc->byte_size = 0;
   loc->frame_base = NULL;
+  loc->ops = NULL;
+  loc->nops = 0;
 
   bool need_fb = false;
   size_t loser;
@@ -1152,6 +1184,107 @@ c_translate_location (struct obstack *pool,
   return NULL;
 }
 
+/* Translate a DW_AT_const_value attribute as if it were a location of
+   constant-value flavor.  */
+
+struct location *
+c_translate_constant (struct obstack *pool,
+		      void (*fail) (void *arg,
+				    const char *fmt, ...)
+		      __attribute__ ((noreturn,
+				      format (printf, 2, 3))),
+		      void *fail_arg,
+		      void (*emit_address) (void *fail_arg,
+					    struct obstack *,
+					    Dwarf_Addr),
+		      int indent, Dwarf_Addr dwbias, Dwarf_Attribute *attr)
+{
+  indent += 2;
+
+  struct location *loc = obstack_alloc (pool, sizeof *loc);
+  loc->fail = fail;
+  loc->fail_arg = fail_arg;
+  loc->emit_address = emit_address ?: &default_emit_address;
+  loc->byte_size = 0;
+  loc->frame_base = NULL;
+  loc->address.stack_depth = 0;
+  loc->address.declare = NULL;
+  loc->address.used_deref = false;
+  loc->ops = NULL;
+  loc->nops = 0;
+
+  switch (dwarf_whatform (attr))
+    {
+    case DW_FORM_addr:
+      {
+	Dwarf_Addr addr;
+	if (dwarf_formaddr (attr, &addr) != 0)
+	  {
+	    FAIL (loc, N_("cannot get constant address: %s"),
+		  dwarf_errmsg (-1));
+	    return NULL;
+	  }
+	loc->type = loc_value;
+	obstack_printf (pool, "%*saddr = ", indent * 2, "");
+	(*loc->emit_address) (loc->fail_arg, pool, dwbias + addr);
+	obstack_grow (pool, ";\n", 3);
+	loc->address.program = obstack_finish (pool);
+	break;
+      }
+
+    case DW_FORM_block:
+    case DW_FORM_block1:
+    case DW_FORM_block2:
+    case DW_FORM_block4:
+      {
+	Dwarf_Block block;
+	if (dwarf_formblock (attr, &block) != 0)
+	  {
+	    FAIL (loc, N_("cannot get constant block: %s"), dwarf_errmsg (-1));
+	    return NULL;
+	  }
+	loc->type = loc_constant;
+	loc->byte_size = block.length;
+	loc->constant_block = block.data;
+	break;
+      }
+
+    case DW_FORM_string:
+    case DW_FORM_strp:
+      {
+	const char *string = dwarf_formstring (attr);
+	if (string == NULL)
+	  {
+	    FAIL (loc, N_("cannot get string constant: %s"), dwarf_errmsg (-1));
+	    return NULL;
+	  }
+	loc->type = loc_constant;
+	loc->byte_size = strlen (string) + 1;
+	loc->constant_block = string;
+	break;
+      }
+
+    default:
+      {
+	Dwarf_Sword value;
+	if (dwarf_formsdata (attr, &value) != 0)
+	  {
+	    FAIL (loc, N_("cannot get constant value: %s"), dwarf_errmsg (-1));
+	    return NULL;
+	  }
+	loc->type = loc_value;
+	obstack_printf (pool, "%*saddr = %" PRId64 "L;\n",
+			indent * 2, "", value);
+	obstack_1grow (pool, '\0');
+	loc->address.program = obstack_finish (pool);
+	break;
+      }
+    }
+
+  return loc;
+}
+
+
 /* Translate a C fragment for a direct argument VALUE.  On errors, call FAIL,
    which should not return.  Any later errors will use FAIL and FAIL_ARG from
    this translate call.  On success, return the fragment created. */
@@ -1166,7 +1299,7 @@ c_translate_argument (struct obstack *pool,
 {
   indent += 2;
 
-  obstack_printf(pool, "%*saddr = %s;\n", indent * 2, "", value);
+  obstack_printf (pool, "%*saddr = %s;\n", indent * 2, "", value);
   obstack_1grow (pool, '\0');
   char *program = obstack_finish (pool);
 
@@ -1174,7 +1307,7 @@ c_translate_argument (struct obstack *pool,
   loc->next = NULL;
   loc->fail = fail;
   loc->fail_arg = fail_arg;
-  loc->emit_address = emit_address;
+  loc->emit_address = emit_address ?: &default_emit_address;
   loc->ops = NULL;
   loc->nops = 0;
   loc->byte_size = 0;
@@ -1230,8 +1363,7 @@ emit_base_fetch (struct obstack *pool, Dwarf_Word byte_size,
       break;
     }
 
-  obstack_printf (pool, "%s = value; ", target);
-  obstack_printf (pool, "}");
+  obstack_printf (pool, " %s = value; }", target);
   return deref;
 }
 
@@ -1361,6 +1493,8 @@ discontiguify (struct obstack *pool, int indent, struct location *loc,
 	    piece->constant_block = loc->constant_block + offset;
 
 	    add (piece);
+
+	    offset += size;
 	  }
 
 	break;
@@ -1396,12 +1530,16 @@ discontiguify (struct obstack *pool, int indent, struct location *loc,
         uint32_t p4;
       } pieces __attribute__ ((packed));
       uint64_t whole;
-    } u;
+    } u_pieces<depth>;
 */
 static void
 declare_noncontig_union (struct obstack *pool, int indent,
-			 struct location **input, struct location *loc)
+			 struct location **input, struct location *loc,
+			 int depth)
 {
+  if (depth > 9)
+    FAIL (loc, N_("declaring noncontig union for depth > 9, too many pieces"));
+
   obstack_printf (pool, "%*sunion {\n", indent++ * 2, "");
 
   obstack_printf (pool, "%*schar bytes[%" PRIu64 "];\n",
@@ -1427,7 +1565,7 @@ declare_noncontig_union (struct obstack *pool, int indent,
   obstack_printf (pool, "%*suint%" PRIu64 "_t whole;\n",
 		  indent * 2, "", loc->byte_size * 8);
 
-  obstack_printf (pool, "%*s} u;\n", --indent * 2, "");
+  obstack_printf (pool, "%*s} u_pieces%d;\n", --indent * 2, "", depth);
 
   loc = new_synthetic_loc (pool, *input, false);
   loc->type = loc_decl;
@@ -1498,7 +1636,8 @@ get_bitfield (struct location *loc,
 static void
 translate_base_fetch (struct obstack *pool, int indent,
 		      Dwarf_Word byte_size, bool signed_p,
-		      struct location **input, const char *target)
+		      struct location **input, const char *target,
+		      int depth)
 {
   bool deref = false;
 
@@ -1506,10 +1645,12 @@ translate_base_fetch (struct obstack *pool, int indent,
     {
       struct location *p = (*input)->pieces;
 
-      declare_noncontig_union (pool, indent, input, *input);
+      declare_noncontig_union (pool, indent, input, *input, depth);
 
       Dwarf_Word offset = 0;
-      char piece[sizeof "u.pieces.p" + 20] = "u.pieces.p";
+      char piece[sizeof "u_pieces?.pieces.p" + 20] = "u_pieces?.pieces.p";
+      piece[8] = (char) ('0' + depth);
+      int pdepth = depth + 1;
       while (p != NULL)
 	{
 	  struct location *newp = obstack_alloc (pool, sizeof *newp);
@@ -1518,16 +1659,19 @@ translate_base_fetch (struct obstack *pool, int indent,
 	  (*input)->next = newp;
 	  *input = newp;
 
-	  snprintf (&piece[sizeof "u.pieces.p" - 1], 20, "%" PRIu64, offset);
+	  snprintf (&piece[sizeof "u_pieces?.pieces.p" - 1], 20,
+		    "%" PRIu64, offset);
 	  translate_base_fetch (pool, indent, p->byte_size, signed_p /* ? */,
-                                input, piece);
+                                input, piece, pdepth);
 	  (*input)->type = loc_fragment;
 
 	  offset += p->byte_size;
 	  p = p->next;
+	  pdepth++;
 	}
 
-      obstack_printf (pool, "%*s%s = u.whole;\n", indent * 2, "", target);
+      obstack_printf (pool, "%*s%s = u_pieces%d.whole;\n", indent * 2,
+		      "", target, depth);
     }
   else if ((*input)->type == loc_constant)
     {
@@ -1535,13 +1679,14 @@ translate_base_fetch (struct obstack *pool, int indent,
       const size_t byte_size = (*input)->byte_size;
       size_t i;
 
-      declare_noncontig_union (pool, indent, input, *input);
+      declare_noncontig_union (pool, indent, input, *input, depth);
 
       for (i = 0; i < byte_size; ++i)
-	obstack_printf (pool, "%*su.bytes[%zu] = %#x;\n", indent * 2, "",
-			i, constant_block[i]);
+	obstack_printf (pool, "%*su_pieces%d.bytes[%zu] = %#x;\n", indent * 2,
+			"", depth, i, constant_block[i]);
 
-      obstack_printf (pool, "%*s%s = u.whole;\n", indent * 2, "", target);
+      obstack_printf (pool, "%*s%s = u_pieces%d.whole;\n", indent * 2,
+		      "", target, depth);
     }
   else
     switch (byte_size)
@@ -1614,7 +1759,7 @@ c_translate_fetch (struct obstack *pool, int indent,
       /* This is a bit field.  Fetch the containing base type into a
 	 temporary variable.  */
 
-      translate_base_fetch (pool, indent, byte_size, signed_p, input, "tmp");
+      translate_base_fetch (pool, indent, byte_size, signed_p, input, "tmp", 0);
       (*input)->type = loc_fragment;
       (*input)->address.declare = "tmp";
 
@@ -1631,7 +1776,7 @@ c_translate_fetch (struct obstack *pool, int indent,
       *input = loc;
     }
   else
-    translate_base_fetch (pool, indent, byte_size, signed_p, input, target);
+    translate_base_fetch (pool, indent, byte_size, signed_p, input, target, 0);
 }
 
 /* Translate a fragment to store RVALUE into the base-type value of
@@ -1639,23 +1784,26 @@ c_translate_fetch (struct obstack *pool, int indent,
 static void
 translate_base_store (struct obstack *pool, int indent, Dwarf_Word byte_size,
 		      struct location **input, struct location *store_loc,
-		      const char *rvalue)
+		      const char *rvalue, int depth)
 {
   bool deref = false;
 
   if (store_loc->type == loc_noncontiguous)
     {
-      declare_noncontig_union (pool, indent, input, store_loc);
+      declare_noncontig_union (pool, indent, input, store_loc, depth);
 
-      obstack_printf (pool, "%*su.whole = %s;\n", indent * 2, "", rvalue);
+      obstack_printf (pool, "%*su_pieces%d.whole = %s;\n", indent * 2,
+		      "", depth, rvalue);
       struct location *loc = new_synthetic_loc (pool, *input, deref);
       loc->type = loc_fragment;
       (*input)->next = loc;
       *input = loc;
 
       Dwarf_Word offset = 0;
-      char piece[sizeof "u.pieces.p" + 20] = "u.pieces.p";
+      char piece[sizeof "u_pieces?.pieces.p" + 20] = "u_pieces?.pieces.p";
+      piece[8] = (char) ('0' + depth);
       struct location *p;
+      int pdepth = depth + 1;
       for (p = store_loc->pieces; p != NULL; p = p->next)
         {
 	  struct location *newp = obstack_alloc (pool, sizeof *newp);
@@ -1664,9 +1812,10 @@ translate_base_store (struct obstack *pool, int indent, Dwarf_Word byte_size,
 	  (*input)->next = newp;
 	  *input = newp;
 
-	  snprintf (&piece[sizeof "u.pieces.p" - 1], 20, "%" PRIu64, offset);
+	  snprintf (&piece[sizeof "u_pieces?.pieces.p" - 1], 20, "%" PRIu64,
+		    offset);
 	  translate_base_store (pool, indent,
-				p->byte_size, input, *input, piece);
+				p->byte_size, input, *input, piece, pdepth++);
 	  (*input)->type = loc_fragment;
 
 	  offset += p->byte_size;
@@ -1735,7 +1884,7 @@ c_translate_store (struct obstack *pool, int indent,
       /* This is a bit field.  Fetch the containing base type into a
 	 temporary variable.  */
 
-      translate_base_fetch (pool, indent, byte_size, signed_p, input, "tmp");
+      translate_base_fetch (pool, indent, byte_size, signed_p, input, "tmp", 0);
       (*input)->type = loc_fragment;
       (*input)->address.declare = "tmp";
 
@@ -1756,7 +1905,7 @@ c_translate_store (struct obstack *pool, int indent,
       rvalue = "tmp";
     }
 
-  translate_base_store (pool, indent, byte_size, input, store_loc, rvalue);
+  translate_base_store (pool, indent, byte_size, input, store_loc, rvalue, 0);
 }
 
 /* Translate a fragment to dereference the given pointer type,
@@ -1786,7 +1935,7 @@ c_translate_pointer (struct obstack *pool, int indent,
 
   bool signed_p = false; /* XXX: Does not matter? */
 
-  translate_base_fetch (pool, indent + 1, byte_size, signed_p, input, "addr");
+  translate_base_fetch (pool, indent + 1, byte_size, signed_p, input, "addr", 0);
   (*input)->type = loc_address;
 }
 
@@ -1854,7 +2003,7 @@ c_translate_pointer_store (struct obstack *pool, int indent,
 	  dwarf_errmsg (-1));
 
   translate_base_store (pool, indent + 1, byte_size,
-                        input, *input, rvalue);
+                        input, *input, rvalue, 0);
 
   // XXX: what about multiple-location lvalues?
 }
@@ -2055,7 +2204,8 @@ emit_loc_address (FILE *out, struct location *loc, unsigned int indent,
   else
     {
       emit ("%*s{\n", indent * 2, "");
-      emit ("%*s%s " STACKFMT, (indent + 1) * 2, "", STACK_TYPE, 0);
+      emit ("%*s%s " STACKFMT, (indent + 1) * 2, "",
+	    stack_slot_type (loc, false), 0);
       unsigned i;
       for (i = 1; i < loc->address.stack_depth; ++i)
 	emit (", " STACKFMT, i);
@@ -2071,10 +2221,11 @@ emit_loc_address (FILE *out, struct location *loc, unsigned int indent,
    assign it to an address-sized value.  */
 static void
 emit_loc_value (FILE *out, struct location *loc, unsigned int indent,
-		const char *target, bool declare)
+		const char *target, bool declare,
+		bool *used_deref, unsigned int *max_stack)
 {
   if (declare)
-    emit ("%*s%s %s;\n", indent * 2, "", STACK_TYPE, target);
+    emit ("%*s%s %s;\n", indent * 2, "", stack_slot_type (loc, false), target);
 
   emit_header (out, loc, indent++);
 
@@ -2091,6 +2242,9 @@ emit_loc_value (FILE *out, struct location *loc, unsigned int indent,
     case loc_address:
     case loc_value:
       emit_loc_address (out, loc, indent, target);
+      *used_deref = *used_deref || loc->address.used_deref;
+      if (loc->address.stack_depth > *max_stack)
+	*max_stack = loc->address.stack_depth;
       break;
     }
 
@@ -2098,7 +2252,8 @@ emit_loc_value (FILE *out, struct location *loc, unsigned int indent,
 }
 
 bool
-c_emit_location (FILE *out, struct location *loc, int indent)
+c_emit_location (FILE *out, struct location *loc, int indent,
+		 unsigned int *max_stack)
 {
   emit ("%*s{\n", indent * 2, "");
 
@@ -2123,7 +2278,7 @@ c_emit_location (FILE *out, struct location *loc, int indent)
 	  {
 	    if (l->byte_size == 0 || l->byte_size == (Dwarf_Word) -1)
 	      emit ("%*s%s %s;\n", (indent + 1) * 2, "",
-		    STACK_TYPE, l->address.declare);
+		    stack_slot_type (l, false), l->address.declare);
 	    else
 	      emit ("%*suint%" PRIu64 "_t %s;\n", (indent + 1) * 2, "",
 		    l->byte_size * 8, l->address.declare);
@@ -2134,9 +2289,11 @@ c_emit_location (FILE *out, struct location *loc, int indent)
       }
 
   bool deref = false;
+  *max_stack = 0;
 
   if (loc->frame_base != NULL)
-    emit_loc_value (out, loc->frame_base, indent, "frame_base", true);
+    emit_loc_value (out, loc->frame_base, indent, "frame_base", true,
+		    &deref, max_stack);
 
   for (; loc->next != NULL; loc = loc->next)
     switch (loc->type)
@@ -2144,8 +2301,7 @@ c_emit_location (FILE *out, struct location *loc, int indent)
       case loc_address:
       case loc_value:
 	/* Emit the program fragment to calculate the address.  */
-	emit_loc_value (out, loc, indent + 1, "addr", false);
-	deref = deref || loc->address.used_deref;
+	emit_loc_value (out, loc, indent + 1, "addr", false, &deref, max_stack);
 	break;
 
       case loc_fragment:
@@ -2171,6 +2327,9 @@ c_emit_location (FILE *out, struct location *loc, int indent)
     abort ();
 
   emit ("%s%*s}\n", loc->address.program, indent * 2, "");
+
+  if (loc->address.stack_depth > *max_stack)
+    *max_stack = loc->address.stack_depth;
 
   return deref || loc->address.used_deref;
 }

@@ -16,6 +16,7 @@
 #include "elaborate.h"
 #include "session.h"
 #include "unordered.h"
+#include "setupdwfl.h"
 
 #include <cstring>
 #include <iostream>
@@ -173,7 +174,7 @@ struct dwflpp
   std::string function_name;
 
   dwflpp(systemtap_session & session, const std::string& user_module, bool kernel_p);
-  dwflpp(systemtap_session & session, const std::vector<std::string>& user_modules);
+  dwflpp(systemtap_session & session, const std::vector<std::string>& user_modules, bool kernel_p);
   ~dwflpp();
 
   void get_module_dwarf(bool required = false, bool report = true);
@@ -212,6 +213,7 @@ struct dwflpp
   std::vector<Dwarf_Die> getscopes(Dwarf_Addr pc);
 
   Dwarf_Die *declaration_resolve(const char *name);
+  Dwarf_Die *declaration_resolve_other_cus(const char *name);
 
   mod_cu_function_cache_t cu_function_cache;
 
@@ -286,13 +288,14 @@ struct dwflpp
 
 
 private:
-  Dwfl * dwfl;
+  DwflPtr dwfl_ptr;
 
   // These are "current" values we focus on.
   Dwarf * module_dwarf;
   Dwarf_Die * function;
 
   void setup_kernel(const std::string& module_name, bool debuginfo_needed = true);
+  void setup_kernel(const std::vector<std::string>& modules, bool debuginfo_needed = true);
   void setup_user(const std::vector<std::string>& modules, bool debuginfo_needed = true);
 
   module_cu_cache_t module_cu_cache;
@@ -317,8 +320,10 @@ private:
    */
   mod_cu_type_cache_t global_alias_cache;
   static int global_alias_caching_callback(Dwarf_Die *die, void *arg);
-  int iterate_over_globals (int (* callback)(Dwarf_Die *, void *),
-                            void * data);
+  static int global_alias_caching_callback_cus(Dwarf_Die *die, void *arg);
+  static int iterate_over_globals (Dwarf_Die *,
+                                   int (* callback)(Dwarf_Die *, void *),
+                                   void * data);
 
   static int cu_function_caching_callback (Dwarf_Die* func, void *arg);
 
@@ -392,6 +397,7 @@ private:
   // Returns the call frame address operations for the given program counter.
   Dwarf_Op *get_cfa_ops (Dwarf_Addr pc);
 
+  Dwarf_Addr vardie_from_symtable(Dwarf_Die *vardie, Dwarf_Addr *addr);
 };
 
 #endif // DWFLPP_H

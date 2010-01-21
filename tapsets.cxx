@@ -1,5 +1,5 @@
 // tapset resolution
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -21,6 +21,7 @@
 #include "auto_free.h"
 #include "hash.h"
 #include "dwflpp.h"
+#include "setupdwfl.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -99,7 +100,7 @@ common_probe_entryfn_prologue (translator_output* o, string statestr,
   o->newline(1) << "goto probe_epilogue;";
   o->indent(-1);
 
-  o->newline() << "c = per_cpu_ptr (contexts, smp_processor_id());";
+  o->newline() << "c = contexts[smp_processor_id()];";
   o->newline() << "if (atomic_inc_return (& c->busy) != 1) {";
   o->newline(1) << "#if !INTERRUPTIBLE";
   o->newline() << "atomic_inc (& skipped_count);";
@@ -128,6 +129,7 @@ common_probe_entryfn_prologue (translator_output* o, string statestr,
   o->newline() << "c->probe_point = " << new_pp << ";";
   // reset unwound address cache
   o->newline() << "c->pi = 0;";
+  o->newline() << "c->pi_longs = 0;";
   o->newline() << "c->regparm = 0;";
   o->newline() << "c->marker_name = NULL;";
   o->newline() << "c->marker_format = NULL;";
@@ -140,6 +142,7 @@ common_probe_entryfn_prologue (translator_output* o, string statestr,
   o->newline() << "#ifdef STP_TIMING";
   o->newline() << "c->statp = 0;";
   o->newline() << "#endif";
+  o->newline() << "c->ri = 0;";
   // NB: The following would actually be incorrect.
   // That's because cycles_sum/cycles_base values are supposed to survive
   // between consecutive probes.  Periodically (STP_OVERLOAD_INTERVAL
@@ -227,8 +230,8 @@ common_probe_entryfn_epilogue (translator_output* o,
 
   // Check for excessive skip counts.
   o->newline() << "if (unlikely (atomic_read (& skipped_count) > MAXSKIPPED)) {";
-  o->newline(1) << "atomic_set (& session_state, STAP_SESSION_ERROR);";
-  o->newline() << "_stp_exit ();";
+  o->newline(1) << "if (unlikely (pseudo_atomic_cmpxchg(& session_state, STAP_SESSION_RUNNING, STAP_SESSION_ERROR) == STAP_SESSION_RUNNING))";
+  o->newline() << "_stp_error (\"Skipped too many probes, check MAXSKIPPED or try again with stap -t for more details.\");";
   o->newline(-1) << "}";
 
   o->newline() << "#if INTERRUPTIBLE";
@@ -258,8 +261,10 @@ static const string TOK_PROCESS("process");
 static const string TOK_MARK("mark");
 static const string TOK_TRACE("trace");
 static const string TOK_LABEL("label");
+static const string TOK_LIBRARY("library");
 
 static int query_cu (Dwarf_Die * cudie, void * arg);
+static void query_addr(Dwarf_Addr addr, dwarf_query *q);
 
 // Can we handle this query with just symbol-table info?
 enum dbinfo_reqt
@@ -324,6 +329,7 @@ function_spec_type
 
 
 struct dwarf_builder;
+struct dwarf_var_expanding_visitor;
 
 
 // XXX: This class is a candidate for subclassing to separate
@@ -345,26 +351,31 @@ struct dwarf_derived_probe: public derived_probe
   string module;
   string section;
   Dwarf_Addr addr;
+  string path;
   bool has_return;
   bool has_maxactive;
+  bool has_library;
   long maxactive_val;
   bool access_vars;
+
+  unsigned saved_longs, saved_strings;
+  dwarf_derived_probe* entry_handler;
 
   void printsig (std::ostream &o) const;
   virtual void join_group (systemtap_session& s);
   void emit_probe_local_init(translator_output * o);
-  void printargs(std::ostream &o) const;
+  void getargs(std::set<std::string> &arg_set) const;
+
+  void emit_unprivileged_assertion (translator_output*);
+  void print_dupe_stamp(ostream& o);
 
   // Pattern registration helpers.
   static void register_statement_variants(match_node * root,
-					  dwarf_builder * dw,
-					  bool unprivileged_ok_p = false);
+					  dwarf_builder * dw);
   static void register_function_variants(match_node * root,
-					 dwarf_builder * dw,
-					 bool unprivileged_ok_p = false);
+					 dwarf_builder * dw);
   static void register_function_and_statement_variants(match_node * root,
-						       dwarf_builder * dw,
-						       bool unprivileged_ok_p = false);
+						       dwarf_builder * dw);
   static void register_patterns(systemtap_session& s);
 
 protected:
@@ -373,12 +384,13 @@ protected:
                       Dwarf_Addr addr,
                       bool has_return):
     derived_probe(base, location), addr(addr), has_return(has_return),
-    has_maxactive(0), maxactive_val(0), access_vars(false)
+    has_maxactive(0), maxactive_val(0), access_vars(false),
+    saved_longs(0), saved_strings(0), entry_handler(0)
   {}
 
 private:
-  string args;
-  void saveargs(dwarf_query& q, Dwarf_Die* scope_die);
+  set<string> args;
+  void saveargs(dwarf_query& q, Dwarf_Die* scope_die, dwarf_var_expanding_visitor& v);
 };
 
 
@@ -409,6 +421,9 @@ struct uprobe_derived_probe: public dwarf_derived_probe
   {}
 
   void join_group (systemtap_session& s);
+
+  void emit_unprivileged_assertion (translator_output*);
+  void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged_process_owner (o); }
 };
 
 struct dwarf_derived_probe_group: public derived_probe_group
@@ -449,7 +464,9 @@ struct base_query
   bool has_kernel;
   bool has_module;
   bool has_process;
+  bool has_library;
   string module_val; // has_kernel => module_val = "kernel"
+  string path;	     // executable path if module is a .so
 
   virtual void handle_query_module() = 0;
 };
@@ -467,8 +484,15 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
     has_process = false;
   else
     {
+      string library_name;
       has_process = get_string_param(params, TOK_PROCESS, module_val);
-      if (has_process)
+      has_library = get_string_param (params, TOK_LIBRARY, library_name);
+      if (has_library)
+	{
+	  path = find_executable (module_val);
+	  module_val = find_executable (library_name, "LD_LIBRARY_PATH");
+	}
+      else if (has_process)
         module_val = find_executable (module_val);
     }
 
@@ -669,6 +693,11 @@ struct dwarf_builder: public derived_probe_builder
 		     probe_point * location,
 		     literal_map_t const & parameters,
 		     vector<derived_probe *> & finished_results);
+
+  // No action required. These probes are allowed for unprivileged users.
+  // as process owners.
+  virtual void check_unprivileged (const systemtap_session & sess,
+				   const literal_map_t & parameters) {}
 };
 
 
@@ -730,19 +759,9 @@ dwarf_query::query_module_dwarf()
       // module("foo").statement(0xbeef), the address is relative
       // to the start of the module, so we seek the function
       // number plus the module's bias.
-
-      Dwarf_Addr addr;
-      if (has_function_num)
-	addr = function_num_val;
-      else
-	addr = statement_num_val;
-
-      // Translate to an actual symbol address.
-      addr = dw.literal_addr_to_sym_addr (addr);
-
-      Dwarf_Die* cudie = dw.query_cu_containing_address(addr);
-      if (cudie) // address could be wildly out of range
-        query_cu(cudie, this);
+      Dwarf_Addr addr = has_function_num ?
+        function_num_val : statement_num_val;
+      query_addr(addr, this);
     }
   else
     {
@@ -1145,6 +1164,111 @@ query_statement (string const & func,
 }
 
 static void
+query_addr(Dwarf_Addr addr, dwarf_query *q)
+{
+  dwflpp &dw = q->dw;
+
+  // Translate to and actual sumbol address.
+  addr = dw.literal_addr_to_sym_addr(addr);
+
+  // First pick which CU contains this address
+  Dwarf_Die* cudie = dw.query_cu_containing_address(addr);
+  if (!cudie) // address could be wildly out of range
+    return;
+  dw.focus_on_cu(cudie);
+
+  // Now compensate for the dw bias
+  addr -= dw.module_bias;
+
+  // Per PR5787, we look up the scope die even for
+  // statement_num's, for blacklist sensitivity and $var
+  // resolution purposes.
+
+  // Find the scopes containing this address
+  vector<Dwarf_Die> scopes = dw.getscopes(addr);
+  if (scopes.empty())
+    return;
+
+  // Look for the innermost containing function
+  Dwarf_Die *fnscope = NULL;
+  for (size_t i = 0; i < scopes.size(); ++i)
+    {
+      int tag = dwarf_tag(&scopes[i]);
+      if ((tag == DW_TAG_subprogram && !q->has_inline) ||
+          (tag == DW_TAG_inlined_subroutine &&
+           !q->has_call && !q->has_return))
+        {
+          fnscope = &scopes[i];
+          break;
+        }
+    }
+  if (!fnscope)
+    return;
+  dw.focus_on_function(fnscope);
+
+  Dwarf_Die *scope = q->has_function_num ? fnscope : &scopes[0];
+
+  const char *file = dwarf_decl_file(fnscope);
+  int line;
+  dwarf_decl_line(fnscope, &line);
+
+  // Function probes should reset the addr to the function entry
+  // and possibly perform prologue searching
+  if (q->has_function_num)
+    {
+      dw.die_entrypc(fnscope, &addr);
+      if (dwarf_tag(fnscope) == DW_TAG_subprogram &&
+          (q->sess.prologue_searching || q->has_process)) // PR 6871
+        {
+          func_info func;
+          func.die = *fnscope;
+          func.name = dw.function_name;
+          func.decl_file = file;
+          func.decl_line = line;
+          func.entrypc = addr;
+
+          func_info_map_t funcs(1, func);
+          dw.resolve_prologue_endings (funcs);
+          if (funcs[0].prologue_end)
+            addr = funcs[0].prologue_end;
+        }
+    }
+  else
+    {
+      dwarf_line_t address_line(dwarf_getsrc_die(cudie, addr));
+      if (address_line)
+        {
+          file = address_line.linesrc();
+          line = address_line.lineno();
+        }
+
+      // Verify that a raw address matches the beginning of a
+      // statement. This is a somewhat lame check that the address
+      // is at the start of an assembly instruction.  Mark probes are in the
+      // middle of a macro and thus not strictly at a statement beginning.
+      // Guru mode may override this check.
+      if (!q->has_mark && (!address_line || address_line.addr() != addr))
+        {
+          stringstream msg;
+          msg << "address 0x" << hex << addr
+              << " does not match the beginning of a statement";
+          if (address_line)
+            msg << " (try 0x" << hex << address_line.addr() << ")";
+          else
+            msg << " (no line info found for '" << dw.cu_name()
+                << "', in module '" << dw.module_name << "')";
+          if (! q->sess.guru_mode)
+            throw semantic_error(msg.str());
+          else if (! q->sess.suppress_warnings)
+           q->sess.print_warning(msg.str());
+        }
+    }
+
+  // Build a probe at this point
+  query_statement(dw.function_name, file, line, scope, addr, q);
+}
+
+static void
 query_label (string const & func,
              char const * label,
              char const * file,
@@ -1153,12 +1277,13 @@ query_label (string const & func,
              Dwarf_Addr stmt_addr,
              dwarf_query * q)
 {
+  assert (q->has_statement_str || q->has_function_str);
+
   size_t i = q->results.size();
 
   // weed out functions whose decl_file isn't one of
   // the source files that we actually care about
-  if ((q->has_statement_str || q->has_function_str) &&
-      q->spec_type != function_alone &&
+  if (q->spec_type != function_alone &&
       q->filtered_srcfiles.count(file) == 0)
     return;
 
@@ -1315,36 +1440,29 @@ static int
 query_dwarf_inline_instance (Dwarf_Die * die, void * arg)
 {
   dwarf_query * q = static_cast<dwarf_query *>(arg);
-  assert (!q->has_statement_num);
+  assert (q->has_statement_str || q->has_function_str);
+  assert (!q->has_call && !q->has_return);
 
   try
     {
       if (q->sess.verbose>2)
-	clog << "examining inline instance of " << q->dw.function_name << "\n";
+        clog << "selected inline instance of " << q->dw.function_name << "\n";
 
-      if ((q->has_function_str && ! q->has_call)
-          || q->has_statement_str)
-	{
-	  if (q->sess.verbose>2)
-	    clog << "selected inline instance of " << q->dw.function_name
-                 << "\n";
+      Dwarf_Addr entrypc;
+      if (q->dw.die_entrypc (die, &entrypc))
+        {
+          inline_instance_info inl;
+          inl.die = *die;
+          inl.name = q->dw.function_name;
+          inl.entrypc = entrypc;
+          q->dw.function_file (&inl.decl_file);
+          q->dw.function_line (&inl.decl_line);
 
-	  Dwarf_Addr entrypc;
-	  if (q->dw.die_entrypc (die, &entrypc))
-	    {
-	      inline_instance_info inl;
-	      inl.die = *die;
-	      inl.name = q->dw.function_name;
-	      inl.entrypc = entrypc;
-	      q->dw.function_file (&inl.decl_file);
-	      q->dw.function_line (&inl.decl_line);
-
-              // make sure that this inline hasn't already
-              // been matched from a different CU
-              if (q->inline_dupes.insert(inl).second)
-                q->filtered_inlines.push_back(inl);
-	    }
-	}
+          // make sure that this inline hasn't already
+          // been matched from a different CU
+          if (q->inline_dupes.insert(inl).second)
+            q->filtered_inlines.push_back(inl);
+        }
       return DWARF_CB_OK;
     }
   catch (const semantic_error& e)
@@ -1358,11 +1476,11 @@ static int
 query_dwarf_func (Dwarf_Die * func, base_query * bq)
 {
   dwarf_query * q = static_cast<dwarf_query *>(bq);
+  assert (q->has_statement_str || q->has_function_str);
 
   // weed out functions whose decl_file isn't one of
   // the source files that we actually care about
-  if ((q->has_statement_str || q->has_function_str) &&
-      q->spec_type != function_alone &&
+  if (q->spec_type != function_alone &&
       q->filtered_srcfiles.count(dwarf_decl_file(func)?:"") == 0)
     return DWARF_CB_OK;
 
@@ -1381,9 +1499,7 @@ query_dwarf_func (Dwarf_Die * func, base_query * bq)
           !q->alias_dupes.insert(addr).second)
         return DWARF_CB_OK;
 
-      if (q->dw.func_is_inline ()
-          && (! q->has_call) && (! q->has_return)
-	  && (q->has_statement_str || q->has_function_str))
+      if (q->dw.func_is_inline () && (! q->has_call) && (! q->has_return))
 	{
 	  if (q->sess.verbose>3)
 	    clog << "checking instances of inline " << q->dw.function_name
@@ -1392,67 +1508,22 @@ query_dwarf_func (Dwarf_Die * func, base_query * bq)
 	}
       else if (!q->dw.func_is_inline () && (! q->has_inline))
 	{
-	  bool record_this_function = false;
+          if (q->sess.verbose>2)
+            clog << "selected function " << q->dw.function_name << "\n";
 
-	  if (q->has_statement_str || q->has_function_str)
-	    {
-	      record_this_function = true;
-	    }
-	  else if (q->has_function_num || q->has_statement_num)
-	    {
-              Dwarf_Addr query_addr =
-                (q->has_function_num ? q->function_num_val :
-		 q->has_statement_num ? q->statement_num_val :
-		 (assert(0) , 0));
-	      Dwarf_Die d;
-	      q->dw.function_die (&d);
+          func_info func;
+          q->dw.function_die (&func.die);
+          func.name = q->dw.function_name;
+          q->dw.function_file (&func.decl_file);
+          q->dw.function_line (&func.decl_line);
 
-	      // Translate literal address to symbol address, then
-	      // compensate for dw bias.
-	      query_addr = q->dw.literal_addr_to_sym_addr(query_addr);
-	      query_addr -= q->dw.module_bias;
-
-	      if (q->dw.die_has_pc (d, query_addr))
-		record_this_function = true;
-	    }
-
-	  if (record_this_function)
-	    {
-	      if (q->sess.verbose>2)
-		clog << "selected function " << q->dw.function_name << "\n";
-
-              func_info func;
-              q->dw.function_die (&func.die);
-              func.name = q->dw.function_name;
-              q->dw.function_file (&func.decl_file);
-              q->dw.function_line (&func.decl_line);
-
-              if (q->has_function_num || q->has_function_str || q->has_statement_str)
-                {
-                  Dwarf_Addr entrypc;
-                  if (q->dw.function_entrypc (&entrypc))
-                    {
-                      func.entrypc = entrypc;
-                      q->filtered_functions.push_back (func);
-                    }
-                  else
-                    /* this function just be fully inlined, just ignore it */
-                    return DWARF_CB_OK;
-                }
-              else if (q->has_statement_num)
-                {
-                  func.entrypc = q->statement_num_val;
-
-		  // Translate literal address to symbol address, then
-		  // compensate for dw bias (will be used for query dw funcs).
-		  func.entrypc = q->dw.literal_addr_to_sym_addr(func.entrypc);
-		  func.entrypc -= q->dw.module_bias;
-
-                  q->filtered_functions.push_back (func);
-                }
-              else
-                assert(0);
-	    }
+          Dwarf_Addr entrypc;
+          if (q->dw.function_entrypc (&entrypc))
+            {
+              func.entrypc = entrypc;
+              q->filtered_functions.push_back (func);
+            }
+          /* else this function is fully inlined, just ignore it */
 	}
       return DWARF_CB_OK;
     }
@@ -1467,6 +1538,8 @@ static int
 query_cu (Dwarf_Die * cudie, void * arg)
 {
   dwarf_query * q = static_cast<dwarf_query *>(arg);
+  assert (q->has_statement_str || q->has_function_str);
+
   if (pending_interrupts) return DWARF_CB_ABORT;
 
   try
@@ -1477,135 +1550,77 @@ query_cu (Dwarf_Die * cudie, void * arg)
         clog << "focused on CU '" << q->dw.cu_name()
              << "', in module '" << q->dw.module_name << "'\n";
 
-      if (q->has_statement_str || q->has_statement_num
-	  || q->has_function_str || q->has_function_num)
-	{
-	  q->filtered_srcfiles.clear();
-	  q->filtered_functions.clear();
-	  q->filtered_inlines.clear();
+      q->filtered_srcfiles.clear();
+      q->filtered_functions.clear();
+      q->filtered_inlines.clear();
 
-	  // In this path, we find "abstract functions", record
-	  // information about them, and then (depending on lineno
-	  // matching) possibly emit one or more of the function's
-	  // associated addresses. Unfortunately the control of this
-	  // cannot easily be turned inside out.
+      // In this path, we find "abstract functions", record
+      // information about them, and then (depending on lineno
+      // matching) possibly emit one or more of the function's
+      // associated addresses. Unfortunately the control of this
+      // cannot easily be turned inside out.
 
-	  if ((q->has_statement_str || q->has_function_str)
-	      && (q->spec_type != function_alone))
-	    {
-	      // If we have a pattern string with a filename, we need
-	      // to elaborate the srcfile mask in question first.
-	      q->dw.collect_srcfiles_matching (q->file, q->filtered_srcfiles);
+      if (q->spec_type != function_alone)
+        {
+          // If we have a pattern string with a filename, we need
+          // to elaborate the srcfile mask in question first.
+          q->dw.collect_srcfiles_matching (q->file, q->filtered_srcfiles);
 
-	      // If we have a file pattern and *no* srcfile matches, there's
-	      // no need to look further into this CU, so skip.
-	      if (q->filtered_srcfiles.empty())
-		return DWARF_CB_OK;
-	    }
-          // Verify that a raw address matches the beginning of a
-          // statement. This is a somewhat lame check that the address
-          // is at the start of an assembly instruction.  Mark probes are in the
-	  // middle of a macro and thus not strictly at a statement beginning.
-	  // Guru mode may override this check.
-          if (q->has_statement_num && ! q->has_mark)
-            {
-              Dwarf_Addr queryaddr = q->statement_num_val;
-              dwarf_line_t address_line(dwarf_getsrc_die(cudie, queryaddr));
-              Dwarf_Addr lineaddr = 0;
-              if (address_line)
-                lineaddr = address_line.addr();
-              if (!address_line || lineaddr != queryaddr)
-                {
-                  stringstream msg;
-                  msg << "address 0x" << hex << queryaddr
-                      << " does not match the beginning of a statement";
-                  if (address_line)
-                    msg << " (try 0x" << hex << lineaddr << ")";
-                  else
-                    msg << " (no line info found for '" << q->dw.cu_name()
-                        << "', in module '" << q->dw.module_name << "')";
-                  if (! q->sess.guru_mode)
-                    throw semantic_error(msg.str());
-                  else if (! q->sess.suppress_warnings)
-                   q->sess.print_warning(msg.str());
-                }
-            }
-	  // Pick up [entrypc, name, DIE] tuples for all the functions
-	  // matching the query, and fill in the prologue endings of them
-	  // all in a single pass.
-	  int rc = q->dw.iterate_over_functions (query_dwarf_func, q,
-                                                 q->function,
-                                                 q->has_statement_num);
-	  if (rc != DWARF_CB_OK)
-	    q->query_done = true;
+          // If we have a file pattern and *no* srcfile matches, there's
+          // no need to look further into this CU, so skip.
+          if (q->filtered_srcfiles.empty())
+            return DWARF_CB_OK;
+        }
 
-          if ((q->sess.prologue_searching || q->has_process) // PR 6871
-              && !q->has_statement_str && !q->has_statement_num) // PR 2608
-            if (! q->filtered_functions.empty())
-              q->dw.resolve_prologue_endings (q->filtered_functions);
+      // Pick up [entrypc, name, DIE] tuples for all the functions
+      // matching the query, and fill in the prologue endings of them
+      // all in a single pass.
+      int rc = q->dw.iterate_over_functions (query_dwarf_func, q,
+                                             q->function, false);
+      if (rc != DWARF_CB_OK)
+        q->query_done = true;
 
-	  if (q->has_label)
-	    {
-	      if (q->spec_type != function_file_and_line) // No line number specified
-                {
-                  for (func_info_map_t::iterator i = q->filtered_functions.begin();
-                       i != q->filtered_functions.end(); ++i)
-                    q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                               q, query_label);
+      if ((q->sess.prologue_searching || q->has_process) // PR 6871
+          && !q->has_statement_str) // PR 2608
+        if (! q->filtered_functions.empty())
+          q->dw.resolve_prologue_endings (q->filtered_functions);
 
-                  for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-                       i != q->filtered_inlines.end(); ++i)
-                    q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                               q, query_label);
-                }
-	      else
-		for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
-		     i != q->filtered_srcfiles.end(); ++i)
-		  q->dw.iterate_over_srcfile_lines (i->c_str(), q->line, q->has_statement_str,
-						    q->line_type, query_srcfile_label, q->function, q);
-	    }
-	  else if ((q->has_statement_str || q->has_function_str)
-	      && (q->spec_type == function_file_and_line))
-	    {
-	      // If we have a pattern string with target *line*, we
-	      // have to look at lines in all the matched srcfiles.
-	      for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
-		   i != q->filtered_srcfiles.end(); ++i)
-		q->dw.iterate_over_srcfile_lines (i->c_str(), q->line, q->has_statement_str,
-						  q->line_type, query_srcfile_line, q->function, q);
-	    }
-	  else
-	    {
-	      // Otherwise, simply probe all resolved functions.
-              for (func_info_map_t::iterator i = q->filtered_functions.begin();
-                   i != q->filtered_functions.end(); ++i)
-                query_func_info (i->entrypc, *i, q);
+      if (q->spec_type == function_file_and_line)
+        {
+          // If we have a pattern string with target *line*, we
+          // have to look at lines in all the matched srcfiles.
+          void (* callback) (const dwarf_line_t&, void*) =
+            q->has_label ? query_srcfile_label : query_srcfile_line;
+          for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
+               i != q->filtered_srcfiles.end(); ++i)
+            q->dw.iterate_over_srcfile_lines (i->c_str(), q->line, q->has_statement_str,
+                                              q->line_type, callback, q->function, q);
+        }
+      else if (q->has_label)
+        {
+          for (func_info_map_t::iterator i = q->filtered_functions.begin();
+               i != q->filtered_functions.end(); ++i)
+            q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
+                                       q, query_label);
 
-	      // And all inline instances (if we're not excluding inlines with ".call")
-	      if (! q->has_call)
-		for (inline_instance_map_t::iterator i
-		       = q->filtered_inlines.begin(); i != q->filtered_inlines.end(); ++i)
-		  query_inline_instance_info (*i, q);
-	    }
-	}
+          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
+               i != q->filtered_inlines.end(); ++i)
+            q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
+                                       q, query_label);
+        }
       else
         {
-          // Before PR 5787, we used to have this:
-#if 0
-	  // Otherwise we have a statement number, and we can just
-	  // query it directly within this module.
-	  assert (q->has_statement_num);
-	  Dwarf_Addr query_addr = q->statement_num_val;
-          query_addr = q->dw.module_address_to_global(query_addr);
+          // Otherwise, simply probe all resolved functions.
+          for (func_info_map_t::iterator i = q->filtered_functions.begin();
+               i != q->filtered_functions.end(); ++i)
+            query_func_info (i->entrypc, *i, q);
 
-	  query_statement ("", "", -1, NULL, query_addr, q);
-#endif
-          // But now, we traverse CUs/functions even for
-          // statement_num's, for blacklist sensitivity and $var
-          // resolution purposes.
-
-          assert (0); // NOTREACHED
-        }
+          // And all inline instances (if we're not excluding inlines with ".call")
+          if (! q->has_call)
+            for (inline_instance_map_t::iterator i
+                   = q->filtered_inlines.begin(); i != q->filtered_inlines.end(); ++i)
+              query_inline_instance_info (*i, q);
+	}
       return DWARF_CB_OK;
     }
   catch (const semantic_error& e)
@@ -1817,12 +1832,16 @@ struct dwarf_var_expanding_visitor: public var_expanding_visitor
   Dwarf_Addr addr;
   block *add_block;
   block *add_call_probe; // synthesized from .return probes with saved $vars
-  map<std::string, symbol *> return_ts_map;
+  unsigned saved_longs, saved_strings; // data saved within kretprobes
+  map<std::string, expression *> return_ts_map;
   vector<Dwarf_Die> scopes;
   bool visited;
 
   dwarf_var_expanding_visitor(dwarf_query & q, Dwarf_Die *sd, Dwarf_Addr a):
-    q(q), scope_die(sd), addr(a), add_block(NULL), add_call_probe(NULL), visited(false) {}
+    q(q), scope_die(sd), addr(a), add_block(NULL), add_call_probe(NULL),
+    saved_longs(0), saved_strings(0), visited(false) {}
+  expression* gen_mapped_saved_return(target_symbol* e);
+  expression* gen_kretprobe_saved_return(target_symbol* e);
   void visit_target_symbol_saved_return (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_target_symbol (target_symbol* e);
@@ -1896,13 +1915,33 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   // Check and make sure we haven't already seen this target
   // variable in this return probe.  If we have, just return our
   // last replacement.
-  map<string, symbol *>::iterator i = return_ts_map.find(ts_name);
+  map<string, expression *>::iterator i = return_ts_map.find(ts_name);
   if (i != return_ts_map.end())
     {
       provide (i->second);
       return;
     }
 
+  expression *exp;
+  if (!q.has_process &&
+      strverscmp(q.sess.kernel_base_release.c_str(), "2.6.25") >= 0)
+    exp = gen_kretprobe_saved_return(e);
+  else
+    exp = gen_mapped_saved_return(e);
+
+  // Provide the variable to our parent so it can be used as a
+  // substitute for the target symbol.
+  provide (exp);
+
+  // Remember this replacement since we might be able to reuse
+  // it later if the same return probe references this target
+  // symbol again.
+  return_ts_map[ts_name] = exp;
+}
+
+expression*
+dwarf_var_expanding_visitor::gen_mapped_saved_return(target_symbol* e)
+{
   // We've got to do several things here to handle target
   // variables in return probes.
 
@@ -2131,12 +2170,75 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   // (4) Provide the '_dwarf_tvar_{name}_{num}_tmp' variable to
   // our parent so it can be used as a substitute for the target
   // symbol.
-  provide (tmpsym);
+  return tmpsym;
+}
 
-  // (5) Remember this replacement since we might be able to reuse
-  // it later if the same return probe references this target
-  // symbol again.
-  return_ts_map[ts_name] = tmpsym;
+
+expression*
+dwarf_var_expanding_visitor::gen_kretprobe_saved_return(target_symbol* e)
+{
+  // The code for this is simple.
+  //
+  // .call:
+  //   _set_kretprobe_long(index, $value)
+  //
+  // .return:
+  //   _get_kretprobe_long(index)
+  //
+  // (or s/long/string/ for things like $$parms)
+
+  unsigned index;
+  string setfn, getfn;
+
+  // Cheesy way to predetermine that this is a string -- if the second
+  // character is a '$', then we're looking at a $$vars, $$parms, or $$locals.
+  // XXX We need real type resolution here, especially if we are ever to
+  //     support an @entry construct.
+  if (e->base_name[1] == '$')
+    {
+      index = saved_strings++;
+      setfn = "_set_kretprobe_string";
+      getfn = "_get_kretprobe_string";
+    }
+  else
+    {
+      index = saved_longs++;
+      setfn = "_set_kretprobe_long";
+      getfn = "_get_kretprobe_long";
+    }
+
+  // Create the entry code
+  //   _set_kretprobe_{long|string}(index, $value)
+
+  if (add_call_probe == NULL)
+    {
+      add_call_probe = new block;
+      add_call_probe->tok = e->tok;
+    }
+
+  functioncall* set_fc = new functioncall;
+  set_fc->tok = e->tok;
+  set_fc->function = setfn;
+  set_fc->args.push_back(new literal_number(index));
+  set_fc->args.back()->tok = e->tok;
+  set_fc->args.push_back(e);
+
+  expr_statement* set_es = new expr_statement;
+  set_es->tok = e->tok;
+  set_es->value = set_fc;
+
+  add_call_probe->statements.push_back(set_es);
+
+  // Create the return code
+  //   _get_kretprobe_{long|string}(index)
+
+  functioncall* get_fc = new functioncall;
+  get_fc->tok = e->tok;
+  get_fc->function = getfn;
+  get_fc->args.push_back(new literal_number(index));
+  get_fc->args.back()->tok = e->tok;
+
+  return get_fc;
 }
 
 
@@ -2147,7 +2249,6 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
     return;
 
   target_symbol *tsym = new target_symbol;
-  print_format* pf = new print_format;
 
   // Convert $$parms to sprintf of a list of parms and active local vars
   // which we recursively evaluate
@@ -2158,14 +2259,9 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   token* pf_tok = new token;
   pf_tok->location = e->tok->location;
   pf_tok->type = tok_identifier;
-  pf_tok->content = "sprint";
+  pf_tok->content = "sprintf";
 
-  pf->tok = pf_tok;
-  pf->print_to_stream = false;
-  pf->print_with_format = true;
-  pf->print_with_delim = false;
-  pf->print_with_newline = false;
-  pf->print_char = false;
+  print_format* pf = print_format::create(pf_tok);
 
   if (q.has_return && (e->base_name == "$$return"))
     {
@@ -2304,9 +2400,13 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 
   try
     {
+      // PR10601: adapt to kernel-vs-userspace loc2c-runtime
+      ec->code += "\n#define fetch_register " + string(q.has_process?"u":"k") + "_fetch_register\n";
+      ec->code += "#define store_register " + string(q.has_process?"u":"k") + "_store_register\n";
+      
       if (q.has_return && (e->base_name == "$return"))
         {
-	  ec->code = q.dw.literal_stmt_for_return (scope_die,
+	  ec->code += q.dw.literal_stmt_for_return (scope_die,
 						   addr,
 						   e,
 						   lvalue,
@@ -2314,7 +2414,7 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 	}
       else
         {
-	  ec->code = q.dw.literal_stmt_for_local (getscopes(e),
+	  ec->code += q.dw.literal_stmt_for_local (getscopes(e),
 						  addr,
 						  e->base_name.substr(1),
 						  e,
@@ -2324,6 +2424,12 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 
       if (! lvalue)
         ec->code += "/* pure */";
+
+      ec->code += "/* unprivileged */";
+
+      // PR10601
+      ec->code += "\n#undef fetch_register\n";
+      ec->code += "\n#undef store_register\n";
     }
   catch (const semantic_error& er)
     {
@@ -2335,6 +2441,7 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 	  // quietly.
 	  provide (e);
 	  semantic_error* saveme = new semantic_error (er); // copy it
+          if (! saveme->tok1) { saveme->tok1 = e->tok; } // fill in token if needed
 	  // NB: we can have multiple errors, since a $target variable
 	  // may be expanded in several different contexts:
 	  //     function ("*") { $var }
@@ -2565,17 +2672,9 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
       // no cached module, time to make it
       if (make_typequery(s, module) == 0)
         {
+          // try to save typequery in the cache
           if (s.use_cache)
-            {
-              // try to save typequery in the cache
-              if (s.verbose > 2)
-                clog << "Copying " << module
-                  << " to " << cached_module << endl;
-              if (copy_file(module.c_str(),
-                            cached_module.c_str()) != 0)
-                cerr << "Copy failed (\"" << module << "\" to \""
-                  << cached_module << "\"): " << strerror(errno) << endl;
-            }
+            copy_file(module, cached_module, s.verbose > 2);
         }
     }
 }
@@ -2596,6 +2695,7 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
   // split the module string by ':' for alternatives
   vector<string> modules;
   tokenize(e->module, modules, ":");
+  bool userspace_p=false; // PR10601
   for (unsigned i = 0; code.empty() && i < modules.size(); ++i)
     {
       string& module = modules[i];
@@ -2606,7 +2706,8 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
       dwflpp* dw;
       try
 	{
-	  if (module.find('/') == string::npos)
+          userspace_p=is_user_module (module);
+	  if (! userspace_p)
 	    {
 	      // kernel or kernel module target
 	      dw = db.get_kern_dw(s, module);
@@ -2648,8 +2749,13 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 
   embeddedcode *ec = new embeddedcode;
   ec->tok = e->tok;
-  ec->code = code;
   fdecl->body = ec;
+
+  // PR10601: adapt to kernel-vs-userspace loc2c-runtime
+  ec->code += "\n#define fetch_register " + string(userspace_p?"u":"k") + "_fetch_register\n";
+  ec->code += "#define store_register " + string(userspace_p?"u":"k") + "_store_register\n";
+  
+  ec->code += code;
 
   // Give the fdecl an argument for the pointer we're trying to cast
   vardecl *v1 = new vardecl;
@@ -2689,6 +2795,10 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
     ec->code += "/* pure */";
 
   ec->code += "/* unprivileged */";
+
+  // PR10601
+  ec->code += "\n#undef fetch_register\n";
+  ec->code += "\n#undef store_register\n";
 
   s.functions[fdecl->name] = fdecl;
 
@@ -2734,6 +2844,10 @@ dwarf_derived_probe::printsig (ostream& o) const
 void
 dwarf_derived_probe::join_group (systemtap_session& s)
 {
+  // skip probes which are paired entry-handlers
+  if (!has_return && (saved_longs || saved_strings))
+    return;
+
   if (! s.dwarf_derived_probes)
     s.dwarf_derived_probes = new dwarf_derived_probe_group ();
   s.dwarf_derived_probes->enroll (this);
@@ -2758,10 +2872,14 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                                          Dwarf_Die* scope_die /* may be null */)
   : derived_probe (q.base_probe, new probe_point(*q.base_loc) /* .components soon rewritten */ ),
     module (module), section (section), addr (addr),
+    path (q.path),
     has_return (q.has_return),
     has_maxactive (q.has_maxactive),
+    has_library (q.has_library), 
     maxactive_val (q.maxactive_val),
-    access_vars(false)
+    access_vars(false),
+    saved_longs(0), saved_strings(0), 
+    entry_handler(0)
 {
   if (q.has_process)
     {
@@ -2789,7 +2907,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
   if (has_maxactive && (maxactive_val < 0 || maxactive_val > USHRT_MAX))
     throw semantic_error ("maxactive value out of range [0,"
                           + lex_cast(USHRT_MAX) + "]",
-                          q.base_loc->tok);
+                          q.base_loc->components.front()->tok);
 
   // Expand target variables in the probe body
   if (!null_die(scope_die))
@@ -2818,32 +2936,32 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           q.base_probe->body = v.add_call_probe;
           q.has_return = false;
           q.has_call = true;
-          
+
           if (q.has_process)
-            {
-              uprobe_derived_probe *synthetic = new uprobe_derived_probe (funcname, filename, line,
-                                                                        module, section, dwfl_addr,
-                                                                        addr, q, scope_die);
-              q.results.push_back (synthetic);
-            }
+            entry_handler = new uprobe_derived_probe (funcname, filename, line,
+                                                      module, section, dwfl_addr,
+                                                      addr, q, scope_die);
           else
-            {
-              dwarf_derived_probe *synthetic = new dwarf_derived_probe (funcname, filename, line,
-                                                                        module, section, dwfl_addr,
-                                                                        addr, q, scope_die);
-              q.results.push_back (synthetic);
-            }
+            entry_handler = new dwarf_derived_probe (funcname, filename, line,
+                                                     module, section, dwfl_addr,
+                                                     addr, q, scope_die);
+
+          saved_longs = entry_handler->saved_longs = v.saved_longs;
+          saved_strings = entry_handler->saved_strings = v.saved_strings;
+
+          q.results.push_back (entry_handler);
 
           q.has_return = true;
           q.has_call = false;
           q.base_probe->body = old_body;
         }
+      // Save the local variables for listing mode
+      if (q.sess.listing_mode_vars)
+         saveargs(q, scope_die, v);
     }
   // else - null scope_die - $target variables will produce an error during translate phase
 
-  // Save the local variables for listing mode
-  if (q.sess.listing_mode_vars)
-    saveargs(q, scope_die);
+  // PR10820: null scope die, local variables aren't accessible, not necessary to invoke saveargs
 
   // Reset the sole element of the "locations" vector as a
   // "reverse-engineered" form of the incoming (q.base_loc) probe
@@ -2910,7 +3028,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
 
 void
-dwarf_derived_probe::saveargs(dwarf_query& q, Dwarf_Die* scope_die)
+dwarf_derived_probe::saveargs(dwarf_query& q, Dwarf_Die* scope_die, dwarf_var_expanding_visitor& v)
 {
   if (null_die(scope_die))
     return;
@@ -2922,7 +3040,17 @@ dwarf_derived_probe::saveargs(dwarf_query& q, Dwarf_Die* scope_die)
   if (has_return &&
       dwarf_attr_die (scope_die, DW_AT_type, &type_die) &&
       dwarf_type_name(&type_die, type_name))
-    argstream << " $return:" << type_name;
+    args.insert("$return:"+type_name);
+
+  /* Pretend that we aren't in a .return for a moment, just so we can
+   * check whether variables are accessible.  We don't want any of the
+   * entry-saving code generated during listing mode.  This works
+   * because the set of $context variables available in a .return
+   * probe (apart from $return) is the same set as available for the
+   * corresponding .call probe, since we collect those variables at
+   * .call time. */
+  bool saved_has_return = has_return;
+  q.has_return = has_return = false;
 
   Dwarf_Die arg;
   vector<Dwarf_Die> scopes = q.dw.getscopes_die(scope_die);
@@ -2948,45 +3076,71 @@ dwarf_derived_probe::saveargs(dwarf_query& q, Dwarf_Die* scope_die)
             !dwarf_type_name(&type_die, type_name))
           continue;
 
-        argstream << " $" << arg_name << ":" << type_name;
+        /* trick from visit_target_symbol_context */
+        target_symbol *tsym = new target_symbol;
+        tsym->tok = q.base_loc->components.front()->tok;
+        tsym->base_name = "$";
+        tsym->base_name += arg_name;
+
+        /* Ignore any variable that isn't accessible */
+        tsym->saved_conversion_error = 0;
+        v.require (tsym);
+        if (!tsym->saved_conversion_error)
+           args.insert("$"+string(arg_name)+":"+type_name);
       }
     while (dwarf_siblingof (&arg, &arg) == 0);
 
-  args = argstream.str();
+  /* restore the .return status of the probe */
+  q.has_return = has_return = saved_has_return;
 }
 
 
 void
-dwarf_derived_probe::printargs(std::ostream &o) const
+dwarf_derived_probe::getargs(std::set<std::string> &arg_set) const
 {
-  o << args;
+  arg_set.insert(args.begin(), args.end());
+}
+
+
+void
+dwarf_derived_probe::emit_unprivileged_assertion (translator_output* o)
+{
+  // These probes are allowed for unprivileged users, but only in the
+  // context of processes which they own.
+  emit_process_owner_assertion (o);
+}
+
+
+void
+dwarf_derived_probe::print_dupe_stamp(ostream& o)
+{
+  // These probes are allowed for unprivileged users, but only in the
+  // context of processes which they own.
+  print_dupe_stamp_unprivileged_process_owner (o);
 }
 
 
 void
 dwarf_derived_probe::register_statement_variants(match_node * root,
-						 dwarf_builder * dw,
-						 bool unprivileged_ok_p)
+						 dwarf_builder * dw)
 {
-  root->allow_unprivileged(unprivileged_ok_p)->bind(dw);
+  root->bind(dw);
 }
 
 void
 dwarf_derived_probe::register_function_variants(match_node * root,
-						dwarf_builder * dw,
-						bool unprivileged_ok_p)
+						dwarf_builder * dw)
 {
-  root->allow_unprivileged(unprivileged_ok_p)->bind(dw);
-  root->bind(TOK_INLINE)->allow_unprivileged(unprivileged_ok_p)->bind(dw);
-  root->bind(TOK_CALL)->allow_unprivileged(unprivileged_ok_p)->bind(dw);
-  root->bind(TOK_RETURN)->allow_unprivileged(unprivileged_ok_p)->bind(dw);
-  root->bind(TOK_RETURN)->bind_num(TOK_MAXACTIVE)->allow_unprivileged(unprivileged_ok_p)->bind(dw);
+  root->bind(dw);
+  root->bind(TOK_INLINE)->bind(dw);
+  root->bind(TOK_CALL)->bind(dw);
+  root->bind(TOK_RETURN)->bind(dw);
+  root->bind(TOK_RETURN)->bind_num(TOK_MAXACTIVE)->bind(dw);
 }
 
 void
 dwarf_derived_probe::register_function_and_statement_variants(match_node * root,
-							      dwarf_builder * dw,
-							      bool unprivileged_ok_p)
+							      dwarf_builder * dw)
 {
   // Here we match 4 forms:
   //
@@ -2995,10 +3149,10 @@ dwarf_derived_probe::register_function_and_statement_variants(match_node * root,
   // .statement("foo")
   // .statement(0xdeadbeef)
 
-  register_function_variants(root->bind_str(TOK_FUNCTION), dw, unprivileged_ok_p);
-  register_function_variants(root->bind_num(TOK_FUNCTION), dw, unprivileged_ok_p);
-  register_statement_variants(root->bind_str(TOK_STATEMENT), dw, unprivileged_ok_p);
-  register_statement_variants(root->bind_num(TOK_STATEMENT), dw, unprivileged_ok_p);
+  register_function_variants(root->bind_str(TOK_FUNCTION), dw);
+  register_function_variants(root->bind_num(TOK_FUNCTION), dw);
+  register_statement_variants(root->bind_str(TOK_STATEMENT), dw);
+  register_statement_variants(root->bind_num(TOK_STATEMENT), dw);
 }
 
 void
@@ -3017,15 +3171,14 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   root->bind(TOK_KERNEL)->bind_str(TOK_FUNCTION)->bind_str(TOK_LABEL)
     ->bind(dw);
 
-  register_function_and_statement_variants(root->bind_str(TOK_PROCESS), dw, true/*unprivileged_ok_p*/);
+  register_function_and_statement_variants(root->bind_str(TOK_PROCESS), dw);
   root->bind_str(TOK_PROCESS)->bind_str(TOK_FUNCTION)->bind_str(TOK_LABEL)
-    ->allow_unprivileged()
+    ->bind(dw);
+  root->bind_str(TOK_PROCESS)->bind_str(TOK_LIBRARY)->bind_str(TOK_MARK)
     ->bind(dw);
   root->bind_str(TOK_PROCESS)->bind_str(TOK_MARK)
-    ->allow_unprivileged()
     ->bind(dw);
   root->bind_str(TOK_PROCESS)->bind_num(TOK_MARK)
-    ->allow_unprivileged()
     ->bind(dw);
 }
 
@@ -3065,7 +3218,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline();
 
   s.op->newline() << "#ifndef KRETACTIVE";
-  s.op->newline() << "#define KRETACTIVE (max(15,6*NR_CPUS))";
+  s.op->newline() << "#define KRETACTIVE (max(15,6*(int)num_possible_cpus()))";
   s.op->newline() << "#endif";
 
   // Forward declare the master entry functions
@@ -3098,6 +3251,10 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "const unsigned optional_p:1;";
   s.op->newline() << "unsigned registered_p:1;";
   s.op->newline() << "const unsigned short maxactive_val;";
+
+  // data saved in the kretprobe_instance packet
+  s.op->newline() << "const unsigned short saved_longs;";
+  s.op->newline() << "const unsigned short saved_strings;";
 
   // Let's find some stats for the three embedded strings.  Maybe they
   // are small and uniform enough to justify putting char[MAX]'s into
@@ -3141,6 +3298,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline() << "const unsigned long address;";
   s.op->newline() << "void (* const ph) (struct context*);";
+  s.op->newline() << "void (* const entry_ph) (struct context*);";
   s.op->newline(-1) << "} stap_dwarf_probes[] = {";
   s.op->indent(1);
 
@@ -3155,6 +3313,15 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
           s.op->line() << " .maxactive_p=1,";
           assert (p->maxactive_val >= 0 && p->maxactive_val <= USHRT_MAX);
           s.op->line() << " .maxactive_val=" << p->maxactive_val << ",";
+        }
+      if (p->saved_longs || p->saved_strings)
+        {
+          if (p->saved_longs)
+            s.op->line() << " .saved_longs=" << p->saved_longs << ",";
+          if (p->saved_strings)
+            s.op->line() << " .saved_strings=" << p->saved_strings << ",";
+          if (p->entry_handler)
+            s.op->line() << " .entry_ph=&" << p->entry_handler->name << ",";
         }
       if (p->locations[0]->optional)
         s.op->line() << " .optional_p=1,";
@@ -3200,8 +3367,8 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   // Same for kretprobes
   s.op->newline();
-  s.op->newline() << "static int enter_kretprobe_probe (struct kretprobe_instance *inst,";
-  s.op->line() << " struct pt_regs *regs) {";
+  s.op->newline() << "static int enter_kretprobe_common (struct kretprobe_instance *inst,";
+  s.op->line() << " struct pt_regs *regs, int entry) {";
   s.op->newline(1) << "struct kretprobe *krp = inst->rp;";
 
   // NB: as of PR5673, the kprobe|kretprobe union struct is in BSS
@@ -3215,7 +3382,10 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "sdp->pp");
   s.op->newline() << "c->regs = regs;";
-  s.op->newline() << "c->pi = inst;"; // for assisting runtime's backtrace logic
+
+  // for assisting runtime's backtrace logic and accessing kretprobe data packets
+  s.op->newline() << "c->pi = inst;";
+  s.op->newline() << "c->pi_longs = sdp->saved_longs;";
 
   // Make it look like the IP is set as it wouldn't have been replaced
   // by a breakpoint instruction when calling real probe handler. Reset
@@ -3223,13 +3393,32 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "{";
   s.op->indent(1);
   s.op->newline() << "unsigned long kprobes_ip = REG_IP(c->regs);";
+  s.op->newline() << "if (entry) {";
+  s.op->indent(1);
   s.op->newline() << "SET_REG_IP(regs, (unsigned long) inst->rp->kp.addr);";
-  s.op->newline() << "(*sdp->ph) (c);";
+  s.op->newline() << "(sdp->entry_ph) (c);";
+  s.op->newline(-1) << "} else {";
+  s.op->indent(1);
+  s.op->newline() << "SET_REG_IP(regs, (unsigned long)inst->ret_addr);";
+  s.op->newline() << "(sdp->ph) (c);";
+  s.op->newline(-1) << "}";
   s.op->newline() << "SET_REG_IP(regs, kprobes_ip);";
   s.op->newline(-1) << "}";
 
   common_probe_entryfn_epilogue (s.op);
   s.op->newline() << "return 0;";
+  s.op->newline(-1) << "}";
+
+  s.op->newline();
+  s.op->newline() << "static int enter_kretprobe_probe (struct kretprobe_instance *inst,";
+  s.op->line() << " struct pt_regs *regs) {";
+  s.op->newline(1) << "return enter_kretprobe_common(inst, regs, 0);";
+  s.op->newline(-1) << "}";
+
+  s.op->newline();
+  s.op->newline() << "static int enter_kretprobe_entry_probe (struct kretprobe_instance *inst,";
+  s.op->line() << " struct pt_regs *regs) {";
+  s.op->newline(1) << "return enter_kretprobe_common(inst, regs, 1);";
   s.op->newline(-1) << "}";
 }
 
@@ -3240,7 +3429,7 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
   s.op->newline(1) << "struct stap_dwarf_probe *sdp = & stap_dwarf_probes[i];";
   s.op->newline() << "struct stap_dwarf_kprobe *kp = & stap_dwarf_kprobes[i];";
-  s.op->newline() << "unsigned long relocated_addr = _stp_module_relocate (sdp->module, sdp->section, sdp->address);";
+  s.op->newline() << "unsigned long relocated_addr = _stp_module_relocate (sdp->module, sdp->section, sdp->address, NULL);";
   s.op->newline() << "if (relocated_addr == 0) continue;"; // quietly; assume module is absent
   s.op->newline() << "probe_point = sdp->pp;"; // for error messages
   s.op->newline() << "if (sdp->return_p) {";
@@ -3251,6 +3440,13 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(1) << "kp->u.krp.maxactive = KRETACTIVE;";
   s.op->newline(-1) << "}";
   s.op->newline() << "kp->u.krp.handler = &enter_kretprobe_probe;";
+  s.op->newline() << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)";
+  s.op->newline() << "if (sdp->entry_ph) {";
+  s.op->newline(1) << "kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;";
+  s.op->newline() << "kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) + ";
+  s.op->newline() << "                      sdp->saved_strings * MAXSTRINGLEN;";
+  s.op->newline(-1) << "}";
+  s.op->newline() << "#endif";
   // to ensure safeness of bspcache, always use aggr_kprobe on ia64
   s.op->newline() << "#ifdef __ia64__";
   s.op->newline() << "kp->dummy.addr = kp->u.krp.kp.addr;";
@@ -3383,9 +3579,9 @@ dwarf_derived_probe_group::emit_module_exit (systemtap_session& s)
 struct sdt_var_expanding_visitor: public var_expanding_visitor
 {
   sdt_var_expanding_visitor(string & process_name, string & probe_name,
-			    int arg_count, bool have_reg_args, bool utrace_probe):
+			    int arg_count, bool have_reg_args):
     process_name (process_name), probe_name (probe_name),
-    have_reg_args (have_reg_args), utrace_probe (utrace_probe),
+    have_reg_args (have_reg_args),
     arg_count (arg_count)
   {
     assert(!have_reg_args || (arg_count >= 0 && arg_count <= 10));
@@ -3393,7 +3589,6 @@ struct sdt_var_expanding_visitor: public var_expanding_visitor
   string & process_name;
   string & probe_name;
   bool have_reg_args;
-  bool utrace_probe;
   int arg_count;
 
   void visit_target_symbol (target_symbol* e);
@@ -3428,10 +3623,10 @@ sdt_var_expanding_visitor::visit_target_symbol (target_symbol *e)
   // First two args are hidden: 1. pointer to probe name 2. task id
   if (arg_count < 2)
     {
-      fc->function = utrace_probe ? "_utrace_syscall_arg" : "ulong_arg";
+      fc->function = "ulong_arg";
       fc->type = pe_long;
       fc->tok = e->tok;
-      literal_number* num = new literal_number(argno + (utrace_probe ? 1 : 2));
+      literal_number* num = new literal_number(argno + 2);
       num->tok = e->tok;
       fc->args.push_back(num);
     }
@@ -3442,9 +3637,9 @@ sdt_var_expanding_visitor::visit_target_symbol (target_symbol *e)
       binary_expression *be = new binary_expression;
       be->tok = e->tok;
       functioncall *get_arg1 = new functioncall;
-      get_arg1->function = utrace_probe ? "_utrace_syscall_arg" : "pointer_arg";
+      get_arg1->function = "pointer_arg";
       get_arg1->tok = e->tok;
-      literal_number* num = new literal_number((utrace_probe ? 2 : 3));
+      literal_number* num = new literal_number(3);
       num->tok = e->tok;
       get_arg1->args.push_back(num);
 
@@ -3491,7 +3686,6 @@ private:
     {
       uprobe_type = 0x31425250, // "PRB1"
       kprobe_type = 0x32425250, // "PRB2"
-      utrace_type = 0x33425250, // "PRB3"
     } probe_type;
 
   probe * base_probe;
@@ -3542,13 +3736,26 @@ sdt_query::handle_query_module()
 	  && !probes_handled.insert(probe_name).second)
         continue;
 
+      if (sess.verbose > 3)
+	{
+	  clog << "matched probe_name " << probe_name << " probe_type ";
+	  switch (probe_type)
+	    {
+	    case uprobe_type:
+	      clog << "uprobe at 0x" << hex << probe_arg << dec << endl;
+	      break;
+	    case kprobe_type:
+	      clog << "kprobe" << endl;
+	      break;
+	    }
+	}
       probe *new_base = new probe(*base_probe);
       probe_point *new_location = new probe_point(*base_loc);
       convert_location(new_base, new_location);
       new_base->body = deep_copy_visitor::deep_copy(base_probe->body);
 
       bool have_reg_args = false;
-      if (probe_type == kprobe_type || probe_type == utrace_type)
+      if (probe_type == kprobe_type)
         {
           convert_probe(new_base);
           have_reg_args = true;
@@ -3556,13 +3763,12 @@ sdt_query::handle_query_module()
 
       // Expand the local variables in the probe body
       sdt_var_expanding_visitor svv (module_val, probe_name,
-                                     probe_arg, have_reg_args,
-                                     probe_type == utrace_type);
+                                     probe_arg, have_reg_args);
       svv.replace (new_base->body);
 
       unsigned i = results.size();
 
-      if (probe_type == kprobe_type || probe_type == utrace_type)
+      if (probe_type == kprobe_type)
         derive_probes(sess, new_base, results);
 
       else
@@ -3660,7 +3866,13 @@ sdt_query::init_probe_scn()
 bool
 sdt_query::get_next_probe()
 {
-  // Extract probe info from the .probes section
+  // Extract probe info from the .probes section, e.g.
+  // 74657374 5f70726f 62655f32 00000000 test_probe_2....
+  // 50524233 00000000 980c2000 00000000 PRB3...... .....
+  // 01000000 00000000 00000000 00000000 ................
+  // test_probe_2 is probe_name, probe_type is 50524233,
+  // *probe_name (pbe->name) is 980c2000, probe_arg (pbe->arg) is 1
+  // probe_scn_offset is position currently being scanned in .probes
 
   while (probe_scn_offset < pdata->d_size)
     {
@@ -3671,8 +3883,7 @@ sdt_query::get_next_probe()
       }  *pbe;
       __uint32_t *type = (__uint32_t*) ((char*)pdata->d_buf + probe_scn_offset);
       probe_type = (enum probe_types)*type;
-      if (probe_type != uprobe_type && probe_type != kprobe_type
-	  && probe_type != utrace_type)
+      if (probe_type != uprobe_type && probe_type != kprobe_type)
 	{
 	  // Unless this is a mangled .probes section, this happens
 	  // because the name of the probe comes first, followed by
@@ -3686,6 +3897,8 @@ sdt_query::get_next_probe()
       probe_scn_offset += sizeof(__uint32_t);
       probe_scn_offset += probe_scn_offset % sizeof(__uint64_t);
       pbe = (struct probe_entry*) ((char*)pdata->d_buf + probe_scn_offset);
+      if (pbe->name == 0)
+	return false;
       probe_name = (char*)((char*)pdata->d_buf + pbe->name - (char*)probe_scn_addr);
       probe_arg = pbe->arg;
       if (sess.verbose > 4)
@@ -3696,12 +3909,7 @@ sdt_query::get_next_probe()
       if ((mark_name == probe_name)
 	  || (dw.name_has_wildcard (mark_name)
 	      && dw.function_name_matches_pattern (probe_name, mark_name)))
-	{
-	  if (sess.verbose > 3)
-	    clog << "found probe_name" << probe_name << " at 0x"
-		 << hex << probe_arg << dec << endl;
-	  return true;
-	}
+	return true;
       else
 	continue;
     }
@@ -3715,8 +3923,12 @@ sdt_query::record_semaphore (vector<derived_probe *> & results, unsigned start)
   string semaphore = probe_name + "_semaphore";
   Dwarf_Addr addr = lookup_symbol_address(dw.module, semaphore.c_str());
   if (addr)
-    for (unsigned i = start; i < results.size(); ++i)
-      sess.sdt_semaphore_addr.insert(make_pair(results[i], addr));
+    {
+      if (dwfl_module_relocations (dw.module) > 0)
+	dwfl_module_relocate_address (dw.module, &addr);
+      for (unsigned i = start; i < results.size(); ++i)
+	results[i]->sdt_semaphore_addr = addr;
+    }
 }
 
 
@@ -3744,28 +3956,7 @@ sdt_query::convert_probe (probe *base)
     }
 #endif
 
-  if (probe_type == utrace_type)
-    {
-      // Generate: if ($syscall != 0xbead) next;
-      if_statement *issc = new if_statement;
-      issc->thenblock = new next_statement;
-      issc->elseblock = NULL;
-      issc->tok = b->tok;
-      comparison *besc = new comparison;
-      besc->op = "!=";
-      besc->tok = b->tok;
-      functioncall* n = new functioncall;
-      n->tok = b->tok;
-      n->function = "_utrace_syscall_nr";
-      n->referent = 0;
-      besc->left = n;
-      literal_number* fake_syscall = new literal_number(0xbead);
-      fake_syscall->tok = b->tok;
-      besc->right = fake_syscall;
-      issc->condition = besc;
-      b->statements.push_back(issc);
-    }
-  else if (probe_type == kprobe_type)
+  if (probe_type == kprobe_type)
     {
       // Generate: if (arg2 != kprobe_type) next;
       if_statement *istid = new if_statement;
@@ -3793,9 +3984,9 @@ sdt_query::convert_probe (probe *base)
 
   // Generate: if (arg1 != mark("label")) next;
   functioncall *fc = new functioncall;
-  fc->function = (probe_type == utrace_type) ? "_utrace_syscall_arg" : "ulong_arg";
+  fc->function = "ulong_arg";
   fc->tok = b->tok;
-  literal_number* num = new literal_number((probe_type == utrace_type) ? 0 : 1);
+  literal_number* num = new literal_number(1);
   num->tok = b->tok;
   fc->args.push_back(num);
 
@@ -3826,46 +4017,43 @@ sdt_query::convert_probe (probe *base)
 void
 sdt_query::convert_location (probe *base, probe_point *location)
 {
-  switch (probe_type)
-    {
-    case uprobe_type:
-      if (sess.verbose > 3)
-        clog << "probe_type == uprobe_type, use statement addr: 0x"
-             << hex << probe_arg << dec << endl;
-      // process("executable").statement(probe_arg)
-      location->components[1]->functor = TOK_STATEMENT;
-      location->components[1]->arg = new literal_number(probe_arg);
-      break;
+  for (unsigned i = 0; i < location->components.size(); ++i)
+    if (location->components[i]->functor == TOK_MARK)
+      switch (probe_type)
+	{
+	case uprobe_type:
+	  if (sess.verbose > 3)
+	    clog << "probe_type == uprobe_type, use statement addr: 0x"
+		 << hex << probe_arg << dec << endl;
+	  // process("executable").statement(probe_arg)
+	  location->components[i] = new probe_point::component(TOK_STATEMENT, new literal_number(probe_arg));
+	  break;
 
-    case kprobe_type:
-      if (sess.verbose > 3)
-        clog << "probe_type == kprobe_type" << endl;
-      // kernel.function("*getegid*")
-      location->components[0]->functor = TOK_KERNEL;
-      location->components[0]->arg = NULL;
-      location->components[1]->functor = TOK_FUNCTION;
-      location->components[1]->arg = new literal_string("*getegid*");
-      break;
+	case kprobe_type:
+	  if (sess.verbose > 3)
+	    clog << "probe_type == kprobe_type" << endl;
+	  // kernel.function("*getegid*")
+	  location->components[i]->functor = TOK_FUNCTION;
+	  location->components[i]->arg = new literal_string("*getegid*");
+	  break;
 
-    case utrace_type:
-      if (sess.verbose > 3)
-        clog << "probe_type == utrace_type" << endl;
-      // process("executable").syscall
-      location->components[1]->functor = "syscall";
-      location->components[1]->arg = NULL;
-      break;
-
-    default:
-      if (sess.verbose > 3)
-        clog << "probe_type == use_uprobe_no_dwarf, use label name: "
-          << "_stapprobe1_" << mark_name << endl;
-      // process("executable").function("*").label("_stapprobe1_MARK_NAME")
-      location->components[1]->functor = TOK_FUNCTION;
-      location->components[1]->arg = new literal_string("*");
-      location->components.push_back(new probe_point::component(TOK_LABEL));
-      location->components[2]->arg = new literal_string("_stapprobe1_" + mark_name);
-      break;
-    }
+	default:
+	  if (sess.verbose > 3)
+	    clog << "probe_type == use_uprobe_no_dwarf, use label name: "
+		 << "_stapprobe1_" << mark_name << endl;
+	  // process("executable").function("*").label("_stapprobe1_MARK_NAME")
+	  location->components[1]->functor = TOK_FUNCTION;
+	  location->components[1]->arg = new literal_string("*");
+	  location->components.push_back(new probe_point::component(TOK_LABEL));
+	  location->components[2]->arg = new literal_string("_stapprobe1_" + mark_name);
+	  break;
+	}
+    else if (location->components[i]->functor == TOK_PROCESS
+	     && probe_type == kprobe_type)
+      {
+	location->components[i]->functor = TOK_KERNEL;
+	location->components[i]->arg = NULL;
+      }
 
   base->locations.clear();
   base->locations.push_back(location);
@@ -3896,7 +4084,14 @@ dwarf_builder::build(systemtap_session & sess,
     }
   else if (get_param (parameters, TOK_PROCESS, module_name))
     {
-      module_name = find_executable (module_name); // canonicalize it
+      string library_name;
+      if (get_param (parameters, TOK_LIBRARY, library_name))
+	module_name = find_executable (library_name, "LD_LIBRARY_PATH");
+      else
+	module_name = find_executable (module_name); // canonicalize it
+
+      if (sess.kernel_config["CONFIG_UTRACE"] != string("y"))
+        throw semantic_error ("process probes not available without kernel CONFIG_UTRACE");
 
       // user-space target; we use one dwflpp instance per module name
       // (= program or shared library)
@@ -4323,6 +4518,15 @@ uprobe_derived_probe::join_group (systemtap_session& s)
 }
 
 
+void
+uprobe_derived_probe::emit_unprivileged_assertion (translator_output* o)
+{
+  // These probes are allowed for unprivileged users, but only in the
+  // context of processes which they own.
+  emit_process_owner_assertion (o);
+}
+
+
 struct uprobe_builder: public derived_probe_builder
 {
   uprobe_builder() {}
@@ -4343,6 +4547,10 @@ struct uprobe_builder: public derived_probe_builder
 
     finished_results.push_back(new uprobe_derived_probe(base, location, process, address, rr));
   }
+
+  // No action required. These probes are allowed for unprivileged users.
+  virtual void check_unprivileged (const systemtap_session & sess,
+				   const literal_map_t & parameters) {}
 };
 
 
@@ -4351,8 +4559,8 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 {
   if (probes.empty()) return;
   s.op->newline() << "/* ---- user probes ---- */";
-
   // If uprobes isn't in the kernel, pull it in from the runtime.
+
   s.op->newline() << "#if defined(CONFIG_UPROBES) || defined(CONFIG_UPROBES_MODULE)";
   s.op->newline() << "#include <linux/uprobes.h>";
   s.op->newline() << "#else";
@@ -4380,31 +4588,24 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "#define MAXUPROBES " << default_maxuprobes;
   s.op->newline() << "#endif";
 
+  // Forward decls
+  s.op->newline() << "#include \"uprobes-common.h\"";
+
   // In .bss, the shared pool of uprobe/uretprobe structs.  These are
   // too big to embed in the initialized .data stap_uprobe_spec array.
-  s.op->newline() << "static struct stap_uprobe {";
-  s.op->newline(1) << "union { struct uprobe up; struct uretprobe urp; };";
-  s.op->newline() << "unsigned long sdt_sem_address;"; // relocated to this process
-  s.op->newline() << "int spec_index;"; // index into stap_uprobe_specs; <0 == free && unregistered
-  s.op->newline(-1) << "} stap_uprobes [MAXUPROBES];"; // XXX: consider a slab cache or somesuch
+  // XXX: consider a slab cache or somesuch for stap_uprobes
+  s.op->newline() << "static struct stap_uprobe stap_uprobes [MAXUPROBES];";
   s.op->newline() << "DEFINE_MUTEX(stap_uprobes_lock);"; // protects against concurrent registration/unregistration
 
   s.op->assert_0_indent();
-
-  // Forward decls
-  s.op->newline() << "static int stap_uprobe_process_found (struct stap_task_finder_target *tgt, struct task_struct *tsk, int register_p, int process_p);";
-  s.op->newline() << "static int stap_uprobe_mmap_found (struct stap_task_finder_target *tgt, struct task_struct *tsk, char *path, unsigned long addr, unsigned long length, unsigned long offset, unsigned long vm_flags);";
-  s.op->newline() << "static int stap_uprobe_munmap_found (struct stap_task_finder_target *tgt, struct task_struct *tsk, unsigned long addr, unsigned long length);";
 
   // Assign task-finder numbers as we build up the stap_uprobe_tf table.
   // This means we process probes[] in two passes.
   map <string,unsigned> module_index;
   unsigned module_index_ctr = 0;
 
-  s.op->newline() << "static struct stap_uprobe_tf {"; // not const since embedded task_finder_target struct changes
-  s.op->newline(1) << "struct stap_task_finder_target finder;";
-  s.op->newline(0) << "const char *pathname;";
-  s.op->newline(-1) << "} stap_uprobe_finders[] = {";
+  // not const since embedded task_finder_target struct changes
+  s.op->newline() << "static struct stap_uprobe_tf stap_uprobe_finders[] = {";
   s.op->indent(1);
   for (unsigned i=0; i<probes.size(); i++)
     {
@@ -4427,8 +4628,11 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
             }
           if (p->section != ".absolute") // ET_DYN 
             {
+	      if (p->has_library && p->sdt_semaphore_addr != 0)
+		s.op->line() << " .procname=\"" << p->path << "\", ";
               s.op->line() << " .mmap_callback=&stap_uprobe_mmap_found, ";
               s.op->line() << " .munmap_callback=&stap_uprobe_munmap_found, ";
+              s.op->line() << " .callback=&stap_uprobe_process_munmap,";
             }
 
           s.op->line() << " },";
@@ -4442,14 +4646,8 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->assert_0_indent();
 
-  s.op->newline() << "static const struct stap_uprobe_spec {"; // NB: read-only structure
-  s.op->newline(1) << "unsigned tfi;"; // index into stap_uprobe_finders[]
-  s.op->newline() << "unsigned long address;";
-  s.op->newline() << "const char *pp;";
-  s.op->newline() << "void (*ph) (struct context*);";
-  s.op->newline() << "unsigned long sdt_sem_address;";
-  s.op->newline() << "unsigned return_p:1;";
-  s.op->newline(-1) << "} stap_uprobe_specs [] = {"; // NB: read-only structure
+   // NB: read-only structure
+  s.op->newline() << "static const struct stap_uprobe_spec stap_uprobe_specs [] = {";
   s.op->indent(1);
   for (unsigned i =0; i<probes.size(); i++)
     {
@@ -4463,10 +4661,9 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << " .pp=" << lex_cast_qstring (*p->sole_location()) << ",";
       s.op->line() << " .ph=&" << p->name << ",";
 
-      map<derived_probe*, Dwarf_Addr>::iterator its = s.sdt_semaphore_addr.find(p);
-      if (its != s.sdt_semaphore_addr.end())
-        s.op->line() << " .sdt_sem_address=(unsigned long)0x"
-                     << hex << its->second << dec << "ULL,";
+      if (p->sdt_semaphore_addr != 0)
+        s.op->line() << " .sdt_sem_offset=(unsigned long)0x"
+                     << hex << p->sdt_semaphore_addr << dec << "ULL,";
 
       if (p->has_return)
         s.op->line() << " .return_p=1,";
@@ -4483,6 +4680,7 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "if (sup->spec_index < 0 ||"
                   << "sup->spec_index >= " << probes.size() << ") return;"; // XXX: should not happen
   s.op->newline() << "c->regs = regs;";
+  s.op->newline() << "c->ri = GET_PC_URETPROBE_NONE;";
 
   // Make it look like the IP is set as it would in the actual user
   // task when calling real probe handler. Reset IP regs on return, so
@@ -4502,6 +4700,7 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(1) << "struct stap_uprobe *sup = container_of(inst->rp, struct stap_uprobe, urp);";
   s.op->newline() << "const struct stap_uprobe_spec *sups = &stap_uprobe_specs [sup->spec_index];";
   common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "sups->pp");
+  s.op->newline() << "c->ri = inst;";
   s.op->newline() << "if (sup->spec_index < 0 ||"
                   << "sup->spec_index >= " << probes.size() << ") return;"; // XXX: should not happen
   // XXX: kretprobes saves "c->pi = inst;" too
@@ -4513,7 +4712,7 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "{";
   s.op->indent(1);
   s.op->newline() << "unsigned long uprobes_ip = REG_IP(c->regs);";
-  s.op->newline() << "SET_REG_IP(regs, inst->rp->u.vaddr);";
+  s.op->newline() << "SET_REG_IP(regs, inst->ret_addr);";
   s.op->newline() << "(*sups->ph) (c);";
   s.op->newline() << "SET_REG_IP(regs, uprobes_ip);";
   s.op->newline(-1) << "}";
@@ -4521,272 +4720,8 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   common_probe_entryfn_epilogue (s.op);
   s.op->newline(-1) << "}";
 
-
-
-  // NB: Because these utrace callbacks only occur before / after
-  // userspace instructions run, there is no concurrency control issue
-  // between active uprobe callbacks and these registration /
-  // unregistration pieces.
-
-  // We protect the stap_uprobe->spec_index (which also serves as a
-  // free/busy flag) value with the outer protective stap_probes_lock
-  // spinlock, to protect it against concurrent registration /
-  // unregistration.
-
   s.op->newline();
-  s.op->newline() << "static int stap_uprobe_change_plus (struct task_struct *tsk, unsigned long relocation, unsigned long length, const struct stap_uprobe_tf *stf) {";
-  s.op->newline(1) << "int tfi = (stf - stap_uprobe_finders);";
-  s.op->newline() << "int spec_index;";
-
-  // iterate over stap_uprobe_spec[] that use this same stap_uprobe_tf
-  s.op->newline() << "for (spec_index=0; spec_index<sizeof(stap_uprobe_specs)/sizeof(stap_uprobe_specs[0]); spec_index++) {";
-  s.op->newline(1) << "int handled_p = 0;";
-  s.op->newline() << "int slotted_p = 0;";
-  s.op->newline() << "const struct stap_uprobe_spec *sups = &stap_uprobe_specs [spec_index];";
-  s.op->newline() << "int rc = 0;";
-  s.op->newline() << "int i;";
-
-  s.op->newline() << "if (likely(sups->tfi != tfi)) continue;";
-  // skip probes with an address beyond this map event; should not
-  // happen unless a shlib/exec got mmapped in weirdly piecemeal
-  s.op->newline() << "if (likely(sups->address >= length)) continue;"; 
-
-  // Found a uprobe_spec for this stap_uprobe_tf.  Need to lock the
-  // stap_uprobes[] array to allocate a free spot, but then we can
-  // unlock and do the register_*probe subsequently.
-
-  s.op->newline() << "mutex_lock (& stap_uprobes_lock);";
-  s.op->newline() << "for (i=0; i<MAXUPROBES; i++) {"; // XXX: slow linear search
-  s.op->newline(1) << "struct stap_uprobe *sup = & stap_uprobes[i];";
-
-  // register new uprobe
-  s.op->newline() << "if (sup->spec_index < 0) {";
-  s.op->newline(1) << "#if (UPROBES_API_VERSION < 2)";
-  // See PR6829 comment.
-  s.op->newline() << "if (sup->spec_index == -1 && sup->up.kdata != NULL) continue;";
-  s.op->newline() << "else if (sup->spec_index == -2 && sup->urp.u.kdata != NULL) continue;";
-  s.op->newline() << "#endif";
-  s.op->newline() << "sup->spec_index = spec_index;";
-  s.op->newline() << "slotted_p = 1;";
-  s.op->newline() << "break;";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "mutex_unlock (& stap_uprobes_lock);";
-
-  s.op->newline() << "#ifdef DEBUG_UPROBES";
-  s.op->newline() << "_stp_dbug(__FUNCTION__,__LINE__, \"+uprobe spec %d idx %d process %s[%d] addr %p pp %s\\n\", ";
-  s.op->line() << "spec_index, (slotted_p ? i : -1), tsk->comm, tsk->tgid, "
-               << "(void*)(relocation+sups->address), sups->pp);";
-  s.op->newline() << "#endif";
-
-  // Here, slotted_p implies that `i' points to the single
-  // stap_uprobes[] element that has been slotted in for registration
-  // or unregistration processing.  !slotted_p implies that the table
-  // was full (registration; MAXUPROBES) or that no matching entry was
-  // found (unregistration; should not happen).
-
-  s.op->newline() << "if (slotted_p) {";
-  s.op->newline(1) << "struct stap_uprobe *sup = & stap_uprobes[i];";
-  s.op->newline() << "if (sups->return_p) {";
-  s.op->newline(1) << "sup->urp.u.pid = tsk->tgid;";
-  s.op->newline() << "sup->urp.u.vaddr = relocation + sups->address;";
-  s.op->newline() << "sup->urp.handler = &enter_uretprobe_probe;";
-  s.op->newline() << "rc = register_uretprobe (& sup->urp);";
-  s.op->newline(-1) << "} else {";
-  s.op->newline(1) << "sup->up.pid = tsk->tgid;";
-  s.op->newline() << "sup->up.vaddr = relocation + sups->address;";
-  s.op->newline() << "sup->up.handler = &enter_uprobe_probe;";
-  s.op->newline() << "rc = register_uprobe (& sup->up);";
-
-  // PR10655: also handle ENABLED semaphore manipulations here
-  s.op->newline() << "if (!rc && sups->sdt_sem_address) {";
-  s.op->newline(1) << "unsigned short sdt_semaphore;"; // NB: fixed size
-  s.op->newline() << "sup->sdt_sem_address = relocation + sups->sdt_sem_address;";
-  s.op->newline() << "(void) __access_process_vm (tsk, sup->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 0);";
-  s.op->newline() << "sdt_semaphore ++;";
-  s.op->newline() << "(void) __access_process_vm (tsk, sup->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 1);";
-  // XXX: error handling in __access_process_vm!
-  // XXX: need to analyze possibility of race condition
-  s.op->newline(-1) << "}";
-
-  s.op->newline(-1) << "}";
-  s.op->newline() << "if (rc) {"; // failed to register
-  s.op->newline(1) << "_stp_warn (\"u*probe failed %s[%d] '%s' addr %p rc %d\\n\", tsk->comm, tsk->tgid, sups->pp, (void*)(relocation + sups->address), rc);";
-  // NB: we need to release this slot, so we need to borrow the mutex temporarily.
-  s.op->newline() << "mutex_lock (& stap_uprobes_lock);";
-  s.op->newline() << "sup->spec_index = -1;";
-  s.op->newline() << "mutex_unlock (& stap_uprobes_lock);";
-  s.op->newline(-1) << "} else {";
-  s.op->newline(1) << "handled_p = 1;"; // success
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-
-  // NB: handled_p implies slotted_p
-
-  s.op->newline() << "if (unlikely (! handled_p)) {";
-  s.op->newline(1) << "#ifdef STP_TIMING";
-  s.op->newline() << "atomic_inc (& skipped_count_uprobe_reg);";
-  s.op->newline() << "#endif";
-  // NB: duplicates common_entryfn_epilogue, but then this is not a probe entry fn epilogue.
-  s.op->newline() << "if (unlikely (atomic_inc_return (& skipped_count) > MAXSKIPPED)) {";
-  s.op->newline(1) << "atomic_set (& session_state, STAP_SESSION_ERROR);";
-  s.op->newline() << "_stp_exit ();";
-  s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}";
-
-  // close iteration over stap_uprobe_spec[]
-  s.op->newline(-1) << "}";
-
-  s.op->newline() << "return 0;"; // XXX: or rc?
-  s.op->newline(-1) << "}";
-
-  s.op->assert_0_indent();
-
-
-  // Removing/unmapping a uprobe is simpler than adding one (in the _plus function above).
-  // We need not care about stap_uprobe_finders or anything, we just scan through stap_uprobes[]
-  // for a live probe within the given address range, and kill it.
-  s.op->newline();
-  s.op->newline() << "static int stap_uprobe_change_minus (struct task_struct *tsk, unsigned long relocation, unsigned long length, const struct stap_uprobe_tf *stf) {";
-  s.op->newline(1) << "int i;";
-
-  // NB: it's not an error for us not to find a live uprobe within the
-  // given range.  We might have received a callback for a part of a
-  // shlib that was unmapped and unprobed.
-
-  s.op->newline() << "for (i=0; i<MAXUPROBES; i++) {"; // XXX: slow linear search
-  s.op->newline(1) << "struct stap_uprobe *sup = & stap_uprobes[i];";
-  s.op->newline() << "struct stap_uprobe_spec *sups;";
-  s.op->newline() << "if (sup->spec_index < 0) continue;"; // skip free uprobes slot
-  s.op->newline() << "sups = (struct stap_uprobe_spec*) & stap_uprobe_specs[sup->spec_index];";
-
-  s.op->newline() << "mutex_lock (& stap_uprobes_lock);";
-
-  // PR6829, PR9940:
-  // Here we're unregistering for one of two reasons:
-  // 1. the process image is going away (or gone) due to exit or exec; or
-  // 2. the vma containing the probepoint has been unmapped.
-  // In case 1, it's sort of a nop, because uprobes will notice the event
-  // and dispose of the probes eventually, if it hasn't already.  But by
-  // calling unmap_u[ret]probe() ourselves, we free up sup right away.
-  //
-  // In both cases, we must use unmap_u[ret]probe instead of
-  // unregister_u[ret]probe, so uprobes knows not to try to restore the
-  // original opcode.
-
-  // URETPROBE
-  s.op->newline() << "if (sups->return_p && sup->urp.u.pid == tsk->tgid && " // my uretprobe
-                  << "sup->urp.u.vaddr >= relocation && sup->urp.u.vaddr < relocation+length) {"; // in range
-  s.op->newline(1) << "";
-
-  s.op->newline() << "#ifdef DEBUG_UPROBES";
-  s.op->newline() << "_stp_dbug (__FUNCTION__,__LINE__, \"-uretprobe spec %d idx %d process %s[%d] addr %p pp %s\\n\", ";
-  s.op->line() << "sup->spec_index, i, tsk->comm, tsk->tgid, (void*) sup->urp.u.vaddr, sups->pp);";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "#if (UPROBES_API_VERSION >= 2)";
-  s.op->newline() << "unmap_uretprobe (& sup->urp);";
-  s.op->newline() << "sup->spec_index = -1;";
-  s.op->newline() << "#else";
-  // Uprobes lacks unmap_uretprobe.  Before reusing sup, we must wait
-  // until uprobes turns loose of the uretprobe on its own, as indicated
-  // by uretprobe.kdata = NULL.
-  s.op->newline() << "sup->spec_index = -2;";
-  s.op->newline() << "#endif";
-
-  // UPROBE
-  s.op->newline(-1) << "} else if (!sups->return_p && sup->up.pid == tsk->tgid && " // my uprobe
-                    << "sup->up.vaddr >= relocation && sup->up.vaddr < relocation+length) {"; //in range
-  s.op->newline(1) << "";
-
-  s.op->newline() << "#ifdef DEBUG_UPROBES";
-  s.op->newline() << "_stp_dbug (__FUNCTION__,__LINE__, \"-uprobe spec %d idx %d process %s[%d] reloc %p pp %s\\n\", ";
-  s.op->line() << "sup->spec_index, i, tsk->comm, tsk->tgid, (void*) sup->up.vaddr, sups->pp);";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "#if (UPROBES_API_VERSION >= 2)";
-  s.op->newline() << "unmap_uprobe (& sup->up);";
-  s.op->newline() << "sup->spec_index = -1;";
-  s.op->newline() << "#else";
-  // Uprobes lacks unmap_uprobe.  Before reusing sup, we must wait
-  // until uprobes turns loose of the uprobe on its own, as indicated
-  // by uprobe.kdata = NULL.
-  s.op->newline() << "sup->spec_index = -1;";
-  s.op->newline() << "#endif";
-
-  // PR10655: we don't need to fidget with the ENABLED semaphore either,
-  // as the process is gone, buh-bye, toodaloo, au revoir, see ya later!
-
-  s.op->newline(-1) << "}";
-
-  s.op->newline() << "mutex_unlock (& stap_uprobes_lock);";
-
-  // close iteration over stap_uprobes[]
-  s.op->newline(-1) << "}";
-
-  s.op->newline() << "return 0;"; // XXX: or !handled_p
-  s.op->newline(-1) << "}";
-
-  s.op->assert_0_indent();
-
-  // The task_finder_callback we use for ET_EXEC targets.  We used to perform uprobe
-  // insertion/removal here, but not any more.  (PR10524)
-  s.op->newline();
-  s.op->newline() << "static int stap_uprobe_process_found (struct stap_task_finder_target *tgt, struct task_struct *tsk, int register_p, int process_p) {";
-
-  s.op->newline(1) << "const struct stap_uprobe_tf *stf = container_of(tgt, struct stap_uprobe_tf, finder);";
-  s.op->newline() << "if (! process_p) return 0;"; // ignore threads
-
-  s.op->newline() << "#ifdef DEBUG_TASK_FINDER_VMA";
-  s.op->newline() << "_stp_dbug (__FUNCTION__,__LINE__, \"%cproc pid %d stf %p %p path %s\\n\", register_p?'+':'-', tsk->tgid, tgt, stf, stf->pathname);";
-  s.op->newline() << "#endif";
-
-  // ET_EXEC events are modeled as if shlib events, but with 0 relocation bases
-  s.op->newline() << "if (register_p)";
-  s.op->newline(1) << "return stap_uprobe_change_plus (tsk, 0, TASK_SIZE, stf);";
-  s.op->newline(-1) << "else";
-  s.op->newline(1) << "return stap_uprobe_change_minus (tsk, 0, TASK_SIZE, stf);";
-  s.op->indent(-1);
-  s.op->newline(-1) << "}";
-
-  s.op->assert_0_indent();
-
-  // The task_finder_mmap_callback
-  s.op->newline();
-  s.op->newline() << "static int stap_uprobe_mmap_found (struct stap_task_finder_target *tgt, struct task_struct *tsk, char *path, unsigned long addr, unsigned long length, unsigned long offset, unsigned long vm_flags) {";
-  s.op->newline(1) << "const struct stap_uprobe_tf *stf = container_of(tgt, struct stap_uprobe_tf, finder);";
-  // 1 - shared libraries' executable segments load from offset 0 - ld.so convention
-  s.op->newline() << "if (offset != 0) return 0;";
-  // 2 - the shared library we're interested in
-  s.op->newline() << "if (path == NULL || strcmp (path, stf->pathname)) return 0;";
-  // 3 - mapping should be executable
-  s.op->newline() << "if (!(vm_flags & VM_EXEC)) return 0;";
-
-  s.op->newline() << "#ifdef DEBUG_TASK_FINDER_VMA";
-  s.op->newline() << "_stp_dbug (__FUNCTION__,__LINE__, \"+mmap pid %d path %s addr %p length %u offset %p stf %p %p path %s\\n\", "
-                  << "tsk->tgid, path, (void *) addr, (unsigned)length, (void*) offset, tgt, stf, stf->pathname);";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "return stap_uprobe_change_plus (tsk, addr, length, stf);";
-  s.op->newline(-1) << "}";
-
-  s.op->assert_0_indent();
-
-  // The task_finder_munmap_callback
-  s.op->newline();
-  s.op->newline() << "static int stap_uprobe_munmap_found (struct stap_task_finder_target *tgt, struct task_struct *tsk, unsigned long addr, unsigned long length) {";
-  s.op->newline(1) << "const struct stap_uprobe_tf *stf = container_of(tgt, struct stap_uprobe_tf, finder);";
-
-  s.op->newline() << "#ifdef DEBUG_TASK_FINDER_VMA";
-  s.op->newline() << "_stp_dbug (__FUNCTION__,__LINE__, \"-mmap pid %d addr %p length %lu stf %p %p path %s\\n\", "
-                  << "tsk->tgid, (void *) addr, length, tgt, stf, stf->pathname);";
-  s.op->newline() << "#endif";
-
-  s.op->newline() << "return stap_uprobe_change_minus (tsk, addr, length, stf);";
-  s.op->newline(-1) << "}";
-
-  s.op->assert_0_indent();
-
+  s.op->newline() << "#include \"uprobes-common.c\"";
   s.op->newline();
 }
 
@@ -4845,7 +4780,7 @@ uprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
   s.op->newline() << "if (sup->spec_index < 0) continue;"; // free slot
 
   // PR10655: decrement that ENABLED semaphore
-  s.op->newline() << "if (sups->sdt_sem_address != 0) {";
+  s.op->newline() << "if (sup->sdt_sem_address) {";
   s.op->newline(1) << "unsigned short sdt_semaphore;"; // NB: fixed size
   s.op->newline() << "pid_t pid = (sups->return_p ? sup->urp.u.pid : sup->up.pid);";
   s.op->newline() << "struct task_struct *tsk;";
@@ -4865,10 +4800,13 @@ uprobe_derived_probe_group::emit_module_exit (systemtap_session& s)
   s.op->newline() << "#endif /* 2.6.31 */";
 
   s.op->newline() << "if (tsk) {"; // just in case the thing exited while we weren't watching
-  s.op->newline(1) << "(void) __access_process_vm (tsk, sup->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 0);";
-  s.op->newline() << "sdt_semaphore --;";
-  s.op->newline() << "(void) __access_process_vm (tsk, sup->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 1);";
-  // XXX: error handling in __access_process_vm!
+  s.op->newline(1) << "if (__access_process_vm_noflush(tsk, sup->sdt_sem_address, &sdt_semaphore, sizeof(sdt_semaphore), 0)) {";
+  s.op->newline(1) << "sdt_semaphore --;";
+  s.op->newline() << "#ifdef DEBUG_UPROBES";
+  s.op->newline() << "_stp_dbug (__FUNCTION__,__LINE__, \"-semaphore %#x @ %#lx\\n\", sdt_semaphore, sup->sdt_sem_address);";
+  s.op->newline() << "#endif";
+  s.op->newline() << "__access_process_vm_noflush(tsk, sup->sdt_sem_address, &sdt_semaphore, sizeof(sdt_semaphore), 1);";
+  s.op->newline(-1) << "}";
   // XXX: need to analyze possibility of race condition
   s.op->newline(-1) << "}";
   s.op->newline() << "rcu_read_unlock();";
@@ -5028,7 +4966,7 @@ kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline();
 
   s.op->newline() << "#ifndef KRETACTIVE";
-  s.op->newline() << "#define KRETACTIVE (max(15,6*NR_CPUS))";
+  s.op->newline() << "#define KRETACTIVE (max(15,6*(int)num_possible_cpus()))";
   s.op->newline() << "#endif";
 
   // Forward declare the master entry functions
@@ -5400,7 +5338,7 @@ struct tracepoint_derived_probe: public derived_probe
   vector <struct tracepoint_arg> args;
 
   void build_args(dwflpp& dw, Dwarf_Die& func_die);
-  void printargs (std::ostream &o) const;
+  void getargs (std::set<std::string> &arg_set) const;
   void join_group (systemtap_session& s);
   void print_dupe_stamp(ostream& o);
   void emit_probe_context_vars (translator_output* o);
@@ -5505,9 +5443,13 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       fdecl->name = fname;
       fdecl->body = ec;
 
+      // PR10601: adapt to kernel-vs-userspace loc2c-runtime
+      ec->code += "\n#define fetch_register k_fetch_register\n";
+      ec->code += "#define store_register k_store_register\n";
+     
       try
         {
-          ec->code = dw.literal_stmt_for_pointer (&arg->type_die, e,
+          ec->code += dw.literal_stmt_for_pointer (&arg->type_die, e,
                                                   lvalue, fdecl->type);
         }
       catch (const semantic_error& er)
@@ -5563,6 +5505,12 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       else
         ec->code += "/* pure */";
 
+      ec->code += "/* unprivileged */";
+
+      // PR10601
+      ec->code += "\n#undef fetch_register\n";
+      ec->code += "\n#undef store_register\n";
+  
       dw.sess.functions[fdecl->name] = fdecl;
 
       // Synthesize a functioncall.
@@ -5618,8 +5566,6 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
     }
   else if (e->base_name == "$$vars" || e->base_name == "$$parms")
     {
-      print_format* pf = new print_format;
-
       // Convert $$vars to sprintf of a list of vars which we recursively evaluate
       // NB: we synthesize a new token here rather than reusing
       // e->tok, because print_format::print likes to use
@@ -5627,12 +5573,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
       token* pf_tok = new token(*e->tok);
       pf_tok->content = "sprintf";
 
-      pf->tok = pf_tok;
-      pf->print_to_stream = false;
-      pf->print_with_format = true;
-      pf->print_with_delim = false;
-      pf->print_with_newline = false;
-      pf->print_char = false;
+      print_format* pf = print_format::create(pf_tok);
 
       for (unsigned i = 0; i < args.size(); ++i)
         {
@@ -5785,11 +5726,11 @@ tracepoint_derived_probe::build_args(dwflpp& dw, Dwarf_Die& func_die)
 }
 
 void
-tracepoint_derived_probe::printargs(std::ostream &o) const
+tracepoint_derived_probe::getargs(std::set<std::string> &arg_set) const
 {
   for (unsigned i = 0; i < args.size(); ++i)
     if (args[i].usable)
-      o << " $" << args[i].name << ":" << args[i].c_type;
+      arg_set.insert("$"+args[i].name+":"+args[i].c_type);
 }
 
 void
@@ -5850,6 +5791,7 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
 
       // emit a separate entry function for each probe, since tracepoints
       // don't provide any sort of context pointer.
+      s.op->newline() << "#undef TRACE_INCLUDE_FILE";
       s.op->newline() << "#include <" << p->header << ">";
       s.op->newline() << "static void enter_tracepoint_probe_" << i << "(";
       if (p->args.size() == 0)
@@ -6046,7 +5988,8 @@ struct tracepoint_builder: public derived_probe_builder
 private:
   dwflpp *dw;
   bool init_dw(systemtap_session& s);
-  string get_tracequery_module(systemtap_session& s, const string& header);
+  string get_tracequery_module(systemtap_session& s,
+                               const vector<string>& headers);
 
 public:
 
@@ -6070,16 +6013,21 @@ public:
 
 string
 tracepoint_builder::get_tracequery_module(systemtap_session& s,
-                                          const string& header)
+                                          const vector<string>& headers)
 {
   if (s.verbose > 2)
-    clog << "Pass 2: getting a tracequery for " << header << endl;
+    {
+      clog << "Pass 2: getting a tracequery for "
+           << headers.size() << " headers:" << endl;
+      for (size_t i = 0; i < headers.size(); ++i)
+        clog << "  " << headers[i] << endl;
+    }
 
   string tracequery_path;
   if (s.use_cache)
     {
       // see if the cached module exists
-      tracequery_path = find_tracequery_hash(s, header);
+      tracequery_path = find_tracequery_hash(s, headers);
       if (!tracequery_path.empty())
         {
           int fd = open(tracequery_path.c_str(), O_RDONLY);
@@ -6095,27 +6043,29 @@ tracepoint_builder::get_tracequery_module(systemtap_session& s,
 
   // no cached module, time to make it
 
-  size_t root_pos = header.rfind("/include/");
-  string short_header = (root_pos != string::npos) ?
-    header.substr(root_pos + 9) : header;
+  // PR9993: Add extra headers to work around undeclared types in individual
+  // include/trace/foo.h files
+  vector<string> short_headers = tracepoint_extra_headers();
+
+  // add each requested tracepoint header
+  for (size_t i = 0; i < headers.size(); ++i)
+    {
+      const string &header = headers[i];
+      size_t root_pos = header.rfind("/include/");
+      short_headers.push_back((root_pos != string::npos) ?
+                              header.substr(root_pos + 9) :
+                              header);
+    }
 
   string tracequery_ko;
-  int rc = make_tracequery(s, tracequery_ko, short_header,
-                           tracepoint_extra_headers());
+  int rc = make_tracequery(s, tracequery_ko, short_headers);
   if (rc != 0)
     tracequery_ko = "/dev/null";
 
+  // try to save tracequery in the cache
   if (s.use_cache)
-    {
-      // try to save tracequery in the cache
-      if (s.verbose > 2)
-        clog << "Copying " << tracequery_ko
-             << " to " << tracequery_path << endl;
-      if (copy_file(tracequery_ko.c_str(),
-                    tracequery_path.c_str()) != 0)
-        cerr << "Copy failed (\"" << tracequery_ko << "\" to \""
-             << tracequery_path << "\"): " << strerror(errno) << endl;
-    }
+    copy_file(tracequery_ko, tracequery_path, s.verbose > 2);
+
   return tracequery_ko;
 }
 
@@ -6127,13 +6077,14 @@ tracepoint_builder::init_dw(systemtap_session& s)
     return true;
 
   vector<string> tracequery_modules;
+  vector<string> system_headers;
 
   glob_t trace_glob;
   string globs[] = {
-      "/include/trace/*.h",
       "/include/trace/events/*.h",
-      "/source/include/trace/*.h",
       "/source/include/trace/events/*.h",
+      "/include/trace/*.h",
+      "/source/include/trace/*.h",
   };
   for (unsigned z = 0; z < sizeof(globs) / sizeof(globs[0]); z++)
     {
@@ -6144,6 +6095,8 @@ tracepoint_builder::init_dw(systemtap_session& s)
           string header(trace_glob.gl_pathv[i]);
 
           // filter out a few known "internal-only" headers
+          if (header.find("/define_trace.h") != string::npos)
+            continue;
           if (header.find("/ftrace.h") != string::npos)
             continue;
           if (header.find("/trace_events.h") != string::npos)
@@ -6151,20 +6104,32 @@ tracepoint_builder::init_dw(systemtap_session& s)
           if (header.find("_event_types.h") != string::npos)
             continue;
 
-          string tracequery_path = get_tracequery_module(s, header);
-
-          /* NB: An empty tracequery means that the
-           * header didn't even compile correctly. */
-          if (get_file_size(tracequery_path))
-            tracequery_modules.push_back(tracequery_path);
+          system_headers.push_back(header);
         }
       globfree(&trace_glob);
     }
 
+  // First attempt to do all system headers in one go
+  string tracequery_path = get_tracequery_module(s, system_headers);
+  // NB: An empty tracequery means that the header didn't compile correctly
+  if (get_file_size(tracequery_path))
+    tracequery_modules.push_back(tracequery_path);
+  else
+    // Otherwise try to do them one at a time (PR10424)
+    for (size_t i = 0; i < system_headers.size(); ++i)
+      {
+        if (pending_interrupts) return false;
+
+        vector<string> one_header(1, system_headers[i]);
+        tracequery_path = get_tracequery_module(s, one_header);
+        if (get_file_size(tracequery_path))
+          tracequery_modules.push_back(tracequery_path);
+      }
+
   // TODO: consider other sources of tracepoint headers too, like from
   // a command-line parameter or some environment or .systemtaprc
 
-  dw = new dwflpp(s, tracequery_modules);
+  dw = new dwflpp(s, tracequery_modules, true);
   return true;
 }
 
@@ -6208,11 +6173,9 @@ register_standard_tapsets(systemtap_session & s)
   // XXX: user-space starter set
   s.pattern_root->bind_num(TOK_PROCESS)
     ->bind_num(TOK_STATEMENT)->bind(TOK_ABSOLUTE)
-    ->allow_unprivileged()
     ->bind(new uprobe_builder ());
   s.pattern_root->bind_num(TOK_PROCESS)
     ->bind_num(TOK_STATEMENT)->bind(TOK_ABSOLUTE)->bind(TOK_RETURN)
-    ->allow_unprivileged()
     ->bind(new uprobe_builder ());
 
   // kernel tracepoint probes

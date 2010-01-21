@@ -19,6 +19,7 @@ extern "C" {
 #include <signal.h>
 #include <sys/wait.h>
 #include <pwd.h>
+#include <grp.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -89,6 +90,43 @@ output_autoconf(systemtap_session& s, ofstream& o, const char *autoconf_c,
   o << "; fi >> $@" << endl;
 }
 
+void output_cpu_khz (systemtap_session& s, ofstream& o)
+{
+  // PR10493: search cpu_khz in Module.symvers
+  string kernel_export_file = s.kernel_build_tree + "/Module.symvers";
+  char *line = NULL, *name = NULL, *module = NULL, *type = NULL;
+  size_t len = 0;
+  unsigned long address;
+  int ret;
+  FILE *sym = fopen(kernel_export_file.c_str(),"r");
+  
+  if (sym == NULL)
+    return;
+  while (!feof(sym))
+    {
+      if (getline(&line, &len, sym) < 0)
+         break;
+      ret = sscanf(line, "%lx %as %as %as", &address, &name, &module, &type);
+      if (name == NULL || module == NULL || type == NULL) 
+         continue;
+      if (ret == 4) {
+         // cpu_khz is kernel EXPORT_SYMBOL'd
+         if (!strcmp(name, "cpu_khz") && !strcmp(module, "vmlinux")
+             && strstr(type, "EXPORT_SYMBOL")) // match all to avoid corrupt file
+          {
+            o << "\t";
+            if (s.verbose < 4)
+               o << "@";
+            o << "echo \"#define STAPCONF_CPU_KHZ 1\"";
+            o << ">> $@" << endl;
+            break;
+          }
+      }
+    }
+  if (sym)
+    fclose(sym);
+}
+
 int
 compile_pass (systemtap_session& s)
 {
@@ -121,6 +159,9 @@ compile_pass (systemtap_session& s)
   o << "SYSTEMTAP_RUNTIME = \"" << s.runtime_path << "\"" << endl;
 
   // "autoconf" options go here
+
+  // RHBZ 543529: early rhel6 kernels' module-signing kbuild logic breaks out-of-tree modules
+  o << "CONFIG_MODULE_SIG := n" << endl;
 
   string module_cflags = "EXTRA_CFLAGS";
   o << module_cflags << " :=" << endl;
@@ -160,6 +201,10 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-alloc-percpu-align.c", "STAPCONF_ALLOC_PERCPU_ALIGN", NULL);
   output_autoconf(s, o, "autoconf-x86-gs.c", "STAPCONF_X86_GS", NULL);
   output_autoconf(s, o, "autoconf-grsecurity.c", "STAPCONF_GRSECURITY", NULL);
+  output_autoconf(s, o, "autoconf-trace-printk.c", "STAPCONF_TRACE_PRINTK", NULL);
+  output_autoconf(s, o, "autoconf-regset.c", "STAPCONF_REGSET", NULL);
+  output_autoconf(s, o, "autoconf-utrace-regset.c", "STAPCONF_UTRACE_REGSET", NULL);
+  output_cpu_khz(s, o);
 
 #if 0
   /* NB: For now, the performance hit of probe_kernel_read/write (vs. our
@@ -200,6 +245,11 @@ compile_pass (systemtap_session& s)
 
   // o << "CFLAGS += -fno-unit-at-a-time" << endl;
 
+  // 512 bytes should be enough for anybody
+  // XXX but it's not enough for unwind_frame -- PR10821
+  // XXX temporarily bumping to 600 bytes
+  o << "EXTRA_CFLAGS += $(call cc-option,-Wframe-larger-than=600)" << endl;
+
   // Assumes linux 2.6 kbuild
   o << "EXTRA_CFLAGS += -Wno-unused -Werror" << endl;
   #if CHECK_POINTER_ARITH_PR5947
@@ -213,15 +263,14 @@ compile_pass (systemtap_session& s)
   o.close ();
 
   // Generate module directory pathname and make sure it exists.
-  string module_dir;
-  module_dir = s.kernel_build_tree;
+  string module_dir = s.kernel_build_tree;
+  string module_dir_makefile = module_dir + "/Makefile";
   struct stat st;
-  rc = stat(module_dir.c_str(), &st);
+  rc = stat(module_dir_makefile.c_str(), &st);
   if (rc != 0)
     {
-	clog << "Module directory " << module_dir << " check failed: "
-	     << strerror(errno) << endl
-	     << "Make sure kernel devel is installed." << endl;
+	clog << "Checking \"" << module_dir_makefile << "\" failed: " << strerror(errno) << endl
+	     << "Ensure kernel development headers & makefiles are installed." << endl;
 	return rc;
     }
 
@@ -258,6 +307,42 @@ kernel_built_uprobes (systemtap_session& s)
   return (stap_system (s.verbose, grep_cmd) == 0);
 }
 
+/*
+ * We only want root, the owner of the uprobes build directory
+ * and members of the group owning the uprobes build directory
+ * modifying uprobes.
+ */
+static bool
+may_build_uprobes (const systemtap_session& s)
+{
+  // root may build uprobes.
+  uid_t euid = geteuid ();
+  if (euid == 0)
+    return true;
+
+  // Get information on the build directory.
+  string uprobes_home = s.runtime_path + "/uprobes";
+  struct stat file_info;
+  if (stat(uprobes_home.c_str(), &file_info) != 0) {
+    clog << "Unable to obtain information on " << uprobes_home << '.' << endl;
+    return false;
+  }
+
+  // The owner of the build directory may build uprobes.
+  if (euid == file_info.st_uid)
+    return true;
+
+  // Members of the group owner of the build directory may build uprobes.
+  if (in_group_id (file_info.st_gid))
+    return true;
+
+  return false;
+}
+
+/*
+ * Use "make -q" with a fake target to
+ * verify that uprobes doesn't need to be rebuilt.
+ */
 static bool
 verify_uprobes_uptodate (systemtap_session& s)
 {
@@ -272,7 +357,24 @@ verify_uprobes_uptodate (systemtap_session& s)
   int rc = run_make_cmd(s, make_cmd);
   if (rc) {
     clog << "SystemTap's version of uprobes is out of date." << endl;
-    clog << "As root, run \"make -C " << uprobes_home << "\"." << endl;
+
+    struct stat file_info;
+    if (stat(uprobes_home.c_str(), &file_info) != 0) {
+      clog << "Unable to obtain information on " << uprobes_home << '.' << endl;
+    }
+    else {
+      struct passwd *owner = getpwuid (file_info.st_uid);
+      string owner_name = owner == NULL ? "The owner of " + uprobes_home :
+	                                  owner->pw_name;
+      if (owner_name == "root")
+	owner_name = "";
+      struct group *owner_group = getgrgid (file_info.st_gid);
+      string owner_group_name = owner_group == NULL ? "The owner group of " + uprobes_home :
+	                                              owner_group->gr_name;
+      clog << "As root, " << owner_name << (owner_name.empty () ? "" : ", ")
+	   << "or a member of the '" << owner_group_name << "' group, run" << endl;
+      clog << "\"make -C " << uprobes_home << "\"." << endl;
+    }
   }
 
   return rc;
@@ -300,7 +402,7 @@ make_uprobes (systemtap_session& s)
  * so the script-module build can find them.
  */
 static int
-copy_uprobes_symbols (systemtap_session& s)
+copy_uprobes_symbols (const systemtap_session& s)
 {
   string uprobes_home = s.runtime_path + "/uprobes";
   string cp_cmd = string("/bin/cp ") + uprobes_home +
@@ -317,17 +419,16 @@ uprobes_pass (systemtap_session& s)
   /*
    * We need to use the version of uprobes that comes with SystemTap, so
    * we may need to rebuild uprobes.ko there.  Unfortunately, this is
-   * never a no-op; e.g., the modpost step gets run every time.  We don't
-   * want non-root users modifying uprobes, so we keep the uprobes
-   * directory writable only by root.  But that means a non-root member
-   * of group stapdev can't run the make even if everything's up to date.
+   * never a no-op; e.g., the modpost step gets run every time.  Only
+   * certain users can build uprobes, so we keep the uprobes directory
+   * writable only by those users.  But that means that other users
+   * can't run the make even if everything's up to date.
    *
-   * So for non-root users, we just use "make -q" with a fake target to
-   * verify that uprobes doesn't need to be rebuilt.  If that's not so,
-   * stap must fail.
+   * So for the other users, we just verify that uprobes doesn't need
+   * to be rebuilt.  If that's not so, stap must fail.
    */
   int rc;
-  if (geteuid() == 0)
+  if (may_build_uprobes (s))
     rc = make_uprobes(s);
   else
     rc = verify_uprobes_uptodate(s);
@@ -373,8 +474,7 @@ run_pass (systemtap_session& s)
 // Build a tiny kernel module to query tracepoints
 int
 make_tracequery(systemtap_session& s, string& name,
-                const std::string& header,
-                const vector<string>& extra_headers)
+                const vector<string>& headers)
 {
   static unsigned tick = 0;
   string basename("tracequery_kmod_" + lex_cast(++tick));
@@ -394,7 +494,7 @@ make_tracequery(systemtap_session& s, string& name,
   string makefile(dir + "/Makefile");
   ofstream omf(makefile.c_str());
   // force debuginfo generation, and relax implicit functions
-  omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration" << endl;
+  omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration -Werror" << endl;
   omf << "obj-m := " + basename + ".o" << endl;
   omf.close();
 
@@ -414,13 +514,9 @@ make_tracequery(systemtap_session& s, string& name,
   osrc << "#define DEFINE_TRACE(name, proto, args) \\" << endl;
   osrc << "  DECLARE_TRACE(name, TPPROTO(proto), TPARGS(args))" << endl;
 
-  // PR9993: Add extra headers to work around undeclared types in individual
-  // include/trace/foo.h files
-  for (unsigned z=0; z<extra_headers.size(); z++)
-    osrc << "#include <" << extra_headers[z] << ">\n";
-
-  // add the requested tracepoint header
-  osrc << "#include <" << header << ">" << endl;
+  // add the specified headers
+  for (unsigned z=0; z<headers.size(); z++)
+    osrc << "#include <" << headers[z] << ">\n";
 
   // finish up the module source
   osrc << "#endif /* CONFIG_TRACEPOINTS */" << endl;

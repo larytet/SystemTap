@@ -373,10 +373,6 @@ struct print_format: public expression
     }
   };
 
-  print_format()
-    : hist(NULL)
-  {}
-
   std::string raw_components;
   std::vector<format_component> components;
   format_component delimiter;
@@ -385,11 +381,17 @@ struct print_format: public expression
 
   static std::string components_to_string(std::vector<format_component> const & components);
   static std::vector<format_component> string_to_components(std::string const & str);
-  static bool parse_print(const std::string &name, bool &stream,
-	            bool &format, bool &delim, bool &newline, bool &_char);
+  static print_format* create(const token *t);
 
   void print (std::ostream& o) const;
   void visit (visitor* u);
+
+private:
+  print_format(bool stream, bool format, bool delim, bool newline, bool _char):
+    print_to_stream(stream), print_with_format(format),
+    print_with_delim(delim), print_with_newline(newline),
+    print_char(_char), hist(NULL)
+  {}
 };
 
 
@@ -628,17 +630,17 @@ struct probe_point
     std::string functor;
     literal* arg; // optional
     component ();
+    const token* tok; // points to component's functor
     component(std::string const & f, literal * a = NULL);
   };
   std::vector<component*> components;
-  const token* tok; // points to first component's functor
   bool optional;
   bool sufficient;
   expression* condition;
   void print (std::ostream& o) const;
   probe_point ();
   probe_point(const probe_point& pp);
-  probe_point(std::vector<component*> const & comps,const token * t);
+  probe_point(std::vector<component*> const & comps);
   std::string str();
 };
 

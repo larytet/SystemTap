@@ -19,6 +19,9 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "config.h"
+#include "staprun.h"
+
 #include <stdio.h>
 
 #include <nspr.h>
@@ -28,12 +31,12 @@
 #include <cert.h>
 #include <certt.h>
 
-#include "nsscommon.h"
-#include "staprun.h"
-#include "modverify.h"
-
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <errno.h>
+
+#include "nsscommon.h"
+#include "modverify.h"
 
 /* Function: int check_cert_db_permissions (const char *cert_db_path);
  * 
@@ -202,7 +205,7 @@ check_cert_db_permissions (const char *cert_db_path) {
 
 static int
 verify_it (const char *signatureName, const SECItem *signature,
-	   const void *module_data, off_t module_size,
+	   const char *module_name, const void *module_data, off_t module_size,
 	   const SECKEYPublicKey *pubKey)
 {
   VFYContext *vfy;
@@ -224,7 +227,7 @@ verify_it (const char *signatureName, const SECItem *signature,
   if (secStatus != SECSuccess)
     {
       fprintf (stderr, "Unable to initialize verification context while verifying %s using the signature in %s.\n",
-	       modpath, signatureName);
+	       module_name, signatureName);
       nssError ();
       return MODULE_CHECK_ERROR;
     }
@@ -234,7 +237,7 @@ verify_it (const char *signatureName, const SECItem *signature,
   if (secStatus != SECSuccess)
     {
       fprintf (stderr, "Error while verifying %s using the signature in %s.\n",
-	       modpath, signatureName);
+	       module_name, signatureName);
       nssError ();
       return MODULE_CHECK_ERROR;
     }
@@ -243,7 +246,7 @@ verify_it (const char *signatureName, const SECItem *signature,
   secStatus = VFY_End (vfy);
   if (secStatus != SECSuccess) {
     fprintf (stderr, "Unable to verify the signed module %s. It may have been altered since it was created.\n",
-	     modpath);
+	     module_name);
     nssError ();
     return MODULE_ALTERED;
   }
@@ -251,8 +254,8 @@ verify_it (const char *signatureName, const SECItem *signature,
   return MODULE_OK;
 }
 
-int verify_module (const char *signatureName, const void *module_data,
-		   off_t module_size)
+int verify_module (const char *signatureName, const char* module_name,
+		   const void *module_data, off_t module_size)
 {
   const char *dbdir  = SYSCONFDIR "/systemtap/staprun";
   SECKEYPublicKey *pubKey;
@@ -269,12 +272,18 @@ int verify_module (const char *signatureName, const void *module_data,
 
   /* Verify the permissions of the certificate database and its files.  */
   if (! check_cert_db_permissions (dbdir))
-    return MODULE_UNTRUSTED;
+    {
+      if (verbose>1) fprintf (stderr, "Certificate db %s permissions too loose\n", dbdir);
+      return MODULE_UNTRUSTED;
+    }
 
   /* Get the size of the signature file.  */
   prStatus = PR_GetFileInfo (signatureName, &info);
   if (prStatus != PR_SUCCESS || info.type != PR_FILE_FILE || info.size < 0)
-    return MODULE_UNTRUSTED; /* Not signed */
+    {
+      if (verbose>1) fprintf (stderr, "Signature file %s not found\n", signatureName);
+      return MODULE_UNTRUSTED; /* Not signed */
+    }
 
   /* Open the signature file.  */
   local_file_fd = PR_Open (signatureName, PR_RDONLY, 0);
@@ -327,6 +336,7 @@ int verify_module (const char *signatureName, const void *module_data,
       fprintf (stderr, "Unable to initialize nss library using the database in %s.\n",
 	       dbdir);
       nssError ();
+      nssCleanup ();
       return MODULE_CHECK_ERROR;
     }
 
@@ -336,6 +346,7 @@ int verify_module (const char *signatureName, const void *module_data,
       fprintf (stderr, "Unable to find certificates in the certificate database in %s.\n",
 	       dbdir);
       nssError ();
+      nssCleanup ();
       return MODULE_UNTRUSTED;
     }
 
@@ -352,11 +363,13 @@ int verify_module (const char *signatureName, const void *module_data,
 	  fprintf (stderr, "Unable to extract public key from the certificate with nickname %s from the certificate database in %s.\n",
 		   cert->nickname, dbdir);
 	  nssError ();
+	  nssCleanup ();
 	  return MODULE_CHECK_ERROR;
 	}
 
       /* Verify the file. */
-      rc = verify_it (signatureName, & signature, module_data, module_size, pubKey);
+      rc = verify_it (signatureName, & signature,
+		      module_name, module_data, module_size, pubKey);
       if (rc == MODULE_OK || rc == MODULE_ALTERED || rc == MODULE_CHECK_ERROR)
 	break; /* resolved or error */
     }

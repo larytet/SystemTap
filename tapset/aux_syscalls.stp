@@ -1302,16 +1302,76 @@ function _sock_family_str(f) {
    return sprintf("UNKNOWN VALUE: %d", f)
 }
 
-function _sock_type_str(t) {
-   if(t==1) return "SOCK_STREAM"
-   if(t==2) return "SOCK_DGRAM"
-   if(t==5) return "SOCK_SEQPACKET"
-   if(t==3) return "SOCK_RAW"
-   if(t==4) return "SOCK_RDM"
-   if(t==6) return "SOCK_DCCP"
-   if(t==10) return "SOCK_PACKET"
-   return sprintf("UNKNOWN VALUE: %d", t)
-}
+function _sock_type_str:string(type:long)
+%{ /* pure */
+#ifdef SOCK_TYPE_MASK
+	int flags = (int)THIS->type & ~SOCK_TYPE_MASK;
+	int t = (int)THIS->type & SOCK_TYPE_MASK;
+#else
+	int t = (int)THIS->type;
+#endif
+
+	switch (t) {
+	case SOCK_STREAM:
+		strlcpy (THIS->__retvalue, "SOCK_STREAM", MAXSTRINGLEN);
+		break;
+	case SOCK_DGRAM:
+		strlcpy (THIS->__retvalue, "SOCK_DGRAM", MAXSTRINGLEN);
+		break;
+	case SOCK_RAW:
+		strlcpy (THIS->__retvalue, "SOCK_RAW", MAXSTRINGLEN);
+		break;
+	case SOCK_RDM:
+		strlcpy (THIS->__retvalue, "SOCK_RDM", MAXSTRINGLEN);
+		break;
+	case SOCK_SEQPACKET:
+		strlcpy (THIS->__retvalue, "SOCK_SEQPACKET", MAXSTRINGLEN);
+		break;
+#ifdef SOL_DCCP
+	case SOCK_DCCP:
+		strlcpy (THIS->__retvalue, "SOCK_DCCP", MAXSTRINGLEN);
+		break;
+#endif
+	case SOCK_PACKET:
+		strlcpy (THIS->__retvalue, "SOCK_PACKET", MAXSTRINGLEN);
+		break;
+	default:
+		strlcpy (THIS->__retvalue, "UNKNOWN VALUE: %d", t);
+		break;
+	}
+
+#ifdef SOCK_TYPE_MASK
+	if (flags & SOCK_CLOEXEC) {
+		strlcat (THIS->__retvalue, "|SOCK_CLOEXEC", MAXSTRINGLEN);
+	}
+	if (flags & SOCK_NONBLOCK) {
+		strlcat (THIS->__retvalue, "|SOCK_NONBLOCK", MAXSTRINGLEN);
+	}
+#endif
+%}
+
+function _sock_flags_str:string(f:long)
+%{ /* pure */
+#ifdef SOCK_TYPE_MASK
+	int flags = (int)THIS->f;
+	int len;
+
+	THIS->__retvalue[0] = '\0';
+	if (flags & SOCK_CLOEXEC) {
+		strlcat (THIS->__retvalue, "SOCK_CLOEXEC|", MAXSTRINGLEN);
+	}
+	if (flags & SOCK_NONBLOCK) {
+		strlcat (THIS->__retvalue, "SOCK_NONBLOCK|", MAXSTRINGLEN);
+	}
+	len = strlen(THIS->__retvalue);
+	if (len) {
+		THIS->__retvalue[len - 1] = '\0';
+	}
+	else {
+		strlcat (THIS->__retvalue, "0", MAXSTRINGLEN);
+	}
+#endif
+%}
 
 function _opoll_op_str(o) {
    if(o==1) return "EPOLL_CTL_ADD"
@@ -1791,6 +1851,8 @@ function _struct_sigaction32_u:string(uaddr:long)
 #include <linux/compat.h>
   
   // There seems to be no public cross arch header that defines this.
+  // For x86, you can find it in asm/ia32.h.  For s390x, it is defined
+  // in a private header.
   struct sigaction32 {
     compat_uptr_t  sa_handler;
     unsigned int sa_flags;
@@ -1809,9 +1871,11 @@ function _struct_sigaction32_u:string(uaddr:long)
 			     sizeof(struct sigaction32)) == 0)
 	{
 	  struct sigaction act;
+
 	  act.sa_handler = (void *)compat_ptr(act32.sa_handler);
 	  act.sa_flags = (unsigned long)act32.sa_flags;
 	  act.sa_restorer = (void *)compat_ptr(act32.sa_restorer);
+
 	  /* swap words around to get right endian order. */
 	  switch (_NSIG_WORDS)
 	    {
@@ -1824,10 +1888,96 @@ function _struct_sigaction32_u:string(uaddr:long)
 	    case 1: act.sa_mask.sig[0] = act32.sa_mask.sig[0]
 		| (((long)act32.sa_mask.sig[1]) << 32);
 	    }
+
 	  _stp_sigaction_str(&act, THIS->__retvalue, MAXSTRINGLEN);	  
 	}
       else
 	strlcpy (THIS->__retvalue, "UNKNOWN", MAXSTRINGLEN);
     }
 #endif
+%}
+
+function _struct_old_sigaction32_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+  // There seems to be no public cross arch header that defines this.
+  // For x86, you can find it in asm/ia32.h.  For s390x, it is defined
+  // in a private header.
+  struct old_sigaction32 {
+    compat_uptr_t  sa_handler;
+    compat_old_sigset_t sa_mask;    /* A 32 bit mask */
+    unsigned int sa_flags;
+    unsigned int sa_restorer;       /* Another 32 bit pointer */
+  };
+
+  struct old_sigaction32 act32;
+  char *ptr = (char *)(unsigned long)THIS->uaddr;
+  
+  if (ptr == NULL)
+    strlcpy (THIS->__retvalue, "NULL", MAXSTRINGLEN);
+  else
+    {
+      if(_stp_copy_from_user((char*)&act32, ptr,
+			     sizeof(struct old_sigaction32)) == 0)
+	{
+	  struct sigaction act;
+
+	  act.sa_handler = (void *)compat_ptr(act32.sa_handler);
+	  act.sa_restorer = (void *)compat_ptr(act32.sa_restorer);
+	  act.sa_flags = (unsigned long)act32.sa_flags;
+	  siginitset(&act.sa_mask, act32.sa_mask);
+	  _stp_sigaction_str(&act, THIS->__retvalue, MAXSTRINGLEN);	  
+	}
+      else
+	strlcpy (THIS->__retvalue, "UNKNOWN", MAXSTRINGLEN);
+    }
+#endif
+%}
+
+/*
+ * Function irqflags_str :
+ * 	Returns the symbolic string representation of the IRQ flags.
+ *
+ */
+
+%{
+#include <linux/interrupt.h>
+#ifndef IRQF_ONESHOT
+#define IRQF_ONESHOT 0x00002000
+#endif
+static const _stp_val_array const _stp_irq_list[] = {
+#ifdef IRQF_DISABLED
+	V(IRQF_DISABLED),
+#endif
+#ifdef IRQF_SAMPLE_RANDOM
+	V(IRQF_SAMPLE_RANDOM),
+#endif
+#ifdef IRQF_SHARED
+	V(IRQF_SHARED),
+#endif
+#ifdef IRQF_PROBE_SHARED
+	V(IRQF_PROBE_SHARED),
+#endif
+#ifdef IRQF_TIMER
+	V(IRQF_TIMER),
+#endif
+#ifdef IRQF_PERCPU
+	V(IRQF_PERCPU),
+#endif
+#ifdef IRQF_NOBALANCING
+	V(IRQF_NOBALANCING),
+#endif
+#ifdef IRQF_IRQPOLL
+	V(IRQF_IRQPOLL),
+#endif
+	V(IRQF_ONESHOT),
+	{0, NULL}
+};
+%}
+
+function irqflags_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_irq_list, THIS->f, THIS->__retvalue, MAXSTRINGLEN);
 %}

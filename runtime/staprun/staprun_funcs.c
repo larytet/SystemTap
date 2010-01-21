@@ -12,9 +12,6 @@
 
 #include "config.h"
 #include "staprun.h"
-#if HAVE_NSS
-#include "modverify.h"
-#endif
 
 #include <sys/mount.h>
 #include <sys/utsname.h>
@@ -22,8 +19,11 @@
 #include <pwd.h>
 #include <assert.h>
 
+#include "modverify.h"
+
+typedef int (*check_module_path_func)(const char *module_path, int module_fd);
+
 extern long init_module(void *, unsigned long, const char *);
-static int check_permissions(const void *, off_t);
 
 /* Module errors get translated. */
 const char *moderror(int err)
@@ -42,14 +42,19 @@ const char *moderror(int err)
 	}
 }
 
-int insert_module(const char *path, const char *special_options, char **options)
-{
+int insert_module(
+  const char *path,
+  const char *special_options,
+  char **options,
+  assert_permissions_func assert_permissions
+) {
 	int i;
 	long ret;
-	void *file;
+	void *module_file;
 	char *opts;
-	int fd, saved_errno;
+	int saved_errno;
 	char module_realpath[PATH_MAX];
+	int module_fd;
 	struct stat sbuf;
 
 	dbug(2, "inserting module\n");
@@ -74,61 +79,58 @@ int insert_module(const char *path, const char *special_options, char **options)
 	dbug(2, "module options: %s\n", opts);
 
 	/* Use realpath() to canonicalize the module path. */
-	if (realpath(modpath, module_realpath) == NULL) {
-		perr("Unable to canonicalize path \"%s\"", modpath);
+	if (realpath(path, module_realpath) == NULL) {
+		perr("Unable to canonicalize path \"%s\"", path);
 		return -1;
 	}
 
-        /* Overwrite the modpath with the canonicalized one, to defeat
-           a possible race between path and signature checking below and,
-	   somewhat later, module loading. */
-        modpath = strdup (module_realpath);
-        if (modpath == NULL) {
-		_perr("allocating memory failed");
-                exit (1);
-        }
+        /* Use module_realpath from this point on. "Poison" 'path'
+	   by setting it to NULL so that it doesn't get used again by
+	   mistake.  */
+        path = NULL;
 
 	/* Open the module file. Work with the open file descriptor from this
 	   point on to avoid TOCTOU problems. */
-	fd = open(modpath, O_RDONLY);
-	if (fd < 0) {
-		perr("Error opening '%s'", path);
+	module_fd = open(module_realpath, O_RDONLY);
+	if (module_fd < 0) {
+		perr("Error opening '%s'", module_realpath);
 		return -1;
 	}
 
 	/* Now that the file is open, figure out how big it is. */
-	if (fstat(fd, &sbuf) < 0) {
-		_perr("Error stat'ing '%s'", path);
-		close(fd);
+	if (fstat(module_fd, &sbuf) < 0) {
+		_perr("Error stat'ing '%s'", module_realpath);
+		close(module_fd);
 		return -1;
 	}
 
-	/* mmap in the entire module. */
-	file = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	if (file == MAP_FAILED) {
-		_perr("Error mapping '%s'", path);
-		close(fd);
+	/* mmap in the entire module. Work with the memory mapped data from this
+	   point on to avoid a TOCTOU race between path and signature checking
+	   below and module loading.  */
+	module_file = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, module_fd, 0);
+	if (module_file == MAP_FAILED) {
+		_perr("Error mapping '%s'", module_realpath);
+		close(module_fd);
 		free(opts);
 		return -1;
 	}
 
-	/* Check whether this module can be loaded by the current user.  */
-	ret = check_permissions (file, sbuf.st_size);
-	if (ret != 1)
-		return -1;
+	/* Check whether this module can be loaded by the current user.
+	 * check_permissions will exit(-1) if permissions are insufficient*/
+	assert_permissions (module_realpath, module_fd, module_file, sbuf.st_size);
 
-	STAP_PROBE1(staprun, insert__module, path);
+	STAP_PROBE1(staprun, insert__module, (char*)module_realpath);
 	/* Actually insert the module */
-	ret = init_module(file, sbuf.st_size, opts);
+	ret = init_module(module_file, sbuf.st_size, opts);
 	saved_errno = errno;
 
 	/* Cleanup. */
 	free(opts);
-	munmap(file, sbuf.st_size);
-	close(fd);
+	munmap(module_file, sbuf.st_size);
+	close(module_fd);
 
 	if (ret != 0) {
-		err("Error inserting module '%s': %s\n", path, moderror(saved_errno));
+		err("Error inserting module '%s': %s\n", module_realpath, moderror(saved_errno));
 		return -1;
 	}
 	return 0;
@@ -231,30 +233,27 @@ int mountfs(void)
 
 #if HAVE_NSS
 /*
- * Modules which have been signed using a certificate and private key
- * corresponding to a certificate and public key in the database in
- * the '$sysconfdir/systemtap/staprun' directory may be loaded by
- * anyone.
+ * Check the signature of the given module.
  *
  * Returns: -1 on errors, 0 on failure, 1 on success.
  */
 static int
-check_signature(const void *module_data, off_t module_size)
+check_signature(const char *path, const void *module_data, off_t module_size)
 {
   char signature_realpath[PATH_MAX];
   int rc;
 
-  dbug(2, "checking signature for %s\n", modpath);
+  dbug(2, "checking signature for %s\n", path);
 
   /* Add the .sgn suffix to the canonicalized module path to get the signature
      file path.  */
-  if (strlen (modpath) >= PATH_MAX - 4) {
-    err("Path \"%s.sgn\" is too long.", modpath);
+  if (strlen (path) >= PATH_MAX - 4) {
+    err("Path \"%s.sgn\" is too long.", path);
     return -1;
   }
-  sprintf (signature_realpath, "%s.sgn", modpath);
+  sprintf (signature_realpath, "%s.sgn", path);
 
-  rc = verify_module (signature_realpath, module_data, module_size);
+  rc = verify_module (signature_realpath, path, module_data, module_size);
 
   dbug(2, "verify_module returns %d\n", rc);
 
@@ -263,19 +262,21 @@ check_signature(const void *module_data, off_t module_size)
 #endif /* HAVE_NSS */
 
 /*
- * Members of the 'stapusr' group can only use "blessed" modules -
+ * For stap modules which have not been signed by a trusted signer,
+ * members of the 'stapusr' group can only use the "blessed" modules -
  * ones in the '/lib/modules/KVER/systemtap' directory.  Make sure the
  * module path is in that directory.
  *
- * Returns: -1 on errors, 0 on failure, 1 on success.
+ * Returns: -1 on errors, 1 on success.
  */
 static int
-check_path(void)
+check_stap_module_path(const char *module_path, int module_fd)
 {
 	char staplib_dir_path[PATH_MAX];
 	char staplib_dir_realpath[PATH_MAX];
 	struct utsname utsbuf;
 	struct stat sb;
+	int rc = 1;
 
 	/* First, we need to figure out what the kernel
 	 * version is and build the '/lib/modules/KVER/systemtap' path. */
@@ -286,41 +287,13 @@ check_path(void)
 	if (sprintf_chk(staplib_dir_path, "/lib/modules/%s/systemtap", utsbuf.release))
 		return -1;
 
-	/* Validate /lib/modules/KVER/systemtap. */
-	if (stat(staplib_dir_path, &sb) < 0) {
-		perr("Members of the \"stapusr\" group can only use modules within\n"
-		     "  the \"%s\" directory.\n"
-		     "  Error getting information on that directory", staplib_dir_path);
-		return -1;
-	}
-	/* Make sure it is a directory. */
-	if (! S_ISDIR(sb.st_mode)) {
-		err("ERROR: Members of the \"stapusr\" group can only use modules within\n"
-		    "  the \"%s\" directory.\n"
-		    "  That path must refer to a directory.\n", staplib_dir_path);
-		return -1;
-	}
-	/* Make sure it is owned by root. */
-	if (sb.st_uid != 0) {
-		err("ERROR: Members of the \"stapusr\" group can only use modules within\n"
-		    "  the \"%s\" directory.\n"
-		    "  That directory should be owned by root.\n", staplib_dir_path);
-		return -1;
-	}
-	/* Make sure it isn't world writable. */
-	if (sb.st_mode & S_IWOTH) {
-		err("ERROR: Members of the \"stapusr\" group can only use modules within\n"
-		    "  the \"%s\" directory.\n"
-		    "  That directory should not be world writable.\n", staplib_dir_path);
-		return -1;
-	}
-
-	/* Use realpath() to canonicalize the module directory
-	 * path. */
+	/* Use realpath() to canonicalize the module directory path. */
 	if (realpath(staplib_dir_path, staplib_dir_realpath) == NULL) {
-		perr("Members of the \"stapusr\" group can only use modules within\n"
+		perr("Unable to verify the signature for the module %s.\n"
+		     "  Members of the \"stapusr\" group can only use unsigned modules within\n"
 		     "  the \"%s\" directory.\n"
-		     "  Unable to canonicalize that directory",	staplib_dir_path);
+		     "  Unable to canonicalize that directory",
+		     module_path, staplib_dir_path);
 		return -1;
 	}
 
@@ -330,28 +303,101 @@ check_path(void)
 	if (strlen(staplib_dir_realpath) < (PATH_MAX - 1))
 		strcat(staplib_dir_realpath, "/");
 	else {
-		err("Path \"%s\" is too long.", modpath);
+		err("ERROR: Path \"%s\" is too long.", staplib_dir_realpath);
+		return -1;
+	}
+
+	/* Validate /lib/modules/KVER/systemtap. No need to use fstat on
+	   an open file descriptor to avoid TOCTOU, since the path will
+	   not be used to access the file system.  */
+	if (stat(staplib_dir_path, &sb) < 0) {
+		perr("Unable to verify the signature for the module %s.\n"
+		     "  Members of the \"stapusr\" group can only use such modules within\n"
+		     "  the \"%s\" directory.\n"
+		     "  Error getting information on that directory",
+		     module_path, staplib_dir_path);
+		return -1;
+	}
+	/* Make sure it is a directory. */
+	if (! S_ISDIR(sb.st_mode)) {
+		err("ERROR: Unable to verify the signature for the module %s.\n"
+		    "  Members of the \"stapusr\" group can only use such modules within\n"
+		    "  the \"%s\" directory.\n"
+		    "  That path must refer to a directory.\n",
+		    module_path, staplib_dir_path);
+		return -1;
+	}
+	/* Make sure it is owned by root. */
+	if (sb.st_uid != 0) {
+		err("ERROR: Unable to verify the signature for the module %s.\n"
+		    "  Members of the \"stapusr\" group can only use such modules within\n"
+		    "  the \"%s\" directory.\n"
+		    "  That directory should be owned by root.\n",
+		    module_path, staplib_dir_path);
+		return -1;
+	}
+	/* Make sure it isn't world writable. */
+	if (sb.st_mode & S_IWOTH) {
+		err("ERROR: Unable to verify the signature for the module %s.\n"
+		    "  Members of the \"stapusr\" group can only use such modules within\n"
+		    "  the \"%s\" directory.\n"
+		    "  That directory should not be world writable.\n",
+		    module_path, staplib_dir_path);
 		return -1;
 	}
 
 	/* Now we've got two canonicalized paths.  Make sure
-	 * modpath starts with staplib_dir_realpath. */
-	if (strncmp(staplib_dir_realpath, modpath,
+	 * module_path starts with staplib_dir_realpath. */
+	if (strncmp(staplib_dir_realpath, module_path,
 		    strlen(staplib_dir_realpath)) != 0) {
-		err("ERROR: Members of the \"stapusr\" group can only use modules within\n"
+		err("ERROR: Unable to verify the signature for the module %s.\n"
+		    "  Members of the \"stapusr\" group can only use unsigned modules within\n"
 		    "  the \"%s\" directory.\n"
 		    "  Module \"%s\" does not exist within that directory.\n",
-		    staplib_dir_path, modpath);
-		return 0;
+		    module_path, staplib_dir_path, module_path);
+		return -1;
 	}
-	return 1;
+
+	/* Validate the module permisions. */
+	if (fstat(module_fd, &sb) < 0) {
+		perr("Error getting information on the module\"%s\"", module_path);
+		return -1;
+	}
+	/* Make sure it is owned by root. */
+	if (sb.st_uid != 0) {
+		err("ERROR: The module \"%s\" must be owned by root.\n", module_path);
+		rc = -1;
+	}
+	/* Make sure it isn't world writable. */
+	if (sb.st_mode & S_IWOTH) {
+		err("ERROR: The module \"%s\" must not be world writable.\n", module_path);
+		rc = -1;
+	}
+
+	return rc;
+}
+
+/*
+ * Members of the 'stapusr' group can load the uprobes module freely,
+ * since it is loaded from a fixed path in the installed runtime.
+ *
+ * Returns: -1 on errors, 0 on failure, 1 on success.
+ */
+static int
+check_uprobes_module_path (
+  const char *module_path __attribute__ ((unused)),
+  int module_fd __attribute__ ((unused))
+)
+{
+  return 1;
 }
 
 /*
  * Check the user's group membership.
  *
  * o members of stapdev can do anything
- * o members of stapusr can load modules from /lib/modules/KVER/systemtap
+ * o members of stapusr can load modules from certain module-specific
+ *   paths.
  *
  * Returns: -2 if neither group exists
  *          -1 for other errors
@@ -359,7 +405,12 @@ check_path(void)
  *           1 on success
  */
 static int
-check_groups (void)
+check_groups (
+  const char *module_path,
+  int module_fd,
+  int module_signature_status,
+  check_module_path_func check_path
+)
 {
 	gid_t gid, gidlist[NGROUPS_MAX];
 	gid_t stapdev_gid, stapusr_gid;
@@ -428,9 +479,17 @@ check_groups (void)
 
 	/* At this point the user is only a member of the 'stapusr'
 	 * group.  Members of the 'stapusr' group can only use modules
-	 * in /lib/modules/KVER/systemtap.  Make sure the module path
-	 * is in that directory. */
-	return check_path();
+	 * which have been signed by a trusted signer or which, in some cases,
+	 * are at approved paths.  */
+	if (module_signature_status == MODULE_OK)
+		return 1;
+	assert (module_signature_status == MODULE_UNTRUSTED ||
+		module_signature_status == MODULE_CHECK_ERROR);
+
+	/* Could not verify the module's signature, so check whether this module
+	   can be loaded based on its path. check_path is a pointer to a
+	   module-specific function which will do this.  */
+	return check_path (module_path, module_fd);
 }
 
 /*
@@ -441,26 +500,29 @@ check_groups (void)
  *
  * 1) root can do anything
  * 2) members of stapdev can do anything
- * 3) members of stapusr can load modules from /lib/modules/KVER/systemtap
- * 4) anyone can load a module which has been signed by a trusted signer
+ * 3) members of stapusr can load a module which has been signed by a trusted signer
+ * 4) members of stapusr can load unsigned modules from /lib/modules/KVER/systemtap
  *
  * It is only an error if all 4 levels of checking fail
- *
- * Returns: -1 on errors, 0 on failure, 1 on success.
  */
-int check_permissions(
+void assert_stap_module_permissions(
+  const char *module_path,
+  int module_fd,
   const void *module_data __attribute__ ((unused)),
   off_t module_size __attribute__ ((unused))
 ) {
 	int check_groups_rc;
-	int check_signature_rc = 0;
+	int check_signature_rc;
 
 #if HAVE_NSS
-	/* Attempt to verify the module against its signature. Return failure
-	   if the module has been tampered with (altered).  */
-	check_signature_rc = check_signature (module_data, module_size);
+	/* Attempt to verify the module against its signature. Exit
+	   immediately if the module has been tampered with (altered).  */
+	check_signature_rc = check_signature (module_path, module_data, module_size);
 	if (check_signature_rc == MODULE_ALTERED)
-		return 0;
+		exit(-1);
+#else
+	/* If we don't have NSS, the stap module is considered untrusted */
+	check_signature_rc = MODULE_UNTRUSTED;
 #endif
 
 	/* If we're root, we can do anything. */
@@ -477,37 +539,77 @@ int check_permissions(
 			err("WARNING: couldn't set staprun GID to '%s': %s",
 					env_id, strerror(errno));
 
-		return 1;
+		return;
 	}
 
 	/* Check permissions for group membership.  */
-	check_groups_rc = check_groups ();
+	check_groups_rc = check_groups (module_path, module_fd, check_signature_rc, check_stap_module_path);
 	if (check_groups_rc == 1)
-		return 1;
+		return;
 
-	/* The user is an ordinary user. If the module has been signed with
-	 * an authorized certificate and private key, then we will load it for
-	 * anyone.  */
-#if HAVE_NSS
-	if (check_signature_rc == MODULE_OK)
-		return 1;
-	assert (check_signature_rc == MODULE_UNTRUSTED || check_signature_rc == MODULE_CHECK_ERROR);
-#endif
-
-	/* We are an ordinary user and the module was not signed by a trusted
-	   signer.  */
-	err("ERROR: You are trying to run stap as a normal user.\n"
-	    "You should either be root, or be part of either "
-	    "group \"stapdev\" or group \"stapusr\".\n");
-	if (check_groups_rc == -2) {
-		err("Your system doesn't seem to have either group.\n");
-		check_groups_rc = -1;
+	/* Are we are an ordinary user?.  */
+	if (check_groups_rc == 0) {
+		err("ERROR: You are trying to run systemtap as a normal user.\n"
+		    "You should either be root, or be part of either "
+		    "group \"stapdev\" or group \"stapusr\".\n");
+		if (check_groups_rc == -2)
+			err("Your system doesn't seem to have either group.\n");
 	}
+
+	exit(-1);
+}
+
+/*
+ * Check the user's permissions.  Is he allowed to load the uprobes module?
+ *
+ * There are several levels of possible permission:
+ *
+ * 1) root can do anything
+ * 2) members of stapdev can do anything
+ * 3) members of stapusr can load a uprobes module which has been signed by a
+ *    trusted signer
+ *
+ * It is only an error if all 3 levels of checking fail
+ */
+void assert_uprobes_module_permissions(
+  const char *module_path,
+  int module_fd,
+  const void *module_data __attribute__ ((unused)),
+  off_t module_size __attribute__ ((unused))
+) {
+  int check_groups_rc;
+  int check_signature_rc;
+  
 #if HAVE_NSS
-	err("Alternatively, your module must be compiled using the --unprivileged option and signed by a trusted signer.\n"
-	    "For more information, please consult the \"SAFETY AND SECURITY\" section of the \"stap(1)\" manpage\n");
+	/* Attempt to verify the module against its signature. Return failure
+	   if the module has been tampered with (altered).  */
+	check_signature_rc = check_signature (module_path, module_data, module_size);
+	if (check_signature_rc == MODULE_ALTERED)
+		exit(-1);
+#else
+	/* If we don't have NSS, then the uprobes module is considered trusted.
+	   Otherwise a member of the group 'stapusr' will not be able to load it.
+	 */
+	check_signature_rc = MODULE_OK;
 #endif
 
-	/* Combine the return codes.  They are either 0 or -1. */
-	return check_groups_rc | check_signature_rc;
+	/* root can still load this module.  */
+	if (getuid() == 0)
+		return;
+
+	/* Members of the groups stapdev and stapusr can still load this module. */
+	check_groups_rc = check_groups (module_path, module_fd, check_signature_rc, check_uprobes_module_path);
+	if (check_groups_rc == 1)
+		return;
+
+	/* Check permissions for group membership.  */
+	if (check_groups_rc == 0) {
+		err("ERROR: You are trying to load the module %s as a normal user.\n"
+		    "You should either be root, or be part of either "
+		    "group \"stapdev\" or group \"stapusr\".\n", module_path);
+		if (check_groups_rc == -2)
+			err("Your system doesn't seem to have either group.\n");
+	}
+
+	exit(-1);
 }

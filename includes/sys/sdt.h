@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2009 Red Hat Inc.
+/* Copyright (C) 2005-2010 Red Hat Inc.
 
    This file is part of systemtap, and is free software in the public domain.
 */
@@ -12,9 +12,11 @@
 
 
 #ifdef __LP64__
-#define STAP_PROBE_ADDR "\t.quad "
+#define STAP_PROBE_ADDR(arg) "\t.quad " arg
+#elif defined (__BIG_ENDIAN__)
+#define STAP_PROBE_ADDR(arg) "\t.long 0\n\t.long " arg
 #else
-#define STAP_PROBE_ADDR "\t.long "
+#define STAP_PROBE_ADDR(arg) "\t.long " arg
 #endif
 
 /* Allocated section needs to be writable when creating pic shared objects
@@ -26,28 +28,28 @@
 /* An allocated section .probes that holds the probe names and addrs. */
 #define STAP_PROBE_DATA_(probe,guard,arg)		\
   __asm__ volatile (".section .probes," ALLOCSEC "\n"	\
-		    "\t.align 8\n"			\
+		    "\t.balign 8\n"			\
 		    "1:\n\t.asciz " #probe "\n"		\
-		    "\t.align 4\n"			\
+		    "\t.balign 4\n"			\
 		    "\t.int " #guard "\n"		\
-		    "\t.align 8\n"			\
-		    STAP_PROBE_ADDR "1b\n"		\
-		    "\t.align 8\n"			\
-		    STAP_PROBE_ADDR #arg "\n"		\
+		    "\t.balign 8\n"			\
+		    STAP_PROBE_ADDR("1b\n")		\
+		    "\t.balign 8\n"			\
+		    STAP_PROBE_ADDR(#arg "\n")		\
 		    "\t.int 0\n"			\
 		    "\t.previous\n")
 
 #define STAP_PROBE_DATA(probe, guard, arg)	\
   STAP_PROBE_DATA_(#probe,guard,arg)
 
-#if defined STAP_HAS_SEMAPHORES && defined EXPERIMENTAL_UTRACE_SDT
+#if defined STAP_HAS_SEMAPHORES && ! defined EXPERIMENTAL_KPROBE_SDT
 #define STAP_SEMAPHORE(probe)	\
-  if ( probe ## _semaphore )
+  if (__builtin_expect ( probe ## _semaphore , 0))
 #else
 #define STAP_SEMAPHORE(probe)
 #endif
 
-#if ! (defined EXPERIMENTAL_UTRACE_SDT || defined EXPERIMENTAL_KPROBE_SDT)
+#if ! defined EXPERIMENTAL_KPROBE_SDT
 
 /* These baroque macros are used to create a unique label. */
 #define STAP_CONCAT(a,b) a ## b
@@ -220,7 +222,7 @@ do STAP_SEMAPHORE(probe) {						\
 		    STAP_NOP "/* %0 %1 %2 %3 %4 %5 %6 %7 %8 %9 */" :: "g"(arg1), "g"(arg2), "g"(arg3), "g"(arg4), "g"(arg5), "g"(arg6), "g"(arg7), "g"(arg8), "g"(arg9), "g"(arg10)); \
 } while (0)
 
-#else /* ! (defined EXPERIMENTAL_UTRACE_SDT || defined EXPERIMENTAL_KPROBE_SDT) */
+#else /* ! defined EXPERIMENTAL_KPROBE_SDT */
 #include <unistd.h>
 #include <sys/syscall.h>
 # if defined (__USE_ANSI)
@@ -229,9 +231,6 @@ extern long int syscall (long int __sysno, ...) __THROW;
 # if defined EXPERIMENTAL_KPROBE_SDT
 # define STAP_SYSCALL __NR_getegid
 # define STAP_GUARD 0x32425250
-# elif defined EXPERIMENTAL_UTRACE_SDT
-# define STAP_SYSCALL 0xbead
-# define STAP_GUARD 0x33425250
 # endif
 
 #include <sys/syscall.h>
@@ -416,6 +415,8 @@ STAP_PROBE7(provider,probe,parm1,parm2,parm3,parm4,parm5,parm6,parm7)
 STAP_PROBE8(provider,probe,parm1,parm2,parm3,parm4,parm5,parm6,parm7,parm8)
 #define DTRACE_PROBE9(provider,probe,parm1,parm2,parm3,parm4,parm5,parm6,parm7,parm8,parm9) \
 STAP_PROBE9(provider,probe,parm1,parm2,parm3,parm4,parm5,parm6,parm7,parm8,parm9)
+#define DTRACE_PROBE10(provider,probe,parm1,parm2,parm3,parm4,parm5,parm6,parm7,parm8,parm9,parm10) \
+  STAP_PROBE10(provider,probe,parm1,parm2,parm3,parm4,parm5,parm6,parm7,parm8,parm9,parm10)
 
 #endif /* sys/sdt.h */
 

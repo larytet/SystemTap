@@ -15,7 +15,7 @@
 %{
 #include <asm/processor.h>
 
-#if defined(__powerpc64__)
+#if defined(__powerpc__)
 #if !defined(task_pt_regs)
 #define task_pt_regs(tsk)       ((struct pt_regs *)(tsk)->thread.regs)
 #endif
@@ -182,11 +182,11 @@ function pp:string () %{ /* pure */ /* unprivileged */
 %}
 
 /**
- * sfunction registers_valid - Determines validity of <command>register()</command> and <command>u_register()</command> in current context.
+ * sfunction registers_valid - Determines validity of register() and u_register() in current context.
  *
  *  Return 1 if register() and u_register() can be used
  *  in the current context, or 0 otherwise.
- *  For example, <command>registers_valid()</command> returns 0
+ *  For example, registers_valid() returns 0
  *  when called from a begin or end probe.
  */
 function registers_valid:long () %{ /* pure */ /* unprivileged */
@@ -211,10 +211,10 @@ function user_mode:long () %{ /* pure */ /* unprivileged */
 %}
 
 /**
- * sfunction is_return - Determines if probe point is a return probe.
+ * sfunction is_return - Whether the current probe context is a return probe.
  *
- *  Return 1 if the probe point is a return probe.
- *  <emphasis>Deprecated.</emphasis>
+ * Description: Returns 1 if the current probe context is a return probe,
+ * returns 0 otherwise.
  */
 function is_return:long () %{ /* pure */
 	if (CONTEXT->pi)
@@ -230,24 +230,22 @@ function target:long () %{ /* pure */ /* unprivileged */
         THIS->__retvalue = _stp_target;
 %}
 
-///<formalpara id="module_name">
-///  <title>module_name:string()</title>
-///  <indexterm><primary>module_name</primary></indexterm>
-///  <para>
-///	<remark>FIXME: need description.</remark>
-///  </para>
-///</formalpara>
+/**
+ * sfunction module_name - The module name of the current script.
+ *
+ * Returns the name of the stap module. Either generated randomly
+ * (stap_[0-9a-f]+_[0-9a-f]+) or set by stap -m <module_name>.
+ */
 function module_name:string () %{ /* pure */ /* unprivileged */
 	strlcpy(THIS->__retvalue, THIS_MODULE->name, MAXSTRINGLEN);
 %}
 
-///<formalpara id="stp_pid">
-///  <title>stp_pid:long()</title>
-///  <indexterm><primary>stp_pid</primary></indexterm>
-///  <para>
-///	<remark>FIXME: need description.</remark>
-///  </para>
-///</formalpara>
+/**
+ * sfunction stp_pid - The process id of the stapio process.
+ *
+ * Returns the process id of the stapio process that launched
+ * this script.
+ */
 function stp_pid:long () %{ /* pure */
         THIS->__retvalue = _stp_pid;
 %}

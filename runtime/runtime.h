@@ -31,6 +31,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,15)
 #if !defined (CONFIG_DEBUG_FS)  && !defined (CONFIG_DEBUG_FS_MODULE)
 #error "DebugFS is required and was not found in the kernel."
@@ -115,6 +116,16 @@ static struct
 #endif
 #endif
 
+#ifndef SYM_VERBOSE_NO
+#define SYM_VERBOSE_NO 0
+#endif
+#ifndef SYM_VERBOSE_FULL
+#define SYM_VERBOSE_FULL 1
+#endif
+#ifndef SYM_VERBOSE_BRIEF
+#define SYM_VERBOSE_BRIEF 2
+#endif
+
 #include "alloc.c"
 #include "print.c"
 #include "string.c"
@@ -178,6 +189,17 @@ void cleanup_module(void)
 {
   _stp_transport_close();
 }
+
+#define pseudo_atomic_cmpxchg(v, old, new) ({\
+	int ret;\
+	unsigned long flags;\
+	local_irq_save(flags);\
+	ret = atomic_read(v);\
+	if (likely(ret == old))\
+		atomic_set(v, new);\
+	local_irq_restore(flags);\
+	ret; })
+
 
 MODULE_LICENSE("GPL");
 

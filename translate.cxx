@@ -15,6 +15,7 @@
 #include "tapsets.h"
 #include "util.h"
 #include "dwarf_wrappers.h"
+#include "setupdwfl.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -27,6 +28,11 @@
 extern "C" {
 #include <elfutils/libdwfl.h>
 }
+
+// Max unwind table size (debug or eh) per module. Somewhat arbitrary
+// limit (a bit more than twice the .debug_frame size of my local
+// vmlinux for 2.6.31.4-83.fc12.x86_64)
+#define MAX_UNWIND_TABLE_SIZE (3 * 1024 * 1024)
 
 using namespace std;
 
@@ -67,6 +73,7 @@ struct c_unparser: public unparser, public visitor
   void emit_module_init ();
   void emit_module_exit ();
   void emit_function (functiondecl* v);
+  void emit_lock_decls (const varuse_collecting_visitor& v);
   void emit_locks (const varuse_collecting_visitor& v);
   void emit_probe (derived_probe* v);
   void emit_unlocks (const varuse_collecting_visitor& v);
@@ -885,6 +892,7 @@ c_unparser::emit_common_header ()
   o->newline() << "unsigned long *unwaddr;";
   // unwaddr is caching unwound address in each probe handler on ia64.
   o->newline() << "struct kretprobe_instance *pi;";
+  o->newline() << "int pi_longs;"; // int64_t count in pi->data, the rest is string_t
   o->newline() << "int regparm;";
   o->newline() << "va_list *mark_va_list;";
   o->newline() << "const char * marker_name;";
@@ -897,6 +905,7 @@ c_unparser::emit_common_header ()
   o->newline() << "cycles_t cycles_base;";
   o->newline() << "cycles_t cycles_sum;";
   o->newline() << "#endif";
+  o->newline() << "struct uretprobe_instance *ri;";
 
 
   // PR10516: probe locals
@@ -1020,7 +1029,7 @@ c_unparser::emit_common_header ()
   o->newline() << "#endif";
 
   o->newline(-1) << "};\n";
-  o->newline() << "static void *contexts = NULL; /* alloc_percpu */\n";
+  o->newline() << "static struct context *contexts[NR_CPUS] = { NULL };\n";
 
   emit_map_type_instantiations ();
 
@@ -1116,6 +1125,7 @@ c_unparser::emit_module_init ()
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
+  o->newline() << "int cpu;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
   o->newline() << "const char *probe_point = \"\";";
 
@@ -1164,6 +1174,8 @@ c_unparser::emit_module_init ()
   // PR10228: set up symbol table-related task finders.
   o->newline() << "#if defined(STP_NEED_VMA_TRACKER)";
   o->newline() << "_stp_sym_init();";
+  o->newline() << "#else";
+  o->newline() << "if (_stp_need_vma_tracker == 1) _stp_sym_init();";
   o->newline() << "#endif";
   // NB: we don't need per-_stp_module task_finders, since a single common one
   // set up in runtime/sym.c's _stp_sym_init() will scan through all _stp_modules.
@@ -1176,12 +1188,15 @@ c_unparser::emit_module_init ()
   // terminate.  These may set STAP_SESSION_ERROR!
 
   // per-cpu context
-  o->newline() << "if (sizeof (struct context) <= 131072)";
-  o->newline(1) << "contexts = alloc_percpu (struct context);";
-  o->newline(-1) << "if (contexts == NULL) {";
-  o->newline(1) << "_stp_error (\"percpu context (size %lu) allocation failed\", (unsigned long) sizeof (struct context));";
+  o->newline() << "for_each_possible_cpu(cpu) {";
+  o->indent(1);
+  o->newline() << "contexts[cpu] = _stp_kzalloc(sizeof(struct context));";
+  o->newline() << "if (contexts[cpu] == NULL) {";
+  o->indent(1);
+  o->newline() << "_stp_error (\"context (size %lu) allocation failed\", (unsigned long) sizeof (struct context));";
   o->newline() << "rc = -ENOMEM;";
   o->newline() << "goto out;";
+  o->newline(-1) << "}";
   o->newline(-1) << "}";
 
   for (unsigned i=0; i<session->globals.size(); i++)
@@ -1280,7 +1295,14 @@ c_unparser::emit_module_init ()
   o->newline() << "#endif";
 
   // Free up the context memory after an error too
-  o->newline() << "free_percpu (contexts);";
+  o->newline() << "for_each_possible_cpu(cpu) {";
+  o->indent(1);
+  o->newline() << "if (contexts[cpu] != NULL) {";
+  o->indent(1);
+  o->newline() << "_stp_kfree(contexts[cpu]);";
+  o->newline() << "contexts[cpu] = NULL;";
+  o->newline(-1) << "}";
+  o->newline(-1) << "}";
 
   o->newline() << "return rc;";
   o->newline(-1) << "}\n";
@@ -1294,6 +1316,7 @@ c_unparser::emit_module_exit ()
   // rc?
   o->newline(1) << "int holdon;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
+  o->newline() << "int cpu;";
 
   o->newline() << "(void) i;";
   o->newline() << "(void) j;";
@@ -1336,7 +1359,8 @@ c_unparser::emit_module_exit ()
   o->newline() << "holdon = 0;";
   o->newline() << "for (i=0; i < NR_CPUS; i++)";
   o->newline(1) << "if (cpu_possible (i) && "
-                << "atomic_read (& ((struct context *)per_cpu_ptr(contexts, i))->busy)) "
+		<< "contexts[i] != NULL && "
+                << "atomic_read (& contexts[i]->busy)) "
                 << "holdon = 1;";
   // NB: we run at least one of these during the shutdown sequence:
   o->newline () << "yield ();"; // aka schedule() and then some
@@ -1359,7 +1383,14 @@ c_unparser::emit_module_exit ()
 	o->newline() << getvar (v).fini();
     }
 
-  o->newline() << "free_percpu (contexts);";
+  o->newline() << "for_each_possible_cpu(cpu) {";
+  o->indent(1);
+  o->newline() << "if (contexts[cpu] != NULL) {";
+  o->indent(1);
+  o->newline() << "_stp_kfree(contexts[cpu]);";
+  o->newline() << "contexts[cpu] = NULL;";
+  o->newline(-1) << "}";
+  o->newline(-1) << "}";
 
   // print probe timing statistics
   {
@@ -1470,7 +1501,7 @@ c_unparser::emit_function (functiondecl* v)
   // or 0...N (if we're called from another function).  Incoming parameters are already
   // stored in c->locals[c->nesting+1].  See also ::emit_common_header() for more.
 
-  o->newline() << "if (unlikely (c->nesting+1 > MAXNESTING)) {";
+  o->newline() << "if (unlikely (c->nesting+1 >= MAXNESTING)) {";
   o->newline(1) << "c->last_error = \"MAXNESTING exceeded\";";
   o->newline() << "return;";
   o->newline(-1) << "} else {";
@@ -1616,10 +1647,21 @@ c_unparser::emit_probe (derived_probe* v)
 
       probe_contents[oss.str()] = v->name;
 
+      // emit static read/write lock decls for global variables
+      varuse_collecting_visitor vut(*session);
+      if (v->needs_global_locks ())
+        {
+	  v->body->visit (& vut);
+	  emit_lock_decls (vut);
+	}
+
       // initialize frame pointer
       o->newline() << "struct " << v->name << "_locals * __restrict__ l =";
       o->newline(1) << "& c->probe_locals." << v->name << ";";
       o->newline(-1) << "(void) l;"; // make sure "l" is marked used
+
+      // Emit runtime safety net for unprivileged mode.
+      v->emit_unprivileged_assertion (o);
 
       o->newline() << "#ifdef STP_TIMING";
       o->newline() << "c->statp = & time_" << v->basest()->name << ";";
@@ -1629,12 +1671,8 @@ c_unparser::emit_probe (derived_probe* v)
       v->emit_probe_local_init(o);
 
       // emit all read/write locks for global variables
-      varuse_collecting_visitor vut(*session);
       if (v->needs_global_locks ())
-        {
-	  v->body->visit (& vut);
 	  emit_locks (vut);
-	}
 
       // initialize locals
       for (unsigned j=0; j<v->locals.size(); j++)
@@ -1685,13 +1723,16 @@ c_unparser::emit_probe (derived_probe* v)
 
 
 void
-c_unparser::emit_locks(const varuse_collecting_visitor& vut)
+c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
 {
-  o->newline() << "{";
-  o->newline(1) << "unsigned numtrylock = 0;";
-  o->newline() << "(void) numtrylock;";
+  unsigned numvars = 0;
 
-  string last_locked_var;
+  if (session->verbose > 1)
+    clog << current_probe->name << " locks ";
+
+  o->newline() << "static const struct stp_probe_lock locks[] = {";
+  o->indent(1);
+
   for (unsigned i = 0; i < session->globals.size(); i++)
     {
       vardecl* v = session->globals[i];
@@ -1723,94 +1764,44 @@ c_unparser::emit_locks(const varuse_collecting_visitor& vut)
 	    continue;
 	}
 
-      string lockcall =
-        string (write_p ? "write" : "read") +
-        "_trylock (& global.s_" + v->name + "_lock)";
-
-      o->newline() << "while (! " << lockcall
-                   << "&& (++numtrylock < MAXTRYLOCK))";
-      o->newline(1) << "ndelay (TRYLOCKDELAY);";
-      o->newline(-1) << "if (unlikely (numtrylock >= MAXTRYLOCK)) {";
-      o->newline(1) << "atomic_inc (& skipped_count);";
+      o->newline() << "{";
+      o->newline(1) << ".lock = &global.s_" + v->name + "_lock,";
+      o->newline() << ".write_p = " << (write_p ? 1 : 0) << ",";
       o->newline() << "#ifdef STP_TIMING";
-      o->newline() << "atomic_inc (& global.s_" << c_varname (v->name) << "_lock_skip_count);";
+      o->newline() << ".skipped = &global.s_" << c_varname (v->name) << "_lock_skip_count,";
       o->newline() << "#endif";
-      // The following works even if i==0.  Note that using
-      // globals[i-1]->name is wrong since that global may not have
-      // been lockworthy by this probe.
-      o->newline() << "goto unlock_" << last_locked_var << ";";
-      o->newline(-1) << "}";
+      o->newline(-1) << "},";
 
-      last_locked_var = v->name;
+      numvars ++;
+      if (session->verbose > 1)
+        clog << v->name << "[" << (read_p ? "r" : "")
+             << (write_p ? "w" : "")  << "] ";
     }
 
-  o->newline() << "if (0) goto unlock_;";
+  o->newline(-1) << "};";
 
-  o->newline(-1) << "}";
+  if (session->verbose > 1)
+    {
+      if (!numvars)
+        clog << "nothing";
+      clog << endl;
+    }
+}
+
+
+void
+c_unparser::emit_locks(const varuse_collecting_visitor&)
+{
+  o->newline() << "if (!stp_lock_probe(locks, ARRAY_SIZE(locks)))";
+  o->newline(1) << "return;";
+  o->indent(-1);
 }
 
 
 void
 c_unparser::emit_unlocks(const varuse_collecting_visitor& vut)
 {
-  unsigned numvars = 0;
-
-  if (session->verbose>1)
-    clog << current_probe->name << " locks ";
-
-  for (int i = session->globals.size()-1; i>=0; i--) // in reverse order!
-    {
-      vardecl* v = session->globals[i];
-      bool read_p = vut.read.find(v) != vut.read.end();
-      bool write_p = vut.written.find(v) != vut.written.end();
-      if (!read_p && !write_p) continue;
-
-      // Duplicate lock flipping logic from above
-      if (v->type == pe_stats)
-        {
-          if (write_p && !read_p) { read_p = true; write_p = false; }
-          else if (read_p && !write_p) { read_p = false; write_p = true; }
-        }
-
-      // Duplicate "read-mostly" global variable logic from above.
-      if (read_p && !write_p)
-        {
-	  if (vcv_needs_global_locks.written.find(v)
-	      == vcv_needs_global_locks.written.end())
-	    continue;
-	}
-
-      numvars ++;
-      o->newline(-1) << "unlock_" << v->name << ":";
-      o->indent(1);
-
-      if (session->verbose>1)
-        clog << v->name << "[" << (read_p ? "r" : "")
-             << (write_p ? "w" : "")  << "] ";
-
-      if (write_p) // emit write lock
-        o->newline() << "write_unlock (& global.s_" << v->name << "_lock);";
-      else // (read_p && !write_p) : emit read lock
-        o->newline() << "read_unlock (& global.s_" << v->name << "_lock);";
-
-      // fall through to next variable; thus the reverse ordering
-    }
-
-  // emit plain "unlock" label, used if the very first lock failed.
-  o->newline(-1) << "unlock_: ;";
-  o->indent(1);
-
-  if (numvars) // is there a chance that any lock attempt failed?
-    {
-      // Formerly, we checked skipped_count > MAXSKIPPED here, and set
-      // SYSTEMTAP_SESSION_ERROR if so.  But now, this check is shared
-      // via common_probe_entryfn_epilogue().
-
-      if (session->verbose>1)
-        clog << endl;
-    }
-  else if (session->verbose>1)
-    clog << "nothing" << endl;
+  o->newline() << "stp_unlock_probe(locks, ARRAY_SIZE(locks));";
 }
 
 
@@ -2641,7 +2632,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	      // @count instead for aggregates.  '-5' tells the
 	      // runtime to sort by count.
 	      if (s->sort_column == 0)
-		sort_column = -5;
+		sort_column = -5; /* runtime/map.c SORT_COUNT */
 	      else
 		sort_column = s->sort_column;
 
@@ -4079,6 +4070,14 @@ c_tmpcounter::visit_print_format (print_format* e)
 	      arr->indexes[i]->visit(this);
 	    }
 	}
+
+      // And the result for sprint[ln](@hist_*)
+      if (!e->print_to_stream)
+        {
+          exp_type ty = pe_string;
+          tmpvar res = parent->gensym(ty);
+          res.declare(*parent);
+        }
     }
   else
     {
@@ -4141,8 +4140,18 @@ c_unparser::visit_print_format (print_format* e)
 	o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
 	o->newline() << "goto out;";
         o->newline(-1) << "} else";
-	o->newline(1) << "_stp_stat_print_histogram (" << v->hist() << ", " << agg.value() << ");";
-        o->indent(-1);
+        if (e->print_to_stream)
+          {
+            o->newline(1) << "_stp_stat_print_histogram (" << v->hist() << ", " << agg.value() << ");";
+            o->indent(-1);
+          }
+        else
+          {
+            exp_type ty = pe_string;
+            tmpvar res = gensym (ty);
+            o->newline(1) << "_stp_stat_print_histogram_buf (" << res.value() << ", MAXSTRINGLEN, " << v->hist() << ", " << agg.value() << ");";
+            o->newline(-1) << res.value() << ";";
+          }
       }
 
       delete v;
@@ -4150,6 +4159,11 @@ c_unparser::visit_print_format (print_format* e)
   else
     {
       stmt_expr block(*this);
+
+      // PR10750: Enforce a reasonable limit on # of varargs
+      // 32 varargs leads to max 256 bytes on the stack
+      if (e->args.size() > 32)
+        throw semantic_error("too many arguments to print", e->tok);
 
       // Compute actual arguments
       vector<tmpvar> tmp;
@@ -4250,20 +4264,33 @@ c_unparser::visit_print_format (print_format* e)
 	if (components[i].prectype == print_format::prec_dynamic)
 	  prec_ix = arg_ix++;
 
-	/* Generate a noop call to deref_buffer for %m.  */
+        /* %m and %M need special care for digging into memory. */
 	if (components[i].type == print_format::conv_memory
-	    || components[i].type == print_format::conv_memory_hex) {
-	  this->probe_or_function_needs_deref_fault_handler = true;
-	  o->newline() << "deref_buffer (0, " << tmp[arg_ix].value() << ", ";
-	  if (prec_ix == -1)
-	    if (width_ix != -1)
-	      prec_ix = width_ix;
-	  if (prec_ix != -1)
-	    o->line() << tmp[prec_ix].value();
-	  else
-	    o->line() << "1";
-	  o->line() << ");";
-	}
+	    || components[i].type == print_format::conv_memory_hex)
+	  {
+	    string mem_size;
+	    if (prec_ix != -1)
+	      mem_size = tmp[prec_ix].value();
+	    else if (components[i].prectype == print_format::prec_static &&
+		     components[i].precision > 0)
+	      mem_size = lex_cast(components[i].precision) + "LL";
+	    else
+	      mem_size = "1LL";
+
+	    /* Limit how much can be printed at a time. (see also PR10490) */
+	    o->newline() << "if (" << mem_size << " > 1024) {";
+	    o->newline(1) << "snprintf(c->error_buffer, sizeof(c->error_buffer), "
+			  << "\"%lld is too many bytes for a memory dump\", "
+			  << mem_size << ");";
+	    o->newline() << "c->last_error = c->error_buffer;";
+	    o->newline() << "goto out;";
+	    o->newline(-1) << "}";
+
+	    /* Generate a noop call to deref_buffer.  */
+	    this->probe_or_function_needs_deref_fault_handler = true;
+	    o->newline() << "deref_buffer (0, " << tmp[arg_ix].value() << ", "
+			 << mem_size << " ?: 1LL);";
+	  }
 
 	++arg_ix;
       }
@@ -4763,6 +4790,9 @@ dump_unwindsyms (Dwfl_Module *m,
   get_unwind_data (m, &debug_frame, &eh_frame, &debug_len, &eh_len, &eh_addr);
   if (debug_frame != NULL && debug_len > 0)
     {
+      if (debug_len > MAX_UNWIND_TABLE_SIZE)
+	throw semantic_error ("module debug unwind table size too big");
+
       c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
       c->output << "static uint8_t _stp_module_" << stpmod_idx
 		<< "_debug_frame[] = \n";
@@ -4780,6 +4810,9 @@ dump_unwindsyms (Dwfl_Module *m,
 
   if (eh_frame != NULL && eh_len > 0)
     {
+      if (eh_len > MAX_UNWIND_TABLE_SIZE)
+	throw semantic_error ("module eh unwind table size too big");
+
       c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
       c->output << "static uint8_t _stp_module_" << stpmod_idx
 		<< "_eh_frame[] = \n";
@@ -4890,7 +4923,14 @@ dump_unwindsyms (Dwfl_Module *m,
   c->output << ".num_sections = sizeof(_stp_module_" << stpmod_idx << "_sections)/"
             << "sizeof(struct _stp_section),\n";
 
-  if (build_id_len > 0) {
+  /* Don't save build-id if it is located before _stext.
+   * This probably means that build-id will not be loaded at all and
+   * happens for example with ARM kernel.
+   *
+   * See also:
+   *    http://sources.redhat.com/ml/systemtap/2009-q4/msg00574.html
+   */
+  if (build_id_len > 0 && (build_id_vaddr > base + extra_offset)) {
     c->output << ".build_id_bits = \"" ;
     for (int j=0; j<build_id_len;j++)
       c->output << "\\x" << hex
@@ -4929,27 +4969,6 @@ dump_unwindsyms (Dwfl_Module *m,
 // them with the runtime.
 void emit_symbol_data_done (unwindsym_dump_context*, systemtap_session&);
 
-
-static set<string> offline_search_modules;
-static int dwfl_report_offline_predicate2 (const char* modname, const char* filename)
-{
-  if (pending_interrupts)
-    return -1;
-
-  if (offline_search_modules.empty())
-    return -1;
-
-  /* Reject mismatching module names */
-  if (offline_search_modules.find(modname) == offline_search_modules.end())
-    return 0;
-  else
-    {
-      offline_search_modules.erase(modname);
-      return 1;
-    }
-}
-
-
 void
 emit_symbol_data (systemtap_session& s)
 {
@@ -4969,112 +4988,58 @@ emit_symbol_data (systemtap_session& s)
       return;
     }
 
-  // XXX: copied from tapsets.cxx dwflpp::, sadly
-  static const char *debuginfo_path_arr = "+:.debug:/usr/lib/debug:build";
-  static const char *debuginfo_env_arr = getenv("SYSTEMTAP_DEBUGINFO_PATH");
-  static const char *debuginfo_path = (debuginfo_env_arr ?: debuginfo_path_arr);
-
   // ---- step 1: process any kernel modules listed
-  static const Dwfl_Callbacks kernel_callbacks =
-    {
-      dwfl_linux_kernel_find_elf,
-      dwfl_standard_find_debuginfo,
-      dwfl_offline_section_address,
-      (char **) & debuginfo_path
-    };
-
-  Dwfl *dwfl = dwfl_begin (&kernel_callbacks);
-  if (!dwfl)
-    throw semantic_error ("cannot open dwfl");
-  dwfl_report_begin (dwfl);
-
-  // We have a problem with -r REVISION vs -r BUILDDIR here.  If
-  // we're running against a fedora/rhel style kernel-debuginfo
-  // tree, s.kernel_build_tree is not the place where the unstripped
-  // vmlinux will be installed.  Rather, it's over yonder at
-  // /usr/lib/debug/lib/modules/$REVISION/.  It seems that there is
-  // no way to set the dwfl_callback.debuginfo_path and always
-  // passs the plain kernel_release here.  So instead we have to
-  // hard-code this magic here.
-  string elfutils_kernel_path;
-  if (s.kernel_build_tree == string("/lib/modules/" + s.kernel_release + "/build"))
-    elfutils_kernel_path = s.kernel_release;
-  else
-    elfutils_kernel_path = s.kernel_build_tree;
-
-
-  // Set up our offline search for kernel modules.  As in dwflpp.cxx,
-  // we don't want the offline search iteration to do a complete search
-  // of the kernel build tree, since that's wasteful.
-  offline_search_modules.erase (offline_search_modules.begin(),
-                                offline_search_modules.end());
+  set<string> offline_search_modules;
+  unsigned count;
   for (set<string>::iterator it = s.unwindsym_modules.begin();
        it != s.unwindsym_modules.end();
        it++)
     {
       string foo = *it;
-      if (foo[0] != '/') /* Omit user-space, since we're only using this for
-                            kernel space offline searches. */
+      if (! is_user_module (foo)) /* Omit user-space, since we're only
+				     using this for kernel space
+				     offline searches. */
         offline_search_modules.insert (foo);
     }
+  DwflPtr dwfl_ptr = setup_dwfl_kernel (offline_search_modules, &count, s);
+  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+  dwfl_assert("all kernel modules found",
+	      count >= offline_search_modules.size());
 
-  int rc = dwfl_linux_kernel_report_offline (dwfl,
-                                             elfutils_kernel_path.c_str(),
-					     & dwfl_report_offline_predicate2);
-
-  (void) rc; // As in dwflpp.cxx, we ignore rc here.
-
-  dwfl_report_end (dwfl, NULL, NULL);
   ptrdiff_t off = 0;
   do
     {
       if (pending_interrupts) return;
       if (ctx.undone_unwindsym_modules.empty()) break;
-      off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, 0);
+      off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
     }
   while (off > 0);
   dwfl_assert("dwfl_getmodules", off == 0);
-  dwfl_end(dwfl);
-
+  dwfl_ptr.reset();
 
   // ---- step 2: process any user modules (files) listed
-  // XXX: see dwflpp::setup_user.
-  static const Dwfl_Callbacks user_callbacks =
-    {
-      NULL, /* dwfl_linux_kernel_find_elf, */
-      dwfl_standard_find_debuginfo,
-      NULL, /* ET_REL not supported for user space, only ET_EXEC and ET_DYN.
-              dwfl_offline_section_address, */
-      (char **) & debuginfo_path
-    };
-
   for (std::set<std::string>::iterator it = s.unwindsym_modules.begin();
        it != s.unwindsym_modules.end();
        it++)
     {
       string modname = *it;
       assert (modname.length() != 0);
-      if (modname[0] != '/') continue; // user-space files must be full paths
-      Dwfl *dwfl = dwfl_begin (&user_callbacks);
-      if (!dwfl)
-        throw semantic_error ("cannot create dwfl for " + modname);
-
-      dwfl_report_begin (dwfl);
-      Dwfl_Module* mod = dwfl_report_offline (dwfl, modname.c_str(), modname.c_str(), -1);
-      dwfl_report_end (dwfl, NULL, NULL);
-      if (mod != 0) // tolerate missing data; will warn below
+      if (! is_user_module (modname)) continue;
+      DwflPtr dwfl_ptr = setup_dwfl_user (modname);
+      Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+      if (dwfl != NULL) // tolerate missing data; will warn below
         {
           ptrdiff_t off = 0;
           do
             {
               if (pending_interrupts) return;
               if (ctx.undone_unwindsym_modules.empty()) break;
-              off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, 0);
+              off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
             }
           while (off > 0);
           dwfl_assert("dwfl_getmodules", off == 0);
         }
-      dwfl_end(dwfl);
+      dwfl_ptr.reset();
     }
 
   emit_symbol_data_done (&ctx, s);
@@ -5100,6 +5065,11 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
   else
     ctx->output << "0x" << hex << ctx->stp_kretprobe_trampoline_addr << dec
 		<< ";\n";
+
+  // Note when someone requested the task_finder.
+  ctx->output << "static char _stp_need_vma_tracker = "
+              << (s.task_finder_derived_probes ? "1" : "0")
+              << ";\n";
 
   // Some nonexistent modules may have been identified with "-d".  Note them.
   if (! s.suppress_warnings)
@@ -5270,12 +5240,9 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#include \"loc2c-runtime.h\" ";
       s.op->newline() << "#include \"access_process_vm.h\" ";
 
-      // XXX: old 2.6 kernel hack
-      s.op->newline() << "#ifndef read_trylock";
-      s.op->newline() << "#define read_trylock(x) ({ read_lock(x); 1; })";
-      s.op->newline() << "#endif";
-
       s.up->emit_common_header (); // context etc.
+
+      s.op->newline() << "#include \"probe_lock.h\" ";
 
       for (unsigned i=0; i<s.embeds.size(); i++)
         {

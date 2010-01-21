@@ -17,7 +17,7 @@
 trap 'terminate' SIGTERM SIGINT
 
 # Initialize the environment
-. `dirname $0`/stap-env
+. ${PKGLIBEXECDIR}stap-env
 
 #-----------------------------------------------------------------------------
 # Helper functions.
@@ -29,17 +29,23 @@ function initialization {
     ssl_db=
     stap_options=
     uname_r="`uname -r`"
-    arch="`get_arch`"
+    arch="`stap_get_arch`"
+    logfile=/dev/null
+    B_options=
+    I_options=
+    R_option=
 
     # Parse the arguments
     parse_options "$@"
+
+    echo ===== compile server pid $$ started >> $logfile
 
     # What port will we listen on?
     test "X$port" = "X" && port=$((1024+$RANDOM%64000))
     while netstat -atn | awk '{print $4}' | cut -f2 -d: | egrep -q "^$port\$";
     do
         # Whoops, the port is busy; try another one.
-	echo "$0: Port $port is busy"
+	echo "$0: Port $port is busy" >> $logfile
         port=$((1024+($port + $RANDOM)%64000))
     done
 
@@ -57,25 +63,22 @@ function initialization {
 	# If no certificate/key database has been specified, then find/create
 	# a local one.
 	if ! test -f $ssl_db/$stap_certfile; then
-	    ${stap_exec_prefix}stap-gen-cert $ssl_db || exit 1
+	    ${stap_pkglibexecdir}stap-gen-cert $ssl_db >> $logfile 2>&1 || exit 1
             # Now add the server's certificate to the client's database,
 	    # making it a trusted peer. Do this only if the client has been installed.
-	    if test -f `which ${stap_exec_prefix}stap-client` -a \
-		    -x `which ${stap_exec_prefix}stap-client`; then
-		${stap_exec_prefix}stap-authorize-server-cert $ssl_db/$stap_certfile
+	    if test -f `which ${stap_exec_prefix}stap-client 2>/dev/null` -a \
+		    -x `which ${stap_exec_prefix}stap-client 2>/dev/null`; then
+		${stap_exec_prefix}stap-authorize-server-cert $ssl_db/$stap_certfile >> $logfile 2>&1
 	    fi
 	elif ! test -f $stap_ssl_db/client/cert8.db; then
 	    # If the client's database does not exist, then initialize it with our certificate.
 	    # Do this only if the client has been installed.
 	    if test -f `which ${stap_exec_prefix}stap-client` -a \
                     -x `which ${stap_exec_prefix}stap-client`; then
-		${stap_exec_prefix}stap-authorize-server-cert $ssl_db/$stap_certfile
+		${stap_exec_prefix}stap-authorize-server-cert $ssl_db/$stap_certfile >> $logfile 2>&1
 	    fi
 	fi
     fi
-
-    # Check the security of the database.
-    check_db $ssl_db
 
     nss_pw=$ssl_db/pw
     nss_cert=stap-server
@@ -115,6 +118,10 @@ function parse_options {
 				    get_long_arg $first_token $2
 				    ssl_db=$stap_arg
 				    ;;
+				log)
+				    get_long_arg $first_token $2
+				    logfile=$stap_arg
+				    ;;
 				*)
 				    warning "Option '$first_token' ignored"
 				    advance_p=$(($advance_p + 1))
@@ -145,6 +152,7 @@ function parse_options {
 		    ;;
 		B)
 		    get_arg $first_token $2
+		    B_options="$B_options $stap_arg"
 		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;
 		c)
@@ -165,6 +173,7 @@ function parse_options {
 		    ;;
 		I)
 		    get_arg $first_token $2
+		    I_options="$I_options $stap_arg"
 		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;	
 		l)
@@ -193,6 +202,7 @@ function parse_options {
 		    ;;	
 		R)
 		    get_arg $first_token $2
+		    R_option="$stap_arg"
 		    stap_options="$stap_options -$first_char $stap_arg"
 		    ;;	
 		s)
@@ -282,7 +292,7 @@ function process_r {
     if test "$first_char" = "/"; then # fully specified path
         kernel_build_tree=$1
         version_file_name="$kernel_build_tree/include/config/kernel.release"
-        # The file include/config/kernel.release within the
+        # The file include/config/kernel.release within the kernel
         # build tree is used to pull out the version information
 	release=`cat $version_file_name 2>/dev/null`
 	if test "X$release" = "X"; then
@@ -304,14 +314,27 @@ function process_r {
 #
 # Advertise the availability of the server on the network.
 function advertise_presence {
-    # Build up a string representing our server's properties.
-    local txt="sysinfo=$uname_r $arch"
+    # Build up a strings representing our server's properties.
+    # The service name must differ for each server, so put the port number
+    # in it.
+    local service_name="Systemtap Compile Server on port $port"
+
+    local sysinfo="sysinfo=$uname_r $arch"
+    local optinfo="optinfo="
+    test -n "$R_option" && optinfo="${optinfo}-R '$R_option'"
+    for opt in $B_options; do
+	optinfo="$optinfo -B '$opt'"
+    done
+    for opt in $I_options; do
+	optinfo="$optinfo -I '$opt'"
+    done
+    optinfo=`echo $optinfo | sed 's/optinfo= /optinfo=/'`
 
     # Call avahi-publish-service to advertise our presence.
-    avahi-publish-service "Systemtap Compile Server on `uname -n`" \
-	$stap_avahi_service_tag $port "$txt" > /dev/null &
+    avahi-publish-service "$service_name" \
+	$stap_avahi_service_tag $port "$sysinfo" "$optinfo" >> $logfile 2>&1 &
 
-    echo "Systemtap Compile Server on `uname -n` listening on port $port"
+    echo "$service_name listening on port $port" >> $logfile
 }
 
 # function: listen
@@ -320,217 +343,11 @@ function advertise_presence {
 function listen {
     # The stap-server-connect program will listen forever
     # accepting requests.
-    ${stap_exec_prefix}stap-server-connect \
+    ${stap_pkglibexecdir}stap-server-connect \
 	-p $port -n $nss_cert -d $ssl_db -w $nss_pw \
 	-s "$stap_options" \
-	2>&1 &
-    wait '%${stap_exec_prefix}stap-server-connect' >/dev/null 2>&1
-}
-
-# function: check_db DBNAME
-#
-# Check the security of the given database directory.
-function check_db {
-    local dir=$1
-    local rc=0
-
-    # Check that we have been given a directory
-    if ! test -e $dir; then
-	warning "Certificate database '$dir' does not exist"
-	return 1
-    fi
-    if ! test -d $dir; then
-	warning "Certificate database '$dir' is not a directory"
-	return 1
-    fi
-
-    # Check that we can read the directory
-    if ! test -r $dir; then
-	warning "Certificate database '$dir' is not readble"
-	rc=1
-    fi
-
-    # We must be the owner of the database.
-    local ownerid=`stat -c "%u" $dir`
-    if test "X$ownerid" != "X$EUID"; then
-	warning "Certificate database '$dir' must be owned by $USER"
-	rc=1
-    fi
-
-    # Check the access permissions of the directory
-    local perm=0`stat -c "%a" $dir`
-    if test $((($perm & 0400) == 0400)) = 0; then
-	warning "Certificate database '$dir' should be readable by the owner"
-    fi
-    if test $((($perm & 0200) == 0200)) = 0; then
-	warning "Certificate database '$dir' should be writeable by the owner"
-    fi
-    if test $((($perm & 0100) == 0100)) = 0; then
-	warning "Certificate database '$dir' should be searchable by the owner"
-    fi
-    if test $((($perm & 0040) == 0040)) = 0; then
-	warning "Certificate database '$dir' should be readable by the group"
-    fi
-    if test $((($perm & 0020) == 0020)) = 1; then
-	warning "Certificate database '$dir' must not be writable by the group"
-	rc=1
-    fi
-    if test $((($perm & 0010) == 0010)) = 0; then
-	warning "Certificate database '$dir' should be searchable by the group"
-    fi
-    if test $((($perm & 0004) == 0004)) = 0; then
-	warning "Certificate database '$dir' should be readable by others"
-    fi
-    if test $((($perm & 0002) == 0002)) = 1; then
-	warning "Certificate database '$dir' must not be writable by others"
-	rc=1
-    fi
-    if test $((($perm & 0001) == 0001)) = 0; then
-	warning "Certificate database '$dir' should be searchable by others"
-    fi
-
-    # Now check the permissions of the critical files.
-    check_db_file $dir/cert8.db || rc=1
-    check_db_file $dir/key3.db || rc=1
-    check_db_file $dir/secmod.db || rc=1
-    check_db_file $dir/pw || rc=1
-    check_cert_file $dir/$stap_certfile || rc=1
-
-    test $rc = 1 && fatal "Unable to use certificate database '$dir' due to errors"
-
-    return $rc
-}
-
-# function: check_db_file FILENAME
-#
-# Check the security of the given database file.
-function check_db_file {
-    local file=$1
-    local rc=0
-
-    # Check that we have been given a file
-    if ! test -e $file; then
-	warning "Certificate database file '$file' does not exist"
-	return 1
-    fi
-    if ! test -f $file; then
-	warning "Certificate database file '$file' is not a regular file"
-	return 1
-    fi
-
-    # We must be the owner of the file.
-    local ownerid=`stat -c "%u" $file`
-    if test "X$ownerid" != "X$EUID"; then
-	warning "Certificate database file '$file' must be owned by $USER"
-	rc=1
-    fi
-
-    # Check that we can read the file
-    if ! test -r $file; then
-	warning "Certificate database file '$file' is not readble"
-	rc=1
-    fi
-
-    # Check the access permissions of the file
-    local perm=0`stat -c "%a" $file`
-    if test $((($perm & 0400) == 0400)) = 0; then
-	warning "Certificate database file '$file' should be readable by the owner"
-    fi
-    if test $((($perm & 0200) == 0200)) = 0; then
-	warning "Certificate database file '$file' should be writeable by the owner"
-    fi
-    if test $((($perm & 0100) == 0100)) = 1; then
-	warning "Certificate database file '$file' must not be executable by the owner"
-	rc=1
-    fi
-    if test $((($perm & 0040) == 0040)) = 1; then
-	warning "Certificate database file '$file' must not be readable by the group"
-	rc=1
-    fi
-    if test $((($perm & 0020) == 0020)) = 1; then
-	warning "Certificate database file '$file' must not be writable by the group"
-	rc=1
-    fi
-    if test $((($perm & 0010) == 0010)) = 1; then
-	warning "Certificate database file '$file' must not be executable by the group"
-	rc=1
-    fi
-    if test $((($perm & 0004) == 0004)) = 1; then
-	warning "Certificate database file '$file' must not be readable by others"
-	rc=1
-    fi
-    if test $((($perm & 0002) == 0002)) = 1; then
-	warning "Certificate database file '$file' must not be writable by others"
-	rc=1
-    fi
-    if test $((($perm & 0001) == 0001)) = 1; then
-	warning "Certificate database file '$file' must not be executable by others"
-	rc=1
-    fi
-
-    return $rc
-}
-
-# function: check_db_file FILENAME
-#
-# Check the security of the given database file.
-function check_cert_file {
-    local file=$1
-    local rc=0
-
-    # Check that we have been given a file
-    if ! test -e $file; then
-	warning "Certificate database file '$file' does not exist"
-	return 1
-    fi
-    if ! test -f $file; then
-	warning "Certificate database file '$file' is not a regular file"
-	return 1
-    fi
-
-    # We must be the owner of the file.
-    local ownerid=`stat -c "%u" $file`
-    if test "X$ownerid" != "X$EUID"; then
-	warning "Certificate file '$file' must be owned by $USER"
-	rc=1
-    fi
-
-    # Check the access permissions of the file
-    local perm=0`stat -c "%a" $file`
-    if test $((($perm & 0400) == 0400)) = 0; then
-	warning "Certificate file '$file' should be readable by the owner"
-    fi
-    if test $((($perm & 0200) == 0200)) = 0; then
-	warning "Certificate file '$file' should be writeable by the owner"
-    fi
-    if test $((($perm & 0100) == 0100)) = 1; then
-	warning "Certificate file '$file' must not be executable by the owner"
-	rc=1
-    fi
-    if test $((($perm & 0040) == 0040)) = 0; then
-	warning "Certificate file '$file' should be readable by the group"
-    fi
-    if test $((($perm & 0020) == 0020)) = 1; then
-	warning "Certificate file '$file' must not be writable by the group"
-	rc=1
-    fi
-    if test $((($perm & 0010) == 0010)) = 1; then
-	warning "Certificate file '$file' must not be executable by the group"
-	rc=1
-    fi
-    if test $((($perm & 0004) == 0004)) = 0; then
-	warning "Certificate file '$file' should be readable by others"
-    fi
-    if test $((($perm & 0002) == 0002)) = 1; then
-	warning "Certificate file '$file' must not be writable by others"
-	rc=1
-    fi
-    if test $((($perm & 0001) == 0001)) = 1; then
-	warning "Certificate file '$file' must not be executable by others"
-	rc=1
-    fi
-
-    return $rc
+	>> $logfile 2>&1 &
+    wait '%${stap_pkglibexecdir}stap-server-connect' >> $logfile 2>&1
 }
 
 # function: warning [ MESSAGE ]
@@ -538,7 +355,7 @@ function check_cert_file {
 # Warning error
 # Prints its arguments to stderr
 function warning {
-    echo "$0: WARNING:" "$@" >&2
+    echo "$0: WARNING:" "$@" >> $logfile
 }
 
 # function: fatal [ MESSAGE ]
@@ -546,7 +363,7 @@ function warning {
 # Fatal error
 # Prints its arguments to stderr and exits
 function fatal {
-    echo "$0: ERROR:" "$@" >&2
+    echo "$0: ERROR:" "$@" >> $logfile
     terminate
     exit 1
 }
@@ -555,15 +372,15 @@ function fatal {
 #
 # Terminate gracefully.
 function terminate {
-    echo "$0: Exiting"
+    echo "$0: Exiting" >> $logfile
 
     # Kill the running 'avahi-publish-service' job
-    kill -s SIGTERM '%avahi-publish-service' 2> /dev/null
-    wait '%avahi-publish-service' >/dev/null 2>&1
+    kill -s SIGTERM '%avahi-publish-service' >> $logfile 2>&1
+    wait '%avahi-publish-service' >> $logfile 2>&1
 
     # Kill any running 'stap-server-connect' job.
-    kill -s SIGTERM '%${stap_exec_prefix}stap-server-connect' 2> /dev/null
-    wait '%${stap_exec_prefix}stap-server-connect'  >/dev/null 2>&1
+    kill -s SIGTERM '%${stap_pkglibexecdir}stap-server-connect' >> $logfile 2>&1
+    wait '%${stap_pkglibexecdir}stap-server-connect' >> $logfile 2>&1
 
     exit
 }

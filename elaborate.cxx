@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "elaborate.h"
+#include "translate.h"
 #include "parse.h"
 #include "tapsets.h"
 #include "session.h"
@@ -55,7 +56,7 @@ expression* add_condition (expression* a, expression* b)
 
 
 derived_probe::derived_probe (probe *p):
-  base (p)
+  base (p), sdt_semaphore_addr(0)
 {
   assert (p);
   this->locations = p->locations;
@@ -66,7 +67,7 @@ derived_probe::derived_probe (probe *p):
 
 
 derived_probe::derived_probe (probe *p, probe_point *l):
-  base (p)
+  base (p), sdt_semaphore_addr(0)
 {
   assert (p);
   this->tok = p->tok;
@@ -132,9 +133,62 @@ derived_probe::sole_location () const
 }
 
 
+void
+derived_probe::emit_unprivileged_assertion (translator_output* o)
+{
+  // Emit code which will cause compilation to fail if it is compiled in
+  // unprivileged mode.
+  o->newline() << "#ifndef STP_PRIVILEGED";
+  o->newline() << "#error Internal Error: Probe ";
+  probe::printsig (o->line());
+  o->line()    << " generated in --unprivileged mode";
+  o->newline() << "#endif";
+}
+
+
+void
+derived_probe::emit_process_owner_assertion (translator_output* o)
+{
+  // Emit code which will abort should the current target not belong to the
+  // user in unprivileged mode.
+  o->newline()   << "#ifndef STP_PRIVILEGED";
+  o->newline(1)  << "if (! is_myproc ()) {";
+  o->newline(1)  << "snprintf(c->error_buffer, sizeof(c->error_buffer),";
+  o->newline()   << "         \"Internal Error: Process %d does not belong to user %d in probe %s in --unprivileged mode\",";
+  o->newline()   << "         current->tgid, _stp_uid, c->probe_point);";
+  o->newline()   << "c->last_error = c->error_buffer;";
+  // NB: since this check occurs before probe locking, its exit should
+  // not be a "goto out", which would attempt unlocking.
+  o->newline()   << "return;";
+  o->newline(-1) << "}";
+  o->newline(-1) << "#endif";
+}
+
+void
+derived_probe::print_dupe_stamp_unprivileged(ostream& o)
+{
+  o << "unprivileged users: authorized" << endl;
+}
+
+void
+derived_probe::print_dupe_stamp_unprivileged_process_owner(ostream& o)
+{
+  o << "unprivileged users: authorized for process owner" << endl;
+}
 
 // ------------------------------------------------------------------------
 // Members of derived_probe_builder
+
+void
+derived_probe_builder::check_unprivileged (const systemtap_session & sess,
+					   const literal_map_t & parameters)
+{
+      // By default, probes are not allowed for unprivileged users.
+      if (sess.unprivileged)
+	{
+	  throw semantic_error (string("probe point is not allowed for unprivileged users"));
+	}
+}
 
 bool
 derived_probe_builder::get_param (std::map<std::string, literal*> const & params,
@@ -261,7 +315,6 @@ match_key::globmatch(match_key const & other) const
 // ------------------------------------------------------------------------
 
 match_node::match_node()
-  : unprivileged_ok (false)
 {
 }
 
@@ -303,19 +356,6 @@ match_node::bind_num(string const & k)
   return bind(match_key(k).with_number());
 }
 
-match_node*
-match_node::allow_unprivileged (bool b)
-{
-  unprivileged_ok = b;
-  return this;
-}
-
-bool
-match_node::unprivileged_allowed () const
-{
-  return unprivileged_ok;
-}
-
 void
 match_node::find_and_build (systemtap_session& s,
                             probe* p, probe_point *loc, unsigned pos,
@@ -332,7 +372,7 @@ match_node::find_and_build (systemtap_session& s,
 
           throw semantic_error (string("probe point truncated at position ") +
                                 lex_cast (pos) +
-                                " (follow:" + alternatives + ")", loc->tok);
+                                " (follow:" + alternatives + ")", loc->components.back()->tok);
         }
 
       map<string, literal *> param_map;
@@ -340,18 +380,11 @@ match_node::find_and_build (systemtap_session& s,
         param_map[loc->components[i]->functor] = loc->components[i]->arg;
       // maybe 0
 
-      // Are we compiling for unprivileged users?  */
-      if (s.unprivileged)
-	{
-	  // Is this probe point ok for unprivileged users?
-	  if (! unprivileged_allowed ())
-	    throw semantic_error (string("probe point is not allowed for unprivileged users"));
-	}
-
       // Iterate over all bound builders
       for (unsigned k=0; k<ends.size(); k++) 
         {
           derived_probe_builder *b = ends[k];
+	  b->check_unprivileged (s, param_map);
           b->build (s, p, loc, param_map, results);
         }
     }
@@ -419,7 +452,7 @@ match_node::find_and_build (systemtap_session& s,
 			       lex_cast (pos) +
 			       " (alternatives:" + alternatives + ")" +
 			       " didn't find any wildcard matches",
-                               loc->tok);
+                               loc->components[pos]->tok);
 	}
     }
   else
@@ -432,10 +465,11 @@ match_node::find_and_build (systemtap_session& s,
           for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
             alternatives += string(" ") + i->first.str();
 
+
           throw semantic_error (string("probe point mismatch at position ") +
                                 lex_cast (pos) +
                                 " (alternatives:" + alternatives + ")",
-                                loc->tok);
+                                loc->components[pos]->tok);
         }
 
       match_node* subnode = i->second;
@@ -501,7 +535,7 @@ alias_expansion_builder
     // Don't build the alias expansion if infinite recursion is detected.
     if (checkForRecursiveExpansion (use)) {
       stringstream msg;
-      msg << "Recursive loop in alias expansion of " << *location  << " at " << location->tok->location;
+      msg << "Recursive loop in alias expansion of " << *location  << " at " << location->components.front()->tok->location;
       // semantic_errors thrown here are ignored.
       sess.print_error (semantic_error (msg.str()));
       return;
@@ -525,7 +559,7 @@ alias_expansion_builder
       }
 
     // the token location of the alias,
-    n->tok = location->tok;
+    n->tok = location->components.front()->tok;
 
     // and statements representing the concatenation of the alias'
     // body with the use's.
@@ -573,6 +607,11 @@ alias_expansion_builder
     }
     return false;
   }
+
+  // No action required. The actual probes will be checked when they are
+  // built.
+  virtual void check_unprivileged (const systemtap_session & sess,
+				   const literal_map_t & parameters) {}
 };
 
 
@@ -1247,19 +1286,16 @@ void add_global_var_display (systemtap_session& s)
       if (tapset_global)
 	continue;
 
-      print_format* pf = new print_format;
-      probe* p = new probe;
-      probe_point* pl = new probe_point;
       probe_point::component* c = new probe_point::component("end");
-      token* print_tok = new token;
+      probe_point* pl = new probe_point;
+      pl->components.push_back (c);
+
       vector<derived_probe*> dps;
       block *b = new block;
 
-      pl->components.push_back (c);
+      probe* p = new probe;
       p->tok = l->tok;
       p->locations.push_back (pl);
-      print_tok->type = tok_identifier;
-      print_tok->content = "printf";
 
       // Create a symbol
       symbol* g_sym = new symbol;
@@ -1268,13 +1304,12 @@ void add_global_var_display (systemtap_session& s)
       g_sym->type = l->type;
       g_sym->referent = l;
 
-      pf->print_to_stream = true;
-      pf->print_with_format = true;
-      pf->print_with_delim = false;
-      pf->print_with_newline = false;
-      pf->print_char = false;
+      token* print_tok = new token;
+      print_tok->type = tok_identifier;
+      print_tok->content = "printf";
+
+      print_format* pf = print_format::create(print_tok);
       pf->raw_components += l->name;
-      pf->tok = print_tok;
 
       if (l->index_types.size() == 0) // Scalar
 	{
@@ -1322,15 +1357,9 @@ void add_global_var_display (systemtap_session& s)
               be->right = new literal_number(0);
 
               /* Create printf @count=0x0 in else block */
-              print_format* pf_0 = new print_format;
-              pf_0->print_to_stream = true;
-              pf_0->print_with_format = true;
-              pf_0->print_with_delim = false;
-              pf_0->print_with_newline = false;
-              pf_0->print_char = false;
+              print_format* pf_0 = print_format::create(print_tok);
               pf_0->raw_components += l->name;
               pf_0->raw_components += " @count=0x0\\n";
-              pf_0->tok = print_tok;
               pf_0->components = print_format::string_to_components(pf_0->raw_components);
               expr_statement* feb_else = new expr_statement;
               feb_else->value = pf_0;
@@ -1685,7 +1714,7 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
     {
       if (!array->referent)
 	{
-	  vardecl* d = find_var (array->name, e->indexes.size ());
+	  vardecl* d = find_var (array->name, e->indexes.size (), array->tok);
 	  if (d)
 	    array->referent = d;
 	  else
@@ -1734,7 +1763,7 @@ delete_statement_symresolution_info:
     if (e->referent)
       return;
 
-    vardecl* d = parent->find_var (e->name, -1);
+    vardecl* d = parent->find_var (e->name, -1, e->tok);
     if (d)
       e->referent = d;
     else
@@ -1756,7 +1785,7 @@ symresolution_info::visit_symbol (symbol* e)
   if (e->referent)
     return;
 
-  vardecl* d = find_var (e->name, 0);
+  vardecl* d = find_var (e->name, 0, e->tok);
   if (d)
     e->referent = d;
   else
@@ -1792,7 +1821,7 @@ symresolution_info::visit_arrayindex (arrayindex* e)
       if (array->referent)
 	return;
 
-      vardecl* d = find_var (array->name, e->indexes.size ());
+      vardecl* d = find_var (array->name, e->indexes.size (), array->tok);
       if (d)
 	array->referent = d;
       else
@@ -1851,7 +1880,7 @@ symresolution_info::visit_functioncall (functioncall* e)
 
 
 vardecl*
-symresolution_info::find_var (const string& name, int arity)
+symresolution_info::find_var (const string& name, int arity, const token* tok)
 {
   if (current_function || current_probe)
     {
@@ -1886,6 +1915,16 @@ symresolution_info::find_var (const string& name, int arity)
 	&& session.globals[i]->compatible_arity(arity))
       {
 	session.globals[i]->set_arity (arity);
+        if (! session.suppress_warnings)
+          {
+            vardecl* v = session.globals[i];
+            // clog << "resolved " << *tok << " to global " << *v->tok << endl;
+            if (v->tok->location.file != tok->location.file)
+              {
+                session.print_warning ("cross-file global variable reference to " + lex_cast (*v->tok) + " from",
+                                       tok);
+              }
+          }
 	return session.globals[i];
       }
 
@@ -2058,7 +2097,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
 		      if (l->name != (*it)->name)
 			o << " " <<  (*it)->name;
 
-		    s.print_warning ("read-only local variable '" + l->name + "' " +
+		    s.print_warning ("never-assigned local variable '" + l->name + "' " +
                                      (o.str() == "" ? "" : ("(alternatives:" + o.str() + ")")), l->tok);
 		  }
             j++;
@@ -2106,7 +2145,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                       if (l->name != (*it)->name)
                         o << " " << (*it)->name;
 
-                    s.print_warning ("read-only local variable '" + l->name + "' " +
+                    s.print_warning ("never-assigned local variable '" + l->name + "' " +
                                      (o.str() == "" ? "" : ("(alternatives:" + o.str() + ")")), l->tok);
                   }
 
@@ -2144,7 +2183,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
                   if (l->name != (*it)->name)
                     o << " " << (*it)->name;
 
-                s.print_warning ("read-only global variable '" + l->name + "' " +
+                s.print_warning ("never-assigned global variable '" + l->name + "' " +
                                  (o.str() == "" ? "" : ("(alternatives:" + o.str() + ")")), l->tok);
               }
 
@@ -2446,7 +2485,7 @@ dead_stmtexpr_remover::visit_expr_statement (expr_statement *s)
          name some arbitrary RHS expression of an assignment.
       if (s->value->tok->location.file == session.user_file->name && // not tapset
           ! session.suppress_warnings)
-        clog << "WARNING: eliding read-only " << *s->value->tok << endl;
+        clog << "WARNING: eliding never-assigned " << *s->value->tok << endl;
       else
       */
       if (session.verbose>2)
