@@ -25,6 +25,7 @@ CONF_FLAGS = --enable-sqlite --disable-crash --enable-docs --disable-pie \
 	     --enable-server --enable-grapher --without-rpm \
 	     --enable-translator --disable-publican
 
+# Building of man pages takes A LOT of time
 ifeq (,$(filter stap_disable_refdocs,$(DEB_BUILD_OPTIONS)))
 	CONF_FLAGS += --enable-refdocs
 else
