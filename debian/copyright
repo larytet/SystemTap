@@ -19,7 +19,7 @@ Upstream Authors:
 	... and others!
 
 Copyright:
-	1998 - 2009	Red Hat, Inc
+	1998 - 2010	Red Hat, Inc
 	2005 - 2007	Intel Corporation
 	2002 - 2005	Tom Zanussi (zanussi@us.ibm.com), IBM Corp
 	1999 - 2005	Karim Yaghmour (karim@opersys.com)
@@ -95,5 +95,11 @@ The license for this script:
    ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
    OTHER DEALINGS IN THE SOFTWARE.
 
-The Debian packaging is © 2006-2009, Eugeniy Meshcheryakov <eugen@debian.org>
+For portions of stapsslerr.h:
+
+   Copyright © 1994-2000 Netscape Communications Corporation.
+
+This file is distributed under GPLv2, see above.
+
+The Debian packaging is © 2006-2010, Eugeniy Meshcheryakov <eugen@debian.org>
 and is licensed under the GPL, see above.
