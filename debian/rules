@@ -23,7 +23,7 @@ VIM_RDIR = $(CURDIR)/debian/tmp/usr/share/vim/registry
 
 CONF_FLAGS = --enable-sqlite --disable-crash --enable-docs --disable-pie \
 	     --enable-refdocs --enable-server --enable-grapher --without-rpm \
-	     --enable-translator
+	     --enable-translator --enable-publican
 
 # dh does it wrong...
 CONF_FLAGS += --libexecdir=/usr/lib
