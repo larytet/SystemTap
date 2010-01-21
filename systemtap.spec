@@ -1,14 +1,17 @@
-%{!?with_sqlite: %define with_sqlite 1}
-%{!?with_docs: %define with_docs 1}
-%{!?with_crash: %define with_crash 0}
-%{!?with_rpm: %define with_rpm 1}
-%{!?with_bundled_elfutils: %define with_bundled_elfutils 0}
-%{!?elfutils_version: %define elfutils_version 0.127}
-%{!?pie_supported: %define pie_supported 1}
-%{!?with_grapher: %define with_grapher 1}
+%{!?with_sqlite: %global with_sqlite 1}
+%{!?with_docs: %global with_docs 1}
+%{!?with_crash: %global with_crash 0}
+%{!?with_rpm: %global with_rpm 1}
+%{!?with_bundled_elfutils: %global with_bundled_elfutils 0}
+%{!?elfutils_version: %global elfutils_version 0.127}
+%{!?pie_supported: %global pie_supported 1}
+%{!?with_grapher: %global with_grapher 1}
+%{!?with_boost: %global with_boost 0}
+%{!?with_publican: %global with_publican 1}
+%{!?publican_brand: %global publican_brand fedora}
 
 Name: systemtap
-Version: 1.0
+Version: 1.1
 Release: 1%{?dist}
 # for version, see also configure.ac
 Summary: Instrumentation System
@@ -22,6 +25,10 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 Requires: kernel >= 2.6.9-11
 %if %{with_sqlite}
 BuildRequires: sqlite-devel
+%endif
+# Needed for libstd++ < 4.0, without <tr1/memory>
+%if %{with_boost}
+BuildRequires: boost-devel
 %endif
 %if %{with_crash}
 BuildRequires: crash-devel zlib-devel
@@ -41,7 +48,7 @@ BuildRequires: nss-devel nss-tools pkgconfig
 Source1: elfutils-%{elfutils_version}.tar.gz
 Patch1: elfutils-portability.patch
 BuildRequires: m4
-%define setup_elfutils -a1
+%global setup_elfutils -a1
 %else
 BuildRequires: elfutils-devel >= %{elfutils_version}
 %endif
@@ -55,10 +62,20 @@ BuildRequires: /usr/bin/latex /usr/bin/dvips /usr/bin/ps2pdf latex2html
 # called 'xmlto-tex'.  To avoid a specific F10 BuildReq, we'll do a
 # file-based buildreq on '/usr/share/xmlto/format/fo/pdf'.
 BuildRequires: xmlto /usr/share/xmlto/format/fo/pdf
+%if %{with_publican}
+BuildRequires: publican
+BuildRequires: publican-%{publican_brand}
+%endif
 %endif
 
 %if %{with_grapher}
 BuildRequires: gtkmm24-devel >= 2.8
+BuildRequires: libglademm24-devel >= 2.6.7
+# If 'with_boost' isn't set, the boost-devel build requirement hasn't
+# been specified yet.
+%if ! %{with_boost}
+BuildRequires: boost-devel
+%endif
 %endif
 
 %description
@@ -113,6 +130,10 @@ URL: http://sourceware.org/systemtap/
 Requires: systemtap
 Requires: avahi avahi-tools nss nss-tools mktemp
 Requires: zip unzip
+Requires(post): chkconfig
+Requires(preun): chkconfig
+Requires(preun): initscripts
+Requires(postun): initscripts
 
 %description server
 This is the remote script compilation server component of systemtap.
@@ -129,14 +150,18 @@ URL: http://sourceware.org/systemtap/
 Support tools to allow applications to use static probes.
 
 %package initscript
-Summary: Systemtap Initscript
+Summary: Systemtap Initscripts
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: systemtap-runtime, initscripts
+Requires: systemtap-runtime
+Requires(post): chkconfig
+Requires(preun): chkconfig
+Requires(preun): initscripts
+Requires(postun): initscripts
 
 %description initscript
-Initscript for Systemtap scripts.
+Initscript for Systemtap scripts
 
 %if %{with_grapher}
 %package grapher
@@ -168,61 +193,67 @@ cd ..
 
 %if %{with_bundled_elfutils}
 # Build our own copy of elfutils.
-%define elfutils_config --with-elfutils=elfutils-%{elfutils_version}
+%global elfutils_config --with-elfutils=elfutils-%{elfutils_version}
 
 # We have to prevent the standard dependency generation from identifying
 # our private elfutils libraries in our provides and requires.
-%define _use_internal_dependency_generator	0
-%define filter_eulibs() /bin/sh -c "%{1} | sed '/libelf/d;/libdw/d;/libebl/d'"
-%define __find_provides %{filter_eulibs /usr/lib/rpm/find-provides}
-%define __find_requires %{filter_eulibs /usr/lib/rpm/find-requires}
+%global _use_internal_dependency_generator	0
+%global filter_eulibs() /bin/sh -c "%{1} | sed '/libelf/d;/libdw/d;/libebl/d'"
+%global __find_provides %{filter_eulibs /usr/lib/rpm/find-provides}
+%global __find_requires %{filter_eulibs /usr/lib/rpm/find-requires}
 
 # This will be needed for running stap when not installed, for the test suite.
-%define elfutils_mflags LD_LIBRARY_PATH=`pwd`/lib-elfutils
+%global elfutils_mflags LD_LIBRARY_PATH=`pwd`/lib-elfutils
 %endif
 
 # Enable/disable the sqlite coverage testing support
 %if %{with_sqlite}
-%define sqlite_config --enable-sqlite
+%global sqlite_config --enable-sqlite
 %else
-%define sqlite_config --disable-sqlite
+%global sqlite_config --disable-sqlite
 %endif
 
 # Enable/disable the crash extension
 %if %{with_crash}
-%define crash_config --enable-crash
+%global crash_config --enable-crash
 %else
-%define crash_config --disable-crash
+%global crash_config --disable-crash
 %endif
 
 # Enable/disable the code to find and suggest needed rpms
 %if %{with_rpm}
-%define rpm_config --with-rpm
+%global rpm_config --with-rpm
 %else
-%define rpm_config --without-rpm
+%global rpm_config --without-rpm
 %endif
 
 %if %{with_docs}
-%define docs_config --enable-docs
+%global docs_config --enable-docs
 %else
-%define docs_config --disable-docs
+%global docs_config --disable-docs
 %endif
 
 # Enable pie as configure defaults to disabling it
 %if %{pie_supported}
-%define pie_config --enable-pie
+%global pie_config --enable-pie
 %else
-%define pie_config --disable-pie
+%global pie_config --disable-pie
 %endif
 
 %if %{with_grapher}
-%define grapher_config --enable-grapher
+%global grapher_config --enable-grapher
 %else
-%define grapher_config --disable-grapher
+%global grapher_config --disable-grapher
+%endif
+
+%if %{with_publican}
+%global publican_config --enable-publican --with-publican-brand=%{publican_brand}
+%else
+%global publican_config --disable-publican
 %endif
 
 
-%configure %{?elfutils_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{grapher_config} %{rpm_config}
+%configure %{?elfutils_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{grapher_config} %{publican_config} %{rpm_config} --disable-silent-rules
 make %{?_smp_mflags}
 
 %install
@@ -255,16 +286,27 @@ cp -rp testsuite $RPM_BUILD_ROOT%{_datadir}/systemtap
 mkdir docs.installed
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/*.pdf docs.installed/
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/tapsets docs.installed/
+%if %{with_publican}
+mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/SystemTap_Beginners_Guide docs.installed/
+%endif
 %endif
 
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
-install -m 755 initscript/systemtap $RPM_BUILD_ROOT%{_sysconfdir}/init.d/
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
+install -m 755 initscript/systemtap $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemtap
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemtap/conf.d
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemtap/script.d
-install -m 644 initscript/config $RPM_BUILD_ROOT%{_sysconfdir}/systemtap
+install -m 644 initscript/config.systemtap $RPM_BUILD_ROOT%{_sysconfdir}/systemtap/config
 mkdir -p $RPM_BUILD_ROOT%{_localstatedir}/cache/systemtap
 mkdir -p $RPM_BUILD_ROOT%{_localstatedir}/run/systemtap
+
+install -m 755 initscript/stap-server $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/stap-server
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/stap-server/conf.d
+mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
+install -m 644 initscript/config.stap-server $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/stap-server
+mkdir -p $RPM_BUILD_ROOT%{_localstatedir}/log
+touch $RPM_BUILD_ROOT%{_localstatedir}/log/stap-server.log
 
 %clean
 rm -rf ${RPM_BUILD_ROOT}
@@ -274,12 +316,67 @@ getent group stapdev >/dev/null || groupadd -r stapdev
 getent group stapusr >/dev/null || groupadd -r stapusr
 exit 0
 
+%pre server
+getent group stap-server >/dev/null || groupadd -r stap-server
+getent passwd stap-server >/dev/null || useradd -c "Systemtap Compile Server" -g stap-server -d %{_localstatedir}/lib/stap-server -m -r -s /sbin/nologin stap-server
+chmod 755 %{_localstatedir}/lib/stap-server
+exit 0
+
+%post server
+chmod 664 %{_localstatedir}/log/stap-server.log
+chown stap-server %{_localstatedir}/log/stap-server.log
+chgrp stap-server %{_localstatedir}/log/stap-server.log
+# Make sure that the uprobes module can be built by the server
+test -e /usr/share/systemtap/runtime/uprobes || mkdir -p /usr/share/systemtap/runtime/uprobes
+chgrp stap-server /usr/share/systemtap/runtime/uprobes
+chmod 775 /usr/share/systemtap/runtime/uprobes
+# As stap-server, generate the certificate used for signing and for ssl.
+runuser -s /bin/sh - stap-server -c %{_libexecdir}/%{name}/stap-gen-cert >/dev/null
+# Authorize the certificate as a trusted ssl peer and as a trusted signer
+# local host.
+%{_bindir}/stap-authorize-server-cert %{_localstatedir}/lib/stap-server/.systemtap/ssl/server/stap.cert
+%{_bindir}/stap-authorize-signing-cert %{_localstatedir}/lib/stap-server/.systemtap/ssl/server/stap.cert
+
+# Activate the service
+/sbin/chkconfig --add stap-server
+exit 0
+
+%preun server
+# Check that this is the actual deinstallation of the package, as opposed to
+# just removing the old package on upgrade.
+if [ $1 = 0 ] ; then
+    /sbin/service stap-server stop >/dev/null 2>&1
+    /sbin/chkconfig --del stap-server
+fi
+exit 0
+
+%postun server
+# Check whether this is an upgrade of the package.
+# If so, restart the service if it's running
+if [ "$1" -ge "1" ] ; then
+    /sbin/service stap-server condrestart >/dev/null 2>&1 || :
+fi
+exit 0
+
 %post initscript
-chkconfig --add systemtap
+/sbin/chkconfig --add systemtap
 exit 0
 
 %preun initscript
-chkconfig --del systemtap
+# Check that this is the actual deinstallation of the package, as opposed to
+# just removing the old package on upgrade.
+if [ $1 = 0 ] ; then
+    /sbin/service systemtap stop >/dev/null 2>&1
+    /sbin/chkconfig --del systemtap
+fi
+exit 0
+
+%postun initscript
+# Check whether this is an upgrade of the package.
+# If so, restart the service if it's running
+if [ "$1" -ge "1" ] ; then
+    /sbin/service systemtap condrestart >/dev/null 2>&1 || :
+fi
 exit 0
 
 %post
@@ -299,14 +396,13 @@ exit 0
 %if %{with_docs}
 %doc docs.installed/*.pdf
 %doc docs.installed/tapsets
+%if %{with_publican}
+%doc docs.installed/SystemTap_Beginners_Guide
+%endif
 %endif
 
 %{_bindir}/stap
 %{_bindir}/stap-report
-%{_bindir}/stap-env
-%{_bindir}/stap-gen-cert
-%{_bindir}/stap-authorize-cert
-%{_bindir}/stap-authorize-signing-cert
 %{_mandir}/man1/*
 %{_mandir}/man3/*
 
@@ -328,8 +424,12 @@ exit 0
 %defattr(-,root,root)
 %attr(4111,root,root) %{_bindir}/staprun
 %{_bindir}/stap-report
-%{_libexecdir}/%{name}
+%{_bindir}/stap-authorize-signing-cert
+%{_libexecdir}/%{name}/stapio
+%{_libexecdir}/%{name}/stap-env
+%{_libexecdir}/%{name}/stap-authorize-cert
 %{_mandir}/man8/staprun.8*
+%{_mandir}/man8/stap-authorize-signing-cert.8*
 
 %doc README AUTHORS NEWS COPYING
 
@@ -340,28 +440,33 @@ exit 0
 %files client
 %defattr(-,root,root)
 %{_bindir}/stap-client
-%{_bindir}/stap-env
-%{_bindir}/stap-find-servers
-%{_bindir}/stap-authorize-cert
 %{_bindir}/stap-authorize-server-cert
-%{_bindir}/stap-client-connect
-%{_mandir}/man8/stap-server.8*
+%{_libexecdir}/%{name}/stap-find-servers
+%{_libexecdir}/%{name}/stap-client-connect
+%{_mandir}/man8/stap-client.8*
+%{_mandir}/man8/stap-authorize-server-cert.8*
 
 %files server
 %defattr(-,root,root)
-%{_bindir}/stap-server
-%{_bindir}/stap-serverd
-%{_bindir}/stap-env
-%{_bindir}/stap-start-server
-%{_bindir}/stap-find-servers
-%{_bindir}/stap-find-or-start-server
-%{_bindir}/stap-stop-server
-%{_bindir}/stap-gen-cert
-%{_bindir}/stap-authorize-cert
 %{_bindir}/stap-authorize-server-cert
-%{_bindir}/stap-server-connect
-%{_bindir}/stap-sign-module
+%{_bindir}/stap-server
+%{_libexecdir}/%{name}/stap-serverd
+%{_libexecdir}/%{name}/stap-start-server
+%{_libexecdir}/%{name}/stap-find-servers
+%{_libexecdir}/%{name}/stap-find-or-start-server
+%{_libexecdir}/%{name}/stap-stop-server
+%{_libexecdir}/%{name}/stap-gen-cert
+%{_libexecdir}/%{name}/stap-server-connect
+%{_libexecdir}/%{name}/stap-server-request
+%{_libexecdir}/%{name}/stap-sign-module
 %{_mandir}/man8/stap-server.8*
+%{_mandir}/man8/stap-authorize-server-cert.8*
+%{_sysconfdir}/rc.d/init.d/stap-server
+%dir %{_sysconfdir}/stap-server
+%dir %{_sysconfdir}/stap-server/conf.d
+%config(noreplace) %{_sysconfdir}/sysconfig/stap-server
+%{_localstatedir}/log/stap-server.log
+%doc initscript/README.stap-server
 
 %files sdt-devel
 %defattr(-,root,root)
@@ -370,23 +475,27 @@ exit 0
 
 %files initscript
 %defattr(-,root,root)
-%{_sysconfdir}/init.d/systemtap
+%{_sysconfdir}/rc.d/init.d/systemtap
 %dir %{_sysconfdir}/systemtap
 %dir %{_sysconfdir}/systemtap/conf.d
 %dir %{_sysconfdir}/systemtap/script.d
 %config(noreplace) %{_sysconfdir}/systemtap/config
 %dir %{_localstatedir}/cache/systemtap
 %dir %{_localstatedir}/run/systemtap
-%doc initscript/README.initscript
+%doc initscript/README.systemtap
 
 %if %{with_grapher}
 %files grapher
 %defattr(-,root,root)
 %{_bindir}/stapgraph
+%{_datadir}/%{name}/*.glade
 %endif
 
 
 %changelog
+* Mon Dec 21 2009 David Smith <dsmith@redhat.com> - 1.1-1
+- Upstream release.
+
 * Tue Sep 22 2009 Josh Stone <jistone@redhat.com> - 1.0-1
 - Upstream release.
 

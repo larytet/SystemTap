@@ -76,23 +76,22 @@ symboldecl::~symboldecl ()
 {
 }
 
-probe_point::probe_point (std::vector<component*> const & comps,
-			  const token * t):
-  components(comps), tok(t), optional (false), sufficient (false),
+probe_point::probe_point (std::vector<component*> const & comps):
+  components(comps), optional (false), sufficient (false),
   condition (0)
 {
 }
 
 // NB: shallow-copy of compoonents & condition!
 probe_point::probe_point (const probe_point& pp):
-  components(pp.components), tok(pp.tok), optional (pp.optional), sufficient (pp.sufficient),
+  components(pp.components), optional (pp.optional), sufficient (pp.sufficient),
   condition (pp.condition)
 {
 }
 
 
 probe_point::probe_point ():
-  tok (0), optional (false), sufficient (false), condition (0)
+  optional (false), sufficient (false), condition (0)
 {
 }
 
@@ -405,52 +404,56 @@ void functioncall::print (ostream& o) const
 }
 
 
-bool
-print_format::parse_print(const std::string &name,
-  bool &stream, bool &format, bool &delim, bool &newline, bool &_char)
+print_format*
+print_format::create(const token *t)
 {
-  const char *n = name.c_str();
+  bool stream, format, delim, newline, _char;
+  const char *n = t->content.c_str();
 
   stream = true;
   format = delim = newline = _char = false;
 
   if (strcmp(n, "print_char") == 0)
-    {
-      _char = true;
-      return true;
-    }
-
-  if (*n == 's')
-    {
-      stream = false;
-      ++n;
-    }
-
-  if (0 != strncmp(n, "print", 5))
-    return false;
-  n += 5;
-
-  if (*n == 'f')
-    {
-      format = true;
-      ++n;
-    }
+    _char = true;
   else
     {
-      if (*n == 'd')
-        {
-	  delim = true;
+      if (*n == 's')
+	{
+	  stream = false;
 	  ++n;
 	}
 
-      if (*n == 'l' && *(n+1) == 'n')
-        {
-	  newline = true;
-	  n += 2;
+      if (0 != strncmp(n, "print", 5))
+	return NULL;
+      n += 5;
+
+      if (*n == 'f')
+	{
+	  format = true;
+	  ++n;
 	}
+      else
+	{
+	  if (*n == 'd')
+	    {
+	      delim = true;
+	      ++n;
+	    }
+
+	  if (*n == 'l' && *(n+1) == 'n')
+	    {
+	      newline = true;
+	      n += 2;
+	    }
+	}
+
+      if (*n != '\0')
+	return NULL;
     }
 
-  return (*n == '\0');
+  print_format *pf = new print_format(stream, format, delim, newline, _char);
+  pf->tok = t;
+  return pf;
 }
 
 

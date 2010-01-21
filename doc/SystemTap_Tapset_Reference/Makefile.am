@@ -22,11 +22,15 @@ if BUILD_PDFREFDOCS
 PDFDOCS = tapsets.pdf
 endif
 
+if XMLTO_STRINGPARAM
+XMLTOMANPARAMS=--stringparam man.authors.section.enabled=0 --stringparam man.copyright.section.enabled=0
+endif
+
 if BUILD_REFDOCS
 all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
 tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl > tapsets.xml.new
-	if cmp tapsets.xml.new tapsets.xml >/dev/null ; then \
+	if test -s tapsets.xml && cmp tapsets.xml.new tapsets.xml >/dev/null ; then \
 		echo tapsets.xml unchanged; \
 		rm tapsets.xml.new; \
 	else \
@@ -34,15 +38,15 @@ tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 	fi
 
 stamp-htmldocs: tapsets.xml
-	xmlto html -o tapsets tapsets.xml
+	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml >/dev/null 2>&1
 	touch stamp-htmldocs
 
 # bump up the allocated space so "xmlto pdf" works
 tapsets.pdf: tapsets.xml
-	env pool_size=2000000 hash_extra=2000000 xmlto pdf tapsets.xml
+	env pool_size=2000000 hash_extra=2000000 xmlto $(XMLTOPDFPARAMS) pdf tapsets.xml >/dev/null 2>&1
 
 stamp-mandocs: tapsets.xml
-	xmlto man -o man3 tapsets.xml
+	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml >/dev/null 2>&1
 	touch stamp-mandocs
 
 #FIXME need to figure out where to install things appropriately

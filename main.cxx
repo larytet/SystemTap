@@ -1,5 +1,5 @@
 // systemtap translator/driver
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2005 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
 //
@@ -43,6 +43,7 @@ extern "C" {
 #include <time.h>
 #include <elfutils/libdwfl.h>
 #include <getopt.h>
+#include <unistd.h>
 }
 
 using namespace std;
@@ -161,8 +162,10 @@ printscript(systemtap_session& s, ostream& o)
   if (s.listing_mode)
     {
       // We go through some heroic measures to produce clean output.
-      set<string> seen;
+      // Record the alias and probe pointer as <name, set<derived_probe *> >
+      map<string,set<derived_probe *> > probe_list;
 
+      // Pre-process the probe alias
       for (unsigned i=0; i<s.probes.size(); i++)
         {
           if (pending_interrupts) return;
@@ -197,24 +200,46 @@ printscript(systemtap_session& s, ostream& o)
           // Now duplicate-eliminate.  An alias may have expanded to
           // several actual derived probe points, but we only want to
           // print the alias head name once.
-          if (seen.find (pp) == seen.end())
+          probe_list[pp].insert(p);
+        }
+
+      // print probe name and variables if there
+      for (map<string, set<derived_probe *> >::iterator it=probe_list.begin(); it!=probe_list.end(); ++it)
+        {
+          o << it->first; // probe name or alias
+
+          // Print the locals and arguments for -L mode only
+          if (s.listing_mode_vars)
             {
-              o << pp;
-              // Print the locals for -L mode only
-              if (s.listing_mode_vars)
+              map<string,unsigned> var_list; // format <"name:type",count>
+              map<string,unsigned> arg_list;
+              // traverse set<derived_probe *> to collect all locals and arguments
+              for (set<derived_probe *>::iterator ix=it->second.begin(); ix!=it->second.end(); ++ix)
                 {
+                  derived_probe* p = *ix;
+                  // collect available locals of the probe
                   for (unsigned j=0; j<p->locals.size(); j++)
                     {
-                      o << " ";
+                      stringstream tmps;
                       vardecl* v = p->locals[j];
-                      v->printsig (o);
+                      v->printsig (tmps);
+                      var_list[tmps.str()]++;
                     }
-                  // Print arguments of probe if there
-                  p->printargs(o);
+                  // collect arguments of the probe if there
+                  set<string> arg_set;
+                  p->getargs(arg_set);
+                  for (set<string>::iterator ia=arg_set.begin(); ia!=arg_set.end(); ++ia)
+                    arg_list[*ia]++;
                 }
-              o << endl;
-              seen.insert (pp);
+              // print the set-intersection only
+              for (map<string,unsigned>::iterator ir=var_list.begin(); ir!=var_list.end(); ++ir)
+                if (ir->second == it->second.size()) // print locals
+                  o << " " << ir->first;
+              for (map<string,unsigned>::iterator ir=arg_list.begin(); ir!=arg_list.end(); ++ir)
+                if (ir->second == it->second.size()) // print arguments
+                  o << " " << ir->first;
             }
+          o << endl;
         }
     }
   else
@@ -334,8 +359,8 @@ setup_signals (sighandler_t handler)
   sigaction (SIGTERM, &sa, NULL);
 }
 
-void
-setup_kernel_release (systemtap_session &s, const char* kstr) {
+void setup_kernel_release (systemtap_session &s, const char* kstr) 
+{
     if (kstr[0] == '/') // fully specified path
       {
         s.kernel_build_tree = kstr;
@@ -363,40 +388,51 @@ setup_kernel_release (systemtap_session &s, const char* kstr) {
       }
 }
 
-static void
-checkOptions (systemtap_session &s)
+
+void parse_kernel_config (systemtap_session &s) 
 {
-  bool optionsConflict = false;
-
-  if((s.cmd != "") && (s.target_pid))
+  // PR10702: pull config options
+  string kernel_config_file = s.kernel_build_tree + "/.config";
+  ifstream kcf (kernel_config_file.c_str());
+  string line;
+  while (getline (kcf, line))
     {
-      cerr << "You can't specify -c and -x options together." <<endl;
-      optionsConflict = true;
+      if (line.substr(0, 7) != "CONFIG_") continue;
+      size_t off = line.find('=');
+      if (off == string::npos) continue;
+      string key = line.substr(0, off);
+      string value = line.substr(off+1, string::npos);
+      s.kernel_config[key] = value;
     }
+  if (s.verbose > 2)
+    clog << "Parsed kernel \"" << kernel_config_file << "\", number of tuples: " << s.kernel_config.size() << endl;
+  
+  kcf.close();
+}
 
-  if (s.unprivileged)
-    {
-      if (s.guru_mode)
-	{
-	  cerr << "You can't specify -g and --unprivileged together." << endl;
-	  optionsConflict = true;
-	}
-    }
+/*
+ * Returns a string describing memory resource usage.
+ * Since it seems getrusage() doesn't maintain the mem related fields,
+ * this routine parses /proc/self/statm to get the statistics.
+ */
+static string
+getmemusage ()
+{
+  static long sz = sysconf(_SC_PAGESIZE);
 
-  if (!s.kernel_symtab_path.empty())
-    {
-      if (s.consult_symtab)
-      {
-        cerr << "You can't specify --kelf and --kmap together." << endl;
-	optionsConflict = true;
-      }
-      s.consult_symtab = true;
-      if (s.kernel_symtab_path == PATH_TBD)
-        s.kernel_symtab_path = string("/boot/System.map-") + s.kernel_release;
-    }
-
-  if (optionsConflict)
-    usage (s, 1);
+  long pages, kb;
+  ostringstream oss;
+  ifstream statm("/proc/self/statm");
+  statm >> pages;
+  kb = pages * sz / 1024;
+  oss << "using " << kb << "virt/";
+  statm >> pages;
+  kb = pages * sz / 1024;
+  oss << kb << "res/";
+  statm >> pages;
+  kb = pages * sz / 1024;
+  oss << kb << "shr kb, ";
+  return oss.str();
 }
 
 int
@@ -467,6 +503,8 @@ main (int argc, char * const argv [])
   s.load_only = false;
   s.skip_badvars = false;
   s.unprivileged = false;
+  bool client_options = false;
+  string client_options_disallowed;
 
   // Location of our signing certificate.
   // If we're root, use the database in SYSCONFDIR, otherwise
@@ -538,7 +576,6 @@ main (int argc, char * const argv [])
     setup_kernel_release(s, s_kr);
   }
 
-
   while (true)
     {
       int long_opt;
@@ -550,6 +587,7 @@ main (int argc, char * const argv [])
 #define LONG_OPT_VERBOSE_PASS 5
 #define LONG_OPT_SKIP_BADVARS 6
 #define LONG_OPT_UNPRIVILEGED 7
+#define LONG_OPT_CLIENT_OPTIONS 8
       // NB: also see find_hash(), usage(), switch stmt below, stap.1 man page
       static struct option long_options[] = {
         { "kelf", 0, &long_opt, LONG_OPT_KELF },
@@ -559,6 +597,7 @@ main (int argc, char * const argv [])
 	{ "skip-badvars", 0, &long_opt, LONG_OPT_SKIP_BADVARS },
         { "vp", 1, &long_opt, LONG_OPT_VERBOSE_PASS },
         { "unprivileged", 0, &long_opt, LONG_OPT_UNPRIVILEGED },
+        { "client-options", 0, &long_opt, LONG_OPT_CLIENT_OPTIONS },
         { NULL, 0, NULL, 0 }
       };
       int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:",
@@ -599,15 +638,25 @@ main (int argc, char * const argv [])
           break;
 
         case 'I':
+	  if (client_options)
+	    client_options_disallowed += client_options_disallowed.empty () ? "-I" : ", -I";
           s.include_path.push_back (string (optarg));
           break;
 
         case 'd':
-          s.unwindsym_modules.insert (string (optarg));
-          // PR10228: trigger task-finder logic early if -d /USER-MODULE/ given.
-          if (optarg[0] == '/')
-            enable_task_finder (s);
-          break;
+          {
+            // At runtime user module names are resolved through their
+            // canonical (absolute) path.
+            const char *mpath = canonicalize_file_name (optarg);
+            if (mpath == NULL) // Must be a kernel module name
+              mpath = optarg;
+            s.unwindsym_modules.insert (string (mpath));
+            // PR10228: trigger task-finder logic early if -d /USER-MODULE/
+            // given.
+            if (mpath[0] == '/')
+              enable_task_finder (s);
+            break;
+          }
 
         case 'e':
 	  if (have_script)
@@ -625,10 +674,14 @@ main (int argc, char * const argv [])
           break;
 
         case 'R':
+	  if (client_options)
+	    client_options_disallowed += client_options_disallowed.empty () ? "-R" : ", -R";
           s.runtime_path = string (optarg);
           break;
 
         case 'm':
+	  if (client_options)
+	    client_options_disallowed += client_options_disallowed.empty () ? "-m" : ", -m";
           s.module_name = string (optarg);
 	  save_module = true;
 	  {
@@ -675,11 +728,15 @@ main (int argc, char * const argv [])
           break;
 
         case 'r':
+	  if (client_options)
+	    client_options_disallowed += client_options_disallowed.empty () ? "-r" : ", -r";
           setup_kernel_release(s, optarg);
           break;
 
         case 'a':
-          s.architecture = string(optarg);
+	  if (client_options)
+	  client_options_disallowed += client_options_disallowed.empty () ? "-a" : ", -a";
+	    s.architecture = string(optarg);
           break;
 
         case 'k':
@@ -726,6 +783,8 @@ main (int argc, char * const argv [])
 	  break;
 
 	case 'D':
+	  if (client_options)
+	    client_options_disallowed += client_options_disallowed.empty () ? "-D" : ", -D";
 	  s.macros.push_back (string (optarg));
 	  break;
 
@@ -764,7 +823,9 @@ main (int argc, char * const argv [])
 	  break;
 
 	case 'B':
-          s.kbuildflags.push_back (string (optarg));
+	  if (client_options)
+	  client_options_disallowed += client_options_disallowed.empty () ? "-B" : ", -B";
+	    s.kbuildflags.push_back (string (optarg));
 	  break;
 
         case 0:
@@ -816,6 +877,11 @@ main (int argc, char * const argv [])
 	      break;
 	    case LONG_OPT_UNPRIVILEGED:
 	      s.unprivileged = true;
+              /* NB: for server security, it is essential that once this flag is
+                 set, no future flag be able to unset it. */
+	      break;
+	    case LONG_OPT_CLIENT_OPTIONS:
+	      client_options = true;
 	      break;
             default:
               cerr << "Internal error parsing command arguments." << endl;
@@ -830,8 +896,37 @@ main (int argc, char * const argv [])
     }
 
   // Check for options conflicts.
-  checkOptions (s);
 
+  if (client_options && s.last_pass > 4)
+    {
+      s.last_pass = 4; /* Quietly downgrade.  Server passed through -p5 naively. */
+    }
+  if (client_options && s.unprivileged && ! client_options_disallowed.empty ())
+    {
+      cerr << "You can't specify " << client_options_disallowed << " when --unprivileged is specified." << endl;
+      usage (s, 1);
+    }
+  if ((s.cmd != "") && (s.target_pid))
+    {
+      cerr << "You can't specify -c and -x options together." << endl;
+      usage (s, 1);
+    }
+  if (s.unprivileged && s.guru_mode)
+    {
+      cerr << "You can't specify -g and --unprivileged together." << endl;
+      usage (s, 1);
+    }
+  if (!s.kernel_symtab_path.empty())
+    {
+      if (s.consult_symtab)
+      {
+        cerr << "You can't specify --kelf and --kmap together." << endl;
+        usage (s, 1);
+      }
+      s.consult_symtab = true;
+      if (s.kernel_symtab_path == PATH_TBD)
+        s.kernel_symtab_path = string("/boot/System.map-") + s.kernel_release;
+    }
   // Warn in case the target kernel release doesn't match the running one.
   if (s.last_pass > 4 &&
       (string(buf.release) != s.kernel_release ||
@@ -919,6 +1014,9 @@ main (int argc, char * const argv [])
       clog << "Created temporary directory \"" << s.tmpdir << "\"" << endl;
   }
 
+  // Now that no further changes to s.kernel_build_tree can occur, let's use it.
+  parse_kernel_config (s);
+
   // Create the name of the C source file within the temporary
   // directory.
   s.translated_source = string(s.tmpdir) + "/" + s.module_name + ".c";
@@ -1002,7 +1100,7 @@ main (int argc, char * const argv [])
           // GLOB_NOMATCH is acceptable
 
           if (s.verbose>1 && globbuf.gl_pathc > 0)
-            clog << "Searched '" << dir << "', "
+            clog << "Searched \"" << dir << "\", "
                  << "found " << globbuf.gl_pathc << endl;
 
           for (unsigned j=0; j<globbuf.gl_pathc; j++)
@@ -1053,7 +1151,7 @@ main (int argc, char * const argv [])
   struct timeval tv_after;
   gettimeofday (&tv_after, NULL);
 
-#define TIMESPRINT \
+#define TIMESPRINT "in " << \
            (tms_after.tms_cutime + tms_after.tms_utime \
             - tms_before.tms_cutime - tms_before.tms_utime) * 1000 / (_sc_clk_tck) << "usr/" \
         << (tms_after.tms_cstime + tms_after.tms_stime \
@@ -1066,7 +1164,8 @@ main (int argc, char * const argv [])
     {
       clog << "Pass 1: parsed user script and "
            << s.library_files.size()
-           << " library script(s) in "
+           << " library script(s) "
+           << getmemusage()
            << TIMESPRINT
            << endl;
     }
@@ -1098,7 +1197,8 @@ main (int argc, char * const argv [])
                       << s.probes.size() << " probe(s), "
                       << s.functions.size() << " function(s), "
                       << s.embeds.size() << " embed(s), "
-                      << s.globals.size() << " global(s) in "
+                      << s.globals.size() << " global(s) "
+                      << getmemusage()
                       << TIMESPRINT
                       << endl;
 
@@ -1163,7 +1263,8 @@ main (int argc, char * const argv [])
 
   if (s.verbose) clog << "Pass 3: translated to C into \""
                       << s.translated_source
-                      << "\" in "
+                      << "\" "
+                      << getmemusage()
                       << TIMESPRINT
                       << endl;
 
@@ -1194,7 +1295,7 @@ main (int argc, char * const argv [])
 
   if (s.verbose) clog << "Pass 4: compiled C into \""
                       << s.module_name << ".ko"
-                      << "\" in "
+                      << "\" "
                       << TIMESPRINT
                       << endl;
 
@@ -1212,19 +1313,13 @@ main (int argc, char * const argv [])
       // inaccessible for some reason.
       if (! s.use_cache && s.last_pass == 4)
         save_module = true;
-      
+
       // Copy module to the current directory.
       if (save_module && !pending_interrupts)
         {
 	  string module_src_path = s.tmpdir + "/" + s.module_name + ".ko";
 	  string module_dest_path = s.module_name + ".ko";
-
-	  if (s.verbose > 1)
-	    clog << "Copying " << module_src_path << " to "
-		 << module_dest_path << endl;
-	  if (copy_file(module_src_path.c_str(), module_dest_path.c_str()) != 0)
-	    cerr << "Copy failed (\"" << module_src_path << "\" to \""
-		 << module_dest_path << "\"): " << strerror(errno) << endl;
+	  copy_file(module_src_path, module_dest_path, s.verbose > 1);
 	}
     }
 
@@ -1246,7 +1341,7 @@ pass_5:
   rc = run_pass (s);
   times (& tms_after);
   gettimeofday (&tv_after, NULL);
-  if (s.verbose) clog << "Pass 5: run completed in "
+  if (s.verbose) clog << "Pass 5: run completed "
                       << TIMESPRINT
                       << endl;
 
@@ -1279,6 +1374,8 @@ pass_5:
   else
     {
       if (s.keep_tmpdir)
+        // NB: the format of this message needs to match the expectations
+        // of stap-server-connect.c.
         clog << "Keeping temporary directory \"" << s.tmpdir << "\"" << endl;
       else
         {

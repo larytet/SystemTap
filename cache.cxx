@@ -48,32 +48,29 @@ static void clean_cache(systemtap_session& s);
 void
 add_to_cache(systemtap_session& s)
 {
+  bool verbose = s.verbose > 1;
+
   // PR10543: clean the cache *before* we try putting something new into it.
   // We don't want to risk having the brand new contents being erased again.
   clean_cache(s);
 
   string stapconf_src_path = s.tmpdir + "/" + s.stapconf_name;
-  if (s.verbose > 1)
-    clog << "Copying " << stapconf_src_path << " to " << s.stapconf_path << endl;
-  if (copy_file(stapconf_src_path.c_str(), s.stapconf_path.c_str()) != 0)
+  if (!copy_file(stapconf_src_path, s.stapconf_path, verbose))
     {
-      cerr << "Copy failed (\"" << stapconf_src_path << "\" to \""
-	   << s.stapconf_path << "\"): " << strerror(errno) << endl;
       s.use_cache = false;
       return;
     }
 
   string module_src_path = s.tmpdir + "/" + s.module_name + ".ko";
   STAP_PROBE2(stap, cache__add__module, module_src_path.c_str(), s.hash_path.c_str());
-  if (s.verbose > 1)
-    clog << "Copying " << module_src_path << " to " << s.hash_path << endl;
-  if (copy_file(module_src_path.c_str(), s.hash_path.c_str()) != 0)
+  if (!copy_file(module_src_path, s.hash_path, verbose))
     {
-      cerr << "Copy failed (\"" << module_src_path << "\" to \""
-	   << s.hash_path << "\"): " << strerror(errno) << endl;
       s.use_cache = false;
       return;
     }
+  // Copy the signature file, if any. It is not an error if this fails.
+  if (file_exists (module_src_path + ".sgn"))
+    copy_file(module_src_path + ".sgn", s.hash_path + ".sgn", verbose);
 
   string c_dest_path = s.hash_path;
   if (c_dest_path.rfind(".ko") == (c_dest_path.size() - 3))
@@ -81,14 +78,8 @@ add_to_cache(systemtap_session& s)
   c_dest_path += ".c";
 
   STAP_PROBE2(stap, cache__add__source, s.translated_source.c_str(), c_dest_path.c_str());
-  if (s.verbose > 1)
-    clog << "Copying " << s.translated_source << " to " << c_dest_path
-	 << endl;
-  if (copy_file(s.translated_source.c_str(), c_dest_path.c_str()) != 0)
+  if (!copy_file(s.translated_source, c_dest_path, verbose))
     {
-      if (s.verbose > 1)
-        cerr << "Copy failed (\"" << s.translated_source << "\" to \""
-             << c_dest_path << "\"): " << strerror(errno) << endl;
       // NB: this is not so severe as to prevent reuse of the .ko
       // already copied.
       //
@@ -118,10 +109,8 @@ get_from_cache(systemtap_session& s)
     }
 
   // Copy the stapconf header file to the destination
-  if (copy_file(s.stapconf_path.c_str(), stapconf_dest_path.c_str()) != 0)
+  if (!copy_file(s.stapconf_path, stapconf_dest_path))
     {
-      cerr << "Copy failed (\"" << s.stapconf_path << "\" to \""
-	   << stapconf_dest_path << "\"): " << strerror(errno) << endl;
       close(fd_stapconf);
       return false;
     }
@@ -152,10 +141,8 @@ get_from_cache(systemtap_session& s)
     }
 
   // Copy the cached C file to the destination
-  if (copy_file(c_src_path.c_str(), s.translated_source.c_str()) != 0)
+  if (!copy_file(c_src_path, s.translated_source))
     {
-      cerr << "Copy failed (\"" << c_src_path << "\" to \""
-	   << s.translated_source << "\"): " << strerror(errno) << endl;
       close(fd_module);
       close(fd_c);
       return false;
@@ -164,15 +151,17 @@ get_from_cache(systemtap_session& s)
   // Copy the cached module to the destination (if needed)
   if (s.last_pass != 3)
     {
-      if (copy_file(s.hash_path.c_str(), module_dest_path.c_str()) != 0)
+      if (!copy_file(s.hash_path, module_dest_path))
         {
-	  cerr << "Copy failed (\"" << s.hash_path << "\" to \""
-	       << module_dest_path << "\"): " << strerror(errno) << endl;
 	  unlink(c_src_path.c_str());
 	  close(fd_module);
 	  close(fd_c);
 	  return false;
 	}
+      // Copy the module signature file, if any.
+      // It is not an error if this fails.
+      if (file_exists (s.hash_path + ".sgn"))
+	copy_file(s.hash_path + ".sgn", module_dest_path + ".sgn");
     }
 
   // We're done with these file handles.
@@ -226,9 +215,9 @@ clean_cache(systemtap_session& s)
       else
         {
           //file doesnt exist, create a default size
-    	  ofstream default_cache_max(cache_max_filename.c_str(), ios::out);
-    	  default_cache_max << SYSTEMTAP_CACHE_DEFAULT_MB << endl;
-    	  cache_mb_max = SYSTEMTAP_CACHE_DEFAULT_MB;
+          ofstream default_cache_max(cache_max_filename.c_str(), ios::out);
+          default_cache_max << SYSTEMTAP_CACHE_DEFAULT_MB << endl;
+          cache_mb_max = SYSTEMTAP_CACHE_DEFAULT_MB;
 
           if (s.verbose > 1)
             clog << "Cache limit file " << s.cache_path << "/"
@@ -353,8 +342,11 @@ cache_ent_info::cache_ent_info(const string& path, bool is_module):
   if (is_module)
     {
       string mod_path    = path + ".ko";
+      string modsgn_path = path + ".ko.sgn";
       string source_path = path + ".c";
-      size = get_file_size(mod_path) + get_file_size(source_path);
+      size = get_file_size(mod_path)
+        + get_file_size(modsgn_path);
+        + get_file_size(source_path);
       weight = get_file_weight(mod_path);
     }
   else
@@ -371,8 +363,10 @@ cache_ent_info::unlink() const
   if (is_module)
     {
       string mod_path    = path + ".ko";
+      string modsgn_path = path + ".ko.sgn";
       string source_path = path + ".c";
       ::unlink(mod_path.c_str());
+      ::unlink(modsgn_path.c_str());
       ::unlink(source_path.c_str());
     }
   else

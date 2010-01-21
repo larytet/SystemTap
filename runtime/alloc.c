@@ -11,10 +11,12 @@
 #ifndef _ALLOC_C_
 #define _ALLOC_C_
 
+#include <linux/percpu.h>
+
 static int _stp_allocated_net_memory = 0;
 #define STP_ALLOC_FLAGS (GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN)
 
-//#define DEBUG_MEM
+/* #define DEBUG_MEM */
 /*
  * If DEBUG_MEM is defined (stap -DDEBUG_MEM ...) then full memory
  * tracking is used. Each allocation is recorded and matched with 
@@ -30,10 +32,10 @@ static int _stp_allocated_net_memory = 0;
  * would be nice, but DEBUG_MEM is only for testing.
  */
 
-#ifdef DEBUG_MEM
-
-static DEFINE_SPINLOCK(_stp_mem_lock);
 static int _stp_allocated_memory = 0;
+
+#ifdef DEBUG_MEM
+static DEFINE_SPINLOCK(_stp_mem_lock);
 
 #define MEM_MAGIC 0xc11cf77f
 #define MEM_FENCE_SIZE 32
@@ -170,75 +172,207 @@ static void _stp_mem_debug_free(void *addr, enum _stp_memtype type)
 
 	return;
 }
+
+static void _stp_mem_debug_validate(void *addr)
+{
+	int found = 0;
+	struct list_head *p, *tmp;
+	struct _stp_mem_entry *m = NULL;
+
+	spin_lock(&_stp_mem_lock);
+	list_for_each_safe(p, tmp, &_stp_mem_list) {
+		m = list_entry(p, struct _stp_mem_entry, list);
+		if (m->addr == addr) {
+			found = 1;
+			break;
+		}
+	}
+	spin_unlock(&_stp_mem_lock);
+	if (!found) {
+		printk("SYSTEMTAP ERROR: Couldn't validate memory %p\n", 
+		       addr);
+		return;
+	}
+	if (m->magic != MEM_MAGIC) {
+		printk("SYSTEMTAP ERROR: Memory at %p corrupted!!\n", addr);
+		return;
+	}
+	
+	switch (m->type) {
+	case MEM_KMALLOC:
+		_stp_check_mem_fence(addr, m->len);
+		break;
+	case MEM_PERCPU:
+		/* do nothing */
+		break;
+	case MEM_VMALLOC:
+		_stp_check_mem_fence(addr, m->len);
+		break;
+	default:
+		printk("SYSTEMTAP ERROR: Attempted to validate memory at addr %p len=%d with unknown allocation type.\n", addr, (int)m->len);
+	}
+
+	return;
+}
+#endif
+
+/* #define STP_MAXMEMORY 8192 */
+/*
+ * If STP_MAXMEMORY is defined to a value (stap -DSTP_MAXMEMORY=8192
+ * ...) then every memory allocation is checked to make sure the
+ * systemtap module doesn't use more than STP_MAXMEMORY of memory.
+ * STP_MAXMEMORY is specified in kilobytes, so, for example, '8192'
+ * means that the systemtap module won't use more than 8 megabytes of
+ * memory.
+ *
+ * Note 1: This size does include the size of the module itself, plus
+ * any additional allocations.
+ *
+ * Note 2: Since we can't be ensured that the module transport is set
+ * up when a memory allocation problem happens, this code can't
+ * directly report an error back to a user (so instead it uses
+ * 'printk').  If the modules transport has been set up, the code that
+ * calls the memory allocation functions
+ * (_stp_kmalloc/_stp_kzalloc/etc.) should report an error directly to
+ * the user.
+ *
+ * Note 3: This only tracks direct allocations by the systemtap
+ * runtime.  This does not track indirect allocations (such as done by
+ * kprobes/uprobes/etc. internals).
+ */
+
+#ifdef STP_MAXMEMORY
+#ifndef STAPCONF_GRSECURITY
+#define _STP_MODULE_CORE_SIZE (THIS_MODULE->core_size)
+#else
+#define _STP_MODULE_CORE_SIZE (THIS_MODULE->core_size_rw)
+#endif
 #endif
 
 static void *_stp_kmalloc(size_t size)
 {
-#ifdef DEBUG_MEM
-	void *ret = kmalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS);
-	if (likely(ret)) {
-		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
-		_stp_allocated_memory += size;
+	void *ret;
+#ifdef STP_MAXMEMORY
+	if ((_STP_MODULE_CORE_SIZE + _stp_allocated_memory + size)
+	    > (STP_MAXMEMORY * 1024)) {
+		return NULL;
 	}
-	return ret;
-#else
-	return kmalloc(size, STP_ALLOC_FLAGS);
 #endif
+#ifdef DEBUG_MEM
+	ret = kmalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
+	}
+#else
+	ret = kmalloc(size, STP_ALLOC_FLAGS);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+	}
+#endif
+	return ret;
 }
 
 static void *_stp_kzalloc(size_t size)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
 {
+	void *ret;
+#ifdef STP_MAXMEMORY
+	if ((_STP_MODULE_CORE_SIZE + _stp_allocated_memory + size)
+	    > (STP_MAXMEMORY * 1024)) {
+		return NULL;
+	}
+#endif
 #ifdef DEBUG_MEM
-	void *ret = kmalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS);
+	ret = kmalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS);
 	if (likely(ret)) {
+	        _stp_allocated_memory += size;
 		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
 		memset (ret, 0, size);
-		_stp_allocated_memory += size;
 	}
 #else
-	void *ret = kmalloc(size, STP_ALLOC_FLAGS);
-	if (likely(ret))
+	ret = kmalloc(size, STP_ALLOC_FLAGS);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
 		memset (ret, 0, size);
+	}
 #endif /* DEBUG_MEM */
 	return ret;
 }
 #else /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15) */
 {
-#ifdef DEBUG_MEM
-	void *ret = kzalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS);
-	if (likely(ret)) {
-		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
-		_stp_allocated_memory += size;
+	void *ret;
+#ifdef STP_MAXMEMORY
+	if ((_STP_MODULE_CORE_SIZE + _stp_allocated_memory + size)
+	    > (STP_MAXMEMORY * 1024)) {
+		return NULL;
 	}
-	return ret;
-#else
-	return kzalloc(size, STP_ALLOC_FLAGS);
 #endif
+#ifdef DEBUG_MEM
+	ret = kzalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
+	}
+#else
+	ret = kzalloc(size, STP_ALLOC_FLAGS);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+	}
+#endif
+	return ret;
 }
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15) */
 
 static void *_stp_vmalloc(unsigned long size)
 {
-#ifdef DEBUG_MEM
-	void *ret = __vmalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS, PAGE_KERNEL);
-	if (likely(ret)) {
-		ret = _stp_mem_debug_setup(ret, size, MEM_VMALLOC);
-		_stp_allocated_memory += size;
+	void *ret;
+#ifdef STP_MAXMEMORY
+	if ((_STP_MODULE_CORE_SIZE + _stp_allocated_memory + size)
+	    > (STP_MAXMEMORY * 1024)) {
+		return NULL;
 	}
-	return ret;
-#else
-	return __vmalloc(size, STP_ALLOC_FLAGS, PAGE_KERNEL);
 #endif
-
+#ifdef DEBUG_MEM
+	ret = __vmalloc(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS, PAGE_KERNEL);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+		ret = _stp_mem_debug_setup(ret, size, MEM_VMALLOC);
+	}
+#else
+	ret = __vmalloc(size, STP_ALLOC_FLAGS, PAGE_KERNEL);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+	}
+#endif
+	return ret;
 }
+
+#ifdef PCPU_MIN_UNIT_SIZE
+#define _STP_MAX_PERCPU_SIZE PCPU_MIN_UNIT_SIZE
+#else
+#define _STP_MAX_PERCPU_SIZE 131072
+#endif
 
 static void *_stp_alloc_percpu(size_t size)
 {
+	void *ret;
+
+	if (size > _STP_MAX_PERCPU_SIZE)
+		return NULL;
+
+#ifdef STP_MAXMEMORY
+	if ((_STP_MODULE_CORE_SIZE + _stp_allocated_memory
+	     + (size * num_online_cpus()))
+	    > (STP_MAXMEMORY * 1024)) {
+		return NULL;
+	}
+#endif
+
 #ifdef STAPCONF_ALLOC_PERCPU_ALIGN
-	void *ret = __alloc_percpu(size, 8);
+	ret = __alloc_percpu(size, 8);
 #else
-	void *ret = __alloc_percpu(size);
+	ret = __alloc_percpu(size);
 #endif
 #ifdef DEBUG_MEM
 	if (likely(ret)) {
@@ -247,8 +381,12 @@ static void *_stp_alloc_percpu(size_t size)
 			free_percpu(ret);
 			return NULL;
 		}
+	        _stp_allocated_memory += size * num_online_cpus();
 		_stp_mem_debug_percpu(m, ret, size);
-		_stp_allocated_memory += size * num_online_cpus();
+	}
+#else
+	if (likely(ret)) {
+	        _stp_allocated_memory += size * num_online_cpus();
 	}
 #endif
 	return ret;
@@ -259,16 +397,26 @@ static void *_stp_alloc_percpu(size_t size)
 #else
 static void *_stp_kmalloc_node(size_t size, int node)
 {
-#ifdef DEBUG_MEM
-	void *ret = kmalloc_node(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS, node);
-	if (likely(ret)) {
-		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
-		_stp_allocated_memory += size;
+	void *ret;
+#ifdef STP_MAXMEMORY
+	if ((_STP_MODULE_CORE_SIZE + _stp_allocated_memory + size)
+	    > (STP_MAXMEMORY * 1024)) {
+		return NULL;
 	}
-	return ret;
-#else
-	return kmalloc_node(size, STP_ALLOC_FLAGS, node);
 #endif
+#ifdef DEBUG_MEM
+	ret = kmalloc_node(size + MEM_DEBUG_SIZE, STP_ALLOC_FLAGS, node);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+		ret = _stp_mem_debug_setup(ret, size, MEM_KMALLOC);
+	}
+#else
+	ret = kmalloc_node(size, STP_ALLOC_FLAGS, node);
+	if (likely(ret)) {
+	        _stp_allocated_memory += size;
+	}
+#endif
+	return ret;
 }
 #endif /* LINUX_VERSION_CODE */
 

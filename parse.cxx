@@ -183,12 +183,14 @@ bool eval_comparison (const OPERAND& lhs, const token* op, const OPERAND& rhs)
 // The basic form is %( CONDITION %? THEN-TOKENS %: ELSE-TOKENS %)
 // where CONDITION is: kernel_v[r] COMPARISON-OP "version-string"
 //                 or: arch COMPARISON-OP "arch-string"
+//                 or: CONFIG_foo COMPARISON-OP "config-string"
 //                 or: "string1" COMPARISON-OP "string2"
 //                 or: number1 COMPARISON-OP number2
 // The %: ELSE-TOKENS part is optional.
 //
 // e.g. %( kernel_v > "2.5" %? "foo" %: "baz" %)
 // e.g. %( arch != "i?86" %? "foo" %: "baz" %)
+// e.g. %( CONFIG_foo %? "foo" %: "baz" %)
 //
 // Up to an entire %( ... %) expression is processed by a single call
 // to this function.  Tokens included by any nested conditions are
@@ -270,6 +272,23 @@ bool eval_pp_conditional (systemtap_session& s,
 
       return result;
     }
+  else if (l->type == tok_identifier && l->content.substr(0,7) == "CONFIG_" && r->type == tok_string)
+    {
+      string lhs = s.kernel_config[l->content]; // may be empty
+      string rhs = r->content;
+
+      int nomatch = fnmatch (rhs.c_str(), lhs.c_str(), FNM_NOESCAPE); // still spooky
+
+      bool result;
+      if (op->type == tok_operator && op->content == "==")
+        result = !nomatch;
+      else if (op->type == tok_operator && op->content == "!=")
+        result = nomatch;
+      else
+        throw parse_error ("expected '==' or '!='", op);
+
+      return result;
+    }
   else if (l->type == tok_string && r->type == tok_string)
     {
       string lhs = l->content;
@@ -291,10 +310,8 @@ bool eval_pp_conditional (systemtap_session& s,
 	    && op->type == tok_operator)
     throw parse_error ("expected number literal as right value", r);
 
-  // XXX: support other forms?  "CONFIG_SMP" ?
-
   else
-    throw parse_error ("expected 'arch' or 'kernel_v' or 'kernel_vr'\n"
+    throw parse_error ("expected 'arch' or 'kernel_v' or 'kernel_vr' or 'CONFIG_...'\n"
 		       "             or comparison between strings or integers", l);
 }
 
@@ -363,6 +380,7 @@ parser::scan_pp (bool wildcard)
       vector<const token*> my_enqueued_pp;
 
       int nesting = 0;
+      int then = 0;
       while (true) // consume THEN tokens
         {
           try
@@ -377,11 +395,18 @@ parser::scan_pp (bool wildcard)
 
           if (m && m->type == tok_operator && m->content == "%(") // nested %(
             nesting ++;
+          if (m && m->type == tok_operator && m->content == "%?") {
+            then ++;
+            if (nesting != then)
+              throw parse_error ("incomplete conditional - missing '%('", m);
+          }
           if (nesting == 0 && m && (m->type == tok_operator && (m->content == "%:" || // ELSE
                                                                 m->content == "%)"))) // END
             break;
-          if (nesting && m && m->type == tok_operator && m->content == "%)") // nested %)
+          if (nesting && m && m->type == tok_operator && m->content == "%)") { // nested %)
             nesting --;
+            then --;
+          }
 
           if (!m)
             throw parse_error ("incomplete conditional - missing '%:' or '%)'", t);
@@ -397,6 +422,7 @@ parser::scan_pp (bool wildcard)
         {
           delete m; // "%:"
           int nesting = 0;
+          int then = 0;
           while (true)
             {
               try
@@ -411,10 +437,17 @@ parser::scan_pp (bool wildcard)
 
               if (m && m->type == tok_operator && m->content == "%(") // nested %(
                 nesting ++;
+              if (m && m->type == tok_operator && m->content == "%?") {
+                then ++;
+                if (nesting != then)
+                  throw parse_error ("incomplete conditional - missing '%('", m);
+              }
               if (nesting == 0 && m && m->type == tok_operator && m->content == "%)") // END
                 break;
-              if (nesting && m && m->type == tok_operator && m->content == "%)") // nested %)
+              if (nesting && m && m->type == tok_operator && m->content == "%)") { // nested %)
                 nesting --;
+                then --;
+              }
 
               if (!m)
                 throw parse_error ("incomplete conditional - missing %)", t);
@@ -1068,7 +1101,7 @@ parser::parse_probe (std::vector<probe *> & probe_ret,
           && t->type == tok_operator && t->content == "=")
         {
           if (pp->optional || pp->sufficient)
-            throw parse_error ("probe point alias name cannot be optional nor sufficient", pp->tok);
+            throw parse_error ("probe point alias name cannot be optional nor sufficient", pp->components.front()->tok);
           aliases.push_back(pp);
           next ();
           continue;
@@ -1077,7 +1110,7 @@ parser::parse_probe (std::vector<probe *> & probe_ret,
           && t->type == tok_operator && t->content == "+=")
         {
           if (pp->optional || pp->sufficient)
-            throw parse_error ("probe point alias name cannot be optional nor sufficient", pp->tok);
+            throw parse_error ("probe point alias name cannot be optional nor sufficient", pp->components.front()->tok);
           aliases.push_back(pp);
           epilogue_alias = 1;
           next ();
@@ -1190,6 +1223,7 @@ parser::parse_stmt_block ()
 statement*
 parser::parse_statement ()
 {
+  statement *ret;
   const token* t = peek ();
   if (t && t->type == tok_operator && t->content == ";")
     {
@@ -1198,34 +1232,42 @@ parser::parse_statement ()
       return n;
     }
   else if (t && t->type == tok_operator && t->content == "{")
-    return parse_stmt_block ();
+    return parse_stmt_block (); // Don't squash semicolons.
   else if (t && t->type == tok_keyword && t->content == "if")
-    return parse_if_statement ();
+    return parse_if_statement (); // Don't squash semicolons.
   else if (t && t->type == tok_keyword && t->content == "for")
-    return parse_for_loop ();
+    return parse_for_loop (); // Don't squash semicolons.
   else if (t && t->type == tok_keyword && t->content == "foreach")
-    return parse_foreach_loop ();
-  else if (t && t->type == tok_keyword && t->content == "return")
-    return parse_return_statement ();
-  else if (t && t->type == tok_keyword && t->content == "delete")
-    return parse_delete_statement ();
+    return parse_foreach_loop (); // Don't squash semicolons.
   else if (t && t->type == tok_keyword && t->content == "while")
-    return parse_while_loop ();
+    return parse_while_loop (); // Don't squash semicolons.
+  else if (t && t->type == tok_keyword && t->content == "return")
+    ret = parse_return_statement ();
+  else if (t && t->type == tok_keyword && t->content == "delete")
+    ret = parse_delete_statement ();
   else if (t && t->type == tok_keyword && t->content == "break")
-    return parse_break_statement ();
+    ret = parse_break_statement ();
   else if (t && t->type == tok_keyword && t->content == "continue")
-    return parse_continue_statement ();
+    ret = parse_continue_statement ();
   else if (t && t->type == tok_keyword && t->content == "next")
-    return parse_next_statement ();
-  // XXX: "do/while" statement?
+    ret = parse_next_statement ();
   else if (t && (t->type == tok_operator || // expressions are flexible
                  t->type == tok_identifier ||
                  t->type == tok_number ||
                  t->type == tok_string))
-    return parse_expr_statement ();
+    ret = parse_expr_statement ();
   // XXX: consider generally accepting tok_embedded here too
   else
     throw parse_error ("expected statement");
+
+  // Squash "empty" trailing colons after any "non-block-like" statement.
+  t = peek ();
+  if (t && t->type == tok_operator && t->content == ";")
+    {
+      next (); // Silently eat trailing ; after statement
+    }
+
+  return ret;
 }
 
 
@@ -1385,10 +1427,10 @@ parser::parse_probe_point ()
 	     || t->type == tok_keyword))
         throw parse_error ("expected identifier or '*'");
 
-      if (pl->tok == 0) pl->tok = t;
 
       probe_point::component* c = new probe_point::component;
       c->functor = t->content;
+      c->tok = t;
       pl->components.push_back (c);
       // NB we may add c->arg soon
 
@@ -1413,7 +1455,7 @@ parser::parse_probe_point ()
           continue;
         }
 
-      // We only fall through here at the end of a probe point (past
+      // We only fall through here at the end of 	a probe point (past
       // all the dotted/parametrized components).
 
       if (t && t->type == tok_operator &&
@@ -2335,8 +2377,6 @@ parser::parse_symbol ()
       // now scrutinize this identifier for the various magic forms of identifier
       // (printf, @stat_op, and $var...)
 
-      bool pf_stream, pf_format, pf_delim, pf_newline, pf_char;
-
       if (name == "@cast")
 	{
 	  // type-punning time
@@ -2393,19 +2433,11 @@ parser::parse_symbol ()
 	  return sop;
 	}
 
-      else if (print_format::parse_print(name,
-	 pf_stream, pf_format, pf_delim, pf_newline, pf_char))
+      else if (print_format *fmt = print_format::create(t))
 	{
-	  print_format *fmt = new print_format;
-	  fmt->tok = t;
-	  fmt->print_to_stream = pf_stream;
-	  fmt->print_with_format = pf_format;
-	  fmt->print_with_delim = pf_delim;
-	  fmt->print_with_newline = pf_newline;
-	  fmt->print_char = pf_char;
-
 	  expect_op("(");
-	  if ((name == "print" || name == "println") &&
+	  if ((name == "print" || name == "println" ||
+	       name == "sprint" || name == "sprintln") &&
 	      (peek_kw("@hist_linear") || peek_kw("@hist_log")))
 	    {
 	      // We have a special case where we recognize

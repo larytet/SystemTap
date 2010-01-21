@@ -84,10 +84,16 @@ static struct itrace_info *create_itrace_info(
 static u32 usr_itrace_report_quiesce(struct utrace_attached_engine *engine,
 					struct task_struct *tsk)
 #else
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+static u32 usr_itrace_report_quiesce(u32 action,
+				struct utrace_attached_engine *engine,
+				unsigned long event)
+#else
 static u32 usr_itrace_report_quiesce(enum utrace_resume_action action,
 				struct utrace_attached_engine *engine,
 				struct task_struct *tsk,
 				unsigned long event)
+#endif
 #endif
 {
 	int status;
@@ -113,6 +119,14 @@ static u32 usr_itrace_report_signal(
 			     const struct k_sigaction *orig_ka,
 			     struct k_sigaction *return_ka)
 #else
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+static u32 usr_itrace_report_signal(u32 action,
+			     struct utrace_attached_engine *engine,
+			     struct pt_regs *regs,
+			     siginfo_t *info,
+			     const struct k_sigaction *orig_ka,
+			     struct k_sigaction *return_ka)
+#else
 static u32 usr_itrace_report_signal(u32 action,
 			     struct utrace_attached_engine *engine,
 			     struct task_struct *tsk,
@@ -121,7 +135,11 @@ static u32 usr_itrace_report_signal(u32 action,
 			     const struct k_sigaction *orig_ka,
 			     struct k_sigaction *return_ka)
 #endif
+#endif
 {
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+	struct task_struct *tsk = current;
+#endif
 	struct itrace_info *ui;
 	u32 return_flags;
 	unsigned long data = 0;
@@ -131,9 +149,16 @@ static u32 usr_itrace_report_signal(u32 action,
 
 	ui = rcu_dereference(engine->data);
 	WARN_ON(!ui);
-	
-	if (info->si_signo != SIGTRAP || !ui)
-		return UTRACE_RESUME;
+
+#if defined(UTRACE_ORIG_VERSION) 
+        if (info->si_signo != SIGTRAP || !ui)
+	  return UTRACE_RESUME;
+#else
+	if (utrace_signal_action(action) == UTRACE_SIGNAL_HANDLER ||
+            utrace_signal_action(action) == UTRACE_SIGNAL_REPORT ||
+	    info->si_signo != SIGTRAP || !ui)
+	  return UTRACE_RESUME | utrace_signal_action(action);
+#endif
 
 #if defined(UTRACE_ORIG_VERSION) && defined(CONFIG_PPC)
 	/* Because of a ppc utrace bug, we need to stop the task here.
@@ -170,10 +195,17 @@ static u32 usr_itrace_report_clone(
                 unsigned long clone_flags,
 		struct task_struct *child)
 #else
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+static u32 usr_itrace_report_clone(u32 action,
+		struct utrace_attached_engine *engine,
+		unsigned long clone_flags,
+		struct task_struct *child)
+#else
 static u32 usr_itrace_report_clone(enum utrace_resume_action action,
 		struct utrace_attached_engine *engine,
 		struct task_struct *parent, unsigned long clone_flags,
 		struct task_struct *child)
+#endif
 #endif
 {
 	return UTRACE_RESUME;
@@ -183,8 +215,13 @@ static u32 usr_itrace_report_clone(enum utrace_resume_action action,
 static u32 usr_itrace_report_death(struct utrace_attached_engine *e,
                                    struct task_struct *tsk)
 #else
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+static u32 usr_itrace_report_death(struct utrace_attached_engine *e,
+	bool group_dead, int signal)
+#else
 static u32 usr_itrace_report_death(struct utrace_attached_engine *e,
 	struct task_struct *tsk, bool group_dead, int signal)
+#endif
 #endif
 {
 	struct itrace_info *ui = rcu_dereference(e->data);
@@ -212,7 +249,12 @@ static struct itrace_info *create_itrace_info(
 	if (debug)
 		printk(KERN_INFO "create_itrace_info: tid=%d\n", tsk->pid);
 	/* initialize ui */
-	ui = kzalloc(sizeof(struct itrace_info), GFP_USER);
+	ui = _stp_kzalloc(sizeof(struct itrace_info));
+	if (ui == NULL) {
+		printk(KERN_ERR "%s:%d: Unable to allocate memory\n",
+		       __FUNCTION__, __LINE__);
+		return NULL;
+	}
 	ui->tsk = tsk;
 	ui->tid = tsk->pid;
 	ui->step_flag = step_flag;
@@ -322,7 +364,7 @@ void static remove_usr_itrace_info(struct itrace_info *ui)
 	spin_lock(&itrace_lock);
 	list_del(&ui->link);
 	spin_unlock(&itrace_lock);
-	kfree(ui);
+	_stp_kfree(ui);
 }
 
 void static cleanup_usr_itrace(void)

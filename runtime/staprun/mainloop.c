@@ -38,7 +38,7 @@ static void *signal_thread(void *arg)
     }
     dbug(2, "sigproc %d (%s)\n", signum, strsignal(signum));
     if (signum == SIGQUIT)
-      cleanup_and_exit(1);
+      cleanup_and_exit(1, 0);
     else if (signum == SIGINT || signum == SIGHUP || signum == SIGTERM) {
       // send STP_EXIT
       rc = write(control_channel, &btype, sizeof(btype));
@@ -60,12 +60,15 @@ static void chld_proc(int signum)
 }
 
 #if WORKAROUND_BZ467568
-/* Used for pause()-based synchronization. */
-static void signal_dontcare(int signum)
+/* When a SIGUSR1 signal arrives, set this variable. */
+volatile sig_atomic_t usr1_interrupt = 0;
+
+static void signal_usr1(int signum)
 {
   (void) signum;
+  usr1_interrupt = 1;
 }
-#endif
+#endif	/* WORKAROUND_BZ467568 */
 
 static void setup_main_signals(void)
 {
@@ -115,6 +118,10 @@ void start_cmd(void)
 {
   pid_t pid;
   struct sigaction a;
+#if WORKAROUND_BZ467568
+  struct sigaction usr1_action, old_action;
+  sigset_t blockmask, oldmask;
+#endif	/* WORKAROUND_BZ467568 */
 
   /* if we are execing a target cmd, ignore ^C in stapio */
   /* and let the target cmd get it. */
@@ -122,6 +129,21 @@ void start_cmd(void)
   a.sa_flags = 0;
   a.sa_handler = SIG_IGN;
   sigaction(SIGINT, &a, NULL);
+
+#if WORKAROUND_BZ467568
+  /* Set up the mask of signals to temporarily block. */
+  sigemptyset (&blockmask);
+  sigaddset (&blockmask, SIGUSR1);
+
+  /* Establish the SIGUSR1 signal handler. */
+  sigfillset (&usr1_action.sa_mask);
+  usr1_action.sa_flags = 0;
+  usr1_action.sa_handler = signal_usr1;
+  sigaction (SIGUSR1, &usr1_action, &old_action);
+
+  /* Block SIGUSR1 */
+  sigprocmask(SIG_BLOCK, &blockmask, &oldmask);
+#endif	/* WORKAROUND_BZ467568 */
 
   if ((pid = fork()) < 0) {
     _perr("fork");
@@ -175,22 +197,21 @@ void start_cmd(void)
     dbug(1, "blocking briefly\n");
 #if WORKAROUND_BZ467568
     {
-      /* We use SIGUSR1 here, since pause() only returns if a
-         handled signal was received. */
-      struct sigaction sa;
-      memset(&sa, 0, sizeof(sa));
-      sigfillset(&sa.sa_mask);
-      sa.sa_handler = signal_dontcare;
-      sigaction(SIGUSR1, &sa, NULL);
-      pause ();
-      sa.sa_handler = SIG_DFL;
-      sigaction(SIGUSR1, &sa, NULL);
+      /* Wait for the SIGUSR1 */
+      while (!usr1_interrupt)
+	  sigsuspend(&oldmask);
+
+      /* Restore the old SIGUSR1 signal handler. */
+      sigaction (SIGUSR1, &old_action, NULL);
+
+      /* Restore the original signal mask */
+      sigprocmask(SIG_SETMASK, &oldmask, NULL);
     }
-#else
+#else  /* !WORKAROUND_BZ467568 */
     rc = ptrace (PTRACE_TRACEME, 0, 0, 0);
     if (rc < 0) perror ("ptrace me");
     raise (SIGCONT); /* Harmless; just passes control to parent. */
-#endif
+#endif /* !WORKAROUND_BZ467568 */
 
     dbug(1, "execing target_cmd %s\n", target_cmd);
 
@@ -217,12 +238,16 @@ void start_cmd(void)
        us to release it. */
     target_pid = pid;
 #if WORKAROUND_BZ467568
-    /* Do nothing else here; see stp_main_loop's handling of a received STP_START. */
-#else
+    /* Restore the old SIGUSR1 signal handler. */
+    sigaction (SIGUSR1, &old_action, NULL);
+
+    /* Restore the original signal mask */
+    sigprocmask(SIG_SETMASK, &oldmask, NULL);
+#else  /* !WORKAROUND_BZ467568 */
     int status;
     waitpid (target_pid, &status, 0);
     dbug(1, "waited for target_cmd %s pid %d status %x\n", target_cmd, target_pid, (unsigned) status);
-#endif
+#endif /* !WORKAROUND_BZ467568 */
   }
 }
 
@@ -358,9 +383,13 @@ int init_stapio(void)
 
 /* cleanup_and_exit() closed channels, frees memory,
  * removes the module (if necessary) and exits. */
-void cleanup_and_exit(int detach)
+void cleanup_and_exit(int detach, int rc)
 {
   static int exiting = 0;
+  const char *staprun;
+  pid_t pid;
+  int rstatus;
+  struct sigaction sa;
 
   if (exiting)
     return;
@@ -390,69 +419,59 @@ void cleanup_and_exit(int detach)
 
   if (detach) {
     err("\nDisconnecting from systemtap module.\n" "To reconnect, type \"staprun -A %s\"\n", modname);
-  } else {
-    const char *staprun = getenv ("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun";
-#define BUG9788_WORKAROUND
-#ifndef BUG9788_WORKAROUND
-    dbug(2, "removing %s\n", modname);
-    if (execlp(staprun, basename (staprun), "-d", modpath, NULL) < 0) {
-      if (errno == ENOEXEC) {
-	char *cmd;
-	if (asprintf(&cmd, "%s -d '%s'", staprun, modpath) > 0)
-	  execl("/bin/sh", "sh", "-c", cmd, NULL);
-	free(cmd);
-      }
-      perror(staprun);
-      _exit(1);
-    }
-#else
-    pid_t pid;
-    int rstatus;
-    struct sigaction sa;
-
-    dbug(2, "removing %s\n", modname);
-
-    // So that waitpid() below will work correctly, we need to clear
-    // out our SIGCHLD handler.
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;
-    sa.sa_handler = SIG_DFL;
-    sigaction(SIGCHLD, &sa, NULL);
-
-    pid = fork();
-    if (pid < 0) {
-      _perr("fork");
-      _exit(-1);
-    }
-
-    if (pid == 0) {			/* child process */
-      /* Run the command. */
-      if (execlp(staprun, basename (staprun), "-d", modpath, NULL) < 0) {
-	if (errno == ENOEXEC) {
-	  char *cmd;
-	  if (asprintf(&cmd, "%s -d '%s'", staprun, modpath) > 0)
-	    execl("/bin/sh", "sh", "-c", cmd, NULL);
-	  free(cmd);
-	}
-	perror(staprun);
-	_exit(1);
-      }
-    }
-
-    /* parent process */
-    if (waitpid(pid, &rstatus, 0) < 0) {
-      _perr("waitpid");
-      _exit(-1);
-    }
-
-    if (WIFEXITED(rstatus)) {
-      _exit(WEXITSTATUS(rstatus));
-    }
-    _exit(-1);
-#endif
+    _exit(0);
   }
-  _exit(0);
+
+  /* At this point, we're committed to calling staprun -d MODULE to
+   * unload the thing and exit. */
+  /* Due to PR9788, we fork and exec the setuid staprun only in a child process. */
+
+  staprun = getenv ("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun";
+  dbug(2, "removing %s\n", modname);
+  
+  // So that waitpid() below will work correctly, we need to clear
+  // out our SIGCHLD handler.
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;
+  sa.sa_handler = SIG_DFL;
+  sigaction(SIGCHLD, &sa, NULL);
+  
+  pid = fork();
+  if (pid < 0) {
+          _perr("fork");
+          _exit(-1);
+  }
+  
+  if (pid == 0) {			/* child process */
+          /* Run the command. */
+          char *cmd;
+          int rc = asprintf(&cmd, "%s %s %s -d '%s'", staprun, 
+                            (verbose >= 1) ? "-v" : "",
+                            (verbose >= 2) ? "-v" : "",
+                            modname);
+          if (rc >= 1) {
+                  execl("/bin/sh", "sh", "-c", cmd, NULL);
+                  /* should not return */
+                  perror(staprun);
+                  _exit(-1);
+          } else {
+                  perror("asprintf");
+                  _exit(-1);
+          }
+  }
+  
+  /* parent process */
+  if (waitpid(pid, &rstatus, 0) < 0) {
+          _perr("waitpid");
+          _exit(-1);
+  }
+  
+  if (WIFEXITED(rstatus)) {
+          _exit(rc ?: WEXITSTATUS(rstatus));
+  }
+  _exit(-1);
 }
+
 
 /**
  *	stp_main_loop - loop forever reading data
@@ -465,8 +484,9 @@ int stp_main_loop(void)
   uint32_t type;
   FILE *ofp = stdout;
   char recvbuf[8196];
+  int error_detected = 0;
 
-  setvbuf(ofp, (char *)NULL, _IOLBF, 0);
+  setvbuf(ofp, (char *)NULL, _IONBF, 0);
   setup_main_signals();
   dbug(2, "in main loop\n");
 
@@ -492,18 +512,21 @@ int stp_main_loop(void)
     case STP_REALTIME_DATA:
       if (write_realtime_data(data, nb)) {
         _perr("write error (nb=%ld)", (long)nb);
-        cleanup_and_exit(0);
+        cleanup_and_exit(0, 1);
       }
       break;
 #endif
     case STP_OOB_DATA:
       eprintf("%s", (char *)data);
+      if (strncmp(data, "ERROR:", 5) == 0){
+        error_detected = 1;
+      }
       break;
     case STP_EXIT:
       {
         /* module asks us to unload it and exit */
         dbug(2, "got STP_EXIT\n");
-        cleanup_and_exit(0);
+        cleanup_and_exit(0, error_detected);
         break;
       }
     case STP_REQUEST_EXIT:
@@ -521,7 +544,7 @@ int stp_main_loop(void)
         if (t->res < 0) {
           if (target_cmd)
             kill(target_pid, SIGKILL);
-          cleanup_and_exit(0);
+          cleanup_and_exit(0, 1);
         } else if (target_cmd) {
           dbug(1, "detaching pid %d\n", target_pid);
 #if WORKAROUND_BZ467568
@@ -536,7 +559,7 @@ int stp_main_loop(void)
               perror ("ptrace detach");
               if (target_cmd)
                 kill(target_pid, SIGKILL);
-              cleanup_and_exit(0);
+              cleanup_and_exit(0, 1);
             }
 #endif
         }
@@ -554,15 +577,15 @@ int stp_main_loop(void)
         struct _stp_msg_start ts;
         if (use_old_transport) {
           if (init_oldrelayfs() < 0)
-            cleanup_and_exit(0);
+            cleanup_and_exit(0, 1);
         } else {
           if (init_relayfs() < 0)
-            cleanup_and_exit(0);
+            cleanup_and_exit(0, 1);
         }
         ts.target = target_pid;
         send_request(STP_START, &ts, sizeof(ts));
         if (load_only)
-          cleanup_and_exit(1);
+          cleanup_and_exit(1, 0);
         break;
       }
     default:

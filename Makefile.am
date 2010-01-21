@@ -23,7 +23,9 @@ man/stapprobes.tcp.3stap man/stapprobes.udp.3stap
 # see also configure.ac
 
 bin_PROGRAMS = staprun
-bin_SCRIPTS = stap-report stap-env stap-gen-cert stap-authorize-cert stap-authorize-signing-cert
+bin_SCRIPTS = stap-report
+pkglibexec_PROGRAMS = stapio
+pkglibexec_SCRIPTS = stap-env
 oldinclude_HEADERS = includes/sys/sdt.h
 
 if BUILD_TRANSLATOR
@@ -31,12 +33,19 @@ bin_PROGRAMS += stap
 man_MANS += stap.1
 bin_SCRIPTS += dtrace
 
+if HAVE_NSS
+man_MANS += stap-authorize-signing-cert.8
+bin_SCRIPTS += stap-authorize-signing-cert
+pkglibexec_PROGRAMS += stap-sign-module
+pkglibexec_SCRIPTS += stap-gen-cert stap-authorize-cert 
+
 if BUILD_SERVER
-man_MANS += stap-server.8 
-bin_PROGRAMS += stap-client-connect stap-server-connect stap-sign-module
-bin_SCRIPTS += stap-client stap-serverd stap-server stap-find-servers \
-	       stap-start-server stap-find-or-start-server stap-stop-server \
-	       stap-authorize-server-cert
+man_MANS += stap-client.8 stap-server.8 stap-authorize-server-cert.8
+pkglibexec_PROGRAMS += stap-client-connect stap-server-connect
+bin_SCRIPTS += stap-client stap-server stap-authorize-server-cert
+pkglibexec_SCRIPTS += stap-serverd stap-find-servers \
+	       stap-start-server stap-find-or-start-server stap-stop-server
+endif
 endif
 
 stap_SOURCES = main.cxx \
@@ -45,7 +54,8 @@ stap_SOURCES = main.cxx \
 	cache.cxx util.cxx coveragedb.cxx dwarf_wrappers.cxx \
 	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
-	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx
+	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
+	setupdwfl.cxx
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @rpm_LIBS@
 stap_DEPENDENCIES =
 endif
@@ -91,7 +101,7 @@ cscope:
 
 PHONIES =
 if BUILD_TRANSLATOR
-stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@
+stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ -D_FILE_OFFSET_BITS=64
 stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@
 stap_CPPFLAGS = $(AM_CPPFLAGS)
 stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
@@ -100,6 +110,20 @@ if HAVE_NSS
 stap_client_connect_LDFLAGS = $(AM_LDFLAGS)
 stap_server_connect_LDFLAGS = $(AM_LDFLAGS)
 stap_sign_module_LDFLAGS = $(AM_LDFLAGS)
+
+if BUILD_SERVER
+install-exec-local: install-scripts
+
+PHONIES += install-scripts
+# scripts must be installed before this rule is run
+install-scripts: install-binSCRIPTS install-pkglibexecSCRIPTS
+	for f in $(bin_SCRIPTS); do \
+	   sed -i -e "s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(bindir)/$$f; \
+	done
+	for f in $(pkglibexec_SCRIPTS); do \
+	   sed -i -e "/INSTALL-HOOK/d;s,exec_prefix=.*,exec_prefix=$(exec_prefix)/bin/,;s,sysconfdir=.*,sysconfdir=$(sysconfdir),;s,pkglibexecdir=.*,pkglibexecdir=$(pkglibexecdir)/,;s,localstatedir=.*,localstatedir=$(localstatedir),;s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(pkglibexecdir)/$$f; \
+	done
+endif
 endif
 
 if BUILD_ELFUTILS
@@ -128,25 +152,15 @@ install-elfutils:
 install-exec-local: install-elfutils
 endif
 
-if BUILD_SERVER
-install-exec-local: install-scripts
-
-PHONIES += install-scripts
-# scripts should be installed before this rule is run
-install-scripts: install-binSCRIPTS
-	for f in $(bin_SCRIPTS); do \
-	   sed -i -e "/INSTALL-HOOK/d;s,exec_prefix=.*,exec_prefix=$(exec_prefix)/bin/,;s,sysconfdir=.*,sysconfdir=$(sysconfdir)," $(DESTDIR)$(bindir)/$$f; \
-	done
-endif
 endif
 
 staprun_SOURCES = runtime/staprun/staprun.c runtime/staprun/staprun_funcs.c\
 	runtime/staprun/ctl.c runtime/staprun/common.c
 
 staprun_CPPFLAGS = $(AM_CPPFLAGS)
-staprun_CFLAGS = @PROCFLAGS@ $(AM_CFLAGS) @PIECFLAGS@ -DSINGLE_THREADED -fno-strict-aliasing -fno-builtin-strftime
+staprun_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ -DSINGLE_THREADED -fno-strict-aliasing -fno-builtin-strftime -D_FILE_OFFSET_BITS=64
 staprun_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
-staprun_LDADD = @PROCFLAGS@
+staprun_LDADD =
 
 if HAVE_NSS
 staprun_SOURCES += runtime/staprun/modverify.c nsscommon.c
@@ -158,9 +172,9 @@ stapio_SOURCES = runtime/staprun/stapio.c \
 	runtime/staprun/mainloop.c runtime/staprun/common.c \
 	runtime/staprun/ctl.c \
 	runtime/staprun/relay.c runtime/staprun/relay_old.c
-stapio_CFLAGS = @PROCFLAGS@ $(AM_CFLAGS) @PIECFLAGS@ -fno-strict-aliasing -fno-builtin-strftime
+stapio_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ -fno-strict-aliasing -fno-builtin-strftime
 stapio_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
-stapio_LDADD = @PROCFLAGS@ -lpthread
+stapio_LDADD = -lpthread
 
 
 install-exec-hook:
@@ -170,23 +184,23 @@ install-exec-hook:
 # make install, and have "sudo stap ...." or "sudo staprun ...." work later.
 
 
-pkglibexec_PROGRAMS = stapio
-CLEANFILES +=  $(pkglibexec_PROGRAMS)
+CLEANFILES +=  $(pkglibexec_PROGRAMS) $(pkglibexec_SCRIPTS)
 
 if BUILD_TRANSLATOR
+if HAVE_NSS
+stap_sign_module_SOURCES = modsign.cxx nsscommon.c
+stap_sign_module_CPPFLAGS = -Wall -Werror $(AM_CPPFLAGS) $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_sign_module_LDADD = -lnss3 -lnspr4
+
 if BUILD_SERVER
-stap_client_connect_SOURCES = stap-client-connect.c
+stap_client_connect_SOURCES = stap-client-connect.c nsscommon.c
 stap_client_connect_CFLAGS = -Wall -Werror $(nss_CFLAGS) $(nspr_CFLAGS)
 stap_client_connect_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4
 
-stap_server_connect_SOURCES = stap-server-connect.c
+stap_server_connect_SOURCES = stap-server-connect.c nsscommon.c
 stap_server_connect_CFLAGS = -Wall -Werror $(nss_CFLAGS) $(nspr_CFLAGS)
 stap_server_connect_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4
-
-stap_sign_module_SOURCES = modsign.cxx nsscommon.c
-stap_sign_module_CPPFLAGS = -Wall -Werror $(AM_CPPFLAGS) $(nss_CFLAGS) $(nspr_CFLAGS)
-
-stap_sign_module_LDADD = -lnss3 -lnspr4
+endif
 endif
 
 noinst_PROGRAMS = loc2c-test
@@ -245,6 +259,10 @@ install-data-local:
 			i_cmd="$(INSTALL_DATA)"; fi; \
 			$$i_cmd -D $$f $(DESTDIR)$(docdir)/examples/$$f; done)
 	test -e $(DESTDIR)$(sysconfdir)/systemtap || mkdir -p $(DESTDIR)$(sysconfdir)/systemtap
+if BUILD_SERVER
+	test -e $(DESTDIR)$(localstatedir)/run/stap-server || mkdir -p $(DESTDIR)$(localstatedir)/run/stap-server
+	test -e $(DESTDIR)$(localstatedir)/log || mkdir -p $(DESTDIR)$(localstatedir)/log
+endif
 
 TEST_COV_DIR = coverage
 
@@ -288,6 +306,10 @@ uninstall-local:
 	done
 	rm -rf $(DESTDIR)$(sysconfdir)/systemtap
 	rm -rf $(DESTDIR)$(docdir)/examples
+if BUILD_SERVER
+	rm -rf $(DESTDIR)$(localstatedir)/run/stap-server
+	rm -f $(DESTDIR)$(localstatedir)/log/stap-server.log
+endif
 
 SUBDIRS = doc grapher
 DIST_SUBDIRS = testsuite $(SUBDIRS)
@@ -295,7 +317,7 @@ DIST_SUBDIRS = testsuite $(SUBDIRS)
 check-local:
 	SRCDIR=`cd $(srcdir); pwd`; \
         PWD=`pwd`; \
-	$(MAKE) -C testsuite check SYSTEMTAP_RUNTIME=$$SRCDIR/runtime SYSTEMTAP_TAPSET=$$SRCDIR/tapset LD_LIBRARY_PATH=$$PWD/lib-elfutils:$$PWD/lib-elfutils/systemtap SYSTEMTAP_PATH=$$PWD SYSTEMTAP_INCLUDES=$$PWD/includes RUNTESTFLAGS="$(RUNTESTFLAGS)";
+	$(MAKE) -C testsuite check SYSTEMTAP_RUNTIME=$$SRCDIR/runtime SYSTEMTAP_TAPSET=$$SRCDIR/tapset LD_LIBRARY_PATH=$$PWD/lib-elfutils:$$PWD/lib-elfutils/systemtap SYSTEMTAP_PATH=$$PWD SYSTEMTAP_INCLUDES=$$PWD/includes RUNTESTFLAGS="$(RUNTESTFLAGS)" PKGLIBDIR="$(pkglibexecdir)";
 
 installcheck:
 	if test \! -e $(DESTDIR)$(bindir)/stap; then \

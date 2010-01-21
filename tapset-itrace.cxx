@@ -75,6 +75,8 @@ itrace_derived_probe::itrace_derived_probe (systemtap_session &s,
 					    ):
   derived_probe(p, l), has_path(hp), path(pn), pid(pd), single_step(ss)
 {
+  if (s.kernel_config["CONFIG_UTRACE"] != string("y"))
+    throw semantic_error ("process probes not available without kernel CONFIG_UTRACE");
 }
 
 
@@ -300,16 +302,12 @@ register_tapset_itrace(systemtap_session& s)
   derived_probe_builder *builder = new itrace_builder();
 
   root->bind_str(TOK_PROCESS)->bind(TOK_INSN)
-    ->allow_unprivileged()
     ->bind(builder);
   root->bind_num(TOK_PROCESS)->bind(TOK_INSN)
-    ->allow_unprivileged()
     ->bind(builder);
   root->bind_str(TOK_PROCESS)->bind(TOK_INSN)->bind(TOK_BLOCK)
-    ->allow_unprivileged()
     ->bind(builder);
   root->bind_num(TOK_PROCESS)->bind(TOK_INSN)->bind(TOK_BLOCK)
-    ->allow_unprivileged()
     ->bind(builder);
 }
 

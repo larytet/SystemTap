@@ -215,41 +215,36 @@ If the size of output file will exceed
 output files exceed
 .B N
 , systemtap removes the oldest output file. You can omit the second argument.
-.TP
-.B \-\-kelf
-For names and addresses of functions to probe,
-consult the symbol tables in the kernel and modules.
-This can be useful if your kernel and/or modules were compiled
-without debugging information, or the function you want to probe
-is in an assembly-language file built without debugging information.
-See the
-.B "MAKING DO WITH SYMBOL TABLES"
-section for more information.
-.TP
-.BI \-\-kmap [=FILE]
-For names and addresses of kernel functions to probe,
-consult the symbol table in the indicated text file.
-The default is /boot/System.map-VERSION.
-The contents of this file should be in the form of the default output from
-.IR nm (1).
-Only symbols of type T or t are used.
-If you specify /proc/kallsyms or some other file in that format,
-where lines for module symbols contain a fourth column,
-reading of the symbol table stops with the first module symbol
-(which should be right after the last kernel symbol).
-As with
-.BR \-\-kelf ,
-the symbol table in each module's .ko file will also be consulted.
-See the
-.B "MAKING DO WITH SYMBOL TABLES"
-section for more information.
-.TP
-.B \-\-ignore\-vmlinux
-For testing, act as though neither the uncompressed kernel (vmlinux)
-nor the kernel debugging information can be found.
-.TP
-.B \-\-ignore\-dwarf
-For testing, act as though vmlinux and modules lack debugging information.
+.\" PR6864: disable temporarily 
+.\".TP
+.\".B \-\-kelf
+.\"For names and addresses of functions to probe,
+.\"consult the symbol tables in the kernel and modules.
+.\"This can be useful if your kernel and/or modules were compiled
+.\"without debugging information, or the function you want to probe
+.\"is in an assembly-language file built without debugging information.
+.\"See the
+.\".B "MAKING DO WITH SYMBOL TABLES"
+.\"section for more information.
+.\".TP
+.\".BI \-\-kmap [=FILE] 
+.\"For names and addresses of kernel functions to probe,
+.\"consult the symbol table in the indicated text file.
+.\"The default is /boot/System.map-VERSION.
+.\"The contents of this file should be in the form of the default output from
+.\".IR nm (1).
+.\"Only symbols of type T or t are used.
+.\"If you specify /proc/kallsyms or some other file in that format,
+.\"where lines for module symbols contain a fourth column,
+.\"reading of the symbol table stops with the first module symbol
+.\"(which should be right after the last kernel symbol).
+.\"As with
+.\".BR \-\-kelf ,
+.\"the symbol table in each module's .ko file will also be consulted.
+.\"See the
+.\".B "MAKING DO WITH SYMBOL TABLES"
+.\"section for more information.
+.\" --ignore-{vmlinux,dwarf} shouldn't be visible 
 .TP
 .B \-\-skip\-badvars
 Ignore out of context variables and substitute with literal 0.
@@ -340,11 +335,20 @@ by
 If, on the other hand, the first part is the identifier
 .BR arch
 to refer to the processor architecture (as named by the kernel
-build system ARCH/SUBARCH), then the second part then the second
+build system ARCH/SUBARCH), then the second  
 part is one of the two string comparison operators
 .BR == " or " != ,
 and the third part is a string literal for matching it.  This
 comparison is a wildcard (mis)match.
+.PP
+Similarly, if the first part is an identifier like
+.BR CONFIG_something
+to refer to a kernel configuration option, then the second part is
+.BR == " or " != ,
+and the third part is a string literal for matching the value
+(commonly "y" or "m").  Nonexistent or unset kernel configuration
+options are represented by the empty string.  This comparison is also
+a wildcard (mis)match.
 .PP
 Otherwise, the CONDITION is expected to be a comparison between two string
 literals or two numeric literals.  In this case, the arguments are the only
@@ -352,7 +356,7 @@ variables usable.
 .PP
 The TRUE-TOKENS and FALSE-TOKENS are zero or more general parser
 tokens (possibly including nested preprocessor conditionals), and are
-pasted into the input stream if the condition is true or false.  For
+passed into the input stream if the condition is true or false.  For
 example, the following code induces a parse error unless the target
 kernel version is newer than 2.6.5:
 .SAMPLE
@@ -382,7 +386,7 @@ invocation.
 .PP
 Scalar variables are implicitly typed as either string or integer.
 Associative arrays also have a string or integer value, and a
-a tuple of strings and/or integers serving as a key.  Here are a
+tuple of strings and/or integers serving as a key.  Here are a
 few basic expressions.
 .SAMPLE
 var1 = 5
@@ -1023,11 +1027,21 @@ group; or
 .IP \(bu 4
 a member of the
 .I stapusr
-group.  Members of the
+group.
+.PP
+Members of the
 .I stapusr
-group can only use modules located in
+group can only use modules under the following conditions:
+.IP \(bu 4
+The module is located in
 the /lib/modules/VERSION/systemtap directory.  This directory
 must be owned by root and not be world writable.
+.IP \(bu 4
+The module has been signed by a trusted signer. Trusted signers are normally
+systemtap compile servers which sign modules when the --unprivileged option is
+specified by the client. See the
+.IR stap-server (8)
+manual page for a for more information.
 .PP
 The kernel modules generated by
 .I stap
@@ -1103,6 +1117,13 @@ Maximum number of concurrently armed user-space probes (uprobes), default
 somewhat larger than the number of user-space probe points named in the script.
 This pool needs to be potentialy large because individual uprobe objects (about
 64 bytes each) are allocated for each process for each matching script-level probe.
+.TP
+STP_MAXMEMORY
+Maximum amount of memory (in kilobytes) that the systemtap module
+should use, default unlimited.  The memory size includes the size of
+the module itself, plus any additional allocations.  This only tracks
+direct allocations by the systemtap runtime.  This does not track
+indirect allocations (as done by kprobes/uprobes/etc. internals). 
 
 .PP
 With scripts that contain probes on any interrupt path, it is possible that
@@ -1149,48 +1170,49 @@ have overloaded the system and an exit is triggered.
 By default, overload processing is turned on for all modules.  If you
 would like to disable overload processing, define STP_NO_OVERLOAD.
 
-.SH MAKING DO WITH SYMBOL TABLES
-Systemtap performs best when it has access to the debugging information
-associated with your kernel and modules.
-However, if this information is not available,
-systemtap can still support probing of function entries and returns
-using symbols read from vmlinux and/or the modules in /lib/modules.
-Systemtap can also read the kernel symbol table from a text file
-such as /boot/System.map or /proc/kallsyms.
-See the
-.B \-\-kelf
-and
-.B \-\-kmap
-options.
-.PP
-If systemtap finds relevant debugging information,
-it will use it even if you specify
-.B \-\-kelf
-or
-.BR \-\-kmap .
-.PP
-Without debugging information, systemtap cannot support the
-following types of language constructs:
-.IP \(bu 4
-probe specifications that refer to source files or line numbers
-.IP \(bu 4
-probe specifications that refer to inline functions
-.IP \(bu 4
-statements that refer to $target variables
-.IP \(bu 4
-statements that refer to @cast() variables
-.IP \(bu 4
-tapset-defined variables defined using any of the above constructs.
-In particular, at this writing,
-the prologue blocks for certain aliases in the syscall tapset
-(e.g., syscall.open) contain "if" statements that refer to $target variables.
-If your script refers to any such aliases,
-systemtap must have access to the kernel's debugging information.
-.PP
-Most T and t symbols correspond to function entry points, but some do not.
-Based only on the symbol table, systemtap cannot tell the difference.
-Placing return probes on symbols that aren't entry points
-will most likely lead to kernel stack corruption.
+.\" PR6864: disable temporarily 
+.\".SH MAKING DO WITH SYMBOL TABLES
+.\"Systemtap performs best when it has access to the debugging information
+.\"associated with your kernel and modules.
+.\"However, if this information is not available,
+.\"systemtap can still support probing of function entries and returns
+.\"using symbols read from vmlinux and/or the modules in /lib/modules.
+.\"Systemtap can also read the kernel symbol table from a text file
+.\"such as /boot/System.map or /proc/kallsyms.
+.\"See the
+.\".B \-\-kelf
+.\"and
+.\".B \-\-kmap
+.\"options.
+.\".PP
+.\"If systemtap finds relevant debugging information,
+.\"it will use it even if you specify
+.\".B \-\-kelf
+.\"or
+.\".BR \-\-kmap .
+.\".PP
+.\"Without debugging information, systemtap cannot support the
+.\"following types of language constructs:
+.\".IP \(bu 4
+.\"probe specifications that refer to source files or line numbers
+.\".IP \(bu 4
+.\"probe specifications that refer to inline functions
+.\".IP \(bu 4
+.\"statements that refer to $target variables
+.\".IP \(bu 4
+.\"statements that refer to @cast() variables
+.\".IP \(bu 4
+.\"tapset-defined variables defined using any of the above constructs.
+.\"In particular, at this writing,
+.\"the prologue blocks for certain aliases in the syscall tapset
+.\"(e.g., syscall.open) contain "if" statements that refer to $target variables.
+.\"If your script refers to any such aliases,
+.\"systemtap must have access to the kernel's debugging information.
+.\".PP
+.\"Most T and t symbols correspond to function entry points, but some do not.
+.\"Based only on the symbol table, systemtap cannot tell the difference.
+.\"Placing return probes on symbols that aren't entry points
+.\"will most likely lead to kernel stack corruption.
 
 .SH FILES
 .\" consider autoconf-substituting these directories
@@ -1238,11 +1260,13 @@ unloading.
 .IR stapfuncs (3stap),
 .IR stapvars (3stap),
 .IR stapex (3stap),
+.IR stap-client (8),
+.IR stap-server (8),
 .IR awk (1),
 .IR gdb (1)
 
 .SH BUGS
-Use the Bugzilla link off of the project web page or our mailing list.
+Use the Bugzilla link of the project web page or our mailing list.
 .nh
 .BR http://sources.redhat.com/systemtap/ , <systemtap@sources.redhat.com> .
 .hy

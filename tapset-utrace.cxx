@@ -1,5 +1,5 @@
 // utrace tapset
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -52,14 +52,19 @@ struct utrace_derived_probe: public derived_probe
 {
   bool has_path;
   string path;
+  bool has_library;
+  string library;
   int64_t pid;
   enum utrace_derived_probe_flags flags;
   bool target_symbol_seen;
 
   utrace_derived_probe (systemtap_session &s, probe* p, probe_point* l,
-                        bool hp, string &pn, int64_t pd,
+			bool hp, string &pn, int64_t pd,
 			enum utrace_derived_probe_flags f);
   void join_group (systemtap_session& s);
+
+  void emit_unprivileged_assertion (translator_output*);
+  void print_dupe_stamp(ostream& o);
 };
 
 
@@ -112,12 +117,15 @@ struct utrace_var_expanding_visitor: public var_expanding_visitor
 
 utrace_derived_probe::utrace_derived_probe (systemtap_session &s,
                                             probe* p, probe_point* l,
-                                            bool hp, string &pn, int64_t pd,
+					    bool hp, string &pn, int64_t pd,
 					    enum utrace_derived_probe_flags f):
   derived_probe (p, new probe_point (*l) /* .components soon rewritten */ ),
   has_path(hp), path(pn), pid(pd), flags(f),
   target_symbol_seen(false)
 {
+  if (s.kernel_config["CONFIG_UTRACE"] != string("y"))
+    throw semantic_error ("process probes not available without kernel CONFIG_UTRACE");
+
   // Expand local variables in the probe body
   utrace_var_expanding_visitor v (s, l, name, flags);
   v.replace (this->body);
@@ -191,6 +199,35 @@ utrace_derived_probe::join_group (systemtap_session& s)
   s.utrace_derived_probes->enroll (this);
 
   enable_task_finder(s);
+}
+
+
+void
+utrace_derived_probe::emit_unprivileged_assertion (translator_output* o)
+{
+  // Process end probes are allowed for unprivileged users, even if the process
+  // does not belong to them. They are required to check is_myproc() from within
+  // their probe script before doing anything "dangerous".
+  if (flags == UDPF_END)
+    return;
+
+  // Other process probes are allowed for unprivileged users, but only in the
+  // context of processes which they own.
+  emit_process_owner_assertion (o);
+}
+
+void
+utrace_derived_probe::print_dupe_stamp(ostream& o)
+{
+  // Process end probes are allowed for unprivileged users, even if the process
+  // does not belong to them. They are required to check is_myproc() from within
+  // their probe script before doing anything "dangerous".
+  // Other process probes are allowed for unprivileged users, but only in the
+  // context of processes which they own.
+  if (flags == UDPF_END)
+    print_dupe_stamp_unprivileged (o);
+  else
+    print_dupe_stamp_unprivileged_process_owner (o);
 }
 
 
@@ -344,7 +381,6 @@ utrace_var_expanding_visitor::visit_target_symbol_cached (target_symbol* e)
 	        else
 		  pp->components.push_back(base_loc->components[c]);
 	     }
-	   pp->tok = e->tok;
 	   pp->optional = base_loc->optional;
 	   add_probe->locations.push_back(pp);
 
@@ -413,15 +449,9 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
   if (e->base_name == "$$parms") 
     {
       // copy from tracepoint
-      print_format* pf = new print_format;
       token* pf_tok = new token(*e->tok);
       pf_tok->content = "sprintf";
-      pf->tok = pf_tok;
-      pf->print_to_stream = false;
-      pf->print_with_format = true;
-      pf->print_with_delim = false;
-      pf->print_with_newline = false;
-      pf->print_char = false;
+      print_format* pf = print_format::create(pf_tok);
 
       target_symbol_seen = true;
 
@@ -615,15 +645,19 @@ struct utrace_builder: public derived_probe_builder
 	// We can't probe 'init' (pid 1).  XXX: where does this limitation come from?
 	if (pid < 2)
 	  throw semantic_error ("process pid must be greater than 1",
-				location->tok);
+				location->components.front()->tok);
 
         // XXX: could we use /proc/$pid/exe in unwindsym_modules and elsewhere?
       }
 
     finished_results.push_back(new utrace_derived_probe(sess, base, location,
-                                                        has_path, path, pid,
+							has_path, path, pid,
 							flags));
   }
+
+  // No action required. These probes are allowed for unprivileged users.
+  virtual void check_unprivileged (const systemtap_session & sess,
+				   const literal_map_t & parameters) {}
 };
 
 
@@ -716,15 +750,6 @@ utrace_derived_probe_group::emit_probe_decl (systemtap_session& s,
       break;
     }
   s.op->line() << " .engine_attached=0,";
-
-  map<derived_probe*, Dwarf_Addr>::iterator its = s.sdt_semaphore_addr.find(p);
-  if (its == s.sdt_semaphore_addr.end())
-    s.op->line() << " .sdt_sem_address=(unsigned long)0x0,";
-  else
-    s.op->line() << " .sdt_sem_address=(unsigned long)0x"
-                 << hex << its->second << dec << "ULL,";
-
-  s.op->line() << " .tsk=0,";
   s.op->line() << " },";
 }
 
@@ -755,12 +780,10 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "struct stap_task_finder_target tgt;";
   s.op->newline() << "const char *pp;";
   s.op->newline() << "void (*ph) (struct context*);";
+  s.op->newline() << "int engine_attached;";
   s.op->newline() << "enum utrace_derived_probe_flags flags;";
   s.op->newline() << "struct utrace_engine_ops ops;";
   s.op->newline() << "unsigned long events;";
-  s.op->newline() << "int engine_attached;";
-  s.op->newline() << "struct task_struct *tsk;";
-  s.op->newline() << "unsigned long sdt_sem_address;";
   s.op->newline(-1) << "};";
 
 
@@ -788,7 +811,11 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "#ifdef UTRACE_ORIG_VERSION";
       s.op->newline() << "static u32 stap_utrace_probe_syscall(struct utrace_attached_engine *engine, struct task_struct *tsk, struct pt_regs *regs) {";
       s.op->newline() << "#else";
+      s.op->newline() << "#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)";
+      s.op->newline() << "static u32 stap_utrace_probe_syscall(u32 action, struct utrace_attached_engine *engine, struct pt_regs *regs) {";
+      s.op->newline() << "#else";
       s.op->newline() << "static u32 stap_utrace_probe_syscall(enum utrace_resume_action action, struct utrace_attached_engine *engine, struct task_struct *tsk, struct pt_regs *regs) {";
+      s.op->newline() << "#endif";
       s.op->newline() << "#endif";
 
       s.op->indent(1);
@@ -883,16 +910,6 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "break;";
   s.op->indent(-1);
   s.op->newline(-1) << "}";
-
-  s.op->newline() << "if (p->sdt_sem_address != 0) {";
-  s.op->newline(1) << "size_t sdt_semaphore;";
-  // XXX p could get registered to more than one task!
-  s.op->newline() << "p->tsk = tsk;";
-  s.op->newline() << "__access_process_vm (tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 0);";
-  s.op->newline() << "sdt_semaphore += 1;";
-  s.op->newline() << "__access_process_vm (tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 1);";
-  s.op->newline(-1) << "}";
-
   s.op->newline(-1) << "}";
 
   // Since this engine could be attached to multiple threads, don't
@@ -1026,16 +1043,7 @@ utrace_derived_probe_group::emit_module_exit (systemtap_session& s)
   s.op->newline() << "if (p->engine_attached) {";
   s.op->newline(1) << "stap_utrace_detach_ops(&p->ops);";
 
-  s.op->newline() << "if (p->sdt_sem_address) {";
-  s.op->newline(1) << "size_t sdt_semaphore;";
-  // XXX p could get registered to more than one task!
-  s.op->newline() << "__access_process_vm (p->tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 0);";
-  s.op->newline() << "sdt_semaphore -= 1;";
-  s.op->newline() << "__access_process_vm (p->tsk, p->sdt_sem_address, &sdt_semaphore, sizeof (sdt_semaphore), 1);";
   s.op->newline(-1) << "}";
-
-  s.op->newline(-1) << "}";
-
   s.op->newline(-1) << "}";
 }
 
@@ -1054,22 +1062,16 @@ register_tapset_utrace(systemtap_session& s)
   for (unsigned i = 0; i < roots.size(); ++i)
     {
       roots[i]->bind(TOK_BEGIN)
-	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_END)
-	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_BEGIN)
-	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_END)
-	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)
-	->allow_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)->bind(TOK_RETURN)
-	->allow_unprivileged()
 	->bind(builder);
     }
 }

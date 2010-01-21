@@ -22,6 +22,7 @@
 #include "auto_free.h"
 #include "hash.h"
 #include "rpm_finder.h"
+#include "setupdwfl.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -69,7 +70,7 @@ static string TOK_KERNEL("kernel");
 
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
-  module_start(0), module_end(0), cu(NULL), dwfl(NULL),
+  module_start(0), module_end(0), cu(NULL),
   module_dwarf(NULL), function(NULL), blacklist_enabled(false)
 {
   if (kernel_p)
@@ -82,15 +83,17 @@ dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
     }
 }
 
-
-dwflpp::dwflpp(systemtap_session & session, const vector<string>& names):
+dwflpp::dwflpp(systemtap_session & session, const vector<string>& names,
+	       bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
-  module_start(0), module_end(0), cu(NULL), dwfl(NULL),
+  module_start(0), module_end(0), cu(NULL),
   module_dwarf(NULL), function(NULL), blacklist_enabled(false)
 {
-  setup_user(names);
+  if (kernel_p)
+    setup_kernel(names);
+  else
+    setup_user(names);
 }
-
 
 dwflpp::~dwflpp()
 {
@@ -100,8 +103,7 @@ dwflpp::~dwflpp()
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
 
-  if (dwfl)
-    dwfl_end(dwfl);
+  dwfl_ptr.reset();
 }
 
 
@@ -205,7 +207,7 @@ Dwarf_Die *
 dwflpp::query_cu_containing_address(Dwarf_Addr a)
 {
   Dwarf_Addr bias;
-  assert(dwfl);
+  assert(dwfl_ptr.get()->dwfl);
   assert(module);
   get_module_dwarf();
 
@@ -293,99 +295,16 @@ dwflpp::function_scope_matches(const vector<string> scopes)
 }
 
 
-static const char *offline_search_modname = NULL;
-static int offline_search_match_p = 0;
-
-static int dwfl_report_offline_predicate (const char* modname, const char* filename)
-{
-  if (pending_interrupts)
-    return -1;
-
-  assert (offline_search_modname);
-
-  // elfutils sends us NULL filenames sometimes if it can't find dwarf
-  if (filename == NULL)
-    return 0;
-
-  if (dwflpp::name_has_wildcard (offline_search_modname)) {
-    int match_p = !fnmatch(offline_search_modname, modname, 0);
-    // In the wildcard case, we don't short-circuit (return -1) upon
-    // offline_search_match_p, analogously to dwflpp::module_name_final_match().
-
-    if (match_p)
-      offline_search_match_p ++;
-
-    return match_p;
-  } else { /* non-wildcard mode */
-    if (offline_search_match_p)
-      return -1;
-
-    /* Reject mismatching module names */
-    if (strcmp(modname, offline_search_modname))
-      return 0;
-    else
-      {
-        offline_search_match_p ++;
-        return 1;
-      }
-  }
-}
-
-
 void
 dwflpp::setup_kernel(const string& name, bool debuginfo_needed)
 {
-  // XXX: See also translate.cxx:emit_symbol_data
-
   if (! sess.module_cache)
     sess.module_cache = new module_cache ();
 
-  static const char *debuginfo_path_arr = "+:.debug:/usr/lib/debug:build";
-  static const char *debuginfo_env_arr = getenv("SYSTEMTAP_DEBUGINFO_PATH");
-  static const char *debuginfo_path = (debuginfo_env_arr ?: debuginfo_path_arr );
+  unsigned offline_search_matches = 0;
+  dwfl_ptr = setup_dwfl_kernel(name, &offline_search_matches, sess);
 
-  static const Dwfl_Callbacks kernel_callbacks =
-    {
-      dwfl_linux_kernel_find_elf,
-      dwfl_standard_find_debuginfo,
-      dwfl_offline_section_address,
-      (char **) & debuginfo_path
-    };
-
-  dwfl = dwfl_begin (&kernel_callbacks);
-  if (!dwfl)
-    throw semantic_error ("cannot open dwfl");
-  dwfl_report_begin (dwfl);
-
-  // We have a problem with -r REVISION vs -r BUILDDIR here.  If
-  // we're running against a fedora/rhel style kernel-debuginfo
-  // tree, s.kernel_build_tree is not the place where the unstripped
-  // vmlinux will be installed.  Rather, it's over yonder at
-  // /usr/lib/debug/lib/modules/$REVISION/.  It seems that there is
-  // no way to set the dwfl_callback.debuginfo_path and always
-  // passs the plain kernel_release here.  So instead we have to
-  // hard-code this magic here.
-  string elfutils_kernel_path;
-  if (sess.kernel_build_tree == string("/lib/modules/" + sess.kernel_release + "/build"))
-    elfutils_kernel_path = sess.kernel_release;
-  else
-    elfutils_kernel_path = sess.kernel_build_tree;
-
-  offline_search_modname = name.c_str();
-  offline_search_match_p = 0;
-  int rc = dwfl_linux_kernel_report_offline (dwfl,
-                                             elfutils_kernel_path.c_str(),
-                                             &dwfl_report_offline_predicate);
-  offline_search_modname = NULL;
-
-  (void) rc; /* Ignore since the predicate probably returned -1 at some point,
-                And libdwfl interprets that as "whole query failed" rather than
-                "found it already, stop looking". */
-
-  /* But we still need to check whether the module was itself found.  One could
-     do an iterate_modules() search over the resulting dwfl and count hits.  Or
-     one could rely on the match_p flag being set just before. */
-  if (! offline_search_match_p)
+  if (offline_search_matches < 1)
     {
       if (debuginfo_needed) {
         // Suggest a likely kernel dir to find debuginfo rpm for
@@ -397,12 +316,32 @@ dwflpp::setup_kernel(const string& name, bool debuginfo_needed)
                             sess.kernel_build_tree + string("'"));
     }
 
-  // NB: the result of an _offline call is the assignment of
-  // virtualized addresses to relocatable objects such as
-  // modules.  These have to be converted to real addresses at
-  // run time.  See the dwarf_derived_probe ctor and its caller.
+  build_blacklist();
+}
 
-  dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+void
+dwflpp::setup_kernel(const vector<string> &names, bool debuginfo_needed)
+{
+  if (! sess.module_cache)
+    sess.module_cache = new module_cache ();
+
+  unsigned offline_search_matches = 0;
+  set<string> offline_search_names(names.begin(), names.end());
+  dwfl_ptr = setup_dwfl_kernel(offline_search_names,
+			       &offline_search_matches,
+			       sess);
+
+  if (offline_search_matches < offline_search_names.size())
+    {
+      if (debuginfo_needed) {
+        // Suggest a likely kernel dir to find debuginfo rpm for
+        string dir = string("/lib/modules/" + sess.kernel_release );
+        find_debug_rpms(sess, dir.c_str());
+      }
+      throw semantic_error (string("missing ") + sess.architecture +
+                            string(" kernel/module debuginfo under '") +
+                            sess.kernel_build_tree + string("'"));
+    }
 
   build_blacklist();
 }
@@ -414,53 +353,16 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
   if (! sess.module_cache)
     sess.module_cache = new module_cache ();
 
-  static const char *debuginfo_path_arr = "+:.debug:/usr/lib/debug:build";
-  static const char *debuginfo_env_arr = getenv("SYSTEMTAP_DEBUGINFO_PATH");
-  // NB: kernel_build_tree doesn't enter into this, as it's for
-  // kernel-side modules only.
-  static const char *debuginfo_path = (debuginfo_env_arr ?: debuginfo_path_arr);
-
-  static const Dwfl_Callbacks user_callbacks =
-    {
-      NULL, /* dwfl_linux_kernel_find_elf, */
-      dwfl_standard_find_debuginfo,
-      dwfl_offline_section_address,
-      (char **) & debuginfo_path
-    };
-
-  dwfl = dwfl_begin (&user_callbacks);
-  if (!dwfl)
-    throw semantic_error ("cannot open dwfl");
-  dwfl_report_begin (dwfl);
-
-  vector<string>::const_iterator it;
-  for (it = modules.begin(); it != modules.end(); ++it)
-    {
-      // XXX: should support buildid-based naming
-
-      const string& module_name = *it;
-      Dwfl_Module *mod = dwfl_report_offline (dwfl,
-                                    module_name.c_str(),
-                                    module_name.c_str(),
-                                    -1);
-
-      if (debuginfo_needed)
-        dwfl_assert (string("missing process ") +
-                     module_name +
-                     string(" ") +
-                     sess.architecture +
-                     string(" debuginfo"),
-                     mod);
-    }
-
-  // NB: the result of an _offline call is the assignment of
-  // virtualized addresses to relocatable objects such as
-  // modules.  These have to be converted to real addresses at
-  // run time.  See the dwarf_derived_probe ctor and its caller.
-
-  dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+  vector<string>::const_iterator it = modules.begin();
+  dwfl_ptr = setup_dwfl_user(it, modules.end(), debuginfo_needed);
+  if (debuginfo_needed && it != modules.end())
+    dwfl_assert (string("missing process ") +
+		 *it +
+		 string(" ") +
+		 sess.architecture +
+		 string(" debuginfo"),
+		 dwfl_ptr.get()->dwfl);
 }
-
 
 void
 dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
@@ -468,7 +370,7 @@ dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
                                               void *),
                              base_query *data)
 {
-  dwfl_getmodules (dwfl, callback, data, 0);
+  dwfl_getmodules (dwfl_ptr.get()->dwfl, callback, data, 0);
 
   // Don't complain if we exited dwfl_getmodules early.
   // This could be a $target variable error that will be
@@ -819,6 +721,37 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, void *arg)
   return DWARF_CB_OK;
 }
 
+int
+dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, void *arg)
+{
+  mod_cu_type_cache_t *global_alias_cache;
+  global_alias_cache = &static_cast<dwflpp *>(arg)->global_alias_cache;
+
+  cu_type_cache_t *v = (*global_alias_cache)[die->addr];
+  if (v != 0)
+    return DWARF_CB_OK;
+
+  v = new cu_type_cache_t;
+  (*global_alias_cache)[die->addr] = v;
+  iterate_over_globals(die, global_alias_caching_callback, v);
+
+  return DWARF_CB_OK;
+}
+
+Dwarf_Die *
+dwflpp::declaration_resolve_other_cus(const char *name)
+{
+  iterate_over_cus(global_alias_caching_callback_cus, this);
+  for (mod_cu_type_cache_t::iterator i = global_alias_cache.begin();
+         i != global_alias_cache.end(); ++i)
+    {
+      cu_type_cache_t *v = (*i).second;
+      if (v->find(name) != v->end())
+        return & ((*v)[name]);
+    }
+
+  return NULL;
+}
 
 Dwarf_Die *
 dwflpp::declaration_resolve(const char *name)
@@ -831,7 +764,7 @@ dwflpp::declaration_resolve(const char *name)
     {
       v = new cu_type_cache_t;
       global_alias_cache[cu->addr] = v;
-      iterate_over_globals(global_alias_caching_callback, v);
+      iterate_over_globals(cu, global_alias_caching_callback, v);
       if (sess.verbose > 4)
         clog << "global alias cache " << module_name << ":" << cu_name()
              << " size " << v->size() << endl;
@@ -842,11 +775,8 @@ dwflpp::declaration_resolve(const char *name)
   // forward-declared pointer type only, where the actual definition
   // may only be in vmlinux or the application.
 
-  // XXX: it is probably desirable to search other CU's declarations
-  // in the same module.
-
   if (v->find(name) == v->end())
-    return NULL;
+    return declaration_resolve_other_cus(name);
 
   return & ((*v)[name]);
 }
@@ -937,17 +867,17 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
 /* This basically only goes one level down from the compile unit so it
  * only picks up top level stuff (i.e. nothing in a lower scope) */
 int
-dwflpp::iterate_over_globals (int (* callback)(Dwarf_Die *, void *),
+dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
+                              int (* callback)(Dwarf_Die *, void *),
                               void * data)
 {
   int rc = DWARF_CB_OK;
   Dwarf_Die die;
 
-  assert (module);
-  assert (cu);
-  assert (dwarf_tag(cu) == DW_TAG_compile_unit);
+  assert (cu_die);
+  assert (dwarf_tag(cu_die) == DW_TAG_compile_unit);
 
-  if (dwarf_child(cu, &die) != 0)
+  if (dwarf_child(cu_die, &die) != 0)
     return rc;
 
   do
@@ -1097,15 +1027,12 @@ dwflpp::iterate_over_srcfile_lines (char const * srcfile,
 
       ret = dwarf_getsrc_file (module_dwarf, srcfile, l, 0,
 					 &srcsp, &nsrcs);
-      if (line_type != WILDCARD && line_type != RANGE)
-         dwarf_assert ("dwarf_getsrc_file", ret);
+      if (ret != 0) /* tolerate invalid line number */
+        break;
 
       if (line_type == WILDCARD || line_type == RANGE)
         {
           Dwarf_Addr line_addr;
-
-          if (ret != 0) /* tolerate invalid line number */
-   	     break;
 
           dwarf_lineno (srcsp [0], &lineno);
 	  /* Maybe lineno will exceed the input end */
@@ -1352,6 +1279,16 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           continue;
         }
 
+      if (entrypc == 0)
+        { 
+          if (sess.verbose > 2)
+            clog << "null entrypc dwarf line record for function '"
+                 << it->name << "'\n";
+          // This is probably an inlined function.  We'll skip this instance;
+          // it is messed up. 
+          continue;
+        }
+
       if (sess.verbose>2)
         clog << "prologue searching function '" << it->name << "'"
              << " 0x" << hex << entrypc << "-0x" << highpc << dec
@@ -1554,7 +1491,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
   // Turn this address into a section-relative offset if it should be one.
   // We emit a comment approximating the variable+offset expression that
   // relocatable module probing code will need to have.
-  Dwfl_Module *mod = dwfl_addrmodule (dwfl, address);
+  Dwfl_Module *mod = dwfl_addrmodule (dwfl_ptr.get()->dwfl, address);
   dwfl_assert ("dwfl_addrmodule", mod);
   const char *modname = dwfl_module_info (mod, NULL, NULL, NULL,
                                               NULL, NULL, NULL, NULL);
@@ -1582,8 +1519,8 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
         {
           // This gives us the module name, and section name within the
           // module, for a kernel module (or other ET_REL module object).
-          obstack_printf (pool, "({ static unsigned long addr = 0; ");
-          obstack_printf (pool, "if (addr==0) addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
+          obstack_printf (pool, "({ unsigned long addr = 0; ");
+          obstack_printf (pool, "addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 ", NULL); ",
                           modname, secname, reloc_address);
           obstack_printf (pool, "addr; })");
         }
@@ -1593,19 +1530,21 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           // need to treat the same way here as dwarf_query::add_probe_point does: _stext.
           address -= sess.sym_stext;
           secname = "_stext";
+          // Note we "cache" the result here through a static because the
+          // kernel will never move after being loaded (unlike modules and
+          // user-space dynamic share libraries).
           obstack_printf (pool, "({ static unsigned long addr = 0; ");
-          obstack_printf (pool, "if (addr==0) addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
+          obstack_printf (pool, "if (addr==0) addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 ", NULL); ",
                           modname, secname, address); // PR10000 NB: not reloc_address
           obstack_printf (pool, "addr; })");
         }
       else
         {
-          throw semantic_error ("cannot relocate user-space dso (?) address");
-#if 0
-          // This would happen for a Dwfl_Module that's a user-level DSO.
-          obstack_printf (pool, " /* %s+%#" PRIx64 " */",
-                          modname, address);
-#endif
+          enable_task_finder (sess);
+          obstack_printf (pool, "({ unsigned long addr = 0; ");
+          obstack_printf (pool, "addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 ", current); ",
+                          modname, ".dynamic", reloc_address);
+          obstack_printf (pool, "addr; })");
         }
     }
   else
@@ -1752,6 +1691,14 @@ dwflpp::translate_location(struct obstack *pool,
     }
 #endif
 
+  /* There is no location expression, but a constant value instead.  */
+  if (dwarf_whatattr (attr) == DW_AT_const_value)
+    {
+      *tail = c_translate_constant (pool, &loc2c_error, this,
+				    &loc2c_emit_address, 0, pc, attr);
+      return *tail;
+    }
+
   Dwarf_Op *expr;
   size_t len;
 
@@ -1779,9 +1726,9 @@ dwflpp::translate_location(struct obstack *pool,
                             e->tok);
     }
 
-  // get_cfa_ops works on the dw address space, pc is relative to current
-  // module, so add do need to add module_bias.
-  Dwarf_Op *cfa_ops = get_cfa_ops (pc + module_bias);
+  // pc is relative to current module, which is what get_cfa_ops
+  // and c_translate_location expects.
+  Dwarf_Op *cfa_ops = get_cfa_ops (pc);
   return c_translate_location (pool, &loc2c_error, this,
                                &loc2c_emit_address,
                                1, 0 /* PR9768 */,
@@ -2272,7 +2219,15 @@ dwflpp::express_as_string (string prelude,
 
   fprintf(memstream, "{\n");
   fprintf(memstream, "%s", prelude.c_str());
-  bool deref = c_emit_location (memstream, head, 1);
+
+  unsigned int stack_depth;
+  bool deref = c_emit_location (memstream, head, 1, &stack_depth);
+
+  // Ensure that DWARF keeps loc2c to a "reasonable" stack size
+  // 32 intptr_t leads to max 256 bytes on the stack
+  if (stack_depth > 32)
+    throw semantic_error("oversized DWARF stack");
+
   fprintf(memstream, "%s", postlude.c_str());
   fprintf(memstream, "  goto out;\n");
 
@@ -2292,6 +2247,41 @@ dwflpp::express_as_string (string prelude,
   return result;
 }
 
+Dwarf_Addr
+dwflpp::vardie_from_symtable (Dwarf_Die *vardie, Dwarf_Addr *addr)
+{
+  const char *name;
+  Dwarf_Attribute attr_mem;
+  name = dwarf_formstring (dwarf_attr_integrate (vardie,
+                                                 DW_AT_MIPS_linkage_name,
+                                                 &attr_mem));
+  if (!name)
+    name = dwarf_diename (vardie);
+
+  if (sess.verbose > 2)
+    clog << "finding symtable address for " << name << "\n";
+
+  *addr = 0;
+  int syms = dwfl_module_getsymtab (module);
+  dwfl_assert ("Getting symbols", syms >= 0);
+
+  for (int i = 0; *addr == 0 && i < syms; i++)
+    {
+      GElf_Sym sym;
+      GElf_Word shndxp;
+      const char *symname = dwfl_module_getsym(module, i, &sym, &shndxp);
+      if (symname
+	  && ! strcmp (name, symname)
+	  && sym.st_shndx != SHN_UNDEF
+	  && GELF_ST_TYPE (sym.st_info) == STT_OBJECT)
+	*addr = sym.st_value;
+    }
+
+  if (sess.verbose > 2)
+    clog << "found " << name << "@0x" << hex << *addr << "\n";
+
+  return *addr;
+}
 
 string
 dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
@@ -2313,17 +2303,6 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
          << ", module bias 0x" << module_bias << dec
          << "\n";
 
-  Dwarf_Attribute attr_mem;
-  if (dwarf_attr_integrate (&vardie, DW_AT_location, &attr_mem) == NULL)
-    {
-      throw semantic_error("failed to retrieve location "
-                           "attribute for local '" + local
-                           + "' (dieoffset: "
-                           + lex_cast_hex(dwarf_dieoffset (&vardie))
-                           + ")",
-                           e->tok);
-    }
-
 #define obstack_chunk_alloc malloc
 #define obstack_chunk_free free
 
@@ -2333,9 +2312,33 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 
   /* Given $foo->bar->baz[NN], translate the location of foo. */
 
-  struct location *head = translate_location (&pool,
-                                              &attr_mem, pc, fb_attr, &tail,
-                                              e);
+  struct location *head;
+
+  Dwarf_Attribute attr_mem;
+  if (dwarf_attr_integrate (&vardie, DW_AT_const_value, &attr_mem) == NULL
+      && dwarf_attr_integrate (&vardie, DW_AT_location, &attr_mem) == NULL)
+    {
+      Dwarf_Op addr_loc;
+      addr_loc.atom = DW_OP_addr;
+      // If it is an external variable try the symbol table. PR10622.
+      if (dwarf_attr_integrate (&vardie, DW_AT_external, &attr_mem) != NULL
+	  && vardie_from_symtable (&vardie, &addr_loc.number) != 0)
+	{
+	  head = c_translate_location (&pool, &loc2c_error, this,
+				       &loc2c_emit_address,
+				       1, 0, pc,
+				       NULL, &addr_loc, 1, &tail, NULL, NULL);
+	}
+      else
+	throw semantic_error("failed to retrieve location "
+                           "attribute for local '" + local
+                           + "' (dieoffset: "
+                           + lex_cast_hex(dwarf_dieoffset (&vardie))
+                           + ")",
+                           e->tok);
+    }
+  else
+    head = translate_location (&pool, &attr_mem, pc, fb_attr, &tail, e);
 
   if (dwarf_attr_integrate (&vardie, DW_AT_type, &attr_mem) == NULL)
     throw semantic_error("failed to retrieve type "
@@ -2829,7 +2832,7 @@ dwflpp::get_cfa_ops (Dwarf_Addr pc)
       if (sess.verbose > 3)
 	clog << "got dwarf cfi bias: 0x" << hex << bias << dec << endl;
       Dwarf_Frame *frame = NULL;
-      if (dwarf_cfi_addrframe (cfi, pc - bias, &frame) == 0)
+      if (dwarf_cfi_addrframe (cfi, pc, &frame) == 0)
 	dwarf_frame_cfa (frame, &cfa_ops, &cfa_nops);
       else if (sess.verbose > 3)
 	clog << "dwarf_cfi_addrframe failed: " << dwarf_errmsg(-1) << endl;
@@ -2845,7 +2848,7 @@ dwflpp::get_cfa_ops (Dwarf_Addr pc)
 	  if (sess.verbose > 3)
 	    clog << "got eh cfi bias: 0x" << hex << bias << dec << endl;
 	  Dwarf_Frame *frame = NULL;
-	  if (dwarf_cfi_addrframe (cfi, pc - bias, &frame) == 0)
+	  if (dwarf_cfi_addrframe (cfi, pc, &frame) == 0)
 	    dwarf_frame_cfa (frame, &cfa_ops, &cfa_nops);
 	  else if (sess.verbose > 3)
 	    clog << "dwarf_cfi_addrframe failed: " << dwarf_errmsg(-1) << endl;

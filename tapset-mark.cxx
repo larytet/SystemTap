@@ -59,7 +59,7 @@ struct mark_derived_probe: public derived_probe
   void print_dupe_stamp (ostream& o);
   void emit_probe_context_vars (translator_output* o);
   void initialize_probe_context_vars (translator_output* o);
-  void printargs (std::ostream &o) const;
+  void getargs (std::set<std::string> &arg_set) const;
 
   void parse_probe_format ();
 };
@@ -142,15 +142,9 @@ mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
  else if (e->base_name == "$$vars" || e->base_name == "$$parms") 
   {
      //copy from tracepoint
-     print_format* pf = new print_format;
      token* pf_tok = new token(*e->tok);
      pf_tok->content = "sprintf";
-     pf->tok = pf_tok;
-     pf->print_to_stream = false;
-     pf->print_with_format = true;
-     pf->print_with_delim = false;
-     pf->print_with_newline = false;
-     pf->print_char = false;
+     print_format* pf = print_format::create(pf_tok);
 
      for (unsigned i = 0; i < mark_args.size(); ++i)
         {
@@ -471,7 +465,7 @@ mark_derived_probe::initialize_probe_context_vars (translator_output* o)
 }
 
 void
-mark_derived_probe::printargs(std::ostream &o) const
+mark_derived_probe::getargs(std::set<std::string> &arg_set) const
 {
   for (unsigned i = 0; i < mark_args.size(); i++)
     {
@@ -479,13 +473,13 @@ mark_derived_probe::printargs(std::ostream &o) const
       switch (mark_args[i]->stp_type)
         {
         case pe_long:
-          o << " " << localname << ":long";
+          arg_set.insert(localname+":long");
           break;
         case pe_string:
-          o << " " << localname << ":string";
+          arg_set.insert(localname+":string");
           break;
         default:
-          o << " " << localname << ":unknown";
+          arg_set.insert(localname+":unknown");
           break;
         }
     }

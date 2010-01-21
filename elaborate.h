@@ -18,6 +18,10 @@
 #include <sstream>
 #include <map>
 
+extern "C" {
+#include <elfutils/libdw.h>
+}
+
 // ------------------------------------------------------------------------
 
 struct derived_probe;
@@ -33,7 +37,7 @@ public:
   derived_probe* current_probe;
   symresolution_info (systemtap_session& s);
 
-  vardecl* find_var (const std::string& name, int arity);
+  vardecl* find_var (const std::string& name, int arity, const token *tok);
   functiondecl* find_function (const std::string& name, unsigned arity);
 
   void visit_block (block *s);
@@ -124,8 +128,8 @@ struct derived_probe: public probe
   virtual void join_group (systemtap_session& s) = 0;
   virtual probe_point* sole_location () const;
   virtual void printsig (std::ostream &o) const;
-  //for print arguments of probe if there
-  virtual void printargs (std::ostream &o) const {}
+  // return arguments of probe if there
+  virtual void getargs (std::set<std::string> &arg_set) const {}
   void printsig_nested (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list);
 
@@ -146,13 +150,27 @@ struct derived_probe: public probe
   // From within unparser::emit_probe, emit any extra processing block
   // for this probe.
 
+  virtual void emit_unprivileged_assertion (translator_output*);
+  // From within unparser::emit_probe, emit any unprivileged mode
+  // checking for this probe.
+
 public:
   static void emit_common_header (translator_output* o);
   // from c_unparser::emit_common_header
   // XXX: probably can move this stuff to a probe_group::emit_module_decls
 
+  static void emit_process_owner_assertion (translator_output*);
+  // From within unparser::emit_probe, emit a check that the current
+  // process belongs to the user.
+
+  static void print_dupe_stamp_unprivileged(std::ostream& o);
+  static void print_dupe_stamp_unprivileged_process_owner(std::ostream& o);
+
   virtual bool needs_global_locks () { return true; }
   // by default, probes need locks around global variables
+
+  // Location of semaphores to activate sdt probes
+  Dwarf_Addr sdt_semaphore_addr;
 };
 
 // ------------------------------------------------------------------------
@@ -199,6 +217,8 @@ struct derived_probe_builder
 		     probe_point* location,
 		     literal_map_t const & parameters,
 		     std::vector<derived_probe*> & finished_results) = 0;
+  virtual void check_unprivileged (const systemtap_session & sess,
+				   const literal_map_t & parameters);
   virtual ~derived_probe_builder() {}
   virtual void build_no_more (systemtap_session &) {}
 
@@ -236,7 +256,6 @@ match_node
   typedef std::map<match_key, match_node*>::iterator sub_map_iterator_t;
   sub_map_t sub;
   std::vector<derived_probe_builder*> ends;
-  bool unprivileged_ok;
 
  public:
   match_node();
@@ -251,9 +270,6 @@ match_node
   match_node* bind_str(std::string const & k);
   match_node* bind_num(std::string const & k);
   void bind(derived_probe_builder* e);
-
-  match_node* allow_unprivileged (bool b = true);
-  bool unprivileged_allowed () const;
 };
 
 // ------------------------------------------------------------------------

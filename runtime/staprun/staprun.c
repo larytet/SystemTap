@@ -129,14 +129,12 @@ static int enable_uprobes(void)
 	if (run_as(0, 0, 0, argv[0], argv) == 0)
 		return 0;
 
+	/* This module may be signed, so use insert_module to load it.  */
 	snprintf (runtimeko, sizeof(runtimeko), "%s/uprobes/uprobes.ko",
 		  (getenv("SYSTEMTAP_RUNTIME") ?: PKGDATADIR "/runtime"));
 	dbug(2, "Inserting uprobes module from SystemTap runtime %s.\n", runtimeko);
-	i = 0;
-	argv[i++] = "/sbin/insmod";
-	argv[i++] = runtimeko;
-	argv[i] = NULL;
-	if (run_as(0, 0, 0, argv[0], argv) == 0)
+	argv[0] = NULL;
+	if (insert_module(runtimeko, NULL, argv, assert_uprobes_module_permissions) == 0)
 		return 0;
 
 	return 1; /* failure */
@@ -150,7 +148,7 @@ static int insert_stap_module(void)
 	if (snprintf_chk(special_options, sizeof (special_options), "_stp_bufsize=%d", buffer_size))
 		return -1;
 
-	return insert_module(modpath, special_options, modoptions);
+	return insert_module(modpath, special_options, modoptions, assert_stap_module_permissions);
 }
 
 static int remove_module(const char *name, int verb);
@@ -181,27 +179,25 @@ static int remove_module(const char *name, int verb)
 	int ret;
 	dbug(2, "%s\n", name);
 
+        (void) verb; /* XXX: ignore */
+
 	if (strcmp(name, "*") == 0) {
 		remove_all_modules();
 		return 0;
 	}
 
-	/* Call init_ctl_channel() which actually attempts an open()
-	 * of the control channel. This is better than using access() because
-	 * an open on an already open channel will fail, preventing us from attempting
-	 * to remove an in-use module.
-	 */
-	if (init_ctl_channel(name, 0) < 0) {
-		if (verb)
-			err("Error accessing systemtap module %s: %s\n", name, strerror(errno));
-		return 1;
-	}
-	close_ctl_channel();
+        /* We could call init_ctl_channel / close_ctl_channel here, as a heuristic
+           to determine whether the module is being used by some other stapio process.
+           However, delete_module() does basically the same thing. */
 
 	dbug(2, "removing module %s\n", name);
 	STAP_PROBE1(staprun, remove__module, name);
-	ret = delete_module (name, 0);
+	ret = delete_module (name, O_NONBLOCK);
 	if (ret != 0) {
+                /* XXX: maybe we should just accept this, with a
+                   diagnostic, but without an error.  Might it be
+                   possible for the same module to be started up just
+                   as we're shutting down?  */
 		err("Error removing module '%s': %s.\n", name, strerror(errno));
 		return 1;
 	}
@@ -227,14 +223,14 @@ int init_staprun(void)
                      without first removing the kernel module.  This would block
                      a subsequent rerun attempt.  So here we gingerly try to
                      unload it first. */
-                  int ret = delete_module (modname, O_NONBLOCK);
-                  err("Retrying, after attempted removal of module %s (rc %d)\n", modname, ret); 
-                  /* Then we try an insert a second time.  */
-                  if (insert_stap_module() < 0)
-                    return -1;
-                }
-                if (send_relocations() < 0)
-                  	return -1;
+		  int ret = delete_module (modname, O_NONBLOCK);
+		  err("Retrying, after attempted removal of module %s (rc %d)\n", modname, ret);
+		  /* Then we try an insert a second time.  */
+		  if (insert_stap_module() < 0)
+			return -1;
+		}
+		if (send_relocations() < 0)
+			return -1;
 	}
 	return 0;
 }
@@ -376,7 +372,7 @@ int send_relocation_kernel ()
               free (line); line=NULL;
               if (symbol == NULL) continue; /* OOM? */
 
-#ifdef __powerpc__
+#ifdef __powerpc64__
 #define KERNEL_RELOC_SYMBOL ".__start"
 #else
 #define KERNEL_RELOC_SYMBOL "_stext"

@@ -1,12 +1,14 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 1.0, systemtap@sources.redhat.com, systemtap)
+AC_INIT([systemtap], 1.1, systemtap@sources.redhat.com, systemtap)
 dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
 
 AC_PREREQ(2.59)
 AM_INIT_AUTOMAKE
 AM_MAINTAINER_MODE
+
+m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AM_PROG_MKDIR_P
 AC_SUBST(MKDIR_P)
@@ -185,6 +187,35 @@ if test "x${have_latex}${have_dvips}${have_ps2pdf}${have_latex2html}" == "xyesye
 fi
 AM_CONDITIONAL([BUILD_DOCS], [test "$building_docs" == "yes"])
 
+dnl Handle the options to build the publican options
+building_publican="no"
+AC_ARG_ENABLE([publican],
+  AS_HELP_STRING([--enable-publican],
+    [enable building publican documentation guides (default on if publican found and other documentation built).]),
+  [enable_publican=$enableval],
+  [enable_publican="check"])
+if test "$building_docs" == "no" -a "$enable_publican" == "yes" ; then
+   AC_MSG_ERROR([must use --enable-docs with --enable-publican])
+fi
+AC_CHECK_PROG(have_publican, publican, yes, no)
+if test "$enable_publican" == "yes"; then
+   if test "x${have_publican}" != "xyes"; then
+      AC_MSG_ERROR([cannot find publican for building publican guides])
+   fi
+fi
+if test "x${have_publican}" == "xyes" -a "$enable_publican" != "no" -a "${building_docs}" == "yes"; then
+   building_publican="yes"
+fi
+AM_CONDITIONAL([BUILD_PUBLICAN], [test "$building_publican" == "yes"])
+publican_brand="fedora"
+AC_ARG_WITH([publican-brand],
+  AS_HELP_STRING([--with-publican-brand=BRAND],
+    [building publican documentation guides using given brand (defaults to "fedora").]),
+  [publican_brand=$withval],
+  [publican_brand="fedora"])
+PUBLICAN_BRAND=$publican_brand
+AC_SUBST(PUBLICAN_BRAND)
+
 dnl Handle the option to build the reference documentation
 building_refdocs="no"
 AC_ARG_ENABLE([refdocs],
@@ -206,19 +237,32 @@ if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_d
 fi
 AM_CONDITIONAL([BUILD_REFDOCS], [test "$building_refdocs" == "yes"])
 
-if test "x${building_refdocs}" == "xyes"; then
-AC_MSG_CHECKING([for xmlto pdf support])
-cat > conftest.$ac_ext << EOF
+cat > conftest.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
 "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
-   <book id="pdffromxml">
-     <bookinfo>
-       <title>test</title>
-     </bookinfo>
+   <book lang="en">
+   <bookinfo><title>foo</title></bookinfo>
+   <chapter><title>bar</title><para>baz</para></chapter>
    </book>
 EOF
-   xmlto pdf conftest.$ac_ext >& /dev/null
+
+if test "x${have_xmlto}" == "xyes"; then
+AC_MSG_CHECKING([for xmlto --stringparam support])
+   xmlto --stringparam man.authors.section.enabled=0 txt conftest.xml >/dev/null 2>&1
+   if test $? == 0; then
+      have_xmlto_stringparam="yes"
+      AC_MSG_RESULT([yes])
+   else
+      AC_MSG_RESULT([no])
+   fi
+   rm -f conftest.txt
+fi
+AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
+
+if test "x${building_refdocs}" == "xyes"; then
+AC_MSG_CHECKING([for xmlto pdf support])
+   xmlto pdf conftest.xml >& /dev/null
    if test $? == 0; then
       have_xmlto_pdf="yes"
       AC_MSG_RESULT([yes])
@@ -226,8 +270,16 @@ EOF
       AC_MSG_RESULT([no])
       AC_MSG_WARN([Not building reference documentation in PDF format])
    fi
+   rm -f conftest.pdf
 fi
-AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "have_xmlto_pdf" == "yes"])
+dnl Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=526273 
+dnl blocks "xmlto pdf" on our docs (but not on the above test).
+dnl So we need to disable this anyway.
+dnl AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
+AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "maybe later" == "yes"])
+
+rm -f conftest.xml
+
 
 dnl Handle the option to build the server setup.
 AC_ARG_ENABLE([server],
@@ -250,7 +302,8 @@ AC_SUBST(nss_CFLAGS)
 AC_SUBST(nspr_CFLAGS)
 save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
-AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], have_nss_includes=yes, have_nss_includes=no)
+have_nss_includes=yes
+AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
 CPPFLAGS="$save_CPPFLAGS"
 have_nss_libs=no
 AC_CHECK_LIB(nspr4, PR_Connect, [
@@ -273,11 +326,48 @@ AM_CONDITIONAL([HAVE_NSS],     [test "x${have_nss_includes}${have_nss_libs}${hav
 dnl Handle the optional grapher
 AC_ARG_ENABLE([grapher],
   AS_HELP_STRING([--enable-grapher],
-    [enable building of grapher (default on if gtkmm is found).]),
-  [enable_grapher=$enableval],
-  [enable_grapher="check"])
-PKG_CHECK_MODULES([GRAPHER], [gtkmm-2.4 >= 2.8.0],have_gtkmm=yes,have_gtkmm=no)
-AM_CONDITIONAL([BUILD_GRAPHER], [test "x${have_gtkmm}" == "xyes" -a x"$enable_grapher" != "xno"])
+    [enable building of grapher (default on if needed requirements are found).]),
+  [],					dnl ACTION-IF-GIVEN
+  [enable_grapher="check"])		dnl ACTION-IF-NOT-GIVEN
+dnl If the user didn't disable the grapher, check the grapher's requirements.
+AS_IF([test "x$enable_grapher" != xno],
+  [
+   dnl Check for gtkmm.  Strictly speaking, this isn't necessary,
+   dnl since the libglademm24-devel rpm requires the gtkmm24-devel
+   dnl rpm.  But, this could be a non-rpm system.  This check will
+   dnl give the user a better idea about how to fix missing
+   dnl requirements.
+   PKG_CHECK_MODULES([gtkmm], [gtkmm-2.4 >= 2.8.0],
+     have_gtkmm="yes", have_gtkmm="no")
+   AS_IF([test "x${have_gtkmm}" == "xno" -a x"$enable_grapher" == "xyes"],
+     AC_MSG_WARN([systemtap cannot find required gtkmm libs (gtkmm24-devel version 2.8.0 or higher may need to be installed)]))   
+
+   dnl Check for libglade
+   PKG_CHECK_MODULES([libglade], [libglademm-2.4 >= 2.6.7],
+     have_libglade="yes", have_libglade="no")
+   AS_IF([test "x${have_libglade}" == "xno" -a x"$enable_grapher" == "xyes"],
+     AC_MSG_WARN([systemtap cannot find required libglade libs (libglademm24-devel version 2.6.7 or higher may need to be installed)]))   
+
+   dnl Check for needed boost headers
+   have_boost_headers="yes"
+   AC_LANG_PUSH(C++)
+   AC_CHECK_HEADERS([boost/algorithm/string.hpp boost/range.hpp],
+     [], have_boost_headers="no")
+   AC_LANG_POP(C++)
+   AS_IF([test "x${have_boost_headers}" == "xno" -a x"$enable_grapher" == "xyes"],
+     AC_MSG_WARN([cannot find required boost headers (boost-devel may need to be installed)]))
+
+   dnl Bundle up all the grapher requirements into 1 variable.
+   AS_IF([test "x${have_gtkmm}${have_libglade}${have_boost_headers}" == "xyesyesyes"],
+         have_grapher_reqs="yes", have_grapher_reqs="no")
+   ])
+dnl If the user explicitly said to enable the grapher, but we can't
+dnl (since one or more of its requirements aren't installed), error.
+AS_IF([test "x${have_grapher_reqs}" == "xno" -a x"$enable_grapher" == "xyes"],
+  AC_MSG_ERROR([systemtap cannot find grapher build requirements (gtkmm, libglade, and boost headers)]))
+dnl If the user didn't say to disable the grapher, and all the
+dnl requirements are installed, enable the grapher.
+AM_CONDITIONAL([BUILD_GRAPHER], [test "x${have_grapher_reqs}" == "xyes" -a x"$enable_grapher" != "xno"])
 
 
 # Integration with rpm library to support missing debuginfo suggestions.
@@ -517,23 +607,15 @@ date=`date +%Y-%m-%d`
 AC_DEFINE_UNQUOTED(DATE, "$date", [Configuration/build date])
 AC_SUBST(DATE, "$date")
 
-
-# This procflags business is for staprun/stapio, which need to
-# be compiled with the same bitness as the kernel.  On e.g. PPC,
-# userspace might be 32-bit default, but staprun needs to be
-# 64-bit.  See also bug #4037.
-
-processor=`uname -p`
-case "$processor" in
-ppc64) PROCFLAGS=-m64 ;;
-x86_64) PROCFLAGS=-m64 ;;
-*) PROCFLAGS=""
-esac
-AC_SUBST([PROCFLAGS])
+# Before PR4037, we used to arrange to pass CFLAGS+=-m64 for a staprun
+# being compiled on 32-bit userspace but running against 64-bit kernels.
+# This is no longer necessary.
 
 # Use tr1/unordered_map if available
 AC_LANG_PUSH(C++)
 AC_CHECK_HEADERS([tr1/unordered_map])
+AC_CHECK_HEADERS([tr1/memory])
+AC_CHECK_HEADERS([boost/shared_ptr.hpp])
 AC_LANG_POP(C++)
 
 
@@ -543,6 +625,19 @@ if test $build_elfutils = yes; then
   *) elfutils_srcdir="../$with_elfutils" ;;
   esac
   AC_MSG_NOTICE([running ${elfutils_srcdir}/configure])
+
+  save_CFLAGS="$CFLAGS"
+  save_CXXFLAGS="$CXXFLAGS"
+  CXXFLAGS="$CXXFLAGS -fgnu89-inline"
+  CFLAGS="$CFLAGS -fgnu89-inline"
+  gnu89_inline_flag=""
+  AC_COMPILE_IFELSE([int something ();], [
+    AC_MSG_NOTICE([Compiling elfutils with gcc -fgnu89-inline])
+    gnu89_inline_flag="-fgnu89-inline"],[
+    AC_MSG_NOTICE([Compiler does not support -fgnu89-inline])])
+  CFLAGS="$save_CFLAGS"
+  CXXFLAGS="$save_CXXFLAGS"
+
   # Our libdw.so's libebl will look in $ORIGIN/../lib/... but that
   # $ORIGIN is where libdw.so resides, which is not where there is a ../lib.
   # Note that $libdir might be using a quoted use of $exec_prefix or $prefix.
@@ -555,7 +650,7 @@ if test $build_elfutils = yes; then
 				--libdir="${here}/lib-elfutils" \
 				--exec-prefix="$exec_prefix" \
 				--prefix="$prefix" \
-				CFLAGS="${CFLAGS/-Wall/} -fgnu89-inline" \
+				CFLAGS="${CFLAGS/-Wall/} $gnu89_inline_flag" \
 				LDFLAGS="$LDFLAGS $elfutils_rpath" &&
    if test -f ${elfutils_srcdir}/config/version.h.in; then
         echo Trying to install elfutils version header...
@@ -576,17 +671,29 @@ fi
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled
 dnl prefix is passed through indirectly in the Makefile.am AM_CPPFLAGS.
-dnl Don't use this directly (when not given it is set to NONE).
-AC_DEFINE_UNQUOTED(STAP_PREFIX, "$prefix", [configure prefix location])
+dnl Formerly: Don't use this directly (when not given it is set to NONE).
+dnl Currently: inline autoconf's later defaulting
+stap_prefix=$prefix
+test "$stap_prefix" = NONE && stap_prefix=$ac_default_prefix
+AC_DEFINE_UNQUOTED(STAP_PREFIX, "$stap_prefix", [configure prefix location])
 
 AC_CONFIG_HEADERS([config.h:config.in])
-AC_CONFIG_FILES(Makefile doc/Makefile doc/SystemTap_Tapset_Reference/Makefile grapher/Makefile stap.1 stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap staprun.8 stap-server.8 man/stapprobes.iosched.3stap man/stapprobes.netdev.3stap man/stapprobes.nfs.3stap man/stapprobes.nfsd.3stap man/stapprobes.pagefault.3stap man/stapprobes.kprocess.3stap man/stapprobes.rpc.3stap man/stapprobes.scsi.3stap man/stapprobes.signal.3stap man/stapprobes.socket.3stap man/stapprobes.tcp.3stap man/stapprobes.udp.3stap man/stapprobes.snmp.3stap initscript/systemtap)
+AC_CONFIG_FILES(Makefile doc/Makefile doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile grapher/Makefile grapher/stapgraph.1 stap.1 stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap staprun.8 stap-client.8 stap-server.8 stap-authorize-server-cert.8 stap-authorize-signing-cert.8 man/stapprobes.iosched.3stap man/stapprobes.irq.3stap man/stapprobes.netdev.3stap man/stapprobes.nfs.3stap man/stapprobes.nfsd.3stap man/stapprobes.pagefault.3stap man/stapprobes.kprocess.3stap man/stapprobes.rpc.3stap man/stapprobes.scsi.3stap man/stapprobes.signal.3stap man/stapprobes.socket.3stap man/stapprobes.tcp.3stap man/stapprobes.udp.3stap man/stapprobes.snmp.3stap initscript/systemtap initscript/stap-server)
 AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])
 fi
 AC_CONFIG_FILES([run-staprun], [chmod +x run-staprun])
 AC_CONFIG_FILES([dtrace], [chmod +x dtrace])
+
+# Setup "shadow" directory doc/beginners that has everything setup for
+# publican in one directory (through directory links if necessary).
+# It would be nice to use AC_CONFIG_LINKS, but automake complains when
+# the src is a directory and not a file.
+AC_CONFIG_FILES([doc/beginners/publican.cfg:doc/SystemTap_Beginners_Guide/publican.cfg.in])
+AC_CONFIG_COMMANDS([doc/beginners],
+                   [rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US && ln -s $ac_abs_top_srcdir/testsuite $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite])
+
 AC_OUTPUT
 
 if test "${prefix}" = "/usr/local"; then

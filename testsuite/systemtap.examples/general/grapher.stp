@@ -1,4 +1,4 @@
-#! /usr/bin/stap
+#! /usr/bin/env stap
 
 probe begin
 {
@@ -8,7 +8,7 @@ printf ("%%DataSet:pty 50 0000ff discreet\n");
 printf ("cpu %%Title:CPU utilization\n");
 printf ("cpu %%XAxisTitle:Time\n");
 printf ("cpu %%YAxisTitle:Percent\n");
-
+printf ("%%LineEnd:0\n");
 }
 
 # CPU utilization
@@ -26,18 +26,25 @@ function qsq_util_reset(q) {
 
 probe timer.ms(100) {  # collect utilization percentages frequently
   foreach (q in qnames)
-    printf("cpu %d %d\n", gettimeofday_ms(), qsq_util_reset(q))
+    printf("cpu %d %d%c", gettimeofday_ms(), qsq_util_reset(q), 0)
 }
 
 probe kernel.function("kbd_event") {
  if ($event_type == 1 && $value)
-   printf("kbd %d %d\n", gettimeofday_ms(), $event_code)
+   printf("kbd %d %d\n0x%x%c", gettimeofday_ms(), $event_code, $event_code, 0)
 }
 
 probe kernel.function("pty_write") {
- if (count > 0)
-  printf("pty %d %.5s\n", gettimeofday_ms(), buf)
+    count = %(kernel_v>="2.6.31" %? $c %: $count %)
+    if (count > 0) {
+        printf("pty %d ", gettimeofday_ms())
+        str = $buf
+        for (i = 0; i < count; ++i) {
+            if (i > 1)
+                printf("\n")
+            c = kernel_char(str + i)
+            printf("%c", c)
+        }
+        printf("%c", 0)
+    }
 }
-
-
-
