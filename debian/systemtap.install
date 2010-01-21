@@ -1,4 +1,5 @@
 usr/bin/stap
-usr/share/systemtap
+usr/share/systemtap/tapset
+usr/share/systemtap/runtime
 usr/share/man/man1/stap.1
 usr/share/vim
