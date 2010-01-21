@@ -5,6 +5,3 @@ vim-filetype-override.diff
 new-elfutils.diff
 grapher-libs.diff
 debversion.diff
-SystemTap-1.0-limit-printf-arguments.patch
-SystemTap-1.0-limit-dwarf-expression-stack-size.patch
-SystemTap-1.0-unwind-table-size-checks.patch

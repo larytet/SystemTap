@@ -8,11 +8,14 @@ systemtap (1.1-1) unstable; urgency=low
     - no-PROCFLAGS.diff - fixed upstream
     - no-xmto.diff - let's try to use xmlto..., build depend on it
     - stap-env.diff - no longer needed
+    - SystemTap-1.0-limit-printf-arguments.patch - fixed upstream
+    - SystemTap-1.0-limit-dwarf-expression-stack-size.patch - fixed upstream
+    - SystemTap-1.0-unwind-table-size-checks.patch - fixed upstream
   * Updated patches:
     - dont-build-pdfdocs.diff
     - grapher-libs.diff 
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:13:23 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:14:03 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
