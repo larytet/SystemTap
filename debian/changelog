@@ -10,8 +10,9 @@ systemtap (1.1-1) unstable; urgency=low
     - stap-env.diff - no longer needed
   * Updated patches:
     - dont-build-pdfdocs.diff
+    - grapher-libs.diff 
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:10:45 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:13:23 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
