@@ -1,4 +1,3 @@
-no-PROCFLAGS.diff
 stapex-docdir-path.diff
 use-pdflatex.diff
 dont-build-pdfdocs.diff
