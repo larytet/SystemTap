@@ -17,8 +17,9 @@ systemtap (1.1-1) unstable; urgency=low
   * Build-depend on libboost-dev and libglademm-2.4-dev, needed for grapher
   * New patches:
     - dont-remove-scripts.diff - do not remove scripts on clean
+    - examples-shebangs.diff - add missing shebangs to examples
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 09:58:15 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 11:24:11 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
