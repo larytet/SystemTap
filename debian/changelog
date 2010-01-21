@@ -1,6 +1,7 @@
-systemtap (1.1-1) unstable; urgency=low
+systemtap (1.1-1) experimental; urgency=low
 
   * New upstream release
+    - too many changes, upload to experimental for now
   * Fix Vcs-Browser url
   * Update debian/copyright
   * Pass --disable-publican to configure, not usable in Debian
@@ -19,7 +20,7 @@ systemtap (1.1-1) unstable; urgency=low
     - dont-remove-scripts.diff - do not remove scripts on clean
     - examples-shebangs.diff - add missing shebangs to examples
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 11:24:11 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 12:15:03 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
