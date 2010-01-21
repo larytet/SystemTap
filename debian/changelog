@@ -19,8 +19,10 @@ systemtap (1.1-1) experimental; urgency=low
   * New patches:
     - dont-remove-scripts.diff - do not remove scripts on clean
     - examples-shebangs.diff - add missing shebangs to examples
+    - xmlto-test.diff - use html format to test xmlto, txt format requires
+      additional build-dependencies
 
- -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 12:15:03 +0100
+ -- Євгеній Мещеряков <eugen@debian.org>  Thu, 21 Jan 2010 14:45:25 +0100
 
 systemtap (1.0-2) unstable; urgency=high
 
