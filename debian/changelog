@@ -1,8 +1,10 @@
 systemtap (1.2-1) experimental; urgency=low
 
   * New upstream release.
+  * Removed patches:
+    - xmlto-test.diff: applied upstream.
 
- -- Lucas Nussbaum <lucas@lucas-nussbaum.net>  Mon, 17 May 2010 23:12:31 +0200
+ -- Lucas Nussbaum <lucas@lucas-nussbaum.net>  Mon, 17 May 2010 23:14:09 +0200
 
 systemtap (1.1-1) experimental; urgency=low
 
