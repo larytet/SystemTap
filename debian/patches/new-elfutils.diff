@@ -1,19 +1,17 @@
-Index: systemtap/configure.ac
-===================================================================
---- systemtap.orig/configure.ac	2009-09-11 00:17:37.053039799 +0200
-+++ systemtap/configure.ac	2009-09-11 00:17:57.667214082 +0200
-@@ -498,11 +498,11 @@
-   save_LIBS="$LIBS"
-   AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
-     AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
--    [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
-+    [-ldw -lelf])
-   AC_CHECK_LIB(dw, dwarf_getelf,[],[
-     AC_MSG_ERROR([elfutils, libdw too old, need 0.126+])],
--    [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
--  stap_LIBS="-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
-+    [-ldw -lelf])
-+  stap_LIBS="-ldw -lelf"
-   LIBS="$save_LIBS"
- else
-   # We built our own and stap_LDFLAGS points at the install.
+--- a/configure.ac
++++ b/configure.ac
+@@ -409,11 +409,11 @@ if test $enable_translator = yes; then
+     save_LIBS="$LIBS"
+     AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
+       AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
+-      [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
++      [-ldw -lelf])
+     AC_CHECK_LIB(dw, dwarf_getelf,[],[
+       AC_MSG_ERROR([elfutils, libdw too old, need 0.126+])],
+-      [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
+-    stap_LIBS="$stap_LIBS -Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
++      [-ldw -lelf])
++    stap_LIBS="-ldw -lelf"
+     LIBS="$save_LIBS"
+   else
+     # We built our own and stap_LDFLAGS points at the install.

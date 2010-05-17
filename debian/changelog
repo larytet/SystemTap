@@ -4,8 +4,11 @@ systemtap (1.2-1) experimental; urgency=low
   * Removed patches:
     - xmlto-test.diff: applied upstream.
     - dont-remove-scripts.diff: applied upstream.
+    - examples-shebangs.diff: applied upstream.
   * Refreshed patches:
     - use-pdflatex.diff
+    - debversion.diff
+    - new-elfutils.diff
 
  -- Lucas Nussbaum <lucas@lucas-nussbaum.net>  Mon, 17 May 2010 23:17:10 +0200
 
