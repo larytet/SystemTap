@@ -1,8 +1,6 @@
-Index: systemtap/configure.ac
-===================================================================
---- systemtap.orig/configure.ac	2009-09-11 00:17:18.956372518 +0200
-+++ systemtap/configure.ac	2009-09-11 00:17:30.569710756 +0200
-@@ -168,19 +168,19 @@
+--- a/configure.ac
++++ b/configure.ac
+@@ -170,19 +170,19 @@ AC_ARG_ENABLE([docs],
      [enable building documentation (default on if latex etc. found).]),
    [enable_docs=$enableval],
    [enable_docs="check"])
@@ -35,10 +33,8 @@ Index: systemtap/configure.ac
     building_docs="yes"
  fi
  AM_CONDITIONAL([BUILD_DOCS], [test "$building_docs" == "yes"])
-Index: systemtap/doc/langref.tex
-===================================================================
---- systemtap.orig/doc/langref.tex	2009-09-11 00:15:49.967260925 +0200
-+++ systemtap/doc/langref.tex	2009-09-11 00:17:30.569710756 +0200
+--- a/doc/langref.tex
++++ b/doc/langref.tex
 @@ -10,6 +10,7 @@
  \usepackage{makeidx}
  \usepackage{verbatim}
@@ -47,11 +43,9 @@ Index: systemtap/doc/langref.tex
  \makeindex
  
  \makeatletter
-Index: systemtap/doc/Makefile.am
-===================================================================
---- systemtap.orig/doc/Makefile.am	2009-09-11 00:15:49.980546479 +0200
-+++ systemtap/doc/Makefile.am	2009-09-11 00:17:30.569710756 +0200
-@@ -22,20 +22,14 @@
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -22,20 +22,14 @@ uninstall-local:
  	done
  endif
  
@@ -78,10 +72,8 @@ Index: systemtap/doc/Makefile.am
 +	pdflatex -output-directory=$$pwd $<; \
 +	pdflatex -output-directory=$$pwd $<
  
-Index: systemtap/doc/tutorial.tex
-===================================================================
---- systemtap.orig/doc/tutorial.tex	2009-09-11 00:15:50.023883086 +0200
-+++ systemtap/doc/tutorial.tex	2009-09-11 00:17:30.569710756 +0200
+--- a/doc/tutorial.tex
++++ b/doc/tutorial.tex
 @@ -5,7 +5,7 @@
  % later version.
  
@@ -112,7 +104,7 @@ Index: systemtap/doc/tutorial.tex
  
  % \usepackage{draftcopy} % ugly
  \bibliographystyle{plain}
-@@ -1064,9 +1065,9 @@
+@@ -1071,9 +1072,9 @@ repository.  Come join us!
  \section{Glossary}
  \renewcommand{\nomname}{}
  \printglossary

@@ -1,4 +1,3 @@
-dont-remove-scripts.diff
 stapex-docdir-path.diff
 use-pdflatex.diff
 dont-build-pdfdocs.diff
