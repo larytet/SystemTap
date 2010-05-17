@@ -1,5 +1,5 @@
 // elaboration functions
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2008 Intel Corporation
 //
 // This file is part of systemtap, and is free software.  You can
@@ -28,6 +28,7 @@ extern "C" {
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <climits>
 
 
 using namespace std;
@@ -179,17 +180,6 @@ derived_probe::print_dupe_stamp_unprivileged_process_owner(ostream& o)
 // ------------------------------------------------------------------------
 // Members of derived_probe_builder
 
-void
-derived_probe_builder::check_unprivileged (const systemtap_session & sess,
-					   const literal_map_t & parameters)
-{
-      // By default, probes are not allowed for unprivileged users.
-      if (sess.unprivileged)
-	{
-	  throw semantic_error (string("probe point is not allowed for unprivileged users"));
-	}
-}
-
 bool
 derived_probe_builder::get_param (std::map<std::string, literal*> const & params,
                                   const std::string& key,
@@ -314,7 +304,8 @@ match_key::globmatch(match_key const & other) const
 // Members of match_node
 // ------------------------------------------------------------------------
 
-match_node::match_node()
+match_node::match_node() :
+  unprivileged_ok(false)
 {
 }
 
@@ -356,6 +347,13 @@ match_node::bind_num(string const & k)
   return bind(match_key(k).with_number());
 }
 
+match_node *
+match_node::bind_unprivileged(bool b)
+{
+  unprivileged_ok = b;
+  return this;
+}
+
 void
 match_node::find_and_build (systemtap_session& s,
                             probe* p, probe_point *loc, unsigned pos,
@@ -375,6 +373,12 @@ match_node::find_and_build (systemtap_session& s,
                                 " (follow:" + alternatives + ")", loc->components.back()->tok);
         }
 
+      if (s.unprivileged && ! unprivileged_ok)
+	{
+	  throw semantic_error (string("probe point is not allowed for unprivileged users"),
+				loc->components.back()->tok);
+	}
+
       map<string, literal *> param_map;
       for (unsigned i=0; i<pos; i++)
         param_map[loc->components[i]->functor] = loc->components[i]->arg;
@@ -384,7 +388,6 @@ match_node::find_and_build (systemtap_session& s,
       for (unsigned k=0; k<ends.size(); k++) 
         {
           derived_probe_builder *b = ends[k];
-	  b->check_unprivileged (s, param_map);
           b->build (s, p, loc, param_map, results);
         }
     }
@@ -465,8 +468,7 @@ match_node::find_and_build (systemtap_session& s,
           for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
             alternatives += string(" ") + i->first.str();
 
-
-          throw semantic_error (string("probe point mismatch at position ") +
+	  throw semantic_error(string("probe point mismatch at position ") +
                                 lex_cast (pos) +
                                 " (alternatives:" + alternatives + ")",
                                 loc->components[pos]->tok);
@@ -514,6 +516,19 @@ struct alias_derived_probe: public derived_probe
 private:
   const probe_alias *alias; // Used to check for recursion
 };
+
+probe*
+probe::create_alias(probe_point* l, probe_point* a)
+{
+  vector<probe_point*> aliases(1, a);
+  probe_alias* p = new probe_alias(aliases);
+  p->tok = tok;
+  p->locations.push_back(l);
+  p->body = body;
+  p->privileged = privileged;
+  p->epilogue_style = false;
+  return new alias_derived_probe(this, l, p);
+}
 
 
 struct
@@ -607,11 +622,6 @@ alias_expansion_builder
     }
     return false;
   }
-
-  // No action required. The actual probes will be checked when they are
-  // built.
-  virtual void check_unprivileged (const systemtap_session & sess,
-				   const literal_map_t & parameters) {}
 };
 
 
@@ -1247,6 +1257,7 @@ semantic_pass_symbols (systemtap_session& s)
 }
 
 
+
 // Keep unread global variables for probe end value display.
 void add_global_var_display (systemtap_session& s)
 {
@@ -1292,6 +1303,7 @@ void add_global_var_display (systemtap_session& s)
 
       vector<derived_probe*> dps;
       block *b = new block;
+      b->tok = l->tok;
 
       probe* p = new probe;
       p->tok = l->tok;
@@ -1304,7 +1316,7 @@ void add_global_var_display (systemtap_session& s)
       g_sym->type = l->type;
       g_sym->referent = l;
 
-      token* print_tok = new token;
+      token* print_tok = new token(*l->tok);
       print_tok->type = tok_identifier;
       print_tok->content = "printf";
 
@@ -1384,6 +1396,7 @@ void add_global_var_display (systemtap_session& s)
 	  fe->sort_direction = -1; // imply decreasing sort on value
 	  fe->sort_column = 0;     // as in   foreach ([a,b,c] in array-) { }
 	  fe->limit = NULL;
+	  fe->tok = l->tok;
 
 	  // Create indices for the foreach loop
 	  for (int i=0; i < idx_count; i++)
@@ -1403,17 +1416,17 @@ void add_global_var_display (systemtap_session& s)
 	    }
 
 	  // Create a printf for the foreach loop
-          pf->raw_components += "[";
+	  pf->raw_components += "[";
 	  for (int i=0; i < idx_count; i++)
-            {
-              if (i > 0)
-                pf->raw_components += ",";
-              if (l->index_types[i] == pe_string)
-                pf->raw_components += "\"%#s\"";
-              else
-                pf->raw_components += "%#d";
-            }
-          pf->raw_components += "]";
+	    {
+	      if (i > 0)
+		pf->raw_components += ",";
+	      if (l->index_types[i] == pe_string)
+		pf->raw_components += "\"%#s\"";
+	      else
+		pf->raw_components += "%#d";
+	    }
+	  pf->raw_components += "]";
 	  if (l->type == pe_stats)
 	    pf->raw_components += " @count=%#x @min=%#x @max=%#x @sum=%#x @avg=%#x\\n";
 	  else if (l->type == pe_string)
@@ -1455,6 +1468,7 @@ void add_global_var_display (systemtap_session& s)
 	  pf->components = print_format::string_to_components(pf->raw_components);
 	  expr_statement* feb = new expr_statement;
 	  feb->value = pf;
+	  feb->tok = l->tok;
 	  fe->base = g_sym;
 	  fe->block = (statement*)feb;
 	  b->statements.push_back(fe);
@@ -1493,10 +1507,10 @@ semantic_pass (systemtap_session& s)
 
       if (rc == 0) rc = semantic_pass_symbols (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
-      if (rc == 0 && ! s.unoptimized) rc = semantic_pass_optimize1 (s);
+      if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
       if (rc == 0) add_global_var_display (s);
-      if (rc == 0 && ! s.unoptimized) rc = semantic_pass_optimize2 (s);
+      if (rc == 0) rc = semantic_pass_optimize2 (s);
       if (rc == 0) rc = semantic_pass_vars (s);
       if (rc == 0) rc = semantic_pass_stats (s);
 
@@ -1518,11 +1532,14 @@ semantic_pass (systemtap_session& s)
 
 systemtap_session::systemtap_session ():
   // NB: pointer members must be manually initialized!
+  base_hash(0),
   pattern_root(new match_node),
   user_file (0),
   be_derived_probes(0),
   dwarf_derived_probes(0),
   kprobe_derived_probes(0),
+  hwbkpt_derived_probes(0),
+  perf_derived_probes(0),
   uprobe_derived_probes(0),
   utrace_derived_probes(0),
   itrace_derived_probes(0),
@@ -1532,7 +1549,6 @@ systemtap_session::systemtap_session ():
   mark_derived_probes(0),
   tracepoint_derived_probes(0),
   hrtimer_derived_probes(0),
-  perfmon_derived_probes(0),
   procfs_derived_probes(0),
   op (0), up (0),
   sym_kprobes_text_start (0),
@@ -2014,7 +2030,7 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
       if (ftv.traversed.find(fd) == ftv.traversed.end())
         {
           if (fd->tok->location.file->name == s.user_file->name && // !tapset
-              ! s.suppress_warnings)
+              ! s.suppress_warnings && ! fd->synthetic)
 	    s.print_warning ("eliding unused function '" + fd->name + "'", fd->tok);
           else if (s.verbose>2)
             clog << "Eliding unused function " << fd->name
@@ -2206,6 +2222,7 @@ struct dead_assignment_remover: public update_visitor
     session(s), relaxed_p(r), vut(v) {}
 
   void visit_assignment (assignment* e);
+  void visit_try_block (try_block *s);
 };
 
 
@@ -2262,6 +2279,27 @@ dead_assignment_remover::visit_assignment (assignment* e)
   provide (e);
 }
 
+
+void
+dead_assignment_remover::visit_try_block (try_block *s)
+{
+  replace (s->try_block);
+  if (s->catch_error_var)
+    {
+      vardecl* errvar = s->catch_error_var->referent;
+      if (vut.read.find(errvar) == vut.read.end()) // never read?
+        {
+          if (session.verbose>2)
+            clog << "Eliding unused error string catcher " << errvar->name
+                 << " at " << *s->tok << endl;
+          s->catch_error_var = 0;
+        }
+    }
+  replace (s->catch_block);
+  provide (s);
+}
+
+
 // Let's remove assignments to variables that are never read.  We
 // rewrite "(foo = expr)" as "(expr)".  This makes foo a candidate to
 // be optimized away as an unused variable, and expr a candidate to be
@@ -2301,6 +2339,7 @@ struct dead_stmtexpr_remover: public update_visitor
     session(s), relaxed_p(r) {}
 
   void visit_block (block *s);
+  void visit_try_block (try_block *s);
   void visit_null_statement (null_statement *s);
   void visit_if_statement (if_statement* s);
   void visit_foreach_loop (foreach_loop *s);
@@ -2363,6 +2402,22 @@ dead_stmtexpr_remover::visit_block (block *s)
   provide (s);
 }
 
+
+void
+dead_stmtexpr_remover::visit_try_block (try_block *s)
+{
+  replace (s->try_block, true);
+  replace (s->catch_block, true); // null catch{} is ok and useful
+  if (s->try_block == 0)
+    {
+      if (session.verbose>2)
+        clog << "Eliding empty try {} block " << *s->tok << endl;
+      s = 0;
+    }
+  provide (s);
+}
+
+
 void
 dead_stmtexpr_remover::visit_if_statement (if_statement *s)
 {
@@ -2423,6 +2478,7 @@ dead_stmtexpr_remover::visit_foreach_loop (foreach_loop *s)
 
   if (s->block == 0)
     {
+      // XXX what if s->limit has side effects?
       if (session.verbose>2)
         clog << "Eliding side-effect-free foreach statement " << *s->tok << endl;
       s = 0; // yeah, baby
@@ -2452,8 +2508,7 @@ dead_stmtexpr_remover::visit_for_loop (for_loop *s)
       else
         {
           // Can't elide this whole statement; put a null in there.
-          s->block = new null_statement();
-          s->block->tok = s->tok;
+          s->block = new null_statement(s->tok);
         }
     }
   provide (s);
@@ -2529,8 +2584,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
               && ! s.timing) // PR10070
             s.print_warning ("side-effect-free probe '" + p->name + "'", p->tok);
 
-          p->body = new null_statement();
-          p->body->tok = p->tok;
+          p->body = new null_statement(p->tok);
 
           // XXX: possible duplicate warnings; see below
         }
@@ -2554,8 +2608,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
           if (! s.suppress_warnings)
             s.print_warning ("side-effect-free function '" + fn->name + "'", fn->tok);
 
-          fn->body = new null_statement();
-          fn->body->tok = fn->tok;
+          fn->body = new null_statement(fn->tok);
 
           // XXX: the next iteration of the outer optimization loop may
           // take this new null_statement away again, and thus give us a
@@ -2612,6 +2665,7 @@ struct void_statement_reducer: public update_visitor
   void visit_print_format (print_format* e);
   void visit_target_symbol (target_symbol* e);
   void visit_cast_op (cast_op* e);
+  void visit_defined_op (defined_op* e);
 
   // these are a bit hairy to grok due to the intricacies of indexables and
   // stats, so I'm chickening out and skipping them...
@@ -2950,6 +3004,23 @@ void_statement_reducer::visit_cast_op (cast_op* e)
 }
 
 
+void
+void_statement_reducer::visit_defined_op (defined_op* e)
+{
+  // When the result of a @defined operation isn't needed, just elide
+  // it entirely.  Its operand $expression must already be
+  // side-effect-free.
+
+  if (session.verbose>2)
+    clog << "Eliding unused check " << *e->tok << endl;
+
+  relaxed_p = false;
+  e = 0;
+  provide (e);
+}
+
+
+
 void semantic_pass_opt5 (systemtap_session& s, bool& relaxed_p)
 {
   // Let's simplify statements with unused computed values.
@@ -2964,6 +3035,549 @@ void semantic_pass_opt5 (systemtap_session& s, bool& relaxed_p)
   for (map<string,functiondecl*>::iterator it = s.functions.begin();
        it != s.functions.end(); it++)
     vuv.replace (it->second->body);
+}
+
+
+struct const_folder: public update_visitor
+{
+  systemtap_session& session;
+  bool& relaxed_p;
+
+  const_folder(systemtap_session& s, bool& r):
+    session(s), relaxed_p(r), last_number(0), last_string(0) {}
+
+  literal_number* last_number;
+  literal_number* get_number(expression*& e);
+  void visit_literal_number (literal_number* e);
+
+  literal_string* last_string;
+  literal_string* get_string(expression*& e);
+  void visit_literal_string (literal_string* e);
+
+  void get_literal(expression*& e, literal_number*& n, literal_string*& s);
+
+  void visit_if_statement (if_statement* s);
+  void visit_for_loop (for_loop* s);
+  void visit_foreach_loop (foreach_loop* s);
+  void visit_binary_expression (binary_expression* e);
+  void visit_unary_expression (unary_expression* e);
+  void visit_logical_or_expr (logical_or_expr* e);
+  void visit_logical_and_expr (logical_and_expr* e);
+  void visit_comparison (comparison* e);
+  void visit_concatenation (concatenation* e);
+  void visit_ternary_expression (ternary_expression* e);
+  void visit_defined_op (defined_op* e);
+  void visit_target_symbol (target_symbol* e);
+};
+
+void
+const_folder::get_literal(expression*& e,
+                          literal_number*& n,
+                          literal_string*& s)
+{
+  replace (e);
+  n = (e == last_number) ? last_number : NULL;
+  s = (e == last_string) ? last_string : NULL;
+}
+
+literal_number*
+const_folder::get_number(expression*& e)
+{
+  replace (e);
+  return (e == last_number) ? last_number : NULL;
+}
+
+void
+const_folder::visit_literal_number (literal_number* e)
+{
+  last_number = e;
+  provide (e);
+}
+
+literal_string*
+const_folder::get_string(expression*& e)
+{
+  replace (e);
+  return (e == last_string) ? last_string : NULL;
+}
+
+void
+const_folder::visit_literal_string (literal_string* e)
+{
+  last_string = e;
+  provide (e);
+}
+
+void
+const_folder::visit_if_statement (if_statement* s)
+{
+  literal_number* cond = get_number (s->condition);
+  if (!cond)
+    {
+      replace (s->thenblock);
+      replace (s->elseblock);
+      provide (s);
+    }
+  else
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constant-" << cond->value << " if-statement " << *s->tok << endl;
+      relaxed_p = false;
+
+      statement* n = cond->value ? s->thenblock : s->elseblock;
+      if (n)
+        n->visit (this);
+      else
+        provide (new null_statement (s->tok));
+    }
+}
+
+void
+const_folder::visit_for_loop (for_loop* s)
+{
+  literal_number* cond = get_number (s->cond);
+  if (!cond || cond->value)
+    {
+      replace (s->init);
+      replace (s->incr);
+      replace (s->block);
+      provide (s);
+    }
+  else
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constantly-false for-loop " << *s->tok << endl;
+      relaxed_p = false;
+
+      if (s->init)
+        s->init->visit (this);
+      else
+        provide (new null_statement (s->tok));
+    }
+}
+
+void
+const_folder::visit_foreach_loop (foreach_loop* s)
+{
+  literal_number* limit = get_number (s->limit);
+  if (!limit || limit->value > 0)
+    {
+      for (unsigned i = 0; i < s->indexes.size(); ++i)
+        replace (s->indexes[i]);
+      replace (s->base);
+      replace (s->block);
+      provide (s);
+    }
+  else
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constantly-limited foreach-loop " << *s->tok << endl;
+      relaxed_p = false;
+
+      provide (new null_statement (s->tok));
+    }
+}
+
+void
+const_folder::visit_binary_expression (binary_expression* e)
+{
+  int64_t value;
+  literal_number* left = get_number (e->left);
+  literal_number* right = get_number (e->right);
+
+  if (right && !right->value && (e->op == "/" || e->op == "%"))
+    {
+      // Give divide-by-zero a chance to be optimized out elsewhere,
+      // and if not it will be a runtime error anyway...
+      provide (e);
+      return;
+    }
+
+  if (left && right)
+    {
+      if (e->op == "+")
+        value = left->value + right->value;
+      else if (e->op == "-")
+        value = left->value - right->value;
+      else if (e->op == "*")
+        value = left->value * right->value;
+      else if (e->op == "&")
+        value = left->value & right->value;
+      else if (e->op == "|")
+        value = left->value | right->value;
+      else if (e->op == "^")
+        value = left->value ^ right->value;
+      else if (e->op == ">>")
+        value = left->value >> max(min(right->value, (int64_t)64), (int64_t)0);
+      else if (e->op == "<<")
+        value = left->value << max(min(right->value, (int64_t)64), (int64_t)0);
+      else if (e->op == "/")
+        value = (left->value == LLONG_MIN && right->value == -1) ? LLONG_MIN :
+                left->value / right->value;
+      else if (e->op == "%")
+        value = (left->value == LLONG_MIN && right->value == -1) ? 0 :
+                left->value % right->value;
+      else
+        throw semantic_error ("unsupported binary operator " + e->op);
+    }
+
+  else if ((left && ((left->value == 0 && (e->op == "*" || e->op == "&" ||
+                                           e->op == ">>" || e->op == "<<" )) ||
+                     (left->value ==-1 && (e->op == "|" || e->op == ">>"))))
+           ||
+           (right && ((right->value == 0 && (e->op == "*" || e->op == "&")) ||
+                      (right->value == 1 && (e->op == "%")) ||
+                      (right->value ==-1 && (e->op == "%" || e->op == "|")))))
+    {
+      expression* other = left ? e->right : e->left;
+      varuse_collecting_visitor vu(session);
+      other->visit(&vu);
+      if (!vu.side_effect_free())
+        {
+          provide (e);
+          return;
+        }
+
+      if (left)
+        value = left->value;
+      else if (e->op == "%")
+        value = 0;
+      else
+        value = right->value;
+    }
+
+  else if ((left && ((left->value == 0 && (e->op == "+" || e->op == "|" ||
+                                           e->op == "^")) ||
+                     (left->value == 1 && (e->op == "*")) ||
+                     (left->value ==-1 && (e->op == "&"))))
+           ||
+           (right && ((right->value == 0 && (e->op == "+" || e->op == "-" ||
+                                             e->op == "|" || e->op == "^")) ||
+                      (right->value == 1 && (e->op == "*" || e->op == "/")) ||
+                      (right->value ==-1 && (e->op == "&")) ||
+                      (right->value <= 0 && (e->op == ">>" || e->op == "<<")))))
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constant-identity binary operator " << *e->tok << endl;
+      relaxed_p = false;
+
+      provide (left ? e->right : e->left);
+      return;
+    }
+
+  else
+    {
+      provide (e);
+      return;
+    }
+
+  if (session.verbose>2)
+    clog << "Collapsing constant-" << value << " binary operator " << *e->tok << endl;
+  relaxed_p = false;
+
+  literal_number* n = new literal_number(value);
+  n->tok = e->tok;
+  n->visit (this);
+}
+
+void
+const_folder::visit_unary_expression (unary_expression* e)
+{
+  literal_number* operand = get_number (e->operand);
+  if (!operand)
+    provide (e);
+  else
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constant unary " << *e->tok << endl;
+      relaxed_p = false;
+
+      literal_number* n = new literal_number (*operand);
+      n->tok = e->tok;
+      if (e->op == "+")
+        ; // nothing to do
+      else if (e->op == "-")
+        n->value = -n->value;
+      else if (e->op == "!")
+        n->value = !n->value;
+      else if (e->op == "~")
+        n->value = ~n->value;
+      else
+        throw semantic_error ("unsupported unary operator " + e->op);
+      n->visit (this);
+    }
+}
+
+void
+const_folder::visit_logical_or_expr (logical_or_expr* e)
+{
+  int64_t value;
+  literal_number* left = get_number (e->left);
+  literal_number* right = get_number (e->right);
+
+  if (left && right)
+    value = left->value || right->value;
+
+  else if ((left && left->value) || (right && right->value))
+    {
+      // If the const is on the left, we get to short-circuit the right
+      // immediately.  Otherwise, we can only eliminate the LHS if it's pure.
+      if (right)
+        {
+          varuse_collecting_visitor vu(session);
+          e->left->visit(&vu);
+          if (!vu.side_effect_free())
+            {
+              provide (e);
+              return;
+            }
+        }
+
+      value = 1;
+    }
+
+  // We might also get rid of useless "0||x" and "x||0", except it does
+  // normalize x to 0 or 1.  We could change it to "!!x", but it's not clear
+  // that this would gain us much.
+
+  else
+    {
+      provide (e);
+      return;
+    }
+
+  if (session.verbose>2)
+    clog << "Collapsing constant logical-OR " << *e->tok << endl;
+  relaxed_p = false;
+
+  literal_number* n = new literal_number(value);
+  n->tok = e->tok;
+  n->visit (this);
+}
+
+void
+const_folder::visit_logical_and_expr (logical_and_expr* e)
+{
+  int64_t value;
+  literal_number* left = get_number (e->left);
+  literal_number* right = get_number (e->right);
+
+  if (left && right)
+    value = left->value && right->value;
+
+  else if ((left && !left->value) || (right && !right->value))
+    {
+      // If the const is on the left, we get to short-circuit the right
+      // immediately.  Otherwise, we can only eliminate the LHS if it's pure.
+      if (right)
+        {
+          varuse_collecting_visitor vu(session);
+          e->left->visit(&vu);
+          if (!vu.side_effect_free())
+            {
+              provide (e);
+              return;
+            }
+        }
+
+      value = 0;
+    }
+
+  // We might also get rid of useless "1&&x" and "x&&1", except it does
+  // normalize x to 0 or 1.  We could change it to "!!x", but it's not clear
+  // that this would gain us much.
+
+  else
+    {
+      provide (e);
+      return;
+    }
+
+  if (session.verbose>2)
+    clog << "Collapsing constant logical-AND " << *e->tok << endl;
+  relaxed_p = false;
+
+  literal_number* n = new literal_number(value);
+  n->tok = e->tok;
+  n->visit (this);
+}
+
+void
+const_folder::visit_comparison (comparison* e)
+{
+  int comp;
+
+  literal_number *left_num, *right_num;
+  literal_string *left_str, *right_str;
+  get_literal(e->left, left_num, left_str);
+  get_literal(e->right, right_num, right_str);
+
+  if (left_str && right_str)
+    comp = left_str->value.compare(right_str->value);
+
+  else if (left_num && right_num)
+    comp = left_num->value < right_num->value ? -1 :
+           left_num->value > right_num->value ? 1 : 0;
+
+  else if ((left_num && ((left_num->value == LLONG_MIN &&
+                          (e->op == "<=" || e->op == ">")) ||
+                         (left_num->value == LLONG_MAX &&
+                          (e->op == ">=" || e->op == "<"))))
+           ||
+           (right_num && ((right_num->value == LLONG_MIN &&
+                            (e->op == ">=" || e->op == "<")) ||
+                           (right_num->value == LLONG_MAX &&
+                            (e->op == "<=" || e->op == ">")))))
+    {
+      expression* other = left_num ? e->right : e->left;
+      varuse_collecting_visitor vu(session);
+      other->visit(&vu);
+      if (!vu.side_effect_free())
+        provide (e);
+      else
+        {
+          if (session.verbose>2)
+            clog << "Collapsing constant-boundary comparison " << *e->tok << endl;
+          relaxed_p = false;
+
+          // ops <= and >= are true, < and > are false
+          literal_number* n = new literal_number( e->op.length() == 2 );
+          n->tok = e->tok;
+          n->visit (this);
+        }
+      return;
+    }
+
+  else
+    {
+      provide (e);
+      return;
+    }
+
+  if (session.verbose>2)
+    clog << "Collapsing constant comparison " << *e->tok << endl;
+  relaxed_p = false;
+
+  int64_t value;
+  if (e->op == "==")
+    value = comp == 0;
+  else if (e->op == "!=")
+    value = comp != 0;
+  else if (e->op == "<")
+    value = comp < 0;
+  else if (e->op == ">")
+    value = comp > 0;
+  else if (e->op == "<=")
+    value = comp <= 0;
+  else if (e->op == ">=")
+    value = comp >= 0;
+  else
+    throw semantic_error ("unsupported comparison operator " + e->op);
+
+  literal_number* n = new literal_number(value);
+  n->tok = e->tok;
+  n->visit (this);
+}
+
+void
+const_folder::visit_concatenation (concatenation* e)
+{
+  literal_string* left = get_string (e->left);
+  literal_string* right = get_string (e->right);
+
+  if (left && right)
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constant concatenation " << *e->tok << endl;
+      relaxed_p = false;
+
+      literal_string* n = new literal_string (*left);
+      n->tok = e->tok;
+      n->value.append(right->value);
+      n->visit (this);
+    }
+  else if ((left && left->value.empty()) ||
+           (right && right->value.empty()))
+    {
+      if (session.verbose>2)
+        clog << "Collapsing identity concatenation " << *e->tok << endl;
+      relaxed_p = false;
+      provide(left ? e->right : e->left);
+    }
+  else
+    provide (e);
+}
+
+void
+const_folder::visit_ternary_expression (ternary_expression* e)
+{
+  literal_number* cond = get_number (e->cond);
+  if (!cond)
+    {
+      replace (e->truevalue);
+      replace (e->falsevalue);
+      provide (e);
+    }
+  else
+    {
+      if (session.verbose>2)
+        clog << "Collapsing constant-" << cond->value << " ternary " << *e->tok << endl;
+      relaxed_p = false;
+
+      expression* n = cond->value ? e->truevalue : e->falsevalue;
+      n->visit (this);
+    }
+}
+
+void
+const_folder::visit_defined_op (defined_op* e)
+{
+  // If a @defined makes it this far, then it is, de facto, undefined.
+
+  if (session.verbose>2)
+    clog << "Collapsing untouched @defined check " << *e->tok << endl;
+  relaxed_p = false;
+
+  literal_number* n = new literal_number (0);
+  n->tok = e->tok;
+  n->visit (this);
+}
+
+void
+const_folder::visit_target_symbol (target_symbol* e)
+{
+  if (e->probe_context_var.empty() && session.skip_badvars)
+    {
+      // Upon user request for ignoring context, the symbol is replaced
+      // with a literal 0 and a warning message displayed
+      // XXX this ignores possible side-effects, e.g. in array indexes
+      literal_number* ln_zero = new literal_number (0);
+      ln_zero->tok = e->tok;
+      provide (ln_zero);
+      if (!session.suppress_warnings)
+        session.print_warning ("Bad $context variable being substituted with literal 0",
+                               e->tok);
+      else if (session.verbose > 2)
+        clog << "Bad $context variable being substituted with literal 0, "
+             << *e->tok << endl;
+      relaxed_p = false;
+    }
+  else
+    update_visitor::visit_target_symbol (e);
+}
+
+static void semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
+{
+  // Let's simplify statements with constant values.
+
+  const_folder cf (s, relaxed_p);
+  // This instance may be reused for multiple probe/function body trims.
+
+  for (unsigned i=0; i<s.probes.size(); i++)
+    cf.replace (s.probes[i]->body);
+  for (map<string,functiondecl*>::iterator it = s.functions.begin();
+       it != s.functions.end(); it++)
+    cf.replace (it->second->body);
 }
 
 
@@ -3086,11 +3700,20 @@ semantic_pass_optimize1 (systemtap_session& s)
 
       relaxed_p = true; // until proven otherwise
 
-      semantic_pass_opt1 (s, relaxed_p);
-      semantic_pass_opt2 (s, relaxed_p, iterations); // produce some warnings only on iteration=0
-      semantic_pass_opt3 (s, relaxed_p);
-      semantic_pass_opt4 (s, relaxed_p);
-      semantic_pass_opt5 (s, relaxed_p);
+      if (!s.unoptimized)
+        {
+          semantic_pass_opt1 (s, relaxed_p);
+          semantic_pass_opt2 (s, relaxed_p, iterations); // produce some warnings only on iteration=0
+          semantic_pass_opt3 (s, relaxed_p);
+          semantic_pass_opt4 (s, relaxed_p);
+          semantic_pass_opt5 (s, relaxed_p);
+        }
+
+      // For listing mode, we need const-folding regardless of optimization so
+      // that @defined expressions can be properly resolved.  PR11360
+      // We also want it in case variables are used in if/case expressions,
+      // so enable always.  PR11366
+      semantic_pass_const_fold (s, relaxed_p);
 
       iterations ++;
     }
@@ -3114,7 +3737,8 @@ semantic_pass_optimize2 (systemtap_session& s)
       if (pending_interrupts) break;
       relaxed_p = true; // until proven otherwise
 
-      semantic_pass_opt6 (s, relaxed_p);
+      if (!s.unoptimized)
+        semantic_pass_opt6 (s, relaxed_p);
     }
 
   return rc;
@@ -3579,6 +4203,13 @@ typeresolution_info::visit_target_symbol (target_symbol* e)
 
 
 void
+typeresolution_info::visit_defined_op (defined_op* e)
+{
+  throw semantic_error("unexpected @defined", e->tok);
+}
+
+
+void
 typeresolution_info::visit_cast_op (cast_op* e)
 {
   // Like target_symbol, a cast_op shouldn't survive this far
@@ -3715,6 +4346,21 @@ typeresolution_info::visit_block (block* e)
 	  session.print_error (e);
         }
     }
+}
+
+
+void
+typeresolution_info::visit_try_block (try_block* e)
+{
+  if (e->try_block)
+    e->try_block->visit (this);
+  if (e->catch_error_var)
+    {
+      t = pe_string;
+      e->catch_error_var->visit (this);
+    }
+  if (e->catch_block)
+    e->catch_block->visit (this);
 }
 
 

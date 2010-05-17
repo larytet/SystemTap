@@ -1,5 +1,5 @@
 // tapset for procfs
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -25,6 +25,7 @@ using namespace __gnu_cxx;
 static const string TOK_PROCFS("procfs");
 static const string TOK_READ("read");
 static const string TOK_WRITE("write");
+static const string TOK_MAXSIZE("maxsize");
 
 
 // ------------------------------------------------------------------------
@@ -37,8 +38,9 @@ struct procfs_derived_probe: public derived_probe
   string path;
   bool write;
   bool target_symbol_seen;
+  int64_t maxsize_val;
 
-  procfs_derived_probe (systemtap_session &, probe* p, probe_point* l, string ps, bool w);
+  procfs_derived_probe (systemtap_session &, probe* p, probe_point* l, string ps, bool w, int64_t m);
   void join_group (systemtap_session& s);
 };
 
@@ -74,9 +76,7 @@ public:
 struct procfs_var_expanding_visitor: public var_expanding_visitor
 {
   procfs_var_expanding_visitor(systemtap_session& s, const string& pn,
-                               string path, bool write_probe):
-    sess (s), probe_name (pn), path (path), write_probe (write_probe),
-    target_symbol_seen (false) {}
+                               string path, bool write_probe);
 
   systemtap_session& sess;
   string probe_name;
@@ -89,8 +89,10 @@ struct procfs_var_expanding_visitor: public var_expanding_visitor
 
 
 procfs_derived_probe::procfs_derived_probe (systemtap_session &s, probe* p,
-                                            probe_point* l, string ps, bool w):
-  derived_probe(p, l), path(ps), write(w), target_symbol_seen(false)
+                                            probe_point* l, string ps, bool w,
+					    int64_t m):
+    derived_probe(p, l), path(ps), write(w), target_symbol_seen(false),
+    maxsize_val(m)
 {
   // Expand local variables in the probe body
   procfs_var_expanding_visitor v (s, name, path, write);
@@ -110,10 +112,13 @@ procfs_derived_probe::join_group (systemtap_session& s)
       embeddedcode *ec = new embeddedcode;
       ec->tok = NULL;
       ec->code = string("struct _stp_procfs_data {\n")
-	  + string("  const char *buffer;\n")
-	  + string("  off_t off;\n")
-	  + string("  unsigned long count;\n")
-	  + string("};\n");
+	  + string("  char *buffer;\n")
+	  + string("  size_t bufsize;\n")
+	  + string("  size_t count;\n")
+	  + string("};\n")
+	  + string("#ifndef STP_PROCFS_BUFSIZE\n")
+	  + string("#define STP_PROCFS_BUFSIZE MAXSTRINGLEN\n")
+	  + string("#endif\n");
       s.embeds.push_back(ec);
     }
   s.procfs_derived_probes->enroll (this);
@@ -144,15 +149,15 @@ procfs_derived_probe_group::enroll (procfs_derived_probe* p)
     }
 
   if (p->write)
-  {
-    pset->write_probe = p;
-    has_write_probes = true;
-  }
+    {
+      pset->write_probe = p;
+      has_write_probes = true;
+    }
   else
-  {
-    pset->read_probe = p;
-    has_read_probes = true;
-  }
+    {
+      pset->read_probe = p;
+      has_read_probes = true;
+    }
 }
 
 
@@ -164,20 +169,45 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline() << "/* ---- procfs probes ---- */";
   s.op->newline() << "#include \"procfs.c\"";
+  s.op->newline() << "#include \"procfs-probes.c\"";
+
+  // Emit the procfs probe buffer structure
+  s.op->newline() << "static struct stap_procfs_probe_buffer {";
+  s.op->indent(1);
+  for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
+       it++)
+    {
+      procfs_probe_set *pset = it->second;
+
+      if (pset->read_probe != NULL)
+        {
+	  if (pset->read_probe->maxsize_val == 0)
+	    {
+	      s.op->newline() << "char " << pset->read_probe->name
+			      << "[STP_PROCFS_BUFSIZE];";
+	    }
+	  else
+	    {
+	      s.op->newline() << "char " << pset->read_probe->name
+			      << "[" << pset->read_probe->maxsize_val
+			      << "];";
+	    }
+	}
+      else
+        {
+	  s.op->newline() << "char " << pset->write_probe->name
+			  << "[MAXSTRINGLEN];";
+	}
+    }
+  s.op->newline(-1) << "} stap_procfs_probe_buffers;";
 
   // Emit the procfs probe data list
-  s.op->newline() << "static struct stap_procfs_probe {";
-  s.op->newline(1)<< "const char *path;";
-  s.op->newline() << "const char *read_pp;";
-  s.op->newline() << "void (*read_ph) (struct context*);";
-  s.op->newline() << "const char *write_pp;";
-  s.op->newline() << "void (*write_ph) (struct context*);";
-  s.op->newline(-1) << "} stap_procfs_probes[] = {";
+  s.op->newline() << "static struct stap_procfs_probe stap_procfs_probes[] = {";
   s.op->indent(1);
 
   for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
        it++)
-  {
+    {
       procfs_probe_set *pset = it->second;
 
       s.op->newline() << "{";
@@ -201,32 +231,50 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
           s.op->line() << " .write_pp="
                        << lex_cast_qstring (*pset->write_probe->sole_location())
                        << ",";
-          s.op->line() << " .write_ph=&" << pset->write_probe->name;
+          s.op->line() << " .write_ph=&" << pset->write_probe->name << ",";
         }
       else
         {
           s.op->line() << " .write_pp=NULL,";
-          s.op->line() << " .write_ph=NULL";
+          s.op->line() << " .write_ph=NULL,";
         }
+
+      if (pset->read_probe != NULL)
+        {
+	  s.op->line() << " .buffer=stap_procfs_probe_buffers."
+		       << pset->read_probe->name << ",";
+	  if (pset->read_probe->maxsize_val == 0)
+	    s.op->line() << " .bufsize=STP_PROCFS_BUFSIZE,";
+	  else
+	    s.op->line() << " .bufsize="
+			 << pset->read_probe->maxsize_val << ",";
+	}
+      else
+        {
+	  s.op->line() << " .buffer=stap_procfs_probe_buffers."
+		       << pset->write_probe->name << ",";
+	  s.op->line() << " .bufsize=MAXSTRINGLEN,";
+	}
+
       s.op->line() << " },";
-  }
+    }
   s.op->newline(-1) << "};";
 
+  // Output routine to fill in the buffer with our data.  Note that we
+  // need to do this even in the case where we have no read probes,
+  // but we can skip most of it then.
+  s.op->newline();
+
+  s.op->newline() << "static int _stp_proc_fill_read_buffer(struct stap_procfs_probe *spp) {";
+  s.op->indent(1);
   if (has_read_probes)
     {
-      // Output routine to fill in 'page' with our data.
-      s.op->newline();
-
-      s.op->newline() << "static int _stp_procfs_read(char *page, char **start, off_t off, int count, int *eof, void *data) {";
-
-      s.op->newline(1) << "struct stap_procfs_probe *spp = (struct stap_procfs_probe *)data;";
       s.op->newline() << "struct _stp_procfs_data pdata;";
 
       common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "spp->read_pp");
 
-      s.op->newline() << "pdata.buffer = page;";
-      s.op->newline() << "pdata.off = off;";
-      s.op->newline() << "pdata.count = count;";
+      s.op->newline() << "pdata.buffer = spp->buffer;";
+      s.op->newline() << "pdata.bufsize = spp->bufsize;";
       s.op->newline() << "if (c->data == NULL)";
       s.op->newline(1) << "c->data = &pdata;";
       s.op->newline(-1) << "else {";
@@ -242,29 +290,45 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       // call probe function
       s.op->newline() << "(*spp->read_ph) (c);";
 
-      // Note that _procfs_value_set copied string data into 'page'
+      // Note that _procfs_value_set copied string data into spp->buffer
       s.op->newline() << "c->data = NULL;";
-      common_probe_entryfn_epilogue (s.op);
-      s.op->newline() << "if (pdata.count == 0)";
-      s.op->newline(1) << "*eof = 1;";
-      s.op->indent(-1);
-      s.op->newline() << "return pdata.count;";
+      s.op->newline() << "spp->needs_fill = 0;";
+      s.op->newline() << "spp->count = strlen(spp->buffer);";
 
+      common_probe_entryfn_epilogue (s.op);
+
+      s.op->newline() << "if (spp->needs_fill) {";
+      s.op->newline(1) << "spp->needs_fill = 0;";
+      s.op->newline() << "return -EIO;";
       s.op->newline(-1) << "}";
     }
+  s.op->newline() << "return 0;";
+  s.op->newline(-1) << "}";
+
+  // Output routine to read data.  Note that we need to do this even
+  // in the case where we have no write probes, but we can skip most
+  // of it then.
+  s.op->newline() << "static int _stp_process_write_buffer(struct stap_procfs_probe *spp, const char __user *buf, size_t count) {";
+  s.op->indent(1);
+  s.op->newline() << "int retval = 0;";
   if (has_write_probes)
     {
-      s.op->newline() << "static int _stp_procfs_write(struct file *file, const char *buffer, unsigned long count, void *data) {";
-
-      s.op->newline(1) << "struct stap_procfs_probe *spp = (struct stap_procfs_probe *)data;";
       s.op->newline() << "struct _stp_procfs_data pdata;";
 
       common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "spp->write_pp");
 
-      s.op->newline() << "if (count > (MAXSTRINGLEN - 1))";
+      // We've got 2 problems here.  The data count could be greater
+      // than MAXSTRINGLEN or greater than the bufsize (if the same
+      // procfs file had a size less than MAXSTRINGLEN).
+      s.op->newline() << "if (count >= MAXSTRINGLEN)";
       s.op->newline(1) << "count = MAXSTRINGLEN - 1;";
       s.op->indent(-1);
-      s.op->newline() << "pdata.buffer = buffer;";
+      s.op->newline() << "pdata.bufsize = spp->bufsize;";
+      s.op->newline() << "if (count >= pdata.bufsize)";
+      s.op->newline(1) << "count = pdata.bufsize - 1;";
+      s.op->indent(-1);
+
+      s.op->newline() << "pdata.buffer = (char *)buf;";
       s.op->newline() << "pdata.count = count;";
 
       s.op->newline() << "if (c->data == NULL)";
@@ -283,11 +347,14 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "(*spp->write_ph) (c);";
 
       s.op->newline() << "c->data = NULL;";
-      common_probe_entryfn_epilogue (s.op);
-
-      s.op->newline() << "return count;";
+      s.op->newline() << "if (c->last_error == 0) {";
+      s.op->newline(1) << "retval = count;";
       s.op->newline(-1) << "}";
+
+      common_probe_entryfn_epilogue (s.op);
     }
+  s.op->newline() << "return retval;";
+  s.op->newline(-1) << "}";
 }
 
 
@@ -304,35 +371,20 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(1) << "probe_point = spp->read_pp;";
   s.op->newline(-1) << "else";
   s.op->newline(1) << "probe_point = spp->write_pp;";
+  s.op->indent(-1);
 
-  s.op->newline(-1) << "rc = _stp_create_procfs(spp->path, i);";
+  s.op->newline() << "_spp_init(spp);";
+  s.op->newline() << "rc = _stp_create_procfs(spp->path, i, &_stp_proc_fops);";
 
   s.op->newline() << "if (rc) {";
   s.op->newline(1) << "_stp_close_procfs();";
+
+  s.op->newline() << "for (i = 0; i < " << probes_by_path.size() << "; i++) {";
+  s.op->newline(1) << "spp = &stap_procfs_probes[i];";
+  s.op->newline() << "_spp_shutdown(spp);";
+  s.op->newline(-1) << "}";
   s.op->newline() << "break;";
   s.op->newline(-1) << "}";
-
-  if (has_read_probes)
-    {
-      s.op->newline() << "if (spp->read_pp)";
-      s.op->newline(1) << "_stp_procfs_files[i]->read_proc = &_stp_procfs_read;";
-      s.op->newline(-1) << "else";
-      s.op->newline(1) << "_stp_procfs_files[i]->read_proc = NULL;";
-      s.op->indent(-1);
-    }
-  else
-    s.op->newline() << "_stp_procfs_files[i]->read_proc = NULL;";
-
-  if (has_write_probes)
-    {
-      s.op->newline() << "if (spp->write_pp)";
-      s.op->newline(1) << "_stp_procfs_files[i]->write_proc = &_stp_procfs_write;";
-      s.op->newline(-1) << "else";
-      s.op->newline(1) << "_stp_procfs_files[i]->write_proc = NULL;";
-      s.op->indent(-1);
-    }
-  else
-    s.op->newline() << "_stp_procfs_files[i]->write_proc = NULL;";
 
   s.op->newline() << "_stp_procfs_files[i]->data = spp;";
   s.op->newline(-1) << "}"; // for loop
@@ -346,93 +398,131 @@ procfs_derived_probe_group::emit_module_exit (systemtap_session& s)
     return;
 
   s.op->newline() << "_stp_close_procfs();";
+  s.op->newline() << "for (i = 0; i < " << probes_by_path.size() << "; i++) {";
+  s.op->newline(1) << "struct stap_procfs_probe *spp = &stap_procfs_probes[i];";
+  s.op->newline() << "_spp_shutdown(spp);";
+  s.op->newline(-1) << "}";
+}
+
+
+procfs_var_expanding_visitor::procfs_var_expanding_visitor (systemtap_session& s,
+							    const string& pn,
+							    string path,
+							    bool write_probe):
+  sess (s), probe_name (pn), path (path), write_probe (write_probe),
+  target_symbol_seen (false)
+{
+  // procfs probes can also handle '.='.
+  valid_ops.insert (".=");
 }
 
 
 void
 procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 {
-  assert(e->base_name.size() > 0 && e->base_name[0] == '$');
+  try
+    {
+      assert(e->base_name.size() > 0 && e->base_name[0] == '$');
 
-  if (e->base_name != "$value")
-    throw semantic_error ("invalid target symbol for procfs probe, $value expected",
-                          e->tok);
-
-  e->assert_no_components("procfs");
-
-  bool lvalue = is_active_lvalue(e);
-  if (write_probe && lvalue)
-    throw semantic_error("procfs $value variable is read-only in a procfs write probe", e->tok);
+      if (e->base_name != "$value")
+        throw semantic_error ("invalid target symbol for procfs probe, $value expected",
+                              e->tok);
+      
+      e->assert_no_components("procfs");
+      
+      bool lvalue = is_active_lvalue(e);
+      if (write_probe && lvalue)
+        throw semantic_error("procfs $value variable is read-only in a procfs write probe", e->tok);
   else if (! write_probe && ! lvalue)
     throw semantic_error("procfs $value variable cannot be read in a procfs read probe", e->tok);
-
-  if (e->addressof)
-    throw semantic_error("cannot take address of procfs variable", e->tok);
-
-  // Remember that we've seen a target variable.
-  target_symbol_seen = true;
-
-  // Synthesize a function.
-  functiondecl *fdecl = new functiondecl;
-  fdecl->tok = e->tok;
-  embeddedcode *ec = new embeddedcode;
-  ec->tok = e->tok;
-
-  string fname = (string(lvalue ? "_procfs_value_set" : "_procfs_value_get")
-                  + "_" + lex_cast(tick++));
-  string locvalue = "CONTEXT->data";
-
-  if (! lvalue)
-    ec->code = string("_stp_copy_from_user(THIS->__retvalue, ((struct _stp_procfs_data *)(")
-      + locvalue + string("))->buffer, ((struct _stp_procfs_data *)(") + locvalue
-      + string("))->count); /* pure */");
-  else
-      ec->code = string("int bytes = 0;\n")
-	+ string("    struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
-	+ string("    bytes = strnlen(THIS->value, MAXSTRINGLEN - 1);\n")
-	+ string("    if (data->off >= bytes)\n")
-	+ string("      bytes = 0;\n")
-	+ string("    else {\n")
-	+ string("      bytes -= data->off;\n")
-	+ string("      if (bytes > data->count)\n")
-	+ string("        bytes = data->count;\n")
-	+ string("      memcpy((void *)data->buffer, THIS->value + data->off, bytes);\n")
-	+ string("    }\n")
-	+ string("    data->count = bytes;\n");
-
-  fdecl->name = fname;
-  fdecl->body = ec;
-  fdecl->type = pe_string;
-
-  if (lvalue)
-    {
-      // Modify the fdecl so it carries a single pe_string formal
-      // argument called "value".
-
-      vardecl *v = new vardecl;
-      v->type = pe_string;
-      v->name = "value";
-      v->tok = e->tok;
-      fdecl->formal_args.push_back(v);
+      
+      if (e->addressof)
+        throw semantic_error("cannot take address of procfs variable", e->tok);
+      
+      // Remember that we've seen a target variable.
+      target_symbol_seen = true;
+      
+      // Synthesize a function.
+      functiondecl *fdecl = new functiondecl;
+      fdecl->synthetic = true;
+      fdecl->tok = e->tok;
+      embeddedcode *ec = new embeddedcode;
+      ec->tok = e->tok;
+      
+      string fname;
+      string locvalue = "CONTEXT->data";
+      
+      if (! lvalue)
+        {
+          fname = "_procfs_value_get";
+          ec->code = string("    struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string("); /* pure */\n")
+            
+            + string("    _stp_copy_from_user(THIS->__retvalue, data->buffer, data->count);\n")
+            + string("    THIS->__retvalue[data->count] = '\\0';\n");
+        }
+      else					// lvalue
+        {
+          if (*op == "=")
+            {
+              fname = "_procfs_value_set";
+              ec->code = string("struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
+                + string("    strlcpy(data->buffer, THIS->value, data->bufsize);\n")
+                + string("    data->count = strlen(data->buffer);\n");
+            }
+          else if (*op == ".=")
+            {
+              fname = "_procfs_value_append";
+              ec->code = string("struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
+                + string("    strlcat(data->buffer, THIS->value, data->bufsize);\n")
+                + string("    data->count = strlen(data->buffer);\n");
+            }
+          else
+            {
+              throw semantic_error ("Only the following assign operators are"
+                                    " implemented on procfs read target variables:"
+                                    " '=', '.='", e->tok);
+            }
+        }
+      
+      fdecl->name = fname;
+      fdecl->body = ec;
+      fdecl->type = pe_string;
+      
+      if (lvalue)
+        {
+          // Modify the fdecl so it carries a single pe_string formal
+          // argument called "value".
+          
+          vardecl *v = new vardecl;
+          v->type = pe_string;
+          v->name = "value";
+          v->tok = e->tok;
+          fdecl->formal_args.push_back(v);
+        }
+      sess.functions[fdecl->name]=fdecl;
+      
+      // Synthesize a functioncall.
+      functioncall* n = new functioncall;
+      n->tok = e->tok;
+      n->function = fname;
+      n->referent = 0; // NB: must not resolve yet, to ensure inclusion in session
+      
+      if (lvalue)
+        {
+          // Provide the functioncall to our parent, so that it can be
+          // used to substitute for the assignment node immediately above
+          // us.
+          assert(!target_symbol_setter_functioncalls.empty());
+          *(target_symbol_setter_functioncalls.top()) = n;
+        }
+      
+      provide (n);
     }
-  sess.functions[fdecl->name]=fdecl;
-
-  // Synthesize a functioncall.
-  functioncall* n = new functioncall;
-  n->tok = e->tok;
-  n->function = fname;
-  n->referent = 0; // NB: must not resolve yet, to ensure inclusion in session
-
-  if (lvalue)
+  catch (const semantic_error &er)
     {
-      // Provide the functioncall to our parent, so that it can be
-      // used to substitute for the assignment node immediately above
-      // us.
-      assert(!target_symbol_setter_functioncalls.empty());
-      *(target_symbol_setter_functioncalls.top()) = n;
+      e->chain (new semantic_error(er));
+      provide (e);
     }
-
-  provide (n);
 }
 
 
@@ -458,6 +548,14 @@ procfs_builder::build(systemtap_session & sess,
   bool has_procfs = get_param(parameters, TOK_PROCFS, path);
   bool has_read = (parameters.find(TOK_READ) != parameters.end());
   bool has_write = (parameters.find(TOK_WRITE) != parameters.end());
+  int64_t maxsize_val = 0;
+
+  // Validate '.maxsize(NNN)', if it exists.
+  if (get_param(parameters, TOK_MAXSIZE, maxsize_val))
+    {
+      if (maxsize_val <= 0)
+	throw semantic_error ("maxsize must be greater than 0");
+    }
 
   // If no procfs path, default to "command".  The runtime will do
   // this for us, but if we don't do it here, we'll think the
@@ -505,7 +603,8 @@ procfs_builder::build(systemtap_session & sess,
     throw semantic_error ("need read/write component", location->components.front()->tok);
 
   finished_results.push_back(new procfs_derived_probe(sess, base, location,
-                                                      path, has_write));
+                                                      path, has_write,
+						      maxsize_val));
 }
 
 
@@ -516,7 +615,10 @@ register_tapset_procfs(systemtap_session& s)
   derived_probe_builder *builder = new procfs_builder();
 
   root->bind(TOK_PROCFS)->bind(TOK_READ)->bind(builder);
+  root->bind(TOK_PROCFS)->bind(TOK_READ)->bind_num(TOK_MAXSIZE)->bind(builder);
   root->bind_str(TOK_PROCFS)->bind(TOK_READ)->bind(builder);
+  root->bind_str(TOK_PROCFS)->bind(TOK_READ)->bind_num(TOK_MAXSIZE)->bind(builder);
+
   root->bind(TOK_PROCFS)->bind(TOK_WRITE)->bind(builder);
   root->bind_str(TOK_PROCFS)->bind(TOK_WRITE)->bind(builder);
 }

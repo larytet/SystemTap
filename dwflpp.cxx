@@ -1726,9 +1726,10 @@ dwflpp::translate_location(struct obstack *pool,
                             e->tok);
     }
 
-  // pc is relative to current module, which is what get_cfa_ops
-  // and c_translate_location expects.
-  Dwarf_Op *cfa_ops = get_cfa_ops (pc);
+  // pc is in the dw address space of the current module, which is what
+  // c_translate_location expects. get_cfa_ops wants the global dwfl address.
+  Dwarf_Addr addr = pc + module_bias;
+  Dwarf_Op *cfa_ops = get_cfa_ops (addr);
   return c_translate_location (pool, &loc2c_error, this,
                                &loc2c_emit_address,
                                1, 0 /* PR9768 */,
@@ -2676,6 +2677,9 @@ dwflpp::build_blacklist()
   if (sess.architecture == "i686")
     blfn_ret += "|__switch_to";
 
+  // RHEL6 pre-beta 2.6.32-19.el6
+  blfn += "|special_mapping_.*";
+
   blfn += ")$";
   blfn_ret += ")$";
   blfile += ")$";
@@ -2771,45 +2775,6 @@ dwflpp::relocate_address(Dwarf_Addr dw_addr, string& reloc_section)
   return reloc_addr;
 }
 
-/* Converts a "global" literal address to the module symbol address
- * space.  If necessary (not for kernel and executables using absolute
- * addresses), this adjust the address for the current module symbol
- * bias.  Literal addresses are provided by the user (or contained on
- * the .probes section) based on the "on disk" layout of the module.
- */
-Dwarf_Addr
-dwflpp::literal_addr_to_sym_addr(Dwarf_Addr lit_addr)
-{
-  if (sess.verbose > 2)
-    clog << "literal_addr_to_sym_addr 0x" << hex << lit_addr << dec << endl;
-
-  // Assume the address came from the symbol list.
-  // If we cannot get the symbol bias fall back on the dw bias.
-  // The kernel (and other absolute executable modules) is special though.
-  if (module_name != TOK_KERNEL
-      && dwfl_module_relocations (module) > 0)
-    {
-      Dwarf_Addr symbias = ~0;
-      if (dwfl_module_getsymtab (module) != -1)
-	dwfl_module_info (module, NULL, NULL, NULL, NULL,
-			  &symbias, NULL, NULL);
-
-      if (sess.verbose > 3)
-        clog << "symbias 0x" << hex << symbias << dec
-	     << ", dwbias 0x" << hex << module_bias << dec << endl;
-
-      if (symbias == (Dwarf_Addr) ~0)
-	symbias = module_bias;
-
-      lit_addr += symbias;
-    }
-
-  if (sess.verbose > 2)
-    clog << "literal_addr_to_sym_addr ret 0x" << hex << lit_addr << dec << endl;
-
-  return lit_addr;
-}
-
 /* Returns the call frame address operations for the given program counter
  * in the libdw address space.
  */
@@ -2824,15 +2789,15 @@ dwflpp::get_cfa_ops (Dwarf_Addr pc)
 
 #if _ELFUTILS_PREREQ(0,142)
   // Try debug_frame first, then fall back on eh_frame.
-  size_t cfa_nops;
-  Dwarf_Addr bias;
+  size_t cfa_nops = 0;
+  Dwarf_Addr bias = 0;
+  Dwarf_Frame *frame = NULL;
   Dwarf_CFI *cfi = dwfl_module_dwarf_cfi (module, &bias);
   if (cfi != NULL)
     {
       if (sess.verbose > 3)
 	clog << "got dwarf cfi bias: 0x" << hex << bias << dec << endl;
-      Dwarf_Frame *frame = NULL;
-      if (dwarf_cfi_addrframe (cfi, pc, &frame) == 0)
+      if (dwarf_cfi_addrframe (cfi, pc - bias, &frame) == 0)
 	dwarf_frame_cfa (frame, &cfa_ops, &cfa_nops);
       else if (sess.verbose > 3)
 	clog << "dwarf_cfi_addrframe failed: " << dwarf_errmsg(-1) << endl;
@@ -2848,7 +2813,7 @@ dwflpp::get_cfa_ops (Dwarf_Addr pc)
 	  if (sess.verbose > 3)
 	    clog << "got eh cfi bias: 0x" << hex << bias << dec << endl;
 	  Dwarf_Frame *frame = NULL;
-	  if (dwarf_cfi_addrframe (cfi, pc, &frame) == 0)
+	  if (dwarf_cfi_addrframe (cfi, pc - bias, &frame) == 0)
 	    dwarf_frame_cfa (frame, &cfa_ops, &cfa_nops);
 	  else if (sess.verbose > 3)
 	    clog << "dwarf_cfi_addrframe failed: " << dwarf_errmsg(-1) << endl;
@@ -2860,7 +2825,22 @@ dwflpp::get_cfa_ops (Dwarf_Addr pc)
 #endif
 
   if (sess.verbose > 2)
-    clog << (cfa_ops == NULL ? "not " : " ") << "found cfa" << endl;
+    {
+      if (cfa_ops == NULL)
+	clog << "not found cfa" << endl;
+#if _ELFUTILS_PREREQ(0,142)
+      else
+	{
+	  Dwarf_Addr frame_start, frame_end;
+	  bool frame_signalp;
+	  int info = dwarf_frame_info (frame, &frame_start, &frame_end,
+				       &frame_signalp);
+	  clog << "found cfa, info:" << info << " [start: 0x" << hex
+	       << frame_start << dec << ", end: 0x" << hex << frame_end
+	       << dec << "), nops: " << cfa_nops << endl;
+	}
+#endif
+    }
 
   return cfa_ops;
 }

@@ -1,5 +1,5 @@
 // tapset for kernel static markers
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -59,7 +59,7 @@ struct mark_derived_probe: public derived_probe
   void print_dupe_stamp (ostream& o);
   void emit_probe_context_vars (translator_output* o);
   void initialize_probe_context_vars (translator_output* o);
-  void getargs (std::set<std::string> &arg_set) const;
+  void getargs (std::list<std::string> &arg_set) const;
 
   void parse_probe_format ();
 };
@@ -182,19 +182,26 @@ mark_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 {
   assert(e->base_name.size() > 0 && e->base_name[0] == '$');
 
-  if (e->addressof)
-    throw semantic_error("cannot take address of marker variable", e->tok);
-
-  if (e->base_name.substr(0,4) == "$arg")
-    visit_target_symbol_arg (e);
-  else if (e->base_name == "$format" || e->base_name == "$name" 
-           || e->base_name == "$$parms" || e->base_name == "$$vars")
-    visit_target_symbol_context (e);
-  else
-    throw semantic_error ("invalid target symbol for marker, $argN, $name, $format, $$parms or $$vars expected",
-			  e->tok);
+  try
+    {
+      if (e->addressof)
+        throw semantic_error("cannot take address of marker variable", e->tok);
+      
+      if (startswith(e->base_name, "$arg"))
+        visit_target_symbol_arg (e);
+      else if (e->base_name == "$format" || e->base_name == "$name" 
+               || e->base_name == "$$parms" || e->base_name == "$$vars")
+        visit_target_symbol_context (e);
+      else
+        throw semantic_error ("invalid target symbol for marker, $argN, $name, $format, $$parms or $$vars expected",
+                              e->tok);
+    }
+  catch (const semantic_error &er)
+    {
+      e->chain (new semantic_error(er));
+      provide (e);
+    }
 }
-
 
 
 mark_derived_probe::mark_derived_probe (systemtap_session &s,
@@ -465,7 +472,7 @@ mark_derived_probe::initialize_probe_context_vars (translator_output* o)
 }
 
 void
-mark_derived_probe::getargs(std::set<std::string> &arg_set) const
+mark_derived_probe::getargs(std::list<std::string> &arg_set) const
 {
   for (unsigned i = 0; i < mark_args.size(); i++)
     {
@@ -473,13 +480,13 @@ mark_derived_probe::getargs(std::set<std::string> &arg_set) const
       switch (mark_args[i]->stp_type)
         {
         case pe_long:
-          arg_set.insert(localname+":long");
+          arg_set.push_back(localname+":long");
           break;
         case pe_string:
-          arg_set.insert(localname+":string");
+          arg_set.push_back(localname+":string");
           break;
         default:
-          arg_set.insert(localname+":unknown");
+          arg_set.push_back(localname+":unknown");
           break;
         }
     }
