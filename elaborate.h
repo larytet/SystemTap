@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -17,6 +17,7 @@
 #include <iosfwd>
 #include <sstream>
 #include <map>
+#include <list>
 
 extern "C" {
 #include <elfutils/libdw.h>
@@ -70,6 +71,7 @@ struct typeresolution_info: public visitor
   exp_type t; // implicit parameter for nested visit call; may clobber
 
   void visit_block (block* s);
+  void visit_try_block (try_block* s);
   void visit_embeddedcode (embeddedcode* s);
   void visit_null_statement (null_statement* s);
   void visit_expr_statement (expr_statement* s);
@@ -102,6 +104,7 @@ struct typeresolution_info: public visitor
   void visit_stat_op (stat_op* e);
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
+  void visit_defined_op (defined_op* e);
 };
 
 
@@ -129,7 +132,7 @@ struct derived_probe: public probe
   virtual probe_point* sole_location () const;
   virtual void printsig (std::ostream &o) const;
   // return arguments of probe if there
-  virtual void getargs (std::set<std::string> &arg_set) const {}
+  virtual void getargs (std::list<std::string> &arg_set) const {}
   void printsig_nested (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list);
 
@@ -217,8 +220,6 @@ struct derived_probe_builder
 		     probe_point* location,
 		     literal_map_t const & parameters,
 		     std::vector<derived_probe*> & finished_results) = 0;
-  virtual void check_unprivileged (const systemtap_session & sess,
-				   const literal_map_t & parameters);
   virtual ~derived_probe_builder() {}
   virtual void build_no_more (systemtap_session &) {}
 
@@ -269,7 +270,11 @@ match_node
   match_node* bind(std::string const & k);
   match_node* bind_str(std::string const & k);
   match_node* bind_num(std::string const & k);
+  match_node* bind_unprivileged(bool b = true);
   void bind(derived_probe_builder* e);
+
+private:
+  bool unprivileged_ok;
 };
 
 // ------------------------------------------------------------------------

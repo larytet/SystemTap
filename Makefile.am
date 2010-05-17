@@ -13,14 +13,8 @@ AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Werror -Wunused -Wformat=2 -W
 AM_CXXFLAGS = -Wall -Werror
 
 man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap \
-staprun.8 \
-man/stapprobes.iosched.3stap man/stapprobes.netdev.3stap \
-man/stapprobes.nfs.3stap man/stapprobes.nfsd.3stap \
-man/stapprobes.pagefault.3stap man/stapprobes.kprocess.3stap \
-man/stapprobes.rpc.3stap man/stapprobes.scsi.3stap \
-man/stapprobes.signal.3stap man/stapprobes.socket.3stap \
-man/stapprobes.tcp.3stap man/stapprobes.udp.3stap
-# see also configure.ac
+dtrace.1 \
+staprun.8
 
 bin_PROGRAMS = staprun
 bin_SCRIPTS = stap-report
@@ -56,7 +50,7 @@ stap_SOURCES = main.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
 	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
 	setupdwfl.cxx
-stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @rpm_LIBS@
+stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@
 stap_DEPENDENCIES =
 endif
 
@@ -137,7 +131,7 @@ CLEANFILES += stamp-elfutils
 stamp-elfutils: config.status
 	$(MAKE) $(AM_MAKEFLAGS) -C build-elfutils all bin_PROGRAMS=
 	for dir in libelf libebl libdw libdwfl backends; do \
-	  $(MAKE) $(AM_MAKEFLAGS) -C build-elfutils/$$dir bin_PROGRAMS= install; \
+	  $(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils/$$dir bin_PROGRAMS= install; \
 	done
 	touch $@
 stap_DEPENDENCIES += lib-elfutils/libdw.so
@@ -184,7 +178,7 @@ install-exec-hook:
 # make install, and have "sudo stap ...." or "sudo staprun ...." work later.
 
 
-CLEANFILES +=  $(pkglibexec_PROGRAMS) $(pkglibexec_SCRIPTS)
+CLEANFILES +=  $(pkglibexec_PROGRAMS)
 
 if BUILD_TRANSLATOR
 if HAVE_NSS
@@ -263,6 +257,8 @@ if BUILD_SERVER
 	test -e $(DESTDIR)$(localstatedir)/run/stap-server || mkdir -p $(DESTDIR)$(localstatedir)/run/stap-server
 	test -e $(DESTDIR)$(localstatedir)/log || mkdir -p $(DESTDIR)$(localstatedir)/log
 endif
+	(cd $(srcdir)/man; for f in *.3*; do $(INSTALL_DATA) -D $$f "$(DESTDIR)$(man3dir)/$$f" || exit $$?; done)
+
 
 TEST_COV_DIR = coverage
 
@@ -308,11 +304,12 @@ uninstall-local:
 	rm -rf $(DESTDIR)$(docdir)/examples
 if BUILD_SERVER
 	rm -rf $(DESTDIR)$(localstatedir)/run/stap-server
-	rm -f $(DESTDIR)$(localstatedir)/log/stap-server.log
+	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
+	(cd $(srcdir)/man; for f in *.3*; do rm -rf "$(DESTDIR)$(man3dir)/$$f"; done)
 
 SUBDIRS = doc grapher
-DIST_SUBDIRS = testsuite $(SUBDIRS)
+DIST_SUBDIRS = testsuite man $(SUBDIRS)
 
 check-local:
 	SRCDIR=`cd $(srcdir); pwd`; \

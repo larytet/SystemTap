@@ -2,7 +2,7 @@
 
 # Compile server client for systemtap
 #
-# Copyright (C) 2008, 2009, 2010 Red Hat Inc.
+# Copyright (C) 2008-2010 Red Hat Inc.
 #
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -71,6 +71,8 @@ function initialization {
     tmpdir_client=`mktemp -dt $stap_tmpdir_prefix_client.XXXXXX` || \
 	fatal "Cannot create temporary directory " $tmpdir_client
     tmpdir_env=`dirname $tmpdir_client`
+
+    session_only_prompt_done=0
 }
 
 # function: parse_options [ STAP-OPTIONS ]
@@ -84,34 +86,34 @@ function parse_options {
     # Each command line argument will be written to its own file within the
     # request package.
     argc=1
+    packed_options='-'
     arg_subst=
 
     while test $# != 0
     do
 	advance=0
 	dash_seen=0
+	client_arg=0
 
         # Start of a new token.
 	first_token="$1"
 	until test $advance != 0
 	do
             # Identify the next option
-	    first_char=`expr "$first_token" : '\(.\).*'`
+	    first_char="${first_token:0:1}"
 	    second_char=
 	    if test $dash_seen = 0; then
 		if test "$first_char" = "-"; then
 		    if test "$first_token" != "-"; then
 	                # It's not a lone dash, so it's an option.
 			# Is it a long option (i.e. --option)?
-			second_char=`expr "$first_token" : '.\(.\).*'`
+			second_char="${first_token:1:1}"
 			if test "X$second_char" = "X-"; then
-			    long_option=`expr "$first_token" : '--\(.*\)=.*'`
-			    test "X$long_option" != "X" || long_option=`expr "$first_token" : '--\(.*\)'`
-			    case $long_option in
-				ssl)
+			    case "$first_token" in
+				--ssl=*)
 				    process_ssl "$first_token"
 				    ;;
-				server)
+				--server=*)
 				    process_server "$first_token"
 				    ;;
 				*)
@@ -123,9 +125,9 @@ function parse_options {
 			fi
 	                # It's not a lone dash, or a long option, so it's a short option string.
 			# Remove the dash.
-			first_token=`expr "$first_token" : '-\(.*\)'`
+			first_token="${first_token:1}"
 			dash_seen=1
-			first_char=`expr "$first_token" : '\(.\).*'`
+			first_char="${first_token:0:1}"
 		    fi
 		fi
 		if test $dash_seen = 0; then
@@ -145,69 +147,69 @@ function parse_options {
             # We are at the start of an option. Look at the first character.
 	    case $first_char in
 		a)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_a "$stap_arg"
 		    ;;	
 		B)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    ;;	
 		c)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_c "$stap_arg"
 		    ;;
 		D)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    ;;
 		e)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_e "$stap_arg"
 		    ;;
 		I)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_I "$stap_arg"
 		    ;;	
 		k)
 		    keep_temps=1
 		    ;;
 		l)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    p_phase=2
 		    ;;
 		L)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    p_phase=2
 		    ;;
 		m)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_m "$stap_arg"
 		    ;;
 		o)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_o "$stap_arg"
 		    ;;
 		p)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_p "$stap_arg"
 		    ;;
 		r)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_r "$stap_arg"
 		    ;;	
 		R)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    process_R "$stap_arg"
 		    ;;	
 		s)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    ;;	
 		S)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    ;;	
 		v)
 		    v_level=$(($v_level + 1))
 		    ;;
 		x)
-		    get_arg $first_token "$2"
+		    get_arg "$first_token" "$2"
 		    ;;
 		*)
 		    # An unknown or unimportant flag.
@@ -216,7 +218,7 @@ function parse_options {
 
 	    if test $advance = 0; then
 	        # Just another flag character. Consume it.
-		first_token=`expr "$first_token" : '.\(.*\)'`
+		first_token="${first_token:1}"
 		if test "X$first_token" = "X"; then
 		    advance=$(($advance + 1))
 		fi
@@ -224,9 +226,19 @@ function parse_options {
 	done
 
         # Consume the arguments we just processed.
-	while test $advance != 0
-	do
-	    # Place the argument is a numbered file within our temp
+	while test $advance != 0; do
+	    # Does the final argument file contain a client-side file
+	    # name which must be changed to a server-side name?
+	    local arg
+	    if test "X$arg_subst" != "X" -a $advance = 1; then
+		arg="$arg_subst"
+		arg_subst=
+	    else
+		arg="$1"
+	    fi
+
+	    # If it's not client-only argument,
+	    # place the argument in a numbered file within our temp
 	    # directory.
 	    # o We don't write a newline at the end, since newline could be
 	    #   part of the argument.
@@ -234,20 +246,16 @@ function parse_options {
 	    #   in order to avoid having 'echo' interpret the output as
 	    #   its own option. We then remove the X.
 	    #   There must be a better way.
-	    echo -n "X$1" > "$tmpdir_client/argv$argc"
-	    sed -i "s|^X||" "$tmpdir_client/argv$argc"
-
-	    # Does the final argument file contain client-side data
-	    # which must be changed to server-side data?
-	    if test "X$arg_subst" != "X" -a $advance = 1; then
-		sed -i "s|$stap_arg|$arg_subst|" "$tmpdir_client/argv$argc"
-		arg_subst=
+	    if test $client_arg = 0; then
+		echo -n "X$arg" > "$tmpdir_client/argv$argc"
+		sed -i "s|^X||" "$tmpdir_client/argv$argc"
+		argc=$(($argc + 1))
 	    fi
 
 	    # Get the next argument.
 	    shift
-	    argc=$(($argc + 1))
 	    advance=$(($advance - 1))
+	    packed_options='-'
 	done
     done
 
@@ -256,7 +264,8 @@ function parse_options {
     if test "X$script_file" != "X"; then
 	local local_name
 	if test "$script_file" != "-"; then
-	    local_name=`generate_client_temp_name "$script_file"`
+	    generate_client_temp_name "$script_file"
+	    local_name="$client_temp_name"
 	else
 	    local_name="-"
 	fi
@@ -277,8 +286,9 @@ function parse_options {
 # Collect an argument to the given option
 function get_arg {
     # Remove first character.
-    local opt=`expr "$1" : '\(.\).*'`
-    local first=`expr "$1" : '.\(.*\)'`
+    local opt="${1:0:1}"
+    local first="${1:1}"
+    packed_options="${packed_options}$opt"
 
     # Advance to the next token, if the first one is exhausted.
     if test "X$first" = "X"; then
@@ -294,7 +304,8 @@ function get_arg {
 #
 # Process the --ssl option.
 function process_ssl {
-    local db=`expr "$1" : '--ssl=\(.*\)'`
+    client_arg=1
+    local db="${1:6}"
 
     test "X$db" != "X" || \
 	fatal "Missing argument to --ssl"
@@ -308,7 +319,8 @@ function process_ssl {
 #
 # Process the --server option.
 function process_server {
-    local spec=`expr "$1" : '--server=\(.*\)'`
+    client_arg=1
+    local spec="${1:9}"
 
     test "X$spec" != "X" || \
 	fatal "Missing argument to --server"
@@ -335,12 +347,19 @@ function process_e {
     fi
 }
 
-# function: process_I ARGUMENT
+# function: process_I ARGUMENT ORIGINAL_ARGUMENT
 #
 # Process the -I flag.
 function process_I {
     test "X$1" = "X" && return
-    arg_subst=tapsets/`include_file_or_directory tapsets "$1"`
+    test "${1:0:1}" = "
+" && return
+    include_file_or_directory tapsets "$1"
+    if test $advance = 1; then
+	arg_subst="${packed_options}tapsets/$included_name"
+    else
+	arg_subst="tapsets/$included_name"
+    fi
 }
 
 # function: process_m ARGUMENT
@@ -369,7 +388,7 @@ function process_p {
 #
 # Process the -r flag.
 function process_r {
-    local first_char=`expr "$1" : '\(.\).*'`
+    local first_char="${1:0:1}"
 
     if test "$first_char" = "/"; then # fully specified path
         kernel_build_tree="$1"
@@ -402,23 +421,34 @@ function process_a {
     fi
 }
 
-# function: process_R ARGUMENT
+# function: process_R ARGUMENT ORIGINAL_ARGUMENT
 #
 # Process the -R flag.
 function process_R {
     test "X$1" = "X" && return
-    arg_subst=runtime/`include_file_or_directory runtime "$1"`
+    test "${1:0:1}" = "
+" && return
+    include_file_or_directory runtime "$1"
+    if test $advance = 1; then
+	arg_subst="${packed_options}runtime/$included_name"
+    else
+	arg_subst="runtime/$included_name"
+    fi
 }
 
 # function: include_file_or_directory PREFIX NAME
 #
 # Include the given file or directory in the client's temporary
-# tree to be sent to the server.
+# tree to be sent to the server and save it's name in the variable
+# included_name. We use a global variable instread of echoing the
+# result since the use of `include_file_or_directory` loses a trailing
+# newline.
 function include_file_or_directory {
     # Add a symbolic link of the named file or directory to our temporary
     # directory, but only if the file or directory exists.
-    local local_name=`generate_client_temp_name "$2"`
-    echo "$local_name"
+    generate_client_temp_name "$2"
+    local local_name="$client_temp_name"
+    included_name="$local_name"
     test -e "/$local_name" || return
 
     local local_dirname=`dirname "$local_name"`
@@ -431,15 +461,20 @@ function include_file_or_directory {
 # function: generate_client_temp_name NAME
 #
 # Generate the name to be used for the given file/directory relative to the
-# client's temporary directory.
+# client's temporary directory and stores it in the variable
+# client_temp_name. We use a global variable instread of echoing the
+# result since the use of `generate_client_temp_name` loses a trailing
+# newline.
 function generate_client_temp_name {
     # Transform the name into a fully qualified path name
-    local full_name=`echo "X$1" | sed "s,^X\\\([^/]\\\),$wd/\\\\1," | sed 's,^X,,'`
+    local full_name="$1"
+    test "${full_name:0:1}" != "/" && full_name="$wd/$full_name"
 
     # The same name without the initial / or trailing /
-    local local_name=`echo "$full_name" | sed 's,^/\(.*\),\1,'`
-    local_name=`echo "$local_name" | sed 's,\(.*\)/$,\1,'`
-    echo "$local_name"
+    local local_name="${full_name:1}"
+    test "${local_name: -1:1}" = "/" && local_name="${local_name:0:$((${#local_name}-1))}"
+
+    client_temp_name="$local_name"
 }
 
 # function: create_request
@@ -456,7 +491,7 @@ function create_request {
 		fatal "Cannot create temporary directory " $tmpdir_client/script
 	    cat > "$tmpdir_client/script/$script_file"
 	else
-	    include_file_or_directory script "$script_file" > /dev/null
+	    include_file_or_directory script "$script_file"
 	fi
     fi
 
@@ -505,7 +540,7 @@ function unpack_response {
     # 2) a file called stderr
     # 3) a file called rc
     # 4) optionally a directory named to match stap??????
-    num_files=`ls $tmpdir_server | wc -l`
+    local num_files=`ls $tmpdir_server | wc -l`
     test $num_files = 4 -o $num_files = 3 || \
 	fatal "Wrong number of files in server's temp directory"
     test -f $tmpdir_server/stdout || \
@@ -561,9 +596,6 @@ function find_and_connect_to_server {
     zip_server=`mktemp -t $stap_tmpdir_prefix_client.server.zip.XXXXXX` || \
 	fatal "Cannot create temporary file " $zip_server
 
-    # Make a place to record connection errors
-    touch $tmpdir_client/connect
-
     # If servers were specified on the command line, then try them
     # in sequence. Don't try any other servers.
     if test "X$specified_servers" != "X"; then
@@ -591,14 +623,13 @@ function find_and_connect_to_server {
 		    name=`nslookup $address | awk '/in-addr\.arpa/ {print $4}'`
 		    name=`expr "$name" : '\(.*\)\.'`
                     if test "X$name" = "X"; then
-			echo "Cannot resolve ip address $address" >> $tmpdir_client/connect
+			echo "Cannot resolve ip address $address" >> "$tmpdir_client/connect"
 			continue
 		    fi
 		fi
 
 		# Now try to contact the given server.
-		ssl_db=`send_receive $name $port`
-		test "X$ssl_db" != "X" && return
+		send_receive $name $port && return
 		continue
 	    fi
 
@@ -616,52 +647,45 @@ function find_and_connect_to_server {
 		fi
 		address=`nslookup $server | awk '/^Address\:[ \t][0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ {print $2}'`
                 if test "X$address" = "X"; then
-		    echo "Cannot resolve server $server" >> $tmpdir_client/connect
+		    echo "Cannot resolve server $server" >> "$tmpdir_client/connect"
 		    continue
 		fi
 	    fi
 
-	    if test `${stap_pkglibexecdir}stap-find-servers $find_all | grep $address | wc -l` = "0"; then
-		warning "No server is available on $server" 2>> $tmpdir_client/connect
+	    ${stap_pkglibexecdir}stap-find-servers $find_all | grep $address > "$tmpdir_client/servers"
+
+	    if test `wc -l "$tmpdir_client/servers" | awk '{print $1}'` = "0"; then
+		warning "No server is available on $server" 2>> "$tmpdir_client/connect"
 		continue
 	    fi
 
-            ssl_db=`${stap_pkglibexecdir}stap-find-servers $find_all | grep $address | choose_server`
-	    test "X$ssl_db" != "X" && return
+            choose_server && return
 	done
     else
         # No servers specified. Find available servers and choose one of them.
 	# Remember which ssl certificate database was used to authenticate the chosen
         # server.
-	ssl_db=`${stap_pkglibexecdir}stap-find-servers $find_all | choose_server`
-	if test "X$ssl_db" != "X"; then
-	    rm -f $tmpdir_client/connect
-	    return
-	fi
-
-	num_servers=`${stap_pkglibexecdir}stap-find-servers $find_all | wc -l`
+	${stap_pkglibexecdir}stap-find-servers $find_all > "$tmpdir_client/servers"
+        choose_server && return
+	num_servers=`wc -l "$tmpdir_client/servers" | awk '{print $1}'`
     fi
 
     if test $num_servers = 0; then
-	rm -f $tmpdir_client/connect
 	fatal "Unable to find a server"
     fi
 
-    cat $tmpdir_client/connect >&2
-    rm -f $tmpdir_client/connect
+    test -f "$tmpdir_client/connect" && cat "$tmpdir_client/connect" >&2
     fatal "Unable to connect to a server"
 }
 
 # function: choose_server
 #
-# Examine each line from stdin and attempt to connect to each server
-# specified until successful.
-# echo the name of the ssl certificate database used to successfully authenticate
-# the server.
+# Examine each line from "$tmpdir_client/servers" and attempt to connect to
+# each server specified until successful.
 function choose_server {
     local name ip port remain
 
-    while read name ip port remain
+    while read -u3 name ip port remain
     do
 	if test "X$name" = "X"; then
 	    fatal "Server name not provided by avahi"
@@ -679,16 +703,16 @@ function choose_server {
 	sysinfo=`expr "$remain" : "'sysinfo=\\\(.*\\\)'"`
 	test "X$sysinfo" != "X$uname_r $arch" && continue
 
-	ssl_db=`send_receive $name $port`
-	test "X$ssl_db" != "X" && echo $ssl_db && return
-    done
+	send_receive $name $port && return
+    done 3< "$tmpdir_client/servers"
+
+    # Could not connect to a server
+    return 1
 }
 
 # function: send_receive SERVER PORT
 #
-# Connect to the server, send the request and receive the response
-# echo the name of the ssl certificate database used to successfully authenticate
-# the server.
+# Connect to the server, send the request and receive the response.
 function send_receive {
     local server="$1"
     local port="$2"
@@ -711,28 +735,82 @@ function send_receive {
 
     # Try to connect using each of the given local certificate databases in turn
     # for verification.
-    for db in $local_ssl_dbs
+    local rc
+    for ssl_db in $local_ssl_dbs
     do
         # Send the request and receive the response using stap-client-connect
-	echo "Attempting connection with $server:$port using certificate database in '$db'" >> $tmpdir_client/connect
-	${stap_pkglibexecdir}stap-client-connect -i $zip_client -o $zip_server -d $db -p $port -h $server >> $tmpdir_client/connect 2>&1 &
-	wait '%${stap_pkglibexecdir}stap-client-connect'
-	test $? = 0 && echo $db && return
+	attempt_connection -i $zip_client -o $zip_server -d $ssl_db -p $port -h $server && return
+
+	# Try the next database, but give the server a chance to reset.
 	sleep 1
     done
 
     # Next, try the public certificate databases.
-    for db in $public_ssl_dbs
+    for ssl_db in $public_ssl_dbs
     do
         # Send the request and receive the response using stap-client-connect
-	echo "Attempting connection with $server:$port using certificate database in '$db'" >> $tmpdir_client/connect
-	${stap_pkglibexecdir}stap-client-connect -i $zip_client -o $zip_server -d $db -p $port -h $server >> $tmpdir_client/connect 2>&1 &
-	wait '%${stap_pkglibexecdir}stap-client-connect'
-	test $? = 0 && echo $db && return
+	attempt_connection -i $zip_client -o $zip_server -d $ssl_db -p $port -h $server && return
+
+	# Try the next database, but give the server a chance to reset.
 	sleep 1
     done
 
     # Could not connect using any of the certificate databases
+    return 1
+}
+
+# function: attempt_connection ARGS
+#
+# Attempt connection with the given server. Give the user a chance to
+# trust the server if it is not already trusted
+function attempt_connection {
+    echo "Attempting connection with $server:$port using certificate database in '$ssl_db'" >> "$tmpdir_client/connect"
+
+    # Send the request and receive the response using stap-client-connect
+    ${stap_pkglibexecdir}stap-client-connect "$@" >> "$tmpdir_client/connect" 2>&1 &
+    wait '%${stap_pkglibexecdir}stap-client-connect'
+    local rc=$?
+    test $rc = 0 && return
+
+    # The connection failed. If it was because the server is not trusted, give
+    # the user a chance to decide whether to trust the server anyway.
+    # The prompt will not be printed and the read will quickly timeout if
+    # stdin is not from a terminal.
+    if test $rc = 2; then
+	# Output any connection messages generated thus far
+	cat "$tmpdir_client/connect" >&2
+	rm  "$tmpdir_client/connect"
+
+	local response
+	local prompt="The server at $server:$port is not trusted based on the certificate database in '$ssl_db'
+"
+	if test $session_only_prompt_done = 0; then
+	    session_only_prompt_done=1
+	    prompt="${prompt}Trust this server for for this session only? [y/N] "
+	    read -t 30 -p "$prompt" response || echo n
+	    if test "$response" = "y" -o "$response" = "Y"; then
+		${stap_pkglibexecdir}stap-client-connect "$@" -t session >> "$tmpdir_client/connect" 2>&1 &
+		wait '%${stap_pkglibexecdir}stap-client-connect'
+		test $? = 0 && return
+		return 1 # Connection failed
+	    fi
+	    prompt=
+	fi
+	if test "$ssl_db" = "$stap_root_ssl_db/client"; then
+	    prompt="${prompt}Adding this server's certificate to this database will make this server trusted by all users on the local host.
+"
+	fi
+	prompt="${prompt}Add this server's certificate to '$ssl_db'? [y/N] "
+	read -t 30 -p "$prompt" response || echo n
+	if test "$response" = "y" -o "$response" = "Y"; then
+	    ${stap_pkglibexecdir}stap-client-connect "$@" -t permanent >> "$tmpdir_client/connect" 2>&1 &
+	    wait '%${stap_pkglibexecdir}stap-client-connect'
+	    test $? = 0 && return
+	fi
+    fi
+
+    # Connection failed
+    return 1
 }
 
 # function: process_response

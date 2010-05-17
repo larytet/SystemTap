@@ -1,3 +1,52 @@
+* What's new in version 1.2
+
+- Prototype support for "perf events", where the kernel supports the
+  2.6.33 in-kernel API.  Probe points may refer to low-level 
+  perf_event_attr type/config numbers, or to a number of aliases
+  defined in the new perf.stp tapset:
+     probe perf.sw.cpu_clock, perf.type(0).config(4) { }
+
+- Type-casting can now use multiple headers to resolve codependencies.
+     @cast(task, "task_struct",
+           "kernel<linux/sched.h><linux/fs_struct.h>")->fs->umask
+
+- Tapset-related man pages have been renamed.  'man -k 3stap' should show
+  the installed list, which due to prefixing should no longer collide over
+  ordinary system functions.
+
+- User space marker arguments no longer use volatile if the version of gcc,
+  which must be at least 4.5.0, supports richer DWARF debuginfo.  Use cflags
+  -DSTAP_SDT_VOLATILE=volatile or -DSTAP_SDT_VOLATILE= when building
+  the sys/sdt.h application to override this one way or another.
+
+- A new construct for error handling is available.  It is similar to c++
+  exception catching, using try and catch as new keywords.  Within a handler
+  or function, the following is valid and may be nested:
+     try { /* arbitrary statements */ }
+     catch (er) { /* e.g. println("caught error ", er) */ }
+
+- A new command line flag '-W' forces systemtap to abort translation of
+  a script if any warnings are produced.  It is similar to gcc's -Werror.
+  (If '-w' is also supplied to suppress warnings, it wins.)
+
+- A new predicate @defined is available for testing whether a
+  particular $variable/expression is resolvable at translate time:
+  probe foo { if (@defined($bar)) log ("$bar is available here") }
+
+- Adjacent string literals are glued together, making this
+  construct valid:
+     probe process("/usr" @1 "/bin").function("*") { ... }
+
+- In order to limit potential impact from future security problems, 
+  the stap-server process does not permit its being launched as root.
+
+- On recent kernels, for some architectures/configurations, hardware
+  breakpoint probes are supported.  The probe point syntax is:
+
+     probe kernel.data(ADDRESS).write
+     probe kernel.data(ADDRESS).length(LEN).write
+     probe kernel.data("SYMBOL_NAME").write
+
 * What's new in version 1.1
 
 - New tracepoint based tapset for memory subsystem.
@@ -20,8 +69,8 @@
 
   See initscript/README.stap-server for details.
 
-- Some of the of the compile server client, server and certificate
-  management tools have been moved from $bindir to $libexecdir/systemtap.
+- Some of the compile server client, server and certificate management
+  tools have been moved from $bindir to $libexecdir/systemtap.
   You should use the new stap-server script or the stap-server initscript
   for server management where possible. The stap-server script provides the same
   functionality as the stap-server initscript except that the servers are
