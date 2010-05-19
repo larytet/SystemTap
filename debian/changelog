@@ -1,6 +1,8 @@
 systemtap (1.2-1) experimental; urgency=low
 
+  * New maintainer. Closes: #568866.
   * New upstream release.
+    - Fixes CVE-2009-4273. Closes: #568865.
   * Removed patches:
     - xmlto-test.diff: applied upstream.
     - dont-remove-scripts.diff: applied upstream.
@@ -9,6 +11,7 @@ systemtap (1.2-1) experimental; urgency=low
     - use-pdflatex.diff
     - debversion.diff
     - new-elfutils.diff
+  * Bump policy to 3.8.4. No changes needed.
 
  -- Lucas Nussbaum <lucas@lucas-nussbaum.net>  Mon, 17 May 2010 23:17:10 +0200
 
