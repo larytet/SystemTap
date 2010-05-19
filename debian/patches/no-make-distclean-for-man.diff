@@ -9,14 +9,3 @@
  
  check-local:
  	SRCDIR=`cd $(srcdir); pwd`; \
---- a/Makefile.in
-+++ b/Makefile.in
-@@ -460,7 +460,7 @@ EXAMPLE_SOURCE_DIR = $(srcdir)/testsuite
- EXAMPLE_META_FILES = $(EXAMPLE_SOURCE_DIR)/*/*.meta
- TEST_COV_DIR = coverage
- SUBDIRS = doc grapher
--DIST_SUBDIRS = testsuite man $(SUBDIRS)
-+DIST_SUBDIRS = testsuite $(SUBDIRS)
- 
- # Any extra flags, such as:
- #     --define "with_docs 0"
