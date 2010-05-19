@@ -1,3 +1,4 @@
+no-make-distclean-for-man.diff
 stapex-docdir-path.diff
 use-pdflatex.diff
 dont-build-pdfdocs.diff
