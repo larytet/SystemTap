@@ -75,15 +75,9 @@ override_dh_auto_clean:
 	dh_auto_clean
 	find . -regextype posix-awk \( \
 		-name configure \
-		-o -name aclocal.m4 \
 		-o -name Makefile.in \
 		-o -regex '.*/config.(cache|log|status|guess|sub)' \
-		-o -name missing \
-		-o -name compile \
-	        -o -name install-sh \
-		-o -name depcomp \
 		-o -name mkinstalldirs \) -exec rm "{}" \;
-	rm -f config.in
 	rm -rf doc/beginners/build doc/beginners/en-US
 
 override_dh_compress:
@@ -92,6 +86,15 @@ override_dh_compress:
 override_dh_fixperms:
 	dh_fixperms
 	chmod 4755 debian/systemtap-runtime/usr/bin/staprun
+
+list-missing-mine:
+	(cd debian/tmp && find . -type f -exec md5sum {} \+ | grep -v '/DEBIAN/') > debian/tmp-files
+	(for package in $(DEB_ALL_PACKAGES); do \
+	(cd debian/$$package && find . -type f -exec md5sum {} \+ | grep -v '/DEBIAN/'); done) > debian/pkg-files
+	awk '{print $$1}' debian/tmp-files > debian/tmp-files-md5
+	awk '{print $$1}' debian/pkg-files > debian/pkg-files-md5
+	for i in $$(combine debian/tmp-files-md5 not debian/pkg-files-md5); do \
+	   grep $$i debian/tmp-files; done
 
 .PHONY: build clean binary-indep binary-arch binary install patch
 .PHONY: override_dh_auto_configure override_dh_auto_test override_dh_auto_install
