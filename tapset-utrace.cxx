@@ -483,7 +483,15 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
    else // $argN
      {
         string argnum_s = e->base_name.substr(4,e->base_name.length()-4);
-        int argnum = lex_cast<int>(argnum_s);
+        int argnum = 0;
+        try
+          {
+            argnum = lex_cast<int>(argnum_s);
+          }
+        catch (const runtime_error& f) // non-integral $arg suffix: e.g. $argKKKSDF
+          {
+           throw semantic_error ("invalid syscall argument number (1-6)", e->tok);
+          }
 
         e->assert_no_components("utrace");
 
@@ -574,20 +582,29 @@ utrace_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 {
   assert(e->base_name.size() > 0 && e->base_name[0] == '$');
 
-  if (flags != UDPF_SYSCALL && flags != UDPF_SYSCALL_RETURN)
-    throw semantic_error ("only \"process(PATH_OR_PID).syscall\" and \"process(PATH_OR_PID).syscall.return\" probes support target symbols",
-			  e->tok);
-
-  if (e->addressof)
-    throw semantic_error("cannot take address of utrace variable", e->tok);
-
-  if (e->base_name.substr(0,4) == "$arg" || e->base_name == "$$parms")
-    visit_target_symbol_arg(e);
-  else if (e->base_name == "$syscall" || e->base_name == "$return")
-    visit_target_symbol_context(e);
-  else
-    throw semantic_error ("invalid target symbol for utrace probe, $syscall, $return, $argN or $$parms expected",
-			  e->tok);
+  try 
+    {
+      if (flags != UDPF_SYSCALL && flags != UDPF_SYSCALL_RETURN)
+        throw semantic_error ("only \"process(PATH_OR_PID).syscall\" and \"process(PATH_OR_PID).syscall.return\" probes support target symbols",
+                              e->tok);
+      
+      if (e->addressof)
+        throw semantic_error("cannot take address of utrace variable", e->tok);
+      
+      if (startswith(e->base_name, "$arg") || e->base_name == "$$parms")
+        visit_target_symbol_arg(e);
+      else if (e->base_name == "$syscall" || e->base_name == "$return")
+        visit_target_symbol_context(e);
+      else
+        throw semantic_error ("invalid target symbol for utrace probe, $syscall, $return, $argN or $$parms expected",
+                              e->tok);
+    }
+  catch (const semantic_error &er) 
+    {
+      e->chain (new semantic_error(er));
+      provide(e);
+      return;
+    }
 }
 
 
@@ -654,10 +671,6 @@ struct utrace_builder: public derived_probe_builder
 							has_path, path, pid,
 							flags));
   }
-
-  // No action required. These probes are allowed for unprivileged users.
-  virtual void check_unprivileged (const systemtap_session & sess,
-				   const literal_map_t & parameters) {}
 };
 
 
@@ -1062,16 +1075,22 @@ register_tapset_utrace(systemtap_session& s)
   for (unsigned i = 0; i < roots.size(); ++i)
     {
       roots[i]->bind(TOK_BEGIN)
+	->bind_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_END)
+	->bind_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_BEGIN)
+	->bind_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_END)
+	->bind_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)
+	->bind_unprivileged()
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)->bind(TOK_RETURN)
+	->bind_unprivileged()
 	->bind(builder);
     }
 }

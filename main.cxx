@@ -57,7 +57,7 @@ version ()
     << "SystemTap translator/driver "
     << "(version " << VERSION << "/" << dwfl_version (NULL)
     << " " << GIT_MESSAGE << ")" << endl
-    << "Copyright (C) 2005-2009 Red Hat, Inc. and others" << endl
+    << "Copyright (C) 2005-2010 Red Hat, Inc. and others" << endl
     << "This is free software; see the source for copying conditions." << endl;
 }
 
@@ -80,7 +80,7 @@ usage (systemtap_session& s, int exitcode)
     << endl
     << "Options:" << endl
     << "   --         end of translator options, script options follow" << endl
-    << "   -h         show help" << endl
+    << "   -h --help  show help" << endl
     << "   -V         show version" << endl
     << "   -p NUM     stop after pass NUM 1-5, instead of " << s.last_pass << endl
     << "              (parse, elaborate, translate, compile, run)" << endl
@@ -93,6 +93,7 @@ usage (systemtap_session& s, int exitcode)
     << "   -k         keep temporary directory" << endl
     << "   -u         unoptimized translation" << (s.unoptimized ? " [set]" : "") << endl
     << "   -w         suppress warnings" << (s.suppress_warnings ? " [set]" : "") << endl
+    << "   -W         turn warnings into errors" << (s.panic_warnings ? " [set]" : "") << endl
     << "   -g         guru mode" << (s.guru_mode ? " [set]" : "") << endl
     << "   -P         prologue-searching for function probes"
     << (s.prologue_searching ? " [set]" : "") << endl
@@ -148,13 +149,33 @@ usage (systemtap_session& s, int exitcode)
   // Formerly present --ignore-{vmlinux,dwarf} options are for testsuite use
   // only, and don't belong in the eyesight of a plain user.
     << "   --skip-badvars" << endl
-    << "              overlook context of bad $ variables" << endl
+    << "              substitute zero for bad context $variables" << endl
     << endl
     ;
 
   exit (exitcode);
 }
 
+
+static void uniq_list(list<string>& l)
+{
+	list<string> r;
+	set<string> s;
+
+	for (list<string>::iterator i = l.begin(); i != l.end(); ++i) {
+		s.insert(*i);
+	}
+
+	for (list<string>::iterator i = l.begin(); i != l.end(); ++i) {
+		if (s.find(*i) != s.end()) {
+			s.erase(*i);
+			r.push_back(*i);
+		}
+	}
+
+	l.clear();
+	l.assign(r.begin(), r.end());
+}
 
 static void
 printscript(systemtap_session& s, ostream& o)
@@ -177,10 +198,31 @@ printscript(systemtap_session& s, ostream& o)
           p->collect_derivation_chain (chain);
           probe* second = (chain.size()>1) ? chain[chain.size()-2] : chain[0];
 
-          #if 0
-          cerr << "\tchain[" << chain.size() << "]:" << endl;
-          for (unsigned i=0; i<chain.size(); i++)
-            { cerr << "\t"; chain[i]->printsig(cerr); cerr << endl; }
+          #if 0  // dump everything about the derivation chain
+          p->printsig(cerr); cerr << endl;
+          cerr << "chain[" << chain.size() << "]:" << endl;
+          for (unsigned j=0; j<chain.size(); j++)
+            {
+              cerr << "  [" << j << "]: " << endl;
+              cerr << "\tlocations[" << chain[j]->locations.size() << "]:" << endl;
+              for (unsigned k=0; k<chain[j]->locations.size(); k++)
+                {
+                  cerr << "\t  [" << k << "]: ";
+                  chain[j]->locations[k]->print(cerr);
+                  cerr << endl;
+                }
+              const probe_alias *a = chain[j]->get_alias();
+              if (a)
+                {
+                  cerr << "\taliases[" << a->alias_names.size() << "]:" << endl;
+                  for (unsigned k=0; k<a->alias_names.size(); k++)
+                    {
+                      cerr << "\t  [" << k << "]: ";
+                      a->alias_names[k]->print(cerr);
+                      cerr << endl;
+                    }
+                }
+            }
           #endif
 
           stringstream tmps;
@@ -211,8 +253,10 @@ printscript(systemtap_session& s, ostream& o)
           // Print the locals and arguments for -L mode only
           if (s.listing_mode_vars)
             {
-              map<string,unsigned> var_list; // format <"name:type",count>
-              map<string,unsigned> arg_list;
+              map<string,unsigned> var_count; // format <"name:type",count>
+              map<string,unsigned> arg_count;
+              list<string> var_list;
+              list<string> arg_list;
               // traverse set<derived_probe *> to collect all locals and arguments
               for (set<derived_probe *>::iterator ix=it->second.begin(); ix!=it->second.end(); ++ix)
                 {
@@ -223,21 +267,28 @@ printscript(systemtap_session& s, ostream& o)
                       stringstream tmps;
                       vardecl* v = p->locals[j];
                       v->printsig (tmps);
-                      var_list[tmps.str()]++;
+                      var_count[tmps.str()]++;
+		      var_list.push_back(tmps.str());
                     }
                   // collect arguments of the probe if there
-                  set<string> arg_set;
+                  list<string> arg_set;
                   p->getargs(arg_set);
-                  for (set<string>::iterator ia=arg_set.begin(); ia!=arg_set.end(); ++ia)
-                    arg_list[*ia]++;
+                  for (list<string>::iterator ia=arg_set.begin(); ia!=arg_set.end(); ++ia) {
+                    arg_count[*ia]++;
+                    arg_list.push_back(*ia);
+		  }
                 }
+
+	      uniq_list(arg_list);
+	      uniq_list(var_list);
+
               // print the set-intersection only
-              for (map<string,unsigned>::iterator ir=var_list.begin(); ir!=var_list.end(); ++ir)
-                if (ir->second == it->second.size()) // print locals
-                  o << " " << ir->first;
-              for (map<string,unsigned>::iterator ir=arg_list.begin(); ir!=arg_list.end(); ++ir)
-                if (ir->second == it->second.size()) // print arguments
-                  o << " " << ir->first;
+              for (list<string>::iterator ir=var_list.begin(); ir!=var_list.end(); ++ir)
+                if (var_count.find(*ir)->second == it->second.size()) // print locals
+                  o << " " << *ir;
+              for (list<string>::iterator ir=arg_list.begin(); ir!=arg_list.end(); ++ir)
+                if (arg_count.find(*ir)->second == it->second.size()) // print arguments
+                  o << " " << *ir;
             }
           o << endl;
         }
@@ -389,15 +440,24 @@ void setup_kernel_release (systemtap_session &s, const char* kstr)
 }
 
 
-void parse_kernel_config (systemtap_session &s) 
+int parse_kernel_config (systemtap_session &s)
 {
   // PR10702: pull config options
   string kernel_config_file = s.kernel_build_tree + "/.config";
+  struct stat st;
+  int rc = stat(kernel_config_file.c_str(), &st);
+  if (rc != 0)
+    {
+	clog << "Checking \"" << kernel_config_file << "\" failed: " << strerror(errno) << endl
+	     << "Ensure kernel development headers & makefiles are installed." << endl;
+	return rc;
+    }
+
   ifstream kcf (kernel_config_file.c_str());
   string line;
   while (getline (kcf, line))
     {
-      if (line.substr(0, 7) != "CONFIG_") continue;
+      if (!startswith(line, "CONFIG_")) continue;
       size_t off = line.find('=');
       if (off == string::npos) continue;
       string key = line.substr(0, off);
@@ -408,7 +468,40 @@ void parse_kernel_config (systemtap_session &s)
     clog << "Parsed kernel \"" << kernel_config_file << "\", number of tuples: " << s.kernel_config.size() << endl;
   
   kcf.close();
+  return 0;
 }
+
+
+int parse_kernel_exports (systemtap_session &s)
+{
+  string kernel_exports_file = s.kernel_build_tree + "/Module.symvers";
+  struct stat st;
+  int rc = stat(kernel_exports_file.c_str(), &st);
+  if (rc != 0)
+    {
+	clog << "Checking \"" << kernel_exports_file << "\" failed: " << strerror(errno) << endl
+	     << "Ensure kernel development headers & makefiles are installed." << endl;
+	return rc;
+    }
+
+  ifstream kef (kernel_exports_file.c_str());
+  string line;
+  while (getline (kef, line))
+    {
+      vector<string> tokens;
+      tokenize (line, tokens, "\t");
+      if (tokens.size() == 4 &&
+          tokens[2] == "vmlinux" &&
+          tokens[3].substr(0,13) == string("EXPORT_SYMBOL"))
+        s.kernel_exports.insert (tokens[1]);
+    }
+  if (s.verbose > 2)
+    clog << "Parsed kernel \"" << kernel_exports_file << "\", number of vmlinux exports: " << s.kernel_exports.size() << endl;
+  
+  kef.close();
+  return 0;
+}
+
 
 /*
  * Returns a string describing memory resource usage.
@@ -475,6 +568,7 @@ main (int argc, char * const argv [])
   s.bulk_mode = false;
   s.unoptimized = false;
   s.suppress_warnings = false;
+  s.panic_warnings = false;
   s.listing_mode = false;
   s.listing_mode_vars = false;
 
@@ -492,9 +586,10 @@ main (int argc, char * const argv [])
   s.keep_tmpdir = false;
   s.cmd = "";
   s.target_pid = 0;
-  s.perfmon=0;
   s.symtab = false;
   s.use_cache = true;
+  s.use_script_cache = true;
+  s.poison_cache = false;
   s.tapset_compile_coverage = false;
   s.need_uprobes = false;
   s.consult_symtab = false;
@@ -503,6 +598,7 @@ main (int argc, char * const argv [])
   s.load_only = false;
   s.skip_badvars = false;
   s.unprivileged = false;
+  s.omit_werror = false;
   bool client_options = false;
   string client_options_disallowed;
 
@@ -542,7 +638,7 @@ main (int argc, char * const argv [])
         cerr << "Warning: failed to create systemtap data directory (\""
              << s.data_path << "\"): " << e
              << ", disabling cache support." << endl;
-      s.use_cache = false;
+      s.use_cache = s.use_script_cache = false;
     }
 
   if (s.use_cache)
@@ -555,7 +651,7 @@ main (int argc, char * const argv [])
             cerr << "Warning: failed to create cache directory (\""
                  << s.cache_path << "\"): " << e
                  << ", disabling cache support." << endl;
-	  s.use_cache = false;
+	  s.use_cache = s.use_script_cache = false;
 	}
     }
 
@@ -587,7 +683,12 @@ main (int argc, char * const argv [])
 #define LONG_OPT_VERBOSE_PASS 5
 #define LONG_OPT_SKIP_BADVARS 6
 #define LONG_OPT_UNPRIVILEGED 7
-#define LONG_OPT_CLIENT_OPTIONS 8
+#define LONG_OPT_OMIT_WERROR 8
+#define LONG_OPT_CLIENT_OPTIONS 9
+#define LONG_OPT_HELP 10
+#define LONG_OPT_DISABLE_CACHE 11
+#define LONG_OPT_POISON_CACHE 12
+#define LONG_OPT_CLEAN_CACHE 13
       // NB: also see find_hash(), usage(), switch stmt below, stap.1 man page
       static struct option long_options[] = {
         { "kelf", 0, &long_opt, LONG_OPT_KELF },
@@ -597,10 +698,21 @@ main (int argc, char * const argv [])
 	{ "skip-badvars", 0, &long_opt, LONG_OPT_SKIP_BADVARS },
         { "vp", 1, &long_opt, LONG_OPT_VERBOSE_PASS },
         { "unprivileged", 0, &long_opt, LONG_OPT_UNPRIVILEGED },
+#define OWE5 "tter"
+#define OWE1 "uild-"
+#define OWE6 "fu-kb"
+#define OWE2 "i-kno"
+#define OWE4 "st"
+#define OWE3 "w-be"
+        { OWE4 OWE6 OWE1 OWE2 OWE3 OWE5, 0, &long_opt, LONG_OPT_OMIT_WERROR },
         { "client-options", 0, &long_opt, LONG_OPT_CLIENT_OPTIONS },
+        { "help", 0, &long_opt, LONG_OPT_HELP },
+        { "disable-cache", 0, &long_opt, LONG_OPT_DISABLE_CACHE },
+        { "poison-cache", 0, &long_opt, LONG_OPT_POISON_CACHE },
+        { "clean-cache", 0, &long_opt, LONG_OPT_CLEAN_CACHE },
         { NULL, 0, NULL, 0 }
       };
-      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:",
+      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:W",
                              long_options, NULL);
       if (grc < 0)
         break;
@@ -623,17 +735,21 @@ main (int argc, char * const argv [])
 	  s.suppress_warnings = true;
 	  break;
 
+        case 'W':
+	  s.panic_warnings = true;
+	  break;
+
         case 'p':
           s.last_pass = (int)strtoul(optarg, &num_endptr, 10);
           if (*num_endptr != '\0' || s.last_pass < 1 || s.last_pass > 5)
             {
               cerr << "Invalid pass number (should be 1-5)." << endl;
-              usage (s, 1);
+              exit (1);
             }
           if (s.listing_mode && s.last_pass != 2)
             {
               cerr << "Listing (-l) mode implies pass 2." << endl;
-              usage (s, 1);
+              exit (1);
             }
           break;
 
@@ -663,19 +779,19 @@ main (int argc, char * const argv [])
 	    {
 	      cerr << "Only one script can be given on the command line."
 		   << endl;
-	      usage (s, 1);
+              exit (1);
 	    }
           cmdline_script = string (optarg);
           have_script = true;
           break;
 
         case 'o':
+          // NB: client_options not a problem, since pass 1-4 does not use output_file.
           s.output_file = string (optarg);
           break;
 
         case 'R':
-	  if (client_options)
-	    client_options_disallowed += client_options_disallowed.empty () ? "-R" : ", -R";
+          if (client_options) { cerr << "ERROR: -R invalid with --client-options" << endl; exit(1); }
           s.runtime_path = string (optarg);
           break;
 
@@ -684,24 +800,22 @@ main (int argc, char * const argv [])
 	    client_options_disallowed += client_options_disallowed.empty () ? "-m" : ", -m";
           s.module_name = string (optarg);
 	  save_module = true;
+          // XXX: convert to assert_regexp_match()
 	  {
-	    string::size_type len = s.module_name.length();
-
 	    // If the module name ends with '.ko', chop it off since
 	    // modutils doesn't like modules named 'foo.ko.ko'.
-	    if (len > 3 && s.module_name.substr(len - 3, 3) == ".ko")
+	    if (endswith(s.module_name, ".ko"))
 	      {
-		s.module_name.erase(len - 3);
-		len -= 3;
+		s.module_name.erase(s.module_name.size() - 3);
 		cerr << "Truncating module name to '" << s.module_name
 		     << "'" << endl;
 	      }
 
 	    // Make sure an empty module name wasn't specified (-m "")
-	    if (len == 0)
+	    if (s.module_name.empty())
 	    {
 		cerr << "Module name cannot be empty." << endl;
-		usage (s, 1);
+		exit(1);
 	    }
 
 	    // Make sure the module name is only composed of the
@@ -712,7 +826,7 @@ main (int argc, char * const argv [])
 	      {
 		cerr << "Invalid module name (must only be composed of"
 		    " characters [_a-zA-Z0-9])." << endl;
-		usage (s, 1);
+		exit(1);
 	      }
 
 	    // Make sure module name isn't too long.
@@ -724,24 +838,23 @@ main (int argc, char * const argv [])
 	      }
 	  }
 
-	  s.use_cache = false;
+	  s.use_script_cache = false;
           break;
 
         case 'r':
-	  if (client_options)
-	    client_options_disallowed += client_options_disallowed.empty () ? "-r" : ", -r";
+          if (client_options) // NB: no paths!
+            assert_regexp_match("-r parameter from client", optarg, "^[a-z0-9_.-]+$");
           setup_kernel_release(s, optarg);
           break;
 
         case 'a':
-	  if (client_options)
-	  client_options_disallowed += client_options_disallowed.empty () ? "-a" : ", -a";
-	    s.architecture = string(optarg);
+          assert_regexp_match("-a parameter", optarg, "^[a-z0-9_-]+$");
+          s.architecture = string(optarg);
           break;
 
         case 'k':
           s.keep_tmpdir = true;
-          s.use_cache = false; /* User wants to keep a usable build tree. */
+          s.use_script_cache = false; /* User wants to keep a usable build tree. */
           break;
 
         case 'g':
@@ -765,7 +878,7 @@ main (int argc, char * const argv [])
           if (*num_endptr != '\0' || s.buffer_size < 1 || s.buffer_size > 4095)
             {
               cerr << "Invalid buffer size (should be 1-4095)." << endl;
-	      usage (s, 1);
+	      exit(1);
             }
           break;
 
@@ -778,21 +891,24 @@ main (int argc, char * const argv [])
 	  if (*num_endptr != '\0')
 	    {
 	      cerr << "Invalid target process ID number." << endl;
-	      usage (s, 1);
+	      exit (1);
 	    }
 	  break;
 
 	case 'D':
+          assert_regexp_match ("-D parameter", optarg, "^[a-z_][a-z_0-9]*(=-?[a-z_0-9]+)?$");
 	  if (client_options)
 	    client_options_disallowed += client_options_disallowed.empty () ? "-D" : ", -D";
 	  s.macros.push_back (string (optarg));
 	  break;
 
 	case 'S':
+          assert_regexp_match ("-S parameter", optarg, "^[0-9]+(,[0-9]+)?$");
 	  s.size_option = string (optarg);
 	  break;
 
 	case 'q':
+          if (client_options) { cerr << "ERROR: -q invalid with --client-options" << endl; exit(1); } 
 	  s.tapset_compile_coverage = true;
 	  break;
 
@@ -812,7 +928,7 @@ main (int argc, char * const argv [])
             {
 	      cerr << "Only one script can be given on the command line."
 		   << endl;
-	      usage (s, 1);
+	      exit (1);
             }
           cmdline_script = string("probe ") + string(optarg) + " {}";
           have_script = true;
@@ -823,9 +939,8 @@ main (int argc, char * const argv [])
 	  break;
 
 	case 'B':
-	  if (client_options)
-	  client_options_disallowed += client_options_disallowed.empty () ? "-B" : ", -B";
-	    s.kbuildflags.push_back (string (optarg));
+          if (client_options) { cerr << "ERROR: -B invalid with --client-options" << endl; exit(1); } 
+          s.kbuildflags.push_back (string (optarg));
 	  break;
 
         case 0:
@@ -839,7 +954,7 @@ main (int argc, char * const argv [])
               if (!s.kernel_symtab_path.empty())
 		{
 		  cerr << "You can't specify multiple --kmap options." << endl;
-		  usage(s, 1);
+		  exit(1);
 		}
               if (optarg)
                 s.kernel_symtab_path = optarg;
@@ -867,7 +982,7 @@ main (int argc, char * const argv [])
                 if (! ok)
                   {
                     cerr << "Invalid --vp argument: it takes 1 to 5 digits." << endl;
-                    usage (s, 1);
+                    exit (1);
                   }
                 // NB: we don't do this: s.last_pass = strlen(optarg);
                 break;
@@ -880,17 +995,46 @@ main (int argc, char * const argv [])
               /* NB: for server security, it is essential that once this flag is
                  set, no future flag be able to unset it. */
 	      break;
+	    case LONG_OPT_OMIT_WERROR:
+	      s.omit_werror = true;
+	      break;
 	    case LONG_OPT_CLIENT_OPTIONS:
 	      client_options = true;
 	      break;
+	    case LONG_OPT_HELP:
+	      usage (s, 0);
+	      break;
+
+            // The caching options should not be available to server clients
+            case LONG_OPT_DISABLE_CACHE:
+              if (client_options) {
+                  cerr << "ERROR: --disable-cache is invalid with --client-options" << endl;
+                  exit(1);
+              }
+              s.use_cache = s.use_script_cache = false;
+              break;
+            case LONG_OPT_POISON_CACHE:
+              if (client_options) {
+                  cerr << "ERROR: --poison-cache is invalid with --client-options" << endl;
+                  exit(1);
+              }
+              s.poison_cache = true;
+              break;
+            case LONG_OPT_CLEAN_CACHE:
+              if (client_options) {
+                  cerr << "ERROR: --clean-cache is invalid with --client-options" << endl;
+                  exit(1);
+              }
+              clean_cache(s);
+              exit(0);
+
             default:
-              cerr << "Internal error parsing command arguments." << endl;
-              usage(s, 1);
+              exit(1);
             }
           break;
 
         default:
-          usage (s, 1);
+          exit(1);
           break;
         }
     }
@@ -949,6 +1093,7 @@ main (int argc, char * const argv [])
     }
 
   // need a user file
+  // NB: this is also triggered if stap is invoked with no arguments at all
   if (! have_script)
     {
       cerr << "A script must be specified." << endl;
@@ -1015,7 +1160,12 @@ main (int argc, char * const argv [])
   }
 
   // Now that no further changes to s.kernel_build_tree can occur, let's use it.
-  parse_kernel_config (s);
+  if (parse_kernel_config (s) != 0)
+    exit (1);
+
+  if (parse_kernel_exports (s) != 0)
+    exit (1);
+
 
   // Create the name of the C source file within the temporary
   // directory.
@@ -1111,7 +1261,8 @@ main (int argc, char * const argv [])
               // XXX: privilege only for /usr/share/systemtap?
               stapfile* f = parser::parse (s, globbuf.gl_pathv[j], true);
               if (f == 0)
-                rc ++;
+                s.print_warning("tapset '" + string(globbuf.gl_pathv[j])
+                                + "' has errors, and will be skipped.");
               else
                 s.library_files.push_back (f);
 
@@ -1131,6 +1282,8 @@ main (int argc, char * const argv [])
           globfree (& globbuf);
         }
     }
+  if (s.num_errors())
+    rc ++;
 
   if (rc == 0 && s.last_pass == 1)
     {
@@ -1206,9 +1359,17 @@ main (int argc, char * const argv [])
     cerr << "Pass 2: analysis failed.  "
          << "Try again with another '--vp 01' option."
          << endl;
+
+  /* Print out list of missing files.  XXX should be "if (rc)" ? */
+  missing_rpm_list_print(s);
+
+  STAP_PROBE1(stap, pass2__end, &s);
+
+  if (rc || s.listing_mode || s.last_pass == 2 || pending_interrupts) goto cleanup;
+
   // Generate hash.  There isn't any point in generating the hash
   // if last_pass is 2, since we'll quit before using it.
-  else if (s.last_pass != 2 && s.use_cache)
+  if (s.use_script_cache)
     {
       ostringstream o;
       unsigned saved_verbose;
@@ -1223,10 +1384,10 @@ main (int argc, char * const argv [])
       }
 
       // Generate hash
-      find_hash (s, o.str());
+      find_script_hash (s, o.str());
 
       // See if we can use cached source/module.
-      if (get_from_cache(s))
+      if (get_script_from_cache(s))
         {
 	  // If our last pass isn't 5, we're done (since passes 3 and
 	  // 4 just generate what we just pulled out of the cache).
@@ -1236,13 +1397,6 @@ main (int argc, char * const argv [])
 	  goto pass_5;
 	}
     }
-
-  /* Print out list of missing files */
-  missing_rpm_list_print(s);
-
-  STAP_PROBE1(stap, pass2__end, &s);
-
-  if (rc || s.listing_mode || s.last_pass == 2 || pending_interrupts) goto cleanup;
 
   // PASS 3: TRANSLATION
   s.verbose = s.perpass_verbose[2];
@@ -1282,6 +1436,12 @@ main (int argc, char * const argv [])
   times (& tms_before);
   gettimeofday (&tv_before, NULL);
   STAP_PROBE1(stap, pass4__start, &s);
+
+  if (s.use_cache)
+    {
+      find_stapconf_hash(s);
+      get_stapconf_from_cache(s);
+    }
   rc = compile_pass (s);
 
   if (rc == 0 && s.last_pass == 4)
@@ -1306,12 +1466,14 @@ main (int argc, char * const argv [])
   else
     {
       // Update cache. Cache cleaning is kicked off at the beginning of this function.
+      if (s.use_script_cache)
+        add_script_to_cache(s);
       if (s.use_cache)
-        add_to_cache(s);
+        add_stapconf_to_cache(s);
 
       // We may need to save the module in $CWD if the cache was
       // inaccessible for some reason.
-      if (! s.use_cache && s.last_pass == 4)
+      if (! s.use_script_cache && s.last_pass == 4)
         save_module = true;
 
       // Copy module to the current directory.
@@ -1396,3 +1558,4 @@ pass_5:
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
+

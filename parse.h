@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2007 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 // Copyright (C) 2007 Bull S.A.S
 //
 // This file is part of systemtap, and is free software.  You can
@@ -79,12 +79,14 @@ public:
 private:
   inline int input_get ();
   inline int input_peek (unsigned n=0);
-  void input_put (const std::string&);
+  void input_put (const std::string&, const token*);
   std::string input_name;
   std::string input_contents;
   const char *input_pointer; // index into input_contents
   const char *input_end;
   unsigned cursor_suspend_count;
+  unsigned cursor_suspend_line;
+  unsigned cursor_suspend_column;
   unsigned cursor_line;
   unsigned cursor_column;
   systemtap_session& session;
@@ -100,6 +102,7 @@ struct embeddedcode;
 struct probe_point;
 struct literal;
 struct block;
+struct try_block;
 struct for_loop;
 struct statement;
 struct if_statement;
@@ -173,6 +176,7 @@ private: // nonterminals
   probe_point* parse_probe_point ();
   literal* parse_literal ();
   block* parse_stmt_block ();
+  try_block* parse_try_block ();
   statement* parse_statement ();
   if_statement* parse_if_statement ();
   for_loop* parse_for_loop ();
@@ -186,6 +190,8 @@ private: // nonterminals
   continue_statement* parse_continue_statement ();
   indexable* parse_indexable ();
   const token *parse_hist_op_or_bare_name (hist_op *&hop, std::string &name);
+  target_symbol *parse_target_symbol (const token* t);
+  expression* parse_defined_op (const token* t);
   expression* parse_expression ();
   expression* parse_assignment ();
   expression* parse_ternary ();
