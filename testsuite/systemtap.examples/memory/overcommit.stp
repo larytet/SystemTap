@@ -1,5 +1,3 @@
-#! /usr/bin/env stap
-
 probe kernel.function("__vm_enough_memory").return {
   if ($return != 0) {
       printf("overcommit blocked malloc, process %s (%d), %d pages\n",

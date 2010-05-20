@@ -79,9 +79,7 @@ exitErr(char *function)
   /* Exit gracefully. */
   /* ignoring return value of NSS_Shutdown as code exits with 1*/
   (void) NSS_Shutdown();
-#if 0 /* PR_Cleanup is known to hang on some systems */
   PR_Cleanup();
-#endif
   exit(1);
 }
 
@@ -250,7 +248,7 @@ setupSSLSocket(PRFileDesc *tcpSocket)
   secStatus = SSL_SetPKCS11PinArg(sslSocket, password);
   if (secStatus != SECSuccess)
     {
-      errWarn("SSL_SetPKCS11PinArg");
+      errWarn("SSL_HandshakeCallback");
       goto loser;
     }
 
@@ -839,10 +837,9 @@ accept_connection(PRFileDesc *listenSocket)
   PRNetAddr   addr;
   PRStatus    prStatus;
   PRFileDesc *tcpSocket;
-  SECStatus   secStatus;
-  CERTCertDBHandle *dbHandle;
-
-  dbHandle = CERT_GetDefaultCertDB();
+#if 0
+  SECStatus   result;
+#endif
 
   while (PR_TRUE)
     {
@@ -871,7 +868,7 @@ accept_connection(PRFileDesc *listenSocket)
       /* XXX: fork() or somesuch to handle concurrent requests. */
 
       /* Accepted the connection, now handle it. */
-      handle_connection (tcpSocket);
+      /*result =*/ handle_connection (tcpSocket);
 
       printf ("Request from %d.%d.%d.%d:%d complete\n",
 	      (addr.inet.ip      ) & 0xff,
@@ -880,31 +877,15 @@ accept_connection(PRFileDesc *listenSocket)
 	      (addr.inet.ip >> 24) & 0xff,
 	      addr.inet.port);
       fflush (stdout);
-
-      /* If our certificate is no longer valid (e.g. has expired),
-	 then exit. The daemon, (stap-serverd) will generate a new
-	 certificate and restart the connection.  */
-      secStatus = CERT_VerifyCertNow(dbHandle, cert, PR_TRUE/*checkSig*/,
-				     certUsageSSLServer, NULL/*wincx*/);
-      if (secStatus != SECSuccess)
-	{
-	  errWarn ("CERT_VerifyCertNow");
-	  break;
-	}
     }
 
 #if DEBUG
   fprintf(stderr, "Closing listen socket.\n");
-  fflush (stderr);
 #endif
   prStatus = PR_Close(listenSocket);
   if (prStatus != PR_SUCCESS)
     exitErr("PR_Close");
 
-#if DEBUG
-  fprintf(stderr, "Closed listen socket.\n");
-  fflush (stderr);
-#endif
   return SECSuccess;
 }
 
@@ -915,7 +896,7 @@ accept_connection(PRFileDesc *listenSocket)
  *
  */
 static void
-server_main(unsigned short port, SECKEYPrivateKey *privKey)
+server_main(unsigned short port, SECKEYPrivateKey *privKey, CERTCertificate *cert)
 {
   SECStatus           secStatus;
   PRStatus            prStatus;
@@ -1109,13 +1090,11 @@ main(int argc, char **argv)
   SSL_ConfigMPServerSIDCache(256, 0, 0, NULL);
 
   /* Launch server. */
-  server_main(port, privKey);
+  server_main(port, privKey, cert);
 
   /* Shutdown NSS and exit NSPR gracefully. */
   NSS_Shutdown();
-#if 0 /* PR_Cleanup is known to hang on some systems */
   PR_Cleanup();
-#endif
 
   return 0;
 }

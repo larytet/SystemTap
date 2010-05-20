@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2009 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -22,7 +22,6 @@ extern "C" {
 
 
 // forward decls for all referenced systemtap types
-struct hash;
 struct match_node;
 struct stapfile;
 struct vardecl;
@@ -32,8 +31,6 @@ struct derived_probe;
 struct be_derived_probe_group;
 struct dwarf_derived_probe_group;
 struct kprobe_derived_probe_group;
-struct hwbkpt_derived_probe_group;
-struct perf_derived_probe_group;
 struct uprobe_derived_probe_group;
 struct utrace_derived_probe_group;
 struct itrace_derived_probe_group;
@@ -43,6 +40,7 @@ struct profile_derived_probe_group;
 struct mark_derived_probe_group;
 struct tracepoint_derived_probe_group;
 struct hrtimer_derived_probe_group;
+struct perfmon_derived_probe_group;
 struct procfs_derived_probe_group;
 struct embeddedcode;
 struct translator_output;
@@ -90,7 +88,6 @@ struct systemtap_session
   std::string kernel_base_release;
   std::string kernel_build_tree;
   std::map<std::string,std::string> kernel_config;
-  std::set<std::string> kernel_exports;
   std::string architecture;
   std::string runtime_path;
   std::string data_path;
@@ -112,28 +109,24 @@ struct systemtap_session
   bool bulk_mode;
   bool unoptimized;
   bool suppress_warnings;
-  bool panic_warnings;
   int buffer_size;
+  unsigned perfmon;
   bool symtab; /* true: emit symbol table at translation time; false: let staprun do it. */
   bool prologue_searching;
   bool tapset_compile_coverage;
   bool need_uprobes;
   bool load_only; // flight recorder mode
   bool unprivileged;
-  bool omit_werror;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (elaborate.cxx)
   // and/or main.cxx(main).
 
   // Cache data
-  bool use_cache;               // control all caching
-  bool use_script_cache;        // control caching of pass-3/4 output
-  bool poison_cache;            // consider the cache to be write-only
-  std::string cache_path;       // usually ~/.systemtap/cache
-  std::string hash_path;        // path to the cached script module
-  std::string stapconf_path;    // path to the cached stapconf
-  hash *base_hash;              // hash common to all caching
+  bool use_cache;
+  std::string cache_path;
+  std::string hash_path;
+  std::string stapconf_path;
 
   // dwarfless operation
   bool consult_symtab;
@@ -182,8 +175,6 @@ struct systemtap_session
   be_derived_probe_group* be_derived_probes;
   dwarf_derived_probe_group* dwarf_derived_probes;
   kprobe_derived_probe_group* kprobe_derived_probes;
-  hwbkpt_derived_probe_group* hwbkpt_derived_probes;
-  perf_derived_probe_group* perf_derived_probes;
   uprobe_derived_probe_group* uprobe_derived_probes;
   utrace_derived_probe_group* utrace_derived_probes;
   itrace_derived_probe_group* itrace_derived_probes;
@@ -193,6 +184,7 @@ struct systemtap_session
   mark_derived_probe_group* mark_derived_probes;
   tracepoint_derived_probe_group* tracepoint_derived_probes;
   hrtimer_derived_probe_group* hrtimer_derived_probes;
+  perfmon_derived_probe_group* perfmon_derived_probes;
   procfs_derived_probe_group* procfs_derived_probes;
 
   // NB: It is very important for all of the above (and below) fields
@@ -219,7 +211,7 @@ struct systemtap_session
 
   std::set<std::string> seen_errors;
   std::set<std::string> seen_warnings;
-  unsigned num_errors () { return seen_errors.size() + (panic_warnings ? seen_warnings.size() : 0); }
+  unsigned num_errors () { return seen_errors.size(); }
 
   std::set<std::string> rpms_to_install;
 

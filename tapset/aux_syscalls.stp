@@ -399,53 +399,124 @@ function __sem_flags:string(semflg:long)
 
 
 /* This function copies an argv from userspace. */
-function __get_argv:string(argv:long, first:long)
-{
-%( CONFIG_64BIT == "y" %?
-	if (first && argv)
-		argv += 8
-	while (argv) {
-		vstr = user_long(argv)
-		if (!vstr)
-			break
-		if (len)
-			str .= " "
-		str .= user_string_quoted(vstr)
+function __get_argv:string(a:long, first:long)
+%{ /* pure */
+  	char __user *__user *argv = (char __user *__user *)(long)THIS->a;
+	char __user *vstr;
+	int space, rc, len = MAXSTRINGLEN;
+	char *str = THIS->__retvalue;
+	char buf[80];
+	char *ptr = buf;
 
-		newlen = strlen(str)
-		if (newlen == len)
-			break
-		len = newlen
-		argv += 8
+	
+	if (THIS->first && argv)
+		argv++;
+
+	while (argv != NULL) {
+		if (__stp_get_user (vstr, argv))
+      			break;
+
+		if (vstr == NULL)
+			break;
+
+		rc = _stp_strncpy_from_user(buf, vstr, 79);
+		if (rc <= 0)
+			break;
+
+		/* check for whitespace in string */
+		buf[rc] = 0;
+		ptr = buf;
+		space = 0;
+		while (*ptr && rc--) {
+			if (isspace(*ptr++)) {
+				space = 1;
+				break;
+			}
+		}
+
+		if (len != MAXSTRINGLEN && len) {
+			*str++=' ';
+			len--;
+		}
+
+		if (space && len) {
+			*str++='\"';
+			len--;
+		}
+	
+		rc = strlcpy (str, buf, len); 
+		str += rc;
+		len -= rc;
+
+		if (space && len) {
+			*str++='\"';
+			len--;
+		}
+
+		argv++;
 	}
-
-	return str
-%:
-	return __get_compat_argv(argv, first)
-%)
-}
+	*str = 0;
+%}
 /* This function copies an argv from userspace. */
-function __get_compat_argv:string(argv:long, first:long)
-{
-	if (first && argv)
-		argv += 4
-	while (argv) {
-		vstr = user_int(argv) & 0xffffffff
-		if (!vstr)
-			break
-		if (len)
-			str .= " "
-		str .= user_string_quoted(vstr)
+function __get_compat_argv:string(a:long, first:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+  	compat_uptr_t __user *__user *argv = (compat_uptr_t __user *__user *)(long)THIS->a;
+	compat_uptr_t __user *vstr;
+	int space, rc, len = MAXSTRINGLEN;
+	char *str = THIS->__retvalue;
+	char buf[80];
+	char *ptr = buf;
 
-		newlen = strlen(str)
-		if (newlen == len)
-			break
-		len = newlen
-		argv += 4
+	if (THIS->first && argv)
+		argv++;
+
+	while (argv != NULL) {
+		if (__stp_get_user (vstr, argv))
+      			break;
+
+		if (vstr == NULL)
+			break;
+
+		rc = _stp_strncpy_from_user(buf, (char *)vstr, 79);
+		if (rc <= 0)
+			break;
+
+		/* check for whitespace in string */
+		buf[rc] = 0;
+		ptr = buf;
+		space = 0;
+		while (*ptr && rc--) {
+			if (isspace(*ptr++)) {
+				space = 1;
+				break;
+			}
+		}
+
+		if (len != MAXSTRINGLEN && len) {
+			*str++=' ';
+			len--;
+		}
+
+		if (space && len) {
+			*str++='\"';
+			len--;
+		}
+	
+		rc = strlcpy (str, buf, len); 
+		str += rc;
+		len -= rc;
+
+		if (space && len) {
+			*str++='\"';
+			len--;
+		}
+
+		argv++;
 	}
-
-	return str
-}
+	*str = 0;
+#endif
+%}
 
 /*
  * Return the  symbolic string  representation
@@ -464,22 +535,6 @@ function _adjtx_mode_str(f) {
    if(f  & 2)     bs="ADJ_FREQUENCY|".bs
    if(f & 1 && ((f & 32769) != 32769)) bs="ADJ_OFFSET|".bs
    return substr(bs,0,strlen(bs)-1)
-}
-
-function _inotify_watch_mask_str(f) {
-	if (f & 0x00000001) bs="IN_ACCESS|"
-	if (f & 0x00000002) bs=bs."IN_MODIFY|"
-	if (f & 0x00000004) bs=bs."IN_ATTRIB|"
-	if (f & 0x00000008) bs=bs."IN_CLOSE_WRITE|"
-	if (f & 0x00000010) bs=bs."IN_CLOSE_NOWRITE|"
-	if (f & 0x00000020) bs=bs."IN_OPEN|"
-	if (f & 0x00000040) bs=bs."IN_MOVED_FROM|"
-	if (f & 0x00000080) bs=bs."IN_MOVED_TO|"
-	if (f & 0x00000100) bs=bs."IN_CREATE|"
-	if (f & 0x00000200) bs=bs."IN_DELETE|"
-	if (f & 0x00000400) bs=bs."IN_DELETE_SELF|"
-	if (f & 0x00000800) bs=bs."IN_MOVE_SELF|"
-	return substr(bs,0,strlen(bs)-1)
 }
 
 /*
@@ -570,27 +625,6 @@ function _flock_cmd_str(c) {
    return substr(bs,0,strlen(bs)-1)
 }
 
-/* `man 2 pipe2` for more information */
-function _sys_pipe2_flag_str:string (f:long)
-%{ /* pure */ /* unprivileged */
-  long flags = THIS->f;
-  char *str = THIS->__retvalue;
-  int len;
-
-#if defined(O_NONBLOCK)
-  if (flags & O_NONBLOCK)
-    strlcat(str, "O_NONBLOCK|", MAXSTRINGLEN);
-#endif
-#if defined(O_CLOEXEC)
-  if (flags & O_CLOEXEC)
-    strlcat(str, "O_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = 0;
-%}
-
 /* `man 2 open` for more information */
 function _sys_open_flag_str:string (f:long)
 %{ /* pure */
@@ -611,10 +645,6 @@ function _sys_open_flag_str:string (f:long)
 #ifdef O_APPEND
 	if (flags & O_APPEND)
 		strlcat (THIS->__retvalue, "|O_APPEND", MAXSTRINGLEN);
-#endif
-#ifdef O_CLOEXEC
-	if (flags & O_CLOEXEC)
-		strlcat (THIS->__retvalue, "|O_CLOEXEC", MAXSTRINGLEN);
 #endif
 #ifdef O_CREAT
 	if (flags & O_CREAT)
@@ -666,10 +696,6 @@ function _sys_open_flag_str:string (f:long)
 #ifdef O_TRUNC
 	if (flags & O_TRUNC)
 		strlcat (THIS->__retvalue, "|O_TRUNC", MAXSTRINGLEN);
-#endif
-#ifdef O_CLOEXEC
-	if (flags & O_CLOEXEC)
-		strlcat (THIS->__retvalue, "|O_CLOEXEC", MAXSTRINGLEN);
 #endif
 %}
 
@@ -768,7 +794,6 @@ function _recvflags_str(f) {
    if(f & 64) bs="MSG_DONTWAIT|".bs
    if(f & 256) bs="MSG_WAITALL|".bs
    if(f & 8192) bs="MSG_ERRQUEUE|".bs
-   if(f & 0x40000000) bs="MSG_CMSG_CLOEXEC|".bs
    return substr(bs,0,strlen(bs)-1)
 }
 
@@ -1047,7 +1072,6 @@ function _fcntl_cmd_str(cmd) {
    if(cmd==12) return "F_GETLK64"
    if(cmd==13) return "F_SETLK64"
    if(cmd==14) return "F_SETLKW64"
-   if(cmd==1030) return "F_DUPFD_CLOEXEC"
    return sprintf("UNKNOWN VALUE: %d", cmd)
 }
 
@@ -1312,7 +1336,7 @@ function _sock_type_str:string(type:long)
 		strlcpy (THIS->__retvalue, "SOCK_PACKET", MAXSTRINGLEN);
 		break;
 	default:
-		snprintf (THIS->__retvalue, MAXSTRINGLEN, "UNKNOWN VALUE: %d", t);
+		strlcpy (THIS->__retvalue, "UNKNOWN VALUE: %d", t);
 		break;
 	}
 
@@ -1656,95 +1680,6 @@ function _at_flag_str:string(f:long)
 	_stp_lookup_str(_stp_atflag_list, THIS->f, THIS->__retvalue, MAXSTRINGLEN);
 %}
 
-%{
-#include <linux/eventpoll.h>
-%}
-function _epoll_create1_flag_str:string(f:long)
-%{ /* pure */
-#ifdef EPOLL_CLOEXEC
-	if (THIS->f == EPOLL_CLOEXEC)
-		strlcpy (THIS->__retvalue, "EPOLL_CLOEXEC", MAXSTRINGLEN);
-#endif
-%}
-
-%{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-#include <linux/eventfd.h>
-#endif
-%}
-function _eventfd2_flag_str:string(f:long)
-%{ /* pure */
-  long flags = THIS->f;
-  char *str = THIS->__retvalue;
-  int len;
-
-#if defined(EFD_CLOEXEC) && defined(EFD_NONBLOCK)
-  if (flags & EFD_NONBLOCK)
-    strlcat(str, "EFD_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & EFD_CLOEXEC)
-    strlcat(str, "EFD_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = 0;
-%}
-
-%{
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
-#include <linux/signalfd.h>
-#endif
-%}
-function _signalfd4_flags_str:string(f:long)
-%{ /* pure */
-  long flags = THIS->f;
-  char *str = THIS->__retvalue;
-  int len;
-
-#if defined(SFD_CLOEXEC) && defined(SFD_NONBLOCK)
-  if (flags & SFD_NONBLOCK)
-    strlcat(str, "SFD_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & SFD_CLOEXEC)
-    strlcat(str, "SFD_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = 0;
-%}
-
-%{
-#ifdef CONFIG_INOTIFY
-#include <linux/inotify.h>
-#endif
-%}
-function _inotify_init1_flag_str:string(f:long)
-%{ /* pure */
-  long flags = THIS->f;
-  char *str = THIS->__retvalue;
-  int len;
-
-#if defined(IN_CLOEXEC) && defined(IN_NONBLOCK)
-  if (flags & IN_NONBLOCK)
-    strlcat(str, "IN_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & IN_CLOEXEC)
-    strlcat(str, "IN_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = 0;
-%}
-
-function _dup3_flag_str:string(f:long)
-%{ /* pure */
-#ifdef O_CLOEXEC
-	if (THIS->f == O_CLOEXEC)
-		strlcpy (THIS->__retvalue, "O_CLOEXEC", MAXSTRINGLEN);
-	else
-#endif
-		strlcpy (THIS->__retvalue, "UNKNOWN", MAXSTRINGLEN);
-%}
 
 %{
 #include <linux/shm.h>

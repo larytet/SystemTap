@@ -1,4 +1,4 @@
-#include "sys/sdt.h"
+#include "sdt.h"
 
 static int
 bar (int i, long j)

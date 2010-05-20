@@ -446,18 +446,12 @@ function print_tcpmib (key:long)
 	printf("Tcp:\n");
 	if (ActiveOpens[key]||!nozeros)
 		printf("\tActiveOpens = %d\n", ActiveOpens[key]);
-%( kernel_v > "2.6.21" %?
 	if (AttemptFails[key]||!nozeros)
 		printf("\tAttemptFails = %d\n", AttemptFails[key]);
-%)
-%( kernel_v > "2.6.24" %?
 	if (CurrEstab[key]||!nozeros)
 		printf("\tCurrEstab = %d\n", CurrEstab[key]);
-%)
-%( kernel_v > "2.6.24" %?
 	if (EstabResets[key]||!nozeros)
 		printf("\tEstabResets = %d\n", EstabResets[key]);
-%)
 //	if (InErrs[key]||!nozeros) 
 //		printf("\tInErrs = %d\n", InErrs[key]);
 	if (InSegs[key]||!nozeros)
@@ -520,10 +514,8 @@ function _report(laddr:long, raddr:long, lport:long, rport:long)
 	}
 
 	key = key_list[laddr, raddr, lport, rport]
-%( kernel_v > "2.6.24" %?
 	if ( onclose && (CurrEstab[key] < 0) )
 		printf("Stats were not collected for the entire socket life.\n")
-%)
 	printf("-----------------------------------------\n");
 		
 	print_sockmib(key)
@@ -568,7 +560,6 @@ probe linuxmib.* {}
  * the dump off all stats for this socket. This feature only makes sense
  * when index=tuple. 
  */
-%( kernel_v > "2.6.24" %?
 probe tcpmib.CurrEstab
 {
 	if (!onclose) next
@@ -585,7 +576,6 @@ probe tcpmib.CurrEstab
 	delete key_list[laddr, raddr, lport, rport]
 	delete CurrEstab[key]
 }
-%)
 	
 
 /* SNMP has no counter for the number of bytes sent or received by TCP.
@@ -594,11 +584,7 @@ probe tcpmib.CurrEstab
 global SockSendbytes;
 global SockSendmsg;
 probe tcp.sendmsg.return {
-%( kernel_v < "2.6.23" %?
-	sk=$sk;
-%:
-	sk = $sock->sk;
-%)
+        sk = $sock->sk;
         op = size; // $return
 	if ( op <= 0 ) next;
         if ( !sk ) next;

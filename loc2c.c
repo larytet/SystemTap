@@ -479,6 +479,7 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 
 	  UNOP (abs, op_abs);
 	  BINOP (and, &);
+	  BINOP (div, /);
 	  BINOP (minus, -);
 	  BINOP (mod, %);
 	  BINOP (mul, *);
@@ -487,7 +488,7 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 	  BINOP (or, |);
 	  BINOP (plus, +);
 	  BINOP (shl, <<);
-	  BINOP (shr, >>);
+	  BINOP (shra, >>);
 	  BINOP (xor, ^);
 
 	  /* Comparisons are binary operators too.  */
@@ -501,21 +502,11 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
 #undef	UNOP
 #undef	BINOP
 
-	case DW_OP_shra:
+	case DW_OP_shr:
 	  {
 	    POP (b);
 	    POP (a);
 	    push ("(%s) " STACKFMT " >> (%s)" STACKFMT,
-		  stack_slot_type (loc, true), a,
-		  stack_slot_type (loc, true), b);
-	    break;
-	  }
-
-	case DW_OP_div:
-	  {
-	    POP (b);
-	    POP (a);
-	    push ("(%s) " STACKFMT " / (%s)" STACKFMT,
 		  stack_slot_type (loc, true), a,
 		  stack_slot_type (loc, true), b);
 	    break;

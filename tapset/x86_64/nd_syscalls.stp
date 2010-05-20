@@ -30,7 +30,11 @@ probe nd_syscall.arch_prctl.return = kprobe.function("sys_arch_prctl").return
 probe nd_syscall.iopl = kprobe.function("sys_iopl")
 {
 	name = "iopl"
-//	level = (@defined($level) ? $level : $new_iopl)
+// %( kernel_vr == "*xen" %?
+// 	level = $new_iopl
+// %:
+// 	level = $level
+// %)
 	asmlinkage()
 	level = int_arg(1)
 	argstr = sprint(level)
@@ -87,33 +91,28 @@ probe nd_syscall.sysctl32.return = kprobe.function("sys32_sysctl").return ?
 # long sys_mmap(unsigned long addr, unsigned long len,
 #          unsigned long prot, unsigned long flags,
 #          unsigned long fd, unsigned long off)
-probe nd_syscall.mmap = kprobe.function("sys_mmap") ?,
-                        kprobe.function("sys_mmap_pgoff") ?
+probe nd_syscall.mmap = kprobe.function("sys_mmap") ?
 {
 	name = "mmap"
 	// start = $addr
 	// len = $len
 	// prot = $prot
 	// flags = $flags
-	// fd = __int32($fd)
+	// fd = $fd
 	// offset = $off
 	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
-	// 	_mprotect_prot_str($prot), _mmap_flags($flags),
-	//	__int32($fd), $off)
+	// 	_mprotect_prot_str($prot), _mmap_flags($flags), $fd, $off)
 	asmlinkage()
 	start = ulong_arg(1)
 	len = ulong_arg(2)
 	prot = ulong_arg(3)
 	flags = ulong_arg(4)
-	# Although the kernel gets an unsigned long fd, on the
-	# user-side it is a signed int.  Fix this.
-	fd = int_arg(5)
+	fd = ulong_arg(5)
 	offset = ulong_arg(6)
 	argstr = sprintf("%p, %d, %s, %s, %d, %d", start, len,
 		_mprotect_prot_str(prot), _mmap_flags(flags), fd, offset)
 }
-probe nd_syscall.mmap.return = kprobe.function("sys_mmap").return ?,
-                               kprobe.function("sys_mmap_pgoff").return ?
+probe nd_syscall.mmap.return = kprobe.function("sys_mmap").return ?
 {
 	name = "mmap"
 	retstr = returnstr(2)
@@ -139,18 +138,17 @@ probe nd_syscall.mmap32.return = kprobe.function("sys32_mmap").return
 #	unsigned long prot, unsigned long flags,
 #	unsigned long fd, unsigned long pgoff)
 #
-probe nd_syscall.mmap2 = kprobe.function("sys32_mmap2") ?
+probe nd_syscall.mmap2 = kprobe.function("sys32_mmap2")
 {
 	name = "mmap2"
 	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
-	// 	_mprotect_prot_str($prot), _mmap_flags($flags),
-	//	__int32($fd), $pgoff)
+	// 	_mprotect_prot_str($prot), _mmap_flags($flags), $fd, $pgoff)
 	asmlinkage()
 	argstr = sprintf("%p, %d, %s, %s, %d, %d", ulong_arg(1), ulong_arg(2),
 		_mprotect_prot_str(ulong_arg(3)), _mmap_flags(ulong_arg(4)),
-		int_arg(5), ulong_arg(6))
+		ulong_arg(5), ulong_arg(6))
 }
-probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?
+probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return
 {
 	name = "mmap2"
 	retstr = returnstr(2)
@@ -175,15 +173,17 @@ probe nd_syscall.vm86_warning.return = kprobe.function("sys32_vm86_warning").ret
 #
 # long sys32_pipe(int __user *fd)
 #
-probe nd_syscall.pipe32 = kprobe.function("sys32_pipe")?
+%(kernel_v < "2.6.32" %?
+probe nd_syscall.pipe32 = kprobe.function("sys32_pipe")
 {
 	name = "pipe"
 	// argstr = sprintf("%p", $fd)
 	asmlinkage()
 	argstr = sprintf("%p", pointer_arg(1))
 }
-probe nd_syscall.pipe32.return = kprobe.function("sys32_pipe").return?
+probe nd_syscall.pipe32.return = kprobe.function("sys32_pipe").return
 {
 	name = "pipe"
 	retstr = returnstr(1)
 }
+%)

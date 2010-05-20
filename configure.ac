@@ -1,7 +1,7 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 1.2, systemtap@sources.redhat.com, systemtap)
+AC_INIT([systemtap], 1.1, systemtap@sources.redhat.com, systemtap)
 dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
 
 AC_PREREQ(2.59)
@@ -249,14 +249,14 @@ EOF
 
 if test "x${have_xmlto}" == "xyes"; then
 AC_MSG_CHECKING([for xmlto --stringparam support])
-   xmlto --stringparam man.authors.section.enabled=0 html-nochunks conftest.xml >/dev/null 2>&1
+   xmlto --stringparam man.authors.section.enabled=0 txt conftest.xml >/dev/null 2>&1
    if test $? == 0; then
       have_xmlto_stringparam="yes"
       AC_MSG_RESULT([yes])
    else
       AC_MSG_RESULT([no])
    fi
-   rm -f conftest.html
+   rm -f conftest.txt
 fi
 AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
 
@@ -287,40 +287,38 @@ AC_ARG_ENABLE([server],
     [enable building of stap-server/client (default on if nss etc. found).]),
   [enable_server=$enableval],
   [enable_server="check"])
-if test "$enable_server" != "no"; then
 dnl Find the location of nss and nspr headers and certutil
-  AC_CHECK_PROG(have_certutil, certutil, [yes], [no])
-  AC_CHECK_FILE([/usr/include/nss3], nssdir=nss3, [
-    AC_CHECK_FILE([/usr/include/nss], nssdir=nss)
-  ])
-  AC_CHECK_FILE([/usr/include/nspr4], nsprdir=nspr4, [
-    AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
-  ])
-  if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
-  nss_CFLAGS="-I/usr/include/$nssdir"
-  nspr_CFLAGS="-I/usr/include/$nsprdir"
-  AC_SUBST(nss_CFLAGS)
-  AC_SUBST(nspr_CFLAGS)
-  save_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
-  have_nss_includes=yes
-  AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
-  CPPFLAGS="$save_CPPFLAGS"
-  have_nss_libs=no
-  AC_CHECK_LIB(nspr4, PR_Connect, [
-    AC_CHECK_LIB(ssl3, SSL_ReHandshake, have_nss_libs=yes)
-  ])
+AC_CHECK_PROG(have_certutil, certutil, [yes], [no])
+AC_CHECK_FILE([/usr/include/nss3], nssdir=nss3, [
+	AC_CHECK_FILE([/usr/include/nss], nssdir=nss)
+])
+AC_CHECK_FILE([/usr/include/nspr4], nsprdir=nspr4, [
+	AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
+])
+if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
+nss_CFLAGS="-I/usr/include/$nssdir"
+nspr_CFLAGS="-I/usr/include/$nsprdir"
+AC_SUBST(nss_CFLAGS)
+AC_SUBST(nspr_CFLAGS)
+save_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
+have_nss_includes=yes
+AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
+CPPFLAGS="$save_CPPFLAGS"
+have_nss_libs=no
+AC_CHECK_LIB(nspr4, PR_Connect, [
+	AC_CHECK_LIB(ssl3, SSL_ReHandshake, have_nss_libs=yes)
+])
+fi
+if test "x${have_nss_includes}${have_nss_libs}${have_certutil}" != "xyesyesyes"; then
+  if test "$enable_server" == "yes"; then
+    AC_MSG_ERROR([cannot find all libraries or tools for stap-server])
   fi
-  if test "x${have_nss_includes}${have_nss_libs}${have_certutil}" != "xyesyesyes"; then
-    if test "$enable_server" == "yes"; then
-      AC_MSG_ERROR([cannot find all libraries or tools for stap-server])
-    fi
-    if test "$enable_server" == "check"; then
-      AC_MSG_WARN([will not build stap-server, cannot find all libraries or tools])
-    fi
-  else
-      AC_DEFINE([HAVE_NSS], [1], [Define to 1 if you have the nss libraries.])
+  if test "$enable_server" == "check"; then
+    AC_MSG_WARN([will not build stap-server, cannot find all libraries or tools])
   fi
+else
+    AC_DEFINE([HAVE_NSS], [1], [Define to 1 if you have the nss libraries.])
 fi
 AM_CONDITIONAL([BUILD_SERVER], [test "x${have_nss_includes}${have_nss_libs}${have_certutil}" == "xyesyesyes" -a "$enable_server" != "no"])
 AM_CONDITIONAL([HAVE_NSS],     [test "x${have_nss_includes}${have_nss_libs}${have_certutil}" == "xyesyesyes"])
@@ -372,17 +370,199 @@ dnl requirements are installed, enable the grapher.
 AM_CONDITIONAL([BUILD_GRAPHER], [test "x${have_grapher_reqs}" == "xyes" -a x"$enable_grapher" != "xno"])
 
 
-dnl Look for librpm.
+# Integration with rpm library to support missing debuginfo suggestions.
+# --without-rpm: Disable any rpm support.
+# --with-rpm=libname.so: Try to dynamically open `libname.so' during runtime.
+#   Even with runtime missing `libname.so' GDB will still other run correctly.
+#   Missing `libname.so' during ./configure will abort the configuration.
+# --with-rpm=librpm.so: Like `--with-rpm=libname.so' but try to find specific
+#   minor version first such as `librpm-4.6.so' as minor version differences
+#   mean API+ABI incompatibility.  If the specific match versioned library name
+#   could not be found still open dynamically at least `librpm.so'.
+# --with-rpm: Like `--with-rpm=librpm.so' but if any of its detection fails try
+#   to find librpm for compilation-time linking by pkg-config.  GDB binary will
+#   be probably linked with the version specific library (as `librpm-4.6.so').
+#   Failure to find librpm by pkg-config will abort the configuration.
+# (default) --with-rpm=auto: Like `--with-rpm=librpm.so' but if even pkg-config
+#   cannot find librpm use to the rpmless compilation (like `--without-rpm').
+
 AC_ARG_WITH([rpm],
   [AS_HELP_STRING([--with-rpm],
-                  [query rpm database for missing debuginfos])], [], [with_rpm="auto"])
-if test "$with_rpm" != "no"; then
-  AC_CHECK_LIB(rpm, rpmtsInitIterator, [
-                    AC_DEFINE([HAVE_LIBRPM],[1],[have librpm])
-                    stap_LIBS="$stap_LIBS -lrpm"
-                    have_librpm="yes"], [have_librpm="no"])
-  if test "x$have_librpm" != "xyes" -a "$with_rpm" == "yes"; then
-     AC_MSG_ERROR([cannot find librpm])
+                  [query rpm database for missing debuginfos @<:@yes/no, def. auto=librpm.so@:>@])], [], [with_rpm="auto"])
+
+m4_pattern_allow([^AC_MSG_ERROR$])
+m4_pattern_allow([^AC_MSG_WARN$])
+if test "x$with_rpm" != "xno"; then
+  if test "x$with_rpm" = "xyes"; then
+    LIBRPM="librpm.so"
+    RPM_REQUIRE=true
+    DLOPEN_REQUIRE=false
+  elif test "x$with_rpm" = "xauto"; then
+    LIBRPM="librpm.so"
+    RPM_REQUIRE=false
+    DLOPEN_REQUIRE=false
+  else
+    LIBRPM="$with_rpm"
+    RPM_REQUIRE=true
+    DLOPEN_REQUIRE=true
+  fi
+  LIBRPM_STRING='"'"$LIBRPM"'"'
+
+  AC_MSG_CHECKING([specific librpm version])
+  HAVE_DLOPEN_LIBRPM=false
+  save_LIBS="$LIBS"
+  LIBS="$LIBS -ldl"
+  AC_RUN_IFELSE(AC_LANG_PROGRAM([[
+#include <rpm/rpmlib.h>
+#include <dlfcn.h>
+#include <errno.h>
+  ]], [[
+    void *h;
+    const char *const *rpmverp;
+    FILE *f;
+
+    f = fopen ("conftest.out", "w");
+    if (!f)
+      {
+	fprintf (stderr, "Cannot write \"%s\": %s\n", "conftest.out",
+		 strerror (errno));
+	return 1;
+      }
+    h = dlopen ($LIBRPM_STRING, RTLD_LAZY);
+    if (!h)
+      {
+	fprintf (stderr, "dlopen (\"%s\"): %s\n", $LIBRPM_STRING, dlerror ());
+	return 1;
+      }
+    rpmverp = dlsym (h, "RPMVERSION");
+    if (!rpmverp)
+      {
+	fprintf (stderr, "dlsym (\"RPMVERSION\"): %s\n", dlerror ());
+	return 1;
+      }
+    fprintf (stderr, "RPMVERSION is: \"");
+    fprintf (stderr, "%s\"\n", *rpmverp);
+
+    /* Try to find the specific librpm version only for "librpm.so" as we do
+       not know how to assemble the version string otherwise.  */
+
+    if (strcmp ("librpm.so", $LIBRPM_STRING) != 0)
+      {
+	fprintf (f, "%s\n", $LIBRPM_STRING);
+	return 0;
+      }
+    else
+      {
+	char *h2_name;
+	void *h2;
+	int major, minor;
+
+	if (sscanf (*rpmverp, "%d.%d", &major, &minor) != 2)
+	  {
+	    fprintf (stderr, "Unable to parse RPMVERSION.\n");
+	    fprintf (f, "%s\n", $LIBRPM_STRING);
+	    return 0;
+	  }
+	/* Avoid the square brackets by malloc.  */
+	h2_name = malloc (64);
+	sprintf (h2_name, "librpm-%d.%d.so", major, minor);
+	h2 = dlopen (h2_name, RTLD_LAZY);
+	if (!h2)
+	  {
+	    fprintf (stderr, "dlopen (\"%s\"): %s\n", h2_name, dlerror ());
+	    fprintf (f, "%s\n", $LIBRPM_STRING);
+	    return 0;
+	  }
+	if (h2 != h)
+	  {
+	    fprintf (stderr, "dlopen of \"%s\" and \"%s\" are different.\n",
+		     $LIBRPM_STRING, h2_name);
+	    fprintf (f, "%s\n", $LIBRPM_STRING);
+	    return 0;
+	  }
+	/* Found the valid .so name with a specific version.  */
+	fprintf (f, "%s\n", h2_name);
+	return 0;
+      }
+  ]]), [
+    DLOPEN_LIBRPM="`cat conftest.out`"
+    if test "x$DLOPEN_LIBRPM" != "x"; then
+      HAVE_DLOPEN_LIBRPM=true
+      AC_MSG_RESULT($DLOPEN_LIBRPM)
+    fi
+  ])
+  rm -f conftest.out
+
+  m4_define([CHECK_LIBRPM_COMPAT], [
+    AC_MSG_CHECKING([rpm library API compatibility])
+    # The compilation requires -Werror to verify anything.
+    save_CFLAGS="$CFLAGS"
+    CFLAGS="$CFLAGS -Werror"
+    AC_COMPILE_IFELSE(AC_LANG_PROGRAM([[
+/* Duplicate here the declarations to verify they match "symfile.c".  */
+#include <rpm/rpmlib.h>
+#include <rpm/rpmts.h>
+#include <rpm/rpmdb.h>
+#include <rpm/header.h>
+extern char * headerFormat(Header h, const char * fmt, errmsg_t * errmsg);
+extern int rpmReadConfigFiles(const char * file, const char * target);
+extern rpmdbMatchIterator rpmdbFreeIterator(rpmdbMatchIterator mi);
+extern Header rpmdbNextIterator(rpmdbMatchIterator mi);
+extern rpmts rpmtsCreate(void);
+extern rpmts rpmtsFree(rpmts ts);
+extern rpmdbMatchIterator rpmtsInitIterator(const rpmts ts, rpmTag rpmtag,
+					    const void * keyp, size_t keylen);
+    ]]), [
+      LIBRPM_COMPAT=true
+      rpm_LIBS=-lrpm
+      AC_MSG_RESULT(yes)
+    ], [
+      LIBRPM_COMPAT=false
+      rpm_LIBS=
+      AC_MSG_RESULT(no)
+    ])
+    CFLAGS="$save_CFLAGS"
+  ])
+  AC_SUBST(rpm_LIBS)
+
+  if $HAVE_DLOPEN_LIBRPM; then
+    CHECK_LIBRPM_COMPAT
+    if ! $LIBRPM_COMPAT; then
+      HAVE_DLOPEN_LIBRPM=false
+    fi
+  fi
+
+  if $HAVE_DLOPEN_LIBRPM; then
+    DLOPEN_LIBRPM_STRING='"'"$DLOPEN_LIBRPM"'"'
+    AC_DEFINE_UNQUOTED(DLOPEN_LIBRPM, $DLOPEN_LIBRPM_STRING, [librpm version specific library name to dlopen.])
+    AC_DEFINE(HAVE_LIBRPM, 1, [Define if librpm library is being used.])
+  else
+    AC_MSG_RESULT(no)
+    LIBS="$save_LIBS"
+    if $DLOPEN_REQUIRE; then
+      AC_MSG_ERROR([Specific name $LIBRPM was requested but it could not be opened.])
+    fi
+    PKG_CHECK_MODULES(RPM, rpm, [HAVE_LIBRPM=true], [HAVE_LIBRPM=false])
+
+    if $HAVE_LIBRPM; then
+      CHECK_LIBRPM_COMPAT
+      if ! $LIBRPM_COMPAT; then
+	HAVE_LIBRPM=false
+	RPM_PKG_ERRORS="Found $LIBRPM API is incompatibile with this GDB"
+      fi
+    fi
+
+    if $HAVE_LIBRPM; then
+      AC_DEFINE(HAVE_LIBRPM, 1, [Define if librpm library is being used.])
+      CFLAGS="$CFLAGS $RPM_CFLAGS"
+      LIBS="$LIBS $RPM_LIBS"
+    else
+      if $RPM_REQUIRE; then
+	AC_MSG_ERROR($RPM_PKG_ERRORS)
+      else
+	AC_MSG_WARN($RPM_PKG_ERRORS)
+      fi
+    fi
   fi
 fi
 
@@ -403,22 +583,20 @@ AM_CONDITIONAL(BUILD_ELFUTILS, test $build_elfutils = yes)
 AC_SUBST(elfutils_abs_srcdir, `AS_IF([test $build_elfutils = yes],
 				     [cd $with_elfutils && pwd])`)
 
-if test $enable_translator = yes; then
-  if test $build_elfutils = no; then
-    # Need libdwfl-capable recent elfutils http://elfutils.fedorahosted.org/
-    save_LIBS="$LIBS"
-    AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
-      AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
-      [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
-    AC_CHECK_LIB(dw, dwarf_getelf,[],[
-      AC_MSG_ERROR([elfutils, libdw too old, need 0.126+])],
-      [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
-    stap_LIBS="$stap_LIBS -Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
-    LIBS="$save_LIBS"
-  else
-    # We built our own and stap_LDFLAGS points at the install.
-    stap_LIBS="$stap_LIBS -Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
-  fi
+if test $build_elfutils = no; then
+  # Need libdwfl-capable recent elfutils http://elfutils.fedorahosted.org/
+  save_LIBS="$LIBS"
+  AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
+    AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
+    [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
+  AC_CHECK_LIB(dw, dwarf_getelf,[],[
+    AC_MSG_ERROR([elfutils, libdw too old, need 0.126+])],
+    [-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf])
+  stap_LIBS="-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
+  LIBS="$save_LIBS"
+else
+  # We built our own and stap_LDFLAGS points at the install.
+  stap_LIBS="-Wl,--start-group -ldw -lebl -Wl,--end-group -lelf"
 fi
 
 AC_SUBST(stap_LIBS)
@@ -441,7 +619,7 @@ AC_CHECK_HEADERS([boost/shared_ptr.hpp])
 AC_LANG_POP(C++)
 
 
-if test $build_elfutils = yes -a $enable_translator = yes; then
+if test $build_elfutils = yes; then
   case "$with_elfutils" in
   /*) elfutils_srcdir="$with_elfutils" ;;
   *) elfutils_srcdir="../$with_elfutils" ;;
@@ -500,13 +678,7 @@ test "$stap_prefix" = NONE && stap_prefix=$ac_default_prefix
 AC_DEFINE_UNQUOTED(STAP_PREFIX, "$stap_prefix", [configure prefix location])
 
 AC_CONFIG_HEADERS([config.h:config.in])
-AC_CONFIG_FILES([Makefile doc/Makefile \
-doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
-grapher/Makefile \
-grapher/stapgraph.1 stap.1 stapprobes.3stap stapfuncs.3stap stapvars.3stap \
-stapex.3stap staprun.8 stap-client.8 stap-server.8 \
-stap-authorize-server-cert.8 stap-authorize-signing-cert.8 \
-initscript/systemtap initscript/stap-server dtrace.1])
+AC_CONFIG_FILES(Makefile doc/Makefile doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile grapher/Makefile grapher/stapgraph.1 stap.1 stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap staprun.8 stap-client.8 stap-server.8 stap-authorize-server-cert.8 stap-authorize-signing-cert.8 man/stapprobes.iosched.3stap man/stapprobes.irq.3stap man/stapprobes.netdev.3stap man/stapprobes.nfs.3stap man/stapprobes.nfsd.3stap man/stapprobes.pagefault.3stap man/stapprobes.kprocess.3stap man/stapprobes.rpc.3stap man/stapprobes.scsi.3stap man/stapprobes.signal.3stap man/stapprobes.socket.3stap man/stapprobes.tcp.3stap man/stapprobes.udp.3stap man/stapprobes.snmp.3stap initscript/systemtap initscript/stap-server)
 AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])

@@ -11,14 +11,6 @@ function tcpmib_filter_key:long (sk:long, op:long) {
        return op
 }
 
-// same as above one
-// but it's better to move function definition from example
-// to tapset
-function ipmib_filter_key:long (skb:long, op:long, SourceIsLocal:long) {
-       if ( !skb ) return 0
-       return op
-}
-
 probe begin{
         print(tcpmib_get_state(0) +
               tcpmib_local_addr(0) +
@@ -27,5 +19,10 @@ probe begin{
               tcpmib_remote_port(0) +
               _rtn_local() +
               _is_reset(0) +
-              _tcpmib_input_route_type(0))
+%( kernel_v < "2.6.31" %?
+              __tcpmib_input_route_type_old(0)
+%:
+              __tcpmib_input_route_type_new(0)
+%)
+              )
 }

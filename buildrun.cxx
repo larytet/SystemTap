@@ -90,18 +90,42 @@ output_autoconf(systemtap_session& s, ofstream& o, const char *autoconf_c,
   o << "; fi >> $@" << endl;
 }
 
-
-void output_exportconf(systemtap_session& s, ofstream& o, const char *symbol,
-                     const char *deftrue)
+void output_cpu_khz (systemtap_session& s, ofstream& o)
 {
-  o << "\t";
-  if (s.verbose < 4)
-    o << "@";
-  if (s.kernel_exports.find(symbol) != s.kernel_exports.end())
-    o << "echo \"#define " << deftrue << " 1\"";
-  o << ">> $@" << endl;
+  // PR10493: search cpu_khz in Module.symvers
+  string kernel_export_file = s.kernel_build_tree + "/Module.symvers";
+  char *line = NULL, *name = NULL, *module = NULL, *type = NULL;
+  size_t len = 0;
+  unsigned long address;
+  int ret;
+  FILE *sym = fopen(kernel_export_file.c_str(),"r");
+  
+  if (sym == NULL)
+    return;
+  while (!feof(sym))
+    {
+      if (getline(&line, &len, sym) < 0)
+         break;
+      ret = sscanf(line, "%lx %as %as %as", &address, &name, &module, &type);
+      if (name == NULL || module == NULL || type == NULL) 
+         continue;
+      if (ret == 4) {
+         // cpu_khz is kernel EXPORT_SYMBOL'd
+         if (!strcmp(name, "cpu_khz") && !strcmp(module, "vmlinux")
+             && strstr(type, "EXPORT_SYMBOL")) // match all to avoid corrupt file
+          {
+            o << "\t";
+            if (s.verbose < 4)
+               o << "@";
+            o << "echo \"#define STAPCONF_CPU_KHZ 1\"";
+            o << ">> $@" << endl;
+            break;
+          }
+      }
+    }
+  if (sym)
+    fclose(sym);
 }
-
 
 int
 compile_pass (systemtap_session& s)
@@ -129,7 +153,7 @@ compile_pass (systemtap_session& s)
   o << "_KBUILD_CFLAGS := $(call flags,KBUILD_CFLAGS)" << endl;
 
   o << "stap_check_gcc = $(shell " << superverbose << " if $(CC) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo \"$(1)\"; else echo \"$(2)\"; fi)" << endl;
-  o << "CHECK_BUILD := $(CC) $(KBUILD_CPPFLAGS) $(CPPFLAGS) $(LINUXINCLUDE) $(_KBUILD_CFLAGS) $(CFLAGS_KERNEL) $(EXTRA_CFLAGS) $(CFLAGS) -DKBUILD_BASENAME=\\\"" << s.module_name << "\\\"" << (s.omit_werror ? "" : " -Werror") << " -S -o /dev/null -xc " << endl;
+  o << "CHECK_BUILD := $(CC) $(KBUILD_CPPFLAGS) $(CPPFLAGS) $(LINUXINCLUDE) $(_KBUILD_CFLAGS) $(CFLAGS_KERNEL) $(EXTRA_CFLAGS) $(CFLAGS) -DKBUILD_BASENAME=\\\"" << s.module_name << "\\\" -Werror -S -o /dev/null -xc " << endl;
   o << "stap_check_build = $(shell " << superverbose << " if $(CHECK_BUILD) $(1) " << redirecterrors << " ; then echo \"$(2)\"; else echo \"$(3)\"; fi)" << endl;
 
   o << "SYSTEMTAP_RUNTIME = \"" << s.runtime_path << "\"" << endl;
@@ -180,7 +204,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-trace-printk.c", "STAPCONF_TRACE_PRINTK", NULL);
   output_autoconf(s, o, "autoconf-regset.c", "STAPCONF_REGSET", NULL);
   output_autoconf(s, o, "autoconf-utrace-regset.c", "STAPCONF_UTRACE_REGSET", NULL);
-  output_exportconf(s, o, "cpu_khz", "STAPCONF_CPU_KHZ");
+  output_cpu_khz(s, o);
 
 #if 0
   /* NB: For now, the performance hit of probe_kernel_read/write (vs. our
@@ -227,7 +251,7 @@ compile_pass (systemtap_session& s)
   o << "EXTRA_CFLAGS += $(call cc-option,-Wframe-larger-than=600)" << endl;
 
   // Assumes linux 2.6 kbuild
-  o << "EXTRA_CFLAGS += -Wno-unused" << (s.omit_werror ? "" : " -Werror") << endl;
+  o << "EXTRA_CFLAGS += -Wno-unused -Werror" << endl;
   #if CHECK_POINTER_ARITH_PR5947
   o << "EXTRA_CFLAGS += -Wpointer-arith" << endl;
   #endif
@@ -470,7 +494,7 @@ make_tracequery(systemtap_session& s, string& name,
   string makefile(dir + "/Makefile");
   ofstream omf(makefile.c_str());
   // force debuginfo generation, and relax implicit functions
-  omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration" << (s.omit_werror ? "" : " -Werror") << endl;
+  omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration -Werror" << endl;
   omf << "obj-m := " + basename + ".o" << endl;
   omf.close();
 
@@ -517,7 +541,7 @@ make_tracequery(systemtap_session& s, string& name,
 
 // Build a tiny kernel module to query type information
 static int
-make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string& name)
+make_typequery_kmod(systemtap_session& s, const string& header, string& name)
 {
   static unsigned tick = 0;
   string basename("typequery_kmod_" + lex_cast(++tick));
@@ -545,10 +569,7 @@ make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string&
   // full kernel build tree, it's possible to get at types that aren't in the
   // normal include path, e.g.:
   //    @cast(foo, "bsd_acct_struct", "kernel<kernel/acct.c>")->...
-  omf << "CFLAGS_" << basename << ".o :=";
-  for (size_t i = 0; i < headers.size(); ++i)
-    omf << " -include " << lex_cast_qstring(headers[i]);
-  omf << endl;
+  omf << "CFLAGS_" << basename << ".o := -include " << header << endl;
 
   omf << "obj-m := " + basename + ".o" << endl;
   omf.close();
@@ -577,7 +598,7 @@ make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string&
 
 // Build a tiny user module to query type information
 static int
-make_typequery_umod(systemtap_session& s, const vector<string>& headers, string& name)
+make_typequery_umod(systemtap_session& s, const string& header, string& name)
 {
   static unsigned tick = 0;
 
@@ -589,13 +610,11 @@ make_typequery_umod(systemtap_session& s, const vector<string>& headers, string&
   // cwd in this case will be the cwd of stap itself though, which may be
   // trickier to deal with.  It might be better to "cd `dirname $script`"
   // first...
-  ostringstream cmd;
-  cmd << "gcc -shared -g -fno-eliminate-unused-debug-types -xc /dev/null -o " << name;
-  for (size_t i = 0; i < headers.size(); ++i)
-    cmd << " -include " << lex_cast_qstring(headers[i]);
+  string cmd = "gcc -shared -g -fno-eliminate-unused-debug-types -o "
+     + name + " -xc /dev/null -include " + header;
   if (s.verbose < 4)
-    cmd << " >/dev/null 2>&1";
-  return stap_system (s.verbose, cmd.str());
+    cmd += " >/dev/null 2>&1";
+  return stap_system (s.verbose, cmd);
 }
 
 
@@ -604,27 +623,22 @@ make_typequery(systemtap_session& s, string& module)
 {
   int rc;
   string new_module;
-  vector<string> headers;
-  bool kernel = startswith(module, "kernel");
 
-  for (size_t end, i = kernel ? 6 : 0; i < module.size(); i = end + 1)
-    {
-      if (module[i] != '<')
-        return -1;
-      end = module.find('>', ++i);
-      if (end == string::npos)
-        return -1;
-      string header = module.substr(i, end - i);
-      assert_regexp_match("@cast header", header, "^[a-z0-9/_.+-]+$");
-      headers.push_back(header);
-    }
-  if (headers.empty())
+  if (module[module.size() - 1] != '>')
     return -1;
 
-  if (kernel)
-      rc = make_typequery_kmod(s, headers, new_module);
+  if (module[0] == '<')
+    {
+      string header = module.substr(1, module.size() - 2);
+      rc = make_typequery_umod(s, header, new_module);
+    }
+  else if (module.compare(0, 7, "kernel<") == 0)
+    {
+      string header = module.substr(7, module.size() - 8);
+      rc = make_typequery_kmod(s, header, new_module);
+    }
   else
-      rc = make_typequery_umod(s, headers, new_module);
+    return -1;
 
   if (!rc)
     module = new_module;

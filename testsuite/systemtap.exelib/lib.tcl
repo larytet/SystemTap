@@ -1,11 +1,11 @@
 set ::result_string {main
-main_func 3
-main_func 2
-main_func 1
+main_func
+main_func
+main_func
 lib_main
-lib_func 3
-lib_func 2
-lib_func 1}
+lib_func
+lib_func
+lib_func}
 
 # Only run on make installcheck
 if {! [installtest_p]} { untested "lib-$testname"; return }

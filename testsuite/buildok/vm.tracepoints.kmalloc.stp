@@ -1,4 +1,4 @@
-#! stap -p4
+#! stap -up4
 
 /* All other tracepoint memory probes are in another test vm.tracepoints.stp */
 

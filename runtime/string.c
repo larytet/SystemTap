@@ -68,10 +68,10 @@ static void _stp_text_str(char *outstr, char *in, int len, int quoted, int user)
 {
 	char c, *out = outstr;
 
-	if (len <= 0 || len > MAXSTRINGLEN-1)
+	if (len == 0 || len > MAXSTRINGLEN-1)
 		len = MAXSTRINGLEN-1;
 	if (quoted) {
-		len = max(len, 5) - 2;
+		len -= 2;
 		*out++ = '"';
 	}
 
@@ -102,7 +102,12 @@ static void _stp_text_str(char *outstr, char *in, int len, int quoted, int user)
 				num = 2;
 				break;
 			default:
-				num = 4;
+				if (c > 077)
+					num = 4;
+				else if (c > 07)
+					num = 3;
+				else
+					num = 2;
 				break;
 			}
 			
@@ -139,8 +144,10 @@ static void _stp_text_str(char *outstr, char *in, int len, int quoted, int user)
 				*out++ = '\\';
 				break;
 			default:                  /* output octal representation */
-				*out++ = to_oct_digit((c >> 6) & 03);
-				*out++ = to_oct_digit((c >> 3) & 07);
+				if (c > 077)
+					*out++ = to_oct_digit(c >> 6);
+				if (c > 07)
+					*out++ = to_oct_digit((c & 070) >> 3);
 				*out++ = to_oct_digit(c & 07);
 				break;
 			}

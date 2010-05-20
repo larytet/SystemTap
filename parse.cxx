@@ -1,5 +1,5 @@
 // recursive descent parser for systemtap scripts
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2009 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 // Copyright (C) 2007 Bull S.A.S
 //
@@ -184,8 +184,6 @@ bool eval_comparison (const OPERAND& lhs, const token* op, const OPERAND& rhs)
 // where CONDITION is: kernel_v[r] COMPARISON-OP "version-string"
 //                 or: arch COMPARISON-OP "arch-string"
 //                 or: CONFIG_foo COMPARISON-OP "config-string"
-//                 or: CONFIG_foo COMPARISON-OP number
-//                 or: CONFIG_foo COMPARISON-OP CONFIG_bar
 //                 or: "string1" COMPARISON-OP "string2"
 //                 or: number1 COMPARISON-OP number2
 // The %: ELSE-TOKENS part is optional.
@@ -274,63 +272,22 @@ bool eval_pp_conditional (systemtap_session& s,
 
       return result;
     }
-  else if (l->type == tok_identifier && startswith(l->content, "CONFIG_"))
+  else if (l->type == tok_identifier && l->content.substr(0,7) == "CONFIG_" && r->type == tok_string)
     {
-      if (r->type == tok_string)
-	{
-	  string lhs = s.kernel_config[l->content]; // may be empty
-	  string rhs = r->content;
+      string lhs = s.kernel_config[l->content]; // may be empty
+      string rhs = r->content;
 
-	  int nomatch = fnmatch (rhs.c_str(), lhs.c_str(), FNM_NOESCAPE); // still spooky
+      int nomatch = fnmatch (rhs.c_str(), lhs.c_str(), FNM_NOESCAPE); // still spooky
 
-	  bool result;
-	  if (op->type == tok_operator && op->content == "==")
-	    result = !nomatch;
-	  else if (op->type == tok_operator && op->content == "!=")
-	    result = nomatch;
-	  else
-	    throw parse_error ("expected '==' or '!='", op);
-
-	  return result;
-	}
-      else if (r->type == tok_number)
-	{
-          const char* startp = s.kernel_config[l->content].c_str ();
-          char* endp = (char*) startp;
-          errno = 0;
-          int64_t lhs = (int64_t) strtoll (startp, & endp, 0);
-          if (errno == ERANGE || errno == EINVAL || *endp != '\0')
-	    throw parse_error ("Config option value not a number", l);
-
-	  int64_t rhs = lex_cast<int64_t>(r->content);
-	  return eval_comparison (lhs, op, rhs);
-	}
-      else if (r->type == tok_identifier
-	       && startswith(r->content, "CONFIG_"))
-	{
-	  // First try to convert both to numbers,
-	  // otherwise threat both as strings.
-          const char* startp = s.kernel_config[l->content].c_str ();
-          char* endp = (char*) startp;
-          errno = 0;
-          int64_t val = (int64_t) strtoll (startp, & endp, 0);
-          if (errno != ERANGE && errno != EINVAL && *endp == '\0')
-	    {
-	      int64_t lhs = val;
-	      startp = s.kernel_config[r->content].c_str ();
-	      endp = (char*) startp;
-	      errno = 0;
-	      int64_t rhs = (int64_t) strtoll (startp, & endp, 0);
-	      if (errno != ERANGE && errno != EINVAL && *endp == '\0')
-		return eval_comparison (lhs, op, rhs);
-	    }
-
-	  string lhs = s.kernel_config[l->content];
-	  string rhs = s.kernel_config[r->content];
-	  return eval_comparison (lhs, op, rhs);
-	}
+      bool result;
+      if (op->type == tok_operator && op->content == "==")
+        result = !nomatch;
+      else if (op->type == tok_operator && op->content == "!=")
+        result = nomatch;
       else
-	throw parse_error ("expected string, number literal or other CONFIG_... as right value", r);
+        throw parse_error ("expected '==' or '!='", op);
+
+      return result;
     }
   else if (l->type == tok_string && r->type == tok_string)
     {
@@ -606,7 +563,7 @@ parser::expect_op (std::string const & expected)
 const token*
 parser::expect_kw (std::string const & expected)
 {
-  return expect_known (tok_keyword, expected);
+  return expect_known (tok_identifier, expected);
 }
 
 const token*
@@ -675,8 +632,7 @@ parser::peek_kw (std::string const & kw)
 
 lexer::lexer (istream& input, const string& in, systemtap_session& s):
   input_name (in), input_pointer (0), input_end (0),
-  cursor_suspend_count(0), cursor_suspend_line (1), cursor_suspend_column (1),
-  cursor_line (1), cursor_column (1),
+  cursor_suspend_count(0), cursor_line (1), cursor_column (1),
   session(s), current_file (0)
 {
   getline(input, input_contents, '\0');
@@ -703,8 +659,6 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
       keywords.insert("next");
       keywords.insert("string");
       keywords.insert("long");
-      keywords.insert("try");
-      keywords.insert("catch");
     }
 }
 
@@ -739,15 +693,9 @@ lexer::input_get ()
   ++input_pointer;
 
   if (cursor_suspend_count)
-    {
-      // Track effect of input_put: preserve previous cursor/line_column
-      // until all of its characters are consumed.
-      if (--cursor_suspend_count == 0)
-        {
-          cursor_line = cursor_suspend_line;
-          cursor_column = cursor_suspend_column;
-        }
-    }
+    // Track effect of input_put: preserve previous cursor/line_column
+    // until all of its characters are consumed.
+    cursor_suspend_count --;
   else
     {
       // update source cursor
@@ -766,16 +714,12 @@ lexer::input_get ()
 
 
 void
-lexer::input_put (const string& chars, const token* t)
+lexer::input_put (const string& chars)
 {
   size_t pos = input_pointer - input_contents.data();
   // clog << "[put:" << chars << " @" << pos << "]";
   input_contents.insert (pos, chars);
   cursor_suspend_count += chars.size();
-  cursor_suspend_line = cursor_line;
-  cursor_suspend_column = cursor_column;
-  cursor_line = t->location.line;
-  cursor_column = t->location.column;
   input_pointer = input_contents.data() + pos;
   input_end = input_contents.data() + input_contents.size();
 }
@@ -787,10 +731,18 @@ lexer::scan (bool wildcard)
   token* n = new token;
   n->location.file = current_file;
 
-skip:
-  bool suspended = (cursor_suspend_count > 0);
+  unsigned semiskipped_p = 0;
+
+ skip:
   n->location.line = cursor_line;
   n->location.column = cursor_column;
+
+ semiskip:
+  if (semiskipped_p > 1)
+    {
+      input_get ();
+      throw parse_error ("invalid nested substitution of command line arguments");
+    }
 
   int c = input_get();
   // clog << "{" << (char)c << (char)c2 << "}";
@@ -810,41 +762,38 @@ skip:
   // characters; @1..@999 are quoted/escaped as strings.
   // $# and @# expand to the number of arguments, similarly
   // raw or quoted.
-  if ((c == '$' || c == '@') && (c2 == '#'))
+  if ((c == '$' || c == '@') &&
+      (c2 == '#'))
     {
-      n->content.push_back (c);
-      n->content.push_back (c2);
       input_get(); // swallow '#'
-      if (suspended)
-        throw parse_error ("invalid nested substitution of command line arguments", n);
-      size_t num_args = session.args.size ();
-      input_put ((c == '$') ? lex_cast (num_args) : lex_cast_qstring (num_args), n);
-      n->content.clear();
-      goto skip;
+      stringstream converter;
+      converter << session.args.size ();
+      if (c == '$') input_put (converter.str());
+      else input_put (lex_cast_qstring (converter.str()));
+      semiskipped_p ++;
+      goto semiskip;
     }
-  else if ((c == '$' || c == '@') && (isdigit (c2)))
+  else if ((c == '$' || c == '@') &&
+           (isdigit (c2)))
     {
-      n->content.push_back (c);
       unsigned idx = 0;
       do
         {
           input_get ();
           idx = (idx * 10) + (c2 - '0');
-          n->content.push_back (c2);
           c2 = input_peek ();
         } while (c2 > 0 &&
                  isdigit (c2) &&
                  idx <= session.args.size()); // prevent overflow
-      if (suspended)
-        throw parse_error ("invalid nested substitution of command line arguments", n);
       if (idx == 0 ||
           idx-1 >= session.args.size())
         throw parse_error ("command line argument index " + lex_cast(idx)
                            + " out of range [1-" + lex_cast(session.args.size()) + "]", n);
-      const string& arg = session.args[idx-1];
-      input_put ((c == '$') ? arg : lex_cast_qstring (arg), n);
-      n->content.clear();
-      goto skip;
+      string arg = session.args[idx-1];
+      if (c == '$') input_put (arg);
+      else input_put (lex_cast_qstring (arg));
+      semiskipped_p ++;
+      goto semiskip;
     }
 
   else if (isalpha (c) || c == '$' || c == '@' || c == '_' ||
@@ -887,7 +836,6 @@ skip:
   else if (c == '\"')
     {
       n->type = tok_string;
-    another_string:
       while (1)
 	{
 	  c = input_get ();
@@ -927,19 +875,6 @@ skip:
 	  else
 	    n->content.push_back(c);
 	}
-      // PR11208: check if the next token is also a string literal; auto-concatenate it
-      // This is complicated to the extent that we need to skip intermediate whitespace.
-      // XXX: but not comments
-      unsigned nspace = 0;
-      do {
-        c = input_peek(nspace++);
-        if (c == '\"') // new string literal?
-          {
-            // consume all whitespace plus the opening quote
-            while (nspace-- > 0) input_get();
-            goto another_string; // and append the rest to this token
-          }
-      } while (isspace(c));
       return n;
     }
 
@@ -1285,51 +1220,19 @@ parser::parse_stmt_block ()
 }
 
 
-try_block*
-parser::parse_try_block ()
-{
-  try_block* pb = new try_block;
-
-  pb->tok = expect_kw ("try");
-  pb->try_block = parse_stmt_block();
-  expect_kw ("catch");
-
-  const token* t = peek ();
-  if (t->type == tok_operator && t->content == "(")
-    {
-      next (); // swallow the '('
-
-      t = next();
-      if (! (t->type == tok_identifier))
-        throw parse_error ("expected identifier");
-      symbol* sym = new symbol;
-      sym->tok = t;
-      sym->name = t->content;
-      pb->catch_error_var = sym;
-
-      expect_op (")");
-    }
-  else
-    pb->catch_error_var = 0;
-
-  pb->catch_block = parse_stmt_block();
-
-  return pb;
-}
-
-
-
 statement*
 parser::parse_statement ()
 {
   statement *ret;
   const token* t = peek ();
   if (t && t->type == tok_operator && t->content == ";")
-    return new null_statement (next ());
+    {
+      null_statement* n = new null_statement ();
+      n->tok = next ();
+      return n;
+    }
   else if (t && t->type == tok_operator && t->content == "{")
     return parse_stmt_block (); // Don't squash semicolons.
-  else if (t && t->type == tok_keyword && t->content == "try")
-    return parse_try_block (); // Don't squash semicolons.
   else if (t && t->type == tok_keyword && t->content == "if")
     return parse_if_statement (); // Don't squash semicolons.
   else if (t && t->type == tok_keyword && t->content == "for")
@@ -2327,7 +2230,7 @@ parser::parse_unary ()
       e->op = t->content;
       e->tok = t;
       next ();
-      e->operand = parse_unary ();
+      e->operand = parse_crement ();
       return e;
     }
   else
@@ -2394,8 +2297,12 @@ parser::parse_value ()
   else if (t->type == tok_operator && t->content == "&")
     {
       next ();
-      t = next ();
-      target_symbol *ts = parse_target_symbol (t);
+      t = peek ();
+      if (t->type != tok_identifier ||
+          (t->content != "@cast" && t->content[0] != '$'))
+        throw parse_error ("expected @cast or $var");
+
+      target_symbol *ts = static_cast<target_symbol*>(parse_symbol());
       ts->addressof = true;
       return ts;
     }
@@ -2456,7 +2363,8 @@ parser::parse_indexable ()
 
 
 // var, indexable[index], func(parms), printf("...", ...), $var, $var->member, @stat_op(stat)
-expression* parser::parse_symbol ()
+expression*
+parser::parse_symbol ()
 {
   hist_op *hop = NULL;
   symbol *sym = NULL;
@@ -2469,12 +2377,40 @@ expression* parser::parse_symbol ()
       // now scrutinize this identifier for the various magic forms of identifier
       // (printf, @stat_op, and $var...)
 
-      if (name == "@cast" || (name.size()>0 && name[0] == '$'))
-        return parse_target_symbol (t);
+      if (name == "@cast")
+	{
+	  // type-punning time
+	  cast_op *cop = new cast_op;
+	  cop->tok = t;
+	  cop->base_name = name;
+	  expect_op("(");
+	  cop->operand = parse_expression ();
+          expect_op(",");
+          expect_unknown(tok_string, cop->type);
+          // types never start with "struct<space>" or "union<space>",
+          // so gobble it up.
+          if (cop->type.compare(0, 7, "struct ") == 0)
+            cop->type = cop->type.substr(7);
+          if (cop->type.compare(0, 6, "union ") == 0)
+            cop->type = cop->type.substr(6);
+          if (peek_op (","))
+            {
+              next();
+              expect_unknown(tok_string, cop->module);
+            }
+	  expect_op(")");
+          parse_target_symbol_components(cop);
 
-      if (name == "@defined")
-        return parse_defined_op (t);
-     
+          // if there aren't any dereferences, then the cast is pointless
+          if (cop->components.empty())
+            {
+              expression *op = cop->operand;
+              delete cop;
+              return op;
+            }
+	  return cop;
+        }
+
       else if (name.size() > 0 && name[0] == '@')
 	{
 	  stat_op *sop = new stat_op;
@@ -2578,6 +2514,16 @@ expression* parser::parse_symbol ()
 	  return fmt;
 	}
 
+      else if (name.size() > 0 && name[0] == '$')
+	{
+	  // target_symbol time
+	  target_symbol *tsym = new target_symbol;
+	  tsym->tok = t;
+	  tsym->base_name = name;
+          parse_target_symbol_components(tsym);
+	  return tsym;
+	}
+
       else if (peek_op ("(")) // function call
 	{
 	  next ();
@@ -2663,64 +2609,6 @@ expression* parser::parse_symbol ()
 
   return sym;
 }
-
-
-// Parse a @cast or $var.  Given head token has already been consumed.
-target_symbol* parser::parse_target_symbol (const token* t)
-{
-  if (t->type == tok_identifier && t->content == "@cast")
-    {
-      cast_op *cop = new cast_op;
-      cop->tok = t;
-      cop->base_name = t->content;
-      expect_op("(");
-      cop->operand = parse_expression ();
-      expect_op(",");
-      expect_unknown(tok_string, cop->type);
-      // types never start with "struct<space>" or "union<space>",
-      // so gobble it up.
-      if (startswith(cop->type, "struct "))
-        cop->type = cop->type.substr(7);
-      if (startswith(cop->type, "union "))
-        cop->type = cop->type.substr(6);
-      if (peek_op (","))
-        {
-          next();
-          expect_unknown(tok_string, cop->module);
-        }
-      expect_op(")");
-      parse_target_symbol_components(cop);
-      return cop;
-    }
-
-  if (t->type == tok_identifier && t->content[0]=='$')
-    {
-      // target_symbol time
-      target_symbol *tsym = new target_symbol;
-      tsym->tok = t;
-      tsym->base_name = t->content;
-      parse_target_symbol_components(tsym);
-      return tsym;
-    }
-
-  throw parse_error ("expected @cast or $var");
-}
-
-
-// Parse a @defined().  Given head token has already been consumed.
-expression* parser::parse_defined_op (const token* t)
-{
-  defined_op* dop = new defined_op;
-  dop->tok = t;
-  expect_op("(");
-  string nm;
-  // no need for parse_hist_op... etc., as @defined takes only target_symbols as its operand.
-  const token* tt = expect_ident (nm);
-  dop->operand = parse_target_symbol (tt);
-  expect_op(")");
-  return dop;
-}
-
 
 
 void

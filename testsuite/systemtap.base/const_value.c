@@ -1,4 +1,4 @@
-#include "sys/sdt.h"
+#include "sdt.h"
 
 struct foo
 {

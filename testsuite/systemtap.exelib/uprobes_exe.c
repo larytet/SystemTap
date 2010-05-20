@@ -7,7 +7,7 @@
  * later version.
  */
 
-#include "sys/sdt.h"
+#include "sdt.h" /* Really <sys/sdt.h>, but pick current source version. */
 
 // function from our library
 int lib_main (void);

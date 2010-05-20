@@ -1,4 +1,4 @@
-#! stap -p5
+#! stap 
 
 probe begin
 {

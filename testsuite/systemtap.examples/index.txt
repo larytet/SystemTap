@@ -50,15 +50,6 @@ keywords: trace callgraph
   the trigger.
 
 
-general/varwatch.stp - Watch a variable changing value in a thread.
-keywords: monitoring
-
-  This script places a set of probes (specified by $1), each of which
-  monitors the state of some context $variable expression (specified by
-  $2).	Whenever the value changes, with respect to the active thread,
-  the event is traced.
-
-
 interrupt/interrupts-by-dev.stp - Record interrupts on a per-device basis.
 keywords: interrupt
 
@@ -102,18 +93,6 @@ keywords: io
   MAXMAPENTRIES allowed. In this case the allowed number can be
   increased with "-DMAXMAPENTRIES=10000" option on the stap command
   line.
-
-
-io/iodevstats.stp - List Executables Reading and Writing the Most Data by Device
-keywords: io profiling
-
-   The iodevstats.stp script measures the amount of data successfully
-  read and written by all the executables for each io device on the
-  system.  The output is sorted from greatest sum of bytes read and
-  written to a device by an executable to the least. The output
-  contains device major/minor number, the count of operations (reads
-  and writes), the totals and averages for the number of bytes read and
-  written.
 
 
 io/iostat-scsi.stp - iostat for SCSI Devices
@@ -165,16 +144,6 @@ keywords: io monitoring
   first few sectors of a raw block device.
 
 
-io/nfs_func_users.stp - Tally the Number of NFS Functions Used by Each Process
-keywords: io profiling
-
-  The nfs_func_users.stp script counts the uses of NFS functions in the
-  kernel on a per process bases.  The output is sorted from the process
-  with the greatest number of NFS functions called to the least. The
-  output contains the executable name, the process number, and the
-  total number of NFS functions called by the process.
-
-
 io/traceio.stp - Track Cumulative I/O Activity by Process Name
 keywords: io
 
@@ -190,7 +159,7 @@ keywords: io
 
 
 io/ttyspy.stp - Monitor tty typing.
-keywords: io tty per-process monitoring
+keywords: io tty per-process monitor
 
   The ttyspy.stp script uses tty_audit hooks to monitor recent typing
   activity on the system, printing a scrolling record of recent
@@ -463,14 +432,6 @@ keywords: profiling
   samples.
 
 
-process/pfiles.stp - print process file descriptors
-keywords: process files
-
-  Run pfiles.stp to produce a human-readable summary of all open file
-  descriptors of a given process.  Specify the process-id as -x PID for
-  fastest performance.
-
-
 process/plimit.stp - print resource limits
 keywords: process
 
@@ -565,15 +526,6 @@ keywords: syscall wait4
   waiting for. If the waited for PID is not specified , it is "-1".
 
 
-profiling/fntimes.stp - Show functions taking longer than usual
-keywords: profiling
-
-  The fntimes.stp script monitors the execution time history of a given
-  function family (assumed non-recursive).  Each time (beyond a warmup
-  interval) is then compared to the historical maximum.  If it exceeds
-  a certain threshold (250%), a message is printed.
-
-
 profiling/functioncallcount.stp - Count Times Functions Called
 keywords: profiling functions
 
@@ -599,10 +551,10 @@ keywords: profiling functions
 profiling/thread-times.stp - Profile kernel functions
 keywords: profiling
 
-  The thread-times.stp script sets up time-based sampling.  Every five
-  seconds it prints out a sorted list with the top twenty threads
-  occupying the CPUs, broken down as a percentage of user and kernel
-  time.
+  The thread-times.stp script sets up time-based sampling. Every five
+  seconds it prints out a sorted list with the top twenty processes
+  with samples broken down into percentage total time spent in
+  user-space and kernel-space.
 
 
 profiling/timeout.stp - Show Processes Doing Polling Operations

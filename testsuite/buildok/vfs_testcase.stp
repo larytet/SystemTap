@@ -1,4 +1,4 @@
-#! stap -p4
+#! stap -up4
 probe generic.fop.llseek
 {
 	print("Probe hit the function: %s\n", name);

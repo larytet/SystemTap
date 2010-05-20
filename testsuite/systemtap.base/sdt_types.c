@@ -1,4 +1,4 @@
-#include "sys/sdt.h"
+#include "sdt.h" /* Really <sys/sdt.h>, but pick current source version. */
 #include <stdint.h>
 #include <values.h>
 

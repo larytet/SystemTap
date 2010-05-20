@@ -42,26 +42,11 @@ struct cache_ent_info {
   void unlink() const;
 };
 
-
-void
-add_stapconf_to_cache(systemtap_session& s)
-{
-  bool verbose = s.verbose > 1;
-
-  string stapconf_src_path = s.tmpdir + "/" + s.stapconf_name;
-  if (!copy_file(stapconf_src_path, s.stapconf_path, verbose))
-    {
-      // NB: this is not so severe as to prevent reuse of the .ko
-      // already copied.
-      //
-      // s.use_script_cache = false;
-      // return;
-    }
-}
+static void clean_cache(systemtap_session& s);
 
 
 void
-add_script_to_cache(systemtap_session& s)
+add_to_cache(systemtap_session& s)
 {
   bool verbose = s.verbose > 1;
 
@@ -69,11 +54,18 @@ add_script_to_cache(systemtap_session& s)
   // We don't want to risk having the brand new contents being erased again.
   clean_cache(s);
 
+  string stapconf_src_path = s.tmpdir + "/" + s.stapconf_name;
+  if (!copy_file(stapconf_src_path, s.stapconf_path, verbose))
+    {
+      s.use_cache = false;
+      return;
+    }
+
   string module_src_path = s.tmpdir + "/" + s.module_name + ".ko";
   STAP_PROBE2(stap, cache__add__module, module_src_path.c_str(), s.hash_path.c_str());
   if (!copy_file(module_src_path, s.hash_path, verbose))
     {
-      s.use_script_cache = false;
+      s.use_cache = false;
       return;
     }
   // Copy the signature file, if any. It is not an error if this fails.
@@ -81,7 +73,7 @@ add_script_to_cache(systemtap_session& s)
     copy_file(module_src_path + ".sgn", s.hash_path + ".sgn", verbose);
 
   string c_dest_path = s.hash_path;
-  if (endswith(c_dest_path, ".ko"))
+  if (c_dest_path.rfind(".ko") == (c_dest_path.size() - 3))
     c_dest_path.resize(c_dest_path.size() - 3);
   c_dest_path += ".c";
 
@@ -91,19 +83,22 @@ add_script_to_cache(systemtap_session& s)
       // NB: this is not so severe as to prevent reuse of the .ko
       // already copied.
       //
-      // s.use_script_cache = false;
+      // s.use_cache = false;
     }
 }
 
 
 bool
-get_stapconf_from_cache(systemtap_session& s)
+get_from_cache(systemtap_session& s)
 {
-  if (s.poison_cache)
-    return false;
-
   string stapconf_dest_path = s.tmpdir + "/" + s.stapconf_name;
-  int fd_stapconf;
+  string module_dest_path = s.tmpdir + "/" + s.module_name + ".ko";
+  string c_src_path = s.hash_path;
+  int fd_stapconf, fd_module, fd_c;
+
+  if (c_src_path.rfind(".ko") == (c_src_path.size() - 3))
+    c_src_path.resize(c_src_path.size() - 3);
+  c_src_path += ".c";
 
   // See if stapconf exists
   fd_stapconf = open(s.stapconf_path.c_str(), O_RDONLY);
@@ -124,25 +119,7 @@ get_stapconf_from_cache(systemtap_session& s)
   close(fd_stapconf);
 
   if (s.verbose > 1)
-    clog << "Pass 4: using cached " << s.stapconf_path << endl;
-
-  return true;
-}
-
-
-bool
-get_script_from_cache(systemtap_session& s)
-{
-  if (s.poison_cache)
-    return false;
-
-  string module_dest_path = s.tmpdir + "/" + s.module_name + ".ko";
-  string c_src_path = s.hash_path;
-  int fd_module, fd_c;
-
-  if (endswith(c_src_path, ".ko"))
-    c_src_path.resize(c_src_path.size() - 3);
-  c_src_path += ".c";
+    clog << "Pass 3: using cached " << s.stapconf_path << endl;
 
   // See if module exists
   fd_module = open(s.hash_path.c_str(), O_RDONLY);
@@ -219,7 +196,7 @@ get_script_from_cache(systemtap_session& s)
 }
 
 
-void
+static void
 clean_cache(systemtap_session& s)
 {
   if (s.cache_path != "")
@@ -305,22 +282,6 @@ clean_cache(systemtap_session& s)
 
       globfree(&cache_glob);
 
-      // grab info for each staphash log file (.log)
-      glob_str = s.cache_path + "/*/*.log";
-      glob(glob_str.c_str(), 0, NULL, &cache_glob);
-      for (unsigned int i = 0; i < cache_glob.gl_pathc; i++)
-        {
-          string cache_ent_path = cache_glob.gl_pathv[i];
-          struct cache_ent_info cur_info(cache_ent_path, false);
-          if (cur_info.size != 0 && cur_info.weight != 0)
-            {
-              cache_size_b += cur_info.size;
-              cache_contents.insert(cur_info);
-            }
-        }
-
-      globfree(&cache_glob);
-
       set<struct cache_ent_info>::iterator i;
       unsigned long r_cache_size = cache_size_b;
       string removed_dirs = "";
@@ -383,11 +344,9 @@ cache_ent_info::cache_ent_info(const string& path, bool is_module):
       string mod_path    = path + ".ko";
       string modsgn_path = path + ".ko.sgn";
       string source_path = path + ".c";
-      string hash_path = path + ".log";
       size = get_file_size(mod_path)
         + get_file_size(modsgn_path);
         + get_file_size(source_path);
-        + get_file_size(hash_path);
       weight = get_file_weight(mod_path);
     }
   else
@@ -406,11 +365,9 @@ cache_ent_info::unlink() const
       string mod_path    = path + ".ko";
       string modsgn_path = path + ".ko.sgn";
       string source_path = path + ".c";
-      string hash_path = path + ".log";
       ::unlink(mod_path.c_str());
       ::unlink(modsgn_path.c_str());
       ::unlink(source_path.c_str());
-      ::unlink(hash_path.c_str());
     }
   else
     ::unlink(path.c_str());

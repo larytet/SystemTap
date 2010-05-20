@@ -1,5 +1,5 @@
 // translation pass
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2009 Red Hat Inc.
 // Copyright (C) 2005-2008 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -121,10 +121,9 @@ struct c_unparser: public unparser, public visitor
   void collect_map_index_types(vector<vardecl* > const & vars,
 			       set< pair<vector<exp_type>, exp_type> > & types);
 
-  void record_actions (unsigned actions, const token* tok, bool update=false);
+  void record_actions (unsigned actions, bool update=false);
 
   void visit_block (block* s);
-  void visit_try_block (try_block* s);
   void visit_embeddedcode (embeddedcode* s);
   void visit_null_statement (null_statement* s);
   void visit_expr_statement (expr_statement* s);
@@ -157,7 +156,6 @@ struct c_unparser: public unparser, public visitor
   void visit_stat_op (stat_op* e);
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
-  void visit_defined_op (defined_op* e);
 };
 
 // A shadow visitor, meant to generate temporary variable declarations
@@ -1122,10 +1120,7 @@ c_unparser::emit_module_init ()
 {
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
-    {
-      g[i]->emit_module_decls (*session);
-      o->assert_0_indent(); 
-    }
+    g[i]->emit_module_decls (*session);
 
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
@@ -1487,15 +1482,16 @@ c_unparser::emit_function (functiondecl* v)
   this->tmpvar_counter = 0;
   this->action_counter = 0;
 
-  o->newline() << "__label__ out;";
   o->newline()
     << "struct function_" << c_varname (v->name) << "_locals * "
-    << " __restrict__ l = "
+    << " __restrict__ l =";
+  o->newline(1)
     << "& c->locals[c->nesting+1].function_" << c_varname (v->name) // NB: nesting+1
     << ";";
-  o->newline() << "(void) l;"; // make sure "l" is marked used
+  o->newline(-1) << "(void) l;"; // make sure "l" is marked used
   o->newline() << "#define CONTEXT c";
   o->newline() << "#define THIS l";
+  o->newline() << "if (0) goto out;"; // make sure out: is marked used
 
   // set this, in case embedded-c code sets last_error but doesn't otherwise identify itself
   o->newline() << "c->last_stmt = " << lex_cast_qstring(*v->tok) << ";";
@@ -1537,7 +1533,7 @@ c_unparser::emit_function (functiondecl* v)
 
   this->current_function = 0;
 
-  record_actions(0, v->body->tok, true);
+  record_actions(0, true);
 
   if (this->probe_or_function_needs_deref_fault_handler) {
     // Emit this handler only if the body included a
@@ -1546,7 +1542,7 @@ c_unparser::emit_function (functiondecl* v)
   }
 
   o->newline(-1) << "out:";
-  o->newline(1) << "if (0) goto out;"; // make sure out: is marked used
+  o->newline(1) << ";";
 
   // Function prologue: this is why we redirect the "return" above.
   // Decrement nesting level.
@@ -1651,8 +1647,6 @@ c_unparser::emit_probe (derived_probe* v)
 
       probe_contents[oss.str()] = v->name;
 
-      o->newline() << "__label__ out;";
-
       // emit static read/write lock decls for global variables
       varuse_collecting_visitor vut(*session);
       if (v->needs_global_locks ())
@@ -1662,9 +1656,9 @@ c_unparser::emit_probe (derived_probe* v)
 	}
 
       // initialize frame pointer
-      o->newline() << "struct " << v->name << "_locals * __restrict__ l = "
-                   << "& c->probe_locals." << v->name << ";";
-      o->newline() << "(void) l;"; // make sure "l" is marked used
+      o->newline() << "struct " << v->name << "_locals * __restrict__ l =";
+      o->newline(1) << "& c->probe_locals." << v->name << ";";
+      o->newline(-1) << "(void) l;"; // make sure "l" is marked used
 
       // Emit runtime safety net for unprivileged mode.
       v->emit_unprivileged_assertion (o);
@@ -1701,7 +1695,7 @@ c_unparser::emit_probe (derived_probe* v)
 
       v->body->visit (this);
 
-      record_actions(0, v->body->tok, true);
+      record_actions(0, true);
 
       if (this->probe_or_function_needs_deref_fault_handler) {
 	// Emit this handler only if the body included a
@@ -2154,7 +2148,6 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 		{
 		  o->newline() << "if (unlikely(!" << rval << ")) {";
 		  o->newline(1) << "c->last_error = \"division by 0\";";
-		  o->newline() << "c->last_stmt = " << lex_cast_qstring(*rvalue->tok) << ";";
 		  o->newline() << "goto out;";
 		  o->newline(-1) << "}";
 		  o->newline() << lval << " = "
@@ -2318,7 +2311,7 @@ c_unparser::getiter(symbol *s)
 // the end of basic blocks to actually update actionremaining and check it
 // against MAXACTION.
 void
-c_unparser::record_actions (unsigned actions, const token* tok, bool update)
+c_unparser::record_actions (unsigned actions, bool update)
 {
   action_counter += actions;
 
@@ -2329,12 +2322,6 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
       o->newline() << "c->actionremaining -= " << action_counter << ";";
       o->newline() << "if (unlikely (c->actionremaining <= 0)) {";
       o->newline(1) << "c->last_error = \"MAXACTION exceeded\";";
-
-      // XXX it really ought to be illegal for anything to be missing a token,
-      // but until we're sure of that, we need to defend against NULL.
-      if (tok)
-        o->newline() << "c->last_stmt = " << lex_cast_qstring(*tok) << ";";
-
       o->newline() << "goto out;";
       o->newline(-1) << "}";
       action_counter = 0;
@@ -2364,52 +2351,6 @@ c_unparser::visit_block (block *s)
 }
 
 
-void c_unparser::visit_try_block (try_block *s)
-{
-  o->newline() << "{";
-  o->newline(1) << "__label__ normal_out;";
-  o->newline(1) << "{";
-  o->newline() << "__label__ out;";
-
-  assert (!session->unoptimized || s->try_block); // dead_stmtexpr_remover would zap it
-  if (s->try_block)
-    {
-      s->try_block->visit (this);
-      record_actions(0, s->try_block->tok, true); // flush accumulated actions
-    }
-
-  o->newline() << "if (likely(c->last_error == NULL)) goto normal_out;";
-
-  o->newline() << "if (0) goto out;"; // to prevent 'unused label' warnings
-  o->newline() << "out:";
-  if (s->catch_error_var)
-    {
-      var cev(getvar(s->catch_error_var->referent, s->catch_error_var->tok));
-      c_strcpy (cev.value(), "c->last_error");
-    }
-  o->newline() << "c->last_error = NULL;";
-
-  // Close the scope of the above nested 'out' label, to make sure
-  // that the catch block, should it encounter errors, does not resolve
-  // a 'goto out;' to the above label, causing infinite looping.
-  o->newline(-1) << "}";
-
-  // Prevent the catch{} handler from even starting if MAXACTIONS have
-  // already been used up.  Add one for the act of catching too.
-  record_actions(1, s->tok, true);
-
-  if (s->catch_block)
-    {
-      s->catch_block->visit (this);
-      record_actions(0, s->catch_block->tok, true); // flush accumulated actions
-    }
-
-  o->newline() << "normal_out:";
-  o->newline() << ";"; // to have _some_ statement
-  o->newline(-1) << "}";
-}
-
-
 void
 c_unparser::visit_embeddedcode (embeddedcode *s)
 {
@@ -2432,14 +2373,14 @@ c_unparser::visit_expr_statement (expr_statement *s)
   o->newline() << "(void) ";
   s->value->visit (this);
   o->line() << ";";
-  record_actions(1, s->tok);
+  record_actions(1);
 }
 
 
 void
 c_unparser::visit_if_statement (if_statement *s)
 {
-  record_actions(1, s->tok, true);
+  record_actions(1, true);
   o->newline() << "if (";
   o->indent (1);
   s->condition->visit (this);
@@ -2447,14 +2388,14 @@ c_unparser::visit_if_statement (if_statement *s)
   o->line() << ") {";
   o->indent (1);
   s->thenblock->visit (this);
-  record_actions(0, s->thenblock->tok, true);
+  record_actions(0, true);
   o->newline(-1) << "}";
   if (s->elseblock)
     {
       o->newline() << "else {";
       o->indent (1);
       s->elseblock->visit (this);
-      record_actions(0, s->elseblock->tok, true);
+      record_actions(0, true);
       o->newline(-1) << "}";
     }
 }
@@ -2511,7 +2452,7 @@ c_unparser::visit_for_loop (for_loop *s)
 
   // initialization
   if (s->init) s->init->visit (this);
-  record_actions(1, s->tok, true);
+  record_actions(1, true);
 
   // condition
   o->newline(-1) << toplabel << ":";
@@ -2520,7 +2461,7 @@ c_unparser::visit_for_loop (for_loop *s)
   // Equivalently, it can stand for the evaluation of the condition
   // expression.
   o->indent(1);
-  record_actions(1, s->tok);
+  record_actions(1);
 
   o->newline() << "if (! (";
   if (s->cond->type != pe_long)
@@ -2532,7 +2473,7 @@ c_unparser::visit_for_loop (for_loop *s)
   loop_break_labels.push_back (breaklabel);
   loop_continue_labels.push_back (contlabel);
   s->block->visit (this);
-  record_actions(0, s->block->tok, true);
+  record_actions(0, true);
   loop_break_labels.pop_back ();
   loop_continue_labels.pop_back ();
 
@@ -2679,7 +2620,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	{
 	  o->newline() << "if (unlikely(NULL == " << mv.calculate_aggregate() << ")) {";
 	  o->newline(1) << "c->last_error = \"aggregation overflow in " << mv << "\";";
-	  o->newline() << "c->last_stmt = " << lex_cast_qstring(*s->tok) << ";";
 	  o->newline() << "goto out;";
 	  o->newline(-1) << "}";
 
@@ -2748,7 +2688,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  o->newline() << *limitv << " = 0LL;";
       }
 
-      record_actions(1, s->tok, true);
+      record_actions(1, true);
 
       // condition
       o->newline(-1) << toplabel << ":";
@@ -2757,7 +2697,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       // Equivalently, it can stand for the evaluation of the
       // condition expression.
       o->indent(1);
-      record_actions(1, s->tok);
+      record_actions(1);
 
       o->newline() << "if (! (" << iv << ")) goto " << breaklabel << ";";
 
@@ -2785,7 +2725,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  c_assign (v, iv.get_key (v.type(), i), s->tok);
 	}
       s->block->visit (this);
-      record_actions(0, s->block->tok, true);
+      record_actions(0, true);
       o->newline(-1) << "}";
       loop_break_labels.pop_back ();
       loop_continue_labels.pop_back ();
@@ -2830,7 +2770,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	}
 
       // XXX: break / continue don't work here yet
-      record_actions(1, s->tok, true);
+      record_actions(1, true);
       o->newline() << "for (" << bucketvar << " = 0; "
 		   << bucketvar << " < " << v.buckets() << "; "
 		   << bucketvar << "++) { ";
@@ -2848,7 +2788,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       }
 
       s->block->visit (this);
-      record_actions(1, s->block->tok, true);
+      record_actions(1, true);
       o->newline(-1) << "}";
     }
 }
@@ -2865,7 +2805,7 @@ c_unparser::visit_return_statement (return_statement* s)
                          "vs", s->tok);
 
   c_assign ("l->__retvalue", s->value, "return value");
-  record_actions(1, s->tok, true);
+  record_actions(1, true);
   o->newline() << "goto out;";
 }
 
@@ -2876,7 +2816,7 @@ c_unparser::visit_next_statement (next_statement* s)
   if (current_probe == 0)
     throw semantic_error ("cannot 'next' from function", s->tok);
 
-  record_actions(1, s->tok, true);
+  record_actions(1, true);
   o->newline() << "goto out;";
 }
 
@@ -3006,7 +2946,7 @@ c_unparser::visit_delete_statement (delete_statement* s)
 {
   delete_statement_operand_visitor dv (this);
   s->value->visit (&dv);
-  record_actions(1, s->tok);
+  record_actions(1);
 }
 
 
@@ -3016,7 +2956,7 @@ c_unparser::visit_break_statement (break_statement* s)
   if (loop_break_labels.size() == 0)
     throw semantic_error ("cannot 'break' outside loop", s->tok);
 
-  record_actions(1, s->tok, true);
+  record_actions(1, true);
   string label = loop_break_labels[loop_break_labels.size()-1];
   o->newline() << "goto " << label << ";";
 }
@@ -3028,7 +2968,7 @@ c_unparser::visit_continue_statement (continue_statement* s)
   if (loop_continue_labels.size() == 0)
     throw semantic_error ("cannot 'continue' outside loop", s->tok);
 
-  record_actions(1, s->tok, true);
+  record_actions(1, true);
   string label = loop_continue_labels[loop_continue_labels.size()-1];
   o->newline() << "goto " << label << ";";
 }
@@ -3602,14 +3542,7 @@ c_unparser::visit_target_symbol (target_symbol* e)
 void
 c_unparser::visit_cast_op (cast_op* e)
 {
-  throw semantic_error("cannot translate general @cast expression", e->tok);
-}
-
-
-void
-c_unparser::visit_defined_op (defined_op* e)
-{
-  throw semantic_error("cannot translate general @defined expression", e->tok);
+  throw semantic_error("cannot translate general cast expression", e->tok);
 }
 
 
@@ -4336,12 +4269,8 @@ c_unparser::visit_print_format (print_format* e)
 	    || components[i].type == print_format::conv_memory_hex)
 	  {
 	    string mem_size;
-	    const token* prec_tok = e->tok;
 	    if (prec_ix != -1)
-	      {
-		mem_size = tmp[prec_ix].value();
-		prec_tok = e->args[prec_ix]->tok;
-	      }
+	      mem_size = tmp[prec_ix].value();
 	    else if (components[i].prectype == print_format::prec_static &&
 		     components[i].precision > 0)
 	      mem_size = lex_cast(components[i].precision) + "LL";
@@ -4354,13 +4283,11 @@ c_unparser::visit_print_format (print_format* e)
 			  << "\"%lld is too many bytes for a memory dump\", "
 			  << mem_size << ");";
 	    o->newline() << "c->last_error = c->error_buffer;";
-	    o->newline() << "c->last_stmt = " << lex_cast_qstring(*prec_tok) << ";";
 	    o->newline() << "goto out;";
 	    o->newline(-1) << "}";
 
 	    /* Generate a noop call to deref_buffer.  */
 	    this->probe_or_function_needs_deref_fault_handler = true;
-	    o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->args[arg_ix]->tok) << ";";
 	    o->newline() << "deref_buffer (0, " << tmp[arg_ix].value() << ", "
 			 << mem_size << " ?: 1LL);";
 	  }
@@ -4571,9 +4498,7 @@ struct unwindsym_dump_context
 static void get_unwind_data (Dwfl_Module *m,
 			     void **debug_frame, void **eh_frame,
 			     size_t *debug_len, size_t *eh_len,
-			     Dwarf_Addr *eh_addr,
-                             void **eh_frame_hdr, size_t *eh_frame_hdr_len,
-                             Dwarf_Addr *eh_frame_hdr_addr)
+			     Dwarf_Addr *eh_addr)
 {
   Dwarf_Addr start, bias = 0;
   GElf_Ehdr *ehdr, ehdr_mem;
@@ -4589,11 +4514,9 @@ static void get_unwind_data (Dwfl_Module *m,
   scn = NULL;
   while ((scn = elf_nextscn(elf, scn)))
     {
-      bool eh_frame_seen = false;
-      bool eh_frame_hdr_seen = false;
       shdr = gelf_getshdr(scn, &shdr_mem);
-      const char* scn_name = elf_strptr(elf, ehdr->e_shstrndx, shdr->sh_name);
-      if (!eh_frame_seen && strcmp(scn_name, ".eh_frame") == 0)
+      if (strcmp(elf_strptr(elf, ehdr->e_shstrndx, shdr->sh_name),
+		 ".eh_frame") == 0)
 	{
 	  data = elf_rawdata(scn, NULL);
 	  *eh_frame = data->d_buf;
@@ -4603,21 +4526,8 @@ static void get_unwind_data (Dwfl_Module *m,
 	    *eh_addr = shdr->sh_addr - start + bias;
 	  else
 	    *eh_addr = shdr->sh_addr;
-	  eh_frame_seen = true;
+	  break;
 	}
-      else if (!eh_frame_hdr_seen && strcmp(scn_name, ".eh_frame_hdr") == 0)
-        {
-          data = elf_rawdata(scn, NULL);
-          *eh_frame_hdr = data->d_buf;
-          *eh_frame_hdr_len = data->d_size;
-          if (dwfl_module_relocations (m) > 0)
-	    *eh_frame_hdr_addr = shdr->sh_addr - start + bias;
-	  else
-	    *eh_frame_hdr_addr = shdr->sh_addr;
-          eh_frame_hdr_seen = true;
-        }
-      if (eh_frame_seen && eh_frame_hdr_seen)
-        break;
     }
 
   // fetch .debug_frame info preferably from dwarf debuginfo file.
@@ -4875,13 +4785,9 @@ dump_unwindsyms (Dwfl_Module *m,
   void *debug_frame = NULL;
   size_t debug_len = 0;
   void *eh_frame = NULL;
-  void *eh_frame_hdr = NULL;
   size_t eh_len = 0;
-  size_t eh_frame_hdr_len = 0;
   Dwarf_Addr eh_addr = 0;
-  Dwarf_Addr eh_frame_hdr_addr = 0;
-  get_unwind_data (m, &debug_frame, &eh_frame, &debug_len, &eh_len, &eh_addr,
-                   &eh_frame_hdr, &eh_frame_hdr_len, &eh_frame_hdr_addr);
+  get_unwind_data (m, &debug_frame, &eh_frame, &debug_len, &eh_len, &eh_addr);
   if (debug_frame != NULL && debug_len > 0)
     {
       if (debug_len > MAX_UNWIND_TABLE_SIZE)
@@ -4914,26 +4820,6 @@ dump_unwindsyms (Dwfl_Module *m,
       for (size_t i = 0; i < eh_len; i++)
 	{
 	  int h = ((uint8_t *)eh_frame)[i];
-	  c->output << "0x" << hex << h << dec << ",";
-	  if ((i + 1) % 16 == 0)
-	    c->output << "\n" << "   ";
-	}
-      c->output << "};\n";
-      c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
-    }
-
-  if (eh_frame_hdr != NULL && eh_frame_hdr_len > 0)
-    {
-      if (eh_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
-	throw semantic_error ("module eh header size too big");
-
-      c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
-      c->output << "static uint8_t _stp_module_" << stpmod_idx
-		<< "_eh_frame_hdr[] = \n";
-      c->output << "  {";
-      for (size_t i = 0; i < eh_frame_hdr_len; i++)
-	{
-	  int h = ((uint8_t *)eh_frame_hdr)[i];
 	  c->output << "0x" << hex << h << dec << ",";
 	  if ((i + 1) % 16 == 0)
 	    c->output << "\n" << "   ";
@@ -4997,9 +4883,8 @@ dump_unwindsyms (Dwfl_Module *m,
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
   c->output << ".name = " << lex_cast_qstring (modname) << ", \n";
   c->output << ".path = " << lex_cast_qstring (mainfile) << ",\n";
-  c->output << ".dwarf_module_base = 0x" << hex << base << ", \n";
-  c->output << ".eh_frame_addr = 0x" << eh_addr << ", \n";
-  c->output << ".unwind_hdr_addr = 0x" << eh_frame_hdr_addr << dec << ", \n";
+  c->output << ".dwarf_module_base = 0x" << hex << base << dec << ", \n";
+  c->output << ".eh_frame_addr = 0x" << hex << eh_addr << dec << ", \n";
 
   if (debug_frame != NULL)
     {
@@ -5022,26 +4907,18 @@ dump_unwindsyms (Dwfl_Module *m,
       c->output << ".eh_frame = "
 		<< "_stp_module_" << stpmod_idx << "_eh_frame, \n";
       c->output << ".eh_frame_len = " << eh_len << ", \n";
-      if (eh_frame_hdr)
-        {
-          c->output << ".unwind_hdr = "
-                    << "_stp_module_" << stpmod_idx << "_eh_frame_hdr, \n";
-          c->output << ".unwind_hdr_len = " << eh_frame_hdr_len << ", \n";
-        }
-      else
-        {
-          c->output << ".unwind_hdr = NULL,\n";
-          c->output << ".unwind_hdr_len = 0,\n";
-        }
       c->output << "#else\n";
     }
 
   c->output << ".eh_frame = NULL,\n";
   c->output << ".eh_frame_len = 0,\n";
-  c->output << ".unwind_hdr = NULL,\n";
-  c->output << ".unwind_hdr_len = 0,\n";
+
   if (eh_frame != NULL)
     c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA*/\n";
+
+  c->output << ".unwind_hdr = NULL,\n";
+  c->output << ".unwind_hdr_len = 0,\n";
+
   c->output << ".sections = _stp_module_" << stpmod_idx << "_sections" << ",\n";
   c->output << ".num_sections = sizeof(_stp_module_" << stpmod_idx << "_sections)/"
             << "sizeof(struct _stp_section),\n";
@@ -5342,6 +5219,9 @@ translate_pass (systemtap_session& s)
 
       if (s.timing)
 	s.op->newline() << "#define STP_TIMING";
+
+      if (s.perfmon)
+	s.op->newline() << "#define STP_PERFMON";
 
       s.op->newline() << "#include \"runtime.h\"";
       s.op->newline() << "#include \"stack.c\"";

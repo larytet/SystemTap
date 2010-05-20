@@ -43,7 +43,6 @@ hash::start()
 void
 hash::add(const unsigned char *buffer, size_t size)
 {
-  parm_stream << "," << buffer;
   mdfour_update(&md4, buffer, size);
 }
 
@@ -61,16 +60,6 @@ hash::add_file(const std::string& filename)
   add(st.st_mtime);
 }
 
-string
-hash::get_parms()
-{
- string parms_str = parm_stream.str();
-
- parm_stream.clear();
- if (!parms_str.empty())
-   parms_str.erase(parms_str.begin()); // skip leading ","
- return parms_str;
-}
 
 void
 hash::result(string& r)
@@ -89,30 +78,10 @@ hash::result(string& r)
   r = rstream.str();
 }
 
-void create_hash_log(const string &type_str, const string &parms, const string &result, const string &hash_log_path)
+
+static void
+get_base_hash (systemtap_session& s, hash& h)
 {
-  ofstream log_file;
-  time_t rawtime;
-  time ( &rawtime );
-  string time_str(ctime (&rawtime));
-
-  log_file.open(hash_log_path.c_str());
-  log_file << "[" << time_str.substr(0,time_str.length()-1); // erase terminated '\n'
-  log_file << "]" << type_str;
-  log_file << ": " << parms << endl;
-  log_file << "result:" << result << endl;
-  log_file.close();
-}
-
-static const hash&
-get_base_hash (systemtap_session& s)
-{
-  if (s.base_hash)
-    return *s.base_hash;
-
-  s.base_hash = new hash();
-  hash& h = *s.base_hash;
-
   // Hash kernel release and arch.
   h.add(s.kernel_release);
   h.add(s.kernel_build_tree);
@@ -147,8 +116,6 @@ get_base_hash (systemtap_session& s)
   // know exactly where we're getting run from, we'll use
   // /proc/self/exe.
   h.add_file("/proc/self/exe");
-
-  return h;
 }
 
 
@@ -178,7 +145,7 @@ create_hashdir (systemtap_session& s, const string& result, string& hashdir)
             cerr << "Warning: failed to create cache directory (\""
                  << hashdir + "\"): " << strerror(errno)
                  << ", disabling cache support." << endl;
-	  s.use_cache = s.use_script_cache = false;
+	  s.use_cache = false;
 	  return false;
 	}
     }
@@ -186,10 +153,10 @@ create_hashdir (systemtap_session& s, const string& result, string& hashdir)
 }
 
 
-void
-find_script_hash (systemtap_session& s, const string& script)
+static void
+find_script_hash (systemtap_session& s, const string& script, const hash &base)
 {
-  hash h(get_base_hash(s));
+  hash h(base);
   struct stat st;
 
   // Hash getuid.  This really shouldn't be necessary (since who you
@@ -208,7 +175,6 @@ find_script_hash (systemtap_session& s, const string& script)
   h.add(s.consult_symtab);		// --kelf, --kmap
   h.add(s.skip_badvars);		// --skip-badvars
   h.add(s.unprivileged);		// --unprivileged
-  h.add(s.omit_werror);		        // undocumented, evil
   if (!s.kernel_symtab_path.empty())	// --kmap
     {
       h.add(s.kernel_symtab_path);
@@ -263,15 +229,13 @@ find_script_hash (systemtap_session& s, const string& script)
 
   // Update C source name with new module_name.
   s.translated_source = string(s.tmpdir) + "/" + s.module_name + ".c";
-  create_hash_log(string("script_hash"), h.get_parms(), result,
-                  hashdir + "/" + s.module_name + "_hash.log");
 }
 
 
-void
-find_stapconf_hash (systemtap_session& s)
+static void
+find_stapconf_hash (systemtap_session& s, const hash& base)
 {
-  hash h(get_base_hash(s));
+  hash h(base);
 
   // Add any custom kbuild flags
   for (unsigned i = 0; i < s.kbuildflags.size(); i++)
@@ -285,15 +249,24 @@ find_stapconf_hash (systemtap_session& s)
 
   s.stapconf_name = "stapconf_" + result + ".h";
   s.stapconf_path = hashdir + "/" + s.stapconf_name;
-  create_hash_log(string("stapconf_hash"), h.get_parms(), result,
-                  hashdir + "/stapconf_" + result + "_hash.log");
+}
+
+
+void
+find_hash (systemtap_session& s, const string& script)
+{
+  hash base;
+  get_base_hash(s, base);
+  find_stapconf_hash(s, base);
+  find_script_hash(s, script, base);
 }
 
 
 string
 find_tracequery_hash (systemtap_session& s, const vector<string>& headers)
 {
-  hash h(get_base_hash(s));
+  hash h;
+  get_base_hash(s, h);
 
   // Add the tracepoint headers to the computed hash
   for (size_t i = 0; i < headers.size(); ++i)
@@ -309,8 +282,6 @@ find_tracequery_hash (systemtap_session& s, const vector<string>& headers)
   if (!create_hashdir(s, result, hashdir))
     return "";
 
-  create_hash_log(string("tracequery_hash"), h.get_parms(), result,
-                  hashdir + "/tracequery_" + result + "_hash.log");
   return hashdir + "/tracequery_" + result + ".ko";
 }
 
@@ -318,7 +289,8 @@ find_tracequery_hash (systemtap_session& s, const vector<string>& headers)
 string
 find_typequery_hash (systemtap_session& s, const string& name)
 {
-  hash h(get_base_hash(s));
+  hash h;
+  get_base_hash(s, h);
 
   // Add the typequery name to distinguish the hash
   h.add(name);
@@ -334,8 +306,6 @@ find_typequery_hash (systemtap_session& s, const string& name)
   if (!create_hashdir(s, result, hashdir))
     return "";
 
-  create_hash_log(string("typequery_hash"), h.get_parms(), result,
-                  hashdir + "/typequery_" + result + "_hash.log");
   return hashdir + "/typequery_" + result
     + (name[0] == 'k' ? ".ko" : ".so");
 }

@@ -1,5 +1,5 @@
 // parse tree functions
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2009 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -38,18 +38,6 @@ expression::~expression ()
 
 statement::statement ():
   tok (0)
-{
-}
-
-
-statement::statement (const token* tok):
-  tok (tok)
-{
-}
-
-
-null_statement::null_statement (const token* tok):
-  statement(tok)
 {
 }
 
@@ -164,7 +152,7 @@ vardecl::compatible_arity (int a)
 
 
 functiondecl::functiondecl ():
-  body (0), synthetic (false)
+  body (0)
 {
 }
 
@@ -220,14 +208,6 @@ target_symbol::assert_no_components(const std::string& tapset)
                             " variable '" + base_name + "'",
                             components[0].tok);
     }
-}
-
-
-void target_symbol::chain (semantic_error *e)
-{
-  assert (e->chain == 0);
-  e->chain = this->saved_conversion_error;
-  this->saved_conversion_error = e;
 }
 
 
@@ -349,12 +329,6 @@ void cast_op::print (ostream& o) const
   o << ')';
   for (unsigned i = 0; i < components.size(); ++i)
     o << components[i];
-}
-
-
-void defined_op::print (ostream& o) const
-{
-  o << "@defined(" << *operand << ")";
 }
 
 
@@ -903,18 +877,6 @@ block::block (statement* car, statement* cdr)
 
 
 
-void try_block::print (ostream& o) const
-{
-  o << "try {" << endl;
-  if (try_block) o << *try_block << endl;
-  o << "} catch ";
-  if (catch_error_var) o << "(" << *catch_error_var << ") ";
-  o << "{" << endl;
-  if (catch_block) o << *catch_block << endl;
-  o << "}" << endl;
-}
-
-
 void for_loop::print (ostream& o) const
 {
   o << "for (";
@@ -1152,13 +1114,6 @@ block::visit (visitor* u)
 
 
 void
-try_block::visit (visitor* u)
-{
-  u->visit_try_block (this);
-}
-
-
-void
 embeddedcode::visit (visitor* u)
 {
   u->visit_embeddedcode (this);
@@ -1344,14 +1299,6 @@ cast_op::visit (visitor* u)
 {
   u->visit_cast_op(this);
 }
-
-
-void
-defined_op::visit (visitor* u)
-{
-  u->visit_defined_op(this);
-}
-
 
 void
 arrayindex::visit (visitor* u)
@@ -1544,17 +1491,6 @@ traversing_visitor::visit_block (block* s)
 }
 
 void
-traversing_visitor::visit_try_block (try_block* s)
-{
-  if (s->try_block)
-    s->try_block->visit (this);
-  if (s->catch_error_var)
-    s->catch_error_var->visit (this);
-  if (s->catch_block)
-    s->catch_block->visit (this);
-}
-
-void
 traversing_visitor::visit_embeddedcode (embeddedcode*)
 {
 }
@@ -1739,13 +1675,6 @@ traversing_visitor::visit_cast_op (cast_op* e)
 }
 
 void
-traversing_visitor::visit_defined_op (defined_op* e)
-{
-  e->operand->visit (this);
-}
-
-
-void
 traversing_visitor::visit_arrayindex (arrayindex* e)
 {
   for (unsigned i=0; i<e->indexes.size(); i++)
@@ -1808,21 +1737,6 @@ functioncall_traversing_visitor::visit_functioncall (functioncall* e)
 
 
 void
-varuse_collecting_visitor::visit_try_block (try_block *s)
-{
-  if (s->try_block)
-    s->try_block->visit (this);
-  if (s->catch_error_var)
-    written.insert (s->catch_error_var->referent);
-  if (s->catch_block)
-    s->catch_block->visit (this);
-
-  // NB: don't functioncall_traversing_visitor::visit_try_block (s);
-  // since that would count s->catch_error_var as a read also.
-}
-
-
-void
 varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 {
   assert (current_function); // only they get embedded code
@@ -1873,14 +1787,6 @@ varuse_collecting_visitor::visit_cast_op (cast_op *e)
 
   functioncall_traversing_visitor::visit_cast_op (e);
 }
-
-void
-varuse_collecting_visitor::visit_defined_op (defined_op *e)
-{
-  // XXX
-  functioncall_traversing_visitor::visit_defined_op (e);
-}
-
 
 void
 varuse_collecting_visitor::visit_print_format (print_format* e)
@@ -1991,21 +1897,19 @@ varuse_collecting_visitor::visit_arrayindex (arrayindex *e)
 void
 varuse_collecting_visitor::visit_pre_crement (pre_crement *e)
 {
-  // PR6954: regard as pure writes
-  expression* last_lvalue = current_lvalue;
-  current_lvalue = e->operand; // leave a mark for ::visit_symbol
+  expression* last_lrvalue = current_lrvalue;
+  current_lrvalue = e->operand; // leave a mark for ::visit_symbol
   functioncall_traversing_visitor::visit_pre_crement (e);
-  current_lvalue = last_lvalue;
+  current_lrvalue = last_lrvalue;
 }
 
 void
 varuse_collecting_visitor::visit_post_crement (post_crement *e)
 {
-  // PR6954: regard as pure writes
-  expression* last_lvalue = current_lvalue;
-  current_lvalue = e->operand; // leave a mark for ::visit_symbol
+  expression* last_lrvalue = current_lrvalue;
+  current_lrvalue = e->operand; // leave a mark for ::visit_symbol
   functioncall_traversing_visitor::visit_post_crement (e);
-  current_lvalue = last_lvalue;
+  current_lrvalue = last_lrvalue;
 }
 
 void
@@ -2110,13 +2014,6 @@ throwing_visitor::visit_block (block* s)
 {
   throwone (s->tok);
 }
-
-void
-throwing_visitor::visit_try_block (try_block* s)
-{
-  throwone (s->tok);
-}
-
 
 void
 throwing_visitor::visit_embeddedcode (embeddedcode* s)
@@ -2282,13 +2179,6 @@ throwing_visitor::visit_cast_op (cast_op* e)
 }
 
 void
-throwing_visitor::visit_defined_op (defined_op* e)
-{
-  throwone (e->tok);
-}
-
-
-void
 throwing_visitor::visit_arrayindex (arrayindex* e)
 {
   throwone (e->tok);
@@ -2327,15 +2217,6 @@ update_visitor::visit_block (block* s)
 {
   for (unsigned i = 0; i < s->statements.size(); ++i)
     replace (s->statements[i]);
-  provide (s);
-}
-
-void
-update_visitor::visit_try_block (try_block* s)
-{
-  replace (s->try_block);
-  replace (s->catch_error_var);
-  replace (s->catch_block);
   provide (s);
 }
 
@@ -2540,13 +2421,6 @@ update_visitor::visit_cast_op (cast_op* e)
 }
 
 void
-update_visitor::visit_defined_op (defined_op* e)
-{
-  replace (e->operand);
-  provide (e);
-}
-
-void
 update_visitor::visit_arrayindex (arrayindex* e)
 {
   replace (e->base);
@@ -2614,12 +2488,6 @@ void
 deep_copy_visitor::visit_block (block* s)
 {
   update_visitor::visit_block(new block(*s));
-}
-
-void
-deep_copy_visitor::visit_try_block (try_block* s)
-{
-  update_visitor::visit_try_block(new try_block(*s));
 }
 
 void
@@ -2787,12 +2655,6 @@ void
 deep_copy_visitor::visit_cast_op (cast_op* e)
 {
   update_visitor::visit_cast_op(new cast_op(*e));
-}
-
-void
-deep_copy_visitor::visit_defined_op (defined_op* e)
-{
-  update_visitor::visit_defined_op(new defined_op(*e));
 }
 
 void
