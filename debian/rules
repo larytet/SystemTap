@@ -3,6 +3,13 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
+# get-orig-source target
+DEB_UPSTREAM_VERSION=$(shell dpkg-parsechangelog | sed -rne 's,^Version: ([^-]+).*,\1,p')
+
+get-orig-source:
+	uscan --force-download --rename --repack --download-version=$(DEB_UPSTREAM_VERSION) --destdir=.
+
+
 CFLAGS = -Wall -g -D_GNU_SOURCE
 
 ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
@@ -35,7 +42,7 @@ endif
 # dh does it wrong...
 CONF_FLAGS += --libexecdir=/usr/lib
 
-DH = dh --with quilt
+DH = dh
 
 # plus is to enable parallel build
 binary binary-arch binary-indep build clean install patch:
@@ -87,6 +94,6 @@ override_dh_fixperms:
 	dh_fixperms
 	chmod 4755 debian/systemtap-runtime/usr/bin/staprun
 
-.PHONY: build clean binary-indep binary-arch binary install patch
+.PHONY: build clean binary-indep binary-arch binary install patch get-orig-source
 .PHONY: override_dh_auto_configure override_dh_auto_test override_dh_auto_install
 .PHONY: override_dh_auto_clean override_dh_compress override_dh_fixperms

@@ -1,5 +1,6 @@
 systemtap (1.2-1) experimental; urgency=low
 
+  [ Lucas Nussbaum ]
   * New maintainer. Closes: #568866.
   * New upstream release.
     - Fixes CVE-2009-4273. Closes: #568865.
@@ -13,7 +14,13 @@ systemtap (1.2-1) experimental; urgency=low
     - new-elfutils.diff
   * Bump policy to 3.8.4. No changes needed.
 
- -- Lucas Nussbaum <lucas@lucas-nussbaum.net>  Mon, 17 May 2010 23:17:10 +0200
+  [ Ritesh Raj Sarraf ]
+  * Take maintenance and add Lucas to Uploaders 
+  * Switch to 3.0 (quilt) source format 
+  * Add get-orig-source target 
+  * Drop libebl-dev and Add libdw-dev as Build Depends 
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Thu, 20 May 2010 21:05:35 +0530
 
 systemtap (1.1-1) experimental; urgency=low
 

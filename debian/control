@@ -1,12 +1,13 @@
 Source: systemtap
 Section: devel
 Priority: optional
-Maintainer: Lucas Nussbaum <lucas@lucas-nussbaum.net>
-Build-Depends: debhelper (>= 7.0.50~), quilt (>= 0.46-8), autoconf, automake1.11, libelf-dev (>= 0.141),
+Maintainer: Ritesh Raj Sarraf <rrs@debian.org> 
+Uploaders: Lucas Nussbaum <lucas@lucas-nussbaum.net>
+Build-Depends: debhelper (>= 7.0.50~), autoconf, automake1.11, libelf-dev (>= 0.141),
  libdw-dev (>= 0.141), libsqlite3-dev, texlive-latex-base, texlive-latex-recommended,
  texlive-latex-extra, texlive-fonts-recommended, libnss3-dev, libnspr4-dev, pkg-config,
  libnss3-tools, libgtkmm-2.4-dev (>= 2.8.0), xmlto, libboost-dev, libglademm-2.4-dev,
- latex2html, libebl-dev
+ latex2html, libdw-dev
 Build-Conflicts: autoconf2.13, automake1.4
 Standards-Version: 3.8.4
 Homepage: http://sourceware.org/systemtap/
