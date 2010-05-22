@@ -19,8 +19,9 @@ systemtap (1.2-1) experimental; urgency=low
   * Switch to 3.0 (quilt) source format 
   * Add get-orig-source target 
   * Drop libebl-dev and Add libdw-dev as Build Depends 
+  * Fix build rules and use configure script from upstream 
 
- -- Ritesh Raj Sarraf <rrs@debian.org>  Thu, 20 May 2010 21:05:35 +0530
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sat, 22 May 2010 22:36:40 +0530
 
 systemtap (1.1-1) experimental; urgency=low
 
