@@ -1,3 +1,4 @@
+stapex docdir path patch
 Index: systemtap/stapex.3stap.in
 ===================================================================
 --- systemtap.orig/stapex.3stap.in	2009-09-12 17:07:27.404037877 +0200

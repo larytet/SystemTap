@@ -1,3 +1,4 @@
+don't build pdf docs
 Index: systemtap/configure.ac
 ===================================================================
 --- systemtap.orig/configure.ac	2010-01-21 09:00:30.000000000 +0100

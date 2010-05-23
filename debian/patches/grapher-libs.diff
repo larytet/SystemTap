@@ -1,3 +1,4 @@
+grapher libraries as needed
 Index: systemtap/grapher/Makefile.am
 ===================================================================
 --- systemtap.orig/grapher/Makefile.am	2010-01-21 08:23:45.000000000 +0100

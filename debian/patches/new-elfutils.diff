@@ -1,3 +1,4 @@
+elfutils build depends patch
 Index: systemtap/configure.ac
 ===================================================================
 --- systemtap.orig/configure.ac	2010-05-21 23:13:28.650544125 +0530

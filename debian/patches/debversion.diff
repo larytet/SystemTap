@@ -1,3 +1,4 @@
+debian version patch
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -75,7 +75,7 @@ git_version.stamp:

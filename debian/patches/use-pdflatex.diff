@@ -1,3 +1,4 @@
+use pdflater for generation
 --- a/configure.ac
 +++ b/configure.ac
 @@ -170,19 +170,19 @@ AC_ARG_ENABLE([docs],

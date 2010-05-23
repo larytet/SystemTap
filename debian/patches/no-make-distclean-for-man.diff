@@ -1,3 +1,4 @@
+don't clean man/
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -309,7 +309,7 @@ endif

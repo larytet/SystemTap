@@ -1,3 +1,4 @@
+vim filetype override
 Index: systemtap/vim/filetype.vim
 ===================================================================
 --- systemtap.orig/vim/filetype.vim	2009-09-11 00:15:49.293071271 +0200
