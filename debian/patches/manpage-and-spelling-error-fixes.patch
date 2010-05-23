@@ -1,3 +1,4 @@
+manpage hyphen and spelling error fixes
 Index: systemtap/grapher/stapgraph.1.in
 ===================================================================
 --- systemtap.orig/grapher/stapgraph.1.in	2010-05-23 22:38:43.346032610 +0530
