@@ -15,7 +15,8 @@ Vcs-Browser: http://git.debian.org/?p=collab-maint/systemtap.git
 
 Package: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
-Depends: systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
+Depends: systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
+ systemtap-common (= ${binary:Version})
 Suggests: systemtap-doc, vim-addon-manager, linux-image-2.6, linux-headers-2.6, linux-debug-2.6
 Description: instrumentation system for Linux 2.6
  SystemTap provides infrastructure to simplify the gathering of
@@ -30,7 +31,10 @@ Description: instrumentation system for Linux 2.6
 
 Package: systemtap-common
 Architecture: all
-Depends: ${misc:Depends}, systemtap (= ${binary:Version})
+Replaces: systemtap (<< 0.0.20081220-1)
+Conflicts: systemtap (<< 0.0.20081220-1)
+Depends: ${misc:Depends}
+Recommends: systemtap
 Description: instrumentation system for Linux 2.6 (common component)
  SystemTap provides infrastructure to simplify the gathering of
  information about the running Linux system.
