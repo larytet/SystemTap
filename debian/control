@@ -28,6 +28,17 @@ Description: instrumentation system for Linux 2.6
  SystemTap provides a simple command line interface and scripting
  language for writing instrumentation for a live running system.
 
+Package: systemtap-common
+Architecture: all
+Depends: ${misc:Depends}, systemtap (= ${binary:Version})
+Description: instrumentation system for Linux 2.6 (common component)
+ SystemTap provides infrastructure to simplify the gathering of
+ information about the running Linux system.
+ .
+ To be able to write new SystemTap probes, install systemtap package.
+ .
+ This package contains the common files
+
 Package: systemtap-runtime
 Replaces: systemtap (<< 0.0.20081220-1)
 Conflicts: systemtap (<< 0.0.20081220-1)

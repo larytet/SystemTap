@@ -20,8 +20,10 @@ systemtap (1.2-1) experimental; urgency=low
   * Add get-orig-source target 
   * Drop libebl-dev and Add libdw-dev as Build Depends 
   * Fix build rules and use configure script from upstream 
+  * Break systemtap common architecture independent data to the
+    systemtap-common package 
 
- -- Ritesh Raj Sarraf <rrs@debian.org>  Sat, 22 May 2010 22:36:40 +0530
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Sun, 23 May 2010 22:15:45 +0530
 
 systemtap (1.1-1) experimental; urgency=low
 
