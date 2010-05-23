@@ -2,6 +2,8 @@
 
 #DEBHELPER#
 
+set -e
+
 case "$1" in
 purge)
 	rm -rf /etc/systemtap/ssl/client
