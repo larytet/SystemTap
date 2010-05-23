@@ -1,0 +1,178 @@
+Index: systemtap/grapher/stapgraph.1.in
+===================================================================
+--- systemtap.orig/grapher/stapgraph.1.in	2010-05-23 22:38:43.346032610 +0530
++++ systemtap/grapher/stapgraph.1.in	2010-05-23 22:38:50.258531344 +0530
+@@ -82,7 +82,7 @@
+ The scroll wheel can be used to zoom in and out on the graph.
+ 
+ .SH SCRIPT OUTPUT SYNTAX
+-Scripts can output  Comma Seperated Values (CSV) which will be interpreted by
++Scripts can output  Comma Separated Values (CSV) which will be interpreted by
+ .IR stapgraph.
+ The first value is the X coordinate of the graph, usually a time value.
+ .IR stapgraph
+Index: systemtap/runtime/access_process_vm.h
+===================================================================
+--- systemtap.orig/runtime/access_process_vm.h	2010-05-23 22:32:35.490032680 +0530
++++ systemtap/runtime/access_process_vm.h	2010-05-23 22:32:40.354031493 +0530
+@@ -26,7 +26,7 @@
+     return 0;
+ 
+   down_read (&mm->mmap_sem);
+-  /* ignore errors, just check how much was sucessfully transferred */
++  /* ignore errors, just check how much was successfully transferred */
+   while (len)
+     {
+       int bytes, ret, offset;
+Index: systemtap/runtime/uprobes/uprobes.c
+===================================================================
+--- systemtap.orig/runtime/uprobes/uprobes.c	2010-05-23 22:32:01.718032261 +0530
++++ systemtap/runtime/uprobes/uprobes.c	2010-05-23 22:32:09.682033169 +0530
+@@ -2717,7 +2717,7 @@
+ 		return 0;
+ 
+ 	down_read(&mm->mmap_sem);
+-	/* ignore errors, just check how much was sucessfully transfered */
++	/* ignore errors, just check how much was successfully transfered */
+ 	while (len) {
+ 		int bytes, ret, offset;
+ 		void *maddr;
+Index: systemtap/runtime/uprobes2/uprobes.c
+===================================================================
+--- systemtap.orig/runtime/uprobes2/uprobes.c	2010-05-23 22:32:18.206531135 +0530
++++ systemtap/runtime/uprobes2/uprobes.c	2010-05-23 22:32:24.178531065 +0530
+@@ -2991,7 +2991,7 @@
+ 		return 0;
+ 
+ 	down_read(&mm->mmap_sem);
+-	/* ignore errors, just check how much was sucessfully transfered */
++	/* ignore errors, just check how much was successfully transfered */
+ 	while (len) {
+ 		int bytes, ret, offset;
+ 		void *maddr;
+Index: systemtap/stap.1.in
+===================================================================
+--- systemtap.orig/stap.1.in	2010-05-23 22:24:52.978536234 +0530
++++ systemtap/stap.1.in	2010-05-23 22:26:25.822031982 +0530
+@@ -184,7 +184,7 @@
+ .TP
+ .BI \-o " FILE"
+ Send standard output to named file. In bulk mode, percpu files will
+-start with FILE_ (FILE_cpu with -F) followed by the cpu number.
++start with FILE_ (FILE_cpu with \-F) followed by the cpu number.
+ This supports strftime(3) formats for FILE.
+ .TP
+ .BI \-c " CMD"
+@@ -200,12 +200,12 @@
+ and aliases.
+ .TP
+ .BI \-L " PROBE"
+-Similar to "-l", but list probe points and script-level local variables.
++Similar to "\-l", but list probe points and script\-level local variables.
+ .TP
+ .BI \-F
+-Without -o option, load module and start probes, then detach from the module
++Without \-o option, load module and start probes, then detach from the module
+ leaving the probes running.
+-With -o option, run staprun in background as a daemon and show its pid.
++With \-o option, run staprun in background as a daemon and show its pid.
+ .TP
+ .BI \-S " size[,N]"
+ Sets the maximum size of output file and the maximum number of output files.
+@@ -1070,7 +1070,7 @@
+ must be owned by root and not be world writable.
+ .IP \(bu 4
+ The module has been signed by a trusted signer. Trusted signers are normally
+-systemtap compile servers which sign modules when the --unprivileged option is
++systemtap compile servers which sign modules when the \-\-unprivileged option is
+ specified by the client. See the
+ .IR stap-server (8)
+ manual page for a for more information.
+Index: systemtap/staprun.8.in
+===================================================================
+--- systemtap.orig/staprun.8.in	2010-05-23 22:26:33.946032052 +0530
++++ systemtap/staprun.8.in	2010-05-23 22:26:57.122031912 +0530
+@@ -214,7 +214,7 @@
+ must be owned by root and not be world writable.
+ .IP \(bu 4
+ The module has been signed by a trusted signer. Trusted signers are normally
+-systemtap compile servers which sign modules when the --unprivileged option is
++systemtap compile servers which sign modules when the \-\-unprivileged option is
+ specified by the client. See the
+ .IR stap-server (8)
+ manual page for a for more information.
+Index: systemtap/tapset/signal.stp
+===================================================================
+--- systemtap.orig/tapset/signal.stp	2010-05-23 22:32:51.102033099 +0530
++++ systemtap/tapset/signal.stp	2010-05-23 22:33:18.666531275 +0530
+@@ -133,7 +133,7 @@
+  * Possible __group_send_sig_info and
+  * specific_send_sig_info return values are as follows;
+  *
+- * 0 -- The signal is sucessfully sent to a process,
++ * 0 -- The signal is successfully sent to a process,
+  * which means that:
+  * (1) the signal was ignored by the receiving process,
+  * (2) this is a non-RT signal and the system already has one queued, and
+@@ -146,7 +146,7 @@
+  * Possible send_group_sigqueue and
+  * send_sigqueue return values are as follows;
+  *
+- * 0 -- The signal was either sucessfully added into the
++ * 0 -- The signal was either successfully added into the
+  * sigqueue of the receiving process, or a SI_TIMER entry is already
+  * queued (in which case, the overrun count will be simply incremented).
+  *
+@@ -164,7 +164,7 @@
+ 
+ // Return values for "__group_send_sig_info" and "specific_send_sig_info"
+ //
+-// - return 0 if  the signal is sucessfully sent to a process,
++// - return 0 if  the signal is successfully sent to a process,
+ //   which means the following:
+ //     <1> the signal is ignored by receiving process
+ //     <2> this is a non-RT signal and we already have one queued
+@@ -204,7 +204,7 @@
+     send2queue = 0
+ }
+ 
+-// - return 0 if the signal is either sucessfully added into the
++// - return 0 if the signal is either successfully added into the
+ //   sigqueue of receiving process or a SI_TIMER entry is already
+ //   queued so just increment the overrun count
+ //
+@@ -218,7 +218,7 @@
+ }
+ %)
+ 
+-// - return 0 if the signal is either sucessfully added into the
++// - return 0 if the signal is either successfully added into the
+ //   sigqueue of receiving process or a SI_TIMER entry is already
+ //   queued so just increment the overrun count
+ //
+Index: systemtap/tapset/string.stp
+===================================================================
+--- systemtap.orig/tapset/string.stp	2010-05-23 22:30:16.790533021 +0530
++++ systemtap/tapset/string.stp	2010-05-23 22:30:25.810031772 +0530
+@@ -10,7 +10,7 @@
+  * sfunction strlen - Returns the length of a string.
+  * @s: the string
+  *
+- * Description: Returns the lenght of the string, which can be zero up
++ * Description: Returns the length of the string, which can be zero up
+  * to MAXSTRINGLEN.
+  */
+ function strlen:long(s:string) %{ /* pure */ /* unprivileged */
+Index: systemtap/translate.cxx
+===================================================================
+--- systemtap.orig/translate.cxx	2010-05-23 22:30:36.514532462 +0530
++++ systemtap/translate.cxx	2010-05-23 22:30:46.102543636 +0530
+@@ -4566,7 +4566,7 @@
+ 
+ 
+ // Get the .debug_frame end .eh_frame sections for the given module.
+-// Also returns the lenght of both sections when found, plus the section
++// Also returns the length of both sections when found, plus the section
+ // address (offset) of the eh_frame data.
+ static void get_unwind_data (Dwfl_Module *m,
+ 			     void **debug_frame, void **eh_frame,

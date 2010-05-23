@@ -1,3 +1,4 @@
+manpage-and-spelling-error-fixes.patch
 no-make-distclean-for-man.diff
 stapex-docdir-path.diff
 use-pdflatex.diff
