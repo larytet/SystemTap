@@ -89,6 +89,9 @@ override_dh_fixperms:
 	dh_fixperms
 	chmod 4755 debian/systemtap-runtime/usr/bin/staprun
 
+override_dh_installchangelogs:
+	        dh_installchangelogs debian/changelog
+
 .PHONY: build clean binary-indep binary-arch binary install patch get-orig-source
 .PHONY: override_dh_auto_configure override_dh_auto_test override_dh_auto_install
 .PHONY: override_dh_auto_clean override_dh_compress override_dh_fixperms
