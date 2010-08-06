@@ -260,7 +260,7 @@ utrace_var_expanding_visitor::visit_target_symbol_cached (target_symbol* e)
       //
       //   _utrace_tvar_{name}_{num}
       string aname = (string("_utrace_tvar_")
-		      + e->base_name.substr(1)
+		      + e->name.substr(1)
 		      + "_" + lex_cast(tick++));
       vardecl* vd = new vardecl;
       vd->name = aname;
@@ -408,7 +408,7 @@ utrace_var_expanding_visitor::visit_target_symbol_cached (target_symbol* e)
 	   vd->tok = e->tok;
 	   vd->name = tidsym->name;
 	   vd->type = pe_long;
-	   vd->set_arity(0);
+	   vd->set_arity(0, e->tok);
 	   add_probe->locals.push_back(vd);
 	}
 
@@ -446,7 +446,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
   if (flags != UDPF_SYSCALL)
     throw semantic_error ("only \"process(PATH_OR_PID).syscall\" support $argN or $$parms.", e->tok);
 
-  if (e->base_name == "$$parms") 
+  if (e->name == "$$parms")
     {
       // copy from tracepoint
       token* pf_tok = new token(*e->tok);
@@ -462,7 +462,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
           pf->raw_components += "$arg" + lex_cast(i+1);
           target_symbol *tsym = new target_symbol;
           tsym->tok = e->tok;
-          tsym->base_name = "$arg" + lex_cast(i+1);
+          tsym->name = "$arg" + lex_cast(i+1);
           tsym->saved_conversion_error = 0;
           pf->raw_components += "=%#x"; //FIXME: missing type info
 
@@ -479,10 +479,10 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       pf->components = print_format::string_to_components(pf->raw_components);
 
       provide (pf);
-     } 
+     }
    else // $argN
      {
-        string argnum_s = e->base_name.substr(4,e->base_name.length()-4);
+        string argnum_s = e->name.substr(4,e->name.length()-4);
         int argnum = 0;
         try
           {
@@ -524,7 +524,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 void
 utrace_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
-  string sname = e->base_name;
+  const string& sname = e->name;
 
   e->assert_no_components("utrace");
 
@@ -580,28 +580,28 @@ utrace_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 void
 utrace_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 {
-  assert(e->base_name.size() > 0 && e->base_name[0] == '$');
+  assert(e->name.size() > 0 && e->name[0] == '$');
 
-  try 
+  try
     {
       if (flags != UDPF_SYSCALL && flags != UDPF_SYSCALL_RETURN)
         throw semantic_error ("only \"process(PATH_OR_PID).syscall\" and \"process(PATH_OR_PID).syscall.return\" probes support target symbols",
                               e->tok);
-      
+
       if (e->addressof)
         throw semantic_error("cannot take address of utrace variable", e->tok);
-      
-      if (startswith(e->base_name, "$arg") || e->base_name == "$$parms")
+
+      if (startswith(e->name, "$arg") || e->name == "$$parms")
         visit_target_symbol_arg(e);
-      else if (e->base_name == "$syscall" || e->base_name == "$return")
+      else if (e->name == "$syscall" || e->name == "$return")
         visit_target_symbol_context(e);
       else
         throw semantic_error ("invalid target symbol for utrace probe, $syscall, $return, $argN or $$parms expected",
                               e->tok);
     }
-  catch (const semantic_error &er) 
+  catch (const semantic_error &er)
     {
-      e->chain (new semantic_error(er));
+      e->chain (er);
       provide(e);
       return;
     }
@@ -713,8 +713,7 @@ utrace_derived_probe_group::emit_probe_decl (systemtap_session& s,
   s.op->line() << " .munmap_callback=NULL,";
   s.op->line() << " .mprotect_callback=NULL,";
   s.op->line() << " },";
-  s.op->line() << " .pp=" << lex_cast_qstring (*p->sole_location()) << ",";
-  s.op->line() << " .ph=&" << p->name << ",";
+  s.op->line() << " .probe=" << common_probe_init (p) << ",";
 
   // Handle flags
   switch (p->flags)
@@ -791,8 +790,7 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "struct stap_utrace_probe {";
   s.op->indent(1);
   s.op->newline() << "struct stap_task_finder_target tgt;";
-  s.op->newline() << "const char *pp;";
-  s.op->newline() << "void (*ph) (struct context*);";
+  s.op->newline() << "struct stap_probe probe;";
   s.op->newline() << "int engine_attached;";
   s.op->newline() << "enum utrace_derived_probe_flags flags;";
   s.op->newline() << "struct utrace_engine_ops ops;";
@@ -808,10 +806,10 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "static void stap_utrace_probe_handler(struct task_struct *tsk, struct stap_utrace_probe *p) {";
       s.op->indent(1);
 
-      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->pp");
+      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe");
 
       // call probe function
-      s.op->newline() << "(*p->ph) (c);";
+      s.op->newline() << "(*p->probe.ph) (c);";
       common_probe_entryfn_epilogue (s.op);
 
       s.op->newline() << "return;";
@@ -834,11 +832,12 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->indent(1);
       s.op->newline() << "struct stap_utrace_probe *p = (struct stap_utrace_probe *)engine->data;";
 
-      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->pp");
+      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe");
       s.op->newline() << "c->regs = regs;";
+      s.op->newline() << "c->regflags |= _STP_REGS_USER_FLAG;";
 
       // call probe function
-      s.op->newline() << "(*p->ph) (c);";
+      s.op->newline() << "(*p->probe.ph) (c);";
       common_probe_entryfn_epilogue (s.op);
 
       s.op->newline() << "if ((atomic_read (&session_state) != STAP_SESSION_STARTING) && (atomic_read (&session_state) != STAP_SESSION_RUNNING)) {";
@@ -1029,7 +1028,7 @@ utrace_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline() << "/* ---- utrace probes ---- */";
   s.op->newline() << "for (i=0; i<ARRAY_SIZE(stap_utrace_probes); i++) {";
   s.op->newline(1) << "struct stap_utrace_probe *p = &stap_utrace_probes[i];";
-  s.op->newline() << "probe_point = p->pp;"; // for error messages
+  s.op->newline() << "probe_point = p->probe.pp;"; // for error messages
   s.op->newline() << "rc = stap_register_task_finder_target(&p->tgt);";
 
   // NB: if (rc), there is no need (XXX: nor any way) to clean up any

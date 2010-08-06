@@ -14,6 +14,7 @@ AM_CXXFLAGS = -Wall -Werror
 
 man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap \
 dtrace.1 \
+stappaths.7 \
 staprun.8
 
 bin_PROGRAMS = staprun
@@ -42,14 +43,14 @@ pkglibexec_SCRIPTS += stap-serverd stap-find-servers \
 endif
 endif
 
-stap_SOURCES = main.cxx \
+stap_SOURCES = main.cxx session.cxx \
 	parse.cxx staptree.cxx elaborate.cxx translate.cxx \
 	tapsets.cxx buildrun.cxx loc2c.c hash.cxx mdfour.c \
 	cache.cxx util.cxx coveragedb.cxx dwarf_wrappers.cxx \
 	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
 	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
-	setupdwfl.cxx
+	setupdwfl.cxx csclient.cxx
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@
 stap_DEPENDENCIES =
 endif
@@ -97,10 +98,21 @@ PHONIES =
 if BUILD_TRANSLATOR
 stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ -D_FILE_OFFSET_BITS=64
 stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@
-stap_CPPFLAGS = $(AM_CPPFLAGS)
+stap_CPPFLAGS = $(AM_CPPFLAGS) -DSTAP_SDT_V2
 stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
 
+if HAVE_AVAHI
+stap_CXXFLAGS += $(avahi_CFLAGS)
+stap_CPPFLAGS += $(avahi_CFLAGS)
+stap_LDADD += -lavahi-client -lavahi-common
+endif
+
 if HAVE_NSS
+stap_SOURCES += stap-client-connect.c nsscommon.c
+stap_CFLAGS += $(nss_CFLAGS) $(nspr_CFLAGS) -DSTAP
+stap_CXXFLAGS += $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_CPPFLAGS += $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_LDADD += -lssl3 -lnss3 -lnspr4 -lplc4
 stap_client_connect_LDFLAGS = $(AM_LDFLAGS)
 stap_server_connect_LDFLAGS = $(AM_LDFLAGS)
 stap_sign_module_LDFLAGS = $(AM_LDFLAGS)
@@ -309,7 +321,8 @@ endif
 	(cd $(srcdir)/man; for f in *.3*; do rm -rf "$(DESTDIR)$(man3dir)/$$f"; done)
 
 SUBDIRS = doc grapher
-DIST_SUBDIRS = testsuite man $(SUBDIRS)
+DIST_SUBDIRS = testsuite $(SUBDIRS)
+EXTRA_DIST = man/tapset*.3stap
 
 check-local:
 	SRCDIR=`cd $(srcdir); pwd`; \

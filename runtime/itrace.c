@@ -72,7 +72,11 @@ struct itrace_info {
 static u32 debug = 0 /* 1 */;
 
 static LIST_HEAD(usr_itrace_info);
+#ifdef CONFIG_PREEMPT_RT
+static raw_spinlock_t itrace_lock;
+#else
 static spinlock_t itrace_lock;
+#endif
 static struct itrace_info *create_itrace_info(
 	struct task_struct *tsk, u32 step_flag,
 	struct stap_itrace_probe *itrace_probe);
@@ -356,6 +360,11 @@ void static remove_usr_itrace_info(struct itrace_info *ui)
 
 	if (ui->tsk && ui->engine) {
 		status = utrace_control(ui->tsk, ui->engine, UTRACE_DETACH);
+		if (status == -EINPROGRESS) {
+			do {
+				status = utrace_barrier(ui->tsk, ui->engine);
+			} while (status == -ERESTARTSYS);
+		}
 		if (status < 0 && status != -ESRCH && status != -EALREADY)
 			printk(KERN_ERR
 			       "utrace_control(UTRACE_DETACH) returns %d\n",

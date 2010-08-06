@@ -1,5 +1,8 @@
 // IP tapset
+//
 // Copyright (C) 2009, IBM Inc.
+// Copyright (C) 2010, Red Hat Inc.
+//
 // Author : Breno Leitao <leitao@linux.vnet.ibm.com>
 //
 // This file is free software.  You can redistribute it and/or modify it under
@@ -26,25 +29,31 @@ function ip_ntop:string (addr:long)
 /* return the source IP address for a given sock */
 function __ip_sock_saddr:long (sock:long)
 {
-%(kernel_v < "2.6.33" %?
-	return @cast(sock, "inet_sock")->saddr
-%:
-	return @cast(sock, "inet_sock")->inet_saddr
-%)
+    return (@defined(@cast(sock, "inet_sock")->inet_saddr)
+	    ? @cast(sock, "inet_sock")->inet_saddr # kernel >= 2.6.33
+	    : (@defined(@cast(sock, "inet_sock")->saddr)
+	       ? @cast(sock, "inet_sock", "kernel")->saddr # kernel >= 2.6.11
+	       : @cast(sock, "inet_sock", "kernel<net/ip.h>")->inet->saddr))
 }
 
 /* return the destination IP address for a given sock */
 function __ip_sock_daddr:long (sock:long)
 {
-%(kernel_v < "2.6.33" %?
-	return @cast(sock, "inet_sock")->daddr
-%:
-	return @cast(sock, "inet_sock")->inet_daddr
-%)
+    return (@defined(@cast(sock, "inet_sock")->inet_daddr)
+	    ? @cast(sock, "inet_sock")->inet_daddr # kernel >= 2.6.33
+	    : (@defined(@cast(sock, "inet_sock")->daddr)
+	       ? @cast(sock, "inet_sock", "kernel")->daddr # kernel >= 2.6.11
+	       : @cast(sock, "inet_sock", "kernel<net/ip.h>")->inet->daddr))
 }
 
-/* Get the IP header for recent (> 2.6.21) kernels */
-function __get_skb_iphdr_new:long(skb:long)
+/* Get the IP header from a sk_buff struct */
+function __get_skb_iphdr:long(skb:long)
+%( kernel_v < "2.6.21" %?
+{
+	iphdr = @cast(skb, "sk_buff")->nh->raw
+	return iphdr
+}
+%:
 %{ /* pure */
 	struct sk_buff *skb;
 	skb = (struct sk_buff *)(long)THIS->skb;
@@ -56,16 +65,7 @@ function __get_skb_iphdr_new:long(skb:long)
 	#endif
 	CATCH_DEREF_FAULT();
 %}
-
-/* Get the IP header from a sk_buff struct */
-function __get_skb_iphdr:long(skb:long){
-%( kernel_v < "2.6.21" %?
-	iphdr = @cast(skb, "sk_buff")->nh->raw
-	return iphdr
-%:
-	return __get_skb_iphdr_new(skb)
 %)
-}
 
 /* return the source next layer protocol for a given sk_buff structure */
 function __ip_skb_proto:long (iphdr)

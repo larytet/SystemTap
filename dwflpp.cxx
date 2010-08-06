@@ -99,6 +99,7 @@ dwflpp::~dwflpp()
 {
   delete_map(module_cu_cache);
   delete_map(cu_function_cache);
+  delete_map(mod_function_cache);
   delete_map(cu_inl_function_cache);
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
@@ -796,9 +797,16 @@ dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
 
 
 int
+dwflpp::mod_function_caching_callback (Dwarf_Die* cu, void *arg)
+{
+  dwarf_getfuncs (cu, cu_function_caching_callback, arg, 0);
+  return DWARF_CB_OK;
+}
+
+
+int
 dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
-                                base_query * q, const string& function,
-                                bool has_statement_num)
+                                base_query * q, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -848,18 +856,62 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
             }
         }
     }
-  else if (has_statement_num) // searching all for kernel.statement
-    {
-      for (it = v->begin(); it != v->end(); ++it)
-        {
-          rc = (*callback)(&it->second, q);
-          if (rc != DWARF_CB_OK) break;
-        }
-    }
   else // not a wildcard and no match in this CU
     {
       // do nothing
     }
+  return rc;
+}
+
+
+int
+dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query * q),
+                                 base_query * q, const string& function)
+{
+  int rc = DWARF_CB_OK;
+  assert (module);
+
+  get_module_dwarf(false);
+  if (!module_dwarf)
+    return rc;
+
+  cu_function_cache_t *v = mod_function_cache[module_dwarf];
+  if (v == 0)
+    {
+      v = new cu_function_cache_t;
+      mod_function_cache[module_dwarf] = v;
+      iterate_over_cus (mod_function_caching_callback, v);
+      if (sess.verbose > 4)
+        clog << "module function cache " << module_name
+             << " size " << v->size() << endl;
+      mod_info->update_symtab(v);
+    }
+
+  cu_function_cache_t::iterator it;
+  cu_function_cache_range_t range = v->equal_range(function);
+  if (range.first != range.second)
+    {
+      for (it = range.first; it != range.second; ++it)
+        {
+          Dwarf_Die cu_mem;
+          Dwarf_Die& die = it->second;
+          if (sess.verbose > 4)
+            clog << "module function cache " << module_name
+              << " hit " << function << endl;
+
+          // since we're iterating out of cu-context, we need each focus
+          focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
+
+          rc = (*callback)(& die, q);
+          if (rc != DWARF_CB_OK) break;
+        }
+    }
+
+  // undo the focus_on_cu
+  this->cu = NULL;
+  this->function_name.clear();
+  this->function = NULL;
+
   return rc;
 }
 
@@ -1491,8 +1543,21 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
   // Turn this address into a section-relative offset if it should be one.
   // We emit a comment approximating the variable+offset expression that
   // relocatable module probing code will need to have.
-  Dwfl_Module *mod = dwfl_addrmodule (dwfl_ptr.get()->dwfl, address);
-  dwfl_assert ("dwfl_addrmodule", mod);
+  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+  if (! dwfl)
+    throw semantic_error ("emit_address internal error, no dwfl");
+
+  Dwfl_Module *mod = dwfl_addrmodule (dwfl, address);
+  if (! mod)
+    {
+      ostringstream msg;
+      msg << "emit_address internal error, dwfl_addrmodule failed, "
+	     "address 0x" << hex << address << dec;
+      const char *err = dwfl_errmsg(0);
+      if (err)
+	msg << " (" << err << ")";
+      throw semantic_error (msg.str());
+    }
   const char *modname = dwfl_module_info (mod, NULL, NULL, NULL,
                                               NULL, NULL, NULL, NULL);
   int n = dwfl_module_relocations (mod);
@@ -1520,7 +1585,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           // This gives us the module name, and section name within the
           // module, for a kernel module (or other ET_REL module object).
           obstack_printf (pool, "({ unsigned long addr = 0; ");
-          obstack_printf (pool, "addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 ", NULL); ",
+          obstack_printf (pool, "addr = _stp_kmodule_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
                           modname, secname, reloc_address);
           obstack_printf (pool, "addr; })");
         }
@@ -1534,7 +1599,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           // kernel will never move after being loaded (unlike modules and
           // user-space dynamic share libraries).
           obstack_printf (pool, "({ static unsigned long addr = 0; ");
-          obstack_printf (pool, "if (addr==0) addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 ", NULL); ",
+          obstack_printf (pool, "if (addr==0) addr = _stp_kmodule_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
                           modname, secname, address); // PR10000 NB: not reloc_address
           obstack_printf (pool, "addr; })");
         }
@@ -1542,8 +1607,8 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
         {
           enable_task_finder (sess);
           obstack_printf (pool, "({ unsigned long addr = 0; ");
-          obstack_printf (pool, "addr = _stp_module_relocate (\"%s\",\"%s\",%#" PRIx64 ", current); ",
-                          modname, ".dynamic", reloc_address);
+          obstack_printf (pool, "addr = _stp_umodule_relocate (\"%s\",%#" PRIx64 ", current); ",
+                          canonicalize_file_name(modname), reloc_address);
           obstack_printf (pool, "addr; })");
         }
     }
@@ -1580,7 +1645,7 @@ dwflpp::print_locals(vector<Dwarf_Die>& scopes, ostream &o)
             case DW_TAG_formal_parameter:
               name = dwarf_diename (&child);
               if (name)
-                o << " " << name;
+                o << " $" << name;
               break;
             default:
               break;
@@ -1683,6 +1748,7 @@ dwflpp::translate_location(struct obstack *pool,
   if (dwarf_whatattr (attr) == DW_AT_data_member_location)
     {
       Dwarf_Op offset_loc;
+      memset(&offset_loc, 0, sizeof(Dwarf_Op));
       offset_loc.atom = DW_OP_plus_uconst;
       if (dwarf_formudata (attr, &offset_loc.number) == 0)
         return c_translate_location (pool, &loc2c_error, this,
@@ -1869,25 +1935,25 @@ success:
 }
 
 
-Dwarf_Die *
+static inline void
+dwarf_die_type (Dwarf_Die *die, Dwarf_Die *typedie_mem, const token *tok=NULL)
+{
+  if (!dwarf_attr_die (die, DW_AT_type, typedie_mem))
+    throw semantic_error ("cannot get type of field: "
+			  + string(dwarf_errmsg(-1)), tok);
+}
+
+
+void
 dwflpp::translate_components(struct obstack *pool,
                              struct location **tail,
                              Dwarf_Addr pc,
                              const target_symbol *e,
                              Dwarf_Die *vardie,
-                             Dwarf_Die *die_mem,
-                             Dwarf_Attribute *attr_mem)
+                             Dwarf_Die *typedie,
+                             unsigned first)
 {
-  Dwarf_Die *die = NULL;
-
-  unsigned i = 0;
-
-  if (vardie)
-    *die_mem = *vardie;
-
-  if (e->components.empty())
-    return die_mem;
-
+  unsigned i = first;
   while (i < e->components.size())
     {
       const target_symbol::component& c = e->components[i];
@@ -1901,105 +1967,112 @@ dwflpp::translate_components(struct obstack *pool,
       obstack_printf (pool, "c->last_stmt = %s;", lex_cast_qstring(piece).c_str());
 #endif
 
-      die = die ? dwarf_formref_die (attr_mem, die_mem) : die_mem;
-      const int typetag = dwarf_tag (die);
-      switch (typetag)
+      switch (dwarf_tag (typedie))
         {
         case DW_TAG_typedef:
         case DW_TAG_const_type:
         case DW_TAG_volatile_type:
           /* Just iterate on the referent type.  */
+          dwarf_die_type (typedie, typedie, c.tok);
           break;
 
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
-          c_translate_pointer (pool, 1, 0 /* PR9768*/, die, tail);
+          if (pool)
+            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+          dwarf_die_type (typedie, typedie, c.tok);
           break;
 
         case DW_TAG_pointer_type:
           /* A pointer with no type is a void* -- can't dereference it. */
-          if (!dwarf_hasattr_integrate (die, DW_AT_type))
+          if (!dwarf_hasattr_integrate (typedie, DW_AT_type))
             throw semantic_error ("invalid access '" + lex_cast(c)
-                                  + "' vs. " + dwarf_type_name(die),
+                                  + "' vs. " + dwarf_type_name(typedie),
                                   c.tok);
 
-          c_translate_pointer (pool, 1, 0 /* PR9768*/, die, tail);
+          if (pool)
+            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
-            break;
+            {
+              dwarf_die_type (typedie, typedie, c.tok);
+              break;
+            }
           /* else fall through as an array access */
 
         case DW_TAG_array_type:
           if (c.type == target_symbol::comp_literal_array_index)
             {
-              c_translate_array (pool, 1, 0 /* PR9768 */, die, tail,
-                                 NULL, c.num_index);
-              ++i;
+              if (pool)
+                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                                   NULL, c.num_index);
             }
           else if (c.type == target_symbol::comp_expression_array_index)
             {
               string index = "THIS->index" + lex_cast(i);
-              c_translate_array (pool, 1, 0 /* PR9768 */, die, tail,
-                                 index.c_str(), 0);
-              ++i;
+              if (pool)
+                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                                   index.c_str(), 0);
             }
           else
-            throw semantic_error ("invalid access '"
-                                  + lex_cast(c)
-                                  + "' for array type",
-                                  c.tok);
+            throw semantic_error ("invalid access '" + lex_cast(c)
+                                  + "' for array type", c.tok);
+
+          dwarf_die_type (typedie, typedie, c.tok);
+          *vardie = *typedie;
+          ++i;
           break;
 
         case DW_TAG_structure_type:
         case DW_TAG_union_type:
         case DW_TAG_class_type:
           if (c.type != target_symbol::comp_struct_member)
-            throw semantic_error ("invalid access '"
-                                  + lex_cast(c)
-                                  + "' for " + dwarf_type_name(die),
+            throw semantic_error ("invalid access '" + lex_cast(c)
+                                  + "' for " + dwarf_type_name(typedie),
                                   c.tok);
 
-          if (dwarf_hasattr(die, DW_AT_declaration))
+          if (dwarf_hasattr(typedie, DW_AT_declaration))
             {
-              Dwarf_Die *tmpdie = dwflpp::declaration_resolve(dwarf_diename(die));
+              Dwarf_Die *tmpdie = dwflpp::declaration_resolve(dwarf_diename(typedie));
               if (tmpdie == NULL)
-                throw semantic_error ("unresolved " + dwarf_type_name(die),
+                throw semantic_error ("unresolved " + dwarf_type_name(typedie),
                                       c.tok);
-              *die_mem = *tmpdie;
+              *typedie = *tmpdie;
             }
 
             {
-              Dwarf_Die parentdie = *die;
               vector<Dwarf_Attribute> locs;
-              if (!find_struct_member(c, &parentdie, die, locs))
+              if (!find_struct_member(c, typedie, vardie, locs))
                 {
                   /* Add a file:line hint for anonymous types */
                   string source;
-                  if (!dwarf_hasattr_integrate(&parentdie, DW_AT_name))
+                  if (!dwarf_hasattr_integrate(typedie, DW_AT_name))
                     {
                       int line;
-                      const char *file = dwarf_decl_file(&parentdie);
-                      if (file && dwarf_decl_line(&parentdie, &line) == 0)
+                      const char *file = dwarf_decl_file(typedie);
+                      if (file && dwarf_decl_line(typedie, &line) == 0)
                         source = " (" + string(file) + ":"
                                  + lex_cast(line) + ")";
                     }
 
                   string alternatives;
                   stringstream members;
-                  print_members(&parentdie, members);
+                  print_members(typedie, members);
                   if (members.str().size() != 0)
                     alternatives = " (alternatives:" + members.str() + ")";
                   throw semantic_error("unable to find member '" +
                                        c.member + "' for "
-                                       + dwarf_type_name(&parentdie)
+                                       + dwarf_type_name(typedie)
                                        + source + alternatives,
                                        c.tok);
                 }
 
               for (unsigned j = 0; j < locs.size(); ++j)
-                translate_location (pool, &locs[j], pc, NULL, tail, e);
+                if (pool)
+                  translate_location (pool, &locs[j], pc, NULL, tail, e);
             }
 
+          dwarf_die_type (vardie, typedie, c.tok);
           ++i;
           break;
 
@@ -2007,7 +2080,7 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_base_type:
           throw semantic_error ("invalid access '"
                                 + lex_cast(c)
-                                + "' vs. " + dwarf_type_name(die),
+                                + "' vs. " + dwarf_type_name(typedie),
                                 c.tok);
           break;
 
@@ -2017,48 +2090,30 @@ dwflpp::translate_components(struct obstack *pool,
           break;
 
         default:
-          throw semantic_error (dwarf_type_name(die) + ": unexpected type tag "
-                                + lex_cast(dwarf_tag (die)),
+          throw semantic_error (dwarf_type_name(typedie) + ": unexpected type tag "
+                                + lex_cast(dwarf_tag (typedie)),
                                 c.tok);
           break;
         }
-
-      /* Now iterate on the type in DIE's attribute.  */
-      if (dwarf_attr_integrate (die, DW_AT_type, attr_mem) == NULL)
-        throw semantic_error ("cannot get type of field: " + string(dwarf_errmsg (-1)),
-                              c.tok);
     }
-
-  /* For an array index, we need to dereference the final DIE */
-  if (e->components.back().type == target_symbol::comp_literal_array_index ||
-      e->components.back().type == target_symbol::comp_expression_array_index)
-    die = dwarf_formref_die (attr_mem, die_mem);
-
-  return die;
 }
 
 
-Dwarf_Die *
-dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie_mem,
-                                           Dwarf_Attribute *attr_mem,
+void
+dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
+                                           Dwarf_Die *innerdie,
                                            const target_symbol *e)
 {
-  Dwarf_Die *typedie;
-  int typetag = 0;
-  while (1)
+  int typetag = dwarf_tag (typedie);
+  *innerdie = *typedie;
+  while (typetag == DW_TAG_typedef ||
+         typetag == DW_TAG_const_type ||
+         typetag == DW_TAG_volatile_type)
     {
-      typedie = dwarf_formref_die (attr_mem, typedie_mem);
-      if (typedie == NULL)
-        throw semantic_error ("cannot get type: " + string(dwarf_errmsg (-1)), e->tok);
-      typetag = dwarf_tag (typedie);
-      if (typetag != DW_TAG_typedef &&
-          typetag != DW_TAG_const_type &&
-          typetag != DW_TAG_volatile_type)
-        break;
-      if (dwarf_attr_integrate (typedie, DW_AT_type, attr_mem) == NULL)
+      if (!dwarf_attr_die (innerdie, DW_AT_type, innerdie))
         throw semantic_error ("cannot get type of pointee: " + string(dwarf_errmsg (-1)), e->tok);
+      typetag = dwarf_tag (innerdie);
     }
-  return typedie;
 }
 
 
@@ -2066,8 +2121,8 @@ void
 dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                                         struct location **tail,
                                         Dwarf_Addr module_bias,
-                                        Dwarf_Die *die,
-                                        Dwarf_Attribute *attr_mem,
+                                        Dwarf_Die *vardie,
+                                        Dwarf_Die *start_typedie,
                                         bool lvalue,
                                         const target_symbol *e,
                                         string &,
@@ -2077,12 +2132,8 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
   /* First boil away any qualifiers associated with the type DIE of
      the final location to be accessed.  */
 
-  Dwarf_Die typedie_mem;
-  Dwarf_Die *typedie;
-  int typetag;
-
-  typedie = resolve_unqualified_inner_typedie (&typedie_mem, attr_mem, e);
-  typetag = dwarf_tag (typedie);
+  Dwarf_Die typedie_mem, *typedie = &typedie_mem;
+  resolve_unqualified_inner_typedie (start_typedie, typedie, e);
 
   /* If we're looking for an address, then we can just provide what
      we computed to this point, without using a fetch/store. */
@@ -2091,10 +2142,10 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       if (lvalue)
         throw semantic_error ("cannot write to member address", e->tok);
 
-      if (dwarf_hasattr_integrate (die, DW_AT_bit_offset))
+      if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
         throw semantic_error ("cannot take address of bit-field", e->tok);
 
-      c_translate_addressof (pool, 1, 0, 0, die, tail, "THIS->__retvalue");
+      c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "THIS->__retvalue");
       ty = pe_long;
       return;
     }
@@ -2102,6 +2153,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
   /* Then switch behavior depending on the type of fetch/store we
      want, and the type and pointer-ness of the final location. */
 
+  int typetag = dwarf_tag (typedie);
   switch (typetag)
     {
     default:
@@ -2145,10 +2197,10 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
 
       ty = pe_long;
       if (lvalue)
-        c_translate_store (pool, 1, 0 /* PR9768 */, die, typedie, tail,
+        c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
                            "THIS->value");
       else
-        c_translate_fetch (pool, 1, 0 /* PR9768 */, die, typedie, tail,
+        c_translate_fetch (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
                            "THIS->__retvalue");
       break;
 
@@ -2156,20 +2208,6 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
     case DW_TAG_pointer_type:
     case DW_TAG_reference_type:
     case DW_TAG_rvalue_reference_type:
-
-        {
-        Dwarf_Die pointee_typedie_mem;
-        Dwarf_Die *pointee_typedie;
-        Dwarf_Word pointee_encoding;
-        Dwarf_Word pointee_byte_size = 0;
-
-        pointee_typedie = resolve_unqualified_inner_typedie (&pointee_typedie_mem, attr_mem, e);
-
-        if (dwarf_attr_integrate (pointee_typedie, DW_AT_byte_size, attr_mem))
-          dwarf_formudata (attr_mem, &pointee_byte_size);
-
-        dwarf_formudata (dwarf_attr_integrate (pointee_typedie, DW_AT_encoding, attr_mem),
-                         &pointee_encoding);
 
         if (lvalue)
           {
@@ -2197,10 +2235,9 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
               c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
             else
               c_translate_pointer (pool, 1, 0 /* PR9768 */, typedie, tail);
-            c_translate_addressof (pool, 1, 0 /* PR9768 */, NULL, pointee_typedie, tail,
+            c_translate_addressof (pool, 1, 0 /* PR9768 */, NULL, NULL, tail,
                                    "THIS->__retvalue");
           }
-        }
       break;
     }
 }
@@ -2320,6 +2357,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
       && dwarf_attr_integrate (&vardie, DW_AT_location, &attr_mem) == NULL)
     {
       Dwarf_Op addr_loc;
+      memset(&addr_loc, 0, sizeof(Dwarf_Op));
       addr_loc.atom = DW_OP_addr;
       // If it is an external variable try the symbol table. PR10622.
       if (dwarf_attr_integrate (&vardie, DW_AT_external, &attr_mem) != NULL
@@ -2341,16 +2379,15 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
   else
     head = translate_location (&pool, &attr_mem, pc, fb_attr, &tail, e);
 
-  if (dwarf_attr_integrate (&vardie, DW_AT_type, &attr_mem) == NULL)
+  /* Translate the ->bar->baz[NN] parts. */
+
+  Dwarf_Die typedie;
+  if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
     throw semantic_error("failed to retrieve type "
                          "attribute for local '" + local + "'",
                          e->tok);
 
-  /* Translate the ->bar->baz[NN] parts. */
-
-  Dwarf_Die die_mem, *die = dwarf_formref_die (&attr_mem, &die_mem);
-  die = translate_components (&pool, &tail, pc, e,
-                              die, &die_mem, &attr_mem);
+  translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
   /* Translate the assignment part, either
      x = $foo->bar->baz[NN]
@@ -2360,11 +2397,32 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
-                                  die, &attr_mem, lvalue, e,
+                                  &vardie, &typedie, lvalue, e,
                                   prelude, postlude, ty);
 
   /* Write the translation to a string. */
   return express_as_string(prelude, postlude, head);
+}
+
+Dwarf_Die*
+dwflpp::type_die_for_local (vector<Dwarf_Die>& scopes,
+                            Dwarf_Addr pc,
+                            string const & local,
+                            const target_symbol *e,
+                            Dwarf_Die *typedie)
+{
+  Dwarf_Die vardie;
+  Dwarf_Attribute attr_mem;
+
+  find_variable_and_frame_base (scopes, pc, local, e, &vardie, &attr_mem);
+
+  if (dwarf_attr_die (&vardie, DW_AT_type, typedie) == NULL)
+    throw semantic_error("failed to retrieve type "
+                         "attribute for local '" + local + "'",
+                         e->tok);
+
+  translate_components (NULL, NULL, pc, e, &vardie, typedie);
+  return typedie;
 }
 
 
@@ -2417,17 +2475,15 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
 
   /* Translate the ->bar->baz[NN] parts. */
 
-  Dwarf_Attribute attr_mem;
-  if (dwarf_attr_integrate (scope_die, DW_AT_type, &attr_mem) == NULL)
+  Dwarf_Die vardie = *scope_die, typedie;
+  if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
     throw semantic_error("failed to retrieve return value type attribute for "
-                         + string(dwarf_diename(scope_die) ?: "<unknown>")
+                         + string(dwarf_diename(&vardie) ?: "<unknown>")
                          + "(" + string(dwarf_diename(cu) ?: "<unknown>")
                          + ")",
                          e->tok);
 
-  Dwarf_Die die_mem, *die = dwarf_formref_die (&attr_mem, &die_mem);
-  die = translate_components (&pool, &tail, pc, e,
-                              die, &die_mem, &attr_mem);
+  translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
   /* Translate the assignment part, either
      x = $return->bar->baz[NN]
@@ -2437,23 +2493,41 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
 
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
-                                  die, &attr_mem, lvalue, e,
+                                  &vardie, &typedie, lvalue, e,
                                   prelude, postlude, ty);
 
   /* Write the translation to a string. */
   return express_as_string(prelude, postlude, head);
 }
 
+Dwarf_Die*
+dwflpp::type_die_for_return (Dwarf_Die *scope_die,
+                             Dwarf_Addr pc,
+                             const target_symbol *e,
+                             Dwarf_Die *typedie)
+{
+  Dwarf_Die vardie = *scope_die;
+  if (dwarf_attr_die (&vardie, DW_AT_type, typedie) == NULL)
+    throw semantic_error("failed to retrieve return value type attribute for "
+                         + string(dwarf_diename(&vardie) ?: "<unknown>")
+                         + "(" + string(dwarf_diename(cu) ?: "<unknown>")
+                         + ")",
+                         e->tok);
+
+  translate_components (NULL, NULL, pc, e, &vardie, typedie);
+  return typedie;
+}
+
 
 string
-dwflpp::literal_stmt_for_pointer (Dwarf_Die *type_die,
+dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
                                   const target_symbol *e,
                                   bool lvalue,
                                   exp_type & ty)
 {
   if (sess.verbose>2)
       clog << "literal_stmt_for_pointer: finding value for "
-           << dwarf_type_name(type_die)
+           << dwarf_type_name(start_typedie)
            << "("
            << (dwarf_diename(cu) ?: "<unknown>")
            << ")\n";
@@ -2467,10 +2541,33 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *type_die,
 
   /* Translate the ->bar->baz[NN] parts. */
 
-  Dwarf_Attribute attr_mem;
-  Dwarf_Die die_mem, *die = NULL;
-  die = translate_components (&pool, &tail, 0, e,
-                              type_die, &die_mem, &attr_mem);
+  unsigned first = 0;
+  Dwarf_Die typedie = *start_typedie, vardie = typedie;
+
+  /* As a special case when typedie is not an array or pointer, we can allow
+   * array indexing on THIS->pointer instead (since we do know the pointee type
+   * and can determine its size).  PR11556. */
+  const target_symbol::component* c =
+    e->components.empty() ? NULL : &e->components[0];
+  if (c && (c->type == target_symbol::comp_literal_array_index ||
+            c->type == target_symbol::comp_expression_array_index))
+    {
+      resolve_unqualified_inner_typedie (&typedie, &typedie, e);
+      int typetag = dwarf_tag (&typedie);
+      if (typetag != DW_TAG_pointer_type &&
+          typetag != DW_TAG_array_type)
+        {
+          if (c->type == target_symbol::comp_literal_array_index)
+            c_translate_array_pointer (&pool, 1, &typedie, &tail, NULL, c->num_index);
+          else
+            c_translate_array_pointer (&pool, 1, &typedie, &tail, "THIS->index0", 0);
+          ++first;
+        }
+    }
+
+  /* Now translate the rest normally. */
+
+  translate_components (&pool, &tail, 0, e, &vardie, &typedie, first);
 
   /* Translate the assignment part, either
      x = (THIS->pointer)->bar->baz[NN]
@@ -2480,11 +2577,37 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *type_die,
 
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
-                                  die, &attr_mem, lvalue, e,
+                                  &vardie, &typedie, lvalue, e,
                                   prelude, postlude, ty);
 
   /* Write the translation to a string. */
   return express_as_string(prelude, postlude, head);
+}
+
+Dwarf_Die*
+dwflpp::type_die_for_pointer (Dwarf_Die *start_typedie,
+                              const target_symbol *e,
+                              Dwarf_Die *typedie)
+{
+  unsigned first = 0;
+  *typedie = *start_typedie;
+  Dwarf_Die vardie = *typedie;
+
+  /* Handle the same PR11556 case as above. */
+  const target_symbol::component* c =
+    e->components.empty() ? NULL : &e->components[0];
+  if (c && (c->type == target_symbol::comp_literal_array_index ||
+            c->type == target_symbol::comp_expression_array_index))
+    {
+      resolve_unqualified_inner_typedie (typedie, typedie, e);
+      int typetag = dwarf_tag (typedie);
+      if (typetag != DW_TAG_pointer_type &&
+          typetag != DW_TAG_array_type)
+        ++first;
+    }
+
+  translate_components (NULL, NULL, 0, e, &vardie, typedie, first);
+  return typedie;
 }
 
 
@@ -2679,6 +2802,8 @@ dwflpp::build_blacklist()
 
   // RHEL6 pre-beta 2.6.32-19.el6
   blfn += "|special_mapping_.*";
+  blfn += "|.*_pte_.*"; // or "|smaps_pte_range";
+  blfile += "|fs/seq_file\\.c";
 
   blfn += ")$";
   blfn_ret += ")$";

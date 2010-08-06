@@ -33,8 +33,156 @@ extern "C" {
 
 using namespace std;
 
+
+class lexer
+{
+public:
+  bool ate_comment; // the most recent token followed a comment
+  token* scan (bool wildcard=false);
+  lexer (istream&, const string&, systemtap_session&);
+  void set_current_file (stapfile* f);
+
+private:
+  inline int input_get ();
+  inline int input_peek (unsigned n=0);
+  void input_put (const string&, const token*);
+  string input_name;
+  string input_contents;
+  const char *input_pointer; // index into input_contents
+  const char *input_end;
+  unsigned cursor_suspend_count;
+  unsigned cursor_suspend_line;
+  unsigned cursor_suspend_column;
+  unsigned cursor_line;
+  unsigned cursor_column;
+  systemtap_session& session;
+  stapfile* current_file;
+  static set<string> keywords;
+};
+
+
+class parser
+{
+public:
+  parser (systemtap_session& s, istream& i, bool p);
+  parser (systemtap_session& s, const string& n, bool p);
+  ~parser ();
+
+  stapfile* parse ();
+
+private:
+  typedef enum {
+      PP_NONE,
+      PP_KEEP_THEN,
+      PP_SKIP_THEN,
+      PP_KEEP_ELSE,
+      PP_SKIP_ELSE,
+  } pp_state_t;
+
+  systemtap_session& session;
+  string input_name;
+  istream* free_input;
+  lexer input;
+  bool privileged;
+  parse_context context;
+
+  // preprocessing subordinate
+  vector<pair<const token*, pp_state_t> > pp_state;
+  const token* scan_pp (bool wildcard=false);
+  const token* skip_pp ();
+
+  // scanning state
+  const token* last ();
+  const token* next (bool wildcard=false);
+  const token* peek (bool wildcard=false);
+
+  const token* last_t; // the last value returned by peek() or next()
+  const token* next_t; // lookahead token
+
+  // expectations
+  const token* expect_known (token_type tt, string const & expected);
+  const token* expect_unknown (token_type tt, string & target);
+  const token* expect_unknown2 (token_type tt1, token_type tt2,
+				string & target);
+
+  // convenience forms
+  const token* expect_op (string const & expected);
+  const token* expect_kw (string const & expected);
+  const token* expect_number (int64_t & expected);
+  const token* expect_ident (string & target);
+  const token* expect_ident_or_keyword (string & target);
+  bool peek_op (string const & op);
+  bool peek_kw (string const & kw);
+
+  void print_error (const parse_error& pe);
+  unsigned num_errors;
+
+private: // nonterminals
+  void parse_probe (vector<probe*>&, vector<probe_alias*>&);
+  void parse_global (vector<vardecl*>&, vector<probe*>&);
+  void parse_functiondecl (vector<functiondecl*>&);
+  embeddedcode* parse_embeddedcode ();
+  probe_point* parse_probe_point ();
+  literal* parse_literal ();
+  block* parse_stmt_block ();
+  try_block* parse_try_block ();
+  statement* parse_statement ();
+  if_statement* parse_if_statement ();
+  for_loop* parse_for_loop ();
+  for_loop* parse_while_loop ();
+  foreach_loop* parse_foreach_loop ();
+  expr_statement* parse_expr_statement ();
+  return_statement* parse_return_statement ();
+  delete_statement* parse_delete_statement ();
+  next_statement* parse_next_statement ();
+  break_statement* parse_break_statement ();
+  continue_statement* parse_continue_statement ();
+  indexable* parse_indexable ();
+  const token *parse_hist_op_or_bare_name (hist_op *&hop, string &name);
+  target_symbol *parse_target_symbol (const token* t);
+  expression* parse_entry_op (const token* t);
+  expression* parse_defined_op (const token* t);
+  expression* parse_expression ();
+  expression* parse_assignment ();
+  expression* parse_ternary ();
+  expression* parse_logical_or ();
+  expression* parse_logical_and ();
+  expression* parse_boolean_or ();
+  expression* parse_boolean_xor ();
+  expression* parse_boolean_and ();
+  expression* parse_array_in ();
+  expression* parse_comparison ();
+  expression* parse_shift ();
+  expression* parse_concatenation ();
+  expression* parse_additive ();
+  expression* parse_multiplicative ();
+  expression* parse_unary ();
+  expression* parse_crement ();
+  expression* parse_value ();
+  expression* parse_symbol ();
+
+  void parse_target_symbol_components (target_symbol* e);
+};
+
+
 // ------------------------------------------------------------------------
 
+stapfile*
+parse (systemtap_session& s, istream& i, bool pr)
+{
+  parser p (s, i, pr);
+  return p.parse ();
+}
+
+
+stapfile*
+parse (systemtap_session& s, const string& n, bool pr)
+{
+  parser p (s, n, pr);
+  return p.parse ();
+}
+
+// ------------------------------------------------------------------------
 
 
 parser::parser (systemtap_session& s, istream& i, bool p):
@@ -54,22 +202,6 @@ parser::parser (systemtap_session& s, const string& fn, bool p):
 parser::~parser()
 {
   if (free_input) delete free_input;
-}
-
-
-stapfile*
-parser::parse (systemtap_session& s, std::istream& i, bool pr)
-{
-  parser p (s, i, pr);
-  return p.parse ();
-}
-
-
-stapfile*
-parser::parse (systemtap_session& s, const std::string& n, bool pr)
-{
-  parser p (s, n, pr);
-  return p.parse ();
 }
 
 static string
@@ -183,6 +315,7 @@ bool eval_comparison (const OPERAND& lhs, const token* op, const OPERAND& rhs)
 // The basic form is %( CONDITION %? THEN-TOKENS %: ELSE-TOKENS %)
 // where CONDITION is: kernel_v[r] COMPARISON-OP "version-string"
 //                 or: arch COMPARISON-OP "arch-string"
+//                 or: systemtap_v COMPARISON-OP "version-string"
 //                 or: CONFIG_foo COMPARISON-OP "config-string"
 //                 or: CONFIG_foo COMPARISON-OP number
 //                 or: CONFIG_foo COMPARISON-OP CONFIG_bar
@@ -202,17 +335,21 @@ bool eval_pp_conditional (systemtap_session& s,
                           const token* l, const token* op, const token* r)
 {
   if (l->type == tok_identifier && (l->content == "kernel_v" ||
-                                    l->content == "kernel_vr"))
+                                    l->content == "kernel_vr" || 
+                                    l->content == "systemtap_v"))
     {
-      string target_kernel_vr = s.kernel_release;
-      string target_kernel_v = s.kernel_base_release;
-
       if (! (r->type == tok_string))
         throw parse_error ("expected string literal", r);
 
-      string target = (l->content == "kernel_vr" ?
-                       target_kernel_vr.c_str() :
-                       target_kernel_v.c_str());
+      string target_kernel_vr = s.kernel_release;
+      string target_kernel_v = s.kernel_base_release;
+      string target;
+
+      if (l->content == "kernel_v") target = target_kernel_v;
+      else if (l->content == "kernel_vr") target = target_kernel_vr;
+      else if (l->content == "systemtap_v") target = s.compatible;
+      else assert (0);
+
       string query = r->content;
       bool rhs_wildcard = (strpbrk (query.c_str(), "*?[") != 0);
 
@@ -365,16 +502,55 @@ parser::scan_pp (bool wildcard)
 {
   while (true)
     {
-      if (enqueued_pp.size() > 0)
+      pp_state_t pp = PP_NONE;
+      if (!pp_state.empty())
+        pp = pp_state.back().second;
+
+      const token* t = 0;
+      if (pp == PP_SKIP_THEN || pp == PP_SKIP_ELSE)
+        t = skip_pp ();
+      else
+        t = input.scan (wildcard);
+
+      if (t == 0) // EOF
         {
-          const token* t = enqueued_pp[0];
-          enqueued_pp.erase (enqueued_pp.begin());
+          if (pp != PP_NONE)
+            {
+              t = pp_state.back().first;
+              pp_state.pop_back(); // so skip_some doesn't keep trying to close this
+              throw parse_error ("incomplete conditional at end of file", t);
+            }
           return t;
         }
 
-      const token* t = input.scan (wildcard); // NB: not recursive!
-      if (t == 0) // EOF
-        return t;
+      // misplaced preprocessor "then"
+      if (t->type == tok_operator && t->content == "%?")
+        throw parse_error ("incomplete conditional - missing '%('", t);
+
+      // preprocessor "else"
+      if (t->type == tok_operator && t->content == "%:")
+        {
+          if (pp == PP_NONE)
+            throw parse_error ("incomplete conditional - missing '%('", t);
+          if (pp == PP_KEEP_ELSE || pp == PP_SKIP_ELSE)
+            throw parse_error ("invalid conditional - duplicate '%:'", t);
+
+          pp_state.back().second = (pp == PP_KEEP_THEN) ?
+                                   PP_SKIP_ELSE : PP_KEEP_ELSE;
+          delete t;
+          continue;
+        }
+
+      // preprocessor close
+      if (t->type == tok_operator && t->content == "%)")
+        {
+          if (pp == PP_NONE)
+            throw parse_error ("incomplete conditional - missing '%('", t);
+          delete pp_state.back().first;
+          delete t;
+          pp_state.pop_back();
+          continue;
+        }
 
       if (! (t->type == tok_operator && t->content == "%(")) // ordinary token
         return t;
@@ -386,7 +562,7 @@ parser::scan_pp (bool wildcard)
       const token *n = NULL;
       do {
         const token *l, *op, *r;
-        l = input.scan (false); // NB: not recursive, though perhaps could be
+        l = input.scan (false);
         op = input.scan (false);
         r = input.scan (false);
         if (l == 0 || op == 0 || r == 0)
@@ -415,118 +591,49 @@ parser::scan_pp (bool wildcard)
       clog << "PP eval (" << *t << ") == " << result << endl;
       */
 
-      const token *m = n; // NB: not recursive
+      const token *m = n;
       if (! (m && m->type == tok_operator && m->content == "%?"))
         throw parse_error ("expected '%?' marker for conditional", t);
       delete m; // "%?"
 
-      vector<const token*> my_enqueued_pp;
+      pp = result ? PP_KEEP_THEN : PP_SKIP_THEN;
+      pp_state.push_back (make_pair (t, pp));
 
-      int nesting = 0;
-      int then = 0;
-      while (true) // consume THEN tokens
+      // Now loop around to look for a real token.
+    }
+}
+
+
+// Skip over tokens and any errors, heeding
+// only nested preprocessor starts and ends.
+const token*
+parser::skip_pp ()
+{
+  const token* t = 0;
+  unsigned nesting = 0;
+  do
+    {
+      try
         {
-          try
-            {
-              m = result ? scan_pp (wildcard) : input.scan (wildcard);
-            }
-          catch (const parse_error &e)
-            {
-              if (result) throw e; // propagate errors if THEN branch taken
-              continue;
-            }
-
-          if (m && m->type == tok_operator && m->content == "%(") // nested %(
-            nesting ++;
-          if (m && m->type == tok_operator && m->content == "%?") {
-            then ++;
-            if (nesting != then)
-              throw parse_error ("incomplete conditional - missing '%('", m);
-          }
-          if (nesting == 0 && m && (m->type == tok_operator && (m->content == "%:" || // ELSE
-                                                                m->content == "%)"))) // END
-            break;
-          if (nesting && m && m->type == tok_operator && m->content == "%)") { // nested %)
-            nesting --;
-            then --;
-          }
-
-          if (!m)
-            throw parse_error ("incomplete conditional - missing '%:' or '%)'", t);
-          if (result)
-            my_enqueued_pp.push_back (m);
-          if (!result)
-            delete m; // do nothing, just dispose of unkept THEN token
-
+          t = input.scan ();
+        }
+      catch (const parse_error &e)
+        {
           continue;
         }
-
-      if (m && m->type == tok_operator && m->content == "%:") // ELSE
-        {
-          delete m; // "%:"
-          int nesting = 0;
-          int then = 0;
-          while (true)
-            {
-              try
-                {
-                  m = result ? input.scan (wildcard) : scan_pp (wildcard);
-                }
-              catch (const parse_error& e)
-                {
-                  if (!result) throw e; // propagate errors if ELSE branch taken
-                  continue;
-                }
-
-              if (m && m->type == tok_operator && m->content == "%(") // nested %(
-                nesting ++;
-              if (m && m->type == tok_operator && m->content == "%?") {
-                then ++;
-                if (nesting != then)
-                  throw parse_error ("incomplete conditional - missing '%('", m);
-              }
-              if (nesting == 0 && m && m->type == tok_operator && m->content == "%)") // END
-                break;
-              if (nesting && m && m->type == tok_operator && m->content == "%)") { // nested %)
-                nesting --;
-                then --;
-              }
-
-              if (!m)
-                throw parse_error ("incomplete conditional - missing %)", t);
-              if (!result)
-                my_enqueued_pp.push_back (m);
-              if (result)
-                delete m; // do nothing, just dispose of unkept ELSE token
-
-              continue;
-            }
-        }
-
-      /*
-      clog << "PP eval (" << *t << ") == " << result << " tokens: " << endl;
-      for (unsigned k=0; k<my_enqueued_pp.size(); k++)
-        clog << * my_enqueued_pp[k] << endl;
-      clog << endl;
-      */
-
-      delete t; // "%("
-      delete m; // "%)"
-
-
-      // NB: we transcribe the retained tokens here, and not inside
-      // the THEN/ELSE while loops.  If it were done there, each loop
-      // would become infinite (each iteration consuming an ordinary
-      // token the previous one just pushed there).  Guess how I
-      // figured that out.
-      enqueued_pp.insert (enqueued_pp.end(),
-                          my_enqueued_pp.begin(),
-                          my_enqueued_pp.end());
-
-      // Go back to outermost while(true) loop.  We hope that at least
-      // some THEN or ELSE tokens were enqueued.  If not, around we go
-      // again, until EOF.
+      if (!t)
+        break;
+      if (t->type == tok_operator && t->content == "%(")
+        ++nesting;
+      else if (nesting && t->type == tok_operator && t->content == "%)")
+        --nesting;
+      else if (!nesting && t->type == tok_operator &&
+               (t->content == "%:" || t->content == "%?" || t->content == "%)"))
+        break;
+      delete t;
     }
+  while (true);
+  return t;
 }
 
 
@@ -674,7 +781,7 @@ parser::peek_kw (std::string const & kw)
 
 
 lexer::lexer (istream& input, const string& in, systemtap_session& s):
-  input_name (in), input_pointer (0), input_end (0),
+  ate_comment(false), input_name (in), input_pointer (0), input_end (0),
   cursor_suspend_count(0), cursor_suspend_line (1), cursor_suspend_column (1),
   cursor_line (1), cursor_column (1),
   session(s), current_file (0)
@@ -784,6 +891,7 @@ lexer::input_put (const string& chars, const token* t)
 token*
 lexer::scan (bool wildcard)
 {
+  ate_comment = false; // reset for each new token
   token* n = new token;
   n->location.file = current_file;
 
@@ -887,15 +995,13 @@ skip:
   else if (c == '\"')
     {
       n->type = tok_string;
-    another_string:
       while (1)
 	{
 	  c = input_get ();
 
 	  if (c < 0 || c == '\n')
 	    {
-	      n->type = tok_junk;
-	      break;
+		  throw parse_error("Could not find matching closing quote", n);
 	    }
 	  if (c == '\"') // closing double-quotes
 	    break;
@@ -927,19 +1033,6 @@ skip:
 	  else
 	    n->content.push_back(c);
 	}
-      // PR11208: check if the next token is also a string literal; auto-concatenate it
-      // This is complicated to the extent that we need to skip intermediate whitespace.
-      // XXX: but not comments
-      unsigned nspace = 0;
-      do {
-        c = input_peek(nspace++);
-        if (c == '\"') // new string literal?
-          {
-            // consume all whitespace plus the opening quote
-            while (nspace-- > 0) input_get();
-            goto another_string; // and append the rest to this token
-          }
-      } while (isspace(c));
       return n;
     }
 
@@ -957,6 +1050,7 @@ skip:
           unsigned this_line = cursor_line;
           do { c = input_get (); }
           while (c >= 0 && cursor_line == this_line);
+          ate_comment = true;
           goto skip;
         }
       else if ((c == '/' && c2 == '/')) // C++ comment
@@ -964,6 +1058,7 @@ skip:
           unsigned this_line = cursor_line;
           do { c = input_get (); }
           while (c >= 0 && cursor_line == this_line);
+          ate_comment = true;
           goto skip;
         }
       else if (c == '/' && c2 == '*') // C comment
@@ -978,6 +1073,7 @@ skip:
               c = c2;
               c2 = input_get ();
             }
+          ate_comment = true;
           goto skip;
 	}
       else if (c == '%' && c2 == '{') // embedded code
@@ -994,8 +1090,8 @@ skip:
               c = c2;
               c2 = input_get ();
             }
-          n->type = tok_junk;
-          return n;
+
+	      throw parse_error ("Could not find matching '%}' to close embedded function block", n);
         }
 
       // We're committed to recognizing at least the first character
@@ -1351,7 +1447,8 @@ parser::parse_statement ()
   else if (t && (t->type == tok_operator || // expressions are flexible
                  t->type == tok_identifier ||
                  t->type == tok_number ||
-                 t->type == tok_string))
+                 t->type == tok_string ||
+                 t->type == tok_embedded ))
     ret = parse_expr_statement ();
   // XXX: consider generally accepting tok_embedded here too
   else
@@ -1408,7 +1505,7 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
 	{
 	  if (!d->compatible_arity(0))
 	    throw parse_error("only scalar globals can be initialized");
-	  d->set_arity(0);
+	  d->set_arity(0, t);
 	  next ();
 	  d->init = parse_literal ();
 	  d->type = d->init->type;
@@ -1602,7 +1699,17 @@ parser::parse_literal ()
   const token* t = next ();
   literal* l;
   if (t->type == tok_string)
-    l = new literal_string (t->content);
+    {
+      literal_string *ls = new literal_string (t->content);
+
+      // PR11208: check if the next token is also a string literal; auto-concatenate it
+      // This is complicated to the extent that we need to skip intermediate whitespace.
+      // XXX: but not comments
+      while (peek()->type == tok_string && !input.ate_comment)
+        ls->value.append(next()->content); // consume and append the token
+
+      l = ls;
+    }
   else
     {
       bool neg = false;
@@ -1860,23 +1967,67 @@ parser::parse_foreach_loop ()
   foreach_loop* s = new foreach_loop;
   s->tok = t;
   s->sort_direction = 0;
+  s->value = NULL;
   s->limit = NULL;
 
   t = next ();
   if (! (t->type == tok_operator && t->content == "("))
     throw parse_error ("expected '('");
 
+  symbol* lookahead_sym = NULL;
+  int lookahead_sort = 0;
+
+  t = peek ();
+  if (t && t->type == tok_identifier)
+    {
+      next ();
+      lookahead_sym = new symbol;
+      lookahead_sym->tok = t;
+      lookahead_sym->name = t->content;
+
+      t = peek ();
+      if (t && t->type == tok_operator &&
+	  (t->content == "+" || t->content == "-"))
+	{
+	  next ();
+	  lookahead_sort = (t->content == "+") ? 1 : -1;
+	}
+
+      t = peek ();
+      if (t && t->type == tok_operator && t->content == "=")
+	{
+	  next ();
+	  s->value = lookahead_sym;
+	  if (lookahead_sort)
+	    {
+	      s->sort_direction = lookahead_sort;
+	      s->sort_column = 0;
+	    }
+	  lookahead_sym = NULL;
+	}
+    }
+
   // see also parse_array_in
 
   bool parenthesized = false;
   t = peek ();
-  if (t && t->type == tok_operator && t->content == "[")
+  if (!lookahead_sym && t && t->type == tok_operator && t->content == "[")
     {
       next ();
       parenthesized = true;
     }
 
-  while (1)
+  if (lookahead_sym)
+    {
+      s->indexes.push_back (lookahead_sym);
+      if (lookahead_sort)
+	{
+	  s->sort_direction = lookahead_sort;
+	  s->sort_column = 1;
+	}
+      lookahead_sym = NULL;
+    }
+  else while (1)
     {
       t = next ();
       if (! (t->type == tok_identifier))
@@ -2382,6 +2533,18 @@ parser::parse_value ()
   if (! t)
     throw parse_error ("expected value");
 
+  if (t->type == tok_embedded)
+    {
+      next ();
+      if (! privileged)
+        throw parse_error ("embedded expression code in unprivileged script", false);
+
+      embedded_expr *e = new embedded_expr;
+      e->tok = t;
+      e->code = t->content;
+      return e;
+    }
+
   if (t->type == tok_operator && t->content == "(")
     {
       next ();
@@ -2394,10 +2557,7 @@ parser::parse_value ()
   else if (t->type == tok_operator && t->content == "&")
     {
       next ();
-      t = next ();
-      target_symbol *ts = parse_target_symbol (t);
-      ts->addressof = true;
-      return ts;
+      return parse_target_symbol (t);
     }
   else if (t->type == tok_identifier)
     return parse_symbol ();
@@ -2472,9 +2632,14 @@ expression* parser::parse_symbol ()
       if (name == "@cast" || (name.size()>0 && name[0] == '$'))
         return parse_target_symbol (t);
 
+      // NB: PR11343: @defined() is not incompatible with earlier versions
+      // of stap, so no need to check session.compatible for 1.2
       if (name == "@defined")
         return parse_defined_op (t);
-     
+
+      if (name == "@entry")
+        return parse_entry_op (t);
+
       else if (name.size() > 0 && name[0] == '@')
 	{
 	  stat_op *sop = new stat_op;
@@ -2518,6 +2683,10 @@ expression* parser::parse_symbol ()
 	      // hist_op, we *mis-guessed* and the user wishes to
 	      // print(@hist_op(foo)[bucket]), a scalar. In that case
 	      // we must parse the arrayindex and print an expression.
+	      //
+	      // XXX: This still fails if the arrayindex is part of a
+	      // larger expression.  To really handle everything, we'd
+	      // need to push back all the hist tokens start over.
 
 	      if (!peek_op ("["))
 		fmt->hist = hop;
@@ -2533,6 +2702,14 @@ expression* parser::parse_symbol ()
 		  ai->indexes.push_back (parse_expression ());
 		  expect_op("]");
 		  fmt->args.push_back(ai);
+
+		  // Consume any subsequent arguments.
+		  while (!peek_op (")"))
+		    {
+		      expect_op(",");
+		      expression *e = parse_expression ();
+		      fmt->args.push_back(e);
+		    }
 		}
 	    }
 	  else
@@ -2668,21 +2845,28 @@ expression* parser::parse_symbol ()
 // Parse a @cast or $var.  Given head token has already been consumed.
 target_symbol* parser::parse_target_symbol (const token* t)
 {
+  bool addressof = false;
+  if (t->type == tok_operator && t->content == "&")
+    {
+      addressof = true;
+      t = next ();
+    }
+
   if (t->type == tok_identifier && t->content == "@cast")
     {
       cast_op *cop = new cast_op;
       cop->tok = t;
-      cop->base_name = t->content;
+      cop->name = t->content;
       expect_op("(");
       cop->operand = parse_expression ();
       expect_op(",");
-      expect_unknown(tok_string, cop->type);
+      expect_unknown(tok_string, cop->type_name);
       // types never start with "struct<space>" or "union<space>",
       // so gobble it up.
-      if (startswith(cop->type, "struct "))
-        cop->type = cop->type.substr(7);
-      if (startswith(cop->type, "union "))
-        cop->type = cop->type.substr(6);
+      if (startswith(cop->type_name, "struct "))
+        cop->type_name = cop->type_name.substr(7);
+      if (startswith(cop->type_name, "union "))
+        cop->type_name = cop->type_name.substr(6);
       if (peek_op (","))
         {
           next();
@@ -2690,6 +2874,7 @@ target_symbol* parser::parse_target_symbol (const token* t)
         }
       expect_op(")");
       parse_target_symbol_components(cop);
+      cop->addressof = addressof;
       return cop;
     }
 
@@ -2698,8 +2883,9 @@ target_symbol* parser::parse_target_symbol (const token* t)
       // target_symbol time
       target_symbol *tsym = new target_symbol;
       tsym->tok = t;
-      tsym->base_name = t->content;
+      tsym->name = t->content;
       parse_target_symbol_components(tsym);
+      tsym->addressof = addressof;
       return tsym;
     }
 
@@ -2713,12 +2899,23 @@ expression* parser::parse_defined_op (const token* t)
   defined_op* dop = new defined_op;
   dop->tok = t;
   expect_op("(");
-  string nm;
   // no need for parse_hist_op... etc., as @defined takes only target_symbols as its operand.
-  const token* tt = expect_ident (nm);
+  const token* tt = next ();
   dop->operand = parse_target_symbol (tt);
   expect_op(")");
   return dop;
+}
+
+
+// Parse a @entry().  Given head token has already been consumed.
+expression* parser::parse_entry_op (const token* t)
+{
+  entry_op* eop = new entry_op;
+  eop->tok = t;
+  expect_op("(");
+  eop->operand = parse_expression ();
+  expect_op(")");
+  return eop;
 }
 
 
@@ -2726,14 +2923,41 @@ expression* parser::parse_defined_op (const token* t)
 void
 parser::parse_target_symbol_components (target_symbol* e)
 {
-  while (true)
+  bool pprint = false;
+
+  // check for pretty-print in the form $foo$
+  string &base = e->name;
+  size_t pprint_pos = base.find_last_not_of('$');
+  if (0 < pprint_pos && pprint_pos < base.length() - 1)
+    {
+      string pprint_val = base.substr(pprint_pos + 1);
+      base.erase(pprint_pos + 1);
+      e->components.push_back (target_symbol::component(e->tok, pprint_val, true));
+      pprint = true;
+    }
+
+  while (!pprint)
     {
       if (peek_op ("->"))
         {
           const token* t = next();
           string member;
           expect_ident_or_keyword (member);
-          e->components.push_back (target_symbol::component(t, member));
+
+          // check for pretty-print in the form $foo->$ or $foo->bar$
+          pprint_pos = member.find_last_not_of('$');
+          string pprint_val;
+          if (pprint_pos == string::npos || pprint_pos < member.length() - 1)
+            {
+              pprint_val = member.substr(pprint_pos + 1);
+              member.erase(pprint_pos + 1);
+              pprint = true;
+            }
+
+          if (!member.empty())
+            e->components.push_back (target_symbol::component(t, member));
+          if (pprint)
+            e->components.push_back (target_symbol::component(t, pprint_val, true));
         }
       else if (peek_op ("["))
         {
@@ -2749,6 +2973,23 @@ parser::parse_target_symbol_components (target_symbol* e)
       else
         break;
     }
+
+  if (!pprint)
+    {
+      // check for pretty-print in the form $foo $
+      // i.e. as a separate token, esp. for $foo[i]$ and @cast(...)$
+      const token* t = peek();
+      if (t->type == tok_identifier &&
+          t->content.find_first_not_of('$') == string::npos)
+        {
+          t = next();
+          e->components.push_back (target_symbol::component(t, t->content, true));
+          pprint = true;
+        }
+    }
+
+  if (pprint && (peek_op ("->") || peek_op("[")))
+    throw parse_error("can't dereference after pretty-printing");
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

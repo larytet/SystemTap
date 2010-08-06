@@ -67,7 +67,7 @@ the Free Software Foundation, Inc., 51 Franklin Street,
 Fifth Floor, Boston, MA 02110-1301, USA.
 \newpage{}
 \tableofcontents{}
-\listoftables
+% \listoftables
 \newpage{}
 
 \section{SystemTap overview\label{sec:SystemTap-Overview}}
@@ -364,7 +364,7 @@ probe PROBEPOINT [, PROBEPOINT] { [STMT ...] }
 Events are specified in a special syntax called \emph{probe points}. There
 are several varieties of probe points defined by the translator, and tapset
 scripts may define others using aliases. The provided probe points are listed
-in the stapprobes(3) man pages.
+in the \tt{stapprobes(3)}, \tt{tapset::*(3stap)}, and \tt{probe::*(3stap)} man pages.
 
 The probe handler is interpreted relative to the context of each event. For
 events associated with kernel code, this context may include variables defined
@@ -1093,7 +1093,6 @@ restricted to the process hierarchy associated with the target
 process. If stap is running in \texttt{--unprivileged} mode, only
 processes owned by the current user are selected.
 
-
 \subsubsection{Target process mode}
 \label{sec:targetprocessmode}
 Target process mode (invoked with \texttt{stap -c CMD} or \texttt{-x
@@ -1496,33 +1495,6 @@ handler is never run. This probe point may be useful in conjunction with
 optional probes. See Section~\ref{sub:Optional-probe-points}.
 
 
-\begin{comment} % Comment out until perfmon code is reactivated
-\subsection{Probes to monitor performance}
-
-The perfmon family of probe points is used to access the performance monitoring
-hardware available in modern processors. These probe points require perfmon2
-support in the kernel to access the hardware.
-
-Performance monitor hardware points have a \texttt{perfmon} prefix. The suffix
-names the event being counted, for example \texttt{counter(event)}. The event
-names are specific to the processor implementation, except for generic cycle
-and instructions events, which are available on all processors. The probe
-\texttt{perfmon.counter(event)} starts a counter on the processor which counts
-the number of events that occur on that processor. For more details about
-the performance monitoring events available on a specific processor, see
-the help text returned by typing the perfmon2 command \texttt{pfmon -l.}
-
-\subsubsection{\$counter}
-
-\$counter is a handle used in the body of a probe for operations involving
-the counter associated with the probe.
-
-\subsubsection{read\_counter}
-
-read\_counter is a function passed to the handle for a perfmon probe. It
-returns the current count for the event.
-\end{comment}
-
 \section{Language elements\label{sec:Language-Elements}}
 \subsection{Identifiers}
 \index{identifiers}
@@ -1610,38 +1582,31 @@ semantics, and precedence as in C and awk. Arithmetic is performed per C
 rules for signed integers. If the parser detects division by zero or an overflow,
 it generates an error. The following subsections list these operators.
 
-
 \subsubsection{Binary numeric operators}
 \index{binary}
 \texttt{{*} / \% + - >\,{}> <\,{}< \& \textasciicircum{}
 | \&\& ||}
 
-
 \subsubsection{Binary string operators}
 \index{binary}
 \texttt{\textbf{.}} (string concatenation)
-
 
 \subsubsection{Numeric assignment operators}
 \index{numeric}
 \texttt{= {*}= /= \%= += -= >\,{}>= <\,{}<=
 \&= \textasciicircum{}= |=}
 
-
 \subsubsection{String assignment operators}
 
 \texttt{= .=}
-
 
 \subsubsection{Unary numeric operators}
 \index{unary}
 \texttt{+ - ! \textasciitilde{} ++ -{}-}
 
-
 \subsubsection{Binary numeric or string comparison operators}
 \index{comparison}
 \texttt{< > <= >= == !=}
-
 
 \subsubsection{Ternary operator\label{sub:Ternary-operator}}
 \index{?}
@@ -1742,7 +1707,6 @@ specified index.
 
 The number of index values must match the number of indexes previously specified.
 
-
 \subsection{Literals passed in from the stap command line\label{sub:Literals-passed-in}}
 \index{literals}
 \emph{Literals} are either strings enclosed in double quotes ('' '') or
@@ -1754,15 +1718,15 @@ can use these in all contexts where literals are accepted. A reference to
 a nonexistent argument number is an error.
 
 
-\subsubsection{\$1 \ldots{} \$\textless NN\textgreater\ for integers}
+\subsubsection{\$1 \ldots{} \$\textless NN\textgreater\ for literal pasting}
 \index{\$}
-Use \texttt{\$1 \ldots{} \$<NN>} for casting as a numeric literal.
-
+Use \texttt{\$1 \ldots{} \$<NN>} for pasting the entire argument string 
+into the input stream, which will be further lexically tokenized.
 
 \subsubsection{@1 \ldots{} @\textless NN\textgreater\ for strings}
 
-Use \texttt{@1 \ldots{} @<NN>} for casting as a string literal.
-
+Use \texttt{@1 \ldots{} @<NN>} for casting an entire argument
+as a string literal.
 
 \subsubsection{Examples}
 
@@ -1777,10 +1741,10 @@ is invoked as follows
 
 \begin{vindent}
 \begin{verbatim}
-# stap example.stp 10 mystring
+# stap example.stp '5+5' mystring
 \end{verbatim}
 \end{vindent}
-then 10 is substituted for \$1 and \char`\"{}mystring\char`\"{} for @2. The
+then 5+5 is substituted for \$1 and \char`\"{}mystring\char`\"{} for @2. The
 output will be
 
 \begin{vindent}
@@ -2348,48 +2312,10 @@ value |-------------------------------------------------- count
 \end{vindent}
 \end{samepage}
 
-\section{Predefined functions\label{sec:Predefined-Functions}}
 
-Unlike built-in functions, predefined functions are implemented in the tapsets.
+\section{Formatted output}
 
-
-\subsection{Output functions}
-
-The following sections describe the functions you can use to output data.
-
-
-\subsubsection{error}
-\index{error}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-error (msg:string)
-\end{verbatim}
-\end{vindent}
-This function logs the given string to the error stream. It appends an implicit
-end-of-line. It blocks any further execution of statements in this probe.
-If the number of errors exceeds the MAXERRORS parameter, it triggers an \texttt{exit}.
-
-
-\subsubsection{log}
-\index{log}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-log (msg:string)
-log (const char *fmt, ...)
-\end{verbatim}
-\end{vindent}
-This function logs data. \texttt{log} sends the message immediately to staprun
-and to the bulk transport (relayfs) if it is being used. If the last character
-given is not a newline, then one is added.
-
-This function is not as efficient as printf and should only be used for urgent
-messages.
-
-\subsubsection{print}
+\subsection{print}
 \index{print}
 General syntax:
 
@@ -2401,7 +2327,7 @@ print ()
 This function prints a single value of any type.
 
 
-\subsubsection{printf}
+\subsection{printf}
 \index{printf}
 General syntax:
 
@@ -2618,7 +2544,7 @@ Hello World
 \end{verbatim}
 \end{vindent}
 
-\subsubsection{printd}
+\subsection{printd}
 \index{printd}
 General syntax:
 
@@ -2644,7 +2570,7 @@ one/two/three/4/5/6
 \end{verbatim}
 \end{vindent}
 
-\subsubsection{printdln}
+\subsection{printdln}
 \index{printdln}
 General syntax:
 
@@ -2655,7 +2581,7 @@ printdln (delimiter:string, ...)
 \end{vindent}
 This function operates like \texttt{printd}, but also appends a newline.
 
-\subsubsection{println}
+\subsection{println}
 \index{println}
 General syntax:
 
@@ -2667,7 +2593,7 @@ println ()
 This function prints a single value like \texttt{print},
 but also appends a newline.
 
-\subsubsection{sprint}
+\subsection{sprint}
 \index{sprint}
 General syntax:
 
@@ -2679,7 +2605,7 @@ sprint:string ()
 This function operates like \texttt{print}, but returns the string rather
 than printing it.
 
-\subsubsection{sprintf}
+\subsection{sprintf}
 \index{sprintf}
 General syntax:
 
@@ -2691,1188 +2617,11 @@ sprintf:string (fmt:string, ...)
 This function operates like \texttt{printf}, but returns the formatted string
 rather than printing it.
 
-
-\subsubsection{warn}
-\index{warn}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-warn (msg:string)
-\end{verbatim}
-\end{vindent}
-This function sends a warning message immediately to staprun. It is also
-sent over the bulk transport (relayfs) if it is being used.
-If the last character is not a newline, then one is added.
-
-\subsection{Context at the probe point}
-
-The following functions provide ways to access the current task context
-at a probe point. Note that these may not return correct values when
-a probe is hit in interrupt context.
-
-\subsubsection{backtrace}
-\index{backtrace}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-backtrace:string ()
-\end{verbatim}
-\end{vindent}
-Returns a string of hex addresses that are a backtrace of the
-stack. The output is truncated to MAXSTRINGLEN.
-
-\subsubsection{caller}
-\index{caller}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-caller:string()
-\end{verbatim}
-\end{vindent}
-Returns the address and name of the calling function. It works
-only for return probes.
-
-\subsubsection{caller\_addr}
-\index{caller\_addr}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-caller_addr:long ()
-\end{verbatim}
-\end{vindent}
-Returns the address of the calling function. It works only
-for return probes.
-
-
-\subsubsection{cpu}
-\index{cpu}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-cpu:long ()
-\end{verbatim}
-\end{vindent}
-Returns the current cpu number.
-
-
-\subsubsection{egid}
-\index{egid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-egid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the effective group ID of the current process.
-
-
-\subsubsection{euid}
-\index{euid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-euid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the effective user ID of the current process.
-
-
-\subsubsection{execname}
-\index{execname}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-execname:string ()
-\end{verbatim}
-\end{vindent}
-Returns the name of the current process.
-
-
-\subsubsection{gid}
-\index{gid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-gid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the group ID of the current process.
-
-
-\subsubsection{is\_return}
-\index{is\_return}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-is_return:long ()
-\end{verbatim}
-\end{vindent}
-Returns 1 if the probe point is a return probe, else it returns
-zero.
-
-\noun{Deprecated}.
-
-
-\subsubsection{pexecname}
-\index{pexecname}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-pexecname:string ()
-\end{verbatim}
-\end{vindent}
-Returns the name of the parent process.
-
-
-\subsubsection{pid}
-\index{pid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-pid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the process ID of the current process.
-
-
-\subsubsection{ppid}
-\index{ppid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-ppid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the process ID of the parent process.
-
-
-\subsubsection{tid}
-\index{tid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-tid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the ID of the current thread.
-
-
-\subsubsection{uid}
-\index{uid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-uid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the user ID of the current task.
-
-
-\subsubsection{print\_backtrace}
-\index{print\_backtrace}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-print_backtrace ()
-\end{verbatim}
-\end{vindent}
-This function is equivalent to \texttt{print\_stack(backtrace())}, except
-that deeper stack nesting is supported. The function does not return a value.
-
-
-\subsubsection{print\_regs}
-\index{print\_regs}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-print_regs ()
-\end{verbatim}
-\end{vindent}
-This function prints a register dump.
-
-
-\subsubsection{print\_stack}
-\index{print\_stack}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-print_stack (stk:string)
-\end{verbatim}
-\end{vindent}
-This function performs a symbolic lookup of the addresses in the given string,
-which is assumed to be the result of a prior call to \texttt{backtrace()}.
-It prints one line per address. Each printed line includes the address, the
-name of the function containing the address, and an estimate of its position
-within that function. The function does not return a value.
-
-
-\subsubsection{stack\_size}
-\index{stack\_size}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-stack_size:long ()
-\end{verbatim}
-\end{vindent}
-Returns the size of the kernel stack.
-
-
-\subsubsection{stack\_unused}
-\index{stack\_unused}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-stack_unused:long ()
-\end{verbatim}
-\end{vindent}
-Returns how many bytes are currently unused in the kernel stack.
-
-
-\subsubsection{stack\_used}
-\index{stack\_used}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-stack_used:long ()
-\end{verbatim}
-\end{vindent}
-Returns how many bytes are currently used in the kernel stack.
-
-
-\subsubsection{stp\_pid}
-\index{stp\_pid}
-\begin{vindent}
-\begin{verbatim}
-stp_pid:long ()
-\end{verbatim}
-\end{vindent}
-Returns the process ID of the of the stapio process that launched
-this script. There could be other SystemTap scripts and stapio processes
-running on the system.
-
-
-\subsubsection{target}
-\index{target}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-target:long ()
-\end{verbatim}
-\end{vindent}
-Returns the process ID of the target process. This is useful
-in conjunction with the -x PID or -c CMD command-line options to stap. An
-example of its use is to create scripts that filter on a specific process.
-
-\begin{verbatim}
--x <pid>
-\end{verbatim}
-target() returns the pid specified by -x
-
-\begin{verbatim}
--c <command>
-\end{verbatim}
-target() returns the pid for the executed command specified
-by -c.
-
-\subsection{Task data}
-
-These functions return data about a task.  They all require a task handle as
-input, such as the  value return by task\_current() or the variables
-prev\_task and next\_task in the scheduler.ctxswitch probe alias.
-
-\subsubsection{task\_cpu}
-\index{task\_cpu}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_cpu:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the scheduled cpu for the given task.
-
-
-\subsubsection{task\_current}
-\index{task\_current}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_current:long ()
-\end{verbatim}
-\end{vindent}
-Returns the address of the task\_struct representing
-the current process. This address can be passed to the various task\_{*}()
-functions to extract more task-specific data.
-
-
-\subsubsection{task\_egid}
-\index{task\_egid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_egid:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the effective group ID of the given task.
-
-
-\subsubsection{task\_execname}
-\index{task\_execname}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_execname:string (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the name of the given task.
-
-
-\subsubsection{task\_euid}
-\index{task\_euid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_euid:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the effective user ID of the given task.
-
-
-\subsubsection{task\_gid}
-\index{task\_gid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_gid:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the group ID of the given task.
-
-
-\subsubsection{task\_nice}
-\index{task\_nice}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_nice:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the nice value of the given task.
-
-
-\subsubsection{task\_parent}
-\index{task\_parent}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_parent:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the address of the parent task\_struct of the given
-task. This address can be passed to the various task\_{*}() functions to
-extract more task-specific data.
-
-
-\subsubsection{task\_pid}
-\index{task\_pid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_pid:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the process ID of the given task.
-
-
-\subsubsection{task\_prio}
-\index{task\_prio}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_prio:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the priority value of the given task.
-
-
-\subsubsection{task\_state}
-\index{task\_state}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_state:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the state of the given task. Possible states are:
-
-\begin{vindent}
-\begin{verbatim}
-TASK_RUNNING           0
-TASK_INTERRUPTIBLE     1
-TASK_UNINTERRUPTIBLE   2
-TASK_STOPPED           4
-TASK_TRACED            8
-EXIT_ZOMBIE           16
-EXIT_DEAD             32
-\end{verbatim}
-\end{vindent}
-
-\subsubsection{task\_tid}
-\index{task\_tid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_tid:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the thread ID of the given task.
-
-
-\subsubsection{task\_uid}
-\index{task\_uid}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_uid:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the user ID of the given task.
-
-
-\subsubsection{task\_open\_file\_handles}
-\index{task\_open\_file\_handles}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_open_file_handles:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the number of open file handles for the given task.
-
-
-\subsubsection{task\_max\_file\_handles}
-\index{task\_max\_file\_handles}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-task_max_file_handles:long (task:long)
-\end{verbatim}
-\end{vindent}
-Returns the maximum number of file handles for the given task.
-
-
-\subsection{Accessing string data at a probe point}
-
-The following functions provide methods to access string data at a probe
-point.
-
-
-\subsubsection{kernel\_string}
-\index{kernel\_string}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-kernel_string:string (addr:long)
-\end{verbatim}
-\end{vindent}
-Copies a string from kernel space at a given address. The validation of this
-address is only partial.
-
-
-\subsubsection{user\_string\label{sub:user_string}}
-\index{user\_string}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-user_string:string (addr:long)
-\end{verbatim}
-\end{vindent}
-This function copies a string from user space at a given address. The validation
-of this address is only partial. In rare cases when userspace data is not
-accessible, this function returns the string \texttt{<unknown>.}
-
-
-\subsubsection{user\_string2}
-\index{user\_string2}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-user_string2:string (addr:long, err_msg:string)
-\end{verbatim}
-\end{vindent}
-This function is similar to \texttt{user\_string}, (Section~\ref{sub:user_string})
-but allows passing an error message as an argument to be returned if userspace
-data is not available.
-
-
-\subsubsection{user\_string\_warn}
-\index{user\_string\_warn}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-user_string_warn:string (addr:long)
-\end{verbatim}
-\end{vindent}
-This function copies a string from userspace at given address. It prints
-a verbose error message on failure.
-
-
-\subsubsection{user\_string\_quoted}
-\index{user\_string\_quoted}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-user_string_quoted:string (addr:long)
-\end{verbatim}
-\end{vindent}
-This function copies a string from userspace at given address. Any ASCII
-characters that are not printable are replaced by the corresponding escape
-sequence in the returned string.
-
-
-\subsection{Initializing queue statistics}
-\index{queue statistics}
-The queue\_stats tapset provides functions that, when given notification
-of queuing events like wait, run, or done, track averages such as queue length,
-service and wait times, and utilization. Call the following three functions
-from appropriate probes, in sequence.
-
-
-\subsubsection{qs\_wait}
-\index{qs\_wait}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qs_wait (qname:string)
-\end{verbatim}
-\end{vindent}
-This function records that a new request was enqueued for the given queue
-name.
-
-
-\subsubsection{qs\_run}
-\index{qs\_run}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qs_run (qname:string)
-\end{verbatim}
-\end{vindent}
-This function records that a previously enqueued request was removed from
-the given wait queue and is now being serviced.
-
-
-\subsubsection{qs\_done}
-\index{qs\_done}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qs_done (qname:string)
-\end{verbatim}
-\end{vindent}
-This function records that a request originally from the given queue has
-completed being serviced.
-
-
-\subsection{Using queue statistics}
-
-Functions with the qsq\_ prefix query the statistics averaged since the first
-queue operation or when qsq\_start was called. Since statistics are often
-fractional, a scale parameter multiplies the result to a more useful scale.
-For some fractions, a scale of 100 returns percentage numbers.
-
-
-\subsubsection{qsq\_blocked}
-\index{qsq\_blocked}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_blocked:long (qname:string, scale:long)
-\end{verbatim}
-\end{vindent}
-This function returns the fraction of elapsed time during which one or more
-requests were on the wait queue.
-
-
-\subsubsection{qsq\_print}
-\index{qsq\_print}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_print (qname:string)
-\end{verbatim}
-\end{vindent}
-This function prints a line containing the following statistics for the given
-queue:
-
-\begin{itemize}
-\item queue name
-\item average rate of requests per second
-\item average wait queue length
-\item average time on the wait queue
-\item average time to service a request
-\item percentage of time the wait queue was used
-\item percentage of time any request was being serviced
-\end{itemize}
-
-\subsubsection{qsq\_start}
-\index{qsq\_start}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_start (qname:string)
-\end{verbatim}
-\end{vindent}
-This function resets the statistics counters for the given queue, and restarts
-tracking from the moment the function was called. This function is also used to
-create initialize a queue.
-
-
-\subsubsection{qsq\_service\_time}
-\index{qsq\_service\_time}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_service_time:long (qname:string, scale:long)
-\end{verbatim}
-\end{vindent}
-This function returns the average time in microseconds required to service
-a request once it is removed from the wait queue.
-
-
-\subsubsection{qsq\_throughput}
-\index{qsq\_throughput}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_throughput:long (qname:string, scale:long)
-\end{verbatim}
-\end{vindent}
-This function returns the average number of requests served per microsecond.
-
-
-\subsubsection{qsq\_utilization}
-\index{qsq\_utilization}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_utilization:long (qname:string, scale:long)
-\end{verbatim}
-\end{vindent}
-This function returns the average time in microseconds that at least one
-request was being serviced.
-
-
-\subsubsection{qsq\_wait\_queue\_length}
-\index{qsq wait\_queue\_length}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_wait_queue_length:long (qname:string, scale:long)
-\end{verbatim}
-\end{vindent}
-This function returns the average length of the wait queue.
-
-
-\subsubsection{qsq\_wait\_time}
-\index{qsq\_wait\_time}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-qsq_wait_time:long (qname:string, scale:long)
-\end{verbatim}
-\end{vindent}
-This function returns the average time in microseconds that it took for a
-request to be serviced (qs\_wait() to qs\_done()).
-
-
-\subsubsection{A queue example}
-
-What follows is an example from src/testsuite/systemtap.samples/queue\_demo.stp.
-It uses the randomize feature of the timer probe to simulate queuing activity.
-
-\begin{vindent}
-\begin{verbatim}
-probe begin {
-    qsq_start ("block-read")
-    qsq_start ("block-write")
-}
-
-probe timer.ms(3500), end {
-    qsq_print ("block-read")
-    qsq_start ("block-read")
-    qsq_print ("block-write")
-    qsq_start ("block-write")
-}
-
-probe timer.ms(10000) {
-    exit ()
-}
-
-# synthesize queue work/service using three randomized "threads" for each queue.
-global tc
-
-function qs_doit (thread, name) {
-    n = tc[thread] = (tc[thread]+1) % 3 # per-thread state counter
-    if (n==1) qs_wait (name)
-    else if (n==2) qs_run (name)
-    else if (n==0) qs_done (name)
-}
-
-probe timer.ms(100).randomize(100) { qs_doit (0, "block-read") }
-probe timer.ms(100).randomize(100) { qs_doit (1, "block-read") }
-probe timer.ms(100).randomize(100) { qs_doit (2, "block-read") }
-probe timer.ms(100).randomize(100) { qs_doit (3, "block-write") }
-probe timer.ms(100).randomize(100) { qs_doit (4, "block-write") }
-probe timer.ms(100).randomize(100) { qs_doit (5, "block-write") }
-\end{verbatim}
-\end{vindent}
-This prints:
-
-\begin{vindent}
-\begin{verbatim}
-block-read: 9 ops/s, 1.090 qlen, 215749 await, 96382 svctm, 69% wait, 64% util
-block-write: 9 ops/s, 0.992 qlen, 208485 await, 103150 svctm, 69% wait, 61% util
-block-read: 9 ops/s, 0.968 qlen, 197411 await, 97762 svctm, 63% wait, 63% util
-block-write: 8 ops/s, 0.930 qlen, 202414 await, 93870 svctm, 60% wait, 56% util
-block-read: 8 ops/s, 0.774 qlen, 192957 await, 99995 svctm, 58% wait, 62% util
-block-write: 9 ops/s, 0.861 qlen, 193857 await, 101573 svctm, 56% wait, 64% util
-\end{verbatim}
-\end{vindent}
-
-\subsection{Probe point identification}
-
-The following functions help you identify probe points.
-
-
-\subsubsection{pp}
-\index{pp}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-pp:string ()
-\end{verbatim}
-\end{vindent}
-This function returns the probe point associated with a currently running
-probe handler, including alias and wild-card expansion effects.
-
-
-\subsubsection{probefunc}
-\index{probefunc}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-probefunc:string ()
-\end{verbatim}
-\end{vindent}
-This function returns the name of the function being probed.
-
-
-\subsubsection{probemod}
-\index{probefunc}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-probemod:string ()
-\end{verbatim}
-\end{vindent}
-This function returns the name of the module containing the probe point.
-
-
-\subsection{Formatting functions}
-\index{formatting}
-The following functions help you format output.
-
-
-\subsubsection{ctime}
-\index{ctime}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-ctime:string(epochsecs:long)
-\end{verbatim}
-\end{vindent}
-This function accepts an argument of seconds since the epoch as returned
-by \texttt{gettimeofday\_s()}. It returns a date string in UTC of the form:
-
-\begin{vindent}
-\begin{verbatim}
-"Wed Jun 30 21:49:008 2006"
-\end{verbatim}
-\end{vindent}
-This function does not adjust for timezones. The returned time is always
-in GMT. Your script must manually adjust epochsecs before passing it to ctime()
-if you want to print local time.
-
-
-\subsubsection{errno\_str}
-\index{errno\_str}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-errno_str:string (err:long)
-\end{verbatim}
-\end{vindent}
-This function returns the symbolic string associated with the given error
-code, such as ENOENT for the number 2, or E\#3333 for an out-of-range value
-such as 3333.
-
-
-\subsubsection{returnstr}
-\index{returnstr}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-returnstr:string (returnp:long)
-\end{verbatim}
-\end{vindent}
-This function is used by the syscall tapset, and returns a string. Set \texttt{}returnp
-equal to 1 for decimal, or 2 for hex.
-
-
-\subsubsection{thread\_indent}
-\index{thread\_indent}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-thread_indent:string (delta:long)
-\end{verbatim}
-\end{vindent}
-This function returns a string with appropriate indentation for a thread.
-Call it with a small positive or matching negative delta. If this is the
-outermost, initial level of indentation, then the function resets the relative
-timestamp base to zero.
-
-The following example uses thread\_indent() to trace the functions called
-in the drivers/usb/core kernel source. It prints a relative timestamp and
-the name and ID of the current process, followed by the appropriate indent
-and the function name. Note that \char`\"{}swapper(0)\char`\"{} indicates
-the kernel is running in interrupt context and there is no valid current
-process.
-
-\begin{vindent}
-\begin{verbatim}
-probe kernel.function("*@drivers/usb/core/*") {
-    printf ("%s -> %s\n", thread_indent(1), probefunc())
-}
-probe kernel.function("*@drivers/usb/core/*").return {
-    printf ("%s <- %s\n", thread_indent(-1), probefunc())
-}
-\end{verbatim}
-\end{vindent}
-This prints:
-
-\begin{vindent}
-\begin{verbatim}
- 0 swapper(0): -> usb_hcd_irq
- 8 swapper(0): <- usb_hcd_irq
- 0 swapper(0): -> usb_hcd_irq
-10 swapper(0):  -> usb_hcd_giveback_urb
-16 swapper(0):   -> urb_unlink
-22 swapper(0):   <- urb_unlink
-29 swapper(0):   -> usb_free_urb
-35 swapper(0):   <- usb_free_urb
-39 swapper(0):  <- usb_hcd_giveback_urb
-45 swapper(0): <- usb_hcd_irq
- 0 usb-storage(1338): -> usb_submit_urb
- 6 usb-storage(1338):  -> usb_hcd_submit_urb
-12 usb-storage(1338):   -> usb_get_urb
-18 usb-storage(1338):   <- usb_get_urb
-25 usb-storage(1338):  <- usb_hcd_submit_urb
-29 usb-storage(1338): <- usb_submit_urb
- 0 swapper(0): -> usb_hcd_irq
- 7 swapper(0): <- usb_hcd_irq
-\end{verbatim}
-\end{vindent}
-
-\subsubsection{thread\_timestamp}
-\index{thread\_timestamp}
-
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-thread_timestamp:long ()
-\end{verbatim}
-\end{vindent}
-This function returns an absolute timestamp value for use by the indentation
-function. The default function uses \texttt{gettimeofday\_us.}
-
-
-\subsection{String functions}
-\index{string}
-The following are string functions you can use.
-
-
-\subsubsection{isinstr}
-\index{isinstr}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-isinstr:long (s1:string, s2:string)
-\end{verbatim}
-\end{vindent}
-This function returns 1 if string s1 contains string s2, otherwise zero.
-
-
-\subsubsection{strlen}
-\index{strlen}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-strlen:long (str:string)
-\end{verbatim}
-\end{vindent}
-This function returns the number of characters in str.
-
-
-\subsubsection{strtol}
-
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-strtol:long (str:string, base:long)
-\end{verbatim}
-\end{vindent}
-This function converts the string representation of a number to an integer.
-The base parameter indicates the number base to assume for the string (e.g.
-16 for hex, 8 for octal, 2 for binary).
-
-
-\subsubsection{substr}
-\index{substr}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-substr:string (str:string, start:long, stop:long)
-\end{verbatim}
-\end{vindent}
-This function returns the substring of \texttt{str} starting from character
-position \texttt{start} and ending at character position \texttt{stop}.
-
-
-\subsubsection{text\_str}
-\index{text\_str}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-text_str:string (input:string)
-\end{verbatim}
-\end{vindent}
-This function accepts a string argument. Any ASCII characters in the string
-that are not printable are replaced by a corresponding escape sequence in
-the returned string.
-
-
-\subsubsection{text\_strn}
-\index{text\_strn}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-text_strn:string (input:string, len:long, quoted:long)
-\end{verbatim}
-\end{vindent}
-This function accepts a string of length \texttt{len}. Any ASCII characters
-that are not printable are replaced by a corresponding escape sequence in
-the returned string. If \texttt{quoted} is not null, the function adds a
-backslash character to the output.
-
-
-\subsubsection{tokenize}
-
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-tokenize:string (input:string, delim:string)
-\end{verbatim}
-\end{vindent}
-This function returns the next non-empty token in the given input string,
-where the tokens are delimited by characters in the delim string.
-If the input string is non-NULL, it returns the first token. If the input string
-is NULL, it returns the next token in the string passed in the previous call
-to tokenize. If no delimiter is found, the entire remaining input string
-is returned.  It returns NULL when no more tokens are available.
-
-
-\subsection{Timestamps}
-\index{timestamps}
-The following functions provide methods to extract time data.
-
-
-\subsubsection{get\_cycles}
-\index{get\_cycles}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-get_cycles:long ()
-\end{verbatim}
-\end{vindent}
-This function returns the processor cycle counter value if available,
-else it returns zero. The cycle counter is free running and
-unsynchronized on each processor. Thus, the order of events cannot be
-determined by comparing the results of the get\_cycles function on
-different processors.
-
-
-\subsubsection{gettimeofday\_ms}
-\index{gettimeofday\_ms}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-gettimeofday_ms:long ()
-\end{verbatim}
-\end{vindent}
-This function returns the number of milliseconds since the UNIX epoch.
-
-
-\subsubsection{gettimeofday\_ns}
-\index{gettimeofday\_ns}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-gettimeofday_ns:long ()
-\end{verbatim}
-\end{vindent}
-This function returns the number of nanoseconds since the UNIX epoch.
-
-
-\subsubsection{gettimeofday\_s}
-\index{gettimeofday\_ s}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-gettimeofday_s:long ()
-\end{verbatim}
-\end{vindent}
-This function returns the number of seconds since the UNIX epoch.
-
-
-\subsubsection{gettimeofday\_us}
-\index{gettimeofday\_us}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-gettimeofday_us:long ()
-\end{verbatim}
-\end{vindent}
-This function returns the number of microseconds since the UNIX epoch.
-
-
-\subsection{Miscellaneous tapset functions}
-
-The following are miscellaneous functions.
-
-
-\subsubsection{addr\_to\_node}
-\index{addr\_to\_node}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-addr_to_node:long (addr:long)
-\end{verbatim}
-\end{vindent}
-This function accepts an address, and returns the node that the given address
-belongs to in a NUMA system.
-
-
-\subsubsection{exit}
-\index{exit}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-exit ()
-\end{verbatim}
-\end{vindent}
-This function enqueues a request to shut down the SystemTap session. It does
-not unwind the current probe handler, nor block new probe handlers. The stap
-daemon will respond to the request and initiate an ordered shutdown.
-
-
-\subsubsection{system}
-\index{system}
-General syntax:
-
-\begin{vindent}
-\begin{verbatim}
-system (command:string)
-\end{verbatim}
-\end{vindent}
-This function runs a command on the system. The command is started
-in the background when the current probe completes.
-
+\section{Tapset-defined functions\label{sec:Predefined-Functions}}
+
+Unlike built-in functions, tapset-defined functions are implemented in tapset scripts.
+These are individually documented in the in the \tt{stapfuncs(3)}, \tt{function::*(3stap)},
+and \tt{probe::*(3stap)} man pages, and implemented under \tt{/usr/share/systemtap/tapset}.
 
 \section{For Further Reference\label{sec:For-Further-Reference}}
 

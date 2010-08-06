@@ -6,6 +6,9 @@
 /* make -P prologue-searching default */
 #undef ENABLE_PROLOGUES
 
+/* Define to 1 if you have the avahi libraries. */
+#undef HAVE_AVAHI
+
 /* Define to 1 if you have the <boost/algorithm/string.hpp> header file. */
 #undef HAVE_BOOST_ALGORITHM_STRING_HPP
 
@@ -26,9 +29,6 @@
 
 /* Define to 1 if you have the `dw' library (-ldw). */
 #undef HAVE_LIBDW
-
-/* Define to 1 if you have the `pfm' library (-lpfm). */
-#undef HAVE_LIBPFM
 
 /* have librpm */
 #undef HAVE_LIBRPM
@@ -86,6 +86,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION

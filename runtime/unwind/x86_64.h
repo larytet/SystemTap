@@ -104,9 +104,41 @@ struct unwind_frame_info
 	 !((raItem).value * (dataAlign) + 8))
 
 static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
-                                            /*const*/ struct pt_regs *regs)
+                                            /*const*/ struct pt_regs *regs,
+					    int sanitize)
 {
-	info->regs = *regs;
+	if (sanitize) {
+		memset(&info->regs, 0, sizeof(info->regs));
+		info->regs.r11 = regs->r11;
+		info->regs.r10 = regs->r10;
+		info->regs.r9 = regs->r9;
+		info->regs.r8 = regs->r8;
+#ifdef STAPCONF_X86_UNIREGS
+		info->regs.ax = regs->ax;
+		info->regs.cx = regs->cx;
+		info->regs.dx = regs->dx;
+		info->regs.si = regs->si;
+		info->regs.di = regs->di;
+		info->regs.orig_ax = regs->orig_ax;
+		info->regs.ip = regs->ip;
+		info->regs.flags = regs->flags;
+		info->regs.sp = regs->sp;
+#else
+		info->regs.rax = regs->rax;
+		info->regs.rcx = regs->rcx;
+		info->regs.rdx = regs->rdx;
+		info->regs.rsi = regs->rsi;
+		info->regs.rdi = regs->rdi;
+		info->regs.orig_rax = regs->orig_rax;
+		info->regs.rip = regs->rip;
+		info->regs.eflags = regs->eflags;
+		info->regs.rsp = regs->rsp;
+#endif
+		info->regs.cs = regs->cs;
+		info->regs.ss = regs->ss;
+	} else {
+		info->regs = *regs;
+	}
 	info->call_frame = 0;
 }
 

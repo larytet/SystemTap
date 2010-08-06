@@ -33,9 +33,7 @@ struct semantic_error: public std::runtime_error
   semantic_error *chain;
 
   ~semantic_error () throw () {}
-  semantic_error (const std::string& msg):
-    runtime_error (msg), tok1 (0), tok2 (0), chain (0) {}
-  semantic_error (const std::string& msg, const token* t1):
+  semantic_error (const std::string& msg, const token* t1=0):
     runtime_error (msg), tok1 (t1), tok2 (0), chain (0) {}
   semantic_error (const std::string& msg, const token* t1,
                   const std::string& m2, const token* t2):
@@ -92,7 +90,16 @@ struct literal_string: public literal
 struct literal_number: public literal
 {
   int64_t value;
-  literal_number (int64_t v);
+  bool print_hex;
+  literal_number (int64_t v, bool hex=false);
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
+
+
+struct embedded_expr: public expression
+{
+  std::string code;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -232,18 +239,22 @@ struct target_symbol: public symbol
       comp_struct_member,
       comp_literal_array_index,
       comp_expression_array_index,
+      comp_pretty_print, // must be final
     };
 
   struct component
     {
       const token* tok;
       component_type type;
-      std::string member; // comp_struct_member
+      std::string member; // comp_struct_member, comp_pretty_print
       int64_t num_index; // comp_literal_array_index
       expression* expr_index; // comp_expression_array_index
 
-      component(const token* t, const std::string& m):
-        tok(t), type(comp_struct_member), member(m) {}
+      component(const token* t, const std::string& m, bool pprint=false):
+        tok(t),
+        type(pprint ? comp_pretty_print : comp_struct_member),
+        member(m)
+      {}
       component(const token* t, int64_t n):
         tok(t), type(comp_literal_array_index), num_index(n) {}
       component(const token* t, expression* e):
@@ -252,17 +263,15 @@ struct target_symbol: public symbol
     };
 
   bool addressof;
-  std::string base_name;
   std::vector<component> components;
-  std::string probe_context_var; // NB: this being set implies that target_symbol is *resolved*
   semantic_error* saved_conversion_error; // hand-made linked list
   target_symbol(): addressof(false), saved_conversion_error (0) {}
-  void chain (semantic_error* e);
+  void chain (const semantic_error& er);
   void print (std::ostream& o) const;
   void visit (visitor* u);
   void visit_components (visitor* u);
   void visit_components (update_visitor* u);
-  void assert_no_components(const std::string& tapset);
+  void assert_no_components(const std::string& tapset, bool pretty_ok=false);
 };
 
 std::ostream& operator << (std::ostream& o, const target_symbol::component& c);
@@ -271,7 +280,7 @@ std::ostream& operator << (std::ostream& o, const target_symbol::component& c);
 struct cast_op: public target_symbol
 {
   expression *operand;
-  std::string type, module;
+  std::string type_name, module;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -280,6 +289,14 @@ struct cast_op: public target_symbol
 struct defined_op: public expression
 {
   target_symbol *operand;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
+
+
+struct entry_op: public expression
+{
+  expression *operand;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -465,12 +482,14 @@ struct vardecl: public symboldecl
   void print (std::ostream& o) const;
   void printsig (std::ostream& o) const;
   vardecl ();
-  void set_arity (int arity);
+  void set_arity (int arity, const token* t);
   bool compatible_arity (int a);
+  const token* arity_tok; // site where arity was first resolved
   int arity; // -1: unknown; 0: scalar; >0: array
   int maxsize; // upperbound on size for arrays
   std::vector<exp_type> index_types; // for arrays only
   literal *init; // for global scalars only
+  bool skip_init; // for probe locals only, don't init on entry
 };
 
 
@@ -490,6 +509,7 @@ struct functiondecl: public symboldecl
   functiondecl ();
   void print (std::ostream& o) const;
   void printsig (std::ostream& o) const;
+  void join (systemtap_session& s); // for synthetic functions only
 };
 
 
@@ -556,6 +576,7 @@ struct foreach_loop: public statement
   indexable *base;
   int sort_direction; // -1: decreasing, 0: none, 1: increasing
   unsigned sort_column; // 0: value, 1..N: index
+  symbol* value; // optional iteration value
   expression* limit; // optional iteration limit
 
   statement* block;
@@ -682,7 +703,8 @@ struct probe
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list);
   virtual const probe_alias *get_alias () const { return 0; }
   virtual probe* create_alias(probe_point* l, probe_point* a);
-  virtual probe* basest () { return this; }
+  virtual const probe* basest () const { return this; }
+  virtual const probe* almost_basest () const { return 0; }
   virtual ~probe() {}
   bool privileged;
   std::string name;
@@ -723,6 +745,7 @@ struct visitor
   virtual void visit_continue_statement (continue_statement* s) = 0;
   virtual void visit_literal_string (literal_string* e) = 0;
   virtual void visit_literal_number (literal_number* e) = 0;
+  virtual void visit_embedded_expr (embedded_expr* e) = 0;
   virtual void visit_binary_expression (binary_expression* e) = 0;
   virtual void visit_unary_expression (unary_expression* e) = 0;
   virtual void visit_pre_crement (pre_crement* e) = 0;
@@ -743,6 +766,7 @@ struct visitor
   virtual void visit_hist_op (hist_op* e) = 0;
   virtual void visit_cast_op (cast_op* e) = 0;
   virtual void visit_defined_op (defined_op* e) = 0;
+  virtual void visit_entry_op (entry_op* e) = 0;
 };
 
 
@@ -766,6 +790,7 @@ struct traversing_visitor: public visitor
   void visit_continue_statement (continue_statement* s);
   void visit_literal_string (literal_string* e);
   void visit_literal_number (literal_number* e);
+  void visit_embedded_expr (embedded_expr* e);
   void visit_binary_expression (binary_expression* e);
   void visit_unary_expression (unary_expression* e);
   void visit_pre_crement (pre_crement* e);
@@ -786,6 +811,7 @@ struct traversing_visitor: public visitor
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_entry_op (entry_op* e);
 };
 
 
@@ -818,6 +844,7 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
     current_lvalue(0),
     current_lrvalue(0) {}
   void visit_embeddedcode (embeddedcode *s);
+  void visit_embedded_expr (embedded_expr *e);
   void visit_try_block (try_block *s);
   void visit_delete_statement (delete_statement *s);
   void visit_print_format (print_format *e);
@@ -830,6 +857,7 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
   void visit_foreach_loop (foreach_loop *s);
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_entry_op (entry_op* e);
 
   bool side_effect_free ();
   bool side_effect_free_wrt (const std::set<vardecl*>& vars);
@@ -862,6 +890,7 @@ struct throwing_visitor: public visitor
   void visit_continue_statement (continue_statement* s);
   void visit_literal_string (literal_string* e);
   void visit_literal_number (literal_number* e);
+  void visit_embedded_expr (embedded_expr* e);
   void visit_binary_expression (binary_expression* e);
   void visit_unary_expression (unary_expression* e);
   void visit_pre_crement (pre_crement* e);
@@ -882,6 +911,7 @@ struct throwing_visitor: public visitor
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_entry_op (entry_op* e);
 };
 
 // A visitor similar to a traversing_visitor, but with the ability to rewrite
@@ -930,6 +960,7 @@ struct update_visitor: public visitor
   virtual void visit_continue_statement (continue_statement* s);
   virtual void visit_literal_string (literal_string* e);
   virtual void visit_literal_number (literal_number* e);
+  virtual void visit_embedded_expr (embedded_expr* e);
   virtual void visit_binary_expression (binary_expression* e);
   virtual void visit_unary_expression (unary_expression* e);
   virtual void visit_pre_crement (pre_crement* e);
@@ -950,6 +981,7 @@ struct update_visitor: public visitor
   virtual void visit_hist_op (hist_op* e);
   virtual void visit_cast_op (cast_op* e);
   virtual void visit_defined_op (defined_op* e);
+  virtual void visit_entry_op (entry_op* e);
 
 private:
   std::stack<void *> targets;
@@ -987,6 +1019,7 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_continue_statement (continue_statement* s);
   virtual void visit_literal_string (literal_string* e);
   virtual void visit_literal_number (literal_number* e);
+  virtual void visit_embedded_expr (embedded_expr* e);
   virtual void visit_binary_expression (binary_expression* e);
   virtual void visit_unary_expression (unary_expression* e);
   virtual void visit_pre_crement (pre_crement* e);
@@ -1007,6 +1040,7 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_hist_op (hist_op* e);
   virtual void visit_cast_op (cast_op* e);
   virtual void visit_defined_op (defined_op* e);
+  virtual void visit_entry_op (entry_op* e);
 };
 
 #endif // STAPTREE_H

@@ -63,6 +63,7 @@ struct typeresolution_info: public visitor
   std::vector <const token*> printed_toks;  // matches (BZ 9719)
 
   void check_arg_type (exp_type wanted, expression* arg);
+  void check_local (vardecl* v);
   void mismatch (const token* tok, exp_type t1, exp_type t2);
   void unresolved (const token* tok);
   void resolved (const token* tok, exp_type t);
@@ -85,6 +86,7 @@ struct typeresolution_info: public visitor
   void visit_continue_statement (continue_statement* s);
   void visit_literal_string (literal_string* e);
   void visit_literal_number (literal_number* e);
+  void visit_embedded_expr (embedded_expr* e);
   void visit_binary_expression (binary_expression* e);
   void visit_unary_expression (unary_expression* e);
   void visit_pre_crement (pre_crement* e);
@@ -105,6 +107,7 @@ struct typeresolution_info: public visitor
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_entry_op (entry_op* e);
 };
 
 
@@ -124,12 +127,12 @@ struct derived_probe: public probe
   derived_probe (probe* b);
   derived_probe (probe* b, probe_point* l);
   probe* base; // the original parsed probe
-  virtual probe* basest () { return base->basest(); }
-  // XXX: might be helpful for listing and stepwise expansion, but aliases/wildcards don't show up right
-  // virtual probe* almost_basest () { probe* bb = base->basest(); return (bb == base) ? this : bb; }
+  virtual const probe* basest () const { return base->basest(); }
+  virtual const probe* almost_basest () const { return base->almost_basest() ?: this; }
   virtual ~derived_probe () {}
   virtual void join_group (systemtap_session& s) = 0;
   virtual probe_point* sole_location () const;
+  virtual probe_point* script_location () const;
   virtual void printsig (std::ostream &o) const;
   // return arguments of probe if there
   virtual void getargs (std::list<std::string> &arg_set) const {}
@@ -140,10 +143,6 @@ struct derived_probe: public probe
   // To aid duplication elimination, print a stamp which uniquely identifies
   // the code that will be added to the probe body.  (Doesn't need to be the
   // actual code...)
-
-  virtual void emit_probe_context_vars (translator_output*) {}
-  // From within unparser::emit_common_header, add any extra variables
-  // to this probe's context locals.
 
   virtual void initialize_probe_context_vars (translator_output*) {}
   // From within unparser::emit_probe, initialized any extra variables
@@ -275,6 +274,27 @@ match_node
 
 private:
   bool unprivileged_ok;
+};
+
+// ------------------------------------------------------------------------
+
+struct
+alias_expansion_builder
+  : public derived_probe_builder
+{
+  probe_alias * alias;
+
+  alias_expansion_builder(probe_alias * a)
+    : alias(a)
+  {}
+
+  virtual void build(systemtap_session & sess,
+		     probe * use,
+		     probe_point * location,
+		     std::map<std::string, literal *> const &,
+		     std::vector<derived_probe *> & finished_results);
+
+  bool checkForRecursiveExpansion (probe *use);
 };
 
 // ------------------------------------------------------------------------

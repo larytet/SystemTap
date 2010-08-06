@@ -3,29 +3,3 @@
 // Tests if all probes in the tcpmib tapset are resolvable.
 
 probe tcpmib.* {}
-
-// This function is just for test, the real one is
-// in tcpipstat.stp
-function tcpmib_filter_key:long (sk:long, op:long) {
-       if (!sk) return 0
-       return op
-}
-
-// same as above one
-// but it's better to move function definition from example
-// to tapset
-function ipmib_filter_key:long (skb:long, op:long, SourceIsLocal:long) {
-       if ( !skb ) return 0
-       return op
-}
-
-probe begin{
-        print(tcpmib_get_state(0) +
-              tcpmib_local_addr(0) +
-              tcpmib_remote_addr(0) +
-              tcpmib_local_port(0) +
-              tcpmib_remote_port(0) +
-              _rtn_local() +
-              _is_reset(0) +
-              _tcpmib_input_route_type(0))
-}

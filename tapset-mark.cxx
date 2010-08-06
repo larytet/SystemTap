@@ -57,7 +57,6 @@ struct mark_derived_probe: public derived_probe
 
   void join_group (systemtap_session& s);
   void print_dupe_stamp (ostream& o);
-  void emit_probe_context_vars (translator_output* o);
   void initialize_probe_context_vars (translator_output* o);
   void getargs (std::list<std::string> &arg_set) const;
 
@@ -94,7 +93,7 @@ struct mark_var_expanding_visitor: public var_expanding_visitor
 void
 mark_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 {
-  string argnum_s = e->base_name.substr(4,e->base_name.length()-4);
+  string argnum_s = e->name.substr(4,e->name.length()-4);
   int argnum = atoi (argnum_s.c_str());
 
   if (argnum < 1 || argnum > (int)mark_args.size())
@@ -108,38 +107,38 @@ mark_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
   // Remember that we've seen a target variable.
   target_symbol_seen = true;
 
-  e->probe_context_var = "__mark_arg" + lex_cast(argnum);
-  e->type = mark_args[argnum-1]->stp_type;
-  provide (e);
+  symbol* sym = new symbol;
+  sym->tok = e->tok;
+  sym->name = "__mark_arg" + lex_cast(argnum);
+  provide (sym);
 }
 
 
 void
 mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
-  string sname = e->base_name;
+  string sname = e->name;
 
   if (is_active_lvalue (e))
     throw semantic_error("write to marker '" + sname + "' not permitted", e->tok);
 
   e->assert_no_components("marker");
 
-  if (e->base_name == "$format" || e->base_name == "$name") {
-     string fname;
-     if (e->base_name == "$format") {
-        fname = string("_mark_format_get");
-     } else {
-        fname = string("_mark_name_get");
-     }
+  if (e->name == "$format" || e->name == "$name") {
+    // Synthesize an embedded expression.
+    embedded_expr *expr = new embedded_expr;
+    expr->tok = e->tok;
 
-     // Synthesize a functioncall.
-     functioncall* n = new functioncall;
-     n->tok = e->tok;
-     n->function = fname;
-     n->referent = 0; // NB: must not resolve yet, to ensure inclusion in session
-     provide (n);
+    if (e->name == "$format")
+      expr->code = string("/* string */ /* pure */ ")
+	+ string("c->marker_format ? c->marker_format : \"\"");
+    else
+      expr->code = string("/* string */ /* pure */ ")
+	+ string("c->marker_name ? c->marker_name : \"\"");
+
+    provide (expr);
   }
- else if (e->base_name == "$$vars" || e->base_name == "$$parms") 
+ else if (e->name == "$$vars" || e->name == "$$parms")
   {
      //copy from tracepoint
      token* pf_tok = new token(*e->tok);
@@ -153,7 +152,7 @@ mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
           pf->raw_components += "$arg" + lex_cast(i+1);
           target_symbol *tsym = new target_symbol;
           tsym->tok = e->tok;
-          tsym->base_name = "$arg" + lex_cast(i+1);
+          tsym->name = "$arg" + lex_cast(i+1);
 
           tsym->saved_conversion_error = 0;
           expression *texp = require (tsym); //same treatment as tracepoint
@@ -180,17 +179,17 @@ mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 void
 mark_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 {
-  assert(e->base_name.size() > 0 && e->base_name[0] == '$');
+  assert(e->name.size() > 0 && e->name[0] == '$');
 
   try
     {
       if (e->addressof)
         throw semantic_error("cannot take address of marker variable", e->tok);
-      
-      if (startswith(e->base_name, "$arg"))
+
+      if (startswith(e->name, "$arg"))
         visit_target_symbol_arg (e);
-      else if (e->base_name == "$format" || e->base_name == "$name" 
-               || e->base_name == "$$parms" || e->base_name == "$$vars")
+      else if (e->name == "$format" || e->name == "$name"
+               || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
       else
         throw semantic_error ("invalid target symbol for marker, $argN, $name, $format, $$parms or $$vars expected",
@@ -198,7 +197,7 @@ mark_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     }
   catch (const semantic_error &er)
     {
-      e->chain (new semantic_error(er));
+      e->chain (er);
       provide (e);
     }
 }
@@ -226,6 +225,17 @@ mark_derived_probe::mark_derived_probe (systemtap_session &s,
   mark_var_expanding_visitor v (sess, name, mark_args);
   v.replace (this->body);
   target_symbol_seen = v.target_symbol_seen;
+  if (target_symbol_seen)
+    for (unsigned i = 0; i < mark_args.size(); ++i)
+      {
+	vardecl* v = new vardecl;
+	v->name = "__mark_arg" + lex_cast(i+1);
+	v->tok = this->tok;
+	v->set_arity(0, this->tok);
+	v->type = mark_args[i]->stp_type;
+	v->skip_init = true;
+	this->locals.push_back (v);
+      }
 
   if (sess.verbose > 2)
     clog << "marker-based " << name << " mark=" << probe_name
@@ -407,32 +417,6 @@ mark_derived_probe::print_dupe_stamp (ostream& o)
 
 
 void
-mark_derived_probe::emit_probe_context_vars (translator_output* o)
-{
-  // If we haven't seen a target symbol for this probe, quit.
-  if (! target_symbol_seen)
-    return;
-
-  for (unsigned i = 0; i < mark_args.size(); i++)
-    {
-      string localname = "__mark_arg" + lex_cast(i+1);
-      switch (mark_args[i]->stp_type)
-        {
-	case pe_long:
-	  o->newline() << "int64_t " << localname << ";";
-	  break;
-	case pe_string:
-	  o->newline() << "string_t " << localname << ";";
-	  break;
-	default:
-	  throw semantic_error ("cannot expand unknown type");
-	  break;
-	}
-    }
-}
-
-
-void
 mark_derived_probe::initialize_probe_context_vars (translator_output* o)
 {
   // If we haven't seen a target symbol for this probe, quit.
@@ -474,6 +458,9 @@ mark_derived_probe::initialize_probe_context_vars (translator_output* o)
 void
 mark_derived_probe::getargs(std::list<std::string> &arg_set) const
 {
+  //PR11761: hard-coded the basic variables
+  arg_set.push_back("$name:string");
+  arg_set.push_back("$format:string");
   for (unsigned i = 0; i < mark_args.size(); i++)
     {
       string localname = "$arg" + lex_cast(i+1);
@@ -504,21 +491,15 @@ mark_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "static struct stap_marker_probe {";
   s.op->newline(1) << "const char * const name;";
   s.op->newline() << "const char * const format;";
-  s.op->newline() << "const char * const pp;";
-  s.op->newline() << "void (* const ph) (struct context *);";
-
+  s.op->newline() << "struct stap_probe probe;";
   s.op->newline(-1) << "} stap_marker_probes [" << probes.size() << "] = {";
   s.op->indent(1);
   for (unsigned i=0; i < probes.size(); i++)
     {
       s.op->newline () << "{";
-      s.op->line() << " .name=" << lex_cast_qstring(probes[i]->probe_name)
-		   << ",";
-      s.op->line() << " .format=" << lex_cast_qstring(probes[i]->probe_format)
-		   << ",";
-      s.op->line() << " .pp=" << lex_cast_qstring (*probes[i]->sole_location())
-		   << ",";
-      s.op->line() << " .ph=&" << probes[i]->name;
+      s.op->line() << " .name=" << lex_cast_qstring(probes[i]->probe_name) << ",";
+      s.op->line() << " .format=" << lex_cast_qstring(probes[i]->probe_format) << ",";
+      s.op->line() << " .probe=" << common_probe_init (probes[i]) << ",";
       s.op->line() << " },";
     }
   s.op->newline(-1) << "};";
@@ -529,11 +510,11 @@ mark_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline();
   s.op->newline() << "static void enter_marker_probe (void *probe_data, void *call_data, const char *fmt, va_list *args) {";
   s.op->newline(1) << "struct stap_marker_probe *smp = (struct stap_marker_probe *)probe_data;";
-  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "smp->pp");
+  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "smp->probe");
   s.op->newline() << "c->marker_name = smp->name;";
   s.op->newline() << "c->marker_format = smp->format;";
   s.op->newline() << "c->mark_va_list = args;";
-  s.op->newline() << "(*smp->ph) (c);";
+  s.op->newline() << "(*smp->probe.ph) (c);";
   s.op->newline() << "c->mark_va_list = NULL;";
   s.op->newline() << "c->data = NULL;";
 
@@ -553,7 +534,7 @@ mark_derived_probe_group::emit_module_init (systemtap_session &s)
   s.op->newline() << "/* init marker probes */";
   s.op->newline() << "for (i=0; i<" << probes.size() << "; i++) {";
   s.op->newline(1) << "struct stap_marker_probe *smp = &stap_marker_probes[i];";
-  s.op->newline() << "probe_point = smp->pp;";
+  s.op->newline() << "probe_point = smp->probe.pp;";
   s.op->newline() << "rc = marker_probe_register(smp->name, smp->format, enter_marker_probe, smp);";
   s.op->newline() << "if (rc) {";
   s.op->newline(1) << "for (j=i-1; j>=0; j--) {"; // partial rollback

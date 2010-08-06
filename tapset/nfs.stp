@@ -2,7 +2,7 @@
 // Copyright (C) 2006-2007 IBM Corp.
 // Copyright (C) 2007 Intel Corporation.
 // Copyright (C) 2007 Bull S.A.S
-// Copyright (c) 2009 Red Hat Inc.
+// Copyright (c) 2009-2010 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -15,125 +15,78 @@
 %}
 
 /* Get cache_validity flag from struct inode */
-function __nfsi_cache_valid:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_inode *nfsi = NFS_I(inode);
-        THIS->__retvalue = kread(&(nfsi->cache_validity));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfsi_cache_valid:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->cache_validity 
+}
 
 /* Get read_cache_jiffies from struct inode */
-function __nfsi_rcache_time:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_inode *nfsi = NFS_I(inode);
-        THIS->__retvalue = kread(&(nfsi->read_cache_jiffies));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfsi_rcache_time:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->read_cache_jiffies
+}
 
 /* Get attrtimeo from struct inode */
-function __nfsi_attr_time :long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_inode *nfsi = NFS_I(inode);
-        THIS->__retvalue = kread(&(nfsi->attrtimeo));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfsi_attr_time :long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->attrtimeo
+}
 
 /* Get ndirty from struct inode */
-function __nfsi_ndirty:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_inode *nfsi = NFS_I(inode);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,22)
-        THIS->__retvalue = kread(&(nfsi->ndirty));
-#else
-        THIS->__retvalue = -1;
-#endif
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfsi_ndirty:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return (@defined(@cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->ndirty)
+	    ? @cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->ndirty
+	    : -1)
+}
 
 /* Get rsize from struct inode */
-function __nfs_server_rsize:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_server *nfs_srv = NFS_SERVER(inode); /* FIXME: deref hazard! */
-        THIS->__retvalue = kread(&(nfs_srv->rsize));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfs_server_rsize:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->rsize
+}
 
 /* Get version from struct inode */
-function __nfs_version:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        const struct nfs_rpc_ops *rpc_ops = NFS_PROTO(inode); /* FIXME: deref hazard! */
-        THIS->__retvalue = kread(&(rpc_ops->version));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfs_version:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_PROTO(inode), "nfs_rpc_ops", "kernel:nfs")->version
+}
 
 /* Get wsize from struct inode */
-function __nfs_server_wsize:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_server *nfs_srv = NFS_SERVER(inode); /* FIXME: deref hazard! */
-        THIS->__retvalue = kread(&(nfs_srv->wsize));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfs_server_wsize:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->wsize
+}
 
 /* Get rpages from struct inode */
-function __nfs_rpages:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_server *nfs_srv = NFS_SERVER(inode); /* FIXME: deref hazard! */
-        THIS->__retvalue = kread(&(nfs_srv->rpages));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfs_rpages:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->rpages
+}
 
 /* Get wpages from struct inode */
-function __nfs_wpages:long (inode:long) %{ /* pure */
-    struct inode *inode = (struct inode *)(long)(THIS->inode);
-
-    if (inode == NULL) 
-        THIS->__retvalue = -1;
-    else {
-        struct nfs_server *nfs_srv = NFS_SERVER(inode); /* FIXME: deref hazard! */
-        THIS->__retvalue = kread(&(nfs_srv->wpages));
-    }
-    CATCH_DEREF_FAULT();
-%}
+function __nfs_wpages:long (inode:long)
+{
+    if (inode == 0)	
+        return -1
+    return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->wpages
+}
 
 /* Get struct inode from struct page */
 function __p2i :long (page:long)
@@ -181,23 +134,13 @@ function __p2sb_flag:long (page:long)
     return @cast(i_sb, "super_block", "kernel:nfs")->s_flags
 }
 
-function __d_loff_t :long (ppos :long) %{ /* pure */
-    loff_t *ppos = (loff_t *)((long)THIS->ppos);
-
-    if (ppos == NULL)
-        THIS->__retvalue = -1;
-    else
-        THIS->__retvalue = kread(ppos);
-    CATCH_DEREF_FAULT();
-%}
-
 function __file_inode:long (file:long)
 {
-%( kernel_v >= "2.6.20" %?
-    dentry = file? @cast(file, "file", "kernel:nfs")->f_path->dentry : 0
-%:
-    dentry = file? @cast(file, "file", "kernel:nfs")->f_dentry : 0
-%)
+    dentry = file
+	? (@defined(@cast(file, "file", "kernel:nfs")->f_path->dentry)
+	   ? @cast(file, "file", "kernel:nfs")->f_path->dentry
+	   : @cast(file, "file", "kernel:nfs")->f_dentry)
+	: 0
     if (dentry == 0)
         return 0
     return @cast(dentry, "dentry", "kernel:nfs")->d_inode
@@ -221,11 +164,11 @@ function __file_mode:long (file:long)
 
 function __file_parentname:string (file:long)
 {
-%( kernel_v >= "2.6.20" %?
-    dentry = file? @cast(file, "file", "kernel:nfs")->f_path->dentry : 0
-%:
-    dentry = file? @cast(file, "file", "kernel:nfs")->f_dentry : 0
-%)
+    dentry = file
+	? (@defined(@cast(file, "file", "kernel:nfs")->f_path->dentry)
+	   ? @cast(file, "file", "kernel:nfs")->f_path->dentry
+	   : @cast(file, "file", "kernel:nfs")->f_dentry)
+	: 0
     d_parent = dentry? @cast(dentry, "dentry", "kernel:nfs")->d_parent : 0
     if (d_parent == 0)
         return "NULL"
@@ -283,7 +226,7 @@ probe nfs.fop.entries = nfs.fop.llseek,
                         nfs.fop.open,
                         nfs.fop.flush,
                         nfs.fop.release,
-                        %( kernel_v <= "2.6.18" %? nfs.fop.sendfile, %)
+                        nfs.fop.sendfile ?,
                         nfs.fop.fsync,
                         nfs.fop.lock
 {
@@ -298,7 +241,7 @@ probe nfs.fop.return = nfs.fop.llseek.return,
                         nfs.fop.open.return,
                         nfs.fop.flush.return,
                         nfs.fop.release.return,
-                        %( kernel_v <= "2.6.18" %? nfs.fop.sendfile.return, %)
+                        nfs.fop.sendfile.return ?,
                         nfs.fop.fsync.return,
                         nfs.fop.lock.return
 {
@@ -408,7 +351,7 @@ probe nfs.fop.write.return = vfs.do_sync_write.return
  *      jiffies - read_cache_jiffies > attrtimeo
  */
 probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
-                       module("nfs").function("nfs_file_read")
+                         module("nfs").function("nfs_file_read")
 {
         dev = __file_dev($iocb->ki_filp)
         ino = __file_ino($iocb->ki_filp)
@@ -417,22 +360,21 @@ probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
 
         pos = $pos
 
-%( kernel_v >= "2.6.19" %?
-	buf = $iov->iov_base
-        count = __iov_length($iov, $nr_segs, 0, -1)
-%:
-        buf = $buf
-        count = $count
-%)
+	if (@defined($iov)) {
+		buf = $iov->iov_base
+	        count = __iov_length($iov, $nr_segs, 0, -1)
+	}
+	else {
+	        buf = $buf
+	        count = $count
+	}
 
         parent_name = __file_parentname($iocb->ki_filp)
         file_name = __file_filename($iocb->ki_filp)
 
-
         cache_valid = __nfsi_cache_valid(__file_inode($iocb->ki_filp))
         cache_time  = __nfsi_rcache_time(__file_inode($iocb->ki_filp))
         attr_time   = __nfsi_attr_time(__file_inode($iocb->ki_filp))
-
 
         name = "nfs.fop.aio_read"
         argstr = sprintf("%p, %d, %d", buf, count, pos)
@@ -477,13 +419,14 @@ probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
 	devname = kernel_string(s_id)
 
         pos = $pos
-%( kernel_v >= "2.6.19" %?
-	buf = $iov->iov_base
-        count = __iov_length($iov, $nr_segs, 0, -1)
-%:
-        buf = $buf
-        count = $count
-%)
+	if (@defined($iov)) {
+		buf = $iov->iov_base
+	        count = __iov_length($iov, $nr_segs, 0, -1)
+	}
+	else {
+	        buf = $buf
+	        count = $count
+	}
                
         parent_name = __file_parentname($iocb->ki_filp)
         file_name = __file_filename($iocb->ki_filp)
@@ -496,7 +439,7 @@ probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
 }
 
 probe nfs.fop.aio_write.return = kernel.function("nfs_file_write").return !,
-                          module("nfs").function("nfs_file_write").return
+                                 module("nfs").function("nfs_file_write").return
 {
         name = "nfs.fop.aio_write.return"
         retstr = sprintf("%d", $return)
@@ -553,7 +496,7 @@ probe nfs.fop.mmap = kernel.function("nfs_file_mmap") !,
 }
 
 probe nfs.fop.mmap.return = kernel.function("nfs_file_mmap").return !,
-                     module("nfs").function("nfs_file_mmap").return
+                            module("nfs").function("nfs_file_mmap").return
 {
         name = "nfs.fop.mmap.return"
         retstr = sprintf("%d", $return)
@@ -622,7 +565,7 @@ probe nfs.fop.flush = kernel.function("nfs_file_flush") !,
 }
 
 probe nfs.fop.flush.return = kernel.function("nfs_file_flush").return !,
-                      module("nfs").function("nfs_file_flush").return
+                             module("nfs").function("nfs_file_flush").return
 {
         name = "nfs.fop.flush.return"
         retstr = sprintf("%d", $return)
@@ -639,7 +582,7 @@ probe nfs.fop.flush.return = kernel.function("nfs_file_flush").return !,
  *    mode : file mode
  */
 probe nfs.fop.release = kernel.function("nfs_file_release") !,
-                      module("nfs").function("nfs_file_release")
+                        module("nfs").function("nfs_file_release")
 {
         dev = __file_dev($filp)
         ino = $inode->i_ino
@@ -730,7 +673,7 @@ probe nfs.fop.lock = kernel.function("nfs_lock") !,
 }
 
 probe nfs.fop.lock.return = kernel.function("nfs_lock").return !,
-                             module("nfs").function("nfs_lock").return
+                            module("nfs").function("nfs_lock").return
 {
          name = "nfs.fop.lock.return"
          retstr = sprintf("%d", $return)
@@ -754,18 +697,16 @@ probe nfs.fop.lock.return = kernel.function("nfs_lock").return !,
  *
  *      jiffies - read_cache_jiffies > attrtimeo
  */
-%( kernel_v <= "2.6.18" %?
 probe nfs.fop.sendfile = kernel.function("nfs_file_sendfile") !,
-                              module("nfs").function("nfs_file_sendfile")
+			 module("nfs").function("nfs_file_sendfile") ?
 {
-
         dev = __file_dev($filp)
         ino = __file_ino($filp)
 	s_id = __file_id($filp)
 	devname = kernel_string(s_id)
 
         count = $count
-        ppos  = __d_loff_t($ppos)
+        ppos  = $ppos ? kernel_pointer($ppos) : -1
 
         cache_valid = __nfsi_cache_valid(__file_inode($filp))
         cache_time  = __nfsi_rcache_time(__file_inode($filp))
@@ -778,8 +719,9 @@ probe nfs.fop.sendfile = kernel.function("nfs_file_sendfile") !,
         units = "bytes"
 }
 
-probe nfs.fop.sendfile.return = kernel.function("nfs_file_sendfile").return !,
-                              module("nfs").function("nfs_file_sendfile").return
+probe nfs.fop.sendfile.return =
+	kernel.function("nfs_file_sendfile").return !,
+	module("nfs").function("nfs_file_sendfile").return ?
 {
         name = "nfs.fop.sendfile.return"
         retstr = sprintf("%d", $return)
@@ -789,7 +731,6 @@ probe nfs.fop.sendfile.return = kernel.function("nfs_file_sendfile").return !,
         }
         units = "bytes"
 }
-%)
 
 /* probe nfs.fop.check_flags
  *
@@ -808,8 +749,9 @@ probe nfs.fop.check_flags =  kernel.function("nfs_check_flags") !,
         argstr = sprintf("%d", flag)
 }
 
-probe nfs.fop.check_flags.return = kernel.function("nfs_check_flags").return !,
-                             module("nfs").function("nfs_check_flags").return
+probe nfs.fop.check_flags.return =
+	kernel.function("nfs_check_flags").return !,
+	module("nfs").function("nfs_check_flags").return
 {
         name = "nfs.fop.check_flags.return"
         retstr = sprintf("%d", $return)
@@ -855,7 +797,7 @@ probe nfs.aop.return = nfs.aop.readpage.return,
  *   size :  number of pages to be read in this execution 
  */
 probe nfs.aop.readpage = kernel.function ("nfs_readpage") !,
-        module("nfs").function ("nfs_readpage")
+                         module("nfs").function ("nfs_readpage")
 {
         __page = $page
         dev = __page_dev(__page)
@@ -880,7 +822,7 @@ probe nfs.aop.readpage = kernel.function ("nfs_readpage") !,
 }
 
 probe nfs.aop.readpage.return = kernel.function ("nfs_readpage").return !,
-        module("nfs").function ("nfs_readpage").return
+                                module("nfs").function ("nfs_readpage").return
 {
         name = "nfs.aop.readpage.return"
         retstr = sprintf("%d", $return)
@@ -902,7 +844,7 @@ probe nfs.aop.readpage.return = kernel.function ("nfs_readpage").return !,
  *   size :  number of pages attempted to read in this execution 
  */
 probe nfs.aop.readpages = kernel.function ("nfs_readpages") !,
-        module("nfs").function ("nfs_readpages")
+                          module("nfs").function ("nfs_readpages")
 {
         dev = $mapping->host->i_sb->s_dev
         ino = $mapping->host->i_ino
@@ -921,7 +863,7 @@ probe nfs.aop.readpages = kernel.function ("nfs_readpages") !,
 }
 
 probe nfs.aop.readpages.return = kernel.function ("nfs_readpages").return !,
-        module("nfs").function ("nfs_readpages").return
+                                 module("nfs").function ("nfs_readpages").return
 {
         name = "nfs.aop.readpages.return"
         retstr = sprintf("%d", $return)
@@ -943,12 +885,8 @@ probe nfs.aop.readpages.return = kernel.function ("nfs_readpages").return !,
  */
 probe nfs.aop.set_page_dirty =
             kernel.function ("__set_page_dirty_nobuffers") !,
-             module("nfs").function ("__set_page_dirty_nobuffers")
+            module("nfs").function ("__set_page_dirty_nobuffers")
 {
- /*       dev = $mapping->host->i_sb->s_dev
-        devname = __find_bdevname(dev, $mapping->host->i_sb->s_bdev)
-        ino = $mapping->host->i_ino
-  */
         __page = $page
         page_flag = $page->flags
 
@@ -988,12 +926,11 @@ probe nfs.aop.set_page_dirty.return =
  *     size  :  number of pages to be written in this execution 
  */
 probe nfs.aop.writepage = kernel.function ("nfs_writepage") !,
-             module("nfs").function ("nfs_writepage")
+                          module("nfs").function ("nfs_writepage")
 {
         __page = $page
         dev = __page_dev(__page)
         ino = __page_ino(__page)
-        
 
         for_reclaim = $wbc->for_reclaim
         for_kupdate = $wbc->for_kupdate
@@ -1003,7 +940,6 @@ probe nfs.aop.writepage = kernel.function ("nfs_writepage") !,
         i_size = __p2i_size($page)
 
         sb_flag = __p2sb_flag($page) 
-
 
         page_index = $page->index
 
@@ -1018,7 +954,7 @@ probe nfs.aop.writepage = kernel.function ("nfs_writepage") !,
 }
 
 probe nfs.aop.writepage.return = kernel.function ("nfs_writepage").return !,
-             module("nfs").function ("nfs_writepage").return
+                                 module("nfs").function ("nfs_writepage").return
 {
         name = "nfs.aop.writepage.return"
         retstr = sprintf("%d", $return)
@@ -1041,7 +977,7 @@ probe nfs.aop.writepage.return = kernel.function ("nfs_writepage").return !,
  *      size : number of pages attempted to be written in this execution  
  */
 probe nfs.aop.writepages = kernel.function ("nfs_writepages") !,
-             module("nfs").function ("nfs_writepages")
+                           module("nfs").function ("nfs_writepages")
 {
         dev = $mapping->host->i_sb->s_dev
         ino = $mapping->host->i_ino
@@ -1060,8 +996,9 @@ probe nfs.aop.writepages = kernel.function ("nfs_writepages") !,
         units = "pages"         
 }
 
-probe nfs.aop.writepages.return = kernel.function ("nfs_writepages").return !,
-             module("nfs").function ("nfs_writepages").return
+probe nfs.aop.writepages.return =
+		kernel.function ("nfs_writepages").return !,
+		module("nfs").function ("nfs_writepages").return
 {
         name = "nfs.aop.writepages.return"
         retstr = sprintf("%d", $return)
@@ -1095,6 +1032,17 @@ probe nfs.aop.write_end.return
 probe __nfs.aop.write_begin = kernel.function ("nfs_write_begin") !,
 			      module("nfs").function("nfs_write_begin")
 {
+	# Since __nfs.aop.write_begin and __nfs.aop.prepare_write
+	# share a "parent" probe (nfs.aop.write_begin), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+	__page = -1
+	offset = $pos
+	to = $pos + $len
+	page_index = -1
+	size = $len
+
         dev = __file_dev($file)
         ino = __file_ino($file)
         s_id = __file_id($file)
@@ -1119,6 +1067,20 @@ probe __nfs.aop.write_begin.return
 probe __nfs.aop.write_end = kernel.function ("nfs_write_end") !,
 			    module("nfs").function("nfs_write_end")
 {
+	# Since __nfs.aop.write_end and __nfs.aop.commit_write
+	# share a "parent" probe (nfs.aop.write_end), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+        __page = -1
+	offset = $pos
+	to = $pos + $len
+	i_flag = 0
+	i_size = 0
+	sb_flag = 0
+	page_index = -1
+	size = $len
+
         dev = __file_dev($file)
         ino = __file_ino($file)
         s_id = __file_id($file)
@@ -1163,6 +1125,15 @@ probe __nfs.aop.write_end.return
 probe __nfs.aop.prepare_write = kernel.function ("nfs_prepare_write") !,
                                 module("nfs").function ("nfs_prepare_write")
 {
+	# Since __nfs.aop.write_begin and __nfs.aop.prepare_write
+	# share a "parent" probe (nfs.aop.write_begin), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+	s_id = -1
+	pos = $offset
+	count = $to - $offset
+
         __page = $page
         dev = __page_dev(__page)
         devname = __find_bdevname(dev, __page_bdev(__page))
@@ -1176,7 +1147,7 @@ probe __nfs.aop.prepare_write = kernel.function ("nfs_prepare_write") !,
         name = "nfs.aop.prepare_write"
         argstr = sprintf("%d", page_index)
 
-        size = to - offset
+        size = $to - $offset
         units = "bytes"        
 }
 
@@ -1211,8 +1182,18 @@ probe __nfs.aop.prepare_write.return =
 probe __nfs.aop.commit_write = kernel.function ("nfs_commit_write") !,
                                module("nfs").function ("nfs_commit_write")
 {
+	# Since __nfs.aop.write_end and __nfs.aop.commit_write
+	# share a "parent" probe (nfs.aop.write_end), they need to
+	# have the same convenience variables.  So, define a few fake
+	# ones here.  The optimizer will remove any that aren't
+	# actually used.
+	s_id = -1
+	pos = $offset
+	count = $to - $offset
+
         __page = $page
         dev = __page_dev(__page)
+        devname = __find_bdevname(dev, __page_bdev(__page))
         ino = __page_ino(__page)
 
         offset = $offset
@@ -1228,7 +1209,7 @@ probe __nfs.aop.commit_write = kernel.function ("nfs_commit_write") !,
         name = "nfs.aop.commit_write"
         argstr = sprintf("%d, %d", offset, to)
 
-        size = to - offset
+        size = $to - $offset
         units = "bytes"
 }
 
@@ -1254,7 +1235,7 @@ probe __nfs.aop.commit_write.return =
  *     size : release pages
  */
 probe nfs.aop.release_page = kernel.function ("nfs_release_page") !,
-             module("nfs").function ("nfs_release_page")
+                             module("nfs").function ("nfs_release_page") ?
 {
         __page = $page
         dev = __page_dev(__page)
@@ -1273,7 +1254,7 @@ probe nfs.aop.release_page = kernel.function ("nfs_release_page") !,
 
 probe nfs.aop.release_page.return =
              kernel.function ("nfs_release_page").return !,
-             module("nfs").function ("nfs_release_page").return
+             module("nfs").function ("nfs_release_page").return ?
 {
         name = "nfs.aop.release_page.return"
         retstr = sprintf("%d", $return)

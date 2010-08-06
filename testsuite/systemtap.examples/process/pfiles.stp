@@ -1,4 +1,7 @@
-#! /usr/bin/stap -g
+#! /bin/sh
+
+//bin/true && exec stap -g $0 ${1+"$@"}
+
 # pfiles
 # Copyright (C) 2007-2010 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
 #

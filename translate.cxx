@@ -16,6 +16,7 @@
 #include "util.h"
 #include "dwarf_wrappers.h"
 #include "setupdwfl.h"
+#include "task_finder.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -24,15 +25,20 @@
 #include <string>
 #include <cassert>
 #include <cstring>
+#include <cerrno>
 
 extern "C" {
+#include <dwarf.h>
 #include <elfutils/libdwfl.h>
+#include <elfutils/libdw.h>
+#include <ftw.h>
 }
 
 // Max unwind table size (debug or eh) per module. Somewhat arbitrary
 // limit (a bit more than twice the .debug_frame size of my local
-// vmlinux for 2.6.31.4-83.fc12.x86_64)
-#define MAX_UNWIND_TABLE_SIZE (3 * 1024 * 1024)
+// vmlinux for 2.6.31.4-83.fc12.x86_64).
+// A larger value was recently found in a libxul.so build.
+#define MAX_UNWIND_TABLE_SIZE (6 * 1024 * 1024)
 
 using namespace std;
 
@@ -81,6 +87,12 @@ struct c_unparser: public unparser, public visitor
   // for use by stats (pmap) foreach
   set<string> aggregations_active;
 
+  // values immediately available in foreach_loop iterations
+  map<string, string> foreach_loop_values;
+  void visit_foreach_loop_value (visitor* vis, foreach_loop* s,
+                                 const string& value="");
+  bool get_foreach_loop_value (arrayindex* ai, string& value);
+
   // for use by looping constructs
   vector<string> loop_break_labels;
   vector<string> loop_continue_labels;
@@ -115,7 +127,7 @@ struct c_unparser: public unparser, public visitor
   void load_map_indices(arrayindex* e,
 			vector<tmpvar> & idx);
 
-  void load_aggregate (expression *e, aggvar & agg, bool pre_agg=false);
+  var* load_aggregate (expression *e, aggvar & agg);
   string histogram_index_check(var & vase, tmpvar & idx) const;
 
   void collect_map_index_types(vector<vardecl* > const & vars,
@@ -138,6 +150,7 @@ struct c_unparser: public unparser, public visitor
   void visit_continue_statement (continue_statement* s);
   void visit_literal_string (literal_string* e);
   void visit_literal_number (literal_number* e);
+  void visit_embedded_expr (embedded_expr* e);
   void visit_binary_expression (binary_expression* e);
   void visit_unary_expression (unary_expression* e);
   void visit_pre_crement (pre_crement* e);
@@ -158,6 +171,7 @@ struct c_unparser: public unparser, public visitor
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
+  void visit_entry_op (entry_op* e);
 };
 
 // A shadow visitor, meant to generate temporary variable declarations
@@ -175,12 +189,14 @@ struct c_tmpcounter:
   }
 
   void load_map_indices(arrayindex* e);
+  void load_aggregate (expression *e);
 
   void visit_block (block *s);
   void visit_for_loop (for_loop* s);
   void visit_foreach_loop (foreach_loop* s);
   // void visit_return_statement (return_statement* s);
   void visit_delete_statement (delete_statement* s);
+  // void visit_embedded_expr (embedded_expr* e);
   void visit_binary_expression (binary_expression* e);
   // void visit_unary_expression (unary_expression* e);
   void visit_pre_crement (pre_crement* e);
@@ -510,6 +526,11 @@ struct aggvar
     assert (type() == pe_stats);
     c.o->newline() << "struct stat_data *" << name << ";";
   }
+
+  string get_hist (var& index) const
+  {
+    return "(" + value() + "->histogram[" + index.value() + "])";
+  }
 };
 
 struct mapvar
@@ -787,12 +808,28 @@ public:
 	return "_stp_key_get_int64 ("+ value() + ", " + lex_cast(i+1) + ")";
       case pe_string:
         // impedance matching: NULL -> empty strings
-	return "({ char *v = "
-          "_stp_key_get_str ("+ value() + ", " + lex_cast(i+1) + "); "
-          "if (! v) v = \"\"; "
-          "v; })";
+	return "(_stp_key_get_str ("+ value() + ", " + lex_cast(i+1) + ") ?: \"\")";
       default:
 	throw semantic_error("illegal key type");
+      }
+  }
+
+  string get_value (exp_type ty) const
+  {
+    if (ty != referent_ty)
+      throw semantic_error("inconsistent iterator value in itervar::get_value()");
+
+    switch (ty)
+      {
+      case pe_long:
+	return "_stp_get_int64 ("+ value() + ")";
+      case pe_string:
+        // impedance matching: NULL -> empty strings
+	return "(_stp_get_str ("+ value() + ") ?: \"\")";
+      case pe_stats:
+	return "_stp_get_stat ("+ value() + ")";
+      default:
+	throw semantic_error("illegal value type");
       }
   }
 };
@@ -878,10 +915,17 @@ c_unparser::emit_common_header ()
   o->newline() << "static atomic_t skipped_count_reentrant = ATOMIC_INIT (0);";
   o->newline() << "static atomic_t skipped_count_uprobe_reg = ATOMIC_INIT (0);";
   o->newline() << "static atomic_t skipped_count_uprobe_unreg = ATOMIC_INIT (0);";
+
+  // Defines for the regsflags field. Maybe merge with regparm field?
+  // _STP_REGS_USER regsflags bit to indicate regs fully from user.
   o->newline();
+  o->newline() << "#define _STP_REGS_USER_FLAG 1";
+  o->newline();
+
   o->newline() << "struct context {";
   o->newline(1) << "atomic_t busy;";
   o->newline() << "const char *probe_point;";
+  o->newline() << "const char *probe_name;"; // as per 'stap -l'
   o->newline() << "int actionremaining;";
   o->newline() << "int nesting;";
   o->newline() << "string_t error_buffer;";
@@ -891,10 +935,13 @@ c_unparser::emit_common_header ()
   // When it's "something", probe code unwinds, _stp_error's, sets error state
   o->newline() << "const char *last_stmt;";
   o->newline() << "struct pt_regs *regs;";
+  o->newline() << "#if defined __ia64__";
   o->newline() << "unsigned long *unwaddr;";
   // unwaddr is caching unwound address in each probe handler on ia64.
+  o->newline() << "#endif";
   o->newline() << "struct kretprobe_instance *pi;";
   o->newline() << "int pi_longs;"; // int64_t count in pi->data, the rest is string_t
+  o->newline() << "int regflags;"; // status of pt_regs regs field.
   o->newline() << "int regparm;";
   o->newline() << "va_list *mark_va_list;";
   o->newline() << "const char * marker_name;";
@@ -960,7 +1007,6 @@ c_unparser::emit_common_header ()
           // NB: This part is finicky.  The logic here must
           // match up with
           c_tmpcounter ct (this);
-          dp->emit_probe_context_vars (o);
           dp->body->visit (& ct);
 
           o->newline(-1) << "} " << dp->name << ";";
@@ -1081,7 +1127,11 @@ c_unparser::emit_global (vardecl *v)
     o->newline() << "PMAP s_" << vn << ";";
   else
     o->newline() << "MAP s_" << vn << ";";
+  o->newline() << "#ifdef CONFIG_PREEMPT_RT";
+  o->newline() << "raw_rwlock_t s_" << vn << "_lock;";
+  o->newline() << "#else";
   o->newline() << "rwlock_t s_" << vn << "_lock;";
+  o->newline() << "#endif";
   o->newline() << "#ifdef STP_TIMING";
   o->newline() << "atomic_t s_" << vn << "_lock_skip_count;";
   o->newline() << "#endif\n";
@@ -1176,14 +1226,8 @@ c_unparser::emit_module_init ()
   o->newline(-1) << "}";
   o->newline() << "#endif";
 
-  // PR10228: set up symbol table-related task finders.
-  o->newline() << "#if defined(STP_NEED_VMA_TRACKER)";
-  o->newline() << "_stp_sym_init();";
-  o->newline() << "#else";
-  o->newline() << "if (_stp_need_vma_tracker == 1) _stp_sym_init();";
-  o->newline() << "#endif";
   // NB: we don't need per-_stp_module task_finders, since a single common one
-  // set up in runtime/sym.c's _stp_sym_init() will scan through all _stp_modules.
+  // set up in runtime/sym.c's _stp_sym_init() will scan through all _stp_modules. XXX - check this!
   o->newline() << "(void) probe_point;";
   o->newline() << "(void) i;";
   o->newline() << "(void) j;";
@@ -1405,13 +1449,13 @@ c_unparser::emit_module_exit ()
     set<string> basest_names;
     for (unsigned i=0; i<session->probes.size(); i++)
       {
-        probe* p = session->probes[i]->basest();
-        string nm = p->name;
+        const probe* p = session->probes[i]->basest();
+        const string &nm = p->name;
         if (basest_names.find(nm) == basest_names.end())
           {
             basest_names.insert (nm);
             // NB: check for null stat object
-            o->newline() << "if (likely (time_" << p->name << ")) {";
+            o->newline() << "if (likely (time_" << nm << ")) {";
             o->newline(1) << "const char *probe_point = "
                          << lex_cast_qstring (* p->locations[0])
                          << (p->locations.size() > 1 ? "\"+\"" : "")
@@ -1421,14 +1465,14 @@ c_unparser::emit_module_exit ()
                          << lex_cast_qstring (p->tok->location)
                          << ";";
             o->newline() << "struct stat_data *stats = _stp_stat_get (time_"
-                         << p->name
+                         << nm
                          << ", 0);";
             o->newline() << "if (stats->count) {";
             o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
             o->newline() << "_stp_printf (\"probe %s (%s), hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
             o->newline() << "probe_point, decl_location, (long long) stats->count, (long long) stats->min, (long long) avg, (long long) stats->max);";
             o->newline(-1) << "}";
-	    o->newline() << "_stp_stat_del (time_" << p->name << ");";
+            o->newline() << "_stp_stat_del (time_" << nm << ");";
             o->newline(-1) << "}";
           }
       }
@@ -1683,6 +1727,8 @@ c_unparser::emit_probe (derived_probe* v)
       // initialize locals
       for (unsigned j=0; j<v->locals.size(); j++)
         {
+	  if (v->locals[j]->skip_init)
+            continue;
 	  if (v->locals[j]->index_types.size() > 0) // array?
             throw semantic_error ("array locals not supported, missing global declaration?",
                                   v->locals[j]->tok);
@@ -1734,7 +1780,7 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   unsigned numvars = 0;
 
   if (session->verbose > 1)
-    clog << current_probe->name << " locks ";
+    clog << "probe " << *current_probe->sole_location() << " locks ";
 
   o->newline() << "static const struct stp_probe_lock locks[] = {";
   o->indent(1);
@@ -2366,8 +2412,10 @@ c_unparser::visit_block (block *s)
 
 void c_unparser::visit_try_block (try_block *s)
 {
+  record_actions(0, s->tok, true); // flush prior actions
+
   o->newline() << "{";
-  o->newline(1) << "__label__ normal_out;";
+  o->newline(1) << "__label__ normal_fallthrough;";
   o->newline(1) << "{";
   o->newline() << "__label__ out;";
 
@@ -2377,22 +2425,25 @@ void c_unparser::visit_try_block (try_block *s)
       s->try_block->visit (this);
       record_actions(0, s->try_block->tok, true); // flush accumulated actions
     }
-
-  o->newline() << "if (likely(c->last_error == NULL)) goto normal_out;";
+  o->newline() << "goto normal_fallthrough;";
 
   o->newline() << "if (0) goto out;"; // to prevent 'unused label' warnings
   o->newline() << "out:";
+  o->newline() << ";"; // to have _some_ statement
+
+  // Close the scope of the above nested 'out' label, to make sure
+  // that the catch block, should it encounter errors, does not resolve
+  // a 'goto out;' to the above label, causing infinite looping.
+  o->newline(-1) << "}";
+
+  o->newline() << "if (likely(c->last_error == NULL)) goto out;";
+
   if (s->catch_error_var)
     {
       var cev(getvar(s->catch_error_var->referent, s->catch_error_var->tok));
       c_strcpy (cev.value(), "c->last_error");
     }
   o->newline() << "c->last_error = NULL;";
-
-  // Close the scope of the above nested 'out' label, to make sure
-  // that the catch block, should it encounter errors, does not resolve
-  // a 'goto out;' to the above label, causing infinite looping.
-  o->newline(-1) << "}";
 
   // Prevent the catch{} handler from even starting if MAXACTIONS have
   // already been used up.  Add one for the act of catching too.
@@ -2404,7 +2455,7 @@ void c_unparser::visit_try_block (try_block *s)
       record_actions(0, s->catch_block->tok, true); // flush accumulated actions
     }
 
-  o->newline() << "normal_out:";
+  o->newline() << "normal_fallthrough:";
   o->newline() << ";"; // to have _some_ statement
   o->newline(-1) << "}";
 }
@@ -2580,6 +2631,73 @@ expression_is_arrayindex (expression *e,
 }
 
 
+// Look for opportunities to used a saved value at the beginning of the loop
+void
+c_unparser::visit_foreach_loop_value (visitor* vis, foreach_loop* s,
+                                      const string& value)
+{
+  bool stable_value = false;
+
+  // There are three possible cases that we might easily retrieve the value:
+  //   1. foreach ([keys] in any_array_type)
+  //   2. foreach (idx in @hist_*(stat))
+  //   3. foreach (idx in @hist_*(stat[keys]))
+  //
+  // For 1 and 2, we just need to check that the keys/idx are const throughout
+  // the loop.  For 3, we'd have to check also that the arbitrary keys
+  // expressions indexing the stat are const -- much harder, so I'm punting
+  // that case for now.
+
+  symbol *array;
+  hist_op *hist;
+  classify_indexable (s->base, array, hist);
+
+  if (!(hist && get_symbol_within_expression(hist->stat)->referent->arity > 0))
+    {
+      set<vardecl*> indexes;
+      for (unsigned i=0; i < s->indexes.size(); ++i)
+        indexes.insert(s->indexes[i]->referent);
+
+      varuse_collecting_visitor v(*session);
+      s->block->visit (&v);
+      v.embedded_seen = false; // reset because we only care about the indexes
+      if (v.side_effect_free_wrt(indexes))
+        stable_value = true;
+    }
+
+  if (stable_value)
+    {
+      // Rather than trying to compare arrayindexes to this foreach_loop
+      // manually, we just create a fake arrayindex that would match the
+      // foreach_loop, render it as a string, and later render encountered
+      // arrayindexes as strings and compare.
+      arrayindex ai;
+      ai.base = s->base;
+      for (unsigned i=0; i < s->indexes.size(); ++i)
+        ai.indexes.push_back(s->indexes[i]);
+      string loopai = lex_cast(ai);
+      foreach_loop_values[loopai] = value;
+      s->block->visit (vis);
+      foreach_loop_values.erase(loopai);
+    }
+  else
+    s->block->visit (vis);
+}
+
+
+bool
+c_unparser::get_foreach_loop_value (arrayindex* ai, string& value)
+{
+  if (!ai)
+    return false;
+  map<string,string>::iterator it = foreach_loop_values.find(lex_cast(*ai));
+  if (it == foreach_loop_values.end())
+    return false;
+  value = it->second;
+  return true;
+}
+
+
 void
 c_tmpcounter::visit_foreach_loop (foreach_loop *s)
 {
@@ -2610,22 +2728,7 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
 
       aggvar agg = parent->gensym_aggregate ();
       agg.declare(*(this->parent));
-
-      symbol *sym = get_symbol_within_expression (hist->stat);
-      var v = parent->getvar(sym->referent, sym->tok);
-      if (sym->referent->arity != 0)
-	{
-	  arrayindex *arr = NULL;
-	  if (!expression_is_arrayindex (hist->stat, arr))
-	    throw semantic_error("expected arrayindex expression in iterated hist_op", s->tok);
-
-	  for (unsigned i=0; i<sym->referent->index_types.size(); i++)
-	    {
-	      tmpvar ix = parent->gensym (sym->referent->index_types[i]);
-	      ix.declare (*parent);
-	      arr->indexes[i]->visit(this);
-	    }
-	}
+      load_aggregate (hist->stat);
     }
 
   // Create a temporary for the loop limit counter and the limit
@@ -2641,7 +2744,7 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
       limitv.declare(*parent);
     }
 
-  s->block->visit (this);
+  parent->visit_foreach_loop_value(this, s);
 }
 
 void
@@ -2651,16 +2754,16 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
   hist_op *hist;
   classify_indexable (s->base, array, hist);
 
+  string ctr = lex_cast (label_counter++);
+  string toplabel = "top_" + ctr;
+  string contlabel = "continue_" + ctr;
+  string breaklabel = "break_" + ctr;
+
   if (array)
     {
       mapvar mv = getmap (array->referent, s->tok);
       itervar iv = getiter (array);
       vector<var> keys;
-
-      string ctr = lex_cast (label_counter++);
-      string toplabel = "top_" + ctr;
-      string contlabel = "continue_" + ctr;
-      string breaklabel = "break_" + ctr;
 
       // NB: structure parallels for_loop
 
@@ -2784,7 +2887,14 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  var v = getvar (s->indexes[i]->referent);
 	  c_assign (v, iv.get_key (v.type(), i), s->tok);
 	}
-      s->block->visit (this);
+
+      if (s->value)
+        {
+	  var v = getvar (s->value->referent);
+	  c_assign (v, iv.get_value (v.type()), s->tok);
+        }
+
+      visit_foreach_loop_value(this, s, iv.get_value(array->type));
       record_actions(0, s->block->tok, true);
       o->newline(-1) << "}";
       loop_break_labels.pop_back ();
@@ -2810,11 +2920,9 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       var bucketvar = getvar (s->indexes[0]->referent);
 
       aggvar agg = gensym_aggregate ();
-      load_aggregate(hist->stat, agg);
 
-      symbol *sym = get_symbol_within_expression (hist->stat);
-      var v = getvar(sym->referent, sym->tok);
-      v.assert_hist_compatible(*hist);
+      var *v = load_aggregate(hist->stat, agg);
+      v->assert_hist_compatible(*hist);
 
       tmpvar *res_limit = NULL;
       tmpvar *limitv = NULL;
@@ -2829,12 +2937,13 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  o->newline() << *limitv << " = 0LL;";
 	}
 
-      // XXX: break / continue don't work here yet
       record_actions(1, s->tok, true);
       o->newline() << "for (" << bucketvar << " = 0; "
-		   << bucketvar << " < " << v.buckets() << "; "
+		   << bucketvar << " < " << v->buckets() << "; "
 		   << bucketvar << "++) { ";
       o->newline(1);
+      loop_break_labels.push_back (breaklabel);
+      loop_continue_labels.push_back (contlabel);
 
       if (s->limit)
       {
@@ -2847,9 +2956,24 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  delete res_limit;
       }
 
-      s->block->visit (this);
+      if (s->value)
+        {
+          var v = getvar (s->value->referent);
+          c_assign (v, agg.get_hist (bucketvar), s->tok);
+        }
+
+      visit_foreach_loop_value(this, s, agg.get_hist(bucketvar));
       record_actions(1, s->block->tok, true);
+
+      o->newline(-1) << contlabel << ":";
+      o->newline(1) << "continue;";
+      o->newline(-1) << breaklabel << ":";
+      o->newline(1) << "break;";
       o->newline(-1) << "}";
+      loop_break_labels.pop_back ();
+      loop_continue_labels.pop_back ();
+
+      delete v;
     }
 }
 
@@ -3013,24 +3137,22 @@ c_unparser::visit_delete_statement (delete_statement* s)
 void
 c_unparser::visit_break_statement (break_statement* s)
 {
-  if (loop_break_labels.size() == 0)
+  if (loop_break_labels.empty())
     throw semantic_error ("cannot 'break' outside loop", s->tok);
 
   record_actions(1, s->tok, true);
-  string label = loop_break_labels[loop_break_labels.size()-1];
-  o->newline() << "goto " << label << ";";
+  o->newline() << "goto " << loop_break_labels.back() << ";";
 }
 
 
 void
 c_unparser::visit_continue_statement (continue_statement* s)
 {
-  if (loop_continue_labels.size() == 0)
+  if (loop_continue_labels.empty())
     throw semantic_error ("cannot 'continue' outside loop", s->tok);
 
   record_actions(1, s->tok, true);
-  string label = loop_continue_labels[loop_continue_labels.size()-1];
-  o->newline() << "goto " << label << ";";
+  o->newline() << "goto " << loop_continue_labels.back() << ";";
 }
 
 
@@ -3083,6 +3205,18 @@ c_tmpcounter::visit_binary_expression (binary_expression* e)
 
   e->left->visit (this);
   e->right->visit (this);
+}
+
+
+void
+c_unparser::visit_embedded_expr (embedded_expr* e)
+{
+  if (e->type == pe_long)
+    o->line() << "((int64_t) (" << e->code << "))";
+  else if (e->type == pe_string)
+    o->line() << "((const char *) (" << e->code << "))";
+  else
+    throw semantic_error ("expected numeric or string type", e->tok);
 }
 
 
@@ -3592,10 +3726,7 @@ c_unparser_assignment::visit_symbol (symbol *e)
 void
 c_unparser::visit_target_symbol (target_symbol* e)
 {
-  if (!e->probe_context_var.empty())
-    o->line() << "l->" << e->probe_context_var;
-  else
-    throw semantic_error("cannot translate general target expression", e->tok);
+  throw semantic_error("cannot translate general target-symbol expression", e->tok);
 }
 
 
@@ -3610,6 +3741,13 @@ void
 c_unparser::visit_defined_op (defined_op* e)
 {
   throw semantic_error("cannot translate general @defined expression", e->tok);
+}
+
+
+void
+c_unparser::visit_entry_op (entry_op* e)
+{
+  throw semantic_error("cannot translate general @entry expression", e->tok);
 }
 
 
@@ -3697,32 +3835,63 @@ c_unparser::load_map_indices(arrayindex *e,
 
 
 void
-c_unparser::load_aggregate (expression *e, aggvar & agg, bool pre_agg)
+c_tmpcounter::load_aggregate (expression *e)
+{
+  symbol *sym = get_symbol_within_expression (e);
+  string agg_value;
+  arrayindex* arr = NULL;
+  expression_is_arrayindex (e, arr);
+
+  // If we have a foreach_loop value, we don't need tmps for indexes
+  if (sym->referent->arity != 0 &&
+      !parent->get_foreach_loop_value(arr, agg_value))
+    {
+      if (!arr)
+	throw semantic_error("expected arrayindex expression", e->tok);
+      load_map_indices (arr);
+    }
+}
+
+
+var*
+c_unparser::load_aggregate (expression *e, aggvar & agg)
 {
   symbol *sym = get_symbol_within_expression (e);
 
   if (sym->referent->type != pe_stats)
     throw semantic_error ("unexpected aggregate of non-statistic", sym->tok);
 
-  var v = getvar(sym->referent, e->tok);
-
+  var *v;
   if (sym->referent->arity == 0)
     {
+      v = new var(getvar(sym->referent, sym->tok));
       // o->newline() << "c->last_stmt = " << lex_cast_qstring(*sym->tok) << ";";
-      o->newline() << agg << " = _stp_stat_get (" << v << ", 0);";
+      o->newline() << agg << " = _stp_stat_get (" << *v << ", 0);";
     }
   else
     {
+      mapvar *mv = new mapvar(getmap(sym->referent, sym->tok));
+      v = mv;
+
       arrayindex *arr = NULL;
       if (!expression_is_arrayindex (e, arr))
 	throw semantic_error("unexpected aggregate of non-arrayindex", e->tok);
 
-      vector<tmpvar> idx;
-      load_map_indices (arr, idx);
-      mapvar mvar = getmap (sym->referent, sym->tok);
-      // o->newline() << "c->last_stmt = " << lex_cast_qstring(*sym->tok) << ";";
-      o->newline() << agg << " = " << mvar.get(idx, pre_agg) << ";";
+      // If we have a foreach_loop value, we don't need to index the map
+      string agg_value;
+      if (get_foreach_loop_value(arr, agg_value))
+        o->newline() << agg << " = " << agg_value << ";";
+      else
+        {
+          vector<tmpvar> idx;
+          load_map_indices (arr, idx);
+          // o->newline() << "c->last_stmt = " << lex_cast_qstring(*sym->tok) << ";";
+	  bool pre_agg = (aggregations_active.count(mv->value()) > 0);
+          o->newline() << agg << " = " << mv->get(idx, pre_agg) << ";";
+        }
     }
+
+  return v;
 }
 
 
@@ -3737,6 +3906,11 @@ c_unparser::histogram_index_check(var & base, tmpvar & idx) const
 void
 c_tmpcounter::visit_arrayindex (arrayindex *e)
 {
+  // If we have a foreach_loop value, no other tmps are needed
+  string ai_value;
+  if (parent->get_foreach_loop_value(e, ai_value))
+    return;
+
   symbol *array;
   hist_op *hist;
   classify_indexable (e->base, array, hist);
@@ -3795,22 +3969,7 @@ c_tmpcounter::visit_arrayindex (arrayindex *e)
 
       aggvar agg = parent->gensym_aggregate ();
       agg.declare(*(this->parent));
-
-      symbol *sym = get_symbol_within_expression (hist->stat);
-      var v = parent->getvar(sym->referent, sym->tok);
-      if (sym->referent->arity != 0)
-	{
-	  arrayindex *arr = NULL;
-	  if (!expression_is_arrayindex (hist->stat, arr))
-	    throw semantic_error("expected arrayindex expression in indexed hist_op", e->tok);
-
-	  for (unsigned i=0; i<sym->referent->index_types.size(); i++)
-	    {
-	      tmpvar ix = parent->gensym (sym->referent->index_types[i]);
-	      ix.declare (*parent);
-	      arr->indexes[i]->visit(this);
-	    }
-	}
+      load_aggregate (hist->stat);
     }
 }
 
@@ -3818,6 +3977,14 @@ c_tmpcounter::visit_arrayindex (arrayindex *e)
 void
 c_unparser::visit_arrayindex (arrayindex* e)
 {
+  // If we have a foreach_loop value, use it and call it a day!
+  string ai_value;
+  if (get_foreach_loop_value(e, ai_value))
+    {
+      o->line() << ai_value;
+      return;
+    }
+
   symbol *array;
   hist_op *hist;
   classify_indexable (e->base, array, hist);
@@ -3865,20 +4032,8 @@ c_unparser::visit_arrayindex (arrayindex* e)
       assert(idx.size() == 1);
       assert(idx[0].type() == pe_long);
 
-      symbol *sym = get_symbol_within_expression (hist->stat);
-
-      var *v;
-      if (sym->referent->arity < 1)
-	v = new var(getvar(sym->referent, e->tok));
-      else
-	v = new mapvar(getmap(sym->referent, e->tok));
-
+      var *v = load_aggregate(hist->stat, agg);
       v->assert_hist_compatible(*hist);
-
-      if (aggregations_active.count(v->value()))
-	load_aggregate(hist->stat, agg, true);
-      else
-        load_aggregate(hist->stat, agg, false);
 
       o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
 
@@ -4117,26 +4272,9 @@ c_tmpcounter::visit_print_format (print_format* e)
 {
   if (e->hist)
     {
-      symbol *sym = get_symbol_within_expression (e->hist->stat);
-      var v = parent->getvar(sym->referent, sym->tok);
       aggvar agg = parent->gensym_aggregate ();
-
       agg.declare(*(this->parent));
-
-      if (sym->referent->arity != 0)
-	{
-	  // One temporary per index dimension.
-	  for (unsigned i=0; i<sym->referent->index_types.size(); i++)
-	    {
-	      arrayindex *arr = NULL;
-	      if (!expression_is_arrayindex (e->hist->stat, arr))
-		throw semantic_error("expected arrayindex expression in printed hist_op", e->tok);
-
-	      tmpvar ix = parent->gensym (sym->referent->index_types[i]);
-	      ix.declare (*parent);
-	      arr->indexes[i]->visit(this);
-	    }
-	}
+      load_aggregate (e->hist->stat);
 
       // And the result for sprint[ln](@hist_*)
       if (!e->print_to_stream)
@@ -4183,23 +4321,12 @@ c_unparser::visit_print_format (print_format* e)
   if (e->hist)
     {
       stmt_expr block(*this);
-      symbol *sym = get_symbol_within_expression (e->hist->stat);
       aggvar agg = gensym_aggregate ();
 
-      var *v;
-      if (sym->referent->arity < 1)
-        v = new var(getvar(sym->referent, e->tok));
-      else
-        v = new mapvar(getmap(sym->referent, e->tok));
-
+      var *v = load_aggregate(e->hist->stat, agg);
       v->assert_hist_compatible(*e->hist);
 
       {
-	if (aggregations_active.count(v->value()))
-	  load_aggregate(e->hist->stat, agg, true);
-	else
-          load_aggregate(e->hist->stat, agg, false);
-
         // PR 2142+2610: empty aggregates
         o->newline() << "if (unlikely (" << agg.value() << " == NULL)"
                      << " || " <<  agg.value() << "->count == 0) {";
@@ -4351,7 +4478,7 @@ c_unparser::visit_print_format (print_format* e)
 	    /* Limit how much can be printed at a time. (see also PR10490) */
 	    o->newline() << "if (" << mem_size << " > 1024) {";
 	    o->newline(1) << "snprintf(c->error_buffer, sizeof(c->error_buffer), "
-			  << "\"%lld is too many bytes for a memory dump\", "
+			  << "\"%lld is too many bytes for a memory dump\", (long long)"
 			  << mem_size << ");";
 	    o->newline() << "c->last_error = c->error_buffer;";
 	    o->newline() << "c->last_stmt = " << lex_cast_qstring(*prec_tok) << ";";
@@ -4432,30 +4559,13 @@ c_unparser::visit_print_format (print_format* e)
 void
 c_tmpcounter::visit_stat_op (stat_op* e)
 {
-  symbol *sym = get_symbol_within_expression (e->stat);
-  var v = parent->getvar(sym->referent, e->tok);
   aggvar agg = parent->gensym_aggregate ();
   tmpvar res = parent->gensym (pe_long);
 
   agg.declare(*(this->parent));
   res.declare(*(this->parent));
 
-  if (sym->referent->arity != 0)
-    {
-      // One temporary per index dimension.
-      for (unsigned i=0; i<sym->referent->index_types.size(); i++)
-	{
-	  // Sorry about this, but with no dynamic_cast<> and no
-	  // constructor patterns, this is how things work.
-	  arrayindex *arr = NULL;
-	  if (!expression_is_arrayindex (e->stat, arr))
-	    throw semantic_error("expected arrayindex expression in stat_op of array", e->tok);
-
-	  tmpvar ix = parent->gensym (sym->referent->index_types[i]);
-	  ix.declare (*parent);
-	  arr->indexes[i]->visit(this);
-	}
-    }
+  load_aggregate (e->stat);
 }
 
 void
@@ -4477,16 +4587,10 @@ c_unparser::visit_stat_op (stat_op* e)
 
   {
     stmt_expr block(*this);
-    symbol *sym = get_symbol_within_expression (e->stat);
     aggvar agg = gensym_aggregate ();
     tmpvar res = gensym (pe_long);
-    var v = getvar(sym->referent, e->tok);
+    var *v = load_aggregate(e->stat, agg);
     {
-      if (aggregations_active.count(v.value()))
-	load_aggregate(e->stat, agg, true);
-      else
-        load_aggregate(e->stat, agg, false);
-
       // PR 2142+2610: empty aggregates
       if (e->ctype == sc_count)
         {
@@ -4529,6 +4633,7 @@ c_unparser::visit_stat_op (stat_op* e)
       o->indent(-1);
     }
     o->newline() << res << ";";
+    delete v;
   }
 }
 
@@ -4565,21 +4670,133 @@ struct unwindsym_dump_context
 };
 
 
+static void create_debug_frame_hdr (const unsigned char e_ident[],
+				    Elf_Data *debug_frame,
+				    void **debug_frame_hdr,
+				    size_t *debug_frame_hdr_len,
+				    Dwarf_Addr *debug_frame_off,
+				    systemtap_session& session,
+				    Dwfl_Module *mod)
+{
+  *debug_frame_hdr = NULL;
+  *debug_frame_hdr_len = 0;
+
+#if _ELFUTILS_PREREQ(0,142)
+  int cies = 0;
+  set< pair<Dwarf_Addr, Dwarf_Off> > fdes;
+  set< pair<Dwarf_Addr, Dwarf_Off> >::iterator it;
+
+  // In the .debug_frame the FDE encoding is always DW_EH_PE_absptr.
+  // So there is no need to read the CIEs.  And the size is either 4
+  // or 8, depending on the elf class from e_ident.
+  int size = (e_ident[EI_CLASS] == ELFCLASS32) ? 4 : 8;
+  int res = 0;
+  Dwarf_Off off = 0;
+  Dwarf_CFI_Entry entry;
+
+  while (res != 1 && off >= 0)
+    {
+      Dwarf_Off next_off;
+      res = dwarf_next_cfi (e_ident, debug_frame, false, off, &next_off,
+			    &entry);
+      if (res == 0)
+	{
+	  if (entry.CIE_id == DW_CIE_ID_64)
+	    cies++; // We can just ignore the CIEs.
+	  else
+	    {
+	      Dwarf_Addr addr;
+	      if (size == 4)
+		addr = (*((uint32_t *) entry.fde.start));
+	      else
+		addr = (*((uint64_t *) entry.fde.start));
+	      fdes.insert(pair<Dwarf_Addr, Dwarf_Off>(addr, off));
+	    }
+	}
+      else if (res > 0)
+	; // Great, all done.
+      else
+	{
+	  // Warn, but continue, backtracing will be slow...
+          if (session.verbose > 2 && ! session.suppress_warnings)
+	    {
+	      const char *modname = dwfl_module_info (mod, NULL,
+						      NULL, NULL, NULL,
+						      NULL, NULL, NULL);
+	      session.print_warning("Problem creating debug frame hdr for "
+				    + lex_cast_qstring(modname)
+				    + ", " + dwarf_errmsg (-1));
+	    }
+	  return;
+	}
+      off = next_off;
+    }
+
+  if (fdes.size() > 0)
+    {
+      it = fdes.begin();
+      Dwarf_Addr first_addr = (*it).first;
+      int res = dwfl_module_relocate_address (mod, &first_addr);
+      dwfl_assert ("create_debug_frame_hdr, dwfl_module_relocate_address",
+		   res >= 0);
+      *debug_frame_off = (*it).first - first_addr;
+    }
+
+  size_t total_size = 4 + (2 * size) + (2 * size * fdes.size());
+  uint8_t *hdr = (uint8_t *) malloc(total_size);
+  *debug_frame_hdr = hdr;
+  *debug_frame_hdr_len = total_size;
+
+  hdr[0] = 1; // version
+  hdr[1] = DW_EH_PE_absptr; // ptr encoding
+  hdr[2] = (size == 4) ? DW_EH_PE_udata4 : DW_EH_PE_udata8; // count encoding
+  hdr[3] = DW_EH_PE_absptr; // table encoding
+  if (size == 4)
+    {
+      uint32_t *table = (uint32_t *)(hdr + 4);
+      *table++ = (uint32_t) 0; // eh_frame_ptr, unused
+      *table++ = (uint32_t) fdes.size();
+      for (it = fdes.begin(); it != fdes.end(); it++)
+	{
+	  *table++ = (*it).first;
+	  *table++ = (*it).second;
+	}
+    }
+  else
+    {
+      uint64_t *table = (uint64_t *)(hdr + 4);
+      *table++ = (uint64_t) 0; // eh_frame_ptr, unused
+      *table++ = (uint64_t) fdes.size();
+      for (it = fdes.begin(); it != fdes.end(); it++)
+	{
+	  *table++ = (*it).first;
+	  *table++ = (*it).second;
+	}
+    }
+#endif
+}
+
 // Get the .debug_frame end .eh_frame sections for the given module.
 // Also returns the lenght of both sections when found, plus the section
-// address (offset) of the eh_frame data.
+// address (offset) of the eh_frame data. If a debug_frame is found, a
+// synthesized debug_frame_hdr is also returned.
 static void get_unwind_data (Dwfl_Module *m,
 			     void **debug_frame, void **eh_frame,
 			     size_t *debug_len, size_t *eh_len,
 			     Dwarf_Addr *eh_addr,
-                             void **eh_frame_hdr, size_t *eh_frame_hdr_len,
-                             Dwarf_Addr *eh_frame_hdr_addr)
+			     void **eh_frame_hdr, size_t *eh_frame_hdr_len,
+			     void **debug_frame_hdr,
+			     size_t *debug_frame_hdr_len,
+			     Dwarf_Addr *debug_frame_off,
+			     Dwarf_Addr *eh_frame_hdr_addr,
+			     systemtap_session& session,
+			     Dwfl_Module *mod)
 {
   Dwarf_Addr start, bias = 0;
   GElf_Ehdr *ehdr, ehdr_mem;
   GElf_Shdr *shdr, shdr_mem;
   Elf_Scn *scn;
-  Elf_Data *data;
+  Elf_Data *data = NULL;
   Elf *elf;
 
   // fetch .eh_frame info preferably from main elf file.
@@ -4637,6 +4854,11 @@ static void get_unwind_data (Dwfl_Module *m,
 	  break;
 	}
     }
+
+  if (*debug_frame != NULL && *debug_len > 0)
+    create_debug_frame_hdr (ehdr->e_ident, data,
+			    debug_frame_hdr, debug_frame_hdr_len,
+			    debug_frame_off, session, mod);
 }
 
 static int
@@ -4874,6 +5096,9 @@ dump_unwindsyms (Dwfl_Module *m,
   // Add unwind data to be included if it exists for this module.
   void *debug_frame = NULL;
   size_t debug_len = 0;
+  void *debug_frame_hdr = NULL;
+  size_t debug_frame_hdr_len = 0;
+  Dwarf_Addr debug_frame_off = 0;
   void *eh_frame = NULL;
   void *eh_frame_hdr = NULL;
   size_t eh_len = 0;
@@ -4881,67 +5106,81 @@ dump_unwindsyms (Dwfl_Module *m,
   Dwarf_Addr eh_addr = 0;
   Dwarf_Addr eh_frame_hdr_addr = 0;
   get_unwind_data (m, &debug_frame, &eh_frame, &debug_len, &eh_len, &eh_addr,
-                   &eh_frame_hdr, &eh_frame_hdr_len, &eh_frame_hdr_addr);
+                   &eh_frame_hdr, &eh_frame_hdr_len, &debug_frame_hdr,
+                   &debug_frame_hdr_len, &debug_frame_off, &eh_frame_hdr_addr,
+                   c->session, m);
   if (debug_frame != NULL && debug_len > 0)
     {
-      if (debug_len > MAX_UNWIND_TABLE_SIZE)
-	throw semantic_error ("module debug unwind table size too big");
-
       c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
       c->output << "static uint8_t _stp_module_" << stpmod_idx
 		<< "_debug_frame[] = \n";
       c->output << "  {";
-      for (size_t i = 0; i < debug_len; i++)
-	{
-	  int h = ((uint8_t *)debug_frame)[i];
-	  c->output << "0x" << hex << h << dec << ",";
-	  if ((i + 1) % 16 == 0)
-	    c->output << "\n" << "   ";
-	}
+      if (debug_len > MAX_UNWIND_TABLE_SIZE)
+        {
+          if (! c->session.suppress_warnings)
+            c->session.print_warning ("skipping module " + modname + " debug_frame unwind table (too big: " +
+                                      lex_cast(debug_len) + " > " + lex_cast(MAX_UNWIND_TABLE_SIZE) + ")");
+        }
+      else
+        for (size_t i = 0; i < debug_len; i++)
+          {
+            int h = ((uint8_t *)debug_frame)[i];
+            c->output << "0x" << hex << h << dec << ",";
+            if ((i + 1) % 16 == 0)
+              c->output << "\n" << "   ";
+          }
       c->output << "};\n";
       c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
     }
 
   if (eh_frame != NULL && eh_len > 0)
     {
-      if (eh_len > MAX_UNWIND_TABLE_SIZE)
-	throw semantic_error ("module eh unwind table size too big");
-
       c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
       c->output << "static uint8_t _stp_module_" << stpmod_idx
 		<< "_eh_frame[] = \n";
       c->output << "  {";
-      for (size_t i = 0; i < eh_len; i++)
-	{
-	  int h = ((uint8_t *)eh_frame)[i];
-	  c->output << "0x" << hex << h << dec << ",";
-	  if ((i + 1) % 16 == 0)
-	    c->output << "\n" << "   ";
-	}
+      if (eh_len > MAX_UNWIND_TABLE_SIZE)
+        {
+          if (! c->session.suppress_warnings)
+            c->session.print_warning ("skipping module " + modname + " eh_frame table (too big: " +
+                                      lex_cast(eh_len) + " > " + lex_cast(MAX_UNWIND_TABLE_SIZE) + ")");
+        }
+      else
+        for (size_t i = 0; i < eh_len; i++)
+          {
+            int h = ((uint8_t *)eh_frame)[i];
+            c->output << "0x" << hex << h << dec << ",";
+            if ((i + 1) % 16 == 0)
+              c->output << "\n" << "   ";
+          }
       c->output << "};\n";
       c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
     }
 
   if (eh_frame_hdr != NULL && eh_frame_hdr_len > 0)
     {
-      if (eh_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
-	throw semantic_error ("module eh header size too big");
-
       c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
       c->output << "static uint8_t _stp_module_" << stpmod_idx
 		<< "_eh_frame_hdr[] = \n";
       c->output << "  {";
-      for (size_t i = 0; i < eh_frame_hdr_len; i++)
-	{
-	  int h = ((uint8_t *)eh_frame_hdr)[i];
-	  c->output << "0x" << hex << h << dec << ",";
-	  if ((i + 1) % 16 == 0)
-	    c->output << "\n" << "   ";
-	}
+      if (eh_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
+        {
+          if (! c->session.suppress_warnings)
+            c->session.print_warning ("skipping module " + modname + " eh_frame_hdr table (too big: " +
+                                      lex_cast(eh_frame_hdr_len) + " > " + lex_cast(MAX_UNWIND_TABLE_SIZE) + ")");
+        }
+      else
+        for (size_t i = 0; i < eh_frame_hdr_len; i++)
+          {
+            int h = ((uint8_t *)eh_frame_hdr)[i];
+            c->output << "0x" << hex << h << dec << ",";
+            if ((i + 1) % 16 == 0)
+              c->output << "\n" << "   ";
+          }
       c->output << "};\n";
       c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
     }
-
+  
   if (debug_frame == NULL && eh_frame == NULL)
     {
       // There would be only a small benefit to warning.  A user
@@ -4974,6 +5213,45 @@ dump_unwindsyms (Dwfl_Module *m,
       c->output << "#endif /* STP_NEED_SYMBOL_DATA */\n";
 
       c->output << "};\n";
+
+      /* For now output debug_frame index only in "magic" sections. */
+      string secname = seclist[secidx].first;
+      if (secname == ".dynamic" || secname == ".absolute"
+	  || secname == ".text" || secname == "_stext")
+	{
+	  if (debug_frame_hdr != NULL && debug_frame_hdr_len > 0)
+	    {
+	      c->output << "#if defined(STP_USE_DWARF_UNWINDER)"
+			<< " && defined(STP_NEED_UNWIND_DATA)\n";
+	      c->output << "static uint8_t _stp_module_" << stpmod_idx
+			<< "_debug_frame_hdr_" << secidx << "[] = \n";
+	      c->output << "  {";
+	      if (debug_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
+		{
+		  if (! c->session.suppress_warnings)
+		    c->session.print_warning ("skipping module "
+					      + modname
+					      + ", section" + secname
+					      + " debug_frame_hdr table"
+					      + " (too big: "
+					      + lex_cast(debug_frame_hdr_len)
+					      + " > "
+					      + lex_cast(MAX_UNWIND_TABLE_SIZE)
+					      + ")");
+		}
+	      else
+		for (size_t i = 0; i < debug_frame_hdr_len; i++)
+		  {
+		    int h = ((uint8_t *)debug_frame_hdr)[i];
+		    c->output << "0x" << hex << h << dec << ",";
+		    if ((i + 1) % 16 == 0)
+		      c->output << "\n" << "   ";
+		  }
+	      c->output << "};\n";
+	      c->output << "#endif /* STP_USE_DWARF_UNWINDER"
+			<< " && STP_NEED_UNWIND_DATA */\n";
+	    }
+	}
     }
 
   c->output << "static struct _stp_section _stp_module_" << stpmod_idx<< "_sections[] = {\n";
@@ -4987,19 +5265,60 @@ dump_unwindsyms (Dwfl_Module *m,
                 << ".name = " << lex_cast_qstring(seclist[secidx].first) << ",\n"
                 << ".size = 0x" << hex << seclist[secidx].second << dec << ",\n"
                 << ".symbols = _stp_module_" << stpmod_idx << "_symbols_" << secidx << ",\n"
-                << ".num_symbols = " << addrmap[secidx].size() << "\n"
-                << "},\n";
+                << ".num_symbols = " << addrmap[secidx].size() << ",\n";
+
+      /* For now output debug_frame index only in "magic" sections. */
+      string secname = seclist[secidx].first;
+      if (debug_frame_hdr && (secname == ".dynamic" || secname == ".absolute"
+			      || secname == ".text" || secname == "_stext"))
+	{
+	  c->output << "#if defined(STP_USE_DWARF_UNWINDER)"
+		    << " && defined(STP_NEED_UNWIND_DATA)\n";
+
+          c->output << ".debug_hdr = "
+		    << "_stp_module_" << stpmod_idx
+		    << "_debug_frame_hdr_" << secidx << ",\n";
+          c->output << ".debug_hdr_len = " << debug_frame_hdr_len << ", \n";
+
+	  Dwarf_Addr dwbias = 0;
+	  dwfl_module_getdwarf (m, &dwbias);
+	  c->output << ".sec_load_offset = 0x"
+		    << hex << debug_frame_off - dwbias << dec << "\n";
+
+	  c->output << "#else\n";
+	  c->output << ".debug_hdr = NULL,\n";
+	  c->output << ".debug_hdr_len = 0,\n";
+	  c->output << ".sec_load_offset = 0\n";
+	  c->output << "#endif /* STP_USE_DWARF_UNWINDER"
+		    << " && STP_NEED_UNWIND_DATA */\n";
+
+	}
+      else
+	{
+	  c->output << ".debug_hdr = NULL,\n";
+	  c->output << ".debug_hdr_len = 0,\n";
+	  c->output << ".sec_load_offset = 0\n";
+	}
+
+	c->output << "},\n";
     }
   c->output << "};\n";
 
-  mainfile = canonicalize_file_name(mainfile);
+  // For user space modules store canonical path and base name.
+  // For kernel modules just the name itself.
+  const char *mainpath = canonicalize_file_name(mainfile);
+  const char *mainname = strrchr(mainpath, '/');
+  if (modname[0] == '/')
+    mainname++;
+  else
+    mainname = modname.c_str();
 
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
-  c->output << ".name = " << lex_cast_qstring (modname) << ", \n";
-  c->output << ".path = " << lex_cast_qstring (mainfile) << ",\n";
-  c->output << ".dwarf_module_base = 0x" << hex << base << ", \n";
-  c->output << ".eh_frame_addr = 0x" << eh_addr << ", \n";
-  c->output << ".unwind_hdr_addr = 0x" << eh_frame_hdr_addr << dec << ", \n";
+  c->output << ".name = " << lex_cast_qstring (mainname) << ", \n";
+  c->output << ".path = " << lex_cast_qstring (mainpath) << ",\n";
+  c->output << ".eh_frame_addr = 0x" << hex << eh_addr << dec << ", \n";
+  c->output << ".unwind_hdr_addr = 0x" << hex << eh_frame_hdr_addr
+	    << dec << ", \n";
 
   if (debug_frame != NULL)
     {
@@ -5092,6 +5411,130 @@ dump_unwindsyms (Dwfl_Module *m,
 // them with the runtime.
 void emit_symbol_data_done (unwindsym_dump_context*, systemtap_session&);
 
+
+void
+add_unwindsym_ldd (systemtap_session &s)
+{
+  std::set<std::string> added;
+
+  // NB: This is not entirely safe.  It may be possible to create a
+  // handcrafted executable that sends ldd off to neverland, or even
+  // to execute the thing.
+  if (geteuid() == 0 && !s.suppress_warnings)
+    s.print_warning("/usr/bin/ldd may not be safe to run on untrustworthy executables");
+
+  for (std::set<std::string>::iterator it = s.unwindsym_modules.begin();
+       it != s.unwindsym_modules.end();
+       it++)
+    {
+      string modname = *it;
+      assert (modname.length() != 0);
+      if (! is_user_module (modname)) continue;
+
+      string ldd_command = "/usr/bin/ldd " + modname;
+      if (s.verbose > 2)
+        clog << "Running '" << ldd_command << "'" << endl;
+
+      FILE *fp = popen (ldd_command.c_str(), "r");
+      if (fp == 0)
+        clog << ldd_command << " failed: " << strerror(errno) << endl;
+      else
+        {
+          while (1)
+            {
+              char linebuf[256];
+              char *soname = 0;
+              char *shlib = 0;
+              unsigned long int addr = 0;
+
+              char *line = fgets (linebuf, 256, fp);
+              if (line == 0) break; // EOF or error
+
+              // Try soname => shlib (0xaddr)
+              int nf = sscanf (line, "%as => %as (0x%lx)",
+                               &soname, &shlib, &addr);
+              if (nf != 3 || shlib[0] != '/')
+                {
+                  // Try shlib (0xaddr)
+                  nf = sscanf (line, " %as (0x%lx)", &shlib, &addr);
+                  if (nf != 2 || shlib[0] != '/')
+                    continue; // fewer than expected fields, or bad shlib.
+                }
+
+              if (added.find (shlib) == added.end())
+                {
+                  if (s.verbose > 2)
+                    {
+                      clog << "Added -d '" << shlib;
+                      if (nf == 3)
+                        clog << "' due to '" << soname << "'";
+                      else
+                        clog << "'";
+                      clog << endl;
+                    }
+                  added.insert (shlib);
+                }
+
+              free (soname);
+              free (shlib);
+            }
+          pclose (fp);
+        }
+    }
+  
+  s.unwindsym_modules.insert (added.begin(), added.end());
+}
+
+static set<string> vdso_paths;
+
+static int find_vdso(const char *path, const struct stat *status, int type)
+{
+  if (type == FTW_F)
+    {
+      const char *name = strrchr(path, '/');
+      if (name)
+	{
+	  name++;
+	  const char *ext = strrchr(name, '.');
+	  if (ext
+	      && strncmp("vdso", name, 4) == 0
+	      && strcmp(".so", ext) == 0)
+	    vdso_paths.insert(path);
+	}
+    }
+  return 0;
+}
+
+void
+add_unwindsym_vdso (systemtap_session &s)
+{
+  // This is to disambiguate between -r REVISION vs -r BUILDDIR.
+  // See also dwflsetup.c (setup_dwfl_kernel). In case of only
+  // having the BUILDDIR we need to do a deep search (the specific
+  // arch name dir in the kernel build tree is unknown).
+  string vdso_dir;
+  if (s.kernel_build_tree == string("/lib/modules/"
+				    + s.kernel_release
+				    + "/build"))
+    vdso_dir = "/lib/modules/" + s.kernel_release + "/vdso";
+  else
+    vdso_dir = s.kernel_build_tree + "/arch/";
+
+  if (s.verbose > 1)
+    clog << "Searching for vdso candidates: " << vdso_dir << endl;
+
+  ftw(vdso_dir.c_str(), find_vdso, 1);
+
+  for (set<string>::iterator it = vdso_paths.begin();
+       it != vdso_paths.end();
+       it++)
+    {
+      s.unwindsym_modules.insert(*it);
+      if (s.verbose > 1)
+	clog << "vdso candidate: " << *it << endl;
+    }
+}
+
 void
 emit_symbol_data (systemtap_session& s)
 {
@@ -5100,6 +5543,14 @@ emit_symbol_data (systemtap_session& s)
   s.op->newline() << "#include " << lex_cast_qstring (symfile);
 
   ofstream kallsyms_out ((s.tmpdir + "/" + symfile).c_str());
+
+  // step 0: run ldd on any user modules if requested
+  if (s.unwindsym_ldd)
+    add_unwindsym_ldd (s);
+  // step 0.5: add vdso(s) when vma tracker was requested
+  if (vma_tracker_enabled (s))
+    add_unwindsym_vdso (s);
+  // NB: do this before the ctx.unwindsym_modules copy is taken
 
   unwindsym_dump_context ctx = { s, kallsyms_out, 0, ~0, s.unwindsym_modules };
 
@@ -5126,8 +5577,10 @@ emit_symbol_data (systemtap_session& s)
     }
   DwflPtr dwfl_ptr = setup_dwfl_kernel (offline_search_modules, &count, s);
   Dwfl *dwfl = dwfl_ptr.get()->dwfl;
-  dwfl_assert("all kernel modules found",
-	      count >= offline_search_modules.size());
+  /* NB: It's not an error to find a few fewer modules than requested.
+     There might be third-party modules loaded (e.g. uprobes). */
+  /* dwfl_assert("all kernel modules found",
+     count >= offline_search_modules.size()); */
 
   ptrdiff_t off = 0;
   do
@@ -5188,11 +5641,6 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
   else
     ctx->output << "0x" << hex << ctx->stp_kretprobe_trampoline_addr << dec
 		<< ";\n";
-
-  // Note when someone requested the task_finder.
-  ctx->output << "static char _stp_need_vma_tracker = "
-              << (s.task_finder_derived_probes ? "1" : "0")
-              << ";\n";
 
   // Some nonexistent modules may have been identified with "-d".  Note them.
   if (! s.suppress_warnings)
@@ -5258,6 +5706,30 @@ translate_pass (systemtap_session& s)
 
   try
     {
+      int64_t major=0, minor=0;
+      try
+	{
+	  vector<string> versions;
+	  tokenize (s.compatible, versions, ".");
+	  if (versions.size() >= 1)
+	    major = lex_cast<int64_t> (versions[0]);
+	  if (versions.size() >= 2)
+	    minor = lex_cast<int64_t> (versions[1]);
+	  if (versions.size() >= 3 && s.verbose > 1)
+	    clog << "ignoring extra parts of compat version: " << s.compatible << endl;
+	}
+      catch (const runtime_error)
+	{
+	  throw semantic_error("parse error in compatibility version: " + s.compatible);
+	}
+      if (major < 0 || major > 255 || minor < 0 || minor > 255)
+	throw semantic_error("compatibility version out of range: " + s.compatible);
+      s.op->newline() << "#define STAP_VERSION(a, b) ( ((a) << 8) + (b) )";
+      s.op->newline() << "#ifndef STAP_COMPAT_VERSION";
+      s.op->newline() << "#define STAP_COMPAT_VERSION STAP_VERSION("
+		      << major << ", " << minor << ")";
+      s.op->newline() << "#endif";
+
       recursion_info ri (s);
 
       // NB: we start our traversal from the s.functions[] rather than the probes.
@@ -5299,11 +5771,11 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#ifndef MAXACTION_INTERRUPTIBLE";
       s.op->newline() << "#define MAXACTION_INTERRUPTIBLE (MAXACTION * 10)";
       s.op->newline() << "#endif";
-      s.op->newline() << "#ifndef MAXTRYLOCK";
-      s.op->newline() << "#define MAXTRYLOCK MAXACTION";
-      s.op->newline() << "#endif";
       s.op->newline() << "#ifndef TRYLOCKDELAY";
-      s.op->newline() << "#define TRYLOCKDELAY 100";
+      s.op->newline() << "#define TRYLOCKDELAY 10 /* microseconds */";
+      s.op->newline() << "#endif";
+      s.op->newline() << "#ifndef MAXTRYLOCK";
+      s.op->newline() << "#define MAXTRYLOCK 100 /* 1 millisecond total */";
       s.op->newline() << "#endif";
       s.op->newline() << "#ifndef MAXMAPENTRIES";
       s.op->newline() << "#define MAXMAPENTRIES 2048";
@@ -5331,7 +5803,7 @@ translate_pass (systemtap_session& s)
       // We allow the user to completely turn overload processing off
       // (as opposed to tuning it by overriding the values above) by
       // running:  stap -DSTP_NO_OVERLOAD {other options}
-      s.op->newline() << "#ifndef STP_NO_OVERLOAD";
+      s.op->newline() << "#if !defined(STP_NO_OVERLOAD) && !defined(STAP_NO_OVERLOAD)";
       s.op->newline() << "#define STP_OVERLOAD";
       s.op->newline() << "#endif";
 
@@ -5420,6 +5892,53 @@ translate_pass (systemtap_session& s)
           s.up->emit_probe (s.probes[i]);
         }
       s.op->assert_0_indent();
+
+      // Let's find some stats for the embedded pp strings.  Maybe they
+      // are small and uniform enough to justify putting char[MAX]'s into
+      // the array instead of relocated char*'s.
+      size_t pp_max = 0, pn_max = 0;
+      size_t pp_tot = 0, pn_tot = 0;
+      for (unsigned i=0; i<s.probes.size(); i++)
+        {
+          derived_probe* p = s.probes[i];
+#define DOIT(var,expr) do {                             \
+        size_t var##_size = (expr) + 1;                 \
+        var##_max = max (var##_max, var##_size);        \
+        var##_tot += var##_size; } while (0)
+          DOIT(pp, lex_cast_qstring(*p->sole_location()).size());
+          DOIT(pn, lex_cast_qstring(*p->script_location()).size());
+#undef DOIT
+        }
+
+      // Decide whether it's worthwhile to use char[] or char* by comparing
+      // the amount of average waste (max - avg) to the relocation data size
+      // (3 native long words).
+#define CALCIT(var)                                                             \
+      if ((var##_max-(var##_tot/s.probes.size())) < (3 * sizeof(void*)))        \
+        {                                                                       \
+          s.op->newline() << "const char " << #var << "[" << var##_max << "];"; \
+          if (s.verbose > 2)                                                    \
+            clog << "stap_probe " << #var                                       \
+                 << "[" << var##_max << "]" << endl;                       \
+        }                                                                       \
+      else                                                                      \
+        {                                                                       \
+          s.op->newline() << "const char * const " << #var << ";";              \
+          if (s.verbose > 2)                                                    \
+            clog << "stap_probe *" << #var << endl;                             \
+        }
+
+      s.op->newline() << "struct stap_probe {";
+      s.op->newline(1) << "void (* const ph) (struct context*);";
+      CALCIT(pp);
+      s.op->newline() << "#ifdef STP_NEED_PROBE_NAME";
+      CALCIT(pn);
+      s.op->newline() << "#define STAP_PROBE_INIT(PH, PP, PN) { .ph=(PH), .pp=(PP), .pn=(PN) }";
+      s.op->newline() << "#else";
+      s.op->newline() << "#define STAP_PROBE_INIT(PH, PP, PN) { .ph=(PH), .pp=(PP) }";
+      s.op->newline() << "#endif";
+      s.op->newline(-1) << "};";
+#undef CALCIT
 
       s.op->newline();
       s.up->emit_module_init ();

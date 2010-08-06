@@ -91,7 +91,7 @@ static void print_stack_address(void *data, unsigned long addr, int reliable)
 {
 	struct print_stack_data *sdata = data;
         if (sdata->level++ < sdata->max_level)
-                _stp_func_print(addr, sdata->verbose, 0, NULL);
+                _stp_print_addr(addr, sdata->verbose | _STP_SYM_INEXACT, NULL);
 }
 
 static const struct stacktrace_ops print_stack_ops = {
@@ -99,7 +99,7 @@ static const struct stacktrace_ops print_stack_ops = {
 	.warning_symbol = print_stack_warning_symbol,
 	.stack = print_stack_stack,
 	.address = print_stack_address,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,33)
+#if defined(STAPCONF_WALK_STACK)
 	.walk_stack = print_context_stack,
 #endif
 };
@@ -122,48 +122,40 @@ static void _stp_stack_print_fallback(unsigned long stack, int verbose, int leve
 
 /** Prints the stack backtrace
  * @param regs A pointer to the struct pt_regs.
+ * @param verbose _STP_SYM_FULL or _STP_SYM_BRIEF
  */
 
-static void _stp_stack_print(struct pt_regs *regs, int verbose, struct kretprobe_instance *pi, int levels, struct task_struct *tsk, struct uretprobe_instance *ri)
+static void _stp_stack_print(struct pt_regs *regs, int verbose,
+			     struct kretprobe_instance *pi, int levels,
+                             struct task_struct *tsk,
+                             struct uretprobe_instance *ri, int uregs_valid)
 {
-	if (verbose) {
-		/* print the current address */
-		if (pi) {
-			if (verbose == SYM_VERBOSE_FULL) {
-				_stp_print("Returning from: ");
-				_stp_symbol_print((unsigned long)_stp_probe_addr_r(pi));
-				_stp_print("\nReturning to  : ");
-			}
-			_stp_symbol_print((unsigned long)_stp_ret_addr_r(pi));
-			_stp_print_char('\n');
-#ifdef CONFIG_UTRACE /* as a proxy for presence of uprobes... */
-                } else if (ri && ri != GET_PC_URETPROBE_NONE) {
-			if (verbose == SYM_VERBOSE_FULL) {
-				_stp_print("Returning from: ");
-				/* ... otherwise this dereference fails */
-				_stp_usymbol_print(ri->rp->u.vaddr, tsk);
-				_stp_print("\nReturning to  : ");
-				_stp_usymbol_print(ri->ret_addr, tsk);
-				_stp_print_char('\n');				
-			} else
-				_stp_func_print(ri->ret_addr, verbose, 0, tsk);
-#endif
-		} else if (verbose == SYM_VERBOSE_BRIEF) {
-			_stp_func_print(REG_IP(regs), verbose, 0, tsk);
-		} else {
-			_stp_print_char(' ');
-			if (tsk)
-				_stp_usymbol_print(REG_IP(regs), tsk);
-			else
-				_stp_symbol_print(REG_IP(regs));
-			_stp_print_char('\n');
+	/* print the current address */
+	if (pi) {
+		if ((verbose & _STP_SYM_FULL) == _STP_SYM_FULL) {
+			_stp_print("Returning from: ");
+			_stp_print_addr((unsigned long)_stp_probe_addr_r(pi),
+					verbose, tsk);
+			_stp_print("Returning to  : ");
 		}
-	} else if (pi)
-		_stp_printf("%p %p ", (int64_t)(long)_stp_ret_addr_r(pi), (int64_t) REG_IP(regs));
-	else 
-		_stp_printf("%p ", (int64_t) REG_IP(regs));
+		_stp_print_addr((unsigned long)_stp_ret_addr_r(pi), verbose, tsk);
+#ifdef STAPCONF_UPROBE_GET_PC
+	} else if (ri && ri != GET_PC_URETPROBE_NONE) {
+		if ((verbose & _STP_SYM_FULL) == _STP_SYM_FULL) {
+			_stp_print("Returning from: ");
+			/* ... otherwise this dereference fails */
+			_stp_print_addr(ri->rp->u.vaddr, verbose, tsk);
+			_stp_print("Returning to  : ");
+			_stp_print_addr(ri->ret_addr, verbose, tsk);
+		} else
+			_stp_print_addr(ri->ret_addr, verbose, tsk);
+#endif
+	} else {
+		_stp_print_addr(REG_IP(regs), verbose, tsk);
+	}
 
-	__stp_stack_print(regs, verbose, levels, tsk, ri);
+	/* print rest of stack... */
+	__stp_stack_print(regs, verbose, levels, tsk, ri, uregs_valid);
 }
 
 /** Writes stack backtrace to a string
@@ -172,14 +164,27 @@ static void _stp_stack_print(struct pt_regs *regs, int verbose, struct kretprobe
  * @param regs A pointer to the struct pt_regs.
  * @returns void
  */
-static void _stp_stack_snprint(char *str, int size, struct pt_regs *regs, int verbose, struct kretprobe_instance *pi, int levels, struct task_struct *tsk, struct uretprobe_instance *ri)
+static void _stp_stack_sprint(char *str, int size, int flags,
+			      struct pt_regs *regs,
+			      struct kretprobe_instance *pi,
+			      int levels, struct task_struct *tsk,
+			      struct uretprobe_instance *ri, int uregs_valid)
 {
-	/* To get a string, we use a simple trick. First flush the print buffer, */
-	/* then call _stp_stack_print, then copy the result into the output string  */
-	/* and clear the print buffer. */
+	/* To get an hex string, we use a simple trick.
+	 * First flush the print buffer,
+	 * then call _stp_stack_print,
+	 * then copy the result into the output string
+	 * and clear the print buffer. */
 	_stp_pbuf *pb = per_cpu_ptr(Stp_pbuf, smp_processor_id());
 	_stp_print_flush();
-	_stp_stack_print(regs, verbose, pi, levels, tsk, ri);
+
+	if (pi)
+		_stp_print_addr((int64_t) (long) _stp_ret_addr_r(pi),
+				flags, tsk);
+
+	_stp_print_addr((int64_t) REG_IP(regs), flags, tsk);
+	__stp_stack_print(regs, flags, levels, tsk, ri, uregs_valid);
+
 	strlcpy(str, pb->buf, size < (int)pb->len ? size : (int)pb->len);
 	pb->len = 0;
 }
@@ -201,8 +206,7 @@ static void _stp_stack_print_tsk(struct task_struct *tsk, int verbose, int level
         for (i = 0; i < maxLevels; ++i) {
                 if (backtrace[i] == 0 || backtrace[i] == ULONG_MAX)
                         break;
-		_stp_symbol_print(backtrace[i]);
-		_stp_print_char('\n');
+		_stp_print_addr(backtrace[i], verbose, tsk);
         }
 #endif
 }

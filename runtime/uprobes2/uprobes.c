@@ -87,7 +87,11 @@ static DEFINE_MUTEX(uproc_mutex);
 
 /* Table of uprobe_tasks, hashed by task_struct pointer. */
 static struct hlist_head utask_table[UPROBE_TABLE_SIZE];
+#ifdef CONFIG_PREEMPT_RT
+static DEFINE_RAW_SPINLOCK(utask_table_lock);
+#else
 static DEFINE_SPINLOCK(utask_table_lock);
+#endif
 
 #define lock_uproc_table() mutex_lock(&uproc_mutex)
 #define unlock_uproc_table() mutex_unlock(&uproc_mutex)
@@ -2010,6 +2014,9 @@ static u32 uprobe_report_signal(u32 action,
 			}
 		}
 
+		if (uprobe_emulate_insn(regs, ppt))
+			goto bkpt_done;
+
 		utask->state = UPTASK_PRE_SSTEP;
 #ifdef CONFIG_UPROBES_SSOL
 		if (uproc->sstep_out_of_line)
@@ -2873,8 +2880,6 @@ unsigned long uprobe_get_pc(struct uretprobe_instance *ri, unsigned long pc,
 	struct uprobe_process *uproc;
 	struct hlist_node *r;
 
-	if (!ri)
-		return 0;
 	if (ri == GET_PC_URETPROBE_NONE) {
 		utask = uprobe_find_utask(current);
 		if (!utask)

@@ -9,6 +9,7 @@
 #ifndef SESSION_H
 #define SESSION_H
 
+#include <list>
 #include <string>
 #include <vector>
 #include <iostream>
@@ -17,6 +18,7 @@
 #include <set>
 
 extern "C" {
+#include <signal.h>
 #include <elfutils/libdw.h>
 }
 
@@ -51,7 +53,6 @@ struct semantic_error;
 struct module_cache;
 struct update_visitor;
 
-
 // XXX: a generalized form of this descriptor could be associated with
 // a vardecl instead of out here at the systemtap_session level.
 struct statistic_decl
@@ -73,38 +74,60 @@ struct statistic_decl
   }
 };
 
-
 struct systemtap_session
 {
   systemtap_session ();
+
   // NB: It is very important for all of the above (and below) fields
-  // to be cleared in the systemtap_session ctor (elaborate.cxx)
-  // and/or main.cxx(main).
+  // to be cleared in the systemtap_session ctor (session.cxx).
+  void setup_kernel_release (const char* kstr);
+  int parse_kernel_config ();
+  int parse_kernel_exports ();
+  void insert_loaded_modules ();
+
+  // command line parsing
+  int  parse_cmdline (int argc, char * const argv []);
+  void version ();
+  void usage (int exitcode);
+  void check_options (int argc, char * const argv []);
+  static const char* morehelp;
+
+  // NB: It is very important for all of the above (and below) fields
+  // to be cleared in the systemtap_session ctor (session.cxx).
 
   // command line args
+  std::string script_file; // FILE
+  std::string cmdline_script; // -e PROGRAM
+  bool have_script;
   std::vector<std::string> include_path;
+  int include_arg_start;
   std::vector<std::string> macros;
   std::vector<std::string> args;
   std::vector<std::string> kbuildflags;
+  std::vector<std::string> globalopts; // -G var=val
+  std::string release;
   std::string kernel_release;
   std::string kernel_base_release;
   std::string kernel_build_tree;
   std::map<std::string,std::string> kernel_config;
   std::set<std::string> kernel_exports;
+  std::string machine;
   std::string architecture;
   std::string runtime_path;
+  bool runtime_specified;
   std::string data_path;
-  std::string cert_db_path;
   std::string module_name;
   std::string stapconf_name;
   std::string output_file;
   std::string size_option;
   std::string cmd;
+  std::string compatible; // use (strverscmp(s.compatible.c_str(), "N.M") >= 0)
   int target_pid;
   int last_pass;
   unsigned perpass_verbose[5];
   unsigned verbose;
   bool timing;
+  bool save_module;
   bool keep_tmpdir;
   bool guru_mode;
   bool listing_mode;
@@ -114,17 +137,33 @@ struct systemtap_session
   bool suppress_warnings;
   bool panic_warnings;
   int buffer_size;
-  bool symtab; /* true: emit symbol table at translation time; false: let staprun do it. */
   bool prologue_searching;
   bool tapset_compile_coverage;
   bool need_uprobes;
   bool load_only; // flight recorder mode
-  bool unprivileged;
   bool omit_werror;
+  bool unprivileged;
 
   // NB: It is very important for all of the above (and below) fields
-  // to be cleared in the systemtap_session ctor (elaborate.cxx)
-  // and/or main.cxx(main).
+  // to be cleared in the systemtap_session ctor (session.cxx).
+
+  // Client/server
+  bool client_options;
+  std::string client_options_disallowed;
+  std::vector<std::string> server_status_strings;
+  std::vector<std::string> specified_servers;
+  std::vector<std::string> server_args;
+  std::string winning_server;
+
+  // XXX: why?
+  std::string host_name;
+  std::string domain_name;
+  std::string &get_host_name ();
+  std::string &get_domain_name ();
+  void get_host_and_domain_name ();
+
+  // NB: It is very important for all of the above (and below) fields
+  // to be cleared in the systemtap_session ctor (session.cxx).
 
   // Cache data
   bool use_cache;               // control all caching
@@ -145,8 +184,7 @@ struct systemtap_session
   bool skip_badvars;
 
   // NB: It is very important for all of the above (and below) fields
-  // to be cleared in the systemtap_session ctor (elaborate.cxx)
-  // and/or main.cxx(main).
+  // to be cleared in the systemtap_session ctor (session.cxx).
 
   // temporary directory for module builds etc.
   // hazardous - it is "rm -rf"'d at exit
@@ -196,8 +234,7 @@ struct systemtap_session
   procfs_derived_probe_group* procfs_derived_probes;
 
   // NB: It is very important for all of the above (and below) fields
-  // to be cleared in the systemtap_session ctor (elaborate.cxx)
-  // and/or main.cxx(main).
+  // to be cleared in the systemtap_session ctor (session.cxx).
 
   // unparser data
   translator_output* op;
@@ -211,11 +248,11 @@ struct systemtap_session
 
   // List of libdwfl module names to extract symbol/unwind data for.
   std::set<std::string> unwindsym_modules;
+  bool unwindsym_ldd;
   struct module_cache* module_cache;
 
   // NB: It is very important for all of the above (and below) fields
-  // to be cleared in the systemtap_session ctor (elaborate.cxx)
-  // and/or main.cxx(main).
+  // to be cleared in the systemtap_session ctor (session.cxx).
 
   std::set<std::string> seen_errors;
   std::set<std::string> seen_warnings;
@@ -229,15 +266,17 @@ struct systemtap_session
   void print_error (const semantic_error& e);
   void print_error_source (std::ostream&, std::string&, const token* tok);
   void print_warning (const std::string& w, const token* tok = 0);
+  void printscript(std::ostream& o);
 
   // NB: It is very important for all of the above (and below) fields
-  // to be cleared in the systemtap_session ctor (elaborate.cxx)
-  // and/or main.cxx(main).
+  // to be cleared in the systemtap_session ctor (session.cxx).
 };
 
 
 // global counter of SIGINT/SIGTERM's received
 extern int pending_interrupts;
+
+int passes_0_4 ();
 
 #endif // SESSION_H
 

@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2009 Red Hat Inc.
+// Copyright (C) 2005-2010 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -180,19 +180,18 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-trace-printk.c", "STAPCONF_TRACE_PRINTK", NULL);
   output_autoconf(s, o, "autoconf-regset.c", "STAPCONF_REGSET", NULL);
   output_autoconf(s, o, "autoconf-utrace-regset.c", "STAPCONF_UTRACE_REGSET", NULL);
+  output_autoconf(s, o, "autoconf-uprobe-get-pc.c", "STAPCONF_UPROBE_GET_PC", NULL);
   output_exportconf(s, o, "cpu_khz", "STAPCONF_CPU_KHZ");
 
-#if 0
-  /* NB: For now, the performance hit of probe_kernel_read/write (vs. our
-   * homegrown safe-access functions) is deemed undesireable, so we'll skip
-   * this autoconf. */
   output_autoconf(s, o, "autoconf-probe-kernel.c", "STAPCONF_PROBE_KERNEL", NULL);
-#endif
   output_autoconf(s, o, "autoconf-save-stack-trace.c",
                   "STAPCONF_KERNEL_STACKTRACE", NULL);
   output_autoconf(s, o, "autoconf-asm-syscall.c",
 		  "STAPCONF_ASM_SYSCALL_H", NULL);
   output_autoconf(s, o, "autoconf-ring_buffer-flags.c", "STAPCONF_RING_BUFFER_FLAGS", NULL);
+  output_autoconf(s, o, "autoconf-kallsyms-on-each-symbol.c", "STAPCONF_KALLSYMS_ON_EACH_SYMBOL", NULL);
+  output_autoconf(s, o, "autoconf-walk-stack.c", "STAPCONF_WALK_STACK", NULL);
+  output_autoconf(s, o, "autoconf-mm-context-vdso.c", "STAPCONF_MM_CONTEXT_VDSO", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
@@ -322,7 +321,7 @@ may_build_uprobes (const systemtap_session& s)
 static bool
 verify_uprobes_uptodate (systemtap_session& s)
 {
-  if (s.verbose)
+  if (s.verbose > 1)
     clog << "Pass 4, preamble: "
 	 << "verifying that SystemTap's version of uprobes is up to date."
 	 << endl;
@@ -359,7 +358,7 @@ verify_uprobes_uptodate (systemtap_session& s)
 static int
 make_uprobes (systemtap_session& s)
 {
-  if (s.verbose)
+  if (s.verbose > 1)
     clog << "Pass 4, preamble: "
 	 << "(re)building SystemTap's version of uprobes."
 	 << endl;
@@ -392,6 +391,12 @@ uprobes_pass (systemtap_session& s)
 {
   if (!s.need_uprobes || kernel_built_uprobes(s))
     return 0;
+
+  if (s.kernel_config["CONFIG_UTRACE"] != string("y")) {
+    clog << "user-space facilities not available without kernel CONFIG_UTRACE" << endl;
+    return 1;
+  }
+
   /*
    * We need to use the version of uprobes that comes with SystemTap, so
    * we may need to rebuild uprobes.ko there.  Unfortunately, this is
@@ -443,6 +448,10 @@ run_pass (systemtap_session& s)
 
   staprun_cmd += s.tmpdir + "/" + s.module_name + ".ko";
 
+  // add module arguments
+  for (unsigned i=0; i<s.globalopts.size(); i++)
+    staprun_cmd += " " + s.globalopts[i];
+
   return stap_system (s.verbose, staprun_cmd);
 }
 
@@ -485,6 +494,11 @@ make_tracequery(systemtap_session& s, string& name,
   osrc << "#define DECLARE_TRACE(name, proto, args) \\" << endl;
   osrc << "  void stapprobe_##name(proto) {}" << endl;
 
+  // 2.6.35 added the NOARGS variant, but it's the same for us
+  osrc << "#undef DECLARE_TRACE_NOARGS" << endl;
+  osrc << "#define DECLARE_TRACE_NOARGS(name) \\" << endl;
+  osrc << "  DECLARE_TRACE(name, void, )" << endl;
+
   // older tracepoints used DEFINE_TRACE, so redirect that too
   osrc << "#undef DEFINE_TRACE" << endl;
   osrc << "#define DEFINE_TRACE(name, proto, args) \\" << endl;
@@ -492,7 +506,8 @@ make_tracequery(systemtap_session& s, string& name,
 
   // add the specified headers
   for (unsigned z=0; z<headers.size(); z++)
-    osrc << "#include <" << headers[z] << ">\n";
+    osrc << "#undef TRACE_INCLUDE_FILE\n"
+         << "#include <" << headers[z] << ">\n";
 
   // finish up the module source
   osrc << "#endif /* CONFIG_TRACEPOINTS */" << endl;

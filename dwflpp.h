@@ -63,6 +63,9 @@ typedef std::pair<cu_function_cache_t::iterator,
 // cu die -> (function -> die)
 typedef unordered_map<void*, cu_function_cache_t*> mod_cu_function_cache_t;
 
+// module -> (function -> die)
+typedef unordered_map<Dwarf*, cu_function_cache_t*> mod_function_cache_t;
+
 // inline function die -> instance die[]
 typedef unordered_map<void*, std::vector<Dwarf_Die>*> cu_inl_function_cache_t;
 
@@ -124,7 +127,7 @@ module_cache
 struct func_info
 {
   func_info()
-    : decl_file(NULL), decl_line(-1), addr(0), prologue_end(0), weak(false)
+    : decl_file(NULL), decl_line(-1), addr(0), prologue_end(0), weak(false), descriptor(false)
   {
     std::memset(&die, 0, sizeof(die));
   }
@@ -135,7 +138,7 @@ struct func_info
   Dwarf_Addr addr;
   Dwarf_Addr entrypc;
   Dwarf_Addr prologue_end;
-  bool weak;
+  bool weak, descriptor;
 };
 
 
@@ -215,11 +218,11 @@ struct dwflpp
   Dwarf_Die *declaration_resolve(const char *name);
   Dwarf_Die *declaration_resolve_other_cus(const char *name);
 
-  mod_cu_function_cache_t cu_function_cache;
-
   int iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
-                              base_query * q, const std::string& function,
-                              bool has_statement_num=false);
+                              base_query * q, const std::string& function);
+
+  int iterate_single_function (int (* callback)(Dwarf_Die * func, base_query * q),
+                               base_query * q, const std::string& function);
 
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
@@ -262,18 +265,29 @@ struct dwflpp
                                       const target_symbol *e,
                                       bool lvalue,
                                       exp_type & ty);
-
+  Dwarf_Die* type_die_for_local (std::vector<Dwarf_Die>& scopes,
+                                 Dwarf_Addr pc,
+                                 std::string const & local,
+                                 const target_symbol *e,
+                                 Dwarf_Die *die_mem);
 
   std::string literal_stmt_for_return (Dwarf_Die *scope_die,
                                        Dwarf_Addr pc,
                                        const target_symbol *e,
                                        bool lvalue,
                                        exp_type & ty);
+  Dwarf_Die* type_die_for_return (Dwarf_Die *scope_die,
+                                  Dwarf_Addr pc,
+                                  const target_symbol *e,
+                                  Dwarf_Die *die_mem);
 
   std::string literal_stmt_for_pointer (Dwarf_Die *type_die,
                                         const target_symbol *e,
                                         bool lvalue,
                                         exp_type & ty);
+  Dwarf_Die* type_die_for_pointer (Dwarf_Die *type_die,
+                                   const target_symbol *e,
+                                   Dwarf_Die *die_mem);
 
   bool blacklisted_p(const std::string& funcname,
                      const std::string& filename,
@@ -283,6 +297,10 @@ struct dwflpp
                      bool has_return);
 
   Dwarf_Addr relocate_address(Dwarf_Addr addr, std::string& reloc_section);
+
+  void resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
+                                          Dwarf_Die *innerdie,
+                                          const target_symbol *e);
 
 
 private:
@@ -297,6 +315,8 @@ private:
   void setup_user(const std::vector<std::string>& modules, bool debuginfo_needed = true);
 
   module_cu_cache_t module_cu_cache;
+  mod_cu_function_cache_t cu_function_cache;
+  mod_function_cache_t mod_function_cache;
 
   std::set<void*> cu_inl_function_cache_done; // CUs that are already cached
   cu_inl_function_cache_t cu_inl_function_cache;
@@ -323,6 +343,7 @@ private:
                                    int (* callback)(Dwarf_Die *, void *),
                                    void * data);
 
+  static int mod_function_caching_callback (Dwarf_Die* func, void *arg);
   static int cu_function_caching_callback (Dwarf_Die* func, void *arg);
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
@@ -357,23 +378,19 @@ private:
                           Dwarf_Die *memberdie,
                           std::vector<Dwarf_Attribute>& locs);
 
-  Dwarf_Die *translate_components(struct obstack *pool,
-                                  struct location **tail,
-                                  Dwarf_Addr pc,
-                                  const target_symbol *e,
-                                  Dwarf_Die *vardie,
-                                  Dwarf_Die *die_mem,
-                                  Dwarf_Attribute *attr_mem);
-
-  Dwarf_Die *resolve_unqualified_inner_typedie (Dwarf_Die *typedie_mem,
-                                                Dwarf_Attribute *attr_mem,
-                                                const target_symbol *e);
+  void translate_components(struct obstack *pool,
+                            struct location **tail,
+                            Dwarf_Addr pc,
+                            const target_symbol *e,
+                            Dwarf_Die *vardie,
+                            Dwarf_Die *typedie,
+                            unsigned first=0);
 
   void translate_final_fetch_or_store (struct obstack *pool,
                                        struct location **tail,
                                        Dwarf_Addr module_bias,
-                                       Dwarf_Die *die,
-                                       Dwarf_Attribute *attr_mem,
+                                       Dwarf_Die *vardie,
+                                       Dwarf_Die *typedie,
                                        bool lvalue,
                                        const target_symbol *e,
                                        std::string &,

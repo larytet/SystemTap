@@ -1,11 +1,11 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 1.2, systemtap@sources.redhat.com, systemtap)
+AC_INIT([systemtap], 1.3, systemtap@sources.redhat.com, systemtap)
 dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
 
 AC_PREREQ(2.59)
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([no-dist foreign])
 AM_MAINTAINER_MODE
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
@@ -26,25 +26,6 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_SUBST(CFLAGS)
 AC_SUBST(CXXFLAGS)
-
-dnl Handle the perfmon option.
-AC_ARG_ENABLE([perfmon],
-  AS_HELP_STRING([--enable-perfmon@<:@=DIRECTORY@:>@],
-    [enable perfmon support (default is disabled).  Optional DIRECTORY
-    is the path to the perfmon installation (needed if installed in a
-    non-standard location).]), [
-  if test "$enable_perfmon" != "no"; then
-    dnl Add perfmon define and library
-    CPPFLAGS="$CPPFLAGS -DPERFMON"
-    LIBS="$LIBS -lpfm"
-    dnl Handle custom install dir (if needed)
-    if test "$enable_perfmon" != "yes"; then
-      CPPFLAGS="$CPPFLAGS -I$enable_perfmon/include"
-      LDFLAGS="$LDFLAGS -L$enable_perfmon/lib"
-    fi
-    AC_CHECK_LIB([pfm], [pfm_start], [], [
-      AC_MSG_ERROR([systemtap cannot find required perfmon libs (libpfm-devel may need to be installed])])
-  fi])
 
 dnl Handle the prologues option.
 dnl
@@ -207,12 +188,12 @@ if test "x${have_publican}" == "xyes" -a "$enable_publican" != "no" -a "${buildi
    building_publican="yes"
 fi
 AM_CONDITIONAL([BUILD_PUBLICAN], [test "$building_publican" == "yes"])
-publican_brand="fedora"
+publican_brand="common"
 AC_ARG_WITH([publican-brand],
   AS_HELP_STRING([--with-publican-brand=BRAND],
-    [building publican documentation guides using given brand (defaults to "fedora").]),
+    [building publican documentation guides using given brand (defaults to "common").]),
   [publican_brand=$withval],
-  [publican_brand="fedora"])
+  [publican_brand="common"])
 PUBLICAN_BRAND=$publican_brand
 AC_SUBST(PUBLICAN_BRAND)
 
@@ -237,13 +218,21 @@ if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_d
 fi
 AM_CONDITIONAL([BUILD_REFDOCS], [test "$building_refdocs" == "yes"])
 
+dnl There is a strange bug in older versions of xmlto when generating pdf.
+dnl https://bugzilla.redhat.com/show_bug.cgi?id=526273
+dnl So make sure to have a chapter title starting with L plus an refentry.
+dnl This will make sure the xmlto pdf support test fails on buggy versions.
 cat > conftest.xml << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
 "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" []>
    <book lang="en">
    <bookinfo><title>foo</title></bookinfo>
-   <chapter><title>bar</title><para>baz</para></chapter>
+   <chapter id="logging.stp"><title>Logging Tapset</title>
+   <refentry id="API-log"><refnamediv><refname>log</refname>
+   <refpurpose>logging</refpurpose></refnamediv>
+   <refsect1><title>Description</title>
+   <para>baz</para></refsect1></refentry></chapter>
    </book>
 EOF
 
@@ -272,11 +261,7 @@ AC_MSG_CHECKING([for xmlto pdf support])
    fi
    rm -f conftest.pdf
 fi
-dnl Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=526273 
-dnl blocks "xmlto pdf" on our docs (but not on the above test).
-dnl So we need to disable this anyway.
-dnl AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
-AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "maybe later" == "yes"])
+AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
 
 rm -f conftest.xml
 
@@ -297,33 +282,54 @@ dnl Find the location of nss and nspr headers and certutil
     AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
   ])
   if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
-  nss_CFLAGS="-I/usr/include/$nssdir"
-  nspr_CFLAGS="-I/usr/include/$nsprdir"
-  AC_SUBST(nss_CFLAGS)
-  AC_SUBST(nspr_CFLAGS)
-  save_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
-  have_nss_includes=yes
-  AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
-  CPPFLAGS="$save_CPPFLAGS"
-  have_nss_libs=no
-  AC_CHECK_LIB(nspr4, PR_Connect, [
-    AC_CHECK_LIB(ssl3, SSL_ReHandshake, have_nss_libs=yes)
-  ])
+    nss_CFLAGS="-I/usr/include/$nssdir"
+    nspr_CFLAGS="-I/usr/include/$nsprdir"
+    AC_SUBST(nss_CFLAGS)
+    AC_SUBST(nspr_CFLAGS)
+    save_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
+    have_nss_includes=yes
+    AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
+    CPPFLAGS="$save_CPPFLAGS"
+    have_nss_libs=no
+    AC_CHECK_LIB(nspr4, PR_Connect, [
+      AC_CHECK_LIB(ssl3, SSL_ReHandshake, have_nss_libs=yes)
+    ])
   fi
   if test "x${have_nss_includes}${have_nss_libs}${have_certutil}" != "xyesyesyes"; then
     if test "$enable_server" == "yes"; then
-      AC_MSG_ERROR([cannot find all libraries or tools for stap-server])
+      AC_MSG_ERROR([cannot find all libraries or tools for systemtap compile client or server])
     fi
     if test "$enable_server" == "check"; then
-      AC_MSG_WARN([will not build stap-server, cannot find all libraries or tools])
+      AC_MSG_WARN([will not build systemtap client or server, cannot find all libraries or tools])
     fi
   else
       AC_DEFINE([HAVE_NSS], [1], [Define to 1 if you have the nss libraries.])
   fi
+dnl Find the location of avahi-client headers and library
+  AC_CHECK_FILE([/usr/include/avahi-client], avahi_clientdir=avahi-client)
+  AC_CHECK_FILE([/usr/include/avahi-common], avahi_commondir=avahi-common)
+  if test "x$avahi_clientdir" != "x" -a "x$avahi_commondir" != "x"; then
+    have_avahi_includes=yes
+    AC_CHECK_HEADERS(["$avahi_clientdir/client.h" "$avahi_clientdir/lookup.h" "$avahi_commondir/simple-watch.h" "$avahi_commondir/malloc.h" "$avahi_commondir/error.h"], [], have_avahi_includes=no)
+    have_avahi_libs=no
+    AC_CHECK_LIB(avahi-client, avahi_client_new,
+        AC_CHECK_LIB(avahi-common, avahi_strerror, have_avahi_libs=yes))
+  fi
+  if test "x${have_avahi_includes}${have_avahi_libs}" != "xyesyes"; then
+    if test "$enable_server" == "yes"; then
+      AC_MSG_ERROR([cannot find all libraries or tools for systemtap compile client or server])
+    fi
+    if test "$enable_server" == "check"; then
+      AC_MSG_WARN([will not build systemtap internal client or server, cannot find all libraries or tools])
+    fi
+  else
+      AC_DEFINE([HAVE_AVAHI], [1], [Define to 1 if you have the avahi libraries.])
+  fi
 fi
 AM_CONDITIONAL([BUILD_SERVER], [test "x${have_nss_includes}${have_nss_libs}${have_certutil}" == "xyesyesyes" -a "$enable_server" != "no"])
 AM_CONDITIONAL([HAVE_NSS],     [test "x${have_nss_includes}${have_nss_libs}${have_certutil}" == "xyesyesyes"])
+AM_CONDITIONAL([HAVE_AVAHI],   [test "x${have_avahi_includes}${have_avahi_libs}" == "xyesyes"])
 
 dnl Handle the optional grapher
 AC_ARG_ENABLE([grapher],
@@ -503,10 +509,9 @@ AC_CONFIG_HEADERS([config.h:config.in])
 AC_CONFIG_FILES([Makefile doc/Makefile \
 doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
 grapher/Makefile \
-grapher/stapgraph.1 stap.1 stapprobes.3stap stapfuncs.3stap stapvars.3stap \
-stapex.3stap staprun.8 stap-client.8 stap-server.8 \
-stap-authorize-server-cert.8 stap-authorize-signing-cert.8 \
-initscript/systemtap initscript/stap-server dtrace.1])
+grapher/stapgraph.1 \
+stappaths.7 \
+initscript/systemtap initscript/stap-server ])
 AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])

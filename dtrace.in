@@ -5,7 +5,7 @@
 # $(DTRACE) $(DTRACEFLAGS) -h -s $^ -o $@
 # which is a step that builds DTrace provider and probe definitions
 
-# Copyright (C) 2009 Red Hat Inc.
+# Copyright (C) 2009, 2010 Red Hat Inc.
 #
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -38,7 +38,10 @@ class provider:
         return typedefs
     def semaphore_def_append(self, this_probe):
         # NB: unsigned short is fixed in ABI
-        self.semaphores_def += "__extension__ unsigned short %s_semaphore __attribute__ ((unused)) __attribute__ ((section (\".probes\")));\n" % (this_probe)
+        self.semaphores_def += '#if defined STAP_SDT_V1\n'
+        self.semaphores_def += '#define %s_%s_semaphore %s_semaphore\n' % (self.provider,this_probe,this_probe)
+        self.semaphores_def += '#endif\n'
+        self.semaphores_def += "__extension__ unsigned short %s_%s_semaphore __attribute__ ((unused)) __attribute__ ((section (\".probes\")));\n" % (self.provider,this_probe)
     def semaphore_def_write(self, file):
         file.write(self.semaphores_def)
     def generate(self, provider, header, add_typedefs):
@@ -92,11 +95,11 @@ class provider:
                     args_string = ('%s %s' % (args_string, arg.strip()))
                 if (len(args_string) == 0):
                     c = 0
-                    stap_str = "STAP_PROBE(provider,%s" % (this_probe)
+                    stap_str = "STAP_PROBE(%s,%s" % (self.provider,this_probe)
                 else:
                     c += 1
                     typedefs = self.typedef_append (typedefs,this_probe,arg,c)
-                    stap_str = "STAP_PROBE%d(provider,%s" % (c,this_probe)
+                    stap_str = "STAP_PROBE%d(%s,%s" % (c,self.provider,this_probe)
                 define_str = "#define %s(" % (this_probe_canon)
                 i = 1
                 while (i <= c):
@@ -106,10 +109,14 @@ class provider:
                     stap_str = stap_str + ",arg%s" % (i);
                     i += 1
                 self.h.write ('/* %s (%s) */\n' % (this_probe_canon,args_string))
-                # XXX Enable this when .so semaphores work properly
-                self.h.write ('#define %s_ENABLED() %s_semaphore\n' % (this_probe_canon,this_probe))
+                self.h.write ('#if defined STAP_SDT_V1\n')
+                self.h.write ('#define %s_ENABLED() __builtin_expect (%s_semaphore, 0)\n' % (this_probe_canon,this_probe))
+                self.h.write ('#define %s_%s_semaphore %s_semaphore\n' % (self.provider,this_probe,this_probe))
+                self.h.write ('#else\n')
+                self.h.write ('#define %s_ENABLED() __builtin_expect (%s_%s_semaphore, 0)\n' % (this_probe_canon,self.provider,this_probe))
+                self.h.write ('#endif\n')
                 # NB: unsigned short is fixed in ABI
-                self.h.write ("__extension__ extern unsigned short %s_semaphore __attribute__ ((unused)) __attribute__ ((section (\".probes\")));\n" % (this_probe))
+                self.h.write ("__extension__ extern unsigned short %s_%s_semaphore __attribute__ ((unused)) __attribute__ ((section (\".probes\")));\n" % (self.provider,this_probe))
                 self.h.write (define_str + ") \\\n")
                 self.h.write (stap_str + ")\n\n")
             elif (line.find("}") != -1 and have_provider):
@@ -163,6 +170,7 @@ h_ext = '.h'
 filename = ""
 s_filename = ""
 includes = []
+defines = []
 while (i < len (sys.argv)):
     if (sys.argv[i] == "-o"):
         i += 1
@@ -172,6 +180,8 @@ while (i < len (sys.argv)):
         s_filename = sys.argv[i]
     elif (sys.argv[i] == "-C"):
         use_cpp = True
+    elif (sys.argv[i].startswith("-D")):
+        defines.append(sys.argv[i])
     elif (sys.argv[i] == "-h"):
         build_header = True
     elif (sys.argv[i].startswith("-I")):
@@ -191,7 +201,7 @@ if (build_header == False and build_source == False):
 
 if (s_filename != "" and use_cpp):
     (d,fn) = mkstemp(suffix=".d")
-    args = ['cpp'] + includes + [s_filename, fn]
+    args = ['cpp'] + includes + defines + [s_filename, fn]
     retcode = call(args)
     if (retcode != 0):
         print "\"cpp includes s_filename\" failed"
@@ -228,9 +238,11 @@ elif (build_source):
     (d,fn) = mkstemp(suffix=".c")
     f = open(fn,mode='w')
     f.write("static __dtrace () {}\n")
+    f.write("\n#include <sys/sdt.h>\n\n")
     providers.semaphore_def_write(f)
     f.close()
-    call(["gcc", "-fPIC", "-I.", "-I@prefix@/include", "-g", "-c", fn, "-o", filename + ".o"], shell=False)
+    #print ["gcc", "-fPIC"] + defines + ["-I.", "-I@prefix@/include", "-g", "-c", fn, "-o", filename + ".o"]
+    call(["gcc", "-fPIC"] + defines + includes + ["-I.", "-I@prefix@/include", "-g", "-c", fn, "-o", filename + ".o"], shell=False)
     if (not keep_temps):
         os.remove(fn)
     else:

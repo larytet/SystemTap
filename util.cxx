@@ -21,6 +21,7 @@
 #include <cerrno>
 #include <map>
 #include <string>
+#include <fstream>
 
 extern "C" {
 #include <fcntl.h>
@@ -222,6 +223,31 @@ in_group_id (gid_t target_gid)
   return false;
 }
 
+/*
+ * Returns a string describing memory resource usage.
+ * Since it seems getrusage() doesn't maintain the mem related fields,
+ * this routine parses /proc/self/statm to get the statistics.
+ */
+string
+getmemusage ()
+{
+  static long sz = sysconf(_SC_PAGESIZE);
+
+  long pages, kb;
+  ostringstream oss;
+  ifstream statm("/proc/self/statm");
+  statm >> pages;
+  kb = pages * sz / 1024;
+  oss << "using " << kb << "virt/";
+  statm >> pages;
+  kb = pages * sz / 1024;
+  oss << kb << "res/";
+  statm >> pages;
+  kb = pages * sz / 1024;
+  oss << kb << "shr kb, ";
+  return oss.str();
+}
+
 void
 tokenize(const string& str, vector<string>& tokens,
 	 const string& delimiters = " ")
@@ -417,6 +443,7 @@ kill_stap_spawn(int sig)
 }
 
 
+
 void assert_regexp_match (const string& name, const string& value, const string& re)
 {
   typedef map<string,regex_t*> cache;
@@ -445,6 +472,47 @@ void assert_regexp_match (const string& name, const string& value, const string&
       exit(1);
     }
 }
+
+
+int regexp_match (const string& value, const string& re, vector<string>& matches)
+{
+  typedef map<string,regex_t*> cache;  // separate cache because we use different regcomp options
+  static cache compiled;
+  cache::iterator it = compiled.find (re);
+  regex_t* r = 0;
+  if (it == compiled.end())
+    {
+      r = new regex_t;
+      int rc = regcomp (r, re.c_str(), REG_EXTENDED); /* REG_ICASE? */
+      if (rc) {
+        cerr << "regcomp " << re << " error rc=" << rc << endl;
+        exit(1);
+      }
+      compiled[re] = r;
+    }
+  else
+    r = it->second;
+
+
+  // run regexec
+#define maxmatches 10
+  regmatch_t rm[maxmatches];
+
+  int rc = regexec (r, value.c_str(), maxmatches, rm, 0);
+  if (rc) return rc;
+
+  matches.erase(matches.begin(), matches.end());
+  for (unsigned i=0; i<maxmatches; i++) // XXX: ideally, the number of actual subexpressions in re
+    {
+      if (rm[i].rm_so >= 0)
+        matches.push_back(value.substr (rm[i].rm_so, rm[i].rm_eo-rm[i].rm_so));
+      else
+        matches.push_back("");
+    }
+
+  return 0;
+}
+
 
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

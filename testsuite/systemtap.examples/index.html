@@ -55,9 +55,15 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html
 <li><a href="general/helloworld.stp">general/helloworld.stp</a> - SystemTap "Hello World" Program<br>
 keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>A basic "Hello World" program implemented in SystemTap script. It prints out "hello world" message and then immediately exits.</p></li>
+<li><a href="general/para-callgraph-verbose.stp">general/para-callgraph-verbose.stp</a> - Callgraph tracing with verbose arguments<br>
+keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
+<p>Print a timed per-thread callgraph, complete with pretty-printed function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.</p></li>
 <li><a href="general/para-callgraph.stp">general/para-callgraph.stp</a> - Callgraph tracing with arguments<br>
 keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.</p></li>
+<li><a href="general/sizeof.stp">general/sizeof.stp</a> - Print the size of a C type.<br>
+keywords: <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>This script prints the size of a type, based on dwarf debuginfo for any kernel or userspace module, or trial-compilation of a given header file name.</p></li>
 <li><a href="general/varwatch.stp">general/varwatch.stp</a> - Watch a variable changing value in a thread.<br>
 keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <br>
 <p>This script places a set of probes (specified by $1), each of which monitors the state of some context $variable expression (specified by $2).  Whenever the value changes, with respect to the active thread, the event is traced.</p></li>
@@ -67,6 +73,9 @@ keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <li><a href="interrupt/scf.stp">interrupt/scf.stp</a> - Tally Backtraces for Inter-Processor Interrupt (IPI)<br>
 keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>The Linux kernel function smp_call_function causes expensive inter-processor interrupts (IPIs). The scf.stp script tallies the processes and backtraces causing the interprocessor interrupts to identify the cause of the expensive IPI. On exit the script prints the tallies in descending frequency.</p></li>
+<li><a href="io/deviceseeks.stp">io/deviceseeks.stp</a> - Histograms of Seek Behavior for Each Device<br>
+keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
+<p>The deviceseeks.stp script generates a histogram showing the frequency of different sized seeks on each device.</p></li>
 <li><a href="io/disktop.stp">io/disktop.stp</a> - Summarize Disk Read/Write Traffic<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>Get the status of reading/writing disk every 5 seconds, output top ten entries during that period.</p></li>
@@ -157,6 +166,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="network/socket-trace.stp">network/socket-trace.stp</a> - Trace Functions called in Network Socket Code<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The script instruments each of the functions in the Linux kernel's net/socket.c file. The script prints out trace data. The first element of a line is time delta in microseconds from the previous entry. This is followed by the command name and the PID. The "->" and "<-" indicates function entry and function exit, respectively. The last element of the line is the function name.</p></li>
+<li><a href="network/socktop">network/socktop</a> - Periodically Summarize Socket Activity on the System<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
+<p>The socktop script periodically prints out a list of the processes with the highest socket activity.  Command line options for the script allow filtering to focus on particular types of sockets. The "-h" option lists socktop script's filtering options.</p></li>
 <li><a href="network/tcp_connections.stp">network/tcp_connections.stp</a> - Track Creation of Incoming TCP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The tcp_connections.stp script prints information for each new incoming TCP connection accepted by the computer. The information includes the UID, the command accepting the connection, the PID of the command, the port the connection is on, and the IP address of the originator of the request.</p></li>
@@ -172,6 +184,12 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="process/chng_cpu.stp">process/chng_cpu.stp</a> - Monitor Changes in Processor Executing a Task<br>
 keywords: <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <br>
 <p>The chng_cpu.stp script takes an argument which is the executable name of the task it should monitor. Each time a task with that executable name is found running on a different processor, the script prints out the thread id (tid), the executable name, the processor now running the task, the thread state, and a backtrace showing the kernel functions that triggered the running of the task on the processor.</p></li>
+<li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQs and Other Processes Stealing Cycles from a Task<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+<p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the '-c' or '-x' options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.</p></li>
+<li><a href="process/dumpstack.stp">process/dumpstack.stp</a> - Print the kernel stack of a hung task<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
+<p>The script prints the kernel stack of any non-running pid in the system.  This is useful for diagnosing the reason that a task is hung.</p></li>
 <li><a href="process/errsnoop.stp">process/errsnoop.stp</a> - tabulate system call errors<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>The script prints a periodic tabular report about failing system calls, by process and by syscall failure.  The first optional argument specifies the reporting interval (in seconds, default 5); the second optional argument gives a screen height (number of lines in the report, default 20).</p></li>
@@ -184,6 +202,9 @@ keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-inde
 <li><a href="process/migrate.stp">process/migrate.stp</a> - Track the Migration of Specific Executables<br>
 keywords: <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <br>
 <p>The migrate.stp script takes an argument which is the executable name of the task it should monitor. Each time a task with that executable name migrates between processors an entry is printed with the process id (pid), the executable name, the processor off loading the task, and the process taking the task. Note that the task may or may not be executing at the time of the migration.</p></li>
+<li><a href="process/noptrace.stp">process/noptrace.stp</a> - disable ptrace(2) from hierarchies of processes<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <br>
+<p>noptrace.stp blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p></li>
 <li><a href="process/pf2.stp">process/pf2.stp</a> - Profile kernel functions<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The pf2.stp script sets up time-based sampling. Every five seconds it prints out a sorted list with the top ten kernel functions with samples.</p></li>
@@ -223,12 +244,18 @@ keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <li><a href="process/wait4time.stp">process/wait4time.stp</a> - Trace Time Spent in wait4 Syscalls<br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#WAIT4">WAIT4</a> <br>
 <p>The script watches each wait4 syscall on the system. At the end of each wait4 syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the "wait4:" key, the duration of the wait and the PID that the wait4 was waiting for. If the waited for PID is not specified , it is "-1".</p></li>
+<li><a href="profiling/errno.stp">profiling/errno.stp</a> - Show Which Processes and System Calls Return Errors Most Frequently<br>
+keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+<p>On exit the errno.stp script provides a sorted list showing which combination of PID, system call, and error occur most frequently.</p></li>
 <li><a href="profiling/fntimes.stp">profiling/fntimes.stp</a> - Show functions taking longer than usual<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The fntimes.stp script monitors the execution time history of a given function family (assumed non-recursive).  Each time (beyond a warmup interval) is then compared to the historical maximum.  If it exceeds a certain threshold (250%), a message is printed.</p></li>
 <li><a href="profiling/functioncallcount.stp">profiling/functioncallcount.stp</a> - Count Times Functions Called<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-index.html#FUNCTIONS">FUNCTIONS</a> <br>
 <p>The functioncallcount.stp script takes one argument, a list of functions to probe. The script will run and count the number of times that each of the functions on the list is called. On exit the script will print a sorted list from most frequently to least frequently called function.</p></li>
+<li><a href="profiling/linetimes.stp">profiling/linetimes.stp</a> - Show Time Spent on Each Line if a Function<br>
+keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+<p>The linetimes.stp script takes two arguments: where to find the function and the function name. linetimes.stp will instrument each line in the function. It will print out the number of times that the function is called, a table with the average and maximum time each line takes, and control flow information when the script exits.</p></li>
 <li><a href="profiling/sched_switch.stp">profiling/sched_switch.stp</a> - Display the task switches happening in the scheduler<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-index.html#FUNCTIONS">FUNCTIONS</a> <br>
 <p>The sched_switch.stp script takes two arguments, first argument can be "pid" or "name" to indicate what is being passed as second argument. The script will trace the process based on pid/name and print the scheduler switches happening with the process. If no arguments are passed, it displays all the scheduler switches. This can be used to understand which tasks schedule out the current process being traced, and when it gets scheduled in again.</p></li>
