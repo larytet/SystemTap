@@ -32,7 +32,8 @@ static int __init find_str_pc_offset(void)
 
 
 static void __stp_stack_print (struct pt_regs *regs, int verbose, int levels,
-                               struct task_struct *tsk, struct uretprobe_instance *ri)
+                               struct task_struct *tsk,
+			       struct uretprobe_instance *ri, int uregs_valid)
 {
 #ifdef STP_USE_FRAME_POINTER
 	int		pc_offset = find_str_pc_offset();
@@ -55,13 +56,7 @@ static void __stp_stack_print (struct pt_regs *regs, int verbose, int levels,
 				pc -= 1;
 		}
 
-		if (verbose) {
-			_stp_print_char(' ');
-			_stp_symbol_print((unsigned long)pc);
-			_stp_print_char('\n');
-		} else {
-			_stp_printf("%08lx ", (unsigned long)pc);
-		}
+		_stp_print_addr((unsigned long)pc, verbose, task);
 
 		/* Sanity check the next_fp. */
 		if (next_fp && next_fp <= fp)

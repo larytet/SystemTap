@@ -1,5 +1,7 @@
 /*
  *      Copyright (C) 2009 IBM Corp.
+ *      Copyright (C) 2010 Red Hat Inc.
+ *
  *      This file is part of systemtap, and is free software.  You can
  *      redistribute it and/or modify it under the terms of the GNU General
  *      Public License (GPL); either version 2, or (at your option) any
@@ -88,8 +90,8 @@ function ipmib_tcp_remote_port:long (skb:long, SourceIsLocal:long)
 {
 	th = _plunge_into_tcphdr(skb);
 	if ( SourceIsLocal )
-		return _tcphdr_get_dport(th);
-	return _tcphdr_get_sport(th);
+		return __tcp_skb_dport(th);
+	return __tcp_skb_sport(th);
 }
 
 /**
@@ -103,8 +105,8 @@ function ipmib_tcp_local_port:long (skb:long, SourceIsLocal:long)
 {
 	th = _plunge_into_tcphdr(skb);
 	if ( SourceIsLocal )
-		return _tcphdr_get_sport(th);
-	return _tcphdr_get_dport(th);
+		return __tcp_skb_sport(th);
+	return __tcp_skb_dport(th);
 }
 
 /**
@@ -147,67 +149,53 @@ function _plunge_into_tcphdr:long (skb:long)
 	CATCH_DEREF_FAULT();
 %}
 
-function _tcphdr_get_sport:long (th:long)
-%{ /* pure */
-	struct tcphdr *th = (struct tcphdr *) (long) THIS->th;
-	THIS->__retvalue = ntohs(kread(&(th->source)));
-	CATCH_DEREF_FAULT();
-%}
-
-function _tcphdr_get_dport:long (th:long)
-%{ /* pure */
-	struct tcphdr *th = (struct tcphdr *) (long) THIS->th;
-	THIS->__retvalue = ntohs(kread(&(th->dest)));
-	CATCH_DEREF_FAULT();
-%}
-
 function _ehostunreach:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = EHOSTUNREACH;
 %}
 
 function _enetunreach:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = ENETUNREACH;
 %}
 
 function _icmp_dest_unreach:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = ICMP_DEST_UNREACH;
 %}
 
 function _icmp_prot_unreach:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = ICMP_PROT_UNREACH;
 %}
 
 function _net_rx_drop:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = NET_RX_DROP;
 %}
 
 function _icmp_time_exceeded:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = ICMP_TIME_EXCEEDED;
 %}
 
 function _icmp_exc_fragtime:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = ICMP_EXC_FRAGTIME;
 %}
 
 function _rtn_multicast:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = RTN_MULTICAST;
 %}
 
 function _rtn_broadcast:long ()
-%{
+%{ /* pure */ /* unprivileged */
 	THIS->__retvalue = RTN_BROADCAST;
 %}
 
 /**
- * probe tcpmib.InReceives - Count an arriving packet.
+ * probe ipmib.InReceives - Count an arriving packet.
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -225,7 +213,7 @@ probe ipmib.InReceives=kernel.function("ip_rcv")
 }
 
 /**
- * probe tcpmib.InNoRoutes - Count an arriving packet with no matching socket.
+ * probe ipmib.InNoRoutes - Count an arriving packet with no matching socket.
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -233,7 +221,8 @@ probe ipmib.InReceives=kernel.function("ip_rcv")
  * MIB: IPSTATS_MIB_INNOROUTES
  *
  */
-probe ipmib.InNoRoutes=kernel.function("ip_route_input").return
+probe ipmib.InNoRoutes=kernel.function("ip_route_input_common").return!,
+                       kernel.function("ip_route_input").return
 {
 	skb = $skb;
 	op = 1;
@@ -244,7 +233,7 @@ probe ipmib.InNoRoutes=kernel.function("ip_route_input").return
 }
 
 /**
- * probe tcpmib.InAddrErrors - Count arriving packets with an incorrect address.
+ * probe ipmib.InAddrErrors - Count arriving packets with an incorrect address.
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -252,7 +241,8 @@ probe ipmib.InNoRoutes=kernel.function("ip_route_input").return
  * MIB: IPSTATS_MIB_INADDRERRORS
  *
  */
-probe ipmib.InAddrErrors=kernel.function("ip_route_input").return
+probe ipmib.InAddrErrors=kernel.function("ip_route_input_common").return!,
+                         kernel.function("ip_route_input").return
 {
 	skb = $skb;
 	op = 1;
@@ -263,7 +253,7 @@ probe ipmib.InAddrErrors=kernel.function("ip_route_input").return
 }
 
 /**
- * probe tcpmib.InUnknownProtos - Count arriving packets with an unbound proto. 
+ * probe ipmib.InUnknownProtos - Count arriving packets with an unbound proto. 
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -285,7 +275,7 @@ probe ipmib.InUnknownProtos=kernel.function("icmp_send")
 }
 
 /**
- * probe tcpmib.InDiscards - Count discarded inbound packets.
+ * probe ipmib.InDiscards - Count discarded inbound packets.
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -309,7 +299,7 @@ probe ipmib.InDiscards=kernel.function("ip_rcv").return
 }
 
 /**
- * probe tcpmib.ForwDatagrams
+ * probe ipmib.ForwDatagrams
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -329,7 +319,7 @@ probe ipmib.ForwDatagrams=kernel.function("ip_forward_finish")
 %)
 
 /**
- * probe tcpmib.OutRequests - Count a request to send a packet.
+ * probe ipmib.OutRequests - Count a request to send a packet.
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -340,7 +330,7 @@ probe ipmib.ForwDatagrams=kernel.function("ip_forward_finish")
 probe ipmib.OutRequests=kernel.function("ip_output"),
 			kernel.function("ip_mc_output")
 {
-	skb = $skb;
+	skb = @defined($skb) ? $skb : kernel_pointer($pskb);
 	op = 1;
 	SourceIsLocal = 1;
 	key = ipmib_filter_key(skb,op,SourceIsLocal);
@@ -348,7 +338,7 @@ probe ipmib.OutRequests=kernel.function("ip_output"),
 }
 
 /**
- * probe tcpmib.ReasmTimeout
+ * probe ipmib.ReasmTimeout
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -368,7 +358,7 @@ probe ipmib.ReasmTimeout=kernel.function("icmp_send")
 }
 
 /**
- * probe tcpmib.ReasmReqds
+ * probe ipmib.ReasmReqds
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -386,7 +376,7 @@ probe ipmib.ReasmReqds=kernel.function("ip_defrag")
 }
 
 /**
- * probe tcpmib.FragOKs
+ * probe ipmib.FragOKs
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -405,7 +395,7 @@ probe ipmib.FragOKs=kernel.function("ip_fragment").return
 }
 
 /**
- * probe tcpmib.FragFails
+ * probe ipmib.FragFails
  * @skb: Pointer to the struct sk_buff being acted on.
  * @op: Value to be added to the counter (Operation). 
  *
@@ -423,70 +413,27 @@ probe ipmib.FragFails=kernel.function("ip_fragment").return
 	if ( key ) FragFails [key] += op;
 }
 
+function _rtn_unspec:long ()
+%{ /* pure */ /* unprivileged */
+	THIS->__retvalue = RTN_UNSPEC;
+%}
+
 function _input_route_type:long (skb:long)
 {
-%( kernel_v < "2.6.31" %?
-	return __input_route_type_old(skb)
-%:
-	return __input_route_type_new(skb)
-%)
+	rt = (@defined(@cast(skb, "sk_buff")->_skb_dst)
+	      ? @cast(skb, "sk_buff")->_skb_dst
+	      : (@defined(@cast(skb, "sk_buff")->rtable)
+	         ? @cast(skb, "sk_buff")->rtable
+		 : 0))
+	return rt ? @cast(rt, "rtable")->rt_type : _rtn_unspec()
 }
-
-function __input_route_type_old:long (skb:long)
-%{ /* pure */
-	struct rtable *rt;
-	struct sk_buff *skb = (struct sk_buff *)(long)THIS->skb;
-	rt = (struct rtable *)kread(&(skb->rtable));
-	if  ( rt )
-		THIS->__retvalue = kread(&(rt->rt_type));
-	else
-		THIS->__retvalue = RTN_UNSPEC;
-	CATCH_DEREF_FAULT();
-%}
-
-function __input_route_type_new:long (skb:long)
-%{ /* pure */
-	struct rtable *rt;
-	struct sk_buff *skb = (struct sk_buff *)(long)THIS->skb;
-	rt = (struct rtable *)kread(&(skb->_skb_dst));
-	if  ( rt )
-		THIS->__retvalue = kread(&(rt->rt_type));
-	else
-		THIS->__retvalue = RTN_UNSPEC;
-	CATCH_DEREF_FAULT();
-%}
 
 function _output_route_type:long (skb:long)
 {
-%( kernel_v < "2.6.31" %?
-	return __output_route_type_old(skb)
-%:
-	return __output_route_type_new(skb)
-%)
+	rt = (@defined(@cast(skb, "sk_buff")->_skb_dst)
+	      ? @cast(skb, "sk_buff")->_skb_dst
+	      : (@defined(@cast(skb, "sk_buff")->dst)
+	         ? @cast(skb, "sk_buff")->dst
+		 : 0))
+	return rt ? @cast(rt, "rtable")->rt_type : _rtn_unspec()
 }
-
-function __output_route_type_old:long (skb:long)
-%{ /* pure */
-	struct rtable *rt;
-	struct dst_entry *dst;
-	struct sk_buff *skb = (struct sk_buff *)(long)THIS->skb;
-	dst = (struct dst_entry *)kread(&(skb->dst));
-	rt = (struct rtable *)dst;
-	if ( rt )
-		THIS->__retvalue = kread(&(rt->rt_type));
-	else
-		THIS->__retvalue = RTN_UNSPEC;
-	CATCH_DEREF_FAULT();
-%}
-
-function __output_route_type_new:long (skb:long)
-%{ /* pure */
-	struct rtable *rt;
-	struct sk_buff *skb = (struct sk_buff *)(long)THIS->skb;
-	rt = (struct rtable *)kread(&(skb->_skb_dst));
-	if ( rt )
-		THIS->__retvalue = kread(&(rt->rt_type));
-	else
-		THIS->__retvalue = RTN_UNSPEC;
-	CATCH_DEREF_FAULT();
-%}

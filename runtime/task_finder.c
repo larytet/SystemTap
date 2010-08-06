@@ -64,6 +64,7 @@ typedef int
 (*stap_task_finder_mmap_callback)(struct stap_task_finder_target *tgt,
 				  struct task_struct *tsk,
 				  char *path,
+				  struct dentry *dentry,
 				  unsigned long addr,
 				  unsigned long length,
 				  unsigned long offset,
@@ -178,6 +179,8 @@ __stp_utrace_task_finder_target_syscall_exit(enum utrace_resume_action action,
 #endif
 #endif
 
+static int __stp_task_finder_started = 0;
+
 static int
 stap_register_task_finder_target(struct stap_task_finder_target *new_tgt)
 {
@@ -187,6 +190,11 @@ stap_register_task_finder_target(struct stap_task_finder_target *new_tgt)
 	struct list_head *node;
 	struct stap_task_finder_target *tgt = NULL;
 	int found_node = 0;
+
+	if (__stp_task_finder_started) {
+		_stp_error("task_finder already started, no new targets allowed");
+		return EBUSY;
+	}
 
 	if (new_tgt == NULL)
 		return EFAULT;
@@ -212,6 +220,10 @@ stap_register_task_finder_target(struct stap_task_finder_target *new_tgt)
 	// Search the list for an existing entry for procname/pid.
 	list_for_each(node, &__stp_task_finder_list) {
 		tgt = list_entry(node, struct stap_task_finder_target, list);
+		if (tgt == new_tgt) {
+			_stp_error("target already registered");
+			return EINVAL;
+		}
 		if (tgt != NULL
 		    /* procname-based target */
 		    && ((new_tgt->pathlen > 0
@@ -306,8 +318,16 @@ stap_utrace_detach(struct task_struct *tsk,
 			rc = 0;	    /* ignore these errors */
 			break;
 		case -EINPROGRESS:
-			debug_task_finder_detach();
-			rc = 0;
+			do {
+				rc = utrace_barrier(tsk, engine);
+			} while (rc == -ERESTARTSYS);
+			if (rc == 0 || rc == -ESRCH || rc == -EALREADY) {
+				rc = 0;
+				debug_task_finder_detach();
+			} else {
+				rc = -rc;
+				_stp_error("utrace_barrier returned error %d on pid %d", rc, tsk->pid);
+			}
 			break;
 		default:
 			rc = -rc;
@@ -326,6 +346,7 @@ stap_utrace_detach_ops(struct utrace_engine_ops *ops)
 	struct task_struct *grp, *tsk;
 	struct utrace_attached_engine *engine;
 	pid_t pid = 0;
+	int rc = 0;
 
 	// Notice we're not calling get_task_mm() in this loop. In
 	// every other instance when calling do_each_thread, we avoid
@@ -353,8 +374,12 @@ stap_utrace_detach_ops(struct utrace_engine_ops *ops)
 		/* Notice we're purposefully ignoring errors from
 		 * stap_utrace_detach().  Even if we got an error on
 		 * this task, we need to keep detaching from other
-		 * tasks. */
-		(void) stap_utrace_detach(tsk, ops);
+		 * tasks.  But warn, we might be unloading and dangling
+		 * engines are bad news. */
+		rc = stap_utrace_detach(tsk, ops);
+		if (rc != 0)
+			_stp_error("stap_utrace_detach returned error %d on pid %d", rc, tsk->pid);
+		WARN_ON(rc != 0);
 	} while_each_thread(grp, tsk);
 	rcu_read_unlock();
 	debug_task_finder_report();
@@ -503,7 +528,9 @@ __stp_utrace_attach(struct task_struct *tsk,
 			 * stale task pointer, if we have an engine
 			 * ref.
 			 */
-			rc = utrace_barrier(tsk, engine);
+			do {
+				rc = utrace_barrier(tsk, engine);
+			} while (rc == -ERESTARTSYS);
 			if (rc != 0 && rc != -ESRCH && rc != -EALREADY)
 				_stp_error("utrace_barrier returned error %d on pid %d",
 					   rc, (int)tsk->pid);
@@ -513,13 +540,15 @@ __stp_utrace_attach(struct task_struct *tsk,
 
 			if (action != UTRACE_RESUME) {
 				rc = utrace_control(tsk, engine, UTRACE_STOP);
-				/* EINPROGRESS means we must wait for
-				 * a callback, which is what we want. */
-				if (rc != 0 && rc != -EINPROGRESS)
+				if (rc == -EINPROGRESS)
+					/* EINPROGRESS means we must wait for
+					 * a callback, which is what we want. */
+					do {
+						rc = utrace_barrier(tsk, engine);
+					} while (rc == -ERESTARTSYS);
+				if (rc != 0)
 					_stp_error("utrace_control returned error %d on pid %d",
 						   rc, (int)tsk->pid);
-				else
-					rc = 0;
 			}
 
 		}
@@ -568,6 +597,7 @@ __stp_call_callbacks(struct stap_task_finder_target *tgt,
 static void
 __stp_call_mmap_callbacks(struct stap_task_finder_target *tgt,
 			  struct task_struct *tsk, char *path,
+			  struct dentry *dentry,
 			  unsigned long addr, unsigned long length,
 			  unsigned long offset, unsigned long vm_flags)
 {
@@ -595,8 +625,8 @@ __stp_call_mmap_callbacks(struct stap_task_finder_target *tgt,
 		if (cb_tgt == NULL || cb_tgt->mmap_callback == NULL)
 			continue;
 
-		rc = cb_tgt->mmap_callback(cb_tgt, tsk, path, addr, length,
-					  offset, vm_flags);
+		rc = cb_tgt->mmap_callback(cb_tgt, tsk, path, dentry,
+					  addr, length, offset, vm_flags);
 		if (rc != 0) {
 			_stp_error("mmap callback for %d failed: %d",
 				   (int)tsk->pid, rc);
@@ -628,10 +658,10 @@ __stp_call_mmap_callbacks_with_addr(struct stap_task_finder_target *tgt,
 	struct vm_area_struct *vma;
 	char *mmpath_buf = NULL;
 	char *mmpath = NULL;
-	long err;
-	unsigned long length;
-	unsigned long offset;
-	unsigned long vm_flags;
+	struct dentry *dentry;
+	unsigned long length = 0;
+	unsigned long offset = 0;
+	unsigned long vm_flags = 0;
 
 	mm = get_task_mm(tsk);
 	if (! mm)
@@ -645,6 +675,7 @@ __stp_call_mmap_callbacks_with_addr(struct stap_task_finder_target *tgt,
 		length = vma->vm_end - vma->vm_start;
 		offset = (vma->vm_pgoff << PAGE_SHIFT);
 		vm_flags = vma->vm_flags;
+		dentry = vma->vm_file->f_dentry;
 
 		// Allocate space for a path
 		mmpath_buf = _stp_kmalloc(PATH_MAX);
@@ -677,7 +708,7 @@ __stp_call_mmap_callbacks_with_addr(struct stap_task_finder_target *tgt,
 	up_read(&mm->mmap_sem);
 		
 	if (mmpath)
-		__stp_call_mmap_callbacks(tgt, tsk, mmpath, addr,
+		__stp_call_mmap_callbacks(tgt, tsk, mmpath, dentry, addr,
 					  length, offset, vm_flags);
 
 	// Cleanup.
@@ -1076,9 +1107,9 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 #ifdef STAPCONF_DPATH_PATH
 		struct path *f_path;
 #else
-		struct dentry *f_dentry;
 		struct vfsmount *f_vfsmnt;
 #endif
+		struct dentry *dentry;
 		unsigned long addr;
 		unsigned long length;
 		unsigned long offset;
@@ -1129,14 +1160,15 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 			    path_get(vma_cache_p->f_path);
 #else
 			    // Notice we're increasing the reference
-			    // count for 'f_dentry' and 'f_vfsmnt'.
+			    // count for 'dentry' and 'f_vfsmnt'.
 			    // This way they won't get deleted from
 			    // out under us.
-			    vma_cache_p->f_dentry = vma->vm_file->f_dentry;
-			    dget(vma_cache_p->f_dentry);
+			    vma_cache_p->dentry = vma->vm_file->f_dentry;
+			    dget(vma_cache_p->dentry);
 			    vma_cache_p->f_vfsmnt = vma->vm_file->f_vfsmnt;
 			    mntget(vma_cache_p->f_vfsmnt);
 #endif
+			    vma_cache_p->dentry = vma->vm_file->f_dentry;
 			    vma_cache_p->addr = vma->vm_start;
 			    vma_cache_p->length = vma->vm_end - vma->vm_start;
 			    vma_cache_p->offset = (vma->vm_pgoff << PAGE_SHIFT);
@@ -1164,10 +1196,10 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 					PATH_MAX);
 			path_put(vma_cache_p->f_path);
 #else
-			mmpath = d_path(vma_cache_p->f_dentry,
+			mmpath = d_path(vma_cache_p->dentry,
 					vma_cache_p->f_vfsmnt, mmpath_buf,
 					PATH_MAX);
-			dput(vma_cache_p->f_dentry);
+			dput(vma_cache_p->dentry);
 			mntput(vma_cache_p->f_vfsmnt);
 #endif
 			if (mmpath == NULL || IS_ERR(mmpath)) {
@@ -1178,6 +1210,7 @@ __stp_call_mmap_callbacks_for_task(struct stap_task_finder_target *tgt,
 			}
 			else {
 				__stp_call_mmap_callbacks(tgt, tsk, mmpath,
+							  vma_cache_p->dentry,
 							  vma_cache_p->addr,
 							  vma_cache_p->length,
 							  vma_cache_p->offset,
@@ -1241,7 +1274,9 @@ __stp_utrace_task_finder_target_quiesce(enum utrace_resume_action action,
 		 * safe to call utrace_barrier() even with
 		 * a stale task pointer, if we have an engine ref.
 		 */
-		rc = utrace_barrier(tsk, engine);
+		do {
+			rc = utrace_barrier(tsk, engine);
+		} while (rc == -ERESTARTSYS);
 		if (rc == 0)
 			rc = utrace_set_events(tsk, engine,
 					       __STP_ATTACHED_TASK_BASE_EVENTS(tgt));
@@ -1444,6 +1479,13 @@ stap_start_task_finder(void)
 	char *mmpath_buf;
 	uid_t tsk_euid;
 
+	if (__stp_task_finder_started) {
+		_stp_error("task_finder already started");
+		return EBUSY;
+	}
+
+	__stp_task_finder_started = 1;
+
 	mmpath_buf = _stp_kmalloc(PATH_MAX);
 	if (mmpath_buf == NULL) {
 		_stp_error("Unable to allocate space for path");
@@ -1559,6 +1601,11 @@ stap_stop_task_finder(void)
 #ifdef DEBUG_TASK_FINDER
 	int i = 0;
 #endif
+
+	if (! __stp_task_finder_started)
+		return;
+
+	__stp_task_finder_started = 0;
 
 	atomic_set(&__stp_task_finder_state, __STP_TF_STOPPING);
 	debug_task_finder_report();

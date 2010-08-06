@@ -1,6 +1,6 @@
 %{!?with_sqlite: %global with_sqlite 1}
 %{!?with_docs: %global with_docs 1}
-%{!?with_crash: %global with_crash 0}
+%{!?with_crash: %global with_crash 1}
 %{!?with_rpm: %global with_rpm 1}
 %{!?with_bundled_elfutils: %global with_bundled_elfutils 0}
 %{!?elfutils_version: %global elfutils_version 0.127}
@@ -11,7 +11,7 @@
 %{!?publican_brand: %global publican_brand fedora}
 
 Name: systemtap
-Version: 1.2
+Version: 1.3
 Release: 1%{?dist}
 # for version, see also configure.ac
 Summary: Instrumentation System
@@ -42,7 +42,7 @@ Requires: kernel-devel
 Requires: gcc make
 # Suggest: kernel-debuginfo
 Requires: systemtap-runtime = %{version}-%{release}
-BuildRequires: nss-devel nss-tools pkgconfig
+BuildRequires: nss-tools nss-devel avahi-devel pkgconfig
 
 %if %{with_bundled_elfutils}
 Source1: elfutils-%{elfutils_version}.tar.gz
@@ -51,9 +51,6 @@ BuildRequires: m4
 %global setup_elfutils -a1
 %else
 BuildRequires: elfutils-devel >= %{elfutils_version}
-%endif
-%if %{with_crash}
-Requires: crash
 %endif
 
 %if %{with_docs}
@@ -64,7 +61,7 @@ BuildRequires: /usr/bin/latex /usr/bin/dvips /usr/bin/ps2pdf latex2html
 BuildRequires: xmlto /usr/share/xmlto/format/fo/pdf
 %if %{with_publican}
 BuildRequires: publican
-BuildRequires: publican-%{publican_brand}
+BuildRequires: /usr/share/publican/Common_Content/%{publican_brand}/defaults.cfg
 %endif
 %endif
 
@@ -101,7 +98,7 @@ Summary: Instrumentation System Testsuite
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: systemtap systemtap-sdt-devel dejagnu which
+Requires: systemtap systemtap-sdt-devel dejagnu which prelink
 
 %description testsuite
 The testsuite allows testing of the entire SystemTap toolchain
@@ -143,7 +140,7 @@ scripts to kernel objects on their demand.
 %package sdt-devel
 Summary: Static probe support tools
 Group: Development/System
-License: GPLv2+
+License: GPLv2+, Public Domain
 URL: http://sourceware.org/systemtap/
 
 %description sdt-devel
@@ -337,7 +334,7 @@ test -e %{_localstatedir}/log/stap-server/log || {
      chmod 664 %{_localstatedir}/log/stap-server/log
      chown stap-server:stap-server %{_localstatedir}/log/stap-server/log
 }
-# If it does not already exit, as stap-server, generate the certificate
+# If it does not already exist, as stap-server, generate the certificate
 # used for signing and for ssl.
 if test ! -e ~stap-server/.systemtap/ssl/server/stap.cert; then
    runuser -s /bin/sh - stap-server -c %{_libexecdir}/%{name}/stap-gen-cert >/dev/null
@@ -416,19 +413,14 @@ exit 0
 %{_bindir}/stap-report
 %{_mandir}/man1/*
 %{_mandir}/man3/*
+%{_mandir}/man7/stappaths.7*
 
 %dir %{_datadir}/%{name}
 %{_datadir}/%{name}/runtime
 %{_datadir}/%{name}/tapset
 
-%if %{with_bundled_elfutils} || %{with_crash}
-%dir %{_libdir}/%{name}
-%endif
 %if %{with_bundled_elfutils}
 %{_libdir}/%{name}/lib*.so*
-%endif
-%if %{with_crash}
-%{_libdir}/%{name}/staplog.so*
 %endif
 
 # Make sure that the uprobes module can be built by root and by the server
@@ -442,6 +434,10 @@ exit 0
 %{_libexecdir}/%{name}/stapio
 %{_libexecdir}/%{name}/stap-env
 %{_libexecdir}/%{name}/stap-authorize-cert
+%if %{with_crash}
+%{_libdir}/%{name}/staplog.so*
+%endif
+%{_mandir}/man7/stappaths.7*
 %{_mandir}/man8/staprun.8*
 %{_mandir}/man8/stap-authorize-signing-cert.8*
 
@@ -457,6 +453,7 @@ exit 0
 %{_bindir}/stap-authorize-server-cert
 %{_libexecdir}/%{name}/stap-find-servers
 %{_libexecdir}/%{name}/stap-client-connect
+%{_mandir}/man7/stappaths.7*
 %{_mandir}/man8/stap-client.8*
 %{_mandir}/man8/stap-authorize-server-cert.8*
 
@@ -472,6 +469,7 @@ exit 0
 %{_libexecdir}/%{name}/stap-gen-cert
 %{_libexecdir}/%{name}/stap-server-connect
 %{_libexecdir}/%{name}/stap-sign-module
+%{_mandir}/man7/stappaths.7*
 %{_mandir}/man8/stap-server.8*
 %{_mandir}/man8/stap-authorize-server-cert.8*
 %{_sysconfdir}/rc.d/init.d/stap-server
@@ -487,6 +485,7 @@ exit 0
 %defattr(-,root,root)
 %{_bindir}/dtrace
 %{_includedir}/sys/sdt.h
+%doc README AUTHORS NEWS COPYING
 
 %files initscript
 %defattr(-,root,root)
@@ -508,6 +507,9 @@ exit 0
 
 
 %changelog
+* Wed Jul 21 2010 Josh Stone <jistone@redhat.com> - 1.3-1
+- Upstream release.
+
 * Mon Mar 22 2010 Frank Ch. Eigler <fche@redhat.com> - 1.2-1
 - Upstream release.
 

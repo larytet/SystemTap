@@ -60,7 +60,7 @@ struct location
 
   enum
     {
-      loc_address, loc_register, loc_noncontiguous, loc_value,
+      loc_address, loc_register, loc_noncontiguous, loc_value, loc_unavailable,
       loc_constant, loc_decl, loc_fragment, loc_final
     } type;
   struct location *frame_base;
@@ -254,10 +254,17 @@ translate (struct obstack *pool, int indent, Dwarf_Addr addrbias,
   size_t i;
   inline const char *finish (struct location *piece)
     {
-      if (stack_depth > 1)
-	DIE ("multiple values left on stack");
-      if (stack_depth == 1)
+      if (piece->nops == 0)
 	{
+	  assert (stack_depth == 0);
+	  assert (tos_register == -1);
+	  assert (obstack_object_size (pool) == 0);
+	  piece->type = loc_unavailable;
+	}
+      else if (stack_depth >= 1)
+	{
+	  /* The top of stack has our value.
+	     Other stack slots left don't matter.  */
 	  obstack_1grow (pool, '\0');
 	  char *program = obstack_finish (pool);
 	  if (implicit_value.data == NULL)
@@ -1025,6 +1032,8 @@ location_relative (struct obstack *pool,
 	      if (piece == NULL)
 		DIE ("offset outside available pieces");
 
+	      assert ((*input)->next == NULL);
+	      (*input)->next = piece;
 	      *input = piece;
 	    }
 
@@ -1086,9 +1095,17 @@ location_relative (struct obstack *pool,
 	      (*input)->byte_size -= value;
 	      return head ?: *input;
 
+	    case loc_unavailable:
+	      /* Let it be diagnosed later.  */
+	      return head ?: *input;
+
 	    case loc_value:
-	      /* The piece we want is part of a computed value!  */
-	      /* XXX implement me! */
+	      /* The piece we want is part of a computed value.
+		 If it's the whole thing, we are done.  */
+	      if (value == 0)
+		return head ?: *input;
+	      DIE ("XXX extract partial rematerialized value");
+	      break;
 
 	    default:
 	      abort ();
@@ -1179,6 +1196,7 @@ c_translate_location (struct obstack *pool,
     case loc_register:
     case loc_value:
     case loc_constant:
+    case loc_unavailable:
       /* The starting point is not an address computation, but a
 	 register or implicit value.  We can only handle limited
 	 computations from here.  */
@@ -1367,6 +1385,10 @@ emit_base_fetch (struct obstack *pool, Dwarf_Word byte_size,
       FAIL (loc, N_("noncontiguous location for base fetch"));
       break;
 
+    case loc_unavailable:
+      FAIL (loc, N_("location not available"));
+      break;
+
     default:
       abort ();
       break;
@@ -1408,6 +1430,10 @@ emit_base_store (struct obstack *pool, Dwarf_Word byte_size,
 
     case loc_constant:
       FAIL (loc, N_("location is constant value, cannot store"));
+      break;
+
+    case loc_unavailable:
+      FAIL (loc, N_("location is not available, cannot store"));
       break;
 
     default:
@@ -1981,6 +2007,9 @@ c_translate_addressof (struct obstack *pool, int indent,
     case loc_constant:
       FAIL (*input, N_("cannot take address of constant value"));
       break;
+    case loc_unavailable:
+      FAIL (*input, N_("cannot take address of unavailable value"));
+      break;
 
     default:
       abort();
@@ -2017,6 +2046,40 @@ c_translate_pointer_store (struct obstack *pool, int indent,
   // XXX: what about multiple-location lvalues?
 }
 
+/* Determine the element stride of a pointer to a type.  */
+static Dwarf_Word
+pointer_stride (Dwarf_Die *typedie, struct location *origin)
+{
+  Dwarf_Attribute attr_mem;
+  Dwarf_Die die_mem = *typedie;
+  int typetag = dwarf_tag(&die_mem);
+  while (typetag == DW_TAG_typedef ||
+	 typetag == DW_TAG_const_type ||
+	 typetag == DW_TAG_volatile_type)
+    {
+      if (dwarf_attr_integrate (&die_mem, DW_AT_type, &attr_mem) == NULL
+	  || dwarf_formref_die (&attr_mem, &die_mem) == NULL)
+	FAIL (origin, N_("cannot get inner type of type %s: %s"),
+	      dwarf_diename (&die_mem) ?: "<anonymous>",
+	      dwarf_errmsg (-1));
+      typetag = dwarf_tag(&die_mem);
+    }
+
+  if (dwarf_attr_integrate (&die_mem, DW_AT_byte_size, &attr_mem) != NULL)
+    {
+      Dwarf_Word stride;
+      if (dwarf_formudata (&attr_mem, &stride) == 0)
+	return stride;
+      FAIL (origin,
+	    N_("cannot get byte_size attribute for array element type %s: %s"),
+	    dwarf_diename (&die_mem) ?: "<anonymous>",
+	    dwarf_errmsg (-1));
+    }
+
+  FAIL (origin, N_("confused about array element size"));
+  return 0;
+}
+
 /* Determine the element stride of an array type.  */
 static Dwarf_Word
 array_stride (Dwarf_Die *typedie, struct location *origin)
@@ -2039,32 +2102,7 @@ array_stride (Dwarf_Die *typedie, struct location *origin)
 	  dwarf_diename (typedie) ?: "<anonymous>",
 	  dwarf_errmsg (-1));
 
-  int typetag = dwarf_tag(&die_mem);
-  while (typetag == DW_TAG_typedef ||
-         typetag == DW_TAG_const_type ||
-         typetag == DW_TAG_volatile_type)
-    {
-      if (dwarf_attr_integrate (&die_mem, DW_AT_type, &attr_mem) == NULL
-          || dwarf_formref_die (&attr_mem, &die_mem) == NULL)
-        FAIL (origin, N_("cannot get inner type of type %s: %s"),
-              dwarf_diename (&die_mem) ?: "<anonymous>",
-              dwarf_errmsg (-1));
-      typetag = dwarf_tag(&die_mem);
-    }
-
-  if (dwarf_attr_integrate (&die_mem, DW_AT_byte_size, &attr_mem) != NULL)
-    {
-      Dwarf_Word stride;
-      if (dwarf_formudata (&attr_mem, &stride) == 0)
-	return stride;
-      FAIL (origin,
-	    N_("cannot get byte_size attribute for array element type %s: %s"),
-	    dwarf_diename (&die_mem) ?: "<anonymous>",
-	    dwarf_errmsg (-1));
-    }
-
-  FAIL (origin, N_("confused about array element size"));
-  return 0;
+  return pointer_stride (&die_mem, origin);
 }
 
 void
@@ -2145,10 +2183,38 @@ c_translate_array (struct obstack *pool, int indent,
       FAIL (*input, N_("cannot index into computed value"));
       break;
 
+    case loc_unavailable:
+      FAIL (*input, N_("cannot index into unavailable value"));
+      break;
+
     default:
       abort();
       break;
     }
+
+  (*input)->next = loc;
+  *input = (*input)->next;
+}
+
+void
+c_translate_array_pointer (struct obstack *pool, int indent,
+			   Dwarf_Die *typedie, struct location **input,
+			   const char *idx, Dwarf_Word const_idx)
+{
+  struct location *loc = *input;
+  if (loc->type != loc_address)
+    FAIL (*input, N_("cannot index noncontiguous array"));
+
+  Dwarf_Word stride = pointer_stride (typedie, *input);
+
+  indent += 2;
+  if (idx != NULL)
+    obstack_printf (pool, "%*saddr += %s * " UFORMAT ";\n",
+		    indent * 2, "", idx, stride);
+  else
+    obstack_printf (pool, "%*saddr += " UFORMAT " * " UFORMAT ";\n",
+		    indent * 2, "", const_idx, stride);
+  loc = new_synthetic_loc (pool, loc, false);
 
   (*input)->next = loc;
   *input = (*input)->next;

@@ -14,6 +14,7 @@ bool copy_file(const std::string& src, const std::string& dest,
 int create_dir(const char *dir);
 int remove_file_or_dir(const char *dir);
 bool in_group_id (gid_t target_gid);
+std::string getmemusage ();
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
 	      const std::string& delimiters);
 std::string find_executable(const std::string& name,
@@ -23,6 +24,7 @@ std::string git_revision(const std::string& path);
 int stap_system(int verbose, const std::string& command);
 int kill_stap_spawn(int sig);
 void assert_regexp_match (const std::string& name, const std::string& value, const std::string& re);
+int regexp_match (const std::string& value, const std::string& re, std::vector<std::string>& matches);
 
 // stringification generics
 

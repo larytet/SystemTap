@@ -62,7 +62,8 @@ function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
 	}
 	if (THIS->offset < 0 || THIS->offset > sizeof(struct pt_regs) - sizeof(unsigned short)) {
 		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-				"Bad register offset: %lld", THIS->offset);
+				"Bad register offset: %lld",
+				(long long)THIS->offset);
 		CONTEXT->last_error = CONTEXT->error_buffer;
 		return;
 	}
@@ -145,7 +146,7 @@ function _stp_arg:long (argnum:long, sign_extend:long, truncate:long) {
 		val = u_register("r4")
 	else if (argnum == 4)
 		val = u_register("r5")
-	else (argnum == 5)
+	else if (argnum == 5)
 		val = u_register("r6")
 
 	if (truncate) {

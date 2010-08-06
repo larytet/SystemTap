@@ -129,22 +129,33 @@ probe_point::component::component (std::string const & f, literal * a):
 
 
 vardecl::vardecl ():
-  arity (-1), maxsize(0), init(NULL)
+  arity_tok(0), arity (-1), maxsize(0), init(NULL), skip_init(false)
 {
 }
 
 
 void
-vardecl::set_arity (int a)
+vardecl::set_arity (int a, const token* t)
 {
   if (a < 0)
     return;
 
-  if ((arity != a && arity >= 0) || (a == 0 && maxsize > 0))
+  if (a == 0 && maxsize > 0)
     throw semantic_error ("inconsistent arity", tok);
+
+  if (arity != a && arity >= 0)
+    {
+      semantic_error err ("inconsistent arity (" + lex_cast(arity) +
+			  " vs. " + lex_cast(a) + ")", t?:tok);
+      if (arity_tok)
+	err.chain = new semantic_error ("arity " + lex_cast(arity) +
+					" first inferred here", arity_tok);
+      throw err;
+    }
 
   if (arity != a)
     {
+      arity_tok = t;
       arity = a;
       index_types.resize (arity);
       for (int i=0; i<arity; i++)
@@ -168,10 +179,22 @@ functiondecl::functiondecl ():
 {
 }
 
+void
+functiondecl::join (systemtap_session& s)
+{
+  if (!synthetic)
+    throw semantic_error ("internal error, joining a non-synthetic function", tok);
+  if (!s.functions.insert (make_pair (name, this)).second)
+    throw semantic_error ("synthetic function '" + name +
+                          "' conflicts with an existing function", tok);
+  tok->location.file->functions.push_back (this);
+}
 
-literal_number::literal_number (int64_t v)
+
+literal_number::literal_number (int64_t v, bool hex)
 {
   value = v;
+  print_hex = hex;
   type = pe_long;
 }
 
@@ -199,32 +222,41 @@ operator << (ostream& o, const exp_type& e)
 
 
 void
-target_symbol::assert_no_components(const std::string& tapset)
+target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
 {
   if (components.empty())
     return;
 
   switch (components[0].type)
     {
-    case target_symbol::comp_literal_array_index:
-    case target_symbol::comp_expression_array_index:
-      throw semantic_error(tapset + " variable '" + base_name +
+    case comp_literal_array_index:
+    case comp_expression_array_index:
+      throw semantic_error(tapset + " variable '" + name +
                            "' may not be used as array",
                            components[0].tok);
-    case target_symbol::comp_struct_member:
-      throw semantic_error(tapset + " variable '" + base_name +
+    case comp_struct_member:
+      throw semantic_error(tapset + " variable '" + name +
                            "' may not be used as a structure",
                            components[0].tok);
+    case comp_pretty_print:
+      if (!pretty_ok)
+        throw semantic_error(tapset + " variable '" + name +
+                             "' may not be pretty-printed",
+                             components[0].tok);
+      return;
     default:
       throw semantic_error ("invalid use of " + tapset +
-                            " variable '" + base_name + "'",
+                            " variable '" + name + "'",
                             components[0].tok);
     }
 }
 
 
-void target_symbol::chain (semantic_error *e)
+void target_symbol::chain (const semantic_error &er)
 {
+  semantic_error* e = new semantic_error(er);
+  if (!e->tok1)
+    e->tok1 = this->tok;
   assert (e->chain == 0);
   e->chain = this->saved_conversion_error;
   this->saved_conversion_error = e;
@@ -255,7 +287,17 @@ void literal_string::print (ostream& o) const
 
 void literal_number::print (ostream& o) const
 {
+  if (print_hex)
+    o << hex << showbase;
   o << value;
+  if (print_hex)
+    o << dec << noshowbase;
+}
+
+
+void embedded_expr::print (ostream& o) const
+{
+  o << "%{ " << code << " %}";
 }
 
 
@@ -308,6 +350,7 @@ void target_symbol::component::print (ostream& o) const
 {
   switch (type)
     {
+    case comp_pretty_print:
     case comp_struct_member:
       o << "->" << member;
       break;
@@ -332,7 +375,7 @@ void target_symbol::print (ostream& o) const
 {
   if (addressof)
     o << "&";
-  o << base_name;
+  o << name;
   for (unsigned i = 0; i < components.size(); ++i)
     o << components[i];
 }
@@ -342,8 +385,8 @@ void cast_op::print (ostream& o) const
 {
   if (addressof)
     o << "&";
-  o << base_name << '(' << *operand;
-  o << ", " << lex_cast_qstring (type);
+  o << name << '(' << *operand;
+  o << ", " << lex_cast_qstring (type_name);
   if (module.length() > 0)
     o << ", " << lex_cast_qstring (module);
   o << ')';
@@ -355,6 +398,12 @@ void cast_op::print (ostream& o) const
 void defined_op::print (ostream& o) const
 {
   o << "@defined(" << *operand << ")";
+}
+
+
+void entry_op::print (ostream& o) const
+{
+  o << "@entry(" << *operand << ")";
 }
 
 
@@ -930,7 +979,13 @@ void for_loop::print (ostream& o) const
 
 void foreach_loop::print (ostream& o) const
 {
-  o << "foreach ([";
+  o << "foreach (";
+  if (value)
+    {
+      value->print (o);
+      o << " = ";
+    }
+  o << "[";
   for (unsigned i=0; i<indexes.size(); i++)
     {
       if (i > 0) o << ", ";
@@ -1086,20 +1141,7 @@ void probe_point::print (ostream& o) const
 string probe_point::str ()
 {
   ostringstream o;
-  for (unsigned i=0; i<components.size(); i++)
-    {
-      if (i>0) o << ".";
-      probe_point::component* c = components[i];
-      o << c->functor;
-      if (c->arg)
-        o << "(" << *c->arg << ")";
-    }
-  if (sufficient)
-    o << "!";
-  else if (optional) // sufficient implies optional
-    o << "?";
-  if (condition)
-    o<< " if (" << *condition << ")";
+  print(o);
   return o.str();
 }
 
@@ -1246,6 +1288,12 @@ binary_expression::visit (visitor* u)
 }
 
 void
+embedded_expr::visit (visitor* u)
+{
+  u->visit_embedded_expr (this);
+}
+
+void
 unary_expression::visit (visitor* u)
 {
   u->visit_unary_expression (this);
@@ -1350,6 +1398,13 @@ void
 defined_op::visit (visitor* u)
 {
   u->visit_defined_op(this);
+}
+
+
+void
+entry_op::visit (visitor* u)
+{
+  u->visit_entry_op(this);
 }
 
 
@@ -1602,6 +1657,9 @@ traversing_visitor::visit_foreach_loop (foreach_loop* s)
   for (unsigned i=0; i<s->indexes.size(); i++)
     s->indexes[i]->visit (this);
 
+  if (s->value)
+    s->value->visit (this);
+
   if (s->limit)
     s->limit->visit (this);
 
@@ -1642,6 +1700,11 @@ traversing_visitor::visit_literal_string (literal_string*)
 
 void
 traversing_visitor::visit_literal_number (literal_number*)
+{
+}
+
+void
+traversing_visitor::visit_embedded_expr (embedded_expr*)
 {
 }
 
@@ -1744,6 +1807,12 @@ traversing_visitor::visit_defined_op (defined_op* e)
   e->operand->visit (this);
 }
 
+void
+traversing_visitor::visit_entry_op (entry_op* e)
+{
+  e->operand->visit (this);
+}
+
 
 void
 traversing_visitor::visit_arrayindex (arrayindex* e)
@@ -1833,6 +1902,11 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
     throw semantic_error ("function may not be used when --unprivileged is specified",
 			  current_function->tok);
 
+  // Don't allow /* guru */ functions unless -g is active.
+  if (!session.guru_mode && s->code.find ("/* guru */") != string::npos)
+    throw semantic_error ("function may not be used unless -g is specified",
+			  current_function->tok);
+
   // We want to elide embedded-C functions when possible.  For
   // example, each $target variable access is expanded to an
   // embedded-C function call.  Yet, for safety reasons, we should
@@ -1848,6 +1922,39 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 
   embedded_seen = true;
 }
+
+
+// About the same case as above.
+void
+varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
+{
+  // Don't allow embedded C functions in unprivileged mode unless
+  // they are tagged with /* unprivileged */
+  if (session.unprivileged && e->code.find ("/* unprivileged */") == string::npos)
+    throw semantic_error ("embedded expression may not be used when --unprivileged is specified",
+			  e->tok);
+
+  // Don't allow /* guru */ functions unless -g is active.
+  if (!session.guru_mode && e->code.find ("/* guru */") != string::npos)
+    throw semantic_error ("embedded expression may not be used unless -g is specified",
+			  e->tok);
+
+  // We want to elide embedded-C functions when possible.  For
+  // example, each $target variable access is expanded to an
+  // embedded-C function call.  Yet, for safety reasons, we should
+  // presume that embedded-C functions have intentional side-effects.
+  //
+  // To tell these two types of functions apart, we apply a
+  // Kludge(tm): we look for a magic string within the function body.
+  // $target variables as rvalues will have this; lvalues won't.
+  // Also, explicit side-effect-free tapset functions will have this.
+
+  if (e->code.find ("/* pure */") != string::npos)
+    return;
+
+  embedded_seen = true;
+}
+
 
 void
 varuse_collecting_visitor::visit_target_symbol (target_symbol *e)
@@ -1879,6 +1986,13 @@ varuse_collecting_visitor::visit_defined_op (defined_op *e)
 {
   // XXX
   functioncall_traversing_visitor::visit_defined_op (e);
+}
+
+void
+varuse_collecting_visitor::visit_entry_op (entry_op *e)
+{
+  // XXX
+  functioncall_traversing_visitor::visit_entry_op (e);
 }
 
 
@@ -1991,21 +2105,19 @@ varuse_collecting_visitor::visit_arrayindex (arrayindex *e)
 void
 varuse_collecting_visitor::visit_pre_crement (pre_crement *e)
 {
-  // PR6954: regard as pure writes
-  expression* last_lvalue = current_lvalue;
-  current_lvalue = e->operand; // leave a mark for ::visit_symbol
+  expression* last_lrvalue = current_lrvalue;
+  current_lrvalue = e->operand; // leave a mark for ::visit_symbol
   functioncall_traversing_visitor::visit_pre_crement (e);
-  current_lvalue = last_lvalue;
+  current_lrvalue = last_lrvalue;
 }
 
 void
 varuse_collecting_visitor::visit_post_crement (post_crement *e)
 {
-  // PR6954: regard as pure writes
-  expression* last_lvalue = current_lvalue;
-  current_lvalue = e->operand; // leave a mark for ::visit_symbol
+  expression* last_lrvalue = current_lrvalue;
+  current_lrvalue = e->operand; // leave a mark for ::visit_symbol
   functioncall_traversing_visitor::visit_post_crement (e);
-  current_lvalue = last_lvalue;
+  current_lrvalue = last_lrvalue;
 }
 
 void
@@ -2039,6 +2151,15 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
       expression* last_lvalue = current_lvalue;
       current_lvalue = s->indexes[i]; // leave a mark for ::visit_symbol
       s->indexes[i]->visit (this);
+      current_lvalue = last_lvalue;
+    }
+
+  // The value is an lvalue too
+  if (s->value)
+    {
+      expression* last_lvalue = current_lvalue;
+      current_lvalue = s->value; // leave a mark for ::visit_symbol
+      s->value->visit (this);
       current_lvalue = last_lvalue;
     }
 
@@ -2197,6 +2318,12 @@ throwing_visitor::visit_literal_number (literal_number* e)
 }
 
 void
+throwing_visitor::visit_embedded_expr (embedded_expr* e)
+{
+  throwone (e->tok);
+}
+
+void
 throwing_visitor::visit_binary_expression (binary_expression* e)
 {
   throwone (e->tok);
@@ -2283,6 +2410,12 @@ throwing_visitor::visit_cast_op (cast_op* e)
 
 void
 throwing_visitor::visit_defined_op (defined_op* e)
+{
+  throwone (e->tok);
+}
+
+void
+throwing_visitor::visit_entry_op (entry_op* e)
 {
   throwone (e->tok);
 }
@@ -2383,6 +2516,7 @@ update_visitor::visit_foreach_loop (foreach_loop* s)
   for (unsigned i = 0; i < s->indexes.size(); ++i)
     replace (s->indexes[i]);
   replace (s->base);
+  replace (s->value);
   replace (s->limit);
   replace (s->block);
   provide (s);
@@ -2428,6 +2562,12 @@ update_visitor::visit_literal_string (literal_string* e)
 
 void
 update_visitor::visit_literal_number (literal_number* e)
+{
+  provide (e);
+}
+
+void
+update_visitor::visit_embedded_expr (embedded_expr* e)
 {
   provide (e);
 }
@@ -2541,6 +2681,13 @@ update_visitor::visit_cast_op (cast_op* e)
 
 void
 update_visitor::visit_defined_op (defined_op* e)
+{
+  replace (e->operand);
+  provide (e);
+}
+
+void
+update_visitor::visit_entry_op (entry_op* e)
 {
   replace (e->operand);
   provide (e);
@@ -2701,6 +2848,12 @@ deep_copy_visitor::visit_literal_number (literal_number* e)
 }
 
 void
+deep_copy_visitor::visit_embedded_expr (embedded_expr* e)
+{
+  update_visitor::visit_embedded_expr(new embedded_expr(*e));
+}
+
+void
 deep_copy_visitor::visit_binary_expression (binary_expression* e)
 {
   update_visitor::visit_binary_expression(new binary_expression(*e));
@@ -2793,6 +2946,12 @@ void
 deep_copy_visitor::visit_defined_op (defined_op* e)
 {
   update_visitor::visit_defined_op(new defined_op(*e));
+}
+
+void
+deep_copy_visitor::visit_entry_op (entry_op* e)
+{
+  update_visitor::visit_entry_op(new entry_op(*e));
 }
 
 void

@@ -114,6 +114,7 @@ static void ia64_store_register(int regno,
 		addr =&pt_regs->r8;
 		addr += regno - 8;
 		*(addr) = value;
+		return;
 	}
 	else if (regno < 32 || regno > 127)
 		return;
@@ -132,10 +133,6 @@ static void ia64_store_register(int regno,
 
 	return;
 }
-
-#else /* if defined __ia64__ */
-
-#define bspcache(cache, regs) do {} while(0)
 
 #endif /* if defined __ia64__ */
 

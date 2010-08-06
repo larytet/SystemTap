@@ -93,8 +93,7 @@ extern void unmap_uretprobe(struct uretprobe *rp);
  * if it is the address of the trampoline. sp is the stack pointer for
  * the frame that corresponds to the address.
  *
- * When not called from a uretprobe hander, pass GET_PC_URETPROBE_NONE
- * instead of a uretprobe_instance.
+ * When not called from a uretprobe hander, pass GET_PC_URETPROBE_NONE.
  */
 #define GET_PC_URETPROBE_NONE ((struct uretprobe_instance *)-1L)
 extern unsigned long uprobe_get_pc(struct uretprobe_instance *ri,
@@ -185,7 +184,11 @@ struct uprobe_ssol_area {
 	struct uprobe_ssol_slot *slots;
 
 	/* lock held while finding a free slot */
+#ifdef CONFIG_PREEMPT_RT
+	raw_spinlock_t lock;
+#else
 	spinlock_t lock;
+#endif
 
 	/*
 	 * We currently use access_process_vm() to populate instruction
@@ -429,6 +432,8 @@ static void uprobe_pre_ssout(struct uprobe_task*, struct uprobe_probept*,
 static void uprobe_post_ssout(struct uprobe_task*, struct uprobe_probept*,
 			struct pt_regs*);
 #endif
+static int uprobe_emulate_insn(struct pt_regs *regs,
+						struct uprobe_probept *ppt);
 
 #endif	/* UPROBES_IMPLEMENTATION */
 

@@ -1,5 +1,5 @@
 /* target operations
- * Copyright (C) 2005-2009 Red Hat Inc.
+ * Copyright (C) 2005-2010 Red Hat Inc.
  * Copyright (C) 2005, 2006, 2007 Intel Corporation.
  * Copyright (C) 2007 Quentin Barnes.
  *
@@ -295,7 +295,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #elif defined (__x86_64__)
 
 #define u_fetch_register(regno) (_stp_probing_32bit_app(c->regs) ? ursl_fetch32(url_i386, ARRAY_SIZE(url_i386), EM_386, regno) : ursl_fetch64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno))
-#define u_store_register(regno,value)  (_stp_probing_32bit_app(c->regs) ? ursl_store2(url_i386, ARRAY_SIZE(url_i386), EM_386, regno, value) : ursl_store64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno, value))
+#define u_store_register(regno,value)  (_stp_probing_32bit_app(c->regs) ? ursl_store32(url_i386, ARRAY_SIZE(url_i386), EM_386, regno, value) : ursl_store64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno, value))
 
 #else
 
@@ -410,7 +410,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 
 
 /* NB: this autoconf is always disabled, pending further performance eval. */
-#if defined STAPCONF_PROBE_KERNEL
+#if 0 && defined STAPCONF_PROBE_KERNEL
 
 /* Kernel 2.6.26 adds probe_kernel_{read,write}, which lets us write
  * architecture-neutral implementations of kread, kwrite, deref, and
@@ -517,10 +517,10 @@ extern void __store_deref_bad(void);
     else                                                                      \
       switch (size)                                                           \
         {                                                                     \
-        case 1: __get_user_asm(_b,addr,_bad,"b","b","=q",1); _v = _b; break;  \
-        case 2: __get_user_asm(_w,addr,_bad,"w","w","=r",1); _v = _w; break;  \
-        case 4: __get_user_asm(_l,addr,_bad,"l","","=r",1); _v = _l; break;   \
-        case 8: __get_user_asm(_q,addr,_bad,"q","","=r",1); _v = _q; break;   \
+        case 1: __get_user_asm(_b,(unsigned long)addr,_bad,"b","b","=q",1); _v = _b; break;  \
+        case 2: __get_user_asm(_w,(unsigned long)addr,_bad,"w","w","=r",1); _v = _w; break;  \
+        case 4: __get_user_asm(_l,(unsigned long)addr,_bad,"l","","=r",1); _v = _l; break;   \
+        case 8: __get_user_asm(_q,(unsigned long)addr,_bad,"q","","=r",1); _v = _q; break;   \
         default: _v = __get_user_bad();                                       \
         }                                                                     \
     if (_bad)								      \
@@ -1009,6 +1009,17 @@ extern void __store_deref_bad(void);
 	 *_d++ = _c;							      \
     }                                                                         \
     (dst);								      \
+  })
+
+#define store_deref_string(src, addr, maxbytes)				      \
+  ({									      \
+    uintptr_t _addr;							      \
+    size_t _len;							      \
+    char *_s = (src);							      \
+    for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
+	 _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
+      store_deref(1, _addr, *_s++);					      \
+    store_deref(1, _addr, '\0');					      \
   })
 
 #define CATCH_DEREF_FAULT()				\

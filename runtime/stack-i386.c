@@ -23,15 +23,16 @@ static void _stp_stack_print_fallback(unsigned long stack, int verbose, int leve
 			/* cannot access stack.  give up. */
 			return;
 		}
-		if (_stp_func_print(addr, verbose, 0, NULL))
-			levels--;
+		_stp_print_addr(addr, verbose | _STP_SYM_INEXACT, NULL);
+		levels--;
 		stack++;
 	}
 }
 #endif
 
 static void __stp_stack_print (struct pt_regs *regs, int verbose, int levels,
-                               struct task_struct *tsk, struct uretprobe_instance *ri)
+                               struct task_struct *tsk,
+			       struct uretprobe_instance *ri, int uregs_valid)
 {
 	unsigned long context = (unsigned long)&REG_SP(regs) & ~(THREAD_SIZE - 1);
 
@@ -44,7 +45,7 @@ static void __stp_stack_print (struct pt_regs *regs, int verbose, int levels,
 			/* cannot access stack.  give up. */
 			return;
 		}
-		_stp_func_print(addr, verbose, 1, NULL);
+		_stp_print_addr(addr, verbose | _STP_SYM_INEXACT, NULL);
 		if (unlikely(_stp_read_address(next_fp, (unsigned long *)fp, KERNEL_DS))) {
 			/* cannot access stack.  give up. */
 			return;
@@ -58,12 +59,13 @@ static void __stp_stack_print (struct pt_regs *regs, int verbose, int levels,
 	}
 #else
 #ifdef STP_USE_DWARF_UNWINDER
-	struct unwind_frame_info info;
-	arch_unw_init_frame_info(&info, regs);
+	struct unwind_frame_info info; // XXX large stack allocation
+	int sanitize = tsk && ! uregs_valid;
+	arch_unw_init_frame_info(&info, regs, sanitize);
 
 	while (levels && (tsk || !arch_unw_user_mode(&info))) {
 		int ret = unwind(&info, tsk);
-#ifdef CONFIG_UTRACE
+#ifdef STAPCONF_UPROBE_GET_PC
                 unsigned long maybe_pc = 0;                
                 if (ri) {
                         maybe_pc = uprobe_get_pc(ri, UNW_PC(&info),
@@ -76,7 +78,7 @@ static void __stp_stack_print (struct pt_regs *regs, int verbose, int levels,
 #endif
 		dbug_unwind(1, "ret=%d PC=%lx SP=%lx\n", ret, UNW_PC(&info), UNW_SP(&info));
 		if (ret == 0) {
-			_stp_func_print(UNW_PC(&info), verbose, 1, tsk);
+			_stp_print_addr(UNW_PC(&info), verbose, tsk);
 			levels--;
 			if (UNW_PC(&info) != _stp_kretprobe_trampoline)
 			  continue;
