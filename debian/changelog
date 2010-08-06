@@ -9,8 +9,10 @@ systemtap (1.3-1) unstable; urgency=low
     + no-make-distclean-for-man.diff
     + stapex-docdir-path.diff 
   * Add libavahi-client-dev build dependency
+  * Update Standards Version to 3.9.1
+    + Use Breaks instead of Conflicts
 
- -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 06 Aug 2010 15:36:18 +0530
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 06 Aug 2010 18:18:10 +0530
 
 systemtap (1.2-1) unstable; urgency=low
 

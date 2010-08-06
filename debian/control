@@ -8,7 +8,7 @@ Build-Depends: debhelper (>= 7.0.50~), libelf-dev (>= 0.141),
  texlive-latex-extra, texlive-fonts-recommended, libnss3-dev, libnspr4-dev, pkg-config,
  libnss3-tools, libgtkmm-2.4-dev (>= 2.8.0), xmlto, libboost-dev, libglademm-2.4-dev,
  latex2html, libavahi-client-dev
-Standards-Version: 3.8.4
+Standards-Version: 3.9.1
 Homepage: http://sourceware.org/systemtap/
 Vcs-Git: git://git.debian.org/git/collab-maint/systemtap.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/systemtap.git
@@ -32,7 +32,7 @@ Description: instrumentation system for Linux 2.6
 Package: systemtap-common
 Architecture: all
 Replaces: systemtap (<< 0.0.20081220-1)
-Conflicts: systemtap (<< 0.0.20081220-1)
+Breaks: systemtap (<< 0.0.20081220-1)
 Depends: ${misc:Depends}
 Recommends: systemtap
 Description: instrumentation system for Linux 2.6 (common component)
@@ -45,7 +45,7 @@ Description: instrumentation system for Linux 2.6 (common component)
 
 Package: systemtap-runtime
 Replaces: systemtap (<< 0.0.20081220-1)
-Conflicts: systemtap (<< 0.0.20081220-1)
+Breaks: systemtap (<< 0.0.20081220-1)
 Suggests: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
 Depends: ${shlibs:Depends}, ${misc:Depends}
@@ -63,7 +63,7 @@ Architecture: all
 Section: doc
 Suggests: doc-base
 Depends: ${misc:Depends}
-Conflicts: systemtap (<< 0.0.20081220-1)
+Breaks: systemtap (<< 0.0.20081220-1)
 Replaces: systemtap (<< 0.0.20081220-1)
 Description: documentation and examples for SystemTap
  This package contains examples and documentation for SystemTap.
@@ -76,7 +76,7 @@ Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
 Depends: libnss3-tools, avahi-utils, unzip, zip, systemtap (= ${binary:Version}),
  systemtap-client (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
  net-tools
-Conflicts: systemtap-client (<< 0.0.20090523~)
+Breaks: systemtap-client (<< 0.0.20090523~)
 Replaces: systemtap-client (<< 0.0.20090523~)
 Description: instrumentation system for Linux 2.6 (compile server)
  This package contains compile server for SystemTap. It can be used
