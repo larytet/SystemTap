@@ -1,9 +1,9 @@
 don't build pdf docs
 Index: systemtap/configure.ac
 ===================================================================
---- systemtap.orig/configure.ac	2010-01-21 09:00:30.000000000 +0100
-+++ systemtap/configure.ac	2010-01-21 09:04:00.483768663 +0100
-@@ -260,18 +260,18 @@
+--- systemtap.orig/configure.ac	2010-08-06 13:40:33.000000000 +0530
++++ systemtap/configure.ac	2010-08-06 13:40:59.674483272 +0530
+@@ -249,18 +249,18 @@
  fi
  AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
  
@@ -31,6 +31,6 @@ Index: systemtap/configure.ac
 +#   fi
 +#   rm -f conftest.pdf
 +#fi
- dnl Unfortunately https://bugzilla.redhat.com/show_bug.cgi?id=526273 
- dnl blocks "xmlto pdf" on our docs (but not on the above test).
- dnl So we need to disable this anyway.
+ AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
+ 
+ rm -f conftest.xml
