@@ -11,13 +11,18 @@ Similarly, to enable it for all users of this system just execute (as root)
 vim-addons is provided by the vim-addon-manager package, have a look at its
 manpage for more information.
 
-Currently Debian kernels do not contain debugging information, so it is
-not possible to use systemtap with those kernels. It is however possible
-to use systemtap on custom kernels. To compile kernel with included
-debugging information option CONFIG_DEBUG_INFO should be enabled during
-kernel configuration (it is available under menu "Kernel hacking",
-"Compile the kernel with debug info"). You also should enable kprobes 
-(CONFIG_KPROBES) in kernel config, this option is located under 
+Debian kernels with version 2.6.32-16 and above have full support for
+systemtap. Make sure to install the linux-image-x.x.x-dbg package which
+contains the debug symbols for the kernel and its modules.
+
+
+On older Debian systems (older than Squeeze), Debian kernels do not contain
+debugging information, so it is not possible to use systemtap with those
+kernels. It is however possible to use systemtap on custom kernels. To
+compile kernel with included debugging information option CONFIG_DEBUG_INFO
+should be enabled during kernel configuration (it is available under menu
+"Kernel hacking", "Compile the kernel with debug info"). You also should
+enable kprobes (CONFIG_KPROBES) in kernel config, this option is located under 
 "Instrumentation support" menu and it is marked as EXPERIMENTAL. You may
 also want to enable debug filesystem (CONFIG_DEBUG_FS, under
 "Kernel Hacking") and kernel->userspace relay support (CONFIG_RELAY,
@@ -38,4 +43,4 @@ file from kernel-package:
 To use systemtap as normal user you must be in group 'stapdev' or 'stapusr'.
 See README.security for details.
 
- -- Eugeniy Meshcheryakov <eugen@debian.org>  Sun, 25 Jan 2009 02:14:07 +0100
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri Aug  6 18:37:25 IST 2010
