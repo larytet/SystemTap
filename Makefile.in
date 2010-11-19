@@ -1991,7 +1991,10 @@ cscope:
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@install-exec-local: install-elfutils
 
 install-exec-hook:
-	if [ `id -u` -eq 0 ]; then chmod 04111 "$(DESTDIR)$(bindir)/staprun"; fi
+	if [ `id -u` -eq 0 ]; then \
+		getent group stapusr >/dev/null && chgrp stapusr "$(DESTDIR)$(bindir)/staprun"; \
+		chmod 04110 "$(DESTDIR)$(bindir)/staprun"; \
+	fi
 
 @BUILD_CRASHMOD_TRUE@$(STAPLOG): staplog.c
 @BUILD_CRASHMOD_TRUE@	$(CC) $(staplog_CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -shared -rdynamic \

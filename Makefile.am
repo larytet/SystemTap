@@ -172,7 +172,10 @@ stapio_LDADD = -lpthread
 
 
 install-exec-hook:
-	if [ `id -u` -eq 0 ]; then chmod 04111 "$(DESTDIR)$(bindir)/staprun"; fi
+	if [ `id -u` -eq 0 ]; then \
+		getent group stapusr >/dev/null && chgrp stapusr "$(DESTDIR)$(bindir)/staprun"; \
+		chmod 04110 "$(DESTDIR)$(bindir)/staprun"; \
+	fi
 
 # Why the "id -u" condition?  This way, an unprivileged user can run
 # make install, and have "sudo stap ...." or "sudo staprun ...." work later.

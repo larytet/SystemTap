@@ -1,3 +1,13 @@
+systemtap (1.2-2.1) unstable; urgency=high
+
+  This release fixes security vulnerabilities in SystemTap
+  (CVE-2010-4170, CVE-2010-4171)
+  There is a change is the runtime behavior of SystemTap. All users
+  that are currently part of 'stapdev' group would also have to be added
+  to the 'stapusr' (limited-privilege powers) group.
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 19 Nov 2010 13:17:16 +0530
+
 systemtap (0.9.9+0git20090910-1) experimental; urgency=low
 
   This release supports execution of precompiled and signed probe modules
