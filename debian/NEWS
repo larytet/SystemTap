@@ -1,4 +1,4 @@
-systemtap (1.2-2.1) unstable; urgency=high
+systemtap (1.2-3) unstable; urgency=high
 
   This release fixes security vulnerabilities in SystemTap
   (CVE-2010-4170, CVE-2010-4171)
@@ -6,7 +6,7 @@ systemtap (1.2-2.1) unstable; urgency=high
   that are currently part of 'stapdev' group would also have to be added
   to the 'stapusr' (limited-privilege powers) group.
 
- -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 19 Nov 2010 13:17:16 +0530
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 19 Nov 2010 19:09:21 +0530
 
 systemtap (0.9.9+0git20090910-1) experimental; urgency=low
 
