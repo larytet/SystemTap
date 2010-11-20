@@ -87,7 +87,7 @@ override_dh_compress:
 
 override_dh_fixperms:
 	dh_fixperms
-	chmod 4755 debian/systemtap-runtime/usr/bin/staprun
+	chmod 4750 debian/systemtap-runtime/usr/bin/staprun
 
 override_dh_installchangelogs:
 	        dh_installchangelogs debian/changelog

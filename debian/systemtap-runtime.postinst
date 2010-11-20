@@ -12,6 +12,12 @@ configure)
 		echo "Adding stapusr group..."
 		addgroup --quiet --system stapusr || true
 	fi
+
+	# Fixup staprun binary for new group 'stapusr'.
+	if [ -x /usr/sbin/dpkg-statoverride ] &&
+		! dpkg-statoverride --list /usr/bin/staprun > /dev/null ; then
+		dpkg-statoverride --update --add root stapusr 4750 /usr/bin/staprun
+	fi
 	;;
 abort-upgrade|abort-remove|abort-deconfigure)
 	;;
