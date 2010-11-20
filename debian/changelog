@@ -1,6 +1,8 @@
 systemtap (1.4-1) unstable; urgency=low
 
   * New Upstream Release 
+  * Fix file permissions when building the package. dh_fixperms overrides
+    the build time permissions set. Thanks to Steve Beattie.
 
  -- Ritesh Raj Sarraf <rrs@debian.org>  Thu, 24 Feb 2011 19:54:17 +0530
 
