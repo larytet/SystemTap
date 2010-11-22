@@ -48,7 +48,7 @@ Replaces: systemtap (<< 0.0.20081220-1)
 Conflicts: systemtap (<< 0.0.20081220-1)
 Suggests: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
 Description: instrumentation system for Linux 2.6 (runtime component)
  This package contains staprun program that can be used to run
  compiled SystemTap probes.

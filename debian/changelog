@@ -1,3 +1,10 @@
+systemtap (1.2-5) unstable; urgency=high
+
+  * Add dependency on package adduser. Thanks to the piuparts
+    infrastructure for spotting it. (Closes: #604439)
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Mon, 22 Nov 2010 15:54:22 +0530
+
 systemtap (1.2-4) unstable; urgency=high
 
   * Fix file permissions when building the package. dh_fixperms overrides
