@@ -1,10 +1,11 @@
-systemtap (1.3-2) UNRELEASED; urgency=low
+systemtap (1.3-2) unstable; urgency=low
 
   * Add dependency on package adduser. Thanks to the piuparts
     infrastructure for spotting it. (Closes: #604439)
   * Add dependency on make (Closes: #608905)
+  * Upload to unstable 
 
- -- Ritesh Raj Sarraf <rrs@debian.org>  Tue, 04 Jan 2011 22:41:55 +0545
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Thu, 10 Feb 2011 20:30:26 +0530
 
 systemtap (1.2-2) unstable; urgency=low
 
