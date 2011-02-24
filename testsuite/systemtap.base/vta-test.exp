@@ -1,6 +1,9 @@
 set test "vta-test"
-set ::result_string {i: 0x6
+set ::result_string {a: {17, 23}
+i: 0x6
+a: {17, 23}
 i: 0xdeadbeef
+a: {17, 23}
 i: 0xdeadbeef87654321}
 
 # Test 32-on-64 when available
@@ -16,7 +19,7 @@ verbose "testing vta $arch"
 
 set test_flags "additional_flags=-g"
 set test_flags "$test_flags additional_flags=-O2"
-set test_flags "$test_flags additional_flags=-I$srcdir/../includes"
+set test_flags "$test_flags [sdt_includes]"
 
 if {$arch != "-default"} {
   set test_flags "$test_flags additional_flags=$arch"

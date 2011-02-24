@@ -1,5 +1,5 @@
 // parse tree functions
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -78,7 +78,7 @@ functioncall::functioncall ():
 
 
 symboldecl::symboldecl ():
-  tok (0),
+  tok (0), systemtap_v_conditional (0),
   type (pe_unknown)
 {
 }
@@ -108,11 +108,28 @@ probe_point::probe_point ():
 }
 
 
+unsigned probe::last_probeidx = 0;
+
 probe::probe ():
-  body (0), tok (0)
+  body (0), tok (0), systemtap_v_conditional (0)
 {
-  static unsigned last_probeidx = 0;
   this->name = string ("probe_") + lex_cast(last_probeidx ++);
+}
+
+
+// Copy constructor, but with overriding probe-point.  To be used when
+// mapping script-level probe points to another one, early during pass
+// 2.  There should be no symbol resolution done yet.
+probe::probe(const probe& p, probe_point* l)
+{
+  this->name = string ("probe_") + lex_cast(last_probeidx ++);
+  this->tok = p.tok;
+  this->locations.push_back(l);
+  this->body = p.body; // NB: not needed to be copied yet; a later derived_probe will
+  this->privileged = p.privileged;
+  this->systemtap_v_conditional = p.systemtap_v_conditional;
+  assert (p.locals.size() == 0);
+  assert (p.unused_locals.size() == 0);
 }
 
 
@@ -1120,7 +1137,7 @@ probe::collect_derivation_chain (std::vector<probe*> &probes_list)
 }
 
 
-void probe_point::print (ostream& o) const
+void probe_point::print (ostream& o, bool print_extras) const
 {
   for (unsigned i=0; i<components.size(); i++)
     {
@@ -1130,6 +1147,8 @@ void probe_point::print (ostream& o) const
       if (c->arg)
         o << "(" << *c->arg << ")";
     }
+  if (!print_extras)
+    return;
   if (sufficient)
     o << "!";
   else if (optional) // sufficient implies optional
@@ -1138,10 +1157,10 @@ void probe_point::print (ostream& o) const
     o<< " if (" << *condition << ")";
 }
 
-string probe_point::str ()
+string probe_point::str (bool print_extras) const
 {
   ostringstream o;
-  print(o);
+  print(o, print_extras);
   return o.str();
 }
 
@@ -1897,8 +1916,10 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
   assert (current_function); // only they get embedded code
 
   // Don't allow embedded C functions in unprivileged mode unless
-  // they are tagged with /* unprivileged */
-  if (session.unprivileged && s->code.find ("/* unprivileged */") == string::npos)
+  // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
+  if (session.unprivileged &&
+      s->code.find ("/* unprivileged */") == string::npos &&
+      s->code.find ("/* myproc-unprivileged */") == string::npos)
     throw semantic_error ("function may not be used when --unprivileged is specified",
 			  current_function->tok);
 
@@ -1930,7 +1951,9 @@ varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
 {
   // Don't allow embedded C functions in unprivileged mode unless
   // they are tagged with /* unprivileged */
-  if (session.unprivileged && e->code.find ("/* unprivileged */") == string::npos)
+  if (session.unprivileged &&
+      e->code.find ("/* unprivileged */") == string::npos &&
+      e->code.find ("/* myproc-unprivileged */") == string::npos)
     throw semantic_error ("embedded expression may not be used when --unprivileged is specified",
 			  e->tok);
 

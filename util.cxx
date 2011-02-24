@@ -16,12 +16,14 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 #include "util.h"
-#include "sys/sdt.h"
+#include "stap-probe.h"
 #include <stdexcept>
 #include <cerrno>
 #include <map>
+#include <set>
 #include <string>
 #include <fstream>
+#include <cassert>
 
 extern "C" {
 #include <fcntl.h>
@@ -70,6 +72,18 @@ get_file_size(const string &path)
 }
 
 // Get the size of a file in bytes
+size_t
+get_file_size(int fd)
+{
+  struct stat file_info;
+
+  if (fstat(fd, &file_info) == 0)
+    return file_info.st_size;
+  else
+    return 0;
+}
+
+// Check that a file is present
 bool
 file_exists (const string &path)
 {
@@ -156,7 +170,7 @@ error:
 
 // Make sure a directory exists.
 int
-create_dir(const char *dir)
+create_dir(const char *dir, int mode)
 {
   struct stat st;
   if (stat(dir, &st) == 0)
@@ -167,8 +181,24 @@ create_dir(const char *dir)
       return 1;
     }
 
-  if (mkdir(dir, 0777) != 0 && errno != EEXIST)
-    return 1;
+  // Create the directory. We must create each component
+  // of the path ourselves.
+  vector<string> components;
+  tokenize (dir, components, "/");
+  string path;
+  if (*dir == '/')
+    {
+      // Absolute path
+      path = "/";
+    }
+  unsigned limit = components.size ();
+  assert (limit != 0);
+  for (unsigned ix = 0; ix < limit; ++ix)
+    {
+      path += components[ix] + '/';
+      if (mkdir(path.c_str (), mode) != 0 && errno != EEXIST)
+	return 1;
+    }
 
   return 0;
 }
@@ -390,56 +420,135 @@ git_revision(const string& path)
 }
 
 
-static pid_t spawned_pid = 0;
+// XXX written only from the main thread, but can be read in a
+//     signal handler.  synchronization needed?
+static set<pid_t> spawned_pids;
 
-// Runs a command with a saved PID, so we can kill it from the signal handler
+
 int
-stap_system(int verbose, const std::string& command)
+stap_waitpid(int verbose, pid_t pid)
 {
-  const char *cmd = command.c_str();
-  STAP_PROBE1(stap, stap_system__start, cmd);
-  char const * const argv[] = { "sh", "-c", cmd, NULL };
   int ret, status;
-
-  spawned_pid = 0;
-
-  if (verbose > 1)
-    clog << "Running " << command << endl;
-
-  ret = posix_spawn(&spawned_pid, "/bin/sh", NULL, NULL, const_cast<char * const *>(argv), environ);
-  STAP_PROBE2(stap, stap_system__spawn, ret, spawned_pid);
-  if (ret == 0)
+  if (verbose > 1 && spawned_pids.count(pid) == 0)
+    clog << "Spawn waitpid call on unmanaged pid " << pid << endl;
+  ret = waitpid(pid, &status, 0);
+  if (ret == pid)
     {
-      ret = waitpid(spawned_pid, &status, 0);
-      if (ret == spawned_pid)
-        {
-          ret = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
-          if (verbose > 2)
-            clog << "Spawn waitpid result (0x" << ios::hex << status << ios::dec << "): " << ret << endl;
-        }
-      else
-        {
-          if (verbose > 1)
-            clog << "Spawn waitpid error (" << ret << "): " << strerror(errno) << endl;
-          ret = -1;
-        }
+      spawned_pids.erase(pid);
+      ret = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
+      if (verbose > 2)
+        clog << "Spawn waitpid result (0x" << lex_cast_hex(status) << "): " << ret << endl;
     }
   else
     {
       if (verbose > 1)
-        clog << "Spawn error (" << ret << "): " << strerror(ret) << endl;
+        clog << "Spawn waitpid error (" << ret << "): " << strerror(errno) << endl;
       ret = -1;
     }
-  STAP_PROBE1(stap, stap_system__complete, ret);
-  spawned_pid = 0;
   return ret;
 }
 
-// Send a signal to our spawned command
+// Runs a command with a saved PID, so we can kill it from the signal handler
+pid_t
+stap_spawn(int verbose, const std::string& command)
+{
+  const char *cmd = command.c_str();
+  char const * const argv[] = { "sh", "-c", cmd, NULL };
+  int ret;
+
+  pid_t pid = 0;
+
+  if (verbose > 1)
+    clog << "Running " << command << endl;
+
+  ret = posix_spawn(&pid, "/bin/sh", NULL, NULL,
+                    const_cast<char * const *>(argv), environ);
+  PROBE2(stap, stap_system__spawn, ret, pid);
+  if (ret != 0)
+    {
+      if (verbose > 1)
+        clog << "Spawn error (" << ret << "): " << strerror(ret) << endl;
+      pid = -1;
+    }
+  else
+    spawned_pids.insert(pid);
+  return pid;
+}
+
+// Runs a command with a saved PID, so we can kill it from the signal handler,
+// and wait for it to finish.
+int
+stap_system(int verbose, const std::string& command)
+{
+  const char *cmd;
+  cmd = command.c_str();
+  PROBE1(stap, stap_system__start, cmd);
+
+  int ret = -1;
+  pid_t pid = stap_spawn(verbose, command);
+  if (pid > 0)
+    ret = stap_waitpid(verbose, pid);
+  PROBE1(stap, stap_system__complete, ret);
+  return ret;
+}
+
+// Like stap_system, but capture stdout
+int
+stap_system_read(int verbose, const string& command, ostream& out)
+{
+  int ret, pfd[2];
+
+  ret = pipe(pfd);
+  if (ret != 0)
+    {
+      return -1;
+    }
+
+  pid_t child = fork();
+  if (child < 0)
+    {
+      return -1;
+    }
+  else if (child == 0)
+    {
+      // remap the write fd to stdout
+      dup2(pfd[1], 1);
+      close(pfd[0]);
+      close(pfd[1]);
+
+      // exec the desired command
+      char const * const argv[] = { "sh", "-c", command.c_str(), NULL };
+      ret = execv("/bin/sh", const_cast<char * const *>(argv));
+      exit(ret); // only reached on exec error
+    }
+  else
+    spawned_pids.insert(child);
+
+  // read everything from the child
+  string readpath = "/proc/self/fd/" + lex_cast(pfd[0]);
+  ifstream in(readpath.c_str());
+  close(pfd[0]);
+  close(pfd[1]);
+  out << in.rdbuf();
+
+  return stap_waitpid(verbose, child);
+}
+
+
+// Send a signal to our spawned commands
 int
 kill_stap_spawn(int sig)
 {
-  return spawned_pid ? kill(spawned_pid, sig) : 0;
+  int ret = 0;
+  for (set<pid_t>::iterator it = spawned_pids.begin();
+       it != spawned_pids.end(); ++it)
+    if (*it > 0)
+      {
+        int pidret = kill(*it, sig);
+        if (!ret)
+          ret = pidret;
+      }
+  return ret;
 }
 
 
@@ -513,6 +622,38 @@ int regexp_match (const string& value, const string& re, vector<string>& matches
   return 0;
 }
 
+
+bool contains_glob_chars (const string& str)
+{
+  return (str.find("*") != str.npos ||
+          str.find("?") != str.npos ||
+          str.find("[") != str.npos);
+}
+
+string
+normalize_machine(const string& machine)
+{
+  // PR4186: Copy logic from coreutils uname (uname -i) to squash
+  // i?86->i386.  Actually, copy logic from linux top-level Makefile
+  // to squash uname -m -> $(SUBARCH).
+  //
+  // This logic needs to match the logic in the stap_get_arch shell
+  // function in stap-env.
+
+  if (machine == "i486") return "i386";
+  else if (machine == "i586") return "i386";
+  else if (machine == "i686") return "i386";
+  else if (machine == "sun4u") return "sparc64";
+  else if (machine.substr(0,3) == "arm") return "arm";
+  else if (machine == "sa110") return "arm";
+  else if (machine == "s390x") return "s390";
+  else if (machine.substr(0,3) == "ppc") return "powerpc";
+  else if (machine.substr(0,4) == "mips") return "mips";
+  else if (machine.substr(0,3) == "sh2") return "sh";
+  else if (machine.substr(0,3) == "sh3") return "sh";
+  else if (machine.substr(0,3) == "sh4") return "sh";
+  return machine;
+}
 
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

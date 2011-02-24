@@ -16,7 +16,7 @@ probe syscall.get_thread_area = kernel.function("sys_get_thread_area")
 probe syscall.get_thread_area.return = kernel.function("sys_get_thread_area").return
 {
 	name = "get_thread_area"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 # iopl _______________________________________________________
 # long sys_iopl(unsigned long unused)
@@ -31,7 +31,7 @@ probe syscall.iopl = kernel.function("sys_iopl")
 probe syscall.iopl.return = kernel.function("sys_iopl").return
 {
 	name = "iopl"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 # ipc ________________________________________________________
@@ -52,10 +52,14 @@ probe syscall.ipc = kernel.function("sys_ipc") ?
 probe syscall.ipc.return = kernel.function("sys_ipc").return ?
 {
 	name = "ipc"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
 # mmap2 ____________________________________________
 # sys_mmap2(unsigned long addr, unsigned long len,
 #	  unsigned long prot, unsigned long flags,
@@ -81,8 +85,9 @@ probe syscall.mmap2.return = kernel.function("sys_mmap_pgoff").return ?,
 	kernel.function("sys_mmap2").return ?
 {
         name = "mmap2"
-        retstr = returnstr(2)
+        retstr = return_str(2, $return)
 }
+%)
 
 # set_thread_area ____________________________________________
 /*
@@ -98,7 +103,7 @@ probe syscall.set_thread_area = kernel.function("sys_set_thread_area")
 probe syscall.set_thread_area.return = kernel.function("sys_set_thread_area").return
 {
 	name = "set_thread_area"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 # set_zone_reclaim ___________________________________________
 /*
@@ -118,7 +123,7 @@ probe syscall.set_zone_reclaim = kernel.function("sys_set_zone_reclaim") ?
 probe syscall.set_zone_reclaim.return = kernel.function("sys_set_zone_reclaim").return ?
 {
 	name = "set_zone_reclaim"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 # sigaltstack ________________________________________________
@@ -129,13 +134,33 @@ probe syscall.set_zone_reclaim.return = kernel.function("sys_set_zone_reclaim").
 probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 {
 	name = "sigaltstack"
+# 'ussp' should have been 'uss_uaddr.  Deprecate the old name.
+%(systemtap_v <= "1.4" %?
 	ussp = %( kernel_vr < "2.6.25" %? $ebx %: %( kernel_vr < "2.6.30" %? $bx %: $regs->bx %) %)
-	argstr = sprintf("%p", ussp)
+%)
+	if (@defined($regs)) {
+		uss_uaddr = (@defined($uss) ? $uss : $regs->bx)
+		uoss_uaddr = (@defined($uoss) ? $uoss : $regs->cx)
+		regs = $regs
+	}
+	else if (@defined($bx)) {	# kernels < "2.6.30"
+		uss_uaddr = $bx
+		# Make sure the register value didn't get sign extended.
+		uoss_uaddr = __ulong(@cast(&$bx, "pt_regs", "kernel<asm/ptrace.h>")->cx)
+		regs = &$bx
+	}
+	else {				# kernels < "2.6.25"
+		uss_uaddr = $ebx
+		# Make sure the register value didn't get sign extended.
+		uoss_uaddr = __ulong(@cast(&$ebx, "pt_regs", "kernel<asm/ptrace.h>")->ecx)
+		regs = &$ebx
+	}
+	argstr = sprintf("%p, %p", uss_uaddr, uoss_uaddr)
 }
 probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 {
 	name = "sigaltstack"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 # vm86 _______________________________________________________
@@ -154,7 +179,7 @@ probe syscall.vm86 = kernel.function("sys_vm86") ?
 probe syscall.vm86.return = kernel.function("sys_vm86").return ?
 {
 	name = "vm86"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 # vm86old ____________________________________________________
@@ -173,6 +198,6 @@ probe syscall.vm86old = kernel.function("sys_vm86old") ?
 probe syscall.vm86old.return = kernel.function("sys_vm86old").return ?
 {
 	name = "vm86old"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 

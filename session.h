@@ -9,6 +9,8 @@
 #ifndef SESSION_H
 #define SESSION_H
 
+#include "config.h"
+
 #include <list>
 #include <string>
 #include <vector>
@@ -77,12 +79,11 @@ struct statistic_decl
 struct systemtap_session
 {
   systemtap_session ();
+  ~systemtap_session ();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
   void setup_kernel_release (const char* kstr);
-  int parse_kernel_config ();
-  int parse_kernel_exports ();
   void insert_loaded_modules ();
 
   // command line parsing
@@ -109,6 +110,7 @@ struct systemtap_session
   std::string kernel_release;
   std::string kernel_base_release;
   std::string kernel_build_tree;
+  std::string kernel_source_tree;
   std::map<std::string,std::string> kernel_config;
   std::set<std::string> kernel_exports;
   std::string machine;
@@ -140,27 +142,31 @@ struct systemtap_session
   bool prologue_searching;
   bool tapset_compile_coverage;
   bool need_uprobes;
+  std::string uprobes_path;
   bool load_only; // flight recorder mode
   bool omit_werror;
   bool unprivileged;
+  bool systemtap_v_check;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
 
   // Client/server
+  bool NSPR_Initialized;
+  void NSPR_init ();
   bool client_options;
   std::string client_options_disallowed;
   std::vector<std::string> server_status_strings;
   std::vector<std::string> specified_servers;
+  std::string server_trust_spec;
   std::vector<std::string> server_args;
   std::string winning_server;
 
-  // XXX: why?
-  std::string host_name;
-  std::string domain_name;
-  std::string &get_host_name ();
-  std::string &get_domain_name ();
-  void get_host_and_domain_name ();
+  // Remote execution
+  std::vector<std::string> remote_uris;
+  typedef std::map<std::pair<std::string, std::string>, systemtap_session*> session_map_t;
+  session_map_t subsessions;
+  systemtap_session* clone(const std::string& arch, const std::string& release);
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -275,8 +281,6 @@ struct systemtap_session
 
 // global counter of SIGINT/SIGTERM's received
 extern int pending_interrupts;
-
-int passes_0_4 ();
 
 #endif // SESSION_H
 

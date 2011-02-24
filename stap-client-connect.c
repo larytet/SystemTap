@@ -21,6 +21,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
 #include <ssl.h>
 #include <nspr.h>
@@ -32,6 +33,8 @@
 #include <sslerr.h>
 
 #include "nsscommon.h"
+
+#include <assert.h>
 
 #define READ_BUFFER_SIZE (60 * 1024)
 static const char *trustNewServer_p = NULL;
@@ -50,6 +53,9 @@ Usage(const char *progName)
 }
 #endif
 
+#if STAP /* temporary until stap-client-connect program goes away*/
+#define exitErr(errorStr, rc) return (rc)
+#else
 static void
 exitErr(const char* errorStr, int rc)
 {
@@ -61,6 +67,7 @@ exitErr(const char* errorStr, int rc)
   PR_Cleanup();
   exit(rc);
 }
+#endif
 
 /* Add the server's certificate to our database of trusted servers.  */
 static SECStatus
@@ -107,20 +114,84 @@ badCertHandler(void *arg __attribute__ ((unused)), PRFileDesc *sslSocket)
   SECStatus secStatus;
   PRErrorCode errorNumber;
   CERTCertificate *serverCert;
-
-  /* By default, don't trust the certificate.  */
-  secStatus = SECFailure;
+  SECItem subAltName;
+  PRArenaPool *tmpArena = NULL;
+  CERTGeneralName *nameList, *current;
+  char *expected = NULL;
 
   errorNumber = PR_GetError ();
-  if (errorNumber == SEC_ERROR_CA_CERT_INVALID)
+  switch (errorNumber)
     {
+    case SSL_ERROR_BAD_CERT_DOMAIN:
+      /* Since we administer our own client-side databases of trustworthy
+	 certificates, we don't need the domain name(s) on the certificate to
+	 match. If the cert is in our database, then we can trust it.
+	 Issue a warning and accept the certificate.  */
+      expected = SSL_RevealURL (sslSocket);
+      fprintf (stderr, "WARNING: The domain name, %s, does not match the DNS name(s) on the server certificate:\n", expected);
+
+      /* List the DNS names from the server cert as part of the warning.
+	 First, find the alt-name extension on the certificate.  */
+      subAltName.data = NULL;
+      serverCert = SSL_PeerCertificate (sslSocket);
+      secStatus = CERT_FindCertExtension (serverCert,
+					  SEC_OID_X509_SUBJECT_ALT_NAME,
+					  & subAltName);
+      if (secStatus != SECSuccess || ! subAltName.data)
+	{
+	  fprintf (stderr, "Unable to find alt name extension on the server certificate\n");
+	  secStatus = SECSuccess; /* Not a fatal error */
+	  break;
+	}
+
+      // Now, decode the extension.
+      tmpArena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+      if (! tmpArena) 
+	{
+	  fprintf (stderr, "Out of memory\n");
+	  secStatus = SECSuccess; /* Not a fatal error here */
+	  break;
+	}
+      nameList = CERT_DecodeAltNameExtension (tmpArena, & subAltName);
+      SECITEM_FreeItem(& subAltName, PR_FALSE);
+      if (! nameList)
+	{
+	  fprintf (stderr, "Unable to decode alt name extension on server certificate\n");
+	  secStatus = SECSuccess; /* Not a fatal error */
+	  break;
+	}
+
+      /* List the DNS names from the server cert as part of the warning.
+	 The names are in a circular list.  */
+      current = nameList;
+      do
+	{
+	  /* Make sure this is a DNS name.  */
+	  if (current->type == certDNSName)
+	    {
+	      fprintf (stderr, "  %.*s\n",
+		       (int)current->name.other.len, current->name.other.data);
+	    }
+	  current = CERT_GetNextGeneralName (current);
+	}
+      while (current != nameList);
+
+      /* Accept the certificate */
+      secStatus = SECSuccess;
+      break;
+
+    case SEC_ERROR_CA_CERT_INVALID:
       /* The server's certificate is not trusted. Should we trust it? */
+      secStatus = SECFailure; /* Do not trust by default. */
       if (trustNewServer_p == NULL)
-	return SECFailure; /* Do not trust this server */
+	break;
 
       /* Trust it for this session only?  */
       if (strcmp (trustNewServer_p, "session") == 0)
-	return SECSuccess;
+	{
+	  secStatus = SECSuccess;
+	  break;
+	}
 
       /* Trust it permanently?  */
       if (strcmp (trustNewServer_p, "permanent") == 0)
@@ -131,7 +202,16 @@ badCertHandler(void *arg __attribute__ ((unused)), PRFileDesc *sslSocket)
 	  if (serverCert != NULL)
 	    secStatus = trustNewServer (serverCert);
 	}
+      break;
+    default:
+      secStatus = SECFailure; /* Do not trust this server */
+      break;
     }
+
+  if (expected)
+    PORT_Free (expected);
+  if (tmpArena)
+    PORT_FreeArena (tmpArena, PR_FALSE);
 
   return secStatus;
 }
@@ -242,9 +322,13 @@ handle_connection(
     }
 
   /* Send the file size first, so the server knows when it has the entire file. */
-  numBytes = PR_Write(sslSocket, & info.size, sizeof (info.size));
+  numBytes = htonl ((PRInt32)info.size);
+  numBytes = PR_Write(sslSocket, & numBytes, sizeof (numBytes));
   if (numBytes < 0)
-    return SECFailure;
+    {
+      PR_Close(local_file_fd);
+      return SECFailure;
+    }
 
   /* Transmit the local file across the socket.  */
   numBytes = PR_TransmitFile(sslSocket, local_file_fd, 
@@ -252,7 +336,10 @@ handle_connection(
 			     PR_TRANSMITFILE_KEEP_OPEN,
 			     PR_INTERVAL_NO_TIMEOUT);
   if (numBytes < 0)
-    return SECFailure;
+    {
+      PR_Close(local_file_fd);
+      return SECFailure;
+    }
 
 #if DEBUG
   /* Transmitted bytes successfully. */
@@ -328,11 +415,6 @@ do_connect(
 {
   PRFileDesc *sslSocket;
   PRStatus    prStatus;
-#if 0
-  PRHostEnt   hostEntry;
-  char        buffer[PR_NETDB_BUF_SIZE];
-  PRIntn      hostenum;
-#endif
   SECStatus   secStatus;
 
   secStatus = SECSuccess;
@@ -352,22 +434,6 @@ do_connect(
   if (secStatus != SECSuccess)
     goto done;
 
-#if 0 /* Already done */
-  /* Prepare and setup network connection. */
-  prStatus = PR_GetHostByName(hostName, buffer, sizeof(buffer), &hostEntry);
-  if (prStatus != PR_SUCCESS)
-    {
-      secStatus = SECFailure;
-      goto done;
-    }
-
-  hostenum = PR_EnumerateHostEnt(0, &hostEntry, port, addr);
-  if (hostenum == -1)
-    {
-      secStatus = SECFailure;
-      goto done;
-    }
-#endif
   prStatus = PR_Connect(sslSocket, addr, PR_INTERVAL_NO_TIMEOUT);
   if (prStatus != PR_SUCCESS)
     {
@@ -386,9 +452,11 @@ do_connect(
   if (secStatus != SECSuccess)
     goto done;
 
-  secStatus = handle_connection(sslSocket, infileName, outfileName);
-  if (secStatus != SECSuccess)
-    goto done;
+  /* If we don't have both the input and output file names, then we're
+     contacting this server only in order to establish trust. No need to
+     handle the connection in this case.  */
+  if (infileName && outfileName)
+    secStatus = handle_connection(sslSocket, infileName, outfileName);
 
  done:
   prStatus = PR_Close(sslSocket);
@@ -396,8 +464,10 @@ do_connect(
 }
 
 int
-client_main (const char *hostName, unsigned short port,
-	     const char* infileName, const char* outfileName)
+client_main (const char *hostName, PRUint32 ip,
+	     PRUint16 port,
+	     const char* infileName, const char* outfileName,
+	     const char* trustNewServer)
 {
   SECStatus   secStatus;
   PRStatus    prStatus;
@@ -409,14 +479,26 @@ client_main (const char *hostName, unsigned short port,
   int         attempt;
   int errCode = GENERAL_ERROR;
 
-  /* Setup network connection. */
-  prStatus = PR_GetHostByName(hostName, buffer, sizeof (buffer), &hostEntry);
-  if (prStatus != PR_SUCCESS)
-    exitErr("Unable to resolve server host name", GENERAL_ERROR);
+  trustNewServer_p = trustNewServer;
 
-  rv = PR_EnumerateHostEnt(0, &hostEntry, port, &addr);
-  if (rv < 0)
-    exitErr("Unable to resolve server host address", GENERAL_ERROR);
+  /* Setup network connection. If we have an ip address, then
+     simply use it, otherwise we need to resolve the host name.  */
+  if (ip)
+    {
+      addr.inet.family = PR_AF_INET;
+      addr.inet.port = htons (port);
+      addr.inet.ip = htonl (ip);
+    }
+  else
+    {
+      prStatus = PR_GetHostByName(hostName, buffer, sizeof (buffer), &hostEntry);
+      if (prStatus != PR_SUCCESS)
+	exitErr ("Unable to resolve server host name", GENERAL_ERROR);
+
+      rv = PR_EnumerateHostEnt(0, &hostEntry, port, &addr);
+      if (rv < 0)
+	exitErr ("Unable to resolve server host address", GENERAL_ERROR);
+    }
 
   /* Some errors (see below) represent a situation in which trying again
      should succeed. However, don't try forever.  */
@@ -424,7 +506,7 @@ client_main (const char *hostName, unsigned short port,
     {
       secStatus = do_connect (&addr, hostName, port, infileName, outfileName);
       if (secStatus == SECSuccess)
-	return 0;
+	return secStatus;
 
       errorNumber = PR_GetError ();
       switch (errorNumber)
@@ -453,7 +535,7 @@ client_main (const char *hostName, unsigned short port,
  failed:
   /* Unrecoverable error */
   exitErr("Unable to connect to server", errCode);
-  return 1;
+  return errCode;
 }
 
 #if 0 /* No client authorization */
@@ -488,7 +570,6 @@ main(int argc, char **argv)
 
   progName = PL_strdup(argv[0]);
 
-  hostName = NULL;
   optstate = PL_CreateOptState(argc, argv, "d:h:i:o:p:t:");
   while ((status = PL_GetNextOpt(optstate)) == PL_OPT_OK)
     {
@@ -526,7 +607,7 @@ main(int argc, char **argv)
   /* All cipher suites except RSA_NULL_MD5 are enabled by Domestic Policy. */
   NSS_SetDomesticPolicy();
 
-  client_main (hostName, port, infileName, outfileName);
+  client_main (hostName, 0, port, infileName, outfileName, trustNewServer_p);
 
   NSS_Shutdown();
   PR_Cleanup();

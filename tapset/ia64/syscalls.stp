@@ -1,5 +1,9 @@
 # IA64 system calls
 
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
 # mmap
 # sys_mmap (unsigned long addr, unsigned long len, int prot, int flags, int fd, long off)
 #
@@ -22,7 +26,7 @@ probe syscall.mmap = kernel.function("sys_mmap") ?
 probe syscall.mmap.return = kernel.function("sys_mmap").return ?
 {
         name = "mmap"
-        retstr = returnstr(2)
+        retstr = return_str(2, $return)
 }
 
 # mmap2
@@ -43,8 +47,9 @@ probe syscall.mmap2 = kernel.function("sys_mmap2") ?
 probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?
 {
         name = "mmap2"
-        retstr = returnstr(2)
+        retstr = return_str(2, $return)
 }
+%)
 
 # sigaltstack _______________________________________________
 # asmlinkage long
@@ -55,14 +60,19 @@ probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?
 probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 {
 	name = "sigaltstack";
+%(systemtap_v <= "1.4" %?
 	ss_uaddr = $uss
 	oss_uaddr = $uoss
+%)
+	uss_uaddr = $uss
+	uoss_uaddr = $uoss
+	regs = &$regs
 	argstr = sprintf("%p, %p", $uss, $uoss)
 }
 probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 {
 	name = "sigaltstack";
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 # sysctl _____________________________________________________
@@ -77,5 +87,5 @@ probe syscall.sysctl32 = kernel.function("sys32_sysctl") ?
 probe syscall.sysctl32.return = kernel.function("sys32_sysctl").return ?
 {
 	name = "sysctl"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
