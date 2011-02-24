@@ -177,30 +177,22 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
   // Emit the procfs probe buffer structure
   s.op->newline() << "static struct stap_procfs_probe_buffer {";
   s.op->indent(1);
+  unsigned buf_index = 0; // used for buffer naming
   for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
        it++)
     {
       procfs_probe_set *pset = it->second;
+      s.op->newline() << "char buf_" << buf_index++;
 
       if (pset->read_probe != NULL)
         {
 	  if (pset->read_probe->maxsize_val == 0)
-	    {
-	      s.op->newline() << "char " << pset->read_probe->name
-			      << "[STP_PROCFS_BUFSIZE];";
-	    }
+	    s.op->line() << "[STP_PROCFS_BUFSIZE];";
 	  else
-	    {
-	      s.op->newline() << "char " << pset->read_probe->name
-			      << "[" << pset->read_probe->maxsize_val
-			      << "];";
-	    }
+	    s.op->line() << "[" << pset->read_probe->maxsize_val << "];";
 	}
       else
-        {
-	  s.op->newline() << "char " << pset->write_probe->name
-			  << "[MAXSTRINGLEN];";
-	}
+	s.op->line() << "[MAXSTRINGLEN];";
     }
   s.op->newline(-1) << "} stap_procfs_probe_buffers;";
 
@@ -208,6 +200,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "static struct stap_procfs_probe stap_procfs_probes[] = {";
   s.op->indent(1);
 
+  buf_index = 0;
   for (p_b_p_iterator it = probes_by_path.begin(); it != probes_by_path.end();
        it++)
     {
@@ -222,10 +215,9 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       if (pset->write_probe != NULL)
         s.op->line() << " .write_probe=" << common_probe_init (pset->write_probe) << ",";
 
+      s.op->line() << " .buffer=stap_procfs_probe_buffers.buf_" << buf_index++ << ",";
       if (pset->read_probe != NULL)
-        {
-	  s.op->line() << " .buffer=stap_procfs_probe_buffers."
-		       << pset->read_probe->name << ",";
+	{
 	  if (pset->read_probe->maxsize_val == 0)
 	    s.op->line() << " .bufsize=STP_PROCFS_BUFSIZE,";
 	  else
@@ -233,11 +225,8 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
 			 << pset->read_probe->maxsize_val << ",";
 	}
       else
-        {
-	  s.op->line() << " .buffer=stap_procfs_probe_buffers."
-		       << pset->write_probe->name << ",";
-	  s.op->line() << " .bufsize=MAXSTRINGLEN,";
-	}
+	s.op->line() << " .bufsize=MAXSTRINGLEN,";
+
        s.op->line() << " .permissions=" << (((pset->read_probe ? 0444 : 0) 
 					 | (pset->write_probe ? 0222 : 0)) &~ 
 					   ((pset->read_probe ? pset->read_probe->umask : 0) 
@@ -276,7 +265,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(-1) << "}";
 
       // call probe function
-      s.op->newline() << "(*spp->read_probe.ph) (c);";
+      s.op->newline() << "(*spp->read_probe->ph) (c);";
 
       // Note that _procfs_value_set copied string data into spp->buffer
       s.op->newline() << "c->data = NULL;";
@@ -332,7 +321,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(-1) << "}";
 
       // call probe function
-      s.op->newline() << "(*spp->write_probe.ph) (c);";
+      s.op->newline() << "(*spp->write_probe->ph) (c);";
 
       s.op->newline() << "c->data = NULL;";
       s.op->newline() << "if (c->last_error == 0) {";
@@ -356,10 +345,10 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline() << "for (i = 0; i < " << probes_by_path.size() << "; i++) {";
   s.op->newline(1) << "struct stap_procfs_probe *spp = &stap_procfs_probes[i];";
 
-  s.op->newline() << "if (spp->read_probe.pp)";
-  s.op->newline(1) << "probe_point = spp->read_probe.pp;";
+  s.op->newline() << "if (spp->read_probe)";
+  s.op->newline(1) << "probe_point = spp->read_probe->pp;";
   s.op->newline(-1) << "else";
-  s.op->newline(1) << "probe_point = spp->write_probe.pp;";
+  s.op->newline(1) << "probe_point = spp->write_probe->pp;";
   s.op->indent(-1);
 
   s.op->newline() << "_spp_init(spp);";

@@ -13,10 +13,7 @@ function _generic_indent (idx, desc, delta)
 }
 
 /**
- * sfunction thread_indent - returns an amount of space with
- * the current task information
- * 
- * General Syntax: thread_indent:string (delta:long)
+ * sfunction thread_indent - returns an amount of space with the current task information
  *
  * @delta: the amount of space added/removed for each call
  *
@@ -27,16 +24,22 @@ function _generic_indent (idx, desc, delta)
  * relative timestamp base to zero. An example is shown at the 
  * end of this file.
  */
-function thread_indent (delta) 
+function thread_indent:string (delta:long)
 {
   return _generic_indent (tid(), sprintf("%s(%d)", execname(), tid()), delta)
 }
 
 /**
  * sfunction indent - returns an amount of space to indent
+ *
  * @delta: the amount of space added/removed for each call
+ *
+ * Description: This function returns a string with appropriate
+ * indentation. Call it with a small positive or matching negative
+ * delta. Unlike the thread_indent function, the indent does not
+ * track individual indent values on a per thread basis.
  */
-function indent(delta){
+function indent:string (delta:long){
   return _generic_indent(-1, "",  delta)
 }
 
@@ -74,25 +77,3 @@ function indent(delta){
  *  0 swapper(0): -> usb_hcd_irq
  *  7 swapper(0): <- usb_hcd_irq
  */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

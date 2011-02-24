@@ -20,11 +20,22 @@ probe begin {
 	print (user_string_n_quoted(0, 0))
 	print (user_short(0))
 	print (user_short_warn(0))
+	print (user_ushort(0))
+	print (user_ushort_warn(0))
 	print (user_int(0))
 	print (user_int_warn(0))
 	print (user_long(0))
 	print (user_long_warn(0))
 	print (user_char(0))
 	print (user_char_warn(0))
+
+	print (user_int8(0))
+	print (user_uint8(0))
+	print (user_int16(0))
+	print (user_uint16(0))
+	print (user_int32(0))
+	print (user_uint32(0))
+	print (user_int64(0))
+	print (user_uint64(0))
 }
 

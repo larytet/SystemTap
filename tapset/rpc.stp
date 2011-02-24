@@ -233,7 +233,7 @@ probe sunrpc.clnt.create_client.return =
 	_sunrpc.clnt.create_client.return.rpc_create_client ?
 {
 	name = "sunrpc.clnt.create_client.return"
-	retstr = returnstr(2)
+	retstr = return_str(2, $return)
 }
 
 probe _sunrpc.clnt.create_client.return.rpc_create =
@@ -288,7 +288,7 @@ probe sunrpc.clnt.clone_client.return =
       	module("sunrpc").function("rpc_clone_client").return
 {
 	name = "sunrpc.clnt.clone_client.return"
-	retstr = returnstr(2)
+	retstr = return_str(2, $return)
 }
 
 /*
@@ -372,7 +372,7 @@ probe sunrpc.clnt.shutdown_client.return =
       	module("sunrpc").function("rpc_shutdown_client").return
 {
 	name = "sunrpc.clnt.shutdown_client.return"
-	retstr = returnstr(1)
+	retstr = (@defined($return) ? return_str(1, $return) : "N/A")
 }
 
 /*
@@ -411,7 +411,7 @@ probe sunrpc.clnt.bind_new_program.return =
       	module("sunrpc").function("rpc_bind_new_program").return
 {
 	name = "sunrpc.clnt.bind_new_program.return"
-	retstr = returnstr(2)
+	retstr = return_str(2, $return)
 }
 
 /*
@@ -440,9 +440,10 @@ probe sunrpc.clnt.call_sync = kernel.function("rpc_call_sync") !,
 	prot = prot_from_clnt($clnt)
 	port = port_from_clnt($clnt)
 	xid  = xid_from_clnt($clnt)
-	dead = (! @defined($clnt->cl_dead)
-		? (atomic_read(&$clnt->cl_kref->refcount) == 0)
-		: $clnt->cl_dead)
+	dead = (@defined($clnt->cl_dead) ? $clnt->cl_dead
+		: (@defined(&$clnt->cl_kref->refcount)
+		   ? (atomic_read(&$clnt->cl_kref->refcount) == 0)
+		   : (atomic_read(&$clnt->cl_count) == 0)))
 
 	proc = proc_from_msg($msg)
 	procname = (@defined($msg->rpc_proc->p_name)
@@ -460,7 +461,7 @@ probe sunrpc.clnt.call_sync.return = kernel.function("rpc_call_sync").return !,
       	module("sunrpc").function("rpc_call_sync").return
 {
 	name = "sunrpc.clnt.call_sync.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /*
@@ -489,9 +490,10 @@ probe sunrpc.clnt.call_async = kernel.function("rpc_call_async") !,
 	prot = prot_from_clnt($clnt)
 	port = port_from_clnt($clnt)
 	xid  = xid_from_clnt($clnt)
-	dead = (! @defined($clnt->cl_dead)
-		? (atomic_read(&$clnt->cl_kref->refcount) == 0)
-		: $clnt->cl_dead)
+	dead = (@defined($clnt->cl_dead) ? $clnt->cl_dead
+		: (@defined(&$clnt->cl_kref->refcount)
+		   ? (atomic_read(&$clnt->cl_kref->refcount) == 0)
+		   : (atomic_read(&$clnt->cl_count) == 0)))
 
 	proc = proc_from_msg($msg)
 	procname = (@defined($msg->rpc_proc->p_name)
@@ -510,7 +512,7 @@ probe sunrpc.clnt.call_async.return =
       	module("sunrpc").function("rpc_call_async").return
 {
 	name = "sunrpc.clnt.call_async.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /*
@@ -604,7 +606,7 @@ probe sunrpc.svc.register.return = kernel.function("svc_register").return !,
       	module("sunrpc").function("svc_register").return
 {
 	name = "sunrpc.svc.register.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /*
@@ -634,7 +636,7 @@ probe sunrpc.svc.create.return = kernel.function("svc_create").return !,
       	module("sunrpc").function("svc_create").return
 {
 	name = "sunrpc.svc.create.return"
-	retstr = returnstr(2)
+	retstr = return_str(2, $return)
 }
 
 /*
@@ -722,7 +724,7 @@ probe sunrpc.svc.process.return = kernel.function("svc_process").return !,
       	module("sunrpc").function("svc_process").return
 {
 	name = "sunrpc.svc.process.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /* 
@@ -758,7 +760,7 @@ probe sunrpc.svc.authorise.return = kernel.function("svc_authorise").return !,
       	module("sunrpc").function("svc_authorise").return
 {
 	name = "sunrpc.svc.authorise.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /*
@@ -794,7 +796,7 @@ probe sunrpc.svc.recv.return = kernel.function("svc_recv").return !,
       	module("sunrpc").function("svc_recv").return
 {
 	name = "sunrpc.svc.recv.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /*
@@ -830,7 +832,7 @@ probe sunrpc.svc.send.return = kernel.function("svc_send").return !,
       	module("sunrpc").function("svc_send").return
 {
 	name = "sunrpc.svc.send.return"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
 }
 
 /*
@@ -924,7 +926,7 @@ probe sunrpc.sched.new_task.return = kernel.function("rpc_new_task").return !,
       	module("sunrpc").function("rpc_new_task").return
 {
 	name = "sunrpc.sched.new_task.return"
-	retstr = returnstr(2)
+	retstr = return_str(2, $return)
 }
 
 /*
@@ -1011,7 +1013,7 @@ probe sunrpc.sched.execute.return = kernel.function("__rpc_execute").return !,
 
 	# On kernels > 2.6.20, __rpc_execute() is a void function.
 	if (@defined($return)) {
-		retstr = returnstr(1)
+		retstr = return_str(1, $return)
 	}
 	else {
 		retstr = "N/A"
