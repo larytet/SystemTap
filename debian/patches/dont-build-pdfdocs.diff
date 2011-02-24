@@ -1,9 +1,9 @@
 don't build pdf docs
 Index: systemtap/configure.ac
 ===================================================================
---- systemtap.orig/configure.ac	2010-08-06 13:40:33.000000000 +0530
-+++ systemtap/configure.ac	2010-08-06 13:40:59.674483272 +0530
-@@ -249,18 +249,18 @@
+--- systemtap.orig/configure.ac	2011-02-25 01:20:13.522391000 +0530
++++ systemtap/configure.ac	2011-02-25 01:20:17.674391000 +0530
+@@ -271,18 +271,18 @@
  fi
  AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
  

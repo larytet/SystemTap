@@ -1,8 +1,8 @@
 manpage hyphen and spelling error fixes
 Index: systemtap/grapher/stapgraph.1.in
 ===================================================================
---- systemtap.orig/grapher/stapgraph.1.in	2010-05-23 22:39:54.000000000 +0530
-+++ systemtap/grapher/stapgraph.1.in	2010-08-06 13:21:56.850483272 +0530
+--- systemtap.orig/grapher/stapgraph.1.in	2011-02-25 01:14:18.150391001 +0530
++++ systemtap/grapher/stapgraph.1.in	2011-02-25 01:19:57.718391001 +0530
 @@ -82,7 +82,7 @@
  The scroll wheel can be used to zoom in and out on the graph.
  
@@ -14,8 +14,8 @@ Index: systemtap/grapher/stapgraph.1.in
  .IR stapgraph
 Index: systemtap/runtime/access_process_vm.h
 ===================================================================
---- systemtap.orig/runtime/access_process_vm.h	2010-05-23 22:39:54.000000000 +0530
-+++ systemtap/runtime/access_process_vm.h	2010-08-06 13:21:56.850483272 +0530
+--- systemtap.orig/runtime/access_process_vm.h	2011-02-25 01:14:18.134391001 +0530
++++ systemtap/runtime/access_process_vm.h	2011-02-25 01:19:57.718391001 +0530
 @@ -26,7 +26,7 @@
      return 0;
  
@@ -27,9 +27,9 @@ Index: systemtap/runtime/access_process_vm.h
        int bytes, ret, offset;
 Index: systemtap/runtime/uprobes/uprobes.c
 ===================================================================
---- systemtap.orig/runtime/uprobes/uprobes.c	2010-08-06 12:49:40.000000000 +0530
-+++ systemtap/runtime/uprobes/uprobes.c	2010-08-06 13:21:56.854483272 +0530
-@@ -2722,7 +2722,7 @@
+--- systemtap.orig/runtime/uprobes/uprobes.c	2011-02-25 01:17:34.562391001 +0530
++++ systemtap/runtime/uprobes/uprobes.c	2011-02-25 01:19:57.718391001 +0530
+@@ -2748,7 +2748,7 @@
  		return 0;
  
  	down_read(&mm->mmap_sem);
@@ -40,9 +40,9 @@ Index: systemtap/runtime/uprobes/uprobes.c
  		void *maddr;
 Index: systemtap/runtime/uprobes2/uprobes.c
 ===================================================================
---- systemtap.orig/runtime/uprobes2/uprobes.c	2010-08-06 12:49:40.000000000 +0530
-+++ systemtap/runtime/uprobes2/uprobes.c	2010-08-06 13:21:56.854483272 +0530
-@@ -2996,7 +2996,7 @@
+--- systemtap.orig/runtime/uprobes2/uprobes.c	2011-02-25 01:17:34.562391001 +0530
++++ systemtap/runtime/uprobes2/uprobes.c	2011-02-25 01:19:57.718391001 +0530
+@@ -3011,7 +3011,7 @@
  		return 0;
  
  	down_read(&mm->mmap_sem);
@@ -53,8 +53,8 @@ Index: systemtap/runtime/uprobes2/uprobes.c
  		void *maddr;
 Index: systemtap/tapset/signal.stp
 ===================================================================
---- systemtap.orig/tapset/signal.stp	2010-08-06 12:49:40.000000000 +0530
-+++ systemtap/tapset/signal.stp	2010-08-06 13:21:56.854483272 +0530
+--- systemtap.orig/tapset/signal.stp	2011-02-25 01:17:34.578391001 +0530
++++ systemtap/tapset/signal.stp	2011-02-25 01:19:57.722391001 +0530
 @@ -134,7 +134,7 @@
   * Possible __group_send_sig_info and
   * specific_send_sig_info return values are as follows;
