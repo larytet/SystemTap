@@ -1,5 +1,3 @@
 usr/bin/staprun
-usr/bin/stap-authorize-signing-cert
 usr/lib/systemtap/stapio
 usr/share/man/man8/staprun.8
-usr/share/man/man8/stap-authorize-signing-cert.8
