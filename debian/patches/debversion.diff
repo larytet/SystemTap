@@ -1,9 +1,7 @@
 debian version patch
-Index: systemtap/Makefile.am
-===================================================================
---- systemtap.orig/Makefile.am	2011-02-25 01:17:34.534391001 +0530
-+++ systemtap/Makefile.am	2011-02-25 01:29:50.434391001 +0530
-@@ -82,7 +82,7 @@
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -79,7 +79,7 @@ git_version.stamp:
  			cp "$(srcdir)/git_version.h" "git_version.h"; \
  		fi; \
  	fi
@@ -12,7 +10,7 @@ Index: systemtap/Makefile.am
  	@if test -s "$(srcdir)/git_version.h"; then \
  		if cmp "$(srcdir)/git_version.h" "git_version.h"; then :; \
  		else \
-@@ -93,7 +93,7 @@
+@@ -90,7 +90,7 @@ git_version.stamp:
  	fi
  
  git_version.h:

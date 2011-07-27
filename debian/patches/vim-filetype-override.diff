@@ -1,8 +1,6 @@
 vim filetype override
-Index: systemtap/vim/filetype.vim
-===================================================================
---- systemtap.orig/vim/filetype.vim	2011-02-25 01:14:15.938391001 +0530
-+++ systemtap/vim/filetype.vim	2011-02-25 01:20:21.262391000 +0530
+--- a/vim/filetype.vim
++++ b/vim/filetype.vim
 @@ -6,5 +6,5 @@
  "   It would be nice to find a way to intelligently detect this.
  
