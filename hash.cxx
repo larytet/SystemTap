@@ -1,5 +1,5 @@
 // Copyright (C) Andrew Tridgell 2002 (original file)
-// Copyright (C) 2006-2010 Red Hat Inc. (systemtap changes)
+// Copyright (C) 2006-2011 Red Hat Inc. (systemtap changes)
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -12,8 +12,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "config.h"
 #include "session.h"
@@ -128,7 +127,7 @@ void create_hash_log(const string &type_str, const string &parms, const string &
   log_file << "[" << time_str.substr(0,time_str.length()-1); // erase terminated '\n'
   log_file << "] " << type_str << ":" << endl;
   log_file << parms << endl;
-  log_file << "result:" << result << endl;
+  log_file << _("result:") << result << endl;
   log_file.close();
 }
 
@@ -153,13 +152,6 @@ get_base_hash (systemtap_session& s)
   h.add_path(s.kernel_build_tree + "/include/linux/compile.h");
   h.add_path(s.kernel_build_tree + "/include/linux/version.h");
   h.add_path(s.kernel_build_tree + "/include/linux/utsrelease.h");
-
-  // If the kernel is a git working directory, then add the git HEAD
-  // revision to our hash as well.
-  // XXX avoiding this for now, because it's potentially expensive and has
-  // uncertain gain.  The only corner case that this may help is if a developer
-  // is switching the source tree without rebuilding the kernel...
-  ///h.add(git_revision(s.kernel_build_tree));
 
   // Hash runtime path (that gets added in as "-R path").
   h.add_path(s.runtime_path);
@@ -204,9 +196,8 @@ create_hashdir (systemtap_session& s, const string& result, string& hashdir)
       if (create_dir(hashdir.c_str()) != 0)
         {
           if (! s.suppress_warnings)
-            cerr << "Warning: failed to create cache directory (\""
-                 << hashdir + "\"): " << strerror(errno)
-                 << ", disabling cache support." << endl;
+            cerr << _F("Warning: failed to create cache directory (\"%s\") %s, disabling cache support",
+                       hashdir.c_str(), strerror(errno)) << endl;
 	  s.use_cache = s.use_script_cache = false;
 	  return false;
 	}
@@ -368,6 +359,31 @@ find_typequery_hash (systemtap_session& s, const string& name)
                   hashdir + "/typequery_" + result + "_hash.log");
   return hashdir + "/typequery_" + result
     + (name[0] == 'k' ? ".ko" : ".so");
+}
+
+
+string
+find_uprobes_hash (systemtap_session& s)
+{
+  hash h(get_base_hash(s));
+
+  // Hash runtime uprobes paths
+  h.add_path(s.runtime_path + "/uprobes");
+  h.add_path(s.runtime_path + "/uprobes2");
+
+  // Add any custom kbuild flags
+  for (unsigned i = 0; i < s.kbuildflags.size(); i++)
+    h.add(s.kbuildflags[i]);
+
+  // Get the directory path to store our cached module
+  string result, hashdir;
+  h.result(result);
+  if (!create_hashdir(s, result, hashdir))
+    return "";
+
+  create_hash_log(string("uprobes_hash"), h.get_parms(), result,
+                  hashdir + "/uprobes_" + result + "_hash.log");
+  return hashdir + "/uprobes_" + result;
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

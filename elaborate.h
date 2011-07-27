@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -135,7 +135,7 @@ struct derived_probe: public probe
   virtual probe_point* script_location () const;
   virtual void printsig (std::ostream &o) const;
   // return arguments of probe if there
-  virtual void getargs (std::list<std::string> &arg_set) const {}
+  virtual void getargs (std::list<std::string> &) const {}
   void printsig_nested (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list);
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &pp_list);

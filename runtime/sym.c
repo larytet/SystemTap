@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Symbolic Lookup Functions
- * Copyright (C) 2005-2010 Red Hat Inc.
+ * Copyright (C) 2005-2011 Red Hat Inc.
  * Copyright (C) 2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -244,25 +244,25 @@ static int _stp_build_id_check (struct _stp_module *m, unsigned long notes_addr,
        loc2c-runtime.h were more easily usable,
        a deref() loop could do it too. */
     mm_segment_t oldfs = get_fs();
-    int rc1, rc2;
+    int rc;
     unsigned char theory, practice;
 
 #ifdef STAPCONF_PROBE_KERNEL
     if (!user_module)
       {
-        rc1=probe_kernel_read(&theory, (void*)&m->build_id_bits[j], 1);
-        rc2=probe_kernel_read(&practice, (void*)(notes_addr+j), 1);
+        theory = m->build_id_bits[j];
+        rc=probe_kernel_read(&practice, (void*)(notes_addr+j), 1);
       }
     else
 #endif
       {
-        set_fs(KERNEL_DS);
-        rc1 = get_user(theory,((unsigned char*) &m->build_id_bits[j]));
-        rc2 = get_user(practice,((unsigned char*) (void*) (notes_addr+j)));
+        set_fs (user_module ? USER_DS : KERNEL_DS);
+        theory = m->build_id_bits[j];
+        rc = get_user(practice,((unsigned char*) (void*) (notes_addr+j)));
         set_fs(oldfs);
       }
 
-    if (rc1 || rc2 || (theory != practice)) {
+    if (rc || (theory != practice)) {
       const char *basename;
       basename = strrchr(m->path, '/');
       if (basename)
@@ -271,15 +271,15 @@ static int _stp_build_id_check (struct _stp_module *m, unsigned long notes_addr,
 	basename = m->path;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-      _stp_error ("Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) rc %d %d\n",
-		  m->name, basename, j, theory, practice, rc1, rc2);
+      _stp_error ("Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) address %#lx rc %d\n",
+		  m->name, basename, j, theory, practice, notes_addr, rc);
       return 1;
 #else
       /* This branch is a surrogate for kernels
        * affected by Fedora bug #465873. */
       _stp_warn (KERN_WARNING
-		 "Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) rc %d %d\n",
-		 m->name, basename, j, theory, practice, rc1, rc2);
+		 "Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) rc %d\n",
+		 m->name, basename, j, theory, practice, rc);
 #endif
       break;
     } /* end mismatch */
@@ -298,36 +298,40 @@ static int _stp_build_id_check (struct _stp_module *m, unsigned long notes_addr,
 */
 static int _stp_module_check(void)
 {
-	struct _stp_module *m = NULL;
-	unsigned long notes_addr, base_addr;
-	unsigned i,j;
+  struct _stp_module *m = NULL;
+  unsigned long notes_addr, base_addr;
+  unsigned i,j;
 
-	for (i = 0; i < _stp_num_modules; i++)
-	{
-		m = _stp_modules[i];
-		if (m->build_id_len > 0 && m->notes_sect != 0) {
-		    dbug_sym(1, "build-id validation [%s]\n", m->name);
+#ifdef STP_NO_BUILDID_CHECK
+  return 0;
+#endif
 
-		    /* notes end address */
-		    if (!strcmp(m->name, "kernel")) {
-			  notes_addr = _stp_kmodule_relocate("kernel",
-					 "_stext", m->build_id_offset);
-			  base_addr = _stp_kmodule_relocate("kernel",
-							   "_stext", 0);
-                    } else {
-			  notes_addr = m->notes_sect + m->build_id_offset;
-			  base_addr = m->notes_sect;
-		    }
+  for (i = 0; i < _stp_num_modules; i++)
+    {
+      m = _stp_modules[i];
+      if (m->build_id_len > 0 && m->notes_sect != 0) {
+          dbug_sym(1, "build-id validation [%s]\n", m->name);
 
-		    if (notes_addr <= base_addr) { /* shouldn't happen */
-                            _stp_warn ("build-id address %lx < base %lx\n", 
-                                       notes_addr, base_addr);
-                            continue;
-                    }
-		    _stp_build_id_check (m, notes_addr, 0);
-		} /* end checking */
-	} /* end loop */
-	return 0;
+          /* notes end address */
+          if (!strcmp(m->name, "kernel")) {
+              notes_addr = _stp_kmodule_relocate("kernel",
+                  "_stext", m->build_id_offset);
+              base_addr = _stp_kmodule_relocate("kernel",
+                  "_stext", 0);
+          } else {
+              notes_addr = m->notes_sect + m->build_id_offset;
+              base_addr = m->notes_sect;
+          }
+
+          if (notes_addr <= base_addr) { /* shouldn't happen */
+              _stp_warn ("build-id address %lx < base %lx\n",
+                  notes_addr, base_addr);
+              continue;
+          }
+          return _stp_build_id_check (m, notes_addr, 0);
+      } /* end checking */
+    } /* end loop */
+  return 0;
 }
 
 
@@ -339,6 +343,10 @@ static int _stp_usermodule_check(struct task_struct *tsk, const char *path_name,
   unsigned i, j;
   unsigned char practice_id_bits[MAXSTRINGLEN];
   unsigned long vm_end = 0;
+
+#ifdef STP_NO_BUILDID_CHECK
+  return 0;
+#endif
 
   for (i = 0; i < _stp_num_modules; i++)
     {
@@ -358,7 +366,7 @@ static int _stp_usermodule_check(struct task_struct *tsk, const char *path_name,
 		     notes_addr, addr);
 	  continue;
 	}
-	_stp_build_id_check (m, notes_addr, 1);
+	return _stp_build_id_check (m, notes_addr, 1);
       }
     }
 

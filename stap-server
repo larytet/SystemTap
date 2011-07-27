@@ -44,6 +44,7 @@ LOG_FILE=$stap_localstatedir/log/stap-server/log
 # Default option settings
 # Optional global config file
 OPT_CONFIG_FILE=
+OPT_OTHER=
 
 echo_usage () {
   echo $"Usage: $prog {start|stop|restart|condrestart|try-restart|force-reload|status} [options]"
@@ -58,6 +59,7 @@ echo_usage () {
   echo $"	-i		: specify a server for each installed kernel release."
   echo $"	-n nickname	: specify a server configuration by nickname."
   echo $"	-p pid		: specify a server or server configuration by process id."
+  echo $"	-k 		: keep server temporary files."
   echo $""
   echo $"All options, may be specified more than once."
   echo $""
@@ -82,7 +84,8 @@ echo_usage () {
   echo $"nickname. When -n is specified, a currently running server with the"
   echo $"given nickname will be searched for. If no currently running server"
   echo $"with the given nickname is found, a server configuration with the"
-  echo $"given nickname will be searched for in $stap_sysconfdir/stap-server/conf.d/*.conf."
+  echo $"given nickname will be searched for in"
+  echo $"$stap_sysconfdir/stap-server/conf.d/*.conf."
   echo $"If a server configuration for the given nickname is found, the -a, -r,"
   echo $"-I, -R, -B and -u options for that server will be used as if they were"
   echo $"specified on the command line. If no configuration with the given"
@@ -99,6 +102,9 @@ echo_usage () {
   echo $"it is an error. If a server with the given pid is found, the -a, -r,"
   echo $"-I, -R, -B and -u options for that server will be used as if they were"
   echo $"specified on the command line."
+  echo $""
+  echo $"The -k option tells the server to keep the temporary directories it creates"
+  echo $"during each transaction with a client."
   echo $""
   echo $"The specified action is performed for the server(s) specified on the"
   echo $"command line. If no servers are specified on the command line, the"
@@ -160,6 +166,10 @@ parse_args () { # arguments
   local rc=0
   while [ -n "$1" ]; do
     case "$1" in
+      -k | -P)
+        OPT_OTHER="$OPT_OTHER $1"
+        shift 1
+        ;;
       -a)
 	SERVER_CMDS+=("ARCH=\"`quote_for_cmd "$2"`\"")
         shift 1
@@ -285,7 +295,7 @@ process_r () {
 	    echo "Missing $version_file_name"
 	    return 1
 	fi
-	SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$kernel_release"`\"")
+	SERVER_CMDS+=("RELEASE=\"`quote_for_cmd "$1"`\"") # pass the path as-is
 	return 0
     fi
 
@@ -628,7 +638,7 @@ start_server () {
     fi
 
     # Construct the server start command.
-    local server_cmd="$STAP_START_SERVER -r \"`quote_for_cmd "$RELEASE"`\" -a \"`quote_for_cmd "$ARCH"`\""
+    local server_cmd="$STAP_START_SERVER -r \"`quote_for_cmd "$RELEASE"`\" -a \"`quote_for_cmd "$ARCH"`\" $OPT_OTHER"
     for b in "${BUILD[@]}"; do
 	server_cmd="$server_cmd -B \"`quote_for_cmd "$b"`\""
     done
@@ -999,7 +1009,7 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-OPTS=`getopt -s bash -u -o 'a:B:c:iI:n:p:r:R:u:' -- "$@"`
+OPTS=`getopt -s bash -u -o 'a:B:c:iI:n:p:kPr:R:u:' -- "$@"`
 if [ $? -ne 0 ]; then
   echo "Error: Argument parse error: $@" >&2
   echo_usage

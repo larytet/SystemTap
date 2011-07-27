@@ -20,8 +20,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
 #include <linux/kernel.h>
@@ -288,7 +287,7 @@ static int _stp_transport_data_fs_init(void)
 
 	/* Create "dropped" file. */
 	_stp_relay_data.dropped_file
-		= debugfs_create_file("dropped", 0444, _stp_get_module_dir(),
+		= debugfs_create_file("dropped", 0400, _stp_get_module_dir(),
 				      NULL, &__stp_relay_dropped_fops);
 	if (!_stp_relay_data.dropped_file) {
 		rc = -EIO;

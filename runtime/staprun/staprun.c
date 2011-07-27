@@ -15,8 +15,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
 
@@ -227,14 +226,12 @@ int init_staprun(void)
 		if (need_uprobes && enable_uprobes() != 0)
 			return -1;
 		if (insert_stap_module() < 0) {
-                  /* staprun or stapio might have crashed or been SIGKILL'd,
-                     without first removing the kernel module.  This would block
-                     a subsequent rerun attempt.  So here we gingerly try to
-                     unload it first. */
-                  int ret = remove_module (modname, 0);
-		  err("Retrying, after attempted removal of module %s (rc %d)\n", modname, ret);
-		  /* Then we try an insert a second time.  */
-		  if (insert_stap_module() < 0)
+#ifdef HAVE_ELF_GETSHDRSTRNDX
+			if(!rename_mod && errno == EEXIST)
+				err("Rerun with staprun option '-R' to rename this module.\n");
+#endif
+                        /* Without a working rename_module(), we shan't
+                           advise people to use -R. */
 			return -1;
 		}
 		if (send_relocations() < 0)
@@ -278,6 +275,7 @@ int main(int argc, char **argv)
 	if (buffer_size)
 		dbug(2, "Using a buffer of %u MB.\n", buffer_size);
 
+	int mod_optind = optind;
 	if (optind < argc) {
 		parse_modpath(argv[optind++]);
 		dbug(2, "modpath=\"%s\", modname=\"%s\"\n", modpath, modname);
@@ -310,14 +308,23 @@ int main(int argc, char **argv)
 		exit(1);
 
 	argv[0] = getenv ("SYSTEMTAP_STAPIO") ?: PKGLIBDIR "/stapio";
+
+	/* Copy nenamed modname into argv */
+	if(rename_mod)
+		argv[mod_optind] = modname;
+
+	/* Run stapio */
 	if (run_as (1, getuid(), getgid(), argv[0], argv) < 0) {
 		perror(argv[0]);
 		goto err;
 	}
+
+	free(modname);
 	return 0;
 
 err:
 	remove_module(modname, 1);
+	free(modname);
 	return 1;
 }
 
@@ -414,8 +421,9 @@ int send_relocation_kernel ()
 
 void send_relocation_modules ()
 {
-  unsigned i;
+  unsigned i = 0;
   glob_t globbuf;
+  globbuf.gl_pathc = 0;
   int r = glob("/sys/module/*/sections/*", GLOB_PERIOD, NULL, &globbuf);
 
   if (r == GLOB_NOSPACE || r == GLOB_ABORTED)
@@ -472,7 +480,7 @@ void send_relocation_modules ()
         fclose (secfile);
       else
         {
-          set_clexec (fileno (secfile));
+          (void)set_clexec (fileno (secfile));
           /* NB: don't fclose this arbitrarily-chosen section file.
              This forces the kernel to keep a nonzero reference count
              on the subject module, until staprun exits, by which time

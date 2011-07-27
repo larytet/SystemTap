@@ -9,20 +9,36 @@ CLEAN_FILES := $(shell echo *.mod.c *.ko *.o .*.cmd *~ *.sgn)
 CLEAN_FILES += Module.markers modules.order Module.symvers
 CLEAN_DIRS  := .tmp_versions
 
-LIBEXECDIR=../../../../libexec/systemtap
+LIBEXECDIR = ../../../../libexec/systemtap
+CERTDB = ../../../../etc/systemtap/staprun
 
-# Build the module and sign it.
+# Build the module and, if we are root or stap-server, sign it.
+# Make sure that all the required tools and resources are available
+# before attempting to sign the module. 
 # Ensure that the generated files are writeable by the group which
 # owns this build directory. This is so that the stap-server service
 # can rebuild the module, if necessary.
 default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
-	if test -f $(LIBEXECDIR)/stap-sign-module; then \
-		for f in *.ko; do \
-			if test ! -e $$f.sgn -o $$f.sgn -ot $$f; then \
-				$(LIBEXECDIR)/stap-sign-module $$f; \
-			fi \
-		done \
+	if test `id -u` = 0 -o `id -un` = stap-server; then \
+		if test -x $(LIBEXECDIR)/stap-sign-module; then \
+			stap_dir=${SYSTEMTAP_DIR}; \
+			if test -z "$$stap_dir"; then \
+				stap_dir=~/.systemtap; \
+			fi; \
+			certfile=$$stap_dir/ssl/server/stap.cert; \
+			if test ! -f $$certfile -o -f $$stap_dir/ssl/server/pw; then \
+				$(LIBEXECDIR)/stap-gen-cert > /dev/null; \
+			fi; \
+			if test `id -u` = 0; then \
+				$(LIBEXECDIR)/stap-authorize-cert $$certfile $(CERTDB) > /dev/null; \
+			fi; \
+			for f in *.ko; do \
+				if test ! -e $$f.sgn -o $$f.sgn -ot $$f; then \
+					$(LIBEXECDIR)/stap-sign-module $$f > /dev/null; \
+				fi \
+			done \
+		fi \
 	fi
 	group=`stat -c %G $(PWD)`; \
 	for f in $(CLEAN_FILES); do \

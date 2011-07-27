@@ -3,7 +3,7 @@
 %{!?with_crash: %global with_crash 1}
 %{!?with_rpm: %global with_rpm 1}
 %{!?with_bundled_elfutils: %global with_bundled_elfutils 0}
-%{!?elfutils_version: %global elfutils_version 0.127}
+%{!?elfutils_version: %global elfutils_version 0.142}
 %{!?pie_supported: %global pie_supported 1}
 %{!?with_grapher: %global with_grapher 1}
 %{!?with_boost: %global with_boost 0}
@@ -11,7 +11,7 @@
 %{!?publican_brand: %global publican_brand fedora}
 
 Name: systemtap
-Version: 1.4
+Version: 1.6
 Release: 1%{?dist}
 # for version, see also configure.ac
 Summary: Instrumentation System
@@ -20,9 +20,12 @@ License: GPLv2+
 URL: http://sourceware.org/systemtap/
 Source: ftp://sourceware.org/pub/%{name}/releases/%{name}-%{version}.tar.gz
 
+Obsoletes: systemtap-client < 1.5
+
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 Requires: kernel >= 2.6.9-11
+BuildRequires: gettext
 %if %{with_sqlite}
 BuildRequires: sqlite-devel
 %endif
@@ -42,7 +45,11 @@ Requires: kernel-devel
 Requires: gcc make
 # Suggest: kernel-debuginfo
 Requires: systemtap-runtime = %{version}-%{release}
-BuildRequires: nss-tools nss-devel avahi-devel pkgconfig
+BuildRequires: nss-devel avahi-devel pkgconfig
+
+# Additional requires for things spawned by stap
+Requires: coreutils grep sed unzip zip
+Requires: openssh-clients
 
 %if %{with_bundled_elfutils}
 Source1: elfutils-%{elfutils_version}.tar.gz
@@ -74,9 +81,10 @@ BuildRequires: libglademm24-devel >= 2.6.7
 BuildRequires: boost-devel
 %endif
 %endif
+BuildRequires: gettext-devel
 
 %description
-SystemTap is an instrumentation system for systems running Linux 2.6.
+SystemTap is an instrumentation system for systems running Linux.
 Developers can write instrumentation to collect data on the operation
 of the system.
 
@@ -90,7 +98,7 @@ Requires(pre): shadow-utils
 
 %description runtime
 SystemTap runtime is the runtime component of an instrumentation
-system for systems running Linux 2.6.  Developers can write
+system for systems running Linux.  Developers can write
 instrumentation to collect data on the operation of the system.
 
 %package testsuite
@@ -98,34 +106,21 @@ Summary: Instrumentation System Testsuite
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: systemtap systemtap-sdt-devel dejagnu which prelink
+Requires: systemtap = %{version}-%{release}
+Requires: systemtap-sdt-devel = %{version}-%{release}
+Requires: dejagnu which prelink
 
 %description testsuite
 The testsuite allows testing of the entire SystemTap toolchain
 without having to rebuild from sources.
-
-%package client
-Summary: Instrumentation System Client
-Group: Development/System
-License: GPLv2+
-URL: http://sourceware.org/systemtap/
-Requires: systemtap-runtime = %{version}-%{release}
-Requires: avahi avahi-tools nss nss-tools mktemp
-Requires: zip unzip
-
-%description client
-This is the remote script compilation client component of systemtap.
-It relies on a nearby compilation server to translate systemtap
-scripts to kernel objects, so a client workstation only needs the
-runtime, and not the compiler/etc toolchain.
 
 %package server
 Summary: Instrumentation System Server
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: systemtap
-Requires: avahi avahi-tools nss nss-tools mktemp
+Requires: systemtap = %{version}-%{release}
+Requires: avahi avahi-tools nss mktemp
 Requires: zip unzip
 Requires(post): chkconfig
 Requires(preun): chkconfig
@@ -140,7 +135,7 @@ scripts to kernel objects on their demand.
 %package sdt-devel
 Summary: Static probe support tools
 Group: Development/System
-License: GPLv2+, Public Domain
+License: GPLv2+ and Public Domain
 URL: http://sourceware.org/systemtap/
 
 %description sdt-devel
@@ -151,7 +146,7 @@ Summary: Systemtap Initscripts
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: systemtap-runtime
+Requires: systemtap-runtime = %{version}-%{release}
 Requires(post): chkconfig
 Requires(preun): chkconfig
 Requires(preun): initscripts
@@ -166,7 +161,7 @@ Summary: Instrumentation System Grapher
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: systemtap-runtime
+Requires: systemtap-runtime = %{version}-%{release}
 
 %description grapher
 SystemTap grapher is a utility for real-time visualization of
@@ -256,6 +251,7 @@ make %{?_smp_mflags}
 %install
 rm -rf ${RPM_BUILD_ROOT}
 make DESTDIR=$RPM_BUILD_ROOT install
+%find_lang %{name}
 
 # We want the examples in the special doc dir, not the build install dir.
 # We build it in place and then move it away so it doesn't get installed
@@ -265,6 +261,9 @@ mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/examples examples
 
 # Fix paths in the example & testsuite scripts
 find examples testsuite -type f -name '*.stp' -print0 | xargs -0 sed -i -r -e '1s@^#!.+stap@#!%{_bindir}/stap@'
+
+# To make rpmlint happy, remove any .gitignore files in the testsuite.
+find testsuite -type f -name '.gitignore' -print0 | xargs -0 rm -f
 
 # Because "make install" may install staprun with whatever mode, the
 # post-processing programs rpmbuild runs won't be able to read it.
@@ -396,10 +395,10 @@ exit 0
 (make -C %{_datadir}/%{name}/runtime/uprobes clean) >/dev/null 2>&1 || true
 (/sbin/rmmod uprobes) >/dev/null 2>&1 || true
 
-%files
+%files -f %{name}.lang
 %defattr(-,root,root)
 
-%doc README AUTHORS NEWS COPYING examples
+%doc README README.unprivileged AUTHORS NEWS COPYING examples
 %if %{with_docs}
 %doc docs.installed/*.pdf
 %doc docs.installed/tapsets
@@ -411,7 +410,8 @@ exit 0
 %{_bindir}/stap
 %{_bindir}/stap-prep
 %{_bindir}/stap-report
-%{_mandir}/man1/*
+%{_mandir}/man1/stap.1*
+%{_mandir}/man1/stap-merge.1*
 %{_mandir}/man3/*
 %{_mandir}/man7/stappaths.7*
 
@@ -426,12 +426,12 @@ exit 0
 # Make sure that the uprobes module can be built by root and by the server
 %dir %attr(0775,root,stap-server) %{_datadir}/%{name}/runtime/uprobes
 
-%files runtime
+%files runtime -f %{name}.lang
 %defattr(-,root,root)
 %attr(4110,root,stapusr) %{_bindir}/staprun
+%{_bindir}/stapsh
 %{_bindir}/stap-merge
 %{_bindir}/stap-report
-%{_bindir}/stap-authorize-signing-cert
 %{_libexecdir}/%{name}/stapio
 %{_libexecdir}/%{name}/stap-env
 %{_libexecdir}/%{name}/stap-authorize-cert
@@ -440,46 +440,30 @@ exit 0
 %endif
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man8/staprun.8*
-%{_mandir}/man8/stap-authorize-signing-cert.8*
 
-%doc README AUTHORS NEWS COPYING
+%doc README README.security AUTHORS NEWS COPYING
 
 %files testsuite
 %defattr(-,root,root)
 %{_datadir}/%{name}/testsuite
 
-%files client
+%files server -f %{name}.lang
 %defattr(-,root,root)
-%{_bindir}/stap-client
-%{_bindir}/stap-authorize-server-cert
-%{_libexecdir}/%{name}/stap-find-servers
-%{_libexecdir}/%{name}/stap-client-connect
-%{_mandir}/man7/stappaths.7*
-%{_mandir}/man8/stap-client.8*
-%{_mandir}/man8/stap-authorize-server-cert.8*
-
-%files server
-%defattr(-,root,root)
-%{_bindir}/stap-authorize-server-cert
 %{_bindir}/stap-server
 %{_libexecdir}/%{name}/stap-serverd
 %{_libexecdir}/%{name}/stap-start-server
-%{_libexecdir}/%{name}/stap-find-servers
-%{_libexecdir}/%{name}/stap-find-or-start-server
 %{_libexecdir}/%{name}/stap-stop-server
 %{_libexecdir}/%{name}/stap-gen-cert
-%{_libexecdir}/%{name}/stap-server-connect
 %{_libexecdir}/%{name}/stap-sign-module
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man8/stap-server.8*
-%{_mandir}/man8/stap-authorize-server-cert.8*
 %{_sysconfdir}/rc.d/init.d/stap-server
 %config(noreplace) %{_sysconfdir}/logrotate.d/stap-server
 %dir %{_sysconfdir}/stap-server
 %dir %{_sysconfdir}/stap-server/conf.d
 %config(noreplace) %{_sysconfdir}/sysconfig/stap-server
 %dir %attr(0755,stap-server,stap-server) %{_localstatedir}/log/stap-server
-%ghost %config %attr(0644,stap-server,stap-server) %{_localstatedir}/log/stap-server/log
+%ghost %config(noreplace) %attr(0644,stap-server,stap-server) %{_localstatedir}/log/stap-server/log
 %ghost %attr(0755,stap-server,stap-server) %{_localstatedir}/run/stap-server
 %doc initscript/README.stap-server
 
@@ -488,6 +472,7 @@ exit 0
 %{_bindir}/dtrace
 %{_includedir}/sys/sdt.h
 %{_includedir}/sys/sdt-config.h
+%{_mandir}/man1/dtrace.1*
 %doc README AUTHORS NEWS COPYING
 
 %files initscript
@@ -506,10 +491,14 @@ exit 0
 %defattr(-,root,root)
 %{_bindir}/stapgraph
 %{_datadir}/%{name}/*.glade
+%{_mandir}/man1/stapgraph.1*
 %endif
 
 
 %changelog
+* Mon Jan 17 2011 Frank Ch. Eigler <fche@redhat.com> - 1.4-1
+- Upstream release.
+
 * Wed Jul 21 2010 Josh Stone <jistone@redhat.com> - 1.3-1
 - Upstream release.
 
