@@ -12,8 +12,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) Red Hat Inc, 2005-2007
  *
@@ -39,7 +38,8 @@ int main (int argc, char *argv[])
 	char *buf, *outfile_name = NULL;
 	int c, i, j, rc, dropped=0;
 	long count=0, min, num[NR_CPUS];
-	FILE *ofp, *fp[NR_CPUS];
+	FILE *ofp = NULL;
+	FILE *fp[NR_CPUS] = { 0 };
 	int ncpus, len, verbose = 0;
 	int bufsize = 65536;
 

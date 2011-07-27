@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) 2005-2007 Red Hat, Inc.
  *
@@ -26,6 +25,11 @@ char *__name__ = "stapio";
 
 int main(int argc, char **argv)
 {
+
+	setlocale (LC_ALL, "");
+	bindtextdomain (PACKAGE, LOCALEDIR);
+	textdomain (PACKAGE);
+
 	setup_signals();
 	parse_args(argc, argv);
 
@@ -39,7 +43,7 @@ int main(int argc, char **argv)
 
 	if (optind < argc) {
 		if (attach_mod) {
-			err("ERROR: Cannot have module options with attach (-A).\n");
+			err(_("ERROR: Cannot have module options with attach (-A).\n"));
 			usage(argv[0]);
 		} else {
 			unsigned start_idx = 3;	/* reserve three slots in modoptions[] */
@@ -50,7 +54,7 @@ int main(int argc, char **argv)
 	}
 
 	if (modpath == NULL || *modpath == '\0') {
-		err("ERROR: Need a module name or path to load.\n");
+		err(_("ERROR: Need a module name or path to load.\n"));
 		usage(argv[0]);
 	}
 
@@ -58,7 +62,7 @@ int main(int argc, char **argv)
 		exit(1);
 
 	if (stp_main_loop()) {
-		err("ERROR: Couldn't enter main loop. Exiting.\n");
+		err(_("ERROR: Couldn't enter main loop. Exiting.\n"));
 		exit(1);
 	}
 

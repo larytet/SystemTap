@@ -610,12 +610,16 @@ probe nd_syscall.ptrace = kprobe.function("sys_ptrace") ?
 	pid = long_arg(2)
 	addr = long_arg(3)
 	data = long_arg(4)
-	argstr = sprintf("%d, %d, %p, %p", request, pid, addr, data)
+	argstr = _ptrace_argstr(request, pid, addr, data)
 }
 probe nd_syscall.ptrace.return = kprobe.function("sys_ptrace").return ?
 {
 	name = "ptrace"
 	retstr = returnstr(1)
+
+	// long_arg values are not available here.
+	geteventmsg_data = 0
+	arch_prctl_addr = 0
 }
 
 # pwrite64 ___________________________________________________
@@ -4114,8 +4118,8 @@ probe nd_syscall.wait4 = kprobe.function("sys_wait4") ?
 	name = "wait4"
 	// pid = (@defined($upid) ? $upid : $pid)
 	// status_uaddr = $stat_addr
-	// options = $options
-	// options_str = _wait4_opt_str($options)
+	// options = $options & 0xffffffff
+	// options_str = _wait4_opt_str(options)
 	// rusage_uaddr = $ru
 	// argstr = sprintf("%d, %p, %s, %p",
 	// 		(@defined($upid) ? $upid : $pid),
@@ -4123,7 +4127,7 @@ probe nd_syscall.wait4 = kprobe.function("sys_wait4") ?
 	asmlinkage()
 	pid = int_arg(1)
 	status_uaddr = pointer_arg(2)
-	options = int_arg(3)
+	options = int_arg(3) & 0xffffffff
 	options_str = _wait4_opt_str(options)
 	rusage_uaddr = pointer_arg(4)
 	argstr = sprintf("%d, %p, %s, %p", pid, status_uaddr, _wait4_opt_str(options), rusage_uaddr)
@@ -4132,6 +4136,15 @@ probe nd_syscall.wait4 = kprobe.function("sys_wait4") ?
 probe nd_syscall.wait4.return = kprobe.function("sys_wait4").return ?
 {
 	name = "wait4"
+
+	status_uaddr = pointer_arg(2)
+	if (returnval () <= 0)
+		status_str = "N/A"
+	else if (status_uaddr == 0)
+		status_str = "NULL"
+	else
+		status_str = _wait_status_str(user_int(status_uaddr))
+
 	retstr = returnstr(1)
 }
 
@@ -4186,8 +4199,8 @@ probe nd_syscall.waitpid = kprobe.function("sys_wait4") ?
 	name = "waitpid"
 	pid = $pid
 	status_uaddr = $stat_addr
-	options = $options
-	options_str = _wait4_opt_str($options)
+	options = $options & 0xffffffff
+	options_str = _wait4_opt_str(options)
 	rusage_uaddr = $ru
 	argstr = sprintf("%d, %p, %s, %p", $pid, $stat_addr,
 				options_str, $ru)

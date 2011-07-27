@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -10,6 +10,7 @@
 #include "buildrun.h"
 #include "session.h"
 #include "util.h"
+#include "hash.h"
 
 #include <cstdlib>
 #include <fstream>
@@ -30,11 +31,10 @@ extern "C" {
 
 using namespace std;
 
-static int uprobes_pass (systemtap_session& s);
-
 /* Adjust and run make_cmd to build a kernel module. */
 static int
-run_make_cmd(systemtap_session& s, string& make_cmd)
+run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
+             bool null_out=false, bool null_err=false)
 {
   // Before running make, fix up the environment a bit.  PATH should
   // already be overridden.  Clean out a few variables that
@@ -46,6 +46,7 @@ run_make_cmd(systemtap_session& s, string& make_cmd)
     {
       const char* e = strerror (errno);
       cerr << "unsetenv failed: " << e << endl;
+      s.set_try_server ();
     }
 
   // Disable ccache to avoid saving files that will never be reused.
@@ -55,11 +56,14 @@ run_make_cmd(systemtap_session& s, string& make_cmd)
   (void) setenv("CCACHE_DISABLE", "1", 0);
 
   if (s.verbose > 2)
-    make_cmd += " V=1";
+    make_cmd.push_back("V=1");
   else if (s.verbose > 1)
-    make_cmd += " --no-print-directory";
+    make_cmd.push_back("--no-print-directory");
   else
-    make_cmd += " -s --no-print-directory";
+    {
+      make_cmd.push_back("-s");
+      make_cmd.push_back("--no-print-directory");
+    }
 
   // NB: there appears to be no parallelism opportunity in the
   // module-building makefiles, so while the following works, it
@@ -67,7 +71,7 @@ run_make_cmd(systemtap_session& s, string& make_cmd)
 #if 0
   long smp = sysconf(_SC_NPROCESSORS_ONLN);
   if (smp > 1)
-    make_cmd += " -j " + lex_cast(smp);
+    make_cmd.push_back("-j" + lex_cast(smp));
 #endif
 
   if (strverscmp (s.kernel_base_release.c_str(), "2.6.29") < 0)
@@ -75,10 +79,34 @@ run_make_cmd(systemtap_session& s, string& make_cmd)
       // Older kernels, before linux commit #fd54f502841c1, include
       // gratuitous "echo"s in their Makefile.  We need to suppress
       // that with this bluntness.
-      make_cmd += " >/dev/null";
+      null_out = true;
     }
 
-  return stap_system (s.verbose, make_cmd);
+  rc = stap_system (s.verbose, make_cmd, null_out, null_err);
+  if (rc != 0)
+    s.set_try_server ();
+  return rc;
+}
+
+static vector<string>
+make_make_cmd(systemtap_session& s, const string& dir)
+{
+  vector<string> make_cmd;
+  make_cmd.push_back("make");
+  make_cmd.push_back("-C");
+  make_cmd.push_back(s.kernel_build_tree);
+  make_cmd.push_back("M=" + dir); // need make-quoting?
+  make_cmd.push_back("modules");
+
+  // Add architecture, except for old powerpc (RHBZ669082)
+  if (s.architecture != "powerpc" ||
+      (strverscmp (s.kernel_base_release.c_str(), "2.6.15") >= 0))
+    make_cmd.push_back("ARCH=" + s.architecture); // need make-quoting?
+
+  // Add any custom kbuild flags
+  make_cmd.insert(make_cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
+
+  return make_cmd;
 }
 
 static void
@@ -117,7 +145,10 @@ compile_pass (systemtap_session& s)
 {
   int rc = uprobes_pass (s);
   if (rc)
-    return rc;
+    {
+      s.set_try_server ();
+      return rc;
+    }
 
   // fill in a quick Makefile
   string makefile_nm = s.tmpdir + "/Makefile";
@@ -204,14 +235,18 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-ring_buffer-flags.c", "STAPCONF_RING_BUFFER_FLAGS", NULL);
   output_autoconf(s, o, "autoconf-kallsyms-on-each-symbol.c", "STAPCONF_KALLSYMS_ON_EACH_SYMBOL", NULL);
   output_autoconf(s, o, "autoconf-walk-stack.c", "STAPCONF_WALK_STACK", NULL);
+  output_autoconf(s, o, "autoconf-stacktrace_ops-warning.c",
+                  "STAPCONF_STACKTRACE_OPS_WARNING", NULL);
   output_autoconf(s, o, "autoconf-mm-context-vdso.c", "STAPCONF_MM_CONTEXT_VDSO", NULL);
   output_autoconf(s, o, "autoconf-blk-types.c", "STAPCONF_BLK_TYPES", NULL);
   output_autoconf(s, o, "autoconf-perf-structpid.c", "STAPCONF_PERF_STRUCTPID", NULL);
+  output_autoconf(s, o, "autoconf-kern-path-parent.c",
+		  "STAPCONF_KERN_PATH_PARENT", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.macros.size(); i++)
-    o << "EXTRA_CFLAGS += -D " << lex_cast_qstring(s.macros[i]) << endl;
+    o << "EXTRA_CFLAGS += -D " << lex_cast_qstring(s.macros[i]) << endl; // XXX right quoting?
 
   if (s.verbose > 3)
     o << "EXTRA_CFLAGS += -ftime-report -Q" << endl;
@@ -258,217 +293,218 @@ compile_pass (systemtap_session& s)
   rc = stat(module_dir_makefile.c_str(), &st);
   if (rc != 0)
     {
-	clog << "Checking \"" << module_dir_makefile << "\" failed: " << strerror(errno) << endl
-	     << "Ensure kernel development headers & makefiles are installed." << endl;
+        clog << _F("Checking \" %s \" failed with error: %s\nEnsure kernel development headers & makefiles are installed.",
+                   module_dir_makefile.c_str(), strerror(errno)) << endl;
+	s.set_try_server ();
 	return rc;
     }
 
   // Run make
-  string make_cmd = string("make")
-    + string (" -C \"") + module_dir + string("\""); // XXX: lex_cast_qstring?
-  make_cmd += string(" M=\"") + s.tmpdir + string("\"");
-
-  // Add architecture
-  make_cmd += string(" ARCH=") + lex_cast_qstring(s.architecture);
-
-  // Add any custom kbuild flags
-  for (unsigned k=0; k<s.kbuildflags.size(); k++)
-    make_cmd += string(" ") + lex_cast_qstring(s.kbuildflags[k]);
-
-  make_cmd += string (" modules");
-
+  vector<string> make_cmd = make_make_cmd(s, s.tmpdir);
   rc = run_make_cmd(s, make_cmd);
-
+  if (rc)
+    s.set_try_server ();
   return rc;
 }
 
 /*
  * If uprobes was built as part of the kernel build (either built-in
- * or as a module), the uprobes exports should show up in either
- * s.kernel_build_tree / Module.symvers.  Return true if so.
+ * or as a module), the uprobes exports should show up.  This is to be
+ * as distinct from the stap-built uprobes.ko from the runtime.
  */
 static bool
 kernel_built_uprobes (systemtap_session& s)
 {
-  string grep_cmd = string ("/bin/grep -q unregister_uprobe ") + 
-    s.kernel_build_tree + string ("/Module.symvers");
-
-  return (stap_system (s.verbose, grep_cmd) == 0);
-}
-
-/*
- * We only want root, the owner of the uprobes build directory
- * and members of the group owning the uprobes build directory
- * modifying uprobes.
- */
-static bool
-may_build_uprobes (const systemtap_session& s)
-{
-  // root may build uprobes.
-  uid_t euid = geteuid ();
-  if (euid == 0)
-    return true;
-
-  // Get information on the build directory.
-  string uprobes_home = s.runtime_path + "/uprobes";
-  struct stat file_info;
-  if (stat(uprobes_home.c_str(), &file_info) != 0) {
-    clog << "Unable to obtain information on " << uprobes_home << '.' << endl;
-    return false;
-  }
-
-  // The owner of the build directory may build uprobes.
-  if (euid == file_info.st_uid)
-    return true;
-
-  // Members of the group owner of the build directory may build uprobes.
-  if (in_group_id (file_info.st_gid))
-    return true;
-
-  return false;
-}
-
-/*
- * Use "make -q" with a fake target to
- * verify that uprobes doesn't need to be rebuilt.
- */
-static bool
-verify_uprobes_uptodate (systemtap_session& s)
-{
-  if (s.verbose > 1)
-    clog << "Pass 4, preamble: "
-	 << "verifying that SystemTap's version of uprobes is up to date."
-	 << endl;
-
-  string uprobes_home = s.runtime_path + "/uprobes";
-  string make_cmd = string("make -q -C ") + uprobes_home
-    + string(" uprobes.ko");
-  int rc = run_make_cmd(s, make_cmd);
-  if (rc) {
-    clog << "SystemTap's version of uprobes is out of date." << endl;
-
-    struct stat file_info;
-    if (stat(uprobes_home.c_str(), &file_info) != 0) {
-      clog << "Unable to obtain information on " << uprobes_home << '.' << endl;
-    }
-    else {
-      struct passwd *owner = getpwuid (file_info.st_uid);
-      string owner_name = owner == NULL ? "The owner of " + uprobes_home :
-	                                  owner->pw_name;
-      if (owner_name == "root")
-	owner_name = "";
-      struct group *owner_group = getgrgid (file_info.st_gid);
-      string owner_group_name = owner_group == NULL ? "The owner group of " + uprobes_home :
-	                                              owner_group->gr_name;
-      clog << "As root, " << owner_name << (owner_name.empty () ? "" : ", ")
-	   << "or a member of the '" << owner_group_name << "' group, run" << endl;
-      clog << "\"make -C " << uprobes_home << "\"." << endl;
-    }
-  }
-
-  return rc;
+  return (s.kernel_exports.find("unregister_uprobe") != s.kernel_exports.end());
 }
 
 static int
 make_uprobes (systemtap_session& s)
 {
   if (s.verbose > 1)
-    clog << "Pass 4, preamble: "
-	 << "(re)building SystemTap's version of uprobes."
+    clog << _("Pass 4, preamble: (re)building SystemTap's version of uprobes.")
 	 << endl;
 
-  string uprobes_home = s.runtime_path + "/uprobes";
-  string make_cmd = string("make -C ") + uprobes_home;
-  int rc = run_make_cmd(s, make_cmd);
-  if (s.verbose > 1)
-    clog << "uprobes rebuild rc=" << rc << endl;
+  // create a subdirectory for the uprobes module
+  string dir(s.tmpdir + "/uprobes");
+  if (create_dir(dir.c_str()) != 0)
+    {
+      if (! s.suppress_warnings)
+        cerr << _("Warning: failed to create directory for build uprobes.") << endl;
+      s.set_try_server ();
+      return 1;
+    }
 
+  // create a simple Makefile
+  string makefile(dir + "/Makefile");
+  ofstream omf(makefile.c_str());
+  omf << "obj-m := uprobes.o" << endl;
+  // RHBZ 655231: later rhel6 kernels' module-signing kbuild logic breaks out-of-tree modules
+  omf << "CONFIG_MODULE_SIG := n" << endl;
+  omf.close();
+
+  // create a simple #include-chained source file
+  string runtimesourcefile(s.runtime_path + "/uprobes/uprobes.c");
+  string sourcefile(dir + "/uprobes.c");
+  ofstream osrc(sourcefile.c_str());
+  osrc << "#include \"" << runtimesourcefile << "\"" << endl;
+  osrc.close();
+
+  // make the module
+  vector<string> make_cmd = make_make_cmd(s, dir);
+  bool quiet = (s.verbose < 4);
+  int rc = run_make_cmd(s, make_cmd, quiet, quiet);
+  if (!rc && !copy_file(dir + "/Module.symvers",
+                        s.tmpdir + "/Module.symvers"))
+    rc = -1;
+
+  if (s.verbose > 1)
+    clog << _("uprobes rebuild exit code: ") << rc << endl;
+  if (rc)
+    s.set_try_server ();
+  else
+    s.uprobes_path = dir + "/uprobes.ko";
   return rc;
 }
 
-/*
- * Copy uprobes' exports (in Module.symvers) into the temporary directory
- * so the script-module build can find them.
- */
-static int
-copy_uprobes_symbols (const systemtap_session& s)
+static bool
+get_cached_uprobes(systemtap_session& s)
 {
-  string uprobes_home = s.runtime_path + "/uprobes";
-  string cp_cmd = string("/bin/cp ") + uprobes_home +
-    string("/Module.symvers ") + s.tmpdir;
+  s.uprobes_hash = s.use_cache ? find_uprobes_hash(s) : "";
+  if (!s.uprobes_hash.empty())
+    {
+      // NB: We always put uprobes.ko in its own directory, especially so
+      // stap-serverd can more easily locate it.
+      string dir(s.tmpdir + "/uprobes");
+      if (create_dir(dir.c_str()) != 0)
+        return false;
 
-  return stap_system (s.verbose, cp_cmd);
+      string cacheko = s.uprobes_hash + ".ko";
+      string tmpko = dir + "/uprobes.ko";
+
+      // The symvers file still needs to go in the script module's directory.
+      string cachesyms = s.uprobes_hash + ".symvers";
+      string tmpsyms = s.tmpdir + "/Module.symvers";
+
+      if (get_file_size(cacheko) > 0 && copy_file(cacheko, tmpko) &&
+          get_file_size(cachesyms) > 0 && copy_file(cachesyms, tmpsyms))
+        {
+          s.uprobes_path = tmpko;
+          return true;
+        }
+    }
+  return false;
 }
 
-static int
+static void
+set_cached_uprobes(systemtap_session& s)
+{
+  if (s.use_cache && !s.uprobes_hash.empty())
+    {
+      string cacheko = s.uprobes_hash + ".ko";
+      string tmpko = s.tmpdir + "/uprobes/uprobes.ko";
+      copy_file(tmpko, cacheko);
+
+      string cachesyms = s.uprobes_hash + ".symvers";
+      string tmpsyms = s.tmpdir + "/uprobes/Module.symvers";
+      copy_file(tmpsyms, cachesyms);
+    }
+}
+
+int
 uprobes_pass (systemtap_session& s)
 {
   if (!s.need_uprobes || kernel_built_uprobes(s))
     return 0;
 
   if (s.kernel_config["CONFIG_UTRACE"] != string("y")) {
-    clog << "user-space facilities not available without kernel CONFIG_UTRACE" << endl;
+    clog << _("user-space facilities not available without kernel CONFIG_UTRACE") << endl;
+    s.set_try_server ();
     return 1;
   }
 
   /*
-   * We need to use the version of uprobes that comes with SystemTap, so
-   * we may need to rebuild uprobes.ko there.  Unfortunately, this is
-   * never a no-op; e.g., the modpost step gets run every time.  Only
-   * certain users can build uprobes, so we keep the uprobes directory
-   * writable only by those users.  But that means that other users
-   * can't run the make even if everything's up to date.
-   *
-   * So for the other users, we just verify that uprobes doesn't need
-   * to be rebuilt.  If that's not so, stap must fail.
+   * We need to use the version of uprobes that comes with SystemTap.  Try to
+   * get it from the cache first.  If not found, build it and try to save it to
+   * the cache for future reuse.
    */
-  int rc;
-  if (may_build_uprobes (s))
-    rc = make_uprobes(s);
-  else
-    rc = verify_uprobes_uptodate(s);
-  if (rc == 0)
-    rc = copy_uprobes_symbols(s);
+  int rc = 0;
+  if (!get_cached_uprobes(s))
+    {
+      rc = make_uprobes(s);
+      if (!rc)
+        set_cached_uprobes(s);
+    }
+  if (rc)
+    s.set_try_server ();
   return rc;
 }
 
-string
-make_run_command (systemtap_session& s, const string& module)
+vector<string>
+make_run_command (systemtap_session& s, const string& module,
+                  const string& version)
 {
   // for now, just spawn staprun
-  string staprun_cmd = string(getenv("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun")
-    + " "
-    + (s.verbose>1 ? "-v " : "")
-    + (s.verbose>2 ? "-v " : "")
-    + (s.suppress_warnings ? "-w " : "")
-    + (s.output_file.empty() ? "" : "-o " + s.output_file + " ");
+  vector<string> staprun_cmd;
+  staprun_cmd.push_back(getenv("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun");
+  if (s.verbose>1)
+    staprun_cmd.push_back("-v");
+  if (s.verbose>2)
+    staprun_cmd.push_back("-v");
+  if (s.suppress_warnings)
+    staprun_cmd.push_back("-w");
 
-  if (s.cmd != "")
-    staprun_cmd += "-c " + cmdstr_quoted(s.cmd) + " ";
+  if (!s.output_file.empty())
+    {
+      staprun_cmd.push_back("-o");
+      staprun_cmd.push_back(s.output_file);
+    }
+
+  if (!s.cmd.empty())
+    {
+      staprun_cmd.push_back("-c");
+      staprun_cmd.push_back(s.cmd);
+    }
 
   if (s.target_pid)
-    staprun_cmd += "-t " + lex_cast(s.target_pid) + " ";
+    {
+      staprun_cmd.push_back("-t");
+      staprun_cmd.push_back(lex_cast(s.target_pid));
+    }
 
   if (s.buffer_size)
-    staprun_cmd += "-b " + lex_cast(s.buffer_size) + " ";
+    {
+      staprun_cmd.push_back("-b");
+      staprun_cmd.push_back(lex_cast(s.buffer_size));
+    }
 
   if (s.need_uprobes)
-    staprun_cmd += "-u" + s.uprobes_path + " ";
+    {
+      staprun_cmd.push_back("-u");
+      if (!s.uprobes_path.empty())
+        staprun_cmd.back().append(s.uprobes_path);
+    }
 
   if (s.load_only)
-    staprun_cmd += (s.output_file.empty() ? "-L " : "-D ");
+    staprun_cmd.push_back(s.output_file.empty() ? "-L" : "-D");
+
+  if(!s.modname_given && (strverscmp("1.6", version.c_str()) <= 0))
+    staprun_cmd.push_back("-R");
 
   if (!s.size_option.empty())
-    staprun_cmd += "-S " + s.size_option + " ";
+    {
+      staprun_cmd.push_back("-S");
+      staprun_cmd.push_back(s.size_option);
+    }
 
   if (module.empty())
-    staprun_cmd += s.tmpdir + "/" + s.module_name + ".ko";
+    staprun_cmd.push_back(s.tmpdir + "/" + s.module_name + ".ko");
   else
-    staprun_cmd += module;
+    staprun_cmd.push_back(module);
 
   // add module arguments
-  for (unsigned i=0; i<s.globalopts.size(); i++)
-    staprun_cmd += " " + s.globalopts[i];
+  staprun_cmd.insert(staprun_cmd.end(),
+                     s.globalopts.begin(), s.globalopts.end());
 
   return staprun_cmd;
 }
@@ -487,7 +523,8 @@ make_tracequery(systemtap_session& s, string& name,
   if (create_dir(dir.c_str()) != 0)
     {
       if (! s.suppress_warnings)
-        cerr << "Warning: failed to create directory for querying tracepoints." << endl;
+        cerr << _("Warning: failed to create directory for querying tracepoints.") << endl;
+      s.set_try_server ();
       return 1;
     }
 
@@ -539,19 +576,19 @@ make_tracequery(systemtap_session& s, string& name,
   osrc.close();
 
   // make the module
-  string make_cmd = "make -C '" + s.kernel_build_tree + "'"
-    + " M='" + dir + "' modules";
+  vector<string> make_cmd = make_make_cmd(s, dir);
+  bool quiet = (s.verbose < 4);
+  int rc = run_make_cmd(s, make_cmd, quiet, quiet);
+  if (rc)
+    s.set_try_server ();
 
-  // Add architecture
-  make_cmd += string(" ARCH=") + lex_cast_qstring(s.architecture);
+  // XXX: sometimes we fail a tracequery due to PR9993 / PR11649 type
+  // kernel trace header problems.  In this case, due to PR12729,
+  // we get a lovely "Warning: make exited with status: 2" but no
+  // other useful diagnostic.  -vvvv would let a user see what's up,
+  // but the user can't fix the problem even with that.
 
-  // Add any custom kbuild flags
-  for (unsigned k=0; k<s.kbuildflags.size(); k++)
-    make_cmd += string(" ") + lex_cast_qstring(s.kbuildflags[k]);
-
-  if (s.verbose < 4)
-    make_cmd += " >/dev/null 2>&1";
-  return run_make_cmd(s, make_cmd);
+  return rc;
 }
 
 
@@ -567,7 +604,8 @@ make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string&
   if (create_dir(dir.c_str()) != 0)
     {
       if (! s.suppress_warnings)
-        cerr << "Warning: failed to create directory for querying types." << endl;
+        cerr << _("Warning: failed to create directory for querying types.") << endl;
+      s.set_try_server ();
       return 1;
     }
 
@@ -590,7 +628,7 @@ make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string&
   //    @cast(foo, "bsd_acct_struct", "kernel<kernel/acct.c>")->...
   omf << "CFLAGS_" << basename << ".o :=";
   for (size_t i = 0; i < headers.size(); ++i)
-    omf << " -include " << lex_cast_qstring(headers[i]);
+    omf << " -include " << lex_cast_qstring(headers[i]); // XXX right quoting?
   omf << endl;
 
   omf << "obj-m := " + basename + ".o" << endl;
@@ -602,19 +640,12 @@ make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string&
   osrc.close();
 
   // make the module
-  string make_cmd = "make -C '" + s.kernel_build_tree + "'"
-    + " M='" + dir + "' modules";
-
-  // Add architecture
-  make_cmd += string(" ARCH=") + lex_cast_qstring(s.architecture);
-
-  // Add any custom kbuild flags
-  for (unsigned k=0; k<s.kbuildflags.size(); k++)
-    make_cmd += string(" ") + lex_cast_qstring(s.kbuildflags[k]);
-
-  if (s.verbose < 4)
-    make_cmd += " >/dev/null 2>&1";
-  return run_make_cmd(s, make_cmd);
+  vector<string> make_cmd = make_make_cmd(s, dir);
+  bool quiet = (s.verbose < 4);
+  int rc = run_make_cmd(s, make_cmd, quiet, quiet);
+  if (rc)
+    s.set_try_server ();
+  return rc;
 }
 
 
@@ -632,13 +663,25 @@ make_typequery_umod(systemtap_session& s, const vector<string>& headers, string&
   // cwd in this case will be the cwd of stap itself though, which may be
   // trickier to deal with.  It might be better to "cd `dirname $script`"
   // first...
-  ostringstream cmd;
-  cmd << "gcc -shared -g -fno-eliminate-unused-debug-types -xc /dev/null -o " << name;
+  vector<string> cmd;
+  cmd.push_back("gcc");
+  cmd.push_back("-shared");
+  cmd.push_back("-g");
+  cmd.push_back("-fno-eliminate-unused-debug-types");
+  cmd.push_back("-xc");
+  cmd.push_back("/dev/null");
+  cmd.push_back("-o");
+  cmd.push_back(name);
   for (size_t i = 0; i < headers.size(); ++i)
-    cmd << " -include " << lex_cast_qstring(headers[i]);
-  if (s.verbose < 4)
-    cmd << " >/dev/null 2>&1";
-  return stap_system (s.verbose, cmd.str());
+    {
+      cmd.push_back("-include");
+      cmd.push_back(headers[i]);
+    }
+  bool quiet = (s.verbose < 4);
+  int rc = stap_system (s.verbose, cmd, quiet, quiet);
+  if (rc)
+    s.set_try_server ();
+  return rc;
 }
 
 
@@ -658,8 +701,15 @@ make_typequery(systemtap_session& s, string& module)
       if (end == string::npos)
         return -1;
       string header = module.substr(i, end - i);
-      assert_regexp_match("@cast header", header, "^[a-z0-9/_.+-]+$");
-      headers.push_back(header);
+      vector<string> matches;
+      if (regexp_match(header, "^[a-zA-Z0-9/_.+-]+$", matches))
+        {
+          if (! s.suppress_warnings)
+            cerr << _F("Warning: skipping malformed @cast header \"%s\"",
+                        header.c_str()) << endl;
+        }
+      else
+        headers.push_back(header);
     }
   if (headers.empty())
     return -1;

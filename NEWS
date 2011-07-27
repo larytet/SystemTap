@@ -1,3 +1,119 @@
+* What's new in version 1.6
+
+- The systemtap compile-server no longer uses the -k option when calling the
+  translator (stap). As a result, the server will now take advantage of the
+  module cache when compiling the same script more than once. You may observe
+  an improvement in the performance of the server in this situation.
+
+- The systemtap compile-server and client now each check the version of the
+  other, allowing both to adapt when communicating with a down-level
+  counterpart. As a result, all version of the client can communicate
+  with all versions of the server and vice-versa. Client will prefer newer
+  servers when selecting a server automatically.
+
+- SystemTap has improved support for the ARM architecture.  The
+  kread() and kwrite() operations for ARM were corrected allowing many
+  of the tapsets probes and function to work properly on the ARM
+  architecture.
+
+- Staprun can now rename the module to a unique name with the '-R' option before 
+  inserting it. Systemtap itself will also call staprun with '-R' by default. 
+  This allows the same module to be inserted more than once, without conflicting 
+  duplicate names.
+
+- Systemtap error messages now provide feedback when staprun or any other
+  process fails to launch.  This also specifically covers when the user 
+  doesn't have the proper permissions to launch staprun.
+
+- Systemtap will now map - to _ in module names.  Previously, 
+  stap -L 'module("i2c-core").function("*")' would be empty.  It now returns
+  a list had stap -L 'module("i2c_core").function("*") been specified.
+
+- Systemtap now fills in missing process names to probe points, to
+  avoid having to name them twice twice:
+  % stap -e 'probe process("a.out").function("*") {}' -c 'a.out ...'
+  Now the probed process name is inferred from the -c CMD argument.
+  % stap -e 'probe process.function("*") {}' -c 'a.out ...'
+
+- stap -L 'process("PATH").syscall' will now list context variables
+
+- Depends on elfutils 0.142+.
+
+- Deprecated task_backtrace:string (task:long). This function will go
+  away after 1.6. Please run your scripts with stap --check-version.
+
+* What's new in version 1.5, 2011-05-23
+
+- The compile server and its related tools (stap-gen-ert, stap-authorize-cert,
+   stap-sign-module) have been re-implemented in C++. Previously, these
+   components were a mix of bash scripts and C code. These changes should be
+   transparent to the end user with the exception of NSS certificate database
+   password prompting (see below). The old implementation would prompt more
+   than once for the same password in some situations.
+  
+- eventcount.stp now allows for event counting in the format of
+  'stap eventcount.stp process.end syscall.* ...', and also reports
+  corresponding event tid's.
+
+- Systemtap checks that the build-id of the module being probed matches the
+  build-id saved in the systemtap module.  Invoking systemtap with
+  -DSTP_NO_BUILDID_CHECK will bypass this build-id runtime verification.  See
+  man ld(1) for info on --build-id.
+
+- stapio will now report if a child process has an abnormal exit along with
+  the associated status or signal.
+
+- Compiler optimization may sometimes result in systemtap not being able to
+  access a user-space probe argument.  Compiling the application with
+  -DSTAP_SDT_ARG_CONSTRAINT=nr will force the argument to be an immediate or
+  register value which should enable systemtap to access the argument.
+
+- GNU Gettext has now been intergrated with systemtap.  Our translation
+  page can be found at http://www.transifex.net/projects/p/systemtap/ .
+  "make update-po" will generate the necessary files to use translated
+  messages.  Please refer to the po/README file for more info and 
+  please consider contributing to this I18N effort!
+
+- The new addr() function returns the probe's instruction pointer.
+
+- process("...").library("...") probes are now supported.  Wildcards
+  are supported in the library-name part, to refer to any shared
+  library that is required by process-name, which matches the glob
+  pattern and the rest of the probe point.
+
+- The "--remote USER@HOST" functionality can now be specified multiple times
+  to fan out on multiple targets.  If the targets have distinct kernel and
+  architecture configurations, stap will automatically build the script
+  appropriately for each one.  This option is also no longer considered
+  experimental.
+
+- The NSS certificate database generated for use by the compile server is now
+  generated with no password. Previously, a random password was generated and
+  used to access the database. This change should be transparent to most users.
+  However, if you are prompted for a password when using systemtap, then
+  running $libexecdir/stap-gen-cert should correct the problem.
+
+- The timestamp tapset includes jiffies() and HZ() for lightweight approximate
+  timekeeping.
+
+- A powerful new command line option --version has been added.
+
+- process.mark now supports $$parms for reading probe parameters.
+
+- A new command line option, --use-server-on-error[=yes|no] is available
+  for stap.  It instructs stap to retry compilation of a script using a
+  compile server if it fails on the local host.  The default setting
+  is 'no'.
+
+- The following deprecated tools have been removed:
+      stap-client
+      stap-authorize-server-cert
+      stap-authorize-signing-cert
+      stap-find-or-start-server
+      stap-find-servers
+  Use the --use-server, --trust-server and --list-servers options of stap
+  instead.
+
 * What's new in version 1.4, 2011-01-17
 
 - A new /* myproc-unprivileged */ marker is now available for embedded C

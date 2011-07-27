@@ -1,5 +1,5 @@
 // systemtap debuginfo rpm finder
-// Copyright (C) 2009 Red Hat Inc.
+// Copyright (C) 2009-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -35,6 +35,13 @@ extern "C" {
 
 }
 
+#if ! HAVE_LIBRPMIO && HAVE_NSS
+extern "C" {
+#include <nss.h>
+}
+#include "nsscommon.h"
+#endif
+
 /* Returns the count of newly added rpms.  */
 /* based on the code in F11 gdb-6.8.50.20090302 source rpm */
 /* Added in the rpm_type parameter to specify what rpm to look for */
@@ -61,7 +68,7 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 
       if (rpmReadConfigFiles(NULL, NULL) != 0)
 	{
-	  cerr << "Error reading the rpm configuration files" << endl;
+	  cerr << _("Error reading the rpm configuration files") << endl;
 	  return 0;
 	}
 
@@ -94,7 +101,7 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 
 	  if (!rpminfo)
 	    {
-	      cerr << "Error querying the rpm file `" << filename << "': "
+	      cerr << _("Error querying the rpm file `") << filename << "': "
 		   << err << endl;
 	      continue;
 	    }
@@ -113,7 +120,7 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 	    }
 	  if (!s2)
 	    {
-	      cerr << "Error querying the rpm file `" << filename 
+	      cerr << _("Error querying the rpm file `") << filename 
 		   << "': " << rpminfo << endl;
 	      xfree (rpminfo);
 	      continue;
@@ -149,7 +156,7 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 	  }
 	  if (!rpminfo)
 	    {
-	      cerr << "Error querying the rpm file `" << filename 
+	      cerr << _("Error querying the rpm file `") << filename 
 		   << "': " << err << endl;
 	      continue;
 	    }
@@ -173,6 +180,19 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
     }
 
   rpmtsFree(ts);
+
+#if HAVE_NSS
+  // librpm uses NSS cryptography but doesn't shut down NSS when it is done.
+  // If NSS is available, it will be used by the compile server client on
+  // specific certificate databases and thus, it must be shut down first.
+  // Get librpm to do it if we can. Otherwise do it ourselves.
+#if HAVE_LIBRPMIO
+  rpmFreeCrypto (); // Shuts down NSS within librpm
+#else
+  nssCleanup (NULL); // Shut down NSS ourselves
+#endif
+#endif
+
   return count;
 }
 #endif	/* HAVE_LIBRPM */
@@ -184,13 +204,13 @@ missing_rpm_list_print (systemtap_session &sess, const char* rpm_type)
   if (sess.rpms_to_install.size() > 0 && ! sess.suppress_warnings) {
 
     if(strcmp(rpm_type,"-devel")==0)
-	cerr << "Incorrect version or missing kernel-devel package, use: yum install ";
+	cerr << _("Incorrect version or missing kernel-devel package, use: yum install ");
 
     else if(strcmp(rpm_type,"-debuginfo")==0)
-	cerr << "Missing seperate debuginfos, use: debuginfo-install ";
+	cerr << _("Missing separate debuginfos, use: debuginfo-install ");
 
     else{
-        cerr << "Incorrect paramater passed, please report this error." << endl;
+        cerr << _("Incorrect parameter passed, please report this error.") << endl;
 	_exit(1);
 	}
 

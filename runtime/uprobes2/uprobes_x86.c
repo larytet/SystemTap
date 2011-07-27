@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) IBM Corporation, 2006-2008
  */
@@ -39,7 +38,7 @@
 	  (bc##ULL<< 0xc)|(bd##ULL<< 0xd)|(be##ULL<< 0xe)|(bf##ULL<< 0xf))    \
 	 << (row % 64))
 
-static const u64 good_insns_64[256 / 64] = {
+static const volatile u64 good_insns_64[256 / 64] = {
 	/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 	/*      -------------------------------         */
 	W(0x00, 1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0)| /* 00 */
@@ -64,7 +63,7 @@ static const u64 good_insns_64[256 / 64] = {
 
 /* Good-instruction tables for 32-bit apps -- copied from i386 uprobes */
 
-static const u64 good_insns_32[256 / 64] = {
+static const volatile u64 good_insns_32[256 / 64] = {
 	/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 	/*      -------------------------------         */
 	W(0x00, 1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0)| /* 00 */
@@ -88,7 +87,7 @@ static const u64 good_insns_32[256 / 64] = {
 };
 
 /* Using this for both 64-bit and 32-bit apps */
-static const u64 good_2byte_insns[256 / 64] = {
+static const volatile u64 good_2byte_insns[256 / 64] = {
 	/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 	/*      -------------------------------         */
 	W(0x00, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1)| /* 00 */
@@ -215,7 +214,8 @@ static int setup_uprobe_post_ssout(struct uprobe_probept *ppt,
 	int prefix_ok = 0;
 	switch (*insn) {
 	case 0xc3:		/* ret */
-		if ((insn - ppt->insn == 1) && (*ppt->insn == 0xf3))
+		if ((insn - ppt->insn == 1) &&
+		    (*ppt->insn == 0xf3 || *ppt->insn == 0xf2))
 			/*
 			 * "rep ret" is an AMD kludge that's used by GCC,
 			 * so we need to treat it like a normal ret.
@@ -395,7 +395,7 @@ static int immediate_operand_size(u8 opcode1, u8 opcode2, u8 reg,
  * TODO: These tables are common for kprobes and uprobes and can be moved
  * to a common place.
  */
-static const u64 onebyte_has_modrm[256 / 64] = {
+static const volatile u64 onebyte_has_modrm[256 / 64] = {
 	/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 	/*      -------------------------------         */
 	W(0x00, 1,1,1,1,0,0,0,0,1,1,1,1,0,0,0,0)| /* 00 */
@@ -417,7 +417,7 @@ static const u64 onebyte_has_modrm[256 / 64] = {
 	/*      -------------------------------         */
 	/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 };
-static const u64 twobyte_has_modrm[256 / 64] = {
+static const volatile u64 twobyte_has_modrm[256 / 64] = {
 	/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 	/*      -------------------------------         */
 	W(0x00, 1,1,1,1,0,0,0,0,0,0,0,0,0,1,0,1)| /* 0f */
@@ -514,7 +514,6 @@ static int handle_riprel_insn(struct uprobe_probept *ppt)
 		+ 1			/* modrm byte */
 		+ 4			/* offset */
 		+ immed_size;		/* immediate field */
-#undef DEBUG_UPROBES_RIP
 #ifdef DEBUG_UPROBES_RIP
 {
 	int i;

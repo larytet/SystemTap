@@ -7,27 +7,13 @@
 #include <error.h>
 #include <dwarf.h>
 #include <elfutils/libdw.h>
+#include <elfutils/version.h>
+
 #include <assert.h>
 #include "loc2c.h"
 
 #include "config.h"
 
-#include <elfutils/libdw.h>
-#ifdef HAVE_ELFUTILS_VERSION_H
-#include <elfutils/version.h>
-#endif
-
-#if !defined(_ELFUTILS_PREREQ)
-// make a dummy PREREQ check for elfutils < 0.138
-#define _ELFUTILS_PREREQ(major, minor) (0 >= 1)
-#endif
-
-#if !_ELFUTILS_PREREQ (0,142)
-#define DW_TAG_rvalue_reference_type	0x42
-#define DW_AT_data_bit_offset           0x6b
-#define DW_OP_implicit_value		0x9e
-#define DW_OP_stack_value		0x9f
-#endif
 
 #define N_(x) x
 
@@ -185,6 +171,7 @@ translate_constant (struct location_context *ctx, int indent,
 	Dwarf_Addr addr;
 	if (dwarf_formaddr (attr, &addr) != 0)
 	  {
+            //TRANSLATORS: failure to find an address that was a constant literal number
 	    FAIL (loc, N_("cannot get constant address: %s"),
 		  dwarf_errmsg (-1));
 	    return NULL;
@@ -680,7 +667,6 @@ translate (struct location_context *ctx, int indent,
 	  UNOP (abs, op_abs);
 	  BINOP (and, &);
 	  BINOP (minus, -);
-	  BINOP (mod, %);
 	  BINOP (mul, *);
 	  UNOP (neg, -);
 	  UNOP (not, ~);
@@ -715,9 +701,21 @@ translate (struct location_context *ctx, int indent,
 	  {
 	    POP (b);
 	    POP (a);
-	    push ("(%s) " STACKFMT " / (%s)" STACKFMT,
+	    push ("dwarf_div_op((%s) " STACKFMT ", (%s) " STACKFMT ")",
 		  stack_slot_type (loc, true), a,
 		  stack_slot_type (loc, true), b);
+	    used_deref = true;
+	    break;
+	  }
+
+	case DW_OP_mod:
+	  {
+	    POP (b);
+	    POP (a);
+	    push ("dwarf_mod_op((%s) " STACKFMT ", (%s) " STACKFMT ")",
+		  stack_slot_type (loc, false), a,
+		  stack_slot_type (loc, false), b);
+	    used_deref = true;
 	    break;
 	  }
 
@@ -980,7 +978,7 @@ location_from_attr (struct location_context *ctx, int indent,
 
     default:			/* Shouldn't happen.  */
     case -1:
-      (*ctx->fail) (ctx->fail_arg, N_("dwarf_getlocation_addr: %s"),
+      (*ctx->fail) (ctx->fail_arg, "dwarf_getlocation_addr: %s",
 		    dwarf_errmsg (-1));
       return NULL;
     }
@@ -1606,12 +1604,21 @@ discontiguify (struct location_context *ctx, int indent, struct location *loc,
   inline bool pieces_small_enough (void)
     {
       if (loc->type != loc_noncontiguous)
-	return (loc->byte_size ?: total_bytes) <= max_piece_bytes;
+	return total_bytes <= max_piece_bytes;
       struct location *p;
       for (p = loc->pieces; p != NULL; p = p->next)
 	if (p->byte_size > max_piece_bytes)
 	  return false;
       return true;
+    }
+
+  /* Constants are always copied byte-wise, but we may need to
+   * truncate to the total_bytes requested here. */
+  if (loc->type == loc_constant)
+    {
+      if (loc->byte_size > total_bytes)
+	loc->byte_size = total_bytes;
+      return loc;
     }
 
   if (pieces_small_enough ())
@@ -1665,29 +1672,6 @@ discontiguify (struct location_context *ctx, int indent, struct location *loc,
 	break;
       }
 
-    case loc_constant:
-      {
-	Dwarf_Word offset = 0;
-	while (total_bytes - offset > 0)
-	  {
-	    Dwarf_Word size = total_bytes - offset;
-	    if (size > max_piece_bytes)
-	      size = max_piece_bytes;
-
-	    struct location *piece = alloc_location (ctx);
-	    piece->next = NULL;
-	    piece->type = loc_constant;
-	    piece->byte_size = size;
-	    piece->constant_block = loc->constant_block + offset;
-
-	    add (piece);
-
-	    offset += size;
-	  }
-
-	break;
-      }
-
     case loc_value:
       FAIL (loc, N_("stack value too big for fetch ???"));
       break;
@@ -1702,7 +1686,7 @@ discontiguify (struct location_context *ctx, int indent, struct location *loc,
 
     case loc_noncontiguous:
       /* Could be handled if it ever happened.  */
-      FAIL (loc, N_("discontiguify of noncontiguous location not supported"));
+      FAIL (loc, N_("cannot support noncontiguous location"));
       break;
 
     default:
@@ -1914,6 +1898,7 @@ max_fetch_size (struct location *loc, Dwarf_Die *die)
   uint8_t address_size;
   Dwarf_Die *cu = dwarf_diecu (die, &cu_mem, &address_size, NULL);
   if (cu == NULL)
+    //TRANSLATORS: CU stands for 'compilation unit'
     FAIL (loc, N_("cannot determine CU address size from %s: %s"),
 	  dwarf_diename (die), dwarf_errmsg (-1));
 
@@ -1958,7 +1943,8 @@ c_translate_fetch (struct obstack *pool, int indent,
       (*input)->type = loc_fragment;
       (*input)->address.declare = "tmp";
 
-      Dwarf_Word bit_offset, bit_size;
+      Dwarf_Word bit_offset = 0;
+      Dwarf_Word bit_size = 0;
       get_bitfield (*input, die, &bit_offset, &bit_size);
 
       obstack_printf (pool, "%*s"
@@ -2086,7 +2072,8 @@ c_translate_store (struct obstack *pool, int indent,
       (*input)->type = loc_fragment;
       (*input)->address.declare = "tmp";
 
-      Dwarf_Word bit_offset, bit_size;
+      Dwarf_Word bit_offset = 0;
+      Dwarf_Word bit_size = 0;
       get_bitfield (*input, die, &bit_offset, &bit_size);
 
       obstack_printf (pool, "%*s"
@@ -2239,6 +2226,7 @@ pointer_stride (Dwarf_Die *typedie, struct location *origin)
     {
       if (dwarf_attr_integrate (&die_mem, DW_AT_type, &attr_mem) == NULL
 	  || dwarf_formref_die (&attr_mem, &die_mem) == NULL)
+        //TRANSLATORS: This refers to the basic type, (stripped of const/volatile/etc.)
 	FAIL (origin, N_("cannot get inner type of type %s: %s"),
 	      dwarf_diename (&die_mem) ?: "<anonymous>",
 	      dwarf_errmsg (-1));
@@ -2308,6 +2296,7 @@ translate_array (struct obstack *pool, int indent,
 	      piece = piece->next;
 	    }
 	  if (piece == NULL)
+            //TRANSLATORS: The index is constant
 	    FAIL (*input, N_("constant index is outside noncontiguous array"));
 	  if (offset % stride != 0 || piece->byte_size < stride)
 	    FAIL (*input, N_("noncontiguous array splits elements"));
@@ -2345,6 +2334,7 @@ translate_array (struct obstack *pool, int indent,
       if (idx != NULL)
 	FAIL (*input, N_("cannot index into constant value"));
       else if (const_idx > loc->byte_size / stride)
+        //TRANSLATORS: The index is constant
 	FAIL (*input, N_("constant index is outside constant array value"));
       else
 	{

@@ -76,7 +76,7 @@ itrace_derived_probe::itrace_derived_probe (systemtap_session &s,
   derived_probe(p, l), has_path(hp), path(pn), pid(pd), single_step(ss)
 {
   if (s.kernel_config["CONFIG_UTRACE"] != string("y"))
-    throw semantic_error ("process probes not available without kernel CONFIG_UTRACE");
+    throw semantic_error (_("process probes not available without kernel CONFIG_UTRACE"));
 }
 
 
@@ -213,7 +213,7 @@ itrace_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline() << "rc = usr_itrace_init(p->single_step, tsk, p);";
   s.op->newline(-1) << "else";
-  s.op->newline(1) << "remove_usr_itrace_info(find_itrace_info(p->tgt.pid));";
+  s.op->newline(1) << "remove_usr_itrace_info(find_itrace_info(tsk));";
   s.op->newline(-1) << "return rc;";
   s.op->newline(-1) << "}";
 

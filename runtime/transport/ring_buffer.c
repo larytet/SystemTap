@@ -3,6 +3,7 @@
 #include <linux/wait.h>
 #include <linux/poll.h>
 #include <linux/cpumask.h>
+#include <asm/local.h>
 
 static DEFINE_PER_CPU(local_t, _stp_cpu_disabled);
 
@@ -62,7 +63,7 @@ struct _stp_relay_data_type {
 	struct timer_list timer;
 	int overwrite_flag;
 };
-static struct _stp_relay_data_type _stp_relay_data = { 0 };
+static struct _stp_relay_data_type _stp_relay_data;
 
 /* _stp_poll_wait is a waitqueue for tasks blocked on
  * _stp_data_poll_trace() */

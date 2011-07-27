@@ -13,8 +13,7 @@
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  * Copyright (C) IBM Corporation, 2006
  */
@@ -32,7 +31,7 @@
 	  (b8##UL << 0x8)|(b9##UL << 0x9)|(ba##UL << 0xa)|(bb##UL << 0xb) |   \
 	  (bc##UL << 0xc)|(bd##UL << 0xd)|(be##UL << 0xe)|(bf##UL << 0xf))    \
 	 << (row % 32))
-	static const unsigned long good_insns[256 / 32] = {
+	static const volatile unsigned long good_insns[256 / 32] = {
 		/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 		/*      -------------------------------         */
 		W(0x00, 1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,0)| /* 00 */
@@ -55,7 +54,7 @@
 		/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 	};
 
-	static const unsigned long good_2byte_insns[256 / 32] = {
+	static const volatile unsigned long good_2byte_insns[256 / 32] = {
 		/*      0 1 2 3 4 5 6 7 8 9 a b c d e f         */
 		/*      -------------------------------         */
 		W(0x00, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1)| /* 00 */
@@ -175,7 +174,8 @@ static int setup_uprobe_post_ssout(struct uprobe_probept *ppt,
 	int prefix_ok = 0;
 	switch (*insn) {
 	case 0xc3:		/* ret */
-		if ((insn - ppt->insn == 1) && (*ppt->insn == 0xf3))
+		if ((insn - ppt->insn == 1) &&
+		    (*ppt->insn == 0xf3 || *ppt->insn == 0xf2))
 			/*
 			 * "rep ret" is an AMD kludge that's used by GCC,
 			 * so we need to treat it like a normal ret.

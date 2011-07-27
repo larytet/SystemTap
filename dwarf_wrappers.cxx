@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2008-2009 Red Hat Inc.
+// Copyright (C) 2008-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -8,6 +8,7 @@
 
 #include "dwarf_wrappers.h"
 #include "staptree.h"
+#include "util.h"
 
 #include <cstring>
 #include <sstream>
@@ -21,7 +22,7 @@ void dwfl_assert(const string& desc, int rc)
 {
   if (rc == 0)
     return;
-  string msg = "libdwfl failure (" + desc + "): ";
+  string msg = _F("libdwfl failure (%s): ", desc.c_str());
   if (rc < 0)
     msg += (dwfl_errmsg (rc) ?: "?");
   else
@@ -33,7 +34,7 @@ void dwarf_assert(const string& desc, int rc)
 {
   if (rc == 0)
     return;
-  string msg = "libdw failure (" + desc + "): ";
+  string msg = _F("libdw failure (%s): ", desc.c_str());
   if (rc < 0)
     msg += dwarf_errmsg (rc);
   else

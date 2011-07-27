@@ -1,6 +1,6 @@
 /*
  Compile server client functions
- Copyright (C) 2010 Red Hat Inc.
+ Copyright (C) 2010-2011 Red Hat Inc.
 
  This file is part of systemtap, and is free software.  You can
  redistribute it and/or modify it under the terms of the GNU General
@@ -9,6 +9,7 @@
 */
 #include "config.h"
 #include "session.h"
+#include "cscommon.h"
 #include "csclient.h"
 #include "util.h"
 #include "stap-probe.h"
@@ -20,7 +21,6 @@
 #include <cassert>
 #include <cstdlib>
 #include <cstdio>
-#include <iomanip>
 #include <algorithm>
 
 extern "C" {
@@ -57,23 +57,37 @@ extern "C" {
 #include <prerror.h>
 #include <secerr.h>
 #include <sslerr.h>
+}
 
 #include "nsscommon.h"
-}
 #endif // HAVE_NSS
 
 using namespace std;
+
+#define STAP_CSC_01 _("WARNING: The domain name, %s, does not match the DNS name(s) on the server certificate:\n")
+#define STAP_CSC_02 _("could not find input file %s\n")
+#define STAP_CSC_03 _("could not open input file %s\n")
+#define STAP_CSC_04 _("Unable to open output file %s\n")
+#define STAP_CSC_05 _("could not write to %s\n")
+
+extern "C"
+void
+nsscommon_error (const char *msg, int logit __attribute ((unused)))
+{
+  clog << msg << endl << flush;
+}
 
 // Information about compile servers.
 struct compile_server_info
 {
   compile_server_info () : port (0) {}
 
-  std::string host_name;
-  std::string ip_address;
+  string host_name;
+  string ip_address;
   unsigned short port;
-  std::string sysinfo;
-  std::string certinfo;
+  string version;
+  string sysinfo;
+  string certinfo;
 
   bool empty () const
   {
@@ -95,6 +109,9 @@ struct compile_server_info
     // Compare the other fields only if they have both been set.
     if (this->port != 0 && that.port != 0 && this->port != that.port)
       return false;
+    if (! this->version.empty () && ! that.version.empty () &&
+	this->version != that.version)
+      return false;
     if (! this->sysinfo.empty () && ! that.sysinfo.empty () &&
 	this->sysinfo != that.sysinfo)
       return false;
@@ -103,9 +120,40 @@ struct compile_server_info
       return false;
     return true;
   }
+
+  // Used to sort servers by preference for order of contact. The preferred server is
+  // "less" than the other one.
+  bool operator< (const compile_server_info &that) const
+  {
+    // Prefer servers with a later (higher) version number.
+    cs_protocol_version this_version (this->version.c_str ());
+    cs_protocol_version that_version (that.version.c_str ());
+    return that_version < this_version;
+  }
 };
 
 ostream &operator<< (ostream &s, const compile_server_info &i);
+
+static void
+preferred_order (vector<compile_server_info> &servers)
+{
+  // Sort the given list of servers into the preferred order for contacting.
+  // Don't bother if there are less than 2 servers in the list.
+  if (servers.size () < 2)
+    return;
+
+  // Sort the list using compile_server_info::operator<
+  sort (servers.begin (), servers.end ());
+}
+
+struct compile_server_cache
+{
+  vector<compile_server_info> default_servers;
+  vector<compile_server_info> specified_servers;
+  vector<compile_server_info> trusted_servers;
+  vector<compile_server_info> signing_servers;
+  vector<compile_server_info> online_servers;
+};
 
 // For filtering queries.
 enum compile_server_properties {
@@ -118,6 +166,7 @@ enum compile_server_properties {
 };
 
 // Static functions.
+static compile_server_cache* cscache(systemtap_session& s);
 static void query_server_status (systemtap_session &s, const string &status_string);
 
 static void get_server_info (systemtap_session &s, int pmask, vector<compile_server_info> &servers);
@@ -141,23 +190,62 @@ static void merge_server_info (const vector<compile_server_info> &source, vector
 #endif
 static void resolve_host (systemtap_session& s, compile_server_info &server, vector<compile_server_info> &servers);
 
-#if HAVE_NSS
-static const char *server_cert_nickname = "stap-server";
+/* Exit error codes */
+#define SUCCESS                   0
+#define GENERAL_ERROR             1
+#define CA_CERT_INVALID_ERROR     2
+#define SERVER_CERT_EXPIRED_ERROR 3
 
+// Convert the given string to an ip address in host byte order.
+static unsigned
+stringToIpAddress (const string &s)
+{
+  if (s.empty ())
+    return 0; // unknown
+
+  vector<string>components;
+  tokenize (s, components, ".");
+  assert (components.size () >= 1);
+
+  unsigned ip = 0;
+  unsigned i;
+  for (i = 0; i < components.size (); ++i)
+    {
+      const char *ipstr = components[i].c_str ();
+      char *estr;
+      errno = 0;
+      unsigned a = strtoul (ipstr, & estr, 10);
+      if (errno == 0 && *estr == '\0' && a <= UCHAR_MAX)
+	ip = (ip << 8) + a;
+      else
+	return 0;
+    }
+
+  return ip;
+}
+
+#if HAVE_NSS
+// -----------------------------------------------------
+// NSS related code used by the compile server client
+// -----------------------------------------------------
 static void add_server_trust (systemtap_session &s, const string &cert_db_path, const vector<compile_server_info> &server_list);
 static void revoke_server_trust (systemtap_session &s, const string &cert_db_path, const vector<compile_server_info> &server_list);
 static void get_server_info_from_db (systemtap_session &s, vector<compile_server_info> &servers, const string &cert_db_path);
 
+static string global_client_cert_db_path () {
+  return SYSCONFDIR "/systemtap/ssl/client";
+}
+
 static string
-private_ssl_cert_db_path (const systemtap_session &s)
+private_ssl_cert_db_path ()
 {
-  return s.data_path + "/ssl/client";
+  return local_client_cert_db_path ();
 }
 
 static string
 global_ssl_cert_db_path ()
 {
-  return SYSCONFDIR "/systemtap/ssl/client";
+  return global_client_cert_db_path ();
 }
 
 static string
@@ -165,21 +253,507 @@ signing_cert_db_path ()
 {
   return SYSCONFDIR "/systemtap/staprun";
 }
-#endif // HAVE_NSS
+
+/* Connection state.  */
+typedef struct connectionState_t
+{
+  const char *hostName;
+  PRNetAddr   addr;
+  PRUint16    port;
+  const char *infileName;
+  const char *outfileName;
+  const char *trustNewServerMode;
+} connectionState_t;
+
+#if 0 /* No client authorization */
+static char *
+myPasswd(PK11SlotInfo *info, PRBool retry, void *arg)
+{
+  char * passwd = NULL;
+
+  if ( (!retry) && arg )
+    passwd = PORT_Strdup((char *)arg);
+
+  return passwd;
+}
+#endif
+
+/* Add the server's certificate to our database of trusted servers.  */
+static SECStatus
+trustNewServer (CERTCertificate *serverCert)
+{
+  SECStatus secStatus;
+  CERTCertTrust *trust = NULL;
+  PK11SlotInfo *slot = NULL;
+
+  /* Import the certificate.  */
+  slot = PK11_GetInternalKeySlot();
+  const char *nickname = server_cert_nickname ();
+  secStatus = PK11_ImportCert(slot, serverCert, CK_INVALID_HANDLE, nickname, PR_FALSE);
+  if (secStatus != SECSuccess)
+    goto done;
+  
+  /* Make it a trusted peer.  */
+  trust = (CERTCertTrust *)PORT_ZAlloc(sizeof(CERTCertTrust));
+  if (! trust)
+    {
+      secStatus = SECFailure;
+      goto done;
+    }
+
+  secStatus = CERT_DecodeTrustString(trust, "P,P,P");
+  if (secStatus != SECSuccess)
+    goto done;
+
+  secStatus = CERT_ChangeCertTrust(CERT_GetDefaultCertDB(), serverCert, trust);
+
+done:
+  if (slot)
+    PK11_FreeSlot (slot);
+  if (trust)
+    PORT_Free(trust);
+  return secStatus;
+}
+
+/* Called when the server certificate verification fails. This gives us
+   the chance to trust the server anyway and add the certificate to the
+   local database.  */
+static SECStatus
+badCertHandler(void *arg, PRFileDesc *sslSocket)
+{
+  SECStatus secStatus;
+  PRErrorCode errorNumber;
+  CERTCertificate *serverCert = NULL;
+  SECItem subAltName;
+  PRArenaPool *tmpArena = NULL;
+  CERTGeneralName *nameList, *current;
+  char *expected = NULL;
+  const connectionState_t *connectionState = (connectionState_t *)arg;
+
+  errorNumber = PR_GetError ();
+  switch (errorNumber)
+    {
+    case SSL_ERROR_BAD_CERT_DOMAIN:
+      /* Since we administer our own client-side databases of trustworthy
+	 certificates, we don't need the domain name(s) on the certificate to
+	 match. If the cert is in our database, then we can trust it.
+	 Issue a warning and accept the certificate.  */
+      expected = SSL_RevealURL (sslSocket);
+      fprintf (stderr, STAP_CSC_01, expected);
+
+      /* List the DNS names from the server cert as part of the warning.
+	 First, find the alt-name extension on the certificate.  */
+      subAltName.data = NULL;
+      serverCert = SSL_PeerCertificate (sslSocket);
+      secStatus = CERT_FindCertExtension (serverCert,
+					  SEC_OID_X509_SUBJECT_ALT_NAME,
+					  & subAltName);
+      if (secStatus != SECSuccess || ! subAltName.data)
+	{
+	  fprintf (stderr, _("Unable to find alt name extension on the server certificate\n"));
+	  secStatus = SECSuccess; /* Not a fatal error */
+	  break;
+	}
+
+      // Now, decode the extension.
+      tmpArena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+      if (! tmpArena) 
+	{
+	  fprintf (stderr, _("Out of memory\n"));
+	  secStatus = SECSuccess; /* Not a fatal error here */
+	  break;
+	}
+      nameList = CERT_DecodeAltNameExtension (tmpArena, & subAltName);
+      SECITEM_FreeItem(& subAltName, PR_FALSE);
+      if (! nameList)
+	{
+	  fprintf (stderr, _("Unable to decode alt name extension on server certificate\n"));
+	  secStatus = SECSuccess; /* Not a fatal error */
+	  break;
+	}
+
+      /* List the DNS names from the server cert as part of the warning.
+	 The names are in a circular list.  */
+      current = nameList;
+      do
+	{
+	  /* Make sure this is a DNS name.  */
+	  if (current->type == certDNSName)
+	    {
+	      fprintf (stderr, "  %.*s\n",
+		       (int)current->name.other.len, current->name.other.data);
+	    }
+	  current = CERT_GetNextGeneralName (current);
+	}
+      while (current != nameList);
+
+      /* Accept the certificate */
+      secStatus = SECSuccess;
+      break;
+
+    case SEC_ERROR_CA_CERT_INVALID:
+      /* The server's certificate is not trusted. Should we trust it? */
+      secStatus = SECFailure; /* Do not trust by default. */
+      if (! connectionState->trustNewServerMode)
+	break;
+
+      /* Trust it for this session only?  */
+      if (strcmp (connectionState->trustNewServerMode, "session") == 0)
+	{
+	  secStatus = SECSuccess;
+	  break;
+	}
+
+      /* Trust it permanently?  */
+      if (strcmp (connectionState->trustNewServerMode, "permanent") == 0)
+	{
+	  /* The user wants to trust this server. Get the server's certificate so
+	     and add it to our database.  */
+	  serverCert = SSL_PeerCertificate (sslSocket);
+	  if (serverCert != NULL)
+	    {
+	      secStatus = trustNewServer (serverCert);
+	    }
+	}
+      break;
+    default:
+      secStatus = SECFailure; /* Do not trust this server */
+      break;
+    }
+
+  if (expected)
+    PORT_Free (expected);
+  if (tmpArena)
+    PORT_FreeArena (tmpArena, PR_FALSE);
+
+  if (serverCert != NULL)
+    {
+      CERT_DestroyCertificate (serverCert);
+    }
+
+  return secStatus;
+}
+
+static PRFileDesc *
+setupSSLSocket (connectionState_t *connectionState)
+{
+  PRFileDesc         *tcpSocket;
+  PRFileDesc         *sslSocket;
+  PRSocketOptionData	socketOption;
+  PRStatus            prStatus;
+  SECStatus           secStatus;
+
+  tcpSocket = PR_NewTCPSocket();
+  if (tcpSocket == NULL)
+    goto loser;
+
+  /* Make the socket blocking. */
+  socketOption.option = PR_SockOpt_Nonblocking;
+  socketOption.value.non_blocking = PR_FALSE;
+
+  prStatus = PR_SetSocketOption(tcpSocket, &socketOption);
+  if (prStatus != PR_SUCCESS)
+    goto loser;
+
+  /* Import the socket into the SSL layer. */
+  sslSocket = SSL_ImportFD(NULL, tcpSocket);
+  if (!sslSocket)
+    goto loser;
+
+  /* Set configuration options. */
+  secStatus = SSL_OptionSet(sslSocket, SSL_SECURITY, PR_TRUE);
+  if (secStatus != SECSuccess)
+    goto loser;
+
+  secStatus = SSL_OptionSet(sslSocket, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE);
+  if (secStatus != SECSuccess)
+    goto loser;
+
+  /* Set SSL callback routines. */
+#if 0 /* no client authentication */
+  secStatus = SSL_GetClientAuthDataHook(sslSocket,
+					(SSLGetClientAuthData)myGetClientAuthData,
+					(void *)certNickname);
+  if (secStatus != SECSuccess)
+    goto loser;
+#endif
+#if 0 /* Use the default */
+  secStatus = SSL_AuthCertificateHook(sslSocket,
+				      (SSLAuthCertificate)myAuthCertificate,
+				      (void *)CERT_GetDefaultCertDB());
+  if (secStatus != SECSuccess)
+    goto loser;
+#endif
+
+  secStatus = SSL_BadCertHook(sslSocket, (SSLBadCertHandler)badCertHandler,
+			      connectionState);
+  if (secStatus != SECSuccess)
+    goto loser;
+
+#if 0 /* No handshake callback */
+  secStatus = SSL_HandshakeCallback(sslSocket, myHandshakeCallback, NULL);
+  if (secStatus != SECSuccess)
+    goto loser;
+#endif
+
+  return sslSocket;
+
+ loser:
+  if (tcpSocket)
+    PR_Close(tcpSocket);
+  return NULL;
+}
+
+
+static SECStatus
+handle_connection (PRFileDesc *sslSocket, connectionState_t *connectionState)
+{
+  PRInt32     numBytes;
+  char       *readBuffer;
+  PRFileInfo  info;
+  PRFileDesc *local_file_fd;
+  PRStatus    prStatus;
+  SECStatus   secStatus = SECSuccess;
+
+#define READ_BUFFER_SIZE (60 * 1024)
+
+  /* If we don't have both the input and output file names, then we're
+     contacting this server only in order to establish trust. In this case send
+     0 as the file size and exit. */
+  if (! connectionState->infileName || ! connectionState->outfileName)
+    {
+      numBytes = htonl ((PRInt32)0);
+      numBytes = PR_Write (sslSocket, & numBytes, sizeof (numBytes));
+      if (numBytes < 0)
+	return SECFailure;
+      return SECSuccess;
+    }
+
+  /* read and send the data. */
+  /* Try to open the local file named.	
+   * If successful, then write it to the server
+   */
+  prStatus = PR_GetFileInfo(connectionState->infileName, &info);
+  if (prStatus != PR_SUCCESS ||
+      info.type != PR_FILE_FILE ||
+      info.size < 0)
+    {
+      fprintf (stderr, STAP_CSC_02,
+	       connectionState->infileName);
+      return SECFailure;
+    }
+
+  local_file_fd = PR_Open(connectionState->infileName, PR_RDONLY, 0);
+  if (local_file_fd == NULL)
+    {
+      fprintf (stderr, STAP_CSC_03, connectionState->infileName);
+      return SECFailure;
+    }
+
+  /* Send the file size first, so the server knows when it has the entire file. */
+  numBytes = htonl ((PRInt32)info.size);
+  numBytes = PR_Write(sslSocket, & numBytes, sizeof (numBytes));
+  if (numBytes < 0)
+    {
+      PR_Close(local_file_fd);
+      return SECFailure;
+    }
+
+  /* Transmit the local file across the socket.  */
+  numBytes = PR_TransmitFile(sslSocket, local_file_fd, 
+			     NULL, 0,
+			     PR_TRANSMITFILE_KEEP_OPEN,
+			     PR_INTERVAL_NO_TIMEOUT);
+  if (numBytes < 0)
+    {
+      PR_Close(local_file_fd);
+      return SECFailure;
+    }
+
+  PR_Close(local_file_fd);
+
+  /* read until EOF */
+  readBuffer = (char *)PORT_Alloc(READ_BUFFER_SIZE);
+  if (! readBuffer) {
+    fprintf (stderr, _("Out of memory\n"));
+    return SECFailure;
+  }
+
+  local_file_fd = PR_Open(connectionState->outfileName, PR_WRONLY | PR_CREATE_FILE | PR_TRUNCATE,
+			  PR_IRUSR | PR_IWUSR | PR_IRGRP | PR_IWGRP | PR_IROTH);
+  if (local_file_fd == NULL)
+    {
+      fprintf (stderr, STAP_CSC_04, connectionState->outfileName);
+      return SECFailure;
+    }
+  while (PR_TRUE)
+    {
+      numBytes = PR_Read(sslSocket, readBuffer, READ_BUFFER_SIZE);
+      if (numBytes == 0)
+	break;	/* EOF */
+
+      if (numBytes < 0)
+	{
+	  secStatus = SECFailure;
+	  break;
+	}
+
+      /* Write to output file */
+      numBytes = PR_Write(local_file_fd, readBuffer, numBytes);
+      if (numBytes < 0)
+	{
+	  fprintf (stderr, STAP_CSC_05, connectionState->outfileName);
+	  secStatus = SECFailure;
+	  break;
+	}
+    }
+
+  PR_Free(readBuffer);
+  PR_Close(local_file_fd);
+
+  /* Caller closes the socket. */
+  return secStatus;
+}
+
+/* make the connection.
+*/
+static SECStatus
+do_connect (connectionState_t *connectionState)
+{
+  PRFileDesc *sslSocket;
+  PRStatus    prStatus;
+  SECStatus   secStatus;
+
+  secStatus = SECSuccess;
+
+  /* Set up SSL secure socket. */
+  sslSocket = setupSSLSocket (connectionState);
+  if (sslSocket == NULL)
+    return SECFailure;
+
+#if 0 /* no client authentication */
+  secStatus = SSL_SetPKCS11PinArg(sslSocket, password);
+  if (secStatus != SECSuccess)
+    goto done;
+#endif
+
+  secStatus = SSL_SetURL(sslSocket, connectionState->hostName);
+  if (secStatus != SECSuccess)
+    goto done;
+
+  prStatus = PR_Connect(sslSocket, & connectionState->addr, PR_INTERVAL_NO_TIMEOUT);
+  if (prStatus != PR_SUCCESS)
+    {
+      secStatus = SECFailure;
+      goto done;
+    }
+
+  /* Established SSL connection, ready to send data. */
+  secStatus = SSL_ResetHandshake(sslSocket, /* asServer */ PR_FALSE);
+  if (secStatus != SECSuccess)
+    goto done;
+
+  /* This is normally done automatically on the first I/O operation,
+     but doing it here catches any authentication problems early.  */
+  secStatus = SSL_ForceHandshake(sslSocket);
+  if (secStatus != SECSuccess)
+    goto done;
+
+  // Connect to the server and make the request.
+  secStatus = handle_connection(sslSocket, connectionState);
+
+ done:
+  prStatus = PR_Close(sslSocket);
+  return secStatus;
+}
+
+int
+client_connect (const char *hostName, PRUint32 ip,
+	     PRUint16 port,
+	     const char* infileName, const char* outfileName,
+	     const char* trustNewServer)
+{
+  SECStatus   secStatus;
+  PRStatus    prStatus;
+  PRInt32     rv;
+  PRHostEnt   hostEntry;
+  PRErrorCode errorNumber;
+  char        buffer[PR_NETDB_BUF_SIZE];
+  int         attempt;
+  int         errCode = GENERAL_ERROR;
+  struct connectionState_t connectionState;
+
+  connectionState.hostName = hostName;
+  connectionState.port = port;
+  connectionState.infileName = infileName;
+  connectionState.outfileName = outfileName;
+  connectionState.trustNewServerMode = trustNewServer;
+
+  /* Setup network connection. If we have an ip address, then
+     simply use it, otherwise we need to resolve the host name.  */
+  if (ip)
+    {
+      connectionState.addr.inet.family = PR_AF_INET;
+      connectionState.addr.inet.port = htons (port);
+      connectionState.addr.inet.ip = htonl (ip);
+    }
+  else
+    {
+      prStatus = PR_GetHostByName(hostName, buffer, sizeof (buffer), &hostEntry);
+      if (prStatus != PR_SUCCESS) {
+	fprintf (stderr, _("Unable to resolve server host name"));
+	return errCode;
+      }
+
+      rv = PR_EnumerateHostEnt(0, &hostEntry, port, &connectionState.addr);
+      if (rv < 0) {
+	fprintf (stderr, _("Unable to resolve server host address"));
+	return errCode;
+      }
+    }
+
+  /* Some errors (see below) represent a situation in which trying again
+     should succeed. However, don't try forever.  */
+  for (attempt = 0; attempt < 5; ++attempt)
+    {
+      secStatus = do_connect (& connectionState);
+      if (secStatus == SECSuccess)
+	return SUCCESS;
+
+      errorNumber = PR_GetError ();
+      switch (errorNumber)
+	{
+	case PR_CONNECT_RESET_ERROR:
+	  /* Server was not ready. */
+	  sleep (1);
+	  break; /* Try again */
+	case SEC_ERROR_EXPIRED_CERTIFICATE:
+	  /* The server's certificate has expired. It should
+	     generate a new certificate. Return now and we'll try again. */
+	  errCode = SERVER_CERT_EXPIRED_ERROR;
+	  return errCode;
+	case SEC_ERROR_CA_CERT_INVALID:
+	  /* The server's certificate is not trusted. The exit code must
+	     reflect this.  */
+	  errCode = CA_CERT_INVALID_ERROR;
+	  return errCode;
+	default:
+	  /* This error is fatal.  */
+	  return errCode;
+	}
+    }
+
+  return errCode;
+}
 
 int
 compile_server_client::passes_0_4 ()
 {
   PROBE1(stap, client__start, &s);
 
-#if ! HAVE_NSS
-  // This code will never be called, if we don't have NSS, but it must still
-  // compile.
-  return 1; // Failure
-#else
   // arguments parsed; get down to business
   if (s.verbose > 1)
-    clog << "Using a compile server" << endl;
+    clog << _("Using a compile server.") << endl;
 
   struct tms tms_before;
   times (& tms_before);
@@ -227,10 +801,16 @@ compile_server_client::passes_0_4 ()
   // syntax errors, if any, are already printed
   if (s.verbose)
     {
-      clog << "Passes: via server " << s.winning_server << " "
+      string ws = s.winning_server;
+      if (ws == "") ws = "?";
+      clog << _("Passes: via server ") << ws << " "
            << getmemusage()
            << TIMESPRINT
            << endl;
+    }
+  if (rc)
+    {
+      clog << _("Passes: via server failed.  Try again with another '-v' option.") << endl;
     }
 
   if (rc == 0)
@@ -258,10 +838,8 @@ compile_server_client::passes_0_4 ()
   PROBE1(stap, client__end, &s);
 
   return rc;
-#endif // HAVE_NSS
 }
 
-#if HAVE_NSS
 // Initialize a client/server session.
 int
 compile_server_client::initialize ()
@@ -272,7 +850,7 @@ compile_server_client::initialize ()
   argc = 0;
 
   // Private location for server certificates.
-  private_ssl_dbs.push_back (private_ssl_cert_db_path (s));
+  private_ssl_dbs.push_back (private_ssl_cert_db_path ());
 
   // Additional public location.
   public_ssl_dbs.push_back (global_ssl_cert_db_path ());
@@ -283,7 +861,7 @@ compile_server_client::initialize ()
   if (rc != 0)
     {
       const char* e = strerror (errno);
-      cerr << "ERROR: cannot create temporary directory (\""
+      clog << _("ERROR: cannot create temporary directory (\"")
 	   << client_tmpdir << "\"): " << e
 	   << endl;
     }
@@ -295,7 +873,10 @@ compile_server_client::initialize ()
 int
 compile_server_client::create_request ()
 {
-  int rc = 0;
+  // Add the current protocol version.
+  int rc = write_to_file (client_tmpdir + "/version", CURRENT_CS_PROTOCOL_VERSION);
+  if (rc != 0)
+    return rc;
 
   // Add the script file or script option
   if (s.script_file != "")
@@ -308,7 +889,7 @@ compile_server_client::create_request ()
 	  if (rc != 0)
 	    {
 	      const char* e = strerror (errno);
-	      cerr << "ERROR: cannot create temporary directory "
+	      clog << _("ERROR: cannot create temporary directory ")
 		   << packaged_script_dir << ": " << e
 		   << endl;
 	      return rc;
@@ -355,6 +936,11 @@ compile_server_client::create_request ()
   // Add the sysinfo file
   string sysinfo = "sysinfo: " + s.kernel_release + " " + s.architecture;
   rc = write_to_file (client_tmpdir + "/sysinfo", sysinfo);
+  if (rc != 0)
+    return rc;
+
+  // Add localization data
+  rc = add_localization_variables();
 
   return rc;
 }
@@ -404,7 +990,7 @@ compile_server_client::add_package_arg (const string &arg)
 // directory under the given subdirectory.
 int
 compile_server_client::include_file_or_directory (
-  const string &subdir, const string &path, const char *option
+  const string &subdir, const string &path
 )
 {
   // Must predeclare these because we do use 'goto done' to
@@ -436,6 +1022,16 @@ compile_server_client::include_file_or_directory (
       rpath = cpath;
       free (cpath);
 
+      // Including / would require special handling in the code below and
+      // is a bad idea anyway. Let's not allow it.
+      if (rpath == "/")
+	{
+	  if (rpath != path)
+	    clog << _F("%s resolves to %s\n", path.c_str (), rpath.c_str ());
+	  clog << _F("Unable to send %s to the server\n", path.c_str ());
+	  return 1;
+	}
+
       // First create the requested subdirectory.
       name = client_tmpdir + "/" + subdir;
       rc = create_dir (name.c_str ());
@@ -462,26 +1058,46 @@ compile_server_client::include_file_or_directory (
       if (rc) goto done;
     }
 
-  // Name this file or directory in the packaged arguments along with any
-  // associated option.
-  if (option)
-    {
-      rc = add_package_arg (option);
-      if (rc) goto done;
-    }
-
+  // Name this file or directory in the packaged arguments.
   rc = add_package_arg (subdir + "/" + rpath.substr (1));
 
  done:
   if (rc != 0)
     {
       const char* e = strerror (errno);
-      cerr << "ERROR: unable to add "
+      clog << "ERROR: unable to add "
 	   << rpath
 	   << " to temp directory as "
 	   << name << ": " << e
 	   << endl;
     }
+  return rc;
+}
+
+// Add the localization variables to the server request
+// package.
+int
+compile_server_client::add_localization_variables()
+{
+  int rc;
+  string envVar;
+  string fname;
+
+  const set<string> &locVars = localization_variables();
+  set<string>::iterator it;
+
+  /* Note: We don't have to check for the contents of the environment
+   * variables here, since they will be checked extensively on the
+   * server.
+   */
+  for (it = locVars.begin(); it != locVars.end(); it++)
+    {
+      char* var = getenv((*it).c_str());
+      if (var)
+        envVar += *it + "=" + (string)var + "\n";
+    }
+  fname = client_tmpdir + "/locale";
+  rc = write_to_file(fname, envVar);
   return rc;
 }
 
@@ -492,8 +1108,13 @@ compile_server_client::package_request ()
 {
   // Package up the temporary directory into a zip file.
   client_zipfile = client_tmpdir + ".zip";
-  string cmd = "cd " + client_tmpdir + " && zip -qr " + client_zipfile + " *";
-  int rc = stap_system (s.verbose, cmd);
+  string cmd = "cd " + cmdstr_quoted(client_tmpdir) + " && zip -qr "
+      + cmdstr_quoted(client_zipfile) + " *";
+  vector<string> sh_cmd;
+  sh_cmd.push_back("sh");
+  sh_cmd.push_back("-c");
+  sh_cmd.push_back(cmd);
+  int rc = stap_system (s.verbose, sh_cmd);
   return rc;
 }
 
@@ -545,52 +1166,34 @@ compile_server_client::find_and_connect_to_server ()
   unsigned limit = server_list.size ();
   if (limit == 0)
     {
-      cerr << "Unable to find a server" << endl;
+      clog << _("Unable to find a compile server.") << endl;
       return 1;
     }
 
+  // Sort the list of servers into a preferred order.
+  preferred_order (server_list);
+
   // Now try each of the identified servers in turn.
   int rc = compile_using_server (server_list);
-  if (rc == 0)
+  if (rc == SUCCESS)
     return 0; // success!
 
-  return 1; // Failure - message already generated.
-}
-
-// Temporary until the stap-client-connect program goes away.
-extern "C"
-int
-client_main (const char *hostName, PRUint32 ip, PRUint16 port,
-	     const char* infileName, const char* outfileName,
-	     const char* trustNewServer);
-#endif // HAVE_NSS
-
-// Convert the given string to an ip address in host byte order.
-static unsigned
-stringToIpAddress (const string &s)
-{
-  if (s.empty ())
-    return 0; // unknown
-
-  vector<string>components;
-  tokenize (s, components, ".");
-  assert (components.size () >= 1);
-
-  unsigned ip = 0;
-  unsigned i;
-  for (i = 0; i < components.size (); ++i)
+  // If the error was that a server's cert was expired, try again. This is because the server
+  // should generate a new cert which may be automatically trusted by us if it is our server.
+  // Give the server a chance to do this before retrying.
+  if (rc == SERVER_CERT_EXPIRED_ERROR)
     {
-      const char *ipstr = components[i].c_str ();
-      char *estr;
-      errno = 0;
-      unsigned a = strtoul (ipstr, & estr, 10);
-      if (errno == 0 && *estr == '\0' && a <= UCHAR_MAX)
-	ip = (ip << 8) + a;
-      else
-	return 0;
+      if (s.verbose > 1)
+	clog << _("A server's certificate was expired. Trying again") << endl << flush;
+      sleep (2);
+      rc = compile_using_server (server_list);
+      if (rc == SUCCESS)
+	return 0; // success!
     }
 
-  return ip;
+  // We were unable to use any available server
+  clog << _("Unable to connect to a server.") << endl;
+  return 1; // Failure
 }
 
 int 
@@ -598,10 +1201,7 @@ compile_server_client::compile_using_server (
   const vector<compile_server_info> &servers
 )
 {
-  // This code will never be called if we don't have NSS, but it must still
-  // compile.
-#if HAVE_NSS
-  // Make sure NSPR is initialized
+  // Make sure NSPR is initialized. Must be done before NSS is initialized
   s.NSPR_init ();
 
   // Attempt connection using each of the available client certificate
@@ -610,7 +1210,8 @@ compile_server_client::compile_using_server (
   vector<string> dbs = private_ssl_dbs;
   vector<string>::iterator i = dbs.end();
   dbs.insert (i, public_ssl_dbs.begin (), public_ssl_dbs.end ());
-  int rc = 1; // assume failure
+  int rc = GENERAL_ERROR; // assume failure
+  bool serverCertExpired = false;
   for (i = dbs.begin (); i != dbs.end (); ++i)
     {
       // Make sure the database directory exists. It is not an error if it
@@ -625,23 +1226,25 @@ compile_server_client::compile_using_server (
 
       // Initialize the NSS libraries.
       const char *cert_dir = i->c_str ();
-      SECStatus secStatus = NSS_InitReadWrite (cert_dir);
+      SECStatus secStatus = nssInit (cert_dir);
       if (secStatus != SECSuccess)
 	{
-	  // Try it again, readonly.
-	  secStatus = NSS_Init(cert_dir);
-	  if (secStatus != SECSuccess)
-	    {
-	      cerr << "Error initializing NSS" << endl;
-	      nssError ();
-	      NSS_Shutdown();
-	      continue; // try next database
-	    }
+	  // Message already issued.
+	  continue; // try next database
 	}
 
-      // All cipher suites except RSA_NULL_MD5 are enabled by Domestic Policy.
-      NSS_SetDomesticPolicy ();
-
+      // Enable cipher suites which are allowed by U.S. export regulations.
+      // SSL_ClearSessionCache is required for the new settings to take effect.
+      secStatus = NSS_SetExportPolicy ();
+      SSL_ClearSessionCache ();
+      if (secStatus != SECSuccess)
+	{
+	  clog << _("Unable to set NSS export policy");
+	  nssError ();
+	  nssCleanup (cert_dir);
+	  continue; // try next database
+	}
+  
       server_zipfile = s.tmpdir + "/server.zip";
 
       // Try each server in turn.
@@ -650,9 +1253,9 @@ compile_server_client::compile_using_server (
 	   ++j)
 	{
 	  if (s.verbose > 1)
-	    clog << "Attempting SSL connection with " << *j << endl
-		 << "  using certificates from the database in " << cert_dir
-		 << endl;
+           clog << _F("Attempting SSL connection with %s\n"
+                "  using certificates from the database in %s\n",
+                lex_cast(*j).c_str(), cert_dir);
 
 	  // The host name defaults to the ip address, if not specified.
 	  string hostName;
@@ -664,12 +1267,12 @@ compile_server_client::compile_using_server (
 	  else
 	    hostName = j->host_name;
 
-	  rc = client_main (hostName.c_str (),
-			    stringToIpAddress (j->ip_address),
-			    j->port,
-			    client_zipfile.c_str(), server_zipfile.c_str (),
-			    NULL/*trustNewServer_p*/);
-	  if (rc == SECSuccess)
+	  rc = client_connect (hostName.c_str (),
+			       stringToIpAddress (j->ip_address),
+			       j->port,
+			       client_zipfile.c_str(), server_zipfile.c_str (),
+			       NULL/*trustNewServer_p*/);
+	  if (rc == SUCCESS)
 	    {
 	      s.winning_server =
 		hostName + string(" [") +
@@ -678,65 +1281,89 @@ compile_server_client::compile_using_server (
 	      break; // Success!
 	    }
 
+	  // Server cert has expired. Try other servers and/or databases, but take note because
+	  // server should generate a new certificate. If no other servers succeed, we'll try again
+	  // in case the new cert works.
+	  if (rc == SERVER_CERT_EXPIRED_ERROR)
+	    {
+	      serverCertExpired = true;
+	      continue;
+	    }
+
 	  if (s.verbose > 1)
 	    {
-	      clog << "  Unable to connect: ";
+	      clog << _("  Unable to connect: ");
 	      nssError ();
 	    }
 	}
- 
-      NSS_Shutdown();
+
+      // SSL_ClearSessionCache is required before shutdown for client applications.
+      SSL_ClearSessionCache ();
+      nssCleanup (cert_dir);
 
       if (rc == SECSuccess)
 	break; // Success!
     }
 
-  if (rc != SECSuccess)
-    cerr << "Unable to connect to a server" << endl;
+  // Indicate whether a server cert was expired, so we can try again, if desired.
+  if (rc != SUCCESS)
+    {
+      if (serverCertExpired)
+	rc = SERVER_CERT_EXPIRED_ERROR;
+    }
 
   return rc;
-#endif // HAVE_NSS
-
-  return 1; // Failure
 }
 
-#if HAVE_NSS
 int
 compile_server_client::unpack_response ()
 {
   // Unzip the response package.
   server_tmpdir = s.tmpdir + "/server";
-  string cmd = "unzip -qd " + server_tmpdir + " " + server_zipfile;
+  vector<string> cmd;
+  cmd.push_back("unzip");
+  cmd.push_back("-qd");
+  cmd.push_back(server_tmpdir);
+  cmd.push_back(server_zipfile);
   int rc = stap_system (s.verbose, cmd);
   if (rc != 0)
     {
-      cerr << "Unable to unzip the server reponse '" << server_zipfile << '\''
-	   << endl;
+      clog << _F("Unable to unzip the server response '%s'\n", server_zipfile.c_str());
+      return rc;
     }
+
+  // Determine the server protocol version.
+  string filename = server_tmpdir + "/version";
+  if (file_exists (filename))
+    ::read_from_file (filename, server_version);
+
+  // Warn about the shortcomings of this server, if it is down level.
+  show_server_compatibility ();
 
   // If the server's response contains a systemtap temp directory, move
   // its contents to our temp directory.
   glob_t globbuf;
   string filespec = server_tmpdir + "/stap??????";
   if (s.verbose > 2)
-    clog << "Searching \"" << filespec << "\"" << endl;
+    clog << _F("Searching \"%s\"\n", filespec.c_str());
   int r = glob(filespec.c_str (), 0, NULL, & globbuf);
   if (r != GLOB_NOSPACE && r != GLOB_ABORTED && r != GLOB_NOMATCH)
     {
       if (globbuf.gl_pathc > 1)
 	{
-	  cerr << "Incorrect number of files in server response" << endl;
-	  rc = 1; goto done;
+	  clog << _("Incorrect number of files in server response") << endl;
+	  rc = 1;
+	  goto done;
 	}
 
       assert (globbuf.gl_pathc == 1);
       string dirname = globbuf.gl_pathv[0];
       if (s.verbose > 2)
-	clog << "  found " << dirname << endl;
+	clog << _("  found ") << dirname << endl;
 
       filespec = dirname + "/*";
       if (s.verbose > 2)
-	clog << "Searching \"" << filespec << "\"" << endl;
+       clog << _F("Searching \"%s\"\n", filespec.c_str());
       int r = glob(filespec.c_str (), GLOB_PERIOD, NULL, & globbuf);
       if (r != GLOB_NOSPACE && r != GLOB_ABORTED && r != GLOB_NOMATCH)
 	{
@@ -749,27 +1376,38 @@ compile_server_client::unpack_response ()
 		continue;
 	      string newname = s.tmpdir + "/" + oldname.substr (prefix_len);
 	      if (s.verbose > 2)
-		clog << "  found " << oldname
-		     << " -- linking from " << newname << endl;
+               clog << _F("  found %s -- linking from %s", oldname.c_str(), newname.c_str());
 	      rc = symlink (oldname.c_str (), newname.c_str ());
 	      if (rc != 0)
 		{
-		  cerr << "Unable to link '" << oldname
-		       << "' to '" << newname << "': "
-		       << strerror (errno) << endl;
+                 clog << _F("Unable to link '%s' to '%s':%s\n",
+			    oldname.c_str(), newname.c_str(), strerror(errno));
 		  goto done;
 		}
 	    }
 	}
     }
 
-  // Remove the output line due to the synthetic server-side -k
-  cmd = "sed -i '/^Keeping temporary directory.*/ d' " +
-    server_tmpdir + "/stderr";
-  stap_system (s.verbose, cmd);
+  // If the server version is less that 1.6, remove the output line due to the synthetic
+  // server-side -k. Look for a message containing the name of the temporary directory.
+  // We can look for the English message since server versions before 1.1 do not support
+  // localization.
+  if (server_version < "1.6")
+    {
+      cmd.clear();
+      cmd.push_back("sed");
+      cmd.push_back("-i");
+      cmd.push_back("/^Keeping temporary directory.*/ d");
+      cmd.push_back(server_tmpdir + "/stderr");
+      stap_system (s.verbose, cmd);
+    }
 
   // Remove the output line due to the synthetic server-side -p4
-  cmd = "sed -i '/^.*\\.ko$/ d' " + server_tmpdir + "/stdout";
+  cmd.clear();
+  cmd.push_back("sed");
+  cmd.push_back("-i");
+  cmd.push_back("/^.*\\.ko$/ d");
+  cmd.push_back(server_tmpdir + "/stdout");
   stap_system (s.verbose, cmd);
 
  done:
@@ -793,20 +1431,20 @@ compile_server_client::process_response ()
       // The server should have returned a module.
       string filespec = s.tmpdir + "/*.ko";
       if (s.verbose > 2)
-	clog << "Searching \"" << filespec << "\"" << endl;
+       clog << _F("Searching \"%s\"\n", filespec.c_str());
 
       glob_t globbuf;
       int r = glob(filespec.c_str (), 0, NULL, & globbuf);
       if (r != GLOB_NOSPACE && r != GLOB_ABORTED && r != GLOB_NOMATCH)
 	{
 	  if (globbuf.gl_pathc > 1)
-	    cerr << "Incorrect number of modules in server response" << endl;
+	    clog << _("Incorrect number of modules in server response") << endl;
 	  else
 	    {
 	      assert (globbuf.gl_pathc == 1);
 	      string modname = globbuf.gl_pathv[0];
 	      if (s.verbose > 2)
-		clog << "  found " << modname << endl;
+		clog << _("  found ") << modname << endl;
 
 	      // If a module name was not specified by the user, then set it to
 	      // be the one generated by the server.
@@ -819,10 +1457,16 @@ compile_server_client::process_response ()
 		}
 
 	      // If a uprobes.ko module was returned, then make note of it.
-	      if (file_exists (s.tmpdir + "/server/uprobes.ko"))
+	      string uprobes_ko;
+	      if (server_version < "1.6")
+		uprobes_ko = s.tmpdir + "/server/uprobes.ko";
+	      else
+		uprobes_ko = s.tmpdir + "/uprobes/uprobes.ko";
+
+	      if (file_exists (uprobes_ko))
 		{
 		  s.need_uprobes = true;
-		  s.uprobes_path = s.tmpdir + "/server/uprobes.ko";
+		  s.uprobes_path = uprobes_ko;
 		}
 	    }
 	}
@@ -830,7 +1474,7 @@ compile_server_client::process_response ()
 	{
 	  if (rc == 0)
 	    {
-	      cerr << "No module was returned by the server" << endl;
+	      clog << _("No module was returned by the server.") << endl;
 	      rc = 1;
 	    }
 	}
@@ -839,7 +1483,7 @@ compile_server_client::process_response ()
 
   // Output stdout and stderr.
   filename = server_tmpdir + "/stderr";
-  flush_to_stream (filename, cerr);
+  flush_to_stream (filename, clog);
 
   filename = server_tmpdir + "/stdout";
   flush_to_stream (filename, cout);
@@ -857,7 +1501,7 @@ compile_server_client::read_from_file (const string &fname, int &data)
   ifstream f (fname.c_str ());
   if (! f.good ())
     {
-      cerr << "Unable to open file '" << fname << "' for reading: ";
+      clog << _F("Unable to open file '%s' for reading: ", fname.c_str());
       goto error;
     }
 
@@ -866,7 +1510,7 @@ compile_server_client::read_from_file (const string &fname, int &data)
   f >> data;
   if (f.fail ())
     {
-      cerr << "Unable to read from file '" << fname << "': ";
+      clog << _F("Unable to read from file '%s': ", fname.c_str());
       goto error;
     }
 
@@ -875,14 +1519,15 @@ compile_server_client::read_from_file (const string &fname, int &data)
 
  error:
   if (errno)
-    cerr << strerror (errno) << endl;
+    clog << strerror (errno) << endl;
   else
-    cerr << "unknown error" << endl;
+    clog << _("unknown error") << endl;
   return 1; // Failure
 }
 
+template <class T>
 int
-compile_server_client::write_to_file (const string &fname, const string &data)
+compile_server_client::write_to_file (const string &fname, const T &data)
 {
   // C++ streams may not set errno in the even of a failure. However if we
   // set it to 0 before each operation and it gets set during the operation,
@@ -891,7 +1536,7 @@ compile_server_client::write_to_file (const string &fname, const string &data)
   ofstream f (fname.c_str ());
   if (! f.good ())
     {
-      cerr << "Unable to open file '" << fname << "' for writing: ";
+      clog << _F("Unable to open file '%s' for writing: ", fname.c_str());
       goto error;
     }
 
@@ -900,7 +1545,7 @@ compile_server_client::write_to_file (const string &fname, const string &data)
   errno = 0;
   if (f.fail ())
     {
-      cerr << "Unable to write to file '" << fname << "': ";
+      clog << _F("Unable to write to file '%s': ", fname.c_str());
       goto error;
     }
 
@@ -909,9 +1554,9 @@ compile_server_client::write_to_file (const string &fname, const string &data)
 
  error:
   if (errno)
-    cerr << strerror (errno) << endl;
+    clog << strerror (errno) << endl;
   else
-    cerr << "unknown error" << endl;
+    clog << _("unknown error") << endl;
   return 1; // Failure
 }
 
@@ -925,14 +1570,14 @@ compile_server_client::flush_to_stream (const string &fname, ostream &o)
   ifstream f (fname.c_str ());
   if (! f.good ())
     {
-      cerr << "Unable to open file '" << fname << "' for reading: ";
+      clog << _F("Unable to open file '%s' for reading: ", fname.c_str());
       goto error;
     }
 
   // Stream the data
 
   // NB: o << f.rdbuf() misbehaves for some reason, appearing to close o,
-  // which is unfortunate if o == cerr or cout.
+  // which is unfortunate if o == clog or cout.
   while (1)
     {
       errno = 0;
@@ -947,10 +1592,425 @@ compile_server_client::flush_to_stream (const string &fname, ostream &o)
 
  error:
   if (errno)
-    cerr << strerror (errno) << endl;
+    clog << strerror (errno) << endl;
   else
-    cerr << "unknown error" << endl;
+    clog << _("unknown error") << endl;
   return 1; // Failure
+}
+
+void
+compile_server_client::show_server_compatibility () const
+{
+  // Locale sensitivity was added in version 1.6
+  if (server_version < "1.6")
+    {
+      clog << _F("Server protocol version is %s\n", server_version.v);
+      clog << _("The server does not use localization information passed by the client\n");
+    }
+}
+
+// Issue a status message for when a server's trust is already in place.
+static void
+trust_already_in_place (
+  const compile_server_info &server,
+  const vector<compile_server_info> &server_list,
+  const string cert_db_path,
+  bool revoking
+)
+{
+  // What level of trust?
+  string purpose;
+  if (cert_db_path == signing_cert_db_path ())
+    purpose = _("as a module signer for all users");
+  else
+    {
+      purpose = _("as an SSL peer");
+      if (cert_db_path == global_ssl_cert_db_path ())
+	purpose += _(" for all users");
+      else
+	purpose += _(" for the current user");
+    }
+
+  // Issue a message for each server in the list with the same certificate.
+  unsigned limit = server_list.size ();
+  for (unsigned i = 0; i < limit; ++i)
+    {
+      if (server.certinfo != server_list[i].certinfo)
+	continue;
+      clog << server_list[i] << _(" is already ");
+      if (revoking)
+	clog << _("untrusted ") << purpose << endl;
+      else
+       clog << _("trusted ") << purpose << endl;
+    }
+}
+
+// Add the given servers to the given database of trusted servers.
+static void
+add_server_trust (
+  systemtap_session &s,
+  const string &cert_db_path,
+  const vector<compile_server_info> &server_list
+)
+{
+  // Get a list of servers already trusted. This opens the database, so do it
+  // before we open it for our own purposes.
+  vector<compile_server_info> already_trusted;
+  get_server_info_from_db (s, already_trusted, cert_db_path);
+
+  // Make sure the given path exists.
+  if (create_dir (cert_db_path.c_str (), 0755) != 0)
+    {
+      clog << _F("Unable to find or create the client certificate database directory %s: ", cert_db_path.c_str());
+      perror ("");
+      return;
+    }
+
+  // Must predeclare this because of jumps to cleanup: below.
+  vector<string> processed_certs;
+
+  // Make sure NSPR is initialized. Must be done before NSS is initialized
+  s.NSPR_init ();
+
+  // Initialize the NSS libraries -- read/write
+  SECStatus secStatus = nssInit (cert_db_path.c_str (), 1/*readwrite*/);
+  if (secStatus != SECSuccess)
+    {
+      // Message already issued.
+      goto cleanup;
+    }
+
+  // Enable cipher suites which are allowed by U.S. export regulations.
+  // SSL_ClearSessionCache is required for the new settings to take effect.
+  secStatus = NSS_SetExportPolicy ();
+  SSL_ClearSessionCache ();
+  if (secStatus != SECSuccess)
+    {
+      clog << _("Unable to set NSS export policy");
+      nssError ();
+      goto cleanup;
+    }
+  
+  // Iterate over the servers to become trusted. Contact each one and
+  // add it to the list of trusted servers if it is not already trusted.
+  // client_connect will issue any error messages.
+  for (vector<compile_server_info>::const_iterator server = server_list.begin();
+       server != server_list.end ();
+       ++server)
+    {
+      // Trust is based on certificates. We need only add trust in the
+      // same certificate once.
+      if (find (processed_certs.begin (), processed_certs.end (),
+		server->certinfo) != processed_certs.end ())
+	continue;
+      processed_certs.push_back (server->certinfo);
+
+      // We need not contact the server if it is already trusted.
+      if (find (already_trusted.begin (), already_trusted.end (), *server) !=
+	  already_trusted.end ())
+	{
+	  if (s.verbose > 1)
+	    trust_already_in_place (*server, server_list, cert_db_path, false/*revoking*/);
+	  continue;
+	}
+      // At a minimum we need a host name or ip_address along with a port
+      // number in order to contact the server.
+      if (server->empty () || server->port == 0)
+	continue;
+      int rc = client_connect (server->host_name.c_str (),
+			       stringToIpAddress (server->ip_address),
+			       server->port,
+			       NULL, NULL, "permanent");
+      if (rc != SUCCESS)
+	{
+	  clog << _F("Unable to connect to %s", lex_cast(*server).c_str()) << endl;
+	  nssError ();
+	}
+    }
+
+ cleanup:
+  // Shutdown NSS.
+  // SSL_ClearSessionCache is required before shutdown for client applications.
+  SSL_ClearSessionCache ();
+  nssCleanup (cert_db_path.c_str ());
+
+  // Make sure the database files are readable.
+  glob_t globbuf;
+  string filespec = cert_db_path + "/*.db";
+  if (s.verbose > 2)
+    clog << _F("Searching \"%s\"\n", filespec.c_str());
+  int r = glob (filespec.c_str (), 0, NULL, & globbuf);
+  if (r != GLOB_NOSPACE && r != GLOB_ABORTED && r != GLOB_NOMATCH)
+    {
+      for (unsigned i = 0; i < globbuf.gl_pathc; ++i)
+	{
+	  string filename = globbuf.gl_pathv[i];
+	  if (s.verbose > 2)
+	    clog << _("  found ") << filename << endl;
+
+	  if (chmod (filename.c_str (), 0644) != 0)
+	    {
+             clog << _F("Warning: Unable to change permissions on %s: ", filename.c_str());
+	      perror ("");
+	    }
+	}
+    }
+}
+
+// Remove the given servers from the given database of trusted servers.
+static void
+revoke_server_trust (
+  systemtap_session &s,
+  const string &cert_db_path,
+  const vector<compile_server_info> &server_list
+)
+{
+  // Make sure the given path exists.
+  if (! file_exists (cert_db_path))
+    {
+      if (s.verbose > 1)
+       clog << _F("Certificate database '%s' does not exist",
+                  cert_db_path.c_str()) << endl;
+      if (s.verbose)
+	{
+	  for (vector<compile_server_info>::const_iterator server = server_list.begin();
+	       server != server_list.end ();
+	       ++server)
+	    trust_already_in_place (*server, server_list, cert_db_path, true/*revoking*/);
+	}
+      return;
+    }
+
+  // Must predeclare these because of jumps to cleanup: below.
+  CERTCertDBHandle *handle;
+  PRArenaPool *tmpArena = NULL;
+  CERTCertList *certs = NULL;
+  CERTCertificate *db_cert;
+  vector<string> processed_certs;
+  const char *nickname;
+
+  // Make sure NSPR is initialized. Must be done before NSS is initialized
+  s.NSPR_init ();
+
+  // Initialize the NSS libraries -- read/write
+  SECStatus secStatus = nssInit (cert_db_path.c_str (), 1/*readwrite*/);
+  if (secStatus != SECSuccess)
+    {
+      // Message already issued
+      goto cleanup;
+    }
+  handle = CERT_GetDefaultCertDB();
+
+  // A memory pool to work in
+  tmpArena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  if (! tmpArena) 
+    {
+      clog << _("Out of memory:");
+      nssError ();
+      goto cleanup;
+    }
+
+  // Iterate over the servers to become untrusted.
+  nickname = server_cert_nickname ();
+  for (vector<compile_server_info>::const_iterator server = server_list.begin();
+       server != server_list.end ();
+       ++server)
+    {
+      // If the server's certificate serial number is unknown, then we can't
+      // match it with one in the database.
+      if (server->certinfo.empty ())
+	continue;
+
+      // Trust is based on certificates. We need only revoke trust in the same
+      // certificate once.
+      if (find (processed_certs.begin (), processed_certs.end (),
+		server->certinfo) != processed_certs.end ())
+	continue;
+      processed_certs.push_back (server->certinfo);
+
+      // Search the client-side database of trusted servers.
+      db_cert = PK11_FindCertFromNickname (nickname, NULL);
+      if (! db_cert)
+	{
+	  // No trusted servers. Not an error, but issue a status message.
+	  if (s.verbose)
+	    trust_already_in_place (*server, server_list, cert_db_path, true/*revoking*/);
+	  continue;
+	}
+
+      // Here, we have one cert with the desired nickname.
+      // Now, we will attempt to get a list of ALL certs 
+      // with the same subject name as the cert we have.  That list 
+      // should contain, at a minimum, the one cert we have already found.
+      // If the list of certs is empty (NULL), the libraries have failed.
+      certs = CERT_CreateSubjectCertList (NULL, handle, & db_cert->derSubject,
+					  PR_Now (), PR_FALSE);
+      CERT_DestroyCertificate (db_cert);
+      if (! certs)
+	{
+         clog << _F("Unable to query certificate database %s: ",
+                    cert_db_path.c_str()) << endl;
+	  PORT_SetError (SEC_ERROR_LIBRARY_FAILURE);
+	  nssError ();
+	  goto cleanup;
+	}
+
+      // Find the certificate matching the one belonging to our server.
+      CERTCertListNode *node;
+      for (node = CERT_LIST_HEAD (certs);
+	   ! CERT_LIST_END (node, certs);
+	   node = CERT_LIST_NEXT (node))
+	{
+	  // The certificate we're working with.
+	  db_cert = node->cert;
+
+	  // Get the serial number.
+	  string serialNumber = get_cert_serial_number (db_cert);
+
+	  // Does the serial number match that of the current server?
+	  if (serialNumber != server->certinfo)
+	    continue; // goto next certificate
+
+	  // All is ok! Remove the certificate from the database.
+	  break;
+	} // Loop over certificates in the database
+
+      // Was a certificate matching the server found?  */
+      if (CERT_LIST_END (node, certs))
+	{
+	  // Not found. Server is already untrusted.
+	  if (s.verbose)
+	    trust_already_in_place (*server, server_list, cert_db_path, true/*revoking*/);
+	}
+      else
+	{
+	  secStatus = SEC_DeletePermCertificate (db_cert);
+	  if (secStatus != SECSuccess)
+	    {
+             clog << _F("Unable to remove certificate from %s: ",
+                        cert_db_path.c_str()) << endl;
+	      nssError ();
+	    }
+	}
+      CERT_DestroyCertList (certs);
+      certs = NULL;
+    } // Loop over servers
+
+ cleanup:
+  if (certs)
+    CERT_DestroyCertList (certs);
+  if (tmpArena)
+    PORT_FreeArena (tmpArena, PR_FALSE);
+
+  nssCleanup (cert_db_path.c_str ());
+}
+
+// Obtain information about servers from the certificates in the given database.
+static void
+get_server_info_from_db (
+  systemtap_session &s,
+  vector<compile_server_info> &servers,
+  const string &cert_db_path
+)
+{
+  // Make sure the given path exists.
+  if (! file_exists (cert_db_path))
+    {
+      if (s.verbose > 1)
+       clog << _F("Certificate database '%s' does not exist.",
+                  cert_db_path.c_str()) << endl;
+      return;
+    }
+
+  // Make sure NSPR is initialized. Must be done before NSS is initialized
+  s.NSPR_init ();
+
+  // Initialize the NSS libraries -- readonly
+  SECStatus secStatus = nssInit (cert_db_path.c_str ());
+  if (secStatus != SECSuccess)
+    {
+      // Message already issued.
+      return;
+    }
+
+  // Must predeclare this because of jumps to cleanup: below.
+  PRArenaPool *tmpArena = NULL;
+  CERTCertList *certs = get_cert_list_from_db (server_cert_nickname ());
+  if (! certs)
+    {
+      if (s.verbose > 1)
+	clog << _F("No certificate found in database %s", cert_db_path.c_str ()) << endl;
+      goto cleanup;
+    }
+
+  // A memory pool to work in
+  tmpArena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  if (! tmpArena) 
+    {
+      clog << _("Out of memory:");
+      nssError ();
+      goto cleanup;
+    }
+  for (CERTCertListNode *node = CERT_LIST_HEAD (certs);
+       ! CERT_LIST_END (node, certs);
+       node = CERT_LIST_NEXT (node))
+    {
+      compile_server_info server_info;
+
+      // The certificate we're working with.
+      CERTCertificate *db_cert = node->cert;
+
+      // Get the host name. It is in the alt-name extension of the
+      // certificate.
+      SECItem subAltName;
+      subAltName.data = NULL;
+      secStatus = CERT_FindCertExtension (db_cert,
+					  SEC_OID_X509_SUBJECT_ALT_NAME,
+					  & subAltName);
+      if (secStatus != SECSuccess || ! subAltName.data)
+	{
+	  clog << _("Unable to find alt name extension on server certificate: ") << endl;
+	  nssError ();
+	  continue;
+	}
+
+      // Decode the extension.
+      CERTGeneralName *nameList = CERT_DecodeAltNameExtension (tmpArena, & subAltName);
+      SECITEM_FreeItem(& subAltName, PR_FALSE);
+      if (! nameList)
+	{
+	  clog << _("Unable to decode alt name extension on server certificate: ") << endl;
+	  nssError ();
+	  continue;
+	}
+
+      // We're interested in the first alternate name.
+      assert (nameList->type == certDNSName);
+      server_info.host_name = string ((const char *)nameList->name.other.data,
+				      nameList->name.other.len);
+      // Don't free nameList. It's part of the tmpArena.
+
+      // Get the serial number.
+      server_info.certinfo = get_cert_serial_number (db_cert);
+
+      // Our results will at a minimum contain this server.
+      add_server_info (server_info, servers);
+
+      // Augment the list by querying all online servers and keeping the ones
+      // with the same cert serial number.
+      vector<compile_server_info> online_servers;
+      get_or_keep_online_server_info (s, online_servers, false/*keep*/);
+      keep_server_info_with_cert_and_port (s, server_info, online_servers);
+      add_server_info (online_servers, servers);
+    }
+
+ cleanup:
+  if (certs)
+    CERT_DestroyCertList (certs);
+  if (tmpArena)
+    PORT_FreeArena (tmpArena, PR_FALSE);
+
+  nssCleanup (cert_db_path.c_str ());
 }
 #endif // HAVE_NSS
 
@@ -978,6 +2038,11 @@ ostream &operator<< (ostream &s, const compile_server_info &i)
     s << i.sysinfo << '"';
   else
     s << "unknown\"";
+  s << " version=";
+  if (! i.version.empty ())
+    s << i.version;
+  else
+    s << "unknown";
   s << " certinfo=\"";
   if (! i.certinfo.empty ())
     s << i.certinfo << '"';
@@ -1060,7 +2125,7 @@ server_spec_to_pmask (const string &server_spec)
 	}
       else
 	{
-	  cerr << "Warning: unsupported compile server property: " << property
+	  clog << _F("Warning: unsupported compile server property: %s", property.c_str())
 	       << endl;
 	}
     }
@@ -1070,9 +2135,6 @@ server_spec_to_pmask (const string &server_spec)
 void
 query_server_status (systemtap_session &s)
 {
-  // Make sure NSPR is initialized
-  s.NSPR_init ();
-
   unsigned limit = s.server_status_strings.size ();
   for (unsigned i = 0; i < limit; ++i)
     query_server_status (s, s.server_status_strings[i]);
@@ -1108,9 +2170,11 @@ query_server_status (systemtap_session &s, const string &status_string)
   get_all_server_info (s, servers);
   keep_common_server_info (raw_servers, servers);
 
+  // Sort the list of servers into a preferred order.
+  preferred_order (servers);
+
   // Print the server information. Skip the empty entry at the head of the list.
-  clog << "Systemtap Compile Server Status for '" << working_string << '\''
-       << endl;
+  clog << _F("Systemtap Compile Server Status for '%s'", working_string.c_str()) << endl;
   bool found = false;
   unsigned limit = servers.size ();
   for (unsigned i = 0; i < limit; ++i)
@@ -1118,22 +2182,21 @@ query_server_status (systemtap_session &s, const string &status_string)
       assert (! servers[i].empty ());
       // Don't list servers with no cert information. They may not actually
       // exist.
-      // TODO: Could try contacting the server and obtaining it cert
+      // TODO: Could try contacting the server and obtaining its cert
       if (servers[i].certinfo.empty ())
 	continue;
       clog << servers[i] << endl;
       found = true;
     }
   if (! found)
-    clog << "No servers found" << endl;
+    clog << _("No servers found") << endl;
 }
 
 // Add or remove trust of the servers specified on the command line.
 void
 manage_server_trust (systemtap_session &s)
 {
-  // This function will never be called if we don't have NSS, but it must
-  // still compile.
+  // This function should do nothing if we don't have NSS.
 #if HAVE_NSS
   // Nothing to do if --trust-servers was not specified.
   if (s.server_trust_spec.empty ())
@@ -1163,7 +2226,7 @@ manage_server_trust (systemtap_session &s)
 	{
 	  if (geteuid () != 0)
 	    {
-	      cerr << "Only root can specify 'signer' on --trust-servers" << endl;
+	      clog << _("Only root can specify 'signer' on --trust-servers") << endl;
 	      error = true;
 	    }
 	  else
@@ -1175,7 +2238,7 @@ manage_server_trust (systemtap_session &s)
 	{
 	  if (geteuid () != 0)
 	    {
-	      cerr << "Only root can specify 'all-users' on --trust-servers" << endl;
+	      clog << _("Only root can specify 'all-users' on --trust-servers") << endl;
 	      error = true;
 	    }
 	  else
@@ -1184,7 +2247,7 @@ manage_server_trust (systemtap_session &s)
       else if (*i == "no-prompt")
 	no_prompt = true;
       else
-	cerr << "Warning: Unrecognized server trust specification: " << *i
+	clog << _("Warning: Unrecognized server trust specification: ") << *i
 	     << endl;
     }
   if (error)
@@ -1201,7 +2264,7 @@ manage_server_trust (systemtap_session &s)
   unsigned limit = server_list.size ();
   if (limit == 0)
     {
-      cerr << "No servers identified for trust" << endl;
+      clog << _("No servers identified for trust") << endl;
       return;
     }
 
@@ -1212,35 +2275,35 @@ manage_server_trust (systemtap_session &s)
   ostringstream trustString;
   if (ssl)
     {
-      trustString << "as an SSL peer";
+      trustString << _("as an SSL peer");
       if (all_users)
-	trustString << " for all users";
+	trustString << _(" for all users");
       else
-	trustString << " for the current user";
+	trustString << _(" for the current user");
     }
   if (signer)
     {
       if (ssl)
-	trustString << " and ";
-      trustString << "as a module signer for all users";
+	trustString << _(" and ");
+      trustString << _("as a module signer for all users");
     }
 
   // Prompt the user to confirm what's about to happen.
   if (no_prompt)
     {
       if (revoke)
-	clog << "Revoking trust ";
+	clog << _("Revoking trust ");
       else
-	clog << "Adding trust ";
+	clog << _("Adding trust ");
     }
   else
     {
       if (revoke)
-	clog << "Revoke trust ";
+	clog << _("Revoke trust ");
       else
-	clog << "Add trust ";
+	clog << _("Add trust ");
     }
-  clog << "in the following servers " << trustString.str ();
+  clog << _F("in the following servers %s", trustString.str().c_str());
   if (! no_prompt)
     clog << '?';
   clog << endl;
@@ -1255,7 +2318,7 @@ manage_server_trust (systemtap_session &s)
       cin >> response;
       if (response[0] != 'y' && response [0] != 'Y')
 	{
-	  clog << "Server trust unchanged" << endl;
+	  clog << _("Server trust unchanged") << endl;
 	  return;
 	}
     }
@@ -1267,7 +2330,7 @@ manage_server_trust (systemtap_session &s)
       if (all_users)
 	cert_db_path = global_ssl_cert_db_path ();
       else
-	cert_db_path = private_ssl_cert_db_path (s);
+	cert_db_path = private_ssl_cert_db_path ();
       if (revoke)
 	revoke_server_trust (s, cert_db_path, server_list);
       else
@@ -1284,299 +2347,13 @@ manage_server_trust (systemtap_session &s)
 #endif // HAVE_NSS
 }
 
-#if HAVE_NSS
-// Issue a status message for when a server's trust is already in place.
-static void
-trust_already_in_place (
-  const compile_server_info &server,
-  const vector<compile_server_info> &server_list,
-  const string cert_db_path,
-  bool revoking
-)
+static compile_server_cache*
+cscache(systemtap_session& s)
 {
-  // What level of trust?
-  string purpose;
-  if (cert_db_path == signing_cert_db_path ())
-    purpose = "as a module signer for all users";
-  else
-    {
-      purpose = "as an SSL peer";
-      if (cert_db_path == global_ssl_cert_db_path ())
-	purpose += " for all users";
-      else
-	purpose += " for the current user";
-    }
-
-  // Issue a message for each server in the list with the same certificate.
-  unsigned limit = server_list.size ();
-  for (unsigned i = 0; i < limit; ++i)
-    {
-      if (server.certinfo != server_list[i].certinfo)
-	continue;
-      clog << server_list[i] << " is already ";
-      if (revoking)
-	clog << "un";
-      clog << "trusted " << purpose << endl;
-    }
+  if (!s.server_cache)
+    s.server_cache = new compile_server_cache();
+  return s.server_cache;
 }
-
-// Add the given servers to the given database of trusted servers.
-static void
-add_server_trust (
-  systemtap_session &s,
-  const string &cert_db_path,
-  const vector<compile_server_info> &server_list
-)
-{
-  // Get a list of servers already trusted. This opens the database, so do it
-  // before we open it for our own purposes.
-  vector<compile_server_info> already_trusted;
-  get_server_info_from_db (s, already_trusted, cert_db_path);
-
-  // Make sure the given path exists.
-  if (create_dir (cert_db_path.c_str (), 0755) != 0)
-    {
-      cerr << "Unable to find or create the client certificate database directory "
-	   << cert_db_path << ": ";
-      perror ("");
-      return;
-    }
-
-  // Must predeclare this because of jumps to cleanup: below.
-  vector<string> processed_certs;
-
-  // Initialize the NSS libraries -- read/write
-  SECStatus secStatus = NSS_InitReadWrite (cert_db_path.c_str ());
-  if (secStatus != SECSuccess)
-    {
-      cerr << "Error initializing NSS for " << cert_db_path << endl;
-      nssError ();
-      goto cleanup;
-    }
-
-  // All cipher suites except RSA_NULL_MD5 are enabled by Domestic Policy.
-  NSS_SetDomesticPolicy ();
-
-  // Iterate over the servers to become trusted. Contact each one and
-  // add it to the list of trusted servers if it is not already trusted.
-  // client_main will issue any error messages.
-  for (vector<compile_server_info>::const_iterator server = server_list.begin();
-       server != server_list.end ();
-       ++server)
-    {
-      // Trust is based on certificates. We need only add trust in the
-      // same certificate once.
-      if (find (processed_certs.begin (), processed_certs.end (),
-		server->certinfo) != processed_certs.end ())
-	continue;
-      processed_certs.push_back (server->certinfo);
-
-      // We need not contact the server if it is already trusted.
-      if (find (already_trusted.begin (), already_trusted.end (), *server) !=
-	  already_trusted.end ())
-	{
-	  if (s.verbose > 1)
-	    trust_already_in_place (*server, server_list, cert_db_path, false/*revoking*/);
-	  continue;
-	}
-      // At a minimum we need a host name or ip_address along with a port
-      // number in order to contact the server.
-      if (server->empty () || server->port == 0)
-	continue;
-      int rc = client_main (server->host_name.c_str (),
-			    stringToIpAddress (server->ip_address),
-			    server->port,
-			    NULL, NULL, "permanent");
-      if (rc != SECSuccess)
-	{
-	  cerr << "Unable to connect to " << *server << endl;
-	  nssError ();
-	}
-    }
-
- cleanup:
-  // Shutdown NSS.
-  NSS_Shutdown ();
-
-  // Make sure the database files are readable.
-  glob_t globbuf;
-  string filespec = cert_db_path + "/*.db";
-  if (s.verbose > 2)
-    clog << "Searching \"" << filespec << "\"" << endl;
-  int r = glob (filespec.c_str (), 0, NULL, & globbuf);
-  if (r != GLOB_NOSPACE && r != GLOB_ABORTED && r != GLOB_NOMATCH)
-    {
-      for (unsigned i = 0; i < globbuf.gl_pathc; ++i)
-	{
-	  string filename = globbuf.gl_pathv[i];
-	  if (s.verbose > 2)
-	    clog << "  found " << filename << endl;
-
-	  if (chmod (filename.c_str (), 0644) != 0)
-	    {
-	      cerr << "Warning: Unable to change permissions on "
-		   << filename << ": ";
-	      perror ("");
-	    }
-	}
-    }
-}
-
-// Remove the given servers from the given database of trusted servers.
-static void
-revoke_server_trust (
-  systemtap_session &s,
-  const string &cert_db_path,
-  const vector<compile_server_info> &server_list
-)
-{
-  // Make sure the given path exists.
-  if (! file_exists (cert_db_path))
-    {
-      if (s.verbose > 1)
-	cerr << "Certificate database '" << cert_db_path << "' does not exist."
-	     << endl;
-      if (s.verbose)
-	{
-	  for (vector<compile_server_info>::const_iterator server = server_list.begin();
-	       server != server_list.end ();
-	       ++server)
-	    trust_already_in_place (*server, server_list, cert_db_path, true/*revoking*/);
-	}
-      return;
-    }
-
-  // Must predeclare these because of jumps to cleanup: below.
-  PK11SlotInfo *slot = NULL;
-  CERTCertDBHandle *handle;
-  PRArenaPool *tmpArena = NULL;
-  CERTCertList *certs = NULL;
-  CERTCertificate *db_cert;
-  vector<string> processed_certs;
-
-  // Initialize the NSS libraries -- read/write
-  SECStatus secStatus = NSS_InitReadWrite (cert_db_path.c_str ());
-  if (secStatus != SECSuccess)
-    {
-      cerr << "Error initializing NSS for " << cert_db_path << endl;
-      nssError ();
-      goto cleanup;
-    }
-  slot = PK11_GetInternalKeySlot ();
-  handle = CERT_GetDefaultCertDB();
-
-  // A memory pool to work in
-  tmpArena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-  if (! tmpArena) 
-    {
-      cerr << "Out of memory:";
-      nssError ();
-      goto cleanup;
-    }
-
-  // Iterate over the servers to become untrusted.
-  for (vector<compile_server_info>::const_iterator server = server_list.begin();
-       server != server_list.end ();
-       ++server)
-    {
-      // If the server's certificate serial number is unknown, then we can't
-      // match it with one in the database.
-      if (server->certinfo.empty ())
-	continue;
-
-      // Trust is based on certificates. We need only revoke trust in the same
-      // certificate once.
-      if (find (processed_certs.begin (), processed_certs.end (),
-		server->certinfo) != processed_certs.end ())
-	continue;
-      processed_certs.push_back (server->certinfo);
-
-      // Search the client-side database of trusted servers.
-      db_cert = PK11_FindCertFromNickname (server_cert_nickname, NULL);
-      if (! db_cert)
-	{
-	  // No trusted servers. Not an error, but issue a status message.
-	  if (s.verbose)
-	    trust_already_in_place (*server, server_list, cert_db_path, true/*revoking*/);
-	  continue;
-	}
-
-      // Here, we have one cert with the desired nickname.
-      // Now, we will attempt to get a list of ALL certs 
-      // with the same subject name as the cert we have.  That list 
-      // should contain, at a minimum, the one cert we have already found.
-      // If the list of certs is empty (NULL), the libraries have failed.
-      certs = CERT_CreateSubjectCertList (NULL, handle, & db_cert->derSubject,
-					  PR_Now (), PR_FALSE);
-      CERT_DestroyCertificate (db_cert);
-      if (! certs)
-	{
-	  cerr << "Unable to query certificate database " << cert_db_path
-	       << ": " << endl;
-	  PORT_SetError (SEC_ERROR_LIBRARY_FAILURE);
-	  nssError ();
-	  goto cleanup;
-	}
-
-      // Find the certificate matching the one belonging to our server.
-      CERTCertListNode *node;
-      for (node = CERT_LIST_HEAD (certs);
-	   ! CERT_LIST_END (node, certs);
-	   node = CERT_LIST_NEXT (node))
-	{
-	  // The certificate we're working with.
-	  db_cert = node->cert;
-
-	  // Get the serial number.
-	  ostringstream serialNumber;
-	  serialNumber << hex << setfill('0') << right;
-	  for (unsigned i = 0; i < db_cert->serialNumber.len; ++i)
-	    {
-	      if (i > 0)
-		serialNumber << ':';
-	      serialNumber << setw(2) << (unsigned)db_cert->serialNumber.data[i];
-	    }
-
-	  // Does the serial number match that of the current server?
-	  if (serialNumber.str () != server->certinfo)
-	    continue; // goto next certificate
-
-	  // All is ok! Remove the certificate from the database.
-	  break;
-	} // Loop over certificates in the database
-
-      // Was a certificate matching the server found?  */
-      if (CERT_LIST_END (node, certs))
-	{
-	  // Not found. Server is already untrusted.
-	  if (s.verbose)
-	    trust_already_in_place (*server, server_list, cert_db_path, true/*revoking*/);
-	}
-      else
-	{
-	  secStatus = SEC_DeletePermCertificate (db_cert);
-	  if (secStatus != SECSuccess)
-	    {
-	      cerr << "Unable to remove certificate from " << cert_db_path
-		   << ": " << endl;
-	      nssError ();
-	    }
-	}
-      CERT_DestroyCertList (certs);
-      certs = NULL;
-    } // Loop over servers
-
- cleanup:
-  if (certs)
-    CERT_DestroyCertList (certs);
-  if (slot)
-    PK11_FreeSlot (slot);
-  if (tmpArena)
-    PORT_FreeArena (tmpArena, PR_FALSE);
-
-  NSS_Shutdown ();
-}
-#endif // HAVE_NSS
 
 static void
 get_server_info (
@@ -1600,7 +2377,7 @@ get_server_info (
       get_specified_server_info (s, servers);
       keep = true;
     }
-  // Now filter the or accumulate the list depending on whether a query has
+  // Now filter or accumulate the list depending on whether a query has
   // already been made.
   if ((pmask & compile_server_online))
     {
@@ -1643,9 +2420,9 @@ get_default_server_info (
   vector<compile_server_info> &servers
 )
 {
-  // We only need to obtain this once. This is a good thing(tm) since
-  // obtaining this information is expensive.
-  static vector<compile_server_info> default_servers;
+  // We only need to obtain this once per session. This is a good thing(tm)
+  // since obtaining this information is expensive.
+  vector<compile_server_info>& default_servers = cscache(s)->default_servers;
   if (default_servers.empty ())
     {
       // Get the required information.
@@ -1666,9 +2443,9 @@ get_specified_server_info (
   bool no_default
 )
 {
-  // We only need to obtain this once. This is a good thing(tm) since
-  // obtaining this information is expensive.
-  static vector<compile_server_info> specified_servers;
+  // We only need to obtain this once per session. This is a good thing(tm)
+  // since obtaining this information is expensive.
+  vector<compile_server_info>& specified_servers = cscache(s)->specified_servers;
   if (specified_servers.empty ())
     {
       // Maintain an empty entry to indicate that this search has been
@@ -1719,9 +2496,8 @@ get_specified_server_info (
 			server_info.port = port;
 		      else
 			{
-			  cerr << "Invalid port number specified: "
-			       << components.back ()
-			       << endl;
+                         clog << _F("Invalid port number specified: %s",
+                                    components.back().c_str()) << endl;
 			  continue;
 			}
 		      // Remove the port number from the spec
@@ -1739,8 +2515,7 @@ get_specified_server_info (
 		  if (known_servers.empty ())
 		    {
 		      if (s.verbose)
-			cerr << "No server matching " << server << " found"
-			     << endl;
+                       clog << _F("No server matching %s found", server.c_str()) << endl;
 		    }
 		  else
 		    add_server_info (known_servers, specified_servers);
@@ -1759,9 +2534,8 @@ get_specified_server_info (
 		      server_info.port = port;
 		    else
 		      {
-			cerr << "Invalid port number specified: "
-			     << components.back ()
-			     << endl;
+                       clog << _F("Invalid port number specified: %s",
+                          components.back().c_str()) << endl;
 			continue;
 		      }
 		  }
@@ -1801,9 +2575,9 @@ get_or_keep_trusted_server_info (
   if (keep && servers.empty ())
     return;
 
-  // We only need to obtain this once. This is a good thing(tm) since
-  // obtaining this information is expensive.
-  static vector<compile_server_info> trusted_servers;
+  // We only need to obtain this once per session. This is a good thing(tm)
+  // since obtaining this information is expensive.
+  vector<compile_server_info>& trusted_servers = cscache(s)->trusted_servers;
   if (trusted_servers.empty ())
     {
       // Maintain an empty entry to indicate that this search has been
@@ -1812,7 +2586,7 @@ get_or_keep_trusted_server_info (
 
 #if HAVE_NSS
       // Check the private database first.
-      string cert_db_path = private_ssl_cert_db_path (s);
+      string cert_db_path = private_ssl_cert_db_path ();
       get_server_info_from_db (s, trusted_servers, cert_db_path);
 
       // Now check the global database.
@@ -1822,7 +2596,7 @@ get_or_keep_trusted_server_info (
       // Without NSS, we can't determine whether a server is trusted.
       // Issue a warning.
       if (s.verbose)
-	clog << "Unable to determine server trust as an SSL peer" << endl;
+	clog << _("Unable to determine server trust as an SSL peer") << endl;
 #endif // ! HAVE_NSS
     } // Server information is not cached
 
@@ -1851,9 +2625,9 @@ get_or_keep_signing_server_info (
   if (keep && servers.empty ())
     return;
 
-  // We only need to obtain this once. This is a good thing(tm) since
-  // obtaining this information is expensive.
-  static vector<compile_server_info> signing_servers;
+  // We only need to obtain this once per session. This is a good thing(tm)
+  // since obtaining this information is expensive.
+  vector<compile_server_info>& signing_servers = cscache(s)->signing_servers;
   if (signing_servers.empty ())
     {
       // Maintain an empty entry to indicate that this search has been
@@ -1868,7 +2642,7 @@ get_or_keep_signing_server_info (
       // Without NSS, we can't determine whether a server is a trusted
       // signer. Issue a warning.
       if (s.verbose)
-	clog << "Unable to determine server trust as a module signer" << endl;
+	clog << _("Unable to determine server trust as a module signer") << endl;
 #endif // ! HAVE_NSS
     } // Server information is not cached
 
@@ -1885,146 +2659,6 @@ get_or_keep_signing_server_info (
     }
 }
 
-#if HAVE_NSS
-// Obtain information about servers from the certificates in the given database.
-static void
-get_server_info_from_db (
-  systemtap_session &s,
-  vector<compile_server_info> &servers,
-  const string &cert_db_path
-)
-{
-  // Make sure the given path exists.
-  if (! file_exists (cert_db_path))
-    {
-      if (s.verbose > 1)
-	cerr << "Certificate database '" << cert_db_path << "' does not exist."
-	     << endl;
-      return;
-    }
-
-  // Must predeclare these because of jumps to cleanup: below.
-  PK11SlotInfo *slot = NULL;
-  CERTCertDBHandle *handle;
-  PRArenaPool *tmpArena = NULL;
-  CERTCertList *certs = NULL;
-  CERTCertificate *db_cert;
-
-  // Initialize the NSS libraries -- readonly
-  SECStatus secStatus = NSS_Init (cert_db_path.c_str ());
-  if (secStatus != SECSuccess)
-    {
-      cerr << "Error initializing NSS for " << cert_db_path << endl;
-      nssError ();
-      goto cleanup;
-    }
-
-  // Search the client-side database of trusted servers.
-  slot = PK11_GetInternalKeySlot ();
-  handle = CERT_GetDefaultCertDB();
-  db_cert = PK11_FindCertFromNickname (server_cert_nickname, NULL);
-  if (! db_cert)
-    {
-      // No trusted servers. Not an error. Just an empty list returned.
-      goto cleanup;
-    }
-
-  // Here, we have one cert with the desired nickname.
-  // Now, we will attempt to get a list of ALL certs 
-  // with the same subject name as the cert we have.  That list 
-  // should contain, at a minimum, the one cert we have already found.
-  // If the list of certs is empty (NULL), the libraries have failed.
-  certs = CERT_CreateSubjectCertList (NULL, handle, & db_cert->derSubject,
-				      PR_Now (), PR_FALSE);
-  CERT_DestroyCertificate (db_cert);
-  if (! certs)
-    {
-      cerr << "Unable to query client certificate database: " << endl;
-      PORT_SetError (SEC_ERROR_LIBRARY_FAILURE);
-      nssError ();
-      goto cleanup;
-    }
-
-  // A memory pool to work in
-  tmpArena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
-  if (! tmpArena) 
-    {
-      cerr << "Out of memory:";
-      nssError ();
-      goto cleanup;
-    }
-  for (CERTCertListNode *node = CERT_LIST_HEAD (certs);
-       ! CERT_LIST_END (node, certs);
-       node = CERT_LIST_NEXT (node))
-    {
-      compile_server_info server_info;
-
-      // The certificate we're working with.
-      db_cert = node->cert;
-
-      // Get the host name. It is in the alt-name extension of the
-      // certificate.
-      SECItem subAltName;
-      subAltName.data = NULL;
-      secStatus = CERT_FindCertExtension (db_cert,
-					  SEC_OID_X509_SUBJECT_ALT_NAME,
-					  & subAltName);
-      if (secStatus != SECSuccess || ! subAltName.data)
-	{
-	  cerr << "Unable to find alt name extension on server certificate: " << endl;
-	  nssError ();
-	  continue;
-	}
-
-      // Decode the extension.
-      CERTGeneralName *nameList = CERT_DecodeAltNameExtension (tmpArena, & subAltName);
-      SECITEM_FreeItem(& subAltName, PR_FALSE);
-      if (! nameList)
-	{
-	  cerr << "Unable to decode alt name extension on server certificate: " << endl;
-	  nssError ();
-	  continue;
-	}
-
-      // We're interested in the first alternate name.
-      assert (nameList->type == certDNSName);
-      server_info.host_name = string ((const char *)nameList->name.other.data,
-				      nameList->name.other.len);
-      // Don't free nameList. It's part of the tmpArena.
-
-      // Get the serial number.
-      ostringstream field;
-      field << hex << setfill('0') << right;
-      for (unsigned i = 0; i < db_cert->serialNumber.len; ++i)
-	{
-	  if (i > 0)
-	    field << ':';
-	  field << setw(2) << (unsigned)db_cert->serialNumber.data[i];
-	}
-      server_info.certinfo = field.str ();
-
-      // Our results will at a minimum contain this server.
-      add_server_info (server_info, servers);
-
-      // Augment the list by querying all online servers and keeping the ones
-      // with the same cert serial number.
-      vector<compile_server_info> online_servers;
-      get_or_keep_online_server_info (s, online_servers, false/*keep*/);
-      keep_server_info_with_cert_and_port (s, server_info, online_servers);
-      add_server_info (online_servers, servers);
-    }
-
- cleanup:
-  if (certs)
-    CERT_DestroyCertList (certs);
-  if (slot)
-    PK11_FreeSlot (slot);
-  if (tmpArena)
-    PORT_FreeArena (tmpArena, PR_FALSE);
-
-  NSS_Shutdown ();
-}
-#endif // HAVE_NSS
 
 static void
 get_or_keep_compatible_server_info (
@@ -2075,7 +2709,7 @@ get_or_keep_compatible_server_info (
   // Without Avahi, we can't obtain the target platform of the server.
   // Issue a warning.
   if (s.verbose)
-    clog << "Unable to detect server compatibility" << endl;
+    clog << _("Unable to detect server compatibility") << endl;
   if (keep)
     servers.clear ();
 #endif
@@ -2083,7 +2717,7 @@ get_or_keep_compatible_server_info (
 
 static void
 keep_server_info_with_cert_and_port (
-  systemtap_session &s,
+  systemtap_session &,
   const compile_server_info &server,
   vector<compile_server_info> &servers
 )
@@ -2120,7 +2754,7 @@ keep_server_info_with_cert_and_port (
 // Obtain missing host name or ip address, if any.
 static void
 resolve_host (
-  systemtap_session& s,
+  systemtap_session&,
   compile_server_info &server,
   vector<compile_server_info> &resolved_servers
 )
@@ -2248,7 +2882,7 @@ void resolve_callback(
     const AvahiAddress *address,
     uint16_t port,
     AvahiStringList *txt,
-    AvahiLookupResultFlags flags,
+    AvahiLookupResultFlags /*flags*/,
     AVAHI_GCC_UNUSED void* userdata) {
 
     assert(r);
@@ -2259,30 +2893,36 @@ void resolve_callback(
 
     switch (event) {
         case AVAHI_RESOLVER_FAILURE:
-	  cerr << "Failed to resolve service '" << name
-	       << "' of type '" << type
-	       << "' in domain '" << domain
-	       << "': " << avahi_strerror(avahi_client_errno(avahi_service_resolver_get_client(r)))
-	       << endl;
+         clog << _F("Failed to resolve service '%s' of type '%s' in domain '%s': %s",
+                 name, type, domain,
+                 avahi_strerror(avahi_client_errno(avahi_service_resolver_get_client(r)))) << endl;
             break;
 
         case AVAHI_RESOLVER_FOUND: {
             char a[AVAHI_ADDRESS_STR_MAX], *t;
             avahi_address_snprint(a, sizeof(a), address);
-            t = avahi_string_list_to_string(txt);
 
-	    // Save the information of interest.
-	    compile_server_info info;
-	    info.host_name = host_name;
-	    info.ip_address = strdup (a);
-	    info.port = port;
-	    info.sysinfo = extract_field_from_avahi_txt ("sysinfo=", t);
-	    info.certinfo = extract_field_from_avahi_txt ("certinfo=", t);
+	    // Ignore entries using IPv6 addresses for now
+	    vector<string> parts;
+	    tokenize (a, parts, ".");
+	    if (parts.size () == 4)
+	      {
+		// Save the information of interest.
+		compile_server_info info;
+		info.host_name = host_name;
+		info.ip_address = strdup (a);
+		info.port = port;
+		t = avahi_string_list_to_string(txt);
+		info.sysinfo = extract_field_from_avahi_txt ("sysinfo=", t);
+		info.certinfo = extract_field_from_avahi_txt ("certinfo=", t);
+		info.version = extract_field_from_avahi_txt ("version=", t);
+		if (info.version.empty ())
+		  info.version = "1.0"; // default version is 1.0
+		avahi_free(t);
 
-	    // Add this server to the list of discovered servers.
-	    add_server_info (info, *servers);
-
-            avahi_free(t);
+		// Add this server to the list of discovered servers.
+		add_server_info (info, *servers);
+	      }
         }
     }
 
@@ -2310,9 +2950,9 @@ void browse_callback(
 
     switch (event) {
         case AVAHI_BROWSER_FAILURE:
-	    cerr << "Avahi browse failed: "
-		 << avahi_strerror(avahi_client_errno(avahi_service_browser_get_client(b)))
-		 << endl;
+	    clog << _F("Avahi browse failed: %s",
+	          avahi_strerror(avahi_client_errno(avahi_service_browser_get_client(b))))
+                 << endl;
 	    avahi_simple_poll_quit(simple_poll);
 	    break;
 
@@ -2323,9 +2963,8 @@ void browse_callback(
 	    // the resolver for us.
             if (!(avahi_service_resolver_new(c, interface, protocol, name, type, domain,
 					     AVAHI_PROTO_UNSPEC, (AvahiLookupFlags)0, resolve_callback, context))) {
-	      cerr << "Failed to resolve service '" << name
-		   << "': " << avahi_strerror(avahi_client_errno(c))
-		   << endl;
+             clog << _F("Failed to resolve service '%s': %s",
+                     name, avahi_strerror(avahi_client_errno(c))) << endl;
 	    }
             break;
 
@@ -2345,9 +2984,7 @@ void client_callback(AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED vo
     // Called whenever the client or server state changes.
 
     if (state == AVAHI_CLIENT_FAILURE) {
-        cerr << "Avahi Server connection failure: "
-	     << avahi_strerror(avahi_client_errno(c))
-	     << endl;
+        clog << _F("Avahi Server connection failure: %s", avahi_strerror(avahi_client_errno(c))) << endl;
         avahi_simple_poll_quit(simple_poll);
     }
 }
@@ -2372,9 +3009,9 @@ get_or_keep_online_server_info (
   if (keep && servers.empty ())
     return;
 
-  // We only need to obtain this once. This is a good thing(tm) since
-  // obtaining this information is expensive.
-  static vector<compile_server_info> online_servers;
+  // We only need to obtain this once per session. This is a good thing(tm)
+  // since obtaining this information is expensive.
+  vector<compile_server_info>& online_servers = cscache(s)->online_servers;
   if (online_servers.empty ())
     {
       // Maintain an empty entry to indicate that this search has been
@@ -2393,7 +3030,7 @@ get_or_keep_online_server_info (
       AvahiSimplePoll *simple_poll;
       if (!(simple_poll = avahi_simple_poll_new()))
 	{
-	  cerr << "Failed to create Avahi simple poll object" << endl;
+	  clog << _("Failed to create Avahi simple poll object") << endl;
 	  goto fail;
 	}
       browsing_context context;
@@ -2409,9 +3046,8 @@ get_or_keep_online_server_info (
       // Check whether creating the client object succeeded.
       if (! client)
 	{
-	  cerr << "Failed to create Avahi client: "
-	       << avahi_strerror(error)
-	       << endl;
+         clog << _F("Failed to create Avahi client: %s",
+                    avahi_strerror(error)) << endl;
 	  goto fail;
 	}
       context.client = client;
@@ -2422,9 +3058,8 @@ get_or_keep_online_server_info (
 					    NULL, (AvahiLookupFlags)0,
 					    browse_callback, & context)))
 	{
-	  cerr << "Failed to create Avahi service browser: "
-	       << avahi_strerror(avahi_client_errno(client))
-	       << endl;
+         clog << _F("Failed to create Avahi service browser: %s",
+                     avahi_strerror(avahi_client_errno(client))) << endl;
 	  goto fail;
 	}
 
@@ -2470,7 +3105,7 @@ get_or_keep_online_server_info (
 #else // ! HAVE_AVAHI
       // Without Avahi, we can't detect online servers. Issue a warning.
       if (s.verbose)
-	clog << "Unable to detect online servers" << endl;
+	clog << _("Unable to detect online servers") << endl;
 #endif // ! HAVE_AVAHI
     } // Server information is not cached.
 
@@ -2609,6 +3244,8 @@ merge_server_info (
     target.port = source.port;
   if (target.sysinfo.empty ())
     target.sysinfo = source.sysinfo;
+  if (target.version.empty ())
+    target.version = source.version;
   if (target.certinfo.empty ())
     target.certinfo = source.certinfo;
 }
@@ -2643,3 +3280,5 @@ merge_server_info (
     merge_server_info (*i, target);
 }
 #endif
+
+/* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

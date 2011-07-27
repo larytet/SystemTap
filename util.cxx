@@ -1,5 +1,5 @@
 // Copyright (C) Andrew Tridgell 2002 (original file)
-// Copyright (C) 2006-2010 Red Hat Inc. (systemtap changes)
+// Copyright (C) 2006-2011 Red Hat Inc. (systemtap changes)
 //
 // This program is free software; you can redistribute it and/or
 // modify it under the terms of the GNU General Public License as
@@ -12,8 +12,7 @@
 // General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with this program; if not, write to the Free Software
-// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "util.h"
 #include "stap-probe.h"
@@ -24,6 +23,7 @@
 #include <string>
 #include <fstream>
 #include <cassert>
+#include <ext/stdio_filebuf.h>
 
 extern "C" {
 #include <fcntl.h>
@@ -37,9 +37,11 @@ extern "C" {
 #include <sys/wait.h>
 #include <unistd.h>
 #include <regex.h>
+#include <stdarg.h>
 }
 
 using namespace std;
+using namespace __gnu_cxx;
 
 
 // Return current users home directory or die.
@@ -54,7 +56,7 @@ get_home_directory(void)
   if (pwd)
     return pwd->pw_dir;
 
-  throw runtime_error("Unable to determine home directory");
+  throw runtime_error(_("Unable to determine home directory"));
   return NULL;
 }
 
@@ -108,7 +110,7 @@ copy_file(const string& src, const string& dest, bool verbose)
   mode_t mask;
 
   if (verbose)
-    clog << "Copying " << src << " to " << dest << endl;
+    clog << _F("Copying %s to %s", src.c_str(), dest.c_str()) << endl;
 
   // Open the src file.
   fd1 = open(src.c_str(), O_RDONLY);
@@ -162,8 +164,8 @@ copy_file(const string& src, const string& dest, bool verbose)
   return true;
 
 error:
-  cerr << "Copy failed (\"" << src << "\" to \"" << dest << "\"): "
-       << strerror(errno) << endl;
+  cerr << _F("Copy failed (\"%s\" to \"%s\"): %s", src.c_str(),
+             dest.c_str(), strerror(errno)) << endl;
   return false;
 }
 
@@ -219,7 +221,7 @@ remove_file_or_dir (const char *name)
 
   if (remove (name) != 0)
     return 1;
-  cerr << "remove returned 0" << endl;
+
   return 0;
 }
 
@@ -245,7 +247,7 @@ in_group_id (gid_t target_gid)
     }
   }
   if (ngids < 0) {
-    cerr << "Unable to retrieve group list" << endl;
+    cerr << _("Unable to retrieve group list") << endl;
     return false;
   }
 
@@ -263,18 +265,16 @@ getmemusage ()
 {
   static long sz = sysconf(_SC_PAGESIZE);
 
-  long pages, kb;
+  long pages;
   ostringstream oss;
   ifstream statm("/proc/self/statm");
   statm >> pages;
-  kb = pages * sz / 1024;
-  oss << "using " << kb << "virt/";
+  long kb1 = pages * sz / 1024;
   statm >> pages;
-  kb = pages * sz / 1024;
-  oss << kb << "res/";
+  long kb2 = pages * sz / 1024;
   statm >> pages;
-  kb = pages * sz / 1024;
-  oss << kb << "shr kb, ";
+  long kb3 = pages * sz / 1024;
+  oss << _F("using %ldvirt/%ldres/%ldshr kb, ", kb1, kb2, kb3);
   return oss.str();
 }
 
@@ -393,81 +393,154 @@ const string cmdstr_quoted(const string& cmd)
 }
 
 
-string
-git_revision(const string& path)
+const string
+cmdstr_join(const vector<string>& cmds)
 {
-  string revision = "(not-a-git-repository)";
-  string git_dir = path + "/.git/";
+  if (cmds.empty())
+    throw runtime_error(_("cmdstr_join called with an empty command!"));
 
-  struct stat st;
-  if (stat(git_dir.c_str(), &st) == 0)
-    {
-      string command = "git --git-dir=\"" + git_dir
-        + "\" rev-parse HEAD 2>/dev/null";
+  stringstream cmd;
+  cmd << cmdstr_quoted(cmds[0]);
+  for (size_t i = 1; i < cmds.size(); ++i)
+    cmd << " " << cmdstr_quoted(cmds[i]);
 
-      char buf[50];
-      FILE *fp = popen(command.c_str(), "r");
-      if (fp != NULL)
-        {
-          char *bufp = fgets(buf, sizeof(buf), fp);
-          int rc = pclose(fp);
-          if (bufp != NULL && rc == 0)
-            revision = buf;
-        }
-    }
-
-  return revision;
+  return cmd.str();
 }
 
 
-// XXX written only from the main thread, but can be read in a
-//     signal handler.  synchronization needed?
-static set<pid_t> spawned_pids;
+// signal-safe set of pids
+class spawned_pids_t {
+  private:
+    set<pid_t> pids;
+
+  public:
+    bool contains (pid_t p)
+      {
+        stap_sigmasker masked;
+        return pids.count(p) == 0;
+      }
+    bool insert (pid_t p)
+      {
+        stap_sigmasker masked;
+        return (p > 0) ? pids.insert(p).second : false;
+      }
+    void erase (pid_t p)
+      {
+        stap_sigmasker masked;
+        pids.erase(p);
+      }
+    int killall (int sig)
+      {
+        int ret = 0;
+        stap_sigmasker masked;
+        for (set<pid_t>::const_iterator it = pids.begin();
+             it != pids.end(); ++it)
+          ret = kill(*it, sig) ?: ret;
+        return ret;
+      }
+};
+static spawned_pids_t spawned_pids;
 
 
 int
 stap_waitpid(int verbose, pid_t pid)
 {
   int ret, status;
-  if (verbose > 1 && spawned_pids.count(pid) == 0)
-    clog << "Spawn waitpid call on unmanaged pid " << pid << endl;
+  if (verbose > 1 && spawned_pids.contains(pid))
+    clog << _F("Spawn waitpid call on unmanaged pid %d", pid) << endl;
   ret = waitpid(pid, &status, 0);
   if (ret == pid)
     {
       spawned_pids.erase(pid);
       ret = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
-      if (verbose > 2)
-        clog << "Spawn waitpid result (0x" << lex_cast_hex(status) << "): " << ret << endl;
+      if (verbose > 1)
+        clog << _F("Spawn waitpid result (0x%x): %d", status, ret) << endl;
     }
   else
     {
       if (verbose > 1)
-        clog << "Spawn waitpid error (" << ret << "): " << strerror(errno) << endl;
+        clog << _F("Spawn waitpid error (%d): %s", ret, strerror(errno)) << endl;
       ret = -1;
     }
+  PROBE2(stap, stap_system__complete, ret, pid);
   return ret;
+}
+
+static int
+pipe_child_fd(posix_spawn_file_actions_t* fa, int pipefd[2], int childfd)
+{
+  if (pipe(pipefd))
+    return -1;
+
+  int dir = childfd ? 1 : 0;
+  if (!fcntl(pipefd[0], F_SETFD, FD_CLOEXEC) &&
+      !fcntl(pipefd[1], F_SETFD, FD_CLOEXEC) &&
+      !posix_spawn_file_actions_adddup2(fa, pipefd[dir], childfd))
+    return 0;
+
+  close(pipefd[0]);
+  close(pipefd[1]);
+  return -1;
+}
+
+static int
+null_child_fd(posix_spawn_file_actions_t* fa, int childfd)
+{
+  int flags = childfd ? O_WRONLY : O_RDONLY;
+  return posix_spawn_file_actions_addopen(fa, childfd, "/dev/null", flags, 0);
 }
 
 // Runs a command with a saved PID, so we can kill it from the signal handler
 pid_t
-stap_spawn(int verbose, const std::string& command)
+stap_spawn(int verbose, const vector<string>& args,
+           posix_spawn_file_actions_t* fa, const vector<string>& envVec)
 {
-  const char *cmd = command.c_str();
-  char const * const argv[] = { "sh", "-c", cmd, NULL };
-  int ret;
+  string::const_iterator it;
+  it = args[0].begin();
+  const char *cmd;
+  string command;
+  if(*it == '/' && (access(args[0].c_str(), X_OK)==-1)) //checking to see if staprun is executable
+    clog << _F("Warning: %s is not executable (%s)", args[0].c_str(), strerror(errno)) << endl;
+  for (size_t i = 0; i < args.size(); ++i)
+    command += " " + args[i];
+  cmd = command.c_str();
+  PROBE1(stap, stap_system__start, cmd);
+  if (verbose > 1)
+    clog << _("Running") << command << endl;
+
+  char const * argv[args.size() + 1];
+  for (size_t i = 0; i < args.size(); ++i)
+    argv[i] = args[i].c_str();
+  argv[args.size()] = NULL;
+
+  char** env;
+  bool allocated;
+  if(envVec.empty())
+  {
+	  env = environ;
+  	  allocated = false;
+  }
+  else
+  {
+	allocated = true;
+	env = new char*[envVec.size() + 1];
+
+  	for (size_t i = 0; i < envVec.size(); ++i)
+  	    env[i] = (char*)envVec[i].c_str();
+  	  env[envVec.size()] = NULL;
+  }
 
   pid_t pid = 0;
+  int ret = posix_spawnp(&pid, argv[0], fa, NULL,
+                         const_cast<char * const *>(argv), env);
+ if (allocated)
+	  delete[] env;
 
-  if (verbose > 1)
-    clog << "Running " << command << endl;
-
-  ret = posix_spawn(&pid, "/bin/sh", NULL, NULL,
-                    const_cast<char * const *>(argv), environ);
   PROBE2(stap, stap_system__spawn, ret, pid);
   if (ret != 0)
     {
       if (verbose > 1)
-        clog << "Spawn error (" << ret << "): " << strerror(ret) << endl;
+        clog << _F("Spawn error (%d): %s", ret, strerror(ret)) << endl;
       pid = -1;
     }
   else
@@ -475,63 +548,132 @@ stap_spawn(int verbose, const std::string& command)
   return pid;
 }
 
+// The API version of stap_spawn doesn't expose file_actions, for now.
+pid_t
+stap_spawn(int verbose, const vector<string>& args)
+{
+  return stap_spawn(verbose, args, NULL);
+}
+
+pid_t
+stap_spawn_piped(int verbose, const vector<string>& args,
+                 int *child_in, int *child_out, int* child_err)
+{
+  pid_t pid = -1;
+  int infd[2], outfd[2], errfd[2];
+  posix_spawn_file_actions_t fa;
+  if (posix_spawn_file_actions_init(&fa) != 0)
+    return -1;
+
+  if (child_in && pipe_child_fd(&fa, infd, 0) != 0)
+    goto cleanup_fa;
+  if (child_out && pipe_child_fd(&fa, outfd, 1) != 0)
+    goto cleanup_in;
+  if (child_err && pipe_child_fd(&fa, errfd, 2) != 0)
+    goto cleanup_out;
+
+  pid = stap_spawn(verbose, args, &fa);
+
+  if (child_err)
+    {
+      if (pid > 0)
+        *child_err = errfd[0];
+      else
+        close(errfd[0]);
+      close(errfd[1]);
+    }
+
+cleanup_out:
+  if (child_out)
+    {
+      if (pid > 0)
+        *child_out = outfd[0];
+      else
+        close(outfd[0]);
+      close(outfd[1]);
+    }
+
+cleanup_in:
+  if (child_in)
+    {
+      if (pid > 0)
+        *child_in = infd[1];
+      else
+        close(infd[1]);
+      close(infd[0]);
+    }
+
+cleanup_fa:
+  posix_spawn_file_actions_destroy(&fa);
+
+  return pid;
+}
+
+// Global set of supported localization variables. Make changes here to
+// add or remove variables. List of variables from:
+// http://publib.boulder.ibm.com/infocenter/tivihelp/v8r1/index.jsp?topic=/
+// com.ibm.netcool_OMNIbus.doc_7.3.0/omnibus/wip/install/concept/omn_con_settingyourlocale.html
+const set<string>&
+localization_variables()
+{
+  static set<string> localeVars;
+  if (localeVars.empty())
+    {
+      localeVars.insert("LANG");
+      localeVars.insert("LC_ALL");
+      localeVars.insert("LC_CTYPE");
+      localeVars.insert("LC_COLLATE");
+      localeVars.insert("LC_MESSAGES");
+      localeVars.insert("LC_TIME");
+      localeVars.insert("LC_MONETARY");
+      localeVars.insert("LC_NUMERIC");
+    }
+  return localeVars;
+}
+
 // Runs a command with a saved PID, so we can kill it from the signal handler,
 // and wait for it to finish.
 int
-stap_system(int verbose, const std::string& command)
+stap_system(int verbose, const vector<string>& args,
+            bool null_out, bool null_err)
 {
-  const char *cmd;
-  cmd = command.c_str();
-  PROBE1(stap, stap_system__start, cmd);
+  int ret = 0;
+  posix_spawn_file_actions_t fa;
+  if (posix_spawn_file_actions_init(&fa) != 0)
+    return -1;
 
-  int ret = -1;
-  pid_t pid = stap_spawn(verbose, command);
-  if (pid > 0)
-    ret = stap_waitpid(verbose, pid);
-  PROBE1(stap, stap_system__complete, ret);
+  if ((null_out && null_child_fd(&fa, 1) != 0) ||
+      (null_err && null_child_fd(&fa, 2) != 0))
+    ret = -1;
+  else
+    {
+      pid_t pid = stap_spawn(verbose, args, &fa);
+      ret = pid;
+      if (pid > 0){
+        ret = stap_waitpid(verbose, pid);
+        if(ret)
+          clog << _F("Warning: %s exited with status: %d", args.front().c_str(), ret) << endl;
+      }
+    }
+
+  posix_spawn_file_actions_destroy(&fa);
   return ret;
 }
 
 // Like stap_system, but capture stdout
 int
-stap_system_read(int verbose, const string& command, ostream& out)
+stap_system_read(int verbose, const vector<string>& args, ostream& out)
 {
-  int ret, pfd[2];
-
-  ret = pipe(pfd);
-  if (ret != 0)
+  int child_fd = -1;
+  pid_t child = stap_spawn_piped(verbose, args, NULL, &child_fd);
+  if (child > 0)
     {
-      return -1;
+      // read everything from the child
+      stdio_filebuf<char> in(child_fd, ios_base::in);
+      out << &in;
+      return stap_waitpid(verbose, child);
     }
-
-  pid_t child = fork();
-  if (child < 0)
-    {
-      return -1;
-    }
-  else if (child == 0)
-    {
-      // remap the write fd to stdout
-      dup2(pfd[1], 1);
-      close(pfd[0]);
-      close(pfd[1]);
-
-      // exec the desired command
-      char const * const argv[] = { "sh", "-c", command.c_str(), NULL };
-      ret = execv("/bin/sh", const_cast<char * const *>(argv));
-      exit(ret); // only reached on exec error
-    }
-  else
-    spawned_pids.insert(child);
-
-  // read everything from the child
-  string readpath = "/proc/self/fd/" + lex_cast(pfd[0]);
-  ifstream in(readpath.c_str());
-  close(pfd[0]);
-  close(pfd[1]);
-  out << in.rdbuf();
-
-  return stap_waitpid(verbose, child);
+  return -1;
 }
 
 
@@ -539,16 +681,7 @@ stap_system_read(int verbose, const string& command, ostream& out)
 int
 kill_stap_spawn(int sig)
 {
-  int ret = 0;
-  for (set<pid_t>::iterator it = spawned_pids.begin();
-       it != spawned_pids.end(); ++it)
-    if (*it > 0)
-      {
-        int pidret = kill(*it, sig);
-        if (!ret)
-          ret = pidret;
-      }
-  return ret;
+  return spawned_pids.killall(sig);
 }
 
 
@@ -564,7 +697,7 @@ void assert_regexp_match (const string& name, const string& value, const string&
       r = new regex_t;
       int rc = regcomp (r, re.c_str(), REG_ICASE|REG_NOSUB|REG_EXTENDED);
       if (rc) {
-        cerr << "regcomp " << re << " (" << name << ") error rc=" << rc << endl;
+        cerr << _F("regcomp %s (%s) error rc= %d", re.c_str(), name.c_str(), rc) << endl;
         exit(1);
       }
       compiled[re] = r;
@@ -576,8 +709,8 @@ void assert_regexp_match (const string& name, const string& value, const string&
   int rc = regexec (r, value.c_str(), 0, 0, 0);
   if (rc)
     {
-      cerr << "ERROR: Safety pattern mismatch for " << name
-           << " ('" << value << "' vs. '" << re << "') rc=" << rc << endl;
+      cerr << _F("ERROR: Safety pattern mismatch for %s ('%s' vs. '%s') rc=%d",
+                 name.c_str(), value.c_str(), re.c_str(), rc) << endl;
       exit(1);
     }
 }
@@ -594,8 +727,8 @@ int regexp_match (const string& value, const string& re, vector<string>& matches
       r = new regex_t;
       int rc = regcomp (r, re.c_str(), REG_EXTENDED); /* REG_ICASE? */
       if (rc) {
-        cerr << "regcomp " << re << " error rc=" << rc << endl;
-        exit(1);
+        cerr << _F("regcomp %s error rc=%d", re.c_str(), rc) << endl;
+        return rc;
       }
       compiled[re] = r;
     }
@@ -639,6 +772,10 @@ normalize_machine(const string& machine)
   //
   // This logic needs to match the logic in the stap_get_arch shell
   // function in stap-env.
+  //
+  // But: RHBZ669082 reminds us that this renaming post-dates some
+  // of the kernel versions we know and love.  So in buildrun.cxx
+  // we undo this renaming for ancient powerpc.
 
   if (machine == "i486") return "i386";
   else if (machine == "i586") return "i386";
@@ -653,6 +790,43 @@ normalize_machine(const string& machine)
   else if (machine.substr(0,3) == "sh3") return "sh";
   else if (machine.substr(0,3) == "sh4") return "sh";
   return machine;
+}
+
+string
+kernel_release_from_build_tree (const string &kernel_build_tree, int verbose)
+{
+  string version_file_name = kernel_build_tree + "/include/config/kernel.release";
+  // The file include/config/kernel.release within the
+  // build tree is used to pull out the version information
+  ifstream version_file (version_file_name.c_str());
+  if (version_file.fail ())
+    {
+      if (verbose > 1)
+	//TRANSLATORS: Missing a file
+	cerr << _F("Missing %s", version_file_name.c_str()) << endl;
+      return "";
+    }
+
+  string kernel_release;
+  char c;
+  while (version_file.get(c) && c != '\n')
+    kernel_release.push_back(c);
+
+  return kernel_release;
+}
+
+std::string autosprintf(const char* format, ...)
+{
+  va_list args;
+  char *str;
+  va_start (args, format);
+  int rc = vasprintf (&str, format, args);
+  if (rc < 0)
+    throw runtime_error (_F("autosprintf/vasprintf error %s", lex_cast(rc).c_str()));
+  string s = str;
+  va_end (args);
+  free (str);
+  return s; /* by copy */
 }
 
 

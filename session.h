@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -10,6 +10,8 @@
 #define SESSION_H
 
 #include "config.h"
+#include <libintl.h>
+#include <locale.h>
 
 #include <list>
 #include <string>
@@ -24,6 +26,18 @@ extern "C" {
 #include <elfutils/libdw.h>
 }
 
+#if ENABLE_NLS
+#define _(string) gettext(string)
+#define _N(string, string_plural, count) \
+        ngettext((string), (string_plural), (count))
+#else
+#define _(string) (string)
+#define _N(string, string_plural, count) \
+        ( (count) == 1 ? (string) : (string_plural) )
+#endif
+#define _F(format, ...) autosprintf(_(format), __VA_ARGS__)
+#define _NF(format, format_plural, count, ...) \
+        autosprintf(_N((format), (format_plural), (count)), __VA_ARGS__)
 
 // forward decls for all referenced systemtap types
 struct hash;
@@ -54,6 +68,7 @@ struct unparser;
 struct semantic_error;
 struct module_cache;
 struct update_visitor;
+struct compile_server_cache;
 
 // XXX: a generalized form of this descriptor could be associated with
 // a vardecl instead of out here at the systemtap_session level.
@@ -78,6 +93,17 @@ struct statistic_decl
 
 struct systemtap_session
 {
+private:
+  // disable implicit constructors by not implementing these
+  systemtap_session (const systemtap_session& other);
+  systemtap_session& operator= (const systemtap_session& other);
+
+  // copy constructor used by ::clone()
+  systemtap_session (const systemtap_session& other,
+                     const std::string& arch,
+                     const std::string& kern);
+
+public:
   systemtap_session ();
   ~systemtap_session ();
 
@@ -130,6 +156,7 @@ struct systemtap_session
   unsigned verbose;
   bool timing;
   bool save_module;
+  bool modname_given;
   bool keep_tmpdir;
   bool guru_mode;
   bool listing_mode;
@@ -143,27 +170,52 @@ struct systemtap_session
   bool tapset_compile_coverage;
   bool need_uprobes;
   std::string uprobes_path;
+  std::string uprobes_hash;
   bool load_only; // flight recorder mode
   bool omit_werror;
   bool unprivileged;
   bool systemtap_v_check;
+  bool tmpdir_opt_set;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
 
   // Client/server
-  bool NSPR_Initialized;
+#if HAVE_NSS
+  static bool NSPR_Initialized; // only once for all sessions
   void NSPR_init ();
+#endif
   bool client_options;
   std::string client_options_disallowed;
   std::vector<std::string> server_status_strings;
   std::vector<std::string> specified_servers;
+  bool automatic_server_mode;
   std::string server_trust_spec;
   std::vector<std::string> server_args;
   std::string winning_server;
+  compile_server_cache* server_cache;
+
+  // NB: It is very important for all of the above (and below) fields
+  // to be cleared in the systemtap_session ctor (session.cxx).
+
+  // Mechanism for retrying compilation with a compile server should it fail due
+  // to lack of resources on the local host.
+  // Once it has been decided not to try the server (e.g. syntax error),
+  // that decision cannot be changed.
+  int try_server_status;
+  bool use_server_on_error;
+
+  enum { try_server_unset, dont_try_server, do_try_server };
+  void init_try_server ();
+  void set_try_server (int t = do_try_server);
+  bool try_server () const { return try_server_status == do_try_server; }
+
+  // NB: It is very important for all of the above (and below) fields
+  // to be cleared in the systemtap_session ctor (session.cxx).
 
   // Remote execution
   std::vector<std::string> remote_uris;
+  bool use_remote_prefix;
   typedef std::map<std::pair<std::string, std::string>, systemtap_session*> session_map_t;
   session_map_t subsessions;
   systemtap_session* clone(const std::string& arch, const std::string& release);
