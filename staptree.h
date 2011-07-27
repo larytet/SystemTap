@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -705,7 +705,7 @@ struct probe
   void print (std::ostream& o) const;
   virtual void printsig (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list);
-  virtual void collect_derivation_pp_chain (std::vector<probe_point*> &pp_list) {}
+  virtual void collect_derivation_pp_chain (std::vector<probe_point*> &) {}
   virtual const probe_alias *get_alias () const { return 0; }
   virtual probe* create_alias(probe_point* l, probe_point* a);
   virtual const probe* basest () const { return this; }
@@ -840,12 +840,15 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
   systemtap_session& session;
   std::set<vardecl*> read;
   std::set<vardecl*> written;
+  std::set<vardecl*> used;
   bool embedded_seen;
+  bool current_lvalue_read;
   expression* current_lvalue;
   expression* current_lrvalue;
   varuse_collecting_visitor(systemtap_session& s):
     session (s),
     embedded_seen (false),
+    current_lvalue_read (false),
     current_lvalue(0),
     current_lrvalue(0) {}
   void visit_embeddedcode (embeddedcode *s);

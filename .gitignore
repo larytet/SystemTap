@@ -20,14 +20,13 @@ staprun
 testresults
 stapio
 stap_merge
-stap-client-connect
-stap-server-connect
 CVS
 .checkstyle
 .cproject
 .metadata
 .project
 .settings
+.autotools
 SNAPSHOT
 *.o
 git_version.h
@@ -37,3 +36,4 @@ include-elfutils
 lib-elfutils
 stamp-elfutils
 dtrace
+stappaths.7

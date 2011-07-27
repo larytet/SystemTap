@@ -1,5 +1,5 @@
 // systemtap remote execution
-// Copyright (C) 2010 Red Hat Inc.
+// Copyright (C) 2010-2011 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -10,23 +10,36 @@
 #define REMOTE_H
 
 #include <string>
+#include <vector>
+
+extern "C" {
+#include <poll.h>
+}
 
 #include "session.h"
 
 class remote {
+  private:
+    virtual int prepare() { return 0; }
+    virtual int start() = 0;
+    virtual int finish() = 0;
+
+    virtual void prepare_poll(std::vector<pollfd>&) {}
+    virtual void handle_poll(std::vector<pollfd>&) {}
+
   protected:
     systemtap_session* s;
+    std::string prefix;
 
     remote(systemtap_session& s): s(&s) {}
 
   public:
     static remote* create(systemtap_session& s, const std::string& uri);
+    static int run(const std::vector<remote*>& remotes);
 
     systemtap_session* get_session() { return s; }
 
     virtual ~remote() {}
-    virtual int start() = 0;
-    virtual int finish() = 0;
 };
 
 #endif // REMOTE_H

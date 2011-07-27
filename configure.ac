@@ -1,8 +1,9 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 1.4, systemtap@sources.redhat.com, systemtap)
-dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
+AC_INIT([systemtap], 1.6, systemtap@sourceware.org, systemtap)
+dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac,
+dnl                      runtime/staprun/configure.ac
 
 AC_PREREQ(2.59)
 AM_INIT_AUTOMAKE([no-dist foreign])
@@ -10,6 +11,7 @@ AM_MAINTAINER_MODE
 
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
+AC_USE_SYSTEM_EXTENSIONS
 AM_PROG_MKDIR_P
 AC_SUBST(MKDIR_P)
 AC_PROG_LN_S
@@ -26,6 +28,9 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_SUBST(CFLAGS)
 AC_SUBST(CXXFLAGS)
+AM_GNU_GETTEXT(external)
+AM_GNU_GETTEXT_VERSION
+AC_CHECK_FUNCS(ppoll)
 
 dnl Handle the prologues option.
 dnl
@@ -65,10 +70,10 @@ AS_IF([test "x$enable_ssp" != xno],[
    save_CXXFLAGS="$CXXFLAGS"
    CXXFLAGS="$CXXFLAGS -Werror -fstack-protector-all -D_FORTIFY_SOURCE=2"
    CFLAGS="$CFLAGS -Werror -fstack-protector-all -D_FORTIFY_SOURCE=2"
-   AC_COMPILE_IFELSE([int something ();], [
+   AC_COMPILE_IFELSE([AC_LANG_SOURCE([int something ();])], [
        AC_MSG_NOTICE([Compiling with gcc -fstack-protector-all et al.])
 	CFLAGS="$save_CFLAGS -fstack-protector-all -D_FORTIFY_SOURCE=2"
-	CXFXLAGS="$save_CXXFLAGS -fstack-protector-all -D_FORTIFY_SOURCE=2"],[
+	CXXFLAGS="$save_CXXFLAGS -fstack-protector-all -D_FORTIFY_SOURCE=2"],[
        AC_MSG_NOTICE([Compiler does not support -fstack-protector-all et al.])
        CFLAGS="$save_CFLAGS"
        CXXFLAGS="$save_CXXFLAGS"])])
@@ -97,7 +102,7 @@ AS_IF([test "x$enable_pie" == xyes],[
    CFLAGS="$CFLAGS -fPIE"
    CXXFLAGS="$CXXFLAGS -fPIE"
    LDFLAGS="$LDFLAGS -pie -Wl,-z,relro -Wl,-z,now"
-   AC_LINK_IFELSE([void main () {}], [
+   AC_LINK_IFELSE([AC_LANG_SOURCE([void main () {}])], [
        AC_MSG_NOTICE([Compiling with gcc pie et al.])
           # LDFLAGS is special since it may be passed down to bundled-elfutils,
           # and interfere with the .so's built therein
@@ -287,71 +292,78 @@ AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
 
 rm -f conftest.xml
 
+dnl See if we have the nss/nspr headers and libraries
+AC_CHECK_FILE([/usr/include/nss3], nssdir=nss3, [
+  AC_CHECK_FILE([/usr/include/nss], nssdir=nss)
+])
+AC_CHECK_FILE([/usr/include/nspr4], nsprdir=nspr4, [
+  AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
+])
+if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
+  nss_CFLAGS="-I/usr/include/$nssdir"
+  nspr_CFLAGS="-I/usr/include/$nsprdir"
+  AC_SUBST(nss_CFLAGS)
+  AC_SUBST(nspr_CFLAGS)
+  save_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
+  have_nss_includes=yes
+  AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
+  CPPFLAGS="$save_CPPFLAGS"
+  have_nss_libs=no
+fi
+AC_CHECK_LIB(nspr4, PR_Connect, [
+  AC_CHECK_LIB(ssl3, SSL_ReHandshake, have_nss_libs=yes)
+])
+if test "x${have_nss_includes}${have_nss_libs}" = "xyesyes"; then
+  AC_DEFINE([HAVE_NSS], [1], [Define to 1 if you have the nss libraries.])
+fi
+AM_CONDITIONAL([HAVE_NSS], [test "x${have_nss_includes}${have_nss_libs}" == "xyesyes"])
 
-dnl Handle the option to build the server setup.
+dnl Handle the option to build the compile server.
 AC_ARG_ENABLE([server],
   AS_HELP_STRING([--enable-server],
-    [enable building of stap-server/client (default on if nss etc. found).]),
+    [enable building of stap-server (default on if nss etc. found).]),
   [enable_server=$enableval],
   [enable_server="check"])
+
 if test "$enable_server" != "no"; then
-dnl Find the location of nss and nspr headers and certutil
-  AC_CHECK_PROG(have_certutil, certutil, [yes], [no])
-  AC_CHECK_FILE([/usr/include/nss3], nssdir=nss3, [
-    AC_CHECK_FILE([/usr/include/nss], nssdir=nss)
-  ])
-  AC_CHECK_FILE([/usr/include/nspr4], nsprdir=nspr4, [
-    AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
-  ])
-  if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
-    nss_CFLAGS="-I/usr/include/$nssdir"
-    nspr_CFLAGS="-I/usr/include/$nsprdir"
-    AC_SUBST(nss_CFLAGS)
-    AC_SUBST(nspr_CFLAGS)
-    save_CPPFLAGS="$CPPFLAGS"
-    CPPFLAGS="$CFLAGS $nss_CFLAGS $nspr_CFLAGS"
-    have_nss_includes=yes
-    AC_CHECK_HEADERS(["$nsprdir/nspr.h" "$nsprdir/plgetopt.h" "$nsprdir/prerror.h" "$nssdir/ssl.h" "$nssdir/nss.h" "$nssdir/pk11func.h" "$nssdir/secerr.h"], [], have_nss_includes=no)
-    CPPFLAGS="$save_CPPFLAGS"
-    have_nss_libs=no
-    AC_CHECK_LIB(nspr4, PR_Connect, [
-      AC_CHECK_LIB(ssl3, SSL_ReHandshake, have_nss_libs=yes)
-    ])
-  fi
-  if test "x${have_nss_includes}${have_nss_libs}${have_certutil}" != "xyesyesyes"; then
-    if test "$enable_server" == "yes"; then
-      AC_MSG_ERROR([cannot find all libraries or tools for systemtap compile client or server])
-    fi
-    if test "$enable_server" == "check"; then
-      AC_MSG_WARN([will not build systemtap client or server, cannot find all libraries or tools])
-    fi
-  else
-      AC_DEFINE([HAVE_NSS], [1], [Define to 1 if you have the nss libraries.])
-  fi
-dnl Find the location of avahi-client headers and library
-  AC_CHECK_FILE([/usr/include/avahi-client], avahi_clientdir=avahi-client)
-  AC_CHECK_FILE([/usr/include/avahi-common], avahi_commondir=avahi-common)
-  if test "x$avahi_clientdir" != "x" -a "x$avahi_commondir" != "x"; then
-    have_avahi_includes=yes
-    AC_CHECK_HEADERS(["$avahi_clientdir/client.h" "$avahi_clientdir/lookup.h" "$avahi_commondir/simple-watch.h" "$avahi_commondir/malloc.h" "$avahi_commondir/error.h"], [], have_avahi_includes=no)
-    have_avahi_libs=no
-    AC_CHECK_LIB(avahi-client, avahi_client_new,
-        AC_CHECK_LIB(avahi-common, avahi_strerror, have_avahi_libs=yes))
-  fi
-  if test "x${have_avahi_includes}${have_avahi_libs}" != "xyesyes"; then
-    if test "$enable_server" == "yes"; then
-      AC_MSG_ERROR([cannot find all libraries or tools for systemtap compile client or server])
-    fi
-    if test "$enable_server" == "check"; then
-      AC_MSG_WARN([will not build systemtap internal client or server, cannot find all libraries or tools])
-    fi
-  else
-      AC_DEFINE([HAVE_AVAHI], [1], [Define to 1 if you have the avahi libraries.])
+dnl See if we have enough libraries and tools to build the compile server
+  if test "x${have_nss_includes}" != "xyes"; then
+    AC_MSG_WARN([will not build systemtap compile server, cannot find nss/nspr headers])
+  fi		       
+  if test "x${have_nss_libs}" != "xyes"; then
+    AC_MSG_WARN([will not build systemtap compile server, cannot find nss/nspr libraries])
   fi
 fi
-AM_CONDITIONAL([BUILD_SERVER], [test "x${have_nss_includes}${have_nss_libs}${have_certutil}" == "xyesyesyes" -a "$enable_server" != "no"])
-AM_CONDITIONAL([HAVE_NSS],     [test "x${have_nss_includes}${have_nss_libs}${have_certutil}" == "xyesyesyes"])
-AM_CONDITIONAL([HAVE_AVAHI],   [test "x${have_avahi_includes}${have_avahi_libs}" == "xyesyes"])
+AM_CONDITIONAL([BUILD_SERVER], [test "x${have_nss_includes}${have_nss_libs}" == "xyesyes" -a "$enable_server" != "no"])
+
+if test "x${have_nss_includes}" != "xyes"; then
+  AC_MSG_WARN([some compile server client functionality will be restricted, cannot find nss/nspr headers])
+fi		       
+if test "x${have_nss_libs}" != "xyes"; then
+  AC_MSG_WARN([some compile server client functionality will be restricted, cannot find nss/nspr libraries])
+fi
+
+dnl See if we have the avahi libraries and headers
+AC_CHECK_FILE([/usr/include/avahi-client], avahi_clientdir=avahi-client)
+AC_CHECK_FILE([/usr/include/avahi-common], avahi_commondir=avahi-common)
+if test "x$avahi_clientdir" != "x" -a "x$avahi_commondir" != "x"; then
+  have_avahi_includes=yes
+  AC_CHECK_HEADERS(["$avahi_clientdir/client.h" "$avahi_clientdir/lookup.h" "$avahi_commondir/simple-watch.h" "$avahi_commondir/malloc.h" "$avahi_commondir/error.h"], [], have_avahi_includes=no)
+  have_avahi_libs=no
+fi
+AC_CHECK_LIB(avahi-client, avahi_client_new,
+  AC_CHECK_LIB(avahi-common, avahi_strerror, have_avahi_libs=yes))
+if test "x${have_avahi_includes}" != "xyes"; then
+  AC_MSG_WARN([some compile-server functionality will be restricted, cannot find avahi headers])
+fi
+if test "x${have_avahi_libs}" != "xyes"; then
+  AC_MSG_WARN([some compile-server functionality will be restricted, cannot find avahi libraries])
+fi
+if test "x${have_avahi_includes}${have_avahi_libs}" = "xyesyes"; then
+  AC_DEFINE([HAVE_AVAHI], [1], [Define to 1 if you have the avahi libraries.])
+fi
+AM_CONDITIONAL([HAVE_AVAHI], [test "x${have_avahi_includes}${have_avahi_libs}" == "xyesyes"])
 
 dnl Handle the optional grapher
 AC_ARG_ENABLE([grapher],
@@ -399,7 +411,6 @@ dnl If the user didn't say to disable the grapher, and all the
 dnl requirements are installed, enable the grapher.
 AM_CONDITIONAL([BUILD_GRAPHER], [test "x${have_grapher_reqs}" == "xyes" -a x"$enable_grapher" != "xno"])
 
-
 dnl Look for librpm.
 AC_ARG_WITH([rpm],
   [AS_HELP_STRING([--with-rpm],
@@ -409,8 +420,15 @@ if test "$with_rpm" != "no"; then
                     AC_DEFINE([HAVE_LIBRPM],[1],[have librpm])
                     stap_LIBS="$stap_LIBS -lrpm"
                     have_librpm="yes"], [have_librpm="no"])
+  AC_CHECK_LIB(rpmio, rpmFreeCrypto, [
+                    AC_DEFINE([HAVE_LIBRPMIO],[1],[have librpmio])
+                    stap_LIBS="$stap_LIBS -lrpmio"
+                    have_librpmio="yes"], [have_librpmio="no"])
   if test "x$have_librpm" != "xyes" -a "$with_rpm" == "yes"; then
      AC_MSG_ERROR([cannot find librpm])
+  fi
+  if test "x$have_librpmio" != "xyes" -a "$with_rpm" == "yes"; then
+     AC_MSG_WARN([cannot find librpmio])
   fi
 fi
 
@@ -445,8 +463,8 @@ if test $enable_translator = yes; then
     AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
       AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
       [-Wl,--start-group -ldw $ebl_LIBS -Wl,--end-group -lelf])
-    AC_CHECK_LIB(dw, dwarf_getelf,[],[
-      AC_MSG_ERROR([elfutils, libdw too old, need 0.126+])],
+    AC_CHECK_LIB(dw, dwarf_getcfi_elf,[],[
+      AC_MSG_ERROR([elfutils, libdw too old, need 0.142+])],
       [-Wl,--start-group -ldw $ebl_LIBS -Wl,--end-group -lelf])
     stap_LIBS="$stap_LIBS -Wl,--start-group -ldw $ebl_LIBS -Wl,--end-group -lelf"
     LIBS="$save_LIBS"
@@ -480,7 +498,7 @@ AC_LANG_POP(C++)
 AC_CACHE_CHECK([for assembler .section "?" flags support], stap_cv_sectionq, [
 old_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -Wa,--fatal-warnings"
-AC_COMPILE_IFELSE([asm(".section .note.foo,\"?\",\"note\"\n"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([asm(".section .note.foo,\"?\",\"note\"\n"
 		       ".byte 1, 2, 3\n"
 		       ".previous\n"
 		       ".section .text,\"axG\",\"progbits\",foogroup,comdat\n"
@@ -488,16 +506,15 @@ AC_COMPILE_IFELSE([asm(".section .note.foo,\"?\",\"note\"\n"
 		       ".pushsection .note.foo,\"?\",\"note\"\n"
 		       ".byte 4, 5, 6\n"
 		       ".popsection\n"
-		       ".byte 2\n");],
+		       ".byte 2\n");])],
 		  stap_cv_sectionq=yes, stap_cv_sectionq=no)
-CFLAGS="$oldCFLAGS"])
+CFLAGS="$old_CFLAGS"])
 AC_SUBST(support_section_question)
 support_section_question=0
 if test $stap_cv_sectionq = yes; then
   support_section_question=1
 fi
-AC_CONFIG_FILES([includes/sys/sdt-config.h])
-
+AC_CONFIG_FILES([includes/sys/sdt-config.h po/Makefile.in])
 
 if test $build_elfutils = yes -a $enable_translator = yes; then
   case "$with_elfutils" in
@@ -511,7 +528,7 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
   CXXFLAGS="$CXXFLAGS -fgnu89-inline"
   CFLAGS="$CFLAGS -fgnu89-inline"
   gnu89_inline_flag=""
-  AC_COMPILE_IFELSE([int something ();], [
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([int something ();])], [
     AC_MSG_NOTICE([Compiling elfutils with gcc -fgnu89-inline])
     gnu89_inline_flag="-fgnu89-inline"],[
     AC_MSG_NOTICE([Compiler does not support -fgnu89-inline])])
@@ -533,29 +550,29 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
 				CFLAGS="${CFLAGS/-Wall/} $gnu89_inline_flag" \
 				LDFLAGS="$LDFLAGS $elfutils_rpath" &&
    if test -f ${elfutils_srcdir}/config/version.h.in; then
-        echo Trying to install elfutils version header...
-	make install-pkgincludeHEADERS
+        echo Found elfutils/version.h header...
+   else
+	echo elfutils/version.h header not found, need elfutils 0.142+...
+	exit -1
    fi
-   # so that elfutils/version.h - available from 0.138 - may be found.
-   # Don't use install-data because that will fail (installing in $prefix).
   )
-  if test $? != 0; then exit; fi
-  save_CPPFLAGS=${CPPFLAGS}
-  CPPFLAGS="${CPPFLAGS} -Iinclude-elfutils" # in case bundled elfutils
-  AC_CHECK_HEADERS([elfutils/version.h])
-  CPPFLAGS="$save_CPPFLAGS"
-else
-  AC_CHECK_HEADERS([elfutils/version.h])
+  if test $? != 0; then exit -1; fi
 fi
+
+AC_SUBST(ENABLE_NLS, "$USE_NLS")
+AC_SUBST(localedir, "$localedir")
+AC_SUBST(LOCALEDIR, "$localedir")
 
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled
 dnl prefix is passed through indirectly in the Makefile.am AM_CPPFLAGS.
 dnl Formerly: Don't use this directly (when not given it is set to NONE).
 dnl Currently: inline autoconf's later defaulting
+
 stap_prefix=$prefix
 test "$stap_prefix" = NONE && stap_prefix=$ac_default_prefix
 AC_DEFINE_UNQUOTED(STAP_PREFIX, "$stap_prefix", [configure prefix location])
+AC_SUBST(STAP_PREFIX, "$stap_prefix")
 
 AC_CONFIG_HEADERS([config.h:config.in])
 AC_CONFIG_FILES([Makefile doc/Makefile \
@@ -563,7 +580,6 @@ doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
 grapher/Makefile \
 grapher/stapgraph.1 \
 stappaths.7 \
-stap-server.8 \
 initscript/systemtap initscript/stap-server ])
 AC_CONFIG_SUBDIRS(testsuite runtime/staprun)
 if test $enable_translator == "yes"; then

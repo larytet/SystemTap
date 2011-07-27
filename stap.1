@@ -92,10 +92,10 @@ debugger.
 The systemtap translator supports the following options.  Any other option
 prints a list of supported options.
 .TP
-.B \-h
+.B \-h \-\-help
 Show help message.
 .TP
-.B \-V
+.B \-V \-\-version
 Show version message.
 .TP
 .BI \-p " NUM"
@@ -192,17 +192,18 @@ the \-d option.  Caution: this can make the probe modules considerably
 larger.
 .TP
 .BI \-\-all\-modules
-Equivalent to specifying "-dkernel" and a "-d" for each kernel module that is
+Equivalent to specifying "\-dkernel" and a "\-d" for each kernel module that is
 currently loaded.  Caution: this can make the probe modules considerably
 larger.
 .TP
 .BI \-o " FILE"
 Send standard output to named file. In bulk mode, percpu files will
-start with FILE_ (FILE_cpu with -F) followed by the cpu number.
+start with FILE_ (FILE_cpu with \-F) followed by the cpu number.
 This supports strftime(3) formats for FILE.
 .TP
 .BI \-c " CMD"
-Start the probes, run CMD, and exit when CMD finishes.
+Start the probes, run CMD, and exit when CMD finishes.  This also has the
+effect of setting target() to the pid of the command ran.
 .TP
 .BI \-x " PID"
 Sets target() to PID. This allows scripts to be written that filter on
@@ -215,12 +216,12 @@ wildcards and aliases, but not comma-separated multiple probe points.
 The process result code will indicate failure if there are no matches.
 .TP
 .BI \-L " PROBE"
-Similar to "-l", but list probe points and script-level local variables.
+Similar to "\-l", but list probe points and script-level local variables.
 .TP
 .BI \-F
-Without -o option, load module and start probes, then detach from the module
+Without \-o option, load module and start probes, then detach from the module
 leaving the probes running.
-With -o option, run staprun in background as a daemon and show its pid.
+With \-o option, run staprun in background as a daemon and show its pid.
 .TP
 .BI \-S " size[,N]"
 Sets the maximum size of output file and the maximum number of output files.
@@ -245,7 +246,7 @@ output files exceed
 .\".BI \-\-kmap [=FILE] 
 .\"For names and addresses of kernel functions to probe,
 .\"consult the symbol table in the indicated text file.
-.\"The default is /boot/System.map-VERSION.
+.\"The default is /boot/System.map\-VERSION.
 .\"The contents of this file should be in the form of the default output from
 .\".IR nm (1).
 .\"Only symbols of type T or t are used.
@@ -259,7 +260,7 @@ output files exceed
 .\"See the
 .\".B "MAKING DO WITH SYMBOL TABLES"
 .\"section for more information.
-.\" --ignore-{vmlinux,dwarf} shouldn't be visible 
+.\" \-\-ignore\-{vmlinux,dwarf} shouldn't be visible
 .TP
 .B \-\-skip\-badvars
 Ignore out of context variables and substitute with literal 0.
@@ -272,10 +273,48 @@ systemtap script fails to run.  See the DEPRECATION section for more
 details.
 
 .TP
-.BI \-\-check-version
+.BI \-\-check\-version
 This option is used to check if the active script has any constructors
 that may be systemtap version specific.  See the DEPRECATION section
 for more details.
+
+.TP
+.BI \-\-clean\-cache
+This option prunes stale entries from the cache directory.  This is normally
+done automatically after successful runs, but this option will trigger the
+cleanup manually and then exit.  See the CACHING section for more details about
+cache limits.
+
+.TP
+.BI \-\-disable\-cache
+This option disables all use of the cache directory.  No files will be either
+read from or written to the cache.
+
+.TP
+.BI \-\-poison\-cache
+This option treats files in the cache directory as invalid.  No files will be
+read from the cache, but resulting files from this run will still be written to
+the cache.  This is meant as a troubleshooting aid when stap's cached behavior
+seems to be misbehaving.
+
+.TP
+.BI \-\-unprivileged
+This option instructs \fIstap\fR to examine the script looking for constructs
+which are not allowed for unprivileged users (see \fIUNPRIVILEGED USERS\fR).
+Compilation fails if any such
+constructs are used.
+If this option is specified when using a compile server
+(see \fI\-\-use\-server\fR),
+the server will examine the script and, if compilation succeeds, the
+server will cryptographically sign the resulting kernel module, certifying
+that is it safe for use by unprivileged users.
+
+If \fI\-\-unprivileged\fR has not been specified,
+\fI\-pN\fR has not been specified with N < 5,
+and the invoking user not
+\fIroot\fR, is not a member of the group \fIstapdev\fR, but is a member of the
+group \fIstapusr\fR, then \fIstap\fR will automatically
+add \fI\-\-unprivileged\fR to the options already specified.
 
 .TP
 \fB\-\-use\-server \fR[\fIHOSTNAME\fR[\fI:PORT\fR] | \fIIP_ADDRESS\fR[\fI:PORT\fR] | \fICERT_SERIAL\fR]
@@ -299,10 +338,31 @@ by certificate serial number (obtained using
 .IR \-\-list\-servers ).
 The latter is most commonly used when revoking
 trust in a server (see
-.I \-\-trust-servers
+.I \-\-trust\-servers
 below). If a server is specified by host name or ip address, then an optional
 port number may be specified. This is useful for accessing servers which are
 not on the local network or to specify a particular server.
+
+If \fI\-\-use\-server\fR has not been specified,
+\fI\-pN\fR has not been specified with N < 5,
+and the invoking user not \fIroot\fR,
+is not a member of the group \fIstapdev\fR, but is a member of the group
+\fIstapusr\fR, then \fIstap\fR will automatically
+add \fI\-\-use\-server\fR to the options already specified.
+
+.TP
+\fB\-\-use\-server\-on\-error \fR[\fByes\fR|\fBno\fR]
+Instructs stap to retry compilation of a script using a compile server if
+compilation on the local host fails in a manner which suggests that it might
+succeed using a server.
+If this option is not specified, the default is \fIno\fR.
+If no argument is provided, then the default
+is \fIyes\fR. Compilation will be retried for certain types of errors
+(e.g. insufficient data or resources) which may not occur during
+re\-compilation by a compile
+server. Compile servers will be selected automatically for the
+re\-compilation attempt as if \fI\-\-use\-server\fR was specified with no
+arguments.
 
 .TP
 .BI \-\-list\-servers " [SERVERS]"
@@ -346,13 +406,13 @@ If no argument is provided, then the default is
 If no servers were specified using
 .IR \-\-use\-server ,
 then the default servers for
-.IR \-\-use-server
+.IR \-\-use\-server
 are listed.
 
 .TP
 .BI \-\-trust\-servers " [TRUST_SPEC]"
 Grant or revoke trust in compile\-servers, specified using
-.IR \-\-use-server
+.IR \-\-use\-server
 as specified by TRUST_SPEC,
 where TRUST_SPEC is a comma\-separated list specifying the trust which is to
 be granted or revoked. Supported elements are:
@@ -397,8 +457,9 @@ Set the execution target to the specified ssh host, optionally using a username
 not matching your own.  This option may be repeated to target multiple
 execution targets.  Passes 1-4 are completed locally as normal to build the
 script, and then pass 5 will copy the module to the target and run it.
-(EXPERIMENTAL)
-
+If a custom ssh_config file is in use, add
+.B SendEnv LANG
+to retain internationalization functionality.
 .SH ARGUMENTS
 
 Any additional arguments on the command line are passed to the script
@@ -564,7 +625,10 @@ Inconsistent type-related use of identifiers signals an error.
 Variables may be declared global, so that they are shared amongst all
 probes and live as long as the entire systemtap session.  There is one
 namespace for all global variables, regardless of which script file
-they are found within.  A global declaration may be written at the
+they are found within.  Concurrent access to global variables is
+automatically protected with locks, see the
+.B SAFETY AND SECURITY
+section for more details.  A global declaration may be written at the
 outermost level anywhere, not within a block of code.  Global
 variables which are written but never read will be displayed
 automatically at session shutdown.  The translator will
@@ -576,7 +640,7 @@ or number literal.  The following declaration marks variables as global.
 .RE
 .PP
 Global variables can also be set as module options. One can do this by either
-using the -G option, or the module must first be compiled using stap \-p4.
+using the \-G option, or the module must first be compiled using stap \-p4.
 Global variables can then be set on the command line when calling staprun on
 the module generated by stap \-p4. See
 .IR staprun (8)
@@ -789,7 +853,9 @@ probe syscall.read += kernel.function("sys_read") {
 .ESAMPLE
 defines a new probe point with the given statement as an epilogue, which
 is useful to take actions based upon variables set or left over by the
-the alias user.
+the alias user.  Please note that in each case, the statements in the
+alias handler block are treated ordinarily, so that variables assigned
+there constitute mere initialization, not a macro substitution.
 
 An alias is used just like a built-in probe type.
 .SAMPLE
@@ -898,7 +964,7 @@ Writes a %.
 .PP
 Examples:
 .SAMPLE
-	a = "alice", b = "bob", p = 0x1234abcd, i = 123, j = -1, id[a] = 1234, id[b] = 4567
+	a = "alice", b = "bob", p = 0x1234abcd, i = 123, j = \-1, id[a] = 1234, id[b] = 4567
 	print("hello")
 		Prints: hello
 	println(b)
@@ -908,7 +974,7 @@ Examples:
 	foreach (name in id)  printdln("|", strlen(name), name, id[name])
 		Prints: 5|alice|1234\\n3|bob|4567
 	printf("%c is %s; %x or %X or %p; %d or %u\\n",97,a,p,p,p,j,j)
-		Prints: a is alice; 1234abcd or 1234ABCD or 0x1234abcd; -1 or 18446744073709551615\\n
+		Prints: a is alice; 1234abcd or 1234ABCD or 0x1234abcd; \-1 or 18446744073709551615\\n
 	printf("2 bytes of kernel buffer at address %p: %2m", p, p)
 		Prints: 2 byte of kernel buffer at address 0x1234abcd: <binary data>
 	printf("%4b", p)
@@ -979,7 +1045,7 @@ that pointer.  Using the
 .I @cast()
 operator tells the translator how to read a pointer.
 .SAMPLE
-@cast(p, "type_name"[, "module"])->member
+@cast(p, "type_name"[, "module"])\->member
 .ESAMPLE
 .PP
 This will interpret
@@ -1011,10 +1077,10 @@ kernel headers, prefix it with "kernel" to use the appropriate build system.
 All other headers are build with default GCC parameters into a user module.
 Multiple headers may be specified in sequence to resolve a codependency.
 .SAMPLE
-@cast(tv, "timeval", "<sys/time.h>")->tv_sec
-@cast(task, "task_struct", "kernel<linux/sched.h>")->tgid
+@cast(tv, "timeval", "<sys/time.h>")\->tv_sec
+@cast(task, "task_struct", "kernel<linux/sched.h>")\->tgid
 @cast(task, "task_struct",
-      "kernel<linux/sched.h><linux/fs_struct.h>")->fs->umask
+      "kernel<linux/sched.h><linux/fs_struct.h>")\->fs\->umask
 .ESAMPLE
 Values acquired by 
 .BR @cast
@@ -1035,10 +1101,10 @@ Typecasting is also useful in the case of
 members whose type may be determinable at runtime.
 .SAMPLE
 probe foo {
-  if ($var->type == 1) {
-    value = @cast($var->data, "type1")->bar
+  if ($var\->type == 1) {
+    value = @cast($var\->data, "type1")\->bar
   } else {
-    value = @cast($var->data, "type2")->baz
+    value = @cast($var\->data, "type2")\->baz
   }
   print(value)
 }
@@ -1119,7 +1185,7 @@ own process.
 .TP
 .I /* guru */
 means that the C code is so unsafe that a systemtap user must specify
-.IR -g
+.IR \-g
 (guru mode) to use this.
 .TP
 .I /* string */
@@ -1283,17 +1349,17 @@ and
 groups can build and run any systemtap script.
 Members of the
 .I stapusr
-group can only use pre-built modules under the following conditions:
+group can only use pre\-built modules under the following conditions:
 .IP \(bu 4
 The module is located in
 the /lib/modules/VERSION/systemtap directory.  This directory
 must be owned by root and not be world writable.
 .IP \(bu 4
 The module has been signed by a trusted signer. Trusted signers are normally
-systemtap compile\-servers which sign modules when the --unprivileged option is
+systemtap compile\-servers which sign modules when the \-\-unprivileged option is
 specified by the client. See the
-.IR stap-server (8)
-manual page for a for more information.
+.IR stap\-server (8)
+manual page for more information.
 .PP
 The kernel modules generated by
 .I stap
@@ -1314,8 +1380,11 @@ groups.
 The translator asserts certain safety constraints.  It aims to ensure
 that no handler routine can run for very long, allocate memory,
 perform unsafe operations, or in unintentionally interfere with the
-kernel.  Use of script global variables is suitably locked to protect
-against manipulation by concurrent probe handlers.  Use of guru mode
+kernel.  Uses of script global variables are automatically read/write 
+locked as appropriate, to protect against manipulation by concurrent probe
+handlers.  (Deadlocks are detected with timeouts.  Use the 
+.BR \-t
+flag to receive reports of excessive lock contention.)  Use of guru mode
 constructs such as embedded C can violate these constraints, leading
 to kernel crash or data corruption.
 .PP
@@ -1347,7 +1416,11 @@ which is executed with interrupts enabled (such as begin/end probes),
 default (MAXACTION * 10).
 .TP
 MAXMAPENTRIES
-Maximum number of rows in any single global array, default 2048.
+Default maximum number of rows in any single global array, default 2048.
+Individual arrays may be declared with a larger or smaller limit instead:
+.SAMPLE
+global big[10000],little[5]
+.ESAMPLE
 .TP
 MAXERRORS
 Maximum number of soft errors before an exit is triggered, default 0, which
@@ -1434,6 +1507,216 @@ have overloaded the system and an exit is triggered.
 By default, overload processing is turned on for all modules.  If you
 would like to disable overload processing, define STP_NO_OVERLOAD (or
 its alias STAP_NO_OVERLOAD).
+
+.SH UNPRIVILEGED USERS
+
+Systemtap exposes kernel internal data
+structures and potentially private user information. Because of this, use of
+systemtap's full capabilities are restricted to root and to users who are
+members of the groups stapdev and stapusr.
+
+However, a restricted set of systemtap's features can be made available to
+trusted, unprivileged users. These users are members of the group stapusr
+only. These users can load systemtap modules which have been compiled and
+certified by a trusted systemtap compile\-server. See the descriptions of the
+options \fI\-\-unprivileged\fR and \fI\-\-use\-server\fR. See
+\fIREADME.unprivileged\fR in the systemtap source code for information about
+setting up a trusted compile server.
+
+The restrictions enforced when \fI\-\-unprivileged\fR is specified are designed
+to prevent unprivileged users from:
+.RS
+.IP \(bu 4
+harming the system maliciously.
+.IP \(bu 4
+gaining access to information which would not normally be available to an
+unprivileged user.
+.IP \(bu 4
+disrupting the performance of processes owned by other users of the system.
+Some overhead to the system in general is unavoidable since the
+unprivileged  user's probes
+will be triggered at the appropriate times. What we would like to avoid is
+targeted interruption of another user's processes which would not normally be
+possible by an unprivileged user.
+.RE
+
+.SS PROBE RESTRICTIONS
+An unprivileged user may only use the following probes:
+
+.RS
+.IP \(bu 4
+begin, begin(n)
+.IP \(bu 4
+end, end(n)
+.IP \(bu 4
+error(n)
+.IP \(bu 4
+never
+.IP \(bu 4
+process.*, where the target process is owned by the user.
+.IP \(bu 4
+timer.{jiffies,s,sec,ms,msec,us,usec,ns,nsec}(n)*
+.IP \(bu 4
+timer.hz(n)
+.RE
+
+.SS SCRIPTING LANGUAGE RESTRICTIONS
+The following scripting language features are unavailable to unprivileged users:
+
+.RS
+.IP \(bu 4
+any feature enabled by the Guru Mode (-g) option.
+.IP \(bu 4
+embedded C code.
+.RE
+
+.SS RUNTIME RESTRICTIONS
+The following runtime restrictions are placed upon unprivileged users:
+
+.RS
+.IP \(bu 4
+Only the default runtime code (see \fI-R\fR) may be used.
+.IP \(bu 4
+Probing of processes owned by other users is not permitted.
+.IP \(bu 4
+Access of kernel memory (read and write) is not permitted.
+.RE
+
+.SS COMMAND LINE OPTION RESTRICTIONS
+Some command line options provide access to features which must not be available
+to unprivileged users:
+
+.RS
+.IP \(bu 4
+-g may not be specified.
+.IP \(bu 4
+The following options may not be used by the compile-server client:
+.SAMPLE
+    -a, -B, -D, -I, -r, -R
+.ESAMPLE
+.RE
+
+.SS ENVIRONMENT RESTRICTIONS
+The following environment variables must not be set:
+.SAMPLE
+
+SYSTEMTAP_RUNTIME
+SYSTEMTAP_TAPSET
+SYSTEMTAP_DEBUGINFO_PATH
+.ESAMPLE
+
+.SS TAPSET RESTRICTIONS
+The following built-in tapset functions are unconditionally available to unprivileged
+users:
+.SAMPLE
+
+_ehostunreach:long ()
+_enetunreach:long ()
+_icmp_dest_unreach:long ()
+_icmp_exc_fragtime:long ()
+_icmp_prot_unreach:long ()
+_icmp_time_exceeded:long ()
+_MM_ANONPAGES:long()
+_MM_FILEPAGES:long()
+_net_rx_drop:long ()
+_rtn_broadcast:long ()
+_rtn_multicast:long ()
+_rtn_unspec:long ()
+_sys_pipe2_flag_str:string (f:long)
+AF_INET:long()
+cpu:long ()
+cputime_to_msecs:long (cputime:long)
+egid:long ()
+error (msg:string)
+euid:long ()
+execname:string ()
+exit ()
+get_cycles:long ()
+gettimeofday_ns:long ()
+GFP_KERNEL:long()
+gid:long ()
+HZ:long ()
+is_myproc:long ()
+isdigit:long(str:string)
+isinstr:long(s1:string,s2:string)
+jiffies:long ()
+log (msg:string)
+mem_page_size:long ()
+module_name:string ()
+pexecname:string ()
+pgrp:long ()
+pid:long ()
+pn:string ()
+pp:string ()
+ppid:long ()
+randint:long(n:long) 
+registers_valid:long ()
+sid:long ()
+str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
+stringat:long(str:string, pos:long)
+strlen:long(s:string)
+strtol:long(str:string, base:long)
+substr:string(str:string,start:long, length:long)
+target:long ()
+task_utime:long ()
+task_stime:long ()
+text_str:string(input:string) 
+text_strn:string(input:string, len:long, quoted:long)
+tid:long ()
+tokenize:string(input:string, delim:string)
+tz_gmtoff() {
+tz_name() {
+uid:long ()
+user_mode:long ()
+warn (msg:string)
+.ESAMPLE
+
+The following built-in tapset functions are available to unprivileged users
+within their own processes. Scripts written by unprivileged users must test the
+result of the tapset function \fIis_myproc\fR and only call these functions if
+the result is 1. The script will exit immediately if any of these functions is
+called by an unprivileged user within a probe within a process which is not
+owned by that user.
+.SAMPLE
+
+_utrace_syscall_nr:long ()
+_utrace_syscall_arg:long (n:long)
+_utrace_syscall_return:long ()
+print_ubacktrace ()
+print_ubacktrace_brief ()
+print_ustack(stk:string)
+sprint_ubacktrace:string ()
+uaddr:long ()
+ubacktrace:string ()
+umodname:string (addr:long)
+user_char:long (addr:long)
+user_char_warn:long (addr:long)
+user_int:long (addr:long)
+user_int_warn:long (addr:long)
+user_int16:long (addr:long)
+user_int32:long (addr:long)
+user_int64:long (addr:long)
+user_int8:long (addr:long)
+user_long:long (addr:long)
+user_long_warn:long (addr:long)
+user_short:long (addr:long)
+user_short_warn:long (addr:long)
+user_string_quoted:string (addr:long)
+user_string_n_quoted:string (addr:long, n:long)
+user_string_n_warn:string (addr:long, n:long)
+user_string_n2:string (addr:long, n:long, err_msg:string)
+user_string_warn:string (addr:long)
+user_string2:string (addr:long, err_msg:string)
+user_uint16:long (addr:long)
+user_uint32:long (addr:long)
+user_uint8:long (addr:long)
+user_ushort:long (addr:long)
+user_ushort_warn:long (addr:long)
+usymdata:string (addr: long)
+usymname:string (addr: long)
+.ESAMPLE
+
+No other built-in tapset functions may be used by unprivileged users.
 
 .\" PR6864: disable temporarily 
 .\".SH MAKING DO WITH SYMBOL TABLES
@@ -1577,12 +1860,12 @@ stappaths (7) manual page.
 .IR staprun (8),
 .IR stapvars (3stap),
 .IR stapex (3stap),
-.IR stap-server (8),
+.IR stap\-server (8),
 .IR awk (1),
 .IR gdb (1)
 
 .SH BUGS
 Use the Bugzilla link of the project web page or our mailing list.
 .nh
-.BR http://sources.redhat.com/systemtap/ , <systemtap@sources.redhat.com> .
+.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
 .hy
