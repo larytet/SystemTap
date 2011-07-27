@@ -18,6 +18,7 @@
 #include "dwarf_wrappers.h"
 #include "setupdwfl.h"
 #include "task_finder.h"
+#include "dwflpp.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -33,6 +34,8 @@ extern "C" {
 #include <elfutils/libdwfl.h>
 #include <elfutils/libdw.h>
 #include <ftw.h>
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 }
 
 // Max unwind table size (debug or eh) per module. Somewhat arbitrary
@@ -41,6 +44,13 @@ extern "C" {
 // A larger value was recently found in a libxul.so build.
 #define MAX_UNWIND_TABLE_SIZE (6 * 1024 * 1024)
 
+#define STAP_T_01 _("\"Array overflow, check ")
+#define STAP_T_02 _("\"MAXNESTING exceeded\";")
+#define STAP_T_03 _("\"division by 0\";")
+#define STAP_T_04 _("\"MAXACTION exceeded\";")
+#define STAP_T_05 _("\"aggregation overflow in ")
+#define STAP_T_06 _("\"empty aggregate\";")
+#define STAP_T_07 _("\"histogram index out of range\";")
 using namespace std;
 
 struct var;
@@ -420,7 +430,7 @@ public:
               break;
 
             default:
-              throw semantic_error("unsupported stats type for " + value());
+              throw semantic_error(_F("unsupported stats type for %s", value().c_str()));
             }
 
           prefix = prefix + "); ";
@@ -428,7 +438,7 @@ public:
         }
 
       default:
-	throw semantic_error("unsupported initializer for " + value());
+        throw semantic_error(_F("unsupported initializer for %s", value().c_str()));
       }
   }
 
@@ -442,7 +452,7 @@ public:
       case pe_stats:
 	return "_stp_stat_del (" + value () + ");";
       default:
-	throw semantic_error("unsupported deallocator for " + value());
+        throw semantic_error(_F("unsupported deallocator for %s", value().c_str()));
       }
   }
 
@@ -572,7 +582,7 @@ struct mapvar
 	    result += 'x';
 	    break;
 	  default:
-	    throw semantic_error("unknown type of map");
+	    throw semantic_error(_("unknown type of map"));
 	    break;
 	  }
       }
@@ -587,7 +597,7 @@ struct mapvar
     for (unsigned i = 0; i < indices.size(); ++i)
       {
 	if (indices[i].type() != index_types[i])
-	  throw semantic_error("index type mismatch");
+	  throw semantic_error(_("index type mismatch"));
 	result += ", ";
 	result += indices[i].value();
       }
@@ -603,7 +613,7 @@ struct mapvar
   string calculate_aggregate() const
   {
     if (!is_parallel())
-      throw semantic_error("aggregating non-parallel map type");
+      throw semantic_error(_("aggregating non-parallel map type"));
 
     return "_stp_pmap_agg (" + value() + ")";
   }
@@ -611,7 +621,7 @@ struct mapvar
   string fetch_existing_aggregate() const
   {
     if (!is_parallel())
-      throw semantic_error("fetching aggregate of non-parallel map type");
+      throw semantic_error(_("fetching aggregate of non-parallel map type"));
 
     return "_stp_pmap_get_agg(" + value() + ")";
   }
@@ -629,7 +639,7 @@ struct mapvar
       return ("((uintptr_t)" + call_prefix("get", indices)
 	      + ") != (uintptr_t) 0)");
     else
-      throw semantic_error("checking existence of an unsupported map type");
+      throw semantic_error(_("checking existence of an unsupported map type"));
   }
 
   string get (vector<tmpvar> const & indices, bool pre_agg=false) const
@@ -642,7 +652,7 @@ struct mapvar
     else if (type() == pe_long || type() == pe_stats)
       return call_prefix("get", indices, pre_agg) + ")";
     else
-      throw semantic_error("getting a value from an unsupported map type");
+      throw semantic_error(_("getting a value from an unsupported map type"));
   }
 
   string add (vector<tmpvar> const & indices, tmpvar const & val) const
@@ -653,9 +663,10 @@ struct mapvar
     if (type() == pe_stats)
       res += (call_prefix("add", indices) + ", " + val.value() + ")");
     else
-      throw semantic_error("adding a value of an unsupported map type");
+      throw semantic_error(_("adding a value of an unsupported map type"));
 
-    res += "; if (unlikely(rc)) { c->last_error = \"Array overflow, check " +
+    res += "; if (unlikely(rc)) { c->last_error = ";
+    res += STAP_T_01 +
       lex_cast(maxsize > 0 ?
 	  "size limit (" + lex_cast(maxsize) + ")" : "MAXMAPENTRIES")
       + "\"; goto out; }}";
@@ -674,9 +685,10 @@ struct mapvar
     else if (type() == pe_long)
       res += (call_prefix("set", indices) + ", " + val.value() + ")");
     else
-      throw semantic_error("setting a value of an unsupported map type");
+      throw semantic_error(_("setting a value of an unsupported map type"));
 
-    res += "; if (unlikely(rc)) { c->last_error = \"Array overflow, check " +
+    res += "; if (unlikely(rc)) { c->last_error = ";
+    res += STAP_T_01 +
       lex_cast(maxsize > 0 ?
 	  "size limit (" + lex_cast(maxsize) + ")" : "MAXMAPENTRIES")
       + "\"; goto out; }}";
@@ -762,7 +774,7 @@ public:
       name("__tmp" + lex_cast(counter++))
   {
     if (referent_ty == pe_unknown)
-      throw semantic_error("iterating over unknown reference type", e->tok);
+      throw semantic_error(_("iterating over unknown reference type"), e->tok);
   }
 
   string declare () const
@@ -775,7 +787,7 @@ public:
     string res;
 
     if (mv.type() != referent_ty)
-      throw semantic_error("inconsistent iterator type in itervar::start()");
+      throw semantic_error(_("inconsistent iterator type in itervar::start()"));
 
     if (mv.is_parallel())
       return "_stp_map_start (" + mv.fetch_existing_aggregate() + ")";
@@ -786,7 +798,7 @@ public:
   string next (mapvar const & mv) const
   {
     if (mv.type() != referent_ty)
-      throw semantic_error("inconsistent iterator type in itervar::next()");
+      throw semantic_error(_("inconsistent iterator type in itervar::next()"));
 
     if (mv.is_parallel())
       return "_stp_map_iter (" + mv.fetch_existing_aggregate() + ", " + value() + ")";
@@ -811,14 +823,14 @@ public:
         // impedance matching: NULL -> empty strings
 	return "(_stp_key_get_str ("+ value() + ", " + lex_cast(i+1) + ") ?: \"\")";
       default:
-	throw semantic_error("illegal key type");
+	throw semantic_error(_("illegal key type"));
       }
   }
 
   string get_value (exp_type ty) const
   {
     if (ty != referent_ty)
-      throw semantic_error("inconsistent iterator value in itervar::get_value()");
+      throw semantic_error(_("inconsistent iterator value in itervar::get_value()"));
 
     switch (ty)
       {
@@ -830,7 +842,7 @@ public:
       case pe_stats:
 	return "_stp_get_stat ("+ value() + ")";
       default:
-	throw semantic_error("illegal value type");
+	throw semantic_error(_("illegal value type"));
       }
   }
 };
@@ -1367,6 +1379,8 @@ c_unparser::emit_module_exit ()
   o->newline(1) << "int holdon;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
   o->newline() << "int cpu;";
+  o->newline() << "unsigned long hold_start;";
+  o->newline() << "int hold_index;";
 
   o->newline() << "(void) i;";
   o->newline() << "(void) j;";
@@ -1404,14 +1418,47 @@ c_unparser::emit_module_exit ()
   // NB: systemtap_module_exit is assumed to be called from ordinary
   // user context, say during module unload.  Among other things, this
   // means we can sleep a while.
+  o->newline() << "hold_start = jiffies;";
+  o->newline() << "hold_index = -1;";
   o->newline() << "do {";
   o->newline(1) << "int i;";
   o->newline() << "holdon = 0;";
   o->newline() << "for (i=0; i < NR_CPUS; i++)";
   o->newline(1) << "if (cpu_possible (i) && "
 		<< "contexts[i] != NULL && "
-                << "atomic_read (& contexts[i]->busy)) "
-                << "holdon = 1;";
+                << "atomic_read (& contexts[i]->busy)) {";
+  o->newline(1) << "holdon = 1;";
+
+  // just in case things are really stuck, let's print some diagnostics
+  o->newline() << "if (time_after(jiffies, hold_start + HZ) "; // > 1 second
+  o->line() << "&& (i > hold_index)) {"; // not already printed
+  o->newline(1) << "hold_index = i;";
+  o->newline() << "printk(KERN_ERR \"%s context[%d] stuck: %s\\n\", THIS_MODULE->name, i, contexts[i]->probe_point);";
+  o->newline(-1) << "}";
+  o->newline(-1) << "}";
+
+  // Just in case things are really really stuck, a handler probably
+  // suffered a fault, and the kernel probably killed a task/thread
+  // already.  We can't be quite sure in what state everything is in,
+  // however auxiliary stuff like kprobes / uprobes / locks have
+  // already been unregistered.  So it's *probably* safe to
+  // pretend/assume/hope everything is OK, and let the cleanup finish.
+  //
+  // In the worst case, there may occur a fault, as a genuinely
+  // running probe handler tries to access script globals (about to be
+  // freed), or something accesses module memory (about to be
+  // unloaded).  This is sometimes stinky, so the alternative
+  // (default) is to change from a livelock to a livelock that sleeps
+  // awhile.
+  o->newline() << "#ifdef STAP_OVERRIDE_STUCK_CONTEXT";
+  o->newline() << "if (time_after(jiffies, hold_start + HZ*10)) { "; // > 10 seconds
+  o->newline(1) << "printk(KERN_ERR \"%s overriding stuck context to allow module shutdown.\", THIS_MODULE->name);";
+  o->newline() << "holdon = 0;"; // allow loop to exit
+  o->newline(-1) << "}";
+  o->newline() << "#else";
+  o->newline() << "msleep (250);"; // at least stop sucking down the staprun cpu
+  o->newline() << "#endif";
+
   // NB: we run at least one of these during the shutdown sequence:
   o->newline () << "yield ();"; // aka schedule() and then some
   o->newline(-2) << "} while (holdon);";
@@ -1540,7 +1587,8 @@ c_unparser::emit_function (functiondecl* v)
   // stored in c->locals[c->nesting+1].  See also ::emit_common_header() for more.
 
   o->newline() << "if (unlikely (c->nesting+1 >= MAXNESTING)) {";
-  o->newline(1) << "c->last_error = \"MAXNESTING exceeded\";";
+  o->newline(1) << "c->last_error = ";
+  o->line() << STAP_T_02;
   o->newline() << "return;";
   o->newline(-1) << "} else {";
   o->newline(1) << "c->nesting ++;";
@@ -1551,7 +1599,7 @@ c_unparser::emit_function (functiondecl* v)
   for (unsigned i=0; i<v->locals.size(); i++)
     {
       if (v->locals[i]->index_types.size() > 0) // array?
-	throw semantic_error ("array locals not supported, missing global declaration?",
+	throw semantic_error (_("array locals not supported, missing global declaration?"),
                               v->locals[i]->tok);
 
       o->newline() << getvar (v->locals[i]).init();
@@ -1640,7 +1688,7 @@ c_unparser::emit_probe (derived_probe* v)
       // NB: Elision of context variable structs is a separate
       // operation which has already taken place by now.
       if (session->verbose > 1)
-        clog << v->name << " elided, duplicates " << dupe << endl;
+        clog << _F("%s elided, duplicates %s", v->name.c_str(), dupe.c_str());
 
 #if DUPMETHOD_CALL
       // This one emits a direct call to the first copy.
@@ -1706,7 +1754,7 @@ c_unparser::emit_probe (derived_probe* v)
 	  if (v->locals[j]->skip_init)
             continue;
 	  if (v->locals[j]->index_types.size() > 0) // array?
-            throw semantic_error ("array locals not supported, missing global declaration?",
+            throw semantic_error (_("array locals not supported, missing global declaration?"),
                                   v->locals[j]->tok);
 	  else if (v->locals[j]->type == pe_long)
 	    o->newline() << "l->" << c_varname (v->locals[j]->name)
@@ -1715,7 +1763,7 @@ c_unparser::emit_probe (derived_probe* v)
 	    o->newline() << "l->" << c_varname (v->locals[j]->name)
 			 << "[0] = '\\0';";
 	  else
-	    throw semantic_error ("unsupported local variable type",
+	    throw semantic_error (_("unsupported local variable type"),
 				  v->locals[j]->tok);
         }
 
@@ -1811,7 +1859,7 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   if (session->verbose > 1)
     {
       if (!numvars)
-        clog << "nothing";
+        clog << _("nothing");
       clog << endl;
     }
 }
@@ -1827,7 +1875,7 @@ c_unparser::emit_locks(const varuse_collecting_visitor&)
 
 
 void
-c_unparser::emit_unlocks(const varuse_collecting_visitor& vut)
+c_unparser::emit_unlocks(const varuse_collecting_visitor&)
 {
   o->newline() << "stp_unlock_probe(locks, ARRAY_SIZE(locks));";
 }
@@ -1859,7 +1907,7 @@ mapvar::value_typename(exp_type e)
     case pe_stats:
       return "STAT";
     default:
-      throw semantic_error("array type is neither string nor long");
+      throw semantic_error(_("array type is neither string nor long"));
     }
   return "";
 }
@@ -1874,7 +1922,7 @@ mapvar::key_typename(exp_type e)
     case pe_string:
       return "STRING";
     default:
-      throw semantic_error("array key is neither string nor long");
+      throw semantic_error(_("array key is neither string nor long"));
     }
   return "";
 }
@@ -1889,7 +1937,7 @@ mapvar::shortname(exp_type e)
     case pe_string:
       return "s";
     default:
-      throw semantic_error("array type is neither string nor long");
+      throw semantic_error(_("array type is neither string nor long"));
     }
   return "";
 }
@@ -1968,7 +2016,7 @@ c_unparser::c_typename (exp_type e)
     case pe_stats: return string("Stat");
     case pe_unknown:
     default:
-      throw semantic_error ("cannot expand unknown type");
+      throw semantic_error (_("cannot expand unknown type"));
     }
 }
 
@@ -2002,7 +2050,7 @@ c_unparser::c_expression (expression *e)
   // otherwise, limit the use of this function to literal numbers and
   // strings.
   if (e->tok->type != tok_number && e->tok->type != tok_string)
-    throw semantic_error("unsupported c_expression token type");
+    throw semantic_error(_("unsupported c_expression token type"));
 
   // Create a fake output stream so we can grab the string output.
   ostringstream oss;
@@ -2033,7 +2081,7 @@ c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
       o->newline() << lvalue << " = " << rvalue << ";";
       break;
     default:
-      throw semantic_error ("unknown lvalue type in assignment", tok);
+      throw semantic_error (_("unknown lvalue type in assignment"), tok);
     }
 }
 
@@ -2053,7 +2101,7 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else
     {
-      string fullmsg = msg + " type unsupported";
+      string fullmsg = msg + _(" type unsupported");
       throw semantic_error (fullmsg, rvalue->tok);
     }
 }
@@ -2073,7 +2121,7 @@ c_unparser::c_assign (const string& lvalue, const string& rvalue,
     }
   else
     {
-      string fullmsg = msg + " type unsupported";
+      string fullmsg = msg + _(" type unsupported");
       throw semantic_error (fullmsg, tok);
     }
 }
@@ -2102,22 +2150,21 @@ c_unparser_assignment::c_assignop(tmpvar & res,
   if (res.type() == pe_string)
     {
       if (post)
-	throw semantic_error ("post assignment on strings not supported",
+	throw semantic_error (_("post assignment on strings not supported"),
 			      tok);
       if (op == "=")
 	{
 	  parent->c_strcpy (lval.value(), rval.value());
 	  // no need for second copy
 	  res = rval;
-	}
+        }
       else if (op == ".=")
 	{
 	  parent->c_strcat (lval.value(), rval.value());
 	  res = lval;
 	}
       else
-	throw semantic_error ("string assignment operator " +
-			      op + " unsupported", tok);
+        throw semantic_error (_F("string assignment operator %s unsupported", op.c_str()), tok);
     }
   else if (op == "<<<")
     {
@@ -2149,12 +2196,12 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	macop = op;
       else
 	// internal error
-	throw semantic_error ("unknown macop for assignment", tok);
+	throw semantic_error (_("unknown macop for assignment"), tok);
 
       if (post)
 	{
           if (macop == "/" || macop == "%" || op == "=")
-            throw semantic_error ("invalid post-mode operator", tok);
+            throw semantic_error (_("invalid post-mode operator"), tok);
 
 	  o->newline() << res << " = " << lval << ";";
 
@@ -2175,7 +2222,8 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	      if (macop == "/=" || macop == "%=")
 		{
 		  o->newline() << "if (unlikely(!" << rval << ")) {";
-		  o->newline(1) << "c->last_error = \"division by 0\";";
+		  o->newline(1) << "c->last_error = ";
+                  o->line() << STAP_T_03;
 		  o->newline() << "c->last_stmt = " << lex_cast_qstring(*rvalue->tok) << ";";
 		  o->newline() << "goto out;";
 		  o->newline(-1) << "}";
@@ -2190,7 +2238,7 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	}
     }
     else
-      throw semantic_error ("assignment type not yet implemented", tok);
+      throw semantic_error (_("assignment type not yet implemented"), tok);
 }
 
 
@@ -2277,9 +2325,9 @@ c_unparser::is_local(vardecl const *r, token const *tok)
     }
 
   if (tok)
-    throw semantic_error ("unresolved symbol", tok);
+    throw semantic_error (_("unresolved symbol"), tok);
   else
-    throw semantic_error ("unresolved symbol: " + r->name);
+    throw semantic_error (_("unresolved symbol: ") + r->name);
 }
 
 
@@ -2318,7 +2366,7 @@ mapvar
 c_unparser::getmap(vardecl *v, token const *tok)
 {
   if (v->arity < 1)
-    throw semantic_error("attempt to use scalar where map expected", tok);
+    throw semantic_error(_("attempt to use scalar where map expected"), tok);
   statistic_decl sd;
   std::map<std::string, statistic_decl>::const_iterator i;
   i = session->stat_decls.find(v->name);
@@ -2350,7 +2398,8 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
     {
       o->newline() << "c->actionremaining -= " << action_counter << ";";
       o->newline() << "if (unlikely (c->actionremaining <= 0)) {";
-      o->newline(1) << "c->last_error = \"MAXACTION exceeded\";";
+      o->newline(1) << "c->last_error = ";
+      o->line() << STAP_T_04;
 
       // XXX it really ought to be illegal for anything to be missing a token,
       // but until we're sure of that, we need to defend against NULL.
@@ -2555,7 +2604,7 @@ c_unparser::visit_for_loop (for_loop *s)
 
   o->newline() << "if (! (";
   if (s->cond->type != pe_long)
-    throw semantic_error ("expected numeric type", s->cond->tok);
+    throw semantic_error (_("expected numeric type"), s->cond->tok);
   s->cond->visit (this);
   o->line() << ")) goto " << breaklabel << ";";
 
@@ -2700,7 +2749,7 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
      // our bucket index.
 
      if (s->indexes.size() != 1 || s->indexes[0]->referent->type != pe_long)
-       throw semantic_error("Invalid indexing of histogram", s->tok);
+       throw semantic_error(_("Invalid indexing of histogram"), s->tok);
 
       // Then declare what we need to form the aggregate we're
       // iterating over, and all the tmpvars needed by our call to
@@ -2761,7 +2810,8 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       if (mv.is_parallel())
 	{
 	  o->newline() << "if (unlikely(NULL == " << mv.calculate_aggregate() << ")) {";
-	  o->newline(1) << "c->last_error = \"aggregation overflow in " << mv << "\";";
+	  o->newline(1) << "c->last_error = ";
+          o->line() << STAP_T_05 << mv << "\";";
 	  o->newline() << "c->last_stmt = " << lex_cast_qstring(*s->tok) << ";";
 	  o->newline() << "goto out;";
 	  o->newline(-1) << "}";
@@ -2962,10 +3012,10 @@ void
 c_unparser::visit_return_statement (return_statement* s)
 {
   if (current_function == 0)
-    throw semantic_error ("cannot 'return' from probe", s->tok);
+    throw semantic_error (_("cannot 'return' from probe"), s->tok);
 
   if (s->value->type != current_function->type)
-    throw semantic_error ("return type mismatch", current_function->tok,
+    throw semantic_error (_("return type mismatch"), current_function->tok,
                          "vs", s->tok);
 
   c_assign ("l->__retvalue", s->value, "return value");
@@ -2978,7 +3028,7 @@ void
 c_unparser::visit_next_statement (next_statement* s)
 {
   if (current_probe == 0)
-    throw semantic_error ("cannot 'next' from function", s->tok);
+    throw semantic_error (_("cannot 'next' from function"), s->tok);
 
   record_actions(1, s->tok, true);
   o->newline() << "goto out;";
@@ -3002,7 +3052,7 @@ struct delete_statement_operand_visitor:
 {
   c_unparser *parent;
   delete_statement_operand_visitor (c_unparser *p):
-    throwing_visitor ("invalid operand of delete expression"),
+    throwing_visitor (_("invalid operand of delete expression")),
     parent (p)
   {}
   void visit_symbol (symbol* e);
@@ -3042,7 +3092,7 @@ delete_statement_operand_visitor::visit_symbol (symbol* e)
 	  break;
 	case pe_unknown:
 	default:
-	  throw semantic_error("Cannot delete unknown expression type", e->tok);
+	  throw semantic_error(_("Cannot delete unknown expression type"), e->tok);
 	}
     }
 }
@@ -3069,7 +3119,7 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
     }
   else
     {
-      throw semantic_error("cannot delete histogram bucket entries\n", e->tok);
+      throw semantic_error(_("cannot delete histogram bucket entries\n"), e->tok);
     }
 }
 
@@ -3092,7 +3142,7 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
     }
   else
     {
-      throw semantic_error("cannot delete histogram bucket entries\n", e->tok);
+      throw semantic_error(_("cannot delete histogram bucket entries\n"), e->tok);
     }
 }
 
@@ -3118,7 +3168,7 @@ void
 c_unparser::visit_break_statement (break_statement* s)
 {
   if (loop_break_labels.empty())
-    throw semantic_error ("cannot 'break' outside loop", s->tok);
+    throw semantic_error (_("cannot 'break' outside loop"), s->tok);
 
   record_actions(1, s->tok, true);
   o->newline() << "goto " << loop_break_labels.back() << ";";
@@ -3129,7 +3179,7 @@ void
 c_unparser::visit_continue_statement (continue_statement* s)
 {
   if (loop_continue_labels.empty())
-    throw semantic_error ("cannot 'continue' outside loop", s->tok);
+    throw semantic_error (_("cannot 'continue' outside loop"), s->tok);
 
   record_actions(1, s->tok, true);
   o->newline() << "goto " << loop_continue_labels.back() << ";";
@@ -3203,7 +3253,7 @@ c_unparser::visit_embedded_expr (embedded_expr* e)
   else if (e->type == pe_string)
     o->line() << "((const char *) (" << e->code << "))";
   else
-    throw semantic_error ("expected numeric or string type", e->tok);
+    throw semantic_error (_("expected numeric or string type"), e->tok);
 
   o->line() << ")";
 }
@@ -3215,7 +3265,7 @@ c_unparser::visit_binary_expression (binary_expression* e)
   if (e->type != pe_long ||
       e->left->type != pe_long ||
       e->right->type != pe_long)
-    throw semantic_error ("expected numeric types", e->tok);
+    throw semantic_error (_("expected numeric types"), e->tok);
 
   if (e->op == "+" ||
       e->op == "-" ||
@@ -3269,7 +3319,8 @@ c_unparser::visit_binary_expression (binary_expression* e)
 	}
 
       o->newline() << "if (unlikely(!" << right << ")) {";
-      o->newline(1) << "c->last_error = \"division by 0\";";
+      o->newline(1) << "c->last_error = ";
+      o->line() << STAP_T_03;
       o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
       o->newline() << "goto out;";
       o->newline(-1) << "}";
@@ -3279,7 +3330,7 @@ c_unparser::visit_binary_expression (binary_expression* e)
       o->newline(-1) << "})";
     }
   else
-    throw semantic_error ("operator not yet implemented", e->tok);
+    throw semantic_error (_("operator not yet implemented"), e->tok);
 }
 
 
@@ -3288,7 +3339,7 @@ c_unparser::visit_unary_expression (unary_expression* e)
 {
   if (e->type != pe_long ||
       e->operand->type != pe_long)
-    throw semantic_error ("expected numeric types", e->tok);
+    throw semantic_error (_("expected numeric types"), e->tok);
 
   if (e->op == "-")
     {
@@ -3317,7 +3368,7 @@ c_unparser::visit_logical_or_expr (logical_or_expr* e)
   if (e->type != pe_long ||
       e->left->type != pe_long ||
       e->right->type != pe_long)
-    throw semantic_error ("expected numeric types", e->tok);
+    throw semantic_error (_("expected numeric types"), e->tok);
 
   o->line() << "((";
   e->left->visit (this);
@@ -3333,7 +3384,7 @@ c_unparser::visit_logical_and_expr (logical_and_expr* e)
   if (e->type != pe_long ||
       e->left->type != pe_long ||
       e->right->type != pe_long)
-    throw semantic_error ("expected numeric types", e->tok);
+    throw semantic_error (_("expected numeric types"), e->tok);
 
   o->line() << "((";
   e->left->visit (this);
@@ -3424,7 +3475,7 @@ c_unparser::visit_comparison (comparison* e)
   if (e->left->type == pe_string)
     {
       if (e->right->type != pe_string)
-        throw semantic_error ("expected string types", e->tok);
+        throw semantic_error (_("expected string types"), e->tok);
 
       o->line() << "strncmp (";
       e->left->visit (this);
@@ -3436,7 +3487,7 @@ c_unparser::visit_comparison (comparison* e)
   else if (e->left->type == pe_long)
     {
       if (e->right->type != pe_long)
-        throw semantic_error ("expected numeric types", e->tok);
+        throw semantic_error (_("expected numeric types"), e->tok);
 
       o->line() << "((";
       e->left->visit (this);
@@ -3445,7 +3496,7 @@ c_unparser::visit_comparison (comparison* e)
       o->line() << "))";
     }
   else
-    throw semantic_error ("unexpected type", e->left->tok);
+    throw semantic_error (_("unexpected type"), e->left->tok);
 
   o->line() << ")";
 }
@@ -3465,12 +3516,12 @@ void
 c_unparser::visit_concatenation (concatenation* e)
 {
   if (e->op != ".")
-    throw semantic_error ("unexpected concatenation operator", e->tok);
+    throw semantic_error (_("unexpected concatenation operator"), e->tok);
 
   if (e->type != pe_string ||
       e->left->type != pe_string ||
       e->right->type != pe_string)
-    throw semantic_error ("expected string types", e->tok);
+    throw semantic_error (_("expected string types"), e->tok);
 
   tmpvar t = gensym (e->type);
 
@@ -3488,12 +3539,12 @@ void
 c_unparser::visit_ternary_expression (ternary_expression* e)
 {
   if (e->cond->type != pe_long)
-    throw semantic_error ("expected numeric condition", e->cond->tok);
+    throw semantic_error (_("expected numeric condition"), e->cond->tok);
 
   if (e->truevalue->type != e->falsevalue->type ||
       e->type != e->truevalue->type ||
       (e->truevalue->type != pe_long && e->truevalue->type != pe_string))
-    throw semantic_error ("expected matching types", e->tok);
+    throw semantic_error (_("expected matching types"), e->tok);
 
   o->line() << "((";
   e->cond->visit (this);
@@ -3519,22 +3570,22 @@ c_unparser::visit_assignment (assignment* e)
   if (e->op == "<<<")
     {
       if (e->type != pe_long)
-	throw semantic_error ("non-number <<< expression", e->tok);
+	throw semantic_error (_("non-number <<< expression"), e->tok);
 
       if (e->left->type != pe_stats)
-	throw semantic_error ("non-stats left operand to <<< expression", e->left->tok);
+	throw semantic_error (_("non-stats left operand to <<< expression"), e->left->tok);
 
       if (e->right->type != pe_long)
-	throw semantic_error ("non-number right operand to <<< expression", e->right->tok);
+	throw semantic_error (_("non-number right operand to <<< expression"), e->right->tok);
 
     }
   else
     {
       if (e->type != e->left->type)
-	throw semantic_error ("type mismatch", e->tok,
+	throw semantic_error (_("type mismatch"), e->tok,
 			      "vs", e->left->tok);
       if (e->right->type != e->left->type)
-	throw semantic_error ("type mismatch", e->right->tok,
+	throw semantic_error (_("type mismatch"), e->right->tok,
 			      "vs", e->left->tok);
     }
 
@@ -3556,7 +3607,7 @@ c_unparser::visit_pre_crement (pre_crement* e)
 {
   if (e->type != pe_long ||
       e->type != e->operand->type)
-    throw semantic_error ("expected numeric type", e->tok);
+    throw semantic_error (_("expected numeric type"), e->tok);
 
   c_unparser_assignment tav (this, e->op, false);
   e->operand->visit (& tav);
@@ -3576,7 +3627,7 @@ c_unparser::visit_post_crement (post_crement* e)
 {
   if (e->type != pe_long ||
       e->type != e->operand->type)
-    throw semantic_error ("expected numeric type", e->tok);
+    throw semantic_error (_("expected numeric type"), e->tok);
 
   c_unparser_assignment tav (this, e->op, true);
   e->operand->visit (& tav);
@@ -3590,7 +3641,7 @@ c_unparser::visit_symbol (symbol* e)
   vardecl* r = e->referent;
 
   if (r->index_types.size() != 0)
-    throw semantic_error ("invalid reference to array", e->tok);
+    throw semantic_error (_("invalid reference to array"), e->tok);
 
   var v = getvar(r, e->tok);
   o->line() << v;
@@ -3685,7 +3736,7 @@ c_unparser_assignment::prepare_rvalue (string const & op,
 	// "x += 1".
         rval.override("1");
       else
-        throw semantic_error ("need rvalue for assignment", tok);
+        throw semantic_error (_("need rvalue for assignment"), tok);
     }
 }
 
@@ -3696,7 +3747,7 @@ c_unparser_assignment::visit_symbol (symbol *e)
 
   assert (e->referent != 0);
   if (e->referent->index_types.size() != 0)
-    throw semantic_error ("unexpected reference to array", e->tok);
+    throw semantic_error (_("unexpected reference to array"), e->tok);
 
   // parent->o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
   exp_type ty = rvalue ? rvalue->type : e->type;
@@ -3715,28 +3766,28 @@ c_unparser_assignment::visit_symbol (symbol *e)
 void
 c_unparser::visit_target_symbol (target_symbol* e)
 {
-  throw semantic_error("cannot translate general target-symbol expression", e->tok);
+  throw semantic_error(_("cannot translate general target-symbol expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_cast_op (cast_op* e)
 {
-  throw semantic_error("cannot translate general @cast expression", e->tok);
+  throw semantic_error(_("cannot translate general @cast expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_defined_op (defined_op* e)
 {
-  throw semantic_error("cannot translate general @defined expression", e->tok);
+  throw semantic_error(_("cannot translate general @defined expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_entry_op (entry_op* e)
 {
-  throw semantic_error("cannot translate general @entry expression", e->tok);
+  throw semantic_error(_("cannot translate general @entry expression"), e->tok);
 }
 
 
@@ -3787,12 +3838,12 @@ c_unparser::load_map_indices(arrayindex *e,
 
       if (r->index_types.size() == 0 ||
 	  r->index_types.size() != e->indexes.size())
-	throw semantic_error ("invalid array reference", e->tok);
+	throw semantic_error (_("invalid array reference"), e->tok);
 
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
 	  if (r->index_types[i] != e->indexes[i]->type)
-	    throw semantic_error ("array index type mismatch", e->indexes[i]->tok);
+	    throw semantic_error (_("array index type mismatch"), e->indexes[i]->tok);
 
 	  tmpvar ix = gensym (r->index_types[i]);
 	  if (e->indexes[i]->tok->type == tok_number
@@ -3836,7 +3887,7 @@ c_tmpcounter::load_aggregate (expression *e)
       !parent->get_foreach_loop_value(arr, agg_value))
     {
       if (!arr)
-	throw semantic_error("expected arrayindex expression", e->tok);
+	throw semantic_error(_("expected arrayindex expression"), e->tok);
       load_map_indices (arr);
     }
 }
@@ -3848,7 +3899,7 @@ c_unparser::load_aggregate (expression *e, aggvar & agg)
   symbol *sym = get_symbol_within_expression (e);
 
   if (sym->referent->type != pe_stats)
-    throw semantic_error ("unexpected aggregate of non-statistic", sym->tok);
+    throw semantic_error (_("unexpected aggregate of non-statistic"), sym->tok);
 
   var *v;
   if (sym->referent->arity == 0)
@@ -3864,7 +3915,7 @@ c_unparser::load_aggregate (expression *e, aggvar & agg)
 
       arrayindex *arr = NULL;
       if (!expression_is_arrayindex (e, arr))
-	throw semantic_error("unexpected aggregate of non-arrayindex", e->tok);
+	throw semantic_error(_("unexpected aggregate of non-arrayindex"), e->tok);
 
       // If we have a foreach_loop value, we don't need to index the map
       string agg_value;
@@ -3946,7 +3997,7 @@ c_tmpcounter::visit_arrayindex (arrayindex *e)
       // First all the stuff related to indexing into the histogram
 
       if (e->indexes.size() != 1)
-	throw semantic_error("Invalid indexing of histogram", e->tok);
+	throw semantic_error(_("Invalid indexing of histogram"), e->tok);
       tmpvar ix = parent->gensym (pe_long);
       ix.declare (*parent);
       e->indexes[0]->visit(this);
@@ -3982,7 +4033,7 @@ c_unparser::visit_arrayindex (arrayindex* e)
     {
       // Visiting an statistic-valued array in a non-lvalue context is prohibited.
       if (array->referent->type == pe_stats)
-	throw semantic_error ("statistic-valued array in rvalue context", e->tok);
+	throw semantic_error (_("statistic-valued array in rvalue context"), e->tok);
 
       stmt_expr block(*this);
 
@@ -4029,13 +4080,15 @@ c_unparser::visit_arrayindex (arrayindex* e)
       // PR 2142+2610: empty aggregates
       o->newline() << "if (unlikely (" << agg.value() << " == NULL)"
                    << " || " <<  agg.value() << "->count == 0) {";
-      o->newline(1) << "c->last_error = \"empty aggregate\";";
+      o->newline(1) << "c->last_error = ";
+      o->line() << STAP_T_06;
       o->newline() << "goto out;";
       o->newline(-1) << "} else {";
       o->newline(1) << "if (" << histogram_index_check(*v, idx[0]) << ")";
       o->newline(1)  << res << " = " << agg << "->histogram[" << idx[0] << "];";
       o->newline(-1) << "else {";
-      o->newline(1)  << "c->last_error = \"histogram index out of range\";";
+      o->newline(1)  << "c->last_error = ";
+      o->line() << STAP_T_07;
       o->newline() << "goto out;";
       o->newline(-1) << "}";
 
@@ -4074,7 +4127,7 @@ c_tmpcounter_assignment::visit_arrayindex (arrayindex *e)
     }
   else
     {
-      throw semantic_error("cannot assign to histogram buckets", e->tok);
+      throw semantic_error(_("cannot assign to histogram buckets"), e->tok);
     }
 }
 
@@ -4094,7 +4147,7 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
       translator_output *o = parent->o;
 
       if (array->referent->index_types.size() == 0)
-	throw semantic_error ("unexpected reference to scalar", e->tok);
+	throw semantic_error (_("unexpected reference to scalar"), e->tok);
 
       // nb: Do not adjust the order of the next few lines; the tmpvar
       // allocation order must remain the same between
@@ -4165,7 +4218,7 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
     }
   else
     {
-      throw semantic_error("cannot assign to histogram buckets", e->tok);
+      throw semantic_error(_("cannot assign to histogram buckets"), e->tok);
     }
 }
 
@@ -4194,7 +4247,7 @@ c_unparser::visit_functioncall (functioncall* e)
   functiondecl* r = e->referent;
 
   if (r->formal_args.size() != e->args.size())
-    throw semantic_error ("invalid length argument list", e->tok);
+    throw semantic_error (_("invalid length argument list"), e->tok);
 
   stmt_expr block(*this);
 
@@ -4210,7 +4263,7 @@ c_unparser::visit_functioncall (functioncall* e)
       tmpvar t = gensym(e->args[i]->type);
 
       if (r->formal_args[i]->type != e->args[i]->type)
-	throw semantic_error ("function argument type mismatch",
+	throw semantic_error (_("function argument type mismatch"),
 			      e->args[i]->tok, "vs", r->formal_args[i]->tok);
 
       if (e->args[i]->tok->type == tok_number
@@ -4221,7 +4274,7 @@ c_unparser::visit_functioncall (functioncall* e)
 	  // o->newline() << "c->last_stmt = "
           // << lex_cast_qstring(*e->args[i]->tok) << ";";
 	  c_assign (t.value(), e->args[i],
-		    "function actual argument evaluation");
+		    _("function actual argument evaluation"));
 	}
       tmp.push_back(t);
     }
@@ -4230,7 +4283,7 @@ c_unparser::visit_functioncall (functioncall* e)
   for (unsigned i=0; i<e->args.size(); i++)
     {
       if (r->formal_args[i]->type != e->args[i]->type)
-	throw semantic_error ("function argument type mismatch",
+	throw semantic_error (_("function argument type mismatch"),
 			      e->args[i]->tok, "vs", r->formal_args[i]->tok);
 
       c_assign ("c->locals[c->nesting+1].function_" +
@@ -4281,7 +4334,7 @@ c_tmpcounter::visit_print_format (print_format* e)
 	  tmpvar t = parent->gensym (e->args[i]->type);
 	  if (e->args[i]->type == pe_unknown)
 	    {
-	      throw semantic_error("unknown type of arg to print operator",
+	      throw semantic_error(_("unknown type of arg to print operator"),
 				   e->args[i]->tok);
 	    }
 
@@ -4319,7 +4372,8 @@ c_unparser::visit_print_format (print_format* e)
         // PR 2142+2610: empty aggregates
         o->newline() << "if (unlikely (" << agg.value() << " == NULL)"
                      << " || " <<  agg.value() << "->count == 0) {";
-        o->newline(1) << "c->last_error = \"empty aggregate\";";
+        o->newline(1) << "c->last_error = ";
+        o->line() << STAP_T_06;
 	o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
 	o->newline() << "goto out;";
         o->newline(-1) << "} else";
@@ -4346,7 +4400,8 @@ c_unparser::visit_print_format (print_format* e)
       // PR10750: Enforce a reasonable limit on # of varargs
       // 32 varargs leads to max 256 bytes on the stack
       if (e->args.size() > 32)
-        throw semantic_error("too many arguments to print", e->tok);
+        throw semantic_error(_F(ngettext("additional argument to print", "too many arguments to print (%zu)",
+                                e->args.size()), e->args.size()), e->tok);
 
       // Compute actual arguments
       vector<tmpvar> tmp;
@@ -4391,9 +4446,9 @@ c_unparser::visit_print_format (print_format* e)
 	      switch (e->args[i]->type)
 		{
 		case pe_unknown:
-		  throw semantic_error("cannot print unknown expression type", e->args[i]->tok);
+		  throw semantic_error(_("cannot print unknown expression type"), e->args[i]->tok);
 		case pe_stats:
-		  throw semantic_error("cannot print a raw stats object", e->args[i]->tok);
+		  throw semantic_error(_("cannot print a raw stats object"), e->args[i]->tok);
 		case pe_long:
 		  curr.type = print_format::conv_signed_decimal;
 		  break;
@@ -4446,6 +4501,8 @@ c_unparser::visit_print_format (print_format* e)
 	  width_ix = arg_ix++;
 	if (components[i].prectype == print_format::prec_dynamic)
 	  prec_ix = arg_ix++;
+
+        (void) width_ix; /* XXX: notused */
 
         /* %m and %M need special care for digging into memory. */
 	if (components[i].type == print_format::conv_memory
@@ -4581,7 +4638,9 @@ c_unparser::visit_stat_op (stat_op* e)
     var *v = load_aggregate(e->stat, agg);
     {
       // PR 2142+2610: empty aggregates
-      if (e->ctype == sc_count)
+      if ((e->ctype == sc_count) ||
+          (e->ctype == sc_sum &&
+           strverscmp(session->compatible.c_str(), "1.5") >= 0))
         {
           o->newline() << "if (unlikely (" << agg.value() << " == NULL))";
           o->indent(1);
@@ -4592,7 +4651,8 @@ c_unparser::visit_stat_op (stat_op* e)
         {
           o->newline() << "if (unlikely (" << agg.value() << " == NULL)"
                        << " || " <<  agg.value() << "->count == 0) {";
-          o->newline(1) << "c->last_error = \"empty aggregate\";";
+          o->newline(1) << "c->last_error = ";
+          o->line() << STAP_T_06;
           o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
           o->newline() << "goto out;";
           o->newline(-1) << "}";
@@ -4670,7 +4730,6 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
   *debug_frame_hdr = NULL;
   *debug_frame_hdr_len = 0;
 
-#if _ELFUTILS_PREREQ(0,142)
   int cies = 0;
   set< pair<Dwarf_Addr, Dwarf_Off> > fdes;
   set< pair<Dwarf_Addr, Dwarf_Off> >::iterator it;
@@ -4683,7 +4742,7 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
   Dwarf_Off off = 0;
   Dwarf_CFI_Entry entry;
 
-  while (res != 1 && off >= 0)
+  while (res != 1)
     {
       Dwarf_Off next_off;
       res = dwarf_next_cfi (e_ident, debug_frame, false, off, &next_off,
@@ -4762,7 +4821,6 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
 	  *table++ = (*it).second;
 	}
     }
-#endif
 }
 
 // Get the .debug_frame end .eh_frame sections for the given module.
@@ -4887,7 +4945,7 @@ dump_unwindsyms (Dwfl_Module *m,
   // In the future, we'll also care about data symbols.
 
   int syments = dwfl_module_getsymtab(m);
-  dwfl_assert ("Getting symbol table for " + modname, syments >= 0);
+  dwfl_assert (_F("Getting symbol table for %s", modname.c_str()), syments >= 0);
 
   //extract build-id from debuginfo file
   int build_id_len = 0;
@@ -4898,26 +4956,6 @@ dump_unwindsyms (Dwfl_Module *m,
                                         (const unsigned char **)&build_id_bits,
                                          &build_id_vaddr)) > 0)
   {
-    // Enable workaround for elfutils dwfl bug.
-    // see https://bugzilla.redhat.com/show_bug.cgi?id=465872
-    // and http://sourceware.org/ml/systemtap/2008-q4/msg00579.html
-#if !_ELFUTILS_PREREQ(0,138)
-    // Let's standardize to the new "start of build-id bits" behavior.
-    build_id_vaddr -= build_id_len;
-#endif
-
-    // And check for another workaround needed.
-    // see https://bugzilla.redhat.com/show_bug.cgi?id=489439
-    // and http://sourceware.org/ml/systemtap/2009-q1/msg00513.html
-#if !_ELFUTILS_PREREQ(0,141)
-    if (build_id_vaddr < base && dwfl_module_relocations (m) == 1)
-      {
-        GElf_Addr main_bias;
-        dwfl_module_getelf (m, &main_bias);
-        build_id_vaddr += main_bias;
-      }
-#endif
-
      if (modname != "kernel")
       {
         Dwarf_Addr reloc_vaddr = build_id_vaddr;
@@ -4939,7 +4977,7 @@ dump_unwindsyms (Dwfl_Module *m,
 
 	if (modname[0] != '/')
 	  if (!secname || strcmp(secname, ".note.gnu.build-id"))
-	    throw semantic_error ("unexpected build-id reloc section " +
+	    throw semantic_error (_("unexpected build-id reloc section ") +
 				  string(secname ?: "null"));
 
         build_id_vaddr = reloc_vaddr;
@@ -4947,10 +4985,8 @@ dump_unwindsyms (Dwfl_Module *m,
 
     if (c->session.verbose > 1)
       {
-        clog << "Found build-id in " << name
-             << ", length " << build_id_len;
-        clog << ", start at 0x" << hex << build_id_vaddr
-             << dec << endl;
+        clog << _F("Found build-id in %s, length %d, start at 0x%#" PRIx64,
+                   name, build_id_len, build_id_vaddr) << endl;
       }
   }
 
@@ -4997,12 +5033,8 @@ dump_unwindsyms (Dwfl_Module *m,
               ki = dwfl_module_relocate_address (m, &extra_offset);
               dwfl_assert ("dwfl_module_relocate_address extra_offset",
                            ki >= 0);
-              // Sadly dwfl_module_relocate_address is broken on
-              // elfutils < 0.138, so we need to adjust for the module
-              // base address outself. (see also below).
-              extra_offset = sym.st_value - base;
               if (c->session.verbose > 2)
-                clog << "Found kernel _stext extra offset 0x" << hex << extra_offset << dec << endl;
+                clog << _F("Found kernel _stext extra offset 0x%#" PRIx64, extra_offset) << endl;
             }
 
 	  // We are only interested in "real" symbols.
@@ -5025,14 +5057,6 @@ dump_unwindsyms (Dwfl_Module *m,
                   int ki = dwfl_module_relocate_address (m, &sym_addr);
                   dwfl_assert ("dwfl_module_relocate_address", ki >= 0);
                   secname = dwfl_module_relocation_info (m, ki, NULL);
-
-                  // For ET_DYN files (secname == "") we do ignore the
-                  // dwfl_module_relocate_address adjustment. libdwfl
-                  // up to 0.137 would substract the wrong bias. So we do
-                  // it ourself, it is always just the module base address
-                  // in this case.
-                  if (ki == 0 && secname != NULL && secname[0] == '\0')
-                    sym_addr = save_addr - base;
 		}
 
               if (n == 1 && modname == "kernel")
@@ -5183,8 +5207,9 @@ dump_unwindsyms (Dwfl_Module *m,
       if (eh_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
         {
           if (! c->session.suppress_warnings)
-            c->session.print_warning ("skipping module " + modname + " eh_frame_hdr table (too big: " +
-                                      lex_cast(eh_frame_hdr_len) + " > " + lex_cast(MAX_UNWIND_TABLE_SIZE) + ")");
+            c->session.print_warning (_F("skipping module %s eh_frame_hdr table (too big: %s > %s)",
+                                          modname.c_str(), lex_cast(eh_frame_hdr_len).c_str(),
+                                          lex_cast(MAX_UNWIND_TABLE_SIZE).c_str()));
         }
       else
         for (size_t i = 0; i < eh_frame_hdr_len; i++)
@@ -5246,15 +5271,10 @@ dump_unwindsyms (Dwfl_Module *m,
 	      if (debug_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
 		{
 		  if (! c->session.suppress_warnings)
-		    c->session.print_warning ("skipping module "
-					      + modname
-					      + ", section" + secname
-					      + " debug_frame_hdr table"
-					      + " (too big: "
-					      + lex_cast(debug_frame_hdr_len)
-					      + " > "
-					      + lex_cast(MAX_UNWIND_TABLE_SIZE)
-					      + ")");
+                    c->session.print_warning (_F("skipping module %s, section %s debug_frame_hdr"
+                                                 " table (too big: %s > %s)", modname.c_str(),
+                                                 secname.c_str(), lex_cast(debug_frame_hdr_len).c_str(),
+                                                 lex_cast(MAX_UNWIND_TABLE_SIZE).c_str()));
 		}
 	      else
 		for (size_t i = 0; i < debug_frame_hdr_len; i++)
@@ -5384,12 +5404,14 @@ dump_unwindsyms (Dwfl_Module *m,
 
   /* Don't save build-id if it is located before _stext.
    * This probably means that build-id will not be loaded at all and
-   * happens for example with ARM kernel.
+   * happens for example with ARM kernel.  Allow user space modules since the
+   * check fails for a shared object.
    *
    * See also:
-   *    http://sources.redhat.com/ml/systemtap/2009-q4/msg00574.html
+   *    http://sourceware.org/ml/systemtap/2009-q4/msg00574.html
    */
-  if (build_id_len > 0) {
+  if (build_id_len > 0
+      && (modname != "kernel" || (build_id_vaddr > base + extra_offset))) {
     c->output << ".build_id_bits = \"" ;
     for (int j=0; j<build_id_len;j++)
       c->output << "\\x" << hex
@@ -5435,15 +5457,29 @@ void emit_symbol_data_done (unwindsym_dump_context*, systemtap_session&);
 
 
 void
+add_unwindsym_iol_callback (void *q, const char *data)
+{
+  std::set<std::string> *added = (std::set<std::string>*)q;
+  added->insert (string (data));
+}
+
+
+static int
+query_module (Dwfl_Module *mod,
+              void **,
+              const char *,
+              Dwarf_Addr,
+              void *arg)
+{
+  ((struct dwflpp*)arg)->focus_on_module(mod, NULL);
+  return DWARF_CB_OK;
+}
+
+
+void
 add_unwindsym_ldd (systemtap_session &s)
 {
   std::set<std::string> added;
-
-  // NB: This is not entirely safe.  It may be possible to create a
-  // handcrafted executable that sends ldd off to neverland, or even
-  // to execute the thing.
-  if (geteuid() == 0 && !s.suppress_warnings)
-    s.print_warning("/usr/bin/ldd may not be safe to run on untrustworthy executables");
 
   for (std::set<std::string>::iterator it = s.unwindsym_modules.begin();
        it != s.unwindsym_modules.end();
@@ -5453,63 +5489,18 @@ add_unwindsym_ldd (systemtap_session &s)
       assert (modname.length() != 0);
       if (! is_user_module (modname)) continue;
 
-      string ldd_command = "/usr/bin/ldd " + modname;
-      if (s.verbose > 2)
-        clog << "Running '" << ldd_command << "'" << endl;
-
-      FILE *fp = popen (ldd_command.c_str(), "r");
-      if (fp == 0)
-        clog << ldd_command << " failed: " << strerror(errno) << endl;
-      else
-        {
-          while (1)
-            {
-              char linebuf[256];
-              char *soname = 0;
-              char *shlib = 0;
-              unsigned long int addr = 0;
-
-              char *line = fgets (linebuf, 256, fp);
-              if (line == 0) break; // EOF or error
-
-              // Try soname => shlib (0xaddr)
-              int nf = sscanf (line, "%as => %as (0x%lx)",
-                               &soname, &shlib, &addr);
-              if (nf != 3 || shlib[0] != '/')
-                {
-                  // Try shlib (0xaddr)
-                  nf = sscanf (line, " %as (0x%lx)", &shlib, &addr);
-                  if (nf != 2 || shlib[0] != '/')
-                    continue; // fewer than expected fields, or bad shlib.
-                }
-
-              if (added.find (shlib) == added.end())
-                {
-                  if (s.verbose > 2)
-                    {
-                      clog << "Added -d '" << shlib;
-                      if (nf == 3)
-                        clog << "' due to '" << soname << "'";
-                      else
-                        clog << "'";
-                      clog << endl;
-                    }
-                  added.insert (shlib);
-                }
-
-              free (soname);
-              free (shlib);
-            }
-          pclose (fp);
-        }
+      struct dwflpp *mod_dwflpp = new dwflpp(s, modname, false);
+      mod_dwflpp->iterate_over_modules(&query_module, mod_dwflpp);
+      mod_dwflpp->iterate_over_libraries (&add_unwindsym_iol_callback, &added);
+      delete mod_dwflpp;
     }
-  
+
   s.unwindsym_modules.insert (added.begin(), added.end());
 }
 
 static set<string> vdso_paths;
 
-static int find_vdso(const char *path, const struct stat *status, int type)
+static int find_vdso(const char *path, const struct stat *, int type)
 {
   if (type == FTW_F)
     {
@@ -5543,7 +5534,7 @@ add_unwindsym_vdso (systemtap_session &s)
     vdso_dir = s.kernel_build_tree + "/arch/";
 
   if (s.verbose > 1)
-    clog << "Searching for vdso candidates: " << vdso_dir << endl;
+    clog << _("Searching for vdso candidates: ") << vdso_dir << endl;
 
   ftw(vdso_dir.c_str(), find_vdso, 1);
 
@@ -5553,7 +5544,7 @@ add_unwindsym_vdso (systemtap_session &s)
     {
       s.unwindsym_modules.insert(*it);
       if (s.verbose > 1)
-	clog << "vdso candidate: " << *it << endl;
+	clog << _("vdso candidate: ") << *it << endl;
     }
 }
 
@@ -5673,7 +5664,7 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
     for (set<string>::iterator it = ctx->undone_unwindsym_modules.begin();
 	 it != ctx->undone_unwindsym_modules.end();
 	 it ++)
-      s.print_warning ("missing unwind/symbol data for module '"
+      s.print_warning (_("missing unwind/symbol data for module '")
 		       + (*it) + "'");
 }
 
@@ -5696,8 +5687,8 @@ struct recursion_info: public traversing_visitor
     if (nesting_max < nesting_depth)
       {
         if (sess.verbose > 3)
-          clog << "identified max-nested function: " << e->referent->name
-               << " (" << nesting_depth << ")" << endl;
+          clog << _F("identified max-nested function: %s (%d)",
+                     e->referent->name.c_str(), nesting_depth) << endl;
         nesting_max = nesting_depth;
       }
 
@@ -5707,7 +5698,7 @@ struct recursion_info: public traversing_visitor
         {
           recursive = true;
           if (sess.verbose > 3)
-            clog << "identified recursive function: " << e->referent->name << endl;
+            clog << _F("identified recursive function: %s", e->referent->name.c_str()) << endl;
           return;
         }
 
@@ -5719,11 +5710,36 @@ struct recursion_info: public traversing_visitor
 };
 
 
+void translate_runtime(systemtap_session& s)
+{
+  s.op->newline() << "#define STAP_MSG_RUNTIME_H_01 "
+                  << lex_cast_qstring(_("myproc-unprivileged tapset function called "
+                                        "without is_myproc checking for pid %d (euid %d)"));
+
+  s.op->newline() << "#define STAP_MSG_LOC2C_01 "
+                  << lex_cast_qstring(_("kernel read fault at 0x%p (%s)"));
+  s.op->newline() << "#define STAP_MSG_LOC2C_02 "
+                  << lex_cast_qstring(_("kernel write fault at 0x%p (%s)"));
+  s.op->newline() << "#define STAP_MSG_LOC2C_03 "
+                  << lex_cast_qstring(_("divide by zero in DWARF operand (%s)"));
+}
+
+
 int
 prepare_translate_pass (systemtap_session& s)
 {
-  prepare_symbol_data (s);
-  return 0;
+  int rc = 0;
+  try
+    {
+      prepare_symbol_data (s);
+    }
+  catch (const semantic_error& e)
+    {
+      s.print_error (e);
+      rc = 1;
+    }
+
+  return rc;
 }
 
 
@@ -5735,6 +5751,7 @@ translate_pass (systemtap_session& s)
   s.op = new translator_output (s.translated_source);
   c_unparser cup (& s);
   s.up = & cup;
+  translate_runtime(s);
 
   try
     {
@@ -5748,14 +5765,14 @@ translate_pass (systemtap_session& s)
 	  if (versions.size() >= 2)
 	    minor = lex_cast<int64_t> (versions[1]);
 	  if (versions.size() >= 3 && s.verbose > 1)
-	    clog << "ignoring extra parts of compat version: " << s.compatible << endl;
+	    clog << _F("ignoring extra parts of compat version: %s", s.compatible.c_str()) << endl;
 	}
       catch (const runtime_error)
 	{
-	  throw semantic_error("parse error in compatibility version: " + s.compatible);
+	  throw semantic_error(_F("parse error in compatibility version: %s", s.compatible.c_str()));
 	}
       if (major < 0 || major > 255 || minor < 0 || minor > 255)
-	throw semantic_error("compatibility version out of range: " + s.compatible);
+	throw semantic_error(_F("compatibility version out of range: %s", s.compatible.c_str()));
       s.op->newline() << "#define STAP_VERSION(a, b) ( ((a) << 8) + (b) )";
       s.op->newline() << "#ifndef STAP_COMPAT_VERSION";
       s.op->newline() << "#define STAP_COMPAT_VERSION STAP_VERSION("
@@ -5774,8 +5791,8 @@ translate_pass (systemtap_session& s)
 	}
 
       if (s.verbose > 1)
-        clog << "function recursion-analysis: max-nesting " << ri.nesting_max
-             << (ri.recursive ? " recursive" : " non-recursive") << endl;
+        clog << _F("function recursion-analysis: max-nesting %d %s", ri.nesting_max,
+                  (ri.recursive ? _(" recursive") : _(" non-recursive"))) << endl;
       unsigned nesting = ri.nesting_max + 1; /* to account for initial probe->function call */
       if (ri.recursive) nesting += 10;
 

@@ -1,0 +1,12 @@
+*.aux
+*.glo
+*.idx
+*.log
+*.lot
+*.out
+*.pdf
+*.toc
+*.dvi
+_region_.*
+beginners
+langref

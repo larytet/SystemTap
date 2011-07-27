@@ -30,9 +30,9 @@ the kernel debugging information (need to compile the script) and then
 transfer the resulting kernel module to a production machine that
 doesn't have any development tools or kernel debugging information installed.
 .PP
-Please refere to stappaths (7) for the version number, or run
-rpm -q systemtap (fedora/red hat)
-apt-get -v systemtap (ubuntu)
+Please refer to stappaths (7) for the version number, or run
+rpm \-q systemtap (fedora/red hat)
+apt\-get \-v systemtap (ubuntu)
 
 .SH OPTIONS
 The
@@ -86,6 +86,9 @@ the user has permission to access will be deleted. Use "*"
 .TP
 .BI \-D
 Run staprun in background as a daemon and show it's pid.
+.TP
+.B \-R
+Rename the module to a unique name before inserting it.
 .TP
 .BI \-S " size[,N]"
 Sets the maximum size of output file and the maximum number of output files.
@@ -222,9 +225,9 @@ the /lib/modules/VERSION/systemtap directory.  This directory
 must be owned by root and not be world writable.
 .IP \(bu 4
 The module has been signed by a trusted signer. Trusted signers are normally
-systemtap compile servers which sign modules when the --unprivileged option is
+systemtap compile servers which sign modules when the \-\-unprivileged option is
 specified by the client. See the
-.IR stap-server (8)
+.IR stap\-server (8)
 manual page for a for more information.
 .SH FILES
 .TP
@@ -239,12 +242,12 @@ user and not be world writable.
 .IR stap (1),
 .IR stapprobes (3stap),
 .IR stapfuncs (3stap),
-.IR stap-server (8),
+.IR stap\-server (8),
 .IR stapex (3stap)
 
 .SH BUGS
 Use the Bugzilla link of the project web page or our mailing list.
 .nh
-.BR http://sources.redhat.com/systemtap/ ", " <systemtap@sources.redhat.com> .
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
 .hy
 

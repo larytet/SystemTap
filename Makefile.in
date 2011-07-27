@@ -35,52 +35,53 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
+build_triplet = @build@
+host_triplet = @host@
 bin_PROGRAMS = $(am__EXEEXT_1)
 @BUILD_TRANSLATOR_TRUE@am__append_1 = stap
 @BUILD_TRANSLATOR_TRUE@am__append_2 = stap.1
 @BUILD_TRANSLATOR_TRUE@am__append_3 = dtrace
 @BUILD_TRANSLATOR_TRUE@pkglibexec_PROGRAMS = $(am__EXEEXT_2) \
 @BUILD_TRANSLATOR_TRUE@	$(am__EXEEXT_3)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_4 = stap-authorize-signing-cert.8
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_5 = stap-authorize-signing-cert
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_6 = stap-sign-module
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_7 = stap-gen-cert stap-authorize-cert
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_8 = stap-client.8 stap-server.8 stap-authorize-server-cert.8
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_9 = stap-client-connect stap-server-connect
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_10 = stap-client stap-server stap-authorize-server-cert
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_11 = stap-serverd stap-find-servers \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	       stap-start-server stap-find-or-start-server stap-stop-server
-
-@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_12 = $(avahi_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_13 = $(avahi_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_14 = -lavahi-client -lavahi-common
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_15 = stap-client-connect.c nsscommon.c
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_16 = $(nss_CFLAGS) $(nspr_CFLAGS) -DSTAP
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_17 = $(nss_CFLAGS) $(nspr_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_18 = $(nss_CFLAGS) $(nspr_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_19 = -lssl3 -lnss3 -lnspr4 -lplc4
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_20 = install-scripts
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_21 = -Iinclude-elfutils
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_22 = -Llib-elfutils -Wl,-rpath-link,lib-elfutils \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_4 = stap-sign-module stap-authorize-cert
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_5 = stap-server.8
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_6 = stap-serverd stap-gen-cert
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_7 = stap-server
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_8 = stap-start-server stap-stop-server
+@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_9 = $(avahi_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_10 = $(avahi_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@am__append_11 = -lavahi-client -lavahi-common
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_12 = nsscommon.cxx
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_13 = $(nss_CFLAGS) $(nspr_CFLAGS) -DSTAP
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_14 = $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_15 = $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_16 = -lssl3 -lnss3 -lnspr4 -lplc4 -lsmime3
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__append_17 = install-scripts
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_18 = -Iinclude-elfutils
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_19 = -Llib-elfutils -Wl,-rpath-link,lib-elfutils \
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@		-Wl,--enable-new-dtags,-rpath,$(pkglibdir)
 
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_23 = stamp-elfutils
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_24 = stamp-elfutils
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_25 = lib-elfutils/libdw.so
-@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_26 = install-elfutils
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_20 = stamp-elfutils
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_21 = stamp-elfutils
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_22 = lib-elfutils/libdw.so
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@am__append_23 = install-elfutils
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_AVAHI_TRUE@@HAVE_NSS_TRUE@am__append_24 = -lavahi-client -lavahi-common
 @BUILD_TRANSLATOR_TRUE@noinst_PROGRAMS = loc2c-test$(EXEEXT)
 subdir = .
 DIST_COMMON = INSTALL NEWS README AUTHORS $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
 	$(am__configure_deps) $(srcdir)/config.in \
 	$(top_srcdir)/includes/sys/sdt-config.h.in \
-	$(srcdir)/stappaths.7.in $(srcdir)/stap-server.8.in \
-	$(top_srcdir)/initscript/systemtap.in \
+	$(srcdir)/stappaths.7.in $(top_srcdir)/initscript/systemtap.in \
 	$(top_srcdir)/initscript/stap-server.in $(srcdir)/run-stap.in \
-	$(srcdir)/dtrace.in depcomp $(am__noinst_HEADERS_DIST) \
-	$(oldinclude_HEADERS)
+	$(srcdir)/dtrace.in ABOUT-NLS depcomp \
+	$(am__noinst_HEADERS_DIST) $(oldinclude_HEADERS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
+	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
+	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
+	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
+	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -88,8 +89,7 @@ am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES = includes/sys/sdt-config.h stappaths.7 \
-	stap-server.8 initscript/systemtap initscript/stap-server \
-	run-stap dtrace
+	initscript/systemtap initscript/stap-server run-stap dtrace
 CONFIG_CLEAN_VPATH_FILES =
 @BUILD_TRANSLATOR_TRUE@am__EXEEXT_1 = stap$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkglibexecdir)" \
@@ -97,9 +97,10 @@ am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkglibexecdir)" \
 	"$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man3dir)" \
 	"$(DESTDIR)$(man7dir)" "$(DESTDIR)$(man8dir)" \
 	"$(DESTDIR)$(oldincludedir)"
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__EXEEXT_2 = stap-sign-module$(EXEEXT)
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__EXEEXT_3 = stap-client-connect$(EXEEXT) \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-server-connect$(EXEEXT)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__EXEEXT_2 = stap-sign-module$(EXEEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-authorize-cert$(EXEEXT)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__EXEEXT_3 = stap-serverd$(EXEEXT) \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-gen-cert$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS) $(pkglibexec_PROGRAMS)
 @BUILD_TRANSLATOR_TRUE@am_loc2c_test_OBJECTS =  \
 @BUILD_TRANSLATOR_TRUE@	loc2c_test-loc2c-test.$(OBJEXT) \
@@ -112,8 +113,7 @@ am__DEPENDENCIES_1 =
 @BUILD_TRANSLATOR_TRUE@	$(am__DEPENDENCIES_2)
 loc2c_test_LINK = $(CCLD) $(loc2c_test_CFLAGS) $(CFLAGS) \
 	$(loc2c_test_LDFLAGS) $(LDFLAGS) -o $@
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__objects_1 = stap-stap-client-connect.$(OBJEXT) \
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap-nsscommon.$(OBJEXT)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am__objects_1 = stap-nsscommon.$(OBJEXT)
 @BUILD_TRANSLATOR_TRUE@am_stap_OBJECTS = stap-main.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-session.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-parse.$(OBJEXT) \
@@ -141,28 +141,40 @@ loc2c_test_LINK = $(CCLD) $(loc2c_test_CFLAGS) $(CFLAGS) \
 @BUILD_TRANSLATOR_TRUE@	stap-rpm_finder.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-setupdwfl.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-csclient.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@	stap-cscommon.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-remote.$(OBJEXT) $(am__objects_1)
 stap_OBJECTS = $(am_stap_OBJECTS)
 stap_LINK = $(CXXLD) $(stap_CXXFLAGS) $(CXXFLAGS) $(stap_LDFLAGS) \
 	$(LDFLAGS) -o $@
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_client_connect_OBJECTS = stap_client_connect-stap-client-connect.$(OBJEXT) \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_client_connect-nsscommon.$(OBJEXT)
-stap_client_connect_OBJECTS = $(am_stap_client_connect_OBJECTS)
-stap_client_connect_DEPENDENCIES =
-stap_client_connect_LINK = $(CCLD) $(stap_client_connect_CFLAGS) \
-	$(CFLAGS) $(stap_client_connect_LDFLAGS) $(LDFLAGS) -o $@
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_server_connect_OBJECTS = stap_server_connect-stap-server-connect.$(OBJEXT) \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_server_connect-nsscommon.$(OBJEXT)
-stap_server_connect_OBJECTS = $(am_stap_server_connect_OBJECTS)
-stap_server_connect_DEPENDENCIES =
-stap_server_connect_LINK = $(CCLD) $(stap_server_connect_CFLAGS) \
-	$(CFLAGS) $(stap_server_connect_LDFLAGS) $(LDFLAGS) -o $@
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_sign_module_OBJECTS = stap_sign_module-modsign.$(OBJEXT) \
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_sign_module-nsscommon.$(OBJEXT)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_authorize_cert_OBJECTS = stap_authorize_cert-stap-authorize-cert.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_authorize_cert-nsscommon.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_authorize_cert-util.$(OBJEXT)
+stap_authorize_cert_OBJECTS = $(am_stap_authorize_cert_OBJECTS)
+stap_authorize_cert_DEPENDENCIES =
+stap_authorize_cert_LINK = $(CXXLD) $(stap_authorize_cert_CXXFLAGS) \
+	$(CXXFLAGS) $(stap_authorize_cert_LDFLAGS) $(LDFLAGS) -o $@
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_gen_cert_OBJECTS = stap_gen_cert-stap-gen-cert.$(OBJEXT) \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_gen_cert-util.$(OBJEXT) \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_gen_cert-nsscommon.$(OBJEXT)
+stap_gen_cert_OBJECTS = $(am_stap_gen_cert_OBJECTS)
+stap_gen_cert_DEPENDENCIES =
+stap_gen_cert_LINK = $(CXXLD) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_serverd_OBJECTS = stap_serverd-stap-serverd.$(OBJEXT) \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_serverd-cscommon.$(OBJEXT) \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_serverd-util.$(OBJEXT) \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_serverd-nsscommon.$(OBJEXT)
+stap_serverd_OBJECTS = $(am_stap_serverd_OBJECTS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_DEPENDENCIES = $(am__DEPENDENCIES_1)
+stap_serverd_LINK = $(CXXLD) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@am_stap_sign_module_OBJECTS = stap_sign_module-stap-sign-module.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_sign_module-nsscommon.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	stap_sign_module-util.$(OBJEXT)
 stap_sign_module_OBJECTS = $(am_stap_sign_module_OBJECTS)
 stap_sign_module_DEPENDENCIES =
-stap_sign_module_LINK = $(CXXLD) $(AM_CXXFLAGS) $(CXXFLAGS) \
-	$(stap_sign_module_LDFLAGS) $(LDFLAGS) -o $@
+stap_sign_module_LINK = $(CXXLD) $(stap_sign_module_CXXFLAGS) \
+	$(CXXFLAGS) $(stap_sign_module_LDFLAGS) $(LDFLAGS) -o $@
 am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
 am__vpath_adj = case $$p in \
     $(srcdir)/*) f=`echo "$$p" | sed "s|^$$srcdirstrip/||"`;; \
@@ -220,8 +232,8 @@ AM_V_GEN = $(am__v_GEN_$(V))
 am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
 am__v_GEN_0 = @echo "  GEN   " $@;
 SOURCES = $(loc2c_test_SOURCES) $(stap_SOURCES) \
-	$(stap_client_connect_SOURCES) $(stap_server_connect_SOURCES) \
-	$(stap_sign_module_SOURCES)
+	$(stap_authorize_cert_SOURCES) $(stap_gen_cert_SOURCES) \
+	$(stap_serverd_SOURCES) $(stap_sign_module_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -268,21 +280,34 @@ ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EGREP = @EGREP@
+ENABLE_NLS = @ENABLE_NLS@
 EXEEXT = @EXEEXT@
+GETTEXT_MACRO_VERSION = @GETTEXT_MACRO_VERSION@
+GMSGFMT = @GMSGFMT@
+GMSGFMT_015 = @GMSGFMT_015@
 GREP = @GREP@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INTLLIBS = @INTLLIBS@
 LDFLAGS = @LDFLAGS@
+LIBICONV = @LIBICONV@
+LIBINTL = @LIBINTL@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LN_S = @LN_S@
+LOCALEDIR = @LOCALEDIR@
+LTLIBICONV = @LTLIBICONV@
+LTLIBINTL = @LTLIBINTL@
 LTLIBOBJS = @LTLIBOBJS@
 MAINT = @MAINT@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
+MSGFMT = @MSGFMT@
+MSGFMT_015 = @MSGFMT_015@
+MSGMERGE = @MSGMERGE@
 OBJEXT = @OBJEXT@
 PACKAGE = @PACKAGE@
 PACKAGE_BUGREPORT = @PACKAGE_BUGREPORT@
@@ -298,13 +323,19 @@ PIELDFLAGS = @PIELDFLAGS@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
+POSUB = @POSUB@
 PUBLICAN_BRAND = @PUBLICAN_BRAND@
 RANLIB = @RANLIB@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+STAP_PREFIX = @STAP_PREFIX@
 STRIP = @STRIP@
 U = @U@
+USE_NLS = @USE_NLS@
 VERSION = @VERSION@
+XGETTEXT = @XGETTEXT@
+XGETTEXT_015 = @XGETTEXT_015@
+XGETTEXT_EXTRA_OPTIONS = @XGETTEXT_EXTRA_OPTIONS@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -317,7 +348,11 @@ am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
 bindir = @bindir@
+build = @build@
 build_alias = @build_alias@
+build_cpu = @build_cpu@
+build_os = @build_os@
+build_vendor = @build_vendor@
 builddir = @builddir@
 datadir = @datadir@
 datarootdir = @datarootdir@
@@ -327,14 +362,17 @@ elfutils_abs_srcdir = @elfutils_abs_srcdir@
 exec_prefix = @exec_prefix@
 gtkmm_CFLAGS = @gtkmm_CFLAGS@
 gtkmm_LIBS = @gtkmm_LIBS@
-have_certutil = @have_certutil@
 have_dvips = @have_dvips@
 have_latex = @have_latex@
 have_latex2html = @have_latex2html@
 have_ps2pdf = @have_ps2pdf@
 have_publican = @have_publican@
 have_xmlto = @have_xmlto@
+host = @host@
 host_alias = @host_alias@
+host_cpu = @host_cpu@
+host_os = @host_os@
+host_vendor = @host_vendor@
 htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
@@ -372,18 +410,18 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = no-dist foreign
 AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DSYSCONFDIR='"$(sysconfdir)"' \
-	      -DPKGDATADIR='"${pkgdatadir}"' \
+	      -DPKGDATADIR='"$(pkgdatadir)"' \
 	      -DPKGLIBDIR='"$(pkglibexecdir)"' \
+	      -DLOCALEDIR='"$(localedir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Werror -Wunused -Wformat=2 -W
 AM_CXXFLAGS = -Wall -Werror
 man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap \
 	stapex.3stap dtrace.1 stap-merge.1 stappaths.7 $(am__append_2) \
-	$(am__append_4) $(am__append_8)
-bin_SCRIPTS = stap-report $(am__append_3) $(am__append_5) \
-	$(am__append_10)
-pkglibexec_SCRIPTS = stap-env $(am__append_7) $(am__append_11)
+	$(am__append_5)
+bin_SCRIPTS = stap-report $(am__append_3) $(am__append_7)
+pkglibexec_SCRIPTS = stap-env $(am__append_8)
 oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 @BUILD_TRANSLATOR_TRUE@stap_SOURCES = main.cxx session.cxx parse.cxx \
 @BUILD_TRANSLATOR_TRUE@	staptree.cxx elaborate.cxx \
@@ -396,12 +434,13 @@ oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 @BUILD_TRANSLATOR_TRUE@	tapset-itrace.cxx tapset-utrace.cxx \
 @BUILD_TRANSLATOR_TRUE@	task_finder.cxx dwflpp.cxx \
 @BUILD_TRANSLATOR_TRUE@	rpm_finder.cxx setupdwfl.cxx \
-@BUILD_TRANSLATOR_TRUE@	csclient.cxx remote.cxx \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_15)
+@BUILD_TRANSLATOR_TRUE@	csclient.cxx cscommon.cxx remote.cxx \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_12)
 @BUILD_TRANSLATOR_TRUE@noinst_HEADERS = sdt_types.h
 @BUILD_TRANSLATOR_TRUE@stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_14) $(am__append_19)
-@BUILD_TRANSLATOR_TRUE@stap_DEPENDENCIES = $(am__append_25)
+@BUILD_TRANSLATOR_TRUE@	@LIBINTL@ $(am__append_11) \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_16)
+@BUILD_TRANSLATOR_TRUE@stap_DEPENDENCIES = $(am__append_22)
 
 # Arrange for git_version.h to be regenerated at every "make".
 # Code fragment is based upon RadeonHD.am.
@@ -411,32 +450,46 @@ oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 # of foo-bar.c if it is newer than the foo-bar.o file. Using noinst_foo_SOURCES
 # instead of foo_SOURCES prevents shipping git_version.h in dist tarballs,
 # which may cause false GIT_FOO readings.
-BUILT_SOURCES = git_version.stamp $(am__append_23)
-CLEANFILES = git_version.h $(am__append_24) $(pkglibexec_PROGRAMS)
+BUILT_SOURCES = git_version.stamp $(am__append_20)
+CLEANFILES = git_version.h $(am__append_21) $(pkglibexec_PROGRAMS)
 GIT_VERSION_CMD = $(SHELL) $(top_srcdir)/git_version.sh
-PHONIES = $(am__append_20) $(am__append_26) runcheck dist-gzip uprobes \
-	install-uprobes
+PHONIES = $(am__append_17) $(am__append_23) runcheck update-po \
+	dist-gzip uprobes install-uprobes
 @BUILD_TRANSLATOR_TRUE@stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ \
-@BUILD_TRANSLATOR_TRUE@	-D_FILE_OFFSET_BITS=64 $(am__append_16)
+@BUILD_TRANSLATOR_TRUE@	-D_FILE_OFFSET_BITS=64 $(am__append_13)
 @BUILD_TRANSLATOR_TRUE@stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_12) $(am__append_17)
+@BUILD_TRANSLATOR_TRUE@	$(am__append_9) $(am__append_14)
 @BUILD_TRANSLATOR_TRUE@stap_CPPFLAGS = $(AM_CPPFLAGS) -DSTAP_SDT_V2 \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_13) $(am__append_18) \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_21)
+@BUILD_TRANSLATOR_TRUE@	$(am__append_10) $(am__append_15) \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_18)
 @BUILD_TRANSLATOR_TRUE@stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@ \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_22)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_client_connect_LDFLAGS = $(AM_LDFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_server_connect_LDFLAGS = $(AM_LDFLAGS)
+@BUILD_TRANSLATOR_TRUE@	$(am__append_19)
 @BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_LDFLAGS = $(AM_LDFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_SOURCES = modsign.cxx nsscommon.c
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_CPPFLAGS = -Wall -Werror $(AM_CPPFLAGS) $(nss_CFLAGS) $(nspr_CFLAGS)
-@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_LDADD = -lnss3 -lnspr4
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_client_connect_SOURCES = stap-client-connect.c nsscommon.c
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_client_connect_CFLAGS = -Wall -Werror $(nss_CFLAGS) $(nspr_CFLAGS)
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_client_connect_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_server_connect_SOURCES = stap-server-connect.c nsscommon.c
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_server_connect_CFLAGS = -Wall -Werror $(nss_CFLAGS) $(nspr_CFLAGS)
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_server_connect_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_authorize_cert_LDFLAGS = $(AM_LDFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_SOURCES = stap-sign-module.cxx nsscommon.cxx util.cxx
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_CPPFLAGS = $(AM_CPPFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_sign_module_LDADD = -lssl3 -lnss3 -lnspr4 -lsmime3
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_authorize_cert_SOURCES = stap-authorize-cert.cxx nsscommon.cxx util.cxx
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_authorize_cert_CPPFLAGS = $(AM_CPPFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_authorize_cert_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_authorize_cert_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_authorize_cert_LDADD = -lssl3 -lnss3 -lnspr4 -lsmime3
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_SOURCES = stap-serverd.cxx cscommon.cxx util.cxx nsscommon.cxx
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_serverd_LDADD = -lssl3 \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	-lnss3 \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	-lnspr4 \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	-lplc4 \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	-lsmime3 \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	-lpthread \
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	$(am__append_24)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_SOURCES = stap-gen-cert.cxx util.cxx nsscommon.cxx
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@stap_gen_cert_LDADD = -lssl3 -lnss3 -lnspr4 -lsmime3
 @BUILD_TRANSLATOR_TRUE@loc2c_test_SOURCES = loc2c-test.c loc2c.c
 @BUILD_TRANSLATOR_TRUE@loc2c_test_CFLAGS = $(stap_CFLAGS)
 @BUILD_TRANSLATOR_TRUE@loc2c_test_CPPFLAGS = $(stap_CPPFLAGS)
@@ -451,14 +504,15 @@ LDADD =
 EXAMPLE_SOURCE_DIR = $(srcdir)/testsuite/systemtap.examples
 EXAMPLE_META_FILES = $(EXAMPLE_SOURCE_DIR)/*/*.meta
 TEST_COV_DIR = coverage
-SUBDIRS = . runtime/staprun grapher doc
+SUBDIRS = . runtime/staprun grapher doc po
 DIST_SUBDIRS = testsuite $(SUBDIRS)
-EXTRA_DIST = man/tapset*.3stap
+EXTRA_DIST = m4/ChangeLog  man/tapset*.3stap
 
 # Any extra flags, such as:
 #     --define "with_docs 0"
 #     --define "with_bundled_elfutils 1" --define "elfutils_version 0.135"
 RPMBUILDFLAGS = 
+ACLOCAL_AMFLAGS = -I m4
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -518,8 +572,6 @@ distclean-hdr:
 includes/sys/sdt-config.h: $(top_builddir)/config.status $(top_srcdir)/includes/sys/sdt-config.h.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 stappaths.7: $(top_builddir)/config.status $(srcdir)/stappaths.7.in
-	cd $(top_builddir) && $(SHELL) ./config.status $@
-stap-server.8: $(top_builddir)/config.status $(srcdir)/stap-server.8.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 initscript/systemtap: $(top_builddir)/config.status $(top_srcdir)/initscript/systemtap.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
@@ -612,12 +664,15 @@ loc2c-test$(EXEEXT): $(loc2c_test_OBJECTS) $(loc2c_test_DEPENDENCIES)
 stap$(EXEEXT): $(stap_OBJECTS) $(stap_DEPENDENCIES) 
 	@rm -f stap$(EXEEXT)
 	$(AM_V_CXXLD)$(stap_LINK) $(stap_OBJECTS) $(stap_LDADD) $(LIBS)
-stap-client-connect$(EXEEXT): $(stap_client_connect_OBJECTS) $(stap_client_connect_DEPENDENCIES) 
-	@rm -f stap-client-connect$(EXEEXT)
-	$(AM_V_CCLD)$(stap_client_connect_LINK) $(stap_client_connect_OBJECTS) $(stap_client_connect_LDADD) $(LIBS)
-stap-server-connect$(EXEEXT): $(stap_server_connect_OBJECTS) $(stap_server_connect_DEPENDENCIES) 
-	@rm -f stap-server-connect$(EXEEXT)
-	$(AM_V_CCLD)$(stap_server_connect_LINK) $(stap_server_connect_OBJECTS) $(stap_server_connect_LDADD) $(LIBS)
+stap-authorize-cert$(EXEEXT): $(stap_authorize_cert_OBJECTS) $(stap_authorize_cert_DEPENDENCIES) 
+	@rm -f stap-authorize-cert$(EXEEXT)
+	$(AM_V_CXXLD)$(stap_authorize_cert_LINK) $(stap_authorize_cert_OBJECTS) $(stap_authorize_cert_LDADD) $(LIBS)
+stap-gen-cert$(EXEEXT): $(stap_gen_cert_OBJECTS) $(stap_gen_cert_DEPENDENCIES) 
+	@rm -f stap-gen-cert$(EXEEXT)
+	$(AM_V_CXXLD)$(stap_gen_cert_LINK) $(stap_gen_cert_OBJECTS) $(stap_gen_cert_LDADD) $(LIBS)
+stap-serverd$(EXEEXT): $(stap_serverd_OBJECTS) $(stap_serverd_DEPENDENCIES) 
+	@rm -f stap-serverd$(EXEEXT)
+	$(AM_V_CXXLD)$(stap_serverd_LINK) $(stap_serverd_OBJECTS) $(stap_serverd_LDADD) $(LIBS)
 stap-sign-module$(EXEEXT): $(stap_sign_module_OBJECTS) $(stap_sign_module_DEPENDENCIES) 
 	@rm -f stap-sign-module$(EXEEXT)
 	$(AM_V_CXXLD)$(stap_sign_module_LINK) $(stap_sign_module_OBJECTS) $(stap_sign_module_LDADD) $(LIBS)
@@ -702,6 +757,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-cache.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-coveragedb.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-csclient.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-cscommon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-dwarf_wrappers.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-dwflpp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-elaborate.Po@am__quote@
@@ -715,7 +771,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-rpm_finder.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-session.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-setupdwfl.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-stap-client-connect.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-staptree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-tapset-been.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-tapset-itrace.Po@am__quote@
@@ -728,12 +783,19 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-task_finder.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-translate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-util.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_client_connect-nsscommon.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_client_connect-stap-client-connect.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_server_connect-nsscommon.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_server_connect-stap-server-connect.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_sign_module-modsign.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_authorize_cert-nsscommon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_authorize_cert-util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_gen_cert-nsscommon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_gen_cert-stap-gen-cert.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_gen_cert-util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_serverd-cscommon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_serverd-nsscommon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_serverd-stap-serverd.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_serverd-util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_sign_module-nsscommon.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_sign_module-stap-sign-module.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_sign_module-util.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -814,118 +876,6 @@ stap-mdfour.obj: mdfour.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='mdfour.c' object='stap-mdfour.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -c -o stap-mdfour.obj `if test -f 'mdfour.c'; then $(CYGPATH_W) 'mdfour.c'; else $(CYGPATH_W) '$(srcdir)/mdfour.c'; fi`
-
-stap-stap-client-connect.o: stap-client-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -MT stap-stap-client-connect.o -MD -MP -MF $(DEPDIR)/stap-stap-client-connect.Tpo -c -o stap-stap-client-connect.o `test -f 'stap-client-connect.c' || echo '$(srcdir)/'`stap-client-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-stap-client-connect.Tpo $(DEPDIR)/stap-stap-client-connect.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stap-client-connect.c' object='stap-stap-client-connect.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -c -o stap-stap-client-connect.o `test -f 'stap-client-connect.c' || echo '$(srcdir)/'`stap-client-connect.c
-
-stap-stap-client-connect.obj: stap-client-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -MT stap-stap-client-connect.obj -MD -MP -MF $(DEPDIR)/stap-stap-client-connect.Tpo -c -o stap-stap-client-connect.obj `if test -f 'stap-client-connect.c'; then $(CYGPATH_W) 'stap-client-connect.c'; else $(CYGPATH_W) '$(srcdir)/stap-client-connect.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-stap-client-connect.Tpo $(DEPDIR)/stap-stap-client-connect.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stap-client-connect.c' object='stap-stap-client-connect.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -c -o stap-stap-client-connect.obj `if test -f 'stap-client-connect.c'; then $(CYGPATH_W) 'stap-client-connect.c'; else $(CYGPATH_W) '$(srcdir)/stap-client-connect.c'; fi`
-
-stap-nsscommon.o: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -MT stap-nsscommon.o -MD -MP -MF $(DEPDIR)/stap-nsscommon.Tpo -c -o stap-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-nsscommon.Tpo $(DEPDIR)/stap-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap-nsscommon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -c -o stap-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-
-stap-nsscommon.obj: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -MT stap-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap-nsscommon.Tpo -c -o stap-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-nsscommon.Tpo $(DEPDIR)/stap-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CFLAGS) $(CFLAGS) -c -o stap-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-
-stap_client_connect-stap-client-connect.o: stap-client-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -MT stap_client_connect-stap-client-connect.o -MD -MP -MF $(DEPDIR)/stap_client_connect-stap-client-connect.Tpo -c -o stap_client_connect-stap-client-connect.o `test -f 'stap-client-connect.c' || echo '$(srcdir)/'`stap-client-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_client_connect-stap-client-connect.Tpo $(DEPDIR)/stap_client_connect-stap-client-connect.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stap-client-connect.c' object='stap_client_connect-stap-client-connect.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -c -o stap_client_connect-stap-client-connect.o `test -f 'stap-client-connect.c' || echo '$(srcdir)/'`stap-client-connect.c
-
-stap_client_connect-stap-client-connect.obj: stap-client-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -MT stap_client_connect-stap-client-connect.obj -MD -MP -MF $(DEPDIR)/stap_client_connect-stap-client-connect.Tpo -c -o stap_client_connect-stap-client-connect.obj `if test -f 'stap-client-connect.c'; then $(CYGPATH_W) 'stap-client-connect.c'; else $(CYGPATH_W) '$(srcdir)/stap-client-connect.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_client_connect-stap-client-connect.Tpo $(DEPDIR)/stap_client_connect-stap-client-connect.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stap-client-connect.c' object='stap_client_connect-stap-client-connect.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -c -o stap_client_connect-stap-client-connect.obj `if test -f 'stap-client-connect.c'; then $(CYGPATH_W) 'stap-client-connect.c'; else $(CYGPATH_W) '$(srcdir)/stap-client-connect.c'; fi`
-
-stap_client_connect-nsscommon.o: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -MT stap_client_connect-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_client_connect-nsscommon.Tpo -c -o stap_client_connect-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_client_connect-nsscommon.Tpo $(DEPDIR)/stap_client_connect-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap_client_connect-nsscommon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -c -o stap_client_connect-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-
-stap_client_connect-nsscommon.obj: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -MT stap_client_connect-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_client_connect-nsscommon.Tpo -c -o stap_client_connect-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_client_connect-nsscommon.Tpo $(DEPDIR)/stap_client_connect-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap_client_connect-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_client_connect_CFLAGS) $(CFLAGS) -c -o stap_client_connect-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-
-stap_server_connect-stap-server-connect.o: stap-server-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -MT stap_server_connect-stap-server-connect.o -MD -MP -MF $(DEPDIR)/stap_server_connect-stap-server-connect.Tpo -c -o stap_server_connect-stap-server-connect.o `test -f 'stap-server-connect.c' || echo '$(srcdir)/'`stap-server-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_server_connect-stap-server-connect.Tpo $(DEPDIR)/stap_server_connect-stap-server-connect.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stap-server-connect.c' object='stap_server_connect-stap-server-connect.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -c -o stap_server_connect-stap-server-connect.o `test -f 'stap-server-connect.c' || echo '$(srcdir)/'`stap-server-connect.c
-
-stap_server_connect-stap-server-connect.obj: stap-server-connect.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -MT stap_server_connect-stap-server-connect.obj -MD -MP -MF $(DEPDIR)/stap_server_connect-stap-server-connect.Tpo -c -o stap_server_connect-stap-server-connect.obj `if test -f 'stap-server-connect.c'; then $(CYGPATH_W) 'stap-server-connect.c'; else $(CYGPATH_W) '$(srcdir)/stap-server-connect.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_server_connect-stap-server-connect.Tpo $(DEPDIR)/stap_server_connect-stap-server-connect.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='stap-server-connect.c' object='stap_server_connect-stap-server-connect.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -c -o stap_server_connect-stap-server-connect.obj `if test -f 'stap-server-connect.c'; then $(CYGPATH_W) 'stap-server-connect.c'; else $(CYGPATH_W) '$(srcdir)/stap-server-connect.c'; fi`
-
-stap_server_connect-nsscommon.o: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -MT stap_server_connect-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_server_connect-nsscommon.Tpo -c -o stap_server_connect-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_server_connect-nsscommon.Tpo $(DEPDIR)/stap_server_connect-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap_server_connect-nsscommon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -c -o stap_server_connect-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-
-stap_server_connect-nsscommon.obj: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -MT stap_server_connect-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_server_connect-nsscommon.Tpo -c -o stap_server_connect-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_server_connect-nsscommon.Tpo $(DEPDIR)/stap_server_connect-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap_server_connect-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_server_connect_CFLAGS) $(CFLAGS) -c -o stap_server_connect-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-
-stap_sign_module-nsscommon.o: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT stap_sign_module-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_sign_module-nsscommon.Tpo -c -o stap_sign_module-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-nsscommon.Tpo $(DEPDIR)/stap_sign_module-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap_sign_module-nsscommon.o' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stap_sign_module-nsscommon.o `test -f 'nsscommon.c' || echo '$(srcdir)/'`nsscommon.c
-
-stap_sign_module-nsscommon.obj: nsscommon.c
-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT stap_sign_module-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_sign_module-nsscommon.Tpo -c -o stap_sign_module-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-nsscommon.Tpo $(DEPDIR)/stap_sign_module-nsscommon.Po
-@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='nsscommon.c' object='stap_sign_module-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o stap_sign_module-nsscommon.obj `if test -f 'nsscommon.c'; then $(CYGPATH_W) 'nsscommon.c'; else $(CYGPATH_W) '$(srcdir)/nsscommon.c'; fi`
 
 .cxx.o:
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -1343,6 +1293,22 @@ stap-csclient.obj: csclient.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-csclient.obj `if test -f 'csclient.cxx'; then $(CYGPATH_W) 'csclient.cxx'; else $(CYGPATH_W) '$(srcdir)/csclient.cxx'; fi`
 
+stap-cscommon.o: cscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-cscommon.o -MD -MP -MF $(DEPDIR)/stap-cscommon.Tpo -c -o stap-cscommon.o `test -f 'cscommon.cxx' || echo '$(srcdir)/'`cscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-cscommon.Tpo $(DEPDIR)/stap-cscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='cscommon.cxx' object='stap-cscommon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-cscommon.o `test -f 'cscommon.cxx' || echo '$(srcdir)/'`cscommon.cxx
+
+stap-cscommon.obj: cscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-cscommon.obj -MD -MP -MF $(DEPDIR)/stap-cscommon.Tpo -c -o stap-cscommon.obj `if test -f 'cscommon.cxx'; then $(CYGPATH_W) 'cscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/cscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-cscommon.Tpo $(DEPDIR)/stap-cscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='cscommon.cxx' object='stap-cscommon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-cscommon.obj `if test -f 'cscommon.cxx'; then $(CYGPATH_W) 'cscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/cscommon.cxx'; fi`
+
 stap-remote.o: remote.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-remote.o -MD -MP -MF $(DEPDIR)/stap-remote.Tpo -c -o stap-remote.o `test -f 'remote.cxx' || echo '$(srcdir)/'`remote.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-remote.Tpo $(DEPDIR)/stap-remote.Po
@@ -1359,21 +1325,229 @@ stap-remote.obj: remote.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-remote.obj `if test -f 'remote.cxx'; then $(CYGPATH_W) 'remote.cxx'; else $(CYGPATH_W) '$(srcdir)/remote.cxx'; fi`
 
-stap_sign_module-modsign.o: modsign.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-modsign.o -MD -MP -MF $(DEPDIR)/stap_sign_module-modsign.Tpo -c -o stap_sign_module-modsign.o `test -f 'modsign.cxx' || echo '$(srcdir)/'`modsign.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-modsign.Tpo $(DEPDIR)/stap_sign_module-modsign.Po
+stap-nsscommon.o: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-nsscommon.o -MD -MP -MF $(DEPDIR)/stap-nsscommon.Tpo -c -o stap-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-nsscommon.Tpo $(DEPDIR)/stap-nsscommon.Po
 @am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='modsign.cxx' object='stap_sign_module-modsign.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap-nsscommon.o' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-modsign.o `test -f 'modsign.cxx' || echo '$(srcdir)/'`modsign.cxx
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
 
-stap_sign_module-modsign.obj: modsign.cxx
-@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-modsign.obj -MD -MP -MF $(DEPDIR)/stap_sign_module-modsign.Tpo -c -o stap_sign_module-modsign.obj `if test -f 'modsign.cxx'; then $(CYGPATH_W) 'modsign.cxx'; else $(CYGPATH_W) '$(srcdir)/modsign.cxx'; fi`
-@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-modsign.Tpo $(DEPDIR)/stap_sign_module-modsign.Po
+stap-nsscommon.obj: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap-nsscommon.Tpo -c -o stap-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-nsscommon.Tpo $(DEPDIR)/stap-nsscommon.Po
 @am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
-@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='modsign.cxx' object='stap_sign_module-modsign.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
-@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-modsign.obj `if test -f 'modsign.cxx'; then $(CYGPATH_W) 'modsign.cxx'; else $(CYGPATH_W) '$(srcdir)/modsign.cxx'; fi`
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+
+stap_authorize_cert-stap-authorize-cert.o: stap-authorize-cert.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_authorize_cert-stap-authorize-cert.o -MD -MP -MF $(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Tpo -c -o stap_authorize_cert-stap-authorize-cert.o `test -f 'stap-authorize-cert.cxx' || echo '$(srcdir)/'`stap-authorize-cert.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Tpo $(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-authorize-cert.cxx' object='stap_authorize_cert-stap-authorize-cert.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_authorize_cert-stap-authorize-cert.o `test -f 'stap-authorize-cert.cxx' || echo '$(srcdir)/'`stap-authorize-cert.cxx
+
+stap_authorize_cert-stap-authorize-cert.obj: stap-authorize-cert.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_authorize_cert-stap-authorize-cert.obj -MD -MP -MF $(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Tpo -c -o stap_authorize_cert-stap-authorize-cert.obj `if test -f 'stap-authorize-cert.cxx'; then $(CYGPATH_W) 'stap-authorize-cert.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-authorize-cert.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Tpo $(DEPDIR)/stap_authorize_cert-stap-authorize-cert.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-authorize-cert.cxx' object='stap_authorize_cert-stap-authorize-cert.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_authorize_cert-stap-authorize-cert.obj `if test -f 'stap-authorize-cert.cxx'; then $(CYGPATH_W) 'stap-authorize-cert.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-authorize-cert.cxx'; fi`
+
+stap_authorize_cert-nsscommon.o: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_authorize_cert-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_authorize_cert-nsscommon.Tpo -c -o stap_authorize_cert-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_authorize_cert-nsscommon.Tpo $(DEPDIR)/stap_authorize_cert-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_authorize_cert-nsscommon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_authorize_cert-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+
+stap_authorize_cert-nsscommon.obj: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_authorize_cert-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_authorize_cert-nsscommon.Tpo -c -o stap_authorize_cert-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_authorize_cert-nsscommon.Tpo $(DEPDIR)/stap_authorize_cert-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_authorize_cert-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_authorize_cert-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+
+stap_authorize_cert-util.o: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_authorize_cert-util.o -MD -MP -MF $(DEPDIR)/stap_authorize_cert-util.Tpo -c -o stap_authorize_cert-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_authorize_cert-util.Tpo $(DEPDIR)/stap_authorize_cert-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_authorize_cert-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_authorize_cert-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+
+stap_authorize_cert-util.obj: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_authorize_cert-util.obj -MD -MP -MF $(DEPDIR)/stap_authorize_cert-util.Tpo -c -o stap_authorize_cert-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_authorize_cert-util.Tpo $(DEPDIR)/stap_authorize_cert-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_authorize_cert-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_authorize_cert_CPPFLAGS) $(CPPFLAGS) $(stap_authorize_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_authorize_cert-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+
+stap_gen_cert-stap-gen-cert.o: stap-gen-cert.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_gen_cert-stap-gen-cert.o -MD -MP -MF $(DEPDIR)/stap_gen_cert-stap-gen-cert.Tpo -c -o stap_gen_cert-stap-gen-cert.o `test -f 'stap-gen-cert.cxx' || echo '$(srcdir)/'`stap-gen-cert.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_gen_cert-stap-gen-cert.Tpo $(DEPDIR)/stap_gen_cert-stap-gen-cert.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-gen-cert.cxx' object='stap_gen_cert-stap-gen-cert.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_gen_cert-stap-gen-cert.o `test -f 'stap-gen-cert.cxx' || echo '$(srcdir)/'`stap-gen-cert.cxx
+
+stap_gen_cert-stap-gen-cert.obj: stap-gen-cert.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_gen_cert-stap-gen-cert.obj -MD -MP -MF $(DEPDIR)/stap_gen_cert-stap-gen-cert.Tpo -c -o stap_gen_cert-stap-gen-cert.obj `if test -f 'stap-gen-cert.cxx'; then $(CYGPATH_W) 'stap-gen-cert.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-gen-cert.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_gen_cert-stap-gen-cert.Tpo $(DEPDIR)/stap_gen_cert-stap-gen-cert.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-gen-cert.cxx' object='stap_gen_cert-stap-gen-cert.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_gen_cert-stap-gen-cert.obj `if test -f 'stap-gen-cert.cxx'; then $(CYGPATH_W) 'stap-gen-cert.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-gen-cert.cxx'; fi`
+
+stap_gen_cert-util.o: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_gen_cert-util.o -MD -MP -MF $(DEPDIR)/stap_gen_cert-util.Tpo -c -o stap_gen_cert-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_gen_cert-util.Tpo $(DEPDIR)/stap_gen_cert-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_gen_cert-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_gen_cert-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+
+stap_gen_cert-util.obj: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_gen_cert-util.obj -MD -MP -MF $(DEPDIR)/stap_gen_cert-util.Tpo -c -o stap_gen_cert-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_gen_cert-util.Tpo $(DEPDIR)/stap_gen_cert-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_gen_cert-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_gen_cert-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+
+stap_gen_cert-nsscommon.o: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_gen_cert-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_gen_cert-nsscommon.Tpo -c -o stap_gen_cert-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_gen_cert-nsscommon.Tpo $(DEPDIR)/stap_gen_cert-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_gen_cert-nsscommon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_gen_cert-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+
+stap_gen_cert-nsscommon.obj: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -MT stap_gen_cert-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_gen_cert-nsscommon.Tpo -c -o stap_gen_cert-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_gen_cert-nsscommon.Tpo $(DEPDIR)/stap_gen_cert-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_gen_cert-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_gen_cert_CXXFLAGS) $(CXXFLAGS) -c -o stap_gen_cert-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+
+stap_serverd-stap-serverd.o: stap-serverd.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-stap-serverd.o -MD -MP -MF $(DEPDIR)/stap_serverd-stap-serverd.Tpo -c -o stap_serverd-stap-serverd.o `test -f 'stap-serverd.cxx' || echo '$(srcdir)/'`stap-serverd.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-stap-serverd.Tpo $(DEPDIR)/stap_serverd-stap-serverd.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-serverd.cxx' object='stap_serverd-stap-serverd.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-stap-serverd.o `test -f 'stap-serverd.cxx' || echo '$(srcdir)/'`stap-serverd.cxx
+
+stap_serverd-stap-serverd.obj: stap-serverd.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-stap-serverd.obj -MD -MP -MF $(DEPDIR)/stap_serverd-stap-serverd.Tpo -c -o stap_serverd-stap-serverd.obj `if test -f 'stap-serverd.cxx'; then $(CYGPATH_W) 'stap-serverd.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-serverd.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-stap-serverd.Tpo $(DEPDIR)/stap_serverd-stap-serverd.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-serverd.cxx' object='stap_serverd-stap-serverd.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-stap-serverd.obj `if test -f 'stap-serverd.cxx'; then $(CYGPATH_W) 'stap-serverd.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-serverd.cxx'; fi`
+
+stap_serverd-cscommon.o: cscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-cscommon.o -MD -MP -MF $(DEPDIR)/stap_serverd-cscommon.Tpo -c -o stap_serverd-cscommon.o `test -f 'cscommon.cxx' || echo '$(srcdir)/'`cscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-cscommon.Tpo $(DEPDIR)/stap_serverd-cscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='cscommon.cxx' object='stap_serverd-cscommon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-cscommon.o `test -f 'cscommon.cxx' || echo '$(srcdir)/'`cscommon.cxx
+
+stap_serverd-cscommon.obj: cscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-cscommon.obj -MD -MP -MF $(DEPDIR)/stap_serverd-cscommon.Tpo -c -o stap_serverd-cscommon.obj `if test -f 'cscommon.cxx'; then $(CYGPATH_W) 'cscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/cscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-cscommon.Tpo $(DEPDIR)/stap_serverd-cscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='cscommon.cxx' object='stap_serverd-cscommon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-cscommon.obj `if test -f 'cscommon.cxx'; then $(CYGPATH_W) 'cscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/cscommon.cxx'; fi`
+
+stap_serverd-util.o: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-util.o -MD -MP -MF $(DEPDIR)/stap_serverd-util.Tpo -c -o stap_serverd-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-util.Tpo $(DEPDIR)/stap_serverd-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_serverd-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+
+stap_serverd-util.obj: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-util.obj -MD -MP -MF $(DEPDIR)/stap_serverd-util.Tpo -c -o stap_serverd-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-util.Tpo $(DEPDIR)/stap_serverd-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_serverd-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+
+stap_serverd-nsscommon.o: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_serverd-nsscommon.Tpo -c -o stap_serverd-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-nsscommon.Tpo $(DEPDIR)/stap_serverd-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_serverd-nsscommon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+
+stap_serverd-nsscommon.obj: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -MT stap_serverd-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_serverd-nsscommon.Tpo -c -o stap_serverd-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_serverd-nsscommon.Tpo $(DEPDIR)/stap_serverd-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_serverd-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stap_serverd_CXXFLAGS) $(CXXFLAGS) -c -o stap_serverd-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+
+stap_sign_module-stap-sign-module.o: stap-sign-module.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-stap-sign-module.o -MD -MP -MF $(DEPDIR)/stap_sign_module-stap-sign-module.Tpo -c -o stap_sign_module-stap-sign-module.o `test -f 'stap-sign-module.cxx' || echo '$(srcdir)/'`stap-sign-module.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-stap-sign-module.Tpo $(DEPDIR)/stap_sign_module-stap-sign-module.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-sign-module.cxx' object='stap_sign_module-stap-sign-module.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-stap-sign-module.o `test -f 'stap-sign-module.cxx' || echo '$(srcdir)/'`stap-sign-module.cxx
+
+stap_sign_module-stap-sign-module.obj: stap-sign-module.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-stap-sign-module.obj -MD -MP -MF $(DEPDIR)/stap_sign_module-stap-sign-module.Tpo -c -o stap_sign_module-stap-sign-module.obj `if test -f 'stap-sign-module.cxx'; then $(CYGPATH_W) 'stap-sign-module.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-sign-module.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-stap-sign-module.Tpo $(DEPDIR)/stap_sign_module-stap-sign-module.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='stap-sign-module.cxx' object='stap_sign_module-stap-sign-module.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-stap-sign-module.obj `if test -f 'stap-sign-module.cxx'; then $(CYGPATH_W) 'stap-sign-module.cxx'; else $(CYGPATH_W) '$(srcdir)/stap-sign-module.cxx'; fi`
+
+stap_sign_module-nsscommon.o: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-nsscommon.o -MD -MP -MF $(DEPDIR)/stap_sign_module-nsscommon.Tpo -c -o stap_sign_module-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-nsscommon.Tpo $(DEPDIR)/stap_sign_module-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_sign_module-nsscommon.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx
+
+stap_sign_module-nsscommon.obj: nsscommon.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-nsscommon.obj -MD -MP -MF $(DEPDIR)/stap_sign_module-nsscommon.Tpo -c -o stap_sign_module-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-nsscommon.Tpo $(DEPDIR)/stap_sign_module-nsscommon.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='nsscommon.cxx' object='stap_sign_module-nsscommon.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-nsscommon.obj `if test -f 'nsscommon.cxx'; then $(CYGPATH_W) 'nsscommon.cxx'; else $(CYGPATH_W) '$(srcdir)/nsscommon.cxx'; fi`
+
+stap_sign_module-util.o: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-util.o -MD -MP -MF $(DEPDIR)/stap_sign_module-util.Tpo -c -o stap_sign_module-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-util.Tpo $(DEPDIR)/stap_sign_module-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_sign_module-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-util.o `test -f 'util.cxx' || echo '$(srcdir)/'`util.cxx
+
+stap_sign_module-util.obj: util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -MT stap_sign_module-util.obj -MD -MP -MF $(DEPDIR)/stap_sign_module-util.Tpo -c -o stap_sign_module-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap_sign_module-util.Tpo $(DEPDIR)/stap_sign_module-util.Po
+@am__fastdepCXX_FALSE@	$(AM_V_CXX) @AM_BACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cxx' object='stap_sign_module-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_sign_module_CPPFLAGS) $(CPPFLAGS) $(stap_sign_module_CXXFLAGS) $(CXXFLAGS) -c -o stap_sign_module-util.obj `if test -f 'util.cxx'; then $(CYGPATH_W) 'util.cxx'; else $(CYGPATH_W) '$(srcdir)/util.cxx'; fi`
 install-man1: $(man_MANS)
 	@$(NORMAL_INSTALL)
 	test -z "$(man1dir)" || $(MKDIR_P) "$(DESTDIR)$(man1dir)"
@@ -1718,7 +1892,6 @@ maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-@BUILD_CRASHMOD_FALSE@@BUILD_ELFUTILS_FALSE@@BUILD_SERVER_FALSE@install-exec-local:
 @BUILD_CRASHMOD_FALSE@@BUILD_ELFUTILS_FALSE@@HAVE_NSS_FALSE@install-exec-local:
 @BUILD_CRASHMOD_FALSE@@BUILD_TRANSLATOR_FALSE@install-exec-local:
 clean: clean-recursive
@@ -1855,20 +2028,21 @@ cscope:
 	(echo -q ; git ls-files '*.cxx' '*.c' '*.h' | grep -v '^testsuite' ) > cscope.files && \
 	cscope -b -q
 
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@install-exec-local: install-scripts
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@install-exec-local: install-scripts
 # scripts must be installed before this rule is run
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@install-scripts: install-binSCRIPTS install-pkglibexecSCRIPTS
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	for f in $(bin_SCRIPTS); do \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	   sed -i -e "s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(bindir)/$$f; \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	done
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	for f in $(pkglibexec_SCRIPTS); do \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	   sed -i -e "/INSTALL-HOOK/d;s,exec_prefix=.*,exec_prefix=$(exec_prefix)/bin/,;s,sysconfdir=.*,sysconfdir=$(sysconfdir),;s,pkglibexecdir=.*,pkglibexecdir=$(pkglibexecdir)/,;s,localstatedir=.*,localstatedir=$(localstatedir),;s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(pkglibexecdir)/$$f; \
-@BUILD_SERVER_TRUE@@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	done
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@install-scripts: install-binSCRIPTS install-pkglibexecSCRIPTS
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	for f in $(bin_SCRIPTS); do \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	   sed -i -e "s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(bindir)/$$f; \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	done
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	for f in $(pkglibexec_SCRIPTS); do \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	   sed -i -e "/INSTALL-HOOK/d;s,sysconfdir=.*,sysconfdir=$(sysconfdir),;s,pkglibexecdir=.*,pkglibexecdir=$(pkglibexecdir)/,;s,localstatedir=.*,localstatedir=$(localstatedir),;s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(pkglibexecdir)/$$f; \
+@BUILD_TRANSLATOR_TRUE@@HAVE_NSS_TRUE@	done
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@stamp-elfutils: config.status
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@	$(MAKE) $(AM_MAKEFLAGS) -C build-elfutils all bin_PROGRAMS=
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@	for dir in libelf libebl libdw libdwfl backends; do \
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@	  $(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils/$$dir bin_PROGRAMS= install; \
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@	done
+@BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@	$(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils install-pkgincludeHEADERS;
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@	touch $@
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@lib-elfutils/libdw.so: stamp-elfutils ;
 @BUILD_ELFUTILS_TRUE@@BUILD_TRANSLATOR_TRUE@install-elfutils:
@@ -1991,6 +2165,14 @@ testsuite/dtrace: dtrace
 	(echo '#!/bin/sh'; echo "exec `pwd`/dtrace" '$${1+"$$@"}') > $@.new
 	chmod 555 $@.new
 	mv -f $@.new $@
+update-po:
+	(cd $(srcdir); ls -1d *.c *.cxx *.h runtime/staprun/*.c runtime/staprun/*.h dtrace.in) \
+	| grep -v loc2c-test.c \
+	| grep -v config.h \
+	| grep -v git_version.h \
+	| grep -v runtime/staprun/config.h \
+	| sort > $(srcdir)/po/POTFILES.in
+	$(MAKE) -C po update-po
 uprobes:
 	$(MAKE) -C $(srcdir)/runtime/uprobes clean default
 install-uprobes:

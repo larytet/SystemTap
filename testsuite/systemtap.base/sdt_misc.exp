@@ -195,7 +195,12 @@ set extra_type_mssg [lindex $extra_type_mssgs $j]
 
 for {set p 0} {$p < [lindex $type_pedantics_idx $j]} {incr p} {
 set type_pedantic_mssg [lindex $type_pedantic_mssgs $p]
-set type_flags "$sup_flags [lindex $extra_type_flags $j] [lindex $type_pedantics $p] [lindex $has_long_long $j]"
+set type_flags "[sdt_includes] additional_flags=-Wall additional_flags=-Werror"
+set type_flags "$type_flags additional_flags=-I. $pbtype_flag"
+set type_flags "$type_flags [lindex $extra_type_flags $j] [lindex $type_pedantics $p] [lindex $has_long_long $j]"
+if {![regexp "^i.86$" $::tcl_platform(machine)]} {
+    set type_flags "$type_flags additional_flags=-m64"
+}
 set res [target_compile $srcdir/$subdir/sdt_types.c sdt_types.x executable $type_flags]
 if { $res != "" } {
     verbose "target_compile failed: $res" 2
@@ -379,7 +384,7 @@ expect {
 
 catch {close}; catch {wait}
 
-if { $ok == 51 || ($ok == 42 && [regexp "^(i.86)$" $::tcl_platform(machine)])} {
+if { $ok == 51 || ($ok == 43 && [regexp "^(i.86)$" $::tcl_platform(machine)])} {
     pass "$test wildcard $pbtype_mssg"
 } else {
     fail "$test wildcard ($ok) $pbtype_mssg"
@@ -388,10 +393,8 @@ if { $ok == 51 || ($ok == 42 && [regexp "^(i.86)$" $::tcl_platform(machine)])} {
 # 7. Test types defined in sdt_misc_.d.  This requires -g
 
 set ok 0
-
 set supbc_flags "$sup_flags additional_flags=-g additional_flags=-DNO_SLEEP"
 set supbc_exepath "[pwd]/sdt_misc_${pbtype_mssg}_types.x"
-
 set res [target_compile $srcdir/$subdir/sdt_misc.c $supbc_exepath executable $supbc_flags]
 if { $res != "" } {
     verbose "target_compile failed: $res" 2
@@ -455,5 +458,22 @@ if { $notok != 0 || $ok == 0} {
     pass "$test asm ($ok)"
 }
 } ; # x86_64 | i.86
+
+set ok 0
+verbose -log "spawn $stap_path -c ./sdt_misc_V3_uprobe.x -e \"probe process(\"./sdt_misc_V3_uprobe.x\").mark(\"test_probe_5\") {printf(\"%s %s %s\\n\", \$\$provider, \$\$name, \$\$parms)}\""
+spawn $stap_path -c ./sdt_misc_V3_uprobe.x -e "probe process(\"./sdt_misc_V3_uprobe.x\").mark(\"test_probe_3\") {printf(\"%s %s %s\\n\", \$\$provider, \$\$name, \$\$parms)}"
+expect {
+    -timeout 180
+    -re {sdt_misc test_probe_3 \$arg1=0x3 \$arg2=0x[0-9a-f][0-9a-f]} { incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+
+if {$ok == 1} {
+    pass "$test \$\$parms"
+} else {
+    fail "$test ($ok) \$\$parms"
+    return
+}
 
 cleanup_handler $verbose

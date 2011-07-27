@@ -37,7 +37,7 @@ function execname:string ()
 /**
  * sfunction pid - Returns the ID of a target process
  * 
- * Description: This function returns the ID of a targer process.
+ * Description: This function returns the ID of a target process.
  */
 function pid:long ()
 %{ /* pure */ /* unprivileged */
@@ -187,12 +187,13 @@ function is_myproc:long ()
 %}
 
 
-/*
+%( systemtap_v <= "1.4" %?
+/**
  * sfunction cpuid - Returns the current cpu number
  * 
  * Description: This function returns the current cpu number.
+ * Deprecated in SystemTap 1.4 and removed in SystemTap 1.5.
  */
-%( systemtap_v <= "1.4" %?
 function cpuid:long ()
 %{ /* pure */
 	THIS->__retvalue = smp_processor_id();
@@ -272,6 +273,7 @@ function is_return:long ()
  *
  * -x <pid>
  * target() returns the pid specified by -x
+ *
  * -c <command>
  * target() returns the pid for the executed command specified by -c
  */
@@ -340,6 +342,19 @@ function stack_unused:long ()
 %}
 
 /**
+ * sfunction addr - Address of the current probe point.
+ *
+ * Description: Returns the instruction pointer from the current probe's
+ * register state.  Not all probe types have registers though, in which case
+ * zero is returned.  The returned address is suitable for use with functions
+ * like symname() and symdata().
+ */
+function addr:long ()
+%{ /* pure */
+  THIS->__retvalue = (intptr_t)(CONTEXT->regs ? REG_IP(CONTEXT->regs) : 0);
+%}
+
+/**
  * sfunction uaddr - User space address of current running task (EXPERIMENTAL)
  *
  * Description: Returns the address in userspace that the current
@@ -388,12 +403,17 @@ function cmdline_args:string(n:long, m:long, delim:string)
           nr = 0;
           len = arg_end - arg_start;
           arg = user_string2(arg_start, "");
-          while (arg != "" && len > 0)
+          while (len > 0)
             {
               if (nr == n)
                 args = arg;
               else if (nr > n)
-                args .= delim . arg;
+                {
+                  if (arg == "")
+                    args .= delim . "\"\""
+                  else
+                    args .= delim . arg;
+                }
 
               arg_len = strlen(arg);
               arg_start += arg_len + 1;

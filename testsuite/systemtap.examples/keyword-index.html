@@ -39,7 +39,7 @@
          	</ul>
 
 <h2>Examples by Keyword</h2>
-<p><tt><a href="#ALLOCATOR">ALLOCATOR</a> <a href="#AUTOFS">AUTOFS</a> <a href="#BACKTRACE">BACKTRACE</a> <a href="#BUFFER">BUFFER</a> <a href="#CALLGRAPH">CALLGRAPH</a> <a href="#CPU">CPU</a> <a href="#DEVICE">DEVICE</a> <a href="#DISK">DISK</a> <a href="#FILES">FILES</a> <a href="#FILESYSTEM">FILESYSTEM</a> <a href="#FORMAT">FORMAT</a> <a href="#FREE">FREE</a> <a href="#FUNCTIONS">FUNCTIONS</a> <a href="#FUTEX">FUTEX</a> <a href="#GRAPH">GRAPH</a> <a href="#HACK">HACK</a> <a href="#INTERRUPT">INTERRUPT</a> <a href="#IO">IO</a> <a href="#LOCKING">LOCKING</a> <a href="#MEMORY">MEMORY</a> <a href="#MONITORING">MONITORING</a> <a href="#NETWORK">NETWORK</a> <a href="#NFS">NFS</a> <a href="#NUMA">NUMA</a> <a href="#PER-PROCESS">PER-PROCESS</a> <a href="#PROCESS">PROCESS</a> <a href="#PROFILING">PROFILING</a> <a href="#READ">READ</a> <a href="#SCHEDULER">SCHEDULER</a> <a href="#SCSI">SCSI</a> <a href="#SECURITY">SECURITY</a> <a href="#SIGNALS">SIGNALS</a> <a href="#SIMPLE">SIMPLE</a> <a href="#SLAB">SLAB</a> <a href="#SLEEP">SLEEP</a> <a href="#SOCKET">SOCKET</a> <a href="#STATISTICS">STATISTICS</a> <a href="#SYSCALL">SYSCALL</a> <a href="#TCP">TCP</a> <a href="#TIME">TIME</a> <a href="#TRACE">TRACE</a> <a href="#TRACEPOINT">TRACEPOINT</a> <a href="#TRAFFIC">TRAFFIC</a> <a href="#TTY">TTY</a> <a href="#USE">USE</a> <a href="#WAIT4">WAIT4</a> <a href="#WRITE">WRITE</a> </tt></p>
+<p><tt><a href="#ALLOCATOR">ALLOCATOR</a> <a href="#AUTOFS">AUTOFS</a> <a href="#BACKTRACE">BACKTRACE</a> <a href="#BUFFER">BUFFER</a> <a href="#CALLGRAPH">CALLGRAPH</a> <a href="#COUNTER">COUNTER</a> <a href="#CPU">CPU</a> <a href="#DEVICE">DEVICE</a> <a href="#DISK">DISK</a> <a href="#EVENT">EVENT</a> <a href="#FILES">FILES</a> <a href="#FILESYSTEM">FILESYSTEM</a> <a href="#FORMAT">FORMAT</a> <a href="#FREE">FREE</a> <a href="#FUNCTIONS">FUNCTIONS</a> <a href="#FUTEX">FUTEX</a> <a href="#GRAPH">GRAPH</a> <a href="#HACK">HACK</a> <a href="#INTERRUPT">INTERRUPT</a> <a href="#IO">IO</a> <a href="#LOCKING">LOCKING</a> <a href="#MEMORY">MEMORY</a> <a href="#MONITORING">MONITORING</a> <a href="#NETWORK">NETWORK</a> <a href="#NFS">NFS</a> <a href="#NUMA">NUMA</a> <a href="#PER-PROCESS">PER-PROCESS</a> <a href="#PID">PID</a> <a href="#PROCESS">PROCESS</a> <a href="#PROFILING">PROFILING</a> <a href="#READ">READ</a> <a href="#SCHEDULER">SCHEDULER</a> <a href="#SCSI">SCSI</a> <a href="#SECURITY">SECURITY</a> <a href="#SIGNALS">SIGNALS</a> <a href="#SIMPLE">SIMPLE</a> <a href="#SLAB">SLAB</a> <a href="#SLEEP">SLEEP</a> <a href="#SOCKET">SOCKET</a> <a href="#STATISTICS">STATISTICS</a> <a href="#SYSCALL">SYSCALL</a> <a href="#TCP">TCP</a> <a href="#TID">TID</a> <a href="#TIME">TIME</a> <a href="#TRACE">TRACE</a> <a href="#TRACEPOINT">TRACEPOINT</a> <a href="#TRAFFIC">TRAFFIC</a> <a href="#TTY">TTY</a> <a href="#USE">USE</a> <a href="#WAIT4">WAIT4</a> <a href="#WATCHPOINT">WATCHPOINT</a> <a href="#WRITE">WRITE</a> </tt></p>
 <h3><a name="ALLOCATOR">ALLOCATOR</a></h3>
 <ul>
 <li><a href="memory/vm.tracepoints.stp">memory/vm.tracepoints.stp</a> - Collect slab allocation statistics<br>
@@ -81,11 +81,17 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="general/para-callgraph-verbose.stp">general/para-callgraph-verbose.stp</a> - Callgraph tracing with verbose arguments<br>
 keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread callgraph, complete with pretty-printed function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph-verbose.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
-&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/*&quot;</pre></font></p></li>
+&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p></li>
 <li><a href="general/para-callgraph.stp">general/para-callgraph.stp</a> - Callgraph tracing with arguments<br>
 keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
-&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/*&quot;</pre></font></p></li>
+&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p></li>
+</ul>
+<h3><a name="COUNTER">COUNTER</a></h3>
+<ul>
+<li><a href="general/eventcount.stp">general/eventcount.stp</a> - Event Counter for eventcount.stp<br>
+keywords: <a href="keyword-index.html#EVENT">EVENT</a> <a href="keyword-index.html#COUNTER">COUNTER</a> <a href="keyword-index.html#TID">TID</a> <a href="keyword-index.html#PID">PID</a> <br>
+<p>The script prints a count of specified events and their related tid&#39;s over the course of execution.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 0.2&#39;</pre></font></p></li>
 </ul>
 <h3><a name="CPU">CPU</a></h3>
 <ul>
@@ -111,6 +117,12 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>Get the status of reading/writing disk every 5 seconds, output top ten entries during that period.<p><font size="-2"><pre># stap disktop.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
 </ul>
+<h3><a name="EVENT">EVENT</a></h3>
+<ul>
+<li><a href="general/eventcount.stp">general/eventcount.stp</a> - Event Counter for eventcount.stp<br>
+keywords: <a href="keyword-index.html#EVENT">EVENT</a> <a href="keyword-index.html#COUNTER">COUNTER</a> <a href="keyword-index.html#TID">TID</a> <a href="keyword-index.html#PID">PID</a> <br>
+<p>The script prints a count of specified events and their related tid&#39;s over the course of execution.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 0.2&#39;</pre></font></p></li>
+</ul>
 <h3><a name="FILES">FILES</a></h3>
 <ul>
 <li><a href="process/pfiles.stp">process/pfiles.stp</a> - print process file descriptors<br>
@@ -121,7 +133,8 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 <ul>
 <li><a href="general/badname.stp">general/badname.stp</a> - Bad Filename Filter<br>
 keywords: <a href="keyword-index.html#FILESYSTEM">FILESYSTEM</a> <a href="keyword-index.html#HACK">HACK</a> <br>
-<p>The badname.stp script shows how one could prevent the creation of files with undesirable names using guru mode.<p><font size="-2"><pre># stap -g badname.stp -c &quot;touch /tmp/myXXXfile&quot; 2&gt;&amp;1 | grep denied</pre></font></p></li>
+<p>The badname.stp script shows how one could prevent the creation of files with undesirable names using guru mode.<p><font size="-2"><pre># stap -g badname.stp -c &quot;touch /tmp/myXXXbadnameXXXfile.$$ 2&gt;&amp;1 | grep \
+denied&quot;</pre></font></p></li>
 </ul>
 <h3><a name="FORMAT">FORMAT</a></h3>
 <ul>
@@ -163,7 +176,8 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html
 <ul>
 <li><a href="general/badname.stp">general/badname.stp</a> - Bad Filename Filter<br>
 keywords: <a href="keyword-index.html#FILESYSTEM">FILESYSTEM</a> <a href="keyword-index.html#HACK">HACK</a> <br>
-<p>The badname.stp script shows how one could prevent the creation of files with undesirable names using guru mode.<p><font size="-2"><pre># stap -g badname.stp -c &quot;touch /tmp/myXXXfile&quot; 2&gt;&amp;1 | grep denied</pre></font></p></li>
+<p>The badname.stp script shows how one could prevent the creation of files with undesirable names using guru mode.<p><font size="-2"><pre># stap -g badname.stp -c &quot;touch /tmp/myXXXbadnameXXXfile.$$ 2&gt;&amp;1 | grep \
+denied&quot;</pre></font></p></li>
 </ul>
 <h3><a name="INTERRUPT">INTERRUPT</a></h3>
 <ul>
@@ -243,6 +257,13 @@ keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-inde
 <li><a href="general/sizeof.stp">general/sizeof.stp</a> - Print the size of a C type.<br>
 keywords: <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>This script prints the size of a type, based on dwarf debuginfo for any kernel or userspace module, or trial-compilation of a given header file name.<p><font size="-2"><pre># stap sizeof.stp FILE &#39;&lt;/usr/include/stdio.h&gt;&#39;</pre></font></p></li>
+<li><a href="memory/hw_watch_addr.stp">memory/hw_watch_addr.stp</a> - Watch access to a kernel address using breakpoint hardware<br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#WATCHPOINT">WATCHPOINT</a> <br>
+<p>The script will watch accesses to a single kernel address and prints a traceback each time the address is accessed. This script needs to be run as root to allow access to the breakpoint hardware.<p><font size="-2"><pre># stap --all-modules hw_watch_addr.stp 0x`grep &quot;pid_max$&quot; /proc/kallsyms` \
+-c &quot;sleep 1&quot;</pre></font></p></li>
+<li><a href="memory/hw_watch_sym.stp">memory/hw_watch_sym.stp</a> - Watch to a kernel symbol using breakpoint hardware<br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#WATCHPOINT">WATCHPOINT</a> <br>
+<p>The script will watch accesses to the starting address of a single kernel symbol and prints a traceback each time the symbol is accessed. This script needs to be run as root to allow access to the breakpoint hardware.<p><font size="-2"><pre># stap --all-modules hw_watch_sym.stp pid_max -c &quot;sleep 1&quot;</pre></font></p></li>
 <li><a href="memory/kmalloc-top">memory/kmalloc-top</a> - Show Paths to Kernel Malloc (kmalloc) Invocations<br>
 keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <br>
 <p>The kmalloc-top perl program runs a small systemtap script to collect stack traces for each call to the kmalloc function and counts the time that each stack trace is observed. When kmalloc-top exits it prints out sorted list. The output can be filtered to print only the first N stack traces (-t), stack traces with a minimum counts (-m), or exclude certain stack traces (-e).<p><font size="-2"><pre># ./kmalloc-top -c &quot;sleep 0.2&quot;</pre></font></p></li>
@@ -314,6 +335,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="network/tcp_connections.stp">network/tcp_connections.stp</a> - Track Creation of Incoming TCP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The tcp_connections.stp script prints information for each new incoming TCP connection accepted by the computer. The information includes the UID, the command accepting the connection, the PID of the command, the port the connection is on, and the IP address of the originator of the request.<p><font size="-2"><pre># stap tcp_connections.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
+<li><a href="network/tcp_init_cwnd.stp">network/tcp_init_cwnd.stp</a> - Increase initial tcp congestion window to 10.<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
+<p>Run the tcp_init_cwnd.stp script in the background to override a kernel&#39;s default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.<p><font size="-2"><pre># stap -g tcp_init_cwnd.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
 <li><a href="network/tcp_trace.stp">network/tcp_trace.stp</a> - Tcp connection tracing utility.<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <br>
 <p>This scripts traces a given tcp connection based on the filter parameters given by the user. The indexing is done by the 4 tuples local address, remote address, local port, remote port.<p><font size="-2"><pre># stap tcp_trace.stp 127.0.0.1:*-127.0.0.1:* timeout=1</pre></font></p></li>
@@ -345,6 +369,12 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#TTY
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#PER-PROCESS">PER-PROCESS</a> <br>
 <p>Every five seconds the nettop.stp script prints out a list of processed (PID and command) with the number of packets sent/received and the amount of data sent/received by the process during that interval.<p><font size="-2"><pre># stap nettop.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
 </ul>
+<h3><a name="PID">PID</a></h3>
+<ul>
+<li><a href="general/eventcount.stp">general/eventcount.stp</a> - Event Counter for eventcount.stp<br>
+keywords: <a href="keyword-index.html#EVENT">EVENT</a> <a href="keyword-index.html#COUNTER">COUNTER</a> <a href="keyword-index.html#TID">TID</a> <a href="keyword-index.html#PID">PID</a> <br>
+<p>The script prints a count of specified events and their related tid&#39;s over the course of execution.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 0.2&#39;</pre></font></p></li>
+</ul>
 <h3><a name="PROCESS">PROCESS</a></h3>
 <ul>
 <li><a href="memory/overcommit.stp">memory/overcommit.stp</a> - Log failed process memory allocation due to overcommit limits<br>
@@ -364,7 +394,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 <p>The forktracker.stp script prints out a time-stamped entry showing each fork and exec operation on the machine. This can be useful to determine what process is creating a flurry of short-lived processes.<p><font size="-2"><pre># stap forktracker.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
 <li><a href="process/noptrace.stp">process/noptrace.stp</a> - disable ptrace(2) from hierarchies of processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <br>
-<p>noptrace.stp blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.<p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls&#39;</pre></font></p></li>
+<p>noptrace.stp blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.<p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls || true&#39;</pre></font></p></li>
 <li><a href="process/pfiles.stp">process/pfiles.stp</a> - print process file descriptors<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#FILES">FILES</a> <br>
 <p>Run pfiles.stp to produce a human-readable summary of all open file descriptors of a given process.  Specify the process-id as -x PID for fastest performance.<p><font size="-2"><pre># stap -g pfiles.stp -x $$</pre></font></p></li>
@@ -457,7 +487,7 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#PRO
 <ul>
 <li><a href="process/noptrace.stp">process/noptrace.stp</a> - disable ptrace(2) from hierarchies of processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <br>
-<p>noptrace.stp blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.<p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls&#39;</pre></font></p></li>
+<p>noptrace.stp blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.<p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls || true&#39;</pre></font></p></li>
 </ul>
 <h3><a name="SIGNALS">SIGNALS</a></h3>
 <ul>
@@ -506,6 +536,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="network/tcp_connections.stp">network/tcp_connections.stp</a> - Track Creation of Incoming TCP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The tcp_connections.stp script prints information for each new incoming TCP connection accepted by the computer. The information includes the UID, the command accepting the connection, the PID of the command, the port the connection is on, and the IP address of the originator of the request.<p><font size="-2"><pre># stap tcp_connections.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
+<li><a href="network/tcp_init_cwnd.stp">network/tcp_init_cwnd.stp</a> - Increase initial tcp congestion window to 10.<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
+<p>Run the tcp_init_cwnd.stp script in the background to override a kernel&#39;s default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.<p><font size="-2"><pre># stap -g tcp_init_cwnd.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
 </ul>
 <h3><a name="STATISTICS">STATISTICS</a></h3>
 <ul>
@@ -548,6 +581,15 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <li><a href="network/tcp_connections.stp">network/tcp_connections.stp</a> - Track Creation of Incoming TCP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The tcp_connections.stp script prints information for each new incoming TCP connection accepted by the computer. The information includes the UID, the command accepting the connection, the PID of the command, the port the connection is on, and the IP address of the originator of the request.<p><font size="-2"><pre># stap tcp_connections.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
+<li><a href="network/tcp_init_cwnd.stp">network/tcp_init_cwnd.stp</a> - Increase initial tcp congestion window to 10.<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
+<p>Run the tcp_init_cwnd.stp script in the background to override a kernel&#39;s default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.<p><font size="-2"><pre># stap -g tcp_init_cwnd.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
+</ul>
+<h3><a name="TID">TID</a></h3>
+<ul>
+<li><a href="general/eventcount.stp">general/eventcount.stp</a> - Event Counter for eventcount.stp<br>
+keywords: <a href="keyword-index.html#EVENT">EVENT</a> <a href="keyword-index.html#COUNTER">COUNTER</a> <a href="keyword-index.html#TID">TID</a> <a href="keyword-index.html#PID">PID</a> <br>
+<p>The script prints a count of specified events and their related tid&#39;s over the course of execution.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 0.2&#39;</pre></font></p></li>
 </ul>
 <h3><a name="TIME">TIME</a></h3>
 <ul>
@@ -566,11 +608,11 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 <li><a href="general/para-callgraph-verbose.stp">general/para-callgraph-verbose.stp</a> - Callgraph tracing with verbose arguments<br>
 keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread callgraph, complete with pretty-printed function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph-verbose.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
-&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/*&quot;</pre></font></p></li>
+&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p></li>
 <li><a href="general/para-callgraph.stp">general/para-callgraph.stp</a> - Callgraph tracing with arguments<br>
 keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
-&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/*&quot;</pre></font></p></li>
+&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p></li>
 <li><a href="network/tcp_trace.stp">network/tcp_trace.stp</a> - Tcp connection tracing utility.<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACE">TRACE</a> <br>
 <p>This scripts traces a given tcp connection based on the filter parameters given by the user. The indexing is done by the 4 tuples local address, remote address, local port, remote port.<p><font size="-2"><pre># stap tcp_trace.stp 127.0.0.1:*-127.0.0.1:* timeout=1</pre></font></p></li>
@@ -616,6 +658,16 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html
 <li><a href="process/wait4time.stp">process/wait4time.stp</a> - Trace Time Spent in wait4 Syscalls<br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#WAIT4">WAIT4</a> <br>
 <p>The script watches each wait4 syscall on the system. At the end of each wait4 syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the &quot;wait4:&quot; key, the duration of the wait and the PID that the wait4 was waiting for. If the waited for PID is not specified , it is &quot;-1&quot;.<p><font size="-2"><pre># stap wait4time.stp -c &quot;sleep 0.2&quot;</pre></font></p></li>
+</ul>
+<h3><a name="WATCHPOINT">WATCHPOINT</a></h3>
+<ul>
+<li><a href="memory/hw_watch_addr.stp">memory/hw_watch_addr.stp</a> - Watch access to a kernel address using breakpoint hardware<br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#WATCHPOINT">WATCHPOINT</a> <br>
+<p>The script will watch accesses to a single kernel address and prints a traceback each time the address is accessed. This script needs to be run as root to allow access to the breakpoint hardware.<p><font size="-2"><pre># stap --all-modules hw_watch_addr.stp 0x`grep &quot;pid_max$&quot; /proc/kallsyms` \
+-c &quot;sleep 1&quot;</pre></font></p></li>
+<li><a href="memory/hw_watch_sym.stp">memory/hw_watch_sym.stp</a> - Watch to a kernel symbol using breakpoint hardware<br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#WATCHPOINT">WATCHPOINT</a> <br>
+<p>The script will watch accesses to the starting address of a single kernel symbol and prints a traceback each time the symbol is accessed. This script needs to be run as root to allow access to the breakpoint hardware.<p><font size="-2"><pre># stap --all-modules hw_watch_sym.stp pid_max -c &quot;sleep 1&quot;</pre></font></p></li>
 </ul>
 <h3><a name="WRITE">WRITE</a></h3>
 <ul>

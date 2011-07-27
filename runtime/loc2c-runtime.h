@@ -69,18 +69,40 @@
 #else
 #define DEREF_FAULT(addr) ({						    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
-      "kernel read fault at 0x%p (%s)", (void *)(intptr_t)(addr), #addr);   \
+      STAP_MSG_LOC2C_01, (void *)(intptr_t)(addr), #addr);   \
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
 
 #define STORE_DEREF_FAULT(addr) ({					    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
-      "kernel write fault at 0x%p (%s)", (void *)(intptr_t)(addr), #addr);  \
+      STAP_MSG_LOC2C_02, (void *)(intptr_t)(addr), #addr);  \
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
 #endif
+
+/* dwarf_div_op and dwarf_mod_op do division and modulo operations catching any
+   divide by zero issues.  When they detect div_by_zero they "fault"
+   by jumping to the (slightly misnamed) deref_fault label.  */
+#define dwarf_div_op(a,b) ({							\
+    if (b == 0) {							\
+	snprintf(c->error_buffer, sizeof(c->error_buffer),		\
+		 STAP_MSG_LOC2C_03, "DW_OP_div");			\
+	c->last_error = c->error_buffer;				\
+	goto deref_fault;						\
+    }									\
+    a / b;								\
+})
+#define dwarf_mod_op(a,b) ({							\
+    if (b == 0) {							\
+	snprintf(c->error_buffer, sizeof(c->error_buffer),		\
+		 STAP_MSG_LOC2C_03, "DW_OP_mod");			\
+	c->last_error = c->error_buffer;				\
+	goto deref_fault;						\
+    }									\
+    a % b;								\
+})
 
 /* PR 10601: user-space (user_regset) register access.  */
 #if defined(STAPCONF_REGSET)
@@ -584,46 +606,18 @@ extern void __store_deref_bad(void);
    })
 
 #elif defined __powerpc__ || defined __powerpc64__
-#if defined __powerpc64__
-#define STP_PPC_LONG	".llong "
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
+#define __stp_get_user_size(x, ptr, size, retval)		\
+		__get_user_size(x, ptr, size, retval)
+#define __stp_put_user_size(x, ptr, size, retval)		\
+		__put_user_size(x, ptr, size, retval)
 #else
-#define STP_PPC_LONG	".long "
+#define __stp_get_user_size(x, ptr, size, retval)		\
+		__get_user_size(x, ptr, size, retval, -EFAULT)
+#define __stp_put_user_size(x, ptr, size, retval)		\
+		__put_user_size(x, ptr, size, retval, -EFAULT)
 #endif
-
-#define __stp_get_user_asm(x, addr, err, op)			\
-	 __asm__ __volatile__(					\
-		"1:     "op" %1,0(%2)   # get_user\n"		\
-		"2:\n"						\
-		".section .fixup,\"ax\"\n"			\
-		"3:     li %0,%3\n"				\
-		"       li %1,0\n"				\
-		"       b 2b\n"					\
-		".previous\n"					\
-		".section __ex_table,\"a\"\n"			\
-		"       .balign %5\n"				\
-		STP_PPC_LONG "1b,3b\n"				\
-		".previous"					\
-		: "=r" (err), "=r" (x)				\
-		: "b" (addr), "i" (-EFAULT), "0" (err),		\
-		  "i"(sizeof(unsigned long)))
-
-
-#define __stp_put_user_asm(x, addr, err, op)                        \
-        __asm__ __volatile__(                                   \
-                "1:     " op " %1,0(%2) # put_user\n"           \
-                "2:\n"                                          \
-                ".section .fixup,\"ax\"\n"                      \
-                "3:     li %0,%3\n"                             \
-                "       b 2b\n"                                 \
-                ".previous\n"                                   \
-                ".section __ex_table,\"a\"\n"                   \
-                "       .balign %5\n"				\
-                STP_PPC_LONG "1b,3b\n"				\
-                ".previous"                                     \
-                : "=r" (err)                                    \
-                : "r" (x), "b" (addr), "i" (-EFAULT), "0" (err),\
-		  "i"(sizeof(unsigned long)))
-
 
 #define deref(size, addr)						      \
   ({									      \
@@ -634,10 +628,10 @@ extern void __store_deref_bad(void);
     else                                                                      \
       switch (size)                                                           \
         {                                                                     \
-        case 1: __stp_get_user_asm(_v,addr,_bad,"lbz"); break;                \
-        case 2: __stp_get_user_asm(_v,addr,_bad,"lhz"); break;                \
-        case 4: __stp_get_user_asm(_v,addr,_bad,"lwz"); break;                \
-        case 8: __stp_get_user_asm(_v,addr,_bad,"ld"); break;                 \
+	case 1: __stp_get_user_size(_v, addr, 1, _bad); break;                \
+	case 2: __stp_get_user_size(_v, addr, 2, _bad); break;                \
+	case 4: __stp_get_user_size(_v, addr, 4, _bad); break;                \
+	case 8: __stp_get_user_size(_v, addr, 8, _bad); break;                \
         default: _v = __get_user_bad();                                       \
         }                                                                     \
     if (_bad)								      \
@@ -653,14 +647,14 @@ extern void __store_deref_bad(void);
     else                                                                      \
       switch (size)                                                           \
         {                                                                     \
-        case 1: __stp_put_user_asm(((u8)(value)),addr,_bad,"stb"); break;     \
-        case 2: __stp_put_user_asm(((u16)(value)),addr,_bad,"sth"); break;    \
-        case 4: __stp_put_user_asm(((u32)(value)),addr,_bad,"stw"); break;    \
-        case 8: __stp_put_user_asm(((u64)(value)),addr,_bad, "std"); break;   \
+	case 1: __stp_put_user_size(((u8)(value)), addr, 1, _bad); break;     \
+	case 2: __stp_put_user_size(((u16)(value)), addr, 2, _bad); break;    \
+	case 4: __stp_put_user_size(((u32)(value)), addr, 4, _bad); break;    \
+	case 8: __stp_put_user_size(((u64)(value)), addr, 8, _bad); break;    \
         default: __put_user_bad();                                            \
         }                                                                     \
     if (_bad)								      \
-      STORE_DEREF_FAULT(addr);							      \
+      STORE_DEREF_FAULT(addr);						      \
   })
 
 #elif defined (__arm__)
@@ -772,33 +766,6 @@ extern void __store_deref_bad(void);
 	: "r" (x), "r" (__pu_addr), "i" (-EFAULT)		\
 	: "cc")
 
-#ifndef __ARMEB__
-#define	__reg_oper0	"%R2"
-#define	__reg_oper1	"%Q2"
-#else
-#define	__reg_oper0	"%Q2"
-#define	__reg_oper1	"%R2"
-#endif
-
-#define __stp_put_user_asm_dword(x,__pu_addr,err)		\
-	__asm__ __volatile__(					\
-	"1:	str	" __reg_oper1 ", [%1], #4\n"		\
-	"2:	str	" __reg_oper0 ", [%1], #0\n"		\
-	"3:\n"							\
-	"	.section .fixup,\"ax\"\n"			\
-	"	.align	2\n"					\
-	"4:	mov	%0, %3\n"				\
-	"	b	3b\n"					\
-	"	.previous\n"					\
-	"	.section __ex_table,\"a\"\n"			\
-	"	.align	3\n"					\
-	"	.long	1b, 4b\n"				\
-	"	.long	2b, 4b\n"				\
-	"	.previous"					\
-	: "+r" (err), "+r" (__pu_addr)				\
-	: "r" (x), "i" (-EFAULT)				\
-	: "cc")
-
 #define deref(size, addr)						\
   ({									\
      int _bad = 0;							\
@@ -827,7 +794,6 @@ extern void __store_deref_bad(void);
       case 1: __stp_put_user_asm_byte(value, addr, _bad); break;	\
       case 2: __stp_put_user_asm_half(value, addr, _bad); break;	\
       case 4: __stp_put_user_asm_word(value, addr, _bad); break;	\
-      case 8: __stp_put_user_asm_dword(value, addr, _bad); break;	\
       default: __put_user_bad(); break;                                 \
       }                                                                 \
     if (_bad)								\
@@ -945,9 +911,9 @@ extern void __store_deref_bad(void);
 #endif /* (s390) || (s390x) */
 
 
-#if defined __i386__
+#if defined (__i386__) || defined (__arm__)
 
-/* x86 can't do 8-byte put/get_user_asm, so we have to split it */
+/* x86 and arm can't do 8-byte put/get_user_asm, so we have to split it */
 
 #define kread(ptr)					\
   ((sizeof(*(ptr)) == 8) ?				\

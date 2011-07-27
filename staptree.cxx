@@ -158,15 +158,15 @@ vardecl::set_arity (int a, const token* t)
     return;
 
   if (a == 0 && maxsize > 0)
-    throw semantic_error ("inconsistent arity", tok);
+    throw semantic_error (_("inconsistent arity"), tok);
 
   if (arity != a && arity >= 0)
     {
-      semantic_error err ("inconsistent arity (" + lex_cast(arity) +
-			  " vs. " + lex_cast(a) + ")", t?:tok);
+      semantic_error err (_F("inconsistent arity (%s vs %d)",
+                             lex_cast(arity).c_str(), a), t?:tok);
       if (arity_tok)
-	err.chain = new semantic_error ("arity " + lex_cast(arity) +
-					" first inferred here", arity_tok);
+	err.chain = new semantic_error (_F("arity %s first inferred here",
+                                           lex_cast(arity).c_str()), arity_tok);
       throw err;
     }
 
@@ -200,10 +200,10 @@ void
 functiondecl::join (systemtap_session& s)
 {
   if (!synthetic)
-    throw semantic_error ("internal error, joining a non-synthetic function", tok);
+    throw semantic_error (_("internal error, joining a non-synthetic function"), tok);
   if (!s.functions.insert (make_pair (name, this)).second)
-    throw semantic_error ("synthetic function '" + name +
-                          "' conflicts with an existing function", tok);
+    throw semantic_error (_F("synthetic function '%s' conflicts with an existing function",
+                             name.c_str()), tok);
   tok->location.file->functions.push_back (this);
 }
 
@@ -248,23 +248,19 @@ target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
     {
     case comp_literal_array_index:
     case comp_expression_array_index:
-      throw semantic_error(tapset + " variable '" + name +
-                           "' may not be used as array",
-                           components[0].tok);
+      throw semantic_error(_F("%s variable '%s' may not be used as array",
+                              tapset.c_str(), name.c_str()), components[0].tok);
     case comp_struct_member:
-      throw semantic_error(tapset + " variable '" + name +
-                           "' may not be used as a structure",
-                           components[0].tok);
+      throw semantic_error(_F("%s variable '%s' may not be used as a structure",
+                              tapset.c_str(), name.c_str()), components[0].tok);
     case comp_pretty_print:
       if (!pretty_ok)
-        throw semantic_error(tapset + " variable '" + name +
-                             "' may not be pretty-printed",
-                             components[0].tok);
+        throw semantic_error(_F("%s variable '%s' may not be pretty-printed",
+                                tapset.c_str(), name.c_str()), components[0].tok);
       return;
     default:
-      throw semantic_error ("invalid use of " + tapset +
-                            " variable '" + name + "'",
-                            components[0].tok);
+      throw semantic_error (_F("invalid use of %s variable '%s'",
+                            tapset.c_str(), name.c_str()), components[0].tok);
     }
 }
 
@@ -790,6 +786,17 @@ print_format::string_to_components(string const & str)
       if (i == str.end())
 	break;
 
+      // Parse the type modifier
+      switch (*i)
+      {
+      case 'l':
+        ++i;
+        break;
+      }
+
+      if (i == str.end())
+	break;
+
       // Parse the actual conversion specifier (bcsmdioupxXn)
       switch (*i)
 	{
@@ -844,7 +851,7 @@ print_format::string_to_components(string const & str)
 	}
 
       if (curr.type == conv_unspecified)
-	throw parse_error("invalid or missing conversion specifier");
+	throw parse_error(_("invalid or missing conversion specifier"));
 
       ++i;
       res.push_back(curr);
@@ -857,7 +864,7 @@ print_format::string_to_components(string const & str)
       if (curr.type == conv_literal)
 	res.push_back(curr);
       else
-	throw parse_error("trailing incomplete print format conversion");
+	throw parse_error(_("trailing incomplete print format conversion"));
     }
 
   return res;
@@ -1564,9 +1571,9 @@ classify_indexable(indexable* ix,
   array_out = NULL;
   hist_out = NULL;
   if (!(ix->is_symbol (array_out) || ix->is_hist_op (hist_out)))
-    throw semantic_error("Expecting symbol or histogram operator", ix->get_tok());
+    throw semantic_error(_("Expecting symbol or histogram operator"), ix->get_tok());
   if (ix && !(hist_out || array_out))
-    throw semantic_error("Failed to classify indexable", ix->get_tok());
+    throw semantic_error(_("Failed to classify indexable"), ix->get_tok());
 }
 
 void
@@ -1577,7 +1584,7 @@ classify_const_indexable(const indexable* ix,
   array_out = NULL;
   hist_out = NULL;
   if (!(ix->is_const_symbol(array_out) || ix->is_const_hist_op(hist_out)))
-    throw semantic_error("Expecting symbol or histogram operator", ix->get_tok());
+    throw semantic_error(_("Expecting symbol or histogram operator"), ix->get_tok());
 }
 
 // ------------------------------------------------------------------------
@@ -1920,12 +1927,12 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
   if (session.unprivileged &&
       s->code.find ("/* unprivileged */") == string::npos &&
       s->code.find ("/* myproc-unprivileged */") == string::npos)
-    throw semantic_error ("function may not be used when --unprivileged is specified",
+    throw semantic_error (_("function may not be used when --unprivileged is specified"),
 			  current_function->tok);
 
   // Don't allow /* guru */ functions unless -g is active.
   if (!session.guru_mode && s->code.find ("/* guru */") != string::npos)
-    throw semantic_error ("function may not be used unless -g is specified",
+    throw semantic_error (_("function may not be used unless -g is specified"),
 			  current_function->tok);
 
   // We want to elide embedded-C functions when possible.  For
@@ -1954,12 +1961,12 @@ varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
   if (session.unprivileged &&
       e->code.find ("/* unprivileged */") == string::npos &&
       e->code.find ("/* myproc-unprivileged */") == string::npos)
-    throw semantic_error ("embedded expression may not be used when --unprivileged is specified",
+    throw semantic_error (_("embedded expression may not be used when --unprivileged is specified"),
 			  e->tok);
 
   // Don't allow /* guru */ functions unless -g is active.
   if (!session.guru_mode && e->code.find ("/* guru */") != string::npos)
-    throw semantic_error ("embedded expression may not be used unless -g is specified",
+    throw semantic_error (_("embedded expression may not be used unless -g is specified"),
 			  e->tok);
 
   // We want to elide embedded-C functions when possible.  For
@@ -2029,10 +2036,13 @@ varuse_collecting_visitor::visit_print_format (print_format* e)
   //
   // But sprint and sprintf don't have side-effects.
 
+  bool last_lvalue_read = current_lvalue_read;
+  current_lvalue_read = true;
   if (e->print_to_stream)
     embedded_seen = true; // a proxy for "has unknown side-effects"
 
   functioncall_traversing_visitor::visit_print_format (e);
+  current_lvalue_read = last_lvalue_read;
 }
 
 
@@ -2042,9 +2052,12 @@ varuse_collecting_visitor::visit_assignment (assignment *e)
   if (e->op == "=" || e->op == "<<<") // pure writes
     {
       expression* last_lvalue = current_lvalue;
+      bool last_lvalue_read = current_lvalue_read;
       current_lvalue = e->left; // leave a mark for ::visit_symbol
+      current_lvalue_read = true;
       functioncall_traversing_visitor::visit_assignment (e);
       current_lvalue = last_lvalue;
+      current_lvalue_read = last_lvalue_read;
     }
   else // read-modify-writes
     {
@@ -2059,7 +2072,7 @@ void
 varuse_collecting_visitor::visit_symbol (symbol *e)
 {
   if (e->referent == 0)
-    throw semantic_error ("symbol without referent", e->tok);
+    throw semantic_error (_("symbol without referent"), e->tok);
 
   // We could handle initialized globals by marking them as "written".
   // However, this current visitor may be called for a function or
@@ -2073,14 +2086,19 @@ varuse_collecting_visitor::visit_symbol (symbol *e)
   if (current_lvalue == e || current_lrvalue == e)
     {
       written.insert (e->referent);
-      // clog << "write ";
     }
   if (current_lvalue != e || current_lrvalue == e)
     {
       read.insert (e->referent);
-      // clog << "read ";
     }
-  // clog << *e->tok << endl;
+
+  if (current_lrvalue == e)
+    {
+      if (current_lvalue_read)
+        used.insert (e->referent);
+    }
+  else if (current_lvalue != e)
+    used.insert (e->referent);
 }
 
 // NB: stat_op need not be overridden, since it will get to
@@ -2202,9 +2220,12 @@ varuse_collecting_visitor::visit_delete_statement (delete_statement* s)
   // "delete" yet, so we pose more like a *crement ("lrvalue").  This
   // should protect the underlying value from optimizional mischief.
   expression* last_lrvalue = current_lrvalue;
+  bool last_lvalue_read = current_lvalue_read;
   current_lrvalue = s->value; // leave a mark for ::visit_symbol
+  current_lvalue_read = true;
   functioncall_traversing_visitor::visit_delete_statement (s);
   current_lrvalue = last_lrvalue;
+  current_lvalue_read = last_lvalue_read;
 }
 
 bool
@@ -2240,7 +2261,7 @@ varuse_collecting_visitor::side_effect_free_wrt (const set<vardecl*>& vars)
 
 
 throwing_visitor::throwing_visitor (const std::string& m): msg (m) {}
-throwing_visitor::throwing_visitor (): msg ("invalid element") {}
+throwing_visitor::throwing_visitor (): msg (_("invalid element")) {}
 
 
 void

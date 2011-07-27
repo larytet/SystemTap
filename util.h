@@ -1,3 +1,4 @@
+#include "config.h"
 #include <cstring>
 #include <cerrno>
 #include <string>
@@ -6,9 +7,27 @@
 #include <sstream>
 #include <stdexcept>
 #include <cctype>
+#include <set>
 extern "C" {
+#include <libintl.h>
+#include <locale.h>
+#include <signal.h>
 #include <stdint.h>
+#include <spawn.h>
 }
+
+#if ENABLE_NLS
+#define _(string) gettext(string)
+#define _N(string, string_plural, count) \
+        ngettext((string), (string_plural), (count))
+#else
+#define _(string) (string)
+#define _N(string, string_plural, count) \
+        ( (count) == 1 ? (string) : (string_plural) )
+#endif
+#define _F(format, ...) autosprintf(_(format), __VA_ARGS__)
+#define _NF(format, format_plural, count, ...) \
+        autosprintf(_N((format), (format_plural), (count)), __VA_ARGS__)
 
 const char *get_home_directory(void);
 size_t get_file_size(const std::string &path);
@@ -25,16 +44,24 @@ void tokenize(const std::string& str, std::vector<std::string>& tokens,
 std::string find_executable(const std::string& name,
 			    const std::string& env_path = "PATH");
 const std::string cmdstr_quoted(const std::string& cmd);
-std::string git_revision(const std::string& path);
+const std::string cmdstr_join(const std::vector<std::string>& cmds);
 int stap_waitpid(int verbose, pid_t pid);
-pid_t stap_spawn(int verbose, const std::string& command);
-int stap_system(int verbose, const std::string& command);
-int stap_system_read(int verbose, const std::string& command, std::ostream& out);
+pid_t stap_spawn(int verbose, const std::vector<std::string>& args);
+pid_t stap_spawn(int verbose, const std::vector<std::string>& args,
+		 posix_spawn_file_actions_t* fa, const std::vector<std::string>& envVec = std::vector<std::string> ());
+pid_t stap_spawn_piped(int verbose, const std::vector<std::string>& args,
+                       int* child_in=NULL, int* child_out=NULL, int* child_err=NULL);
+int stap_system(int verbose, const std::vector<std::string>& args,
+                bool null_out=false, bool null_err=false);
+int stap_system_read(int verbose, const std::vector<std::string>& args, std::ostream& out);
 int kill_stap_spawn(int sig);
 void assert_regexp_match (const std::string& name, const std::string& value, const std::string& re);
 int regexp_match (const std::string& value, const std::string& re, std::vector<std::string>& matches);
 bool contains_glob_chars (const std::string &str);
+std::string kernel_release_from_build_tree (const std::string &kernel_build_tree, int verbose = 0);
 std::string normalize_machine(const std::string& machine);
+std::string autosprintf(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
+const std::set<std::string>& localization_variables();
 
 // stringification generics
 
@@ -44,7 +71,7 @@ inline std::string lex_cast(IN const & in)
 {
   std::ostringstream ss;
   if (!(ss << in))
-    throw std::runtime_error("bad lexical cast");
+    throw std::runtime_error(_("bad lexical cast"));
   return ss.str();
 }
 
@@ -55,7 +82,7 @@ inline OUT lex_cast(std::string const & in)
   std::istringstream ss(in);
   OUT out;
   if (!(ss >> out && ss.eof()))
-    throw std::runtime_error("bad lexical cast");
+    throw std::runtime_error(_("bad lexical cast"));
   return out;
 }
 
@@ -66,7 +93,7 @@ inline int8_t lex_cast(std::string const & in)
 {
   int16_t out = lex_cast<int16_t>(in);
   if (out < -128 || out > 127)
-    throw std::runtime_error("bad lexical cast");
+    throw std::runtime_error(_("bad lexical cast"));
   return out;
 }
 template <>
@@ -74,7 +101,7 @@ inline uint8_t lex_cast(std::string const & in)
 {
   uint16_t out = lex_cast<uint16_t>(in);
   if (out > 0xff && out < 0xff80) // don't error if it looks sign-extended
-    throw std::runtime_error("bad lexical cast");
+    throw std::runtime_error(_("bad lexical cast"));
   return out;
 }
 
@@ -85,7 +112,7 @@ lex_cast_hex(IN const & in)
 {
   std::ostringstream ss;
   if (!(ss << std::showbase << std::hex << in))
-    throw std::runtime_error("bad lexical cast");
+    throw std::runtime_error(_("bad lexical cast"));
   return ss.str();
 }
 
@@ -98,7 +125,7 @@ lex_cast_qstring(IN const & in)
 {
   std::stringstream ss;
   if (!(ss << in))
-    throw std::runtime_error("bad lexical cast");
+    throw std::runtime_error(_("bad lexical cast"));
   return lex_cast_qstring(ss.str());
 }
 
@@ -161,6 +188,26 @@ endswith(const std::string & s, const char * suffix)
     return false;
   return (s.compare(s_len - suffix_len, suffix_len, suffix) == 0);
 }
+
+
+// Mask our usual signals for the life of this object.
+struct stap_sigmasker {
+    sigset_t old;
+    stap_sigmasker()
+      {
+        sigset_t mask;
+        sigemptyset (&mask);
+        sigaddset (&mask, SIGHUP);
+        sigaddset (&mask, SIGPIPE);
+        sigaddset (&mask, SIGINT);
+        sigaddset (&mask, SIGTERM);
+        sigprocmask (SIG_BLOCK, &mask, &old);
+      }
+    ~stap_sigmasker()
+      {
+        sigprocmask (SIG_SETMASK, &old, NULL);
+      }
+};
 
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

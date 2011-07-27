@@ -9,8 +9,9 @@ oldincludedir = ${includedir}/sys
 
 AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 	      -DSYSCONFDIR='"$(sysconfdir)"' \
-	      -DPKGDATADIR='"${pkgdatadir}"' \
+	      -DPKGDATADIR='"$(pkgdatadir)"' \
 	      -DPKGLIBDIR='"$(pkglibexecdir)"' \
+	      -DLOCALEDIR='"$(localedir)"' \
 	      -I$(srcdir)/includes -I$(builddir)/includes/sys
 
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Werror -Wunused -Wformat=2 -W
@@ -34,17 +35,13 @@ bin_SCRIPTS += dtrace
 pkglibexec_PROGRAMS =
 
 if HAVE_NSS
-man_MANS += stap-authorize-signing-cert.8
-bin_SCRIPTS += stap-authorize-signing-cert
-pkglibexec_PROGRAMS += stap-sign-module
-pkglibexec_SCRIPTS += stap-gen-cert stap-authorize-cert
+pkglibexec_PROGRAMS += stap-sign-module stap-authorize-cert
 
 if BUILD_SERVER
-man_MANS += stap-client.8 stap-server.8 stap-authorize-server-cert.8
-pkglibexec_PROGRAMS += stap-client-connect stap-server-connect
-bin_SCRIPTS += stap-client stap-server stap-authorize-server-cert
-pkglibexec_SCRIPTS += stap-serverd stap-find-servers \
-	       stap-start-server stap-find-or-start-server stap-stop-server
+man_MANS += stap-server.8
+pkglibexec_PROGRAMS += stap-serverd stap-gen-cert
+bin_SCRIPTS += stap-server
+pkglibexec_SCRIPTS += stap-start-server stap-stop-server
 endif
 endif
 
@@ -55,9 +52,9 @@ stap_SOURCES = main.cxx session.cxx \
 	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
 	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
-	setupdwfl.cxx csclient.cxx remote.cxx
+	setupdwfl.cxx csclient.cxx cscommon.cxx remote.cxx
 noinst_HEADERS = sdt_types.h
-stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@
+stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@
 stap_DEPENDENCIES =
 endif
 
@@ -114,16 +111,14 @@ stap_LDADD += -lavahi-client -lavahi-common
 endif
 
 if HAVE_NSS
-stap_SOURCES += stap-client-connect.c nsscommon.c
+stap_SOURCES += nsscommon.cxx
 stap_CFLAGS += $(nss_CFLAGS) $(nspr_CFLAGS) -DSTAP
 stap_CXXFLAGS += $(nss_CFLAGS) $(nspr_CFLAGS)
 stap_CPPFLAGS += $(nss_CFLAGS) $(nspr_CFLAGS)
-stap_LDADD += -lssl3 -lnss3 -lnspr4 -lplc4
-stap_client_connect_LDFLAGS = $(AM_LDFLAGS)
-stap_server_connect_LDFLAGS = $(AM_LDFLAGS)
+stap_LDADD += -lssl3 -lnss3 -lnspr4 -lplc4 -lsmime3
 stap_sign_module_LDFLAGS = $(AM_LDFLAGS)
+stap_authorize_cert_LDFLAGS = $(AM_LDFLAGS)
 
-if BUILD_SERVER
 install-exec-local: install-scripts
 
 PHONIES += install-scripts
@@ -133,9 +128,8 @@ install-scripts: install-binSCRIPTS install-pkglibexecSCRIPTS
 	   sed -i -e "s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(bindir)/$$f; \
 	done
 	for f in $(pkglibexec_SCRIPTS); do \
-	   sed -i -e "/INSTALL-HOOK/d;s,exec_prefix=.*,exec_prefix=$(exec_prefix)/bin/,;s,sysconfdir=.*,sysconfdir=$(sysconfdir),;s,pkglibexecdir=.*,pkglibexecdir=$(pkglibexecdir)/,;s,localstatedir=.*,localstatedir=$(localstatedir),;s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(pkglibexecdir)/$$f; \
+	   sed -i -e "/INSTALL-HOOK/d;s,sysconfdir=.*,sysconfdir=$(sysconfdir),;s,pkglibexecdir=.*,pkglibexecdir=$(pkglibexecdir)/,;s,localstatedir=.*,localstatedir=$(localstatedir),;s,\$${PKGLIBEXECDIR},$(pkglibexecdir)/," $(DESTDIR)$(pkglibexecdir)/$$f; \
 	done
-endif
 endif
 
 if BUILD_ELFUTILS
@@ -151,6 +145,7 @@ stamp-elfutils: config.status
 	for dir in libelf libebl libdw libdwfl backends; do \
 	  $(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils/$$dir bin_PROGRAMS= install; \
 	done
+	$(MAKE) $(AM_MAKEFLAGS) -j1 -C build-elfutils install-pkgincludeHEADERS;
 	touch $@
 stap_DEPENDENCIES += lib-elfutils/libdw.so
 lib-elfutils/libdw.so: stamp-elfutils ;
@@ -169,18 +164,31 @@ CLEANFILES +=  $(pkglibexec_PROGRAMS)
 
 if BUILD_TRANSLATOR
 if HAVE_NSS
-stap_sign_module_SOURCES = modsign.cxx nsscommon.c
-stap_sign_module_CPPFLAGS = -Wall -Werror $(AM_CPPFLAGS) $(nss_CFLAGS) $(nspr_CFLAGS)
-stap_sign_module_LDADD = -lnss3 -lnspr4
+stap_sign_module_SOURCES = stap-sign-module.cxx nsscommon.cxx util.cxx
+stap_sign_module_CPPFLAGS = $(AM_CPPFLAGS)
+stap_sign_module_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_sign_module_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_sign_module_LDADD = -lssl3 -lnss3 -lnspr4 -lsmime3
+
+stap_authorize_cert_SOURCES = stap-authorize-cert.cxx nsscommon.cxx util.cxx
+stap_authorize_cert_CPPFLAGS = $(AM_CPPFLAGS)
+stap_authorize_cert_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_authorize_cert_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_authorize_cert_LDADD = -lssl3 -lnss3 -lnspr4 -lsmime3
 
 if BUILD_SERVER
-stap_client_connect_SOURCES = stap-client-connect.c nsscommon.c
-stap_client_connect_CFLAGS = -Wall -Werror $(nss_CFLAGS) $(nspr_CFLAGS)
-stap_client_connect_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4
+stap_serverd_SOURCES = stap-serverd.cxx cscommon.cxx util.cxx nsscommon.cxx
+stap_serverd_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_serverd_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_serverd_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4 -lsmime3 -lpthread
+if HAVE_AVAHI
+stap_serverd_LDADD += -lavahi-client -lavahi-common
+endif
 
-stap_server_connect_SOURCES = stap-server-connect.c nsscommon.c
-stap_server_connect_CFLAGS = -Wall -Werror $(nss_CFLAGS) $(nspr_CFLAGS)
-stap_server_connect_LDADD = -lssl3 -lnss3 -lnspr4 -lplc4
+stap_gen_cert_SOURCES = stap-gen-cert.cxx util.cxx nsscommon.cxx
+stap_gen_cert_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_gen_cert_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS) $(nspr_CFLAGS)
+stap_gen_cert_LDADD = -lssl3 -lnss3 -lnspr4 -lsmime3
 endif
 endif
 
@@ -295,9 +303,9 @@ if BUILD_SERVER
 endif
 	(cd $(srcdir)/man; for f in *.3*; do rm -rf "$(DESTDIR)$(man3dir)/$$f"; done)
 
-SUBDIRS = . runtime/staprun grapher doc
+SUBDIRS = . runtime/staprun grapher doc po
 DIST_SUBDIRS = testsuite $(SUBDIRS)
-EXTRA_DIST = man/tapset*.3stap
+EXTRA_DIST = m4/ChangeLog  man/tapset*.3stap
 
 check-local:
 	SRCDIR=`cd $(srcdir); pwd`; \
@@ -331,6 +339,17 @@ testsuite/dtrace: dtrace
 	chmod 555 $@.new
 	mv -f $@.new $@
 
+PHONIES += update-po
+update-po:
+	(cd $(srcdir); ls -1d *.c *.cxx *.h runtime/staprun/*.c runtime/staprun/*.h dtrace.in) \
+	| grep -v loc2c-test.c \
+	| grep -v config.h \
+	| grep -v git_version.h \
+	| grep -v runtime/staprun/config.h \
+	| sort > $(srcdir)/po/POTFILES.in
+	$(MAKE) -C po update-po
+
+
 # Any extra flags, such as:
 #     --define "with_docs 0"
 #     --define "with_bundled_elfutils 1" --define "elfutils_version 0.135"
@@ -357,3 +376,5 @@ rpm: dist-gzip
 	mkdir -p `rpm --eval %_builddir`
 	mkdir -p `rpm --eval %_buildroot`
 	rpmbuild --define "_sourcedir $(PWD)/" -ta systemtap-$(VERSION).tar.gz $(RPMBUILDFLAGS)
+
+ACLOCAL_AMFLAGS = -I m4

@@ -1,4 +1,4 @@
-.\" -*- nroff -*-
+.\" t
 .TH STAPPROBES 3stap 
 .SH NAME
 stapprobes \- systemtap probe points
@@ -73,7 +73,6 @@ signal.*? if (switch)
 kprobe.function("foo")
 .ESAMPLE
 
-
 Probes may be broadly classified into "synchronous" and
 "asynchronous".  A "synchronous" event is deemed to occur when any
 processor executes an instruction matched by the specification.  This
@@ -85,6 +84,40 @@ point specification may match multiple locations (for example, using
 wildcards or aliases), and all them are then probed.  A probe
 declaration may also contain several comma-separated specifications,
 all of which are probed.
+
+.SH DWARF DEBUGINFO
+
+Resolving some probe points requires DWARF debuginfo or "debug
+symbols" for the specific part being instrumented.  For some others,
+DWARF is automatically synthesized on the fly from source code header
+files.  For others, it is not needed at all.  Since a systemtap script
+may use any mixture of probe points together, the union of their DWARF
+requirements has to be met on the computer where script compilation
+occurs.  (See the \fI\-\-use\-server\fR option and the \fBstap-server\
+(8)\fR man page for information about the remote compilation facility,
+which allows these requirements to be met on a different machine.)
+.PP
+The following point lists many of the available probe point families,
+to classify them with respect to their need for DWARF debuginfo.
+
+.TS
+l l l.
+\fBDWARF	AUTO-DWARF	NON-DWARF\fP
+
+kernel.function, .statement	kernel.trace	kernel.mark
+module.function, .statement		process.mark
+process.function, .statement		begin, end, error, never
+process.mark \fI(backup)\fP		timer
+		perf
+		procfs
+		kernel.statement.absolute
+		kernel.data
+		kprobe.function
+		process.statement.absolute
+		process.begin, .end, .error
+.TE
+
+.SH PROBE POINT FAMILIES
 
 .SS BEGIN/END/ERROR
 
@@ -153,7 +186,7 @@ return do not have a corresponding
 .IR .return
 probe.
 .PP
-Each probe alias defines a variety of variables. Looking at the tapset source
+Each probe alias provides a variety of variables. Looking at the tapset source
 code is the most reliable way.  Generally, each variable listed in the standard
 manual page is made available as a script-level variable, so
 .IR syscall.open
@@ -170,8 +203,11 @@ The name of the system call.
 .IR retstr
 For return probes, a pretty-printed form of the system-call result.
 .PP
-Not all probe aliases obey all of these general guidelines.  Please report
-any bothersome ones you encounter as a bug.
+As usual for probe aliases, these variables are all simply initialized
+once from the underlying $context variables, so that later changes to
+$context variables are not automatically reflected.  Not all probe
+aliases obey all of these general guidelines.  Please report any
+bothersome ones you encounter as a bug.
 
 
 .SS TIMERS
@@ -285,6 +321,8 @@ module(MPATTERN).function(PATTERN).return
 .br
 module(MPATTERN).function(PATTERN).inline
 .br
+module(MPATTERN).function(PATTERN).label(LPATTERN)
+.br
 .br
 kernel.statement(PATTERN)
 .br
@@ -295,6 +333,10 @@ module(MPATTERN).statement(PATTERN)
 process("PATH").function("NAME")
 .br
 process("PATH").statement("*@FILE.c:123")
+.br
+process("PATH").library("PATH").function("NAME")
+.br
+process("PATH").library("PATH").statement("*@FILE.c:123")
 .br
 process("PATH").function("*").return
 .br
@@ -333,7 +375,7 @@ or a "+".  The line number is assumed to be an
 absolute line number if preceded by a ":", or relative to the entry of
 the function if preceded by a "+".  
 All the lines in the function can be matched with ":*".  
-A range of lines x through y can be matched with ":x-y".
+A range of lines x through y can be matched with ":x\-y".
 .PP
 As an alternative, PATTERN may be a numeric constant, indicating an
 address.  Such an address may be found from symbol tables of the
@@ -417,7 +459,7 @@ is addressable.
 expands to 1 or 0 iff the given context variable expression is resolvable,
 for use in conditionals such as   
 .SAMPLE
-@defined($foo->bar) ? $foo->bar : 0
+@defined($foo\->bar) ? $foo\->bar : 0
 .ESAMPLE
 .TP
 $EXPR$
@@ -572,9 +614,14 @@ probe gets called for every block-stepped instruction of the process described b
 .PP
 If a process probe is specified without a PID or FULLPATH, all user
 threads will be probed.  However, if systemtap was invoked with the
-.IR -c " or " -x
+.IR \-c " or " \-x
 options, then process probes are restricted to the process
-hierarchy associated with the target process.
+hierarchy associated with the target process.  If a process probe is
+specified without a PID or FULLPATH, but with the 
+.IR \-c "
+option, the PATH of the
+.IR \-c "
+cmd will be heuristically filled into the process PATH.
 
 .PP
 Third, symbolic static instrumentation compiled into programs and
@@ -602,10 +649,12 @@ parts of the probe point name.
 Finally, full symbolic source-level probes in user-space programs
 and shared libraries are supported.  These are exactly analogous
 to the symbolic DWARF-based kernel/module probes described above,
-and expose similar contextual $-variables.
+and expose similar contextual $variables.
 .SAMPLE
 process("PATH").function("NAME")
 process("PATH").statement("*@FILE.c:123")
+process("PATH").library("PATH").function("NAME")
+process("PATH").library("PATH").statement("*@FILE.c:123")
 process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
 .ESAMPLE
@@ -618,8 +667,11 @@ to the working directory if they contain a "/" character, otherwise in
 .BR $PATH .
 If PATH names refer to scripts, the actual interpreters (specified in the
 script in the first line after the #! characters) are probed.
-PATH may also refer to shared libraries, in which case all proceses that
-map it at runtime would be selected for probing.
+If PATH is a process component parameter referring to shared libraries
+then all processes that map it at runtime would be selected for
+probing.  If PATH is a library component parameter referring to shared
+libraries then the process specified by the process component would be
+selected.
 If the PATH string contains wildcards as in the MPATTERN case, then
 standard globbing is performed to find all matching paths.  In this
 case, the 
@@ -907,6 +959,9 @@ the following syntax:
 probe perf.type(NN).config(MM).sample(XX)
 probe perf.type(NN).config(MM)
 .ESAMPLE
+The systemtap probe handler is called once per XX increments
+of the underlying performance counter.  The default sampling
+count is 1000000.
 The range of valid type/config is described by the 
 .IR perf_event_open (2)
 system call, and/or the 

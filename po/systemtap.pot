@@ -1,0 +1,4773 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Red Hat Inc., and others
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: systemtap 1.6\n"
+"Report-Msgid-Bugs-To: systemtap@sourceware.org\n"
+"POT-Creation-Date: 2011-07-21 08:00-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: buildrun.cxx:296
+#, c-format
+msgid ""
+"Checking \" %s \" failed with error: %s\n"
+"Ensure kernel development headers & makefiles are installed."
+msgstr ""
+
+#: buildrun.cxx:325
+msgid "Pass 4, preamble: (re)building SystemTap's version of uprobes."
+msgstr ""
+
+#: buildrun.cxx:333
+msgid "Warning: failed to create directory for build uprobes."
+msgstr ""
+
+#: buildrun.cxx:362
+msgid "uprobes rebuild exit code: "
+msgstr ""
+
+#: buildrun.cxx:421
+msgid "user-space facilities not available without kernel CONFIG_UTRACE"
+msgstr ""
+
+#: buildrun.cxx:526
+msgid "Warning: failed to create directory for querying tracepoints."
+msgstr ""
+
+#: buildrun.cxx:607
+msgid "Warning: failed to create directory for querying types."
+msgstr ""
+
+#: buildrun.cxx:708
+#, c-format
+msgid "Warning: skipping malformed @cast header \"%s\""
+msgstr ""
+
+#: cache.cxx:128 cache.cxx:217
+msgid "Pass 4: using cached "
+msgstr ""
+
+#: cache.cxx:215
+msgid "Pass 3: using cached "
+msgstr ""
+
+#: cache.cxx:249
+#, c-format
+msgid "Cache limit file %s/%s missing, creating default."
+msgstr ""
+
+#: cache.cxx:349
+msgid "Cache cleaning successful, removed entries: "
+msgstr ""
+
+#: cache.cxx:356
+msgid "Cache cleaning skipped, no cache path."
+msgstr ""
+
+#: coveragedb.cxx:28
+msgid "---- used probes-----"
+msgstr ""
+
+#: coveragedb.cxx:35 coveragedb.cxx:58
+msgid "probe: "
+msgstr ""
+
+#: coveragedb.cxx:42
+msgid "local: "
+msgstr ""
+
+#: coveragedb.cxx:45
+msgid "unused_local: "
+msgstr ""
+
+#: coveragedb.cxx:51
+msgid "---- unused probes----- "
+msgstr ""
+
+#: coveragedb.cxx:64
+msgid "---- used functions----- "
+msgstr ""
+
+#: coveragedb.cxx:72
+msgid "---- unused functions----- "
+msgstr ""
+
+#: coveragedb.cxx:74
+msgid "unused_function: "
+msgstr ""
+
+#: coveragedb.cxx:79
+msgid "---- used globals----- "
+msgstr ""
+
+#: coveragedb.cxx:81 coveragedb.cxx:88
+msgid "globals: "
+msgstr ""
+
+#: coveragedb.cxx:86
+msgid "---- unused globals----- "
+msgstr ""
+
+#: coveragedb.cxx:110 coveragedb.cxx:133 coveragedb.cxx:151
+msgid "Error in statement: "
+msgstr ""
+
+#: csclient.cxx:67
+#, c-format
+msgid ""
+"WARNING: The domain name, %s, does not match the DNS name(s) on the server "
+"certificate:\n"
+msgstr ""
+
+#: csclient.cxx:68
+#, c-format
+msgid "could not find input file %s\n"
+msgstr ""
+
+#: csclient.cxx:69
+#, c-format
+msgid "could not open input file %s\n"
+msgstr ""
+
+#: csclient.cxx:70
+#, c-format
+msgid "Unable to open output file %s\n"
+msgstr ""
+
+#: csclient.cxx:71
+#, c-format
+msgid "could not write to %s\n"
+msgstr ""
+
+#: csclient.cxx:353
+#, c-format
+msgid "Unable to find alt name extension on the server certificate\n"
+msgstr ""
+
+#: csclient.cxx:362 csclient.cxx:578
+#, c-format
+msgid "Out of memory\n"
+msgstr ""
+
+#: csclient.cxx:370
+#, c-format
+msgid "Unable to decode alt name extension on server certificate\n"
+msgstr ""
+
+#: csclient.cxx:704
+#, c-format
+msgid "Unable to resolve server host name"
+msgstr ""
+
+#: csclient.cxx:710
+#, c-format
+msgid "Unable to resolve server host address"
+msgstr ""
+
+#: csclient.cxx:756
+msgid "Using a compile server."
+msgstr ""
+
+#: csclient.cxx:806
+msgid "Passes: via server "
+msgstr ""
+
+#: csclient.cxx:813
+msgid "Passes: via server failed.  Try again with another '-v' option."
+msgstr ""
+
+#: csclient.cxx:864
+msgid "ERROR: cannot create temporary directory (\""
+msgstr ""
+
+#: csclient.cxx:892
+msgid "ERROR: cannot create temporary directory "
+msgstr ""
+
+#: csclient.cxx:1166
+msgid "Unable to find a compile server."
+msgstr ""
+
+#: csclient.cxx:1184
+msgid "A server's certificate was expired. Trying again"
+msgstr ""
+
+#: csclient.cxx:1192
+msgid "Unable to connect to a server."
+msgstr ""
+
+#: csclient.cxx:1239 csclient.cxx:1686 stap-serverd.cxx:1621
+msgid "Unable to set NSS export policy"
+msgstr ""
+
+#: csclient.cxx:1253
+#, c-format
+msgid ""
+"Attempting SSL connection with %s\n"
+"  using certificates from the database in %s\n"
+msgstr ""
+
+#: csclient.cxx:1292
+msgid "  Unable to connect: "
+msgstr ""
+
+#: csclient.cxx:1328
+#, c-format
+msgid "Unable to unzip the server response '%s'\n"
+msgstr ""
+
+#: csclient.cxx:1345 csclient.cxx:1363 csclient.cxx:1431 csclient.cxx:1738
+#, c-format
+msgid "Searching \"%s\"\n"
+msgstr ""
+
+#: csclient.cxx:1351
+msgid "Incorrect number of files in server response"
+msgstr ""
+
+#: csclient.cxx:1359 csclient.cxx:1444 csclient.cxx:1746
+msgid "  found "
+msgstr ""
+
+#: csclient.cxx:1376
+#, c-format
+msgid "  found %s -- linking from %s"
+msgstr ""
+
+#: csclient.cxx:1380
+#, c-format
+msgid "Unable to link '%s' to '%s':%s\n"
+msgstr ""
+
+#: csclient.cxx:1438
+msgid "Incorrect number of modules in server response"
+msgstr ""
+
+#: csclient.cxx:1474
+msgid "No module was returned by the server."
+msgstr ""
+
+#: csclient.cxx:1501 csclient.cxx:1570 cscommon.cxx:92
+#, c-format
+msgid "Unable to open file '%s' for reading: "
+msgstr ""
+
+#: csclient.cxx:1510 cscommon.cxx:101
+#, c-format
+msgid "Unable to read from file '%s': "
+msgstr ""
+
+#: csclient.cxx:1521 csclient.cxx:1556 csclient.cxx:1594 cscommon.cxx:114
+msgid "unknown error"
+msgstr ""
+
+#: csclient.cxx:1536
+#, c-format
+msgid "Unable to open file '%s' for writing: "
+msgstr ""
+
+#: csclient.cxx:1545
+#, c-format
+msgid "Unable to write to file '%s': "
+msgstr ""
+
+#: csclient.cxx:1604
+#, c-format
+msgid "Server protocol version is %s\n"
+msgstr ""
+
+#: csclient.cxx:1605
+msgid "The server does not use localization information passed by the client\n"
+msgstr ""
+
+#: csclient.cxx:1621 csclient.cxx:2285
+msgid "as a module signer for all users"
+msgstr ""
+
+#: csclient.cxx:1624 csclient.cxx:2275
+msgid "as an SSL peer"
+msgstr ""
+
+#: csclient.cxx:1626 csclient.cxx:2277
+msgid " for all users"
+msgstr ""
+
+#: csclient.cxx:1628 csclient.cxx:2279
+msgid " for the current user"
+msgstr ""
+
+#: csclient.cxx:1637
+msgid " is already "
+msgstr ""
+
+#: csclient.cxx:1639
+msgid "untrusted "
+msgstr ""
+
+#: csclient.cxx:1641
+msgid "trusted "
+msgstr ""
+
+#: csclient.cxx:1661
+#, c-format
+msgid "Unable to find or create the client certificate database directory %s: "
+msgstr ""
+
+#: csclient.cxx:1723
+#, c-format
+msgid "Unable to connect to %s"
+msgstr ""
+
+#: csclient.cxx:1750
+#, c-format
+msgid "Warning: Unable to change permissions on %s: "
+msgstr ""
+
+#: csclient.cxx:1769
+#, c-format
+msgid "Certificate database '%s' does not exist"
+msgstr ""
+
+#: csclient.cxx:1805 csclient.cxx:1947
+msgid "Out of memory:"
+msgstr ""
+
+#: csclient.cxx:1848
+#, c-format
+msgid "Unable to query certificate database %s: "
+msgstr ""
+
+#: csclient.cxx:1887
+#, c-format
+msgid "Unable to remove certificate from %s: "
+msgstr ""
+
+#: csclient.cxx:1917
+#, c-format
+msgid "Certificate database '%s' does not exist."
+msgstr ""
+
+#: csclient.cxx:1939 nsscommon.cxx:1148
+#, c-format
+msgid "No certificate found in database %s"
+msgstr ""
+
+#: csclient.cxx:1969
+msgid "Unable to find alt name extension on server certificate: "
+msgstr ""
+
+#: csclient.cxx:1979
+msgid "Unable to decode alt name extension on server certificate: "
+msgstr ""
+
+#: csclient.cxx:2125
+#, c-format
+msgid "Warning: unsupported compile server property: %s"
+msgstr ""
+
+#: csclient.cxx:2174
+#, c-format
+msgid "Systemtap Compile Server Status for '%s'"
+msgstr ""
+
+#: csclient.cxx:2189
+msgid "No servers found"
+msgstr ""
+
+#: csclient.cxx:2226
+msgid "Only root can specify 'signer' on --trust-servers"
+msgstr ""
+
+#: csclient.cxx:2238
+msgid "Only root can specify 'all-users' on --trust-servers"
+msgstr ""
+
+#: csclient.cxx:2247
+msgid "Warning: Unrecognized server trust specification: "
+msgstr ""
+
+#: csclient.cxx:2264
+msgid "No servers identified for trust"
+msgstr ""
+
+#: csclient.cxx:2284
+msgid " and "
+msgstr ""
+
+#: csclient.cxx:2292
+msgid "Revoking trust "
+msgstr ""
+
+#: csclient.cxx:2294
+msgid "Adding trust "
+msgstr ""
+
+#: csclient.cxx:2299
+msgid "Revoke trust "
+msgstr ""
+
+#: csclient.cxx:2301
+msgid "Add trust "
+msgstr ""
+
+#: csclient.cxx:2303
+#, c-format
+msgid "in the following servers %s"
+msgstr ""
+
+#: csclient.cxx:2318
+msgid "Server trust unchanged"
+msgstr ""
+
+#: csclient.cxx:2496 csclient.cxx:2534
+#, c-format
+msgid "Invalid port number specified: %s"
+msgstr ""
+
+#: csclient.cxx:2515
+#, c-format
+msgid "No server matching %s found"
+msgstr ""
+
+#: csclient.cxx:2596
+msgid "Unable to determine server trust as an SSL peer"
+msgstr ""
+
+#: csclient.cxx:2642
+msgid "Unable to determine server trust as a module signer"
+msgstr ""
+
+#: csclient.cxx:2709
+msgid "Unable to detect server compatibility"
+msgstr ""
+
+#: csclient.cxx:2893
+#, c-format
+msgid "Failed to resolve service '%s' of type '%s' in domain '%s': %s"
+msgstr ""
+
+#: csclient.cxx:2950
+#, c-format
+msgid "Avahi browse failed: %s"
+msgstr ""
+
+#: csclient.cxx:2963
+#, c-format
+msgid "Failed to resolve service '%s': %s"
+msgstr ""
+
+#: csclient.cxx:2984
+#, c-format
+msgid "Avahi Server connection failure: %s"
+msgstr ""
+
+#: csclient.cxx:3030
+msgid "Failed to create Avahi simple poll object"
+msgstr ""
+
+#: csclient.cxx:3046
+#, c-format
+msgid "Failed to create Avahi client: %s"
+msgstr ""
+
+#: csclient.cxx:3058
+#, c-format
+msgid "Failed to create Avahi service browser: %s"
+msgstr ""
+
+#: csclient.cxx:3105
+msgid "Unable to detect online servers"
+msgstr ""
+
+#: dtrace.in:165
+msgid "Usage "
+msgstr ""
+
+#: dtrace.in:169
+msgid "Where -h builds a systemtap header file from the .d file"
+msgstr ""
+
+#: dtrace.in:170
+msgid "      -C when used with -h, also run cpp preprocessor"
+msgstr ""
+
+#: dtrace.in:171
+msgid "      -o specifies an explicit output file name,"
+msgstr ""
+
+#: dtrace.in:172
+msgid "         the default for -G is file.o and -h is file.h"
+msgstr ""
+
+#: dtrace.in:173
+msgid "      -I when running cpp pass through this -I include Path"
+msgstr ""
+
+#: dtrace.in:174
+msgid "      -s specifies the name of the .d input file"
+msgstr ""
+
+#: dtrace.in:175
+msgid "      -G builds a stub file.o from file.d,"
+msgstr ""
+
+#: dtrace.in:176
+msgid "         which is required by some packages that use dtrace."
+msgstr ""
+
+#: dwarf_wrappers.cxx:25
+#, c-format
+msgid "libdwfl failure (%s): "
+msgstr ""
+
+#: dwarf_wrappers.cxx:37
+#, c-format
+msgid "libdw failure (%s): "
+msgstr ""
+
+#: dwflpp.cxx:127
+msgid "cannot find "
+msgstr ""
+
+#: dwflpp.cxx:144 session.cxx:1488
+msgid "WARNING: "
+msgstr ""
+
+#: dwflpp.cxx:235
+#, c-format
+msgid "pattern '%s' matches module '%s'\n"
+msgstr ""
+
+#: dwflpp.cxx:265
+#, c-format
+msgid "pattern '%s' matches function '%s'\n"
+msgstr ""
+
+#: dwflpp.cxx:321 dwflpp.cxx:347
+#, c-format
+msgid "missing %s kernel/module debuginfo under '%s'"
+msgstr ""
+
+#: dwflpp.cxx:364
+#, c-format
+msgid "missing process %s %s debuginfo"
+msgstr ""
+
+#: dwflpp.cxx:566
+#, c-format
+msgid "die parent cache %s:%s size %zu"
+msgstr ""
+
+#: dwflpp.cxx:782
+#, c-format
+msgid "global alias cache %s:%s size %zu"
+msgstr ""
+
+#: dwflpp.cxx:845
+#, c-format
+msgid "function cache %s:%s size %zu"
+msgstr ""
+
+#: dwflpp.cxx:858
+#, c-format
+msgid "function cache %s:%s hit %s"
+msgstr ""
+
+#: dwflpp.cxx:880 dwflpp.cxx:898
+#, c-format
+msgid "function cache %s:%s match %s vs %s"
+msgstr ""
+
+#: dwflpp.cxx:932
+#, c-format
+msgid "module function cache %s size %zu"
+msgstr ""
+
+#: dwflpp.cxx:946
+#, c-format
+msgid "module function cache %s hit %s"
+msgstr ""
+
+#: dwflpp.cxx:1096
+#, c-format
+msgid "module %s --ldd skipped: unsupported interpreter: %s"
+msgstr ""
+
+#: dwflpp.cxx:1113
+#, c-format
+msgid "library iteration on %s failed: %s"
+msgstr ""
+
+#: dwflpp.cxx:1142
+#, c-format
+msgid "Added -d '%s"
+msgstr ""
+
+#: dwflpp.cxx:1144
+#, c-format
+msgid "' due to '%s'"
+msgstr ""
+
+#: dwflpp.cxx:1157
+#, c-format
+msgid "Warning: failed to read libraries from %s: %s"
+msgstr ""
+
+#: dwflpp.cxx:1198
+#, c-format
+msgid "alternative line %d rejected: nsrcs=%zu"
+msgstr ""
+
+#: dwflpp.cxx:1215
+#, c-format
+msgid "alternative line %d accepted: fn=%s"
+msgstr ""
+
+#: dwflpp.cxx:1227
+#, c-format
+msgid "alternative line %d accepted: ifn=%s"
+msgstr ""
+
+#. TRANSLATORS:  given line number leaves (is beyond) given function.
+#: dwflpp.cxx:1234
+#, c-format
+msgid "alternative line %d rejected: leaves selected fns"
+msgstr ""
+
+#: dwflpp.cxx:1300
+msgid "Invalid line range ("
+msgstr ""
+
+#: dwflpp.cxx:1302
+msgid ", the end line number "
+msgstr ""
+
+#: dwflpp.cxx:1374
+#, c-format
+msgid "multiple addresses for %s:%d"
+msgstr ""
+
+#. TRANSLATORS: Here we are trying to advise what source file
+#. TRANSLATORS: to attempt.
+#: dwflpp.cxx:1379
+msgid " (try "
+msgstr ""
+
+#: dwflpp.cxx:1383
+msgid " or "
+msgstr ""
+
+#: dwflpp.cxx:1454
+#, c-format
+msgid ""
+"label '%s' at address %s (dieoffset: %s) is not contained by its scope "
+"'%s' (dieoffset: %s) -- bad debuginfo?"
+msgstr ""
+
+#: dwflpp.cxx:1508
+#, c-format
+msgid "selected source file '%s'\n"
+msgstr ""
+
+#: dwflpp.cxx:1578
+#, c-format
+msgid "missing entrypc dwarf line record for function '%s'\n"
+msgstr ""
+
+#: dwflpp.cxx:1588
+#, c-format
+msgid "null entrypc dwarf line record for function '%s'\n"
+msgstr ""
+
+#: dwflpp.cxx:1596
+#, c-format
+msgid ""
+"searching for prologue of function '%s' 0x%#<PRIx64>-0x%#<PRIx64>@%s:%d\n"
+msgstr ""
+
+#: dwflpp.cxx:1621
+#, c-format
+msgid "checking line record 0x%#<PRIx64>@%s:%d\n"
+msgstr ""
+
+#: dwflpp.cxx:1638
+#, c-format
+msgid "prologue found function '%s'"
+msgstr ""
+
+#. TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
+#: dwflpp.cxx:1641
+msgid " (naked)"
+msgstr ""
+
+#. TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
+#: dwflpp.cxx:1643
+msgid " (tail-call?)"
+msgstr ""
+
+#: dwflpp.cxx:1707
+#, c-format
+msgid ", ignored %s more"
+msgstr ""
+
+#: dwflpp.cxx:1716
+msgid " (skip comdat)"
+msgstr ""
+
+#: dwflpp.cxx:1721
+#, c-format
+msgid "entry-pc lookup (%s dieoffset: %s) = 0x%#<PRIx64> (rc %d"
+msgstr ""
+
+#: dwflpp.cxx:1837
+msgid "emit_address internal error, no dwfl"
+msgstr ""
+
+#: dwflpp.cxx:1843
+#, c-format
+msgid ""
+"emit_address internal error, dwfl_addrmodule failed, address 0x%#<PRIx64>"
+msgstr ""
+
+#: dwflpp.cxx:1862
+#, c-format
+msgid ""
+"emit dwarf addr 0x%#<PRIx64> => module %s section %s relocaddr 0x%#<PRIx64>"
+msgstr ""
+
+#: dwflpp.cxx:1967
+msgid " in "
+msgstr ""
+
+#: dwflpp.cxx:1970 elaborate.cxx:580
+msgid " (alternatives:"
+msgstr ""
+
+#: dwflpp.cxx:1966
+#, c-format
+msgid "unable to find local '%s' near pc %s %s %s %s (%s)"
+msgstr ""
+
+#: dwflpp.cxx:2001
+#, c-format
+msgid "unable to get die scopes for '%s' in an inlined subroutine"
+msgstr ""
+
+#: dwflpp.cxx:2052
+#, c-format
+msgid "not accessible at this address (%s, dieoffset: %s)"
+msgstr ""
+
+#: dwflpp.cxx:2058
+#, c-format
+msgid "dwarf_getlocation_addr failed, %s"
+msgstr ""
+
+#: dwflpp.cxx:2081
+#, c-format
+msgid " Error: %s isn't a struct/class/union"
+msgstr ""
+
+#: dwflpp.cxx:2091
+#, c-format
+msgid "%s is empty"
+msgstr ""
+
+#: dwflpp.cxx:2123
+#, c-format
+msgid ""
+"\n"
+" Error in obtaining type attribute for anonymous member at %s:%d"
+msgstr ""
+
+#: dwflpp.cxx:2197
+#, c-format
+msgid "no location for field '%s':%s"
+msgstr ""
+
+#: dwflpp.cxx:2208
+#, c-format
+msgid "cannot get type of field: %s"
+msgstr ""
+
+#: dwflpp.cxx:2254
+#, c-format
+msgid "invalid access '%s' vs '%s'"
+msgstr ""
+
+#: dwflpp.cxx:2282
+#, c-format
+msgid "invalid access '%s' for array type"
+msgstr ""
+
+#: dwflpp.cxx:2294
+#, c-format
+msgid "invalid access '%s' for %s"
+msgstr ""
+
+#: dwflpp.cxx:2301
+#, c-format
+msgid "unresolved %s"
+msgstr ""
+
+#: dwflpp.cxx:2326
+#, c-format
+msgid "unable to find member '%s' for %s%s%s"
+msgstr ""
+
+#: dwflpp.cxx:2343
+#, c-format
+msgid "invalid access '%s' vs. %s"
+msgstr ""
+
+#: dwflpp.cxx:2348
+#, c-format
+msgid "cannot find type: %s"
+msgstr ""
+
+#: dwflpp.cxx:2352
+#, c-format
+msgid "%s: unexpected type tag %s"
+msgstr ""
+
+#: dwflpp.cxx:2372
+#, c-format
+msgid "cannot get type of pointee: %s"
+msgstr ""
+
+#: dwflpp.cxx:2401
+msgid "cannot write to member address"
+msgstr ""
+
+#: dwflpp.cxx:2404
+msgid "cannot take address of bit-field"
+msgstr ""
+
+#: dwflpp.cxx:2418
+#, c-format
+msgid "unsupported type tag %s for %s"
+msgstr ""
+
+#: dwflpp.cxx:2425
+#, c-format
+msgid "'%s' is being accessed instead of a member"
+msgstr ""
+
+#: dwflpp.cxx:2440
+#, c-format
+msgid "unsupported type (mystery encoding %s for %s"
+msgstr ""
+
+#: dwflpp.cxx:2449
+#, c-format
+msgid "unsupported type (encoding %s) for %s"
+msgstr ""
+
+#: dwflpp.cxx:2474
+msgid "cannot write to array address"
+msgstr ""
+
+#: dwflpp.cxx:2477
+msgid "cannot write to reference"
+msgstr ""
+
+#: dwflpp.cxx:2550
+#, c-format
+msgid "finding symtable address for %s\n"
+msgstr ""
+
+#: dwflpp.cxx:2554
+msgid "Getting symbols"
+msgstr ""
+
+#: dwflpp.cxx:2569
+#, c-format
+msgid "found %s @0x%#<PRIx64>\n"
+msgstr ""
+
+#: dwflpp.cxx:2589
+#, c-format
+msgid ""
+"finding location for local '%s' near address 0x%#<PRIx64>, module bias 0x"
+"%#<PRIx64>\n"
+msgstr ""
+
+#: dwflpp.cxx:2620
+#, c-format
+msgid "failed to retrieve location attribute for local '%s' (dieoffset: %s)"
+msgstr ""
+
+#: dwflpp.cxx:2630 dwflpp.cxx:2664
+#, c-format
+msgid "failed to retrieve type attribute for local '%s'"
+msgstr ""
+
+#: dwflpp.cxx:2679
+#, c-format
+msgid "literal_stmt_for_return: finding return value for %s (%s)\n"
+msgstr ""
+
+#: dwflpp.cxx:2692
+#, c-format
+msgid "failed to retrieve return value location for %s (%s)"
+msgstr ""
+
+#: dwflpp.cxx:2699
+#, c-format
+msgid "function %s (%s) has no return value"
+msgstr ""
+
+#: dwflpp.cxx:2714 dwflpp.cxx:2745
+#, c-format
+msgid "failed to retrieve return value type attribute for %s (%s)"
+msgstr ""
+
+#: dwflpp.cxx:2761
+#, c-format
+msgid "literal_stmt_for_pointer: finding value for %s (%s)\n"
+msgstr ""
+
+#: dwflpp.cxx:2879
+msgid " skipping - init/exit"
+msgstr ""
+
+#: dwflpp.cxx:2887
+msgid " skipping - __kprobes"
+msgstr ""
+
+#: dwflpp.cxx:2902
+msgid " guru mode enabled - ignoring blacklist"
+msgstr ""
+
+#: dwflpp.cxx:2907
+msgid " skipping - blacklisted"
+msgstr ""
+
+#: dwflpp.cxx:3046
+msgid "blacklist regexps:"
+msgstr ""
+
+#: dwflpp.cxx:3054
+msgid "blacklist_func regcomp failed"
+msgstr ""
+
+#: dwflpp.cxx:3056
+msgid "blacklist_func_ret regcomp failed"
+msgstr ""
+
+#: dwflpp.cxx:3058
+msgid "blacklist_file regcomp failed"
+msgstr ""
+
+#: dwflpp.cxx:3060
+msgid "blacklist_section regcomp failed"
+msgstr ""
+
+#: dwflpp.cxx:3244
+msgid "not found cfa"
+msgstr ""
+
+#: dwflpp.cxx:3251
+#, c-format
+msgid "found cfa, info: %d [start: 0x%#<PRIx64>, end: 0x%#<PRIx64>, nops: %zu"
+msgstr ""
+
+#: elaborate.cxx:144 elaborate.cxx:159
+msgid "derived_probe with no locations"
+msgid_plural "derived_probe with no locations"
+msgstr[0] ""
+msgstr[1] ""
+
+#: elaborate.cxx:201
+msgid "unprivileged users: authorized"
+msgstr ""
+
+#: elaborate.cxx:207
+msgid "unprivileged users: authorized for process owner"
+msgstr ""
+
+#: elaborate.cxx:359
+msgid "invalid use of wildcard probe point component"
+msgstr ""
+
+#: elaborate.cxx:414
+#, c-format
+msgid "probe point truncated at position %s (follow: %s)"
+msgstr ""
+
+#: elaborate.cxx:421
+msgid "probe point is not allowed for unprivileged users"
+msgstr ""
+
+#: elaborate.cxx:498
+#, c-format
+msgid "probe point mismatch at position %s (alternatives: %s)"
+msgstr ""
+
+#: elaborate.cxx:519
+#, c-format
+msgid "wildcard '%s' matched '%s'"
+msgstr ""
+
+#: elaborate.cxx:565
+msgid " (alternatives: "
+msgstr ""
+
+#: elaborate.cxx:563
+#, c-format
+msgid "probe point mismatch at position %s %s didn't find any wildcard matches"
+msgstr ""
+
+#: elaborate.cxx:579
+#, c-format
+msgid "probe point mismatch at position %s %s"
+msgstr ""
+
+#: elaborate.cxx:613
+msgid "inappropriate"
+msgstr ""
+
+#: elaborate.cxx:651
+#, c-format
+msgid "Recursive loop in alias expansion of %s at %s"
+msgstr ""
+
+#: elaborate.cxx:740
+msgid "recursion limit reached"
+msgstr ""
+
+#: elaborate.cxx:788
+msgid "no match"
+msgstr ""
+
+#: elaborate.cxx:816
+msgid " while resolving probe point "
+msgstr ""
+
+#: elaborate.cxx:863
+msgid "Expecting symbol or array index expression"
+msgstr ""
+
+#: elaborate.cxx:916
+msgid "Assignment to read-only histogram bucket"
+msgstr ""
+
+#: elaborate.cxx:948
+#, c-format
+msgid "variable '%s' modified during 'foreach' iteration"
+msgstr ""
+
+#: elaborate.cxx:970
+#, c-format
+msgid "function call modifies var '%s' during 'foreach' iteration"
+msgstr ""
+
+#: elaborate.cxx:1058
+#, c-format
+msgid "multiple histogram types declared on '%s'"
+msgstr ""
+
+#: elaborate.cxx:1086
+#, c-format
+msgid "unable to infer statistic parameters for global '%s'"
+msgstr ""
+
+#: elaborate.cxx:1167
+msgid "probe condition must not modify any variables"
+msgstr ""
+
+#: elaborate.cxx:1172
+msgid "probe condition must not include impure embedded-C"
+msgstr ""
+
+#: elaborate.cxx:1226
+#, c-format
+msgid "Turning on task_finder vma_tracker, pragma:vma found in %s"
+msgstr ""
+
+#: elaborate.cxx:1353
+msgid ""
+"This global uses tapset constructs that are dependent on systemtap version"
+msgstr ""
+
+#: elaborate.cxx:1358
+msgid ""
+"This function uses tapset constructs that are dependent on systemtap version"
+msgstr ""
+
+#: elaborate.cxx:1366
+msgid ""
+"This probe uses tapset constructs that are dependent on systemtap version"
+msgstr ""
+
+#: elaborate.cxx:1368
+msgid ""
+"This alias uses tapset constructs that are dependent on systemtap version"
+msgstr ""
+
+#: elaborate.cxx:1651
+msgid "no probes found"
+msgstr ""
+
+#: elaborate.cxx:1714 elaborate.cxx:1825
+#, c-format
+msgid "unresolved arity-%zu global array %s, missing global declaration?"
+msgstr ""
+
+#: elaborate.cxx:1764
+msgid "unresolved array in delete statement"
+msgstr ""
+
+#: elaborate.cxx:1798
+msgid "probe condition must not reference undeclared global"
+msgstr ""
+
+#: elaborate.cxx:1846
+msgid "probe condition must not reference function"
+msgstr ""
+
+#: elaborate.cxx:1861
+#, c-format
+msgid "unresolved arity-%zu function"
+msgstr ""
+
+#: elaborate.cxx:1908
+#, c-format
+msgid "cross-file global variable reference to %s from"
+msgstr ""
+
+#: elaborate.cxx:1962
+#, c-format
+msgid "      function %s is defined from %s"
+msgstr ""
+
+#: elaborate.cxx:2002 elaborate.cxx:2004
+#, c-format
+msgid "Eliding unused function '%s'"
+msgstr ""
+
+#: elaborate.cxx:2060 elaborate.cxx:2105 elaborate.cxx:2151
+#, c-format
+msgid "Eliding unused variable '%s'"
+msgstr ""
+
+#: elaborate.cxx:2062
+#, c-format
+msgid "Eliding unused local variable %s in %s"
+msgstr ""
+
+#: elaborate.cxx:2088 elaborate.cxx:2136 elaborate.cxx:2173
+msgid "(alternatives:"
+msgstr ""
+
+#: elaborate.cxx:2086 elaborate.cxx:2134
+#, c-format
+msgid "never-assigned local variable '%s' %s"
+msgstr ""
+
+#: elaborate.cxx:2107
+#, c-format
+msgid "Eliding unused local variable %s in function %s"
+msgstr ""
+
+#: elaborate.cxx:2153
+#, c-format
+msgid "Eliding unused global variable %s"
+msgstr ""
+
+#: elaborate.cxx:2172
+#, c-format
+msgid "never assigned global variable '%s' %s"
+msgstr ""
+
+#: elaborate.cxx:2240
+#, c-format
+msgid "Eliding assignment to %s at %s"
+msgstr ""
+
+#: elaborate.cxx:2263
+#, c-format
+msgid "Eliding unused error string catcher %s at %s"
+msgstr ""
+
+#: elaborate.cxx:2328
+msgid "Eliding side-effect-free null statement "
+msgstr ""
+
+#: elaborate.cxx:2348
+msgid "Flattening nested block "
+msgstr ""
+
+#: elaborate.cxx:2360
+msgid "Eliding side-effect-free empty block "
+msgstr ""
+
+#: elaborate.cxx:2366
+msgid "Eliding side-effect-free singleton block "
+msgstr ""
+
+#: elaborate.cxx:2384
+msgid "Eliding empty try {} block "
+msgstr ""
+
+#: elaborate.cxx:2408
+msgid "Eliding side-effect-free if statement "
+msgstr ""
+
+#: elaborate.cxx:2416
+msgid "Creating simple evaluation from if statement "
+msgstr ""
+
+#: elaborate.cxx:2430
+msgid "Inverting the condition of if statement "
+msgstr ""
+
+#: elaborate.cxx:2454
+msgid "Eliding side-effect-free foreach statement "
+msgstr ""
+
+#: elaborate.cxx:2476
+msgid "Eliding side-effect-free for statement "
+msgstr ""
+
+#: elaborate.cxx:2518
+msgid "Eliding side-effect-free expression "
+msgstr ""
+
+#: elaborate.cxx:2556
+#, c-format
+msgid "side-effect-free probe '%s'"
+msgstr ""
+
+#: elaborate.cxx:2580
+#, c-format
+msgid "side-effect-free function '%s'"
+msgstr ""
+
+#: elaborate.cxx:2700
+msgid "Creating if statement from unused logical-or "
+msgstr ""
+
+#: elaborate.cxx:2731
+msgid "Creating if statement from unused logical-and "
+msgstr ""
+
+#: elaborate.cxx:2757
+msgid "Creating if statement from unused ternary expression "
+msgstr ""
+
+#: elaborate.cxx:2787
+msgid "Eliding unused binary "
+msgstr ""
+
+#: elaborate.cxx:2815
+msgid "Eliding unused unary "
+msgstr ""
+
+#: elaborate.cxx:2856
+msgid "Eliding side-effect-free function call "
+msgstr ""
+
+#: elaborate.cxx:2888
+msgid "Eliding unused print "
+msgstr ""
+
+#: elaborate.cxx:2935
+msgid "Eliding unused target symbol "
+msgstr ""
+
+#: elaborate.cxx:2969
+msgid "Eliding unused typecast "
+msgstr ""
+
+#: elaborate.cxx:2986
+msgid "Eliding unused check "
+msgstr ""
+
+#: elaborate.cxx:3095
+#, c-format
+msgid "Collapsing constant-%<PRIi64> if-statement %s"
+msgstr ""
+
+#: elaborate.cxx:3121
+msgid "Collapsing constantly-false for-loop "
+msgstr ""
+
+#: elaborate.cxx:3147
+msgid "Collapsing constantly-limited foreach-loop "
+msgstr ""
+
+#: elaborate.cxx:3194
+msgid "unsupported binary operator "
+msgstr ""
+
+#: elaborate.cxx:3234
+msgid "Collapsing constant-identity binary operator "
+msgstr ""
+
+#: elaborate.cxx:3248
+#, c-format
+msgid "Collapsing constant-%<PRIi64> binary operator %s"
+msgstr ""
+
+#: elaborate.cxx:3266
+msgid "Collapsing constant unary "
+msgstr ""
+
+#: elaborate.cxx:3280
+msgid "unsupported unary operator "
+msgstr ""
+
+#: elaborate.cxx:3324
+msgid "Collapsing constant logical-OR "
+msgstr ""
+
+#: elaborate.cxx:3371
+msgid "Collapsing constant logical-AND "
+msgstr ""
+
+#: elaborate.cxx:3414
+msgid "Collapsing constant-boundary comparison "
+msgstr ""
+
+#: elaborate.cxx:3432
+msgid "Collapsing constant comparison "
+msgstr ""
+
+#: elaborate.cxx:3449
+msgid "unsupported comparison operator "
+msgstr ""
+
+#: elaborate.cxx:3465
+msgid "Collapsing constant concatenation "
+msgstr ""
+
+#: elaborate.cxx:3477
+msgid "Collapsing identity concatenation "
+msgstr ""
+
+#: elaborate.cxx:3498
+#, c-format
+msgid "Collapsing constant-%<PRIi64> ternary %s"
+msgstr ""
+
+#: elaborate.cxx:3513
+msgid "Collapsing untouched @defined check "
+msgstr ""
+
+#: elaborate.cxx:3533
+msgid "Bad $context variable being substituted with literal 0"
+msgstr ""
+
+#: elaborate.cxx:3536
+msgid "Bad $context variable being substituted with literal 0, "
+msgstr ""
+
+#: elaborate.cxx:3581
+#, c-format
+msgid "Changing %s reference to %s reference\n"
+msgstr ""
+
+#: elaborate.cxx:3993
+msgid "unsupported assignment operator "
+msgstr ""
+
+#: elaborate.cxx:4170
+msgid "Resolution problem with "
+msgstr ""
+
+#. TRANSLATORS: simply saying not an issue with a probe or function
+#: elaborate.cxx:4185
+msgid "other"
+msgstr ""
+
+#: elaborate.cxx:4191
+msgid "unresolved target-symbol expression"
+msgstr ""
+
+#: elaborate.cxx:4198
+msgid "unexpected @defined"
+msgstr ""
+
+#: elaborate.cxx:4205
+msgid "@entry is only valid in .return probes"
+msgstr ""
+
+#: elaborate.cxx:4217
+#, c-format
+msgid "type definition '%s' not found"
+msgstr ""
+
+#: elaborate.cxx:4378
+msgid "Activating uprobes support because /* pragma:uprobes */ seen."
+msgstr ""
+
+#: elaborate.cxx:4519 translate.cxx:3055
+msgid "invalid operand of delete expression"
+msgstr ""
+
+#: elaborate.cxx:4635
+msgid "Unspecified conversion in print operator format string"
+msgstr ""
+
+#: elaborate.cxx:4651
+msgid "Wrong number of args to formatted print operator"
+msgstr ""
+
+#: elaborate.cxx:4788
+msgid "array locals not supported, missing global declaration? "
+msgstr ""
+
+#: elaborate.cxx:4798
+msgid "stat locals not supported, missing global declaration? "
+msgstr ""
+
+#: elaborate.cxx:4813
+msgid "unresolved type "
+msgstr ""
+
+#: elaborate.cxx:4828
+msgid "invalid operator"
+msgstr ""
+
+#: elaborate.cxx:4830
+msgid "invalid type "
+msgstr ""
+
+#: elaborate.cxx:4863 elaborate.cxx:4877
+#, c-format
+msgid "type mismatch ( %s vs. %s )"
+msgstr ""
+
+#: elaborate.cxx:4884
+#, c-format
+msgid "type was first inferred here ( %s )"
+msgstr ""
+
+#: hash.cxx:130
+msgid "result:"
+msgstr ""
+
+#: hash.cxx:199
+#, c-format
+msgid ""
+"Warning: failed to create cache directory (\"%s\") %s, disabling cache "
+"support"
+msgstr ""
+
+#. TRANSLATORS: failure to find an address that was a constant literal number
+#: loc2c.c:175
+#, c-format
+msgid "cannot get constant address: %s"
+msgstr ""
+
+#: loc2c.c:195
+#, c-format
+msgid "cannot get constant block: %s"
+msgstr ""
+
+#: loc2c.c:210
+#, c-format
+msgid "cannot get string constant: %s"
+msgstr ""
+
+#: loc2c.c:224
+#, c-format
+msgid "cannot get constant value: %s"
+msgstr ""
+
+#: loc2c.c:301
+#, c-format
+msgid "%s in DWARF expression [%Zu] at %<PRIu64> (%#x: %<PRId64>, %<PRId64>)"
+msgstr ""
+
+#: loc2c.c:912
+msgid "required DW_AT_frame_base attribute not supplied"
+msgstr ""
+
+#: loc2c.c:926
+#, c-format
+msgid "dwarf_getlocation_addr (form %#x): %s"
+msgstr ""
+
+#: loc2c.c:932
+msgid "DW_AT_frame_base not accessible at this address"
+msgstr ""
+
+#: loc2c.c:941
+msgid "No cfa_ops supplied, but needed by DW_OP_call_frame_cfa"
+msgstr ""
+
+#: loc2c.c:976
+msgid "not accessible at this address"
+msgstr ""
+
+#: loc2c.c:1522 loc2c.c:2435
+msgid "cannot handle offset into register in fetch"
+msgstr ""
+
+#: loc2c.c:1527
+msgid "noncontiguous location for base fetch"
+msgstr ""
+
+#: loc2c.c:1531 loc2c.c:1574
+msgid "pointer has been optimized out"
+msgstr ""
+
+#: loc2c.c:1535
+msgid "location not available"
+msgstr ""
+
+#: loc2c.c:1565
+msgid "cannot handle offset into register in store"
+msgstr ""
+
+#: loc2c.c:1570
+msgid "noncontiguous location for base store"
+msgstr ""
+
+#: loc2c.c:1578
+msgid "location is computed value, cannot store"
+msgstr ""
+
+#: loc2c.c:1582
+msgid "location is constant value, cannot store"
+msgstr ""
+
+#: loc2c.c:1586
+msgid "location is not available, cannot store"
+msgstr ""
+
+#: loc2c.c:1676
+msgid "stack value too big for fetch ???"
+msgstr ""
+
+#: loc2c.c:1680
+msgid "single register too big for fetch/store ???"
+msgstr ""
+
+#: loc2c.c:1684
+msgid "implicit pointer too big for fetch/store ???"
+msgstr ""
+
+#: loc2c.c:1689
+msgid "cannot support noncontiguous location"
+msgstr ""
+
+#: loc2c.c:1717
+msgid "declaring noncontig union for depth > 9, too many pieces"
+msgstr ""
+
+#: loc2c.c:1766 loc2c.c:2117 loc2c.c:2206
+#, c-format
+msgid "cannot get byte_size attribute for type %s: %s"
+msgstr ""
+
+#: loc2c.c:1807
+#, c-format
+msgid "cannot get bit field parameters: %s"
+msgstr ""
+
+#: loc2c.c:1882
+msgid "fetch is larger than base integer types"
+msgstr ""
+
+#. TRANSLATORS: CU stands for 'compilation unit'
+#: loc2c.c:1902
+#, c-format
+msgid "cannot determine CU address size from %s: %s"
+msgstr ""
+
+#: loc2c.c:2022
+msgid "store is larger than base integer types"
+msgstr ""
+
+#: loc2c.c:2152
+msgid "cannot take the address of a bit field"
+msgstr ""
+
+#: loc2c.c:2163
+msgid "cannot take address of object in register"
+msgstr ""
+
+#: loc2c.c:2166
+msgid "cannot take address of noncontiguous object"
+msgstr ""
+
+#: loc2c.c:2169
+msgid "cannot take address of computed value"
+msgstr ""
+
+#: loc2c.c:2172
+msgid "cannot take address of constant value"
+msgstr ""
+
+#: loc2c.c:2175
+msgid "cannot take address of unavailable value"
+msgstr ""
+
+#: loc2c.c:2178
+msgid "cannot take address of implicit pointer"
+msgstr ""
+
+#. TRANSLATORS: This refers to the basic type, (stripped of const/volatile/etc.)
+#: loc2c.c:2230
+#, c-format
+msgid "cannot get inner type of type %s: %s"
+msgstr ""
+
+#: loc2c.c:2242
+#, c-format
+msgid "cannot get byte_size attribute for array element type %s: %s"
+msgstr ""
+
+#: loc2c.c:2247
+msgid "confused about array element size"
+msgstr ""
+
+#: loc2c.c:2261
+#, c-format
+msgid "cannot get byte_stride attribute array type %s: %s"
+msgstr ""
+
+#: loc2c.c:2269
+#, c-format
+msgid "cannot get element type of array type %s: %s"
+msgstr ""
+
+#: loc2c.c:2288
+msgid "cannot dynamically index noncontiguous array"
+msgstr ""
+
+#. TRANSLATORS: The index is constant
+#: loc2c.c:2300
+msgid "constant index is outside noncontiguous array"
+msgstr ""
+
+#: loc2c.c:2302
+msgid "noncontiguous array splits elements"
+msgstr ""
+
+#: loc2c.c:2323
+msgid "cannot index array stored in a register"
+msgstr ""
+
+#: loc2c.c:2325
+msgid "constant index is outside array held in register"
+msgstr ""
+
+#: loc2c.c:2335
+msgid "cannot index into constant value"
+msgstr ""
+
+#. TRANSLATORS: The index is constant
+#: loc2c.c:2338
+msgid "constant index is outside constant array value"
+msgstr ""
+
+#: loc2c.c:2349
+msgid "cannot index into implicit pointer"
+msgstr ""
+
+#: loc2c.c:2356
+msgid "cannot index into computed value"
+msgstr ""
+
+#: loc2c.c:2361
+msgid "cannot index into unavailable value"
+msgstr ""
+
+#: main.cxx:179
+msgid "# global embedded code"
+msgstr ""
+
+#: main.cxx:189
+msgid "# globals"
+msgstr ""
+
+#: main.cxx:204
+msgid "# functions"
+msgstr ""
+
+#: main.cxx:212 main.cxx:236
+msgid "  # locals"
+msgstr ""
+
+#: main.cxx:228
+msgid "# probes"
+msgstr ""
+
+#: main.cxx:311
+#, c-format
+msgid "Checking \"%s\" failed with error: %s"
+msgstr ""
+
+#: main.cxx:330
+#, c-format
+msgid "Parsed kernel \"%s\", "
+msgstr ""
+
+#: main.cxx:331
+#, c-format
+msgid "containing %zu tuple"
+msgid_plural "containing %zu tuples"
+msgstr[0] ""
+msgstr[1] ""
+
+#: main.cxx:346
+#, c-format
+msgid ""
+"Checking \"%s\" failed with error: %s\n"
+"Ensure kernel development headers & makefiles are installed"
+msgstr ""
+
+#: main.cxx:363
+#, c-format
+msgid "Parsed kernel %s, which contained one vmlinux export"
+msgid_plural "Parsed kernel %s, which contained %zu vmlinux exports"
+msgstr[0] ""
+msgstr[1] ""
+
+#. TRANSLATORS: we can't make the directory due to the error
+#: main.cxx:392
+#, c-format
+msgid "ERROR: cannot create temporary directory (\" %s \"): %s"
+msgstr ""
+
+#: main.cxx:399
+#, c-format
+msgid "Created temporary directory \"%s\""
+msgstr ""
+
+#: main.cxx:409
+#, c-format
+msgid "Keeping temporary directory \"%s\""
+msgstr ""
+
+#: main.cxx:437
+msgid "ERROR: kernel release isn't specified"
+msgstr ""
+
+#: main.cxx:439
+#, c-format
+msgid "ERROR: kernel release isn't found in \"%s\""
+msgstr ""
+
+#: main.cxx:459
+msgid ""
+"Note: --use-server --unprivileged was selected because of stapusr membership."
+msgstr ""
+
+#: main.cxx:463
+msgid ""
+"WARNING: Without NSS, using a compile-server is not supported by this "
+"version of systemtap"
+msgstr ""
+
+#: main.cxx:594
+#, c-format
+msgid ""
+"usage error: tapset file '%s' cannot be run directly as a session script."
+msgstr ""
+
+#. TRANSLATORS: Searching through directories, 'processed' means 'examined so far'
+#: main.cxx:621
+#, c-format
+msgid "Searched: \" %s \", found: %zu, processed: %u"
+msgstr ""
+
+#: main.cxx:633
+msgid "# parse tree dump"
+msgstr ""
+
+#: main.cxx:670
+msgid "Pass 1: parse failed.  Try again with another '--vp 1' option."
+msgstr ""
+
+#: main.cxx:703
+msgid "Pass 2: analysis failed.  Try again with another '--vp 01' option."
+msgstr ""
+
+#: main.cxx:779
+msgid "Pass 3: translation failed.  Try again with another '--vp 001' option."
+msgstr ""
+
+#: main.cxx:816
+msgid "Pass 4: compilation failed.  Try again with another '--vp 0001' option."
+msgstr ""
+
+#: main.cxx:860
+msgid "Pass 5: starting run."
+msgstr ""
+
+#: main.cxx:872
+msgid "Pass 5: run failed.  Try again with another '--vp 00001' option."
+msgstr ""
+
+#: main.cxx:900
+msgid "Coverage database not available without libsqlite3"
+msgstr ""
+
+#: main.cxx:924
+msgid "Attempting compilation using a compile server"
+msgstr ""
+
+#: main.cxx:982
+#, c-format
+msgid "Session arch: %s release: %s"
+msgstr ""
+
+#: nsscommon.cxx:101
+#, c-format
+msgid "Could not open log file %s"
+msgstr ""
+
+#: nsscommon.cxx:145 nsscommon.cxx:158
+#, c-format
+msgid "(%d) %s"
+msgstr ""
+
+#: nsscommon.cxx:172
+#, c-format
+msgid "Error initializing NSS for %s"
+msgstr ""
+
+#: nsscommon.cxx:187
+#, c-format
+msgid "Unable to shutdown NSS for database %s"
+msgstr ""
+
+#: nsscommon.cxx:197
+msgid "Unable to shutdown NSS"
+msgstr ""
+
+#: nsscommon.cxx:265
+msgid "Cannot prompt for certificate database password. stdin is not a tty"
+msgstr ""
+
+#: nsscommon.cxx:278
+#, c-format
+msgid "Password for certificate database in %s: "
+msgstr ""
+
+#: nsscommon.cxx:314 nsscommon.cxx:865
+#, c-format
+msgid "Could not search certificate database directory %s"
+msgstr ""
+
+#: nsscommon.cxx:320
+#, c-format
+msgid "Could not remove %s"
+msgstr ""
+
+#: nsscommon.cxx:327
+#, c-format
+msgid ""
+"Could not remove certificate database directory %s\n"
+"%s"
+msgstr ""
+
+#: nsscommon.cxx:359
+msgid "Passwords do not match"
+msgstr ""
+
+#: nsscommon.cxx:370
+msgid "Too many password attempts"
+msgstr ""
+
+#: nsscommon.cxx:382
+#, c-format
+msgid "Could not initialize pin for certificate database %s"
+msgstr ""
+
+#: nsscommon.cxx:395
+#, c-format
+msgid "Unable to authenticate the default slot for certificate database %s"
+msgstr ""
+
+#: nsscommon.cxx:422
+msgid "Unable to generate public/private key pair"
+msgstr ""
+
+#: nsscommon.cxx:434
+msgid "Unable to create subject public key info for certificate request"
+msgstr ""
+
+#: nsscommon.cxx:444
+msgid "Unable to create certificate request"
+msgstr ""
+
+#: nsscommon.cxx:466
+msgid "Unable to create certificate validity dates"
+msgstr ""
+
+#: nsscommon.cxx:480 nsscommon.cxx:976
+msgid "Unable to create certificate"
+msgstr ""
+
+#: nsscommon.cxx:494
+msgid "Unable to allocate certificate extensions"
+msgstr ""
+
+#: nsscommon.cxx:513
+msgid "Unable to encode certificate type extensions"
+msgstr ""
+
+#: nsscommon.cxx:524 nsscommon.cxx:542
+msgid "Unable to allocate alternate DNS name extension for certificate"
+msgstr ""
+
+#: nsscommon.cxx:572
+msgid "Unable to encode alternate DNS name extension for certificate"
+msgstr ""
+
+#: nsscommon.cxx:581
+msgid "Unable to add alternate DNS name extension for certificate"
+msgstr ""
+
+#: nsscommon.cxx:596
+msgid "Unable to complete alternate DNS name extension for certificate"
+msgstr ""
+
+#: nsscommon.cxx:617
+msgid ""
+"Unable to determine the signature algorithm for the signing the certificate"
+msgstr ""
+
+#: nsscommon.cxx:626
+msgid "Unable to set the signature algorithm for signing the certificate"
+msgstr ""
+
+#: nsscommon.cxx:642
+msgid "Unable to encode the certificate for signing"
+msgstr ""
+
+#: nsscommon.cxx:650
+msgid "Unable to allocate memory for signing the certificate"
+msgstr ""
+
+#: nsscommon.cxx:657
+msgid "Unable to sign the certificate"
+msgstr ""
+
+#: nsscommon.cxx:673 nsscommon.cxx:797
+msgid "Unable to decode certificate"
+msgstr ""
+
+#: nsscommon.cxx:685
+#, c-format
+msgid "Unable to import certificate into the database at %s"
+msgstr ""
+
+#: nsscommon.cxx:694
+msgid "Unable to allocate certificate trust"
+msgstr ""
+
+#: nsscommon.cxx:702
+msgid "Unable decode trust string 'PCu,,PCu'"
+msgstr ""
+
+#: nsscommon.cxx:712 nsscommon.cxx:842
+msgid "Unable to change certificate trust"
+msgstr ""
+
+#: nsscommon.cxx:729
+#, c-format
+msgid ""
+"Could not open certificate file %s for reading\n"
+"%s"
+msgstr ""
+
+#: nsscommon.cxx:739
+#, c-format
+msgid ""
+"Could not obtain information about certificate file %s\n"
+"%s"
+msgstr ""
+
+#: nsscommon.cxx:752
+#, c-format
+msgid ""
+"Error reading from certificate file %s\n"
+"%s"
+msgstr ""
+
+#: nsscommon.cxx:771 nsscommon.cxx:898
+#, c-format
+msgid "Could not create certificate database directory %s"
+msgstr ""
+
+#: nsscommon.cxx:806 nsscommon.cxx:927
+#, c-format
+msgid "Could not obtain internal key slot for certificate database %s"
+msgstr ""
+
+#: nsscommon.cxx:816
+#, c-format
+msgid "Could not import certificate into the database at %s"
+msgstr ""
+
+#: nsscommon.cxx:825
+msgid "Could not allocate certificate trust"
+msgstr ""
+
+#: nsscommon.cxx:832
+msgid "Unable decode trust string 'P,P,P'"
+msgstr ""
+
+#: nsscommon.cxx:874
+#, c-format
+msgid "Could set file permissions for %s"
+msgstr ""
+
+#: nsscommon.cxx:885
+#, c-format
+msgid "Generating a new certificate database directory in %s"
+msgstr ""
+
+#: nsscommon.cxx:944
+msgid "Unable to encode certificate common header"
+msgstr ""
+
+#: nsscommon.cxx:996
+#, c-format
+msgid ""
+"Error writing to certificate file %s\n"
+"%s"
+msgstr ""
+
+#: nsscommon.cxx:1003
+#, c-format
+msgid ""
+"Could not open certificate file %s for writing\n"
+"%s"
+msgstr ""
+
+#: nsscommon.cxx:1013
+#, c-format
+msgid "Unable to add certificate to %s"
+msgstr ""
+
+#: nsscommon.cxx:1063
+msgid "NSS library failure in CERT_CreateSubjectCertList"
+msgstr ""
+
+#: nsscommon.cxx:1084
+msgid "Could not decode certificate validity"
+msgstr ""
+
+#: nsscommon.cxx:1089
+msgid "Could not decode certificate validity time"
+msgstr ""
+
+#: nsscommon.cxx:1098
+msgid "Could not format certificate validity time"
+msgstr ""
+
+#: nsscommon.cxx:1124
+#, c-format
+msgid "Certificate database %s does not exist"
+msgstr ""
+
+#: nsscommon.cxx:1131
+#, c-format
+msgid "Certificate database %s is obsolete"
+msgstr ""
+
+#: nsscommon.cxx:1152
+#, c-format
+msgid "Certificate found in database %s"
+msgstr ""
+
+#: nsscommon.cxx:1164
+#, c-format
+msgid "  Not Valid Before: %s UTC"
+msgstr ""
+
+#: nsscommon.cxx:1166
+#, c-format
+msgid "  Not Valid After: %s UTC"
+msgstr ""
+
+#: nsscommon.cxx:1172
+msgid "Certificate is valid"
+msgstr ""
+
+#: nsscommon.cxx:1178
+msgid "Certificate is not valid"
+msgstr ""
+
+#: nsscommon.cxx:1197
+msgid "Unable to generate new certificate"
+msgstr ""
+
+#: nsscommon.cxx:1214
+#, c-format
+msgid "Unable to find certificate with nickname %s in %s."
+msgstr ""
+
+#: nsscommon.cxx:1232
+#, c-format
+msgid ""
+"Unable to obtain private key from the certificate with nickname %s in %s."
+msgstr ""
+
+#: nsscommon.cxx:1243
+msgid "Could not create signing context"
+msgstr ""
+
+#: nsscommon.cxx:1250
+msgid "Could not initialize signing context."
+msgstr ""
+
+#: nsscommon.cxx:1259
+#, c-format
+msgid "Could not open module file %s"
+msgstr ""
+
+#: nsscommon.cxx:1272
+#, c-format
+msgid "Error reading module file %s"
+msgstr ""
+
+#: nsscommon.cxx:1281
+#, c-format
+msgid "Error while signing module file %s"
+msgstr ""
+
+#: nsscommon.cxx:1291
+#, c-format
+msgid "Could not complete signature of module file %s"
+msgstr ""
+
+#: nsscommon.cxx:1305
+#, c-format
+msgid "Could not open signature file %s"
+msgstr ""
+
+#: nsscommon.cxx:1313
+#, c-format
+msgid "Error writing to signature file %s"
+msgstr ""
+
+#: parse.cxx:261
+msgid "parse error: "
+msgstr ""
+
+#: parse.cxx:265
+msgid "\tat: "
+msgstr ""
+
+#: parse.cxx:273 parse.cxx:277
+msgid "\tsaw: "
+msgstr ""
+
+#: parse.cxx:311 parse.cxx:373
+msgid "expected comparison operator"
+msgstr ""
+
+#: parse.cxx:343 parse.cxx:398
+msgid "expected string literal"
+msgstr ""
+
+#: parse.cxx:376
+msgid "wildcard not allowed with order comparison operators"
+msgstr ""
+
+#: parse.cxx:411 parse.cxx:430
+msgid "expected '==' or '!='"
+msgstr ""
+
+#: parse.cxx:471
+msgid ""
+"expected string, number literal or other CONFIG_... as right side operand"
+msgstr ""
+
+#: parse.cxx:489
+msgid "expected string literal as right value"
+msgstr ""
+
+#: parse.cxx:492
+msgid "expected number literal as right value"
+msgstr ""
+
+#: parse.cxx:495
+msgid ""
+"expected 'arch' or 'kernel_v' or 'kernel_vr' or 'CONFIG_...'\n"
+"             or comparison between strings or integers"
+msgstr ""
+
+#. TRANSLATORS: 'conditional' meaning 'conditional preprocessing'
+#: parse.cxx:523
+msgid "incomplete conditional at end of file"
+msgstr ""
+
+#: parse.cxx:530 parse.cxx:536 parse.cxx:550
+msgid "incomplete conditional - missing '%('"
+msgstr ""
+
+#: parse.cxx:538
+msgid "invalid conditional - duplicate '%:'"
+msgstr ""
+
+#: parse.cxx:571
+msgid "incomplete condition after '%('"
+msgstr ""
+
+#: parse.cxx:603
+msgid "expected '%?' marker for conditional"
+msgstr ""
+
+#: parse.cxx:653
+msgid "unexpected end-of-file"
+msgstr ""
+
+#: parse.cxx:686
+#, c-format
+msgid "expected '%s'"
+msgstr ""
+
+#: parse.cxx:696
+msgid "expected "
+msgstr ""
+
+#: parse.cxx:737
+msgid "expected number"
+msgstr ""
+
+#: parse.cxx:752 parse.cxx:1752
+msgid "number invalid or out of range"
+msgstr ""
+
+#: parse.cxx:934 parse.cxx:954
+msgid "invalid nested substitution of command line arguments"
+msgstr ""
+
+#: parse.cxx:1011
+msgid "Could not find matching closing quote"
+msgstr ""
+
+#: parse.cxx:1101
+msgid "Could not find matching '%}' to close embedded function block"
+msgstr ""
+
+#: parse.cxx:1203
+msgid "expected 'probe', 'global', 'function', or '%{'"
+msgstr ""
+
+#: parse.cxx:1233
+#, c-format
+msgid "Input file '%s' is empty or missing."
+msgstr ""
+
+#: parse.cxx:1239
+#, c-format
+msgid "%d parse error."
+msgid_plural "%d parse errors."
+msgstr[0] ""
+msgstr[1] ""
+
+#: parse.cxx:1255
+msgid "expected 'probe'"
+msgstr ""
+
+#: parse.cxx:1273 parse.cxx:1282
+msgid "probe point alias name cannot be optional nor sufficient"
+msgstr ""
+
+#: parse.cxx:1301
+msgid "expected probe point specifier"
+msgstr ""
+
+#: parse.cxx:1337
+msgid "expected '%{'"
+msgstr ""
+
+#: parse.cxx:1340
+msgid "embedded code in unprivileged script"
+msgstr ""
+
+#: parse.cxx:1356
+msgid "expected '{'"
+msgstr ""
+
+#: parse.cxx:1410 parse.cxx:1489 parse.cxx:1552 parse.cxx:1586 parse.cxx:2049
+msgid "expected identifier"
+msgstr ""
+
+#: parse.cxx:1465
+msgid "expected statement"
+msgstr ""
+
+#: parse.cxx:1483
+msgid "expected 'global'"
+msgstr ""
+
+#: parse.cxx:1493
+msgid "duplicate global name"
+msgstr ""
+
+#: parse.cxx:1509
+msgid "array size out of range"
+msgstr ""
+
+#: parse.cxx:1518
+msgid "only scalar globals can be initialized"
+msgstr ""
+
+#: parse.cxx:1545
+msgid "expected 'function'"
+msgstr ""
+
+#: parse.cxx:1556
+msgid "duplicate function name"
+msgstr ""
+
+#: parse.cxx:1570 parse.cxx:1601
+msgid "expected 'string' or 'long'"
+msgstr ""
+
+#: parse.cxx:1576 parse.cxx:1683 parse.cxx:1779 parse.cxx:1890 parse.cxx:1956
+#: parse.cxx:1990
+msgid "expected '('"
+msgstr ""
+
+#: parse.cxx:1610 parse.cxx:2799
+msgid "expected ',' or ')'"
+msgstr ""
+
+#: parse.cxx:1634
+msgid "expected identifier or '*'"
+msgstr ""
+
+#: parse.cxx:1653 parse.cxx:1690 parse.cxx:1785 parse.cxx:1935 parse.cxx:1967
+#: parse.cxx:2569
+msgid "expected ')'"
+msgstr ""
+
+#: parse.cxx:1701
+msgid "expected one of '. , ( ? ! { = +='"
+msgstr ""
+
+#: parse.cxx:1760
+msgid "expected literal string or number"
+msgstr ""
+
+#: parse.cxx:1773
+msgid "expected 'if'"
+msgstr ""
+
+#: parse.cxx:1818
+msgid "expected 'return'"
+msgstr ""
+
+#: parse.cxx:1820
+msgid "found 'return' not in function context"
+msgstr ""
+
+#: parse.cxx:1833
+msgid "expected 'delete'"
+msgstr ""
+
+#: parse.cxx:1846
+msgid "expected 'next'"
+msgstr ""
+
+#: parse.cxx:1848
+msgid "found 'next' not in probe context"
+msgstr ""
+
+#: parse.cxx:1860
+msgid "expected 'break'"
+msgstr ""
+
+#: parse.cxx:1872
+msgid "expected 'continue'"
+msgstr ""
+
+#: parse.cxx:1884
+msgid "expected 'for'"
+msgstr ""
+
+#: parse.cxx:1904 parse.cxx:1920
+msgid "expected ';'"
+msgstr ""
+
+#: parse.cxx:1950
+msgid "expected 'while'"
+msgstr ""
+
+#: parse.cxx:1981
+msgid "expected 'foreach'"
+msgstr ""
+
+#: parse.cxx:2060 parse.cxx:2097
+msgid "multiple sort directives"
+msgstr ""
+
+#: parse.cxx:2080 parse.cxx:2333 parse.cxx:2844
+msgid "expected ',' or ']'"
+msgstr ""
+
+#: parse.cxx:2088
+msgid "expected 'in'"
+msgstr ""
+
+#: parse.cxx:2179
+msgid "expected ':'"
+msgstr ""
+
+#: parse.cxx:2356
+msgid "unexpected comma-separated expression list"
+msgstr ""
+
+#: parse.cxx:2549
+msgid "expected value"
+msgstr ""
+
+#: parse.cxx:2555
+msgid "embedded expression code in unprivileged script"
+msgstr ""
+
+#: parse.cxx:2672
+msgid "unknown statistic operator "
+msgstr ""
+
+#: parse.cxx:2854
+msgid "base histogram operator where expression expected"
+msgstr ""
+
+#: parse.cxx:2901
+msgid "expected @cast or $var"
+msgstr ""
+
+#: parse.cxx:3001
+msgid "-> and [ are not accepted for a pretty-printing variable"
+msgstr ""
+
+#: remote.cxx:48
+#, c-format
+msgid "string doesn't appear to be a URI: %s"
+msgstr ""
+
+#: remote.cxx:99 util.cxx:655
+#, c-format
+msgid "Warning: %s exited with status: %d"
+msgstr ""
+
+#: remote.cxx:255
+msgid "stapsh file ERROR: no reply"
+msgstr ""
+
+#: remote.cxx:257
+#, c-format
+msgid "stapsh file replied %s"
+msgstr ""
+
+#: remote.cxx:332
+msgid "stapsh run ERROR: no reply"
+msgstr ""
+
+#: remote.cxx:334
+#, c-format
+msgid "stapsh run replied %s"
+msgstr ""
+
+#: remote.cxx:369
+msgid "stapsh file descriptors already set"
+msgstr ""
+
+#: remote.cxx:376
+msgid "invalid file descriptors for stapsh"
+msgstr ""
+
+#: remote.cxx:379
+msgid "error sending hello to stapsh"
+msgstr ""
+
+#: remote.cxx:383
+msgid "error receiving hello from stapsh"
+msgstr ""
+
+#: remote.cxx:389
+msgid "failed to get uname from stapsh"
+msgstr ""
+
+#: remote.cxx:428 remote.cxx:499
+msgid "error launching stapsh"
+msgstr ""
+
+#: remote.cxx:511
+msgid "error establishing ssh connection"
+msgstr ""
+
+#: remote.cxx:575
+msgid "No tmpdir available for ssh control master"
+msgstr ""
+
+#: remote.cxx:606
+#, c-format
+msgid "failed to create an ssh control master for %s : rc= %d"
+msgstr ""
+
+#: remote.cxx:610
+#, c-format
+msgid "Created ssh control master at %s"
+msgstr ""
+
+#: remote.cxx:624
+#, c-format
+msgid "failed to stop the ssh control master for %s : rc=%d"
+msgstr ""
+
+#: remote.cxx:643
+#, c-format
+msgid "failed to get uname from %s : rc= %d"
+msgstr ""
+
+#: remote.cxx:668
+#, c-format
+msgid "failed to make a tempdir on %s : rc=%d"
+msgstr ""
+
+#: remote.cxx:683
+#, c-format
+msgid "failed to copy the module to %s : rc=%d"
+msgstr ""
+
+#: remote.cxx:698
+#, c-format
+msgid "failed to run the module on %s : ret=%d"
+msgstr ""
+
+#: remote.cxx:726
+#, c-format
+msgid "failed to delete the tempdir on %s : rc=%d"
+msgstr ""
+
+#: remote.cxx:774
+msgid "ssh target requires a hostname"
+msgstr ""
+
+#: remote.cxx:776
+msgid "ssh target URI doesn't support a /path"
+msgstr ""
+
+#: remote.cxx:778
+msgid "ssh target URI doesn't support a ?query"
+msgstr ""
+
+#: remote.cxx:780
+msgid "ssh target URI doesn't support a #fragment"
+msgstr ""
+
+#: remote.cxx:809
+#, c-format
+msgid "unrecognized URI scheme '%s' in remote: %s"
+msgstr ""
+
+#: rpm_finder.cxx:71
+msgid "Error reading the rpm configuration files"
+msgstr ""
+
+#: rpm_finder.cxx:104 rpm_finder.cxx:123 rpm_finder.cxx:159
+msgid "Error querying the rpm file `"
+msgstr ""
+
+#: rpm_finder.cxx:207
+msgid "Incorrect version or missing kernel-devel package, use: yum install "
+msgstr ""
+
+#: rpm_finder.cxx:210
+msgid "Missing separate debuginfos, use: debuginfo-install "
+msgstr ""
+
+#: rpm_finder.cxx:213
+msgid "Incorrect parameter passed, please report this error."
+msgstr ""
+
+#: runtime/staprun/common.c:81
+msgid "Invalid FILE name format\n"
+msgstr ""
+
+#: runtime/staprun/common.c:141
+#, c-format
+msgid "Invalid buffer size '%d' (should be 1-4095).\n"
+msgstr ""
+
+#: runtime/staprun/common.c:177
+#, c-format
+msgid "Invalid file size option '%s'.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:190
+msgid "File name is too long.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:196
+msgid "Filename format is invalid or too long.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:201
+msgid "You can't specify the '-A' and '-L' options together.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:206
+msgid ""
+"You can't specify the '-A' and '-b' options together.  The '-b'\n"
+"buffer size option only has an effect when the module is inserted.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:212
+msgid ""
+"You can't specify the '-A' and '-c' options together.  The '-c cmd'\n"
+"option used to start a command only has an effect when the module\n"
+"is inserted.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:219
+msgid ""
+"You can't specify the '-A' and '-x' options together.  The '-x pid'\n"
+"option only has an effect when the module is inserted.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:225
+msgid "You can't specify the '-c' and '-x' options together.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:230
+msgid "You can't specify the '-D' and '-L' options together.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:234
+msgid "You can't specify the '-D' and '-d' options together.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:238
+msgid "You can't specify the '-D' and '-c' options together.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:242
+msgid "You have to specify output FILE with '-D' option.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:246
+msgid "You have to specify output FILE with '-S' option.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:253
+#, c-format
+msgid ""
+"\n"
+"%s [-v] [-w] [-u] [-c cmd ] [-x pid] [-u user] [-A|-L|-d]\n"
+"\t[-b bufsize] [-o FILE [-D] [-S size[,N]]] MODULE [module-options]\n"
+msgstr ""
+
+#: runtime/staprun/common.c:255
+msgid ""
+"-v              Increase verbosity.\n"
+"-w              Suppress warnings.\n"
+"-u              Load uprobes.ko\n"
+"-c cmd          Command 'cmd' will be run and staprun will\n"
+"                exit when it does.  The '_stp_target' variable\n"
+"                will contain the pid for the command.\n"
+"-x pid          Sets the '_stp_target' variable to pid.\n"
+"-o FILE         Send output to FILE. This supports strftime(3)\n"
+"                formats for FILE.\n"
+"-b buffer size  The systemtap module specifies a buffer size.\n"
+"                Setting one here will override that value.  The\n"
+"                value should be an integer between 1 and 4095 \n"
+"                which be assumed to be the buffer size in MB.\n"
+"                That value will be per-cpu in bulk mode.\n"
+"-L              Load module and start probes, then detach.\n"
+"-A              Attach to loaded systemtap module.\n"
+"-d              Delete a module.  Only detached or unused modules\n"
+"                the user has permission to access will be deleted. Use \"*"
+"\"\n"
+"                (quoted) to delete all unused modules.\n"
+"-R              Have staprun create a new name for the module before\n"
+"                inserting it. This allows the same module to be inserted\n"
+"                more than once.\n"
+"-R              (Module renaming is not available in this configuration.)\n"
+"-D              Run in background. This requires '-o' option.\n"
+"-S size[,N]     Switches output file to next file when the size\n"
+"                of file reaches the specified size. The value\n"
+"                should be an integer greater than 1 which is\n"
+"                assumed to be the maximum file size in MB.\n"
+"                When the number of output files reaches N, it\n"
+"                switches to the first output file. You can omit\n"
+"                the second argument.\n"
+"\n"
+"MODULE can be either a module name or a module path.  If a\n"
+"module name is used, it is searched in the following directory:\n"
+msgstr ""
+
+#: runtime/staprun/common.c:336 runtime/staprun/common.c:361
+#: runtime/staprun/common.c:380 runtime/staprun/common.c:387
+msgid "Memory allocation failed. Exiting.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:352
+msgid "Unable to determine kernel version, uname failed"
+msgstr ""
+
+#: runtime/staprun/common.c:400
+#, c-format
+msgid "ERROR: Module name ('%s') is too long.\n"
+msgstr ""
+
+#: runtime/staprun/common.c:491
+msgid "exceeded maximum send_request size.\n"
+msgstr ""
+
+#: runtime/staprun/ctl.c:38
+#, c-format
+msgid "ERROR: Can not attach. Module %s not running.\n"
+msgstr ""
+
+#: runtime/staprun/ctl.c:40
+#, c-format
+msgid "Couldn't open control channel '%s'"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:68
+#, c-format
+msgid "Warning: child process exited with signal %d (%s)\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:73
+#, c-format
+msgid "Warning: child process exited with status %d\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:124
+msgid "failed to create thread"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:206
+msgid "wordexp: syntax error (unmatched quotes?) in -c COMMAND\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:209
+#, c-format
+msgid "wordexp: parsing error (%d)\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:317 runtime/staprun/mainloop.c:323
+msgid "Couldn't read bufsize"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:343
+msgid "Failed to initialize control channel.\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:378
+msgid "Failed to daemonize stapio\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:393
+msgid "Failed to open /dev/null\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:444
+#, c-format
+msgid ""
+"\n"
+"Disconnecting from systemtap module.\n"
+"To reconnect, type \"staprun -A %s\"\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:560
+#, c-format
+msgid "Unexpected EOF in read (nb=%ld)"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:575
+#, c-format
+msgid "write error (nb=%ld)"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:608
+msgid "WARNING deduplication table full\n"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:674
+msgid "ptrace detach"
+msgstr ""
+
+#: runtime/staprun/mainloop.c:707
+#, c-format
+msgid "WARNING: ignored message of type %d\n"
+msgstr ""
+
+#: runtime/staprun/stapio.c:46
+msgid "ERROR: Cannot have module options with attach (-A).\n"
+msgstr ""
+
+#: runtime/staprun/stapio.c:57
+msgid "ERROR: Need a module name or path to load.\n"
+msgstr ""
+
+#: runtime/staprun/stapio.c:65
+msgid "ERROR: Couldn't enter main loop. Exiting.\n"
+msgstr ""
+
+#: session.cxx:186
+#, c-format
+msgid ""
+"Warning: failed to create systemtap data directory \"%s\":%s, disabling "
+"cache support."
+msgstr ""
+
+#: session.cxx:198
+#, c-format
+msgid ""
+"Warning: failed to create cache directory (\" %s \"): %s, disabling cache "
+"support."
+msgstr ""
+
+#: session.cxx:363
+#, c-format
+msgid ""
+"Systemtap translator/driver (version %s/%s %s)\n"
+"Copyright (C) 2005-2011 Red Hat, Inc. and others\n"
+"This is free software; see the source for copying conditions."
+msgstr ""
+
+#: session.cxx:367
+msgid "enabled features:"
+msgstr ""
+
+#: session.cxx:402
+#, c-format
+msgid ""
+"Usage: stap [options] FILE         Run script in file.\n"
+"   or: stap [options] -            Run script on stdin.\n"
+"   or: stap [options] -e SCRIPT    Run given script.\n"
+"   or: stap [options] -l PROBE     List matching probes.\n"
+"   or: stap [options] -L PROBE     List matching probes and local "
+"variables.\n"
+"\n"
+"Options:\n"
+"   --         end of translator options, script options follow\n"
+"   -h --help  show help\n"
+"   -V --version  show version\n"
+"   -p NUM     stop after pass NUM 1-5, instead of %d\n"
+"              (parse, elaborate, translate, compile, run)\n"
+"   -v         add verbosity to all passes\n"
+"   --vp {N}+  add per-pass verbosity ["
+msgstr ""
+
+#: session.cxx:427 session.cxx:428 session.cxx:429 session.cxx:430
+msgid " [set]"
+msgstr ""
+
+#: session.cxx:419
+#, c-format
+msgid ""
+"   -k         keep temporary directory\n"
+"   -u         unoptimized translation %s\n"
+"   -w         suppress warnings %s\n"
+"   -W         turn warnings into errors %s\n"
+"   -g         guru mode %s\n"
+"   -P         prologue-searching for function probes %s\n"
+"   -b         bulk (percpu file) mode %s\n"
+"   -s NUM     buffer size in megabytes, instead of %d\n"
+"   -I DIR     look in DIR for additional .stp script files"
+msgstr ""
+
+#: session.cxx:434 session.cxx:461
+msgid ", in addition to"
+msgstr ""
+
+#: session.cxx:438
+#, c-format
+msgid ""
+"   -D NM=VAL  emit macro definition into generated C code\n"
+"   -B NM=VAL  pass option to kbuild make\n"
+"   -G VAR=VAL set global variable to value\n"
+"   -R DIR     look in DIR for runtime, instead of\n"
+"              %s\n"
+"   -r DIR     cross-compile to kernel with given build tree; or else\n"
+"   -r RELEASE cross-compile to kernel /lib/modules/RELEASE/build, instead "
+"of\n"
+"              %s\n"
+"   -a ARCH    cross-compile to given architecture, instead of %s\n"
+"   -m MODULE  set probe module name, instead of \n"
+"              %s\n"
+"   -o FILE    send script output to file, instead of stdout. This supports\n"
+"              strftime(3) formats for FILE\n"
+"   -c CMD     start the probes, run CMD, and exit when it finishes\n"
+"   -x PID     sets target() to PID\n"
+"   -F         run as on-file flight recorder with -o.\n"
+"              run as on-memory flight recorder without -o.\n"
+"   -S size[,n] set maximum of the size and the number of files.\n"
+"   -d OBJECT  add unwind/symbol data for OBJECT file"
+msgstr ""
+
+#: session.cxx:468
+#, c-format
+msgid ""
+"   --ldd      add unwind/symbol data for all referenced object files.\n"
+"   --all-modules\n"
+"              add unwind/symbol data for all loaded kernel objects.\n"
+"   -t         collect probe timing information\n"
+"   -q         generate information on tapset coverage\n"
+"   --unprivileged\n"
+"              restrict usage to features available to unprivileged users\n"
+"   --kelf     make do with symbol table from vmlinux\n"
+"   --kmap[=FILE]\n"
+"              make do with symbol table from nm listing\n"
+"   --compatible=VERSION\n"
+"              suppress incompatible language/tapset changes beyond VERSION,\n"
+"              instead of %s\n"
+"   --check-version\n"
+"              displays warnings where a syntax element may be \n"
+"              version dependent\n"
+"   --skip-badvars\n"
+"              substitute zero for bad context $variables\n"
+"   --use-server[=SERVER-SPEC]\n"
+"              specify systemtap compile-servers\n"
+"   --list-servers[=PROPERTIES]\n"
+"              report on the status of the specified compile-servers:\n"
+"              all,specified,online,trusted,signer,compatible\n"
+"   --trust-servers[=TRUST-SPEC]\n"
+"              add/revoke trust of specified compile-servers:\n"
+"              ssl,signer,all-users,revoke,no-prompt\n"
+"   --use-server-on-error[=yes/no]\n"
+"              retry compilation using a compile server upon compilation "
+"error\n"
+"   --remote=HOSTNAME\n"
+"              run pass 5 on the specified ssh host.\n"
+"              may be repeated for targeting multiple hosts.\n"
+"   --remote-prefix\n"
+"              prefix each line of remote output with a host index.\n"
+"   --tmpdir=NAME\n"
+"              specify name of temporary directory to be used."
+msgstr ""
+
+#: session.cxx:643
+msgid "Invalid pass number (should be 1-5)."
+msgstr ""
+
+#: session.cxx:648
+msgid "Listing (-l) mode implies pass 2."
+msgstr ""
+
+#: session.cxx:685 session.cxx:849
+msgid "Only one script can be given on the command line."
+msgstr ""
+
+#: session.cxx:701 session.cxx:758 session.cxx:830 session.cxx:864
+#, c-format
+msgid "ERROR: %s invalid with %s"
+msgstr ""
+
+#: session.cxx:718 session.cxx:736
+#, c-format
+msgid "Truncating module name to '%s'"
+msgstr ""
+
+#: session.cxx:724
+msgid "Module name cannot be empty."
+msgstr ""
+
+#: session.cxx:787
+msgid "Invalid buffer size (should be 1-4095)."
+msgstr ""
+
+#: session.cxx:800
+msgid "Empty CMD string invalid."
+msgstr ""
+
+#: session.cxx:809
+msgid "Invalid target process ID number."
+msgstr ""
+
+#: session.cxx:885
+msgid "You can't specify multiple --kmap options."
+msgstr ""
+
+#: session.cxx:916
+msgid "Invalid --vp argument: it takes 1 to 5 digits."
+msgstr ""
+
+#: session.cxx:967
+#, c-format
+msgid "Invalid argument '%s' for --use-server-on-error."
+msgstr ""
+
+#: session.cxx:995 session.cxx:1002 session.cxx:1009 session.cxx:1022
+#: session.cxx:1031 session.cxx:1039 session.cxx:1048
+#, c-format
+msgid "ERROR: %s is invalid with %s"
+msgstr ""
+
+#: session.cxx:1062
+#, c-format
+msgid "Unhandled long argument id %d"
+msgstr ""
+
+#: session.cxx:1076
+#, c-format
+msgid "Unhandled argument code %d"
+msgstr ""
+
+#: session.cxx:1118
+msgid "A script must be specified."
+msgstr ""
+
+#: session.cxx:1125
+msgid "WARNING: --client-options is not supported by this version of systemtap"
+msgstr ""
+
+#: session.cxx:1129
+msgid "WARNING: --trust-servers is not supported by this version of systemtap"
+msgstr ""
+
+#: session.cxx:1136
+msgid "Warning: Ignoring --use-server due to the use of -R"
+msgstr ""
+
+#: session.cxx:1160
+msgid "Using --unprivileged for member of the group stapusr"
+msgstr ""
+
+#: session.cxx:1167
+msgid "Using --use-server for member of the group stapusr"
+msgstr ""
+
+#: session.cxx:1176
+#, c-format
+msgid "You can't specify %s when --unprivileged is specified."
+msgstr ""
+
+#: session.cxx:1182 session.cxx:1187 session.cxx:1194 session.cxx:1205
+#, c-format
+msgid "You can't specify %s and %s together."
+msgstr ""
+
+#: session.cxx:1214
+msgid ""
+"WARNING: kernel release/architecture mismatch with host forces last-pass 4."
+msgstr ""
+
+#: session.cxx:1301
+#, c-format
+msgid "Located kernel source tree (COPYING) at '%s'"
+msgstr ""
+
+#: session.cxx:1343
+#, c-format
+msgid "alias component %s contains illegal parameter"
+msgstr ""
+
+#: session.cxx:1355
+msgid " while registering probe alias "
+msgstr ""
+
+#: session.cxx:1408
+#, c-format
+msgid "semantic error: %s"
+msgstr ""
+
+#. TRANSLATORS:  Here were are printing the source string of the error
+#: session.cxx:1467
+msgid "source: "
+msgstr ""
+
+#: stap-authorize-cert.cxx:51
+msgid "Certificate file must be specified"
+msgstr ""
+
+#: stap-authorize-cert.cxx:59
+msgid "Certificate database directory must be specified"
+msgstr ""
+
+#: stap-authorize-cert.cxx:74
+msgid "Unable to authorize certificate"
+msgstr ""
+
+#: stap-gen-cert.cxx:68
+#, c-format
+msgid "%s : unhandled option '%c %s'"
+msgstr ""
+
+#: stap-gen-cert.cxx:70
+#, c-format
+msgid "%s : unhandled option '%c'"
+msgstr ""
+
+#: stap-gen-cert.cxx:114
+msgid "Unable to generate certificate"
+msgstr ""
+
+#: stap-serverd.cxx:121
+#, c-format
+msgid "Could not open client stderr file %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:224
+#, c-format
+msgid "%s: unhandled option '%c %s'"
+msgstr ""
+
+#: stap-serverd.cxx:226
+#, c-format
+msgid "%s: unhandled option '%c'"
+msgstr ""
+
+#: stap-serverd.cxx:242
+#, c-format
+msgid "%s: unhandled option '--%s=%s'"
+msgstr ""
+
+#: stap-serverd.cxx:245
+#, c-format
+msgid "%s: unhandled option '--%s'"
+msgstr ""
+
+#: stap-serverd.cxx:253
+#, c-format
+msgid "%s: unrecognized argument '%s'"
+msgstr ""
+
+#: stap-serverd.cxx:289
+#, c-format
+msgid "Received signal %d, exiting"
+msgstr ""
+
+#: stap-serverd.cxx:348
+#, c-format
+msgid "Service '%s' successfully established."
+msgstr ""
+
+#: stap-serverd.cxx:358 stap-serverd.cxx:449
+#, c-format
+msgid "Avahi service name collision, renaming service to '%s'"
+msgstr ""
+
+#: stap-serverd.cxx:366
+#, c-format
+msgid "Avahi entry group failure: %s"
+msgstr ""
+
+#: stap-serverd.cxx:387
+#, c-format
+msgid "avahi_entry_group_new () failed: %s"
+msgstr ""
+
+#: stap-serverd.cxx:396
+#, c-format
+msgid "Adding Avahi service '%s'"
+msgstr ""
+
+#: stap-serverd.cxx:429
+#, c-format
+msgid "Failed to add _stap._tcp service: %s"
+msgstr ""
+
+#: stap-serverd.cxx:436
+#, c-format
+msgid "Failed to commit avahi entry group: %s"
+msgstr ""
+
+#: stap-serverd.cxx:474
+#, c-format
+msgid "Avahi client failure: %s"
+msgstr ""
+
+#: stap-serverd.cxx:500
+#, c-format
+msgid "Removing Avahi service '%s'"
+msgstr ""
+
+#: stap-serverd.cxx:538
+msgid "Failed to create avahi threaded poll object."
+msgstr ""
+
+#: stap-serverd.cxx:550
+#, c-format
+msgid "Failed to create avahi client: %s"
+msgstr ""
+
+#: stap-serverd.cxx:567
+msgid "Unable to advertise presence on the network. Avahi is not available"
+msgstr ""
+
+#: stap-serverd.cxx:599
+#, c-format
+msgid "Unable to obtain current resource limits: %s"
+msgstr ""
+
+#: stap-serverd.cxx:637
+#, c-format
+msgid "===== compile server pid %d starting ====="
+msgstr ""
+
+#: stap-serverd.cxx:677
+msgid "Error reading size of request file"
+msgstr ""
+
+#: stap-serverd.cxx:682 stap-serverd.cxx:713
+msgid "Error in PR_Read"
+msgstr ""
+
+#: stap-serverd.cxx:700
+#, c-format
+msgid "Could not open output file %s"
+msgstr ""
+
+#: stap-serverd.cxx:722
+#, c-format
+msgid "Could not write to output file %s"
+msgstr ""
+
+#: stap-serverd.cxx:730
+#, c-format
+msgid "Expected %d bytes, got %d while reading client request from socket"
+msgstr ""
+
+#: stap-serverd.cxx:758
+msgid "Could not import socket into SSL"
+msgstr ""
+
+#: stap-serverd.cxx:767
+msgid "Error setting SSL security for socket"
+msgstr ""
+
+#: stap-serverd.cxx:775
+msgid "Error setting handshake as server for socket"
+msgstr ""
+
+#: stap-serverd.cxx:783 stap-serverd.cxx:791
+msgid "Error setting SSL client authentication mode for socket"
+msgstr ""
+
+#: stap-serverd.cxx:802
+msgid "Error in SSL_AuthCertificateHook"
+msgstr ""
+
+#: stap-serverd.cxx:811
+msgid "Error in SSL_BadCertHook"
+msgstr ""
+
+#: stap-serverd.cxx:819
+msgid "Error in SSL_HandshakeCallback"
+msgstr ""
+
+#: stap-serverd.cxx:830
+msgid "Error configuring SSL server"
+msgstr ""
+
+#: stap-serverd.cxx:864
+msgid "Error in SSL_OptionSet:SSL_REQUEST_CERTIFICATE"
+msgstr ""
+
+#: stap-serverd.cxx:874
+msgid "Error in SSL_OptionSet:SSL_REQUIRE_CERTIFICATE"
+msgstr ""
+
+#: stap-serverd.cxx:883
+msgid "Error in SSL_ReHandshake"
+msgstr ""
+
+#: stap-serverd.cxx:892
+msgid "Error in SSL_ForceHandshake"
+msgstr ""
+
+#: stap-serverd.cxx:912
+#, c-format
+msgid "Could not open input file %s"
+msgstr ""
+
+#: stap-serverd.cxx:928
+msgid "Error writing response to socket"
+msgstr ""
+
+#: stap-serverd.cxx:951
+#, c-format
+msgid "Unable to open file %s for reading: %s"
+msgstr ""
+
+#: stap-serverd.cxx:975
+#, c-format
+msgid "Error in regcomp: %s"
+msgstr ""
+
+#: stap-serverd.cxx:998
+#, c-format
+msgid "Localization key '%s' not found in global list"
+msgstr ""
+
+#: stap-serverd.cxx:1006
+#, c-format
+msgid "Localization value '%s' contains illegal characters"
+msgstr ""
+
+#: stap-serverd.cxx:1017
+#, c-format
+msgid "Error reading file %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1050
+#, c-format
+msgid "Unable to open client version file %s"
+msgstr ""
+
+#: stap-serverd.cxx:1056
+#, c-format
+msgid "Client version is %s"
+msgstr ""
+
+#: stap-serverd.cxx:1068
+msgid "Cannot parse stap options"
+msgstr ""
+
+#: stap-serverd.cxx:1080
+#, c-format
+msgid "Could not create temporary directory %s"
+msgstr ""
+
+#: stap-serverd.cxx:1100
+msgid "Out of memory"
+msgstr ""
+
+#: stap-serverd.cxx:1108
+#, c-format
+msgid "Error opening %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1117
+#, c-format
+msgid "Error reading %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1182
+#, c-format
+msgid "Unable to find a module in %s"
+msgstr ""
+
+#: stap-serverd.cxx:1184
+#, c-format
+msgid "Too many modules (%zu) in %s"
+msgstr ""
+
+#: stap-serverd.cxx:1211
+#, c-format
+msgid "Could not link to %s from %s"
+msgstr ""
+
+#: stap-serverd.cxx:1269
+msgid "Error in spawn getcwd"
+msgstr ""
+
+#: stap-serverd.cxx:1277
+msgid "Error in spawn chdir"
+msgstr ""
+
+#: stap-serverd.cxx:1300
+#, c-format
+msgid "Unable to set resource limits for %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1311
+#, c-format
+msgid "Unable to restore resource limits after %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1321
+msgid "Error in spawn unchdir"
+msgstr ""
+
+#: stap-serverd.cxx:1326
+#, c-format
+msgid "Error in spawn: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1333
+msgid "Error in waitpid"
+msgstr ""
+
+#: stap-serverd.cxx:1385
+msgid "Error resetting SSL handshake"
+msgstr ""
+
+#: stap-serverd.cxx:1395
+msgid "Error forcing SSL handshake"
+msgstr ""
+
+#: stap-serverd.cxx:1406 stap-serverd.cxx:1418 stap-serverd.cxx:1426
+#, c-format
+msgid "Could not create temporary directory %s: %s"
+msgstr ""
+
+#: stap-serverd.cxx:1465
+msgid "Unable to extract client request"
+msgstr ""
+
+#: stap-serverd.cxx:1484
+msgid "Unable to compress server response"
+msgstr ""
+
+#: stap-serverd.cxx:1494
+msgid "Error closing ssl socket"
+msgstr ""
+
+#: stap-serverd.cxx:1502
+#, c-format
+msgid "Keeping temporary directory %s"
+msgstr ""
+
+#: stap-serverd.cxx:1511
+msgid "Error in tmpdir cleanup"
+msgstr ""
+
+#: stap-serverd.cxx:1537
+msgid "Unable to obtain certificate private key"
+msgstr ""
+
+#: stap-serverd.cxx:1548
+msgid "Error accepting client connection"
+msgstr ""
+
+#: stap-serverd.cxx:1553
+#, c-format
+msgid "Accepted connection from %d.%d.%d.%d:%d"
+msgstr ""
+
+#: stap-serverd.cxx:1566
+msgid "Error processing client request"
+msgstr ""
+
+#: stap-serverd.cxx:1569
+#, c-format
+msgid "Request from %d.%d.%d.%d:%d complete"
+msgstr ""
+
+#: stap-serverd.cxx:1630
+msgid "Unable to configure SSL server session ID cache"
+msgstr ""
+
+#: stap-serverd.cxx:1640
+#, c-format
+msgid "Unable to find our certificate in the database at %s"
+msgstr ""
+
+#: stap-serverd.cxx:1663
+msgid "Unable to shut down server session ID cache"
+msgstr ""
+
+#: stap-serverd.cxx:1678
+msgid "Error creating socket"
+msgstr ""
+
+#: stap-serverd.cxx:1690 stap-serverd.cxx:1702
+msgid "Error setting socket properties"
+msgstr ""
+
+#: stap-serverd.cxx:1727
+#, c-format
+msgid "Network port %d is unavailable. Trying another port"
+msgstr ""
+
+#: stap-serverd.cxx:1731
+#, c-format
+msgid "Network port %d is busy. Trying another port"
+msgstr ""
+
+#: stap-serverd.cxx:1735
+msgid "Error setting socket address"
+msgstr ""
+
+#: stap-serverd.cxx:1745
+msgid "Unable to obtain socket address"
+msgstr ""
+
+#: stap-serverd.cxx:1750
+#, c-format
+msgid "Using network port %d"
+msgstr ""
+
+#: stap-serverd.cxx:1757
+msgid "Error listening on socket"
+msgstr ""
+
+#: stap-serverd.cxx:1780
+msgid "Unable to authorize certificate for the local client"
+msgstr ""
+
+#: stap-serverd.cxx:1791
+msgid "Error closing listen socket"
+msgstr ""
+
+#: stap-sign-module.cxx:51
+msgid "Module name was not specified."
+msgstr ""
+
+#: staptree.cxx:161
+msgid "inconsistent arity"
+msgstr ""
+
+#: staptree.cxx:165
+#, c-format
+msgid "inconsistent arity (%s vs %d)"
+msgstr ""
+
+#: staptree.cxx:168
+#, c-format
+msgid "arity %s first inferred here"
+msgstr ""
+
+#: staptree.cxx:203
+msgid "internal error, joining a non-synthetic function"
+msgstr ""
+
+#: staptree.cxx:205
+#, c-format
+msgid "synthetic function '%s' conflicts with an existing function"
+msgstr ""
+
+#: staptree.cxx:251
+#, c-format
+msgid "%s variable '%s' may not be used as array"
+msgstr ""
+
+#: staptree.cxx:254
+#, c-format
+msgid "%s variable '%s' may not be used as a structure"
+msgstr ""
+
+#: staptree.cxx:258
+#, c-format
+msgid "%s variable '%s' may not be pretty-printed"
+msgstr ""
+
+#: staptree.cxx:262
+#, c-format
+msgid "invalid use of %s variable '%s'"
+msgstr ""
+
+#: staptree.cxx:854
+msgid "invalid or missing conversion specifier"
+msgstr ""
+
+#: staptree.cxx:867
+msgid "trailing incomplete print format conversion"
+msgstr ""
+
+#: staptree.cxx:1574 staptree.cxx:1587
+msgid "Expecting symbol or histogram operator"
+msgstr ""
+
+#: staptree.cxx:1576
+msgid "Failed to classify indexable"
+msgstr ""
+
+#: staptree.cxx:1930
+msgid "function may not be used when --unprivileged is specified"
+msgstr ""
+
+#: staptree.cxx:1935
+msgid "function may not be used unless -g is specified"
+msgstr ""
+
+#: staptree.cxx:1964
+msgid "embedded expression may not be used when --unprivileged is specified"
+msgstr ""
+
+#: staptree.cxx:1969
+msgid "embedded expression may not be used unless -g is specified"
+msgstr ""
+
+#: staptree.cxx:2075
+msgid "symbol without referent"
+msgstr ""
+
+#: staptree.cxx:2264
+msgid "invalid element"
+msgstr ""
+
+#: tapset-itrace.cxx:79 tapsets.cxx:6246 tapset-utrace.cxx:128
+msgid "process probes not available without kernel CONFIG_UTRACE"
+msgstr ""
+
+#: tapset-mark.cxx:100
+msgid "invalid marker argument number"
+msgstr ""
+
+#: tapset-mark.cxx:103
+msgid "write to marker parameter not permitted"
+msgstr ""
+
+#: tapset-mark.cxx:123
+#, c-format
+msgid "write to marker '%s' not permitted"
+msgstr ""
+
+#: tapset-mark.cxx:187
+msgid "cannot take address of marker variable"
+msgstr ""
+
+#: tapset-mark.cxx:195
+msgid ""
+"invalid target symbol for marker, $argN, $name, $format, $$parms or $$vars "
+"expected"
+msgstr ""
+
+#: tapset-mark.cxx:449 translate.cxx:2019
+msgid "cannot expand unknown type"
+msgstr ""
+
+#: tapset-mark.cxx:582
+msgid "mark_builder releasing cache"
+msgstr ""
+
+#. TRANSLATORS: specific path cannot be opened
+#: tapset-mark.cxx:620
+msgid " cannot be opened: "
+msgstr ""
+
+#: tapset-perfmon.cxx:200
+msgid ""
+"perf probes not available without exported perf_event_create_kernel_counter"
+msgstr ""
+
+#: tapset-perfmon.cxx:202
+msgid "perf probes not available without CONFIG_PERF_EVENTS"
+msgstr ""
+
+#: tapset-perfmon.cxx:217
+msgid "invalid perf sample period "
+msgstr ""
+
+#: tapset-perfmon.cxx:221
+#, c-format
+msgid "perf probe type=%<PRId64> config=%<PRId64> period=%<PRId64>"
+msgstr ""
+
+#: tapset-procfs.cxx:147
+msgid "only one write procfs probe can exist for procfs path \""
+msgstr ""
+
+#: tapset-procfs.cxx:149
+msgid "only one read procfs probe can exist for procfs path \""
+msgstr ""
+
+#: tapset-procfs.cxx:406
+msgid "invalid target symbol for procfs probe, $value expected"
+msgstr ""
+
+#: tapset-procfs.cxx:413
+msgid "procfs $value variable is read-only in a procfs write probe"
+msgstr ""
+
+#: tapset-procfs.cxx:415
+msgid "procfs $value variable cannot be read in a procfs read probe"
+msgstr ""
+
+#: tapset-procfs.cxx:418
+msgid "cannot take address of procfs variable"
+msgstr ""
+
+#: tapset-procfs.cxx:459
+msgid ""
+"Only the following assign operators are implemented on procfs read target "
+"variables: '=', '.='"
+msgstr ""
+
+#: tapset-procfs.cxx:547
+msgid "maxsize must be greater than 0"
+msgstr ""
+
+#: tapset-procfs.cxx:569
+msgid "procfs path cannot start with a '/'"
+msgstr ""
+
+#: tapset-procfs.cxx:575
+msgid "procfs path component cannot be empty"
+msgstr ""
+
+#: tapset-procfs.cxx:579 tapset-procfs.cxx:589
+msgid "procfs path cannot be relative (and contain '.' or '..')"
+msgstr ""
+
+#: tapset-procfs.cxx:586
+msgid "procfs path cannot end with a '/'"
+msgstr ""
+
+#: tapset-procfs.cxx:593
+msgid "need read/write component"
+msgstr ""
+
+#: tapsets.cxx:872
+#, c-format
+msgid ""
+"Error: Pattern '%s' matches every single instruction address in the symbol "
+"table,\n"
+"some of which aren't even functions.\n"
+msgstr ""
+
+#: tapsets.cxx:906
+#, c-format
+msgid "Warning: address %#<PRIx64> out of range for module %s"
+msgstr ""
+
+#: tapsets.cxx:917
+#, c-format
+msgid ""
+"Warning: address %#<PRIx64> maps to no known compilation unit in module %s"
+msgstr ""
+
+#: tapsets.cxx:1027
+#, c-format
+msgid "parse '%s'"
+msgstr ""
+
+#: tapsets.cxx:1068
+#, c-format
+msgid "malformed specification '%s'"
+msgstr ""
+
+#: tapsets.cxx:1097
+msgid "probe "
+msgstr ""
+
+#: tapsets.cxx:1099
+msgid " kernel"
+msgstr ""
+
+#: tapsets.cxx:1101
+msgid " module="
+msgstr ""
+
+#: tapsets.cxx:1103
+msgid " process="
+msgstr ""
+
+#: tapsets.cxx:1317
+#, c-format
+msgid "address 0x%#<PRIx64> does not match the beginning of a statement"
+msgstr ""
+
+#: tapsets.cxx:1320
+#, c-format
+msgid " (try 0x%#<PRIx64>)"
+msgstr ""
+
+#: tapsets.cxx:1322
+#, c-format
+msgid " (no line info found for '%s', in module '%s')"
+msgstr ""
+
+#: tapsets.cxx:1376
+#, c-format
+msgid "querying entrypc %#<PRIx64> of instance of inline '%s'\n"
+msgstr ""
+
+#: tapsets.cxx:1457
+msgid "function DIE lands on srcfile\n"
+msgstr ""
+
+#: tapsets.cxx:1478
+msgid "inline instance DIE lands on srcfile\n"
+msgstr ""
+
+#: tapsets.cxx:1519
+#, c-format
+msgid "selected inline instance of %s\n"
+msgstr ""
+
+#: tapsets.cxx:1575
+#, c-format
+msgid "checking instances of inline %s\n"
+msgstr ""
+
+#: tapsets.cxx:1585
+#, c-format
+msgid "selected function %s\n"
+msgstr ""
+
+#: tapsets.cxx:1623
+#, c-format
+msgid "focused on CU '%s', in module '%s'\n"
+msgstr ""
+
+#: tapsets.cxx:1664
+msgid ""
+"For probing a particular line, use a .statement() probe, not .function()"
+msgstr ""
+
+#: tapsets.cxx:1821
+#, c-format
+msgid "ELF machine %s|%s (code %d) mismatch with target %s in '%s'"
+msgstr ""
+
+#: tapsets.cxx:1828
+#, c-format
+msgid ""
+"focused on module '%s' = [0x%#<PRIx64>, -0x%#<PRIx64>, bias 0x%#<PRIx64> "
+"file %s ELF machine %s|%s (code %d)\n"
+msgstr ""
+
+#: tapsets.cxx:1917
+#, c-format
+msgid "focused on module '%s'\n"
+msgstr ""
+
+#: tapsets.cxx:1987
+msgid "module="
+msgstr ""
+
+#: tapsets.cxx:2008
+msgid "deleting module_cache"
+msgstr ""
+
+#: tapsets.cxx:2110
+#, c-format
+msgid ""
+"Only the following assign operator is implemented on target variables: %s"
+msgid_plural ""
+"Only the following assign operators are implemented on target variables: %s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: tapsets.cxx:2303
+msgid "cannot take address of pretty-printed variable"
+msgstr ""
+
+#: tapsets.cxx:2307
+msgid "invalid target_symbol for pretty-print"
+msgstr ""
+
+#: tapsets.cxx:3089
+msgid "unknown type to save in kretprobe"
+msgstr ""
+
+#: tapsets.cxx:3239 tapsets.cxx:8211
+msgid "variable location problem: "
+msgstr ""
+
+#: tapsets.cxx:3273
+msgid "write to target variable not permitted"
+msgstr ""
+
+#: tapsets.cxx:3285
+msgid "write to target variable not permitted in .return probes"
+msgstr ""
+
+#: tapsets.cxx:3294
+msgid "cannot write to context variable"
+msgstr ""
+
+#: tapsets.cxx:3297 tapsets.cxx:4901 tapsets.cxx:8166
+msgid "cannot take address of context variable"
+msgstr ""
+
+#: tapsets.cxx:3309 tapsets.cxx:3570 tapsets.cxx:8063
+msgid "cannot write to pretty-printed variable"
+msgstr ""
+
+#. TRANSLATORS: Here we're using a cached module.
+#: tapsets.cxx:3690
+msgid "Pass 2: using cached "
+msgstr ""
+
+#: tapsets.cxx:3713
+msgid "write to @cast context variable not permitted"
+msgstr ""
+
+#: tapsets.cxx:3853
+msgid "missing relocation basis"
+msgstr ""
+
+#: tapsets.cxx:3855
+msgid "inconsistent relocation address"
+msgstr ""
+
+#: tapsets.cxx:3865
+#, c-format
+msgid "maxactive value out of range [0,%s]"
+msgstr ""
+
+#: tapsets.cxx:3996
+#, c-format
+msgid "saveargs: examining '%s' (dieoffset: %#<PRIx64>)\n"
+msgstr ""
+
+#: tapsets.cxx:4008
+#, c-format
+msgid ""
+"saveargs: failed to retrieve type name for return value (dieoffset: %s)\n"
+msgstr ""
+
+#: tapsets.cxx:4036
+#, c-format
+msgid "saveargs: failed to retrieve name for local (dieoffset: %s)\n"
+msgstr ""
+
+#: tapsets.cxx:4042
+#, c-format
+msgid "saveargs: finding location for local '%s' (dieoffset: %s)\n"
+msgstr ""
+
+#: tapsets.cxx:4057
+#, c-format
+msgid ""
+"saveargs: failed to resolve the location for local '%s' (dieoffset: %s)\n"
+msgstr ""
+
+#: tapsets.cxx:4065
+#, c-format
+msgid ""
+"saveargs: local '%s' (dieoffset: %s) is not available at this address (%s)\n"
+msgstr ""
+
+#: tapsets.cxx:4078
+#, c-format
+msgid "saveargs: failed to retrieve type name for local '%s' (dieoffset: %s)\n"
+msgstr ""
+
+#: tapsets.cxx:5222
+#, c-format
+msgid "Can't parse SDT_V3 operand '%s'"
+msgstr ""
+
+#: tapsets.cxx:5224
+#, c-format
+msgid "Downgrading SDT_V2 probe argument to dwarf, can't parse '%s'"
+msgstr ""
+
+#. TRANSLATORS: We're mapping the operand to a new expression*.
+#: tapsets.cxx:5237
+#, c-format
+msgid "mapped asm operand %s to "
+msgstr ""
+
+#: tapsets.cxx:5242 tapsets.cxx:5372
+msgid "cannot take address of sdt variable"
+msgstr ""
+
+#: tapsets.cxx:5297 tapsets.cxx:5307
+msgid "cannot take address of sdt context variable"
+msgstr ""
+
+#: tapsets.cxx:5325
+msgid "invalid variable, must be of the form $argN"
+msgstr ""
+
+#: tapsets.cxx:5327
+msgid "invalid argument number"
+msgstr ""
+
+#. TRANSLATORS: Describing what probe type (kprobe or uprobe) the probe
+#. TRANSLATORS: is matched to.
+#: tapsets.cxx:5484
+#, c-format
+msgid "matched probe_name %s probe type "
+msgstr ""
+
+#: tapsets.cxx:5743 tapsets.cxx:5807
+msgid " (provider "
+msgstr ""
+
+#: tapsets.cxx:5743
+#, c-format
+msgid " saw .note.stapsdt %s%s "
+msgstr ""
+
+#: tapsets.cxx:5764
+#, c-format
+msgid "got unknown probe_type : 0x%x"
+msgstr ""
+
+#: tapsets.cxx:5807
+msgid "saw .probes "
+msgstr ""
+
+#: tapsets.cxx:5825
+#, c-format
+msgid "looking for semaphore symbol %s "
+msgstr ""
+
+#: tapsets.cxx:5840
+msgid ", found at 0x"
+msgstr ""
+
+#: tapsets.cxx:5845
+msgid ", not found"
+msgstr ""
+
+#: tapsets.cxx:5972
+msgid "probe_type == uprobe1, use statement addr: 0x"
+msgstr ""
+
+#: tapsets.cxx:5976
+msgid "probe_type == uprobe2, use statement addr: 0x"
+msgstr ""
+
+#: tapsets.cxx:5980
+msgid "probe_type == uprobe3, use statement addr: 0x"
+msgstr ""
+
+#: tapsets.cxx:5990
+#, c-format
+msgid "probe_type == use_uprobe_no_dwarf, use label name: _stapprobe1_%s"
+msgstr ""
+
+#: tapsets.cxx:6074
+msgid "unspecified process probe is invalid without a -c COMMAND"
+msgstr ""
+
+#: tapsets.cxx:6099
+#, c-format
+msgid "glob %s error (%s)"
+msgstr ""
+
+#: tapsets.cxx:6120 tapsets.cxx:6210
+#, c-format
+msgid "Expanded process(\"%s\") to process(\"%s\")"
+msgstr ""
+
+#: tapsets.cxx:6254
+#, c-format
+msgid "dwarf_builder::build for %s"
+msgstr ""
+
+#: tapsets.cxx:6274 tapsets.cxx:7593
+msgid "absolute statement probe in unprivileged script"
+msgstr ""
+
+#: tapsets.cxx:6314
+#, c-format
+msgid "cannot probe .return of %u inlined function %s"
+msgid_plural "cannot probe .return of %u inlined functions %s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: tapsets.cxx:6320
+#, c-format
+msgid "skipped .return probe of %u inlined function"
+msgid_plural "skipped .return probe of %u inlined functions"
+msgstr[0] ""
+msgstr[1] ""
+
+#: tapsets.cxx:6378
+#, c-format
+msgid ""
+"Symbol table error: Line %d of symbol list from %s is not in correct format: "
+"address type name [module]"
+msgstr ""
+
+#: tapsets.cxx:6395
+#, c-format
+msgid "Symbol table error: %s contains no function symbols."
+msgstr ""
+
+#: tapsets.cxx:6421
+#, c-format
+msgid "Internal error reading symbol table from %s -- %s"
+msgstr ""
+
+#: tapsets.cxx:6429
+#, c-format
+msgid "Warning: nm cannot read symbol table from %s"
+msgstr ""
+
+#: tapsets.cxx:6443
+#, c-format
+msgid "Warning: cannot read symbol table from %s -- %s"
+msgstr ""
+
+#: tapsets.cxx:6593
+#, c-format
+msgid "Warning: reading symbol table from %s -- ignoring %s"
+msgstr ""
+
+#: tapsets.cxx:6603
+msgid "Error: Cannot find vmlinux.  Consider using --kmap instead of --kelf."
+msgstr ""
+
+#: tapsets.cxx:7724
+#, c-format
+msgid "Too many hardware breakpoint probes requested for %s (%zu vs. %u)"
+msgstr ""
+
+#: tapsets.cxx:7912
+msgid "CONFIG_PERF_EVENTS not available on this kernel"
+msgstr ""
+
+#: tapsets.cxx:7915
+msgid "CONFIG_HAVE_HW_BREAKPOINT not available on this kernel"
+msgstr ""
+
+#: tapsets.cxx:8022
+#, c-format
+msgid "unable to find tracepoint variable '%s' (alternatives: %s)"
+msgstr ""
+
+#: tapsets.cxx:8036
+#, c-format
+msgid "write to tracepoint variable '%s' not permitted"
+msgstr ""
+
+#: tapsets.cxx:8045
+msgid "cannot take address of tracepoint variable"
+msgstr ""
+
+#: tapsets.cxx:8169
+#, c-format
+msgid "write to tracepoint '%s' not permitted"
+msgstr ""
+
+#: tapsets.cxx:8375
+#, c-format
+msgid "cannot get type of parameter '%s' of tracepoint '%s'"
+msgstr ""
+
+#: tapsets.cxx:8381
+#, c-format
+msgid "found parameter for tracepoint '%s': type:'%s' name:'%s'"
+msgstr ""
+
+#: tapsets.cxx:8712
+msgid "tracepoint_builder releasing dwflpp"
+msgstr ""
+
+#: tapsets.cxx:8732
+#, c-format
+msgid "Pass 2: getting a tracepoint query for %zu headers: "
+msgstr ""
+
+#: tapsets.cxx:8748
+#, c-format
+msgid "Pass 2: using cached %s"
+msgstr ""
+
+#: tapsets.cxx:8814
+#, c-format
+msgid "Located kernel source tree (DW_AT_comp_dir) at '%s'"
+msgstr ""
+
+#: tapsets.cxx:8846
+msgid "Checking tracepoint glob "
+msgstr ""
+
+#. TRANSLATORS: 'timer' is the name of a probe point
+#: tapset-timers.cxx:64
+msgid "invalid interval for jiffies timer"
+msgstr ""
+
+#. TRANSLATORS: 'randomize' is a key word
+#: tapset-timers.cxx:68
+msgid "invalid randomize for jiffies timer"
+msgstr ""
+
+#: tapset-timers.cxx:71
+msgid "only expect one probe point"
+msgstr ""
+
+#: tapset-timers.cxx:199
+#, c-format
+msgid "interval value out of range (%s, %s)"
+msgstr ""
+
+#: tapset-timers.cxx:205
+msgid "randomization value out of range"
+msgstr ""
+
+#: tapset-timers.cxx:553
+msgid "frequency must be greater than 0"
+msgstr ""
+
+#: tapset-timers.cxx:583
+msgid "unrecognized timer variant"
+msgstr ""
+
+#: tapset-utrace.cxx:471
+msgid "only \"process(PATH_OR_PID).syscall\" support $argN or $$parms."
+msgstr ""
+
+#: tapset-utrace.cxx:517 tapset-utrace.cxx:524
+msgid "invalid syscall argument number (1-6)"
+msgstr ""
+
+#: tapset-utrace.cxx:528
+msgid "utrace '$argN' variable is read-only"
+msgstr ""
+
+#: tapset-utrace.cxx:557
+#, c-format
+msgid "utrace '%s' variable is read-only"
+msgstr ""
+
+#: tapset-utrace.cxx:563
+msgid "only \"process(PATH_OR_PID).syscall.return\" support $return."
+msgstr ""
+
+#: tapset-utrace.cxx:588
+msgid "unknown target variable"
+msgstr ""
+
+#: tapset-utrace.cxx:612
+msgid ""
+"only \"process(PATH_OR_PID).syscall\" and \"process(PATH_OR_PID).syscall."
+"return\" probes support target symbols"
+msgstr ""
+
+#: tapset-utrace.cxx:617
+msgid "cannot take address of utrace variable"
+msgstr ""
+
+#: tapset-utrace.cxx:624
+msgid ""
+"invalid target symbol for utrace probe, $syscall, $return, $argN or $$parms "
+"expected"
+msgstr ""
+
+#: tapset-utrace.cxx:690
+msgid "process pid must be greater than 1"
+msgstr ""
+
+#: translate.cxx:47
+msgid "\"Array overflow, check "
+msgstr ""
+
+#: translate.cxx:48
+msgid "\"MAXNESTING exceeded\";"
+msgstr ""
+
+#: translate.cxx:49
+msgid "\"division by 0\";"
+msgstr ""
+
+#: translate.cxx:50
+msgid "\"MAXACTION exceeded\";"
+msgstr ""
+
+#: translate.cxx:51
+msgid "\"aggregation overflow in "
+msgstr ""
+
+#: translate.cxx:52
+msgid "\"empty aggregate\";"
+msgstr ""
+
+#: translate.cxx:53
+msgid "\"histogram index out of range\";"
+msgstr ""
+
+#: translate.cxx:433
+#, c-format
+msgid "unsupported stats type for %s"
+msgstr ""
+
+#: translate.cxx:441
+#, c-format
+msgid "unsupported initializer for %s"
+msgstr ""
+
+#: translate.cxx:455
+#, c-format
+msgid "unsupported deallocator for %s"
+msgstr ""
+
+#: translate.cxx:585
+msgid "unknown type of map"
+msgstr ""
+
+#: translate.cxx:600
+msgid "index type mismatch"
+msgstr ""
+
+#: translate.cxx:616
+msgid "aggregating non-parallel map type"
+msgstr ""
+
+#: translate.cxx:624
+msgid "fetching aggregate of non-parallel map type"
+msgstr ""
+
+#: translate.cxx:642
+msgid "checking existence of an unsupported map type"
+msgstr ""
+
+#: translate.cxx:655
+msgid "getting a value from an unsupported map type"
+msgstr ""
+
+#: translate.cxx:666
+msgid "adding a value of an unsupported map type"
+msgstr ""
+
+#: translate.cxx:688
+msgid "setting a value of an unsupported map type"
+msgstr ""
+
+#: translate.cxx:777
+msgid "iterating over unknown reference type"
+msgstr ""
+
+#: translate.cxx:790
+msgid "inconsistent iterator type in itervar::start()"
+msgstr ""
+
+#: translate.cxx:801
+msgid "inconsistent iterator type in itervar::next()"
+msgstr ""
+
+#: translate.cxx:826
+msgid "illegal key type"
+msgstr ""
+
+#: translate.cxx:833
+msgid "inconsistent iterator value in itervar::get_value()"
+msgstr ""
+
+#: translate.cxx:845
+msgid "illegal value type"
+msgstr ""
+
+#: translate.cxx:1602 translate.cxx:1757
+msgid "array locals not supported, missing global declaration?"
+msgstr ""
+
+#: translate.cxx:1691
+#, c-format
+msgid "%s elided, duplicates %s"
+msgstr ""
+
+#: translate.cxx:1766
+msgid "unsupported local variable type"
+msgstr ""
+
+#: translate.cxx:1862
+msgid "nothing"
+msgstr ""
+
+#: translate.cxx:1910 translate.cxx:1940
+msgid "array type is neither string nor long"
+msgstr ""
+
+#: translate.cxx:1925
+msgid "array key is neither string nor long"
+msgstr ""
+
+#: translate.cxx:2053
+msgid "unsupported c_expression token type"
+msgstr ""
+
+#: translate.cxx:2084
+msgid "unknown lvalue type in assignment"
+msgstr ""
+
+#: translate.cxx:2104 translate.cxx:2124
+msgid " type unsupported"
+msgstr ""
+
+#: translate.cxx:2153
+msgid "post assignment on strings not supported"
+msgstr ""
+
+#: translate.cxx:2167
+#, c-format
+msgid "string assignment operator %s unsupported"
+msgstr ""
+
+#: translate.cxx:2199
+msgid "unknown macop for assignment"
+msgstr ""
+
+#: translate.cxx:2204
+msgid "invalid post-mode operator"
+msgstr ""
+
+#: translate.cxx:2241
+msgid "assignment type not yet implemented"
+msgstr ""
+
+#: translate.cxx:2328
+msgid "unresolved symbol"
+msgstr ""
+
+#: translate.cxx:2330
+msgid "unresolved symbol: "
+msgstr ""
+
+#: translate.cxx:2369
+msgid "attempt to use scalar where map expected"
+msgstr ""
+
+#: translate.cxx:2607 translate.cxx:3610 translate.cxx:3630
+msgid "expected numeric type"
+msgstr ""
+
+#: translate.cxx:2752 translate.cxx:4000
+msgid "Invalid indexing of histogram"
+msgstr ""
+
+#: translate.cxx:3015
+msgid "cannot 'return' from probe"
+msgstr ""
+
+#: translate.cxx:3018
+msgid "return type mismatch"
+msgstr ""
+
+#: translate.cxx:3031
+msgid "cannot 'next' from function"
+msgstr ""
+
+#: translate.cxx:3095
+msgid "Cannot delete unknown expression type"
+msgstr ""
+
+#: translate.cxx:3122 translate.cxx:3145
+msgid "cannot delete histogram bucket entries\n"
+msgstr ""
+
+#: translate.cxx:3171
+msgid "cannot 'break' outside loop"
+msgstr ""
+
+#: translate.cxx:3182
+msgid "cannot 'continue' outside loop"
+msgstr ""
+
+#: translate.cxx:3256
+msgid "expected numeric or string type"
+msgstr ""
+
+#: translate.cxx:3268 translate.cxx:3342 translate.cxx:3371 translate.cxx:3387
+#: translate.cxx:3490
+msgid "expected numeric types"
+msgstr ""
+
+#: translate.cxx:3333
+msgid "operator not yet implemented"
+msgstr ""
+
+#: translate.cxx:3478 translate.cxx:3524
+msgid "expected string types"
+msgstr ""
+
+#: translate.cxx:3499
+msgid "unexpected type"
+msgstr ""
+
+#: translate.cxx:3519
+msgid "unexpected concatenation operator"
+msgstr ""
+
+#: translate.cxx:3542
+msgid "expected numeric condition"
+msgstr ""
+
+#: translate.cxx:3547
+msgid "expected matching types"
+msgstr ""
+
+#: translate.cxx:3573
+msgid "non-number <<< expression"
+msgstr ""
+
+#: translate.cxx:3576
+msgid "non-stats left operand to <<< expression"
+msgstr ""
+
+#: translate.cxx:3579
+msgid "non-number right operand to <<< expression"
+msgstr ""
+
+#: translate.cxx:3585 translate.cxx:3588
+msgid "type mismatch"
+msgstr ""
+
+#: translate.cxx:3644
+msgid "invalid reference to array"
+msgstr ""
+
+#: translate.cxx:3739
+msgid "need rvalue for assignment"
+msgstr ""
+
+#: translate.cxx:3750
+msgid "unexpected reference to array"
+msgstr ""
+
+#: translate.cxx:3769
+msgid "cannot translate general target-symbol expression"
+msgstr ""
+
+#: translate.cxx:3776
+msgid "cannot translate general @cast expression"
+msgstr ""
+
+#: translate.cxx:3783
+msgid "cannot translate general @defined expression"
+msgstr ""
+
+#: translate.cxx:3790
+msgid "cannot translate general @entry expression"
+msgstr ""
+
+#: translate.cxx:3841
+msgid "invalid array reference"
+msgstr ""
+
+#: translate.cxx:3846
+msgid "array index type mismatch"
+msgstr ""
+
+#: translate.cxx:3890
+msgid "expected arrayindex expression"
+msgstr ""
+
+#: translate.cxx:3902
+msgid "unexpected aggregate of non-statistic"
+msgstr ""
+
+#: translate.cxx:3918
+msgid "unexpected aggregate of non-arrayindex"
+msgstr ""
+
+#: translate.cxx:4036
+msgid "statistic-valued array in rvalue context"
+msgstr ""
+
+#: translate.cxx:4130 translate.cxx:4221
+msgid "cannot assign to histogram buckets"
+msgstr ""
+
+#: translate.cxx:4150
+msgid "unexpected reference to scalar"
+msgstr ""
+
+#: translate.cxx:4250
+msgid "invalid length argument list"
+msgstr ""
+
+#: translate.cxx:4266 translate.cxx:4286
+msgid "function argument type mismatch"
+msgstr ""
+
+#: translate.cxx:4277
+msgid "function actual argument evaluation"
+msgstr ""
+
+#: translate.cxx:4337
+msgid "unknown type of arg to print operator"
+msgstr ""
+
+#: translate.cxx:4403
+#, c-format
+msgid "additional argument to print"
+msgid_plural "too many arguments to print (%zu)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: translate.cxx:4449
+msgid "cannot print unknown expression type"
+msgstr ""
+
+#: translate.cxx:4451
+msgid "cannot print a raw stats object"
+msgstr ""
+
+#: translate.cxx:4948
+#, c-format
+msgid "Getting symbol table for %s"
+msgstr ""
+
+#: translate.cxx:4980
+msgid "unexpected build-id reloc section "
+msgstr ""
+
+#: translate.cxx:4988
+#, c-format
+msgid "Found build-id in %s, length %d, start at 0x%#<PRIx64>"
+msgstr ""
+
+#: translate.cxx:5037
+#, c-format
+msgid "Found kernel _stext extra offset 0x%#<PRIx64>"
+msgstr ""
+
+#: translate.cxx:5210
+#, c-format
+msgid "skipping module %s eh_frame_hdr table (too big: %s > %s)"
+msgstr ""
+
+#: translate.cxx:5274
+#, c-format
+msgid "skipping module %s, section %s debug_frame_hdr table (too big: %s > %s)"
+msgstr ""
+
+#: translate.cxx:5537
+msgid "Searching for vdso candidates: "
+msgstr ""
+
+#: translate.cxx:5547
+msgid "vdso candidate: "
+msgstr ""
+
+#: translate.cxx:5667
+msgid "missing unwind/symbol data for module '"
+msgstr ""
+
+#: translate.cxx:5690
+#, c-format
+msgid "identified max-nested function: %s (%d)"
+msgstr ""
+
+#: translate.cxx:5701
+#, c-format
+msgid "identified recursive function: %s"
+msgstr ""
+
+#: translate.cxx:5716
+#, c-format
+msgid ""
+"myproc-unprivileged tapset function called without is_myproc checking for "
+"pid %d (euid %d)"
+msgstr ""
+
+#: translate.cxx:5720
+#, c-format
+msgid "kernel read fault at 0x%p (%s)"
+msgstr ""
+
+#: translate.cxx:5722
+#, c-format
+msgid "kernel write fault at 0x%p (%s)"
+msgstr ""
+
+#: translate.cxx:5724
+#, c-format
+msgid "divide by zero in DWARF operand (%s)"
+msgstr ""
+
+#: translate.cxx:5768
+#, c-format
+msgid "ignoring extra parts of compat version: %s"
+msgstr ""
+
+#: translate.cxx:5772
+#, c-format
+msgid "parse error in compatibility version: %s"
+msgstr ""
+
+#: translate.cxx:5775
+#, c-format
+msgid "compatibility version out of range: %s"
+msgstr ""
+
+#: translate.cxx:5795
+msgid " recursive"
+msgstr ""
+
+#: translate.cxx:5795
+msgid " non-recursive"
+msgstr ""
+
+#: translate.cxx:5794
+#, c-format
+msgid "function recursion-analysis: max-nesting %d %s"
+msgstr ""
+
+#: util.cxx:59
+msgid "Unable to determine home directory"
+msgstr ""
+
+#: util.cxx:113
+#, c-format
+msgid "Copying %s to %s"
+msgstr ""
+
+#: util.cxx:167
+#, c-format
+msgid "Copy failed (\"%s\" to \"%s\"): %s"
+msgstr ""
+
+#: util.cxx:250
+msgid "Unable to retrieve group list"
+msgstr ""
+
+#: util.cxx:277
+#, c-format
+msgid "using %ldvirt/%ldres/%ldshr kb, "
+msgstr ""
+
+#: util.cxx:400
+msgid "cmdstr_join called with an empty command!"
+msgstr ""
+
+#: util.cxx:450
+#, c-format
+msgid "Spawn waitpid call on unmanaged pid %d"
+msgstr ""
+
+#: util.cxx:457
+#, c-format
+msgid "Spawn waitpid result (0x%x): %d"
+msgstr ""
+
+#: util.cxx:462
+#, c-format
+msgid "Spawn waitpid error (%d): %s"
+msgstr ""
+
+#: util.cxx:503
+#, c-format
+msgid "Warning: %s is not executable (%s)"
+msgstr ""
+
+#: util.cxx:509
+msgid "Running"
+msgstr ""
+
+#: util.cxx:543
+#, c-format
+msgid "Spawn error (%d): %s"
+msgstr ""
+
+#: util.cxx:700
+#, c-format
+msgid "regcomp %s (%s) error rc= %d"
+msgstr ""
+
+#: util.cxx:712
+#, c-format
+msgid "ERROR: Safety pattern mismatch for %s ('%s' vs. '%s') rc=%d"
+msgstr ""
+
+#: util.cxx:730
+#, c-format
+msgid "regcomp %s error rc=%d"
+msgstr ""
+
+#. TRANSLATORS: Missing a file
+#: util.cxx:806
+#, c-format
+msgid "Missing %s"
+msgstr ""
+
+#: util.cxx:825
+#, c-format
+msgid "autosprintf/vasprintf error %s"
+msgstr ""
+
+#: util.h:74 util.h:85 util.h:96 util.h:104 util.h:115 util.h:128
+msgid "bad lexical cast"
+msgstr ""

@@ -105,6 +105,31 @@ struct stap_task_finder_target {
 
 #ifdef UTRACE_ORIG_VERSION
 static u32
+__stp_utrace_task_finder_target_exec(struct utrace_attached_engine *engine,
+				     struct task_struct *tsk,
+				     const struct linux_binprm *bprm,
+				     struct pt_regs *regs);
+#else
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+static u32
+__stp_utrace_task_finder_target_exec(u32 action,
+				     struct utrace_attached_engine *engine,
+				     const struct linux_binfmt *fmt,
+				     const struct linux_binprm *bprm,
+				     struct pt_regs *regs);
+#else
+static u32
+__stp_utrace_task_finder_target_exec(enum utrace_resume_action action,
+				     struct utrace_attached_engine *engine,
+				     struct task_struct *tsk,
+				     const struct linux_binfmt *fmt,
+				     const struct linux_binprm *bprm,
+				     struct pt_regs *regs);
+#endif
+#endif
+
+#ifdef UTRACE_ORIG_VERSION
+static u32
 __stp_utrace_task_finder_target_death(struct utrace_attached_engine *engine,
 				      struct task_struct *tsk);
 #else
@@ -210,6 +235,7 @@ stap_register_task_finder_target(struct stap_task_finder_target *new_tgt)
 	new_tgt->munmap_events = 0;
 	new_tgt->mprotect_events = 0;
 	memset(&new_tgt->ops, 0, sizeof(new_tgt->ops));
+	new_tgt->ops.report_exec = &__stp_utrace_task_finder_target_exec;
 	new_tgt->ops.report_death = &__stp_utrace_task_finder_target_death;
 	new_tgt->ops.report_quiesce = &__stp_utrace_task_finder_target_quiesce;
 	new_tgt->ops.report_syscall_entry = \
@@ -267,8 +293,8 @@ stap_utrace_detach(struct task_struct *tsk,
 	struct mm_struct *mm;
 	int rc = 0;
 
-	// Ignore init
-	if (tsk == NULL || tsk->pid <= 1)
+	// Ignore invalid tasks.
+	if (tsk == NULL || tsk->pid <= 0)
 		return 0;
 
 #ifdef PF_KTHREAD
@@ -456,7 +482,7 @@ __stp_get_mm_path(struct mm_struct *mm, char *buf, int buflen)
  * __STP_TASK_VM_BASE_EVENTS: base events for
  * stap_task_finder_target's with map callback's
  */
-#define __STP_TASK_BASE_EVENTS	(UTRACE_EVENT(DEATH))
+#define __STP_TASK_BASE_EVENTS	(UTRACE_EVENT(DEATH)|UTRACE_EVENT(EXEC))
 
 #define __STP_TASK_VM_BASE_EVENTS (__STP_TASK_BASE_EVENTS	\
 				   | UTRACE_EVENT(SYSCALL_ENTRY)\
@@ -468,7 +494,7 @@ __stp_get_mm_path(struct mm_struct *mm, char *buf, int buflen)
  * quiesces, we reset the events to __STP_ATTACHED_TASK_BASE_EVENTS
  * events.
  */
-#define __STP_ATTACHED_TASK_EVENTS (__STP_TASK_BASE_EVENTS	\
+#define __STP_ATTACHED_TASK_EVENTS (UTRACE_EVENT(DEATH)		\
 				    | UTRACE_EVENT(QUIESCE))
 
 #define __STP_ATTACHED_TASK_BASE_EVENTS(tgt)			\
@@ -486,8 +512,8 @@ __stp_utrace_attach(struct task_struct *tsk,
 	struct mm_struct *mm;
 	int rc = 0;
 
-	// Ignore init
-	if (tsk == NULL || tsk->pid <= 1)
+	// Ignore invalid tasks.
+	if (tsk == NULL || tsk->pid <= 0)
 		return EPERM;
 
 #ifdef PF_KTHREAD
@@ -506,7 +532,7 @@ __stp_utrace_attach(struct task_struct *tsk,
 	engine = utrace_attach_task(tsk, UTRACE_ATTACH_CREATE, ops, data);
 	if (IS_ERR(engine)) {
 		int error = -PTR_ERR(engine);
-		if (error != ENOENT) {
+		if (error != ESRCH && error != ENOENT) {
 			_stp_error("utrace_attach returned error %d on pid %d",
 				   error, (int)tsk->pid);
 			rc = error;
@@ -870,8 +896,8 @@ __stp_utrace_attach_match_tsk(struct task_struct *path_tsk,
 	char *mmpath_buf;
 	char *mmpath;
 
-	if (path_tsk == NULL || path_tsk->pid <= 1
-	    || match_tsk == NULL || match_tsk->pid <= 1)
+	if (path_tsk == NULL || path_tsk->pid <= 0
+	    || match_tsk == NULL || match_tsk->pid <= 0)
 		return;
 
 	/* Grab the path associated with the path_tsk. */
@@ -935,9 +961,6 @@ __stp_utrace_task_finder_report_clone(enum utrace_resume_action action,
 	struct task_struct *parent = current;
 #endif
 	int rc;
-	struct mm_struct *mm;
-	char *mmpath_buf;
-	char *mmpath;
 
 	if (atomic_read(&__stp_task_finder_state) != __STP_TF_RUNNING) {
 		debug_task_finder_detach();
@@ -1000,21 +1023,9 @@ __stp_utrace_task_finder_report_exec(enum utrace_resume_action action,
 
 	__stp_tf_handler_start();
 
-	// When exec'ing, we need to let callers detach from the
-	// parent thread (if necessary).  For instance, assume
-	// '/bin/bash' clones and then execs '/bin/ls'.  If the user
-	// was probing '/bin/bash', the cloned thread is still
-	// '/bin/bash' up until the exec.
-#if ! defined(STAPCONF_REAL_PARENT)
-#define real_parent parent
-#endif
-	if (tsk != NULL && tsk->real_parent != NULL
-	    && tsk->real_parent->pid > 1) {
-		// We'll hardcode this as a process end, but a thread
-		// *could* call exec (although they aren't supposed to).
-		__stp_utrace_attach_match_tsk(tsk->real_parent, tsk, 0, 1);
-	}
-#undef real_parent
+	// If the original task was "interesting",
+	// __stp_utrace_task_finder_target_exec() will handle calling
+	// callbacks. 
 
 	// We assume that all exec's are exec'ing a new process.  Note
 	// that we don't use bprm->filename, since that path can be
@@ -1042,6 +1053,64 @@ stap_utrace_task_finder_report_death(struct utrace_attached_engine *engine,
 #endif
 #endif
 {
+	debug_task_finder_detach();
+	return UTRACE_DETACH;
+}
+
+#ifdef UTRACE_ORIG_VERSION
+static u32
+__stp_utrace_task_finder_target_exec(struct utrace_attached_engine *engine,
+				     struct task_struct *tsk,
+				     const struct linux_binprm *bprm,
+				     struct pt_regs *regs)
+#else
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+static u32
+__stp_utrace_task_finder_target_exec(u32 action,
+				     struct utrace_attached_engine *engine,
+				     const struct linux_binfmt *fmt,
+				     const struct linux_binprm *bprm,
+				     struct pt_regs *regs)
+#else
+static u32
+__stp_utrace_task_finder_target_exec(enum utrace_resume_action action,
+				     struct utrace_attached_engine *engine,
+				     struct task_struct *tsk,
+				     const struct linux_binfmt *fmt,
+				     const struct linux_binprm *bprm,
+				     struct pt_regs *regs)
+#endif
+#endif
+{
+#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)
+	struct task_struct *tsk = current;
+#endif
+	struct stap_task_finder_target *tgt = engine->data;
+	int rc;
+
+	if (atomic_read(&__stp_task_finder_state) != __STP_TF_RUNNING) {
+		debug_task_finder_detach();
+		return UTRACE_DETACH;
+	}
+
+	__stp_tf_handler_start();
+
+	// We'll hardcode this as a process end.  If a thread
+	// calls exec() (which it isn't supposed to), the kernel
+	// "promotes" it to being a process.  Call the callbacks.
+	if (tgt != NULL && tsk != NULL) {
+		__stp_call_callbacks(tgt, tsk, 0, 1);
+	}
+
+	// Note that we don't want to set engine_attached to 0 here -
+	// only when *all* threads using this engine have been
+	// detached.
+
+	// Let __stp_utrace_task_finder_report_exec() call
+	// __stp_utrace_attach_match_tsk() to figure out if the
+	// exec'ed program is "interesting".
+
+	__stp_tf_handler_end();
 	debug_task_finder_detach();
 	return UTRACE_DETACH;
 }
@@ -1332,6 +1401,9 @@ __stp_utrace_task_finder_target_syscall_entry(enum utrace_resume_action action,
 	long syscall_no;
 	unsigned long args[3] = { 0L };
 	int rc;
+	int is_mmap_or_mmap2 = 0;
+	int is_mprotect = 0;
+	int is_munmap = 0;
 
 	if (atomic_read(&__stp_task_finder_state) != __STP_TF_RUNNING) {
 		debug_task_finder_detach();
@@ -1341,38 +1413,42 @@ __stp_utrace_task_finder_target_syscall_entry(enum utrace_resume_action action,
 	if (tgt == NULL)
 		return UTRACE_RESUME;
 
-	// See if syscall is one we're interested in.
+	// See if syscall is one we're interested in.  On x86_64, this
+	// is a potentially expensive operation (since we have to
+	// check and see if it is a 32-bit task).  So, cache the
+	// results.
 	//
 	// FIXME: do we need to handle mremap()?
 	syscall_no = syscall_get_nr(tsk, regs);
-	if (syscall_no != MMAP_SYSCALL_NO(tsk)
-	    && syscall_no != MMAP2_SYSCALL_NO(tsk)
-	    && syscall_no != MPROTECT_SYSCALL_NO(tsk)
-	    && syscall_no != MUNMAP_SYSCALL_NO(tsk))
+	is_mmap_or_mmap2 = (syscall_no == MMAP_SYSCALL_NO(tsk)
+			    || syscall_no == MMAP2_SYSCALL_NO(tsk) ? 1 : 0);
+	if (!is_mmap_or_mmap2) {
+		is_mprotect = (syscall_no == MPROTECT_SYSCALL_NO(tsk) ? 1 : 0);
+		if (!is_mprotect) {
+			is_munmap = (syscall_no == MUNMAP_SYSCALL_NO(tsk)
+				     ? 1 : 0);
+		}
+	}
+	if (!is_mmap_or_mmap2 && !is_mprotect && !is_munmap)
 		return UTRACE_RESUME;
 
 	// The syscall is one we're interested in, but do we have a
 	// handler for it?
-	if (((syscall_no == MMAP_SYSCALL_NO(tsk)
-	      || syscall_no == MMAP2_SYSCALL_NO(tsk)) && tgt->mmap_events == 0)
-	    || (syscall_no == MPROTECT_SYSCALL_NO(tsk)
-		&& tgt->mprotect_events == 0)
-	    || (syscall_no == MUNMAP_SYSCALL_NO(tsk)
-		&& tgt->munmap_events == 0))
+	if ((is_mmap_or_mmap2 && tgt->mmap_events == 0)
+	    || (is_mprotect && tgt->mprotect_events == 0)
+	    || (is_munmap && tgt->munmap_events == 0))
 		return UTRACE_RESUME;
 
+	// Save the needed arguments.  Note that for mmap, we really
+	// just need the return value, so there is no need to save
+	// any arguments.
 	__stp_tf_handler_start();
-	if (syscall_no == MUNMAP_SYSCALL_NO(tsk)) {
-		// We need 2 arguments
+	if (is_munmap) {
+		// We need 2 arguments for munmap()
 		syscall_get_arguments(tsk, regs, 0, 2, args);
 	}
-	else if (syscall_no == MMAP_SYSCALL_NO(tsk)
-		 || syscall_no == MMAP2_SYSCALL_NO(tsk)) {
-		// For mmap, we really just need the return value, so
-		// there is no need to save arguments
-	}
-	else {				// mprotect()
-		// We need 3 arguments
+	else if (is_mprotect) {
+		// We need 3 arguments for mprotect()
 		syscall_get_arguments(tsk, regs, 0, 3, args);
 	}
 

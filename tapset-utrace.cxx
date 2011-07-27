@@ -65,6 +65,7 @@ struct utrace_derived_probe: public derived_probe
 
   void emit_unprivileged_assertion (translator_output*);
   void print_dupe_stamp(ostream& o);
+  void getargs (std::list<std::string> &arg_set) const;
 };
 
 
@@ -124,7 +125,7 @@ utrace_derived_probe::utrace_derived_probe (systemtap_session &s,
   target_symbol_seen(false)
 {
   if (s.kernel_config["CONFIG_UTRACE"] != string("y"))
-    throw semantic_error ("process probes not available without kernel CONFIG_UTRACE");
+    throw semantic_error (_("process probes not available without kernel CONFIG_UTRACE"));
 
   // Expand local variables in the probe body
   utrace_var_expanding_visitor v (s, l, name, flags);
@@ -205,24 +206,36 @@ utrace_derived_probe::join_group (systemtap_session& s)
 void
 utrace_derived_probe::emit_unprivileged_assertion (translator_output* o)
 {
-  // Process end probes are allowed for unprivileged users, even if the process
-  // does not belong to them. They are required to check is_myproc() from within
-  // their probe script before doing anything "dangerous".
+  // Process end probes can fire for unprivileged users even if the process
+  // does not belong to the user. On example is that process.end will fire
+  // at the end of a process which executes execve on an executable which
+  // has the setuid bit set. When the setuid executable ends, the process.end
+  // will fire even though the owner of the process is different than the
+  // original owner.
+  // Unprivileged users must use check is_myproc() from within any
+  // process.end variant in their script before doing anything "dangerous".
   if (flags == UDPF_END)
     return;
 
-  // Other process probes are allowed for unprivileged users, but only in the
-  // context of processes which they own.
+  // Other process probes should only fire for unprivileged users in the
+  // context of processes which they own. Generate an assertion to this effect
+  // as a safety net.
   emit_process_owner_assertion (o);
 }
 
 void
 utrace_derived_probe::print_dupe_stamp(ostream& o)
 {
-  // Process end probes are allowed for unprivileged users, even if the process
-  // does not belong to them. They are required to check is_myproc() from within
-  // their probe script before doing anything "dangerous".
-  // Other process probes are allowed for unprivileged users, but only in the
+  // Process end probes can fire for unprivileged users even if the process
+  // does not belong to the user. On example is that process.end will fire
+  // at the end of a process which executes execve on an executable which
+  // has the setuid bit set. When the setuid executable ends, the process.end
+  // will fire even though the owner of the process is different than the
+  // original owner.
+  // Unprivileged users must use check is_myproc() from within any
+  // process.end variant in their script before doing anything "dangerous".
+  //
+  // Other process probes should only fire for unprivileged users in the
   // context of processes which they own.
   if (flags == UDPF_END)
     print_dupe_stamp_unprivileged (o);
@@ -230,6 +243,17 @@ utrace_derived_probe::print_dupe_stamp(ostream& o)
     print_dupe_stamp_unprivileged_process_owner (o);
 }
 
+void
+utrace_derived_probe::getargs(std::list<std::string> &arg_set) const
+{
+  arg_set.push_back("$syscall:long");
+  arg_set.push_back("$arg1:long");
+  arg_set.push_back("$arg2:long");
+  arg_set.push_back("$arg3:long");
+  arg_set.push_back("$arg4:long");
+  arg_set.push_back("$arg5:long");
+  arg_set.push_back("$arg6:long");
+}
 
 void
 utrace_var_expanding_visitor::visit_target_symbol_cached (target_symbol* e)
@@ -444,7 +468,7 @@ void
 utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 {
   if (flags != UDPF_SYSCALL)
-    throw semantic_error ("only \"process(PATH_OR_PID).syscall\" support $argN or $$parms.", e->tok);
+    throw semantic_error (_("only \"process(PATH_OR_PID).syscall\" support $argN or $$parms."), e->tok);
 
   if (e->name == "$$parms")
     {
@@ -490,18 +514,18 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
           }
         catch (const runtime_error& f) // non-integral $arg suffix: e.g. $argKKKSDF
           {
-           throw semantic_error ("invalid syscall argument number (1-6)", e->tok);
+           throw semantic_error (_("invalid syscall argument number (1-6)"), e->tok);
           }
 
         e->assert_no_components("utrace");
 
         // FIXME: max argnument number should not be hardcoded.
         if (argnum < 1 || argnum > 6)
-           throw semantic_error ("invalid syscall argument number (1-6)", e->tok);
+           throw semantic_error (_("invalid syscall argument number (1-6)"), e->tok);
 
         bool lvalue = is_active_lvalue(e);
         if (lvalue)
-           throw semantic_error("utrace '$argN' variable is read-only", e->tok);
+           throw semantic_error(_("utrace '$argN' variable is read-only"), e->tok);
 
         // Remember that we've seen a target variable.
         target_symbol_seen = true;
@@ -530,13 +554,13 @@ utrace_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 
   bool lvalue = is_active_lvalue(e);
   if (lvalue)
-    throw semantic_error("utrace '" + sname + "' variable is read-only", e->tok);
+    throw semantic_error(_F("utrace '%s' variable is read-only", sname.c_str()), e->tok);
 
   string fname;
   if (sname == "$return")
     {
       if (flags != UDPF_SYSCALL_RETURN)
-	throw semantic_error ("only \"process(PATH_OR_PID).syscall.return\" support $return.", e->tok);
+	throw semantic_error (_("only \"process(PATH_OR_PID).syscall.return\" support $return."), e->tok);
       fname = "_utrace_syscall_return";
     }
   else if (sname == "$syscall")
@@ -561,7 +585,7 @@ utrace_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
     }
   else
     {
-      throw semantic_error ("unknown target variable", e->tok);
+      throw semantic_error (_("unknown target variable"), e->tok);
     }
 
   // Remember that we've seen a target variable.
@@ -585,18 +609,20 @@ utrace_var_expanding_visitor::visit_target_symbol (target_symbol* e)
   try
     {
       if (flags != UDPF_SYSCALL && flags != UDPF_SYSCALL_RETURN)
-        throw semantic_error ("only \"process(PATH_OR_PID).syscall\" and \"process(PATH_OR_PID).syscall.return\" probes support target symbols",
+        throw semantic_error (_("only \"process(PATH_OR_PID).syscall\""
+                                " and \"process(PATH_OR_PID).syscall.return\" probes support target symbols"),
                               e->tok);
 
       if (e->addressof)
-        throw semantic_error("cannot take address of utrace variable", e->tok);
+        throw semantic_error(_("cannot take address of utrace variable"), e->tok);
 
       if (startswith(e->name, "$arg") || e->name == "$$parms")
         visit_target_symbol_arg(e);
       else if (e->name == "$syscall" || e->name == "$return")
         visit_target_symbol_context(e);
       else
-        throw semantic_error ("invalid target symbol for utrace probe, $syscall, $return, $argN or $$parms expected",
+        throw semantic_error (_("invalid target symbol for utrace probe,"
+                                " $syscall, $return, $argN or $$parms expected"),
                               e->tok);
     }
   catch (const semantic_error &er)
@@ -661,7 +687,7 @@ struct utrace_builder: public derived_probe_builder
       {
 	// We can't probe 'init' (pid 1).  XXX: where does this limitation come from?
 	if (pid < 2)
-	  throw semantic_error ("process pid must be greater than 1",
+	  throw semantic_error (_("process pid must be greater than 1"),
 				location->components.front()->tok);
 
         // XXX: could we use /proc/$pid/exe in unwindsym_modules and elsewhere?

@@ -27,7 +27,17 @@ keywords: filesystem hack
   The badname.stp script shows how one could prevent the creation of
   files with undesirable names using guru mode.
 
-  # stap -g badname.stp -c "touch /tmp/myXXXfile" 2>&1 | grep denied
+  # stap -g badname.stp -c "touch /tmp/myXXXbadnameXXXfile.$$ 2>&1 | grep \
+  denied"
+
+
+general/eventcount.stp - Event Counter for eventcount.stp
+keywords: event counter tid pid
+
+  The script prints a count of specified events and their related tid's
+  over the course of execution.
+
+  # stap eventcount.stp syscall.* -c 'sleep 0.2'
 
 
 general/graphs.stp - Graphing Disk and CPU Utilization
@@ -60,7 +70,7 @@ keywords: trace callgraph
   nested within the trigger.
 
   # stap para-callgraph-verbose.stp 'kernel.function("*@fs/proc*.c")' \
-  'kernel.function("vfs_read")' -c "cat /proc/sys/vm/*"
+  'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
 
 
 general/para-callgraph.stp - Callgraph tracing with arguments
@@ -74,7 +84,7 @@ keywords: trace callgraph
   the trigger.
 
   # stap para-callgraph.stp 'kernel.function("*@fs/proc*.c")' \
-  'kernel.function("vfs_read")' -c "cat /proc/sys/vm/*"
+  'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
 
 
 general/sizeof.stp - Print the size of a C type.
@@ -328,6 +338,28 @@ keywords: locking
   # stap bkl_stats.stp -c "sleep 0.2"
 
 
+memory/hw_watch_addr.stp - Watch access to a kernel address using breakpoint hardware
+keywords: memory watchpoint
+
+  The script will watch accesses to a single kernel address and prints
+  a traceback each time the address is accessed. This script needs to
+  be run as root to allow access to the breakpoint hardware.
+
+  # stap --all-modules hw_watch_addr.stp 0x`grep "pid_max$" /proc/kallsyms` \
+  -c "sleep 1"
+
+
+memory/hw_watch_sym.stp - Watch to a kernel symbol using breakpoint hardware
+keywords: memory watchpoint
+
+  The script will watch accesses to the starting address of a single
+  kernel symbol and prints a traceback each time the symbol is
+  accessed. This script needs to be run as root to allow access to the
+  breakpoint hardware.
+
+  # stap --all-modules hw_watch_sym.stp pid_max -c "sleep 1"
+
+
 memory/kmalloc-top - Show Paths to Kernel Malloc (kmalloc) Invocations
 keywords: memory
 
@@ -527,6 +559,17 @@ keywords: network tcp socket
   # stap tcp_connections.stp -c "sleep 0.2"
 
 
+network/tcp_init_cwnd.stp - Increase initial tcp congestion window to 10.
+keywords: network tcp socket
+
+  Run the tcp_init_cwnd.stp script in the background to override a
+  kernel's default tcp cwnd value to 10, which has been found to
+  improve latency for web server type workloads.  The script prints a
+  count of cwnd value changes when it is stopped.
+
+  # stap -g tcp_init_cwnd.stp -c "sleep 0.2"
+
+
 network/tcp_trace.stp - Tcp connection tracing utility.
 keywords: network trace
 
@@ -651,7 +694,7 @@ keywords: process security
   control files.  Processes may be added or removed from the blocked
   list.
 
-  # stap -g noptrace.stp -c 'strace ls'
+  # stap -g noptrace.stp -c 'strace ls || true'
 
 
 process/pf2.stp - Profile kernel functions
