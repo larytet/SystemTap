@@ -1,9 +1,15 @@
 systemtap (1.6-1) unstable; urgency=low
 
+  [ Lucas Nussbaum ]
   * Refresh all patches.
-    TODO for future upload: document patches...
 
- -- Lucas Nussbaum <lucas@debian.org>  Wed, 27 Jul 2011 20:15:32 +0200
+  [ Ritesh Raj Sarraf ]
+  * [ab3b78a] Imported Upstream version 1.6
+  * New upstream release (Closes: #625414, #635542, #628819)
+    - Fixes vulnerability: CVE-2011-1769, CVE-2011-1781, CVE-2011-2502
+      and CVE-2011-2503 
+
+ -- Ritesh Raj Sarraf <rrs@debian.org>  Fri, 29 Jul 2011 15:59:14 +0530
 
 systemtap (1.4-1) unstable; urgency=low
 
