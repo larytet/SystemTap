@@ -1,1 +1,1 @@
-systemtap-runtime binary: setuid-binary usr/bin/staprun 4750 root/root
+systemtap-runtime binary: setuid-binary usr/bin/staprun 4754 root/root
