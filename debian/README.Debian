@@ -12,8 +12,9 @@ vim-addons is provided by the vim-addon-manager package, have a look at its
 manpage for more information.
 
 Debian kernels with version 2.6.32-16 and above have full support for
-systemtap. Make sure to install the linux-image-x.x.x-dbg package which
-contains the debug symbols for the kernel and its modules.
+systemtap kernel probes but user space probes (utrace) are not yet
+supported. Make sure to install the linux-image-x.x.x-dbg package
+which contains the debug symbols for the kernel and its modules.
 
 
 On older Debian systems (older than Squeeze), Debian kernels do not contain
