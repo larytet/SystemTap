@@ -1,4 +1,6 @@
-manpage hyphen and spelling error fixes
+Description: manpage hyphen and spelling error fixes
+Author: Ritesh Raj Sarraf <rrs@researchut.com>
+Applied-Upstream: http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=e025bf5794ee006e0030b0974183a02ef1beedaa
 --- a/grapher/stapgraph.1.in
 +++ b/grapher/stapgraph.1.in
 @@ -82,7 +82,7 @@ displayed pause button restarts the disp
