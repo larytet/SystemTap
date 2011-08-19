@@ -2,7 +2,7 @@ Source: systemtap
 Section: devel
 Priority: optional
 Maintainer: Ritesh Raj Sarraf <rrs@debian.org> 
-Uploaders: Lucas Nussbaum <lucas@debian.org>
+Uploaders: Lucas Nussbaum <lucas@debian.org>, Timo Juhani Lindfors <timo.lindfors@iki.fi>
 Build-Depends: debhelper (>= 7.0.50~), libelf-dev (>= 0.141),
  libdw-dev (>= 0.141), libsqlite3-dev, texlive-latex-base, texlive-latex-recommended,
  texlive-latex-extra, texlive-fonts-recommended, libnss3-dev, libnspr4-dev, pkg-config,
