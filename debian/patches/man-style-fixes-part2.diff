@@ -1,0 +1,32 @@
+From b503f0f6d0dea476eed315325ca1d6ca0c3ab6dc Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Fri, 12 Aug 2011 01:02:55 +0300
+Subject: [PATCH 02/38] man: Add spaces after commas in tapset::nfsd
+
+This patch fixes the following error:
+
+$ MANWIDTH=80 man tapset::nfsd > /dev/null
+<standard input>:419: warning [p 6, 10.5i]: cannot adjust line
+---
+ man/tapset::nfsd.3stap |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+Author: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Applied-Upstream: http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=b503f0f6d0dea476eed315325ca1d6ca0c3ab6dc
+
+diff --git a/man/tapset::nfsd.3stap b/man/tapset::nfsd.3stap
+index cf808c6..45a05bc 100644
+--- a/man/tapset::nfsd.3stap
++++ b/man/tapset::nfsd.3stap
+@@ -416,7 +416,7 @@ on server side, only called by nfsd3_proc_create and nfsd4_open
+ 
+ .I  createmode 
+   create mode. The possible values could be:
+-    NFS3_CREATE_EXCLUSIVE,NFS3_CREATE_UNCHECKED,NFS3_CREATE_GUARDED
++    NFS3_CREATE_EXCLUSIVE, NFS3_CREATE_UNCHECKED, NFS3_CREATE_GUARDED
+ 
+ .I  truncp 
+   trunp arguments, indicates if the file should be truncated
+-- 
+1.7.2.5
+
