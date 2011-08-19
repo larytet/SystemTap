@@ -1,0 +1,57 @@
+From 7bfd108379fbef6a8718837333d99e6809e222ea Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Fri, 12 Aug 2011 02:14:31 +0300
+Subject: [PATCH 03/38] man: Convert 3-column table to 2-column table in stapprobes
+
+This patch fixes the following error:
+
+$ MANWIDTH=80 man stapprobes > /dev/null
+warning: file `<standard input>', around line 105:
+  table wider than line width
+---
+ stapprobes.3stap |   24 ++++++++++++------------
+ 1 files changed, 12 insertions(+), 12 deletions(-)
+
+Author: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Applied-Upstream: http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=7bfd108379fbef6a8718837333d99e6809e222ea
+
+diff --git a/stapprobes.3stap b/stapprobes.3stap
+index d0d236c..7a53a5c 100644
+--- a/stapprobes.3stap
++++ b/stapprobes.3stap
+@@ -102,19 +102,19 @@ to classify them with respect to their need for DWARF debuginfo.
+ 
+ .TS
+ l l l.
+-\fBDWARF	AUTO-DWARF	NON-DWARF\fP
+-
+-kernel.function, .statement	kernel.trace	kernel.mark
+-module.function, .statement		process.mark
+-process.function, .statement		begin, end, error, never
+-process.mark \fI(backup)\fP		timer
+-		perf
+-		procfs
+-		kernel.statement.absolute
+-		kernel.data
+-		kprobe.function
+-		process.statement.absolute
+-		process.begin, .end, .error
++\fBDWARF	NON-DWARF\fP
++
++kernel.function, .statement	kernel.mark
++module.function, .statement	process.mark
++process.function, .statement	begin, end, error, never
++process.mark \fI(backup)\fP	timer
++	perf
++	procfs
++\fBAUTO-DWARF\fP	kernel.statement.absolute
++	kernel.data
++kernel.trace	kprobe.function
++	process.statement.absolute
++	process.begin, .end, .error
+ .TE
+ 
+ .SH PROBE POINT FAMILIES
+-- 
+1.7.2.5
+
