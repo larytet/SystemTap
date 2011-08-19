@@ -4,3 +4,5 @@ dont-build-pdfdocs.diff
 vim-filetype-override.diff
 grapher-libs.diff
 debversion.diff
+bug604453-part1.diff
+bug604453-part2.diff
