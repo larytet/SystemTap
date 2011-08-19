@@ -4,6 +4,10 @@ Date:   Thu Jan 21 11:22:46 2010 +0100
 
     Add shebangs
 
+Description: Add shebangs
+Origin: upstream, http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=d922b6beafda87737d3dd7d0399f7930d5f6fa66
+Applied-Upstream: http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=d922b6beafda87737d3dd7d0399f7930d5f6fa66
+
 diff --git a/testsuite/systemtap.examples/memory/overcommit.stp b/testsuite/systemtap.examples/memory/overcommit.stp
 index a080010..60c48cf 100644
 --- a/testsuite/systemtap.examples/memory/overcommit.stp
