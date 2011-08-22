@@ -1,23 +1,13 @@
 Description: make sure debian version is visible in e.g. "stap -V"
-Author: Євгеній Мещеряков <eugen@debian.org>
+Author: Timo Juhani Lindfors <timo.lindfors@iki.fi>
 Forwarded: not-needed
---- a/Makefile.am
-+++ b/Makefile.am
-@@ -79,7 +79,7 @@ git_version.stamp:
- 			cp "$(srcdir)/git_version.h" "git_version.h"; \
- 		fi; \
- 	fi
--	$(GIT_VERSION_CMD) -k -s $(top_srcdir) -o git_version.h
-+	sh $(top_srcdir)/debian/debversion.sh $(top_srcdir)/debian/changelog > git_version.h
- 	@if test -s "$(srcdir)/git_version.h"; then \
- 		if cmp "$(srcdir)/git_version.h" "git_version.h"; then :; \
- 		else \
-@@ -90,7 +90,7 @@ git_version.stamp:
- 	fi
- 
- git_version.h:
--	$(srcdir)/git_version.sh -k --srcdir $(srcdir) -o git_version.h
-+	sh $(top_srcdir)/debian/debversion.sh $(top_srcdir)/debian/changelog > git_version.h
- 
- cscope:
- 	cd $(srcdir) && \
+--- a/git_version.sh
++++ b/git_version.sh
+@@ -1,4 +1,7 @@
+ #!/bin/sh
++
++exec debian/debversion.sh debian/changelog > git_version.h
++
+ #
+ # Generate some basic versioning information which can be piped to a header.
+ #
