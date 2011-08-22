@@ -1,4 +1,6 @@
-debian version patch
+Description: make sure debian version is visible in e.g. "stap -V"
+Author: Євгеній Мещеряков <eugen@debian.org>
+Forwarded: not-needed
 --- a/Makefile.am
 +++ b/Makefile.am
 @@ -79,7 +79,7 @@ git_version.stamp:

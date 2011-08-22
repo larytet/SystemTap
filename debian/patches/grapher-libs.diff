@@ -1,4 +1,6 @@
-grapher libraries as needed
+Description: grapher libraries as needed
+Author: Євгеній Мещеряков <eugen@debian.org>
+Applied-Upstream: http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=e025bf5794ee006e0030b0974183a02ef1beedaa
 --- a/grapher/Makefile.am
 +++ b/grapher/Makefile.am
 @@ -9,5 +9,6 @@ stapgraph_CPPFLAGS = -DPKGDATADIR='"${pk
