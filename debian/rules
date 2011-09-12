@@ -45,7 +45,7 @@ CONF_FLAGS += --libexecdir=/usr/lib
 DH = dh
 
 # plus is to enable parallel build
-binary binary-arch binary-indep build clean install patch:
+binary binary-arch binary-indep build clean install patch build-arch build-indep:
 	+$(DH) $@
 
 
@@ -93,5 +93,6 @@ override_dh_installchangelogs:
 	dh_installchangelogs debian/changelog
 
 .PHONY: build clean binary-indep binary-arch binary install patch get-orig-source
+.PHONY: build-arch build-indep
 .PHONY: override_dh_auto_configure override_dh_auto_test override_dh_auto_install
 .PHONY: override_dh_auto_clean override_dh_compress override_dh_fixperms
