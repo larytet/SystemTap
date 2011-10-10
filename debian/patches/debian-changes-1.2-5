@@ -1,29 +1,7 @@
-Description: Upstream changes introduced in version 1.2-5
- This patch has been created by dpkg-source during the package build.
- Here's the last changelog entry, hopefully it gives details on why
- those changes were made:
- .
- systemtap (1.2-5) unstable; urgency=high
- .
-   * Add dependency on package adduser. Thanks to the piuparts
-     infrastructure for spotting it. (Closes: #604439)
- .
- The person named in the Author field signed this changelog entry.
+Description: CVE-2010-4170, CVE-2010-4171: staprun module loading/unloading security fixes
+Origin: backport, http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=b7565b41228bea196cefa3a7d43ab67f8f9152e2
+Bug-Debian: http://bugs.debian.org/603946
 Author: Ritesh Raj Sarraf <rrs@debian.org>
-Bug-Debian: http://bugs.debian.org/604439
-
----
-The information above should follow the Patch Tagging Guidelines, please
-checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
-are templates for supplementary fields that you might want to add:
-
-Origin: <vendor|upstream|other>, <url of original patch>
-Bug: <url in upstream bugtracker>
-Bug-Debian: http://bugs.debian.org/<bugnumber>
-Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
-Forwarded: <no|not-needed|url proving that it has been forwarded>
-Reviewed-By: <name and email of someone who approved the patch>
-Last-Update: <YYYY-MM-DD>
 
 --- systemtap-1.2.orig/staprun.8.in
 +++ systemtap-1.2/staprun.8.in
