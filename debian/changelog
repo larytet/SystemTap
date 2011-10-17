@@ -1,3 +1,13 @@
+systemtap (1.2-5+squeeze1) stable-security; urgency=high
+
+  * Non-maintainer upload
+  * Backport upstream fix for CVE-2011-2503. (Closes: #635542)
+  * Rename patch debian-changes-1.2-5 to
+    fix-CVE-2010-4170-CVE-2010-4171.diff and fix misleading DEP-3
+    information (this fix was first included in 1.2-3).
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Mon, 17 Oct 2011 11:45:09 +0300
+
 systemtap (1.2-5) unstable; urgency=high
 
   * Add dependency on package adduser. Thanks to the piuparts
