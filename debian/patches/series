@@ -7,4 +7,5 @@ vim-filetype-override.diff
 new-elfutils.diff
 grapher-libs.diff
 debversion.diff
-debian-changes-1.2-5
+fix-CVE-2010-4170-CVE-2010-4171.diff
+fix-CVE-2011-2503.diff
