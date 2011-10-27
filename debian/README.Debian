@@ -41,7 +41,8 @@ into original build location. It is possible to change this using example
 file from kernel-package:
     /usr/share/kernel-package/examples/etc/kernel/header_postinst.d/link
 
-To use systemtap as normal user you must be in group 'stapdev' or 'stapusr'.
-See README.security for details.
+To use systemtap as normal user you must be in group 'stapusr' and you
+probably also want to be in group 'stapdev'. See README.security for
+details.
 
- -- Ritesh Raj Sarraf <rrs@debian.org>  Fri Aug  6 18:37:25 IST 2010
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>, Thu, 27 Oct 2011 16:59:21 +0300
