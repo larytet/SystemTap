@@ -1,9 +1,1 @@
-manpage-and-spelling-error-fixes.patch
-vim-filetype-override.diff
-grapher-libs.diff
 debversion.diff
-bug604453-part1.diff
-bug604453-part2.diff
-man-style-fixes-part1.diff
-man-style-fixes-part2.diff
-man-style-fixes-part3.diff
