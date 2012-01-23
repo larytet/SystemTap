@@ -9,16 +9,8 @@ DEB_UPSTREAM_VERSION=$(shell dpkg-parsechangelog | sed -rne 's,^Version: ([^-]+)
 get-orig-source:
 	uscan --force-download --rename --repack --download-version=$(DEB_UPSTREAM_VERSION) --destdir=.
 
-
-CFLAGS = -Wall -g -D_GNU_SOURCE
-
-ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -O0
-else
-	CFLAGS += -O2
-endif
-CXXFLAGS = $(CFLAGS)
-export CFLAGS CXXFLAGS
+DEB_CFLAGS_MAINT_APPEND=-Wall -D_GNU_SOURCE
+DEB_CXXFLAGS_MAINT_APPEND=-Wall -D_GNU_SOURCE
 
 ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 	NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
@@ -40,7 +32,7 @@ else
 endif
 
 # dh does it wrong...
-CONF_FLAGS += --libexecdir=/usr/lib
+CONF_FLAGS += --libexecdir=/usr/lib $(shell dpkg-buildflags --export=configure)
 
 DH = dh
 
