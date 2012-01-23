@@ -55,6 +55,9 @@ override_dh_auto_install:
 	rm debian/tmp/usr/share/doc/systemtap/examples/README
 	rm debian/tmp/usr/share/doc/systemtap/examples/html/*.tmpl
 
+	# Remove empty file to make lintian happy
+	rm debian/tmp/usr/share/doc/systemtap/tapsets/tapsets.proc
+
 	# make sure that all examples are executable (except tutorial)
 	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp \! -executable -print -exec chmod +x "{}" \;
 
