@@ -12,6 +12,10 @@ configure)
 		echo "Adding stapusr group..."
 		addgroup --quiet --system stapusr || true
 	fi
+	if ! getent group | grep -q "^stapsys:"; then
+		echo "Adding stapsys group..."
+		addgroup --quiet --system stapsys || true
+	fi
 
 	# Fixup staprun binary for new group 'stapusr'.
 	if [ -x /usr/sbin/dpkg-statoverride ] &&
