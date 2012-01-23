@@ -1,3 +1,25 @@
+systemtap (1.7-1~try1) UNRELEASED; urgency=low
+
+  * New Upstream Release.
+  * Drop patches that are obsolete or accepted upstream:
+    dont-build-pdfdocs.diff dont-remove-scripts.diff
+    examples-shebangs.diff grapher-libs.diff new-elfutils.diff
+    no-make-distclean-for-man.diff stapex-docdir-path.diff
+    use-pdflatex.diff vim-filetype-override.diff xmlto-test.diff
+  * Add patches to improve documentation: manpage-paths1.diff
+    manpage-syntax1.diff spelling-fixes1.diff spelling-fixes2.diff
+  * Update standards-version to 3.9.2, no changes necessary
+  * Add armhf to the architecture list (Closes: #645797)
+  * Enable hardened build flags (Closes: #655882)
+  * Set architecture of systemtap-sdt-dev to linux-any to avoid confusion
+    on kfreebsd (Closes: #656383, #656477)
+  * Add stapsys group which behaves like stapdev but does not permit
+    the use of guru mode.
+  * Remove references to "Linux 2.6" from package description and suggests
+    fields since we support 3.x too.
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Mon, 19 Dec 2011 13:27:20 +0200
+
 systemtap (1.6-1) unstable; urgency=low
 
   [ Lucas Nussbaum ]
