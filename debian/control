@@ -17,8 +17,8 @@ Package: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
 Depends: systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
  systemtap-common (= ${source:Version}), make
-Suggests: systemtap-doc, vim-addon-manager, linux-image-2.6, linux-headers-2.6, linux-debug-2.6
-Description: instrumentation system for Linux 2.6
+Suggests: systemtap-doc, vim-addon-manager, linux-image, linux-headers, linux-debug
+Description: instrumentation system for Linux
  SystemTap provides infrastructure to simplify the gathering of
  information about the running Linux system.
  This assists diagnosis of a performance or functional problem.
@@ -35,7 +35,7 @@ Replaces: systemtap (<< 0.0.20081220-1)
 Breaks: systemtap (<< 0.0.20081220-1)
 Depends: ${misc:Depends}
 Recommends: systemtap
-Description: instrumentation system for Linux 2.6 (common component)
+Description: instrumentation system for Linux (common component)
  SystemTap provides infrastructure to simplify the gathering of
  information about the running Linux system.
  .
@@ -49,7 +49,7 @@ Breaks: systemtap (<< 0.0.20081220-1)
 Suggests: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
-Description: instrumentation system for Linux 2.6 (runtime component)
+Description: instrumentation system for Linux (runtime component)
  This package contains staprun program that can be used to run
  compiled SystemTap probes.
  .
@@ -78,7 +78,7 @@ Depends: libnss3-tools, avahi-utils, unzip, zip, systemtap (= ${binary:Version})
  net-tools
 Breaks: systemtap-client (<< 0.0.20090523~)
 Replaces: systemtap-client (<< 0.0.20090523~)
-Description: instrumentation system for Linux 2.6 (compile server)
+Description: instrumentation system for Linux (compile server)
  This package contains compile server for SystemTap. It can be used
  together with systemtap client to compile probes on a remote machine.
  Probes will be compiled by the server on request of remote clients.
@@ -90,7 +90,7 @@ Package: systemtap-client
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
 Depends: avahi-utils, unzip, zip, dnsutils, systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Suggests: systemtap-server
-Description: instrumentation system for Linux 2.6 (client for compile server)
+Description: instrumentation system for Linux (client for compile server)
  This package contains client for SystemTap compile server. It can be
  used to compile probes on a remote machine running systemtap-server.
  This client can be run on a machine without full kernel debug information
@@ -118,7 +118,7 @@ Description: statically defined probes development files
 Package: systemtap-grapher
 Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf 
 Depends: systemtap (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
-Description: instrumentation system for Linux 2.6 (grapher)
+Description: instrumentation system for Linux (grapher)
  This package contains a utility for real-time visualization of
  data from SystemTap instrumentation scripts.
  .
