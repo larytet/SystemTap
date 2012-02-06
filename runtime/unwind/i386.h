@@ -1,7 +1,7 @@
 /* -*- linux-c -*-
  *
  * 32-bit x86 dwarf unwinder header file
- * Copyright (C) 2008, 2010 Red Hat Inc.
+ * Copyright (C) 2008, 2010, 2011 Red Hat Inc.
  * Copyright (C) 2002-2006 Novell, Inc.
  * 
  * This file is part of systemtap, and is free software.  You can
@@ -19,14 +19,6 @@
 
 /* these are simple for i386 */
 #define _stp_get_unaligned(ptr) (*(ptr))
-#define _stp_put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-
-struct unwind_frame_info
-{
-	struct pt_regs regs;
-	struct task_struct *task;
-	unsigned call_frame:1;
-};
 
 #define STACK_LIMIT(ptr)     (((ptr) - 1) & ~(THREAD_SIZE - 1))
 
@@ -44,7 +36,7 @@ struct unwind_frame_info
 	PTREGS_INFO(bp), \
 	PTREGS_INFO(si), \
 	PTREGS_INFO(di), \
-	PTREGS_INFO(ip)
+	PTREGS_INFO(ip) /* Note, placeholder for "fake" dwarf ret reg. */
 
 #else /* !STAPCONF_X86_UNIREGS */
 
@@ -60,9 +52,15 @@ struct unwind_frame_info
 	PTREGS_INFO(ebp), \
 	PTREGS_INFO(esi), \
 	PTREGS_INFO(edi), \
-	PTREGS_INFO(eip)
+	PTREGS_INFO(eip) /* Note, placeholder for "fake" dwarf ret reg. */
 
 #endif /* STAPCONF_X86_UNIREGS */
+
+#define UNW_PC_IDX 8
+#define UNW_SP_IDX 4
+
+#define UNW_NR_REAL_REGS 8
+#define UNW_PC_FROM_RA 0 /* Because [e]ip == return address column already. */
 
 #define UNW_DEFAULT_RA(raItem, dataAlign) \
 	((raItem).where == Memory && \
@@ -79,6 +77,11 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs,
 					    int sanitize)
 {
+	if (&info->regs == regs) { /* happens when unwinding kernel->user */
+		info->call_frame = 1;
+		return;
+	}
+
 	memset(info, 0, sizeof(*info));
 	if (sanitize) /* We are only prepared to use full reg sets. */
 		_stp_error("Impossible to sanitize i386 pr_regs");
@@ -97,29 +100,6 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
 #endif
 		
 	}
-}
-
-static inline void arch_unw_init_blocked(struct unwind_frame_info *info)
-{
-	memset(&info->regs, 0, sizeof(info->regs));
-#ifdef STAPCONF_X86_UNIREGS	
-	info->regs.ip = info->task->thread.ip;
-	info->regs.cs = __KERNEL_CS;
-	__get_user(info->regs.bp, (long *)info->task->thread.sp);
-	info->regs.sp = info->task->thread.sp;
-	info->regs.ss = __KERNEL_DS;
-	info->regs.ds = __USER_DS;
-	info->regs.es = __USER_DS;
-#else
-	info->regs.eip = info->task->thread.eip;
-	info->regs.xcs = __KERNEL_CS;
-	__get_user(info->regs.ebp, (long *)info->task->thread.esp);
-	info->regs.esp = info->task->thread.esp;
-	info->regs.xss = __KERNEL_DS;
-	info->regs.xds = __USER_DS;
-	info->regs.xes = __USER_DS;
-#endif
-	
 }
 
 #endif /* _STP_I386_UNWIND_H */

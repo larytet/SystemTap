@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2011 Red Hat Inc.
+// Copyright (C) 2005-2012 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -25,6 +25,8 @@ extern "C" {
 #include <signal.h>
 #include <elfutils/libdw.h>
 }
+
+#include "privilege.h"
 
 #if ENABLE_NLS
 #define _(string) gettext(string)
@@ -130,8 +132,9 @@ public:
   int include_arg_start;
   std::vector<std::string> macros;
   std::vector<std::string> args;
-  std::vector<std::string> kbuildflags;
+  std::vector<std::string> kbuildflags; // -B var=val
   std::vector<std::string> globalopts; // -G var=val
+  std::vector<std::string> modinfos; // --modinfo tag=value
   std::string release;
   std::string kernel_release;
   std::string kernel_base_release;
@@ -141,6 +144,7 @@ public:
   std::set<std::string> kernel_exports;
   std::string machine;
   std::string architecture;
+  bool native_build;
   std::string runtime_path;
   bool runtime_specified;
   std::string data_path;
@@ -169,13 +173,19 @@ public:
   bool prologue_searching;
   bool tapset_compile_coverage;
   bool need_uprobes;
+  bool need_unwind;
+  bool need_symbols;
   std::string uprobes_path;
   std::string uprobes_hash;
   bool load_only; // flight recorder mode
   bool omit_werror;
-  bool unprivileged;
+  privilege_t privilege;
+  bool privilege_set;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
+  bool dump_probe_types;
+  int download_dbinfo;
+  bool suppress_handler_errors;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -296,6 +306,7 @@ public:
 
   // unparser data
   translator_output* op;
+  std::vector<translator_output*> auxiliary_outputs;
   unparser* up;
 
   // some symbol addresses
@@ -308,6 +319,7 @@ public:
   std::set<std::string> unwindsym_modules;
   bool unwindsym_ldd;
   struct module_cache* module_cache;
+  std::vector<std::string> build_ids;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -317,6 +329,8 @@ public:
   unsigned num_errors () { return seen_errors.size() + (panic_warnings ? seen_warnings.size() : 0); }
 
   std::set<std::string> rpms_to_install;
+
+  translator_output* op_create_auxiliary();
 
   // void print_error (const parse_error& e);
   const token* last_token;

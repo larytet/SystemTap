@@ -15,13 +15,6 @@
 
 #include "unwind/unwind.h"
 
-#ifdef STP_USE_DWARF_UNWINDER
-
-struct unwind_context {
-    struct unwind_frame_info info;
-    struct unwind_state state;
-};
-
 static uleb128_t get_uleb128(const u8 **pcur, const u8 *end)
 {
 	const u8 *cur = *pcur;
@@ -162,7 +155,7 @@ static const u32 *cie_for_fde(const u32 *fde, void *unwind_data,
  * data read. */
 static unsigned long read_ptr_sect(const u8 **pLoc, const void *end,
 				   signed ptrType, unsigned long textAddr,
-				   unsigned long dataAddr)
+				   unsigned long dataAddr, int user)
 {
 	unsigned long value = 0;
 	union {
@@ -232,16 +225,18 @@ static unsigned long read_ptr_sect(const u8 **pLoc, const void *end,
 		return 0;
 	}
 	if ((ptrType & DW_EH_PE_indirect)
-	    && _stp_read_address(value, (unsigned long *)value, KERNEL_DS))
+	    && _stp_read_address(value, (unsigned long *)value,
+				 (user ? USER_DS : KERNEL_DS)))
 		return 0;
 	*pLoc = ptr.p8;
 
 	return value;
 }
 
-static unsigned long read_pointer(const u8 **pLoc, const void *end, signed ptrType)
+static unsigned long read_pointer(const u8 **pLoc, const void *end, signed ptrType,
+				  int user)
 {
-	return read_ptr_sect(pLoc, end, ptrType, 0, 0);
+	return read_ptr_sect(pLoc, end, ptrType, 0, 0, user);
 }
 
 /* Parse FDE and CIE content. Basic sanity checks should already have
@@ -249,7 +244,7 @@ static unsigned long read_pointer(const u8 **pLoc, const void *end, signed ptrTy
    Returns -1 if FDE or CIE cannot be parsed.*/
 static int parse_fde_cie(const u32 *fde, const u32 *cie,
 			       void *unwind_data, uint32_t table_len,
-			       unsigned *ptrType,
+			       unsigned *ptrType, int user,
 			       unsigned long *startLoc, unsigned long *locRange,
 			       const u8 **fdeStart, const u8 **fdeEnd,
 			       const u8 **cieStart, const u8 **cieEnd,
@@ -283,6 +278,9 @@ static int parse_fde_cie(const u32 *fde, const u32 *cie,
 
 	*retAddrReg = ((version <= 1)
 		       ? *ciePtr++ : get_uleb128(&ciePtr, *cieEnd));
+	dbug_unwind(1, "map retAddrReg value %ld to reg_info idx %ld\n",
+		    *retAddrReg, DWARF_REG_MAP(*retAddrReg));
+	*retAddrReg = DWARF_REG_MAP(*retAddrReg);
 
 	if (*aug == 'z') {
 		augLen = get_uleb128(&ciePtr, *cieEnd);
@@ -313,7 +311,7 @@ static int parse_fde_cie(const u32 *fde, const u32 *cie,
 				   the value, so don't try to deref.
 				   Mask off DW_EH_PE_indirect. */
 				signed pType = *ciePtr++ & 0x7F;
-				if (!read_pointer(&ciePtr, *cieStart, pType)) {
+				if (!read_pointer(&ciePtr, *cieStart, pType, user)) {
 					_stp_warn("couldn't read personality routine handler\n");
 					return -1;
 				}
@@ -340,9 +338,10 @@ static int parse_fde_cie(const u32 *fde, const u32 *cie,
 	/* Now we finally know the type encoding and whether or not the
 	   augmentation string starts with 'z' indicating the FDE might also
 	   have some augmentation data, so we can parse the FDE. */
-	*startLoc = read_pointer(&fdePtr, *fdeEnd, *ptrType);
+	*startLoc = read_pointer(&fdePtr, *fdeEnd, *ptrType, user);
 	*locRange = read_pointer(&fdePtr, *fdeEnd,
-				 *ptrType & (DW_EH_PE_FORM | DW_EH_PE_signed));
+				 *ptrType & (DW_EH_PE_FORM | DW_EH_PE_signed),
+				 user);
 	dbug_unwind(2, "startLoc: %lx, locrange: %lx\n",
 		    *startLoc, *locRange);
 
@@ -397,7 +396,8 @@ static void set_expr_rule(uleb128_t reg, enum item_location where,
    512 should be enough for anybody... */
 #define MAX_CFI 512
 
-static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, signed ptrType, struct unwind_state *state)
+static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
+		      signed ptrType, int user, struct unwind_state *state)
 {
 	union {
 		const u8 *p8;
@@ -421,7 +421,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, s
 				dbug_unwind(1, "DW_CFA_nop\n");
 				break;
 			case DW_CFA_set_loc:
-				if ((state->loc = read_pointer(&ptr.p8, end, ptrType)) == 0)
+				if ((state->loc = read_pointer(&ptr.p8, end, ptrType, user)) == 0)
 					result = 0;
 				dbug_unwind(1, "DW_CFA_set_loc %lx (result=%d)\n", state->loc, result);
 				break;
@@ -439,45 +439,68 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, s
 				break;
 			case DW_CFA_offset_extended:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_offset_extended value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_rule(value, Memory, get_uleb128(&ptr.p8, end), state);
-				dbug_unwind(1, "DW_CFA_offset_extended\n");
 				break;
 			case DW_CFA_val_offset:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_val_offset value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_rule(value, Value, get_uleb128(&ptr.p8, end), state);
-				dbug_unwind(1, "DW_CFA_val_offset\n");
 				break;
 			case DW_CFA_offset_extended_sf:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_offset_extended_sf value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_rule(value, Memory, get_sleb128(&ptr.p8, end), state);
-				dbug_unwind(1, "DW_CFA_offset_extended_sf\n");
 				break;
 			case DW_CFA_val_offset_sf:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_val_offset_sf value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_rule(value, Value, get_sleb128(&ptr.p8, end), state);
-				dbug_unwind(1, "DW_CFA_val_offset_sf\n");
+				break;
+			case DW_CFA_same_value:
+				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_same_value value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
+				set_rule(value, Same, 0, state);
 				break;
 			case DW_CFA_restore_extended:
-			case DW_CFA_undefined:
-			case DW_CFA_same_value:
-				set_rule(get_uleb128(&ptr.p8, end), Nowhere, 0, state);
-				dbug_unwind(1, "DW_CFA_undefined (instruction: 0x%x)\n", *(ptr.p8 - 1));
-				break;
-			case DW_CFA_register:
 				value = get_uleb128(&ptr.p8, end);
-				set_rule(value, Register, get_uleb128(&ptr.p8, end), state);
-				dbug_unwind(1, "DW_CFA_register\n");
+				dbug_unwind(1, "map DW_CFA_restore_extended value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
+				memcpy(&REG_STATE.regs[value], &state->cie_regs[value], sizeof(struct unwind_item));
 				break;
+			case DW_CFA_undefined:
+				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_undefined value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
+				set_rule(value, Nowhere, 0, state);
+				break;
+			case DW_CFA_register: {
+				uleb128_t reg_value;
+				value = get_uleb128(&ptr.p8, end);
+				reg_value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_register value %ld to reg_info idx %ld (reg_value %ld to reg_info idx %ld)\n", value, DWARF_REG_MAP(value), reg_value, DWARF_REG_MAP(reg_value));
+				value = DWARF_REG_MAP(value);
+				reg_value = DWARF_REG_MAP(reg_value);
+				set_rule(value, Register, reg_value, state);
+				break;
+			}
 			case DW_CFA_expression:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_expression value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_expr_rule(value, Expr, &ptr.p8, end, state);
-				dbug_unwind(1, "DW_CFA_expression\n");
 				break;
 			case DW_CFA_val_expression:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_val_expression value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_expr_rule(value, ValExpr, &ptr.p8, end,
 					      state);
-				dbug_unwind(1, "DW_CFA_val_expression\n");
 				break;
 			case DW_CFA_remember_state:
 				state->stackDepth++;
@@ -499,7 +522,9 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, s
 				dbug_unwind(1, "DW_CFA_restore_state (stackDepth=%d)\n", state->stackDepth);
 				break;
 			case DW_CFA_def_cfa:
-				REG_STATE.cfa.reg = get_uleb128(&ptr.p8, end);
+				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_def_cfa value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				REG_STATE.cfa.reg = value;
 				dbug_unwind(1, "DW_CFA_def_cfa reg=%ld\n", REG_STATE.cfa.reg);
 				/*nobreak */
 			case DW_CFA_def_cfa_offset:
@@ -507,16 +532,18 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, s
 				dbug_unwind(1, "DW_CFA_def_cfa_offset offs=%lx\n", REG_STATE.cfa.offs);
 				break;
 			case DW_CFA_def_cfa_sf:
-				REG_STATE.cfa.reg = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "DW_CFA_def_cfa_sf reg=%ld\n", REG_STATE.cfa.reg);
+				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_def_cfa_sf value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				REG_STATE.cfa.reg = value;
 				/*nobreak */
 			case DW_CFA_def_cfa_offset_sf:
 				REG_STATE.cfa.offs = get_sleb128(&ptr.p8, end) * state->dataAlign;
 				dbug_unwind(1, "DW_CFA_def_cfa_offset_sf offs=%lx\n", REG_STATE.cfa.offs);
 				break;
 			case DW_CFA_def_cfa_register:
-				REG_STATE.cfa.reg = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "DW_CFA_def_cfa_register reg=%ld\n", REG_STATE.cfa.reg);
+				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_def_cfa_register value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				REG_STATE.cfa.reg = value;
 				break;
 			case DW_CFA_def_cfa_expression: {
 				const u8 *cfa_expr = ptr.p8;
@@ -537,8 +564,9 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, s
 				break;
 			case DW_CFA_GNU_negative_offset_extended:
 				value = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_GNU_negative_offset_extended value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value = DWARF_REG_MAP(value);
 				set_rule(value, Memory, (uleb128_t)0 - get_uleb128(&ptr.p8, end), state);
-				dbug_unwind(1, "DW_CFA_GNU_negative_offset_extended\n");
 				break;
 			case DW_CFA_GNU_window_save:
 			default:
@@ -553,12 +581,15 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc, s
 			break;
 		case 2:
 			value = *ptr.p8++ & 0x3f;
+			dbug_unwind(1, "map DW_CFA_offset value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+			value = DWARF_REG_MAP(value);
 			set_rule(value, Memory, get_uleb128(&ptr.p8, end), state);
-			dbug_unwind(1, "DW_CFA_offset\n");
 			break;
 		case 3:
-			set_rule(*ptr.p8++ & 0x3f, Nowhere, 0, state);
-			dbug_unwind(1, "DW_CFA_restore\n");
+			value = *ptr.p8++ & 0x3f;
+			dbug_unwind(1, "map DW_CFA_restore value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+			value = DWARF_REG_MAP(value);
+			memcpy(&REG_STATE.regs[value], &state->cie_regs[value], sizeof(struct unwind_item));
 			break;
 		}
 		dbug_unwind(1, "targetLoc=%lx state->loc=%lx\n", targetLoc, state->loc);
@@ -620,10 +651,10 @@ static char *_stp_eh_enc_name(signed type)
 // and the elfutils base relocation done during loading of the .dwarf_frame
 // in translate.cxx.
 static unsigned long
-adjustStartLoc (unsigned long startLoc, struct task_struct *tsk,
+adjustStartLoc (unsigned long startLoc,
 		struct _stp_module *m,
 		struct _stp_section *s,
-		unsigned ptrType, int is_ehframe)
+		unsigned ptrType, int is_ehframe, int user)
 {
   unsigned long vm_addr = 0;
 
@@ -649,8 +680,8 @@ adjustStartLoc (unsigned long startLoc, struct task_struct *tsk,
   }
 
   /* User space or kernel dynamic module. */
-  if (strcmp (s->name, ".dynamic") == 0)
-    stap_find_vma_map_info_user(tsk->group_leader, m, &vm_addr, NULL, NULL);
+  if (user && strcmp (s->name, ".dynamic") == 0)
+    stap_find_vma_map_info_user(current->group_leader, m, &vm_addr, NULL, NULL);
   else
     vm_addr = s->static_addr;
 
@@ -662,10 +693,10 @@ adjustStartLoc (unsigned long startLoc, struct task_struct *tsk,
 
 /* If we previously created an unwind header, then use it now to binary search */
 /* for the FDE corresponding to pc. */
-static u32 *_stp_search_unwind_hdr(unsigned long pc, struct task_struct *tsk,
+static u32 *_stp_search_unwind_hdr(unsigned long pc,
 				   struct _stp_module *m,
 				   struct _stp_section *s,
-				   int is_ehframe)
+				   int is_ehframe, int user)
 {
 	const u8 *ptr, *end, *hdr = is_ehframe ? m->unwind_hdr: s->debug_hdr;
 	uint32_t hdr_len = is_ehframe ? m->unwind_hdr_len : s->debug_hdr_len;
@@ -704,7 +735,7 @@ static u32 *_stp_search_unwind_hdr(unsigned long pc, struct task_struct *tsk,
 	{
 		// XXX Can the header validity be checked just once?
 		unsigned long eh = read_ptr_sect(&ptr, end, hdr[1], 0,
-						 eh_hdr_addr);
+						 eh_hdr_addr, user);
 		if ((hdr[1] & DW_EH_PE_ADJUST) == DW_EH_PE_pcrel)
 			eh = eh - (unsigned long)hdr + eh_hdr_addr;
 		if ((is_ehframe && eh != (unsigned long)m->eh_frame_addr)) {
@@ -712,7 +743,7 @@ static u32 *_stp_search_unwind_hdr(unsigned long pc, struct task_struct *tsk,
 			return NULL;
 		}
 	}
-	num = read_ptr_sect(&ptr, end, hdr[2], 0, eh_hdr_addr);
+	num = read_ptr_sect(&ptr, end, hdr[2], 0, eh_hdr_addr, user);
 	if (num == 0 || num != (end - ptr) / (2 * tableSize)
 	    || (end - ptr) % (2 * tableSize)) {
 		_stp_warn("unwind Bad num=%d end-ptr=%ld 2*tableSize=%d",
@@ -723,9 +754,9 @@ static u32 *_stp_search_unwind_hdr(unsigned long pc, struct task_struct *tsk,
 	do {
 		const u8 *cur = ptr + (num / 2) * (2 * tableSize);
 		startLoc = read_ptr_sect(&cur, cur + tableSize, hdr[3], 0,
-					 eh_hdr_addr);
-		startLoc = adjustStartLoc(startLoc, tsk, m, s, hdr[3],
-					  is_ehframe);
+					 eh_hdr_addr, user);
+		startLoc = adjustStartLoc(startLoc, m, s, hdr[3],
+					  is_ehframe, user);
 		if (pc < startLoc)
 			num /= 2;
 		else {
@@ -735,10 +766,12 @@ static u32 *_stp_search_unwind_hdr(unsigned long pc, struct task_struct *tsk,
 	} while (startLoc && num > 1);
 
 	if (num == 1
-	    && (startLoc = adjustStartLoc(read_ptr_sect(&ptr, ptr + tableSize, hdr[3], 0, eh_hdr_addr), tsk, m, s, hdr[3], is_ehframe)) != 0 && pc >= startLoc) {
+	    && (startLoc = adjustStartLoc(read_ptr_sect(&ptr, ptr + tableSize, hdr[3], 0,
+							eh_hdr_addr, user),
+					  m, s, hdr[3], is_ehframe, user)) != 0 && pc >= startLoc) {
 		unsigned long off;
 		off = read_ptr_sect(&ptr, ptr + tableSize, hdr[3],
-				    0, eh_hdr_addr);
+				    0, eh_hdr_addr, user);
 		dbug_unwind(1, "fde off=%lx\n", off);
 		/* For real eh_frame_hdr the actual fde address is at the
 		   new eh_frame load address. For our own debug_hdr created
@@ -764,7 +797,7 @@ static u32 *_stp_search_unwind_hdr(unsigned long pc, struct task_struct *tsk,
 #define MAX_EXPR_STACK	8	/* arbitrary */
 
 static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
-			unsigned long *result)
+			unsigned long *result, int user)
 {
 	/*
 	 * We previously validated the length, so we won't read off the end.
@@ -971,6 +1004,9 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 		case DW_OP_breg0 ... DW_OP_breg31:
 			value = op - DW_OP_breg0;
 		breg:
+			dbug_unwind(1, "map DW_OP_breg value %ld to reg_info idx %ld\n",
+				    value, DWARF_REG_MAP(value));
+			value = DWARF_REG_MAP(value);
 			if (unlikely(value >= ARRAY_SIZE(reg_info))) {
 				_stp_warn("invalid register number %lu in CFI expression\n", value);
 				return 1;
@@ -996,7 +1032,8 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 				unsigned long addr = POP;
 				switch (value) {
 #define CASE(n)     		case sizeof(u##n):			\
-					if (unlikely(_stp_read_address(value, (u##n *)addr, KERNEL_DS))) \
+					if (unlikely(_stp_read_address(value, (u##n *)addr, \
+						                       (user ? USER_DS : KERNEL_DS)))) \
 						goto copy_failed;	\
 					break
 					CASES;
@@ -1042,9 +1079,9 @@ divzero:
  * number in case of an error.  A positive return means unwinding is finished;
  * don't try to fallback to dumping addresses on the stack. */
 static int unwind_frame(struct unwind_context *context,
-			struct task_struct *tsk,
 			struct _stp_module *m, struct _stp_section *s,
-			void *table, uint32_t table_len, int is_ehframe)
+			void *table, uint32_t table_len, int is_ehframe,
+			int user)
 {
 	const u32 *fde = NULL, *cie = NULL;
 	/* The start and end of the CIE CFI instructions. */
@@ -1071,9 +1108,14 @@ static int unwind_frame(struct unwind_context *context,
 		goto err;
 	}
 
+	/* Sets all rules to default Same value. */
 	memset(state, 0, sizeof(*state));
 
-	fde = _stp_search_unwind_hdr(pc, tsk, m, s, is_ehframe);
+	/* All "fake" dwarf registers should start out Nowhere. */
+	for (i = UNW_NR_REAL_REGS; i < ARRAY_SIZE(REG_STATE.regs); ++i)
+		set_rule(i, Nowhere, 0, state);
+
+	fde = _stp_search_unwind_hdr(pc, m, s, is_ehframe, user);
 	dbug_unwind(1, "%s: fde=%lx\n", m->name, (unsigned long) fde);
 
 	/* found the fde, now set startLoc and endLoc */
@@ -1081,7 +1123,8 @@ static int unwind_frame(struct unwind_context *context,
 		cie = cie_for_fde(fde, table, table_len, is_ehframe);
 		dbug_unwind(1, "%s: cie=%lx\n", m->name, (unsigned long) cie);
 		if (likely(cie != NULL)) {
-			if (parse_fde_cie(fde, cie, table, table_len, &ptrType,
+			if (parse_fde_cie(fde, cie, table, table_len,
+					  &ptrType, user,
 					  &startLoc, &locRange,
 					  &fdeStart, &fdeEnd,
 					  &cieStart, &cieEnd,
@@ -1090,7 +1133,7 @@ static int unwind_frame(struct unwind_context *context,
 					  &retAddrReg,
 					  &call_frame) < 0)
 				goto err;
-			startLoc = adjustStartLoc(startLoc, tsk, m, s, ptrType, is_ehframe);
+			startLoc = adjustStartLoc(startLoc, m, s, ptrType, is_ehframe, user);
 			endLoc = startLoc + locRange;
 			dbug_unwind(1, "startLoc: %lx, endLoc: %lx\n", startLoc, endLoc);
 			if (pc > endLoc) {
@@ -1107,7 +1150,7 @@ static int unwind_frame(struct unwind_context *context,
 	       if it didn't exist. These should never be missing except
 	       when there are toolchain bugs. */
 	    unsigned long tableSize;
-	    _stp_warn("No binary search table for debug frame, doing slow linear search for %s\n", m->name);
+	    _stp_warn("No binary search table for %s frame, doing slow linear search for %s\n", (is_ehframe ? "eh" : "debug"), m->name);
 	    for (fde = table, tableSize = table_len; cie = NULL, tableSize > sizeof(*fde)
 		 && tableSize - sizeof(*fde) >= *fde; tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
 			dbug_unwind(3, "fde=%lx tableSize=%d\n", (long)*fde, (int)tableSize);
@@ -1116,7 +1159,7 @@ static int unwind_frame(struct unwind_context *context,
 			cie = cie_for_fde(fde, table, table_len, is_ehframe);
 			if (cie == NULL
 			    || parse_fde_cie(fde, cie, table, table_len,
-					     &ptrType,
+					     &ptrType, user,
 					     &startLoc, &locRange,
 					     &fdeStart, &fdeEnd,
 					     &cieStart, &cieEnd,
@@ -1125,7 +1168,7 @@ static int unwind_frame(struct unwind_context *context,
 					     &retAddrReg,
 					     &call_frame) < 0)
 				break;
-			startLoc = adjustStartLoc(startLoc, tsk, m, s, ptrType, is_ehframe);
+			startLoc = adjustStartLoc(startLoc, m, s, ptrType, is_ehframe, user);
 			if (!startLoc)
 				continue;
 			endLoc = startLoc + locRange;
@@ -1161,12 +1204,15 @@ static int unwind_frame(struct unwind_context *context,
 
 	/* Common Information Entry (CIE) instructions. */
 	dbug_unwind (1, "processCFI for CIE\n");
-	if (!processCFI(cieStart, cieEnd, 0, ptrType, state))
+	if (!processCFI(cieStart, cieEnd, 0, ptrType, user, state))
 		goto err;
+
+	/* Store initial state for use with DW_CFA_restore... */
+	memcpy(&state->cie_regs, &REG_STATE, sizeof (REG_STATE));
 
 	/* Process Frame Description Entry (FDE) instructions. */
 	dbug_unwind (1, "processCFI for FDE\n");
-	if (!processCFI(fdeStart, fdeEnd, pc, ptrType, state)
+	if (!processCFI(fdeStart, fdeEnd, pc, ptrType, user, state)
 	    || state->loc > endLoc || REG_STATE.regs[retAddrReg].where == Nowhere
 	    || REG_STATE.cfa.reg >= ARRAY_SIZE(reg_info)
 	    || reg_info[REG_STATE.cfa.reg].width != sizeof(unsigned long)
@@ -1179,7 +1225,7 @@ static int unwind_frame(struct unwind_context *context,
 		frame->call_frame = 0;
 #endif
 	if (REG_STATE.cfa_is_expr) {
-		if (compute_expr(REG_STATE.cfa_expr, frame, &cfa))
+		if (compute_expr(REG_STATE.cfa_expr, frame, &cfa, user))
 			goto err;
 	}
 	else {
@@ -1235,13 +1281,36 @@ static int unwind_frame(struct unwind_context *context,
 		if (REG_INVALID(i))
 			continue;
 		dbug_unwind(2, "register %d. where=%d\n", i, REG_STATE.regs[i].where);
-		switch (REG_STATE.regs[i].where) {
-		case Nowhere:
-			if (reg_info[i].width != sizeof(UNW_SP(frame))
-			    || &FRAME_REG(i, __typeof__(UNW_SP(frame)))
-			    != &UNW_SP(frame))
-				continue;
+
+#if (UNW_SP_FROM_CFA == 1)
+		if (i == UNW_SP_IDX) {
 			UNW_SP(frame) = cfa;
+			continue;
+		}
+#endif
+
+#if (UNW_PC_FROM_RA == 1)
+		if (i == UNW_PC_IDX) {
+			UNW_PC(frame) = FRAME_REG(retAddrReg, unsigned long);
+			continue;
+		}
+#endif
+
+		switch (REG_STATE.regs[i].where) {
+		case Same:
+			/* Preserve register from current frame. */
+			break;
+		case Nowhere:
+			switch (reg_info[i].width) {
+#define CASE(n) case sizeof(u##n): \
+				FRAME_REG(i, u##n) = 0; \
+				break
+				CASES;
+#undef CASE
+			default:
+				_stp_warn("bad Register size (Nowhere)\n");
+				goto err;
+			}
 			break;
 		case Register:
 			switch (reg_info[i].width) {
@@ -1251,23 +1320,23 @@ static int unwind_frame(struct unwind_context *context,
 				CASES;
 #undef CASE
 			default:
-				_stp_warn("bad Register size\n");
+				_stp_warn("bad Register size (Register)\n");
 				goto err;
 			}
 			break;
 		case Expr:
-			if (compute_expr(REG_STATE.regs[i].expr, frame, &addr))
+			if (compute_expr(REG_STATE.regs[i].expr, frame, &addr, user))
 				goto err;
 			goto memory;
 		case ValExpr:
-			if (compute_expr(REG_STATE.regs[i].expr, frame, &addr))
+			if (compute_expr(REG_STATE.regs[i].expr, frame, &addr, user))
 				goto err;
 			goto value;
 		case Value:
 			addr = cfa + REG_STATE.regs[i].value * state->dataAlign;
 		value:
 			if (reg_info[i].width != sizeof(unsigned long)) {
-				_stp_warn("bad Register width\n");
+				_stp_warn("bad Register width for value state\n");
 				goto err;
 			}
 			FRAME_REG(i, unsigned long) = addr;
@@ -1278,7 +1347,8 @@ static int unwind_frame(struct unwind_context *context,
 			dbug_unwind(2, "addr=%lx width=%d\n", addr, reg_info[i].width);
 			switch (reg_info[i].width) {
 #define CASE(n)     case sizeof(u##n):					\
-				if (unlikely(_stp_read_address(FRAME_REG(i, u##n), (u##n *)addr, KERNEL_DS))) \
+				if (unlikely(_stp_read_address(FRAME_REG(i, u##n), (u##n *)addr, \
+							       (user ? USER_DS : KERNEL_DS)))) \
 					goto copy_failed;		\
 				dbug_unwind(1, "set register %d to %lx\n", i, (long)FRAME_REG(i,u##n));	\
 				break
@@ -1308,8 +1378,7 @@ done:
 #undef FRAME_REG
 }
 
-static int unwind(struct unwind_context *context,
-		  struct task_struct *tsk)
+static int unwind(struct unwind_context *context, int user)
 {
 	struct _stp_module *m;
 	struct _stp_section *s = NULL;
@@ -1323,19 +1392,20 @@ static int unwind(struct unwind_context *context,
 	if (UNW_PC(frame) == 0)
 		return -EINVAL;
 
-	if (tsk)
+	if (user)
 	  {
-	    m = _stp_umod_lookup (pc, tsk, & module_name, NULL, NULL);
+	    m = _stp_umod_lookup (pc, current, & module_name, NULL, NULL);
 	    if (m)
 	      s = &m->sections[0];
 	  }
 	else
           {
-            preempt_disable(); /* probably redundant */
             m = _stp_kmod_sec_lookup (pc, &s);
             if (!m) {
 #ifdef STAPCONF_MODULE_TEXT_ADDRESS
-                struct module *ko = __module_text_address (pc);
+                struct module *ko;
+                preempt_disable();
+                ko = __module_text_address (pc);
                 if (ko) { module_name = ko->name; }
                 else { 
                   /* Possible heuristic: we could assume we're talking
@@ -1343,9 +1413,9 @@ static int unwind(struct unwind_context *context,
                      were SYMBOL_EXPORT'd, we could call that and be
                      more sure. */
                 } 
+                preempt_enable_no_resched();
 #endif
             }
-            preempt_enable_no_resched();
           }
 
 	if (unlikely(m == NULL)) {
@@ -1358,12 +1428,12 @@ static int unwind(struct unwind_context *context,
 	}
 
 	dbug_unwind(1, "trying debug_frame\n");
-	res = unwind_frame (context, tsk, m, s, m->debug_frame,
-			    m->debug_frame_len, 0);
+	res = unwind_frame (context, m, s, m->debug_frame,
+			    m->debug_frame_len, 0, user);
 	if (res != 0) {
 	  dbug_unwind(1, "debug_frame failed: %d, trying eh_frame\n", res);
-	  res = unwind_frame (context, tsk, m, s, m->eh_frame,
-			      m->eh_frame_len, 1);
+	  res = unwind_frame (context, m, s, m->eh_frame,
+			      m->eh_frame_len, 1, user);
 	}
 
         /* This situation occurs where some unwind data was found, but
@@ -1374,9 +1444,3 @@ static int unwind(struct unwind_context *context,
 
 	return res;
 }
-
-#else
-
-struct unwind_context { };
-
-#endif /* STP_USE_DWARF_UNWINDER */

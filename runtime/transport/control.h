@@ -16,11 +16,7 @@
 #include <linux/list.h>
 
 static struct list_head _stp_ctl_ready_q;
-#ifdef CONFIG_PREEMPT_RT
-static raw_spinlock_t _stp_ctl_ready_lock;
-#else
 static spinlock_t _stp_ctl_ready_lock;
-#endif
 static wait_queue_head_t _stp_ctl_wq;
 
 struct _stp_buffer {
@@ -32,7 +28,8 @@ struct _stp_buffer {
 
 static struct file_operations _stp_ctl_fops_cmd;
 
-static int _stp_ctl_send(int type, void *data, int len);
+static int _stp_ctl_send(int type, void *data, unsigned len);
+static int _stp_ctl_send_notify(int type, void *data, unsigned len);
 
 static int _stp_ctl_write_fs(int type, void *data, unsigned len);
 

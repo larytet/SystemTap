@@ -1,7 +1,7 @@
 /* -*- linux-c -*-
  *
  * x86_64 dwarf unwinder header file
- * Copyright (C) 2008, 2010 Red Hat Inc.
+ * Copyright (C) 2008, 2010, 2011 Red Hat Inc.
  * Copyright (C) 2002-2006 Novell, Inc.
  * 
  * This file is part of systemtap, and is free software.  You can
@@ -23,14 +23,6 @@
 
 /* these are simple for x86_64 */
 #define _stp_get_unaligned(ptr) (*(ptr))
-#define _stp_put_unaligned(val, ptr) ((void)( *(ptr) = (val) ))
-
-struct unwind_frame_info
-{
-	struct pt_regs regs;
-	struct task_struct *task;
-	unsigned call_frame:1;
-};
 
 #ifdef STAPCONF_X86_UNIREGS
 #define UNW_PC(frame)        (frame)->regs.ip
@@ -39,15 +31,6 @@ struct unwind_frame_info
 #define UNW_PC(frame)        (frame)->regs.rip
 #define UNW_SP(frame)        (frame)->regs.rsp
 #endif /* STAPCONF_X86_UNIREGS */
-
-#if 0 /* STP_USE_FRAME_POINTER */
-/* Frame pointers not implemented in x86_64 currently */
-#define UNW_FP(frame)        (frame)->regs.rbp
-#define FRAME_RETADDR_OFFSET 8
-#define FRAME_LINK_OFFSET    0
-#define STACK_BOTTOM(tsk)    (((tsk)->thread.rsp0 - 1) & ~(THREAD_SIZE - 1))
-#define STACK_TOP(tsk)       ((tsk)->thread.rsp0)
-#endif
 
 /* Might need to account for the special exception and interrupt handling
    stacks here, since normally
@@ -76,7 +59,7 @@ struct unwind_frame_info
 	PTREGS_INFO(r13), \
 	PTREGS_INFO(r14), \
 	PTREGS_INFO(r15), \
-	PTREGS_INFO(ip)
+	PTREGS_INFO(ip)	/* Note, placeholder for "fake" dwarf ret reg. */
 #else
 #define UNW_REGISTER_INFO \
 	PTREGS_INFO(rax), \
@@ -95,8 +78,14 @@ struct unwind_frame_info
 	PTREGS_INFO(r13), \
 	PTREGS_INFO(r14), \
 	PTREGS_INFO(r15), \
-	PTREGS_INFO(rip)
+	PTREGS_INFO(rip) /* Note, placeholder for "fake" dwarf ret reg. */
 #endif /* STAPCONF_X86_UNIREGS */
+
+#define UNW_PC_IDX 16
+#define UNW_SP_IDX 7
+
+#define UNW_NR_REAL_REGS 16
+#define UNW_PC_FROM_RA 0 /* Because rip == return address column already. */
 
 #define UNW_DEFAULT_RA(raItem, dataAlign) \
 	((raItem).where == Memory && \
@@ -106,6 +95,11 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs,
 					    int sanitize)
 {
+	if (&info->regs == regs) { /* happens when unwinding kernel->user */
+		info->call_frame = 1;
+		return;
+	}
+
 	memset(info, 0, sizeof(*info));
 	if (sanitize) {
 		info->regs.r11 = regs->r11;
@@ -138,25 +132,6 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
 	} else {
 		info->regs = *regs;
 	}
-}
-
-static inline void arch_unw_init_blocked(struct unwind_frame_info *info)
-{
-	extern const char thread_return[];
-
-	memset(&info->regs, 0, sizeof(info->regs));
-	info->regs.cs = __KERNEL_CS;
-	info->regs.ss = __KERNEL_DS;	
-	
-#ifdef STAPCONF_X86_UNIREGS	
-	info->regs.ip = (unsigned long)thread_return;
-	__get_user(info->regs.bp, (unsigned long *)info->task->thread.sp);
-	info->regs.sp = info->task->thread.sp;
-#else
-	info->regs.rip = (unsigned long)thread_return;
-	__get_user(info->regs.rbp, (unsigned long *)info->task->thread.rsp);
-	info->regs.rsp = info->task->thread.rsp;
-#endif
 }
 
 #endif /* _STP_X86_64_UNWIND_H */

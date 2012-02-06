@@ -1,6 +1,6 @@
 /* main header file
- * Copyright (C) 2005-2008 Red Hat Inc.
- * Copyright (C) 2005, 2006 Intel Corporation.
+ * Copyright (C) 2005-2011 Red Hat Inc.
+ * Copyright (C) 2005-2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -22,6 +22,7 @@
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
+#include <linux/random.h>
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
 #include <asm/uaccess.h>
@@ -76,7 +77,23 @@ static void _stp_exit(void);
 
 #define is_myproc() (STP_CURRENT_EUID == _stp_uid)
 
-#ifndef STP_PRIVILEGED
+/* Check whether the required privilege level has been attained. */
+#define STP_PRIVILEGE_CONTAINS(actualPrivilege, requiredPrivilege) ( \
+  ((actualPrivilege) & (requiredPrivilege)) == (requiredPrivilege) \
+)
+
+/* Translate user privilege mask to text. */
+static const char *privilege_to_text (int p) {
+  if (STP_PRIVILEGE_CONTAINS (p, STP_PR_STAPDEV)) return "stapdev";
+  if (STP_PRIVILEGE_CONTAINS (p, STP_PR_STAPSYS)) return "stapsys";
+  if (STP_PRIVILEGE_CONTAINS (p, STP_PR_STAPUSR)) return "stapusr";
+  return "unknown";
+}
+
+#if STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) || \
+    STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPSYS)
+#define assert_is_myproc() do {} while (0)
+#else
 #define assert_is_myproc() do { \
   if (! is_myproc()) { \
     snprintf (CONTEXT->error_buffer, MAXSTRINGLEN, STAP_MSG_RUNTIME_H_01, \
@@ -84,11 +101,7 @@ static void _stp_exit(void);
     CONTEXT->last_error = CONTEXT->error_buffer; \
     goto out; \
   } } while (0)
-#else
-#define assert_is_myproc() do {} while (0)
 #endif
-
-
 
 #include "debug.h"
 
@@ -102,37 +115,30 @@ static struct
 
 #define _stp_seq_inc() (atomic_inc_return(&_stp_seq.seq))
 
-#ifndef MAXSTRINGLEN
-#define MAXSTRINGLEN 128
-#endif
-
-#ifndef MAXTRACE
-#define MAXTRACE 20
-#endif
-
-/* dwarf unwinder only tested so far on i386 and x86_64. */
-#if (defined(__i386__) || defined(__x86_64__))
+/* dwarf unwinder only tested so far on arm, i386, x86_64, ppc64 and s390x.
+   Only define STP_USE_DWARF_UNWINDER when STP_NEED_UNWIND_DATA,
+   as set through a pragma:unwind in one of the [u]context-unwind.stp
+   functions. */
+#if (defined(__arm__) || defined(__i386__) || defined(__x86_64__) || defined(__powerpc64__)) || defined (__s390x__)
+#ifdef STP_NEED_UNWIND_DATA
 #ifndef STP_USE_DWARF_UNWINDER
 #define STP_USE_DWARF_UNWINDER
 #endif
 #endif
-
-#ifdef CONFIG_FRAME_POINTER
-/* Just because frame pointers are available does not mean we can trust them. */
-#ifndef STP_USE_DWARF_UNWINDER
-#define STP_USE_FRAME_POINTER
-#endif
 #endif
 
 #include "alloc.c"
-#include "print.c"
+#include "print.h"
 #include "string.c"
-#include "io.c"
 #include "arith.c"
 #include "copy.c"
 #include "regs.c"
 #include "regs-ia64.c"
 
+#if (defined(CONFIG_UTRACE) || defined(STAPCONF_UTRACE_VIA_TRACEPOINTS) \
+     || defined(STAPCONF_UTRACE_VIA_FTRACE))
+#define HAVE_TASK_FINDER
+#endif
 #include "task_finder.c"
 
 #include "sym.c"
@@ -140,6 +146,17 @@ static struct
 #include "perf.c"
 #endif
 #include "addr-map.c"
+
+/* DWARF unwinder only tested so far on i386, x86_64 and ppc64.
+   We only need to compile in the unwinder when both STP_NEED_UNWIND_DATA
+   (set when a stap script defines pragma:unwind, as done in
+   [u]context-unwind.stp) is defined and the architecture actually supports
+   dwarf unwinding (as defined by STP_USE_DWARF_UNWINDER in runtime.h).  */
+#ifdef STP_USE_DWARF_UNWINDER
+#include "unwind.c"
+#else
+struct unwind_context { };
+#endif
 
 #ifdef module_param_cb			/* kernels >= 2.6.36 */
 #define _STP_KERNEL_PARAM_ARG const struct kernel_param
@@ -186,12 +203,15 @@ static struct kernel_param_ops param_ops_int64_t = {
 
 /************* Module Stuff ********************/
 
+static unsigned long stap_hash_seed; /* Init during module startup */
 int init_module (void)
 {
+  /* With deliberate hash-collision-inducing data conceivably fed to
+     stap, it is beneficial to add some runtime-random value to the
+     map hash. */
+  get_random_bytes(&stap_hash_seed, sizeof (stap_hash_seed));
   return _stp_transport_init();
 }
-
-static int probe_start(void);
 
 void cleanup_module(void)
 {
@@ -216,6 +236,19 @@ void cleanup_module(void)
    around the undefined reference.  */
 void __ia64_save_stack_nonlocal (void) { }
 #endif
+
+
+// PR13489, inode-uprobes sometimes lacks the necessary SYMBOL_EXPORT's.
+#if !defined(STAPCONF_TASK_USER_REGSET_VIEW_EXPORTED)
+void *kallsyms_task_user_regset_view;
+#endif
+#if !defined(STAPCONF_REGISTER_UPROBE_EXPORTED)
+void *kallsyms_register_uprobe;
+#endif
+#if !defined(STAPCONF_UNREGISTER_UPROBE_EXPORTED)
+void *kallsyms_unregister_uprobe;
+#endif
+
 
 MODULE_LICENSE("GPL");
 

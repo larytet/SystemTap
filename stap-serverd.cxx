@@ -3,7 +3,7 @@
   the data into a temporary file, calls the systemtap translator and
   then transmits the resulting file back to the client.
 
-  Copyright (C) 2011 Red Hat Inc.
+  Copyright (C) 2011-2012 Red Hat Inc.
 
   This file is part of systemtap, and is free software.  You can
   redistribute it and/or modify it under the terms of the GNU General Public
@@ -29,6 +29,7 @@
 #include <map>
 
 extern "C" {
+#include <unistd.h>
 #include <getopt.h>
 #include <wordexp.h>
 #include <glob.h>
@@ -36,6 +37,8 @@ extern "C" {
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <sys/types.h>
+#include <pwd.h>
 
 #include <nspr.h>
 #include <ssl.h>
@@ -55,6 +58,7 @@ extern "C" {
 #include "util.h"
 #include "nsscommon.h"
 #include "cscommon.h"
+#include "cmdline.h"
 
 using namespace std;
 
@@ -79,6 +83,7 @@ static string cert_serial_number;
 static string B_options;
 static string I_options;
 static string R_option;
+static string D_options;
 static bool   keep_temp;
 
 // Used to save our resource limits for these categories and impose smaller
@@ -171,11 +176,12 @@ process_log (const char *arg)
 static void
 parse_options (int argc, char **argv)
 {
-  // Examine the command line. We need not do much checking, but we do need to
-  // parse all options in order to discover the ones we're interested in.
+  // Examine the command line. This is the command line for us (stap-serverd) not the command
+  // line for spawned stap instances.
+  optind = 1;
   while (true)
     {
-      int long_opt;
+      int long_opt = 0;
       char *num_endptr;
 #define LONG_OPT_PORT 1
 #define LONG_OPT_SSL 2
@@ -186,7 +192,7 @@ parse_options (int argc, char **argv)
         { "log", 1, & long_opt, LONG_OPT_LOG },
         { NULL, 0, NULL, 0 }
       };
-      int grc = getopt_long (argc, argv, "a:B:I:kPr:R:", long_options, NULL);
+      int grc = getopt_long (argc, argv, "a:B:D:I:kPr:R:", long_options, NULL);
       if (grc < 0)
         break;
       switch (grc)
@@ -195,11 +201,15 @@ parse_options (int argc, char **argv)
 	  process_a (optarg);
 	  break;
 	case 'B':
-	  B_options += optarg;
+	  B_options += string (" -") + (char)grc + optarg;
+	  stap_options += string (" -") + (char)grc + optarg;
+	  break;
+	case 'D':
+	  D_options += string (" -") + (char)grc + optarg;
 	  stap_options += string (" -") + (char)grc + optarg;
 	  break;
 	case 'I':
-	  I_options += optarg;
+	  I_options += string (" -") + (char)grc + optarg;
 	  stap_options += string (" -") + (char)grc + optarg;
 	  break;
 	case 'k':
@@ -212,7 +222,7 @@ parse_options (int argc, char **argv)
 	  process_r (optarg);
 	  break;
 	case 'R':
-	  R_option = optarg;
+	  R_option = string (" -") + (char)grc + optarg;
 	  stap_options += string (" -") + (char)grc + optarg;
 	  break;
 	case '?':
@@ -401,18 +411,24 @@ create_services (AvahiClient *c) {
       string version = string ("version=") + CURRENT_CS_PROTOCOL_VERSION;;
       string optinfo = "optinfo=";
       string separator;
+      // These option strings already have a leading space.
       if (! R_option.empty ())
 	{
-	  optinfo += R_option;
+	  optinfo += R_option.substr(1);
 	  separator = " ";
 	}
       if (! B_options.empty ())
 	{
-	  optinfo += separator + B_options;
+	  optinfo += separator + B_options.substr(1);
+	  separator = " ";
+	}
+      if (! D_options.empty ())
+	{
+	  optinfo += separator + D_options.substr(1);
 	  separator = " ";
 	}
       if (! I_options.empty ())
-	optinfo += separator + I_options;
+	optinfo += separator + I_options.substr(1);
 
       // We will now our service to the entry group. Only services with the
       // same name should be put in the same entry group.
@@ -580,6 +596,23 @@ static void
 initialize (int argc, char **argv) {
   setup_signals (& handle_interrupt);
 
+  // Seed the random number generator. Used to generate noise used during key generation.
+  srand (time (NULL));
+
+  // Initial values.
+  client_version = "1.0"; // Assumed until discovered otherwise
+  use_db_password = false;
+  port = 0;
+  keep_temp = false;
+  struct utsname utsname;
+  uname (& utsname);
+  uname_r = utsname.release;
+  arch = normalize_machine (utsname.machine);
+
+  // Parse the arguments. This also starts the server log, if any, and should be done before
+  // any messages are issued.
+  parse_options (argc, argv);
+
   // PR11197: security prophylactics.
   // 1) Reject use as root, except via a special environment variable.
   if (! getenv ("STAP_PR11197_OVERRIDE")) {
@@ -587,8 +620,11 @@ initialize (int argc, char **argv) {
       fatal ("For security reasons, invocation of stap-serverd as root is not supported.");
   }
   // 2) resource limits should be set if the user is the 'stap-server' daemon.
-  string login = getlogin ();
-  if (login == "stap-server") {
+  struct passwd *pw = getpwuid (geteuid ());
+  if (! pw)
+    fatal (_F("Unable to determine effective user name: %s", strerror (errno)));
+  string username = pw->pw_name;
+  if (username == "stap-server") {
     // First obtain the current limits.
     int rc = getrlimit (RLIMIT_FSIZE, & our_RLIMIT_FSIZE);
     rc |= getrlimit (RLIMIT_STACK, & our_RLIMIT_STACK);
@@ -617,24 +653,8 @@ initialize (int argc, char **argv) {
   else
     set_rlimits = false;
 
-  // Seed the random number generator. Used to generate noise used during key generation.
-  srand (time (NULL));
-
-  // Initial values.
-  client_version = "1.0"; // Assumed until discovered otherwise
-  use_db_password = false;
-  port = 0;
-  keep_temp = false;
-  struct utsname utsname;
-  uname (& utsname);
-  uname_r = utsname.release;
-  arch = normalize_machine (utsname.machine);
-
-  // Parse the arguments.
-  parse_options (argc, argv);
-
   pid_t pid = getpid ();
-  log (_F("===== compile server pid %d starting =====", pid));
+  log (_F("===== compile server pid %d starting as %s =====", pid, username.c_str ()));
 
   // Where is the ssl certificate/key database?
   if (cert_db_path.empty ())
@@ -959,12 +979,21 @@ get_stap_locale (const string &staplang, vector<string> &envVec)
   const set<string> &locVars = localization_variables();
 
   /* Copy the global environ variable into the map */
-  for (unsigned i=0; environ[i]; i++)
-    {
-      vector<string> environTok;
-      tokenize(environ[i], environTok, "=");
-      envMap[environTok[0]] = (string)getenv(environTok[0].c_str());
-    }
+   if(environ != NULL)
+     {
+      for (unsigned i=0; environ[i]; i++)
+        {
+          string line = (string)environ[i];
+
+          /* Find the first '=' sign */
+          size_t pos = line.find("=");
+
+          /* Make sure it found an '=' sign */
+          if(pos != string::npos)
+            /* Everything before the '=' sign is the key, and everything after is the value. */ 
+            envMap[line.substr(0, pos)] = line.substr(pos+1); 
+        }
+     }
 
   /* Create regular expression objects to verify lines read from file. Should not allow
      spaces, ctrl characters, etc */
@@ -987,6 +1016,11 @@ get_stap_locale (const string &staplang, vector<string> &envVec)
       string value;
       size_t pos;
       pos = line.find("=");
+      if (pos == string::npos)
+        {
+          client_error(_F("Localization key=value line '%s' cannot be parsed", line.c_str()));
+	  continue;
+        }
       key = line.substr(0, pos);
       pos++;
       value = line.substr(pos);
@@ -1048,6 +1082,72 @@ filter_response_file (const string &file_name, const string &responseDirName)
   stap_system (0, cmd);
 }
 
+static privilege_t
+getRequestedPrivilege (const vector<string> &stapargv)
+{
+  // The purpose of this function is to find the --privilege or --unprivileged option specified
+  // by the user on the client side. We need to parse the command line completely, but we can
+  // exit when we find the first --privilege or --unprivileged option, since stap does not allow
+  // multiple privilege levels to specified on the same command line.
+  //
+  // Note that we need not do any options consistency checking since our spawned stap instance
+  // will do that.
+  //
+  // Create an argv/argc for use by getopt_long.
+  int argc = stapargv.size();
+  char ** argv = new char *[argc + 1];
+  for (unsigned i = 0; i < stapargv.size(); ++i)
+    argv[i] = (char *)stapargv[i].c_str();
+  argv[argc] = NULL;
+
+  privilege_t privilege = pr_highest; // Until specified otherwise.
+  optind = 1;
+  while (true)
+    {
+      // We need only allow getopt to parse the options until we find a
+      // --privilege or --unprivileged option.
+      int grc = getopt_long (argc, argv, STAP_SHORT_OPTIONS, stap_long_options, NULL);
+      if (grc < 0)
+        break;
+      switch (grc)
+        {
+	default:
+	  // We can ignore all short options
+	  break;
+        case 0:
+          switch (stap_long_opt)
+            {
+	    default:
+	      // We can ignore all options other than --privilege and --unprivileged.
+	      break;
+	    case LONG_OPT_PRIVILEGE:
+	      if (strcmp (optarg, "stapdev") == 0)
+		privilege = pr_stapdev;
+	      else if (strcmp (optarg, "stapsys") == 0)
+		privilege = pr_stapsys;
+	      else if (strcmp (optarg, "stapusr") == 0)
+		privilege = pr_stapusr;
+	      else
+		{
+		  server_error (_F("Invalid argument '%s' for --privilege", optarg));
+		  privilege = pr_highest;
+		}
+	      // We have discovered the client side --privilege option. We can exit now since
+	      // stap only tolerates one privilege setting option.
+	      goto done; // break 2 switches and a loop
+	    case LONG_OPT_UNPRIVILEGED:
+	      privilege = pr_unprivileged;
+	      // We have discovered the client side --unprivileged option. We can exit now since
+	      // stap only tolerates one privilege setting option.
+	      goto done; // break 2 switches and a loop
+	    }
+	}
+    }
+ done:
+  delete[] argv;
+  return privilege;
+}
+
 /* Run the translator on the data in the request directory, and produce output
    in the given output directory. */
 static void
@@ -1059,7 +1159,6 @@ handleRequest (const string &requestDirName, const string &responseDirName)
   unsigned u;
   unsigned i;
   FILE* f;
-  int unprivileged = 0;
 
   // Save the server version. Do this early, so the client knows what version of the server
   // it is dealing with, even if the request is not fully completed.
@@ -1150,30 +1249,13 @@ handleRequest (const string &requestDirName, const string &responseDirName)
 
   string stapstdout = responseDirName + "/stdout";
 
-  /* Check for the unprivileged flag; we need this so that we can decide to sign the module. */
-  for (i=0; i < stapargv.size (); i++)
-    {
-      if (stapargv[i] == "--unprivileged")
-	{
-	  unprivileged=1;
-	  break;
-	}
-    }
-  /* NB: but it's not that easy!  What if an attacker passes
-     --unprivileged as some sort of argument-parameter, so that the
-     translator does not interpret it as an --unprivileged mode flag,
-     but something else?  Then it could generate unrestrained modules,
-     but silly we might still sign it, and let the attacker get away
-     with murder.  And yet we don't want to fully getopt-parse the
-     args here for duplication of effort.
-
-     So let's do a hack: forcefully add --unprivileged to stapargv[]
-     near the front in this case, something which a later option
-     cannot undo. */
-  if (unprivileged)
-    {
-      stapargv.insert (stapargv.begin () + 1, "--unprivileged"); /* better not be resettable by later option */
-    }
+  // NB: Before, when we did not fully parse the client's command line using getopt_long,
+  // we used to insert a --privilege=XXX option here in case some other argument was mistaken
+  // for a --privilege or --unprivileged option by our spawned stap. Since we now parse
+  // the client's command line using getopt_long and share the getopt_long options
+  // string and table with stap, this is no longer necessary. stap will parse the
+  // command line identically to the way we have parsed it and will discover the same
+  // privilege-setting option.
 
   // Environment variables (possibly empty) to be passed to spawn_and_wait().
   string staplang = requestDirName + "/locale";
@@ -1194,9 +1276,9 @@ handleRequest (const string &requestDirName, const string &responseDirName)
       fclose(f);
     }
 
-  /* In unprivileged mode, if we have a module built, we need to
-     sign the sucker. */
-  if (unprivileged)
+  // In unprivileged modes, if we have a module built, we need to sign the sucker.
+  privilege_t privilege = getRequestedPrivilege (stapargv);
+  if (pr_contains (privilege, pr_stapusr) || pr_contains (privilege, pr_stapsys))
     {
       glob_t globber;
       char pattern[PATH_MAX];
@@ -1239,11 +1321,12 @@ handleRequest (const string &requestDirName, const string &responseDirName)
 	uprobes_response = uprobes_ko;
 
       /* In unprivileged mode, we need a signature on uprobes as well. */
-      if (unprivileged)
+      if (! pr_contains (privilege, pr_stapdev))
         {
           sign_file (cert_db_path, server_cert_nickname(),
                      uprobes_response, uprobes_response + ".sgn");
         }
+
     }
 
   /* Free up all the arg string copies.  Note that the first few were alloc'd

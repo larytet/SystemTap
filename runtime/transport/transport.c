@@ -2,7 +2,7 @@
  * transport.c - stp transport functions
  *
  * Copyright (C) IBM Corporation, 2005
- * Copyright (C) Red Hat Inc, 2005-2010
+ * Copyright (C) Red Hat Inc, 2005-2011
  * Copyright (C) Intel Corporation, 2006
  *
  * This file is part of systemtap, and is free software.  You can
@@ -15,6 +15,7 @@
 #define _TRANSPORT_TRANSPORT_C_
 
 #include "transport.h"
+#include "control.h"
 #include <linux/debugfs.h>
 #include <linux/namei.h>
 #include <linux/delay.h>
@@ -25,11 +26,17 @@ static int _stp_exit_flag = 0;
 static uid_t _stp_uid = 0;
 static gid_t _stp_gid = 0;
 static int _stp_pid = 0;
+static int _stp_remote_id = -1;
+static char _stp_remote_uri[MAXSTRINGLEN];
 
 static atomic_t _stp_ctl_attached = ATOMIC_INIT(0);
 
 static pid_t _stp_target = 0;
 static int _stp_probes_started = 0;
+
+/* _stp_transport_mutext guards _stp_start_called and _stp_exit_called.
+   We only want to do the startup and exit sequences once.  */
+static int _stp_start_called = 0;
 static int _stp_exit_called = 0;
 static DEFINE_MUTEX(_stp_transport_mutex);
 
@@ -69,8 +76,17 @@ module_param(_stp_bufsize, int, 0);
 MODULE_PARM_DESC(_stp_bufsize, "buffer size");
 
 /* forward declarations */
-static void probe_exit(void);
-static int probe_start(void);
+static void systemtap_module_exit(void);
+static int systemtap_module_init(void);
+
+static int _stp_module_notifier_active = 0;
+static int _stp_module_notifier (struct notifier_block * nb,
+                                 unsigned long val, void *data);
+static struct notifier_block _stp_module_notifier_nb = {
+        .notifier_call = _stp_module_notifier,
+        .priority = 1 /* As per kernel/trace/trace_kprobe.c, 
+                         invoked after kprobe module callback. */
+};
 
 struct timer_list _stp_ctl_work_timer;
 
@@ -80,26 +96,47 @@ struct timer_list _stp_ctl_work_timer;
 
 static void _stp_handle_start(struct _stp_msg_start *st)
 {
+	int handle_startup;
+
 	mutex_lock(&_stp_transport_mutex);
-	if (!_stp_exit_called) {
+	handle_startup = (! _stp_start_called && ! _stp_exit_called);
+	_stp_start_called = 1;
+	mutex_unlock(&_stp_transport_mutex);
+	
+	if (handle_startup) {
 		dbug_trans(1, "stp_handle_start\n");
 
 #ifdef STAPCONF_VM_AREA
 		{ /* PR9740: workaround for kernel valloc bug. */
 			void *dummy;
+#ifdef STAPCONF_VM_AREA_PTE
+			dummy = alloc_vm_area (PAGE_SIZE, NULL);
+#else
 			dummy = alloc_vm_area (PAGE_SIZE);
+#endif
 			free_vm_area (dummy);
 		}
 #endif
 
 		_stp_target = st->target;
-		st->res = probe_start();
-		if (st->res >= 0)
+		st->res = systemtap_module_init();
+		if (st->res == 0)
 			_stp_probes_started = 1;
 
-		_stp_ctl_send(STP_START, st, sizeof(*st));
+                /* Register the module notifier. */
+                if (!_stp_module_notifier_active) {
+                        int rc = register_module_notifier(& _stp_module_notifier_nb);
+                        if (rc == 0)
+                                _stp_module_notifier_active = 1;
+                        else
+                                _stp_warn ("Cannot register module notifier (%d)\n", rc);
+                }
+
+		/* Called from the user context in response to a proc
+		   file write (in _stp_ctl_write_cmd), so may notify
+		   the reader directly. */
+		_stp_ctl_send_notify(STP_START, st, sizeof(*st));
 	}
-	mutex_unlock(&_stp_transport_mutex);
 }
 
 /* common cleanup code. */
@@ -109,20 +146,44 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 /* when someone does /sbin/rmmod on a loaded systemtap module. */
 static void _stp_cleanup_and_exit(int send_exit)
 {
+	int handle_exit;
+	int start_finished;
+
 	mutex_lock(&_stp_transport_mutex);
-	if (!_stp_exit_called) {
+	handle_exit = (_stp_start_called && ! _stp_exit_called);
+	_stp_exit_called = 1;
+	mutex_unlock(&_stp_transport_mutex);
+
+	/* Note, we can be sure that the startup sequence has finished
+           if handle_exit is true because it depends on _stp_start_called
+	   being set to true. _stp_start_called can only be set to true
+	   in _stp_handle_start() in response to a _STP_START message on
+	   the control channel. Only one writer can have the control
+	   channel open at a time, so the whole startup sequence in
+	   _stp_handle_start() has to be completed before another message
+	   can be send.  _stp_cleanup_and_exit() can only be called through
+	   either a _STP_EXIT message, which cannot arrive while _STP_START
+	   is still being handled, or when the module is unloaded. The
+	   module can only be unloaded when there are no more users that
+	   keep the control channel open.  */
+	if (handle_exit) {
 		int failures;
+
+	        /* Unregister the module notifier. */
+	        if (_stp_module_notifier_active) {
+	                _stp_module_notifier_active = 0;
+	                (void) unregister_module_notifier(& _stp_module_notifier_nb);
+	                /* -ENOENT is possible, if we were not already registered */
+	        }
 
                 dbug_trans(1, "cleanup_and_exit (%d)\n", send_exit);
 		_stp_exit_flag = 1;
-		/* we only want to do this stuff once */
-		_stp_exit_called = 1;
 
 		if (_stp_probes_started) {
-			dbug_trans(1, "calling probe_exit\n");
+			dbug_trans(1, "calling systemtap_module_exit\n");
 			/* tell the stap-generated code to unload its probes, etc */
-			probe_exit();
-			dbug_trans(1, "done with probe_exit\n");
+			systemtap_module_exit();
+			dbug_trans(1, "done with systemtap_module_exit\n");
 		}
 
 		failures = atomic_read(&_stp_transport_failures);
@@ -133,11 +194,15 @@ static void _stp_cleanup_and_exit(int send_exit)
 		_stp_transport_data_fs_stop();
 
 		dbug_trans(1, "ctl_send STP_EXIT\n");
-		if (send_exit)
-			_stp_ctl_send(STP_EXIT, NULL, 0);
+		if (send_exit) {
+			/* send_exit is only set to one if called from
+			   _stp_ctl_write_cmd() in response to a write
+			   to the proc cmd file, so in user context. It
+			   is safe to immediately notify the reader.  */
+			_stp_ctl_send_notify(STP_EXIT, NULL, 0);
+		}
 		dbug_trans(1, "done with ctl_send STP_EXIT\n");
 	}
-	mutex_unlock(&_stp_transport_mutex);
 }
 
 static void _stp_request_exit(void)
@@ -147,7 +212,9 @@ static void _stp_request_exit(void)
 		/* we only want to do this once */
 		called = 1;
 		dbug_trans(1, "ctl_send STP_REQUEST_EXIT\n");
-		_stp_ctl_send(STP_REQUEST_EXIT, NULL, 0);
+		/* Called from the timer when _stp_exit_flag has been
+		   been set. So safe to immediately notify any readers. */
+		_stp_ctl_send_notify(STP_REQUEST_EXIT, NULL, 0);
 		dbug_trans(1, "done with ctl_send STP_REQUEST_EXIT\n");
 	}
 }
@@ -187,10 +254,14 @@ static void _stp_attach(void)
 
 /*
  *	_stp_ctl_work_callback - periodically check for IO or exit
- *	This IO comes from ERRORs or WARNINGs which are send with
- *	_stp_ctl_write as type STP_OOB_DATA, so don't immediately
- *	trigger a wake_up of _stp_ctl_wq.
- *	This is run by a kernel thread and may NOT sleep.
+ *	This IO comes from control messages like system(), warn(),
+ *	that could potentially have been send from krpobe context,
+ *	so they don't immediately trigger a wake_up of _stp_ctl_wq.
+ *	This is run by a kernel thread and may NOT sleep, but it
+ *	may call wake_up_interruptible on _stp_ctl_wq to notify
+ *	any readers, or send messages itself that are immediately
+ *	notified. Reschedules itself if someone is still attached
+ *	to the cmd channel.
  */
 static void _stp_ctl_work_callback(unsigned long val)
 {
@@ -204,7 +275,7 @@ static void _stp_ctl_work_callback(unsigned long val)
 	if (do_io)
 		wake_up_interruptible(&_stp_ctl_wq);
 
-	/* if exit flag is set AND we have finished with probe_start() */
+	/* if exit flag is set AND we have finished with systemtap_module_init() */
 	if (unlikely(_stp_exit_flag && _stp_probes_started))
 		_stp_request_exit();
 	if (atomic_read(& _stp_ctl_attached))
@@ -245,6 +316,35 @@ static int _stp_transport_init(void)
 	_stp_gid = current_gid();
 #endif
 
+/* PR13489, missing inode-uprobes symbol-export workaround */
+#if !defined(STAPCONF_TASK_USER_REGSET_VIEW_EXPORTED) && !defined(STAPCONF_UTRACE_REGSET) /* RHEL5 era utrace */
+        kallsyms_task_user_regset_view = (void*) kallsyms_lookup_name ("task_user_regset_view");
+        /* There exist interesting kernel versions without task_user_regset_view(), like ARM before 3.0.
+           For these kernels, uprobes etc. are out of the question, but plain kernel stap works fine.
+           All we have to accomplish is have the loc2c runtime code compile.  For that, it's enough
+           to leave this pointer zero. */
+        if (kallsyms_task_user_regset_view == NULL) {
+                ;
+        }
+#endif
+#if defined(CONFIG_UPROBES) // i.e., kernel-embedded uprobes
+#if !defined(STAPCONF_REGISTER_UPROBE_EXPORTED)
+        kallsyms_register_uprobe = (void*) kallsyms_lookup_name ("register_uprobe");
+        if (kallsyms_register_uprobe == NULL) {
+                printk(KERN_ERR "%s can't resolve register_uprobe!", THIS_MODULE->name);
+                goto err0;
+        }
+#endif
+#if !defined(STAPCONF_UNREGISTER_UPROBE_EXPORTED)
+        kallsyms_unregister_uprobe = (void*) kallsyms_lookup_name ("unregister_uprobe");
+        if (kallsyms_unregister_uprobe == NULL) {
+                printk(KERN_ERR "%s can't resolve unregister_uprobe!", THIS_MODULE->name);
+                goto err0;
+        }
+#endif
+#endif
+
+
 #ifdef RELAY_GUEST
 	/* Guest scripts use relay only for reporting warnings and errors */
 	_stp_subbuf_size = 65536;
@@ -279,8 +379,10 @@ static int _stp_transport_init(void)
         /* Signal stapio to send us STP_START back.
            This is an historic convention. This was called
 	   STP_TRANSPORT_INFO and had a payload that described the
-	   transport buffering, this is no longer the case.  */
-	_stp_ctl_send(STP_TRANSPORT, NULL, 0);
+	   transport buffering, this is no longer the case.
+	   Called during module initialization time, so safe to immediately
+	   notify reader we are ready.  */
+	_stp_ctl_send_notify(STP_TRANSPORT, NULL, 0);
 
 	dbug_trans(1, "returning 0...\n");
 	return 0;
@@ -383,8 +485,13 @@ static struct dentry *_stp_get_root_dir(void)
 	if (!__stp_root_dir) {
 		/* Couldn't create it because it is already there, so
 		 * find it. */
+#ifdef STAPCONF_FS_SUPERS_HLIST
+		sb = hlist_entry(fs->fs_supers.first, struct super_block,
+	 			 s_instances);
+#else
 		sb = list_entry(fs->fs_supers.next, struct super_block,
 				s_instances);
+#endif
 		_stp_lock_inode(sb->s_root->d_inode);
 		__stp_root_dir = lookup_one_len(name, sb->s_root,
 						strlen(name));
@@ -521,6 +628,20 @@ static void _stp_handle_tzinfo (struct _stp_msg_tzinfo* tzi)
         strlcpy (tz_name, tzi->tz_name, MAXSTRINGLEN);
         /* We may silently truncate the incoming string,
          * for example if MAXSTRINGLEN < STP_TZ_NAME_LEN-1 */
+}
+
+
+static int32_t _stp_privilege_credentials = 0;
+
+static void _stp_handle_privilege_credentials (struct _stp_msg_privilege_credentials* pc)
+{
+  _stp_privilege_credentials = pc->pc_group_mask;
+}
+
+static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem)
+{
+  _stp_remote_id = (int64_t) rem->remote_id;
+  strlcpy(_stp_remote_uri, rem->remote_uri, min(STP_REMOTE_URI_LEN,MAXSTRINGLEN));
 }
 
 

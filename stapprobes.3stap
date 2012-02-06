@@ -102,19 +102,19 @@ to classify them with respect to their need for DWARF debuginfo.
 
 .TS
 l l l.
-\fBDWARF	AUTO-DWARF	NON-DWARF\fP
+\fBDWARF	NON-DWARF\fP
 
-kernel.function, .statement	kernel.trace	kernel.mark
-module.function, .statement		process.mark
-process.function, .statement		begin, end, error, never
-process.mark \fI(backup)\fP		timer
-		perf
-		procfs
-		kernel.statement.absolute
-		kernel.data
-		kprobe.function
-		process.statement.absolute
-		process.begin, .end, .error
+kernel.function, .statement	kernel.mark
+module.function, .statement	process.mark
+process.function, .statement	begin, end, error, never
+process.mark \fI(backup)\fP	timer
+	perf
+	procfs
+\fBAUTO-DWARF\fP	kernel.statement.absolute
+	kernel.data
+kernel.trace	kprobe.function
+	process.statement.absolute
+	process.begin, .end, .error
 .TE
 
 .SH PROBE POINT FAMILIES
@@ -292,8 +292,9 @@ modifier for
 filters the results to include only instances of inlined functions.
 The
 .B .call
-modifier selects the opposite subset.  Inline functions do not have an
-identifiable return point, so
+modifier selects the opposite subset.  The \textbf{.exported} modifier
+filters the results to include only exported functions.  Inline
+functions do not have an identifiable return point, so
 .B .return
 is not supported on 
 .B .inline
@@ -653,6 +654,8 @@ and expose similar contextual $variables.
 .SAMPLE
 process("PATH").function("NAME")
 process("PATH").statement("*@FILE.c:123")
+process("PATH").plt("NAME")
+process("PATH").library("PATH").plt("NAME")
 process("PATH").library("PATH").function("NAME")
 process("PATH").library("PATH").statement("*@FILE.c:123")
 process("PATH").function("*").return
@@ -671,7 +674,9 @@ If PATH is a process component parameter referring to shared libraries
 then all processes that map it at runtime would be selected for
 probing.  If PATH is a library component parameter referring to shared
 libraries then the process specified by the process component would be
-selected.
+selected.  A .plt probe will probe functions in the program linkage table
+corresponding to the rest of the probe point.  .plt can be specified
+as a shorthand for .plt("*").
 If the PATH string contains wildcards as in the MPATTERN case, then
 standard globbing is performed to find all matching paths.  In this
 case, the 

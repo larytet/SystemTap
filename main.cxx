@@ -23,6 +23,7 @@
 #include "task_finder.h"
 #include "csclient.h"
 #include "remote.h"
+#include "tapsets.h"
 
 #include <libintl.h>
 #include <locale.h>
@@ -41,6 +42,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <time.h>
 #include <unistd.h>
+#include <wordexp.h>
 }
 
 using namespace std;
@@ -358,6 +360,10 @@ int parse_kernel_exports (systemtap_session &s)
           tokens[2] == "vmlinux" &&
           tokens[3].substr(0,13) == string("EXPORT_SYMBOL"))
         s.kernel_exports.insert (tokens[1]);
+      // RHEL4 Module.symvers file only has 3 tokens.  No
+      // 'EXPORT_SYMBOL' token at the end of the line.
+      else if (tokens.size() == 3 && tokens[2] == "vmlinux")
+        s.kernel_exports.insert (tokens[1]);
     }
   if (s.verbose > 2)
     clog << _F(ngettext("Parsed kernel %s, which contained one vmlinux export",
@@ -460,7 +466,7 @@ passes_0_4 (systemtap_session &s)
       }
       return rc;
 #else
-      cerr << _("WARNING: Without NSS, using a compile-server is not supported by this version of systemtap") << endl;
+      s.print_warning("Without NSS, using a compile-server is not supported by this version of systemtap");
       // This cannot be an attempt to use a server after a local compile failed
       // since --use-server-on-error is locked to 'no' if we don't have
       // NSS.
@@ -496,8 +502,9 @@ passes_0_4 (systemtap_session &s)
     }
 
   // Create the name of the C source file within the temporary
-  // directory.
-  s.translated_source = string(s.tmpdir) + "/" + s.module_name + ".c";
+  // directory.  Note the _src prefix, explained in
+  // buildrun.cxx:compile_pass()
+  s.translated_source = string(s.tmpdir) + "/" + s.module_name + "_src.c";
 
   PROBE1(stap, pass0__end, &s);
 
@@ -608,7 +615,7 @@ passes_0_4 (systemtap_session &s)
 
               // XXX: privilege only for /usr/share/systemtap?
               stapfile* f = parse (s, globbuf.gl_pathv[j], true);
-              if (f == 0 && !s.suppress_warnings)
+              if (f == 0)
                 s.print_warning("tapset '" + string(globbuf.gl_pathv[j])
                                 + "' has errors, and will be skipped.");
               else
@@ -683,6 +690,10 @@ passes_0_4 (systemtap_session &s)
   s.verbose = s.perpass_verbose[1];
   PROBE1(stap, pass2__start, &s);
   rc = semantic_pass (s);
+
+  // Dump a list of known probe point types, if requested.
+  if (s.dump_probe_types)
+    s.pattern_root->dump (s);
 
   if (s.listing_mode || (rc == 0 && s.last_pass == 2))
     printscript(s, cout);
@@ -941,13 +952,50 @@ main (int argc, char * const argv [])
   // and reasonably timely exit.
   setup_signals(&handle_interrupt);
 
+  // PR13520: Parse $SYSTEMTAP_DIR/rc for extra options
+  string rc_file = s.data_path + "/rc";
+  ifstream rcf (rc_file.c_str());
+  string rcline;
+  wordexp_t words;
+  memset (& words, 0, sizeof(words));
+  int rc = 0;
+  int linecount = 0;
+  while (getline (rcf, rcline))
+    {
+      rc = wordexp (rcline.c_str(), & words, WRDE_NOCMD|WRDE_UNDEF|
+                    (linecount > 0 ? WRDE_APPEND : 0)); 
+      // NB: WRDE_APPEND automagically reallocates words.* as more options are added.
+      linecount ++;
+      if (rc) break;
+    }
+  int extended_argc = words.we_wordc + argc;
+  char **extended_argv = (char**) calloc (extended_argc + 1, sizeof(char*));
+  if (rc || !extended_argv)
+    {
+      clog << _F("Error processing extra options in %s", rc_file.c_str());
+      exit (1);
+    }
+  // Copy over the arguments *by reference*, first the ones from the rc file.
+  char **p = & extended_argv[0];
+  *p++ = argv[0];
+  for (unsigned i=0; i<words.we_wordc; i++) *p++ = words.we_wordv[i];
+  for (int j=1; j<argc; j++) *p++ = argv[j];
+  *p++ = NULL;
+
   // Process the command line.
-  int rc = s.parse_cmdline (argc, argv);
+  rc = s.parse_cmdline (extended_argc, extended_argv);
   if (rc != 0)
     exit (rc);
 
+  if (words.we_wordc > 0 && s.verbose > 1)
+    clog << _F("Extra options in %s: %d\n", rc_file.c_str(), (int)words.we_wordc);
+
   // Check for options conflicts. Exits if errors are detected.
-  s.check_options (argc, argv);
+  s.check_options (extended_argc, extended_argv);
+
+  // We don't need these strings any more.
+  wordfree (& words);
+  free (extended_argv);
 
   // arguments parsed; get down to business
   if (s.verbose > 1)
@@ -959,11 +1007,17 @@ main (int argc, char * const argv [])
 
   // Prepare connections for each specified remote target.
   vector<remote*> targets;
+  bool fake_remote=false;
   if (s.remote_uris.empty())
-    s.remote_uris.push_back("direct:");
+    {
+      fake_remote=true;
+      s.remote_uris.push_back("direct:");
+    }
   for (unsigned i = 0; rc == 0 && i < s.remote_uris.size(); ++i)
     {
-      remote *target = remote::create(s, s.remote_uris[i]);
+      // PR13354: pass remote id#/url only in non --remote=HOST cases
+      remote *target = remote::create(s, s.remote_uris[i],
+                                      fake_remote ? -1 : (int)i);
       if (target)
         targets.push_back(target);
       else
@@ -990,7 +1044,8 @@ main (int argc, char * const argv [])
 
       // Run the passes only if a script has been specified. The requirement for
       // a script has already been checked in systemtap_session::check_options.
-      if (ss.have_script)
+      // Run the passes also if a dump of supported probe types has been requested via a server.
+      if (ss.have_script || (ss.dump_probe_types && ! s.specified_servers.empty ()))
         {
           // Run passes 0-4 for each unique session,
           // either locally or using a compile-server.
@@ -1003,6 +1058,12 @@ main (int argc, char * const argv [])
                 rc = passes_0_4_again_with_server (ss);
             }
         }
+      else if (ss.dump_probe_types)
+	{
+	  // Dump a list of known probe point types, if requested.
+	  register_standard_tapsets(ss);
+	  ss.pattern_root->dump (ss);
+	}
     }
 
   // Run pass 5, if requested

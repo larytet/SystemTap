@@ -17,6 +17,7 @@
 #define STP_MODULE_NAME_LEN 128
 #define STP_SYMBOL_NAME_LEN 128
 #define STP_TZ_NAME_LEN 64
+#define STP_REMOTE_URI_LEN 128
 
 struct _stp_trace {
 	uint32_t sequence;	/* event number */
@@ -28,7 +29,7 @@ enum
 {
 	/** stapio sends a STP_START after recieving a STP_TRANSPORT from
 	    the module. The module sends STP_START back with result of call
-	    probe_start() which will install all initial probes.  */
+	    systemtap_module_init() which will install all initial probes.  */
 	STP_START,
 	/** stapio sends STP_EXIT to signal it wants to stop the module
 	    itself or in response to receiving a STP_REQUEST_EXIT.
@@ -76,6 +77,12 @@ enum
 	/** Send by staprun to notify module of current timezone.
             Only send once at startup.  */
         STP_TZINFO,
+	/** Send by staprun to notify module of the user's privilege credentials.
+            Only send once at startup.  */
+        STP_PRIVILEGE_CREDENTIALS,
+	/** Send by staprun to notify module of remote identity, if any.
+            Only send once at startup.  */
+        STP_REMOTE_ID,
 	/** Max number of message types, sanity check only.  */
 	STP_MAX_CMD
 };
@@ -97,6 +104,8 @@ static const char *_stp_command_name[] = {
 	"STP_REALTIME_DATA",
 	"STP_REQUEST_EXIT",
 	"STP_TZINFO",
+	"STP_PRIVILEGE_CREDENTIALS",
+	"STP_REMOTE_ID",
 };
 #endif /* DEBUG_TRANS */
 
@@ -123,7 +132,7 @@ struct _stp_msg_unwind
 struct _stp_msg_start
 {
 	pid_t target;
-        int32_t res;    // for reply: result of probe_start()
+        int32_t res;    // for reply: result of systemtap_module_init
 };
 
 #if STP_TRANSPORT_VERSION == 1
@@ -154,4 +163,15 @@ struct _stp_msg_tzinfo
 {
         int64_t tz_gmtoff;
         char tz_name[STP_TZ_NAME_LEN];
+};
+
+struct _stp_msg_privilege_credentials
+{
+        int32_t pc_group_mask;
+};
+
+struct _stp_msg_remote_id
+{
+        int32_t remote_id;
+        char remote_uri[STP_REMOTE_URI_LEN];
 };

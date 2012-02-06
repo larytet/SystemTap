@@ -189,14 +189,14 @@ itrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "static void enter_itrace_probe(struct stap_itrace_probe *p, struct pt_regs *regs, void *data) {";
   s.op->indent(1);
 
-  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe");
-  s.op->newline() << "c->regs = regs;";
-  s.op->newline() << "c->regflags |= _STP_REGS_USER_FLAG;";
-  s.op->newline() << "c->data = data;";
+  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe",
+				 "_STP_PROBE_HANDLER_ITRACE");
+  s.op->newline() << "c->uregs = regs;";
+  s.op->newline() << "c->probe_flags |= _STP_PROBE_STATE_USER_MODE;";
 
   // call probe function
   s.op->newline() << "(*p->probe->ph) (c);";
-  common_probe_entryfn_epilogue (s.op);
+  common_probe_entryfn_epilogue (s.op, true, s.suppress_handler_errors);
 
   s.op->newline() << "return;";
   s.op->newline(-1) << "}";

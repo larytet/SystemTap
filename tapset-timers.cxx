@@ -1,5 +1,5 @@
 // tapset for timers
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -40,7 +40,7 @@ struct timer_derived_probe: public derived_probe
 
   // No assertion need be emitted, since this probe is allowed for unprivileged
   // users.
-  void emit_unprivileged_assertion (translator_output*) {}
+  void emit_privilege_assertion (translator_output*) {}
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged (o); }
 };
 
@@ -128,9 +128,10 @@ timer_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->line() << ");";
   s.op->newline(-1) << "{";
   s.op->indent(1);
-  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "stp->probe");
+  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "stp->probe",
+				 "_STP_PROBE_HANDLER_TIMER");
   s.op->newline() << "(*stp->probe->ph) (c);";
-  common_probe_entryfn_epilogue (s.op);
+  common_probe_entryfn_epilogue (s.op, true, s.suppress_handler_errors);
   s.op->newline(-1) << "}";
   s.op->newline(-1) << "}";
 }
@@ -209,7 +210,7 @@ struct hrtimer_derived_probe: public derived_probe
 
   // No assertion need be emitted, since these probes are allowed for
   // unprivileged users.
-  void emit_unprivileged_assertion (translator_output*) {}
+  void emit_privilege_assertion (translator_output*) {}
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged (o); }
 };
 
@@ -314,9 +315,10 @@ hrtimer_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(-1) << "}";
   s.op->newline() << "{";
   s.op->indent(1);
-  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "stp->probe");
+  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "stp->probe",
+				 "_STP_PROBE_HANDLER_HRTIMER");
   s.op->newline() << "(*stp->probe->ph) (c);";
-  common_probe_entryfn_epilogue (s.op);
+  common_probe_entryfn_epilogue (s.op, true, s.suppress_handler_errors);
   s.op->newline(-1) << "}";
   s.op->newline() << "return rc;";
   s.op->newline(-1) << "}";
@@ -429,11 +431,16 @@ profile_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "static void enter_all_profile_probes (struct pt_regs *regs) {";
   s.op->newline(1) << "struct stap_probe * probe = "
                    << common_probe_init (probes[0]) << ";";
-  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "probe");
-  s.op->newline() << "c->regs = regs;";
+  common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "probe",
+				 "_STP_PROBE_HANDLER_PROFILE_TIMER");
   // Timer interrupts save all registers, so if the interrupt happened
   // in user space we can rely on it being the full user pt_regs.
-  s.op->newline() << "if (user_mode(regs)) c->regflags |= _STP_REGS_USER_FLAG;";
+  s.op->newline() << "if (user_mode(regs)) {";
+  s.op->newline(1) << "c->probe_flags |= _STP_PROBE_STATE_USER_MODE;";
+  s.op->newline() << "c->uregs = regs;";
+  s.op->newline(-1) << "} else {";
+  s.op->newline(1) << "c->kregs = regs;";
+  s.op->newline(-1) << "}";
 
   for (unsigned i=0; i<probes.size(); i++)
     {
@@ -450,7 +457,7 @@ profile_derived_probe_group::emit_module_decls (systemtap_session& s)
         }
       s.op->newline() << "if (c->last_error == NULL) probe->ph (c);";
     }
-  common_probe_entryfn_epilogue (s.op);
+  common_probe_entryfn_epilogue (s.op, true, s.suppress_handler_errors);
   s.op->newline(-1) << "}";
 
   s.op->newline() << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)"; // == using_rpn of yore
@@ -607,66 +614,66 @@ register_tapset_timers(systemtap_session& s)
   root = root->bind(TOK_TIMER);
 
   root->bind_num("s")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("s")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("sec")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("sec")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
 
   root->bind_num("ms")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("ms")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("msec")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("msec")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
 
   root->bind_num("us")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("us")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("usec")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("usec")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
 
   root->bind_num("ns")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("ns")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("nsec")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("nsec")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
 
   root->bind_num("jiffies")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
   root->bind_num("jiffies")->bind_num("randomize")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
 
   root->bind_num("hz")
-    ->bind_unprivileged()
+    ->bind_privilege(pr_all)
     ->bind(builder);
 
   // Not ok for unprivileged users, because register_timer_hook only allows a

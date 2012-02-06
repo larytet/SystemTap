@@ -3,6 +3,8 @@ buildrun.cxx
 buildrun.h
 cache.cxx
 cache.h
+cmdline.cxx
+cmdline.h
 coveragedb.cxx
 coveragedb.h
 csclient.cxx
@@ -27,6 +29,8 @@ nsscommon.cxx
 nsscommon.h
 parse.cxx
 parse.h
+privilege.cxx
+privilege.h
 remote.cxx
 remote.h
 rpm_finder.cxx

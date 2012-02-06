@@ -1,5 +1,5 @@
 // session functions
-// Copyright (C) 2010-2011 Red Hat Inc.
+// Copyright (C) 2010-2012 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -18,6 +18,7 @@
 #include "csclient.h"
 #include "rpm_finder.h"
 #include "util.h"
+#include "cmdline.h"
 #include "git_version.h"
 
 #include <cerrno>
@@ -30,6 +31,7 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <elfutils/libdwfl.h>
+#include <unistd.h>
 }
 
 #if HAVE_NSS
@@ -100,6 +102,7 @@ systemtap_session::systemtap_session ():
   panic_warnings = false;
   listing_mode = false;
   listing_mode_vars = false;
+  dump_probe_types = false;
 
 #ifdef ENABLE_PROLOGUES
   prologue_searching = true;
@@ -123,13 +126,16 @@ systemtap_session::systemtap_session ():
   poison_cache = false;
   tapset_compile_coverage = false;
   need_uprobes = false;
+  need_unwind = false;
+  need_symbols = false;
   uprobes_path = "";
   consult_symtab = false;
   ignore_vmlinux = false;
   ignore_dwarf = false;
   load_only = false;
   skip_badvars = false;
-  unprivileged = false;
+  privilege = pr_stapdev;
+  privilege_set = false;
   omit_werror = false;
   compatible = VERSION; // XXX: perhaps also process GIT_SHAID if available?
   unwindsym_ldd = false;
@@ -140,6 +146,9 @@ systemtap_session::systemtap_session ():
   try_server_status = try_server_unset;
   use_remote_prefix = false;
   systemtap_v_check = false;
+  download_dbinfo = 0;
+  suppress_handler_errors = false;
+  native_build = true; // presumed
 
   /*  adding in the XDG_DATA_DIRS variable path,
    *  this searches in conjunction with SYSTEMTAP_TAPSET
@@ -182,9 +191,7 @@ systemtap_session::systemtap_session ():
   if (create_dir(data_path.c_str()) == 1)
     {
       const char* e = strerror (errno);
-      if (! suppress_warnings)
-        cerr << _F("Warning: failed to create systemtap data directory \"%s\":%s, disabling cache support.",
-                   data_path.c_str(),e) << endl;
+        print_warning("failed to create systemtap data directory \"" + data_path + "\" " + e + ", disabling cache support.");
       use_cache = use_script_cache = false;
     }
 
@@ -194,9 +201,7 @@ systemtap_session::systemtap_session ():
       if (create_dir(cache_path.c_str()) == 1)
         {
 	  const char* e = strerror (errno);
-          if (! suppress_warnings)
-            cerr << _F("Warning: failed to create cache directory (\" %s \"): %s, disabling cache support.",
-                       cache_path.c_str(),e) << endl;
+            print_warning("failed to create cache directory (\" " + cache_path + " \") " + e + ", disabling cache support.");
 	  use_cache = use_script_cache = false;
 	}
     }
@@ -246,6 +251,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   kernel_build_tree = "/lib/modules/" + kernel_release + "/build";
   architecture = machine = normalize_machine(arch);
   setup_kernel_release(kern.c_str());
+  native_build = false; // assumed; XXX: could be computed as in check_options()
 
   // These are all copied in the same order as the default ctor did above.
 
@@ -263,6 +269,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   panic_warnings = other.panic_warnings;
   listing_mode = other.listing_mode;
   listing_mode_vars = other.listing_mode_vars;
+  dump_probe_types = other.dump_probe_types;
 
   prologue_searching = other.prologue_searching;
 
@@ -282,13 +289,16 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   poison_cache = other.poison_cache;
   tapset_compile_coverage = other.tapset_compile_coverage;
   need_uprobes = false;
+  need_unwind = false;
+  need_symbols = false;
   uprobes_path = "";
   consult_symtab = other.consult_symtab;
   ignore_vmlinux = other.ignore_vmlinux;
   ignore_dwarf = other.ignore_dwarf;
   load_only = other.load_only;
   skip_badvars = other.skip_badvars;
-  unprivileged = other.unprivileged;
+  privilege = other.privilege;
+  privilege_set = other.privilege_set;
   omit_werror = other.omit_werror;
   compatible = other.compatible;
   unwindsym_ldd = other.unwindsym_ldd;
@@ -298,6 +308,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   try_server_status = other.try_server_status;
   use_remote_prefix = other.use_remote_prefix;
   systemtap_v_check = other.systemtap_v_check;
+  download_dbinfo = other.download_dbinfo;
+  suppress_handler_errors = other.suppress_handler_errors;
 
   include_path = other.include_path;
   runtime_path = other.runtime_path;
@@ -317,6 +329,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   args = other.args;
   kbuildflags = other.kbuildflags;
   globalopts = other.globalopts;
+  modinfos = other.modinfos;
 
   client_options_disallowed = other.client_options_disallowed;
   server_status_strings = other.server_status_strings;
@@ -325,11 +338,13 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   server_args = other.server_args;
 
   unwindsym_modules = other.unwindsym_modules;
+  automatic_server_mode = other.automatic_server_mode;
 }
 
 systemtap_session::~systemtap_session ()
 {
   delete_map(subsessions);
+  delete pattern_root;
 }
 
 #if HAVE_NSS
@@ -361,7 +376,7 @@ void
 systemtap_session::version ()
 {
   clog << _F("Systemtap translator/driver (version %s/%s %s)\n"
-             "Copyright (C) 2005-2011 Red Hat, Inc. and others\n"
+             "Copyright (C) 2005-2012 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.",
              VERSION, dwfl_version(NULL), GIT_MESSAGE) << endl;
   clog << _("enabled features:")
@@ -398,20 +413,19 @@ systemtap_session::usage (int exitcode)
   version ();
   clog
     << endl
-    //Session.cxx:287-390 detail systemtap usage from stap -h
     << _F("Usage: stap [options] FILE         Run script in file.\n"
      "   or: stap [options] -            Run script on stdin.\n"
      "   or: stap [options] -e SCRIPT    Run given script.\n"
      "   or: stap [options] -l PROBE     List matching probes.\n"
      "   or: stap [options] -L PROBE     List matching probes and local variables.\n\n"
-     "Options:\n"
+     "Options (in %s/rc and on command line):\n"
      "   --         end of translator options, script options follow\n"
      "   -h --help  show help\n"
      "   -V --version  show version\n"
      "   -p NUM     stop after pass NUM 1-5, instead of %d\n"
      "              (parse, elaborate, translate, compile, run)\n"
      "   -v         add verbosity to all passes\n"
-     "   --vp {N}+  add per-pass verbosity [", last_pass);
+     "   --vp {N}+  add per-pass verbosity [", data_path.c_str(), last_pass);
   for (unsigned i=0; i<5; i++)
     clog << (perpass_verbose[i] <= 9 ? perpass_verbose[i] : 9);
   clog 
@@ -437,6 +451,8 @@ systemtap_session::usage (int exitcode)
   clog
     << _F("   -D NM=VAL  emit macro definition into generated C code\n"
     "   -B NM=VAL  pass option to kbuild make\n"
+    "   --modinfo NM=VAL\n"
+    "              include a MODULE_INFO(NM,VAL) in the generated C code\n"
     "   -G VAR=VAL set global variable to value\n"
     //TRANSLATORS: translating 'runtime' is not advised 
     "   -R DIR     look in DIR for runtime, instead of\n"
@@ -472,8 +488,10 @@ systemtap_session::usage (int exitcode)
 #ifdef HAVE_LIBSQLITE3
     "   -q         generate information on tapset coverage\n"
 #endif /* HAVE_LIBSQLITE3 */
+    "   --privilege=PRIVILEGE_LEVEL\n"
+    "              check the script for constructs not allowed at the given privilege level\n"
     "   --unprivileged\n"
-    "              restrict usage to features available to unprivileged users\n"
+    "              equivalent to --privilege=stapusr\n"
 #if 0 /* PR6864: disable temporarily; should merge with -d somehow */
     "   --kelf     make do with symbol table from vmlinux\n"
     "   --kmap[=FILE]\n"
@@ -489,6 +507,8 @@ systemtap_session::usage (int exitcode)
     "              version dependent\n"
     "   --skip-badvars\n"
     "              substitute zero for bad context $variables\n"
+    "   --suppress-handler-errors\n"
+    "              catch all runtime errors, quietly skip probe handlers\n"
     "   --use-server[=SERVER-SPEC]\n"
     "              specify systemtap compile-servers\n"
     "   --list-servers[=PROPERTIES]\n"
@@ -507,7 +527,12 @@ systemtap_session::usage (int exitcode)
     "   --remote-prefix\n"
     "              prefix each line of remote output with a host index.\n"
     "   --tmpdir=NAME\n"
-    "              specify name of temporary directory to be used."
+    "              specify name of temporary directory to be used.\n"
+    "   --download-debuginfo[=OPTION]\n"
+    "              automatically download debuginfo using ABRT.\n"
+    "              yes,no,ask,<timeout value>\n"
+    "   --dump-probe-types\n"
+    "              show a list of available probe types.\n"
     , compatible.c_str()) << endl
   ;
 
@@ -526,73 +551,9 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
   client_options_disallowed = "";
   while (true)
     {
-      int long_opt;
       char * num_endptr;
+      int grc = getopt_long (argc, argv, STAP_SHORT_OPTIONS, stap_long_options, NULL);
 
-      // NB: when adding new options, consider very carefully whether they
-      // should be restricted from stap clients (after --client-options)!
-#define LONG_OPT_KELF 1
-#define LONG_OPT_KMAP 2
-#define LONG_OPT_IGNORE_VMLINUX 3
-#define LONG_OPT_IGNORE_DWARF 4
-#define LONG_OPT_VERBOSE_PASS 5
-#define LONG_OPT_SKIP_BADVARS 6
-#define LONG_OPT_UNPRIVILEGED 7
-#define LONG_OPT_OMIT_WERROR 8
-#define LONG_OPT_CLIENT_OPTIONS 9
-#define LONG_OPT_HELP 10
-#define LONG_OPT_DISABLE_CACHE 11
-#define LONG_OPT_POISON_CACHE 12
-#define LONG_OPT_CLEAN_CACHE 13
-#define LONG_OPT_COMPATIBLE 14
-#define LONG_OPT_LDD 15
-#define LONG_OPT_USE_SERVER 16
-#define LONG_OPT_LIST_SERVERS 17
-#define LONG_OPT_TRUST_SERVERS 18
-#define LONG_OPT_ALL_MODULES 19
-#define LONG_OPT_REMOTE 20
-#define LONG_OPT_CHECK_VERSION 21
-#define LONG_OPT_USE_SERVER_ON_ERROR 22
-#define LONG_OPT_VERSION 23
-#define LONG_OPT_REMOTE_PREFIX 24
-#define LONG_OPT_TMPDIR 25
-      // NB: also see find_hash(), usage(), switch stmt below, stap.1 man page
-      static struct option long_options[] = {
-        { "kelf", 0, &long_opt, LONG_OPT_KELF },
-        { "kmap", 2, &long_opt, LONG_OPT_KMAP },
-        { "ignore-vmlinux", 0, &long_opt, LONG_OPT_IGNORE_VMLINUX },
-        { "ignore-dwarf", 0, &long_opt, LONG_OPT_IGNORE_DWARF },
-	{ "skip-badvars", 0, &long_opt, LONG_OPT_SKIP_BADVARS },
-        { "vp", 1, &long_opt, LONG_OPT_VERBOSE_PASS },
-        { "unprivileged", 0, &long_opt, LONG_OPT_UNPRIVILEGED },
-#define OWE5 "tter"
-#define OWE1 "uild-"
-#define OWE6 "fu-kb"
-#define OWE2 "i-kno"
-#define OWE4 "st"
-#define OWE3 "w-be"
-        { OWE4 OWE6 OWE1 OWE2 OWE3 OWE5, 0, &long_opt, LONG_OPT_OMIT_WERROR },
-        { "client-options", 0, &long_opt, LONG_OPT_CLIENT_OPTIONS },
-        { "help", 0, &long_opt, LONG_OPT_HELP },
-        { "disable-cache", 0, &long_opt, LONG_OPT_DISABLE_CACHE },
-        { "poison-cache", 0, &long_opt, LONG_OPT_POISON_CACHE },
-        { "clean-cache", 0, &long_opt, LONG_OPT_CLEAN_CACHE },
-        { "compatible", 1, &long_opt, LONG_OPT_COMPATIBLE },
-        { "ldd", 0, &long_opt, LONG_OPT_LDD },
-        { "use-server", 2, &long_opt, LONG_OPT_USE_SERVER },
-        { "list-servers", 2, &long_opt, LONG_OPT_LIST_SERVERS },
-        { "trust-servers", 2, &long_opt, LONG_OPT_TRUST_SERVERS },
-        { "use-server-on-error", 2, &long_opt, LONG_OPT_USE_SERVER_ON_ERROR },
-        { "all-modules", 0, &long_opt, LONG_OPT_ALL_MODULES },
-        { "remote", 1, &long_opt, LONG_OPT_REMOTE },
-        { "remote-prefix", 0, &long_opt, LONG_OPT_REMOTE_PREFIX },
-        { "check-version", 0, &long_opt, LONG_OPT_CHECK_VERSION },
-        { "version", 0, &long_opt, LONG_OPT_VERSION },
-        { "tmpdir", 1, &long_opt, LONG_OPT_TMPDIR },
-        { NULL, 0, NULL, 0 }
-      };
-      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:",
-			     long_options, NULL);
       // NB: when adding new options, consider very carefully whether they
       // should be restricted from stap clients (after --client-options)!
 
@@ -616,8 +577,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case 'G':
           // Make sure the global option is only composed of the
           // following chars: [_=a-zA-Z0-9]
-          assert_regexp_match("-G parameter", optarg, "^[a-z_][a-z0-9_]+=[a-z0-9_-]+$");
-
+          assert_regexp_match("-G parameter", optarg, "^[a-z_][a-z0-9_]*=[a-z0-9_-]+$");
           globalopts.push_back (string(optarg));
           break;
 
@@ -867,7 +827,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
         case 0:
-          switch (long_opt)
+          switch (stap_long_opt)
             {
             case LONG_OPT_VERSION:
               push_server_opt = true;
@@ -924,9 +884,47 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	      push_server_opt = true;
 	      skip_badvars = true;
 	      break;
+	    case LONG_OPT_PRIVILEGE:
+	      {
+		// We allow only multiple privilege-setting options if they all specify the same
+		// privilege level. The server also expects and depends on this behaviour when
+		// examining the client-side options passed to it.
+		privilege_t newPrivilege;
+		if (strcmp (optarg, "stapdev") == 0)
+		  newPrivilege = pr_stapdev;
+		else if (strcmp (optarg, "stapsys") == 0)
+		  newPrivilege = pr_stapsys;
+		else if (strcmp (optarg, "stapusr") == 0)
+		  newPrivilege = pr_stapusr;
+		else
+		  {
+		    cerr << _F("Invalid argument '%s' for --privilege.", optarg) << endl;
+		    return 1;
+		  }
+		if (privilege_set && newPrivilege != privilege)
+		  {
+		    cerr << _("Privilege level may be set only once.") << endl;
+		    return 1;
+		  }
+		privilege = newPrivilege;
+		push_server_opt = true;
+		privilege_set = true;
+	      }
+              /* NB: for server security, it is essential that once this flag is
+                 set, no future flag be able to unset it. */
+	      break;
 	    case LONG_OPT_UNPRIVILEGED:
+	      // We allow only multiple privilege-setting options if they all specify the same
+	      // privilege level. The server also expects and depends on this behaviour when
+	      // examining the client-side options passed to it.
+	      if (privilege_set && pr_unprivileged != privilege)
+		{
+		  cerr << _("Privilege level may be set only once.") << endl;
+		  return 1;
+		}
+	      privilege = pr_unprivileged;
 	      push_server_opt = true;
-	      unprivileged = true;
+	      privilege_set = true;
               /* NB: for server security, it is essential that once this flag is
                  set, no future flag be able to unset it. */
 	      break;
@@ -942,6 +940,28 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
                 client_options_disallowed += client_options_disallowed.empty() ? "--tmpdir" : ", --tmpdir";
               tmpdir_opt_set = true;
               tmpdir = optarg;
+              break;
+            case LONG_OPT_DOWNLOAD_DEBUGINFO:
+              if(optarg)
+                {
+                  if(strcmp(optarg, "no") == 0)
+                    download_dbinfo = 0; //Disable feature
+                  else if (strcmp(optarg, "yes") == 0)
+                    download_dbinfo = INT_MAX; //Enable, No Timeout
+                  /* NOTE: Timeout and Asking for Confirmation features below are not supported yet by abrt
+                   * in version abrt-2.0.3-1.fc15.x86_64, Bugzilla: BZ730107 (timeout), BZ726192 ('-y') */
+                  else if(atoi(optarg) > 0)
+                      download_dbinfo = atoi(optarg); //Enable, Set timeout to optarg
+                  else if (strcmp(optarg, "ask") == 0)
+                    download_dbinfo = -1; //Enable, Ask for confirmation
+                  else
+                    {
+                      cerr << _F("ERROR: %s is not a valid value. Use 'yes', 'no', 'ask' or a timeout value.", optarg) << endl;
+                      return 1;
+                    }
+                }
+              else
+                download_dbinfo = INT_MAX; //Enable, No Timeout
               break;
 	    case LONG_OPT_USE_SERVER:
 	      if (client_options)
@@ -1057,9 +1077,29 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
               systemtap_v_check = true;
               break;
 
+	    case LONG_OPT_DUMP_PROBE_TYPES:
+	      push_server_opt = true;
+	      dump_probe_types = true;
+	      break;
+
+	    case LONG_OPT_SUPPRESS_HANDLER_ERRORS:
+	      suppress_handler_errors = true;
+	      break;
+
+            case LONG_OPT_MODINFO:
+              // Make sure the global option is only composed of the
+              // following chars: [_=a-zA-Z0-9]
+              if (client_options) {
+                  cerr << _F("ERROR: %s is invalid with %s", "--modinfo", "--client-options") << endl;
+                  return 1;
+              }
+              assert_regexp_match("--modinfo parameter", optarg, "^[a-z_][a-z0-9_]*=.+$");
+              modinfos.push_back (string(optarg));
+              break;
+
             default:
               // NOTREACHED unless one added a getopt option but not a corresponding switch/case:
-              cerr << _F("Unhandled long argument id %d", long_opt) << endl;
+              cerr << _F("Unhandled long argument id %d", stap_long_opt) << endl;
               return 1;
             }
           break;
@@ -1082,12 +1122,22 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
       if (push_server_opt)
 	{
 	  if (grc == 0)
-	    server_args.push_back (string ("--") +
-				   long_options[long_opt - 1].name);
+	    {
+	      // Make sure the '=' is passed with any argument. The server expects it.
+	      if (optarg)
+		server_args.push_back (string ("--") +
+				       stap_long_options[stap_long_opt - 1].name +
+				       "=" + optarg);
+	      else
+		server_args.push_back (string ("--") +
+				       stap_long_options[stap_long_opt - 1].name);
+	    }
 	  else
-	    server_args.push_back (string ("-") + (char)grc);
-	  if (optarg)
-	    server_args.push_back (optarg);
+	    {
+	      server_args.push_back (string ("-") + (char)grc);
+	      if (optarg)
+		server_args.push_back (optarg);
+	    }
 	}
     }
 
@@ -1112,8 +1162,9 @@ systemtap_session::check_options (int argc, char * const argv [])
   // NB: this is also triggered if stap is invoked with no arguments at all
   if (! have_script)
     {
-      // We don't need a script if --list-servers or --trust-servers was specified
-      if (server_status_strings.empty () && server_trust_spec.empty ())
+      // We don't need a script if --list-servers, --trust-servers or --dump-probe-types was
+      // specified.
+      if (server_status_strings.empty () && server_trust_spec.empty () && ! dump_probe_types)
 	{
 	  cerr << _("A script must be specified.") << endl;
 	  usage(1);
@@ -1122,18 +1173,18 @@ systemtap_session::check_options (int argc, char * const argv [])
 
 #if ! HAVE_NSS
   if (client_options)
-    cerr << _("WARNING: --client-options is not supported by this version of systemtap") << endl;
+    print_warning("--client-options is not supported by this version of systemtap");
 
   if (! server_trust_spec.empty ())
     {
-      cerr << _("WARNING: --trust-servers is not supported by this version of systemtap") << endl;
+      print_warning("--trust-servers is not supported by this version of systemtap");
       server_trust_spec.clear ();
     }
 #endif
 
   if (runtime_specified && ! specified_servers.empty ())
     {
-      cerr << _("Warning: Ignoring --use-server due to the use of -R") << endl;
+      print_warning("Ignoring --use-server due to the use of -R");
       specified_servers.clear ();
     }
 
@@ -1141,40 +1192,64 @@ systemtap_session::check_options (int argc, char * const argv [])
     {
       last_pass = 4; /* Quietly downgrade.  Server passed through -p5 naively. */
     }
-  // If phase 5 has been requested and the user is a member of stapusr but not
-  // stapdev, then add --unprivileged and --use-server to the invocation,
-  // if not already specified.
+
+  // If phase 5 has been requested, automatically adjust the --privilege setting to match the
+  // user's actual privilege level and add --use-server, if necessary.
+  // Do this only if we have a script and we are not the server.
   // XXX Eventually we could check remote hosts, but disable that case for now.
-  if (last_pass > 4 && have_script && remote_uris.empty())
+  if (last_pass > 4 && have_script && ! client_options && remote_uris.empty())
     {
-      struct group *stgr = getgrnam ("stapusr");
-      if (stgr && in_group_id (stgr->gr_gid))
+      // What is the user's privilege level?
+      privilege_t credentials = get_privilege_credentials ();
+      // Don't alter specifically-requested privilege levels
+      if (! privilege_set && ! pr_contains (credentials, privilege))
 	{
-	  stgr = getgrnam ("stapdev");
-	  if (! stgr || ! in_group_id (stgr->gr_gid))
+	  // We do not have the default privilege credentials (stapdev). Lower
+	  // the privilege level to match our credentials.
+	  if (pr_contains (credentials, pr_stapsys))
 	    {
-              automatic_server_mode = true;
-	      if (! unprivileged)
-		{
-                  if (perpass_verbose[0] > 1)
-                    cerr << _("Using --unprivileged for member of the group stapusr") << endl;
-		  unprivileged = true;
-		  server_args.push_back ("--unprivileged");
-		}
-	      if (specified_servers.empty ())
-		{
-                  if (perpass_verbose[0] > 1)
-                    cerr << _("Using --use-server for member of the group stapusr") << endl;
-		  specified_servers.push_back ("");
-		}
+	      if (perpass_verbose[0] > 1)
+		cerr << _("Using --privilege=stapsys for member of the group stapsys") << endl;
+	      privilege = pr_stapsys;
+	      server_args.push_back ("--privilege=stapsys");
+	    }
+	  else if (pr_contains (credentials, pr_stapusr))
+	    {
+	      if (perpass_verbose[0] > 1)
+		cerr << _("Using --privilege=stapusr for member of the group stapusr") << endl;
+	      privilege = pr_stapusr;
+	      server_args.push_back ("--privilege=stapusr");
+	    }
+	  else
+	    {
+	      // Completely unprivileged user.
+	      cerr << _("You are trying to run systemtap as a normal user.\n"
+			"You should either be root, or be part of "
+			"the group \"stapusr\" and possibly one of the groups \"stapsys\" or \"stapdev\".\n");
+	      usage (1); // does not return.
+	    }
+	}
+      // Add --use-server if not already specified and the user's (lack of) credentials require
+      // it for pass 5.
+      if (! pr_contains (credentials, pr_stapdev))
+	{
+	  if (specified_servers.empty ())
+	    {
+	      if (perpass_verbose[0] > 1)
+		cerr << _F("Using --use-server for user with privilege level %s",
+			   pr_name (privilege))
+		     << endl;
+	      specified_servers.push_back ("");
 	    }
 	}
     }
 
-  if (client_options && unprivileged && ! client_options_disallowed.empty ())
+  if (client_options && ! pr_contains (privilege, pr_stapdev) && ! client_options_disallowed.empty ())
     {
-      cerr << _F("You can't specify %s when --unprivileged is specified.",
-                 client_options_disallowed.c_str()) << endl;
+      cerr << _F("You can't specify %s when --privilege=%s is specified.",
+                 client_options_disallowed.c_str(),
+		 pr_name (privilege))
+	   << endl;
       usage (1);
     }
   if ((cmd != "") && (target_pid))
@@ -1182,9 +1257,10 @@ systemtap_session::check_options (int argc, char * const argv [])
       cerr << _F("You can't specify %s and %s together.", "-c", "-x") << endl;
       usage (1);
     }
-  if (unprivileged && guru_mode)
+  if (! pr_contains (privilege, pr_stapdev) && guru_mode)
     {
-      cerr << _F("You can't specify %s and %s together.", "-g", "--unprivileged") << endl;
+      cerr << _F("You can't specify %s and --privilege=%s together.", "-g", pr_name (privilege))
+	   << endl;
       usage (1);
     }
   if (!kernel_symtab_path.empty())
@@ -1206,14 +1282,21 @@ systemtap_session::check_options (int argc, char * const argv [])
       usage(1);
     }
   // Warn in case the target kernel release doesn't match the running one.
-  if (last_pass > 4 &&
-      (release != kernel_release ||
-       machine != architecture)) // NB: squashed ARCH by PR4186 logic
-   {
-     if(! suppress_warnings)
-       cerr << _("WARNING: kernel release/architecture mismatch with host forces last-pass 4.") << endl;
-     last_pass = 4;
-   }
+  native_build = (release == kernel_release &&
+                  machine == architecture); // NB: squashed ARCH by PR4186 logic
+
+  // Non-native builds can't be loaded locally, but may still work on remotes
+  if (last_pass > 4 && !native_build && remote_uris.empty())
+    {
+      print_warning("kernel release/architecture mismatch with host forces last-pass 4.");
+      last_pass = 4;
+    }
+  if(download_dbinfo != 0 && access ("/usr/bin/abrt-action-install-debuginfo-to-abrt-cache", X_OK) < 0
+                          && access ("/usr/libexec/abrt-action-install-debuginfo-to-abrt-cache", X_OK) < 0)
+    {
+      print_warning("abrt-action-install-debuginfo-to-abrt-cache is not installed. Continuing without downloading debuginfo.");
+      download_dbinfo = 0;
+    }
 
   // translate path of runtime to absolute path
   if (runtime_path[0] != '/')
@@ -1228,7 +1311,7 @@ systemtap_session::check_options (int argc, char * const argv [])
   // Abnormal characters in our temp path can break us, including parts out
   // of our control like Kbuild.  Let's enforce nice, safe characters only.
   const char *tmpdir = getenv("TMPDIR");
-  if (tmpdir)
+  if (tmpdir != NULL)
     assert_regexp_match("TMPDIR", tmpdir, "^[-/._0-9a-z]+$");
 }
 
@@ -1344,6 +1427,9 @@ systemtap_session::register_library_aliases()
                                                 comp->functor.c_str()));
                       mn = mn->bind(comp->functor);
                     }
+		  // PR 12916: All probe aliases are OK for all users. The actual
+		  // referenced probe points will be checked when the alias is resolved.
+		  mn->bind_privilege (pr_all);
                   mn->bind(new alias_expansion_builder(alias));
                 }
             }
@@ -1480,6 +1566,9 @@ systemtap_session::print_error_source (std::ostream& message,
 void
 systemtap_session::print_warning (const string& message_str, const token* tok)
 {
+  if(suppress_warnings)
+    return;
+
   // Duplicate elimination
   string align_warning (" ");
   if (seen_warnings.find (message_str) == seen_warnings.end())
@@ -1491,6 +1580,18 @@ systemtap_session::print_warning (const string& message_str, const token* tok)
       if (tok) { print_error_source (clog, align_warning, tok); }
     }
 }
+
+
+translator_output* systemtap_session::op_create_auxiliary()
+{
+  static int counter = 0;
+  string tmpname = this->tmpdir + "/" + this->module_name + "_aux_" + lex_cast(counter++) + ".c";
+  translator_output* n = new translator_output (tmpname);
+  auxiliary_outputs.push_back (n);
+  return n;
+}
+
+
 
 // --------------------------------------------------------------------------
 

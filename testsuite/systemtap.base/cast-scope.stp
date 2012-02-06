@@ -1,0 +1,16 @@
+probe process.function("length@cast-scope.cxx")
+{
+  println("function direct: ", $str$$)
+  println("function cast: ", @cast($str, "std::string")$$)
+}
+
+probe process.statement("length@cast-scope.cxx+4")
+{
+  println("statement direct: ", $str$$)
+  println("statement cast: ", @cast($str, "std::string")$$)
+}
+
+probe process.mark("length")
+{
+  println("mark cast: ", @cast($arg1, "std::string")$$)
+}

@@ -165,11 +165,12 @@ derived_probe::script_location () const
 
 
 void
-derived_probe::emit_unprivileged_assertion (translator_output* o)
+derived_probe::emit_privilege_assertion (translator_output* o)
 {
   // Emit code which will cause compilation to fail if it is compiled in
   // unprivileged mode.
-  o->newline() << "#ifndef STP_PRIVILEGED";
+  o->newline() << "#if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \\";
+  o->newline() << "    ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPSYS)";
   o->newline() << "#error Internal Error: Probe ";
   probe::printsig (o->line());
   o->line()    << " generated in --unprivileged mode";
@@ -182,7 +183,8 @@ derived_probe::emit_process_owner_assertion (translator_output* o)
 {
   // Emit code which will abort should the current target not belong to the
   // user in unprivileged mode.
-  o->newline()   << "#ifndef STP_PRIVILEGED";
+  o->newline() << "#if ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPDEV) && \\";
+  o->newline() << "    ! STP_PRIVILEGE_CONTAINS (STP_PRIVILEGE, STP_PR_STAPSYS)";
   o->newline(1)  << "if (! is_myproc ()) {";
   o->newline(1)  << "snprintf(c->error_buffer, sizeof(c->error_buffer),";
   o->newline()   << "         \"Internal Error: Process %d does not belong to user %d in probe %s in --unprivileged mode\",";
@@ -348,7 +350,7 @@ match_key::globmatch(match_key const & other) const
 // ------------------------------------------------------------------------
 
 match_node::match_node() :
-  unprivileged_ok(false)
+  privilege(privilege_t (pr_stapdev | pr_stapsys))
 {
 }
 
@@ -391,9 +393,9 @@ match_node::bind_num(string const & k)
 }
 
 match_node *
-match_node::bind_unprivileged(bool b)
+match_node::bind_privilege(privilege_t p)
 {
-  unprivileged_ok = b;
+  privilege = p;
   return this;
 }
 
@@ -416,9 +418,10 @@ match_node::find_and_build (systemtap_session& s,
                                    loc->components.back()->tok);
         }
 
-      if (s.unprivileged && ! unprivileged_ok)
+      if (! pr_contains (privilege, s.privilege))
 	{
-          throw semantic_error (_("probe point is not allowed for unprivileged users"),
+          throw semantic_error (_F("probe point is not allowed for --privilege=%s",
+				   pr_name (s.privilege)),
                                 loc->components.back()->tok);
 	}
 
@@ -597,6 +600,36 @@ match_node::build_no_more (systemtap_session& s)
     {
       derived_probe_builder *b = ends[k];
       b->build_no_more (s);
+    }
+}
+
+void
+match_node::dump (systemtap_session &s, const string &name)
+{
+  // Dump this node, if it is complete.
+  for (unsigned k=0; k<ends.size(); k++)
+    {
+      // Don't print aliases at all (for now) until we can figure out how to determine whether
+      // the probes they resolve to are ok in unprivileged mode.
+      if (ends[k]->is_alias ())
+	continue;
+
+      // In unprivileged mode, don't show the probes which are not allowed for unprivileged
+      // users.
+      if (pr_contains (privilege, s.privilege))
+	{
+	  cout << name << endl;
+	  break; // we need only print one instance.
+	}
+    }
+
+  // Recursively dump the children of this node
+  string dot;
+  if (! name.empty ())
+    dot = ".";
+  for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
+    {
+      i->second->dump (s, name + dot + i->first.str());
     }
 }
 
@@ -1201,8 +1234,8 @@ semantic_pass_conditions (systemtap_session & sess)
 // necessary initialization of code needed by the embedded code functions.
 
 // This is only for pragmas that don't have any other side-effect than
-// needing some initialization at module init time. Currently only handles
-// /* pragma:vma */.
+// needing some initialization at module init time. Currently handles
+// /* pragma:vma */ /* pragma:unwind */ /* pragma:symbol */
 
 // /* pragma:uprobes */ is handled during the typeresolution_info pass.
 // /* pure */, /* unprivileged */. /* myproc-unprivileged */ and /* guru */
@@ -1225,6 +1258,24 @@ public:
 	if (session.verbose > 2)
           clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
                      current_function->name.c_str()) << endl;
+      }
+
+    if (! session.need_unwind
+	&& c->code.find("/* pragma:unwind */") != string::npos)
+      {
+	if (session.verbose > 2)
+	  clog << _F("Turning on unwind support, pragma:unwind found in %s",
+		    current_function->name.c_str()) << endl;
+	session.need_unwind = true;
+      }
+
+    if (! session.need_symbols
+	&& c->code.find("/* pragma:symbols */") != string::npos)
+      {
+	if (session.verbose > 2)
+	  clog << _F("Turning on symbol data collecting, pragma:symbols found in %s",
+		    current_function->name.c_str()) << endl;
+	session.need_symbols = true;
       }
   }
 };
@@ -1525,8 +1576,14 @@ void add_global_var_display (systemtap_session& s)
 	  for (int i=0; i < idx_count; i++)
 	    {
 	      char *idx_name;
-	      if (asprintf (&idx_name, "idx%d", i) < 0)
-		return;
+	      if (asprintf (&idx_name, "idx%d", i) < 0) {
+               delete pf;
+               delete b;
+               delete p;
+               delete g_sym;
+               delete fe;
+               return;
+	      }
 	      idx_sym[i] = new symbol;
 	      idx_sym[i]->name = idx_name;
 	      idx_sym[i]->tok = l->tok;
@@ -1997,11 +2054,8 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
       functiondecl* fd = it->second;
       if (ftv.traversed.find(fd) == ftv.traversed.end())
         {
-          if (fd->tok->location.file->name == s.user_file->name && // !tapset
-              ! s.suppress_warnings && ! fd->synthetic)
+          if (fd->tok->location.file->name == s.user_file->name && ! fd->synthetic)// !tapset
             s.print_warning (_F("Eliding unused function '%s'", fd->name.c_str()), fd->tok);
-          else if (s.verbose>2)
-            clog << _F("Eliding unused function '%s'", fd->name.c_str()) << endl;
           // s.functions.erase (it); // NB: can't, since we're already iterating upon it
           new_unused_functions.push_back (fd);
           relaxed_p = false;
@@ -2055,12 +2109,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
         if (vut.read.find (l) == vut.read.end() &&
             vut.written.find (l) == vut.written.end())
           {
-            if (l->tok->location.file->name == s.user_file->name && // !tapset
-                ! s.suppress_warnings)
+            if (l->tok->location.file->name == s.user_file->name) // !tapset
               s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
-            else if (s.verbose>2)
-              clog << _F("Eliding unused local variable %s in %s",
-                         l->name.c_str(), s.probes[i]->name.c_str()) << endl;
 	    if (s.tapset_compile_coverage) {
 	      s.probes[i]->unused_locals.push_back
 		      (s.probes[i]->locals[j]);
@@ -2100,12 +2150,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           if (vut.read.find (l) == vut.read.end() &&
               vut.written.find (l) == vut.written.end())
             {
-              if (l->tok->location.file->name == s.user_file->name && // !tapset
-                  ! s.suppress_warnings)
+              if (l->tok->location.file->name == s.user_file->name) // !tapset
                 s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
-              else if (s.verbose>2)
-                clog << _F("Eliding unused local variable %s in function %s",
-                           l->name.c_str(), fd->name.c_str()) << endl;
               if (s.tapset_compile_coverage) {
                 fd->unused_locals.push_back (fd->locals[j]);
               }
@@ -2146,11 +2192,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
       if (vut.read.find (l) == vut.read.end() &&
           vut.written.find (l) == vut.written.end())
         {
-          if (l->tok->location.file->name == s.user_file->name && // !tapset
-              ! s.suppress_warnings)
+          if (l->tok->location.file->name == s.user_file->name) // !tapset
             s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
-          else if (s.verbose>2)
-            clog << _F("Eliding unused global variable %s", l->name.c_str()) << endl;
 	  if (s.tapset_compile_coverage) {
 	    s.unused_globals.push_back(s.globals[i]);
 	  }
@@ -2231,15 +2274,12 @@ dead_assignment_remover::visit_assignment (assignment* e)
             {
               /* PR 1119: NB: This is not necessary here.  A write-only
                  variable will also be elided soon at the next _opt2 iteration.
-              if (e->left->tok->location.file == session.user_file->name && // !tapset
-                  ! session.suppress_warnings)
-                clog << "WARNING: eliding write-only " << *e->left->tok << endl;
+              if (e->left->tok->location.file->name == session.user_file->name) // !tapset
+                session.print_warning("eliding write-only ", *e->left->tok);
               else
               */
-              if (session.verbose>2)
-                clog << _F("Eliding assignment to %s at %s",
-                           leftvar->name.c_str(), lex_cast(*e->tok).c_str()) << endl;
-
+              if (e->left->tok->location.file->name == session.user_file->name) // !tapset
+              session.print_warning(_F("Eliding assignment to %s at %s", leftvar->name.c_str(), lex_cast(*e->tok).c_str()));
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
               return;
@@ -2450,7 +2490,7 @@ dead_stmtexpr_remover::visit_foreach_loop (foreach_loop *s)
     {
       // XXX what if s->limit has side effects?
       // XXX what about s->indexes or s->value used outside the loop?
-      if (session.verbose>2)
+      if(session.verbose > 2)
         clog << _("Eliding side-effect-free foreach statement ") << *s->tok << endl;
       s = 0; // yeah, baby
     }
@@ -2509,14 +2549,12 @@ dead_stmtexpr_remover::visit_expr_statement (expr_statement *s)
     {
       /* PR 1119: NB: this message is not a good idea here.  It can
          name some arbitrary RHS expression of an assignment.
-      if (s->value->tok->location.file == session.user_file->name && // not tapset
-          ! session.suppress_warnings)
-        clog << "WARNING: eliding never-assigned " << *s->value->tok << endl;
+      if (s->value->tok->location.file->name == session.user_file->name) // not tapset
+        session.print_warning("eliding never-assigned ", *s->value->tok);
       else
       */
-      if (session.verbose>2)
-        clog << _("Eliding side-effect-free expression ")
-             << *s->tok << endl;
+      if (s->value->tok->location.file->name == session.user_file->name) // not tapset
+        session.print_warning("Eliding side-effect-free expression ", s->tok);
 
       // NB: this 0 pointer is invalid to leave around for any length of
       // time, but the parent parse tree objects above handle it.
@@ -2551,8 +2589,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
       duv.replace (p->body, true);
       if (p->body == 0)
         {
-          if (! s.suppress_warnings
-              && ! s.timing) // PR10070
+          if (! s.timing) // PR10070
             s.print_warning (_F("side-effect-free probe '%s'", p->name.c_str()), p->tok);
 
           p->body = new null_statement(p->tok);
@@ -2576,8 +2613,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
       duv.replace (fn->body, true);
       if (fn->body == 0)
         {
-          if (! s.suppress_warnings)
-            s.print_warning (_F("side-effect-free function '%s'", fn->name.c_str()), fn->tok);
+          s.print_warning (_F("side-effect-free function '%s'", fn->name.c_str()), fn->tok);
 
           fn->body = new null_statement(fn->tok);
 
@@ -3529,12 +3565,8 @@ const_folder::visit_target_symbol (target_symbol* e)
       literal_number* ln_zero = new literal_number (0);
       ln_zero->tok = e->tok;
       provide (ln_zero);
-      if (!session.suppress_warnings)
-        session.print_warning (_("Bad $context variable being substituted with literal 0"),
+      session.print_warning (_("Bad $context variable being substituted with literal 0"),
                                e->tok);
-      else if (session.verbose > 2)
-        clog << _("Bad $context variable being substituted with literal 0, ")
-             << *e->tok << endl;
       relaxed_p = false;
     }
   else
@@ -3665,6 +3697,10 @@ semantic_pass_optimize1 (systemtap_session& s)
 
   int rc = 0;
 
+  // Save the old value of suppress_warnings, as we will be changing
+  // it below.
+  save_and_restore<bool> suppress_warnings(& s.suppress_warnings);
+
   bool relaxed_p = false;
   unsigned iterations = 0;
   while (! relaxed_p)
@@ -3672,6 +3708,13 @@ semantic_pass_optimize1 (systemtap_session& s)
       if (pending_interrupts) break;
 
       relaxed_p = true; // until proven otherwise
+
+      // If the verbosity is high enough, always print warnings (overrides -w),
+      // or if not, always suppress warnings for every itteration after the first.
+      if(s.verbose > 2)
+        s.suppress_warnings = false;
+      else if (iterations > 0)
+        s.suppress_warnings = true;
 
       if (!s.unoptimized)
         {
@@ -3704,14 +3747,28 @@ semantic_pass_optimize2 (systemtap_session& s)
 
   int rc = 0;
 
+  // Save the old value of suppress_warnings, as we will be changing
+  // it below.
+  save_and_restore<bool> suppress_warnings(& s.suppress_warnings);
+
   bool relaxed_p = false;
+  unsigned iterations = 0;
   while (! relaxed_p)
     {
       if (pending_interrupts) break;
       relaxed_p = true; // until proven otherwise
 
+      // If the verbosity is high enough, always print warnings (overrides -w),
+      // or if not, always suppress warnings for every itteration after the first.
+      if(s.verbose > 2)
+        s.suppress_warnings = false;
+      else if (iterations > 0)
+        s.suppress_warnings = true;
+
       if (!s.unoptimized)
         semantic_pass_opt6 (s, relaxed_p);
+
+      iterations++;
     }
 
   return rc;
@@ -3788,6 +3845,10 @@ semantic_pass_types (systemtap_session& s)
           vardecl* gd = s.globals[j];
           if (gd->type == pe_unknown)
             ti.unresolved (gd->tok);
+          if(gd->arity == 0 && gd->wrap == true)
+            {
+              throw semantic_error (_("wrapping not supported for scalars"), gd->tok);
+            }
         }
 
       if (ti.num_newly_resolved == 0) // converged
@@ -3810,7 +3871,9 @@ semantic_pass_types (systemtap_session& s)
 
 
 typeresolution_info::typeresolution_info (systemtap_session& s):
-  session(s), current_function(0), current_probe(0)
+  session(s), num_newly_resolved(0), num_still_unresolved(0),
+  assert_resolvability(false), current_function(0), current_probe(0),
+  t(pe_unknown)
 {
 }
 
@@ -4679,12 +4742,8 @@ typeresolution_info::visit_print_format (print_format* e)
 	      assert (false);
 	      break;
 
-	    case print_format::conv_signed_decimal:
-	    case print_format::conv_unsigned_decimal:
-	    case print_format::conv_unsigned_octal:
-	    case print_format::conv_unsigned_ptr:
-	    case print_format::conv_unsigned_uppercase_hex:
-	    case print_format::conv_unsigned_lowercase_hex:
+	    case print_format::conv_pointer:
+	    case print_format::conv_number:
 	    case print_format::conv_binary:
 	    case print_format::conv_char:
 	    case print_format::conv_memory:
@@ -4860,7 +4919,7 @@ typeresolution_info::mismatch (const token* tok, exp_type t1, exp_type t2)
 	}
       if (!tok_resolved)
 	{
-          msg << _F("type mismatch ( %s vs. %s )",
+          msg << _F("type mismatch (%s vs. %s)",
                     lex_cast(t1).c_str(), lex_cast(t2).c_str());
 	}
       else
@@ -4874,14 +4933,14 @@ typeresolution_info::mismatch (const token* tok, exp_type t1, exp_type t2)
 		  break;
 		}
 	    }
-          msg << _F("type mismatch ( %s vs. %s )",
+          msg << _F("type mismatch (%s vs. %s)",
                     lex_cast(t1).c_str(), lex_cast(t2).c_str());
 	  if (!tok_printed)
 	    {
 	      //error for possible mismatch in the earlier resolved token
 	      printed_toks.push_back (resolved_toks[i]);
 	      stringstream type_msg;
-              type_msg << _F("type was first inferred here ( %s )", lex_cast(t2).c_str());
+              type_msg << _F("type was first inferred here (%s)", lex_cast(t2).c_str());
 	      err1 = new semantic_error (type_msg.str(), resolved_toks[i]);
 	    }
 	}
