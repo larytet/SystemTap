@@ -205,7 +205,11 @@ static int __stp_relay_remove_buf_file_callback(struct dentry *dentry)
 static struct dentry *
 __stp_relay_create_buf_file_callback(const char *filename,
 				     struct dentry *parent,
+#ifdef STAPCONF_RELAY_UMODE_T
+				     umode_t mode,
+#else
 				     int mode,
+#endif
 				     struct rchan_buf *buf,
 				     int *is_global)
 {
@@ -305,7 +309,7 @@ static int _stp_transport_data_fs_init(void)
 	/* Create "trace" file. */
 	npages = _stp_subbuf_size * _stp_nsubbufs;
 #ifdef STP_BULKMODE
-	npages *= num_possible_cpus();
+	npages *= num_online_cpus();
 #endif
 	npages >>= PAGE_SHIFT;
 	si_meminfo(&si);
@@ -338,6 +342,18 @@ static int _stp_transport_data_fs_init(void)
 		rc = -ENOENT;
 		goto err;
 	}
+        /* Increment _stp_allocated_memory and _stp_allocated_net_memory to account for buffers
+           allocated by relay_open. */
+        {
+                u64 relay_mem;
+                relay_mem = _stp_subbuf_size * _stp_nsubbufs;
+#ifdef STP_BULKMODE
+                relay_mem *= num_online_cpus();
+#endif
+                _stp_allocated_net_memory += relay_mem;
+                _stp_allocated_memory += relay_mem;
+        }
+
 	dbug_trans(1, "returning 0...\n");
 	atomic_set (&_stp_relay_data.transport_state, STP_TRANSPORT_INITIALIZED);
 

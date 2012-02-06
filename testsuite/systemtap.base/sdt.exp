@@ -1,5 +1,5 @@
 set test "sdt"
-set ::result_string {_
+set result_string10 {_
 1
 1 2
 1 2 3
@@ -10,6 +10,9 @@ set ::result_string {_
 1 2 3 4 5 6 7 8
 1 2 3 4 5 6 7 8 9
 1 2 3 4 5 6 7 8 9 10}
+set result_string12 {
+1 2 3 4 5 6 7 8 9 10 11
+1 2 3 4 5 6 7 8 9 10 11 12}
 
 set extra_flags {{additional_flags=-O2}
     {additional_flags=-O3}
@@ -28,6 +31,30 @@ set type_pedantic_mssgs {{} -pedantic}
 
 set pbtype_flags {{""} {additional_flags=-DSTAP_SDT_V2} {additional_flags=-DEXPERIMENTAL_KPROBE_SDT}}
 set pbtype_mssgs {{uprobe} {V2_uprobe} {V2_kprobe}}
+
+proc sdt_stap_run { TEST_NAME TEST_FILE FAIL args } {
+    set cmd [concat stap $TEST_FILE $args]
+    send_log "executing: $cmd\n"
+    catch {eval exec $cmd} res
+
+    set n 0
+    set expected [split $::result_string "\n"]
+    foreach line [split $res "\n"] {
+	if {![string equal $line [lindex $expected $n]]} {
+	    $FAIL "$TEST_NAME"
+	    send_log "line [expr $n + 1]: expected \"[lindex $expected $n]\"\n"
+	    send_log "Got \"$line\"\n"
+	    return
+	}
+	incr n
+    }
+    if {[expr $n == [llength $expected]]} {
+      pass "$TEST_NAME"
+    } else {
+      $FAIL "$TEST_NAME"
+      send_log "too few lines of output, got $n, expected [llength $expected]\n"
+    }
+}
 
 # Iterate pbtype_flags
 for {set p 0} {$p < [llength $pbtype_flags]} {incr p} {
@@ -54,7 +81,12 @@ set saveidx 0
 set res [target_compile $srcdir/$subdir/$test.c $testprog executable "$test_flags $extra_flag [lindex $type_pedantics $j]"]
 if { $res != "" } {
     verbose "target_compile failed: $res" 2
-    fail "compiling $test.c $extra_mssg $type_pedantic_mssg $pbtype_mssg"
+    # -std=gnu++0x and -std=c++0x are not universally accepted
+    if {[string first "unrecognized command line option" $res] == -1} {
+      fail "compiling $test.c $extra_mssg $type_pedantic_mssg $pbtype_mssg"
+    } else {
+      untested "compiling $test.c $extra_mssg $type_pedantic_mssg $pbtype_mssg"
+    }
     untested "$test $extra_mssg $type_pedantic_mssg $pbtype_mssg"
     continue
 } else {
@@ -62,9 +94,22 @@ if { $res != "" } {
 }
 
 if {[installtest_p] && [utrace_p] && [uprobes_p]} {
-  stap_run3 "$test $extra_mssg $type_pedantic_mssg $pbtype_mssg" -w $srcdir/$subdir/$test.stp $testprog -c ./$testprog
+    if {[regexp "^(s390x)$" $::tcl_platform(machine)] && $pbtype_mssg == "V2_kprobe"} {
+	set FAIL xfail
+    } elseif {[regexp "^(ppc64|s390x)$" $::tcl_platform(machine)] && [regexp "^(-O)" $extra_mssg]} {
+	# register name and constant is ambiguous in ppc/s390 asm syntax
+	# thus constant folding can throw the result off
+	set FAIL xfail
+    } else {
+	set FAIL fail
+    }
+    set ::result_string $result_string10
+    if { $pbtype_mssg == "uprobe" } {
+	append ::result_string $result_string12
+    }
+    sdt_stap_run "$test $extra_mssg $type_pedantic_mssg $pbtype_mssg" -w $FAIL $srcdir/$subdir/$test.stp $testprog -c ./$testprog
 } else {
-  untested "$test $extra_mssg $type_pedantic_mssg $pbtype_mssg"
+    untested "$test $extra_mssg $type_pedantic_mssg $pbtype_mssg"
 }
 catch {exec rm -f $testprog}
 

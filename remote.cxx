@@ -14,6 +14,8 @@ extern "C" {
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <sys/un.h>
 }
 
 #include <cstdio>
@@ -82,6 +84,11 @@ class direct : public remote {
     int start()
       {
         args = make_run_command(*s);
+        if (! staprun_r_arg.empty()) // PR13354
+          {
+            args.push_back ("-r");
+            args.push_back (staprun_r_arg);
+          }
         pid_t pid = stap_spawn (s->verbose, args);
         if (pid <= 0)
           return 1;
@@ -96,7 +103,7 @@ class direct : public remote {
 
         int ret = stap_waitpid(s->verbose, child);
         if(ret)
-          clog << _F("Warning: %s exited with status: %d", args.front().c_str(), ret) << endl;
+          s->print_warning(_F("%s exited with status: %d", args.front().c_str(), ret));
         child = 0;
         return ret;
       }
@@ -134,63 +141,76 @@ class stapsh : public remote {
     virtual void handle_poll(vector<pollfd>& fds)
       {
         for (unsigned i=0; i < fds.size(); ++i)
-          if (fds[i].revents)
+          if (fds[i].fd == fdin || fds[i].fd == fdout)
             {
-              if (fdout >= 0 && OUT && fds[i].fd == fdout)
-                {
-                  if (fds[i].revents & POLLIN)
-                    {
-                      char buf[4096];
-                      if (!prefix.empty())
-                        {
-                          // If we have a line prefix, then read lines one at a
-                          // time and copy out with the prefix.
-                          errno = 0;
-                          while (fgets(buf, sizeof(buf), OUT))
-                            cout << prefix << buf;
-                          if (errno == EAGAIN)
-                            continue;
-                        }
-                      else
-                        {
-                          // Otherwise read an entire block of data at once.
-                          size_t rc = fread(buf, 1, sizeof(buf), OUT);
-                          if (rc > 0)
-                            {
-                              // NB: The buf could contain binary data,
-                              // including \0, so write as a block instead of
-                              // the usual <<string.
-                              cout.write(buf, rc);
-                              continue;
-                            }
-                        }
-                    }
-                  close();
-                }
+              bool err = false;
 
               // need to send a signal?
-              if (fdin >= 0 && IN && fds[i].fd == fdin &&
+              if (fds[i].revents & POLLOUT && IN &&
                   interrupts_sent < pending_interrupts)
                 {
-                  if (fds[i].revents & POLLOUT)
-                    {
-                      if (send_command("quit\n") == 0)
-                        {
-                          ++interrupts_sent;
-                          continue;
-                        }
-                    }
-                  close();
+                  if (send_command("quit\n") == 0)
+                    ++interrupts_sent;
+                  else
+                    err = true;
                 }
+
+              // have data to read?
+              if (fds[i].revents & POLLIN && OUT)
+                {
+                  char buf[4096];
+                  if (!prefix.empty())
+                    {
+                      // If we have a line prefix, then read lines one at a
+                      // time and copy out with the prefix.
+                      errno = 0;
+                      while (fgets(buf, sizeof(buf), OUT))
+                        cout << prefix << buf;
+                      if (errno != EAGAIN)
+                        err = true;
+                    }
+                  else
+                    {
+                      // Otherwise read an entire block of data at once.
+                      size_t rc = fread(buf, 1, sizeof(buf), OUT);
+                      if (rc > 0)
+                        {
+                          // NB: The buf could contain binary data,
+                          // including \0, so write as a block instead of
+                          // the usual <<string.
+                          cout.write(buf, rc);
+                        }
+                      else
+                        err = true;
+                    }
+                }
+
+              // any errors?
+              if (err || fds[i].revents & ~(POLLIN|POLLOUT))
+                close();
             }
       }
 
     string get_reply()
       {
+        // Some schemes like unix may have stdout and stderr mushed together.
+        // There shouldn't be anything except dbug messages on stderr before we
+        // actually start running, and there's no get_reply after that.  So
+        // we'll just loop and skip those that start with "stapsh:".
         char reply[4096];
-        if (!fgets(reply, sizeof(reply), OUT))
-          reply[0] = '\0';
-        return reply;
+        while (fgets(reply, sizeof(reply), OUT))
+          {
+            if (!startswith(reply, "stapsh:"))
+              return reply;
+
+            // Why not clog here?  Well, once things get running we won't be
+            // able to distinguish stdout/err, so trying to fake it here would
+            // be less consistent than just keeping it merged.
+            cout << reply;
+          }
+
+        // Reached EOF, nothing to reply...
+        return "";
       }
 
     int send_command(const string& cmd)
@@ -312,8 +332,16 @@ class stapsh : public remote {
         // Send the staprun args
         // NB: The remote is left to decide its own staprun path
         ostringstream run("run", ios::out | ios::ate);
-        vector<string> cmd = make_run_command(*s, s->module_name + ".ko",
-                                              remote_version);
+        vector<string> cmd = make_run_command(*s, ".", remote_version);
+
+        // PR13354: identify our remote index/url
+        if (strverscmp("1.7", remote_version.c_str()) <= 0 && // -r supported?
+            ! staprun_r_arg.empty())
+          {
+            cmd.push_back ("-r");
+            cmd.push_back (staprun_r_arg);
+          }
+
         for (unsigned i = 1; i < cmd.size(); ++i)
           run << ' ' << qpencode(cmd[i]);
         run << '\n';
@@ -453,6 +481,66 @@ class direct_stapsh : public stapsh {
     friend class remote;
 
     virtual ~direct_stapsh() { finish(); }
+};
+
+
+// Connect to an existing stapsh on a unix socket.
+class unix_stapsh : public stapsh {
+  private:
+
+    unix_stapsh(systemtap_session& s, const uri_decoder& ud)
+      : stapsh(s)
+      {
+        sockaddr_un server;
+        server.sun_family = AF_UNIX;
+        if (ud.path.empty())
+          throw runtime_error(_("unix target requires a /path"));
+        if (ud.path.size() > sizeof(server.sun_path) - 1)
+          throw runtime_error(_("unix target /path is too long"));
+        strcpy(server.sun_path, ud.path.c_str());
+
+        if (ud.has_authority)
+          throw runtime_error(_("unix target doesn't support a hostname"));
+        if (ud.has_query)
+          throw runtime_error(_("unix target URI doesn't support a ?query"));
+        if (ud.has_fragment)
+          throw runtime_error(_("unix target URI doesn't support a #fragment"));
+
+        int fd = socket(AF_UNIX, SOCK_STREAM, 0);
+        if (fd <= 0)
+          throw runtime_error(_("error opening a socket"));
+
+        if (connect(fd, (struct sockaddr *)&server, SUN_LEN(&server)) < 0)
+          {
+            const char *msg = strerror(errno);
+            ::close(fd);
+            throw runtime_error(_F("error connecting to socket: %s", msg));
+          }
+
+        // Try to dup it, so class stapsh can have truly separate fds for its
+        // fdopen handles.  If it fails for some reason, it can still work with
+        // just one though.
+        int fd2 = dup(fd);
+        if (fd2 < 0)
+          fd2 = fd;
+
+        try
+          {
+            set_child_fds(fd, fd2);
+          }
+        catch (runtime_error&)
+          {
+            finish();
+            ::close(fd);
+            ::close(fd2);
+            throw;
+          }
+      }
+
+  public:
+    friend class remote;
+
+    virtual ~unix_stapsh() { finish(); }
 };
 
 
@@ -673,23 +761,46 @@ class ssh_legacy_remote : public remote {
           tmpmodule = tmpdir + "/" + s->module_name + ".ko";
         }
 
-        // Transfer the module.  XXX and uprobes.ko, sigs, etc.
-        if (rc == 0) {
-          vector<string> cmd = scp_args;
-          cmd.push_back(localmodule);
-          cmd.push_back(host + ":" + tmpmodule);
-          rc = stap_system(s->verbose, cmd);
-          if (rc != 0)
-            cerr << _F("failed to copy the module to %s : rc=%d",
-                       host.c_str(), rc) << endl;
-        }
+        // Transfer the module.
+        if (rc == 0)
+          {
+            vector<string> cmd = scp_args;
+            cmd.push_back(localmodule);
+            cmd.push_back(host + ":" + tmpmodule);
+            rc = stap_system(s->verbose, cmd);
+            if (rc != 0)
+              cerr << _F("failed to copy the module to %s : rc=%d",
+                         host.c_str(), rc) << endl;
+          }
+
+        // Transfer the module signature.
+        if (rc == 0 && file_exists(localmodule + ".sgn"))
+          {
+            vector<string> cmd = scp_args;
+            cmd.push_back(localmodule + ".sgn");
+            cmd.push_back(host + ":" + tmpmodule + ".sgn");
+            rc = stap_system(s->verbose, cmd);
+            if (rc != 0)
+              cerr << _F("failed to copy the module signature to %s : rc=%d",
+                         host.c_str(), rc) << endl;
+          }
+
+        // What about transfering uprobes.ko?  In this ssh "legacy" mode, we
+        // don't the remote systemtap version, but -uPATH wasn't added until
+        // 1.4.  Rather than risking a getopt error, we'll just assume that
+        // this isn't supported.  The remote will just have to provide its own
+        // uprobes.ko in SYSTEMTAP_RUNTIME or already loaded.
 
         // Run the module on the remote.
         if (rc == 0) {
           vector<string> cmd = ssh_args;
           cmd.push_back("-t");
           // We don't know the actual version, but all <=1.3 are approx equal.
-          cmd.push_back(cmdstr_join(make_run_command(*s, tmpmodule, "1.3")));
+          vector<string> staprun_cmd = make_run_command(*s, tmpdir, "1.3");
+          staprun_cmd[0] = "staprun"; // NB: The remote decides its own path
+          // NB: PR13354: we assume legacy installations don't have
+          // staprun -r support, so we ignore staprun_r_arg.
+          cmd.push_back(cmdstr_join(staprun_cmd));
           pid_t pid = stap_spawn(s->verbose, cmd);
           if (pid > 0)
             child = pid;
@@ -784,8 +895,9 @@ ssh_remote::create(systemtap_session& s, const uri_decoder& ud)
 
 
 remote*
-remote::create(systemtap_session& s, const string& uri)
+remote::create(systemtap_session& s, const string& uri, int idx)
 {
+  remote *it = 0;
   try
     {
       if (uri.find(':') != string::npos)
@@ -797,27 +909,37 @@ remote::create(systemtap_session& s, const string& uri)
           if (!ud.has_authority && !ud.has_query &&
               !ud.has_fragment && !ud.path.empty() &&
               ud.path.find_first_not_of("1234567890") == string::npos)
-            return ssh_remote::create(s, uri);
-
-          if (ud.scheme == "direct")
-            return new direct(s);
+            it = ssh_remote::create(s, uri);
+          else if (ud.scheme == "direct")
+            it = new direct(s);
           else if (ud.scheme == "stapsh")
-            return new direct_stapsh(s);
-          if (ud.scheme == "ssh")
-            return ssh_remote::create(s, ud);
+            it = new direct_stapsh(s);
+          else if (ud.scheme == "unix")
+            it = new unix_stapsh(s, ud);
+          else if (ud.scheme == "ssh")
+            it = ssh_remote::create(s, ud);
           else
             throw runtime_error(_F("unrecognized URI scheme '%s' in remote: %s",
                                    ud.scheme.c_str(), uri.c_str()));
         }
       else
         // XXX assuming everything else is ssh for now...
-        return ssh_remote::create(s, uri);
+        it = ssh_remote::create(s, uri);
     }
   catch (std::runtime_error& e)
     {
       cerr << e.what() << " on remote '" << uri << "'" << endl;
-      return NULL;
+      it = 0;
     }
+
+  if (it && idx >= 0) // PR13354: remote metadata for staprun -r IDX:URI
+    {
+      stringstream r_arg;
+      r_arg << idx << ":" << uri;
+      it->staprun_r_arg = r_arg.str();
+    }
+
+  return it;
 }
 
 #ifndef HAVE_PPOLL

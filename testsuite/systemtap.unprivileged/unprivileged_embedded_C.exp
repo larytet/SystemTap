@@ -1,0 +1,184 @@
+set test "unprivileged embedded C"
+set arch [exec uname -i]
+# normalize arch; PR4186
+set arch [normalize_arch $arch]
+
+# Some functions are only "native" for certain kernel versions.
+set kv [exec uname -r | grep -o -G  {^[0-9]\+.[0-9]\+.[0-9]\+}]
+set kvbits [split $kv .]
+set k1 [lindex $kvbits 0]
+set k2 [lindex $kvbits 1]
+set k3 [lindex $kvbits 2]
+verbose -log "kernel version $k1.$k2.$k3"
+
+# Add arguments to a probe type template.
+proc add_args { prototype } {
+    set call "$prototype"
+
+    # Replace long with 0
+    regsub -all "(\[(,]\[\[:space:]]*)long" $call "\\10" call
+
+    # Replace string with "0"
+    regsub -all "(\[(,]\[\[:space:]]*)string" $call "\\1\"0\"" call
+
+    return "$call"
+}
+
+# Test valid probe types
+proc test_embedded_C { privilege test_fraction } {
+    global prototype_info test arch
+    global k1 k2 k3
+
+    set emsg2 "semantic error: embedded expression may not be used when --privilege=stapusr is specified"
+
+    # Test using --unprivileged and --privilege=stapusr. They should be equivalent
+    set stapusr_options [list --unprivileged --privilege=stapusr ]
+    # Test using no option and --privilege=stapdev. They should be equivalent
+    set stapdev_options [list "" --privilege=stapdev ]
+
+    set test_num 0
+    set selector 0
+    foreach info $prototype_info {
+	set test_num [expr $test_num + 1]
+	verbose -log "testing $info"
+
+	# Select the proper --privilege option
+	switch $privilege {
+	    stapusr {
+		set option [lindex $stapusr_options $selector]
+	    }
+	    stapdev {
+		set option [lindex $stapdev_options $selector]
+	    }
+	    default {
+		set option "--privilege=$privilege"
+	    }
+	}
+
+	# Separate the prototype and its status.
+	set tokens [split $info ";"]
+	set prototype [lindex $tokens 0]
+	set status [lindex $tokens 1]
+
+	# Only test the specified fraction of the functions
+	if {[expr $test_num % $test_fraction] != 0} {
+	    # untested "$test: $status: $option: $prototype"
+	    continue
+	}
+	    
+	# Deprecated functions will be untested
+	switch "$prototype" {
+	    "cpuid ()"
+	    {
+		untested "$test: $status: $option: $prototype"
+		continue
+	    }
+	}
+	
+	# Filter arch-specific tests
+	if { "$arch" != "ia64" } {
+	    switch "$prototype" {
+		"_ia64_pipe0()" -
+		"_ia64_pipe1()"
+		{
+		    untested "$test: $status: $option: $prototype"
+		    continue
+		}
+	    }
+	}
+
+	# Before 2.6.21 __get_skb_iphdr wasn't native.
+	if { "$prototype" == "__get_skb_iphdr(long)" } {
+		if {($k1*256*256 + $k2*256 + $k3) < (2*256*256 + 6*256 + 21)} {
+			untested "$test: $status: $prototype"
+			continue
+		}
+	}
+
+
+	# Test calling the function. If successful, the stap rc will be 0.
+	set call [add_args $prototype]
+	set cmd [concat [list stap -p2 $option -e "probe begin { $call }"]]
+	verbose -log "eval exec $cmd"
+	set rc [catch {eval exec $cmd} res_stap]
+	verbose -log $res_stap
+
+	# Look for a message saying that the function is not allowed for unprivileged users.
+	regexp "(\[^\[:space:](]*).*" $prototype match funcname
+	verbose -log "funcname is $funcname"
+
+	# The function '_wait_status_str' is not allowed for unprivileged but it fails with a
+	# reference to the function '_signal_name' which it calls and which is checked first.
+	if {"$funcname" == "_wait_status_str"} {
+	    set funcname "_signal_name"
+	}
+	set emsg1 "semantic error: function may not be used when --privilege=stapusr is specified: identifier '$funcname'"
+	set found [expr [regexp ".*$emsg1.*" $res_stap] || [regexp ".*$emsg2.*" $res_stap]]
+
+	# Evaluate the result based upon the function's status and the privilege level
+	switch $status {
+	    unprivileged -
+	    myproc-unprivileged -
+	    "no embedded C"
+	    {
+		# There should be no message excluding this function
+		set passed [expr ! $found]
+	    }
+	    privileged
+	    {
+		if {$privilege == "stapusr"} {
+		    # There should be a message excluding this function
+		    set passed $found
+		} else {
+		    # There should be no message excluding this function
+		    set passed [expr ! $found]
+		}
+	    }
+	    default
+	    {
+		set passed 0
+	    }
+	}
+	
+	if {$passed} {
+	    pass "$test: $status: $option: $prototype"
+	} else {
+	    fail "$test: $status: $option: $prototype"
+	}
+
+	set selector [expr ($selector + 1) % 2]
+    }
+}
+
+# Obtain the prototypes of all tapset functions containing embedded C code.
+set tapsetdir "$srcdir/../tapset"
+verbose -log "Looking for tapset scripts in $tapsetdir"
+set files [glob -nocomplain $tapsetdir/*.stp]
+verbose -log "Looking for tapset scripts in $tapsetdir/[exec uname -i]"
+set files [concat $files [glob -nocomplain $tapsetdir/[exec uname -i]/*.stp]]
+
+verbose -log "eval exec $srcdir/$subdir/embeddedc.awk [join $files]"
+catch {eval exec $srcdir/$subdir/embeddedc.awk [join $files]} res_stap
+set prototype_info [split $res_stap "\n"]
+
+verbose -log "prototype_info contains [llength prototype_info] items"
+if {[llength prototype_info] > 0} {
+    pass "$test: Obtain list tapset functions containing embedded C"
+} else {
+    fail "$test: Obtain list tapset functions containing embedded C"
+    untested "$test"
+    return
+}
+
+if {! [info exists env(SYSTEMTAP_TEST_ALL_EMBEDDED_C)]} {
+    # Test a subset (1/5) of the tapset functions containing embedded C code.
+    set test_fraction 5
+} else {
+    # Test all of the tapset functions containing embedded C code.
+    set test_fraction 1
+}
+
+# Now run the tests
+test_embedded_C stapusr $test_fraction
+test_embedded_C stapsys $test_fraction
+#test_embedded_C stapdev $test_fraction

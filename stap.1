@@ -90,7 +90,9 @@ debugger.
 
 .SH OPTIONS
 The systemtap translator supports the following options.  Any other option
-prints a list of supported options.
+prints a list of supported options.  Options may be given on the command line,
+as usual.  If the file $SYSTEMTAP_DIR/rc exist, options are also loaded from
+there and interpreted first.  ($SYSTEMTAP_DIR defaults to $HOME/.systemtap if unset.)
 .TP
 .B \-h \-\-help
 Show help message.
@@ -155,6 +157,11 @@ be used to override limit parameters described below.
 .BI \-B " NAME=VALUE"
 Add the given make directive to the kernel module build's make invocation.
 These can be used to add or override kconfig options.
+.TP
+.BI \-\-modinfo " NAME=VALUE"
+Add the name/value pair as a MODULE_INFO macro call to the generated module.
+This may be useful to inform or override various module-related checks in
+the kernel.
 .TP
 .BI \-G " NAME=VALUE"
 Sets the value of global variable NAME to VALUE when staprun is invoked.
@@ -263,7 +270,23 @@ output files exceed
 .\" \-\-ignore\-{vmlinux,dwarf} shouldn't be visible
 .TP
 .B \-\-skip\-badvars
-Ignore out of context variables and substitute with literal 0.
+Ignore unresolvable or run-time-inaccessible context variables and
+substitute with 0, without errors.
+
+.TP
+.B \-\-suppress\-handler\-errors
+Wrap all probe handlers into something like this
+.SAMPLE
+try { ... } catch { next }
+.ESAMPLE
+block, which causes any runtime errors to be quietly suppressed.
+Suppressed errors do not count against
+.BR MAXERRORS
+limits.  In this mode, the
+.BR MAXSKIPPED
+limits are also suppressed, so that many errors and skipped probes 
+may be accumulated during a script's runtime.  Any overall counts will
+still be reported at shutdown.
 
 .TP
 .BI \-\-compatible " VERSION"
@@ -298,26 +321,30 @@ the cache.  This is meant as a troubleshooting aid when stap's cached behavior
 seems to be misbehaving.
 
 .TP
-.BI \-\-unprivileged
+\fB\-\-privilege\fR[=\fIstapusr\fR | =\fIstapsys\fR | =\fIstapdev\fR]
 This option instructs \fIstap\fR to examine the script looking for constructs
-which are not allowed for unprivileged users (see \fIUNPRIVILEGED USERS\fR).
+which are not allowed for the specified privilege level (see \fIUNPRIVILEGED USERS\fR).
 Compilation fails if any such
 constructs are used.
-If this option is specified when using a compile server
+If \fIstapusr\fR or \fIstapsys\fR are specified when using a compile server
 (see \fI\-\-use\-server\fR),
 the server will examine the script and, if compilation succeeds, the
 server will cryptographically sign the resulting kernel module, certifying
-that is it safe for use by unprivileged users.
+that is it safe for use by users at the specified privilege level.
 
-If \fI\-\-unprivileged\fR has not been specified,
+If \fI\-\-privilege\fR has not been specified,
 \fI\-pN\fR has not been specified with N < 5,
-and the invoking user not
-\fIroot\fR, is not a member of the group \fIstapdev\fR, but is a member of the
-group \fIstapusr\fR, then \fIstap\fR will automatically
-add \fI\-\-unprivileged\fR to the options already specified.
+and the invoking user is not
+\fIroot\fR, and is not a member of the group \fIstapdev\fR,
+then \fIstap\fR will automatically
+add the appropriate \fI\-\-privilege\fR option to the options already specified.
 
 .TP
-\fB\-\-use\-server \fR[\fIHOSTNAME\fR[\fI:PORT\fR] | \fIIP_ADDRESS\fR[\fI:PORT\fR] | \fICERT_SERIAL\fR]
+.BI \-\-unprivileged
+This option is equivalent to \fI\-\-privilege=stapusr\fR.
+
+.TP
+\fB\-\-use\-server\fR[=\fIHOSTNAME\fR[\fI:PORT\fR] | =\fIIP_ADDRESS\fR[\fI:PORT\fR] | =\fICERT_SERIAL\fR]
 Specify compile\-server(s) to be used for compilation and/or in conjunction
 with
 .I \-\-list\-servers
@@ -325,7 +352,7 @@ and
 .I \-\-trust\-servers
 (see below). If no argument is
 supplied, then the default in unprivileged mode (see
-.IR \-\-unprivileged )
+.IR \-\-privilege )
 is to select compatible servers which are trusted as SSL peers and as
 module signers and currently online. Otherwise the default is to select
 compatible servers which are trusted as SSL peers
@@ -351,7 +378,7 @@ is not a member of the group \fIstapdev\fR, but is a member of the group
 add \fI\-\-use\-server\fR to the options already specified.
 
 .TP
-\fB\-\-use\-server\-on\-error \fR[\fByes\fR|\fBno\fR]
+\fB\-\-use\-server\-on\-error\fR[=\fByes\fR|=\fBno\fR]
 Instructs stap to retry compilation of a script using a compile server if
 compilation on the local host fails in a manner which suggests that it might
 succeed using a server.
@@ -365,7 +392,7 @@ re\-compilation attempt as if \fI\-\-use\-server\fR was specified with no
 arguments.
 
 .TP
-.BI \-\-list\-servers " [SERVERS]"
+.BI \-\-list\-servers "[=SERVERS]"
 Display the status of the requested
 .IR SERVERS ,
 where
@@ -394,7 +421,7 @@ SSL peers.
 .BI signer
 filters the output by retaining information about servers which are trusted as
 module signers (see
-.IR \-\-unprivileged ).
+.IR \-\-privilege ).
 .TP
 .BI compatible
 filters the output by retaining information about servers which are compatible
@@ -410,7 +437,7 @@ then the default servers for
 are listed.
 
 .TP
-.BI \-\-trust\-servers " [TRUST_SPEC]"
+.BI \-\-trust\-servers "[=TRUST_SPEC]"
 Grant or revoke trust in compile\-servers, specified using
 .IR \-\-use\-server
 as specified by TRUST_SPEC,
@@ -423,7 +450,7 @@ trust the specified servers as SSL peers.
 .TP
 .BI signer
 trust the specified servers as module signers (see
-.IR \-\-unprivileged ).
+.IR \-\-privilege ).
 Only root can specify
 .BR signer.
 .TP
@@ -452,14 +479,56 @@ the user will be prompted to confirm the trust to be granted or revoked before
 the operation is performed.
 
 .TP
-.BI \-\-remote " [USER@]HOSTNAME"
-Set the execution target to the specified ssh host, optionally using a username
-not matching your own.  This option may be repeated to target multiple
-execution targets.  Passes 1-4 are completed locally as normal to build the
-script, and then pass 5 will copy the module to the target and run it.
+.BI \-\-dump-probe-types
+Dumps a list of supported probe types. If
+.IR \-\-privilege=stapusr
+is also specified, the list will be limited to probe types available to unprivileged users.
+
+.TP
+.BI \-\-remote " URL"
+Set the execution target to the given host.  This option may be
+repeated to target multiple execution targets.  Passes 1-4 are
+completed locally as normal to build the script, and then pass 5 will
+copy the module to the target and run it.  Acceptable URL forms include:
+.B [USER@]HOSTNAME
+and
+.B ssh://[USER@]HOSTNAME/
+This mode uses ssh, optionally using a username not matching your own.
 If a custom ssh_config file is in use, add
 .B SendEnv LANG
 to retain internationalization functionality.
+The 
+.B direct://
+URL is available as a special loopback mode to run on the local host.
+
+.TP
+.BI \-\-remote\-prefix
+Prefix each line of remote output with "N:", where N is the index of the remote
+execution target from which the given line originated.
+
+.TP
+.BI \-\-download\-debuginfo "[=OPTION]"
+Enable, disable or set a timeout for the automatic debuginfo downloading feature
+offered by abrt as specified by OPTION, where OPTION is one of the following:
+.RS
+.TP
+.BI yes
+enable automatic downloading of debuginfo with no timeout. This is the same
+as not providing an OPTION value to 
+.IR \-\-download\-debuginfo
+.TP
+.BI no
+explicitly disable automatic dowloading of debuginfo. This is the same as
+not using the option at all.
+.TP
+.BI ask
+show abrt output, and ask before continuing download. No timeout will be set.
+.TP
+.BI <timeout>
+specify a timeout as a positive number to stop the download if it is taking 
+too long.
+
+
 .SH ARGUMENTS
 
 Any additional arguments on the command line are passed to the script
@@ -656,6 +725,13 @@ Note that this doesn't indicate the type of keys for the array, just the
 size.
 .RS
 .BR global " tiny_array[10]" , " normal_array" , " big_array[50000]"
+.RE
+.PP
+Arrays may be wrapped using the '%' character causing previously entered
+elements to be overwritten if more elements are inserted than the array can
+hold. This works for both associative and statistics typed arrays.
+.RS
+.BR global " wrapped_array1%[10]", " wrapped_array2%"
 .RE
 .\" XXX add statistics type here once it's supported
 
@@ -1318,10 +1394,16 @@ the
 directory. The cache can be limited by having the file
 .I cache_mb_limit
 placed in the cache directory (shown above) containing only an ASCII
-integer representing how many MiB the cache should not exceed. Note that
-this is a 'soft' limit in that the cache will be cleaned after a new entry
-is added, so the total cache size may temporarily exceed this limit. In the
-absence of this file, a default will be created with the limit set to 64MiB.
+integer representing how many MiB the cache should not exceed. In the
+absence of this file, a default will be created with the limit set to 256MiB.
+This is a 'soft' limit in that the cache will be cleaned after a new entry
+is added if the cache clean interval is exceeded, so the total cache size may
+temporarily exceed this limit. This interval can be specified by having the
+file
+.I cache_clean_interval_s
+placed in the cache directory (shown above) containing only an ASCII integer
+representing the interval in seconds. In the absence of this file, a default
+will be created with the interval set to 30 s.
 
 .SH SAFETY AND SECURITY
 Systemtap is an administrative tool.  It exposes kernel internal data
@@ -1336,6 +1418,12 @@ a member of the
 .I stapdev
 and
 .I stapusr
+groups;
+.IP \(bu 4
+a member of the
+.I stapsys
+and
+.I stapusr
 groups; or
 .IP \(bu 4
 a member of the
@@ -1347,19 +1435,39 @@ The root user or a user who is a member of both the
 and
 .I stapusr
 groups can build and run any systemtap script.
-Members of the
+.PP
+A user who is a member of both the
+.I stapsys
+and
+.I stapusr
+groups can only use pre\-built modules under the following conditions:
+.IP \(bu 4
+The module has been signed by a trusted signer. Trusted signers are normally
+systemtap compile\-servers which sign modules when the \fI\-\-privilege\fR option is
+specified by the client. See the
+.IR stap\-server (8)
+manual page for more information.
+.IP \(bu 4
+The module was built using the \fI\-\-privilege=stapsys\fR or the \fI\-\-privilege=stapusr\fR
+options.
+.PP
+Members of only the
 .I stapusr
 group can only use pre\-built modules under the following conditions:
 .IP \(bu 4
 The module is located in
 the /lib/modules/VERSION/systemtap directory.  This directory
 must be owned by root and not be world writable.
+.PP
+or
 .IP \(bu 4
 The module has been signed by a trusted signer. Trusted signers are normally
-systemtap compile\-servers which sign modules when the \-\-unprivileged option is
+systemtap compile\-servers which sign modules when the \fI\-\-privilege\fR option is
 specified by the client. See the
 .IR stap\-server (8)
 manual page for more information.
+.IP \(bu 4
+The module was built using the \FI\-\-privilege=stapusr\fR option.
 .PP
 The kernel modules generated by
 .I stap
@@ -1415,6 +1523,11 @@ Maximum number of statements to execute during any single probe hit
 which is executed with interrupts enabled (such as begin/end probes),
 default (MAXACTION * 10).
 .TP
+MAXBACKTRACE
+Maximum number of stack frames that will be be processed by the stap
+runtime unwinder as produced by the backtrace functions in the
+[u]context-unwind.stp tapsets, default 20.
+.TP
 MAXMAPENTRIES
 Default maximum number of rows in any single global array, default 2048.
 Individual arrays may be declared with a larger or smaller limit instead:
@@ -1424,13 +1537,17 @@ global big[10000],little[5]
 .TP
 MAXERRORS
 Maximum number of soft errors before an exit is triggered, default 0, which
-means that the first error will exit the script.
+means that the first error will exit the script.  Note that with the
+.B \-\-suppress\-handler\-errors
+option, this limit is not enforced.
 .TP
 MAXSKIPPED
 Maximum number of skipped probes before an exit is triggered, default 100.
 Running systemtap with \-t (timing) mode gives more details about skipped
 probes.  With the default \-DINTERRUPTIBLE=1 setting, probes skipped due to
-reentrancy are not accumulated against this limit.
+reentrancy are not accumulated against this limit.  Note that with the
+.B \-\-suppress\-handler\-errors
+option, this limit is not enforced.
 .TP
 MINSTACKSPACE
 Minimum number of free kernel stack bytes required in order to
@@ -1449,11 +1566,6 @@ should use, default unlimited.  The memory size includes the size of
 the module itself, plus any additional allocations.  This only tracks
 direct allocations by the systemtap runtime.  This does not track
 indirect allocations (as done by kprobes/uprobes/etc. internals). 
-.TP
-TASK_FINDER_VMA_ENTRY_ITEMS
-Maximum number of VMA pages that will be tracked at runtime. This might
-get exhausted for system wide probes inspecting shared library variables
-and/or user backtraces. Defaults to 1536.
 .TP
 STP_PROCFS_BUFSIZE
 Size of procfs probe read buffers (in bytes).  Defaults to
@@ -1517,13 +1629,21 @@ members of the groups stapdev and stapusr.
 
 However, a restricted set of systemtap's features can be made available to
 trusted, unprivileged users. These users are members of the group stapusr
-only. These users can load systemtap modules which have been compiled and
+only, or members of the groups stapusr and stapsys.
+These users can load systemtap modules which have been compiled and
 certified by a trusted systemtap compile\-server. See the descriptions of the
-options \fI\-\-unprivileged\fR and \fI\-\-use\-server\fR. See
+options \fI\-\-privilege\fR and \fI\-\-use\-server\fR. See
 \fIREADME.unprivileged\fR in the systemtap source code for information about
 setting up a trusted compile server.
 
-The restrictions enforced when \fI\-\-unprivileged\fR is specified are designed
+The restrictions enforced when \fI\-\-privilege=stapsys\fR is specified are designed
+to prevent unprivileged users from:
+.RS
+.IP \(bu 4
+harming the system maliciously.
+.RE
+
+The restrictions enforced when \fI\-\-privilege=stapusr\fR is specified are designed
 to prevent unprivileged users from:
 .RS
 .IP \(bu 4
@@ -1541,8 +1661,9 @@ possible by an unprivileged user.
 .RE
 
 .SS PROBE RESTRICTIONS
-An unprivileged user may only use the following probes:
-
+A member of the groups stapusr and stapsys may use all probe points.
+.PP
+A member of only the group stapusr may use only the following probes:
 .RS
 .IP \(bu 4
 begin, begin(n)
@@ -1561,7 +1682,7 @@ timer.hz(n)
 .RE
 
 .SS SCRIPTING LANGUAGE RESTRICTIONS
-The following scripting language features are unavailable to unprivileged users:
+The following scripting language features are unavailable to all unprivileged users:
 
 .RS
 .IP \(bu 4
@@ -1571,11 +1692,14 @@ embedded C code.
 .RE
 
 .SS RUNTIME RESTRICTIONS
-The following runtime restrictions are placed upon unprivileged users:
-
+The following runtime restrictions are placed upon all unprivileged users:
 .RS
 .IP \(bu 4
 Only the default runtime code (see \fI-R\fR) may be used.
+.RE
+
+Additional restrictions are placed on members of only the group stapusr:
+.RS
 .IP \(bu 4
 Probing of processes owned by other users is not permitted.
 .IP \(bu 4
@@ -1584,7 +1708,7 @@ Access of kernel memory (read and write) is not permitted.
 
 .SS COMMAND LINE OPTION RESTRICTIONS
 Some command line options provide access to features which must not be available
-to unprivileged users:
+to all unprivileged users:
 
 .RS
 .IP \(bu 4
@@ -1597,7 +1721,7 @@ The following options may not be used by the compile-server client:
 .RE
 
 .SS ENVIRONMENT RESTRICTIONS
-The following environment variables must not be set:
+The following environment variables must not be set for all unprivileged users:
 .SAMPLE
 
 SYSTEMTAP_RUNTIME
@@ -1606,8 +1730,7 @@ SYSTEMTAP_DEBUGINFO_PATH
 .ESAMPLE
 
 .SS TAPSET RESTRICTIONS
-The following built-in tapset functions are unconditionally available to unprivileged
-users:
+The following built-in tapset functions are unconditionally available to all users:
 .SAMPLE
 
 _ehostunreach:long ()
@@ -1671,8 +1794,9 @@ user_mode:long ()
 warn (msg:string)
 .ESAMPLE
 
-The following built-in tapset functions are available to unprivileged users
-within their own processes. Scripts written by unprivileged users must test the
+The following built-in tapset functions are available to
+members of only the group stapusr
+within their own processes. Scripts written by these users must test the
 result of the tapset function \fIis_myproc\fR and only call these functions if
 the result is 1. The script will exit immediately if any of these functions is
 called by an unprivileged user within a probe within a process which is not
@@ -1716,7 +1840,8 @@ usymdata:string (addr: long)
 usymname:string (addr: long)
 .ESAMPLE
 
-No other built-in tapset functions may be used by unprivileged users.
+No other built-in tapset functions may be used by
+members of only the group stapusr.
 
 .\" PR6864: disable temporarily 
 .\".SH MAKING DO WITH SYMBOL TABLES
@@ -1839,6 +1964,31 @@ and renamed 'syscall.sysctl32'.
 .IP
 In the x86_64 'syscall.sigaltstack' probe, the 'regs_uaddr'
 variable has been deprecated in favor of the new 'regs' variable.
+.TP
+\-\-compatible=1.7
+In the 'kprocess.release probe, the 'pid variable
+has been deprecated in favor of the new 'released_pid'
+variable.
+.IP
+In the '_sunrpc.clnt.create_client.rpc_new_client_inline' probe,
+the 'args' variable in the has been deprecated in favor of the new
+internal-only '__args' variable.
+.IP
+The following probe types have been deprecated:
+.RS
+.IP
+kernel.function(number).inline
+.br
+module(string).function(number).inline
+.br
+process.function(number).inline
+.br
+process.library(string).function(number).inline
+.br
+process(string).function(number).inline
+.br
+process(string).library(string).function(number).inline
+.RE
 .\" e.g. tapset_function()
 .\" e.g. post-incrementing a frobozz in a while loop
 

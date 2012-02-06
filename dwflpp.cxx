@@ -56,6 +56,11 @@ extern "C" {
 #include <inttypes.h>
 }
 
+// Older glibc elf.h don't know about this new constant.
+#ifndef STB_GNU_UNIQUE
+#define STB_GNU_UNIQUE  10
+#endif
+
 
 // debug flag to compare to the uncached version from libdw
 // #define DEBUG_DWFLPP_GETSCOPES 1
@@ -71,10 +76,11 @@ static string TOK_KERNEL("kernel");
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
   module_start(0), module_end(0), cu(NULL),
-  module_dwarf(NULL), function(NULL), blacklist_enabled(false)
+  module_dwarf(NULL), function(NULL), blacklist_func(), blacklist_func_ret(),
+  blacklist_file(),  blacklist_enabled(false)
 {
   if (kernel_p)
-    setup_kernel(name);
+    setup_kernel(name, session);
   else
     {
       vector<string> modules;
@@ -140,8 +146,8 @@ dwflpp::get_module_dwarf(bool required, bool report)
 
       if (required)
         throw semantic_error (msg);
-      else if (! sess.suppress_warnings)
-        cerr << _("WARNING: ") << msg << "\n";
+      else
+        sess.print_warning(msg);
     }
 }
 
@@ -303,7 +309,7 @@ dwflpp::function_scope_matches(const vector<string>& scopes)
 
 
 void
-dwflpp::setup_kernel(const string& name, bool debuginfo_needed)
+dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_needed)
 {
   if (! sess.module_cache)
     sess.module_cache = new module_cache ();
@@ -320,6 +326,18 @@ dwflpp::setup_kernel(const string& name, bool debuginfo_needed)
       }
       throw semantic_error (_F("missing %s kernel/module debuginfo under '%s'",
                                 sess.architecture.c_str(), sess.kernel_build_tree.c_str()));
+    }
+  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+  if (dwfl != NULL)
+    {
+      ptrdiff_t off = 0;
+      do
+        {
+          if (pending_interrupts) return;
+          off = dwfl_getmodules (dwfl, &add_module_build_id_to_hash, &s, off);
+        }
+      while (off > 0);
+      dwfl_assert("dwfl_getmodules", off == 0);
     }
 
   build_blacklist();
@@ -359,7 +377,7 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
     sess.module_cache = new module_cache ();
 
   vector<string>::const_iterator it = modules.begin();
-  dwfl_ptr = setup_dwfl_user(it, modules.end(), debuginfo_needed);
+  dwfl_ptr = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
   if (debuginfo_needed && it != modules.end())
     dwfl_assert (string(_F("missing process %s %s debuginfo",
                            (*it).c_str(), sess.architecture.c_str())),
@@ -429,6 +447,36 @@ dwflpp::func_is_inline()
   return dwarf_func_inline (function) != 0;
 }
 
+
+bool
+dwflpp::func_is_exported()
+{
+  const char *name = dwarf_linkage_name (function) ?: dwarf_diename (function);
+
+  assert (function);
+
+  int syms = dwfl_module_getsymtab (module);
+  dwfl_assert (_("Getting symbols"), syms >= 0);
+
+  for (int i = 0; i < syms; i++)
+    {
+      GElf_Sym sym;
+      GElf_Word shndxp;
+      const char *symname = dwfl_module_getsym(module, i, &sym, &shndxp);
+      if (symname
+	  && strcmp (name, symname) == 0)
+	{
+	  if (GELF_ST_TYPE(sym.st_info) == STT_FUNC
+	      && (GELF_ST_BIND(sym.st_info) == STB_GLOBAL
+		  || GELF_ST_BIND(sym.st_info) == STB_WEAK
+		  || GELF_ST_BIND(sym.st_info) == STB_GNU_UNIQUE))
+	    return true;
+	  else
+	    return false;
+	}
+    }
+  return false;
+}
 
 void
 dwflpp::cache_inline_instances (Dwarf_Die* die)
@@ -722,7 +770,8 @@ cache_type_prefix(Dwarf_Die* type)
 }
 
 int
-dwflpp::global_alias_caching_callback(Dwarf_Die *die, void *arg)
+dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
+                                      const string& prefix, void *arg)
 {
   cu_type_cache_t *cache = static_cast<cu_type_cache_t*>(arg);
   const char *name = dwarf_diename(die);
@@ -730,9 +779,19 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, void *arg)
   if (!name || dwarf_hasattr(die, DW_AT_declaration))
     return DWARF_CB_OK;
 
-  string type_name = cache_type_prefix(die) + string(name);
-  if (cache->find(type_name) == cache->end())
-    (*cache)[type_name] = *die;
+  int tag = dwarf_tag(die);
+  if (has_inner_types && (tag == DW_TAG_namespace
+                          || tag == DW_TAG_structure_type
+                          || tag == DW_TAG_class_type))
+    iterate_over_types(die, has_inner_types, prefix + name + "::",
+                       global_alias_caching_callback, arg);
+
+  if (tag != DW_TAG_namespace)
+    {
+      string type_name = prefix + cache_type_prefix(die) + name;
+      if (cache->find(type_name) == cache->end())
+        (*cache)[type_name] = *die;
+    }
 
   return DWARF_CB_OK;
 }
@@ -967,16 +1026,34 @@ dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query *
  * only picks up top level stuff (i.e. nothing in a lower scope) */
 int
 dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
-                              int (* callback)(Dwarf_Die *, void *),
+                              int (* callback)(Dwarf_Die *, bool,
+                                               const string&, void *),
                               void * data)
+{
+  assert (cu_die);
+  assert (dwarf_tag(cu_die) == DW_TAG_compile_unit);
+
+  // If this is C++, recurse for any inner types
+  bool has_inner_types = dwarf_srclang(cu_die) == DW_LANG_C_plus_plus;
+
+  return iterate_over_types(cu_die, has_inner_types, "", callback, data);
+}
+
+
+int
+dwflpp::iterate_over_types (Dwarf_Die *top_die,
+                            bool has_inner_types,
+                            const string& prefix,
+                            int (* callback)(Dwarf_Die *, bool,
+                                             const string&, void *),
+                            void * data)
 {
   int rc = DWARF_CB_OK;
   Dwarf_Die die;
 
-  assert (cu_die);
-  assert (dwarf_tag(cu_die) == DW_TAG_compile_unit);
+  assert (top_die);
 
-  if (dwarf_child(cu_die, &die) != 0)
+  if (dwarf_child(top_die, &die) != 0)
     return rc;
 
   do
@@ -990,7 +1067,8 @@ dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
       case DW_TAG_class_type:
       case DW_TAG_typedef:
       case DW_TAG_union_type:
-        rc = (*callback)(&die, data);
+      case DW_TAG_namespace:
+        rc = (*callback)(&die, has_inner_types, prefix, data);
         break;
       }
   while (rc == DWARF_CB_OK && dwarf_siblingof(&die, &die) == 0);
@@ -1086,14 +1164,14 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
   // startswith("/lib/ld") || startswith("/lib64/ld"), and trust that no admin
   // would install untrustworthy loaders in those paths.
   if ((interpreter != "/lib/ld.so.1"     // ppc / s390
+       && interpreter != "/lib/ld64.so.1" // s390x
        && interpreter != "/lib64/ld64.so.1"
        && interpreter != "/lib/ld-linux-ia64.so.2" // ia64
        && interpreter != "/emul/ia32-linux/lib/ld-linux.so.2"
        && interpreter != "/lib64/ld-linux-x86-64.so.2"   // x8664
        && interpreter !=  "/lib/ld-linux.so.2"))          // x86
     {
-      if (! sess.suppress_warnings)
-        sess.print_warning (_F("module %s --ldd skipped: unsupported interpreter: %s",
+      sess.print_warning (_F("module %s --ldd skipped: unsupported interpreter: %s",
                                module_name.c_str(), interpreter.c_str()));
       return;
     }
@@ -1152,10 +1230,8 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
           free (soname);
           free (shlib);
         }
-      if ((fclose(fp) || stap_waitpid(sess.verbose, child))
-          && !sess.suppress_warnings)
-        clog << _F("Warning: failed to read libraries from %s: %s",
-                   module_name.c_str(), strerror(errno)) << endl;
+      if ((fclose(fp) || stap_waitpid(sess.verbose, child)))
+         sess.print_warning("failed to read libraries from " + module_name + ": " + strerror(errno));
     }
 
   for (std::set<std::string>::iterator it = added.begin();
@@ -1165,6 +1241,129 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
       string modname = *it;
       (callback) (q, modname.c_str());
     }
+}
+
+
+/* For each plt section in the current module call 'callback', pass the plt entry
+ * 'address' and 'name' back, and pass 'object' back in case 'callback' is a method */
+
+int
+dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const char *name, size_t addr))
+{
+  Dwarf_Addr load_addr;
+  // Note we really want the actual elf file, not the dwarf .debug file.
+  Elf* elf = dwfl_module_getelf (module, &load_addr);
+  size_t shstrndx;
+  assert (elf_getshdrstrndx (elf, &shstrndx) >= 0);
+
+  // Get the load address
+  for (int i = 0; ; i++)
+    {
+      GElf_Phdr mem;
+      GElf_Phdr *phdr;
+      phdr = gelf_getphdr (elf, i, &mem);
+      if (phdr == NULL)
+	break;
+      if (phdr->p_type == PT_LOAD)
+	{
+	  load_addr = phdr->p_vaddr;
+	  break;
+	}
+    }
+
+  // Get the plt section header
+  Elf_Scn *scn = NULL;
+  GElf_Shdr *plt_shdr = NULL;
+  GElf_Shdr plt_shdr_mem;
+  while ((scn = elf_nextscn (elf, scn)))
+    {
+      plt_shdr = gelf_getshdr (scn, &plt_shdr_mem);
+      assert (plt_shdr != NULL);
+      if (strcmp (elf_strptr (elf, shstrndx, plt_shdr->sh_name), ".plt") == 0)
+	break;
+    }
+	
+  // Layout of the plt section
+  int plt0_entry_size;
+  int plt_entry_size;
+  GElf_Ehdr ehdr_mem;
+  GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+  switch (em->e_machine)
+  {
+  case EM_386:    plt0_entry_size = 16; plt_entry_size = 16; break;
+  case EM_X86_64: plt0_entry_size = 16; plt_entry_size = 16; break;
+  case EM_PPC64:
+  case EM_S390:
+  case EM_PPC:
+  default:
+    throw semantic_error(".plt is not supported on this architecture");
+  }
+
+  scn = NULL;
+  while ((scn = elf_nextscn (elf, scn)))
+    {
+      GElf_Shdr shdr_mem;
+      GElf_Shdr *shdr = gelf_getshdr (scn, &shdr_mem);
+      bool have_rela = false;
+      bool have_rel = false;
+
+      if (shdr == NULL)
+        continue;
+      assert (shdr != NULL);
+
+      if ((have_rela = (strcmp (elf_strptr (elf, shstrndx, shdr->sh_name), ".rela.plt") == 0))
+	  || (have_rel = (strcmp (elf_strptr (elf, shstrndx, shdr->sh_name), ".rel.plt") == 0)))
+	{
+	  /* Get the data of the section.  */
+	  Elf_Data *data = elf_getdata (scn, NULL);
+	  assert (data != NULL);
+	  /* Get the symbol table information.  */
+	  Elf_Scn *symscn = elf_getscn (elf, shdr->sh_link);
+	  GElf_Shdr symshdr_mem;
+	  GElf_Shdr *symshdr = gelf_getshdr (symscn, &symshdr_mem);
+	  assert (symshdr != NULL);
+	  Elf_Data *symdata = elf_getdata (symscn, NULL);
+	  assert (symdata != NULL);
+
+	  unsigned int nsyms = shdr->sh_size / shdr->sh_entsize;
+	  
+	  for (unsigned int cnt = 0; cnt < nsyms; ++cnt)
+	    {
+	      GElf_Ehdr ehdr_mem;
+	      GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+	      if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+
+	      GElf_Rela relamem;
+	      GElf_Rela *rela = NULL;
+	      GElf_Rel relmem;
+	      GElf_Rel *rel = NULL;
+	      if (have_rela)
+		{
+		  rela = gelf_getrela (data, cnt, &relamem);
+		  assert (rela != NULL);
+		}
+	      else if (have_rel)
+		{
+		  rel = gelf_getrel (data, cnt, &relmem);
+		  assert (rel != NULL);
+		}
+	      GElf_Sym symmem;
+	      Elf32_Word xndx;
+	      Elf_Data *xndxdata = NULL;
+	      GElf_Sym *sym =
+		gelf_getsymshndx (symdata, xndxdata,
+				  GELF_R_SYM (have_rela ? rela->r_info : rel->r_info),
+				  &symmem, &xndx);
+	      assert (sym != NULL);
+	      Dwarf_Addr addr = plt_shdr->sh_offset + plt0_entry_size + cnt * plt_entry_size;
+
+	      if (elf_strptr (elf, symshdr->sh_link, sym->st_name))
+	        (*callback) (object, elf_strptr (elf, symshdr->sh_link, sym->st_name), addr + load_addr);
+	    }
+	  break; // while scn
+	}
+    }
+  return 0;
 }
 
 
@@ -1448,8 +1647,7 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
                   if (scopes.size() > 1)
                     {
                       Dwarf_Die scope;
-                      if (!inner_die_containing_pc(scopes[1], stmt_addr, scope)
-                          && !sess.suppress_warnings)
+                      if (!inner_die_containing_pc(scopes[1], stmt_addr, scope))
                         {
                           sess.print_warning(_F("label '%s' at address %s (dieoffset: %s) is not "
                                                 "contained by its scope '%s' (dieoffset: %s) -- bad"
@@ -1593,7 +1791,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         }
 
       if (sess.verbose>2)
-        clog << _F("searching for prologue of function '%s' 0x%#" PRIx64 "-0x%#" PRIx64 
+        clog << _F("searching for prologue of function '%s' %#" PRIx64 "-%#" PRIx64 
                    "@%s:%d\n", it->name.c_str(), entrypc, highpc, it->decl_file,
                    it->decl_line);
 
@@ -1618,7 +1816,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           int postprologue_lineno = lr.lineno();
 
           if (sess.verbose>2)
-            clog << _F("checking line record 0x%#" PRIx64 "@%s:%d\n", postprologue_addr,
+            clog << _F("checking line record %#" PRIx64 "@%s:%d\n", postprologue_addr,
                        postprologue_file, postprologue_lineno);
 
           if (postprologue_addr >= highpc)
@@ -1718,7 +1916,7 @@ dwflpp::die_entrypc (Dwarf_Die * die, Dwarf_Addr * addr)
     }
 
   if (sess.verbose > 2)
-    clog << _F("entry-pc lookup (%s dieoffset: %s) = 0x%#" PRIx64 " (rc %d", lookup_method.c_str(), 
+    clog << _F("entry-pc lookup (%s dieoffset: %s) = %#" PRIx64 " (rc %d)", lookup_method.c_str(), 
                lex_cast_hex(dwarf_dieoffset(die)).c_str(), *addr, rc) << endl;
 
   return (rc == 0);
@@ -1823,44 +2021,22 @@ dwflpp::loc2c_error (void *, const char *fmt, ...)
 void
 dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 {
-  #if 0
-  // The easy but incorrect way is to just print a hard-wired
-  // constant.
-  obstack_printf (pool, "%#" PRIx64 "UL", address);
-  #endif
-
-  // Turn this address into a section-relative offset if it should be one.
-  // We emit a comment approximating the variable+offset expression that
-  // relocatable module probing code will need to have.
-  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
-  if (! dwfl)
-    throw semantic_error (_("emit_address internal error, no dwfl"));
-
-  Dwfl_Module *mod = dwfl_addrmodule (dwfl, address);
-  if (! mod)
-    {
-      ostringstream msg;
-      msg << _F("emit_address internal error, dwfl_addrmodule failed, "
-                "address 0x%#" PRIx64 , address);
-      const char *err = dwfl_errmsg(0);
-      if (err)
-	msg << " (" << err << ")";
-      throw semantic_error (msg.str());
-    }
-  const char *modname = dwfl_module_info (mod, NULL, NULL, NULL,
-                                              NULL, NULL, NULL, NULL);
-  int n = dwfl_module_relocations (mod);
+  int n = dwfl_module_relocations (module);
   dwfl_assert ("dwfl_module_relocations", n >= 0);
   Dwarf_Addr reloc_address = address;
-  int i = dwfl_module_relocate_address (mod, &reloc_address);
-  dwfl_assert ("dwfl_module_relocate_address", i >= 0);
-  dwfl_assert ("dwfl_module_info", modname);
-  const char *secname = dwfl_module_relocation_info (mod, i, NULL);
+  const char *secname = "";
+  if (n > 1)
+    {
+      int i = dwfl_module_relocate_address (module, &reloc_address);
+      dwfl_assert ("dwfl_module_relocate_address", i >= 0);
+      secname = dwfl_module_relocation_info (module, i, NULL);
+    }
 
   if (sess.verbose > 2)
     {
-      clog << _F("emit dwarf addr 0x%#" PRIx64 " => module %s section %s relocaddr 0x%#" PRIx64,
-                 address, modname, (secname ?: "null"), reloc_address) << endl;
+      clog << _F("emit dwarf addr %#" PRIx64 " => module %s section %s relocaddr %#" PRIx64,
+                 address, module_name.c_str (), (secname ?: "null"),
+                 reloc_address) << endl;
     }
 
   if (n > 0 && !(n == 1 && secname == NULL))
@@ -1872,7 +2048,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           // module, for a kernel module (or other ET_REL module object).
           obstack_printf (pool, "({ unsigned long addr = 0; ");
           obstack_printf (pool, "addr = _stp_kmodule_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
-                          modname, secname, reloc_address);
+                          module_name.c_str(), secname, reloc_address);
           obstack_printf (pool, "addr; })");
         }
       else if (n == 1 && module_name == TOK_KERNEL && secname[0] == '\0')
@@ -1886,7 +2062,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           // user-space dynamic share libraries).
           obstack_printf (pool, "({ static unsigned long addr = 0; ");
           obstack_printf (pool, "if (addr==0) addr = _stp_kmodule_relocate (\"%s\",\"%s\",%#" PRIx64 "); ",
-                          modname, secname, address); // PR10000 NB: not reloc_address
+                          module_name.c_str(), secname, address); // PR10000 NB: not reloc_address
           obstack_printf (pool, "addr; })");
         }
       else
@@ -1894,7 +2070,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           enable_task_finder (sess);
           obstack_printf (pool, "({ unsigned long addr = 0; ");
           obstack_printf (pool, "addr = _stp_umodule_relocate (\"%s\",%#" PRIx64 ", current); ",
-                          canonicalize_file_name(modname), reloc_address);
+                          canonicalize_file_name(module_name.c_str()), address);
           obstack_printf (pool, "addr; })");
         }
     }
@@ -2070,7 +2246,7 @@ dwflpp::translate_location(struct obstack *pool,
 
 
 void
-dwflpp::print_members(Dwarf_Die *vardie, ostream &o)
+dwflpp::print_members(Dwarf_Die *vardie, ostream &o, set<string> &dupes)
 {
   const int typetag = dwarf_tag (vardie);
 
@@ -2111,7 +2287,11 @@ dwflpp::print_members(Dwarf_Die *vardie, ostream &o)
       const char *member = dwarf_diename (die) ;
 
       if ( tag == DW_TAG_member && member != NULL )
-        o << " " << member;
+        {
+          // Only output if this is new, to avoid inheritance dupes.
+          if (dupes.insert(member).second)
+            o << " " << member;
+        }
       else
         {
           Dwarf_Die temp_die;
@@ -2125,7 +2305,7 @@ dwflpp::print_members(Dwarf_Die *vardie, ostream &o)
               return;
             }
 
-          print_members(&temp_die,o);
+          print_members(&temp_die, o, dupes);
         }
 
     }
@@ -2143,42 +2323,55 @@ dwflpp::find_struct_member(const target_symbol::component& c,
   Dwarf_Attribute attr;
   Dwarf_Die die;
 
-  switch (dwarf_child (parentdie, &die))
+  /* With inheritance, a subclass may mask member names of parent classes, so
+   * our search among the inheritance tree must be breadth-first rather than
+   * depth-first (recursive).  The parentdie is still our starting point. */
+  deque<Dwarf_Die> inheritees(1, *parentdie);
+  for (; !inheritees.empty(); inheritees.pop_front())
     {
-    case 0:		/* First child found.  */
-      break;
-    case 1:		/* No children.  */
-      return false;
-    case -1:		/* Error.  */
-    default:		/* Shouldn't happen */
-      throw semantic_error (dwarf_type_name(parentdie) + ": "
-                            + string (dwarf_errmsg (-1)),
-                            c.tok);
-    }
-
-  do
-    {
-      int tag = dwarf_tag(&die);
-      if (tag != DW_TAG_member && tag != DW_TAG_inheritance)
-        continue;
-
-      const char *name = dwarf_diename(&die);
-      if (name == NULL || tag == DW_TAG_inheritance)
+      switch (dwarf_child (&inheritees.front(), &die))
         {
-          // need to recurse for anonymous structs/unions and
-          // for inherited members
-          Dwarf_Die subdie;
-          if (dwarf_attr_die (&die, DW_AT_type, &subdie) &&
-              find_struct_member(c, &subdie, memberdie, dies, locs))
-            goto success;
+        case 0:		/* First child found.  */
+          break;
+        case 1:		/* No children.  */
+          continue;
+        case -1:	/* Error.  */
+        default:	/* Shouldn't happen */
+          throw semantic_error (dwarf_type_name(&inheritees.front()) + ": "
+                                + string (dwarf_errmsg (-1)),
+                                c.tok);
         }
-      else if (name == c.member)
+
+      do
         {
-          *memberdie = die;
-          goto success;
+          int tag = dwarf_tag(&die);
+          if (tag != DW_TAG_member && tag != DW_TAG_inheritance)
+            continue;
+
+          const char *name = dwarf_diename(&die);
+          if (tag == DW_TAG_inheritance)
+            {
+              /* Remember inheritee for breadth-first search. */
+              Dwarf_Die inheritee;
+              if (dwarf_attr_die (&die, DW_AT_type, &inheritee))
+                inheritees.push_back(inheritee);
+            }
+          else if (name == NULL)
+            {
+              /* Need to recurse for anonymous structs/unions. */
+              Dwarf_Die subdie;
+              if (dwarf_attr_die (&die, DW_AT_type, &subdie) &&
+                  find_struct_member(c, &subdie, memberdie, dies, locs))
+                goto success;
+            }
+          else if (name == c.member)
+            {
+              *memberdie = die;
+              goto success;
+            }
         }
+      while (dwarf_siblingof (&die, &die) == 0);
     }
-  while (dwarf_siblingof (&die, &die) == 0);
 
   return false;
 
@@ -2320,7 +2513,8 @@ dwflpp::translate_components(struct obstack *pool,
 
                   string alternatives;
                   stringstream members;
-                  print_members(typedie, members);
+                  set<string> member_dupes;
+                  print_members(typedie, members, member_dupes);
                   if (members.str().size() != 0)
                     alternatives = " (alternatives:" + members.str() + ")";
                   throw semantic_error(_F("unable to find member '%s' for %s%s%s", c.member.c_str(),
@@ -2561,12 +2755,18 @@ dwflpp::vardie_from_symtable (Dwarf_Die *vardie, Dwarf_Addr *addr)
       if (symname
 	  && ! strcmp (name, symname)
 	  && sym.st_shndx != SHN_UNDEF
-	  && GELF_ST_TYPE (sym.st_info) == STT_OBJECT)
+	  && (GELF_ST_TYPE (sym.st_info) == STT_NOTYPE // PR13284
+	      || GELF_ST_TYPE (sym.st_info) == STT_OBJECT))
 	*addr = sym.st_value;
     }
 
+  // Don't relocate for the kernel, or kernel modules we handle those
+  // specially in emit_address.
+  if (dwfl_module_relocations (module) == 1 && module_name != TOK_KERNEL)
+    dwfl_module_relocate_address (module, addr);
+
   if (sess.verbose > 2)
-    clog << _F("found %s @0x%#" PRIx64 "\n", name, *addr);
+    clog << _F("found %s @%#" PRIx64 "\n", name, *addr);
 
   return *addr;
 }
@@ -2586,8 +2786,8 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
                                           &vardie, &fb_attr_mem);
 
   if (sess.verbose>2)
-    clog << _F("finding location for local '%s' near address 0x%#" PRIx64 
-               ", module bias 0x%#" PRIx64 "\n", local.c_str(), pc, module_bias);
+    clog << _F("finding location for local '%s' near address %#" PRIx64 
+               ", module bias %#" PRIx64 "\n", local.c_str(), pc, module_bias);
 
 #define obstack_chunk_alloc malloc
 #define obstack_chunk_free free
@@ -2867,28 +3067,27 @@ dwflpp::blacklisted_p(const string& funcname,
   if (!blacklist_enabled)
     return false; // no blacklist for userspace
 
+  bool blacklisted = false;
+
+  // check against section blacklist
   string section = get_blacklist_section(addr);
-  if (!regexec (&blacklist_section, section.c_str(), 0, NULL, 0))
+  // PR6503: modules don't need special init/exit treatment
+  if (module == TOK_KERNEL && !regexec (&blacklist_section, section.c_str(), 0, NULL, 0))
     {
-      // NB: module .exit. routines could be probed in theory:
-      // if the exit handler in "struct module" is diverted,
-      // first inserting the kprobes
-      // then allowing the exit code to run
-      // then removing these kprobes
+      blacklisted = true;
       if (sess.verbose>1)
-        clog << _(" skipping - init/exit");
-      return true;
+        clog << _(" init/exit");
     }
 
   // Check for function marked '__kprobes'.
   if (module == TOK_KERNEL && in_kprobes_function(sess, addr))
     {
+      blacklisted = true;
       if (sess.verbose>1)
-        clog << _(" skipping - __kprobes");
-      return true;
+        clog << _(" __kprobes");
     }
 
-  // Check probe point against blacklist.
+  // Check probe point against file/function blacklists.
   int goodfn = regexec (&blacklist_func, funcname.c_str(), 0, NULL, 0);
   if (has_return)
     goodfn = goodfn && regexec (&blacklist_func_ret, funcname.c_str(), 0, NULL, 0);
@@ -2896,21 +3095,23 @@ dwflpp::blacklisted_p(const string& funcname,
 
   if (! (goodfn && goodfile))
     {
-      if (sess.guru_mode)
-        {
-          if (sess.verbose>1)
-            clog << _(" guru mode enabled - ignoring blacklist");
-        }
-      else
-        {
-          if (sess.verbose>1)
-            clog << _(" skipping - blacklisted");
-          return true;
-        }
+      blacklisted = true;
+      if (sess.verbose>1)
+        clog << _(" file/function blacklist");
     }
 
+  if (sess.guru_mode && blacklisted)
+    {
+      blacklisted = false;
+      if (sess.verbose>1)
+        clog << _(" - not skipped (guru mode enabled)");
+    }
+
+  if (blacklisted && sess.verbose>1)
+    clog << _(" - skipped");
+
   // This probe point is not blacklisted.
-  return false;
+  return blacklisted;
 }
 
 
@@ -2935,15 +3136,17 @@ dwflpp::build_blacklist()
   blsection += "|\\.meminit\\.";
   blsection += "|\\.memexit\\.";
 
+  /* NOTE all include/asm .h blfile patterns might need "full path"
+     so prefix those with '.*' - see PR13108 and PR13112. */
   blfile += "kernel/kprobes\\.c"; // first alternative, no "|"
   blfile += "|arch/.*/kernel/kprobes\\.c";
-  // Older kernels need ...
-  blfile += "|include/asm/io\\.h";
-  blfile += "|include/asm/bitops\\.h";
-  // While newer ones need ...
-  blfile += "|arch/.*/include/asm/io\\.h";
-  blfile += "|arch/.*/include/asm/bitops\\.h";
+  blfile += "|.*/include/asm/io\\.h";
+  blfile += "|.*/include/asm/io_64\\.h";
+  blfile += "|.*/include/asm/bitops\\.h";
   blfile += "|drivers/ide/ide-iops\\.c";
+  // paravirt ops
+  blfile += "|arch/.*/kernel/paravirt\\.c";
+  blfile += "|.*/include/asm/paravirt\\.h";
 
   // XXX: it would be nice if these blacklisted functions were pulled
   // in dynamically, instead of being statically defined here.
@@ -2983,17 +3186,36 @@ dwflpp::build_blacklist()
   blfn += "|sync_regs";
   blfn += "|unhandled_fault";
   blfn += "|unknown_nmi_error";
+  blfn += "|xen_[gs]et_debugreg";
+  blfn += "|xen_irq_.*";
+  blfn += "|xen_.*_fl_direct.*";
+  blfn += "|check_events";
+  blfn += "|xen_adjust_exception_frame";
+  blfn += "|xen_iret.*";
+  blfn += "|xen_sysret64.*";
+  blfn += "|test_ti_thread_flag.*";
+  blfn += "|inat_get_opcode_attribute";
+  blfn += "|system_call_after_swapgs";
 
   // Lots of locks
-  blfn += "|.*raw_.*lock.*";
-  blfn += "|.*read_.*lock.*";
-  blfn += "|.*write_.*lock.*";
-  blfn += "|.*spin_.*lock.*";
-  blfn += "|.*rwlock_.*lock.*";
-  blfn += "|.*rwsem_.*lock.*";
+  blfn += "|.*raw_.*_lock.*";
+  blfn += "|.*raw_.*_unlock.*";
+  blfn += "|.*raw_.*_trylock.*";
+  blfn += "|.*read_lock.*";
+  blfn += "|.*read_unlock.*";
+  blfn += "|.*read_trylock.*";
+  blfn += "|.*write_lock.*";
+  blfn += "|.*write_unlock.*";
+  blfn += "|.*write_trylock.*";
+  blfn += "|.*write_seqlock.*";
+  blfn += "|.*write_sequnlock.*";
+  blfn += "|.*spin_lock.*";
+  blfn += "|.*spin_unlock.*";
+  blfn += "|.*spin_trylock.*";
+  blfn += "|.*spin_is_locked.*";
+  blfn += "|rwsem_.*lock.*";
   blfn += "|.*mutex_.*lock.*";
   blfn += "|raw_.*";
-  blfn += "|.*seq_.*lock.*";
 
   // atomic functions
   blfn += "|atomic_.*";
@@ -3248,12 +3470,40 @@ dwflpp::get_cfa_ops (Dwarf_Addr pc)
 	  bool frame_signalp;
 	  int info = dwarf_frame_info (frame, &frame_start, &frame_end,
 				       &frame_signalp);
-          clog << _F("found cfa, info: %d [start: 0x%#" PRIx64 ", end: 0x%#" PRIx64 
+          clog << _F("found cfa, info: %d [start: %#" PRIx64 ", end: %#" PRIx64 
                      ", nops: %zu", info, frame_start, frame_end, cfa_nops) << endl;
 	}
     }
 
   return cfa_ops;
+}
+
+int
+dwflpp::add_module_build_id_to_hash (Dwfl_Module *m,
+                 void **userdata __attribute__ ((unused)),
+                 const char *name,
+                 Dwarf_Addr base,
+                 void *arg)
+{
+   string modname = name;
+   systemtap_session * s = (systemtap_session *)arg;
+  if (pending_interrupts)
+    return DWARF_CB_ABORT;
+
+  // Extract the build ID
+  const unsigned char *bits;
+  GElf_Addr vaddr;
+  int bits_length = dwfl_module_build_id(m, &bits, &vaddr);
+  if(bits_length > 0)
+    {
+      // Convert the binary bits to a hex string
+      string hex = hex_dump(bits, bits_length);
+
+      // Store the build ID in the session
+      s->build_ids.push_back(hex);
+    }
+
+  return DWARF_CB_OK;
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

@@ -1,4 +1,192 @@
-* What's new in version 1.6
+* What's new in version 1.7, 2012-02-01
+
+- Map inserting and deleting is now significantly faster due to
+  improved hashing and larger hash tables. The hashes are also
+  now randomized to provide better protection against deliberate
+  collision attacks.
+
+- Formatted printing is faster by compiling the formatting directives
+  to C code rather than interpreting at run time.
+
+- Systemtap loads extra command line options from $SYSTEMTAP_DIR/rc
+  ($HOME/.systemtap/rc by default) before the normal argc/argv.  This
+  may be useful to activate site options such as --use-server or
+  --download-debuginfo or --modinfo.
+
+- The stap-server has seen many improvements, and is no longer considered
+  experimental.
+
+- The stap-server service (initscript) now supports four new options:
+    -D MACRO[=VALUE]
+    --log LOGFILE
+    --port PORT-NUMBER
+    --SSL CERT-DATABASE
+  These allow the specification of macro definitions to be passed to stap
+  by the server, the location of the log file, network port number and
+  NSS certificate database location respectively. These options are also
+  supported within individual server configuration files. See stap-server
+  and initscript/README.stap-server for details.  The stap-server is no
+  longer activated by default.
+
+- process("PATH").[library("PATH")].function("NAME").exported probes are now
+  supported to filter function() to only exported instances.
+
+- The translator supports a new --suppress-handler-errors option, which
+  causes most runtime errors to be turned into quiet skipped probes.  This
+  also disables the MAXERRORS and MAXSKIPPED limits.
+
+- Translator warnings have been standardized and controlled by the -w / -W
+  flags.
+
+- The translator supports a new --modinfo NAME=VALUE option to emit additional
+  MODULE_INFO(n,v) macros into the generated code.
+
+- There is no more fixed maximum number of VMA pages that will be tracked
+  at runtime. This reduces memory use for those scripts that don't need any,
+  or only limited target process VMA tracking and allows easier system
+  wide probes inspecting shared library variables and/or user backtraces.
+  stap will now silently ignore -DTASK_FINDER_VMA_ENTRY_ITEMS.
+
+- The tapset functions remote_id() and remote_uri() identify the member of a
+  swarm of "stap --remote FOO --remote BAR baz.stp" concurrent executions.
+
+- Systemtap now supports a new privilege level and group, "stapsys", which
+  is equivalent to the privilege afforded by membership in the group "stapdev",
+  except that guru mode (-g) functionality may not be used. To support this, a
+  new option, --privilege=[stapusr|stapsys|stapdev] has been added.
+  --privilege=stapusr is equivalent to specifying the existing --unprivileged
+  option. --privilege=stapdev is the default. See man stap(1) for details.
+
+- Scripts that use kernel.trace("...") probes compile much faster.
+
+- The systemtap module cache is cleaned less frequently, governed by the
+  number of seconds in the $SYSTEMTAP_DIR/cache/cache_clean_interval_s file.
+
+- SDT can now define up to 12 arguments in a probe point.
+
+- Parse errors no longer generate a cascade of false errors.  Instead, a
+  parse error skips the rest of the current probe or function, and resumes
+  at the next one.  This should generate fewer and better messages.
+
+- Global array wrapping is now supported for both associative and statistics typed
+  arrays using the '%' character to signify a wrapped array. For example,
+  'global foo%[100]' would allow the array 'foo' to be wrapped if more than 100
+  elements are inserted.
+
+- process("PATH").library("PATH").plt("NAME") probes are now supported.
+  Wildcards are supported in the plt-name part, to refer to any function in the
+  program linkage table which matches the glob pattern and the rest of the
+  probe point.
+
+- A new option, --dump-probe-types, will dump a list of supported probe types.
+  If --unprivileged is also specified, the list will be limited to probe types
+  which are available to unprivileged users.
+
+- Systemtap can now automatically download the required debuginfo
+  using abrt. The --download-debuginfo[=OPTION] can be used to
+  control this feature. Possible values are: 'yes', 'no', 'ask',
+  and a positive number representing the timeout desired. The 
+  default behavior is to not automatically download the debuginfo.
+
+- The translator has better support for probing C++ applications by
+  better undertanding of compilation units, nested types, templates,
+  as used in probe point and @cast constructs.
+
+- On 2.6.29+ kernels, systemtap can now probe kernel modules that
+  arrive and/or depart during the run-time of a session.  This allows
+  probing of device driver initialization functions, which had formerly been
+  blacklisted.
+
+- New tapset functions for cpu_clock and local_clock access were added.
+
+- There is some limited preliminary support for user-space probing
+  against kernels such as linux-next, which have no utrace but do have
+  the newer inode-uprobes work by Srikar Dronamraju and colleagues.
+
+- The following probe types are deprecated in release 1.7 and will be
+  removed in release 1.8:
+      kernel.function(number).inline
+      module(string).function(number).inline
+      process.function(number).inline
+      process.library(string).function(number).inline
+      process(string).function(number).inline
+      process(string).library(string).function(number).inline
+
+- The systemtap-grapher is deprecated in release 1.7 and will be removed in
+  release 1.8.
+
+- The task_backtrace() tapset function was deprecated in 1.6 and has been
+  removed in 1.7.
+
+- MAXBACKTRACE did work in earlier releases, but has now been documented
+  in the stap 1 manual page.
+
+- New tapset function probe_type(). Returns a short string describing
+  the low level probe handler type for the current probe point.
+
+- Both unwind and symbol data is now only collected and emitted for
+  scripts actually using backtracing or function/data symbols.
+  Tapset functions are marked with /* pragma:symbols */ or
+  /* pragma:unwind */ to indicate they need the specific data.
+
+- Kernel backtraces can now be generated for non-pt_regs probe context
+  if the kernel support dump_trace(). This enables backtraces from
+  certain timer probes and tracepoints.
+
+- ubacktrace() should now also work for some kernel probes on x86 which can
+  use the dwarf unwinder to recover the user registers to provide
+  more accurate user backtraces.
+
+- For s390x the systemtap runtime now properly splits kernel and user
+  addresses (which are in separate address spaces on that architecture)
+  which enable user space introspection.
+
+- ppc and s390x now supports user backtraces through the DWARF unwinder.
+
+- ppc now handles function descriptors as symbol names correctly.
+
+- arm support kernel backtraces through the DWARF unwinder.
+
+- arm now have a uprobes port which enables user probes. This still
+  requires some kernel patches (user_regsets and tracehook support for
+  arm).
+
+- Starting in release 1.7, these old variables will be deprecated:
+  - The 'pid' variable in the 'kprocess.release' probe has been
+    deprecated in favor of the new 'released_pid' variable.
+  - The 'args' variable in the
+    '_sunrpc.clnt.create_client.rpc_new_client_inline' probe has been
+    deprecated in favor of the new internal-only '__args' variable.
+
+- Experimental support for recent kernels without utrace has been
+  added for the following probe types: 
+
+    process(PID).begin
+    process("PATH").begin
+    process.begin
+    process(PID).thread.begin
+    process("PATH").thread.begin
+    process.thread.begin
+    process(PID).end
+    process("PATH").end
+    process.end
+    process(PID).thread.end
+    process("PATH").thread.end
+    process.thread.end
+    process(PID).syscall
+    process("PATH").syscall
+    process.syscall
+    process(PID).syscall.return
+    process("PATH").syscall.return 
+    process.syscall.return
+
+- staprun disables kprobe-optimizations in recent kernels, as problems
+  were found.  (PR13193)
+
+* What's new in version 1.6, 2011-07-25
+
+- Security fixes for CVE-2011-2503: read instead of mmap to load modules,
+  CVE-2011-2502: Don't allow path-based auth for uprobes
 
 - The systemtap compile-server no longer uses the -k option when calling the
   translator (stap). As a result, the server will now take advantage of the
@@ -43,6 +231,9 @@
   away after 1.6. Please run your scripts with stap --check-version.
 
 * What's new in version 1.5, 2011-05-23
+
+- Security fixes for CVE-2011-1781, CVE-2011-1769: correct DW_OP_{mod,div}
+  division-by-zero bug
 
 - The compile server and its related tools (stap-gen-ert, stap-authorize-cert,
    stap-sign-module) have been re-implemented in C++. Previously, these
@@ -115,6 +306,9 @@
   instead.
 
 * What's new in version 1.4, 2011-01-17
+
+- Security fixes for CVE-2010-4170, CVE-2010-4171: staprun module
+  loading/unloading
 
 - A new /* myproc-unprivileged */ marker is now available for embedded C
   code and and expressions. Like the /* unprivileged */ marker, it makes

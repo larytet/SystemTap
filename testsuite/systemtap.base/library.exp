@@ -8,14 +8,14 @@ proc cleanup_handler { verbose } {
 }
 
 proc error_handler { res message } {
-global verbose
+global verbose test
 if { $res == 0 } {
     verbose $message 2
-    fail $message
+    fail "$test $message"
     cleanup_handler $verbose
     return 1
 } else {
-    pass $message
+    pass "$test $message"
     return 0
 }
 }
@@ -32,8 +32,8 @@ set dpath "[pwd]/sdt_misc_.d"
 set hpath "[pwd]/sdt_misc_.h"
 set opath "[pwd]/sdt_misc_.o"
 
-set exepath "[pwd]/sdt_misc.x"
-set sopath "[pwd]/libsdt.so"
+set exepath "./sdt_misc.x"
+set sopath "./libsdt.so"
 
 # Run dtrace
 
@@ -56,11 +56,11 @@ if { [error_handler [expr {[file exists $hpath] && [file exists $opath]}] "dtrac
 set F additional_flags
 set flags "$F=[sdt_includes] $F=$opath $F=-I. $F=-shared $F=-fPIC $F=-DNO_MAIN $F=-g"
 set res [target_compile $srcdir/$subdir/sdt_misc.c $sopath executable $flags ]
-if { [error_handler [expr {$res == ""}] "target_compile"] } { return }
+if { [error_handler [expr {$res == ""}] "target_compile libsdt.so"] } { return }
 
 set flags "$F=-Wl,-rpath,[pwd] $F=-L[pwd] $F=-lsdt $F=-DONLY_MAIN $F=-g"
 set res [target_compile $srcdir/$subdir/sdt_misc.c $exepath executable $flags ]
-if { [error_handler [expr {$res == ""}] "target_compile"] } { return }
+if { [error_handler [expr {$res == ""}] "target_compile sdt_misc.x"] } { return }
 
 # Test globbing
 
@@ -115,3 +115,24 @@ expect {
 catch {close}; catch {wait}
 
 error_handler [expr {$ok == 4}] "printf --ldd ($ok) ($ok != 4)"
+
+# Test .exported
+
+spawn $stap_path -c $exepath -e "probe process(\"$exepath\").library(\"*\").function(\"*\").exported \{printf(\"%s \", pp())\}"
+
+set ok 0
+expect {
+    -timeout 180
+    -re {libsdt.so.*bar} {incr ok; exp_continue }
+    -re {libsdt.so.*baz} {incr ok; exp_continue }
+    -re {libsdt.so.*buz} {incr ok; exp_continue }
+    -re {libc-.*so.*exported} {incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+
+catch {close}; catch {wait}
+
+error_handler [expr {$ok >= 6}] ".exported ($ok) ($ok >= 6)"
+
+cleanup_handler $verbose

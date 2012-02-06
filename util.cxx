@@ -225,6 +225,17 @@ remove_file_or_dir (const char *name)
   return 0;
 }
 
+/* Obtain the gid of the given group. */
+gid_t get_gid (const char *group_name)
+{
+  struct group *stgr;
+  /* If we couldn't find the group, return an invalid number. */
+  stgr = getgrnam(group_name);
+  if (stgr == NULL)
+    return (gid_t)-1;
+  return stgr->gr_gid;
+}
+
 // Determine whether the current user is in the given group
 // by gid.
 bool
@@ -296,6 +307,37 @@ tokenize(const string& str, vector<string>& tokens,
       // Find next "non-delimiter"
       pos = str.find_first_of(delimiters, lastPos);
     }
+}
+
+
+// Akin to tokenize(...,"::"), but it also has to deal with C++ template
+// madness.  We do this naively by balancing '<' and '>' characters.  This
+// doesn't eliminate blanks either, so a leading ::scope still works.
+void
+tokenize_cxx(const string& str, vector<string>& tokens)
+{
+  int angle_count = 0;
+  string::size_type pos = 0;
+  string::size_type colon_pos = str.find("::");
+  string::size_type angle_pos = str.find_first_of("<>");
+  while (colon_pos != string::npos &&
+         (angle_count == 0 || angle_pos != string::npos))
+    {
+      if (angle_count > 0 || angle_pos < colon_pos)
+        {
+          angle_count += str.at(angle_pos) == '<' ? 1 : -1;
+          colon_pos = str.find("::", angle_pos + 1);
+          angle_pos = str.find_first_of("<>", angle_pos + 1);
+        }
+      else
+        {
+          tokens.push_back(str.substr(pos, colon_pos - pos));
+          pos = colon_pos + 2;
+          colon_pos = str.find("::", pos);
+          angle_pos = str.find_first_of("<>", pos);
+        }
+    }
+  tokens.push_back(str.substr(pos));
 }
 
 
@@ -500,7 +542,8 @@ stap_spawn(int verbose, const vector<string>& args,
   const char *cmd;
   string command;
   if(*it == '/' && (access(args[0].c_str(), X_OK)==-1)) //checking to see if staprun is executable
-    clog << _F("Warning: %s is not executable (%s)", args[0].c_str(), strerror(errno)) << endl;
+    // XXX PR13274 needs-session to use print_warning()
+    clog << _F("WARNING: %s is not executable (%s)", args[0].c_str(), strerror(errno)) << endl;
   for (size_t i = 0; i < args.size(); ++i)
     command += " " + args[i];
   cmd = command.c_str();
@@ -515,7 +558,8 @@ stap_spawn(int verbose, const vector<string>& args,
 
   char** env;
   bool allocated;
-  if(envVec.empty())
+  // environ can be NULL. This has been observed when running under gdb.
+  if(envVec.empty() && environ != NULL)
   {
 	  env = environ;
   	  allocated = false;
@@ -652,7 +696,8 @@ stap_system(int verbose, const vector<string>& args,
       if (pid > 0){
         ret = stap_waitpid(verbose, pid);
         if(ret)
-          clog << _F("Warning: %s exited with status: %d", args.front().c_str(), ret) << endl;
+          // XXX PR13274 needs-session to use print_warning()
+          clog << _F("WARNING: %s exited with status: %d", args.front().c_str(), ret) << endl;
       }
     }
 
@@ -696,10 +741,7 @@ void assert_regexp_match (const string& name, const string& value, const string&
     {
       r = new regex_t;
       int rc = regcomp (r, re.c_str(), REG_ICASE|REG_NOSUB|REG_EXTENDED);
-      if (rc) {
-        cerr << _F("regcomp %s (%s) error rc= %d", re.c_str(), name.c_str(), rc) << endl;
-        exit(1);
-      }
+      assert (rc == 0);
       compiled[re] = r;
     }
   else
@@ -726,10 +768,7 @@ int regexp_match (const string& value, const string& re, vector<string>& matches
     {
       r = new regex_t;
       int rc = regcomp (r, re.c_str(), REG_EXTENDED); /* REG_ICASE? */
-      if (rc) {
-        cerr << _F("regcomp %s error rc=%d", re.c_str(), rc) << endl;
-        return rc;
-      }
+      assert (rc == 0);
       compiled[re] = r;
     }
   else
@@ -758,10 +797,57 @@ int regexp_match (const string& value, const string& re, vector<string>& matches
 
 bool contains_glob_chars (const string& str)
 {
-  return (str.find("*") != str.npos ||
-          str.find("?") != str.npos ||
-          str.find("[") != str.npos);
+  for (unsigned i=0; i<str.size(); i++)
+    {
+      char this_char = str[i];
+      if (this_char == '\\' && (str.size() > i+1))
+        {
+          // PR13338: skip the escape backslash and the escaped character
+          i++;
+          continue;
+        }
+      if (this_char == '*' || this_char == '?' || this_char == '[')
+        return true;
+    }
+
+  return false;
 }
+
+
+// PR13338: we need these functions to be able to pass through glob metacharacters
+// through the recursive process("...*...") expansion process.
+string escape_glob_chars (const string& str)
+{
+  string op;
+  for (unsigned i=0; i<str.size(); i++)
+    {
+      char this_char = str[i];
+      if (this_char == '*' || this_char == '?' || this_char == '[')
+        op += '\\';
+      op += this_char;
+    }
+  return op;
+}
+
+string unescape_glob_chars (const string& str)
+{
+  string op;
+  for (unsigned i=0; i<str.size(); i++)
+    {
+      char this_char = str[i];
+      if (this_char == '\\' && (str.size() > i+1) )
+        {
+          op += str[i+1];
+          i++;
+          continue;
+        }
+      op += this_char;
+    }
+
+  return op;
+}
+
+
 
 string
 normalize_machine(const string& machine)
@@ -828,6 +914,5 @@ std::string autosprintf(const char* format, ...)
   free (str);
   return s; /* by copy */
 }
-
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

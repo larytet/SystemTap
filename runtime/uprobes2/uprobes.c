@@ -86,11 +86,7 @@ static DEFINE_MUTEX(uproc_mutex);
 
 /* Table of uprobe_tasks, hashed by task_struct pointer. */
 static struct hlist_head utask_table[UPROBE_TABLE_SIZE];
-#ifdef CONFIG_PREEMPT_RT
-static DEFINE_RAW_SPINLOCK(utask_table_lock);
-#else
 static DEFINE_SPINLOCK(utask_table_lock);
-#endif
 
 #define lock_uproc_table() mutex_lock(&uproc_mutex)
 #define unlock_uproc_table() mutex_unlock(&uproc_mutex)
@@ -118,23 +114,29 @@ struct delayed_signal {
 	siginfo_t info;
 };
 
-static struct uprobe_task *uprobe_find_utask(struct task_struct *tsk)
+static struct uprobe_task *uprobe_find_utask_locked(struct task_struct *tsk)
 {
 	struct hlist_head *head;
 	struct hlist_node *node;
 	struct uprobe_task *utask;
-	unsigned long flags;
 
 	head = &utask_table[hash_ptr(tsk, UPROBE_HASH_BITS)];
-	lock_utask_table(flags);
 	hlist_for_each_entry(utask, node, head, hlist) {
-		if (utask->tsk == tsk) {
-			unlock_utask_table(flags);
+		if (utask->tsk == tsk)
 			return utask;
-		}
 	}
-	unlock_utask_table(flags);
 	return NULL;
+}
+
+static struct uprobe_task *uprobe_find_utask(struct task_struct *tsk)
+{
+	struct uprobe_task *utask;
+	unsigned long flags;
+
+	lock_utask_table(flags);
+	utask = uprobe_find_utask_locked(tsk);
+	unlock_utask_table(flags);
+	return utask;
 }
 
 static void uprobe_hash_utask(struct uprobe_task *utask)
@@ -143,8 +145,8 @@ static void uprobe_hash_utask(struct uprobe_task *utask)
 	unsigned long flags;
 
 	INIT_HLIST_NODE(&utask->hlist);
-	head = &utask_table[hash_ptr(utask->tsk, UPROBE_HASH_BITS)];
 	lock_utask_table(flags);
+	head = &utask_table[hash_ptr(utask->tsk, UPROBE_HASH_BITS)];
 	hlist_add_head(&utask->hlist, head);
 	unlock_utask_table(flags);
 }
@@ -158,9 +160,11 @@ static void uprobe_unhash_utask(struct uprobe_task *utask)
 	unlock_utask_table(flags);
 }
 
-static inline void uprobe_get_process(struct uprobe_process *uproc)
+static inline struct uprobe_process * uprobe_get_process(struct uprobe_process *uproc)
 {
-	atomic_inc(&uproc->refcount);
+	if (atomic_inc_not_zero(&uproc->refcount))
+		return uproc;
+	return NULL;
 }
 
 /*
@@ -190,8 +194,9 @@ static struct uprobe_process *uprobe_find_process(struct pid *tg_leader)
 	head = &uproc_table[hash_ptr(tg_leader, UPROBE_HASH_BITS)];
 	hlist_for_each_entry(uproc, node, head, hlist) {
 		if (uproc->tg_leader == tg_leader && !uproc->finished) {
-			uprobe_get_process(uproc);
-			down_write(&uproc->rwsem);
+			uproc = uprobe_get_process(uproc);
+			if (uproc)
+				down_write(&uproc->rwsem);
 			return uproc;
 		}
 	}
@@ -379,10 +384,14 @@ static void utask_adjust_flags(struct uprobe_task *utask, int set,
 	 * be waiting on.
 	 */
 	if (newflags != oldflags) {
+		/* utrace_set_events_pid() converts a pid to a task, so
+		   we should hold rcu_read_lock.  */
+		rcu_read_lock();
 		if (utrace_set_events_pid(utask->pid, utask->engine,
 							newflags) != 0)
 			/* We don't care. */
 			;
+		rcu_read_unlock();
 	}
 }
 
@@ -390,10 +399,14 @@ static inline void clear_utrace_quiesce(struct uprobe_task *utask, bool resume)
 {
 	utask_adjust_flags(utask, UPROBE_CLEAR_FLAGS, UTRACE_EVENT(QUIESCE));
 	if (resume) {
+		/* utrace_control_pid calls task_pid() so we should hold the
+		   rcu_read_lock.  */
+		rcu_read_lock();
 		if (utrace_control_pid(utask->pid, utask->engine,
 						UTRACE_RESUME) != 0)
 			/* We don't care. */
 			;
+		rcu_read_unlock();
 	}
 }
 
@@ -442,7 +455,11 @@ static void uprobe_stop_thread(struct uprobe_task *utask)
 	 * could deadlock.
 	 */
 	BUG_ON(utask->tsk == current);
+	/* utrace_control_pid calls task_pid() so we should hold the
+	   rcu_read_lock.  */
+	rcu_read_lock();
 	result = utrace_control_pid(utask->pid, utask->engine, UTRACE_STOP);
+	rcu_read_unlock();
 	if (result == 0) {
 		/* Already stopped. */
 		utask->state = UPTASK_QUIESCENT;
@@ -463,12 +480,15 @@ static void uprobe_stop_thread(struct uprobe_task *utask)
 			/*
 			 * Task will eventually stop, but it may be a long time.
 			 * Don't wait.
-			 */
+			 * utrace_control_pid calls task_pid() so we should
+			 * hold the rcu_read_lock.  */
+			rcu_read_lock();
 			result = utrace_control_pid(utask->pid, utask->engine,
 							UTRACE_INTERRUPT);
 			if (result != 0)
 				/* We don't care. */
 				;
+			rcu_read_unlock();
 		}
 	}
 }
@@ -488,7 +508,9 @@ static bool quiesce_all_threads(struct uprobe_process *uproc,
 	*cur_utask_quiescing = NULL;
 	list_for_each_entry(utask, &uproc->thread_list, list) {
 		if (!survivors) {
+			rcu_read_lock();
 			survivor = pid_task(utask->pid, PIDTYPE_PID);
+			rcu_read_unlock();
 			if (survivor)
 				survivors = true;
 		}
@@ -534,19 +556,32 @@ static void uprobe_free_task(struct uprobe_task *utask, bool in_callback)
 	struct deferred_registration *dr, *d;
 	struct delayed_signal *ds, *ds2;
 
+	/*
+	 * Do this first, since a utask that's still in the utask_table
+	 * is assumed (e.g., by uprobe_report_exit) to be valid.
+	 */
+	uprobe_unhash_utask(utask);
+
 	if (utask->engine && (utask->tsk != current || !in_callback)) {
 		/*
-		 * No other tasks in this process should be running
-		 * uprobe_report_* callbacks.  (If they are, utrace_barrier()
-		 * here could deadlock.)
-		 */
-		int result = utrace_control_pid(utask->pid, utask->engine,
-								UTRACE_DETACH);
-			BUG_ON(result == -EINPROGRESS);
+		 * If we're racing with (say) uprobe_report_exit() here,
+		 * utrace_control_pid() may fail with -EINPROGRESS.  That's
+		 * OK.  The callback will abort with UTRACE_DETACH after
+		 * we're done.  It is NOT OK to call utrace_barrier() here,
+		 * since the callback would probably deadlock awaiting
+		 * uproc->rwsem.
+		 *
+		 * utrace_control_pid calls task_pid() so we should hold the
+		 * rcu_read_lock.  */
+		rcu_read_lock();
+		if (utrace_control_pid(utask->pid, utask->engine,
+						UTRACE_DETACH) != 0)
+			/* Ignore it. */
+			;
+		rcu_read_unlock();
 	}
 	put_pid(utask->pid);	/* null pid OK */
 
-	uprobe_unhash_utask(utask);
 	list_del(&utask->list);
 	list_for_each_entry_safe(dr, d, &utask->deferred_registrations, list) {
 		list_del(&dr->list);
@@ -576,8 +611,7 @@ static void uprobe_free_process(struct uprobe_process *uproc, int in_callback)
 
 	if (area->slots)
 		kfree(area->slots);
-	if (!hlist_unhashed(&uproc->hlist))
-		hlist_del(&uproc->hlist);
+	hlist_del(&uproc->hlist);
 	list_for_each_entry_safe(utask, tmp, &uproc->thread_list, list)
 		uprobe_free_task(utask, in_callback);
 	put_pid(uproc->tg_leader);
@@ -604,9 +638,9 @@ static int uprobe_put_process(struct uprobe_process *uproc, bool in_callback)
 		down_write(&uproc->rwsem);
 		if (unlikely(atomic_read(&uproc->refcount) != 0)) {
 			/*
-			 * The works because uproc_mutex is held any
-			 * time the ref count can go from 0 to 1 -- e.g.,
-			 * register_uprobe() sneaks in with a new probe.
+			 * register_uprobe() snuck in with a new probe,
+			 * or a callback such as uprobe_report_exit()
+			 * just started.
 			 */
 			up_write(&uproc->rwsem);
 		} else {
@@ -650,7 +684,11 @@ static struct uprobe_task *uprobe_add_task(struct pid *p,
 {
 	struct uprobe_task *utask;
 	struct utrace_attached_engine *engine;
-	struct task_struct *t = pid_task(p, PIDTYPE_PID);
+	struct task_struct *t;
+
+	rcu_read_lock();
+	t = pid_task(p, PIDTYPE_PID);
+	rcu_read_unlock();
 
 	if (!t)
 		return NULL;
@@ -773,7 +811,9 @@ static struct uprobe_process *uprobe_mk_process(struct pid *tg_leader,
 	uproc->n_quiescent_threads = 0;
 	INIT_HLIST_NODE(&uproc->hlist);
 	uproc->tg_leader = get_pid(tg_leader);
+	rcu_read_lock();
 	uproc->tgid = pid_task(tg_leader, PIDTYPE_PID)->tgid;
+	rcu_read_unlock();
 	uproc->finished = 0;
 	uproc->uretprobe_trampoline_addr = NULL;
 
@@ -1747,9 +1787,10 @@ static int utask_fake_quiesce(struct uprobe_task *utask)
 	} else {
 		utask->state = UPTASK_SLEEPING;
 		uproc->n_quiescent_threads++;
-		up_write(&uproc->rwsem);
+
 		/* We ref-count sleepers. */
 		uprobe_get_process(uproc);
+		up_write(&uproc->rwsem);
 
 		wait_event(uproc->waitq, !utask->quiescing);
 
@@ -1894,9 +1935,17 @@ static u32 uprobe_report_signal(u32 action,
 	enum utrace_resume_action resume_action;
 	int hit_uretprobe_trampoline = 0;
 
+	rcu_read_lock();
 	utask = (struct uprobe_task *)rcu_dereference(engine->data);
 	BUG_ON(!utask);
-	uproc = utask->uproc;
+	/* Keep uproc intact until just before we return. */
+	uproc = uprobe_get_process(utask->uproc);
+
+	rcu_read_unlock();
+
+	if (!uproc)
+		/* uprobe_free_process() has probably clobbered utask->proc. */
+		return UTRACE_SIGNAL_IGN | UTRACE_DETACH;
 
 	/*
 	 * We may need to re-assert UTRACE_SINGLESTEP if this signal
@@ -1906,9 +1955,6 @@ static u32 uprobe_report_signal(u32 action,
 		resume_action = UTRACE_SINGLESTEP;
 	else
 		resume_action = UTRACE_RESUME;
-
-	/* Keep uproc intact until just before we return. */
-	uprobe_get_process(uproc);
 
 	if (unlikely(signal_action == UTRACE_SIGNAL_REPORT)) {
 		/* This thread was quiesced using UTRACE_INTERRUPT. */
@@ -2145,11 +2191,13 @@ static u32 uprobe_report_quiesce(
 	struct uprobe_process *uproc;
 	bool done_quiescing = false;
 
+	rcu_read_lock();
 	utask = (struct uprobe_task *)rcu_dereference(engine->data);
 	BUG_ON(!utask);
 #if !(defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216))
 	BUG_ON(tsk != current);	// guaranteed by utrace 2008
 #endif
+	rcu_read_unlock();
 
 	if (utask->state == UPTASK_SSTEP)
 		/*
@@ -2160,7 +2208,7 @@ static u32 uprobe_report_quiesce(
 		return UTRACE_SINGLESTEP;
 
 	BUG_ON(utask->active_probe);
-	uproc = utask->uproc;
+	uproc = uprobe_get_process(utask->uproc);
 	down_write(&uproc->rwsem);
 #if 0
 	// TODO: Is this a concern any more?
@@ -2183,6 +2231,7 @@ static u32 uprobe_report_quiesce(
 	done_quiescing = utask_quiesce(utask);
 // done:
 	up_write(&uproc->rwsem);
+	uprobe_put_process(utask->uproc, true);
 	return (done_quiescing ? UTRACE_RESUME : UTRACE_STOP);
 }
 
@@ -2265,9 +2314,17 @@ static u32 uprobe_report_exit(enum utrace_resume_action action,
 	struct uprobe_probept *ppt;
 	int utask_quiescing;
 
+	rcu_read_lock();
 	utask = (struct uprobe_task *)rcu_dereference(engine->data);
-	uproc = utask->uproc;
-	uprobe_get_process(uproc);
+	BUG_ON(!utask);
+	/* Keep uproc intact until just before we return. */
+	uproc = uprobe_get_process(utask->uproc);
+
+	rcu_read_unlock();
+
+	if (!uproc)
+		/* uprobe_free_process() has probably clobbered utask->proc. */
+		return UTRACE_DETACH;
 
 	ppt = utask->active_probe;
 	if (ppt) {
@@ -2477,8 +2534,10 @@ static u32 uprobe_report_clone(enum utrace_resume_action action,
 	struct uprobe_process *uproc;
 	struct uprobe_task *ptask, *ctask;
 
+	rcu_read_lock();
 	ptask = (struct uprobe_task *)rcu_dereference(engine->data);
 	uproc = ptask->uproc;
+	rcu_read_unlock();
 
 	/*
 	 * Lock uproc so no new uprobes can be installed 'til all
@@ -2592,9 +2651,17 @@ static u32 uprobe_report_exec(
 	struct uprobe_task *utask;
 	u32 ret = UTRACE_RESUME;
 
+	rcu_read_lock();
 	utask = (struct uprobe_task *)rcu_dereference(engine->data);
-	uproc = utask->uproc;
-	uprobe_get_process(uproc);
+	BUG_ON(!utask);
+	/* Keep uproc intact until just before we return. */
+	uproc = uprobe_get_process(utask->uproc);
+
+	rcu_read_unlock();
+
+	if (!uproc)
+		/* uprobe_free_process() has probably clobbered utask->proc. */
+		return UTRACE_DETACH;
 
 	/*
 	 * Only cleanup if we're the last thread.  If we aren't,
@@ -3010,7 +3077,7 @@ static int __access_process_vm(struct task_struct *tsk, unsigned long addr, void
 		return 0;
 
 	down_read(&mm->mmap_sem);
-	/* ignore errors, just check how much was sucessfully transfered */
+	/* ignore errors, just check how much was successfully transfered */
 	while (len) {
 		int bytes, ret, offset;
 		void *maddr;

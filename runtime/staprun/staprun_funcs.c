@@ -7,7 +7,7 @@
  * Public License (GPL); either version 2, or (at your option) any
  * later version.
  *
- * Copyright (C) 2007-2011 Red Hat Inc.
+ * Copyright (C) 2007-2012 Red Hat Inc.
  */
 
 #include "config.h"
@@ -29,10 +29,12 @@
 #include <math.h>
 
 #include "modverify.h"
+#include "../../privilege.h"
 
 typedef int (*check_module_path_func)(const char *module_path, int module_fd);
 
 extern long init_module(void *, unsigned long, const char *);
+extern gid_t get_gid (const char *group_name);
 
 /* Module errors get translated. */
 const char *moderror(int err)
@@ -101,6 +103,7 @@ int insert_module(
 		free(opts);
 		return -1;
 	}
+	dbug(2, "module path canonicalized to '%s'\n", module_realpath);
 
         /* Use module_realpath from this point on. "Poison" 'path'
 	   by setting it to NULL so that it doesn't get used again by
@@ -174,6 +177,10 @@ int insert_module(
 		dbug(2,"Renamed module to '%s'\n", modname);
 	}
 
+        /* As a debugging aid for testing risky stap modules. */
+        if (getenv ("SYSTEMTAP_SYNC") != NULL)
+                sync();
+
 	PROBE1(staprun, insert__module, (char*)module_realpath);
 	/* Actually insert the module */
 	ret = init_module(module_file, sbuf.st_size, opts);
@@ -185,58 +192,66 @@ int insert_module(
 	close(module_fd);
 
 	if (ret != 0) {
-		err("Error inserting module '%s': %s\n", module_realpath, moderror(saved_errno));
 		errno = saved_errno;
-		return -1;
+		return -errno;
 	}
 	return 0;
 }
 
-int
-rename_module(void* module_file, const __off_t st_size)
-{
 #ifdef HAVE_ELF_GETSHDRSTRNDX
-	int found = 0;
-	int length_to_replace;
+static Elf_Scn *
+find_section_in_module(const void* module_file, const __off_t st_size, const char *section_name)
+{
 	char *name;
-	char newname[MODULE_NAME_LEN];
-	char *p;
 	size_t shstrndx;
-	pid_t pid;
 	Elf* elf;
 	Elf_Scn *scn = 0;
-	Elf_Data *data = 0;
 	GElf_Shdr shdr_mem;
 
   	/* Create descriptor for memory region.  */
-  	if((elf = elf_memory (module_file, st_size))== NULL) {
+  	if((elf = elf_memory ((void *)module_file, st_size))== NULL) {
   		_err("Error creating Elf object.\n");
-  		return -1;
+  		return NULL;
   	}
 
   	/* Get the string section index */
   	if(elf_getshdrstrndx (elf, &shstrndx) < 0) {
   		_err("Error getting section index.\n");
-  		return -1;
+  		return NULL;
   	}
 
-  	/* Go through the sections looking for ".gnu.linkonce.this_module" */
+  	/* Go through the sections looking for the given section" */
   	while ((scn = elf_nextscn (elf, scn))) {
   		 if((gelf_getshdr (scn, &shdr_mem))==NULL) {
   		 	 _err("Error getting section header.\n");
-  		 	 return -1;
+  		 	 return NULL;
   		 }
   		 name = elf_strptr (elf, shstrndx, shdr_mem.sh_name);
   		 if (name == NULL) {
   			 _err("Error getting section name.\n");
-  			 return -1;
+  			 return NULL;
   		 }
-  		 if(strcmp(name, ".gnu.linkonce.this_module") == 0) {
-  			 found = 1;
+  		 if(strcmp(name, section_name) == 0) {
   			 break;
   		 }
   	}
-  	if(!found) {
+	return scn;
+}
+#endif /* HAVE_ELF_GETSHDRSTRNDX */
+
+int
+rename_module(void* module_file, const __off_t st_size)
+{
+#ifdef HAVE_ELF_GETSHDRSTRNDX
+	int length_to_replace;
+	char newname[MODULE_NAME_LEN];
+	char *p;
+	pid_t pid;
+	Elf_Scn *scn = 0;
+	Elf_Data *data = 0;
+
+	scn = find_section_in_module (module_file, st_size, ".gnu.linkonce.this_module");
+  	if(!scn) {
   		_err("Section name \".gnu.linkonce.this_module\" not found in module.\n");
   		return -1;
   	}
@@ -249,11 +264,11 @@ rename_module(void* module_file, const __off_t st_size)
 
   	/* Generate new module name with the same length as the old name.
     	   The new name is of the form: stap_<FirstPartOfOldname>_<pid>*/
-  	pid = getpid();
   	if (strlen(modname) >= MODULE_NAME_LEN) {
   		_err("Old module name is too long.\n");
   		return -1;
   	}
+  	pid = getpid();
   	length_to_replace = (int)strlen(modname)-((int)log10(pid)+1) - 1;
   	if(length_to_replace < 0 || length_to_replace > (int)strlen(modname)) {
   		_err("Error getting length of oldname to replace in newname.\n");
@@ -267,8 +282,8 @@ rename_module(void* module_file, const __off_t st_size)
 	/* Find where it is in the module structure.
 	   To our knowledge, this section is always completely zeroed apart
 	   from the module name, so a simple search and replace should suffice.
-	   A signed module from any stapusr will already have been proven
-	   untampered.  An unsigned module from a stapdev could try to do
+	   A signed module from any stapusr or stapsys user will already have been proven
+	   untampered.  An unsigned module from a stapdev user could try to do
 	   naughty things, but we're already trusting these users so much
 	   that they can shoot their feet however they like.
 	   */
@@ -390,12 +405,20 @@ int mountfs(void)
 	return 0;
 }
 
-#if HAVE_NSS
 /*
  * Check the signature of the given module.
  *
  * Returns: -1 on errors, 0 on failure, 1 on success.
  */
+#if ! HAVE_NSS
+static int
+check_signature(const char *path __attribute__((unused)),
+		const void *module_data __attribute__((unused)),
+		off_t module_size __attribute__((unused)))
+{
+  return MODULE_UNTRUSTED;
+}
+#else
 static int
 check_signature(const char *path, const void *module_data, off_t module_size)
 {
@@ -415,7 +438,6 @@ check_signature(const char *path, const void *module_data, off_t module_size)
   sprintf (signature_realpath, "%s.sgn", path);
 
   rc = verify_module (signature_realpath, path, module_data, module_size);
-
   dbug(2, "verify_module returns %d\n", rc);
 
   return rc;
@@ -447,14 +469,12 @@ check_stap_module_path(const char *module_path, int module_fd)
 	}
 	if (sprintf_chk(staplib_dir_path, "/lib/modules/%s/systemtap", utsbuf.release))
 		return -1;
-
 	/* Use realpath() to canonicalize the module directory path. */
 	if (realpath(staplib_dir_path, staplib_dir_realpath) == NULL) {
-		perr("Unable to verify the signature for the module %s.\n"
-		     "  Members of the \"stapusr\" group can only use unsigned modules within\n"
+		perr("Members of the \"stapusr\" and \"stapsys\" groups can only use unsigned modules within\n"
 		     "  the \"%s\" directory.\n"
 		     "  Unable to canonicalize that directory",
-		     module_path, staplib_dir_path);
+		     staplib_dir_path);
 		return -1;
 	}
 
@@ -474,38 +494,34 @@ check_stap_module_path(const char *module_path, int module_fd)
 	   an open file descriptor to avoid TOCTOU, since the path will
 	   not be used to access the file system.  */
 	if (stat(staplib_dir_path, &sb) < 0) {
-		perr("Unable to verify the signature for the module %s.\n"
-		     "  Members of the \"stapusr\" group can only use such modules within\n"
+		perr("Members of the \"stapusr\" and \"stapsys\" groups can only use unsigned modules within\n"
 		     "  the \"%s\" directory.\n"
 		     "  Error getting information on that directory",
-		     module_path, staplib_dir_path);
+		     staplib_dir_path);
 		return -1;
 	}
 	/* Make sure it is a directory. */
 	if (! S_ISDIR(sb.st_mode)) {
-		err("ERROR: Unable to verify the signature for the module %s.\n"
-		    "  Members of the \"stapusr\" group can only use such modules within\n"
+		err("ERROR: Members of the \"stapusr\" and \"stapsys\" groups can only use unsigned modules within\n"
 		    "  the \"%s\" directory.\n"
 		    "  That path must refer to a directory.\n",
-		    module_path, staplib_dir_path);
+		    staplib_dir_path);
 		return -1;
 	}
 	/* Make sure it is owned by root. */
 	if (sb.st_uid != 0) {
-		err("ERROR: Unable to verify the signature for the module %s.\n"
-		    "  Members of the \"stapusr\" group can only use such modules within\n"
+		err("ERROR: Members of the \"stapusr\" and \"stapsys\" groups can only use unsigned modules within\n"
 		    "  the \"%s\" directory.\n"
 		    "  That directory should be owned by root.\n",
-		    module_path, staplib_dir_path);
+		    staplib_dir_path);
 		return -1;
 	}
 	/* Make sure it isn't world writable. */
 	if (sb.st_mode & S_IWOTH) {
-		err("ERROR: Unable to verify the signature for the module %s.\n"
-		    "  Members of the \"stapusr\" group can only use such modules within\n"
+		err("ERROR: Members of the \"stapusr\" and \"stapsys\" groups can only use unsigned modules within\n"
 		    "  the \"%s\" directory.\n"
 		    "  That directory should not be world writable.\n",
-		    module_path, staplib_dir_path);
+		    staplib_dir_path);
 		return -1;
 	}
 
@@ -513,11 +529,10 @@ check_stap_module_path(const char *module_path, int module_fd)
 	 * module_path starts with staplib_dir_realpath. */
 	if (strncmp(staplib_dir_realpath, module_path,
 		    strlen(staplib_dir_realpath)) != 0) {
-		err("ERROR: Unable to verify the signature for the module %s.\n"
-		    "  Members of the \"stapusr\" group can only use unsigned modules within\n"
+		err("ERROR: Members of the \"stapusr\" and \"stapsys\" groups can only use unsigned modules within\n"
 		    "  the \"%s\" directory.\n"
 		    "  Module \"%s\" does not exist within that directory.\n",
-		    module_path, staplib_dir_path, module_path);
+		    staplib_dir_path, module_path);
 		return -1;
 	}
 
@@ -558,14 +573,123 @@ check_uprobes_module_path (
 }
 
 /*
+ * Obtain the privilege credentials required to load the given module from the module itself.
+ *
+ * Returns the required credentials if they can be determined or the default safe required
+ * credentials otherwise.
+ */
+static privilege_t get_module_required_credentials (
+  const char *module_path,
+  const void* module_file __attribute__ ((unused)),
+  const __off_t st_size __attribute__ ((unused))
+)
+{
+#ifndef HAVE_ELF_GETSHDRSTRNDX
+  /* Without the proper ELF support, we can't determine the credentials required to run this
+     module. It may have some future privilege level higher than stapsys, which we don't know about.
+     We are forced to assume that requires the highest privilege level. */
+  if (verbose >= 1) {
+    err ("Unable to determine the privilege level required for the module %s. Assuming %s.",
+	 module_path, pr_name (pr_highest));
+  }
+  return pr_highest;
+#else
+  Elf_Scn *scn = 0;
+  Elf_Data *data = 0;
+  GElf_Shdr shdr;
+  privilege_t privilege;
+
+  /* Look for the section containing the privilege information in the module. If we can't
+     find the section, then we can assume that it is an old stap module, correctly signed, because:
+       1) We only check privilege credentials for correctly signed modules
+       2) A newer module would contain the required section.
+     We can therefore assume that pr_stapusr is the required privilege level.
+  */
+  scn = find_section_in_module (module_file, st_size, STAP_PRIVILEGE_SECTION);
+  if (! scn) {
+    if (verbose >= 1) {
+      err ("Section name \"%s\" not found in module %s.\n", STAP_PRIVILEGE_SECTION,
+	   module_path);
+      err ("Assuming required privilege level of %s.\n", pr_name (pr_unprivileged));
+    }
+    return pr_unprivileged;
+  }
+
+  /* From here on if there is an error in the data, then it is most likely caused by a newer
+     module containing data that we don't understand. We must then assume the highest privilege
+     requirement.
+     Get the section header. */
+  if (gelf_getshdr (scn, & shdr) == NULL) {
+    if (verbose >= 1) {
+      err ("Error getting section header from section %s in module %s.\n", STAP_PRIVILEGE_SECTION,
+	   module_path);
+      err ("Assuming required privilege level of %s.", pr_name (pr_highest));
+    }
+    return pr_highest;
+  }
+
+  /* The section should have at least one data item. */
+  if (shdr.sh_size < 1) {
+    if (verbose >= 1) {
+      err ("Section header from section %s in module %s has no items\n", STAP_PRIVILEGE_SECTION,
+	   module_path);
+      err ("Assuming required privilege level of %s.", pr_name (pr_highest));
+    }
+    return pr_highest;
+  }
+
+  /* The first data item contains the privilege requirement of the module. */
+  if ((data = elf_getdata (scn, data)) == NULL) {
+    if (verbose >= 1) {
+      err ("Error getting data from section %s in module %s\n", STAP_PRIVILEGE_SECTION,
+	   module_path);
+      err ("Assuming required privilege level of %s.", pr_name (pr_highest));
+    }
+    return pr_highest;
+  }
+
+  /* Make sure the data is the correct size. */
+  if (data->d_size != sizeof (privilege)) {
+    if (verbose >= 1) {
+      err ("Data in section %s is in module %s not the correct size\n", STAP_PRIVILEGE_SECTION,
+	   module_path);
+      err ("Assuming required privilege level of %s.", pr_name (pr_highest));
+    }
+    return pr_highest;
+  }
+
+  /* Obtain the data. It should already be in host byte order. */
+  privilege = *(privilege_t*)data->d_buf;
+
+  /* Make sure that the data is coherent. */
+  switch (privilege) {
+  case pr_stapusr:
+  case pr_stapsys:
+  case pr_stapdev:
+    break; /* ok */
+  default:
+    if (verbose >= 1) {
+      err ("Unknown privilege data, 0x%x in section %s in module %s\n",
+	   (int)privilege, STAP_PRIVILEGE_SECTION, module_path);
+      err ("Assuming required privilege level of %s.", pr_name (pr_highest));
+    }
+    return pr_highest;
+  }
+
+  /* ALl is ok. Return the extracted privilege data. */
+  return privilege;
+#endif /* HAVE_ELF_GETSHDRSTRNDX */
+}
+
+/*
  * Check the user's group membership.
  *
- * o members of stapdev can do anything
- * o members of stapusr can load modules from certain module-specific
- *   paths.
+ * o root and members of stapdev can do anything
+ * o members of stapsys and stapusr can load signed modules compiled for their privilege levels
+ * o all users can load modules from certain module-specific paths
  *
- * Returns: -2 if neither group exists
- *          -1 for other errors
+ * Returns: 
+ *          -2 user has no privilege credentials
  *           0 on failure
  *           1 on success
  */
@@ -574,86 +698,47 @@ check_groups (
   const char *module_path,
   int module_fd,
   int module_signature_status,
-  check_module_path_func check_path
+  check_module_path_func check_path,
+  const void *module_data,
+  off_t module_size
 )
 {
-	gid_t gid, gidlist[NGROUPS_MAX];
-	gid_t stapdev_gid, stapusr_gid;
-	int i, ngids;
-	struct group *stgr;
+  privilege_t user_credentials, module_required_credentials;
 
-	/* Lookup the gid for group "stapdev" */
-	errno = 0;
-	stgr = getgrnam("stapdev");
-	/* If we couldn't find the group, just set the gid to an
-	 * invalid number.  Just because this group doesn't exist
-	 * doesn't mean the other group doesn't exist. */
-	if (stgr == NULL)
-		stapdev_gid = (gid_t)-1;
-	else
-		stapdev_gid = stgr->gr_gid;
+  /* Lookup the user's privilege credentials. */
+  user_credentials = get_privilege_credentials ();
 
-	/* Lookup the gid for group "stapusr" */
-	errno = 0;
-	stgr = getgrnam("stapusr");
-	/* If we couldn't find the group, just set the gid to an
-	 * invalid number.  Just because this group doesn't exist
-	 * doesn't mean the other group doesn't exist. */
-	if (stgr == NULL)
-		stapusr_gid = (gid_t)-1;
-	else
-		stapusr_gid = stgr->gr_gid;
+  /* Users with stapdev credentials (includes root) can do anything. */
+  if (pr_contains (user_credentials, pr_stapdev))
+    return 1;
 
-	/* If neither group was found, then return -2.  */
-	if (stapdev_gid == (gid_t)-1 && stapusr_gid == (gid_t)-1)
-	  return -2;
+  /* Users with stapsys and stapusr credentials may be able to load a signed module. */
+  if (module_signature_status == MODULE_OK) {
+    /* We must verify that the module was compiled for that privilege level. */
+    module_required_credentials = get_module_required_credentials (module_path, module_data, module_size);
+    if (pr_contains (user_credentials, module_required_credentials)) {
+      /* Our credentials are sufficient */
+      return 1;
+    }
 
-	/* According to the getgroups() man page, getgroups() may not
-	 * return the effective gid, so try to match it first. */
-	gid = getegid();
-	if (gid == stapdev_gid)
-		return 1;
+    /* Our credentials are insufficient to load this module. */
+    err("ERROR: Your privilege credentials (%s) are insufficient to load the module %s (%s required)\n",
+	pr_name (user_credentials), module_path, pr_name (module_required_credentials));
 
-	if (gid != stapusr_gid) {
-		/* Get the list of the user's groups. */
-		ngids = getgroups(NGROUPS_MAX, gidlist);
-		if (ngids < 0) {
-			perr("Unable to retrieve group list");
-			return -1;
-		}
-		for (i = 0; i < ngids; i++) {
-			/* If the user is a member of 'stapdev', then we're
-			 *  done, since he can use staprun without any
-			 *  restrictions. */
-			 if (gidlist[i] == stapdev_gid)
-				return 1;
+    if (user_credentials == pr_none)
+      return -2;
 
-			/* If the user is a member of 'stapusr', then we'll
-			 * need to check the module path.  However, we'll keep
-			 * checking groups since it is possible the user is a
-			 * member of both groups and we haven't seen the
-			 * 'stapdev' group yet. */
-			if (gidlist[i] == stapusr_gid)
-				gid = stapusr_gid;
-		}
-		if (gid != stapusr_gid) {
-			return 0;
-		}
-	}
+    return 0;
+  }
 
-	/* At this point the user is only a member of the 'stapusr'
-	 * group.  Members of the 'stapusr' group can only use modules
-	 * which have been signed by a trusted signer or which, in some cases,
-	 * are at approved paths.  */
-	if (module_signature_status == MODULE_OK)
-		return 1;
-	assert (module_signature_status == MODULE_UNTRUSTED ||
-		module_signature_status == MODULE_CHECK_ERROR);
+  /* Not fatal. The module could still be on a blessed path. */
+  assert (module_signature_status == MODULE_UNTRUSTED ||
+	  module_signature_status == MODULE_CHECK_ERROR);
+  err("Unable to verify the signature for the module %s.\n", module_path);
 
-	/* Could not verify the module's signature, so check whether this module
-	   can be loaded based on its path. check_path is a pointer to a
-	   module-specific function which will do this.  */
-	return check_path (module_path, module_fd);
+  /* Check whether this module can be loaded based on its path. check_path is a pointer to a
+     module-specific function which will do this.  */
+  return check_path (module_path, module_fd);
 }
 
 /*
@@ -664,30 +749,25 @@ check_groups (
  *
  * 1) root can do anything
  * 2) members of stapdev can do anything
- * 3) members of stapusr can load a module which has been signed by a trusted signer
- * 4) members of stapusr can load unsigned modules from /lib/modules/KVER/systemtap
+ * 3) members of stapsys and stapusr can load signed modules compiled for their privilege levels
+ * 4) all users can load unsigned modules from /lib/modules/KVER/systemtap
  *
  * It is only an error if all 4 levels of checking fail
  */
 void assert_stap_module_permissions(
   const char *module_path,
   int module_fd,
-  const void *module_data __attribute__ ((unused)),
-  off_t module_size __attribute__ ((unused))
+  const void *module_data,
+  off_t module_size
 ) {
 	int check_groups_rc;
 	int check_signature_rc;
 
-#if HAVE_NSS
 	/* Attempt to verify the module against its signature. Exit
 	   immediately if the module has been tampered with (altered).  */
 	check_signature_rc = check_signature (module_path, module_data, module_size);
 	if (check_signature_rc == MODULE_ALTERED)
 		exit(-1);
-#else
-	/* If we don't have NSS, the stap module is considered untrusted */
-	check_signature_rc = MODULE_UNTRUSTED;
-#endif
 
 	/* If we're root, we can do anything. */
 	if (getuid() == 0) {
@@ -707,17 +787,16 @@ void assert_stap_module_permissions(
 	}
 
 	/* Check permissions for group membership.  */
-	check_groups_rc = check_groups (module_path, module_fd, check_signature_rc, check_stap_module_path);
+	check_groups_rc = check_groups (module_path, module_fd, check_signature_rc,
+					check_stap_module_path, module_data, module_size);
 	if (check_groups_rc == 1)
 		return;
 
 	/* Are we are an ordinary user?.  */
-	if (check_groups_rc == 0 || check_groups_rc == -2) {
+	if (check_groups_rc == -2) {
 		err("ERROR: You are trying to run systemtap as a normal user.\n"
 		    "You should either be root, or be part of "
-		    "group \"stapusr\" and possibly group \"stapdev\".\n");
-		if (check_groups_rc == -2)
-			err("Your system doesn't seem to have either group.\n");
+		    "group \"stapusr\" and possibly the groups \"stapsys\" or \"stapdev\".\n");
 	}
 
 	exit(-1);
@@ -738,39 +817,34 @@ void assert_stap_module_permissions(
 void assert_uprobes_module_permissions(
   const char *module_path,
   int module_fd,
-  const void *module_data __attribute__ ((unused)),
-  off_t module_size __attribute__ ((unused))
+  const void *module_data,
+  off_t module_size
 ) {
   int check_groups_rc;
   int check_signature_rc;
   
-#if HAVE_NSS
 	/* Attempt to verify the module against its signature. Return failure
 	   if the module has been tampered with (altered).  */
 	check_signature_rc = check_signature (module_path, module_data, module_size);
 	if (check_signature_rc == MODULE_ALTERED)
 		exit(-1);
-#else
-	/* If we don't have NSS, the uprobes module is considered untrusted. */
-	check_signature_rc = MODULE_UNTRUSTED;
-#endif
 
 	/* root can still load this module.  */
 	if (getuid() == 0)
 		return;
 
 	/* Members of the groups stapdev and stapusr can still load this module. */
-	check_groups_rc = check_groups (module_path, module_fd, check_signature_rc, check_uprobes_module_path);
+	check_groups_rc = check_groups (module_path, module_fd, check_signature_rc,
+					check_uprobes_module_path, module_data, module_size);
 	if (check_groups_rc == 1)
 		return;
 
 	/* Check permissions for group membership.  */
-	if (check_groups_rc == 0 || check_groups_rc == -2) {
+	if (check_groups_rc == -2) {
 		err("ERROR: You are trying to load the module %s as a normal user.\n"
 		    "You should either be root, or be part of "
-		    "group \"stapusr\" and possible group \"stapusr\".\n", module_path);
-		if (check_groups_rc == -2)
-			err("Your system doesn't seem to have either group.\n");
+		    "group \"stapusr\" and possibly the groups \"stapsys\" or \"stapdev\".\n",
+		    module_path);
 	}
 
 	exit(-1);

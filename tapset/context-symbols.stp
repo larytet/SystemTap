@@ -1,5 +1,5 @@
 // context-symbols tapset
-// Copyright (C) 2005-2008 Red Hat Inc.
+// Copyright (C) 2005-2008, 2011 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -11,11 +11,6 @@
 //provide information such as a backtrace to where the event occurred and the current register values for the 
 //processor.
 // </tapsetdescription>
-%{
-#ifndef STP_NEED_SYMBOL_DATA
-#define STP_NEED_SYMBOL_DATA 1
-#endif
-%}
 
 /**
  *  sfunction print_stack - Print out kernel stack from string
@@ -30,7 +25,7 @@
  *  name  of the function containing the address, and an estimate of
  *  its position within that function.  Return nothing.
  */
-function print_stack(stk:string) %{
+function print_stack(stk:string) %{ /* pragma:symbols */
 	char *ptr = THIS->stk;
 	char *tok = strsep(&ptr, " ");
 	while (tok && *tok) {
@@ -57,7 +52,7 @@ function print_stack(stk:string) %{
  * truncated to MAXSTRINGLEN, to print fuller and richer stacks use
  * print_stack.
  */
-function sprint_stack:string(stk:string) %{ /* pure */
+function sprint_stack:string(stk:string) %{ /* pure */ /* pragma:symbols */
 	char *ptr = THIS->stk;
 	char *tok = strsep(&ptr, " ");
 	char *str = THIS->__retvalue;
@@ -87,9 +82,10 @@ function sprint_stack:string(stk:string) %{ /* pure */
  * usymname(). This function might return a function name based on the
  * current address if the probe point context couldn't be parsed.
  */
-function probefunc:string () %{ /* pure */
+function probefunc:string () %{ /* pure */ /* pragma:symbols */
 	char *ptr, *start;
 
+	THIS->__retvalue[0] = '\0';
 	start = strstr(CONTEXT->probe_point, "function(\"");
 	ptr = start + 10; 
 	if (!start) {
@@ -104,16 +100,16 @@ function probefunc:string () %{ /* pure */
 			*dst++ = *ptr++;
 		*dst = 0;
 
-	} else if (CONTEXT->regs) {
-		_stp_snprint_addr(THIS->__retvalue, MAXSTRINGLEN,
-				  REG_IP(CONTEXT->regs),
-				  _STP_SYM_SYMBOL,
-				  (CONTEXT->regflags & _STP_REGS_USER_FLAG
-				   ? current : NULL));
-       	         if (THIS->__retvalue[0] == '.')  /* powerpc symbol has a dot*/
-       	         	strlcpy(THIS->__retvalue,THIS->__retvalue + 1,MAXSTRINGLEN);
 	} else {
-		THIS->__retvalue[0] = '\0';
+		struct pt_regs *regs;
+		int user_mode;
+		user_mode = c->probe_flags & _STP_PROBE_STATE_USER_MODE;
+		regs = user_mode ? CONTEXT->uregs : CONTEXT->kregs;
+		if (regs) {
+			_stp_snprint_addr(THIS->__retvalue, MAXSTRINGLEN,
+					  REG_IP(regs), _STP_SYM_SYMBOL,
+					  (user_mode ? current : NULL));
+		}
 	}
 %}
 
@@ -135,10 +131,10 @@ function probemod:string () %{ /* pure */
 		while (*ptr != '"' && --len && *ptr)
 			*dst++ = *ptr++;
 		*dst = 0;
-	} else if (CONTEXT->regs
-		   && ! (CONTEXT->regflags & _STP_REGS_USER_FLAG)) {
+	} else if (CONTEXT->kregs
+		   && ! (CONTEXT->probe_flags & _STP_PROBE_STATE_USER_MODE)) {
 		struct _stp_module *m;
-		m = _stp_kmod_sec_lookup (REG_IP(CONTEXT->regs), NULL);
+		m = _stp_kmod_sec_lookup (REG_IP(CONTEXT->kregs), NULL);
 		if (m && m->name)
 			strlcpy (THIS->__retvalue, m->name, MAXSTRINGLEN);
 		else
@@ -158,11 +154,28 @@ function probemod:string () %{ /* pure */
  */
 function modname:string (addr: long) %{ /* pure */
 	struct _stp_module *m;
+#ifdef STAPCONF_MODULE_TEXT_ADDRESS
+	struct module *ko;
+#endif
 	m = _stp_kmod_sec_lookup (THIS->addr, NULL);
 	if (m && m->name)
-          strlcpy (THIS->__retvalue, m->name, MAXSTRINGLEN);
-	else
-	  strlcpy (THIS->__retvalue, "<unknown>", MAXSTRINGLEN);
+	  {
+	    strlcpy (THIS->__retvalue, m->name, MAXSTRINGLEN);
+	    return;
+	  }
+
+#ifdef STAPCONF_MODULE_TEXT_ADDRESS
+	preempt_disable();
+	ko = __module_text_address (THIS->addr);
+	if (ko && ko->name)
+	  {
+	    strlcpy (THIS->__retvalue, ko->name, MAXSTRINGLEN);
+	    preempt_enable_no_resched();
+	    return;
+	  }
+	preempt_enable_no_resched();
+#endif
+	strlcpy (THIS->__retvalue, "<unknown>", MAXSTRINGLEN);
 %}
 
 /**
@@ -173,7 +186,7 @@ function modname:string (addr: long) %{ /* pure */
  * given address if known. If not known it will return the hex string
  * representation of addr.
  */
-function symname:string (addr: long) %{ /* pure */
+function symname:string (addr: long) %{ /* pure */ /* pragma:symbols */
 	 _stp_snprint_addr(THIS->__retvalue, MAXSTRINGLEN, THIS->addr,
 			   _STP_SYM_SYMBOL, NULL);
 %}
@@ -190,7 +203,7 @@ function symname:string (addr: long) %{ /* pure */
  * omitted and if the symbol name is unknown it will return the hex
  * string for the given address.
  */
-function symdata:string (addr: long) %{ /* pure */
+function symdata:string (addr: long) %{ /* pure */ /* pragma:symbols */
 	_stp_snprint_addr(THIS->__retvalue, MAXSTRINGLEN, THIS->addr,
 			  _STP_SYM_DATA, NULL);
 %}

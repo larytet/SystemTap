@@ -1,3 +1,6 @@
+#ifndef UTIL_H
+#define UTIL_H
+
 #include "config.h"
 #include <cstring>
 #include <cerrno>
@@ -8,13 +11,17 @@
 #include <stdexcept>
 #include <cctype>
 #include <set>
+#include <iomanip>
 extern "C" {
 #include <libintl.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdint.h>
 #include <spawn.h>
+#include <assert.h>
 }
+
+#include "privilege.h"
 
 #if ENABLE_NLS
 #define _(string) gettext(string)
@@ -37,10 +44,12 @@ bool copy_file(const std::string& src, const std::string& dest,
                bool verbose=false);
 int create_dir(const char *dir, int mode = 0777);
 int remove_file_or_dir(const char *dir);
+extern "C" gid_t get_gid (const char *group_name);
 bool in_group_id (gid_t target_gid);
 std::string getmemusage ();
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
 	      const std::string& delimiters);
+void tokenize_cxx(const std::string& str, std::vector<std::string>& tokens);
 std::string find_executable(const std::string& name,
 			    const std::string& env_path = "PATH");
 const std::string cmdstr_quoted(const std::string& cmd);
@@ -58,6 +67,8 @@ int kill_stap_spawn(int sig);
 void assert_regexp_match (const std::string& name, const std::string& value, const std::string& re);
 int regexp_match (const std::string& value, const std::string& re, std::vector<std::string>& matches);
 bool contains_glob_chars (const std::string &str);
+std::string escape_glob_chars (const std::string& str);
+std::string unescape_glob_chars (const std::string& str);
 std::string kernel_release_from_build_tree (const std::string &kernel_build_tree, int verbose = 0);
 std::string normalize_machine(const std::string& machine);
 std::string autosprintf(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
@@ -111,11 +122,30 @@ inline std::string
 lex_cast_hex(IN const & in)
 {
   std::ostringstream ss;
-  if (!(ss << std::showbase << std::hex << in))
+  if (!(ss << std::showbase << std::hex << in << std::dec))
     throw std::runtime_error(_("bad lexical cast"));
   return ss.str();
 }
 
+//Convert binary data to hex data.
+template <typename IN>
+inline std::string
+hex_dump(IN const & in,  size_t len)
+{
+  std::ostringstream ss;
+  unsigned i;
+  if (!(ss << std::hex << std::setfill('0')))
+    throw std::runtime_error(_("bad lexical cast"));
+
+  for(i = 0; i < len; i++)
+  {
+    int temp = in[i];
+    ss << std::setw(2) << temp;
+  }
+  std::string hex = ss.str();
+  assert(hex.length() == 2 * len);
+  return hex;
+}
 
 // Return as quoted string, so that when compiled as a C literal, it
 // would print to the user out nicely.
@@ -171,6 +201,25 @@ void delete_map(T& t)
 }
 
 
+// Automatically save a variable, and restore it at the
+// end of the function.
+template <class V>
+class save_and_restore
+{
+    V* ptr;
+    V previous_value;
+
+  public:
+    // Optionally pass a second argument to the constructor to initialize the
+    // variable to some value, after saving its old value.
+    save_and_restore(V* ptr_in, V value_in): ptr(ptr_in), previous_value(*ptr_in) { *ptr_in = value_in; }
+    save_and_restore(V*ptr_in): ptr(ptr_in), previous_value(*ptr_in){}
+
+    // Retrieve the old value and restore it in the destructor
+    ~save_and_restore() { *ptr = previous_value; }
+};
+
+
 // Returns whether a string starts with the given prefix
 inline bool
 startswith(const std::string & s, const char * prefix)
@@ -209,5 +258,6 @@ struct stap_sigmasker {
       }
 };
 
+#endif // UTIL_H
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

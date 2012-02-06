@@ -1,5 +1,5 @@
 // utrace tapset
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2011 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -63,7 +63,7 @@ struct utrace_derived_probe: public derived_probe
 			enum utrace_derived_probe_flags f);
   void join_group (systemtap_session& s);
 
-  void emit_unprivileged_assertion (translator_output*);
+  void emit_privilege_assertion (translator_output*);
   void print_dupe_stamp(ostream& o);
   void getargs (std::list<std::string> &arg_set) const;
 };
@@ -121,11 +121,10 @@ utrace_derived_probe::utrace_derived_probe (systemtap_session &s,
 					    bool hp, string &pn, int64_t pd,
 					    enum utrace_derived_probe_flags f):
   derived_probe (p, l, true /* .components soon rewritten */ ),
-  has_path(hp), path(pn), pid(pd), flags(f),
+  has_path(hp), path(pn), has_library(false), pid(pd), flags(f),
   target_symbol_seen(false)
 {
-  if (s.kernel_config["CONFIG_UTRACE"] != string("y"))
-    throw semantic_error (_("process probes not available without kernel CONFIG_UTRACE"));
+  check_process_probe_kernel_support(s);
 
   // Expand local variables in the probe body
   utrace_var_expanding_visitor v (s, l, name, flags);
@@ -204,7 +203,7 @@ utrace_derived_probe::join_group (systemtap_session& s)
 
 
 void
-utrace_derived_probe::emit_unprivileged_assertion (translator_output* o)
+utrace_derived_probe::emit_privilege_assertion (translator_output* o)
 {
   // Process end probes can fire for unprivileged users even if the process
   // does not belong to the user. On example is that process.end will fire
@@ -832,11 +831,12 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "static void stap_utrace_probe_handler(struct task_struct *tsk, struct stap_utrace_probe *p) {";
       s.op->indent(1);
 
-      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe");
+      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe",
+				     "_STP_PROBE_HANDLER_UTRACE");
 
       // call probe function
       s.op->newline() << "(*p->probe->ph) (c);";
-      common_probe_entryfn_epilogue (s.op);
+      common_probe_entryfn_epilogue (s.op, true, s.suppress_handler_errors);
 
       s.op->newline() << "return;";
       s.op->newline(-1) << "}";
@@ -846,25 +846,26 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   if (flags_seen[UDPF_SYSCALL] || flags_seen[UDPF_SYSCALL_RETURN])
     {
       s.op->newline() << "#ifdef UTRACE_ORIG_VERSION";
-      s.op->newline() << "static u32 stap_utrace_probe_syscall(struct utrace_attached_engine *engine, struct task_struct *tsk, struct pt_regs *regs) {";
+      s.op->newline() << "static u32 stap_utrace_probe_syscall(struct utrace_engine *engine, struct task_struct *tsk, struct pt_regs *regs) {";
       s.op->newline() << "#else";
       s.op->newline() << "#if defined(UTRACE_API_VERSION) && (UTRACE_API_VERSION >= 20091216)";
-      s.op->newline() << "static u32 stap_utrace_probe_syscall(u32 action, struct utrace_attached_engine *engine, struct pt_regs *regs) {";
+      s.op->newline() << "static u32 stap_utrace_probe_syscall(u32 action, struct utrace_engine *engine, struct pt_regs *regs) {";
       s.op->newline() << "#else";
-      s.op->newline() << "static u32 stap_utrace_probe_syscall(enum utrace_resume_action action, struct utrace_attached_engine *engine, struct task_struct *tsk, struct pt_regs *regs) {";
+      s.op->newline() << "static u32 stap_utrace_probe_syscall(enum utrace_resume_action action, struct utrace_engine *engine, struct task_struct *tsk, struct pt_regs *regs) {";
       s.op->newline() << "#endif";
       s.op->newline() << "#endif";
 
       s.op->indent(1);
       s.op->newline() << "struct stap_utrace_probe *p = (struct stap_utrace_probe *)engine->data;";
 
-      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe");
-      s.op->newline() << "c->regs = regs;";
-      s.op->newline() << "c->regflags |= _STP_REGS_USER_FLAG;";
+      common_probe_entryfn_prologue (s.op, "STAP_SESSION_RUNNING", "p->probe",
+				     "_STP_PROBE_HANDLER_UTRACE_SYSCALL");
+      s.op->newline() << "c->uregs = regs;";
+      s.op->newline() << "c->probe_flags |= _STP_PROBE_STATE_USER_MODE;";
 
       // call probe function
       s.op->newline() << "(*p->probe->ph) (c);";
-      common_probe_entryfn_epilogue (s.op);
+      common_probe_entryfn_epilogue (s.op, true, s.suppress_handler_errors);
 
       s.op->newline() << "if ((atomic_read (&session_state) != STAP_SESSION_STARTING) && (atomic_read (&session_state) != STAP_SESSION_RUNNING)) {";
       s.op->indent(1);
@@ -881,7 +882,7 @@ utrace_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->indent(1);
   s.op->newline() << "int rc = 0;";
   s.op->newline() << "struct stap_utrace_probe *p = container_of(tgt, struct stap_utrace_probe, tgt);";
-  s.op->newline() << "struct utrace_attached_engine *engine;";
+  s.op->newline() << "struct utrace_engine *engine;";
 
   s.op->newline() << "if (register_p) {";
   s.op->indent(1);
@@ -1100,22 +1101,22 @@ register_tapset_utrace(systemtap_session& s)
   for (unsigned i = 0; i < roots.size(); ++i)
     {
       roots[i]->bind(TOK_BEGIN)
-	->bind_unprivileged()
+	->bind_privilege(pr_all)
 	->bind(builder);
       roots[i]->bind(TOK_END)
-	->bind_unprivileged()
+	->bind_privilege(pr_all)
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_BEGIN)
-	->bind_unprivileged()
+	->bind_privilege(pr_all)
 	->bind(builder);
       roots[i]->bind(TOK_THREAD)->bind(TOK_END)
-	->bind_unprivileged()
+	->bind_privilege(pr_all)
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)
-	->bind_unprivileged()
+	->bind_privilege(pr_all)
 	->bind(builder);
       roots[i]->bind(TOK_SYSCALL)->bind(TOK_RETURN)
-	->bind_unprivileged()
+	->bind_privilege(pr_all)
 	->bind(builder);
     }
 }

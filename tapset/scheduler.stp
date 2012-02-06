@@ -21,7 +21,8 @@ function __is_idle:long()
 %}
 
 
-/** probe scheduler.cpu_off - Process is about to stop running on a cpu
+/**
+ * probe scheduler.cpu_off - Process is about to stop running on a cpu
  *
  * @name: name of the probe point
  * @task_prev: the process leaving the cpu (same as current)
@@ -42,7 +43,8 @@ probe scheduler.cpu_off =
 }
 
 
-/** probe scheduler.cpu_on - Process is beginning execution on a cpu
+/**
+ * probe scheduler.cpu_on - Process is beginning execution on a cpu
  *
  * @name: name of the probe point
  * @task_prev: the process that was previously running on this cpu
@@ -58,7 +60,8 @@ probe scheduler.cpu_on = kernel.function("finish_task_switch") ?
 }
 
 
-/* probe scheduler.tick - Schedulers internal tick, a processes timeslice accounting is updated
+/**
+ * probe scheduler.tick - Schedulers internal tick, a processes timeslice accounting is updated
  *
  *  @name: name of the probe point
  *  @idle: boolean indicating whether current is the idle process
@@ -71,7 +74,8 @@ probe scheduler.tick = kernel.function("scheduler_tick")
     idle = __is_idle()
 }
 
-/* probe scheduler.balance - A cpu attemptint to find more work.
+/**
+ * probe scheduler.balance - A cpu attempting to find more work.
  * 
  * @name: name of the probe point
  *
@@ -97,35 +101,30 @@ probe scheduler.balance = kernel.function("idle_balance") ?
  * @next_priority: The priority of the process to be switched in
  * @prevtsk_state: the state of the process to be switched out
  * @nexttsk_state: the state of the process to be switched in
- *
- * Currently, SystemTap can't access arguments of inline 
- * functions. So we choose to probe __switch_to instead 
- * of context_switch()       
  */
 
-probe __scheduler.ctxswitch.tp = kernel.trace("sched_switch") 
-{
-	next_pid =  $next->tgid
-	next_tid = $next->pid
-	next_task = $next
-	next_task_name = task_execname($next)
-	nexttsk_state = $next->state
-	next_priority = $next->prio
-	prev_priority = $prev->prio
-	prev_pid = $prev->tgid
-	prev_tid = $prev->pid
-	prev_task	=	$prev
-	prev_task_name	=	task_execname($prev)
-	prevtsk_state = $prev->state
-}
+/*
+ * We prefer the "sched_switch" tracepoint here, since we can reliably
+ * access the tracepoint's arguments.  If we don't have the
+ * tracepoint, we try function probing.  But these are typically
+ * inlined, and SystemTap can't access arguments of inline functions
+ * consistently. So we choose to probe __switch_to() instead of
+ * context_switch() on some platforms.
+ * 
+ * Since the argument names for the tracepoint ("$prev" and "$next")
+ * match up with the function argument names, handling either the
+ * tracepoint or function here was made easier.
+ */
 
-probe __scheduler.ctxswitch.kp =
-%( arch != "x86_64" && arch != "ia64" %?
+probe scheduler.ctxswitch = kernel.trace("sched_switch") !,
+%( arch != "x86_64" && arch != "ia64" && arch != "arm" %?
 	kernel.function("__switch_to")
 %:
 	kernel.function("context_switch")
 %)
 {
+	name = "ctxswitch"
+
 	/*
 	 * Note that we prefer '$prev_p' here because on RHEL5
 	 * (2.6.18-238.1.1.el5) the '__switch_to()' function has both
@@ -174,13 +173,6 @@ probe __scheduler.ctxswitch.kp =
 		next_task_name = task_execname($new)
 		nexttsk_state = $new->state
 	}
-}
-
-probe scheduler.ctxswitch =
-	__scheduler.ctxswitch.tp !,
-	__scheduler.ctxswitch.kp
-{
-	name = "ctxswitch"
 }
 
 
@@ -389,6 +381,7 @@ probe scheduler.process_free =
 probe __scheduler.process_exit.kp = kernel.function("do_exit")
 {
 	if (@defined($tsk)) {
+		__tsk = $tsk
 		pid = $tsk->tgid
 		priority = $tsk->prio
 	}

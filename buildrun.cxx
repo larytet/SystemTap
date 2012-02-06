@@ -11,6 +11,7 @@
 #include "session.h"
 #include "util.h"
 #include "hash.h"
+#include "translate.h"
 
 #include <cstdlib>
 #include <fstream>
@@ -65,14 +66,10 @@ run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
       make_cmd.push_back("--no-print-directory");
     }
 
-  // NB: there appears to be no parallelism opportunity in the
-  // module-building makefiles, so while the following works, it
-  // doesn't seem to accomplish anything measurable as of F13.
-#if 0
+  // Exploit SMP parallelism, if available.
   long smp = sysconf(_SC_NPROCESSORS_ONLN);
-  if (smp > 1)
-    make_cmd.push_back("-j" + lex_cast(smp));
-#endif
+  if (smp >= 1)
+    make_cmd.push_back("-j" + lex_cast(smp+1));
 
   if (strverscmp (s.kernel_base_release.c_str(), "2.6.29") < 0)
     {
@@ -89,14 +86,14 @@ run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
 }
 
 static vector<string>
-make_make_cmd(systemtap_session& s, const string& dir)
+make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
 {
   vector<string> make_cmd;
   make_cmd.push_back("make");
   make_cmd.push_back("-C");
   make_cmd.push_back(s.kernel_build_tree);
   make_cmd.push_back("M=" + dir); // need make-quoting?
-  make_cmd.push_back("modules");
+  make_cmd.push_back(target);
 
   // Add architecture, except for old powerpc (RHBZ669082)
   if (s.architecture != "powerpc" ||
@@ -107,6 +104,27 @@ make_make_cmd(systemtap_session& s, const string& dir)
   make_cmd.insert(make_cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
 
   return make_cmd;
+}
+
+static vector<string>
+make_make_cmd(systemtap_session& s, const string& dir)
+{
+  return make_any_make_cmd(s, dir, "modules");
+}
+
+static vector<string>
+make_make_objs_cmd(systemtap_session& s, const string& dir)
+{
+  // Kbuild uses these rules to build external modules:
+  //
+  //   module-dirs := $(addprefix _module_,$(KBUILD_EXTMOD))
+  //   modules: $(module-dirs)
+  //       @$(kecho) '  Building modules, stage 2.';
+  //       $(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modpost
+  //
+  // So if we're only interested in the stage 1 objects, we can
+  // cheat and make only the $(module-dirs) part.
+  return make_any_make_cmd(s, dir, "_module_" + dir);
 }
 
 static void
@@ -135,6 +153,20 @@ void output_exportconf(systemtap_session& s, ofstream& o, const char *symbol,
   if (s.verbose < 4)
     o << "@";
   if (s.kernel_exports.find(symbol) != s.kernel_exports.end())
+    o << "echo \"#define " << deftrue << " 1\"";
+  o << ">> $@" << endl;
+}
+
+
+void output_dual_exportconf(systemtap_session& s, ofstream& o,
+			    const char *symbol1, const char *symbol2,
+			    const char *deftrue)
+{
+  o << "\t";
+  if (s.verbose < 4)
+    o << "@";
+  if (s.kernel_exports.find(symbol1) != s.kernel_exports.end()
+      && s.kernel_exports.find(symbol2) != s.kernel_exports.end())
     o << "echo \"#define " << deftrue << " 1\"";
   o << ">> $@" << endl;
 }
@@ -169,7 +201,7 @@ compile_pass (systemtap_session& s)
   o << "_KBUILD_CFLAGS := $(call flags,KBUILD_CFLAGS)" << endl;
 
   o << "stap_check_gcc = $(shell " << superverbose << " if $(CC) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo \"$(1)\"; else echo \"$(2)\"; fi)" << endl;
-  o << "CHECK_BUILD := $(CC) $(KBUILD_CPPFLAGS) $(CPPFLAGS) $(LINUXINCLUDE) $(_KBUILD_CFLAGS) $(CFLAGS_KERNEL) $(EXTRA_CFLAGS) $(CFLAGS) -DKBUILD_BASENAME=\\\"" << s.module_name << "\\\"" << (s.omit_werror ? "" : " -Werror") << " -S -o /dev/null -xc " << endl;
+  o << "CHECK_BUILD := $(CC) $(NOSTDINC_FLAGS) $(KBUILD_CPPFLAGS) $(CPPFLAGS) $(LINUXINCLUDE) $(_KBUILD_CFLAGS) $(CFLAGS_KERNEL) $(EXTRA_CFLAGS) $(CFLAGS) -DKBUILD_BASENAME=\\\"" << s.module_name << "\\\"" << (s.omit_werror ? "" : " -Werror") << " -S -o /dev/null -xc " << endl;
   o << "stap_check_build = $(shell " << superverbose << " if $(CHECK_BUILD) $(1) " << redirecterrors << " ; then echo \"$(2)\"; else echo \"$(3)\"; fi)" << endl;
 
   o << "SYSTEMTAP_RUNTIME = \"" << s.runtime_path << "\"" << endl;
@@ -196,24 +228,25 @@ compile_pass (systemtap_session& s)
   // since such headers are cleansed of _KERNEL_ pieces that we need
 
   o << "STAPCONF_HEADER := " << s.tmpdir << "/" << s.stapconf_name << endl;
-  o << s.translated_source << ": $(STAPCONF_HEADER)" << endl;
   o << "$(STAPCONF_HEADER):" << endl;
   o << "\t@echo -n > $@" << endl;
   output_autoconf(s, o, "autoconf-hrtimer-rel.c", "STAPCONF_HRTIMER_REL", NULL);
+  output_autoconf(s, o, "autoconf-generated-compile.c", "STAPCONF_GENERATED_COMPILE", NULL);
   output_autoconf(s, o, "autoconf-hrtimer-getset-expires.c", "STAPCONF_HRTIMER_GETSET_EXPIRES", NULL);
   output_autoconf(s, o, "autoconf-inode-private.c", "STAPCONF_INODE_PRIVATE", NULL);
   output_autoconf(s, o, "autoconf-constant-tsc.c", "STAPCONF_CONSTANT_TSC", NULL);
   output_autoconf(s, o, "autoconf-ktime-get-real.c", "STAPCONF_KTIME_GET_REAL", NULL);
   output_autoconf(s, o, "autoconf-x86-uniregs.c", "STAPCONF_X86_UNIREGS", NULL);
   output_autoconf(s, o, "autoconf-nameidata.c", "STAPCONF_NAMEIDATA_CLEANUP", NULL);
-  output_autoconf(s, o, "autoconf-unregister-kprobes.c", "STAPCONF_UNREGISTER_KPROBES", NULL);
+  output_dual_exportconf(s, o, "unregister_kprobes", "unregister_kretprobes", "STAPCONF_UNREGISTER_KPROBES");
+  output_autoconf(s, o, "autoconf-kprobe-symbol-name.c", "STAPCONF_KPROBE_SYMBOL_NAME", NULL);
   output_autoconf(s, o, "autoconf-real-parent.c", "STAPCONF_REAL_PARENT", NULL);
   output_autoconf(s, o, "autoconf-uaccess.c", "STAPCONF_LINUX_UACCESS_H", NULL);
   output_autoconf(s, o, "autoconf-oneachcpu-retry.c", "STAPCONF_ONEACHCPU_RETRY", NULL);
   output_autoconf(s, o, "autoconf-dpath-path.c", "STAPCONF_DPATH_PATH", NULL);
-  output_autoconf(s, o, "autoconf-synchronize-sched.c", "STAPCONF_SYNCHRONIZE_SCHED", NULL);
+  output_exportconf(s, o, "synchronize_sched", "STAPCONF_SYNCHRONIZE_SCHED");
   output_autoconf(s, o, "autoconf-task-uid.c", "STAPCONF_TASK_UID", NULL);
-  output_autoconf(s, o, "autoconf-vm-area.c", "STAPCONF_VM_AREA", NULL);
+  output_dual_exportconf(s, o, "alloc_vm_area", "free_vm_area", "STAPCONF_VM_AREA");
   output_autoconf(s, o, "autoconf-procfs-owner.c", "STAPCONF_PROCFS_OWNER", NULL);
   output_autoconf(s, o, "autoconf-alloc-percpu-align.c", "STAPCONF_ALLOC_PERCPU_ALIGN", NULL);
   output_autoconf(s, o, "autoconf-x86-gs.c", "STAPCONF_X86_GS", NULL);
@@ -227,21 +260,50 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "__module_text_address", "STAPCONF_MODULE_TEXT_ADDRESS");
   output_exportconf(s, o, "add_timer_on", "STAPCONF_ADD_TIMER_ON");
 
-  output_autoconf(s, o, "autoconf-probe-kernel.c", "STAPCONF_PROBE_KERNEL", NULL);
+  output_dual_exportconf(s, o, "probe_kernel_read", "probe_kernel_write", "STAPCONF_PROBE_KERNEL");
+  output_autoconf(s, o, "autoconf-hw_breakpoint_context.c",
+		  "STAPCONF_HW_BREAKPOINT_CONTEXT", NULL);
   output_autoconf(s, o, "autoconf-save-stack-trace.c",
                   "STAPCONF_KERNEL_STACKTRACE", NULL);
+  output_autoconf(s, o, "autoconf-save-stack-trace-no-bp.c",
+                  "STAPCONF_KERNEL_STACKTRACE_NO_BP", NULL);
   output_autoconf(s, o, "autoconf-asm-syscall.c",
 		  "STAPCONF_ASM_SYSCALL_H", NULL);
   output_autoconf(s, o, "autoconf-ring_buffer-flags.c", "STAPCONF_RING_BUFFER_FLAGS", NULL);
+  output_autoconf(s, o, "autoconf-ring_buffer_lost_events.c", "STAPCONF_RING_BUFFER_LOST_EVENTS", NULL);
+  output_autoconf(s, o, "autoconf-ring_buffer_read_prepare.c", "STAPCONF_RING_BUFFER_READ_PREPARE", NULL);
   output_autoconf(s, o, "autoconf-kallsyms-on-each-symbol.c", "STAPCONF_KALLSYMS_ON_EACH_SYMBOL", NULL);
   output_autoconf(s, o, "autoconf-walk-stack.c", "STAPCONF_WALK_STACK", NULL);
   output_autoconf(s, o, "autoconf-stacktrace_ops-warning.c",
                   "STAPCONF_STACKTRACE_OPS_WARNING", NULL);
   output_autoconf(s, o, "autoconf-mm-context-vdso.c", "STAPCONF_MM_CONTEXT_VDSO", NULL);
+  output_autoconf(s, o, "autoconf-mm-context-vdso-base.c", "STAPCONF_MM_CONTEXT_VDSO_BASE", NULL);
   output_autoconf(s, o, "autoconf-blk-types.c", "STAPCONF_BLK_TYPES", NULL);
   output_autoconf(s, o, "autoconf-perf-structpid.c", "STAPCONF_PERF_STRUCTPID", NULL);
-  output_autoconf(s, o, "autoconf-kern-path-parent.c",
-		  "STAPCONF_KERN_PATH_PARENT", NULL);
+  output_autoconf(s, o, "perf_event_counter_context.c",
+		  "STAPCONF_PERF_COUNTER_CONTEXT", NULL);
+  output_autoconf(s, o, "perf_probe_handler_nmi.c",
+		  "STAPCONF_PERF_HANDLER_NMI", NULL);
+  output_exportconf(s, o, "path_lookup", "STAPCONF_PATH_LOOKUP");
+  output_exportconf(s, o, "kern_path_parent", "STAPCONF_KERN_PATH_PARENT");
+  output_exportconf(s, o, "vfs_path_lookup", "STAPCONF_VFS_PATH_LOOKUP");
+  output_autoconf(s, o, "autoconf-module-sect-attrs.c", "STAPCONF_MODULE_SECT_ATTRS", NULL);
+
+  output_autoconf(s, o, "autoconf-utrace-via-tracepoints.c", "STAPCONF_UTRACE_VIA_TRACEPOINTS", NULL);
+  output_autoconf(s, o, "autoconf-utrace-via-ftrace.c", "STAPCONF_UTRACE_VIA_FTRACE", NULL);
+  output_autoconf(s, o, "autoconf-vm-area-pte.c", "STAPCONF_VM_AREA_PTE", NULL);
+  output_autoconf(s, o, "autoconf-relay-umode_t.c", "STAPCONF_RELAY_UMODE_T", NULL);
+  output_autoconf(s, o, "autoconf-fs_supers-hlist.c", "STAPCONF_FS_SUPERS_HLIST", NULL);
+
+  // used by tapset/timestamp_monotonic.stp
+  output_exportconf(s, o, "cpu_clock", "STAPCONF_CPU_CLOCK");
+  output_exportconf(s, o, "local_clock", "STAPCONF_LOCAL_CLOCK");
+
+  // used by runtime/uprobe-inode.c
+  output_exportconf(s, o, "register_uprobe", "STAPCONF_REGISTER_UPROBE_EXPORTED");
+  output_exportconf(s, o, "unregister_uprobe", "STAPCONF_UNREGISTER_UPROBE_EXPORTED");
+  // used by runtime/loc2c-runtime.h
+  output_exportconf(s, o, "task_user_regset_view", "STAPCONF_TASK_USER_REGSET_VIEW_EXPORTED");
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
@@ -284,6 +346,37 @@ compile_pass (systemtap_session& s)
   // o << "CFLAGS := $(subst -Os,-O2,$(CFLAGS)) -fminimal-toc" << endl;
   o << "obj-m := " << s.module_name << ".o" << endl;
 
+  // print out all the auxiliary source (->object) file names
+  o << s.module_name << "-y := ";
+  for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
+    {
+      string srcname = s.auxiliary_outputs[i]->filename;
+      assert (srcname != "" && srcname.rfind('/') != string::npos);
+      string objname = srcname.substr(srcname.rfind('/')+1); // basename
+      assert (objname != "" && objname[objname.size()-1] == 'c');
+      objname[objname.size()-1] = 'o'; // now objname
+      o << " " + objname;
+    }
+  // and once again, for the translated_source file.  It can't simply
+  // be named MODULENAME.c, since kbuild doesn't allow a foo.ko file
+  // consisting of multiple .o's to have foo.o/foo.c as a source.
+  // (It uses ld -r -o foo.o EACH.o EACH.o).
+  {
+    string srcname = s.translated_source;
+    assert (srcname != "" && srcname.rfind('/') != string::npos);
+    string objname = srcname.substr(srcname.rfind('/')+1); // basename
+    assert (objname != "" && objname[objname.size()-1] == 'c');
+    objname[objname.size()-1] = 'o'; // now objname
+    o << " " + objname;
+  }
+  o << endl;
+
+  // add all stapconf dependencies
+  o << s.translated_source << ": $(STAPCONF_HEADER)" << endl;
+  for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
+    o << s.auxiliary_outputs[i]->filename << ": $(STAPCONF_HEADER)" << endl;  
+
+
   o.close ();
 
   // Generate module directory pathname and make sure it exists.
@@ -315,7 +408,9 @@ compile_pass (systemtap_session& s)
 static bool
 kernel_built_uprobes (systemtap_session& s)
 {
-  return (s.kernel_exports.find("unregister_uprobe") != s.kernel_exports.end());
+  // see also tapsets.cxx:kernel_supports_inode_uprobes()
+  return ((s.kernel_config["CONFIG_ARCH_SUPPORTS_UPROBES"] == "y" && s.kernel_config["CONFIG_UPROBES"] == "y") ||
+          (s.kernel_exports.find("unregister_uprobe") != s.kernel_exports.end()));
 }
 
 static int
@@ -329,8 +424,7 @@ make_uprobes (systemtap_session& s)
   string dir(s.tmpdir + "/uprobes");
   if (create_dir(dir.c_str()) != 0)
     {
-      if (! s.suppress_warnings)
-        cerr << _("Warning: failed to create directory for build uprobes.") << endl;
+      s.print_warning("failed to create directory for build uprobes.");
       s.set_try_server ();
       return 1;
     }
@@ -348,12 +442,22 @@ make_uprobes (systemtap_session& s)
   string sourcefile(dir + "/uprobes.c");
   ofstream osrc(sourcefile.c_str());
   osrc << "#include \"" << runtimesourcefile << "\"" << endl;
+
+  // pass --modinfo k=v to uprobes build too
+  for (unsigned i = 0; i < s.modinfos.size(); i++)
+    {
+      const string& mi = s.modinfos[i];
+      size_t loc = mi.find('=');
+      string tag = mi.substr (0, loc);
+      string value = mi.substr (loc+1);
+      osrc << "MODULE_INFO(" << tag << "," << lex_cast_qstring(value) << ");" << endl;
+    }
+
   osrc.close();
 
   // make the module
   vector<string> make_cmd = make_make_cmd(s, dir);
-  bool quiet = (s.verbose < 4);
-  int rc = run_make_cmd(s, make_cmd, quiet, quiet);
+  int rc = run_make_cmd(s, make_cmd);
   if (!rc && !copy_file(dir + "/Module.symvers",
                         s.tmpdir + "/Module.symvers"))
     rc = -1;
@@ -441,7 +545,7 @@ uprobes_pass (systemtap_session& s)
 }
 
 vector<string>
-make_run_command (systemtap_session& s, const string& module,
+make_run_command (systemtap_session& s, const string& remotedir,
                   const string& version)
 {
   // for now, just spawn staprun
@@ -480,9 +584,16 @@ make_run_command (systemtap_session& s, const string& module,
 
   if (s.need_uprobes)
     {
-      staprun_cmd.push_back("-u");
-      if (!s.uprobes_path.empty())
-        staprun_cmd.back().append(s.uprobes_path);
+      string opt_u = "-u";
+      if (!s.uprobes_path.empty() &&
+          strverscmp("1.4", version.c_str()) <= 0)
+        {
+          if (remotedir.empty())
+            opt_u.append(s.uprobes_path);
+          else
+            opt_u.append(remotedir + "/" + basename(s.uprobes_path.c_str()));
+        }
+      staprun_cmd.push_back(opt_u);
     }
 
   if (s.load_only)
@@ -497,10 +608,8 @@ make_run_command (systemtap_session& s, const string& module,
       staprun_cmd.push_back(s.size_option);
     }
 
-  if (module.empty())
-    staprun_cmd.push_back(s.tmpdir + "/" + s.module_name + ".ko");
-  else
-    staprun_cmd.push_back(module);
+  staprun_cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
+                        + "/" + s.module_name + ".ko");
 
   // add module arguments
   staprun_cmd.insert(staprun_cmd.end(),
@@ -510,85 +619,71 @@ make_run_command (systemtap_session& s, const string& module,
 }
 
 
-// Build a tiny kernel module to query tracepoints
-int
-make_tracequery(systemtap_session& s, string& name,
-                const vector<string>& decls)
+// Build tiny kernel modules to query tracepoints.
+// Given a (header-file -> test-contents) map, compile them ASAP, and return
+// a (header-file -> obj-filename) map.
+
+map<string,string>
+make_tracequeries(systemtap_session& s, const map<string,string>& contents)
 {
   static unsigned tick = 0;
   string basename("tracequery_kmod_" + lex_cast(++tick));
+  map<string,string> objs;
 
   // create a subdirectory for the module
   string dir(s.tmpdir + "/" + basename);
   if (create_dir(dir.c_str()) != 0)
     {
-      if (! s.suppress_warnings)
-        cerr << _("Warning: failed to create directory for querying tracepoints.") << endl;
+      s.print_warning("failed to create directory for querying tracepoints.");
       s.set_try_server ();
-      return 1;
+      return objs;
     }
-
-  name = dir + "/" + basename + ".ko";
 
   // create a simple Makefile
   string makefile(dir + "/Makefile");
   ofstream omf(makefile.c_str());
   // force debuginfo generation, and relax implicit functions
   omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration" << (s.omit_werror ? "" : " -Werror") << endl;
-  if (s.kernel_source_tree != "")
-    omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;
-  omf << "obj-m := " + basename + ".o" << endl;
-
   // RHBZ 655231: later rhel6 kernels' module-signing kbuild logic breaks out-of-tree modules
   omf << "CONFIG_MODULE_SIG := n" << endl;
 
+  if (s.kernel_source_tree != "")
+    omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;
+
+  omf << "obj-m := " << endl;
+  // write out each header-specific source file into a separate file
+  for (map<string,string>::const_iterator it = contents.begin(); it != contents.end(); it++)
+    {
+      string sbasename = basename + "_" + lex_cast(++tick); // suffixed
+
+      // write out source code
+      string srcname = dir + "/" + sbasename + ".c";
+      string src = it->second;
+      ofstream osrc(srcname.c_str());
+      osrc << src;
+      osrc.close();
+
+      // arrange to build it
+      omf << "obj-m += " + sbasename + ".o" << endl; // NB: without <dir> prefix
+      objs[it->first] = dir + "/" + sbasename + ".o";
+    }
   omf.close();
 
-  // create our source file
-  string source(dir + "/" + basename + ".c");
-  ofstream osrc(source.c_str());
-  osrc << "#ifdef CONFIG_TRACEPOINTS" << endl;
-  osrc << "#include <linux/tracepoint.h>" << endl;
-
-  // override DECLARE_TRACE to synthesize probe functions for us
-  osrc << "#undef DECLARE_TRACE" << endl;
-  osrc << "#define DECLARE_TRACE(name, proto, args) \\" << endl;
-  osrc << "  void stapprobe_##name(proto) {}" << endl;
-
-  // 2.6.35 added the NOARGS variant, but it's the same for us
-  osrc << "#undef DECLARE_TRACE_NOARGS" << endl;
-  osrc << "#define DECLARE_TRACE_NOARGS(name) \\" << endl;
-  osrc << "  DECLARE_TRACE(name, void, )" << endl;
-
-  // older tracepoints used DEFINE_TRACE, so redirect that too
-  osrc << "#undef DEFINE_TRACE" << endl;
-  osrc << "#define DEFINE_TRACE(name, proto, args) \\" << endl;
-  osrc << "  DECLARE_TRACE(name, TPPROTO(proto), TPARGS(args))" << endl;
-
-  // add the specified decls/#includes
-  for (unsigned z=0; z<decls.size(); z++)
-    osrc << "#undef TRACE_INCLUDE_FILE\n"
-         << "#undef TRACE_INCLUDE_PATH\n"
-         << decls[z] << "\n";
-
-  // finish up the module source
-  osrc << "#endif /* CONFIG_TRACEPOINTS */" << endl;
-  osrc.close();
-
   // make the module
-  vector<string> make_cmd = make_make_cmd(s, dir);
+  vector<string> make_cmd = make_make_objs_cmd(s, dir);
+  make_cmd.push_back ("-i"); // ignore errors, give rc 0 even in case of tracepoint header nits
   bool quiet = (s.verbose < 4);
   int rc = run_make_cmd(s, make_cmd, quiet, quiet);
   if (rc)
     s.set_try_server ();
 
-  // XXX: sometimes we fail a tracequery due to PR9993 / PR11649 type
-  // kernel trace header problems.  In this case, due to PR12729,
-  // we get a lovely "Warning: make exited with status: 2" but no
+  // Sometimes we fail a tracequery due to PR9993 / PR11649 type
+  // kernel trace header problems.  In this case, due to PR12729, we
+  // used to get a lovely "Warning: make exited with status: 2" but no
   // other useful diagnostic.  -vvvv would let a user see what's up,
   // but the user can't fix the problem even with that.
 
-  return rc;
+  return objs;
 }
 
 
@@ -603,8 +698,7 @@ make_typequery_kmod(systemtap_session& s, const vector<string>& headers, string&
   string dir(s.tmpdir + "/" + basename);
   if (create_dir(dir.c_str()) != 0)
     {
-      if (! s.suppress_warnings)
-        cerr << _("Warning: failed to create directory for querying types.") << endl;
+      s.print_warning("failed to create directory for querying types.");
       s.set_try_server ();
       return 1;
     }
@@ -703,11 +797,7 @@ make_typequery(systemtap_session& s, string& module)
       string header = module.substr(i, end - i);
       vector<string> matches;
       if (regexp_match(header, "^[a-zA-Z0-9/_.+-]+$", matches))
-        {
-          if (! s.suppress_warnings)
-            cerr << _F("Warning: skipping malformed @cast header \"%s\"",
-                        header.c_str()) << endl;
-        }
+        s.print_warning("skipping malformed @cast header \""+ header + "\"");
       else
         headers.push_back(header);
     }

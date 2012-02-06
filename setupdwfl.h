@@ -9,6 +9,10 @@
 #ifndef SETUP_DWFLPP_H
 #define SETUP_DWFLPP_H
 
+#ifndef NT_GNU_BUILD_ID
+#define NT_GNU_BUILD_ID 3
+#endif
+
 #include "config.h"
 #include "session.h"
 
@@ -49,9 +53,21 @@ DwflPtr setup_dwfl_kernel(const std::set<std::string> &names,
 DwflPtr setup_dwfl_user(const std::string &name);
 DwflPtr setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
 		        const std::vector<std::string>::const_iterator &end,
-		        bool all_needed);
+		        bool all_needed, systemtap_session &s);
 
 // user-space files must be full paths and not end in .ko
 bool is_user_module(const std::string &m);
+
+int internal_find_debuginfo (Dwfl_Module *mod,
+			      void **userdata __attribute__ ((unused)),
+			      const char *modname __attribute__ ((unused)),
+			      GElf_Addr base __attribute__ ((unused)),
+			      const char *file_name,
+			      const char *debuglink_file,
+			      GElf_Word debuglink_crc,
+			      char **debuginfo_file_name);
+int execute_abrt_action_install_debuginfo_to_abrt_cache (std::string hex);
+std::string get_kernel_build_id (systemtap_session &s);
+int download_kernel_debuginfo (systemtap_session &s, std::string hex);
 
 #endif

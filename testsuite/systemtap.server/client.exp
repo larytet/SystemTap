@@ -1,15 +1,4 @@
-# Don't attempt these tests if TOOL_OPTS=server has been specified. This is
-# because TOOL_OPTS=server starts a server using setup_server which creates
-# a dummy stap on the PATH which always specifies --use-server. We don't want
-# that here. We want to use the real stap and supply client-side options
-# as we see fit.
-if {[use_server_p]} then {
-    untested "Compile-Server Client Tests"
-    return
-}
-
-# There is no server running as part of the test suite. So let's start with
-# a clean slate in terms of trust.
+# Let's start with a clean slate in terms of trust.
 exec rm -fr $env(SYSTEMTAP_DIR)/ssl
 
 # Test the --list-servers option and return an array of the servers found.
@@ -164,7 +153,7 @@ if {$failed == 0} {
 }
 
 # Now start our own server and make sure we can work with it.
-if {! [start_server]} {
+if {! [setup_server]} {
     untested "Compile-server client tests against a server"
     return;
 }
@@ -283,6 +272,14 @@ if {[regexp {^ host=([^ ]*).*} $our_servers(0) match host_name]} {
 } else {
     fail $test
 }
+
+# Compile and run a simple hello test, selecting the server automatically
+if {[installtest_p]} then {
+    set test "Hello from server"
+    set rc [stap_run_batch $srcdir/systemtap.server/hello.stp $use_server]
+    if {$rc == 0} { pass $test } else { fail $test }
+}
+
 set cmd [concat stap --trust-servers=ssl,revoke,no-prompt --use-server=$host_name]
 send_log "executing: $cmd\n"
 eval spawn $cmd
@@ -417,7 +414,7 @@ if {$effective_pid != 0} {
 
 # Our server should now be trusted as a signer, separate from the previously
 # discovered trusted signing servers.
-list_servers "List current signing servers" online,signer
+list_servers "List current online signing servers" online,signer
 array unset current_signing_servers
 array set current_signing_servers [array get servers]
 
@@ -485,109 +482,123 @@ if {[array size new_signing_servers] == [array size our_servers]} {
     fail "$test"
 }
 
-# Compile a simple test using --unprivileged. This will ask the server to
-# check and sign the module. Specify the server using host name and port.
 set test "Server has port number"
 if {[regexp {^.*port=([^ ]*).*} $our_servers(0) match port_num]} {
     pass $test
 } else {
     fail $test
 }
-set test "Compile module using server"
-set failed 1
-set module_name ""
-set cmd [concat stap -p4 --unprivileged $srcdir/systemtap.server/hello.stp --use-server=$host_name:$port_num]
-send_log "executing: $cmd\n"
-eval spawn $cmd
-expect {
-    -timeout 150
-    -re {^stap_[^ \t\r\n]*\.ko\r\n} {
-	set module_name [string trim "$expect_out(0,string)" \r\n]
-	set failed 0
-    }
-    -re {^.*\r\n} { exp_continue }
-    timeout { 
-	exec kill -INT -[exp_pid]
-	wait
-    }
-}
-catch close
-if {$failed == 0} {
-    pass "$test"
-}
-send_log "'$module_name'\n"
 
-# Make sure that the module was returned
-set no_module 0
-set test "Module was created"
-catch {exec /bin/ls $module_name $module_name.sgn} result
-send_log "$result\n"
-if {[file exists $module_name]} {
-    pass "$test"
-} else {
-    fail "$test"
-    set no_module 1
-}
-
-# Make sure that the module was signed
-set no_signature 0
-set test "Module was signed"
-if {[file exists $module_name.sgn]} {
-    pass "$test"
-} else {
-    fail "$test"
-    set no_signature 1
-}
-
-# Make sure we can load the module. This will verify that the signature
-# is correct and trusted. If the module was not created, or if we are not root
-# or a member of the groups stapdev and stapusr, then we still won't be
-# able to load the module. If there is no signature, then being a member of
-# stapuse won't help.
-if {$no_module == 0} {
-    set expect_failure 1
-    if {$effective_pid == 0} {
-	set expect_failure 0
-    } else {
-	set id_info [exec /usr/bin/id]
-	if {[regexp {.*\(stapusr\).*} "$id_info"]} {
-	    if {[regexp {.*\(stapdev\).*} "$id_info"]} {
-		set expect_failure 0
-	    } else {
-		if {$no_signature == 0} {
-		    set expect_failure 0
-		}
-	    }
-	}    
-    }
-    if {$expect_failure} {
-	setup_xfail *-*-*
-    }
-}
-set test "Load and run signed module when trusted"
-if {$no_module == 1} {
-    untested "$test"
-} else {
+foreach privilege {"--unprivileged" "--privilege=stapusr" "--privilege=stapsys"} {
+    # Compile a simple test using an unprivileged setting. This will ask the server to
+    # check and sign the module. Specify the server using host name and port.
+    set test "Compile module using server with $privilege"
     set failed 1
-    set cmd [concat staprun $module_name]
+    set module_name ""
+    set cmd [concat stap -p4 $privilege $srcdir/systemtap.server/hello.stp --use-server=$host_name:$port_num]
     send_log "executing: $cmd\n"
     eval spawn $cmd
     expect {
 	-timeout 150
-	-re {^Hello From Server\r\n} {
+	-re {^stap_[^ \t\r\n]*\.ko\r\n} {
+	    set module_name [string trim "$expect_out(0,string)" \r\n]
 	    set failed 0
 	}
+	-re {^.*\r\n} { exp_continue }
 	timeout { 
 	    exec kill -INT -[exp_pid]
 	    wait
-	    set failed 1
 	}
     }
     catch close
     if {$failed == 0} {
 	pass "$test"
+    }
+    send_log "'$module_name'\n"
+
+    # Make sure that the module was returned
+    set no_module 0
+    set test "Module was created with $privilege"
+    catch {exec /bin/ls $module_name $module_name.sgn} result
+    send_log "$result\n"
+    if {[file exists $module_name]} {
+	pass "$test"
     } else {
 	fail "$test"
+	set no_module 1
+    }
+
+    # Make sure that the module was signed
+    set no_signature 0
+    set test "Module was signed with $privilege"
+    if {[file exists $module_name.sgn]} {
+	pass "$test"
+    } else {
+	fail "$test"
+	set no_signature 1
+    }
+
+    # Make sure we can load the module. This will verify that the signature
+    # is correct and trusted.
+    # There must be a module to load.
+    if {$no_module == 0} {
+	set expect_failure 1
+	# If we are root, we can load anything.
+	if {$effective_pid == 0} {
+	    set expect_failure 0
+	} else {
+	    set id_info [exec /usr/bin/id]
+	    # Not root, so we must be a member of stapusr.
+	    if {[regexp {.*\(stapusr\).*} "$id_info"]} {
+		# Members of stapdev can load an unsigned module.
+		if {[regexp {.*\(stapdev\).*} "$id_info"]} {
+		    set expect_failure 0
+		} else {
+		    # Otherwise, the module must be signed.
+		    if {$no_signature == 0} {
+			# We must have the necessary credentials. We already know that we are
+			# stapusr. See if we need to be stapsys.
+			if {$privilege == "--privilege=stapsys"} {
+			    if {[regexp {.*\(stapsys\).*} "$id_info"]} {
+				set expect_failure 0
+			    }
+			} else {
+			    # stapusr is good enough.
+			    set expect_failure 0
+			}
+		    }
+		}
+	    }    
+	}
+	if {$expect_failure} {
+	    setup_xfail *-*-*
+	}
+    }
+    set test "Load and run signed module when trusted with $privilege"
+    if {$no_module == 1 || ! [installtest_p]} {
+	untested "$test"
+    } else {
+	set failed 1
+	set cmd [concat staprun $module_name]
+	send_log "executing: $cmd\n"
+	eval spawn $cmd
+	expect {
+	    -timeout 150
+	    -re {^Hello From Server\r\n} {
+		set failed 0
+	    }
+	    timeout { 
+		exec kill -INT -[exp_pid]
+		wait
+		set failed 1
+	    }
+	}
+	catch close
+	if {$failed == 0} {
+	    pass "$test"
+	} else {
+	    fail "$test"
+	}
     }
 }
 
@@ -601,7 +612,7 @@ if {$effective_pid != 0} {
     eval as_root { $cmd }
 }
 
-# Our server should no longer be trusted as a signed
+# Our server should no longer be trusted as a signer
 list_servers "List current signing servers after revokation" signer
 array unset current_signing_servers
 array set current_signing_servers [array get servers]
@@ -644,7 +655,7 @@ if {$no_module == 0} {
     }
 }
 set test "Load and run signed module when not trusted"
-if {$no_module == 1} {
+if {$no_module == 1 || ! [installtest_p]} {
     untested "$test"
 } else {
     set failed 1

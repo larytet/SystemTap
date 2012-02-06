@@ -34,7 +34,11 @@
 # accept _____________________________________________________
 # long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,
 #                 int __user *upeer_addrlen)
+%( kernel_v >= "2.6.28" %?
+probe nd_syscall.accept = kprobe.function("sys_accept4") ?
+%:
 probe nd_syscall.accept = kprobe.function("sys_accept") ?
+%)
 {
 	name = "accept"
 	// sockfd = $fd
@@ -54,7 +58,11 @@ probe nd_syscall.accept = kprobe.function("sys_accept") ?
 	argstr = sprintf("%d, %p, %p, %s", sockfd, addr_uaddr, addrlen_uaddr,
 			 flags_str)
 }
+%( kernel_v >= "2.6.28" %?
+probe nd_syscall.accept.return = kprobe.function("sys_accept4").return ?
+%:
 probe nd_syscall.accept.return = kprobe.function("sys_accept").return ?
+%)
 {
 	name = "accept"
 	retstr = returnstr(1)
@@ -1190,42 +1198,6 @@ probe nd_syscall.flock.return = kprobe.function("sys_flock").return ?
 	name = "flock"
 	retstr = returnstr(1)
 }
-
-function __is_user_regs:long (regs:long)
-%{
-	/* pure */
-	struct pt_regs * regs = (void *)((unsigned long)THIS->regs);
-/* copied from asm/ptrace.h */
-#if defined(__i386__)
-#ifdef STAPCONF_X86_UNIREGS
-	int cs = kread(&regs->cs);
-#else
-	int cs = kread(&regs->xcs);
-#endif
-	THIS->__retvalue = (!!((cs & 3)));
-#elif defined(__x86_64__)
-	unsigned long cs = kread(&regs->cs);
-	THIS->__retvalue = (!!((cs & 3)));
-#elif defined(__ia64__)
-	unsigned long psr = kread(&regs->cr_ipsr);
-	THIS->__retvalue = (((struct ia64_psr *) &psr)->cpl != 0);
-#elif defined(__powerpc64__)
-	unsigned long msr = kread(&regs->msr);
-	THIS->__retvalue = ((msr >> MSR_PR_LG) & 0x1);
-#elif defined(__powerpc__)
-	unsigned long msr = kread(&regs->msr);
-	THIS->__retvalue = ((msr >> MSR_PR) != 0);
-#elif defined(__arm__)
-	long cpsr = kread(&regs->ARM_cpsr);
-	THIS->__retvalue = ((cpsr & 0xf) == 0);
-#elif defined(__s390__) || defined(__s390x__)
-	unsigned long mask = kread(&regs->psw.mask);
-	THIS->__retvalue = ((mask & PSW_MASK_PSTATE) != 0);
-#else
-#error "Unimplemented architecture"
-#endif
-CATCH_DEREF_FAULT();
-%}
 
 # fork _______________________________________________________
 # long do_fork(unsigned long clone_flags,

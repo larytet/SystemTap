@@ -1,5 +1,5 @@
 /* target operations
- * Copyright (C) 2005-2010 Red Hat Inc.
+ * Copyright (C) 2005-2011 Red Hat Inc.
  * Copyright (C) 2005, 2006, 2007 Intel Corporation.
  * Copyright (C) 2007 Quentin Barnes.
  *
@@ -44,10 +44,15 @@
    can be pasted into an identifier name.  These definitions turn it into a
    per-register macro, defined below for machines with individually-named
    registers.  */
+#define pt_regs_fetch_register(pt_regs, regno) \
+  ((intptr_t) k_dwarf_register_##regno (pt_regs))
+#define pt_regs_store_register(pt_regs, regno, value) \
+  (k_dwarf_register_##regno (pt_regs) = (value))
+
 #define k_fetch_register(regno) \
-  ((intptr_t) k_dwarf_register_##regno (c->regs))
+  pt_regs_fetch_register(c->kregs, regno)
 #define k_store_register(regno, value) \
-  (k_dwarf_register_##regno (c->regs) = (value))
+  pt_regs_store_register(c->kregs, regno, value)
 
 
 /* The deref and store_deref macros are called to safely access addresses
@@ -104,7 +109,11 @@
     a % b;								\
 })
 
-/* PR 10601: user-space (user_regset) register access.  */
+/* PR 10601: user-space (user_regset) register access.
+   Needs arch specific code, only i386 and x86_64 for now.  */
+#if ((defined(STAPCONF_REGSET) || defined(STAPCONF_UTRACE_REGSET)) \
+     && (defined (__i386__) || defined (__x86_64__)))
+
 #if defined(STAPCONF_REGSET)
 #include <linux/regset.h>
 #endif
@@ -115,9 +124,16 @@
 #define user_regset_view utrace_regset_view
 #define user_regset utrace_regset
 #define task_user_regset_view utrace_native_view
-#endif
 
-#if defined(STAPCONF_REGSET) || defined(STAPCONF_UTRACE_REGSET)
+#else // PR13489, inodes-uprobes export kludge
+#if !defined(STAPCONF_TASK_USER_REGSET_VIEW_EXPORTED)
+typedef const struct user_regset_view* (*task_user_regset_view_fn)(struct task_struct *tsk);
+/* Special macro to tolerate the kallsyms function pointer being zero. */
+#define task_user_regset_view(t) (kallsyms_task_user_regset_view ? \
+                                  (* (task_user_regset_view_fn)(kallsyms_task_user_regset_view))((t)) : \
+                                  NULL)
+#endif
+#endif
 
 struct usr_regset_lut {
   char *name;
@@ -130,6 +146,7 @@ struct usr_regset_lut {
    The register numbers come from the processor-specific ELF documents.
    The user-regset bank/offset values come from kernel $ARCH/include/asm/user*.h
    or $ARCH/kernel/ptrace.c. */
+#if defined (__i386__) || defined (__x86_64__)
 static const struct usr_regset_lut url_i386[] = {
   { "ax", NT_PRSTATUS, 6*4 },
   { "cx", NT_PRSTATUS, 1*4 },
@@ -141,7 +158,9 @@ static const struct usr_regset_lut url_i386[] = {
   { "di", NT_PRSTATUS, 4*4 },
   { "ip", NT_PRSTATUS, 12*4 },
 };
+#endif
 
+#if defined (__x86_64__)
 static const struct usr_regset_lut url_x86_64[] = {
   { "rax", NT_PRSTATUS, 10*8 },
   { "rdx", NT_PRSTATUS, 12*8 },
@@ -165,6 +184,7 @@ static const struct usr_regset_lut url_x86_64[] = {
   /* XXX: FP registers %st0-%st7 */
   /* XXX: MMX registers %mm0-%mm7 */
 };
+#endif
 /* XXX: insert other architectures here. */
 
 
@@ -316,22 +336,17 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 
 #elif defined (__x86_64__)
 
-#define u_fetch_register(regno) (_stp_probing_32bit_app(c->regs) ? ursl_fetch32(url_i386, ARRAY_SIZE(url_i386), EM_386, regno) : ursl_fetch64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno))
-#define u_store_register(regno,value)  (_stp_probing_32bit_app(c->regs) ? ursl_store32(url_i386, ARRAY_SIZE(url_i386), EM_386, regno, value) : ursl_store64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno, value))
-
-#else
-
-/* Some other architecture; downgrade to kernel register access. */
-#define u_fetch_register(regno) k_fetch_register(regno)
-#define u_store_register(regno,value) k_store_register(regno,value)
+#define u_fetch_register(regno) (_stp_is_compat_task() ? ursl_fetch32(url_i386, ARRAY_SIZE(url_i386), EM_386, regno) : ursl_fetch64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno))
+#define u_store_register(regno,value)  (_stp_is_compat_task() ? ursl_store32(url_i386, ARRAY_SIZE(url_i386), EM_386, regno, value) : ursl_store64(url_x86_64, ARRAY_SIZE(url_x86_64), EM_X86_64, regno, value))
 
 #endif
 
-
 #else /* ! STAPCONF_REGSET */
-/* Downgrade to kernel register access. */
-#define u_fetch_register(regno) k_fetch_register(regno)
-#define u_store_register(regno,value) k_store_register(regno,value)
+/* Downgrade to k_dwarf_register access. */
+#define u_fetch_register(regno) \
+  pt_regs_fetch_register(c->uregs, regno)
+#define u_store_register(regno, value) \
+  pt_regs_store_register(c->uregs, regno, value)
 #endif
 
 
@@ -383,11 +398,14 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #define k_dwarf_register_7(regs)	regs->edi
 
 #elif defined __ia64__
-#undef k_fetch_register
-#undef k_store_register
 
-#define k_fetch_register(regno)		ia64_fetch_register(regno, c->regs, &c->unwaddr)
-#define k_store_register(regno,value)	ia64_store_register(regno, c->regs, value)
+#undef pt_regs_fetch_register
+#undef pt_regs_store_register
+
+#define pt_regs_fetch_register(pt_regs,regno)	\
+  ia64_fetch_register(regno, pt_regs, &c->unwaddr)
+#define pt_regs_store_register(pt_regs,regno,value) \
+  ia64_store_register(regno, pt_regs, value)
 
 #elif defined __x86_64__
 
@@ -410,23 +428,30 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 
 #elif defined __powerpc__
 
-#undef k_fetch_register
-#undef k_store_register
-#define k_fetch_register(regno) ((intptr_t) c->regs->gpr[regno])
-#define k_store_register(regno,value) (c->regs->gpr[regno] = (value))
+#undef pt_regs_fetch_register
+#undef pt_regs_store_register
+#define pt_regs_fetch_register(pt_regs,regno) \
+  ((intptr_t) pt_regs->gpr[regno])
+#define pt_regs_store_register(pt_regs,regno,value) \
+  (pt_regs->gpr[regno] = (value))
 
 #elif defined (__arm__)
 
-#undef k_fetch_register
-#undef k_store_register
-#define k_fetch_register(regno) ((long) c->regs->uregs[regno])
-#define k_store_register(regno,value) (c->regs->uregs[regno] = (value))
+#undef pt_regs_fetch_register
+#undef pt_regs_store_register
+#define pt_regs_fetch_register(pt_regs,regno) \
+  ((long) pt_regs->uregs[regno])
+#define pt_regs_store_register(pt_regs,regno,value) \
+  (pt_regs->uregs[regno] = (value))
 
 #elif defined (__s390__) || defined (__s390x__)
-#undef k_fetch_register
-#undef k_store_register
-#define k_fetch_register(regno) ((intptr_t) c->regs->gprs[regno])
-#define k_store_register(regno,value) (c->regs->gprs[regno] = (value))
+
+#undef pt_regs_fetch_register
+#undef pt_regs_store_register
+#define pt_regs_fetch_register(pt_regs,regno) \
+  ((intptr_t) pt_regs->gprs[regno])
+#define pt_regs_store_register(pt_regs,regno,value) \
+  (pt_regs->gprs[regno] = (value))
 
 #endif
 
@@ -459,7 +484,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
           STORE_DEREF_FAULT(ptr); \
     })
 
-#define deref(size, addr) ({ \
+#define uderef(size, addr) ({ \
     intptr_t _i = 0; \
     switch (size) { \
       case 1: _i = kread((u8 *)(addr)); break; \
@@ -471,7 +496,7 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
     _i; \
   })
 
-#define store_deref(size, addr, value) ({ \
+#define store_uderef(size, addr, value) ({ \
     switch (size) { \
       case 1: kwrite((u8 *)(addr), (value)); break; \
       case 2: kwrite((u16 *)(addr), (value)); break; \
@@ -489,7 +514,7 @@ extern void __store_deref_bad(void);
 
 #if defined __i386__
 
-#define deref(size, addr)						      \
+#define uderef(size, addr)						      \
   ({									      \
     int _bad = 0;							      \
     u8 _b; u16 _w; u32 _l;	                                              \
@@ -509,7 +534,7 @@ extern void __store_deref_bad(void);
     _v;									      \
   })
 
-#define store_deref(size, addr, value)					      \
+#define store_uderef(size, addr, value)					      \
   ({									      \
     int _bad = 0;							      \
     if (lookup_bad_addr((unsigned long)addr, size))			      \
@@ -529,7 +554,7 @@ extern void __store_deref_bad(void);
 
 #elif defined __x86_64__
 
-#define deref(size, addr)						      \
+#define uderef(size, addr)						      \
   ({									      \
     int _bad = 0;							      \
     u8 _b; u16 _w; u32 _l; u64 _q;					      \
@@ -550,7 +575,7 @@ extern void __store_deref_bad(void);
     _v;									      \
   })
 
-#define store_deref(size, addr, value)					      \
+#define store_uderef(size, addr, value)					      \
   ({									      \
     int _bad = 0;							      \
     if (lookup_bad_addr((unsigned long)addr, size))			      \
@@ -569,7 +594,7 @@ extern void __store_deref_bad(void);
   })
 
 #elif defined __ia64__
-#define deref(size, addr)						\
+#define uderef(size, addr)						\
   ({									\
      int _bad = 0;							\
      intptr_t _v=0;							\
@@ -588,7 +613,7 @@ extern void __store_deref_bad(void);
      _v;								\
    })
 
-#define store_deref(size, addr, value)					\
+#define store_uderef(size, addr, value)					\
   ({									\
     int _bad=0;								\
     if (lookup_bad_addr((unsigned long)addr, size))			\
@@ -619,7 +644,7 @@ extern void __store_deref_bad(void);
 		__put_user_size(x, ptr, size, retval, -EFAULT)
 #endif
 
-#define deref(size, addr)						      \
+#define uderef(size, addr)						      \
   ({									      \
     int _bad = 0;							      \
     intptr_t _v = 0;							      \
@@ -639,7 +664,7 @@ extern void __store_deref_bad(void);
     _v;									      \
   })
 
-#define store_deref(size, addr, value)					      \
+#define store_uderef(size, addr, value)					      \
   ({									      \
     int _bad = 0;							      \
     if (lookup_bad_addr((unsigned long)addr, size))			      \
@@ -766,7 +791,7 @@ extern void __store_deref_bad(void);
 	: "r" (x), "r" (__pu_addr), "i" (-EFAULT)		\
 	: "cc")
 
-#define deref(size, addr)						\
+#define uderef(size, addr)						\
   ({									\
      int _bad = 0;							\
      intptr_t _v=0;							\
@@ -784,7 +809,7 @@ extern void __store_deref_bad(void);
      _v;								\
    })
 
-#define store_deref(size, addr, value)					\
+#define store_uderef(size, addr, value)					\
   ({									\
     int _bad=0;								\
     if (lookup_bad_addr((unsigned long)addr, size))			\
@@ -802,114 +827,91 @@ extern void __store_deref_bad(void);
 
 #elif defined (__s390__) || defined (__s390x__)
 
-#ifndef EX_TABLE
-/*
- * Helper macro for exception table entries
- */
-#ifndef __s390x__
-#define EX_TABLE(_fault,_target)				\
-		".section __ex_table,\"a\"\n"			\
-		"       .align 4\n"				\
-		"       .long  " #_fault "," #_target "\n"	\
-		".previous\n"
-#else
-#define EX_TABLE(_fault,_target)				\
-		".section __ex_table,\"a\"\n"			\
-		"       .align 8\n"				\
-		"       .quad  " #_fault "," #_target "\n"	\
-		".previous\n"
-#endif
-#endif
+/* Use same __get_user() and __put_user() for both user and kernel
+   addresses, but make sure set_fs() is called appropriately first. */
 
-#define __stp_get_asm(x, addr, err, size)			\
-({								\
-	asm volatile(						\
-		"0: mvc  0(%2,%4),0(%3)\n"			\
-		"1:\n"						\
-		".section .fixup,\"ax\"\n"			\
-		"2: lghi    %0,%5\n"				\
-		"   jg     1b\n"				\
-		".previous\n"					\
-		EX_TABLE(0b,2b)					\
-		: "+&d" (err), "=m" (x)				\
-		: "i" (size),"a"(addr),				\
-		"a" (&(x)),"K" (-EFAULT)			\
-		: "cc");					\
-})
+#define uderef(size, addr) ({ \
+    u8 _b; u16 _w; u32 _l; u64 _q; \
+    uintptr_t _a = (uintptr_t) addr; \
+    intptr_t _v = 0; \
+    int _bad = 0; \
+    mm_segment_t _oldfs = get_fs(); \
+    set_fs (USER_DS); \
+    switch (size) { \
+      case 1: _bad = __get_user(_b, (u8 *)(_a)); _v = _b; break; \
+      case 2: _bad = __get_user(_w, (u16 *)(_a)); _v = _w; break; \
+      case 4: _bad = __get_user(_l, (u32 *)(_a)); _v = _l; break; \
+      case 8: _bad = __get_user(_q, (u64 *)(_a)); _v = _q; break; \
+      default: __get_user_bad(); \
+    } \
+    set_fs (_oldfs); \
+    if (_bad) \
+      DEREF_FAULT(addr); \
+    _v; \
+  })
 
-#define __stp_put_asm(x, addr, err)				\
-({								\
-	asm volatile(						\
-		"0: stc %2,0(%1)\n"				\
-		"1:\n"						\
-		".section .fixup,\"ax\"\n"			\
-		"2: lghi    %0,%3\n"				\
-		"   jg     1b\n"				\
-		".previous\n"					\
-		EX_TABLE(0b,2b)					\
-		: "+&d" (err)					\
-		: "a"(addr),					\
-		"r"(x),"K"(-EFAULT)				\
-		: "cc");					\
-})
+#define store_uderef(size, addr, value) ({ \
+    int _bad = 0; \
+    mm_segment_t _oldfs = get_fs(); \
+    set_fs (USER_DS); \
+    switch (size) {		 \
+      case 1: _bad = __put_user(((u8)(value)), ((u8 *)(addr))); break; \
+      case 2: _bad = __put_user(((u16)(value)), ((u16 *)(addr))); break; \
+      case 4: _bad = __put_user(((u32)(value)), ((u32 *)(addr))); break; \
+      case 8: _bad = __put_user(((u64)(value)), ((u64 *)(addr))); break; \
+      default: __put_user_bad(); \
+    } \
+    set_fs (_oldfs); \
+    if (_bad) \
+	STORE_DEREF_FAULT(addr); \
+  })
 
-#define deref(size, addr)					\
-({								\
-	u8 _b; u16 _w; u32 _l; u64 _q;				\
-	int _bad = 0;						\
-	intptr_t _v = 0;					\
-        if (lookup_bad_addr((unsigned long)addr, size))		\
-          _bad = 1;                                             \
-        else                                                    \
-          switch (size) {		                	\
-          case 1: {                                             \
-		__stp_get_asm(_b, addr, _bad, 1);		\
-		_v = _b;					\
-		break;						\
-          };                                                    \
-          case 2: {						\
-		__stp_get_asm(_w, addr, _bad, 2);		\
-		_v = _w;					\
-		break;						\
-          };                                                    \
-          case 4: {						\
-		__stp_get_asm(_l, addr, _bad, 4);		\
-		_v = _l;					\
-		break;						\
-          };                                                    \
-          case 8: {						\
-		__stp_get_asm(_q, addr, _bad, 8);		\
-		_v = _q;					\
-		break;						\
-          };                                                    \
-          default:						\
-		_bad = -EFAULT;					\
-	}							\
-	if (_bad)						\
-		DEREF_FAULT(addr);				\
-	_v;							\
-})
+#define kderef(size, addr) ({ \
+    u8 _b; u16 _w; u32 _l; u64 _q; \
+    uintptr_t _a = (uintptr_t) addr; \
+    intptr_t _v = 0; \
+    int _bad = 0; \
+    mm_segment_t _oldfs = get_fs(); \
+    set_fs (KERNEL_DS); \
+    switch (size) { \
+      case 1: _bad = __get_user(_b, (u8 *)(_a)); _v = _b; break; \
+      case 2: _bad = __get_user(_w, (u16 *)(_a)); _v = _w; break; \
+      case 4: _bad = __get_user(_l, (u32 *)(_a)); _v = _l; break; \
+      case 8: _bad = __get_user(_q, (u64 *)(_a)); _v = _q; break; \
+      default: __get_user_bad(); \
+    } \
+    set_fs (_oldfs); \
+    if (_bad) \
+      DEREF_FAULT(addr); \
+    _v; \
+  })
 
-#define store_deref(size, addr, value)                          \
-({                                                              \
-        int _bad = 0;                                           \
-	int i;							\
-        if (lookup_bad_addr((unsigned long)addr, size))		\
-          _bad = 1;                                             \
-        else                                                    \
-          for(i=0;i<size;i++){                                  \
-            __stp_put_asm((u8)(value>>((size-i-1)*8)&0xff),     \
-                          (u64)addr+i,_bad);                    \
-            if (_bad)                                           \
-              break;                                            \
-          }                                                     \
-        if (_bad)                                               \
-          STORE_DEREF_FAULT(addr);                              \
-})
-
+#define store_kderef(size, addr, value) ({ \
+    int _bad = 0; \
+    mm_segment_t _oldfs = get_fs(); \
+    set_fs (KERNEL_DS); \
+    switch (size) { \
+      case 1: _bad = __put_user(((u8)(value)), ((u8 *)(addr))); break; \
+      case 2: _bad = __put_user(((u16)(value)), ((u16 *)(addr))); break; \
+      case 4: _bad = __put_user(((u32)(value)), ((u32 *)(addr))); break; \
+      case 8: _bad = __put_user(((u64)(value)), ((u64 *)(addr))); break; \
+      default: __put_user_bad(); \
+    } \
+    set_fs (_oldfs); \
+    if (_bad) \
+	STORE_DEREF_FAULT(addr); \
+  })
 
 #endif /* (s390) || (s390x) */
 
+/* Normally we can use uderef and store_uderef also for kernel space. */
+#ifndef kderef
+#define kderef uderef
+#endif
+
+#ifndef store_kderef
+#define store_kderef store_uderef
+#endif
 
 #if defined (__i386__) || defined (__arm__)
 
@@ -918,41 +920,43 @@ extern void __store_deref_bad(void);
 #define kread(ptr)					\
   ((sizeof(*(ptr)) == 8) ?				\
        *(typeof(ptr))&(u32[2]) {			\
-	 (u32) deref(4, &((u32 *)(ptr))[0]),		\
-	 (u32) deref(4, &((u32 *)(ptr))[1]) }		\
-     : (typeof(*(ptr))) deref(sizeof(*(ptr)), (ptr)))
+	 (u32) kderef(4, &((u32 *)(ptr))[0]),		\
+	 (u32) kderef(4, &((u32 *)(ptr))[1]) }		\
+     : (typeof(*(ptr))) kderef(sizeof(*(ptr)), (ptr)))
 
 #define kwrite(ptr, value)						     \
   ({									     \
     if (sizeof(*(ptr)) == 8) {						     \
       union { typeof(*(ptr)) v; u32 l[2]; } _kw;			     \
       _kw.v = (typeof(*(ptr)))(value);					     \
-      store_deref(4, &((u32 *)(ptr))[0], _kw.l[0]);			     \
-      store_deref(4, &((u32 *)(ptr))[1], _kw.l[1]);			     \
+      store_kderef(4, &((u32 *)(ptr))[0], _kw.l[0]);			     \
+      store_kderef(4, &((u32 *)(ptr))[1], _kw.l[1]);			     \
     } else								     \
-      store_deref(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value));     \
+      store_kderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value));     \
   })
 
 #else
 
 #define kread(ptr) \
-  ( (typeof(*(ptr))) deref(sizeof(*(ptr)), (ptr)) )
+  ( (typeof(*(ptr))) kderef(sizeof(*(ptr)), (ptr)) )
 #define kwrite(ptr, value) \
-  ( store_deref(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value)) )
+  ( store_kderef(sizeof(*(ptr)), (ptr), (long)(typeof(*(ptr)))(value)) )
 
 #endif
 
 #endif /* STAPCONF_PROBE_KERNEL */
 
+/* The following is for kernel strings, see the uconversions.stp
+   tapset for user_string functions. */
 
-#define deref_string(dst, addr, maxbytes)				      \
+#define kderef_string(dst, addr, maxbytes)				      \
   ({									      \
     uintptr_t _addr;							      \
     size_t _len;							      \
     unsigned char _c;							      \
     char *_d = (dst);							      \
     for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
-	 _len > 1 && (_c = deref (1, _addr)) != '\0';			      \
+	 _len > 1 && (_c = kderef (1, _addr)) != '\0';			      \
 	 --_len, ++_addr)						      \
       if (_d)								      \
 	 *_d++ = _c;							      \
@@ -961,31 +965,15 @@ extern void __store_deref_bad(void);
     (dst);								      \
   })
 
-#define deref_buffer(dst, addr, numbytes)				      \
-  ({									      \
-    uintptr_t _addr;							      \
-    size_t _len;							      \
-    unsigned char _c;							      \
-    char *_d = (dst);							      \
-    for (_len = (numbytes), _addr = (uintptr_t)(addr);			      \
-	 _len >= 1;			                                      \
-	 --_len, ++_addr) {						      \
-      _c = deref (1, _addr);						      \
-      if (_d)								      \
-	 *_d++ = _c;							      \
-    }                                                                         \
-    (dst);								      \
-  })
-
-#define store_deref_string(src, addr, maxbytes)				      \
+#define store_kderef_string(src, addr, maxbytes)			      \
   ({									      \
     uintptr_t _addr;							      \
     size_t _len;							      \
     char *_s = (src);							      \
     for (_len = (maxbytes), _addr = (uintptr_t)(addr);			      \
 	 _len > 1 && _s && *_s != '\0'; --_len, ++_addr)		      \
-      store_deref(1, _addr, *_s++);					      \
-    store_deref(1, _addr, '\0');					      \
+      store_kderef(1, _addr, *_s++);					      \
+    store_kderef(1, _addr, '\0');					      \
   })
 
 #define CATCH_DEREF_FAULT()				\

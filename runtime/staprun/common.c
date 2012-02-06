@@ -33,6 +33,8 @@ const char *uprobes_path = NULL;
 int daemon_mode;
 off_t fsize_max;
 int fnum_max;
+int remote_id;
+const char *remote_uri;
 
 /* module variables */
 char *modname = NULL;
@@ -65,6 +67,9 @@ int stap_strfloctime(char *buf, size_t max, const char *fmt, time_t t)
 	if (buf == NULL || fmt == NULL || max <= 1)
 		return -EINVAL;
 	localtime_r(&t, &tm);
+        /* NB: this following invocation is the reason for staprun's being built
+           with -Wno-format-nonliteral.  strftime parsing does not have security
+           implications AFAIK, but gcc still wants to check them.  */
 	ret = strftime(buf, max, fmt, &tm);
 	if (ret == 0)
 		return -EINVAL;
@@ -121,8 +126,10 @@ void parse_args(int argc, char **argv)
 	daemon_mode = 0;
 	fsize_max = 0;
 	fnum_max = 0;
+        remote_id = -1;
+        remote_uri = NULL;
 
-	while ((c = getopt(argc, argv, "ALu::vb:t:dc:o:x:S:DwR")) != EOF) {
+	while ((c = getopt(argc, argv, "ALu::vb:t:dc:o:x:S:DwRr:")) != EOF) {
 		switch (c) {
 		case 'u':
 			need_uprobes = 1;
@@ -177,6 +184,17 @@ void parse_args(int argc, char **argv)
 				err(_("Invalid file size option '%s'.\n"), optarg);
 				usage(argv[0]);
 			}
+			break;
+		case 'r':
+			/* parse ID:URL */
+			remote_id = strtoul(optarg, &s, 10);
+			if (s[0] == ':')
+                                remote_uri = strdup (& s[1]);
+                        
+                        if (remote_id < 0 || remote_uri == 0 || remote_uri[0] == '\0') {
+                                err(_("Cannot process remote id option '%s'.\n"), optarg);
+				usage(argv[0]);
+                        }
 			break;
 		default:
 			usage(argv[0]);
@@ -251,7 +269,7 @@ void parse_args(int argc, char **argv)
 void usage(char *prog)
 {
 	err(_("\n%s [-v] [-w] [-u] [-c cmd ] [-x pid] [-u user] [-A|-L|-d]\n"
-                "\t[-b bufsize] [-o FILE [-D] [-S size[,N]]] MODULE [module-options]\n"), prog);
+                "\t[-b bufsize] [-R] [-r N:URI] [-o FILE [-D] [-S size[,N]]] MODULE [module-options]\n"), prog);
 	err(_("-v              Increase verbosity.\n"
 	"-w              Suppress warnings.\n"
 	"-u              Load uprobes.ko\n"
@@ -278,6 +296,7 @@ void usage(char *prog)
 #else
         "-R              (Module renaming is not available in this configuration.)\n"
 #endif
+        "-r N:URI        Pass N:URI data to tapset functions remote_id()/remote_uri().\n"
 	"-D              Run in background. This requires '-o' option.\n"
 	"-S size[,N]     Switches output file to next file when the size\n"
 	"                of file reaches the specified size. The value\n"
@@ -478,7 +497,7 @@ err:
  *      @data: pointer to the data to be sent
  *      @len: length of the data to be sent
  *
- *      Returns 0 on success, negative otherwise.
+ *      Returns 0 on success, non-zero otherwise.
  */
 int send_request(int type, void *data, int len)
 {
@@ -487,17 +506,20 @@ int send_request(int type, void *data, int len)
 
 	PROBE3(stapio, send__ctlmsg, type, data, len);
 	/* Before doing memcpy, make sure 'buf' is big enough. */
-	if ((len + 4) > (int)sizeof(buf)) {
+	if ((len + sizeof(type)) > (int)sizeof(buf)) {
 		_err(_("exceeded maximum send_request size.\n"));
 		return -1;
 	}
-	memcpy(buf, &type, 4);
-	memcpy(&buf[4], data, len);
+	memcpy(buf, &type, sizeof (type));
+	memcpy(&buf[sizeof (type)], data, len);
 
+	errno = 0;
         assert (control_channel >= 0);
-	rc = write (control_channel, buf, len + 4);
+	rc = write (control_channel, buf, len + sizeof (type));
         if (rc < 0) return rc;
-        return (rc != len+4);
+	/* A bug in the transport layer of older modules causes them to return sizeof (type) fewer
+	   bytes written than actual. This is fixed in newer modules. So accept both. */
+	return (rc != len && rc != len + (int)sizeof (type));
 }
 
 #include <stdarg.h>
