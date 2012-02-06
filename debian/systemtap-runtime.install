@@ -1,3 +1,5 @@
 usr/bin/staprun
+usr/bin/stap-merge
 usr/lib/systemtap/stapio
 usr/share/man/man8/staprun.8
+usr/share/man/man1/stap-merge.1
