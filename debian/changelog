@@ -1,5 +1,9 @@
 systemtap (1.7-1~experimental1) experimental; urgency=low
 
+  [ Ritesh Raj Sarraf ]
+  * Add Timo Juhani Lindfors to Uploaders.
+
+  [ Timo Juhani Lindfors ]
   * New Upstream Release.
   * Drop patches that are obsolete or accepted upstream:
     dont-build-pdfdocs.diff dont-remove-scripts.diff
