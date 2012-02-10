@@ -1,4 +1,4 @@
-systemtap (1.7-1~try1) UNRELEASED; urgency=low
+systemtap (1.7-1~experimental1) experimental; urgency=low
 
   * New Upstream Release.
   * Drop patches that are obsolete or accepted upstream:
