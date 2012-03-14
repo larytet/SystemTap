@@ -7,6 +7,8 @@ Subject: [PATCH] Update stappaths paths to reflect reality a bit better
  stappaths.7.in |   18 +++++++++---------
  1 files changed, 9 insertions(+), 9 deletions(-)
 
+Applied-Upstream: http://sources.redhat.com/git/gitweb.cgi?p=systemtap.git;a=commit;h=c5c20fc9771be801f71e970b512a11fabf161477
+
 diff --git a/stappaths.7.in b/stappaths.7.in
 index 9f00dda..52fee6d 100644
 --- a/stappaths.7.in
