@@ -1,3 +1,11 @@
+systemtap (1.7-1) unstable; urgency=low
+
+  * Explicitly list supported architectures of systemtap-sdt-dev.
+  * Bump Standards-Version to 3.9.3, no changes were needed
+  * Apply upstream fix for CVE-2012-0875 (Closes: #660886, #660929)
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Wed, 14 Mar 2012 14:23:00 +0200
+
 systemtap (1.7-1~experimental1) experimental; urgency=low
 
   [ Ritesh Raj Sarraf ]
