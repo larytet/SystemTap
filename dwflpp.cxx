@@ -2186,10 +2186,11 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
         }
       else
         {
+          string target_modename = sess.system_root.get_target_name(modname);
           enable_task_finder (sess);
           obstack_printf (pool, "({ unsigned long addr = 0; ");
           obstack_printf (pool, "addr = _stp_umodule_relocate (\"%s\",%#" PRIx64 ", current); ",
-                          canonicalize_file_name(modname), reloc_address);
+                          target_modename.c_str(), reloc_address);
           obstack_printf (pool, "addr; })");
         }
     }

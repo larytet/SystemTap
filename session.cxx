@@ -134,6 +134,8 @@ systemtap_session::systemtap_session ():
   compatible = VERSION; // XXX: perhaps also process GIT_SHAID if available?
   unwindsym_ldd = false;
   client_options = false;
+  target_cc_cmd = "gcc";
+  make_cmd = "make";
   server_cache = NULL;
   automatic_server_mode = false;
   use_server_on_error = false;
@@ -208,6 +210,16 @@ systemtap_session::systemtap_session ():
   const char* s_kr = getenv ("SYSTEMTAP_RELEASE");
   if (s_kr != NULL) {
     setup_kernel_release(s_kr);
+  }
+
+  const char* s_cc = getenv ("SYSTEMTAP_TARGET_CC");
+  if (s_cc != NULL) {
+    target_cc_cmd = s_cc;
+  }
+
+  const char* s_mk = getenv ("SYSTEMTAP_MAKE");
+  if (s_mk != NULL) {
+    make_cmd = s_mk;
   }
 }
 
@@ -591,7 +603,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         { "tmpdir", 1, &long_opt, LONG_OPT_TMPDIR },
         { NULL, 0, NULL, 0 }
       };
-      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:",
+      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:",
 			     long_options, NULL);
       // NB: when adding new options, consider very carefully whether they
       // should be restricted from stap clients (after --client-options)!
@@ -865,6 +877,17 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  push_server_opt = true;
           kbuildflags.push_back (string (optarg));
 	  break;
+
+        case 'y':
+          cross_compilation = true;
+          system_root.set_env_path("SYSTEMTAP_CROSS_PATH");
+          system_root.set_ld_library_path("SYSTEMTAP_CROSS_LD_LIBRARY_PATH");
+          system_root.set_sysroot(string (optarg));
+          break;
+
+        case 'M':
+          system_root.set_special_mapping(string (optarg));
+          break;
 
         case 0:
           switch (long_opt)

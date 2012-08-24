@@ -92,7 +92,7 @@ static vector<string>
 make_make_cmd(systemtap_session& s, const string& dir)
 {
   vector<string> make_cmd;
-  make_cmd.push_back("make");
+  make_cmd.push_back(s.make_cmd);
   make_cmd.push_back("-C");
   make_cmd.push_back(s.kernel_build_tree);
   make_cmd.push_back("M=" + dir); // need make-quoting?
@@ -424,6 +424,16 @@ uprobes_pass (systemtap_session& s)
   }
 
   /*
+   * In cross compilation mode, uprobes built already and should be
+   * on target device.
+   */
+  if (s.cross_compilation) {
+    string uprobes_home = s.runtime_path + "/uprobes";
+    return copy_file(uprobes_home + "/Module.symvers",
+                     s.tmpdir + "/Module.symvers");
+  }
+
+  /*
    * We need to use the version of uprobes that comes with SystemTap.  Try to
    * get it from the cache first.  If not found, build it and try to save it to
    * the cache for future reuse.
@@ -664,7 +674,7 @@ make_typequery_umod(systemtap_session& s, const vector<string>& headers, string&
   // trickier to deal with.  It might be better to "cd `dirname $script`"
   // first...
   vector<string> cmd;
-  cmd.push_back("gcc");
+  cmd.push_back(s.target_cc_cmd);
   cmd.push_back("-shared");
   cmd.push_back("-g");
   cmd.push_back("-fno-eliminate-unused-debug-types");

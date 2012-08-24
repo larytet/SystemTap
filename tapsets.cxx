@@ -537,13 +537,13 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
       has_process = get_string_param(params, TOK_PROCESS, module_val);
       has_library = get_string_param (params, TOK_LIBRARY, library_name);
       if (has_process)
-        module_val = find_executable (module_val);
+        module_val = sess.system_root.find_executable (module_val);
       if (has_library)
         {
           if (! contains_glob_chars (library_name))
             {
               path = module_val;
-              module_val = find_executable (library_name, "LD_LIBRARY_PATH");
+              module_val = sess.system_root.find_library (library_name);
             }
           else
             path = library_name;
@@ -1966,7 +1966,7 @@ query_one_library (const char *library, dwflpp & dw,
 {
   if (dw.function_name_matches_pattern(library, user_lib))
     {
-      string library_path = find_executable (library, "LD_LIBRARY_PATH");
+      string library_path = dw.sess.system_root.find_library (library);
       probe_point* specific_loc = new probe_point(*base_loc);
       specific_loc->optional = true;
       vector<probe_point::component*> derived_comps;
@@ -3724,6 +3724,7 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
   for (unsigned i = 0; !result && i < modules.size(); ++i)
     {
       string& module = modules[i];
+      string orig_module = modules[i];
       filter_special_modules(module);
 
       // NB: This uses '/' to distinguish between kernel modules and userspace,
@@ -3738,8 +3739,18 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 	      dw = db.get_kern_dw(s, module);
 	    }
 	  else
-	    {
-	      module = find_executable (module); // canonicalize it
+            {
+              if (orig_module.compare(module))
+                {
+                  // NB: if module name is different we compiled special module
+                  // for given header file(s), so it is in our temporary directory
+                  // otherwise it is some module in target root file system
+                  module = find_executable (module); // canonicalize it
+                }
+              else
+                {
+                  module = s.system_root.find_executable (module);
+                }
 	      dw = db.get_user_dw(s, module);
 	    }
 	}
@@ -4403,19 +4414,19 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 	    {
 	      s.op->line() << " .finder={";
 	      s.op->line() << " .pid=0,";
-	      s.op->line() << " .procname=\"" << p->user_path << "\",";
+	      s.op->line() << " .procname=\"" << s.system_root.get_target_name(p->user_path) << "\",";
 	      s.op->line() << " .mmap_callback=&stap_kprobe_mmap_found,";
 	      s.op->line() << " },";
-	      s.op->line() << " .pathname=\"" << p->user_lib << "\",";
+	      s.op->line() << " .pathname=\"" << s.system_root.get_target_name(p->user_lib) << "\",";
 	    }
 	  else
 	    {
 	      s.op->line() << " .finder={";
 	      s.op->line() << " .pid=0,";
-	      s.op->line() << " .procname=\"" << p->user_path << "\",";
+	      s.op->line() << " .procname=\"" << s.system_root.get_target_name(p->user_path) << "\",";
 	      s.op->line() << " .callback=&stap_kprobe_process_found,";
 	      s.op->line() << " },";
-	      s.op->line() << " .pathname=\"" << p->user_path << "\",";
+	      s.op->line() << " .pathname=\"" << s.system_root.get_target_name(p->user_path) << "\",";
 	    }
 
 	}
@@ -6146,7 +6157,7 @@ dwarf_builder::build(systemtap_session & sess,
           return; // avoid falling through
         }
 
-      user_path = find_executable (module_name); // canonicalize it
+      user_path = sess.system_root.find_executable (module_name); // canonicalize it
 
       // if the executable starts with "#!", we look for the interpreter of the script
       {
@@ -6192,12 +6203,12 @@ dwarf_builder::build(systemtap_session & sess,
                     if (p3 != string::npos)
                     {
                        string env_path = path.substr(p3);
-                       user_path = find_executable (env_path);
+                       user_path = sess.system_root.find_executable (env_path);
                     }
                 }
                 else
                 {
-                   user_path = find_executable (path);
+                   user_path = sess.system_root.find_executable (path);
                 }
 
                 struct stat st;
@@ -6238,7 +6249,7 @@ dwarf_builder::build(systemtap_session & sess,
 
       get_param (parameters, TOK_LIBRARY, user_lib);
       if (user_lib.length() && ! contains_glob_chars (user_lib))
-        module_name = find_executable (user_lib, "LD_LIBRARY_PATH");
+        module_name = sess.system_root.find_library (user_lib);
       else
 	module_name = user_path; // canonicalize it
 
@@ -6836,20 +6847,20 @@ uprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
             s.op->line() << " .callback=&stap_uprobe_process_found,";
           else if (p->section == ".absolute") // proxy for ET_EXEC -> exec()'d program
             {
-              s.op->line() << " .procname=" << lex_cast_qstring(p->module) << ",";
+              s.op->line() << " .procname=" << lex_cast_qstring(s.system_root.get_target_name(p->module)) << ",";
               s.op->line() << " .callback=&stap_uprobe_process_found,";
             }
 	  else if (p->section != ".absolute") // ET_DYN
             {
 	      if (p->has_library)
-	        s.op->line() << " .procname=\"" << p->path << "\", ";
+	        s.op->line() << " .procname=\"" << s.system_root.get_target_name(p->path) << "\", ";
               s.op->line() << " .mmap_callback=&stap_uprobe_mmap_found, ";
               s.op->line() << " .munmap_callback=&stap_uprobe_munmap_found, ";
               s.op->line() << " .callback=&stap_uprobe_process_munmap,";
             }
           s.op->line() << " },";
           if (p->module != "")
-            s.op->line() << " .pathname=" << lex_cast_qstring(p->module) << ", ";
+            s.op->line() << " .pathname=" << lex_cast_qstring(s.system_root.get_target_name(p->module)) << ", ";
           s.op->line() << " },";
         }
       else
@@ -7543,7 +7554,7 @@ struct kprobe_builder: public derived_probe_builder
 
 
 void
-kprobe_builder::build(systemtap_session &,
+kprobe_builder::build(systemtap_session & sess,
 		      probe * base,
 		      probe_point * location,
 		      literal_map_t const & parameters,
@@ -7566,9 +7577,9 @@ kprobe_builder::build(systemtap_session &,
   has_library = get_param (parameters, TOK_LIBRARY, library);
 
   if (has_path)
-    path = find_executable (path);
+    path = sess.system_root.find_executable (path);
   if (has_library)
-    library = find_executable (library, "LD_LIBRARY_PATH");
+    library = sess.system_root.find_library (library);
 
   if (has_function_str)
     {

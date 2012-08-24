@@ -1,8 +1,12 @@
+#ifndef UTIL_H
+#define UTIL_H
+
 #include "config.h"
 #include <cstring>
 #include <cerrno>
 #include <string>
 #include <vector>
+#include <map>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -159,6 +163,37 @@ lex_cast_qstring(std::string const & in)
   return out;
 }
 
+class sysroot
+{
+private:
+  std::string _env_path;
+  std::string _env_ld_library_path;
+  std::vector<std::string> _sysroots;
+
+  typedef std::map<std::string, std::string> names_map_t;
+  names_map_t _map;
+
+  std::string find_in_sysroot(const std::string& name, const std::string& path);
+  int get_special_mapping(const std::string from, std::string &to);
+
+public:
+  sysroot() {
+    _env_path = "PATH";
+    _env_ld_library_path = "LD_LIBRARY_PATH";
+    _map = names_map_t();
+  }
+
+  void set_env_path(const std::string env_path) { _env_path = env_path; };
+  void set_ld_library_path(const std::string env_ld_library_path) { _env_ld_library_path = env_ld_library_path; };
+  void set_sysroot(const std::string sysroot_str);
+
+  void set_special_mapping(const std::string from, const std::string to);
+  void set_special_mapping(const std::string from_to);
+
+  std::string find_executable(const std::string& name);
+  std::string find_library(const std::string& name);
+  std::string get_target_name(const std::string& name);
+};
 
 // Delete all values from a map-like container and clear it
 // (The template is permissive -- be good!)
@@ -209,5 +244,6 @@ struct stap_sigmasker {
       }
 };
 
+#endif // UTIL_H
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

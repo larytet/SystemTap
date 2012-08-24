@@ -684,7 +684,234 @@ kill_stap_spawn(int sig)
   return spawned_pids.killall(sig);
 }
 
+void sysroot::set_sysroot(const std::string sysroot_str)
+{
+  if (sysroot_str[sysroot_str.size() - 1] == '/') {
+    // Remove trailing slash from sysroot
+    _sysroots.push_back(sysroot_str.substr(0, sysroot_str.size() - 1));
+  } else {
+    _sysroots.push_back(sysroot_str);
+  }
+}
 
+void sysroot::set_special_mapping(const std::string from,
+                                  const std::string to)
+{
+  _map[from] = to;
+}
+
+void sysroot::set_special_mapping(const std::string from_to)
+{
+  size_t equal_sign = from_to.find('=');
+  if (equal_sign != std::string::npos) {
+    std::string from = from_to.substr(0, equal_sign);
+    std::string to = from_to.substr(equal_sign + 1);
+    set_special_mapping(from, to);
+  }
+}
+
+int
+sysroot::get_special_mapping(const std::string from, std::string &to)
+{
+  int rc = 0;
+  names_map_t::iterator it = _map.find(from);
+  if (it != _map.end()) {
+    to = it->second;
+    rc = 1;
+  }
+  return rc;
+}
+
+string sysroot::find_in_sysroot (const string &name,
+                                 const string &env_path)
+{
+  string retpath;
+  size_t pos;
+  string _sysroot;
+
+  if (name.size() == 0)
+    return name;
+
+  struct stat st;
+
+  pos = name.find('/');
+  if (pos != string::npos) // slash in the path already?
+    {
+      if (_sysroots.size())
+        {
+          for (vector<string>::iterator s = _sysroots.begin(); s != _sysroots.end(); s++) {
+            _sysroot = *s;
+
+            if (pos == 0)
+              {
+                // name start with slash already
+                if ((name.find(_sysroot, 0)) == 0) {
+                  // name already has sysroot in it;
+                  // it could be just canonicalization request
+                  retpath = name;
+                  // no sense to check other possible values of sysroot
+                  break;
+                } else {
+                  retpath = _sysroot + name;
+                }
+              }
+            else
+              {
+                retpath = _sysroot + "/" + name;
+              }
+
+            // Look for a normal executable file.
+            const char *f = retpath.c_str();
+
+            if (access(f, X_OK) == 0
+                && stat(f, &st) == 0
+                && S_ISREG(st.st_mode))
+            {
+              // Yes, there is such executable file
+              break;
+            }
+
+            // otherwise try next sysroot variant
+          }
+        }
+      else
+        {
+          retpath = name;
+        }
+    }
+  else // Nope, search $PATH.
+    {
+      char *path = getenv(env_path.c_str());
+      if (path)
+        {
+          // Split PATH up.
+          vector<string> dirs;
+          tokenize(string(path), dirs, string(":"));
+
+          if (_sysroots.size()) {
+            bool continue_search = true;
+
+            // Iterate over list of possible sysroots given to us; for each sysroot
+            // check all value in path
+            for (vector<string>::iterator s = _sysroots.begin(); s != _sysroots.end() && continue_search; s++) {
+              _sysroot = *s;
+
+              // Search the path looking for the first executable of the right name.
+              for (vector<string>::iterator i = dirs.begin(); i != dirs.end() && continue_search; i++)
+                {
+                  string fname;
+                  if ((*i).find(_sysroot, 0) == 0) {
+                    fname = *i + "/" + name;
+                  } else {
+                    fname = _sysroot + *i + "/" + name;
+                  }
+                  const char *f = fname.c_str();
+
+                  // Look for a normal executable file.
+                  if (access(f, X_OK) == 0
+                      && stat(f, &st) == 0
+                      && S_ISREG(st.st_mode))
+                    {
+                      retpath = fname;
+                      continue_search = false;
+                    }
+                }
+            }
+          } else {
+            // Search the path looking for the first executable of the right name.
+            for (vector<string>::iterator i = dirs.begin(); i != dirs.end(); i++)
+              {
+                string fname;
+                fname = *i + "/" + name;
+
+                const char *f = fname.c_str();
+
+                // Look for a normal executable file.
+                if (access(f, X_OK) == 0
+                    && stat(f, &st) == 0
+                    && S_ISREG(st.st_mode))
+                  {
+                    retpath = fname;
+                    break;
+                  }
+              }
+          }
+        }
+    }
+
+
+  // Could not find the program on the $PATH.  We'll just fall back to
+  // the unqualified name, which our caller will probably fail with.
+  if (retpath == "")
+    retpath = name;
+
+  // Canonicalize the path name.
+  char *cf = canonicalize_file_name (retpath.c_str());
+  if (cf)
+    {
+      string newpath = string(cf);
+      if ((_sysroot.size() == 0) || (newpath.find(_sysroot, 0) == 0))
+      {
+        // Change path to canonical name only if sysroot is empty or
+        // new file name belongs to sysroot. Otherwise assume that
+        // target sysroot will be packaged following symlinks and
+        // real path is designated by symbolic link
+        retpath = newpath;
+      }
+      free (cf);
+    }
+
+  return retpath;
+}
+
+string sysroot::find_executable (const string& name)
+{
+  return find_in_sysroot(name, _env_path);
+}
+
+string sysroot::find_library (const string& name)
+{
+  return find_in_sysroot(name, _env_ld_library_path);
+}
+
+string sysroot::get_target_name (const std::string& name)
+{
+  string retpath;
+  string mapped_name;
+  int rc;
+  size_t matched_size = 0;
+
+  // Try to apply special mapping for input string
+  // Do we need to apply mapping recursively?
+  rc = get_special_mapping(name, mapped_name);
+  if (!rc) {
+    mapped_name = name;
+  }
+
+  retpath = name;
+
+  for (vector<string>::iterator s = _sysroots.begin(); s != _sysroots.end(); s++) {
+    if (name.find((*s), 0) == 0)
+      {
+        // name belongs to one of our system roots
+        size_t sysroot_size = (*s).size();
+        if (sysroot_size > matched_size) {
+          // we do longest match
+          retpath = mapped_name.substr((*s).size());
+          matched_size = sysroot_size;
+        }
+      }
+  }
+
+  // Try to apply special mapping for output string
+  // Do we need to apply mapping recursively?
+  rc = get_special_mapping(retpath, mapped_name);
+  if (!rc) {
+    mapped_name = retpath;
+  }
+
+  return mapped_name;
+}
 
 void assert_regexp_match (const string& name, const string& value, const string& re)
 {

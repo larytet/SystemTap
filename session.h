@@ -21,6 +21,8 @@
 #include <map>
 #include <set>
 
+#include "util.h"
+
 extern "C" {
 #include <signal.h>
 #include <elfutils/libdw.h>
@@ -174,6 +176,7 @@ public:
   bool load_only; // flight recorder mode
   bool omit_werror;
   bool unprivileged;
+  bool cross_compilation;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
 
@@ -194,6 +197,11 @@ public:
   std::vector<std::string> server_args;
   std::string winning_server;
   compile_server_cache* server_cache;
+
+  // Cross compilation
+  std::string target_cc_cmd;
+  std::string make_cmd;
+  sysroot system_root;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).

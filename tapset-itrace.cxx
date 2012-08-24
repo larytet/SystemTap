@@ -114,7 +114,7 @@ struct itrace_builder: public derived_probe_builder
     // If we have a path, we need to validate it.
     if (has_path)
       {
-        path = find_executable (path);
+        path = sess.system_root.find_executable (path);
         sess.unwindsym_modules.insert (path);
       }
 
@@ -150,7 +150,7 @@ itrace_derived_probe_group::emit_probe_decl (systemtap_session& s,
 
   if (p->has_path)
     {
-      s.op->line() << " .procname=\"" << p->path << "\",";
+      s.op->line() << " .procname=\"" << s.system_root.get_target_name(p->path) << "\",";
       s.op->line() << " .pid=0,";
     }
   else

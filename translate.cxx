@@ -5356,7 +5356,8 @@ dump_unwindsyms (Dwfl_Module *m,
 
   // For user space modules store canonical path and base name.
   // For kernel modules just the name itself.
-  const char *mainpath = canonicalize_file_name(mainfile);
+  string mainpath_string = c->session.system_root.get_target_name(mainfile);
+  const char *mainpath = mainpath_string.c_str();
   const char *mainname = strrchr(mainpath, '/');
   if (modname[0] == '/')
     mainname++;
