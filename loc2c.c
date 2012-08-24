@@ -2111,7 +2111,7 @@ c_translate_pointer (struct obstack *pool, int indent,
   Dwarf_Attribute attr_mem;
   Dwarf_Word byte_size;
   if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &attr_mem) == NULL)
-    byte_size = 0;
+      byte_size = max_fetch_size(*input, typedie);
   else if (dwarf_formudata (&attr_mem, &byte_size) != 0)
     FAIL (*input,
 	  N_("cannot get byte_size attribute for type %s: %s"),
@@ -2200,7 +2200,7 @@ c_translate_pointer_store (struct obstack *pool, int indent,
   Dwarf_Attribute attr_mem;
   Dwarf_Word byte_size;
   if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &attr_mem) == NULL)
-    byte_size = 0;
+    byte_size = max_fetch_size(*input, typedie);
   else if (dwarf_formudata (&attr_mem, &byte_size) != 0)
     FAIL (*input,
 	  N_("cannot get byte_size attribute for type %s: %s"),
