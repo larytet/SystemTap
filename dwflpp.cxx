@@ -2256,6 +2256,11 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
         {
           string target_modename = sess.system_root.get_target_name(modname);
           enable_task_finder (sess);
+          /*
+           * _stp_umodule_relocate uses stap_find_vma_map_info_user function. It
+           * needs  __stp_tf_vma_map be filled in - enable vma_tracker
+           */
+          enable_vma_tracker (sess);
           obstack_printf (pool, "({ unsigned long addr = 0; ");
           obstack_printf (pool, "addr = _stp_umodule_relocate (\"%s\",%#" PRIx64 ", current); ",
                           target_modename.c_str(), reloc_address);
