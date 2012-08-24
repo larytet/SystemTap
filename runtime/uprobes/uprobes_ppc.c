@@ -330,8 +330,8 @@ mtspr_out:
 }
 
 /* Check if instruction can be emulated and return 1 if emulated. */
-static int uprobe_emulate_insn(struct pt_regs *regs,
-						struct uprobe_probept *ppt)
+static int uprobe_emulate_insn(struct pt_regs *regs, struct uprobe_probept *ppt,
+						struct uprobe_task *utask)
 {
 	unsigned int insn = *ppt->insn;
 

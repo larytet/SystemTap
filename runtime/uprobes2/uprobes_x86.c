@@ -744,8 +744,8 @@ unsigned long arch_hijack_uret_addr(unsigned long trampoline_address,
 }
 
 /* Check if instruction is nop and return true. */
-static int uprobe_emulate_insn(struct pt_regs *regs,
-						struct uprobe_probept *ppt)
+static int uprobe_emulate_insn(struct pt_regs *regs, struct uprobe_probept *ppt,
+						struct uprobe_task *utask)
 {
 	uprobe_opcode_t *insn = ppt->insn;
 

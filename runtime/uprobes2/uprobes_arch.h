@@ -6,6 +6,8 @@
 #include "../uprobes/uprobes_s390.h"
 #elif defined (__ia64__)
 #include "../uprobes/uprobes_ia64.h"
+#elif defined (__mips__)
+#include "uprobes_mips.h"
 #else
 #error "Unsupported architecture"
 #endif

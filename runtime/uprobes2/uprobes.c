@@ -52,15 +52,12 @@
 #define MAX_SSOL_SLOTS	1024
 #define SLOT_SIZE	MAX_UINSN_BYTES
 
-#define NO_ACCESS_PROCESS_VM_EXPORT
-#ifdef NO_ACCESS_PROCESS_VM_EXPORT
+#ifndef ACCESS_PROCESS_VM_EXPORTED
 static int __access_process_vm(struct task_struct *tsk, unsigned long addr,
 	void *buf, int len, int write);
 #define access_process_vm __access_process_vm
-#else
-extern int access_process_vm(struct task_struct *tsk, unsigned long addr,
-	void *buf, int len, int write);
 #endif
+
 static int utask_fake_quiesce(struct uprobe_task *utask);
 
 static void uretprobe_handle_entry(struct uprobe *u, struct pt_regs *regs,
@@ -98,6 +95,15 @@ static DEFINE_SPINLOCK(utask_table_lock);
 #define lock_utask_table(flags) spin_lock_irqsave(&utask_table_lock, (flags))
 #define unlock_utask_table(flags) \
 	spin_unlock_irqrestore(&utask_table_lock, (flags))
+
+/*
+ * If platform code did not define IS_BREAKPOINT_INSTRUCTION, use
+ * comparision against opcode
+ */
+#ifndef IS_BREAKPOINT_INSTRUCTION
+#define IS_BREAKPOINT_INSTRUCTION(opcode) \
+    ((opcode) == BREAKPOINT_INSTRUCTION)
+#endif /* IS_BREAKPOINT_INSTRUCTION */
 
 /* p_uprobe_utrace_ops = &uprobe_utrace_ops.  Fwd refs are a pain w/o this. */
 static const struct utrace_engine_ops *p_uprobe_utrace_ops;
@@ -277,7 +283,7 @@ static void insert_bkpt(struct uprobe_probept *ppt, struct task_struct *tsk)
 		goto out;
 	}
 	memcpy(&ppt->opcode, ppt->insn, BP_INSN_SIZE);
-	if (ppt->opcode == BREAKPOINT_INSTRUCTION) {
+	if (IS_BREAKPOINT_INSTRUCTION(ppt->opcode)) {
 		/*
 		 * To avoid filling up the log file with complaints
 		 * about breakpoints already existing, don't log this
@@ -1348,7 +1354,7 @@ static unsigned long find_next_possible_ssol_vma(unsigned long ceiling)
 	struct mm_struct *mm;
 	struct rb_node *rb_node;
 	struct vm_area_struct *vma;
-	unsigned long good_flags = VM_EXEC | VM_DONTEXPAND;
+	unsigned long good_flags = VM_EXEC | VM_DONTEXPAND | VM_READ;
 	unsigned long bad_flags = VM_WRITE | VM_GROWSDOWN | VM_GROWSUP;
 	unsigned long addr = 0;
 
@@ -1425,13 +1431,13 @@ static noinline unsigned long uprobe_setup_ssol_vma(unsigned long nbytes)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,28)
 	file = shmem_file_setup("uprobes/ssol", nbytes, VM_NORESERVE);
 	if (file) {
-		addr = do_mmap_pgoff(file, addr, nbytes, PROT_EXEC,
+		addr = do_mmap_pgoff(file, addr, nbytes, PROT_EXEC|PROT_READ,
 				     MAP_PRIVATE, 0);
 		fput(file);
 	}
 	if (!file || addr & ~PAGE_MASK) {
 #else
-	addr = do_mmap_pgoff(NULL, addr, nbytes, PROT_EXEC,
+	addr = do_mmap_pgoff(NULL, addr, nbytes, PROT_EXEC|PROT_READ,
 					MAP_PRIVATE|MAP_ANONYMOUS, 0);
 	if (addr & ~PAGE_MASK) {
 #endif
@@ -2006,7 +2012,7 @@ static u32 uprobe_report_signal(u32 action,
 			}
 		}
 
-		if (uprobe_emulate_insn(regs, ppt))
+		if (uprobe_emulate_insn(regs, ppt, utask))
 			goto bkpt_done;
 
 		utask->state = UPTASK_PRE_SSTEP;
@@ -2025,7 +2031,10 @@ static u32 uprobe_report_signal(u32 action,
 		utask_adjust_flags(utask, UPROBE_SET_FLAGS,
 							UTRACE_EVENT(QUIESCE));
 		/* Don't deliver this signal to the process. */
-		resume_action = UTRACE_SINGLESTEP;
+		if (arch_has_single_step())
+			resume_action = UTRACE_SINGLESTEP;
+		else
+			resume_action = UTRACE_RESUME;
 		signal_action = UTRACE_SIGNAL_IGN;
 		break;
 	case UPTASK_SSTEP:
@@ -2990,7 +2999,7 @@ struct uprobe_probept *updebug_find_probept(struct uprobe_process *uproc,
 EXPORT_SYMBOL_GPL(updebug_find_probept);
 #endif /* UPROBES_DEBUG */
 
-#ifdef NO_ACCESS_PROCESS_VM_EXPORT
+#ifndef ACCESS_PROCESS_VM_EXPORTED
 /*
  * Some kernel versions export everything that uprobes.ko needs except
  * access_process_vm, so we copied and pasted it here.  Fortunately,
