@@ -1245,7 +1245,7 @@ systemtap_session::check_options (int argc, char * const argv [])
       usage(1);
     }
   // Warn in case the target kernel release doesn't match the running one.
-  if (last_pass > 4 &&
+  if (last_pass > 4 && remote_uris.empty() &&
       (release != kernel_release ||
        machine != architecture)) // NB: squashed ARCH by PR4186 logic
    {
