@@ -355,7 +355,6 @@ int parse_kernel_exports (systemtap_session &s)
       vector<string> tokens;
       tokenize (line, tokens, "\t");
       if (tokens.size() == 4 &&
-          tokens[2] == "vmlinux" &&
           tokens[3].substr(0,13) == string("EXPORT_SYMBOL"))
         s.kernel_exports.insert (tokens[1]);
     }
