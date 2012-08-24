@@ -2489,7 +2489,7 @@ dwflpp::translate_location(struct obstack *pool,
   Dwarf_Op *cfa_ops = get_cfa_ops (addr);
   return c_translate_location (pool, &loc2c_error, this,
                                &loc2c_emit_address,
-                               1, 0 /* PR9768 */,
+                               1, module_bias,
                                pc, attr, expr, len, tail, fb_attr, cfa_ops,
                                byteswap_needed);
 }
@@ -2670,7 +2670,7 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
           if (pool)
-            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+            c_translate_pointer (pool, 1, module_bias, typedie, tail);
           dwarf_die_type (typedie, typedie, c.tok);
           break;
 
@@ -2681,7 +2681,7 @@ dwflpp::translate_components(struct obstack *pool,
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
           if (pool)
-            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+            c_translate_pointer (pool, 1, module_bias, typedie, tail);
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -2694,14 +2694,14 @@ dwflpp::translate_components(struct obstack *pool,
           if (c.type == target_symbol::comp_literal_array_index)
             {
               if (pool)
-                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                c_translate_array (pool, 1, module_bias, typedie, tail,
                                    NULL, c.num_index);
             }
           else if (c.type == target_symbol::comp_expression_array_index)
             {
               string index = "THIS->index" + lex_cast(i);
               if (pool)
-                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                c_translate_array (pool, 1, module_bias, typedie, tail,
                                    index.c_str(), 0);
             }
           else
@@ -2829,7 +2829,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
         throw semantic_error (_("cannot take address of bit-field"), e->tok);
 
-      c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "THIS->__retvalue");
+      c_translate_addressof (pool, 1, module_bias, vardie, typedie, tail, "THIS->__retvalue");
       ty = pe_long;
       return;
     }
@@ -2881,10 +2881,10 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
 
       ty = pe_long;
       if (lvalue)
-        c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
+        c_translate_store (pool, 1, module_bias, vardie, typedie, tail,
                            "THIS->value");
       else
-        c_translate_fetch (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
+        c_translate_fetch (pool, 1, module_bias, vardie, typedie, tail,
                            "THIS->__retvalue");
       break;
 
@@ -2902,7 +2902,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                 typetag == DW_TAG_rvalue_reference_type)
               throw semantic_error (_("cannot write to reference"), e->tok);
             assert (typetag == DW_TAG_pointer_type);
-            c_translate_pointer_store (pool, 1, 0 /* PR9768 */, typedie, tail,
+            c_translate_pointer_store (pool, 1, module_bias, typedie, tail,
                                        "THIS->value");
           }
         else
@@ -2916,10 +2916,10 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
 
             ty = pe_long;
             if (typetag == DW_TAG_array_type)
-              c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
+              c_translate_array (pool, 1, module_bias, typedie, tail, NULL, 0);
             else
-              c_translate_pointer (pool, 1, 0 /* PR9768 */, typedie, tail);
-            c_translate_addressof (pool, 1, 0 /* PR9768 */, NULL, NULL, tail,
+              c_translate_pointer (pool, 1, module_bias, typedie, tail);
+            c_translate_addressof (pool, 1, module_bias, NULL, NULL, tail,
                                    "THIS->__retvalue");
           }
       break;
@@ -3036,10 +3036,14 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
       // If it is an external variable try the symbol table. PR10622.
       if (dwarf_attr_integrate (&vardie, DW_AT_external, &attr_mem) != NULL
 	  && vardie_from_symtable (&vardie, &addr_loc.number) != 0)
-	{
+        {
+          // vardie_from_symtable returns address with bias value
+          // and c_translate_location adjusts for bias, let's compensate
+          // for it here
+          addr_loc.number -= module_bias;
 	  head = c_translate_location (&pool, &loc2c_error, this,
 				       &loc2c_emit_address,
-				       1, 0, pc,
+				       1, module_bias, pc,
 				       NULL, &addr_loc, 1, &tail, NULL, NULL,
                                        false);
 	}
@@ -3130,7 +3134,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
 
   struct location  *head = c_translate_location (&pool, &loc2c_error, this,
                                                  &loc2c_emit_address,
-                                                 1, 0 /* PR9768 */,
+                                                 1, module_bias,
                                                  pc, NULL, locops, nlocops,
                                                  &tail, NULL, NULL,
                                                  false);
