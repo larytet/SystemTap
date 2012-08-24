@@ -278,6 +278,7 @@ static int _stp_build_id_check (struct _stp_module *m, unsigned long notes_addr,
       else
 	basename = m->path;
 
+#if !defined(DISABLE_BUILDID_CHECK)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
       _stp_error ("Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) address %#lx rc %d\n",
 		  m->name, basename, j, theory, practice, notes_addr, rc);
@@ -289,6 +290,7 @@ static int _stp_build_id_check (struct _stp_module *m, unsigned long notes_addr,
 		 "Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) rc %d\n",
 		 m->name, basename, j, theory, practice, rc);
 #endif
+#endif /* !defined(DISABLE_BUILDID_CHECK) */
       break;
     } /* end mismatch */
   } /* end per-byte check loop */
