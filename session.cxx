@@ -106,6 +106,7 @@ systemtap_session::systemtap_session ():
 #else
   prologue_searching = false;
 #endif
+  no_userland_prologue_searching = false;
 
   buffer_size = 0;
   last_pass = 5;
@@ -604,7 +605,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         { "tmpdir", 1, &long_opt, LONG_OPT_TMPDIR },
         { NULL, 0, NULL, 0 }
       };
-      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:i:",
+      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPUc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:i:",
 			     long_options, NULL);
       // NB: when adding new options, consider very carefully whether they
       // should be restricted from stap clients (after --client-options)!
@@ -781,6 +782,11 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case 'P':
 	  push_server_opt = true;
           prologue_searching = true;
+          break;
+
+        case 'U':
+          push_server_opt = true;
+          no_userland_prologue_searching = true;
           break;
 
         case 'b':

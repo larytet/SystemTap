@@ -1302,7 +1302,7 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
     {
       dw.die_entrypc(fnscope, &addr);
       if (dwarf_tag(fnscope) == DW_TAG_subprogram &&
-          (q->sess.prologue_searching || q->has_process)) // PR 6871
+          (q->sess.prologue_searching || (q->has_process && (!q->sess.no_userland_prologue_searching)))) // PR 6871
         {
           func_info func;
           func.die = *fnscope;
@@ -1672,7 +1672,7 @@ query_cu (Dwarf_Die * cudie, void * arg)
       if (rc != DWARF_CB_OK)
         q->query_done = true;
 
-      if ((q->sess.prologue_searching || q->has_process) // PR 6871
+      if ((q->sess.prologue_searching || (q->has_process &&(!q->sess.no_userland_prologue_searching))) // PR 6871
           && !q->has_statement_str) // PR 2608
         if (! q->filtered_functions.empty())
           q->dw.resolve_prologue_endings (q->filtered_functions);

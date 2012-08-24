@@ -169,6 +169,7 @@ public:
   bool panic_warnings;
   int buffer_size;
   bool prologue_searching;
+  bool no_userland_prologue_searching;
   bool tapset_compile_coverage;
   bool need_uprobes;
   std::string uprobes_path;
