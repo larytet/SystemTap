@@ -34,6 +34,7 @@ extern "C" {
 #include <elfutils/libdwfl.h>
 #include <elfutils/libdw.h>
 #include <ftw.h>
+#include <byteswap.h>
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 }
@@ -4738,6 +4739,8 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
   // So there is no need to read the CIEs.  And the size is either 4
   // or 8, depending on the elf class from e_ident.
   int size = (e_ident[EI_CLASS] == ELFCLASS32) ? 4 : 8;
+  bool other_byte_order = ((BYTE_ORDER == LITTLE_ENDIAN && e_ident[EI_DATA] == ELFDATA2MSB)
+                           || (BYTE_ORDER == BIG_ENDIAN && e_ident[EI_DATA] == ELFDATA2LSB));
   int res = 0;
   Dwarf_Off off = 0;
   Dwarf_CFI_Entry entry;
@@ -4755,9 +4758,19 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
 	    {
 	      Dwarf_Addr addr;
 	      if (size == 4)
-		addr = (*((uint32_t *) entry.fde.start));
+                {
+		  addr = (*((uint32_t *) entry.fde.start));
+                  if (other_byte_order) {
+                    addr = bswap_32(addr);
+                  }
+                }
 	      else
-		addr = (*((uint64_t *) entry.fde.start));
+                {
+		  addr = (*((uint64_t *) entry.fde.start));
+                  if (other_byte_order) {
+                    addr = bswap_64(addr);
+                  }
+                }
 	      fdes.insert(pair<Dwarf_Addr, Dwarf_Off>(addr, off));
 	    }
 	}
