@@ -15,6 +15,7 @@ probe syscall.sys64_time.return = kernel.function("sys64_time").return ?
 	retstr = return_str(1, $return)
 }
 
+%( CONFIG_PPC64 == "y" %?
 # ppc64_personality ________________________________________
 #
 # long ppc64_personality(unsigned long personality)
@@ -30,6 +31,7 @@ probe syscall.ppc64_personality.return = kernel.function("ppc64_personality").re
 	name = "ppc64_personality"
 	retstr = return_str(1, $return)
 }
+%)
 
 # ppc_rtas ________________________________________
 #

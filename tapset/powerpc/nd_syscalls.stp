@@ -17,6 +17,7 @@ probe nd_syscall.sys64_time.return = kprobe.function("sys64_time").return ?
 	retstr = returnstr(1)
 }
 
+%( CONFIG_PPC64 == "y" %?
 # ppc64_personality ________________________________________
 #
 # long ppc64_personality(unsigned long personality)
@@ -35,6 +36,7 @@ probe nd_syscall.ppc64_personality.return = kprobe.function("ppc64_personality")
 	name = "ppc64_personality"
 	retstr = returnstr(1)
 }
+%)
 
 # ppc_rtas ________________________________________
 #

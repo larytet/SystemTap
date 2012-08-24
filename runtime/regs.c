@@ -257,6 +257,44 @@ static void _stp_print_regs(struct pt_regs * regs)
 	_stp_printf("LR [%016lx]\n", regs->link);
 }
 
+#elif defined(__powerpc__)
+
+static int _stp_probing_32bit_app(struct pt_regs *regs)
+{
+	if (!regs)
+		return 0;
+	return 1;
+}
+
+static void _stp_print_regs(struct pt_regs * regs)
+{
+	int i;
+
+	_stp_printf("NIP: %08lX XER: %08X LR: %08lX CTR: %08lX\n",
+	       regs->nip, (unsigned int)regs->xer, regs->link, regs->ctr);
+	_stp_printf("REGS: %08lx TRAP: %04lx\n", (long)regs, regs->trap);
+	_stp_printf("MSR: %08lx CR: %08X\n",
+			regs->msr, (unsigned int)regs->ccr);
+	_stp_printf("DAR: %08lx DSISR: %08lx\n",
+		       	regs->dar, regs->dsisr);
+
+#ifdef CONFIG_SMP
+	_stp_printf(" CPU: %d", smp_processor_id());
+#endif /* CONFIG_SMP */
+
+	for (i = 0; i < 32; i++) {
+		if ((i % 4) == 0) {
+			_stp_printf("\n GPR%02d: ", i);
+		}
+
+		_stp_printf("%08lX ", regs->gpr[i]);
+		if (i == 13 && !FULL_REGS(regs))
+			break;
+	}
+	_stp_printf("\nNIP [%08lx] ", regs->nip);
+	_stp_printf("LR [%08lx]\n", regs->link);
+}
+
 #elif defined (__arm__)
 
 static const char *processor_modes[]=

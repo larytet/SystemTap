@@ -64,18 +64,24 @@ function probing_32bit_app() %{ /* pure */
 
 function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
 	long value;
+        long offset = THIS->offset;
+
+#if defined(__powerpc__) && !defined(__powerpc64__)
+        /* in 32 powerpc offset are half that we have in registration table */
+        offset = offset / 2;
+#endif /* defined(__powerpc__) && !defined(__powerpc64__) */
 	if (!CONTEXT->regs) {
 		CONTEXT->last_error = "No registers available in this context";
 		return;
 	}
-	if (THIS->offset < 0 || THIS->offset > sizeof(struct pt_regs) - sizeof(long)) {
+	if (offset < 0 || offset > sizeof(struct pt_regs) - sizeof(long)) {
 		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
 				"Bad register offset: %lld",
-				(long long)THIS->offset);
+				(long long)offset);
 		CONTEXT->last_error = CONTEXT->error_buffer;
 		return;
 	}
-	memcpy(&value, ((char *)CONTEXT->regs) + THIS->offset, sizeof(value));
+	memcpy(&value, ((char *)CONTEXT->regs) + offset, sizeof(value));
 	THIS->__retvalue = value;
 %}
 
