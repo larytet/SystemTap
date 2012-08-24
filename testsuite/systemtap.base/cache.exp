@@ -21,7 +21,7 @@ proc F_UNCACHED_NO_COMPILE {} {return [expr [F_UNCACHED] | [F_NO_COMPILE]]}
 # - script is the script to compile
 # Additional arguments are passed to stap as-is.
 proc cache_compile { TEST_NAME flags script args } {
-    set cmd [concat {stap -v -p4 -e} $script $args]
+    set cmd [concat {stap -v -p4} [stap_get_board_args] -e $script $args]
     
     eval spawn $cmd
     set cached 0

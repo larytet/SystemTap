@@ -16,7 +16,9 @@ set bad_kprobes {
 
 foreach bk $bad_kprobes {
     set test "bad kprobe registration: $bk"
-    spawn stap -g -e "$script" "$bk"
+    set cmd [concat stap [stap_get_board_args] -g -e "\'$script\'" "\'$bk\'"]
+    send_log "executing: cmd $cmd\n"
+    eval spawn stap [stap_get_board_args] -g -e {"$script"} {"$bk"}
     expect {
         -timeout 60
         -re "^WARNING: probe .*registration error.*\r\ncleanup ok\r\n" { pass $test }
@@ -29,7 +31,10 @@ foreach bk $bad_kprobes {
 
 foreach bk $bad_kprobes {
     set test "bad optional kprobe registration: $bk"
-    spawn stap -g -w -e "$script" "$bk ?"
+
+    set cmd [concat stap [stap_get_board_args] -g -e "\'$script\'" "\'$bk ?\'"]
+    send_log "executing: cmd $cmd\n"
+    eval spawn stap [stap_get_board_args] -g -w -e {"$script"} {"$bk ?"}
     expect {
         -timeout 60
         -re "^cleanup ok\r\n" { pass $test }

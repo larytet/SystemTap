@@ -2,7 +2,7 @@ set test "beginenderror"
 
 if {![installtest_p]} {untested $test; return}
 
-spawn stap $srcdir/$subdir/beginenderror.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/beginenderror.stp
 set ok1 0
 set ok2 0
 set ko 0

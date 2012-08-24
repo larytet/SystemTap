@@ -166,6 +166,7 @@ probe syscall.pwrite.return, syscall.pwrite32.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+%( CONFIG_QUOTACTL == "y" %?
 probe syscall.quotactl
 {
 	printf("%s(%s)\n", name, argstr)
@@ -176,6 +177,7 @@ probe syscall.quotactl.return
 {
 	printf("%s %s\n", name, retstr)
 }
+%)
 
 probe syscall.read
 {

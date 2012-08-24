@@ -2,13 +2,14 @@ set test "externalvar"
 set testpath "$srcdir/$subdir"
 set testsrc  "$testpath/$test.c"
 set testsrclib  "$testpath/${test}_lib.c"
-set testexe  "[pwd]/$test"
+set testexe  "[pwd]/[stap_host_testdir]/$test"
 set testlibname  "$test"
 set testlibdir "[pwd]"
-set testso  "$testlibdir/lib${testlibname}.so"
+set target_testlibdir "[stap_target_testdir]"
+set testso  "$testlibdir/[stap_host_testdir]/lib${testlibname}.so"
 set testflags "additional_flags=-g additional_flags=-O0"
 set testlibflags "$testflags additional_flags=-fPIC additional_flags=-shared"
-set maintestflags "$testflags additional_flags=-L$testlibdir additional_flags=-l$testlibname additional_flags=-Wl,-rpath,$testlibdir"
+set maintestflags "$testflags additional_flags=-L$testlibdir/[stap_host_testdir] additional_flags=-l$testlibname additional_flags=-Wl,-rpath,$target_testlibdir"
 
 # Only run on make installcheck and utrace present.
 if {! [installtest_p]} { untested "$test"; return }
@@ -44,8 +45,15 @@ lib_s->c = 3
 lib_s == lib_s->s1
 lib_s->s2 = 0x0}
 
+set testexe_short [file tail $testexe]
+if [is_remote target] {
+  set testso_short [file tail $testso]
+  remote_download target $testexe "[stap_target_testdir]/$testexe_short"
+  remote_download target $testso "[stap_target_testdir]/$testso_short"
+}
+
 # Got to run stap with both the exe and the libraries used as -d args.
-set cmd [concat stap -d $testso -d $testexe -c $testexe $testpath/$test.stp]
+set cmd [concat stap [stap_get_board_args] -d $testso -d $testexe -c "[stap_target_testdir]/$testexe_short" $testpath/$test.stp]
 send_log "cmd: $cmd\n"
 catch {eval exec $cmd} res
 send_log "cmd output: $res\n"
@@ -68,4 +76,9 @@ if { $n != $m } {
 } else {
   pass $test
 }
+
+if [is_remote target] {
+  remote_exec target "rm [stap_target_testdir]/$testexe_short [stap_target_testdir]/$testso_short"
+}
+
 catch {exec rm -f $testexe $testso}

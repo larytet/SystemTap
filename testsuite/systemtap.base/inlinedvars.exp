@@ -1,4 +1,5 @@
 set test "inlinedvars"
+set testexe  "[pwd]/[stap_host_testdir]/$test.exe"
 set ::result_string {call (22,84)
 call2 (128,-22)
 main (64,42)}
@@ -9,7 +10,7 @@ foreach opt $opt_flags {
   set test_flags "additional_flags=-g"
   set test_flags "$test_flags additional_flags=$opt"
 
-  set res [target_compile $srcdir/$subdir/$test.c $test.exe executable "$test_flags"]
+  set res [target_compile $srcdir/$subdir/$test.c $testexe executable "$test_flags"]
   if { $res != "" } {
     verbose "target_compile failed: $res" 2
     fail "compiling $test.c $opt"
@@ -20,9 +21,15 @@ foreach opt $opt_flags {
   }
 
   if {[installtest_p] && [uprobes_p]} {
-    stap_run3 "$test-$opt" $srcdir/$subdir/$test.stp $test.exe -c ./$test.exe
+    if [is_remote target] {
+        remote_download target $testexe "[stap_target_testdir]/$test.exe"
+    }
+    stap_run3 "$test-$opt" $srcdir/$subdir/$test.stp $testexe -c "[stap_target_testdir]/$test.exe"
   } else {
     untested "$test-$opt"
   }
-  catch {exec rm -f $test.exe}
+  if [is_remote target] {
+    remote_exec target "rm [stap_target_testdir]/$test.exe"
+  }
+  catch {exec rm -f $testexe}
 }

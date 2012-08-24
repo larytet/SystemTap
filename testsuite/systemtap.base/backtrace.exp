@@ -6,7 +6,7 @@ setup_kfail 6961 "*-*-*"
 
 set ok 0
 set ok2 0
-spawn stap $srcdir/$subdir/backtrace.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/backtrace.stp
 expect {
     -timeout 30
     -re {^[^\r\n ]*\r\n} { incr ok; exp_continue }
@@ -24,7 +24,7 @@ setup_kfail 6961 "*-*-*"
 
 set ok 0
 set ok2 0
-spawn stap $srcdir/$subdir/backtrace.stp -d kernel
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/backtrace.stp -d kernel
 expect {
     -timeout 30
     -re {^[^\r\n ]*\r\n} { incr ok; exp_continue }

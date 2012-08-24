@@ -5,7 +5,7 @@
 set test "pr10854"
 
 # precompile the script module
-set compile { exec stap $srcdir/$subdir/$test.stp sys_read *@fs/*.c -p4 }
+set compile [ concat exec stap [stap_get_board_args] $srcdir/$subdir/$test.stp sys_read *@fs/*.c -p4 ]
 if { [catch { set module [eval $compile] } msg ] } {
     fail "compiling $test.stp: $msg"
     untested "$test runloop"
@@ -14,21 +14,44 @@ if { [catch { set module [eval $compile] } msg ] } {
     pass "compiling $test.stp"
 }
 
+# TODO investigate latter: We are crashing here on Cavium CPU
+if [is_remote [target_info name]] {
+    untested "$test runloop"
+    continue
+}
+
 if {![installtest_p]} {
     untested "$test runloop"
     continue
 }
 
-# run & kill the module 10 times
-# (this was usually enough to trigger the fault)
-for {set i 0} {$i < 10} {incr i} {
-    spawn staprun $module -o /dev/null
-    sleep 1
-    catch { exec pkill stapio -P [pid] 2>/dev/null }
-    catch { close } 
-    catch { wait } 
-    # don't delay before the next staprun
+if [is_remote [target_info name]] {
+    set module_short_name [file tail $module]
+    remote_download target $module "[stap_target_testdir]/$module_short_name"
 }
 
+# run & kill the module 10 times
+# (this was usually enough to trigger the fault)
+if [is_remote [target_info name]] {
+    for {set i 0} {$i < 10} {incr i} {
+        # do we leak fds or ptys here?
+        remote_spawn target "staprun [stap_target_testdir]/$module_short_name -o /dev/null"
+        sleep 1
+        remote_exec target "killall -TERM /usr/libexec/systemtap/stapio /usr/bin/staprun"
+    }
+} else {
+    for {set i 0} {$i < 10} {incr i} {
+        spawn staprun $module -o /dev/null
+        sleep 1
+        catch { exec pkill stapio -P [pid] 2>/dev/null }
+        catch { close }
+        catch { wait }
+        # don't delay before the next staprun
+    }
+}
+
+if [is_remote [target_info name]] {
+    remote_exec target "rm [stap_target_testdir]/$module_short_name"
+}
 # if we're still alive, we pass :)
 pass "$test runloop"

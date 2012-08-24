@@ -7,11 +7,17 @@ set test_flags "additional_flags=-g"
 set test_flags "$test_flags additional_flags=-O2"
 set test_flags "$test_flags [sdt_includes]"
 
+if [board_info [target_info name] exists sysroot] {
+    set sysroot [board_info [target_info name] sysroot]
+} else {
+    set sysroot ""
+}
+
 # we deliberately don't #include time.h in the main CU
 # instead we pull the header in as a separate CU
 set test_flags "$test_flags additional_flags=-fno-eliminate-unused-debug-types"
 set test_flags "$test_flags additional_flags=-xc"
-set test_flags "$test_flags additional_flags=/usr/include/time.h"
+set test_flags "$test_flags additional_flags=$sysroot/usr/include/time.h"
 
 set res [target_compile "$srcdir/$subdir/$test.c" "$test.exe" executable "$test_flags"]
 if { $res != "" } {

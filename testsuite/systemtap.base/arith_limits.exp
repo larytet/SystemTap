@@ -1,7 +1,7 @@
 set test "arith_limits"
 if {![installtest_p]} { untested $test; return }
 
-spawn stap -DMAXNESTING=5 $srcdir/$subdir/arith_limits.stp
+eval spawn stap [stap_get_board_args] -DMAXNESTING=5 $srcdir/$subdir/arith_limits.stp
 set ok 0
 expect {
     -timeout 150

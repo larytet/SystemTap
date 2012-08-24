@@ -7,7 +7,8 @@ set never_found 0
 set kernel_function_found 0
 set timer_found 0
 
-set cmd "stap -p2 -I $srcdir/$subdir/${test} $srcdir/$subdir/${test}.stp"
+set stap_board_args [stap_get_board_args]
+set cmd "stap $stap_board_args -p2 -I $srcdir/$subdir/${test} $srcdir/$subdir/${test}.stp"
 verbose -log "running $cmd"
 eval spawn $cmd
 expect {

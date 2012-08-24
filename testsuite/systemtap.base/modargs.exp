@@ -5,7 +5,7 @@ set test "modargs"
 
 # precompile the script module
 set compile { exec stap $srcdir/$subdir/$test.stp -p4 -w }
-if { [catch { set module [eval $compile] } msg ] } {
+if { [catch { set module [eval $compile [stap_get_board_args]] } msg ] } {
     fail "$test compilation: $msg"
     untested "$test module arguments"
     continue
@@ -17,7 +17,14 @@ set test "modargs execution"
 if {! [installtest_p]} { untested $test; return }
 
 set ::result_string {initializedname=foo initializednumber=999 name=charley number=-1}
-set res [ exec staprun $module $::result_string ]
+if [is_remote [target_info name]] {
+   set module_short_name [file tail $module]
+   remote_download target $module "/tmp/$module_short_name"
+   set ret [remote_exec target "staprun /tmp/$module_short_name $::result_string"]
+   set res [lindex $ret 1]
+} else {
+   set res [ exec staprun $module $::result_string ]
+}
 
 if {[string compare $res $::result_string] == 0} {
     pass "$test"

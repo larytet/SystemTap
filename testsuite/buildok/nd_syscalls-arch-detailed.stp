@@ -155,6 +155,7 @@ probe nd_syscall.sys64_time.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+%( CONFIG_PPC64 == "y" %?
 probe nd_syscall.ppc64_personality
 {
 	printf("%s, %s\n", name, argstr)
@@ -164,6 +165,7 @@ probe nd_syscall.ppc64_personality.return
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 probe nd_syscall.ppc_rtas ?
 {

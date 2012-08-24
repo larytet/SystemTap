@@ -4,7 +4,7 @@ if {! [installtest_p]} { untested $test; return }
 
 set ok 0
 set ko 0
-spawn stap $srcdir/buildok/fortyone.stp
+eval spawn stap [stap_get_board_args] $srcdir/buildok/fortyone.stp
 expect {
     -timeout 30
     -re {^ERROR: MAXACTION[^\r\n]*\r\n} { incr ok; exp_continue }
@@ -24,7 +24,7 @@ set test "trycatch -u"
 
 set ok 0
 set ko 0
-spawn stap -u $srcdir/buildok/fortyone.stp
+eval spawn stap [stap_get_board_args] -u $srcdir/buildok/fortyone.stp
 expect {
     -timeout 30
     -re {^ERROR: MAXACTION[^\r\n]*\r\n} { incr ok; exp_continue }

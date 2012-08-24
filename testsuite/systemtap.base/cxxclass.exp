@@ -1,4 +1,5 @@
 set test "cxxclass"
+set testexe  "[pwd]/[stap_host_testdir]/$test.exe"
 set ::result_string {main_enter
 call: 64
 cons call: 64
@@ -13,13 +14,13 @@ main_exit}
 set test_flags "additional_flags=-g"
 set test_flags "$test_flags additional_flags=-O2"
 set test_flags "$test_flags [sdt_includes]"
-set test_flags "$test_flags compiler=g++"
+set test_flags "$test_flags c++"
 # ppc64 needs a more restrictive constraint for the probe args
 if {[regexp "^(x86_64|i.86)$" $::tcl_platform(machine)] == 0} {
 set test_flags "$test_flags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=nr"
 }
 
-set res [target_compile $srcdir/$subdir/$test.cxx $test.exe executable "$test_flags"]
+set res [target_compile $srcdir/$subdir/$test.cxx $testexe executable "$test_flags"]
 if { $res != "" } {
     verbose "target_compile failed: $res" 2
     fail "compiling $test.c"
@@ -30,8 +31,15 @@ if { $res != "" } {
 }
 
 if {[installtest_p] && [uprobes_p]} {
-  stap_run3 "$test" -w $srcdir/$subdir/$test.stp $test.exe -c ./$test.exe
+  if [is_remote target] {
+       remote_download target $testexe "[stap_target_testdir]/$test.exe"
+  }
+
+  stap_run3 "$test" -w $srcdir/$subdir/$test.stp $testexe -c "[stap_target_testdir]/$test.exe"
 } else {
   untested "$test"
 }
-catch {exec rm -f $test.exe}
+if [is_remote target] {
+  remote_exec target "rm [stap_target_testdir]/$test.exe"
+}
+catch {exec rm -f $testexe}

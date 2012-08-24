@@ -1,10 +1,16 @@
 set test "system_func"
 if {![installtest_p]} { untested $test; return }
-spawn stap $srcdir/$subdir/system_func.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/system_func.stp
 set open 0
 set done 0
 set saw_user 0
-set user [exec whoami]
+if [is_remote target] {
+     set ret [remote_exec target "whoami"]
+     set user [lindex $ret 1]
+} else {
+     set user [exec whoami]
+}
+
 expect {
     -timeout 30
     -re "($user|sys_open|DONE)\r" {

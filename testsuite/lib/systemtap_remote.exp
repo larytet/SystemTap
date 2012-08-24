@@ -1,0 +1,93 @@
+
+proc get_remote_kallsyms {} {
+    set remote_timeout 10
+
+    send_log "retrieving remote kallsyms\n"
+    remote_open target
+#    remote_spawn target "cp /proc/kallsyms /tmp"
+    remote_spawn target "cat /proc/kallsyms > /tmp/kallsyms"
+    remote_wait target $remote_timeout
+
+    remote_spawn target "chmod u+w /tmp/kallsyms"
+    remote_wait target $remote_timeout
+
+    remote_upload target "/tmp/kallsyms"
+
+    remote_spawn target "rm /tmp/kallsyms"
+    remote_wait target $remote_timeout
+
+    remote_close target
+    send_log "got remote kallsyms\n"
+}
+
+proc get_kallsyms {} {
+    set dest [target_info name]
+    # if stap_kallsyms defined in board information, we don't need
+    # to retrieve it from usual places, but rather copy from specified
+    # place
+    if [board_info $dest exists stap_kallsyms] {
+        set kallsyms_file [board_info $dest stap_kallsyms]
+        file copy -force $kallsyms_file .
+    } else {
+        if [is_remote target] {
+            get_remote_kallsyms
+        } else {
+            file copy -force /proc/kallsyms .
+        }
+    }
+}
+
+set remote_init_done 0
+#
+# We cannot do that while libaries loading because target info is
+# not set yet at this point, now our chance to do it
+proc systemtap_remote_init {} {
+    global remote_init_done
+    if { $remote_init_done == 0 } {
+        get_kallsyms
+        set remote_init_done 1
+    }
+}
+
+proc stap_get_board_args {} {
+    set dest [target_info name]
+    if [board_info $dest exists stap_board_args] {
+        set stap_board_args [board_info $dest stap_board_args]
+    } else {
+        set stap_board_args ""
+    }
+    return $stap_board_args
+}
+
+set stap_target_home ""
+
+proc stap_target_testdir {} {
+    set dest [target_info name]
+    if [is_remote $dest] {
+        if [board_info $dest exists stap_testdir] {
+            set target_testdir [board_info $dest stap_testdir]
+        } else {
+            # retrieve absolute name of home directory, once
+            global stap_target_home
+            if [ $stap_target_home == "" ] {
+                set ret [remote_exec target "pwd"]
+                set stap_target_home [lindex $ret 1]
+            }
+            set target_testdir $stap_target_home
+        }
+    } else {
+        set target_testdir "[pwd]"
+    }
+    return $target_testdir
+}
+
+proc stap_host_testdir {} {
+    if [is_remote [target_info name]] {
+	set td [stap_target_testdir]
+	set host_testdir "target_testdir$td"
+	file mkdir $host_testdir
+    } else {
+	set host_testdir "."
+    }
+    return $host_testdir
+}

@@ -5,7 +5,7 @@ set test "prcwildcard function"
 if {[stripped_p $stap_path]} {
     untested $test
 } else {
-    spawn stap -L "process(\"$stap_path\").function(\"*\")"
+    eval spawn stap [stap_get_board_args] -L {"process(\"$stap_path\").function(\"*\")"}
     set count 0
     expect {
 	-re {^process[^\r\n]+\r\n} { incr count; exp_continue }
@@ -17,7 +17,7 @@ if {[stripped_p $stap_path]} {
 }
 
 set test "prcwildcard mark"
-spawn stap -L "process(\"$stap_path\").mark(\"*\")"
+eval spawn stap [stap_get_board_args]  -L {"process(\"$stap_path\").mark(\"*\")"}
 set count 0
 expect {
     -re {^process[^\r\n]+\r\n} { incr count; exp_continue }

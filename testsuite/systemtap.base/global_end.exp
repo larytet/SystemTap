@@ -4,7 +4,7 @@ set test "global_end"
 
 if {![installtest_p]} {untested $test; return}
 
-spawn stap $srcdir/$subdir/global_end.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/global_end.stp
 set ok 0
 expect {
     -timeout 180
@@ -24,7 +24,7 @@ expect {
     eof { }
 }
 wait
-spawn stap $srcdir/$subdir/global_end2.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/global_end2.stp
 # above should not do any tapset global variable display so
 # ok should only change by 1
 expect {
@@ -37,7 +37,7 @@ if {$ok == 12} { pass "$test ($ok)" } { fail "$test ($ok)" }
 
 # test PR6954
 set test "global_end_var"
-spawn stap $srcdir/$subdir/global_end_var.stp
+eval spawn stap [stap_get_board_args]  $srcdir/$subdir/global_end_var.stp
 set ok 0
 expect {
     -timeout 180

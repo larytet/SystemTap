@@ -2,7 +2,7 @@ set test "bench"
 
 if {![installtest_p]} {untested $test; return}
 
-spawn stap -tu $srcdir/$subdir/bench.stp
+eval spawn stap [stap_get_board_args] -tu $srcdir/$subdir/bench.stp
 set ok 0
 expect {
     -timeout 180

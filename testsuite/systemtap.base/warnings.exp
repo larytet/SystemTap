@@ -1,6 +1,6 @@
 set test "warnings"
 
-spawn stap -p4 $srcdir/$subdir/warnings.stp
+eval spawn stap [stap_get_board_args] -p4 $srcdir/$subdir/warnings.stp
 set ok 0
 expect {
     -timeout 30

@@ -1,8 +1,12 @@
-set stap_path $env(SYSTEMTAP_PATH)/stap
+if [is_remote target] {
+    set stap_path "/usr/bin/staprun"
+} else {
+    set stap_path $env(SYSTEMTAP_PATH)/stap
+}
 
 exec echo "#!$stap_path" > tracescripts.sh
 
-if {[catch {exec stap -L {process("tracescripts.sh").mark("*")}} res]} {
+if {[catch {eval exec stap [stap_get_board_args] -L {{process("tracescripts.sh").mark("*")}}} res]} {
         fail "tracescripts $res"
 } else {
         pass "tracescripts"

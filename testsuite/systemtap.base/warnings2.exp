@@ -1,7 +1,7 @@
 if {! [installtest_p]} { return }
 
 set test "warnings2 default"
-spawn stap -e {probe begin {warn ("1") warn ("2") warn ("1") exit ()}}
+eval spawn stap [stap_get_board_args] -e {{probe begin {warn ("1") warn ("2") warn ("1") exit ()}}}
 set ok1 0
 set ok2 0
 expect {
@@ -19,7 +19,7 @@ if {$ok1 == 1 && $ok2 == 1} {
 }
 
 set test "warnings2 -w"
-spawn stap -w -e {probe begin {warn ("1") warn ("2") warn ("1") exit ()}}
+eval spawn stap [stap_get_board_args] -w -e {{probe begin {warn ("1") warn ("2") warn ("1") exit ()}}}
 set ok1 0
 set ok2 0
 expect {
@@ -38,7 +38,7 @@ if {$ok1 == 0 && $ok2 == 0} {
 
 
 set test "warnings2 -v"
-spawn stap -vv -e {probe begin {warn ("1") warn ("2") warn ("1") exit ()}}
+eval spawn stap [stap_get_board_args] -vv -e {{probe begin {warn ("1") warn ("2") warn ("1") exit ()}}}
 set ok1 0
 set ok2 0
 expect {

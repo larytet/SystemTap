@@ -1,7 +1,7 @@
 set test "optionalprobe"
-spawn stap -p2 -w $srcdir/$subdir/$test.stp
+eval spawn stap [stap_get_board_args] -p2 -w $srcdir/$subdir/$test.stp
 expect {
-    -timeout 60
+    -timeout 300
     -re "# probes\r\n" { exp_continue }
     -re "^begin" { pass $test }
     eof { fail $test }

@@ -3,7 +3,7 @@ set test "stmtvars"
 
 set pc 0
 set vars ""
-spawn stap -e "probe kernel.function(\"do_sys_open\") {\$foo}" -p4 -vv -u
+eval spawn stap [stap_get_board_args] -e {"probe kernel.function(\"do_sys_open\") {\$foo}"} -p4 -vv -u
 expect {
     -re {probe do_sys_open[^\r\n]*pc=(0x[^\r\n]*)\r\n} { set pc $expect_out(1,string); exp_continue }
     -re {alternatives: ([^\r\n]*)\): identifier [^\r\n]*\r\n} { set vars $expect_out(1,string); exp_continue }
@@ -16,7 +16,7 @@ if {$pc != 0 && $vars != ""} { pass "$test - .function" } { fail "$test - .funct
 
 set pc2 0
 set vars2 ""
-spawn stap -e "probe kernel.statement($pc) {\$foo}" -p4 -vv -u
+eval spawn stap [stap_get_board_args] -e {"probe kernel.statement($pc) {\$foo}"} -p4 -vv -u
 expect {
     -re {probe do_sys_open[^\r\n]*pc=(0x[^\r\n]*)\r\n} { set pc2 $expect_out(1,string); exp_continue }
     -re {alternatives: ([^\r\n]*)\): identifier [^\r\n]*\r\n} { set vars2 $expect_out(1,string); exp_continue }

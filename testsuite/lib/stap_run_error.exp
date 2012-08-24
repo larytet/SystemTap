@@ -6,7 +6,8 @@
 # Additional arguments are passed to stap as-is.
 proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING args } {
     set full_error "ERROR: $ERROR_STRING\r\n"
-    set cmd [concat {stap -v} $args]
+
+    set cmd [concat {stap -v} [stap_get_board_args] $args]
     send_log "executing: $cmd\n"
     eval spawn $cmd
     expect {
@@ -28,9 +29,24 @@ proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING ar
 	    } else {
 		fail "$TEST_NAME unexpected error"
 	    }
+            # Drain input otherwise remote ssh could stuck
+            send_log "Trying to drain input\n"
+            expect {
+                -timeout 10
+                eof {
+                    send_log "Eof on draining input\n"
+                }
+                timeout {
+                    send_log "Timeout on draining input\n"
+                }
+            }
 	}
 	-re "^systemtap starting probe\r\n" {
-  	    exec kill -INT -[exp_pid]
+            if [is_remote [target_info name] ] {
+                remote_exec target "killall -INT /usr/bin/stapsh /usr/libexec/systemtap/stapio /usr/bin/staprun"
+            } else {
+    	        exec kill -INT -[exp_pid]
+            }
 
 	    # check the output to see if it is sane
 	    set output "^systemtap ending probe\r\n$OUTPUT_CHECK_STRING"
@@ -43,6 +59,18 @@ proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING ar
 		    } else {
 			pass "$TEST_NAME didn't error"
 		    }
+                    # Drain input otherwise remote ssh could stuck
+                    send_log "Trying to drain input\n"
+                    expect {
+                        -timeout 10
+                        eof {
+                            send_log "Eof on draining input\n"
+                        }
+                        timeout {
+                            send_log "Timeout on draining input\n"
+                        }
+                    }
+
 		}
 		-re $full_error {
 		    if {$EXPECT_ERROR} {
@@ -50,10 +78,25 @@ proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING ar
 		    } else {
 			fail "$TEST_NAME unexpected error"
 		    }
+                    # Drain input otherwise remote ssh could stuck
+                    send_log "Trying to drain input\n"
+                    expect {
+                        -timeout 10
+                        eof {
+                            send_log "Eof on draining input\n"
+                        }
+                        timeout {
+                            send_log "Timeout on draining input\n"
+                        }
+                    }
 		}
 		timeout { 
                     fail "$TEST_NAME shutdown (timeout)"
-                    exec kill -INT -[exp_pid] 
+                    if [is_remote [target_info name] ] {
+                        remote_exec target "killall -INT /usr/bin/stapsh /usr/libexec/systemtap/stapio /usr/bin/staprun"
+                    } else {
+                        exec kill -INT -[exp_pid]
+                    }
                 }
 		eof { fail "$TEST_NAME shutdown (eof)" }
 	    }
@@ -64,7 +107,11 @@ proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING ar
 	eof { fail "$TEST_NAME startup (eof)" }
     }
     # again for good measure
-    exec kill -INT -[exp_pid]
+    if [is_remote [target_info name] ] {
+       remote_exec target "killall -INT /usr/bin/stapsh /usr/libexec/systemtap/stapio /usr/bin/staprun"
+    } else {
+       exec kill -INT -[exp_pid]
+    }
     catch close
     wait
 }

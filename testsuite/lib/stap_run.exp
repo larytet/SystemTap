@@ -26,7 +26,7 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 
     if {[info procs installtest_p] != "" && ![installtest_p]} { untested $TEST_NAME; return }
 
-    set cmd [concat stap -v $args]
+    set cmd [concat stap -v [stap_get_board_args] $args]
     if [file readable $test_file_name] {
         lappend cmd $test_file_name
     }
@@ -52,8 +52,11 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 		    fail "$TEST_NAME load generation"
 		}
 	    }
-
-	    exec kill -INT -[exp_pid]
+            if [is_remote [target_info name]] {
+                remote_exec target "killall -INT /usr/libexec/systemtap/stapio /usr/bin/staprun"
+            } else {
+                exec kill -INT -[exp_pid]
+            }
 
 	    # check the output to see if it is sane
 	    set output "^systemtap ending probe\r\n$OUTPUT_CHECK_STRING"

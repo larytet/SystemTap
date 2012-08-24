@@ -24,7 +24,7 @@ set struct1_script {
 proc stap_run_alternatives {args} {
     set alternatives_found 0
     verbose -log "starting $args"
-    eval spawn $args
+    eval spawn $args [stap_get_board_args]
     expect { 
 	-timeout 60
 	-re {semantic error: .+ \(alternatives: \$?[a-zA-Z_]} {incr alternatives_found; exp_continue}

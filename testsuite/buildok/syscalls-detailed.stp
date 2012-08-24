@@ -21,6 +21,7 @@ probe syscall.access.return
 	printf("%s, %s\n", name, retstr)
 }
 
+%( CONFIG_BSD_PROCESS_ACCT == "y" %?
 probe syscall.acct
 {
 	printf("%s, %s\n", name, argstr)
@@ -30,7 +31,9 @@ probe syscall.acct.return
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
+%( CONFIG_KEYS == "y" %?
 probe syscall.add_key
 {
 	printf("%s, %s\n", name, argstr)
@@ -41,6 +44,7 @@ probe syscall.add_key.return
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 probe syscall.adjtimex, syscall.compat_adjtimex ?
 {
@@ -945,6 +949,7 @@ probe syscall.kexec_load.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+%( CONFIG_KEYS == "y" %?
 probe syscall.keyctl
 {
 	printf("%s, %s\n", name, argstr)
@@ -953,6 +958,7 @@ probe syscall.keyctl.return
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 probe syscall.kill
 {
@@ -1036,6 +1042,7 @@ probe syscall.llseek.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+%( CONFIG_PROFILING == "y" %?
 probe syscall.lookup_dcookie
 {
 	printf("%s, %s\n", name, argstr)
@@ -1045,6 +1052,7 @@ probe syscall.lookup_dcookie.return
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 probe syscall.lremovexattr
 {
@@ -1242,6 +1250,7 @@ probe syscall.mprotect.return
 	printf("%s, %s\n", name, retstr)
 }
 
+%( CONFIG_POSIX_MQUEUE == "y" %?
 probe syscall.mq_getsetattr
 {
 	printf("%s, %s\n", name, argstr)
@@ -1304,6 +1313,7 @@ probe syscall.mq_unlink.return
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 probe syscall.mremap
 {

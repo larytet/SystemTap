@@ -11,6 +11,8 @@ switch -regexp $::tcl_platform(machine) {
 foreach arch $arches {
 
   set exe ${test}${arch}
+  set testexe "[pwd]/[stap_host_testdir]/$exe"
+
   verbose "testing $exe"
 
   set test_flags "additional_flags=-g"
@@ -20,7 +22,7 @@ foreach arch $arches {
     set test_flags "$test_flags additional_flags=$arch"
   }
 
-  set res [target_compile $srcdir/$subdir/$test.c $exe executable "$test_flags"]
+  set res [target_compile $srcdir/$subdir/$test.c $testexe executable "$test_flags"]
   if { $res != "" } {
     verbose "target_compile $exe failed: $res" 2
     fail "${test}.c compile ${arch}"
@@ -35,8 +37,15 @@ foreach arch $arches {
     set bad 0
     set warn 0
 
-    spawn stap -e {probe process(@1).function("*") { println(probefunc()) }} ./$exe -c ./$exe
+    if [is_remote target] {
+        remote_download target $testexe "[stap_target_testdir]/$exe"
+    }
+
+    set cmd [concat stap [stap_get_board_args] -e {{probe process(@1).function("*") { println(probefunc()) }}} $testexe -c "[stap_target_testdir]/$exe"]
+    send_log "cmd = $cmd"
+    eval spawn $cmd
     expect {
+      -timeout 300
       -re {^main\r\n} { incr ok; exp_continue }
       -re {^rep_ret\r\n} { incr ok; exp_continue }
       -re {^repnz_ret\r\n} { incr ok; exp_continue }
@@ -54,6 +63,9 @@ foreach arch $arches {
   } else {
     untested "$exe"
   }
-  catch {exec rm -f $exe}
+  if [is_remote target] {
+    remote_exec target "rm [stap_target_testdir]/$exe"
+  }
+  catch {exec rm -f $testexe}
 
 }

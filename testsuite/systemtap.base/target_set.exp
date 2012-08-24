@@ -53,7 +53,7 @@ proc expect_target_set_pids generations {
 	}
 }
 
-spawn stap $file $time -c "$stap_cmd"
+eval spawn stap [stap_get_board_args] $file $time -c {"$stap_cmd"}
 
 expect {
 	-timeout 180

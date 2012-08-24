@@ -1,20 +1,20 @@
 set test "stmt_rel"
 
 set line1 ""
-spawn stap -l "kernel.statement(\"bio_init@fs/bio.c+2\")"
+eval spawn stap [stap_get_board_args] -l {"kernel.statement(\"bio_init@fs/bio.c+2\")"}
 expect {
     -timeout 180
-    -re {[0-9][0-9][0-9]} { regexp "\[0-9\]\[0-9\]\[0-9\]" $expect_out(0,string) line1; }
+    -re {bio\.c:[0-9][0-9][0-9]} { regexp "\[0-9\]\[0-9\]\[0-9\]" $expect_out(0,string) line1; }
     timeout { fail "$test C (timeout)" }
     eof { }
 }
 catch {close}; catch {wait}
 
 set line2 ""
-spawn stap -l "kernel.statement(\"bio_init@fs/bio.c+3\")"
+eval spawn stap [stap_get_board_args] -l {"kernel.statement(\"bio_init@fs/bio.c+3\")"}
 expect {
     -timeout 180
-    -re {[0-9][0-9][0-9]} { regexp "\[0-9\]\[0-9\]\[0-9\]" $expect_out(0,string) line2; }
+    -re {bio\.c:[0-9][0-9][0-9]} { regexp "\[0-9\]\[0-9\]\[0-9\]" $expect_out(0,string) line2; }
     timeout { fail "$test C (timeout)" }
     eof { }
 }
@@ -27,7 +27,7 @@ if { $line1 < $line2 } {
 }
 
 set ok 0
-spawn stap -l "kernel.statement(\"bio_init@fs/bio.c:*\")"
+eval spawn stap [stap_get_board_args] -l {"kernel.statement(\"bio_init@fs/bio.c:*\")"}
 expect {
     -timeout 180
     -re {[0-9][0-9][0-9]} { incr ok; exp_continue }

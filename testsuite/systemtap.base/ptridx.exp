@@ -1,9 +1,10 @@
 set test "ptridx"
+set testexe  "[pwd]/[stap_host_testdir]/$test.exe"
 
 set test_flags "additional_flags=-g"
 set test_flags "$test_flags additional_flags=-O2"
 
-set res [target_compile $srcdir/$subdir/$test.c $test.exe executable "$test_flags"]
+set res [target_compile $srcdir/$subdir/$test.c $testexe executable "$test_flags"]
 if { $res != "" } {
   verbose "target_compile failed: $res" 2
   fail "$test.c compile"
@@ -13,14 +14,21 @@ if { $res != "" } {
   pass "$test.c compile"
 }
 
-if {[catch {exec stap -L {process("./ptridx.exe").function("*").label("*")}}]} {
+set label_list "process(\"[stap_target_testdir]/$test.exe\").function(\"*\").label(\"*\")"
+send_log $label_list
+set cmd [ concat stap [stap_get_board_args] -L $label_list ]
+send_log $cmd
+if {[catch {eval exec $cmd}]} {
   fail "$test (list labels)"
   untested "$test"
 } else {
   pass "$test (list labels)"
   if {[installtest_p] && [uprobes_p]} {
     set ok 0
-    spawn stap $srcdir/$subdir/$test.stp -c ./$test.exe -w
+    if [is_remote [target_info name]] {
+        remote_download target $testexe "[stap_target_testdir]/$test.exe"
+    }
+    eval spawn stap [stap_get_board_args] $srcdir/$subdir/$test.stp -c "[stap_target_testdir]/$test.exe" -w "[stap_target_testdir]/$test.exe"
     expect {
       -re {failed to retrieve location attribute} {
         # the variables may have no location
@@ -44,4 +52,7 @@ if {[catch {exec stap -L {process("./ptridx.exe").function("*").label("*")}}]} {
     untested "$test"
   }
 }
-catch {exec rm -f $test.exe}
+if [is_remote target] {
+  remote_exec target "rm [stap_target_testdir]/$test.exe"
+}
+catch {exec rm -f $testexe}

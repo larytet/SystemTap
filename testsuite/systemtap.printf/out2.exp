@@ -4,20 +4,25 @@ set TEST_NAME "$subdir/$test"
 
 if {![installtest_p]} { untested $TEST_NAME; return }
 
-if {[catch {exec mktemp -t staptestXXXXXX} tmpfile]} {
+set ret [remote_exec target "mktemp -t staptestXXXXXX"]
+if { [lindex $ret 0] != 0 } {
     puts stderr "Failed to create temporary file: $tmpfile"
     untested $TEST_NAME
     return
+} else {
+    set tmpfile [string trim [lindex $ret 1]]
 }
 
-if {[catch {exec stap -o $tmpfile $tpath} res]} {
+if {[catch {eval exec stap [stap_get_board_args] -o $tmpfile $tpath} res]} {
     fail $TEST_NAME
     puts "$res"
-    catch {exec rm -f $tmpfile}
+    catch {remote_exec target "rm -f $tmpfile"}
     return
 }
 
-if {[catch {exec cmp $tmpfile $srcdir/$subdir/large_output} res]} {
+set tmpfile1 [remote_upload target $tmpfile]
+
+if {[catch {exec cmp $tmpfile1 $srcdir/$subdir/large_output} res]} {
     fail $TEST_NAME
     puts "$res"
     catch {exec rm -f $tmpfile}
@@ -25,5 +30,6 @@ if {[catch {exec cmp $tmpfile $srcdir/$subdir/large_output} res]} {
 }
 
 pass $TEST_NAME
-catch {exec rm -f $tmpfile}
+catch {exec rm -f $tmpfile1}
+catch {remote_exec target "rm -f $tmpfile"}
 

@@ -6,13 +6,13 @@
 # We test for scsi functionality by grepping in /proc/kallsyms for
 # 'scsi_dispatch_cmd', which is what 'scsi.iodispatching' maps to.
 # If that mapping changes this grep command will also need changing.
-if ! grep scsi_dispatch_cmd /proc/kallsyms >/dev/null 2>&1 ; then
+if ! grep scsi_dispatch_cmd ./kallsyms >/dev/null 2>&1 ; then
 	echo "scsi funtionality not present - not running test";
 	exit 0;
 fi
 
 
-stap -p4 - << EOF
+stap $@ -p4 - << EOF
 probe scsi.ioentry
 {
 	printf("%20s, disk_major=%d, disk_minor=%d, device_state=%s, req_addr=%p\n",

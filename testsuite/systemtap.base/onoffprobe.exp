@@ -1,7 +1,7 @@
 set test "onoffprobe"
 if {![installtest_p]} { untested $test; return }
 
-spawn stap $srcdir/$subdir/$test.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/$test.stp
 set pid $spawn_id
 set ok 0
 

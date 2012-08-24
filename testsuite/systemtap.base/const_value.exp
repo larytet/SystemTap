@@ -1,5 +1,6 @@
 # DW_AT_const_value (blocks).
 set test "const_value"
+set testexe  "[pwd]/[stap_host_testdir]/$test.exe"
 set ::result_string {i: 2
 j: 21
 a: {17, 23}}
@@ -9,7 +10,7 @@ set test_flags "additional_flags=-g"
 set test_flags "$test_flags additional_flags=-O2"
 set test_flags "$test_flags [sdt_includes]"
 
-set res [target_compile $srcdir/$subdir/$test.c $test.exe executable "$test_flags"]
+set res [target_compile $srcdir/$subdir/$test.c $testexe executable "$test_flags"]
 if { $res != "" } {
   verbose "target_compile failed: $res" 2
   fail "$test.c compile"
@@ -24,15 +25,22 @@ if { $res != "" } {
 # constant values.
 if {[installtest_p] && [uprobes_p]} {
   set dw_at_c {DW_AT_const_value}
-  if {![catch {exec readelf --debug-dump=info $test.exe | grep "$dw_at_c"}]} {
-    stap_run2 $srcdir/$subdir/$test.stp -c ./$test.exe
+  if {![catch {exec readelf --debug-dump=info $testexe | grep "$dw_at_c"}]} {
+    if [is_remote target] {
+        remote_download target $testexe "[stap_target_testdir]/$test.exe"
+    }
+
+    stap_run2 $srcdir/$subdir/$test.stp -c "[stap_target_testdir]/$test.exe"
   } {
     untested "$test (no-const-value)"
   }
 } else {
   untested "$test"
 }
-catch {exec rm -f $test.exe}
+if [is_remote target] {
+  remote_exec target "rm [stap_target_testdir]/$test.exe"
+}
+catch {exec rm -f $testexe}
 
 
 # DW_AT_const_value (address).
@@ -44,7 +52,7 @@ set test_flags "additional_flags=-g"
 set test_flags "$test_flags additional_flags=-O2"
 set test_flags "$test_flags [sdt_includes]"
 
-set res [target_compile $srcdir/$subdir/$test.c $test.exe executable "$test_flags"]
+set res [target_compile $srcdir/$subdir/$test.c $testexe executable "$test_flags"]
 if { $res != "" } {
   verbose "target_compile failed: $res" 2
   fail "$test.c compile"
@@ -59,13 +67,19 @@ if { $res != "" } {
 # constant addresses.
 if {[installtest_p] && [uprobes_p]} {
   set dw_at_c {DW_AT_const_value}
-  if {![catch {exec readelf --debug-dump=info $test.exe | grep "$dw_at_c"}]} {
+  if {![catch {exec readelf --debug-dump=info $testexe | grep "$dw_at_c"}]} {
     setup_kfail 10739 "*-*-*"
-    stap_run2 $srcdir/$subdir/$test.stp -c ./$test.exe
+    if [is_remote target] {
+        remote_download target $testexe "[stap_target_testdir]/$test.exe"
+    }
+    stap_run2 $srcdir/$subdir/$test.stp -c "[stap_target_testdir]/$test.exe"
   } {
     untested "$test (no-const-value)"
   }
 } else {
   untested "$test"
 }
-catch {exec rm -f $test.exe}
+if [is_remote target] {
+  remote_exec target "rm [stap_target_testdir]/$test.exe"
+}
+catch {exec rm -f $testexe}

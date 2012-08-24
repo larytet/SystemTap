@@ -3,7 +3,7 @@ if {![installtest_p]} {
     return
 }
 
-spawn stap -e {global var; probe never {var<<<1} probe begin {exit()}}
+eval spawn stap [stap_get_board_args] -e {{global var; probe never {var<<<1} probe begin {exit()}}}
 expect {
     -timeout 60
     "var @count=0x0" { pass "global_stat" }

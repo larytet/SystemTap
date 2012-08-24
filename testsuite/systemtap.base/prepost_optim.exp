@@ -5,7 +5,7 @@ set test "prepost_optim"
 
 if {![installtest_p]} {untested $test; return}
 
-spawn stap $srcdir/$subdir/$test.stp
+eval spawn stap [stap_get_board_args] $srcdir/$subdir/$test.stp
 set ok 0
 expect {
     -timeout 180
