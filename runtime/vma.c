@@ -19,6 +19,10 @@
 
 #include <asm/uaccess.h>
 
+#ifdef COMPOSED_ROOTFS_FINDER
+#include "composed_rootfs_finder.h"
+#endif /* COMPOSED_ROOTFS_FINDER */
+
 static void _stp_vma_match_vdso(struct task_struct *tsk)
 {
 /* vdso is arch specific */
@@ -126,7 +130,11 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 	// so we can later lookup the name given an address for this task.
 	if (path != NULL && offset == 0 && (vm_flags & VM_EXEC)) {
 		for (i = 0; i < _stp_num_modules; i++) {
-			if (strcmp(path, _stp_modules[i]->path) == 0)
+			if ((strcmp(path, _stp_modules[i]->path) == 0)
+#ifdef COMPOSED_ROOTFS_FINDER
+                            || (composed_rootfs_finder_match_file(_stp_modules[i]->path, path) == 0)
+#endif /* COMPOSED_ROOTFS_FINDER */
+                           )
 			{
 #ifdef DEBUG_TASK_FINDER_VMA
 			  _stp_dbug(__FUNCTION__, __LINE__,

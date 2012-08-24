@@ -21,6 +21,10 @@
 #include <linux/uaccess.h>
 #endif
 
+#ifdef COMPOSED_ROOTFS_FINDER
+#include "composed_rootfs_finder.h"
+#endif /* COMPOSED_ROOTFS_FINDER */
+
 /* Returns absolute address of offset into kernel module/section.
    Returns zero when module and section couldn't be found
    (aren't in memory yet). */
@@ -75,7 +79,11 @@ static unsigned long _stp_umodule_relocate(const char *path,
   for (i = 0; i < _stp_num_modules; i++) {
     struct _stp_module *m = _stp_modules[i];
 
-    if (strcmp(path, m->path)
+    if ((strcmp(path, m->path)
+#ifdef COMPOSED_ROOTFS_FINDER
+        && (composed_rootfs_finder_match_file(path, m->path) != 0)
+#endif /* COMPOSED_ROOTFS_FINDER */
+        )
 	|| m->num_sections != 1
 	|| strcmp(m->sections[0].name, ".dynamic"))
       continue;

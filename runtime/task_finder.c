@@ -26,6 +26,10 @@ static void stap_stop_task_finder(void) { }
 #include "utrace_compatibility.h"
 #include "task_finder_map.c"
 
+#ifdef COMPOSED_ROOTFS_FINDER
+#include "composed_rootfs_finder.h"
+#endif /* COMPOSED_ROOTFS_FINDER */
+
 static LIST_HEAD(__stp_task_finder_list);
 
 struct stap_task_finder_target;
@@ -828,8 +832,13 @@ __stp_utrace_attach_match_filename(struct task_struct *tsk,
 		if (tgt == NULL)
 			continue;
 		else if (tgt->pathlen > 0
-			 && (tgt->pathlen != filelen
-			     || strcmp(tgt->procname, filename) != 0))
+			 &&
+                         ((tgt->pathlen != filelen
+                           || strcmp(tgt->procname, filename) != 0)
+#ifdef COMPOSED_ROOTFS_FINDER
+                          && (composed_rootfs_finder_match_file(tgt->procname, filename) != 0)
+#endif /* COMPOSED_ROOTFS_FINDER */
+                           ))
 			continue;
 		/* Ignore pid-based target, they were handled at startup. */
 		else if (tgt->pid != 0)
@@ -1635,8 +1644,12 @@ stap_start_task_finder(void)
 				continue;
 			/* procname-based target */
 			else if (tgt->pathlen > 0
-				 && (tgt->pathlen != mmpathlen
-				     || strcmp(tgt->procname, mmpath) != 0))
+				 && ((tgt->pathlen != mmpathlen
+                                      || strcmp(tgt->procname, mmpath) != 0)
+#ifdef COMPOSED_ROOTFS_FINDER
+                                     && (composed_rootfs_finder_match_file(tgt->procname, mmpath) != 0)
+#endif /* COMPOSED_ROOTFS_FINDER */
+                                   ))
 				 continue;
 			/* pid-based target */
 			else if (tgt->pid != 0 && tgt->pid != tsk->pid)

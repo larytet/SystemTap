@@ -13,6 +13,10 @@
 
 #ifdef KPROBES_TASK_FINDER
 
+#ifdef COMPOSED_ROOTFS_FINDER
+#include "composed_rootfs_finder.h"
+#endif /* COMPOSED_ROOTFS_FINDER */
+
 /* The task_finder_callback */
 static int stap_kprobe_process_found (struct stap_task_finder_target *finder, struct task_struct *tsk, int register_p, int process_p) {
   struct stap_dwarf_probe *p = container_of(finder, struct stap_dwarf_probe, finder);
@@ -37,7 +41,12 @@ static int stap_kprobe_process_found (struct stap_task_finder_target *finder, st
 static int stap_kprobe_mmap_found (struct stap_task_finder_target *finder, struct task_struct *tsk, char *path, struct dentry *dentry, unsigned long addr, unsigned long length, unsigned long offset, unsigned long vm_flags) {
   struct stap_dwarf_probe *p = container_of(finder, struct stap_dwarf_probe, finder);
   int rc = 0;
-  if (path == NULL || strcmp (path, p->pathname)) return 0;
+  if (path == NULL ||
+      ((strcmp (path, p->pathname)) != 0
+#ifdef COMPOSED_ROOTFS_FINDER
+       && (composed_rootfs_finder_match_file(p->pathname, path) != 0)
+#endif /* COMPOSED_ROOTFS_FINDER */
+        )) return 0;
   if (p->sdt_sem_offset && p->sdt_sem_address == 0) {
     p->tsk = tsk;
     if (vm_flags & VM_EXECUTABLE) {

@@ -11,6 +11,10 @@
 #ifndef _UPROBE_COMMON_C_
 #define _UPROBE_COMMON_C_
 
+#ifdef COMPOSED_ROOTFS_FINDER
+#include "composed_rootfs_finder.h"
+#endif /* COMPOSED_ROOTFS_FINDER */
+
 /* NB: Because these utrace callbacks only occur before / after
    userspace instructions run, there is no concurrency control issue
    between active uprobe callbacks and these registration /
@@ -283,7 +287,12 @@ stap_uprobe_mmap_found (struct stap_task_finder_target *tgt,
    * 3 - mapping should be executable or writeable (for semaphore in .so)
    *     NB: or both, on kernels that lack noexec mapping
    */
-  if (path == NULL || strcmp (path, stf->pathname))
+  if (path == NULL ||
+      ((strcmp (path, stf->pathname)) != 0
+#ifdef COMPOSED_ROOTFS_FINDER
+       && (composed_rootfs_finder_match_file(stf->pathname, path) != 0)
+#endif /* COMPOSED_ROOTFS_FINDER */
+        ))
     return 0;
 
   /* Check non-writable, executable sections for probes. */
