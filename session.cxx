@@ -605,7 +605,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         { "tmpdir", 1, &long_opt, LONG_OPT_TMPDIR },
         { NULL, 0, NULL, 0 }
       };
-      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPUc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:i:",
+      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:T:a:m:kgPUc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:i:",
 			     long_options, NULL);
       // NB: when adding new options, consider very carefully whether they
       // should be restricted from stap clients (after --client-options)!
@@ -760,6 +760,11 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
             assert_regexp_match("-r parameter from client", optarg, "^[a-z0-9_.-]+$");
 	  push_server_opt = true;
           setup_kernel_release(optarg);
+          break;
+
+        case 'T':
+          push_server_opt = true;
+          kernel_source_tree = string(optarg);
           break;
 
         case 'a':
