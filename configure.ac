@@ -293,12 +293,15 @@ AM_CONDITIONAL([BUILD_PDFREFDOCS], [test "$have_xmlto_pdf" == "yes"])
 rm -f conftest.xml
 
 dnl See if we have the nss/nspr headers and libraries
-AC_CHECK_FILE([/usr/include/nss3], nssdir=nss3, [
-  AC_CHECK_FILE([/usr/include/nss], nssdir=nss)
-])
-AC_CHECK_FILE([/usr/include/nspr4], nsprdir=nspr4, [
-  AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
-])
+AC_ARG_ENABLE([nss3],
+  [AS_HELP_STRING([--disable-nss3], [disable nss/nspr libraries check])])
+AS_IF([test "x$enable_nss3" != xno],[
+   AC_CHECK_FILE([/usr/include/nss3], nssdir=nss3, [
+     AC_CHECK_FILE([/usr/include/nss], nssdir=nss)
+   ])
+   AC_CHECK_FILE([/usr/include/nspr4], nsprdir=nspr4, [
+     AC_CHECK_FILE([/usr/include/nspr], nsprdir=nspr)
+   ])])
 if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
   nss_CFLAGS="-I/usr/include/$nssdir"
   nspr_CFLAGS="-I/usr/include/$nsprdir"
@@ -345,8 +348,11 @@ if test "x${have_nss_libs}" != "xyes"; then
 fi
 
 dnl See if we have the avahi libraries and headers
-AC_CHECK_FILE([/usr/include/avahi-client], avahi_clientdir=avahi-client)
-AC_CHECK_FILE([/usr/include/avahi-common], avahi_commondir=avahi-common)
+AC_ARG_ENABLE([avahi],
+  [AS_HELP_STRING([--disable-avahi], [disable avahi libraries check])])
+AS_IF([test "x$enable_avahi" != xno],[
+   AC_CHECK_FILE([/usr/include/avahi-client], avahi_clientdir=avahi-client)
+   AC_CHECK_FILE([/usr/include/avahi-common], avahi_commondir=avahi-common)])
 if test "x$avahi_clientdir" != "x" -a "x$avahi_commondir" != "x"; then
   have_avahi_includes=yes
   AC_CHECK_HEADERS(["$avahi_clientdir/client.h" "$avahi_clientdir/lookup.h" "$avahi_commondir/simple-watch.h" "$avahi_commondir/malloc.h" "$avahi_commondir/error.h"], [], have_avahi_includes=no)

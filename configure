@@ -794,7 +794,9 @@ enable_docs
 enable_publican
 with_publican_brand
 enable_refdocs
+enable_nss3
 enable_server
+enable_avahi
 enable_grapher
 with_rpm
 with_elfutils
@@ -1464,8 +1466,10 @@ Optional Features:
                           documentation built).
   --enable-refdocs        enable building reference documentation (default on
                           if xmlto etc. found and other documentation built).
+  --disable-nss3          disable nss/nspr libraries check
   --enable-server         enable building of stap-server (default on if nss
                           etc. found).
+  --disable-avahi         disable avahi libraries check
   --enable-grapher        enable building of grapher (default on if needed
                           requirements are found).
 
@@ -9265,7 +9269,14 @@ fi
 
 rm -f conftest.xml
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nss3" >&5
+# Check whether --enable-nss3 was given.
+if test "${enable_nss3+set}" = set; then :
+  enableval=$enable_nss3;
+fi
+
+if test "x$enable_nss3" != xno; then :
+
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nss3" >&5
 $as_echo_n "checking for /usr/include/nss3... " >&6; }
 if test "${ac_cv_file__usr_include_nss3+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -9284,7 +9295,7 @@ if test "x$ac_cv_file__usr_include_nss3" = x""yes; then :
   nssdir=nss3
 else
 
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nss" >&5
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nss" >&5
 $as_echo_n "checking for /usr/include/nss... " >&6; }
 if test "${ac_cv_file__usr_include_nss+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -9306,7 +9317,7 @@ fi
 
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nspr4" >&5
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nspr4" >&5
 $as_echo_n "checking for /usr/include/nspr4... " >&6; }
 if test "${ac_cv_file__usr_include_nspr4+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -9325,7 +9336,7 @@ if test "x$ac_cv_file__usr_include_nspr4" = x""yes; then :
   nsprdir=nspr4
 else
 
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nspr" >&5
+     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/nspr" >&5
 $as_echo_n "checking for /usr/include/nspr... " >&6; }
 if test "${ac_cv_file__usr_include_nspr+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -9347,6 +9358,7 @@ fi
 
 fi
 
+fi
 if test "x$nssdir" != "x" -a "x$nsprdir" != "x"; then
   nss_CFLAGS="-I/usr/include/$nssdir"
   nspr_CFLAGS="-I/usr/include/$nsprdir"
@@ -9504,7 +9516,14 @@ if test "x${have_nss_libs}" != "xyes"; then
 $as_echo "$as_me: WARNING: some compile server client functionality will be restricted, cannot find nss/nspr libraries" >&2;}
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/avahi-client" >&5
+# Check whether --enable-avahi was given.
+if test "${enable_avahi+set}" = set; then :
+  enableval=$enable_avahi;
+fi
+
+if test "x$enable_avahi" != xno; then :
+
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/avahi-client" >&5
 $as_echo_n "checking for /usr/include/avahi-client... " >&6; }
 if test "${ac_cv_file__usr_include_avahi_client+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -9523,7 +9542,7 @@ if test "x$ac_cv_file__usr_include_avahi_client" = x""yes; then :
   avahi_clientdir=avahi-client
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/avahi-common" >&5
+   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for /usr/include/avahi-common" >&5
 $as_echo_n "checking for /usr/include/avahi-common... " >&6; }
 if test "${ac_cv_file__usr_include_avahi_common+set}" = set; then :
   $as_echo_n "(cached) " >&6
@@ -9542,6 +9561,7 @@ if test "x$ac_cv_file__usr_include_avahi_common" = x""yes; then :
   avahi_commondir=avahi-common
 fi
 
+fi
 if test "x$avahi_clientdir" != "x" -a "x$avahi_commondir" != "x"; then
   have_avahi_includes=yes
   for ac_header in "$avahi_clientdir/client.h" "$avahi_clientdir/lookup.h" "$avahi_commondir/simple-watch.h" "$avahi_commondir/malloc.h" "$avahi_commondir/error.h"
