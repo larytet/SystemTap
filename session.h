@@ -178,6 +178,7 @@ public:
   bool unprivileged;
   bool cross_compilation;
   bool systemtap_v_check;
+  std::string ios_filename;
   bool tmpdir_opt_set;
 
   // NB: It is very important for all of the above (and below) fields

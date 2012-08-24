@@ -142,6 +142,7 @@ systemtap_session::systemtap_session ():
   try_server_status = try_server_unset;
   use_remote_prefix = false;
   systemtap_v_check = false;
+  ios_filename = "";
 
   /*  adding in the XDG_DATA_DIRS variable path,
    *  this searches in conjunction with SYSTEMTAP_TAPSET
@@ -603,7 +604,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         { "tmpdir", 1, &long_opt, LONG_OPT_TMPDIR },
         { NULL, 0, NULL, 0 }
       };
-      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:",
+      int grc = getopt_long (argc, argv, "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:y:M:i:",
 			     long_options, NULL);
       // NB: when adding new options, consider very carefully whether they
       // should be restricted from stap clients (after --client-options)!
@@ -887,6 +888,10 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
         case 'M':
           system_root.set_special_mapping(string (optarg));
+          break;
+
+        case 'i':
+          ios_filename = string(optarg);
           break;
 
         case 0:

@@ -295,6 +295,7 @@ static const string TOK_MARK("mark");
 static const string TOK_TRACE("trace");
 static const string TOK_LABEL("label");
 static const string TOK_LIBRARY("library");
+static const string TOK_IOS("ios");
 
 static int query_cu (Dwarf_Die * cudie, void * arg);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
@@ -514,7 +515,9 @@ struct base_query
   bool has_module;
   bool has_process;
   bool has_library;
+  bool has_ios;
   string module_val; // has_kernel => module_val = "kernel"
+                     // has_ios => module_val = "ios"
   string path;	     // executable path if module is a .so
 
   virtual void handle_query_module() = 0;
@@ -533,36 +536,53 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
     has_process = false;
   else
     {
-      string library_name;
-      has_process = get_string_param(params, TOK_PROCESS, module_val);
-      has_library = get_string_param (params, TOK_LIBRARY, library_name);
-      if (has_process)
-        module_val = sess.system_root.find_executable (module_val);
-      if (has_library)
+      has_ios = has_null_param (params, TOK_IOS);
+      if (has_ios)
         {
-          if (! contains_glob_chars (library_name))
+          has_process = true;
+          module_val = sess.system_root.find_executable (sess.ios_filename);
+        }
+      else
+        {
+          string library_name;
+          has_process = get_string_param(params, TOK_PROCESS, module_val);
+          has_library = get_string_param (params, TOK_LIBRARY, library_name);
+          if (has_process)
+            module_val = sess.system_root.find_executable (module_val);
+          if (has_library)
             {
-              path = module_val;
-              module_val = sess.system_root.find_library (library_name);
+              if (! contains_glob_chars (library_name))
+                {
+                  path = module_val;
+                  module_val = sess.system_root.find_library (library_name);
+                }
+              else
+                path = library_name;
             }
-          else
-            path = library_name;
         }
     }
 
-  assert (has_kernel || has_process || has_module);
+  assert (has_kernel || has_process || has_module || has_ios);
 }
 
-base_query::base_query(dwflpp & dw, const string & module_val)
-  : sess(dw.sess), dw(dw), module_val(module_val)
+base_query::base_query(dwflpp & dw, const string & module_value)
+  : sess(dw.sess), dw(dw)
 {
+  module_val = module_value;
+
   // NB: This uses '/' to distinguish between kernel modules and userspace,
   // which means that userspace modules won't get any PATH searching.
   if (module_val.find('/') == string::npos)
     {
       has_kernel = (module_val == TOK_KERNEL);
-      has_module = !has_kernel;
+      has_ios = (module_val == TOK_IOS);
+      has_module = !(has_kernel || has_ios);
       has_process = false;
+      if (has_ios)
+        {
+            has_process = true;
+            module_val = sess.system_root.find_executable (sess.ios_filename);
+        }
     }
   else
     {
@@ -3734,7 +3754,12 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
       try
 	{
           userspace_p=is_user_module (module);
-	  if (! userspace_p)
+          if (module == TOK_IOS)
+            {
+              module = s.system_root.find_executable (s.ios_filename);
+              dw = db.get_user_dw(s, module);
+            }
+	  else if (! userspace_p)
 	    {
 	      // kernel or kernel module target
 	      dw = db.get_kern_dw(s, module);
@@ -4248,6 +4273,12 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
     ->bind_unprivileged()
     ->bind(dw);
   root->bind_str(TOK_PROCESS)->bind_str(TOK_PROVIDER)->bind_str(TOK_MARK)
+    ->bind_unprivileged()
+    ->bind(dw);
+
+  register_function_and_statement_variants(root->bind(TOK_IOS), dw,
+					   true/*bind_unprivileged*/);
+  root->bind(TOK_IOS)->bind_str(TOK_FUNCTION)->bind_str(TOK_LABEL)
     ->bind_unprivileged()
     ->bind(dw);
 }
@@ -6075,6 +6106,11 @@ dwarf_builder::build(systemtap_session & sess,
       // NB: glob patterns get expanded later, during the offline
       // elfutils module listing.
       dw = get_kern_dw(sess, module_name);
+    }
+  else if (has_null_param (parameters, TOK_IOS))
+    {
+       module_name = sess.system_root.find_executable (sess.ios_filename);
+       dw = get_user_dw(sess, module_name);
     }
   else if (get_param (parameters, TOK_PROCESS, module_name) || has_null_param(parameters, TOK_PROCESS))
       {
