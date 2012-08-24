@@ -116,6 +116,301 @@ module_cache::~module_cache ()
   delete_map(cache);
 }
 
+Dwarf_Op *
+dwflpp::check_biendian_location_expression(Dwarf_Op *expr, size_t *len,
+                                           bool *byteswap_needed)
+{
+    size_t i;
+    // Set defaults: expression does not have call4 operation and no
+    // conversion is needed
+    Dwarf_Op *new_expr = expr;
+    size_t new_len = *len;
+    *byteswap_needed = false;
+    for (i = 0; i < *len; i++)
+    {
+        if ((expr[i].atom == DW_OP_call4) && (i == (*len - 1))) {
+	    Dwarf_Die dwarf_procedure;
+	    Dwarf_Die *dwarf_procedure_ptr;
+	    Dwarf_Off dwarf_procedure_offset;
+	    Dwarf_Attribute dwarf_procedure_location;
+            // Call4 parameter is offset to DWARF procedure die relative
+            // from start of compliation unit. To figure out compilation
+            // unit starting offset we take offset of cu entry first
+            // and then we subtract offset of cu entry with compilation
+            // unit. A bit hacky but there is not good elfutils API to
+            // get this information.
+	    dwarf_procedure_offset = dwarf_dieoffset(this->cu);
+	    dwarf_procedure_offset -= dwarf_cuoffset(this->cu);
+	    dwarf_procedure_offset += expr[i].number;
+	    dwarf_procedure_ptr = dwarf_offdie(this->module_dwarf,
+					       dwarf_procedure_offset,
+					       &dwarf_procedure);
+	    if (dwarf_attr_integrate(dwarf_procedure_ptr,
+				     DW_AT_location, &dwarf_procedure_location) != NULL)
+            {
+                Dwarf_Op *call4_expr;
+                size_t call4_expr_len;
+                int rc;
+                rc = dwarf_getlocation(&dwarf_procedure_location, &call4_expr, &call4_expr_len);
+
+                if (rc != -1) {
+                    // Check that DWARF procedure have one of the following form
+                    //   <18f>     DW_AT_location    : 54 byte block: 15 0 10 7 22 93 1 15 0 10 6 22 93 1 15 0 1
+                    //   0 5 22 93 1 15 0 10 4 22 93 1 15 0 10 3 22 93 1 15 0 10 2 22 93 1 15 0 10 1 22 93 1 15 0 93 1 13
+                    //   (DW_OP_pick: 0; DW_OP_constu: 7; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 6; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 5; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 4; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 3; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 2; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 1; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_piece: 1;
+                    //    DW_OP_drop)
+
+                    static const Dwarf_Op call4_pattern1_64[] = {
+                        {DW_OP_pick, 0, 0, 0x0},
+                        {DW_OP_constu, 7, 0, 0x2},
+                        {DW_OP_plus, 0, 0, 0x4},
+                        {DW_OP_piece, 1, 0, 0x5},
+
+                        {DW_OP_pick, 0, 0, 0x7},
+                        {DW_OP_constu, 6, 0, 0x9},
+                        {DW_OP_plus, 0, 0, 0xb},
+                        {DW_OP_piece, 1, 0, 0xc},
+
+                        {DW_OP_pick, 0, 0, 0xe},
+                        {DW_OP_constu, 5, 0, 0x10},
+                        {DW_OP_plus, 0, 0, 0x12},
+                        {DW_OP_piece, 1, 0, 0x13},
+
+                        {DW_OP_pick, 0, 0, 0x15},
+                        {DW_OP_constu, 4, 0, 0x17},
+                        {DW_OP_plus, 0, 0, 0x19},
+                        {DW_OP_piece, 1, 0, 0x1a},
+
+                        {DW_OP_pick, 0, 0, 0x1c},
+                        {DW_OP_constu, 3, 0, 0x1e},
+                        {DW_OP_plus, 0, 0, 0x20},
+                        {DW_OP_piece, 1, 0, 0x21},
+
+                        {DW_OP_pick, 0, 0, 0x23},
+                        {DW_OP_constu, 2, 0, 0x25},
+                        {DW_OP_plus, 0, 0, 0x27},
+                        {DW_OP_piece, 1, 0, 0x28},
+
+                        {DW_OP_pick, 0, 0, 0x2a},
+                        {DW_OP_constu, 1, 0, 0x2c},
+                        {DW_OP_plus, 0, 0, 0x2e},
+                        {DW_OP_piece, 1, 0, 0x2f},
+
+                        {DW_OP_pick, 0, 0, 0x31},
+                        {DW_OP_piece, 1, 0, 0x33},
+
+                        {DW_OP_drop, 0, 0, 0x35},
+                    };
+
+                    //   <6d8>     DW_AT_location    : 26 byte block: 15 0 10 3 22 93 1 15 0 10 2 22 93 1 15 0 10 1 22 93 1 15 0 93 1 13
+                    //   (DW_OP_pick: 0; DW_OP_constu: 3; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 2; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_constu: 1; DW_OP_plus; DW_OP_piece: 1;
+                    //    DW_OP_pick: 0; DW_OP_piece: 1;
+                    //    DW_OP_drop)
+
+                    static const Dwarf_Op call4_pattern1_32[] = {
+                        {DW_OP_pick, 0, 0, 0x0},
+                        {DW_OP_constu, 3, 0, 0x2},
+                        {DW_OP_plus, 0, 0, 0x4},
+                        {DW_OP_piece, 1, 0, 0x5},
+
+                        {DW_OP_pick, 0, 0, 0x7},
+                        {DW_OP_constu, 2, 0, 0x9},
+                        {DW_OP_plus, 0, 0, 0xb},
+                        {DW_OP_piece, 1, 0, 0xc},
+
+                        {DW_OP_pick, 0, 0, 0xe},
+                        {DW_OP_constu, 1, 0, 0x10},
+                        {DW_OP_plus, 0, 0, 0x12},
+                        {DW_OP_piece, 1, 0, 0x13},
+
+                        {DW_OP_pick, 0, 0, 0x15},
+                        {DW_OP_piece, 1, 0, 0x17},
+
+                        {DW_OP_drop, 0, 0, 0x19},
+                    };
+
+                    //   <18b>     DW_AT_location    : 32 byte block: 55 e8 8 38 55 e8 8 30 55 e8 8 28 55 e8 8 20 55 e8 8 18
+                    //   55 e8 8 10 55 e8 8 8 55 e8 8 0
+                    //   (DW_OP_reg5; DW_OP_ICC_bit_piece: 8 56;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 48;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 40;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 32;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 24;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 16;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 8;
+                    //    DW_OP_reg5; DW_OP_ICC_bit_piece: 8 0)
+
+                    static const Dwarf_Op call4_pattern2_ICC_bit_piece_64[] = {
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 56, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 48, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 40, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 32, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 24, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 16, 0x5},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 8, 0x9},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 0, 0xd},
+                    };
+
+
+                    //   <179>     DW_AT_location    : 16 byte block: 52 e8 8 18 52 e8 8 10 52 e8 8 8 52 e8 8 0
+                    //   (DW_OP_reg2; DW_OP_ICC_bit_piece: 8 24;
+                    //    DW_OP_reg2; DW_OP_ICC_bit_piece: 8 16;
+                    //    DW_OP_reg2; DW_OP_ICC_bit_piece: 8 8;
+                    //    DW_OP_reg2; DW_OP_ICC_bit_piece: 8 0)
+
+                    static const Dwarf_Op call4_pattern2_ICC_bit_piece_32[] = {
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 24, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 16, 0x5},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 8, 0x9},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_ICC_bit_piece, 8, 0, 0xd},
+                    };
+
+                    //   <18b>     DW_AT_location    : 32 byte block: 55 9d 8 38 55 9d 8 30 55 9d 8 28 55 9d 8 20 55 9d 8 18
+                    //   55 9d 8 10 55 9d 8 8 55 9d 8 0
+                    //   (DW_OP_reg5; DW_OP_bit_piece: 8 56;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 48;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 40;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 32;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 24;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 16;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 8;
+                    //    DW_OP_reg5; DW_OP_bit_piece: 8 0)
+
+                    static const Dwarf_Op call4_pattern2_bit_piece_64[] = {
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 56, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 48, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 40, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 32, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 24, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 16, 0x5},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 8, 0x9},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 0, 0xd},
+                    };
+
+
+                    //   <179>     DW_AT_location    : 16 byte block: 52 9d 8 18 52 9d 8 10 52 9d 8 8 52 9d 8 0
+                    //   (DW_OP_reg2; DW_OP_bit_piece: 8 24;
+                    //    DW_OP_reg2; DW_OP_bit_piece: 8 16;
+                    //    DW_OP_reg2; DW_OP_bit_piece: 8 8;
+                    //    DW_OP_reg2; DW_OP_bit_piece: 8 0)
+
+                    static const Dwarf_Op call4_pattern2_bit_piece_32[] = {
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 24, 0x1},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 16, 0x5},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 8, 0x9},
+                        {0, 0, 0, 0x0},
+                        {DW_OP_bit_piece, 8, 0, 0xd},
+                    };
+
+                    //
+                    // In the case of pattern1 we drop call4 operation and mark that byteswap_needed
+                    //
+                    bool pattern1_match = false;
+                    if ((call4_expr_len == sizeof(call4_pattern1_64) / sizeof(Dwarf_Op)) &&
+                        (memcmp(call4_expr, &call4_pattern1_64, sizeof(call4_pattern1_64)) == 0)) {
+                        pattern1_match = true;
+                    } else if ((call4_expr_len == sizeof(call4_pattern1_32) / sizeof(Dwarf_Op)) &&
+                               (memcmp(call4_expr, &call4_pattern1_32, sizeof(call4_pattern1_32)) == 0)) {
+                        pattern1_match = true;
+                    }
+                    if (pattern1_match) {
+                        new_len = *len - 1;
+                        *byteswap_needed = true;
+                    } else {
+                        // In the case of pattern 2 we need to verify that it is the same
+                        // operation interleaves bit_piece operation. In this case we replace
+                        // call4 with one that interleaves bit_piece operations
+                        size_t j;
+                        Dwarf_Op newop;
+                        const Dwarf_Op *pattern2 = NULL;
+                        if ((call4_expr_len == sizeof(call4_pattern2_ICC_bit_piece_64) / sizeof(Dwarf_Op)) ||
+                            (call4_expr_len == sizeof(call4_pattern2_bit_piece_64) / sizeof(Dwarf_Op))) {
+                            if (call4_expr[1].atom == DW_OP_ICC_bit_piece) {
+                                pattern2 = call4_pattern2_ICC_bit_piece_64;
+                            } else if (call4_expr[1].atom == DW_OP_bit_piece) {
+                                pattern2 = call4_pattern2_bit_piece_64;
+                            }
+                        } else if ((call4_expr_len == sizeof(call4_pattern2_ICC_bit_piece_32) / sizeof(Dwarf_Op)) ||
+                                   (call4_expr_len == sizeof(call4_pattern2_ICC_bit_piece_32) / sizeof(Dwarf_Op))) {
+                            if (call4_expr[1].atom == DW_OP_ICC_bit_piece) {
+                                pattern2 = call4_pattern2_ICC_bit_piece_32;
+                            } else if (call4_expr[1].atom == DW_OP_bit_piece) {
+                                pattern2 = call4_pattern2_bit_piece_32;
+                            }
+                        }
+                        if (pattern2) {
+                            newop.atom = call4_expr[0].atom;
+                            newop.number = call4_expr[0].number;
+                            newop.number2 = call4_expr[0].number2;
+
+                            for (j = 0; j < call4_expr_len; j++) {
+                                if ((j % 2) == 0) {
+                                    if ((call4_expr[j].atom != newop.atom) ||
+                                        (call4_expr[j].number != newop.number) ||
+                                        (call4_expr[j].number2 != newop.number2)) {
+                                        break;
+                                    }
+                                } else {
+                                    if ((call4_expr[j].atom != pattern2[j].atom) ||
+                                        (call4_expr[j].number != pattern2[j].number) ||
+                                        (call4_expr[j].number2 != pattern2[j].number2)) {
+                                        break;
+                                    }
+                                }
+                            }
+                            if (j == call4_expr_len) {
+                                // full match and we need to modify original expression
+                                // note below malloc is leaking but it is fine - it is
+                                // compiler after all
+                                new_expr = (Dwarf_Op *) malloc(sizeof(Dwarf_Op) * (*len));
+                                memcpy(new_expr, expr, sizeof(Dwarf_Op) * (*len));
+                                new_expr[i].atom = newop.atom;
+                                new_expr[i].number = newop.number;
+                                new_expr[i].number2 = newop.number2;
+                                *byteswap_needed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    *len = new_len;
+
+    return new_expr;
+}
 
 void
 dwflpp::get_module_dwarf(bool required, bool report)
@@ -2058,6 +2353,11 @@ dwflpp::translate_location(struct obstack *pool,
       throw semantic_error (_F("dwarf_getlocation_addr failed, %s", dwarf_errmsg(-1)), e->tok);
     }
 
+  // inspect and possibly modify location expression to remove call4 sequences
+  // that would implement byteswap operation
+  bool byteswap_needed;
+  expr = check_biendian_location_expression(expr, &len, &byteswap_needed);
+
   // pc is in the dw address space of the current module, which is what
   // c_translate_location expects. get_cfa_ops wants the global dwfl address.
   Dwarf_Addr addr = pc + module_bias;
@@ -2065,7 +2365,8 @@ dwflpp::translate_location(struct obstack *pool,
   return c_translate_location (pool, &loc2c_error, this,
                                &loc2c_emit_address,
                                1, 0 /* PR9768 */,
-                               pc, attr, expr, len, tail, fb_attr, cfa_ops);
+                               pc, attr, expr, len, tail, fb_attr, cfa_ops,
+                               byteswap_needed);
 }
 
 
@@ -2614,7 +2915,8 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 	  head = c_translate_location (&pool, &loc2c_error, this,
 				       &loc2c_emit_address,
 				       1, 0, pc,
-				       NULL, &addr_loc, 1, &tail, NULL, NULL);
+				       NULL, &addr_loc, 1, &tail, NULL, NULL,
+                                       false);
 	}
       else
         throw semantic_error (_F("failed to retrieve location attribute for local '%s' (dieoffset: %s)",
@@ -2705,7 +3007,8 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                                                  &loc2c_emit_address,
                                                  1, 0 /* PR9768 */,
                                                  pc, NULL, locops, nlocops,
-                                                 &tail, NULL, NULL);
+                                                 &tail, NULL, NULL,
+                                                 false);
 
   /* Translate the ->bar->baz[NN] parts. */
 

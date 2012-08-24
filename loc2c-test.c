@@ -177,7 +177,7 @@ handle_fields (struct obstack *pool,
 	      c_translate_location (pool, NULL, NULL, NULL,
 				    1, cubias, pc, &attr_mem,
 				    locexpr, locexpr_len,
-				    &tail, NULL, NULL);
+				    &tail, NULL, NULL, false);
 	    }
 	  ++fields;
 	  break;
@@ -343,7 +343,7 @@ handle_variable (Dwarf_Die *lscopes, int lnscopes, int out,
       head = c_translate_location (&pool, &fail, NULL, NULL,
 				   1, cubias, pc, &attr_mem,
 				   locexpr, locexpr_len,
-				   &tail, fb_attr, cfa_ops);
+				   &tail, fb_attr, cfa_ops, false);
     }
 
   handle_fields (&pool, head, tail, cubias, vardie, pc, fields);
@@ -552,7 +552,7 @@ In the third form, the access is a store rather than a fetch."
 		head = c_translate_location (&pool, &fail, NULL, NULL,
 					     1, cubias, pc, NULL,
 					     locexpr, locexpr_len,
-					     &tail, NULL, NULL);
+					     &tail, NULL, NULL, false);
 		handle_fields (&pool, head, tail, cubias, &scopes[i], pc,
 			       &argv[argi]);
 		free (scopes);

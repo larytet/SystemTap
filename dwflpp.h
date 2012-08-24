@@ -176,6 +176,8 @@ struct dwflpp
   dwflpp(systemtap_session & session, const std::vector<std::string>& user_modules, bool kernel_p);
   ~dwflpp();
 
+  Dwarf_Op *check_biendian_location_expression(Dwarf_Op *expr, size_t *lenp, bool *byteswap_needed);
+
   void get_module_dwarf(bool required = false, bool report = true);
 
   void focus_on_module(Dwfl_Module * m, module_info * mi);

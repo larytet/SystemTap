@@ -39,7 +39,8 @@ struct location *c_translate_location (struct obstack *,
 				       size_t locexprlen,
 				       struct location **input,
 				       Dwarf_Attribute *fb_attr,
-				       const Dwarf_Op *cfa_ops);
+				       const Dwarf_Op *cfa_ops,
+                                       bool byteswap_needed);
 
 /* Translate a fragment for a compile-time constant from DW_AT_const_value.
  */
