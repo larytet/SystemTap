@@ -184,3 +184,15 @@ function ubacktrace:string () %{
 
     strlcpy (THIS->__retvalue, "", MAXSTRINGLEN);
 %}
+
+/**
+ * sfunction ucaller - Return name and address of calling function
+ *
+ *  Return the address and name of the calling function.
+ *  This is equivalent to calling:
+ *  sprintf("%s 0x%x", symname(caller_addr(), caller_addr()))
+ *  Works only for return probes at this time.
+ */
+function ucaller:string() {
+	return sprintf("%s 0x%x", usymname(ucaller_addr()), ucaller_addr());
+}

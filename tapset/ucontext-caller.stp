@@ -1,0 +1,29 @@
+// User context unwind tapset
+// Copyright (C) 2009 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/**
+ * sfunction ucaller_addr -  Return caller address
+ *
+ *  Return the address of the calling function.
+ *  Works only for return probes at this time.
+ */
+function ucaller_addr:long () %{ /* pure */
+        if (CONTEXT->ri)
+		THIS->__retvalue = (int64_t)(long)_stp_ret_addr_r(CONTEXT->ri);
+        else
+		THIS->__retvalue = 0;
+%}
+
+function context_ri:long () %{ /* pure */
+	THIS->__retvalue = (int64_t)(CONTEXT->ri);
+%}
+
+function context_pi:long () %{ /* pure */
+	THIS->__retvalue = (int64_t)(CONTEXT->pi);
+%}
+
