@@ -120,7 +120,7 @@ probe __scheduler.ctxswitch.tp = kernel.trace("sched_switch")
 }
 
 probe __scheduler.ctxswitch.kp =
-%( arch != "x86_64" && arch != "ia64" %?
+%( arch != "x86_64" && arch != "ia64" && arch != "mips" %?
 	kernel.function("__switch_to")
 %:
 	kernel.function("context_switch")

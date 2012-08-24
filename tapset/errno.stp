@@ -388,6 +388,8 @@ static long _stp_returnval(struct pt_regs *regs) {
 		return regs->gprs[2];
 #elif defined (__arm__)
 		return regs->ARM_r0;
+#elif defined (__mips__)
+		return regs->regs[2];
 #else
 		_stp_error("returnval() not defined for this architecture");
 		return 0;

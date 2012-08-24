@@ -1807,6 +1807,7 @@ validate_module_elf (Dwfl_Module *mod, const char *name,  base_query *q)
     case EM_S390: expect_machine = "s390"; break;
     case EM_IA_64: expect_machine = "ia64"; break;
     case EM_ARM: expect_machine = "arm*"; break;
+    case EM_MIPS: expect_machine = "mips"; break;
       // XXX: fill in some more of these
     default: expect_machine = "?"; break;
     }

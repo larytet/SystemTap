@@ -77,6 +77,55 @@
 #define MREMAP_SYSCALL_NO(tsk)		1156
 #endif
 
+#if defined(__mips__)
+/* n64 values: scall64-64.S */
+#define MMAP_SYSCALL_NO_MIPS_N64	5009
+#define MMAP2_SYSCALL_NO_MIPS_N64	((unsigned long)-1) /* does not exits */
+#define MPROTECT_SYSCALL_NO_MIPS_N64	5010
+#define MUNMAP_SYSCALL_NO_MIPS_N64	5011
+#define MREMAP_SYSCALL_NO_MIPS_N64	5024
+
+/* n32 values: scall64-n32.S */
+#define MMAP_SYSCALL_NO_MIPS_N32	6009
+#define MMAP2_SYSCALL_NO_MIPS_N32	((unsigned long)-1) /* does not exits */
+#define MPROTECT_SYSCALL_NO_MIPS_N32	6010
+#define MUNMAP_SYSCALL_NO_MIPS_N32	6011
+#define MREMAP_SYSCALL_NO_MIPS_N32	6024
+
+/* o32 values: scall32-o32.S */
+#define MMAP_SYSCALL_NO_MIPS_O32	4090
+#define MMAP2_SYSCALL_NO_MIPS_O32	4210
+#define MPROTECT_SYSCALL_NO_MIPS_O32	4125
+#define MUNMAP_SYSCALL_NO_MIPS_O32	4091
+#define MREMAP_SYSCALL_NO_MIPS_O32	4167
+
+#define MMAP_SYSCALL_NO(tsk) ((test_tsk_thread_flag((tsk), TIF_32BIT_ADDR)) ?	   \
+			      ((test_tsk_thread_flag((tsk), TIF_32BIT_REGS)) ?	   \
+			       (MMAP_SYSCALL_NO_MIPS_O32) :			   \
+			       (MMAP_SYSCALL_NO_MIPS_N32)) :			   \
+			      (MMAP_SYSCALL_NO_MIPS_N64))
+#define MMAP2_SYSCALL_NO(tsk) ((test_tsk_thread_flag((tsk), TIF_32BIT_ADDR)) ?	   \
+			      ((test_tsk_thread_flag((tsk), TIF_32BIT_REGS)) ?	   \
+			       (MMAP2_SYSCALL_NO_MIPS_O32) :			   \
+			       (MMAP2_SYSCALL_NO_MIPS_N32)) :			   \
+			      (MMAP2_SYSCALL_NO_MIPS_N64))
+#define MPROTECT_SYSCALL_NO(tsk) ((test_tsk_thread_flag((tsk), TIF_32BIT_ADDR)) ?  \
+			      ((test_tsk_thread_flag((tsk), TIF_32BIT_REGS)) ?	   \
+			       (MPROTECT_SYSCALL_NO_MIPS_O32) :			   \
+			       (MPROTECT_SYSCALL_NO_MIPS_N32)) :		   \
+			      (MPROTECT_SYSCALL_NO_MIPS_N64))
+#define MUNMAP_SYSCALL_NO(tsk) ((test_tsk_thread_flag((tsk), TIF_32BIT_ADDR)) ?	   \
+			      ((test_tsk_thread_flag((tsk), TIF_32BIT_REGS)) ?	   \
+			       (MUNMAP_SYSCALL_NO_MIPS_O32) :			   \
+			       (MUNMAP_SYSCALL_NO_MIPS_N32)) :			   \
+			      (MUNMAP_SYSCALL_NO_MIPS_N64))
+#define MREMAP_SYSCALL_NO(tsk) ((test_tsk_thread_flag((tsk), TIF_32BIT_ADDR)) ?	   \
+			      ((test_tsk_thread_flag((tsk), TIF_32BIT_REGS)) ?	   \
+			       (MREMAP_SYSCALL_NO_MIPS_O32) :			   \
+			       (MREMAP_SYSCALL_NO_MIPS_N32)) :			   \
+			      (MREMAP_SYSCALL_NO_MIPS_N64))
+#endif
+
 #if defined(__s390__) || defined(__s390x__)
 #define MMAP_SYSCALL_NO(tsk)		90
 #define MMAP2_SYSCALL_NO(tsk)		192

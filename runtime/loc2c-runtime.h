@@ -428,6 +428,12 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #define k_fetch_register(regno) ((intptr_t) c->regs->gprs[regno])
 #define k_store_register(regno,value) (c->regs->gprs[regno] = (value))
 
+#elif defined (__mips__)
+#undef k_fetch_register
+#undef k_store_register
+#define k_fetch_register(regno) ((intptr_t) c->regs->regs[regno])
+#define k_store_register(regno,value) (c->regs->regs[regno] = (value))
+
 #endif
 
 
@@ -907,8 +913,82 @@ extern void __store_deref_bad(void);
           STORE_DEREF_FAULT(addr);                              \
 })
 
+#elif defined __mips__
 
-#endif /* (s390) || (s390x) */
+/* macros lifted from arch/mips/include/asm/uaccess.h and changed a bit */
+
+#define __stp_get_user_asm(val, insn, addr, err)			\
+{									\
+	__asm__ __volatile__(						\
+	"1:	" insn "	%1, %3				\n"	\
+	"2:							\n"	\
+	"	.section .fixup,\"ax\"				\n"	\
+	"3:	li	%0, %4					\n"	\
+	"	j	2b					\n"	\
+	"	.previous					\n"	\
+	"	.section __ex_table,\"a\"			\n"	\
+	"	"__UA_ADDR "\t1b, 3b				\n"	\
+	"	.previous					\n"	\
+	: "=r" (err), "=r" (val)					\
+	: "0" (0), "o" (__m(addr)), "i" (-EFAULT));			\
+}
+
+#define __stp_put_user_asm(val, insn, addr, err)			\
+{									\
+	__asm__ __volatile__(						\
+	"1:	" insn "	%z2, %3		# __put_user_asm\n"	\
+	"2:							\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
+	"3:	li	%0, %4					\n"	\
+	"	j	2b					\n"	\
+	"	.previous					\n"	\
+	"	.section	__ex_table,\"a\"		\n"	\
+	"	" __UA_ADDR "	1b, 3b				\n"	\
+	"	.previous					\n"	\
+	: "=r" (err)							\
+	: "0" (0), "Jr" (val), "o" (__m(addr)),				\
+	  "i" (-EFAULT));						\
+}
+
+#define deref(size, addr)						\
+  ({									\
+     int _bad = 0;							\
+     intptr_t _v=0;							\
+     if (lookup_bad_addr((unsigned long)addr, size))			\
+       _bad = 1;							\
+     else								\
+       switch (size){							\
+       case 1: __stp_get_user_asm(_v, "lb", addr, _bad); break;		\
+       case 2: __stp_get_user_asm(_v, "lh", addr, _bad); break;		\
+       case 4: __stp_get_user_asm(_v, "lw", addr, _bad); break;		\
+       case 8: __stp_get_user_asm(_v, "ld", addr, _bad); break;		\
+       default: __get_user_unknown(); break;				\
+       }								\
+    if (_bad)								\
+	DEREF_FAULT(addr);						\
+     _v;								\
+   })
+
+/* TODO kamensky: need to run test; did not have test case for that so far */
+
+#define store_deref(size, addr, value)					\
+  ({									\
+    int _bad=0;								\
+    if (lookup_bad_addr((unsigned long)addr, size))			\
+      _bad = 1;								\
+    else								\
+      switch (size){							\
+      case 1: __stp_put_user_asm(value, "sb", addr, _bad); break;	\
+      case 2: __stp_put_user_asm(value, "sh", addr, _bad); break;	\
+      case 4: __stp_put_user_asm(value, "sw", addr, _bad); break;	\
+      case 8: __stp_put_user_asm(value, "sd", addr, _bad); break;	\
+      default: __put_user_unknown(); break;				\
+      }									\
+    if (_bad)								\
+	   STORE_DEREF_FAULT(addr);					\
+   })
+
+#endif
 
 
 #if defined (__i386__) || defined (__arm__)

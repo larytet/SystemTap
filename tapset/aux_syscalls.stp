@@ -2014,7 +2014,7 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
       strlcat (ptr, ", ", len);
       _stp_lookup_or_str(_stp_sa_flags_list, act->sa_flags, ptr, len);
       strlcat (ptr, ", ", len);
-#if !defined (__ia64__)
+#if !defined (__ia64__) && !defined (__mips__)
       slen = strlen(ptr);
       _stp_snprintf(ptr + slen, len - slen,
 		    "0x%lx, [", (long)act->sa_restorer);

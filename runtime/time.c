@@ -21,6 +21,22 @@
 
 #include <linux/cpufreq.h>
 
+#ifdef CONFIG_CPU_CAVIUM_OCTEON
+/* Octeon supports a 64 bit cycle counter we might as well use it */
+static inline cycles_t octeon_get_cycles(void)
+{
+    cycles_t result;
+    asm volatile ("rdhwr %0,$31\n"
+#ifndef CONFIG_64BIT
+                  "sll %0,0\n"
+#endif
+                  : "=r" (result));
+    return result;
+}
+#define get_cycles octeon_get_cycles
+#endif /* CONFIG_CPU_CAVIUM_OCTEON */
+
+
 #ifndef NSEC_PER_MSEC
 #define NSEC_PER_MSEC	1000000L
 #endif

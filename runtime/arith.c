@@ -21,7 +21,8 @@
 /* Other 32-bit cpus will need to modify this file. */
 
 #if defined (__i386__) || defined(__arm__) || \
-	(defined(__powerpc__) && !defined(__powerpc64__))
+	(defined(__powerpc__) && !defined(__powerpc64__)) || \
+        (defined(__mips__) && !defined(__mips64))
 static long long _div64 (long long u, long long v);
 static long long _mod64 (long long u, long long v);
 #endif
@@ -116,7 +117,8 @@ static int _stp_random_pm (unsigned n)
 
 
 #if defined (__i386__) || defined (__arm__) || \
-	(defined(__powerpc__) && !defined(__powerpc64__))
+	(defined(__powerpc__) && !defined(__powerpc64__)) || \
+        (defined(__mips__) && !defined(__mips64))
 
 /* 64-bit division functions extracted from libgcc */
 typedef long long DWtype;
@@ -247,6 +249,25 @@ typedef union
 	     "=&r" (__t0), "=&r" (__t1), "=r" (__t2)			\
 	   : "r" ((USItype) (a)),					\
 	     "r" ((USItype) (b)) __CLOBBER_CC );}
+
+#elif defined (__mips__)
+
+#define umul_ppmm(w1, w0, u, v)                                         \
+  __asm__ ("multu %2,%3"						\
+	   : "=l" ((USItype) (w0)),					\
+	     "=h" ((USItype) (w1))					\
+	   : "d" ((USItype) (u)),					\
+	     "d" ((USItype) (v)))
+
+#if !defined (sub_ddmmss)
+#define sub_ddmmss(sh, sl, ah, al, bh, bl) \
+  do {									\
+    UWtype __x;								\
+    __x = (al) - (bl);							\
+    (sh) = (ah) - (bh) - (__x > (al));					\
+    (sl) = __x;								\
+  } while (0)
+#endif
 
 #endif
 

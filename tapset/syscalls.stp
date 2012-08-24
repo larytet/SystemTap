@@ -1043,6 +1043,9 @@ function __is_user_regs:long (regs:long)
 #elif defined(__arm__)
 	long cpsr = kread(&regs->ARM_cpsr);
 	THIS->__retvalue = ((cpsr & 0xf) == 0);
+#elif defined(__mips__) /* TODO kamensky: need to test */
+	unsigned long cp0 = kread(&regs->cp0_status);
+	THIS->__retvalue = ((cp0 & 0x08) == 8);
 #elif defined(__s390__) || defined(__s390x__)
 	unsigned long mask = kread(&regs->psw.mask);
 	THIS->__retvalue = ((mask & PSW_MASK_PSTATE) != 0);

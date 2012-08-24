@@ -1231,7 +1231,11 @@ probe syscall.rt_sigreturn.return = kernel.function("sys_rt_sigreturn").return ?
                                     kernel.function("sys32_rt_sigreturn").return ?
 {
 	name = "rt_sigreturn"
+%( arch == "mips" %?
+	retstr = "void"
+%:
 	retstr = return_str(1, $return)
+%)
 }
 
 # rt_sigsuspend ______________________________________________
@@ -2530,7 +2534,11 @@ probe syscall.sigreturn.return = kernel.function("sys_sigreturn").return ?,
                                  kernel.function("sys32_sigreturn").return ?
 {
 	name = "sigreturn"
+%( arch == "mips" %?
+	retstr = "void"
+%:
 	retstr = return_str(1, $return)
+%)
 }
 
 # sigsuspend _________________________________________________
