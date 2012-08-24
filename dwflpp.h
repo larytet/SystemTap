@@ -373,6 +373,8 @@ private:
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
+  size_t get_nsrcs_limit (bool need_single_match, Dwarf_Line ***srcsp);
+
   static void loc2c_error (void *, const char *fmt, ...);
 
   // This function generates code used for addressing computations of

@@ -1559,6 +1559,43 @@ dwflpp::has_single_line_record (dwarf_query * q, char const * srcfile, int linen
 }
 
 
+size_t
+dwflpp::get_nsrcs_limit (bool need_single_match,
+                         Dwarf_Line ***srcsp)
+{
+  size_t nsrcs_max = 0; // no limit
+  static const char icc_producer[] = "Intel(R) C++ Compiler";
+  *srcsp = NULL;
+
+  if (need_single_match) {
+    // If single match is requested and it is ICC compiler we need to limit request
+    // to one line location. Otherwise multiple line entries will be returned -
+    // icc too often generates multiple line entries for a single line of source code.
+    // Gcc does not have such behavior.
+    //
+    // Down side of our approach fixing ICC issue is that source line that points to
+    // inline function will in icc case pick up first instance in the file where such
+    // inline function is used. Whereas in gcc case it will produce multiple line error
+    // message.
+    Dwarf_Attribute cu_producer;
+    const char *producer;
+    producer = dwarf_formstring (dwarf_attr_integrate (this->cu,
+                                                       DW_AT_producer,
+                                                       &cu_producer));
+    if (producer) {
+      if((strncmp(producer,
+                  icc_producer,
+                  sizeof(icc_producer) - 1)) == 0) {
+        nsrcs_max = 1;
+        *srcsp = (Dwarf_Line **) malloc(sizeof (Dwarf_Line *));
+      }
+    }
+  }
+
+  return nsrcs_max;
+}
+
+
 void
 dwflpp::iterate_over_srcfile_lines (char const * srcfile,
                                     int lines[2],
@@ -1637,8 +1674,7 @@ dwflpp::iterate_over_srcfile_lines (char const * srcfile,
       if (pending_interrupts) break;
 
       free(srcsp);
-      srcsp = NULL;
-      nsrcs = 0;
+      nsrcs = get_nsrcs_limit(need_single_match, &srcsp);
 
       ret = dwarf_getsrc_file (module_dwarf, srcfile, l, 0,
 					 &srcsp, &nsrcs);
