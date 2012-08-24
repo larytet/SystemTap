@@ -136,11 +136,46 @@ void parse_args(int argc, char **argv)
 			suppress_warnings=1;
 			break;
 		case 'b':
-			buffer_size = (unsigned)atoi(optarg);
+                {
+                    char *units = NULL;
+                    unsigned int num = strtoul(optarg, &units, 0);
+                    if (!units && units == optarg) {
+                        err(_("Invalid buffer size '%s' (use numberK or numberM).\n"), optarg);
+                        usage(argv[0]);
+                    }
+                    if (!units || (units[0] == '\0')) {
+                        /* No units specified - historic backward compatbile (megabytes) */
+			buffer_size = num;
 			if (buffer_size < 1 || buffer_size > 4095) {
-				err(_("Invalid buffer size '%d' (should be 1-4095).\n"), buffer_size);
+                                err(_("Invalid buffer size '%d' (should be 1-4095).\n"), buffer_size);
 				usage(argv[0]);
 			}
+			break;
+                        buffer_size = buffer_size * 1024;
+                    } else {
+                        if (units[1] != '\0') {
+                            err(_("Invalid buffer size '%s' (use numberK or numberM).\n"), optarg);
+                            usage(argv[0]);
+                        } else {
+                            switch (*units) {
+                            case 'M':
+                                buffer_size = num * 1024;
+                                break;
+                            case 'K':
+                                buffer_size = num;
+                                break;
+                            default:
+                              err(_("Invalid buffer size '%s' (use numberK or numberM).\n"), optarg);
+                                usage(argv[0]);
+                            }
+                        }
+                    }
+                    if (buffer_size > 4095 * 1024) {
+                        err(_("Buffer size '%s' is too big (should be smaller than 4095M).\n"),
+                            optarg);
+                        usage(argv[0]);
+                    }
+                }
 			break;
 		case 't':
 		case 'x':

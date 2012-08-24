@@ -252,7 +252,7 @@ static int _stp_transport_init(void)
 #endif
 
 	if (_stp_bufsize) {
-		unsigned size = _stp_bufsize * 1024 * 1024;
+		unsigned size = _stp_bufsize * 1024;
 		_stp_subbuf_size = 65536;
 		while (size / _stp_subbuf_size > 64 &&
 		       _stp_subbuf_size < 1024 * 1024) {
