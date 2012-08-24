@@ -70,6 +70,15 @@ typedef unordered_map<void*, Dwarf_Die> cu_die_parent_cache_t;
 // cu die -> (die -> parent die)
 typedef unordered_map<void*, cu_die_parent_cache_t*> mod_cu_die_parent_cache_t;
 
+// data -> die
+typedef unordered_multimap<std::string, Dwarf_Die> cu_datavar_cache_t;
+typedef std::pair<cu_datavar_cache_t::iterator,
+                  cu_datavar_cache_t::iterator>
+        cu_datavar_cache_range_t;
+
+// module -> (data -> die)
+typedef unordered_map<Dwarf*, cu_datavar_cache_t*> mod_datavar_cache_t;
+
 typedef std::vector<func_info> func_info_map_t;
 typedef std::vector<inline_instance_info> inline_instance_map_t;
 
@@ -329,6 +338,7 @@ private:
   module_cu_cache_t module_cu_cache;
   mod_cu_function_cache_t cu_function_cache;
   mod_function_cache_t mod_function_cache;
+  mod_datavar_cache_t mod_datavar_cache;
 
   std::set<void*> cu_inl_function_cache_done; // CUs that are already cached
   cu_inl_function_cache_t cu_inl_function_cache;
@@ -358,6 +368,9 @@ private:
   static int mod_function_caching_callback (Dwarf_Die* func, void *arg);
   static int cu_function_caching_callback (Dwarf_Die* func, void *arg);
 
+  static int mod_datavar_caching_callback (Dwarf_Die* func, void *arg);
+  static int cu_datavar_caching_callback (Dwarf_Die* data, void *arg);
+
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
   static void loc2c_error (void *, const char *fmt, ...);
@@ -371,6 +384,9 @@ private:
   void print_locals(std::vector<Dwarf_Die>& scopes, std::ostream &o);
   void print_members(Dwarf_Die *vardie, std::ostream &o);
 
+  bool find_global_data_variables(std::string const & varname,
+                                  const target_symbol *e,
+                                  Dwarf_Die *vardie);
   Dwarf_Attribute *find_variable_and_frame_base (std::vector<Dwarf_Die>& scopes,
                                                  Dwarf_Addr pc,
                                                  std::string const & local,

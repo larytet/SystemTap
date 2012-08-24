@@ -100,6 +100,7 @@ dwflpp::~dwflpp()
   delete_map(module_cu_cache);
   delete_map(cu_function_cache);
   delete_map(mod_function_cache);
+  delete_map(mod_datavar_cache);
   delete_map(cu_inl_function_cache);
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
@@ -1020,14 +1021,26 @@ int
 dwflpp::global_alias_caching_callback(Dwarf_Die *die, void *arg)
 {
   cu_type_cache_t *cache = static_cast<cu_type_cache_t*>(arg);
-  const char *name = dwarf_diename(die);
+  switch (dwarf_tag(die))
+  {
+  case DW_TAG_base_type:
+  case DW_TAG_enumeration_type:
+  case DW_TAG_structure_type:
+  case DW_TAG_class_type:
+  case DW_TAG_typedef:
+  case DW_TAG_union_type:
+  {
+    const char *name = dwarf_diename(die);
 
-  if (!name || dwarf_hasattr(die, DW_AT_declaration))
-    return DWARF_CB_OK;
+    if (!name || dwarf_hasattr(die, DW_AT_declaration))
+      return DWARF_CB_OK;
 
-  string type_name = cache_type_prefix(die) + string(name);
-  if (cache->find(type_name) == cache->end())
-    (*cache)[type_name] = *die;
+    string type_name = cache_type_prefix(die) + string(name);
+    if (cache->find(type_name) == cache->end())
+      (*cache)[type_name] = *die;
+  }
+  break;
+  }
 
   return DWARF_CB_OK;
 }
@@ -1121,6 +1134,33 @@ dwflpp::mod_function_caching_callback (Dwarf_Die* cu, void *arg)
   return DWARF_CB_OK;
 }
 
+
+int
+dwflpp::cu_datavar_caching_callback (Dwarf_Die* die, void *arg)
+{
+  if (dwarf_tag(die) != DW_TAG_variable)
+    return DWARF_CB_OK;
+
+  cu_datavar_cache_t* v = static_cast<cu_datavar_cache_t*>(arg);
+  const char *name = dwarf_diename(die);
+  Dwarf_Attribute declaration_attr;
+
+  if (!name)
+    return DWARF_CB_OK;
+
+  if (dwarf_attr_integrate(die, DW_AT_declaration, &declaration_attr) == NULL)
+    v->insert(make_pair(string(name), *die));
+
+  return DWARF_CB_OK;
+}
+
+
+int
+dwflpp::mod_datavar_caching_callback (Dwarf_Die* cu, void *arg)
+{
+  iterate_over_globals(cu, cu_datavar_caching_callback, arg);
+  return DWARF_CB_OK;
+}
 
 int
 dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
@@ -1275,19 +1315,7 @@ dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
     return rc;
 
   do
-    /* We're only currently looking for named types,
-     * although other types of declarations exist */
-    switch (dwarf_tag(&die))
-      {
-      case DW_TAG_base_type:
-      case DW_TAG_enumeration_type:
-      case DW_TAG_structure_type:
-      case DW_TAG_class_type:
-      case DW_TAG_typedef:
-      case DW_TAG_union_type:
-        rc = (*callback)(&die, data);
-        break;
-      }
+     rc = (*callback)(&die, data);
   while (rc == DWARF_CB_OK && dwarf_siblingof(&die, &die) == 0);
 
   return rc;
@@ -2206,6 +2234,58 @@ dwflpp::loc2c_emit_address (void *arg, struct obstack *pool,
   static_cast<dwflpp *>(arg)->emit_address (pool, address);
 }
 
+bool
+dwflpp::find_global_data_variables (string const & varname,
+                                    const target_symbol *e,
+                                    Dwarf_Die *vardie)
+{
+  bool retval = false;
+  int number_of_global_vars = 0;
+
+  cu_datavar_cache_t *v = mod_datavar_cache[module_dwarf];
+  if (v == 0)
+  {
+    v = new cu_datavar_cache_t;
+    mod_datavar_cache[module_dwarf] = v;
+    iterate_over_cus (mod_datavar_caching_callback, v);
+
+    if (sess.verbose > 4)
+      clog << "module datavar cache " << module_name << ":" << cu_name()
+           << " size " << v->size() << endl;
+  }
+  cu_function_cache_t::iterator it;
+  cu_datavar_cache_range_t range = v->equal_range(varname);
+
+  if (range.first != range.second) {
+    for (it = range.first; it != range.second; ++it)
+    {
+      number_of_global_vars++;
+      *vardie = it->second;
+    }
+    if (number_of_global_vars != 1) {
+      // Found duplicate global extern and static variables with
+      // requested name. What can we do here. We may have several
+      // options in the future:
+      // 1) check if one of these choices has DW_AT_external set
+      // and pick it up. Basically it will give extern global 'name'
+      // preference over static 'name's
+      // 2) the best option seem to extend the language and allow
+      // user to qualify name with file scope; similar to what gdb
+      // does. i.e something like $"*file.c"::name says pick up
+      // global extern or static 'name' from 'file.c'
+      //
+      // For now let's just generated error
+      stringstream msg;
+      msg << "found " << number_of_global_vars
+          << " duplicate static global variables instances with '"
+          << varname << "' name";
+      throw semantic_error (msg.str());
+    } else {
+      retval = true;
+    }
+  }
+  return retval;
+}
 
 void
 dwflpp::print_locals(vector<Dwarf_Die>& scopes, ostream &o)
@@ -2241,7 +2321,7 @@ dwflpp::print_locals(vector<Dwarf_Die>& scopes, ostream &o)
 Dwarf_Attribute *
 dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
                                       Dwarf_Addr pc,
-                                      string const & local,
+                                      string const & varname,
                                       const target_symbol *e,
                                       Dwarf_Die *vardie,
                                       Dwarf_Attribute *fb_attr_mem)
@@ -2252,14 +2332,18 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
   assert (cu);
 
   int declaring_scope = dwarf_getscopevar (&scopes[0], scopes.size(),
-                                           local.c_str(),
+                                           varname.c_str(),
                                            0, NULL, 0, 0,
                                            vardie);
+  if (declaring_scope < 0)
+    if (find_global_data_variables(varname, e, vardie))
+      return fb_attr;
+
   if (declaring_scope < 0)
     {
       stringstream alternatives;
       print_locals (scopes, alternatives);
-      throw semantic_error (_F("unable to find local '%s' near pc %s %s %s %s (%s)", local.c_str(),
+      throw semantic_error (_F("unable to find local '%s' near pc %s %s %s %s (%s)", varname.c_str(),
                                lex_cast_hex(pc).c_str(), (scope_die == NULL) ? "" : _(" in "),
                                (dwarf_diename(scope_die) ?: "<unknown>"), 
                                (dwarf_diename(cu) ?: "<unknown>"),
@@ -2295,7 +2379,7 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
                physcopes = getscopes_die(&scope);
                if (physcopes.empty())
                  throw semantic_error (_F("unable to get die scopes for '%s' in an inlined subroutine",
-                                          local.c_str()), e->tok);
+                                          varname.c_str()), e->tok);
                fbscopes = &physcopes;
                inner = 0; // zero is current scope, for look will increase.
                declaring_scope = -1;
