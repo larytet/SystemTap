@@ -1,12 +1,20 @@
 systemtap (2.1-1~experimental1~try1) experimental; urgency=low
 
-  * New upstream release (Closes: #690404, #701365).
+  * New upstream release (Closes: #690404, #701365, #701365)
+    (LP: #803549, #1130626, #1075772).
   * Drop patches that are part of the new upstream release:
     - manpage-syntax1.diff
     - spelling-fixes1.diff
     - spelling-fixes2.diff
     - manpage-paths1.diff
     - fix.CVE-2012-0875.diff
+  * Add patches that fix various lintian warnings:
+    - 0001-man-stap.1-escape-minus-sign-properly.patch
+    - 0002-man-stap.1-fix-typo.patch
+    - 0003-man-stapprobes.3stap-escape-minus-sign-properly.patch
+    - 0005-Add-missing-usr-bin-env-stap-to-some-examples.patch
+    - 0006-man-stappaths.7-properly-escape-dot-in-the-beginning.patch
+    - 0008-man-escape-quote-properly-in-header.patch
   * Upload to experimental since wheezy is frozen.
   * Drop systemtap-grapher binary package as it has been
     removed by upstream.

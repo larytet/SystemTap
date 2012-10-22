@@ -1,6 +1,7 @@
 debversion.diff
-manpage-syntax1.diff
-spelling-fixes1.diff
-spelling-fixes2.diff
-manpage-paths1.diff
-fix.CVE-2012-0875.diff
+0001-man-stap.1-escape-minus-sign-properly.patch
+0002-man-stap.1-fix-typo.patch
+0003-man-stapprobes.3stap-escape-minus-sign-properly.patch
+0005-Add-missing-usr-bin-env-stap-to-some-examples.patch
+0006-man-stappaths.7-properly-escape-dot-in-the-beginning.patch
+0008-man-escape-quote-properly-in-header.patch
