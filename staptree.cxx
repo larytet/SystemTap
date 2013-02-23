@@ -146,7 +146,7 @@ probe_point::component::component (std::string const & f, literal * a):
 
 
 vardecl::vardecl ():
-  arity_tok(0), arity (-1), maxsize(0), init(NULL), skip_init(false), wrap(false)
+  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false)
 {
 }
 
@@ -192,7 +192,7 @@ vardecl::compatible_arity (int a)
 
 
 functiondecl::functiondecl ():
-  body (0), synthetic (false)
+  body (0), synthetic (false), mangle_oldstyle (false)
 {
 }
 
@@ -275,6 +275,18 @@ void target_symbol::chain (const semantic_error &er)
   this->saved_conversion_error = e;
 }
 
+string target_symbol::sym_name ()
+{
+  if (name == "@var")
+    {
+      if (cu_name == "")
+	return target_name;
+      else
+	return target_name.substr(0, target_name.length() - cu_name.length() - 1);
+    }
+  else
+    return name.substr(1);
+}
 
 // ------------------------------------------------------------------------
 // parse tree printing
@@ -389,6 +401,8 @@ void target_symbol::print (ostream& o) const
   if (addressof)
     o << "&";
   o << name;
+  if (name == "@var")
+    o << "(\"" << target_name << "\")";
   for (unsigned i = 0; i < components.size(); ++i)
     o << components[i];
 }
@@ -417,6 +431,12 @@ void defined_op::print (ostream& o) const
 void entry_op::print (ostream& o) const
 {
   o << "@entry(" << *operand << ")";
+}
+
+
+void perf_op::print (ostream& o) const
+{
+  o << "@perf(" << *operand << ")";
 }
 
 
@@ -917,6 +937,10 @@ void stat_op::print (ostream& o) const
     case sc_max:
       o << "max(";
       break;
+
+    case sc_none:
+      assert (0); // should not happen, as sc_none is only used in foreach sorts
+      break;
     }
   stat->print(o);
   o << ")";
@@ -1023,7 +1047,21 @@ void foreach_loop::print (ostream& o) const
   o << "] in ";
   base->print_indexable (o);
   if (sort_direction != 0 && sort_column == 0)
-    o << (sort_direction > 0 ? "+" : "-");
+    {
+      switch (sort_aggr)
+        {
+        case sc_count: o << " @count"; break;
+        case sc_average: o << " @avg"; break;
+        case sc_min: o << " @min"; break;
+        case sc_max: o << " @max"; break;
+        case sc_sum: o << " @sum"; break;
+        case sc_none:
+        default: 
+          ;
+        }
+        
+      o << (sort_direction > 0 ? "+" : "-");
+    }
   if (limit)
     {
       o << " limit ";
@@ -1363,6 +1401,12 @@ array_in::visit (visitor* u)
 }
 
 void
+regex_query::visit (visitor* u)
+{
+  u->visit_regex_query (this);
+}
+
+void
 comparison::visit (visitor* u)
 {
   u->visit_comparison (this);
@@ -1434,6 +1478,13 @@ void
 entry_op::visit (visitor* u)
 {
   u->visit_entry_op(this);
+}
+
+
+void
+perf_op::visit (visitor* u)
+{
+  u->visit_perf_op(this);
 }
 
 
@@ -1785,6 +1836,13 @@ traversing_visitor::visit_array_in (array_in* e)
 }
 
 void
+traversing_visitor::visit_regex_query (regex_query* e)
+{
+  e->left->visit (this);
+  e->right->visit (this); // TODOXXX do we need to traverse the literal in RHS?
+}
+
+void
 traversing_visitor::visit_comparison (comparison* e)
 {
   e->left->visit (this);
@@ -1839,6 +1897,13 @@ traversing_visitor::visit_defined_op (defined_op* e)
 
 void
 traversing_visitor::visit_entry_op (entry_op* e)
+{
+  e->operand->visit (this);
+}
+
+
+void
+traversing_visitor::visit_perf_op (perf_op* e)
 {
   e->operand->visit (this);
 }
@@ -1928,8 +1993,10 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
 
   // Don't allow embedded C functions in unprivileged mode unless
   // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
+  // or we're in a usermode runtime.
   if (! pr_contains (session.privilege, pr_stapdev) &&
       ! pr_contains (session.privilege, pr_stapsys) &&
+      ! session.runtime_usermode_p () &&
       s->code.find ("/* unprivileged */") == string::npos &&
       s->code.find ("/* myproc-unprivileged */") == string::npos)
     throw semantic_error (_F("function may not be used when --privilege=%s is specified",
@@ -1940,6 +2007,10 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
   if (!session.guru_mode && s->code.find ("/* guru */") != string::npos)
     throw semantic_error (_("function may not be used unless -g is specified"),
 			  current_function->tok);
+
+  // PR14524: Support old-style THIS->local syntax on per-function basis.
+  if (s->code.find ("/* unmangled */") != string::npos)
+    current_function->mangle_oldstyle = true;
 
   // We want to elide embedded-C functions when possible.  For
   // example, each $target variable access is expanded to an
@@ -1963,9 +2034,11 @@ void
 varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
 {
   // Don't allow embedded C expressions in unprivileged mode unless
-  // they are tagged with /* unprivileged */
+  // they are tagged with /* unprivileged */ or /* myproc-unprivileged */
+  // or we're in a usermode runtime.
   if (! pr_contains (session.privilege, pr_stapdev) &&
       ! pr_contains (session.privilege, pr_stapsys) &&
+      ! session.runtime_usermode_p () &&
       e->code.find ("/* unprivileged */") == string::npos &&
       e->code.find ("/* myproc-unprivileged */") == string::npos)
     throw semantic_error (_F("embedded expression may not be used when --privilege=%s is specified",
@@ -2031,6 +2104,13 @@ varuse_collecting_visitor::visit_entry_op (entry_op *e)
 {
   // XXX
   functioncall_traversing_visitor::visit_entry_op (e);
+}
+
+
+void
+varuse_collecting_visitor::visit_perf_op (perf_op *e)
+{
+  functioncall_traversing_visitor::visit_perf_op (e);
 }
 
 
@@ -2419,6 +2499,12 @@ throwing_visitor::visit_array_in (array_in* e)
 }
 
 void
+throwing_visitor::visit_regex_query (regex_query* e)
+{
+  throwone (e->tok);
+}
+
+void
 throwing_visitor::visit_comparison (comparison* e)
 {
   throwone (e->tok);
@@ -2468,6 +2554,13 @@ throwing_visitor::visit_defined_op (defined_op* e)
 
 void
 throwing_visitor::visit_entry_op (entry_op* e)
+{
+  throwone (e->tok);
+}
+
+
+void
+throwing_visitor::visit_perf_op (perf_op* e)
 {
   throwone (e->tok);
 }
@@ -2678,6 +2771,14 @@ update_visitor::visit_array_in (array_in* e)
 }
 
 void
+update_visitor::visit_regex_query (regex_query* e)
+{
+  replace (e->left);
+  replace (e->right); // TODOXXX do we need to replace literal in RHS?
+  provide (e);
+}
+
+void
 update_visitor::visit_comparison (comparison* e)
 {
   replace (e->left);
@@ -2740,6 +2841,13 @@ update_visitor::visit_defined_op (defined_op* e)
 
 void
 update_visitor::visit_entry_op (entry_op* e)
+{
+  replace (e->operand);
+  provide (e);
+}
+
+void
+update_visitor::visit_perf_op (perf_op* e)
 {
   replace (e->operand);
   provide (e);
@@ -2949,6 +3057,12 @@ deep_copy_visitor::visit_array_in (array_in* e)
 }
 
 void
+deep_copy_visitor::visit_regex_query (regex_query* e)
+{
+  update_visitor::visit_regex_query(new regex_query(*e));
+}
+
+void
 deep_copy_visitor::visit_comparison (comparison* e)
 {
   update_visitor::visit_comparison(new comparison(*e));
@@ -3004,6 +3118,12 @@ void
 deep_copy_visitor::visit_entry_op (entry_op* e)
 {
   update_visitor::visit_entry_op(new entry_op(*e));
+}
+
+void
+deep_copy_visitor::visit_perf_op (perf_op* e)
+{
+  update_visitor::visit_perf_op(new perf_op(*e));
 }
 
 void

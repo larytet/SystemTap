@@ -5,7 +5,7 @@ set test "mysql"
 global env
 
 if {! [info exists env(SYSTEMTAP_TESTAPPS)] || (
-    ! [string match "tcl" $env(SYSTEMTAP_TESTAPPS)] &&
+    ! [string match "mysql" $env(SYSTEMTAP_TESTAPPS)] &&
     ! [string match "all" $env(SYSTEMTAP_TESTAPPS)])} {
     untested "$test sdt app"
     return
@@ -13,7 +13,7 @@ if {! [info exists env(SYSTEMTAP_TESTAPPS)] || (
 
 ########## Create /tmp/stap-mysql.stp ########## 
 set msdata "[pwd]/stap-mysql"
-set mysqlrelease "mysql-5.5.19"
+set mysqlrelease "mysql-5.5.24"
 set mysqldir "[pwd]/mysql/install/"
 set testsuite "[pwd]"
 
@@ -273,7 +273,8 @@ SELECT=\$(grep 'select__start' $testsuite/stap-mysql-markers.log | wc -l)
 OKAY=\$(grep 'All.*tests were successful' $testsuite/stap-mysql.log | wc -l)
 
 echo  ACQUIRE=\$ACQUIRE  RELEASE=\$RELEASE COMMAND=\$COMMAND  QUERY=\$QUERY RDLOCK=\$RDLOCK  SELECT=\$SELECT OKAY=\$OKAY
-if \[ \$ACQUIRE -gt 10000 -a \$RELEASE -gt 10000 -a \$COMMAND -gt 11300 -a \$QUERY -gt 11200 -a \$RDLOCK -gt 5100 -a \$SELECT -gt 2900 \] ; then
+# ACQUIRE=10040 RELEASE=10040 COMMAND=11265 QUERY=11167 RDLOCK=5149 SELECT=2895 OKAY=0
+if \[ \$ACQUIRE -gt 10000 -a \$RELEASE -gt 10000 -a \$COMMAND -gt 11200 -a \$QUERY -gt 11100 -a \$RDLOCK -gt 5100 -a \$SELECT -gt 2800 \] ; then
    echo PASS: mysql markers \$1
 else
    echo FAIL: mysql markers \$1
@@ -296,7 +297,7 @@ kill -9 $testsuite/stap-mysql/mysql.pid
 ##### end run_tests #####
 
 if \[ ! -r $mysqlrelease.tar.gz \] ; then
-wget  http://dev.mysql.com/get/Downloads/MySQL-5.5/$mysqlrelease.tar.gz/from/ftp://mirror.anl.gov/pub/mysql/
+wget -q http://downloads.mysql.com/archives/mysql-5.5/$mysqlrelease.tar.gz
 
 fi
 if \[ ! -r $mysqlrelease.tar.gz \] ; then

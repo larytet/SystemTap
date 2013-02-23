@@ -88,7 +88,16 @@ static struct notifier_block _stp_module_notifier_nb = {
                          invoked after kprobe module callback. */
 };
 
-struct timer_list _stp_ctl_work_timer;
+#if STP_TRANSPORT_VERSION == 2
+static int _stp_module_panic_notifier (struct notifier_block * nb,
+                                 unsigned long val, void *data);
+static struct notifier_block _stp_module_panic_notifier_nb = {
+        .notifier_call = _stp_module_panic_notifier,
+        .priority = INT_MAX
+};
+#endif
+
+static struct timer_list _stp_ctl_work_timer;
 
 /*
  *	_stp_handle_start - handle STP_START
@@ -106,8 +115,11 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 	if (handle_startup) {
 		dbug_trans(1, "stp_handle_start\n");
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23) // linux commit #5f4352fb
+#if LINUX_VERSION_CODE <  KERNEL_VERSION(2,6,29) // linux commit #9be260a6
 #ifdef STAPCONF_VM_AREA
 		{ /* PR9740: workaround for kernel valloc bug. */
+                  /* PR14611: not required except within above kernel range. */
 			void *dummy;
 #ifdef STAPCONF_VM_AREA_PTE
 			dummy = alloc_vm_area (PAGE_SIZE, NULL);
@@ -116,6 +128,8 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 #endif
 			free_vm_area (dummy);
 		}
+#endif
+#endif
 #endif
 
 		_stp_target = st->target;
@@ -136,6 +150,11 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 		   file write (in _stp_ctl_write_cmd), so may notify
 		   the reader directly. */
 		_stp_ctl_send_notify(STP_START, st, sizeof(*st));
+
+		/* Register the panic notifier. */
+#if STP_TRANSPORT_VERSION == 2
+		atomic_notifier_chain_register(&panic_notifier_list, &_stp_module_panic_notifier_nb);
+#endif
 	}
 }
 
@@ -202,6 +221,11 @@ static void _stp_cleanup_and_exit(int send_exit)
 			_stp_ctl_send_notify(STP_EXIT, NULL, 0);
 		}
 		dbug_trans(1, "done with ctl_send STP_EXIT\n");
+
+		/* Unregister the panic notifier. */
+#if STP_TRANSPORT_VERSION == 2
+		atomic_notifier_chain_unregister(&panic_notifier_list, &_stp_module_panic_notifier_nb);
+#endif
 	}
 }
 
@@ -328,17 +352,46 @@ static int _stp_transport_init(void)
         }
 #endif
 #if defined(CONFIG_UPROBES) // i.e., kernel-embedded uprobes
-#if !defined(STAPCONF_REGISTER_UPROBE_EXPORTED)
-        kallsyms_register_uprobe = (void*) kallsyms_lookup_name ("register_uprobe");
-        if (kallsyms_register_uprobe == NULL) {
-                printk(KERN_ERR "%s can't resolve register_uprobe!", THIS_MODULE->name);
+#if !defined(STAPCONF_UPROBE_REGISTER_EXPORTED)
+        kallsyms_uprobe_register = (void*) kallsyms_lookup_name ("uprobe_register");
+        if (kallsyms_uprobe_register == NULL) {
+		kallsyms_uprobe_register = (void*) kallsyms_lookup_name ("register_uprobe");
+        }
+        if (kallsyms_uprobe_register == NULL) {
+                printk(KERN_ERR "%s can't resolve uprobe_register!", THIS_MODULE->name);
                 goto err0;
         }
 #endif
-#if !defined(STAPCONF_UNREGISTER_UPROBE_EXPORTED)
-        kallsyms_unregister_uprobe = (void*) kallsyms_lookup_name ("unregister_uprobe");
-        if (kallsyms_unregister_uprobe == NULL) {
-                printk(KERN_ERR "%s can't resolve unregister_uprobe!", THIS_MODULE->name);
+#if !defined(STAPCONF_UPROBE_UNREGISTER_EXPORTED)
+        kallsyms_uprobe_unregister = (void*) kallsyms_lookup_name ("uprobe_unregister");
+        if (kallsyms_uprobe_unregister == NULL) {
+		kallsyms_uprobe_unregister = (void*) kallsyms_lookup_name ("unregister_uprobe");
+        }
+        if (kallsyms_uprobe_unregister == NULL) {
+                printk(KERN_ERR "%s can't resolve uprobe_unregister!", THIS_MODULE->name);
+                goto err0;
+        }
+#endif
+#if !defined(STAPCONF_UPROBE_GET_SWBP_ADDR_EXPORTED)
+        kallsyms_uprobe_get_swbp_addr = (void*) kallsyms_lookup_name ("uprobe_get_swbp_addr");
+        if (kallsyms_uprobe_get_swbp_addr == NULL) {
+                printk(KERN_ERR "%s can't resolve uprobe_get_swbp_addr!", THIS_MODULE->name);
+                goto err0;
+        }
+#endif
+#endif
+#if defined(STAPCONF_INODE_URETPROBES) // i.e., kernel-embedded uretprobes
+#if !defined(STAPCONF_URETPROBE_REGISTER_EXPORTED)
+        kallsyms_uretprobe_register = (void*) kallsyms_lookup_name ("uretprobe_register");
+        if (kallsyms_uretprobe_register == NULL) {
+                printk(KERN_ERR "%s can't resolve uretprobe_register!", THIS_MODULE->name);
+                goto err0;
+        }
+#endif
+#if !defined(STAPCONF_URETPROBE_UNREGISTER_EXPORTED)
+        kallsyms_uretprobe_unregister = (void*) kallsyms_lookup_name ("uretprobe_unregister");
+        if (kallsyms_uretprobe_unregister == NULL) {
+                printk(KERN_ERR "%s can't resolve uretprobe_unregister!", THIS_MODULE->name);
                 goto err0;
         }
 #endif

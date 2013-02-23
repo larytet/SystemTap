@@ -36,15 +36,15 @@ extern "C" {
 using namespace std;
 
 
-class hash
+class stap_hash
 {
 private:
   struct mdfour md4;
   std::ostringstream parm_stream;
 
 public:
-  hash() { start(); }
-  hash(const hash &base) { md4 = base.md4; parm_stream << base.parm_stream.str(); }
+  stap_hash() { start(); }
+  stap_hash(const stap_hash &base) { md4 = base.md4; parm_stream << base.parm_stream.str(); }
 
   void start();
 
@@ -61,14 +61,14 @@ public:
 
 
 void
-hash::start()
+stap_hash::start()
 {
   mdfour_begin(&md4);
 }
 
 
 void
-hash::add(const std::string& description, const unsigned char *buffer, size_t size)
+stap_hash::add(const std::string& description, const unsigned char *buffer, size_t size)
 {
   parm_stream << description << buffer << endl;
   mdfour_update(&md4, buffer, size);
@@ -76,7 +76,7 @@ hash::add(const std::string& description, const unsigned char *buffer, size_t si
 
 
 template <typename T> void
-hash::add(const std::string& d, const T& x)
+stap_hash::add(const std::string& d, const T& x)
 {
   parm_stream << d << x << endl;
   mdfour_update(&md4, (const unsigned char *)&x, sizeof(x));
@@ -84,7 +84,7 @@ hash::add(const std::string& d, const T& x)
 
 
 void
-hash::add_path(const std::string& description, const std::string& path)
+stap_hash::add_path(const std::string& description, const std::string& path)
 {
   struct stat st;
   memset (&st, 0, sizeof(st));
@@ -99,7 +99,7 @@ hash::add_path(const std::string& description, const std::string& path)
 
 
 void
-hash::result(string& r)
+stap_hash::result(string& r)
 {
   ostringstream rstream;
   unsigned char sum[16];
@@ -130,14 +130,14 @@ void create_hash_log(const string &type_str, const string &parms, const string &
   log_file.close();
 }
 
-static const hash&
+static const stap_hash&
 get_base_hash (systemtap_session& s)
 {
   if (s.base_hash)
     return *s.base_hash;
 
-  s.base_hash = new hash();
-  hash& h = *s.base_hash;
+  s.base_hash = new stap_hash();
+  stap_hash& h = *s.base_hash;
 
   // Hash kernel release and arch.
   h.add("Kernel Release: ", s.kernel_release);
@@ -154,6 +154,10 @@ get_base_hash (systemtap_session& s)
 
   // Hash runtime path (that gets added in as "-R path").
   h.add_path("Runtime ", s.runtime_path);
+  h.add_path("Runtime transport ", s.runtime_path + "/transport");
+  h.add_path("Runtime unwind ", s.runtime_path + "/unwind");
+  h.add_path("Runtime sub ", s.runtime_path +
+             (s.runtime_usermode_p() ? "/dyninst" : "/linux"));
 
   // Hash compiler path, size, and mtime.  We're just going to assume
   // we'll be using gcc. XXX: getting kbuild to spit out out would be
@@ -164,9 +168,8 @@ get_base_hash (systemtap_session& s)
   // but when developing systemtap that doesn't work well (since you
   // can compile systemtap multiple times in 1 day).  Since we don't
   // know exactly where we're getting run from, we'll use
-  // /proc/self/exe.
-  // XXX well almost exactly -- valgrind throws this off
-  h.add_path("Systemtap ", "/proc/self/exe");
+  // /proc/self/exe (and we resolve it ourselves to help valgrind).
+  h.add_path("Systemtap ", get_self_path());
 
   return h;
 }
@@ -206,8 +209,7 @@ create_hashdir (systemtap_session& s, const string& result, string& hashdir)
 void
 find_script_hash (systemtap_session& s, const string& script)
 {
-  hash h(get_base_hash(s));
-  struct stat st;
+  stap_hash h(get_base_hash(s));
 
   // Hash getuid.  This really shouldn't be necessary (since who you
   // are doesn't change the generated output), but the hash gets used
@@ -220,29 +222,15 @@ find_script_hash (systemtap_session& s, const string& script)
   h.add("Bulk Mode (-b): ", s.bulk_mode);
   h.add("Timing (-t): ", s.timing);
   h.add("Prologue Searching (-P): ", s.prologue_searching);
-  h.add("Ignore Vmlinux (--ignore-vmlinux): ", s.ignore_vmlinux);
-  h.add("Ignore Dwarf (--ignore-dwarf): ", s.ignore_dwarf);
-  h.add("Consult Symtab (--kelf, --kmap): ", s.consult_symtab);
   h.add("Skip Badvars (--skip-badvars): ", s.skip_badvars);
   h.add("Privilege (--privilege): ", s.privilege);
   h.add("Compatible (--compatible): ", s.compatible);
   h.add("Omit Werror (undocumented): ", s.omit_werror);
   h.add("Prologue Searching (-P): ", s.prologue_searching);
   h.add("Error suppression (--suppress-handler-errors): ", s.suppress_handler_errors);
-  if (!s.kernel_symtab_path.empty())	// --kmap
-    {
-      h.add("Kernel Symtab Path: ", s.kernel_symtab_path);
-      if (stat(s.kernel_symtab_path.c_str(), &st) == 0)
-        {
-	  // NB: stat of /proc/kallsyms always returns size=0, mtime=now...
-	  // which is a good reason to use the default /boot/System.map-2.6.xx
-	  // instead.
-          h.add("Kernel Symtab Size: ", st.st_size);
-	  h.add("Kernel Symtab Timestamp: ", st.st_mtime);
-        }
-    }
-  for (unsigned i = 0; i < s.macros.size(); i++)
-    h.add("Macros: ", s.macros[i]);
+  h.add("Suppress Time Limits (--suppress-time-limits): ", s.suppress_time_limits);
+  for (unsigned i = 0; i < s.c_macros.size(); i++)
+    h.add("Macros: ", s.c_macros[i]);
 
   // Add any custom kbuild flags (-B)
   for (unsigned i = 0; i < s.kbuildflags.size(); i++)
@@ -288,7 +276,7 @@ find_script_hash (systemtap_session& s, const string& script)
   // We're using the following so that the module can be used straight
   // from the cache if desired.  This ends up looking like this:
   //    ~/.stap_cache/A/B/stap_ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEF_XXX.ko
-  s.hash_path = hashdir + "/" + s.module_name + ".ko";
+  s.hash_path = hashdir + "/" + s.module_filename();
 
   // Update C source name with new module_name.
   s.translated_source = string(s.tmpdir) + "/" + s.module_name + "_src.c";
@@ -300,7 +288,7 @@ find_script_hash (systemtap_session& s, const string& script)
 void
 find_stapconf_hash (systemtap_session& s)
 {
-  hash h(get_base_hash(s));
+  stap_hash h(get_base_hash(s));
 
   // Add any custom kbuild flags
   for (unsigned i = 0; i < s.kbuildflags.size(); i++)
@@ -322,7 +310,7 @@ find_stapconf_hash (systemtap_session& s)
 string
 find_tracequery_hash (systemtap_session& s, const string& header)
 {
-  hash h(get_base_hash(s));
+  stap_hash h(get_base_hash(s));
 
   // Add the tracepoint header to the computed hash
   h.add_path("Header ", header);
@@ -346,7 +334,7 @@ find_tracequery_hash (systemtap_session& s, const string& header)
 string
 find_typequery_hash (systemtap_session& s, const string& name)
 {
-  hash h(get_base_hash(s));
+  stap_hash h(get_base_hash(s));
 
   // Add the typequery name to distinguish the hash
   h.add("Typequery Name: ", name);
@@ -372,11 +360,11 @@ find_typequery_hash (systemtap_session& s, const string& name)
 string
 find_uprobes_hash (systemtap_session& s)
 {
-  hash h(get_base_hash(s));
+  stap_hash h(get_base_hash(s));
 
   // Hash runtime uprobes paths
-  h.add_path("Uprobes Runtime Path /uprobes ", s.runtime_path + "/uprobes");
-  h.add_path("Uprobes Runtime Path /uprobes2 ", s.runtime_path + "/uprobes2");
+  h.add_path("Uprobes Runtime Path /uprobes ", s.runtime_path + "/linux/uprobes");
+  h.add_path("Uprobes Runtime Path /uprobes2 ", s.runtime_path + "/linux/uprobes2");
 
   // Add any custom kbuild flags
   for (unsigned i = 0; i < s.kbuildflags.size(); i++)

@@ -6,22 +6,22 @@ if {![uprobes_p]} { untested "$test (uprobes)"; return }
 
 proc cleanup_handler { verbose } {
     if { $verbose == 0 } {
-	catch {exec rm -f bid.hex bid.ko bid.stp buildid1.ro buildid2.ro buildid.c buildid.o buildid.ro buildid.x libbid1.so libbid.so
+	catch {exec rm -f bid.hex bid.ko bid_nocheck.ko bid_shared.ko bid.stp buildid1.ro buildid2.ro buildid.c buildid.o buildid.ro buildid.x libbid1.so libbid.so
 	}
     }
 }
 
 proc error_handler { res message } {
-global verbose
-if { $res == 0 } {
-    verbose $message 2
-    fail $message
-    cleanup_handler $verbose
-    return 1
-} else {
-    pass $message
-    return 0
-}
+    global verbose
+    if { $res == 0 } {
+	verbose $message 2
+	fail $message
+	cleanup_handler $verbose
+	return 1
+    } else {
+	pass $message
+	return 0
+    }
 }
 
 # Not Shared
@@ -42,38 +42,58 @@ set bid_check_passed 0
 set cmd [concat {/usr/bin/eu-readelf -n $bid_exepath}]
 eval spawn $cmd
 expect {
-  -timeout 180
-  -re {^[^\r\n]*GNU_BUILD_ID[^\r\n]*\r\n} {
-    set bid_check_passed 1
-    exp_continue
-  }
-  -re {^[^\r\n]*\r\n} {
-    exp_continue
-  }
-  timeout {
-    set bid_check_passed 0
-  }
+    -timeout 180
+    -re {^[^\r\n]*GNU_BUILD_ID[^\r\n]*\r\n} {
+	set bid_check_passed 1
+	exp_continue
+    }
+    -re {^[^\r\n]*\r\n} {
+	exp_continue
+    }
+    timeout {
+	set bid_check_passed 0
+    }
 }
-catch close
+catch {close}; catch {wait}
 
 if {$bid_check_passed == 0} {
-  untested "Build IDs do not exist on this system"
-  cleanup_handler $verbose
-  return
+    untested "Build IDs do not exist on this system"
+    cleanup_handler $verbose
+    return
 }
 
-# Since uprobes.ko may not be prebuilt in the runtime, and we don't yet have a
-# way to discover the path to the cache-build uprobes.ko, we need to preload
-# it.  This dummy run lets us go through the motions to get uprobes loaded, and
-# then we don't need to worry about each staprun -u finding its module.
-# PR13536: it turns out PR5163 makes staprun -u (without /path) impossible, so
-# stop using it in this test case.  Instead we hope and pray and beseech the
-# almighty spaghetti monster that uprobes stay loaded after the following ditty:
-spawn stap -m bid $bid_stp $bid_exepath -c /bin/true
-wait
+
+set test "nonshared build id"
+
+# Since uprobes.ko may not be prebuilt in the runtime, and we don't
+# yet have a way to discover the path to the cache-build uprobes.ko,
+# we need to preload it.  This dummy run lets us go through the
+# motions to get uprobes loaded, and then we don't need to worry about
+# each staprun -u finding its module.
+#
+# PR13536: it turns out PR5163 makes staprun -u (without /path)
+# impossible, so stop using it in this test case.  Instead we hope and
+# pray and beseech the almighty spaghetti monster that uprobes stay
+# loaded after the following ditty:
+set bid_ko [pwd]/bid.ko
+catch {exec rm -f $bid_ko}
+set status 0
+if {[catch {exec stap -m bid $bid_stp $bid_exepath -c /bin/true} res]} {
+    if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
+	set status [lindex $::errorCode 2]
+    }
+}
+if {$status == 0 && [file exists $bid_ko]} {
+    pass "$test (module compilation)"
+} else {
+    verbose -log $res
+    fail "$test (module compilation)"
+    cleanup_handler $verbose
+    return
+}
 
 set ok 0
-spawn staprun [pwd]/bid.ko -c $bid_exepath
+spawn staprun $bid_ko -c $bid_exepath
 expect {
     -timeout 180
     -re {x=1} { incr ok; exp_continue }
@@ -81,18 +101,29 @@ expect {
     eof { }
 }
 catch {close}; catch {wait}
-if { [error_handler [expr $ok==1] "nonshared build id ok ($ok)"] } { return }
+if { [error_handler [expr $ok==1] "$test ok ($ok)"] } { return }
 
-# now alter the build id using objcopy
-
-set bid_bid $srcdir/$subdir/buildid.hex
-system "objcopy --remove-section=.note.gnu.build-id buildid.ro buildid1.ro"
-system "objcopy --add-section .note.gnu.build-id=$bid_bid buildid1.ro buildid2.ro"
-set res [target_compile "" $bid_exepath executable "additional_flags=buildid2.ro"]
-if { [error_handler [expr {$res==""}] "$bid_exepath altered"] } { return }
+# Alter the build id using objcopy.  First, remove the build id from
+# the target executable.  (Since the next test relinks the target
+# executable, this is OK.)
+set status 0
+if {[catch {exec objcopy --remove-section=.note.gnu.build-id $bid_exepath} \
+	   res]} {
+    if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
+	set status [lindex $::errorCode 2]
+    }
+}
+if {$status == 0 && [file exists $bid_exepath]} {
+    pass "$test (build id removal)"
+} else {
+    verbose -log $res
+    fail "$test (build id removal)"
+    cleanup_handler $verbose
+    return
+}
 
 set ok 0
-spawn staprun [pwd]/bid.ko -c $bid_exepath
+spawn staprun $bid_ko -c $bid_exepath
 expect {
     -timeout 180
     -re {ERROR: Build-id mismatch} { incr ok; exp_continue }
@@ -100,15 +131,50 @@ expect {
     eof { }
 }
 catch {close}; catch {wait}
-error_handler [expr $ok==1] "nonshared build id !ok ($ok)"
+if { [error_handler [expr $ok==1] "$test !ok - removed ($ok)"] } { return }
+
+# Alter the build id using objcopy.  Add in an additional build id section.
+set bid_bid $srcdir/$subdir/buildid.hex
+system "objcopy --remove-section=.note.gnu.build-id buildid.ro buildid1.ro"
+system "objcopy --add-section .note.gnu.build-id=$bid_bid buildid1.ro buildid2.ro"
+set res [target_compile "" $bid_exepath executable "additional_flags=buildid2.ro"]
+if { [error_handler [expr {$res==""}] "$test (build id modified)"] } { return }
+
+set ok 0
+spawn staprun $bid_ko -c $bid_exepath
+expect {
+    -timeout 180
+    -re {ERROR: Build-id mismatch} { incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch {close}; catch {wait}
+error_handler [expr $ok==1] "$test !ok - modified ($ok)"
 
 # stap -DSTP_NO_BUILDID_CHECK with altered build id
 
+set test "STP_NO_BUILDID_CHECK"
+
+# Compile a stap module with STP_NO_BUILDID_CHECK.
 set ok 0
-# system "stap -m bid -p4 -DSTP_NO_BUILDID_CHECK $bid_stp $bid_exepath"
-spawn stap -m bid -p4 -DSTP_NO_BUILDID_CHECK $bid_stp $bid_exepath
-wait
-spawn staprun [pwd]/bid.ko -c $bid_exepath
+set bid_nocheck_ko [pwd]/bid_nocheck.ko
+catch {exec rm -f $bid_nocheck_ko}
+set status 0
+if {[catch {exec stap -m bid_nocheck -p4 -DSTP_NO_BUILDID_CHECK $bid_stp $bid_exepath} res]} {
+    if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
+	set status [lindex $::errorCode 2]
+    }
+}
+if {$status == 0 && [file exists $bid_nocheck_ko]} {
+    pass "$test (module compilation)"
+} else {
+    verbose -log $res
+    fail "$test (module compilation)"
+    cleanup_handler $verbose
+    return
+}
+
+spawn staprun $bid_nocheck_ko -c $bid_exepath
 expect {
     -timeout 180
     -re {x=1} { incr ok; exp_continue }
@@ -116,10 +182,11 @@ expect {
     eof { }
 }
 catch {close}; catch {wait}
-error_handler [expr $ok==1] "STP_NO_BUILDID_CHECK ($ok)"
+error_handler [expr $ok==1] "$test ok ($ok)"
 
 # Shared
 
+set test "shared build id"
 set bid_flags "additional_flags=-DNO_MAIN"
 set bid_flags "$bid_flags additional_flags=-shared"
 set bid_flags "$bid_flags additional_flags=-g"
@@ -133,11 +200,26 @@ set bid_flags "$bid_flags additional_flags=-lbid"
 set res [target_compile $bid_srcpath "$bid_exepath" executable $bid_flags]
 if { [error_handler [expr {$res==""}] "$bid_exepath -DONLY_MAIN"] } { return }
 
-spawn stap -m bid -p4 $bid_stp libbid.so
-wait
+# Compile a stap module for the shared library testcase
+set bid_shared_ko [pwd]/bid_shared.ko
+catch {exec rm -f $bid_shared_ko}
+set status 0
+if {[catch {exec stap -m bid_shared -p4 $bid_stp libbid.so} res]} {
+    if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
+	set status [lindex $::errorCode 2]
+    }
+}
+if {$status == 0 && [file exists $bid_shared_ko]} {
+    pass "$test (module compilation)"
+} else {
+    verbose -log $res
+    fail "$test (module compilation)"
+    cleanup_handler $verbose
+    return
+}
 
 set ok 0
-spawn staprun [pwd]/bid.ko -c $bid_exepath
+spawn staprun $bid_shared_ko -c $bid_exepath
 expect {
     -timeout 180
     -re {x=1} { incr ok; exp_continue }
@@ -145,15 +227,27 @@ expect {
     eof { }
 }
 catch {close}; catch {wait}
-if { [error_handler [expr $ok==1] "shared build id ok ($ok)"] } { return }
+if { [error_handler [expr $ok==1] "$test ok ($ok)"] } { return }
 
-# now alter the build id using objcopy
-
-system "objcopy --remove-section=.note.gnu.build-id libbid.so libbid1.so"
-system "objcopy --add-section .note.gnu.build-id=$bid_bid libbid1.so libbid.so"
+# Alter the build id using objcopy.  First, remove the build id from
+# the target library.
+set status 0
+if {[catch {exec objcopy --remove-section=.note.gnu.build-id libbid.so} res]} {
+    if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
+	set status [lindex $::errorCode 2]
+    }
+}
+if {$status == 0 && [file exists libbid.so]} {
+    pass "$test (build id removal)"
+} else {
+    verbose -log $res
+    fail "$test (build id removal)"
+    cleanup_handler $verbose
+    return
+}
 
 set ok 0
-spawn staprun [pwd]/bid.ko -c $bid_exepath
+spawn staprun $bid_shared_ko -c $bid_exepath
 expect {
     -timeout 180
     -re {ERROR: Build-id mismatch} { incr ok; exp_continue }
@@ -161,6 +255,29 @@ expect {
     eof { }
 }
 catch {close}; catch {wait}
-error_handler [expr $ok==1] "shared build id !ok ($ok)"
+if { [error_handler [expr $ok==1] "$test !ok - removed ($ok)"] } { return }
+
+# Alter the build id using objcopy.  Add in an "bad" build id
+# section. 
+catch {exec objcopy --add-section .note.gnu.build-id=$bid_bid libbid.so} res
+if {[file exists libbid.so]} {
+    pass "$test (build id modified)"
+} else {
+    verbose -log $res
+    fail "$test (build id modified)"
+    cleanup_handler $verbose
+    return
+}
+
+set ok 0
+spawn staprun $bid_shared_ko -c $bid_exepath
+expect {
+    -timeout 180
+    -re {ERROR: Build-id mismatch} { incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch {close}; catch {wait}
+error_handler [expr $ok==1] "$test !ok - modified ($ok)"
 
 cleanup_handler $verbose

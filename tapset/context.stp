@@ -19,197 +19,11 @@
  */
 function print_regs ()
 %{
-	if ((c->probe_flags & _STP_PROBE_STATE_USER_MODE) && CONTEXT->uregs) {
+	if (c->user_mode_p && CONTEXT->uregs) {
 		_stp_print_regs (CONTEXT->uregs);
 	} else if (CONTEXT->kregs) {
 		_stp_print_regs (CONTEXT->kregs);
 	}
-%}
-
-/**
- * sfunction execname - Returns the execname of a target process (or group of processes)
- * 
- * Description: Returns the execname of a target process (or group of processes).
- */
-function execname:string ()
-%{ /* pure */ /* unprivileged */
-	strlcpy (THIS->__retvalue, current->comm, MAXSTRINGLEN);
-%}
-
-/**
- * sfunction pid - Returns the ID of a target process
- * 
- * Description: This function returns the ID of a target process.
- */
-function pid:long ()
-%{ /* pure */ /* unprivileged */
-	THIS->__retvalue = current->tgid;
-%}
-
-/**
- * sfunction tid - Returns the thread ID of a target process
- * 
- * Description: This function returns the thread ID of the target process.
- */
-function tid:long ()
-%{ /* pure */ /* unprivileged */
-	THIS->__retvalue = current->pid;
-%}
-
-/**
- * sfunction ppid - Returns the process ID of a target process's parent process
- *
- * Description: This function return the process ID of the target proccess's parent process.
- */
-function ppid:long()
-%{ /* pure */ /* unprivileged */
-#if defined(STAPCONF_REAL_PARENT)
-	THIS->__retvalue = current->real_parent->tgid;
-#else
-	THIS->__retvalue = current->parent->tgid;
-#endif
-%}
-
-/**
- * sfunction pgrp - Returns the process group ID of the current process
- *
- * Description: This function returns the process group ID of the
- * current process.
- */
-function pgrp:long ()
-%{ /* pure */ /* unprivileged */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	struct signal_struct *ss = kread( &(current->signal) );
-	THIS->__retvalue = kread ( &(ss->pgrp) );
-	CATCH_DEREF_FAULT();
-#else
-	THIS->__retvalue = task_pgrp_nr_ns(current, &init_pid_ns);
-#endif
-%}
-
-/**
- * sfunction sid - Returns the session ID of the current process
- *
- * Description: The session ID of a process is the process group ID
- * of the session leader. Session ID is stored in the signal_struct
- *  since Kernel 2.6.0.
- */
-function sid:long ()
-%{ /* pure */ /* unprivileged */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24)
-	struct signal_struct *ss = kread( &(current->signal) );
-	THIS->__retvalue = kread ( &(ss->session) );
-	CATCH_DEREF_FAULT();
-#else
-	THIS->__retvalue = task_session_nr_ns(current, &init_pid_ns);
-#endif
-%}
-
-/**
- * sfunction pexecname - Returns the execname of a target process's parent process
- * 
- * Description: This function returns the execname of a target
- * process's parent procces.
- */
-function pexecname:string ()
-%{ /* pure */ /* unprivileged */
-#if defined(STAPCONF_REAL_PARENT)
-	strlcpy (THIS->__retvalue, current->real_parent->comm, MAXSTRINGLEN);
-#else
-	strlcpy (THIS->__retvalue, current->parent->comm, MAXSTRINGLEN);
-#endif
-%}
-
-/**
- * sfunction gid - Returns the group ID of a target process
- * 
- * Description: This function returns the group ID of a target process.
- */
-function gid:long ()
-%{ /* pure */ /* unprivileged */
-#ifdef STAPCONF_TASK_UID
-	THIS->__retvalue = current->gid;
-#else
-	THIS->__retvalue = current_gid();
-#endif
-%}
-
-/**
- * sfunction egid - Returns the effective gid of a target process
- * 
- * Description: This function returns the effective gid of a target process
- */
-function egid:long ()
-%{ /* pure */ /* unprivileged */
-#ifdef STAPCONF_TASK_UID
-	THIS->__retvalue = current->egid;
-#else
-	THIS->__retvalue = current_egid();
-#endif
-%}
-
-/**
- * sfunction uid - Returns the user ID of a target process
- * 
- * Description: This function returns the user ID of the target process.
- */
-function uid:long ()
-%{ /* pure */ /* unprivileged */
-#ifdef STAPCONF_TASK_UID
-	THIS->__retvalue = current->uid;
-#else
-	THIS->__retvalue = current_uid();
-#endif
-%}
-
-/**
- * sfunction euid - Return the effective uid of a target process
- *
- * Description: Returns the effective user ID of the target process.
- */
-function euid:long ()
-%{ /* pure */ /* unprivileged */
-#ifdef STAPCONF_TASK_UID
-	THIS->__retvalue = current->euid;
-#else
-	THIS->__retvalue = current_euid();
-#endif
-%}
-
-
-/**
- * sfunction is_myproc - Determines if the current probe point has occurred in the user's own process
- *
- * Description: This function returns 1 if the current probe
- * point has occurred in the user's own process.
- */
-function is_myproc:long ()
-%{ /* pure */ /* unprivileged */
-        THIS->__retvalue = is_myproc();
-%}
-
-
-%( systemtap_v <= "1.4" %?
-/**
- * sfunction cpuid - Returns the current cpu number
- * 
- * Description: This function returns the current cpu number.
- * Deprecated in SystemTap 1.4 and removed in SystemTap 1.5.
- */
-function cpuid:long ()
-%{ /* pure */
-	THIS->__retvalue = smp_processor_id();
-%}
-%)
-
-/**
- * sfunction cpu - Returns the current cpu number
- *
- * Description: This function returns the current cpu number.
- */
-function cpu:long ()
-%{ /* pure */ /* unprivileged */
-	THIS->__retvalue = smp_processor_id();
 %}
 
 /**
@@ -221,200 +35,42 @@ function cpu:long ()
  */
 function pp:string ()
 %{ /* pure */ /* unprivileged */
-	strlcpy (THIS->__retvalue, CONTEXT->probe_point, MAXSTRINGLEN);
+	strlcpy (STAP_RETVALUE, CONTEXT->probe_point, MAXSTRINGLEN);
 %}
 
 /**
- * sfunction registers_valid - Determines validity of register() and u_register() in current context
+ * sfunction ppfunc - Returns the function name parsed from pp()
  *
- * Description: This function returns 1 if register() and u_register()
- * can be used in the current context, or 0 otherwise.
- * For example, registers_valid() returns 0
- * when called from a begin or end probe.
+ * Description: This returns the function name from the current pp().
+ * Not all pp() have functions in them, in which case "" is returned.
  */
-function registers_valid:long ()
+function ppfunc:string ()
 %{ /* pure */ /* unprivileged */
-	THIS->__retvalue = ((c->probe_flags & _STP_PROBE_STATE_USER_MODE)
-			    ? (CONTEXT->uregs != NULL)
-			    : (CONTEXT->kregs != NULL));
+	char *ptr, *start;
+
+	/* This is based on the pre-2.0 behavior of probefunc(), but without
+	 * the _stp_snprint_addr fallback, so we're purely pp()-based.
+	 *
+	 * The obsolete inline("...") syntax is dropped, but in its place we'll
+	 * look for function names in statement("...") form.
+	 */
+
+	STAP_RETVALUE[0] = '\0';
+	start = strstr(CONTEXT->probe_point, "function(\"");
+	ptr = start + 10;
+	if (!start) {
+		start = strstr(CONTEXT->probe_point, "statement(\"");
+		ptr = start + 11;
+	}
+
+	if (start) {
+		int len = MAXSTRINGLEN;
+		char *dst = STAP_RETVALUE;
+		while (*ptr != '@' && *ptr != '"' && --len > 0 && *ptr)
+			*dst++ = *ptr++;
+		*dst = 0;
+	}
 %}
-
-/**
- * sfunction user_mode - Determines if probe point occurs in user-mode
- *
- * Return 1 if the probe point occurred in user-mode.
- */
-function user_mode:long ()
-%{ /* pure */ /* unprivileged */
-  THIS->__retvalue = (CONTEXT->probe_flags
-		      & _STP_PROBE_STATE_USER_MODE) ? 1 : 0;
-%}
-
-/**
- * sfunction is_return - Whether the current probe context is a return probe
- * 
- * Description: Returns 1 if the current probe context is a return probe,
- * returns 0 otherwise.
- */
-function is_return:long ()
-%{ /* pure */
-	if (CONTEXT->probe_type == _STP_PROBE_HANDLER_KRETPROBE
-	    || CONTEXT->probe_type == _STP_PROBE_HANDLER_URETPROBE)
-		THIS->__retvalue = 1;
-	else
-		THIS->__retvalue = 0;
-%}
-
-/**
- * sfunction target - Return the process ID of the target process
- * 
- * Description: This function returns the process ID of the target
- * process.  This is useful in conjunction with the -x PID or
- * -c CMD command-line options to stap. An example of its use is
- * to create scripts that filter on a specific process.
- *
- * -x <pid>
- * target() returns the pid specified by -x
- *
- * -c <command>
- * target() returns the pid for the executed command specified by -c
- */
-function target:long ()
-%{ /* pure */ /* unprivileged */
-        THIS->__retvalue = _stp_target;
-%}
-
-/**
- * sfunction module_name - The module name of the current script
- * 
- * Description: This function returns the name of the stap module.
- * Either generated randomly (stap_[0-9a-f]+_[0-9a-f]+)
- * or set by stap -m <module_name>.
- */
-function module_name:string ()
-%{ /* pure */ /* unprivileged */
-	strlcpy(THIS->__retvalue, THIS_MODULE->name, MAXSTRINGLEN);
-%}
-
-/**
- * sfunction stp_pid - The process id of the stapio process
- *
- * Description: This function returns the process id of the 
- * stapio process that launched this script. There could be
- * other SystemTap scripts and stapio processes running on
- * the system.
- */
-function stp_pid:long ()
-%{ /* pure */
-        THIS->__retvalue = _stp_pid;
-%}
-
-
-/**
- * sfunction remote_id - The index of this instance in a remote execution.
- *
- * Description: This function returns a number 0..N, which is the unique 
- * index of this particular script execution from a swarm of
- * "stap --remote A --remote B ..." runs, and is the same number
- * "stap --remote-prefix" would print.  The function returns -1 if the
- * script was not launched with "stap --remote", or if the remote 
- * staprun/stapsh are older than version 1.7.
- */
-function remote_id:long () {
-         return %{ /* pure */ /* unprivileged */ _stp_remote_id %}
-}
-
-
-/**
- * sfunction remote_uri - The name of this instance in a remote execution.
- *
- * Description: This function returns the remote host used to invoke
- * this particular script execution from a swarm of "stap --remote" runs.
- * It may not be unique among the swarm.
- * The function returns an empty string if the script was not launched with
- * "stap --remote".
- */
-function remote_uri:string () {
-         return %{ /* string */ /* pure */ /* unprivileged */ _stp_remote_uri %}
-}
-
-
-/**
- * sfunction stack_size - Return the size of the kernel stack
- * 
- * Description: This function returns the size of the kernel stack.
- */
-function stack_size:long ()
-%{ /* pure */
-        THIS->__retvalue = THREAD_SIZE;
-%}
-
-/**
- * sfunction stack_used - Returns the amount of kernel stack used
- *
- * Description: This function determines how many bytes are
- * currently used in the kernel stack.
- */
-function stack_used:long ()
-%{ /* pure */
-	char a;
-        THIS->__retvalue = THREAD_SIZE - ((long)&a & (THREAD_SIZE-1));
-%}
-
-/**
- * sfunction stack_unused - Returns the amount of kernel stack currently available
- *
- * Description: This function determines how many bytes are
- * currently available in the kernel stack.
- */
-function stack_unused:long ()
-%{ /* pure */
-	char a;
-        THIS->__retvalue = (long)&a & (THREAD_SIZE-1);
-%}
-
-/**
- * sfunction addr - Address of the current probe point.
- *
- * Description: Returns the instruction pointer from the current probe's
- * register state.  Not all probe types have registers though, in which case
- * zero is returned.  The returned address is suitable for use with functions
- * like symname() and symdata().
- */
-function addr:long ()
-%{ /* pure */
-  if (CONTEXT->probe_flags & _STP_PROBE_STATE_USER_MODE) {
-    THIS->__retvalue = (intptr_t)(CONTEXT->uregs ? REG_IP(CONTEXT->uregs) : 0);
-  } else {
-    THIS->__retvalue = (intptr_t)(CONTEXT->kregs ? REG_IP(CONTEXT->kregs) : 0);
-  }
-%}
-
-/**
- * sfunction uaddr - User space address of current running task (EXPERIMENTAL)
- *
- * Description: Returns the address in userspace that the current
- * task was at when the probe occurred. When the current running task
- * isn't a user space thread, or the address cannot be found, zero
- * is returned. Can be used to see where the current task is combined
- * with usymname() or usymdata(). Often the task will be in the VDSO
- * where it entered the kernel.
- */
-function uaddr:long ()
-%{ /* pure */ /* myproc-unprivileged */
-  struct pt_regs *uregs;
-
-  if (CONTEXT->probe_flags & _STP_PROBE_STATE_USER_MODE)
-    uregs = CONTEXT->uregs;
-  else
-    uregs = _stp_current_pt_regs();
-
-  if (uregs)
-    THIS->__retvalue = (int64_t) REG_IP(uregs);
-  else
-    THIS->__retvalue = 0;
-%}
-
 
 /**
  * sfunction probe_type - The low level probe handler type of the current probe.
@@ -431,53 +87,56 @@ function probe_type:string()
 %{ /* pure */ /* unprivileged */
   switch (CONTEXT->probe_type)
   {
-    case _STP_PROBE_HANDLER_BEEN:
-      strlcpy (THIS->__retvalue, "begin_end", MAXSTRINGLEN);
+    case stp_probe_type_been:
+      strlcpy (STAP_RETVALUE, "begin_end", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_ITRACE:
-      strlcpy (THIS->__retvalue, "itrace", MAXSTRINGLEN);
+    case stp_probe_type_itrace:
+      strlcpy (STAP_RETVALUE, "itrace", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_MARKER:
-      strlcpy (THIS->__retvalue, "kernel_marker", MAXSTRINGLEN);
+    case stp_probe_type_marker:
+      strlcpy (STAP_RETVALUE, "kernel_marker", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_PERF:
-      strlcpy (THIS->__retvalue, "perf_event", MAXSTRINGLEN);
+    case stp_probe_type_perf:
+      strlcpy (STAP_RETVALUE, "perf_event", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_PROCFS:
-      strlcpy (THIS->__retvalue, "procfs", MAXSTRINGLEN);
+    case stp_probe_type_procfs:
+      strlcpy (STAP_RETVALUE, "procfs", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_TIMER:
-      strlcpy (THIS->__retvalue, "timer", MAXSTRINGLEN);
+    case stp_probe_type_timer:
+      strlcpy (STAP_RETVALUE, "timer", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_HRTIMER:
-      strlcpy (THIS->__retvalue, "hrtimer", MAXSTRINGLEN);
+    case stp_probe_type_hrtimer:
+      strlcpy (STAP_RETVALUE, "hrtimer", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_PROFILE_TIMER:
-      strlcpy (THIS->__retvalue, "profile_timer", MAXSTRINGLEN);
+    case stp_probe_type_profile_timer:
+      strlcpy (STAP_RETVALUE, "profile_timer", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_UTRACE:
-      strlcpy (THIS->__retvalue, "utrace", MAXSTRINGLEN);
+    case stp_probe_type_netfilter:
+      strlcpy (STAP_RETVALUE, "netfilter", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_UTRACE_SYSCALL:
-      strlcpy (THIS->__retvalue, "utrace_syscall", MAXSTRINGLEN);
+    case stp_probe_type_utrace:
+      strlcpy (STAP_RETVALUE, "utrace", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_KPROBE:
-      strlcpy (THIS->__retvalue, "kprobe", MAXSTRINGLEN);
+    case stp_probe_type_utrace_syscall:
+      strlcpy (STAP_RETVALUE, "utrace_syscall", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_KRETPROBE:
-      strlcpy (THIS->__retvalue, "kretprobe", MAXSTRINGLEN);
+    case stp_probe_type_kprobe:
+      strlcpy (STAP_RETVALUE, "kprobe", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_UPROBE:
-      strlcpy (THIS->__retvalue, "uprobe", MAXSTRINGLEN);
+    case stp_probe_type_kretprobe:
+      strlcpy (STAP_RETVALUE, "kretprobe", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_URETPROBE:
-      strlcpy (THIS->__retvalue, "uretprobe", MAXSTRINGLEN);
+    case stp_probe_type_uprobe:
+      strlcpy (STAP_RETVALUE, "uprobe", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_HWBKPT:
-      strlcpy (THIS->__retvalue, "hardware_data_breakpoint", MAXSTRINGLEN);
+    case stp_probe_type_uretprobe:
+      strlcpy (STAP_RETVALUE, "uretprobe", MAXSTRINGLEN);
       break;
-    case _STP_PROBE_HANDLER_TRACEPOINT:
-      strlcpy (THIS->__retvalue, "kernel_tracepoint", MAXSTRINGLEN);
+    case stp_probe_type_hwbkpt:
+      strlcpy (STAP_RETVALUE, "hardware_data_breakpoint", MAXSTRINGLEN);
+      break;
+    case stp_probe_type_tracepoint:
+      strlcpy (STAP_RETVALUE, "kernel_tracepoint", MAXSTRINGLEN);
       break;
     default:
       /* This should never happen. */
@@ -487,81 +146,3 @@ function probe_type:string()
       break;
   }
 %}
-
-/**
- * sfunction cmdline_args - Fetch command line arguments from current process
- * @n: First argument to get (zero is the command itself)
- * @m: Last argument to get (or minus one for all arguments after n)
- * @delim: String to use to delimit arguments when more than one.
- *
- * Description: Returns arguments from the current process starting
- * with argument number n, up to argument m. If there are less than n
- * arguments, or the arguments cannot be retrieved from the current
- * process, the empty string is returned. If m is smaller than n then
- * all arguments starting from argument n are returned. Argument zero
- * is traditionally the command itself.
- */
-function cmdline_args:string(n:long, m:long, delim:string)
-{
-  args = "";
-  mm = @cast(task_current(), "task_struct", "kernel<linux/sched.h>")->mm;
-  if (mm)
-    {
-      arg_start = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->arg_start;
-      arg_end = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->arg_end;
-      if (arg_start != 0 && arg_end != 0)
-        {
-          nr = 0;
-          len = arg_end - arg_start;
-          arg = user_string2(arg_start, "");
-          while (len > 0)
-            {
-              if (nr == n)
-                args = arg;
-              else if (nr > n)
-                {
-                  if (arg == "")
-                    args .= delim . "\"\""
-                  else
-                    args .= delim . arg;
-                }
-
-              arg_len = strlen(arg);
-              arg_start += arg_len + 1;
-              len -= arg_len + 1;
-              if (len > 0 && nr != m)
-                arg = user_string2(arg_start, "");
-              else
-                arg = "";
-              nr++;
-            }
-        }
-    }
-  return args;
-}
-
-/**
- * sfunction cmdline_arg - Fetch a command line argument
- * @n: Argument to get (zero is the command itself)
- *
- * Description: Returns argument the requested argument from the
- * current process or the empty string when there are not that many
- * arguments or there is a problem retrieving the argument. Argument
- * zero is traditionally the command itself.
- */
-function cmdline_arg:string(n:long)
-{
-  return cmdline_args(n, n, "");
-}
-
-/**
- * sfunction cmdline_str - Fetch all command line arguments from current process
- *
- * Description: Returns all arguments from the current process
- * delimited by spaces. Returns the empty string when the arguments
- * cannot be retrieved.
- */
-function cmdline_str:string()
-{
-  return cmdline_args(0, -1, " ");
-}

@@ -12,6 +12,7 @@
 #define PARSE_H
 
 #include <string>
+#include <vector>
 #include <iostream>
 #include <stdexcept>
 
@@ -44,6 +45,9 @@ struct token
   source_loc location;
   token_type type;
   std::string content;
+  std::string msg; // for tok_junk
+  void make_junk (std::string msg);
+  const token* chain; // macro invocation that produced this token
 };
 
 
@@ -63,11 +67,29 @@ struct parse_error: public std::runtime_error
 };
 
 
+typedef enum { ctx_library, ctx_local } macro_ctx;
+
+/* structs from session.h: */
 struct systemtap_session;
+struct macrodecl {
+  const token* tok; // NB: macrodecl owns its token
+  std::string name;
+  std::vector<std::string> formal_args;
+  std::vector<const token*> body;
+  macro_ctx context;
+
+  // Used for identifying subclasses that represent e.g. parameter bindings.
+  virtual bool is_closure() { return false; }
+
+  macrodecl () : tok(0), context(ctx_local) { }
+  virtual ~macrodecl ();
+};
+
 
 stapfile* parse (systemtap_session& s, std::istream& i, bool privileged);
 stapfile* parse (systemtap_session& s, const std::string& n, bool privileged);
 
+stapfile* parse_library_macros (systemtap_session& s, const std::string& n);
 
 #endif // PARSE_H
 

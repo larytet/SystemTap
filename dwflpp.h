@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2011 Red Hat Inc.
+// Copyright (C) 2005-2013 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -42,6 +42,10 @@ enum info_status { info_unknown, info_present, info_absent };
 
 // module -> cu die[]
 typedef unordered_map<Dwarf*, std::vector<Dwarf_Die>*> module_cu_cache_t;
+
+// An instance of this type tracks whether the type units for a given
+// Dwarf have been read.
+typedef std::set<Dwarf*> module_tus_read_t;
 
 // typename -> die
 typedef unordered_map<std::string, Dwarf_Die> cu_type_cache_t;
@@ -201,7 +205,7 @@ struct dwflpp
                             void *data);
 
   void iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
-                         void * data);
+                         void * data, bool want_types);
 
   bool func_is_inline();
 
@@ -331,6 +335,7 @@ private:
   void setup_user(const std::vector<std::string>& modules, bool debuginfo_needed = true);
 
   module_cu_cache_t module_cu_cache;
+  module_tus_read_t module_tus_read;
   mod_cu_function_cache_t cu_function_cache;
   mod_function_cache_t mod_function_cache;
 
@@ -370,7 +375,7 @@ private:
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
-  static void loc2c_error (void *, const char *fmt, ...);
+  static void loc2c_error (void *, const char *fmt, ...) __attribute__ ((noreturn));
 
   // This function generates code used for addressing computations of
   // target variables.
@@ -379,6 +384,7 @@ private:
                                   Dwarf_Addr address);
 
   void print_locals(std::vector<Dwarf_Die>& scopes, std::ostream &o);
+  void print_locals_die(Dwarf_Die &die, std::ostream &o);
   void print_members(Dwarf_Die *vardie, std::ostream &o,
                      std::set<std::string> &dupes);
 
@@ -445,6 +451,8 @@ private:
                  Dwarf_Addr base,
                  void *arg);
 
+public:
+  Dwarf_Addr pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* var);
 };
 
 #endif // DWFLPP_H

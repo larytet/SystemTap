@@ -1,6 +1,18 @@
 SYSTEMTAP EXAMPLES INDEX BY KEYWORD
 (see also index.txt)
 
+= AUDIT =
+
+process/auditbt.stp - Generate backtraces for kernel audit events
+keywords: monitoring security audit backtrace
+
+  Attaches to the kernel audit-log paths (also used by libaudit), and
+  log every record being sent, along with a user-space backtrace of the
+  process that caused it.
+
+  # stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"
+
+
 = AUTOFS =
 
 network/autofs4.stp - Watch autofs4 Operations
@@ -50,6 +62,16 @@ keywords: io backtrace
   list from most common to least common backtrace.
 
   # stap io_submit.stp -c "sleep 0.2"
+
+
+process/auditbt.stp - Generate backtraces for kernel audit events
+keywords: monitoring security audit backtrace
+
+  Attaches to the kernel audit-log paths (also used by libaudit), and
+  log every record being sent, along with a user-space backtrace of the
+  process that caused it.
+
+  # stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"
 
 
 process/pstrace_exec.stp - Print trace of process ancestors for matching exec commands
@@ -142,7 +164,7 @@ io/deviceseeks.stp - Histograms of Seek Behavior for Each Device
 keywords: disk
 
   The deviceseeks.stp script generates a histogram showing the
-  frequency of different sized seeks on each device.
+  frequency of different sized seeks (in sectors) on each device.
 
   # stap deviceseeks.stp -c "sleep 0.2"
 
@@ -154,6 +176,16 @@ keywords: disk
   ten entries during that period.
 
   # stap disktop.stp -c "sleep 0.2"
+
+
+io/enospc.stp - Report an disk out-of-space condition.
+keywords: disk filesystem
+
+  This script monitors a filesystem implementations for early internal
+  indications of ENOSPC, and reports these to the system logger and the
+  systemtap console.
+
+  # stap enospc.stp -c "sleep 0.2"
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
@@ -174,6 +206,20 @@ keywords: nfs disk
   script is run on the nfs server.
 
   # stap nfsd_unlink.stp -c "sleep 0.2"
+
+
+= DROP =
+
+network/netfilter_drop.stp - System-Wide Network Packet Dropping Tool
+keywords: network drop packets
+
+  The script drops the specified number of packets of the specified
+  protocol. Valid protocols are TCP, UDP, or ALL. If ALL is specified,
+  all incoming packets are dropped. The number of packets to drop can
+  be specified with a positive integer. A value of 0 indicates that
+  packets should be dropped until the user manually exits.
+
+  # stap -g netfilter_drop.stp TCP 1 -c "sleep 2"
 
 
 = FILE =
@@ -216,6 +262,16 @@ keywords: filesystem
 
   # stap -g badname.stp -c "touch /tmp/myXXXbadnameXXXfile.$$ 2>&1 | grep \
   denied"
+
+
+io/enospc.stp - Report an disk out-of-space condition.
+keywords: disk filesystem
+
+  This script monitors a filesystem implementations for early internal
+  indications of ENOSPC, and reports these to the system logger and the
+  systemtap console.
+
+  # stap enospc.stp -c "sleep 0.2"
 
 
 = FORMAT =
@@ -333,6 +389,20 @@ keywords: process scheduler time tracepoint interrupt
 
 
 = IO =
+
+general/alias_suffixes.stp - Count I/O Syscalls using Alias Suffixes
+keywords: io statistics
+
+  alias_suffixes.stp is a demonstration of how alias suffixes in the
+  systemtap language might be used. The script tracks the wall clock
+  time for each invocation of the system calls open, close, read, and
+  write. When the script exists it prints out the minimum, average, and
+  maximum times in microseconds for each system call, followed by a
+  count of times that each syscall was invoked and a histogram showing
+  the distributions of times.
+
+  # stap alias_suffixes.stp -c "sleep 0.2"
+
 
 io/inodewatch.stp - Monitoring Reads and Writes to a File
 keywords: io
@@ -614,6 +684,16 @@ keywords: syscall locking futex
   # stap futexes.stp -c "sleep 0.2"
 
 
+process/mutex-contention.stp - pthread mutex contention analysis
+keywords: locking
+
+  Tracks pthread-mutex initialization/use and underlying futex
+  operations, to identify (with backtraces/symbol-names) the mutexes
+  suffering most contention.  Invoke with "NNN -d SHLIB --ldd"
+
+  # stap mutex-contention.stp 100 -c "sleep 0.2"
+
+
 = MEMORY =
 
 general/sizeof.stp - Print the Size of a C Type
@@ -796,6 +876,16 @@ keywords: io tty monitoring
   # stap --skip-badvars -g ttyspy.stp -c "sleep 1"
 
 
+process/auditbt.stp - Generate backtraces for kernel audit events
+keywords: monitoring security audit backtrace
+
+  Attaches to the kernel audit-log paths (also used by libaudit), and
+  log every record being sent, along with a user-space backtrace of the
+  process that caused it.
+
+  # stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"
+
+
 = NANOSLEEP =
 
 process/sleeptime.stp - Trace Time Spent in Nanosleep Syscalls
@@ -837,6 +927,31 @@ keywords: network device traffic
   activity on network devices.
 
   # stap netdev.stp -c "sleep 0.2"
+
+
+network/netfilter_drop.stp - System-Wide Network Packet Dropping Tool
+keywords: network drop packets
+
+  The script drops the specified number of packets of the specified
+  protocol. Valid protocols are TCP, UDP, or ALL. If ALL is specified,
+  all incoming packets are dropped. The number of packets to drop can
+  be specified with a positive integer. A value of 0 indicates that
+  packets should be dropped until the user manually exits.
+
+  # stap -g netfilter_drop.stp TCP 1 -c "sleep 2"
+
+
+network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
+keywords: network traffic
+
+  The script watches all IPv4 network traffic on the system. On exit
+  the script prints a list showing the number of packets sent along
+  source IP address / destination IP address pair encountered, and the
+  total number of bytes sent among the pair. The list is ordered from
+  greatest to least number of packets seen among the source/destination
+  pairs.
+
+  # stap netfilter_summary.stp -c "sleep 0.4"
 
 
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces
@@ -960,6 +1075,14 @@ keywords: nfs disk
   # stap nfsd_unlink.stp -c "sleep 0.2"
 
 
+network/nfsdtop.stp - Keep track of NFS server statistics
+keywords: nfs statistics
+
+  The nfsdtop.stp script gathers and displays NFS lookups,
+
+  # stap nfsd_unlink.stp -c "sleep 0.2"
+
+
 = NUMA =
 
 memory/numa_faults.stp - Summarize Process Misses across NUMA Nodes
@@ -975,13 +1098,29 @@ keywords: memory numa
   # stap numa_faults.stp -c "sleep 0.2"
 
 
+= PACKETS =
+
+network/netfilter_drop.stp - System-Wide Network Packet Dropping Tool
+keywords: network drop packets
+
+  The script drops the specified number of packets of the specified
+  protocol. Valid protocols are TCP, UDP, or ALL. If ALL is specified,
+  all incoming packets are dropped. The number of packets to drop can
+  be specified with a positive integer. A value of 0 indicates that
+  packets should be dropped until the user manually exits.
+
+  # stap -g netfilter_drop.stp TCP 1 -c "sleep 2"
+
+
 = PROCESS =
 
 general/eventcount.stp - Count Specified Events
 keywords: statistics thread process
 
-  The script prints a count of specified events and their related tid's
-  over the course of execution.
+  The script periodically prints a count of specified events and their
+  related tid's over the course of execution.  Numerous configuration
+  options exist to control filtering / reporting, see the script
+  source.
 
   # stap eventcount.stp syscall.* -c 'sleep 0.2'
 
@@ -1034,6 +1173,16 @@ keywords: process scheduler
   # stap forktracker.stp -c "sleep 0.2"
 
 
+process/ltrace.stp - uprobes-based ltrace
+keywords: process
+
+  The ltrace.stp script lists calls that the designated process makes
+  through PLTs (procedure linkage tables), generally into shared
+  libraries.
+
+  # stap ltrace.stp -c ls || echo PR14738
+
+
 process/noptrace.stp - Disable ptrace from Hierarchies of Processes
 keywords: process security
 
@@ -1061,6 +1210,16 @@ keywords: process
   /proc/$$/limits on recent kernels.
 
   # stap -g plimit.stp $$
+
+
+process/psig.stp - Print Process File Descriptors
+keywords: process signal
+
+  Run psig.stp to produce a human-readable summary of the signal
+  handling configuration of a given process.  Specify the process-id as
+  -x PID for fastest performance.
+
+  # stap -DMAXACTION=10000 -g psig.stp -x $$
 
 
 process/pstrace_exec.stp - Print trace of process ancestors for matching exec commands
@@ -1167,16 +1326,6 @@ keywords: io profiling
   # stap nfs_func_users.stp -c "sleep 0.2"
 
 
-process/pf2.stp - Profile Kernel Functions
-keywords: profiling
-
-  The pf2.stp script sets up time-based sampling. Every five seconds it
-  prints out a sorted list with the top ten kernel functions with
-  samples.
-
-  # stap pf2.stp -c "sleep 0.2"
-
-
 profiling/errno.stp - Show Which Processes and System Calls Return Errors Most Frequently
 keywords: profiling
 
@@ -1236,6 +1385,16 @@ keywords: profiling
   # stap linetimes.stp kernel sys_nanosleep -c "sleep 0.2"
 
 
+profiling/perf.stp - Show performance ratios using perf.counter to access performance counters
+keywords: profiling
+
+  On exit the perf.stp script provides a sorted list showing cycles per
+  insn, branches per insn, and cache refs per insn
+
+  # stap perf.stp -c "find /usr/bin -name \"l*\" -printf \"%h/%f %s %Cx \
+  %Ck%CM %Y\n\""
+
+
 profiling/periodic.stp - Show the Period of the Various Timers on the System
 keywords: profiling
 
@@ -1249,6 +1408,27 @@ keywords: profiling
   printing output.
 
   # stap periodic.stp --all-modules -c "sleep 0.2"
+
+
+profiling/pf2.stp - Profile Kernel Functions
+keywords: profiling
+
+  The pf2.stp script sets up time-based sampling. Every five seconds it
+  prints out a sorted list with the top ten kernel functions with
+  samples.
+
+  # stap pf2.stp -c "sleep 0.2"
+
+
+profiling/pf3.stp - Profile Kernel/User Functions
+keywords: profiling
+
+  The pf3.stp script sets up time-based sampling. Every five seconds it
+  prints out a sorted list with the top twenty kernel and/or user
+  functions with samples.  Use any of --ldd, --all-modules, -d MODULE,
+  -d /PATH/TO/EXEC to add more symbolic info.
+
+  # stap pf3.stp -c "sleep 6" --all-modules --ldd
 
 
 profiling/sched_switch.stp - Display the Task Switches Happening in the Scheduler
@@ -1322,6 +1502,19 @@ keywords: virtualization qemu kvm io
   times each IO port read and written.
 
   # stap qemu_io.stp -c "sleep 0.2"
+
+
+= REGEX =
+
+general/regex.stp - Report opened files whose names match a given regex
+keywords: regex
+
+  Uses the regex functionality to detect opened files whose names match
+  a pattern given on the command line. If no command line parameter is
+  given, demonstrate by filtering for files that end with an extension
+  showing them to be an archive.
+
+  # stap regex.stp -c "sleep 0.2"
 
 
 = SCHEDULER =
@@ -1416,6 +1609,16 @@ keywords: io profiling scsi
 
 = SECURITY =
 
+process/auditbt.stp - Generate backtraces for kernel audit events
+keywords: monitoring security audit backtrace
+
+  Attaches to the kernel audit-log paths (also used by libaudit), and
+  log every record being sent, along with a user-space backtrace of the
+  process that caused it.
+
+  # stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"
+
+
 process/noptrace.stp - Disable ptrace from Hierarchies of Processes
 keywords: process security
 
@@ -1424,6 +1627,18 @@ keywords: process security
   Processes may be added or removed from the blocked list.
 
   # stap -g noptrace.stp -c 'strace ls || true'
+
+
+= SIGNAL =
+
+process/psig.stp - Print Process File Descriptors
+keywords: process signal
+
+  Run psig.stp to produce a human-readable summary of the signal
+  handling configuration of a given process.  Specify the process-id as
+  -x PID for fastest performance.
+
+  # stap -DMAXACTION=10000 -g psig.stp -x $$
 
 
 = SIGNALS =
@@ -1550,13 +1765,64 @@ keywords: network tcp socket
   # stap -g tcp_init_cwnd.stp -c "sleep 0.2"
 
 
+= STAPGAMES =
+
+stapgames/block.stp - block breaker game
+keywords: stapgames
+
+  A block game where you progressively break the ceiling blocks until
+  clearing the level
+
+  # stap -p4 -Itapset/ block.stp
+
+
+stapgames/eater.stp - eater game
+keywords: stapgames
+
+  walk through a maze, eat stuff
+
+  # stap -p4 -Itapset/ eater.stp
+
+
+stapgames/lifegame.stp - life game
+keywords: stapgames
+
+  watch as your creation morphes into different forms
+
+  # stap -p4 -Itapset/ lifegame.stp
+
+
+stapgames/pingpong.stp - pingpong game
+keywords: stapgames
+
+  A simulated ball bounces around the terminal reflecting at the edges
+
+  # stap -p4 -Itapset/ pingpong.stp
+
+
 = STATISTICS =
+
+general/alias_suffixes.stp - Count I/O Syscalls using Alias Suffixes
+keywords: io statistics
+
+  alias_suffixes.stp is a demonstration of how alias suffixes in the
+  systemtap language might be used. The script tracks the wall clock
+  time for each invocation of the system calls open, close, read, and
+  write. When the script exists it prints out the minimum, average, and
+  maximum times in microseconds for each system call, followed by a
+  count of times that each syscall was invoked and a histogram showing
+  the distributions of times.
+
+  # stap alias_suffixes.stp -c "sleep 0.2"
+
 
 general/eventcount.stp - Count Specified Events
 keywords: statistics thread process
 
-  The script prints a count of specified events and their related tid's
-  over the course of execution.
+  The script periodically prints a count of specified events and their
+  related tid's over the course of execution.  Numerous configuration
+  options exist to control filtering / reporting, see the script
+  source.
 
   # stap eventcount.stp syscall.* -c 'sleep 0.2'
 
@@ -1594,6 +1860,14 @@ keywords: memory slab statistics
   user-space processes.
 
   # stap vm.tracepoints.stp -c "sleep 10"
+
+
+network/nfsdtop.stp - Keep track of NFS server statistics
+keywords: nfs statistics
+
+  The nfsdtop.stp script gathers and displays NFS lookups,
+
+  # stap nfsd_unlink.stp -c "sleep 0.2"
 
 
 network/tcpipstat.stp - Display Network Statistics for Individual TCP Sockets
@@ -1744,10 +2018,23 @@ keywords: network tcp socket
 general/eventcount.stp - Count Specified Events
 keywords: statistics thread process
 
-  The script prints a count of specified events and their related tid's
-  over the course of execution.
+  The script periodically prints a count of specified events and their
+  related tid's over the course of execution.  Numerous configuration
+  options exist to control filtering / reporting, see the script
+  source.
 
   # stap eventcount.stp syscall.* -c 'sleep 0.2'
+
+
+process/threadstacks.stp - Override default new-pthread stack sizes
+keywords: thread
+
+  Overrides default NPTL pthread_create stack size for all new threads
+  created by target processes.	Reports one line per process when the
+  related glibc variable __default_stacksize is updated.  Moot for
+  glibc versions that support $LIBC_PTHREAD_DEFAULT_STACKSIZE_NP.
+
+  # stap -g threadstacks.stp -Gsize=65536 -c "sleep 1" -d stap
 
 
 = TIME =
@@ -1882,6 +2169,19 @@ keywords: network device traffic
   activity on network devices.
 
   # stap netdev.stp -c "sleep 0.2"
+
+
+network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
+keywords: network traffic
+
+  The script watches all IPv4 network traffic on the system. On exit
+  the script prints a list showing the number of packets sent along
+  source IP address / destination IP address pair encountered, and the
+  total number of bytes sent among the pair. The list is ordered from
+  greatest to least number of packets seen among the source/destination
+  pairs.
+
+  # stap netfilter_summary.stp -c "sleep 0.4"
 
 
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces

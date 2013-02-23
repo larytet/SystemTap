@@ -1,11 +1,12 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 1.7, systemtap@sourceware.org, systemtap)
-dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac,
-dnl                      runtime/staprun/configure.ac
+AC_INIT([systemtap], 2.1, systemtap@sourceware.org, systemtap)
+dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
+dnl                      doc/SystemTap_Beginners_Guide/en-US/Book_Info.xml
 
-AC_PREREQ(2.59)
+AC_PREREQ(2.63)
+dnl We don't maintain a ChangeLog, which makes us non-GNU -> foreign.
 AM_INIT_AUTOMAKE([no-dist foreign])
 AM_MAINTAINER_MODE
 
@@ -20,7 +21,6 @@ AC_PROG_CXX
 AC_PROG_CPP
 AM_PROG_CC_STDC
 AM_PROG_CC_C_O
-AM_C_PROTOTYPES
 AC_PROG_RANLIB
 AC_OBJEXT
 AC_EXEEXT
@@ -28,9 +28,11 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_SUBST(CFLAGS)
 AC_SUBST(CXXFLAGS)
+AC_SYS_LARGEFILE
 AM_GNU_GETTEXT(external)
 AM_GNU_GETTEXT_VERSION(0.17)
 AC_CHECK_FUNCS(ppoll)
+AC_CHECK_FUNCS(openat)
 
 dnl Handle the prologues option.
 dnl
@@ -112,30 +114,27 @@ dnl fi
 AC_ARG_ENABLE([pie],
   [AS_HELP_STRING([--enable-pie], [enable position-independent-executable])])
 AS_IF([test "x$enable_pie" == xyes],[
+   PIECFLAGS='-fPIE'
+   PIECXXFLAGS='-fPIE'
+   PIELDFLAGS='-pie -Wl,-z,relro -Wl,-z,now'
    save_CFLAGS="$CFLAGS"
    save_CXXFLAGS="$CXXFLAGS"
    save_LDFLAGS="$LDFLAGS"
-   CFLAGS="$CFLAGS -fPIE"
-   CXXFLAGS="$CXXFLAGS -fPIE"
-   LDFLAGS="$LDFLAGS -pie -Wl,-z,relro -Wl,-z,now"
+   CFLAGS="$CFLAGS $PIECFLAGS"
+   CXXFLAGS="$CXXFLAGS $PIECXXFLAGS"
+   LDFLAGS="$LDFLAGS $PIELDFLAGS"
    AC_LINK_IFELSE([AC_LANG_SOURCE([void main () {}])], [
        AC_MSG_NOTICE([Compiling with gcc pie et al.])
-          # LDFLAGS is special since it may be passed down to bundled-elfutils,
-          # and interfere with the .so's built therein
-          PIELDFLAGS="$LDFLAGS"
-          LDFLAGS="$save_LDFLAGS"
-          PIECFLAGS="$CFLAGS"
-          CFLAGS="$save_CFLAGS"
-          PIECXXFLAGS="$CXXFLAGS"
-          CXXFLAGS="$save_CXXFLAGS"
-       ],[
+   ], [
        AC_MSG_NOTICE([Compiler does not support -pie et al.])
        PIECFLAGS=""
-       CFLAGS="$save_CFLAGS"
        PIECXXFLAGS=""
-       CXXFLAGS="$save_CXXFLAGS"
        PIELDFLAGS=""
-       LDFLAGS="$save_LDFLAGS"])])
+   ])
+   CFLAGS="$save_CFLAGS"
+   CXXFLAGS="$save_CXXFLAGS"
+   LDFLAGS="$save_LDFLAGS"
+])
 AC_SUBST(PIELDFLAGS)
 AC_SUBST(PIECFLAGS)
 AC_SUBST(PIECXXFLAGS)
@@ -261,6 +260,20 @@ if test "x${have_xmlto}" == "xyes" -a "$enable_refdocs" != "no" -a "${building_d
 fi
 AM_CONDITIONAL([BUILD_REFDOCS], [test "$building_refdocs" == "yes"])
 
+AC_CHECK_PROG(have_fop, fop, yes, no)
+if test "x${have_fop}" == "xyes"; then
+   # Due to rhbz505364 / 830266, we must actually test-run fop, not just
+   # hope that it works.
+   AC_MSG_CHECKING([to see if xmlto --with-fop actually works])
+   if xmlto --with-fop pdf ${srcdir}/doc/SystemTap_Tapset_Reference/dummy-tapsets.xml >/dev/null 2>&1; then
+      AC_MSG_RESULT([yes])
+   else
+      AC_MSG_RESULT([it's dead, Jim])
+      have_fop="broken"
+   fi
+fi
+AM_CONDITIONAL([HAVE_FOP], [test "$have_fop" == "yes"])
+
 dnl There is a strange bug in older versions of xmlto when generating pdf.
 dnl https://bugzilla.redhat.com/show_bug.cgi?id=526273
 dnl So make sure to have a chapter title starting with L plus an refentry.
@@ -294,7 +307,15 @@ AM_CONDITIONAL([XMLTO_STRINGPARAM], [test "$have_xmlto_stringparam" == "yes"])
 
 if test "x${building_refdocs}" == "xyes"; then
 AC_MSG_CHECKING([for xmlto pdf support])
-   xmlto pdf conftest.xml >& /dev/null
+   # xmlto pdf may work *only* with --with-fop
+   # XXX: To an extent this test is redundant in that the --with-fop test
+   # already ran xmlto --with-fop pdf ....
+   if test "x$have_fop" == "xyes"; then
+      XMLTOPDF_FOP=--with-fop
+   else
+      XMLTOPDF_FOP=
+   fi
+   xmlto $XMLTOPDF_FOP pdf conftest.xml >& /dev/null
    if test $? == 0; then
       have_xmlto_pdf="yes"
       AC_MSG_RESULT([yes])
@@ -338,7 +359,7 @@ fi
 AM_CONDITIONAL([BUILD_SERVER], [test "${have_nss}" == "yes" -a "$enable_server" != "no"])
 
 if test "${have_nss}" != "yes"; then
-  AC_MSG_WARN([some compile server client functionality will be restricted, cannot find nss development files])
+  AC_MSG_WARN([compile-server client functionality will be disabled, cannot find nss development files])
 fi		       
 
 dnl See if we have the avahi libraries and headers
@@ -359,51 +380,6 @@ if test "${have_avahi}" != "yes"; then
   AC_MSG_WARN([some compile-server functionality will be restricted, cannot find avahi development files])
 fi
 
-dnl Handle the optional grapher
-AC_ARG_ENABLE([grapher],
-  AS_HELP_STRING([--enable-grapher],
-    [enable building of grapher (default on if needed requirements are found).]),
-  [],					dnl ACTION-IF-GIVEN
-  [enable_grapher="check"])		dnl ACTION-IF-NOT-GIVEN
-dnl If the user didn't disable the grapher, check the grapher's requirements.
-AS_IF([test "x$enable_grapher" != xno],
-  [
-   dnl Check for gtkmm.  Strictly speaking, this isn't necessary,
-   dnl since the libglademm24-devel rpm requires the gtkmm24-devel
-   dnl rpm.  But, this could be a non-rpm system.  This check will
-   dnl give the user a better idea about how to fix missing
-   dnl requirements.
-   PKG_CHECK_MODULES([gtkmm], [gtkmm-2.4 >= 2.8.0],
-     have_gtkmm="yes", have_gtkmm="no")
-   AS_IF([test "x${have_gtkmm}" == "xno" -a x"$enable_grapher" == "xyes"],
-     AC_MSG_WARN([systemtap cannot find required gtkmm libs (gtkmm24-devel version 2.8.0 or higher may need to be installed)]))
-
-   dnl Check for libglade
-   PKG_CHECK_MODULES([libglade], [libglademm-2.4 >= 2.6.7],
-     have_libglade="yes", have_libglade="no")
-   AS_IF([test "x${have_libglade}" == "xno" -a x"$enable_grapher" == "xyes"],
-     AC_MSG_WARN([systemtap cannot find required libglade libs (libglademm24-devel version 2.6.7 or higher may need to be installed)]))
-
-   dnl Check for needed boost headers
-   have_boost_headers="yes"
-   AC_LANG_PUSH(C++)
-   AC_CHECK_HEADERS([boost/algorithm/string.hpp boost/range.hpp],
-     [], have_boost_headers="no")
-   AC_LANG_POP(C++)
-   AS_IF([test "x${have_boost_headers}" == "xno" -a x"$enable_grapher" == "xyes"],
-     AC_MSG_WARN([cannot find required boost headers (boost-devel may need to be installed)]))
-
-   dnl Bundle up all the grapher requirements into 1 variable.
-   AS_IF([test "x${have_gtkmm}${have_libglade}${have_boost_headers}" == "xyesyesyes"],
-         have_grapher_reqs="yes", have_grapher_reqs="no")
-   ])
-dnl If the user explicitly said to enable the grapher, but we can't
-dnl (since one or more of its requirements aren't installed), error.
-AS_IF([test "x${have_grapher_reqs}" == "xno" -a x"$enable_grapher" == "xyes"],
-  AC_MSG_ERROR([systemtap cannot find grapher build requirements (gtkmm, libglade, and boost headers)]))
-dnl If the user didn't say to disable the grapher, and all the
-dnl requirements are installed, enable the grapher.
-AM_CONDITIONAL([BUILD_GRAPHER], [test "x${have_grapher_reqs}" == "xyes" -a x"$enable_grapher" != "xno"])
 
 dnl Look for librpm.
 AC_ARG_WITH([rpm],
@@ -412,11 +388,11 @@ AC_ARG_WITH([rpm],
 if test "$with_rpm" != "no"; then
   AC_CHECK_LIB(rpm, rpmtsInitIterator, [
                     AC_DEFINE([HAVE_LIBRPM],[1],[have librpm])
-                    stap_LIBS="$stap_LIBS -lrpm"
+                    stap_LIBS="$stap_LIBS -lc -lrpm"
                     have_librpm="yes"], [have_librpm="no"])
   AC_CHECK_LIB(rpmio, rpmFreeCrypto, [
                     AC_DEFINE([HAVE_LIBRPMIO],[1],[have librpmio])
-                    stap_LIBS="$stap_LIBS -lrpmio"
+                    stap_LIBS="$stap_LIBS -lc -lrpmio"
                     have_librpmio="yes"], [have_librpmio="no"])
   if test "x$have_librpm" != "xyes" -a "$with_rpm" == "yes"; then
      AC_MSG_ERROR([cannot find librpm])
@@ -457,8 +433,8 @@ if test $enable_translator = yes; then
     AC_CHECK_LIB(dw, dwfl_module_getsym,[],[
       AC_MSG_ERROR([missing elfutils development headers/libraries (install elfutils-devel, libebl-dev, libdw-dev and/or libebl-devel)])],
       [-Wl,--start-group -ldw $ebl_LIBS -Wl,--end-group -lelf])
-    AC_CHECK_LIB(dw, dwarf_getcfi_elf,[],[
-      AC_MSG_ERROR([elfutils, libdw too old, need 0.142+])],
+    AC_CHECK_LIB(dw, dwarf_next_unit,[],[
+      AC_MSG_ERROR([elfutils, libdw too old, need 0.148+])],
       [-Wl,--start-group -ldw $ebl_LIBS -Wl,--end-group -lelf])
     stap_LIBS="$stap_LIBS -Wl,--start-group -ldw $ebl_LIBS -Wl,--end-group -lelf"
     LIBS="$save_LIBS"
@@ -470,6 +446,25 @@ fi
 
 AC_SUBST(stap_LIBS)
 AC_MSG_NOTICE([stap will link $stap_LIBS])
+
+# staprun has more modest libelf needs
+if test $build_elfutils = no; then
+  AC_CHECK_HEADERS([libelf.h])
+
+  save_LIBS="$LIBS"
+  dnl this will only succeed with elfutils 0.142+
+  AC_CHECK_LIB(elf,elf_getshdrstrndx,[
+    AC_DEFINE([HAVE_ELF_GETSHDRSTRNDX],[1],[Define to 1 if libelf has elf_getshdrstrndx])
+    staprun_LIBS="$staprun_LIBS -lelf"
+  ])
+  LIBS="$save_LIBS"
+else
+  # We built our own and staprun_LDFLAGS points at the install.
+  staprun_LIBS="$staprun_LIBS -lelf"
+fi
+
+AC_SUBST(staprun_LIBS)
+AC_MSG_NOTICE([staprun will link $staprun_LIBS])
 
 
 dnl Plop in the build (configure) date
@@ -487,6 +482,42 @@ AC_CHECK_HEADERS([tr1/unordered_map])
 AC_CHECK_HEADERS([tr1/memory])
 AC_CHECK_HEADERS([boost/shared_ptr.hpp])
 AC_LANG_POP(C++)
+
+
+# Check for Dyninst headers and libraries
+AC_ARG_WITH([dyninst],
+  AS_HELP_STRING([--with-dyninst=DIRECTORY],
+    [find dyninst headers/libraries in DIRECTORY]))
+
+case "$with_dyninst" in
+no) ;;
+''|yes) # Try a simple-minded distro search
+     DYNINST_CXXFLAGS="-I/usr/include/dyninst"
+     DYNINST_LDFLAGS="-L/usr/lib64/dyninst -L/usr/lib/dyninst" # XXX both lib paths!?!
+     ;;
+*)  # Use paths in the user-specified prefix
+    DYNINST_CXXFLAGS="-I$with_dyninst/include"
+    DYNINST_LDFLAGS="-L$with_dyninst/lib/" # XXX need lib64 too?
+    ;;
+esac
+if test "$with_dyninst" != "no"; then
+  AC_LANG_PUSH(C++)
+  old_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $DYNINST_CXXFLAGS"
+  AC_MSG_NOTICE([checking dyninst support])
+  AC_CHECK_HEADERS([BPatch_object.h], [
+      AC_SUBST(DYNINST_CXXFLAGS)
+      AC_SUBST(DYNINST_LDFLAGS)
+      AC_DEFINE([HAVE_DYNINST],[1],[Define to 1 if Dyninst is enabled])
+      have_dyninst=yes
+      AC_MSG_NOTICE([dyninst support available])])
+  if test -n "$with_dyninst" -a "$have_dyninst" != "yes"; then
+    AC_MSG_ERROR([Dyninst does not appear to be usable])
+  fi
+  CPPFLAGS="$old_CPPFLAGS"
+  AC_LANG_POP(C++)
+fi
+AM_CONDITIONAL([HAVE_DYNINST], [test "${have_dyninst}" = "yes"])
 
 
 AC_CACHE_CHECK([for assembler .section "?" flags support], stap_cv_sectionq, [
@@ -550,7 +581,7 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
 				--exec-prefix="$exec_prefix" \
 				--prefix="$prefix" \
 				${need_maintainer_option} \
-				CFLAGS="${CFLAGS/-Wall/} $gnu89_inline_flag" \
+				CFLAGS="${CFLAGS/-Wall/} $gnu89_inline_flag -fexceptions" \
 				LDFLAGS="$LDFLAGS $elfutils_rpath" &&
    if test -f ${elfutils_srcdir}/config/version.h.in; then
         echo Found elfutils/version.h header...
@@ -562,9 +593,34 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
   if test $? != 0; then exit -1; fi
 fi
 
+dnl Optional libselinux support allows stapdyn to check
+dnl for booleans that would prevent Dyninst from working.
+AC_ARG_WITH([selinux],
+  AS_HELP_STRING([--without-selinux],
+    [Do not use libselinux even if present]))
+
+AS_IF([test "x$with_selinux" != "xno"], [
+  PKG_CHECK_MODULES([selinux], [libselinux],
+    [have_selinux=yes
+     AC_DEFINE([HAVE_SELINUX], [1], [Define to 1 if you have the SELinux libraries.])
+    ], [have_selinux=no])
+], [have_selinux=no])
+
+AM_CONDITIONAL([HAVE_SELINUX], [test "${have_selinux}" = "yes"])
+
 AC_SUBST(ENABLE_NLS, "$USE_NLS")
 AC_SUBST(localedir, "$localedir")
 AC_SUBST(LOCALEDIR, "$localedir")
+
+AC_ARG_WITH([extra-version],
+  AS_HELP_STRING([--with-extra-version=STRING],
+    [Add STRING to stap -V version]))
+AS_IF([test "x$with_extra_version" != "xno"], [
+    stap_extra_version="$with_extra_version"
+    AC_MSG_NOTICE([Adding extra version $stap_extra_version])], [
+    stap_extra_version=""])
+AC_DEFINE_UNQUOTED(STAP_EXTRA_VERSION, "$stap_extra_version", [extra stap version code])
+AC_SUBST(STAP_EXTRA_VERSION, "$stap_extra_version")
 
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled
@@ -578,17 +634,20 @@ AC_DEFINE_UNQUOTED(STAP_PREFIX, "$stap_prefix", [configure prefix location])
 AC_SUBST(STAP_PREFIX, "$stap_prefix")
 
 AC_CONFIG_HEADERS([config.h:config.in])
-AC_CONFIG_FILES([Makefile doc/Makefile \
+AC_CONFIG_FILES([Makefile doc/Makefile man/Makefile \
 doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
-grapher/Makefile \
-grapher/stapgraph.1 \
-stappaths.7 \
+man/stappaths.7 \
+initscript/config.systemtap initscript/config.stap-server \
 initscript/systemtap initscript/stap-server ])
-AC_CONFIG_SUBDIRS(testsuite runtime/staprun)
+AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])
 fi
 AC_CONFIG_FILES([dtrace], [chmod +x dtrace])
+AC_CONFIG_FILES(stapdyn/Makefile)
+AC_CONFIG_FILES(staprun/Makefile)
+AC_CONFIG_FILES([staprun/run-staprun], [chmod +x staprun/run-staprun])
+AC_CONFIG_FILES(re2c-migrate/Makefile)
 
 # Setup "shadow" directory doc/beginners that has everything setup for
 # publican in one directory (through directory links if necessary).

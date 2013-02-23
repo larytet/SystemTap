@@ -1,0 +1,196 @@
+# S390-specific system calls
+
+%(arch == "s390" %?
+
+# getresgid __________________________________________________
+# long sys32_getresgid16(u16 __user *rgid, u16 __user *egid, u16 __user *sgid)
+#
+probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?
+{
+	name = "getresgid"
+	// argstr = sprintf("%p, %p, %p", $rgid, $egid, $sgid)
+	asmlinkage()
+	argstr = sprintf("%p, %p, %p", pointer_arg(1), pointer_arg(2), pointer_arg(3))
+}
+probe nd_syscall.getresgid16.return = kprobe.function("sys32_getresgid16").return ?
+{
+	name = "getresgid"
+	retstr = returnstr(1)
+}
+
+# getresuid __________________________________________________
+# long sys32_getresuid16(u16 __user *ruid, u16 __user *euid, u16 __user *suid)
+#
+probe nd_syscall.getresuid16 = kprobe.function("sys32_getresuid16") ?
+{
+	name = "getresuid"
+	// argstr = sprintf("%p, %p, %p", $ruid, $euid, $suid)
+	asmlinkage()
+	argstr = sprintf("%p, %p, %p", pointer_arg(1), pointer_arg(2), pointer_arg(3))
+}
+probe nd_syscall.getresuid16.return = kprobe.function("sys32_getresuid16").return ?
+{
+	name = "getresuid"
+	retstr = returnstr(1)
+}
+
+# ipc _________________________________________________
+# long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
+#
+probe nd_syscall.ipc = kprobe.function("sys32_ipc") ?
+{
+	name = "ipc"
+	// argstr = sprintf("%d, %d, %d, %d, %p", $call, $first, $second, $third, $ptr)
+	asmlinkage()
+	argstr = sprintf("%d, %d, %d, %d, %p", uint_arg(1), int_arg(2), int_arg(3), int_arg(4), uint_arg(5))
+}
+probe nd_syscall.ipc.return = kprobe.function("sys_ipc").return ?
+{
+	name = "ipc"
+	retstr = returnstr(1)
+}
+
+# In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
+# code.  In kernels >= 2.6.33, the arch-specific code just calls
+# generic sys_mmap_pgoff().
+%( kernel_v < "2.6.33" %?
+# mmap _________________________________________________
+# long old_mmap(struct mmap_arg_struct __user *arg)
+# long old32_mmap(struct mmap_arg_struct_emu31 __user *arg)
+#
+probe nd_syscall.mmap = kprobe.function("old_mmap") ?,
+                        kprobe.function("old32_mmap") ?,
+                        kprobe.function("SyS_s390_old_mmap") ?
+{
+	name = "mmap"
+
+	// if ((symname(addr()) == "old_mmap") || (symname(addr()) == "SyS_s390_old_mmap"))
+	// 	argstr = get_mmap_args($arg)
+	// else
+	// 	argstr = get_32mmap_args($arg)
+
+	asmlinkage()
+	if ((symname(addr()) == "old_mmap") || (symname(addr()) == "SyS_s390_old_mmap"))
+		argstr = get_mmap_args(pointer_arg(1))
+	else
+		argstr = get_32mmap_args(pointer_arg(1))
+}
+probe nd_syscall.mmap.return = kprobe.function("old_mmap").return ?,
+                               kprobe.function("old32_mmap").return ?,
+                               kprobe.function("SyS_s390_old_mmap").return ?
+{
+	name = "mmap"
+	retstr = returnstr(2)
+}
+
+# mmap2 _________________________________________________
+#
+# long sys_mmap2(struct mmap_arg_struct __user  *arg)
+# long sys32_mmap2(struct mmap_arg_struct_emu31 __user *arg)
+#
+probe nd_syscall.mmap2 = kprobe.function("sys_mmap2") ?,
+                         kprobe.function("sys32_mmap2") ?
+{
+	name = "mmap2"
+
+	// if ((symname(addr()) == "sys_mmap2") || (symname(addr()) == "SyS_mmap2"))
+	// 	argstr = get_mmap_args($arg)
+	// else
+	// 	argstr = get_32mmap_args($arg)
+
+	asmlinkage()
+	if ((symname(addr()) == "sys_mmap2") || (symname(addr()) == "SyS_mmap2"))
+		argstr = get_mmap_args(pointer_arg(1))
+	else
+		argstr = get_32mmap_args(pointer_arg(1))
+}
+
+probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?,
+                                kprobe.function("sys32_mmap2").return ?
+{
+	name = "mmap2"
+	retstr = returnstr(2)
+}
+%)
+
+# sysctl _____________________________________________________
+#
+# long sys32_sysctl(struct __sysctl_args32 __user *args)
+#
+probe nd_syscall.sysctl32 = kprobe.function("sys32_sysctl") ?
+{
+	name = "sysctl"
+	// argstr = sprintf("%p", $args)
+	asmlinkage()
+	argstr = sprintf("%p", pointer_arg(1))
+}
+probe nd_syscall.sysctl32.return = kprobe.function("sys32_sysctl").return ?
+{
+	name = "sysctl"
+	retstr = returnstr(1)
+}
+
+/* compat */
+function get_32mmap_args:string (args:long)
+%{ /* pure */
+	struct mmap_arg_struct_emu31 {
+		u32     addr;
+		u32     len;
+		u32     prot;
+		u32     flags;
+		u32     fd;
+		u32     offset;
+	}a;
+
+	char proto[60];
+	char flags[160];
+
+	if(_stp_copy_from_user((char *)&a, (char *)STAP_ARG_args, sizeof(a))== 0){
+		/* _mprotect_prot_str */
+		proto[0] = '\0';
+		if(a.prot){
+                        if(a.prot & 1)
+                                strlcat (proto, "PROT_READ|", sizeof(proto));
+                        if(a.prot & 2)
+                                strlcat (proto, "PROT_WRITE|", sizeof(proto));
+                        if(a.prot & 4)
+                                strlcat (proto, "PROT_EXEC|", sizeof(proto));
+		} else {
+                        strlcat (proto, "PROT_NONE", sizeof(proto));
+		}
+		if (proto[0] != '\0') proto[strlen(proto)-1] = '\0';
+
+		/* _mmap_flags */
+		flags[0]='\0';
+                if (a.flags & 1) strlcat (flags, "MAP_SHARED|", sizeof(flags));
+                if (a.flags & 2)
+                        strlcat (flags, "MAP_PRIVATE|", sizeof(flags));
+                if (a.flags & 0x10)
+                        strlcat (flags, "MAP_FIXED|", sizeof(flags));
+                if (a.flags & 0x20)
+                        strlcat (flags, "MAP_ANONYMOUS|", sizeof(flags));
+                if (a.flags & 0x100)
+                        strlcat (flags, "MAP_GROWSDOWN|", sizeof(flags));
+                if (a.flags & 0x800)
+                        strlcat (flags, "MAP_DENYWRITE|", sizeof(flags));
+                if (a.flags & 0x1000)
+                        strlcat (flags, "MAP_EXECUTABLE|", sizeof(flags));
+                if (a.flags & 0x2000)
+                        strlcat (flags, "MAP_LOCKED|", sizeof(flags));
+                if (a.flags & 0x4000)
+                        strlcat (flags, "MAP_NORESERVE|", sizeof(flags));
+                if (a.flags & 0x8000)
+                        strlcat (flags, "MAP_POPULATE|", sizeof(flags));
+                if (a.flags & 0x10000)
+                        strlcat (flags, "MAP_NONBLOCK|", sizeof(flags));
+                if (flags[0] != '\0') flags[strlen(flags)-1] = '\0';
+
+                snprintf (STAP_RETVALUE, MAXSTRINGLEN,
+                          "0x%x, %d, %s, %s, %d, %d", a.addr, a.len,
+                          proto, flags, a.fd, a.offset);
+	}else{
+		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	}
+%}
+
+%)

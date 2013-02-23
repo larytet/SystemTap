@@ -17,10 +17,6 @@ AM_CPPFLAGS = -DBINDIR='"$(bindir)"' \
 AM_CFLAGS = -D_GNU_SOURCE -fexceptions -Wall -Werror -Wunused -Wformat=2 -W
 AM_CXXFLAGS = -Wall -Werror
 
-man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap stapex.3stap \
-dtrace.1 stap-merge.1\
-stappaths.7
-
 bin_SCRIPTS = stap-report
 pkglibexec_SCRIPTS = stap-env
 oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
@@ -29,7 +25,6 @@ bin_PROGRAMS =
 
 if BUILD_TRANSLATOR
 bin_PROGRAMS += stap
-man_MANS += stap.1
 bin_SCRIPTS += dtrace
 
 pkglibexec_PROGRAMS =
@@ -38,7 +33,6 @@ if HAVE_NSS
 pkglibexec_PROGRAMS += stap-sign-module stap-authorize-cert
 
 if BUILD_SERVER
-man_MANS += stap-server.8
 pkglibexec_PROGRAMS += stap-serverd stap-gen-cert
 bin_SCRIPTS += stap-server
 pkglibexec_SCRIPTS += stap-start-server stap-stop-server
@@ -49,10 +43,14 @@ stap_SOURCES = main.cxx session.cxx \
 	parse.cxx staptree.cxx elaborate.cxx translate.cxx \
 	tapsets.cxx buildrun.cxx loc2c.c hash.cxx mdfour.c \
 	cache.cxx util.cxx coveragedb.cxx dwarf_wrappers.cxx \
-	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx \
+	tapset-been.cxx tapset-procfs.cxx tapset-timers.cxx tapset-netfilter.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
 	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
-	setupdwfl.cxx csclient.cxx cscommon.cxx remote.cxx privilege.cxx cmdline.cxx
+	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
+	tapset-dynprobe.cxx
+stap_SOURCES += re2c-migrate/stapregex.cxx \
+	re2c-migrate/re2c-regex.cxx re2c-migrate/re2c-emit.cxx \
+	re2c-migrate/re2c-dfa.cxx re2c-migrate/re2c-globals.cxx
 noinst_HEADERS = sdt_types.h
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@
 stap_DEPENDENCIES =
@@ -102,7 +100,7 @@ cscope:
 
 PHONIES =
 if BUILD_TRANSLATOR
-stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ -D_FILE_OFFSET_BITS=64
+stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@
 stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@
 stap_CPPFLAGS = $(AM_CPPFLAGS) -DSTAP_SDT_V2
 stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
@@ -114,7 +112,7 @@ stap_LDADD += $(avahi_LIBS)
 endif
 
 if HAVE_NSS
-stap_SOURCES += nsscommon.cxx
+stap_SOURCES += nsscommon.cxx csclient.cxx cscommon.cxx 
 stap_CFLAGS += $(nss_CFLAGS) -DSTAP
 stap_CXXFLAGS += $(nss_CFLAGS)
 stap_CPPFLAGS += $(nss_CFLAGS)
@@ -184,7 +182,7 @@ stap_serverd_SOURCES = stap-serverd.cxx cscommon.cxx util.cxx privilege.cxx nssc
 stap_serverd_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ $(nss_CFLAGS)
 stap_serverd_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ $(nss_CFLAGS)
 stap_serverd_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
-stap_serverd_LDADD = $(nss_LIBS)
+stap_serverd_LDADD = $(nss_LIBS) -lpthread
 if HAVE_AVAHI
 stap_serverd_CFLAGS += $(avahi_CFLAGS)
 stap_serverd_CXXFLAGS += $(avahi_CFLAGS)
@@ -238,15 +236,21 @@ $(EXAMPLE_SOURCE_DIR)/index.html: $(EXAMPLE_META_FILES) $(EXAMPLE_INDEX_GEN)
 
 install-data-local:
 	(cd $(srcdir)/runtime; for f in *.[ch]; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/$$f; done)
+if HAVE_DYNINST
+	(cd $(srcdir)/runtime/dyninst; find . \( -name '*.[ch]' \) -print \
+		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/dyninst/$$f; done)
+endif
 	(cd $(srcdir)/runtime/unwind; find . \( -name '*.[ch]' \) -print \
 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/unwind/$$f; done)
 	(cd $(srcdir)/runtime/transport; for f in *.[ch]; \
 		do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/transport/$$f; done)
-	(cd $(srcdir)/runtime/uprobes; for f in Makefile *.[ch]; \
-		do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/uprobes/$$f; done)
-	(cd $(srcdir)/runtime/uprobes2; for f in *.[ch]; \
-		do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/uprobes2/$$f; done)
-	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name README \) -print \
+	(cd $(srcdir)/runtime/linux; for f in *.[ch]; \
+		do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/linux/$$f; done)
+	(cd $(srcdir)/runtime/linux/uprobes; for f in Makefile *.[ch]; \
+		do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/linux/uprobes/$$f; done)
+	(cd $(srcdir)/runtime/linux/uprobes2; for f in *.[ch]; \
+		do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/runtime/linux/uprobes2/$$f; done)
+	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name '*.stpm' -o -name README \) -print \
 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/tapset/$$f; done)
 	(cd $(srcdir)/testsuite/systemtap.examples; find . -type f -print \
 		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl' \
@@ -259,25 +263,21 @@ if BUILD_SERVER
 	test -e $(DESTDIR)$(localstatedir)/run/stap-server || mkdir -p $(DESTDIR)$(localstatedir)/run/stap-server
 	test -e $(DESTDIR)$(localstatedir)/log || mkdir -p $(DESTDIR)$(localstatedir)/log
 endif
-	(cd $(srcdir)/man; for f in *.3*; do $(INSTALL_DATA) -D $$f "$(DESTDIR)$(man3dir)/$$f" || exit $$?; done)
 
 
 TEST_COV_DIR = coverage
 
 gcov:
-	@-$(MAKE) clean CXXFLAGS="-g -fprofile-arcs -ftest-coverage" all check
-	@gcov *.gcno >/dev/null 2>&1
-	@rm -f `ls -1 *.gcov | fgrep -v .cxx.gcov`
-	ls -l *.cxx.gcov
-
-lcov:
-	@lcov --directory . -z
-	@-$(MAKE) clean CXXFLAGS="-g -fprofile-arcs -ftest-coverage" all check
-	@lcov --directory . -c -o stap.info
-	@genhtml -o ./$(TEST_COV_DIR) stap.info
+	find . -name '*.gc*' | xargs rm -f
+	$(MAKE) clean CXXFLAGS="-g -fprofile-arcs -ftest-coverage" CFLAGS="-g -fprofile-arcs -ftest-coverage" all install
+	-sudo $(MAKE) installcheck $${RUNTESTFLAGS+RUNTESTFLAGS=$${RUNTESTFLAGS}}
+	for dir in $(SUBDIRS); do \
+		(cd $$dir; gcov *.gcno > SUMMARY.gcov 2>&1 || true); \
+	done
+	find . -name '*.gcov'
 
 clean-local:
-	rm -f *.gcov *.gcno *.gcda ${PACKAGE_TARNAME}-*.tar.gz
+	rm -rf ${PACKAGE_TARNAME}-*.tar.gz
 	rm -rf ${PACKAGE_TARNAME}-${PACKAGE_VERSION}
 	rm -rf $(TEST_COV_DIR)
 	rm -rf stap.info
@@ -308,11 +308,11 @@ if BUILD_SERVER
 	rm -rf $(DESTDIR)$(localstatedir)/run/stap-server
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
-	(cd $(srcdir)/man; for f in *.3*; do rm -rf "$(DESTDIR)$(man3dir)/$$f"; done)
 
-SUBDIRS = . runtime/staprun grapher doc po
+SUBDIRS = . stapdyn staprun re2c-migrate doc man po
+# NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
-EXTRA_DIST = m4/ChangeLog  man/tapset*.3stap
+EXTRA_DIST = m4/ChangeLog
 
 check-local:
 	SRCDIR=`cd $(srcdir); pwd`; \
@@ -348,11 +348,11 @@ testsuite/dtrace: dtrace
 
 PHONIES += update-po
 update-po:
-	(cd $(srcdir); ls -1d *.c *.cxx *.h runtime/staprun/*.c runtime/staprun/*.h dtrace.in) \
+	(cd $(srcdir); ls -1d *.c *.cxx *.h staprun/*.c staprun/*.h dtrace.in) \
 	| grep -v loc2c-test.c \
 	| grep -v config.h \
 	| grep -v git_version.h \
-	| grep -v runtime/staprun/config.h \
+	| grep -v staprun/config.h \
 	| sort > $(srcdir)/po/POTFILES.in
 	$(MAKE) -C po update-po
 
@@ -377,6 +377,7 @@ dist-gzip:
 	(cd $(srcdir); git archive --prefix=systemtap-$(VERSION)/ --format=tar HEAD) | gzip > systemtap-$(VERSION).tar.gz
 
 rpm: dist-gzip
+	if [ `id -u` = 0 ]; then echo NOTE: do not run this as root; exit 1; fi
 	mkdir -p `rpm --eval %_specdir`
 	mkdir -p `rpm --eval %_srcrpmdir`
 	mkdir -p `rpm --eval %_rpmdir`

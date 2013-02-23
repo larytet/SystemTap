@@ -47,7 +47,7 @@ catch {eval exec $ccmd} output
 
 set ind 0
 foreach line [split $output "\n"] {
-  if {[regsub {//} $line {} line]} {
+  if {[regsub {//staptest//} $line {} line]} {
     set line "$testname: [string trimleft $line]"
 
     # We need to quote all these metacharacters

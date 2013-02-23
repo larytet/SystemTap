@@ -368,15 +368,39 @@ static int advance_loc(unsigned long delta, struct unwind_state *state)
 	return delta > 0;
 }
 
-static void set_rule(uleb128_t reg, enum item_location where, uleb128_t value, struct unwind_state *state)
+/* Set Same or Nowhere rule for register. */
+static void set_no_state_rule(uleb128_t reg, enum item_location where,
+                              struct unwind_state *state)
 {
-	dbug_unwind(1, "reg=%lx, where=%d, value=%lx\n", reg, where, value);
+	dbug_unwind(1, "reg=%lx, where=%d\n", reg, where);
 	if (reg < ARRAY_SIZE(REG_STATE.regs)) {
 		REG_STATE.regs[reg].where = where;
-		REG_STATE.regs[reg].value = value;
 	}
 }
 
+/* Memory or Value rule */
+static void set_offset_rule(uleb128_t reg, enum item_location where,
+                            sleb128_t svalue, struct unwind_state *state)
+{
+	dbug_unwind(1, "reg=%lx, where=%d, svalue=%lx\n", reg, where, svalue);
+	if (reg < ARRAY_SIZE(REG_STATE.regs)) {
+		REG_STATE.regs[reg].where = where;
+		REG_STATE.regs[reg].state.off = svalue;
+	}
+}
+
+/* Register rule. */
+static void set_register_rule(uleb128_t reg, uleb128_t value,
+                              struct unwind_state *state)
+{
+	dbug_unwind(1, "reg=%lx, value=%lx\n", reg, value);
+	if (reg < ARRAY_SIZE(REG_STATE.regs)) {
+		REG_STATE.regs[reg].where = Register;
+		REG_STATE.regs[reg].state.reg = value;
+	}
+}
+
+/* Expr or ValExpr rule. */
 static void set_expr_rule(uleb128_t reg, enum item_location where,
 			  const u8 **expr, const u8 *end,
 			  struct unwind_state *state)
@@ -385,9 +409,10 @@ static void set_expr_rule(uleb128_t reg, enum item_location where,
 	uleb128_t len = get_uleb128(expr, end);
 	dbug_unwind(1, "reg=%lx, where=%d, expr=%lu@%p\n",
 		    reg, where, len, *expr);
+	/* Sanity check that expr falls completely inside known data. */
 	if (end - *expr >= len && reg < ARRAY_SIZE(REG_STATE.regs)) {
 		REG_STATE.regs[reg].where = where;
-		REG_STATE.regs[reg].expr = start;
+		REG_STATE.regs[reg].state.expr = start;
 		*expr += len;
 	}
 }
@@ -415,6 +440,8 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 	for (ptr.p8 = start; result && ptr.p8 < end;) {
 		switch (*ptr.p8 >> 6) {
 			uleb128_t value;
+			uleb128_t value2;
+			sleb128_t svalue;
 		case 0:
 			switch (*ptr.p8++) {
 			case DW_CFA_nop:
@@ -439,33 +466,45 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				break;
 			case DW_CFA_offset_extended:
 				value = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "map DW_CFA_offset_extended value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value2 = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_offset_extended value %ld to reg_info idx %ld, with offset %ld\n", value, DWARF_REG_MAP(value), value2);
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Memory, get_uleb128(&ptr.p8, end), state);
+				set_offset_rule(value, Memory,
+                                                value2 * state->dataAlign,
+                                                state);
 				break;
 			case DW_CFA_val_offset:
 				value = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "map DW_CFA_val_offset value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				value2 = get_uleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_val_offset value %ld to reg_info idx %ld\n, with offset: %ld", value, DWARF_REG_MAP(value), value2);
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Value, get_uleb128(&ptr.p8, end), state);
+				set_offset_rule(value, Value,
+                                                value2 * state->dataAlign,
+                                                state);
 				break;
 			case DW_CFA_offset_extended_sf:
 				value = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "map DW_CFA_offset_extended_sf value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				svalue = get_sleb128(&ptr.p8, end);
+				dbug_unwind(1, "map DW_CFA_offset_extended_sf value %ld to reg_info idx %ld, with offset: %ld\n", value, DWARF_REG_MAP(value), svalue);
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Memory, get_sleb128(&ptr.p8, end), state);
+				set_offset_rule(value, Memory,
+						svalue * state->dataAlign,
+						state);
 				break;
 			case DW_CFA_val_offset_sf:
 				value = get_uleb128(&ptr.p8, end);
+				svalue = get_sleb128(&ptr.p8, end);
 				dbug_unwind(1, "map DW_CFA_val_offset_sf value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Value, get_sleb128(&ptr.p8, end), state);
+				set_offset_rule(value, Value,
+						svalue * state->dataAlign,
+						state);
 				break;
 			case DW_CFA_same_value:
 				value = get_uleb128(&ptr.p8, end);
 				dbug_unwind(1, "map DW_CFA_same_value value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Same, 0, state);
+				set_no_state_rule(value, Same, state);
 				break;
 			case DW_CFA_restore_extended:
 				value = get_uleb128(&ptr.p8, end);
@@ -477,7 +516,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				value = get_uleb128(&ptr.p8, end);
 				dbug_unwind(1, "map DW_CFA_undefined value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Nowhere, 0, state);
+				set_no_state_rule(value, Nowhere, state);
 				break;
 			case DW_CFA_register: {
 				uleb128_t reg_value;
@@ -486,7 +525,7 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 				dbug_unwind(1, "map DW_CFA_register value %ld to reg_info idx %ld (reg_value %ld to reg_info idx %ld)\n", value, DWARF_REG_MAP(value), reg_value, DWARF_REG_MAP(reg_value));
 				value = DWARF_REG_MAP(value);
 				reg_value = DWARF_REG_MAP(reg_value);
-				set_rule(value, Register, reg_value, state);
+				set_register_rule(value, reg_value, state);
 				break;
 			}
 			case DW_CFA_expression:
@@ -524,30 +563,48 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 			case DW_CFA_def_cfa:
 				value = get_uleb128(&ptr.p8, end);
 				dbug_unwind(1, "map DW_CFA_def_cfa value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				REG_STATE.cfa_is_expr = 0;
 				REG_STATE.cfa.reg = value;
 				dbug_unwind(1, "DW_CFA_def_cfa reg=%ld\n", REG_STATE.cfa.reg);
 				/*nobreak */
 			case DW_CFA_def_cfa_offset:
-				REG_STATE.cfa.offs = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "DW_CFA_def_cfa_offset offs=%lx\n", REG_STATE.cfa.offs);
+				if (REG_STATE.cfa_is_expr != 0) {
+					_stp_warn("Unexpected DW_CFA_def_cfa_offset\n");
+				} else {
+					/* non-factored uleb128 */
+					REG_STATE.cfa.off = get_uleb128(&ptr.p8, end);
+					dbug_unwind(1, "DW_CFA_def_cfa_offset offs=%lx\n", REG_STATE.cfa.off);
+				}
 				break;
 			case DW_CFA_def_cfa_sf:
 				value = get_uleb128(&ptr.p8, end);
 				dbug_unwind(1, "map DW_CFA_def_cfa_sf value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+				REG_STATE.cfa_is_expr = 0;
 				REG_STATE.cfa.reg = value;
 				/*nobreak */
 			case DW_CFA_def_cfa_offset_sf:
-				REG_STATE.cfa.offs = get_sleb128(&ptr.p8, end) * state->dataAlign;
-				dbug_unwind(1, "DW_CFA_def_cfa_offset_sf offs=%lx\n", REG_STATE.cfa.offs);
+				if (REG_STATE.cfa_is_expr != 0) {
+					_stp_warn("Unexpected DW_CFA_def_cfa_offset_sf\n");
+				} else {
+					/* factored sleb128 */
+					REG_STATE.cfa.off = get_sleb128(&ptr.p8, end) * state->dataAlign;
+					dbug_unwind(1, "DW_CFA_def_cfa_offset_sf offs=%lx\n", REG_STATE.cfa.off);
+				}
 				break;
 			case DW_CFA_def_cfa_register:
-				value = get_uleb128(&ptr.p8, end);
-				dbug_unwind(1, "map DW_CFA_def_cfa_register value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
-				REG_STATE.cfa.reg = value;
+				if (REG_STATE.cfa_is_expr != 0) {
+					_stp_warn("Unexpected DW_CFA_def_cfa_register\n");
+				} else {
+					value = get_uleb128(&ptr.p8, end);
+					dbug_unwind(1, "map DW_CFA_def_cfa_register value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
+					REG_STATE.cfa.reg = value;
+				}
 				break;
 			case DW_CFA_def_cfa_expression: {
 				const u8 *cfa_expr = ptr.p8;
 				value = get_uleb128(&ptr.p8, end);
+				/* Sanity check that cfa_expr falls completely
+				   inside known data. */
 				if (ptr.p8 < end && end - ptr.p8 >= value) {
 					REG_STATE.cfa_is_expr = 1;
 					REG_STATE.cfa_expr = cfa_expr;
@@ -558,15 +615,20 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 					_stp_warn("BAD DW_CFA_def_cfa_expression value %lu\n", value);
 				break;
 			}
+			/* Size of all arguments pushed on the stack. */
 			case DW_CFA_GNU_args_size:
 				get_uleb128(&ptr.p8, end);
 				dbug_unwind(1, "DW_CFA_GNU_args_size\n");
 				break;
+			/* This is only produced by GCC before 2002.
+			   Like DW_CFA_offset_extended_sf but using an
+			   uleb128 that is subtracted from CFA.  */
 			case DW_CFA_GNU_negative_offset_extended:
 				value = get_uleb128(&ptr.p8, end);
 				dbug_unwind(1, "map DW_CFA_GNU_negative_offset_extended value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
 				value = DWARF_REG_MAP(value);
-				set_rule(value, Memory, (uleb128_t)0 - get_uleb128(&ptr.p8, end), state);
+				set_offset_rule(value, Memory,
+						(uleb128_t)0 - get_uleb128(&ptr.p8, end), state);
 				break;
 			case DW_CFA_GNU_window_save:
 			default:
@@ -583,7 +645,9 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 			value = *ptr.p8++ & 0x3f;
 			dbug_unwind(1, "map DW_CFA_offset value %ld to reg_info idx %ld\n", value, DWARF_REG_MAP(value));
 			value = DWARF_REG_MAP(value);
-			set_rule(value, Memory, get_uleb128(&ptr.p8, end), state);
+			value2 = get_uleb128(&ptr.p8, end);
+			set_offset_rule(value, Memory,
+					value2 * state->dataAlign, state);
 			break;
 		case 3:
 			value = *ptr.p8++ & 0x3f;
@@ -661,7 +725,7 @@ adjustStartLoc (unsigned long startLoc,
   /* XXX - some, or all, of this should really be done by
      _stp_module_relocate and/or read_pointer. */
   dbug_unwind(2, "adjustStartLoc=%lx, ptrType=%s, m=%s, s=%s eh=%d\n",
-	      startLoc, _stp_eh_enc_name(ptrType), m->name, s->name, is_ehframe);
+	      startLoc, _stp_eh_enc_name(ptrType), m->path, s->name, is_ehframe);
   if (startLoc == 0
       || strcmp (m->name, "kernel")  == 0
       || (strcmp (s->name, ".absolute") == 0 && !is_ehframe))
@@ -801,6 +865,7 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 {
 	/*
 	 * We previously validated the length, so we won't read off the end.
+	 * See sanity checks in set_expr() and for DW_CFA_def_cfa_expression.
 	 */
 	uleb128_t len = get_uleb128(&expr, (const u8 *) -1UL);
 	const u8 *const start = expr;
@@ -1100,11 +1165,11 @@ static int unwind_frame(struct unwind_context *context,
 	if (unlikely(table_len == 0)) {
 		// Don't _stp_warn about this, debug_frame and/or eh_frame
 		// might actually not be there.
-		dbug_unwind(1, "Module %s: no unwind frame data", m->name);
+		dbug_unwind(1, "Module %s: no unwind frame data", m->path);
 		goto err;
 	}
 	if (unlikely(table_len & (sizeof(*fde) - 1))) {
-		_stp_warn("Module %s: frame_len=%d", m->name, table_len);
+		_stp_warn("Module %s: frame_len=%d", m->path, table_len);
 		goto err;
 	}
 
@@ -1113,15 +1178,15 @@ static int unwind_frame(struct unwind_context *context,
 
 	/* All "fake" dwarf registers should start out Nowhere. */
 	for (i = UNW_NR_REAL_REGS; i < ARRAY_SIZE(REG_STATE.regs); ++i)
-		set_rule(i, Nowhere, 0, state);
+		set_no_state_rule(i, Nowhere, state);
 
 	fde = _stp_search_unwind_hdr(pc, m, s, is_ehframe, user);
-	dbug_unwind(1, "%s: fde=%lx\n", m->name, (unsigned long) fde);
+	dbug_unwind(1, "%s: fde=%lx\n", m->path, (unsigned long) fde);
 
 	/* found the fde, now set startLoc and endLoc */
 	if (fde != NULL && is_fde(fde, table, table_len, is_ehframe)) {
 		cie = cie_for_fde(fde, table, table_len, is_ehframe);
-		dbug_unwind(1, "%s: cie=%lx\n", m->name, (unsigned long) cie);
+		dbug_unwind(1, "%s: cie=%lx\n", m->path, (unsigned long) cie);
 		if (likely(cie != NULL)) {
 			if (parse_fde_cie(fde, cie, table, table_len,
 					  &ptrType, user,
@@ -1150,7 +1215,7 @@ static int unwind_frame(struct unwind_context *context,
 	       if it didn't exist. These should never be missing except
 	       when there are toolchain bugs. */
 	    unsigned long tableSize;
-	    _stp_warn("No binary search table for %s frame, doing slow linear search for %s\n", (is_ehframe ? "eh" : "debug"), m->name);
+	    _stp_warn("No binary search table for %s frame, doing slow linear search for %s\n", (is_ehframe ? "eh" : "debug"), m->path);
 	    for (fde = table, tableSize = table_len; cie = NULL, tableSize > sizeof(*fde)
 		 && tableSize - sizeof(*fde) >= *fde; tableSize -= sizeof(*fde) + *fde, fde += 1 + *fde / sizeof(*fde)) {
 			dbug_unwind(3, "fde=%lx tableSize=%d\n", (long)*fde, (int)tableSize);
@@ -1207,31 +1272,28 @@ static int unwind_frame(struct unwind_context *context,
 	if (!processCFI(cieStart, cieEnd, 0, ptrType, user, state))
 		goto err;
 
-	/* Store initial state for use with DW_CFA_restore... */
-	memcpy(&state->cie_regs, &REG_STATE, sizeof (REG_STATE));
+	/* Store initial state registers for use with DW_CFA_restore... */
+	memcpy(&state->cie_regs, &REG_STATE.regs, sizeof (REG_STATE.regs));
 
 	/* Process Frame Description Entry (FDE) instructions. */
 	dbug_unwind (1, "processCFI for FDE\n");
 	if (!processCFI(fdeStart, fdeEnd, pc, ptrType, user, state)
-	    || state->loc > endLoc || REG_STATE.regs[retAddrReg].where == Nowhere
+	    || state->loc > endLoc
+	    || REG_STATE.regs[retAddrReg].where == Nowhere
 	    || REG_STATE.cfa.reg >= ARRAY_SIZE(reg_info)
 	    || reg_info[REG_STATE.cfa.reg].width != sizeof(unsigned long)
-	    || REG_STATE.cfa.offs % sizeof(unsigned long))
+	    || REG_STATE.cfa.off % sizeof(unsigned long))
 		goto err;
 
 	/* update frame */
-#ifndef CONFIG_AS_CFI_SIGNAL_FRAME
-	if (frame->call_frame && !UNW_DEFAULT_RA(REG_STATE.regs[retAddrReg], state->dataAlign))
-		frame->call_frame = 0;
-#endif
 	if (REG_STATE.cfa_is_expr) {
 		if (compute_expr(REG_STATE.cfa_expr, frame, &cfa, user))
 			goto err;
 	}
 	else {
-		dbug_unwind(1, "cfa reg=%ld, offs=%lx\n",
-			    REG_STATE.cfa.reg,  REG_STATE.cfa.offs);
-		cfa = FRAME_REG(REG_STATE.cfa.reg, unsigned long) + REG_STATE.cfa.offs;
+		dbug_unwind(1, "cfa reg=%ld, off=%lx\n",
+			    REG_STATE.cfa.reg, REG_STATE.cfa.off);
+		cfa = FRAME_REG(REG_STATE.cfa.reg, unsigned long) + REG_STATE.cfa.off;
 	}
 	startLoc = min((unsigned long)UNW_SP(frame), cfa);
 	endLoc = max((unsigned long)UNW_SP(frame), cfa);
@@ -1255,16 +1317,16 @@ static int unwind_frame(struct unwind_context *context,
 		default:
 			break;
 		case Register:
-			if (REG_STATE.regs[i].value >= ARRAY_SIZE(reg_info)
-			    || REG_INVALID(REG_STATE.regs[i].value)
-			    || reg_info[i].width > reg_info[REG_STATE.regs[i].value].width) {
+			if (REG_STATE.regs[i].state.reg >= ARRAY_SIZE(reg_info)
+			    || REG_INVALID(REG_STATE.regs[i].state.reg)
+			    || reg_info[i].width > reg_info[REG_STATE.regs[i].state.reg].width) {
 				_stp_warn("case Register bad\n");
 				goto err;
 			}
-			switch (reg_info[REG_STATE.regs[i].value].width) {
+			switch (reg_info[REG_STATE.regs[i].state.reg].width) {
 #define CASE(n) \
 			case sizeof(u##n): \
-				REG_STATE.regs[i].value = FRAME_REG(REG_STATE.regs[i].value, \
+				REG_STATE.regs[i].state.reg = FRAME_REG(REG_STATE.regs[i].state.reg, \
 				                                const u##n); \
 				break
 				CASES;
@@ -1315,7 +1377,7 @@ static int unwind_frame(struct unwind_context *context,
 		case Register:
 			switch (reg_info[i].width) {
 #define CASE(n) case sizeof(u##n): \
-				FRAME_REG(i, u##n) = REG_STATE.regs[i].value; \
+				FRAME_REG(i, u##n) = REG_STATE.regs[i].state.reg; \
 				break
 				CASES;
 #undef CASE
@@ -1325,15 +1387,15 @@ static int unwind_frame(struct unwind_context *context,
 			}
 			break;
 		case Expr:
-			if (compute_expr(REG_STATE.regs[i].expr, frame, &addr, user))
+			if (compute_expr(REG_STATE.regs[i].state.expr, frame, &addr, user))
 				goto err;
 			goto memory;
 		case ValExpr:
-			if (compute_expr(REG_STATE.regs[i].expr, frame, &addr, user))
+			if (compute_expr(REG_STATE.regs[i].state.expr, frame, &addr, user))
 				goto err;
 			goto value;
 		case Value:
-			addr = cfa + REG_STATE.regs[i].value * state->dataAlign;
+			addr = cfa + REG_STATE.regs[i].state.off;
 		value:
 			if (reg_info[i].width != sizeof(unsigned long)) {
 				_stp_warn("bad Register width for value state\n");
@@ -1342,7 +1404,7 @@ static int unwind_frame(struct unwind_context *context,
 			FRAME_REG(i, unsigned long) = addr;
 			break;
 		case Memory:
-			addr = cfa + REG_STATE.regs[i].value * state->dataAlign;
+			addr = cfa + REG_STATE.regs[i].state.off;
 		memory:
 			dbug_unwind(2, "addr=%lx width=%d\n", addr, reg_info[i].width);
 			switch (reg_info[i].width) {

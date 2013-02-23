@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Symbolic Lookup Functions
- * Copyright (C) 2005-2011 Red Hat Inc.
+ * Copyright (C) 2005-2013 Red Hat Inc.
  * Copyright (C) 2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -14,7 +14,7 @@
 
 #include "sym.h"
 #include "vma.c"
-#include "string.c"
+#include "stp_string.c"
 #include <asm/uaccess.h>
 
 #ifdef STAPCONF_PROBE_KERNEL
@@ -40,7 +40,7 @@ static unsigned long _stp_kmodule_relocate(const char *module,
 
   for (i = 0; i < _stp_num_modules; i++) {
     struct _stp_module *m = _stp_modules[i];
-    if (strcmp(module, m->name))
+    if (strcmp(module, m->name)) /* duplication apprx. not possible for kernel */
       continue;
 
     for (j = 0; j < m->num_sections; j++) {
@@ -70,7 +70,7 @@ static unsigned long _stp_umodule_relocate(const char *path,
   unsigned i;
   unsigned long vm_start = 0;
 
-  dbug_sym(1, "%s, %lx\n", path, offset);
+  dbug_sym(1, "[%d] %s, %lx\n", tsk->pid, path, offset);
 
   for (i = 0; i < _stp_num_modules; i++) {
     struct _stp_module *m = _stp_modules[i];
@@ -239,51 +239,66 @@ static const char *_stp_kallsyms_lookup(unsigned long addr,
 	return NULL;
 }
 
-static int _stp_build_id_check (struct _stp_module *m, unsigned long notes_addr, int user_module)
+static int _stp_build_id_check (struct _stp_module *m,
+				unsigned long notes_addr,
+				struct task_struct *tsk)
 {
   int j;
-  for (j=0; j<m->build_id_len; j++) {
-    /* Use set_fs / get_user to access
-       conceivably invalid addresses.  If
-       loc2c-runtime.h were more easily usable,
-       a deref() loop could do it too. */
+
+  for (j = 0; j < m->build_id_len; j++) {
+    /* Use set_fs / get_user to access conceivably invalid addresses.
+     * If loc2c-runtime.h were more easily usable, a deref() loop
+     * could do it too. */
     mm_segment_t oldfs = get_fs();
     int rc;
-    unsigned char theory, practice;
+    unsigned char theory, practice = 0;
 
 #ifdef STAPCONF_PROBE_KERNEL
-    if (!user_module)
-      {
-        theory = m->build_id_bits[j];
-        rc=probe_kernel_read(&practice, (void*)(notes_addr+j), 1);
-      }
+    if (!tsk) {
+      theory = m->build_id_bits[j];
+      set_fs(KERNEL_DS);
+      rc = probe_kernel_read(&practice, (void*)(notes_addr + j), 1);
+    }
     else
 #endif
-      {
-        set_fs (user_module ? USER_DS : KERNEL_DS);
-        theory = m->build_id_bits[j];
-        rc = get_user(practice,((unsigned char*) (void*) (notes_addr+j)));
-        set_fs(oldfs);
+    {
+      theory = m->build_id_bits[j];
+      set_fs (tsk ? USER_DS : KERNEL_DS);
+
+      /*
+       * Why check CONFIG_UTRACE here? If we're using real in-kernel
+       * utrace, we can always just call get_user() (since we're
+       * either reading kernel memory or tsk == current).
+       *
+       * Since we're only reading here, we can call
+       * __access_process_vm_noflush(), which only calls things that
+       * are exported.
+       */
+#ifdef CONFIG_UTRACE
+      rc = get_user(practice, ((unsigned char*)(void*)(notes_addr + j)));
+#else
+      if (!tsk || tsk == current) {
+	rc = get_user(practice, ((unsigned char*)(void*)(notes_addr + j)));
       }
+      else {
+	rc = (__access_process_vm_noflush(tsk, (notes_addr + j), &practice,
+					  1, 0) != 1);
+      }
+#endif
+    }
+    set_fs(oldfs);
 
     if (rc || (theory != practice)) {
-      const char *basename;
-      basename = strrchr(m->path, '/');
-      if (basename)
-	basename++;
-      else
-	basename = m->path;
-
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)
-      _stp_error ("Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) address %#lx rc %d\n",
-		  m->name, basename, j, theory, practice, notes_addr, rc);
+      _stp_error ("Build-id mismatch [man error::buildid]: \"%s\" byte %d (0x%02x vs 0x%02x) address %#lx rc %d\n",
+		  m->path, j, theory, practice, notes_addr, rc);
       return 1;
 #else
-      /* This branch is a surrogate for kernels
-       * affected by Fedora bug #465873. */
+      /* This branch is a surrogate for kernels affected by Fedora bug
+       * #465873. */
       _stp_warn (KERN_WARNING
-		 "Build-id mismatch: \"%s\" vs. \"%s\" byte %d (0x%02x vs 0x%02x) rc %d\n",
-		 m->name, basename, j, theory, practice, rc);
+		 "Build-id mismatch [man error::buildid]: \"%s\" byte %d (0x%02x vs 0x%02x) rc %d\n",
+		 m->path, j, theory, practice, rc);
 #endif
       break;
     } /* end mismatch */
@@ -315,7 +330,7 @@ static int _stp_module_check(void)
     {
       m = _stp_modules[i];
       if (m->build_id_len > 0 && m->notes_sect != 0) {
-          dbug_sym(1, "build-id validation [%s]\n", m->name);
+          dbug_sym(1, "build-id validation [%s]\n", m->name); /* kernel only */
 
           /* notes end address */
           if (!strcmp(m->name, "kernel")) {
@@ -329,11 +344,11 @@ static int _stp_module_check(void)
           }
 
           if (notes_addr <= base_addr) { /* shouldn't happen */
-              _stp_warn ("build-id address %lx < base %lx\n",
+              _stp_warn ("build-id address %lx <= base %lx\n",
                   notes_addr, base_addr);
               continue;
           }
-          return _stp_build_id_check (m, notes_addr, 0);
+          return _stp_build_id_check (m, notes_addr, NULL);
       } /* end checking */
     } /* end loop */
   return 0;
@@ -370,7 +385,7 @@ static int _stp_kmodule_check (const char *name)
                   notes_addr, base_addr);
               continue;
           }
-          return _stp_build_id_check (m, notes_addr, 0);
+          return _stp_build_id_check (m, notes_addr, NULL);
       } /* end checking */
     } /* end loop */
 
@@ -402,15 +417,14 @@ static int _stp_usermodule_check(struct task_struct *tsk, const char *path_name,
 
 	notes_addr = addr + m->build_id_offset /* + m->module_base */;
 
-        dbug_sym(1, "build-id validation [%s] address=%#lx build_id_offset=%#lx\n",
-            m->name, addr, m->build_id_offset);
+        dbug_sym(1, "build-id validation [%d %s] address=%#lx build_id_offset=%#lx\n",
+                 tsk->pid, m->path, addr, m->build_id_offset);
 
 	if (notes_addr <= addr) {
-	  _stp_warn ("build-id address %lx < base %lx\n",
-		     notes_addr, addr);
+	  _stp_warn ("build-id address %lx < base %lx\n", notes_addr, addr);
 	  continue;
 	}
-	return _stp_build_id_check (m, notes_addr, 1);
+	return _stp_build_id_check (m, notes_addr, tsk);
       }
     }
 
@@ -620,6 +634,18 @@ static void _stp_kmodule_update_address(const char* module,
         } /* loop over sections */
     } /* loop over modules */
 }
+
+
+#ifndef STAPCONF_KALLSYMS
+unsigned long kallsyms_lookup_name (const char *name)
+{
+        /* NB: PR14804: don't use _stp_error here.  It's called too
+           early for the actual message buffer goo to be allocated. */
+        /* Don't even printk.  A user can't do anything about it. */
+        /* printk (KERN_ERR "kallsyms_lookup_name unavailable for %s\n", name); */
+        return 0;
+}
+#endif
 
 
 

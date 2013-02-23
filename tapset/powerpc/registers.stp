@@ -59,28 +59,26 @@ function _stp_register_regs() {
 }
 
 function probing_32bit_app() %{ /* pure */
-        THIS->__retvalue = ((CONTEXT->probe_flags & _STP_PROBE_STATE_USER_MODE)
-			    && _stp_is_compat_task());
+        STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
 %}
 
 function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
 	long value;
 	struct pt_regs *regs;
-	regs = ((CONTEXT->probe_flags & _STP_PROBE_STATE_USER_MODE)
-		? CONTEXT->uregs : CONTEXT->kregs);
+	regs = (CONTEXT->user_mode_p ? CONTEXT->uregs : CONTEXT->kregs);
 	if (!regs) {
 		CONTEXT->last_error = "No registers available in this context";
 		return;
 	}
-	if (THIS->offset < 0 || THIS->offset > sizeof(struct pt_regs) - sizeof(long)) {
+	if (STAP_ARG_offset < 0 || STAP_ARG_offset > sizeof(struct pt_regs) - sizeof(long)) {
 		snprintf(CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
 				"Bad register offset: %lld",
-				(long long)THIS->offset);
+				(long long)STAP_ARG_offset);
 		CONTEXT->last_error = CONTEXT->error_buffer;
 		return;
 	}
-	memcpy(&value, ((char *)regs) + THIS->offset, sizeof(value));
-	THIS->__retvalue = value;
+	memcpy(&value, ((char *)regs) + STAP_ARG_offset, sizeof(value));
+	STAP_RETVALUE = value;
 %}
 
 function _stp_sign_extend32:long (value:long) {

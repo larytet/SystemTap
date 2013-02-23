@@ -130,6 +130,7 @@ set unrestricted_probe_types [list \
   "timer.us(number).randomize(number)" \
   "timer.usec(number)" \
   "timer.usec(number).randomize(number)" \
+
 ]
 
 # These probes should not be acceptable to pass 2 for unprivileged users
@@ -143,7 +144,6 @@ set restricted_probe_types [list \
   "kernel.data(string).write" \
   "kernel.function(number)" \
   "kernel.function(number).call" \
-  "kernel.function(number).inline" \
   "kernel.function(number).return" \
   "kernel.function(number).exported" \
   "kernel.function(number).return.maxactive(number)" \
@@ -169,7 +169,6 @@ set restricted_probe_types [list \
   "kprobe.statement(number).absolute" \
   "module(string).function(number)" \
   "module(string).function(number).call" \
-  "module(string).function(number).inline" \
   "module(string).function(number).return" \
   "module(string).function(number).exported" \
   "module(string).function(number).return.maxactive(number)" \
@@ -184,6 +183,9 @@ set restricted_probe_types [list \
   "module(string).statement(string)" \
   "perf.type(number).config(number)" \
   "perf.type(number).config(number).sample(number)" \
+  "perf.type(number).config(number).process" \
+  "perf.type(number).config(number).process(string)" \
+  "perf.type(number).config(number).process(string).counter(string)" \
   "process(number).insn" \
   "process(number).insn.block" \
   "process(string).insn.block" \
@@ -200,6 +202,10 @@ set restricted_probe_types [list \
   "procfs(string).umask(number).read.maxsize(number)" \
   "procfs(string).umask(number).write" \
   "timer.profile" \
+  "netfilter.hook(string).pf(string)" \
+  "netfilter.pf(string).hook(string)" \
+  "netfilter.hook(string).pf(string).priority(string)" \
+  "netfilter.pf(string).hook(string).priority(string)" \
 ]
 
 # Add arguments to a probe type template.
@@ -326,6 +332,18 @@ proc test_unrestricted_probes { privilege } {
 	    process(string).function(number).inline
 	    {
 		setup_kfail GCC *-*-*
+	    }
+	    process.function(number).return -
+	    process.function(string).return -
+	    process.library(string).function(number).return -
+	    process.library(string).function(string).return -
+	    process(number).statement(number).absolute.return -
+	    process(string).function(number).return -
+	    process(string).function(string).return -
+	    process(string).library(string).function(number).return -
+	    process(string).library(string).function(string).return
+	    {
+		if {![uretprobes_p]} { setup_kfail URETPROBES *-*-* }
 	    }
 	}
 

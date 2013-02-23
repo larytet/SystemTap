@@ -1,3 +1,6 @@
+#ifndef TASK_FINDER_VMA_C
+#define TASK_FINDER_VMA_C
+
 #include <linux/list.h>
 #include <linux/jhash.h>
 #include <linux/spinlock.h>
@@ -371,3 +374,23 @@ stap_drop_vma_maps(struct task_struct *tsk)
 	write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return 0;
 }
+
+/* Find the main executable for this mm.
+ * NB: mmap_sem should be held already. */
+static struct file*
+stap_find_exe_file(struct mm_struct* mm)
+{
+	/* VM_EXECUTABLE was killed in kernel commit e9714acf, but in kernels
+	 * that new we can just use mm->exe_file anyway.  (PR14712)  */
+#ifdef VM_EXECUTABLE
+	struct vm_area_struct *vma;
+	for (vma = mm->mmap; vma; vma = vma->vm_next)
+		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
+			return vma->vm_file;
+	return NULL;
+#else
+	return mm->exe_file;
+#endif
+}
+
+#endif /* TASK_FINDER_VMA_C */

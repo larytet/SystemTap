@@ -1,7 +1,7 @@
 /* -*- linux-c -*- 
  * symbols.c - stp symbol and module functions
  *
- * Copyright (C) Red Hat Inc, 2006-2011
+ * Copyright (C) Red Hat Inc, 2006-2012
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -60,10 +60,17 @@ static void _stp_do_relocation(const char __user *buf, size_t count)
   /* Detect actual kernel load address. */
   if (!strcmp ("kernel", msg.module)
       && !strcmp ("_stext", msg.reloc)) {
-    dbug_sym(2, "found kernel _stext load address: 0x%lx\n",
-             (unsigned long) msg.address);
-    if (_stp_kretprobe_trampoline != (unsigned long) -1)
-      _stp_kretprobe_trampoline += (unsigned long) msg.address;
+#ifdef CONFIG_KALLSYMS
+          if (msg.address == 0)
+                  msg.address = kallsyms_lookup_name("_stext");
+#endif
+          if (msg.address == 0)
+                  _stp_warn("No load address found _stext.  Kernel probes and addresses may not be available.");
+          else
+                  dbug_sym(1, "found kernel _stext load address: 0x%lx\n",
+                           (unsigned long) msg.address);
+          if (_stp_kretprobe_trampoline != (unsigned long) -1)
+                  _stp_kretprobe_trampoline += (unsigned long) msg.address;
   }
 
   _stp_kmodule_update_address(msg.module, msg.reloc, msg.address);
@@ -148,5 +155,96 @@ static int _stp_module_notifier (struct notifier_block * nb,
         return NOTIFY_DONE;
 }
 
+#if STP_TRANSPORT_VERSION == 2
+/* Notification function to call on a kernel panic */
+static int _stp_module_panic_notifier (struct notifier_block *nb, unsigned long val, void *data)
+{
+        int i;
 
+        /* Loop over each cpu buffer */
+        for_each_possible_cpu(i)
+        {
+                int j=0;
+                struct rchan_buf * sub_buf;
+                char *subbuf_start;
+                char *previous;
+                char *next;
+                size_t bytes_passed;
+                int printed;
+                int first_iteration;
+
+                sub_buf = _stp_relay_data.rchan->buf[i];
+
+                /* Set our pointer to the beginning of the channel buffer */
+                subbuf_start = (char *)sub_buf->start;
+
+                /* Loop over each sub buffer */
+                for (j=0; j< sub_buf->chan->n_subbufs; j++)
+                {
+                        /* Ensure our start is not NULL */
+                        if(subbuf_start == NULL)
+                        {
+                                printk(KERN_EMERG "Current buffer is NULL\n");
+                                return NOTIFY_DONE;
+                        }
+
+                        bytes_passed = 0; /* Keep track of the number of bytes already passed */
+                        first_iteration = 1; /* Flag for keeping track of the 1st itteration*/
+                        printed = 0; /* Flag for keeping track of when we've already printed the
+                                      * message about what info might be new */
+
+                        previous = subbuf_start;
+                        next = strchr(previous, '\n');
+                        bytes_passed+= (next - previous);
+
+                        /* Loop over the whole buffer, printing line by line */
+                        while (next != NULL && bytes_passed < sub_buf->chan->subbuf_size)
+                        {
+
+                                if(first_iteration)
+                                {
+                                        printk(KERN_CONT "Stap trace buffer for processor %d sub-buffer %d:\n", i, j);
+                                }
+
+                                /* Once we reach the number of bytes consumed on the last
+                                 * sub-buffer filled, print a message saying that everything
+                                 * from then on might not have made it to the display before
+                                 * the kernel panic */
+                                if(subbuf_start == sub_buf->data
+                                   && bytes_passed >= sub_buf->bytes_consumed
+                                   && !printed)
+                                {
+                                        printk(KERN_CONT
+                                               "The following may not have been sent to the display:\n");
+                                        printed = 1;
+                                }
+
+                                /* Print the line. Other than the first itteration, we need to print everything
+                                 * except the first '\n' character.*/
+                                if(first_iteration)
+                                {
+                                        printk(KERN_CONT "%.*s\n", (int)(next - previous), previous);
+                                        first_iteration = 0;
+                                }
+                                else
+                                {
+                                        printk(KERN_CONT "%.*s\n", (int)(next - previous)-1, previous+1);
+                                }
+
+                                /* Get the next token */
+                                previous = next;
+                                next = strchr(next + 1, '\n');
+                                if(next != NULL)
+                                {
+                                        bytes_passed+= (next - previous);
+                                }
+                        }
+
+                        /* Move on to the next sub-buffer */
+                        subbuf_start = subbuf_start + sub_buf->chan->subbuf_size;
+                }
+        }
+        return NOTIFY_DONE;
+}
+#endif
 #endif /* _STP_SYMBOLS_C_ */
