@@ -1,7 +1,7 @@
 /* -*- linux-c -*- 
  * VMA tracking and lookup functions.
  *
- * Copyright (C) 2005-2010 Red Hat Inc.
+ * Copyright (C) 2005-2013 Red Hat Inc.
  * Copyright (C) 2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -14,7 +14,7 @@
 #define _STP_VMA_C_
 
 #include "sym.h"
-#include "string.c"
+#include "stp_string.c"
 #include "task_finder_vma.c"
 
 #include <asm/uaccess.h>
@@ -34,9 +34,7 @@ static void _stp_vma_match_vdso(struct task_struct *tsk)
       unsigned long vdso_addr = tsk->mm->context.vdso_base;
 #endif
 
-#ifdef DEBUG_TASK_FINDER_VMA
-      _dbug("tsk: %d vdso: 0x%lx\n", tsk->pid, vdso_addr);
-#endif
+      dbug_task_vma(1,"tsk: %d vdso: 0x%lx\n", tsk->pid, vdso_addr);
 
       for (i = 0; i < _stp_num_modules && found == NULL; i++) {
 	struct _stp_module *m = _stp_modules[i];
@@ -47,23 +45,39 @@ static void _stp_vma_match_vdso(struct task_struct *tsk)
 	    unsigned long notes_addr;
 	    int all_ok = 1;
 	    notes_addr = vdso_addr + m->build_id_offset;
-#ifdef DEBUG_TASK_FINDER_VMA
-	    _dbug("notes_addr %s: 0x%lx + 0x%lx = 0x%lx (len: %x)\n", m->name,
+	    dbug_task_vma(1,"notes_addr %s: 0x%lx + 0x%lx = 0x%lx (len: %x)\n", m->path,
 		  vdso_addr, m->build_id_offset, notes_addr, m->build_id_len);
-#endif
 	    for (j = 0; j < m->build_id_len; j++)
 	      {
 		int rc;
 		unsigned char b;
-		/* We are called from the task_finder, so it should be
-		   save to just copy_from_user here. utrace callback. */
+
+		/*
+		 * Why check CONFIG_UTRACE here? If we're using real
+		 * in-kernel utrace, we can always just call
+		 * get_user() (since tsk == current).
+		 *
+		 * Since we're only reading here, we can call
+		 * __access_process_vm_noflush(), which only calls
+		 * things that are exported.
+		 */
+#ifdef CONFIG_UTRACE
 		rc = copy_from_user(&b, (void*)(notes_addr + j), 1);
+#else
+		if (tsk == current)
+		  {
+		    rc = copy_from_user(&b, (void*)(notes_addr + j), 1);
+		  }
+		else
+		  {
+		    rc = (__access_process_vm_noflush(tsk, (notes_addr + j),
+						      &b, 1, 0) != 1);
+		  }
+#endif
 		if (rc || b != m->build_id_bits[j])
 		  {
-#ifdef DEBUG_TASK_FINDER_VMA
-		    _dbug("darn, not equal (rc=%d) at %d (0x%x != 0x%x)\n",
+		    dbug_task_vma(1,"darn, not equal (rc=%d) at %d (0x%x != 0x%x)\n",
 			  rc, j, b, m->build_id_bits[j]);
-#endif
 		    all_ok = 0;
 		    break;
 		  }
@@ -77,14 +91,13 @@ static void _stp_vma_match_vdso(struct task_struct *tsk)
 	  stap_add_vma_map_info(tsk, vdso_addr,
 				vdso_addr + found->sections[0].size,
 				"vdso", found);
-#ifdef DEBUG_TASK_FINDER_VMA
-	  _dbug("found vdso: %s\n", found->path);
-#endif
+	  dbug_task_vma(1,"found vdso: %s\n", found->path);
 	}
     }
 #endif /* STAPCONF_MM_CONTEXT_VDSO */
 }
 
+#ifdef HAVE_TASK_FINDER
 /* exec callback, will try to match vdso for new process,
    will drop all vma maps for a process that disappears. */
 static int _stp_vma_exec_cb(struct stap_task_finder_target *tgt,
@@ -92,11 +105,9 @@ static int _stp_vma_exec_cb(struct stap_task_finder_target *tgt,
 			    int register_p,
 			    int process_p)
 {
-#ifdef DEBUG_TASK_FINDER_VMA
-  _stp_dbug(__FUNCTION__, __LINE__,
+  dbug_task_vma(1,
 	    "tsk %d:%d , register_p: %d, process_p: %d\n",
 	    tsk->pid, tsk->tgid, register_p, process_p);
-#endif
   if (process_p)
     {
       if (register_p)
@@ -124,11 +135,9 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
         if (path == NULL || *path == '\0') /* unknown? */
                 path = (char *)name; /* we'll copy this soon, in ..._add_vma_... */
 
-#ifdef DEBUG_TASK_FINDER_VMA
-	_stp_dbug(__FUNCTION__, __LINE__,
+	dbug_task_vma(1,
 		  "mmap_cb: tsk %d:%d path %s, addr 0x%08lx, length 0x%08lx, offset 0x%lx, flags 0x%lx\n",
 		  tsk->pid, tsk->tgid, path, addr, length, offset, vm_flags);
-#endif
 	// We are only interested in the first load of the whole module that
 	// is executable. We register whether or not we know the module,
 	// so we can later lookup the name given an address for this task.
@@ -139,11 +148,9 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 			{
 			  unsigned long vm_start = 0;
 			  unsigned long vm_end = 0;
-#ifdef DEBUG_TASK_FINDER_VMA
-			  _stp_dbug(__FUNCTION__, __LINE__,
+			  dbug_task_vma(1,
 				    "vm_cb: matched path %s to module (sec: %s)\n",
 				    path, _stp_modules[i]->sections[0].name);
-#endif
 			  module = _stp_modules[i];
 			  /* Make sure we really don't know about this module
 			     yet.  If we do know, we might want to extend
@@ -180,12 +187,10 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 		  {
 		    res = stap_add_vma_map_info(tsk->group_leader, addr,
 						addr + length, path, NULL);
-#ifdef DEBUG_TASK_FINDER_VMA
-		    _stp_dbug(__FUNCTION__, __LINE__,
+		    dbug_task_vma(1,
 			      "registered '%s' for %d (res:%d) [%lx-%lx]\n",
 			      path, tsk->group_leader->pid,
 			      res, addr, addr + length);
-#endif
 		  }
 
 	} else if (path != NULL) {
@@ -196,12 +201,10 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 		// precisely to module names and symbols.
 		res = stap_extend_vma_map_info(tsk->group_leader,
 					       addr, addr + length);
-#ifdef DEBUG_TASK_FINDER_VMA
-		_stp_dbug(__FUNCTION__, __LINE__,
+		dbug_task_vma(1,
 			  "extended '%s' for %d (res:%d) [%lx-%lx]\n",
 			  path, tsk->group_leader->pid,
 			  res, addr, addr + length);
-#endif
 	}
 	return 0;
 }
@@ -216,6 +219,8 @@ static int _stp_vma_munmap_cb(struct stap_task_finder_target *tgt,
 	stap_remove_vma_map_info(tsk->group_leader, addr);
 	return 0;
 }
+
+#endif
 
 /* Initializes the vma tracker. */
 static int _stp_vma_init(void)
@@ -235,6 +240,7 @@ static int _stp_vma_init(void)
                 // callback should be sufficient).
                 .pid = 0,
                 .procname = NULL,
+                .purpose = "vma tracking",
                 .callback = &_stp_vma_exec_cb,
                 .mmap_callback = &_stp_vma_mmap_cb,
                 .munmap_callback = &_stp_vma_munmap_cb,
@@ -245,10 +251,8 @@ static int _stp_vma_init(void)
 		_stp_error("Couldn't initialize vma map: %d\n", rc);
 		return rc;
 	}
-#ifdef DEBUG_TASK_FINDER_VMA
-	_stp_dbug(__FUNCTION__, __LINE__,
+	dbug_task_vma(1,
 		  "registering vmcb (_stap_target: %d)\n", _stp_target);
-#endif
 	rc = stap_register_task_finder_target (& vmcb);
 	if (rc != 0)
 		_stp_error("Couldn't register task finder target: %d\n", rc);

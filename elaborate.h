@@ -24,10 +24,22 @@ extern "C" {
 }
 
 #include "privilege.h"
+
+struct recursive_expansion_error : public semantic_error
+{
+  ~recursive_expansion_error () throw () {}
+  recursive_expansion_error (const std::string& msg, const token* t1=0):
+    semantic_error (msg, t1) {}
+
+  recursive_expansion_error (const std::string& msg, const token* t1,
+                             const token* t2):
+    semantic_error (msg, t1, t2) {}
+};
+
 // ------------------------------------------------------------------------
 
 struct derived_probe;
-struct match_node;
+class match_node;
 
 struct symresolution_info: public traversing_visitor
 {
@@ -71,6 +83,10 @@ struct typeresolution_info: public visitor
   void invalid (const token* tok, exp_type t);
 
   exp_type t; // implicit parameter for nested visit call; may clobber
+              // Upon entry to one of the visit_* calls, the incoming
+              // `t' value is the type inferred for that node from 
+              // context.  It may match or conflict with the node's 
+              // preexisting type, or it may be unknown.
 
   void visit_block (block* s);
   void visit_try_block (try_block* s);
@@ -95,6 +111,7 @@ struct typeresolution_info: public visitor
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
+  void visit_regex_query (regex_query* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
@@ -109,6 +126,7 @@ struct typeresolution_info: public visitor
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
+  void visit_perf_op (perf_op* e);
 };
 
 
@@ -121,7 +139,7 @@ struct typeresolution_info: public visitor
 // provider may transform it.
 
 class translator_output;
-class derived_probe_group;
+struct derived_probe_group;
 
 struct derived_probe: public probe
 {
@@ -151,7 +169,7 @@ struct derived_probe: public probe
   // From within unparser::emit_probe, initialized any extra variables
   // in this probe's context locals.
 
-  virtual void emit_probe_local_init (translator_output*) {}
+  virtual void emit_probe_local_init (systemtap_session& s, translator_output*) {}
   // From within unparser::emit_probe, emit any extra processing block
   // for this probe.
 
@@ -176,6 +194,9 @@ public:
 
   // Location of semaphores to activate sdt probes
   Dwarf_Addr sdt_semaphore_addr;
+
+  // perf.counter probes that this probe references
+  std::set<derived_probe*> perf_counter_refs;
 
   // index into session.probes[], set and used during translation
   unsigned session_index;
@@ -206,6 +227,10 @@ struct derived_probe_group
   // invoked.  The generated code may use pre-declared "int i, j;"
   // and set "const char* probe_point;".
 
+  virtual void emit_module_post_init (systemtap_session& s) {}
+  // The emit_module_post_init() code is called once session_state is
+  // set to running.
+
   virtual void emit_module_refresh (systemtap_session& s) {}
   // The _refresh-generated code may be called multiple times during
   // a session run, bracketed by _init and _exit calls.
@@ -233,6 +258,15 @@ struct derived_probe_builder
 		     probe_point* location,
 		     literal_map_t const & parameters,
 		     std::vector<derived_probe*> & finished_results) = 0;
+  virtual void build_with_suffix(systemtap_session & sess,
+                                 probe * use,
+                                 probe_point * location,
+                                 std::map<std::string, literal *>
+                                   const & parameters,
+                                 std::vector<derived_probe *>
+                                   & finished_results,
+                                 std::vector<probe_point::component *>
+                                   const & suffix);
   virtual ~derived_probe_builder() {}
   virtual void build_no_more (systemtap_session &) {}
   virtual bool is_alias () const { return false; }
@@ -278,6 +312,9 @@ match_node
   void find_and_build (systemtap_session& s,
                        probe* p, probe_point *loc, unsigned pos,
                        std::vector<derived_probe *>& results);
+  void try_suffix_expansion (systemtap_session& s,
+                             probe *p, probe_point *loc, unsigned pos,
+                             std::vector<derived_probe *>& results);
   void build_no_more (systemtap_session &s);
   void dump (systemtap_session &s, const std::string &name = "");
 
@@ -309,6 +346,15 @@ alias_expansion_builder
 		     probe_point * location,
 		     std::map<std::string, literal *> const &,
 		     std::vector<derived_probe *> & finished_results);
+  virtual void build_with_suffix(systemtap_session & sess,
+                                 probe * use,
+                                 probe_point * location,
+                                 std::map<std::string, literal *>
+                                   const &,
+                                 std::vector<derived_probe *>
+                                   & finished_results,
+                                 std::vector<probe_point::component *>
+                                   const & suffix);
   virtual bool is_alias () const { return true; }
 
   bool checkForRecursiveExpansion (probe *use);
@@ -321,7 +367,7 @@ alias_expansion_builder
 int semantic_pass (systemtap_session& s);
 void derive_probes (systemtap_session& s,
                     probe *p, std::vector<derived_probe*>& dps,
-                    bool optional = false);
+                    bool optional = false, bool rethrow_errors = false);
 
 // A helper we use here and in translate, for pulling symbols out of lvalue
 // expressions.

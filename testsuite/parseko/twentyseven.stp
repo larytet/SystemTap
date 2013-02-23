@@ -1,4 +1,4 @@
-#! stap -p1
+#! /bin/sh
 
-# PR 11208
-probe kernel.function ("sys_" /* this comment prevents string gluing */ "open") {}
+# PR 14360 supersedes PR 11208, except with --compatible < 2.0
+stap $@ -p2 --compatible=1.8 -e 'probe kernel.function ("sys_" /* this comment no longer prevents string gluing */ "open") {}'

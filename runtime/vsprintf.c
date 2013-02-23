@@ -26,7 +26,8 @@ static int skip_atoi(const char **s)
  * Changes to number() will require a corresponding change to number_size below,
  * to ensure proper buffer allocation for _stp_printf.
  */
-static char * number(char * buf, char * end, uint64_t num, int base, int size, int precision, enum print_flag type)
+noinline static char * 
+number(char * buf, char * end, uint64_t num, int base, int size, int precision, enum print_flag type)
 {
 	char c,sign,tmp[66];
 	const char *digits;
@@ -124,7 +125,8 @@ static char * number(char * buf, char * end, uint64_t num, int base, int size, i
  * number() requires a corresponding change here, and vice versa, to ensure the 
  * calculated size and printed size match.
  */
-static int number_size(uint64_t num, int base, int size, int precision, enum print_flag type) {
+noinline static int
+number_size(uint64_t num, int base, int size, int precision, enum print_flag type) {
     char c,sign,tmp[66];
     const char *digits;
     static const char small_digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -198,7 +200,134 @@ static int number_size(uint64_t num, int base, int size, int precision, enum pri
 
 }
 
-static char *
+
+/*
+ * Output one character into the buffer.  Usually this is just a
+ * straight copy, padded left or right up to 'width', but if the user
+ * gave the '#' flag then we need to escape special characters.
+ */
+noinline static char *
+_stp_vsprint_char(char * str, char * end, char c,
+		  int width, enum print_flag flags)
+{
+	int size = _stp_vsprint_char_size(c, 0, flags);
+
+	if (!(flags & STP_LEFT)) {
+		while (width-- > size) {
+			if (str <= end)
+				*str = ' ';
+			++str;
+		}
+	}
+
+	if (size == 1) {
+		if (str <= end)
+			*str = c;
+		++str;
+	}
+	else {
+		/* Other sizes mean this is not a printable character.
+		 * First try to match up C escape characters: */
+		char escape = 0;
+		switch (c) {
+			case '\a':
+				escape = 'a';
+				break;
+			case '\b':
+				escape = 'b';
+				break;
+			case '\f':
+				escape = 'f';
+				break;
+			case '\n':
+				escape = 'n';
+				break;
+			case '\r':
+				escape = 'r';
+				break;
+			case '\t':
+				escape = 't';
+				break;
+			case '\v':
+				escape = 'v';
+				break;
+			case '\'':
+				escape = '\'';
+				break;
+			case '\\':
+				escape = '\\';
+				break;
+		}
+
+		if (str <= end)
+			*str = '\\';
+		++str;
+		if (escape) {
+			if (str <= end)
+				*str = escape;
+			++str;
+		}
+		else {
+			/* Fall back to octal for everything else */
+			if (str <= end)
+				*str = to_oct_digit((c >> 6) & 03);
+			++str;
+			if (str <= end)
+				*str = to_oct_digit((c >> 3) & 07);
+			++str;
+			if (str <= end)
+				*str = to_oct_digit(c & 07);
+			++str;
+		}
+	}
+
+	while (width-- > size) {
+		if (str <= end)
+			*str = ' ';
+		++str;
+	}
+
+	return str;
+}
+
+
+/*
+ * Compute the size of a given character in the buffer.  Usually this is
+ * just 1 (padded up to 'width'), but if the user gave the '#' flag then
+ * we need to escape special characters.
+ */
+noinline static int
+_stp_vsprint_char_size(char c, int width, enum print_flag flags)
+{
+	int size = 1;
+
+	/* look for quoteworthy characters */
+	if ((flags & STP_SPECIAL) &&
+	    (!(isprint(c) && isascii(c)) || c == '\'' || c == '\\'))
+		switch (c) {
+			case '\a':
+			case '\b':
+			case '\f':
+			case '\n':
+			case '\r':
+			case '\t':
+			case '\v':
+			case '\'':
+			case '\\':
+				/* backslash and one escape character */
+				size = 2;
+				break;
+			default:
+				/* backslash and three octal digits */
+				size = 4;
+				break;
+		}
+
+	return max(size, width);
+}
+
+
+noinline static char *
 _stp_vsprint_memory(char * str, char * end, const char * ptr,
 		    int width, int precision,
 		    char format, enum print_flag flags)
@@ -225,10 +354,10 @@ _stp_vsprint_memory(char * str, char * end, const char * ptr,
 	}
 
 	if (format == 'M') { /* stolen from kernel: trace_seq_putmem_hex() */
-		const char _stp_hex_asc[] = "0123456789abcdef";
+		static const char _stp_hex_asc[] = "0123456789abcdef";
 
-		c = contexts[smp_processor_id()];
                 /* PR13386: Skip if called with null context */
+		c = _stp_runtime_get_context();
                 if (c) for (i = 0; i < len && str < end; i++) {
 			unsigned char c_tmp = kread((unsigned char *)(ptr));
 			ptr++;
@@ -238,8 +367,8 @@ _stp_vsprint_memory(char * str, char * end, const char * ptr,
 		len = len * 2; /* the actual length */
 	}
 	else if (format == 'm') {
-		c = contexts[smp_processor_id()];
                 /* PR13386: Skip if called with null context */
+		c = _stp_runtime_get_context();
 		if (c) for (i = 0; i < len && str <= end; ++i) {
 			*str++ = kread((unsigned char *)(ptr));
 			ptr++;
@@ -265,7 +394,7 @@ deref_fault:
 	return NULL;
 }
 
-static int
+noinline static int
 _stp_vsprint_memory_size(const char * ptr, int width, int precision,
 			 char format, enum print_flag flags)
 {
@@ -308,7 +437,7 @@ static int check_binary_precision (int precision) {
   return precision;
 }
 
-static char *
+noinline static char *
 _stp_vsprint_binary(char * str, char * end, int64_t num,
 		    int width, int precision, enum print_flag flags)
 {
@@ -365,7 +494,7 @@ _stp_vsprint_binary(char * str, char * end, int64_t num,
 	return str;
 }
 
-static int
+noinline static int
 _stp_vsprint_binary_size(int64_t num, int width, int precision)
 {
 	/* Only certain values are valid for the precision.  */
@@ -391,7 +520,8 @@ _stp_vsprint_binary_size(int64_t num, int width, int precision)
 	return max(precision, width);
 }
 
-static int _stp_vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
+noinline static int
+_stp_vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 {
 	int len;
 	uint64_t num;
@@ -540,16 +670,8 @@ static int _stp_vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
                             break;
 
                     case 'c':
-                            if (!(flags & STP_LEFT)) {
-                              while (--field_width > 0) {
-                                num_bytes++;
-                              }
-                            }
                             c = (unsigned char) va_arg(args_copy, int);
-                            num_bytes++;
-                            while (--field_width > 0) {
-                              num_bytes++;
-                            }
+                            num_bytes += _stp_vsprint_char_size(c, field_width, flags);
                             continue;
 
                     default:
@@ -739,22 +861,8 @@ static int _stp_vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			break;
 
 		case 'c':
-			if (!(flags & STP_LEFT)) {
-				while (--field_width > 0) {
-					if (str <= end)
-						*str = ' ';
-					++str;
-				}
-			}
 			c = (unsigned char) va_arg(args, int);
-			if (str <= end)
-				*str = c;
-			++str;
-			while (--field_width > 0) {
-				if (str <= end)
-					*str = ' ';
-				++str;
-			}
+			str = _stp_vsprint_char(str, end, c, field_width, flags);
 			continue;
 
 		default:

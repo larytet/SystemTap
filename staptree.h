@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2011 Red Hat Inc.
+// Copyright (C) 2005-2013 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -28,16 +28,17 @@ struct systemtap_session; // session.h
 struct semantic_error: public std::runtime_error
 {
   const token* tok1;
-  std::string msg2;
   const token* tok2;
-  semantic_error *chain;
+  const semantic_error *chain;
 
   ~semantic_error () throw () {}
+
   semantic_error (const std::string& msg, const token* t1=0):
     runtime_error (msg), tok1 (t1), tok2 (0), chain (0) {}
+
   semantic_error (const std::string& msg, const token* t1,
-                  const std::string& m2, const token* t2):
-    runtime_error (msg), tok1 (t1), msg2 (m2), tok2 (t2), chain (0) {}
+                  const token* t2):
+    runtime_error (msg), tok1 (t1), tok2 (t2), chain (0) {}
 };
 
 // ------------------------------------------------------------------------
@@ -157,6 +158,11 @@ struct array_in: public expression
   void visit (visitor* u);
 };
 
+struct regex_query: public binary_expression
+{
+  literal_string *re; // XXX somewhat redundant with right
+  void visit (visitor* u);
+};
 
 struct comparison: public binary_expression
 {
@@ -215,7 +221,7 @@ classify_const_indexable(const indexable* ix,
 			 symbol const *& array_out,
 			 hist_op const *& hist_out);
 
-class vardecl;
+struct vardecl;
 struct symbol:
   public expression,
   public indexable
@@ -265,9 +271,12 @@ struct target_symbol: public symbol
     };
 
   bool addressof;
+  std::string target_name;
+  std::string cu_name;
   std::vector<component> components;
   semantic_error* saved_conversion_error; // hand-made linked list
   target_symbol(): addressof(false), saved_conversion_error (0) {}
+  std::string sym_name ();
   void chain (const semantic_error& er);
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -304,6 +313,14 @@ struct entry_op: public expression
 };
 
 
+struct perf_op: public expression
+{
+  literal_string *operand;
+  void print (std::ostream& o) const;
+  void visit (visitor* u);
+};
+
+
 struct arrayindex: public expression
 {
   std::vector<expression*> indexes;
@@ -314,7 +331,7 @@ struct arrayindex: public expression
 };
 
 
-class functiondecl;
+struct functiondecl;
 struct functioncall: public expression
 {
   std::string function;
@@ -433,6 +450,7 @@ enum stat_component_type
     sc_sum,
     sc_min,
     sc_max,
+    sc_none,
   };
 
 struct stat_op: public expression
@@ -495,7 +513,7 @@ struct vardecl: public symboldecl
   int maxsize; // upperbound on size for arrays
   std::vector<exp_type> index_types; // for arrays only
   literal *init; // for global scalars only
-  bool skip_init; // for probe locals only, don't init on entry
+  bool synthetic; // for probe locals only, don't init on entry
   bool wrap;
 };
 
@@ -503,7 +521,6 @@ struct vardecl: public symboldecl
 struct vardecl_builtin: public vardecl
 {
 };
-
 
 struct statement;
 struct functiondecl: public symboldecl
@@ -513,6 +530,7 @@ struct functiondecl: public symboldecl
   std::vector<vardecl*> unused_locals;
   statement* body;
   bool synthetic;
+  bool mangle_oldstyle;
   functiondecl ();
   void print (std::ostream& o) const;
   void printsig (std::ostream& o) const;
@@ -584,6 +602,7 @@ struct foreach_loop: public statement
   indexable *base;
   int sort_direction; // -1: decreasing, 0: none, 1: increasing
   unsigned sort_column; // 0: value, 1..N: index
+  enum stat_component_type sort_aggr; // for aggregate arrays, which aggregate to sort on
   symbol* value; // optional iteration value
   expression* limit; // optional iteration limit
 
@@ -714,6 +733,7 @@ struct probe
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list);
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &) {}
   virtual const probe_alias *get_alias () const { return 0; }
+  virtual probe_point *get_alias_loc () const { return 0; }
   virtual probe* create_alias(probe_point* l, probe_point* a);
   virtual const probe* basest () const { return this; }
   virtual const probe* almost_basest () const { return 0; }
@@ -765,6 +785,7 @@ struct visitor
   virtual void visit_logical_or_expr (logical_or_expr* e) = 0;
   virtual void visit_logical_and_expr (logical_and_expr* e) = 0;
   virtual void visit_array_in (array_in* e) = 0;
+  virtual void visit_regex_query (regex_query* e) = 0;
   virtual void visit_comparison (comparison* e) = 0;
   virtual void visit_concatenation (concatenation* e) = 0;
   virtual void visit_ternary_expression (ternary_expression* e) = 0;
@@ -779,6 +800,7 @@ struct visitor
   virtual void visit_cast_op (cast_op* e) = 0;
   virtual void visit_defined_op (defined_op* e) = 0;
   virtual void visit_entry_op (entry_op* e) = 0;
+  virtual void visit_perf_op (perf_op* e) = 0;
 };
 
 
@@ -810,6 +832,7 @@ struct traversing_visitor: public visitor
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
+  void visit_regex_query (regex_query* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
@@ -824,6 +847,7 @@ struct traversing_visitor: public visitor
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
+  void visit_perf_op (perf_op* e);
 };
 
 
@@ -873,7 +897,7 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
-
+  void visit_perf_op (perf_op* e);
   bool side_effect_free ();
   bool side_effect_free_wrt (const std::set<vardecl*>& vars);
 };
@@ -913,6 +937,7 @@ struct throwing_visitor: public visitor
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_array_in (array_in* e);
+  void visit_regex_query (regex_query* e);
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
@@ -927,6 +952,7 @@ struct throwing_visitor: public visitor
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
+  void visit_perf_op (perf_op* e);
 };
 
 // A visitor similar to a traversing_visitor, but with the ability to rewrite
@@ -983,6 +1009,7 @@ struct update_visitor: public visitor
   virtual void visit_logical_or_expr (logical_or_expr* e);
   virtual void visit_logical_and_expr (logical_and_expr* e);
   virtual void visit_array_in (array_in* e);
+  virtual void visit_regex_query (regex_query* e);
   virtual void visit_comparison (comparison* e);
   virtual void visit_concatenation (concatenation* e);
   virtual void visit_ternary_expression (ternary_expression* e);
@@ -997,6 +1024,7 @@ struct update_visitor: public visitor
   virtual void visit_cast_op (cast_op* e);
   virtual void visit_defined_op (defined_op* e);
   virtual void visit_entry_op (entry_op* e);
+  virtual void visit_perf_op (perf_op* e);
 
 private:
   std::stack<void *> targets;
@@ -1042,6 +1070,7 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_logical_or_expr (logical_or_expr* e);
   virtual void visit_logical_and_expr (logical_and_expr* e);
   virtual void visit_array_in (array_in* e);
+  virtual void visit_regex_query (regex_query* e);
   virtual void visit_comparison (comparison* e);
   virtual void visit_concatenation (concatenation* e);
   virtual void visit_ternary_expression (ternary_expression* e);
@@ -1056,6 +1085,7 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_cast_op (cast_op* e);
   virtual void visit_defined_op (defined_op* e);
   virtual void visit_entry_op (entry_op* e);
+  virtual void visit_perf_op (perf_op* e);
 };
 
 #endif // STAPTREE_H

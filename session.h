@@ -20,6 +20,7 @@
 #include <sstream>
 #include <map>
 #include <set>
+#include <stdexcept>
 
 extern "C" {
 #include <signal.h>
@@ -27,23 +28,11 @@ extern "C" {
 }
 
 #include "privilege.h"
-
-#if ENABLE_NLS
-#define _(string) gettext(string)
-#define _N(string, string_plural, count) \
-        ngettext((string), (string_plural), (count))
-#else
-#define _(string) (string)
-#define _N(string, string_plural, count) \
-        ( (count) == 1 ? (string) : (string_plural) )
-#endif
-#define _F(format, ...) autosprintf(_(format), __VA_ARGS__)
-#define _NF(format, format_plural, count, ...) \
-        autosprintf(_N((format), (format_plural), (count)), __VA_ARGS__)
+#include "util.h"
 
 // forward decls for all referenced systemtap types
-struct hash;
-struct match_node;
+class stap_hash;
+class match_node;
 struct stapfile;
 struct vardecl;
 struct token;
@@ -59,13 +48,16 @@ struct utrace_derived_probe_group;
 struct itrace_derived_probe_group;
 struct task_finder_derived_probe_group;
 struct timer_derived_probe_group;
+struct netfilter_derived_probe_group;
 struct profile_derived_probe_group;
 struct mark_derived_probe_group;
 struct tracepoint_derived_probe_group;
 struct hrtimer_derived_probe_group;
 struct procfs_derived_probe_group;
+struct dynprobe_derived_probe_group;
 struct embeddedcode;
-struct translator_output;
+struct stapdfa;
+class translator_output;
 struct unparser;
 struct semantic_error;
 struct module_cache;
@@ -93,6 +85,8 @@ struct statistic_decl
   }
 };
 
+struct macrodecl; // defined in parse.h
+
 struct systemtap_session
 {
 private:
@@ -109,6 +103,11 @@ public:
   systemtap_session ();
   ~systemtap_session ();
 
+  // To reset the tmp_dir
+  void create_tmp_dir();
+  void remove_tmp_dir();
+  void reset_tmp_dir();
+
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
   void setup_kernel_release (const char* kstr);
@@ -116,6 +115,7 @@ public:
 
   // command line parsing
   int  parse_cmdline (int argc, char * const argv []);
+  bool parse_cmdline_runtime (const std::string& opt_runtime);
   void version ();
   void usage (int exitcode);
   void check_options (int argc, char * const argv []);
@@ -130,11 +130,12 @@ public:
   bool have_script;
   std::vector<std::string> include_path;
   int include_arg_start;
-  std::vector<std::string> macros;
+  std::vector<std::string> c_macros;
   std::vector<std::string> args;
   std::vector<std::string> kbuildflags; // -B var=val
   std::vector<std::string> globalopts; // -G var=val
   std::vector<std::string> modinfos; // --modinfo tag=value
+
   std::string release;
   std::string kernel_release;
   std::string kernel_base_release;
@@ -142,6 +143,14 @@ public:
   std::string kernel_source_tree;
   std::map<std::string,std::string> kernel_config;
   std::set<std::string> kernel_exports;
+  std::set<std::string> kernel_functions;
+  int parse_kernel_config ();
+  int parse_kernel_exports ();
+  int parse_kernel_functions ();
+
+  std::string sysroot;
+  std::map<std::string,std::string> sysenv;
+  bool update_release_sysroot;
   std::string machine;
   std::string architecture;
   bool native_build;
@@ -149,6 +158,7 @@ public:
   bool runtime_specified;
   std::string data_path;
   std::string module_name;
+  const std::string module_filename() const;
   std::string stapconf_name;
   std::string output_file;
   std::string size_option;
@@ -186,6 +196,10 @@ public:
   bool dump_probe_types;
   int download_dbinfo;
   bool suppress_handler_errors;
+  bool suppress_time_limits;
+
+  enum { kernel_runtime, dyninst_runtime } runtime_mode;
+  bool runtime_usermode_p() const { return runtime_mode == dyninst_runtime; }
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -196,7 +210,7 @@ public:
   void NSPR_init ();
 #endif
   bool client_options;
-  std::string client_options_disallowed;
+  std::string client_options_disallowed_for_unprivileged;
   std::vector<std::string> server_status_strings;
   std::vector<std::string> specified_servers;
   bool automatic_server_mode;
@@ -240,13 +254,11 @@ public:
   std::string cache_path;       // usually ~/.systemtap/cache
   std::string hash_path;        // path to the cached script module
   std::string stapconf_path;    // path to the cached stapconf
-  hash *base_hash;              // hash common to all caching
+  stap_hash *base_hash;         // hash common to all caching
 
   // dwarfless operation
   bool consult_symtab;
   std::string kernel_symtab_path;
-  bool ignore_vmlinux;
-  bool ignore_dwarf;
 
   // Skip bad $ vars
   bool skip_badvars;
@@ -262,6 +274,10 @@ public:
   match_node* pattern_root;
   void register_library_aliases();
 
+  // data for various preprocessor library macros
+  std::map<std::string, macrodecl*> library_macros;
+  std::vector<stapfile*> library_macro_files; // for error reporting purposes
+
   // parse trees for the various script files
   stapfile* user_file;
   std::vector<stapfile*> library_files;
@@ -274,9 +290,13 @@ public:
   std::vector<stapfile*> files;
   std::vector<vardecl*> globals;
   std::map<std::string,functiondecl*> functions;
+  // probe counter name -> probe associated with counter
+  std::map<std::string, std::pair<std::string,derived_probe*> > perf_counters;
   std::vector<derived_probe*> probes; // see also *_probes groups below
   std::vector<embeddedcode*> embeds;
   std::map<std::string, statistic_decl> stat_decls;
+  std::map<std::string, stapdfa*> dfas;
+  unsigned dfa_counter; // used to give unique names
   // track things that are removed
   std::vector<vardecl*> unused_globals;
   std::vector<derived_probe*> unused_probes; // see also *_probes groups below
@@ -295,11 +315,13 @@ public:
   itrace_derived_probe_group* itrace_derived_probes;
   task_finder_derived_probe_group* task_finder_derived_probes;
   timer_derived_probe_group* timer_derived_probes;
+  netfilter_derived_probe_group* netfilter_derived_probes;
   profile_derived_probe_group* profile_derived_probes;
   mark_derived_probe_group* mark_derived_probes;
   tracepoint_derived_probe_group* tracepoint_derived_probes;
   hrtimer_derived_probe_group* hrtimer_derived_probes;
   procfs_derived_probe_group* procfs_derived_probes;
+  dynprobe_derived_probe_group* dynprobe_derived_probes;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -345,8 +367,26 @@ public:
 };
 
 
+struct exit_exception: public std::runtime_error
+{
+  int rc;
+  exit_exception (int rc):
+    runtime_error (_F("early exit requested, rc=%d", rc)), rc(rc) {}
+};
+
+
 // global counter of SIGINT/SIGTERM's received
 extern int pending_interrupts;
+
+// Interrupt exception subclass for catching
+// interrupts (i.e. ctrl-c).
+struct interrupt_exception: public std::runtime_error
+{
+  interrupt_exception ():
+    runtime_error (_("interrupt received")){}
+};
+
+void assert_no_interrupts();
 
 #endif // SESSION_H
 

@@ -293,24 +293,26 @@ typedef   signed long sleb128_t;
 
 struct unwind_item {
 	enum item_location {
-		Same,
-		Nowhere,
-		Memory,
-		Register,
-		Value,
-		Expr,
-		ValExpr
+		Same,     /* no state */
+		Nowhere,  /* no state */
+		Memory,   /* signed offset from CFA */
+		Register, /* unsigned register number */
+		Value,    /* signed offset from CFA */
+		Expr,     /* DWARF expression */
+		ValExpr   /* DWARF expression */
 	} where;
 	union {
-		uleb128_t value;
+		uleb128_t reg;
+		sleb128_t off;
 		const u8 *expr;
-	};
+	} state;
 };
 
 struct unwind_reg_state {
 	union {
 		struct cfa {
-			uleb128_t reg, offs;
+			uleb128_t reg;
+			sleb128_t off;
 		} cfa;
 		const u8 *cfa_expr;
 	};
@@ -333,5 +335,19 @@ struct unwind_context {
 };
 
 static const struct cfa badCFA = { ARRAY_SIZE(reg_info), 1 };
+
+#ifndef MAXBACKTRACE
+#define MAXBACKTRACE 20
+#endif
+
+struct unwind_cache {
+	enum uwcache_state {
+		uwcache_uninitialized,
+		uwcache_partial,
+		uwcache_finished
+	} state;
+	unsigned depth; /* pc[0..(depth-1)] contains valid entries */
+	unsigned long pc[MAXBACKTRACE];
+};
 
 #endif /*_STP_UNWIND_H_*/

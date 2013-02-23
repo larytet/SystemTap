@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2011 Red Hat Inc.
+// Copyright (C) 2005-2012 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -37,18 +37,10 @@ static int
 run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
              bool null_out=false, bool null_err=false)
 {
-  // Before running make, fix up the environment a bit.  PATH should
-  // already be overridden.  Clean out a few variables that
-  // s.kernel_build_tree/Makefile uses.
-  int rc = unsetenv("ARCH") || unsetenv("KBUILD_EXTMOD")
-      || unsetenv("CROSS_COMPILE") || unsetenv("KBUILD_IMAGE")
-      || unsetenv("KCONFIG_CONFIG") || unsetenv("INSTALL_PATH");
-  if (rc)
-    {
-      const char* e = strerror (errno);
-      cerr << "unsetenv failed: " << e << endl;
-      s.set_try_server ();
-    }
+  assert_no_interrupts();
+
+  // PR14168: we used to unsetenv values here; instead do it via
+  // env(1) in make_any_make_cmd().
 
   // Disable ccache to avoid saving files that will never be reused.
   // (ccache is useless to us, because our compiler commands always
@@ -79,7 +71,7 @@ run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
       null_out = true;
     }
 
-  rc = stap_system (s.verbose, make_cmd, null_out, null_err);
+  int rc = stap_system (s.verbose, "kbuild", make_cmd, null_out, null_err);
   if (rc != 0)
     s.set_try_server ();
   return rc;
@@ -89,6 +81,18 @@ static vector<string>
 make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
 {
   vector<string> make_cmd;
+
+  // PR14168: sanitize environment variables for kbuild invocation
+  make_cmd.push_back("env");
+  make_cmd.push_back("-uARCH");
+  make_cmd.push_back("-uKBUILD_EXTMOD");
+  make_cmd.push_back("-uCROSS_COMPILE");
+  make_cmd.push_back("-uKBUILD_IMAGE");
+  make_cmd.push_back("-uKCONFIG_CONFIG");
+  make_cmd.push_back("-uINSTALL_PATH");
+  string newpath = string("PATH=/usr/bin:/bin:") + (getenv("PATH") ?: "");
+  make_cmd.push_back(newpath.c_str());
+
   make_cmd.push_back("make");
   make_cmd.push_back("-C");
   make_cmd.push_back(s.kernel_build_tree);
@@ -99,6 +103,9 @@ make_any_make_cmd(systemtap_session& s, const string& dir, const string& target)
   if (s.architecture != "powerpc" ||
       (strverscmp (s.kernel_base_release.c_str(), "2.6.15") >= 0))
     make_cmd.push_back("ARCH=" + s.architecture); // need make-quoting?
+
+  // PR13847: suppress debuginfo creation by default
+  make_cmd.insert(make_cmd.end(), "CONFIG_DEBUG_INFO=");
 
   // Add any custom kbuild flags
   make_cmd.insert(make_cmd.end(), s.kbuildflags.begin(), s.kbuildflags.end());
@@ -134,7 +141,7 @@ output_autoconf(systemtap_session& s, ofstream& o, const char *autoconf_c,
   o << "\t";
   if (s.verbose < 4)
     o << "@";
-  o << "if $(CHECK_BUILD) $(SYSTEMTAP_RUNTIME)/" << autoconf_c;
+  o << "if $(CHECK_BUILD) $(SYSTEMTAP_RUNTIME)/linux/" << autoconf_c;
   if (s.verbose < 5)
     o << " > /dev/null 2>&1";
   o << "; then ";
@@ -172,9 +179,63 @@ void output_dual_exportconf(systemtap_session& s, ofstream& o,
 }
 
 
+void output_either_exportconf(systemtap_session& s, ofstream& o,
+			      const char *symbol1, const char *symbol2,
+			      const char *deftrue)
+{
+  o << "\t";
+  if (s.verbose < 4)
+    o << "@";
+  if (s.kernel_exports.find(symbol1) != s.kernel_exports.end()
+      || s.kernel_exports.find(symbol2) != s.kernel_exports.end())
+    o << "echo \"#define " << deftrue << " 1\"";
+  o << ">> $@" << endl;
+}
+
+
+static int
+compile_dyninst (systemtap_session& s)
+{
+  const string module = s.tmpdir + "/" + s.module_filename();
+
+  vector<string> cmd;
+  cmd.push_back("gcc");
+  cmd.push_back("--std=gnu99");
+  cmd.push_back("-Wall");
+  cmd.push_back("-Werror");
+  cmd.push_back("-Wno-unused");
+  cmd.push_back("-Wno-strict-aliasing");
+  cmd.push_back("-O2");
+  cmd.push_back("-I" + s.runtime_path);
+  cmd.push_back("-D__DYNINST__");
+  for (size_t i = 0; i < s.c_macros.size(); ++i)
+    cmd.push_back("-D" + s.c_macros[i]);
+  cmd.push_back(s.translated_source);
+  cmd.push_back("-pthread");
+  cmd.push_back("-lrt");
+  cmd.push_back("-fPIC");
+  cmd.push_back("-shared");
+  cmd.push_back("-o");
+  cmd.push_back(module);
+  if (s.verbose > 3)
+    {
+      cmd.push_back("-ftime-report");
+      cmd.push_back("-Q");
+    }
+
+  int rc = stap_system (s.verbose, cmd);
+  if (rc)
+    s.set_try_server ();
+  return rc;
+}
+
+
 int
 compile_pass (systemtap_session& s)
 {
+  if (s.runtime_usermode_p())
+    return compile_dyninst (s);
+
   int rc = uprobes_pass (s);
   if (rc)
     {
@@ -290,7 +351,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-module-sect-attrs.c", "STAPCONF_MODULE_SECT_ATTRS", NULL);
 
   output_autoconf(s, o, "autoconf-utrace-via-tracepoints.c", "STAPCONF_UTRACE_VIA_TRACEPOINTS", NULL);
-  output_autoconf(s, o, "autoconf-utrace-via-ftrace.c", "STAPCONF_UTRACE_VIA_FTRACE", NULL);
+  output_autoconf(s, o, "autoconf-task_work-struct.c", "STAPCONF_TASK_WORK_STRUCT", NULL);
   output_autoconf(s, o, "autoconf-vm-area-pte.c", "STAPCONF_VM_AREA_PTE", NULL);
   output_autoconf(s, o, "autoconf-relay-umode_t.c", "STAPCONF_RELAY_UMODE_T", NULL);
   output_autoconf(s, o, "autoconf-fs_supers-hlist.c", "STAPCONF_FS_SUPERS_HLIST", NULL);
@@ -300,21 +361,41 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "local_clock", "STAPCONF_LOCAL_CLOCK");
 
   // used by runtime/uprobe-inode.c
-  output_exportconf(s, o, "register_uprobe", "STAPCONF_REGISTER_UPROBE_EXPORTED");
-  output_exportconf(s, o, "unregister_uprobe", "STAPCONF_UNREGISTER_UPROBE_EXPORTED");
+  output_either_exportconf(s, o, "uprobe_register", "register_uprobe",
+			   "STAPCONF_UPROBE_REGISTER_EXPORTED");
+  output_either_exportconf(s, o, "uprobe_unregister", "unregister_uprobe",
+			   "STAPCONF_UPROBE_UNREGISTER_EXPORTED");
+  output_exportconf(s, o, "uretprobe_register", "STAPCONF_URETPROBE_REGISTER_EXPORTED");
+  output_exportconf(s, o, "uretprobe_unregister", "STAPCONF_URETPROBE_UNREGISTER_EXPORTED");
+  output_autoconf(s, o, "autoconf-old-inode-uprobes.c", "STAPCONF_OLD_INODE_UPROBES", NULL);
+  output_autoconf(s, o, "autoconf-inode-uprobes-noaddr.c", "STAPCONF_INODE_UPROBES_NOADDR", NULL);
+  output_autoconf(s, o, "autoconf-inode-uretprobes.c", "STAPCONF_INODE_URETPROBES", NULL);
+
+  // used by tapsets.cxx inode uprobe generated code
+  output_exportconf(s, o, "uprobe_get_swbp_addr", "STAPCONF_UPROBE_GET_SWBP_ADDR_EXPORTED");
+
   // used by runtime/loc2c-runtime.h
   output_exportconf(s, o, "task_user_regset_view", "STAPCONF_TASK_USER_REGSET_VIEW_EXPORTED");
 
+  // used by runtime/stp_utrace.c
+  output_exportconf(s, o, "task_work_add", "STAPCONF_TASK_WORK_ADD_EXPORTED");
+  output_exportconf(s, o, "signal_wake_up_state", "STAPCONF_SIGNAL_WAKE_UP_STATE_EXPORTED");
+  output_exportconf(s, o, "signal_wake_up", "STAPCONF_SIGNAL_WAKE_UP_EXPORTED");
+  output_exportconf(s, o, "__lock_task_sighand", "STAPCONF___LOCK_TASK_SIGHAND_EXPORTED");
+
+  output_autoconf(s, o, "autoconf-pagefault_disable.c", "STAPCONF_PAGEFAULT_DISABLE", NULL);
+  output_exportconf(s, o, "kallsyms_lookup_name", "STAPCONF_KALLSYMS");
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
-  for (unsigned i=0; i<s.macros.size(); i++)
-    o << "EXTRA_CFLAGS += -D " << lex_cast_qstring(s.macros[i]) << endl; // XXX right quoting?
+  for (unsigned i=0; i<s.c_macros.size(); i++)
+    o << "EXTRA_CFLAGS += -D " << lex_cast_qstring(s.c_macros[i]) << endl; // XXX right quoting?
 
   if (s.verbose > 3)
     o << "EXTRA_CFLAGS += -ftime-report -Q" << endl;
 
   // XXX: unfortunately, -save-temps can't work since linux kbuild cwd
-  // is not writeable.
+  // is not writable.
   //
   // if (s.keep_tmpdir)
   // o << "CFLAGS += -fverbose-asm -save-temps" << endl;
@@ -408,6 +489,9 @@ compile_pass (systemtap_session& s)
 static bool
 kernel_built_uprobes (systemtap_session& s)
 {
+  if (s.runtime_usermode_p())
+    return true; // sort of, via dyninst
+
   // see also tapsets.cxx:kernel_supports_inode_uprobes()
   return ((s.kernel_config["CONFIG_ARCH_SUPPORTS_UPROBES"] == "y" && s.kernel_config["CONFIG_UPROBES"] == "y") ||
           (s.kernel_exports.find("unregister_uprobe") != s.kernel_exports.end()));
@@ -438,7 +522,7 @@ make_uprobes (systemtap_session& s)
   omf.close();
 
   // create a simple #include-chained source file
-  string runtimesourcefile(s.runtime_path + "/uprobes/uprobes.c");
+  string runtimesourcefile(s.runtime_path + "/linux/uprobes/uprobes.c");
   string sourcefile(dir + "/uprobes.c");
   ofstream osrc(sourcefile.c_str());
   osrc << "#include \"" << runtimesourcefile << "\"" << endl;
@@ -521,11 +605,12 @@ uprobes_pass (systemtap_session& s)
   if (!s.need_uprobes || kernel_built_uprobes(s))
     return 0;
 
-  if (s.kernel_config["CONFIG_UTRACE"] != string("y")) {
-    clog << _("user-space facilities not available without kernel CONFIG_UTRACE") << endl;
-    s.set_try_server ();
-    return 1;
-  }
+  if (s.kernel_config["CONFIG_UTRACE"] != string("y"))
+    {
+      clog << _("user-space process-tracking facilities not available [man error::process-tracking]") << endl;
+      s.set_try_server ();
+      return 1;
+    }
 
   /*
    * We need to use the version of uprobes that comes with SystemTap.  Try to
@@ -544,16 +629,51 @@ uprobes_pass (systemtap_session& s)
   return rc;
 }
 
+static
+vector<string>
+make_dyninst_run_command (systemtap_session& s, const string& remotedir,
+			  const string& version)
+{
+  vector<string> cmd;
+  cmd.push_back(getenv("SYSTEMTAP_STAPDYN") ?: BINDIR "/stapdyn");
+
+  // use slightly less verbosity
+  for (unsigned i=1; i<s.verbose; i++)
+    cmd.push_back("-v");
+  if (s.suppress_warnings)
+    cmd.push_back("-w");
+
+  if (!s.cmd.empty())
+    {
+      cmd.push_back("-c");
+      cmd.push_back(s.cmd);
+    }
+
+  if (s.target_pid)
+    {
+      cmd.push_back("-x");
+      cmd.push_back(lex_cast(s.target_pid));
+    }
+
+  cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
+		+ "/" + s.module_filename());
+
+  return cmd;
+}
+
 vector<string>
 make_run_command (systemtap_session& s, const string& remotedir,
                   const string& version)
 {
+  if (s.runtime_usermode_p())
+    return make_dyninst_run_command(s, remotedir, version);
+
   // for now, just spawn staprun
   vector<string> staprun_cmd;
   staprun_cmd.push_back(getenv("SYSTEMTAP_STAPRUN") ?: BINDIR "/staprun");
-  if (s.verbose>1)
-    staprun_cmd.push_back("-v");
-  if (s.verbose>2)
+
+  // use slightly less verbosity
+  for (unsigned i=1; i<s.verbose; i++)
     staprun_cmd.push_back("-v");
   if (s.suppress_warnings)
     staprun_cmd.push_back("-w");
@@ -582,7 +702,7 @@ make_run_command (systemtap_session& s, const string& remotedir,
       staprun_cmd.push_back(lex_cast(s.buffer_size));
     }
 
-  if (s.need_uprobes)
+  if (s.need_uprobes && !kernel_built_uprobes(s))
     {
       string opt_u = "-u";
       if (!s.uprobes_path.empty() &&
@@ -609,7 +729,7 @@ make_run_command (systemtap_session& s, const string& remotedir,
     }
 
   staprun_cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
-                        + "/" + s.module_name + ".ko");
+                        + "/" + s.module_filename());
 
   // add module arguments
   staprun_cmd.insert(staprun_cmd.end(),
@@ -662,6 +782,11 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
       ofstream osrc(srcname.c_str());
       osrc << src;
       osrc.close();
+
+      if (s.verbose > 2)
+        clog << _F("Processing tracepoint header %s with query %s", 
+                   it->first.c_str(), srcname.c_str())
+             << endl;
 
       // arrange to build it
       omf << "obj-m += " + sbasename + ".o" << endl; // NB: without <dir> prefix

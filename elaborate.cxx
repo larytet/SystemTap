@@ -1,5 +1,5 @@
 // elaboration functions
-// Copyright (C) 2005-2011 Red Hat Inc.
+// Copyright (C) 2005-2013 Red Hat Inc.
 // Copyright (C) 2008 Intel Corporation
 //
 // This file is part of systemtap, and is free software.  You can
@@ -15,6 +15,8 @@
 #include "session.h"
 #include "util.h"
 #include "task_finder.h"
+
+#include "re2c-migrate/stapregex.h"
 
 extern "C" {
 #include <sys/utsname.h>
@@ -152,9 +154,11 @@ derived_probe::sole_location () const
 probe_point*
 derived_probe::script_location () const
 {
+  // XXX PR14297 make this more accurate wrt complex wildcard expansions
   const probe* p = almost_basest();
-  const probe_alias *a = p->get_alias();
-  const vector<probe_point*>& locs = a ? a->alias_names : p->locations;
+  probe_point *a = p->get_alias_loc();
+  if (a) return a;
+  const vector<probe_point*>& locs = p->locations;
   if (locs.size() == 0 || locs.size() > 1)
     throw semantic_error (ngettext("derived_probe with no locations",
                                    "derived_probe with too many locations",
@@ -211,6 +215,24 @@ derived_probe::print_dupe_stamp_unprivileged_process_owner(ostream& o)
 
 // ------------------------------------------------------------------------
 // Members of derived_probe_builder
+
+void
+derived_probe_builder::build_with_suffix(systemtap_session & sess,
+                                         probe * use,
+                                         probe_point * location,
+                                         std::map<std::string, literal *>
+                                           const & parameters,
+                                         std::vector<derived_probe *>
+                                           & finished_results,
+                                         std::vector<probe_point::component *>
+                                           const & suffix) {
+  // XXX perhaps build the probe if suffix is empty?
+  // if (suffix.empty()) {
+  //   build (sess, use, location, parameters, finished_results);
+  //   return;
+  // }
+  throw semantic_error (_("invalid suffix for probe"));
+}
 
 bool
 derived_probe_builder::get_param (std::map<std::string, literal*> const & params,
@@ -413,8 +435,8 @@ match_node::find_and_build (systemtap_session& s,
           for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
             alternatives += string(" ") + i->first.str();
 
-          throw semantic_error (_F("probe point truncated at position %s (follow: %s)",
-                                   lex_cast(pos).c_str(), alternatives.c_str()),
+          throw semantic_error (_F("probe point truncated (follow: %s)",
+                                   alternatives.c_str()),
                                    loc->components.back()->tok);
         }
 
@@ -490,6 +512,17 @@ match_node::find_and_build (systemtap_session& s,
           delete expanded_comp_post;
         }
 
+      // Try suffix expansion only if no matches found:
+      if (num_results == results.size())
+        try
+          {
+            this->try_suffix_expansion (s, p, loc, pos, results);
+          }
+        catch (const recursive_expansion_error &e)
+          {
+            s.print_error(e); return; // Suppress probe mismatch msg.
+          }
+
       if (! loc->optional && num_results == results.size())
         {
           // We didn't find any wildcard matches (since the size of
@@ -498,8 +531,8 @@ match_node::find_and_build (systemtap_session& s,
           for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
             alternatives += string(" ") + i->first.str();
 
-          throw semantic_error(_F("probe point mismatch at position %s (alternatives: %s)",
-                                  lex_cast(pos).c_str(), alternatives.c_str()), comp->tok);
+          throw semantic_error(_F("probe point mismatch (alternatives: %s)",
+                                  alternatives.c_str()), comp->tok);
         }
     }
   else if (isglob(loc->components[pos]->functor)) // wildcard?
@@ -514,7 +547,7 @@ match_node::find_and_build (systemtap_session& s,
 	  const match_key& subkey = i->first;
 	  match_node* subnode = i->second;
 
-          if (pending_interrupts) break;
+          assert_no_interrupts();
 
 	  if (match.globmatch(subkey))
 	    {
@@ -555,6 +588,18 @@ match_node::find_and_build (systemtap_session& s,
 		}
 	    }
 	}
+
+      // Try suffix expansion only if no matches found:
+      if (num_results == results.size())
+        try
+          {
+            this->try_suffix_expansion (s, p, loc, pos, results);
+          }
+        catch (const recursive_expansion_error &e)
+          {
+            s.print_error(e); return; // Suppress probe mismatch msg.
+          }
+
       if (! loc->optional && num_results == results.size())
         {
 	  // We didn't find any wildcard matches (since the size of
@@ -563,30 +608,104 @@ match_node::find_and_build (systemtap_session& s,
           for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
             alternatives += string(" ") + i->first.str();
 
-          throw semantic_error(_F("probe point mismatch at position %s %s didn't find any wildcard matches",
-                                  lex_cast(pos).c_str(),
+          throw semantic_error(_F("probe point mismatch %s didn't find any wildcard matches",
                                   (alternatives == "" ? "" : _(" (alternatives: ") +
-                                  alternatives + ")").c_str()), loc->components[pos]->tok);
+                                   alternatives + ")").c_str()), loc->components[pos]->tok);
 	}
     }
   else
     {
       match_key match (* loc->components[pos]);
       sub_map_iterator_t i = sub.find (match);
-      if (i == sub.end()) // no match
+
+      if (i != sub.end()) // match found
         {
+          match_node* subnode = i->second;
+          // recurse
+          subnode->find_and_build (s, p, loc, pos+1, results);
+          return;
+        }
+
+      unsigned int num_results = results.size();
+
+      try
+        {
+          this->try_suffix_expansion (s, p, loc, pos, results);
+        }
+      catch (const recursive_expansion_error &e)
+        {
+          s.print_error(e); return; // Suppress probe mismatch msg.
+        }
+      
+      // XXX: how to correctly report alternatives + position numbers
+      // for alias suffixes?  file a separate PR to address the issue
+      if (! loc->optional && num_results == results.size())
+        {
+          // We didn't find any alias suffixes (since the size of the
+          // result vector didn't change).  Throw an error.
           string alternatives;
           for (sub_map_iterator_t i = sub.begin(); i != sub.end(); i++)
             alternatives += string(" ") + i->first.str();
 
-          throw semantic_error(_F("probe point mismatch at position %s %s", lex_cast(pos).c_str(),
+          throw semantic_error(_F("probe point mismatch %s",
                                   (alternatives == "" ? "" : (_(" (alternatives:") + alternatives +
-                                  ")").c_str())), loc->components[pos]->tok);
+                                  ")").c_str())),
+                               loc->components[pos]->tok);
         }
+    }
+}
 
-      match_node* subnode = i->second;
-      // recurse
-      subnode->find_and_build (s, p, loc, pos+1, results);
+
+void
+match_node::try_suffix_expansion (systemtap_session& s,
+                                  probe *p, probe_point *loc, unsigned pos,
+                                  vector<derived_probe *>& results)
+{
+  // PR12210: match alias suffixes. If the components thus far
+  // have been matched, but there is an additional unknown
+  // suffix, we have a potential alias suffix on our hands. We
+  // need to expand the preceding components as probe aliases,
+  // reattach the suffix, and re-run derive_probes() on the
+  // resulting expansion. This is done by the routine
+  // build_with_suffix().
+
+  if (strverscmp(s.compatible.c_str(), "2.0") >= 0)
+    {
+      // XXX: technically, param_map isn't used here.  So don't
+      // bother actually assembling it unless some
+      // derived_probe_builder appears that actually takes
+      // suffixes *and* consults parameters (currently no such
+      // builders exist).
+      map<string, literal *> param_map;
+      // for (unsigned i=0; i<pos; i++)
+      //   param_map[loc->components[i]->functor] = loc->components[i]->arg;
+      // maybe 0
+      
+      vector<probe_point::component *> suffix (loc->components.begin()+pos,
+                                               loc->components.end());
+      
+      // Multiple derived_probe_builders may be bound at a
+      // match_node due to the possibility of multiply defined
+      // aliases.
+      for (unsigned k=0; k < ends.size(); k++)
+        {
+          derived_probe_builder *b = ends[k];
+          try 
+            {
+              b->build_with_suffix (s, p, loc, param_map, results, suffix);
+            } 
+          catch (const recursive_expansion_error &e)
+            {
+              // Re-throw:
+              throw semantic_error(e);
+            }
+          catch (const semantic_error &e)
+            {
+              // Adjust source coordinate and re-throw:
+              if (! loc->optional)
+                throw semantic_error(e.what(), loc->components[pos]->tok);
+            }
+        }
     }
 }
 
@@ -640,8 +759,8 @@ match_node::dump (systemtap_session &s, const string &name)
 
 struct alias_derived_probe: public derived_probe
 {
-  alias_derived_probe (probe* base, probe_point *l, const probe_alias *a):
-    derived_probe (base, l), alias(a) {}
+  alias_derived_probe (probe* base, probe_point *l, const probe_alias *a,
+                       const vector<probe_point::component *> *suffix = 0);
 
   void upchuck () { throw semantic_error (_("inappropriate"), this->tok); }
 
@@ -652,10 +771,29 @@ struct alias_derived_probe: public derived_probe
   void join_group (systemtap_session&) { upchuck (); }
 
   virtual const probe_alias *get_alias () const { return alias; }
+  virtual probe_point *get_alias_loc () const { return alias_loc; }
 
 private:
   const probe_alias *alias; // Used to check for recursion
+  probe_point *alias_loc; // Hack to recover full probe name
 };
+
+
+alias_derived_probe::alias_derived_probe(probe *base, probe_point *l,
+                                         const probe_alias *a,
+                                         const vector<probe_point::component *>
+                                           *suffix):
+  derived_probe (base, l), alias(a)
+{
+  // XXX pretty nasty -- this was cribbed from printscript() in main.cxx
+  assert (alias->alias_names.size() >= 1);
+  alias_loc = new probe_point(*alias->alias_names[0]); // XXX: [0] is arbitrary; it would make just as much sense to collect all of the names
+  if (suffix) {
+    alias_loc->components.insert(alias_loc->components.end(),
+                                 suffix->begin(), suffix->end());
+  }
+}
+
 
 probe*
 probe::create_alias(probe_point* l, probe_point* a)
@@ -675,32 +813,54 @@ void
 alias_expansion_builder::build(systemtap_session & sess,
 			       probe * use,
 			       probe_point * location,
-			       std::map<std::string, literal *> const &,
+			       std::map<std::string, literal *>
+                                 const & parameters,
 			       vector<derived_probe *> & finished_results)
+{
+  vector<probe_point::component *> empty_suffix;
+  build_with_suffix (sess, use, location, parameters,
+                     finished_results, empty_suffix);
+}
+
+void
+alias_expansion_builder::build_with_suffix(systemtap_session & sess,
+                                           probe * use,
+                                           probe_point * location,
+                                           std::map<std::string, literal *>
+                                             const &,
+                                           vector<derived_probe *>
+                                             & finished_results,
+                                           vector<probe_point::component *>
+                                             const & suffix)
 {
   // Don't build the alias expansion if infinite recursion is detected.
   if (checkForRecursiveExpansion (use)) {
     stringstream msg;
     msg << _F("Recursive loop in alias expansion of %s at %s",
               lex_cast(*location).c_str(), lex_cast(location->components.front()->tok->location).c_str());
-    // semantic_errors thrown here are ignored.
-    sess.print_error (semantic_error (msg.str()));
-    return;
+    // semantic_errors thrown here might be ignored, so we need a special class:
+    throw recursive_expansion_error (msg.str());
+    // XXX The point of throwing this custom error is to suppress a
+    // cascade of "probe mismatch" messages that appear in addition to
+    // the error. The current approach suppresses most of the error
+    // cascade, but leaves one spurious error; in any case, the way
+    // this particular error is reported could be improved.
   }
 
   // We're going to build a new probe and wrap it up in an
   // alias_expansion_probe so that the expansion loop recognizes it as
   // such and re-expands its expansion.
 
-  alias_derived_probe * n = new alias_derived_probe (use, location /* soon overwritten */, this->alias);
+  alias_derived_probe * n = new alias_derived_probe (use, location /* soon overwritten */, this->alias, &suffix);
   n->body = new block();
 
-  // The new probe gets a deep copy of the location list of
-  // the alias (with incoming condition joined)
+  // The new probe gets a deep copy of the location list of the alias
+  // (with incoming condition joined) plus the suffix (if any),
   n->locations.clear();
   for (unsigned i=0; i<alias->locations.size(); i++)
     {
       probe_point *pp = new probe_point(*alias->locations[i]);
+      pp->components.insert(pp->components.end(), suffix.begin(), suffix.end());
       pp->condition = add_condition (pp->condition, location->condition);
       n->locations.push_back(pp);
     }
@@ -722,7 +882,9 @@ alias_expansion_builder::build(systemtap_session & sess,
     n->body = new block (alias->body, use->body);
 
   unsigned old_num_results = finished_results.size();
-  derive_probes (sess, n, finished_results, location->optional);
+  // If expanding for an alias suffix, be sure to pass on any errors
+  // to the caller instead of printing them in derive_probes():
+  derive_probes (sess, n, finished_results, location->optional, !suffix.empty());
 
   // Check whether we resolved something. If so, put the
   // whole library into the queue if not already there.
@@ -783,11 +945,12 @@ recursion_guard
 void
 derive_probes (systemtap_session& s,
                probe *p, vector<derived_probe*>& dps,
-               bool optional)
+               bool optional,
+               bool rethrow_errors)
 {
   for (unsigned i = 0; i < p->locations.size(); ++i)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
 
       probe_point *loc = p->locations[i];
 
@@ -839,15 +1002,24 @@ derive_probes (systemtap_session& s,
         }
       catch (const semantic_error& e)
         {
-	  //only output in listing if -vv is supplied
-          if (!s.listing_mode || (s.listing_mode && s.verbose > 1))
+          // The rethrow_errors parameter lets the caller decide an
+          // alternative to printing the error. This is necessary when
+          // calling derive_probes() recursively during expansion of
+          // an alias with suffix -- any message printed here would
+          // point to the alias declaration and not the invalid suffix
+          // usage, so the caller needs to catch the error themselves
+          // and print a more appropriate message.
+          if (rethrow_errors)
+            {
+              throw semantic_error(e);
+            }
+	  // Only output in listing if -vv is supplied:
+          else if (!s.listing_mode || (s.listing_mode && s.verbose > 1))
             {
               // XXX: prefer not to print_error at every nest/unroll level
-              semantic_error* er = new semantic_error (e); // copy it
-              stringstream msg;
-              msg << e.msg2;
-              msg << _(" while resolving probe point ") << *loc;
-              er->msg2 = msg.str();
+              semantic_error* er = new semantic_error (_("while resolving probe point"),
+                                                       loc->components[0]->tok);
+              er->chain = & e;
               s.print_error (* er);
               delete er;
             }
@@ -1290,6 +1462,49 @@ void embeddedcode_info_pass (systemtap_session& s)
 // ------------------------------------------------------------------------
 
 
+// Simple visitor that collects all the regular expressions in the
+// file and adds them to the session DFA table.
+
+struct regex_collecting_visitor: public functioncall_traversing_visitor
+{
+protected:
+  systemtap_session& session;
+
+public:
+  regex_collecting_visitor (systemtap_session& s): session(s) { }
+
+  void visit_regex_query (regex_query *q) {
+    functioncall_traversing_visitor::visit_regex_query (q); // TODOXXX test necessity
+
+    string re = q->re->value;
+    try
+      {
+        regex_to_stapdfa (&session, re, session.dfa_counter);
+      }
+    catch (const semantic_error &e)
+      {
+        throw semantic_error(e.what(), q->right->tok);
+      }
+  }
+};
+
+// Go through the regex match invocations and generate corresponding DFAs.
+void gen_dfa_table (systemtap_session& s)
+{
+  regex_collecting_visitor rcv(s); // TODOXXX
+
+  for (unsigned i=0; i<s.probes.size(); i++)
+    {
+      s.probes[i]->body->visit (& rcv);
+
+      if (s.probes[i]->sole_location()->condition)
+        s.probes[i]->sole_location()->condition->visit (& rcv);
+    }
+}
+
+// ------------------------------------------------------------------------
+
+
 static int semantic_pass_symbols (systemtap_session&);
 static int semantic_pass_optimize1 (systemtap_session&);
 static int semantic_pass_optimize2 (systemtap_session&);
@@ -1314,18 +1529,44 @@ semantic_pass_symbols (systemtap_session& s)
   s.files.push_back (s.user_file);
   for (unsigned i = 0; i < s.files.size(); i++)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
       stapfile* dome = s.files[i];
 
       // Pass 1: add globals and functions to systemtap-session master list,
       //         so the find_* functions find them
+      //
+      // NB: tapset global/function definitions may duplicate or conflict
+      // with those already in s.globals/functions.  We need to deconflict
+      // here.
 
       for (unsigned i=0; i<dome->globals.size(); i++)
-        s.globals.push_back (dome->globals[i]);
+        {
+          vardecl* g = dome->globals[i];
+          for (unsigned j=0; j<s.globals.size(); j++)
+            {
+              vardecl* g2 = s.globals[j];
+              if (g->name == g2->name)
+                {
+                  s.print_error (semantic_error (_("conflicting global variables"), 
+                                                 g->tok, g2->tok));
+                }
+            }
+          s.globals.push_back (g);
+        }
 
       for (unsigned i=0; i<dome->functions.size(); i++)
-        s.functions[dome->functions[i]->name] = dome->functions[i];
+        {
+          functiondecl* f = dome->functions[i];
+          functiondecl* f2 = s.functions[f->name];
+          if (f2 && f != f2)
+            {
+              s.print_error (semantic_error (_("conflicting functions"), 
+                                             f->tok, f2->tok));
+            }
+          s.functions[f->name] = f;
+        }
 
+      // NB: embeds don't conflict with each other
       for (unsigned i=0; i<dome->embeds.size(); i++)
         s.embeds.push_back (dome->embeds[i]);
 
@@ -1334,7 +1575,7 @@ semantic_pass_symbols (systemtap_session& s)
 
       for (unsigned i=0; i<dome->probes.size(); i++)
         {
-          if (pending_interrupts) break;
+          assert_no_interrupts();
           probe* p = dome->probes [i];
           vector<derived_probe*> dps;
 
@@ -1344,7 +1585,7 @@ semantic_pass_symbols (systemtap_session& s)
 
           for (unsigned j=0; j<dps.size(); j++)
             {
-              if (pending_interrupts) break;
+              assert_no_interrupts();
               derived_probe* dp = dps[j];
               s.probes.push_back (dp);
               dp->join_group (s);
@@ -1375,7 +1616,7 @@ semantic_pass_symbols (systemtap_session& s)
 
       for (unsigned i=0; i<dome->functions.size(); i++)
         {
-          if (pending_interrupts) break;
+          assert_no_interrupts();
           functiondecl* fd = dome->functions[i];
 
           try
@@ -1423,7 +1664,6 @@ semantic_pass_symbols (systemtap_session& s)
 
   return s.num_errors(); // all those print_error calls
 }
-
 
 
 // Keep unread global variables for probe end value display.
@@ -1568,6 +1808,7 @@ void add_global_var_display (systemtap_session& s)
 	  foreach_loop* fe = new foreach_loop;
 	  fe->sort_direction = -1; // imply decreasing sort on value
 	  fe->sort_column = 0;     // as in   foreach ([a,b,c] in array-) { }
+	  fe->sort_aggr = sc_none; // as in default @count
 	  fe->value = NULL;
 	  fe->limit = NULL;
 	  fe->tok = l->tok;
@@ -1698,6 +1939,7 @@ semantic_pass (systemtap_session& s)
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
+      if (rc == 0) gen_dfa_table(s); // TODOXXX set rc?
       if (rc == 0) add_global_var_display (s);
       if (rc == 0) rc = semantic_pass_optimize2 (s);
       if (rc == 0) rc = semantic_pass_vars (s);
@@ -1714,8 +1956,10 @@ semantic_pass (systemtap_session& s)
     }
 
   // PR11443
-  if (s.listing_mode && s.probes.size() == 0)
-    rc ++;
+  // NB: listing mode only cares whether we have any probes,
+  // so all previous error conditions are disregarded.
+  if (s.listing_mode)
+    rc = s.probes.empty();
 
   return rc;
 }
@@ -1955,7 +2199,6 @@ symresolution_info::find_var (const string& name, int arity, const token* tok)
   for (unsigned i=0; i<session.globals.size(); i++)
     if (session.globals[i]->name == name)
       {
-	session.globals[i]->set_arity (arity, tok);
         if (! session.suppress_warnings)
           {
             vardecl* v = session.globals[i];
@@ -1966,7 +2209,8 @@ symresolution_info::find_var (const string& name, int arity, const token* tok)
                                           lex_cast(*v->tok).c_str()), tok);
               }
           }
-	return session.globals[i];
+        session.globals[i]->set_arity (arity, tok);
+        return session.globals[i];
       }
 
   // search library globals
@@ -2004,9 +2248,13 @@ symresolution_info::find_function (const string& name, unsigned arity)
       assert (fd->name == name);
       if (fd->formal_args.size() == arity)
         return fd;
+
+      session.print_warning (_F("mismatched arity-%zu function found", fd->formal_args.size()),
+                             fd->tok);
+      // and some semantic_error will shortly follow
     }
 
-  // search library globals
+  // search library functions
   for (unsigned i=0; i<session.library_files.size(); i++)
     {
       stapfile* f = session.library_files[i];
@@ -2104,7 +2352,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
         vardecl* l = s.probes[i]->locals[j];
 
         // skip over "special" locals
-        if (l->skip_init) { j++; continue; }
+        if (l->synthetic) { j++; continue; }
 
         if (vut.read.find (l) == vut.read.end() &&
             vut.written.find (l) == vut.written.end())
@@ -2270,7 +2518,8 @@ dead_assignment_remover::visit_assignment (assignment* e)
 
           varuse_collecting_visitor lvut(session);
           e->left->visit (& lvut);
-          if (lvut.side_effect_free () && !is_global) // XXX: use _wrt() once we track focal_vars
+          if (lvut.side_effect_free () && !is_global // XXX: use _wrt() once we track focal_vars
+              && !leftvar->synthetic) // don't elide assignment to synthetic $context variables
             {
               /* PR 1119: NB: This is not necessary here.  A write-only
                  variable will also be elided soon at the next _opt2 iteration.
@@ -2279,7 +2528,7 @@ dead_assignment_remover::visit_assignment (assignment* e)
               else
               */
               if (e->left->tok->location.file->name == session.user_file->name) // !tapset
-              session.print_warning(_F("Eliding assignment to %s at %s", leftvar->name.c_str(), lex_cast(*e->tok).c_str()));
+                session.print_warning(_F("Eliding assignment to %s at %s", leftvar->name.c_str(), lex_cast(*e->tok).c_str()));
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
               return;
@@ -2576,7 +2825,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
 
   for (unsigned i=0; i<s.probes.size(); i++)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
 
       derived_probe* p = s.probes[i];
 
@@ -2599,7 +2848,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
     }
   for (map<string,functiondecl*>::iterator it = s.functions.begin(); it != s.functions.end(); it++)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
 
       functiondecl* fn = it->second;
       duv.focal_vars.clear ();
@@ -2663,9 +2912,10 @@ struct void_statement_reducer: public update_visitor
   void visit_logical_and_expr (logical_and_expr* e);
   void visit_ternary_expression (ternary_expression* e);
 
-  // all of these can be reduced into simpler statements
+  // all of these can (usually) be reduced into simpler statements
   void visit_binary_expression (binary_expression* e);
   void visit_unary_expression (unary_expression* e);
+  void visit_regex_query (regex_query* e); // TODOXXX may or may not be reducible
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_functioncall (functioncall* e);
@@ -2852,6 +3102,28 @@ void_statement_reducer::visit_unary_expression (unary_expression* e)
 
   relaxed_p = false;
   e->operand->visit(this);
+}
+
+void
+void_statement_reducer::visit_regex_query (regex_query* e)
+{
+  // Whether we need to run a regex query depends on whether
+  // subexpression extraction is enabled, as in:
+  //
+  // str =~ "pat";
+  // println(matched(0)); // NOTE: not totally nice -- are we SURE it matched?
+  // TODOXXX it's debatable whether we should allow this, though
+
+  // TODOXXX since subexpression extraction is not yet implemented,
+  // just treat it as a unary expression wrt the left operand -- since
+  // the right hand side must be a literal (verified by the parses),
+  // evaluating it never has side effects.
+
+  if (session.verbose>2)
+    clog << _("Eliding regex query ") << *e->tok << endl;
+
+  relaxed_p = false;
+  e->left->visit(this);
 }
 
 void
@@ -3070,6 +3342,7 @@ struct const_folder: public update_visitor
   void visit_unary_expression (unary_expression* e);
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
+  // TODOXXX visit_regex_query could be done if we could run dfa at compiletime
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
@@ -3705,7 +3978,7 @@ semantic_pass_optimize1 (systemtap_session& s)
   unsigned iterations = 0;
   while (! relaxed_p)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
 
       relaxed_p = true; // until proven otherwise
 
@@ -3755,7 +4028,7 @@ semantic_pass_optimize2 (systemtap_session& s)
   unsigned iterations = 0;
   while (! relaxed_p)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
       relaxed_p = true; // until proven otherwise
 
       // If the verbosity is high enough, always print warnings (overrides -w),
@@ -3793,7 +4066,7 @@ semantic_pass_types (systemtap_session& s)
   // XXX: maybe convert to exception-based error signalling
   while (1)
     {
-      if (pending_interrupts) break;
+      assert_no_interrupts();
 
       iterations ++;
       ti.num_newly_resolved = 0;
@@ -3801,7 +4074,7 @@ semantic_pass_types (systemtap_session& s)
 
   for (map<string,functiondecl*>::iterator it = s.functions.begin(); it != s.functions.end(); it++)
         {
-          if (pending_interrupts) break;
+          assert_no_interrupts();
 
           functiondecl* fd = it->second;
           ti.current_probe = 0;
@@ -3820,7 +4093,7 @@ semantic_pass_types (systemtap_session& s)
 
       for (unsigned j=0; j<s.probes.size(); j++)
         {
-          if (pending_interrupts) break;
+          assert_no_interrupts();
 
           derived_probe* pn = s.probes[j];
           ti.current_function = 0;
@@ -3911,6 +4184,25 @@ void
 typeresolution_info::visit_logical_and_expr (logical_and_expr *e)
 {
   visit_binary_expression (e);
+}
+
+void
+typeresolution_info::visit_regex_query (regex_query *e)
+{
+  // NB: result of regex query is an integer!
+  if (t == pe_stats || t == pe_string)
+    invalid (e->tok, t);
+
+  t = pe_string;
+  e->left->visit (this);
+  t = pe_string;
+  e->right->visit (this); // parser ensures this is a literal known at compile time
+
+  if (e->type == pe_unknown)
+    {
+      e->type = pe_long;
+      resolved (e->tok, e->type);
+    }
 }
 
 
@@ -4277,8 +4569,25 @@ typeresolution_info::visit_cast_op (cast_op* e)
   if (e->saved_conversion_error)
     throw (* (e->saved_conversion_error));
   else
-    throw semantic_error(_F("type definition '%s' not found",
-                            e->type_name.c_str()), e->tok);
+    throw semantic_error(_F("type definition '%s' not found in '%s'",
+                            e->type_name.c_str(), e->module.c_str()), e->tok);
+}
+
+
+void
+typeresolution_info::visit_perf_op (perf_op* e)
+{
+  // A perf_op should already be resolved
+  if (t == pe_stats || t == pe_string)
+    invalid (e->tok, t);
+
+  e->type = pe_long;
+
+  // (There is no real need to visit our operand - by parser
+  // construction, it's always a string literal, with its type already
+  // set.)
+  t = pe_string;
+  e->operand->visit (this);
 }
 
 
@@ -4548,6 +4857,11 @@ typeresolution_info::visit_foreach_loop (foreach_loop* e)
           e->value->visit (this);
         }
     }
+
+  /* Prevent @sum etc. aggregate sorting on non-statistics arrays. */
+  if (wanted_value != pe_unknown)
+    if (e->sort_aggr != sc_none && wanted_value != pe_stats)
+      invalid (array->tok, wanted_value);
 
   if (e->limit)
     {

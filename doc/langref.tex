@@ -52,7 +52,7 @@
 \newpage{}
 This document was derived from other documents contributed to the SystemTap project by employees of Red Hat, IBM and Intel.\newline
 
-Copyright \copyright\space  2007-2010 Red Hat Inc.\newline
+Copyright \copyright\space  2007-2013 Red Hat Inc.\newline
 Copyright \copyright\space  2007-2009 IBM Corp.\newline
 Copyright \copyright\space  2007 Intel Corporation.\newline
 
@@ -365,11 +365,12 @@ Events are specified in a special syntax called \emph{probe points}. There
 are several varieties of probe points defined by the translator, and tapset
 scripts may define others using aliases. The provided probe points are listed
 in the \texttt{stapprobes(3)}, \texttt{tapset::*(3stap)}, and
-\texttt{probe::*(3stap)} man pages.
+\texttt{probe::*(3stap)} man pages.  The STMT statement block is executed
+whenever {\i any} of the named PROBEPOINT events occurs.
 
 The probe handler is interpreted relative to the context of each event. For
 events associated with kernel code, this context may include variables defined
-in the source code at that location. These \emph{target variables}\index{target variables}
+in the source code at that location. These \emph{target variables}\index{target variables} (or ``context variables'')
 are presented to the script as variables whose names are prefixed with a
 dollar sign (\$). They may be accessed only if the compiler used to compile
 the kernel preserved them, despite optimization. This is the same constraint
@@ -451,7 +452,7 @@ probe syscall.read = kernel.function("sys_read") {
 \index{+=}
 The statement block that follows an alias definition is implicitly added
 as an epilogue to any probe that refers to the alias.  It is not useful
-to define new variable there (since no subsequent code will see it), but
+to define new variables there (since no subsequent code will see them), but
 rather the code can take action based upon variables set by the
 prologue or by the user code.  The following is an example:
 
@@ -478,6 +479,69 @@ probe syscall.read {
 }
 \end{verbatim}
 \end{vindent}
+
+\subsubsection{Alias suffixes}
+
+It is possible to include a suffix with a probe alias invocation. If
+only the initial part of a probe point matches an alias, the remainder
+is treated as a suffix and attached to the underlying probe point(s) when
+the alias is expanded. For example:
+
+\begin{vindent}
+\begin{verbatim}
+/* Define an alias: */
+probe sendrecv = tcp.sendmsg, tcp.recvmsg { ... }
+
+/* Use the alias in its basic form: */
+probe sendrecv { ... }
+
+/* Use the alias with an additional suffix: */
+probe sendrecv.return { ... }
+\end{verbatim}
+\end{vindent}
+
+Here, the second use of the probe alias is equivalent to writing \verb+probe tcp.sendmsg.return, tcp.recvmsg.return+.
+
+As another example, the probe points \verb+tcp.sendmsg.return+ and \verb+tcp.recvmsg.return+ are actually defined as aliases in the tapset \verb+tcp.stp+. They expand to a probe point of the form \verb+kernel.function("...").return+, so they can also be suffixed:
+
+\begin{vindent}
+\begin{verbatim}
+probe tcp.sendmsg.return.maxactive(10) {
+    printf("returning from sending %d bytes\n", size)
+}
+\end{verbatim}
+\end{vindent}
+
+Here, the probe point expands to
+\verb+kernel.function("tcp_sendmsg").return.maxactive(10)+.
+
+\subsubsection{Alias suffixes and wildcards}
+
+When expanding wildcards, SystemTap generally avoids considering alias
+suffixes in the expansion. The exception is when a wildcard element is
+encountered that does not have any ordinary expansions. Consider the
+following example:
+
+\begin{vindent}
+\begin{verbatim}
+probe some_unrelated_probe = ... { ... }
+
+probe myprobe = syscall.read { ... }
+
+probe myprobe.test = some_unrelated_probe { ... }
+
+probe myprobe.* { ... }
+
+probe myprobe.ret* { ... }
+\end{verbatim}
+\end{vindent}
+
+Here, \verb+return+ would be a valid suffix for \verb+myprobe+. The
+wildcard \verb+myprobe.*+ matches the ordinary alias
+\verb+myprobe.test+, and hence the suffix expansion
+\verb+myprobe.return+ is not included. Conversely, \verb+myprobe.ret*+
+does not match any ordinary aliases, so the suffix
+\verb+myprobe.return+ is included as an expansion.
 
 \subsection{Variables\label{sub:Variables}}
 \index{variables}
@@ -567,17 +631,47 @@ limit. See Section~\ref{sub:SystemTap-safety}.
 
 \subsection{Embedded C\label{sub:Embedded-C}}
 \index{embedded C}
-SystemTap supports a \emph{guru\index{guru mode} mode} where script safety
-features such as code and data memory reference protection are removed. Guru
-mode is set by passing the \textbf{-g} option to the stap command. When in guru
-mode, the translator accepts C code enclosed between {}``\%\{''
-and {}``\%\}'' markers in the script file. The embedded C code is transcribed
-verbatim, without analysis, in sequence, into generated C code. At the outermost
-level of a script, guru mode may be useful to add \#include instructions,
-or any auxiliary definitions for use by other embedded code.
+SystemTap supports a \emph{guru\index{guru mode} mode} where script
+safety features such as code and data memory reference protection are
+removed. Guru mode is set by passing the \textbf{-g} option to the
+stap command. When in guru mode, the translator accepts C code
+enclosed between {}``\%\{'' and {}``\%\}'' markers in the top level of
+the script file. The embedded C code is transcribed verbatim, without
+analysis, in sequence, into the top level of the generated C
+code. Thus, guru mode may be useful for adding \#include instructions
+at the top level of the generated module, or providing auxiliary
+definitions for use by other embedded code.
 
+When in guru mode, embedded C code blocks are also allowed as the body
+of a SystemTap function (as described in
+Section~\ref{sub:Embedded-C-Functions}), and in place of any SystemTap
+expression. In the latter case, the code block must contain a valid
+expression according to C syntax.
 
-\subsection{Embedded C functions}
+Here is an example of the various permitted methods of embedded C code inclusion:
+
+\begin{vindent}
+\begin{verbatim}
+%{
+#include <linux/in.h>
+#include <linux/ip.h>
+%} /* <-- top level */
+
+/* Reads the char value stored at a given address: */ 
+function __read_char:long(addr:long) %{ /* pure */
+         STAP_RETVALUE = kderef(sizeof(char), STAP_ARG_addr);
+         CATCH_DEREF_FAULT ();
+%} /* <-- function body */
+
+/* Determines whether an IP packet is TCP, based on the iphdr: */
+function is_tcp_packet:long(iphdr) {
+         protocol = @cast(iphdr, "iphdr")->protocol
+         return (protocol == %{ IPPROTO_TCP %}) /* <-- expression */
+}
+\end{verbatim}
+\end{vindent}
+
+\subsection{Embedded C functions\label{sub:Embedded-C-Functions}}
 
 General syntax:
 
@@ -591,7 +685,7 @@ In that case, the script language
 body is replaced entirely by a piece of C code enclosed between 
 {}``\%\{'' and {}``\%\}'' markers.
 The enclosed code may do anything reasonable and safe as allowed
-by the parser.
+by the C parser.
 
 There are a number of undocumented but complex safety constraints on concurrency,
 resource consumption and runtime limits that are applied to code written
@@ -615,18 +709,20 @@ name = kread(&(dev->name));
 \end{verbatim}
 \end{vindent}
 
-The memory locations reserved for input and output values are provided to
-a function using a macro named \texttt{THIS}\index{THIS}. The following
-are examples.
+The memory locations reserved for input and output values are provided
+to a function using macros named
+\texttt{STAP\_ARG\_foo}\index{STAP_ARG_} (for arguments named
+\texttt{foo}) and \texttt{STAP\_RETVALUE}\index{STAP_RETVALUE}. The
+following are examples.
 
 \begin{vindent}
 \begin{verbatim}
 function add_one (val:long) %{
-    THIS->__retvalue = THIS->val + 1;
+    STAP_RETVALUE = STAP_ARG_val + 1;
 %}
 function add_one_str:string (val:string) %{
-    strlcpy (THIS->__retvalue, THIS->val, MAXSTRINGLEN);
-    strlcat (THIS->__retvalue, "one", MAXSTRINGLEN);
+    strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
+    strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
 %}
 \end{verbatim}
 \end{vindent}
@@ -638,6 +734,37 @@ C code generated for ordinary script language functions to write compatible
 embedded-C. Note that all SystemTap functions and probes run with interrupts
 disabled, thus you cannot call functions that might sleep within the embedded
 C.
+
+\subsection{Embedded C pragma comments}
+
+Embedded C blocks may contain various markers to assert optimization
+and safety properties.
+
+\begin{itemize}
+\item \verb+/* pure */+ means that the C code has no side effects and
+  may be elided entirely if its value is not used by script code.
+\item \verb+/* unprivileged */+ means that the C code is so safe that
+  even unprivileged users are permitted to use it. (This is useful, in
+  particular, to define an embedded-C function inside a tapset that
+  may be used by unprivileged code.)
+\item \verb+/* myproc-unprivileged */+ means that the C code is so
+  safe that even unprivileged users are permitted to use it, provided
+  that the target of the current probe is within the user's own
+  process.
+\item \verb+/* guru */+ means that the C code is so unsafe that a
+  systemtap user must specify \verb+-g+ (guru mode) to use this, even
+  if the C code is being exported from a tapset.
+\item \verb+/* unmangled */+, used in an embedded-C function, means
+  that the legacy (pre-1.8) argument access syntax should be made
+  available inside the function. Hence, in addition to
+  \verb+STAP_ARG_foo+ and \verb+STAP_RETVALUE+ one can use
+  \verb+THIS->foo+ and \verb+THIS->__retvalue+ respectively inside the
+  function. This is useful for quickly migrating code written for
+  SystemTap version 1.7 and earlier.
+\item \verb+/* string */+ in embedded-C expressions only, means that
+  the expression has \verb+const char *+ type and should be treated as
+  a string value, instead of the default long numeric.
+\end{itemize}
 
 \section{Probe points\label{sec:Probe-Points}}
 \index{probe points}
@@ -799,19 +926,47 @@ module address or an absolute kernel address.
 Some of the source-level variables, such as function parameters, locals,
 or globals visible in the compilation unit, are visible to probe handlers.
 Refer to these variables by prefixing their name with a dollar sign within
-the scripts. In addition, a special syntax allows limited traversal of structures,
-pointers, and arrays.
+the scripts. In addition, a special syntax allows limited traversal of
+structures, pointers, arrays, taking the address of a variable or pretty
+printing a whole structure.
 
 \texttt{\$var} refers to an in-scope variable var. If it is a type similar
 to an integer, it will be cast to a 64-bit integer for script use. Pointers
 similar to a string (char {*}) are copied to SystemTap string values by the
 \texttt{kernel\_string()} or \texttt{user\_string()} functions.
 
-\texttt{\$var->field} traverses a structure's field. The indirection operator
-may be repeated to follow additional levels of pointers.
+\texttt{@var("varname")} is an alternative syntax for \texttt{\$varname}.
+It can also be used to access global variables in a particular compile
+unit (CU).  \texttt{@var("varname@src/file.c")} refers to the global
+(either file local or external) variable varname defined when the file
+src/file.c was compiled. The CU in which the variable is resolved is
+the first CU in the module of the probe point which matches the given
+file name at the end and has the shortest file name path (e.g. given
+\texttt{@var("foo@bar/baz.c")} and CUs with file name paths
+\texttt{src/sub/module/bar/baz.c} and \texttt{src/bar/baz.c} the second
+CU will be chosen to resolve \texttt{foo}).
 
-\texttt{\$var{[}N]} indexes into an array. The index is given with a literal
-number.
+\texttt{\$var->field} or \texttt{@var("var@file.c")->field} traverses a
+structure's field. The indirection operator may be repeated to follow
+additional levels of pointers.
+
+\texttt{\$var{[}N]} or \texttt{@var("var@file.c"){[}N]} indexes into an
+array. The index is given with a literal number.
+
+\texttt{\&\$var} or \texttt{\&@var("var@file.c")} provides the address of
+a variable as a long. It can also be used in combination with field access
+or array indexing to provide the address of a particular field or an
+element in an array with \texttt{\&var->field},
+\texttt{\&@var("var@file.c"){[}N]} or a combination of those accessors.
+
+Using a single \texttt{\$} or a double \texttt{\$\$} suffix provides a
+swallow or deep string representation of the variable data type. Using
+a single \texttt{\$}, as in \texttt{\$var\$}, will provide a string that
+only includes the values of all basic type values of fields of the variable
+structure type but not any nested complex type values (which will be
+represented with \texttt{\{...\}}). Using a double \texttt{\$\$},
+as in \texttt{@var("var")\$\$} will provide a string that also includes
+all values of nested data types.
 
 \texttt{\$\$vars} expands to a character string that is equivalent to
 \texttt{sprintf("parm1=\%x ... parmN=\%x var1=\%x ... varN=\%x", \$parm1, ..., \$parmN,
@@ -846,9 +1001,9 @@ Examples:
 # in the name:
 kernel.function("*init*"), kernel.function("*exit*")
 
-# Refers to any functions within the "kernel/sched.c"
+# Refers to any functions within the "kernel/time.c"
 # file that span line 240:
-kernel.function("*@kernel/sched.c:240")
+kernel.function("*@kernel/time.c:240")
 
 # Refers to all functions in the ext3 module:
 module("ext3").function("*")
@@ -873,9 +1028,9 @@ Example:
 
 \begin{vindent}
 \begin{verbatim}
-# Refers to the statement at line 2917 within the
-# kernel/sched.c file:
-kernel.statement("*@kernel/sched.c:2917")
+# Refers to the statement at line 296 within the
+# kernel/time.c file:
+kernel.statement("*@kernel/time.c:296")
 # Refers to the statement at line bio_init+3 within the fs/bio.c file:
 kernel.statement("bio_init@fs/bio.c+3")
 \end{verbatim}
@@ -952,10 +1107,7 @@ to not register. Also, statement probes are available only in guru mode.
 \index{userspace probing}
 \index{process}
 Support for userspace probing is supported on kernels that are
-configured to include the utrace extensions.  Red Hat and CentOS
-distributions provide kernels with utrace support enabled.  For more
-information about utrace, see
-\url{http://people.redhat.com/roland/utrace/}.
+configured to include the utrace or uprobes extensions.
 
 \subsubsection{Begin/end variants}
 \label{sec:beginendvariants}
@@ -1555,10 +1707,30 @@ in C. Integers are 64-bit signed quantities, although the parser also accepts
 
 \subsubsection{Strings\label{sub:Strings}}
 \index{strings}
-Strings are enclosed in quotation marks ({}``string''), and pass through
-standard C escape codes with backslashes. Strings are limited in length to
-MAXSTRINGLEN. For more information about this and other limits, see
-Section~\ref{sub:SystemTap-safety}.
+
+Strings are enclosed in quotation marks ({}``string''), and pass
+through standard C escape codes with backslashes. A string literal may
+be split into several pieces, which are glued together, as follows.
+
+\begin{vindent}
+\begin{verbatim}
+str1 = "foo" "bar"
+  /* --> becomes "foobar" */
+
+str2 = "a good way to do a multi-line\n"
+       "string literal"
+  /* --> becomes "a good way to do a multi-line\nstring literal" */
+
+str3 = "also a good way to " @1 " splice command line args"
+  /* --> becomes "also a good way to foo splice command line args",
+     assuming @1 is given as foo on the command line */
+\end{verbatim}
+\end{vindent}
+
+Observe that script arguments can also be glued into a string literal.
+
+Strings are limited in length to MAXSTRINGLEN. For more information
+about this and other limits, see Section~\ref{sub:SystemTap-safety}.
 
 
 \subsubsection{Associative arrays}
@@ -1625,9 +1797,19 @@ it generates an error. The following subsections list these operators.
 \index{unary}
 \texttt{+ - ! \textasciitilde{} ++ -{}-}
 
-\subsubsection{Binary numeric or string comparison operators}
+\subsubsection{Binary numeric, string comparison, or regular expression matching operators}
 \index{comparison}
-\texttt{< > <= >= == !=}
+\texttt{< > <= >= == !=} \verb+=~+ \verb+!~+
+
+The regular expression matching (\verb+=~+ and \verb+!~+) is
+currently an experimental feature. The second operand must be a string
+literal containing a syntactically valid regular expression. The
+regular expression syntax supports most of the features of POSIX
+Extended Regular Expressions, aside from subexpression reuse
+(\verb+\1+) and named character classes (\texttt{[:digit:]},
+\texttt{[:alpha:]}, ...). The ability to capture and extract the
+contents of the matched string and subexpressions has not yet been
+implemented.
 
 \subsubsection{Ternary operator\label{sub:Ternary-operator}}
 \index{?}
@@ -1774,13 +1956,15 @@ output will be
 \end{verbatim}
 \end{vindent}
 
+
 \subsection{Conditional compilation}
 
 
 \subsubsection{Conditions}
 \index{conditions}
-One of the steps of parsing is a simple conditional preprocessing stage.
-The general form of this is similar to the ternary operator (Section~\ref{sub:Ternary-operator}).
+One of the steps of parsing is a simple preprocessing stage.  The
+preprocessor supports conditionals with a general form similar to the
+ternary operator (Section~\ref{sub:Ternary-operator}).
 
 \begin{vindent}
 \begin{verbatim}
@@ -1838,6 +2022,22 @@ literal for matching it. This comparison is a simple string equality or inequali
 The currently supported architecture strings are i386, i686, x86\_64, ia64,
 s390, and powerpc.
 
+\subsubsection{Conditions based on privilege level: systemtap\_privilege}
+\index{systemtap\_privilege}
+
+If the first part of the conditional expression is the identifier
+\texttt{systemtap\_privilege} which refers to the privilege level the
+systemtap script is being compiled with, then the second part is a
+string comparison operator ''=='' or ''!='', and the third part is a
+string literal for matching it. This comparison is a simple string
+equality or inequality.  The possible privilege strings to consider
+are \verb+"stapusr"+ for unprivileged scripts, and \verb+"stapsys"+ or
+\verb+"stapdev"+ for privileged scripts. (In general, to test for a
+privileged script it is best to use \verb+!= "stapusr"+.)
+
+This condition can be used to write scripts that can be run in both
+privileged and unprivileged modes, with additional functionality made
+available in the privileged case.
 
 \subsubsection{True and False Tokens}
 \index{tokens}
@@ -1877,6 +2077,73 @@ The following code adapts to the presence of a kernel CONFIG option.
 \end{verbatim}
 \end{vindent}
 
+
+\subsection{Preprocessor macros (experimental)}
+
+This is an experimental feature whose semantics are subject to change.
+
+\subsubsection{Local macros}
+
+The preprocessor also supports a simple macro facility.
+
+Macros taking zero or more arguments are defined using the following
+construct:
+
+\begin{vindent}
+\begin{verbatim}
+@define NAME %( BODY %)
+@define NAME(PARAM_1, PARAM_2, ...) %( BODY %)
+\end{verbatim}
+\end{vindent}
+
+Macro arguments are referred to in the body by prefixing the argument
+name with an \texttt{@} symbol. Likewise, once defined, macros are
+invoked by prefixing the macro name with an \texttt{@} symbol:
+
+\begin{vindent}
+\begin{verbatim}
+@define foo %( x %)
+@define add(a,b) %( ((@a)+(@b)) %)
+
+   @foo = @add(2,2)
+\end{verbatim}
+\end{vindent}
+
+Macro expansion is currently performed in a separate pass before
+conditional compilation. Therefore, both TRUE- and FALSE-tokens in
+conditional expressions will be macroexpanded regardless of how the
+condition is evaluated. This can sometimes lead to errors:
+
+\begin{vindent}
+\begin{verbatim}
+// The following results in a conflict:
+%( CONFIG_UTRACE == "y" %?
+    @define foo %( process.syscall %)
+%:
+    @define foo %( **ERROR** %)
+%)
+
+// The following works properly as expected:
+@define foo %(
+  %( CONFIG_UTRACE == "y" %? process.syscall %: **ERROR** %)
+%)
+\end{verbatim}
+\end{vindent}
+
+The first example is incorrect because both \texttt{@define}s are
+evaluated in a pass prior to the conditional being evaluated.
+
+\subsubsection{Library macros}
+
+Normally, a macro definition is local to the file it occurs in. Thus,
+defining a macro in a tapset does not make it available to the user of
+the tapset.
+
+Publically available library macros can be defined by including
+\texttt{.stpm} files on the tapset search path. These files may only
+contain \texttt{@define} constructs, which become visible across all
+tapsets and user scripts.
+
 \section{Statement types\label{sec:Statement-Types}}
 
 Statements enable procedural control flow within functions and probe handlers.
@@ -1914,7 +2181,7 @@ try {
 \end{vindent}
 
 
-\subsection{delete}
+\subsection{delete\label{sub:delete}}
 \index{delete}
 \texttt{delete} removes an element.
 
@@ -1986,6 +2253,15 @@ on at most one VAR or ARRAY identifier.
 foreach ([VAR1, VAR2, ...] in ARRAY) STMT
 \end{verbatim}
 \end{vindent}
+
+You can combine the first and second syntax to capture both the full tuple
+and the keys at the same time as follows.
+\begin{vindent}
+\begin{verbatim}
+foreach (VAR = [VAR1, VAR2, ...] in ARRAY) STMT
+\end{verbatim}
+\end{vindent}
+
 The following statement is the same as the first example, except that the
 \texttt{limit} keyword limits the number of loop iterations to EXP times.
 EXP is evaluated once at the beginning of the loop.
@@ -2153,7 +2429,8 @@ global ARRAY1%[<size>], ARRAY2%
 Like awk, SystemTap's foreach creates a loop that iterates over key tuples
 of an array, not only values. The iteration may be sorted by any single key
 or a value by adding an extra plus symbol (+) or minus symbol (-) to the
-code. The following are examples.
+code or limited to only a few elements with the limit keyword.
+The following are examples.
 
 \begin{vindent}
 \begin{verbatim}
@@ -2166,6 +2443,10 @@ foreach ([a,b] in foo+) { ... }
 
 # Loop in decreasing sequence of first key:
 foreach ([a-,b] in foo) { ... }
+
+# Print the first 10 tuples and values in the array in decreasing sequence
+foreach (v = [i,j] in foo- limit 10)
+    printf("foo[%d,%s] = %d\n", i, j, v)
 \end{verbatim}
 \end{vindent}
 The \texttt{break} and \texttt{continue} statements also work inside foreach
@@ -2173,6 +2454,13 @@ loops. Since arrays can be large but probe handlers must execute quickly,
 you should write scripts that exit iteration early, if possible. For simplicity,
 SystemTap forbids any modification of an array during iteration with a foreach.
 
+For a full description of \texttt{foreach} see subsection \ref{sub:foreach}.
+
+\subsection{Deletion}
+\index{delete}
+The \texttt{delete} statement can either remove a single element by index from
+an array or clear an entire array at once.  See subsection \ref{sub:delete} for
+details and examples.
 
 \section{Statistics (aggregates)\label{sec:Statistics}}
 \index{aggregates}
@@ -2349,6 +2637,10 @@ value |-------------------------------------------------- count
 \end{vindent}
 \end{samepage}
 
+\subsection{Deletion}
+\index{delete}
+The \texttt{delete} statement (subsection \ref{sub:delete}) applied to an
+aggregate variable will reset it to the initial empty state.
 
 \section{Formatted output}
 
@@ -2657,7 +2949,7 @@ rather than printing it.
 \section{Tapset-defined functions\label{sec:Predefined-Functions}}
 
 Unlike built-in functions, tapset-defined functions are implemented in tapset scripts.
-These are individually documented in the in the \texttt{stapfuncs(3)}, 
+These are individually documented in the in \texttt{tapset::*(3stap)}, 
 \texttt{function::*(3stap)},
 and \texttt{probe::*(3stap)} man pages, and implemented under
 \texttt{/usr/share/systemtap/tapset}.

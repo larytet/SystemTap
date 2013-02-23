@@ -34,11 +34,11 @@ extern "C" {
 #include <wordexp.h>
 #include <glob.h>
 #include <fcntl.h>
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
 #include <sys/types.h>
 #include <pwd.h>
+#include <semaphore.h>
 
 #include <nspr.h>
 #include <ssl.h>
@@ -65,16 +65,15 @@ using namespace std;
 static void cleanup ();
 static PRStatus spawn_and_wait (const vector<string> &argv,
                                 const char* fd0, const char* fd1, const char* fd2,
-				const char *pwd, bool setrlimits = false, const vector<string>& envVec = vector<string> ());
+				const char *pwd, const vector<string>& envVec = vector<string> ());
 
 /* getopt variables */
 extern int optind;
 
 /* File scope statics. Set during argument parsing and initialization. */
-static cs_protocol_version client_version;
-static bool set_rlimits;
 static bool use_db_password;
-static int port;
+static unsigned short port;
+static long max_threads;
 static string cert_db_path;
 static string stap_options;
 static string uname_r;
@@ -86,21 +85,9 @@ static string R_option;
 static string D_options;
 static bool   keep_temp;
 
-// Used to save our resource limits for these categories and impose smaller
-// limits on the translator while servicing a request.
-static struct rlimit our_RLIMIT_FSIZE;
-static struct rlimit our_RLIMIT_STACK;
-static struct rlimit our_RLIMIT_CPU;
-static struct rlimit our_RLIMIT_NPROC;
-static struct rlimit our_RLIMIT_AS;
-
-static struct rlimit translator_RLIMIT_FSIZE;
-static struct rlimit translator_RLIMIT_STACK;
-static struct rlimit translator_RLIMIT_CPU;
-static struct rlimit translator_RLIMIT_NPROC;
-static struct rlimit translator_RLIMIT_AS;
-
-static string stapstderr;
+sem_t sem_client;
+static int pending_interrupts;
+#define CONCURRENCY_TIMEOUT_S 3
 
 // Message handling.
 // Server_error messages are printed to stderr and logged, if requested.
@@ -115,7 +102,7 @@ server_error (const string &msg, int logit = true)
 
 // client_error messages are treated as server errors and also printed to the client's stderr.
 static void
-client_error (const string &msg)
+client_error (const string &msg, string stapstderr)
 {
   server_error (msg);
   if (! stapstderr.empty ())
@@ -181,15 +168,21 @@ parse_options (int argc, char **argv)
   optind = 1;
   while (true)
     {
-      int long_opt = 0;
       char *num_endptr;
-#define LONG_OPT_PORT 1
-#define LONG_OPT_SSL 2
-#define LONG_OPT_LOG 3
+      long port_tmp;
+      // NB: The values of these enumerators must not conflict with the values of ordinary
+      // characters, since those are returned by getopt_long for short options.
+      enum {
+	LONG_OPT_PORT = 256,
+	LONG_OPT_SSL,
+	LONG_OPT_LOG,
+	LONG_OPT_MAXTHREADS
+      };
       static struct option long_options[] = {
-        { "port", 1, & long_opt, LONG_OPT_PORT },
-        { "ssl", 1, & long_opt, LONG_OPT_SSL },
-        { "log", 1, & long_opt, LONG_OPT_LOG },
+        { "port", 1, NULL, LONG_OPT_PORT },
+        { "ssl", 1, NULL, LONG_OPT_SSL },
+        { "log", 1, NULL, LONG_OPT_LOG },
+        { "max-threads", 1, NULL, LONG_OPT_MAXTHREADS },
         { NULL, 0, NULL, 0 }
       };
       int grc = getopt_long (argc, argv, "a:B:D:I:kPr:R:", long_options, NULL);
@@ -225,6 +218,30 @@ parse_options (int argc, char **argv)
 	  R_option = string (" -") + (char)grc + optarg;
 	  stap_options += string (" -") + (char)grc + optarg;
 	  break;
+	case LONG_OPT_PORT:
+	  port_tmp =  strtol (optarg, &num_endptr, 10);
+	  if (*num_endptr != '\0')
+	    fatal (_F("%s: cannot parse number '--port=%s'", argv[0], optarg));
+	  else if (port_tmp < 0 || port_tmp > 65535)
+	    fatal (_F("%s: invalid entry: port must be between 0 and 65535 '--port=%s'", argv[0],
+		      optarg));
+	  else
+	    port = (unsigned short) port_tmp;
+	  break;
+	case LONG_OPT_SSL:
+	  cert_db_path = optarg;
+	  break;
+	case LONG_OPT_LOG:
+	  process_log (optarg);
+	  break;
+	case LONG_OPT_MAXTHREADS:
+	  max_threads = strtol (optarg, &num_endptr, 0);
+	  if (*num_endptr != '\0')
+	    fatal (_F("%s: cannot parse number '--max-threads=%s'", argv[0], optarg));
+	  else if (max_threads < 0)
+	    fatal (_F("%s: invalid entry: max threads must not be negative '--max-threads=%s'",
+		      argv[0], optarg));
+	  break;
 	case '?':
 	  // Invalid/unrecognized option given. Message has already been issued.
 	  break;
@@ -235,27 +252,6 @@ parse_options (int argc, char **argv)
           else
 	    server_error (_F("%s: unhandled option '%c'", argv[0], (char)grc));
 	  break;
-        case 0:
-          switch (long_opt)
-            {
-            case LONG_OPT_PORT:
-	      port = (int) strtoul (optarg, &num_endptr, 10);
-	      break;
-            case LONG_OPT_SSL:
-	      cert_db_path = optarg;
-	      break;
-            case LONG_OPT_LOG:
-	      process_log (optarg);
-	      break;
-            default:
-	      if (optarg)
-		server_error (_F("%s: unhandled option '--%s=%s'", argv[0],
-				    long_options[long_opt - 1].name, optarg));
-	      else
-		server_error (_F("%s: unhandled option '--%s'", argv[0],
-				    long_options[long_opt - 1].name));
-            }
-          break;
         }
     }
 
@@ -275,31 +271,13 @@ extern "C"
 void
 handle_interrupt (int sig)
 {
-  // If one of the resource limits that we set for the translator was exceeded, then we can
-  // continue, as long as it wasn't our own limit that was exceeded.
-  int rc;
-  struct rlimit rl;
-  switch (sig)
+  pending_interrupts++;
+  if(pending_interrupts >= 2)
     {
-    case SIGXFSZ:
-      rc = getrlimit (RLIMIT_FSIZE, & rl);
-      if (rc == 0 && rl.rlim_cur < our_RLIMIT_FSIZE.rlim_cur)
-	return;
-      break;
-    case SIGXCPU:
-      rc = getrlimit (RLIMIT_CPU, & rl);
-      if (rc == 0 && rl.rlim_cur < our_RLIMIT_CPU.rlim_cur)
-	return;
-      break;
-    default:
-      break;
+      log (_F("Received another signal %d, exiting (forced)", sig));
+      _exit(0);
     }
-
-  // Otherwise, it's game over.
   log (_F("Received signal %d, exiting", sig));
-  kill_stap_spawn (sig);
-  cleanup ();
-  exit (0);
 }
 
 static void
@@ -430,7 +408,7 @@ create_services (AvahiClient *c) {
       if (! I_options.empty ())
 	optinfo += separator + I_options.substr(1);
 
-      // We will now our service to the entry group. Only services with the
+      // We will now add our service to the entry group. Only services with the
       // same name should be put in the same entry group.
       int ret;
       if ((ret = avahi_entry_group_add_service (avahi_group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC,
@@ -544,8 +522,16 @@ static void
 avahi_publish_service (CERTCertificate *cert)
 {
   cert_serial_number = get_cert_serial_number (cert);
-
-  string buf = "Systemtap Compile Server, pid=" + lex_cast (getpid ());
+  string buf;
+  try
+    {
+      buf = "Systemtap Compile Server, pid=" + lex_cast (getpid ());
+    }
+  catch (const runtime_error &e)
+    {
+      server_error(_F("Failed to cast pid '%d' to a string: %s", getpid(), e.what()));
+      return;
+    }
   avahi_service_name = avahi_strdup (buf.c_str ());
 
   // Allocate main loop object.
@@ -560,7 +546,7 @@ avahi_publish_service (CERTCertificate *cert)
   avahi_client = avahi_client_new (avahi_threaded_poll_get (avahi_threaded_poll),
 				   (AvahiClientFlags)0,
 				   client_callback, NULL, & error);
-  // Check wether creating the client object succeeded.
+  // Check whether creating the client object succeeded.
   if (! avahi_client)
     {
       server_error (_F("Failed to create avahi client: %s", avahi_strerror(error)));
@@ -594,15 +580,16 @@ unadvertise_presence ()
 
 static void
 initialize (int argc, char **argv) {
+  pending_interrupts = 0;
   setup_signals (& handle_interrupt);
 
   // Seed the random number generator. Used to generate noise used during key generation.
   srand (time (NULL));
 
   // Initial values.
-  client_version = "1.0"; // Assumed until discovered otherwise
   use_db_password = false;
   port = 0;
+  max_threads = sysconf( _SC_NPROCESSORS_ONLN ); // Default to number of processors
   keep_temp = false;
   struct utsname utsname;
   uname (& utsname);
@@ -614,45 +601,16 @@ initialize (int argc, char **argv) {
   parse_options (argc, argv);
 
   // PR11197: security prophylactics.
-  // 1) Reject use as root, except via a special environment variable.
+  // Reject use as root, except via a special environment variable.
   if (! getenv ("STAP_PR11197_OVERRIDE")) {
     if (geteuid () == 0)
       fatal ("For security reasons, invocation of stap-serverd as root is not supported.");
   }
-  // 2) resource limits should be set if the user is the 'stap-server' daemon.
+
   struct passwd *pw = getpwuid (geteuid ());
   if (! pw)
     fatal (_F("Unable to determine effective user name: %s", strerror (errno)));
   string username = pw->pw_name;
-  if (username == "stap-server") {
-    // First obtain the current limits.
-    int rc = getrlimit (RLIMIT_FSIZE, & our_RLIMIT_FSIZE);
-    rc |= getrlimit (RLIMIT_STACK, & our_RLIMIT_STACK);
-    rc |= getrlimit (RLIMIT_CPU,   & our_RLIMIT_CPU);
-    rc |= getrlimit (RLIMIT_NPROC, & our_RLIMIT_NPROC);
-    rc |= getrlimit (RLIMIT_AS,    & our_RLIMIT_AS);
-    if (rc != 0)
-      fatal (_F("Unable to obtain current resource limits: %s", strerror (errno)));
-
-    // Now establish limits for the translator. Make sure these limits do not exceed the current
-    // limits.
-    #define TRANSLATOR_LIMIT(category, limit) \
-      do { \
-	translator_RLIMIT_##category = our_RLIMIT_##category; \
-	if (translator_RLIMIT_##category.rlim_cur > (limit)) \
-	  translator_RLIMIT_##category.rlim_cur = (limit); \
-      } while (0);
-    TRANSLATOR_LIMIT (FSIZE, 50000 * 1024);
-    TRANSLATOR_LIMIT (STACK, 1000 * 1024);
-    TRANSLATOR_LIMIT (CPU, 60);
-    TRANSLATOR_LIMIT (NPROC, 20);
-    TRANSLATOR_LIMIT (AS, 500000 * 1024);
-    set_rlimits = true;
-    #undef TRANSLATOR_LIMIT
-  }
-  else
-    set_rlimits = false;
-
   pid_t pid = getpid ();
   log (_F("===== compile server pid %d starting as %s =====", pid, username.c_str ()));
 
@@ -955,11 +913,11 @@ writeDataToSocket(PRFileDesc *sslSocket, const char *responseFileName)
 }
 
 static void
-get_stap_locale (const string &staplang, vector<string> &envVec)
+get_stap_locale (const string &staplang, vector<string> &envVec, string stapstderr, cs_protocol_version *client_version)
 {
   // If the client version is < 1.6, then no file containing environment
   // variables defining the locale has been passed.
-  if (client_version < "1.6")
+  if (*client_version < "1.6")
     return;
 
   /* Go through each line of the file, verify it, then add it to the vector */
@@ -1018,7 +976,7 @@ get_stap_locale (const string &staplang, vector<string> &envVec)
       pos = line.find("=");
       if (pos == string::npos)
         {
-          client_error(_F("Localization key=value line '%s' cannot be parsed", line.c_str()));
+          client_error(_F("Localization key=value line '%s' cannot be parsed", line.c_str()), stapstderr);
 	  continue;
         }
       key = line.substr(0, pos);
@@ -1029,7 +987,7 @@ get_stap_locale (const string &staplang, vector<string> &envVec)
       if (locVars.find(key) == locVars.end())
 	{
 	  // Not fatal. Just ignore it.
-	  client_error(_F("Localization key '%s' not found in global list", key.c_str()));
+	  client_error(_F("Localization key '%s' not found in global list", key.c_str()), stapstderr);
 	  continue;
 	}
 
@@ -1037,7 +995,7 @@ get_stap_locale (const string &staplang, vector<string> &envVec)
       if ((regexec(&checkre, value.c_str(), (size_t) 0, NULL, 0) != 0))
 	{
 	  // Not fatal. Just ignore it.
-	  client_error(_F("Localization value '%s' contains illegal characters", value.c_str()));
+	  client_error(_F("Localization value '%s' contains illegal characters", value.c_str()), stapstderr);
 	  continue;
 	}
 
@@ -1112,35 +1070,28 @@ getRequestedPrivilege (const vector<string> &stapargv)
       switch (grc)
         {
 	default:
-	  // We can ignore all short options
+	  // We can ignore all options other than --privilege and --unprivileged.
 	  break;
-        case 0:
-          switch (stap_long_opt)
-            {
-	    default:
-	      // We can ignore all options other than --privilege and --unprivileged.
-	      break;
-	    case LONG_OPT_PRIVILEGE:
-	      if (strcmp (optarg, "stapdev") == 0)
-		privilege = pr_stapdev;
-	      else if (strcmp (optarg, "stapsys") == 0)
-		privilege = pr_stapsys;
-	      else if (strcmp (optarg, "stapusr") == 0)
-		privilege = pr_stapusr;
-	      else
-		{
-		  server_error (_F("Invalid argument '%s' for --privilege", optarg));
-		  privilege = pr_highest;
-		}
-	      // We have discovered the client side --privilege option. We can exit now since
-	      // stap only tolerates one privilege setting option.
-	      goto done; // break 2 switches and a loop
-	    case LONG_OPT_UNPRIVILEGED:
-	      privilege = pr_unprivileged;
-	      // We have discovered the client side --unprivileged option. We can exit now since
-	      // stap only tolerates one privilege setting option.
-	      goto done; // break 2 switches and a loop
+	case LONG_OPT_PRIVILEGE:
+	  if (strcmp (optarg, "stapdev") == 0)
+	    privilege = pr_stapdev;
+	  else if (strcmp (optarg, "stapsys") == 0)
+	    privilege = pr_stapsys;
+	  else if (strcmp (optarg, "stapusr") == 0)
+	    privilege = pr_stapusr;
+	  else
+	    {
+	      server_error (_F("Invalid argument '%s' for --privilege", optarg));
+	      privilege = pr_highest;
 	    }
+	  // We have discovered the client side --privilege option. We can exit now since
+	  // stap only tolerates one privilege setting option.
+	  goto done; // break 2 switches and a loop
+	case LONG_OPT_UNPRIVILEGED:
+	  privilege = pr_unprivileged;
+	  // We have discovered the client side --unprivileged option. We can exit now since
+	  // stap only tolerates one privilege setting option.
+	  goto done; // break 2 switches and a loop
 	}
     }
  done:
@@ -1151,9 +1102,10 @@ getRequestedPrivilege (const vector<string> &stapargv)
 /* Run the translator on the data in the request directory, and produce output
    in the given output directory. */
 static void
-handleRequest (const string &requestDirName, const string &responseDirName)
+handleRequest (const string &requestDirName, const string &responseDirName, string stapstderr)
 {
   vector<string> stapargv;
+  cs_protocol_version client_version = "1.0"; // Assumed until discovered otherwise
   int rc;
   wordexp_t words;
   unsigned u;
@@ -1260,11 +1212,11 @@ handleRequest (const string &requestDirName, const string &responseDirName)
   // Environment variables (possibly empty) to be passed to spawn_and_wait().
   string staplang = requestDirName + "/locale";
   vector<string> envVec;
-  get_stap_locale (staplang, envVec);
+  get_stap_locale (staplang, envVec, stapstderr, &client_version);
 
   /* All ready, let's run the translator! */
   rc = spawn_and_wait(stapargv, "/dev/null", stapstdout.c_str (), stapstderr.c_str (),
-		      requestDirName.c_str (), set_rlimits, envVec);
+		      requestDirName.c_str (), envVec);
 
   /* Save the RC */
   string staprc = responseDirName + "/rc";
@@ -1347,7 +1299,7 @@ handleRequest (const string &requestDirName, const string &responseDirName)
 static PRStatus
 spawn_and_wait (const vector<string> &argv,
 		const char* fd0, const char* fd1, const char* fd2,
-		const char *pwd,  bool setrlimits, const vector<string>& envVec)
+		const char *pwd, const vector<string>& envVec)
 { 
   pid_t pid;
   int rc;
@@ -1391,38 +1343,8 @@ spawn_and_wait (const vector<string> &argv,
         }
     }
 
-  // Set resource limits, if requested, in order to prevent
-  // DOS. spawn_and_wait ultimately uses posix_spawp which behaves like
-  // fork (according to the posix_spawnbp man page), so the limits we set here will be
-  // respected (according to the setrlimit man page).
-  rc = 0;
-  if (setrlimits) {
-    rc = setrlimit (RLIMIT_FSIZE, & translator_RLIMIT_FSIZE);
-    rc |= setrlimit (RLIMIT_STACK, & translator_RLIMIT_STACK);
-    rc |= setrlimit (RLIMIT_CPU,   & translator_RLIMIT_CPU);
-    rc |= setrlimit (RLIMIT_NPROC, & translator_RLIMIT_NPROC);
-    rc |= setrlimit (RLIMIT_AS,    & translator_RLIMIT_AS);
-  }
-  if (rc == 0)
-    {
-      pid = stap_spawn (0, argv, & actions, envVec);
-      /* NB: don't react to pid==-1 right away; need to chdir back first. */
-    }
-  else {
-    server_error (_F("Unable to set resource limits for %s: %s",
-			argv[0].c_str (), strerror (errno)));
-    pid = -1;
-  }
-  if (set_rlimits) {
-    int rrlrc = setrlimit (RLIMIT_FSIZE, & our_RLIMIT_FSIZE);
-    rrlrc |= setrlimit (RLIMIT_STACK, & our_RLIMIT_STACK);
-    rrlrc |= setrlimit (RLIMIT_CPU,   & our_RLIMIT_CPU);
-    rrlrc |= setrlimit (RLIMIT_NPROC, & our_RLIMIT_NPROC);
-    rrlrc |= setrlimit (RLIMIT_AS,    & our_RLIMIT_AS);
-    if (rrlrc != 0)
-      log (_F("Unable to restore resource limits after %s: %s",
-	      argv[0].c_str (), strerror (errno)));
-  }
+  pid = stap_spawn (0, argv, & actions, envVec);
+  /* NB: don't react to pid==-1 right away; need to chdir back first. */
 
   if (pwd && dotfd >= 0)
     {
@@ -1453,17 +1375,19 @@ spawn_and_wait (const vector<string> &argv,
 #undef CHECKRC
 }
 
-/* Function:  int handle_connection()
+/* Function:  void *handle_connection()
  *
  * Purpose: Handle a connection to a socket.  Copy in request zip
  * file, process it, copy out response.  Temporary directories are
  * created & destroyed here.
  */
-static SECStatus
-handle_connection (PRFileDesc *tcpSocket, CERTCertificate *cert, SECKEYPrivateKey *privKey)
+
+void *
+handle_connection (void *arg)
 {
   PRFileDesc *       sslSocket = NULL;
   SECStatus          secStatus = SECFailure;
+  PRStatus           prStatus;
   int                rc;
   char              *rc1;
   char               tmpdir[PATH_MAX];
@@ -1471,8 +1395,21 @@ handle_connection (PRFileDesc *tcpSocket, CERTCertificate *cert, SECKEYPrivateKe
   char               requestDirName[PATH_MAX];
   char               responseDirName[PATH_MAX];
   char               responseFileName[PATH_MAX];
+  string stapstderr; /* Cannot be global since we need a unique
+                        copy for each connection.*/
   vector<string>     argv;
   PRInt32            bytesRead;
+
+  /* Detatch to avoid a memory leak */
+  if(max_threads > 0)
+    pthread_detach(pthread_self());
+
+  /* Unpack the arg */
+  thread_arg *t_arg = (thread_arg *) arg;
+  PRFileDesc *tcpSocket = t_arg->tcpSocket;
+  CERTCertificate *cert = t_arg->cert;
+  SECKEYPrivateKey *privKey = t_arg->privKey;
+  PRNetAddr addr = t_arg->addr;
 
   tmpdir[0]='\0'; /* prevent cleanup-time /bin/rm of uninitialized directory */
 
@@ -1581,7 +1518,7 @@ handle_connection (PRFileDesc *tcpSocket, CERTCertificate *cert, SECKEYPrivateKe
   /* Handle the request zip file.  An error therein should still result
      in a response zip file (containing stderr etc.) so we don't have to
      have a result code here.  */
-  handleRequest(requestDirName, responseDirName);
+  handleRequest(requestDirName, responseDirName, stapstderr);
 
   /* Zip the response. */
   argv.clear ();
@@ -1596,7 +1533,7 @@ handle_connection (PRFileDesc *tcpSocket, CERTCertificate *cert, SECKEYPrivateKe
       server_error (_("Unable to compress server response"));
       goto cleanup;
     }
-  
+
   secStatus = writeDataToSocket (sslSocket, responseFileName);
 
 cleanup:
@@ -1624,7 +1561,29 @@ cleanup:
 	}
     }
 
-  return secStatus;
+  if (secStatus != SECSuccess)
+    server_error (_("Error processing client request"));
+
+  // Log the end of the request.
+  char buf[1024];
+  prStatus = PR_NetAddrToString (& addr, buf, sizeof (buf));
+  if (prStatus == PR_SUCCESS)
+    {
+      if (addr.raw.family == PR_AF_INET)
+	log (_F("Request from %s:%d complete", buf, addr.inet.port));
+      else if (addr.raw.family == PR_AF_INET6)
+	log (_F("Request from [%s]:%d complete", buf, addr.ipv6.port));
+    }
+
+  /* Increment semephore to indicate this thread is finished. */
+  free(t_arg);
+  if (max_threads > 0)
+    {
+      sem_post(&sem_client);
+      pthread_exit(0);
+    }
+  else
+    return 0;
 }
 
 /* Function:  int accept_connection()
@@ -1637,8 +1596,12 @@ accept_connections (PRFileDesc *listenSocket, CERTCertificate *cert)
 {
   PRNetAddr   addr;
   PRFileDesc *tcpSocket;
+  PRStatus    prStatus;
   SECStatus   secStatus;
   CERTCertDBHandle *dbHandle;
+  pthread_t tid;
+  thread_arg *t_arg;
+
 
   dbHandle = CERT_GetDefaultCertDB ();
 
@@ -1651,39 +1614,69 @@ accept_connections (PRFileDesc *listenSocket, CERTCertificate *cert)
       return SECFailure;
     }
 
-  while (PR_TRUE)
+  while (pending_interrupts == 0)
     {
       /* Accept a connection to the socket. */
-      tcpSocket = PR_Accept (listenSocket, &addr, PR_INTERVAL_NO_TIMEOUT);
+      tcpSocket = PR_Accept (listenSocket, &addr, PR_INTERVAL_MIN);
       if (tcpSocket == NULL)
-	{
-	  server_error (_("Error accepting client connection"));
-	  break;
-	}
+        {
+          if(PR_GetError() == PR_IO_TIMEOUT_ERROR)
+            continue;
+          else
+            {
+              server_error (_("Error accepting client connection"));
+              break;
+            }
+        }
 
       /* Log the accepted connection.  */
-      log (_F("Accepted connection from %d.%d.%d.%d:%d",
-	      (addr.inet.ip      ) & 0xff,
-	      (addr.inet.ip >>  8) & 0xff,
-	      (addr.inet.ip >> 16) & 0xff,
-	      (addr.inet.ip >> 24) & 0xff,
-	      addr.inet.port));
+      char buf[1024];
+      prStatus = PR_NetAddrToString (&addr, buf, sizeof (buf));
+      if (prStatus == PR_SUCCESS)
+	{
+	  if (addr.raw.family == PR_AF_INET)
+	    log (_F("Accepted connection from %s:%d", buf, addr.inet.port));
+	  else if (addr.raw.family == PR_AF_INET6)
+	    log (_F("Accepted connection from [%s]:%d", buf, addr.ipv6.port));
+	}
 
       /* XXX: alarm() or somesuch to set a timeout. */
-      /* XXX: fork() or somesuch to handle concurrent requests. */
 
       /* Accepted the connection, now handle it. */
-      secStatus = handle_connection (tcpSocket, cert, privKey);
-      if (secStatus != SECSuccess)
-	server_error (_("Error processing client request"));
 
-      // Log the end of the request.
-      log (_F("Request from %d.%d.%d.%d:%d complete",
-	      (addr.inet.ip      ) & 0xff,
-	      (addr.inet.ip >>  8) & 0xff,
-	      (addr.inet.ip >> 16) & 0xff,
-	      (addr.inet.ip >> 24) & 0xff,
-	      addr.inet.port));
+      /* Wait for a thread to finish if there are none available */
+      if(max_threads >0)
+        {
+          int idle_threads;
+          sem_getvalue(&sem_client, &idle_threads);
+          if(idle_threads <= 0)
+            log(_("Server is overloaded. Processing times may be longer than normal."));
+          else if (idle_threads == max_threads)
+            log(_("Processing 1 request..."));
+          else
+            log(_F("Processing %d concurrent requests...", ((int)max_threads - idle_threads) + 1));
+
+          sem_wait(&sem_client);
+        }
+
+      /* Create the argument structure to pass to pthread_create
+       * (or directly to handle_connection if max_threads == 0 */
+      t_arg = (thread_arg *)malloc(sizeof(*t_arg));
+      if (t_arg == 0)
+        fatal(_("No memory available for new thread arg!"));
+      t_arg->tcpSocket = tcpSocket;
+      t_arg->cert = cert;
+      t_arg->privKey = privKey;
+      t_arg->addr = addr;
+
+      /* Handle the conncection */
+      if (max_threads > 0)
+        /* Create the worker thread and handle the connection. */
+        pthread_create(&tid, NULL, handle_connection, t_arg);
+      else
+        /* Since max_threads == 0, don't spawn a new thread,
+         * just handle in the current thread. */
+        handle_connection(t_arg);
 
       // If our certificate is no longer valid (e.g. has expired), then exit.
       secStatus = CERT_VerifyCertNow (dbHandle, cert, PR_TRUE/*checkSig*/,
@@ -1708,6 +1701,9 @@ accept_connections (PRFileDesc *listenSocket, CERTCertificate *cert)
 static SECStatus
 server_main (PRFileDesc *listenSocket)
 {
+  int idle_threads;
+  int timeout = 0;
+
   // Initialize NSS.
   SECStatus secStatus = nssInit (cert_db_path.c_str ());
   if (secStatus != SECSuccess)
@@ -1764,6 +1760,27 @@ server_main (PRFileDesc *listenSocket)
   // Tell the world we're no longer listening.
   unadvertise_presence ();
 
+  sem_getvalue(&sem_client, &idle_threads);
+
+  /* Wait for requests to finish or the timeout to be reached.
+   * If we got here from an interrupt, exit immediately if
+   * the timeout is reached. Otherwise, wait indefinitiely
+   * until the threads exit (or an interrupt is recieved).*/
+  if(idle_threads < max_threads)
+    log(_F("Waiting for %d outstanding requests to complete...", (int)max_threads - idle_threads));
+  while(idle_threads < max_threads)
+    {
+      if(pending_interrupts && timeout++ > CONCURRENCY_TIMEOUT_S)
+        {
+          log(_("Timeout reached, exiting (forced)"));
+          kill_stap_spawn (SIGTERM);
+          cleanup ();
+          _exit(0);
+        }
+      sleep(1);
+      sem_getvalue(&sem_client, &idle_threads);
+    }
+
  done:
   // Clean up
   if (cert)
@@ -1784,7 +1801,7 @@ static void
 listen ()
 {
   // Create a new socket.
-  PRFileDesc *listenSocket = PR_NewTCPSocket ();
+  PRFileDesc *listenSocket = PR_OpenTCPSocket (PR_AF_INET6); // Accepts IPv4 too
   if (listenSocket == NULL)
     {
       server_error (_("Error creating socket"));
@@ -1818,36 +1835,50 @@ listen ()
 
   // Configure the network connection.
   PRNetAddr addr;
-  addr.inet.family = PR_AF_INET;
-  addr.inet.ip	   = PR_INADDR_ANY;
+  memset (& addr, 0, sizeof(addr));
+  prStatus = PR_InitializeNetAddr (PR_IpAddrAny, port, & addr);
+  addr.ipv6.family = PR_AF_INET6;
+#if 0
+  // addr.inet.ip = PR_htonl(PR_INADDR_ANY);
+  PR_StringToNetAddr ("::", & addr);
+  // PR_StringToNetAddr ("fe80::5eff:35ff:fe07:55ca", & addr);
+  // PR_StringToNetAddr ("::1", & addr);
+  addr.ipv6.port = PR_htons (port);
+#endif
 
-  // Bind the socket to an address. Retry if the selected port is busy.
+  // Bind the socket to an address. Retry if the selected port is busy, unless the port was
+  // specified directly.
   for (;;)
     {
-      addr.inet.port = PR_htons (port);
-
       /* Bind the address to the listener socket. */
       prStatus = PR_Bind (listenSocket, & addr);
       if (prStatus == PR_SUCCESS)
 	break;
 
-      // If the selected port is busy. Try another.
+      // If the selected port is busy. Try another, but only if a specific port was not specified.
       PRErrorCode errorNumber = PR_GetError ();
       switch (errorNumber)
 	{
 	case PR_ADDRESS_NOT_AVAILABLE_ERROR:
-	  server_error (_F("Network port %d is unavailable. Trying another port", port));
-	  port = 0; // Will automatically select an available port
-	  continue;
+	  if (port == 0)
+	    {
+	      server_error (_F("Network port %hu is unavailable. Trying another port", port));
+	      continue;
+	    }
+	  break;
 	case PR_ADDRESS_IN_USE_ERROR:
-	  server_error (_F("Network port %d is busy. Trying another port", port));
-	  port = 0; // Will automatically select an available port
-	  continue;
+	  if (port == 0)
+	    {
+	      server_error (_F("Network port %hu is busy. Trying another port", port));
+	      continue;
+	    }
+	  break;
 	default:
-	  server_error (_("Error setting socket address"));
-	  nssError ();
-	  goto done;
+	  break;
 	}
+      server_error (_("Error setting socket address"));
+      nssError ();
+      goto done;
     }
 
   // Query the socket for the port that was assigned.
@@ -1858,8 +1889,15 @@ listen ()
       nssError ();
       goto done;
     }
-  port = PR_ntohs (addr.inet.port);
-  log (_F("Using network port %d", port));
+  char buf[1024];
+  prStatus = PR_NetAddrToString (&addr, buf, sizeof (buf));
+  port = PR_ntohs (addr.ipv6.port);
+  log (_F("Using network address [%s]:%hu", buf, port));
+
+  if (max_threads > 0)
+    log (_F("Using a maximum of %ld threads", max_threads));
+  else
+    log (_("Concurrency disabled"));
 
   // Listen for connection on the socket.  The second argument is the maximum size of the queue
   // for pending connections.
@@ -1871,10 +1909,15 @@ listen ()
       goto done;
     }
 
+  /* Initialize semephore with the maximum number of threads
+   * defined by --max-threads. If it is not defined, the
+   * default is the number of processors */
+  sem_init(&sem_client, 0, max_threads);
+
   // Loop forever. We check our certificate (and regenerate, if necessary) and then start the
   // server. The server will go down when our certificate is no longer valid (e.g. expired). We
   // then generate a new one and start the server again.
-  for (;;)
+  while(!pending_interrupts)
     {
       // Ensure that our certificate is valid. Generate a new one if not.
       if (check_cert (cert_db_path, server_cert_nickname (), use_db_password) != 0)
@@ -1898,6 +1941,7 @@ listen ()
     } // loop forever
 
  done:
+  sem_destroy(&sem_client); /*Not really necessary, as we are shutting down...but for correctness */
   if (PR_Close (listenSocket) != PR_SUCCESS)
     {
       server_error (_("Error closing listen socket"));

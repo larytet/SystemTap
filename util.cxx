@@ -26,6 +26,7 @@
 #include <ext/stdio_filebuf.h>
 
 extern "C" {
+#include <elf.h>
 #include <fcntl.h>
 #include <grp.h>
 #include <pwd.h>
@@ -38,6 +39,9 @@ extern "C" {
 #include <unistd.h>
 #include <regex.h>
 #include <stdarg.h>
+#ifndef SINGLE_THREADED
+#include <pthread.h>
+#endif
 }
 
 using namespace std;
@@ -56,8 +60,8 @@ get_home_directory(void)
   if (pwd)
     return pwd->pw_dir;
 
-  throw runtime_error(_("Unable to determine home directory"));
-  return NULL;
+  cerr << _("Unable to determine home directory") << endl;
+  return "/";
 }
 
 
@@ -280,12 +284,24 @@ getmemusage ()
   ostringstream oss;
   ifstream statm("/proc/self/statm");
   statm >> pages;
-  long kb1 = pages * sz / 1024;
+  long kb1 = pages * sz / 1024; // total program size; vmsize
   statm >> pages;
-  long kb2 = pages * sz / 1024;
+  long kb2 = pages * sz / 1024; // resident set size; vmrss
   statm >> pages;
-  long kb3 = pages * sz / 1024;
-  oss << _F("using %ldvirt/%ldres/%ldshr kb, ", kb1, kb2, kb3);
+  long kb3 = pages * sz / 1024; // shared pages
+  statm >> pages;
+  long kb4 = pages * sz / 1024; // text
+  statm >> pages;
+  (void) kb4;
+  long kb5 = pages * sz / 1024; // library
+  statm >> pages;
+  (void) kb5;
+  long kb6 = pages * sz / 1024; // data+stack
+  statm >> pages;
+  long kb7 = pages * sz / 1024; // dirty
+  (void) kb7;
+
+  oss << _F("using %ldvirt/%ldres/%ldshr/%lddata kb, ", kb1, kb2, kb3, kb6);
   return oss.str();
 }
 
@@ -309,6 +325,47 @@ tokenize(const string& str, vector<string>& tokens,
     }
 }
 
+// Akin to tokenize(...,...), but allow tokens before the first delimeter, after the
+// last delimiter and allow internal empty tokens
+void
+tokenize_full(const string& str, vector<string>& tokens,
+	      const string& delimiters = " ")
+{
+  // Check for an empty string or a string of length 1. Neither can have the requested
+  // components.
+  if (str.size() <= 1)
+    return;
+
+  // Find the first delimeter.
+  string::size_type lastPos = 0;
+  string::size_type pos = str.find_first_of(delimiters, lastPos);
+  if (pos == string::npos)
+    return; // no delimeters
+
+  /* No leading empty component allowed. */
+  if (pos == lastPos)
+    ++lastPos;
+
+  assert (lastPos < str.size());
+  do
+    {
+      pos = str.find_first_of(delimiters, lastPos);
+      if (pos == string::npos)
+	break; // Final trailing component
+      // Found a token, add it to the vector.
+      tokens.push_back(str.substr (lastPos, pos - lastPos));
+      // Skip the delimiter.
+      lastPos = pos + 1;
+    }
+  while (lastPos < str.size());
+
+  // A final non-delimited token, if it is not empty.
+  if (lastPos < str.size())
+    {
+      assert (pos == string::npos);
+      tokens.push_back(str.substr (lastPos));
+    }
+}
 
 // Akin to tokenize(...,"::"), but it also has to deal with C++ template
 // madness.  We do this naively by balancing '<' and '>' characters.  This
@@ -345,7 +402,15 @@ tokenize_cxx(const string& str, vector<string>& tokens)
 // same policy as execvp().  A program name not containing a slash
 // will be searched along the $PATH.
 
-string find_executable(const string& name, const string& env_path)
+string find_executable(const string& name)
+{
+  const map<string, string> sysenv;
+  return find_executable(name, "", sysenv);
+}
+
+string find_executable(const string& name, const string& sysroot,
+		       const map<string, string>& sysenv,
+		       const string& env_path)
 {
   string retpath;
 
@@ -356,11 +421,15 @@ string find_executable(const string& name, const string& env_path)
 
   if (name.find('/') != string::npos) // slash in the path already?
     {
-      retpath = name;
+      retpath = sysroot + name;
     }
   else // Nope, search $PATH.
     {
-      char *path = getenv(env_path.c_str());
+      const char *path;
+      if (sysenv.count(env_path) != 0)
+        path = sysenv.find(env_path)->second.c_str();
+      else
+        path = getenv(env_path.c_str());
       if (path)
         {
           // Split PATH up.
@@ -370,7 +439,7 @@ string find_executable(const string& name, const string& env_path)
           // Search the path looking for the first executable of the right name.
           for (vector<string>::iterator i = dirs.begin(); i != dirs.end(); i++)
             {
-              string fname = *i + "/" + name;
+              string fname = sysroot + *i + "/" + name;
               const char *f = fname.c_str();
 
               // Look for a normal executable file.
@@ -389,13 +458,22 @@ string find_executable(const string& name, const string& env_path)
   // Could not find the program on the $PATH.  We'll just fall back to
   // the unqualified name, which our caller will probably fail with.
   if (retpath == "")
-    retpath = name;
+    retpath = sysroot + name;
 
   // Canonicalize the path name.
   char *cf = canonicalize_file_name (retpath.c_str());
   if (cf)
     {
-      retpath = string(cf);
+      string scf = string(cf);
+      if (sysroot.empty())
+        retpath = scf;
+      else {
+        int pos = scf.find(sysroot);
+        if (pos == 0)
+          retpath = scf;
+        else
+          throw runtime_error(_F("find_executable(): file %s not in sysroot %s", cf, sysroot.c_str()));
+      }
       free (cf);
     }
 
@@ -454,32 +532,80 @@ cmdstr_join(const vector<string>& cmds)
 class spawned_pids_t {
   private:
     set<pid_t> pids;
+#ifndef SINGLE_THREADED
+    pthread_mutex_t mux_pids;
+#endif
 
   public:
     bool contains (pid_t p)
       {
         stap_sigmasker masked;
-        return pids.count(p) == 0;
+
+#ifndef SINGLE_THREADED
+        pthread_mutex_lock(&mux_pids);
+#endif
+        bool ret = (pids.count(p)==0) ? true : false;
+#ifndef SINGLE_THREADED
+        pthread_mutex_unlock(&mux_pids);
+#endif
+
+        return ret;
       }
     bool insert (pid_t p)
       {
         stap_sigmasker masked;
-        return (p > 0) ? pids.insert(p).second : false;
+
+#ifndef SINGLE_THREADED
+        pthread_mutex_lock(&mux_pids);
+#endif
+        bool ret = (p > 0) ? pids.insert(p).second : false;
+#ifndef SINGLE_THREADED
+        pthread_mutex_unlock(&mux_pids);
+#endif
+
+        return ret;
       }
     void erase (pid_t p)
       {
         stap_sigmasker masked;
+
+#ifndef SINGLE_THREADED
+        pthread_mutex_lock(&mux_pids);
+#endif
         pids.erase(p);
+#ifndef SINGLE_THREADED
+        pthread_mutex_unlock(&mux_pids);
+#endif
       }
     int killall (int sig)
       {
         int ret = 0;
         stap_sigmasker masked;
+
+#ifndef SINGLE_THREADED
+        pthread_mutex_lock(&mux_pids);
+#endif
         for (set<pid_t>::const_iterator it = pids.begin();
              it != pids.end(); ++it)
           ret = kill(*it, sig) ?: ret;
+#ifndef SINGLE_THREADED
+        pthread_mutex_unlock(&mux_pids);
+#endif
         return ret;
       }
+    spawned_pids_t()
+      {
+#ifndef SINGLE_THREADED
+        pthread_mutex_init(&mux_pids, NULL);
+#endif
+      }
+    ~spawned_pids_t()
+      {
+#ifndef SINGLE_THREADED
+        pthread_mutex_destroy (&mux_pids);
+#endif
+      }
+
 };
 static spawned_pids_t spawned_pids;
 
@@ -678,7 +804,8 @@ localization_variables()
 // Runs a command with a saved PID, so we can kill it from the signal handler,
 // and wait for it to finish.
 int
-stap_system(int verbose, const vector<string>& args,
+stap_system(int verbose, const string& description,
+            const vector<string>& args,
             bool null_out, bool null_err)
 {
   int ret = 0;
@@ -695,9 +822,14 @@ stap_system(int verbose, const vector<string>& args,
       ret = pid;
       if (pid > 0){
         ret = stap_waitpid(verbose, pid);
-        if(ret)
-          // XXX PR13274 needs-session to use print_warning()
-          clog << _F("WARNING: %s exited with status: %d", args.front().c_str(), ret) << endl;
+
+        // XXX PR13274 needs-session to use print_warning()
+        if (ret > 128)
+          clog << _F("WARNING: %s exited with signal: %d (%s)",
+                     description.c_str(), ret - 128, strsignal(ret - 128)) << endl;
+        else if (ret > 0)
+          clog << _F("WARNING: %s exited with status: %d",
+                     description.c_str(), ret) << endl;
       }
     }
 
@@ -750,11 +882,9 @@ void assert_regexp_match (const string& name, const string& value, const string&
   // run regexec
   int rc = regexec (r, value.c_str(), 0, 0, 0);
   if (rc)
-    {
-      cerr << _F("ERROR: Safety pattern mismatch for %s ('%s' vs. '%s') rc=%d",
-                 name.c_str(), value.c_str(), re.c_str(), rc) << endl;
-      exit(1);
-    }
+    throw runtime_error
+      (_F("ERROR: Safety pattern mismatch for %s ('%s' vs. '%s') rc=%d",
+          name.c_str(), value.c_str(), re.c_str(), rc));
 }
 
 
@@ -878,6 +1008,25 @@ normalize_machine(const string& machine)
   return machine;
 }
 
+int
+elf_class_from_normalized_machine (const string &machine)
+{
+  // Must match kernel machine architectures as used un tapset directory.
+  // And must match normalization done in normalize_machine ().
+  if (machine == "i386"
+      || machine == "arm")         // arm assumes 32-bit
+    return ELFCLASS32;
+  else if (machine == "s390"       // powerpc and s390 always assume 64-bit,
+           || machine == "powerpc" // see normalize_machine ().
+           || machine == "x86_64"
+           || machine == "ia64")
+    return ELFCLASS64;
+
+  cerr << _F("Unknown kernel machine architecture '%s', don't know elf class",
+             machine.c_str()) << endl;
+  return -1;
+}
+
 string
 kernel_release_from_build_tree (const string &kernel_build_tree, int verbose)
 {
@@ -908,11 +1057,60 @@ std::string autosprintf(const char* format, ...)
   va_start (args, format);
   int rc = vasprintf (&str, format, args);
   if (rc < 0)
-    throw runtime_error (_F("autosprintf/vasprintf error %s", lex_cast(rc).c_str()));
+    {
+      va_end(args);
+      return _F("autosprintf/vasprintf error %d", rc);
+    }
   string s = str;
   va_end (args);
   free (str);
   return s; /* by copy */
 }
+
+std::string
+get_self_path()
+{
+  char buf[1024]; // This really should be enough for anybody...
+  const char *file = "/proc/self/exe";
+  ssize_t len = readlink(file, buf, sizeof(buf) - 1);
+  if (len > 0)
+    {
+      buf[len] = '\0';
+      file = buf;
+    }
+  // otherwise the path is ridiculously large, fall back to /proc/self/exe.
+  //
+  return std::string(file);
+}
+
+
+#ifndef HAVE_PPOLL
+// This is a poor-man's ppoll, only used carefully by readers that need to be
+// interruptible, like remote::run and mutator::run.  It does not provide the
+// same guarantee of atomicity as on systems with a true ppoll.
+//
+// In our use, this would cause trouble if a signal came in any time from the
+// moment we mask signals to prepare pollfds, to the moment we call poll in
+// emulation here.  If there's no data on any of the pollfds, we will be stuck
+// waiting indefinitely.
+//
+// Since this is mainly about responsiveness of CTRL-C cleanup, we'll just
+// throw in a one-second forced timeout to ensure we have a chance to notice
+// there was an interrupt without too much delay.
+int
+ppoll(struct pollfd *fds, nfds_t nfds,
+      const struct timespec *timeout_ts,
+      const sigset_t *sigmask)
+{
+  sigset_t origmask;
+  int timeout = (timeout_ts == NULL) ? 1000 // don't block forever...
+    : (timeout_ts->tv_sec * 1000 + timeout_ts->tv_nsec / 1000000);
+  sigprocmask(SIG_SETMASK, sigmask, &origmask);
+  int rc = poll(fds, nfds, timeout);
+  sigprocmask(SIG_SETMASK, &origmask, NULL);
+  return rc;
+}
+#endif
+
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

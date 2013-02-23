@@ -16,14 +16,11 @@
 /* Define to 1 if you have the avahi libraries. */
 #undef HAVE_AVAHI
 
-/* Define to 1 if you have the <boost/algorithm/string.hpp> header file. */
-#undef HAVE_BOOST_ALGORITHM_STRING_HPP
-
-/* Define to 1 if you have the <boost/range.hpp> header file. */
-#undef HAVE_BOOST_RANGE_HPP
-
 /* Define to 1 if you have the <boost/shared_ptr.hpp> header file. */
 #undef HAVE_BOOST_SHARED_PTR_HPP
+
+/* Define to 1 if you have the <BPatch_object.h> header file. */
+#undef HAVE_BPATCH_OBJECT_H
 
 /* Define to 1 if you have the <crash/defs.h> header file. */
 #undef HAVE_CRASH_DEFS_H
@@ -31,6 +28,12 @@
 /* Define if the GNU dcgettext() function is already present or preinstalled.
    */
 #undef HAVE_DCGETTEXT
+
+/* Define to 1 if Dyninst is enabled */
+#undef HAVE_DYNINST
+
+/* Define to 1 if libelf has elf_getshdrstrndx */
+#undef HAVE_ELF_GETSHDRSTRNDX
 
 /* Define if the GNU gettext() function is already present or preinstalled. */
 #undef HAVE_GETTEXT
@@ -43,6 +46,9 @@
 
 /* Define to 1 if you have the `dw' library (-ldw). */
 #undef HAVE_LIBDW
+
+/* Define to 1 if you have the <libelf.h> header file. */
+#undef HAVE_LIBELF_H
 
 /* have librpm */
 #undef HAVE_LIBRPM
@@ -59,8 +65,14 @@
 /* Define to 1 if you have the nss libraries. */
 #undef HAVE_NSS
 
+/* Define to 1 if you have the `openat' function. */
+#undef HAVE_OPENAT
+
 /* Define to 1 if you have the `ppoll' function. */
 #undef HAVE_PPOLL
+
+/* Define to 1 if you have the SELinux libraries. */
+#undef HAVE_SELINUX
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -113,8 +125,8 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#undef PROTOTYPES
+/* extra stap version code */
+#undef STAP_EXTRA_VERSION
 
 /* configure prefix location */
 #undef STAP_PREFIX
@@ -147,6 +159,12 @@
 /* Version number of package */
 #undef VERSION
 
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
+
 /* Define to 1 if on MINIX. */
 #undef _MINIX
 
@@ -156,6 +174,3 @@
 
 /* Define to 1 if you need to in order for `stat' and other things to work. */
 #undef _POSIX_SOURCE
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#undef __PROTOTYPES

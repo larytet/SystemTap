@@ -9,6 +9,16 @@ proc installtest_p {} {
 }
 
 
+# only original rhel5/6-era utrace need apply
+proc utrace_orig_p {} {
+    set path "/proc/kallsyms"
+    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
+	return 1
+    }
+    return 0
+}
+
+
 proc utrace_p {} {
     set path "/proc/kallsyms"
     # We've got 2 ways to provide utrace support:
@@ -18,21 +28,16 @@ proc utrace_p {} {
     if {! [catch {exec grep -q utrace_attach $path} dummy]} {
 	return 1
 
-    # (2) Tracepoint-based utrace.  Check for either:
-    # (2a) the set of 5 tracepoints we need (see
-    # runtime/autoconf-utrace-via-ftrace.c)
-    # (2b) the 4 tracepoints and the ftrace function we need (see
-    # runtime/autoconf-utrace-via-ftrace.c)
-    #
-    # Since 4 tracepoints are shared between the 2 methods, that makes
-    # things a bit easier.
+    # (2) Tracepoint-based utrace.  Check for the set of 5 tracepoints
+    # we need and task_work_add() (see
+    # runtime/autoconf-utrace-via-tracepoints.c for details).
     } elseif {! [catch {exec grep -q tracepoint_sched_process_fork $path} dummy]
 	      && ! [catch {exec grep -q tracepoint_sched_process_exit $path} dummy]
 	      && ! [catch {exec grep -q tracepoint_sys_enter $path} dummy]
 	      && ! [catch {exec grep -q tracepoint_sys_exit $path} dummy]
 
-	      && (! [catch {exec grep -q tracepoint_sched_process_exec $path} dummy]
-		  || ! [catch {exec grep -q ftrace_set_filter $path} dummy])} {
+	      && ! [catch {exec grep -q tracepoint_sched_process_exec $path} dummy]
+	      && ! [catch {exec grep -q task_work_add $path} dummy]} {
         return 1
     }
     return 0
@@ -46,13 +51,55 @@ proc uprobes_p {} {
     #
     # classical utrace?
     if {! [catch {exec grep -q utrace_attach $path} dummy]} {
+	# Although ia64 has classical utrace, uprobes hasn't been
+	# ported there (PR7081).
+	if {[istarget ia64-*-*]} {
+ 	    return 0
+	}
 	return 1
     }
+
     # inode-uprobes or (unlikely compiled-in classical uprobes?)
-    if {! [catch {exec grep -q register_uprobe $path} dummy]} {
+    #
+    # Note we're looking for " uprobe_register" to avoid finding
+    # 'kallsyms_uprobe_register' from a loaded systemtap module.
+    if {! [catch {exec grep -q register_uprobe $path} dummy]
+	|| ! [catch {exec grep -q " uprobe_register" $path} dummy]} {
 	return 1
     }
     return 0
+}
+
+
+proc uretprobes_p {} {
+    set path "/proc/kallsyms"
+    if {! [uprobes_p]} { return 0 }
+    if {! [catch {exec grep -q uretprobe $path} dummy]} { return 1 }
+    if {! [catch {exec grep -q utrace_attach $path} dummy]} { return 1 }
+    return 0
+}
+
+
+
+proc dyninst_p {} {
+    global systemtap_dyninst_p
+    return $systemtap_dyninst_p
+}
+
+proc nss_p {} {
+    global systemtap_nss_p
+    return $systemtap_nss_p
+}
+
+
+proc get_runtime_list {} {
+    # Always return the default runtime.
+    set runtime_list [list ""]
+
+    if {[dyninst_p]} {
+	lappend runtime_list "dyninst"
+    }
+    return $runtime_list
 }
 
 
@@ -83,15 +130,11 @@ proc print_systemtap_version {} {
 
 
 proc setup_systemtap_environment {} {
-    global srcdir env server_pid logfile
+    global srcdir env server_pid logfile systemtap_dyninst_p systemtap_nss_p
 
     # need an absolute SRCDIR for the top-level src/ tree
     # XXX: or, we could change nearby uses of ${SRCDIR}/testsuite to ${SRCDIR}
-    if {[string index $srcdir 0] != "/"} then {
-        set env(SRCDIR) [exec pwd]/$srcdir/..
-    } else {
-        set env(SRCDIR) $srcdir/..
-    }
+    set env(SRCDIR) [fullpath $srcdir/..]
 
     # Use a local systemtap directory and cache.  Add user name so
     # make check and sudo make check don't clobber each other.
@@ -107,6 +150,7 @@ proc setup_systemtap_environment {} {
     # All hail the prophet lockdep
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
     puts $chan "--modinfo intree=Y"
+    puts $chan "-B CONFIG_DEBUG_INFO=Y"
     close $chan
 
     # Erase the old server log file.
@@ -131,16 +175,30 @@ proc setup_systemtap_environment {} {
         }
     }
 
+    # Remember if this very version of systemtap compiled with dyninst support
+    if {! [catch {exec sh -c "stap -V 2>&1 | grep -q DYNINST"} dummy]} {
+	set systemtap_dyninst_p 1
+    } else {
+        set systemtap_dyninst_p 0
+    }
+
+    # Remember if this selfsame version of systemtap compiled with nss support
+    if {! [catch {exec sh -c "stap -V 2>&1 | grep -q NSS"} dummy]} {
+        set systemtap_nss_p 1
+    } else {
+        set systemtap_nss_p 0
+    }
+
     return 1
 }
 
 # Set up the environment so that tests will be performed using the systemtap
 # client and server.
-proc setup_server {} {
-    global srcdir env installed_stap logfile use_server
+proc setup_server { args } {
+    global srcdir env installed_stap logfile use_server avahi_ok_p
 
     # Start the server
-    if {! [start_server]} then {
+    if {! [start_server $args]} then {
 	return 0
     }
 
@@ -152,8 +210,11 @@ proc setup_server {} {
     set res [catch { exec grep "^ host" stap-list-servers.out } looksee]
     verbose -log "grep for servers returned: res==$res\n$looksee"
 
+    set avahi_ok_p 1
     if {$res != 0} then {
 	verbose -log "Unable to automatically find the systemtap server -- check firewall settings for mDNS"
+	set avahi_ok_p 0
+
 	# Try to discover the port the server is listening on from the server
 	# log.
 	set res [catch { exec /bin/cat $logfile | awk "/^Systemtap Compile Server on port .* ready/ {print \$6}" } server_port]
@@ -178,8 +239,10 @@ proc setup_server {} {
     return 1
 }
 
-proc start_server {} {
+proc start_server { options } {
     global srcdir env server_pid installed_stap logfile
+
+    if {! [nss_p]} { return 0 }
 
     # Server management scripts and data are installed if this is an
     # install test, otherwise there is some setup to do.
@@ -196,9 +259,9 @@ proc start_server {} {
 
     # Try to start the server.
     set status 0
-    if {[catch {exec env STAP_PR11197_OVERRIDE=1 \
+    if {[catch {eval {exec env STAP_PR11197_OVERRIDE=1 \
 		    env SYSTEMTAP_STAP=[exec which stap] stap-start-server \
-		    --log=$logfile} server_pid]} {
+		    --log=$logfile} $options} server_pid]} {
 	if {[lindex $::errorCode 0] eq "CHILDSTATUS"} {
 	    set status [lindex $::errorCode 2]
 	}
@@ -231,6 +294,7 @@ proc shutdown_server {} {
     }
 }
 
+
 proc normalize_arch { arch } {
     if {$arch == "ppc64"} then {return "powerpc"}
     if {$arch == "s390x"} then {return "s390"}
@@ -241,8 +305,17 @@ proc normalize_arch { arch } {
     return $arch
 }
 
+proc fullpath { path } {
+    if {[string index $path 0] != "/"} then {
+        # relative paths are anchored to the current directory
+        return [pwd]/$path
+    } else {
+        return $path
+    }
+}
+
 proc get_system_info {} {
-    global Host Snapshot Distro GCC_Version env
+    global Host Snapshot Distro GCC_Version env SElinux
 
     set Host [exec /bin/uname -a]
     if [file exists ../SNAPSHOT] {
@@ -270,6 +343,12 @@ proc get_system_info {} {
     # Plus full version between square brackets.
     set full [exec gcc --version | head -1]
     set GCC_Version "$n \[$full\]"
+    # selinux status
+    if [file exists /usr/sbin/getenforce] {
+        set SElinux [exec /usr/sbin/getenforce]
+    } else {
+        set SElinux "unknown"
+    }
 }
 
 if {! [setup_systemtap_environment]} then {
@@ -348,6 +427,7 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     exit 1
   }
 }
+catch { eval [list exec rm -f] [glob "hello.c*" "hello-*"] }
 
 proc systemtap_init {args} {}
 proc systemtap_version {} {}
@@ -358,8 +438,8 @@ proc cleanup {} {
 }
 
 
-proc stap_run_batch {args} {
-    verbose -log "starting $args"
+proc stap_run_batch {filename args} {
+    verbose -log "starting $filename $args"
 
     # Many of our test cases use "#! stap ...".  Since these lack
     # /full/paths, they are not really executable.  (We can't have
@@ -370,15 +450,25 @@ proc stap_run_batch {args} {
     # stap manually here (relying on $PATH).  Otherwise, we presume
     # the file properly executable.
 
-    set file [open [lindex $args 0] r]
+    set file [open $filename r]
     set firstbits [gets $file]
     close $file
     if [regexp -line {\#! stap (.*)} $firstbits -> stap_args] {
-        verbose -log "spawn1 stap $stap_args [lindex $args 0]"
-        spawn stap $stap_args [lindex $args 0]
+        verbose -log "spawn1 stap $stap_args $filename $args"
+        # Make sure we don't accidentially add an extra empty argument.
+        if {$args == ""} {
+            spawn stap $stap_args $filename
+        } else {
+            spawn stap $stap_args $filename $args
+        }
     } else {
-        verbose -log "spawn2 $args"
-        spawn $args
+        verbose -log "spawn2 $filename $args"
+        # Make sure we don't accidentially add an extra empty argument.
+        if {$args == ""} {
+            spawn $filename
+        } else {
+            spawn $filename $args
+        }
     }
 
     expect {
@@ -409,6 +499,20 @@ proc as_root { command } {
      verbose -log "RC $res"
      return  $res
  }
+
+proc as_non_root { command } {
+
+     set effective_pid [exec /usr/bin/id -u]
+
+     if {$effective_pid == 0} {
+       set command "su -s /bin/sh [exec logname] -c \"$command\""
+     }
+     verbose -log "as_non_root $command"
+     set res [catch {eval exec $command} value]
+     verbose -log "OUT $value"
+     verbose -log "RC $res"
+     return  $res
+}
 
 proc sdt_includes {} {
   global srcdir env

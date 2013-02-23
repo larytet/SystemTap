@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include "config.h"
+#include <cstdlib>
 #include <cstring>
 #include <cerrno>
 #include <string>
@@ -12,6 +13,7 @@
 #include <cctype>
 #include <set>
 #include <iomanip>
+#include <map>
 extern "C" {
 #include <libintl.h>
 #include <locale.h>
@@ -19,6 +21,7 @@ extern "C" {
 #include <stdint.h>
 #include <spawn.h>
 #include <assert.h>
+#include <poll.h>
 }
 
 #include "privilege.h"
@@ -49,8 +52,13 @@ bool in_group_id (gid_t target_gid);
 std::string getmemusage ();
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
 	      const std::string& delimiters);
+void tokenize_full(const std::string& str, std::vector<std::string>& tokens,
+	      const std::string& delimiters);
 void tokenize_cxx(const std::string& str, std::vector<std::string>& tokens);
+std::string find_executable(const std::string& name);
 std::string find_executable(const std::string& name,
+			    const std::string& sysroot,
+			    const std::map<std::string,std::string>& sysenv,
 			    const std::string& env_path = "PATH");
 const std::string cmdstr_quoted(const std::string& cmd);
 const std::string cmdstr_join(const std::vector<std::string>& cmds);
@@ -60,8 +68,12 @@ pid_t stap_spawn(int verbose, const std::vector<std::string>& args,
 		 posix_spawn_file_actions_t* fa, const std::vector<std::string>& envVec = std::vector<std::string> ());
 pid_t stap_spawn_piped(int verbose, const std::vector<std::string>& args,
                        int* child_in=NULL, int* child_out=NULL, int* child_err=NULL);
-int stap_system(int verbose, const std::vector<std::string>& args,
+int stap_system(int verbose, const std::string& description,
+                const std::vector<std::string>& args,
                 bool null_out=false, bool null_err=false);
+inline int stap_system(int verbose, const std::vector<std::string>& args,
+                       bool null_out=false, bool null_err=false)
+{ return stap_system(verbose, args.front(), args, null_out, null_err); }
 int stap_system_read(int verbose, const std::vector<std::string>& args, std::ostream& out);
 int kill_stap_spawn(int sig);
 void assert_regexp_match (const std::string& name, const std::string& value, const std::string& re);
@@ -71,8 +83,10 @@ std::string escape_glob_chars (const std::string& str);
 std::string unescape_glob_chars (const std::string& str);
 std::string kernel_release_from_build_tree (const std::string &kernel_build_tree, int verbose = 0);
 std::string normalize_machine(const std::string& machine);
+int elf_class_from_normalized_machine(const std::string& machine);
 std::string autosprintf(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
 const std::set<std::string>& localization_variables();
+std::string get_self_path();
 
 // stringification generics
 
@@ -257,6 +271,29 @@ struct stap_sigmasker {
         sigprocmask (SIG_SETMASK, &old, NULL);
       }
 };
+
+// Convert a possibly-relative path to a full path
+inline std::string
+resolve_path(const std::string& path)
+{
+  std::string result(path);
+  char* resolved_path = realpath(path.c_str(), NULL);
+  if (resolved_path)
+    {
+      result = resolved_path;
+      std::free(resolved_path);
+    }
+  return result;
+}
+
+
+#ifndef HAVE_PPOLL
+// This is a poor-man's ppoll; see the implementation for more details...
+int ppoll(struct pollfd *fds, nfds_t nfds,
+          const struct timespec *timeout_ts,
+          const sigset_t *sigmask);
+#endif
+
 
 #endif // UTIL_H
 

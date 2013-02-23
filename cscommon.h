@@ -6,6 +6,7 @@
 extern "C"
 {
 #include <ssl.h>
+#include <nspr.h>
 }
 #endif
 
@@ -49,6 +50,14 @@ struct cs_protocol_version
 };
 
 #if HAVE_NSS
+struct thread_arg
+{
+ PRFileDesc *tcpSocket;
+ CERTCertificate *cert;
+ SECKEYPrivateKey *privKey;
+ PRNetAddr addr;
+};
+
 extern int read_from_file (const std::string &fname, cs_protocol_version &data);
 extern std::string get_cert_serial_number (const CERTCertificate *cert);
 #endif

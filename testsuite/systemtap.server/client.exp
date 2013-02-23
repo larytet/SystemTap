@@ -1,3 +1,7 @@
+# many of these tests use as_root
+if {! [installtest_p]} { return }
+if {! [nss_p]} { return }
+
 # Let's start with a clean slate in terms of trust.
 exec rm -fr $env(SYSTEMTAP_DIR)/ssl
 
@@ -153,7 +157,7 @@ if {$failed == 0} {
 }
 
 # Now start our own server and make sure we can work with it.
-if {! [setup_server]} {
+if {! [setup_server] || $avahi_ok_p != 1} {
     untested "Compile-server client tests against a server"
     return;
 }
@@ -320,7 +324,7 @@ if {$failed == 0} {
 # Reinstate trust in our server. Specify the server by ip address.
 # The default for --trusted servers is 'ssl'.
 set test "Server has ip address"
-if {[regexp {^.*ip=([^ ]*).*} $our_servers(0) match ip_address]} {
+if {[regexp {^.*address=([^ ]*).*} $our_servers(0) match ip_address]} {
     pass $test
 } else {
     fail $test
