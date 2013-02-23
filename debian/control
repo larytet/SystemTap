@@ -31,8 +31,8 @@ Description: instrumentation system for Linux
 
 Package: systemtap-common
 Architecture: all
-Replaces: systemtap (<< 0.0.20081220-1)
-Breaks: systemtap (<< 0.0.20081220-1)
+Replaces: systemtap (<< 0.0.20081220-1), systemtap-grapher (<< 2.1-1~experimental1~try1)
+Breaks: systemtap (<< 0.0.20081220-1), systemtap-grapher (<< 2.1-1~experimental1~try1)
 Depends: ${misc:Depends}
 Recommends: systemtap
 Description: instrumentation system for Linux (common component)
@@ -114,13 +114,3 @@ Description: statically defined probes development files
  information about the running Linux system.
  .
  To be able to write new SystemTap probes, install systemtap package.
-
-Package: systemtap-grapher
-Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf 
-Depends: systemtap (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
-Description: instrumentation system for Linux (grapher)
- This package contains a utility for real-time visualization of
- data from SystemTap instrumentation scripts.
- .
- SystemTap provides infrastructure to simplify the gathering of
- information about the running Linux system.
