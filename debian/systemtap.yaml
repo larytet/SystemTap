@@ -1,7 +1,7 @@
 addon: systemtap
 description: "file detection and syntax highlighting for SystemTap probe files"
 files:
-  - ftdetect/stap.vim
-  - ftplugin/stap.vim
-  - indent/stap.vim
-  - syntax/stap.vim
+  - ftdetect/stp.vim
+  - ftplugin/stp.vim
+  - indent/stp.vim
+  - syntax/stp.vim
