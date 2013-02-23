@@ -1,7 +1,17 @@
 systemtap (2.1-1~experimental1~try1) experimental; urgency=low
 
-  * New upstream release (Closes: #690404).
+  * New upstream release (Closes: #690404, #701365).
+  * Drop patches that are part of the new upstream release:
+    - manpage-syntax1.diff
+    - spelling-fixes1.diff
+    - spelling-fixes2.diff
+    - manpage-paths1.diff
+    - fix.CVE-2012-0875.diff
   * Upload to experimental since wheezy is frozen.
+  * Drop systemtap-grapher binary package as it has been
+    removed by upstream.
+  * Add powerpcspe to the architecture list (Closes: #700161).
+  * Bump Standards-Version to 3.9.4, no changes were needed.
 
  -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Sat, 23 Feb 2013 14:36:19 +0200
 
