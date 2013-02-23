@@ -1,3 +1,10 @@
+systemtap (2.1-1~experimental1~try1) experimental; urgency=low
+
+  * New upstream release (Closes: #690404).
+  * Upload to experimental since wheezy is frozen.
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Sat, 23 Feb 2013 14:36:19 +0200
+
 systemtap (1.7-1) unstable; urgency=low
 
   * Explicitly list supported architectures of systemtap-sdt-dev.
