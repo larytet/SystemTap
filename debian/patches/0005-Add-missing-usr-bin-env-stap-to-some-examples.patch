@@ -1,0 +1,31 @@
+From a8f5e6b5f4c29e8e079855a4a889cb2b73b6ce2e Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Sat, 23 Feb 2013 15:37:55 +0200
+Subject: [PATCH 5/8] Add missing "#!/usr/bin/env stap" to some examples
+
+---
+ .../process/mutex-contention.stp                   |    1 +
+ testsuite/systemtap.examples/profiling/perf.stp    |    1 +
+ 2 files changed, 2 insertions(+), 0 deletions(-)
+
+diff --git a/testsuite/systemtap.examples/process/mutex-contention.stp b/testsuite/systemtap.examples/process/mutex-contention.stp
+index 78233ad..87d5a25 100644
+--- a/testsuite/systemtap.examples/process/mutex-contention.stp
++++ b/testsuite/systemtap.examples/process/mutex-contention.stp
+@@ -1,3 +1,4 @@
++#! /usr/bin/env stap
+ // NOTE: a popup mutex is one that is seen in contention but the init of it was not detected
+ // not sure why there are popups - static mutex init?
+ 
+diff --git a/testsuite/systemtap.examples/profiling/perf.stp b/testsuite/systemtap.examples/profiling/perf.stp
+index 49bc3f3..feac2d3 100644
+--- a/testsuite/systemtap.examples/profiling/perf.stp
++++ b/testsuite/systemtap.examples/profiling/perf.stp
+@@ -1,3 +1,4 @@
++#! /usr/bin/env stap
+ global cycles_per_insn
+ global branch_per_insn
+ global cacheref_per_insn
+-- 
+1.7.2.5
+

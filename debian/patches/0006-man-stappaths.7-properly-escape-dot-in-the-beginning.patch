@@ -1,0 +1,32 @@
+From e84954e2c96d2a2297fee236cb7751781ae75fcd Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Sat, 23 Feb 2013 15:54:37 +0200
+Subject: [PATCH 6/8] man stappaths.7: properly escape dot in the beginning of the line
+
+The zero-width control character ensures that the dot is not treated
+as a control character. This fixes the following Debian lintian
+warning:
+
+W: systemtap-doc: manpage-has-errors-from-man usr/share/man/man7/stappaths.7.gz 61: warning: macro `Elfutils' not defined
+---
+ man/stappaths.7.in |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/man/stappaths.7.in b/man/stappaths.7.in
+index baa6d91..c275ff1 100644
+--- a/man/stappaths.7.in
++++ b/man/stappaths.7.in
+@@ -57,8 +57,8 @@ The location of kernel debugging information when packaged into the
+ RPM, unless overridden by the
+ .I SYSTEMTAP_DEBUGINFO_PATH
+ environment variable.  The default value for this variable is
+-.I \+:.debug:/usr/lib/debug:build 
+-.  Elfutils searches vmlinux in this path and it interprets the path as a base
++.I \+:.debug:/usr/lib/debug:build
++\&. Elfutils searches vmlinux in this path and it interprets the path as a base
+ directory of which various subdirectories will be searched for finding debuginfo
+ for the kernel, kernel modules, and user-space binaries.
+ By default, systemtap will also look for vmlinux in these locations:
+-- 
+1.7.2.5
+
