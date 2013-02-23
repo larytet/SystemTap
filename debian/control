@@ -14,7 +14,7 @@ Vcs-Git: git://git.debian.org/git/collab-maint/systemtap.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/systemtap.git
 
 Package: systemtap
-Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
+Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
 Depends: systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
  systemtap-common (= ${source:Version}), make
 Suggests: systemtap-doc, vim-addon-manager, linux-image, linux-headers, linux-debug
@@ -47,7 +47,7 @@ Package: systemtap-runtime
 Replaces: systemtap (<< 0.0.20081220-1)
 Breaks: systemtap (<< 0.0.20081220-1)
 Suggests: systemtap
-Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
+Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
 Depends: ${shlibs:Depends}, ${misc:Depends}, adduser
 Description: instrumentation system for Linux (runtime component)
  This package contains staprun program that can be used to run
@@ -72,7 +72,7 @@ Description: documentation and examples for SystemTap
  information about the running Linux system.
 
 Package: systemtap-server
-Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
+Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
 Depends: libnss3-tools, avahi-utils, unzip, zip, systemtap (= ${binary:Version}),
  systemtap-client (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
  net-tools
@@ -87,7 +87,7 @@ Description: instrumentation system for Linux (compile server)
  information about the running Linux system.
 
 Package: systemtap-client
-Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
+Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
 Depends: avahi-utils, unzip, zip, dnsutils, systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends}
 Suggests: systemtap-server
 Description: instrumentation system for Linux (client for compile server)
@@ -103,7 +103,7 @@ Description: instrumentation system for Linux (client for compile server)
  information about the running Linux system.
 
 Package: systemtap-sdt-dev
-Architecture: i386 amd64 ia64 s390 powerpc arm armel armeb armhf
+Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
 Depends: ${misc:Depends}, python
 Description: statically defined probes development files
  This package contains header file and executable (dtrace) that
