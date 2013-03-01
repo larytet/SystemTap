@@ -3,6 +3,8 @@
 VIM_ADIR = $(CURDIR)/debian/tmp/usr/share/vim/addons
 VIM_RDIR = $(CURDIR)/debian/tmp/usr/share/vim/registry
 
+EMACS_ADIR = $(CURDIR)/debian/tmp/usr/share/emacs/site-lisp/systemtap-common
+
 CONF_FLAGS = --enable-sqlite --disable-crash --enable-docs --disable-pie \
 	     --enable-server --without-rpm --disable-silent-rules \
 	     --enable-translator --disable-publican \
@@ -33,6 +35,10 @@ override_dh_auto_install:
 	install -m 644 -D vim/indent/stp.vim $(VIM_ADIR)/indent/stp.vim
 	install -m 644 -D vim/syntax/stp.vim $(VIM_ADIR)/syntax/stp.vim
 	install -m 644 -D $(CURDIR)/debian/systemtap.yaml $(VIM_RDIR)/systemtap.yaml
+
+	# Install emacs files
+	install -m 644 -D emacs/systemtap-init.el $(EMACS_ADIR)/systemtap-init.el
+	install -m 644 -D emacs/systemtap-mode.el $(EMACS_ADIR)/systemtap-mode.el
 
 	# Install script to help users install the right debug symbols and headers
 	install -D $(CURDIR)/debian/diagnose-error-cases.bash $(CURDIR)/debian/tmp/usr/share/doc/systemtap/diagnose-error-cases.bash
