@@ -5,3 +5,11 @@ debversion.diff
 0005-Add-missing-usr-bin-env-stap-to-some-examples.patch
 0006-man-stappaths.7-properly-escape-dot-in-the-beginning.patch
 0008-man-escape-quote-properly-in-header.patch
+0001-configure.ac-remove-temporary-file-after-test.patch
+0002-Makefile.am-remove-temporary-symlinks-in-distclean.patch
+0003-configure-Makefile-regenerate.patch
+0001-tapset-test-adieu.patch
+0001-Makefile.am-don-t-install-html-.tmpl-files.patch
+0002-Makefile.in-regenerate.patch
+0001-manpager-fix-warnings-by-adding-breaks-between-SEE-A.patch
+0001-blacklist-more-unsafe-functions.patch
