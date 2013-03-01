@@ -1,4 +1,4 @@
-systemtap (2.1-1~experimental1~try1) experimental; urgency=low
+systemtap (2.1-1~experimental1) experimental; urgency=low
 
   * New upstream release (Closes: #690404, #701365, #701365)
     (LP: #803549, #1130626, #1075772).
@@ -8,17 +8,50 @@ systemtap (2.1-1~experimental1~try1) experimental; urgency=low
     - spelling-fixes2.diff
     - manpage-paths1.diff
     - fix.CVE-2012-0875.diff
-  * Add patches that fix various lintian warnings:
+  * Add patches that fix various lintian warnings. These have all
+    been accepted upstream so we can get rid of them in the next
+    release (thanks Frank Ch. Eigler!):
     - 0001-man-stap.1-escape-minus-sign-properly.patch
     - 0002-man-stap.1-fix-typo.patch
     - 0003-man-stapprobes.3stap-escape-minus-sign-properly.patch
     - 0005-Add-missing-usr-bin-env-stap-to-some-examples.patch
     - 0006-man-stappaths.7-properly-escape-dot-in-the-beginning.patch
     - 0008-man-escape-quote-properly-in-header.patch
+    - 0001-configure.ac-remove-temporary-file-after-test.patch
+    - 0002-Makefile.am-remove-temporary-symlinks-in-distclean.patch
+    - 0003-configure-Makefile-regenerate.patch
+    - 0001-tapset-test-adieu.patch
+    - 0001-Makefile.am-don-t-install-html-.tmpl-files.patch
+    - 0002-Makefile.in-regenerate.patch
+    - 0001-manpager-fix-warnings-by-adding-breaks-between-SEE-A.patch
+  * Add patch to partially fix #604453:
+    - 0001-blacklist-more-unsafe-functions.patch
+  * Backport patch to support unreadable System.map on Ubuntu:
+    - 0001-translator-tolerate-unavailable-System.map.patch
+  * Add patch to suggest reading README.Debian if anything
+    fails. Usability testing shows that surprisingly few users
+    will find it otherwise :-) This patch can not be forwarded
+    upstream but it is very simple.
+    - suggest-readme.debian.diff
   * Upload to experimental since wheezy is frozen.
   * Drop systemtap-grapher binary package as it has been
-    removed by upstream.
+    removed by upstream. Remove its build-dependencies
+    libgtkmm-2.4-dev, libboost-dev and libglademm-2.4-dev as well.
   * Add powerpcspe to the architecture list (Closes: #700161).
+  * Ship stap-prep to help users figure out what
+    debug symbol and header packages they need to install and mention
+    this in README.Debian.
+  * Add patches to make stap-prep work on Debian:
+    - 0001-Prepare-stap-prep-for-support-for-non-rpm-systems.patch
+    - 0002-stap-prep-add-support-for-deb-based-systems.patch
+    - 0003-man-add-man-page-for-stap-prep-1.patch
+    - 0004-man-stap.1-add-reference-to-stap-prep-1.patch
+    - 0001-install-stap-prep.1-man-page.patch
+    - 0002-man-Makefile.in-regenerate.patch
+  * Add patch to improve error messages:
+    - 0001-Suggest-running-stap-prep-after-all-failures.patch
+  * Enable emacs addon that makes editing .stp files easier.
+  * Ensure that build log shows full build commands.
   * Bump Standards-Version to 3.9.4, no changes were needed.
 
  -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Sat, 23 Feb 2013 14:36:19 +0200
