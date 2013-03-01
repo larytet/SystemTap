@@ -49,11 +49,6 @@ override_dh_auto_configure:
 
 override_dh_auto_install:
 	dh_auto_install
-	[ ! -d debian/tmp/usr/share/systemtap/tapset/test ] || rm -rf debian/tmp/usr/share/systemtap/tapset/test
-
-	# Those files do not realy belong there
-	rm debian/tmp/usr/share/doc/systemtap/examples/README
-	rm debian/tmp/usr/share/doc/systemtap/examples/html/*.tmpl
 
 	cp debian/diagnose-error-cases.bash debian/tmp/usr/share/doc/systemtap/
 
@@ -73,11 +68,6 @@ override_dh_auto_install:
 	cp vim/indent/stp.vim $(VIM_ADIR)/indent/stp.vim
 	cp vim/syntax/stp.vim $(VIM_ADIR)/syntax/stp.vim
 	test -f $(CURDIR)/debian/systemtap.yaml && install -d $(VIM_RDIR) && cp $(CURDIR)/debian/systemtap.yaml $(VIM_RDIR)/
-
-override_dh_auto_clean:
-	dh_auto_clean
-	[ ! -d doc/beginners/build ] || rm -rf doc/beginners/build
-	[ ! -d doc/beginners/en-US ] || rm -rf doc/beginners/en-US
 
 override_dh_compress:
 	dh_compress -X.stp -X.wav -Xsocktop -Xsyscalltimes -X.pdf
