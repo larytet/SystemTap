@@ -1,0 +1,24 @@
+From 354787d5ac4485bfcdc3c14756190ca51da90037 Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Mon, 25 Feb 2013 15:12:42 +0200
+Subject: [PATCH 3/4] Makefile.am: remove temporary symlinks in distclean
+
+---
+ Makefile.am |    1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Makefile.am b/Makefile.am
+index 4753365..e64df4d 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -285,6 +285,7 @@ clean-local:
+ 
+ distclean-local:
+ 	rm -rf build-elfutils include-elfutils lib-elfutils
++	rm -f doc/beginners/en-US doc/beginners/build/en-US/testsuite
+ 
+ uninstall-local:
+ 	rm -rf $(DESTDIR)$(pkgdatadir)
+-- 
+1.7.10.4
+

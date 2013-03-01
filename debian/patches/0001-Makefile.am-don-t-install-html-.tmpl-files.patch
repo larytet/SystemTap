@@ -1,0 +1,31 @@
+From 4fc70ae513a6660c5440ad6025c51e2b8cd1f700 Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Thu, 28 Feb 2013 10:34:28 +0200
+Subject: [PATCH 1/2] Makefile.am: don't install html *.tmpl files
+
+The files
+
+/usr/share/doc/systemtap-client-2.2/examples/html/html_header.tmpl
+/usr/share/doc/systemtap-client-2.2/examples/html/html_footer.tmpl
+
+are completely unnecessary to the end-user.
+---
+ Makefile.am |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/Makefile.am b/Makefile.am
+index e64df4d..068ebb3 100644
+--- a/Makefile.am
++++ b/Makefile.am
+@@ -253,7 +253,7 @@ endif
+ 	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name '*.stpm' -o -name README \) -print \
+ 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/tapset/$$f; done)
+ 	(cd $(srcdir)/testsuite/systemtap.examples; find . -type f -print \
+-		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl' \
++		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl$$' \
+ 		| while read f; do if test -x $$f; then \
+ 			i_cmd="$(INSTALL_PROGRAM)"; else \
+ 			i_cmd="$(INSTALL_DATA)"; fi; \
+-- 
+1.7.2.5
+

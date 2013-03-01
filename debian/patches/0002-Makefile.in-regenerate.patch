@@ -1,0 +1,25 @@
+From a4ce40d46bd3c013085f3ffe849c1e1c65ad30fa Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Thu, 28 Feb 2013 10:34:45 +0200
+Subject: [PATCH 2/2] Makefile.in: regenerate
+
+---
+ Makefile.in |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/Makefile.in b/Makefile.in
+index 0889712..7fdee99 100644
+--- a/Makefile.in
++++ b/Makefile.in
+@@ -2068,7 +2068,7 @@ install-data-local:
+ 	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name '*.stpm' -o -name README \) -print \
+ 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/tapset/$$f; done)
+ 	(cd $(srcdir)/testsuite/systemtap.examples; find . -type f -print \
+-		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl' \
++		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl$$' \
+ 		| while read f; do if test -x $$f; then \
+ 			i_cmd="$(INSTALL_PROGRAM)"; else \
+ 			i_cmd="$(INSTALL_DATA)"; fi; \
+-- 
+1.7.2.5
+
