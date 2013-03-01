@@ -21,7 +21,7 @@ VIM_ADIR = $(CURDIR)/debian/tmp/usr/share/vim/addons
 VIM_RDIR = $(CURDIR)/debian/tmp/usr/share/vim/registry
 
 CONF_FLAGS = --enable-sqlite --disable-crash --enable-docs --disable-pie \
-	     --enable-server d--without-rpm \
+	     --enable-server --without-rpm --disable-silent-rules \
 	     --enable-translator --disable-publican
 
 # Building of man pages takes A LOT of time
