@@ -24,12 +24,7 @@ release (with the exception of user space probes that are not
 supported yet, see Debian bug #691167). To use systemtap you need to
 manually install the linux-image-*-dbg and linux-header-* packages
 that match your running kernel. To simplify this task you can use the
-command
-
-/usr/share/doc/systemtap/diagnose-error-cases.bash
-
-to get a list of packages that you need to install. Please always run
-this before reporting a bug.
+stap-prep command. Please always run this before reporting a bug.
 
 
 
@@ -56,4 +51,4 @@ file from kernel-package:
 Note that the stap-server package is not very functional in this
 version of systemtap. See Debian bug #654965 for more information.
 
- -- Timo Juhani Lindfors <timo.lindfors@iki.fi>, Sat, 23 Feb 2013 18:26:03 +0200
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>, Wed,  6 Mar 2013 17:57:19 +0200
