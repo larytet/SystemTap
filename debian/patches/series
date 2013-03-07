@@ -21,3 +21,4 @@ suggest-readme.debian.diff
 0004-man-stap.1-add-reference-to-stap-prep-1.patch
 0001-install-stap-prep.1-man-page.patch
 0002-man-Makefile.in-regenerate.patch
+0001-stap-prep-debian-do-not-check-for-linux-kbuild.patch
