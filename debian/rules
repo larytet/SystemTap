@@ -40,8 +40,8 @@ override_dh_auto_install:
 	install -m 644 -D emacs/systemtap-init.el $(EMACS_ADIR)/systemtap-init.el
 	install -m 644 -D emacs/systemtap-mode.el $(EMACS_ADIR)/systemtap-mode.el
 
-	# Install script to help users install the right debug symbols and headers
-	install -D $(CURDIR)/debian/diagnose-error-cases.bash $(CURDIR)/debian/tmp/usr/share/doc/systemtap/diagnose-error-cases.bash
+	# Install stap-prep
+	install -D stap-prep $(CURDIR)/debian/tmp/usr/bin/stap-prep
 
 	# Ensure that example scripts are executable but tapset files are not
 	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp \! -executable | grep -v /tapset/ | xargs chmod -v +x
