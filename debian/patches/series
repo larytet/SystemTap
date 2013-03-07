@@ -1,4 +1,5 @@
 debversion.diff
+suggest-readme.debian.diff
 0001-man-stap.1-escape-minus-sign-properly.patch
 0002-man-stap.1-fix-typo.patch
 0003-man-stapprobes.3stap-escape-minus-sign-properly.patch
@@ -13,3 +14,10 @@ debversion.diff
 0002-Makefile.in-regenerate.patch
 0001-manpager-fix-warnings-by-adding-breaks-between-SEE-A.patch
 0001-blacklist-more-unsafe-functions.patch
+0001-Prepare-stap-prep-for-support-for-non-rpm-systems.patch
+0001-translator-tolerate-unavailable-System.map.patch
+0002-stap-prep-add-support-for-deb-based-systems.patch
+0003-man-add-man-page-for-stap-prep-1.patch
+0004-man-stap.1-add-reference-to-stap-prep-1.patch
+0001-install-stap-prep.1-man-page.patch
+0002-man-Makefile.in-regenerate.patch
