@@ -1,0 +1,25 @@
+From cf122a54db87cedc4ff81afefb0ddf01a6c66e94 Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Wed, 6 Mar 2013 18:16:13 +0200
+Subject: [PATCH 2/2] man/Makefile.in: regenerate
+
+---
+ man/Makefile.in |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/man/Makefile.in b/man/Makefile.in
+index 7562483..ce97141 100644
+--- a/man/Makefile.in
++++ b/man/Makefile.in
+@@ -52,7 +52,7 @@ PRE_UNINSTALL = :
+ POST_UNINSTALL = :
+ build_triplet = @build@
+ host_triplet = @host@
+-@BUILD_TRANSLATOR_TRUE@am__append_1 = stap.1
++@BUILD_TRANSLATOR_TRUE@am__append_1 = stap.1 stap-prep.1
+ @BUILD_SERVER_TRUE@@HAVE_NSS_TRUE@am__append_2 = stap-server.8
+ subdir = man
+ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
+-- 
+1.7.2.5
+

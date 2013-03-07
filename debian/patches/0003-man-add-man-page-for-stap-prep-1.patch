@@ -1,0 +1,70 @@
+From 23a0224e44b901fc1728438a8dc70be9988255a1 Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Wed, 6 Mar 2013 16:47:44 +0200
+Subject: [PATCH 3/4] man: add man page for stap-prep (1)
+
+---
+ man/stap-prep.1 |   51 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 51 insertions(+), 0 deletions(-)
+ create mode 100644 man/stap-prep.1
+
+diff --git a/man/stap-prep.1 b/man/stap-prep.1
+new file mode 100644
+index 0000000..94a299d
+--- /dev/null
++++ b/man/stap-prep.1
+@@ -0,0 +1,51 @@
++.\" -*- nroff -*-
++.TH STAP\-PREP 1
++.SH NAME
++stap\-prep \- prepare system for systemtap use
++
++.\" macros
++.de SAMPLE
++.br
++.RS
++.nf
++.nh
++..
++.de ESAMPLE
++.hy
++.fi
++.RE
++..
++
++.SH SYNOPSIS
++
++.br
++.B stap\-prep
++[
++.I KERNEL_VERSION
++]
++
++.SH DESCRIPTION
++
++The stap\-prep executable prepares the system for systemtap use by
++installing kernel headers, debug symbols and build tools that match
++the currently running kernel or optionally the kernel version given by
++the user.
++
++The exact behavior of stap\-prep may be customized by the
++distribution maintainers. It might for example only give suggestions
++and not actually install the required packages if that is difficult to
++automate.
++
++.SH EXAMPLES
++.SAMPLE
++$ stap-prep
++Please install linux-image-3.2.0-2-amd64-dbg
++
++.SH SEE ALSO
++.IR stap (1)
++
++.SH BUGS
++Use the Bugzilla link of the project web page or our mailing list.
++.nh
++.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
++.hy
+-- 
+1.7.2.5
+
