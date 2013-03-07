@@ -1,15 +1,12 @@
 systemtap for Debian
 ====================
 
-This package provides the vim addon 'systemtap', but it is not enabled per
-default. If you want to enable it for your user account just execute
-    vim-addons install systemtap
-
-Similarly, to enable it for all users of this system just execute (as root)
-    vim-addons -w install systemtap
-
-vim-addons is provided by the vim-addon-manager package, have a look at its
-manpage for more information.
+Systemtap works with official Debian kernel packages since the Squeeze
+release (with the exception of user space probes that are not
+supported yet, see Debian bug #691167). To use systemtap you need to
+manually install the linux-image-*-dbg and linux-header-* packages
+that match your running kernel. To simplify this task you can use the
+stap-prep command. Please always run this before reporting a bug.
 
 
 
@@ -19,12 +16,15 @@ details.
 
 
 
-Systemtap works with official Debian kernel packages since the Squeeze
-release (with the exception of user space probes that are not
-supported yet, see Debian bug #691167). To use systemtap you need to
-manually install the linux-image-*-dbg and linux-header-* packages
-that match your running kernel. To simplify this task you can use the
-stap-prep command. Please always run this before reporting a bug.
+This package provides the vim addon 'systemtap', but it is not enabled per
+default. If you want to enable it for your user account just execute
+    vim-addons install systemtap
+
+Similarly, to enable it for all users of this system just execute (as root)
+    vim-addons -w install systemtap
+
+vim-addons is provided by the vim-addon-manager package, have a look at its
+manpage for more information.
 
 
 
@@ -51,4 +51,4 @@ file from kernel-package:
 Note that the stap-server package is not very functional in this
 version of systemtap. See Debian bug #654965 for more information.
 
- -- Timo Juhani Lindfors <timo.lindfors@iki.fi>, Wed,  6 Mar 2013 17:57:19 +0200
+ -- Timo Lindfors <lindi@kurp.hut.fi>, Thu,  7 Mar 2013 10:23:06 +0200
