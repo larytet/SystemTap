@@ -1,3 +1,9 @@
+systemtap (2.1-2) UNRELEASED; urgency=low
+
+  * Remove myself from Uploaders.
+
+ -- Lucas Nussbaum <lucas@debian.org>  Tue, 16 Apr 2013 07:50:16 +0200
+
 systemtap (2.1-1~experimental1) experimental; urgency=low
 
   * New upstream release (Closes: #690404, #701365, #701365)
