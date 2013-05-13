@@ -51,4 +51,4 @@ file from kernel-package:
 Note that the stap-server package is not very functional in this
 version of systemtap. See Debian bug #654965 for more information.
 
- -- Timo Lindfors <lindi@kurp.hut.fi>, Thu,  7 Mar 2013 10:23:06 +0200
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>, Thu,  7 Mar 2013 10:23:06 +0200
