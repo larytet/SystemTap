@@ -1,8 +1,12 @@
-systemtap (2.1-2) UNRELEASED; urgency=low
+systemtap (2.1-1) unstable; urgency=low
 
+  [ Lucas Nussbaum ]
   * Remove myself from Uploaders.
 
- -- Lucas Nussbaum <lucas@debian.org>  Tue, 16 Apr 2013 07:50:16 +0200
+  [ Timo Juhani Lindfors ]
+  * Upload to unstable.
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Mon, 13 May 2013 17:42:52 +0300
 
 systemtap (2.1-1~experimental1) experimental; urgency=low
 
