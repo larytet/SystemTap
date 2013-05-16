@@ -44,8 +44,8 @@ override_dh_auto_install:
 	install -D stap-prep $(CURDIR)/debian/tmp/usr/bin/stap-prep
 
 	# Ensure that example scripts are executable but tapset files are not
-	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp \! -executable | grep -v /tapset/ | xargs chmod -v +x
-	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp -executable | grep /tapset/ | xargs chmod -v -x
+	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp \! -executable | grep -v /tapset/ | xargs --no-run-if-empty chmod -v +x
+	find debian/tmp/usr/share/doc/systemtap/examples/ -name \*.stp -executable | grep /tapset/ | xargs --no-run-if-empty chmod -v -x
 
 	# Remove empty file to make lintian happy, patch sent to xmlto upstream
 	rm -f debian/tmp/usr/share/doc/systemtap/tapsets/tapsets.proc
