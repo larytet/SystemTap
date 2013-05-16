@@ -237,7 +237,13 @@ once from the underlying $context variables, so that later changes to
 $context variables are not automatically reflected.  Not all probe
 aliases obey all of these general guidelines.  Please report any
 bothersome ones you encounter as a bug.
-
+.PP
+If debuginfo availability is a problem, you may try using the
+non-DWARF syscall probe aliases instead.  Use the
+.IR nd_syscall.
+prefix instead of
+.IR syscall.
+The same context variables are available, as far as possible.
 
 .SS TIMERS
 
@@ -283,15 +289,22 @@ before any rounding occurs.
 Profiling timers are also available to provide probes that execute on
 all CPUs at the rate of the system tick (CONFIG_HZ).  This probe takes
 no parameters.  On some kernels, this is a one-concurrent-user-only or
-disabled facility, resulting in error -16 (EBUSY) during probe
+disabled facility, resulting in error \-16 (EBUSY) during probe
 registration.
 
 .SAMPLE
-timer.profile
+timer.profile.tick
 .ESAMPLE
 
 Full context information of the interrupted process is available, making
 this probe suitable for a time-based sampling profiler.
+.PP
+It is recommended to use the tapset probe
+.IR timer.profile
+rather than timer.profile.tick. This probe point behaves identically
+to timer.profile.tick when the underlying functionality is available,
+and falls back to using perf.sw.cpu_clock on some recent kernels which
+lack the corresponding profile timer facility.
 
 .SS DWARF
 
@@ -540,7 +553,7 @@ returns may be outstanding.  The default is a relatively small number,
 on the order of a few times the number of physical CPUs.  If many
 different threads concurrently call the same blocking function, such
 as futex(2) or read(2), this limit could be exceeded, and skipped
-"kretprobes" would be reported by "stap -t".  To work around this,
+"kretprobes" would be reported by "stap \-t".  To work around this,
 specify a
 .SAMPLE
 probe FOO.return.maxactive(NNN)
@@ -548,7 +561,7 @@ probe FOO.return.maxactive(NNN)
 suffix, with a large enough NNN to cover all expected concurrently blocked
 threads.  Alternately, use the
 .SAMPLE
-stap -DKRETACTIVE=NNNN
+stap \-DKRETACTIVE=NNNN
 .ESAMPLE
 stap command line macro setting to override the default for all
 ".return" probes.
@@ -792,6 +805,67 @@ If systemtap was invoked with the
 .IR \-c " or " \-x
 options, then process probes are restricted to the process
 hierarchy associated with the target process.
+
+.SS JAVA
+Support for probing Java methods is available using Byteman as a
+backend. Byteman is an instrumentation tool from the JBoss project
+which systemtap can use to monitor invocations for a specific method
+or line in a Java program.
+.PP
+Systemtap does so by generating a Byteman script listing the probes to
+instrument and then invoking the Byteman
+.IR bminstall
+utility.
+.PP
+This Java instrumentation support is currently a prototype feature
+with major limitations.  Moreover, Java probing currently does not
+work across users; the stap script must run (with appropriate
+permissions) under the same user that the Java process being
+probed. (Thus a stap script under root currently cannot probe Java
+methods in a non-root-user Java process.)
+
+.PP
+The first probe type refers to Java processes by the name of the Java process:
+.SAMPLE
+java("PNAME").class("CLASSNAME").method("PATTERN")
+java("PNAME").class("CLASSNAME").method("PATTERN").return
+.ESAMPLE
+The PATTERN parameter specifies the signature of the Java method to
+probe. The signature must consist of the exact name of the method,
+followed by a bracketed list of the types of the arguments, for
+instance "myMethod(int,double,Foo)". Wildcards are not supported.
+.PP
+The probe can be set to trigger at a specific line within the method
+by appending a line number with colon, just as in other types of
+probes: "myMethod(int,double,Foo):245".
+.PP
+The CLASSNAME parameter identifies the Java class the method belongs
+to, either with or without the package qualification. By default, the
+probe only triggers on descendants of the class that do not override
+the method definition of the original class. However, CLASSNAME can
+take an optional caret prefix, as in
+.IR ^org.my.MyClass,
+which specifies that the probe should also trigger on all descendants
+of MyClass that override the original method. For instance, every method
+with signature foo(int) in program org.my.MyApp can be probed at once using
+.SAMPLE
+java("org.my.MyApp").class("^java.lang.Object").method("foo(int)")
+.ESAMPLE
+.PP
+The second probe type works analogously, but refers to Java processes by PID:
+.SAMPLE
+java(PID).class("CLASSNAME").method("PATTERN")
+java(PID).class("CLASSNAME").method("PATTERN").return
+.ESAMPLE
+(PIDs for an already running process can be obtained using the
+.IR jps (1)
+utility.)
+.PP
+Context variables defined within java probes include
+.IR $arg1
+through
+.IR $arg10
+(for up to the first 10 arguments of a method), represented as integers or strings.
 
 .SS PROCFS
 
@@ -1152,7 +1226,7 @@ not sanity-check the values: it merely passes them through to
 the kernel for error- and safety-checking.  By default the perf event
 probe is systemwide unless .process is specified, which will bind the
 probe to a specific task.  If the name is omitted then it
-is inferred from the stap -c argument.   A perf event can be read on
+is inferred from the stap \-c argument.   A perf event can be read on
 demand using .counter.  The body of the perf probe handler will not be
 invoked for a .counter probe; instead, the counter is read in a user
 space probe via:

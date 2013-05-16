@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2012 Red Hat Inc.
+// Copyright (C) 2005-2013 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -205,6 +205,15 @@ compile_dyninst (systemtap_session& s)
   cmd.push_back("-Werror");
   cmd.push_back("-Wno-unused");
   cmd.push_back("-Wno-strict-aliasing");
+
+  // BZ855981/948279.  Since dyninst/runtime.h includes __sync_* calls,
+  // the compiler may generate different code for it depending on -march.
+  // For example, if the default is i386, we may get references to auxiliary
+  // functions like __sync_add_and_fetch_4, which appear to be defined
+  // nowhere.  We hack around this problem thusly:
+  if (s.architecture == "i386")
+    cmd.push_back("-march=i586");
+
   cmd.push_back("-O2");
   cmd.push_back("-I" + s.runtime_path);
   cmd.push_back("-D__DYNINST__");
@@ -316,6 +325,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-regset.c", "STAPCONF_REGSET", NULL);
   output_autoconf(s, o, "autoconf-utrace-regset.c", "STAPCONF_UTRACE_REGSET", NULL);
   output_autoconf(s, o, "autoconf-uprobe-get-pc.c", "STAPCONF_UPROBE_GET_PC", NULL);
+  output_autoconf(s, o, "autoconf-hlist-4args.c", "STAPCONF_HLIST_4ARGS", NULL);
   output_exportconf(s, o, "tsc_khz", "STAPCONF_TSC_KHZ");
   output_exportconf(s, o, "cpu_khz", "STAPCONF_CPU_KHZ");
   output_exportconf(s, o, "__module_text_address", "STAPCONF_MODULE_TEXT_ADDRESS");
@@ -348,6 +358,8 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "path_lookup", "STAPCONF_PATH_LOOKUP");
   output_exportconf(s, o, "kern_path_parent", "STAPCONF_KERN_PATH_PARENT");
   output_exportconf(s, o, "vfs_path_lookup", "STAPCONF_VFS_PATH_LOOKUP");
+  output_exportconf(s, o, "proc_create_data", "STAPCONF_PROC_CREATE_DATA");
+  output_exportconf(s, o, "PDE_DATA", "STAPCONF_PDE_DATA");
   output_autoconf(s, o, "autoconf-module-sect-attrs.c", "STAPCONF_MODULE_SECT_ATTRS", NULL);
 
   output_autoconf(s, o, "autoconf-utrace-via-tracepoints.c", "STAPCONF_UTRACE_VIA_TRACEPOINTS", NULL);
@@ -365,10 +377,7 @@ compile_pass (systemtap_session& s)
 			   "STAPCONF_UPROBE_REGISTER_EXPORTED");
   output_either_exportconf(s, o, "uprobe_unregister", "unregister_uprobe",
 			   "STAPCONF_UPROBE_UNREGISTER_EXPORTED");
-  output_exportconf(s, o, "uretprobe_register", "STAPCONF_URETPROBE_REGISTER_EXPORTED");
-  output_exportconf(s, o, "uretprobe_unregister", "STAPCONF_URETPROBE_UNREGISTER_EXPORTED");
   output_autoconf(s, o, "autoconf-old-inode-uprobes.c", "STAPCONF_OLD_INODE_UPROBES", NULL);
-  output_autoconf(s, o, "autoconf-inode-uprobes-noaddr.c", "STAPCONF_INODE_UPROBES_NOADDR", NULL);
   output_autoconf(s, o, "autoconf-inode-uretprobes.c", "STAPCONF_INODE_URETPROBES", NULL);
 
   // used by tapsets.cxx inode uprobe generated code
@@ -657,6 +666,9 @@ make_dyninst_run_command (systemtap_session& s, const string& remotedir,
 
   cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
 		+ "/" + s.module_filename());
+
+  // add module arguments
+  cmd.insert(cmd.end(), s.globalopts.begin(), s.globalopts.end());
 
   return cmd;
 }

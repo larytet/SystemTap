@@ -1379,6 +1379,7 @@ dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const cha
   {
   case EM_386:    plt0_entry_size = 16; plt_entry_size = 16; break;
   case EM_X86_64: plt0_entry_size = 16; plt_entry_size = 16; break;
+  case EM_ARM:    plt0_entry_size = 20; plt_entry_size = 12; break;
   case EM_PPC64:
   case EM_S390:
   case EM_PPC:
@@ -2449,9 +2450,9 @@ dwflpp::translate_location(struct obstack *pool,
 
 
 void
-dwflpp::print_members(Dwarf_Die *vardie, ostream &o, set<string> &dupes)
+dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
 {
-  const int typetag = dwarf_tag (vardie);
+  const int typetag = dwarf_tag (typedie);
 
   /* compile and partial unit included for recursion through
      imported_unit below. */
@@ -2461,24 +2462,25 @@ dwflpp::print_members(Dwarf_Die *vardie, ostream &o, set<string> &dupes)
       typetag != DW_TAG_compile_unit &&
       typetag != DW_TAG_partial_unit)
     {
-      o << _F(" Error: %s isn't a struct/class/union", dwarf_type_name(vardie).c_str());
+      o << _F(" Error: %s isn't a struct/class/union",
+	      dwarf_type_name(typedie).c_str());
       return;
     }
 
   // Try to get the first child of vardie.
   Dwarf_Die die_mem, import;
   Dwarf_Die *die = &die_mem;
-  switch (dwarf_child (vardie, die))
+  switch (dwarf_child (typedie, die))
     {
     case 1:				// No children.
-      o << _F("%s is empty", dwarf_type_name(vardie).c_str());
-      break;
+      o << _F("%s is empty", dwarf_type_name(typedie).c_str());
+      return;
 
     case -1:				// Error.
     default:				// Shouldn't happen.
-      o << dwarf_type_name(vardie)
+      o << dwarf_type_name(typedie)
         << ": " << dwarf_errmsg (-1);
-      break;
+      return;
 
     case 0:				// Success.
       break;
@@ -3424,6 +3426,11 @@ dwflpp::build_blacklist()
   blfn += "|test_ti_thread_flag.*";
   blfn += "|inat_get_opcode_attribute";
   blfn += "|system_call_after_swapgs";
+  blfn += "|HYPERVISOR_[gs]et_debugreg";
+  blfn += "|HYPERVISOR_event_channel_op";
+  blfn += "|hash_64";
+  blfn += "|hash_ptr";
+  blfn += "|native_set_pte";
 
   // Lots of locks
   blfn += "|.*raw_.*_lock.*";

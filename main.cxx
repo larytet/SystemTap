@@ -26,8 +26,10 @@
 #include "tapsets.h"
 #include "setupdwfl.h"
 
+#if ENABLE_NLS
 #include <libintl.h>
 #include <locale.h>
+#endif
 
 #include "stap-probe.h"
 
@@ -75,51 +77,38 @@ printscript(systemtap_session& s, ostream& o)
           assert_no_interrupts();
 
           derived_probe* p = s.probes[i];
-          // NB: p->basest() is not so interesting;
-          // p->almost_basest() doesn't quite work, so ...
-          vector<probe*> chain;
-          p->collect_derivation_chain (chain);
-          probe* second = (chain.size()>1) ? chain[chain.size()-2] : chain[0];
-
-          if (s.verbose > 5) {
-          p->printsig(cerr); cerr << endl;
-          cerr << "chain[" << chain.size() << "]:" << endl;
-          for (unsigned j=0; j<chain.size(); j++)
-            {
-              cerr << "  [" << j << "]: " << endl;
-              cerr << "\tlocations[" << chain[j]->locations.size() << "]:" << endl;
-              for (unsigned k=0; k<chain[j]->locations.size(); k++)
-                {
-                  cerr << "\t  [" << k << "]: ";
-                  chain[j]->locations[k]->print(cerr);
-                  cerr << endl;
-                }
-              const probe_alias *a = chain[j]->get_alias();
-              if (a)
-                {
-                  cerr << "\taliases[" << a->alias_names.size() << "]:" << endl;
-                  for (unsigned k=0; k<a->alias_names.size(); k++)
-                    {
-                      cerr << "\t  [" << k << "]: ";
-                      a->alias_names[k]->print(cerr);
-                      cerr << endl;
-                    }
-                }
-            }
+          if (s.verbose > 2) {
+            vector<probe*> chain;
+            p->collect_derivation_chain (chain);
+            p->printsig(cerr); cerr << endl;
+            cerr << "chain[" << chain.size() << "]:" << endl;
+            for (unsigned j=0; j<chain.size(); j++)
+              {
+                cerr << "  [" << j << "]: " << endl;
+                cerr << "\tlocations[" << chain[j]->locations.size() << "]:" << endl;
+                for (unsigned k=0; k<chain[j]->locations.size(); k++)
+                  {
+                    cerr << "\t  [" << k << "]: ";
+                    chain[j]->locations[k]->print(cerr);
+                    cerr << endl;
+                  }
+                const probe_alias *a = chain[j]->get_alias();
+                if (a)
+                  {
+                    cerr << "\taliases[" << a->alias_names.size() << "]:" << endl;
+                    for (unsigned k=0; k<a->alias_names.size(); k++)
+                      {
+                        cerr << "\t  [" << k << "]: ";
+                        a->alias_names[k]->print(cerr);
+                        cerr << endl;
+                      }
+                  }
+              }
           }
-
+          
           stringstream tmps;
-          // XXX PR14297 make this more accurate wrt complex wildcard expansions
-          const probe_point *a = second->get_alias_loc();
-          if (a)
-            {
-              a->print(tmps);
-            }
-          else
-            {
-              assert (second->locations.size() >= 1);
-              second->locations[0]->print(tmps); // XXX: choosing only one location is less arbitrary here than in get_alias_loc(), but still ...
-            }
+          const probe_point *a = p->script_location();
+          a->print(tmps);
           string pp = tmps.str();
 
           // Now duplicate-eliminate.  An alias may have expanded to
@@ -302,6 +291,56 @@ setup_signals (sighandler_t handler)
   sigaction (SIGTERM, &sa, NULL);
   sigaction (SIGXFSZ, &sa, NULL);
   sigaction (SIGXCPU, &sa, NULL);
+}
+
+
+static void*
+sdt_benchmark_thread(void* p)
+{
+  unsigned long i = *(unsigned long*)p;
+  PROBE(stap, benchmark__thread__start);
+  while (i--)
+    PROBE1(stap, benchmark, i);
+  PROBE(stap, benchmark__thread__end);
+  return NULL;
+}
+
+
+static int
+run_sdt_benchmark(systemtap_session& s)
+{
+  unsigned long loops = s.benchmark_sdt_loops ?: 10000000;
+  unsigned long threads = s.benchmark_sdt_threads ?: 1;
+
+  clog << _F("Beginning SDT benchmark with %lu loops in %lu threads.",
+             loops, threads) << endl;
+
+  struct tms tms_before, tms_after;
+  struct timeval tv_before, tv_after;
+  unsigned _sc_clk_tck = sysconf (_SC_CLK_TCK);
+  times (& tms_before);
+  gettimeofday (&tv_before, NULL);
+
+  PROBE(stap, benchmark__start);
+
+  pthread_t pthreads[threads];
+  for (unsigned long i = 0; i < threads; ++i)
+    pthread_create(&pthreads[i], NULL, sdt_benchmark_thread, &loops);
+  for (unsigned long i = 0; i < threads; ++i)
+    pthread_join(pthreads[i], NULL);
+
+  PROBE(stap, benchmark__end);
+
+  times (& tms_after);
+  gettimeofday (&tv_after, NULL);
+  clog << _F("Completed SDT benchmark in %ldusr/%ldsys/%ldreal ms.",
+             (tms_after.tms_utime - tms_before.tms_utime) * 1000 / _sc_clk_tck,
+             (tms_after.tms_stime - tms_before.tms_stime) * 1000 / _sc_clk_tck,
+             ((tv_after.tv_sec - tv_before.tv_sec) * 1000 +
+              ((long)tv_after.tv_usec - (long)tv_before.tv_usec) / 1000))
+       << endl;
+
+  return EXIT_SUCCESS;
 }
 
 
@@ -944,10 +983,11 @@ main (int argc, char * const argv [])
   // Initialize defaults.
   try {
     systemtap_session s;
-
+#if ENABLE_NLS
     setlocale (LC_ALL, "");
     bindtextdomain (PACKAGE, LOCALEDIR);
     textdomain (PACKAGE);
+#endif
 
     // Set up our handler to catch routine signals, to allow clean
     // and reasonably timely exit.
@@ -1006,6 +1046,10 @@ main (int argc, char * const argv [])
     // we didn't know if verbose was set.
     if (rc == 0 && s.verbose>1)
       clog << _F("Created temporary directory \"%s\"", s.tmpdir.c_str()) << endl;
+
+    // Run the benchmark and quit right away.
+    if (s.benchmark_sdt_loops || s.benchmark_sdt_threads)
+      return run_sdt_benchmark(s);
 
     // Prepare connections for each specified remote target.
     vector<remote*> targets;

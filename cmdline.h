@@ -53,11 +53,13 @@ enum {
   LONG_OPT_SUPPRESS_TIME_LIMITS,
   LONG_OPT_RUNTIME,
   LONG_OPT_RUNTIME_DYNINST,
+  LONG_OPT_BENCHMARK_SDT_LOOPS,
+  LONG_OPT_BENCHMARK_SDT_THREADS,
 };
 
 // NB: when adding new options, consider very carefully whether they
 // should be restricted from stap clients (after --client-options)!
-#define STAP_SHORT_OPTIONS "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:WG:"
+#define STAP_SHORT_OPTIONS "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:J:jWG:"
 
 #define OWE5 "tter"
 #define OWE1 "uild-"

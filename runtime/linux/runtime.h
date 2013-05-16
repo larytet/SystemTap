@@ -1,5 +1,5 @@
 /* main header file for Linux
- * Copyright (C) 2005-2011 Red Hat Inc.
+ * Copyright (C) 2005-2013 Red Hat Inc.
  * Copyright (C) 2005-2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -21,6 +21,7 @@
 #include <linux/kprobes.h>
 #include <linux/proc_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/random.h>
 #include <linux/spinlock.h>
@@ -71,6 +72,14 @@ static void _stp_warn (const char *fmt, ...) __attribute__ ((format (printf, 1, 
 
 static void _stp_exit(void);
 
+
+#ifdef STAPCONF_HLIST_4ARGS
+#define stap_hlist_for_each_entry(a,b,c,d) hlist_for_each_entry(a,b,c,d)
+#define stap_hlist_for_each_entry_safe(a,b,c,d,e) hlist_for_each_entry_safe(a,b,c,d,e)
+#else
+#define stap_hlist_for_each_entry(a,b,c,d) (void) b; hlist_for_each_entry(a,c,d)
+#define stap_hlist_for_each_entry_safe(a,b,c,d,e) (void) b; hlist_for_each_entry_safe(a,c,d,e)
+#endif
 
 
 /* unprivileged user support */
@@ -142,12 +151,6 @@ static void *kallsyms_uprobe_register;
 #endif
 #if !defined(STAPCONF_UPROBE_UNREGISTER_EXPORTED)
 static void *kallsyms_uprobe_unregister;
-#endif
-#if !defined(STAPCONF_URETPROBE_REGISTER_EXPORTED)
-static void *kallsyms_uretprobe_register;
-#endif
-#if !defined(STAPCONF_URETPROBE_UNREGISTER_EXPORTED)
-static void *kallsyms_uretprobe_unregister;
 #endif
 #if !defined(STAPCONF_UPROBE_GET_SWBP_ADDR_EXPORTED)
 static void *kallsyms_uprobe_get_swbp_addr;
@@ -251,18 +254,28 @@ static struct kernel_param_ops param_ops_int64_t = {
 
 /************* Module Stuff ********************/
 
+
+static int systemtap_kernel_module_init (void);
+
 static unsigned long stap_hash_seed; /* Init during module startup */
 int init_module (void)
 {
+  int rc;
   /* With deliberate hash-collision-inducing data conceivably fed to
      stap, it is beneficial to add some runtime-random value to the
      map hash. */
   get_random_bytes(&stap_hash_seed, sizeof (stap_hash_seed));
-  return _stp_transport_init();
+  rc = _stp_transport_init();
+  if (rc)
+    return rc;
+  return systemtap_kernel_module_init();
 }
+
+static void systemtap_kernel_module_exit (void);
 
 void cleanup_module(void)
 {
+  systemtap_kernel_module_exit();
   _stp_transport_close();
 }
 

@@ -97,7 +97,7 @@ there and interpreted first.  ($SYSTEMTAP_DIR defaults to $HOME/.systemtap if un
 .TP
 .B \-
 Use standard input instead of a given FILENAME as probe language input,
-unless -e SCRIPT is given.
+unless \-e SCRIPT is given.
 .TP
 .B \-h \-\-help
 Show help message.
@@ -436,7 +436,7 @@ Note that
 .IR \-\-list\-servers
 uses the
 .IR avahi\-daemon
-service to detect online servers. If this service is not avaiable, then
+service to detect online servers. If this service is not available, then
 .IR \-\-list\-servers
 will fail to detect any
 .IR online
@@ -2109,6 +2109,7 @@ stappaths (7) manual page.
 .IR stapvars (3stap),
 .IR stapex (3stap),
 .IR stap\-server (8),
+.IR stap\-prep (1),
 .IR awk (1),
 .IR gdb (1)
 

@@ -1,3 +1,65 @@
+* What's new in version 2.2.1, 2013-05-16
+* What's new in version 2.2, 2013-05-14
+
+- Experimental support has been added for probing Java methods using
+  Byteman 2.0 as a backend. Java method probes can target method entries,
+  returns, or specific statements in the method as specified by line number.
+
+      probe java("org.my.MyApp").class("^java.lang.Object").method("foo(int)")
+         { println($$parms) }
+
+  See java/README for information on how to set up Java/Byteman
+  functionality.  Set env STAPBM_VERBOSE=yes for more tracing. 
+
+- The stap -l output and pn() tapset function's return value may be slightly
+  different for complicated web of wildcarded/aliased probes.
+
+- The dyninst backend has improved in several aspects:
+
+  - Setting custom values for global variables is now supported, both
+    with -G when compiling a script, and from the stapdyn command line
+    when loading a precompiled module.
+
+  - A high-performance shared-memory-based transport is used for
+    trace data.
+
+- A systemd service file and tmpfile have been added to allow
+  systemtap-server to be managed natively by systemd.
+
+- Due to the removal of register_timer_hook in recent kernels, the
+  behaviour of timer.profile has been changed slightly. This probe is
+  now an alias which uses the old mechanism where possible, but falls
+  back to perf.sw.cpu_clock or another mechanism when the kernel timer
+  hook is not available.
+
+  To require the kernel timer hook mechanism in your script, use
+  timer.profile.tick instead of timer.profile.
+
+- The following tapset variables are deprecated in release 2.2:
+  - The 'origin' variables in the 'generic.fop.llseek',
+    'generic.fop.llseek.return', and 'nfs.fop.llseek' probes. The
+    'origin' variable has been replaced by the 'whence' variable.
+  - The 'page_index' variable in the 'vfs.block_sync_page' and
+    'vfs.buffer_migrate_page' probe aliases.
+  - The 'write_from' and 'write_upto' variables in the
+    '_vfs.block_prepare_write' and '_vfs.block_prepare_write.return'
+    probe aliases.
+  - The 'regs' variable in the 'syscall.sigaltstack',
+    'nd_syscall.sigaltstack', 'syscall.fork', and 'nd_syscall.fork'
+    probe aliases.
+  - The 'first', 'second', 'third', and 'uptr_uaddr' variables in the
+    'syscall.compat_sys_shmat' and 'nd_syscall.compat_sys_shmat' probe
+    aliases.
+
+- The folowing tapset functions are deprecated in release 2.2:
+  'ppos_pos', '_dev_minor', and '_dev_major'
+
+- The folowing tapset functions used to return error strings instead
+  of raising an error. The original behavior is deprecated in release
+  2.2.
+
+  'ctime', 'probemod', 'modname'
+
 * What's new in version 2.1, 2013-02-13
 
 - EMACS and VIM editor modes for systemtap source files are included / updated.

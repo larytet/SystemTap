@@ -47,12 +47,12 @@ stap_SOURCES = main.cxx session.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
 	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
 	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
-	tapset-dynprobe.cxx
+	tapset-dynprobe.cxx tapset-method.cxx
 stap_SOURCES += re2c-migrate/stapregex.cxx \
 	re2c-migrate/re2c-regex.cxx re2c-migrate/re2c-emit.cxx \
 	re2c-migrate/re2c-dfa.cxx re2c-migrate/re2c-globals.cxx
 noinst_HEADERS = sdt_types.h
-stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@
+stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
 endif
 
@@ -253,7 +253,7 @@ endif
 	(cd $(srcdir)/tapset; find . \( -name '*.stp' -o -name '*.stpm' -o -name README \) -print \
 		| while read f; do $(INSTALL_DATA) -D $$f $(DESTDIR)$(pkgdatadir)/tapset/$$f; done)
 	(cd $(srcdir)/testsuite/systemtap.examples; find . -type f -print \
-		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl' \
+		| egrep -v 'check.exp|ChangeLog|examples-index-gen.pl|html/.*\.tmpl$$' \
 		| while read f; do if test -x $$f; then \
 			i_cmd="$(INSTALL_PROGRAM)"; else \
 			i_cmd="$(INSTALL_DATA)"; fi; \
@@ -285,6 +285,7 @@ clean-local:
 
 distclean-local:
 	rm -rf build-elfutils include-elfutils lib-elfutils
+	rm -f doc/beginners/en-US doc/beginners/build/en-US/testsuite
 
 uninstall-local:
 	rm -rf $(DESTDIR)$(pkgdatadir)
@@ -309,7 +310,7 @@ if BUILD_SERVER
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
 
-SUBDIRS = . stapdyn staprun re2c-migrate doc man po
+SUBDIRS = . java stapdyn staprun re2c-migrate doc man po
 # NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
 EXTRA_DIST = m4/ChangeLog
@@ -348,7 +349,7 @@ testsuite/dtrace: dtrace
 
 PHONIES += update-po
 update-po:
-	(cd $(srcdir); ls -1d *.c *.cxx *.h staprun/*.c staprun/*.h dtrace.in) \
+	(cd $(srcdir); ls -1d *.c *.cxx *.h staprun/*.c staprun/*.h) \
 	| grep -v loc2c-test.c \
 	| grep -v config.h \
 	| grep -v git_version.h \

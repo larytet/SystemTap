@@ -1,6 +1,6 @@
 /* -*- linux-c -*-
  * Common functions for using inode-based uprobes
- * Copyright (C) 2011, 2012 Red Hat Inc.
+ * Copyright (C) 2011-2013 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -14,9 +14,10 @@
 #include <linux/fs.h>
 #include <linux/list.h>
 #include <linux/namei.h>
-#include <linux/rwlock.h>
-#include <linux/uprobes.h>
 #include <linux/mutex.h>
+#include <linux/rwlock.h>
+#include <linux/spinlock.h>
+#include <linux/uprobes.h>
 
 /* STAPIU: SystemTap Inode Uprobes */
 
@@ -54,24 +55,17 @@ typedef typeof(&uprobe_unregister) uprobe_unregister_fn;
 #define uprobe_unregister unregister_uprobe
 #endif
 
-#if defined(STAPCONF_INODE_URETPROBES)
-#if !defined(STAPCONF_URETPROBE_REGISTER_EXPORTED)
-// First typedef from the original decl, then #define it as a typecasted call.
-typedef typeof(&uretprobe_register) uretprobe_register_fn;
-#define uretprobe_register (* (uretprobe_register_fn)kallsyms_uretprobe_register)
-#endif
 
-#if !defined(STAPCONF_URETPROBE_UNREGISTER_EXPORTED)
-// First typedef from the original decl, then #define it as a typecasted call.
-typedef typeof(&uretprobe_unregister) uretprobe_unregister_fn;
-#define uretprobe_unregister (* (uretprobe_unregister_fn)kallsyms_uretprobe_unregister)
-#endif
-#endif
-
+// uprobes started setting REG_IP itself starting in kernel commit 74e59dfc.
+// There's no direct indicator of this, but commit da1816b1 in the same patch
+// series defines UPROBE_HANDLER_MASK, so that's a decent trigger for us.
+#ifndef UPROBE_HANDLER_MASK
+#define STAPIU_NEEDS_REG_IP 1
 #if !defined(STAPCONF_UPROBE_GET_SWBP_ADDR_EXPORTED)
 // First typedef from the original decl, then #define it as a typecasted call.
 typedef typeof(&uprobe_get_swbp_addr) uprobe_get_swbp_addr_fn;
 #define uprobe_get_swbp_addr (* (uprobe_get_swbp_addr_fn)kallsyms_uprobe_get_swbp_addr)
+#endif
 #endif
 
 /* A target is a specific file/inode that we want to probe.  */
@@ -83,11 +77,13 @@ struct stapiu_target {
 	 * This may not be system-wide, e.g. only the -c process.
 	 * We use task_finder to manage this list.  */
 	struct list_head processes; /* stapiu_process */
+	rwlock_t process_lock;
+
 	struct stap_task_finder_target finder;
 
 	const char * const filename;
 	struct inode *inode;
-	struct mutex lock;
+	struct mutex inode_lock;
 };
 
 
@@ -104,11 +100,11 @@ struct stapiu_consumer {
 	loff_t offset; /* the probe offset within the inode */
 	loff_t sdt_sem_offset; /* the semaphore offset from process->base */
 
-  	// List of perf counters used by each probe
-  	// This list is an index into struct stap_perf_probe,
-        long perf_counters_dim;
-        long *perf_counters;
-        const struct stap_probe * const probe;
+	// List of perf counters used by each probe
+	// This list is an index into struct stap_perf_probe,
+	long perf_counters_dim;
+	long *perf_counters;
+	const struct stap_probe * const probe;
 };
 
 
@@ -122,9 +118,9 @@ static struct stapiu_process {
 } stapiu_process_slots[MAXUPROBES];
 
 
-/* This lock guards modification to stapiu_process_slots and target->processes.
- * XXX: consider fine-grained locking for target-processes.  */
-static DEFINE_RWLOCK(stapiu_process_lock);
+/* This lock guards modification to stapiu_process_slots.
+ * Note: target->process_lock nests inside this.  */
+static DEFINE_SPINLOCK(stapiu_process_slots_lock);
 
 
 /* The stap-generated probe handler for all inode-uprobes. */
@@ -132,82 +128,86 @@ static int
 stapiu_probe_handler (struct stapiu_consumer *sup, struct pt_regs *regs);
 
 static int
-stapiu_probe_prehandler (struct uprobe_consumer *inst, unsigned long ip, struct pt_regs *regs)
+stapiu_probe_prehandler (struct uprobe_consumer *inst, struct pt_regs *regs)
 {
-	unsigned long saved_ip;
+	int ret;
 	struct stapiu_consumer *sup =
 		container_of(inst, struct stapiu_consumer, consumer);
-	int ret;
+	struct stapiu_target *target = sup->target;
 
-	/* NB: The current test kernels of new uretprobes are only passing a
-	 * valid address for uretprobes, and passing 0 for regular uprobes.  In
-	 * the near future, the latter should get a fixed-up address too, and
-	 * this call to uprobe_get_swbp_addr() can go away.  */
-	if (ip == 0)
-		ip = uprobe_get_swbp_addr(regs);
+	struct stapiu_process *p, *process = NULL;
 
+	/* First find the related process, set by stapiu_change_plus.  */
+	read_lock(&target->process_lock);
+	list_for_each_entry(p, &target->processes, target_process) {
+		if (p->tgid == current->tgid) {
+			process = p;
+			break;
+		}
+	}
+	read_unlock(&target->process_lock);
+	if (!process)
+		return 0;
+
+#ifdef STAPIU_NEEDS_REG_IP
 	/* Make it look like the IP is set as it would in the actual user task
-	 * when calling real probe handler. Reset IP regs on return, so we
-	 * don't confuse uprobes.  */
-	saved_ip = REG_IP(regs);
-	SET_REG_IP(regs, ip);
+	 * before calling the real probe handler.  */
+	{
+	unsigned long saved_ip = REG_IP(regs);
+	SET_REG_IP(regs, uprobe_get_swbp_addr(regs));
+#endif
+
 	ret = stapiu_probe_handler(sup, regs);
+
+#ifdef STAPIU_NEEDS_REG_IP
+	/* Reset IP regs on return, so we don't confuse uprobes.  */
 	SET_REG_IP(regs, saved_ip);
+	}
+#endif
+
 	return ret;
 }
 
-#ifdef STAPCONF_INODE_UPROBES_NOADDR
-/* This is the old form of uprobes handler, without the separate ip address.
- * We'll always have to kludge it in with uprobe_get_swbp_addr().
- */
 static int
-stapiu_probe_prehandler_noaddr (struct uprobe_consumer *inst, struct pt_regs *regs)
+stapiu_retprobe_prehandler (struct uprobe_consumer *inst,
+			    unsigned long func __attribute__((unused)),
+			    struct pt_regs *regs)
 {
-	unsigned long ip = uprobe_get_swbp_addr(regs);
-	return stapiu_probe_prehandler(inst, ip, regs);
+	return stapiu_probe_prehandler(inst, regs);
 }
-#define STAPIU_HANDLER stapiu_probe_prehandler_noaddr
-#else
-#define STAPIU_HANDLER stapiu_probe_prehandler
-#endif
 
 static int
 stapiu_register (struct inode* inode, struct stapiu_consumer* c)
 {
-	c->consumer.handler = STAPIU_HANDLER;
 	if (!c->return_p) {
-		return uprobe_register (inode, c->offset, &c->consumer);
-        } else {
+		c->consumer.handler = stapiu_probe_prehandler;
+	} else {
 #if defined(STAPCONF_INODE_URETPROBES)
-		return uretprobe_register (inode, c->offset, &c->consumer);
+		c->consumer.ret_handler = stapiu_retprobe_prehandler;
 #else
 		return EINVAL;
 #endif
-        }
+	}
+	return uprobe_register (inode, c->offset, &c->consumer);
 }
 
 static void
 stapiu_unregister (struct inode* inode, struct stapiu_consumer* c)
 {
-	if (!c->return_p)
-		uprobe_unregister (inode, c->offset, &c->consumer);
-#if defined(STAPCONF_INODE_URETPROBES)
-	else
-		uretprobe_unregister (inode, c->offset, &c->consumer);
-#endif
+	uprobe_unregister (inode, c->offset, &c->consumer);
 }
 
 
 static inline void
 stapiu_target_lock(struct stapiu_target *target)
 {
-	mutex_lock(&target->lock);
+	mutex_lock(&target->inode_lock);
 }
 
 static inline void
 stapiu_target_unlock(struct stapiu_target *target)
 {
-	mutex_unlock(&target->lock);
+	mutex_unlock(&target->inode_lock);
 }
 
 /* Read-modify-write a semaphore, usually +/- 1.  */
@@ -296,7 +296,7 @@ static void
 stapiu_decrement_semaphores(struct stapiu_target *targets, size_t ntargets)
 {
 	size_t i;
-	/* NB: no stapiu_process_lock needed, as the task_finder engine is
+	/* NB: no stapiu_process_slots_lock needed, as the task_finder engine is
 	 * already stopped by now, so no one else will mess with us.  We need
 	 * to be sleepable for access_process_vm.  */
 	might_sleep();
@@ -355,9 +355,9 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
 			ret = stapiu_register(target->inode, c);
 			if (ret) {
 				c->registered = 0;
-				_stp_error("probe %s registration error (rc %d)",
-					   c->probe->pp, ret);
-				break;
+				_stp_warn("probe %s inode-offset %p registration error (rc %d)",
+                                          c->probe->pp, (void*) (uintptr_t) c->offset, ret);
+                                ret = 0; /* Don't abort entire stap script just for this. */
 			}
 			c->registered = 1;
 		}
@@ -397,7 +397,8 @@ stapiu_init_targets(struct stapiu_target *targets, size_t ntargets)
 		struct stapiu_target *ut = &targets[i];
 		INIT_LIST_HEAD(&ut->consumers);
 		INIT_LIST_HEAD(&ut->processes);
-		mutex_init(&ut->lock);
+		rwlock_init(&ut->process_lock);
+		mutex_init(&ut->inode_lock);
 		ret = stap_register_task_finder_target(&ut->finder);
 		if (ret != 0) {
 			_stp_error("Couldn't register task finder target for file '%s': %d\n",
@@ -496,7 +497,8 @@ stapiu_change_plus(struct stapiu_target* target, struct task_struct *task,
 	stapiu_target_unlock(target);
 
 	/* Associate this target with this process. */
-	write_lock(&stapiu_process_lock);
+	spin_lock(&stapiu_process_slots_lock);
+	write_lock(&target->process_lock);
 	for (i = 0; i < MAXUPROBES; ++i) {
 		p = &stapiu_process_slots[i];
 		if (!p->tgid) {
@@ -514,7 +516,8 @@ stapiu_change_plus(struct stapiu_target* target, struct task_struct *task,
 			break;
 		}
 	}
-	write_unlock(&stapiu_process_lock);
+	write_unlock(&target->process_lock);
+	spin_unlock(&stapiu_process_slots_lock);
 
 	return 0; /* XXX: or an error? maxskipped? */
 }
@@ -531,14 +534,14 @@ stapiu_change_semaphore_plus(struct stapiu_target* target, struct task_struct *t
 	struct stapiu_consumer *c;
 
 	/* First find the related process, set by stapiu_change_plus.  */
-	read_lock(&stapiu_process_lock);
+	read_lock(&target->process_lock);
 	list_for_each_entry(p, &target->processes, target_process) {
 		if (p->tgid == task->tgid) {
 			process = p;
 			break;
 		}
 	}
-	read_unlock(&stapiu_process_lock);
+	read_unlock(&target->process_lock);
 	if (!process)
 		return 0;
 
@@ -575,7 +578,8 @@ stapiu_change_minus(struct stapiu_target* target, struct task_struct *task,
 	 * inode here.  The registration is system-wide, based on
 	 * inode, not process based.  */
 
-	write_lock(&stapiu_process_lock);
+	spin_lock(&stapiu_process_slots_lock);
+	write_lock(&target->process_lock);
 	list_for_each_entry_safe(p, tmp, &target->processes, target_process) {
 		if (p->tgid == task->tgid && (relocation <= p->relocation &&
 					      p->relocation < relocation+length)) {
@@ -583,7 +587,8 @@ stapiu_change_minus(struct stapiu_target* target, struct task_struct *task,
 			memset(p, 0, sizeof(*p));
 		}
 	}
-	write_unlock(&stapiu_process_lock);
+	write_unlock(&target->process_lock);
+	spin_unlock(&stapiu_process_slots_lock);
 	return 0;
 }
 
