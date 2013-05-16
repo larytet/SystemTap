@@ -35,6 +35,7 @@ extern "C" {
 #include <sys/resource.h>
 #include <elfutils/libdwfl.h>
 #include <unistd.h>
+#include <sys/wait.h>
 }
 
 #if HAVE_NSS
@@ -81,11 +82,14 @@ systemtap_session::systemtap_session ():
   hrtimer_derived_probes(0),
   procfs_derived_probes(0),
   dynprobe_derived_probes(0),
+  java_derived_probes(0),
   op (0), up (0),
   sym_kprobes_text_start (0),
   sym_kprobes_text_end (0),
   sym_stext (0),
   module_cache (0),
+  benchmark_sdt_loops(0),
+  benchmark_sdt_threads(0),
   last_token (0)
 {
   struct utsname buf;
@@ -255,11 +259,14 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   hrtimer_derived_probes(0),
   procfs_derived_probes(0),
   dynprobe_derived_probes(0),
+  java_derived_probes(0),
   op (0), up (0),
   sym_kprobes_text_start (0),
   sym_kprobes_text_end (0),
   sym_stext (0),
   module_cache (0),
+  benchmark_sdt_loops(other.benchmark_sdt_loops),
+  benchmark_sdt_threads(other.benchmark_sdt_threads),
   last_token (0)
 {
   release = kernel_release = kern;
@@ -345,6 +352,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   c_macros = other.c_macros;
   args = other.args;
   kbuildflags = other.kbuildflags;
+
   globalopts = other.globalopts;
   modinfos = other.modinfos;
 
@@ -434,6 +442,9 @@ systemtap_session::version ()
 #endif
 #ifdef HAVE_DYNINST
        << " DYNINST"
+#endif
+#ifdef HAVE_JAVA
+       << " JAVA"
 #endif
        << endl;
 }
@@ -1259,6 +1270,16 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
             return 1;
           break;
 
+        case LONG_OPT_BENCHMARK_SDT_LOOPS:
+          // XXX This option is secret, not supported, subject to change at our whim
+          benchmark_sdt_loops = strtoul(optarg, NULL, 10);
+          break;
+
+        case LONG_OPT_BENCHMARK_SDT_THREADS:
+          // XXX This option is secret, not supported, subject to change at our whim
+          benchmark_sdt_threads = strtoul(optarg, NULL, 10);
+          break;
+
 	case '?':
 	  // Invalid/unrecognized option given or argument required, but
 	  // not given. In both cases getopt_long() will have printed the
@@ -1321,17 +1342,33 @@ systemtap_session::check_options (int argc, char * const argv [])
         args.push_back (string (argv[i]));
     }
 
-  // need a user file
-  // NB: this is also triggered if stap is invoked with no arguments at all
-  if (! have_script)
+  // We don't need a script with --list-servers, --trust-servers, or --dump-probe-types.
+  bool need_script = server_status_strings.empty () && server_trust_spec.empty () && ! dump_probe_types;
+
+  if (benchmark_sdt_loops > 0 || benchmark_sdt_threads > 0)
     {
-      // We don't need a script if --list-servers, --trust-servers or --dump-probe-types was
-      // specified.
-      if (server_status_strings.empty () && server_trust_spec.empty () && ! dump_probe_types)
+      // Secret benchmarking options are for local use only, not servers or --remote
+      if (client_options || !remote_uris.empty())
 	{
-	  cerr << _("A script must be specified.") << endl;
+	  cerr << _("Benchmark options are only for local use.") << endl;
 	  usage(1);
 	}
+
+      // Fill defaults if either is unset.
+      if (benchmark_sdt_loops == 0)
+	benchmark_sdt_loops = 10000000;
+      if (benchmark_sdt_threads == 0)
+	benchmark_sdt_threads = 1;
+
+      need_script = false;
+    }
+
+  // need a user file
+  // NB: this is also triggered if stap is invoked with no arguments at all
+  if (need_script && ! have_script)
+    {
+      cerr << _("A script must be specified.") << endl;
+      usage(1);
     }
 
 #if ! HAVE_NSS
@@ -1512,8 +1549,9 @@ systemtap_session::parse_kernel_config ()
     }
   if (verbose > 2)
     clog << _F("Parsed kernel \"%s\", ", kernel_config_file.c_str())
-         << _F(ngettext("containing %zu tuple", "containing %zu tuples",
-                kernel_config.size()), kernel_config.size()) << endl;
+         << _NF("containing %zu tuple", "containing %zu tuples",
+                kernel_config.size(), kernel_config.size()) << endl;
+
 
   kcf.close();
   return 0;
@@ -1549,9 +1587,9 @@ systemtap_session::parse_kernel_exports ()
         kernel_exports.insert (tokens[1]);
     }
   if (verbose > 2)
-    clog << _F(ngettext("Parsed kernel %s, which contained one vmlinux export",
+    clog << _NF("Parsed kernel %s, which contained one vmlinux export",
                         "Parsed kernel %s, which contained %zu vmlinux exports",
-                         kernel_exports.size()), kernel_exports_file.c_str(),
+                         kernel_exports.size(), kernel_exports_file.c_str(),
                          kernel_exports.size()) << endl;
 
   kef.close();
@@ -1568,24 +1606,23 @@ systemtap_session::parse_kernel_functions ()
   system_map.open(system_map_path.c_str(), ifstream::in);
   if (! system_map.is_open())
     {
-      string error1 = _F("Checking \"%s\" failed with error: %s\nEnsure kernel development headers & makefiles are installed",
-                         system_map_path.c_str(), strerror(errno));
+      if (verbose > 1)
+	clog << _F("Kernel symbol table %s unavailable, (%s)",
+		   system_map_path.c_str(), strerror(errno)) << endl;
 
       string system_map_path2 = "/boot/System.map-" + kernel_release;
-
       system_map.clear();
       system_map.open(system_map_path2.c_str(), ifstream::in);
       if (! system_map.is_open())
         {
-          clog << error1 << endl;
-          clog << _F("Checking \"%s\" failed with error: %s",
-                     system_map_path2.c_str(), strerror(errno)) << endl;
-          return 1;
+	  if (verbose > 1)
+	    clog << _F("Kernel symbol table %s unavailable, (%s)",
+		       system_map_path2.c_str(), strerror(errno)) << endl;
         }
     }
 
   string address, type, name;
-  do
+  while (system_map.good())
     {
       system_map >> address >> type >> name;
 
@@ -1609,7 +1646,6 @@ systemtap_session::parse_kernel_functions ()
       // - what about __kprobes_text_start/__kprobes_text_end?
       kernel_functions.insert(name);
     }
-  while (! system_map.eof());
   system_map.close();
   return 0;
 }

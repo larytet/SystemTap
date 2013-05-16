@@ -45,7 +45,8 @@ extern "C" {
 // limit (a bit more than twice the .debug_frame size of my local
 // vmlinux for 2.6.31.4-83.fc12.x86_64).
 // A larger value was recently found in a libxul.so build.
-#define MAX_UNWIND_TABLE_SIZE (6 * 1024 * 1024)
+// ... and yet again in libxul.so, PR15162
+#define MAX_UNWIND_TABLE_SIZE (16 * 1024 * 1024)
 
 #define STAP_T_01 _("\"Array overflow, check ")
 #define STAP_T_02 _("\"MAXNESTING exceeded\";")
@@ -89,8 +90,12 @@ struct c_unparser: public unparser, public visitor
   void emit_common_header ();
   void emit_global (vardecl* v);
   void emit_global_init (vardecl* v);
+  void emit_global_init_type (vardecl *v);
   void emit_global_param (vardecl* v);
+  void emit_global_init_setters ();
   void emit_functionsig (functiondecl* v);
+  void emit_kernel_module_init ();
+  void emit_kernel_module_exit ();
   void emit_module_init ();
   void emit_module_refresh ();
   void emit_module_exit ();
@@ -1479,9 +1484,8 @@ c_unparser::emit_global_param (vardecl *v)
 {
   string vn = c_globalname (v->name);
 
-  // XXX: No module parameters with dyninst.
-  if (session->runtime_usermode_p())
-    return;
+  // For dyninst, use the emit_global_init_* functionality instead.
+  assert (!session->runtime_usermode_p());
 
   // NB: systemtap globals can collide with linux macros,
   // e.g. VM_FAULT_MAJOR.  We want the parameter name anyway.  This
@@ -1502,6 +1506,41 @@ c_unparser::emit_global_param (vardecl *v)
       o->newline() << "module_param_string (" << v->name << ", "
                    << "global(" << vn << "), MAXSTRINGLEN, 0);";
     }
+}
+
+
+void
+c_unparser::emit_global_init_setters ()
+{
+  // Hack for dyninst module params: setter function forms a little
+  // linear lookup table ditty to find a global variable by name.
+  o->newline() << "int stp_global_setter (const char *name, const char *value) {";
+  o->newline(1);
+  for (unsigned i=0; i<session->globals.size(); i++)
+    {
+      vardecl* v = session->globals[i];
+      if (v->arity > 0) continue;
+      if (v->type != pe_string && v->type != pe_long) continue;
+
+      // Do not mangle v->name for the comparison!
+      o->line() << "if (0 == strcmp(name,\"" << v->name << "\"))" << " {";
+
+      o->indent(1);
+      if (v->type == pe_string)
+        {
+          c_assign("stp_global_init." + c_globalname(v->name), "value", pe_string, "BUG: global module param", v->tok);
+          o->newline() << "return 0;";
+        }
+      else
+        {
+          o->newline() << "return set_int64_t(value, &stp_global_init." << c_globalname(v->name) << ");";
+        }
+
+      o->newline(-1) << "} else ";
+    }
+  o->line() << "return -EINVAL;";
+  o->newline(-1) << "}";
+  o->newline();
 }
 
 
@@ -1554,9 +1593,28 @@ c_unparser::emit_global_init (vardecl *v)
       v->init->visit(this);
       o->line() << ",";
     }
+  else if (v->arity == 0 && session->runtime_usermode_p())
+    {
+      // For dyninst: always try to put a default value into the initial
+      // static structure, so we don't have to guess if it was customized.
+      if (v->type == pe_long)
+        o->newline() << "." << c_globalname (v->name) << " = 0,";
+      else if (v->type == pe_string)
+        o->newline() << "." << c_globalname (v->name) << " = { '\\0' },"; // XXX: ""
+    }
   // The lock and lock_skip_count are handled in emit_module_init.
 }
 
+
+void
+c_unparser::emit_global_init_type (vardecl *v)
+{
+  // We can only statically initialize some scalars.
+  if (v->arity == 0) // ... although we still allow !v->init here.
+    {
+      o->newline() << c_typename(v->type) << " " << c_globalname(v->name) << ";";
+    }
+}
 
 
 void
@@ -1564,6 +1622,64 @@ c_unparser::emit_functionsig (functiondecl* v)
 {
   o->newline() << "static void " << c_funcname(v->name)
 	       << " (struct context * __restrict__ c);";
+}
+
+
+void
+c_unparser::emit_kernel_module_init ()
+{
+  if (session->runtime_usermode_p())
+    return;
+
+  o->newline();
+  o->newline() << "static int systemtap_kernel_module_init (void) {";
+  o->newline(1) << "int rc = 0;";
+  o->newline() << "int i=0, j=0;"; // for derived_probe_group use
+
+  vector<derived_probe_group*> g = all_session_groups (*session);
+  for (unsigned i=0; i<g.size(); i++)
+    {
+      g[i]->emit_kernel_module_init (*session);
+
+      o->newline() << "if (rc) {";
+      o->indent(1);
+      if (i>0)
+        {
+	  for (int j=i-1; j>=0; j--)
+	    g[j]->emit_kernel_module_exit (*session);
+	}
+      o->newline() << "goto out;";
+      o->newline(-1) << "}";
+    }
+  o->newline(-1) << "out:";
+  o->indent(1);
+  o->newline() << "return rc;";
+  o->newline(-1) << "}\n";
+  o->assert_0_indent(); 
+}
+
+
+void
+c_unparser::emit_kernel_module_exit ()
+{
+  if (session->runtime_usermode_p())
+    return;
+
+  o->newline();
+  o->newline() << "static void systemtap_kernel_module_exit (void) {";
+  o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
+
+  // We're processing the derived_probe_group list in reverse order.
+  // This ensures that probe groups get unregistered in reverse order
+  // of the way they were registered.
+  vector<derived_probe_group*> g = all_session_groups (*session);
+  for (vector<derived_probe_group*>::reverse_iterator i = g.rbegin();
+       i != g.rend(); i++)
+    {
+      (*i)->emit_kernel_module_exit (*session);
+    }
+  o->newline(-1) << "}\n";
+  o->assert_0_indent(); 
 }
 
 
@@ -1704,8 +1820,9 @@ c_unparser::emit_module_init ()
       vardecl* v = session->globals[i];
       if (v->index_types.size() > 0)
 	o->newline() << getmap (v).init();
-      else if (v->init && session->runtime_usermode_p())
-	c_assign(getvar (v).value(), v->init, "global initialization");
+      else if (session->runtime_usermode_p() && v->arity == 0
+               && (v->type == pe_long || v->type == pe_string))
+	c_assign(getvar (v).value(), "stp_global_init." + c_globalname(v->name), v->type, "BUG: global initialization", v->tok);
       else
 	o->newline() << getvar (v).init();
       // NB: in case of failure of allocation, "rc" will be set to non-zero.
@@ -1731,6 +1848,13 @@ c_unparser::emit_module_init ()
 		 << ", (num_online_cpus() * sizeof(struct context))"
 		 << ", " << session->probes.size()
 		 << ");";
+  // In dyninst mode, we need to know when all the globals have been
+  // allocated and we're ready to run probe registration.
+  else
+    {
+      o->newline() << "rc = stp_session_init_finished();";
+      o->newline() << "if (rc) goto out;";
+    }
 
   // Run all probe registrations.  This actually runs begin probes.
 
@@ -1880,8 +2004,18 @@ c_unparser::emit_module_exit ()
 	o->newline() << getvar (v).fini();
     }
 
-  // We're finished with the contexts.
-  o->newline() << "_stp_runtime_contexts_free();";
+  // We're finished with the contexts if we're not in dyninst
+  // mode. The dyninst mode needs the contexts, since print buffers
+  // are stored there.
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "_stp_runtime_contexts_free();";
+    }
+  else
+    {
+      o->newline() << "struct context* __restrict__ c;";
+      o->newline() << "c = _stp_runtime_entryfn_get_context();";
+    }
 
   // teardown gettimeofday (if needed)
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
@@ -1958,6 +2092,13 @@ c_unparser::emit_module_exit ()
 
   // NB: PR13386 needs to restore preemption-blocking counts
   o->newline() << "preempt_enable_no_resched();";
+
+  // In dyninst mode, now we're done with the contexts.
+  if (session->runtime_usermode_p())
+    {
+      o->newline() << "_stp_runtime_entryfn_put_context();";
+      o->newline() << "_stp_runtime_contexts_free();";
+    }
 
   o->newline(-1) << "}\n";
 }
@@ -4987,8 +5128,8 @@ c_unparser::visit_print_format (print_format* e)
       // PR10750: Enforce a reasonable limit on # of varargs
       // 32 varargs leads to max 256 bytes on the stack
       if (e->args.size() > 32)
-        throw semantic_error(_F(ngettext("additional argument to print", "too many arguments to print (%zu)",
-                                e->args.size()), e->args.size()), e->tok);
+        throw semantic_error(_NF("additional argument to print", "too many arguments to print (%zu)",
+                                e->args.size(), e->args.size()), e->tok);
 
       // Compute actual arguments
       vector<tmpvar> tmp;
@@ -5900,6 +6041,47 @@ dump_unwind_tables (Dwfl_Module *m,
   return DWARF_CB_OK;
 }
 
+static void
+dump_unwindsym_cxt_table(systemtap_session& session, ostream& output,
+			 const string& modname, unsigned modindex,
+			 const string& secname, unsigned secindex,
+			 const string& table, void*& data, size_t& len)
+{
+  if (data == NULL || len == 0)
+    return;
+
+  if (len > MAX_UNWIND_TABLE_SIZE)
+    {
+      if (secname.empty())
+	session.print_warning (_F("skipping module %s %s table (too big: %zi > %zi)",
+				  modname.c_str(), table.c_str(),
+				  len, (size_t)MAX_UNWIND_TABLE_SIZE));
+      else
+	session.print_warning (_F("skipping module %s, section %s %s table (too big: %zi > %zi)",
+				  modname.c_str(), secname.c_str(), table.c_str(),
+				  len, (size_t)MAX_UNWIND_TABLE_SIZE));
+      data = NULL;
+      len = 0;
+      return;
+    }
+
+  output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
+  output << "static uint8_t _stp_module_" << modindex << "_" << table;
+  if (!secname.empty())
+    output << "_" << secindex;
+  output << "[] = \n";
+  output << "  {";
+  for (size_t i = 0; i < len; i++)
+    {
+      int h = ((uint8_t *)data)[i];
+      output << h << ","; // decimal is less wordy than hex
+      if ((i + 1) % 16 == 0)
+	output << "\n" << "   ";
+    }
+  output << "};\n";
+  output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
+}
+
 static int
 dump_unwindsym_cxt (Dwfl_Module *m,
 		    unwindsym_dump_context *c,
@@ -5919,76 +6101,15 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   Dwarf_Addr eh_addr = c->eh_addr;
   Dwarf_Addr eh_frame_hdr_addr = c->eh_frame_hdr_addr;
 
-  if (debug_frame != NULL && debug_len > 0)
-    {
-      c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
-      c->output << "static uint8_t _stp_module_" << stpmod_idx
-		<< "_debug_frame[] = \n";
-      c->output << "  {";
-      if (debug_len > MAX_UNWIND_TABLE_SIZE)
-        {
-          c->session.print_warning ("skipping module " + modname + " debug_frame unwind table (too big: " +
-                                      lex_cast(debug_len) + " > " + lex_cast(MAX_UNWIND_TABLE_SIZE) + ")");
-        }
-      else
-        for (size_t i = 0; i < debug_len; i++)
-          {
-            int h = ((uint8_t *)debug_frame)[i];
-            c->output << h << ","; // decimal is less wordy than hex
-            if ((i + 1) % 16 == 0)
-              c->output << "\n" << "   ";
-          }
-      c->output << "};\n";
-      c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
-    }
+  dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
+			   "debug_frame", debug_frame, debug_len);
 
-  if (eh_frame != NULL && eh_len > 0)
-    {
-      c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
-      c->output << "static uint8_t _stp_module_" << stpmod_idx
-		<< "_eh_frame[] = \n";
-      c->output << "  {";
-      if (eh_len > MAX_UNWIND_TABLE_SIZE)
-        {
-          c->session.print_warning ("skipping module " + modname + " eh_frame table (too big: " +
-                                      lex_cast(eh_len) + " > " + lex_cast(MAX_UNWIND_TABLE_SIZE) + ")");
-        }
-      else
-        for (size_t i = 0; i < eh_len; i++)
-          {
-            int h = ((uint8_t *)eh_frame)[i];
-            c->output << h << ","; // decimal is less wordy than hex
-            if ((i + 1) % 16 == 0)
-              c->output << "\n" << "   ";
-          }
-      c->output << "};\n";
-      c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
-    }
+  dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
+			   "eh_frame", eh_frame, eh_len);
 
-  if (eh_frame_hdr != NULL && eh_frame_hdr_len > 0)
-    {
-      c->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
-      c->output << "static uint8_t _stp_module_" << stpmod_idx
-		<< "_eh_frame_hdr[] = \n";
-      c->output << "  {";
-      if (eh_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
-        {
-          c->session.print_warning (_F("skipping module %s eh_frame_hdr table (too big: %s > %s)",
-                                          modname.c_str(), lex_cast(eh_frame_hdr_len).c_str(),
-                                          lex_cast(MAX_UNWIND_TABLE_SIZE).c_str()));
-        }
-      else
-        for (size_t i = 0; i < eh_frame_hdr_len; i++)
-          {
-            int h = ((uint8_t *)eh_frame_hdr)[i];
-            c->output << h << ","; // decimal is less wordy than hex
-            if ((i + 1) % 16 == 0)
-              c->output << "\n" << "   ";
-          }
-      c->output << "};\n";
-      c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
-    }
-  
+  dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
+			   "eh_frame_hdr", eh_frame_hdr, eh_frame_hdr_len);
+
   if (c->session.need_unwind && debug_frame == NULL && eh_frame == NULL)
     {
       // There would be only a small benefit to warning.  A user
@@ -6035,32 +6156,8 @@ dump_unwindsym_cxt (Dwfl_Module *m,
       if (secname == ".dynamic" || secname == ".absolute"
 	  || secname == ".text" || secname == "_stext")
 	{
-	  if (debug_frame_hdr != NULL && debug_frame_hdr_len > 0)
-	    {
-	      c->output << "#if defined(STP_USE_DWARF_UNWINDER)"
-			<< " && defined(STP_NEED_UNWIND_DATA)\n";
-	      c->output << "static uint8_t _stp_module_" << stpmod_idx
-			<< "_debug_frame_hdr_" << secidx << "[] = \n";
-	      c->output << "  {";
-	      if (debug_frame_hdr_len > MAX_UNWIND_TABLE_SIZE)
-		{
-                  c->session.print_warning (_F("skipping module %s, section %s debug_frame_hdr"
-                                                 " table (too big: %s > %s)", modname.c_str(),
-                                                 secname.c_str(), lex_cast(debug_frame_hdr_len).c_str(),
-                                                 lex_cast(MAX_UNWIND_TABLE_SIZE).c_str()));
-		}
-	      else
-		for (size_t i = 0; i < debug_frame_hdr_len; i++)
-		  {
-		    int h = ((uint8_t *)debug_frame_hdr)[i];
-                    c->output << h << ","; // decimal is less wordy than hex
-		    if ((i + 1) % 16 == 0)
-		      c->output << "\n" << "   ";
-		  }
-	      c->output << "};\n";
-	      c->output << "#endif /* STP_USE_DWARF_UNWINDER"
-			<< " && STP_NEED_UNWIND_DATA */\n";
-	    }
+	  dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, secname, secidx,
+				   "debug_frame_hdr", debug_frame_hdr, debug_frame_hdr_len);
 	}
     }
 
@@ -6733,19 +6830,29 @@ translate_pass (systemtap_session& s)
 
 	  // We only need to statically initialize globals in kernel modules,
 	  // where module parameters may want to override the script's value.  In
-	  // stapdyn, the globals are actually part of the dynamic shared memory.
-	  if (!s.runtime_usermode_p())
+	  // stapdyn, the globals are actually part of the dynamic shared memory,
+	  // and the static structure is merely used as a source of default values.
+	  s.op->newline();
+	  if (!s.runtime_usermode_p ())
+	    s.op->newline() << "static struct stp_globals stp_global = {";
+	  else
+	   {
+	     s.op->newline() << "static struct {";
+	     s.op->indent(1);
+	     for (unsigned i=0; i<s.globals.size(); i++)
+	       {
+		 assert_no_interrupts();
+                 s.up->emit_global_init_type (s.globals[i]);
+	       }
+	     s.op->newline(-1) << "} stp_global_init = {";
+	   }
+	  s.op->newline(1);
+	  for (unsigned i=0; i<s.globals.size(); i++)
 	    {
-	      s.op->newline();
-	      s.op->newline() << "static struct stp_globals stp_global = {";
-	      s.op->newline(1);
-	      for (unsigned i=0; i<s.globals.size(); i++)
-		{
-		  assert_no_interrupts();
-		  s.up->emit_global_init (s.globals[i]);
-		}
-	      s.op->newline(-1) << "};";
+	      assert_no_interrupts();
+              s.up->emit_global_init (s.globals[i]);
 	    }
+	  s.op->newline(-1) << "};";
 
 	  s.op->assert_0_indent();
 	}
@@ -6908,6 +7015,10 @@ translate_pass (systemtap_session& s)
       s.op->newline();
       s.up->emit_module_exit ();
       s.op->assert_0_indent();
+      s.up->emit_kernel_module_init ();
+      s.op->assert_0_indent();
+      s.up->emit_kernel_module_exit ();
+      s.op->assert_0_indent();
       s.op->newline();
 
       emit_symbol_data (s);
@@ -6926,12 +7037,15 @@ translate_pass (systemtap_session& s)
 
       s.op->assert_0_indent();
 
-      // PR10298: attempt to avoid collisions with symbols
-      for (unsigned i=0; i<s.globals.size(); i++)
-        {
-          s.op->newline();
-          s.up->emit_global_param (s.globals[i]);
-        }
+      if (s.runtime_usermode_p())
+        s.up->emit_global_init_setters();
+      else
+        // PR10298: attempt to avoid collisions with symbols
+        for (unsigned i=0; i<s.globals.size(); i++)
+          {
+            s.op->newline();
+            s.up->emit_global_param (s.globals[i]);
+          }
       s.op->assert_0_indent();
     }
   catch (const semantic_error& e)

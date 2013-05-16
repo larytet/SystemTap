@@ -436,7 +436,7 @@ parser::next_pp1 ()
   if (cursor < act->curr_macro->body.size())
     {
       token* t = new token(*act->curr_macro->body[cursor]);
-      t->chain = act->tok; // mark chained token
+      t->chain = new token(*act->tok); // mark chained token
       cursor++;
       return t;
     }
@@ -592,12 +592,12 @@ parser::scan_pp1 ()
           if (! (t && t->type == tok_operator && t->content == "("))
             {
               delete new_act;
-              throw parse_error (_F(ngettext
+              throw parse_error (_NF
                                     ("expected '(' in invocation of macro '@%s'"
                                      " taking %d parameter",
                                      "expected '(' in invocation of macro '@%s'"
                                      " taking %d parameters",
-                                     num_params), name.c_str(), num_params), t);
+                                     num_params, name.c_str(), num_params), t);
             }
 
           // XXX perhaps parse/count the full number of params,
@@ -1838,7 +1838,7 @@ parser::parse ()
     }
   else if (num_errors > 0)
     {
-      cerr << _F(ngettext("%d parse error.", "%d parse errors.", num_errors), num_errors) << endl;
+      cerr << _NF("%d parse error.", "%d parse errors.", num_errors, num_errors) << endl;
       delete f;
       f = 0;
     }
@@ -1984,7 +1984,7 @@ parser::parse_try_block ()
   expect_kw ("catch");
 
   const token* t = peek ();
-  if (t->type == tok_operator && t->content == "(")
+  if (t != NULL && t->type == tok_operator && t->content == "(")
     {
       swallow (); // swallow the '('
 
@@ -2247,6 +2247,8 @@ parser::parse_probe_point ()
       while (1)
         {
           const token* u = peek();
+          if (u == NULL)
+            break;
           // ensure pieces of the identifier are adjacent:
           if (input.ate_whitespace)
             break;
@@ -2470,6 +2472,8 @@ parser::parse_expr_statement ()
 {
   expr_statement *es = new expr_statement;
   const token* t = peek ();
+  if (t == NULL)
+    throw parse_error (_("expression statement expected"));
   // Copy, we only peeked, parse_expression might swallow.
   es->tok = new token (*t);
   es->value = parse_expression ();
@@ -3041,7 +3045,7 @@ parser::parse_array_in ()
       arrayindex* a = new arrayindex;
       a->indexes = indexes;
       a->base = parse_indexable();
-      a->tok = a->base->get_tok();
+      a->tok = a->base->tok;
       e->operand = a;
       return e;
     }
@@ -3581,8 +3585,11 @@ target_symbol* parser::parse_target_symbol (const token* t)
   if (t->type == tok_operator && t->content == "&")
     {
       addressof = true;
+      // Don't delete t before trying next token.
+      // We might need it in the error message when there is no next token.
+      const token *next_t = next ();
       delete t;
-      t = next ();
+      t = next_t;
     }
 
   if (t->type == tok_operator && t->content == "@cast")
@@ -3744,7 +3751,7 @@ parser::parse_target_symbol_components (target_symbol* e)
       // check for pretty-print in the form $foo $
       // i.e. as a separate token, esp. for $foo[i]$ and @cast(...)$
       const token* t = peek();
-      if (t->type == tok_identifier &&
+      if (t != NULL && t->type == tok_identifier &&
           t->content.find_first_not_of('$') == string::npos)
         {
           t = next();

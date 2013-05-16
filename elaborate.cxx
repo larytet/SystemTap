@@ -112,17 +112,17 @@ derived_probe::printsig_nested (ostream& o) const
 
 
 void
-derived_probe::collect_derivation_chain (std::vector<probe*> &probes_list)
+derived_probe::collect_derivation_chain (std::vector<probe*> &probes_list) const
 {
-  probes_list.push_back(this);
+  probes_list.push_back(const_cast<derived_probe*>(this));
   base->collect_derivation_chain(probes_list);
 }
 
 
 void
-derived_probe::collect_derivation_pp_chain (std::vector<probe_point*> &pp_list)
+derived_probe::collect_derivation_pp_chain (std::vector<probe_point*> &pp_list) const
 {
-  pp_list.push_back(base_pp);
+  pp_list.push_back(const_cast<probe_point*>(this->sole_location()));
   base->collect_derivation_pp_chain(pp_list);
 }
 
@@ -133,8 +133,9 @@ derived_probe::derived_locations ()
   ostringstream o;
   vector<probe_point*> reference_point;
   collect_derivation_pp_chain(reference_point);
-  for(unsigned i=0; i<reference_point.size(); ++i)
-    o << " from: " << reference_point[i]->str(false); // no ?,!,etc
+  if (reference_point.size() > 0)
+    for(unsigned i=1; i<reference_point.size(); ++i)
+      o << " from: " << reference_point[i]->str(false); // no ?,!,etc
   return o.str();
 }
 
@@ -143,9 +144,9 @@ probe_point*
 derived_probe::sole_location () const
 {
   if (locations.size() == 0 || locations.size() > 1)
-    throw semantic_error (ngettext("derived_probe with no locations",
-                                   "derived_probe with no locations",
-                                   locations.size()), this->tok);
+    throw semantic_error (_N("derived_probe with no locations",
+                             "derived_probe with too many locations",
+                             locations.size()), this->tok);
   else
     return locations[0];
 }
@@ -154,17 +155,31 @@ derived_probe::sole_location () const
 probe_point*
 derived_probe::script_location () const
 {
-  // XXX PR14297 make this more accurate wrt complex wildcard expansions
-  const probe* p = almost_basest();
-  probe_point *a = p->get_alias_loc();
-  if (a) return a;
-  const vector<probe_point*>& locs = p->locations;
-  if (locs.size() == 0 || locs.size() > 1)
-    throw semantic_error (ngettext("derived_probe with no locations",
-                                   "derived_probe with too many locations",
-                                   locs.size()), this->tok);
-  else
-    return locs[0];
+  // This feeds function::pn() in the tapset, which is documented as the
+  // script-level probe point expression, *after wildcard expansion*.  If
+  // it were not for wildcard stuff, we'd just return the last item in the
+  // derivation chain.  But alas ... we need to search for the last one
+  // that doesn't have a * in the textual representation.  Heuristics, eww.
+  vector<probe_point*> chain;
+  collect_derivation_pp_chain (chain);
+
+  // NB: we actually start looking from the second-to-last item, so the user's
+  // direct input is not considered.  Input like 'kernel.function("init_once")'
+  // will thus be listed with the resolved @file:line too, disambiguating the
+  // distinct functions by this name, and matching our historical behavior.
+  for (int i=chain.size()-2; i>=0; i--)
+    {
+      probe_point pp_copy (* chain [i]);
+      // drop any ?/! denotations that would confuse a glob-char search
+      pp_copy.optional = false;
+      pp_copy.sufficient = false;
+      string pp_printed = lex_cast(pp_copy);
+      if (! contains_glob_chars(pp_printed))
+        return chain[i];
+    }
+
+  // If that didn't work, just fallback to -something-.
+  return sole_location();
 }
 
 
@@ -772,6 +787,7 @@ struct alias_derived_probe: public derived_probe
 
   virtual const probe_alias *get_alias () const { return alias; }
   virtual probe_point *get_alias_loc () const { return alias_loc; }
+  virtual probe_point *sole_location () const;
 
 private:
   const probe_alias *alias; // Used to check for recursion
@@ -795,6 +811,13 @@ alias_derived_probe::alias_derived_probe(probe *base, probe_point *l,
 }
 
 
+probe_point*
+alias_derived_probe::sole_location () const
+{
+  return const_cast<probe_point*>(alias_loc);
+}
+
+
 probe*
 probe::create_alias(probe_point* l, probe_point* a)
 {
@@ -803,6 +826,7 @@ probe::create_alias(probe_point* l, probe_point* a)
   p->tok = tok;
   p->locations.push_back(l);
   p->body = body;
+  p->base = this;
   p->privileged = privileged;
   p->epilogue_style = false;
   return new alias_derived_probe(this, l, p);
@@ -954,6 +978,9 @@ derive_probes (systemtap_session& s,
 
       probe_point *loc = p->locations[i];
 
+      if (s.verbose > 4)
+        clog << "derive-probes " << *loc << endl;
+
       try
         {
           unsigned num_atbegin = dps.size();
@@ -1055,7 +1082,7 @@ struct symbol_fetcher
 
   void visit_arrayindex (arrayindex* e)
   {
-    e->base->visit_indexable (this);
+    e->base->visit (this);
   }
 
   void visit_cast_op (cast_op* e)
@@ -1065,7 +1092,10 @@ struct symbol_fetcher
 
   void throwone (const token* t)
   {
-    throw semantic_error (_("Expecting symbol or array index expression"), t);
+    if (t->type == tok_operator && t->content == ".") // guess someone misused . in $foo->bar.baz expression
+      throw semantic_error (_("Expecting symbol or array index expression, try -> instead"), t);
+    else
+      throw semantic_error (_("Expecting symbol or array index expression"), t);
   }
 };
 

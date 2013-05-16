@@ -85,7 +85,14 @@ common_probe_entryfn_prologue (systemtap_session& s,
 			       string probe_type, bool overload_processing)
 {
   if (s.runtime_usermode_p())
-    s.op->newline() << "int _stp_saved_errno = errno;";
+    {
+      // If session_state() is NULL, then we haven't even initialized shm yet,
+      // and there's *nothing* for the probe to do.  (even alibi is in shm)
+      // So failure skips this whole block through the end of the epilogue.
+      s.op->newline() << "if (likely(session_state())) {";
+      s.op->newline(1) << "int _stp_saved_errno = errno;";
+    }
+
   s.op->newline() << "#ifdef STP_ALIBI";
   s.op->newline() << "atomic_inc(probe_alibi(" << probe << "->index));";
   s.op->newline() << "#else";
@@ -327,7 +334,13 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   s.op->newline(-1) << "probe_epilogue:"; // context is free
   s.op->indent(1);
 
-  s.op->newline() << "_stp_runtime_entryfn_put_context();";
+  // In dyninst mode, we're not done with the context yet, since
+  // _stp_error() still needs a context structure (since the log
+  // buffers are stored there).
+  if (!s.runtime_usermode_p())
+    {
+      s.op->newline() << "_stp_runtime_entryfn_put_context();";
+    }
   if (! s.suppress_handler_errors) // PR 13306
     {
       // Check for excessive skip counts.
@@ -344,8 +357,13 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   s.op->newline() << "#endif";
 
   s.op->newline() << "#endif // STP_ALIBI";
+
   if (s.runtime_usermode_p())
-    s.op->newline() << "errno = _stp_saved_errno;";
+    {
+      s.op->newline() << "_stp_runtime_entryfn_put_context();";
+      s.op->newline() << "errno = _stp_saved_errno;";
+      s.op->newline(-1) << "}";
+    }
 }
 
 
@@ -372,6 +390,8 @@ static const string TOK_TRACE("trace");
 static const string TOK_LABEL("label");
 static const string TOK_LIBRARY("library");
 static const string TOK_PLT("plt");
+static const string TOK_METHOD("method");
+static const string TOK_CLASS("class");;
 
 static int query_cu (Dwarf_Die * cudie, void * arg);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
@@ -2133,7 +2153,7 @@ query_one_library (const char *library, dwflpp & dw,
           derived_comps.push_back(*it);
       probe_point* derived_loc = new probe_point(*specific_loc);
       derived_loc->components = derived_comps;
-      probe *new_base = base_probe->create_alias(derived_loc, specific_loc);
+      probe *new_base = new probe (new probe (base_probe, specific_loc), derived_loc);
       derive_probes(dw.sess, new_base, results);
       if (dw.sess.verbose > 2)
         clog << _("module=") << library_path;
@@ -2174,7 +2194,6 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
     vector<derived_probe *> & results)
 {
       probe_point* specific_loc = new probe_point(*base_loc);
-      specific_loc->optional = true;
       vector<probe_point::component*> derived_comps;
 
       if (dw.sess.verbose > 2)
@@ -2187,15 +2206,18 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
           it != specific_loc->components.end(); ++it)
         if ((*it)->functor == TOK_PLT)
           {
+            *it = new probe_point::component(TOK_PLT,
+                                             new literal_string(entry));
             derived_comps.push_back(*it);
             derived_comps.push_back(new probe_point::component(TOK_STATEMENT,
-                new literal_number(addr)));
+                                                               new literal_number(addr, true)));
           }
         else
           derived_comps.push_back(*it);
       probe_point* derived_loc = new probe_point(*specific_loc);
       derived_loc->components = derived_comps;
-      probe *new_base = base_probe->create_alias(derived_loc, specific_loc);
+      probe *new_base = new probe (new probe (base_probe, specific_loc),
+                                   derived_loc);
       string e = string(entry);
       plt_expanding_visitor pltv (e);
       pltv.replace (new_base->body);
@@ -2327,9 +2349,9 @@ var_expanding_visitor::rewrite_lvalue(const token* tok, const std::string& eop,
 	  ops.resize(ops.size() - 1);	// chop off the last ','
 
 	  // Throw the error.
-	  throw semantic_error (_F(ngettext("Only the following assign operator is implemented on target variables: %s",
+	  throw semantic_error (_NF("Only the following assign operator is implemented on target variables: %s",
                                             "Only the following assign operators are implemented on target variables: %s",
-                                           valid_ops_size), ops.c_str()), tok);
+                                           valid_ops_size, ops.c_str()), tok);
 
 	}
 
@@ -3015,40 +3037,43 @@ static const string EMBEDDED_FETCH_DEREF_DONE = string("\n")
   + "#undef deref\n"
   + "#undef store_deref\n";
 
-expression*
-dwarf_pretty_print::deref (target_symbol* e)
+static functioncall*
+synthetic_embedded_deref_call(systemtap_session& session,
+                              const string& function_name,
+                              const string& function_code,
+                              exp_type function_type,
+                              bool userspace_p,
+                              bool lvalue_p,
+                              target_symbol* e,
+                              expression* pointer=NULL)
 {
-  static unsigned tick = 0;
-
-  if (!deref_p)
-    {
-      assert (pointer && e->components.empty());
-      return pointer;
-    }
-
-  // Synthesize a function to dereference the dwarf fields,
-  // with a pointer parameter that is the base tracepoint variable
+  // Synthesize a functiondecl for the given embedded code string.
   functiondecl *fdecl = new functiondecl;
   fdecl->synthetic = true;
   fdecl->tok = e->tok;
+  fdecl->name = function_name;
+  fdecl->type = function_type;
+
   embeddedcode *ec = new embeddedcode;
   ec->tok = e->tok;
-
-  fdecl->name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
+  ec->code += "/* unprivileged */";
+  if (! lvalue_p)
+    ec->code += "/* pure */";
+  ec->code += EMBEDDED_FETCH_DEREF(userspace_p);
+  ec->code += function_code;
+  ec->code += EMBEDDED_FETCH_DEREF_DONE;
   fdecl->body = ec;
 
   // Synthesize a functioncall.
   functioncall* fcall = new functioncall;
   fcall->tok = e->tok;
   fcall->function = fdecl->name;
+  fcall->type = fdecl->type;
 
-  ec->code += EMBEDDED_FETCH_DEREF(userspace_p);
-
+  // If this code snippet uses a precomputed pointer,
+  // pass that as the first argument.
   if (pointer)
     {
-      ec->code += dw.literal_stmt_for_pointer (&pointer_type, e,
-                                               false, fdecl->type);
-
       vardecl *v = new vardecl;
       v->type = pe_long;
       v->name = "pointer";
@@ -3056,14 +3081,8 @@ dwarf_pretty_print::deref (target_symbol* e)
       fdecl->formal_args.push_back(v);
       fcall->args.push_back(pointer);
     }
-  else if (!local.empty())
-    ec->code += dw.literal_stmt_for_local (scopes, pc, local, e,
-                                           false, fdecl->type);
-  else
-    ec->code += dw.literal_stmt_for_return (&scopes[0], pc, e,
-                                            false, fdecl->type);
 
-  // Any non-literal indexes need to be passed in too.
+  // Any non-literal indexes need to be passed as arguments too.
   for (unsigned i = 0; i < e->components.size(); ++i)
     if (e->components[i].type == target_symbol::comp_expression_array_index)
       {
@@ -3075,13 +3094,57 @@ dwarf_pretty_print::deref (target_symbol* e)
         fcall->args.push_back(e->components[i].expr_index);
       }
 
-  ec->code += "/* pure */";
-  ec->code += "/* unprivileged */";
+  // If this code snippet is assigning to an lvalue,
+  // add a final argument for the rvalue.
+  if (lvalue_p)
+    {
+      // Modify the fdecl so it carries a single pe_long formal
+      // argument called "value".
 
-  ec->code += EMBEDDED_FETCH_DEREF_DONE;
+      // FIXME: For the time being we only support setting target
+      // variables which have base types; these are 'pe_long' in
+      // stap's type vocabulary.  Strings and pointers might be
+      // reasonable, some day, but not today.
 
-  fdecl->join (dw.sess);
+      vardecl *v = new vardecl;
+      v->type = pe_long;
+      v->name = "value";
+      v->tok = e->tok;
+      fdecl->formal_args.push_back(v);
+      // NB: We don't know the value for fcall argument yet.
+      // (see target_symbol_setter_functioncalls)
+    }
+
+  // Add the synthesized decl to the session, and return the call.
+  fdecl->join (session);
   return fcall;
+}
+
+expression*
+dwarf_pretty_print::deref (target_symbol* e)
+{
+  static unsigned tick = 0;
+
+  if (!deref_p)
+    {
+      assert (pointer && e->components.empty());
+      return pointer;
+    }
+
+  bool lvalue_p = false;
+  string name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
+
+  string code;
+  exp_type type = pe_long;
+  if (pointer)
+    code = dw.literal_stmt_for_pointer (&pointer_type, e, false, type);
+  else if (!local.empty())
+    code = dw.literal_stmt_for_local (scopes, pc, local, e, false, type);
+  else
+    code = dw.literal_stmt_for_return (&scopes[0], pc, e, false, type);
+
+  return synthetic_embedded_deref_call(dw.sess, name, code, type,
+                                       userspace_p, lvalue_p, e, pointer);
 }
 
 
@@ -3684,85 +3747,22 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
           return;
         }
 
-      // Synthesize a function.
-      functiondecl *fdecl = new functiondecl;
-      fdecl->synthetic = true;
-      fdecl->tok = e->tok;
-      embeddedcode *ec = new embeddedcode;
-      ec->tok = e->tok;
-
+      bool userspace_p = q.has_process;
       string fname = (string(lvalue ? "_dwarf_tvar_set" : "_dwarf_tvar_get")
                       + "_" + e->sym_name()
                       + "_" + lex_cast(tick++));
 
-      ec->code += EMBEDDED_FETCH_DEREF(q.has_process);
 
+      exp_type type = pe_long;
+      string code;
       if (q.has_return && (e->name == "$return"))
-        {
-	  ec->code += q.dw.literal_stmt_for_return (scope_die,
-						   addr,
-						   e,
-						   lvalue,
-						   fdecl->type);
-	}
+        code = q.dw.literal_stmt_for_return (scope_die, addr, e, lvalue, type);
       else
-        {
-	  ec->code += q.dw.literal_stmt_for_local (getscopes(e),
-						  addr,
-						  e->sym_name(),
-						  e,
-						  lvalue,
-						  fdecl->type);
-	}
+        code = q.dw.literal_stmt_for_local (getscopes(e), addr, e->sym_name(),
+                                            e, lvalue, type);
 
-      if (! lvalue)
-        ec->code += "/* pure */";
-
-      ec->code += "/* unprivileged */";
-      ec->code += EMBEDDED_FETCH_DEREF_DONE;
-
-      fdecl->name = fname;
-      fdecl->body = ec;
-
-      // Any non-literal indexes need to be passed in too.
-      for (unsigned i = 0; i < e->components.size(); ++i)
-        if (e->components[i].type == target_symbol::comp_expression_array_index)
-          {
-            vardecl *v = new vardecl;
-            v->type = pe_long;
-            v->name = "index" + lex_cast(i);
-            v->tok = e->tok;
-            fdecl->formal_args.push_back(v);
-          }
-
-      if (lvalue)
-        {
-          // Modify the fdecl so it carries a single pe_long formal
-          // argument called "value".
-
-          // FIXME: For the time being we only support setting target
-          // variables which have base types; these are 'pe_long' in
-          // stap's type vocabulary.  Strings and pointers might be
-          // reasonable, some day, but not today.
-
-          vardecl *v = new vardecl;
-          v->type = pe_long;
-          v->name = "value";
-          v->tok = e->tok;
-          fdecl->formal_args.push_back(v);
-        }
-      fdecl->join (q.sess);
-
-      // Synthesize a functioncall.
-      functioncall* n = new functioncall;
-      n->tok = e->tok;
-      n->function = fname;
-      n->type = fdecl->type;
-
-      // Any non-literal indexes need to be passed in too.
-      for (unsigned i = 0; i < e->components.size(); ++i)
-        if (e->components[i].type == target_symbol::comp_expression_array_index)
-          n->args.push_back(require(e->components[i].expr_index));
+      functioncall* n = synthetic_embedded_deref_call(q.sess, fname, code, type,
+                                                      userspace_p, lvalue, e);
 
       if (lvalue)
         {
@@ -3773,7 +3773,8 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
           *(target_symbol_setter_functioncalls.top()) = n;
         }
 
-      provide (n);
+      // Revisit the functioncall so arguments can be expanded.
+      n->visit (this);
     }
   catch (const semantic_error& er)
     {
@@ -4043,74 +4044,8 @@ dwarf_cast_query::handle_query_module()
 		  + "_" + e.sym_name()
 		  + "_" + lex_cast(tick++));
 
-  // Synthesize a function.
-  functiondecl *fdecl = new functiondecl;
-  fdecl->synthetic = true;
-  fdecl->tok = e.tok;
-  fdecl->type = type;
-  fdecl->name = fname;
-
-  embeddedcode *ec = new embeddedcode;
-  ec->tok = e.tok;
-  fdecl->body = ec;
-
-  ec->code += EMBEDDED_FETCH_DEREF(userspace_p);
-  ec->code += code;
-
-  // Give the fdecl an argument for the pointer we're trying to cast
-  vardecl *v1 = new vardecl;
-  v1->type = pe_long;
-  v1->name = "pointer";
-  v1->tok = e.tok;
-  fdecl->formal_args.push_back(v1);
-
-  // Any non-literal indexes need to be passed in too.
-  for (unsigned i = 0; i < e.components.size(); ++i)
-    if (e.components[i].type == target_symbol::comp_expression_array_index)
-      {
-        vardecl *v = new vardecl;
-        v->type = pe_long;
-        v->name = "index" + lex_cast(i);
-        v->tok = e.tok;
-        fdecl->formal_args.push_back(v);
-      }
-
-  if (lvalue)
-    {
-      // Modify the fdecl so it carries a second pe_long formal
-      // argument called "value".
-
-      // FIXME: For the time being we only support setting target
-      // variables which have base types; these are 'pe_long' in
-      // stap's type vocabulary.  Strings and pointers might be
-      // reasonable, some day, but not today.
-
-      vardecl *v2 = new vardecl;
-      v2->type = pe_long;
-      v2->name = "value";
-      v2->tok = e.tok;
-      fdecl->formal_args.push_back(v2);
-    }
-  else
-    ec->code += "/* pure */";
-
-  ec->code += "/* unprivileged */";
-  ec->code += EMBEDDED_FETCH_DEREF_DONE;
-
-  fdecl->join (dw.sess);
-
-  // Synthesize a functioncall.
-  functioncall* n = new functioncall;
-  n->tok = e.tok;
-  n->function = fname;
-  n->args.push_back(e.operand);
-
-  // Any non-literal indexes need to be passed in too.
-  for (unsigned i = 0; i < e.components.size(); ++i)
-    if (e.components[i].type == target_symbol::comp_expression_array_index)
-      n->args.push_back(e.components[i].expr_index);
-
-  result = n;
+  result = synthetic_embedded_deref_call(dw.sess, fname, code, type,
+                                         userspace_p, lvalue, &e, e.operand);
 }
 
 
@@ -4262,11 +4197,10 @@ kernel_supports_inode_uprobes(systemtap_session& s)
 static bool
 kernel_supports_inode_uretprobes(systemtap_session& s)
 {
-  // We need inode-uprobes first, then look for uretprobe_register either as a
-  // real export or in the list possibly accessible by kallsyms.
+  // We need inode-uprobes first, then look for a sign of uretprobes.  The only
+  // non-static function at present is arch_uretprobe_hijack_return_addr.
   return kernel_supports_inode_uprobes(s) &&
-    (s.kernel_exports.count("uretprobe_register") > 0 ||
-     s.kernel_functions.count("uretprobe_register") > 0);
+    (s.kernel_functions.count("arch_uretprobe_hijack_return_addr") > 0);
 }
 
 
@@ -5584,7 +5518,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
           pf->raw_components += tsym->name;
           tsym->components = e->components;
 
-          expression *texp = require (tsym);
+          expression *texp = require<expression> (tsym);
           if (!e->components.empty() &&
               e->components[0].type == target_symbol::comp_pretty_print)
             pf->raw_components += "=%s";
@@ -6642,7 +6576,7 @@ sdt_query::convert_location ()
 
   probe_point* derived_loc = new probe_point(*specific_loc);
   derived_loc->components = derived_comps;
-  return base_probe->create_alias(derived_loc, specific_loc);
+  return new probe (new probe (base_probe, specific_loc), derived_loc);
 }
 
 
@@ -6751,7 +6685,7 @@ dwarf_builder::build(systemtap_session & sess,
                   ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
                   pp->components[0] = ppc;
 
-                  probe* new_probe = new probe (*base, pp);
+                  probe* new_probe = new probe (base, pp);
 
                   // We override "optional = true" here, as if the
                   // wildcarded probe point was given a "?" suffix.
@@ -6852,7 +6786,7 @@ dwarf_builder::build(systemtap_session & sess,
                   ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
                   pp->components[0] = ppc;
 
-                  probe* new_probe = new probe (*base, pp);
+                  probe* new_probe = new probe (base, pp);
 
                   derive_probes (sess, new_probe, finished_results);
 
@@ -6960,14 +6894,14 @@ dwarf_builder::build(systemtap_session & sess,
                 }
             }
 
-          sess.print_warning (_F(ngettext("cannot probe .return of %u inlined function %s",
+          sess.print_warning (_NF("cannot probe .return of %u inlined function %s",
                                           "cannot probe .return of %u inlined functions %s",
-                                           quicklist.size()), i_n_r, quicklist.c_str()));
+                                           quicklist.size(), i_n_r, quicklist.c_str()));
           // There will be also a "no matches" semantic error generated.
         }
       if (sess.verbose > 1)
-        clog << _F(ngettext("skipped .return probe of %u inlined function",
-                            "skipped .return probe of %u inlined functions", i_n_r), i_n_r) << endl;
+        clog << _NF("skipped .return probe of %u inlined function",
+                            "skipped .return probe of %u inlined functions", i_n_r, i_n_r) << endl;
       if ((sess.verbose > 3) || (sess.verbose > 2 && results_pre == results_post)) // issue details with high verbosity
         {
           for (set<string>::iterator it = q.inlined_non_returnable.begin();
@@ -8810,10 +8744,16 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline();
 
   // Forward declare the master entry functions
+  s.op->newline() << "#ifdef STAPCONF_PERF_HANDLER_NMI";
   s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
   s.op->line() << " int nmi,";
   s.op->line() << " struct perf_sample_data *data,";
   s.op->line() << " struct pt_regs *regs);";
+  s.op->newline() << "#else";
+  s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
+  s.op->line() << " struct perf_sample_data *data,";
+  s.op->line() << " struct pt_regs *regs);";
+  s.op->newline() << "#endif";
 
   // Emit the actual probe list.
 
@@ -8866,10 +8806,16 @@ hwbkpt_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   // Emit the hwbkpt callback function
   s.op->newline() ;
+  s.op->newline() << "#ifdef STAPCONF_PERF_HANDLER_NMI";
   s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
   s.op->line() << " int nmi,";
   s.op->line() << " struct perf_sample_data *data,";
   s.op->line() << " struct pt_regs *regs) {";
+  s.op->newline() << "#else";
+  s.op->newline() << "static int enter_hwbkpt_probe (struct perf_event *bp,";
+  s.op->line() << " struct perf_sample_data *data,";
+  s.op->line() << " struct pt_regs *regs) {";
+  s.op->newline() << "#endif";
   s.op->newline(1) << "unsigned int i;";
   s.op->newline() << "if (bp->attr.type != PERF_TYPE_BREAKPOINT) return -1;";
   s.op->newline() << "for (i=0; i<" << hwbkpt_probes.size() << "; i++) {";
@@ -9150,77 +9096,16 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
           return;
         }
 
-      // Synthesize a function to dereference the dwarf fields,
-      // with a pointer parameter that is the base tracepoint variable
-      functiondecl *fdecl = new functiondecl;
-      fdecl->synthetic = true;
-      fdecl->tok = e->tok;
-      embeddedcode *ec = new embeddedcode;
-      ec->tok = e->tok;
-
+      bool userspace_p = false;
       string fname = (string(lvalue ? "_tracepoint_tvar_set" : "_tracepoint_tvar_get")
                       + "_" + e->sym_name()
                       + "_" + lex_cast(tick++));
 
-      fdecl->name = fname;
-      fdecl->body = ec;
+      exp_type type = pe_long;
+      string code = dw.literal_stmt_for_pointer (&arg->type_die, e, lvalue, type);
 
-      ec->code += EMBEDDED_FETCH_DEREF(false);
-      ec->code += dw.literal_stmt_for_pointer (&arg->type_die, e,
-                                                  lvalue, fdecl->type);
-
-      // Give the fdecl an argument for the raw tracepoint value
-      vardecl *v1 = new vardecl;
-      v1->type = pe_long;
-      v1->name = "pointer";
-      v1->tok = e->tok;
-      fdecl->formal_args.push_back(v1);
-
-      // Any non-literal indexes need to be passed in too.
-      for (unsigned i = 0; i < e->components.size(); ++i)
-        if (e->components[i].type == target_symbol::comp_expression_array_index)
-          {
-            vardecl *v = new vardecl;
-            v->type = pe_long;
-            v->name = "index" + lex_cast(i);
-            v->tok = e->tok;
-            fdecl->formal_args.push_back(v);
-          }
-
-      if (lvalue)
-        {
-          // Modify the fdecl so it carries a pe_long formal
-          // argument called "value".
-
-          // FIXME: For the time being we only support setting target
-          // variables which have base types; these are 'pe_long' in
-          // stap's type vocabulary.  Strings and pointers might be
-          // reasonable, some day, but not today.
-
-          vardecl *v2 = new vardecl;
-          v2->type = pe_long;
-          v2->name = "value";
-          v2->tok = e->tok;
-          fdecl->formal_args.push_back(v2);
-        }
-      else
-        ec->code += "/* pure */";
-
-      ec->code += "/* unprivileged */";
-      ec->code += EMBEDDED_FETCH_DEREF_DONE;
-
-      fdecl->join (dw.sess);
-
-      // Synthesize a functioncall.
-      functioncall* n = new functioncall;
-      n->tok = e->tok;
-      n->function = fname;
-      n->args.push_back(require(e2));
-
-      // Any non-literal indexes need to be passed in too.
-      for (unsigned i = 0; i < e->components.size(); ++i)
-        if (e->components[i].type == target_symbol::comp_expression_array_index)
-          n->args.push_back(require(e->components[i].expr_index));
+      functioncall* n = synthetic_embedded_deref_call(dw.sess, fname, code, type,
+                                                      userspace_p, lvalue, e, e2);
 
       if (lvalue)
         {
@@ -9231,7 +9116,8 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
           *(target_symbol_setter_functioncalls.top()) = n;
         }
 
-      provide (n);
+      // Revisit the functioncall so arguments can be expanded.
+      n->visit (this);
     }
 }
 
@@ -9279,7 +9165,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 
           // every variable should always be accessible!
           tsym->saved_conversion_error = 0;
-          expression *texp = require (tsym); // NB: throws nothing ...
+          expression *texp = require<expression> (tsym); // NB: throws nothing ...
           if (tsym->saved_conversion_error) // ... but this is how we know it happened.
             {
               if (dw.sess.verbose>2)
@@ -10203,6 +10089,7 @@ register_standard_tapsets(systemtap_session & s)
 
   //perf event based probe
   register_tapset_perf(s);
+  register_tapset_java(s);
 }
 
 
@@ -10241,6 +10128,7 @@ all_session_groups(systemtap_session& s)
   DOONE(utrace);
   DOONE(itrace);
   DOONE(dynprobe);
+  DOONE(java);
   DOONE(task_finder);
 #undef DOONE
   return g;

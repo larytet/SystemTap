@@ -26,7 +26,7 @@
 #include <fcntl.h>
 #include <stddef.h>
 #include <unistd.h>
-
+#include <sys/syscall.h>
 
 #include "loc2c-runtime.h"
 #include "stapdyn.h"
@@ -35,7 +35,7 @@
 #define CONFIG_64BIT 1
 #endif
 
-#define BITS_PER_LONG __BITS_PER_LONG
+#define BITS_PER_LONG __WORDSIZE
 
 typedef uint8_t u8;
 typedef uint16_t u16;
@@ -92,8 +92,13 @@ static inline int pseudo_atomic_cmpxchg(atomic_t *v, int oldval, int newval)
 #define MODULE_LICENSE(str)
 #define MODULE_INFO(tag,info)
 
-/* Semi-forward declaration from runtime_context.h, needed by stat.c. */
+/* Semi-forward declarations from runtime_context.h, needed by stat.c/shm.c. */
 static int _stp_runtime_num_contexts;
+static void __stp_runtime_contexts_free(void);
+
+/* Semi-forward declarations from this file, needed by stat.c/transport.c. */
+static int stp_pthread_mutex_init_shared(pthread_mutex_t *mutex);
+static int stp_pthread_cond_init_shared(pthread_cond_t *cond);
 
 #define for_each_possible_cpu(cpu) for ((cpu) = 0; (cpu) < _stp_runtime_num_contexts; (cpu)++)
 
@@ -103,6 +108,30 @@ static int _stp_runtime_num_contexts;
 
 #define preempt_disable() 0
 #define preempt_enable_no_resched() 0
+
+static int _stp_sched_getcpu(void)
+{
+    /* We prefer sched_getcpu directly, of course.  It wasn't added until glibc
+     * 2.6 though, and has no direct feature indication, but CPU_ZERO_S was
+     * added shortly after too.  */
+#ifdef CPU_ZERO_S
+    return sched_getcpu();
+
+#elif defined(SYS_getcpu)
+    /* A manual getcpu is fine too, though not necessarily as fast since it
+     * can't be optimized as a vdso/vsyscall.  */
+    unsigned cpu;
+    int ret = syscall(SYS_getcpu, &cpu, NULL, NULL);
+    return (ret < 0) ? ret : (int)cpu;
+
+#else
+    /* XXX Any other way to find our cpu?  Manual vgetcpu? */
+    return -2;
+#endif
+}
+
+/* see common_session_state.h */
+static inline struct _stp_transport_session_data *stp_transport_data(void);
 
 /*
  * By definition, we can only debug our own processes with dyninst, so
@@ -129,6 +158,24 @@ static int _stp_runtime_num_contexts;
 #include "addr-map.c"
 #include "stat.c"
 #include "unwind.c"
+
+/* Support function for int64_t module parameters. */
+static int set_int64_t(const char *val, int64_t *mp)
+{
+  char *endp;
+  long long ll;
+
+  if (!val)
+    return -EINVAL;
+
+  ll = strtoull(val, &endp, 0);
+
+  if ((endp == val) || ((int64_t)ll != ll) || (*endp != '\0'))
+    return -EINVAL;
+
+  *mp = (int64_t)ll;
+  return 0;
+}
 
 static int systemtap_module_init(void);
 static void systemtap_module_exit(void);
@@ -166,6 +213,34 @@ err_attr:
 	return rc;
 }
 
+static int stp_pthread_cond_init_shared(pthread_cond_t *cond)
+{
+	int rc;
+	pthread_condattr_t attr;
+
+	rc = pthread_condattr_init(&attr);
+	if (rc != 0) {
+	    _stp_error("pthread_condattr_init failed");
+	    return rc;
+	}
+
+	rc = pthread_condattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
+	if (rc != 0) {
+	    _stp_error("pthread_condattr_setpshared failed");
+	    goto err_attr;
+	}
+
+	rc = pthread_cond_init(cond, &attr);
+	if (rc != 0) {
+	    _stp_error("pthread_cond_init failed");
+	    goto err_attr;
+	}
+
+err_attr:
+	(void)pthread_condattr_destroy(&attr);
+	return rc;
+}
+
 static int stp_pthread_rwlock_init_shared(pthread_rwlock_t *rwlock)
 {
 	int rc;
@@ -193,7 +268,6 @@ err_attr:
 	(void)pthread_rwlockattr_destroy(&attr);
 	return rc;
 }
-
 
 /*
  * For stapdyn to work in a multiprocess environment, the module must be
@@ -241,7 +315,7 @@ static void stp_dyninst_ctor(void)
 
     /* XXX We don't really want to be using the target's stdio. (PR14491)
      * But while we are, clone our own FILE handles so we're not affected by
-     * the target's actions, liking closing stdout early.
+     * the target's actions, like closing stdout/stderr early.
      */
     _stp_out = _stp_clone_file(stdout);
     _stp_err = _stp_clone_file(stderr);
@@ -262,12 +336,19 @@ const char* stp_dyninst_shm_init(void)
 
 int stp_dyninst_shm_connect(const char* name)
 {
+    int rc;
+
     /* We don't have a chance to indicate errors in the ctor, so do it here. */
     if (stp_dyninst_ctor_rc != 0) {
 	return stp_dyninst_ctor_rc;
     }
 
-    return _stp_shm_connect(name);
+    rc = _stp_shm_connect(name);
+    if (rc != 0)
+	return rc;
+
+    rc = _stp_dyninst_transport_init(name);
+    return rc;
 }
 
 int stp_dyninst_session_init(void)
@@ -284,12 +365,24 @@ int stp_dyninst_session_init(void)
     if (stp_dyninst_shm_init() == NULL)
 	return -ENOMEM;
 
-    rc = systemtap_module_init();
-    if (rc == 0) {
-	stp_dyninst_master = getpid();
-	_stp_shm_finalize();
-    }
-    return rc;
+    rc = _stp_dyninst_transport_init(_stp_shm_name);
+    if (rc != 0)
+	return rc;
+
+    return systemtap_module_init();
+}
+
+static int stp_dyninst_session_init_finished(void)
+{
+    stp_dyninst_master = getpid();
+    _stp_shm_finalize();
+
+    /* Now that the shared memory is finalized, start the
+     * transport. If we started it before now, allocations could have
+     * caused the base address of the shared memory to move around,
+     * which would cause the addresses of the mutexes to move
+     * around. */
+    return _stp_dyninst_transport_session_start();
 }
 
 void stp_dyninst_session_exit(void)
@@ -306,6 +399,7 @@ static void stp_dyninst_dtor(void)
     stp_dyninst_session_exit();
 
     _stp_print_cleanup();
+    _stp_dyninst_transport_shutdown();
     _stp_shm_destroy();
 
     if (_stp_mem_fd != -1) {

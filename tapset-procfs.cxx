@@ -69,6 +69,8 @@ public:
     has_read_probes(false), has_write_probes(false) {} 
 
   void enroll (procfs_derived_probe* probe);
+  void emit_kernel_module_init (systemtap_session& s);
+  void emit_kernel_module_exit (systemtap_session& s);
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
@@ -160,6 +162,29 @@ procfs_derived_probe_group::enroll (procfs_derived_probe* p)
       pset->read_probe = p;
       has_read_probes = true;
     }
+}
+
+
+void
+procfs_derived_probe_group::emit_kernel_module_init (systemtap_session& s)
+{
+  if (probes_by_path.empty())
+    return;
+  s.op->newline() << "rc = _stp_mkdir_proc_module();";
+}
+
+
+void
+procfs_derived_probe_group::emit_kernel_module_exit (systemtap_session& s)
+{
+  if (probes_by_path.empty())
+    return;
+  // If we're using the original transport, it uses the
+  // '/proc/systemtap/{module_name}' directory to store control
+  // files. Let the transport layer clean up that directory.
+  s.op->newline() << "#if (STP_TRANSPORT_VERSION != 1)";
+  s.op->newline() << "_stp_rmdir_proc_module();";
+  s.op->newline() << "#endif";
 }
 
 
@@ -355,7 +380,7 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->indent(-1);
 
   s.op->newline() << "_spp_init(spp);";
-  s.op->newline() << "rc = _stp_create_procfs(spp->path, i, &_stp_proc_fops, spp->permissions);";  
+  s.op->newline() << "rc = _stp_create_procfs(spp->path, i, &_stp_proc_fops, spp->permissions, spp);";
 
   s.op->newline() << "if (rc) {";
   s.op->newline(1) << "_stp_close_procfs();";
@@ -366,8 +391,6 @@ procfs_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(-1) << "}";
   s.op->newline() << "break;";
   s.op->newline(-1) << "}";
-
-  s.op->newline() << "_stp_procfs_files[i]->data = spp;";
   s.op->newline(-1) << "}"; // for loop
 }
 

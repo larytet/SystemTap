@@ -21,8 +21,9 @@ extern "C" {
 #include "dynutil.h"
 #include "../util.h"
 
+extern "C" {
 #include "../runtime/dyninst/stapdyn.h"
-
+}
 
 using namespace std;
 
@@ -109,9 +110,11 @@ setup_signals (void)
 }
 
 
-mutator:: mutator (const string& module_name):
+mutator:: mutator (const string& module_name,
+                   vector<string>& module_options):
   module(NULL), module_name(resolve_path(module_name)),
-  p_target_created(false), signal_count(0), utrace_enter_fn(NULL)
+  modoptions(module_options), p_target_created(false),
+  signal_count(0), utrace_enter_fn(NULL)
 {
   // NB: dlopen does a library-path search if the filename doesn't have any
   // path components, which is why we use resolve_path(module_name)
@@ -278,6 +281,46 @@ mutator::attach_process(pid_t pid)
   return true;
 }
 
+bool
+mutator::init_modoptions()
+{
+  typeof(&stp_global_setter) global_setter = NULL;
+  set_dlsym(global_setter, module, "stp_global_setter", false);
+
+  if (global_setter == NULL)
+    {
+      // Hypothetical backwards compatibility with older stapdyn:
+      stapwarn() << "compiled module does not support -G globals" << endl;
+      return false;
+    }
+
+  for (vector<string>::iterator it = modoptions.begin();
+       it != modoptions.end(); it++)
+    {
+      string modoption = *it;
+
+      // Parse modoption as "name=value"
+      // XXX: compare whether this behaviour fits safety regex in buildrun.cxx
+      string::size_type separator = modoption.find('=');
+      if (separator == string::npos)
+        {
+          stapwarn() << "could not parse module option '" << modoption << "'" << endl;
+          return false; // XXX: perhaps ignore the option instead?
+        }
+      string name = modoption.substr(0, separator);
+      string value = modoption.substr(separator+1);
+
+      int rc = global_setter(name.c_str(), value.c_str());
+      if (rc != 0)
+        {
+          stapwarn() << "incorrect module option '" << modoption << "'" << endl;
+          return false; // XXX: perhaps ignore the option instead?
+        }
+    }
+
+  return true;
+}
+
 // Initialize the module session
 bool
 mutator::run_module_init()
@@ -323,6 +366,10 @@ mutator::run_module_init()
       staperror() << e.what() << endl;
       return false;
     }
+
+  // Before init runs, set any custom variables
+  if (!modoptions.empty() && !init_modoptions())
+    return false;
 
   int rc = session_init();
   if (rc)
@@ -420,9 +467,9 @@ mutator::run ()
       // For our first event, fire the target's process.begin probes (if any)
       target_mutatee->begin_callback();
 
-      // XXX Dyninst's notification FD is currently broken, so we'll fall back
-      // to the fully-blocking wait for now.
-#if 0
+      // Dyninst's notification FD was fixed in 8.1; for earlier versions we'll
+      // fall back to the fully-blocking wait for now.
+#ifdef DYNINST_8_1
       // mask signals while we're preparing to poll
       stap_sigmasker masked;
 
@@ -430,10 +477,14 @@ mutator::run ()
       // letting signals break us out of the loop.
       while (update_mutatees())
         {
-          pollfd pfd = { .fd=patch.getNotificationFD(),
-                         .events=POLLIN, .revents=0 };
+          pollfd pfd;
+          pfd.fd = patch.getNotificationFD();
+          pfd.events = POLLIN;
+          pfd.revents = 0;
 
-          int rc = ppoll (&pfd, 1, NULL, &masked.old);
+          struct timespec timeout = { 10, 0 };
+
+          int rc = ppoll (&pfd, 1, &timeout, &masked.old);
           if (rc < 0 && errno != EINTR)
             break;
 

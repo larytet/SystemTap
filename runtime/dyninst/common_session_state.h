@@ -6,6 +6,7 @@
 static void *_stp_shm_base;
 static void *_stp_shm_alloc(size_t size);
 
+#include "transport.h"
 
 // Global state shared throughout the module
 struct stp_runtime_session {
@@ -30,6 +31,8 @@ struct stp_runtime_session {
 
 	struct stp_globals _global;
 
+	struct _stp_transport_session_data _transport_data;
+
 	// NB: the context includes a number of pointers, which wouldn't be
 	// kosher for shared memory, but it's ok as long as they're only set
 	// and dereferenced within each separate handler invocation.
@@ -48,6 +51,8 @@ static inline struct stp_runtime_session* _stp_session(void)
 
 #define GET_SESSION_ATOMIC(name)			\
 	static inline atomic_t *name(void) {		\
+		if (unlikely(_stp_session() == NULL))	\
+			return NULL;			\
 		return &_stp_session()->_##name;	\
 	}
 
@@ -65,7 +70,7 @@ GET_SESSION_ATOMIC(skipped_count_uprobe_unreg);
 
 static inline unsigned long _stap_hash_seed()
 {
-	if (_stp_session())
+	if (likely(_stp_session()))
 		return _stp_session()->_hash_seed;
 	return 0;
 }
@@ -77,7 +82,9 @@ static inline atomic_t *probe_alibi(size_t index)
 	// Do some simple bounds-checking.  Translator-generated code
 	// should never get this wrong, but better to be safe.
 	index = clamp_t(size_t, index, 0, STP_PROBE_COUNT - 1);
-	return &_stp_session()->_probe_alibi[index];
+	if (likely(_stp_session()))
+		return &_stp_session()->_probe_alibi[index];
+	return NULL;
 }
 #endif
 
@@ -87,7 +94,9 @@ static inline Stat probe_timing(size_t index)
 	// Do some simple bounds-checking.  Translator-generated code
 	// should never get this wrong, but better to be safe.
 	index = clamp_t(size_t, index, 0, STP_PROBE_COUNT - 1);
-	return offptr_get(&_stp_session()->_probe_timing[index]);
+	if (likely(_stp_session()))
+		return offptr_get(&_stp_session()->_probe_timing[index]);
+	return NULL;
 }
 #endif
 
@@ -97,9 +106,18 @@ static inline struct context* stp_session_context(size_t index)
 	// Do some simple bounds-checking.  Translator-generated code
 	// should never get this wrong, but better to be safe.
 	index = clamp_t(size_t, index, 0, _stp_runtime_num_contexts - 1);
-	return &_stp_session()->_context[index];
+	if (likely(_stp_session()))
+		return &_stp_session()->_context[index];
+	return NULL;
 }
 
+
+static inline struct _stp_transport_session_data *stp_transport_data(void)
+{
+	if (_stp_session())
+		return &_stp_session()->_transport_data;
+	return NULL;
+}
 
 #define _global_raw(name)	(_stp_session()->_global.name)
 #define _global_type(name)	typeof(_global_raw(name))
@@ -185,5 +203,10 @@ static int stp_session_init(void)
 	}
 #endif
 
-	return 0;
+	return _stp_dyninst_transport_session_init();
+}
+
+static int stp_session_init_finished(void)
+{
+	return stp_dyninst_session_init_finished();
 }

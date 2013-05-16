@@ -598,6 +598,16 @@ probe nd_syscall.sendmsg.return ?, nd_syscall.compat_sys_sendmsg.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.sendmmsg ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %p %d %d(%s)\n", s, mmsg_uaddr, vlen, flags, flags_str)
+}
+probe nd_syscall.sendmmsg.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.sendto ?
 {
 	printf("%s(%s)\n", name, argstr)
@@ -842,7 +852,10 @@ probe nd_syscall.shmat.return ?
 probe nd_syscall.compat_sys_shmat ?
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v < "2.3" %?
 	printf("%d, %d, %d, %p\n", first, second, third, uptr_uaddr)
+%)
+	printf("%d, %p, %d\n", shmid, shmaddr_uaddr, shmflg)
 }
 probe nd_syscall.compat_sys_shmat.return ?
 {
@@ -908,6 +921,18 @@ probe nd_syscall.sigaction.return ?, nd_syscall.sigaction32.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
+
+%( CONFIG_GENERIC_SIGALTSTACK == "y" %?
+probe nd_syscall.sigaltstack
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p, %p\n", uss_uaddr, uoss_uaddr)
+}
+probe nd_syscall.sigaltstack.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+%)
 
 probe nd_syscall.signal ?
 {
