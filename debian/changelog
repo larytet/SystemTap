@@ -1,3 +1,9 @@
+systemtap (2.2.1-1) unstable; urgency=low
+
+  * New upstream release.
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Thu, 16 May 2013 19:16:58 +0000
+
 systemtap (2.1-1) unstable; urgency=low
 
   [ Lucas Nussbaum ]
