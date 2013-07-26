@@ -1,6 +1,11 @@
-systemtap (2.3-1~try1) UNRELEASED; urgency=low
+systemtap (2.3-1) unstable; urgency=low
 
   * New upstream release.
+  * Drop patches that are part of the new upstream release:
+    - 0001-PR15484-have-staprun-disable-kprobes-optimization-ag.patch
+  * Backport bugfixes:
+    - 0001-For-xen-kernels-handle-cpufreq_register_notifier-fai.patch
+    - 0001-PR15803-netfilter-tolerate-absent-context-when-colle.patch
 
  -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Fri, 26 Jul 2013 07:04:49 +0000
 
