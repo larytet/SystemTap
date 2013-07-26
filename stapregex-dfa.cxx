@@ -559,6 +559,13 @@ dfa::~dfa ()
 
 // TODOXXX add emission instructions for tag_ops
 
+unsigned
+span::len() const
+{
+  assert (ub >= lb);
+  return ub - lb + 1;
+}
+
 void
 span::emit_jump (translator_output *o, const dfa *d) const
 {
@@ -606,6 +613,18 @@ state::emit (translator_output *o, const dfa *d) const
 #endif
   o->newline() << "switch (*YYCURSOR) {";
   o->indent(1);
+
+  /* Compute the longest span, to use as the default branch: */
+  list<span>::const_iterator longest;
+  unsigned longest_len = 0;
+  for (list<span>::const_iterator it = spans.begin();
+       it != spans.end(); it++)
+    if (it->len() > longest_len)
+      {
+        longest = it;
+        longest_len = it->len();
+      }
+
   for (list<span>::const_iterator it = spans.begin();
        it != spans.end(); it++)
     {
@@ -616,15 +635,24 @@ state::emit (translator_output *o, const dfa *d) const
           it->emit_final(o, d); // TODOXXX extra function may be unneeded
         }
 
+      // Skip the longest span in favour of default branch:
+      if (it == longest)
+        continue;
+      // TODOXXX also skip if span target/action is *identical* to default branch
+
       // Emit labels to handle all the other elements of the span:
       for (unsigned c = max('\1', it->lb); c <= (unsigned) it->ub; c++) {
         o->newline() << "case " << c_char((char) c) << ":";
       }
       it->emit_jump(o, d);
 
-      // TODOXXX handle a 'default' set of characters for the largest span...
       // TODOXXX optimize by accepting before end of string whenever possible... (also necessary for proper first-matched-substring selection)
     }
+
+  /* Emit the default branch: */
+  o->newline() << "default:";
+  longest->emit_jump(o, d);
+
   o->newline(-1) << "}";
 }
 

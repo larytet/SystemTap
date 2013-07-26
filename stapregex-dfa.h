@@ -93,6 +93,7 @@ struct span {
   state_kernel *reach_pairs; // -- for the subset-construction
                              // -- algorithm
 
+  unsigned len() const;
   void emit_jump (translator_output *o, const dfa *d) const;
   void emit_final (translator_output *o, const dfa *d) const;
 };
