@@ -12,6 +12,10 @@
 #define STP_DYN_EXIT		0x0001
 #define STP_DYN_NORMAL_DATA	0x0002
 #define STP_DYN_OOB_DATA	0x0004
+#define STP_DYN_SYSTEM		0x0008
+#define STP_DYN_REQUEST_EXIT	0x0010
+
+#define STP_DYN_OOB_DATA_MASK (STP_DYN_OOB_DATA | STP_DYN_SYSTEM)
 
 // The size of print buffers. This limits the maximum amount of data a
 // print can send. Note that it must be a power of 2 (which is why
@@ -109,8 +113,6 @@ static int _stp_dyninst_transport_session_init(void);
 
 static int _stp_dyninst_transport_session_start(void);
 
-static int _stp_dyninst_transport_init(const char *name);
-
 static int _stp_dyninst_transport_write_oob_data(char *buffer, size_t bytes);
 
 static int _stp_dyninst_transport_write(void);
@@ -118,5 +120,7 @@ static int _stp_dyninst_transport_write(void);
 static char *_stp_dyninst_transport_log_buffer(void);
 
 static void _stp_dyninst_transport_shutdown(void);
+
+static void _stp_dyninst_transport_request_exit(void);
 
 #endif // TRANSPORT_H

@@ -31,7 +31,7 @@
 %{!?with_java: %global with_java 1}
 
 Name: systemtap
-Version: 2.2.1
+Version: 2.3
 Release: 1%{?dist}
 # for version, see also configure.ac
 
@@ -115,6 +115,8 @@ BuildRequires: emacs
 %if %{with_java}
 BuildRequires: jpackage-utils java-devel
 %endif
+# A workaround for BZ920216 which requires an X server to build docs
+BuildRequires: /usr/bin/xvfb-run
 
 # Install requirements
 Requires: systemtap-client = %{version}-%{release}
@@ -252,6 +254,9 @@ Requires: avahi
 %if %{with_crash}
 # testsuite/systemtap.base/crash.exp needs crash
 Requires: crash
+%endif
+%if %{with_java}
+Requires: systemtap-runtime-java = %{version}-%{release}
 %endif
 %ifarch x86_64
 Requires: /usr/lib/libc.so
@@ -434,8 +439,8 @@ install -m 644 initscript/config.systemtap $RPM_BUILD_ROOT%{_sysconfdir}/systemt
 mkdir -p $RPM_BUILD_ROOT%{_unitdir}
 touch $RPM_BUILD_ROOT%{_unitdir}/stap-server.service
 install -m 644 stap-server.service $RPM_BUILD_ROOT%{_unitdir}/stap-server.service
-mkdir -p $RPM_BUILD_ROOT/usr/lib/tmpfiles.d
-install -m 644 stap-server.conf $RPM_BUILD_ROOT/usr/lib/tmpfiles.d/stap-server.conf
+mkdir -p $RPM_BUILD_ROOT%{_tmpfilesdir}
+install -m 644 stap-server.conf $RPM_BUILD_ROOT%{_tmpfilesdir}/stap-server.conf
 %else
 install -m 755 initscript/stap-server $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/stap-server/conf.d
@@ -639,7 +644,7 @@ done
 %{_mandir}/man8/stap-server.8*
 %if %{with_systemd}
 %{_unitdir}/stap-server.service
-/usr/lib/tmpfiles.d/stap-server.conf
+%{_tmpfilesdir}/stap-server.conf
 %else
 %{_sysconfdir}/rc.d/init.d/stap-server
 %dir %{_sysconfdir}/stap-server/conf.d
@@ -665,6 +670,7 @@ done
 %{_datadir}/systemtap/tapset
 %{_mandir}/man1/stap.1*
 %{_mandir}/man1/stap-prep.1*
+%{_mandir}/man1/stap-report.1*
 %{_mandir}/man7/error*
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man7/warning*
@@ -700,10 +706,15 @@ done
 %dir %{_libdir}/systemtap
 %{_libdir}/systemtap/staplog.so*
 %endif
+%{_mandir}/man1/stap-report.1*
 %{_mandir}/man7/error*
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man7/warning*
+%{_mandir}/man8/stapsh.8*
 %{_mandir}/man8/staprun.8*
+%if %{with_dyninst}
+%{_mandir}/man8/stapdyn.8*
+%endif
 %doc README README.security AUTHORS NEWS COPYING
 
 
@@ -723,6 +734,7 @@ done
 %{_mandir}/man1/stap.1*
 %{_mandir}/man1/stap-prep.1*
 %{_mandir}/man1/stap-merge.1*
+%{_mandir}/man1/stap-report.1*
 %{_mandir}/man3/*
 %{_mandir}/man7/error*
 %{_mandir}/man7/stappaths.7*

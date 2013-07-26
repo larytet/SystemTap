@@ -20,8 +20,7 @@
 #include "task_finder.h"
 #include "runtime/k_syms.h"
 #include "dwflpp.h"
-
-#include "re2c-migrate/stapregex.h"
+#include "stapregex.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -202,6 +201,7 @@ struct c_unparser: public unparser, public visitor
   void visit_stat_op (stat_op* e);
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
+  void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
@@ -914,60 +914,7 @@ ostream & operator<<(ostream & o, itervar const & v)
 
 // ------------------------------------------------------------------------
 
-
-translator_output::translator_output (ostream& f):
-  buf(0), o2 (0), o (f), tablevel (0)
-{
-}
-
-
-translator_output::translator_output (const string& filename, size_t bufsize):
-  buf (new char[bufsize]),
-  o2 (new ofstream (filename.c_str ())),
-  o (*o2),
-  tablevel (0),
-  filename (filename)
-{
-  o2->rdbuf()->pubsetbuf(buf, bufsize);
-}
-
-
-translator_output::~translator_output ()
-{
-  delete o2;
-  delete [] buf;
-}
-
-
-ostream&
-translator_output::newline (int indent)
-{
-  if (!  (indent > 0 || tablevel >= (unsigned)-indent)) o.flush ();
-  assert (indent > 0 || tablevel >= (unsigned)-indent);
-
-  tablevel += indent;
-  o << "\n";
-  for (unsigned i=0; i<tablevel; i++)
-    o << "  ";
-  return o;
-}
-
-
-void
-translator_output::indent (int indent)
-{
-  if (!  (indent > 0 || tablevel >= (unsigned)-indent)) o.flush ();
-  assert (indent > 0 || tablevel >= (unsigned)-indent);
-  tablevel += indent;
-}
-
-
-ostream&
-translator_output::line ()
-{
-  return o;
-}
-
+// translator_output moved to translator-output.cxx
 
 // ------------------------------------------------------------------------
 
@@ -1538,7 +1485,10 @@ c_unparser::emit_global_init_setters ()
 
       o->newline(-1) << "} else ";
     }
-  o->line() << "return -EINVAL;";
+
+  // Call the runtime function that handles session attributes, like
+  // log_level, etc.
+  o->line() << "return stp_session_attribute_setter(name, value);";
   o->newline(-1) << "}";
   o->newline();
 }
@@ -2093,10 +2043,11 @@ c_unparser::emit_module_exit ()
   // NB: PR13386 needs to restore preemption-blocking counts
   o->newline() << "preempt_enable_no_resched();";
 
-  // In dyninst mode, now we're done with the contexts.
+  // In dyninst mode, now we're done with the contexts, transport, everything!
   if (session->runtime_usermode_p())
     {
-      o->newline() << "_stp_runtime_entryfn_put_context();";
+      o->newline() << "_stp_runtime_entryfn_put_context(c);";
+      o->newline() << "_stp_dyninst_transport_shutdown();";
       o->newline() << "_stp_runtime_contexts_free();";
     }
 
@@ -2754,8 +2705,8 @@ c_unparser_assignment::c_assignop(tmpvar & res,
       assert(lval.type() == pe_stats);
       assert(rval.type() == pe_long);
       assert(res.type() == pe_long);
-      o->newline() << res << " = " << rval << ";";
-      o->newline() << "_stp_stat_add (" << lval << ", " << res << ");";
+      o->newline() << "_stp_stat_add (" << lval << ", " << rval << ");";
+      res = rval;
     }
   else if (res.type() == pe_long)
     {
@@ -4060,9 +4011,6 @@ c_unparser::visit_array_in (array_in* e)
 void
 c_tmpcounter::visit_regex_query (regex_query* e)
 {
-  // TODOXXX if e->right is always a literal, do we still need to do
-  // the 'save at least one in a tmpvar' trick as seen in
-  // visit_comparison?
   e->left->visit(this);
   e->right->visit(this);
 }
@@ -4074,7 +4022,7 @@ c_unparser::visit_regex_query (regex_query* e)
   o->indent(1);
   o->newline();
   if (e->op == "!~") o->line() << "!";
-  stapdfa *dfa = session->dfas[e->re->value];
+  stapdfa *dfa = session->dfas[e->right->value];
   dfa->emit_matchop_start (o);
   e->left->visit(this);
   dfa->emit_matchop_end (o);
@@ -4402,6 +4350,13 @@ void
 c_unparser::visit_target_symbol (target_symbol* e)
 {
   throw semantic_error(_("cannot translate general target-symbol expression"), e->tok);
+}
+
+
+void
+c_unparser::visit_atvar_op (atvar_op* e)
+{
+  throw semantic_error(_("cannot translate general @var expression"), e->tok);
 }
 
 
@@ -5567,28 +5522,9 @@ static void get_unwind_data (Dwfl_Module *m,
   Elf *elf;
 
   // fetch .eh_frame info preferably from main elf file.
-  const char *modname = dwfl_module_info (m, NULL, &start,
-                                          NULL, NULL, NULL, NULL, NULL);
+  dwfl_module_info (m, NULL, &start, NULL, NULL, NULL, NULL, NULL);
   elf = dwfl_module_getelf(m, &bias);
   ehdr = gelf_getehdr(elf, &ehdr_mem);
-
-  // This is a little unelegant, since at this point we only have the
-  // kernel normalized machine architecture as string, but we can deduce
-  // the ELF class from that and warn if it is different from the module
-  // ELF class. See PR10272.
-  int kelf_class = elf_class_from_normalized_machine (session.architecture);
-  int melf_class = (int) ehdr->e_ident[EI_CLASS];
-  if (kelf_class != melf_class)
-    {
-      // Don't warn about 32bit VDSO, the user didn't explicitly add those.
-      if (vdso_paths.find (string(modname)) == vdso_paths.end ())
-        session.print_warning ("Kernel ELF class (" + lex_cast (kelf_class)
-                               + ") doesn't match module '" + modname
-                               + "' ELF class (" + lex_cast (melf_class)
-                               + "), backtraces for 32bit programs on 64bit"
-                               + " kernels don't work.");
-      return;
-    }
 
   scn = NULL;
   bool eh_frame_seen = false;
@@ -6791,6 +6727,11 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#define MAXNESTING " << nesting;
       s.op->newline() << "#endif";
 
+      // Generated macros specifying how much storage is required for
+      // regexp subexpressions:
+      s.op->newline() << "#define STAPREGEX_MAX_STATE" << s.dfa_maxstate;
+      s.op->newline() << "#define STAPREGEX_MAX_TAG" << s.dfa_maxtag;
+
       s.op->newline() << "#define STP_SKIP_BADVARS " << (s.skip_badvars ? 1 : 0);
 
       if (s.bulk_mode)
@@ -6880,7 +6821,7 @@ translate_pass (systemtap_session& s)
             }
           catch (const semantic_error &e)
             {
-              s.print_error(e); // TODOXXX want to report the token
+              s.print_error(e);
             }
         }
       s.op->assert_0_indent();

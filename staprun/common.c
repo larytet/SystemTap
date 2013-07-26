@@ -39,6 +39,8 @@ int fnum_max;
 int remote_id;
 const char *remote_uri;
 int relay_basedir_fd;
+int color_errors;
+color_modes color_mode;
 
 /* module variables */
 char *modname = NULL;
@@ -134,8 +136,11 @@ void parse_args(int argc, char **argv)
         remote_id = -1;
         remote_uri = NULL;
         relay_basedir_fd = -1;
+        color_mode = color_auto;
+        color_errors = isatty(STDERR_FILENO)
+                && strcmp(getenv("TERM") ?: "notdumb", "dumb");
 
-	while ((c = getopt(argc, argv, "ALu::vb:t:dc:o:x:S:DwRr:VT:"
+	while ((c = getopt(argc, argv, "ALu::vb:t:dc:o:x:S:DwRr:VT:C:"
 #ifdef HAVE_OPENAT
                            "F:"
 #endif
@@ -214,7 +219,7 @@ void parse_args(int argc, char **argv)
                         }
 			break;
 		case 'V':
-                        err(_("Systemtap module loader/runner (version %s, %s)\n"
+                        eprintf(_("Systemtap module loader/runner (version %s, %s)\n"
                               "Copyright (C) 2005-2013 Red Hat, Inc. and others\n"
                               "This is free software; see the source for copying conditions.\n"),
                             VERSION, STAP_EXTENDED_VERSION);
@@ -227,6 +232,21 @@ void parse_args(int argc, char **argv)
                                 usage(argv[0]);
                         }
                         break;
+		case 'C':
+			if (!strcmp(optarg, "never"))
+				color_mode = color_never;
+			else if (!strcmp(optarg, "auto"))
+				color_mode = color_auto;
+			else if (!strcmp(optarg, "always"))
+				color_mode = color_always;
+			else {
+				err(_("Invalid option '%s' for -C."), optarg);
+				usage(argv[0]);
+			}
+			color_errors = color_mode == color_always
+				|| (color_mode == color_auto && isatty(STDERR_FILENO)
+						&& strcmp(getenv("TERM") ?: "notdumb", "dumb"));
+			break;
 		default:
 			usage(argv[0]);
 		}
@@ -299,9 +319,9 @@ void parse_args(int argc, char **argv)
 
 void usage(char *prog)
 {
-	err(_("\n%s [-v] [-w] [-V] [-u] [-c cmd ] [-x pid] [-u user] [-A|-L|-d]\n"
+	eprintf(_("\n%s [-v] [-w] [-V] [-u] [-c cmd ] [-x pid] [-u user] [-A|-L|-d] [-C WHEN]\n"
                 "\t[-b bufsize] [-R] [-r N:URI] [-o FILE [-D] [-S size[,N]]] MODULE [module-options]\n"), prog);
-	err(_("-v              Increase verbosity.\n"
+	eprintf(_("-v              Increase verbosity.\n"
 	"-V              Print version number and exit.\n"
 	"-w              Suppress warnings.\n"
 	"-u              Load uprobes.ko\n"
@@ -318,6 +338,8 @@ void usage(char *prog)
 	"                That value will be per-cpu in bulk mode.\n"
 	"-L              Load module and start probes, then detach.\n"
 	"-A              Attach to loaded systemtap module.\n"
+	"-C WHEN         Enable colored errors. WHEN must be either 'auto',\n"
+	"                'never', or 'always'. Set to 'auto' by default.\n"
 	"-d              Delete a module.  Only detached or unused modules\n"
 	"                the user has permission to access will be deleted. Use \"*\"\n"
 	"                (quoted) to delete all unused modules.\n"
@@ -350,9 +372,9 @@ void usage(char *prog)
                 struct utsname utsbuf;
                 int rc = uname (& utsbuf);
                 if (! rc)
-                        err("/lib/modules/%s/systemtap\n", utsbuf.release);
+                        eprintf("/lib/modules/%s/systemtap\n", utsbuf.release);
                 else
-                        err("/lib/modules/`uname -r`/systemtap\n");
+                        eprintf("/lib/modules/`uname -r`/systemtap\n");
         }
 	exit(1);
 }
@@ -455,7 +477,7 @@ void parse_modpath(const char *inpath)
 	 * work, but the module can't be removed (because you end up
 	 * with control characters in the module name). */
 	if (strlen(modname) > MODULE_NAME_LEN) {
-		err(_("ERROR: Module name ('%s') is too long.\n"), modname);
+		err(_("Module name ('%s') is too long.\n"), modname);
 		exit(1);
 	}
 }
@@ -580,4 +602,59 @@ void switch_syslog(const char *name)
 {
 	openlog(name, LOG_PID, LOG_DAEMON);
 	use_syslog = 1;
+	color_errors = 0;
+}
+
+void print_color(const char *type)
+{
+	if (!color_errors)
+		return;
+
+	if (type == NULL) // Reset
+		eprintf("\033[m\033[K");
+	else {
+		char *seq = parse_stap_color(type);
+		if (seq != NULL) {
+			eprintf("\033[");
+			eprintf(seq);
+			eprintf("m\033[K");
+			free(seq);
+		}
+	}
+}
+
+/* Parse SYSTEMTAP_COLORS and returns the SGR parameter(s) for the given
+type. The env var SYSTEMTAP_COLORS must be in the following format:
+'key1=val1:key2=val2:' etc... where valid keys are 'error', 'warning',
+'source', 'caret', 'token' and valid values constitute SGR parameter(s).
+For example, the default setting would be:
+'error=01;31:warning=00;33:source=00;34:caret=01:token=01'
+*/
+char *parse_stap_color(const char *type)
+{
+	const char *key, *col, *eq;
+	int n = strlen(type);
+	int done = 0;
+
+	key = getenv("SYSTEMTAP_COLORS");
+	if (key == NULL || *key == '\0')
+		key = "error=01;31:warning=00;33:source=00;34:caret=01:token=01";
+
+	while (!done) {
+		if (!(col = strchr(key, ':'))) {
+			col = strchr(key, '\0');
+			done = 1;
+		}
+		if (!((eq = strchr(key, '=')) && eq < col))
+			return NULL; /* invalid syntax: no = in range */
+		if (!(key < eq && eq < col-1))
+			return NULL; /* invalid syntax: key or val empty */
+		if (strspn(eq+1, "0123456789;") < (size_t)(col-eq-1))
+			return NULL; /* invalid syntax: invalid char in val */
+		if (eq-key == n && !strncmp(key, type, n))
+			return strndup(eq+1, col-eq-1);
+		if (!done) key = col+1; /* advance to next key */
+	}
+
+	return NULL; /* key not found */
 }

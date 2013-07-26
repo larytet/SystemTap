@@ -90,6 +90,18 @@ struct statistic_decl
 
 struct macrodecl; // defined in parse.h
 
+struct parse_error: public std::runtime_error
+{
+  const token* tok;
+  bool skip_some;
+  parse_error (const std::string& msg):
+    runtime_error (msg), tok (0), skip_some (true) {}
+  parse_error (const std::string& msg, const token* t):
+    runtime_error (msg), tok (t), skip_some (true) {}
+  parse_error (const std::string& msg, bool skip):
+    runtime_error (msg), tok (0), skip_some (skip) {}
+};
+
 struct systemtap_session
 {
 private:
@@ -200,6 +212,9 @@ public:
   int download_dbinfo;
   bool suppress_handler_errors;
   bool suppress_time_limits;
+  bool color_errors;
+
+  enum { color_never, color_auto, color_always } color_mode;
 
   enum { kernel_runtime, dyninst_runtime } runtime_mode;
   bool runtime_usermode_p() const { return runtime_mode == dyninst_runtime; }
@@ -298,13 +313,18 @@ public:
   std::vector<derived_probe*> probes; // see also *_probes groups below
   std::vector<embeddedcode*> embeds;
   std::map<std::string, statistic_decl> stat_decls;
-  std::map<std::string, stapdfa*> dfas;
-  unsigned dfa_counter; // used to give unique names
   // track things that are removed
   std::vector<vardecl*> unused_globals;
   std::vector<derived_probe*> unused_probes; // see also *_probes groups below
   std::vector<functiondecl*> unused_functions;
   // XXX: vector<*> instead please?
+
+  // resolved/compiled regular expressions for the run
+  std::map<std::string, stapdfa*> dfas;
+  unsigned dfa_counter;  // used to give unique names
+  unsigned dfa_maxstate; // used for subexpression-tracking data structure
+  unsigned dfa_maxtag;   // ditto
+  bool need_tagged_dfa;  // triggered by /* pragma:tagged_dfa */
 
   // Every probe in these groups must also appear in the
   // session.probes vector.
@@ -362,18 +382,23 @@ public:
 
   translator_output* op_create_auxiliary();
 
-  // void print_error (const parse_error& e);
   const token* last_token;
   void print_token (std::ostream& o, const token* tok);
   void print_error (const semantic_error& e);
   void print_error_source (std::ostream&, std::string&, const token* tok);
+  void print_error (const parse_error &pe,
+                       const token* tok,
+                       const std::string &input_name);
   void print_warning (const std::string& w, const token* tok = 0);
   void printscript(std::ostream& o);
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
-};
 
+  std::string colorize(std::string str, std::string type);
+  std::string colorize(const token& tok);
+  std::string parse_stap_color(std::string type);
+};
 
 struct exit_exception: public std::runtime_error
 {

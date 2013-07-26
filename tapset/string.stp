@@ -43,13 +43,18 @@ function substr:string(str:string,start:long, length:long) %{ /* pure */ /* unpr
  * @pos: the position to get the character from  (first character is 0)
  *
  * Description: This function returns the character at a given position in
- * the string or zero if thestring doesn't have as many characters.
+ * the string or zero if the string doesn't have as many characters. Reports
+ * an error if pos is out of bounds.
  */
 function stringat:long(str:string, pos:long) %{ /* pure */ /* unprivileged */
 	if (STAP_ARG_pos >= 0 && STAP_ARG_pos < strlen(STAP_ARG_str))
 		STAP_RETVALUE = STAP_ARG_str[STAP_ARG_pos];
-	else
+	else {
 		STAP_RETVALUE = 0;
+#if STAP_COMPAT_VERSION >= STAP_VERSION(2,3) // PR15044
+		CONTEXT->last_error = "Position out of bounds";
+#endif
+	}
 %}
 
 /**
@@ -80,16 +85,10 @@ function isinstr:long(s1:string,s2:string) %{ /* pure */ /* unprivileged */
  */
 function text_str:string(input:string) 
 %{ /* pure */ /* unprivileged */
-	_stp_text_str(STAP_RETVALUE, STAP_ARG_input, 0, 0, 0);
+	if (_stp_text_str(STAP_RETVALUE, STAP_ARG_input, 0, 0, 0) < 0) {
+		STAP_RETVALUE[0] = '\0';
+	}
 %}
-
-// TODOXXX perhaps the following go into their own tapset e.g. regmatch.stp??
-// ==========================================================================
-// TODOXXX matched:string(n:long)
-// TODOXXX match_start:long(n:long)
-// TODOXXX match_end:long(n:long)
-// TODOXXX some kind of find-replace functionality -- long term
-// TODOXXX split(...) -- long term
 
 /**
  * sfunction text_strn - Escape any non-printable chars in a string
@@ -107,7 +106,10 @@ function text_str:string(input:string)
 function text_strn:string(input:string, len:long, quoted:long)
 %{ /* pure */ /* unprivileged */
 	int64_t len = clamp_t(int64_t, STAP_ARG_len, 0, MAXSTRINGLEN);
-	_stp_text_str(STAP_RETVALUE, STAP_ARG_input, len, STAP_ARG_quoted, 0);
+	if (_stp_text_str(
+			STAP_RETVALUE, STAP_ARG_input, len, STAP_ARG_quoted, 0) < 0) {
+		STAP_RETVALUE[0] = '\0';
+	}
 %}
 
 

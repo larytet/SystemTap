@@ -214,6 +214,7 @@ compile_dyninst (systemtap_session& s)
   if (s.architecture == "i386")
     cmd.push_back("-march=i586");
 
+  cmd.push_back("-fvisibility=hidden");
   cmd.push_back("-O2");
   cmd.push_back("-I" + s.runtime_path);
   cmd.push_back("-D__DYNINST__");
@@ -367,6 +368,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-vm-area-pte.c", "STAPCONF_VM_AREA_PTE", NULL);
   output_autoconf(s, o, "autoconf-relay-umode_t.c", "STAPCONF_RELAY_UMODE_T", NULL);
   output_autoconf(s, o, "autoconf-fs_supers-hlist.c", "STAPCONF_FS_SUPERS_HLIST", NULL);
+  output_autoconf(s, o, "autoconf-compat_sigaction.c", "STAPCONF_COMPAT_SIGACTION", NULL);
 
   // used by tapset/timestamp_monotonic.stp
   output_exportconf(s, o, "cpu_clock", "STAPCONF_CPU_CLOCK");
@@ -394,6 +396,8 @@ compile_pass (systemtap_session& s)
 
   output_autoconf(s, o, "autoconf-pagefault_disable.c", "STAPCONF_PAGEFAULT_DISABLE", NULL);
   output_exportconf(s, o, "kallsyms_lookup_name", "STAPCONF_KALLSYMS");
+  output_autoconf(s, o, "autoconf-uidgid.c", "STAPCONF_LINUX_UIDGID_H", NULL);
+  output_exportconf(s, o, "sigset_from_compat", "STAPCONF_SIGSET_FROM_COMPAT_EXPORTED");
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
@@ -664,6 +668,21 @@ make_dyninst_run_command (systemtap_session& s, const string& remotedir,
       cmd.push_back(lex_cast(s.target_pid));
     }
 
+  if (!s.output_file.empty())
+    {
+      cmd.push_back("-o");
+      cmd.push_back(s.output_file);
+    }
+
+  if (s.color_mode != s.color_auto)
+    {
+      cmd.push_back("-C");
+      if (s.color_mode == s.color_always)
+        cmd.push_back("always");
+      else
+        cmd.push_back("never");
+    }
+
   cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)
 		+ "/" + s.module_filename());
 
@@ -738,6 +757,15 @@ make_run_command (systemtap_session& s, const string& remotedir,
     {
       staprun_cmd.push_back("-S");
       staprun_cmd.push_back(s.size_option);
+    }
+
+  if (s.color_mode != s.color_auto)
+    {
+      staprun_cmd.push_back("-C");
+      if (s.color_mode == s.color_always)
+        staprun_cmd.push_back("always");
+      else
+        staprun_cmd.push_back("never");
     }
 
   staprun_cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)

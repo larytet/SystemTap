@@ -384,12 +384,12 @@ probe syscall.rt_sigpending.return ?
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.rt_sigprocmask ?
+probe syscall.rt_sigprocmask ?, syscall.compat_rt_sigprocmask ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d(%s) %p %p\n", how, how_str, set_uaddr, oldset_uaddr)
 }
-probe syscall.rt_sigprocmask.return ?
+probe syscall.rt_sigprocmask.return ?, syscall.compat_rt_sigprocmask.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -548,7 +548,7 @@ probe syscall.semget.return ?
 probe syscall.semop ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d\n", semid, tsops_uaddr, nsops)
+	printf("%d %p %d\n", semid, sops_uaddr, nsops)
 }
 probe syscall.semop.return ?
 {

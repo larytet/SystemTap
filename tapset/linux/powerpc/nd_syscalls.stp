@@ -345,7 +345,7 @@ probe nd_syscall.sys32_rt_sigqueueinfo.return = kprobe.function("sys32_rt_sigque
 	retstr = returnstr(1)
 }
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" %?
+%( CONFIG_GENERIC_SIGALTSTACK == "n" || kernel_v < "3.8" %?
 # sigaltstack ________________________________________________
 # long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 #		       unsigned long r5, unsigned long r6,
@@ -562,7 +562,7 @@ probe nd_syscall.sys32_utimes = kprobe.function("sys32_utimes") ?
 	// argstr = sprintf("%s, %p", user_string_quoted($filename), tvp_uaddr)
 	asmlinkage()
 	filename_uaddr = pointer_arg(1)
-	path = user_string(filename_uaddr)
+	path = user_string_quoted(filename_uaddr)
 	tvp_uaddr = pointer_arg(2)
 	argstr = sprintf("%s, %p", user_string_quoted(filename_uaddr), tvp_uaddr)
 }

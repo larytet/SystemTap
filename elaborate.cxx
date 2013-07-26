@@ -15,8 +15,7 @@
 #include "session.h"
 #include "util.h"
 #include "task_finder.h"
-
-#include "re2c-migrate/stapregex.h"
+#include "stapregex.h"
 
 extern "C" {
 #include <sys/utsname.h>
@@ -1085,6 +1084,11 @@ struct symbol_fetcher
     e->base->visit (this);
   }
 
+  void visit_atvar_op (atvar_op *e)
+  {
+    sym = e;
+  }
+
   void visit_cast_op (cast_op* e)
   {
     sym = e;
@@ -1456,10 +1460,15 @@ public:
     if (! vma_tracker_enabled(session)
 	&& c->code.find("/* pragma:vma */") != string::npos)
       {
-	enable_vma_tracker(session);
 	if (session.verbose > 2)
           clog << _F("Turning on task_finder vma_tracker, pragma:vma found in %s",
                      current_function->name.c_str()) << endl;
+
+	// PR15052: stapdyn doesn't have VMA-tracking yet.
+	if (session.runtime_usermode_p())
+	  throw semantic_error(_("VMA-tracking is only supported by the kernel runtime (PR15052)"), c->tok);
+
+	enable_vma_tracker(session);
       }
 
     if (! session.need_unwind
@@ -1504,32 +1513,34 @@ public:
   regex_collecting_visitor (systemtap_session& s): session(s) { }
 
   void visit_regex_query (regex_query *q) {
-    functioncall_traversing_visitor::visit_regex_query (q); // TODOXXX test necessity
+    functioncall_traversing_visitor::visit_regex_query (q);
 
-    string re = q->re->value;
-    try
-      {
-        regex_to_stapdfa (&session, re, session.dfa_counter);
-      }
-    catch (const semantic_error &e)
-      {
-        throw semantic_error(e.what(), q->right->tok);
-      }
+    string re = q->right->value;
+    regex_to_stapdfa (&session, re, q->right->tok);
   }
 };
 
 // Go through the regex match invocations and generate corresponding DFAs.
-void gen_dfa_table (systemtap_session& s)
+int gen_dfa_table (systemtap_session& s)
 {
-  regex_collecting_visitor rcv(s); // TODOXXX
+  regex_collecting_visitor rcv(s);
 
   for (unsigned i=0; i<s.probes.size(); i++)
     {
-      s.probes[i]->body->visit (& rcv);
-
-      if (s.probes[i]->sole_location()->condition)
-        s.probes[i]->sole_location()->condition->visit (& rcv);
+      try
+        {
+          s.probes[i]->body->visit (& rcv);
+          
+          if (s.probes[i]->sole_location()->condition)
+            s.probes[i]->sole_location()->condition->visit (& rcv);
+        }
+      catch (const semantic_error& e)
+        {
+          s.print_error (e);
+        }
     }
+
+  return s.num_errors();
 }
 
 // ------------------------------------------------------------------------
@@ -1969,7 +1980,7 @@ semantic_pass (systemtap_session& s)
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
-      if (rc == 0) gen_dfa_table(s); // TODOXXX set rc?
+      if (rc == 0) rc = gen_dfa_table(s);
       if (rc == 0) add_global_var_display (s);
       if (rc == 0) rc = semantic_pass_optimize2 (s);
       if (rc == 0) rc = semantic_pass_vars (s);
@@ -2558,7 +2569,7 @@ dead_assignment_remover::visit_assignment (assignment* e)
               else
               */
               if (e->left->tok->location.file->name == session.user_file->name) // !tapset
-                session.print_warning(_F("Eliding assignment to %s at %s", leftvar->name.c_str(), lex_cast(*e->tok).c_str()));
+                session.print_warning(_F("Eliding assignment to '%s'", leftvar->name.c_str()), e->tok);
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
               return;
@@ -2945,12 +2956,13 @@ struct void_statement_reducer: public update_visitor
   // all of these can (usually) be reduced into simpler statements
   void visit_binary_expression (binary_expression* e);
   void visit_unary_expression (unary_expression* e);
-  void visit_regex_query (regex_query* e); // TODOXXX may or may not be reducible
+  void visit_regex_query (regex_query* e); // XXX depends on subexpr extraction
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_functioncall (functioncall* e);
   void visit_print_format (print_format* e);
   void visit_target_symbol (target_symbol* e);
+  void visit_atvar_op (atvar_op* e);
   void visit_cast_op (cast_op* e);
   void visit_defined_op (defined_op* e);
 
@@ -3137,16 +3149,16 @@ void_statement_reducer::visit_unary_expression (unary_expression* e)
 void
 void_statement_reducer::visit_regex_query (regex_query* e)
 {
-  // Whether we need to run a regex query depends on whether
-  // subexpression extraction is enabled, as in:
+  // TODOXXX After subexpression extraction is implemented,
+  // regular expression matches *may* have side-effects in
+  // terms of producing matched subexpressions, e.g.:
   //
-  // str =~ "pat";
-  // println(matched(0)); // NOTE: not totally nice -- are we SURE it matched?
-  // TODOXXX it's debatable whether we should allow this, though
+  //   str =~ "pat"; println(matched(0));
+  //
+  // It's debatable if we want to actually allow this, though.
 
-  // TODOXXX since subexpression extraction is not yet implemented,
-  // just treat it as a unary expression wrt the left operand -- since
-  // the right hand side must be a literal (verified by the parses),
+  // Treat e as a unary expression on the left operand -- since the
+  // right hand side must be a literal (as verified by the parser),
   // evaluating it never has side effects.
 
   if (session.verbose>2)
@@ -3240,6 +3252,12 @@ void_statement_reducer::visit_print_format (print_format* e)
   relaxed_p = false;
   e = 0;
   provide (e);
+}
+
+void
+void_statement_reducer::visit_atvar_op (atvar_op* e)
+{
+  visit_target_symbol (e);
 }
 
 void
@@ -3372,7 +3390,7 @@ struct const_folder: public update_visitor
   void visit_unary_expression (unary_expression* e);
   void visit_logical_or_expr (logical_or_expr* e);
   void visit_logical_and_expr (logical_and_expr* e);
-  // TODOXXX visit_regex_query could be done if we could run dfa at compiletime
+  // void visit_regex_query (regex_query* e); // XXX: would require executing dfa at compile-time
   void visit_comparison (comparison* e);
   void visit_concatenation (concatenation* e);
   void visit_ternary_expression (ternary_expression* e);
@@ -4578,6 +4596,42 @@ typeresolution_info::visit_target_symbol (target_symbol* e)
 
 
 void
+typeresolution_info::visit_atvar_op (atvar_op* e)
+{
+  // This occurs only if an @var() was not resolved over in
+  // tapset.cxx land, that error was properly suppressed, and the
+  // later unused-expression-elimination pass didn't get rid of it
+  // either.  So we have an @var() that is believed to be of
+  // genuine use, yet unresolved by the provider.
+
+  if (session.verbose > 2)
+    {
+      clog << _("Resolution problem with ");
+      if (current_function)
+        {
+          clog << "function " << current_function->name << endl;
+          current_function->body->print (clog);
+          clog << endl;
+        }
+      else if (current_probe)
+        {
+          clog << "probe " << *current_probe->sole_location() << endl;
+          current_probe->body->print (clog);
+          clog << endl;
+        }
+      else
+        //TRANSLATORS: simply saying not an issue with a probe or function
+        clog << _("other") << endl;
+    }
+
+  if (e->saved_conversion_error)
+    throw (* (e->saved_conversion_error));
+  else
+    throw semantic_error(_("unresolved @var() expression"), e->tok);
+}
+
+
+void
 typeresolution_info::visit_defined_op (defined_op* e)
 {
   throw semantic_error(_("unexpected @defined"), e->tok);
@@ -4774,11 +4828,25 @@ typeresolution_info::visit_embeddedcode (embeddedcode* s)
   // to a separate 'optimization' pass, or c_unparser::visit_embeddedcode
   // over yonder in pass 3.  However, we want to do it during pass 2 so
   // that cached sessions also get the uprobes treatment.
-  if (!session.need_uprobes && s->code.find("/* pragma:uprobes */") != string::npos)
+  if (! session.need_uprobes
+      && s->code.find("/* pragma:uprobes */") != string::npos)
     {
       if (session.verbose > 2)
         clog << _("Activating uprobes support because /* pragma:uprobes */ seen.") << endl;
       session.need_uprobes = true;
+    }
+
+  // PR15065. Likewise, we need to detect /* pragma:tagged_dfa */
+  // before the gen_dfa_table pass. Again, the typechecking part of
+  // pass 2 is a good place for this.
+  if (! session.need_tagged_dfa
+      && s->code.find("/* pragma:tagged_dfa */") != string::npos)
+    {
+      // if (session.verbose > 2)
+      //   clog << _F("Turning on DFA subexpressions, pragma:tagged_dfa found in %s",
+      // current_function->name.c_str()) << endl;
+      // session.need_tagged_dfa = true;
+      throw semantic_error (_("Tagged DFA support is not yet available"), s->tok);
     }
 }
 

@@ -35,21 +35,26 @@ static void
 get_dwarf_registers(BPatch_process *app,
                     vector<BPatch_snippet*>& registers)
 {
-#if defined(__i386__)
   static const char* const names[] = {
+#if defined(__i386__)
       "eax", "ecx", "edx", "ebx",
       "esp", "ebp", "esi", "edi",
-      NULL };
 #elif defined(__x86_64__)
-  static const char* const names[] = {
       "rax", "rdx", "rcx", "rbx",
       "rsi", "rdi", "rbp", "rsp",
       "r8",  "r9",  "r10", "r11",
       "r12", "r13", "r14", "r15",
-      NULL };
-#else
-  static const char* const names[] = { NULL };
+#elif defined(__powerpc__) || defined(__powerpc64__)
+      "r0",  "r1",  "r2",  "r3",
+      "r4",  "r5",  "r6",  "r7",
+      "r8",  "r9",  "r10", "r11",
+      "r12", "r13", "r14", "r15",
+      "r16", "r17", "r18", "r19",
+      "r20", "r21", "r22", "r23",
+      "r24", "r25", "r26", "r27",
+      "r28", "r29", "r30", "r31",
 #endif
+      NULL };
 
   // First push the original PC, before instrumentation mucked anything up.
   // (There's also BPatch_actualAddressExpr for the instrumented result...)
@@ -82,6 +87,17 @@ get_dwarf_registers(BPatch_process *app,
       if (i >= bpregs.size())
         registers.push_back(new BPatch_constExpr((unsigned long)0));
     }
+
+#if defined(__powerpc__) || defined(__powerpc64__)
+  // In EmitterPOWER::emitCall(), Dyninst enforces a limit that "only 8
+  // arguments can (currently) be passed on the POWER architecture."
+  // We start with the probe index and nregs, leaving just 6 more...
+  while (registers.size() > 6)
+    {
+      delete registers.back();
+      registers.pop_back();
+    }
+#endif
 }
 
 
@@ -261,24 +277,6 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
   BPatch_function* enter_function = NULL;
   bool use_pt_regs = false;
 
-  // XXX Until we know how to build pt_regs from here, we'll try the entry
-  // function for individual registers first.
-  if (!registers.empty())
-    stap_dso->findFunction("enter_dyninst_uprobe_regs", functions);
-  if (!functions.empty())
-    enter_function = functions[0];
-
-  // If the other entry wasn't found, or we don't have registers for it anyway,
-  // try the form that takes pt_regs* and we'll just pass NULL.
-  if (!enter_function)
-    {
-      stap_dso->findFunction("enter_dyninst_uprobe", functions);
-      if (functions.empty())
-        return;
-      use_pt_regs = true;
-      enter_function = functions[0];
-    }
-
   staplog(1) << "found target \"" << target.path << "\", inserting "
              << target.probes.size() << " probes" << endl;
 
@@ -295,11 +293,40 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
 	  continue;
 	}
 
+      if (! enter_function)
+        {
+	  // XXX Until we know how to build pt_regs from here, we'll
+	  // try the entry function for individual registers first.
+	  if (!registers.empty())
+	    stap_dso->findFunction("enter_dyninst_uprobe_regs", functions,
+				   false);
+	  if (!functions.empty())
+	    enter_function = functions[0];
+
+	  // If the other entry wasn't found, or we don't have
+	  // registers for it anyway, try the form that takes pt_regs*
+	  // and we'll just pass NULL.
+	  if (!enter_function)
+	    {
+	      stap_dso->findFunction("enter_dyninst_uprobe", functions,
+				     false);
+	      if (functions.empty())
+	        {
+		  stapwarn() << "Couldn't find the uprobe entry function (either " << endl
+			     << "\"enter_dyninst_uprobe_regs\" or \"enter_dyninst_uprobe\"). Uprobe probes"
+			     << endl << "disabled." << endl;
+		  return;
+		}
+	      use_pt_regs = true;
+	      enter_function = functions[0];
+	    }
+	}
+
       // Convert the file offset to a memory address.
       Dyninst::Address address = object->fileOffsetToAddr(probe.offset);
       if (address == BPatch_object::E_OUT_OF_BOUNDS)
         {
-          stapwarn() << "couldn't convert " << target.path << "+"
+          stapwarn() << "Couldn't convert " << target.path << "+"
                      << lex_cast_hex(probe.offset) << " to an address" << endl;
           continue;
         }
@@ -311,7 +338,7 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
       object->findPoints(address, points);
       if (points.empty())
         {
-          stapwarn() << "couldn't find an instrumentation point at "
+          stapwarn() << "Couldn't find an instrumentation point at "
                      << lex_cast_hex(address) << ", " << target.path
                      << "+" << lex_cast_hex(probe.offset) << endl;
           continue;
@@ -329,7 +356,7 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
                 points[i]->getFunction()->findPoint(BPatch_locExit);
               if (!exits || exits->empty())
                 {
-                  stapwarn() << "couldn't find a return point from "
+                  stapwarn() << "Couldn't find a return point from "
                              << lex_cast_hex(address) << ", " << target.path
                              << "+" << lex_cast_hex(probe.offset) << endl;
                   continue;
@@ -363,7 +390,7 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
         {
           Dyninst::Address sem_address = object->fileOffsetToAddr(probe.semaphore);
           if (sem_address == BPatch_object::E_OUT_OF_BOUNDS)
-            stapwarn() << "couldn't convert semaphore " << target.path << "+"
+            stapwarn() << "Couldn't convert semaphore " << target.path << "+"
                        << lex_cast_hex(probe.offset) << " to an address" << endl;
           else
             {

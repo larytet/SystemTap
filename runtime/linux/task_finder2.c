@@ -9,6 +9,7 @@
 #ifndef STAPCONF_TASK_UID
 #include <linux/cred.h>
 #endif
+#include "../uidgid_compatibility.h"
 #include "syscall.h"
 #include "task_finder_map.c"
 #include "task_finder_vma.c"
@@ -23,6 +24,7 @@ struct stap_task_finder_target;
 #define __STP_TF_STOPPING	3
 #define __STP_TF_STOPPED	4
 static atomic_t __stp_task_finder_state = ATOMIC_INIT(__STP_TF_UNITIALIZED);
+static atomic_t __stp_task_finder_complete = ATOMIC_INIT(0);
 static atomic_t __stp_inuse_count = ATOMIC_INIT (0);
 
 #define __stp_tf_handler_start() (atomic_inc(&__stp_inuse_count))
@@ -813,7 +815,11 @@ __stp_utrace_attach_match_filename(struct task_struct *tsk,
 #ifdef STAPCONF_TASK_UID
 	tsk_euid = tsk->euid;
 #else
+#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+	tsk_euid = from_kuid_munged(current_user_ns(), task_euid(tsk));
+#else
 	tsk_euid = task_euid(tsk);
+#endif
 #endif
 	filelen = strlen(filename);
 	list_for_each(tgt_node, &__stp_task_finder_list) {
@@ -1699,7 +1705,11 @@ stap_start_task_finder(void)
 #ifdef STAPCONF_TASK_UID
 		tsk_euid = tsk->euid;
 #else
+#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+		tsk_euid = from_kuid_munged(current_user_ns(), task_euid(tsk));
+#else
 		tsk_euid = task_euid(tsk);
+#endif
 #endif
 		mmpathlen = strlen(mmpath);
 		list_for_each(tgt_node, &__stp_task_finder_list) {
@@ -1810,7 +1820,18 @@ stap_task_finder_post_init(void)
 		}
 	} while_each_thread(grp, tsk);
 	rcu_read_unlock();
+	atomic_set(&__stp_task_finder_complete, 1);
 	return;
+}
+
+
+/* Indicates whether task_finder has complete coverage of all processes.
+ * e.g. uprobes prefilter can be sure it's safe to REMOVE from an unknown process.
+ */
+static inline int
+stap_task_finder_complete(void)
+{
+	return atomic_read(&__stp_task_finder_complete) != 0;
 }
 
 

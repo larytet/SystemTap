@@ -9,7 +9,7 @@
 #include "config.h"
 #include "session.h"
 #include "cache.h"
-#include "re2c-migrate/stapregex.h" // TODOXXX
+#include "stapregex.h"
 #include "elaborate.h"
 #include "translate.h"
 #include "buildrun.h"
@@ -65,6 +65,9 @@ systemtap_session::systemtap_session ():
   pattern_root(new match_node),
   user_file (0),
   dfa_counter (0),
+  dfa_maxstate (0),
+  dfa_maxtag (0),
+  need_tagged_dfa (false),
   be_derived_probes(0),
   dwarf_derived_probes(0),
   kprobe_derived_probes(0),
@@ -161,6 +164,9 @@ systemtap_session::systemtap_session ():
   sysroot = "";
   update_release_sysroot = false;
   suppress_time_limits = false;
+  color_mode = color_auto;
+  color_errors = isatty(STDERR_FILENO) // conditions for coloring when
+    && strcmp(getenv("TERM") ?: "notdumb", "dumb"); // on auto
 
   // PR12443: put compiled-in / -I paths in front, to be preferred during 
   // tapset duplicate-file elimination
@@ -334,6 +340,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   update_release_sysroot = other.update_release_sysroot;
   sysenv = other.sysenv;
   suppress_time_limits = other.suppress_time_limits;
+  color_errors = other.color_errors;
+  color_mode = other.color_mode;
 
   include_path = other.include_path;
   runtime_path = other.runtime_path;
@@ -691,14 +699,8 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
             if (mpath == NULL) // Must be a kernel module name
               mpath = optarg;
             unwindsym_modules.insert (string (mpath));
-            // PR10228: trigger vma tracker logic early if -d /USER-MODULE/
-            // given. XXX This is actually too early. Having a user module
-            // is a good indicator that something will need vma tracking.
-            // But it is not 100%, this really should only trigger through
-            // a user mode tapset /* pragma:vma */ or a probe doing a
-            // variable lookup through a dynamic module.
-            if (mpath[0] == '/')
-              enable_vma_tracker (*this);
+            // NB: we used to enable_vma_tracker() here for PR10228, but now
+            // we'll leave that to pragma:vma functions which actually use it.
             break;
           }
 
@@ -1092,6 +1094,11 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_COMPATIBLE:
 	  server_args.push_back ("--compatible=" + string(optarg));
+          if (strverscmp(optarg, VERSION) > 0) {
+            cerr << _F("ERROR: systemtap version %s cannot be compatible with future version %s", VERSION, optarg)
+                 << endl;
+            return 1;
+          }
 	  compatible = optarg;
 	  break;
 
@@ -1278,6 +1285,23 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case LONG_OPT_BENCHMARK_SDT_THREADS:
           // XXX This option is secret, not supported, subject to change at our whim
           benchmark_sdt_threads = strtoul(optarg, NULL, 10);
+          break;
+
+        case LONG_OPT_COLOR_ERRS:
+          // --color without arg is equivalent to always
+          if (!optarg || !strcmp(optarg, "always"))
+            color_mode = color_always;
+          else if (!strcmp(optarg, "auto"))
+            color_mode = color_auto;
+          else if (!strcmp(optarg, "never"))
+            color_mode = color_never;
+          else {
+            cerr << _F("Invalid argument '%s' for --color.", optarg) << endl;
+            return 1;
+          }
+          color_errors = color_mode == color_always
+              || (color_mode == color_auto && isatty(STDERR_FILENO) &&
+                    strcmp(getenv("TERM") ?: "notdumb", "dumb"));
           break;
 
 	case '?':
@@ -1796,13 +1820,19 @@ systemtap_session::print_token (ostream& o, const token* tok)
       string ts = tmpo.str();
       // search & replace the file name with nothing
       size_t idx = ts.find (tok->location.file->name);
-      if (idx != string::npos)
-          ts.replace (idx, tok->location.file->name.size(), "");
+      if (idx != string::npos) {
+          ts.erase(idx, tok->location.file->name.size()); // remove path
+          if (color_errors) {
+            string src = ts.substr(idx); // keep line & col
+            ts.erase(idx);               // remove from output string
+            ts += colorize(src, "source");        // re-add it colorized
+          }
+      }
 
       o << ts;
     }
   else
-    o << *tok;
+    o << colorize(*tok);
 
   last_token = tok;
 }
@@ -1824,7 +1854,7 @@ systemtap_session::print_error (const semantic_error& e)
     {
       stringstream message;
 
-      message << _F("semantic error: %s", e.what ());
+      message << colorize(_("semantic error:"), "error") << ' ' << e.what ();
       if (e.tok1 || e.tok2)
         message << ": ";
       if (e.tok1)
@@ -1892,8 +1922,23 @@ systemtap_session::print_error_source (std::ostream& message,
       end_pos = file_contents.find ('\n', start_pos) + 1;
       i++;
     }
-  //TRANSLATORS:  Here were are printing the source string of the error
-  message << align << _("source: ") << file_contents.substr (start_pos, end_pos-start_pos-1) << endl;
+  //TRANSLATORS: Here we are printing the source string of the error
+  message << align << _("source: ");
+  string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
+  if (color_errors &&
+      // Only colorize tokens whose content is known to match the source
+      // content.  e.g. tok_string doesn't qualify because of the double-quotes.
+      // tok_embedded lacks the %{ %}. tok_junk is just junky.
+      (tok->type == tok_number ||
+       tok->type == tok_identifier || 
+       tok->type == tok_operator)) {
+    // Split into before token, token, and after token
+    string tok_content = tok->content;
+    message << srcline.substr(0, col-1);
+    message << colorize(tok_content, "token");
+    message << srcline.substr(col+tok_content.size()-1) << endl;
+  } else
+    message << srcline << endl;
   message << align << "        ";
   //Navigate to the appropriate column
   for (i=start_pos; i<start_pos+col-1; i++)
@@ -1903,7 +1948,7 @@ systemtap_session::print_error_source (std::ostream& message,
       else
 	message << ' ';
     }
-  message << "^" << endl;
+  message << colorize("^", "caret") << endl;
 }
 
 void
@@ -1917,11 +1962,58 @@ systemtap_session::print_warning (const string& message_str, const token* tok)
   if (seen_warnings.find (message_str) == seen_warnings.end())
     {
       seen_warnings.insert (message_str);
-      clog << _("WARNING: ") << message_str;
+      clog << colorize(_("WARNING:"), "warning") << ' ' << message_str;
       if (tok) { clog << ": "; print_token (clog, tok); }
       clog << endl;
       if (tok) { print_error_source (clog, align_warning, tok); }
     }
+}
+
+
+void
+systemtap_session::print_error (const parse_error &pe,
+                                const token* tok,
+                                const std::string &input_name)
+{
+  string align_parse_error ("     ");
+
+  // print either pe.what() or a deferred error from the lexer
+  bool found_junk = false;
+  if (tok && tok->type == tok_junk && tok->msg != "")
+    {
+      found_junk = true;
+      cerr << colorize(_("parse error:"), "error") << ' ' << tok->msg << endl;
+    }
+  else
+    {
+      cerr << colorize(_("parse error:"), "error") << ' ' << pe.what() << endl;
+    }
+
+  // NB: It makes sense for lexer errors to always override parser
+  // errors, since the original obvious scheme was for the lexer to
+  // throw an exception before the token reached the parser.
+
+  if (pe.tok || found_junk)
+    {
+      cerr << _("\tat: ") << colorize(*tok) << endl;
+      print_error_source (cerr, align_parse_error, tok);
+    }
+  else if (tok) // "expected" type error
+    {
+      cerr << _("\tsaw: ") << colorize(*tok) << endl;
+      print_error_source (cerr, align_parse_error, tok);
+    }
+  else
+    {
+      cerr << _("\tsaw: ") << input_name << " EOF" << endl;
+    }
+
+  // print chained macro invocations
+  while (tok && tok->chain) {
+    tok = tok->chain;
+    cerr << _("\tin expansion of macro: ") << colorize(*tok) << endl;
+    print_error_source (cerr, align_parse_error, tok);
+  }
 }
 
 void
@@ -1998,6 +2090,81 @@ assert_no_interrupts()
 {
   if (pending_interrupts)
     throw interrupt_exception();
+}
+
+std::string
+systemtap_session::colorize(std::string str, std::string type)
+{
+  if (str.empty() || !color_errors)
+    return str;
+  else {
+    // Check if this type is defined in SYSTEMTAP_COLORS
+    std::string color = parse_stap_color(type);
+    if (!color.empty()) // no need to pollute terminal if not necessary
+      return "\033[" + color + "m\033[K" + str + "\033[m\033[K";
+    else
+      return str;
+  }
+}
+
+// Colorizes the path:row:col part of the token
+std::string
+systemtap_session::colorize(const token& tok)
+{
+  stringstream tmp;
+  tmp << tok;
+
+  if (!color_errors)
+    return tmp.str(); // Might as well stop now to save time
+  else {
+    string ts = tmp.str();
+
+    // Print token location, which is also the tail of ts
+    stringstream loc;
+    loc << tok.location;
+
+    // Remove token location and re-add it colorized
+    ts.erase(ts.size()-loc.str().size());
+    return ts + colorize(loc.str(), "source");
+  }
+}
+
+/* Parse SYSTEMTAP_COLORS and returns the SGR parameter(s) for the given
+type. The env var SYSTEMTAP_COLORS must be in the following format:
+'key1=val1:key2=val2:' etc... where valid keys are 'error', 'warning',
+'source', 'caret', 'token' and valid values constitute SGR parameter(s).
+For example, the default setting would be:
+'error=01;31:warning=00;33:source=00;34:caret=01:token=01'
+*/
+std::string
+systemtap_session::parse_stap_color(std::string type)
+{
+  const char *key, *col, *eq;
+  int n = type.size();
+  int done = 0;
+
+  key = getenv("SYSTEMTAP_COLORS");
+  if (key == NULL || *key == '\0')
+    key = "error=01;31:warning=00;33:source=00;34:caret=01:token=01";
+
+  while (!done) {
+    if (!(col = strchr(key, ':'))) {
+      col = strchr(key, '\0');
+      done = 1;
+    }
+    if (!((eq = strchr(key, '=')) && eq < col))
+      return ""; /* invalid syntax: no = in range */
+    if (!(key < eq && eq < col-1))
+      return ""; /* invalid syntax: key or val empty */
+    if (strspn(eq+1, "0123456789;") < (size_t)(col-eq-1))
+      return ""; /* invalid syntax: invalid char in val */
+    if (eq-key == n && type.compare(0, n, key, n) == 0)
+      return string(eq+1, col-eq-1);
+    if (!done) key = col+1; /* advance to next key */
+  }
+
+  // Could not find the key
+  return "";
 }
 
 // --------------------------------------------------------------------------

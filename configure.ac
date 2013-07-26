@@ -1,7 +1,7 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 2.2.1, systemtap@sourceware.org, systemtap)
+AC_INIT([systemtap], 2.3, systemtap@sourceware.org, systemtap)
 dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
 dnl                      doc/SystemTap_Beginners_Guide/en-US/Book_Info.xml
 
@@ -153,7 +153,7 @@ sqlite3_LIBS=
 AS_IF([test "x$enable_sqlite" != xno],
   [AC_CHECK_LIB([sqlite3], [sqlite3_open],
     [AC_SUBST([sqlite3_LIBS], [-lsqlite3])
-     AC_DEFINE([HAVE_LIBSQLITE3], [1], [Define to 1 if you have the `sqlite3' library (-lsqlite3).])],
+     AC_DEFINE([HAVE_LIBSQLITE3], [1], [Define to 1 if you have the 'sqlite3' library (-lsqlite3).])],
     [if test "x$enable_sqlite" != xcheck; then
       AC_MSG_FAILURE([--enable-sqlite was given, but test for sqlite failed])
      fi])])
@@ -196,6 +196,8 @@ AC_ARG_ENABLE([docs],
     [enable building documentation (default on if latex etc. found).]),
   [enable_docs=$enableval],
   [enable_docs="check"])
+AC_CHECK_PROG(have_xvfb, xvfb-run, yes, no)
+AM_CONDITIONAL([HAVE_XVFB], [test "$have_xvfb" == "yes"])
 AC_CHECK_PROG(have_latex, latex, yes, no)
 AC_CHECK_PROG(have_dvips, dvips, yes, no)
 AC_CHECK_PROG(have_ps2pdf, ps2pdf, yes, no)
@@ -584,6 +586,7 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
 				--libdir="${here}/lib-elfutils" \
 				--exec-prefix="$exec_prefix" \
 				--prefix="$prefix" \
+				--enable-dwz \
 				${need_maintainer_option} \
 				CFLAGS="${CFLAGS/-Wall/} $gnu89_inline_flag -fexceptions" \
 				LDFLAGS="$LDFLAGS $elfutils_rpath" &&

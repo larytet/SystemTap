@@ -1,5 +1,5 @@
 // Setup routines for creating fully populated DWFLs. Used in pass 2 and 3.
-// Copyright (C) 2009-2011 Red Hat, Inc.
+// Copyright (C) 2009-2013 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -128,6 +128,12 @@ modname_from_path(const string &path)
   return name;
 }
 
+static bool offline_search_names_find(const string &modpath) {
+	if (offline_search_names.find(modpath) != offline_search_names.end()) return 1;
+	string modname = modname_from_path (modpath);
+	return offline_search_names.find(modname) != offline_search_names.end();
+}
+
 // Try to parse modules.dep file,
 // Simple format: module path (either full or relative), colon,
 // (possibly empty) space delimited list of module (path)
@@ -136,23 +142,22 @@ static void
 setup_mod_deps()
 {
   string modulesdep;
+  string kernel_path;
   ifstream in;
   string l;
 
   if (elfutils_kernel_path[0] == '/')
     {
-      modulesdep = elfutils_kernel_path;
-      modulesdep += "/modules.dep";
+      kernel_path = elfutils_kernel_path;
     }
   else
     {
       string sysroot = "";
       if (current_session_for_find_debuginfo)
         sysroot = current_session_for_find_debuginfo->sysroot;
-      modulesdep = sysroot + "/lib/modules/";
-      modulesdep += elfutils_kernel_path;
-      modulesdep += "/modules.dep";
+      kernel_path = sysroot + "/lib/modules/" + elfutils_kernel_path;
     }
+  modulesdep = kernel_path + "/modules.dep";
   in.open(modulesdep.c_str());
   if (in.fail ())
     return;
@@ -167,8 +172,9 @@ setup_mod_deps()
 	  modname = modname_from_path (modpath);
 	  if (modname == "")
 	    continue;
+	  if (modpath[0] != '/') modpath = kernel_path + "/" + modpath;
 
-	  bool dep_needed;
+	  bool dep_needed = 0;
 	  if (offline_search_modname != NULL)
 	    {
 	      if (dwflpp::name_has_wildcard (offline_search_modname))
@@ -176,19 +182,35 @@ setup_mod_deps()
 		  dep_needed = !fnmatch (offline_search_modname,
 					 modname.c_str (), 0);
 		  if (dep_needed)
-		    offline_search_names.insert (modname);
+		    offline_search_names.insert (modpath);
 		}
 	      else
 		{
 		  dep_needed = ! strcmp(modname.c_str (),
 					offline_search_modname);
 		  if (dep_needed)
-		    offline_search_names.insert (modname);
+		    offline_search_names.insert (modpath);
 		}
 	    }
-	  else
-	    dep_needed = (offline_search_names.find (modname)
-			  != offline_search_names.end ());
+	  else if (offline_search_names.find(modpath) != offline_search_names.end())
+	    dep_needed = 1;
+	  else 
+	    {
+		set<string>::iterator it = offline_search_names.begin();
+		while (it != offline_search_names.end())
+		  {
+		    string modname;
+		    modname = modname_from_path(modpath);
+		    if (*it == modname)
+		      {
+			dep_needed = 1;
+			offline_search_names.erase(it);
+			offline_search_names.insert(modpath);
+			break;
+		      }
+		    it++;
+		  }
+	    }
 
 	  if (! dep_needed)
 	    continue;
@@ -199,7 +221,7 @@ setup_mod_deps()
 	      stringstream ss (depstring);
 	      string deppath;
 	      while (ss >> deppath)
-		offline_search_names.insert (modname_from_path(deppath));
+		offline_search_names.insert (deppath);
 
 	    }
 	}
@@ -219,8 +241,16 @@ static int
 setup_dwfl_report_kernel_p(const char* modname, const char* filename)
 {
   assert_no_interrupts();
+
   if (setup_dwfl_done)
     return -1;
+
+  assert (current_session_for_find_debuginfo);
+  if (current_session_for_find_debuginfo->verbose > 4)
+    clog << _F("checking pattern '%s' vs. module '%s' file '%s'\n",
+               offline_search_modname ?: "",
+               modname ?: "",
+               filename ?: "");
 
   // elfutils sends us NULL filenames sometimes if it can't find dwarf
   if (filename == NULL)
@@ -250,6 +280,7 @@ setup_dwfl_report_kernel_p(const char* modname, const char* filename)
     {
       if (dwflpp::name_has_wildcard (offline_search_modname))
 	{
+          // XXX: see also dwflpp::module_name_matches()
 	  int match_p = !fnmatch(offline_search_modname, modname, 0);
 	  // In the wildcard case, we don't short-circuit (return -1)
 	  // analogously to dwflpp::module_name_final_match().
@@ -272,7 +303,7 @@ setup_dwfl_report_kernel_p(const char* modname, const char* filename)
     }
   else
     { /* find all in set mode, reject mismatching module names */
-      if (offline_search_names.find(modname) == offline_search_names.end())
+      if (!offline_search_names_find(filename))
 	return 0;
       else
 	{
@@ -427,6 +458,7 @@ setup_dwfl_kernel(const std::set<std::string> &names,
 		  unsigned *found,
 		  systemtap_session &s)
 {
+  current_session_for_find_debuginfo = &s;
   if (kernel_dwfl != NULL
       && offline_search_modname == NULL
       && offline_search_names == names)

@@ -20,7 +20,7 @@
 bool check_dyninst_rt(void);
 
 // Check that SELinux settings are ok for Dyninst operation.
-bool check_dyninst_sebools(void);
+bool check_dyninst_sebools(bool attach=false);
 
 // Check whether a process exited cleanly
 bool check_dyninst_exit(BPatch_process *process);
@@ -47,7 +47,10 @@ set_dlsym(T*& pointer, void* handle, const char* symbol, bool required=true)
 extern unsigned stapdyn_log_level;
 
 // Whether to suppress warnings, set by -w
-extern bool stapdyn_supress_warnings;
+extern bool stapdyn_suppress_warnings;
+
+// Output file name, set by -o
+extern char *stapdyn_outfile_name;
 
 // Return a stream for logging at the given verbosity level.
 std::ostream& staplog(unsigned level=0);
@@ -58,6 +61,14 @@ std::ostream& stapwarn(void);
 // Return a stream for error messages.
 std::ostream& staperror(void);
 
+// Whether to color error and warning messages
+extern bool color_errors;
+
+// Adds coloring to strings
+std::string colorize(std::string str, std::string type);
+
+// Parse SYSTEMTAP_COLORS
+std::string parse_stap_color(std::string type);
 
 #endif // DYNUTIL_H
 

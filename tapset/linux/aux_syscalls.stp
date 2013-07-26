@@ -1,3 +1,23 @@
+%{
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+
+#ifndef STAPCONF_SIGSET_FROM_COMPAT_EXPORTED
+void
+sigset_from_compat(sigset_t *set, compat_sigset_t *compat)
+{
+	switch (_NSIG_WORDS) {
+	case 4: set->sig[3] = compat->sig[6] | (((long)compat->sig[7]) << 32 );
+	case 3: set->sig[2] = compat->sig[4] | (((long)compat->sig[5]) << 32 );
+	case 2: set->sig[1] = compat->sig[2] | (((long)compat->sig[3]) << 32 );
+	case 1: set->sig[0] = compat->sig[0] | (((long)compat->sig[1]) << 32 );
+	}
+}
+#endif /* STAPCONF_SIGSET_FROM_COMPAT_EXPORTED */
+#endif /* CONFIG_COMPAT */
+
+%}
+
 #
 # Given a userspace pointer to a timeval,
 # copy and decode it and return a string.
@@ -642,6 +662,13 @@ function _sys_open_flag_str:string (f:long)
 	if (flags & O_APPEND)
 		strlcat (STAP_RETVALUE, "|O_APPEND", MAXSTRINGLEN);
 #endif
+#ifdef O_ASYNC
+	if (flags & O_ASYNC)
+		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
+#elif defined(FASYNC)
+	if (flags & FASYNC)
+		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
+#endif
 #ifdef O_CLOEXEC
 	if (flags & O_CLOEXEC)
 		strlcat (STAP_RETVALUE, "|O_CLOEXEC", MAXSTRINGLEN);
@@ -649,13 +676,6 @@ function _sys_open_flag_str:string (f:long)
 #ifdef O_CREAT
 	if (flags & O_CREAT)
 		strlcat (STAP_RETVALUE, "|O_CREAT", MAXSTRINGLEN);
-#endif
-#ifdef O_ASYNC
-	if (flags & O_ASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#elif defined(FASYNC)
-	if (flags & FASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
 #endif
 #ifdef O_DIRECT
 	if (flags & O_DIRECT)
@@ -696,10 +716,6 @@ function _sys_open_flag_str:string (f:long)
 #ifdef O_TRUNC
 	if (flags & O_TRUNC)
 		strlcat (STAP_RETVALUE, "|O_TRUNC", MAXSTRINGLEN);
-#endif
-#ifdef O_CLOEXEC
-	if (flags & O_CLOEXEC)
-		strlcat (STAP_RETVALUE, "|O_CLOEXEC", MAXSTRINGLEN);
 #endif
 %}
 
@@ -1765,6 +1781,28 @@ function _stp_sigset_u:string(setptr:long)
 	}
 %}
 
+function _stp_compat_sigset_u:string(setptr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *ptr = (char *)(unsigned long)STAP_ARG_setptr;
+
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		compat_sigset_t set;
+
+		if (_stp_copy_from_user((char*)&set, ptr,
+					sizeof(compat_sigset_t)) == 0) {
+			sigset_t new_set;
+			sigset_from_compat(&new_set, &set);
+			_stp_sigset_str(&new_set, STAP_RETVALUE, MAXSTRINGLEN);
+		}
+		else
+			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	}
+#endif
+%}
+
 %{
 static const _stp_val_array const _stp_fork_list[] = {
 	V(CLONE_VM),
@@ -2097,6 +2135,9 @@ function _struct_sigaction32_u:string(uaddr:long)
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
   
+#ifdef AUTOCONF_COMPAT_SIGACTION
+  struct compat_sigaction act32;
+#else
   // There seems to be no public cross arch header that defines this.
   // For x86, you can find it in asm/ia32.h.  For s390x, it is defined
   // in a private header.
@@ -2108,6 +2149,8 @@ function _struct_sigaction32_u:string(uaddr:long)
   };
   
   struct sigaction32 act32;
+#endif
+
   char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
   
   if (ptr == NULL)
@@ -2115,7 +2158,7 @@ function _struct_sigaction32_u:string(uaddr:long)
   else
     {
       if(_stp_copy_from_user((char*)&act32, ptr,
-			     sizeof(struct sigaction32)) == 0)
+			     sizeof(act32)) == 0)
 	{
 	  struct sigaction act;
 
@@ -2149,6 +2192,9 @@ function _struct_old_sigaction32_u:string(uaddr:long)
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 
+#ifdef CONFIG_COMPAT_OLD_SIGACTION
+  struct compat_old_sigaction act32;
+#else
   // There seems to be no public cross arch header that defines this.
   // For x86, you can find it in asm/ia32.h.  For s390x, it is defined
   // in a private header.
@@ -2160,14 +2206,14 @@ function _struct_old_sigaction32_u:string(uaddr:long)
   };
 
   struct old_sigaction32 act32;
+#endif
   char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
   
   if (ptr == NULL)
     strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
   else
     {
-      if(_stp_copy_from_user((char*)&act32, ptr,
-			     sizeof(struct old_sigaction32)) == 0)
+      if(_stp_copy_from_user((char*)&act32, ptr, sizeof(act32)) == 0)
 	{
 	  struct sigaction act;
 
