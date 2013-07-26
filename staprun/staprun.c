@@ -2,7 +2,7 @@
  *
  * staprun.c - SystemTap module loader
  *
- * Copyright (C) 2005-2012 Red Hat, Inc.
+ * Copyright (C) 2005-2013 Red Hat, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,12 +88,12 @@ static int run_as(int exec_p, uid_t uid, gid_t gid, const char *path, char *cons
 
 	if (verbose >= 2) {
 		int i = 0;
-		err(exec_p ? "execing: ": "spawning: ");
+		eprintf(exec_p ? "execing: ": "spawning: ");
 		while (argv[i]) {
-			err("%s ", argv[i]);
+			eprintf("%s ", argv[i]);
 			i++;
 		}
-		err("\n");
+		eprintf("\n");
 	}
 
         if (exec_p)
@@ -175,7 +175,7 @@ static int enable_uprobes(void)
             (rc == -EEXIST)) /* Someone else might have loaded it */
 		return 0;
 
-        err("Error inserting module '%s': %s\n", runtimeko, moderror(errno));
+        err("Couldn't insert module '%s': %s\n", runtimeko, moderror(errno));
 	return 1; /* failure */
 }
 
@@ -193,7 +193,7 @@ static int insert_stap_module(privilege_t *user_credentials)
 					     assert_stap_module_permissions,
 					     user_credentials);
         if (stap_module_inserted != 0)
-                err("Error inserting module '%s': %s\n", modpath, moderror(errno));
+                err("Couldn't insert module '%s': %s\n", modpath, moderror(errno));
 	return stap_module_inserted;
 }
 
@@ -242,7 +242,7 @@ static int remove_module(const char *name, int verb)
            the opens. */
         ret = init_ctl_channel (name, 0);
         if (ret < 0) {
-                err("Error, '%s' is not a zombie systemtap module.\n", name);
+                err("'%s' is not a zombie systemtap module.\n", name);
                 return ret;
         }
         close_ctl_channel ();
@@ -255,7 +255,7 @@ static int remove_module(const char *name, int verb)
                    diagnostic, but without an error.  Might it be
                    possible for the same module to be started up just
                    as we're shutting down?  */
-		err("Error removing module '%s': %s.\n", name, strerror(errno));
+		err("Couldn't remove module '%s': %s.\n", name, strerror(errno));
 		return 1;
 	}
 
@@ -264,10 +264,10 @@ static int remove_module(const char *name, int verb)
 }
 
 
-/* As per PR13193, some kernels have a buggy kprobes-optimization code,
-   which results in BUG/panics in certain circumstances.  We turn off
-   kprobes optimization as a conservative measure, unless told otherwise
-   by an environment variable.
+/* As per PR13193 & PR1548, some kernels have a buggy
+   kprobes-optimization code, which results in BUG/panics in certain
+   circumstances.  We turn off kprobes optimization as a conservative
+   measure, unless told otherwise by an environment variable.
 */
 void disable_kprobes_optimization()
 {
@@ -279,7 +279,9 @@ void disable_kprobes_optimization()
 
         /* PR13814; disable this facility for new enough kernels, containing
          * these fix commits: 86b4ce31 46484688 3f33ab1c */
-        if ((uname (&uts) == 0) && (strverscmp (uts.release, "3.4") >= 0))
+        /* PR15484; whoops, not enough, problem still seen on Debian
+         * 3.8.12 kernel. */
+        if (0 && (uname (&uts) == 0) && (strverscmp (uts.release, "3.4") >= 0))
                 return;
 
         if (getenv ("STAP_PR13193_OVERRIDE"))
@@ -396,7 +398,7 @@ int main(int argc, char **argv)
            The -F option is only for stapio, but the overzealous quest
            for commonality doesn't let us express that nicer. */
         if (relay_basedir_fd >= 0) {
-                err(_("ERROR: relay basedir -F option is invalid for staprun\n"));
+                err(_("Relay basedir -F option is invalid for staprun\n"));
                 exit(1);
         }
         /* NB: later on, some of our own code may set relay_basedir_fd, for
@@ -414,7 +416,7 @@ int main(int argc, char **argv)
 
 	if (optind < argc) {
 		if (attach_mod) {
-			err("ERROR: Cannot have module options with attach (-A).\n");
+			err("Cannot have module options with attach (-A).\n");
 			usage(argv[0]);
 		} else {
 			unsigned start_idx = 0;
@@ -425,12 +427,12 @@ int main(int argc, char **argv)
 	}
 
 	if (modpath == NULL || *modpath == '\0') {
-		err("ERROR: Need a module name or path to load.\n");
+		err("Need a module name or path to load.\n");
 		usage(argv[0]);
 	}
 
 	if (geteuid() != 0) {
-		err("ERROR: The effective user ID of staprun must be set to the root user.\n"
+		err("The effective user ID of staprun must be set to the root user.\n"
 		    "  Check permissions on staprun and ensure it is a setuid root program.\n");
 		exit(1);
 	}

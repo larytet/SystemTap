@@ -268,6 +268,10 @@ struct stap_sigmasker {
         sigaddset (&mask, SIGTERM);
         sigprocmask (SIG_BLOCK, &mask, &old);
       }
+    stap_sigmasker(const sigset_t *mask)
+      {
+        sigprocmask (SIG_BLOCK, mask, &old);
+      }
     ~stap_sigmasker()
       {
         sigprocmask (SIG_SETMASK, &old, NULL);
@@ -288,6 +292,22 @@ resolve_path(const std::string& path)
   return result;
 }
 
+// Used in levenshtein
+template<typename T>
+class Array2D
+{
+  private:
+    T * data;
+  public:
+    const unsigned width;
+    const unsigned height;
+    T& operator() (unsigned x, unsigned y) { return data[y*width + x]; }
+    Array2D(const unsigned w, const unsigned h) : width(w), height(h) { data = new T[w*h]; }
+    ~Array2D() { delete [] data; }
+};
+
+// String sorter using the Levenshtein algorithm
+unsigned levenshtein(const std::string& a, const std::string& b);
 
 #ifndef HAVE_PPOLL
 // This is a poor-man's ppoll; see the implementation for more details...

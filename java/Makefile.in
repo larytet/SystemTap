@@ -72,7 +72,7 @@ noinst_PROGRAMS = $(am__EXEEXT_1)
 @HAVE_JAVA_TRUE@am__append_5 = HelperSDT.class HelperSDT.jar
 subdir = java
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(top_srcdir)/depcomp
+	$(srcdir)/stapbm.in $(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
 	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
@@ -83,7 +83,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
-CONFIG_CLEAN_FILES =
+CONFIG_CLEAN_FILES = stapbm
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(pkglibexecdir)"
 @HAVE_JAVA_TRUE@am__EXEEXT_1 = libHelperSDT.so$(EXEEXT)
@@ -276,6 +276,7 @@ have_latex2html = @have_latex2html@
 have_ps2pdf = @have_ps2pdf@
 have_publican = @have_publican@
 have_xmlto = @have_xmlto@
+have_xvfb = @have_xvfb@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
@@ -372,6 +373,8 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
+stapbm: $(top_builddir)/config.status $(srcdir)/stapbm.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	@list='$(bin_PROGRAMS)'; test -n "$(bindir)" || list=; \
@@ -682,10 +685,10 @@ override JAVA_ARCH:=$(JAVA_ARCH:i%86=i386)
 override JAVA_ARCH:=$(JAVA_ARCH:sparcv9=sparc)
 override JAVA_ARCH:=$(JAVA_ARCH:sparc64=sparcv9)
 override JAVA_ARCH:=$(JAVA_ARCH:arm%=arm)
-@HAVE_JAVA_TRUE@HelperSDT.class: HelperSDT.java
-@HAVE_JAVA_TRUE@	$(JAVAC) -d . $(srcdir)/HelperSDT.java
+@HAVE_JAVA_TRUE@HelperSDT.class: $(srcdir)/org/systemtap/byteman/helper/HelperSDT.java
+@HAVE_JAVA_TRUE@	$(JAVAC) -d . $(srcdir)/org/systemtap/byteman/helper/HelperSDT.java
 @HAVE_JAVA_TRUE@HelperSDT.jar: HelperSDT.class
-@HAVE_JAVA_TRUE@	$(JAR) cvf HelperSDT.jar HelperSDT.class
+@HAVE_JAVA_TRUE@	$(JAR) cvf HelperSDT.jar org/systemtap/byteman/helper/HelperSDT.class
 
 # place/install libHelperSDT.so and HelperSDT.jar
 @HAVE_JAVA_TRUE@install-exec-local:

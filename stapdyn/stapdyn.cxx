@@ -43,7 +43,17 @@ static void __attribute__ ((noreturn))
 usage (int rc)
 {
   clog << "Usage: " << program_invocation_short_name
-       << " MODULE [-c CMD | -x PID] [globalname=value ...]" << endl;
+       << " MODULE [-v] [-c CMD | -x PID] [-o FILE] [-C WHEN] [globalname=value ...]" << endl
+       << "-v              Increase verbosity." << endl
+       << "-c cmd          Command \'cmd\' will be run and " << program_invocation_short_name << " will" << endl
+       << "                exit when it does.  The '_stp_target' variable" << endl
+       << "                will contain the pid for the command." << endl
+       << "-x pid          Sets the '_stp_target' variable to pid." << endl
+       << "-o FILE         Send output to FILE. This supports strftime(3)" << endl
+       << "                formats for FILE." << endl
+       << "-C WHEN         Enable colored errors. WHEN must be either 'auto'," << endl
+       << "                'never', or 'always'. Set to 'auto' by default." << endl;
+
   exit (rc);
 }
 
@@ -56,9 +66,13 @@ main(int argc, char * const argv[])
   const char* command = NULL;
   const char* module = NULL;
 
+  // Check if error/warning msgs should be colored
+  color_errors = isatty(STDERR_FILENO)
+    && strcmp(getenv("TERM") ?: "notdumb", "dumb");
+
   // First, option parsing.
   int opt;
-  while ((opt = getopt (argc, argv, "c:x:vwV")) != -1)
+  while ((opt = getopt (argc, argv, "c:x:vwo:VC:")) != -1)
     {
       switch (opt)
         {
@@ -75,8 +89,12 @@ main(int argc, char * const argv[])
           break;
 
         case 'w':
-          stapdyn_supress_warnings = true;
+          stapdyn_suppress_warnings = true;
           break;
+
+	case 'o':
+	  stapdyn_outfile_name = optarg;
+	  break;
 
         case 'V':
           fprintf(stderr, "Systemtap Dyninst loader/runner (version %s/%s, %s)\n"
@@ -85,6 +103,19 @@ main(int argc, char * const argv[])
                   VERSION, DYNINST_FULL_VERSION, STAP_EXTENDED_VERSION);
           return 0;
 
+        case 'C':
+          if (!strcmp(optarg, "never"))
+            color_errors = false;
+          else if (!strcmp(optarg, "auto"))
+            color_errors = isatty(STDERR_FILENO)
+              && strcmp(getenv("TERM") ?: "notdumb", "dumb");
+          else if (!strcmp(optarg, "always"))
+            color_errors = true;
+          else {
+            staperror() << "Invalid option '" << optarg << "' for -C." << endl;
+            usage (1);
+          }
+          break;
         default:
           usage (1);
         }
@@ -107,13 +138,13 @@ main(int argc, char * const argv[])
   // Make sure that environment variables and selinux are set ok.
   if (!check_dyninst_rt())
     return 1;
-  if (!check_dyninst_sebools())
+  if (!check_dyninst_sebools(pid != 0))
     return 1;
 
   auto_ptr<mutator> session(new mutator(module, modoptions));
   if (!session.get() || !session->load())
     {
-      staperror() << "failed to create the mutator!" << endl;
+      staperror() << "Failed to create the mutator!" << endl;
       return 1;
     }
 
@@ -123,7 +154,10 @@ main(int argc, char * const argv[])
   if (pid && !session->attach_process(pid))
     return 1;
 
-  return session->run() ? EXIT_SUCCESS : EXIT_FAILURE;
+  if (!session->run())
+    return 1;
+
+  return session->exit_status();
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

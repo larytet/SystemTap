@@ -315,48 +315,8 @@ operator << (ostream& o, const token& t)
 void
 parser::print_error  (const parse_error &pe)
 {
-  string align_parse_error ("     ");
-
   const token *tok = pe.tok ? pe.tok : last_t;
-
-  // print either pe.what() or a deferred error from the lexer
-  bool found_junk = false;
-  if (tok && tok->type == tok_junk && tok->msg != "")
-    {
-      found_junk = true;
-      cerr << _("parse error: ") << tok->msg << endl;
-    }
-  else
-    {
-      cerr << _("parse error: ") << pe.what() << endl;      
-    }
-
-  // NB: It makes sense for lexer errors to always override parser
-  // errors, since the original obvious scheme was for the lexer to
-  // throw an exception before the token reached the parser.
-
-  if (pe.tok || found_junk)
-    {
-      cerr << _("\tat: ") << *tok << endl;
-      session.print_error_source (cerr, align_parse_error, tok);
-    }
-  else if (tok) // "expected" type error
-    {
-      cerr << _("\tsaw: ") << *tok << endl;
-      session.print_error_source (cerr, align_parse_error, tok);
-    }
-  else
-    {
-      cerr << _("\tsaw: ") << input_name << " EOF" << endl;
-    }
-
-  // print chained macro invocations
-  while (tok && tok->chain) {
-    tok = tok->chain;
-    cerr << _("\tin expansion of macro: ") << *tok << endl;
-    session.print_error_source (cerr, align_parse_error, tok);
-  }
-
+  session.print_error(pe, tok, input_name);
   num_errors ++;
 }
 
@@ -910,6 +870,30 @@ bool eval_pp_conditional (systemtap_session& s,
 
       return result;
     }
+  else if (l->type == tok_identifier && l->content == "runtime")
+    {
+      if (! (r->type == tok_string))
+        throw parse_error (_("expected string literal"), r);
+
+      string query_runtime = r->content;
+      string target_runtime;
+
+      target_runtime = (s.runtime_mode == systemtap_session::dyninst_runtime
+			? "dyninst" : "kernel");
+      int nomatch = fnmatch (query_runtime.c_str(),
+                             target_runtime.c_str(),
+                             FNM_NOESCAPE); // still spooky
+
+      bool result;
+      if (op->type == tok_operator && op->content == "==")
+        result = !nomatch;
+      else if (op->type == tok_operator && op->content == "!=")
+        result = nomatch;
+      else
+        throw parse_error (_("expected '==' or '!='"), op);
+
+      return result;
+    }
   else if (l->type == tok_identifier && startswith(l->content, "CONFIG_"))
     {
       if (r->type == tok_string)
@@ -990,8 +974,9 @@ bool eval_pp_conditional (systemtap_session& s,
     throw parse_error (_("expected number literal as right value"), r);
 
   else
-    throw parse_error (_("expected 'arch' or 'kernel_v' or 'kernel_vr' or 'CONFIG_...'\n"
-		       "             or comparison between strings or integers"), l);
+    throw parse_error (_("expected 'arch', 'kernel_v', 'kernel_vr', 'systemtap_v',\n"
+			 "             'runtime', 'systemtap_privilege', 'CONFIG_...', or\n"
+			 "             comparison between strings or integers"), l);
 }
 
 
@@ -1594,6 +1579,9 @@ skip:
 	      c = input_get ();
 	      switch (c)
 		{
+                case 'x':
+                  if (strverscmp(session.compatible.c_str(), "2.3") < 0)
+                    goto the_default;
 		case 'a':
 		case 'b':
 		case 't':
@@ -1605,13 +1593,14 @@ skip:
 		case '\\':
 		  // Pass these escapes through to the string value
 		  // being parsed; it will be emitted into a C literal.
-
+                  // XXX: PR13371: perhaps we should evaluate them here
+                  // (and re-quote them during translate.cxx emission).
 		  n->content.push_back('\\');
 
                   // fall through
-		default:
-		  n->content.push_back(c);
-		  break;
+		default: the_default:
+                    n->content.push_back(c);
+                    break;
 		}
 	    }
 	  else
@@ -1673,6 +1662,8 @@ skip:
             {
               if (c == '%' && c2 == '}')
                 return n;
+              if (c == '}' && c2 == '%') // possible typo
+                session.print_warning (_("possible erroneous closing '}%', use '%}'?"), n);
               n->content += c;
               c = c2;
               c2 = input_get ();
@@ -3061,8 +3052,7 @@ parser::parse_comparison_or_regex_query ()
 {
   expression* op1 = parse_shift ();
 
-  // TODOXXX for now, =~ is nonassociative
-  // TODOXXX maybe instead a =~ b == c =~ d --> (a =~ b) == (c =~ d) ??
+  // XXX precedence -- perhaps a =~ b == c =~ d --> (a =~ b) == (c =~ d) ?
   const token *t = peek();
   if (t && t->type == tok_operator
       && (t->content == "=~" ||
@@ -3073,7 +3063,7 @@ parser::parse_comparison_or_regex_query ()
       r->op = t->content;
       r->tok = t;
       next ();
-      r->right = r->re = parse_literal_string();
+      r->right = parse_literal_string();
       op1 = r;
       t = peek ();
     }
@@ -3618,8 +3608,6 @@ target_symbol* parser::parse_target_symbol (const token* t)
       target_symbol *tsym = new target_symbol;
       tsym->tok = t;
       tsym->name = t->content;
-      tsym->target_name = "";
-      tsym->cu_name = "";
       parse_target_symbol_components(tsym);
       tsym->addressof = addressof;
       return tsym;
@@ -3627,20 +3615,27 @@ target_symbol* parser::parse_target_symbol (const token* t)
 
   if (t->type == tok_operator && t->content == "@var")
     {
-      target_symbol *tsym = new target_symbol;
-      tsym->tok = t;
-      tsym->name = t->content;
+      atvar_op *aop = new atvar_op;
+      aop->tok = t;
+      aop->name = t->content;
       expect_op("(");
-      expect_unknown(tok_string, tsym->target_name);
-      size_t found_at = tsym->target_name.find("@");
+      expect_unknown(tok_string, aop->target_name);
+      size_t found_at = aop->target_name.find("@");
       if (found_at != string::npos)
-	tsym->cu_name = tsym->target_name.substr(found_at + 1);
+        aop->cu_name = aop->target_name.substr(found_at + 1);
       else
-	tsym->cu_name = "";
+        aop->cu_name = "";
+      if (peek_op (","))
+        {
+          swallow ();
+          expect_unknown (tok_string, aop->module);
+        }
+      else
+        aop->module = "";
       expect_op(")");
-      parse_target_symbol_components(tsym);
-      tsym->addressof = addressof;
-      return tsym;
+      parse_target_symbol_components(aop);
+      aop->addressof = addressof;
+      return aop;
     }
 
   throw parse_error (_("expected @cast, @var or $var"));

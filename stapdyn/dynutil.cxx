@@ -72,19 +72,20 @@ check_dyninst_rt(void)
     {
       if (file_exists(rt_env))
         return true;
-      warnx("Invalid %s: \"%s\"", rt_env_name, rt_env);
+      staperror() << "Invalid " << rt_env_name << ": \"" << rt_env << "\"" << endl;
     }
 
   const string rt = guess_dyninst_rt();
   if (rt.empty() || !file_exists(rt))
     {
-      warnx("Can't find libdyninstAPI_RT.so; try setting %s", rt_env_name);
+      staperror() << "Can't find libdyninstAPI_RT.so; try setting " << rt_env_name << endl;
       return false;
     }
 
   if (setenv(rt_env_name, rt.c_str(), 1) != 0)
     {
-      warn("Can't set %s", rt_env_name);
+      int olderrno = errno;
+      staperror() << "Can't set " << rt_env_name << ": " << strerror(olderrno);
       return false;
     }
 
@@ -94,7 +95,7 @@ check_dyninst_rt(void)
 
 // Check that SELinux settings are ok for Dyninst operation.
 bool
-check_dyninst_sebools(void)
+check_dyninst_sebools(bool attach)
 {
 #ifdef HAVE_SELINUX
   // For all these checks, we could examine errno on failure to act differently
@@ -104,7 +105,8 @@ check_dyninst_sebools(void)
   // deny_ptrace is definitely a blocker for us to attach at all
   if (security_get_boolean_active("deny_ptrace") > 0)
     {
-      warnx("SELinux boolean 'deny_ptrace' is active, which blocks Dyninst");
+      staperror() << "SELinux boolean 'deny_ptrace' is active, "
+                       "which blocks Dyninst" << endl;
       return false;
     }
 
@@ -113,9 +115,21 @@ check_dyninst_sebools(void)
   // this is also a blocker.
   if (security_get_boolean_active("allow_execstack") == 0)
     {
-      warnx("SELinux boolean 'allow_execstack' is disabled, which blocks Dyninst");
+      staperror() << "SELinux boolean 'allow_execstack' is disabled, "
+                       "which blocks Dyninst" << endl;
       return false;
     }
+
+  // In process-attach mode, SELinux will trigger "avc:  denied  { execmod }"
+  // on ld.so, when the mutator is injecting the dlopen for libdyninstAPI_RT.so.
+  if (attach && security_get_boolean_active("allow_execmod") == 0)
+    {
+      staperror() << "SELinux boolean 'allow_execmod' is disabled, "
+                       "which blocks Dyninst" << endl;
+      return false;
+    }
+#else
+  (void)attach; // unused
 #endif
 
   return true;
@@ -133,13 +147,20 @@ check_dyninst_exit(BPatch_process *process)
       code = process->getExitCode();
       if (code == EXIT_SUCCESS)
         return true;
-      warnx("Warning: child process exited with status %d", code);
+      stapwarn() << "Child process exited with status " << code << endl;
       return false;
 
     case ExitedViaSignal:
       code = process->getExitSignal();
-      warnx("Warning: child process exited with signal %d (%s)",
-            code, strsignal(code));
+      stapwarn() << "Child process exited with signal " << code
+            << " (" << strsignal(code) << ")" << endl;
+      return false;
+
+    case NoExit:
+      if (process->isTerminated())
+        stapwarn() << "Child process exited in an unknown manner" << endl;
+      else
+        stapwarn() << "Child process has not exited" << endl;
       return false;
 
     default:
@@ -178,7 +199,10 @@ static ostream nullstream(NULL);
 unsigned stapdyn_log_level = 0;
 
 // Whether to suppress warnings, set by -w
-bool stapdyn_supress_warnings = false;
+bool stapdyn_suppress_warnings = false;
+
+// Output file name, set by -o
+char *stapdyn_outfile_name = NULL;
 
 // Return a stream for logging at the given verbosity level.
 ostream&
@@ -193,17 +217,75 @@ staplog(unsigned level)
 ostream&
 stapwarn(void)
 {
-  if (stapdyn_supress_warnings)
+  if (stapdyn_suppress_warnings)
     return nullstream;
-  return clog << program_invocation_short_name << ": WARNING: ";
+  return clog << program_invocation_short_name << ": "
+                   << colorize("WARNING:", "warning") << " ";
 }
 
 // Return a stream for error messages.
 ostream&
 staperror(void)
 {
-  return clog << program_invocation_short_name << ": ERROR: ";
+  return clog << program_invocation_short_name << ": "
+                   << colorize("ERROR:", "error") << " ";
 }
 
+// Whether to color error and warning messages
+bool color_errors; // Initialized in main()
+
+// Adds coloring to strings
+std::string
+colorize(std::string str, std::string type)
+{
+  if (str.empty() || !color_errors)
+    return str;
+  else {
+    // Check if this type is defined in SYSTEMTAP_COLORS
+    std::string color = parse_stap_color(type);
+    if (!color.empty()) // no need to pollute terminal if not necessary
+      return "\033[" + color + "m\033[K" + str + "\033[m\033[K";
+    else
+      return str;
+  }
+}
+
+/* Parse SYSTEMTAP_COLORS and returns the SGR parameter(s) for the given
+type. The env var SYSTEMTAP_COLORS must be in the following format:
+'key1=val1:key2=val2:' etc... where valid keys are 'error', 'warning',
+'source', 'caret', 'token' and valid values constitute SGR parameter(s).
+For example, the default setting would be:
+'error=01;31:warning=00;33:source=00;34:caret=01:token=01'
+*/
+std::string
+parse_stap_color(std::string type)
+{
+  const char *key, *col, *eq;
+  int n = type.size();
+  int done = 0;
+
+  key = getenv("SYSTEMTAP_COLORS");
+  if (key == NULL || *key == '\0')
+    key = "error=01;31:warning=00;33:source=00;34:caret=01:token=01";
+
+  while (!done) {
+    if (!(col = strchr(key, ':'))) {
+      col = strchr(key, '\0');
+      done = 1;
+    }
+    if (!((eq = strchr(key, '=')) && eq < col))
+      return ""; /* invalid syntax: no = in range */
+    if (!(key < eq && eq < col-1))
+      return ""; /* invalid syntax: key or val empty */
+    if (strspn(eq+1, "0123456789;") < (size_t)(col-eq-1))
+      return ""; /* invalid syntax: invalid char in val */
+    if (eq-key == n && type.compare(0, n, key, n) == 0)
+      return string(eq+1, col-eq-1);
+    if (!done) key = col+1; /* advance to next key */
+  }
+
+  // Could not find the key
+  return "";
+}
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

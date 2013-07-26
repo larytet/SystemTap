@@ -41,8 +41,9 @@ class mutator {
     std::vector<boost::shared_ptr<mutatee> > mutatees; // all attached target processes
     boost::shared_ptr<mutatee> target_mutatee; // the main target process we created or attached
     bool p_target_created; // we only kill and wait on the target we created
+    bool p_target_error; // indicates whether the target exited non-zero;
 
-    unsigned signal_count; // how many exit signals we've received
+    sigset_t signals_received; // record all signals we've caught
 
     // disable implicit constructors by not implementing these
     mutator (const mutator& other);
@@ -50,6 +51,9 @@ class mutator {
 
     // Initialize the module global variables
     bool init_modoptions();
+
+    // Initialize the session attributes
+    void init_session_attributes();
 
     // Initialize the module session
     bool run_module_init();
@@ -86,6 +90,9 @@ class mutator {
 
     // Start the actual systemtap session!
     bool run ();
+
+    // Get the final exit status of this mutator
+    int exit_status();
 
     // Callback to respond to dynamically loaded libraries.
     // Check if it matches our targets, and instrument accordingly.

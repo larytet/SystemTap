@@ -14,6 +14,7 @@ extern "C" {
 #include <dlfcn.h>
 #include <wordexp.h>
 #include <signal.h>
+#include <time.h>
 }
 
 #include <BPatch_snippet.h>
@@ -82,42 +83,64 @@ g_thread_destroy_callback(BPatch_process *proc, BPatch_thread *thread)
 }
 
 
+static pthread_t g_main_thread = pthread_self();
+static const sigset_t *g_signal_mask;
+
 static void
 g_signal_handler(int signal)
 {
+  /* We only want the signal on our main thread, so it will interrupt the ppoll
+   * loop.  If we get it on a different thread, just forward it.  */
+  if (!pthread_equal(pthread_self(), g_main_thread))
+    {
+      pthread_kill(g_main_thread, signal);
+      return;
+    }
+
   for (size_t i = 0; i < g_mutators.size(); ++i)
     g_mutators[i]->signal_callback(signal);
 }
-
 
 __attribute__((constructor))
 static void
 setup_signals (void)
 {
   struct sigaction sa;
+  static sigset_t mask;
   static const int signals[] = {
-      SIGHUP, SIGPIPE, SIGINT, SIGTERM,
+      SIGHUP, SIGINT, SIGTERM, SIGQUIT,
   };
 
+  /* Prepare the global sigmask for future use.  */
+  sigemptyset (&mask);
+  for (size_t i = 0; i < sizeof(signals) / sizeof(*signals); ++i)
+    sigaddset (&mask, signals[i]);
+  g_signal_mask = &mask;
+
+  /* Prepare the common signal handler.  */
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = g_signal_handler;
   sa.sa_flags = SA_RESTART;
   sigemptyset (&sa.sa_mask);
   for (size_t i = 0; i < sizeof(signals) / sizeof(*signals); ++i)
     sigaddset (&sa.sa_mask, signals[i]);
+
+  /* Activate the handler for every signal.  */
   for (size_t i = 0; i < sizeof(signals) / sizeof(*signals); ++i)
     sigaction (signals[i], &sa, NULL);
 }
 
 
-mutator:: mutator (const string& module_name,
-                   vector<string>& module_options):
+mutator::mutator (const string& module_name,
+                  vector<string>& module_options):
   module(NULL), module_name(resolve_path(module_name)),
   modoptions(module_options), p_target_created(false),
-  signal_count(0), utrace_enter_fn(NULL)
+  p_target_error(false), utrace_enter_fn(NULL)
 {
   // NB: dlopen does a library-path search if the filename doesn't have any
   // path components, which is why we use resolve_path(module_name)
+
+  sigemptyset(&signals_received);
 
   g_mutators.push_back(this);
 }
@@ -290,7 +313,7 @@ mutator::init_modoptions()
   if (global_setter == NULL)
     {
       // Hypothetical backwards compatibility with older stapdyn:
-      stapwarn() << "compiled module does not support -G globals" << endl;
+      stapwarn() << "Compiled module does not support -G globals" << endl;
       return false;
     }
 
@@ -304,7 +327,7 @@ mutator::init_modoptions()
       string::size_type separator = modoption.find('=');
       if (separator == string::npos)
         {
-          stapwarn() << "could not parse module option '" << modoption << "'" << endl;
+          stapwarn() << "Could not parse module option '" << modoption << "'" << endl;
           return false; // XXX: perhaps ignore the option instead?
         }
       string name = modoption.substr(0, separator);
@@ -313,12 +336,83 @@ mutator::init_modoptions()
       int rc = global_setter(name.c_str(), value.c_str());
       if (rc != 0)
         {
-          stapwarn() << "incorrect module option '" << modoption << "'" << endl;
+          stapwarn() << "Incorrect module option '" << modoption << "'" << endl;
           return false; // XXX: perhaps ignore the option instead?
         }
     }
 
   return true;
+}
+
+void
+mutator::init_session_attributes()
+{
+  typeof(&stp_global_setter) global_setter = NULL;
+  set_dlsym(global_setter, module, "stp_global_setter", false);
+
+  if (global_setter == NULL)
+    {
+      // Just return.
+      return;
+    }
+
+  // Note that the list of supported attributes should match with the
+  // list in 'struct _stp_sesion_attributes' in
+  // runtime/dyninst/session_attributes.h.
+
+  int rc = global_setter("@log_level", lex_cast(stapdyn_log_level).c_str());
+  if (rc != 0)
+    stapwarn() << "Couldn't set 'log_level' global" << endl;
+
+  rc = global_setter("@suppress_warnings",
+		     lex_cast(stapdyn_suppress_warnings).c_str());
+  if (rc != 0)
+    stapwarn() << "Couldn't set 'suppress_warnings' global" << endl;
+
+  rc = global_setter("@stp_pid", lex_cast(getpid()).c_str());
+  if (rc != 0)
+    stapwarn() << "Couldn't set 'stp_pid' global" << endl;
+
+  if (target_mutatee)
+    {
+      rc = global_setter("@target", lex_cast(target_mutatee->process_id()).c_str());
+      if (rc != 0)
+        stapwarn() << "Couldn't set 'target' global" << endl;
+    }
+
+  size_t module_endpath = module_name.rfind('/');
+  size_t module_basename_start =
+    (module_endpath != string::npos) ? module_endpath + 1 : 0;
+  size_t module_basename_end = module_name.find('.', module_basename_start);
+  size_t module_basename_len = module_basename_end - module_basename_start;
+  string module_basename(module_name, module_basename_start, module_basename_len);
+  rc = global_setter("@module_name", module_basename.c_str());
+  if (rc != 0)
+    stapwarn() << "Couldn't set 'module_name' global" << endl;
+
+  time_t now_t = time(NULL);
+  struct tm* now = localtime(&now_t);
+  if (now)
+    {
+      rc = global_setter("@tz_gmtoff", lex_cast(-now->tm_gmtoff).c_str());
+      if (rc != 0)
+        stapwarn() << "Couldn't set 'tz_gmtoff' global" << endl;
+      rc = global_setter("@tz_name", now->tm_zone);
+      if (rc != 0)
+        stapwarn() << "Couldn't set 'tz_name' global" << endl;
+    }
+  else
+    stapwarn() << "Couldn't discover local timezone info" << endl;
+
+  if (stapdyn_outfile_name)
+    {
+      rc = global_setter("@outfile_name",
+			 lex_cast(stapdyn_outfile_name).c_str());
+      if (rc != 0)
+	stapwarn() << "Couldn't set 'outfile_name' global" << endl;
+    }
+
+  return;
 }
 
 // Initialize the module session
@@ -370,6 +464,8 @@ mutator::run_module_init()
   // Before init runs, set any custom variables
   if (!modoptions.empty() && !init_modoptions())
     return false;
+
+  init_session_attributes();
 
   int rc = session_init();
   if (rc)
@@ -428,7 +524,11 @@ mutator::run_module_exit()
 bool
 mutator::update_mutatees()
 {
-  if (signal_count >= (p_target_created ? 2 : 1))
+  // We'll always break right away for SIGQUIT.  We'll also break for any other
+  // signal if we didn't create the process.  Otherwise, we should give the
+  // created process a chance to finish.
+  if (sigismember(&signals_received, SIGQUIT) ||
+      (!sigisemptyset(&signals_received) && !p_target_created))
     return false;
 
   if (target_mutatee && target_mutatee->is_terminated())
@@ -442,10 +542,6 @@ mutator::update_mutatees()
           mutatees.erase(mutatees.begin() + i);
           continue; // NB: without ++i
         }
-
-      if (m->is_stopped())
-        m->continue_execution();
-
       ++i;
     }
 
@@ -466,12 +562,13 @@ mutator::run ()
     {
       // For our first event, fire the target's process.begin probes (if any)
       target_mutatee->begin_callback();
+      target_mutatee->continue_execution();
 
       // Dyninst's notification FD was fixed in 8.1; for earlier versions we'll
       // fall back to the fully-blocking wait for now.
 #ifdef DYNINST_8_1
       // mask signals while we're preparing to poll
-      stap_sigmasker masked;
+      stap_sigmasker masked(g_signal_mask);
 
       // Polling with a notification FD lets us wait on Dyninst while still
       // letting signals break us out of the loop.
@@ -498,14 +595,44 @@ mutator::run ()
     }
   else // !target_mutatee
     {
-      // XXX TODO we really ought to wait for a signal before exiting,
-      // or for a script requested exit (e.g. from a timer probe).
+      // With no mutatees, we just wait for a signal to exit.
+      stap_sigmasker masked(g_signal_mask);
+      while (sigisemptyset(&signals_received))
+        sigsuspend(&masked.old);
     }
 
-  // Shutdown the stap module.
-  run_module_exit();
+  // Indicate failure if the target had anything but EXIT_SUCCESS
+  if (target_mutatee && target_mutatee->is_terminated())
+    p_target_error = !target_mutatee->check_exit();
 
-  return target_mutatee ? target_mutatee->check_exit() : true;
+  // Detach from everything
+  target_mutatee.reset();
+  mutatees.clear();
+
+  // Shutdown the stap module.
+  return run_module_exit();
+}
+
+
+// Get the final exit status of this mutator
+int mutator::exit_status ()
+{
+  if (!module)
+    return EXIT_FAILURE;
+
+  // NB: Only shm modules are new enough to have stp_dyninst_exit_status at
+  // all, so we don't need to try in-target for old modules like session_exit.
+
+  typeof(&stp_dyninst_exit_status) get_exit_status = NULL;
+  set_dlsym(get_exit_status, module, "stp_dyninst_exit_status", false);
+  if (get_exit_status)
+    {
+      int status = get_exit_status();
+      if (status != EXIT_SUCCESS)
+        return status;
+    }
+
+  return p_target_error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 
@@ -673,24 +800,9 @@ mutator::thread_destroy_callback(BPatch_process *proc, BPatch_thread *thread)
 
 // Callback to respond to signals.
 void
-mutator::signal_callback(int signal __attribute__((unused)))
+mutator::signal_callback(int signal)
 {
-  ++signal_count;
-
-  // First time, try to kill the target process, only if we created it.
-  if (signal_count == 1 && target_mutatee && p_target_created)
-    target_mutatee->kill(SIGTERM);
-
-  // Second time, mutator::run should break out anyway
-  if (signal_count == 2)
-    stapwarn() << "Multiple interrupts received, exiting..." << endl;
-
-  // Third time's the charm; the user wants OUT!
-  if (signal_count >= 3)
-    {
-      staperror() << "Too many interrupts received, aborting now!" << endl;
-      _exit (1);
-    }
+  sigaddset(&signals_received, signal);
 }
 
 

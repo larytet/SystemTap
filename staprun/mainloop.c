@@ -77,12 +77,12 @@ static void chld_proc(int signum)
   if (chld_stat) {
     // our child exited with a non-zero status
     if (WIFSIGNALED(chld_stat)) {
-      err(_("Warning: child process exited with signal %d (%s)\n"),
+      warn(_("Child process exited with signal %d (%s)\n"),
           WTERMSIG(chld_stat), strsignal(WTERMSIG(chld_stat)));
       target_pid_failed_p = 1;
     }
     if (WIFEXITED(chld_stat) && WEXITSTATUS(chld_stat)) {
-      err(_("Warning: child process exited with status %d\n"),
+      warn(_("Child process exited with status %d\n"),
           WEXITSTATUS(chld_stat));
       target_pid_failed_p = 1;
     }
@@ -472,7 +472,7 @@ void cleanup_and_exit(int detach, int rc)
   close_ctl_channel();
 
   if (detach) {
-    err(_("\nDisconnecting from systemtap module.\n" "To reconnect, type \"staprun -A %s\"\n"), modname);
+    eprintf(_("\nDisconnecting from systemtap module.\n" "To reconnect, type \"staprun -A %s\"\n"), modname);
     _exit(0);
   }
   else if (rename_mod)
@@ -502,9 +502,11 @@ void cleanup_and_exit(int detach, int rc)
   if (pid == 0) {			/* child process */
           /* Run the command. */
           char *cmd;
-          int rc = asprintf(&cmd, "%s %s %s -d '%s'", staprun,
+          int rc = asprintf(&cmd, "%s %s %s -d -C %s '%s'", staprun,
                             (verbose >= 1) ? "-v" : "",
                             (verbose >= 2) ? "-v" : "",
+                            color_mode == color_always ? "always"
+                              : color_mode == color_auto ? "auto" : "never",
                             modname);
           if (rc >= 1) {
                   execlp("sh", "sh", "-c", cmd, NULL);
@@ -656,10 +658,11 @@ int stp_main_loop(void)
     case STP_OOB_DATA:
       /* Note that "WARNING:" should not be translated, since it is
        * part of the module cmd protocol. */
-      if (strncmp(recvbuf.payload.data, "WARNING:", 7) == 0) {
+      if (strncmp(recvbuf.payload.data, "WARNING: ", 9) == 0) {
               if (suppress_warnings) break;
               if (verbose) { /* don't eliminate duplicates */
-                      eprintf("%.*s", (int) nb, recvbuf.payload.data);
+                      /* trim "WARNING: " */
+                      warn("%.*s", (int) nb-9, recvbuf.payload.data+9);
                       break;
               } else { /* eliminate duplicates */
                       static void *seen = 0;
@@ -669,13 +672,15 @@ int stp_main_loop(void)
 
                       if (! dupstr) {
                               /* OOM, should not happen. */
-                              eprintf("%.*s", (int) nb, recvbuf.payload.data);
+                              /* trim "WARNING: " */
+                              warn("%.*s", (int) nb-9, recvbuf.payload.data+9);
                               break;
                       }
 
                       retval = tfind (dupstr, & seen, (int (*)(const void*, const void*))strcmp);
                       if (! retval) { /* new message */
-                              eprintf("%s", dupstr);
+                              /* trim "WARNING: " */
+                              warn("%.*s", strlen(dupstr)-9, dupstr+9);
 
                               /* We set a maximum for stored warning messages,
                                  to prevent a misbehaving script/environment
@@ -709,8 +714,9 @@ int stp_main_loop(void)
               } /* duplicate elimination */
       /* Note that "ERROR:" should not be translated, since it is
        * part of the module cmd protocol. */
-      } else if (strncmp(recvbuf.payload.data, "ERROR:", 5) == 0) {
-              eprintf("%.*s", (int) nb, recvbuf.payload.data);
+      } else if (strncmp(recvbuf.payload.data, "ERROR: ", 7) == 0) {
+              /* trim "ERROR: " */
+              err("%.*s", (int) nb-7, recvbuf.payload.data+7);
               error_detected = 1;
       } else { /* neither warning nor error */
               eprintf("%.*s", (int) nb, recvbuf.payload.data);
@@ -788,7 +794,7 @@ int stp_main_loop(void)
         break;
       }
     default:
-      err(_("WARNING: ignored message of type %d\n"), recvbuf.type);
+      warn(_("Ignored message of type %d\n"), recvbuf.type);
     }
   }
   fclose(ofp);

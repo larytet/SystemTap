@@ -14,6 +14,7 @@
 #include "symbols.c"
 #include <linux/delay.h>
 #include <linux/poll.h>
+#include "../uidgid_compatibility.h"
 
 static _stp_mempool_t *_stp_pool_q;
 static struct list_head _stp_ctl_ready_q;
@@ -34,7 +35,11 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #ifdef STAPCONF_TASK_UID
 	uid_t euid = current->euid;
 #else
+#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+	uid_t euid = from_kuid_munged(current_user_ns(), current_euid());
+#else
 	uid_t euid = current_euid();
+#endif
 #endif
 
 	if (count < sizeof(u32))
@@ -332,14 +337,14 @@ static struct _stp_buffer *_stp_ctl_get_buffer(int type, void *data,
 			/* Note that "WARNING:" should not be
 			 * translated, since it is part of the module
 			 * cmd protocol. */
-			if (data && len >= 7
-			    && strncmp(data, "WARNING:", 7) == 0)
+			if (data && len >= 9
+			    && strncmp(data, "WARNING: ", 9) == 0)
 				bptr = _stp_ctl_oob_warn;
 			/* Note that "ERROR:" should not be
 			 * translated, since it is part of the module
 			 * cmd protocol. */
-			else if (data && len >= 5
-				 && strncmp(data, "ERROR:", 5) == 0)
+			else if (data && len >= 7
+				 && strncmp(data, "ERROR: ", 7) == 0)
 				bptr = _stp_ctl_oob_err;
 			else
 				printk(KERN_WARNING "_stp_ctl_get_buffer unexpected STP_OOB_DATA\n");

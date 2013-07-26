@@ -94,7 +94,6 @@ static inline int pseudo_atomic_cmpxchg(atomic_t *v, int oldval, int newval)
 
 /* Semi-forward declarations from runtime_context.h, needed by stat.c/shm.c. */
 static int _stp_runtime_num_contexts;
-static void __stp_runtime_contexts_free(void);
 
 /* Semi-forward declarations from this file, needed by stat.c/transport.c. */
 static int stp_pthread_mutex_init_shared(pthread_mutex_t *mutex);
@@ -132,6 +131,7 @@ static int _stp_sched_getcpu(void)
 
 /* see common_session_state.h */
 static inline struct _stp_transport_session_data *stp_transport_data(void);
+static inline struct _stp_session_attributes *stp_session_attributes(void);
 
 /*
  * By definition, we can only debug our own processes with dyninst, so
@@ -158,6 +158,7 @@ static inline struct _stp_transport_session_data *stp_transport_data(void);
 #include "addr-map.c"
 #include "stat.c"
 #include "unwind.c"
+#include "session_attributes.c"
 
 /* Support function for int64_t module parameters. */
 static int set_int64_t(const char *val, int64_t *mp)
@@ -276,27 +277,22 @@ err_attr:
  * "session"-level (like probe begin/end/error).
  *
  * So stp_dyninst_ctor/dtor are the process-level functions, using gcc
- * attributes to get called at the right time.
+ * attributes to get called at the right time.  One startup exception is
+ * stp_dyninst_shm_connect, which has to later be called manually with the shm
+ * path being used in this session.
  *
- * The session-level resources have to be started by the stapdyn mutator, since
- * only it knows which process is the "master" mutatee, so it can call
- * stp_dyninst_session_init only in the right one.  That process will run the
- * session exit in the dtor, since dyninst doesn't have a suitable exit hook.
- * It may still be invoked manually from stapdyn for detaching though.
+ * The session-level resources have to be started by the stapdyn mutator, and
+ * are called within stapdyn itself.  This primarily involves allocating the
+ * shared memory and initializing its contents, but also running those global
+ * begin/end/error probes.
  *
- * The stp_dyninst_master is set as a PID, so it can be checked and made not to
- * inherit across forks.
- *
- * XXX Once we have a shared-memory area (which will be necessary anyway for a
- * multiprocess session to share globals), then a process refcount may be
- * better for begin/end than this "master" designation.
- *
- * XXX Functions like _exit() which bypass destructors are a problem...
+ * NB: We used to keep code that tried to deal with stapdyn 2.0, which didn't
+ * know about shm initialization, and ran everything in the mutatees only.
+ * We've now broken that tie, and stp_dyninst_session_init will detect that
+ * shm wasn't initialized and bow out.
  */
 
 static int _stp_runtime_contexts_init(void);
-
-static pid_t stp_dyninst_master = 0;
 
 static int stp_dyninst_ctor_rc = 0;
 
@@ -312,13 +308,6 @@ static void stp_dyninst_ctor(void)
     else {
         rc = -errno;
     }
-
-    /* XXX We don't really want to be using the target's stdio. (PR14491)
-     * But while we are, clone our own FILE handles so we're not affected by
-     * the target's actions, like closing stdout/stderr early.
-     */
-    _stp_out = _stp_clone_file(stdout);
-    _stp_err = _stp_clone_file(stderr);
 
     if (rc == 0)
         rc = _stp_runtime_contexts_init();
@@ -344,37 +333,30 @@ int stp_dyninst_shm_connect(const char* name)
     }
 
     rc = _stp_shm_connect(name);
-    if (rc != 0)
-	return rc;
-
-    rc = _stp_dyninst_transport_init(name);
     return rc;
 }
 
 int stp_dyninst_session_init(void)
 {
-    int rc;
-
     /* We don't have a chance to indicate errors in the ctor, so do it here. */
     if (stp_dyninst_ctor_rc != 0) {
 	return stp_dyninst_ctor_rc;
     }
 
-    /* Just in case stapdyn didn't do it (e.g. an old version), make sure our
-     * shared memory is initialized before we do anything else.  */
-    if (stp_dyninst_shm_init() == NULL)
+    /* If shared memory has not been initialized yet, we're probably dealing
+     * with stapdyn 2.0 -- we no longer support this case.  */
+    if (_stp_shm_base == NULL)
 	return -ENOMEM;
-
-    rc = _stp_dyninst_transport_init(_stp_shm_name);
-    if (rc != 0)
-	return rc;
 
     return systemtap_module_init();
 }
 
+/* This is called during systemtap_module_init, after globals/etc are set up,
+ * but before any probes are actually executed.
+ * (Perhaps it would be cleaner if the translator split those stages?)
+ */
 static int stp_dyninst_session_init_finished(void)
 {
-    stp_dyninst_master = getpid();
     _stp_shm_finalize();
 
     /* Now that the shared memory is finalized, start the
@@ -387,33 +369,23 @@ static int stp_dyninst_session_init_finished(void)
 
 void stp_dyninst_session_exit(void)
 {
-    if (stp_dyninst_master == getpid()) {
-	systemtap_module_exit();
-	stp_dyninst_master = 0;
-    }
+    systemtap_module_exit();
+}
+
+static int _stp_exit_status = 0;
+int stp_dyninst_exit_status(void)
+{
+    return _stp_exit_status;
 }
 
 __attribute__((destructor))
 static void stp_dyninst_dtor(void)
 {
-    stp_dyninst_session_exit();
-
     _stp_print_cleanup();
-    _stp_dyninst_transport_shutdown();
     _stp_shm_destroy();
 
     if (_stp_mem_fd != -1) {
 	close (_stp_mem_fd);
-    }
-
-    if (_stp_out && _stp_out != stdout) {
-	fclose(_stp_out);
-	_stp_out = stdout;
-    }
-
-    if (_stp_err && _stp_err != stderr) {
-	fclose(_stp_err);
-	_stp_err = stderr;
     }
 }
 

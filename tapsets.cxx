@@ -90,14 +90,17 @@ common_probe_entryfn_prologue (systemtap_session& s,
       // and there's *nothing* for the probe to do.  (even alibi is in shm)
       // So failure skips this whole block through the end of the epilogue.
       s.op->newline() << "if (likely(session_state())) {";
-      s.op->newline(1) << "int _stp_saved_errno = errno;";
+      s.op->indent(1);
     }
 
   s.op->newline() << "#ifdef STP_ALIBI";
   s.op->newline() << "atomic_inc(probe_alibi(" << probe << "->index));";
   s.op->newline() << "#else";
 
-  s.op->newline() << "struct context* __restrict__ c;";
+  if (s.runtime_usermode_p())
+    s.op->newline() << "int _stp_saved_errno = errno;";
+
+  s.op->newline() << "struct context* __restrict__ c = NULL;";
   s.op->newline() << "#if !INTERRUPTIBLE";
   s.op->newline() << "unsigned long flags;";
   s.op->newline() << "#endif";
@@ -339,7 +342,7 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   // buffers are stored there).
   if (!s.runtime_usermode_p())
     {
-      s.op->newline() << "_stp_runtime_entryfn_put_context();";
+      s.op->newline() << "_stp_runtime_entryfn_put_context(c);";
     }
   if (! s.suppress_handler_errors) // PR 13306
     {
@@ -356,14 +359,16 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   s.op->newline() << "local_irq_restore (flags);";
   s.op->newline() << "#endif";
 
+  if (s.runtime_usermode_p())
+    {
+      s.op->newline() << "_stp_runtime_entryfn_put_context(c);";
+      s.op->newline() << "errno = _stp_saved_errno;";
+    }
+
   s.op->newline() << "#endif // STP_ALIBI";
 
   if (s.runtime_usermode_p())
-    {
-      s.op->newline() << "_stp_runtime_entryfn_put_context();";
-      s.op->newline() << "errno = _stp_saved_errno;";
-      s.op->newline(-1) << "}";
-    }
+    s.op->newline(-1) << "}";
 }
 
 
@@ -752,6 +757,10 @@ struct dwarf_query : public base_query
   string user_path;
   string user_lib;
 
+  // Used to keep track of which modules were visited during
+  // iterate_over_modules()
+  set<string> visited_modules;
+
   virtual void handle_query_module();
   void query_module_dwarf();
   void query_module_symtab();
@@ -834,6 +843,11 @@ struct dwarf_builder: public derived_probe_builder
   map <string,dwflpp*> user_dw;
   string user_path;
   string user_lib;
+
+  // Holds modules to suggest functions from. NB: aggregates over
+  // recursive calls to build() when deriving globby probes.
+  set <string> modules_seen;
+
   dwarf_builder() {}
 
   dwflpp *get_kern_dw(systemtap_session& sess, const string& module)
@@ -849,6 +863,8 @@ struct dwarf_builder: public derived_probe_builder
       user_dw[module] = new dwflpp(sess, module, false); // might throw
     return user_dw[module];
   }
+
+  string suggest_functions(systemtap_session& sess, string func);
 
   /* NB: not virtual, so can be called from dtor too: */
   void dwarf_build_no_more (bool)
@@ -1079,6 +1095,11 @@ dwarf_query::handle_query_module()
   // asm functions can show up in the symbol table but not in dwarf.
   if (sess.consult_symtab && !query_done)
     query_module_symtab();
+
+  // Add to list of visited modules
+  // Use mod_info->name rather than dw.module_name since the former is
+  // what's actually used in the sess.module_cache->cache map
+  visited_modules.insert(dw.mod_info->name);
 }
 
 
@@ -1648,7 +1669,8 @@ query_srcfile_line (const dwarf_line_t& line, void * arg)
               Dwarf_Die scope;
               q->dw.inner_die_containing_pc(i->die, addr, scope);
               query_statement (i->name, i->decl_file,
-                               q->line[0], &scope, addr, q);
+                               lineno, // NB: not q->line !
+                               &scope, addr, q);
             }
 	  else
 	    query_inline_instance_info (*i, q);
@@ -2130,7 +2152,7 @@ base_query::query_library_callback (void *q, const char *data)
 }
 
 
-void
+string
 query_one_library (const char *library, dwflpp & dw,
     const string user_lib, probe * base_probe, probe_point *base_loc,
     vector<derived_probe *> & results)
@@ -2156,15 +2178,20 @@ query_one_library (const char *library, dwflpp & dw,
       probe *new_base = new probe (new probe (base_probe, specific_loc), derived_loc);
       derive_probes(dw.sess, new_base, results);
       if (dw.sess.verbose > 2)
-        clog << _("module=") << library_path;
+        clog << _("module=") << library_path << endl;
+      return library_path;
     }
+  return "";
 }
 
 
 void
 dwarf_query::query_library (const char *library)
 {
-  query_one_library (library, dw, user_lib, base_probe, base_loc, results);
+  string library_path =
+    query_one_library (library, dw, user_lib, base_probe, base_loc, results);
+  if (!library_path.empty())
+    visited_modules.insert(library_path);
 }
 
 struct plt_expanding_visitor: public var_expanding_visitor
@@ -2274,11 +2301,11 @@ struct dwarf_var_expanding_visitor: public var_expanding_visitor
   void visit_target_symbol_saved_return (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_target_symbol (target_symbol* e);
+  void visit_atvar_op (atvar_op* e);
   void visit_cast_op (cast_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
 private:
-  vector<Dwarf_Die>& getcuscope(target_symbol *e);
   vector<Dwarf_Die>& getscopes(target_symbol *e);
 };
 
@@ -3680,11 +3707,28 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 
 
 void
+dwarf_var_expanding_visitor::visit_atvar_op (atvar_op *e)
+{
+  // Fill in our current module context if needed
+  if (e->module.empty())
+    e->module = q.dw.module_name;
+
+  if (e->module == q.dw.module_name && e->cu_name.empty())
+    {
+      // process like any other local
+      // e->sym_name() will do the right thing
+      visit_target_symbol(e);
+      return;
+    }
+
+  var_expanding_visitor::visit_atvar_op(e);
+}
+
+
+void
 dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 {
-  assert(e->name.size() > 0
-	 && ((e->name[0] == '$' && e->target_name == "")
-	      || (e->name == "@var" && e->target_name != "")));
+  assert(e->name.size() > 0 && (e->name[0] == '$' || e->name == "@var"));
   visited = true;
   bool defined_being_checked = (defined_ops.size() > 0 && (defined_ops.top()->operand == e));
   // In this mode, we avoid hiding errors or generating extra code such as for .return saved $vars
@@ -3858,65 +3902,10 @@ dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
     throw semantic_error(_F("perf counter '%s' not defined", e_lit_val.c_str()));
 }
 
-vector<Dwarf_Die>&
-dwarf_var_expanding_visitor::getcuscope(target_symbol *e)
-{
-  Dwarf_Off cu_off = 0;
-  const char *cu_name = NULL;
-
-  string prefixed_srcfile = string("*/") + e->cu_name;
-
-  Dwarf_Off off = 0;
-  size_t cuhl;
-  Dwarf_Off noff;
-  Dwarf_Off module_bias;
-  Dwarf *dw = dwfl_module_getdwarf(q.dw.module, &module_bias);
-  while (dwarf_nextcu (dw, off, &noff, &cuhl, NULL, NULL, NULL) == 0)
-    {
-      Dwarf_Die die_mem;
-      Dwarf_Die *die;
-      die = dwarf_offdie (dw, off + cuhl, &die_mem);
-
-      /* We are not interested in partial units. */
-      if (dwarf_tag (die) == DW_TAG_compile_unit)
-	{
-	  const char *die_name = dwarf_diename (die);
-	  if (strcmp (die_name, e->cu_name.c_str()) == 0) // Perfect match.
-	    {
-	      cu_name = die_name;
-	      cu_off = off + cuhl;
-	      break;
-	    }
-
-	  if (fnmatch(prefixed_srcfile.c_str(), die_name, 0) == 0)
-	    if (cu_name == NULL || strlen (die_name) < strlen (cu_name))
-	      {
-		cu_name = die_name;
-		cu_off = off + cuhl;
-	      }
-	}
-      off = noff;
-    }
-
-  if (cu_name == NULL)
-    throw semantic_error ("unable to find CU '" + e->cu_name + "'"
-			  + " while searching for '" + e->target_name + "'",
-			  e->tok);
-
-  vector<Dwarf_Die> *cu_scope = new vector<Dwarf_Die>;
-  Dwarf_Die cu_die;
-  dwarf_offdie (dw, cu_off, &cu_die);
-  cu_scope->push_back(cu_die);
-  return *cu_scope;
-}
 
 vector<Dwarf_Die>&
 dwarf_var_expanding_visitor::getscopes(target_symbol *e)
 {
-  // "static globals" can only be found in the top-level CU.
-  if (e->name == "@var" && e->cu_name != "")
-    return this->getcuscope(e);
-
   if (scopes.empty())
     {
       if(scope_die != NULL)
@@ -4153,6 +4142,185 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
     }
 
   result->visit (this);
+}
+
+
+struct dwarf_atvar_expanding_visitor: public var_expanding_visitor
+{
+  systemtap_session& s;
+  dwarf_builder& db;
+
+  dwarf_atvar_expanding_visitor(systemtap_session& s, dwarf_builder& db):
+    s(s), db(db) {}
+  void visit_atvar_op (atvar_op* e);
+};
+
+
+struct dwarf_atvar_query: public base_query
+{
+  atvar_op& e;
+  const bool userspace_p, lvalue;
+  functioncall*& result;
+  unsigned& tick;
+  const string cu_name_pattern;
+
+  dwarf_atvar_query(dwflpp& dw, const string& module, atvar_op& e,
+                    const bool userspace_p, const bool lvalue,
+                    functioncall*& result,
+                    unsigned& tick):
+    base_query(dw, module), e(e),
+    userspace_p(userspace_p), lvalue(lvalue), result(result),
+    tick(tick), cu_name_pattern(string("*/") + e.cu_name) {}
+
+  void handle_query_module ();
+  void query_library (const char *) {}
+  void query_plt (const char *entry, size_t addr) {}
+  static int atvar_query_cu (Dwarf_Die *cudie, void *data);
+};
+
+
+int
+dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, void * data)
+{
+  dwarf_atvar_query * q = static_cast<dwarf_atvar_query *>(data);
+
+  if (! q->e.cu_name.empty())
+    {
+      const char *die_name = dwarf_diename(cudie);
+
+      if (strcmp(die_name, q->e.cu_name.c_str()) != 0 // Perfect match
+          && fnmatch(q->cu_name_pattern.c_str(), die_name, 0) != 0)
+        {
+          return DWARF_CB_OK;
+        }
+    }
+
+  try
+    {
+      vector<Dwarf_Die>  scopes(1, *cudie);
+
+      q->dw.focus_on_cu (cudie);
+
+      if (! q->e.components.empty() &&
+          q->e.components.back().type == target_symbol::comp_pretty_print)
+        {
+          dwarf_pretty_print dpp (q->dw, scopes, 0, q->e.sym_name(),
+                                  q->userspace_p, q->e);
+          q->result = dpp.expand();
+          return DWARF_CB_ABORT;
+        }
+
+      exp_type type = pe_long;
+      string code = q->dw.literal_stmt_for_local (scopes, 0, q->e.sym_name(),
+                                                  &q->e, q->lvalue, type);
+
+      if (code.empty())
+        return DWARF_CB_OK;
+
+      string fname = (string(q->lvalue ? "_dwarf_tvar_set"
+                                       : "_dwarf_tvar_get")
+                      + "_" + q->e.sym_name()
+                      + "_" + lex_cast(q->tick++));
+
+      q->result = synthetic_embedded_deref_call (q->sess, fname, code, type,
+                                                 q->userspace_p, q->lvalue,
+                                                 &q->e);
+    }
+  catch (const semantic_error& er)
+    {
+      // Here we suppress the error because we often just have too many
+      // when scanning all the CUs.
+      return DWARF_CB_OK;
+    }
+
+  if (q->result) {
+      return DWARF_CB_ABORT;
+  }
+
+  return DWARF_CB_OK;
+}
+
+
+void
+dwarf_atvar_query::handle_query_module ()
+{
+
+  dw.iterate_over_cus(atvar_query_cu, this, false);
+}
+
+
+void
+dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
+{
+  const bool lvalue = is_active_lvalue(e);
+  if (lvalue && !s.guru_mode)
+    throw semantic_error(_("write to @var variable not permitted; "
+                           "need stap -g"), e->tok);
+
+  if (e->module.empty())
+    e->module = "kernel";
+
+  functioncall* result = NULL;
+
+  // split the module string by ':' for alternatives
+  vector<string> modules;
+  tokenize(e->module, modules, ":");
+  bool userspace_p = false;
+  for (unsigned i = 0; !result && i < modules.size(); ++i)
+    {
+      string& module = modules[i];
+
+      dwflpp* dw;
+      try
+        {
+          userspace_p = is_user_module(module);
+          if (!userspace_p)
+            {
+              // kernel or kernel module target
+              dw = db.get_kern_dw(s, module);
+            }
+          else
+            {
+              module = find_executable(module, "", s.sysenv);
+              dw = db.get_user_dw(s, module);
+            }
+        }
+      catch (const semantic_error& er)
+        {
+          /* ignore and go to the next module */
+          continue;
+        }
+
+      dwarf_atvar_query q (*dw, module, *e, userspace_p, lvalue, result, tick);
+      dw->iterate_over_modules(&query_module, &q);
+
+      if (result)
+        {
+          s.unwindsym_modules.insert(module);
+
+          if (lvalue)
+            {
+              // Provide the functioncall to our parent, so that it can be
+              // used to substitute for the assignment node immediately above
+              // us.
+              assert(!target_symbol_setter_functioncalls.empty());
+              *(target_symbol_setter_functioncalls.top()) = result;
+            }
+
+          result->visit(this);
+          return;
+        }
+
+      /* Unable to find the variable in the current module, so we chain
+       * an error in atvar_op */
+      semantic_error  er(_F("unable to find global '%s' in %s%s%s",
+                            e->sym_name().c_str(), module.c_str(),
+                            e->cu_name.empty() ? "" : _(", in "),
+                            e->cu_name.c_str()));
+      e->chain (er);
+    }
+
+  provide(e);
 }
 
 
@@ -4714,6 +4882,9 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   dwarf_builder *dw = new dwarf_builder();
 
   update_visitor *filter = new dwarf_cast_expanding_visitor(s, *dw);
+  s.code_filters.push_back(filter);
+
+  filter = new dwarf_atvar_expanding_visitor(s, *dw);
   s.code_filters.push_back(filter);
 
   register_function_and_statement_variants(s, root->bind(TOK_KERNEL), dw, pr_privileged);
@@ -5469,6 +5640,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   void visit_target_symbol (target_symbol* e);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
+  void visit_atvar_op (atvar_op* e);
   void visit_cast_op (cast_op* e);
 };
 
@@ -5953,8 +6125,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol (target_symbol* e)
   try
     {
       assert(e->name.size() > 0
-	     && ((e->name[0] == '$' && e->target_name == "")
-		 || (e->name == "@var" && e->target_name != "")));
+             && (e->name[0] == '$' || e->name == "@var"));
 
       if (e->name == "$$name" || e->name == "$$provider" || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
@@ -5966,6 +6137,19 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       e->chain (er);
       provide (e);
     }
+}
+
+
+void
+sdt_uprobe_var_expanding_visitor::visit_atvar_op (atvar_op* e)
+{
+  need_debug_info = true;
+
+  // Fill in our current module context if needed
+  if (e->module.empty())
+    e->module = process_name;
+
+  var_expanding_visitor::visit_atvar_op(e);
 }
 
 
@@ -6587,6 +6771,59 @@ sdt_query::query_library (const char *library)
 }
 
 
+string dwarf_builder::suggest_functions(systemtap_session& sess,
+                                        string func)
+{
+  // Trim any @ component
+  size_t pos = func.find('@');
+  if (pos != string::npos)
+    func.erase(pos);
+
+  if (func.empty() || modules_seen.empty() || sess.module_cache == NULL)
+    return "";
+
+  // We must first aggregate all the functions from the cache
+  set<string> funcs;
+  const map<string, module_info*> &cache = sess.module_cache->cache;
+
+  for (set<string>::iterator itmod = modules_seen.begin();
+      itmod != modules_seen.end(); ++itmod)
+    {
+      map<string, module_info*>::const_iterator itcache;
+      if ((itcache = cache.find(*itmod)) != cache.end())
+        funcs.insert(itcache->second->sym_seen.begin(),
+                     itcache->second->sym_seen.end());
+    }
+
+  if (sess.verbose > 2)
+    clog << "suggesting from " << funcs.size() << " functions" << endl;
+
+  if (funcs.empty())
+    return "";
+
+  // Calculate Levenshtein distance for each symbol
+
+  // Sensitivity parameters (open for tweaking)
+  #define MAXFUNCS 5 // maximum number of funcs to suggest
+
+  multimap<unsigned, string> scores;
+  for (set<string>::iterator it=funcs.begin(); it!=funcs.end(); ++it)
+    {
+      unsigned score = levenshtein(func, *it);
+      scores.insert(make_pair(score, *it));
+    }
+
+  // Print out the top MAXFUNCS funcs
+  string suggestions; unsigned i = 0;
+  for (multimap<unsigned, string>::iterator it = scores.begin();
+      it != scores.end() && i < MAXFUNCS; ++it, i++)
+    suggestions += it->second + ", ";
+  if (!suggestions.empty())
+    suggestions.erase(suggestions.size()-2);
+
+  return suggestions;
+}
+
 void
 dwarf_builder::build(systemtap_session & sess,
 		     probe * base,
@@ -6651,6 +6888,7 @@ dwarf_builder::build(systemtap_session & sess,
           int rc = glob (module_name.c_str(), 0, NULL, & the_blob);
           if (rc)
             throw semantic_error (_F("glob %s error (%s)", module_name.c_str(), lex_cast(rc).c_str() ));
+          unsigned results_pre = finished_results.size();
           for (unsigned i = 0; i < the_blob.gl_pathc; ++i)
             {
               assert_no_interrupts();
@@ -6702,6 +6940,34 @@ dwarf_builder::build(systemtap_session & sess,
             }
 
           globfree (& the_blob);
+
+          unsigned results_post = finished_results.size();
+
+          // Did we fail to find a function by name? Let's suggest
+          // something!
+          string func;
+          if (results_pre == results_post
+              && get_param(filled_parameters, TOK_FUNCTION, func)
+              && !func.empty())
+            {
+              if (sess.verbose > 2)
+                {
+                  clog << "suggesting functions from modules:" << endl;
+                  for (set<string>::const_iterator it = modules_seen.begin();
+                      it != modules_seen.end(); ++it)
+                    {
+                      clog << *it << endl;
+                    }
+                }
+              string sugs = suggest_functions(sess, func);
+              modules_seen.clear();
+              if (!sugs.empty())
+                throw semantic_error (_NF("no match (similar function: %s)",
+                                          "no match (similar functions: %s)",
+                                          sugs.find(',') == string::npos,
+                                          sugs.c_str()));
+            }
+
           return; // avoid falling through
         }
 
@@ -6872,6 +7138,9 @@ dwarf_builder::build(systemtap_session & sess,
 
   dw->iterate_over_modules(&query_module, &q);
 
+  // We need to update modules_seen with the modules we've visited
+  modules_seen.insert(q.visited_modules.begin(),
+                      q.visited_modules.end());
 
   // PR11553 special processing: .return probes requested, but
   // some inlined function instances matched.
@@ -6911,6 +7180,47 @@ dwarf_builder::build(systemtap_session & sess,
           clog << endl;
         }
     } // i_n_r > 0
+
+  // Did we fail to find a function by name? Let's suggest something! We
+  // need to check for optional because otherwise, we will be suggesting
+  // things during intermediate results without including all the
+  // possible functions. For example, process("/usr/bin/*").function
+  // will go through here for each executable found (all labelled as
+  // optionals). Similarly for library(glob) probes. TODO: find a
+  // mechanism to have suggestions for optional probes as well when no
+  // probes could be derived, e.g. probepoint1?, probepoint2 should
+  // suggest for both 1 and 2 if both fail to resolve (maybe print as a
+  // warning?). This may entails detecting the difference between script
+  // optional probes and probes that are optional in recursive calls.
+  string func;
+  if (results_pre == results_post && !location->optional
+      && get_param(filled_parameters, TOK_FUNCTION, func)
+      && !func.empty())
+    {
+      if (sess.verbose > 2)
+        {
+          clog << "suggesting functions from modules:" << endl;
+          for (set<string>::const_iterator it = modules_seen.begin();
+              it != modules_seen.end(); ++it)
+            clog << *it << endl;
+        }
+      string sugs = suggest_functions(sess, func);
+      modules_seen.clear();
+      if (!sugs.empty())
+        // Note that this error will not even be printed out if it is
+        // exactly the same suggestion as a previous throw (since
+        // print_error() filters out identical errors). Which makes
+        // sense since it's possible that the user misspelled the same
+        // function in different probes, in which case the first
+        // suggestion is sufficient.
+        throw semantic_error (_NF("no match (similar function: %s)",
+                                  "no match (similar functions: %s)",
+                                  sugs.find(',') == string::npos,
+                                  sugs.c_str()));
+    }
+  else if (results_pre != results_post)
+    // Something was derived so we won't need to suggest something
+    modules_seen.clear();
 }
 
 symbol_table::~symbol_table()
@@ -6920,7 +7230,7 @@ symbol_table::~symbol_table()
 
 void
 symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
-                         Dwarf_Addr addr, Dwarf_Addr */*high_addr*/)
+                         Dwarf_Addr addr, Dwarf_Addr* /*high_addr*/)
 {
 #ifdef __powerpc__
   // Map ".sys_foo" to "sys_foo".
@@ -7214,6 +7524,8 @@ module_info::update_symtab(cu_function_cache_t *funcs)
   for (cu_function_cache_t::iterator func = funcs->begin();
        func != funcs->end(); func++)
     {
+      sym_seen.insert(func->first);
+
       // optimization: inlines will never be in the symbol table
       if (dwarf_func_inline(&func->second) != 0)
         continue;
@@ -7700,8 +8012,12 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
   s.op->newline() << "static int stapiu_probe_handler "
                   << "(struct stapiu_consumer *sup, struct pt_regs *regs) {";
   s.op->newline(1);
+
+  // Since we're sharing the entry function, we have to dynamically choose the probe_type
+  string probe_type = "(sup->return_p ? stp_probe_type_uretprobe : stp_probe_type_uprobe)";
   common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sup->probe",
-                                 "stp_probe_type_uprobe");
+                                 probe_type);
+
   s.op->newline() << "c->uregs = regs;";
   s.op->newline() << "c->user_mode_p = 1;";
   // NB: IP is already set by stapiu_probe_prehandler in uprobes-inode.c
@@ -7864,8 +8180,13 @@ uprobe_derived_probe_group::emit_module_dyninst_decls (systemtap_session& s)
   s.op->newline() << "int enter_dyninst_uprobe "
                   << "(uint64_t index, struct pt_regs *regs) {";
   s.op->newline(1) << "struct stapdu_probe *sup = &stapdu_probes[index];";
+
+  // Since we're sharing the entry function, we have to dynamically choose the probe_type
+  string probe_type = "((sup->flags & STAPDYN_PROBE_FLAG_RETURN) ?"
+                      " stp_probe_type_uretprobe : stp_probe_type_uprobe)";
   common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "sup->probe",
-                                 "stp_probe_type_uprobe");
+                                 probe_type);
+
   s.op->newline() << "c->uregs = regs ?: &stapdu_dummy_uregs;";
   s.op->newline() << "c->user_mode_p = 1;";
   // XXX: once we have regs, check how dyninst sets the IP
@@ -7875,6 +8196,7 @@ uprobe_derived_probe_group::emit_module_dyninst_decls (systemtap_session& s)
   common_probe_entryfn_epilogue (s, true);
   s.op->newline() << "return 0;";
   s.op->newline(-1) << "}";
+  s.op->newline() << "#include \"dyninst/uprobes-regs.c\"";
   s.op->assert_0_indent();
 }
 
@@ -8296,12 +8618,26 @@ kprobe_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "for (i=0; i<" << probes_by_module.size()
 		  << " && *p > 0; i++) {";
   s.op->newline(1) << "struct stap_dwarfless_probe *sdp = & stap_dwarfless_probes[i];";
-  s.op->newline() << "if (! sdp->address)";
+  s.op->newline() << "if (! sdp->address) {";
+  s.op->indent(1);
+  s.op->newline() << "const char *colon;";
+  s.op->newline() << "if (owner && (colon = strchr(sdp->symbol_string, ':'))) {";
+  s.op->indent(1);
+  s.op->newline() << "if ((strlen(owner->name) == (colon - sdp->symbol_string))";
+  s.op->newline() << "    && (strncmp(sdp->symbol_string, owner->name, colon - sdp->symbol_string) == 0)";
+  s.op->newline() << "    && (strcmp(colon + 1, name) == 0)) {";
+  s.op->newline(1) << "sdp->address = val;";
+  s.op->newline() << "(*p)--;";
+  s.op->newline(-1) << "}";
+  s.op->newline(-1) << "}";
+  s.op->newline() << "else {";
   s.op->newline(1) << "if (strcmp(sdp->symbol_string, name) == 0) {";
   s.op->newline(1) << "sdp->address = val;";
   s.op->newline() << "(*p)--;";
   s.op->newline(-1) << "}";
-  s.op->newline(-2) << "}";
+  s.op->newline(-1) << "}";
+  s.op->newline(-1) << "}";
+  s.op->newline(-1) << "}";
   s.op->newline() << "return (p > 0) ? 0 : -1;";
   s.op->newline(-1) << "}";
   s.op->newline() << "#endif";
@@ -9196,14 +9532,11 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 {
   try
     {
-      assert(e->name.size() > 0
-	     && ((e->name[0] == '$' && e->target_name == "")
-		 || (e->name == "@var" && e->target_name != "")));
+      assert(e->name.size() > 0 && e->name[0] == '$');
 
       if (e->name == "$$name" || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
-      else if (e->name == "@var")
-	throw semantic_error(_("cannot use @var DWARF variables in tracepoints"), e->tok);
+
       else
         visit_target_symbol_arg (e);
     }
@@ -9213,7 +9546,6 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       provide (e);
     }
 }
-
 
 
 tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
@@ -9925,12 +10257,21 @@ tracepoint_builder::init_dw(systemtap_session& s)
               assert_no_interrupts();
               Dwarf_Attribute attr;
               const char* name = dwarf_formstring (dwarf_attr (cudie, DW_AT_comp_dir, &attr));
-              if (name) 
+              if (name)
                 {
-                  if (s.verbose > 2)
-                    clog << _F("Located kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                  // check that the path actually exists locally before we try to use it
+                  if (file_exists(name))
+                    {
+                      if (s.verbose > 2)
+                        clog << _F("Located kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                      s.kernel_source_tree = name;
+                    }
+                  else
+                    {
+                      if (s.verbose > 2)
+                        clog << _F("Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                    }
 
-                  s.kernel_source_tree = name;
                   break; // skip others; modern Kbuild uses same comp_dir for them all
                 }
             }

@@ -178,6 +178,7 @@
 #if STP_SKIP_BADVARS
 #define DEREF_FAULT(addr) ({0; })
 #define STORE_DEREF_FAULT(addr) ({0; })
+#define CATCH_DEREF_FAULT() ({0; })
 #else
 #define DEREF_FAULT(addr) ({						    \
     snprintf(c->error_buffer, sizeof(c->error_buffer),			    \
@@ -192,7 +193,11 @@
     c->last_error = c->error_buffer;					    \
     goto deref_fault;							    \
     })
-#endif
 
+#define CATCH_DEREF_FAULT()				\
+  if (0) {						\
+deref_fault: ;						\
+  }
+#endif
 
 #endif /* _LOC2C_RUNTIME_H_ */

@@ -73,7 +73,7 @@ instructions (written in a simple scripting language), translates
 those instructions into C code, compiles this C code, and loads the
 resulting module into a running Linux kernel or a DynInst user-space
 mutator, to perform the requested system trace/probe functions.  You
-can supply the script in a named file (FILENAME) from standard input
+can supply the script in a named file (FILENAME), from standard input
 (use \- instead of FILENAME), or from the command line (using \-e
 SCRIPT).  The program runs until it is interrupted by the user, or if
 the script voluntarily invokes the
@@ -292,6 +292,30 @@ This option prunes stale entries from the cache directory.  This is normally
 done automatically after successful runs, but this option will trigger the
 cleanup manually and then exit.  See the CACHING section for more details about
 cache limits.
+
+.TP
+\fB\-\-color\fR[=\fIWHEN\fR], \fB\-\-colour\fR[=\fIWHEN\fR]
+This option controls coloring of error messages. WHEN can be either "never",
+"always", or "auto" (i.e. enable only if at a terminal). If WHEN is missing,
+then "always" is assumed. If the option is missing, then "auto" is assumed.
+
+Colors can be modified using the SYSTEMTAP_COLORS environment variable. The
+format must be of the form
+.nh
+\fBkey1=val1:key2=val2:key3=val3\fR ...etc.
+.hy
+Valid keys are
+.nh
+"error", "warning", "source", "caret", and "token".
+.hy
+Values constitute Select Graphic Rendition (SGR) parameter(s). Consult the
+documentation of your terminal for the SGRs it supports. As an example, the
+default colors would be expressed as
+.nh
+\fBerror=01;31:warning=00;33:source=00;34:caret=01:token=01\fR.
+.hy
+If SYSTEMTAP_COLORS is absent or empty, the default colors will be used. If it
+is invalid, coloring is turned off.
 
 .TP
 .BI \-\-disable\-cache
@@ -717,6 +741,17 @@ compiled with. Here the second part is
 and the third part is a string literal, either "stapusr" or "stapsys"
 or "stapdev".
 .PP
+If the first part is the identifier
+.BR runtime ,
+the test refers to the systemtap runtime mode. See
+.BR ALTERNATE\ RUNTIMES
+below for more information on runtimes.
+The second  
+part is one of the two string comparison operators
+.BR == " or " != ,
+and the third part is a string literal for matching it.  This
+comparison is a wildcard (mis)match.
+.PP
 Otherwise, the CONDITION is expected to be a comparison between two string
 literals or two numeric literals.  In this case, the arguments are the only
 variables usable.
@@ -1001,10 +1036,9 @@ second operand must be a string literal containing a syntactically
 valid regular expression.)
 .PP
 The regular expression syntax supports most of the features of POSIX
-Extended Regular Expressions, aside from subexpression reuse ("\\1")
-and named character classes ("[:digit:]", "[:alpha:]", ...). The
-ability to capture and extract the contents of the matched string and
-subexpressions has not yet been implemented.
+Extended Regular Expressions, except for subexpression reuse ("\\1")
+functionality. The ability to capture and extract the contents of the
+matched string and subexpressions has not yet been implemented.
 
 .SS PROBES
 The main construct in the scripting language identifies probes.
@@ -1482,7 +1516,7 @@ the following patterns would be searched, in sequence:
 .IR 2.6.12/*.stp ,
 .IR 2.6/*.stp ,
 and finally
-.IR *.stp
+.IR *.stp .
 Stopping the translator after pass 1 causes it to print the parse trees.
 
 .PP
@@ -2004,96 +2038,13 @@ may undergo incompatible changes, so that a script written against
 an old version of systemtap may no longer run.  In these cases, it may
 help to run systemtap with the
 .I \-\-compatible VERSION
-flag, specifying the last known working version of systemtap.  Running
+flag, specifying the last known working version.  Running
 systemtap with the 
 .I \-\-check\-version
 flag will output a warning if any possible incompatible elements have
-been parsed. Below is a table of recently deprecated tapset functions
-and syntax elements that require the given \-\-compatible flag to use:
-.PP
-.TP 
-\-\-compatible=1.2
-(none yet) 
-.TP
-\-\-compatible=1.3
-The tapset alias 'syscall.compat_pselect7a' was misnamed.  It should
-have been 'syscall.compat_pselect7' (without the trailing 'a').
-Starting in release 1.4, the old name will be deprecated.
-.TP
-\-\-compatible=1.4
-In the 'syscall.add_key' probe, the 'description_auddr' variable
-has been deprecated in favor of the new 'description_uaddr'
-variable.
-.IP
-In the 'syscall.fgetxattr', 'syscall.fsetxattr', 'syscall.getxattr',
-\'syscall.lgetxattr', 'syscall.lremovexattr', 'nd_syscall.fgetxattr',
-\'nd_syscall.fremovexattr', 'nd_syscall.fsetxattr', 'nd_syscall.getxattr',
-and 'nd_syscall.lremovexattr' probes, the 'name2' variable has been
-deprecated in favor of the new 'name_str' variable.
-.IP
-In the 'nd_syscall.accept' probe the 'flag_str' variable
-has been deprecated in favor of the new 'flags_str' variable.
-.IP
-In the 'nd_syscall.dup' probe the 'old_fd' variable has been
-deprecated in favor of the new 'oldfd' variable.
-.IP
-The tapset alias 'nd_syscall.compat_pselect7a' was misnamed.  It should
-have been 'nd_syscall.compat_pselect7' (without the trailing 'a').
-.IP
-The tapset function 'cpuid' is deprecated in favor of the better known 'cpu'.
-.IP
-In the i386 'syscall.sigaltstack' probe, the 'ussp' variable has
-been deprecated in favor of the new 'uss_uaddr' variable.
-.IP
-In the ia64 'syscall.sigaltstack' probe, the 'ss_uaddr' and
-\'oss_uaddr' variables have been deprecated in favor of the new
-\'uss_uaddr' and 'uoss_uaddr' variables.
-.IP
-The powerpc tapset alias 'syscall.compat_sysctl' was deprecated
-and renamed 'syscall.sysctl32'.
-.IP
-In the x86_64 'syscall.sigaltstack' probe, the 'regs_uaddr'
-variable has been deprecated in favor of the new 'regs' variable.
-.TP
-\-\-compatible=1.7
-In the 'kprocess.release probe, the 'pid variable
-has been deprecated in favor of the new 'released_pid'
-variable.
-.IP
-In the '_sunrpc.clnt.create_client.rpc_new_client_inline' probe,
-the 'args' variable in the has been deprecated in favor of the new
-internal-only '__args' variable.
-.IP
-The following probe types have been deprecated:
-.RS
-.IP
-kernel.function(number).inline
-.br
-module(string).function(number).inline
-.br
-process.function(number).inline
-.br
-process.library(string).function(number).inline
-.br
-process(string).function(number).inline
-.br
-process(string).library(string).function(number).inline
-.RE
-.TP
-\-\-compatible=1.8
-The daddr_to_string() tapset function has been deprecated in favor of
-the new format_ipaddr() tapset function.
-
-.\" e.g. tapset_function()
-.\" e.g. post-incrementing a frobozz in a while loop
-
-.\" .... or for really deprecated stuff:
-.\" .TP
-.\" support removed in version X.Y
-.\" really_old_tapset_function()
+been parsed.  Deprecation historical details may be found in the NEWS file.
 
 .SH FILES
-.\" consider autoconf-substituting these directories
 .TP
 Important files and their corresponding paths can be located in the 
 stappaths (7) manual page.
@@ -2106,6 +2057,7 @@ stappaths (7) manual page.
 .IR error::reporting (7stap),
 .IR stappaths (7),
 .IR staprun (8),
+.IR stapdyn (8),
 .IR stapvars (3stap),
 .IR stapex (3stap),
 .IR stap\-server (8),

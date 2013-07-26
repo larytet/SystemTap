@@ -125,7 +125,7 @@ probe syscall.open = kernel.function("compat_sys_open").call ?,
                      kernel.function("sys_open").call ?
 {
 	name = "open"
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	flags = $flags
 	mode = $mode
 	if (flags & 64)
@@ -151,7 +151,7 @@ probe syscall.openat = kernel.function("compat_sys_openat").call ?,
                        kernel.function("sys_openat").call ?
 {
 	name = "openat"
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	flags = $flags
 	mode = $mode
 	if ($flags & 64)
@@ -387,8 +387,8 @@ probe syscall.pipe.return = kernel.function("sys_pipe2").return !,
 probe syscall.pivot_root = kernel.function("sys_pivot_root").call
 {
 	name = "pivot_root"
-	new_root_str = user_string($new_root)
-	old_root_str = user_string($put_old)
+	new_root_str = user_string_quoted($new_root)
+	old_root_str = user_string_quoted($put_old)
 	argstr = sprintf("%s, %s", user_string_quoted($new_root),
 		user_string_quoted($put_old))
 }
@@ -612,7 +612,7 @@ probe syscall.pwrite = kernel.function("sys_pwrite64").call
 	count = $count
 	offset = $pos
 	argstr = sprintf("%d, %s, %d, %d", $fd,
-		text_strn(user_string($buf), syscall_string_trunc, 1),
+		user_string_n_quoted($buf, syscall_string_trunc),
 		$count, $pos)
 }
 probe syscall.pwrite.return = kernel.function("sys_pwrite64").return
@@ -631,12 +631,12 @@ probe syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?
 %( arch == "s390" %?
 	buf_uaddr = $ubuf
 	argstr = sprintf("%d, %s, %d, %d", $fd,
-		text_strn(user_string($ubuf), syscall_string_trunc, 1),
+		user_string_n_quoted($ubuf, syscall_string_trunc),
 		$count, ($poshi << 32) + $poslo)
 %:
 	buf_uaddr = $buf
 	argstr = sprintf("%d, %s, %d, %d", $fd,
-		text_strn(user_string($buf), syscall_string_trunc, 1),
+		user_string_n_quoted($buf, syscall_string_trunc),
 		$count, ($poshi << 32) + $poslo)
 %)
 }
@@ -659,7 +659,7 @@ probe syscall.quotactl = kernel.function("sys_quotactl").call ?
 	cmd = $cmd
 	cmd_str = _quotactl_cmd_str($cmd)
 	special = $special
-	special_str = user_string($special)
+	special_str = user_string_quoted($special)
 	id = $id
 	addr_uaddr = $addr
 	argstr = sprintf("%s, %s, %d, %p", cmd_str, special_str, $id, $addr)
@@ -735,7 +735,7 @@ probe syscall.readdir.return = kernel.function("compat_sys_old_readdir").return 
 probe syscall.readlink = kernel.function("sys_readlink").call
 {
 	name = "readlink"
-	path = user_string($path)
+	path = user_string_quoted($path)
 	buf_uaddr = $buf
 	bufsiz = $bufsiz
 	argstr = sprintf("%s, %p, %d", user_string_quoted($path),
@@ -759,7 +759,7 @@ probe syscall.readlinkat = kernel.function("sys_readlinkat").call ?
 	dfd = $dfd
 	buf_uaddr = $buf
 	bufsiz = $bufsiz
-	path = user_string(@choose_defined($pathname, $path))
+	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %s, %p, %d", _dfd_str($dfd),
 		user_string_quoted(@choose_defined($pathname, $path)),
 		$buf, $bufsiz)
@@ -995,9 +995,9 @@ probe syscall.remap_file_pages.return = kernel.function("sys_remap_file_pages").
 probe syscall.removexattr = kernel.function("sys_removexattr").call
 {
 	name = "removexattr"
-	name_str = user_string($name)
+	name_str = user_string_quoted($name)
 
-	path = user_string(@choose_defined($pathname, $path))
+	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %s",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		user_string_quoted($name))
@@ -1016,8 +1016,8 @@ probe syscall.removexattr.return = kernel.function("sys_removexattr").return
 probe syscall.rename = kernel.function("sys_rename").call
 {
 	name = "rename"
-	oldpath = user_string($oldname)
-	newpath = user_string($newname)
+	oldpath = user_string_quoted($oldname)
+	newpath = user_string_quoted($newname)
 	argstr = sprintf("%s, %s", user_string_quoted($oldname),
 		user_string_quoted($newname))
 }
@@ -1037,11 +1037,11 @@ probe syscall.renameat = kernel.function("sys_renameat").call ?
 	olddfd = $olddfd
 	olddfd_str = _dfd_str($olddfd)
 	oldname = $oldname
-	oldname_str = user_string($oldname)
+	oldname_str = user_string_quoted($oldname)
 	newdfd = $newdfd
 	newdfd_str = _dfd_str($newdfd)
 	newname = $newname
-	newname_str = user_string($newname)
+	newname_str = user_string_quoted($newname)
 	argstr = sprintf("%s, %s, %s, %s",
 		olddfd_str, user_string_quoted($oldname),
 		newdfd_str, user_string_quoted($newname))
@@ -1098,7 +1098,7 @@ probe syscall.restart_syscall.return = kernel.function("sys_restart_syscall").re
 probe syscall.rmdir = kernel.function("sys_rmdir").call
 {
 	name = "rmdir"
-	pathname = user_string($pathname)
+	pathname = user_string_quoted($pathname)
 	argstr = user_string_quoted($pathname)
 }
 probe syscall.rmdir.return = kernel.function("sys_rmdir").return
@@ -1177,25 +1177,45 @@ probe syscall.rt_sigpending.return = kernel.function("sys_rt_sigpending").return
 }
 
 # rt_sigprocmask _____________________________________________
-# long sys32_rt_sigprocmask(u32 how, compat_sigset_t __user *set, compat_sigset_t __user *oset, size_t sigsetsize)
-# long compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set, compat_sigset_t __user *oset, compat_size_t sigsetsize)
-# long sys_rt_sigprocmask(int how, sigset_t __user *set, sigset_t __user *oset, size_t sigsetsize)
+# long sys_rt_sigprocmask(int how, sigset_t __user *set, sigset_t __user *oset,
+#			  size_t sigsetsize)
+# long sys32_rt_sigprocmask(u32 how, compat_sigset_t __user *set,
+#			    compat_sigset_t __user *oset, size_t sigsetsize)
+# long compat_sys_rt_sigprocmask(int how, compat_sigset_t __user *set,
+#				 compat_sigset_t __user *oset,
+#				 compat_size_t sigsetsize)
 #
-probe syscall.rt_sigprocmask = kernel.function("sys32_rt_sigprocmask").call ?,
-                               kernel.function("compat_sys_rt_sigprocmask").call ?,
-                               kernel.function("sys_rt_sigprocmask").call ?
+probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 {
 	name = "rt_sigprocmask"
-	how  = $how
+	how = $how
 	how_str = _sigprocmask_how_str($how)
-	set_uaddr    = @choose_defined($set, $nset)
+	set_uaddr = @choose_defined($set, $nset)
 	oldset_uaddr = $oset
 	argstr = sprintf("%s, [%s], %p, %d", how_str, _stp_sigset_u(set_uaddr),
-		$oset, $sigsetsize)
+			 $oset, $sigsetsize)
 }
-probe syscall.rt_sigprocmask.return = kernel.function("sys32_rt_sigprocmask").return ?,
-                                      kernel.function("compat_sys_rt_sigprocmask").return ?,
-                                      kernel.function("sys_rt_sigprocmask").return ?
+probe syscall.rt_sigprocmask.return =
+	kernel.function("sys_rt_sigprocmask").return ?
+{
+	name = "rt_sigprocmask"
+	retstr = return_str(1, $return)
+}
+probe syscall.compat_rt_sigprocmask =
+	kernel.function("compat_sys_rt_sigprocmask").call ?,
+	kernel.function("sys32_rt_sigprocmask").call ?
+{
+	name = "rt_sigprocmask"
+	how = $how
+	how_str = _sigprocmask_how_str($how)
+	set_uaddr = @choose_defined($set, $nset)
+	oldset_uaddr = $oset
+	argstr = sprintf("%s, [%s], %p, %d", how_str,
+			 _stp_compat_sigset_u(set_uaddr), $oset, $sigsetsize)
+}
+probe syscall.compat_rt_sigprocmask.return =
+	kernel.function("compat_sys_rt_sigprocmask").return ?,
+	kernel.function("sys32_rt_sigprocmask").return ?
 {
 	name = "rt_sigprocmask"
 	retstr = return_str(1, $return)
@@ -1567,7 +1587,11 @@ probe syscall.semop = kernel.function("sys_semtimedop").call ?
 {
 	name = "semop"
 	semid = $semid
+%( systemtap_v < "2.3" %?
 	tsops_uaddr = $tsops
+%:
+	sops_uaddr = $tsops
+%)
 	nsops = $nsops
 	argstr = sprintf("%d, %p, %d", $semid, $tsops, $nsops)
 }
@@ -1862,7 +1886,7 @@ probe syscall.sethostname = kernel.function("sys_sethostname").call
 {
 	name = "sethostname"
 	hostname_uaddr = $name
-	name_str = user_string($name)
+	name_str = user_string_quoted($name)
 	len = $len
 	argstr = sprintf("%s, %d", user_string_quoted($name), $len)
 }
@@ -2249,9 +2273,9 @@ probe syscall.setxattr = kernel.function("sys_setxattr").call
 {
 	name = "setxattr"
 	path_uaddr = @choose_defined($pathname, $path)
-	path = user_string(@choose_defined($pathname, $path))
+	path = user_string_quoted(@choose_defined($pathname, $path))
 	name_uaddr = $name
-	name_str = user_string($name)
+	name_str = user_string_quoted($name)
 	value_uaddr = $value
 	size = $size
 	flags = $flags
@@ -2449,7 +2473,17 @@ probe syscall.sigaction32.return = kernel.function("sys32_sigaction").return ?,
 	retstr = return_str(1, $return)
 }
 
-%( CONFIG_GENERIC_SIGALTSTACK == "y" %?
+# In kernel 3.8, CONFIG_GENERIC_SIGALTSTACK was added by 
+# kernel commit 6bf9adfc90370b695cb111116e15fdc0e1906270.
+#
+# Then, in kernel 3.9, all architectures were switched to using the
+# generic sigaltstack by kernel commit
+# d64008a8f30e0b381b292788ec6f3ee509b3bb40, which also removed the
+# CONFIG_GENERIC_SIGALTSTACK config variable.
+#
+# Thus the following preprocessor test.
+%( CONFIG_GENERIC_SIGALTSTACK == "y" || kernel_v >= "3.9" %?
+
 # sigaltstack ________________________________________________
 # SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
 #
@@ -2713,7 +2747,7 @@ probe syscall.stat = kernel.function("sys_stat").call ?,
 {
 	name = "stat"
 	filename_uaddr = $filename
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	buf_uaddr = $statbuf
 	argstr = sprintf("%s, %p", user_string_quoted($filename), buf_uaddr)
 }
@@ -2737,7 +2771,7 @@ probe syscall.statfs = kernel.function("compat_sys_statfs").call ?,
 {
 	name = "statfs"
 	buf_uaddr = $buf
-	path = user_string(@choose_defined($pathname, $path))
+	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %p",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		$buf)
@@ -2762,7 +2796,7 @@ probe syscall.statfs64 = kernel.function("compat_sys_statfs64").call ?,
 	sz = $sz
 	buf_uaddr = $buf
 
-	path = user_string(@choose_defined($pathname, $path))
+	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %d, %p",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		$sz, $buf)
@@ -2803,7 +2837,7 @@ probe syscall.stime.return = kernel.function("compat_sys_stime").return ?,
 probe syscall.swapoff = kernel.function("sys_swapoff").call ?
 {
 	name = "swapoff"
-	path = user_string($specialfile)
+	path = user_string_quoted($specialfile)
 	argstr = user_string_quoted($specialfile)
 }
 probe syscall.swapoff.return = kernel.function("sys_swapoff").return ?
@@ -2820,7 +2854,7 @@ probe syscall.swapoff.return = kernel.function("sys_swapoff").return ?
 probe syscall.swapon = kernel.function("sys_swapon").call ?
 {
 	name = "swapon"
-	path = user_string($specialfile)
+	path = user_string_quoted($specialfile)
 	swapflags = $swap_flags
 	argstr = sprintf("%s, %d", user_string_quoted($specialfile), swapflags)
 }
@@ -2836,8 +2870,8 @@ probe syscall.swapon.return = kernel.function("sys_swapon").return ?
 probe syscall.symlink = kernel.function("sys_symlink").call
 {
 	name = "symlink"
-	oldpath = user_string($oldname)
-	newpath = user_string($newname)
+	oldpath = user_string_quoted($oldname)
+	newpath = user_string_quoted($newname)
 	argstr = sprintf("%s, %s", user_string_quoted($oldname),
 		user_string_quoted($newname))
 }
@@ -2855,11 +2889,11 @@ probe syscall.symlinkat = kernel.function("sys_symlinkat").call ?
 {
 	name = "symlinkat"
 	oldname = $oldname
-	oldname_str = user_string($oldname)
+	oldname_str = user_string_quoted($oldname)
 	newdfd = $newdfd
 	newdfd_str = _dfd_str($newdfd)
 	newname = $newname
-	newname_str = user_string($newname)
+	newname_str = user_string_quoted($newname)
 	argstr = sprintf("%s, %s, %s", user_string_quoted($oldname),
 		newdfd_str, user_string_quoted($newname))
 }
@@ -3185,7 +3219,7 @@ probe syscall.truncate = kernel.function("sys_truncate").call ?,
 {
 	name = "truncate"
 	path_uaddr = $path
-	path = user_string($path)
+	path = user_string_quoted($path)
 	length = $length
 	argstr = sprintf("%s, %d", user_string_quoted($path), $length)
 }
@@ -3233,7 +3267,7 @@ probe syscall.umask.return = kernel.function("sys_umask").return
 probe syscall.umount = kernel.function("sys_umount").call
 {
 	name = "umount"
-	target = user_string($name)
+	target = user_string_quoted($name)
 	flags = $flags
 	flags_str = _umountflags_str($flags)
 	argstr = sprintf("%s, %s", user_string_quoted($name), flags_str)
@@ -3278,7 +3312,7 @@ probe syscall.unlink = kernel.function("sys_unlink").call
 {
 	name = "unlink"
 	pathname_uaddr = $pathname
-	pathname = user_string($pathname)
+	pathname = user_string_quoted($pathname)
 	argstr = user_string_quoted($pathname)
 }
 probe syscall.unlink.return = kernel.function("sys_unlink").return
@@ -3297,7 +3331,7 @@ probe syscall.unlinkat = kernel.function("sys_unlinkat").call ?
 	dfd = $dfd
 	dfd_str = _dfd_str($dfd)
 	pathname = $pathname
-	pathname_str = user_string($pathname)
+	pathname_str = user_string_quoted($pathname)
 	flag = $flag
 	flag_str = _at_flag_str($flag)
 	argstr = sprintf("%s, %s, %s", dfd_str, user_string_quoted($pathname), flag_str)
@@ -3332,7 +3366,7 @@ probe syscall.uselib = kernel.function("sys_uselib").call
 {
 	name = "uselib"
 	library_uaddr = $library
-	library = user_string($library)
+	library = user_string_quoted($library)
 	argstr = user_string_quoted($library)
 }
 probe syscall.uselib.return = kernel.function("sys_uselib").return
@@ -3382,7 +3416,7 @@ probe syscall.utime = kernel.function("sys_utime").call ?
 {
 	name = "utime"
 	filename_uaddr = $filename
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	buf_uaddr = $times
 	# On s390, '$times' is a long, so the @cast() is needed.
 	actime = user_long(&@cast($times, "utimbuf")->actime)
@@ -3401,7 +3435,7 @@ probe syscall.compat_utime = kernel.function("compat_sys_utime").call ?
 {
 	name = "utime"
 	filename_uaddr = $filename
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	buf_uaddr = $t
 	actime = user_long(&$t->actime)
 	modtime = user_long(&$t->modtime)
@@ -3422,7 +3456,7 @@ probe syscall.utimes = kernel.function("sys_utimes").call
 {
 	name = "utimes"
 	filename_uaddr = $filename
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	tvp_uaddr = $utimes
 	argstr = sprintf("%s, %s", user_string_quoted($filename),
 		_struct_timeval_u($utimes, 2))
@@ -3439,7 +3473,7 @@ probe syscall.utimes.return = kernel.function("sys_utimes").return
 probe syscall.compat_sys_utimes = kernel.function("compat_sys_utimes").call ?
 {
 	name = "utimes"
-	filename = user_string($filename)
+	filename = user_string_quoted($filename)
 	argstr = sprintf("%s, %s", user_string_quoted($filename),
 		_struct_compat_timeval_u($t, 2))
 }
@@ -3617,7 +3651,7 @@ probe syscall.write = kernel.function("sys_write").call
 	fd = $fd
 	buf_uaddr = $buf
 	count = $count
-	argstr = sprintf("%d, %s, %d", $fd, text_strn(user_string($buf), syscall_string_trunc, 1), $count)
+	argstr = sprintf("%d, %s, %d", $fd, user_string_n_quoted($buf, syscall_string_trunc), $count)
 }
 probe syscall.write.return = kernel.function("sys_write").return
 {

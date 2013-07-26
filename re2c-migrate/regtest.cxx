@@ -9,9 +9,10 @@
 // ---
 //
 // This file incorporates code from the re2c project; please see
-// re2c-migrate/README for details.
+// the file README.stapregex for details.
 
-#include "stapregex.h"
+#include "../stapregex.h"
+#include "../stapregex-tree.h"
 #include "../translate.h"
 #include <iostream>
 #include <cstdio>
@@ -27,6 +28,16 @@ void print_usage(char *progname)
   fprintf (stderr, "$ %s 2 <regex> <string>\n", progname);
 }
 
+/* Quick-and-dirty thing to correct backslashes in C code: */
+string escape_str(string n) {
+  string foo("");
+  for (string::iterator it = n.begin(); it != n.end(); it++) {
+    if (*it == '\\') foo += "\\\\";
+    else foo += *it;
+  }
+  return foo;
+}
+
 int main(int argc, char *argv [])
 {
   if (argc < 2)
@@ -36,7 +47,6 @@ int main(int argc, char *argv [])
     }
 
   int test_type = atoi (argv[1]);
-  try {
     switch (test_type)
       {
       case 0:
@@ -46,11 +56,12 @@ int main(int argc, char *argv [])
         {
           if (argc != 4) { print_usage (argv[0]); exit (1); }
           string s(argv[2]);
-          stapdfa d("do_match", s, false); // no backslash escaping
+          // generate a dfa with no unescaping and no tags
+          stapdfa d("do_match", s, NULL, false, false);
           translator_output o(cout);
 
           string t(argv[3]);
-          string match_expr = "\"" + t + "\""; // TODOXXX escape argv[3]
+          string match_expr = "\"" + escape_str(t) + "\"";
           
           // emit code skeleton
           o.line() << "// test output for systemtap-re2c";
@@ -60,6 +71,7 @@ int main(int argc, char *argv [])
           
           o.newline();
           d.emit_declaration (&o);
+          /* NB: test type 2 will fail to compile, produce exception */
           o.newline();
 
           o.newline() << "int main()";
@@ -67,7 +79,7 @@ int main(int argc, char *argv [])
           o.indent(1);
           o.newline() << "int ans = ";
           d.emit_matchop_start (&o);
-          o.line() << match_expr; // TODOXXX escape argv[3]
+          o.line() << match_expr;
           d.emit_matchop_end (&o);
           o.line() << ";";
           o.newline() << "printf(\"match %s\\n\", ans ? \"succeed\" : \"fail\");";
@@ -76,7 +88,6 @@ int main(int argc, char *argv [])
           } else if (test_type == 0) {
             o.newline() << "exit(ans ? 0 : 1);";
           }
-          /* TODO test type 2 should fail to compile */
           o.newline(-1) << "}";
           o.newline();
           
@@ -86,8 +97,4 @@ int main(int argc, char *argv [])
         print_usage (argv[0]);
         exit (1);
       }
-  } catch (const dfa_parse_error &e) {
-    cerr << "ERROR: " << e.what() << endl;
-    exit (1);
-  }
 }

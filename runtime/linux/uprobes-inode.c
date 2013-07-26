@@ -15,7 +15,6 @@
 #include <linux/list.h>
 #include <linux/namei.h>
 #include <linux/mutex.h>
-#include <linux/rwlock.h>
 #include <linux/spinlock.h>
 #include <linux/uprobes.h>
 
@@ -122,6 +121,10 @@ static struct stapiu_process {
  * Note: target->process_lock nests inside this.  */
 static DEFINE_SPINLOCK(stapiu_process_slots_lock);
 
+#if defined(UPROBES_HITCOUNT)
+static atomic_t prehandler_hitcount = ATOMIC_INIT(0);
+static atomic_t handler_hitcount = ATOMIC_INIT(0);
+#endif
 
 /* The stap-generated probe handler for all inode-uprobes. */
 static int
@@ -137,7 +140,15 @@ stapiu_probe_prehandler (struct uprobe_consumer *inst, struct pt_regs *regs)
 
 	struct stapiu_process *p, *process = NULL;
 
-	/* First find the related process, set by stapiu_change_plus.  */
+#if defined(UPROBES_HITCOUNT)
+	atomic_inc(&prehandler_hitcount);
+#endif
+
+	/* First find the related process, set by stapiu_change_plus.
+	 * NB: This is a linear search performed for every probe hit!
+	 * This could be an algorithmic problem if the list gets large, but
+	 * we'll wait until this is demonstratedly a hotspot before optimizing.
+	 */
 	read_lock(&target->process_lock);
 	list_for_each_entry(p, &target->processes, target_process) {
 		if (p->tgid == current->tgid) {
@@ -146,8 +157,17 @@ stapiu_probe_prehandler (struct uprobe_consumer *inst, struct pt_regs *regs)
 		}
 	}
 	read_unlock(&target->process_lock);
-	if (!process)
+	if (!process) {
+#ifdef UPROBE_HANDLER_REMOVE
+		/* Once we're past the starting phase, we can be sure that any
+		 * processes which are executing code in a mapping have already
+		 * been through task_finder.  So if it's not in our list of
+		 * target->processes, it can safely get removed.  */
+		if (stap_task_finder_complete())
+			return UPROBE_HANDLER_REMOVE;
+#endif
 		return 0;
+	}
 
 #ifdef STAPIU_NEEDS_REG_IP
 	/* Make it look like the IP is set as it would in the actual user task
@@ -155,6 +175,10 @@ stapiu_probe_prehandler (struct uprobe_consumer *inst, struct pt_regs *regs)
 	{
 	unsigned long saved_ip = REG_IP(regs);
 	SET_REG_IP(regs, uprobe_get_swbp_addr(regs));
+#endif
+
+#if defined(UPROBES_HITCOUNT)
+	atomic_inc(&handler_hitcount);
 #endif
 
 	ret = stapiu_probe_handler(sup, regs);
@@ -437,6 +461,13 @@ stapiu_exit(struct stapiu_target *targets, size_t ntargets,
 {
 	stapiu_decrement_semaphores(targets, ntargets);
 	stapiu_exit_targets(targets, ntargets);
+#if defined(UPROBES_HITCOUNT)
+	_stp_printf("stapiu_probe_prehandler() called %d times\n",
+			atomic_read(&prehandler_hitcount));
+	_stp_printf("stapiu_probe_handler() called %d times\n",
+			atomic_read(&handler_hitcount));
+	_stp_print_flush();
+#endif
 }
 
 
