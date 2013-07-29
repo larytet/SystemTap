@@ -31,7 +31,8 @@
 //#define STAPREGEX_DEBUG_INS
 // Uncomment to display result of DFA compilation in a compact format:
 //#define STAPREGEX_DEBUG_DFA
-// Uncomment to have the generated engine do a trace of visited states:
+// Uncomment to have the generated engine do a trace of visited states
+// (only when testing using the standalone regtest module):
 //#define STAPREGEX_DEBUG_MATCH
 
 using namespace std;
@@ -88,7 +89,24 @@ stapregex_compile (regexp *re, const std::string& match_snippet,
   cerr << endl;
 #endif
   
-  // TODOXXX optimize ins as in re2c
+  ins_optimize(i);
+  for (ins *j = i; (j - i) < re->ins_size() + 1; )
+    {
+      unmark(j);
+      if (j->i.tag == CHAR)
+        j = (ins *) j->i.link;
+      else
+        j++;
+    }
+
+#ifdef STAPREGEX_DEBUG_INS
+  cerr << "OPTIMIZED INS FROM THE SAME REGEX" << endl;
+  for (const ins *j = i; (j - i) < re->ins_size() + 1; )
+    {
+      j = show_ins(cerr, j, i); cerr << endl;
+    }
+  cerr << endl;
+#endif
 
   dfa *d = new dfa(i, num_tags, outcomes);
 

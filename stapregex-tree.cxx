@@ -173,6 +173,48 @@ range_invert(range *old_ran)
 
 // ------------------------------------------------------------------------
 
+void
+ins_optimize (ins *i)
+{
+  while (!marked(i))
+    {
+      mark (i); // -- aka "this node has already been optimized"
+
+      if (i->i.tag == CHAR)
+        {
+          i = (ins *) i->i.link; // -- skip node
+        }
+      else if (i->i.tag == GOTO || i->i.tag == FORK)
+        {
+          ins *target = (ins *) i->i.link;
+          ins_optimize(target);
+
+          if (target->i.tag == GOTO)
+            i->i.link = target->i.link == target ? i : target;
+
+          if (i->i.tag == FORK)
+            {
+              ins *follow = (ins *) &i[1];
+              ins_optimize(follow);
+
+              if (follow->i.tag == GOTO && follow->i.link == follow)
+                {
+                  i->i.tag = GOTO;
+                }
+              else if (i->i.link == i)
+                {
+                  i->i.tag = GOTO;
+                  i->i.link = follow;
+                }
+            }
+        }
+      else
+        ++i; // -- skip node
+    }
+}
+
+// ------------------------------------------------------------------------
+
 const ins*
 show_ins (std::ostream &o, const ins *i, const ins *base)
 {
