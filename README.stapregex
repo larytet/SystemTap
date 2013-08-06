@@ -16,3 +16,9 @@ appropriate acknowledgment in future code derived from this file.
 Information on the original re2c distribution can be found at:
 
    http://sourceforge.net/projects/re2c/
+
+The systemtap regex engine currently has its own separate testsuite
+(with an exhaustive set of regexes that determine POSIX ERE-compliance).
+To run this testsuite, configure a systemtap build directory and run:
+
+$ make -C testsuite-stapregex check

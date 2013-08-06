@@ -29,7 +29,7 @@ proc stap_test_regex {expected re match} {
 ##################################
 # testsuite courtesy of glibc 2.17
 
-# to run the full testsuite, run make check in re2c-migrate/
+# to run the full testsuite, run make check in testsuite-stapregex/
 # here, just test a dozen or so of our coolest regexes to avoid wasting time
 # (loading one systemtap script per regex takes non-negligible time)
 

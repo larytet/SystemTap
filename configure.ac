@@ -681,7 +681,7 @@ AC_CONFIG_FILES(java/Makefile)
 AC_CONFIG_FILES([java/stapbm], [chmod +x java/stapbm])
 AC_CONFIG_FILES(staprun/Makefile)
 AC_CONFIG_FILES([staprun/run-staprun], [chmod +x staprun/run-staprun])
-AC_CONFIG_FILES(re2c-migrate/Makefile)
+AC_CONFIG_FILES(testsuite-stapregex/Makefile)
 
 # Setup "shadow" directory doc/beginners that has everything setup for
 # publican in one directory (through directory links if necessary).
