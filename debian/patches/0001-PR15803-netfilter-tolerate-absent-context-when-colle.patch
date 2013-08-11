@@ -1,0 +1,32 @@
+From 6b5871b006dfc6f714921838dfecd5e6cec9c943 Mon Sep 17 00:00:00 2001
+From: Frank Ch. Eigler <fche@redhat.com>
+Date: Tue, 30 Jul 2013 08:26:59 -0400
+Subject: [PATCH] PR15803: netfilter: tolerate absent context when collecting $verdict
+
+It is possible to skip from the prologue epilogue through to the
+prologue for reasons such as shortage of available stack space.
+In these cases, the context* c; pointer could remain NULL, which
+is considered generally inappropriate to dereference.
+
+* tapset-netfilter.cxx (epilogue): Check for NULL c before extracting
+  $verdict.
+---
+ tapset-netfilter.cxx |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/tapset-netfilter.cxx b/tapset-netfilter.cxx
+index af9fc3c..15a3180 100644
+--- a/tapset-netfilter.cxx
++++ b/tapset-netfilter.cxx
+@@ -317,7 +317,7 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
+       common_probe_entryfn_epilogue (s, false);
+ 
+       if (np->context_vars.find("__nf_verdict") != np->context_vars.end())
+-        s.op->newline() << "nf_verdict = (int) "+c_p+"." + s.up->c_localname("__nf_verdict") + ";";
++        s.op->newline() << "if (c != NULL) nf_verdict = (int) "+c_p+"." + s.up->c_localname("__nf_verdict") + ";";
+ 
+       s.op->newline() << "return nf_verdict;";
+       s.op->newline(-1) << "}";
+-- 
+1.7.2.5
+

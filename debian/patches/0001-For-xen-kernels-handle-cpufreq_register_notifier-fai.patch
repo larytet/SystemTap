@@ -1,0 +1,53 @@
+From 2ea7af0997f817425c751b41601efb7fff2fb509 Mon Sep 17 00:00:00 2001
+From: Timo Juhani Lindfors <timo.lindfors@iki.fi>
+Date: Fri, 2 Aug 2013 13:05:26 -0500
+Subject: [PATCH] For xen kernels, handle cpufreq_register_notifier() failure.
+
+* runtime/time.c (_stp_kill_time): If cpufreq_register_notifier()
+  suceeded, unregister the notifier.
+  (_stp_init_time): On xen kernels, cpufreq_register_notifier() can
+  fail. Just ignore the error.
+---
+ runtime/time.c |   12 +++++++-----
+ 1 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/runtime/time.c b/runtime/time.c
+index 34df72a..068db0a 100644
+--- a/runtime/time.c
++++ b/runtime/time.c
+@@ -57,6 +57,9 @@ typedef struct __stp_time_t {
+ } stp_time_t;
+ 
+ static void *stp_time = NULL;
++#ifdef CONFIG_CPU_FREQ
++static int __stp_cpufreq_notifier_registered = 0;
++#endif
+ 
+ /* Try to estimate the number of CPU cycles in a millisecond - i.e. kHz.  This
+  * relies heavily on the accuracy of udelay.  By calling udelay twice, we
+@@ -215,7 +218,7 @@ _stp_kill_time(void)
+             del_timer_sync(&time->timer);
+         }
+ #ifdef CONFIG_CPU_FREQ
+-        if (!__stp_constant_freq()) {
++        if (!__stp_constant_freq() && __stp_cpufreq_notifier_registered) {
+             cpufreq_unregister_notifier(&__stp_time_notifier,
+                                         CPUFREQ_TRANSITION_NOTIFIER);
+         }
+@@ -253,10 +256,9 @@ _stp_init_time(void)
+ 
+ #ifdef CONFIG_CPU_FREQ
+     if (!ret && !__stp_constant_freq()) {
+-        ret = cpufreq_register_notifier(&__stp_time_notifier,
+-                CPUFREQ_TRANSITION_NOTIFIER);
+-
+-        if (!ret) {
++	if (!cpufreq_register_notifier(&__stp_time_notifier,
++				       CPUFREQ_TRANSITION_NOTIFIER)) {
++	    __stp_cpufreq_notifier_registered = 1;
+             for_each_online_cpu(cpu) {
+                 unsigned long flags;
+                 int freq_khz = cpufreq_get(cpu);
+-- 
+1.7.2.5
+
