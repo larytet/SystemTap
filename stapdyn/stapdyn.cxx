@@ -1,5 +1,6 @@
 // stapdyn main program
 // Copyright (C) 2012-2013 Red Hat Inc.
+// Copyright (C) 2013 Serhei Makarov
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -8,6 +9,8 @@
 
 #include <iostream>
 #include <memory>
+
+#include <boost/shared_ptr.hpp>
 
 extern "C" {
 #include <errno.h>
@@ -141,23 +144,32 @@ main(int argc, char * const argv[])
   if (!check_dyninst_sebools(pid != 0))
     return 1;
 
-  auto_ptr<mutator> session(new mutator(module, modoptions));
-  if (!session.get() || !session->load())
+  auto_ptr<mutator> session(new mutator());
+  if (!session.get())
     {
-      staperror() << "Failed to create the mutator!" << endl;
+      staperror() << "Failed to initialize dyninst session!" << endl;
+    }
+  boost::shared_ptr<script_module> script
+    = session->create_module(module, modoptions);
+  if (!script.get() || !script->load())
+    {
+      staperror() << "Failed to load script module!" << endl;
       return 1;
     }
 
-  if (command && !session->create_process(command))
+  if (command && !script->set_main_target(session->create_process(command)))
     return 1;
 
-  if (pid && !session->attach_process(pid))
+  if (pid && !script->set_main_target(session->attach_process(pid)))
     return 1;
 
-  if (!session->run())
+  if (!script->start())
     return 1;
 
-  return session->exit_status();
+  if (!session->run_to_completion())
+    return 1;
+
+  return script->exit_status();
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
