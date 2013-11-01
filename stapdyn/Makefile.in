@@ -57,7 +57,8 @@ target_triplet = @target@
 @HAVE_SELINUX_TRUE@am__append_2 = $(selinux_LIBS)
 bin_PROGRAMS = $(am__EXEEXT_1)
 noinst_PROGRAMS = $(am__EXEEXT_2)
-@HAVE_DYNINST_TRUE@am__append_3 = stapdyn
+@HAVE_DYNINST_TRUE@am__append_3 = stapdyn multidyn # TODOXXX temporary \
+@HAVE_DYNINST_TRUE@	test program
 @HAVE_DYNINST_TRUE@am__append_4 = dynsdt
 subdir = stapdyn
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
@@ -74,7 +75,7 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-@HAVE_DYNINST_TRUE@am__EXEEXT_1 = stapdyn$(EXEEXT)
+@HAVE_DYNINST_TRUE@am__EXEEXT_1 = stapdyn$(EXEEXT) multidyn$(EXEEXT)
 am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(man8dir)"
 @HAVE_DYNINST_TRUE@am__EXEEXT_2 = dynsdt$(EXEEXT)
 PROGRAMS = $(bin_PROGRAMS) $(noinst_PROGRAMS)
@@ -85,6 +86,16 @@ dynsdt_OBJECTS = $(am_dynsdt_OBJECTS)
 dynsdt_DEPENDENCIES =
 dynsdt_LINK = $(CXXLD) $(dynsdt_CXXFLAGS) $(CXXFLAGS) \
 	$(dynsdt_LDFLAGS) $(LDFLAGS) -o $@
+@HAVE_DYNINST_TRUE@am_multidyn_OBJECTS = multidyn-multidyn.$(OBJEXT) \
+@HAVE_DYNINST_TRUE@	multidyn-mutator.$(OBJEXT) \
+@HAVE_DYNINST_TRUE@	multidyn-mutatee.$(OBJEXT) \
+@HAVE_DYNINST_TRUE@	multidyn-dynprobe.$(OBJEXT) \
+@HAVE_DYNINST_TRUE@	multidyn-dynutil.$(OBJEXT) \
+@HAVE_DYNINST_TRUE@	multidyn-util.$(OBJEXT)
+multidyn_OBJECTS = $(am_multidyn_OBJECTS)
+multidyn_DEPENDENCIES =
+multidyn_LINK = $(CXXLD) $(multidyn_CXXFLAGS) $(CXXFLAGS) \
+	$(multidyn_LDFLAGS) $(LDFLAGS) -o $@
 @HAVE_DYNINST_TRUE@am_stapdyn_OBJECTS = stapdyn-stapdyn.$(OBJEXT) \
 @HAVE_DYNINST_TRUE@	stapdyn-mutator.$(OBJEXT) \
 @HAVE_DYNINST_TRUE@	stapdyn-mutatee.$(OBJEXT) \
@@ -128,7 +139,7 @@ AM_V_CXXLD = $(am__v_CXXLD_@AM_V@)
 am__v_CXXLD_ = $(am__v_CXXLD_@AM_DEFAULT_V@)
 am__v_CXXLD_0 = @echo "  CXXLD   " $@;
 am__v_CXXLD_1 = 
-SOURCES = $(dynsdt_SOURCES) $(stapdyn_SOURCES)
+SOURCES = $(dynsdt_SOURCES) $(multidyn_SOURCES) $(stapdyn_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -339,7 +350,7 @@ AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 AM_LDFLAGS = @PIELDFLAGS@ $(am__append_2)
 @HAVE_DYNINST_TRUE@man_MANS = stapdyn.8
 @HAVE_DYNINST_TRUE@stapdyn_SOURCES = stapdyn.cxx mutator.cxx mutatee.cxx \
-@HAVE_DYNINST_TRUE@				  dynprobe.cxx dynutil.cxx ../util.cxx
+@HAVE_DYNINST_TRUE@	dynprobe.cxx dynutil.cxx ../util.cxx
 
 @HAVE_DYNINST_TRUE@stapdyn_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
 @HAVE_DYNINST_TRUE@stapdyn_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
@@ -348,6 +359,12 @@ AM_LDFLAGS = @PIELDFLAGS@ $(am__append_2)
 @HAVE_DYNINST_TRUE@dynsdt_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
 @HAVE_DYNINST_TRUE@dynsdt_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
 @HAVE_DYNINST_TRUE@dynsdt_LDADD = -ldl -lelf -ldyninstAPI -lsymtabAPI -lpthread
+@HAVE_DYNINST_TRUE@multidyn_SOURCES = multidyn.cxx mutator.cxx mutatee.cxx \
+@HAVE_DYNINST_TRUE@	dynprobe.cxx dynutil.cxx ../util.cxx
+
+@HAVE_DYNINST_TRUE@multidyn_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
+@HAVE_DYNINST_TRUE@multidyn_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
+@HAVE_DYNINST_TRUE@multidyn_LDADD = -ldl -ldyninstAPI -lsymtabAPI -lpthread
 
 # Arrange for the top-level git_version.h to be regenerated at every "make".
 BUILT_SOURCES = git_version.stamp
@@ -432,6 +449,9 @@ clean-noinstPROGRAMS:
 dynsdt$(EXEEXT): $(dynsdt_OBJECTS) $(dynsdt_DEPENDENCIES) $(EXTRA_dynsdt_DEPENDENCIES) 
 	@rm -f dynsdt$(EXEEXT)
 	$(AM_V_CXXLD)$(dynsdt_LINK) $(dynsdt_OBJECTS) $(dynsdt_LDADD) $(LIBS)
+multidyn$(EXEEXT): $(multidyn_OBJECTS) $(multidyn_DEPENDENCIES) $(EXTRA_multidyn_DEPENDENCIES) 
+	@rm -f multidyn$(EXEEXT)
+	$(AM_V_CXXLD)$(multidyn_LINK) $(multidyn_OBJECTS) $(multidyn_LDADD) $(LIBS)
 stapdyn$(EXEEXT): $(stapdyn_OBJECTS) $(stapdyn_DEPENDENCIES) $(EXTRA_stapdyn_DEPENDENCIES) 
 	@rm -f stapdyn$(EXEEXT)
 	$(AM_V_CXXLD)$(stapdyn_LINK) $(stapdyn_OBJECTS) $(stapdyn_LDADD) $(LIBS)
@@ -445,6 +465,12 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynsdt-dynsdt.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynsdt-dynutil.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dynsdt-util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multidyn-dynprobe.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multidyn-dynutil.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multidyn-multidyn.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multidyn-mutatee.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multidyn-mutator.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/multidyn-util.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stapdyn-dynprobe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stapdyn-dynutil.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stapdyn-mutatee.Po@am__quote@
@@ -507,6 +533,90 @@ dynsdt-util.obj: ../util.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='dynsdt-util.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(dynsdt_CXXFLAGS) $(CXXFLAGS) -c -o dynsdt-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
+
+multidyn-multidyn.o: multidyn.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-multidyn.o -MD -MP -MF $(DEPDIR)/multidyn-multidyn.Tpo -c -o multidyn-multidyn.o `test -f 'multidyn.cxx' || echo '$(srcdir)/'`multidyn.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-multidyn.Tpo $(DEPDIR)/multidyn-multidyn.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='multidyn.cxx' object='multidyn-multidyn.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-multidyn.o `test -f 'multidyn.cxx' || echo '$(srcdir)/'`multidyn.cxx
+
+multidyn-multidyn.obj: multidyn.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-multidyn.obj -MD -MP -MF $(DEPDIR)/multidyn-multidyn.Tpo -c -o multidyn-multidyn.obj `if test -f 'multidyn.cxx'; then $(CYGPATH_W) 'multidyn.cxx'; else $(CYGPATH_W) '$(srcdir)/multidyn.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-multidyn.Tpo $(DEPDIR)/multidyn-multidyn.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='multidyn.cxx' object='multidyn-multidyn.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-multidyn.obj `if test -f 'multidyn.cxx'; then $(CYGPATH_W) 'multidyn.cxx'; else $(CYGPATH_W) '$(srcdir)/multidyn.cxx'; fi`
+
+multidyn-mutator.o: mutator.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-mutator.o -MD -MP -MF $(DEPDIR)/multidyn-mutator.Tpo -c -o multidyn-mutator.o `test -f 'mutator.cxx' || echo '$(srcdir)/'`mutator.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-mutator.Tpo $(DEPDIR)/multidyn-mutator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='mutator.cxx' object='multidyn-mutator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-mutator.o `test -f 'mutator.cxx' || echo '$(srcdir)/'`mutator.cxx
+
+multidyn-mutator.obj: mutator.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-mutator.obj -MD -MP -MF $(DEPDIR)/multidyn-mutator.Tpo -c -o multidyn-mutator.obj `if test -f 'mutator.cxx'; then $(CYGPATH_W) 'mutator.cxx'; else $(CYGPATH_W) '$(srcdir)/mutator.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-mutator.Tpo $(DEPDIR)/multidyn-mutator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='mutator.cxx' object='multidyn-mutator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-mutator.obj `if test -f 'mutator.cxx'; then $(CYGPATH_W) 'mutator.cxx'; else $(CYGPATH_W) '$(srcdir)/mutator.cxx'; fi`
+
+multidyn-mutatee.o: mutatee.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-mutatee.o -MD -MP -MF $(DEPDIR)/multidyn-mutatee.Tpo -c -o multidyn-mutatee.o `test -f 'mutatee.cxx' || echo '$(srcdir)/'`mutatee.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-mutatee.Tpo $(DEPDIR)/multidyn-mutatee.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='mutatee.cxx' object='multidyn-mutatee.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-mutatee.o `test -f 'mutatee.cxx' || echo '$(srcdir)/'`mutatee.cxx
+
+multidyn-mutatee.obj: mutatee.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-mutatee.obj -MD -MP -MF $(DEPDIR)/multidyn-mutatee.Tpo -c -o multidyn-mutatee.obj `if test -f 'mutatee.cxx'; then $(CYGPATH_W) 'mutatee.cxx'; else $(CYGPATH_W) '$(srcdir)/mutatee.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-mutatee.Tpo $(DEPDIR)/multidyn-mutatee.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='mutatee.cxx' object='multidyn-mutatee.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-mutatee.obj `if test -f 'mutatee.cxx'; then $(CYGPATH_W) 'mutatee.cxx'; else $(CYGPATH_W) '$(srcdir)/mutatee.cxx'; fi`
+
+multidyn-dynprobe.o: dynprobe.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-dynprobe.o -MD -MP -MF $(DEPDIR)/multidyn-dynprobe.Tpo -c -o multidyn-dynprobe.o `test -f 'dynprobe.cxx' || echo '$(srcdir)/'`dynprobe.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-dynprobe.Tpo $(DEPDIR)/multidyn-dynprobe.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynprobe.cxx' object='multidyn-dynprobe.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-dynprobe.o `test -f 'dynprobe.cxx' || echo '$(srcdir)/'`dynprobe.cxx
+
+multidyn-dynprobe.obj: dynprobe.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-dynprobe.obj -MD -MP -MF $(DEPDIR)/multidyn-dynprobe.Tpo -c -o multidyn-dynprobe.obj `if test -f 'dynprobe.cxx'; then $(CYGPATH_W) 'dynprobe.cxx'; else $(CYGPATH_W) '$(srcdir)/dynprobe.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-dynprobe.Tpo $(DEPDIR)/multidyn-dynprobe.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynprobe.cxx' object='multidyn-dynprobe.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-dynprobe.obj `if test -f 'dynprobe.cxx'; then $(CYGPATH_W) 'dynprobe.cxx'; else $(CYGPATH_W) '$(srcdir)/dynprobe.cxx'; fi`
+
+multidyn-dynutil.o: dynutil.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-dynutil.o -MD -MP -MF $(DEPDIR)/multidyn-dynutil.Tpo -c -o multidyn-dynutil.o `test -f 'dynutil.cxx' || echo '$(srcdir)/'`dynutil.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-dynutil.Tpo $(DEPDIR)/multidyn-dynutil.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynutil.cxx' object='multidyn-dynutil.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-dynutil.o `test -f 'dynutil.cxx' || echo '$(srcdir)/'`dynutil.cxx
+
+multidyn-dynutil.obj: dynutil.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-dynutil.obj -MD -MP -MF $(DEPDIR)/multidyn-dynutil.Tpo -c -o multidyn-dynutil.obj `if test -f 'dynutil.cxx'; then $(CYGPATH_W) 'dynutil.cxx'; else $(CYGPATH_W) '$(srcdir)/dynutil.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-dynutil.Tpo $(DEPDIR)/multidyn-dynutil.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='dynutil.cxx' object='multidyn-dynutil.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-dynutil.obj `if test -f 'dynutil.cxx'; then $(CYGPATH_W) 'dynutil.cxx'; else $(CYGPATH_W) '$(srcdir)/dynutil.cxx'; fi`
+
+multidyn-util.o: ../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-util.o -MD -MP -MF $(DEPDIR)/multidyn-util.Tpo -c -o multidyn-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-util.Tpo $(DEPDIR)/multidyn-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='multidyn-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-util.o `test -f '../util.cxx' || echo '$(srcdir)/'`../util.cxx
+
+multidyn-util.obj: ../util.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -MT multidyn-util.obj -MD -MP -MF $(DEPDIR)/multidyn-util.Tpo -c -o multidyn-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/multidyn-util.Tpo $(DEPDIR)/multidyn-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../util.cxx' object='multidyn-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(multidyn_CXXFLAGS) $(CXXFLAGS) -c -o multidyn-util.obj `if test -f '../util.cxx'; then $(CYGPATH_W) '../util.cxx'; else $(CYGPATH_W) '$(srcdir)/../util.cxx'; fi`
 
 stapdyn-stapdyn.o: stapdyn.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(stapdyn_CXXFLAGS) $(CXXFLAGS) -MT stapdyn-stapdyn.o -MD -MP -MF $(DEPDIR)/stapdyn-stapdyn.Tpo -c -o stapdyn-stapdyn.o `test -f 'stapdyn.cxx' || echo '$(srcdir)/'`stapdyn.cxx

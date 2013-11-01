@@ -1,0 +1,3 @@
+probe process.function("echo") {
+  printf("SCRIPT 2: Called echo() with arg %s\n", user_string($foo));
+}

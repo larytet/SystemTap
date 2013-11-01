@@ -22,12 +22,13 @@ noinst_PROGRAMS =
 if HAVE_DYNINST
 
 bin_PROGRAMS += stapdyn
+bin_PROGRAMS += multidyn # TODOXXX temporary test program
 noinst_PROGRAMS += dynsdt
 
 man_MANS = stapdyn.8
 
 stapdyn_SOURCES = stapdyn.cxx mutator.cxx mutatee.cxx \
-				  dynprobe.cxx dynutil.cxx ../util.cxx
+	dynprobe.cxx dynutil.cxx ../util.cxx
 stapdyn_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
 stapdyn_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
 stapdyn_LDADD = -ldl -ldyninstAPI -lsymtabAPI -lpthread
@@ -36,6 +37,12 @@ dynsdt_SOURCES = dynsdt.cxx dynutil.cxx ../util.cxx
 dynsdt_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
 dynsdt_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
 dynsdt_LDADD = -ldl -lelf -ldyninstAPI -lsymtabAPI -lpthread
+
+multidyn_SOURCES = multidyn.cxx mutator.cxx mutatee.cxx \
+	dynprobe.cxx dynutil.cxx ../util.cxx
+multidyn_CXXFLAGS = $(AM_CXXFLAGS) @DYNINST_CXXFLAGS@
+multidyn_LDFLAGS = $(AM_LDFLAGS) @DYNINST_LDFLAGS@
+multidyn_LDADD = -ldl -ldyninstAPI -lsymtabAPI -lpthread
 
 endif # HAVE_DYNINST
 

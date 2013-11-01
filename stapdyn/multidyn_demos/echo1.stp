@@ -1,0 +1,3 @@
+probe process.function("echo") {
+  println("SCRIPT 1: Entering echo()");
+}
