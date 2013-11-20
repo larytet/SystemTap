@@ -63,7 +63,8 @@ static const char *_stp_shm_init(void)
 
 	// Create a unique name for our shared memory.  It need not be anything
         // secret because shm_open's flags will ensure security.
-        (void) snprintf(name, NAME_MAX, "/stapdyn.%d", getpid());
+        int mod_id = rand(); // TODOXXX use sequence number
+        (void) snprintf(name, NAME_MAX, "/stapdyn.%d.%d", getpid(), mod_id);
 
 	// Create the actual share memory.  The O_EXCL saves us from the
 	// possible mktemp race.  Only USR file mode bits are added, because

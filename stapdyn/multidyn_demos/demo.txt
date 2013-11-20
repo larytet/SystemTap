@@ -1,0 +1,34 @@
+stap --dyninst -kv -p4 -m hello1 -e 'probe begin { println("hello1"); exit() }'
+stap --dyninst -kv -p4 -m hello2 -e 'probe begin { println("hello2"); exit() }'
+
+multidyn
+stapdyn hello1.so
+stapdyn hello2.so
+^D
+
+stap --dyninst -kv -p4 -m ping1 -e 'probe timer.s(2) { println("ping1") }'
+stap --dyninst -kv -p4 -m ping2 -e 'probe timer.s(3) { println("ping2") }'
+
+multidyn
+stapdyn ping1.so
+stapdyn ping2.so
+^D
+
+FIX BELOW
+
+stap --dyninst -kv -p4 -m echo1 -e 'probe process("./echo").function("echo") { printf("echo1 %s\n", user_string($foo)) }'
+stap --dyninst -kv -p4 -m echo2 -e 'probe process("./echo").function("echo") { printf("echo2 %s\n", user_string($foo)) }'
+
+multidyn
+stapdyn echo1.so -c ./echo
+stapdyn echo2.so -c ./echo
+^D
+
+$ echo
+my pid is FOO
+^Z
+$ multidyn
+stapdyn echo1.so -x FOO
+stapdyn echo2.so -x FOO
+^D
+
