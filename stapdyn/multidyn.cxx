@@ -16,7 +16,7 @@
 
 extern "C" {
 #include <errno.h>
-#include <getopt.h>
+// #include <getopt.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -52,6 +52,7 @@ launch_module(int argc, char * const argv[], mutator &session)
     && strcmp(getenv("TERM") ?: "notdumb", "dumb");
 
   // First, option parsing.
+  optind = 1; // -- resets getopt
   int opt;
   while ((opt = getopt (argc, argv, "c:x:vwo:VC:")) != -1)
     {
@@ -62,7 +63,6 @@ launch_module(int argc, char * const argv[], mutator &session)
           break;
 
         case 'x':
-          cerr << "FOUND -x" << endl;
           pid = atoi(optarg);
           break;
 

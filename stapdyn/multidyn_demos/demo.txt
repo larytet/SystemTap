@@ -14,16 +14,10 @@ stapdyn ping1.so
 stapdyn ping2.so
 ^D
 
-FIX BELOW
-
 stap --dyninst -kv -p4 -m echo1 -e 'probe process("./echo").function("echo") { printf("echo1 %s\n", user_string($foo)) }'
 stap --dyninst -kv -p4 -m echo2 -e 'probe process("./echo").function("echo") { printf("echo2 %s\n", user_string($foo)) }'
 
-multidyn
-stapdyn echo1.so -c ./echo
-stapdyn echo2.so -c ./echo
-^D
-
+!!!! IT'S ALIIIVE WOHOOO !!!!
 $ echo
 my pid is FOO
 ^Z
@@ -32,3 +26,10 @@ stapdyn echo1.so -x FOO
 stapdyn echo2.so -x FOO
 ^D
 
+FIX BELOW
+
+multidyn
+stapdyn echo1.so -c ./echo
+stapdyn echo2.so -c ./echo
+^D
+-- why do they launch serially??
