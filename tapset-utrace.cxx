@@ -699,15 +699,6 @@ struct utrace_builder: public derived_probe_builder
         sess.unwindsym_modules.insert (path);
         path_tgt = path_remove_sysroot(sess, path);
       }
-    else if (has_pid)
-      {
-	// We can't probe 'init' (pid 1).  XXX: where does this limitation come from?
-	if (pid < 2)
-	  throw SEMANTIC_ERROR (_("process pid must be greater than 1"),
-				location->components.front()->tok);
-
-        // XXX: could we use /proc/$pid/exe in unwindsym_modules and elsewhere?
-      }
 
     finished_results.push_back(new utrace_derived_probe(sess, base, location,
 							has_path, path_tgt, pid,
