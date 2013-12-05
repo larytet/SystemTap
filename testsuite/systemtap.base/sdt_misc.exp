@@ -13,10 +13,12 @@ set test "sdt_misc"
 set v_flags {{-DSTAP_SDT_V1} {-DSTAP_SDT_V2} {-DSTAP_SDT_V3}}
 set pbtype_mssgs {{V1_uprobe} {V2_uprobe} {V3_uprobe}}
 set pbtype_flags {{additional_flags=-g} {} {}}
+set fail_count 0
 
 proc cleanup_handler { verbose } {
     global pbtype_mssgs
-    if { $verbose == 0 } {
+    global fail_count
+    if { $verbose == 0 && $fail_count == 0 } {
 	foreach x $pbtype_mssgs {
 	    catch {exec rm -f libsdt_${x}.so libsdt_${x}_shared.so \
 		       sdt_misc_${x}.x sdt_misc_${x}_loop.x \
@@ -26,6 +28,8 @@ proc cleanup_handler { verbose } {
 	}
 	catch {exec rm -f sdt_misc_.c sdt_misc_.h sdt_misc_.o sdt_types.x \
 		   ,semclean ,semout}
+    } else {
+	verbose -log "kept sdt_misc*.* test files due to failing tests"
     }
 }
 
@@ -63,6 +67,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     if {[file exists $sup_hpath] && [file exists $sup_opath]} then {
 	pass "$test dtrace $pbtype_mssg"
     } else {
+	incr fail_count
 	fail "$test dtrace $pbtype_mssg"
 	cleanup_handler $verbose
 	return
@@ -76,6 +81,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $sup_exepath \
 		 executable $sup_flags]
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling $pbtype_mssg"
 	cleanup_handler $verbose
@@ -127,6 +133,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra}"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra}"
 	    }
 	}
@@ -139,6 +146,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $loop_exepath \
 		 executable $loop_flags]
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling $pbtype_mssg -DLOOP"
 	cleanup_handler $verbose
@@ -202,6 +210,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} attach"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra} attach"
 	    }
 	}
@@ -220,6 +229,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 4 && $ko == 0} {
 	    pass "$test ${pbtype_mssg}${test_xtra} epilogue"
 	} else {
+	    incr fail_count
 	    fail "$test ($ok) ${pbtype_mssg}${test_xtra} epilogue"
 	}
     }
@@ -282,6 +292,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 		verbose "target_compile failed: $res" 2
 		# -std=gnu++0x and -std=c++0x are not universally accepted
 		if {[string first "unrecognized command line option" $res] == -1} {
+		    incr fail_count
 		    fail "$test compiling types $test_suffix"
 		} else {
 		    untested "$test compiling types $test_suffix"
@@ -330,6 +341,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 		    if { [lindex $type_xfail $j] || $notok == $uns_notok} {
 			xfail "$test types $fail $test_suffix"
 		    } else {
+			incr fail_count
 			fail "$test types $fail $test_suffix"
 		    }
 		} else {
@@ -354,6 +366,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $sup_exepath \
 		 executable $sup42_flags ]
     if { $res0 != "" || $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res0 $res" 2
 	fail "$test compiling -shared $pbtype_mssg"
 	cleanup_handler $verbose
@@ -395,6 +408,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) shared ${pbtype_mssg}${test_xtra}"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) shared ${pbtype_mssg}${test_xtra}"
 	    }
 	}
@@ -417,6 +431,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 		 executable $loop_flags]
     set test_suffix "$pbtype_mssg -DLOOP with markers in a shared object"
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling $test_suffix"
 	cleanup_handler $verbose
@@ -480,6 +495,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} shared attach"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra} shared attach"
 	    }
 	}
@@ -498,6 +514,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 4 && $ko == 0} {
 	    pass "$test ${pbtype_mssg}${test_xtra} shared shared epilogue"
 	} else {
+	    incr fail_count
 	    fail "$test ($ok) ${pbtype_mssg}${test_xtra} shared epilogue"
 	}
     }
@@ -534,6 +551,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 						   || [istarget "arm-*-*"]))} {
 	pass "$test wildcard $pbtype_mssg"
     } else {
+	incr fail_count
 	fail "$test wildcard ($ok) $pbtype_mssg"
     }
     
@@ -544,6 +562,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $supbc_exepath \
 		 executable $supbc_flags]
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling -g $pbtype_mssg --types"
 	cleanup_handler $verbose
@@ -580,6 +599,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} --types"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra} --types"
 	    }
 	}
@@ -615,6 +635,7 @@ foreach runtime [get_runtime_list] {
     if {$ok == 1} {
 	pass "$test \$\$parms${test_xtra}"
     } else {
+	incr fail_count
 	fail "$test ($ok) \$\$parms${test_xtra}"
     }
 }
