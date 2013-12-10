@@ -18,6 +18,7 @@
 startup_timeout=10
 
 # start the server
+cd / # change to a dir we're 100% sure we have RD_ONLY access to
 ${stap_pkglibexecdir}stap-serverd "$@" </dev/null >/dev/null 2>/dev/null &
 server_pid=$!
 
