@@ -1,4 +1,5 @@
-/* COVERAGE: read write readv writev lseek llseek */
+/* COVERAGE: read write readv writev pwritev lseek llseek */
+#define _BSD_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -39,6 +40,14 @@ int main()
 
   writev(fd, v, 3);
   //staptest// writev (NNNN, XXXX, 3) = 15
+
+#ifdef SYS_pwritev
+  pwritev(fd, v, 3, 0);
+  //staptest// pwritev (NNNN, XXXX, 3, 0x0) = 15
+
+  pwritev(fd, v, 3, 0x10);
+  //staptest// pwritev (NNNN, XXXX, 3, 0x10) = 15
+#endif
 
   lseek(fd, 0, SEEK_SET);
   //staptest// lseek (NNNN, 0, SEEK_SET) = 0

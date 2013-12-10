@@ -737,6 +737,56 @@ probe nd_syscall.pwrite32.return = kprobe.function("sys32_pwrite64").return ?
 	retstr = returnstr(1)
 }
 
+# pwritev ___________________________________________________
+#
+# sys_pwritev(unsigned long fd, const struct iovec __user * vec,
+#             unsigned long vlen, unsigned long pos_l, unsigned long pos_h)
+# compat_sys_pwritev(unsigned long fd, const struct compat_iovec __user *vec,
+#                    unsigned long vlen, u32 pos_low, u32 pos_high)
+#
+probe nd_syscall.pwritev = __nd_syscall.pwritev ?,
+			   __nd_syscall.compat_pwritev ?
+{
+	name = "pwritev"
+}
+probe __nd_syscall.pwritev = kprobe.function("sys_pwritev").call
+{
+	// fd = $fd
+	// vector_uaddr = $vec
+	// count = $vlen
+	// offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
+	// argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	//		 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (ulong_arg(5) << %{ BITS_PER_LONG %}) + ulong_arg(4)
+	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
+}
+probe __nd_syscall.compat_pwritev = kprobe.function("compat_sys_pwritev").call
+{
+	// fd = $fd
+	// vector_uaddr = $vec
+	// count = $vlen
+	// offset = ($pos_high << 32) + $pos_low
+	// argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	//		 ($pos_high << 32) + $pos_low)
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (u32_arg(5) << 32) + u32_arg(4)
+	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
+}
+probe nd_syscall.pwritev.return =
+	kprobe.function("sys_pwritev").return ?,
+	kprobe.function("compat_sys_pwritev").return ?
+{
+	name = "pwritev"
+	retstr = returnstr(1)
+}
+
 # quotactl ___________________________________________________
 #
 # long sys_quotactl(unsigned int cmd,

@@ -169,6 +169,16 @@ probe syscall.pwrite.return, syscall.pwrite32.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe syscall.pwritev ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %p %d %d\n", fd, vector_uaddr, count, offset)
+}
+probe syscall.pwritev.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.quotactl
 {
 	printf("%s(%s)\n", name, argstr)
