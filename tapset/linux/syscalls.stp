@@ -2543,17 +2543,27 @@ probe syscall.lremovexattr.return = kernel.function("sys_lremovexattr").return
 
 # lseek ______________________________________________________
 # off_t sys_lseek(unsigned int fd, off_t offset, unsigned int whence)
-probe syscall.lseek = kernel.function("sys_lseek").call
+# COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
+#			 unsigned int, whence)
+#
+probe syscall.lseek = __syscall.lseek, __syscall.compat_lseek ?
 {
 	name = "lseek"
 	fildes = $fd
-#	offset = __int32($offset)
-	offset = $offset
 	whence = @choose_defined($whence, $origin)
 	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
 	argstr = sprintf("%d, %d, %s", $fd, offset, whence_str)
 }
-probe syscall.lseek.return = kernel.function("sys_lseek").return
+probe __syscall.lseek = kernel.function("sys_lseek").call
+{
+	offset = $offset
+}
+probe __syscall.compat_lseek = kernel.function("compat_sys_lseek").call
+{
+	offset = __int32($offset)
+}
+probe syscall.lseek.return = kernel.function("sys_lseek").return,
+			     kernel.function("compat_sys_lseek").return ?
 {
 	name = "lseek"
 	retstr = return_str(1, $return)

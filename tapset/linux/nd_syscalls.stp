@@ -3180,7 +3180,10 @@ probe nd_syscall.lremovexattr.return = kprobe.function("sys_lremovexattr").retur
 
 # lseek ______________________________________________________
 # off_t sys_lseek(unsigned int fd, off_t offset, unsigned int whence)
-probe nd_syscall.lseek = kprobe.function("sys_lseek") ?
+# COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
+#			 unsigned int, whence)
+#
+probe nd_syscall.lseek = __nd_syscall.lseek, __nd_syscall.compat_lseek ?
 {
 	name = "lseek"
 	// fildes = $fd
@@ -3191,12 +3194,24 @@ probe nd_syscall.lseek = kprobe.function("sys_lseek") ?
 	// argstr = sprintf("%d, %d, %s", $fd, offset, whence_str)
 	asmlinkage()
 	fildes = int_arg(1)
-	offset = long_arg(2)
 	whence = uint_arg(3)
 	whence_str = _seek_whence_str(whence)
 	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
 }
-probe nd_syscall.lseek.return = kprobe.function("sys_lseek").return ?
+probe __nd_syscall.lseek = kprobe.function("sys_lseek")
+{
+	// offset = $offset
+	asmlinkage()
+	offset = long_arg(2)
+}
+probe __nd_syscall.compat_lseek = kprobe.function("compat_sys_lseek")
+{
+	// offset = __int32($offset)
+	asmlinkage()
+	offset = s32_arg(2)
+}
+probe nd_syscall.lseek.return = kprobe.function("sys_lseek").return,
+				kprobe.function("compat_sys_lseek").return ?
 {
 	name = "lseek"
 	retstr = returnstr(1)
