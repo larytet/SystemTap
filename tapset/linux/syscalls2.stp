@@ -541,6 +541,45 @@ probe syscall.pread.return = kernel.function("sys_pread64").return
 	retstr = return_str(1, $return)
 }
 
+# preadv ____________________________________________________
+#
+# SYSCALL_DEFINE5(preadv, unsigned long, fd,
+#		  const struct iovec __user *, vec,
+#		  unsigned long, vlen, unsigned long, pos_l,
+#		  unsigned long, pos_h)
+# COMPAT_SYSCALL_DEFINE5(pwritev, unsigned long, fd,
+#		const struct compat_iovec __user *,vec,
+#		unsigned long, vlen, u32, pos_low, u32, pos_high)
+#
+probe syscall.preadv = __syscall.preadv ?, __syscall.compat_preadv ?
+{
+	name = "preadv"
+}
+probe __syscall.preadv = kernel.function("sys_preadv")
+{
+	fd = $fd
+	vector_uaddr = $vec
+	count = $vlen
+	offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
+	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+			 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
+}
+probe __syscall.compat_preadv = kernel.function("compat_sys_preadv")
+{
+	fd = $fd
+	vector_uaddr = $vec
+	count = $vlen
+	offset = ($pos_high << 32) + $pos_low
+	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+			 ($pos_high << 32) + $pos_low)
+}
+probe syscall.preadv.return = kernel.function("sys_preadv").return ?,
+			      kernel.function("compat_sys_preadv").return ?
+{
+	name = "preadv"
+	retstr = return_str(1, $return)
+}
+
 # pselect6 _____________________________________________________
 #
 # long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,

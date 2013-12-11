@@ -136,6 +136,16 @@ probe nd_syscall.pread.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.preadv ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %p %d %d\n", fd, vector_uaddr, count, offset)	
+}
+probe nd_syscall.preadv.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.pselect6 ?, nd_syscall.compat_pselect6 ?,
       nd_syscall.pselect7 ?,
 %( systemtap_v <= "1.3" %?

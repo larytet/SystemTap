@@ -557,6 +557,56 @@ probe nd_syscall.pread.return = kprobe.function("sys_pread64").return ?
 	retstr = returnstr(1)
 }
 
+# preadv ____________________________________________________
+#
+# SYSCALL_DEFINE5(preadv, unsigned long, fd,
+#		  const struct iovec __user *, vec,
+#		  unsigned long, vlen, unsigned long, pos_l,
+#		  unsigned long, pos_h)
+# COMPAT_SYSCALL_DEFINE5(pwritev, unsigned long, fd,
+#		const struct compat_iovec __user *,vec,
+#		unsigned long, vlen, u32, pos_low, u32, pos_high)
+#
+probe nd_syscall.preadv = __nd_syscall.preadv ?, __nd_syscall.compat_preadv ?
+{
+	name = "preadv"
+}
+probe __nd_syscall.preadv = kernel.function("sys_preadv")
+{
+	# fd = $fd
+	# vector_uaddr = $vec
+	# count = $vlen
+	# offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
+	# argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	#		 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
+	asmlinkage()
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (ulong_arg(5) << %{ BITS_PER_LONG %}) + ulong_arg(4)
+	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
+}
+probe __nd_syscall.compat_preadv = kernel.function("compat_sys_preadv")
+{
+	# fd = $fd
+	# vector_uaddr = $vec
+	# count = $vlen
+	# offset = ($pos_high << 32) + $pos_low
+	# argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	#		 ($pos_high << 32) + $pos_low)
+	fd = int_arg(1)
+	vector_uaddr = pointer_arg(2)
+	count = int_arg(3)
+	offset = (u32_arg(5) << 32) + u32_arg(4)
+	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
+}
+probe nd_syscall.preadv.return = kernel.function("sys_preadv").return ?,
+				 kernel.function("compat_sys_preadv").return ?
+{
+	name = "preadv"
+	retstr = returnstr(1)
+}
+
 # pselect6 _____________________________________________________
 #
 # long sys_pselect6(int n, fd_set __user *inp, fd_set __user *outp,

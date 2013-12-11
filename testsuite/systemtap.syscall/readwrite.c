@@ -1,4 +1,4 @@
-/* COVERAGE: read write readv writev pwritev lseek llseek */
+/* COVERAGE: read write readv preadv writev pwritev lseek llseek */
 #define _BSD_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -45,8 +45,8 @@ int main()
   pwritev(fd, v, 3, 0);
   //staptest// pwritev (NNNN, XXXX, 3, 0x0) = 15
 
-  pwritev(fd, v, 3, 0x10);
-  //staptest// pwritev (NNNN, XXXX, 3, 0x10) = 15
+  pwritev(fd, v, 3, 0x100);
+  //staptest// pwritev (NNNN, XXXX, 3, 0x100) = 15
 #endif
 
   lseek(fd, 0, SEEK_SET);
@@ -56,7 +56,7 @@ int main()
   //staptest// lseek (NNNN, 1, SEEK_CUR) = 1
 
   lseek(fd, -1, SEEK_END);
-  //staptest// lseek (NNNN, -1, SEEK_END) = 84
+  //staptest// lseek (NNNN, -1, SEEK_END) = NNNN
 
 #ifdef SYS__llseek
   syscall(SYS__llseek, fd, 1, 0, &res, SEEK_SET);
@@ -73,6 +73,7 @@ int main()
 #endif
 
   close (fd);
+  //staptest// close (NNNN) = 0
 
   fd = open("foobar1",O_RDONLY);
   //staptest// open ("foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
@@ -95,7 +96,16 @@ int main()
   readv(fd, x, 3);
   //staptest// readv (NNNN, XXXX, 3) = 15
 
+#ifdef SYS_preadv
+  preadv(fd, x, 3, 0);
+  //staptest// preadv (NNNN, XXXX, 3, 0x0) = 15
+
+  preadv(fd, x, 3, 0x100);
+  //staptest// preadv (NNNN, XXXX, 3, 0x100) = 15
+#endif
+
   close (fd);
+  //staptest// close (NNNN) = 0
 
   return 0;
 }
