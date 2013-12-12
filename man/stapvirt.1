@@ -83,7 +83,7 @@ List available domains.
 
 .IP "\fBport-add\fR \fIDOMAIN\fR"
 Add a permanent SystemTap port to the domain's definition. If the domain is
-currently running, it must be restarted before changes take effect.
+currently running, it must be powered off before changes take effect.
 
 .IP "\fBport-list\fR \fIDOMAIN\fR"
 List the UNIX socket paths of the permanent SystemTap ports in the domain's
@@ -91,7 +91,7 @@ definition.
 
 .IP "\fBport-remove\fR \fIDOMAIN\fR"
 Remove a permanent SystemTap port from the domain's definition. If the domain is
-currently running, it must be restarted before changes take effect.
+currently running, it must be powered off before changes take effect.
 
 .IP "\fBquery\fR \fIDOMAIN\fR"
 Display the following information about the domain: its name, its UUID, its
@@ -173,8 +173,8 @@ It now indicates that there is 1 permanent port. We can also use the
 /var/lib/libvirt/qemu/TestVM.org.systemtap.stapsh.0.sock
 .ESAMPLE
 
-After stopping and restarting the domain, we are now ready to use the port with
-\fIstap\fR:
+After powering off and restarting the domain, we are now ready to use the port
+with \fIstap\fR:
 
 .SAMPLE
 \fB$\fR stap -e 'probe begin { printf("Hello from TestVM!\\n"); exit() }' \\
@@ -188,7 +188,7 @@ command:
 .SAMPLE
 \fB$\fR stapvirt port-remove TestVM
 Removed port org.systemtap.stapsh.0
-The domain must be restarted before changes take effect.
+The domain must be powered off before changes take effect.
 .ESAMPLE
 
 And that's all there is to it!

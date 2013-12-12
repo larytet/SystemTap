@@ -883,7 +883,7 @@ cmd_port_add()
 
     printf("Added new port %s\n", getXmlPortName(newPort));
     if (virDomainIsActive(targetDom) == 1) // helpful hint for user
-        printf("The domain must be restarted before changes take effect.\n");
+        printf("The domain must be powered off before changes take effect.\n");
 
     goto cleanup;
 error:
@@ -918,7 +918,7 @@ cmd_port_remove()
 
     printf("Removed port %s\n", getXmlPortName(maxPort));
     if (virDomainIsActive(targetDom) == 1) // helpful hint for user
-        printf("The domain must be restarted before changes take effect.\n");
+        printf("The domain must be powered off before changes take effect.\n");
 
     goto cleanup;
 error:
@@ -1229,7 +1229,7 @@ cleanup:
 static void
 usage(int code)
 {
-    // 80 screen width = 94 here
+    // 80 screen width = 94 here --> put last printed char in col 93 at the V after this... V
     // The port-add command purposely does not also hotplug the port, even if
     // supported
     //   - It would make it harder to figure out the final state
@@ -1256,15 +1256,15 @@ usage(int code)
     eprintf("           List available domains.\n");
     eprintf("     port-add <domain>\n");
     eprintf("           Add a permanent SystemTap port to the domain's definition. If the\n");
-    eprintf("           domain is currently running, it must be restarted before changes take\n");
-    eprintf("           effect.\n");
+    eprintf("           domain is currently running, it must be powered off before changes\n");
+    eprintf("           take effect.\n");
     eprintf("     port-list <domain>\n");
     eprintf("           List the UNIX socket paths of the permanent SystemTap ports in the\n");
     eprintf("           domain's definition.\n");
     eprintf("     port-remove <domain>\n");
     eprintf("           Remove a permanent SystemTap port from the domain's definition. If\n");
-    eprintf("           the domain is currently running, it must be restarted before changes\n");
-    eprintf("           take effect.\n");
+    eprintf("           the domain is currently running, it must be powered off before\n");
+    eprintf("           changes take effect.\n");
     eprintf("     query <domain>\n");
     eprintf("           Display the following information about the domain: its name, its\n");
     eprintf("           UUID, its state, the number of permanent SystemTap ports installed,\n");
