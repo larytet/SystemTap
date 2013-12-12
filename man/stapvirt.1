@@ -38,15 +38,22 @@ These ports can then be used by \fIstap\fR to
 run scripts inside the domains (see the '--remote' option in \fIstap\fR(1) for
 more information).
 .PP
-Starting from libvirt v1.1.1 and QEMU v0.10.0, SystemTap
-ports can be hotplugged and thus domains do not require any preparation using
-\fIstapvirt\fR. The 'query' command can be used to determine whether hotplugging
-is supported.
+Ports are added to the definition of the domain using the \fBport-add\fR
+command.  These ports can later be removed using the \fBport-remove\fR command.
+Note that there can only be as many simultaneous \fIstap\fR sessions as there
+are ports.
 .PP
-If hotplugging is not supported, then ports must be added to the definition of
-the domain using the 'port-add' command. These ports can later be removed using
-the 'port-remove' command. Note that there can only be as many simultaneous
-\fIstap\fR sessions as there are ports.
+Starting from libvirt v1.1.1 and QEMU v0.10.0, SystemTap ports can be hotplugged
+and thus do not need to be added first using the \fBport-add\fR command.
+However, you need to ensure that there is a virtio-serial controller in place so
+that hotplugged ports can be connected. If creating a domain using virt-install,
+you can do this by adding this option:
+.SAMPLE
+\fB$\fR virt-install [...] --controller=virtio-serial
+.ESAMPLE
+If the domain has already been created, you can simply do \fBport-add\fR
+followed immediately by \fBport-remove\fR. The port will be removed, but the
+controller will remain.
 
 .SH OPTIONS
 The following options are supported. Any other option prints a short help
@@ -138,9 +145,10 @@ information: the number of permanent ports installed, and whether hotplugging is
 supported.  Technically, hotplugging support depends on libvirt and qemu, and is
 not related to the domain in itself.
 .PP
-If hotplugging were supported, we could stop here and run \fIstap\fR directly.
-Since in our case hotplugging is not supported, we need to add SystemTap ports.
-To do this, we use the \fBport-add\fR command:
+If hotplugging were supported, we could stop here and run \fIstap\fR directly
+(assuming we have a virtio-serial controller already in place, see
+\fBDESCRIPTION\fR). Since in our case hotplugging is not supported, we need to
+add SystemTap ports. To do this, we use the \fBport-add\fR command:
 
 .SAMPLE
 \fB$\fR stapvirt port-add TestVM
@@ -188,7 +196,8 @@ And that's all there is to it!
 .SH SEE ALSO
 .nh
 .nf
-.IR stap (1)
+.IR stap (1),
+.IR virt-install (1)
 
 .SH BUGS
 Use the Bugzilla link of the project web page or our mailing list.
