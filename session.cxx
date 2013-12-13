@@ -15,6 +15,7 @@
 #include "buildrun.h"
 #include "coveragedb.h"
 #include "hash.h"
+#include "setupdwfl.h"
 #include "task_finder.h"
 #include "csclient.h"
 #include "rpm_finder.h"
@@ -690,6 +691,7 @@ int
 systemtap_session::parse_cmdline (int argc, char * const argv [])
 {
   client_options_disallowed_for_unprivileged = "";
+  std::set<std::string> additional_unwindsym_modules;
   struct rlimit our_rlimit;
   while (true)
     {
@@ -769,7 +771,8 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
             }
             // At runtime user module names are resolved through their
             // canonical (absolute) path, or else it's a kernel module name.
-            unwindsym_modules.insert (resolve_path (optarg));
+	    // The sysroot option might change the path to a user module.
+            additional_unwindsym_modules.insert (resolve_path (optarg));
             // NB: we used to enable_vma_tracker() here for PR10228, but now
             // we'll leave that to pragma:vma functions which actually use it.
             break;
@@ -1503,6 +1506,20 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           return 1;
           break;
         }
+    }
+
+  for (std::set<std::string>::iterator it = additional_unwindsym_modules.begin();
+       it != additional_unwindsym_modules.end();
+       it++)
+    {
+      if (is_user_module(*it))
+	{
+	  unwindsym_modules.insert (resolve_path(sysroot + *it));
+	}
+      else
+	{
+	  unwindsym_modules.insert (*it);
+	}
     }
 
   return 0;
