@@ -1,3 +1,6 @@
+# In this test, we are using arrays as sets. The key itself does not matter,
+# only the value
+
 # many of these tests use as_root
 if {! [installtest_p]} { return }
 if {! [nss_p]} { return }
@@ -5,10 +8,60 @@ if {! [nss_p]} { return }
 # Let's start with a clean slate in terms of trust.
 exec rm -fr $env(SYSTEMTAP_DIR)/ssl
 
-# Compare two arrays. If equal, return 1, otherwise 0.
-# (Borrowed from http://wiki.tcl.tk/1032.)
-proc array_compare {array1 array2} {
+# arr given as list (e.g. [array_has [array get myarr] elem])
+proc array_has {arr elem} {
+
+    array set foo $arr
+    if {[array size foo] == 0} {
+        return 0
+    }
+
+    foreach {key val} [array get foo] {
+        if {[string equal $val $elem]} {
+            return 1
+        }
+    }
+
+    return 0
+}
+
+# Check if array1 is a subset of array2. Returns 1 if yes, otherwise 0.
+# (Modified from http://wiki.tcl.tk/1032.)
+proc array_in {array1 array2} {
+    upvar 1 $array1 sub $array2 super
+
+    if {![array exists sub]} {
+        return -code error "$array1 is not an array"
+    }
+    if {![array exists super]} {
+        return -code error "$array2 is not an array"
+    }
+    if {[array size sub] > [array size super]} {
+        return 0
+    }
+    if {[array size sub] == 0} {
+        return 1
+    }
+
+    foreach key [array names sub] {
+        if {![array_has [array get super] $sub($key)]} {
+            return 0
+        }
+    }
+    return 1
+}
+
+# Check if array1 and array2 have all the same elements
+proc array_equal {array1 array2} {
     upvar 1 $array1 foo $array2 bar
+    return [array_in foo bar] \
+        && [array_in bar foo]
+}
+
+# Returns the union of the three arrays
+proc array_union {array1 array2 array3} {
+    upvar 1 $array1 foo $array2 bar $array3 baz
+    array unset ::union
 
     if {![array exists foo]} {
         return -code error "$array1 is not an array"
@@ -16,24 +69,48 @@ proc array_compare {array1 array2} {
     if {![array exists bar]} {
         return -code error "$array2 is not an array"
     }
-    if {[array size foo] != [array size bar]} {
-        return 0
-    }
-    if {[array size foo] == 0} {
-        return 1
+    if {![array exists baz]} {
+        return -code error "$array3 is not an array"
     }
 
-    set keys [lsort -unique [concat [array names foo] [array names bar]]]
-    if {[llength $keys] != [array size foo]} {
-       return 0
+    set n 0
+    foreach key [array names foo] {
+        set ::union($n) $foo($key)
+        incr n
     }
-
-    foreach key $keys {
-        if {$foo($key) ne $bar($key)} {
-            return 0
+    foreach key [array names bar] {
+        if {![array_has [array get ::union] $bar($key)]} {
+            set ::union($n) $bar($key)
+            incr n
         }
     }
-    return 1
+    foreach key [array names baz] {
+        if {![array_has [array get ::union] $baz($key)]} {
+            set ::union($n) $baz($key)
+            incr n
+        }
+    }
+}
+
+# Returns all the elements in array_new not in array_old
+proc array_diff {array_new array_old} {
+    upvar 1 $array_new anew $array_old aold
+    array unset ::diff
+
+    if {![array exists anew]} {
+        return -code error "$array_new is not an array"
+    }
+    if {![array exists aold]} {
+        return -code error "$array_old is not an array"
+    }
+
+    set n 0
+    foreach key [array names anew] {
+        if {![array_has [array get aold] $anew($key)]} {
+            set ::diff($n) $anew($key)
+            incr n
+        }
+    }
 }
 
 # Test the --list-servers option and return an array of the servers found.
@@ -82,7 +159,6 @@ proc list_servers { TEST_NAME SERVER_SPEC args } {
 # Sometimes, we'll see a server running from the last test, if it
 # hasn't quite died yet. So, make sure we get the same result twice.
 list_servers "List existing online servers" online
-array unset eos1
 array set existing_online_servers [array get servers]
 set i 0
 while {1} {
@@ -94,9 +170,9 @@ while {1} {
 	fail "List existing online servers: never got stable"
 	return
     }
-    
+
     verbose -log "verify existing online servers - attempt $i: [array size existing_online_servers] [array size eos2]"
-    if {[array_compare existing_online_servers eos2]} {
+    if {[array_equal existing_online_servers eos2]} {
 	# Arrays are equal, we're done
 	break
     }
@@ -120,37 +196,23 @@ list_servers "List all existing servers" all
 array unset all_existing_servers
 array set all_existing_servers [array get servers]
 
-set test "Verify existing online server list"
-if {[array_compare existing_online_servers all_existing_servers]} {
-    pass "$test"
-} else {
-    fail "$test"
-}
+# First we create a union
+array_union existing_online_servers \
+            existing_trusted_servers \
+            existing_signing_servers
+array set existing_unioned_servers [array get union]
 
-set test "Verify existing trusted server list"
-if {[array_compare existing_trusted_servers all_existing_servers]} {
-    pass "$test"
-} else {
-    fail "$test"
-}
-
-set test "Verify existing signing server list"
-if {[array_compare existing_signing_servers all_existing_servers]} {
-    pass "$test"
-} else {
-    fail "$test"
-}
-
-set test "Verify all existing server list"
-if {[array_compare existing_online_servers all_existing_servers]} {
+# Now we can compare
+set test "Verify existing server list"
+if {[array_equal existing_unioned_servers all_existing_servers]} {
     pass "$test"
 } else {
     fail "$test"
 }
 
 list_servers "List existing online servers (before start)" online
-array unset existing_online_servers1
-array set existing_online_servers1 [array get servers]
+array unset existing_online_servers
+array set existing_online_servers [array get servers]
 
 # Now start our own server and make sure we can work with it.
 if {! [setup_server] || $avahi_ok_p != 1} {
@@ -159,31 +221,22 @@ if {! [setup_server] || $avahi_ok_p != 1} {
 }
 
 # Our server should now appear online, separate from the previously discovered
-# online servers. Note that our server could generate serveral listings
-# because it could appear at more than one ip address,
+# online servers. Note that our server could generate serveral listings because
+# it could appear at more than one ip address,
 list_servers "List current online servers" online
 array unset current_online_servers
 array set current_online_servers [array get servers]
 
+# array_diff will give us all the servers in current not in existing
+array_diff current_online_servers existing_online_servers
+array unset new_online_servers
+array set new_online_servers [array get diff]
+
 set test "New online servers"
-set n 0
-foreach idx1 [array names current_online_servers] {
-    set found 0
-    foreach idx2 [array names existing_online_servers] {
-	if {"$existing_online_servers($idx2)" == "$current_online_servers($idx1)"} {
-	    set found 1
-	    break
-	}
-    }
-    if {$found == 0} {
-	set new_online_servers($n) "$current_online_servers($idx1)"
-	incr n
-    }
-}
-if {$n == 0} {
-    fail "$test"
-} else {
+if {[array size new_online_servers] > 0} {
     pass "$test"
+} else {
+    fail "$test"
 }
 
 # Our server should now be trusted, separate from the previously discovered
@@ -192,48 +245,27 @@ list_servers "List current trusted servers" online,trusted
 array unset current_trusted_servers
 array set current_trusted_servers [array get servers]
 
+# array_diff will give us all the servers in current not in existing
+array_diff current_trusted_servers existing_trusted_servers
+array unset new_trusted_servers
+array set new_trusted_servers [array get diff]
+
 set test "New trusted servers"
-set n 0
-foreach idx1 [array names current_trusted_servers] {
-    set found 0
-    foreach idx2 [array names existing_trusted_servers] {
-	if {"$existing_trusted_servers($idx2)" == "$current_trusted_servers($idx1)"} {
-	    set found 1
-	    break
-	}
-    }
-    if {$found == 0} {
-	set new_trusted_servers($n) "$current_trusted_servers($idx1)"
-	incr n
-    }
-}
-if {$n == 0} {
-    fail "$test"
-} else {
+if {[array size new_trusted_servers] > 0} {
     pass "$test"
+} else {
+    fail "$test"
 }
 
 # The new servers should automatically be trusted, so the new_trusted_servers
-# array should be a subset of the new_online_servers
-# array, but not necessarilty vice-versa, since new servers may have come
-# online independently of our testing.
+# array should be a subset of the new_online_servers array, but not necessarily
+# vice-versa, since new servers may have come online independently of our
+# testing.
 set test "Verify new trusted server list"
-set failed 0
-foreach idx1 [array names new_trusted_servers] {
-    set found 0
-    foreach idx2 [array names new_online_servers] {
-	if {"$new_trusted_servers($idx1)" == "$new_online_servers($idx2)"} {
-	    set found 1
-	    break
-	}
-    }
-    if {$found == 0} {
-	set failed 1
-	fail "$test $idx1"
-    }
-}
-if {$failed == 0} {
+if {[array_in new_trusted_servers new_online_servers]} {
     pass "$test"
+} else {
+    fail "$test"
 }
 
 # The newly trusted servers represent the server we just started.
@@ -247,7 +279,7 @@ array unset current_signing_servers
 array set current_signing_servers [array get servers]
 
 set test "No new signing servers"
-if {[array_compare current_signing_servers existing_signing_servers]} {
+if {[array_equal current_signing_servers existing_signing_servers]} {
     pass "$test"
 } else {
     fail "$test"
@@ -287,7 +319,7 @@ array unset current_trusted_servers
 array set current_trusted_servers [array get servers]
 
 set test "No longer trusted after revokation by host name"
-if {[array_compare current_trusted_servers existing_trusted_servers]} {
+if {[array_equal current_trusted_servers existing_trusted_servers]} {
     pass "$test"
 } else {
     fail "$test"
@@ -320,54 +352,24 @@ list_servers "List current trusted servers after reinstatement by ip address" on
 array unset current_trusted_servers
 array set current_trusted_servers [array get servers]
 
-set test "New trusted servers after reinstatement by ip address"
+array_diff current_trusted_servers existing_trusted_servers
 array unset new_trusted_servers
-set n 0
-foreach idx1 [array names current_trusted_servers] {
-    set found 0
-    foreach idx2 [array names existing_trusted_servers] {
-	if {"$existing_trusted_servers($idx2)" == "$current_trusted_servers($idx1)"} {
-	    set found 1
-	    break
-	}
-    }
-    if {$found == 0} {
-	set new_trusted_servers($n) "$current_trusted_servers($idx1)"
-	incr n
-    }
-}
-if {$n == 0} {
-    fail "$test"
-} else {
+array set new_trusted_servers [array get diff]
+
+set test "New trusted servers after reinstatement by ip address"
+if {[array size new_trusted_servers] > 0} {
     pass "$test"
+} else {
+    fail "$test"
 }
 
 # The new_trusted_servers array should now match the our_servers array, since
 # the our_servers array is a copy of the original new_trusted_servers array.
-set test "Number of new trusted servers matches after reinstatement by ip address"
-if {[array size new_trusted_servers] == [array size our_servers]} {
-    pass "$test"
-} else {
-    fail "$test"
-}
 set test "New trusted servers matches after reinstatement by ip address"
-set n 0
-foreach idx1 [array names new_trusted_servers] {
-    set found 0
-    foreach idx2 [array names our_servers] {
-	if {"$our_servers($idx2)" == "$new_trusted_servers($idx1)"} {
-	    set found 1
-	    break
-	}
-    }
-    if {$found == 1} {
-	incr n
-    }
-}
-if {$n != [array size new_trusted_servers]} {
-    fail "$test"
-} else {
+if {[array_equal new_trusted_servers our_servers]} {
     pass "$test"
+} else {
+    fail "$test"
 }
 
 # Trust our server as a module signer. This must be done as root. Specify
@@ -394,28 +396,18 @@ list_servers "List current online signing servers" online,signer
 array unset current_signing_servers
 array set current_signing_servers [array get servers]
 
+array_diff current_signing_servers existing_signing_servers
+array unset new_signing_servers
+array set new_signing_servers [array get diff]
+
 set test "New signing servers"
-set n 0
-foreach idx1 [array names current_signing_servers] {
-    set found 0
-    foreach idx2 [array names existing_signing_servers] {
-	if {"$existing_signing_servers($idx2)" == "$current_signing_servers($idx1)"} {
-	    set found 1
-	    break
-	}
-    }
-    if {$found == 0} {
-	set new_signing_servers($n) "$current_signing_servers($idx1)"
-	incr n
-    }
-}
 if {$effective_pid == 0} {
     setup_xfail *-*-*
 }
-if {$n == 0} {
-    fail "$test"
-} else {
+if {[array size new_signing_servers] > 0} {
     pass "$test"
+} else {
+    fail "$test"
 }
 
 # The new_signing_servers array should now match the our_servers array, since
@@ -428,23 +420,10 @@ if {$effective_pid == 0} {
 if {[array size new_signing_servers] == [array size our_servers]} {
     pass "$test"
     set test "New signing servers matches"
-    set n 0
-    foreach idx1 [array names new_signing_servers] {
-	set found 0
-	foreach idx2 [array names our_servers] {
-	    if {"$our_servers($idx2)" == "$new_signing_servers($idx1)"} {
-		set found 1
-		break
-	    }
-	}
-	if {$found == 1} {
-	    incr n
-	}
-    }
     if {$effective_pid == 0} {
 	setup_xfail *-*-*
     }
-    if {$n != [array size new_signing_servers]} {
+    if {[array_equal new_signing_servers our_servers]} {
 	fail "$test"
     } else {
 	pass "$test"
@@ -594,7 +573,7 @@ array unset current_signing_servers
 array set current_signing_servers [array get servers]
 
 set test "No longer trusted as a signer after revokation"
-if {[array_compare current_signing_servers existing_signing_servers]} {
+if {[array_in current_signing_servers existing_signing_servers]} {
     pass "$test"
 } else {
     fail "$test"
