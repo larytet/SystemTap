@@ -9846,8 +9846,49 @@ static vector<string> tracepoint_extra_decls (systemtap_session& s, const string
     if (s.kernel_source_tree != "")
       they_live.push_back ("#include \"fs/ext4/ext4.h\""); // in kernel-source tree
 
-  if (header.find("ext3") != string::npos && s.kernel_config["CONFIG_EXT3_FS"] != string(""))
+  if (header.find("ext3") != string::npos)
     they_live.push_back ("struct ext3_reserve_window_node;");
+
+  if (header.find("workqueue") != string::npos)
+    {
+      they_live.push_back ("struct pool_workqueue;");
+      they_live.push_back ("struct work_struct;");
+    }
+
+  if (header.find("asoc") != string::npos)
+    they_live.push_back ("struct snd_soc_dapm_path;");
+
+  if (header.find("9p") != string::npos)
+    {
+      they_live.push_back ("struct p9_client;");
+      they_live.push_back ("struct p9_fcall;");
+    }
+
+  if (header.find("bcache") != string::npos)
+    {
+      they_live.push_back ("struct bkey;");
+      they_live.push_back ("struct btree;");
+      they_live.push_back ("struct cache_set;");
+      they_live.push_back ("struct cache;");
+    }
+
+  if (header.find("f2fs") != string::npos)
+    {
+      // cannot get fs/f2fs/f2fs.h #included
+      they_live.push_back ("typedef u32 block_t;");
+      they_live.push_back ("typedef u32 nid_t;");
+    }
+
+  if (header.find("radeon") != string::npos)
+    they_live.push_back ("struct radeon_bo;");
+
+  // argh, 3.11, i915_trace.h -> i915_drv.h -> i915_reg.h without -I
+  // also brcms_trace_events.h -> ... -> "types.h"
+  // XXX: need a way to add a temporary -I flag
+
+  if (header.find("/ath/") != string::npos)
+    they_live.push_back ("struct ath5k_hw;");
+
 
   return they_live;
 }
@@ -10382,10 +10423,21 @@ tracepoint_builder::init_dw(systemtap_session& s)
   vector<string> glob_suffixes;
   glob_suffixes.push_back("include/trace/events/*.h");
   glob_suffixes.push_back("include/trace/*.h");
+  glob_suffixes.push_back("include/ras/*_event.h");
   glob_suffixes.push_back("arch/x86/kvm/*trace.h");
-  glob_suffixes.push_back("arch/x86/include/asm/trace/*.h");
+  glob_suffixes.push_back("arch/x86/kernel/*trace.h");
+  glob_suffixes.push_back("arch/*/include/asm/trace*.h");
+  glob_suffixes.push_back("arch/*/include/asm/trace/*.h");
   glob_suffixes.push_back("fs/xfs/linux-*/xfs_tr*.h");
-  glob_suffixes.push_back("fs/xfs/xfs_trace*.h");
+  glob_suffixes.push_back("fs/*/*trace*.h");
+  glob_suffixes.push_back("net/*/*trace*.h");
+  glob_suffixes.push_back("sound/pci/hda/*_trace.h");
+  glob_suffixes.push_back("drivers/gpu/drm/*_trace.h");
+  glob_suffixes.push_back("drivers/gpu/drm/*/*_trace.h");
+  glob_suffixes.push_back("drivers/net/wireless/*/*/*trace*.h");
+  glob_suffixes.push_back("drivers/usb/host/*trace*.h");
+
+  // see also tracepoint_extra_decls above
 
   // compute cartesian product
   vector<string> globs;

@@ -23,7 +23,8 @@ ${PERF-perf} list | grep Tracepoint | egrep -v 'sys_(enter|exit)_' |
      cut -f2 -d':' | awk '{print $1}' | sort > $tmp/perf
 
 echo gathering systemtap tracepoint list
-${STAP-stap} -L 'kernel.trace("*")' | cut -f2 -d'"' | sort > $tmp/stap
+${STAP-stap} --poison-cache -L 'kernel.trace("*")' | cut -f2 -d'"' | sort > $tmp/stap
 
-echo diff '<perf' vs. '>stap' tracepoints
-comm -3 $tmp/perf $tmp/stap
+echo listing tracepoints missing in stap
+echo
+comm ${COMM--23} $tmp/perf $tmp/stap
