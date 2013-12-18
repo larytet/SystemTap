@@ -1,4 +1,31 @@
-* What's new in version 2.4
+* What's new in version 2.5
+
+- SystemTap now reports more accurate and succinct errors on type
+  mismatches.
+
+* What's new in version 2.4, 2013-11-06
+
+- Better suggestions are given in many of the semantic errors in which
+  alternatives are provided. Additionally, suggestions are now provided
+  when plt and trace probes could not be resolved. For example,
+  kernel.trace("sched_siwtch") will suggest 'sched_switch'.
+
+- SystemTap is now smarter about error reporting. Errors from the same
+  source are considered duplicates and suppressed. A message is
+  displayed on exit if any errors/warnings were suppressed.
+
+- Statistics aggregate typed objects are now implemented locklessly,
+  if the translator finds that they are only ever read (using the
+  foreach / @count / etc. constructs) in a probe-begin/end/error.
+
+- SystemTap now supports probing inside virtual machines using the
+  libvirt and unix schemes, e.g.
+
+      stap -ve 'probe timer.s(1) { printf("hello!\n") }' \
+         --remote=libvirt://MyVirtualMachine
+
+  Virtual machines managed by libvirt can be prepared using stapvirt.
+  See stapvirt(1) and the --remote option in stap(1) for more details.
 
 - Systemtap now checks for and uses (when available) the .gnu_debugdata
   section which contains a subset of debuginfo, useful for backtraces
@@ -15,6 +42,14 @@
   refuse to load systemtap modules (since these are not normally
   signed with the kernel's build-time keys).  This protection may
   be suppressed with the $STAP_FIPS_OVERRIDE environment variable.
+
+- The stap-server client & server code now enable all SSL/TLS
+  ciphers rather than just the "export" subset.
+
+- For systems with in-kernel utrace, 'process.end' and 'thread.end'
+  probes will hit before the target's parent process is notified of
+  the target's death. This matches the behavior of newer kernels
+  without in-kernel utrace.
 
 * What's new in version 2.3, 2013-07-25
 

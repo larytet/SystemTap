@@ -2,11 +2,13 @@
 # the same test name for result comparisons.
 set test "sdt_misc"
 
+if {! [installtest_p]} { untested "$test"; return }
+
 # Test V3 asm support
 
 proc cleanup_handler { verbose } {
     if { $verbose == 0 } {
-	catch {exec rm -f sdt_asm.x ,semclean ,semout}
+	catch {exec rm -f sdt_asm.x}
     }
 }
 
@@ -61,3 +63,5 @@ if {[istarget "x86_64-*-*"] || [istarget "i*86-*-*"]} {
 	}
     }
 } else { unsupported "$test asm" } ; # x86_64 | i.86
+
+cleanup_handler $verbose

@@ -405,14 +405,16 @@ passes_0_4 (systemtap_session &s)
     }
 
   // Now that no further changes to s.kernel_build_tree can occur, let's use it.
-  if ((rc = s.parse_kernel_config ()) != 0
-      || (rc = s.parse_kernel_exports ()) != 0
-      || (rc = s.parse_kernel_functions ()) != 0)
-    {
-      // Try again with a server
-      s.set_try_server ();
-      return rc;
-    }
+  if (s.runtime_mode == systemtap_session::kernel_runtime) {
+    if ((rc = s.parse_kernel_config ()) != 0
+        || (rc = s.parse_kernel_exports ()) != 0
+        || (rc = s.parse_kernel_functions ()) != 0)
+      {
+        // Try again with a server
+        s.set_try_server ();
+        return rc;
+      }
+  }
 
   // Create the name of the C source file within the temporary
   // directory.  Note the _src prefix, explained in
@@ -560,7 +562,8 @@ passes_0_4 (systemtap_session &s)
               if (s.verbose>2)
                 clog << _F("Processing tapset \"%s\"", globbuf.gl_pathv[j]) << endl;
 
-              stapfile* f = parse_library_macros (s, globbuf.gl_pathv[j]);
+              stapfile* f = parse_library_macros (s, globbuf.gl_pathv[j],
+                                                  true /* errs_as_warnings */);
               if (f == 0)
                 s.print_warning(_F("macro tapset \"%s\" has errors, and will be skipped.", string(globbuf.gl_pathv[j]).c_str()));
               else
@@ -646,7 +649,9 @@ passes_0_4 (systemtap_session &s)
               // root-equivalent privileges anyway; stapsys and stapusr use a remote compilation
               // with a trusted environment, where client-side $XDG_DATA_DIRS are not passed.
 
-              stapfile* f = parse (s, globbuf.gl_pathv[j], true /* privileged */);
+              stapfile* f = parse (s, globbuf.gl_pathv[j],
+                                    true /* privileged */,
+                                    true /* errs_as_warnings */);
               if (f == 0)
                 s.print_warning(_F("tapset \"%s\" has errors, and will be skipped", string(globbuf.gl_pathv[j]).c_str()));
               else
@@ -671,16 +676,16 @@ passes_0_4 (systemtap_session &s)
 
   if (s.script_file == "-")
     {
-      s.user_file = parse (s, cin, s.guru_mode);
+      s.user_file = parse (s, cin, s.guru_mode, false /* errs_as_warnings */);
     }
   else if (s.script_file != "")
     {
-      s.user_file = parse (s, s.script_file, s.guru_mode);
+      s.user_file = parse (s, s.script_file, s.guru_mode, false /* errs_as_warnings */);
     }
   else
     {
       istringstream ii (s.cmdline_script);
-      s.user_file = parse (s, ii, s.guru_mode);
+      s.user_file = parse (s, ii, s.guru_mode, false /* errs_as_warnings */);
     }
   if (s.user_file == 0)
     {
@@ -952,6 +957,8 @@ cleanup (systemtap_session &s, int rc)
     cerr << _("Coverage database not available without libsqlite3") << endl;
 #endif
   }
+
+  s.report_suppression();
 
   PROBE1(stap, pass6__end, &s);
 }

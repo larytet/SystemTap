@@ -161,10 +161,6 @@ static void _stp_stack_print_fallback(unsigned long s, int v, int l, int k) {
 
 #endif /* defined(STAPCONF_KERNEL_STACKTRACE) || defined(STAPCONF_KERNEL_STACKTRACE_NO_BP) */
 
-// Without KPROBES very little works atm.
-// But this file is unconditionally imported, while these two functions are only
-// used through context-unwind.stp.
-#if defined (CONFIG_KPROBES)
 
 /** Gets user space registers when available, also sets context
  * full_uregs_p if appropriate.  Should be used instead of accessing
@@ -637,7 +633,5 @@ static void _stp_stack_user_sprint(char *str, int size, struct context* c,
 	strlcpy(str, pb->buf, size < (int)pb->len ? size : (int)pb->len);
 	pb->len = 0;
 }
-
-#endif /* CONFIG_KPROBES */
 
 #endif /* _STACK_C_ */

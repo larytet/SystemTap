@@ -1,3 +1,21 @@
+
+%{
+// Be sure we have the __NR_* defines.
+#include <asm/unistd.h>
+#include "linux/compat_unistd.h"
+%}
+
+function _stp_syscall_nr:long ()
+%{ /* pure */
+	struct pt_regs *regs = _stp_current_pt_regs();
+	if (!regs) {
+		CONTEXT->last_error = ("Cannot access syscall number"
+				       " (no registers available)");
+		return;
+	}
+	STAP_RETVALUE = syscall_get_nr(current, regs);
+%}
+
 %{
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -240,6 +258,26 @@ function _struct_itimerspec_u:string(uaddr:long)
 			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]",
 				(int)its.it_interval.tv_sec, (int)its.it_interval.tv_nsec,
 				(int)its.it_value.tv_sec, (int)its.it_value.tv_nsec);
+	}	
+%}
+
+function _struct_compat_itimerspec_u:string(uaddr:long)
+%{ /* pure */
+	struct compat_itimerspec its;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char *)&its, ptr, sizeof(its)))
+			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				 "[%d.%06d,%d.%06d]",
+				 (int)its.it_interval.tv_sec,
+				 (int)its.it_interval.tv_nsec,
+				 (int)its.it_value.tv_sec,
+				 (int)its.it_value.tv_nsec);
 	}	
 %}
 
@@ -635,10 +673,14 @@ function _sys_pipe2_flag_str:string (f:long)
   if (flags & O_CLOEXEC)
     strlcat(str, "O_CLOEXEC|", MAXSTRINGLEN);
 #endif
+  if (flags == 0) {
+    strlcpy(str, "0", MAXSTRINGLEN);
+    return;
+  }
 
   len = strlen(str);
   if (len)
-    str[strlen(str)-1] = 0;
+    str[strlen(str)-1] = '\0';
 %}
 
 /* `man 2 open` for more information */
@@ -1716,6 +1758,7 @@ static const _stp_val_array const _stp_signal_list[] = {
 	V(SIGVTALRM),
 	{SIGIO,"SIGIO/SIGPOLL"},
 	V(SIGPWR),
+	{SIGTRAP|0x80,"TRACESYSGOOD"},
 	{0, NULL}
 };
 
@@ -1724,7 +1767,8 @@ static void _stp_sigset_str(sigset_t *mask, char *ptr, int len)
 	const _stp_val_array * const array = _stp_signal_list;
 	int i = 0, flag = 0;
 	while (array[i].name) {
-		if (array[i].val && sigismember(mask, array[i].val)) {
+		if (array[i].val > 0 && array[i].val <= _NSIG
+		    && sigismember(mask, array[i].val)) {
 			if (flag)
 				strlcat(ptr, "|", len);
 			strlcat(ptr, array[i].name, len);

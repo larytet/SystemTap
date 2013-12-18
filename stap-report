@@ -79,12 +79,14 @@ nss_db_status () {
 run "id"
 run "stap -V"
 run "which stap"
+run "cat $HOME/.systemtap/rc"
 run "which stap-server"
 run "locate --regex '/stap(run|io|dyn)?$' | xargs ls -ald"
 run "printenv | egrep '^PATH=|^LD_LIBRARY_PATH=|^SYSTEMTAP_.*=|^XDG_DATA.*=|^NSS.*='"
 run "stap -vv --poison-cache -p4 -e 'probe begin {exit()}'"
 run "gcc -v"
 run "uname -a"
+run "dmesg | fgrep 'Linux version'"
 run "dmesg | egrep 'stap|systemtap' | tail -n 10"
 run "hostname"
 run "nslookup `hostname`"
@@ -106,6 +108,7 @@ run "find /debugfs /proc /sys /dev /sys/kernel/debug -path '*kprobe*' -o -path '
 run "lsmod"
 run "avahi-browse -r -t _stap._tcp"
 run "ifconfig -a"
+run "ps awux | grep stap"
 for file in /boot/vmlinuz-`uname -r` /usr/lib/debug/lib/modules/`uname -r`/vmlinux /lib/modules/`uname -r`/build/vmlinux
 do
     if [ -f $file ]; then

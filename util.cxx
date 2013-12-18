@@ -397,6 +397,33 @@ tokenize_cxx(const string& str, vector<string>& tokens)
   tokens.push_back(str.substr(pos));
 }
 
+// Searches for lines in buf delimited by either \n, \0. Returns a vector
+// containing tuples of the type (start of line, length of line). If data
+// remains before the end of the buffer, a last line is added. All delimiters
+// are kept.
+vector<pair<const char*,int> >
+split_lines(const char *buf, size_t n)
+{
+  vector<pair<const char*,int> > lines;
+  const char *eol, *line;
+  line = eol = buf;
+  while ((size_t)(eol-buf) < n)
+    {
+      if (*eol == '\n' || *eol == '\0')
+        {
+          lines.push_back(make_pair(line, eol-line+1));
+          line = ++eol;
+        }
+      else
+        eol++;
+    }
+
+  // add any last line
+  if (eol > line)
+    lines.push_back(make_pair(line, eol-line));
+
+  return lines;
+}
 
 // Resolve an executable name to a canonical full path name, with the
 // same policy as execvp().  A program name not containing a slash
@@ -461,23 +488,11 @@ string find_executable(const string& name, const string& sysroot,
     retpath = sysroot + name;
 
   // Canonicalize the path name.
-  char *cf = canonicalize_file_name (retpath.c_str());
-  if (cf)
-    {
-      string scf = string(cf);
-      if (sysroot.empty())
-        retpath = scf;
-      else {
-        int pos = scf.find(sysroot);
-        if (pos == 0)
-          retpath = scf;
-        else
-          throw runtime_error(_F("find_executable(): file %s not in sysroot %s", cf, sysroot.c_str()));
-      }
-      free (cf);
-    }
-
-  return retpath;
+  string scf = resolve_path(retpath);
+  if (!startswith(scf, sysroot))
+    throw runtime_error(_F("find_executable(): file %s not in sysroot %s",
+                           scf.c_str(), sysroot.c_str()));
+  return scf;
 }
 
 
@@ -609,7 +624,8 @@ class spawned_pids_t {
 };
 static spawned_pids_t spawned_pids;
 
-
+/* Returns exit code of pid if terminated nicely, or 128+signal if terminated
+ * not nicely, or -1 if waitpid() failed. So if ret >= 0, it's the rc/signal */
 int
 stap_waitpid(int verbose, pid_t pid)
 {
@@ -665,15 +681,13 @@ stap_spawn(int verbose, const vector<string>& args,
 {
   string::const_iterator it;
   it = args[0].begin();
-  const char *cmd;
   string command;
   if(*it == '/' && (access(args[0].c_str(), X_OK)==-1)) //checking to see if staprun is executable
     // XXX PR13274 needs-session to use print_warning()
     clog << _F("WARNING: %s is not executable (%s)", args[0].c_str(), strerror(errno)) << endl;
   for (size_t i = 0; i < args.size(); ++i)
     command += " " + args[i];
-  cmd = command.c_str();
-  PROBE1(stap, stap_system__start, cmd);
+  PROBE1(stap, stap_system__start, command.c_str());
   if (verbose > 1)
     clog << _("Running") << command << endl;
 
@@ -1000,6 +1014,7 @@ normalize_machine(const string& machine)
   else if (machine.substr(0,3) == "arm") return "arm";
   else if (machine == "sa110") return "arm";
   else if (machine == "s390x") return "s390";
+  else if (machine == "aarch64") return "arm64";
   else if (machine.substr(0,3) == "ppc") return "powerpc";
   else if (machine.substr(0,4) == "mips") return "mips";
   else if (machine.substr(0,3) == "sh2") return "sh";
@@ -1019,7 +1034,8 @@ elf_class_from_normalized_machine (const string &machine)
   else if (machine == "s390"       // powerpc and s390 always assume 64-bit,
            || machine == "powerpc" // see normalize_machine ().
            || machine == "x86_64"
-           || machine == "ia64")
+           || machine == "ia64"
+           || machine == "arm64")
     return ELFCLASS64;
 
   cerr << _F("Unknown kernel machine architecture '%s', don't know elf class",
@@ -1088,7 +1104,8 @@ get_self_path()
 // parameter which would abort the operation if we know the final
 // distance will be larger than the maximum. This may entail maintaining
 // another data structure, and thus the cost might outweigh the benefit
-unsigned levenshtein(const string& a, const string& b)
+unsigned
+levenshtein(const string& a, const string& b)
 {
   Array2D<unsigned> d(a.size()+1, b.size()+1);
 
@@ -1101,17 +1118,94 @@ unsigned levenshtein(const string& a, const string& b)
   // the meat
   for (unsigned i = 1; i < d.width; i++) {
     for (unsigned j = 1; j < d.height; j++) {
-      if (a[i] == b[j]) // match
+      if (a[i-1] == b[j-1]) // match
         d(i,j) = d(i-1, j-1);
       else // penalties open for adjustments
-        d(i,j) = min(min(
-            d(i-1,j-1) + 1,  // substitution
-            d(i-1,j)   + 1), // deletion
-            d(i,j-1)   + 1); // insertion
+        {
+          unsigned subpen = 2; // substitution penalty
+          // check if they are upper/lowercase related
+          if (tolower(a[i-1]) == tolower(b[j-1]))
+            subpen = 1; // half penalty
+          d(i,j) = min(min(
+              d(i-1,j-1) + subpen,  // substitution
+              d(i-1,j)   + 2), // deletion
+              d(i,j-1)   + 2); // insertion
+        }
     }
   }
 
   return d(d.width-1, d.height-1);
+}
+
+// Returns comma-separated list of set elements closest to the target string.
+// Print a maximum amount of 'max' elements, with a maximum levenshtein score
+// of 'threshold'.
+string
+levenshtein_suggest(const string& target,        // string to match against
+                    const set<string>& elems,    // elements to suggest from
+                    unsigned max,                // max elements to print
+                    unsigned threshold)          // max leven score to print
+{
+  // calculate leven score for each elem and put in map
+  multimap<unsigned, string> scores;
+  for (set<string>::const_iterator it = elems.begin();
+                                      it != elems.end(); ++it)
+    {
+      // Approximate levenshtein by size-difference only; real score
+      // is at least this high
+      unsigned min_score = labs(target.size() - it->size());
+
+      if (min_score > threshold) // min-score too high for threshold
+        continue;
+
+      /* Check if we can skip calculating the score for this element. This works
+       * on knowing two facts:
+       * (1) We will only print the 'max' number of the top elements. The
+       *     current top 'max' candidates reside in the scores map already.
+       * (2) The score will be AT LEAST the difference between the lengths of
+       *     the two strings.
+       * So what we do is retrieve the WORST score of the current best
+       * candidates by iterating through the map (which is ordered) and
+       * retrieving the 'max-th' item and check if that's still better than the
+       * BEST score we could possibly get from the two strings (by comparing
+       * their lengths). If the 'max-th' item is indeed better, then we know
+       * this element will NEVER make it to the terminal. So we just skip it and
+       * move on. Quite tragic if you ask me...
+       */
+      unsigned maxth_score = std::numeric_limits<unsigned>::max();
+      if (scores.size() >= max) // do we have at least 'max' items?
+        {
+          // retrieve 'max-th' item
+          multimap<unsigned, string>::iterator itt = scores.begin();
+          for (unsigned i = 0; i < max-1; i++) itt++; // will not go to .end()
+          maxth_score = itt->first;
+        }
+
+      if (min_score > maxth_score) // min-score too high for known candidates
+        continue;
+
+      unsigned score = levenshtein(target, *it);
+
+      if (score > maxth_score) // actual score too high for known candidates
+        continue;
+
+      if (score > threshold) // actual score too high for threshold
+        continue;
+
+      // a candidate!
+      scores.insert(make_pair(score, *it));
+    }
+
+  string suggestions;
+
+  // Print out the top 'max' elements
+  multimap<unsigned, string>::iterator it = scores.begin();
+  for (unsigned i = 0; it != scores.end() && i < max; ++it, i++)
+    suggestions += it->second + ", ";
+  if (!suggestions.empty())
+    suggestions.erase(suggestions.size()-2);
+
+  return suggestions;
 }
 
 #ifndef HAVE_PPOLL

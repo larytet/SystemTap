@@ -133,6 +133,16 @@ probe syscall.pread.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe syscall.preadv ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %p %d %d\n", fd, vector_uaddr, count, offset)	
+}
+probe syscall.preadv.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.pselect6 ?, syscall.compat_pselect6 ?,
       syscall.pselect7 ?,
 %( systemtap_v <= "1.3" %?
@@ -165,6 +175,16 @@ probe syscall.pwrite, syscall.pwrite32 ?
 	printf("%d %p %d %d\n", fd, buf_uaddr, count, offset)
 }
 probe syscall.pwrite.return, syscall.pwrite32.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.pwritev ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %p %d %d\n", fd, vector_uaddr, count, offset)
+}
+probe syscall.pwritev.return ?
 {
 	printf("%s %s\n", name, retstr)
 }

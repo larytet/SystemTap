@@ -829,7 +829,7 @@ compile_server_client::passes_0_4 ()
            << TIMESPRINT
            << endl;
     }
-  if (rc)
+  if (rc && !s.listing_mode)
     {
       clog << _("Passes: via server failed.  Try again with another '-v' option.") << endl;
     }
@@ -1262,17 +1262,15 @@ compile_server_client::compile_using_server (
 	  continue; // try next database
 	}
 
-      // Enable cipher suites which are allowed by U.S. export regulations.
+      // Enable all cipher suites.
       // SSL_ClearSessionCache is required for the new settings to take effect.
-      secStatus = NSS_SetExportPolicy ();
+      /* Some NSS versions don't do this correctly in NSS_SetDomesticPolicy. */
+      do {
+        const PRUint16 *cipher;
+        for (cipher = SSL_ImplementedCiphers; *cipher != 0; ++cipher)
+          SSL_CipherPolicySet(*cipher, SSL_ALLOWED);
+      } while (0);
       SSL_ClearSessionCache ();
-      if (secStatus != SECSuccess)
-	{
-	  clog << _("Unable to set NSS export policy");
-	  nssError ();
-	  nssCleanup (cert_dir);
-	  continue; // try next database
-	}
   
       server_zipfile = s.tmpdir + "/server.zip";
 
@@ -1705,16 +1703,15 @@ add_server_trust (
       goto cleanup;
     }
 
-  // Enable cipher suites which are allowed by U.S. export regulations.
+  // Enable all cipher suites.
   // SSL_ClearSessionCache is required for the new settings to take effect.
-  secStatus = NSS_SetExportPolicy ();
+  /* Some NSS versions don't do this correctly in NSS_SetDomesticPolicy. */
+  do {
+    const PRUint16 *cipher;
+    for (cipher = SSL_ImplementedCiphers; *cipher != 0; ++cipher)
+      SSL_CipherPolicySet(*cipher, SSL_ALLOWED);
+  } while (0);
   SSL_ClearSessionCache ();
-  if (secStatus != SECSuccess)
-    {
-      clog << _("Unable to set NSS export policy");
-      nssError ();
-      goto cleanup;
-    }
   
   // Iterate over the servers to become trusted. Contact each one and
   // add it to the list of trusted servers if it is not already trusted.

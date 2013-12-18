@@ -27,6 +27,7 @@ extern "C" {
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/resource.h>
 }
 
 
@@ -60,7 +61,14 @@ run_make_cmd(systemtap_session& s, vector<string>& make_cmd,
 
   // Exploit SMP parallelism, if available.
   long smp = sysconf(_SC_NPROCESSORS_ONLN);
-  if (smp >= 1)
+  if (smp <= 0) smp = 1;
+  // PR16276: but only if we're not running severely nproc-rlimited
+  struct rlimit rlim;
+  int rlimit_rc = getrlimit(RLIMIT_NPROC, &rlim);
+  const unsigned int severely_limited = smp*30; // WAG at number of gcc+make etc. nested processes
+  bool nproc_limited = (rlimit_rc == 0 && (rlim.rlim_max <= severely_limited || 
+                                           rlim.rlim_cur <= severely_limited));
+  if (smp >= 1 && !nproc_limited)
     make_cmd.push_back("-j" + lex_cast(smp+1));
 
   if (strverscmp (s.kernel_base_release.c_str(), "2.6.29") < 0)
@@ -359,6 +367,7 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "path_lookup", "STAPCONF_PATH_LOOKUP");
   output_exportconf(s, o, "kern_path_parent", "STAPCONF_KERN_PATH_PARENT");
   output_exportconf(s, o, "vfs_path_lookup", "STAPCONF_VFS_PATH_LOOKUP");
+  output_exportconf(s, o, "kern_path", "STAPCONF_KERN_PATH");
   output_exportconf(s, o, "proc_create_data", "STAPCONF_PROC_CREATE_DATA");
   output_exportconf(s, o, "PDE_DATA", "STAPCONF_PDE_DATA");
   output_autoconf(s, o, "autoconf-module-sect-attrs.c", "STAPCONF_MODULE_SECT_ATTRS", NULL);
@@ -400,6 +409,7 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "sigset_from_compat", "STAPCONF_SIGSET_FROM_COMPAT_EXPORTED");
   output_exportconf(s, o, "vzalloc", "STAPCONF_VZALLOC");
   output_exportconf(s, o, "vzalloc_node", "STAPCONF_VZALLOC_NODE");
+  output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 

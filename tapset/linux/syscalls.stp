@@ -28,7 +28,9 @@
 # accept _____________________________________________________
 # long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,
 #                 int __user *upeer_addrlen, int flags)
-probe syscall.accept = _syscall.accept4 !, _syscall.accept
+# SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
+#		int __user *, upeer_addrlen, int, flags)
+probe syscall.accept = _syscall.accept4 ?, _syscall.accept ?
 {
 	name = "accept"
 	sockfd = $fd
@@ -42,12 +44,12 @@ probe _syscall.accept4 = kernel.function("sys_accept4").call
 	flags = $flags
 	flags_str = _sock_flags_str($flags)
 }
-probe _syscall.accept = kernel.function("sys_accept").call ?
+probe _syscall.accept = kernel.function("sys_accept").call
 {
 	flags = 0
 	flags_str = "0"
 }
-probe syscall.accept.return = kernel.function("sys_accept4").return !,
+probe syscall.accept.return = kernel.function("sys_accept4").return ?,
                               kernel.function("sys_accept").return ?
 {
 	name = "accept"
@@ -107,7 +109,7 @@ probe syscall.add_key = kernel.function("sys_add_key").call ?
 	argstr = sprintf("%s, %s, %s, %d, %d",
 		user_string_quoted($_type),
 		user_string_quoted($_description),
-		user_string_n_quoted($_payload, syscall_string_trunc),
+		user_string_n2_quoted($_payload, $plen, syscall_string_trunc),
 		$plen, $ringid)
 }
 probe syscall.add_key.return = kernel.function("sys_add_key").return ?
@@ -394,6 +396,7 @@ probe syscall.clock_gettime.return = kernel.function("sys_clock_gettime").return
 #
 probe syscall.clock_nanosleep = kernel.function("sys_clock_nanosleep").call
 {
+	@__syscall_gate(%{ __NR_clock_nanosleep %})
 	name = "clock_nanosleep"
 	flags = $flags
 	if ($flags == 1)
@@ -405,6 +408,7 @@ probe syscall.clock_nanosleep = kernel.function("sys_clock_nanosleep").call
 }
 probe syscall.clock_nanosleep.return = kernel.function("sys_clock_nanosleep").return
 {
+	@__syscall_gate(%{ __NR_clock_nanosleep %})
 	name = "clock_nanosleep"
 	retstr = return_str(1, $return)
 }
@@ -417,7 +421,7 @@ probe syscall.clock_nanosleep.return = kernel.function("sys_clock_nanosleep").re
 probe syscall.compat_clock_nanosleep = kernel.function("compat_clock_nanosleep").call ?,
                                        kernel.function("compat_sys_clock_nanosleep").call ?
 {
-	name = "compat_clock_nanosleep"
+	name = "clock_nanosleep"
 	flags = $flags
 	if ($flags == 1)
 		flag_str = "TIMER_ABSTIME"
@@ -429,7 +433,7 @@ probe syscall.compat_clock_nanosleep = kernel.function("compat_clock_nanosleep")
 probe syscall.compat_clock_nanosleep.return = kernel.function("compat_clock_nanosleep").return ?,
                                               kernel.function("compat_sys_clock_nanosleep").return ?
 {
-	name = "compat_clock_nanosleep"
+	name = "clock_nanosleep"
 	retstr = return_str(1, $return)
 }
 
@@ -437,17 +441,44 @@ probe syscall.compat_clock_nanosleep.return = kernel.function("compat_clock_nano
 # long sys_clock_settime(clockid_t which_clock,
 #                   const struct timespec __user *tp)
 #
-probe syscall.clock_settime = kernel.function("sys_clock_settime").call
+# long compat_sys_clock_settime(clockid_t which_clock,
+#		struct compat_timespec __user *tp)
+probe syscall.clock_settime = __syscall.clock_settime,
+	__syscall.compat_clock_settime ?
 {
 	name = "clock_settime"
+}
+probe __syscall.clock_settime = kernel.function("sys_clock_settime").call
+{
+	@__syscall_gate(%{ __NR_clock_settime %})
 	clk_id = $which_clock
 	clk_id_str = _get_wc_str($which_clock)
 	tp_uaddr = $tp
 	argstr = sprintf("%s, %s", clk_id_str, _struct_timespec_u($tp, 1))
 }
-probe syscall.clock_settime.return = kernel.function("sys_clock_settime").return
+probe __syscall.compat_clock_settime =
+	kernel.function("compat_sys_clock_settime").call ?
+{
+	clk_id = $which_clock
+	clk_id_str = _get_wc_str($which_clock)
+	tp_uaddr = $tp
+	argstr = sprintf("%s, %s", clk_id_str,
+			 _struct_compat_timespec_u($tp, 1))
+}
+probe syscall.clock_settime.return = __syscall.clock_settime.return,
+	__syscall.compat_clock_settime.return ?
 {
 	name = "clock_settime"
+}
+probe __syscall.clock_settime.return =
+	kernel.function("sys_clock_settime").return
+{
+	@__syscall_gate(%{ __NR_clock_settime %})
+	retstr = return_str(1, $return)
+}
+probe __syscall.compat_clock_settime.return =
+	kernel.function("compat_sys_clock_settime").return ?
+{
 	retstr = return_str(1, $return)
 }
 
@@ -524,62 +555,40 @@ probe syscall.dup.return = kernel.function("sys_dup").return
 	retstr = return_str(1, $return)
 }
 
-# Notice there are two syscall.dup2 probe aliases. This is
-# intentional, to handle dup2/dup3 properly (and all their corner
-# cases).  See commit 816395 for details (and a testcase).
-#
 # dup2 _______________________________________________________
 # long sys_dup2(unsigned int oldfd, unsigned int newfd)
-# Only handles corner case, others handled by dup3.
 probe syscall.dup2 = kernel.function("sys_dup2").call
 {
-	if ($oldfd != $newfd) next;
-
 	name = "dup2"
 	oldfd = $oldfd
 	newfd = $newfd
+	# The dup2 syscall doesn't have a 'flags' argument. But, the
+	# syscall.dup2 and syscall.dup3 probes used to be combined, so
+	# both probes need a 'flags' variable.
 	flags = 0
 	argstr = sprintf("%d, %d", $oldfd, $newfd)
 }
 probe syscall.dup2.return = kernel.function("sys_dup2").return
 {
-	if ($oldfd != $newfd) next;
-
 	name = "dup2"
 	retstr = return_str(1, $return)
 }
 
-# dup3 (handles both dup2 and dup3 except for corner case)___________
-# long sys_dup2(unsigned int oldfd, unsigned int newfd)
+# dup3 _______________________________________________________
 # SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
-probe syscall.dup2 = kernel.function("sys_dup3").call !,
-                     kernel.function("sys_dup2").call
+probe syscall.dup3 = kernel.function("sys_dup3").call ?
 {
+	@__syscall_compat_gate(%{ __NR_dup3 %}, %{ __NR_compat_dup3 %})
+	name = "dup3";
 	oldfd = $oldfd
 	newfd = $newfd
-	flags = @choose_defined($flags, 0);
-
-	# Corner case handled by dup2
-	if ($oldfd == $newfd && flags == 0) next
-
-	if (flags == 0) {
-		name = "dup2";
-		argstr = sprintf("%d, %d", $oldfd, $newfd);
-	} else {
-		name = "dup3";
-		argstr = sprintf("%d, %d, %s", $oldfd, $newfd,
-				 _dup3_flag_str(flags));
-	}
+	flags = $flags
+	argstr = sprintf("%d, %d, %s", $oldfd, $newfd, _dup3_flag_str(flags));
 }
-probe syscall.dup2.return = kernel.function("sys_dup3").return !,
-                            kernel.function("sys_dup2").return
+probe syscall.dup3.return = kernel.function("sys_dup3").return ?
 {
-	flags = @choose_defined($flags, 0);
-
-	# Corner case handled by dup2
-	if ($oldfd == $newfd && flags == 0) next
-
-	name = flags == 0 ? "dup2" : "dup3";
+	@__syscall_compat_gate(%{ __NR_dup3 %}, %{ __NR_compat_dup3 %})
+	name = "dup3"
 	retstr = return_str(1, $return)
 }
 
@@ -828,6 +837,8 @@ probe syscall.exit_group = kernel.function("sys_exit_group").call
 # long sys_faccessat(int dfd, const char __user *filename, int mode)
 probe syscall.faccessat = kernel.function("sys_faccessat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_faccessat %},
+			       %{ __NR_compat_faccessat %})
 	name = "faccessat"
 	dirfd = $dfd
 	dirfd_str = _dfd_str($dfd)
@@ -838,6 +849,8 @@ probe syscall.faccessat = kernel.function("sys_faccessat").call ?
 }
 probe syscall.faccessat.return = kernel.function("sys_faccessat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_faccessat %},
+			       %{ __NR_compat_faccessat %})
 	name = "faccessat"
 	retstr = return_str(1, $return)
 }
@@ -913,6 +926,8 @@ probe syscall.fchmod.return = kernel.function("sys_fchmod").return
 #	mode_t mode)
 probe syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_fchmodat %},
+			       %{ __NR_compat_fchmodat %})
 	name = "fchmodat"
 	dirfd = $dfd
 	dirfd_str = _dfd_str($dfd)
@@ -922,6 +937,8 @@ probe syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 }
 probe syscall.fchmodat.return = kernel.function("sys_fchmodat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_fchmodat %},
+			       %{ __NR_compat_fchmodat %})
 	name = "fchmodat"
 	retstr = return_str(1, $return)
 }
@@ -964,6 +981,8 @@ probe syscall.fchown16.return = kernel.function("sys_fchown16").return ?
 #	uid_t user, gid_t group, int flag)
 probe syscall.fchownat = kernel.function("sys_fchownat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_fchownat %},
+			       %{ __NR_compat_fchownat %})
 	name = "fchownat"
 	dirfd = $dfd
 	dirfd_str = _dfd_str($dfd)
@@ -977,6 +996,8 @@ probe syscall.fchownat = kernel.function("sys_fchownat").call ?
 }
 probe syscall.fchownat.return = kernel.function("sys_fchownat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_fchownat %},
+			       %{ __NR_compat_fchownat %})
 	name = "fchownat"
 	retstr = return_str(1, $return)
 }
@@ -1956,24 +1977,42 @@ probe syscall.inotify_add_watch.return = kernel.function("sys_inotify_add_watch"
 # inotify_init _______________________________________________
 #
 # long sys_inotify_init(void)
+# SYSCALL_DEFINE1(inotify_init1, int, flags)
 #
-probe syscall.inotify_init = kernel.function("sys_inotify_init1").call !,
-                             kernel.function("sys_inotify_init").call ?
+probe syscall.inotify_init = __syscall.inotify_init1 ?,
+			     __syscall.inotify_init ?
 {
-	flags = @choose_defined($flags, 0);
-	if (flags == 0) {
-		name = "inotify_init"
-		argstr = ""
-	} else {
-		name = "inotify_init1"
-		argstr = _inotify_init1_flag_str(flags)
-	}
 }
-probe syscall.inotify_init.return = kernel.function("sys_inotify_init1").return !,
-                                    kernel.function("sys_inotify_init").return ?
+probe __syscall.inotify_init1 = kernel.function("sys_inotify_init1").call ?
 {
-	flags = @choose_defined($flags, 0);
-	name = (flags == 0) ? "inotify_init" : "inotify_init1"
+	@__syscall_compat_gate(%{ __NR_inotify_init1 %},
+			       %{ __NR_compat_inotify_init1 %})
+	name = "inotify_init1"
+	flags = $flags
+	argstr = _inotify_init1_flag_str(flags)
+}
+probe __syscall.inotify_init = kernel.function("sys_inotify_init").call ?
+{
+	name = "inotify_init"
+	flags = 0
+	argstr = ""
+}
+probe syscall.inotify_init.return = __syscall.inotify_init1.return ?,
+				    __syscall.inotify_init.return ?
+{
+}
+probe __syscall.inotify_init1.return =
+	kernel.function("sys_inotify_init1").return ?
+{
+	@__syscall_compat_gate(%{ __NR_inotify_init1 %},
+			       %{ __NR_compat_inotify_init1 %})
+	name = "inotify_init1"
+	retstr = return_str(1, $return)
+}
+probe __syscall.inotify_init.return =
+	kernel.function("sys_inotify_init").return ?
+{
+	name = "inotify_init"
 	retstr = return_str(1, $return)
 }
 
@@ -2360,6 +2399,7 @@ probe syscall.link.return = kernel.function("sys_link").return
 #	int newdfd, const char __user *newname, int flags)
 probe syscall.linkat = kernel.function("sys_linkat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_linkat %}, %{ __NR_compat_linkat %})
 	name = "linkat"
 	olddirfd = $olddfd
 	olddirfd_str = _dfd_str($olddfd)
@@ -2376,6 +2416,7 @@ probe syscall.linkat = kernel.function("sys_linkat").call ?
 }
 probe syscall.linkat.return = kernel.function("sys_linkat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_linkat %}, %{ __NR_compat_linkat %})
 	name = "linkat"
 	retstr = return_str(1, $return)
 }
@@ -2502,17 +2543,27 @@ probe syscall.lremovexattr.return = kernel.function("sys_lremovexattr").return
 
 # lseek ______________________________________________________
 # off_t sys_lseek(unsigned int fd, off_t offset, unsigned int whence)
-probe syscall.lseek = kernel.function("sys_lseek").call
+# COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
+#			 unsigned int, whence)
+#
+probe syscall.lseek = __syscall.lseek, __syscall.compat_lseek ?
 {
 	name = "lseek"
 	fildes = $fd
-#	offset = __int32($offset)
-	offset = $offset
 	whence = @choose_defined($whence, $origin)
 	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
 	argstr = sprintf("%d, %d, %s", $fd, offset, whence_str)
 }
-probe syscall.lseek.return = kernel.function("sys_lseek").return
+probe __syscall.lseek = kernel.function("sys_lseek").call
+{
+	offset = $offset
+}
+probe __syscall.compat_lseek = kernel.function("compat_sys_lseek").call
+{
+	offset = __int32($offset)
+}
+probe syscall.lseek.return = kernel.function("sys_lseek").return,
+			     kernel.function("compat_sys_lseek").return ?
 {
 	name = "lseek"
 	retstr = return_str(1, $return)
@@ -2861,10 +2912,12 @@ probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?
 	# Although the kernel gets an unsigned long fd, on the
 	# user-side it is a signed int.  Fix this.
 	fd = __int32($fd)
-	pgoffset = $pgoff
+	# $pgoff is the number of pages. Convert this back into a
+	# number of bytes.
+	pgoffset = $pgoff * %{ PAGE_SIZE %}
 	argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
 		_mprotect_prot_str($prot), _mmap_flags($flags),
-		__int32($fd), $pgoff)
+		__int32($fd), pgoffset)
 }
 probe syscall.mmap2.return = kernel.function("sys_mmap_pgoff").return ?
 {

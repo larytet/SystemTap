@@ -249,6 +249,7 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
 INTLLIBS = @INTLLIBS@
+INTL_MACOSX_LIBS = @INTL_MACOSX_LIBS@
 JAVADIR = @JAVADIR@
 LDFLAGS = @LDFLAGS@
 LIBICONV = @LIBICONV@
@@ -341,6 +342,10 @@ infodir = @infodir@
 install_sh = @install_sh@
 libdir = @libdir@
 libexecdir = @libexecdir@
+libvirt_CFLAGS = @libvirt_CFLAGS@
+libvirt_LIBS = @libvirt_LIBS@
+libxml2_CFLAGS = @libxml2_CFLAGS@
+libxml2_LIBS = @libxml2_LIBS@
 localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
@@ -372,10 +377,8 @@ target_vendor = @target_vendor@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 \
-	-Wno-format-nonliteral @PIECFLAGS@
-AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2 \
-	-Wno-format-nonliteral @PIECXXFLAGS@
+AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 @PIECFLAGS@
+AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2 @PIECXXFLAGS@
 AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-I$(builddir)/../includes/sys -DBINDIR='"$(bindir)"' \
 	-DSYSCONFDIR='"$(sysconfdir)"' -DPKGDATADIR='"${pkgdatadir}"' \

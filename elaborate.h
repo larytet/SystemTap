@@ -29,11 +29,11 @@ struct recursive_expansion_error : public semantic_error
 {
   ~recursive_expansion_error () throw () {}
   recursive_expansion_error (const std::string& msg, const token* t1=0):
-    semantic_error (msg, t1) {}
+    SEMANTIC_ERROR (msg, t1) {}
 
   recursive_expansion_error (const std::string& msg, const token* t1,
                              const token* t2):
-    semantic_error (msg, t1, t2) {}
+    SEMANTIC_ERROR (msg, t1, t2) {}
 };
 
 // ------------------------------------------------------------------------
@@ -52,7 +52,8 @@ public:
   symresolution_info (systemtap_session& s);
 
   vardecl* find_var (const std::string& name, int arity, const token *tok);
-  functiondecl* find_function (const std::string& name, unsigned arity);
+  functiondecl* find_function (const std::string& name, unsigned arity, const token *tok);
+  std::set<std::string> collect_functions(void);
 
   void visit_block (block *s);
   void visit_symbol (symbol* e);
@@ -70,17 +71,38 @@ struct typeresolution_info: public visitor
   unsigned num_newly_resolved;
   unsigned num_still_unresolved;
   bool assert_resolvability;
+  int mismatch_complexity;
   functiondecl* current_function;
   derived_probe* current_probe;
-  std::vector <const token*> resolved_toks; // account for type mis-
-  std::vector <const token*> printed_toks;  // matches (BZ 9719)
+
+  // Holds information about a type we resolved (see PR16097)
+  struct resolved_type
+  {
+    const token *tok;
+    const symboldecl *decl;
+    int index;
+    resolved_type(const token *ct, const symboldecl *cdecl, int cindex):
+      tok(ct), decl(cdecl), index(cindex) {}
+  };
+
+  // Holds an element each time we resolve a decl. Unique by decl & index.
+  // Possible values:
+  //  - resolved function type     -> decl = functiondecl, index = -1
+  //  - resolved function arg type -> decl = vardecl,      index = index of arg
+  //  - resolved array/var type    -> decl = vardecl,      index = -1
+  //  - resolved array index type  -> decl = vardecl,      index = index of type
+  std::vector<resolved_type> resolved_types; // see PR16097
 
   void check_arg_type (exp_type wanted, expression* arg);
   void check_local (vardecl* v);
-  void mismatch (const token* tok, exp_type t1, exp_type t2);
   void unresolved (const token* tok);
-  void resolved (const token* tok, exp_type t);
   void invalid (const token* tok, exp_type t);
+  void mismatch (const binary_expression* e);
+  void mismatch (const token* tok, exp_type t1, exp_type t2);
+  void mismatch (const token* tok, exp_type type,
+                 const symboldecl* decl, int index = -1);
+  void resolved (const token* tok, exp_type type,
+                 const symboldecl* decl = NULL, int index = -1);
 
   exp_type t; // implicit parameter for nested visit call; may clobber
               // Upon entry to one of the visit_* calls, the incoming
@@ -330,6 +352,7 @@ match_node
   void find_and_build (systemtap_session& s,
                        probe* p, probe_point *loc, unsigned pos,
                        std::vector<derived_probe *>& results);
+  std::string suggest_functors(std::string functor);
   void try_suffix_expansion (systemtap_session& s,
                              probe *p, probe_point *loc, unsigned pos,
                              std::vector<derived_probe *>& results);

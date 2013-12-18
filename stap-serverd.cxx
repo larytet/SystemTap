@@ -63,7 +63,7 @@ extern "C" {
 using namespace std;
 
 static void cleanup ();
-static PRStatus spawn_and_wait (const vector<string> &argv,
+static PRStatus spawn_and_wait (const vector<string> &argv, int *result,
                                 const char* fd0, const char* fd1, const char* fd2,
 				const char *pwd, const vector<string>& envVec = vector<string> ());
 
@@ -1234,18 +1234,19 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
   get_stap_locale (staplang, envVec, stapstderr, &client_version);
 
   /* All ready, let's run the translator! */
-  rc = spawn_and_wait(stapargv, "/dev/null", stapstdout.c_str (), stapstderr.c_str (),
-		      requestDirName.c_str (), envVec);
+  int staprc;
+  rc = spawn_and_wait(stapargv, &staprc, "/dev/null", stapstdout.c_str (),
+                      stapstderr.c_str (), requestDirName.c_str (), envVec);
+  if (rc != PR_SUCCESS)
+    {
+      server_error(_("Failed spawning translator"));
+      return;
+    }
 
   /* Save the RC */
-  string staprc = responseDirName + "/rc";
-  f = fopen(staprc.c_str (), "w");
-  if (f) 
-    {
-      /* best effort basis */
-      fprintf(f, "%d", rc);
-      fclose(f);
-    }
+  ofstream ofs((responseDirName + "/rc").c_str());
+  ofs << staprc;
+  ofs.close();
 
   // In unprivileged modes, if we have a module built, we need to sign the sucker.
   privilege_t privilege = getRequestedPrivilege (stapargv);
@@ -1316,7 +1317,7 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 /* A front end for stap_spawn that handles stdin, stdout, stderr, switches to a working
    directory and returns overall success or failure. */
 static PRStatus
-spawn_and_wait (const vector<string> &argv,
+spawn_and_wait (const vector<string> &argv, int *spawnrc,
 		const char* fd0, const char* fd1, const char* fd2,
 		const char *pwd, const vector<string>& envVec)
 { 
@@ -1380,8 +1381,8 @@ spawn_and_wait (const vector<string> &argv,
       return PR_FAILURE;
     }
 
-  rc = stap_waitpid (0, pid);
-  if (rc == -1)
+  *spawnrc = stap_waitpid (0, pid);
+  if (*spawnrc == -1) // something wrong with waitpid() call itself
     {
       server_error (_("Error in waitpid"));
       return PR_FAILURE;
@@ -1540,14 +1541,15 @@ handle_connection (void *arg)
   handleRequest(requestDirName, responseDirName, stapstderr);
 
   /* Zip the response. */
+  int ziprc;
   argv.clear ();
   argv.push_back ("zip");
   argv.push_back ("-q");
   argv.push_back ("-r");
   argv.push_back (responseFileName);
   argv.push_back (".");
-  rc = spawn_and_wait (argv, NULL, NULL, NULL, responseDirName);
-  if (rc != PR_SUCCESS)
+  rc = spawn_and_wait (argv, &ziprc, NULL, NULL, NULL, responseDirName);
+  if (rc != PR_SUCCESS || ziprc != 0)
     {
       server_error (_("Unable to compress server response"));
       goto cleanup;
@@ -1735,20 +1737,19 @@ server_main (PRFileDesc *listenSocket)
   CERTCertificate *cert = NULL;
   bool serverCacheConfigured = false;
 
-  // Enable cipher suites which are allowed by U.S. export regulations.
+  // Enable all cipher suites.
   // NB: The NSS docs say that SSL_ClearSessionCache is required for the new settings to take
   // effect, however, calling it puts NSS in a state where it will not shut down cleanly.
   // We need to be able to shut down NSS cleanly if we are to generate a new certificate when
   // ours expires. It should be noted however, thet SSL_ClearSessionCache only clears the
   // client cache, and we are a server.
-  secStatus = NSS_SetExportPolicy ();
+  /* Some NSS versions don't do this correctly in NSS_SetDomesticPolicy. */
+  do {
+    const PRUint16 *cipher;
+    for (cipher = SSL_ImplementedCiphers; *cipher != 0; ++cipher)
+      SSL_CipherPolicySet(*cipher, SSL_ALLOWED);
+  } while (0);
   //      SSL_ClearSessionCache ();
-  if (secStatus != SECSuccess)
-    {
-      server_error (_("Unable to set NSS export policy"));
-      nssError ();
-      goto done;
-    }
 
   // Configure the SSL session cache for a single process server with the default settings.
   secStatus = SSL_ConfigServerSessionIDCache (0, 0, 0, NULL);

@@ -93,6 +93,9 @@ systemtap_session::systemtap_session ():
   module_cache (0),
   benchmark_sdt_loops(0),
   benchmark_sdt_threads(0),
+  suppressed_warnings(0),
+  suppressed_errors(0),
+  warningerr_count(0),
   last_token (0)
 {
   struct utsname buf;
@@ -143,7 +146,6 @@ systemtap_session::systemtap_session ():
   need_unwind = false;
   need_symbols = false;
   uprobes_path = "";
-  consult_symtab = false;
   load_only = false;
   skip_badvars = false;
   privilege = pr_stapdev;
@@ -274,6 +276,9 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   module_cache (0),
   benchmark_sdt_loops(other.benchmark_sdt_loops),
   benchmark_sdt_threads(other.benchmark_sdt_threads),
+  suppressed_warnings(0),
+  suppressed_errors(0),
+  warningerr_count(0),
   last_token (0)
 {
   release = kernel_release = kern;
@@ -321,7 +326,6 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   need_unwind = false;
   need_symbols = false;
   uprobes_path = "";
-  consult_symtab = other.consult_symtab;
   load_only = other.load_only;
   skip_badvars = other.skip_badvars;
   privilege = other.privilege;
@@ -454,6 +458,12 @@ systemtap_session::version ()
 #endif
 #ifdef HAVE_JAVA
        << " JAVA"
+#endif
+#ifdef HAVE_LIBVIRT
+       << " LIBVIRT"
+#endif
+#ifdef HAVE_LIBXML2
+       << " LIBXML2"
 #endif
        << endl;
 }
@@ -695,11 +705,8 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
               return 1;
             }
             // At runtime user module names are resolved through their
-            // canonical (absolute) path.
-            const char *mpath = canonicalize_file_name (optarg);
-            if (mpath == NULL) // Must be a kernel module name
-              mpath = optarg;
-            unwindsym_modules.insert (string (mpath));
+            // canonical (absolute) path, or else it's a kernel module name.
+            unwindsym_modules.insert (resolve_path (optarg));
             // NB: we used to enable_vma_tracker() here for PR10228, but now
             // we'll leave that to pragma:vma functions which actually use it.
             break;
@@ -1150,6 +1157,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_SUPPRESS_HANDLER_ERRORS:
 	  suppress_handler_errors = true;
+          c_macros.push_back (string ("STAP_SUPPRESS_HANDLER_ERRORS"));
 	  break;
 
 	case LONG_OPT_MODINFO:
@@ -1217,13 +1225,14 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	      cerr << "ERROR: multiple --sysroot options not supported" << endl;
 	      return 1;
 	  } else {
-	      const char *spath = canonicalize_file_name (optarg);
+	      char *spath = canonicalize_file_name (optarg);
 	      if (spath == NULL) {
 		  cerr << _F("ERROR: %s is an invalid directory for --sysroot", optarg) << endl;
 		  return 1;
 	      }
 
 	      sysroot = string(spath);
+	      free (spath);
 	      if (sysroot[sysroot.size() - 1] != '/')
 		  sysroot.append("/");
 
@@ -1277,6 +1286,11 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	case LONG_OPT_RUNTIME_DYNINST:
           if (!parse_cmdline_runtime ("dyninst"))
             return 1;
+          break;
+
+        case LONG_OPT_BENCHMARK_SDT:
+          // XXX This option is secret, not supported, subject to change at our whim
+          benchmark_sdt_threads = sysconf(_SC_NPROCESSORS_ONLN);
           break;
 
         case LONG_OPT_BENCHMARK_SDT_LOOPS:
@@ -1787,7 +1801,7 @@ systemtap_session::register_library_aliases()
                       probe_point::component * comp = name->components[c];
                       // XXX: alias parameters
                       if (comp->arg)
-                        throw semantic_error(_F("alias component %s contains illegal parameter",
+                        throw SEMANTIC_ERROR(_F("alias component %s contains illegal parameter",
                                                 comp->functor.c_str()));
                       mn = mn->bind(comp->functor);
                     }
@@ -1799,7 +1813,7 @@ systemtap_session::register_library_aliases()
             }
           catch (const semantic_error& e)
             {
-              semantic_error* er = new semantic_error (_("while registering probe alias"),
+              semantic_error* er = new SEMANTIC_ERROR (_("while registering probe alias"),
                                                        alias->tok);
               er->chain = & e;
               print_error (* er);
@@ -1842,65 +1856,49 @@ systemtap_session::print_token (ostream& o, const token* tok)
 }
 
 
-
 void
-systemtap_session::print_error (const semantic_error& e)
+systemtap_session::print_error (const semantic_error& se)
 {
-  string message_str[2];
-  string align_semantic_error ("        ");
-
-  // We generate two messages.  The second one ([1]) is printed
-  // without token compression, for purposes of duplicate elimination.
-  // This way, the same message that may be generated once with a
-  // compressed and once with an uncompressed token still only gets
-  // printed once.
-  for (int i=0; i<2; i++)
-    {
-      stringstream message;
-
-      message << colorize(_("semantic error:"), "error") << ' ' << e.what ();
-      if (e.tok1 || e.tok2)
-        message << ": ";
-      if (e.tok1)
-        {
-          if (i == 0)
-            {
-              print_token (message, e.tok1);
-              message << endl;
-              print_error_source (message, align_semantic_error, e.tok1);
-            }
-          else message << *e.tok1;
-        }
-      if (e.tok2)
-        {
-          if (i == 0)
-            {
-              print_token (message, e.tok2);
-              message << endl;
-              print_error_source (message, align_semantic_error, e.tok2);
-            }
-          else message << *e.tok2;
-        }
-      message << endl;
-      message_str[i] = message.str();
-    }
-
   // skip error message printing for listing mode with low verbosity
   if (this->listing_mode && this->verbose <= 1)
     {
-      seen_errors.insert (message_str[1]); // increment num_errors()
+      seen_errors[se.errsrc_chain()]++; // increment num_errors()
       return;
     }
 
-  // Duplicate elimination
-  if (seen_errors.find (message_str[1]) == seen_errors.end())
+  // duplicate elimination
+  if (verbose > 0 || seen_errors[se.errsrc_chain()] < 1)
     {
-      seen_errors.insert (message_str[1]);
-      cerr << message_str[0];
+      seen_errors[se.errsrc_chain()]++;
+      for (const semantic_error *e = &se; e != NULL; e = e->chain)
+        cerr << build_error_msg(*e);
     }
+  else suppressed_errors++;
+}
 
-  if (e.chain)
-    print_error (* e.chain);
+string
+systemtap_session::build_error_msg (const semantic_error& e)
+{
+  stringstream message;
+  string align_semantic_error ("        ");
+
+  message << colorize(_("semantic error:"), "error") << ' ' << e.what ();
+  if (e.tok1 || e.tok2)
+    message << ": ";
+  if (e.tok1)
+    {
+      print_token (message, e.tok1);
+      message << endl;
+      print_error_source (message, align_semantic_error, e.tok1);
+    }
+  if (e.tok2)
+    {
+      print_token (message, e.tok2);
+      message << endl;
+      print_error_source (message, align_semantic_error, e.tok2);
+    }
+  message << endl;
+  return message.str();
 }
 
 void
@@ -1958,12 +1956,12 @@ systemtap_session::print_error_source (std::ostream& message,
 void
 systemtap_session::print_warning (const string& message_str, const token* tok)
 {
-  if(suppress_warnings)
-    return;
+  if (suppress_warnings)
+    return; // NB: don't count towards suppressed_warnings count
 
   // Duplicate elimination
   string align_warning (" ");
-  if (seen_warnings.find (message_str) == seen_warnings.end())
+  if (verbose > 0 || seen_warnings.find (message_str) == seen_warnings.end())
     {
       seen_warnings.insert (message_str);
       clog << colorize(_("WARNING:"), "warning") << ' ' << message_str;
@@ -1971,14 +1969,40 @@ systemtap_session::print_warning (const string& message_str, const token* tok)
       clog << endl;
       if (tok) { print_error_source (clog, align_warning, tok); }
     }
+  else suppressed_warnings++;
 }
 
 
 void
 systemtap_session::print_error (const parse_error &pe,
                                 const token* tok,
-                                const std::string &input_name)
+                                const std::string &input_name,
+                                bool is_warningerr)
 {
+  // duplicate elimination
+  if (verbose > 0 || seen_errors[pe.errsrc_chain()] < 1)
+    {
+      // Sometimes, we need to print parse errors that should not be considered
+      // critical. For example, when we parse tapsets and macros. In those
+      // cases, is_warningerr is true, and we cancel out the increase in
+      // seen_errors.size() by also increasing warningerr_count, so that the
+      // net num_errors() value is unchanged.
+      seen_errors[pe.errsrc_chain()]++;                         // can be simplified if we
+      if (seen_errors[pe.errsrc_chain()] == 1 && is_warningerr) // change map to a set (and
+        warningerr_count++;                                     // settle on threshold of 1)
+      cerr << build_error_msg(pe, tok, input_name);
+      for (const parse_error *e = pe.chain; e != NULL; e = e->chain)
+        cerr << build_error_msg(*e, e->tok, input_name);
+    }
+  else suppressed_errors++;
+}
+
+string
+systemtap_session::build_error_msg (const parse_error& pe,
+                                    const token* tok,
+                                    const std::string &input_name)
+{
+  stringstream message;
   string align_parse_error ("     ");
 
   // print either pe.what() or a deferred error from the lexer
@@ -1986,11 +2010,11 @@ systemtap_session::print_error (const parse_error &pe,
   if (tok && tok->type == tok_junk && tok->msg != "")
     {
       found_junk = true;
-      cerr << colorize(_("parse error:"), "error") << ' ' << tok->msg << endl;
+      message << colorize(_("parse error:"), "error") << ' ' << tok->msg << endl;
     }
   else
     {
-      cerr << colorize(_("parse error:"), "error") << ' ' << pe.what() << endl;
+      message << colorize(_("parse error:"), "error") << ' ' << pe.what() << endl;
     }
 
   // NB: It makes sense for lexer errors to always override parser
@@ -1999,36 +2023,43 @@ systemtap_session::print_error (const parse_error &pe,
 
   if (pe.tok || found_junk)
     {
-      cerr << _("\tat: ") << colorize(tok) << endl;
-      print_error_source (cerr, align_parse_error, tok);
+      message << _("\tat: ") << colorize(tok) << endl;
+      print_error_source (message, align_parse_error, tok);
     }
   else if (tok) // "expected" type error
     {
-      cerr << _("\tsaw: ") << colorize(tok) << endl;
-      print_error_source (cerr, align_parse_error, tok);
+      message << _("\tsaw: ") << colorize(tok) << endl;
+      print_error_source (message, align_parse_error, tok);
     }
   else
     {
-      cerr << _("\tsaw: ") << input_name << " EOF" << endl;
+      message << _("\tsaw: ") << input_name << " EOF" << endl;
     }
 
   // print chained macro invocations
   while (tok && tok->chain) {
     tok = tok->chain;
-    cerr << _("\tin expansion of macro: ") << colorize(tok) << endl;
-    print_error_source (cerr, align_parse_error, tok);
+    message << _("\tin expansion of macro: ") << colorize(tok) << endl;
+    print_error_source (message, align_parse_error, tok);
   }
+  message << endl;
 
-  // print other chained errors
-  if (pe.chain)
-    {
-      // NB: input_name is considered to be irrelevant for chained
-      // parse errors, since it is never used so long as pe.tok is
-      // well-defined; and a chained error MUST have a specified
-      // token:
-      assert (pe.tok);
-      print_error (* pe.chain, pe.tok, input_name);
-    }
+  return message.str();
+}
+
+void
+systemtap_session::report_suppression()
+{
+  if (this->suppressed_errors > 0)
+    cerr << colorize(_F("Number of similar error messages suppressed: %d.",
+                         this->suppressed_errors),
+                      "error") << endl;
+  if (this->suppressed_warnings > 0)
+    cerr << colorize(_F("Number of similar warning messages suppressed: %d.",
+                         this->suppressed_warnings),
+                      "warning") << endl;
+  if (this->suppressed_errors > 0 || this->suppressed_warnings > 0)
+    cerr << "Rerun with -v to see them." << endl;
 }
 
 void
