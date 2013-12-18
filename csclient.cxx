@@ -3251,10 +3251,10 @@ void resolve_callback(
 
     switch (event) {
         case AVAHI_RESOLVER_FAILURE:
-         clog << _F("Failed to resolve service '%s' of type '%s' in domain '%s': %s",
-                 name, type, domain,
-                 avahi_strerror(avahi_client_errno(avahi_service_resolver_get_client(r)))) << endl;
-            break;
+	  clog << _F("Failed to resolve service '%s' of type '%s' in domain '%s': %s",
+		     name, type, domain,
+		     avahi_strerror(avahi_client_errno(avahi_service_resolver_get_client(r)))) << endl;
+	  break;
 
         case AVAHI_RESOLVER_FOUND: {
 	    compile_server_info info;
@@ -3295,7 +3295,10 @@ void resolve_callback(
 
 	    // Add this server to the list of discovered servers.
 	    add_server_info (info, *servers);
-        }
+	    break;
+          }
+        default:
+          break;
     }
 
     avahi_service_resolver_free(r);

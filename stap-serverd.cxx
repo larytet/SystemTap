@@ -373,7 +373,7 @@ create_services (AvahiClient *c) {
       {
 	server_error (_F("avahi_entry_group_new () failed: %s",
 		    avahi_strerror (avahi_client_errno (c))));
-	  goto fail;
+	return;
       }
 
   // If the group is empty (either because it was just created, or
