@@ -126,28 +126,29 @@ struct compile_server_info
 
   bool operator== (const compile_server_info &that) const
   {
-    // If both ip addressed are not set, then the host names must match, otherwise
-    // the addresses must match.
+    // If either IP address is not set, then the certs must be present and
+    // match, otherwise the addresses must match.
     if (! this->hasAddress() || ! that.hasAddress())
       {
-	if (this->host_name != that.host_name)
-	  return false;
+        if (! this->certinfo.empty () && ! that.certinfo.empty ())
+          return this->certinfo == that.certinfo;
+        return false;
       }
     else if (this->address != that.address)
       return false;
 
     // Compare the other fields only if they have both been set.
     if (this->port() != 0 && that.port() != 0 &&
-	this->port() != that.port())
+        this->port() != that.port())
       return false;
     if (! this->version.empty () && ! that.version.empty () &&
-	this->version != that.version)
+        this->version != that.version)
       return false;
     if (! this->sysinfo.empty () && ! that.sysinfo.empty () &&
-	this->sysinfo != that.sysinfo)
+        this->sysinfo != that.sysinfo)
       return false;
     if (! this->certinfo.empty () && ! that.certinfo.empty () &&
-	this->certinfo != that.certinfo)
+        this->certinfo != that.certinfo)
       return false;
 
     return true; // They are equal
