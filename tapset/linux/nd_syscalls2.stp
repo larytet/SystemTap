@@ -4147,10 +4147,15 @@ probe nd_syscall.umask.return = kprobe.function("sys_umask").return ?
 
 # umount _____________________________________________________
 # long sys_umount(char __user * name, int flags)
+# SYSCALL_DEFINE1(oldumount, char __user *, name)
 #
-probe nd_syscall.umount = kprobe.function("sys_umount") ?
+probe nd_syscall.umount = __nd_syscall.umount, __nd_syscall.oldumount ?
 {
 	name = "umount"
+}
+probe __nd_syscall.umount = kprobe.function("sys_umount")
+{
+	@__syscall_compat_gate(%{ __NR_umount2 %}, %{ __NR_compat_umount2 %})
 	// target = user_string($name)
 	// flags = $flags
 	// flags_str = _umountflags_str($flags)
@@ -4161,10 +4166,27 @@ probe nd_syscall.umount = kprobe.function("sys_umount") ?
 	flags_str = _umountflags_str(flags)
 	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)), flags_str)
 }
-probe nd_syscall.umount.return = kprobe.function("sys_umount").return ?
+probe __nd_syscall.oldumount = kprobe.function("sys_oldumount") ?
+{
+	// target = user_string_quoted($name)
+	// flags = 0
+	// flags_str = "0"
+	// argstr = sprintf("%s, 0", user_string_quoted($name))
+	asmlinkage()
+	target = user_string_quoted(pointer_arg(1))
+	flags = 0
+	flags_str = "0"
+	argstr = sprintf("%s, 0", user_string_quoted(pointer_arg(1)))
+}
+probe nd_syscall.umount.return = __nd_syscall.umount.return,
+				 kprobe.function("sys_oldumount").return ?
 {
 	name = "umount"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.umount.return = kprobe.function("sys_umount").return
+{
+	@__syscall_compat_gate(%{ __NR_umount2 %}, %{ __NR_compat_umount2 %})
 }
 
 # uname ______________________________________________________
