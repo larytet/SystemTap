@@ -637,7 +637,10 @@ AC_ARG_WITH([java],
      [Specify JDK directory to compile libHelperSDT.so against (default is /usr/lib/jvm/java)])],
   [],
   [with_java=/usr/lib/jvm/java])
-AC_CHECK_FILE([$with_java],[],[with_java=no])
+dnl don't use AC_CHECK_FILE here, as that blocks cross-compiling
+if [ ! -d $with_java ]; then
+   with_java=no
+fi
 AC_SUBST(JAVADIR, "${with_java}") # always needed to compile
 
 if test "$with_java" != "no"; then
