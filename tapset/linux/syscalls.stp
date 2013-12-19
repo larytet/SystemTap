@@ -1303,14 +1303,19 @@ probe syscall.fsync.return = kernel.function("sys_fsync").return
 }
 # ftruncate __________________________________________________
 # long sys_ftruncate(unsigned int fd, unsigned long length)
-probe syscall.ftruncate = kernel.function("sys_ftruncate").call
+# COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
+#
+probe syscall.ftruncate = kernel.function("sys_ftruncate").call,
+			  kernel.function("compat_sys_ftruncate").call ?
 {
 	name = "ftruncate"
 	fd = $fd
 	length = $length
 	argstr = sprintf("%d, %d", fd, length)
 }
-probe syscall.ftruncate.return = kernel.function("sys_ftruncate").return
+probe syscall.ftruncate.return =
+	kernel.function("sys_ftruncate").return,
+	kernel.function("compat_sys_ftruncate").return ?
 {
 	name = "ftruncate"
 	retstr = return_str(1, $return)

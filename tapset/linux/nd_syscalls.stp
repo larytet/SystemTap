@@ -1639,17 +1639,32 @@ probe nd_syscall.fsync.return = kprobe.function("sys_fsync").return ?
 }
 # ftruncate __________________________________________________
 # long sys_ftruncate(unsigned int fd, unsigned long length)
-probe nd_syscall.ftruncate = kprobe.function("sys_ftruncate") ?
+# COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
+#
+probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
+			     __nd_syscall.compat_ftruncate ?
 {
 	name = "ftruncate"
 	// fd = $fd
 	// length = $length
 	asmlinkage()
 	fd = int_arg(1)
-	length = ulong_arg(2)
 	argstr = sprintf("%d, %d", fd, length)
 }
-probe nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return ?
+probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
+{
+	asmlinkage()
+	length = ulong_arg(2)
+}
+probe __nd_syscall.compat_ftruncate =
+	kprobe.function("compat_sys_ftruncate").call
+{
+	asmlinkage()
+	length = uint_arg(2)
+}
+probe nd_syscall.ftruncate.return =
+	kprobe.function("sys_ftruncate").return,
+	kprobe.function("compat_sys_ftruncate").return ?
 {
 	name = "ftruncate"
 	retstr = returnstr(1)
