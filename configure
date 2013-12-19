@@ -11341,7 +11341,7 @@ else
   with_java=/usr/lib/jvm/java
 fi
 
-if  ! -d $with_java ; then
+if test ! -d "$with_java"; then
    with_java=no
 fi
 JAVADIR="${with_java}"
