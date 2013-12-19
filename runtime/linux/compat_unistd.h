@@ -42,6 +42,9 @@
 #ifndef __NR_ia32_symlinkat
 #define __NR_ia32_symlinkat 304
 #endif
+#ifndef __NR_ia32_umount2
+#define __NR_ia32_umount2 52
+#endif
 
 #define __NR_compat_dup3		__NR_ia32_dup3
 #define __NR_compat_faccessat		__NR_ia32_faccessat
@@ -52,6 +55,7 @@
 #define __NR_compat_pipe2		__NR_ia32_pipe2
 #define __NR_compat_readlinkat		__NR_ia32_readlinkat
 #define __NR_compat_symlinkat		__NR_ia32_symlinkat
+#define __NR_compat_umount2		__NR_ia32_umount2
 
 #endif	/* __x86_64__ */
 
@@ -69,6 +73,7 @@
 #define __NR_compat_pipe2		__NR_pipe2
 #define __NR_compat_readlinkat		__NR_readlinkat
 #define __NR_compat_symlinkat		__NR_symlinkat
+#define __NR_compat_umount2		__NR_umount2
 
 #endif	/* __powerpc64__ || __s390x__ */
 
