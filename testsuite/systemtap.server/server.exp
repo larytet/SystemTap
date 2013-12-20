@@ -147,7 +147,7 @@ set subtest "server re-established avahi-daemon connection"
 if {$dontTest == 1} {
     untested "$test $subtest"
 } else {
-    set rc [catch {exec grep -c {Adding Avahi service .Systemtap Compile Server, pid=.*} $server_log} result]
+    set rc [catch {exec grep -c {Adding Avahi service .Systemtap Compile Server.*} $server_log} result]
     # Make sure the target line was found more than once.
     if {$rc != 0 || $result < 2} {
 	fail "$test $subtest"

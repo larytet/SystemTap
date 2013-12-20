@@ -315,9 +315,43 @@ setup_signals (sighandler_t handler)
 static AvahiEntryGroup *avahi_group = NULL;
 static AvahiThreadedPoll *avahi_threaded_poll = NULL;
 static char *avahi_service_name = NULL;
+static const char * const avahi_service_tag = "_stap._tcp";
 static AvahiClient *avahi_client = 0;
+static int avahi_collisions = 0;
 
 static void create_services (AvahiClient *c);
+
+static int
+rename_service ()
+{
+    /*
+     * Each service must have a unique name on the local network.
+     * When there is a collision, we try to rename the service.
+     * However, we need to limit the number of attempts, since the
+     * service namespace could be maliciously flooded with service
+     * names designed to maximize collisions.
+     * Arbitrarily choose a limit of 65535, which is the number of
+     * TCP ports.
+     */
+    ++avahi_collisions;
+    if (avahi_collisions >= 65535) {
+      server_error (_F("Too many service name collisions for Avahi service %s",
+		       avahi_service_tag));
+      return -EBUSY;
+    }
+
+    /*
+     * Use the avahi-supplied function to generate a new service name.
+     */
+    char *n = avahi_alternative_service_name(avahi_service_name);
+
+    server_error (_F("Avahi service name collision, renaming service '%s' to '%s'",
+		     avahi_service_name, n));
+    avahi_free(avahi_service_name);
+    avahi_service_name = n;
+
+    return 0;
+}
 
 static void
 entry_group_callback (
@@ -336,19 +370,13 @@ entry_group_callback (
       log (_F("Avahi service '%s' successfully established.", avahi_service_name));
       break;
 
-    case AVAHI_ENTRY_GROUP_COLLISION: {
-      char *n;
-      // A service name collision with a remote service.
-      // happened. Let's pick a new name.
-      n = avahi_alternative_service_name (avahi_service_name);
-      avahi_free (avahi_service_name);
-      avahi_service_name = n;
-      server_error (_F("Avahi service name collision, renaming service to '%s'", avahi_service_name));
-
-      // And recreate the services.
-      create_services (avahi_entry_group_get_client (g));
+    case AVAHI_ENTRY_GROUP_COLLISION:
+      // A service name collision with a remote service happened.
+      // Unfortunately, we don't know which entry collided.
+      // We need to rename them all and recreate the services.
+      if (rename_service () == 0)
+	create_services (avahi_entry_group_get_client (g));
       break;
-    }
 
     case AVAHI_ENTRY_GROUP_FAILURE:
       // Some kind of failure happened.
@@ -366,82 +394,85 @@ static void
 create_services (AvahiClient *c) {
   assert (c);
 
-  // If this is the first time we're called, let's create a new
-  // entry group if necessary.
+  // Create a new entry group, if necessary, or reset the existing one.
   if (! avahi_group)
-    if (! (avahi_group = avahi_entry_group_new (c, entry_group_callback, NULL)))
-      {
-	server_error (_F("avahi_entry_group_new () failed: %s",
-		    avahi_strerror (avahi_client_errno (c))));
-	return;
-      }
-
-  // If the group is empty (either because it was just created, or
-  // because it was reset previously, add our entries.
-  if (avahi_entry_group_is_empty (avahi_group))
     {
-      log (_F("Adding Avahi service '%s'", avahi_service_name));
-
-      // Create the txt tags that will be registered with our service.
-      string sysinfo = "sysinfo=" + uname_r + " " + arch;
-      string certinfo = "certinfo=" + cert_serial_number;
-      string version = string ("version=") + CURRENT_CS_PROTOCOL_VERSION;;
-      string optinfo = "optinfo=";
-      string separator;
-      // These option strings already have a leading space.
-      if (! R_option.empty ())
+      if (! (avahi_group = avahi_entry_group_new (c, entry_group_callback, NULL)))
 	{
-	  optinfo += R_option.substr(1);
-	  separator = " ";
-	}
-      if (! B_options.empty ())
-	{
-	  optinfo += separator + B_options.substr(1);
-	  separator = " ";
-	}
-      if (! D_options.empty ())
-	{
-	  optinfo += separator + D_options.substr(1);
-	  separator = " ";
-	}
-      if (! I_options.empty ())
-	optinfo += separator + I_options.substr(1);
-
-      // We will now add our service to the entry group. Only services with the
-      // same name should be put in the same entry group.
-      int ret;
-      if ((ret = avahi_entry_group_add_service (avahi_group, AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC,
-						(AvahiPublishFlags)0,
-						avahi_service_name, "_stap._tcp", NULL, NULL, port,
-						sysinfo.c_str (), optinfo.c_str (),
-						version.c_str (), certinfo.c_str (), NULL)) < 0)
-	{
-	  if (ret == AVAHI_ERR_COLLISION)
-	    goto collision;
-
-	  server_error (_F("Failed to add _stap._tcp service: %s", avahi_strerror (ret)));
-	  goto fail;
-	}
-
-      // Tell the server to register the service.
-      if ((ret = avahi_entry_group_commit (avahi_group)) < 0)
-	{
-	  server_error (_F("Failed to commit avahi entry group: %s", avahi_strerror (ret)));
-	  goto fail;
+	  server_error (_F("avahi_entry_group_new () failed: %s",
+			   avahi_strerror (avahi_client_errno (c))));
+	  return;
 	}
     }
-  return;
+  else
+    avahi_entry_group_reset(avahi_group);
 
- collision:
-  // A service name collision with a local service happened. Let's
-  // pick a new name.
-  char *n;
-  n = avahi_alternative_service_name (avahi_service_name);
-  avahi_free(avahi_service_name);
-  avahi_service_name = n;
-  server_error (_F("Avahi service name collision, renaming service to '%s'", avahi_service_name));
-  avahi_entry_group_reset (avahi_group);
-  create_services (c);
+
+  // Contruct the information needed for our service.
+  log (_F("Adding Avahi service '%s'", avahi_service_name));
+
+  // Create the txt tags that will be registered with our service.
+  string sysinfo = "sysinfo=" + uname_r + " " + arch;
+  string certinfo = "certinfo=" + cert_serial_number;
+  string version = string ("version=") + CURRENT_CS_PROTOCOL_VERSION;;
+  string optinfo = "optinfo=";
+  string separator;
+  // These option strings already have a leading space.
+  if (! R_option.empty ())
+    {
+      optinfo += R_option.substr(1);
+      separator = " ";
+    }
+  if (! B_options.empty ())
+    {
+      optinfo += separator + B_options.substr(1);
+      separator = " ";
+    }
+  if (! D_options.empty ())
+    {
+      optinfo += separator + D_options.substr(1);
+      separator = " ";
+    }
+  if (! I_options.empty ())
+    optinfo += separator + I_options.substr(1);
+
+  // We will now add our service to the entry group.
+  // Loop until no collisions.
+  int ret;
+  for (;;) {
+    ret = avahi_entry_group_add_service (avahi_group,
+					 AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC,
+					 (AvahiPublishFlags)0,
+					 avahi_service_name, avahi_service_tag,
+					 NULL, NULL, port,
+					 sysinfo.c_str (), optinfo.c_str (),
+					 version.c_str (), certinfo.c_str (), NULL);
+    if (ret == AVAHI_OK)
+      break; // success!
+
+    if (ret == AVAHI_ERR_COLLISION)
+      {
+	// A service name collision with a local service happened.
+	// Pick a new name.
+	if (rename_service () < 0) {
+	  // Too many collisions. Message already issued.
+	  goto fail;
+	}
+	continue; // try again.
+      }
+
+      server_error (_F("Failed to add %s service: %s",
+		       avahi_service_tag, avahi_strerror (ret)));
+      goto fail;
+  }
+
+  // Tell the server to register the service.
+  if ((ret = avahi_entry_group_commit (avahi_group)) < 0)
+    {
+      server_error (_F("Failed to commit avahi entry group: %s", avahi_strerror (ret)));
+      goto fail;
+    }
+
   return;
 
  fail:
@@ -535,17 +566,15 @@ avahi_cleanup () {
 static void
 avahi_publish_service (CERTCertificate *cert)
 {
+  // Get the certificate serial number.
   cert_serial_number = get_cert_serial_number (cert);
+
+  // Construct the Avahi service name.
+  char host[HOST_NAME_MAX + 1];
+  gethostname (host, sizeof(host));
+  host[sizeof(host) - 1] = '\0';
   string buf;
-  try
-    {
-      buf = "Systemtap Compile Server, pid=" + lex_cast (getpid ());
-    }
-  catch (const runtime_error &e)
-    {
-      server_error(_F("Failed to cast pid '%d' to a string: %s", getpid(), e.what()));
-      return;
-    }
+  buf = string ("Systemtap Compile Server on ") + host;
   avahi_service_name = avahi_strdup (buf.c_str ());
 
   // Allocate main loop object.
