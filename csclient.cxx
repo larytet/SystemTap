@@ -180,6 +180,14 @@ preferred_order (vector<compile_server_info> &servers)
   sort (servers.begin (), servers.end ());
 }
 
+struct resolved_host
+{
+  string host_name;
+  PRNetAddr address;
+  resolved_host(string chost_name, PRNetAddr caddress):
+    host_name(chost_name), address(caddress) {}
+};
+
 struct compile_server_cache
 {
   vector<compile_server_info> default_servers;
@@ -188,7 +196,7 @@ struct compile_server_cache
   vector<compile_server_info> signing_servers;
   vector<compile_server_info> online_servers;
   vector<compile_server_info> all_servers;
-  map<string,vector<compile_server_info> > resolved_servers;
+  map<string,vector<resolved_host> > resolved_hosts;
 };
 
 // For filtering queries.
@@ -3111,8 +3119,8 @@ resolve_host (
   vector<compile_server_info> &resolved_servers
 )
 {
-  vector<compile_server_info>& cached_servers = cscache(s)->resolved_servers[server.host_name];
-  if (cached_servers.empty ())
+  vector<resolved_host>& cached_hosts = cscache(s)->resolved_hosts[server.host_name];
+  if (cached_hosts.empty ())
     {
       // The server's host_name member is a string containing either a host name or an ip address.
       // Either is acceptable for lookup.
@@ -3129,10 +3137,9 @@ resolve_host (
       // Failure to resolve will result in an appropriate message later, if other methods fail.
       if (rc != 0)
 	{
-	  // At a minimum, return the information we were given.
 	  if (s.verbose >= 6)
 	    clog << _F("%s not found: %s", lookup_name, gai_strerror (rc)) << endl;
-	  add_server_info (server, cached_servers);
+	  // We will return what we were given later
 	}
       else
 	{
@@ -3140,28 +3147,23 @@ resolve_host (
 	  assert (addr_info);
 	  for (const struct addrinfo *ai = addr_info; ai != NULL; ai = ai->ai_next)
 	    {
-	      // Start with the info we were given.
-	      compile_server_info new_server = server;
+	      PRNetAddr new_address;
 
 	      // We support IPv4 and IPv6, Ignore other protocols,
 	      if (ai->ai_family == AF_INET)
 		{
 		  // IPv4 Address
 		  struct sockaddr_in *ip = (struct sockaddr_in *)ai->ai_addr;
-		  new_server.address.inet.family = PR_AF_INET;
-		  if (ip->sin_port != 0)
-		    new_server.address.inet.port = ip->sin_port;
-		  new_server.address.inet.ip = ip->sin_addr.s_addr;
+		  new_address.inet.family = PR_AF_INET;
+		  new_address.inet.ip = ip->sin_addr.s_addr;
 		}
 	      else if (ai->ai_family == AF_INET6)
 		{
 		  // IPv6 Address
 		  struct sockaddr_in6 *ip = (struct sockaddr_in6 *)ai->ai_addr;
-		  new_server.address.ipv6.family = PR_AF_INET6;
-		  if (ip->sin6_port != 0)
-		    new_server.address.ipv6.port = ip->sin6_port;
-		  new_server.address.ipv6.scope_id = ip->sin6_scope_id;
-		  copyAddress (new_server.address.ipv6.ip, ip->sin6_addr);
+		  new_address.ipv6.family = PR_AF_INET6;
+		  new_address.ipv6.scope_id = ip->sin6_scope_id;
+		  copyAddress (new_address.ipv6.ip, ip->sin6_addr);
 		}
 	      else
 		continue;
@@ -3170,25 +3172,57 @@ resolve_host (
 	      char hbuf[NI_MAXHOST];
 	      int status = getnameinfo (ai->ai_addr, ai->ai_addrlen, hbuf, sizeof (hbuf), NULL, 0,
 					NI_NAMEREQD | NI_IDN);
-	      if (status == 0)
-		new_server.host_name = hbuf;
+	      if (status != 0)
+		hbuf[0] = '\0';
 
-	      // Add the new resolved server to the list.
-	      add_server_info (new_server, cached_servers);
+	      resolved_host *new_host = new resolved_host(hbuf, new_address);
+	      cached_hosts.push_back(*new_host);
 	    }
 	}
       if (addr_info)
 	freeaddrinfo (addr_info); // free the linked list
+    }
+
+  // If no addresses were resolved, just return what we got
+  if (cached_hosts.empty())
+    {
+      add_server_info (server, resolved_servers);
+    }
+  else
+    {
+      // We will add a new server for each address resolved
+      vector<compile_server_info> new_servers;
+      for (vector<resolved_host>::const_iterator it = cached_hosts.begin();
+	   it != cached_hosts.end(); ++it)
+	{
+	  // Start with the info we were given
+	  compile_server_info new_server = server;
+
+	  // NB: do not overwrite port info
+	  if (it->address.raw.family == AF_INET)
+	    {
+	      new_server.address.inet.family = PR_AF_INET;
+	      new_server.address.inet.ip = it->address.inet.ip;
+	    }
+	  else // AF_INET6
+	    {
+	      new_server.address.ipv6.family = PR_AF_INET6;
+	      new_server.address.ipv6.scope_id = it->address.ipv6.scope_id;
+	      new_server.address.ipv6.ip = it->address.ipv6.ip;
+	    }
+	  if (!it->host_name.empty())
+	    new_server.host_name = it->host_name;
+	  add_server_info (new_server, new_servers);
+	}
 
       if (s.verbose >= 6)
 	{
-	  clog << _F("%s resolves to:", lookup_name) << endl;
-	  clog << cached_servers;
+	  clog << _F("%s resolves to:", server.host_name.c_str()) << endl;
+	  clog << new_servers;
 	}
-    }
 
-  // Add the information, but not duplicates.
-  add_server_info (cached_servers, resolved_servers);
+      add_server_info (new_servers, resolved_servers);
+    }
 }
 
 #if HAVE_AVAHI
