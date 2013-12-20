@@ -1666,6 +1666,8 @@ systemtap_session::parse_kernel_functions ()
   string address, type, name;
   while (system_map.good())
     {
+      assert_no_interrupts();
+
       system_map >> address >> type >> name;
 
       if (verbose > 3)
