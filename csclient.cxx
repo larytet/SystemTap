@@ -3435,11 +3435,11 @@ get_or_keep_online_server_info (
 	  goto fail;
 	}
 
-      // Timeout after 2 seconds.
+      // Timeout after 0.5 seconds.
       struct timeval tv;
       avahi_simple_poll_get(simple_poll)->timeout_new(
         avahi_simple_poll_get(simple_poll),
-	avahi_elapse_time(&tv, 1000*2, 0),
+	avahi_elapse_time(&tv, 1000/2, 0),
 	timeout_callback,
 	& context);
 
