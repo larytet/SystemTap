@@ -70,6 +70,14 @@ disk versus running in memory.  If your OS distribution uses separate
 debuginfo packages, the split .IR .debug files may not exactly match
 the main binaries.
 
+.PP
+
+To disable build-id verification errors, if one is confident that they
+are an artefact of build accidents rather than a real mismatch, one
+might try the
+.IR -DSTP_NO_BUILDID_CHECK
+option.
+
 .SH SEE ALSO
 .nh
 .nf
