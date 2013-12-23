@@ -180,7 +180,7 @@ preferred_order (vector<compile_server_info> &servers)
   sort (servers.begin (), servers.end ());
 }
 
-struct resolved_host
+struct resolved_host // see also PR16326, PR16342
 {
   string host_name;
   PRNetAddr address;
