@@ -2653,8 +2653,7 @@ probe syscall.signal.return = kernel.function("sys_signal").return ?
 # long compat_sys_signalfd4(int ufd, const compat_sigset_t __user *sigmask,
 #		 compat_size_t sigsetsize, int flags)
 #
-probe syscall.signalfd = kernel.function("sys_signalfd4").call !,
-                         kernel.function("sys_signalfd").call ?
+probe syscall.signalfd = __syscall.signalfd4 !, __syscall.signalfd ?
 {
 	flags = @choose_defined($flags, 0);
 	if (flags == 0) {
@@ -2666,23 +2665,42 @@ probe syscall.signalfd = kernel.function("sys_signalfd4").call !,
 		       	 	 $sizemask, _signalfd4_flags_str($flags))
 	}
 }
-probe syscall.signalfd.return = kernel.function("sys_signalfd4").return !,
-                                kernel.function("sys_signalfd").return ?
+probe __syscall.signalfd4 = kernel.function("sys_signalfd4").call
 {
-	flags = @choose_defined($flags, 0);
-	name = (flags == 0) ? "signalfd" : "signalfd4"
+	@__syscall_gate(%{ __NR_signalfd4 %})
+}
+probe __syscall.signalfd = kernel.function("sys_signalfd").call
+{
+	@__syscall_gate(%{ __NR_signalfd %})
+}
+probe syscall.signalfd.return = __syscall.signalfd4.return !,
+				__syscall.signalfd.return ?
+{
 	retstr = return_str(1, $return)
+}
+probe __syscall.signalfd4.return = kernel.function("sys_signalfd4").return
+{
+	@__syscall_gate(%{ __NR_signalfd4 %})
+	flags = $flags
+	name = (flags == 0) ? "signalfd" : "signalfd4"
+}
+probe __syscall.signalfd.return = kernel.function("sys_signalfd").return
+{
+	@__syscall_gate(%{ __NR_signalfd %})
+	flags = 0
+	name = "signalfd"
 }
 probe syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
                                 kernel.function("compat_sys_signalfd").call ?
 {
 	flags = @choose_defined($flags, 0);
 	if (flags == 0) {
-		name = "compat_signalfd"
-		argstr = sprintf("%d, %p, %d", $ufd, $sigmask, $sigsetsize)
+		name = "signalfd"
+		argstr = sprintf("%d, %p, %d", __int32($ufd), $sigmask,
+				 $sigsetsize)
 	} else {
-		name = "compat_signalfd4"
-		argstr = sprintf("%d, %p, %d, %s", $ufd, $sigmask,
+		name = "signalfd4"
+		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), $sigmask,
 				 $sigsetsize, _signalfd4_flags_str($flags))
 	}
 }
@@ -2691,7 +2709,7 @@ probe syscall.compat_signalfd.return =
 		kernel.function("compat_sys_signalfd").return ?
 {
 	flags = @choose_defined($flags, 0);
-	name = (flags == 0) ? "compat_signalfd" : "compat_signalfd4"
+	name = (flags == 0) ? "signalfd" : "signalfd4"
 	retstr = return_str(1, $return)
 }
 
