@@ -244,6 +244,7 @@ proc setup_server { args } {
     }
 
     # Make sure that stap can find the server.
+    exec sleep 1
     set use_server --use-server
     set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } looksee]
     verbose -log "stap --list-servers returned: res==$res"

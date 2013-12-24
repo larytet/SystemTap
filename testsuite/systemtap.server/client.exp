@@ -424,9 +424,9 @@ if {[array size new_signing_servers] == [array size our_servers]} {
 	setup_xfail *-*-*
     }
     if {[array_equal new_signing_servers our_servers]} {
-	fail "$test"
-    } else {
 	pass "$test"
+    } else {
+	fail "$test"
     }
 } else {
     fail "$test"
