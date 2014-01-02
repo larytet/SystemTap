@@ -1302,17 +1302,49 @@ probe syscall.rt_sigpending.return = kernel.function("sys_rt_sigpending").return
 #
 probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 {
+%( arch != "x86_64" || kernel_v < "3.4" || CONFIG_COMPAT != "y" %?
+	// In kernels < 3.4, a 32-bit rt_sigprocmask call goes through
+	// sys32_rt_sigprocmask().
+	@__syscall_gate(%{ __NR_rt_sigprocmask %})
+%)
 	name = "rt_sigprocmask"
 	how = $how
 	how_str = _sigprocmask_how_str($how)
 	set_uaddr = @choose_defined($set, $nset)
-	oldset_uaddr = $oset
-	argstr = sprintf("%s, [%s], %p, %d", how_str, _stp_sigset_u(set_uaddr),
-			 $oset, $sigsetsize)
+
+	// In kernels 3.4+, the following kernel commit changed the
+	// way rt_sigprocmask is handled on x86:
+	//
+	//    commit 2c73ce734653f96542a070f3c3b3e3d1cd0fba02
+	//    Author: H. Peter Anvin <hpa@zytor.com>
+	//    Date:   Sun Feb 19 09:48:01 2012 -0800
+	//
+	//    x86-64, ia32: Drop sys32_rt_sigprocmask
+ 	//
+	// On those kernels, a call to the 32-bit rt_sigprocmask goes
+	// straight to the 64-bit rt_sigprocmask function.
+%( arch == "x86_64" && kernel_v >= "3.4" && CONFIG_COMPAT == "y" %?
+	if (%{ _stp_is_compat_task() %}
+	    && _stp_syscall_nr() == %{ __NR_compat_rt_sigprocmask %}) {
+		oldset_uaddr = __uint32($oset)
+		argstr = sprintf("%s, [%s], %p, %d", how_str,
+				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
+				 __int32($sigsetsize))
+	}
+	else
+%)
+	{
+		oldset_uaddr = $oset
+		argstr = sprintf("%s, [%s], %p, %d", how_str,
+				 _stp_sigset_u(set_uaddr), $oset, $sigsetsize)
+	}
 }
 probe syscall.rt_sigprocmask.return =
 	kernel.function("sys_rt_sigprocmask").return ?
 {
+%( arch != "x86_64" || kernel_v < "3.4" || CONFIG_COMPAT != "y" %?
+	@__syscall_gate(%{ __NR_rt_sigprocmask %})
+%)
 	name = "rt_sigprocmask"
 	retstr = return_str(1, $return)
 }

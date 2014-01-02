@@ -1640,6 +1640,10 @@ function __int32:long(val:long) %{ /* pure */
 	STAP_RETVALUE = (int32_t)STAP_ARG_val;
 %}
 
+function __uint32:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (uint32_t)STAP_ARG_val;
+%}
+
 /* Unsigned values can get get sign-extended and become negative. */
 function __ulong:long(val:long) %{ /* pure */
 	STAP_RETVALUE = (unsigned long)STAP_ARG_val;

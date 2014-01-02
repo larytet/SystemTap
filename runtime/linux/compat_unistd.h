@@ -39,6 +39,9 @@
 #ifndef __NR_ia32_readlinkat
 #define __NR_ia32_readlinkat 305
 #endif
+#ifndef __NR_ia32_rt_sigprocmask
+#define __NR_ia32_rt_sigprocmask 175
+#endif
 #ifndef __NR_ia32_symlinkat
 #define __NR_ia32_symlinkat 304
 #endif
@@ -54,6 +57,7 @@
 #define __NR_compat_linkat		__NR_ia32_linkat
 #define __NR_compat_pipe2		__NR_ia32_pipe2
 #define __NR_compat_readlinkat		__NR_ia32_readlinkat
+#define __NR_compat_rt_sigprocmask	__NR_ia32_rt_sigprocmask
 #define __NR_compat_symlinkat		__NR_ia32_symlinkat
 #define __NR_compat_umount2		__NR_ia32_umount2
 
@@ -72,6 +76,7 @@
 #define __NR_compat_linkat		__NR_linkat
 #define __NR_compat_pipe2		__NR_pipe2
 #define __NR_compat_readlinkat		__NR_readlinkat
+#define __NR_compat_rt_sigprocmask	__NR_rt_sigprocmask
 #define __NR_compat_symlinkat		__NR_symlinkat
 #define __NR_compat_umount2		__NR_umount2
 
