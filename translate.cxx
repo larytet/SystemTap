@@ -1,5 +1,5 @@
 // translation pass
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2008 Intel Corporation.
 // Copyright (C) 2010 Novell Corporation.
 //
@@ -2119,10 +2119,30 @@ c_unparser::emit_function (functiondecl* v)
       o->newline() << retvalue.init();
     }
 
+  switch (v->type)
+    {
+    case pe_long:
+      o->newline() << "#define STAP_RETURN(v) do { STAP_RETVALUE = (int64_t) (v); " 
+        "goto out; } while(0)";
+      break;
+
+    case pe_string:
+      o->newline() <<
+        "#define STAP_RETURN(v) do { strlcpy(STAP_RETVALUE, (const char*) (v), MAXSTRINGLEN); "
+        "goto out; } while(0)";
+      break;
+
+    default:
+      o->newline() << "#define STAP_RETURN() do { goto out; } while(0)";
+      break;
+    }
+
   o->newline() << "#define STAP_ERROR(...) do { snprintf(CONTEXT->error_buffer, MAXSTRINGLEN, __VA_ARGS__); CONTEXT->last_error = CONTEXT->error_buffer; goto out; } while (0)";
   o->newline() << "#define return goto out"; // redirect embedded-C return
   v->body->visit (this);
   o->newline() << "#undef return";
+  o->newline() << "#undef STAP_ERROR";
+  o->newline() << "#undef STAP_RETURN";
 
   this->current_function = 0;
 
@@ -2144,7 +2164,6 @@ c_unparser::emit_function (functiondecl* v)
     o->newline() << c_arg_undef(v->locals[i]->name); // #undef STAP_ARG_foo
   }
   o->newline() << "#undef STAP_RETVALUE";
-  o->newline() << "#undef STAP_ERROR";
   o->newline(-1) << "}\n";
 }
 
