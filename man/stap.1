@@ -1442,18 +1442,29 @@ are made available to it using macros
 .IR STAP_ARG_*
 and
 .IR STAP_RETVALUE .
-Here are some examples:
+Errors may be signalled with STAP_ERROR.  The function may return
+early with STAP_RETURN.  Here are some examples:
 .SAMPLE
-function add_one (val) %{
+function integer_ops (val) %{
   STAP_RETVALUE = STAP_ARG_val + 1;
+  if (STAP_RETVALUE == 4)
+      STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);
+  if (STAP_RETVALUE == 3)
+      STAP_RETURN(0);
+  STAP_RETVALUE ++;
 %}
-function add_one_str (val) %{
+function string_ops (val) %{
   strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
   strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+  if (strcmp (STAP_RETVALUE, "three-two-one"))
+      STAP_RETURN("parameter should be three-two-");
+%}
+function no_ops () %{
+    STAP_RETURN(); /* function inferred with no return value */
 %}
 .ESAMPLE
 The function argument and return value types have to be inferred by
-the translator from the call sites in order for this to work.  The
+the translator from the call sites in order for this to work. The
 user should examine C code generated for ordinary script-language
 functions in order to write compatible embedded-C ones.
 .PP

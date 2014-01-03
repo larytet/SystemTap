@@ -660,7 +660,7 @@ Here is an example of the various permitted methods of embedded C code inclusion
 
 /* Reads the char value stored at a given address: */ 
 function __read_char:long(addr:long) %{ /* pure */
-         STAP_RETVALUE = kderef(sizeof(char), STAP_ARG_addr);
+         STAP_RETURN(kderef(sizeof(char), STAP_ARG_addr));
          CATCH_DEREF_FAULT ();
 %} /* <-- function body */
 
@@ -713,28 +713,39 @@ name = kread(&(dev->name));
 The memory locations reserved for input and output values are provided
 to a function using macros named
 \texttt{STAP\_ARG\_foo}\index{STAP_ARG_} (for arguments named
-\texttt{foo}) and \texttt{STAP\_RETVALUE}\index{STAP_RETVALUE}. The
-following are examples.
+\texttt{foo}) and \texttt{STAP\_RETVALUE}\index{STAP_RETVALUE}.
+Errors may be signalled with \texttt{STAP\_ERROR}.  The function may return                       early with \texttt{STAP\_RETURN}.  Here are some examples:
 
 \begin{vindent}
 \begin{verbatim}
-function add_one (val:long) %{
-    STAP_RETVALUE = STAP_ARG_val + 1;
+function integer_ops:long (val) %{
+  STAP_RETVALUE = STAP_ARG_val + 1;
+  if (STAP_RETVALUE == 4)
+      STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);
+  if (STAP_RETVALUE == 3)
+      STAP_RETURN(0);
+  STAP_RETVALUE ++;
 %}
-function add_one_str:string (val:string) %{
-    strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
-    strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+function string_ops:string (val) %{
+  strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
+  strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+  if (strcmp (STAP_RETVALUE, "three-two-one"))
+      STAP_RETURN("parameter should be three-two-");
+%}
+function no_ops () %{
+    STAP_RETURN(); /* function inferred with no return value */
 %}
 \end{verbatim}
 \end{vindent}
 
-The function argument and return value types should be stated;
-the translator does not analyze the embedded C code within the function.
-You should examine
-C code generated for ordinary script language functions to write compatible
-embedded-C. Note that all SystemTap functions and probes run with interrupts
-disabled, thus you cannot call functions that might sleep within the embedded
-C.
+The function argument and return value types should be stated if the
+translator cannot infer them from usage.  The translator does not
+analyze the embedded C code within the function.
+
+You should examine C code generated for ordinary script language
+functions to write compatible embedded-C.  Usually, all SystemTap
+functions and probes run with interrupts disabled, thus you cannot
+call functions that might sleep within the embedded C.
 
 \subsection{Embedded C pragma comments}
 
