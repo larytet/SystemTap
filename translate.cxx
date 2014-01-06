@@ -2128,7 +2128,7 @@ c_unparser::emit_function (functiondecl* v)
 
     case pe_string:
       o->newline() <<
-        "#define STAP_RETURN(v) do { strlcpy(STAP_RETVALUE, (const char*) (v), MAXSTRINGLEN); "
+        "#define STAP_RETURN(v) do { strlcpy(STAP_RETVALUE, (v), MAXSTRINGLEN); "
         "goto out; } while(0)";
       break;
 
