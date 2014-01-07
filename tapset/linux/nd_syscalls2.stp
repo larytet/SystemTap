@@ -563,7 +563,7 @@ probe nd_syscall.pread.return = kprobe.function("sys_pread64").return ?
 #		  const struct iovec __user *, vec,
 #		  unsigned long, vlen, unsigned long, pos_l,
 #		  unsigned long, pos_h)
-# COMPAT_SYSCALL_DEFINE5(pwritev, unsigned long, fd,
+# COMPAT_SYSCALL_DEFINE5(preadv, unsigned long, fd,
 #		const struct compat_iovec __user *,vec,
 #		unsigned long, vlen, u32, pos_low, u32, pos_high)
 #

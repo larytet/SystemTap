@@ -120,20 +120,29 @@ probe syscall.ni_syscall.return = kernel.function("sys_ni_syscall").return
 # long sys_open(const char __user * filename, int flags, int mode)
 # (obsolete) long sys32_open(const char * filename, int flags, int mode)
 #
-probe syscall.open = kernel.function("compat_sys_open").call ?,
-                     kernel.function("sys32_open").call ?,
-                     kernel.function("sys_open").call ?
+probe syscall.open = __syscall.compat_open ?, __syscall.open
 {
 	name = "open"
-	filename = user_string_quoted($filename)
 	flags = $flags
-	mode = $mode
-	if (flags & 64)
-		argstr = sprintf("%s, %s, %#o", user_string_quoted($filename),
-			_sys_open_flag_str($flags), $mode)
+	if ($flags & 64)
+		argstr = sprintf("%s, %s, %#o", filename,
+				 _sys_open_flag_str($flags), mode)
 	else
-		argstr = sprintf("%s, %s", user_string_quoted($filename),
-			_sys_open_flag_str($flags))
+		argstr = sprintf("%s, %s", filename,
+				 _sys_open_flag_str($flags))
+}
+probe __syscall.compat_open = kernel.function("compat_sys_open").call ?,
+			      kernel.function("sys32_open").call ?
+{
+	// On some platforms, $filename and $mode are longs on the
+	// kernel side. Truncate these down to 32 bits.
+	filename = user_string_quoted(__uint32($filename))
+	mode = __int32($mode)
+}
+probe __syscall.open = kernel.function("sys_open").call
+{
+	filename = user_string_quoted($filename)
+	mode = $mode
 }
 probe syscall.open.return = kernel.function("compat_sys_open").return ?,
                             kernel.function("sys32_open").return ?,
@@ -547,7 +556,7 @@ probe syscall.pread.return = kernel.function("sys_pread64").return
 #		  const struct iovec __user *, vec,
 #		  unsigned long, vlen, unsigned long, pos_l,
 #		  unsigned long, pos_h)
-# COMPAT_SYSCALL_DEFINE5(pwritev, unsigned long, fd,
+# COMPAT_SYSCALL_DEFINE5(preadv, unsigned long, fd,
 #		const struct compat_iovec __user *,vec,
 #		unsigned long, vlen, u32, pos_low, u32, pos_high)
 #
@@ -1356,9 +1365,10 @@ probe syscall.compat_rt_sigprocmask =
 	how = $how
 	how_str = _sigprocmask_how_str($how)
 	set_uaddr = @choose_defined($set, $nset)
-	oldset_uaddr = $oset
+	oldset_uaddr = __uint32($oset)
 	argstr = sprintf("%s, [%s], %p, %d", how_str,
-			 _stp_compat_sigset_u(set_uaddr), $oset, $sigsetsize)
+			 _stp_compat_sigset_u(set_uaddr), __uint32($oset),
+			 __uint32($sigsetsize))
 }
 probe syscall.compat_rt_sigprocmask.return =
 	kernel.function("compat_sys_rt_sigprocmask").return ?,
@@ -2725,7 +2735,7 @@ probe __syscall.signalfd.return = kernel.function("sys_signalfd").return
 probe syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
                                 kernel.function("compat_sys_signalfd").call ?
 {
-	flags = @choose_defined($flags, 0);
+	flags = __int32(@choose_defined($flags, 0))
 	if (flags == 0) {
 		name = "signalfd"
 		argstr = sprintf("%d, %p, %d", __int32($ufd), $sigmask,
@@ -2740,7 +2750,7 @@ probe syscall.compat_signalfd.return =
 		kernel.function("compat_sys_signalfd4").return !,
 		kernel.function("compat_sys_signalfd").return ?
 {
-	flags = @choose_defined($flags, 0);
+	flags = __int32(@choose_defined($flags, 0))
 	name = (flags == 0) ? "signalfd" : "signalfd4"
 	retstr = return_str(1, $return)
 }
@@ -2765,15 +2775,23 @@ probe syscall.sigpending.return = kernel.function("sys_sigpending").return ?
 # 				         compat_old_sigset_t __user *nset,
 #				         compat_old_sigset_t __user *oset)
 #
-probe syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?,
-			    kernel.function("compat_sys_sigprocmask").call ?
+probe syscall.sigprocmask = __syscall.sigprocmask ?,
+			    __syscall.compat_sigprocmask ?
 {
 	name = "sigprocmask"
-	how  = $how
+	how = $how
 	how_str = _sigprocmask_how_str($how)
-	set_uaddr    = @choose_defined($set, $nset)
+	set_uaddr = @choose_defined($set, $nset)
+	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, oldset_uaddr)
+}
+probe __syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?
+{
 	oldset_uaddr = $oset
-	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, $oset)
+}
+probe __syscall.compat_sigprocmask =
+	kernel.function("compat_sys_sigprocmask").call ?
+{
+	oldset_uaddr = __uint32($oset)
 }
 probe syscall.sigprocmask.return = kernel.function("sys_sigprocmask").return ?,
 	kernel.function("compat_sys_sigprocmask").return ?

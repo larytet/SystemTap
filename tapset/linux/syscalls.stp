@@ -2554,18 +2554,21 @@ probe syscall.lremovexattr.return = kernel.function("sys_lremovexattr").return
 probe syscall.lseek = __syscall.lseek, __syscall.compat_lseek ?
 {
 	name = "lseek"
-	fildes = $fd
-	whence = @choose_defined($whence, $origin)
-	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
-	argstr = sprintf("%d, %d, %s", $fd, offset, whence_str)
+	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
 }
 probe __syscall.lseek = kernel.function("sys_lseek").call
 {
+	fildes = $fd
 	offset = $offset
+	whence = @choose_defined($whence, $origin)
+	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
 }
 probe __syscall.compat_lseek = kernel.function("compat_sys_lseek").call
 {
+	fildes = __int32($fd)
 	offset = __int32($offset)
+	whence = __uint32(@choose_defined($whence, $origin))
+	whence_str = _seek_whence_str(whence)
 }
 probe syscall.lseek.return = kernel.function("sys_lseek").return,
 			     kernel.function("compat_sys_lseek").return ?
