@@ -1,7 +1,7 @@
 /*
   Common functions used by the NSS-aware code in systemtap.
 
-  Copyright (C) 2009-2013 Red Hat Inc.
+  Copyright (C) 2009-2014 Red Hat Inc.
 
   This file is part of systemtap, and is free software.  You can
   redistribute it and/or modify it under the terms of the GNU General Public
@@ -998,12 +998,19 @@ gen_cert_db (const string &db_path, const string &extraDnsNames, bool use_passwo
       goto error;
     }
 
-  // Now, generate the cert. We need our host name and the supplied additional dns names (if any).
+  // For the cert, we need our host name.
   struct utsname utsname;
   uname (& utsname);
   dnsNames = utsname.nodename;
+
+  // Because avahi identifies hosts using a ".local" domain, add one to the list of names.
+  dnsNames += string(",") + dnsNames + ".local";
+
+  // Add any extra names that were supplied.
   if (! extraDnsNames.empty ())
     dnsNames += "," + extraDnsNames;
+
+  // Now, generate the cert.
   cert = create_cert (cr, dnsNames);
   CERT_DestroyCertificateRequest (cr);
   if (! cert)
