@@ -23,8 +23,8 @@ will be useful for users who use -DRELAY_HOST and -DRELAY_GUEST.
 ========
 2.1 Synopsis
 
-/sbin/service systemtap {start|stop|restart|status|compile|cleanup} \
-	[-r kernelrelease] [-c config] [-R] [-y] [script(s)]
+/sbin/service systemtap {start|stop|restart|status|compile|onboot|cleanup} \
+   [-r kernelrelease] [-o path.img] [-b] [-c config] [-R] [-y] [script(s)]
 
 2.2 Commands
  You have to specify one of the below commands.
@@ -57,9 +57,29 @@ will be useful for users who use -DRELAY_HOST and -DRELAY_GUEST.
  Compile script(s) on the specified kernel. This command takes '-r' option
  which specifies the release of the kernel(see 2.3.4) on which you would
  like to compile script(s). This command asks user whether it can overwrite
-existing caches.
+ existing caches.
 
-2.2.6 cleanup
+2.2.6 onboot
+ Make script(s) part of the initramfs so that they are started earlier during
+ the boot process. Only works on dracut-based systems. This command also takes
+ the '-r' option. If '-r' is omitted, the initramfs is created for the running
+ kernel. If '-o path.img' is given, the initramfs is created at 'path.img' (must
+ be an absolute path).  Otherwise, defaults to '/boot/initramfs-KVER.img', where
+ KVER is `uname -r` if the '-r' option is omitted, or the given kernel version
+ otherwise.
+
+ If the output file already exists, it is overwritten, unless the -b switch is
+ given, in which case the file is appended '.bak' rather than overwritten. Note
+ however that if a '.bak' version already exists, it will not be overwritten.
+
+ If no scripts are specified on the command-line, the initramfs will be created
+ without including any scripts at all (i.e. no extra systemtap files added).
+
+ Warning: do not use the stap -o option with onboot scripts because the
+ script is started before the root filesystem is even mounted. Increase the
+ buffer size if more space is needed.
+
+2.2.7 cleanup
  Cleanup compiled script(s) from cache directory(see 3.4). This command also
  takes '-r' option. If '-r' option is omitted, cleanup all caches for running
  kernel. This command asks user whether it can remove caches.
@@ -75,8 +95,8 @@ existing caches.
 2.3.2 script(s)
  You can specify individual scripts to the commands. If you omit to specify
  any script, systemtap initscript will execute the command with all scripts
- in the script directory(except 'start' and 'stop' command, see 2.2.1 and
- 2.2.2).
+ in the script directory (except 'start', 'stop', and 'onboot' commands, see
+ 2.2.1, 2.2.2, and 2.2.6).
 
 2.3.3 -R
  If this option is specified, systemtap initscript will try to solve
@@ -85,10 +105,21 @@ existing caches.
 
 2.3.4 -r kernelrelease
  You can specify release version of the kernel(e.g. 2.6.26.1). This option
- is valid only with compile and cleanup commands.
+ is valid only with compile, onboot, and cleanup commands.
 
 2.3.5 -y
  Answer yes for all questions.
+
+2.3.6 -o path.img
+ Specify the path of the initramfs image. Otherwise, the default is
+ '/boot/initramfs-KVER.img', where KVER is `uname -r` if the '-r' option is
+ omitted, or the given kernel version otherwise. This option is only valid with
+ the onboot command.
+
+2.3.7 -b
+ If present, will backup an existing initramfs image by renaming it with a
+ '.bak' extension. Otherwise, the initramfs is overwritten without backing up.
+ This option is only valid with the onboot command.
 
 2.4 Misc
 2.4.1 Service Priority
@@ -147,9 +178,16 @@ existing caches.
  Some error and warning messages are also sent to console and syslogd (syslog
  output is optional, because this service will start before syslog).
 
-3.7 Status files
+3.6 Status files
  /var/run/systemtap/<script-name>
 
+3.7 Dracut
+ Files related to dracut/initramfs creation
+
+3.7.1 Dracut stap module directory
+ /usr/lib/dracut/modules.d/99stap
+
+ These files permit SystemTap modules to be included in the initramfs.
 
 4. Configuration Format
 =======================
@@ -212,6 +250,14 @@ Configuration file allows us
  *NOTE*: systemtap initscript will load unexpected obsolete caches with this
  option. You should check cache directory before enabling this option.
  (default: no)
+
+4.1.12 LOG_BOOT_ERR
+ Because boot-time scripts are run before the root filesystem is mounted,
+ staprun's stderr cannot be logged to the LOG_FILE as usual (see 4.1.6).
+ However, the log can instead be output to /var/run/systemtap/$script.log (which
+ is accessible at boot-time) by setting LOG_BOOT_ERR to 'yes'. If STAT_PATH is
+ different from the default, the log files will be moved there upon executing
+ any of the initscript commands.
 
 4.2 Script Parameters
 
@@ -353,3 +399,49 @@ script2_REQ=script1
  # vi /etc/systemtap/config
  AUTOCOMPILE=no
  ALLOW_CACHEONLY=yes
+
+5.9 Starting scripts during early-boot
+ The initscript also allows you to start scripts earlier during the boot
+ process by creating an initramfs containing the script's module. Your system
+ must be dracut-based for this to work. Starting at this stage gives access to
+ information otherwise very hard to obtain.
+
+5.9.1 Preparing the script
+ As usual, place the script in /etc/systemtap/script.d and any configuration
+ settings in /etc/systemtap/conf.d. (Note however that -o and -c are not
+ supported).
+
+5.9.2 Adding to initramfs
+ Simply run the command:
+ # service systemtap onboot my_script
+ If the script is not already compiled and cached, it will be done at this
+ point.  A new initramfs will then be created at the default location. You can
+ specify the '-b' option to make sure that your current initramfs is backed up.
+ You can then restart your system. See 2.2.6 for more information regarding the
+ onboot command.
+
+5.9.3 Adding to a different initramfs
+ Rather than taking the spot of the default initramfs, you may want to create a
+ different initramfs for a one-time boot. You can do this using the -o option:
+ # service systemtap onboot -o /boot/special_initramfs.img
+ Once the initramfs is created, you can change the command-line options at
+ boot-time so that the new image is used rather than the usual one.
+
+5.9.4 Creating an initramfs for a different kernel
+ Just like the compile command, you can use the -r option to specify the kernel
+ for which you would like to create the initramfs. This is useful when you are
+ about to upgrade and would like to prepare in advance. For example:
+ # service systemtap onboot -r 3.12.6-200.fc19.x86_64 my_script
+
+5.9.5 Removing from initramfs
+ To remove all scripts from the initramfs, you can run:
+ # service systemtap onboot
+ (That is, without any scripts explicitly mentioned). This will simply create
+ a standard initramfs without any SystemTap modules inserted.
+
+5.9.6 Troubleshooting
+ There can be many reasons for which the module didn't insert or did not work as
+ expected. It may be useful to turn on dracut debugging by adding 'rdinitdebug' to
+ the kernel command-line and checking dmesg/journalctl -ae. Also, you can
+ capture the stderr output of staprun by setting LOG_BOOT_ERR to 'yes' (see
+ 4.1.12).
