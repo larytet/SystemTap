@@ -52,6 +52,7 @@ extern "C" {
 #include <avahi-common/thread-watch.h>
 #include <avahi-common/malloc.h>
 #include <avahi-common/error.h>
+#include <avahi-common/domain.h>
 #endif
 }
 
@@ -575,7 +576,19 @@ avahi_publish_service (CERTCertificate *cert)
   host[sizeof(host) - 1] = '\0';
   string buf;
   buf = string ("Systemtap Compile Server on ") + host;
-  avahi_service_name = avahi_strdup (buf.c_str ());
+
+  // Make sure the service name is valid
+  const char *initial_service_name = buf.c_str ();
+  if (! avahi_is_valid_service_name (initial_service_name)) {
+    // The only restriction on service names is that the buffer must not exceed
+    // AVAHI_LABEL_MAX in size, which means that the name cannot be longer than
+    // AVAHI_LABEL_MAX-1 in length.
+    assert (strlen (initial_service_name) >= AVAHI_LABEL_MAX);
+    buf = buf.substr (0, AVAHI_LABEL_MAX - 1);
+    initial_service_name = buf.c_str ();
+    assert (avahi_is_valid_service_name (initial_service_name));
+  }
+  avahi_service_name = avahi_strdup (initial_service_name);
 
   // Allocate main loop object.
   if (! (avahi_threaded_poll = avahi_threaded_poll_new ()))
