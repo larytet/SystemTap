@@ -318,7 +318,7 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 %}
 
 %{
-// Needed for function _struct_sockaddr_u. Unfortunately cannot be
+// Needed for function _struct_sockaddr_u_impl. Unfortunately cannot be
 // inlined into the function since these header files define static
 // functions themselves.
 #include <linux/socket.h>
@@ -326,27 +326,91 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 #include <linux/netlink.h>
 %}
 
+%{
+// Enum for _struct_sockaddr_u_* functions.
+typedef enum {
+    SA_PRETTY           = 1,
+    SA_IP_ADDR          = 2,
+    SA_TCP_PORT         = 4,
+    SA_FAMILY           = 8,
+    SA_IPV6_FLOWINFO    = 16,
+    SA_IPV6_SCOPE_ID    = 32,
+} sa_dispatch;
+%}
+
+function _struct_sockaddr_u_ip_addr:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IP_ADDR %});
+}
+
+function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_TCP_PORT %});
+}
+
+function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IP_ADDR | SA_TCP_PORT %});
+}
+
+function _struct_sockaddr_u_sa_family:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_FAMILY %});
+}
+
+function _struct_sockaddr_u_ipv6_flowinfo:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IPV6_FLOWINFO %});
+}
+
+function _struct_sockaddr_u_ipv6_scope_id:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IPV6_SCOPE_ID %});
+}
+
 function _struct_sockaddr_u:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_PRETTY %});
+}
+
+%{
+#define STAP_NEED_CONTEXT_SOCKADDR_BIG_BUFFERS 1
+%}
+
+function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
 %{ /* pure */
+
+
 #include <linux/version.h>
 #include <linux/in6.h>
 #include <linux/un.h>
 #include <linux/if_packet.h>
 
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
-	char buf[128];
-	size_t len = STAP_ARG_len < 128 ? STAP_ARG_len : 128;
-	struct sockaddr *sa = (struct sockaddr *)buf;
+    sa_dispatch what = (sa_dispatch)STAP_ARG_what;
+
+    char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+    size_t len = STAP_ARG_len < 128 ? STAP_ARG_len: 128;
+    struct sockaddr *sa = (struct sockaddr *)CONTEXT->buf;
+
+    char *stap_retvalue = (char *)(unsigned long)STAP_RETVALUE;
+    int maxstringlen = MAXSTRINGLEN;
+    size_t n;
 
 	if (ptr == NULL)
 	{
-		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 		return;
 	}
 
-	if (_stp_copy_from_user(buf, ptr, len))
+    // This helps handle variable lenght sockaddr_un.
+    // Some application - like systemd - sends path string
+    // without ending null character. Kernel will handle this
+    // but we need pretty output without random memory stuff.
+    memset(CONTEXT->buf, 0, 128);
+
+    if (_stp_copy_from_user(CONTEXT->buf, ptr, len))
 	{
-		strlcpy (STAP_RETVALUE, "[...]", MAXSTRINGLEN);
+		strlcpy(STAP_RETVALUE, "[...]", MAXSTRINGLEN);
 		return;
 	}
 
@@ -363,55 +427,198 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
 
 	if ((sa->sa_family == AF_INET) && (len == sizeof(struct sockaddr_in)))
 	{
-		struct sockaddr_in *sin = (struct sockaddr_in *)buf;
-#ifndef NIPQUAD_FMT			// kver >= 2.6.36
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_INET, %pI4, %d}",
-			 &sin->sin_addr, _stp_ntohs(sin->sin_port));
+		struct sockaddr_in *sin = (struct sockaddr_in *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+#ifndef NIPQUAD_FMT                     // kver >= 2.6.36
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_INET, %pI4, %d}",
+                &sin->sin_addr, _stp_ntohs(sin->sin_port));
 #else
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_INET, " NIPQUAD_FMT ", %d}",
-			 NIPQUAD(sin->sin_addr), _stp_ntohs(sin->sin_port));
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                "{AF_INET, " NIPQUAD_FMT ", %d}",
+                NIPQUAD(sin->sin_addr), _stp_ntohs(sin->sin_port));
 #endif
+            return;
+        }
+
+        if (what & SA_FAMILY)
+        {
+            n = strlcpy(stap_retvalue, "AF_INET", maxstringlen);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IP_ADDR)
+        {
+#ifndef NIPQUAD_FMT                     // kver >= 2.6.36
+            n = snprintf(stap_retvalue, maxstringlen, "%pI4", &sin->sin_addr);
+#else
+            n = snprintf(stap_retvalue, maxstringlen, NIPQUAD_FMT,
+                    NIPQUAD(sin->sin_addr));
+#endif
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_TCP_PORT)
+        {
+            n = snprintf(stap_retvalue, maxstringlen, "%d",
+            _stp_ntohs(sin->sin_port));
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
 	}
+    // Why 2 * sizeof (char) here?
+    // Because I want to support abstract sockets with
+    // at least one usable byte after initial \0 char.
+    // Unnamed sockets aren't supported yet.
 	else if ((sa->sa_family == AF_UNIX)
-		 && (len == sizeof(struct sockaddr_un)))
-	{	
-		struct sockaddr_un *sun = (struct sockaddr_un *)buf;	
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, %s}",
-			 sun->sun_path); 
+            && ((len == sizeof(struct sockaddr_un))
+            || (len >= ((sizeof(sa_family_t)) + (2 * sizeof(char))))))
+	{
+		struct sockaddr_un *sun = (struct sockaddr_un *)CONTEXT->buf;
+		if (what & SA_PRETTY)
+		{
+
+			// Support for abstract sockets
+			if (sun->sun_path[0] == '\0')
+			{
+                // Abstract sockets aren't string oriented.
+                // We need conversion on this place.
+                // No check of ret value, because _stp_text_str returns
+                // "<unknown>" if bad things happen.
+                //
+                // Well. There can be NUL chars inside sun_path.
+                // We just stop at first NUL char. 
+                // TODO: We need byte oriented conversion function.
+                _stp_text_str(CONTEXT->out_str, &sun->sun_path[1],
+                    len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0);
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \\000%s}",
+                    CONTEXT->out_str);
+            } else
+			{
+                // Just cut path if is too long
+                CONTEXT->buf[127] = '\0';
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, %s}",
+                    sun->sun_path);
+			}
+		} else if (what & SA_FAMILY)
+		{
+            strlcpy(STAP_RETVALUE, "AF_UNIX", MAXSTRINGLEN);
+		} else
+		{
+			strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+		}
 	}
 	else if ((sa->sa_family == AF_NETLINK)
 		 && (len == sizeof(struct sockaddr_nl)))
 	{
-		struct sockaddr_nl *nl = (struct sockaddr_nl *)buf;
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_NETLINK, pid=%d, groups=%08x}",
-			 nl->nl_pid, nl->nl_groups);
-	}
+		struct sockaddr_nl *nl = (struct sockaddr_nl *)CONTEXT->buf;
+
+        if (what & SA_PRETTY) {
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                "{AF_NETLINK, pid=%d, groups=%08x}",
+                nl->nl_pid, nl->nl_groups);
+        } else if (what & SA_FAMILY)
+        {
+            strlcpy(STAP_RETVALUE, "AF_NETLINK", MAXSTRINGLEN);
+        } else
+        {
+            strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+        }
+    }
 	else if ((sa->sa_family == AF_INET6)
 		 && (len == sizeof(struct sockaddr_in6)))
 	{
-		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)buf;
+		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
 #ifndef NIP6_FMT			// kver >= 2.6.36
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_INET6, %pI6, %d}", &sin->sin6_addr,
-			 _stp_ntohs(sin->sin6_port));
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_INET6, %pI6, %d}", &sin->sin6_addr,
+                 _stp_ntohs(sin->sin6_port));
 #else
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_INET6, " NIP6_FMT ", %d}", NIP6(sin->sin6_addr),
-			 _stp_ntohs(sin->sin6_port));
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_INET6, " NIP6_FMT ", %d}", NIP6(sin->sin6_addr),
+                 _stp_ntohs(sin->sin6_port));
 #endif
+            return;
+        }
+
+        if (what & SA_FAMILY)
+        {
+            n = strlcpy(stap_retvalue, "AF_INET6", maxstringlen);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IP_ADDR)
+        {
+#ifndef NIP6_FMT			// kver >= 2.6.36
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%pI6", &sin->sin6_addr);
+#else
+            n = snprintf(stap_retvalue, maxstringlen,
+                 NIP6_FMT, NIP6(sin->sin6_addr));
+#endif
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_TCP_PORT)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                "%d", _stp_ntohs(sin->sin6_port));
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IPV6_FLOWINFO)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%d", sin->sin6_flowinfo);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IPV6_SCOPE_ID)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%d", sin->sin6_flowinfo);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
 	}
 	else if ((sa->sa_family == AF_PACKET)
-		 && (len == sizeof(struct sockaddr_ll))) 
+		 && (len == sizeof(struct sockaddr_ll)))
 	{
-		struct sockaddr_ll *sll = (struct sockaddr_ll *)buf;
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_PACKET, proto=%d, ind=%d, hatype=%d, pkttype=%d, halen=%d, addr=0x%llx}",
-			 (int)sll->sll_protocol, sll->sll_ifindex,
-			 (int)sll->sll_hatype, (int)sll->sll_pkttype,
-			 (int)sll->sll_halen,
-			 (long long)(*(uint64_t *)sll->sll_addr));
+		struct sockaddr_ll *sll = (struct sockaddr_ll *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_PACKET, proto=%d, ind=%d, hatype=%d, pkttype=%d, halen=%d, addr=0x%llx}",
+                 (int)sll->sll_protocol, sll->sll_ifindex,
+                 (int)sll->sll_hatype, (int)sll->sll_pkttype,
+                 (int)sll->sll_halen,
+                 (long long)(*(uint64_t *)sll->sll_addr));
+        } else if (what & SA_FAMILY)
+        { 
+            strlcpy(STAP_RETVALUE, "AF_PACKET", MAXSTRINGLEN);
+        } else
+        {
+            strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+        }
 	}
 	else
 	{

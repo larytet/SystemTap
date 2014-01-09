@@ -74,8 +74,13 @@ probe nd_syscall.bdflush.return ?
 probe nd_syscall.bind
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v >= "2.5" %?
+	printf("%d, %p, %d, %s\n", sockfd, my_addr_uaddr, addrlen, uaddr_af)
+%:
 	printf("%d, %p, %d\n", sockfd, my_addr_uaddr, addrlen)
+%)
 }
+
 probe nd_syscall.bind.return
 {
 	printf("%s, %s\n", name, retstr)
@@ -194,7 +199,11 @@ probe nd_syscall.close.return
 probe nd_syscall.connect
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v >= "2.5" %?
+	printf("%d, %p, %d, %s\n", sockfd, serv_addr_uaddr, addrlen, uaddr_af)
+%:
 	printf("%d, %p, %d\n", sockfd, serv_addr_uaddr, addrlen)
+%)
 }
 probe nd_syscall.connect.return
 {

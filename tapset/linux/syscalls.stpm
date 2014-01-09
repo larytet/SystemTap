@@ -1,5 +1,5 @@
 // syscalls tapset macros
-// Copyright (C) 2013 Red Hat Inc.
+// Copyright (C) 2013-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -33,4 +33,20 @@
     %:
 	if (_stp_syscall_nr() != @syscall_nr) next
     %)
+%)
+
+
+@define _af_inet_info_u(my_addr_uaddr, addrlen)
+%(
+  %( systemtap_v >= "2.5" %?
+     uaddr_af = _struct_sockaddr_u_sa_family(@my_addr_uaddr, @addrlen)
+     if (_struct_sockaddr_u_sa_family(@my_addr_uaddr, @addrlen) =~ "AF_INET.*") {
+       uaddr_ip = _struct_sockaddr_u_ip_addr(@my_addr_uaddr, @addrlen)
+       uaddr_ip_port = _struct_sockaddr_u_tcp_port(@my_addr_uaddr, @addrlen)
+       if (_struct_sockaddr_u_sa_family(@my_addr_uaddr, @addrlen) == "AF_INET6") {
+         uaddr_ipv6_flowinfo =  _struct_sockaddr_u_ipv6_flowinfo(@my_addr_uaddr, @addrlen)
+         uaddr_ipv6_scope_id =  _struct_sockaddr_u_ipv6_scope_id(@my_addr_uaddr, @addrlen)
+       }
+     }
+  %)
 %)

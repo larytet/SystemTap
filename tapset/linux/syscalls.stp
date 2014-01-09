@@ -201,6 +201,7 @@ probe syscall.bind = kernel.function("sys_bind").call ?
 	sockfd = $fd
 	my_addr_uaddr = $umyaddr
 	addrlen = $addrlen
+	@_af_inet_info_u(my_addr_uaddr, addrlen)
 	argstr = sprintf("%d, %s, %d", $fd, _struct_sockaddr_u($umyaddr, $addrlen), $addrlen)
 }
 probe syscall.bind.return = kernel.function("sys_bind").return ?
@@ -503,6 +504,7 @@ probe syscall.connect = kernel.function("sys_connect").call ?
 	sockfd = $fd
 	serv_addr_uaddr = $uservaddr
 	addrlen = $addrlen
+	@_af_inet_info_u(serv_addr_uaddr, addrlen)
 	argstr = sprintf("%d, %s, %d", $fd, _struct_sockaddr_u($uservaddr, $addrlen), $addrlen)
 }
 probe syscall.connect.return = kernel.function("sys_connect").return ?

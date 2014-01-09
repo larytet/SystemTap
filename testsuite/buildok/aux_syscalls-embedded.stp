@@ -14,6 +14,14 @@ probe begin {
 	print (_struct_itimerval_u(0))
 	print (_struct_compat_itimerval_u(0))
 	print (_struct_sockaddr_u(0,0))
+%( systemtap_v >= "2.5" %?
+	print (_struct_sockaddr_u_ip_addr(0,0))
+	print (_struct_sockaddr_u_tcp_port(0,0))
+	print (_struct_sockaddr_u_sa_family(0,0))
+	print (_struct_sockaddr_u_ipv6_flowinfo(0,0))
+	print (_struct_sockaddr_u_ipv6_scope_id(0,0))
+	print (_struct_sockaddr_u_impl(0,0,0))
+%)
 	print (_struct_rlimit_u(0))
 	print (_fildes_index_u(0, 0))
 

@@ -74,6 +74,15 @@ char *tok_start;
 char *tok_end;
 #endif
 
+/* Only used in file tapset/linux/aux_syscalls.stp
+ * function: _struct_sockaddr_u_impl.
+ * We need bigger buffers than is frame limit of function.
+ */
+#ifdef STAP_NEED_CONTEXT_SOCKADDR_BIG_BUFFERS
+char buf[128];
+string_t out_str;
+#endif
+
 /* Only used when stap script needs regexp subexpressions. */
 #ifdef STAP_NEED_CONTEXT_SUBEXPRESSION
 struct stapregex_match {
