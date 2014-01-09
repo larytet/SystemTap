@@ -7,6 +7,10 @@
   more wordy STAP_RETVALUE assignment followed by a "goto out".
   The macro supports numeric or string values as appropriate.
 
+- Some struct-sockaddr fields are now individually decoded for
+  socket-related syscalls:
+  probe syscall.connect { println (uaddr_af, ":", uaddr_ip) }
+
 * What's new in version 2.4, 2013-11-06
 
 - Better suggestions are given in many of the semantic errors in which
