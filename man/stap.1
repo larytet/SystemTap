@@ -1218,10 +1218,10 @@ Character.
 Signed decimal.
 .TP
 %m
-Safely reads kernel memory at the given address, outputs its content.  The precision specifier determines the number of bytes to read.  Default is 1 byte.
+Safely reads kernel memory at the given address, outputs its content.  The optional precision specifier (not field width) determines the number of bytes to read - default is 1 byte.  %10.4m prints 4 bytes of the memory in a 10-character-wide field.
 .TP
 %M
-Same as %m, but outputs in hexadecimal.  The minimal size of output is double the precision specifier.
+Same as %m, but outputs in hexadecimal.  The minimal size of output is double the optional precision specifier - default is 1 byte (2 hex chars).  %10.4M prints 4 bytes of the memory as 8 hexadecimal characters in a 10-character-wide field.
 .TP
 %o
 Unsigned octal.
