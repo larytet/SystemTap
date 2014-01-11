@@ -1743,7 +1743,7 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
                 {
                   // Get the file/line number for this label
                   int dline;
-                  const char *file = dwarf_decl_file (&die);
+                  const char *file = dwarf_decl_file (&die) ?: "<unknown source>";
                   dwarf_decl_line (&die, &dline);
 
                   vector<Dwarf_Die> scopes = getscopes_die(&die);
@@ -2047,7 +2047,7 @@ dwflpp::function_file (char const ** c)
 {
   assert (function);
   assert (c);
-  *c = dwarf_decl_file (function);
+  *c = dwarf_decl_file (function) ?: "<unknown source>";
 }
 
 

@@ -1689,8 +1689,14 @@ inline_instance_info::operator<(const inline_instance_info& other) const
     return decl_line < other.decl_line;
 
   int cmp = name.compare(other.name);
-  if (!cmp)
-    cmp = strcmp(decl_file, other.decl_file);
+
+  if (!cmp) 
+    {
+      assert (decl_file);
+      assert (other.decl_file);
+      cmp = strcmp(decl_file, other.decl_file);
+    }
+
   return cmp < 0;
 }
 
@@ -4191,8 +4197,7 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, void * data)
 
   if (! q->e.cu_name.empty())
     {
-      const char *die_name = dwarf_diename(cudie);
-
+      const char *die_name = dwarf_diename(cudie) ?: "";
       if (strcmp(die_name, q->e.cu_name.c_str()) != 0 // Perfect match
           && fnmatch(q->cu_name_pattern.c_str(), die_name, 0) != 0)
         {
@@ -9760,7 +9765,7 @@ tracepoint_derived_probe::build_args(dwflpp&, Dwarf_Die& func_die)
         {
           // build a tracepoint_arg for this parameter
           tracepoint_arg tparg;
-          tparg.name = dwarf_diename(&arg);
+          tparg.name = dwarf_diename(&arg) ?: "";
 
           // read the type of this parameter
           if (!dwarf_attr_die (&arg, DW_AT_type, &tparg.type_die)
