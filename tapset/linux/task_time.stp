@@ -104,6 +104,25 @@ function task_stime_tid:long(tid:long)
 }
 
 /**
+ * sfunction task_start_time - Start time of the given task
+ *
+ * @tid: Thread id of the given task
+ *
+ * Description: Returns the start time of the given task in nanoseconds since
+ * boot time or 0 if the task does not exist.
+ */
+function task_start_time:long (tid:long) {
+  task = pid2task(tid);
+  if (task != 0) {
+    time_sec = @cast(task, "task_struct", "kernel<linux/sched.h>")
+                  ->real_start_time->tv_sec
+    time_nsec = @cast(task, "task_struct", "kernel<linux/sched.h>")
+                  ->real_start_time->tv_nsec
+    return time_sec * 1000000000 + time_nsec
+  } else return 0
+}
+
+/**
  * sfunction cputime_to_msecs - Translates the given cputime into milliseconds
  * @cputime: Time to convert to milliseconds.
  */
@@ -157,6 +176,25 @@ function usecs_to_string:string (usecs:long)
   mins = secs / 60;
   secs = secs % 60;
   return sprintf("%dm%d.%.6ds", mins, secs, us);
+}
+
+/**
+ * sfunction nsecs_to_string - Human readable string for given nanoseconds
+ *
+ * @nsecs: Number of nanoseconds to translate.
+ *
+ * Description: Returns a string representing the number of
+ * nanoseconds as a human readable string consisting of "XmY.ZZZZZZs",
+ * where X is the number of minutes, Y is the number of seconds and
+ * ZZZZZZZZZ is the number of nanoseconds.
+ */
+function nsecs_to_string:string (nsecs:long)
+{
+  ns = nsecs % 1000000000;
+  secs = nsecs / 1000000000;
+  mins = secs / 60;
+  secs = secs % 60;
+  return sprintf("%dm%d.%.9ds", mins, secs, ns);
 }
 
 /**
