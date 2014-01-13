@@ -146,7 +146,7 @@ function msecs_to_string:string (msecs:long)
  * @usecs: Number of microseconds to translate.
  *
  * Description: Returns a string representing the number of
- * milliseconds as a human readable string consisting of "XmY.ZZZZZZs",
+ * microseconds as a human readable string consisting of "XmY.ZZZZZZs",
  * where X is the number of minutes, Y is the number of seconds and
  * ZZZZZZ is the number of microseconds.
  */
