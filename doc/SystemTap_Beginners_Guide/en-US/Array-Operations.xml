@@ -851,7 +851,7 @@ probe timer.s(3)
 <programlisting>global reads
 probe vfs.read
 {
-  reads[execname()] &lt;&lt;&lt; count
+  reads[execname()] &lt;&lt;&lt; $count
 }</programlisting>
 </example>
 
@@ -881,7 +881,7 @@ probe vfs.read
 <tertiary>array (operator)</tertiary>
 </indexterm>
 
-<para>In <xref linkend="simpleaggregates"/>, the operator <command>&lt;&lt;&lt; count</command> <emphasis>stores</emphasis> the amount returned by <literal>count</literal> to to the associated value of the corresponding <command>execname()</command> in the <literal>reads</literal> array. Remember, these values are <emphasis>stored</emphasis>; they are not added to the associated values of each unique key, nor are they used to replace the current associated values. In a manner of speaking, think of it as having each unique key (<command>execname()</command>) having multiple associated values, accumulating with each probe handler run.</para>
+<para>In <xref linkend="simpleaggregates"/>, the operator <command>&lt;&lt;&lt; $count</command> <emphasis>stores</emphasis> the amount returned by <literal>$count</literal> to the associated value of the corresponding <command>execname()</command> in the <literal>reads</literal> array. Remember, these values are <emphasis>stored</emphasis>; they are not added to the associated values of each unique key, nor are they used to replace the current associated values. In a manner of speaking, think of it as having each unique key (<command>execname()</command>) having multiple associated values, accumulating with each probe handler run.</para>
 
 <note>
 	<title>Note</title>

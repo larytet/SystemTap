@@ -24,7 +24,7 @@
     with the corresponding set of <filename>-devel</filename>,
     <filename>-debuginfo</filename> and <filename>-debuginfo-common</filename>
     packages for your kernel. If your system has multiple kernels installed, and
-    you wish to use SystemTap on more than one kernel kernel, you will need to
+    you wish to use SystemTap on more than one kernel, you will need to
     install the <filename>-devel</filename> and <filename>-debuginfo</filename>
     packages for <emphasis>each</emphasis> of those kernel versions.
   </para>
