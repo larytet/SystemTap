@@ -22,6 +22,9 @@
   allows access to the new process' arguments as well as giving better
   support across kernel versions.
 
+- The [s]println() function can now be called without any arguments to
+  simply print a newline.
+
 * What's new in version 2.4, 2013-11-06
 
 - Better suggestions are given in many of the semantic errors in which
