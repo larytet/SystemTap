@@ -716,6 +716,7 @@ probe syscall.eventfd.return = kernel.function("sys_eventfd2").return !,
 }
 
 # execve _____________________________________________________
+# NB: kprocess.exec[_complete] is aliased to syscall.execve[.return]
 %( kernel_v >= "3.7" %?
 # In kernels >= 3.7, sys_execve() has been moved to generic code, so we
 # can use it with confidence.
