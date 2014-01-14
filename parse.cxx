@@ -3452,6 +3452,7 @@ expression* parser::parse_symbol ()
 	  else
 	    {
 	      int min_args = 0;
+	      bool consumed_arg = false;
 	      if (fmt->print_with_format)
 		{
 		  // Consume and convert a format string. Agreement between the
@@ -3461,6 +3462,7 @@ expression* parser::parse_symbol ()
 		  expect_unknown (tok_string, tmp);
 		  fmt->raw_components = tmp;
 		  fmt->components = print_format::string_to_components (tmp);
+		  consumed_arg = true;
 		}
 	      else if (fmt->print_with_delim)
 		{
@@ -3468,22 +3470,26 @@ expression* parser::parse_symbol ()
 		  fmt->delimiter.clear();
 		  fmt->delimiter.type = print_format::conv_literal;
 		  expect_unknown (tok_string, fmt->delimiter.literal_string);
-		  min_args = 2;
+		  consumed_arg = true;
+		  min_args = 2; // so that the delim is used at least once
 		}
-	      else
+	      else if (!fmt->print_with_newline)
 		{
-		  // If we are not printing with a format string, we must have
-		  // at least one argument (of any type).
-		  expression *e = parse_expression ();
-		  fmt->args.push_back(e);
+		  // If we are not printing with a format string, nor with a
+		  // delim, nor with a newline, then it's either print() or
+		  // sprint(), both of which require at least one argument (of
+		  // any type).
+		  min_args = 1;
 		}
 
 	      // Consume any subsequent arguments.
 	      while (min_args || !peek_op (")"))
 		{
-		  expect_op(",");
+		  if (consumed_arg)
+		    expect_op(",");
 		  expression *e = parse_expression ();
 		  fmt->args.push_back(e);
+		  consumed_arg = true;
 		  if (min_args)
 		    --min_args;
 		}
