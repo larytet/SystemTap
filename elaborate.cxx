@@ -5419,7 +5419,8 @@ typeresolution_info::mismatch (const token *tok, exp_type type,
         }
 
       // print basic mismatch msg if we couldn't find the decl (this can happen
-      // for fabricated (already resolved) decls e.g. __perf_read_*)
+      // for explicitly typed decls e.g. myvar:long or for fabricated (already
+      // resolved) decls e.g. __perf_read_*)
       if (original == NULL)
         {
           session.print_error (SEMANTIC_ERROR (
