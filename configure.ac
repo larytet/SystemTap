@@ -684,7 +684,8 @@ AC_CONFIG_FILES([Makefile doc/Makefile man/Makefile \
 doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
 man/stappaths.7 \
 initscript/config.systemtap initscript/config.stap-server \
-initscript/systemtap initscript/stap-server ])
+initscript/systemtap initscript/stap-server \
+initscript/99stap/module-setup.sh ])
 AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])

@@ -36,6 +36,11 @@ STAP=@bindir@/stap
 STAPRUN=@bindir@/staprun
 UNAME=/bin/uname
 LSMOD=/sbin/lsmod
+DRACUT=/sbin/dracut
+
+# Not actually used directly, but needed by
+# stap dracut module for inclusion in initramfs
+STAPIO=@libexecdir@/systemtap/stapio
 
 # Path setup
 SCRIPT_PATH=@sysconfdir@/systemtap/script.d
@@ -44,6 +49,9 @@ CACHE_PATH=@localstatedir@/cache/systemtap
 STAT_PATH=@localstatedir@/run/systemtap
 TEMP_PATH=/tmp
 LOG_FILE=@localstatedir@/log/systemtap.log
+
+# NB: this path is also used in 99stap/module-setup.sh
+DRACUT_SRC=@prefix@/lib/dracut/modules.d/99stap/params.conf
 
 # FAIL unless all scripts succeeded to run
 PASSALL=yes
@@ -60,6 +68,9 @@ DEFAULT_START=
 # Allow cache only scripts
 ALLOW_CACHEONLY=no
 
+# Log boot-time staprun stderr to /var/run/systemtap/$script.log
+LOG_BOOT_ERR=no
+
 # Optional settings
 CONFIG=@sysconfdir@/systemtap/config
 SCRIPTS=
@@ -68,14 +79,18 @@ OPT_RECURSIVE=
 OPT_SCRIPTS=
 OPTS=
 OPT_ASSUMEYES=
+INITRAMFS=
+BACKUP_INITRAMFS=
 
 echo_usage () {
-  echo $"Usage: $prog {start|stop|status|restart|compile|cleanup|condrestart|try-restart|reload|force-reload} [option]"
+  echo $"Usage: $prog {start|stop|status|restart|compile|onboot|cleanup|condrestart|try-restart|reload|force-reload} [option]"
   echo $"Options:"
+  echo $"	-b		: backup initramfs before overwriting"
   echo $"	-c configfile	: specify config file"
+  echo $"	-o path.img	: specify initramfs output file"
   echo $"	-r kernelrelease: specify kernel release version"
   echo $"	-R 		: recursively dependency checking"
-  echo $"	-y 		: answer yes for all questions."
+  echo $"	-y 		: answer yes for all questions"
   echo $"	script(s)	: specify systemtap scripts"
 }
 
@@ -154,6 +169,13 @@ parse_args () { # arguments
       -y)
         OPT_ASSUMEYES=1
         ;;
+      -o)
+        INITRAMFS=$2
+        shift 1
+        ;;
+      -b)
+        BACKUP_INITRAMFS=1
+        ;;
       --)
         ;;
       *)
@@ -166,7 +188,7 @@ parse_args () { # arguments
 
 CMD=$1
 shift 1
-OPTS=`getopt -s bash -u -o 'r:c:Ry' -- $@`
+OPTS=`getopt -s bash -u -o 'r:c:Ryo:b' -- $@`
 if [ $? -ne 0 ]; then
   slog "Error: Argument parse error: $@"
   failure $"parse error"
@@ -174,6 +196,11 @@ if [ $? -ne 0 ]; then
   exit 3
 fi
 parse_args $OPTS
+
+# Set default output file if not given as an option
+if [ ! "$INITRAMFS" ]; then
+  INITRAMFS=/boot/initramfs-$KRELEASE.img
+fi
 
 # Include configs
 . "$CONFIG"
@@ -188,7 +215,7 @@ check_bool $PASSALL
 PASSALL=$?
 check_bool $RECURSIVE
 RECURSIVE=$?
-if [ "$OPT_RECURSIVE" ]; then # -r option overrides RECURSIVE.
+if [ "$OPT_RECURSIVE" ]; then # -R option overrides RECURSIVE.
   RECURSIVE=1
 fi
 check_bool $AUTOCOMPILE
@@ -197,6 +224,9 @@ CACHE_PATH="$CACHE_PATH/$KRELEASE"
 
 check_bool $ALLOW_CACHEONLY
 ALLOW_CACHEONLY=$?
+
+check_bool $LOG_BOOT_ERR
+LOG_BOOT_ERR=$?
 
 __get_all_scripts () {
   local s
@@ -223,6 +253,29 @@ if [ -z "$OPT_SCRIPTS" ]; then
   RECURSIVE=1
 else
   SCRIPTS="$OPT_SCRIPTS"
+fi
+
+# Move over any pid files in /var/run/systemtap (from boot-time scripts)
+# to the user-defined $STAT_PATH if it's different.
+if [ "$STAT_PATH" != /var/run/systemtap ] && # XXX: use inodes instead?
+   [ -d /var/run/systemtap ]; then
+
+   # Check if there's stuff to copy
+  if [ "$(ls -A /var/run/systemtap)" ]; then
+
+    # Create target dir if it does not exist
+    if [ ! -d "$STAT_PATH" ]; then
+      logex mkdir -p "$STAT_PATH"
+      if [ $? -ne 0 ]; then
+        do_failure $"Failed to make stat directory ($STAT_PATH)"
+        exit 1
+      fi
+    fi
+
+    cp /var/run/systemtap/* "$STAT_PATH"
+  fi
+
+  rm -rf /var/run/systemtap
 fi
 
 #------------------------------------------------------------------
@@ -328,10 +381,13 @@ get_compile_opts () { # opts
   done
 }
 
+# Returns 0 if something went wrong
+# Returns 1 if in -L mode
+# Returns 2 if in -D (daemon) mode
 get_run_opts () { # normalized_opts
   local opts o show mode
   opts=`stap_getopt $*`
-  [ $? -ne 0 ] && return 1
+  [ $? -ne 0 ] && return 0
   mode='-L'
   show=0
   for o in $opts; do
@@ -351,6 +407,9 @@ get_run_opts () { # normalized_opts
     esac
   done
   echo -n $mode
+  [ "$mode" == "-L" ] && return 1
+  [ "$mode" == "-D" ] && return 2
+  return 0
 }
 
 prepare_cache_dir () {
@@ -457,7 +516,7 @@ sort_dependency () { # scripts
 }
 
 start_script () { # script
-  local tmpdir s=$1 ret count=0
+  local tmpdir s=$1 ret count=0 mode
   check_running $s
   ret=$?
   [ $ret -eq 0 ] && return 0 # already running
@@ -472,7 +531,8 @@ start_script () { # script
 
   eval opts=\$${s}_OPT
   opts=`get_run_opts $opts`
-  [ $? -ne 0 ] && return 2
+  mode=$?
+  [ $mode -eq 0 ] && return 2
 
   clog " Starting $1 ... " -n
   tmpdir=`mktemp -d -p "$TEMP_PATH" cache.XXXXXXXX`  # bz7097
@@ -489,12 +549,14 @@ start_script () { # script
   # used, staprun detaches from the terminal and *then* prints the new
   # pid.  So, it is possible to check the ./pid file before it has
   # been written.  To avoid this, wait a bit (if necessary).
-  while [ $count -lt 10 ]; do
-    # when the file exists and has a size > 0, quit
-    [ -s ./pid ] && break
-    sleep 1
-    count=`expr $count + 1`
-  done
+  if [ $mode -eq 2 ]; then
+    while [ $count -lt 10 ]; do
+      # when the file exists and has a size > 0, quit
+      [ -s ./pid ] && break
+      sleep 1
+      count=`expr $count + 1`
+    done
+  fi
 
   [ x`cat ./pid` = x ] && echo 0 > ./pid
   if [ $ret -eq 0 ]; then
@@ -674,6 +736,142 @@ compile () {
   return 0
 }
 
+# Writes info to $DRACUT_SRC, which the stap dracut module will source
+# Includes all needed info such as location of stap/staprun, which
+# scripts to insert, and their options
+update_dracut() { # scripts
+  local s opts
+
+  if [ -f "$DRACUT_SRC" ]; then
+    rm -f "$DRACUT_SRC"
+  fi
+
+  echo      "STAPRUN=\"$STAPRUN\""      >> "$DRACUT_SRC"
+  echo       "STAPIO=\"$STAPIO\""       >> "$DRACUT_SRC"
+  echo   "CACHE_PATH=\"$CACHE_PATH\""   >> "$DRACUT_SRC"
+  echo    "STAT_PATH=\"$STAT_PATH\""    >> "$DRACUT_SRC"
+  echo     "KRELEASE=\"$KRELEASE\""     >> "$DRACUT_SRC"
+  echo "LOG_BOOT_ERR=\"$LOG_BOOT_ERR\"" >> "$DRACUT_SRC"
+
+  echo -n "ONBOOT_SCRIPTS=\"" >> "$DRACUT_SRC"
+  for s in $*; do
+    echo -n "$s " >> "$DRACUT_SRC"
+  done
+  echo "\"" >> "$DRACUT_SRC"
+
+  for s in $*; do
+    eval opts=\$${s}_OPT
+    opts=`get_run_opts $opts`
+    [ $? -eq 0 ] && return 1
+    echo -n "$s" >> "$DRACUT_SRC"
+    echo "_OPT=\"$opts\"" >> "$DRACUT_SRC"
+  done
+}
+
+backup_initramfs() {
+  # does target file exist?
+  if [ -f "$INITRAMFS" ]; then
+    # don't overwrite an existing backup
+    if [ ! -f "$INITRAMFS.bak" ]; then
+      mv "$INITRAMFS" "$INITRAMFS.bak"
+      clog "Renamed $INITRAMFS"
+      clog "     to $INITRAMFS.bak"
+      RESTORE_INITRAMFS_ON_FAIL=1
+    else
+      clog "Backup already exists: $INITRAMFS.bak"
+    fi
+  fi
+}
+
+onboot () {
+  local s ret ss
+  if [ ! -f "$DRACUT" ]; then
+    clog "Could not find $DRACUT" -n
+    do_failure "$DRACUT not found"
+    clog
+    clog "The system must be dracut-based to use this feature"
+    clog "If it is located elsewhere, modify the \$DRACUT parameter" -n
+    return 1
+  fi
+  if [ ! -d "$(dirname $DRACUT_SRC)" ]; then
+    clog "Could not find dracut module" -n
+    do_failure "SystemTap dracut module $(dirname $DRACUT_SRC) not found"
+    return 1
+  fi
+  prepare_cache_dir
+  if [ $? -ne 0 ]; then
+    do_failure "Failed to make cache directory ($CACHE_PATH)"
+    return 1
+  fi
+  # NB: we use OPT_SCRIPTS, not SCRIPTS because we want
+  # no scripts passed to mean building a virgin initramfs
+  for s in $OPT_SCRIPTS; do
+    compile_script $s check
+    ret=$?
+    [ $ret -ne 0 ] && might_fail "Could not compile $s ($ret)"
+    eval opts=\$${s}_OPT
+    opts=`get_run_opts $opts`
+    mode=$?
+    clog " Checking options $s ... " -n
+    [ $mode -eq 0 ] && might_fail "Bad runtime options for script $s"
+    [ $mode -eq 2 ] && might_fail "Unsupported option -o in script $s"
+    if [ $ret -eq 0 ] && [ $mode -eq 1 ]; then
+      ss="$ss$s "
+      clog "done"
+    fi
+  done
+  # User specified script(s) but they were all skipped
+  if [ -n "$OPT_SCRIPTS" ] && [ -z "$ss" ]; then
+    do_failure "No scripts left to operate on"
+    return 1
+  fi
+  if [ ! "$ss" ]; then
+    clog " Creating initramfs without scripts ... " -n
+  else
+    clog " Creating initramfs with $ss... " -n
+  fi
+  update_dracut $ss
+  if [ $? -ne 0 ]; then
+    do_failure "Call to update_dracut failed. Bad opts?"
+    return 1
+  fi
+  if [ "$BACKUP_INITRAMFS" ]; then
+    backup_initramfs
+  fi
+  dir=`dirname $INITRAMFS` && TMPINITRAMFS=`mktemp --tmpdir=$dir`
+  if [ $? -ne 0 ]; then
+    do_failure "Failed to make temporary file in $dir"
+    return 1
+  fi
+  out=$($DRACUT --force $TMPINITRAMFS $KRELEASE 2>&1)
+  # dracut will report success even if some modules (e.g. stap) failed
+  # to install some files, so we need to be a bit more involved in
+  # checking for errors
+  if [ $? -ne 0 ] || [[ "$out" == *ERROR* ]]; then
+    do_failure "The initramfs creation is unsuccessful"
+    if [ -f /var/log/dracut.log ]; then
+      do_failure "See /var/log/dracut.log for more info"
+    else
+      do_failure "See dracut log for more info"
+    fi
+    echo # We need a new line
+    if [ -f "$TMPINITRAMFS" ]; then
+      rm "$TMPINITRAMFS"
+    fi
+    # Put back the initramfs if we moved it (if we didn't move it, then
+    # whatever initramfs they used to boot in is still there)
+    if [ "$RESTORE_INITRAMFS_ON_FAIL" ]; then
+      mv "$INITRAMFS.bak" "$INITRAMFS"
+      clog "Renamed $INITRAMFS.bak"
+      clog "     to $INITRAMFS"
+    fi
+    return 1
+  fi
+  mv "$TMPINITRAMFS" "$INITRAMFS"
+  might_success "initramfs created"
+  return 0
+}
+
 # Cleanup caches
 cleanup () {
   local s ss ret
@@ -731,6 +929,10 @@ case $CMD in
   compile
   RETVAL=$?
   ;;
+  onboot)
+  onboot
+  RETVAL=$?
+  ;;
   cleanup)
   cleanup
   RETVAL=$?
@@ -748,3 +950,5 @@ esac
 
 echo
 exit $RETVAL
+
+# vim: sw=2 ts=8

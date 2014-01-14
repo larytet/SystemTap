@@ -11,6 +11,10 @@
   socket-related syscalls:
   probe syscall.connect { println (uaddr_af, ":", uaddr_ip) }
 
+- SystemTap is now capable of inserting modules early during the boot
+  process on dracut-based systems. See the 'onboot' command in the
+  initscript documentation.
+
 * What's new in version 2.4, 2013-11-06
 
 - Better suggestions are given in many of the semantic errors in which

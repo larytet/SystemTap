@@ -120,8 +120,10 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/initscript/config.systemtap.in \
 	$(top_srcdir)/initscript/config.stap-server.in \
 	$(top_srcdir)/initscript/systemtap.in \
-	$(top_srcdir)/initscript/stap-server.in $(srcdir)/run-stap.in \
-	$(srcdir)/dtrace.in $(top_srcdir)/staprun/guest/stapshd.in \
+	$(top_srcdir)/initscript/stap-server.in \
+	$(top_srcdir)/initscript/99stap/module-setup.sh.in \
+	$(srcdir)/run-stap.in $(srcdir)/dtrace.in \
+	$(top_srcdir)/staprun/guest/stapshd.in \
 	$(top_srcdir)/staprun/guest/stapsh-daemon.in \
 	$(top_srcdir)/staprun/guest/stapsh@.service.in depcomp \
 	$(am__noinst_HEADERS_DIST) $(oldinclude_HEADERS)
@@ -139,7 +141,8 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES = includes/sys/sdt-config.h \
 	initscript/config.systemtap initscript/config.stap-server \
-	initscript/systemtap initscript/stap-server run-stap dtrace \
+	initscript/systemtap initscript/stap-server \
+	initscript/99stap/module-setup.sh run-stap dtrace \
 	staprun/guest/stapshd staprun/guest/stapsh-daemon \
 	staprun/guest/stapsh@.service
 CONFIG_CLEAN_VPATH_FILES =
@@ -723,6 +726,8 @@ initscript/config.stap-server: $(top_builddir)/config.status $(top_srcdir)/inits
 initscript/systemtap: $(top_builddir)/config.status $(top_srcdir)/initscript/systemtap.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 initscript/stap-server: $(top_builddir)/config.status $(top_srcdir)/initscript/stap-server.in
+	cd $(top_builddir) && $(SHELL) ./config.status $@
+initscript/99stap/module-setup.sh: $(top_builddir)/config.status $(top_srcdir)/initscript/99stap/module-setup.sh.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@
 run-stap: $(top_builddir)/config.status $(srcdir)/run-stap.in
 	cd $(top_builddir) && $(SHELL) ./config.status $@

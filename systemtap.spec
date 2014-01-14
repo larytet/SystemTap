@@ -32,6 +32,7 @@
 # don't want to build runtime-virthost for f18 or RHEL5/6
 %{!?with_virthost: %global with_virthost 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 %{!?with_virtguest: %global with_virtguest 1}
+%{!?with_dracut: %global with_dracut 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 6
    %define initdir %{_initddir}
@@ -51,6 +52,9 @@
    %endif
 %endif
 
+%define dracutlibdir %{_prefix}/lib/dracut
+%define dracutstap %{dracutlibdir}/modules.d/99stap
+
 Name: systemtap
 Version: 2.5
 Release: 1%{?dist}
@@ -64,7 +68,7 @@ Release: 1%{?dist}
 # systemtap-devel        /usr/bin/stap, runtime, tapset, req:kernel-devel
 # systemtap-runtime      /usr/bin/staprun, /usr/bin/stapsh, /usr/bin/stapdyn
 # systemtap-client       /usr/bin/stap, samples, docs, tapset(bonus), req:-runtime
-# systemtap-initscript   /etc/init.d/systemtap, req:systemtap
+# systemtap-initscript   /etc/init.d/systemtap, dracut module, req:systemtap
 # systemtap-sdt-devel    /usr/include/sys/sdt.h /usr/bin/dtrace
 # systemtap-testsuite    /usr/share/systemtap/testsuite*, req:systemtap, req:sdt-devel
 # systemtap-runtime-java libHelperSDT.so, HelperSDT.jar, stapbm, req:-runtime
@@ -249,7 +253,9 @@ Requires(preun): initscripts
 Requires(postun): initscripts
 
 %description initscript
-Sysvinit scripts to launch selected systemtap scripts at system startup.
+This package includes a SysVinit script to launch selected systemtap
+scripts at system startup, along with a dracut module for early
+boot-time probing if supported.
 
 
 %package sdt-devel
@@ -549,6 +555,13 @@ done
    %endif
 %endif
 
+%if %{with_dracut}
+   mkdir -p $RPM_BUILD_ROOT%{dracutstap}
+   install -p -m 755 initscript/99stap/module-setup.sh $RPM_BUILD_ROOT%{dracutstap}
+   install -p -m 755 initscript/99stap/start-staprun.sh $RPM_BUILD_ROOT%{dracutstap}
+   touch $RPM_BUILD_ROOT%{dracutstap}/params.conf
+%endif
+
 %clean
 rm -rf ${RPM_BUILD_ROOT}
 
@@ -623,7 +636,7 @@ if [ $1 = 0 ] ; then
        /bin/systemctl stop stap-server.service >/dev/null 2>&1 || :
     %else
         /sbin/service stap-server stop >/dev/null 2>&1
-    	/sbin/chkconfig --del stap-server
+        /sbin/chkconfig --del stap-server
     %endif
 fi
 exit 0
@@ -633,7 +646,7 @@ exit 0
 # If so, restart the service if it's running
 if [ "$1" -ge "1" ] ; then
     %if %{with_systemd}
-    	/bin/systemctl restart stap-server.service >/dev/null 2>&1 || :
+        /bin/systemctl restart stap-server.service >/dev/null 2>&1 || :
     %else
         /sbin/service stap-server condrestart >/dev/null 2>&1 || :
     %endif
@@ -642,8 +655,7 @@ exit 0
 
 %post initscript
 %if %{with_systemd}
-    /bin/systemctl enable stap-server.service >/dev/null 2>&1 || :
-     /bin/systemd-tmpfiles --create >/dev/null 2>&1 || :
+    /bin/systemctl enable systemtap.service >/dev/null 2>&1 || :
 %else
     /sbin/chkconfig --add systemtap
 %endif
@@ -654,11 +666,11 @@ exit 0
 # just removing the old package on upgrade.
 if [ $1 = 0 ] ; then
     %if %{with_systemd}
-    	/bin/systemctl --no-reload disable stap-server.service >/dev/null 2>&1 || :
-	/bin/systemctl stop stap-server.service >/dev/null 2>&1 || :
+        /bin/systemctl --no-reload disable systemtap.service >/dev/null 2>&1 || :
+        /bin/systemctl stop systemtap.service >/dev/null 2>&1 || :
     %else
         /sbin/service systemtap stop >/dev/null 2>&1
-    	/sbin/chkconfig --del systemtap
+        /sbin/chkconfig --del systemtap
     %endif
 fi
 exit 0
@@ -668,7 +680,7 @@ exit 0
 # If so, restart the service if it's running
 if [ "$1" -ge "1" ] ; then
     %if %{with_systemd}
-        /bin/systemctl restart stap-server.service >/dev/null 2>&1 || :
+        /bin/systemctl condrestart systemtap.service >/dev/null 2>&1 || :
     %else
         /sbin/service systemtap condrestart >/dev/null 2>&1 || :
     %endif
@@ -925,6 +937,10 @@ done
 %dir %{_localstatedir}/cache/systemtap
 %ghost %{_localstatedir}/run/systemtap
 %doc initscript/README.systemtap
+%if %{with_dracut}
+   %dir %{dracutstap}
+   %{dracutstap}/*
+%endif
 
 
 %files sdt-devel
@@ -978,6 +994,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Mon Jan 06 2014 Jonathan Lebon <jlebon@redhat.com>
+- Added dracut module to initscript package
+
 * Wed Nov 06 2013 Frank Ch. Eigler <fche@redhat.com> - 2.4-1
 - Upstream release.
 
