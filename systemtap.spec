@@ -304,6 +304,9 @@ Requires: /usr/lib/libc.so
 # ... and /usr/lib/libgcc_s.so.*
 # ... and /usr/lib/libstdc++.so.*
 %endif
+%if 0%{?fedora} >= 18
+Requires: stress
+%endif
 
 %description testsuite
 This package includes the dejagnu-based systemtap stress self-testing

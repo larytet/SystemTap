@@ -113,12 +113,31 @@ proc no_load {} {
     return 0
 }
 
+proc wait_n_secs {N_SECS} {
+    if {[file executable /usr/bin/stress]} {
+	# stress package is installed
+	set STRESS /usr/bin/stress 
+    }
+    if {$N_SECS > 0 && [info exists STRESS]} {
+	set ncpu [exec getconf _NPROCESSORS_CONF]
+	if {$ncpu > 2} {
+	    set ncpu [expr $ncpu - 2]
+	}
+	puts "$STRESS -c $ncpu -t $N_SECS"
+	exec $STRESS -c $ncpu -t $N_SECS
+    } else {
+	# fallback method
+	# Tcl_Sleep does not always handle the system clock jumping, 
+	# so instead of the built-in "after", use /usr/bin/sleep.
+	catch { exec sleep $N_SECS }
+    }
+    return 0;
+}
+
+
 # Load function to use when you need to wait 5 seconds.
 proc wait_5_secs {} {
-    # Tcl_Sleep appears to have a cow if the systme clock jumps, so
-    # instead of the built-in "after", use /usr/bin/sleep.
-    catch { exec sleep 5 }
-    return 0;
+    return [wait_n_secs 5];
 }
 
 proc print_system_info {} {

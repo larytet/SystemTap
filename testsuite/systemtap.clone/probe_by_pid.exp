@@ -17,7 +17,7 @@ proc run_test_prog {} {
     set id $spawn_id
 
     # Wait 3 seconds
-    after 3000
+    wait_n_secs 3
 
     # Kill the test program
     catch {exec kill -INT -- -[exp_pid -i $id]}

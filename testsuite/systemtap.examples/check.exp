@@ -33,6 +33,10 @@ proc extract_tag { META_DATA TAG } {
 proc run_command { test action command } {
     #FIXME tcl says that single quotes not dealt with
     if { $command != "" } then {
+	# use stress instead of sleep if time >= 1
+	if {[file executable /usr/bin/stress]} {
+	    regsub {sleep ([1-9])} $command {stress -c 1 -t \1} command
+	}
 	verbose -log "attempting command $command"
 	set res [catch {exec sh -c $command 2>@1} value]
 	verbose -log "OUT $value"

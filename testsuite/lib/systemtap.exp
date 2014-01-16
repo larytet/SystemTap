@@ -166,7 +166,7 @@ proc setup_systemtap_environment {} {
 
     # Use a local systemtap directory and cache.  Add user name so
     # make check and sudo make check don't clobber each other.
-    set env(SYSTEMTAP_DIR) [exec pwd]/.systemtap-[exec whoami]
+    set env(SYSTEMTAP_DIR) [pwd]/.systemtap-[exec whoami]
     exec mkdir -p $env(SYSTEMTAP_DIR)
 
     # Start with fresh server certificates
@@ -181,7 +181,7 @@ proc setup_systemtap_environment {} {
     close $chan
 
     # Erase the old server log file.
-    set logfile "[exec pwd]/server.log"
+    set logfile "[pwd]/server.log"
     if {[file exists $logfile]} then {
 	exec rm -f $logfile;
     }
@@ -300,8 +300,8 @@ proc start_server { options } {
     # install test, otherwise there is some setup to do.
     # Make sure the server management scripts and tools are on the $PATH.
     if {! [installtest_p]} then {
-	set env(PATH) "$srcdir/..:[exec pwd]/..:$env(PATH)"
-        set installed_stap "[exec pwd]/../stap"
+	set env(PATH) "$srcdir/..:[pwd]/..:$env(PATH)"
+        set installed_stap "[pwd]/../stap"
 	set env(SYSTEMTAP_SERVER_SCRIPTS) "$srcdir/.."
     } else {
 	set env(PATH) "$env(PKGLIBDIR):$env(PATH)"
@@ -338,10 +338,10 @@ proc shutdown_server {} {
 	set server_pid 0
     }
 
-    foreach module [glob -nocomplain [exec pwd]/stap_*.ko] {
+    foreach module [glob -nocomplain [pwd]/stap_*.ko] {
 	exec /bin/rm -f $module
     }
-    foreach sig [glob -nocomplain [exec pwd]/stap_*.ko.sgn] {
+    foreach sig [glob -nocomplain [pwd]/stap_*.ko.sgn] {
 	exec /bin/rm -f $sig
     }
 }
