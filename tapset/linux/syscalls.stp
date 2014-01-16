@@ -1646,12 +1646,14 @@ probe syscall.getpeername.return = kernel.function("sys_getpeername").return ?
 # long sys_getpgid(pid_t pid)
 probe syscall.getpgid = kernel.function("sys_getpgid").call
 {
+	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
 	pid = $pid
 	argstr = sprintf("%d", $pid)
 }
 probe syscall.getpgid.return = kernel.function("sys_getpgid").return
 {
+	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
 	retstr = return_str(1, $return)
 }

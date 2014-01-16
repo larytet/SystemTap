@@ -27,6 +27,9 @@
 #ifndef __NR_ia32_fchownat
 #define __NR_ia32_fchownat 298
 #endif
+#ifndef __NR_ia32_getpgid
+#define __NR_ia32_getpgid 132
+#endif
 #ifndef __NR_ia32_inotify_init1
 #define __NR_ia32_inotify_init1 332
 #endif
@@ -53,6 +56,7 @@
 #define __NR_compat_faccessat		__NR_ia32_faccessat
 #define __NR_compat_fchmodat		__NR_ia32_fchmodat
 #define __NR_compat_fchownat		__NR_ia32_fchownat
+#define __NR_compat_getpgid		__NR_ia32_getpgid
 #define __NR_compat_inotify_init1	__NR_ia32_inotify_init1
 #define __NR_compat_linkat		__NR_ia32_linkat
 #define __NR_compat_pipe2		__NR_ia32_pipe2
@@ -72,6 +76,7 @@
 #define __NR_compat_faccessat		__NR_faccessat
 #define __NR_compat_fchmodat		__NR_fchmodat
 #define __NR_compat_fchownat		__NR_fchownat
+#define __NR_compat_getpgid		__NR_getpgid
 #define __NR_compat_inotify_init1	__NR_inotify_init1
 #define __NR_compat_linkat		__NR_linkat
 #define __NR_compat_pipe2		__NR_pipe2

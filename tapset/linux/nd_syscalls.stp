@@ -2075,6 +2075,7 @@ probe nd_syscall.getpeername.return = kprobe.function("sys_getpeername").return 
 # long sys_getpgid(pid_t pid)
 probe nd_syscall.getpgid = kprobe.function("sys_getpgid") ?
 {
+	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
 	// pid = $pid
 	// argstr = sprintf("%d", $pid)
@@ -2084,6 +2085,7 @@ probe nd_syscall.getpgid = kprobe.function("sys_getpgid") ?
 }
 probe nd_syscall.getpgid.return = kprobe.function("sys_getpgid").return ?
 {
+	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
 	retstr = returnstr(1)
 }
