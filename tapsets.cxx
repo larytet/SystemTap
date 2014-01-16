@@ -2182,6 +2182,7 @@ query_one_library (const char *library, dwflpp & dw,
                                              "LD_LIBRARY_PATH");
       probe_point* specific_loc = new probe_point(*base_loc);
       specific_loc->optional = true;
+      specific_loc->from_glob = true;
       vector<probe_point::component*> derived_comps;
 
       vector<probe_point::component*>::iterator it;
@@ -6992,6 +6993,8 @@ dwarf_builder::build(systemtap_session & sess,
 
                   // synthesize a new probe_point, with the glob-expanded string
                   probe_point *pp = new probe_point (*location);
+                  pp->from_glob = true;
+
                   // PR13338: quote results to prevent recursion
                   string eglobbed = escape_glob_chars (globbed);
 
@@ -7267,37 +7270,25 @@ dwarf_builder::build(systemtap_session & sess,
         }
     } // i_n_r > 0
 
-  // Did we fail to find a function by name? Let's suggest something! We
-  // need to check for optional because otherwise, we will be suggesting
-  // things during intermediate results without including all the
-  // possible functions. For example, process("/usr/bin/*").function
-  // will go through here for each executable found (all labelled as
-  // optionals). Similarly for library(glob) probes. TODO: find a
-  // mechanism to have suggestions for optional probes as well when no
-  // probes could be derived, e.g. probepoint1?, probepoint2 should
-  // suggest for both 1 and 2 if both fail to resolve (maybe print as a
-  // warning?). This may entails detecting the difference between script
-  // optional probes and probes that are optional in recursive calls.
+  // If we just failed to resolve a function by name, we can suggest
+  // something. We only suggest things for probe points that were not
+  // synthesized from a glob, i.e. only for 'real' probes. This is also
+  // required because modules_seen needs to accumulate across recursive
+  // calls for process(glob)[.library(glob)] probes.
   string func;
-  if (results_pre == results_post && !location->optional
+  if (results_pre == results_post && !location->from_glob
       && get_param(filled_parameters, TOK_FUNCTION, func)
       && !func.empty())
     {
       string sugs = suggest_dwarf_functions(sess, modules_seen, func);
       modules_seen.clear();
       if (!sugs.empty())
-        // Note that this error will not even be printed out if it is
-        // exactly the same suggestion as a previous throw (since
-        // print_error() filters out identical errors). Which makes
-        // sense since it's possible that the user misspelled the same
-        // function in different probes, in which case the first
-        // suggestion is sufficient.
         throw SEMANTIC_ERROR (_NF("no match (similar function: %s)",
                                   "no match (similar functions: %s)",
                                   sugs.find(',') == string::npos,
                                   sugs.c_str()));
     }
-  else if (results_pre == results_post && !location->optional
+  else if (results_pre == results_post && !location->from_glob
            && get_param(filled_parameters, TOK_PLT, func)
            && !func.empty())
     {

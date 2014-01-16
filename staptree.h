@@ -743,6 +743,7 @@ struct probe_point
   std::vector<component*> components;
   bool optional;
   bool sufficient;
+  bool from_glob;
   expression* condition;
   void print (std::ostream& o, bool print_extras=true) const;
   probe_point ();

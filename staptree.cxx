@@ -102,13 +102,13 @@ probe_point::probe_point (std::vector<component*> const & comps):
 // NB: shallow-copy of compoonents & condition!
 probe_point::probe_point (const probe_point& pp):
   components(pp.components), optional (pp.optional), sufficient (pp.sufficient),
-  condition (pp.condition)
+  from_glob (pp.from_glob), condition (pp.condition)
 {
 }
 
 
 probe_point::probe_point ():
-  optional (false), sufficient (false), condition (0)
+  optional (false), sufficient (false), from_glob (false), condition (0)
 {
 }
 
