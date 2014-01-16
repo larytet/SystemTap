@@ -6829,7 +6829,13 @@ suggest_plt_functions(systemtap_session& sess,
     }
 
   if (sess.verbose > 2)
-    clog << "suggesting from " << funcs.size() << " functions" << endl;
+    {
+      clog << "suggesting " << funcs.size() << " plt functions "
+           << "from modules:" << endl;
+      for (set<string>::iterator itmod = modules.begin();
+          itmod != modules.end(); ++itmod)
+        clog << *itmod << endl;
+    }
 
   if (funcs.empty())
     return "";
@@ -6880,7 +6886,13 @@ suggest_dwarf_functions(systemtap_session& sess,
     }
 
   if (sess.verbose > 2)
-    clog << "suggesting from " << funcs.size() << " functions" << endl;
+    {
+      clog << "suggesting " << funcs.size() << " dwarf functions "
+           << "from modules:" << endl;
+      for (set<string>::iterator itmod = modules.begin();
+          itmod != modules.end(); ++itmod)
+        clog << *itmod << endl;
+    }
 
   if (funcs.empty())
     return "";
@@ -7020,15 +7032,6 @@ dwarf_builder::build(systemtap_session & sess,
               && get_param(filled_parameters, TOK_FUNCTION, func)
               && !func.empty())
             {
-              if (sess.verbose > 2)
-                {
-                  clog << "suggesting functions from modules:" << endl;
-                  for (set<string>::const_iterator it = modules_seen.begin();
-                      it != modules_seen.end(); ++it)
-                    {
-                      clog << *it << endl;
-                    }
-                }
               string sugs = suggest_dwarf_functions(sess, modules_seen, func);
               modules_seen.clear();
               if (!sugs.empty())
@@ -7280,13 +7283,6 @@ dwarf_builder::build(systemtap_session & sess,
       && get_param(filled_parameters, TOK_FUNCTION, func)
       && !func.empty())
     {
-      if (sess.verbose > 2)
-        {
-          clog << "suggesting functions from modules:" << endl;
-          for (set<string>::const_iterator it = modules_seen.begin();
-              it != modules_seen.end(); ++it)
-            clog << *it << endl;
-        }
       string sugs = suggest_dwarf_functions(sess, modules_seen, func);
       modules_seen.clear();
       if (!sugs.empty())
