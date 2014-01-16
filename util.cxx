@@ -1151,6 +1151,9 @@ levenshtein_suggest(const string& target,        // string to match against
   for (set<string>::const_iterator it = elems.begin();
                                       it != elems.end(); ++it)
     {
+      if (it->empty()) // skip empty strings
+        continue;
+
       // Approximate levenshtein by size-difference only; real score
       // is at least this high
       unsigned min_score = labs(target.size() - it->size());
