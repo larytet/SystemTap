@@ -988,6 +988,8 @@ derive_probes (systemtap_session& s,
                bool optional,
                bool rethrow_errors)
 {
+  vector <semantic_error> optional_errs;
+
   for (unsigned i = 0; i < p->locations.size(); ++i)
     {
       assert_no_interrupts();
@@ -1016,7 +1018,14 @@ derive_probes (systemtap_session& s,
               if (!loc->optional)
                 throw semantic_error(e);
               else /* tolerate failure for optional probe */
-	        continue;
+                {
+                  // remember err, we will print it (in catch block) if any
+                  // non-optional loc fails to resolve
+                  semantic_error err(ERR_SRC, _("while resolving probe point"),
+                                     loc->components[0]->tok, NULL, &e);
+                  optional_errs.push_back(err);
+                  continue;
+                }
 	    }
 
           loc->optional = old_loc_opt;
@@ -1059,14 +1068,20 @@ derive_probes (systemtap_session& s,
 	  // Only output in listing if -vv is supplied:
           else if (!s.listing_mode || (s.listing_mode && s.verbose > 1))
             {
-              // XXX: prefer not to print_error at every nest/unroll level
-              semantic_error* er = new SEMANTIC_ERROR (_("while resolving probe point"),
-                                                       loc->components[0]->tok, NULL, &e);
-              s.print_error (* er);
-              delete er;
+              // print this one manually first because it's more important than
+              // the optional errs
+              semantic_error err(ERR_SRC, _("while resolving probe point"),
+                                 loc->components[0]->tok, NULL, &e);
+              s.print_error(err);
+
+              // print optional errs accumulated while visiting other probe points
+              for (vector<semantic_error>::const_iterator it = optional_errs.begin();
+                   it != optional_errs.end(); ++it)
+                {
+                  s.print_error(*it);
+                }
             }
         }
-
     }
 }
 
