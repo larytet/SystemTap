@@ -87,4 +87,15 @@
 
 #endif	/* __powerpc64__ || __s390x__ */
 
+#if defined(__ia64__)
+
+// On RHEL5 ia64, __NR_umount2 doesn't exist. So, define it in terms
+// of __NR_umount.
+
+#ifndef __NR_umount2
+#define __NR_umount2 __NR_umount
+#endif
+
+#endif	/* __ia64__ */
+
 #endif /* _COMPAT_UNISTD_H_ */
