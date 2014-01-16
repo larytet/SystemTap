@@ -169,10 +169,13 @@ vardecl::set_arity (int a, const token* t)
   if (arity != a && arity >= 0)
     {
       semantic_error err (ERR_SRC, _F("inconsistent arity (%s vs %d)",
-                             lex_cast(arity).c_str(), a), t?:tok);
+                                      lex_cast(arity).c_str(), a), t?:tok);
       if (arity_tok)
-	err.chain = new SEMANTIC_ERROR (_F("arity %s first inferred here",
+        {
+          semantic_error chain(ERR_SRC, _F("arity %s first inferred here",
                                            lex_cast(arity).c_str()), arity_tok);
+          err.set_chain(chain);
+        }
       throw err;
     }
 
@@ -276,8 +279,12 @@ void target_symbol::chain (const semantic_error &er)
   semantic_error* e = new semantic_error(er);
   if (!e->tok1)
     e->tok1 = this->tok;
-  assert (e->chain == 0);
-  e->chain = this->saved_conversion_error;
+  assert (e->get_chain() == 0);
+  if (this->saved_conversion_error)
+    {
+      e->set_chain(*this->saved_conversion_error);
+      delete this->saved_conversion_error;
+    }
   this->saved_conversion_error = e;
 }
 

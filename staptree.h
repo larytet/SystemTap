@@ -32,22 +32,53 @@ struct semantic_error: public std::runtime_error
 {
   const token* tok1;
   const token* tok2;
-  const semantic_error *chain;
-  const std::string errsrc;
+  std::string errsrc;
 
-  ~semantic_error () throw () {}
+  ~semantic_error () throw ()
+    {
+      if (chain)
+        delete chain;
+    }
 
   semantic_error (const std::string& src, const std::string& msg, const token* t1=0):
-    runtime_error (msg), tok1 (t1), tok2 (0), chain (0), errsrc(src) {}
+    runtime_error (msg), tok1 (t1), tok2 (0), errsrc (src), chain (0) {}
 
   semantic_error (const std::string& src, const std::string& msg, const token* t1,
-                  const token* t2):
-    runtime_error (msg), tok1 (t1), tok2 (t2), chain (0), errsrc(src) {}
+                  const token* t2, const semantic_error* chn=0):
+      runtime_error (msg), tok1 (t1), tok2 (t2), errsrc (src), chain (0)
+    {
+      if (chn)
+        set_chain(*chn);
+    }
+
+  /* override copy-ctor to deep-copy chain */
+  semantic_error (const semantic_error& other):
+      runtime_error(other), tok1(other.tok1), tok2(other.tok2),
+      errsrc(other.errsrc), chain (0)
+    {
+      if (other.chain)
+        set_chain(*other.chain);
+    }
 
   std::string errsrc_chain(void) const
     {
       return errsrc + (chain ? "|" + chain->errsrc_chain() : "");
     }
+
+  void set_chain(const semantic_error& new_chain)
+    {
+      if (chain)
+        delete chain;
+      chain = new semantic_error(new_chain);
+    }
+
+  const semantic_error* get_chain(void) const
+    {
+      return chain;
+    }
+
+private:
+  const semantic_error* chain;
 };
 
 // ------------------------------------------------------------------------

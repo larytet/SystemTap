@@ -1061,8 +1061,7 @@ derive_probes (systemtap_session& s,
             {
               // XXX: prefer not to print_error at every nest/unroll level
               semantic_error* er = new SEMANTIC_ERROR (_("while resolving probe point"),
-                                                       loc->components[0]->tok);
-              er->chain = & e;
+                                                       loc->components[0]->tok, NULL, &e);
               s.print_error (* er);
               delete er;
             }
@@ -5446,10 +5445,10 @@ typeresolution_info::mismatch (const token *tok, exp_type type,
         chain_msg << _F(" of index %d", index);
       chain_msg << _F(" was first inferred here (%s)",
                       lex_cast(decl->type).c_str());
-      err.chain = new SEMANTIC_ERROR(chain_msg.str(), original->tok);
+      semantic_error chain(ERR_SRC, chain_msg.str(), original->tok);
 
+      err.set_chain(chain);
       session.print_error (err);
-      if (err.chain) delete err.chain;
     }
   else if (!assert_resolvability)
     mismatch_complexity = max(3, mismatch_complexity);

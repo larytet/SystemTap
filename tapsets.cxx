@@ -3698,7 +3698,7 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
                       {
                         for (const semantic_error *c = tsym->saved_conversion_error;
                              c != 0;
-                             c = c->chain) {
+                             c = c->get_chain()) {
                             clog << _("variable location problem [man error::dwarf]: ") << c->what() << endl;
                         }
                       }
@@ -9604,7 +9604,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
             {
               if (dw.sess.verbose>2)
                 for (const semantic_error *c = tsym->saved_conversion_error;
-                     c != 0; c = c->chain)
+                     c != 0; c = c->get_chain())
                   clog << _("variable location problem [man error::dwarf]: ") << c->what() << endl;
               pf->raw_components += "=?";
               continue;
