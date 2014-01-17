@@ -75,6 +75,10 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
       rpm_init_done = 1;
     }
 
+  /* If we've seen this combo before, don't check again... */
+  if (!sess.rpms_checked.insert(string(filename) + rpm_type).second)
+    return 0;
+
   ts = rpmtsCreate(); 
 
   mi = rpmtsInitIterator(ts, RPMTAG_BASENAMES, filename, 0);

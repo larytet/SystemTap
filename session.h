@@ -392,7 +392,8 @@ public:
         + (panic_warnings ? seen_warnings.size() : 0)); // plus warnings if -W given
     }
 
-  std::set<std::string> rpms_to_install;
+  std::set<std::string> rpms_checked; // enlisted by filename+rpm_type
+  std::set<std::string> rpms_to_install; // resulting rpms
 
   translator_output* op_create_auxiliary();
 
