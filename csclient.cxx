@@ -3259,27 +3259,29 @@ struct browsing_context {
   vector<compile_server_info> *servers;
 };
 
+// Get the value of the requested key from the Avahi string list.
 static string
-extract_field_from_avahi_txt (const string &label, const string &txt)
+get_value_from_avahi_string_list (AvahiStringList *strlst, const string &key)
 {
-  // Extract the requested field from the Avahi TXT.
-  string prefix = "\"" + label;
-  size_t ix = txt.find (prefix);
-  if (ix == string::npos)
+  AvahiStringList *p = avahi_string_list_find (strlst, key.c_str ());
+  if (p == NULL)
     {
-      // Label not found.
+      // Key not found.
+      return "";
+    }
+  
+  char *k, *v;
+  int rc = avahi_string_list_get_pair(p, &k, &v, NULL);
+  if (rc < 0 || v == NULL)
+    {
+      avahi_free (k);
       return "";
     }
 
-  // This is the start of the field.
-  string field = txt.substr (ix + prefix.size ());
-
-  // Find the end of the field.
-  ix = field.find('"');
-  if (ix != string::npos)
-    field = field.substr (0, ix);
-
-  return field;
+  string value = v;
+  avahi_free (k);
+  avahi_free (v);
+  return value;
 }
 
 extern "C"
@@ -3342,13 +3344,11 @@ void resolve_callback(
 	    info.host_name = host_name;
 
 	    // Save the text tags.
-	    char *t = avahi_string_list_to_string(txt);
-	    info.sysinfo = extract_field_from_avahi_txt ("sysinfo=", t);
-	    info.certinfo = extract_field_from_avahi_txt ("certinfo=", t);
-	    info.version = extract_field_from_avahi_txt ("version=", t);
+	    info.sysinfo = get_value_from_avahi_string_list (txt, "sysinfo");
+	    info.certinfo = get_value_from_avahi_string_list (txt, "certinfo");
+	    info.version = get_value_from_avahi_string_list (txt, "version");
 	    if (info.version.empty ())
 	      info.version = "1.0"; // default version is 1.0
-	    avahi_free(t);
 
 	    // Add this server to the list of discovered servers.
 	    add_server_info (info, *servers);
