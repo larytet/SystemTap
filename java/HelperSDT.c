@@ -491,3 +491,29 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
     arg10.vartype.c = get_java_string(env, _arg10);
   STAP_PROBE11(HelperSDT, method__10, arg1.vartype.d, arg2.vartype.d, arg3.vartype.d, arg4.vartype.d, arg5.vartype.d, arg6.vartype.d, arg7.vartype.d, arg8.vartype.d, arg9.vartype.d, arg10.vartype.d, rulename);
 }
+
+/*
+ * Class:     HelperSDT
+ * Method:    METHOD_STAP_BT
+ * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)V
+ */
+JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_1BT
+(JNIEnv *env, jobject obj, jstring _rulename, jstring _exception, jint _counter)
+{
+  char* rulename = get_java_string(env, _rulename);
+  char* excp = get_java_string(env, _exception);
+  int stdepth = _counter;
+  STAP_PROBE3(HelperSDT, method__bt, excp, stdepth, rulename);
+}
+
+/*
+ * Class:     HelperSDT
+ * Method:    METHOD_BT_DELETE
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1BT_1DELETE
+(JNIEnv *env, jobject obj, jstring _rulename)
+{
+  char* rulename = get_java_string(env, _rulename);
+  STAP_PROBE1(HelperSDT, method__bt__delete, rulename);
+}

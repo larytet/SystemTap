@@ -11,6 +11,7 @@
 #include "translate.h"
 #include "util.h"
 #include "config.h"
+#include "staptree.h"
 
 #include "unistd.h"
 #include "sys/wait.h"
@@ -41,6 +42,26 @@ static const string TOK_END ("end");
 static const string TOK_ERROR ("error");
 
 // --------------------------------------------------------------------------
+
+struct java_details_inspection: public functioncall_traversing_visitor
+{
+
+  bool java_backtrace;
+  java_details_inspection(): java_backtrace(false) {}
+
+  void visit_functioncall(functioncall* e);
+};
+
+void
+java_details_inspection::visit_functioncall(functioncall* e)
+{
+  assert(!e->referent); // we haven't elborated yet, so there should never be referents, bail if here is
+  if (e->function == "sprint_java_backtrace" || e->function == "print_java_backtrace" ){
+    java_backtrace = true;
+    return; // no need to search anymore we know we'll need the extra information
+  }
+  traversing_visitor::visit_functioncall(e);
+}
 
 struct java_builder: public derived_probe_builder
 {
@@ -135,7 +156,6 @@ java_builder::mark_param(int i)
       return "*";
     }
 }
-
 void
 java_builder::build (systemtap_session & sess,
 		     probe * base,
@@ -202,18 +222,202 @@ java_builder::build (systemtap_session & sess,
   string java_pid_str = "";
   if(has_pid_int)
     java_pid_str = lex_cast(_java_pid);
-  else 
+  else
     java_pid_str = _java_proc_class;
 
   if (! (has_pid_int || has_pid_str) )
     throw SEMANTIC_ERROR (_("missing JVMID"));
 
+  /* Java native backtrace probe point
+
+     In the event a java backtrace is requested (signaled by a '1' returned by the
+     _bt() stap function and appended to the stapbm call),  we need to place a
+     probe point on the method__bt marker in the libHelperSDT_*.so .  We've created
+     this new marker as we don't want it interfering with the method__X markers of
+     the same rulename.  The overall flow of backtraces are the same as 'regular'
+     method probes, however run through STAP_BACKTRACE helper method, and
+     METHOD_STAP_BT native method in turn.
+
+     STAP_BACKTRACE also converts the throwable object to a string for us to pass/report
+
+     The end result is we need to place another probe point automatically for the user;
+     process("$pkglibdir/libHelperSDT_*.so").provider("HelperSDT").mark("method__bt")
+     and pass the backtrace string to the java_backtrace_string variable, which then gets
+     immediately passed to the subsequent mark("method_XX") probe through the java_backtrace()
+     function's return value.
+   */
+
+  struct java_details_inspection jdi;
+  base->body->visit(&jdi);
+
+  if(jdi.java_backtrace == true){
+    string bt_helper_location = PKGLIBDIR; // probe process("$pkglibdir/libHelperSDT_*.so").provider("HelperSDT").mark("method__bt")
+    bt_helper_location.append("/libHelperSDT_*.so"); // just as below, the wildcard is delibarate to catch all architectures
+    vector<probe_point::component*> bt_marker;
+    bt_marker.push_back (new probe_point::component
+			 (TOK_PROCESS, new literal_string (bt_helper_location)));
+    bt_marker.push_back (new probe_point::component
+			 (TOK_PROVIDER, new literal_string ("HelperSDT")));
+    bt_marker.push_back (new probe_point::component
+			 (TOK_MARK, new literal_string ("method__bt")));
+
+    probe_point * bt_derived_loc = new probe_point (bt_marker);
+    block *bt = new block;
+    bt->tok = base->body->tok;
+    string global_java_var_name = string("java_backtrace_string");
+
+    {
+      //rulename check here (for multiple simultaneous backtraces), similar to below
+      functioncall* rulename_fcall = new functioncall;
+      rulename_fcall->tok = bt->tok;
+      rulename_fcall->function = "module_name";
+
+      literal_string* rulename_suffix = new literal_string(base->name); // "probeNNNN"
+      rulename_suffix->tok = bt->tok;
+
+      //concatenation* rulename_expr = new concatenation; // module_name()."probeNN"
+      concatenation* rulename_expr = new concatenation; // module_name()."probeNN"
+      rulename_expr->tok = bt->tok;
+      rulename_expr->left = rulename_fcall;
+      rulename_expr->op = ".";
+      rulename_expr->right = rulename_suffix;
+
+      // the rulename arrives as sys/sdt.h $argN (for last arg)
+      target_symbol* cc = new target_symbol; // $argN
+      cc->tok = bt->tok;
+      cc->name = "$arg3";
+
+      functioncall* ccus = new functioncall; // user_string($argN)
+      ccus->function = "user_string";
+      ccus->type = pe_string;
+      ccus->tok = bt->tok;
+      ccus->args.push_back(cc);
+
+      // rulename comparison:  (user_string($argN) != module_name()."probeNN")
+      comparison* ce = new comparison;
+      ce->op = "!=";
+      ce->tok = bt->tok;
+      ce->left = ccus;
+      ce->right = rulename_expr;
+      ce->right->tok = bt->tok;
+
+      // build if statement: if (user_string($argN) != module_name()."probeNN") next;
+      if_statement* ifs = new if_statement;
+      ifs->thenblock = new next_statement;
+      ifs->elseblock = NULL;
+      ifs->tok = bt->tok;
+      ifs->thenblock->tok = bt->tok;
+      ifs->condition = ce;
+
+      bt->statements.push_back(ifs);
+
+      functioncall *st = new functioncall;
+      st->tok = bt->tok;
+      st->function = "__assign_stacktrace";
+      st->referent = 0;
+
+      target_symbol *btc = new target_symbol; // $arg1, ie the backtrace string
+      btc->tok = bt->tok;
+      btc->name = "$arg1";
+
+      target_symbol *btsd = new target_symbol; // $arg2 or "stack_depth"
+      btsd->tok = bt->tok;
+      btsd->name = "$arg2";
+
+      st->args.push_back(btc);
+      st->args.push_back(btsd);
+
+      expr_statement *ste = new expr_statement;
+      ste->tok = bt->tok;
+      ste->value = st;
+      bt->statements.push_back(ste);
+
+      bt_derived_loc->components = bt_marker;
+      probe* new_mark_bt_probe = new probe (base, bt_derived_loc);
+      new_mark_bt_probe->body = bt;
+      derive_probes(sess, new_mark_bt_probe, finished_results);
+    }
+    //now to delete the backtrace string
+    string bt_delete_helper_location = PKGLIBDIR; // probe process("$pkglibdir/libHelperSDT_*.so").provider("HelperSDT").mark("method__bt__delete")
+    bt_delete_helper_location.append("/libHelperSDT_*.so"); // just as below, the wildcard is delibarate to catch all architectures
+    vector<probe_point::component*> btd_marker;
+    btd_marker.push_back (new probe_point::component
+			 (TOK_PROCESS, new literal_string (bt_delete_helper_location)));
+    btd_marker.push_back (new probe_point::component
+			 (TOK_PROVIDER, new literal_string ("HelperSDT")));
+    btd_marker.push_back (new probe_point::component
+			 (TOK_MARK, new literal_string ("method__bt__delete")));
+
+    probe_point * btd_derived_loc = new probe_point (btd_marker);
+    block *btd = new block;
+    btd->tok = base->body->tok;
+
+    {
+      //rulename check here (for multiple simultaneous backtraces), similar to below
+      functioncall* rulename_fcall = new functioncall;
+      rulename_fcall->tok = bt->tok;
+      rulename_fcall->function = "module_name";
+
+      literal_string* rulename_suffix = new literal_string(base->name); // "probeNNNN"
+      rulename_suffix->tok = bt->tok;
+
+      //concatenation* rulename_expr = new concatenation; // module_name()."probeNN"
+      concatenation* rulename_expr = new concatenation; // module_name()."probeNN"
+      rulename_expr->tok = bt->tok;
+      rulename_expr->left = rulename_fcall;
+      rulename_expr->op = ".";
+      rulename_expr->right = rulename_suffix;
+
+      // the rulename (last arg)
+      target_symbol* cc = new target_symbol; // $argN
+      cc->tok = btd->tok;
+      cc->name = "$arg1";
+
+      functioncall* ccus = new functioncall; // user_string($argN)
+      ccus->function = "user_string";
+      ccus->type = pe_string;
+      ccus->tok = btd->tok;
+      ccus->args.push_back(cc);
+
+      // rulename comparison:  (user_string($argN) != module_name()."probeNN")
+      comparison* ce = new comparison;
+      ce->op = "!=";
+      ce->tok = btd->tok;
+      ce->left = ccus;
+      ce->right = rulename_expr;
+      ce->right->tok = btd->tok;
+
+      // build if statement: if (user_string($argN) != module_name()."probeNN") next;
+      if_statement* ifs = new if_statement;
+      ifs->thenblock = new next_statement;
+      ifs->elseblock = NULL;
+      ifs->tok = btd->tok;
+      ifs->thenblock->tok = btd->tok;
+      ifs->condition = ce;
+
+      btd->statements.push_back(ifs);
+
+      functioncall *d_bt = new functioncall;
+      d_bt->tok = btd->tok;
+      d_bt->function = string("__delete_backtrace");
+      expr_statement *est = new expr_statement;
+      est->tok = btd->tok;
+      est->value = d_bt;
+      btd->statements.push_back(est);
+
+      btd_derived_loc->components = btd_marker;
+      probe* new_mark_btd_probe = new probe (base, btd_derived_loc);
+      new_mark_btd_probe->body = btd;
+      derive_probes(sess, new_mark_btd_probe, finished_results);
+    }
+  }
+
   /* The overall flow of control during a probed java method is something like this:
 
-     (java) java-method -> 
-     (java) byteman -> 
+     (java) java-method ->
+     (java) byteman ->
      (java) HelperSDT::METHOD_STAP_PROBENN ->
-     (JNI) HelperSDT_arch.so -> 
+     (JNI) HelperSDT_arch.so ->
      (C) sys/sdt.h marker STAP_PROBEN(hotspot,method__N,...,rulename)
 
      To catch the java-method hit that belongs to this very systemtap
@@ -225,7 +429,7 @@ java_builder::build (systemtap_session & sess,
      - be computable from systemtap at run-time (since compile-time can't be unique enough)
      - be passable to stapbm, back through a .btm (byteman rule) file, back through sdt.h parameters
 
-     The rulename is thusly synthesized as the string-concatenation expression 
+     The rulename is thusly synthesized as the string-concatenation expression
             (module_name() . "probe_NNN")
   */
 
@@ -233,11 +437,11 @@ java_builder::build (systemtap_session & sess,
   helper_location.append("/libHelperSDT_*.so"); // wildcard deliberate: want to catch all arches
   // probe_point* new_loc = new probe_point(*loc);
   vector<probe_point::component*> java_marker;
-  java_marker.push_back(new probe_point::component 
+  java_marker.push_back(new probe_point::component
                         (TOK_PROCESS, new literal_string (helper_location)));
-  java_marker.push_back(new probe_point::component 
+  java_marker.push_back(new probe_point::component
                         (TOK_PROVIDER, new literal_string ("HelperSDT")));
-  java_marker.push_back(new probe_point::component 
+  java_marker.push_back(new probe_point::component
                         (TOK_MARK, new literal_string (mark_param(method_params_count))));
   probe_point * derived_loc = new probe_point (java_marker);
   block *b = new block;
@@ -246,7 +450,7 @@ java_builder::build (systemtap_session & sess,
   functioncall* rulename_fcall = new functioncall; // module_name()
   rulename_fcall->tok = b->tok;
   rulename_fcall->function = "module_name";
-  
+
   literal_string* rulename_suffix = new literal_string(base->name); // "probeNNNN"
   rulename_suffix->tok = b->tok;
 
@@ -255,20 +459,20 @@ java_builder::build (systemtap_session & sess,
   rulename_expr->left = rulename_fcall;
   rulename_expr->op = ".";
   rulename_expr->right = rulename_suffix;
-  
+
   // the rulename arrives as sys/sdt.h $argN (for last arg)
-  target_symbol *cc = new target_symbol; // $argN
+  target_symbol* cc = new target_symbol; // $argN
   cc->tok = b->tok;
   cc->name = "$arg" + lex_cast(method_params_count+1);
 
-  functioncall *ccus = new functioncall; // user_string($argN)
+  functioncall* ccus = new functioncall; // user_string($argN)
   ccus->function = "user_string";
   ccus->type = pe_string;
   ccus->tok = b->tok;
   ccus->args.push_back(cc);
 
   // rulename comparison:  (user_string($argN) != module_name()."probeNN")
-  comparison *ce = new comparison;
+  comparison* ce = new comparison;
   ce->op = "!=";
   ce->tok = b->tok;
   ce->left = ccus;
@@ -276,7 +480,7 @@ java_builder::build (systemtap_session & sess,
   ce->right->tok = b->tok;
 
   // build if statement: if (user_string($argN) != module_name()."probeNN") next;
-  if_statement *ifs = new if_statement;
+  if_statement* ifs = new if_statement;
   ifs->thenblock = new next_statement;
   ifs->elseblock = NULL;
   ifs->tok = b->tok;
@@ -307,27 +511,30 @@ java_builder::build (systemtap_session & sess,
      $5 - method
      $6 - number of args
      $7 - entry/exit/line
+     $8 - backtrace
   */
 
   literal_string* leftbits =
     new literal_string(string(PKGLIBDIR)+string("/stapbm ") +
-                       string("install ") + 
-                       (has_pid_int ? 
-                        lex_cast_qstring(java_pid_str) : 
+                       string("install ") +
+                       (has_pid_int ?
+                        lex_cast_qstring(java_pid_str) :
                         lex_cast_qstring(_java_proc_class)) +
                        string(" "));
   // RULENAME_EXPR goes here
-  literal_string* rightbits = 
+  literal_string* rightbits =
     new literal_string(" " +
                        lex_cast_qstring(class_str_val) +
                        " " +
-                       lex_cast_qstring(method_str_val) + 
+                       lex_cast_qstring(method_str_val) +
                        " " +
                        lex_cast(method_params_count) +
                        " " +
                        ((!has_return && !has_line_number) ? string("entry") :
                         ((has_return && !has_line_number) ? string("exit") :
-                         method_line_val)));
+                         method_line_val)) +
+		       " " +
+      		       (jdi.java_backtrace ? string("1") : string("0")));
 
   concatenation* leftmid = new concatenation;
   leftmid->left = leftbits;
@@ -373,9 +580,9 @@ java_builder::build (systemtap_session & sess,
 
   leftbits =
     new literal_string(string(PKGLIBDIR)+string("/stapbm ") +
-                       string("uninstall ") + 
-                       (has_pid_int ? 
-                        lex_cast_qstring(java_pid_str) : 
+                       string("uninstall ") +
+                       (has_pid_int ?
+                        lex_cast_qstring(java_pid_str) :
                         lex_cast_qstring(_java_proc_class)) +
                        string(" "));
   // RULENAME_EXPR goes here
@@ -443,4 +650,3 @@ register_tapset_java (systemtap_session& s)
     ->bind (builder);
 #endif
 }
-
