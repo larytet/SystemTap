@@ -28,6 +28,9 @@
 - Suggestions are now provided when markers could not be resolved. For
   example, process("stap").mark("benchmart") will suggest 'benchmark'.
 
+- SystemTap colors can now be turned off by simply setting
+  SYSTEMTAP_COLORS to be empty, rather than having to make it invalid.
+
 * What's new in version 2.4, 2013-11-06
 
 - Better suggestions are given in many of the semantic errors in which

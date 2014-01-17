@@ -2193,8 +2193,10 @@ systemtap_session::parse_stap_color(const std::string& type)
   int done = 0;
 
   key = getenv("SYSTEMTAP_COLORS");
-  if (key == NULL || *key == '\0')
+  if (key == NULL)
     key = "error=01;31:warning=00;33:source=00;34:caret=01:token=01";
+  else if (*key == '\0')
+    return ""; // disable colors if set but empty
 
   while (!done) {
     if (!(col = strchr(key, ':'))) {

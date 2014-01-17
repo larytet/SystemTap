@@ -77,7 +77,7 @@ proc stap_check_parse { TEST ENV EXP } {
 	checker "$TEST" "staprun" "$EXP"
 }
 
-stap_check_parse "empty"	"" "01;31"
+stap_check_parse "empty"	"" ""
 stap_check_parse "short_key1"	"a" ""
 stap_check_parse "short_key2"	"a:" ""
 stap_check_parse "short_key3"	"a:error=41" ""
