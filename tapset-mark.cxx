@@ -569,6 +569,9 @@ private:
     mark_cache_const_iterator_pair_t;
   mark_cache_t mark_cache;
 
+  string suggest_marks(systemtap_session& sess,
+                       const string& mark);
+
 public:
   mark_builder(): cache_initialized(false) {}
 
@@ -589,6 +592,30 @@ public:
              vector<derived_probe *> & finished_results);
 };
 
+
+string
+mark_builder::suggest_marks(systemtap_session& sess,
+                           const string& mark)
+{
+  if (mark.empty() || mark_cache.empty())
+    return "";
+
+  set<string> marks;
+
+  // Collect all markers from cache
+  for (mark_cache_const_iterator_t it = mark_cache.begin();
+       it != mark_cache.end(); it++)
+    marks.insert(it->first);
+
+  if (sess.verbose > 2)
+    clog << "suggesting from " << marks.size()
+         << " kernel marks" << endl;
+
+  if (marks.empty())
+    return "";
+
+  return levenshtein_suggest(mark, marks, 5); // print top 5 marks only
+}
 
 void
 mark_builder::build(systemtap_session & sess,
@@ -669,6 +696,8 @@ mark_builder::build(systemtap_session & sess,
       module_markers.close();
     }
 
+  unsigned results_pre = finished_results.size();
+
   // Search marker list for matching markers
   for (mark_cache_const_iterator_t it = mark_cache.begin();
        it != mark_cache.end(); it++)
@@ -693,6 +722,16 @@ mark_builder::build(systemtap_session & sess,
 	      finished_results.push_back (dp);
 	    }
 	}
+    }
+
+  if (results_pre == finished_results.size() && !loc->from_glob)
+    {
+      string sugs = suggest_marks(sess, mark_str_val);
+      if (!sugs.empty())
+        throw SEMANTIC_ERROR (_NF("no match (similar mark: %s)",
+                                  "no match (similar marks: %s)",
+                                  sugs.find(',') == string::npos,
+                                  sugs.c_str()));
     }
 }
 
