@@ -26,7 +26,7 @@ if {! [setup_server --max-threads 6]} {
 set server_port 0
 set f [open $logfile]
 set matched 0
-verbose -log "Server ouput: "
+verbose -log "Server output: "
 while {1} {
     set line [gets $f]
     if {[eof $f]} {
@@ -34,7 +34,7 @@ while {1} {
         break
     }
     verbose -log "$line"
-    if { [regexp {^.*Using network port (\d*)$} $line matched server_port ] } {
+    if { [regexp {^.*Using network address .+:(\d+)$} $line matched server_port ] } {
       close $f
       break
     }
