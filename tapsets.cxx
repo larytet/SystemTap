@@ -6541,6 +6541,8 @@ sdt_query::setup_note_probe_entry (int type, const char *data, size_t len)
   probe_name = name;
   arg_string = args;
 
+  dw.mod_info->marks.insert(make_pair(provider, name));
+
   // Did we find a matching probe?
   if (! (dw.function_name_matches_pattern (probe_name, pp_mark)
 	 && ((pp_provider == "")
@@ -6636,6 +6638,8 @@ sdt_query::iterate_over_probe_entries()
       if (sess.verbose > 4)
 	clog << _("saw .probes ") << probe_name << (provider_name != "" ? _(" (provider ")+provider_name+") " : "")
 	     << "@0x" << hex << pc << dec << endl;
+
+      dw.mod_info->marks.insert(make_pair(provider_name, probe_name));
 
       if (dw.function_name_matches_pattern (probe_name, pp_mark)
           && ((pp_provider == "") || dw.function_name_matches_pattern (provider_name, pp_provider)))
@@ -6807,6 +6811,66 @@ void
 sdt_query::query_library (const char *library)
 {
     query_one_library (library, dw, user_lib, base_probe, base_loc, results);
+}
+
+string
+suggest_marks(systemtap_session& sess,
+              const set<string>& modules,
+              const string& mark,
+              const string& provider)
+{
+  if (mark.empty() || modules.empty() || sess.module_cache == NULL)
+    return "";
+
+  set<string> marks;
+  const map<string, module_info*> &cache = sess.module_cache->cache;
+  bool dash_suggestions = (mark.find("-") != string::npos);
+
+  for (set<string>::iterator itmod = modules.begin();
+       itmod != modules.end(); ++itmod)
+    {
+      map<string, module_info*>::const_iterator itcache;
+      if ((itcache = cache.find(*itmod)) != cache.end())
+        {
+          set<pair<string,string> >::const_iterator itmarks;
+          for (itmarks = itcache->second->marks.begin();
+               itmarks != itcache->second->marks.end(); ++itmarks)
+            {
+              if (provider.empty()
+                  // simulating dw.function_name_matches_pattern()
+                  || (fnmatch(provider.c_str(), itmarks->first.c_str(), 0) == 0))
+                {
+                  string marksug = itmarks->second;
+                  if (dash_suggestions)
+                    {
+                      size_t pos = 0;
+                      while (1) // there may be more than one
+                        {
+                          size_t i = marksug.find("__", pos);
+                          if (i == string::npos) break;
+                          marksug.replace (i, 2, "-");
+                          pos = i+1; // resume searching after the inserted -
+                        }
+                    }
+                  marks.insert(marksug);
+                }
+            }
+        }
+    }
+
+  if (sess.verbose > 2)
+    {
+      clog << "suggesting " << marks.size() << " marks "
+           << "from modules:" << endl;
+      for (set<string>::iterator itmod = modules.begin();
+          itmod != modules.end(); ++itmod)
+        clog << *itmod << endl;
+    }
+
+  if (marks.empty())
+    return "";
+
+  return levenshtein_suggest(mark, marks, 5); // print top 5 marks only
 }
 
 string
@@ -7028,7 +7092,7 @@ dwarf_builder::build(systemtap_session & sess,
 
           unsigned results_post = finished_results.size();
 
-          // Did we fail to find a function by name? Let's suggest
+          // Did we fail to find a function/plt/mark by name? Let's suggest
           // something!
           string func;
           if (results_pre == results_post
@@ -7052,6 +7116,21 @@ dwarf_builder::build(systemtap_session & sess,
               if (!sugs.empty())
                 throw SEMANTIC_ERROR (_NF("no match (similar function: %s)",
                                           "no match (similar functions: %s)",
+                                          sugs.find(',') == string::npos,
+                                          sugs.c_str()));
+            }
+          else if (results_pre == results_post
+                   && get_param(filled_parameters, TOK_MARK, func)
+                   && !func.empty())
+            {
+              string provider;
+              get_param(filled_parameters, TOK_PROVIDER, provider);
+
+              string sugs = suggest_marks(sess, modules_seen, func, provider);
+              modules_seen.clear();
+              if (!sugs.empty())
+                throw SEMANTIC_ERROR (_NF("no match (similar mark: %s)",
+                                          "no match (similar marks: %s)",
                                           sugs.find(',') == string::npos,
                                           sugs.c_str()));
             }
@@ -7188,6 +7267,8 @@ dwarf_builder::build(systemtap_session & sess,
 
   assert(dw);
 
+  unsigned results_pre = finished_results.size();
+
   if (sess.verbose > 3)
     clog << _F("dwarf_builder::build for %s", module_name.c_str()) << endl;
 
@@ -7196,10 +7277,29 @@ dwarf_builder::build(systemtap_session & sess,
     {
       sdt_query sdtq(base, location, *dw, filled_parameters, finished_results, user_lib);
       dw->iterate_over_modules(&query_module, &sdtq);
+
+      // We need to update modules_seen with the modules we've visited
+      modules_seen.insert(sdtq.visited_modules.begin(),
+                          sdtq.visited_modules.end());
+
+      // Did we fail to find a mark?
+      if (results_pre == finished_results.size() && !location->from_glob)
+        {
+          string provider;
+          get_param(filled_parameters, TOK_PROVIDER, provider);
+
+          string sugs = suggest_marks(sess, modules_seen, dummy_mark_name, provider);
+          modules_seen.clear();
+          if (!sugs.empty())
+            throw SEMANTIC_ERROR (_NF("no match (similar mark: %s)",
+                                      "no match (similar marks: %s)",
+                                      sugs.find(',') == string::npos,
+                                      sugs.c_str()));
+        }
+
       return;
     }
 
-  unsigned results_pre = finished_results.size();
   dwarf_query q(base, location, *dw, filled_parameters, finished_results, user_path, user_lib);
 
   // XXX: kernel.statement.absolute is a special case that requires no
@@ -7270,7 +7370,7 @@ dwarf_builder::build(systemtap_session & sess,
         }
     } // i_n_r > 0
 
-  // If we just failed to resolve a function by name, we can suggest
+  // If we just failed to resolve a function/plt by name, we can suggest
   // something. We only suggest things for probe points that were not
   // synthesized from a glob, i.e. only for 'real' probes. This is also
   // required because modules_seen needs to accumulate across recursive

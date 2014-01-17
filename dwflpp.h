@@ -97,6 +97,7 @@ module_info
 
   std::set<std::string> inlined_funcs;
   std::set<std::string> plt_funcs;
+  std::set<std::pair<std::string,std::string> > marks; /* <provider,name> */
 
   void get_symtab(base_query *q);
   void update_symtab(cu_function_cache_t *funcs);

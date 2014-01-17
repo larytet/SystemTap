@@ -25,6 +25,9 @@
 - The [s]println() function can now be called without any arguments to
   simply print a newline.
 
+- Suggestions are now provided when markers could not be resolved. For
+  example, process("stap").mark("benchmart") will suggest 'benchmark'.
+
 * What's new in version 2.4, 2013-11-06
 
 - Better suggestions are given in many of the semantic errors in which
