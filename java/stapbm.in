@@ -36,13 +36,11 @@ JAVA_HOME=${JAVA_HOME-/usr/lib/jvm/java}
 BYTEMAN_INSTALL_OPTS=${BYTEMAN_INSTALL_OPTS--Dorg.jboss.byteman.transform.all=true}
 STAPBM_VERBOSE=${STAPBM_VERBOSE-no}
 
-
 if [ "$STAPBM_VERBOSE" != "no" ]; then
     BYTEMAN_INSTALL_OPTS="$BYTEMAN_INSTALL_OPTS -Dorg.jboss.byteman.verbose"
 else
     exec >/dev/null 2>&1
 fi
-
 
 # the byteman and byteman-submit jars should be in ${BYTEMAN_HOME}/lib
 BYTEMAN_JAR=${BYTEMAN_HOME}/byteman.jar
@@ -102,7 +100,7 @@ mkdir -p $flagdir
 if [[ $arg_jvmpid != *[[:digit:]]* ]]; then
     target_pid=`jps -l | grep $arg_jvmpid | cut -f1 -d" "`
     for target in $target_pid; do
-	$0 $arg_command $target $arg_rulename $arg_class $arg_method $arg_argcount $arg_probetype $arg_backtrace
+	$0 $arg_command $target $arg_rulename $arg_class "$arg_method" $arg_argcount $arg_probetype $arg_backtrace
     done;
     exit 0
 else
