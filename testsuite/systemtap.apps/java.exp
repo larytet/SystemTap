@@ -18,14 +18,14 @@ spawn stap $srcdir/$subdir/java.stp -c "java singleparam >/dev/null 2>&1"
 set ok 0
 expect {
     -timeout 40
-    -re {printMessage\(int\)[^\r\n]*42\r\n} { incr ok; exp_continue}
-    -re {printMessage\(long\)[^\r\n]*254775806\r\n} { incr ok; exp_continue }
-    -re {printMessage\(double\)[^\r\n]*3\r\n} { incr ok; exp_continue }
-    -re {printMessage\(float\)[^\r\n]*2345987\r\n} { incr ok; exp_continue }
-    -re {printMessage\(byte\)[^\r\n]*10\r\n} { incr ok; exp_continue }
-    -re {printMessage\(boolean\)[^\r\n]*1\r\n} { incr ok; exp_continue }
-    -re {printMessage\(char\)[^\r\n]*97\r\n} { incr ok; exp_continue }
-    -re {printMessage\(short\)[^\r\n]*14\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*42\r\n} { incr ok; exp_continue}
+    -re {[^\r\n]*254775806\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*3\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*2345987\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*10\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*1\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*97\r\n} { incr ok; exp_continue }
+    -re {[^\r\n]*14\r\n} { incr ok; exp_continue }
     timeout { fail "$test (timeout)" }
 }
 
@@ -46,14 +46,14 @@ spawn stap $srcdir/$subdir/returnstatement.stp -c "java returnstatement >/dev/nu
 set oka 0
 expect {
     -timeout 40
-    -re {printMessage\(int\)[^\r\n]*42\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(long\)[^\r\n]*254775806\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(double\)[^\r\n]*3\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(float\)[^\r\n]*2345987\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(byte\)[^\r\n]*10\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(boolean\)[^\r\n]*1\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(char\)[^\r\n]*97\ ret\r\n} { incr oka; exp_continue }
-    -re {printMessage\(short\)[^\r\n]*14\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*42\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*254775806\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*3\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*2345987\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*10\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*1\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*97\ ret\r\n} { incr oka; exp_continue }
+    -re {[^\r\n]*14\ ret\r\n} { incr oka; exp_continue }
     timeout { fail "$test unexpected timeout" }
 }
 
@@ -75,16 +75,16 @@ spawn stap $srcdir/$subdir/multiparams.stp -c "java multiparams >/dev/null 2>&1"
 set okb 0
 expect {
     -timeout 40
-    -re {printMessage1\(int\)[^\r\n]*42\r\n} { incr okb; exp_continue }
-    -re {printMessage2\(long\,\ int\)[^\r\n]*254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage3\(double,\ long,\ int\)[^\r\n]*3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage4\(float,\ double,\ long,\ int\)[^\r\n]*2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage5\(byte,\ float,\ double,\ long,\ int\)[^\r\n]*10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage6\(boolean,\ byte,\ float,\ double,\ long,\ int\)[^\r\n]*1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage7\(char,\ boolean,\ byte,\ float,\ double,\ long,\ int\)[^\r\n]*97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage8\(short,\ char,\ boolean,\ byte,\ float,\ double,\ long,\ int\)[^\r\n]*14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage9\(short,\ short,\ char,\ boolean,\ byte,\ float,\ double,\ long,\ int\)[^\r\n]*14\ 14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
-    -re {printMessage10\(short,\ short,\ short,\ char,\ boolean,\ byte,\ float,\ double,\ long,\ int\)[^\r\n]*14\ 14\ 14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*14\ 14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
+    -re {[^\r\n]*14\ 14\ 14\ 97\ 1\ 10\ 2345987\ 3\ 254775806\ 42\r\n} { incr okb; exp_continue }
     timeout { fail "$test unexpected timeout" }
 }
     if {$okb == 10} then {
@@ -95,4 +95,3 @@ expect {
 
 catch {close}; catch {wait}
 catch {exec rm ./multiparams.class}
-
