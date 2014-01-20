@@ -14,7 +14,7 @@ if {! [java_p]} then { untested $test; return }
 catch { exec javac -d ./ $srcdir/$subdir/singleparam.java } err
 if {$err == "" && [file exists ./singleparam.class]} then { pass "$test compile" } else { fail "$test compile $err" }
 
-spawn stap $srcdir/$subdir/java.stp -c "java singleparam >/dev/null 2>&1"
+spawn stap $srcdir/$subdir/singleparam.stp -c "java singleparam >/dev/null 2>&1"
 set ok 0
 expect {
     -timeout 40
@@ -35,7 +35,6 @@ expect {
 	fail "$test ($ok)"
     }
 catch {close}; catch {wait}
-catch {exec rm ./singleparam.class}
 
 set test "return"
 
@@ -95,3 +94,23 @@ expect {
 
 catch {close}; catch {wait}
 catch {exec rm ./multiparams.class}
+
+set test "stacktrace"
+
+spawn stap $srcdir/$subdir/java_backtrace.stp -c "java singleparam >/dev/null 2>&1"
+set okc 0
+expect {
+    -timeout 40
+    -re {java.lang.Throwable[^\r\n]*\r\n} { incr okc; exp_continue }
+    -re {singleparam.printMessage[^\r\n]*\r\n} { incr okc; exp_continue }
+    -re {singleparam.main[^\r\n]*\r\n} { incr okc; exp_continue }
+    timeout { fail "$test unexpected timeout" }
+}
+    if {$okc == 10} then {
+	pass "$test ($okc)"
+    } else {
+	fail "$test ($okc)"
+    }
+
+catch {close}; catch {wait}
+catch {exec rm ./singleparam.class}
