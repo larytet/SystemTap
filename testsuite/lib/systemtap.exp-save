@@ -9,95 +9,77 @@ proc installtest_p {} {
 }
 
 
-proc grep_kallsyms { pattern } {
-    if {! [catch {exec grep -q "$pattern" "/proc/kallsyms"} dummy]} {
+# only original rhel5/6-era utrace need apply
+proc utrace_orig_p {} {
+    set path "/proc/kallsyms"
+    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
 	return 1
     }
     return 0
 }
 
 
-# Test for kernel built-in utrace (CONFIG_UTRACE).
-# Only original rhel5/6-era utrace need apply.
-proc utrace_orig_p {} {
-    # We want utrace_attach (rhel5) or utrace_attach_task (rhel6), but don't
-    # get confused by the private module version of any active stap module.
-    return [grep_kallsyms "T utrace_attach"]
-}
-
-
-# Test for tracepoint-based utrace, or rather the in-kernel
-# facilities which enable our emulation of utrace.
-proc utrace_emu_p {} {
-    # Check for the set of 5 tracepoints we need and task_work_add()
-    # (see runtime/autoconf-utrace-via-tracepoints.c for details).
-    return [expr [grep_kallsyms task_work_add]                  \
-              && [grep_kallsyms tracepoint_sched_process_fork]  \
-              && [grep_kallsyms tracepoint_sched_process_exec]  \
-              && [grep_kallsyms tracepoint_sched_process_exit]  \
-              && [grep_kallsyms tracepoint_sys_enter]           \
-              && [grep_kallsyms tracepoint_sys_exit]            \
-           ]
-}
-
-
-# Test for utrace - any flavor will do...
 proc utrace_p {} {
-    return [expr [utrace_orig_p] || [utrace_emu_p] ]
-}
-
-
-proc classic_uprobes_p {} {
-    # If this is a utrace kernel, then we can use our version of uprobes.
-    # No need to build it now, stap will handle that itself.
+    set path "/proc/kallsyms"
+    # We've got 2 ways to provide utrace support:
     #
-    # Although ia64 has classical utrace, uprobes hasn't been
-    # ported there (PR7081).
-    return [expr [utrace_orig_p] && ! [istarget ia64-*-*] ]
-}
+    # (1) Kernel built-in utrace (CONFIG_UTRACE).  Look for
+    # 'utrace_attach'.
+    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
+	return 1
 
-proc inode_uprobes_p {} {
-    # inode-uprobes (or unlikely compiled-in classical uprobes?)
-    #
-    # Note we're looking for " uprobe_register" to avoid finding
-    # 'kallsyms_uprobe_register' from a loaded systemtap module.
-    return [expr ([grep_kallsyms register_uprobe]        \
-                  || [grep_kallsyms " uprobe_register"]) \
-              && ! [classic_uprobes_p]                   \
-           ]
+    # (2) Tracepoint-based utrace.  Check for the set of 5 tracepoints
+    # we need and task_work_add() (see
+    # runtime/autoconf-utrace-via-tracepoints.c for details).
+    } elseif {! [catch {exec grep -q tracepoint_sched_process_fork $path} dummy]
+	      && ! [catch {exec grep -q tracepoint_sched_process_exit $path} dummy]
+	      && ! [catch {exec grep -q tracepoint_sys_enter $path} dummy]
+	      && ! [catch {exec grep -q tracepoint_sys_exit $path} dummy]
+
+	      && ! [catch {exec grep -q tracepoint_sched_process_exec $path} dummy]
+	      && ! [catch {exec grep -q task_work_add $path} dummy]} {
+        return 1
+    }
+    return 0
 }
 
 
 proc uprobes_p {} {
-    return [expr [classic_uprobes_p] || [inode_uprobes_p] ]
+    set path "/proc/kallsyms"
+    # If this is a utrace kernel, then we can use our version of uprobes.
+    # No need to build it now, stap will handle that itself.
+    #
+    # classical utrace?
+    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
+	# Although ia64 has classical utrace, uprobes hasn't been
+	# ported there (PR7081).
+	if {[istarget ia64-*-*]} {
+ 	    return 0
+	}
+	return 1
+    }
+
+    # inode-uprobes or (unlikely compiled-in classical uprobes?)
+    #
+    # Note we're looking for " uprobe_register" to avoid finding
+    # 'kallsyms_uprobe_register' from a loaded systemtap module.
+    if {! [catch {exec grep -q register_uprobe $path} dummy]
+	|| ! [catch {exec grep -q " uprobe_register" $path} dummy]} {
+	return 1
+    }
+    return 0
 }
 
-
-proc classic_uretprobes_p {} {
-    # Classic uprobes always has uretprobes
-    return [classic_uprobes_p]
-}
-
-proc inode_uretprobes_p {} {
-    # inode-uprobes, now with return probes!  Looking for any mention of
-    # uretprobe, notably arch_uretprobe_hijack_return_addr
-    return [expr [inode_uprobes_p] && [grep_kallsyms uretprobe] ]
-}
 
 proc uretprobes_p {} {
-    return [expr [classic_uretprobes_p] || [inode_uretprobes_p] ]
+    set path "/proc/kallsyms"
+    if {! [uprobes_p]} { return 0 }
+    if {! [catch {exec grep -q uretprobe $path} dummy]} { return 1 }
+    if {! [catch {exec grep -q utrace_attach $path} dummy]} { return 1 }
+    return 0
 }
 
-proc plt_probes_p {} {
-    # .plt probes need uprobes and a supported arch (x86 and arm)
-    return [expr [uprobes_p] \
-	    && [regexp "^(x86_64|i.86|arm.*)$" $::tcl_platform(machine)] ]
-}
 
-proc perf_probes_p {} {
-    # perf probes need and exported perf_event_create_kernel_counter
-    return [grep_kallsyms perf_event_create_kernel_counter]
-}
 
 proc dyninst_p {} {
     global systemtap_dyninst_p
@@ -107,11 +89,6 @@ proc dyninst_p {} {
 proc nss_p {} {
     global systemtap_nss_p
     return $systemtap_nss_p
-}
-
-proc java_p {} {
-    global systemtap_java_p
-    return $systemtap_java_p
 }
 
 
@@ -153,20 +130,15 @@ proc print_systemtap_version {} {
 
 
 proc setup_systemtap_environment {} {
-    global srcdir env server_pid logfile systemtap_dyninst_p
-    global systemtap_nss_p systemtap_java_p
+    global srcdir env server_pid logfile systemtap_dyninst_p systemtap_nss_p
 
     # need an absolute SRCDIR for the top-level src/ tree
     # XXX: or, we could change nearby uses of ${SRCDIR}/testsuite to ${SRCDIR}
     set env(SRCDIR) [fullpath $srcdir/..]
 
-    # pretend to be a dumb terminal so that coloring is always turned off
-    # otherwise, we will have problems with expect
-    set env(TERM) dumb
-
     # Use a local systemtap directory and cache.  Add user name so
     # make check and sudo make check don't clobber each other.
-    set env(SYSTEMTAP_DIR) [pwd]/.systemtap-[exec whoami]
+    set env(SYSTEMTAP_DIR) [exec pwd]/.systemtap-[exec whoami]
     exec mkdir -p $env(SYSTEMTAP_DIR)
 
     # Start with fresh server certificates
@@ -177,11 +149,13 @@ proc setup_systemtap_environment {} {
 
     # All hail the prophet lockdep
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
+    puts $chan "--modinfo intree=Y"
+    puts $chan "-B CONFIG_DEBUG_INFO=Y"
     puts $chan "--rlimit-cpu=300"
     close $chan
 
     # Erase the old server log file.
-    set logfile "[pwd]/server.log"
+    set logfile "[exec pwd]/server.log"
     if {[file exists $logfile]} then {
 	exec rm -f $logfile;
     }
@@ -194,14 +168,6 @@ proc setup_systemtap_environment {} {
 
     # No compile-server started yet.
     set server_pid 0
-
-    # If the environment variable ARCH exists, this can throw off our
-    # custom module building (when set to the wrong value). To be
-    # safe, remove it.
-    if [info exists env(ARCH)] {
-	verbose -log "clearing env ARCH (was $env(ARCH))"
-	unset env(ARCH)
-    }
 
     # PATH, SYSTEMTAP_TAPSET, SYSTEMTAP_RUNTIME, LD_LIBRARY_PATH are already set.
     foreach var {PATH STAP SRCDIR SYSTEMTAP_TAPSET SYSTEMTAP_RUNTIME SYSTEMTAP_DIR LD_LIBRARY_PATH} {
@@ -224,19 +190,13 @@ proc setup_systemtap_environment {} {
         set systemtap_nss_p 0
     }
 
-    # Remember if this selfsame version of systemtap compiled with java support
-    if {! [catch {exec sh -c "stap -V 2>&1 | grep -q JAVA"} dummy]} {
-        set systemtap_java_p 1
-    } else {
-        set systemtap_java_p 0
-    }
     return 1
 }
 
 # Set up the environment so that tests will be performed using the systemtap
 # client and server.
 proc setup_server { args } {
-    global srcdir env installed_stap logfile use_server server_spec avahi_ok_p
+    global srcdir env installed_stap logfile use_server avahi_ok_p
 
     # Start the server
     if {! [start_server $args]} then {
@@ -244,38 +204,27 @@ proc setup_server { args } {
     }
 
     # Make sure that stap can find the server.
-    exec sleep 1
     set use_server --use-server
     set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } looksee]
     verbose -log "stap --list-servers returned: res==$res"
     verbose -log $looksee[exec cat stap-list-servers.out]
-    set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
+    set res [catch { exec grep "^ host" stap-list-servers.out } looksee]
     verbose -log "grep for servers returned: res==$res\n$looksee"
 
-    # Try to discover the port the server is listening on from the server log.
-    # We're matching a line of the form:
-    # "Thu Jul 25 11:58:11 2013: Using network address <addr>:37804"
-    set res [catch { exec /bin/cat $logfile | awk "/Using network address/ {print \$9}" } server_address]
-    send_log "server_address=='$server_address'\n"
-    if {$res != 0} then {
-	verbose -log "Unable to discover the address used by the systemtap server"
-	shutdown_server
-	return 0
-    }
-    set res [regsub ".*:(\[0-9\]\[0-9\]*)\$" $server_address {\1} server_port]
-    send_log "server_port=='$server_port'\n"
-    if {$res != 1} then {
-	verbose -log "Unable to discover the port used by the systemtap server"
-	shutdown_server
-	return 0
-    }
-    set server_spec [info hostname]:$server_port
-    send_log "server_spec=='$server_spec'\n"
-
     set avahi_ok_p 1
-    if {$listRes != 0} then {
+    if {$res != 0} then {
 	verbose -log "Unable to automatically find the systemtap server -- check firewall settings for mDNS"
 	set avahi_ok_p 0
+
+	# Try to discover the port the server is listening on from the server
+	# log.
+	set res [catch { exec /bin/cat $logfile | awk "/^Systemtap Compile Server on port .* ready/ {print \$6}" } server_port]
+	if {$res != 0} then {
+	    verbose -log "Unable to discover the port used by the systemtap server"
+	    shutdown_server
+	    return 0
+	}
+	set server_spec [info hostname]:$server_port
 	verbose -log "Client/Server tests will be run by contacting the server directly as $server_spec"
 
 	# Make sure stap can contact the server directly
@@ -300,8 +249,8 @@ proc start_server { options } {
     # install test, otherwise there is some setup to do.
     # Make sure the server management scripts and tools are on the $PATH.
     if {! [installtest_p]} then {
-	set env(PATH) "$srcdir/..:[pwd]/..:$env(PATH)"
-        set installed_stap "[pwd]/../stap"
+	set env(PATH) "$srcdir/..:[exec pwd]/..:$env(PATH)"
+        set installed_stap "[exec pwd]/../stap"
 	set env(SYSTEMTAP_SERVER_SCRIPTS) "$srcdir/.."
     } else {
 	set env(PATH) "$env(PKGLIBDIR):$env(PATH)"
@@ -334,14 +283,14 @@ proc shutdown_server {} {
     global server_pid
     if { $server_pid != 0 } then {
 	verbose -log "Stopping the systemtap server with PID==$server_pid"
-	catch {exec stap-stop-server $server_pid}
+	exec stap-stop-server $server_pid
 	set server_pid 0
     }
 
-    foreach module [glob -nocomplain [pwd]/stap_*.ko] {
+    foreach module [glob -nocomplain [exec pwd]/stap_*.ko] {
 	exec /bin/rm -f $module
     }
-    foreach sig [glob -nocomplain [pwd]/stap_*.ko.sgn] {
+    foreach sig [glob -nocomplain [exec pwd]/stap_*.ko.sgn] {
 	exec /bin/rm -f $sig
     }
 }
@@ -481,7 +430,65 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
 }
 catch { eval [list exec rm -f] [glob "hello.c*" "hello-*"] }
 
-proc systemtap_init {args} {}
+# This procedure is automatically run before every test.
+proc systemtap_init {test_file_name} {
+    global systemtap_test_file_name
+    set systemtap_test_file_name $test_file_name
+}
+
+# This procedure is automatically run after every test.
+proc systemtap_finish { } {
+    # Check to make sure we don't have any defunct processes left over.
+    if {! [catch {exec ps x | grep -i defunct | grep -v grep} output] } {
+	fail ????
+	verbose -log "WARNING: leftover defunct processes:" 0
+	verbose -log "$output" 0
+    } else {
+	pass ????
+    }
+
+    # Check to make sure we don't have any leftover systemtap kernel
+    # modules. Note that this test isn't foolproof, since systemtap
+    # modules don't have to start with 'stap_'.
+    if {! [catch {exec lsmod | grep ^stap_} output] } {
+	set module_lines [split $output "\n"]
+	foreach module_line $module_lines {
+	    if {[regexp {^(stap_[^ ]+) +[0-9]+ +([0-9]+)} $module_line \
+		     match module references]} {
+		if {$references == 2} {
+		    # If 'references' is 2, this most likely means
+		    # stapio hasn't quite removed the module yet. Wait
+		    # a second and try again.
+		    catch {exec sleep 1}
+		    if {! [catch {exec lsmod | grep ^stap_} output] } {
+			# We still found some leftover modules.
+			break
+		    }
+		    # Nothing found, just exit
+		    return 0
+		}
+	    }
+	}
+
+	verbose -log "WARNING: leftover systemtap module(s):" 0
+	verbose -log "$output" 0
+
+	# If we have leftover modules and their use count is 0, remove
+	# them.
+	set module_lines [split $output "\n"]
+	foreach module_line $module_lines {
+	    if {[regexp {^(stap_[^ ]+) +[0-9]+ +([0-9]+)} $module_line \
+		     match module references]} {
+		if {$references == 0} {
+		    verbose -log "Removing leftover module ${module}"
+		    as_root [list /sbin/rmmod $module ]
+		}
+	    }
+	}
+    }
+    return 0
+}
+
 proc systemtap_version {} {}
 
 proc cleanup {} {
@@ -555,35 +562,22 @@ proc as_non_root { command } {
     set effective_uid [exec /usr/bin/id -u]
 
     if {$effective_uid == 0} {
-	# If logname fails (which it can if we're not in a login
-	# shell) or if we're root, use user 'nobody'.
+	# If we're logged in as root (real and effective uid of 0) or
+	# if logname fails (which it can if we're not in a login
+	# shell), use user 'nobody'.
 	#
 	# Note that user 'nobody' can't use systemtap to load kernel
 	# modules, since he isn't a member of the stapusr/stapdev
 	# groups. But, 'nobody' can use systemtap to compile a kernel
 	# module.
-	set logname "root"
-	if {[catch {exec /usr/bin/logname} logname] || $logname == "root"} {
+	if {[exec /usr/bin/id -ur] == 0 \
+	    || [catch {exec /usr/bin/logname} logname]} {
 	    set logname "nobody"
 	}
-
-	# User 'nobody' doesn't have a home directory, which means we
-	# can't create ~nobody/.systemtap. So, temporarily override
-	# SYSTEMTAP_DIR.
-	if {$logname == "nobody"} {
-	    set stap_dir "/tmp/.systemtap-nobody"
-	    set command "su -s /bin/sh $logname -c \"SYSTEMTAP_DIR=$stap_dir $command\""
-	} else {
-	    set command "su -s /bin/sh $logname -c \"$command\""
-	}
+	set command "su -s /bin/sh $logname -c \"$command\""
     }
     verbose -log "as_non_root $command"
     set res [catch {eval exec $command} value]
-    if {$effective_uid == 0 && $logname == "nobody"} {
-	# If we created a SYSTEMTAP_DIR for user 'nobody' above, we
-	# can now remove it.
-	catch {exec rm -rf $stap_dir}
-    }
     verbose -log "OUT $value"
     verbose -log "RC $res"
     return  $res
@@ -618,42 +612,4 @@ proc stripped_p { EXE } {
 	return 1
     }
     return 0
-}
-
-proc prelink_p {} {
-  global prelink_bin
-  set prelink_bin "/usr/sbin/prelink"
-  return [file exists "$prelink_bin"]
-}
-
-# Run prelink via a temp file, so it can succeed even when running from an nfs
-# $HOME, for instance.  Otherwise, prelink complains that it can't restore context.
-proc prelink { FILE ADDR } {
-  global prelink_bin
-  if {![prelink_p]} {
-    verbose -log "Prelink is not found on this system"
-    return 0
-  }
-  if {[catch {exec mktemp -t staptestXXXXXX} tmpfile]} {
-    verbose -log "Failed to create prelink temporary file: $tmpfile"
-    return 0
-  }
-  if {[catch {exec cp -a "$FILE" "$tmpfile"} result]} {
-    verbose -log "Failed to copy file for prelink: $result"
-    catch {exec rm -rf "$tmpfile"}
-    return 0
-  }
-  set prelink_cmd [concat "$prelink_bin" -vfNR -r "$ADDR" "$tmpfile"]
-  send_log "Executing: $prelink_cmd\n"
-  if {[catch {eval exec $prelink_cmd} result]} {
-    verbose -log "Prelink failed: $result"
-    catch {exec rm -rf "$tmpfile"}
-    return 0
-  }
-  if {[catch {exec mv "$tmpfile" "$FILE"} result]} {
-    verbose -log "Failed to move prelinked file back: $result"
-    catch {exec rm -rf "$tmpfile"}
-    return 0
-  }
-  return 1
 }
