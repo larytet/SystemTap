@@ -1296,7 +1296,7 @@ dwarf_query::assess_dbinfo_reqt()
       // kernel.statement(NUM).absolute
       return dbr_none;
     }
-  if (has_inline)
+  if (has_inline || has_label)
     {
       // kernel.function("f").inline or module("m").function("f").inline
       return dbr_need_dwarf;
