@@ -28,11 +28,13 @@ probe process(@2).mark("func_count") {
 }
 
 #uname
-probe process(@1).function("*") {
+probe process(@1).function("main"),
+      process(@1).function("main_func") {
   printf("exe: %s=%s\n",probefunc(), usymname(uaddr()));
 }
 
-probe process(@2).function("*") {
+probe process(@2).function("lib_main"),
+      process(@2).function("lib_func") {
   printf("lib: %s=%s\n",probefunc(), usymname(uaddr()));
 }
 

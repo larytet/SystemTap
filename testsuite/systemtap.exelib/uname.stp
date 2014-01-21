@@ -1,10 +1,12 @@
 // Prints probefunc() and usymname(uaddr()) to check they are similar.
 // Arguments: @1 uprobes_exe, @2 libuprobes_lib.so
 
-probe process(@1).function("*") {
+probe process(@1).function("main"),
+      process(@1).function("main_func") {
   printf("exe: %s=%s\n",probefunc(), usymname(uaddr()));
 }
 
-probe process(@2).function("*") {
+probe process(@2).function("lib_main"),
+      process(@2).function("lib_func") {
   printf("lib: %s=%s\n",probefunc(), usymname(uaddr()));
 }
