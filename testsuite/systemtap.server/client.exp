@@ -54,8 +54,7 @@ proc array_in {array1 array2} {
 # Check if array1 and array2 have all the same elements
 proc array_equal {array1 array2} {
     upvar 1 $array1 foo $array2 bar
-    return [array_in foo bar] \
-        && [array_in bar foo]
+    return [expr [array_in foo bar] && [array_in bar foo]]
 }
 
 # Returns the union of the three arrays
