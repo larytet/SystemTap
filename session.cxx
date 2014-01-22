@@ -1815,11 +1815,9 @@ systemtap_session::register_library_aliases()
             }
           catch (const semantic_error& e)
             {
-              semantic_error* er = new SEMANTIC_ERROR (_("while registering probe alias"),
-                                                       alias->tok);
-              er->chain = & e;
-              print_error (* er);
-              delete er;
+              semantic_error er(ERR_SRC, _("while registering probe alias"),
+                                alias->tok, NULL, &e);
+              print_error (er);
             }
 	}
     }
@@ -1872,7 +1870,7 @@ systemtap_session::print_error (const semantic_error& se)
   if (verbose > 0 || seen_errors[se.errsrc_chain()] < 1)
     {
       seen_errors[se.errsrc_chain()]++;
-      for (const semantic_error *e = &se; e != NULL; e = e->chain)
+      for (const semantic_error *e = &se; e != NULL; e = e->get_chain())
         cerr << build_error_msg(*e);
     }
   else suppressed_errors++;
