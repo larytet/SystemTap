@@ -40,6 +40,7 @@ puts $fp "
 probe process(\"labels.x\").function(\"main@labels.c\").label(\"init_*\") {printf (\"VARS %s\\n\",\$\$vars)}
 probe process(\"labels.x\").function(\"main@labels.c\").label(\"ptr_inited\") {printf (\"VARS %s\\n\",\$\$vars)}
 probe process(\"labels.x\").function(\"main@labels.c\").label(\"init_an_int\") {printf (\"init_an_int\\n\")}
+probe process(\"labels.x\").function(\"*\").label(\"*\") {printf (\"label=%s\\n\", pplabel())}
 "
 close $fp
 
@@ -113,10 +114,10 @@ foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
 	lappend test_name $runtime
 	verbose -log "spawn stap -c $label_exepath $label_stppath --runtime=$runtime"
-	spawn stap -c $label_exepath $label_stppath --runtime=$runtime
+	spawn stap -w -c $label_exepath $label_stppath --runtime=$runtime
     } elseif {[uprobes_p]} {
 	verbose -log "spawn stap -c $label_exepath $label_stppath"
-	spawn stap -c $label_exepath $label_stppath
+	spawn stap -w -c $label_exepath $label_stppath
     } else {
 	untested "$test_name"
 	continue
@@ -129,13 +130,18 @@ foreach runtime [get_runtime_list] {
     set ok 0
     expect {
 	-timeout 180
-	-re {VARS a=0x0 b=0x0.*init_an_int.*VARS a=0x2 b=0x0.*VARS a=0x2 b=0x3 c=0x[a-f01-9]} { incr ok; exp_continue }
-	-re {init_an_int.*VARS a=0x0 b=0x0.*VARS a=0x2 b=0x0.*VARS a=0x2 b=0x3 c=0x[a-f01-9]} { incr ok; exp_continue }
+	-re {^init_an_int\r\n} { incr ok; exp_continue }
+	-re {^VARS a=0x0 b=0x0 c=0x[0-9a-f]+\r\n} { incr ok; exp_continue }
+	-re {^VARS a=0x2 b=0x0 c=0x[0-9a-f]+\r\n} { incr ok; exp_continue }
+	-re {^VARS a=0x2 b=0x3 c=0x[0-9a-f]+\r\n} { incr ok; exp_continue }
+	-re {^label=init_an_int\r\n} { incr ok; exp_continue }
+	-re {^label=init_an_int_again\r\n} { incr ok; exp_continue }
+	-re {^label=ptr_inited\r\n} { incr ok; exp_continue }
 	timeout { fail "$test (timeout)" }
 	eof { }
     }
     catch { close }; catch { wait }
-    if {$ok == 1} { pass "$test_name" } { fail "$test_name $ok" }
+    if {$ok == 8} { pass "$test_name" } { fail "$test_name $ok" }
 }
 
 # address of label in an executable

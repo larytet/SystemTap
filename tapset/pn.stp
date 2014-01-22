@@ -23,3 +23,31 @@ function pn:string ()
 	const char* name = CONTEXT->probe_name ?: CONTEXT->probe_point;
 	strlcpy (STAP_RETVALUE, name, MAXSTRINGLEN);
 %}
+
+/**
+ * sfunction pplabel - Returns the label name parsed from the probe name
+ *
+ * Description: This returns the label name from the active probe name.
+ * Context: The current probe name.
+ */
+function pplabel:string ()
+%{ /* pure */ /* unprivileged */
+	char *ptr, *start;
+
+	if (!CONTEXT->probe_name) {
+		STAP_RETURN("");
+	}
+
+	/* This function is modelled after ppfunc() */
+	STAP_RETVALUE[0] = '\0';
+	start = strstr(CONTEXT->probe_name, "label(\""); /* XXX: could be smarter */
+	ptr = start + 7;
+
+	if (start) {
+		int len = MAXSTRINGLEN;
+		char *dst = STAP_RETVALUE;
+		while (*ptr != '"' && --len > 0 && *ptr)
+			*dst++ = *ptr++;
+		*dst = 0;
+	}
+%}
