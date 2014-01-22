@@ -374,6 +374,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   specified_servers = other.specified_servers;
   server_trust_spec = other.server_trust_spec;
   server_args = other.server_args;
+  mok_info = other.mok_info;
 
   unwindsym_modules = other.unwindsym_modules;
   automatic_server_mode = other.automatic_server_mode;
@@ -1559,6 +1560,19 @@ systemtap_session::check_options (int argc, char * const argv [])
   const char *tmpdir = getenv("TMPDIR");
   if (tmpdir != NULL)
     assert_regexp_match("TMPDIR", tmpdir, "^[-/._0-9a-z]+$");
+
+  // If the kernel is using signed modules, we need to enforce server
+  // use.
+  if (!client_options && modules_must_be_signed())
+    {
+      // Force server use to be on, if not on already.
+      if (specified_servers.empty())
+	  specified_servers.push_back ("");
+
+      // Cache the current system's machine owner key (MOK)
+      // information, to pass over to the server.
+      get_mok_info();
+    }
 }
 
 
@@ -2217,6 +2231,80 @@ systemtap_session::parse_stap_color(const std::string& type)
   // Could not find the key
   return "";
 }
+
+/*
+ * Returns true if this system requires modules to have signatures
+ * (typically on a secure boot system), false otherwise.
+ *
+ * This routine parses /sys/module/module/parameters/sig_enforce to
+ * figure out if signatures are enforced on modules. Note that if the
+ * file doesn't exist, we don't really care and return false.
+ */
+bool
+systemtap_session::modules_must_be_signed()
+{
+  ifstream statm("/sys/module/module/parameters/sig_enforce");
+  char status;
+
+  statm >> status;
+  if (status == 'Y')
+    return true;
+  return false;
+}
+
+/*
+ * Get information on the list of enrolled machine owner keys (MOKs) on
+ * this system.
+ */ 
+void
+systemtap_session::get_mok_info()
+{
+  vector<string> cmd;
+  int rc;
+  stringstream out;
+
+  // FIXME: we'll need to add mokutil to a 'Requires' line in the spec
+  // file, but only for F?+ and RHEL?+. Need to figure out exact
+  // release numbers.
+  //
+  // FIXME: In theory, we should be able to read /sys files and use
+  // some of the guts of read_cert_info_from_file() to get the
+  // fingerprints. This would rid us of our mokutil
+  // dependency. However, we'd need to copy/duplicate efilib.c from
+  // mokutil source to be able to decipher the efi data.
+  //
+  // FIXME: Hmm, another unfortunate development. mokutil uses
+  // openssl, stap-server uses nss. The nss library returns the
+  // 'issuer' field in different order than the openssl library. So,
+  // the two won't compare properly as strings. We'd have to break the
+  // issuer field apart and compare the pieces.
+
+  cmd.push_back("mokutil");
+  cmd.push_back("--list-enrolled");
+  rc = stap_system_read(verbose, cmd, out);
+  if (rc != 0)
+      throw runtime_error(_F("failed to get list of machine owner keys (MOK) fingerprints: rc %d", rc));
+
+  string line, fingerprint;
+  while (! out.eof())
+    {
+      vector<string> matches;
+
+      // Get a line of the output, then try to find the
+      // fingerprint/issuer/serial number in the line.
+      getline(out, line);
+      if (! regexp_match(line, "^SHA1 Fingerprint: ([0-9a-f:]+)$", matches))
+        {
+	  // matches[0] is the entire line, matches[1] is the first
+	  // submatch, in this case the actual fingerprint
+	  if (verbose > 2)
+	    clog << "MOK fingerprint found: " << matches[1] << endl;
+	  if (! matches[1].empty())
+	    mok_info.push_back(matches[1]);
+	}
+    }
+}
+
 
 // --------------------------------------------------------------------------
 
