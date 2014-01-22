@@ -40,7 +40,7 @@ puts $fp "
 probe process(\"labels.x\").function(\"main@labels.c\").label(\"init_*\") {printf (\"VARS %s\\n\",\$\$vars)}
 probe process(\"labels.x\").function(\"main@labels.c\").label(\"ptr_inited\") {printf (\"VARS %s\\n\",\$\$vars)}
 probe process(\"labels.x\").function(\"main@labels.c\").label(\"init_an_int\") {printf (\"init_an_int\\n\")}
-probe process(\"labels.x\").function(\"*\").label(\"*\") {printf (\"label=%s\\n\", pplabel())}
+probe process(\"labels.x\").function(\"*\").label(\"*\") {printf (\"label=%s\\n\", pnlabel())}
 "
 close $fp
 

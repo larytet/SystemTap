@@ -25,12 +25,14 @@ function pn:string ()
 %}
 
 /**
- * sfunction pplabel - Returns the label name parsed from the probe name
+ * sfunction pnlabel - Returns the label name parsed from the probe name
  *
- * Description: This returns the label name from the active probe name.
- * Context: The current probe name.
+ * Description: This returns the label name as parsed from the
+ * script-level probe point. This function will only work if called
+ * directly from the body of a '.label' probe point (i.e. no aliases).
+ * Context: The current probe point.
  */
-function pplabel:string ()
+function pnlabel:string ()
 %{ /* pure */ /* unprivileged */
 	char *ptr, *start;
 
