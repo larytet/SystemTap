@@ -140,7 +140,8 @@ function str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
 		ptr_base = ptr;
 	}
 
-	STAP_RETURN (ptr_base);
+	strlcat(STAP_RETVALUE, ptr_base, MAXSTRINGLEN);
+	return;
 %}
 
 /**
