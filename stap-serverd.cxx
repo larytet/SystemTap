@@ -473,11 +473,9 @@ create_services (AvahiClient *c) {
   if (! server_mok_map.empty())
     {
       mok_map_iterator it;
-      int i;
-      for (it = server_mok_map.begin(), i = 1; it != server_mok_map.end();
-	   it++, i++)
+      for (it = server_mok_map.begin(); it != server_mok_map.end(); it++)
         {
-	  string tmp = _F("mok_info%d=", i) + it->second->fingerprint;
+	  string tmp = "mok_info=" + it->second->fingerprint;
 	  strlst = avahi_string_list_add(strlst, tmp.c_str ());
 	  if (strlst == NULL)
 	    {

@@ -3352,6 +3352,33 @@ get_value_from_avahi_string_list (AvahiStringList *strlst, const string &key)
   return value;
 }
 
+// Get a vector of values of the requested key from the Avahi string
+// list. This is for multiple values having the same key.
+static void
+get_values_from_avahi_string_list (AvahiStringList *strlst, const string &key,
+				   vector<string> &value_vector)
+{
+  AvahiStringList *p;
+
+  value_vector.clear();
+  p = avahi_string_list_find (strlst, key.c_str ());
+  for (; p != NULL; p = avahi_string_list_get_next(p))
+    {
+      char *k, *v;
+      int rc = avahi_string_list_get_pair(p, &k, &v, NULL);
+      if (rc < 0 || v == NULL)
+        {
+	  avahi_free (k);
+	  break;
+	}
+
+      value_vector.push_back(v);
+      avahi_free (k);
+      avahi_free (v);
+    }
+  return;
+}
+
 extern "C"
 void resolve_callback(
     AvahiServiceResolver *r,
@@ -3420,21 +3447,8 @@ void resolve_callback(
 
 	    // The server might provide one or more MOK certificate's
 	    // info.
-	    int i = 1;
-	    while (true) {
-	      ostringstream key;
-	      string fingerprint;
-
-	      key << "mok_info" << i;
-	      fingerprint = get_value_from_avahi_string_list (txt, key.str());
-	      if (fingerprint.empty ())
-		break;
-
-
-	      // Save it.
-	      info.mok_fingerprints.push_back(fingerprint);
-	      i++;
-	    }
+	    get_values_from_avahi_string_list(txt, "mok_info",
+					      info.mok_fingerprints);
 
 	    // Add this server to the list of discovered servers.
 	    add_server_info (info, *servers);
