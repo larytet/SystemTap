@@ -766,7 +766,7 @@ make_run_command (systemtap_session& s, const string& remotedir,
   // Note that if this system requires signed modules, we can't rename
   // it after it has been signed.
   if (!s.modname_given && (strverscmp("1.6", version.c_str()) <= 0)
-      && s.mok_info.empty())
+      && s.mok_fingerprints.empty())
     staprun_cmd.push_back("-R");
 
   if (!s.size_option.empty())

@@ -85,15 +85,6 @@ nsscommon_error (const char *msg, int logit __attribute ((unused)))
   clog << msg << endl << flush;
 }
 
-typedef struct
-{
-  string issuer;
-  string serial_number;
-  string fingerprint;
-} mok_info_t;
-typedef map<string, mok_info_t *> mok_map_t;
-typedef map<string, mok_info_t *>::const_iterator mok_map_iterator;
-
 // Information about compile servers.
 struct compile_server_info
 {
@@ -109,7 +100,7 @@ struct compile_server_info
   string version;
   string sysinfo;
   string certinfo;
-  mok_map_t mok_map;
+  vector<string> mok_fingerprints;
 
   bool empty () const
   {
@@ -164,22 +155,9 @@ struct compile_server_info
     if (! this->certinfo.empty () && ! that.certinfo.empty () &&
         this->certinfo != that.certinfo)
       return false;
-
-    if (! this->mok_map.empty () && ! that.mok_map.empty ())
-    {
-      if (this->mok_map.size () != that.mok_map.size ())
-	return false;
-
-      mok_map_iterator it;
-      for (it = this->mok_map.begin (); it != this->mok_map.end (); it++)
-        {
-	  // The indices of the maps are the cert fingerprints. The
-	  // issuer/serial number are human readable, but the
-	  // fingerprints are truly unique.
-	  if (that.mok_map.find (it->first) == that.mok_map.end ())
-	    return false;
-	}
-    }
+    if (! this->mok_fingerprints.empty () && ! that.mok_fingerprints.empty ()
+	&& this->mok_fingerprints != that.mok_fingerprints)
+      return false;
 
     return true; // They are equal
   }
@@ -981,11 +959,11 @@ compile_server_client::create_request ()
   rc = add_localization_variables();
 
   // Add the machine owner key (MOK) fingerprints file, if needed.
-  if (! s.mok_info.empty())
+  if (! s.mok_fingerprints.empty())
     {
       ostringstream fingerprints;
       vector<string>::const_iterator it;
-      for (it = s.mok_info.begin(); it != s.mok_info.end();
+      for (it = s.mok_fingerprints.begin(); it != s.mok_fingerprints.end();
 	   it++)
 	fingerprints << *it << endl;
 
@@ -2155,24 +2133,18 @@ ostream &operator<< (ostream &s, const compile_server_info &i)
     s << i.certinfo << '"';
   else
     s << "unknown\"";
-  if (! i.mok_map.empty ())
+  if (! i.mok_fingerprints.empty ())
     {
       // FIXME: Yikes, this output is ugly. Perhaps the server output
       // needs a more structured approach.
-      //
-      // FIXME: The '/' separator ws chosen at random. The issuer
-      // field will most likely contain embedded spaces.
-      s << " mokinfo=\"";
-      mok_map_iterator it;
-      for (it = i.mok_map.begin (); it != i.mok_map.end (); it++)
+      s << " mok_fingerprints=\"";
+      vector<string>::const_iterator it;
+      for (it = i.mok_fingerprints.begin (); it != i.mok_fingerprints.end ();
+	   it++)
         {
-	  // The indices of the maps are the cert fingerprints. The
-	  // issuer/serial number are human readable, but the
-	  // fingerprints are truly unique. Output the issuer/serial
-	  // number.
-	  if (it != i.mok_map.begin ())
+	  if (it != i.mok_fingerprints.begin ())
 	    s << ", ";
-	  s << it->second->issuer << "/" << it->second->serial_number;
+	  s << *it;
 	}      
       s << "\"";
     }
@@ -3152,10 +3124,10 @@ get_or_keep_compatible_server_info (
   
       // If the client requires secure boot signing, make sure the
       // server has the right MOK.
-      if (! s.mok_info.empty ())
+      if (! s.mok_fingerprints.empty ())
         {
 	  // This server has no MOKs.
-	  if (servers[i].mok_map.empty ())
+	  if (servers[i].mok_fingerprints.empty ())
 	    {
 	      servers.erase (servers.begin () + i);
 	      continue;
@@ -3165,9 +3137,11 @@ get_or_keep_compatible_server_info (
 	  // the client.
 	  vector<string>::const_iterator it;
 	  bool mok_found = false;
-	  for (it = s.mok_info.begin(); it != s.mok_info.end(); it++)
+	  for (it = s.mok_fingerprints.begin(); it != s.mok_fingerprints.end(); it++)
 	    {
-	      if (servers[i].mok_map.find (*it) != servers[i].mok_map.end ())
+	      if (find(servers[i].mok_fingerprints.begin(),
+		       servers[i].mok_fingerprints.end(), *it)
+		  != servers[i].mok_fingerprints.end ())
 	        {
 		  mok_found = true;
 		  break;
@@ -3448,49 +3422,17 @@ void resolve_callback(
 	    // info.
 	    int i = 1;
 	    while (true) {
-	      mok_info_t *mki = new mok_info_t;
 	      ostringstream key;
-	      string mok_info_str;
+	      string fingerprint;
 
 	      key << "mok_info" << i;
-	      mok_info_str = get_value_from_avahi_string_list (txt, key.str());
-	      if (mok_info_str.empty ()) {
-		delete mki;
+	      fingerprint = get_value_from_avahi_string_list (txt, key.str());
+	      if (fingerprint.empty ())
 		break;
-	      }
 
-	      // Extract the data, which is in the format:
-	      //
-	      //  FINGERPRINT SERIAL_NUMBER ISSUER
-	      string::size_type start_pos, end_pos;
-	      start_pos = 0;
-	      end_pos = mok_info_str.find(' ', start_pos);
-	      if (end_pos == string::npos) {
-		// bad format
-		clog << _F("Failed to parse MOK info: '%s'",
-			   mok_info_str.c_str()) << endl;
-		delete mki;
-		break;
-	      }
-	      mki->fingerprint = mok_info_str.substr(start_pos,
-						     end_pos - start_pos);
-
-	      start_pos = end_pos + 1;
-	      end_pos = mok_info_str.find(' ', start_pos);
-	      if (end_pos == string::npos) {
-		// bad format
-		clog << _F("Failed to parse MOK info: '%s'",
-			   mok_info_str.c_str()) << endl;
-		delete mki;
-		break;
-	      }
-	      mki->serial_number = mok_info_str.substr(start_pos,
-						       end_pos - start_pos);
-	      start_pos = end_pos + 1;
-	      mki->issuer = mok_info_str.substr(start_pos);
 
 	      // Save it.
-	      info.mok_map[mki->fingerprint] = mki;
+	      info.mok_fingerprints.push_back(fingerprint);
 	      i++;
 	    }
 

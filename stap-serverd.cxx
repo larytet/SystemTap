@@ -3,7 +3,7 @@
   the data into a temporary file, calls the systemtap translator and
   then transmits the resulting file back to the client.
 
-  Copyright (C) 2011-2013 Red Hat Inc.
+  Copyright (C) 2011-2014 Red Hat Inc.
 
   This file is part of systemtap, and is free software.  You can
   redistribute it and/or modify it under the terms of the GNU General Public
@@ -71,8 +71,6 @@ static PRStatus spawn_and_wait (const vector<string> &argv, int *result,
 
 typedef struct
 {
-  string issuer;
-  string serial_number;
   string fingerprint;
   string directory;
 } mok_info_t;
@@ -479,8 +477,7 @@ create_services (AvahiClient *c) {
       for (it = server_mok_map.begin(), i = 1; it != server_mok_map.end();
 	   it++, i++)
         {
-	  string tmp = _F("mok_info%d=", i) + it->second->fingerprint + " "
-	    + it->second->serial_number + " " + it->second->issuer;
+	  string tmp = _F("mok_info%d=", i) + it->second->fingerprint;
 	  strlst = avahi_string_list_add(strlst, tmp.c_str ());
 	  if (strlst == NULL)
 	    {
@@ -794,9 +791,9 @@ initialize_server_moks()
     }
 
     // Grab info from the cert.
-    string issuer, serial_number, fingerprint;
-    if (read_cert_info_from_file(keydir + "/signing_key.x509", issuer,
-				 serial_number, fingerprint) == SECSuccess) {
+    string fingerprint;
+    if (read_cert_info_from_file(keydir + "/signing_key.x509", fingerprint)
+	== SECSuccess) {
       // Make sure the fingerprint from the certificate matches the
       // directory name.
       if (fingerprint != *it) {
@@ -807,14 +804,11 @@ initialize_server_moks()
 
       // Save the info.
       mok_info_t *mki = new mok_info_t;
-      mki->issuer = issuer;
-      mki->serial_number = serial_number;
       mki->fingerprint = fingerprint;
       mki->directory = keydir;
       server_mok_map[fingerprint] = mki;
-      server_error(_F("Found MOK: issuer='%s' serial number='%s'",
-		      issuer.c_str(), serial_number.c_str()));
-      }
+      server_error(_F("Found MOK with fingerprint '%s'", fingerprint.c_str()));
+    }
   }
 
   // If we initialized NSS, clean it up.
@@ -1310,7 +1304,7 @@ get_client_mok_fingerprints (const string &filename,
   regmatch_t matches[3];
   while (getline (file, line))
     {
-      string fingerprint, issuer;
+      string fingerprint;
 
       if ((regexec(&checkre, line.c_str(), 3, matches, 0) != 0))
         {
@@ -1353,9 +1347,8 @@ mok_sign_file (mok_info_t &mok_info,
   if (rc != 0) 
     server_error (_F("Running sign-file failed, rc = %d", rc));
   else
-    client_error (_F("Module signed with MOK, issuer \"%s\", serial number \"%s\"",
-		     mok_info.issuer.c_str(), mok_info.serial_number.c_str()),
-		  stapstderr);
+    client_error (_F("Module signed with MOK, fingerprint \"%s\"",
+		     mok_info.fingerprint.c_str()), stapstderr);
 }
 
 // Filter paths prefixed with the server's home directory from the given file.
@@ -1560,7 +1553,7 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
   // be used as a list of valid keys that the module must be signed with.
   vector<string> client_mok_fingerprints;
 
-  // Matching MOK fingerprint path and issuer.
+  // Matching MOK fingerprint path
   mok_info_t *mok_info = NULL;
   get_client_mok_fingerprints(requestDirName + "/mok_fingerprints",
 			      client_mok_fingerprints, stapstderr,
@@ -1598,9 +1591,8 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 	  client_error(_("No matching machine owner key (MOK) available on the server to sign the module."), stapstderr);
 	  return;
 	}
-      server_error(_F("The module will be signed with the following MOK, issuer=\"%s\" serial number=\"%s\"",
-		      mok_info->issuer.c_str(),
-		      mok_info->serial_number.c_str()));
+      server_error(_F("The module will be signed with the following MOK, fingerprint=\"%s\"",
+		      mok_info->fingerprint.c_str()));
     }
 
   /* All ready, let's run the translator! */

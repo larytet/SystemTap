@@ -374,7 +374,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   specified_servers = other.specified_servers;
   server_trust_spec = other.server_trust_spec;
   server_args = other.server_args;
-  mok_info = other.mok_info;
+  mok_fingerprints = other.mok_fingerprints;
 
   unwindsym_modules = other.unwindsym_modules;
   automatic_server_mode = other.automatic_server_mode;
@@ -2272,12 +2272,6 @@ systemtap_session::get_mok_info()
   // fingerprints. This would rid us of our mokutil
   // dependency. However, we'd need to copy/duplicate efilib.c from
   // mokutil source to be able to decipher the efi data.
-  //
-  // FIXME: Hmm, another unfortunate development. mokutil uses
-  // openssl, stap-server uses nss. The nss library returns the
-  // 'issuer' field in different order than the openssl library. So,
-  // the two won't compare properly as strings. We'd have to break the
-  // issuer field apart and compare the pieces.
 
   cmd.push_back("mokutil");
   cmd.push_back("--list-enrolled");
@@ -2290,8 +2284,8 @@ systemtap_session::get_mok_info()
     {
       vector<string> matches;
 
-      // Get a line of the output, then try to find the
-      // fingerprint/issuer/serial number in the line.
+      // Get a line of the output, then try to find the fingerprint in
+      // the line.
       getline(out, line);
       if (! regexp_match(line, "^SHA1 Fingerprint: ([0-9a-f:]+)$", matches))
         {
@@ -2300,7 +2294,7 @@ systemtap_session::get_mok_info()
 	  if (verbose > 2)
 	    clog << "MOK fingerprint found: " << matches[1] << endl;
 	  if (! matches[1].empty())
-	    mok_info.push_back(matches[1]);
+	    mok_fingerprints.push_back(matches[1]);
 	}
     }
 }

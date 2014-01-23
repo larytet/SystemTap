@@ -1393,8 +1393,7 @@ PRInt32 PR_Read_Complete (PRFileDesc *fd, void *buf, PRInt32 requestedBytes)
 }
 
 SECStatus
-read_cert_info_from_file (const string &certPath, string &issuer,
-			  string &serial_number, string &fingerprint)
+read_cert_info_from_file (const string &certPath, string &fingerprint)
 {
   FILE *certFile = fopen (certPath.c_str (), "rb");
   SECStatus secStatus = SECFailure;
@@ -1445,13 +1444,13 @@ read_cert_info_from_file (const string &certPath, string &issuer,
     }
   derCert.type = siDERCertBuffer;
 
-  // Sigh. We'd like to use CERT_DecodeDERCertificate() or
-  // CERT_NameFromDERCert()/CERT_IssuerNameFromDERCert() here, but
+  // Sigh. We'd like to use CERT_DecodeDERCertificate() here, but
   // although /usr/include/nss3/cert.h declares them, the shared
   // library doesn't export them.
 
   CERTCertificate *cert;
   int rv;
+  char *str;
 
   // Strip off the signature.
   CERTSignedData *sd;
@@ -1489,30 +1488,8 @@ read_cert_info_from_file (const string &certPath, string &issuer,
       goto done;
     }
 
-  // Get the serial number. (Serial numbers are supposed to be unique
-  // to an single issuer).
-  char *str;
-  str = CERT_Hexify(&cert->serialNumber, 1);
-  if (! str)
-  {
-      nsscommon_error (_F("Could not decode serial number from file %s",
-			  certPath.c_str ()));
-      goto done;
-  }
-  serial_number = str;
-  // Lowercase the hex string.
-  transform(serial_number.begin(), serial_number.end(), serial_number.begin(), 
-	    ::tolower);
-  PORT_Free(str);
-
-  // Get the issuer from the certificate.
-  if (!cert->issuer.rdns || !cert->issuer.rdns[0])
-    issuer = "(empty)";
-  else
-    issuer = CERT_NameToAscii(&cert->issuer);
-
   // Get the fingerprint from the signature.
-  unsigned char fingerprint_buf[20];
+  unsigned char fingerprint_buf[SHA1_LENGTH];
   SECItem fpItem;
   rv = PK11_HashBuf(SEC_OID_SHA1, fingerprint_buf, derCert.data, derCert.len);
   if (rv)
@@ -1522,7 +1499,7 @@ read_cert_info_from_file (const string &certPath, string &issuer,
       goto done;
     }
   fpItem.data = fingerprint_buf;
-  fpItem.len = SHA1_LENGTH;
+  fpItem.len = sizeof(fingerprint_buf);
   str = CERT_Hexify(&fpItem, 1);
   if (! str)
   {
