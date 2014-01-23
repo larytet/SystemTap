@@ -15,6 +15,9 @@
 
 // On older kernels (like RHEL5), we have to define our own 32-bit
 // syscall numbers.
+#ifndef __NR_ia32_close
+#define __NR_ia32_close 6
+#endif
 #ifndef __NR_ia32_dup3
 #define __NR_ia32_dup3 330
 #endif
@@ -52,6 +55,7 @@
 #define __NR_ia32_umount2 52
 #endif
 
+#define __NR_compat_close		__NR_ia32_close
 #define __NR_compat_dup3		__NR_ia32_dup3
 #define __NR_compat_faccessat		__NR_ia32_faccessat
 #define __NR_compat_fchmodat		__NR_ia32_fchmodat
@@ -72,6 +76,7 @@
 // On the ppc64 and s390x, the 32-bit syscalls use the same number
 // as the 64-bit syscalls.
 
+#define __NR_compat_close		__NR_close
 #define __NR_compat_dup3		__NR_dup3
 #define __NR_compat_faccessat		__NR_faccessat
 #define __NR_compat_fchmodat		__NR_fchmodat

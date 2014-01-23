@@ -603,6 +603,7 @@ probe __nd_syscall.compat_clock_settime.return =
 # long sys_close(unsigned int fd)
 probe nd_syscall.close = kprobe.function("sys_close") ?
 {
+	@__syscall_compat_gate(%{ __NR_close %}, %{ __NR_compat_close %})
 	name = "close"
 	// fd = $fd
 	asmlinkage()
@@ -611,6 +612,7 @@ probe nd_syscall.close = kprobe.function("sys_close") ?
 }
 probe nd_syscall.close.return = kprobe.function("sys_close").return ?
 {
+	@__syscall_compat_gate(%{ __NR_close %}, %{ __NR_compat_close %})
 	name = "close"
 	retstr = returnstr(1)
 }
