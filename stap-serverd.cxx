@@ -1550,22 +1550,15 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
   // Machine owner keys (MOK) fingerprints (possibly nonexistent), to
   // be used as a list of valid keys that the module must be signed with.
   vector<string> client_mok_fingerprints;
-
-  // Matching MOK fingerprint path
-  mok_info_t *mok_info = NULL;
   get_client_mok_fingerprints(requestDirName + "/mok_fingerprints",
 			      client_mok_fingerprints, stapstderr,
 			      &client_version);
-  if (! client_mok_fingerprints.empty())
-    {
-      // If the client requires signing, and we don't have any keys on
-      // the server, we can't build a signed module.
-      if (server_mok_map.empty())
-        {
-	  client_error(_("No machine owner keys (MOK) are available on the server to sign the module."), stapstderr);
-	  return;
-	}
 
+
+  // If the client sent us MOK fingerprints, see if we have a matching MOK.
+  mok_info_t *mok_info = NULL;
+  if (! client_mok_fingerprints.empty() && ! server_mok_map.empty())
+    {
       // Check the list of client MOK fingerprints against the list of
       // server MOK fingerprints. Look for any match.
       vector<string>::const_iterator it;
@@ -1583,15 +1576,11 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 
       // If the client requires signing, but we couldn't find a
       // matching machine owner key installed on the server, we can't
-      // build a signed module.
-      if (mok_info == NULL)
-        {
-	  client_error(_("No matching machine owner key (MOK) available on the server to sign the module."), stapstderr);
-	  return;
-	}
-      server_error(_F("The module will be signed with the following MOK, fingerprint=\"%s\"",
-		      mok_info->fingerprint.c_str()));
-    }
+      // build a signed module. But, the client may not have asked us
+      // to create a module (for instance, the user could have done
+      // 'stap -L syscall.open'). So, keep going until we know we need
+      // to sign a module.
+  }
 
   /* All ready, let's run the translator! */
   int staprc;
@@ -1603,17 +1592,13 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
       return;
     }
 
-  /* Save the RC */
-  ofstream ofs((responseDirName + "/rc").c_str());
-  ofs << staprc;
-  ofs.close();
-
   // In unprivileged modes, if we have a module built, we need to sign
   // the sucker.  We also might need to sign the module for secure
   // boot purposes.
   privilege_t privilege = getRequestedPrivilege (stapargv);
-  if (pr_contains (privilege, pr_stapusr)
-      || pr_contains (privilege, pr_stapsys) || mok_info)
+  if (staprc == 0 && (pr_contains (privilege, pr_stapusr)
+		      || pr_contains (privilege, pr_stapsys)
+		      || ! client_mok_fingerprints.empty ()))
     {
       glob_t globber;
       char pattern[PATH_MAX];
@@ -1631,10 +1616,28 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 		       globber.gl_pathv[0],
 		       string(globber.gl_pathv[0]) + ".sgn");
 	  if (mok_info)
-	      mok_sign_file(*mok_info, kernel_build_tree, globber.gl_pathv[0],
-			    stapstderr);
+	    mok_sign_file(*mok_info, kernel_build_tree, globber.gl_pathv[0],
+			  stapstderr);
+	  else if (! client_mok_fingerprints.empty ())
+	    {
+	      client_error(_("No matching machine owner key (MOK) available on the server to sign the module."), stapstderr);
+
+	      // FIXME: Is this the right way to go here? Later this
+	      // is probably where we'll generate a new key and
+	      // somehow ship it back to the client.
+	      //
+	      // If we couldn't sign the module, let's change the
+	      // staprc to 1, so that the client won't try to run the
+	      // resulting module, which wouldn't work.
+	      staprc = 1;
+	  }
         }
     }
+
+  // Save the RC (which might have gotten changed above).
+  ofstream ofs((responseDirName + "/rc").c_str());
+  ofs << staprc;
+  ofs.close();
 
   /* If uprobes.ko is required, it will have been built or cache-copied into
    * the temp directory.  We need to pack it into the response where the client
@@ -1667,6 +1670,10 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
           sign_file (cert_db_path, server_cert_nickname(),
                      uprobes_response, uprobes_response + ".sgn");
         }
+
+      // Notice we're not giving an error message here if the client
+      // requires signed modules. The error will have been generated
+      // above on the systemtap module itself.
       if (mok_info)
 	mok_sign_file(*mok_info, kernel_build_tree, uprobes_response,
 		      stapstderr);
