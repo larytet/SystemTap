@@ -616,7 +616,7 @@ fi
 %if %{with_systemd}
      # Note, Fedora policy doesn't allow network services enabled by default
      # /bin/systemctl enable stap-server.service >/dev/null 2>&1 || :
-     /bin/systemd-tmpfiles --create >/dev/null 2>&1 || :
+     /bin/systemd-tmpfiles --create %{_tmpfilesdir}/stap-server.conf >/dev/null 2>&1 || :
 %else
     /sbin/chkconfig --add stap-server
 %endif
