@@ -199,25 +199,33 @@ handler is never run, though its statements are analyzed for symbol /
 type correctness as usual.  This probe point may be useful in
 conjunction with optional probes.
 
-.SS SYSCALL
+.SS SYSCALL and ND_SYSCALL
 
 The
-.IR syscall.*
+.IR syscall.* " and " nd_syscall.*
 aliases define several hundred probes, too many to
 detail here.  They are of the general form:
 
 .SAMPLE
 syscall.NAME
 .br
+nd_syscall.NAME
+.br
 syscall.NAME.return
+.br
+nd_syscall.NAME.return
 .ESAMPLE
 
-Generally, two probes are defined for each normal system call as listed in the
+Generally, a pair of probes are defined for each normal system call as listed in the
 .IR syscalls(2)
 manual page, one for entry and one for return.  Those system calls that never
 return do not have a corresponding
 .IR .return
-probe.
+probe.  The nd_* family of probes are about the same, except it uses 
+.B non-DWARF
+based searching mechanisms, which may result in a lower quality of symbolic
+context data (parameters), and may miss some system calls.  You may want to
+try them first, in case kernel debugging information is not immediately available.
 .PP
 Each probe alias provides a variety of variables. Looking at the tapset source
 code is the most reliable way.  Generally, each variable listed in the standard
