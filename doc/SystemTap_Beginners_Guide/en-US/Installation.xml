@@ -70,13 +70,19 @@
       <listitem><para><filename>systemtap-runtime</filename></para></listitem>
     </itemizedlist>
 
-    <para>Assuming that <command>yum</command> is installed in the system, these two rpms can be installed with <command>yum install systemtap systemtap-runtime</command>. Note that before you can use SystemTap, you will still need to install the required kernel information RPMs.
+    <para>
+    Assuming that <command>yum</command> is installed in the system, these two
+    rpms can be installed with <command>yum install systemtap
+    systemtap-runtime</command>. Note that before you can use SystemTap, you
+    will still need to install the required kernel information RPMs. On modern
+    systems running the <command>stap-prep</command> command will install them
+    all for you. If this does not work, try manual installation as described below.
     </para>
 
 </section>
 
 <section id="install-kinfo">
-    <title>Installing Required Kernel Information RPMs</title>
+    <title>Installing Required Kernel Information RPMs manually</title>
 <indexterm>
 <primary>Installation</primary>
 <secondary>required packages</secondary>
@@ -177,7 +183,13 @@
    </para>
 
    <para  condition="RedHat">
-     For Red Hat Enterprise Linux 6 and newer you need 
+     Note that Red Hat provides several software update services. Red Hat
+     Enterprise Linux 6 uses RHN by default, whereas the default for Red Hat
+     Enterprise Linux 7 is CDN.
+   </para>
+
+   <para  condition="RedHat">
+     For <command>Red Hat Enterprise Linux 6 registered into RHN</command> you need
      the appropriate channels enabled for the system for
      <command>yum</command> to download and install the appropriate packages.
      Configure the channels with either the
@@ -246,6 +258,15 @@ rhel-x86_64-workstation-optional-6</screen>
 	<listitem><para><command>yum install kernel-PAE-devel-2.6.18-53.1.13.el5</command></para></listitem>
 	<listitem><para><command>debuginfo-install kernel-PAE-2.6.18-53.1.13.el5</command></para></listitem>
 </itemizedlist>
+
+   <para  condition="RedHat">
+   With <command>Red Hat Enterprise Linux 7 system registered into
+   CDN</command> it's much easier. All needed channels, or repos in the CDN
+   speak, are available by default. Running the <command>stap-prep</command>
+   command is sufficient to install all needed kernel information RPMs.  The
+   <command>stap-prep</command> command will temporarily enable repos, that are
+   needed, available, but eventually disabled by default during its operation.
+   </para>
 
 <para condition="fedora">
 	If you do not have <command>yum</command> and
