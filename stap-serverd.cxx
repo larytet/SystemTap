@@ -69,14 +69,6 @@ static PRStatus spawn_and_wait (const vector<string> &argv, int *result,
                                 const char* fd0, const char* fd1, const char* fd2,
 				const char *pwd, const vector<string>& envVec = vector<string> ());
 
-typedef struct
-{
-  string fingerprint;
-  string directory;
-} mok_info_t;
-typedef map<string, mok_info_t *> mok_map_t;
-typedef map<string, mok_info_t *>::const_iterator mok_map_iterator;
-
 #define MOK_PUBLIC_CERT_NAME "signing_key.x509"
 #define MOK_PUBLIC_CERT_FILE "/" MOK_PUBLIC_CERT_NAME
 #define MOK_PRIVATE_CERT_NAME "signing_key.priv"
@@ -100,7 +92,8 @@ static string I_options;
 static string R_option;
 static string D_options;
 static bool   keep_temp;
-static mok_map_t server_mok_map;
+static string mok_path;
+static vector<string> server_mok_vector;
 
 sem_t sem_client;
 static int pending_interrupts;
@@ -471,12 +464,12 @@ create_services (AvahiClient *c) {
     }
 
   // Add server MOK info, if available.
-  if (! server_mok_map.empty())
+  if (! server_mok_vector.empty())
     {
-      mok_map_iterator it;
-      for (it = server_mok_map.begin(); it != server_mok_map.end(); it++)
+      vector<string>::const_iterator it;
+      for (it = server_mok_vector.begin(); it != server_mok_vector.end(); it++)
         {
-	  string tmp = "mok_info=" + it->second->fingerprint;
+	  string tmp = "mok_info=" + *it;
 	  strlst = avahi_string_list_add(strlst, tmp.c_str ());
 	  if (strlst == NULL)
 	    {
@@ -690,7 +683,6 @@ unadvertise_presence ()
 static void
 initialize_server_moks()
 {
-  string mok_path = server_cert_db_path() + "/moks";
   DIR *dirp = opendir(mok_path.c_str());
   struct dirent *direntp;
   vector<string> temp;
@@ -802,10 +794,7 @@ initialize_server_moks()
       }
 
       // Save the info.
-      mok_info_t *mki = new mok_info_t;
-      mki->fingerprint = fingerprint;
-      mki->directory = keydir;
-      server_mok_map[fingerprint] = mki;
+      server_mok_vector.push_back(fingerprint);
       server_error(_F("Found MOK with fingerprint '%s'", fingerprint.c_str()));
     }
   }
@@ -865,6 +854,7 @@ initialize (int argc, char **argv) {
 
   // Get the list of optional machine owner keys (MOK) this server
   // knows about.
+  mok_path = server_cert_db_path() + "/moks";
   initialize_server_moks ();
 }
 
@@ -1327,19 +1317,20 @@ get_client_mok_fingerprints (const string &filename,
 }
 
 void
-mok_sign_file (mok_info_t &mok_info,
+mok_sign_file (std::string &mok_fingerprint,
 	       const std::string &kernel_build_tree,
 	       const std::string &name,
 	       std::string stapstderr)
 {
   vector<string> cmd;
   int rc;
+  string mok_directory = mok_path + "/" + mok_fingerprint;
 
   cmd.clear();
   cmd.push_back (kernel_build_tree + "/scripts/sign-file");
   cmd.push_back ("sha512");
-  cmd.push_back (mok_info.directory + MOK_PRIVATE_CERT_FILE);
-  cmd.push_back (mok_info.directory + MOK_PUBLIC_CERT_FILE);
+  cmd.push_back (mok_directory + MOK_PRIVATE_CERT_FILE);
+  cmd.push_back (mok_directory + MOK_PUBLIC_CERT_FILE);
   cmd.push_back (name);
   // FIXME: Should we do anything if this fails?
   rc = stap_system (0, cmd);
@@ -1347,7 +1338,7 @@ mok_sign_file (mok_info_t &mok_info,
     server_error (_F("Running sign-file failed, rc = %d", rc));
   else
     client_error (_F("Module signed with MOK, fingerprint \"%s\"",
-		     mok_info.fingerprint.c_str()), stapstderr);
+		     mok_fingerprint.c_str()), stapstderr);
 }
 
 // Filter paths prefixed with the server's home directory from the given file.
@@ -1557,8 +1548,8 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 
 
   // If the client sent us MOK fingerprints, see if we have a matching MOK.
-  mok_info_t *mok_info = NULL;
-  if (! client_mok_fingerprints.empty() && ! server_mok_map.empty())
+  string mok_fingerprint;
+  if (! client_mok_fingerprints.empty() && ! server_mok_vector.empty())
     {
       // Check the list of client MOK fingerprints against the list of
       // server MOK fingerprints. Look for any match.
@@ -1566,11 +1557,11 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
       for (it = client_mok_fingerprints.begin();
 	   it != client_mok_fingerprints.end(); it++)
         {
-	  mok_map_iterator mi;
-	  mi = server_mok_map.find(*it);
-	  if (mi != server_mok_map.end())
+	  vector<string>::const_iterator mi;
+	  mi = find(server_mok_vector.begin (), server_mok_vector.end (), *it);
+	  if (mi != server_mok_vector.end())
 	    {
-	      mok_info = mi->second;
+	      mok_fingerprint = *mi;
 	      break;
 	    }
 	}
@@ -1616,20 +1607,21 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 	    sign_file (cert_db_path, server_cert_nickname(),
 		       globber.gl_pathv[0],
 		       string(globber.gl_pathv[0]) + ".sgn");
-	  if (mok_info)
-	    mok_sign_file (*mok_info, kernel_build_tree, globber.gl_pathv[0],
-			   stapstderr);
+	  if (! mok_fingerprint.empty ())
+	    mok_sign_file (mok_fingerprint, kernel_build_tree,
+			   globber.gl_pathv[0], stapstderr);
 	  else if (! client_mok_fingerprints.empty ())
 	    {
 	      // If we're here, the client sent us MOK fingerprints
 	      // (since client_mok_fingerprints isn't empty), but we
 	      // don't have a matching MOK on the server (since
-	      // mok_info is null). So, we can't sign the module.
+	      // mok_fingerprint is empty). So, we can't sign the
+	      // module.
 	      client_error (_("No matching machine owner key (MOK) available on the server to sign the\n module."), stapstderr);
 
 	      // Since we can't sign the module, send the client one
 	      // of our MOKs. If we don't have any, create one.
-	      if (server_mok_map.empty ())
+	      if (server_mok_vector.empty ())
 	        {
 		  // FIXME: We need to be able to generate MOKs here.
 		  server_error ("Unable to generate MOKs yet.");
@@ -1640,13 +1632,14 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 		  // server. Send the public key down to the
 		  // client. We'll just pick the first one in the list
 		  // of server MOKs.
-		  mok_info = server_mok_map.begin ()->second;
+		  mok_fingerprint = *server_mok_vector.begin ();
 		}
 	      
-	      if (mok_info)
+	      if (! mok_fingerprint.empty ())
 	        {
 		  // Copy the public cert file to the response directory.
-		  string src = mok_info->directory + MOK_PUBLIC_CERT_FILE;
+		  string mok_directory = mok_path + "/" + mok_fingerprint;
+		  string src = mok_directory + MOK_PUBLIC_CERT_FILE;
 		  string dst = responseDirName + MOK_PUBLIC_CERT_FILE;
 		  if (copy_file (src, dst, true))
 		    client_error ("The server has no machine owner key (MOK) in common with this\nsystem. Use the following command to import a server MOK into this\nsystem, then reboot:\n\n\tmokutil --import signing_key.x509", stapstderr);
@@ -1706,9 +1699,9 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
       // Notice we're not giving an error message here if the client
       // requires signed modules. The error will have been generated
       // above on the systemtap module itself.
-      if (mok_info)
-	mok_sign_file(*mok_info, kernel_build_tree, uprobes_response,
-		      stapstderr);
+      if (! mok_fingerprint.empty ())
+	mok_sign_file (mok_fingerprint, kernel_build_tree, uprobes_response,
+		       stapstderr);
     }
 
   /* Free up all the arg string copies.  Note that the first few were alloc'd
