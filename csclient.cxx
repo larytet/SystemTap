@@ -73,6 +73,8 @@ using namespace std;
 #define STAP_CSC_04 _("Unable to open output file %s\n")
 #define STAP_CSC_05 _("could not write to %s\n")
 
+#define MOK_PUBLIC_CERT_NAME "signing_key.x509"
+
 static PRIPv6Addr &copyAddress (PRIPv6Addr &PRin6, const in6_addr &in6);
 static PRNetAddr &copyNetAddr (PRNetAddr &x, const PRNetAddr &y);
 bool operator!= (const PRNetAddr &x, const PRNetAddr &y);
@@ -1536,6 +1538,15 @@ compile_server_client::process_response ()
 	    }
 	}
       globfree (& globbuf);
+    }
+
+  // If the server returned a MOK certificate, copy it to the user's
+  // current directory.
+  string server_MOK_public_cert = s.tmpdir + "/server/" MOK_PUBLIC_CERT_NAME;
+  if (file_exists (server_MOK_public_cert))
+    {
+      string dst = MOK_PUBLIC_CERT_NAME;
+      copy_file (server_MOK_public_cert, dst, (s.verbose >= 3));
     }
 
   // Output stdout and stderr.

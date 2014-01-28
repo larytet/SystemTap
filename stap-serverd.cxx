@@ -77,6 +77,11 @@ typedef struct
 typedef map<string, mok_info_t *> mok_map_t;
 typedef map<string, mok_info_t *>::const_iterator mok_map_iterator;
 
+#define MOK_PUBLIC_CERT_NAME "signing_key.x509"
+#define MOK_PUBLIC_CERT_FILE "/" MOK_PUBLIC_CERT_NAME
+#define MOK_PRIVATE_CERT_NAME "signing_key.priv"
+#define MOK_PRIVATE_CERT_FILE "/" MOK_PRIVATE_CERT_NAME
+
 /* getopt variables */
 extern int optind;
 
@@ -466,10 +471,6 @@ create_services (AvahiClient *c) {
     }
 
   // Add server MOK info, if available.
-  //
-  // FIXME: Hmm, is this the right way to transmit this data? This
-  // method is fairly easy, but I wonder if we're abusing the avahi
-  // stuff with too much data here.
   if (! server_mok_map.empty())
     {
       mok_map_iterator it;
@@ -767,12 +768,12 @@ initialize_server_moks()
     bool cert_found = false;
     while ((direntp = readdir(dirp)) != NULL) {
       if (! priv_found && direntp->d_type == DT_REG
-         && strcmp(direntp->d_name, "signing_key.priv") == 0) {
+         && strcmp(direntp->d_name, MOK_PRIVATE_CERT_NAME) == 0) {
        priv_found = true;
        continue;
       }
       if (! cert_found && direntp->d_type == DT_REG
-         && strcmp(direntp->d_name, "signing_key.x509") == 0) {
+         && strcmp(direntp->d_name, MOK_PUBLIC_CERT_NAME) == 0) {
        cert_found = true;
        continue;
       }
@@ -790,7 +791,7 @@ initialize_server_moks()
 
     // Grab info from the cert.
     string fingerprint;
-    if (read_cert_info_from_file(keydir + "/signing_key.x509", fingerprint)
+    if (read_cert_info_from_file(keydir + MOK_PUBLIC_CERT_FILE, fingerprint)
 	== SECSuccess) {
       // Make sure the fingerprint from the certificate matches the
       // directory name.
@@ -1337,8 +1338,8 @@ mok_sign_file (mok_info_t &mok_info,
   cmd.clear();
   cmd.push_back (kernel_build_tree + "/scripts/sign-file");
   cmd.push_back ("sha512");
-  cmd.push_back (mok_info.directory + "/signing_key.priv");
-  cmd.push_back (mok_info.directory + "/signing_key.x509");
+  cmd.push_back (mok_info.directory + MOK_PRIVATE_CERT_FILE);
+  cmd.push_back (mok_info.directory + MOK_PUBLIC_CERT_FILE);
   cmd.push_back (name);
   // FIXME: Should we do anything if this fails?
   rc = stap_system (0, cmd);
@@ -1616,16 +1617,47 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 		       globber.gl_pathv[0],
 		       string(globber.gl_pathv[0]) + ".sgn");
 	  if (mok_info)
-	    mok_sign_file(*mok_info, kernel_build_tree, globber.gl_pathv[0],
-			  stapstderr);
+	    mok_sign_file (*mok_info, kernel_build_tree, globber.gl_pathv[0],
+			   stapstderr);
 	  else if (! client_mok_fingerprints.empty ())
 	    {
-	      client_error(_("No matching machine owner key (MOK) available on the server to sign the module."), stapstderr);
+	      // If we're here, the client sent us MOK fingerprints
+	      // (since client_mok_fingerprints isn't empty), but we
+	      // don't have a matching MOK on the server (since
+	      // mok_info is null). So, we can't sign the module.
+	      client_error (_("No matching machine owner key (MOK) available on the server to sign the\n module."), stapstderr);
 
-	      // FIXME: Is this the right way to go here? Later this
-	      // is probably where we'll generate a new key and
-	      // somehow ship it back to the client.
-	      //
+	      // Since we can't sign the module, send the client one
+	      // of our MOKs. If we don't have any, create one.
+	      if (server_mok_map.empty ())
+	        {
+		  // FIXME: We need to be able to generate MOKs here.
+		  server_error ("Unable to generate MOKs yet.");
+		}
+	      else
+	        {
+		  // At this point we have at least one MOK on the
+		  // server. Send the public key down to the
+		  // client. We'll just pick the first one in the list
+		  // of server MOKs.
+		  mok_info = server_mok_map.begin ()->second;
+		}
+	      
+	      if (mok_info)
+	        {
+		  // Copy the public cert file to the response directory.
+		  string src = mok_info->directory + MOK_PUBLIC_CERT_FILE;
+		  string dst = responseDirName + MOK_PUBLIC_CERT_FILE;
+		  if (copy_file (src, dst, true))
+		    client_error ("The server has no machine owner key (MOK) in common with this\nsystem. Use the following command to import a server MOK into this\nsystem, then reboot:\n\n\tmokutil --import signing_key.x509", stapstderr);
+		  else
+		    client_error ("The server has no machine owner key (MOK) in common with this\nsystem. The server failed to return a certificate.", stapstderr);
+		}
+	      else
+	        {
+		  client_error ("The server has no machine owner keys (MOK) in common with this\nsystem. The server could not generate a new MOK.", stapstderr);
+		}
+
 	      // If we couldn't sign the module, let's change the
 	      // staprc to 1, so that the client won't try to run the
 	      // resulting module, which wouldn't work.
