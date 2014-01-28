@@ -37,6 +37,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <stack>
 #include <cstdarg>
 #include <cassert>
 #include <iomanip>
@@ -1570,6 +1571,19 @@ query_label (string const & func,
 }
 
 static void
+query_callee (char const * callee,
+              char const * file,
+              int line,
+              Dwarf_Die *callee_die,
+              Dwarf_Addr callee_addr,
+              stack<Dwarf_Addr> *callers,
+              dwarf_query * q)
+{
+  assert (q->has_function_str);
+  query_statement(callee, file, line, callee_die, callee_addr, q);
+}
+
+static void
 query_inline_instance_info (inline_instance_info & ii,
 			    dwarf_query * q)
 {
@@ -1905,6 +1919,38 @@ query_cu (Dwarf_Die * cudie, void * arg)
                i != q->filtered_inlines.end(); ++i)
             q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
                                        q, query_label);
+        }
+      else if (q->has_callee || q->has_callees_num)
+        {
+          // .callee(str) --> str, .callees[(N)] --> "*"
+          string callee_val = q->has_callee ? q->callee_val : "*";
+          long callees_num_val = q->has_callees_num ? q->callees_num_val : 1;
+
+          // NB: We filter functions that do not match the file here rather than
+          // in query_callee because we only want the filtering to apply to the
+          // first level, not to callees that are recursed into if
+          // callees_num_val > 1.
+          for (func_info_map_t::iterator i = q->filtered_functions.begin();
+               i != q->filtered_functions.end(); ++i)
+            {
+              if (q->spec_type != function_alone &&
+                  q->filtered_srcfiles.count(i->decl_file) == 0)
+                continue;
+              q->dw.iterate_over_callees (&i->die, callee_val,
+                                          callees_num_val,
+                                          q, query_callee);
+            }
+
+          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
+               i != q->filtered_inlines.end(); ++i)
+            {
+              if (q->spec_type != function_alone &&
+                  q->filtered_srcfiles.count(i->decl_file) == 0)
+                continue;
+              q->dw.iterate_over_callees (&i->die, callee_val,
+                                          callees_num_val,
+                                          q, query_callee);
+            }
         }
       else
         {

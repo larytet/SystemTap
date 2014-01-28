@@ -253,6 +253,19 @@ struct dwflpp
                                               Dwarf_Addr,
                                               dwarf_query *));
 
+  void iterate_over_callees (Dwarf_Die *begin_die,
+                             const std::string& sym,
+                             long recursion_depth,
+                             dwarf_query *q,
+                             void (* callback)(const char *,
+                                               const char *,
+                                               int,
+                                               Dwarf_Die *,
+                                               Dwarf_Addr,
+                                               std::stack<Dwarf_Addr>*,
+                                               dwarf_query *),
+                             std::stack<Dwarf_Addr>*callers=NULL);
+
   int iterate_over_notes (void *object,
 			  void (*callback)(void *object, int type,
 					   const char *data, size_t len));
@@ -377,6 +390,8 @@ private:
 
   static int mod_function_caching_callback (Dwarf_Die* func, void *arg);
   static int cu_function_caching_callback (Dwarf_Die* func, void *arg);
+  static int external_function_cu_callback (Dwarf_Die* cu, void *arg);
+  static int external_function_func_callback (Dwarf_Die* func, void *arg);
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 

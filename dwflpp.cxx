@@ -1787,6 +1787,210 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
   while (dwarf_siblingof (&die, &die) == 0);
 }
 
+// Mini 'query-like' struct to help us navigate callbacks during
+// external function resolution
+struct external_function_query {
+  dwflpp* dw;
+  const char* name;
+  Dwarf_Die die;
+  Dwarf_Addr addr;
+  bool resolved;
+  external_function_query(dwflpp* dw, const char* name):
+    dw(dw), name(name), resolved(false) {}
+};
+
+int
+dwflpp::external_function_cu_callback (Dwarf_Die* cu, void *arg)
+{
+  external_function_query * efq = static_cast<external_function_query *>(arg);
+  efq->dw->focus_on_cu(cu);
+  return efq->dw->iterate_over_functions(external_function_func_callback,
+                                         efq, efq->name);
+}
+
+int
+dwflpp::external_function_func_callback (Dwarf_Die* func, void * arg)
+{
+  external_function_query * efq = static_cast<external_function_query *>(arg);
+  Dwarf_Attribute external;
+  Dwarf_Addr func_addr;
+  if (dwarf_attr_integrate(func, DW_AT_external, &external) != NULL &&
+      dwarf_lowpc(func, &func_addr) == 0)
+    {
+      efq->die = *func;
+      efq->addr = func_addr;
+      efq->resolved = true;
+      return DWARF_CB_ABORT; // we found it so stop here
+    }
+  return DWARF_CB_OK;
+}
+
+void
+dwflpp::iterate_over_callees (Dwarf_Die *begin_die,
+                              const string& sym,
+                              long recursion_depth,
+                              dwarf_query *q,
+                              void (* callback)(const char *,
+                                                const char *,
+                                                int,
+                                                Dwarf_Die *,
+                                                Dwarf_Addr,
+                                                stack<Dwarf_Addr>*,
+                                                dwarf_query *),
+                              stack<Dwarf_Addr> *callers)
+{
+  get_module_dwarf();
+
+  Dwarf_Die die, import;
+
+  // DIE of abstract_origin found in die
+  Dwarf_Die origin;
+
+  // callee's entry pc (= where we'll probe)
+  Dwarf_Addr func_addr;
+
+  // caller's unwind pc during call (to match against bt for filtering)
+  Dwarf_Addr caller_uw_addr;
+
+  Dwarf_Attribute attr;
+
+  int dline;
+  const char *name, *file;
+  if (dwarf_child(begin_die, &die) != 0)
+    return;  // die without children, bail out.
+
+  bool free_callers = false;
+  if (callers == NULL) /* first call */
+    {
+      callers = new stack<Dwarf_Addr>();
+      free_callers = true;
+    }
+
+  do
+    {
+      bool inlined = false;
+      switch (dwarf_tag(&die))
+        {
+        case DW_TAG_inlined_subroutine:
+          inlined = true;
+        case DW_TAG_GNU_call_site:
+          name = dwarf_diename (&die);
+          if (!name)
+            continue;
+          if (name != sym)
+            {
+              if (!name_has_wildcard(sym))
+                continue;
+              if (!function_name_matches_pattern(name, sym))
+                continue;
+            }
+
+          /* In both cases (call sites and inlines), we want the
+           * abstract_origin. The difference is that in inlines, the addr is
+           * in the die itself, whereas for call sites, the addr is in the
+           * abstract_origin's die.
+           *     Note that in the case of inlines, we're only calling back
+           * for that inline instance, not all. This is what we want, since
+           * it will only be triggered when 'called' from the target func,
+           * which is something we have to emulate for non-inlined funcs
+           * (which is the purpose of the caller_uw_addr below) */
+          if (dwarf_attr_die(&die, DW_AT_abstract_origin, &origin) == NULL)
+            continue;
+
+          // the low_pc of the die in either cases is the pc that would
+          // show up in a backtrace (inlines are a special case in which
+          // the die's low_pc is also the abstract_origin's low_pc = the
+          // 'start' of the inline instance)
+          if (dwarf_lowpc(&die, &caller_uw_addr) != 0)
+            continue;
+
+          if (inlined)
+            func_addr = caller_uw_addr;
+          else if (dwarf_lowpc(&origin, &func_addr) != 0)
+            {
+              // function doesn't have a low_pc, is it external?
+              if (dwarf_attr_integrate(&origin, DW_AT_external,
+                                       &attr) != NULL)
+                {
+                  // let's iterate over the CUs and find it. NB: it's
+                  // possible we could have also done this by creating a
+                  // probe point with .exported tacked on and rerunning it
+                  // through derive_probe(). But since we're already on the
+                  // dwflpp side of things, and we already have access to
+                  // everything we need, let's try to be self-sufficient.
+
+                  // remember old focus
+                  Dwarf_Die *old_cu = cu;
+
+                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: name);
+                  iterate_over_cus(external_function_cu_callback, &efq, false);
+
+                  // restore focus
+                  cu = old_cu;
+
+                  if (!efq.resolved) // did we resolve it?
+                    continue;
+
+                  func_addr = efq.addr;
+                  origin = efq.die;
+                }
+              // non-external function without low_pc, jump ship
+              else continue;
+            }
+
+          // We now have the addr to probe in func_addr, and the DIE
+          // from which to obtain file/line info in origin
+
+          // Get the file/line number for this callee
+          file = dwarf_decl_file (&origin) ?: "<unknown source>";
+          dwarf_decl_line (&origin, &dline);
+
+          // add as a caller to match against
+          if (!inlined)
+            callers->push(caller_uw_addr);
+
+          callback(name, file, dline, inlined ? &die : &origin,
+                   func_addr, callers, q);
+
+          // If it's a tail call, print a warning that it may not be caught
+          if (!inlined
+              && dwarf_attr_integrate(&die, DW_AT_GNU_tail_call, &attr) != NULL)
+            sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
+                                   ".callee probe may not fire. Try placing the probe "
+                                   "directly on the callee function instead.", name,
+                                   dwarf_diename(begin_die)));
+
+          if (recursion_depth > 1) // .callees(N)
+            iterate_over_callees(inlined ? &die : &origin,
+                                 sym, recursion_depth-1, q,
+                                 callback, callers);
+
+          if (!inlined)
+            callers->pop();
+          break;
+
+        case DW_TAG_subprogram:
+          break; // don't leave our filtered func
+
+        case DW_TAG_imported_unit:
+          // Iterate over the children of the imported unit as if they
+          // were inserted in place.
+          if (dwarf_attr_die(&die, DW_AT_import, &import))
+            iterate_over_callees (&import, sym, recursion_depth, q, callback, callers);
+          break;
+
+        default:
+          if (dwarf_haschildren (&die))
+            iterate_over_callees (&die, sym, recursion_depth, q, callback, callers);
+          break;
+        }
+    }
+  while (dwarf_siblingof (&die, &die) == 0);
+
+  if (free_callers && callers != NULL)
+    delete callers;
+}
+
 
 void
 dwflpp::collect_srcfiles_matching (string const & pattern,
