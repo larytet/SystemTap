@@ -1738,9 +1738,9 @@ query_dwarf_inline_instance (Dwarf_Die * die, void * arg)
 }
 
 static int
-query_dwarf_func (Dwarf_Die * func, base_query * bq)
+query_dwarf_func (Dwarf_Die * func, void * arg)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(bq);
+  dwarf_query * q = static_cast<dwarf_query *>(arg);
   assert (q->has_statement_str || q->has_function_str);
 
   // weed out functions whose decl_file isn't one of
@@ -10229,7 +10229,7 @@ struct tracepoint_query : public base_query
   void query_plt (const char *entry, size_t addr) {}
 
   static int tracepoint_query_cu (Dwarf_Die * cudie, void * arg);
-  static int tracepoint_query_func (Dwarf_Die * func, base_query * query);
+  static int tracepoint_query_func (Dwarf_Die * func, void * arg);
 };
 
 
@@ -10284,9 +10284,9 @@ tracepoint_query::tracepoint_query_cu (Dwarf_Die * cudie, void * arg)
 
 
 int
-tracepoint_query::tracepoint_query_func (Dwarf_Die * func, base_query * query)
+tracepoint_query::tracepoint_query_func (Dwarf_Die * func, void * arg)
 {
-  tracepoint_query * q = static_cast<tracepoint_query *>(query);
+  tracepoint_query * q = static_cast<tracepoint_query *>(arg);
   if (pending_interrupts) return DWARF_CB_ABORT;
   return q->handle_query_func(func);
 }

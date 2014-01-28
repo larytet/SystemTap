@@ -953,8 +953,8 @@ dwflpp::mod_function_caching_callback (Dwarf_Die* cu, void *arg)
 
 
 int
-dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
-                                base_query * q, const string& function)
+dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die *, void *),
+                                void * arg, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -982,7 +982,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
           if (sess.verbose > 4)
             clog << _F("function cache %s:%s hit %s", module_name.c_str(),
                        cu_name().c_str(), function.c_str()) << endl;  
-          rc = (*callback)(& die, q);
+          rc = (*callback)(& die, arg);
           if (rc != DWARF_CB_OK) break;
         }
     }
@@ -1005,7 +1005,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
                 clog << _F("function cache %s:%s match %s vs %s", module_name.c_str(),
                            cu_name().c_str(), linkage_name, function.c_str()) << endl;
 
-              rc = (*callback)(& die, q);
+              rc = (*callback)(& die, arg);
               if (rc != DWARF_CB_OK) break;
             }
         }
@@ -1023,7 +1023,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
                 clog << _F("function cache %s:%s match %s vs %s", module_name.c_str(),
                            cu_name().c_str(), func_name.c_str(), function.c_str()) << endl;
 
-              rc = (*callback)(& die, q);
+              rc = (*callback)(& die, arg);
               if (rc != DWARF_CB_OK) break;
             }
         }
@@ -1037,8 +1037,8 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
 
 
 int
-dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query * q),
-                                 base_query * q, const string& function)
+dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, void * arg),
+                                 void * arg, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -1074,7 +1074,7 @@ dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query *
           // since we're iterating out of cu-context, we need each focus
           focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
-          rc = (*callback)(& die, q);
+          rc = (*callback)(& die, arg);
           if (rc != DWARF_CB_OK) break;
         }
     }

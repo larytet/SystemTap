@@ -226,11 +226,11 @@ struct dwflpp
   Dwarf_Die *declaration_resolve(const std::string& name);
   Dwarf_Die *declaration_resolve_other_cus(const std::string& name);
 
-  int iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
-                              base_query * q, const std::string& function);
+  int iterate_over_functions (int (* callback)(Dwarf_Die *, void *),
+                              void * arg, const std::string& function);
 
-  int iterate_single_function (int (* callback)(Dwarf_Die * func, base_query * q),
-                               base_query * q, const std::string& function);
+  int iterate_single_function (int (* callback)(Dwarf_Die * func, void * arg),
+                               void * arg, const std::string& function);
 
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
