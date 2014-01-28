@@ -402,6 +402,8 @@ static const string TOK_LIBRARY("library");
 static const string TOK_PLT("plt");
 static const string TOK_METHOD("method");
 static const string TOK_CLASS("class");;
+static const string TOK_CALLEE("callee");;
+static const string TOK_CALLEES("callees");;
 
 static int query_cu (Dwarf_Die * cudie, void * arg);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
@@ -807,6 +809,12 @@ struct dwarf_query : public base_query
   bool has_label;
   string label_val;
 
+  bool has_callee;
+  string callee_val;
+
+  bool has_callees_num;
+  long callees_num_val;
+
   bool has_relative;
   long relative_val;
 
@@ -915,6 +923,19 @@ dwarf_query::dwarf_query(probe * base_probe,
   has_statement_num = get_number_param(params, TOK_STATEMENT, statement_num_val);
 
   has_label = get_string_param(params, TOK_LABEL, label_val);
+  has_callee = get_string_param(params, TOK_CALLEE, callee_val);
+  if (has_null_param(params, TOK_CALLEES))
+    { // .callees ==> .callees(1) (also equivalent to .callee("*"))
+      has_callees_num = true;
+      callees_num_val = 1;
+    }
+  else
+    {
+      has_callees_num = get_number_param(params, TOK_CALLEES, callees_num_val);
+      if (has_callees_num && callees_num_val < 1)
+        throw SEMANTIC_ERROR(_(".callees(N) only acceptable for N >= 1"),
+                             base_probe->tok);
+    }
 
   has_call = has_null_param(params, TOK_CALL);
   has_exported = has_null_param(params, TOK_EXPORTED);
@@ -1296,7 +1317,7 @@ dwarf_query::assess_dbinfo_reqt()
       // kernel.statement(NUM).absolute
       return dbr_none;
     }
-  if (has_inline || has_label)
+  if (has_inline || has_label || has_callee || has_callees_num)
     {
       // kernel.function("f").inline or module("m").function("f").inline
       return dbr_need_dwarf;
@@ -4837,6 +4858,15 @@ dwarf_derived_probe::register_function_and_statement_variants(
     ->bind_privilege(privilege)
     ->bind(dw);
   fv_root->bind_str(TOK_LABEL)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind_str(TOK_CALLEE)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind(TOK_CALLEES)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind_num(TOK_CALLEES)
     ->bind_privilege(privilege)
     ->bind(dw);
 
