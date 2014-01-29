@@ -46,6 +46,8 @@ extern "C" {
 #include <keyhi.h>
 #include <regex.h>
 #include <dirent.h>
+#include <string.h>
+#include <sys/ioctl.h>
 
 #if HAVE_AVAHI
 #include <avahi-client/publish.h>
@@ -54,6 +56,7 @@ extern "C" {
 #include <avahi-common/malloc.h>
 #include <avahi-common/error.h>
 #include <avahi-common/domain.h>
+#include <sys/inotify.h>
 #endif
 }
 
@@ -334,6 +337,8 @@ static char *avahi_service_name = NULL;
 static const char * const avahi_service_tag = "_stap._tcp";
 static AvahiClient *avahi_client = 0;
 static int avahi_collisions = 0;
+static int inotify_fd = -1;
+static AvahiWatch *avahi_inotify_watch = NULL;
 
 static void create_services (AvahiClient *c);
 
@@ -406,8 +411,11 @@ entry_group_callback (
     }
 }
 
+static void initialize_server_moks();
+
 static void
-create_services (AvahiClient *c) {
+create_services (AvahiClient *c)
+{
   assert (c);
 
   // Create a new entry group, if necessary, or reset the existing one.
@@ -464,6 +472,7 @@ create_services (AvahiClient *c) {
     }
 
   // Add server MOK info, if available.
+  initialize_server_moks ();
   if (! server_mok_vector.empty())
     {
       vector<string>::const_iterator it;
@@ -587,7 +596,43 @@ client_callback (AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED void *
 }
 
 static void
-avahi_cleanup () {
+inotify_callback (AvahiWatch *w, int fd, AvahiWatchEvent event, void *userdata)
+{
+  char *buffer;
+  int n = 0;
+
+  // Figure out how much data there is to be read.
+  ioctl (fd, FIONREAD, &n);
+  if (n <= 0)
+    n = sizeof (struct inotify_event) * 10;
+
+  // Allocate a buffer.
+  buffer = (char *)malloc (n);
+  if (! buffer)
+    {
+      server_error (_("Out of memory"));
+      return;
+    }
+
+  // Drain the inotify file. Notice we don't really care what changed,
+  // we just needed to know that something changed.
+  if (read (fd, buffer, n) < 0)
+    {
+      free (buffer);
+      server_error (_F("Failed to read inotify event: %s", strerror(errno)));
+      return;
+    }
+  free (buffer);
+
+  // Re-create the services.
+  if (avahi_client && (avahi_client_get_state (avahi_client)
+		       == AVAHI_CLIENT_S_RUNNING))
+    create_services (avahi_client);
+}
+
+static void
+avahi_cleanup ()
+{
   if (avahi_service_name)
     log (_F("Removing Avahi service '%s'", avahi_service_name));
 
@@ -597,6 +642,18 @@ avahi_cleanup () {
 
   // Clean up the avahi objects. The order of freeing these is significant.
   avahi_cleanup_client ();
+  if (avahi_inotify_watch)
+    {
+      const AvahiPoll *poll = avahi_threaded_poll_get (avahi_threaded_poll);
+      if (poll)
+	poll->watch_free (avahi_inotify_watch);
+      avahi_inotify_watch = NULL;
+    }
+  if (inotify_fd >= 0)
+    {
+      close (inotify_fd);
+      inotify_fd = -1;
+    }
   if (avahi_threaded_poll) {
     avahi_threaded_poll_free (avahi_threaded_poll);
     avahi_threaded_poll = 0;
@@ -655,6 +712,37 @@ avahi_publish_service (CERTCertificate *cert)
       return;
     }
 
+  // Watch the server MOK directory for any changes.
+#ifdef IN_CLOEXEC
+  inotify_fd = inotify_init1 (IN_CLOEXEC);
+#else
+  if ((inotify_fd = inotify_init ()) >= 0)
+    fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
+#endif
+  if (inotify_fd < 0)
+    server_error (_F("Failed to initialize inotify: %s", strerror (errno)));
+  else
+    {
+      // We want to watch for new or removed MOK directories.
+      if (inotify_add_watch (inotify_fd, mok_path.c_str (),
+#ifdef IN_ONLYDIR
+			     IN_ONLYDIR|
+#endif
+			     IN_CLOSE_WRITE|IN_DELETE|IN_DELETE_SELF|IN_MOVE)
+	  < 0)
+	server_error (_F("Failed to add inotify watch: %s", strerror (errno)));
+      else
+        {
+	  const AvahiPoll *poll = avahi_threaded_poll_get (avahi_threaded_poll);
+	  if (!poll
+	      || ! (avahi_inotify_watch = poll->watch_new (poll, inotify_fd,
+							   AVAHI_WATCH_IN,
+							   inotify_callback,
+							   NULL)))
+	    server_error (_("Failed to create inotify watcher"));
+	}
+    }
+
   // Run the main loop.
   avahi_threaded_poll_start (avahi_threaded_poll);
 
@@ -686,7 +774,8 @@ initialize_server_moks()
   DIR *dirp = opendir(mok_path.c_str());
   struct dirent *direntp;
   vector<string> temp;
-  bool initialized_nss = false;
+
+  server_mok_vector.clear ();
 
   // The directory of machine owner keys (MOK) is optional, so if it
   // doesn't exist, we don't worry about it.
@@ -727,15 +816,6 @@ initialize_server_moks()
   }
   regfree(&checkre);
   closedir(dirp);
-
-  // read_cert_info_from_file() needs NSS to be initialized...
-  if (! NSS_IsInitialized ()) {
-    // If NSS can't be initialized, just return (a message should have
-    // been already issued).
-    if (nssInit (cert_db_path.c_str ()) != SECSuccess)
-      return;
-    initialized_nss = true;
-  }
 
   // At this point, we've got a list of directories with names in the
   // proper format. Make sure each directory contains a x509
@@ -798,11 +878,6 @@ initialize_server_moks()
       server_error(_F("Found MOK with fingerprint '%s'", fingerprint.c_str()));
     }
   }
-
-  // If we initialized NSS, clean it up.
-  if (initialized_nss)
-    nssCleanup (cert_db_path.c_str ());
-
   return;
 }
 
@@ -852,10 +927,9 @@ initialize (int argc, char **argv) {
   /* Set the cert database password callback. */
   PK11_SetPasswordFunc (nssPasswordCallback);
 
-  // Get the list of optional machine owner keys (MOK) this server
-  // knows about.
+  // Where are the optional machine owner keys (MOK) this server
+  // knows about?
   mok_path = server_cert_db_path() + "/moks";
-  initialize_server_moks ();
 }
 
 static void
