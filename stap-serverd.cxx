@@ -345,9 +345,6 @@ mok_dir_valid_p (string mok_fingerprint, bool verbose)
     }
 
   // Find both the x509 certificate and private key files.
-  //
-  // FIXME: We could verify that the private key file's mode is 0600
-  // here and refuse to use it otherwise. Really needed?
   bool priv_found = false;
   bool cert_found = false;
   struct dirent *direntp;
@@ -739,31 +736,15 @@ client_callback (AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED void *
 static void
 inotify_callback (AvahiWatch *w, int fd, AvahiWatchEvent event, void *userdata)
 {
-  char *buffer;
-  int n = 0;
-
-  // Figure out how much data there is to be read.
-  ioctl (fd, FIONREAD, &n);
-  if (n <= 0)
-    n = sizeof (struct inotify_event) * 10;
-
-  // Allocate a buffer.
-  buffer = (char *)malloc (n);
-  if (! buffer)
-    {
-      server_error (_("Out of memory"));
-      return;
-    }
+  struct inotify_event in_events[10];
+  ssize_t rc;
 
   // Drain the inotify file. Notice we don't really care what changed,
   // we just needed to know that something changed.
-  if (read (fd, buffer, n) < 0)
-    {
-      free (buffer);
-      server_error (_F("Failed to read inotify event: %s", strerror(errno)));
-      return;
-    }
-  free (buffer);
+  do
+  {
+    rc = read (fd, in_events, sizeof (in_events));
+  } while (rc > 0);
 
   // Re-create the services.
   if (avahi_client && (avahi_client_get_state (avahi_client)
@@ -854,18 +835,26 @@ avahi_publish_service (CERTCertificate *cert)
     }
 
   // Watch the server MOK directory for any changes.
-#ifdef IN_CLOEXEC
-  inotify_fd = inotify_init1 (IN_CLOEXEC);
+#if defined(IN_CLOEXEC) && defined(IN_NONBLOCK)
+  inotify_fd = inotify_init1 (IN_CLOEXEC|IN_NONBLOCK);
 #else
   if ((inotify_fd = inotify_init ()) >= 0)
-    fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
+    {
+      fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
+      fcntl(inotify_fd, F_SETFL, O_NONBLOCK);
+    }
 #endif
   if (inotify_fd < 0)
     server_error (_F("Failed to initialize inotify: %s", strerror (errno)));
   else
     {
-      // We want to watch for new or removed MOK directories.
-      if (inotify_add_watch (inotify_fd, mok_path.c_str (),
+      // We want to watch for new or removed MOK directories
+      // underneath mok_path. But, to do that, mok_path must exist.
+      if (create_dir (mok_path.c_str (), 0755) != 0)
+	server_error (_F("Unable to find or create the MOK directory %s: %s",
+			 mok_path.c_str (), strerror (errno)));
+      // Watch mok_path for changes.
+      else if (inotify_add_watch (inotify_fd, mok_path.c_str (),
 #ifdef IN_ONLYDIR
 			     IN_ONLYDIR|
 #endif
@@ -874,6 +863,7 @@ avahi_publish_service (CERTCertificate *cert)
 	server_error (_F("Failed to add inotify watch: %s", strerror (errno)));
       else
         {
+	  // When mok_path changes, call inotify_callback().
 	  const AvahiPoll *poll = avahi_threaded_poll_get (avahi_threaded_poll);
 	  if (!poll
 	      || ! (avahi_inotify_watch = poll->watch_new (poll, inotify_fd,
@@ -1421,7 +1411,7 @@ get_client_mok_fingerprints (const string &filename,
   regfree(&checkre);
 }
 
-void
+bool
 mok_sign_file (std::string &mok_fingerprint,
 	       const std::string &kernel_build_tree,
 	       const std::string &name,
@@ -1437,13 +1427,19 @@ mok_sign_file (std::string &mok_fingerprint,
   cmd.push_back (mok_directory + MOK_PRIVATE_CERT_FILE);
   cmd.push_back (mok_directory + MOK_PUBLIC_CERT_FILE);
   cmd.push_back (name);
-  // FIXME: Should we do anything if this fails?
+
   rc = stap_system (0, cmd);
   if (rc != 0) 
-    server_error (_F("Running sign-file failed, rc = %d", rc));
+    {
+      client_error (_F("Running sign-file failed, rc = %d", rc), stapstderr);
+      return false;
+    }
   else
-    client_error (_F("Module signed with MOK, fingerprint \"%s\"",
-		     mok_fingerprint.c_str()), stapstderr);
+    {
+      client_error (_F("Module signed with MOK, fingerprint \"%s\"",
+		       mok_fingerprint.c_str()), stapstderr);
+      return true;
+    }
 }
 
 // Filter paths prefixed with the server's home directory from the given file.
@@ -1711,8 +1707,14 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 		       globber.gl_pathv[0],
 		       string(globber.gl_pathv[0]) + ".sgn");
 	  if (! mok_fingerprint.empty ())
-	    mok_sign_file (mok_fingerprint, kernel_build_tree,
-			   globber.gl_pathv[0], stapstderr);
+	    {
+	      // If we signing the module failed, change the staprc to
+	      // 1, so that the client won't try to run the resulting
+	      // module, which wouldn't work.
+	      if (! mok_sign_file (mok_fingerprint, kernel_build_tree,
+				   globber.gl_pathv[0], stapstderr))
+		staprc = 1;
+	    }
 	  else if (! client_mok_fingerprints.empty ())
 	    {
 	      // If we're here, the client sent us MOK fingerprints
