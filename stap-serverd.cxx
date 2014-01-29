@@ -96,7 +96,6 @@ static string R_option;
 static string D_options;
 static bool   keep_temp;
 static string mok_path;
-static vector<string> server_mok_vector;
 
 sem_t sem_client;
 static int pending_interrupts;
@@ -330,6 +329,150 @@ setup_signals (sighandler_t handler)
   sigaction (SIGXCPU, &sa, NULL);
 }
 
+// Does the server contain a valid directory for the MOK fingerprint?
+bool
+mok_dir_valid_p (string mok_fingerprint, bool verbose)
+{
+  string mok_dir = mok_path + "/" + mok_fingerprint;
+  DIR *dirp = opendir (mok_dir.c_str());
+  if (dirp == NULL)
+    {
+      // We can't open the directory. Just quit.
+      if (verbose)
+	server_error (_F("Could not open server MOK fingerprint directory %s: %s",
+		      mok_dir.c_str(), strerror(errno)));
+      return false;
+    }
+
+  // Find both the x509 certificate and private key files.
+  //
+  // FIXME: We could verify that the private key file's mode is 0600
+  // here and refuse to use it otherwise. Really needed?
+  bool priv_found = false;
+  bool cert_found = false;
+  struct dirent *direntp;
+  while ((direntp = readdir (dirp)) != NULL)
+    {
+      if (! priv_found && direntp->d_type == DT_REG
+	  && strcmp (direntp->d_name, MOK_PRIVATE_CERT_NAME) == 0)
+        {
+	  priv_found = true;
+	  continue;
+	}
+      if (! cert_found && direntp->d_type == DT_REG
+	  && strcmp (direntp->d_name, MOK_PUBLIC_CERT_NAME) == 0)
+        {
+	  cert_found = true;
+	  continue;
+	}
+      if (priv_found && cert_found)
+	break;
+    }
+  closedir (dirp);
+  if (! priv_found || ! cert_found)
+    {
+      // We didn't find one (or both) of the required files. Quit.
+      if (verbose)
+	server_error (_F("Could not find server MOK files in directory %s",
+			 mok_dir.c_str ()));
+      return false;
+    }
+
+  // Grab info from the cert.
+  string fingerprint;
+  if (read_cert_info_from_file (mok_dir + MOK_PUBLIC_CERT_FILE, fingerprint)
+      == SECSuccess)
+    {
+      // Make sure the fingerprint from the certificate matches the
+      // directory name.
+      if (fingerprint != mok_fingerprint)
+        {
+	  if (verbose)
+	      server_error (_F("Server MOK directory name '%s' doesn't match fingerprint from certificate %s",
+			       mok_dir.c_str(), fingerprint.c_str()));
+	  return false;
+	}
+    }
+  return true;
+}
+
+// Get the list of MOK fingerprints on the server. If
+// 'only_one_needed' is true, just return the first MOK.
+static void
+get_server_mok_fingerprints(vector<string> &mok_fingerprints, bool verbose,
+			    bool only_one_needed)
+{
+  DIR *dirp;
+  struct dirent *direntp;
+  vector<string> temp;
+
+  // Clear the vector.
+  mok_fingerprints.clear ();
+
+  // The directory of machine owner keys (MOK) is optional, so if it
+  // doesn't exist, we don't worry about it.
+  dirp = opendir (mok_path.c_str ());
+  if (dirp == NULL)
+    {
+      // If the error isn't ENOENT (Directory does not exist), we've got
+      // a non-fatal error.
+      if (errno != ENOENT)
+	server_error (_F("Could not open server MOK directory %s: %s",
+			 mok_path.c_str (), strerror (errno)));
+      return;
+    }
+
+  // Create a regular expression object to verify MOK fingerprints
+  // directory name.
+  regex_t checkre;
+  if ((regcomp (&checkre, "^[0-9a-f]{2}(:[0-9a-f]{2})+$",
+		REG_EXTENDED | REG_NOSUB) != 0))
+    {
+      // Not fatal, just ignore the MOK fingerprints.
+      server_error (_F("Error in MOK fingerprint regcomp: %s",
+		       strerror (errno)));
+      closedir (dirp);
+      return;
+    }
+
+  // We've opened the directory, so read all the directory names from
+  // it.
+  while ((direntp = readdir (dirp)) != NULL)
+    {
+      // We're only interested in directories (of key files).
+      if (direntp->d_type != DT_DIR)
+	continue;
+
+      // We've got a directory. If the directory name isn't in the right
+      // format for a MOK fingerprint, skip it.
+      if ((regexec (&checkre, direntp->d_name, (size_t) 0, NULL, 0) != 0))
+	continue;
+
+      // OK, we've got a directory name in the right format, so save it.
+      temp.push_back (string (direntp->d_name));
+    }
+  regfree (&checkre);
+  closedir (dirp);
+
+  // At this point, we've got a list of directories with names in the
+  // proper format. Make sure each directory contains a x509
+  // certificate and private key file.
+  vector<string>::const_iterator it;
+  for (it = temp.begin (); it != temp.end (); it++)
+    {
+      if (mok_dir_valid_p (*it, true))
+        {
+	  // Save the info.
+	  mok_fingerprints.push_back (*it);
+	  if (verbose)
+	    server_error (_F("Found MOK with fingerprint '%s'", it->c_str ()));
+	  if (only_one_needed)
+	    break;
+	}
+    }
+  return;
+}
+
 #if HAVE_AVAHI
 static AvahiEntryGroup *avahi_group = NULL;
 static AvahiThreadedPoll *avahi_threaded_poll = NULL;
@@ -411,8 +554,6 @@ entry_group_callback (
     }
 }
 
-static void initialize_server_moks();
-
 static void
 create_services (AvahiClient *c)
 {
@@ -430,7 +571,6 @@ create_services (AvahiClient *c)
     }
   else
     avahi_entry_group_reset(avahi_group);
-
 
   // Contruct the information needed for our service.
   log (_F("Adding Avahi service '%s'", avahi_service_name));
@@ -461,6 +601,7 @@ create_services (AvahiClient *c)
     optinfo += separator + I_options.substr(1);
 
   // Create an avahi string list with the info we have so far.
+  vector<string> mok_fingerprints;
   AvahiStringList *strlst = avahi_string_list_new(sysinfo.c_str (),
 						  optinfo.c_str (),
 						  version.c_str (),
@@ -472,11 +613,11 @@ create_services (AvahiClient *c)
     }
 
   // Add server MOK info, if available.
-  initialize_server_moks ();
-  if (! server_mok_vector.empty())
+  get_server_mok_fingerprints (mok_fingerprints, true, false);
+  if (! mok_fingerprints.empty())
     {
       vector<string>::const_iterator it;
-      for (it = server_mok_vector.begin(); it != server_mok_vector.end(); it++)
+      for (it = mok_fingerprints.begin(); it != mok_fingerprints.end(); it++)
         {
 	  string tmp = "mok_info=" + *it;
 	  strlst = avahi_string_list_add(strlst, tmp.c_str ());
@@ -768,118 +909,8 @@ unadvertise_presence ()
 #endif
 }
 
-static void
-initialize_server_moks()
-{
-  DIR *dirp = opendir(mok_path.c_str());
-  struct dirent *direntp;
-  vector<string> temp;
 
-  server_mok_vector.clear ();
 
-  // The directory of machine owner keys (MOK) is optional, so if it
-  // doesn't exist, we don't worry about it.
-  if (dirp == NULL) {
-    // If the error isn't ENOENT (Directory does not exist), we've got
-    // a non-fatal error.
-    if (errno != ENOENT)
-      server_error(_F("Could not open server MOK directory %s: %s",
-                     mok_path.c_str(), strerror(errno)));
-    return;
-  }
-
-  // Create a regular expression object to verify MOK fingerprints
-  // directory name.
-  regex_t checkre;
-  if ((regcomp(&checkre, "^[0-9a-f]{2}(:[0-9a-f]{2})+$",
-              REG_EXTENDED | REG_NOSUB) != 0)) {
-    // Not fatal, just ignore the MOK fingerprints.
-    server_error(_F("Error in MOK fingerprint regcomp: %s", strerror (errno)));
-    closedir(dirp);
-    return;
-  }
-
-  // We've opened the directory, so read all the directory names from
-  // it.
-  while ((direntp = readdir(dirp)) != NULL) {
-    // We're only interested in directories (of key files).
-    if (direntp->d_type != DT_DIR)
-      continue;
-
-    // We've got a directory. If the directory name isn't in the right
-    // format for a MOK fingerprint, skip it.
-    if ((regexec(&checkre, direntp->d_name, (size_t) 0, NULL, 0) != 0))
-      continue;
-
-    // OK, we've got a directory name in the right format, so save it.
-    temp.push_back(string(direntp->d_name));
-  }
-  regfree(&checkre);
-  closedir(dirp);
-
-  // At this point, we've got a list of directories with names in the
-  // proper format. Make sure each directory contains a x509
-  // certificate and private key file.
-  vector<string>::const_iterator it;
-  for (it = temp.begin(); it != temp.end(); it++) {
-    string keydir = mok_path + "/" + *it;
-    dirp = opendir(keydir.c_str());
-    if (dirp == NULL) {
-      // The directory name was in the right format, but we can't open
-      // it for some reason. Just skip it.
-      server_error(_F("Could not open server MOK fingerprint directory %s: %s",
-                     keydir.c_str(), strerror(errno)));
-      continue;
-    }
-
-    // Find both the x509 certificate and private key files.
-    //
-    // FIXME: We could verify that the private key file's mode is 0600
-    // here and refuse to use it otherwise. Really needed?
-    bool priv_found = false;
-    bool cert_found = false;
-    while ((direntp = readdir(dirp)) != NULL) {
-      if (! priv_found && direntp->d_type == DT_REG
-         && strcmp(direntp->d_name, MOK_PRIVATE_CERT_NAME) == 0) {
-       priv_found = true;
-       continue;
-      }
-      if (! cert_found && direntp->d_type == DT_REG
-         && strcmp(direntp->d_name, MOK_PUBLIC_CERT_NAME) == 0) {
-       cert_found = true;
-       continue;
-      }
-      if (priv_found && cert_found)
-       break;
-    }
-    closedir(dirp);
-    if (!priv_found || !cert_found) {
-      // We didn't find one (or both) of the required files. Skip the
-      // directory.
-      server_error(_F("Could not find server MOK files in directory %s",
-		      keydir.c_str()));
-      continue;
-    }
-
-    // Grab info from the cert.
-    string fingerprint;
-    if (read_cert_info_from_file(keydir + MOK_PUBLIC_CERT_FILE, fingerprint)
-	== SECSuccess) {
-      // Make sure the fingerprint from the certificate matches the
-      // directory name.
-      if (fingerprint != *it) {
-	server_error(_F("Server MOK directory name '%s' doesn't match fingerprint from certificate %s",
-			keydir.c_str(), fingerprint.c_str()));
-	continue;
-      }
-
-      // Save the info.
-      server_mok_vector.push_back(fingerprint);
-      server_error(_F("Found MOK with fingerprint '%s'", fingerprint.c_str()));
-    }
-  }
-  return;
-}
 
 static void
 initialize (int argc, char **argv) {
@@ -1621,21 +1652,19 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 			      &client_version);
 
 
-  // If the client sent us MOK fingerprints, see if we have a matching MOK.
+  // If the client sent us MOK fingerprints, see if we have a matching
+  // MOK on the server.
   string mok_fingerprint;
-  if (! client_mok_fingerprints.empty() && ! server_mok_vector.empty())
+  if (! client_mok_fingerprints.empty())
     {
-      // Check the list of client MOK fingerprints against the list of
-      // server MOK fingerprints. Look for any match.
+      // See if any of the client MOK fingerprints exist on the server.
       vector<string>::const_iterator it;
       for (it = client_mok_fingerprints.begin();
 	   it != client_mok_fingerprints.end(); it++)
         {
-	  vector<string>::const_iterator mi;
-	  mi = find(server_mok_vector.begin (), server_mok_vector.end (), *it);
-	  if (mi != server_mok_vector.end())
+	  if (mok_dir_valid_p (*it, false))
 	    {
-	      mok_fingerprint = *mi;
+	      mok_fingerprint = *it;
 	      break;
 	    }
 	}
@@ -1695,7 +1724,9 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 
 	      // Since we can't sign the module, send the client one
 	      // of our MOKs. If we don't have any, create one.
-	      if (server_mok_vector.empty ())
+	      vector<string> mok_fingerprints;
+	      get_server_mok_fingerprints(mok_fingerprints, false, true);
+	      if (mok_fingerprints.empty ())
 	        {
 		  // FIXME: We need to be able to generate MOKs here.
 		  server_error ("Unable to generate MOKs yet.");
@@ -1704,9 +1735,8 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 	        {
 		  // At this point we have at least one MOK on the
 		  // server. Send the public key down to the
-		  // client. We'll just pick the first one in the list
-		  // of server MOKs.
-		  mok_fingerprint = *server_mok_vector.begin ();
+		  // client.
+		  mok_fingerprint = *mok_fingerprints.begin ();
 		}
 	      
 	      if (! mok_fingerprint.empty ())
