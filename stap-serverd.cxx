@@ -76,6 +76,26 @@ static PRStatus spawn_and_wait (const vector<string> &argv, int *result,
 #define MOK_PUBLIC_CERT_FILE "/" MOK_PUBLIC_CERT_NAME
 #define MOK_PRIVATE_CERT_NAME "signing_key.priv"
 #define MOK_PRIVATE_CERT_FILE "/" MOK_PRIVATE_CERT_NAME
+#define MOK_CONFIG_FILE "/x509.genkey"
+// MOK_CONFIG_TEXT is the default MOK config text used when creating
+// new MOKs. This text is saved to the MOK config file. Once we've
+// created it, the server administrator can modify it.
+#define MOK_CONFIG_TEXT \
+  "[ req ]\n"						\
+  "default_bits = 4096\n"				\
+  "distinguished_name = req_distinguished_name\n"	\
+  "prompt = no\n"					\
+  "x509_extensions = myexts\n"				\
+  "\n"							\
+  "[ req_distinguished_name ]\n"			\
+  "O = Systemtap\n"					\
+  "CN = Systemtap module signing key\n"			\
+  "\n"							\
+  "[ myexts ]\n"					\
+  "basicConstraints=critical,CA:FALSE\n"		\
+  "keyUsage=digitalSignature\n"				\
+  "subjectKeyIdentifier=hash\n"				\
+  "authorityKeyIdentifier=keyid\n"
 
 /* getopt variables */
 extern int optind;
@@ -1525,6 +1545,104 @@ getRequestedPrivilege (const vector<string> &stapargv)
   return privilege;
 }
 
+static void
+generate_mok(string &mok_fingerprint)
+{
+  vector<string> cmd;
+  int rc;
+  char tmpdir[PATH_MAX] = { '\0' };
+  string public_cert_path, private_cert_path, destdir;
+
+  mok_fingerprint.clear ();
+
+  // Make sure the config file exists. If not, create it with default
+  // contents.
+  string config_path = mok_path + MOK_CONFIG_FILE;
+  if (! file_exists (config_path))
+    {
+      ofstream config_stream;
+      config_stream.open (config_path.c_str ());
+      if (! config_stream.good ())
+        {
+	  server_error (_F("Could not open MOK config file %s: %s",
+			   config_path.c_str (), strerror (errno)));
+	  goto cleanup;
+	}
+      config_stream << MOK_CONFIG_TEXT;
+      config_stream.close ();
+    }
+
+  // Make a temporary directory to store results in.
+  snprintf (tmpdir, PATH_MAX, "%s/stap-server.XXXXXX", mok_path.c_str ());
+  if (mkdtemp (tmpdir) == NULL)
+    {
+      server_error (_F("Could not create temporary directory %s: %s", tmpdir, 
+		       strerror (errno)));
+      tmpdir[0] = '\0';
+      goto cleanup;
+    }
+
+  // Actually generate key using openssl.
+  //
+  // FIXME: We'll need to require openssl in the spec file.
+  public_cert_path = tmpdir + string (MOK_PUBLIC_CERT_FILE);
+  private_cert_path = tmpdir + string (MOK_PRIVATE_CERT_FILE);
+  cmd.push_back ("openssl");
+  cmd.push_back ("req");
+  cmd.push_back ("-new");
+  cmd.push_back ("-nodes");
+  cmd.push_back ("-utf8");
+  cmd.push_back ("-sha256");
+  cmd.push_back ("-days");
+  cmd.push_back ("36500");
+  cmd.push_back ("-batch");
+  cmd.push_back ("-x509");
+  cmd.push_back ("-config");
+  cmd.push_back (config_path);
+  cmd.push_back ("-outform");
+  cmd.push_back ("DER");
+  cmd.push_back ("-out");
+  cmd.push_back (public_cert_path);
+  cmd.push_back ("-keyout");
+  cmd.push_back (private_cert_path);
+  rc = stap_system (0, cmd);
+  if (rc != 0) 
+    {
+      server_error (_F("Generating MOK failed, rc = %d", rc));
+      goto cleanup;
+    }
+
+  // The private key gets created world readable. Fix this.
+  chmod (private_cert_path.c_str (), 0600);
+
+  // Grab the fingerprint from the cert.
+  if (read_cert_info_from_file (public_cert_path, mok_fingerprint)
+      != SECSuccess)
+    goto cleanup;
+
+  // Once we know the fingerprint, rename the temporary directory.
+  destdir = mok_path + "/" + mok_fingerprint;
+  if (rename (tmpdir, destdir.c_str ()) < 0)
+    {
+      server_error (_F("Could not rename temporary directory %s to %s: %s",
+		       tmpdir, destdir.c_str (), strerror (errno)));
+      goto cleanup;
+    }
+  return;
+
+cleanup:
+  // Remove the temporary directory.
+  cmd.clear ();
+  cmd.push_back ("rm");
+  cmd.push_back ("-rf");
+  cmd.push_back (tmpdir);
+  rc = stap_system (0, cmd);
+  if (rc != 0)
+    server_error (_("Error in tmpdir cleanup"));
+  mok_fingerprint.clear ();
+  return;
+}
+
 /* Run the translator on the data in the request directory, and produce output
    in the given output directory. */
 static void
@@ -1730,8 +1848,8 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
 	      get_server_mok_fingerprints(mok_fingerprints, false, true);
 	      if (mok_fingerprints.empty ())
 	        {
-		  // FIXME: We need to be able to generate MOKs here.
-		  server_error ("Unable to generate MOKs yet.");
+		  // Generate a new MOK.
+		  generate_mok(mok_fingerprint);
 		}
 	      else
 	        {
