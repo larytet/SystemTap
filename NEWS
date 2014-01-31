@@ -19,8 +19,11 @@
   function task_ancestry(), which prints out the parentage of a process.
 
 - The kprocess.exec probe has been updated to use syscall.execve, which
-  allows access to the new process' arguments as well as giving better
-  support across kernel versions.
+  allows access to the new process' arguments (through the new 'argstr'
+  or 'args' variables) as well as giving better support across kernel
+  versions. Note also that the 'filename' variable now holds the
+  filename (quoted), or the address (unquoted) if it couldn't be
+  retrieved.
 
 - The [s]println() function can now be called without any arguments to
   simply print a newline.
