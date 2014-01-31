@@ -20,7 +20,7 @@
 global RUNNING=0, QUEUED=1, SLEEPING=2
 
 global traced_pid
-global run_time, queued_time,  sleep_time, io_wait_time
+global run_time, queued_time, sleep_time, io_wait_time
 global pid_state, pid_names
 global previous_timestamp
 global io_wait_count
@@ -34,6 +34,16 @@ function get_iowait:long(queue:long)
 probe kernel.trace("sched_switch") {
   previous_pid = $prev->pid;
   next_pid = $next->pid;
+  
+  #is either the interrupted or the interrupting pid in our set?
+  #Then we set traced pid to this one in order to do accounting
+  if (target_set_pid(previous_pid)) {
+    traced_pid = previous_pid;
+  }
+  if (target_set_pid(next_pid)) {
+    traced_pid = next_pid;
+  }
+
   if (traced_pid) {
     if (previous_pid != traced_pid) {
       previous_pid = 0;
@@ -104,6 +114,10 @@ probe kernel.trace("sched_switch") {
 
 probe kernel.trace("sched_wakeup") {
   wakeup_pid = $p->pid;
+  if (target_set_pid(wakeup_pid)) {
+    traced_pid = wakeup_pid;
+  }
+
   if (traced_pid && (wakeup_pid != traced_pid)) next
   if ((!$success) && (pid_state[wakeup_pid] != SLEEPING)) next
   if (!wakeup_pid) next
