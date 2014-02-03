@@ -130,7 +130,8 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 {
 	int i, res;
 	struct _stp_module *module = NULL;
-	const char *name = (dentry != NULL) ? dentry->d_name.name : NULL;
+	const char *name = ((dentry != NULL) ? (char *)dentry->d_name.name
+			    : NULL);
         
         if (path == NULL || *path == '\0') /* unknown? */
                 path = (char *)name; /* we'll copy this soon, in ..._add_vma_... */
