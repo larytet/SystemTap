@@ -329,88 +329,104 @@ path of the target program, by specifying a set of points in the
 source or object code.  When a matching statement executes on any
 processor, the probe handler is run in that context.
 .PP
-Points in a kernel, which are identified by
-module, source file, line number, function name, or some
-combination of these.  
+Probe points in the DWARF family can be identified by the target kernel
+module (or user process), source file, line number, function name, or
+some combination of these.
 .PP
-Here is a list of probe point families currently supported.  The
-.B .function
-variant places a probe near the beginning of the named function, so that
-parameters are available as context variables.  The
-.B .return
-variant places a probe at the moment
-.B after
-the return from the named function, so the return value is available
-as the "$return" context variable.  The
-.B .inline
-modifier for
-.B .function
-filters the results to include only instances of inlined functions.
-The
-.B .call
-modifier selects the opposite subset.  The 
-.B .exported
-modifier
-filters the results to include only exported functions.  Inline
-functions do not have an identifiable return point, so
-.B .return
-is not supported on 
-.B .inline
-probes. The
-.B .statement
-variant places a probe at the exact spot, exposing those local variables
-that are visible there.
-
+Here is a list of DWARF probe points currently supported:
 .SAMPLE
 kernel.function(PATTERN)
-.br
 kernel.function(PATTERN).call
-.br
+kernel.function(PATTERN).callee(PATTERN)
+kernel.function(PATTERN).callees(DEPTH)
 kernel.function(PATTERN).return
-.br
 kernel.function(PATTERN).inline
-.br
 kernel.function(PATTERN).label(LPATTERN)
-.br
 module(MPATTERN).function(PATTERN)
-.br
 module(MPATTERN).function(PATTERN).call
-.br
+module(MPATTERN).function(PATTERN).callee(PATTERN)
+module(MPATTERN).function(PATTERN).callees(DEPTH)
 module(MPATTERN).function(PATTERN).return
-.br
 module(MPATTERN).function(PATTERN).inline
-.br
 module(MPATTERN).function(PATTERN).label(LPATTERN)
-.br
-.br
 kernel.statement(PATTERN)
-.br
 kernel.statement(ADDRESS).absolute
-.br
 module(MPATTERN).statement(PATTERN)
-.br
 process("PATH").function("NAME")
-.br
 process("PATH").statement("*@FILE.c:123")
-.br
 process("PATH").library("PATH").function("NAME")
-.br
 process("PATH").library("PATH").statement("*@FILE.c:123")
-.br
 process("PATH").function("*").return
-.br
 process("PATH").function("myfun").label("foo")
-.br
+process("PATH").function("foo").callee("bar")
+process("PATH").function("foo").callees(DEPTH)
 process(PID).statement(ADDRESS).absolute
 .ESAMPLE
-
 (See the USER-SPACE section below for more information on the process
 probes.)
+.PP
+The list above includes multiple variants and modifiers which provide
+additional functionality or filters. They are:
+.RS
+.TP
+\fB.function\fR
+Places a probe near the beginning of the named function, so that
+parameters are available as context variables.
+.TP
+\fB.return\fR
+Places a probe at the moment \fBafter\fR the return from the named
+function, so the return value is available as the "$return" context
+variable.
+.TP
+\fB.inline\fR
+Filters the results to include only instances of inlined functions. Note
+that inlined functions do not have an identificable return point, so
+\fB.return\fR is not supported on \fB.inline\fR probes.
+.TP
+\fB.call\fR
+Filters the results to include only non-inlined functions (the opposite
+set of \fB.inline\fR)
+.TP
+\fB.exported\fR
+Filters the results to include only exported functions.
+.TP
+\fB.return\fR
+.TP
+\fB.statement\fR
+Places a probe at the exact spot, exposing those local variables taht
+are visible there.
+.TP
+\fB.callee\fR
+Places a probe on the callee function given in the \fB.callee\fR
+modifier, where the callee must be a function called by the target
+function given in \fB.function\fR. The advantage of doing this over
+directly probing the callee function is that this probe point is run
+only when the callee is called from the target function (add the
+-DSTAP_CALLEE_MATCHALL directive to override this when calling
+\fBstap\fR(1)).
 
-In the above list, MPATTERN stands for a string literal that aims to
-identify the loaded kernel module of interest and LPATTERN stands for
-a source program label.  Both MPATTERN and LPATTERN may include the "*"
-"[]", and "?" wildcards.  
+Note that only callees that can be statically determined are available.
+For example, calls through function pointers are not available.
+Additionally, calls to functions located in other objects (e.g.
+libraries) are not available (instead use another probe point).
+.TP
+\fB.callees\fR
+Shortcut for \fB.callee("*")\fR, which places a probe on all callees of
+the function.
+.TP
+\fB.callees\fR(DEPTH)
+Recursively places probes on callees. For example, \fB.callees(2)\fR
+will probe both callees of the target function, as well as callees of
+those callees. And \fB.callees(3)\fR goes one level deeper, etc...
+A callee probe at depth N is only triggered when the N callers in the
+callstack match those that were statically determined during analysis
+(this also may be overriden using -DSTAP_CALLEE_MATCHALL).
+.RE
+.PP
+In the above list of probe points, MPATTERN stands for a string literal
+that aims to identify the loaded kernel module of interest and LPATTERN
+stands for a source program label.  Both MPATTERN and LPATTERN may
+include the "*" "[]", and "?" wildcards.
 PATTERN stands for a string literal that
 aims to identify a point in the program.  It is made up of three
 parts:
@@ -447,7 +463,6 @@ the ".absolute" suffix.  Such an address is considered already relocated,
 as if it came from 
 .BR /proc/kallsyms ,
 so it cannot be checked against statement/instruction boundaries.
-
 .SS CONTEXT VARIABLES
 
 .PP
@@ -782,6 +797,7 @@ process("PATH").library("PATH").function("NAME")
 process("PATH").library("PATH").statement("*@FILE.c:123")
 process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
+process("PATH").function("foo").callee("bar")
 .ESAMPLE
 
 .PP
