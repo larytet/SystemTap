@@ -1,0 +1,581 @@
+set test "callee"
+set testpath "$srcdir/$subdir"
+
+# The purpose of this testcase is to verify that .callee[s] probes function
+# properly in a variety of situations.
+
+# We move on to other subtests if a subtest fails, but within subtests, we fail
+# the whole subtest if a subsubtest fails. Hope that makes sense.
+
+# Fails or succeeds a subsubtest and sets the failed flag.
+# Zero res means success, nonzero means failure.
+proc passfail { res } {
+   global test subtest subsubtest failed
+   if { $res } {
+      fail "$test ($subtest - $subsubtest)"
+      set failed 1
+   } else {
+      pass "$test ($subtest - $subsubtest)"
+   }
+}
+
+# Compiles the related subtest C file. Returns 0 on success, 1 on failure.
+# The n variable is the number of source files to compile. E.g. if n = 2, it
+# will compile ${test}.${subtest}.c and ${test}.${subtest}.2.c
+proc compile_subtest { {n 1} } {
+   global test testpath subtest
+
+   # Build source list
+   set sources ""
+   while {$n} {
+      if {$n > 1} {
+         lappend sources "${testpath}/${test}.${subtest}.$n.c"
+      } else {
+         lappend sources "${testpath}/${test}.${subtest}.c"
+      }
+      incr n -1
+   }
+
+   # We have to turn off -Wattributes because some C subtests use the
+   # ((always_inline)) attribute, which emits a warning
+   set res [target_compile [concat $sources] ${test} \
+            executable "additional_flags=-O additional_flags=-g \
+            additional_flags=-Wno-attributes"]
+   if { $res != "" } { return 1 }
+   return 0
+}
+
+# Builds a callee probe point for the given func and callee. If callee is a
+# number greater than 0, then callees(N) is used instead. If callee is 0, then
+# callees is used. Returns 0 on success, nonzero on failure.
+proc build_probe { func callee } {
+   global test
+
+   set func "function(\"${func}\")"
+   if {[string is integer $callee]} {
+      if {$callee} {
+         set callee "callees(${callee})"
+      } else {
+         set callee "callees"
+      }
+   } else {
+      set callee "callee(\"${callee}\")"
+   }
+
+   return "process(\"./${test}\").${func}.${callee}"
+}
+
+# Runs stap -L against given func and callee and expects probes for functions in
+# expfuncs list.
+proc expect_list { func callee expfuncs } {
+   global test testpath subtest
+
+   # Build the stap command
+   set cmd "stap -L [build_probe $func $callee]"
+
+   # Build the expect regex: pp1|pp2|pp3|...
+   set n 0
+   set regexp ""
+   foreach expfunc $expfuncs {
+      # process(path)
+      set cregexp "^process\\\(\"/\[^\"\]*/testsuite/${test}\"\\\)"
+      # .function(func@/path/callee.subtest
+      append cregexp "\\\.function\\\(\"$expfunc@\[^\"\]*${test}\\\.${subtest}"
+      # fileno:lineno") __stuff__ \r\n
+      append cregexp "\(\\\.\[0-9\]\)?\\\.c:\[0-9\]+\"\\\)\[^\\r\\n\]*\\r\\n"
+      if {[string length $regexp]} {
+         append regexp |
+      }
+      append regexp $cregexp
+      incr n
+   }
+
+   # Spawn stap -L
+   eval spawn $cmd
+   expect {
+      -timeout 30
+      -re "$regexp" {
+         # This actually *decrements* n
+         incr n -1
+         exp_continue
+      }
+      timeout {
+         exec kill -s KILL -- -[exp_pid]
+      }
+   }
+   catch {close}; catch {wait}
+
+   return $n
+}
+
+# Runs stap against given func and callee and verifies that probes are
+# triggered. The 'expout' param is a list of callee/caller pairs expected to be
+# printed out together. The 'inlined' arg should be 1 if callee is inlined, 0
+# otherwise (defaults to 0).
+proc expect_probe { func callee expout {inlined 0} } {
+   global test testpath subtest
+
+   # If it's inlined, we use ustack(0) instead to get the 'caller'
+   if {$inlined} {
+      set caller usymname(ustack(0))
+   } else {
+      set caller usymname(ustack(1))
+   }
+
+   # Build the stap command
+   set script " \
+      probe [build_probe $func $callee] { \
+         printf(\"callee %s caller %s\\n\", ppfunc(), $caller) \
+      } \
+   "
+
+   # Build the expect regex: callee1caller1|callee2caller2|...
+   set n 0
+   set regexp ""
+   foreach {expcallee expcaller} $expout {
+      set cregexp "^callee ${expcallee} caller ${expcaller}\[^\\r\\n\]*\\r\\n"
+      if {[string length $regexp]} {
+         append regexp |
+      }
+      append regexp $cregexp
+      incr n
+   }
+
+   # Spawn stap
+   eval spawn stap -we {$script} -c "./$test"
+   expect {
+      -timeout 30
+      -re "$regexp" {
+         # This actually *decrements* n
+         incr n -1
+         exp_continue
+      }
+      timeout {
+         exec kill -s KILL -- -[exp_pid]
+      }
+   }
+   catch {close}; catch {wait}
+
+   return $n
+}
+
+# testcase callee.simple.c
+# allows testing of:
+# - basic probing of non-inlined callee
+# - recursive (.callees(N)) probing of non-inlined callees
+set subtest "simple"
+set failed 0
+
+set subsubtest "compilation"
+if {!$failed} {
+   passfail [compile_subtest]
+}
+
+set subsubtest "listing .callee(foo)"
+if {!$failed} {
+   passfail [expect_list main level1 level1]
+}
+
+set subsubtest "listing .callee(*)"
+if {!$failed} {
+   passfail [expect_list main * level1]
+}
+
+set subsubtest "listing .callees"
+if {!$failed} {
+   passfail [expect_list main 0 level1]
+}
+
+set subsubtest "listing .callees(1)"
+if {!$failed} {
+   passfail [expect_list main 1 level1]
+}
+
+set subsubtest "listing .callees(2)"
+if {!$failed} {
+   set expfuncs [list level1 level2]
+   passfail [expect_list main 2 $expfuncs]
+}
+
+set subsubtest "listing .callees(3)"
+if {!$failed} {
+   set expfuncs [list level1 level2 level3]
+   passfail [expect_list main 3 $expfuncs]
+}
+
+set subsubtest "probing .callee(foo)"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list level1 main]
+   passfail [expect_probe main level1 $expout]
+}
+
+set subsubtest "probing .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list level1 main]
+   passfail [expect_probe main 0 $expout]
+}
+
+set subsubtest "probing .callees(1)"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list level1 main]
+   passfail [expect_probe main 1 $expout]
+}
+
+set subsubtest "probing .callees(2)"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list level1 main level2 level1]
+   passfail [expect_probe main 2 $expout]
+}
+
+set subsubtest "probing .callees(3)"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list level1 main level2 level1 level3 level2]
+   passfail [expect_probe main 3 $expout]
+}
+
+# testcase callee.multicalls.c
+# allows testing of:
+# - probing of multiple different callees in the same caller
+# - probing of the same callee at different spots in the caller
+# - probing of the same callee from different callers is only triggered for
+#   caller of interest
+# - recursive probing accounts for whole callstack, not just immediate caller
+set subtest "multicalls"
+set failed 0
+
+set subsubtest "compilation"
+if {!$failed} {
+   passfail [compile_subtest]
+}
+
+set subsubtest "listing main .callees"
+if {!$failed} {
+   set expfuncs [list foo bar]
+   passfail [expect_list main 0 $expfuncs]
+}
+
+set subsubtest "listing bar .callees"
+if {!$failed} {
+   passfail [expect_list bar 0 foo]
+}
+
+set subsubtest "probing main .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo main bar main foo main]
+   passfail [expect_probe main 0 $expout]
+}
+
+set subsubtest "probing bar .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo bar]
+   passfail [expect_probe bar 0 $expout]
+}
+
+# This is where we test that the whole stack is truly being examined and not
+# just the immediate caller. If all it checked was the immediate caller, we
+# would also have output from when baz is called from stack foo->bar->main
+# (which would be wrong since it's more than depth 2 away from main).
+set subsubtest "probing main .callees(2)"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo main baz foo bar main foo bar foo main baz foo ]
+   passfail [expect_probe main 2 $expout]
+}
+
+# testcase callee.inlined.c
+# allows testing of:
+# - probing inlined callees
+# - probing nested inlined callees
+# - recursive (.callees(N)) probing of inlined callees
+# - probing of the same (inlined) callee from different callers is only
+#   triggered for caller of interest
+# - recursive probing accounts for whole callstack, not just immediate caller,
+#   even when there are inlined instances in-between
+set subtest "inlined"
+set failed 0
+
+set subsubtest "compilation"
+if {!$failed} {
+   passfail [compile_subtest]
+}
+
+set subsubtest "listing main .callees"
+if {!$failed} {
+   set expfuncs [list foo bar]
+   passfail [expect_list main 0 $expfuncs]
+}
+
+set subsubtest "listing bar .callees"
+if {!$failed} {
+   passfail [expect_list bar 0 foo]
+}
+
+set subsubtest "probing main .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo main bar main foo main]
+   passfail [expect_probe main 0 $expout 1]
+}
+
+set subsubtest "probing bar .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo main]
+   passfail [expect_probe bar 0 $expout 1]
+}
+
+# Similarly to the last subsubtest of multicalls, here we test that the whole
+# stack is truly being examined.
+set subsubtest "probing main .callees(2)"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo main baz main bar main foo main foo main baz main ]
+   passfail [expect_probe main 2 $expout 1]
+}
+
+# testcase callee.extern.c
+# allows testing of:
+# - probing of callees located in a different CU
+set subtest "extern"
+set failed 0
+
+set subsubtest "compilation"
+if {!$failed} {
+   passfail [compile_subtest 2]
+}
+
+set subsubtest "listing main .callees"
+if {!$failed} {
+   passfail [expect_list main 0 foo]
+}
+
+set subsubtest "listing foo .callees"
+if {!$failed} {
+   passfail [expect_list foo 0 bar]
+}
+
+set subsubtest "probing main .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list foo main]
+   passfail [expect_probe main 0 $expout]
+}
+
+set subsubtest "probing foo .callees"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list bar foo]
+   passfail [expect_probe foo 0 $expout]
+}
+
+# testcase callee.reloc.c
+# allows testing of:
+# - proper relocation of caller addr
+
+# in this test, we will compile our very own shared lib as well as a sample
+# executable that uses the shared lib to verify that relocation works properly.
+# So as expected, it's a bit more involved than the previous tests and we can't
+# really use the nice procs we have in place. Everything has to be done 'by
+# hand'.
+
+set subtest "reloc"
+set failed 0
+set stap_id ""
+
+# We first compile the shared lib
+set subsubtest "shlib compilation"
+if {!$failed} {
+   catch {exec gcc -g -O -c -fPIC "${testpath}/${test}.${subtest}.lib.c"} err
+   set libobj "${test}.${subtest}.lib.o"
+   if {$err == "" && [file exists $libobj]} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+      set failed 1
+   }
+}
+
+# Make it into a shared lib
+set subsubtest "shlib creation"
+if {!$failed} {
+   set libso "lib$subtest.so"
+   catch {exec gcc -shared -o $libso $libobj} err
+   if {$err == "" && [file exists "$libso"]} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+      set failed 1
+   }
+}
+
+# Compile executable
+set subsubtest "exe compilation"
+if {!$failed} {
+   catch {exec gcc -L[exec pwd] -o $subtest -l$subtest \
+          "${testpath}/${test}.${subtest}.c"} err
+   if {$err == "" && [file exists "$subtest"]} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+      set failed 1
+   }
+}
+
+# List probes in shared lib
+set subsubtest "listing shlib foo .callees"
+if {!$failed} {
+
+   set probe process("./$subtest").library("$libso").function("foo").callees
+
+   # process(/path/$libso).function(bar@
+   set regexp    "^process\\\(\"\[^\"\]*/$libso\"\\\)\\\.function\\\(\"bar@"
+   # /path/callee.reloc.lib.c.:<lineno>)
+   append regexp "\[^\"\]*/${test}\\\.${subtest}\\\.lib\\\.c:\[0-9\]+\"\\\)"
+   # <line end>
+   append regexp "\[^\\r\\n\]*\\r\\n$"
+
+   set failed 1
+   eval spawn stap -L {$probe}
+   expect {
+      -timeout 30
+      -re "$regexp" { set failed 0 }
+      timeout {
+         exec kill -s KILL -- -[exp_pid]
+      }
+   }
+   catch {close}; catch {wait}
+
+   if {!$failed} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+   }
+}
+
+# We can now actually try out the probe. Unfortunately, we need to make use of
+# LD_LIBRARY_PATH when running ./$subtest. But since stap doesn't carry it
+# forward, we can't just do 'LD_LIBRARY_PATH=/path/ stap -e ... -c ./$subtest'.
+# We need to start stap and the executable independently.
+
+# First we start background stap
+set subsubtest "probing shlib foo .callees - start stap"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+
+   set script " \
+      probe process(\"./$subtest\").library(\"$libso\") \
+                                   .function(\"foo\").callees { \
+         printf(\"callee %s caller %s\\n\", ppfunc(), \
+                usymname(ustack(1))) \
+      } \
+   "
+
+   # Start stap in the background
+   eval spawn stap -we {$script} --vp 00003
+   set stap_id $spawn_id
+   set failed 1
+   expect {
+      -timeout 30
+      -re {systemtap_module_init\(\)\ returned\ 0} { set failed 0 }
+      timeout { exec kill -s KILL -- -[exp_pid] }
+      eof { exec kill -s KILL -- -[exp_pid] }
+   }
+   if {!$failed} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+      catch { close }; catch { wait }
+      set stap_id ""
+   }
+}
+
+# Now we run the executable
+set subsubtest "probing shlib foo .callees - start exe"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+
+   # We first need to set the LD_LIBRARY_PATH
+   set oldpath $env(LD_LIBRARY_PATH)
+   set env(LD_LIBRARY_PATH) [exec pwd]:$oldpath
+   verbose -log "LD_LIBRARY_PATH set to \"$env(LD_LIBRARY_PATH)\""
+
+   eval spawn ./${subtest}
+   set failed 1
+   expect {
+      -timeout 30
+      timeout {
+         exec kill -s KILL -- -[exp_pid]
+      }
+      # Any output at all is a bad sign
+      -re ".+" { }
+      eof { set failed 0 }
+   }
+
+   # Restore LD_LIBRARY_PATH
+   set env(LD_LIBRARY_PATH) $oldpath
+   verbose -log "LD_LIBRARY_PATH set back to \"$env(LD_LIBRARY_PATH)\""
+
+   if {!$failed} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+      catch { close }; catch { wait }
+   }
+}
+
+# Finally, we analyze the output from stap
+set subsubtest "probing shlib foo .callees - check"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed && [string length $stap_id]} {
+
+   set failed 1
+   expect {
+      -timeout 5
+      -i $stap_id
+      {callee bar caller foo} { set failed 0 }
+      timeout { }
+      eof { }
+   }
+   if {!$failed} {
+      pass "$test ($subtest - $subsubtest)"
+   } else {
+      fail "$test ($subtest - $subsubtest)"
+   }
+}
+
+# Cleanup stap if still running
+if {[string length $stap_id]} {
+   exec kill -s TERM [exp_pid -i $stap_id]
+   expect {
+      -timeout 30
+      -i $stap_id
+      timeout {
+         exec kill -s KILL -- -[exp_pid -i $stap_id]
+      }
+      eof { }
+   }
+   set stap_id ""
+}
