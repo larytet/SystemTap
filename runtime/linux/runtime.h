@@ -81,6 +81,12 @@ static void _stp_exit(void);
 #define stap_hlist_for_each_entry_safe(a,b,c,d,e) (void) b; hlist_for_each_entry_safe(a,c,d,e)
 #endif
 
+#ifndef preempt_enable_no_resched
+#define preempt_enable_no_resched() do { \
+	barrier();           \
+	preempt_count_dec(); \
+	} while (0)
+#endif
 
 /* unprivileged user support */
 
