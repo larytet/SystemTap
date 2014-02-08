@@ -815,7 +815,7 @@ __stp_utrace_attach_match_filename(struct task_struct *tsk,
 #ifdef STAPCONF_TASK_UID
 	tsk_euid = tsk->euid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
 	tsk_euid = from_kuid_munged(current_user_ns(), task_euid(tsk));
 #else
 	tsk_euid = task_euid(tsk);
@@ -1705,7 +1705,7 @@ stap_start_task_finder(void)
 #ifdef STAPCONF_TASK_UID
 		tsk_euid = tsk->euid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
 		tsk_euid = from_kuid_munged(current_user_ns(), task_euid(tsk));
 #else
 		tsk_euid = task_euid(tsk);

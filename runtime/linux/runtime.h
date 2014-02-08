@@ -1,5 +1,5 @@
 /* main header file for Linux
- * Copyright (C) 2005-2013 Red Hat Inc.
+ * Copyright (C) 2005-2014 Red Hat Inc.
  * Copyright (C) 2005-2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -87,7 +87,7 @@ static void _stp_exit(void);
 #ifdef STAPCONF_TASK_UID
 #define STP_CURRENT_EUID (current->euid)
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
 #define STP_CURRENT_EUID (from_kuid_munged(current_user_ns(), task_euid(current)))
 #else
 #define STP_CURRENT_EUID (task_euid(current))

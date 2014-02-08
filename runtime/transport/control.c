@@ -1,7 +1,7 @@
 /* -*- linux-c -*-
  *
  * control channel
- * Copyright (C) 2007-2011 Red Hat Inc.
+ * Copyright (C) 2007-2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -35,7 +35,7 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #ifdef STAPCONF_TASK_UID
 	uid_t euid = current->euid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
 	uid_t euid = from_kuid_munged(current_user_ns(), current_euid());
 #else
 	uid_t euid = current_euid();

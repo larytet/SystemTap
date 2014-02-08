@@ -113,7 +113,7 @@ function gid:long ()
 #ifdef STAPCONF_TASK_UID
 	STAP_RETVALUE = current->gid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
 	STAP_RETVALUE = from_kgid_munged(current_user_ns(), current_gid());
 #else
 	STAP_RETVALUE = current_gid();
@@ -131,7 +131,7 @@ function egid:long ()
 #ifdef STAPCONF_TASK_UID
 	STAP_RETVALUE = current->egid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
 	STAP_RETVALUE = from_kgid_munged(current_user_ns(), current_egid());
 #else
 	STAP_RETVALUE = current_egid();
@@ -149,7 +149,7 @@ function uid:long ()
 #ifdef STAPCONF_TASK_UID
 	STAP_RETVALUE = current->uid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
         STAP_RETVALUE = from_kuid_munged(current_user_ns(), current_uid());
 #else
         STAP_RETVALUE = current_uid();
@@ -167,7 +167,7 @@ function euid:long ()
 #ifdef STAPCONF_TASK_UID
 	STAP_RETVALUE = current->euid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#ifdef CONFIG_USER_NS
         STAP_RETVALUE = from_kuid_munged(current_user_ns(), current_euid());
 #else
 	STAP_RETVALUE = current_euid();
