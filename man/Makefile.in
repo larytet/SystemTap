@@ -85,7 +85,7 @@ target_triplet = @target@
 @HAVE_LIBVIRT_TRUE@@HAVE_LIBXML2_TRUE@am__append_3 = stapvirt.1
 subdir = man
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(srcdir)/stappaths.7.in
+	$(srcdir)/stappaths.7.in $(srcdir)/systemtap.8.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
 	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
@@ -96,7 +96,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
-CONFIG_CLEAN_FILES = stappaths.7
+CONFIG_CLEAN_FILES = stappaths.7 systemtap.8
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -321,7 +321,7 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = no-dist foreign
 man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap \
 	stapex.3stap dtrace.1 stap-merge.1 stappaths.7 stapsh.8 \
-	$(am__append_1) $(am__append_2) $(am__append_3)
+	systemtap.8 $(am__append_1) $(am__append_2) $(am__append_3)
 all: all-am
 
 .SUFFIXES:
@@ -356,6 +356,8 @@ $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
 stappaths.7: $(top_builddir)/config.status $(srcdir)/stappaths.7.in
+	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
+systemtap.8: $(top_builddir)/config.status $(srcdir)/systemtap.8.in
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 install-man1: $(man_MANS)
 	@$(NORMAL_INSTALL)
