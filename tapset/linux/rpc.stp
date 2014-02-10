@@ -289,7 +289,8 @@ probe sunrpc.clnt.clone_client = kernel.function("rpc_clone_client") !,
 	servername = kernel_string(@choose_defined($clnt->cl_server,
 				   @cast(rcu_dereference($clnt->cl_xprt),
 					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -337,7 +338,8 @@ probe sunrpc.clnt.shutdown_client = kernel.function("rpc_shutdown_client") !,
 	servername = kernel_string(@choose_defined($clnt->cl_server,
 				   @cast(rcu_dereference($clnt->cl_xprt),
 					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -409,7 +411,8 @@ probe sunrpc.clnt.bind_new_program =
 	servername = kernel_string(@choose_defined($old->cl_server,
 				   @cast(rcu_dereference($old->cl_xprt),
 					 "struct rpc_xprt")->servername))
-	old_progname = kernel_string($old->cl_protname)
+	old_progname = kernel_string(@choose_defined($old->cl_program->name,
+						     $old->cl_protname))
 	old_prog = prog_from_clnt($old)
 	old_vers = vers_from_clnt($old)
 	progname = kernel_string($program->name)
@@ -450,7 +453,8 @@ probe sunrpc.clnt.call_sync = kernel.function("rpc_call_sync") !,
 	servername = kernel_string(@choose_defined($clnt->cl_server,
 				   @cast(rcu_dereference($clnt->cl_xprt),
 					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -497,7 +501,8 @@ probe sunrpc.clnt.call_async = kernel.function("rpc_call_async") !,
 	servername = kernel_string(@choose_defined($clnt->cl_server,
 				   @cast(rcu_dereference($clnt->cl_xprt),
 					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
