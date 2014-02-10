@@ -134,11 +134,11 @@ probe scsi.iodone
 	# Why is the @cast() needed here? When the probe alias uses
 	# the "scsi_dispatch_cmd_done" tracepoint, the type info isn't
 	# in scope. 
-	host_no = @cast($cmd->device, "scsi_device")->host->host_no
-	channel = @cast($cmd->device, "scsi_device")->channel
-	lun = @cast($cmd->device, "scsi_device")->lun
-	dev_id = @cast($cmd->device, "scsi_device")->id
-	device_state = @cast($cmd->device, "scsi_device")->sdev_state
+	host_no = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->host->host_no
+	channel = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->channel
+	lun = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->lun
+	dev_id = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->id
+	device_state = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->sdev_state
 	device_state_str = describe_device_state(device_state)
 	data_direction = $cmd->sc_data_direction
 	data_direction_str = describe_data_direction(data_direction)
