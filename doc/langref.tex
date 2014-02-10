@@ -1885,12 +1885,12 @@ it generates an error. The following subsections list these operators.
 \index{unary}
 \texttt{+ - ! \textasciitilde{} ++ -{}-}
 
-\subsubsection{Binary numeric, string comparison, or regular expression matching operators}
+\subsubsection{Numeric \& string comparison, regular expression matching operators}
 \index{comparison}
 \texttt{< > <= >= == !=} \verb+=~+ \verb+!~+
 
-The regular expression matching (\verb+=~+ and \verb+!~+) is currently
-an experimental feature. The second operand must be a string literal
+The regular expression matching (\verb+=~+ and \verb+!~+) is a
+recent feature. The second operand must be a string literal
 containing a syntactically valid regular expression. The regular
 expression syntax supports most of the features of POSIX Extended
 Regular Expressions, except for subexpression reuse (\verb+\1+)
@@ -2164,9 +2164,9 @@ The following code adapts to the presence of a kernel CONFIG option.
 \end{vindent}
 
 
-\subsection{Preprocessor macros (experimental)}
+\subsection{Preprocessor macros}
 
-This is an experimental feature whose semantics are subject to change.
+This feature lets scripts eliminate some types of repetition.
 
 \subsubsection{Local macros}
 
