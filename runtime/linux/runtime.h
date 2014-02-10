@@ -94,6 +94,10 @@ static void _stp_exit(void);
 #define STP_CURRENT_EUID (current->euid)
 #else
 #ifdef CONFIG_USER_NS
+#ifndef STAPCONF_FROM_KUID_MUNGED
+#define from_kuid_munged(user_ns, uid) ((uid))
+#define from_kgid_munged(user_ns, gid) ((gid))
+#endif /* !STAPCONF_FROM_KUID_MUNGED */
 #define STP_CURRENT_EUID (from_kuid_munged(current_user_ns(), task_euid(current)))
 #else
 #define STP_CURRENT_EUID (task_euid(current))
