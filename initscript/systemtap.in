@@ -83,7 +83,7 @@ INITRAMFS=
 BACKUP_INITRAMFS=
 
 echo_usage () {
-  echo $"Usage: $prog {start|stop|status|restart|compile|onboot|cleanup|condrestart|try-restart|reload|force-reload} [option]"
+  echo $"Usage: $prog {start|stop|status|restart|compile|onboot|cleanup|condrestart|try-restart|reload|force-reload} [OPTIONS] [SCRIPTS]"
   echo $"Options:"
   echo $"	-b		: backup initramfs before overwriting"
   echo $"	-c configfile	: specify config file"
@@ -92,6 +92,8 @@ echo_usage () {
   echo $"	-R 		: recursively dependency checking"
   echo $"	-y 		: answer yes for all questions"
   echo $"	script(s)	: specify systemtap scripts"
+  echo $""
+  echo $"See systemtap(8) for full documentation"
 }
 
 #-----------------------------------------------------------------

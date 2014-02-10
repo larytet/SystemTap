@@ -940,7 +940,7 @@ done
 %config(noreplace) %{_sysconfdir}/systemtap/config
 %dir %{_localstatedir}/cache/systemtap
 %ghost %{_localstatedir}/run/systemtap
-%doc initscript/README.systemtap
+%{_mandir}/man8/systemtap.8*
 %if %{with_dracut}
    %dir %{dracutstap}
    %{dracutstap}/*
