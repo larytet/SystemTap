@@ -156,7 +156,7 @@ function __rqstp_uid:long(rqstp:long)
 		  from_kuid_munged(&init_user_ns,
 				   ((struct svc_rqst *)STAP_ARG_rqstp)->rq_cred.cr_uid) %}
 %:
-	return @cast(rqstp, "svc_rqst")->rq_cred->cr_uid
+	return @cast(rqstp, "svc_rqst", "kernel:nfsd")->rq_cred->cr_uid
 %)
 }
 
@@ -170,7 +170,7 @@ function __rqstp_gid:long(rqstp:long)
 		  from_kgid_munged(&init_user_ns,
 				   ((struct svc_rqst *)STAP_ARG_rqstp)->rq_cred.cr_gid) %}
 %:
-	return @cast(rqstp, "svc_rqst")->rq_cred->cr_gid
+	return @cast(rqstp, "svc_rqst", "kernel:nfsd")->rq_cred->cr_gid
 %)
 }
 
