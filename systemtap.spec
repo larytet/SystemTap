@@ -844,7 +844,6 @@ done
 %dir %attr(0755,stap-server,stap-server) %{_localstatedir}/log/stap-server
 %ghost %config(noreplace) %attr(0644,stap-server,stap-server) %{_localstatedir}/log/stap-server/log
 %ghost %attr(0755,stap-server,stap-server) %{_localstatedir}/run/stap-server
-%doc initscript/README.stap-server
 %doc README README.unprivileged AUTHORS NEWS COPYING
 
 

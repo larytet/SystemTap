@@ -11,8 +11,9 @@
   socket-related syscalls:
   probe syscall.connect { println (uaddr_af, ":", uaddr_ip) }
 
-- The documentation for the SystemTap initscript service has been
-  converted from a README file to a manpage (see systemtap(8)).
+- The documentation for the SystemTap initscript service and the
+  SystemTap compile-server service have been completely converted from
+  README files to man pages (see systemtap(8) and stap-server(8)).
 
 - SystemTap is now capable of inserting modules early during the boot
   process on dracut-based systems. See the 'onboot' command in

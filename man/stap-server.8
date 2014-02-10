@@ -3,6 +3,23 @@
 .SH NAME
 stap\-server \- systemtap compile server management
 
+.\" macros
+.de SAMPLE
+
+.nr oldin \\n(.i
+.br
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
 .SH SYNOPSIS
 
 .br
@@ -262,6 +279,13 @@ Specifies the userid which will be used to run the server(s)
 (default: for the initscript \fIstap\-server\fR, otherwise the user running
 \fIstap\-server\fR).
 
+.PP
+Here is an example of a Global Configuration file:
+.SAMPLE
+CONFIG_PATH=~<user>/my-stap-server-configs
+LOG_FILE=/tmp/stap-server/log
+.ESAMPLE
+
 .SH Individual Server Configuration
 
 Each server configuration file configures a server to be started when no
@@ -273,11 +297,10 @@ Each line beginning with a '#' character is ignored. All other lines must be
 of the form \fIVARIABLE=VALUE\fR. This is not a shell script. The entire
 contents of the line after the = will be assigned as\-is to the variable.
 
-Each configuration file must have a
-filename suffix of \fI.conf\fR. The default
-location of these files can be
-overridden in the global configuration file using the \fB\-c\fR option
-(see \fIOPTIONS\fR).
+Each configuration file must have a filename suffix of \fI.conf\fR. See
+\fIstappaths\fR(7) for the default location of these files.  This default
+location can be overridden in the global configuration file using the \fB\-c\fR
+option (see \fIOPTIONS\fR).
 
 The following variables may be assigned:
 .TP
@@ -306,7 +329,7 @@ the array and sets the first element to \fBSTRING\fR. Using the form
 .TP
 .B INCLUDE
 Specifies a list of directories to be searched by the server for tapsets.
-This an array variable with each element corresponding to an
+This is an array variable with each element corresponding to a
 \fB\-I\fR option (see \fIOPTIONS\fR). Using the form \fBINCLUDE=PATH\fR clears
 the array and sets the first element to \fBPATH\fR. Using the form
 \fBINCLUDE+=PATH\fR adds \fBPATH\fR as an additional element to the array.
@@ -351,6 +374,39 @@ to the
 Specifies the maximum number of worker threads to handle concurrent requests to be used by this server
 and corresponds to the \fB\-\-max\-threads\fR option (see \fIOPTIONS\fR).
 
+.PP
+Here is an example of a server configuration file:
+.SAMPLE
+ARCH=
+USER=
+RELEASE=
+NICKNAME=native
+.ESAMPLE
+By keeping the ARCH, USER, and RELEASE fields blank, they will default to the
+current arch and release and use the default user.
+
+A more specific example:
+.SAMPLE
+ARCH=i386
+RELEASE=2.6.18-128.el5
+PORT=5001
+LOG=/path/to/log/file
+.ESAMPLE
+
+And here is a more complicated example:
+.SAMPLE
+USER=serveruser
+RELEASE=/kernels/2.6.18-92.1.18.el5/build
+INCLUDE=/mytapsets
+INCLUDE+=/yourtapsets
+BUILD='VARIABLE1=VALUE1 VARIABLE2=VALUE2'
+DEFINE=STP_MAXMEMORY=1024
+DEFINE+=DEBUG_TRANS
+RUNTIME=/myruntime
+NICKNAME=my-server
+SSL=/path/to/NSS/certificate/database
+.ESAMPLE
+
 .SH SERVER AUTHENTICAION
 The security of the SSL network connection between the client and server
 depends on the proper
@@ -374,15 +430,20 @@ certificate for the default user (\fIstap\-server\fR) is automatically
 generated and installed. This means that servers started by the
 \fIstap\-server\fR initscript,
 with the default user, are automatically trusted by clients on the local
-host, both as an SSL peer and as a systemtap module signer. Furthermore,
-when stap is invoked by an unprivileged user 
+host, both as an SSL peer and as a systemtap module signer.
+.PP
+Furthermore, when stap is invoked by an unprivileged user
 (not root, not a member of the group stapdev, but a member of the group
 stapusr and possibly the group stapsys), the options \fI\-\-use\-server\fR
 and \fI\-\-privilege\fR
 are automatically added to the specified options.
 This means that unprivileged users 
 on the local host can use a server on the local host
-in unprivileged mode with no further setup or options required.
+in unprivileged mode with no further setup or options required. Normal users
+(those in none of the SystemTap groups) can also use compile-servers through the
+\fI\-\-use\-server\fR and \fI\-\-privilege\fR options. But they will of course
+be unable to load the module (the \fI\-p4\fR option can be used to stop short of
+loading).
 
 .PP
 In order to use a server running on another host, that server\[aq]s certificate
@@ -390,7 +451,7 @@ must be installed on the client\[aq]s host.
 See the \fI\-\-trust\-servers\fR option in the
 .IR stap (1)
 manual page for more details and README.unprivileged in the systemtap sources
-for more details..
+for more details.
 
 .SH EXAMPLES
 See the 
@@ -412,7 +473,11 @@ To obtain information about the running server(s):
 To start a server like another one, except targeting a different architecture,
 by referencing the first server\[aq]s nickname:
 .PP
-.B \& $ [ service ] stap\-server start \-n \fINICKNAME\fR \-a \fIARCH\fR
+.B \& $ [ service ] stap\-server start \-n \fINICKNAME\fB \-a \fIARCH\fR
+.PP
+To start a server for a kernel release not installed (cross-compiling)
+.PP
+.B \& $ [ service ] stap\-server start \-a \fIARCH\fB \-r \fI/BUILDDIR\fR
 .PP
 To stop one of the servers by referencing its process id (obtained by running
 \fBstap\-server status\fR):
@@ -430,6 +495,11 @@ To run a script as an unprivileged user using a compile server:
 To stop all running servers:
 .PP
 .B \& $ [ service ] stap\-server stop
+.PP
+To restart servers after a global configuration change and/or when default
+servers have been added, changed, or removed:
+.PP
+.B \& $ [ service ] stap\-server force-reload
 
 .SH SAFETY AND SECURITY
 Systemtap is an administrative tool.  It exposes kernel internal data
