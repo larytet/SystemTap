@@ -300,7 +300,8 @@ probe signal.checkperm = kernel.function("check_kill_permission")
  * @name: Name of the probe point
  * @retstr: Return value as a string
  */
-probe signal.checkperm.return = kernel.function("check_kill_permission").return
+probe signal.checkperm.return =
+		kernel.function("check_kill_permission").return ?
 {
     name = "checkperm"
     retstr = return_str(1, $return)
