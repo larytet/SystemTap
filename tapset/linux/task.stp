@@ -158,7 +158,11 @@ function task_gid:long (task:long) %{ /* pure */
 #define task_gid(task)		(task_cred_xxx((task), gid))
 #endif
     /* XXX: We can't easily kread this rcu-protected field. */
+#ifdef CONFIG_USER_NS
+    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_gid(t));
+#else
     STAP_RETVALUE = task_gid (t);
+#endif
 #endif
 %}
 
@@ -181,7 +185,11 @@ function task_egid:long (task:long) %{ /* pure */
 #define task_egid(task)		(task_cred_xxx((task), egid))
 #endif
     /* XXX: We can't easily kread this rcu-protected field. */
+#ifdef CONFIG_USER_NS
+    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_egid(t));
+#else
     STAP_RETVALUE = task_egid (t);
+#endif
 #endif
 %}
 
@@ -199,7 +207,11 @@ function task_uid:long (task:long) %{ /* pure */
     CATCH_DEREF_FAULT();
 #else
     /* XXX: We can't easily kread this rcu-protected field. */
+#ifdef CONFIG_USER_NS
+    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_uid(t));
+#else
     STAP_RETVALUE = task_uid (t);
+#endif
 #endif
 %}
 
@@ -217,7 +229,11 @@ function task_euid:long (task:long) %{ /* pure */
     CATCH_DEREF_FAULT();
 #else
     /* XXX: We can't easily kread this rcu-protected field. */
+#ifdef CONFIG_USER_NS
+    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_euid(t));
+#else
     STAP_RETVALUE = task_euid (t);
+#endif
 #endif
 %}
 
