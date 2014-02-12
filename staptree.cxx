@@ -95,7 +95,7 @@ symboldecl::~symboldecl ()
 
 probe_point::probe_point (std::vector<component*> const & comps):
   components(comps), optional (false), sufficient (false),
-  condition (0)
+  from_glob (false), condition (0)
 {
 }
 

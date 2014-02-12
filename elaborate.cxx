@@ -489,6 +489,7 @@ match_node::find_and_build (systemtap_session& s,
 
       // Synthesize "foo*bar"
       probe_point *simple_pp = new probe_point(*loc);
+      simple_pp->from_glob = true;
       probe_point::component *simple_comp = new probe_point::component(*comp);
       simple_comp->functor = prefix + "*" + suffix;
       simple_pp->components[pos] = simple_comp;
@@ -506,6 +507,7 @@ match_node::find_and_build (systemtap_session& s,
       // Synthesize "foo*.**bar"
       // NB: any component arg should attach to the latter part only
       probe_point *expanded_pp = new probe_point(*loc);
+      expanded_pp->from_glob = true;
       probe_point::component *expanded_comp_pre = new probe_point::component(*comp);
       expanded_comp_pre->functor = prefix + "*";
       expanded_comp_pre->arg = NULL;
@@ -573,6 +575,7 @@ match_node::find_and_build (systemtap_session& s,
 	      // wildcard component, and substitute the non-wildcard
 	      // functor.
 	      probe_point *non_wildcard_pp = new probe_point(*loc);
+	      non_wildcard_pp->from_glob = true;
 	      probe_point::component *non_wildcard_component
 		= new probe_point::component(*loc->components[pos]);
 	      non_wildcard_component->functor = subkey.name;
@@ -900,6 +903,9 @@ alias_expansion_builder::build_with_suffix(systemtap_session & sess,
   for (unsigned i=0; i<alias->locations.size(); i++)
     {
       probe_point *pp = new probe_point(*alias->locations[i]);
+      // if the original pp that gave rise to the alias we're building was from
+      // a globby probe, then inherit globbiness
+      pp->from_glob = location->from_glob;
       pp->components.insert(pp->components.end(), suffix.begin(), suffix.end());
       pp->condition = add_condition (pp->condition, location->condition);
       n->locations.push_back(pp);
