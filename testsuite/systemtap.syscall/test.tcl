@@ -27,7 +27,7 @@ proc bgerror {error} {
 trap {syscall_cleanup_and_exit} SIGINT
 
 proc run_one_test {filename flags bits suite} {
-    global syscall_dir current_dir test_script
+    global syscall_dir current_dir test_module
 
     set testname [file tail [string range $filename 0 end-2]]
 
@@ -46,8 +46,7 @@ proc run_one_test {filename flags bits suite} {
 	return
     }
 
-    set sys_prog "[file dirname [file normalize $filename]]/${test_script}"
-    set cmd "stap --skip-badvars -c $syscall_dir/${testname} ${sys_prog}"
+    set cmd "staprun ${test_module} -c $syscall_dir/${testname}"
     
     # Extract additional C flags needed to compile
     set add_flags ""

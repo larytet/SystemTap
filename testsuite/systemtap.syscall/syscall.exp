@@ -1,14 +1,34 @@
 set test_script "sys.stp"
+set test_module_name "syscall"
+set wd [pwd]
+set test_module "${wd}/${test_module_name}.ko"
+
 source $srcdir/$subdir/test.tcl
 
 proc test_procedure {} {
-    global srcdir subdir
-    set wd [pwd]
+    global srcdir subdir test_script test_module test_module_name
     set flags ""
     if {$srcdir == ""} {
 	set pattern "*.c"
     } else {
 	set pattern "$srcdir/$subdir/*.c"
+    }
+
+    # To speed things up, go ahead and compile the test module once
+    # here, then just use it down in run_one_test(). The test script
+    # uses wildcards to cover every syscall and takes time to parse.
+    set script "$srcdir/$subdir/${test_script}"
+    set cmd "stap -p4 -m ${test_module_name} --skip-badvars ${script}"
+    exec /bin/rm -f ${test_module}
+    catch {eval exec $cmd} output
+    send_log $output
+    if {[file exists ${test_module}]} {
+	pass "${script} compilation"
+    } else {
+	# If compiling the test module failed, there isn't much point
+	# in trying to run any of the real tests.
+	fail "${script} compilation"
+	return
     }
 
     # for first pass, force 64-bit compilation for 64-bit systems
@@ -54,6 +74,9 @@ proc test_procedure {} {
 	    run_one_test $filename $flags 32 "syscall"
 	}
     }
+
+    # Cleeanup
+    exec /bin/rm -f ${test_module}
 }
 
 test_procedure
