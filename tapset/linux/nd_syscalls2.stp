@@ -132,6 +132,7 @@ probe nd_syscall.open = kprobe.function("compat_sys_open") ?,
                         kprobe.function("sys32_open") ?,
                         kprobe.function("sys_open") ?
 {
+	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
 	name = "open"
 	// filename = user_string($filename)
 	// flags = $flags
@@ -157,6 +158,7 @@ probe nd_syscall.open.return = kprobe.function("compat_sys_open").return ?,
                                kprobe.function("sys32_open").return ?,
                                kprobe.function("sys_open").return ?
 {
+	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
 	name = "open"
 	retstr = returnstr(1)
 }
@@ -1266,6 +1268,7 @@ probe nd_syscall.rename.return = kprobe.function("sys_rename").return ?
 #	int newdfd, const char __user *newname)
 probe nd_syscall.renameat = kprobe.function("sys_renameat") ?
 {
+	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
 	name = "renameat"
 	// olddfd = $olddfd
 	// olddfd_str = _dfd_str($olddfd)
@@ -1293,6 +1296,7 @@ probe nd_syscall.renameat = kprobe.function("sys_renameat") ?
 }
 probe nd_syscall.renameat.return = kprobe.function("sys_renameat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
 	name = "renameat"
 	retstr = returnstr(1)
 }

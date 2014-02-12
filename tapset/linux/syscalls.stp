@@ -2750,6 +2750,7 @@ probe syscall.mkdir.return = kernel.function("sys_mkdir").return
 # long sys_mkdirat(int dfd, const char __user *pathname, int mode)
 probe syscall.mkdirat = kernel.function("sys_mkdirat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
 	name = "mkdirat"
 	dirfd = $dfd
 	pathname = user_string_quoted($pathname)
@@ -2758,6 +2759,7 @@ probe syscall.mkdirat = kernel.function("sys_mkdirat").call ?
 }
 probe syscall.mkdirat.return = kernel.function("sys_mkdirat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
 	name = "mkdirat"
 	retstr = return_str(1, $return)
 }

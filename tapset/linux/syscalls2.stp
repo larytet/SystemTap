@@ -122,6 +122,7 @@ probe syscall.ni_syscall.return = kernel.function("sys_ni_syscall").return
 #
 probe syscall.open = __syscall.compat_open ?, __syscall.open
 {
+	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
 	name = "open"
 	flags = $flags
 	if ($flags & 64)
@@ -148,6 +149,7 @@ probe syscall.open.return = kernel.function("compat_sys_open").return ?,
                             kernel.function("sys32_open").return ?,
                             kernel.function("sys_open").return ?
 {
+	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
 	name = "open"
 	retstr = return_str(1, $return)
 }
@@ -1157,6 +1159,7 @@ probe syscall.rename.return = kernel.function("sys_rename").return
 #	int newdfd, const char __user *newname)
 probe syscall.renameat = kernel.function("sys_renameat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
 	name = "renameat"
 	olddfd = $olddfd
 	olddfd_str = _dfd_str($olddfd)
@@ -1172,6 +1175,7 @@ probe syscall.renameat = kernel.function("sys_renameat").call ?
 }
 probe syscall.renameat.return = kernel.function("sys_renameat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
 	name = "renameat"
 	retstr = return_str(1, $return)
 }

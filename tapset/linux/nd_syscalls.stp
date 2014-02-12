@@ -3447,6 +3447,7 @@ probe nd_syscall.mkdir.return = kprobe.function("sys_mkdir").return ?
 # long sys_mkdirat(int dfd, const char __user *pathname, int mode)
 probe nd_syscall.mkdirat = kprobe.function("sys_mkdirat") ?
 {
+	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
 	name = "mkdirat"
 	// dirfd = $dfd
 	// pathname = user_string($pathname)
@@ -3460,6 +3461,7 @@ probe nd_syscall.mkdirat = kprobe.function("sys_mkdirat") ?
 }
 probe nd_syscall.mkdirat.return = kprobe.function("sys_mkdirat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
 	name = "mkdirat"
 	retstr = returnstr(1)
 }
