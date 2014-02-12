@@ -22,6 +22,9 @@
 
 #include "config.h"
 
+#if ! _ELFUTILS_PREREQ(0, 153)
+#define DW_OP_GNU_entry_value 0xf3
+#endif
 
 #define N_(x) x
 
@@ -858,7 +861,11 @@ translate (struct location_context *ctx, int indent,
 	  break;
 
 	case DW_OP_push_object_address:
-	  DIE ("XXX DW_OP_push_object_address");
+	  DIE ("unhandled DW_OP_push_object_address");
+	  break;
+
+	case DW_OP_GNU_entry_value:
+	  DIE ("unhandled DW_OP_GNU_entry_value");
 	  break;
 
 	default:
@@ -1364,7 +1371,11 @@ location_relative (struct location_context *ctx, int indent,
 	  break;
 
 	case DW_OP_push_object_address:
-	  DIE ("XXX DW_OP_push_object_address");
+	  DIE ("unhandled DW_OP_push_object_address");
+	  break;
+
+	case DW_OP_GNU_entry_value:
+	  DIE ("unhandled DW_OP_GNU_entry_value");
 	  break;
 
 	default:
