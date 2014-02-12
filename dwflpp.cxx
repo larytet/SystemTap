@@ -2041,10 +2041,12 @@ dwflpp::collect_srcfiles_matching (string const & pattern,
 void
 dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 {
-  // This heuristic attempts to pick the first address that has a
-  // source line distinct from the function declaration's.  In a
-  // perfect world, this would be the first statement *past* the
-  // prologue.
+  // When a program is compiled with no optimization, GCC does no variable
+  // tracking, which means that location info is actually only really valid
+  // after the prologue, even though GCC reports it as valid during. So we need
+  // to find the prologue ends to get accurate info. This may or may not be the
+  // first address that has a source line distinct from the function
+  // declaration's.
 
   assert(module);
   assert(cu);
@@ -2123,10 +2125,14 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
                    "@%s:%d\n", it->name.c_str(), entrypc, highpc, it->decl_file,
                    it->decl_line);
 
-      // Now we go searching for the first line record that has a
-      // file/line different from the one in the declaration.
-      // Normally, this will be the next one.  BUT:
-      //
+      // For each function, we look for the prologue-end marker (e.g. clang
+      // outputs one). If there is no explicit marker (e.g. GCC does not), we
+      // accept a bigger or equal lineno as a prologue end (this catches GCC's
+      // 0-line advances).
+      //     Note that this heuristic does not work properly if the program was
+      // compiled with -fomit-stack-pointer (it skips the first line record,
+      // which really is where the function begins).
+
       // We may have to skip a few because some old compilers plop
       // in dummy line records for longer prologues.  If we go too
       // far (addr >= highpc), we take the previous one.  Or, it may
@@ -2134,14 +2140,20 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // the entrypc maps to a statement in the body rather than the
       // declaration.
 
-      unsigned postprologue_srcline_idx = entrypc_srcline_idx;
+      // start search from the next line record
+      unsigned postprologue_srcline_idx = entrypc_srcline_idx+1;
       bool ranoff_end = false;
+
+      // In 99% of cases, this while loop will break on the first iteration
+      // because of a higher/same lineno. In the rare cases line records are for
+      // a lower lineno, we keep traversing records.
       while (postprologue_srcline_idx < nlines)
         {
           dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx));
           Dwarf_Addr postprologue_addr = lr.addr();
           const char* postprologue_file = lr.linesrc();
           int postprologue_lineno = lr.lineno();
+          bool postprologue_end = lr.is_prologue_end();
 
           if (sess.verbose>2)
             clog << _F("checking line record %#" PRIx64 "@%s:%d\n", postprologue_addr,
@@ -2153,9 +2165,9 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
               postprologue_srcline_idx --;
               continue;
             }
-          if (ranoff_end ||
+          if (ranoff_end || postprologue_end ||
               (strcmp (postprologue_file, it->decl_file) || // We have a winner!
-               (postprologue_lineno != it->decl_line)))
+               (postprologue_lineno >= entrypc_srcline.lineno())))
             {
               it->prologue_end = postprologue_addr;
 
@@ -2164,9 +2176,11 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
                   clog << _F("prologue found function '%s'", it->name.c_str());
                   // Add a little classification datum
                   //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
-                  if (postprologue_srcline_idx == entrypc_srcline_idx) clog << _(" (naked)");
-                  //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
+                  if (postprologue_addr == entrypc) clog << _(" (naked)");
+                  //TRANSLATORS: Here we're adding some classification datum (ie we went over)
                   if (ranoff_end) clog << _(" (tail-call?)");
+                  //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
+                  if (postprologue_end) clog << _(" (marked)");
                   clog << " = 0x" << hex << postprologue_addr << dec << "\n";
                 }
 

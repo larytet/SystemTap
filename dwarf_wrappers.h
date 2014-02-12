@@ -105,6 +105,13 @@ public:
     dwarf_assert("dwarf_line_t::linesrc", retval);
     return retval;
   }
+  bool is_prologue_end() const
+  {
+    bool flag;
+    dwarf_assert("dwarf_line_t::is_prologue_end",
+      dwarf_lineprologueend (const_cast<Dwarf_Line*>(line), &flag));
+    return flag;
+  }
 };
 
 
