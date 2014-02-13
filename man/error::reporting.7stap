@@ -39,5 +39,6 @@ the OS environment; please include its output.
 .nh
 .nf
 .IR stap (1),
+.IR stap-report (1),
 .IR http://sourceware.org/systemtap/wiki/
 
