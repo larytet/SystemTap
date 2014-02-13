@@ -197,6 +197,9 @@ keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.
 </li><li><a name="network/autofs4.stp"></a><a href="#network/autofs4.stp">&para;</a> <a href="network/autofs4.stp">network/autofs4.stp</a> - Watch autofs4 Operations<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#AUTOFS">AUTOFS</a> <a href="keyword-index.html#NFS">NFS</a> <br>
 <p>Trace key autofs4 operations such as mounting or unmounting remote filesystems.<p><font size="-2"><pre># stap autofs4.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a name="network/connect_stat.stp"></a><a href="#network/connect_stat.stp">&para;</a> <a href="network/connect_stat.stp">network/connect_stat.stp</a> - Show Process Ancestry for IP Connections<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
+<p>The connect_stat.stp script prints a task&#39;s entire ancestry (parent process name/uid/gid) whenever it attempts an outgoing socket connection to a given IP address.<p><font size="-2"><pre># stap connect_stat.stp 127.0.0.1 -c &quot;sleep 0.2&quot;</pre></font></p>
 </li><li><a name="network/dropwatch.stp"></a><a href="#network/dropwatch.stp">&para;</a> <a href="network/dropwatch.stp">network/dropwatch.stp</a> - Watch Where Socket Buffers Are Freed in the Kernel<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>Every five seconds the dropwatch.stp script lists the number of socket buffers freed at locations in the kernel.<p><font size="-2"><pre># stap dropwatch.stp -c &quot;sleep 0.2&quot;</pre></font></p>
@@ -287,6 +290,9 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 </li><li><a name="process/pstrace_exec.stp"></a><a href="#process/pstrace_exec.stp">&para;</a> <a href="process/pstrace_exec.stp">process/pstrace_exec.stp</a> - Print trace of process ancestors for matching exec commands<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>The pstrace_exec.stp script watches each exec operation. If the exec contains a substring that matches the script&#39;s command-line argument, it prints out that process and all of its ancestors.<p><font size="-2"><pre># stap pstrace_exec.stp -c &quot;sleep 0.2&quot; bash</pre></font></p>
+</li><li><a name="process/pstree.stp"></a><a href="#process/pstree.stp">&para;</a> <a href="process/pstree.stp">process/pstree.stp</a> - Generates a process diagram in DOT form.<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#DIAGRAM">DIAGRAM</a> <br>
+<p>The pstree.stp script generates a process diagram in DOT form.  For instance, it may be useful on a &#39;make&#39; command to see all the processes that are started.<p><font size="-2"><pre># stap pstree.stp -c &quot;sleep 0.2&quot;</pre></font></p>
 </li><li><a name="process/schedtimes.stp"></a><a href="#process/schedtimes.stp">&para;</a> <a href="process/schedtimes.stp">process/schedtimes.stp</a> - Track Time Processes Spend in Various States Using Tracepoints<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <br>
 <p>The schedtimes.stp script instruments the scheduler to track the amount of time that each process spends in running, sleeping, queuing, and waiting for io. On exit the script prints out the accumulated time for each state of processes observed.  Optionally, this script can be used with the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific PID.<p><font size="-2"><pre># stap schedtimes.stp -c &quot;sleep 0.2&quot;</pre></font></p>

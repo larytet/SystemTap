@@ -583,6 +583,16 @@ keywords: network autofs nfs
   # stap autofs4.stp -c "sleep 1"
 
 
+network/connect_stat.stp - Show Process Ancestry for IP Connections
+keywords: network socket process
+
+  The connect_stat.stp script prints a task's entire ancestry (parent
+  process name/uid/gid) whenever it attempts an outgoing socket
+  connection to a given IP address.
+
+  # stap connect_stat.stp 127.0.0.1 -c "sleep 0.2"
+
+
 network/dropwatch.stp - Watch Where Socket Buffers Are Freed in the Kernel
 keywords: network tracepoint socket
 
@@ -909,6 +919,16 @@ keywords: process backtrace
   it prints out that process and all of its ancestors.
 
   # stap pstrace_exec.stp -c "sleep 0.2" bash
+
+
+process/pstree.stp - Generates a process diagram in DOT form.
+keywords: process diagram
+
+  The pstree.stp script generates a process diagram in DOT form.  For
+  instance, it may be useful on a 'make' command to see all the
+  processes that are started.
+
+  # stap pstree.stp -c "sleep 0.2"
 
 
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
