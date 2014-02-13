@@ -57,7 +57,7 @@
 
 Name: systemtap
 Version: 2.5
-Release: 1%{?dist}
+Release: 2%{?dist}
 # for version, see also configure.ac
 
 
@@ -594,7 +594,7 @@ test -e ~stap-server && chmod 750 ~stap-server
 if [ ! -f ~stap-server/.systemtap/rc ]; then
   mkdir -p ~stap-server/.systemtap
   chown stap-server:stap-server ~stap-server/.systemtap
-  # PR16276: guess at a reasonable number for a default --rlimit-nproc 
+  # PR16276: guess at a reasonable number for a default --rlimit-nproc
   numcpu=`/usr/bin/getconf _NPROCESSORS_ONLN`
   if [ -z "$numcpu" -o "$numcpu" -lt 1 ]; then numcpu=1; fi
   nproc=`expr $numcpu \* 30`
@@ -765,8 +765,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
-        ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+        if [ -d %{archdir} ]; then
+            ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
+            ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+        fi
     done
 done
 
@@ -800,8 +802,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
-        ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+        if [ -d %{archdir} ]; then
+            ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
+            ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+	fi
     done
 done
 
@@ -997,6 +1001,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Thu Feb 13 2014 Lukas Berk <lberk@redhat.com>
+- Add directory checks for runtime-java sym links
+
 * Mon Jan 06 2014 Jonathan Lebon <jlebon@redhat.com>
 - Added dracut module to initscript package
 
