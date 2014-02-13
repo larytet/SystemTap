@@ -13,7 +13,7 @@ int main()
   
 
   listenfd = socket(AF_INET, SOCK_STREAM, 0);
-  //staptest// socket (PF_INET, SOCK_STREAM, 0) = NNNN
+  //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
 
   flags = fcntl(listenfd, F_GETFL, 0);
   //staptest// fcntl[64]* (NNNN, F_GETFL, 0x[0]+) = NNNN

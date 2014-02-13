@@ -2872,9 +2872,9 @@ probe syscall.socket = kernel.function("sys_socket").call ?
 	family = $family
 	type = $type
 	protocol = $protocol
-	argstr = sprintf("%s, %s, %d", _sock_family_str($family),
-		_sock_type_str($type),
-		$protocol)
+	argstr = sprintf("%s, %s, %s", _sock_family_str($family),
+			 _sock_type_str($type),
+			 _sock_protocol_str($family, $protocol))
 }
 probe syscall.socket.return = kernel.function("sys_socket").return ?
 {
@@ -2913,10 +2913,10 @@ probe syscall.socketpair = kernel.function("sys_socketpair").call ?
 	type = $type
 	protocol = $protocol
 	sv_uaddr = $usockvec
-	argstr = sprintf("%s, %s, %d, %p",
+	argstr = sprintf("%s, %s, %s, %p",
 		_sock_family_str($family),
 		_sock_type_str($type),
-		$protocol, sv_uaddr)
+		_sock_protocol_str($family, $protocol), sv_uaddr)
 }
 probe syscall.socketpair.return = kernel.function("sys_socketpair").return ?
 {

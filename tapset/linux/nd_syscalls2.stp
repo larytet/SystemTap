@@ -3424,16 +3424,16 @@ probe nd_syscall.socket = kprobe.function("sys_socket") ?
 	// family = $family
 	// type = $type
 	// protocol = $protocol
-	// argstr = sprintf("%s, %s, %d", _sock_family_str($family),
+	// argstr = sprintf("%s, %s, %s", _sock_family_str($family),
 	// 			_sock_type_str($type),
-	// 			$protocol)
+	// 			_sock_protocol_str($family, $protocol))
 	asmlinkage()
 	family = int_arg(1)
 	type = int_arg(2)
 	protocol = int_arg(3)
-	argstr = sprintf("%s, %s, %d", _sock_family_str(family),
-				_sock_type_str(type),
-				protocol)
+	argstr = sprintf("%s, %s, %s", _sock_family_str(family),
+			 _sock_type_str(type),
+			 _sock_protocol_str(family, protocol))
 }
 probe nd_syscall.socket.return = kprobe.function("sys_socket").return ?
 {
@@ -3472,19 +3472,19 @@ probe nd_syscall.socketpair = kprobe.function("sys_socketpair") ?
 	// type = $type
 	// protocol = $protocol
 	// sv_uaddr = $usockvec
-	// argstr = sprintf("%s, %s, %d, %p",
+	// argstr = sprintf("%s, %s, %s, %p",
 	// 			_sock_family_str($family),
 	// 			_sock_type_str($type),
-	// 			$protocol, sv_uaddr)
+	// 			_sock_protocol_str($family, $protocol),
+	//			sv_uaddr)
 	asmlinkage()
 	family = int_arg(1)
 	type = int_arg(2)
 	protocol = int_arg(3)
 	sv_uaddr = pointer_arg(4)
-	argstr = sprintf("%s, %s, %d, %p",
-				_sock_family_str(family),
-				_sock_type_str(type),
-				protocol, sv_uaddr)
+	argstr = sprintf("%s, %s, %s, %p", _sock_family_str(family),
+			 _sock_type_str(type),
+			 _sock_protocol_str(family, protocol), sv_uaddr)
 }
 probe nd_syscall.socketpair.return = kprobe.function("sys_socketpair").return ?
 {
