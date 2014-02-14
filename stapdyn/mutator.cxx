@@ -763,8 +763,8 @@ mutator::exit_callback(BPatch_thread *thread,
       for (size_t p = 0; p < exit_probes.size(); ++p)
         {
 	  const dynprobe_location *probe = exit_probes[p];
-	  staplog(1) << "found end proc probe, index = " << probe->index
-		     << endl;
+	  staplog(2) << "found end proc probe in pid " << process->getPid()
+		     << ", index = " << probe->index << endl;
 	  int rc = utrace_enter_fn(probe->index, NULL);
 	  if (rc)
 	    stapwarn() << "enter_dyninst_utrace_probe returned "

@@ -202,7 +202,8 @@ mutatee::call_utrace_dynprobe(const dynprobe_location& probe,
       vector<BPatch_snippet *> args;
       args.push_back(new BPatch_constExpr((int64_t)probe.index));
       args.push_back(new BPatch_constExpr((void*)NULL)); // pt_regs
-      staplog(1) << "calling function with " << args.size() << " args" << endl;
+      staplog(2) << "calling utrace function in pid " << pid
+		 << " with " << args.size() << " args" << endl;
       BPatch_funcCallExpr call(*utrace_enter_function, args);
       if (thread)
 	thread->oneTimeCode(call);
@@ -210,7 +211,7 @@ mutatee::call_utrace_dynprobe(const dynprobe_location& probe,
 	process->oneTimeCode(call);
     }
   else
-    staplog(1) << "no utrace enter function!" << endl;
+    staplog(1) << "no utrace enter function in pid " << pid << "!" << endl;
 }
 
 
@@ -243,7 +244,7 @@ mutatee::instrument_utrace_dynprobe(const dynprobe_location& probe)
 void
 mutatee::instrument_global_dynprobe_target(const dynprobe_target& target)
 {
-  staplog(1) << "found global target, inserting "
+  staplog(1) << "found global target in pid " << pid << ", inserting "
              << target.probes.size() << " probes" << endl;
 
   for (size_t j = 0; j < target.probes.size(); ++j)
@@ -277,8 +278,8 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
   BPatch_function* enter_function = NULL;
   bool use_pt_regs = false;
 
-  staplog(1) << "found target \"" << target.path << "\", inserting "
-             << target.probes.size() << " probes" << endl;
+  staplog(1) << "found target \"" << target.path << "\" in pid " << pid
+	     << ", inserting " << target.probes.size() << " probes" << endl;
 
   process->beginInsertionSet();
   for (size_t j = 0; j < target.probes.size(); ++j)
@@ -453,7 +454,7 @@ mutatee::instrument_object_dynprobes(BPatch_object* object,
   // We want to map objects by their full path, but the pathName from
   // Dyninst might be relative, so fill it out.
   string path = resolve_path(object->pathName());
-  staplog(2) << "found object " << path << endl;
+  staplog(2) << "found object \"" << path << "\" in pid " << pid << endl;
 
   size_t semaphore_start = semaphores.size();
 
@@ -485,7 +486,8 @@ mutatee::begin_callback()
       const dynprobe_location& probe = attached_probes[i];
       if (probe.flags & STAPDYN_PROBE_FLAG_PROC_BEGIN)
 	{
-	  staplog(1) << "found begin proc probe, index = " << probe.index << endl;
+	  staplog(2) << "found begin proc probe in pid " << pid
+		     << ", index = " << probe.index << endl;
 	  call_utrace_dynprobe(probe);
 	}
     }
@@ -511,7 +513,8 @@ mutatee::exit_callback(BPatch_thread *thread)
       const dynprobe_location& probe = attached_probes[i];
       if (probe.flags & STAPDYN_PROBE_FLAG_PROC_END)
 	{
-	  staplog(1) << "found end proc probe, index = " << probe.index << endl;
+	  staplog(2) << "found end proc probe in pid " << pid
+		     << ", index = " << probe.index << endl;
 	  call_utrace_dynprobe(probe, thread);
 	}
     }
@@ -538,8 +541,9 @@ mutatee::thread_callback(BPatch_thread *thread, bool create_p)
       if ((create_p && probe.flags & STAPDYN_PROBE_FLAG_THREAD_BEGIN)
 	  || (!create_p && probe.flags & STAPDYN_PROBE_FLAG_THREAD_END))
         {
-	  staplog(1) << "found " << (create_p ? "begin" : "end")
-		     << " thread probe, index = " << probe.index << endl;
+	  staplog(2) << "found " << (create_p ? "begin" : "end")
+		     << " thread probe in pid " << pid
+		     << ", index = " << probe.index << endl;
 	  call_utrace_dynprobe(probe, thread);
 	}
     }
@@ -717,7 +721,10 @@ void
 mutatee::continue_execution()
 {
   if (is_stopped())
-    process->continueExecution();
+    {
+      staplog(2) << "continuing execution of pid " << pid << endl;
+      process->continueExecution();
+    }
 }
 
 
@@ -730,15 +737,15 @@ mutatee::stop_execution()
       return true;
     }
 
-  staplog(1) << "stopping process" << endl;
+  staplog(2) << "stopping execution of pid " << pid << endl;
   if (! process->stopExecution())
     {
-      staplog(1) << "stopExecution failed!" << endl;
+      staplog(1) << "stopExecution on pid " << pid << " failed!" << endl;
       return false;
     }
   if (! process->isStopped() || process->isTerminated())
     {
-      staplog(1) << "couldn't stop proc!" << endl;
+      staplog(1) << "couldn't stop pid " << pid << "!" << endl;
       return false;
     }
   return true;
