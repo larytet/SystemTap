@@ -26,6 +26,11 @@ proc test_procedure {} {
     if {[file exists ${test_module}]} {
 	pass "${script} compilation"
     } else {
+	# ia64 systems don't have kprobe.function() support (PR6971)
+	if {[istarget ia64-*-*]} {
+	    setup_kfail 6971 *-*-*
+	}
+
 	# If compiling the test module failed, there isn't much point
 	# in trying to run any of the real tests.
 	fail "${script} compilation"
