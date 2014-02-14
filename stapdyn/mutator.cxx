@@ -712,12 +712,26 @@ mutator::exec_callback(BPatch_thread *thread)
       // Clear previous instrumentation
       mut->exec_reset_instrumentation();
 
-      // FIXME the loadLibrary is hanging in Dyninst waiting for IRPC.
-      // I've tried deferring this until update_mutatees() too - same hang.
-#if 0
+      // NB: Until Dyninst commit 2b6c10ac15dc (in 8.2), loadLibrary in a
+      // fork-execed would hang waiting for a stopped process to continue.
+#ifdef DYNINST_8_2
       // Load our module again in the new process
       if (mut->load_stap_dso(module_name))
-        mut->instrument_dynprobes(targets, true);
+        {
+          if (!targets.empty())
+            mut->instrument_dynprobes(targets, true);
+
+          // Now we map the shared-memory into the target
+          if (!module_shmem.empty())
+            {
+              vector<BPatch_snippet *> args;
+              args.push_back(new BPatch_constExpr(module_shmem.c_str()));
+              mut->call_function("stp_dyninst_shm_connect", args);
+            }
+
+          // Trigger any process.begin probes.
+          mut->begin_callback();
+        }
 #endif
     }
 }
