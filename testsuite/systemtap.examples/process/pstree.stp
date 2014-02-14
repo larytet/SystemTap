@@ -17,6 +17,12 @@ probe begin
   printf("rankdir=\"LR\"\n")
 }
 
+function dot_escape(str)
+{
+  # In DOT double-quoted strings, the only escape is " to \"
+  return str_replace(str, "\"", "\\\"")
+}
+
 global depth
 probe process.begin
 {
@@ -25,7 +31,7 @@ probe process.begin
     if (pid() != target())
       printf("PID%d_%d -> PID%d_1\n", ppid(), depth[ppid()], pid())
     printf("PID%d_1 [ label=\"(%d) %s\" tooltip=\"forked from %d\" ];\n",
-           pid(), pid(), execname(), ppid())
+           pid(), pid(), dot_escape(execname()), ppid())
   }
 }
 
@@ -36,8 +42,9 @@ probe syscall.execve.return
     printf("PID%d_%d -> PID%d_%d [ style=\"dashed\" ];\n",
            pid(), d-1, pid(), d)
     printf("PID%d_%d [ label=\"(%d) %s\" tooltip=\"%s\" ];\n",
-           pid(), d, pid(), @entry(user_string($filename)),
-           str_replace(cmdline_str(), "\"", "\\\""))
+           pid(), d, pid(),
+           dot_escape(@entry(user_string($filename))),
+           dot_escape(cmdline_str()))
   }
 }
 
