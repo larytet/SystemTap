@@ -390,11 +390,13 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
                            dwfl_ptr.get()->dwfl);
 }
 
-void
-dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
-                                              const char *, Dwarf_Addr,
-                                              void *),
-                             void *data)
+template<> void
+dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
+                                                   void**,
+                                                   const char*,
+                                                   Dwarf_Addr,
+                                                   void*),
+                                   void *data)
 {
   dwfl_getmodules (dwfl_ptr.get()->dwfl, callback, data, 0);
 

@@ -2139,10 +2139,8 @@ query_module (Dwfl_Module *mod,
               void **,
 	      const char *name,
               Dwarf_Addr addr,
-	      void *arg)
+	      base_query *q)
 {
-  base_query *q = static_cast<base_query *>(arg);
-
   try
     {
       module_info* mi = q->sess.module_cache->cache[name];
@@ -4207,7 +4205,7 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 	}
 
       dwarf_cast_query q (*dw, module, *e, lvalue, userspace_p, result);
-      dw->iterate_over_modules(&query_module, &q);
+      dw->iterate_over_modules<base_query>(&query_module, &q);
     }
 
   if (!result)
@@ -4378,7 +4376,7 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
         }
 
       dwarf_atvar_query q (*dw, module, *e, userspace_p, lvalue, result, tick);
-      dw->iterate_over_modules(&query_module, &q);
+      dw->iterate_over_modules<base_query>(&query_module, &q);
 
       if (result)
         {
@@ -6532,7 +6530,7 @@ sdt_query::handle_probe_entry()
   // V1 probes always need dwarf info
   // V2+ probes need dwarf info in case of a variable reference
   if (have_debuginfo_uprobe(need_debug_info))
-    dw.iterate_over_modules(&query_module, &q);
+    dw.iterate_over_modules<base_query>(&query_module, &q);
 
   // For V2+ probes, if variable references weren't used or failed (PR14369),
   // then try with the more direct approach.  Unresolved $vars might still
@@ -7426,7 +7424,7 @@ dwarf_builder::build(systemtap_session & sess,
   if (get_param(parameters, TOK_MARK, dummy_mark_name))
     {
       sdt_query sdtq(base, location, *dw, filled_parameters, finished_results, user_lib);
-      dw->iterate_over_modules(&query_module, &sdtq);
+      dw->iterate_over_modules<base_query>(&query_module, &sdtq);
 
       // We need to update modules_seen with the modules we've visited
       modules_seen.insert(sdtq.visited_modules.begin(),
@@ -7475,7 +7473,7 @@ dwarf_builder::build(systemtap_session & sess,
       return;
     }
 
-  dw->iterate_over_modules(&query_module, &q);
+  dw->iterate_over_modules<base_query>(&query_module, &q);
 
   // We need to update modules_seen with the modules we've visited
   modules_seen.insert(q.visited_modules.begin(),
@@ -10748,7 +10746,7 @@ tracepoint_builder::build(systemtap_session& s,
 
   tracepoint_query q(*dw, tracepoint, base, location, finished_results);
   unsigned results_pre = finished_results.size();
-  dw->iterate_over_modules(&query_module, &q);
+  dw->iterate_over_modules<base_query>(&query_module, &q);
   unsigned results_post = finished_results.size();
 
   // Did we fail to find a match? Let's suggest something!

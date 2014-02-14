@@ -203,10 +203,28 @@ struct dwflpp
   bool function_name_matches(const std::string& pattern);
   bool function_scope_matches(const std::vector<std::string>& scopes);
 
-  void iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
-                                             const char *, Dwarf_Addr,
-                                             void *),
-                            void *data);
+  template<typename T>
+  void iterate_over_modules(int (* callback)(Dwfl_Module*,
+                                             void**,
+                                             const char*,
+                                             Dwarf_Addr,
+                                             T*),
+                            T *data)
+    {
+      /* We're using templates here to enforce type-safety between the data arg
+       * we're requested to pass to callback, and the data arg that the callback
+       * actually takes. Rather than putting the implementation here, we simply
+       * call the <void> specialization, which does the real work.
+       *    As a result, we need to cast the data arg in the callback signature
+       * and the one passed to void* (which is what elfutils also works with).
+       * */
+      iterate_over_modules<void>((int (*)(Dwfl_Module*,
+                                          void**,
+                                          const char*,
+                                          Dwarf_Addr,
+                                          void *))callback,
+                                  (void*)data);
+    }
 
   void iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
                          void * data, bool want_types);
@@ -379,6 +397,8 @@ private:
   static int global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
                                            const std::string& prefix, void *arg);
   static int global_alias_caching_callback_cus(Dwarf_Die *die, void *arg);
+
+
   static int iterate_over_globals (Dwarf_Die *,
                                    int (* callback)(Dwarf_Die *, bool,
                                                     const std::string&, void *),
@@ -474,6 +494,14 @@ private:
 public:
   Dwarf_Addr pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* var);
 };
+
+template<> void
+dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
+                                                   void**,
+                                                   const char*,
+                                                   Dwarf_Addr,
+                                                   void*),
+                                   void *data);
 
 #endif // DWFLPP_H
 

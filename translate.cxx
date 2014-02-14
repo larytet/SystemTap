@@ -6376,9 +6376,9 @@ query_module (Dwfl_Module *mod,
               void **,
               const char *,
               Dwarf_Addr,
-              void *arg)
+              struct dwflpp *dwflpp)
 {
-  ((struct dwflpp*)arg)->focus_on_module(mod, NULL);
+  dwflpp->focus_on_module(mod, NULL);
   return DWARF_CB_OK;
 }
 
@@ -6397,7 +6397,7 @@ add_unwindsym_ldd (systemtap_session &s)
       if (! is_user_module (modname)) continue;
 
       struct dwflpp *mod_dwflpp = new dwflpp(s, modname, false);
-      mod_dwflpp->iterate_over_modules (&query_module, mod_dwflpp);
+      mod_dwflpp->iterate_over_modules(&query_module, mod_dwflpp);
       if (mod_dwflpp->module) // existing binary
         {
           assert (mod_dwflpp->module_name != "");
