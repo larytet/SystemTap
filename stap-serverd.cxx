@@ -1582,6 +1582,10 @@ generate_mok(string &mok_fingerprint)
       goto cleanup;
     }
 
+  // Set the directory permissions to 0700 (until we can fix the
+  // private key's permissions).
+  chmod (tmpdir, 0700);
+
   // Actually generate key using openssl.
   //
   // FIXME: We'll need to require openssl in the spec file.
@@ -1614,6 +1618,10 @@ generate_mok(string &mok_fingerprint)
 
   // The private key gets created world readable. Fix this.
   chmod (private_cert_path.c_str (), 0600);
+
+  // Now that the private key's permissions are set correctly, open up
+  // the directory's permissions.
+  chmod (tmpdir, 0755);
 
   // Grab the fingerprint from the cert.
   if (read_cert_info_from_file (public_cert_path, mok_fingerprint)
