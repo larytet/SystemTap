@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2012 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -244,6 +244,10 @@ public:
   std::vector<std::string> server_args;
   std::string winning_server;
   compile_server_cache* server_cache;
+  std::vector<std::string> mok_fingerprints;
+
+  bool modules_must_be_signed();
+  void get_mok_info();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).

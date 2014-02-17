@@ -78,6 +78,10 @@ void sign_file (
 
 CERTCertList *get_cert_list_from_db (const std::string &cert_nickname);
 
+SECStatus
+read_cert_info_from_file (const std::string &certPath,
+			  std::string &fingerprint);
+
 #endif // defined(c_plusplus) || defined(__cplusplus)
 
 #endif // NSS_COMMON_H

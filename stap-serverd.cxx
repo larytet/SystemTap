@@ -3,7 +3,7 @@
   the data into a temporary file, calls the systemtap translator and
   then transmits the resulting file back to the client.
 
-  Copyright (C) 2011-2013 Red Hat Inc.
+  Copyright (C) 2011-2014 Red Hat Inc.
 
   This file is part of systemtap, and is free software.  You can
   redistribute it and/or modify it under the terms of the GNU General Public
@@ -45,6 +45,9 @@ extern "C" {
 #include <nss.h>
 #include <keyhi.h>
 #include <regex.h>
+#include <dirent.h>
+#include <string.h>
+#include <sys/ioctl.h>
 
 #if HAVE_AVAHI
 #include <avahi-client/publish.h>
@@ -53,6 +56,7 @@ extern "C" {
 #include <avahi-common/malloc.h>
 #include <avahi-common/error.h>
 #include <avahi-common/domain.h>
+#include <sys/inotify.h>
 #endif
 }
 
@@ -68,6 +72,31 @@ static PRStatus spawn_and_wait (const vector<string> &argv, int *result,
                                 const char* fd0, const char* fd1, const char* fd2,
 				const char *pwd, const vector<string>& envVec = vector<string> ());
 
+#define MOK_PUBLIC_CERT_NAME "signing_key.x509"
+#define MOK_PUBLIC_CERT_FILE "/" MOK_PUBLIC_CERT_NAME
+#define MOK_PRIVATE_CERT_NAME "signing_key.priv"
+#define MOK_PRIVATE_CERT_FILE "/" MOK_PRIVATE_CERT_NAME
+#define MOK_CONFIG_FILE "/x509.genkey"
+// MOK_CONFIG_TEXT is the default MOK config text used when creating
+// new MOKs. This text is saved to the MOK config file. Once we've
+// created it, the server administrator can modify it.
+#define MOK_CONFIG_TEXT \
+  "[ req ]\n"						\
+  "default_bits = 4096\n"				\
+  "distinguished_name = req_distinguished_name\n"	\
+  "prompt = no\n"					\
+  "x509_extensions = myexts\n"				\
+  "\n"							\
+  "[ req_distinguished_name ]\n"			\
+  "O = Systemtap\n"					\
+  "CN = Systemtap module signing key\n"			\
+  "\n"							\
+  "[ myexts ]\n"					\
+  "basicConstraints=critical,CA:FALSE\n"		\
+  "keyUsage=digitalSignature\n"				\
+  "subjectKeyIdentifier=hash\n"				\
+  "authorityKeyIdentifier=keyid\n"
+
 /* getopt variables */
 extern int optind;
 
@@ -78,6 +107,7 @@ static long max_threads;
 static string cert_db_path;
 static string stap_options;
 static string uname_r;
+static string kernel_build_tree;
 static string arch;
 static string cert_serial_number;
 static string B_options;
@@ -85,6 +115,7 @@ static string I_options;
 static string R_option;
 static string D_options;
 static bool   keep_temp;
+static string mok_path;
 
 sem_t sem_client;
 static int pending_interrupts;
@@ -149,9 +180,15 @@ static void
 process_r (const string &arg)
 {
   if (arg[0] == '/') // fully specified path
-    uname_r = kernel_release_from_build_tree (arg);
+    {
+      kernel_build_tree = arg;
+      uname_r = kernel_release_from_build_tree (arg);
+    }
   else
-    uname_r = arg;
+    {
+      kernel_build_tree = "/lib/modules/" + arg + "/build";
+      uname_r = arg;
+    }
   stap_options += " -r " + arg; // Pass the argument to stap directly.
 }
 
@@ -312,6 +349,147 @@ setup_signals (sighandler_t handler)
   sigaction (SIGXCPU, &sa, NULL);
 }
 
+// Does the server contain a valid directory for the MOK fingerprint?
+bool
+mok_dir_valid_p (string mok_fingerprint, bool verbose)
+{
+  string mok_dir = mok_path + "/" + mok_fingerprint;
+  DIR *dirp = opendir (mok_dir.c_str());
+  if (dirp == NULL)
+    {
+      // We can't open the directory. Just quit.
+      if (verbose)
+	server_error (_F("Could not open server MOK fingerprint directory %s: %s",
+		      mok_dir.c_str(), strerror(errno)));
+      return false;
+    }
+
+  // Find both the x509 certificate and private key files.
+  bool priv_found = false;
+  bool cert_found = false;
+  struct dirent *direntp;
+  while ((direntp = readdir (dirp)) != NULL)
+    {
+      if (! priv_found && direntp->d_type == DT_REG
+	  && strcmp (direntp->d_name, MOK_PRIVATE_CERT_NAME) == 0)
+        {
+	  priv_found = true;
+	  continue;
+	}
+      if (! cert_found && direntp->d_type == DT_REG
+	  && strcmp (direntp->d_name, MOK_PUBLIC_CERT_NAME) == 0)
+        {
+	  cert_found = true;
+	  continue;
+	}
+      if (priv_found && cert_found)
+	break;
+    }
+  closedir (dirp);
+  if (! priv_found || ! cert_found)
+    {
+      // We didn't find one (or both) of the required files. Quit.
+      if (verbose)
+	server_error (_F("Could not find server MOK files in directory %s",
+			 mok_dir.c_str ()));
+      return false;
+    }
+
+  // Grab info from the cert.
+  string fingerprint;
+  if (read_cert_info_from_file (mok_dir + MOK_PUBLIC_CERT_FILE, fingerprint)
+      == SECSuccess)
+    {
+      // Make sure the fingerprint from the certificate matches the
+      // directory name.
+      if (fingerprint != mok_fingerprint)
+        {
+	  if (verbose)
+	      server_error (_F("Server MOK directory name '%s' doesn't match fingerprint from certificate %s",
+			       mok_dir.c_str(), fingerprint.c_str()));
+	  return false;
+	}
+    }
+  return true;
+}
+
+// Get the list of MOK fingerprints on the server. If
+// 'only_one_needed' is true, just return the first MOK.
+static void
+get_server_mok_fingerprints(vector<string> &mok_fingerprints, bool verbose,
+			    bool only_one_needed)
+{
+  DIR *dirp;
+  struct dirent *direntp;
+  vector<string> temp;
+
+  // Clear the vector.
+  mok_fingerprints.clear ();
+
+  // The directory of machine owner keys (MOK) is optional, so if it
+  // doesn't exist, we don't worry about it.
+  dirp = opendir (mok_path.c_str ());
+  if (dirp == NULL)
+    {
+      // If the error isn't ENOENT (Directory does not exist), we've got
+      // a non-fatal error.
+      if (errno != ENOENT)
+	server_error (_F("Could not open server MOK directory %s: %s",
+			 mok_path.c_str (), strerror (errno)));
+      return;
+    }
+
+  // Create a regular expression object to verify MOK fingerprints
+  // directory name.
+  regex_t checkre;
+  if ((regcomp (&checkre, "^[0-9a-f]{2}(:[0-9a-f]{2})+$",
+		REG_EXTENDED | REG_NOSUB) != 0))
+    {
+      // Not fatal, just ignore the MOK fingerprints.
+      server_error (_F("Error in MOK fingerprint regcomp: %s",
+		       strerror (errno)));
+      closedir (dirp);
+      return;
+    }
+
+  // We've opened the directory, so read all the directory names from
+  // it.
+  while ((direntp = readdir (dirp)) != NULL)
+    {
+      // We're only interested in directories (of key files).
+      if (direntp->d_type != DT_DIR)
+	continue;
+
+      // We've got a directory. If the directory name isn't in the right
+      // format for a MOK fingerprint, skip it.
+      if ((regexec (&checkre, direntp->d_name, (size_t) 0, NULL, 0) != 0))
+	continue;
+
+      // OK, we've got a directory name in the right format, so save it.
+      temp.push_back (string (direntp->d_name));
+    }
+  regfree (&checkre);
+  closedir (dirp);
+
+  // At this point, we've got a list of directories with names in the
+  // proper format. Make sure each directory contains a x509
+  // certificate and private key file.
+  vector<string>::const_iterator it;
+  for (it = temp.begin (); it != temp.end (); it++)
+    {
+      if (mok_dir_valid_p (*it, true))
+        {
+	  // Save the info.
+	  mok_fingerprints.push_back (*it);
+	  if (verbose)
+	    server_error (_F("Found MOK with fingerprint '%s'", it->c_str ()));
+	  if (only_one_needed)
+	    break;
+	}
+    }
+  return;
+}
+
 #if HAVE_AVAHI
 static AvahiEntryGroup *avahi_group = NULL;
 static AvahiThreadedPoll *avahi_threaded_poll = NULL;
@@ -319,6 +497,8 @@ static char *avahi_service_name = NULL;
 static const char * const avahi_service_tag = "_stap._tcp";
 static AvahiClient *avahi_client = 0;
 static int avahi_collisions = 0;
+static int inotify_fd = -1;
+static AvahiWatch *avahi_inotify_watch = NULL;
 
 static void create_services (AvahiClient *c);
 
@@ -392,7 +572,8 @@ entry_group_callback (
 }
 
 static void
-create_services (AvahiClient *c) {
+create_services (AvahiClient *c)
+{
   assert (c);
 
   // Create a new entry group, if necessary, or reset the existing one.
@@ -407,7 +588,6 @@ create_services (AvahiClient *c) {
     }
   else
     avahi_entry_group_reset(avahi_group);
-
 
   // Contruct the information needed for our service.
   log (_F("Adding Avahi service '%s'", avahi_service_name));
@@ -437,17 +617,46 @@ create_services (AvahiClient *c) {
   if (! I_options.empty ())
     optinfo += separator + I_options.substr(1);
 
+  // Create an avahi string list with the info we have so far.
+  vector<string> mok_fingerprints;
+  AvahiStringList *strlst = avahi_string_list_new(sysinfo.c_str (),
+						  optinfo.c_str (),
+						  version.c_str (),
+						  certinfo.c_str (), NULL);
+  if (strlst == NULL)
+    {
+      server_error (_("Failed to allocate string list"));
+      goto fail;
+    }
+
+  // Add server MOK info, if available.
+  get_server_mok_fingerprints (mok_fingerprints, true, false);
+  if (! mok_fingerprints.empty())
+    {
+      vector<string>::const_iterator it;
+      for (it = mok_fingerprints.begin(); it != mok_fingerprints.end(); it++)
+        {
+	  string tmp = "mok_info=" + *it;
+	  strlst = avahi_string_list_add(strlst, tmp.c_str ());
+	  if (strlst == NULL)
+	    {
+	      server_error (_("Failed to add a string to the list"));
+	      goto fail;
+	    }
+	}
+    }
+
   // We will now add our service to the entry group.
   // Loop until no collisions.
   int ret;
   for (;;) {
-    ret = avahi_entry_group_add_service (avahi_group,
-					 AVAHI_IF_UNSPEC, AVAHI_PROTO_UNSPEC,
-					 (AvahiPublishFlags)0,
-					 avahi_service_name, avahi_service_tag,
-					 NULL, NULL, port,
-					 sysinfo.c_str (), optinfo.c_str (),
-					 version.c_str (), certinfo.c_str (), NULL);
+    ret = avahi_entry_group_add_service_strlst (avahi_group,
+						AVAHI_IF_UNSPEC,
+						AVAHI_PROTO_UNSPEC,
+						(AvahiPublishFlags)0,
+						avahi_service_name,
+						avahi_service_tag,
+						NULL, NULL, port, strlst);
     if (ret == AVAHI_OK)
       break; // success!
 
@@ -474,10 +683,12 @@ create_services (AvahiClient *c) {
       goto fail;
     }
 
+  avahi_string_list_free(strlst);
   return;
 
  fail:
   avahi_entry_group_reset (avahi_group);
+  avahi_string_list_free(strlst);
 }
 
 static void avahi_cleanup_client () {
@@ -543,7 +754,27 @@ client_callback (AvahiClient *c, AvahiClientState state, AVAHI_GCC_UNUSED void *
 }
 
 static void
-avahi_cleanup () {
+inotify_callback (AvahiWatch *w, int fd, AvahiWatchEvent event, void *userdata)
+{
+  struct inotify_event in_events[10];
+  ssize_t rc;
+
+  // Drain the inotify file. Notice we don't really care what changed,
+  // we just needed to know that something changed.
+  do
+  {
+    rc = read (fd, in_events, sizeof (in_events));
+  } while (rc > 0);
+
+  // Re-create the services.
+  if (avahi_client && (avahi_client_get_state (avahi_client)
+		       == AVAHI_CLIENT_S_RUNNING))
+    create_services (avahi_client);
+}
+
+static void
+avahi_cleanup ()
+{
   if (avahi_service_name)
     log (_F("Removing Avahi service '%s'", avahi_service_name));
 
@@ -553,6 +784,18 @@ avahi_cleanup () {
 
   // Clean up the avahi objects. The order of freeing these is significant.
   avahi_cleanup_client ();
+  if (avahi_inotify_watch)
+    {
+      const AvahiPoll *poll = avahi_threaded_poll_get (avahi_threaded_poll);
+      if (poll)
+	poll->watch_free (avahi_inotify_watch);
+      avahi_inotify_watch = NULL;
+    }
+  if (inotify_fd >= 0)
+    {
+      close (inotify_fd);
+      inotify_fd = -1;
+    }
   if (avahi_threaded_poll) {
     avahi_threaded_poll_free (avahi_threaded_poll);
     avahi_threaded_poll = 0;
@@ -611,6 +854,46 @@ avahi_publish_service (CERTCertificate *cert)
       return;
     }
 
+  // Watch the server MOK directory for any changes.
+#if defined(IN_CLOEXEC) && defined(IN_NONBLOCK)
+  inotify_fd = inotify_init1 (IN_CLOEXEC|IN_NONBLOCK);
+#else
+  if ((inotify_fd = inotify_init ()) >= 0)
+    {
+      fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
+      fcntl(inotify_fd, F_SETFL, O_NONBLOCK);
+    }
+#endif
+  if (inotify_fd < 0)
+    server_error (_F("Failed to initialize inotify: %s", strerror (errno)));
+  else
+    {
+      // We want to watch for new or removed MOK directories
+      // underneath mok_path. But, to do that, mok_path must exist.
+      if (create_dir (mok_path.c_str (), 0755) != 0)
+	server_error (_F("Unable to find or create the MOK directory %s: %s",
+			 mok_path.c_str (), strerror (errno)));
+      // Watch mok_path for changes.
+      else if (inotify_add_watch (inotify_fd, mok_path.c_str (),
+#ifdef IN_ONLYDIR
+			     IN_ONLYDIR|
+#endif
+			     IN_CLOSE_WRITE|IN_DELETE|IN_DELETE_SELF|IN_MOVE)
+	  < 0)
+	server_error (_F("Failed to add inotify watch: %s", strerror (errno)));
+      else
+        {
+	  // When mok_path changes, call inotify_callback().
+	  const AvahiPoll *poll = avahi_threaded_poll_get (avahi_threaded_poll);
+	  if (!poll
+	      || ! (avahi_inotify_watch = poll->watch_new (poll, inotify_fd,
+							   AVAHI_WATCH_IN,
+							   inotify_callback,
+							   NULL)))
+	    server_error (_("Failed to create inotify watcher"));
+	}
+    }
+
   // Run the main loop.
   avahi_threaded_poll_start (avahi_threaded_poll);
 
@@ -636,6 +919,9 @@ unadvertise_presence ()
 #endif
 }
 
+
+
+
 static void
 initialize (int argc, char **argv) {
   pending_interrupts = 0;
@@ -652,6 +938,7 @@ initialize (int argc, char **argv) {
   struct utsname utsname;
   uname (& utsname);
   uname_r = utsname.release;
+  kernel_build_tree = "/lib/modules/" + uname_r + "/build";
   arch = normalize_machine (utsname.machine);
 
   // Parse the arguments. This also starts the server log, if any, and should be done before
@@ -680,6 +967,10 @@ initialize (int argc, char **argv) {
   PR_Init (PR_SYSTEM_THREAD, PR_PRIORITY_NORMAL, 1);
   /* Set the cert database password callback. */
   PK11_SetPasswordFunc (nssPasswordCallback);
+
+  // Where are the optional machine owner keys (MOK) this server
+  // knows about?
+  mok_path = server_cert_db_path() + "/moks";
 }
 
 static void
@@ -1077,6 +1368,100 @@ get_stap_locale (const string &staplang, vector<string> &envVec, string stapstde
     envVec.push_back(it->first + "=" + it->second);
 }
 
+static void
+get_client_mok_fingerprints (const string &filename,
+			     vector<string> &mok_fingerprints,
+			     string stapstderr,
+			     cs_protocol_version *client_version)
+{
+  // If the client version is < 1.6, then no file containing MOK
+  // fingerprints could have been passed.
+  if (*client_version < "1.6") {
+    return;
+  }
+
+  // Go through each line of the file and add it to the vector.
+  ifstream file;
+  file.open(filename.c_str());
+  if (! file.is_open())
+    // If the file isn't present, that's fine. It just means that the
+    // module doesn't need to be signed.
+    return;
+
+  // Create a regular expression object to verify lines read from the
+  // file.
+  regex_t checkre;
+  if (regcomp(&checkre, "^([0-9a-f]{2}(:[0-9a-f]{2})+)$", REG_EXTENDED)
+      != 0)
+    {
+      // Not fatal, just ignore the MOK fingerprints.
+      server_error(_F("Error in MOK fingerprint regcomp: %s",
+		      strerror (errno)));
+      return;
+    }
+
+  // Unpack the MOK fingerprints. Notice we make sure the fingerprint
+  // is in the right format, but that's all we can do at this
+  // point. Later we'll check this client list against our server
+  // list.
+  string line;
+  regmatch_t matches[3];
+  while (getline (file, line))
+    {
+      string fingerprint;
+
+      if ((regexec(&checkre, line.c_str(), 3, matches, 0) != 0))
+        {
+	  // Not fatal. Just ignore it.
+	  client_error(_F("MOK fingerprint value '%s' isn't in the correct forma",
+			  line.c_str()), stapstderr);
+	  continue;
+	}
+
+      // Save the fingerprint:
+      //   matches[0] is the range of the entire match
+      //   matches[1] is the entire fingerprint
+      //   matches[2] is a portion of the fingerprint
+      if (matches[1].rm_so >= 0)
+	fingerprint = line.substr(matches[1].rm_so,
+				  matches[1].rm_eo - matches[1].rm_so);
+      if (! fingerprint.empty())
+	mok_fingerprints.push_back(fingerprint);
+    }
+  regfree(&checkre);
+}
+
+bool
+mok_sign_file (std::string &mok_fingerprint,
+	       const std::string &kernel_build_tree,
+	       const std::string &name,
+	       std::string stapstderr)
+{
+  vector<string> cmd;
+  int rc;
+  string mok_directory = mok_path + "/" + mok_fingerprint;
+
+  cmd.clear();
+  cmd.push_back (kernel_build_tree + "/scripts/sign-file");
+  cmd.push_back ("sha512");
+  cmd.push_back (mok_directory + MOK_PRIVATE_CERT_FILE);
+  cmd.push_back (mok_directory + MOK_PUBLIC_CERT_FILE);
+  cmd.push_back (name);
+
+  rc = stap_system (0, cmd);
+  if (rc != 0) 
+    {
+      client_error (_F("Running sign-file failed, rc = %d", rc), stapstderr);
+      return false;
+    }
+  else
+    {
+      client_error (_F("Module signed with MOK, fingerprint \"%s\"",
+		       mok_fingerprint.c_str()), stapstderr);
+      return true;
+    }
+}
+
 // Filter paths prefixed with the server's home directory from the given file.
 //
 static void
@@ -1158,6 +1543,112 @@ getRequestedPrivilege (const vector<string> &stapargv)
  done:
   delete[] argv;
   return privilege;
+}
+
+static void
+generate_mok(string &mok_fingerprint)
+{
+  vector<string> cmd;
+  int rc;
+  char tmpdir[PATH_MAX] = { '\0' };
+  string public_cert_path, private_cert_path, destdir;
+
+  mok_fingerprint.clear ();
+
+  // Make sure the config file exists. If not, create it with default
+  // contents.
+  string config_path = mok_path + MOK_CONFIG_FILE;
+  if (! file_exists (config_path))
+    {
+      ofstream config_stream;
+      config_stream.open (config_path.c_str ());
+      if (! config_stream.good ())
+        {
+	  server_error (_F("Could not open MOK config file %s: %s",
+			   config_path.c_str (), strerror (errno)));
+	  goto cleanup;
+	}
+      config_stream << MOK_CONFIG_TEXT;
+      config_stream.close ();
+    }
+
+  // Make a temporary directory to store results in.
+  snprintf (tmpdir, PATH_MAX, "%s/stap-server.XXXXXX", mok_path.c_str ());
+  if (mkdtemp (tmpdir) == NULL)
+    {
+      server_error (_F("Could not create temporary directory %s: %s", tmpdir, 
+		       strerror (errno)));
+      tmpdir[0] = '\0';
+      goto cleanup;
+    }
+
+  // Set the directory permissions to 0700 (until we can fix the
+  // private key's permissions).
+  chmod (tmpdir, 0700);
+
+  // Actually generate key using openssl.
+  //
+  // FIXME: We'll need to require openssl in the spec file.
+  public_cert_path = tmpdir + string (MOK_PUBLIC_CERT_FILE);
+  private_cert_path = tmpdir + string (MOK_PRIVATE_CERT_FILE);
+  cmd.push_back ("openssl");
+  cmd.push_back ("req");
+  cmd.push_back ("-new");
+  cmd.push_back ("-nodes");
+  cmd.push_back ("-utf8");
+  cmd.push_back ("-sha256");
+  cmd.push_back ("-days");
+  cmd.push_back ("36500");
+  cmd.push_back ("-batch");
+  cmd.push_back ("-x509");
+  cmd.push_back ("-config");
+  cmd.push_back (config_path);
+  cmd.push_back ("-outform");
+  cmd.push_back ("DER");
+  cmd.push_back ("-out");
+  cmd.push_back (public_cert_path);
+  cmd.push_back ("-keyout");
+  cmd.push_back (private_cert_path);
+  rc = stap_system (0, cmd);
+  if (rc != 0) 
+    {
+      server_error (_F("Generating MOK failed, rc = %d", rc));
+      goto cleanup;
+    }
+
+  // The private key gets created world readable. Fix this.
+  chmod (private_cert_path.c_str (), 0600);
+
+  // Now that the private key's permissions are set correctly, open up
+  // the directory's permissions.
+  chmod (tmpdir, 0755);
+
+  // Grab the fingerprint from the cert.
+  if (read_cert_info_from_file (public_cert_path, mok_fingerprint)
+      != SECSuccess)
+    goto cleanup;
+
+  // Once we know the fingerprint, rename the temporary directory.
+  destdir = mok_path + "/" + mok_fingerprint;
+  if (rename (tmpdir, destdir.c_str ()) < 0)
+    {
+      server_error (_F("Could not rename temporary directory %s to %s: %s",
+		       tmpdir, destdir.c_str (), strerror (errno)));
+      goto cleanup;
+    }
+  return;
+
+cleanup:
+  // Remove the temporary directory.
+  cmd.clear ();
+  cmd.push_back ("rm");
+  cmd.push_back ("-rf");
+  cmd.push_back (tmpdir);
+  rc = stap_system (0, cmd);
+  if (rc != 0)
+    server_error (_("Error in tmpdir cleanup"));
+  mok_fingerprint.clear ();
+  return;
 }
 
 /* Run the translator on the data in the request directory, and produce output
@@ -1275,6 +1766,39 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
   vector<string> envVec;
   get_stap_locale (staplang, envVec, stapstderr, &client_version);
 
+  // Machine owner keys (MOK) fingerprints (possibly nonexistent), to
+  // be used as a list of valid keys that the module must be signed with.
+  vector<string> client_mok_fingerprints;
+  get_client_mok_fingerprints(requestDirName + "/mok_fingerprints",
+			      client_mok_fingerprints, stapstderr,
+			      &client_version);
+
+
+  // If the client sent us MOK fingerprints, see if we have a matching
+  // MOK on the server.
+  string mok_fingerprint;
+  if (! client_mok_fingerprints.empty())
+    {
+      // See if any of the client MOK fingerprints exist on the server.
+      vector<string>::const_iterator it;
+      for (it = client_mok_fingerprints.begin();
+	   it != client_mok_fingerprints.end(); it++)
+        {
+	  if (mok_dir_valid_p (*it, false))
+	    {
+	      mok_fingerprint = *it;
+	      break;
+	    }
+	}
+
+      // If the client requires signing, but we couldn't find a
+      // matching machine owner key installed on the server, we can't
+      // build a signed module. But, the client may not have asked us
+      // to create a module (for instance, the user could have done
+      // 'stap -L syscall.open'). So, keep going until we know we need
+      // to sign a module.
+  }
+
   /* All ready, let's run the translator! */
   int staprc;
   rc = spawn_and_wait(stapargv, &staprc, "/dev/null", stapstdout.c_str (),
@@ -1285,14 +1809,13 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
       return;
     }
 
-  /* Save the RC */
-  ofstream ofs((responseDirName + "/rc").c_str());
-  ofs << staprc;
-  ofs.close();
-
-  // In unprivileged modes, if we have a module built, we need to sign the sucker.
+  // In unprivileged modes, if we have a module built, we need to sign
+  // the sucker.  We also might need to sign the module for secure
+  // boot purposes.
   privilege_t privilege = getRequestedPrivilege (stapargv);
-  if (pr_contains (privilege, pr_stapusr) || pr_contains (privilege, pr_stapsys))
+  if (staprc == 0 && (pr_contains (privilege, pr_stapusr)
+		      || pr_contains (privilege, pr_stapsys)
+		      || ! client_mok_fingerprints.empty ()))
     {
       glob_t globber;
       char pattern[PATH_MAX];
@@ -1304,10 +1827,74 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
         server_error (_F("Too many modules (%zu) in %s", globber.gl_pathc, new_staptmpdir.c_str()));
       else
         {
-         sign_file (cert_db_path, server_cert_nickname(),
-                    globber.gl_pathv[0], string(globber.gl_pathv[0]) + ".sgn");
+	  if (pr_contains (privilege, pr_stapusr)
+	      || pr_contains (privilege, pr_stapsys))
+	    sign_file (cert_db_path, server_cert_nickname(),
+		       globber.gl_pathv[0],
+		       string(globber.gl_pathv[0]) + ".sgn");
+	  if (! mok_fingerprint.empty ())
+	    {
+	      // If we signing the module failed, change the staprc to
+	      // 1, so that the client won't try to run the resulting
+	      // module, which wouldn't work.
+	      if (! mok_sign_file (mok_fingerprint, kernel_build_tree,
+				   globber.gl_pathv[0], stapstderr))
+		staprc = 1;
+	    }
+	  else if (! client_mok_fingerprints.empty ())
+	    {
+	      // If we're here, the client sent us MOK fingerprints
+	      // (since client_mok_fingerprints isn't empty), but we
+	      // don't have a matching MOK on the server (since
+	      // mok_fingerprint is empty). So, we can't sign the
+	      // module.
+	      client_error (_("No matching machine owner key (MOK) available on the server to sign the\n module."), stapstderr);
+
+	      // Since we can't sign the module, send the client one
+	      // of our MOKs. If we don't have any, create one.
+	      vector<string> mok_fingerprints;
+	      get_server_mok_fingerprints(mok_fingerprints, false, true);
+	      if (mok_fingerprints.empty ())
+	        {
+		  // Generate a new MOK.
+		  generate_mok(mok_fingerprint);
+		}
+	      else
+	        {
+		  // At this point we have at least one MOK on the
+		  // server. Send the public key down to the
+		  // client.
+		  mok_fingerprint = *mok_fingerprints.begin ();
+		}
+	      
+	      if (! mok_fingerprint.empty ())
+	        {
+		  // Copy the public cert file to the response directory.
+		  string mok_directory = mok_path + "/" + mok_fingerprint;
+		  string src = mok_directory + MOK_PUBLIC_CERT_FILE;
+		  string dst = responseDirName + MOK_PUBLIC_CERT_FILE;
+		  if (copy_file (src, dst, true))
+		    client_error ("The server has no machine owner key (MOK) in common with this\nsystem. Use the following command to import a server MOK into this\nsystem, then reboot:\n\n\tmokutil --import signing_key.x509", stapstderr);
+		  else
+		    client_error ("The server has no machine owner key (MOK) in common with this\nsystem. The server failed to return a certificate.", stapstderr);
+		}
+	      else
+	        {
+		  client_error ("The server has no machine owner keys (MOK) in common with this\nsystem. The server could not generate a new MOK.", stapstderr);
+		}
+
+	      // If we couldn't sign the module, let's change the
+	      // staprc to 1, so that the client won't try to run the
+	      // resulting module, which wouldn't work.
+	      staprc = 1;
+	  }
         }
     }
+
+  // Save the RC (which might have gotten changed above).
+  ofstream ofs((responseDirName + "/rc").c_str());
+  ofs << staprc;
+  ofs.close();
 
   /* If uprobes.ko is required, it will have been built or cache-copied into
    * the temp directory.  We need to pack it into the response where the client
@@ -1341,6 +1928,12 @@ handleRequest (const string &requestDirName, const string &responseDirName, stri
                      uprobes_response, uprobes_response + ".sgn");
         }
 
+      // Notice we're not giving an error message here if the client
+      // requires signed modules. The error will have been generated
+      // above on the systemtap module itself.
+      if (! mok_fingerprint.empty ())
+	mok_sign_file (mok_fingerprint, kernel_build_tree, uprobes_response,
+		       stapstderr);
     }
 
   /* Free up all the arg string copies.  Note that the first few were alloc'd

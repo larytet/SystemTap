@@ -43,6 +43,7 @@ extern "C" {
 #include <cryptohi.h>
 #include <keyhi.h>
 #include <secder.h>
+#include <cert.h>
 }
 
 #include "nsscommon.h"
@@ -1389,6 +1390,133 @@ PRInt32 PR_Read_Complete (PRFileDesc *fd, void *buf, PRInt32 requestedBytes)
 
   // Return the number of bytes we managed to read.
   return totalBytes;
+}
+
+SECStatus
+read_cert_info_from_file (const string &certPath, string &fingerprint)
+{
+  FILE *certFile = fopen (certPath.c_str (), "rb");
+  SECStatus secStatus = SECFailure;
+
+  if (! certFile)
+    {
+      nsscommon_error (_F("Could not open certificate file %s for reading\n%s",
+			  certPath.c_str (), strerror (errno)));
+      return SECFailure;
+    }
+
+  int fd = fileno (certFile);
+  struct stat info;
+  int rc = fstat (fd, &info);
+  if (rc != 0)
+    {
+      nsscommon_error (_F("Could not obtain information about certificate file %s\n%s",
+			  certPath.c_str (), strerror (errno)));
+      fclose (certFile);
+      return SECFailure;
+    }
+
+  PLArenaPool *arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  if (!arena)
+    {
+      nsscommon_error (_F("Could not create arena while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+      
+  SECItem derCert;
+  if (!SECITEM_AllocItem(arena, &derCert, info.st_size))
+    {
+      nsscommon_error (_F("Could not allocate DER cert\n%s",
+			  strerror (errno)));
+      fclose (certFile);
+      goto done;
+    }
+
+  size_t read;
+  read = fread (derCert.data, 1, derCert.len, certFile);
+  fclose (certFile);
+  if (read != derCert.len)
+    {
+      nsscommon_error (_F("Error reading from certificate file %s\n%s",
+			  certPath.c_str (), strerror (errno)));
+      goto done;
+    }
+  derCert.type = siDERCertBuffer;
+
+  // Sigh. We'd like to use CERT_DecodeDERCertificate() here, but
+  // although /usr/include/nss3/cert.h declares them, the shared
+  // library doesn't export them.
+
+  CERTCertificate *cert;
+  int rv;
+  char *str;
+
+  // Strip off the signature.
+  CERTSignedData *sd;
+  sd = PORT_ArenaZNew(arena, CERTSignedData);
+  if (!sd)
+    {
+      nsscommon_error (_F("Could not allocate signed data while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+  rv = SEC_ASN1DecodeItem(arena, sd, SEC_ASN1_GET(CERT_SignedDataTemplate), 
+			  &derCert);
+  if (rv)
+    {
+      nsscommon_error (_F("Could not decode signature while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+
+  // Decode the certificate.
+  cert = PORT_ArenaZNew(arena, CERTCertificate);
+  if (!cert)
+    {
+      nsscommon_error (_F("Could not allocate cert while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+  cert->arena = arena;
+  rv = SEC_ASN1DecodeItem(arena, cert,
+			  SEC_ASN1_GET(CERT_CertificateTemplate), &sd->data);
+  if (rv)
+    {
+      nsscommon_error (_F("Could not decode certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+
+  // Get the fingerprint from the signature.
+  unsigned char fingerprint_buf[SHA1_LENGTH];
+  SECItem fpItem;
+  rv = PK11_HashBuf(SEC_OID_SHA1, fingerprint_buf, derCert.data, derCert.len);
+  if (rv)
+    {
+      nsscommon_error (_F("Could not decode SHA1 fingerprint from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+  fpItem.data = fingerprint_buf;
+  fpItem.len = sizeof(fingerprint_buf);
+  str = CERT_Hexify(&fpItem, 1);
+  if (! str)
+  {
+      nsscommon_error (_F("Could not hexify SHA1 fingerprint from file %s",
+			  certPath.c_str ()));
+      goto done;
+  }
+  fingerprint = str;
+  transform(fingerprint.begin(), fingerprint.end(), fingerprint.begin(), 
+	    ::tolower);
+  PORT_Free(str);
+  secStatus = SECSuccess;
+
+done:
+  if (arena)
+    PORT_FreeArena(arena, PR_FALSE);
+  return secStatus;
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

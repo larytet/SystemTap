@@ -73,6 +73,8 @@ using namespace std;
 #define STAP_CSC_04 _("Unable to open output file %s\n")
 #define STAP_CSC_05 _("could not write to %s\n")
 
+#define MOK_PUBLIC_CERT_NAME "signing_key.x509"
+
 static PRIPv6Addr &copyAddress (PRIPv6Addr &PRin6, const in6_addr &in6);
 static PRNetAddr &copyNetAddr (PRNetAddr &x, const PRNetAddr &y);
 bool operator!= (const PRNetAddr &x, const PRNetAddr &y);
@@ -100,6 +102,7 @@ struct compile_server_info
   string version;
   string sysinfo;
   string certinfo;
+  vector<string> mok_fingerprints;
 
   bool empty () const
   {
@@ -153,6 +156,9 @@ struct compile_server_info
       return false;
     if (! this->certinfo.empty () && ! that.certinfo.empty () &&
         this->certinfo != that.certinfo)
+      return false;
+    if (! this->mok_fingerprints.empty () && ! that.mok_fingerprints.empty ()
+	&& this->mok_fingerprints != that.mok_fingerprints)
       return false;
 
     return true; // They are equal
@@ -954,6 +960,21 @@ compile_server_client::create_request ()
   // Add localization data
   rc = add_localization_variables();
 
+  // Add the machine owner key (MOK) fingerprints file, if needed.
+  if (! s.mok_fingerprints.empty())
+    {
+      ostringstream fingerprints;
+      vector<string>::const_iterator it;
+      for (it = s.mok_fingerprints.begin(); it != s.mok_fingerprints.end();
+	   it++)
+	fingerprints << *it << endl;
+
+      rc = write_to_file(client_tmpdir + "/mok_fingerprints",
+			 fingerprints.str());
+      if (rc != 0)
+	  return rc;
+    }
+
   return rc;
 }
 
@@ -1517,6 +1538,15 @@ compile_server_client::process_response ()
 	    }
 	}
       globfree (& globbuf);
+    }
+
+  // If the server returned a MOK certificate, copy it to the user's
+  // current directory.
+  string server_MOK_public_cert = s.tmpdir + "/server/" MOK_PUBLIC_CERT_NAME;
+  if (file_exists (server_MOK_public_cert))
+    {
+      string dst = MOK_PUBLIC_CERT_NAME;
+      copy_file (server_MOK_public_cert, dst, (s.verbose >= 3));
     }
 
   // Output stdout and stderr.
@@ -2114,8 +2144,23 @@ ostream &operator<< (ostream &s, const compile_server_info &i)
     s << i.certinfo << '"';
   else
     s << "unknown\"";
-  return s;
+  if (! i.mok_fingerprints.empty ())
+    {
+      // FIXME: Yikes, this output is ugly. Perhaps the server output
+      // needs a more structured approach.
+      s << " mok_fingerprints=\"";
+      vector<string>::const_iterator it;
+      for (it = i.mok_fingerprints.begin (); it != i.mok_fingerprints.end ();
+	   it++)
+        {
+	  if (it != i.mok_fingerprints.begin ())
+	    s << ", ";
+	  s << *it;
+	}      
+      s << "\"";
     }
+  return s;
+}
 
 ostream &operator<< (ostream &s, const vector<compile_server_info> &v)
 {
@@ -3088,6 +3133,40 @@ get_or_keep_compatible_server_info (
 	  continue;
 	}
   
+      // If the client requires secure boot signing, make sure the
+      // server has the right MOK.
+      if (! s.mok_fingerprints.empty ())
+        {
+	  // This server has no MOKs.
+	  if (servers[i].mok_fingerprints.empty ())
+	    {
+	      servers.erase (servers.begin () + i);
+	      continue;
+	    }
+
+	  // Make sure the server has at least one MOK in common with
+	  // the client.
+	  vector<string>::const_iterator it;
+	  bool mok_found = false;
+	  for (it = s.mok_fingerprints.begin(); it != s.mok_fingerprints.end(); it++)
+	    {
+	      if (find(servers[i].mok_fingerprints.begin(),
+		       servers[i].mok_fingerprints.end(), *it)
+		  != servers[i].mok_fingerprints.end ())
+	        {
+		  mok_found = true;
+		  break;
+		}
+	    }
+	  
+	  // This server has no MOK in common with the client.
+	  if (! mok_found)
+	    {
+	      servers.erase (servers.begin () + i);
+	      continue;
+	    }
+	}
+
       // The server is compatible. Leave it in the list.
       ++i;
     }
@@ -3284,6 +3363,33 @@ get_value_from_avahi_string_list (AvahiStringList *strlst, const string &key)
   return value;
 }
 
+// Get a vector of values of the requested key from the Avahi string
+// list. This is for multiple values having the same key.
+static void
+get_values_from_avahi_string_list (AvahiStringList *strlst, const string &key,
+				   vector<string> &value_vector)
+{
+  AvahiStringList *p;
+
+  value_vector.clear();
+  p = avahi_string_list_find (strlst, key.c_str ());
+  for (; p != NULL; p = avahi_string_list_get_next(p))
+    {
+      char *k, *v;
+      int rc = avahi_string_list_get_pair(p, &k, &v, NULL);
+      if (rc < 0 || v == NULL)
+        {
+	  avahi_free (k);
+	  break;
+	}
+
+      value_vector.push_back(v);
+      avahi_free (k);
+      avahi_free (v);
+    }
+  return;
+}
+
 extern "C"
 void resolve_callback(
     AvahiServiceResolver *r,
@@ -3349,6 +3455,11 @@ void resolve_callback(
 	    info.version = get_value_from_avahi_string_list (txt, "version");
 	    if (info.version.empty ())
 	      info.version = "1.0"; // default version is 1.0
+
+	    // The server might provide one or more MOK certificate's
+	    // info.
+	    get_values_from_avahi_string_list(txt, "mok_info",
+					      info.mok_fingerprints);
 
 	    // Add this server to the list of discovered servers.
 	    add_server_info (info, *servers);
