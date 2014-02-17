@@ -1552,8 +1552,12 @@ generate_mok(string &mok_fingerprint)
   int rc;
   char tmpdir[PATH_MAX] = { '\0' };
   string public_cert_path, private_cert_path, destdir;
+  mode_t old_umask;
 
   mok_fingerprint.clear ();
+
+  // Set umask so that everything is private.
+  old_umask = umask(077);
 
   // Make sure the config file exists. If not, create it with default
   // contents.
@@ -1581,10 +1585,6 @@ generate_mok(string &mok_fingerprint)
       tmpdir[0] = '\0';
       goto cleanup;
     }
-
-  // Set the directory permissions to 0700 (until we can fix the
-  // private key's permissions).
-  chmod (tmpdir, 0700);
 
   // Actually generate key using openssl.
   //
@@ -1616,13 +1616,6 @@ generate_mok(string &mok_fingerprint)
       goto cleanup;
     }
 
-  // The private key gets created world readable. Fix this.
-  chmod (private_cert_path.c_str (), 0600);
-
-  // Now that the private key's permissions are set correctly, open up
-  // the directory's permissions.
-  chmod (tmpdir, 0755);
-
   // Grab the fingerprint from the cert.
   if (read_cert_info_from_file (public_cert_path, mok_fingerprint)
       != SECSuccess)
@@ -1636,6 +1629,10 @@ generate_mok(string &mok_fingerprint)
 		       tmpdir, destdir.c_str (), strerror (errno)));
       goto cleanup;
     }
+
+  // Restore the old umask.
+  umask(old_umask);
+
   return;
 
 cleanup:
@@ -1648,6 +1645,9 @@ cleanup:
   if (rc != 0)
     server_error (_("Error in tmpdir cleanup"));
   mok_fingerprint.clear ();
+
+  // Restore the old umask.
+  umask(old_umask);
   return;
 }
 
