@@ -787,6 +787,13 @@ struct dwarf_query : public base_query
   // NB: this can't be compared just by entrypc, as inlines can overlap
   set<inline_instance_info> inline_dupes;
 
+  // Used in .callee[s] probes, when calling iterate_over_callees() (which
+  // provides the actual stack). Retains the addrs of the callers unwind addr
+  // where the callee is found. Specifies multiple callers. E.g. when a callee
+  // at depth 2 is found, callers[1] has the addr of the caller, and callers[0]
+  // has the addr of the caller's caller.
+  stack<Dwarf_Addr> *callers;
+
   // Extracted parameters.
   string function_val;
 
@@ -910,10 +917,10 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 vector<derived_probe *> & results,
 			 const string user_path,
 			 const string user_lib)
-  : base_query(dw, params), results(results),
-    base_probe(base_probe), base_loc(base_loc),
-    user_path(user_path), user_lib(user_lib), has_relative(false),
-    relative_val(0), choose_next_line(false), entrypc_for_next_line(0)
+  : base_query(dw, params), results(results), base_probe(base_probe),
+    base_loc(base_loc), user_path(user_path), user_lib(user_lib),
+    callers(NULL), has_relative(false), relative_val(0),
+    choose_next_line(false), entrypc_for_next_line(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
@@ -1580,6 +1587,7 @@ query_callee (char const * callee,
               dwarf_query * q)
 {
   assert (q->has_function_str);
+  q->callers = callers;
   query_statement(callee, file, line, callee_die, callee_addr, q);
 }
 
@@ -4687,6 +4695,72 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   // Overwrite it.
   this->sole_location()->components = comps;
+
+  // if it's a .callee[s[(N)]] call, add checks to the probe body so that the
+  // user body is only 'triggered' when called from q.callers[N-1], which
+  // itself is called from q.callers[N-2], etc... I.E.
+  // callees(N) --> N elements in q.callers --> N checks against [u]stack(0..N-1)
+  if ((q.has_callee || q.has_callees_num) && q.callers && !q.callers->empty())
+    {
+      if (q.sess.verbose > 2)
+        clog << "adding caller checks for callee " << funcname << endl;
+
+      // Copy the stack and empty it out
+      stack<Dwarf_Addr> callers(*q.callers);
+      for (unsigned level = 1; !callers.empty(); level++,
+                                                 callers.pop())
+        {
+          Dwarf_Addr caller = callers.top();
+
+          // We first need to make the caller addr relocatable
+          string caller_section;
+          Dwarf_Addr caller_reloc;
+          if (module == TOK_KERNEL)
+            { // allow for relocatable kernel (see also add_probe_point())
+              caller_reloc = caller - q.sess.sym_stext;
+              caller_section = "_stext";
+            }
+          else
+            caller_reloc = q.dw.relocate_address(caller,
+                                                 caller_section);
+
+          if (q.sess.verbose > 2)
+            clog << "adding caller check [u]stack(" << level << ") == "
+                 << "reloc(0x" << hex << caller_reloc << dec << ")" << endl;
+
+          // We want to add a statement like this:
+          // if (!caller_match(user, mod, sec, addr)) next;
+          // Something similar is done in semantic_pass_conditions()
+
+          functioncall* check = new functioncall();
+          check->tok = this->tok;
+          check->function = "caller_match";
+          check->args.push_back(new literal_number(q.has_process));
+          check->args[0]->tok = this->tok;
+          check->args.push_back(new literal_number(level));
+          check->args[1]->tok = this->tok;
+          check->args.push_back(new literal_string(module));
+          check->args[2]->tok = this->tok;
+          check->args.push_back(new literal_string(caller_section));
+          check->args[3]->tok = this->tok;
+          check->args.push_back(new literal_number(caller_reloc, true /* hex */));
+          check->args[4]->tok = this->tok;
+
+          unary_expression* notexp = new unary_expression();
+          notexp->tok = this->tok;
+          notexp->op = "!";
+          notexp->operand = check;
+
+          if_statement* ifs = new if_statement();
+          ifs->tok = this->tok;
+          ifs->thenblock = new next_statement();
+          ifs->thenblock->tok = this->tok;
+          ifs->elseblock = NULL;
+          ifs->condition = notexp;
+
+          this->body = new block(ifs, this->body);
+        }
+    }
 }
 
 
