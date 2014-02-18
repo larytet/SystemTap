@@ -259,11 +259,23 @@ struct dwflpp
   Dwarf_Die *declaration_resolve(const std::string& name);
   Dwarf_Die *declaration_resolve_other_cus(const std::string& name);
 
-  int iterate_over_functions (int (* callback)(Dwarf_Die *, void *),
-                              void * arg, const std::string& function);
+  template<typename T>
+  int iterate_over_functions (int (* callback)(Dwarf_Die*, T*),
+                              T *data, const std::string& function)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_functions<void>((int (*)(Dwarf_Die*, void*))callback,
+                                          (void*)data, function);
+    }
 
-  int iterate_single_function (int (* callback)(Dwarf_Die * func, void * arg),
-                               void * arg, const std::string& function);
+  template<typename T>
+  int iterate_single_function (int (* callback)(Dwarf_Die*, T*),
+                               T *data, const std::string& function)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_single_function<void>((int (*)(Dwarf_Die*, void*))callback,
+                                           (void*)data, function);
+    }
 
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
@@ -425,7 +437,7 @@ private:
   static int mod_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
   static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
-  static int external_function_func_callback (Dwarf_Die* func, void *arg);
+  static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
@@ -525,6 +537,12 @@ dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
 template<> void
 dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
                                             void *data);
+template<> int
+dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
+                                     void *data, const std::string& function);
+template<> int
+dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
+                                      void *data, const std::string& function);
 
 #endif // DWFLPP_H
 
