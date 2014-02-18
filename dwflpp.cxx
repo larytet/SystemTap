@@ -839,9 +839,8 @@ has_only_decl_members (Dwarf_Die *die)
 
 int
 dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
-                                      const string& prefix, void *arg)
+                                      const string& prefix, cu_type_cache_t *cache)
 {
-  cu_type_cache_t *cache = static_cast<cu_type_cache_t*>(arg);
   const char *name = dwarf_diename(die);
 
   if (!name || dwarf_hasattr(die, DW_AT_declaration)
@@ -853,7 +852,7 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
                           || tag == DW_TAG_structure_type
                           || tag == DW_TAG_class_type))
     iterate_over_types(die, has_inner_types, prefix + name + "::",
-                       global_alias_caching_callback, arg);
+                       global_alias_caching_callback, cache);
 
   if (tag != DW_TAG_namespace)
     {
@@ -1096,11 +1095,13 @@ dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
 
 /* This basically only goes one level down from the compile unit so it
  * only picks up top level stuff (i.e. nothing in a lower scope) */
-int
-dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
-                              int (* callback)(Dwarf_Die *, bool,
-                                               const string&, void *),
-                              void * data)
+template<> int
+dwflpp::iterate_over_globals<void>(Dwarf_Die *cu_die,
+                                   int (*callback)(Dwarf_Die*,
+                                                   bool,
+                                                   const string&,
+                                                   void*),
+                                   void *data)
 {
   assert (cu_die);
   assert (dwarf_tag(cu_die) == DW_TAG_compile_unit
@@ -1118,14 +1119,15 @@ dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
   return iterate_over_types(cu_die, has_inner_types, "", callback, data);
 }
 
-
-int
-dwflpp::iterate_over_types (Dwarf_Die *top_die,
-                            bool has_inner_types,
-                            const string& prefix,
-                            int (* callback)(Dwarf_Die *, bool,
-                                             const string&, void *),
-                            void * data)
+template<> int
+dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const string&,
+                                                  void*),
+                                 void *data)
 {
   int rc = DWARF_CB_OK;
   Dwarf_Die die, import;

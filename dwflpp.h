@@ -422,17 +422,44 @@ private:
    */
   mod_cu_type_cache_t global_alias_cache;
   static int global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
-                                           const std::string& prefix, void *arg);
+                                           const std::string& prefix, cu_type_cache_t *cache);
   static int global_alias_caching_callback_cus(Dwarf_Die *die, dwflpp *dw);
 
-  static int iterate_over_globals (Dwarf_Die *,
-                                   int (* callback)(Dwarf_Die *, bool,
-                                                    const std::string&, void *),
-                                   void * data);
-  static int iterate_over_types (Dwarf_Die *, bool, const std::string&,
-                                 int (* callback)(Dwarf_Die *, bool,
-                                                  const std::string&, void *),
-                                 void * data);
+  template<typename T>
+  static int iterate_over_globals (Dwarf_Die *cu_die,
+                                   int (* callback)(Dwarf_Die*,
+                                                    bool,
+                                                    const std::string&,
+                                                    T*),
+                                   T *data)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_globals<void>(cu_die,
+                                        (int (*)(Dwarf_Die*,
+                                                 bool,
+                                                 const std::string&,
+                                                 void*))callback,
+                                        (void*)data);
+    }
+
+  template<typename T>
+  static int iterate_over_types (Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const std::string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const std::string&,
+                                                  T*),
+                                 T *data)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_types<void>(top_die, has_inner_types, prefix,
+                                      (int (*)(Dwarf_Die*,
+                                               bool,
+                                               const std::string&,
+                                               void*))callback,
+                                      (void*)data);
+    }
 
   static int mod_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
   static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
@@ -543,6 +570,22 @@ dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
 template<> int
 dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
                                       void *data, const std::string& function);
+template<> int
+dwflpp::iterate_over_globals<void>(Dwarf_Die *cu_die,
+                                   int (*callback)(Dwarf_Die*,
+                                                   bool,
+                                                   const std::string&,
+                                                   void*),
+                                   void *data);
+template<> int
+dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const std::string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const std::string&,
+                                                  void*),
+                                 void *data);
 
 #endif // DWFLPP_H
 
