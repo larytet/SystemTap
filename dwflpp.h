@@ -298,6 +298,15 @@ struct dwflpp
                                    (void*)data);
     }
 
+  template<typename T>
+  int iterate_over_plt (T *object, void (*callback)(T*, const char*, size_t))
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_plt<void>((void*)object,
+                                    (void (*)(void*,
+                                              const char*,
+                                              size_t))callback);
+    }
 
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
@@ -332,9 +341,6 @@ struct dwflpp
                                                std::stack<Dwarf_Addr>*,
                                                dwarf_query *),
                              std::stack<Dwarf_Addr>*callers=NULL);
-
-  int iterate_over_plt (void *object,
-			  void (*callback)(void *object, const char *name, size_t address));
 
   GElf_Shdr * get_section(std::string section_name, GElf_Shdr *shdr_mem,
                           Elf **elf_ret=NULL);
@@ -608,6 +614,10 @@ dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
 template<> void
 dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
                                      void *data);
+template<> int
+dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
+                                                              const char*,
+                                                              size_t));
 
 #endif // DWFLPP_H
 

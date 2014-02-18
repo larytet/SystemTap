@@ -1350,8 +1350,10 @@ dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
 /* For each plt section in the current module call 'callback', pass the plt entry
  * 'address' and 'name' back, and pass 'object' back in case 'callback' is a method */
 
-int
-dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const char *name, size_t addr))
+template<> int
+dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
+                                                              const char*,
+                                                              size_t))
 {
   Dwarf_Addr load_addr;
   // Note we really want the actual elf file, not the dwarf .debug file.

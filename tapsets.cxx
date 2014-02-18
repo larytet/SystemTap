@@ -630,7 +630,7 @@ struct base_query
   static bool get_number_param(literal_map_t const & params,
 			       string const & k, Dwarf_Addr & v);
   static void query_library_callback (base_query *me, const char *data);
-  static void query_plt_callback (void *object, const char *link, size_t addr);
+  static void query_plt_callback (base_query *me, const char *link, size_t addr);
   virtual void query_library (const char *data) = 0;
   virtual void query_plt (const char *link, size_t addr) = 0;
 
@@ -2296,9 +2296,8 @@ struct plt_expanding_visitor: public var_expanding_visitor
 
 
 void
-base_query::query_plt_callback (void *q, const char *entry, size_t address)
+base_query::query_plt_callback (base_query *me, const char *entry, size_t address)
 {
-  base_query *me = (base_query*)q;
   if (me->dw.function_name_matches_pattern (entry, me->plt_val))
     me->query_plt (entry, address);
   me->dw.mod_info->plt_funcs.insert(entry);
