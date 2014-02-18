@@ -36,6 +36,7 @@ struct inline_instance_info;
 struct symbol_table;
 struct base_query;
 struct dwarf_query;
+struct external_function_query;
 
 enum line_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
 enum info_status { info_unknown, info_present, info_absent };
@@ -203,20 +204,52 @@ struct dwflpp
   bool function_name_matches(const std::string& pattern);
   bool function_scope_matches(const std::vector<std::string>& scopes);
 
-  void iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
-                                             const char *, Dwarf_Addr,
-                                             void *),
-                            void *data);
+  template<typename T>
+  void iterate_over_modules(int (* callback)(Dwfl_Module*,
+                                             void**,
+                                             const char*,
+                                             Dwarf_Addr,
+                                             T*),
+                            T *data)
+    {
+      /* We're using templates here to enforce type-safety between the data arg
+       * we're requested to pass to callback, and the data arg that the callback
+       * actually takes. Rather than putting the implementation here, we simply
+       * call the <void> specialization, which does the real work.
+       *    As a result, we need to cast the data arg in the callback signature
+       * and the one passed to void* (which is what elfutils also works with).
+       * */
+      iterate_over_modules<void>((int (*)(Dwfl_Module*,
+                                          void**,
+                                          const char*,
+                                          Dwarf_Addr,
+                                          void *))callback,
+                                  (void*)data);
+    }
 
-  void iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
-                         void * data, bool want_types);
+  template<typename T>
+  void iterate_over_cus(int (* callback)(Dwarf_Die*, T*),
+                        T *data,
+                        bool want_types)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_cus<void>((int (*)(Dwarf_Die*, void*))callback,
+                             (void*)data,
+                             want_types);
+    }
 
   bool func_is_inline();
 
   bool func_is_exported();
 
-  void iterate_over_inline_instances (int (* callback)(Dwarf_Die * die, void * arg),
-                                      void * data);
+  template<typename T>
+  void iterate_over_inline_instances(int (* callback)(Dwarf_Die*, T*),
+                                     T *data)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_inline_instances<void>((int (*)(Dwarf_Die*, void*))callback,
+                                          (void*)data);
+    }
 
   std::vector<Dwarf_Die> getscopes_die(Dwarf_Die* die);
   std::vector<Dwarf_Die> getscopes(Dwarf_Die* die);
@@ -226,56 +259,130 @@ struct dwflpp
   Dwarf_Die *declaration_resolve(const std::string& name);
   Dwarf_Die *declaration_resolve_other_cus(const std::string& name);
 
-  int iterate_over_functions (int (* callback)(Dwarf_Die *, void *),
-                              void * arg, const std::string& function);
+  template<typename T>
+  int iterate_over_functions (int (* callback)(Dwarf_Die*, T*),
+                              T *data, const std::string& function)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_functions<void>((int (*)(Dwarf_Die*, void*))callback,
+                                          (void*)data, function);
+    }
 
-  int iterate_single_function (int (* callback)(Dwarf_Die * func, void * arg),
-                               void * arg, const std::string& function);
+  template<typename T>
+  int iterate_single_function (int (* callback)(Dwarf_Die*, T*),
+                               T *data, const std::string& function)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_single_function<void>((int (*)(Dwarf_Die*, void*))callback,
+                                           (void*)data, function);
+    }
 
+  template<typename T>
+  int iterate_over_notes (T *object,
+			  void (* callback)(T*, int, const char*, size_t))
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_notes<void>((void*)object,
+                                      (void (*)(void*,
+                                                int,
+                                                const char*,
+                                                size_t))callback);
+    }
+
+  template<typename T>
+  void iterate_over_libraries (void (*callback)(T*, const char*), T *data)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_libraries<void>((void (*)(void*,
+                                             const char*))callback,
+                                   (void*)data);
+    }
+
+  template<typename T>
+  int iterate_over_plt (T *object, void (*callback)(T*, const char*, size_t))
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_plt<void>((void*)object,
+                                    (void (*)(void*,
+                                              const char*,
+                                              size_t))callback);
+    }
+
+  template<typename T>
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
                                    bool need_single_match,
                                    enum line_t line_type,
-                                   void (* callback) (const dwarf_line_t& line,
-                                                      void * arg),
+                                   void (*callback) (const dwarf_line_t&, T*),
                                    const std::string& func_pattern,
-                                   void *data);
+                                   T *data)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_srcfile_lines<void>(srcfile,
+                                       lines,
+                                       need_single_match,
+                                       line_type,
+                                       (void (*)(const dwarf_line_t&,
+                                                 void*))callback,
+                                       func_pattern,
+                                       (void*)data);
+    }
 
+  template<typename T>
   void iterate_over_labels (Dwarf_Die *begin_die,
                             const std::string& sym,
                             const std::string& function,
-                            dwarf_query *q,
-                            void (* callback)(const std::string &,
-                                              const char *,
-                                              const char *,
+                            T *data,
+                            void (* callback)(const std::string&,
+                                              const char*,
+                                              const char*,
                                               int,
-                                              Dwarf_Die *,
+                                              Dwarf_Die*,
                                               Dwarf_Addr,
-                                              dwarf_query *));
+                                              T*))
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_labels<void>(begin_die,
+                                sym,
+                                function,
+                                (void*)data,
+                                (void (*)(const std::string&,
+                                          const char*,
+                                          const char*,
+                                          int,
+                                          Dwarf_Die*,
+                                          Dwarf_Addr,
+                                          void*))callback);
+    }
 
+  template<typename T>
   void iterate_over_callees (Dwarf_Die *begin_die,
                              const std::string& sym,
                              long recursion_depth,
-                             dwarf_query *q,
-                             void (* callback)(const char *,
-                                               const char *,
+                             T *data,
+                             void (* callback)(const char*,
+                                               const char*,
                                                int,
-                                               Dwarf_Die *,
+                                               Dwarf_Die*,
                                                Dwarf_Addr,
                                                std::stack<Dwarf_Addr>*,
-                                               dwarf_query *),
-                             std::stack<Dwarf_Addr>*callers=NULL);
-
-  int iterate_over_notes (void *object,
-			  void (*callback)(void *object, int type,
-					   const char *data, size_t len));
-
-  void iterate_over_libraries (void (*callback)(void *object,
-      const char *data), void *data);
-
-
-  int iterate_over_plt (void *object,
-			  void (*callback)(void *object, const char *name, size_t address));
+                                               T*),
+                             std::stack<Dwarf_Addr>*callers=NULL)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_callees<void>(begin_die,
+                                 sym,
+                                 recursion_depth,
+                                 (void*)data,
+                                 (void (*)(const char*,
+                                           const char*,
+                                           int,
+                                           Dwarf_Die*,
+                                           Dwarf_Addr,
+                                           std::stack<Dwarf_Addr>*,
+                                           void*))callback,
+                                 callers);
+    }
 
   GElf_Shdr * get_section(std::string section_name, GElf_Shdr *shdr_mem,
                           Elf **elf_ret=NULL);
@@ -377,21 +484,49 @@ private:
    */
   mod_cu_type_cache_t global_alias_cache;
   static int global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
-                                           const std::string& prefix, void *arg);
-  static int global_alias_caching_callback_cus(Dwarf_Die *die, void *arg);
-  static int iterate_over_globals (Dwarf_Die *,
-                                   int (* callback)(Dwarf_Die *, bool,
-                                                    const std::string&, void *),
-                                   void * data);
-  static int iterate_over_types (Dwarf_Die *, bool, const std::string&,
-                                 int (* callback)(Dwarf_Die *, bool,
-                                                  const std::string&, void *),
-                                 void * data);
+                                           const std::string& prefix, cu_type_cache_t *cache);
+  static int global_alias_caching_callback_cus(Dwarf_Die *die, dwflpp *dw);
 
-  static int mod_function_caching_callback (Dwarf_Die* func, void *arg);
-  static int cu_function_caching_callback (Dwarf_Die* func, void *arg);
-  static int external_function_cu_callback (Dwarf_Die* cu, void *arg);
-  static int external_function_func_callback (Dwarf_Die* func, void *arg);
+  template<typename T>
+  static int iterate_over_globals (Dwarf_Die *cu_die,
+                                   int (* callback)(Dwarf_Die*,
+                                                    bool,
+                                                    const std::string&,
+                                                    T*),
+                                   T *data)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_globals<void>(cu_die,
+                                        (int (*)(Dwarf_Die*,
+                                                 bool,
+                                                 const std::string&,
+                                                 void*))callback,
+                                        (void*)data);
+    }
+
+  template<typename T>
+  static int iterate_over_types (Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const std::string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const std::string&,
+                                                  T*),
+                                 T *data)
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_types<void>(top_die, has_inner_types, prefix,
+                                      (int (*)(Dwarf_Die*,
+                                               bool,
+                                               const std::string&,
+                                               void*))callback,
+                                      (void*)data);
+    }
+
+  static int mod_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
+  static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
+  static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
+  static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
@@ -474,6 +609,91 @@ private:
 public:
   Dwarf_Addr pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* var);
 };
+
+// Template <void> specializations for iterate_over_* functions
+
+template<> void
+dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
+                                                   void**,
+                                                   const char*,
+                                                   Dwarf_Addr,
+                                                   void*),
+                                   void *data);
+template<> void
+dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
+                               void *data,
+                               bool want_types);
+template<> void
+dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
+                                            void *data);
+template<> int
+dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
+                                     void *data, const std::string& function);
+template<> int
+dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
+                                      void *data, const std::string& function);
+template<> int
+dwflpp::iterate_over_globals<void>(Dwarf_Die *cu_die,
+                                   int (*callback)(Dwarf_Die*,
+                                                   bool,
+                                                   const std::string&,
+                                                   void*),
+                                   void *data);
+template<> int
+dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const std::string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const std::string&,
+                                                  void*),
+                                 void *data);
+template<> int
+dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                int,
+                                                                const char*,
+                                                                size_t));
+template<> void
+dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
+                                     void *data);
+template<> int
+dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
+                                                              const char*,
+                                                              size_t));
+template<> void
+dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
+                                         int lines[2],
+                                         bool need_single_match,
+                                         enum line_t line_type,
+                                         void (* callback) (const dwarf_line_t& line,
+                                                            void * arg),
+                                         const std::string& func_pattern,
+                                         void *data);
+template<> void
+dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
+                                  const std::string& sym,
+                                  const std::string& function,
+                                  void *data,
+                                  void (* callback)(const std::string&,
+                                                    const char*,
+                                                    const char*,
+                                                    int,
+                                                    Dwarf_Die*,
+                                                    Dwarf_Addr,
+                                                    void*));
+template<> void
+dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
+                                   const std::string& sym,
+                                   long recursion_depth,
+                                   void *data,
+                                   void (* callback)(const char*,
+                                                     const char*,
+                                                     int,
+                                                     Dwarf_Die*,
+                                                     Dwarf_Addr,
+                                                     std::stack<Dwarf_Addr>*,
+                                                     void*),
+                                   std::stack<Dwarf_Addr> *callers);
 
 #endif // DWFLPP_H
 
