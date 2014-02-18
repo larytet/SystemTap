@@ -76,8 +76,12 @@ static unsigned long _stp_umodule_relocate(const char *path,
     struct _stp_module *m = _stp_modules[i];
 
     if (strcmp(path, m->path)
-	|| m->num_sections != 1
-	|| strcmp(m->sections[0].name, ".dynamic"))
+        || m->num_sections != 1)
+      continue;
+
+    if (!strcmp(m->sections[0].name, ".absolute"))
+      return offset;
+    if (strcmp(m->sections[0].name, ".dynamic"))
       continue;
 
     if (stap_find_vma_map_info_user(tsk->group_leader, m,

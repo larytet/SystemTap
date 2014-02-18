@@ -14,8 +14,6 @@ proc checker { TEST EXE EXP } {
 		set STR "parse error:"
 	} else {
 		set cmd "staprun -C always"
-		# build-tree staprun is not in $PATH
-		if {![installtest_p]} then { untested $test; return }
 		set STR "ERROR:"
 	}
 
@@ -72,9 +70,15 @@ proc stap_check_parse { TEST ENV EXP } {
 	set env(SYSTEMTAP_COLORS) "$ENV"
 	verbose -log "SYSTEMTAP_COLORS set to \"$env(SYSTEMTAP_COLORS)\""
 
-	# Test stap and staprun
-	checker "$TEST" "stap"    "$EXP"
-	checker "$TEST" "staprun" "$EXP"
+	# Test stap
+	checker "$TEST" "stap" "$EXP"
+
+	# Test staprun if installcheck
+	if {[installtest_p]} {
+		checker "$TEST" "staprun" "$EXP"
+	} else {
+		untested "$test ($TEST - staprun)"
+	}
 }
 
 stap_check_parse "empty"	"" ""

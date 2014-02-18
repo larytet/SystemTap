@@ -390,11 +390,13 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
                            dwfl_ptr.get()->dwfl);
 }
 
-void
-dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
-                                              const char *, Dwarf_Addr,
-                                              void *),
-                             void *data)
+template<> void
+dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
+                                                   void**,
+                                                   const char*,
+                                                   Dwarf_Addr,
+                                                   void*),
+                                   void *data)
 {
   dwfl_getmodules (dwfl_ptr.get()->dwfl, callback, data, 0);
 
@@ -409,9 +411,10 @@ dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
 }
 
 
-void
-dwflpp::iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
-                          void * data, bool want_types)
+template<> void
+dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
+                               void *data,
+                               bool want_types)
 {
   get_module_dwarf(false);
   Dwarf *dw = module_dwarf;
@@ -558,9 +561,9 @@ dwflpp::cache_inline_instances (Dwarf_Die* die)
 }
 
 
-void
-dwflpp::iterate_over_inline_instances (int (* callback)(Dwarf_Die * die, void * arg),
-                                       void * data)
+template<> void
+dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
+                                            void *data)
 {
   assert (function);
   assert (func_is_inline ());
@@ -836,9 +839,8 @@ has_only_decl_members (Dwarf_Die *die)
 
 int
 dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
-                                      const string& prefix, void *arg)
+                                      const string& prefix, cu_type_cache_t *cache)
 {
-  cu_type_cache_t *cache = static_cast<cu_type_cache_t*>(arg);
   const char *name = dwarf_diename(die);
 
   if (!name || dwarf_hasattr(die, DW_AT_declaration)
@@ -850,7 +852,7 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
                           || tag == DW_TAG_structure_type
                           || tag == DW_TAG_class_type))
     iterate_over_types(die, has_inner_types, prefix + name + "::",
-                       global_alias_caching_callback, arg);
+                       global_alias_caching_callback, cache);
 
   if (tag != DW_TAG_namespace)
     {
@@ -863,10 +865,10 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
 }
 
 int
-dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, void *arg)
+dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, dwflpp *dw)
 {
   mod_cu_type_cache_t *global_alias_cache;
-  global_alias_cache = &static_cast<dwflpp *>(arg)->global_alias_cache;
+  global_alias_cache = &dw->global_alias_cache;
 
   cu_type_cache_t *v = (*global_alias_cache)[die->addr];
   if (v != 0)
@@ -932,9 +934,8 @@ dwflpp::declaration_resolve(Dwarf_Die *type)
 
 
 int
-dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
+dwflpp::cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v)
 {
-  cu_function_cache_t* v = static_cast<cu_function_cache_t*>(arg);
   const char *name = dwarf_diename(func);
   if (!name)
     return DWARF_CB_OK;
@@ -945,16 +946,18 @@ dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
 
 
 int
-dwflpp::mod_function_caching_callback (Dwarf_Die* cu, void *arg)
+dwflpp::mod_function_caching_callback (Dwarf_Die* cu, cu_function_cache_t *v)
 {
-  dwarf_getfuncs (cu, cu_function_caching_callback, arg, 0);
+  // need to cast callback to func which accepts void*
+  dwarf_getfuncs (cu, (int (*)(Dwarf_Die*, void*))cu_function_caching_callback,
+                  v, 0);
   return DWARF_CB_OK;
 }
 
 
-int
-dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
-                                base_query * q, const string& function)
+template<> int
+dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
+                                     void *data, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -965,7 +968,9 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
     {
       v = new cu_function_cache_t;
       cu_function_cache[cu->addr] = v;
-      dwarf_getfuncs (cu, cu_function_caching_callback, v, 0);
+      // need to cast callback to func which accepts void*
+      dwarf_getfuncs (cu, (int (*)(Dwarf_Die*, void*))cu_function_caching_callback,
+                      v, 0);
       if (sess.verbose > 4)
         clog << _F("function cache %s:%s size %zu", module_name.c_str(),
                    cu_name().c_str(), v->size()) << endl;
@@ -982,7 +987,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
           if (sess.verbose > 4)
             clog << _F("function cache %s:%s hit %s", module_name.c_str(),
                        cu_name().c_str(), function.c_str()) << endl;  
-          rc = (*callback)(& die, q);
+          rc = (*callback)(& die, data);
           if (rc != DWARF_CB_OK) break;
         }
     }
@@ -1005,7 +1010,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
                 clog << _F("function cache %s:%s match %s vs %s", module_name.c_str(),
                            cu_name().c_str(), linkage_name, function.c_str()) << endl;
 
-              rc = (*callback)(& die, q);
+              rc = (*callback)(& die, data);
               if (rc != DWARF_CB_OK) break;
             }
         }
@@ -1023,7 +1028,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
                 clog << _F("function cache %s:%s match %s vs %s", module_name.c_str(),
                            cu_name().c_str(), func_name.c_str(), function.c_str()) << endl;
 
-              rc = (*callback)(& die, q);
+              rc = (*callback)(& die, data);
               if (rc != DWARF_CB_OK) break;
             }
         }
@@ -1036,9 +1041,9 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
 }
 
 
-int
-dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query * q),
-                                 base_query * q, const string& function)
+template<> int
+dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
+                                      void *data, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -1074,7 +1079,7 @@ dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query *
           // since we're iterating out of cu-context, we need each focus
           focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
-          rc = (*callback)(& die, q);
+          rc = (*callback)(& die, data);
           if (rc != DWARF_CB_OK) break;
         }
     }
@@ -1090,11 +1095,13 @@ dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query *
 
 /* This basically only goes one level down from the compile unit so it
  * only picks up top level stuff (i.e. nothing in a lower scope) */
-int
-dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
-                              int (* callback)(Dwarf_Die *, bool,
-                                               const string&, void *),
-                              void * data)
+template<> int
+dwflpp::iterate_over_globals<void>(Dwarf_Die *cu_die,
+                                   int (*callback)(Dwarf_Die*,
+                                                   bool,
+                                                   const string&,
+                                                   void*),
+                                   void *data)
 {
   assert (cu_die);
   assert (dwarf_tag(cu_die) == DW_TAG_compile_unit
@@ -1112,14 +1119,15 @@ dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
   return iterate_over_types(cu_die, has_inner_types, "", callback, data);
 }
 
-
-int
-dwflpp::iterate_over_types (Dwarf_Die *top_die,
-                            bool has_inner_types,
-                            const string& prefix,
-                            int (* callback)(Dwarf_Die *, bool,
-                                             const string&, void *),
-                            void * data)
+template<> int
+dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const string&,
+                                                  void*),
+                                 void *data)
 {
   int rc = DWARF_CB_OK;
   Dwarf_Die die, import;
@@ -1163,8 +1171,11 @@ dwflpp::iterate_over_types (Dwarf_Die *top_die,
  * 'data' for the notes buffer and pass 'object' back in case
  * 'callback' is a method */
 
-int
-dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int type, const char *data, size_t len))
+template<> int
+dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                int,
+                                                                const char*,
+                                                                size_t))
 {
   Dwarf_Addr bias;
   // Note we really want the actual elf file, not the dwarf .debug file.
@@ -1209,8 +1220,9 @@ dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int typ
 /* For each entry in the .dynamic section in the current module call 'callback'
  * returning 'object' in case 'callback' is a method */
 
-void
-dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg), void *q)
+template<> void
+dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
+                                     void *data)
 {
   std::set<std::string> added;
   string interpreter;
@@ -1330,7 +1342,7 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
       it++)
     {
       string modname = *it;
-      (callback) (q, modname.c_str());
+      (callback) (data, modname.c_str());
     }
 }
 
@@ -1338,8 +1350,10 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
 /* For each plt section in the current module call 'callback', pass the plt entry
  * 'address' and 'name' back, and pass 'object' back in case 'callback' is a method */
 
-int
-dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const char *name, size_t addr))
+template<> int
+dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
+                                                              const char*,
+                                                              size_t))
 {
   Dwarf_Addr load_addr;
   // Note we really want the actual elf file, not the dwarf .debug file.
@@ -1532,18 +1546,20 @@ dwflpp::has_single_line_record (dwarf_query * q, char const * srcfile, int linen
 }
 
 
-void
-dwflpp::iterate_over_srcfile_lines (char const * srcfile,
-                                    int lines[2],
-                                    bool need_single_match,
-                                    enum line_t line_type,
-                                    void (* callback) (const dwarf_line_t& line,
-                                                       void * arg),
-                                    const std::string& func_pattern,
-                                    void *data)
+template<> void
+dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
+                                         int lines[2],
+                                         bool need_single_match,
+                                         enum line_t line_type,
+                                         void (* callback) (const dwarf_line_t& line,
+                                                            void * arg),
+                                         const std::string& func_pattern,
+                                         void *data)
 {
   Dwarf_Line **srcsp = NULL;
   size_t nsrcs = 0;
+  // XXX: MUST GET RID OF THIS (see also comment block before
+  // has_single_line_record())
   dwarf_query * q = static_cast<dwarf_query *>(data);
   int lineno = lines[0];
   auto_free_ref<Dwarf_Line**> free_srcsp(srcsp);
@@ -1705,18 +1721,18 @@ dwflpp::iterate_over_srcfile_lines (char const * srcfile,
 }
 
 
-void
-dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
-                             const string& sym,
-                             const string& function,
-                             dwarf_query *q,
-                             void (* callback)(const string &,
-                                               const char *,
-                                               const char *,
-                                               int,
-                                               Dwarf_Die *,
-                                               Dwarf_Addr,
-                                               dwarf_query *))
+template<> void
+dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
+                                  const string& sym,
+                                  const string& function,
+                                  void *data,
+                                  void (* callback)(const string&,
+                                                    const char*,
+                                                    const char*,
+                                                    int,
+                                                    Dwarf_Die*,
+                                                    Dwarf_Addr,
+                                                    void*))
 {
   get_module_dwarf();
 
@@ -1760,7 +1776,7 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
                                                 lex_cast_hex(dwarf_dieoffset(&scope)).c_str()));
                         }
                       callback(function, name, file, dline,
-                               &scope, stmt_addr, q);
+                               &scope, stmt_addr, data);
                     }
                 }
             }
@@ -1775,16 +1791,218 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
 	  // Iterate over the children of the imported unit as if they
 	  // were inserted in place.
 	  if (dwarf_attr_die(&die, DW_AT_import, &import))
-	    iterate_over_labels (&import, sym, function, q, callback);
+	    iterate_over_labels (&import, sym, function, data, callback);
 	  break;
 
         default:
           if (dwarf_haschildren (&die))
-            iterate_over_labels (&die, sym, function, q, callback);
+            iterate_over_labels (&die, sym, function, data, callback);
           break;
         }
     }
   while (dwarf_siblingof (&die, &die) == 0);
+}
+
+// Mini 'query-like' struct to help us navigate callbacks during
+// external function resolution
+struct external_function_query {
+  dwflpp* dw;
+  const char* name;
+  Dwarf_Die die;
+  Dwarf_Addr addr;
+  bool resolved;
+  external_function_query(dwflpp* dw, const char* name):
+    dw(dw), name(name), resolved(false) {}
+};
+
+int
+dwflpp::external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq)
+{
+  efq->dw->focus_on_cu(cu);
+  return efq->dw->iterate_over_functions(external_function_func_callback,
+                                         efq, efq->name);
+}
+
+int
+dwflpp::external_function_func_callback (Dwarf_Die* func, external_function_query *efq)
+{
+  Dwarf_Attribute external;
+  Dwarf_Addr func_addr;
+  if (dwarf_attr_integrate(func, DW_AT_external, &external) != NULL &&
+      dwarf_lowpc(func, &func_addr) == 0)
+    {
+      efq->die = *func;
+      efq->addr = func_addr;
+      efq->resolved = true;
+      return DWARF_CB_ABORT; // we found it so stop here
+    }
+  return DWARF_CB_OK;
+}
+
+template<> void
+dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
+                                   const string& sym,
+                                   long recursion_depth,
+                                   void *data,
+                                   void (* callback)(const char*,
+                                                     const char*,
+                                                     int,
+                                                     Dwarf_Die*,
+                                                     Dwarf_Addr,
+                                                     stack<Dwarf_Addr>*,
+                                                     void*),
+                                   stack<Dwarf_Addr> *callers)
+{
+  get_module_dwarf();
+
+  Dwarf_Die die, import;
+
+  // DIE of abstract_origin found in die
+  Dwarf_Die origin;
+
+  // callee's entry pc (= where we'll probe)
+  Dwarf_Addr func_addr;
+
+  // caller's unwind pc during call (to match against bt for filtering)
+  Dwarf_Addr caller_uw_addr;
+
+  Dwarf_Attribute attr;
+
+  int dline;
+  const char *name, *file;
+  if (dwarf_child(begin_die, &die) != 0)
+    return;  // die without children, bail out.
+
+  bool free_callers = false;
+  if (callers == NULL) /* first call */
+    {
+      callers = new stack<Dwarf_Addr>();
+      free_callers = true;
+    }
+
+  do
+    {
+      bool inlined = false;
+      switch (dwarf_tag(&die))
+        {
+        case DW_TAG_inlined_subroutine:
+          inlined = true;
+        case DW_TAG_GNU_call_site:
+          name = dwarf_diename (&die);
+          if (!name)
+            continue;
+          if (name != sym)
+            {
+              if (!name_has_wildcard(sym))
+                continue;
+              if (!function_name_matches_pattern(name, sym))
+                continue;
+            }
+
+          /* In both cases (call sites and inlines), we want the
+           * abstract_origin. The difference is that in inlines, the addr is
+           * in the die itself, whereas for call sites, the addr is in the
+           * abstract_origin's die.
+           *     Note that in the case of inlines, we're only calling back
+           * for that inline instance, not all. This is what we want, since
+           * it will only be triggered when 'called' from the target func,
+           * which is something we have to emulate for non-inlined funcs
+           * (which is the purpose of the caller_uw_addr below) */
+          if (dwarf_attr_die(&die, DW_AT_abstract_origin, &origin) == NULL)
+            continue;
+
+          // the low_pc of the die in either cases is the pc that would
+          // show up in a backtrace (inlines are a special case in which
+          // the die's low_pc is also the abstract_origin's low_pc = the
+          // 'start' of the inline instance)
+          if (dwarf_lowpc(&die, &caller_uw_addr) != 0)
+            continue;
+
+          if (inlined)
+            func_addr = caller_uw_addr;
+          else if (dwarf_lowpc(&origin, &func_addr) != 0)
+            {
+              // function doesn't have a low_pc, is it external?
+              if (dwarf_attr_integrate(&origin, DW_AT_external,
+                                       &attr) != NULL)
+                {
+                  // let's iterate over the CUs and find it. NB: it's
+                  // possible we could have also done this by creating a
+                  // probe point with .exported tacked on and rerunning it
+                  // through derive_probe(). But since we're already on the
+                  // dwflpp side of things, and we already have access to
+                  // everything we need, let's try to be self-sufficient.
+
+                  // remember old focus
+                  Dwarf_Die *old_cu = cu;
+
+                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: name);
+                  iterate_over_cus(external_function_cu_callback, &efq, false);
+
+                  // restore focus
+                  cu = old_cu;
+
+                  if (!efq.resolved) // did we resolve it?
+                    continue;
+
+                  func_addr = efq.addr;
+                  origin = efq.die;
+                }
+              // non-external function without low_pc, jump ship
+              else continue;
+            }
+
+          // We now have the addr to probe in func_addr, and the DIE
+          // from which to obtain file/line info in origin
+
+          // Get the file/line number for this callee
+          file = dwarf_decl_file (&origin) ?: "<unknown source>";
+          dwarf_decl_line (&origin, &dline);
+
+          // add as a caller to match against
+          if (!inlined)
+            callers->push(caller_uw_addr);
+
+          callback(name, file, dline, inlined ? &die : &origin,
+                   func_addr, callers, data);
+
+          // If it's a tail call, print a warning that it may not be caught
+          if (!inlined
+              && dwarf_attr_integrate(&die, DW_AT_GNU_tail_call, &attr) != NULL)
+            sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
+                                   ".callee probe may not fire. Try placing the probe "
+                                   "directly on the callee function instead.", name,
+                                   dwarf_diename(begin_die)));
+
+          if (recursion_depth > 1) // .callees(N)
+            iterate_over_callees(inlined ? &die : &origin,
+                                 sym, recursion_depth-1, data,
+                                 callback, callers);
+
+          if (!inlined)
+            callers->pop();
+          break;
+
+        case DW_TAG_subprogram:
+          break; // don't leave our filtered func
+
+        case DW_TAG_imported_unit:
+          // Iterate over the children of the imported unit as if they
+          // were inserted in place.
+          if (dwarf_attr_die(&die, DW_AT_import, &import))
+            iterate_over_callees (&import, sym, recursion_depth, data, callback, callers);
+          break;
+
+        default:
+          if (dwarf_haschildren (&die))
+            iterate_over_callees (&die, sym, recursion_depth, data, callback, callers);
+          break;
+        }
+    }
+  while (dwarf_siblingof (&die, &die) == 0);
+
+  if (free_callers && callers != NULL)
+    delete callers;
 }
 
 

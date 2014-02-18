@@ -37,6 +37,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <stack>
 #include <cstdarg>
 #include <cassert>
 #include <iomanip>
@@ -402,8 +403,10 @@ static const string TOK_LIBRARY("library");
 static const string TOK_PLT("plt");
 static const string TOK_METHOD("method");
 static const string TOK_CLASS("class");;
+static const string TOK_CALLEE("callee");;
+static const string TOK_CALLEES("callees");;
 
-static int query_cu (Dwarf_Die * cudie, void * arg);
+static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
 static void query_plt_statement(dwarf_query *q);
 
@@ -626,8 +629,8 @@ struct base_query
 			       string const & k, long & v);
   static bool get_number_param(literal_map_t const & params,
 			       string const & k, Dwarf_Addr & v);
-  static void query_library_callback (void *object, const char *data);
-  static void query_plt_callback (void *object, const char *link, size_t addr);
+  static void query_library_callback (base_query *me, const char *data);
+  static void query_plt_callback (base_query *me, const char *link, size_t addr);
   virtual void query_library (const char *data) = 0;
   virtual void query_plt (const char *link, size_t addr) = 0;
 
@@ -784,6 +787,13 @@ struct dwarf_query : public base_query
   // NB: this can't be compared just by entrypc, as inlines can overlap
   set<inline_instance_info> inline_dupes;
 
+  // Used in .callee[s] probes, when calling iterate_over_callees() (which
+  // provides the actual stack). Retains the addrs of the callers unwind addr
+  // where the callee is found. Specifies multiple callers. E.g. when a callee
+  // at depth 2 is found, callers[1] has the addr of the caller, and callers[0]
+  // has the addr of the caller's caller.
+  stack<Dwarf_Addr> *callers;
+
   // Extracted parameters.
   string function_val;
 
@@ -806,6 +816,12 @@ struct dwarf_query : public base_query
 
   bool has_label;
   string label_val;
+
+  bool has_callee;
+  string callee_val;
+
+  bool has_callees_num;
+  long callees_num_val;
 
   bool has_relative;
   long relative_val;
@@ -901,10 +917,10 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 vector<derived_probe *> & results,
 			 const string user_path,
 			 const string user_lib)
-  : base_query(dw, params), results(results),
-    base_probe(base_probe), base_loc(base_loc),
-    user_path(user_path), user_lib(user_lib), has_relative(false),
-    relative_val(0), choose_next_line(false), entrypc_for_next_line(0)
+  : base_query(dw, params), results(results), base_probe(base_probe),
+    base_loc(base_loc), user_path(user_path), user_lib(user_lib),
+    callers(NULL), has_relative(false), relative_val(0),
+    choose_next_line(false), entrypc_for_next_line(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
@@ -915,6 +931,19 @@ dwarf_query::dwarf_query(probe * base_probe,
   has_statement_num = get_number_param(params, TOK_STATEMENT, statement_num_val);
 
   has_label = get_string_param(params, TOK_LABEL, label_val);
+  has_callee = get_string_param(params, TOK_CALLEE, callee_val);
+  if (has_null_param(params, TOK_CALLEES))
+    { // .callees ==> .callees(1) (also equivalent to .callee("*"))
+      has_callees_num = true;
+      callees_num_val = 1;
+    }
+  else
+    {
+      has_callees_num = get_number_param(params, TOK_CALLEES, callees_num_val);
+      if (has_callees_num && callees_num_val < 1)
+        throw SEMANTIC_ERROR(_(".callees(N) only acceptable for N >= 1"),
+                             base_probe->tok);
+    }
 
   has_call = has_null_param(params, TOK_CALL);
   has_exported = has_null_param(params, TOK_EXPORTED);
@@ -1296,7 +1325,7 @@ dwarf_query::assess_dbinfo_reqt()
       // kernel.statement(NUM).absolute
       return dbr_none;
     }
-  if (has_inline || has_label)
+  if (has_inline || has_label || has_callee || has_callees_num)
     {
       // kernel.function("f").inline or module("m").function("f").inline
       return dbr_need_dwarf;
@@ -1549,6 +1578,20 @@ query_label (string const & func,
 }
 
 static void
+query_callee (char const * callee,
+              char const * file,
+              int line,
+              Dwarf_Die *callee_die,
+              Dwarf_Addr callee_addr,
+              stack<Dwarf_Addr> *callers,
+              dwarf_query * q)
+{
+  assert (q->has_function_str);
+  q->callers = callers;
+  query_statement(callee, file, line, callee_die, callee_addr, q);
+}
+
+static void
 query_inline_instance_info (inline_instance_info & ii,
 			    dwarf_query * q)
 {
@@ -1608,10 +1651,8 @@ query_func_info (Dwarf_Addr entrypc,
 
 
 static void
-query_srcfile_label (const dwarf_line_t& line, void * arg)
+query_srcfile_label (const dwarf_line_t& line, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
-
   Dwarf_Addr addr = line.addr();
 
   for (func_info_map_t::iterator i = q->filtered_functions.begin();
@@ -1628,10 +1669,8 @@ query_srcfile_label (const dwarf_line_t& line, void * arg)
 }
 
 static void
-query_srcfile_line (const dwarf_line_t& line, void * arg)
+query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
-
   Dwarf_Addr addr = line.addr();
 
   int lineno = line.lineno();
@@ -1702,9 +1741,8 @@ inline_instance_info::operator<(const inline_instance_info& other) const
 
 
 static int
-query_dwarf_inline_instance (Dwarf_Die * die, void * arg)
+query_dwarf_inline_instance (Dwarf_Die * die, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
   assert (q->has_statement_str || q->has_function_str);
   assert (!q->has_call && !q->has_return && !q->has_exported);
 
@@ -1738,9 +1776,8 @@ query_dwarf_inline_instance (Dwarf_Die * die, void * arg)
 }
 
 static int
-query_dwarf_func (Dwarf_Die * func, base_query * bq)
+query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(bq);
   assert (q->has_statement_str || q->has_function_str);
 
   // weed out functions whose decl_file isn't one of
@@ -1805,9 +1842,8 @@ query_dwarf_func (Dwarf_Die * func, base_query * bq)
 }
 
 static int
-query_cu (Dwarf_Die * cudie, void * arg)
+query_cu (Dwarf_Die * cudie, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
   assert (q->has_statement_str || q->has_function_str);
 
   if (pending_interrupts) return DWARF_CB_ABORT;
@@ -1866,7 +1902,7 @@ query_cu (Dwarf_Die * cudie, void * arg)
 
           // If we have a pattern string with target *line*, we
           // have to look at lines in all the matched srcfiles.
-          void (* callback) (const dwarf_line_t&, void*) =
+          void (* callback) (const dwarf_line_t&, dwarf_query*) =
             q->has_label ? query_srcfile_label : query_srcfile_line;
           for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
                i != q->filtered_srcfiles.end(); ++i)
@@ -1884,6 +1920,38 @@ query_cu (Dwarf_Die * cudie, void * arg)
                i != q->filtered_inlines.end(); ++i)
             q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
                                        q, query_label);
+        }
+      else if (q->has_callee || q->has_callees_num)
+        {
+          // .callee(str) --> str, .callees[(N)] --> "*"
+          string callee_val = q->has_callee ? q->callee_val : "*";
+          long callees_num_val = q->has_callees_num ? q->callees_num_val : 1;
+
+          // NB: We filter functions that do not match the file here rather than
+          // in query_callee because we only want the filtering to apply to the
+          // first level, not to callees that are recursed into if
+          // callees_num_val > 1.
+          for (func_info_map_t::iterator i = q->filtered_functions.begin();
+               i != q->filtered_functions.end(); ++i)
+            {
+              if (q->spec_type != function_alone &&
+                  q->filtered_srcfiles.count(i->decl_file) == 0)
+                continue;
+              q->dw.iterate_over_callees (&i->die, callee_val,
+                                          callees_num_val,
+                                          q, query_callee);
+            }
+
+          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
+               i != q->filtered_inlines.end(); ++i)
+            {
+              if (q->spec_type != function_alone &&
+                  q->filtered_srcfiles.count(i->decl_file) == 0)
+                continue;
+              q->dw.iterate_over_callees (&i->die, callee_val,
+                                          callees_num_val,
+                                          q, query_callee);
+            }
         }
       else
         {
@@ -2064,10 +2132,8 @@ query_module (Dwfl_Module *mod,
               void **,
 	      const char *name,
               Dwarf_Addr addr,
-	      void *arg)
+	      base_query *q)
 {
-  base_query *q = static_cast<base_query *>(arg);
-
   try
     {
       module_info* mi = q->sess.module_cache->cache[name];
@@ -2164,9 +2230,8 @@ query_module (Dwfl_Module *mod,
 
 
 void
-base_query::query_library_callback (void *q, const char *data)
+base_query::query_library_callback (base_query *me, const char *data)
 {
-  base_query *me = (base_query*)q;
   me->query_library (data);
 }
 
@@ -2227,9 +2292,8 @@ struct plt_expanding_visitor: public var_expanding_visitor
 
 
 void
-base_query::query_plt_callback (void *q, const char *entry, size_t address)
+base_query::query_plt_callback (base_query *me, const char *entry, size_t address)
 {
-  base_query *me = (base_query*)q;
   if (me->dw.function_name_matches_pattern (entry, me->plt_val))
     me->query_plt (entry, address);
   me->dw.mod_info->plt_funcs.insert(entry);
@@ -4132,7 +4196,7 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 	}
 
       dwarf_cast_query q (*dw, module, *e, lvalue, userspace_p, result);
-      dw->iterate_over_modules(&query_module, &q);
+      dw->iterate_over_modules<base_query>(&query_module, &q);
     }
 
   if (!result)
@@ -4187,15 +4251,13 @@ struct dwarf_atvar_query: public base_query
   void handle_query_module ();
   void query_library (const char *) {}
   void query_plt (const char *entry, size_t addr) {}
-  static int atvar_query_cu (Dwarf_Die *cudie, void *data);
+  static int atvar_query_cu (Dwarf_Die *cudie, dwarf_atvar_query *q);
 };
 
 
 int
-dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, void * data)
+dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
 {
-  dwarf_atvar_query * q = static_cast<dwarf_atvar_query *>(data);
-
   if (! q->e.cu_name.empty())
     {
       const char *die_name = dwarf_diename(cudie) ?: "";
@@ -4303,7 +4365,7 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
         }
 
       dwarf_atvar_query q (*dw, module, *e, userspace_p, lvalue, result, tick);
-      dw->iterate_over_modules(&query_module, &q);
+      dw->iterate_over_modules<base_query>(&query_module, &q);
 
       if (result)
         {
@@ -4620,6 +4682,72 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   // Overwrite it.
   this->sole_location()->components = comps;
+
+  // if it's a .callee[s[(N)]] call, add checks to the probe body so that the
+  // user body is only 'triggered' when called from q.callers[N-1], which
+  // itself is called from q.callers[N-2], etc... I.E.
+  // callees(N) --> N elements in q.callers --> N checks against [u]stack(0..N-1)
+  if ((q.has_callee || q.has_callees_num) && q.callers && !q.callers->empty())
+    {
+      if (q.sess.verbose > 2)
+        clog << "adding caller checks for callee " << funcname << endl;
+
+      // Copy the stack and empty it out
+      stack<Dwarf_Addr> callers(*q.callers);
+      for (unsigned level = 1; !callers.empty(); level++,
+                                                 callers.pop())
+        {
+          Dwarf_Addr caller = callers.top();
+
+          // We first need to make the caller addr relocatable
+          string caller_section;
+          Dwarf_Addr caller_reloc;
+          if (module == TOK_KERNEL)
+            { // allow for relocatable kernel (see also add_probe_point())
+              caller_reloc = caller - q.sess.sym_stext;
+              caller_section = "_stext";
+            }
+          else
+            caller_reloc = q.dw.relocate_address(caller,
+                                                 caller_section);
+
+          if (q.sess.verbose > 2)
+            clog << "adding caller check [u]stack(" << level << ") == "
+                 << "reloc(0x" << hex << caller_reloc << dec << ")" << endl;
+
+          // We want to add a statement like this:
+          // if (!caller_match(user, mod, sec, addr)) next;
+          // Something similar is done in semantic_pass_conditions()
+
+          functioncall* check = new functioncall();
+          check->tok = this->tok;
+          check->function = "caller_match";
+          check->args.push_back(new literal_number(q.has_process));
+          check->args[0]->tok = this->tok;
+          check->args.push_back(new literal_number(level));
+          check->args[1]->tok = this->tok;
+          check->args.push_back(new literal_string(module));
+          check->args[2]->tok = this->tok;
+          check->args.push_back(new literal_string(caller_section));
+          check->args[3]->tok = this->tok;
+          check->args.push_back(new literal_number(caller_reloc, true /* hex */));
+          check->args[4]->tok = this->tok;
+
+          unary_expression* notexp = new unary_expression();
+          notexp->tok = this->tok;
+          notexp->op = "!";
+          notexp->operand = check;
+
+          if_statement* ifs = new if_statement();
+          ifs->tok = this->tok;
+          ifs->thenblock = new next_statement();
+          ifs->thenblock->tok = this->tok;
+          ifs->elseblock = NULL;
+          ifs->condition = notexp;
+
+          this->body = new block(ifs, this->body);
+        }
+    }
 }
 
 
@@ -4837,6 +4965,15 @@ dwarf_derived_probe::register_function_and_statement_variants(
     ->bind_privilege(privilege)
     ->bind(dw);
   fv_root->bind_str(TOK_LABEL)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind_str(TOK_CALLEE)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind(TOK_CALLEES)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind_num(TOK_CALLEES)
     ->bind_privilege(privilege)
     ->bind(dw);
 
@@ -6270,7 +6407,10 @@ private:
   void iterate_over_probe_entries();
   void handle_probe_entry();
 
-  static void setup_note_probe_entry_callback (void *object, int type, const char *data, size_t len);
+  static void setup_note_probe_entry_callback (sdt_query *me,
+                                               int type,
+                                               const char *data,
+                                               size_t len);
   void setup_note_probe_entry (int type, const char *data, size_t len);
 
   void convert_probe(probe *base);
@@ -6382,7 +6522,7 @@ sdt_query::handle_probe_entry()
   // V1 probes always need dwarf info
   // V2+ probes need dwarf info in case of a variable reference
   if (have_debuginfo_uprobe(need_debug_info))
-    dw.iterate_over_modules(&query_module, &q);
+    dw.iterate_over_modules<base_query>(&query_module, &q);
 
   // For V2+ probes, if variable references weren't used or failed (PR14369),
   // then try with the more direct approach.  Unresolved $vars might still
@@ -6442,7 +6582,7 @@ sdt_query::handle_query_module()
       else
 	base = semaphore_load_offset = 0;
 
-      dw.iterate_over_notes ((void*) this, &sdt_query::setup_note_probe_entry_callback);
+      dw.iterate_over_notes (this, &sdt_query::setup_note_probe_entry_callback);
     }
   else if (probe_loc == probe_section)
     iterate_over_probe_entries ();
@@ -6480,9 +6620,8 @@ sdt_query::init_probe_scn()
 }
 
 void
-sdt_query::setup_note_probe_entry_callback (void *object, int type, const char *data, size_t len)
+sdt_query::setup_note_probe_entry_callback (sdt_query *me, int type, const char *data, size_t len)
 {
-  sdt_query *me = (sdt_query*)object;
   me->setup_note_probe_entry (type, data, len);
 }
 
@@ -7276,7 +7415,7 @@ dwarf_builder::build(systemtap_session & sess,
   if (get_param(parameters, TOK_MARK, dummy_mark_name))
     {
       sdt_query sdtq(base, location, *dw, filled_parameters, finished_results, user_lib);
-      dw->iterate_over_modules(&query_module, &sdtq);
+      dw->iterate_over_modules<base_query>(&query_module, &sdtq);
 
       // We need to update modules_seen with the modules we've visited
       modules_seen.insert(sdtq.visited_modules.begin(),
@@ -7325,7 +7464,7 @@ dwarf_builder::build(systemtap_session & sess,
       return;
     }
 
-  dw->iterate_over_modules(&query_module, &q);
+  dw->iterate_over_modules<base_query>(&query_module, &q);
 
   // We need to update modules_seen with the modules we've visited
   modules_seen.insert(q.visited_modules.begin(),
@@ -10228,8 +10367,8 @@ struct tracepoint_query : public base_query
   void query_library (const char *) {}
   void query_plt (const char *entry, size_t addr) {}
 
-  static int tracepoint_query_cu (Dwarf_Die * cudie, void * arg);
-  static int tracepoint_query_func (Dwarf_Die * func, base_query * query);
+  static int tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q);
+  static int tracepoint_query_func (Dwarf_Die * func, tracepoint_query * q);
 };
 
 
@@ -10275,18 +10414,16 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
 
 
 int
-tracepoint_query::tracepoint_query_cu (Dwarf_Die * cudie, void * arg)
+tracepoint_query::tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q)
 {
-  tracepoint_query * q = static_cast<tracepoint_query *>(arg);
   if (pending_interrupts) return DWARF_CB_ABORT;
   return q->handle_query_cu(cudie);
 }
 
 
 int
-tracepoint_query::tracepoint_query_func (Dwarf_Die * func, base_query * query)
+tracepoint_query::tracepoint_query_func (Dwarf_Die * func, tracepoint_query * q)
 {
-  tracepoint_query * q = static_cast<tracepoint_query *>(query);
   if (pending_interrupts) return DWARF_CB_ABORT;
   return q->handle_query_func(func);
 }
@@ -10598,7 +10735,7 @@ tracepoint_builder::build(systemtap_session& s,
 
   tracepoint_query q(*dw, tracepoint, base, location, finished_results);
   unsigned results_pre = finished_results.size();
-  dw->iterate_over_modules(&query_module, &q);
+  dw->iterate_over_modules<base_query>(&query_module, &q);
   unsigned results_post = finished_results.size();
 
   // Did we fail to find a match? Let's suggest something!
