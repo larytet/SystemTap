@@ -1,6 +1,7 @@
 /* -*- linux-c -*- 
  * time-estimation with minimal dependency on xtime
  * Copyright (C) 2006 Intel Corporation.
+ * Copyright (C) 2010-2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -25,8 +26,12 @@
    which resynchronizes our per-cpu base_ns/base_cycles values.  A
    lower rate (higher interval) is sufficient if we get cpufreq-change
    notifications. */
+#ifndef STP_TIME_SYNC_INTERVAL_NOCPUFREQ
 #define STP_TIME_SYNC_INTERVAL_NOCPUFREQ  ((HZ+9)/10) /* ten times per second */
+#endif
+#ifndef STP_TIME_SYNC_INTERVAL_CPUFREQ
 #define STP_TIME_SYNC_INTERVAL_CPUFREQ    (HZ*10)     /* once per ten seconds */
+#endif
 static int __stp_cpufreq_notifier_registered = 0;
 
 #ifndef STP_TIME_SYNC_INTERVAL
@@ -119,9 +124,11 @@ __stp_ktime_get_real_ts(struct timespec *ts)
 #endif
 }
 
-/* The timer callback is in a softIRQ -- interrupts enabled. */
-static void
-__stp_time_timer_callback(unsigned long val)
+
+/* Update this cpu's base_ns/base_cycles values.  May be called from
+   initialization or various other callback mechanisms. */
+static stp_time_t*
+__stp_time_local_update(void)
 {
     unsigned long flags;
     stp_time_t *time;
@@ -134,20 +141,47 @@ __stp_time_timer_callback(unsigned long val)
     __stp_ktime_get_real_ts(&ts);
     cycles = get_cycles();
     ns = (NSEC_PER_SEC * (int64_t)ts.tv_sec) + ts.tv_nsec;
-
     time = per_cpu_ptr(stp_time, smp_processor_id());
+
     write_seqlock(&time->lock);
     time->base_ns = ns;
     time->base_cycles = cycles;
     write_sequnlock(&time->lock);
 
     local_irq_restore(flags);
+
+    return time;
+}
+
+
+
+/* The cross-smp call. */
+static void
+__stp_time_smp_callback(void *val)
+{
+    (void) val;
+    (void) __stp_time_local_update();
+}
+
+
+/* The timer callback is in a softIRQ -- interrupts enabled. */
+static void
+__stp_time_timer_callback(unsigned long val)
+{
+    stp_time_t *time =__stp_time_local_update();
+    (void) val;
+
     /* PR6481: reenable IRQs before resetting the timer.
        XXX: The worst that can probably happen is that we get
 	    two consecutive timer resets.  */
 
     if (likely(atomic_read(session_state()) != STAP_SESSION_STOPPED))
         mod_timer(&time->timer, jiffies + STP_TIME_SYNC_INTERVAL);
+
+#ifdef DEBUG_TIME
+    _stp_warn("cpu%d %p khz=%d base=%lld cycles=%lld\n", smp_processor_id(), (void*)time, time->freq,
+              (long long)time->base_ns, (long long)time->base_cycles);
+#endif
 }
 
 /* This is called as an IPI, with interrupts disabled. */
@@ -158,10 +192,8 @@ __stp_init_time(void *info)
     stp_time_t *time = per_cpu_ptr(stp_time, smp_processor_id());
 
     seqlock_init(&time->lock);
-    __stp_ktime_get_real_ts(&ts);
-    time->base_cycles = get_cycles();
-    time->base_ns = (NSEC_PER_SEC * (int64_t)ts.tv_sec) + ts.tv_nsec;
     time->freq = __stp_get_freq();
+    __stp_time_local_update();
 
     init_timer(&time->timer);
     time->timer.expires = jiffies + STP_TIME_SYNC_INTERVAL;
@@ -185,6 +217,7 @@ __stp_time_cpufreq_callback(struct notifier_block *self,
     struct timespec ts;
     int64_t ns;
     cycles_t cycles;
+    int reset_timer_p = 0;
 
     switch (state) {
         case CPUFREQ_POSTCHANGE:
@@ -193,14 +226,24 @@ __stp_time_cpufreq_callback(struct notifier_block *self,
             freq_khz = freqs->new;
             time = per_cpu_ptr(stp_time, freqs->cpu);
             write_seqlock_irqsave(&time->lock, flags);
-            time->freq = freq_khz;
-            /* Also do the guts of __stp_time_timer_callback. */
-            __stp_ktime_get_real_ts(&ts);
-            cycles = get_cycles();
-            ns = (NSEC_PER_SEC * (int64_t)ts.tv_sec) + ts.tv_nsec;
-            time->base_ns = ns;
-            time->base_cycles = cycles;
+            if (time->freq != freq_khz) {
+                    time->freq = freq_khz;
+                    // NB: freqs->cpu may not equal smp_processor_id(),
+                    // so we can't update the subject processor's
+                    // base_ns/base_cycles values just now.
+                    reset_timer_p = 1;
+            }
             write_sequnlock_irqrestore(&time->lock, flags);
+            if (reset_timer_p) {
+#ifdef DEBUG_TIME
+                    _stp_warn ("cpu%d %p freq->%d\n", freqs->cpu, (void*)time, freqs->new);
+#endif
+                    (void) smp_call_function_single (freqs->cpu, &__stp_time_smp_callback, 0,
+#ifdef STAPCONF_SMPCALL_5ARGS
+                                                     1, /* nonatomic */
+#endif
+                                                     0); /* not wait */
+            }
             break;
     }
 
@@ -280,7 +323,7 @@ _stp_init_time(void)
 	    __stp_cpufreq_notifier_registered = 1;
             for_each_online_cpu(cpu) {
                 unsigned long flags;
-                int freq_khz = cpufreq_get(cpu);
+                int freq_khz = cpufreq_get(cpu); // may block
                 if (freq_khz > 0) {
                     stp_time_t *time = per_cpu_ptr(stp_time, cpu);
                     write_seqlock_irqsave(&time->lock, flags);
