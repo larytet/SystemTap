@@ -411,9 +411,10 @@ dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
 }
 
 
-void
-dwflpp::iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
-                          void * data, bool want_types)
+template<> void
+dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
+                               void *data,
+                               bool want_types)
 {
   get_module_dwarf(false);
   Dwarf *dw = module_dwarf;
@@ -865,10 +866,10 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
 }
 
 int
-dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, void *arg)
+dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, dwflpp *dw)
 {
   mod_cu_type_cache_t *global_alias_cache;
-  global_alias_cache = &static_cast<dwflpp *>(arg)->global_alias_cache;
+  global_alias_cache = &dw->global_alias_cache;
 
   cu_type_cache_t *v = (*global_alias_cache)[die->addr];
   if (v != 0)
@@ -934,9 +935,8 @@ dwflpp::declaration_resolve(Dwarf_Die *type)
 
 
 int
-dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
+dwflpp::cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v)
 {
-  cu_function_cache_t* v = static_cast<cu_function_cache_t*>(arg);
   const char *name = dwarf_diename(func);
   if (!name)
     return DWARF_CB_OK;
@@ -947,9 +947,11 @@ dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
 
 
 int
-dwflpp::mod_function_caching_callback (Dwarf_Die* cu, void *arg)
+dwflpp::mod_function_caching_callback (Dwarf_Die* cu, cu_function_cache_t *v)
 {
-  dwarf_getfuncs (cu, cu_function_caching_callback, arg, 0);
+  // need to cast callback to func which accepts void*
+  dwarf_getfuncs (cu, (int (*)(Dwarf_Die*, void*))cu_function_caching_callback,
+                  v, 0);
   return DWARF_CB_OK;
 }
 
@@ -967,7 +969,9 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die *, void *),
     {
       v = new cu_function_cache_t;
       cu_function_cache[cu->addr] = v;
-      dwarf_getfuncs (cu, cu_function_caching_callback, v, 0);
+      // need to cast callback to func which accepts void*
+      dwarf_getfuncs (cu, (int (*)(Dwarf_Die*, void*))cu_function_caching_callback,
+                      v, 0);
       if (sess.verbose > 4)
         clog << _F("function cache %s:%s size %zu", module_name.c_str(),
                    cu_name().c_str(), v->size()) << endl;
@@ -1802,9 +1806,8 @@ struct external_function_query {
 };
 
 int
-dwflpp::external_function_cu_callback (Dwarf_Die* cu, void *arg)
+dwflpp::external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq)
 {
-  external_function_query * efq = static_cast<external_function_query *>(arg);
   efq->dw->focus_on_cu(cu);
   return efq->dw->iterate_over_functions(external_function_func_callback,
                                          efq, efq->name);

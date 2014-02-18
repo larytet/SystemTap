@@ -406,7 +406,7 @@ static const string TOK_CLASS("class");;
 static const string TOK_CALLEE("callee");;
 static const string TOK_CALLEES("callees");;
 
-static int query_cu (Dwarf_Die * cudie, void * arg);
+static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
 static void query_plt_statement(dwarf_query *q);
 
@@ -1848,9 +1848,8 @@ query_dwarf_func (Dwarf_Die * func, void * arg)
 }
 
 static int
-query_cu (Dwarf_Die * cudie, void * arg)
+query_cu (Dwarf_Die * cudie, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
   assert (q->has_statement_str || q->has_function_str);
 
   if (pending_interrupts) return DWARF_CB_ABORT;
@@ -4260,15 +4259,13 @@ struct dwarf_atvar_query: public base_query
   void handle_query_module ();
   void query_library (const char *) {}
   void query_plt (const char *entry, size_t addr) {}
-  static int atvar_query_cu (Dwarf_Die *cudie, void *data);
+  static int atvar_query_cu (Dwarf_Die *cudie, dwarf_atvar_query *q);
 };
 
 
 int
-dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, void * data)
+dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
 {
-  dwarf_atvar_query * q = static_cast<dwarf_atvar_query *>(data);
-
   if (! q->e.cu_name.empty())
     {
       const char *die_name = dwarf_diename(cudie) ?: "";
@@ -10376,7 +10373,7 @@ struct tracepoint_query : public base_query
   void query_library (const char *) {}
   void query_plt (const char *entry, size_t addr) {}
 
-  static int tracepoint_query_cu (Dwarf_Die * cudie, void * arg);
+  static int tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q);
   static int tracepoint_query_func (Dwarf_Die * func, void * arg);
 };
 
@@ -10423,9 +10420,8 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
 
 
 int
-tracepoint_query::tracepoint_query_cu (Dwarf_Die * cudie, void * arg)
+tracepoint_query::tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q)
 {
-  tracepoint_query * q = static_cast<tracepoint_query *>(arg);
   if (pending_interrupts) return DWARF_CB_ABORT;
   return q->handle_query_cu(cudie);
 }

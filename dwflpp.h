@@ -36,6 +36,7 @@ struct inline_instance_info;
 struct symbol_table;
 struct base_query;
 struct dwarf_query;
+struct external_function_query;
 
 enum line_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
 enum info_status { info_unknown, info_present, info_absent };
@@ -226,8 +227,16 @@ struct dwflpp
                                   (void*)data);
     }
 
-  void iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
-                         void * data, bool want_types);
+  template<typename T>
+  void iterate_over_cus(int (* callback)(Dwarf_Die*, T*),
+                        T *data,
+                        bool want_types)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_cus<void>((int (*)(Dwarf_Die*, void*))callback,
+                             (void*)data,
+                             want_types);
+    }
 
   bool func_is_inline();
 
@@ -396,8 +405,7 @@ private:
   mod_cu_type_cache_t global_alias_cache;
   static int global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
                                            const std::string& prefix, void *arg);
-  static int global_alias_caching_callback_cus(Dwarf_Die *die, void *arg);
-
+  static int global_alias_caching_callback_cus(Dwarf_Die *die, dwflpp *dw);
 
   static int iterate_over_globals (Dwarf_Die *,
                                    int (* callback)(Dwarf_Die *, bool,
@@ -408,9 +416,9 @@ private:
                                                   const std::string&, void *),
                                  void * data);
 
-  static int mod_function_caching_callback (Dwarf_Die* func, void *arg);
-  static int cu_function_caching_callback (Dwarf_Die* func, void *arg);
-  static int external_function_cu_callback (Dwarf_Die* cu, void *arg);
+  static int mod_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
+  static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
+  static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, void *arg);
 
   bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
@@ -502,6 +510,10 @@ dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
                                                    Dwarf_Addr,
                                                    void*),
                                    void *data);
+template<> void
+dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
+                               void *data,
+                               bool want_types);
 
 #endif // DWFLPP_H
 
