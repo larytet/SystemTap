@@ -1651,10 +1651,8 @@ query_func_info (Dwarf_Addr entrypc,
 
 
 static void
-query_srcfile_label (const dwarf_line_t& line, void * arg)
+query_srcfile_label (const dwarf_line_t& line, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
-
   Dwarf_Addr addr = line.addr();
 
   for (func_info_map_t::iterator i = q->filtered_functions.begin();
@@ -1671,10 +1669,8 @@ query_srcfile_label (const dwarf_line_t& line, void * arg)
 }
 
 static void
-query_srcfile_line (const dwarf_line_t& line, void * arg)
+query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
-
   Dwarf_Addr addr = line.addr();
 
   int lineno = line.lineno();
@@ -1906,7 +1902,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
 
           // If we have a pattern string with target *line*, we
           // have to look at lines in all the matched srcfiles.
-          void (* callback) (const dwarf_line_t&, void*) =
+          void (* callback) (const dwarf_line_t&, dwarf_query*) =
             q->has_label ? query_srcfile_label : query_srcfile_line;
           for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
                i != q->filtered_srcfiles.end(); ++i)

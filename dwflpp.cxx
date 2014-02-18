@@ -1546,18 +1546,20 @@ dwflpp::has_single_line_record (dwarf_query * q, char const * srcfile, int linen
 }
 
 
-void
-dwflpp::iterate_over_srcfile_lines (char const * srcfile,
-                                    int lines[2],
-                                    bool need_single_match,
-                                    enum line_t line_type,
-                                    void (* callback) (const dwarf_line_t& line,
-                                                       void * arg),
-                                    const std::string& func_pattern,
-                                    void *data)
+template<> void
+dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
+                                         int lines[2],
+                                         bool need_single_match,
+                                         enum line_t line_type,
+                                         void (* callback) (const dwarf_line_t& line,
+                                                            void * arg),
+                                         const std::string& func_pattern,
+                                         void *data)
 {
   Dwarf_Line **srcsp = NULL;
   size_t nsrcs = 0;
+  // XXX: MUST GET RID OF THIS (see also comment block before
+  // has_single_line_record())
   dwarf_query * q = static_cast<dwarf_query *>(data);
   int lineno = lines[0];
   auto_free_ref<Dwarf_Line**> free_srcsp(srcsp);

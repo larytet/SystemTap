@@ -308,14 +308,25 @@ struct dwflpp
                                               size_t))callback);
     }
 
+  template<typename T>
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
                                    bool need_single_match,
                                    enum line_t line_type,
-                                   void (* callback) (const dwarf_line_t& line,
-                                                      void * arg),
+                                   void (*callback) (const dwarf_line_t&, T*),
                                    const std::string& func_pattern,
-                                   void *data);
+                                   T *data)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_srcfile_lines<void>(srcfile,
+                                       lines,
+                                       need_single_match,
+                                       line_type,
+                                       (void (*)(const dwarf_line_t&,
+                                                 void*))callback,
+                                       func_pattern,
+                                       (void*)data);
+    }
 
   void iterate_over_labels (Dwarf_Die *begin_die,
                             const std::string& sym,
@@ -618,6 +629,15 @@ template<> int
 dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
                                                               const char*,
                                                               size_t));
+template<> void
+dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
+                                         int lines[2],
+                                         bool need_single_match,
+                                         enum line_t line_type,
+                                         void (* callback) (const dwarf_line_t& line,
+                                                            void * arg),
+                                         const std::string& func_pattern,
+                                         void *data);
 
 #endif // DWFLPP_H
 
