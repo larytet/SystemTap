@@ -287,6 +287,9 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 </li><li><a name="process/plimit.stp"></a><a href="#process/plimit.stp">&para;</a> <a href="process/plimit.stp">process/plimit.stp</a> - Print Resource Limits of Process<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The script prints a variety of resource limits for a given pid, like /proc/$$/limits on recent kernels.<p><font size="-2"><pre># stap -g plimit.stp $$</pre></font></p>
+</li><li><a name="process/procmod_watcher.stp"></a><a href="#process/procmod_watcher.stp">&para;</a> <a href="process/procmod_watcher.stp">process/procmod_watcher.stp</a> - Monitor process creation/termination and module [un]loading<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <br>
+<p>The procmod_watcher.stp script monitors calls to fork(), exec(), exit(), init_module(), and delete_module(). Event-specific details are also printed out (e.g. for exec(), the file being exec&#39;ed). This script does not require debuginfo.<p><font size="-2"><pre># stap procmod_watcher.stp -c &quot;sleep 0.2&quot;</pre></font></p>
 </li><li><a name="process/psig.stp"></a><a href="#process/psig.stp">&para;</a> <a href="process/psig.stp">process/psig.stp</a> - Print Process File Descriptors<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SIGNALS">SIGNALS</a> <br>
 <p>Run psig.stp to produce a human-readable summary of the signal handling configuration of a given process.  Specify the process-id as -x PID for fastest performance.<p><font size="-2"><pre># stap -DMAXACTION=10000 -g psig.stp -x $$</pre></font></p>

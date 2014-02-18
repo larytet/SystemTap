@@ -1022,6 +1022,17 @@ keywords: monitoring security audit backtrace
   # stap auditbt.stp -d /usr/bin/sudo --ldd -c "sudo true"
 
 
+process/procmod_watcher.stp - Monitor process creation/termination and module [un]loading
+keywords: process monitoring syscall tracepoint
+
+  The procmod_watcher.stp script monitors calls to fork(), exec(),
+  exit(), init_module(), and delete_module(). Event-specific details
+  are also printed out (e.g. for exec(), the file being exec'ed). This
+  script does not require debuginfo.
+
+  # stap procmod_watcher.stp -c "sleep 0.2"
+
+
 = NANOSLEEP =
 
 process/sleeptime.stp - Trace Time Spent in Nanosleep Syscalls
@@ -1387,6 +1398,17 @@ keywords: process
   /proc/$$/limits on recent kernels.
 
   # stap -g plimit.stp $$
+
+
+process/procmod_watcher.stp - Monitor process creation/termination and module [un]loading
+keywords: process monitoring syscall tracepoint
+
+  The procmod_watcher.stp script monitors calls to fork(), exec(),
+  exit(), init_module(), and delete_module(). Event-specific details
+  are also printed out (e.g. for exec(), the file being exec'ed). This
+  script does not require debuginfo.
+
+  # stap procmod_watcher.stp -c "sleep 0.2"
 
 
 process/psig.stp - Print Process File Descriptors
@@ -2190,6 +2212,17 @@ keywords: syscall locking futex
   # stap futexes2.stp -c "sleep 0.2"
 
 
+process/procmod_watcher.stp - Monitor process creation/termination and module [un]loading
+keywords: process monitoring syscall tracepoint
+
+  The procmod_watcher.stp script monitors calls to fork(), exec(),
+  exit(), init_module(), and delete_module(). Event-specific details
+  are also printed out (e.g. for exec(), the file being exec'ed). This
+  script does not require debuginfo.
+
+  # stap procmod_watcher.stp -c "sleep 0.2"
+
+
 process/sleeptime.stp - Trace Time Spent in Nanosleep Syscalls
 keywords: syscall nanosleep
 
@@ -2433,6 +2466,17 @@ keywords: process scheduler time tracepoint interrupt
   the task was running.
 
   # stap cycle_thief.stp -c "sleep 0.2"
+
+
+process/procmod_watcher.stp - Monitor process creation/termination and module [un]loading
+keywords: process monitoring syscall tracepoint
+
+  The procmod_watcher.stp script monitors calls to fork(), exec(),
+  exit(), init_module(), and delete_module(). Event-specific details
+  are also printed out (e.g. for exec(), the file being exec'ed). This
+  script does not require debuginfo.
+
+  # stap procmod_watcher.stp -c "sleep 0.2"
 
 
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints

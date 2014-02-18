@@ -912,6 +912,17 @@ keywords: process
   # stap -g plimit.stp $$
 
 
+process/procmod_watcher.stp - Monitor process creation/termination and module [un]loading
+keywords: process monitoring syscall tracepoint
+
+  The procmod_watcher.stp script monitors calls to fork(), exec(),
+  exit(), init_module(), and delete_module(). Event-specific details
+  are also printed out (e.g. for exec(), the file being exec'ed). This
+  script does not require debuginfo.
+
+  # stap procmod_watcher.stp -c "sleep 0.2"
+
+
 process/psig.stp - Print Process File Descriptors
 keywords: process signals
 
