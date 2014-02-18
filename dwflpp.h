@@ -355,18 +355,34 @@ struct dwflpp
                                           void*))callback);
     }
 
+  template<typename T>
   void iterate_over_callees (Dwarf_Die *begin_die,
                              const std::string& sym,
                              long recursion_depth,
-                             dwarf_query *q,
-                             void (* callback)(const char *,
-                                               const char *,
+                             T *data,
+                             void (* callback)(const char*,
+                                               const char*,
                                                int,
-                                               Dwarf_Die *,
+                                               Dwarf_Die*,
                                                Dwarf_Addr,
                                                std::stack<Dwarf_Addr>*,
-                                               dwarf_query *),
-                             std::stack<Dwarf_Addr>*callers=NULL);
+                                               T*),
+                             std::stack<Dwarf_Addr>*callers=NULL)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_callees<void>(begin_die,
+                                 sym,
+                                 recursion_depth,
+                                 (void*)data,
+                                 (void (*)(const char*,
+                                           const char*,
+                                           int,
+                                           Dwarf_Die*,
+                                           Dwarf_Addr,
+                                           std::stack<Dwarf_Addr>*,
+                                           void*))callback,
+                                 callers);
+    }
 
   GElf_Shdr * get_section(std::string section_name, GElf_Shdr *shdr_mem,
                           Elf **elf_ret=NULL);
@@ -665,6 +681,19 @@ dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                                                     Dwarf_Die*,
                                                     Dwarf_Addr,
                                                     void*));
+template<> void
+dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
+                                   const std::string& sym,
+                                   long recursion_depth,
+                                   void *data,
+                                   void (* callback)(const char*,
+                                                     const char*,
+                                                     int,
+                                                     Dwarf_Die*,
+                                                     Dwarf_Addr,
+                                                     std::stack<Dwarf_Addr>*,
+                                                     void*),
+                                   std::stack<Dwarf_Addr> *callers);
 
 #endif // DWFLPP_H
 

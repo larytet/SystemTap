@@ -1839,19 +1839,19 @@ dwflpp::external_function_func_callback (Dwarf_Die* func, external_function_quer
   return DWARF_CB_OK;
 }
 
-void
-dwflpp::iterate_over_callees (Dwarf_Die *begin_die,
-                              const string& sym,
-                              long recursion_depth,
-                              dwarf_query *q,
-                              void (* callback)(const char *,
-                                                const char *,
-                                                int,
-                                                Dwarf_Die *,
-                                                Dwarf_Addr,
-                                                stack<Dwarf_Addr>*,
-                                                dwarf_query *),
-                              stack<Dwarf_Addr> *callers)
+template<> void
+dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
+                                   const string& sym,
+                                   long recursion_depth,
+                                   void *data,
+                                   void (* callback)(const char*,
+                                                     const char*,
+                                                     int,
+                                                     Dwarf_Die*,
+                                                     Dwarf_Addr,
+                                                     stack<Dwarf_Addr>*,
+                                                     void*),
+                                   stack<Dwarf_Addr> *callers)
 {
   get_module_dwarf();
 
@@ -1964,7 +1964,7 @@ dwflpp::iterate_over_callees (Dwarf_Die *begin_die,
             callers->push(caller_uw_addr);
 
           callback(name, file, dline, inlined ? &die : &origin,
-                   func_addr, callers, q);
+                   func_addr, callers, data);
 
           // If it's a tail call, print a warning that it may not be caught
           if (!inlined
@@ -1976,7 +1976,7 @@ dwflpp::iterate_over_callees (Dwarf_Die *begin_die,
 
           if (recursion_depth > 1) // .callees(N)
             iterate_over_callees(inlined ? &die : &origin,
-                                 sym, recursion_depth-1, q,
+                                 sym, recursion_depth-1, data,
                                  callback, callers);
 
           if (!inlined)
@@ -1990,12 +1990,12 @@ dwflpp::iterate_over_callees (Dwarf_Die *begin_die,
           // Iterate over the children of the imported unit as if they
           // were inserted in place.
           if (dwarf_attr_die(&die, DW_AT_import, &import))
-            iterate_over_callees (&import, sym, recursion_depth, q, callback, callers);
+            iterate_over_callees (&import, sym, recursion_depth, data, callback, callers);
           break;
 
         default:
           if (dwarf_haschildren (&die))
-            iterate_over_callees (&die, sym, recursion_depth, q, callback, callers);
+            iterate_over_callees (&die, sym, recursion_depth, data, callback, callers);
           break;
         }
     }
