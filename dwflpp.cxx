@@ -1171,8 +1171,11 @@ dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
  * 'data' for the notes buffer and pass 'object' back in case
  * 'callback' is a method */
 
-int
-dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int type, const char *data, size_t len))
+template<> int
+dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                int,
+                                                                const char*,
+                                                                size_t))
 {
   Dwarf_Addr bias;
   // Note we really want the actual elf file, not the dwarf .debug file.

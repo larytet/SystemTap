@@ -277,6 +277,18 @@ struct dwflpp
                                            (void*)data, function);
     }
 
+  template<typename T>
+  int iterate_over_notes (T *object,
+			  void (* callback)(T*, int, const char*, size_t))
+    {
+      // See comment block in iterate_over_modules()
+      return iterate_over_notes<void>((void*)object,
+                                      (void (*)(void*,
+                                                int,
+                                                const char*,
+                                                size_t))callback);
+    }
+
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int lines[2],
                                    bool need_single_match,
@@ -310,10 +322,6 @@ struct dwflpp
                                                std::stack<Dwarf_Addr>*,
                                                dwarf_query *),
                              std::stack<Dwarf_Addr>*callers=NULL);
-
-  int iterate_over_notes (void *object,
-			  void (*callback)(void *object, int type,
-					   const char *data, size_t len));
 
   void iterate_over_libraries (void (*callback)(void *object,
       const char *data), void *data);
@@ -586,6 +594,11 @@ dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
                                                   const std::string&,
                                                   void*),
                                  void *data);
+template<> int
+dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                int,
+                                                                const char*,
+                                                                size_t));
 
 #endif // DWFLPP_H
 

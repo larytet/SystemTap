@@ -6413,7 +6413,10 @@ private:
   void iterate_over_probe_entries();
   void handle_probe_entry();
 
-  static void setup_note_probe_entry_callback (void *object, int type, const char *data, size_t len);
+  static void setup_note_probe_entry_callback (sdt_query *me,
+                                               int type,
+                                               const char *data,
+                                               size_t len);
   void setup_note_probe_entry (int type, const char *data, size_t len);
 
   void convert_probe(probe *base);
@@ -6585,7 +6588,7 @@ sdt_query::handle_query_module()
       else
 	base = semaphore_load_offset = 0;
 
-      dw.iterate_over_notes ((void*) this, &sdt_query::setup_note_probe_entry_callback);
+      dw.iterate_over_notes (this, &sdt_query::setup_note_probe_entry_callback);
     }
   else if (probe_loc == probe_section)
     iterate_over_probe_entries ();
@@ -6623,9 +6626,8 @@ sdt_query::init_probe_scn()
 }
 
 void
-sdt_query::setup_note_probe_entry_callback (void *object, int type, const char *data, size_t len)
+sdt_query::setup_note_probe_entry_callback (sdt_query *me, int type, const char *data, size_t len)
 {
-  sdt_query *me = (sdt_query*)object;
   me->setup_note_probe_entry (type, data, len);
 }
 
