@@ -19,6 +19,15 @@
   process on dracut-based systems. See the 'onboot' command in
   systemtap(8) for more information.
 
+- DWARF probes can now use the '.callee[s]' variants, which allow more
+  precise function probing. For example, the probe point
+
+    process("myproc").function("foo").callee("bar")
+
+  will fire upon entering bar() from foo(). A '.callees' probe will
+  instead place probes on all callees of foo(). See stapprobes(3stap)
+  for more info.
+
 - A few new functions in the task_time tapsets, as well as a new tapset
   function task_ancestry(), which prints out the parentage of a process.
 
