@@ -328,17 +328,32 @@ struct dwflpp
                                        (void*)data);
     }
 
+  template<typename T>
   void iterate_over_labels (Dwarf_Die *begin_die,
                             const std::string& sym,
                             const std::string& function,
-                            dwarf_query *q,
-                            void (* callback)(const std::string &,
-                                              const char *,
-                                              const char *,
+                            T *data,
+                            void (* callback)(const std::string&,
+                                              const char*,
+                                              const char*,
                                               int,
-                                              Dwarf_Die *,
+                                              Dwarf_Die*,
                                               Dwarf_Addr,
-                                              dwarf_query *));
+                                              T*))
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_labels<void>(begin_die,
+                                sym,
+                                function,
+                                (void*)data,
+                                (void (*)(const std::string&,
+                                          const char*,
+                                          const char*,
+                                          int,
+                                          Dwarf_Die*,
+                                          Dwarf_Addr,
+                                          void*))callback);
+    }
 
   void iterate_over_callees (Dwarf_Die *begin_die,
                              const std::string& sym,
@@ -638,6 +653,18 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                                             void * arg),
                                          const std::string& func_pattern,
                                          void *data);
+template<> void
+dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
+                                  const std::string& sym,
+                                  const std::string& function,
+                                  void *data,
+                                  void (* callback)(const std::string&,
+                                                    const char*,
+                                                    const char*,
+                                                    int,
+                                                    Dwarf_Die*,
+                                                    Dwarf_Addr,
+                                                    void*));
 
 #endif // DWFLPP_H
 
