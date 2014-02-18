@@ -6364,9 +6364,8 @@ void emit_symbol_data_done (unwindsym_dump_context*, systemtap_session&);
 
 
 void
-add_unwindsym_iol_callback (void *q, const char *data)
+add_unwindsym_iol_callback (set<string> *added, const char *data)
 {
-  std::set<std::string> *added = (std::set<std::string>*)q;
   added->insert (string (data));
 }
 

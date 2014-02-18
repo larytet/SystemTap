@@ -629,7 +629,7 @@ struct base_query
 			       string const & k, long & v);
   static bool get_number_param(literal_map_t const & params,
 			       string const & k, Dwarf_Addr & v);
-  static void query_library_callback (void *object, const char *data);
+  static void query_library_callback (base_query *me, const char *data);
   static void query_plt_callback (void *object, const char *link, size_t addr);
   virtual void query_library (const char *data) = 0;
   virtual void query_plt (const char *link, size_t addr) = 0;
@@ -2234,9 +2234,8 @@ query_module (Dwfl_Module *mod,
 
 
 void
-base_query::query_library_callback (void *q, const char *data)
+base_query::query_library_callback (base_query *me, const char *data)
 {
-  base_query *me = (base_query*)q;
   me->query_library (data);
 }
 
