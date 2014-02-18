@@ -561,9 +561,9 @@ dwflpp::cache_inline_instances (Dwarf_Die* die)
 }
 
 
-void
-dwflpp::iterate_over_inline_instances (int (* callback)(Dwarf_Die * die, void * arg),
-                                       void * data)
+template<> void
+dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
+                                            void *data)
 {
   assert (function);
   assert (func_is_inline ());

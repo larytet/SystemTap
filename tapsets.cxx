@@ -1745,9 +1745,8 @@ inline_instance_info::operator<(const inline_instance_info& other) const
 
 
 static int
-query_dwarf_inline_instance (Dwarf_Die * die, void * arg)
+query_dwarf_inline_instance (Dwarf_Die * die, dwarf_query * q)
 {
-  dwarf_query * q = static_cast<dwarf_query *>(arg);
   assert (q->has_statement_str || q->has_function_str);
   assert (!q->has_call && !q->has_return && !q->has_exported);
 

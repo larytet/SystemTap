@@ -242,8 +242,14 @@ struct dwflpp
 
   bool func_is_exported();
 
-  void iterate_over_inline_instances (int (* callback)(Dwarf_Die * die, void * arg),
-                                      void * data);
+  template<typename T>
+  void iterate_over_inline_instances(int (* callback)(Dwarf_Die*, T*),
+                                     T *data)
+    {
+      // See comment block in iterate_over_modules()
+      iterate_over_inline_instances<void>((int (*)(Dwarf_Die*, void*))callback,
+                                          (void*)data);
+    }
 
   std::vector<Dwarf_Die> getscopes_die(Dwarf_Die* die);
   std::vector<Dwarf_Die> getscopes(Dwarf_Die* die);
@@ -503,6 +509,8 @@ public:
   Dwarf_Addr pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* var);
 };
 
+// Template <void> specializations for iterate_over_* functions
+
 template<> void
 dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
                                                    void**,
@@ -514,6 +522,9 @@ template<> void
 dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
                                void *data,
                                bool want_types);
+template<> void
+dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
+                                            void *data);
 
 #endif // DWFLPP_H
 
