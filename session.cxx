@@ -2263,10 +2263,6 @@ systemtap_session::get_mok_info()
   int rc;
   stringstream out;
 
-  // FIXME: we'll need to add mokutil to a 'Requires' line in the spec
-  // file, but only for F?+ and RHEL?+. Need to figure out exact
-  // release numbers.
-  //
   // FIXME: In theory, we should be able to read /sys files and use
   // some of the guts of read_cert_info_from_file() to get the
   // fingerprints. This would rid us of our mokutil
@@ -2277,7 +2273,9 @@ systemtap_session::get_mok_info()
   cmd.push_back("--list-enrolled");
   rc = stap_system_read(verbose, cmd, out);
   if (rc != 0)
-      throw runtime_error(_F("failed to get list of machine owner keys (MOK) fingerprints: rc %d", rc));
+    // If we're here, we know the client requires module signing, but
+    // we can't get the list of MOKs. Quit.
+    throw runtime_error(_F("failed to get list of machine owner keys (MOK) fingerprints: rc %d", rc));
 
   string line, fingerprint;
   while (! out.eof())
