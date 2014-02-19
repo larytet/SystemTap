@@ -215,6 +215,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/nettop.stp"></a><a href="#network/nettop.stp">&para;</a> <a href="network/nettop.stp">network/nettop.stp</a> - Periodic Listing of Processes Using Network Interfaces<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>Every five seconds the nettop.stp script prints out a list of processed (PID and command) with the number of packets sent/received and the amount of data sent/received by the process during that interval.<p><font size="-2"><pre># stap nettop.stp -c &quot;sleep 0.2&quot;</pre></font></p>
+</li><li><a name="network/nfsd-recent.stp"></a><a href="#network/nfsd-recent.stp">&para;</a> <a href="network/nfsd-recent.stp">network/nfsd-recent.stp</a> - Keep track of NFS server statistics<br>
+keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
+<p>This script tracks all nfsd server operations by client_ip address, and periodically lists those clients that have made recent requests.  It&#39;s a way of finding out which nfs clients might be considered still connected.<p><font size="-2"><pre># stap nfsd-recent.stp -c &quot;sleep 0.2&quot;</pre></font></p>
 </li><li><a name="network/nfsd_unlink.stp"></a><a href="#network/nfsd_unlink.stp">&para;</a> <a href="network/nfsd_unlink.stp">network/nfsd_unlink.stp</a> - Find Which Client Is Removing NFS Files on Server<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>The nfsd_unlink.stp script lists the ip address and file name each time time a file is being removed or unlinked by the nfsd. This script is run on the nfs server.<p><font size="-2"><pre># stap nfsd_unlink.stp -c &quot;sleep 0.2&quot;</pre></font></p>

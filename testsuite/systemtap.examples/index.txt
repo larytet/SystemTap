@@ -647,6 +647,17 @@ keywords: network traffic
   # stap nettop.stp -c "sleep 0.2"
 
 
+network/nfsd-recent.stp - Keep track of NFS server statistics
+keywords: nfs statistics
+
+  This script tracks all nfsd server operations by client_ip address,
+  and periodically lists those clients that have made recent requests. 
+  It's a way of finding out which nfs clients might be considered still
+  connected.
+
+  # stap nfsd-recent.stp -c "sleep 0.2"
+
+
 network/nfsd_unlink.stp - Find Which Client Is Removing NFS Files on Server
 keywords: nfs disk
 
