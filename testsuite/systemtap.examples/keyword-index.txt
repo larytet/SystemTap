@@ -1449,7 +1449,7 @@ keywords: process scheduler time tracepoint
   queuing, and waiting for io. On exit the script prints out the
   accumulated time for each state of processes observed.  Optionally,
   this script can be used with the '-c' or '-x' options to focus on a
-  specific PID.
+  specific PID and its children.
 
   # stap schedtimes.stp -c "sleep 0.2"
 
@@ -1827,7 +1827,7 @@ keywords: process scheduler time tracepoint
   queuing, and waiting for io. On exit the script prints out the
   accumulated time for each state of processes observed.  Optionally,
   this script can be used with the '-c' or '-x' options to focus on a
-  specific PID.
+  specific PID and its children.
 
   # stap schedtimes.stp -c "sleep 0.2"
 
@@ -2397,7 +2397,7 @@ keywords: process scheduler time tracepoint
   queuing, and waiting for io. On exit the script prints out the
   accumulated time for each state of processes observed.  Optionally,
   this script can be used with the '-c' or '-x' options to focus on a
-  specific PID.
+  specific PID and its children.
 
   # stap schedtimes.stp -c "sleep 0.2"
 
@@ -2487,7 +2487,7 @@ keywords: process scheduler time tracepoint
   queuing, and waiting for io. On exit the script prints out the
   accumulated time for each state of processes observed.  Optionally,
   this script can be used with the '-c' or '-x' options to focus on a
-  specific PID.
+  specific PID and its children.
 
   # stap schedtimes.stp -c "sleep 0.2"
 
