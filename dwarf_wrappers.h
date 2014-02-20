@@ -23,6 +23,11 @@ extern "C" {
 #define DW_AT_linkage_name 0x6e
 #endif
 
+#if ! _ELFUTILS_PREREQ(0, 153)
+#define DW_TAG_GNU_call_site 0x4109
+#define DW_AT_GNU_tail_call 0x2115
+#endif
+
 #if ! _ELFUTILS_PREREQ(0, 155)
 #define DW_ATE_UTF 0x10
 #endif
