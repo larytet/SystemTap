@@ -33,12 +33,6 @@ for {set i 0} {$i < [all_compile_flags]} {incr i} {
 
     if {[installtest_p]} {
 	foreach runtime [get_runtime_list] {
-	    # On some builds without any optimization our prologue
-	    # detection fails. PR13420.
-	    if {$extra_name == "m64" || $extra_name == "m32" \
-		    || $extra_name == "m31"} {
-		setup_kfail 13420 "*-*-*"
-	    }
 	    if {$runtime != ""} {
 		if {[info procs ${runtime}_kfails] ne ""} {
 		    ${runtime}_kfails $i
