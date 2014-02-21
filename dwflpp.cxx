@@ -2129,9 +2129,6 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // outputs one). If there is no explicit marker (e.g. GCC does not), we
       // accept a bigger or equal lineno as a prologue end (this catches GCC's
       // 0-line advances).
-      //     Note that this heuristic does not work properly if the program was
-      // compiled with -fomit-stack-pointer (it skips the first line record,
-      // which really is where the function begins).
 
       // We may have to skip a few because some old compilers plop
       // in dummy line records for longer prologues.  If we go too
