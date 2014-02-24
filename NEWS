@@ -1,5 +1,10 @@
 * What's new in version 2.5
 
+- SystemTap now supports UEFI/SecureBoot systems, via
+  machine-owner-keys maintained by a trusted stap-server on the
+  network.  (Key enrollment requires a one-time reboot and BIOS
+  conversation.)
+
 - SystemTap now reports more accurate and succinct errors on type
   mismatches.
 
