@@ -21,6 +21,7 @@
 
 #define _XOPEN_SOURCE
 #define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #include "staprun.h"
 #include "../privilege.h"
 #include "../runtime/k_syms.h"
