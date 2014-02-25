@@ -2137,13 +2137,13 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // the entrypc maps to a statement in the body rather than the
       // declaration.
 
-      // start search from the next line record
-      unsigned postprologue_srcline_idx = entrypc_srcline_idx+1;
+      int entrypc_srcline_lineno = entrypc_srcline.lineno();
+      unsigned postprologue_srcline_idx = entrypc_srcline_idx;
       bool ranoff_end = false;
 
-      // In 99% of cases, this while loop will break on the first iteration
-      // because of a higher/same lineno. In the rare cases line records are for
-      // a lower lineno, we keep traversing records.
+      // For 0-line advances, this while loop will break on the second
+      // iteration. It may also break on the first iteration if the filenames
+      // don't match.
       while (postprologue_srcline_idx < nlines)
         {
           dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx));
@@ -2164,7 +2164,8 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
             }
           if (ranoff_end || postprologue_end ||
               (strcmp (postprologue_file, it->decl_file) || // We have a winner!
-               (postprologue_lineno >= entrypc_srcline.lineno())))
+               (postprologue_lineno != entrypc_srcline_lineno) ||
+                (postprologue_srcline_idx > entrypc_srcline_idx)))
             {
               it->prologue_end = postprologue_addr;
 
