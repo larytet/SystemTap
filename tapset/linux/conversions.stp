@@ -20,8 +20,12 @@ function kernel_string:string (addr:long) %{ /* pure */
   kderef_string (destination, STAP_ARG_addr, MAXSTRINGLEN);
   if (0) {
 deref_fault: /* branched to from deref_string() */
+    /* Why '%1p' below? On newer kernels, the snprintf() function pads
+     * out '(null)' to the same width as other pointers, which looks
+     * really odd in the following error message. Setting a format
+     * width of '1' fixes this. */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel string copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel string copy fault at %1p", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
