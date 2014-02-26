@@ -1,5 +1,8 @@
 * What's new in version 2.5
 
+- SystemTap now supports a %( guru_mode == 0 /* or 1 */ %)
+  conditional for making dual-use scripts.
+
 - SystemTap now supports UEFI/SecureBoot systems, via
   machine-owner-keys maintained by a trusted stap-server on the
   network.  (Key enrollment requires a one-time reboot and BIOS
