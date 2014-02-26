@@ -1,0 +1,6 @@
+#! stap -p1
+
+# bad guru_mode value - not a number
+%( guru_mode == "bad" %?
+   probe begin { }
+%)

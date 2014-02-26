@@ -2,6 +2,7 @@
 // Copyright (C) 2005-2013 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 // Copyright (C) 2007 Bull S.A.S
+// Copyright (C) 2014 Peter Kjellstrom <cap@nsc.liu.se>
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -835,7 +836,6 @@ bool eval_pp_conditional (systemtap_session& s,
   else if (l->type == tok_identifier && l->content == "systemtap_privilege")
     {
       string target_privilege =
-	/* XXX perhaps include a "guru" state */
 	pr_contains(s.privilege, pr_stapdev) ? "stapdev"
 	: pr_contains(s.privilege, pr_stapsys) ? "stapsys"
 	: pr_contains(s.privilege, pr_stapusr) ? "stapusr"
@@ -858,6 +858,20 @@ bool eval_pp_conditional (systemtap_session& s,
       /* XXX perhaps allow <= >= and similar comparisons */
 
       return result;
+    }
+  else if (l->type == tok_identifier && l->content == "guru_mode")
+    {
+      if (! (r->type == tok_number))
+        throw PARSE_ERROR (_("expected number"), r);
+      int64_t lhs = (int64_t) s.guru_mode;
+      int64_t rhs = lex_cast<int64_t>(r->content);
+      if (!((rhs == 0)||(rhs == 1)))
+        throw PARSE_ERROR (_("expected 0 or 1"), op);
+      if (!((op->type == tok_operator && op->content == "==") ||
+	    (op->type == tok_operator && op->content == "!=")))
+        throw PARSE_ERROR (_("expected '==' or '!='"), op);
+
+      return eval_comparison (lhs, op, rhs);
     }
   else if (l->type == tok_identifier && l->content == "arch")
     {
