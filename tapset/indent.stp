@@ -7,16 +7,23 @@
 
 global _indent_counters, _indent_timestamps
 
+function _generic_indent_depth:long (idx, delta)
+{
+  # pre-increment for positive delta and post-decrement for negative delta
+  x = _indent_counters[idx] + (delta > 0 ? delta : 0)
+  _indent_counters[idx] += delta
+
+  return (x>0 ? x-1 : 0)
+}
+
 function _generic_indent (idx, desc, delta) 
 {
   ts = __indent_timestamp ()
   if (! _indent_counters[idx]) _indent_timestamps[idx] = ts
 
-  # pre-increment for positive delta and post-decrement for negative delta
-  x = _indent_counters[idx] + (delta > 0 ? delta : 0)
-  _indent_counters[idx] += delta
+  depth = _generic_indent_depth(idx, delta)
 
-  return sprintf("%6d %s:%-*s", (ts - _indent_timestamps[idx]), desc, (x>0 ? x-1 : 0), "")
+  return sprintf("%6d %s:%-*s", (ts - _indent_timestamps[idx]), desc, depth, "")
 }
 
 /**
@@ -36,24 +43,17 @@ function thread_indent:string (delta:long)
   return _generic_indent (tid(), sprintf("%s(%d)", execname(), tid()), delta)
 }
 
-function _generic_indent_depth:long (idx, delta) 
-{
-  # pre-increment for positive delta and post-decrement for negative delta
-  x = _indent_counters[idx] + (delta > 0 ? delta : 0)
-  _indent_counters[idx] += delta
-
-  return (x>0 ? x-1 : 0)
-}
-
 /**
- * sfunction thread_indent_depth - returns an integer corresponding to the nested-depth in the current task information
+ * sfunction thread_indent_depth - returns the nested-depth of the current task
  *
- * @delta: the amount of increment added/removed for each call
+ * @delta: the amount of depth added/removed for each call
  *
- * Description: This function returns an integer equal to the nested function-call depth starting 
- * from the outermost initial level. This function is useful for saving space (consumed by whitespace)
- * in traces with long nested function calls. Use this function in a similar fashion to thread_indent(), i.e.,
- * in call-probe, use thread_indent_depth(1) and in return-probe, use thread_indent_depth(-1)
+ * Description: This function returns an integer equal to the nested
+ * function-call depth starting from the outermost initial level. This function
+ * is useful for saving space (consumed by whitespace) in traces with long
+ * nested function calls. Use this function in a similar fashion to
+ * thread_indent(), i.e., in call-probe, use thread_indent_depth(1) and in
+ * return-probe, use thread_indent_depth(-1)
  */
 function thread_indent_depth:long (delta:long)
 {
@@ -72,6 +72,21 @@ function thread_indent_depth:long (delta:long)
  */
 function indent:string (delta:long){
   return _generic_indent(-1, "",  delta)
+}
+
+/**
+ * sfunction indent_depth - returns the global nested-depth
+ *
+ * @delta: the amount of depth added/removed for each call
+ *
+ * Description: This function returns a number for appropriate indentation,
+ * similar to indent(). Call it with a small positive or matching negative
+ * delta. Unlike the thread_indent_depth function, the indent does not track
+ * individual indent values on a per thread basis.
+ */
+function indent_depth:long (delta:long)
+{
+  return _generic_indent_depth (-1, delta)
 }
 
 /* The following example uses thread_indent() to trace the functions
