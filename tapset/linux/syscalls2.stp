@@ -568,21 +568,22 @@ probe syscall.preadv = __syscall.preadv ?, __syscall.compat_preadv ?
 }
 probe __syscall.preadv = kernel.function("sys_preadv")
 {
-	fd = $fd
+	fd = __int32($fd)
 	vector_uaddr = $vec
-	count = $vlen
+	count = __int32($vlen)
 	offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
-	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
+			 __int32($vlen),
 			 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
 }
 probe __syscall.compat_preadv = kernel.function("compat_sys_preadv")
 {
-	fd = $fd
+	fd = __int32($fd)
 	vector_uaddr = $vec
-	count = $vlen
+	count = __int32($vlen)
 	offset = ($pos_high << 32) + $pos_low
-	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
-			 ($pos_high << 32) + $pos_low)
+	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
+			 __int32($vlen), ($pos_high << 32) + $pos_low)
 }
 probe syscall.preadv.return = kernel.function("sys_preadv").return ?,
 			      kernel.function("compat_sys_preadv").return ?
@@ -745,20 +746,22 @@ probe syscall.pwritev = __syscall.pwritev ?, __syscall.compat_pwritev ?
 }
 probe __syscall.pwritev = kernel.function("sys_pwritev").call
 {
-	fd = $fd
+	fd = __int32($fd)
 	vector_uaddr = $vec
-	count = $vlen
+	count = __int32($vlen)
 	offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
-	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
+			 __int32($vlen),
 			 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
 }
 probe __syscall.compat_pwritev = kernel.function("compat_sys_pwritev").call
 {
-	fd = $fd
+	fd = __int32($fd)
 	vector_uaddr = $vec
-	count = $vlen
+	count = __int32($vlen)
 	offset = ($pos_high << 32) + $pos_low
-	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $vec, $vlen,
+	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
+			 __int32($vlen),
 			 ($pos_high << 32) + $pos_low)
 }
 probe syscall.pwritev.return = kernel.function("sys_pwritev").return ?,
@@ -911,9 +914,11 @@ probe syscall.readv = kernel.function("compat_sys_readv").call ?,
 {
 	name = "readv"
 	vector_uaddr = $vec
-	count = $vlen
-	fd = $fd
-	argstr = sprintf("%d, %p, %d", $fd, $vec, $vlen)
+	count = __int32($vlen)
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = __int32($fd)
+	argstr = sprintf("%d, %p, %d", __int32($fd), $vec, __int32($vlen))
 }
 probe syscall.readv.return = kernel.function("compat_sys_readv").return ?,
                              kernel.function("sys_readv").return
@@ -3951,9 +3956,11 @@ probe syscall.writev = kernel.function("compat_sys_writev").call ?,
 {
 	name = "writev"
 	vector_uaddr = $vec
-	count = $vlen
-	fd = $fd
-	argstr = sprintf("%d, %p, %d", $fd, $vec, $vlen)
+	count = __int32($vlen)
+	# Although the kernel gets an unsigned long fd, on the
+	# user-side it is a signed int.  Fix this.
+	fd = __int32($fd)
+	argstr = sprintf("%d, %p, %d", __int32($fd), $vec, __int32($vlen))
 }
 probe syscall.writev.return = kernel.function("compat_sys_writev").return ?,
                               kernel.function("sys_writev").return

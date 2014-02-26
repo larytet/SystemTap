@@ -1,4 +1,4 @@
-/* COVERAGE: read write readv preadv writev pwritev lseek llseek */
+/* COVERAGE: read write lseek llseek */
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
 #include <sys/types.h>
@@ -16,16 +16,8 @@
 int main()
 {
   int fd;
-  struct iovec v[3], x[3];
   loff_t res;
   char buf[64], buf1[32], buf2[32], buf3[32];
-
-  v[0].iov_base = STRING1;
-  v[0].iov_len = sizeof(STRING1);
-  v[1].iov_base = STRING2;
-  v[1].iov_len = sizeof(STRING2);
-  v[2].iov_base = STRING3;
-  v[2].iov_len = sizeof(STRING3);
 
   fd = open("foobar1",O_WRONLY|O_CREAT, 0666);
   //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
@@ -38,17 +30,6 @@ int main()
 
   pwrite(fd,"Hello Again",11,12);
   //staptest// pwrite (NNNN, "Hello Again", 11, 12) = 11
-
-  writev(fd, v, 3);
-  //staptest// writev (NNNN, XXXX, 3) = 15
-
-#ifdef SYS_pwritev
-  pwritev(fd, v, 3, 0);
-  //staptest// pwritev (NNNN, XXXX, 3, 0x0) = 15
-
-  pwritev(fd, v, 3, 0x100);
-  //staptest// pwritev (NNNN, XXXX, 3, 0x100) = 15
-#endif
 
   lseek(fd, 0, SEEK_SET);
   //staptest// lseek (NNNN, 0, SEEK_SET) = 0
@@ -87,23 +68,6 @@ int main()
 
   pread(fd, buf, 11, 10);
   //staptest// pread (NNNN, XXXX, 11, 10) = 11
-
-  x[0].iov_base = buf1;
-  x[0].iov_len = sizeof(STRING1);
-  x[1].iov_base = buf2;
-  x[1].iov_len = sizeof(STRING2);
-  x[2].iov_base = buf3;
-  x[2].iov_len = sizeof(STRING3);
-  readv(fd, x, 3);
-  //staptest// readv (NNNN, XXXX, 3) = 15
-
-#ifdef SYS_preadv
-  preadv(fd, x, 3, 0);
-  //staptest// preadv (NNNN, XXXX, 3, 0x0) = 15
-
-  preadv(fd, x, 3, 0x100);
-  //staptest// preadv (NNNN, XXXX, 3, 0x100) = 15
-#endif
 
   close (fd);
   //staptest// close (NNNN) = 0
