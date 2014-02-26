@@ -2067,6 +2067,40 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
                 dwarf_getsrclines(cu, &lines, &nlines));
   // XXX: free lines[] later, but how?
 
+  // We normally ignore a function's decl_line, since it is associated with the
+  // line at which the identifier appears in the declaration, and has no
+  // meaningful relation to the lineno associated with the entrypc (which is
+  // normally the lineno of '{', which could occur at the same line as the
+  // declaration, or lower down).
+  //     However, if the CU was compiled using GCC < 4.4, then the decl_line
+  // actually represents the lineno of '{' as well, in which case if the lineno
+  // associated with the entrypc is != to the decl_line, it means the compiler
+  // scraped/optimized off some of the beginning of the function and the safest
+  // thing we can do is consider it naked.
+  bool consider_decl_line = false;
+  Dwarf_Attribute producer_attr;
+  if (dwarf_attr_integrate(cu, DW_AT_producer, &producer_attr))
+    {
+      // GNU C x.x.x YYYYMMDD ...
+      const char* producer = dwarf_formstring(&producer_attr);
+      const char* gnuc = strstr(producer, "GNU C");
+      if (gnuc)
+        {
+          string version;
+
+          // skip to the version number
+          gnuc += 6;
+          const char *space = strchr(gnuc, ' ');
+          if (!space)
+            version.assign(gnuc);
+          else
+            version.assign(gnuc, space-gnuc);
+
+          if (strverscmp(version.c_str(), "4.4.0") < 0)
+            consider_decl_line = true;
+        }
+    }
+
   for(func_info_map_t::iterator it = funcs.begin(); it != funcs.end(); it++)
     {
 #if 0 /* someday */
@@ -2165,7 +2199,8 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           if (ranoff_end || postprologue_end ||
               (strcmp (postprologue_file, it->decl_file) || // We have a winner!
                (postprologue_lineno != entrypc_srcline_lineno) ||
-                (postprologue_srcline_idx > entrypc_srcline_idx)))
+                (postprologue_srcline_idx > entrypc_srcline_idx)) ||
+                 (consider_decl_line && postprologue_lineno != it->decl_line))
             {
               it->prologue_end = postprologue_addr;
 
