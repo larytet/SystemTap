@@ -704,6 +704,11 @@ mutatee::call_function(const string& name,
   if (!stap_dso)
     return;
 
+  // process->oneTimeCode() requires that the process be stopped
+  mutatee_freezer mf(*this);
+  if (!is_stopped())
+    return;
+
   vector<BPatch_function *> functions;
   stap_dso->findFunction(name.c_str(), functions);
 
@@ -712,6 +717,7 @@ mutatee::call_function(const string& name,
   for (size_t i = 0; i < functions.size(); ++i)
     {
       BPatch_funcCallExpr call(*functions[i], args);
+      staplog(3) << "calling function '" << name << "' in pid " << pid << endl;
       process->oneTimeCode(call);
     }
 }
