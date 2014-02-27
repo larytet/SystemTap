@@ -2173,58 +2173,68 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       int entrypc_srcline_lineno = entrypc_srcline.lineno();
       unsigned postprologue_srcline_idx = entrypc_srcline_idx;
-      bool ranoff_end = false;
+      dwarf_line_t postprologue_srcline;
 
-      // For 0-line advances, this while loop will break on the second
-      // iteration. It may also break on the first iteration if the filenames
-      // don't match.
       while (postprologue_srcline_idx < nlines)
         {
-          dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx));
-          Dwarf_Addr postprologue_addr = lr.addr();
-          const char* postprologue_file = lr.linesrc();
-          int postprologue_lineno = lr.lineno();
-          bool postprologue_end = lr.is_prologue_end();
+          postprologue_srcline = dwarf_onesrcline(lines,
+                                                  postprologue_srcline_idx);
+          Dwarf_Addr lineaddr   = postprologue_srcline.addr();
+          const char* linesrc   = postprologue_srcline.linesrc();
+          int lineno            = postprologue_srcline.lineno();
+          bool lineprologue_end = postprologue_srcline.is_prologue_end();
 
           if (sess.verbose>2)
-            clog << _F("checking line record %#" PRIx64 "@%s:%d\n", postprologue_addr,
-                       postprologue_file, postprologue_lineno);
+            clog << _F("checking line record %#" PRIx64 "@%s:%d%s\n", lineaddr,
+                       linesrc, lineno, lineprologue_end ? " (marked)" : "");
 
-          if (postprologue_addr >= highpc)
-            {
-              ranoff_end = true;
-              postprologue_srcline_idx --;
-              continue;
-            }
-          if (ranoff_end || postprologue_end ||
-              (strcmp (postprologue_file, it->decl_file) || // We have a winner!
-               (postprologue_lineno != entrypc_srcline_lineno) ||
-                (postprologue_srcline_idx > entrypc_srcline_idx)) ||
-                 (consider_decl_line && postprologue_lineno != it->decl_line))
-            {
-              it->prologue_end = postprologue_addr;
-
-              if (sess.verbose>2)
-                {
-                  clog << _F("prologue found function '%s'", it->name.c_str());
-                  // Add a little classification datum
-                  //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
-                  if (postprologue_addr == entrypc) clog << _(" (naked)");
-                  //TRANSLATORS: Here we're adding some classification datum (ie we went over)
-                  if (ranoff_end) clog << _(" (tail-call?)");
-                  //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
-                  if (postprologue_end) clog << _(" (marked)");
-                  clog << " = 0x" << hex << postprologue_addr << dec << "\n";
-                }
-
-              break;
-            }
+          // have we passed the function?
+          if (lineaddr >= highpc)
+            break;
+          // is there an explicit prologue_end marker?
+          if (lineprologue_end)
+            break;
+          // is it a different file?
+          if (strcmp(linesrc, it->decl_file))
+            break;
+          // OK, it's the same file, but is it a different line?
+          if (lineno != entrypc_srcline_lineno)
+            break;
+          // Same file and line, is this a second line record (e.g. 0-line advance)?
+          if (postprologue_srcline_idx != entrypc_srcline_idx)
+            break;
+          // This is the first iteration. Is decl_line meaningful and is the
+          // lineno past the decl_line?
+          if (consider_decl_line && lineno != it->decl_line)
+            break;
 
           // Let's try the next srcline.
           postprologue_srcline_idx ++;
+
         } // loop over srclines
 
-      // if (strlen(it->decl_file) == 0) it->decl_file = NULL;
+      Dwarf_Addr postprologue_addr = postprologue_srcline.addr();
+      if (postprologue_addr >= highpc)
+        {
+          // pick addr of previous line record
+          dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx-1));
+          postprologue_addr = lr.addr();
+        }
+
+      it->prologue_end = postprologue_addr;
+
+      if (sess.verbose>2)
+        {
+          clog << _F("prologue found function '%s'", it->name.c_str());
+          // Add a little classification datum
+          //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
+          if (postprologue_addr == entrypc) clog << _(" (naked)");
+          //TRANSLATORS: Here we're adding some classification datum (ie we went over)
+          if (postprologue_srcline.addr() >= highpc) clog << _(" (tail-call?)");
+          //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
+          if (postprologue_srcline.is_prologue_end()) clog << _(" (marked)");
+          clog << " = 0x" << hex << postprologue_addr << dec << "\n";
+        }
 
     } // loop over functions
 
