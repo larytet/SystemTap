@@ -35,8 +35,10 @@
 %{!?with_dracut: %global with_dracut 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 %ifarch x86_64
 %{!?with_mokutil: %global with_mokutil 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
+%{!?with_openssl: %global with_openssl 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 %else
 %{!?with_mokutil: %global with_mokutil 0}
+%{!?with_openssl: %global with_openssl 0}
 %endif
 
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 6
@@ -185,6 +187,9 @@ Requires(preun): chkconfig
 Requires(preun): initscripts
 Requires(postun): initscripts
 BuildRequires: nss-devel avahi-devel
+%if %{with_openssl}
+Requires: openssl
+%endif
 
 %description server
 This is the remote script compilation server component of systemtap.

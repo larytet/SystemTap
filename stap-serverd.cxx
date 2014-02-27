@@ -1587,8 +1587,6 @@ generate_mok(string &mok_fingerprint)
     }
 
   // Actually generate key using openssl.
-  //
-  // FIXME: We'll need to require openssl in the spec file.
   public_cert_path = tmpdir + string (MOK_PUBLIC_CERT_FILE);
   private_cert_path = tmpdir + string (MOK_PRIVATE_CERT_FILE);
   cmd.push_back ("openssl");
