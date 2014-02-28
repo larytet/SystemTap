@@ -64,7 +64,7 @@ int main()
 
   // This will fail since the target isn't empty.
   renameat(AT_FDCWD, "dir1", AT_FDCWD, "dir3");
-  //staptest// rename (AT_FDCWD, "dir1", AT_FDCWD, "dir3") = -NNNN (ENOTEMPTY!!!!EEXIST)
+  //staptest// renameat (AT_FDCWD, "dir1", AT_FDCWD, "dir3") = -NNNN (ENOTEMPTY!!!!EEXIST)
 
   // This will fail since you can't rename a file to a directory.
   renameat(AT_FDCWD, "file1", AT_FDCWD, "dir1");

@@ -1016,8 +1016,8 @@ probe nd_syscall.readv = kprobe.function("compat_sys_readv") ?,
 	// argstr = sprintf("%d, %p, %d", $fd, $vec, $vlen)
 	asmlinkage()
 	vector_uaddr = pointer_arg(2)
-	count = ulong_arg(3)
-	fd = ulong_arg(1)
+	count = int_arg(3)
+	fd = int_arg(1)
 	argstr = sprintf("%d, %p, %d", fd, vector_uaddr, count)
 }
 probe nd_syscall.readv.return = kprobe.function("compat_sys_readv").return ?,
@@ -4764,8 +4764,8 @@ probe nd_syscall.writev = kprobe.function("compat_sys_writev") ?,
 	// argstr = sprintf("%d, %p, %d", $fd, $vec, $vlen)
 	asmlinkage()
 	vector_uaddr = pointer_arg(2)
-	count = ulong_arg(3)
-	fd = ulong_arg(1)
+	count = int_arg(3)
+	fd = int_arg(1)
 	argstr = sprintf("%d, %p, %d", fd, vector_uaddr, count)
 }
 

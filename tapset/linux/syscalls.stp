@@ -198,11 +198,11 @@ probe syscall.bdflush.return = kernel.function("sys_bdflush").return ?
 probe syscall.bind = kernel.function("sys_bind").call ?
 {
 	name = "bind"
-	sockfd = $fd
+	sockfd = __int32($fd)
 	my_addr_uaddr = $umyaddr
 	addrlen = $addrlen
 	@_af_inet_info_u(my_addr_uaddr, addrlen)
-	argstr = sprintf("%d, %s, %d", $fd, _struct_sockaddr_u($umyaddr, $addrlen), $addrlen)
+	argstr = sprintf("%d, %s, %d", __int32($fd), _struct_sockaddr_u($umyaddr, $addrlen), $addrlen)
 }
 probe syscall.bind.return = kernel.function("sys_bind").return ?
 {
