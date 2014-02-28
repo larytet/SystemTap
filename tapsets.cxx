@@ -1463,7 +1463,8 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
       if (!dw.die_entrypc(fnscope, &addr))
         return;
       if (dwarf_tag(fnscope) == DW_TAG_subprogram &&
-          (q->sess.prologue_searching || q->has_process)) // PR 6871
+          (q->sess.prologue_searching ||
+           (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
         {
           func_info func;
           func.die = *fnscope;
