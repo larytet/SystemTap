@@ -307,7 +307,7 @@ getmemusage ()
 
 void
 tokenize(const string& str, vector<string>& tokens,
-	 const string& delimiters = " ")
+	 const string& delimiters)
 {
   // Skip delimiters at beginning.
   string::size_type lastPos = str.find_first_not_of(delimiters, 0);
@@ -329,7 +329,7 @@ tokenize(const string& str, vector<string>& tokens,
 // last delimiter and allow internal empty tokens
 void
 tokenize_full(const string& str, vector<string>& tokens,
-	      const string& delimiters = " ")
+	      const string& delimiters)
 {
   // Check for an empty string or a string of length 1. Neither can have the requested
   // components.

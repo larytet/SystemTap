@@ -61,9 +61,9 @@ extern "C" gid_t get_gid (const char *group_name);
 bool in_group_id (gid_t target_gid);
 std::string getmemusage ();
 void tokenize(const std::string& str, std::vector<std::string>& tokens,
-	      const std::string& delimiters);
+	      const std::string& delimiters = " ");
 void tokenize_full(const std::string& str, std::vector<std::string>& tokens,
-	      const std::string& delimiters);
+	      const std::string& delimiters = " ");
 void tokenize_cxx(const std::string& str, std::vector<std::string>& tokens);
 std::vector<std::pair<const char*,int> > split_lines(const char *buf, size_t n);
 std::string find_executable(const std::string& name);
