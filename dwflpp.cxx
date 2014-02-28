@@ -4122,4 +4122,66 @@ dwflpp::is_gcc_producer(Dwarf_Die *cudie, string& producer, string& version)
   return true;
 }
 
+static bool
+die_has_loclist(Dwarf_Die *begin_die)
+{
+  Dwarf_Die die;
+  Dwarf_Attribute loc;
+
+  if (dwarf_child(begin_die, &die) != 0)
+    return false;
+
+  do
+    {
+      switch (dwarf_tag(&die))
+        {
+        case DW_TAG_formal_parameter:
+        case DW_TAG_variable:
+          if (dwarf_attr_integrate(&die, DW_AT_location, &loc)
+           && dwarf_whatform(&loc) == DW_FORM_sec_offset)
+            return true;
+          break;
+        default:
+          if (dwarf_haschildren (&die))
+            if (die_has_loclist(&die))
+              return true;
+          break;
+        }
+    }
+  while (dwarf_siblingof (&die, &die) == 0);
+
+  return false;
+}
+
+bool
+dwflpp::has_valid_locs ()
+{
+  assert(cu);
+
+  // The current CU has valid location info (implying we do not need to skip the
+  // prologue) if
+  //   - it was compiled with -O2 -g (in which case, GCC outputs proper location
+  //     info for the prologue), and
+  //   - it was compiled by GCC >= 4.5 (previous versions could have had invalid
+  //     debug info in the prologue, see GDB's PR13777)
+
+  string prod, vers;
+  if (is_gcc_producer(cu, prod, vers)
+   && strverscmp(vers.c_str(), "4.5") < 0)
+    return false;
+
+  // We determine if the current CU has been optimized with -O2 -g by looking
+  // for any data objects whose DW_AT_location is a location list. This is also
+  // how GDB determines whether to skip the prologue or not. See GDB's PR12573
+  // and also RHBZ612253#c6.
+  if (!die_has_loclist(cu))
+    return false;
+
+  if (sess.verbose > 2)
+    clog << _F("CU '%s' in module '%s' has valid locs",
+               cu_name().c_str(), module_name.c_str()) << endl;
+
+  return true;
+}
+
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

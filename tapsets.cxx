@@ -1885,10 +1885,11 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
       if (rc != DWARF_CB_OK)
         q->query_done = true;
 
-      if ((q->sess.prologue_searching || q->has_process) // PR 6871
-          && !q->has_statement_str) // PR 2608
-        if (! q->filtered_functions.empty())
-          q->dw.resolve_prologue_endings (q->filtered_functions);
+      if (!q->filtered_functions.empty() &&
+          !q->has_statement_str && // PR 2608
+           (q->sess.prologue_searching ||
+            (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
+        q->dw.resolve_prologue_endings (q->filtered_functions);
       // NB: we could skip the resolve_prologue_endings() call here for has_return case (PR13200),
       // but don't have to.  We can resolve the prologue, just not actually use it in query_addr().
 

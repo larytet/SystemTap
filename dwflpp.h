@@ -447,6 +447,7 @@ struct dwflpp
                                           const target_symbol *e);
 
   bool has_gnu_debugdata();
+  bool has_valid_locs();
 
 private:
   DwflPtr dwfl_ptr;
