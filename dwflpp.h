@@ -606,6 +606,9 @@ private:
                  Dwarf_Addr base,
                  void *arg);
 
+  static bool is_gcc_producer(Dwarf_Die *cudie, std::string& producer,
+                                                std::string& version);
+
 public:
   Dwarf_Addr pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* var);
 };

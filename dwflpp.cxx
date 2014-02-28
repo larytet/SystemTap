@@ -2078,32 +2078,12 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
   // scraped/optimized off some of the beginning of the function and the safest
   // thing we can do is consider it naked.
   bool consider_decl_line = false;
-  Dwarf_Attribute producer_attr;
-  if (dwarf_attr_integrate(cu, DW_AT_producer, &producer_attr))
-    {
-      // GNU C[++] x.x.x YYYYMMDD ...
-      const char* producer = dwarf_formstring(&producer_attr);
-      const char* gnuc = strstr(producer, "GNU C");
-      if (gnuc)
-        {
-          // skip over GNU C[++]
-          gnuc += 4; // skip to C
-          const char *space = strchr(gnuc, ' ');
-          if (space && *(space+1) != '\0')
-            {
-              string version;
-              const char* vers = space+1;
-              space = strchr(vers, ' ');
-              if (!space)
-                version.assign(vers);
-              else
-                version.assign(vers, space-vers);
-
-              if (strverscmp(version.c_str(), "4.4.0") < 0)
-                consider_decl_line = true;
-            }
-        }
-    }
+  {
+    string prod, vers;
+    if (is_gcc_producer(cu, prod, vers)
+     && strverscmp(vers.c_str(), "4.4.0") < 0)
+      consider_decl_line = true;
+  }
 
   for(func_info_map_t::iterator it = funcs.begin(); it != funcs.end(); it++)
     {
@@ -4058,17 +4038,13 @@ dwflpp::pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* die)
   if (getenv ("PR15123_DISABLE"))
     return 0;
 
-  Dwarf_Die cudie;
-  Dwarf_Attribute cudie_producer;
-  dwarf_diecu (die, &cudie, NULL, NULL);
-  if (! dwarf_attr_integrate(&cudie, DW_AT_producer, &cudie_producer))
-    return 0;
-
   if (!getenv ("PR15123_ASSUME_MFENTRY")) {
-    const char* producer = dwarf_formstring(&cudie_producer);
-    if (!producer)
+    Dwarf_Die cudie;
+    string producer, version;
+    dwarf_diecu (die, &cudie, NULL, NULL);
+    if (!is_gcc_producer(&cudie, producer, version))
       return 0;
-    if (! strstr(producer, "-mfentry"))
+    if (producer.find("-mfentry") == string::npos)
       return 0;
   }
 
@@ -4120,5 +4096,30 @@ dwflpp::has_gnu_debugdata ()
   return false;
 }
 
+// If not GCC, return false. Otherwise, return true and set vers.
+bool
+dwflpp::is_gcc_producer(Dwarf_Die *cudie, string& producer, string& version)
+{
+  Dwarf_Attribute producer_attr;
+  if (!dwarf_attr_integrate(cudie, DW_AT_producer, &producer_attr))
+    return false;
+
+  // GNU {C|C++|...} x.x.x YYYYMMDD ...
+  const char *cproducer = dwarf_formstring(&producer_attr);
+  if (!cproducer)
+    return false;
+  producer = cproducer;
+
+  vector<string> tokens;
+  tokenize(producer, tokens);
+
+  if (tokens.size() < 3
+      || tokens[0] != "GNU"
+      || tokens[2].find_first_not_of(".0123456789") != string::npos)
+    return false;
+
+  version = tokens[2];
+  return true;
+}
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
