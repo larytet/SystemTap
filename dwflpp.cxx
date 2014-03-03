@@ -4164,6 +4164,10 @@ dwflpp::has_valid_locs ()
   //     info for the prologue), and
   //   - it was compiled by GCC >= 4.5 (previous versions could have had invalid
   //     debug info in the prologue, see GDB's PR13777)
+  // Note that clang behaves similarly to GCC here: non-optimized code does not
+  // have location lists, while optimized code does. In the check below, even if
+  // the producer is not GCC, we assume that it is valid to do the loclist check
+  // afterwards (which it is for clang).
 
   string prod, vers;
   if (is_gcc_producer(cu, prod, vers)
