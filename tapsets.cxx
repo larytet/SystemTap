@@ -842,6 +842,9 @@ struct dwarf_query : public base_query
   int line[2];
   bool query_done;	// Found exact match
 
+  // Holds the prologue end of the current function
+  Dwarf_Addr prologue_end;
+
   set<string> filtered_srcfiles;
 
   // Map official entrypc -> func_info object
@@ -917,7 +920,7 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 const string user_lib)
   : base_query(dw, params), results(results), base_probe(base_probe),
     base_loc(base_loc), user_path(user_path), user_lib(user_lib),
-    callers(NULL), has_relative(false), relative_val(0)
+    callers(NULL), has_relative(false), relative_val(0), prologue_end(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
@@ -1472,16 +1475,14 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
 
           func_info_map_t funcs(1, func);
           dw.resolve_prologue_endings (funcs);
-          if (q->has_return) // PR13200
-            {
-              if (q->sess.verbose > 2)
-                clog << "ignoring prologue for .return probes" << endl;
-            }
-          else
-            {
-              if (funcs[0].prologue_end)
-                addr = funcs[0].prologue_end;
-            }
+          q->prologue_end = funcs[0].prologue_end;
+
+          // PR13200: if it's a .return probe, we need to emit a *retprobe based
+          // on the entrypc so here we only use prologue_end for non .return
+          // probes (note however that .return probes still take advantage of
+          // prologue_end: PR14436)
+          if (!q->has_return)
+            addr = funcs[0].prologue_end;
         }
     }
   else
@@ -1615,31 +1616,21 @@ query_func_info (Dwarf_Addr entrypc,
 {
   try
     {
-      if (q->has_return)
-	{
-	  // NB. dwarf_derived_probe::emit_registrations will emit a
-	  // kretprobe based on the entrypc in this case.
-          if (fi.prologue_end != 0 && q->has_return) // PR13200
-            {
-              if (q->sess.verbose > 2)
-                clog << "ignoring prologue for .return probes" << endl;
-            }
-	  query_statement (fi.name, fi.decl_file, fi.decl_line,
-			   &fi.die, entrypc, q);
-	}
+      // If it's a .return probe, we need to emit a *retprobe based on the
+      // entrypc (PR13200). Note however that if prologue_end is valid,
+      // dwarf_derived_probe will still take advantage of it by creating a new
+      // probe there if necessary to pick up target vars (PR14436).
+      if (fi.prologue_end == 0 || q->has_return)
+        {
+          query_statement (fi.name, fi.decl_file, fi.decl_line,
+                           &fi.die, entrypc, q);
+        }
       else
-	{
-          if (fi.prologue_end != 0)
-            {
-              query_statement (fi.name, fi.decl_file, fi.decl_line,
-                               &fi.die, fi.prologue_end, q);
-            }
-          else
-            {
-              query_statement (fi.name, fi.decl_file, fi.decl_line,
-                               &fi.die, entrypc, q);
-            }
-	}
+        {
+          q->prologue_end = fi.prologue_end;
+          query_statement (fi.name, fi.decl_file, fi.decl_line,
+                           &fi.die, fi.prologue_end, q);
+        }
     }
   catch (semantic_error &e)
     {
@@ -1888,8 +1879,6 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
            (q->sess.prologue_searching ||
             (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
         q->dw.resolve_prologue_endings (q->filtered_functions);
-      // NB: we could skip the resolve_prologue_endings() call here for has_return case (PR13200),
-      // but don't have to.  We can resolve the prologue, just not actually use it in query_addr().
 
       if (q->spec_type == function_file_and_line)
         {
@@ -4543,7 +4532,23 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
   if (!null_die(scope_die) || (!q.has_kernel && q.dw.has_gnu_debugdata()))
     {
       // XXX: user-space deref's for q.has_process!
-      dwarf_var_expanding_visitor v (q, scope_die, dwfl_addr);
+
+      // PR14436: if we're expanding target variables in the probe body of a
+      // .return probe, we need to make the expansion at the postprologue addr
+      // instead (if any), which is then also the spot where the entry handler
+      // probe is placed. (Note that at this point, a nonzero prologue_end
+      // implies that it should be used, i.e. code is unoptimized).
+      Dwarf_Addr handler_dwfl_addr = dwfl_addr;
+      if (q.prologue_end != 0 && q.has_return)
+        {
+          handler_dwfl_addr = q.prologue_end;
+          if (q.sess.verbose > 2)
+            clog << _F("expanding .return vars at prologue_end (0x%s) "
+                       "rather than entrypc (0x%s)\n",
+                       lex_cast_hex(handler_dwfl_addr).c_str(),
+                       lex_cast_hex(dwfl_addr).c_str());
+        }
+      dwarf_var_expanding_visitor v (q, scope_die, handler_dwfl_addr);
       v.replace (this->body);
 
       // Propagate perf.counters so we can emit later
@@ -4593,9 +4598,20 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           q.has_call = true;
 
           if (q.has_process)
-            entry_handler = new uprobe_derived_probe (funcname, filename, line,
-                                                      module, section, dwfl_addr,
-                                                      addr, q, scope_die);
+            {
+              // Place handler probe at the same addr as where the vars were
+              // expanded (which may not be the same addr as the one for the
+              // main retprobe, PR14436).
+              Dwarf_Addr handler_addr = addr;
+              if (handler_dwfl_addr != dwfl_addr)
+                // adjust section offset by prologue_end-entrypc
+                handler_addr += handler_dwfl_addr - dwfl_addr;
+              entry_handler = new uprobe_derived_probe (funcname, filename,
+                                                        line, module, section,
+                                                        handler_dwfl_addr,
+                                                        handler_addr, q,
+                                                        scope_die);
+            }
           else
             entry_handler = new dwarf_derived_probe (funcname, filename, line,
                                                      module, section, dwfl_addr,
