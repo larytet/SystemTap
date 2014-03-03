@@ -847,8 +847,6 @@ struct dwarf_query : public base_query
   // Map official entrypc -> func_info object
   inline_instance_map_t filtered_inlines;
   func_info_map_t filtered_functions;
-  bool choose_next_line;
-  Dwarf_Addr entrypc_for_next_line;
 
   void query_module_functions ();
 };
@@ -919,8 +917,7 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 const string user_lib)
   : base_query(dw, params), results(results), base_probe(base_probe),
     base_loc(base_loc), user_path(user_path), user_lib(user_lib),
-    callers(NULL), has_relative(false), relative_val(0),
-    choose_next_line(false), entrypc_for_next_line(0)
+    callers(NULL), has_relative(false), relative_val(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
