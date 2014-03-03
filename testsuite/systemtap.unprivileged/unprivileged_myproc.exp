@@ -21,6 +21,9 @@ set myproc_probe_types [list \
   "process.function(string).label(string)" \
   "process.function(string).return" \
   "process.function(string).exported" \
+  "process.function(string).callee(string)" \
+  "process.function(string).callees" \
+  "process.function(string).callees(number)" \
   "process.plt" \
   "process.plt.statement(number)" \
   "process.plt(string)" \
@@ -36,6 +39,9 @@ set myproc_probe_types [list \
   "process.library(string).function(string).return" \
   "process.library(string).function(string).exported" \
   "process.library(string).function(string).label(string)" \
+  "process.library(string).function(string).callee(string)" \
+  "process.library(string).function(string).callees" \
+  "process.library(string).function(string).callees(number)" \
   "process.library(string).plt" \
   "process.library(string).plt.statement(number)" \
   "process.library(string).plt(string)" \
@@ -74,6 +80,9 @@ set myproc_probe_types [list \
   "process(string).function(string).inline" \
   "process(string).function(string).return" \
   "process(string).function(string).exported" \
+  "process(string).function(string).callee(string)" \
+  "process(string).function(string).callees" \
+  "process(string).function(string).callees(number)" \
   "process(string).insn" \
   "process(string).insn.block" \
   "process(string).library(string).function(number)" \
@@ -87,6 +96,9 @@ set myproc_probe_types [list \
   "process(string).library(string).function(string).return" \
   "process(string).library(string).function(string).exported" \
   "process(string).library(string).function(string).label(string)" \
+  "process(string).library(string).function(string).callee(string)" \
+  "process(string).library(string).function(string).callees" \
+  "process(string).library(string).function(string).callees(number)" \
   "process(string).library(string).mark(string)" \
   "process(string).library(string).provider(string).mark(string)" \
   "process(string).library(string).statement(number)" \
@@ -135,6 +147,28 @@ proc add_args { probe_type pid } {
 
     # Replace "function(string).inline" with "function("ibar").inline"
     regsub -all "function\\(string\\).inline" $probe "function(\"ibar\").inline" probe
+
+    # Replace 'library(string).function(string).callee(string)' with
+    # 'library(string).function("libloopfun").callee("ilibloopfunc")'
+    regsub -all "library\\(string\\).function\\(string\\).callee\\(string\\)" \
+	$probe \
+	"library(string).function(\"libloopfunc\").callee(\"ilibloopfunc\")" \
+	probe
+    # Replace 'library(string).function(string).callees' with
+    # 'library(string).function("libloopfunc").callees'
+    regsub -all "library\\(string\\).function\\(string\\).callees" $probe \
+	"library(string).function(\"libloopfunc\").callees" probe
+
+    # Replace 'function(string).callee(string)' with
+    # 'function("main").callee("tbar")'
+    regsub -all "function\\(string\\).callee\\(string\\)" $probe \
+	"function(\"main\").callee(\"tbar\")" probe
+    # Replace 'function(string).callees' with 'function("main").callees'
+    regsub -all "function\\(string\\).callees" $probe \
+	"function(\"main\").callees" probe
+
+    # Replace 'callees(number)' with 'callees(1)'
+    regsub -all "callees\\(number\\)" $probe "callees(1)" probe
 
     # Replace "library(string).function(string)" with "library(string.function("libloopfunc")"
     regsub -all "library\\(string\\).function\\(string\\)" $probe "library(string).function(\"libloopfunc\")" probe

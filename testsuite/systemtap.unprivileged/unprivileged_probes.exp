@@ -32,6 +32,9 @@ set unrestricted_probe_types [list \
   "process.function(string).label(string)" \
   "process.function(string).return" \
   "process.function(string).exported" \
+  "process.function(string).callee(string)" \
+  "process.function(string).callees" \
+  "process.function(string).callees(number)" \
   "process.plt" \
   "process.plt.statement(number)" \
   "process.plt(string)" \
@@ -47,6 +50,9 @@ set unrestricted_probe_types [list \
   "process.library(string).function(string).return" \
   "process.library(string).function(string).exported" \
   "process.library(string).function(string).label(string)" \
+  "process.library(string).function(string).callee(string)" \
+  "process.library(string).function(string).callees" \
+  "process.library(string).function(string).callees(number)" \
   "process.library(string).plt" \
   "process.library(string).plt.statement(number)" \
   "process.library(string).plt(string)" \
@@ -84,6 +90,9 @@ set unrestricted_probe_types [list \
   "process(string).function(string).label(string)" \
   "process(string).function(string).return" \
   "process(string).function(string).exported" \
+  "process(string).function(string).callee(string)" \
+  "process(string).function(string).callees" \
+  "process(string).function(string).callees(number)" \
   "process(string).library(string).function(number)" \
   "process(string).library(string).function(number).call" \
   "process(string).library(string).function(number).inline" \
@@ -95,6 +104,9 @@ set unrestricted_probe_types [list \
   "process(string).library(string).function(string).return" \
   "process(string).library(string).function(string).exported" \
   "process(string).library(string).function(string).label(string)" \
+  "process(string).library(string).function(string).callee(string)" \
+  "process(string).library(string).function(string).callees" \
+  "process(string).library(string).function(string).callees(number)" \
   "process(string).library(string).mark(string)" \
   "process(string).library(string).provider(string).mark(string)" \
   "process(string).library(string).statement(number)" \
@@ -158,6 +170,9 @@ set restricted_probe_types [list \
   "kernel.function(string).return" \
   "kernel.function(string).exported" \
   "kernel.function(string).return.maxactive(number)" \
+  "kernel.function(string).callee(string)" \
+  "kernel.function(string).callees" \
+  "kernel.function(string).callees(number)" \
   "kernel.mark(string)" \
   "kernel.mark(string).format(string)" \
   "kernel.statement(number)" \
@@ -185,6 +200,9 @@ set restricted_probe_types [list \
   "module(string).function(string).return" \
   "module(string).function(string).exported" \
   "module(string).function(string).return.maxactive(number)" \
+  "module(string).function(string).callee(string)" \
+  "module(string).function(string).callees" \
+  "module(string).function(string).callees(number)" \
   "module(string).statement(number)" \
   "module(string).statement(string)" \
   "perf.type(number).config(number)" \
@@ -238,6 +256,28 @@ proc add_args { probe_type } {
 
     # Replace "function(string).inline" with "function("ibar").inline"
     regsub -all "function\\(string\\).inline" $probe "function(\"ibar\").inline" probe
+
+    # Replace 'library(string).function(string).callee(string)' with
+    # 'library(string).function("libloopfun").callee("ilibloopfunc")'
+    regsub -all "library\\(string\\).function\\(string\\).callee\\(string\\)" \
+	$probe \
+	"library(string).function(\"libfoofunc\").callee(\"ilibfoofunc\")" \
+	probe
+    # Replace 'library(string).function(string).callees' with
+    # 'library(string).function("libloopfunc").callees'
+    regsub -all "library\\(string\\).function\\(string\\).callees" $probe \
+	"library(string).function(\"libfoofunc\").callees" probe
+
+    # Replace 'function(string).callee(string)' with
+    # 'function("main").callee("ibar")'
+    regsub -all "function\\(string\\).callee\\(string\\)" $probe \
+	"function(\"main\").callee(\"ibar\")" probe
+    # Replace 'function(string).callees' with 'function("main").callees'
+    regsub -all "function\\(string\\).callees" $probe \
+	"function(\"main\").callees" probe
+
+    # Replace 'callees(number)' with 'callees(1)'
+    regsub -all "callees\\(number\\)" $probe "callees(1)" probe
 
     # Replace "library(string).function(string)" with "library(string.function("libfoofunc")"
     regsub -all "library\\(string\\).function\\(string\\)" $probe "library(string).function(\"libfoofunc\")" probe
