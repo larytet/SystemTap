@@ -4689,7 +4689,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
   if ((q.has_callee || q.has_callees_num) && q.callers && !q.callers->empty())
     {
       if (q.sess.verbose > 2)
-        clog << "adding caller checks for callee " << funcname << endl;
+        clog << _F("adding caller checks for callee %s\n", funcname.c_str());
 
       // Copy the stack and empty it out
       stack<Dwarf_Addr> callers(*q.callers);
@@ -4711,8 +4711,8 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                                                  caller_section);
 
           if (q.sess.verbose > 2)
-            clog << "adding caller check [u]stack(" << level << ") == "
-                 << "reloc(0x" << hex << caller_reloc << dec << ")" << endl;
+            clog << _F("adding caller check [u]stack(%d) == reloc(0x%s)\n",
+                       level, lex_cast_hex(caller_reloc).c_str());
 
           // We want to add a statement like this:
           // if (!caller_match(user, mod, sec, addr)) next;
