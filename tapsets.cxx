@@ -1622,12 +1622,12 @@ query_func_info (Dwarf_Addr entrypc,
       // probe there if necessary to pick up target vars (PR14436).
       if (fi.prologue_end == 0 || q->has_return)
         {
+          q->prologue_end = fi.prologue_end;
           query_statement (fi.name, fi.decl_file, fi.decl_line,
                            &fi.die, entrypc, q);
         }
       else
         {
-          q->prologue_end = fi.prologue_end;
           query_statement (fi.name, fi.decl_file, fi.decl_line,
                            &fi.die, fi.prologue_end, q);
         }
