@@ -66,8 +66,9 @@ proc build_probe { func callee } {
 }
 
 # Runs stap -L against given func and callee and expects probes for functions in
-# expfuncs list.
-proc expect_list { func callee expfuncs } {
+# expout list. The 'expout' param is a list of caller/callee pairs expected to
+# be printed out together.
+proc expect_list { func callee expout } {
    global test testpath subtest
 
    # Build the stap command
@@ -76,11 +77,15 @@ proc expect_list { func callee expfuncs } {
    # Build the expect regex: pp1|pp2|pp3|...
    set n 0
    set regexp ""
-   foreach expfunc $expfuncs {
+   foreach {expcaller expcallee} $expout {
       # process(path)
       set cregexp "^process\\\(\"/\[^\"\]*/testsuite/${test}\"\\\)"
       # .function(func@/path/callee.subtest
-      append cregexp "\\\.function\\\(\"$expfunc@\[^\"\]*${test}\\\.${subtest}"
+      append cregexp "\\\.function\\\(\"$expcaller@\[^\"\]*${test}\\\.${subtest}"
+      # fileno:lineno")
+      append cregexp "\(\\\.\[0-9\]\)?\\\.c:\[0-9\]+\"\\\)"
+      # .callee(expfunc@/path/callee.subtest
+      append cregexp "\\\.callee\\\(\"$expcallee@\[^\"\]*${test}\\\.${subtest}"
       # fileno:lineno") __stuff__ \r\n
       append cregexp "\(\\\.\[0-9\]\)?\\\.c:\[0-9\]+\"\\\)\[^\\r\\n\]*\\r\\n"
       if {[string length $regexp]} {
@@ -109,7 +114,7 @@ proc expect_list { func callee expfuncs } {
 }
 
 # Runs stap against given func and callee and verifies that probes are
-# triggered. The 'expout' param is a list of callee/caller pairs expected to be
+# triggered. The 'expout' param is a list of caller/callee pairs expected to be
 # printed out together. The 'inlined' arg should be 1 if callee is inlined, 0
 # otherwise (defaults to 0).
 proc expect_probe { func callee expout {inlined 0} } {
@@ -125,15 +130,15 @@ proc expect_probe { func callee expout {inlined 0} } {
    # Build the stap command
    set script " \
       probe [build_probe $func $callee] { \
-         printf(\"callee %s caller %s\\n\", ppfunc(), $caller) \
+         printf(\"caller %s callee %s\\n\", $caller, ppfunc()) \
       } \
    "
 
    # Build the expect regex: callee1caller1|callee2caller2|...
    set n 0
    set regexp ""
-   foreach {expcallee expcaller} $expout {
-      set cregexp "^callee ${expcallee} caller ${expcaller}\[^\\r\\n\]*\\r\\n"
+   foreach {expcaller expcallee} $expout {
+      set cregexp "^caller ${expcaller} callee ${expcallee}\[^\\r\\n\]*\\r\\n"
       if {[string length $regexp]} {
          append regexp |
       }
@@ -173,41 +178,45 @@ if {!$failed} {
 
 set subsubtest "listing .callee(foo)"
 if {!$failed} {
-   passfail [expect_list main level1 level1]
+   set expout [list main level1]
+   passfail [expect_list main level1 $expout]
 }
 
 set subsubtest "listing .callee(*)"
 if {!$failed} {
-   passfail [expect_list main * level1]
+   set expout [list main level1]
+   passfail [expect_list main * $expout]
 }
 
 set subsubtest "listing .callees"
 if {!$failed} {
-   passfail [expect_list main 0 level1]
+   set expout [list main level1]
+   passfail [expect_list main 0 $expout]
 }
 
 set subsubtest "listing .callees(1)"
 if {!$failed} {
-   passfail [expect_list main 1 level1]
+   set expout [list main level1]
+   passfail [expect_list main 1 $expout]
 }
 
 set subsubtest "listing .callees(2)"
 if {!$failed} {
-   set expfuncs [list level1 level2]
-   passfail [expect_list main 2 $expfuncs]
+   set expout [list main level1 level1 level2]
+   passfail [expect_list main 2 $expout]
 }
 
 set subsubtest "listing .callees(3)"
 if {!$failed} {
-   set expfuncs [list level1 level2 level3]
-   passfail [expect_list main 3 $expfuncs]
+   set expout [list main level1 level1 level2 level2 level3]
+   passfail [expect_list main 3 $expout]
 }
 
 set subsubtest "probing .callee(foo)"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list level1 main]
+   set expout [list main level1]
    passfail [expect_probe main level1 $expout]
 }
 
@@ -215,7 +224,7 @@ set subsubtest "probing .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list level1 main]
+   set expout [list main level1]
    passfail [expect_probe main 0 $expout]
 }
 
@@ -223,7 +232,7 @@ set subsubtest "probing .callees(1)"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list level1 main]
+   set expout [list main level1]
    passfail [expect_probe main 1 $expout]
 }
 
@@ -231,7 +240,7 @@ set subsubtest "probing .callees(2)"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list level1 main level2 level1]
+   set expout [list main level1 level1 level2]
    passfail [expect_probe main 2 $expout]
 }
 
@@ -239,7 +248,7 @@ set subsubtest "probing .callees(3)"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list level1 main level2 level1 level3 level2]
+   set expout [list main level1 level1 level2 level2 level3]
    passfail [expect_probe main 3 $expout]
 }
 
@@ -260,20 +269,21 @@ if {!$failed} {
 
 set subsubtest "listing main .callees"
 if {!$failed} {
-   set expfuncs [list foo bar]
-   passfail [expect_list main 0 $expfuncs]
+   set expout [list main foo main bar]
+   passfail [expect_list main 0 $expout]
 }
 
 set subsubtest "listing bar .callees"
 if {!$failed} {
-   passfail [expect_list bar 0 foo]
+   set expout [list bar foo]
+   passfail [expect_list bar 0 $expout]
 }
 
 set subsubtest "probing main .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo main bar main foo main]
+   set expout [list main foo main bar main foo]
    passfail [expect_probe main 0 $expout]
 }
 
@@ -281,7 +291,7 @@ set subsubtest "probing bar .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo bar]
+   set expout [list bar foo]
    passfail [expect_probe bar 0 $expout]
 }
 
@@ -293,7 +303,7 @@ set subsubtest "probing main .callees(2)"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo main baz foo bar main foo bar foo main baz foo ]
+   set expout [list main foo foo baz main bar bar foo main foo foo baz ]
    passfail [expect_probe main 2 $expout]
 }
 
@@ -316,20 +326,21 @@ if {!$failed} {
 
 set subsubtest "listing main .callees"
 if {!$failed} {
-   set expfuncs [list foo bar]
-   passfail [expect_list main 0 $expfuncs]
+   set expout [list main foo main bar]
+   passfail [expect_list main 0 $expout]
 }
 
 set subsubtest "listing bar .callees"
 if {!$failed} {
-   passfail [expect_list bar 0 foo]
+   set expout [list bar foo]
+   passfail [expect_list bar 0 $expout]
 }
 
 set subsubtest "probing main .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo main bar main foo main]
+   set expout [list main foo main bar main foo]
    passfail [expect_probe main 0 $expout 1]
 }
 
@@ -337,7 +348,7 @@ set subsubtest "probing bar .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo main]
+   set expout [list main foo]
    passfail [expect_probe bar 0 $expout 1]
 }
 
@@ -347,7 +358,7 @@ set subsubtest "probing main .callees(2)"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo main baz main bar main foo main foo main baz main ]
+   set expout [list main foo main baz main bar main foo main foo main baz]
    passfail [expect_probe main 2 $expout 1]
 }
 
@@ -364,19 +375,21 @@ if {!$failed} {
 
 set subsubtest "listing main .callees"
 if {!$failed} {
-   passfail [expect_list main 0 foo]
+   set expout [list main foo]
+   passfail [expect_list main 0 $expout]
 }
 
 set subsubtest "listing foo .callees"
 if {!$failed} {
-   passfail [expect_list foo 0 bar]
+   set expout [list foo bar]
+   passfail [expect_list foo 0 $expout]
 }
 
 set subsubtest "probing main .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list foo main]
+   set expout [list main foo]
    passfail [expect_probe main 0 $expout]
 }
 
@@ -384,7 +397,7 @@ set subsubtest "probing foo .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
-   set expout [list bar foo]
+   set expout [list foo bar]
    passfail [expect_probe foo 0 $expout]
 }
 
@@ -447,8 +460,12 @@ if {!$failed} {
 
    set probe process("./$subtest").library("$libso").function("foo").callees
 
-   # process(/path/$libso).function(bar@
-   set regexp    "^process\\\(\"\[^\"\]*/$libso\"\\\)\\\.function\\\(\"bar@"
+   # process(/path/$libso).function(foo@
+   set regexp    "^process\\\(\"\[^\"\]*/$libso\"\\\)\\\.function\\\(\"foo@"
+   # /path/callee.reloc.lib.c.:<lineno>)
+   append regexp "\[^\"\]*/${test}\\\.${subtest}\\\.lib\\\.c:\[0-9\]+\"\\\)"
+   # .callee(bar@
+   set regexp    "\\\.callee\\\(\"bar@"
    # /path/callee.reloc.lib.c.:<lineno>)
    append regexp "\[^\"\]*/${test}\\\.${subtest}\\\.lib\\\.c:\[0-9\]+\"\\\)"
    # <line end>
@@ -486,8 +503,8 @@ if {![installtest_p]} {
    set script " \
       probe process(\"./$subtest\").library(\"$libso\") \
                                    .function(\"foo\").callees { \
-         printf(\"callee %s caller %s\\n\", ppfunc(), \
-                usymname(ustack(1))) \
+         printf(\"caller %s callee %s\\n\", usymname(ustack(1)), \
+                ppfunc()) \
       } \
    "
 
@@ -555,7 +572,7 @@ if {![installtest_p]} {
    expect {
       -timeout 5
       -i $stap_id
-      {callee bar caller foo} { set failed 0 }
+      {caller foo callee bar} { set failed 0 }
       timeout { }
       eof { }
    }
