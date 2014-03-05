@@ -1650,12 +1650,69 @@ query_callee (char const * callee,
               int line,
               Dwarf_Die *callee_die,
               Dwarf_Addr callee_addr,
+              Dwarf_Die *caller_addr,
               stack<Dwarf_Addr> *callers,
               dwarf_query * q)
 {
   assert (q->has_function_str);
   q->callers = callers;
+
+  size_t i = q->results.size();
+
   query_statement(callee, file, line, callee_die, callee_addr, q);
+
+  // We just added a new probe for this callee, e.g. process.function("callee").
+  // To help show the derivation, let's add the intermediate step:
+  // process.function("caller").callee("callee"). This is what will show up if
+  // we're in listing mode.
+
+  // First we need to get info about the caller. It may or may not be in
+  // filtered_functions (since filtered_functions is concerned with funcs that
+  // matched function(pattern), nothing to do with callee(pattern)). So rather
+  // than searching, let's just directly poll info.
+  string      caller_name;
+  const char *caller_file;
+  int         caller_line;
+
+  // Let's avoid using focus_on_function() because the caller may be in a
+  // completely different CU. Directly get the info from dwarf.
+  caller_name = dwarf_diename(caller_addr) ?: "function";
+  caller_file = dwarf_decl_file(caller_addr) ?: "<unknown source>";
+  if (dwarf_decl_line(caller_addr, &caller_line))
+    caller_line = 0;
+
+  // Now, we build the list of components that the intermediate probe_point will
+  // have. It's pretty much the same as what q describes. We canonicalize it and
+  // then add on our own canonicalized .callee(func@file:line).
+
+  // Since canonicalize_comps() does not treat has_callee, we'll get back a
+  // 'pure' kernel/process/module.[library.].function probe with no other suffix
+  // tacked on (since .callee can only follow .function)
+  vector<probe_point::component*> caller_comps =
+    q->canonicalize_comps(q->dw.module_name, caller_name,
+                          caller_file, caller_line);
+
+  // Mini-canonicalization of callee, to add on to caller_comps
+  string callee_file = string(file);
+  string canon_callee = callee;
+  if (callee_file != "")
+    {
+      canon_callee += ("@" + callee_file);
+      if (line > 0)
+        canon_callee += (":" + lex_cast(line));
+    }
+  caller_comps.push_back(new probe_point::component
+                     (TOK_CALLEE, new literal_string(canon_callee)));
+
+  // There should only be a single result. Take that result and make its base
+  // probe based on this function(str).callee(str) intermediate step.
+  for (; i < q->results.size(); ++i)
+    {
+      derived_probe* p = q->results[i];
+      probe_point* pp = new probe_point(*p->locations[0]);
+      pp->components = caller_comps;
+      p->base = new probe (p->base, pp);
+    }
 }
 
 static void

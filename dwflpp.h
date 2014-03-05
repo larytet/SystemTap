@@ -365,9 +365,11 @@ struct dwflpp
                                                int,
                                                Dwarf_Die*,
                                                Dwarf_Addr,
+                                               Dwarf_Die*,
                                                std::stack<Dwarf_Addr>*,
                                                T*),
-                             std::stack<Dwarf_Addr>*callers=NULL)
+                             std::stack<Dwarf_Addr>*callers=NULL,
+                             Dwarf_Die *orig_die=NULL)
     {
       // See comment block in iterate_over_modules()
       iterate_over_callees<void>(begin_die,
@@ -379,9 +381,11 @@ struct dwflpp
                                            int,
                                            Dwarf_Die*,
                                            Dwarf_Addr,
+                                           Dwarf_Die*,
                                            std::stack<Dwarf_Addr>*,
                                            void*))callback,
-                                 callers);
+                                 callers,
+                                 orig_die);
     }
 
   GElf_Shdr * get_section(std::string section_name, GElf_Shdr *shdr_mem,
@@ -695,9 +699,11 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                                      int,
                                                      Dwarf_Die*,
                                                      Dwarf_Addr,
+                                                     Dwarf_Die*,
                                                      std::stack<Dwarf_Addr>*,
                                                      void*),
-                                   std::stack<Dwarf_Addr> *callers);
+                                   std::stack<Dwarf_Addr> *callers,
+                                   Dwarf_Die *orig_die);
 
 #endif // DWFLPP_H
 
