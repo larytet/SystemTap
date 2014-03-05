@@ -33,8 +33,11 @@
     process("myproc").function("foo").callee("bar")
 
   will fire upon entering bar() from foo(). A '.callees' probe will
-  instead place probes on all callees of foo(). See stapprobes(3stap)
-  for more info.
+  instead place probes on all callees of foo().
+    Note that this also means that probe point wildcards should be used
+  with more care. For example, use signal.*.return rather than
+  signal.*.*, which would also match '.callees'. See stapprobes(3stap)
+  for more info. This feature requires at least GCC 4.7.
 
 - A few new functions in the task_time tapsets, as well as a new tapset
   function task_ancestry(), which prints out the parentage of a process.

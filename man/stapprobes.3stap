@@ -406,7 +406,8 @@ only when the callee is called from the target function (add the
 Note that only callees that can be statically determined are available.
 For example, calls through function pointers are not available.
 Additionally, calls to functions located in other objects (e.g.
-libraries) are not available (instead use another probe point).
+libraries) are not available (instead use another probe point). This
+feature will only work for code compiled with GCC 4.7+.
 .TP
 \fB.callees\fR
 Shortcut for \fB.callee("*")\fR, which places a probe on all callees of
