@@ -852,6 +852,11 @@ struct dwarf_query : public base_query
   func_info_map_t filtered_functions;
 
   void query_module_functions ();
+
+  vector<probe_point::component*> canonicalize_comps(const string& module,
+                                                     const string& function,
+                                                     const string& file,
+                                                     int line);
 };
 
 
@@ -1356,6 +1361,69 @@ dwarf_query::assess_dbinfo_reqt()
   return dbr_need_dwarf;
 }
 
+vector<probe_point::component*>
+dwarf_query::canonicalize_comps(const string& module,
+                                const string& function,
+                                const string& file, int line)
+{
+  vector<probe_point::component*> comps;
+  if (has_kernel)
+    comps.push_back (new probe_point::component(TOK_KERNEL));
+  else if(has_module)
+    comps.push_back (new probe_point::component(TOK_MODULE, new literal_string(module)));
+  else if(has_process)
+    comps.push_back (new probe_point::component(TOK_PROCESS, new literal_string(module)));
+  else
+    assert (0);
+
+  string fn_or_stmt;
+  if (has_function_str || has_function_num)
+    fn_or_stmt = "function";
+  else
+    fn_or_stmt = "statement";
+
+  if (has_function_str || has_statement_str)
+      {
+        string retro_name = function;
+	if (file != "")
+          {
+            retro_name += ("@" + file);
+            if (line > 0)
+              retro_name += (":" + lex_cast (line));
+          }
+        comps.push_back
+          (new probe_point::component
+           (fn_or_stmt, new literal_string (retro_name)));
+      }
+  else if (has_function_num || has_statement_num)
+    {
+      Dwarf_Addr retro_addr;
+      if (has_function_num)
+        retro_addr = function_num_val;
+      else
+        retro_addr = statement_num_val;
+      comps.push_back (new probe_point::component
+                       (fn_or_stmt,
+                        new literal_number(retro_addr, true)));
+
+      if (has_absolute)
+        comps.push_back (new probe_point::component (TOK_ABSOLUTE));
+    }
+
+  if (has_call)
+      comps.push_back (new probe_point::component(TOK_CALL));
+  if (has_exported)
+      comps.push_back (new probe_point::component(TOK_EXPORTED));
+  if (has_inline)
+      comps.push_back (new probe_point::component(TOK_INLINE));
+  if (has_return)
+    comps.push_back (new probe_point::component(TOK_RETURN));
+  if (has_maxactive)
+    comps.push_back (new probe_point::component
+                     (TOK_MAXACTIVE, new literal_number(maxactive_val)));
+
+  return comps;
+}
 
 // The critical determining factor when interpreting a pattern
 // string is, perhaps surprisingly: "presence of a lineno". The
@@ -4638,65 +4706,8 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
   // "reverse-engineered" form of the incoming (q.base_loc) probe
   // point.  This allows a user to see what function / file / line
   // number any particular match of the wildcards.
-
-  vector<probe_point::component*> comps;
-  if (q.has_kernel)
-    comps.push_back (new probe_point::component(TOK_KERNEL));
-  else if(q.has_module)
-    comps.push_back (new probe_point::component(TOK_MODULE, new literal_string(module)));
-  else if(q.has_process)
-    comps.push_back (new probe_point::component(TOK_PROCESS, new literal_string(module)));
-  else
-    assert (0);
-
-  string fn_or_stmt;
-  if (q.has_function_str || q.has_function_num)
-    fn_or_stmt = "function";
-  else
-    fn_or_stmt = "statement";
-
-  if (q.has_function_str || q.has_statement_str)
-      {
-        string retro_name = funcname;
-	if (filename != "")
-          {
-            retro_name += ("@" + string (filename));
-            if (line > 0)
-              retro_name += (":" + lex_cast (line));
-          }
-        comps.push_back
-          (new probe_point::component
-           (fn_or_stmt, new literal_string (retro_name)));
-      }
-  else if (q.has_function_num || q.has_statement_num)
-    {
-      Dwarf_Addr retro_addr;
-      if (q.has_function_num)
-        retro_addr = q.function_num_val;
-      else
-        retro_addr = q.statement_num_val;
-      comps.push_back (new probe_point::component
-                       (fn_or_stmt,
-                        new literal_number(retro_addr, true)));
-
-      if (q.has_absolute)
-        comps.push_back (new probe_point::component (TOK_ABSOLUTE));
-    }
-
-  if (q.has_call)
-      comps.push_back (new probe_point::component(TOK_CALL));
-  if (q.has_exported)
-      comps.push_back (new probe_point::component(TOK_EXPORTED));
-  if (q.has_inline)
-      comps.push_back (new probe_point::component(TOK_INLINE));
-  if (has_return)
-    comps.push_back (new probe_point::component(TOK_RETURN));
-  if (has_maxactive)
-    comps.push_back (new probe_point::component
-                     (TOK_MAXACTIVE, new literal_number(maxactive_val)));
-
-  // Overwrite it.
-  this->sole_location()->components = comps;
+  this->sole_location()->components =
+    q.canonicalize_comps(module, funcname, filename, line);
 
   // if it's a .callee[s[(N)]] call, add checks to the probe body so that the
   // user body is only 'triggered' when called from q.callers[N-1], which
