@@ -627,6 +627,18 @@ internal_find_debuginfo (Dwfl_Module *mod,
 
   call_dwfl_standard_find_debuginfo:
 
+  if (current_session_for_find_debuginfo)
+    {
+      string sysroot = current_session_for_find_debuginfo->sysroot + "/*";
+      int    found   = fnmatch(sysroot.c_str(), file_name, 0);
+
+      if (found)
+	{
+	  file_name = file_name
+	    + current_session_for_find_debuginfo->sysroot.length() - 1;
+	}
+    }
+
   /* Call the original dwfl_standard_find_debuginfo */
   return dwfl_standard_find_debuginfo(mod, userdata, modname, base,
               file_name, debuglink_file,
