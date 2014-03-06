@@ -1965,6 +1965,17 @@ systemtap_session::print_error_source (std::ostream& message,
 	message << ' ';
     }
   message << colorize("^", "caret") << endl;
+
+  // print chained macro invocations and synthesized code
+  if (tok->chain)
+    {
+      if (tok->location.file->synthetic)
+	message << _("\tin synthesized code from: ");
+      else
+	message << _("\tin expansion of macro: ");
+      message << colorize(tok->chain) << endl;
+      print_error_source (message, align, tok->chain);
+    }
 }
 
 void
@@ -2049,13 +2060,6 @@ systemtap_session::build_error_msg (const parse_error& pe,
     {
       message << _("\tsaw: ") << input_name << " EOF" << endl;
     }
-
-  // print chained macro invocations
-  while (tok && tok->chain) {
-    tok = tok->chain;
-    message << _("\tin expansion of macro: ") << colorize(tok) << endl;
-    print_error_source (message, align_parse_error, tok);
-  }
   message << endl;
 
   return message.str();

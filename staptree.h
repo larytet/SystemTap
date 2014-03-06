@@ -724,8 +724,9 @@ struct stapfile
   std::vector<embeddedcode*> embeds;
   std::string file_contents;
   bool privileged;
+  bool synthetic; // via parse_synthetic_*
   stapfile (): file_contents (""),
-    privileged (false) {}
+    privileged (false), synthetic (false) {}
   void print (std::ostream& o) const;
 };
 

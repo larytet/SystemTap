@@ -45,6 +45,7 @@ public:
   token* scan ();
   lexer (istream&, const string&, systemtap_session&);
   void set_current_file (stapfile* f);
+  void set_current_token_chain (const token* tok);
 
   static set<string> keywords;
   static set<string> atwords;
@@ -63,6 +64,7 @@ private:
   unsigned cursor_column;
   systemtap_session& session;
   stapfile* current_file;
+  const token* current_token_chain;
 };
 
 
@@ -73,6 +75,7 @@ public:
   ~parser ();
 
   stapfile* parse (bool errs_as_warnings);
+  probe* parse_synthetic_probe (const token* chain, bool errs_as_warnings);
   stapfile* parse_library_macros (bool errs_as_warnings);
 
 private:
@@ -249,6 +252,13 @@ parse_library_macros (systemtap_session& s, const string& name, bool errs_as_war
 
   parser p (s, name, i, false); // TODOXX pr is ...? should path be full??
   return p.parse_library_macros (errs_as_warnings);
+}
+
+probe*
+parse_synthetic_probe (systemtap_session &s, std::istream& i, const token* tok)
+{
+  parser p (s, "<synthetic>", i, false);
+  return p.parse_synthetic_probe (tok, false);
 }
 
 // ------------------------------------------------------------------------
@@ -1331,7 +1341,7 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
   ate_comment(false), ate_whitespace(false), saw_tokens(false),
   input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
   cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
-  cursor_column (1), session(s), current_file (0)
+  cursor_column (1), session(s), current_file (0), current_token_chain (0)
 {
   getline(input, input_contents, '\0');
 
@@ -1397,6 +1407,12 @@ lexer::set_current_file (stapfile* f)
       f->file_contents = input_contents;
       f->name = input_name;
     }
+}
+
+void
+lexer::set_current_token_chain (const token* tok)
+{
+  current_token_chain = tok;
 }
 
 int
@@ -1471,7 +1487,7 @@ lexer::scan ()
 
   token* n = new token;
   n->location.file = current_file;
-  n->chain = NULL; // important safety dance
+  n->chain = current_token_chain;
 
 skip:
   bool suspended = (cursor_suspend_count > 0);
@@ -1860,6 +1876,37 @@ parser::parse (bool errs_as_warnings)
 
   input.set_current_file(0);
   return f;
+}
+
+
+probe*
+parser::parse_synthetic_probe (const token* chain, bool errs_as_warnings)
+{
+  probe* p = NULL;
+  stapfile* f = new stapfile;
+  f->synthetic = true;
+  input.set_current_file (f);
+  input.set_current_token_chain (chain);
+
+  try
+    {
+      context = con_probe;
+      parse_probe (f->probes, f->aliases);
+
+      if (f->probes.size() != 1 || !f->aliases.empty())
+        throw PARSE_ERROR (_("expected a single synthetic probe"));
+      p = f->probes[0];
+    }
+  catch (parse_error& pe)
+    {
+      print_error (pe, errs_as_warnings);
+    }
+
+  // TODO check for unparsed tokens?
+
+  input.set_current_file(0);
+  input.set_current_token_chain(0);
+  return p;
 }
 
 

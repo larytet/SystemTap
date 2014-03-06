@@ -17,6 +17,7 @@
 #include <stdexcept>
 
 struct stapfile;
+struct probe;
 
 struct source_loc
 {
@@ -84,6 +85,8 @@ stapfile* parse (systemtap_session& s, std::istream& i, bool privileged, bool er
 stapfile* parse (systemtap_session& s, const std::string& n, bool privileged, bool errs_as_warnings);
 
 stapfile* parse_library_macros (systemtap_session& s, const std::string& n, bool errs_as_warnings);
+
+probe* parse_synthetic_probe (systemtap_session &s, std::istream& i, const token* tok);
 
 #endif // PARSE_H
 

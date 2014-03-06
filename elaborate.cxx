@@ -1785,213 +1785,98 @@ void add_global_var_display (systemtap_session& s)
       if (tapset_global)
 	continue;
 
-      probe_point::component* c = new probe_point::component("end");
-      probe_point* pl = new probe_point;
-      pl->components.push_back (c);
+      stringstream code;
+      code << "probe end {" << endl;
 
-      vector<derived_probe*> dps;
-      block *b = new block;
-      b->tok = l->tok;
+      string format = l->name;
 
-      probe* p = new probe;
-      p->tok = l->tok;
-      p->locations.push_back (pl);
-
-      // Create a symbol
-      symbol* g_sym = new symbol;
-      g_sym->name = l->name;
-      g_sym->tok = l->tok;
-      g_sym->type = l->type;
-      g_sym->referent = l;
-
-      print_format* pf = print_format::create(l->tok, "printf");
-      pf->raw_components += l->name;
-
-      if (l->index_types.size() == 0) // Scalar
+      string indexes;
+      if (!l->index_types.empty())
 	{
-	  if (l->type == pe_stats)
-	    if (strverscmp(s.compatible.c_str(), "1.4") >= 0)
-	      pf->raw_components += " @count=%#d @min=%#d @max=%#d @sum=%#d @avg=%#d\\n";
-	    	    else
-	      pf->raw_components += " @count=%#x @min=%#x @max=%#x @sum=%#x @avg=%#x\\n";
-	  else if (l->type == pe_string)
-	    pf->raw_components += "=\"%#s\"\\n";
-	  else
-	    pf->raw_components += "=%#x\\n";
-	  pf->components = print_format::string_to_components(pf->raw_components);
-	  expr_statement* feb = new expr_statement;
-	  feb->value = pf;
-	  feb->tok = pf->tok;
-	  if (l->type == pe_stats)
-	    {
-	      struct stat_op* so [5];
-	      const stat_component_type stypes[] = {sc_count, sc_min, sc_max, sc_sum, sc_average};
-
-	      for (unsigned si = 0;
-		   si < (sizeof(so)/sizeof(struct stat_op*));
-		   si++)
-		{
-		  so[si]= new stat_op;
-		  so[si]->ctype = stypes[si];
-		  so[si]->type = pe_long;
-		  so[si]->stat = g_sym;
-		  so[si]->tok = l->tok;
-		  pf->args.push_back(so[si]);
-		}
-	    }
-	  else
-	    pf->args.push_back(g_sym);
-
-	  /* PR7053: Checking empty aggregate for global variable */
-	  if (l->type == pe_stats) {
-              stat_op *so= new stat_op;
-              so->ctype = sc_count;
-              so->type = pe_long;
-              so->stat = g_sym;
-              so->tok = l->tok;
-              comparison *be = new comparison;
-              be->op = ">";
-              be->tok = l->tok;
-              be->left = so;
-              be->right = new literal_number(0);
-
-              /* Create printf @count=0x0 in else block */
-              print_format* pf_0 = print_format::create(pf->tok, "printf");
-              pf_0->raw_components += l->name;
-              pf_0->raw_components += " @count=0x0\\n";
-              pf_0->components = print_format::string_to_components(pf_0->raw_components);
-              expr_statement* feb_else = new expr_statement;
-              feb_else->value = pf_0;
-              feb_else->tok = pf->tok;
-              if_statement *ifs = new if_statement;
-              ifs->tok = l->tok;
-              ifs->condition = be;
-              ifs->thenblock = feb ;
-              ifs->elseblock = feb_else;
-              b->statements.push_back(ifs);
-	    }
-	  else /* other non-stat cases */
-	    b->statements.push_back(feb);
-	}
-      else			// Array
-	{
-	  int idx_count = l->index_types.size();
-	  symbol* idx_sym[idx_count];
-	  vardecl* idx_v[idx_count];
-	  // Create a foreach loop
-	  foreach_loop* fe = new foreach_loop;
-	  fe->sort_direction = -1; // imply decreasing sort on value
-	  fe->sort_column = 0;     // as in   foreach ([a,b,c] in array-) { }
-	  fe->sort_aggr = sc_none; // as in default @count
-	  fe->value = NULL;
-	  fe->limit = NULL;
-	  fe->tok = l->tok;
-
-	  // Create indices for the foreach loop
-	  for (int i=0; i < idx_count; i++)
-	    {
-	      char *idx_name;
-	      if (asprintf (&idx_name, "idx%d", i) < 0) {
-               delete pf;
-               delete b;
-               delete p;
-               delete g_sym;
-               delete fe;
-               return;
-	      }
-	      idx_sym[i] = new symbol;
-	      idx_sym[i]->name = idx_name;
-	      idx_sym[i]->tok = l->tok;
-	      idx_v[i] = new vardecl;
-	      idx_v[i]->name = idx_name;
-	      idx_v[i]->type = l->index_types[i];
-	      idx_v[i]->tok = l->tok;
-	      idx_sym[i]->referent = idx_v[i];
-	      fe->indexes.push_back (idx_sym[i]);
-	    }
-
-	  // Create a printf for the foreach loop
-	  pf->raw_components += "[";
-	  for (int i=0; i < idx_count; i++)
+	  // Add index values to the printf format, and prepare
+	  // a simple list of indexes for passing around elsewhere
+	  format += "[";
+	  for (size_t i = 0; i < l->index_types.size(); ++i)
 	    {
 	      if (i > 0)
-		pf->raw_components += ",";
-	      if (l->index_types[i] == pe_string)
-		pf->raw_components += "\"%#s\"";
-	      else
-		pf->raw_components += "%#d";
-	    }
-	  pf->raw_components += "]";
-	  if (l->type == pe_stats)
-	    if (strverscmp(s.compatible.c_str(), "1.4") >= 0)
-	      pf->raw_components += " @count=%#d @min=%#d @max=%#d @sum=%#d @avg=%#d\\n";
-	    else
-	      pf->raw_components += " @count=%#x @min=%#x @max=%#x @sum=%#x @avg=%#x\\n";
-	  else if (l->type == pe_string)
-	    pf->raw_components += "=\"%#s\"\\n";
-	  else
-	    pf->raw_components += "=%#x\\n";
-
-	  // Create an index for the array
-	  struct arrayindex* ai = new arrayindex;
-	  ai->tok = l->tok;
-	  ai->base = g_sym;
-
-	  for (int i=0; i < idx_count; i++)
-	    {
-	      ai->indexes.push_back (idx_sym[i]);
-	      pf->args.push_back(idx_sym[i]);
-	    }
-	  if (l->type == pe_stats)
-	    {
-	      struct stat_op* so [5];
-	      const stat_component_type stypes[] = {sc_count, sc_min, sc_max, sc_sum, sc_average};
-
-	      ai->type = pe_stats;
-	      for (unsigned si = 0;
-		   si < (sizeof(so)/sizeof(struct stat_op*));
-		   si++)
 		{
-		  so[si]= new stat_op;
-		  so[si]->ctype = stypes[si];
-		  so[si]->type = pe_long;
-		  so[si]->stat = ai;
-		  so[si]->tok = l->tok;
-		  pf->args.push_back(so[si]);
+		  indexes += ",";
+		  format += ",";
 		}
+	      indexes += "__idx" + lex_cast(i);
+	      if (l->index_types[i] == pe_string)
+		format += "\\\"%#s\\\"";
+	      else
+		format += "%#d";
 	    }
-	  else
-	    {
-	      // Create value for the foreach loop
-	      fe->value = new symbol;
-	      fe->value->name = "val";
-	      fe->value->tok = l->tok;
-	      pf->args.push_back(fe->value);
-	    }
+	  format += "]";
 
-	  pf->components = print_format::string_to_components(pf->raw_components);
-	  expr_statement* feb = new expr_statement;
-	  feb->value = pf;
-	  feb->tok = l->tok;
-	  fe->base = g_sym;
-	  fe->block = (statement*)feb;
-	  b->statements.push_back(fe);
+	  // Iterate over all indexes in the array, sorted by decreasing value
+	  code << "foreach ([" << indexes << "] in "
+	       << l->name << "-)" << endl;
+	}
+      else if (l->type == pe_stats)
+	{
+	  // PR7053: Check scalar globals for empty aggregate
+	  code << "if (@count(" << l->name << ") == 0)" << endl;
+	  code << "printf(\"" << l->name << " @count=0x0\\n\")" << endl;
+	  code << "else" << endl;
 	}
 
-      // Add created probe
-      p->body = b;
+      static const string stats[] = { "@count", "@min", "@max", "@sum", "@avg" };
+      const string stats_format =
+	(strverscmp(s.compatible.c_str(), "1.4") >= 0) ? "%#d" : "%#x";
+
+      // Fill in the printf format for values
+      if (l->type == pe_stats)
+	for (size_t i = 0; i < sizeof(stats)/sizeof(stats[0]); ++i)
+	  format += " " + stats[i] + "=" + stats_format;
+      else if (l->type == pe_string)
+	format += "=\\\"%#s\\\"";
+      else
+	format += "=%#x";
+      format += "\\n";
+
+      // Output the actual printf
+      code << "printf (\"" << format << "\"";
+
+      // Feed indexes to the printf, and include them in the value
+      string value = l->name;
+      if (!l->index_types.empty())
+	{
+	  code << "," << indexes;
+	  value += "[" + indexes + "]";
+	}
+
+      // Feed the actual values to the printf
+      if (l->type == pe_stats)
+	for (size_t i = 0; i < sizeof(stats)/sizeof(stats[0]); ++i)
+	  code << "," << stats[i] << "(" << value << ")";
+      else
+	code << "," << value;
+      code << ")" << endl;
+
+      // End of probe
+      code << "}" << endl;
+
+      probe *p = parse_synthetic_probe (s, code, l->tok);
+      if (!p)
+	throw SEMANTIC_ERROR (_("can't create global var display"), l->tok);
+
+      vector<derived_probe*> dps;
       derive_probes (s, p, dps);
       for (unsigned i = 0; i < dps.size(); i++)
 	{
 	  derived_probe* dp = dps[i];
 	  s.probes.push_back (dp);
 	  dp->join_group (s);
+
+          // Repopulate symbol and type info
+          symresolution_info sym (s);
+          sym.current_function = 0;
+          sym.current_probe = dp;
+          dp->body->visit (& sym);
 	}
-      // Repopulate symbol and type info
-      symresolution_info sym (s);
-      sym.current_function = 0;
-      sym.current_probe = dps[0];
-      dps[0]->body->visit (& sym);
 
       semantic_pass_types(s);
       // Mark that variable is read
@@ -2277,8 +2162,9 @@ symresolution_info::find_var (const string& name, int arity, const token* tok)
         if (! session.suppress_warnings)
           {
             vardecl* v = session.globals[i];
+	    stapfile* f = tok->location.file;
             // clog << "resolved " << *tok << " to global " << *v->tok << endl;
-            if (v->tok->location.file != tok->location.file)
+            if (v->tok->location.file != f && !f->synthetic)
               {
                 session.print_warning (_F("cross-file global variable reference to %s from",
                                           lex_cast(*v->tok).c_str()), tok);
