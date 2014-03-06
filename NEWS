@@ -1,5 +1,8 @@
 * What's new in version 2.5
 
+- SystemTap now falls back on the symbol table for probing
+  functions in processes if the debuginfo is not available.
+
 - SystemTap now supports a %( guru_mode == 0 /* or 1 */ %)
   conditional for making dual-use scripts.
 
