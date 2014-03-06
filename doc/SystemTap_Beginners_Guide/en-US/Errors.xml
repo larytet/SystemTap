@@ -201,7 +201,7 @@
       <emphasis>and</emphasis>
       are member of <command>stapdev</command> group (or have root privileges),
       run the script in "guru" mode by using the option <command>-g</command>
-      (i.e. <command>stap -g <replaceable>script</replaceable></command>).
+      (that is, <command>stap -g <replaceable>script</replaceable></command>).
 </para>
 
 <formalpara>
@@ -240,7 +240,7 @@
 <para>
 	The function <command><replaceable>foo</replaceable></command> in the
 	script used the wrong type
-	(i.e. <command>%s</command> or <command>%d</command>). This error will
+	(for example, <command>%s</command> or <command>%d</command>). This error will
 	present itself in <xref linkend="errorvariable"/>, because the function
 	<command>execname()</command> returns a string the format specifier
 	should be a <command>%s</command>, not <command>%d</command>.
@@ -282,7 +282,7 @@
 <secondary>parse/semantics error</secondary>
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
-<para>The identifier (e.g. a variable) was used, but no type (integer or
+<para>The identifier (variable) was used, but no type (integer or
 	string) could be determined. This occurs, for instance, if you use a
 	variable in a <command>printf</command> statement while
 	the script never assigns a value to the variable.</para>
@@ -403,7 +403,7 @@
 </formalpara>
 
 <formalpara>
-	<title>semantic error: variable ’<replaceable>foo</replaceable>’ modiﬁed during ’foreach’ iteration</title>
+	<title>semantic error: variable '<replaceable>foo</replaceable>' modified during 'foreach' iteration</title>
 <!-- next 2 indexterms for variable modified during 'foreach' -->
 
 <indexterm>
@@ -429,7 +429,7 @@
 <secondary>parse/semantics error</secondary>
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
-	<para>The array <literal>foo</literal> is being modifed (being assigned to or deleted from) within an active <command>foreach</command> loop. This error also displays if an operation within the script performs a function call within the <command>foreach</command> loop.</para>
+	<para>The array <literal>foo</literal> is being modified (being assigned to or deleted from) within an active <command>foreach</command> loop. This error also displays if an operation within the script performs a function call within the <command>foreach</command> loop.</para>
 </formalpara>
 
 <formalpara>
@@ -551,7 +551,7 @@
 </formalpara>
 
 <formalpara>
-	<title>semantic error: libdwﬂ failure </title>
+	<title>semantic error: libdwfl failure </title>
 
 <!-- next 2 indexterms for libdwfl failure -->
 

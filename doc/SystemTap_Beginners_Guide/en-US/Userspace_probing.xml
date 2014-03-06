@@ -110,7 +110,7 @@ The earliest instruction in the code for <replaceable>statement</replaceable>. T
 <para>The static probe point <replaceable>marker</replaceable> defined in
 <replaceable>PATH</replaceable>.
 Wildcards can be used for <replaceable>marker</replaceable> to specify
-mutiple marks with a single probe.
+multiple marks with a single probe.
 The static probe points may also have numbered arguments ($1, $2, etc.)
 available to the probe.
 A variety of user-space packages such as Java include these static
@@ -345,7 +345,7 @@ cgroup	home  lost+found  mnt	 opt	     root	srv	 usr
 
 <para>
       For more details on the functions available for user-space stack
-      backtraces look at the <command>ucontext-symbols.stp</command> and
+      backtraces refer to <command>ucontext-symbols.stp</command> and
       <command>ucontext-unwind.stp</command> tapsets. The descriptions
       of the functions in those tapsets can also be found in the
       <citetitle>SystemTap Tapset Reference Manual</citetitle>.

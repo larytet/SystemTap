@@ -8,13 +8,13 @@
 	<subtitle condition="fedora">Introduction to SystemTap (for Fedora)</subtitle>
 	<edition>2.5</edition>
 
-	<productname>Systemtap</productname>
+	<productname>SystemTap</productname>
 	<productnumber>2.5</productnumber>
 
 	<pubsnumber>2</pubsnumber>
-	<abstract condition="RedHat"><para>This guide provides basic instructions on how to use SystemTap to monitor different subsystems of &PRODUCT; in finer detail. The <citetitle>SystemTap Beginners Guide</citetitle> is recommended for users who have taken <ulink url="https://www.redhat.com/courses/rh133_red_hat_linux_system_administration_and_rhct_exam/">RHCT</ulink> or have a similar level of expertise in &PRODUCT;.</para></abstract>
+	<abstract condition="RedHat"><para>This guide provides basic instructions on how to use SystemTap to monitor different subsystems of &PROD; in finer detail. The <citetitle>SystemTap Beginners Guide</citetitle> is recommended for users who have taken <ulink url="https://www.redhat.com/courses/rh133_red_hat_linux_system_administration_and_rhct_exam/">RHCT</ulink> or have a similar level of expertise in &PROD;.</para></abstract>
 
-	<abstract condition="fedora"><para>This guide provides basic instructions on how to use SystemTap to monitor different subsystems of Fedora in finer detail. The <citetitle>SystemTap Beginners Guide</citetitle> is recommended for users who have taken <ulink url="https://www.redhat.com/courses/rh133_red_hat_linux_system_administration_and_rhct_exam/">RHCT</ulink> or have a similar level of expertise in Fedora.</para></abstract>
+	<abstract condition="fedora"><para>This guide provides basic instructions on how to use SystemTap to monitor different subsystems of &PROD2; in finer detail. The <citetitle>SystemTap Beginners Guide</citetitle> is recommended for users who have taken <ulink url="https://www.redhat.com/courses/rh133_red_hat_linux_system_administration_and_rhct_exam/">RHCT</ulink> or have a similar level of expertise in &PROD2;.</para></abstract>
 	<corpauthor>
 		<inlinemediaobject>
 			<imageobject>

@@ -43,7 +43,7 @@
 <section id="installproper">
     <title>Installing SystemTap</title>
 
-    <para>To deploy Systemtap, you will need to to install the following RPMs:
+    <para>To deploy SystemTap, you will need to to install the following RPMs:
     </para>
 <indexterm>
 <primary>Installation</primary>
@@ -72,7 +72,7 @@
 
     <para>
     Assuming that <command>yum</command> is installed in the system, these two
-    rpms can be installed with <command>yum install systemtap
+    RPMs can be installed with <command>yum install systemtap
     systemtap-runtime</command>. Note that before you can use SystemTap, you
     will still need to install the required kernel information RPMs. On modern
     systems running the <command>stap-prep</command> command will install them
@@ -82,7 +82,7 @@
 </section>
 
 <section id="install-kinfo">
-    <title>Installing Required Kernel Information RPMs manually</title>
+    <title>Installing Required Kernel Information RPMs Manually</title>
 <indexterm>
 <primary>Installation</primary>
 <secondary>required packages</secondary>
@@ -106,7 +106,7 @@
 	<primary>kernel information packages</primary>
 </indexterm>
     <para>
-	    SystemTap needs information about the kernel in order to place instrumentation in it (i.e. probe it). This
+	    SystemTap needs information about the kernel in order to place instrumentation in it (probe it). This
 	    information also allows SystemTap to generate the code for the instrumentation. This information is contained
 	    in the matching <filename>-devel</filename>, <filename>-debuginfo</filename>, and <filename>-debuginfo-common</filename>
 	    packages for your kernel. The necessary <filename>-devel</filename> and <filename>-debuginfo</filename> packages for the ordinary
@@ -261,11 +261,11 @@ rhel-x86_64-workstation-optional-6</screen>
 
    <para  condition="RedHat">
    With <command>Red Hat Enterprise Linux 7 system registered into
-   CDN</command> it's much easier. All needed channels, or repos in the CDN
+   CDN</command> all needed channels, or repos in the CDN
    speak, are available by default. Running the <command>stap-prep</command>
    command is sufficient to install all needed kernel information RPMs.  The
-   <command>stap-prep</command> command will temporarily enable repos, that are
-   needed, available, but eventually disabled by default during its operation.
+   <command>stap-prep</command> command will temporarily enable any repositories that are
+   needed and available, but disabled by default during its operation.
    </para>
 
 <para condition="fedora">
@@ -347,7 +347,7 @@ Once you have manually downloaded the required packages to the machine, install 
     </para>
 
     <para>
-	    To start the test, run the command <command>stap -v -e 'probe vfs.read {printf("read performed\n"); exit()}'</command>.  This command simply instructs SystemTap
+	    To start the test, run the command <command>stap -v -e 'probe vfs.read {printf("read performed\n"); exit()}'</command>.  This command instructs SystemTap
 	    to print <computeroutput>read performed</computeroutput> then exit
 	    properly once a virtual file system read is detected. If the SystemTap
 	    deployment was successful, you should get output similar to the
@@ -368,7 +368,7 @@ Pass 5: starting run.
 read performed
 Pass 5: run completed in 10usr/40sys/73real ms.</screen>
 
-    <para> The last three lines of the output (i.e. beginning with
+    <para> The last three lines of the output (beginning with
     <computeroutput>Pass 5</computeroutput>) indicate that SystemTap was able to
     successfully create the instrumentation to probe the kernel, run the
     instrumentation, detect the event being probed (in this case, a virtual file

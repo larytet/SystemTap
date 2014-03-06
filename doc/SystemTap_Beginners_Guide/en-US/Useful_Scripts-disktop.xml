@@ -126,7 +126,7 @@
 <para>
 	In this script, the <command>$return</command> is a local variable that stores the
 	actual number of bytes each process reads or writes from the virtual file system.
-	<command>$return</command> can only be used in return probes (e.g.
+	<command>$return</command> can only be used in return probes (for example,
 	<command>vfs.read.return</command> and <command>vfs.read.return</command>).
 </para>
 

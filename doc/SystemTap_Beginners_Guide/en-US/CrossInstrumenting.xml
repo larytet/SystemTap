@@ -53,7 +53,7 @@
   </para>
 
   <para>
-    To work around this, you can resort to <firstterm>cross-instrumentation</firstterm>. Cross-instrumentation is the process of generating SystemTap instrumentation module from a SystemTap script on one computer to be used on another computer. This process offers the following benefits:
+    To work around this, use <firstterm>cross-instrumentation</firstterm>. Cross-instrumentation is the process of generating SystemTap instrumentation module from a SystemTap script on one computer to be used on another computer. This process offers the following benefits:
   </para>
 <indexterm>
 <primary>cross-instrumentation</primary>
@@ -117,7 +117,7 @@
 <secondary>cross-instrumentation</secondary>
 </indexterm>
 	  <emphasis>instrumentation module</emphasis> &mdash; the
-	  kernel module built from a SystemTap script; i.e. the
+	  kernel module built from a SystemTap script; that is, the
 	  <emphasis>SystemTap module</emphasis> is built on the <emphasis>host
 	  system</emphasis>, and will be loaded on the <emphasis>target
 	  kernel</emphasis> of <emphasis>target
@@ -240,7 +240,7 @@
 	<emphasis>host system</emphasis> by the method described in <xref
 	linkend="install-kinfo"/>. If multiple <emphasis>target
 	systems</emphasis> use different <emphasis>target kernels</emphasis>,
-	you will need to repeat this step for each different kernel used on the
+	repeat this step for each different kernel used on the
 	<emphasis>target systems</emphasis>.
       </para>
     </step>

@@ -59,7 +59,7 @@ The <xref linkend="dropwatch"/> script provides the function containing
 <command>$location</command> where possible.
 The information to map <command>$location</command> back to the
 function is not in the instrumentation by default.
-On Systemtap 1.4 the <command>--all-modules</command> option will include the
+On SystemTap 1.4 the <command>--all-modules</command> option will include the
 required mapping information and the following command can be used to run
 the script:
 </para>
@@ -67,7 +67,7 @@ the script:
 <programlisting>stap --all-modules dropwatch.stp</programlisting>
 
 <para>
-On older versions of Systemtap you can use the following command to emulate the
+On older versions of SystemTap you can use the following command to emulate the
 <command>--all-modules</command> option:
 </para>
 

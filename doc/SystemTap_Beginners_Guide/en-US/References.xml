@@ -7,8 +7,8 @@
 	<remark>display links to other useful, more advanced systemtap docs - http://sourceware.org/systemtap/documentation.html, http://sourceware.org/systemtap/wiki/HomePage</remark>
 
 <para>
-	This chapter enumerates other references for more information about SystemTap. It is advisable
-	that you refer to these sources in the course of writing advanced probes and tapsets.
+	This chapter enumerates other references for more information about SystemTap.
+	Refer to these sources in the course of writing advanced probes and tapsets.
 </para>
 
 <variablelist>
@@ -102,7 +102,7 @@ enumerating similar probe points for specific system components, such as
 <para>
 	The <filename>systemtap-testsuite</filename> package allows you to test the entire SystemTap
 	toolchain without having to build from source. In addition, it also contains numerous examples of
-	SystemTap scripts you can study and test; some of these scripts are also documented in
+	SystemTap scripts to study and test; some of these scripts are also documented in
 	<xref linkend="useful-systemtap-scripts"/>.
 </para>
 
