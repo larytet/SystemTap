@@ -1851,11 +1851,9 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                                      int,
                                                      Dwarf_Die*,
                                                      Dwarf_Addr,
-                                                     Dwarf_Die*,
                                                      stack<Dwarf_Addr>*,
                                                      void*),
-                                   stack<Dwarf_Addr> *callers,
-                                   Dwarf_Die *parent_die)
+                                   stack<Dwarf_Addr> *callers)
 {
   get_module_dwarf();
 
@@ -1883,12 +1881,6 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
       callers = new stack<Dwarf_Addr>();
       free_callers = true;
     }
-
-  // parent_die tracks the DIE of the parent subprogram/inlined_subroutine. This
-  // is not always begin_die since we recurse on other things such as
-  // imported_unit and whatever else has children.
-  if (parent_die == NULL)
-    parent_die = begin_die;
 
   do
     {
@@ -1945,16 +1937,12 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
 
                   // remember old focus
                   Dwarf_Die *old_cu = cu;
-                  Dwarf_Die *old_function = function;
 
                   external_function_query efq(this, dwarf_linkage_name(&origin) ?: name);
                   iterate_over_cus(external_function_cu_callback, &efq, false);
 
                   // restore focus
-                  if (old_cu)
-                    focus_on_cu(old_cu);
-                  if (old_function)
-                    focus_on_function(old_function);
+                  cu = old_cu;
 
                   if (!efq.resolved) // did we resolve it?
                     continue;
@@ -1978,7 +1966,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
             callers->push(caller_uw_addr);
 
           callback(name, file, dline, inlined ? &die : &origin,
-                   func_addr, parent_die, callers, data);
+                   func_addr, callers, data);
 
           // If it's a tail call, print a warning that it may not be caught
           if (!inlined
@@ -2004,14 +1992,12 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
           // Iterate over the children of the imported unit as if they
           // were inserted in place.
           if (dwarf_attr_die(&die, DW_AT_import, &import))
-            iterate_over_callees (&import, sym, recursion_depth, data,
-                                  callback, callers, parent_die);
+            iterate_over_callees (&import, sym, recursion_depth, data, callback, callers);
           break;
 
         default:
           if (dwarf_haschildren (&die))
-            iterate_over_callees (&die, sym, recursion_depth, data,
-                                  callback, callers, parent_die);
+            iterate_over_callees (&die, sym, recursion_depth, data, callback, callers);
           break;
         }
     }
