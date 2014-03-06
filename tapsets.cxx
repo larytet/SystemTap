@@ -852,6 +852,10 @@ struct dwarf_query : public base_query
   func_info_map_t filtered_functions;
 
   void query_module_functions ();
+
+  string final_function_name(const string& final_func,
+                             const string& final_file,
+                             int final_line);
 };
 
 
@@ -1356,6 +1360,20 @@ dwarf_query::assess_dbinfo_reqt()
   return dbr_need_dwarf;
 }
 
+string
+dwarf_query::final_function_name(const string& final_func,
+                                 const string& final_file,
+                                 int final_line)
+{
+  string final_name = final_func;
+  if (final_file != "")
+    {
+      final_name += ("@" + final_file);
+      if (final_line > 0)
+        final_name += (":" + lex_cast(final_line));
+    }
+  return final_name;
+}
 
 // The critical determining factor when interpreting a pattern
 // string is, perhaps surprisingly: "presence of a lineno". The
@@ -1577,17 +1595,70 @@ query_label (string const & func,
 }
 
 static void
-query_callee (char const * callee,
-              char const * file,
-              int line,
-              Dwarf_Die *callee_die,
-              Dwarf_Addr callee_addr,
+query_callee (base_func_info& callee,
+              base_func_info& caller,
               stack<Dwarf_Addr> *callers,
               dwarf_query * q)
 {
   assert (q->has_function_str);
-  q->callers = callers;
-  query_statement(callee, file, line, callee_die, callee_addr, q);
+  assert (q->has_callee || q->has_callees_num);
+
+  // OK, we found a callee for a targeted caller. To help users see the
+  // derivation, let's add an intermediate probe to the chain. E.g. right now we
+  // have .function(pattern).callee(pattern) (or .callees) and we want to add as
+  // the next step .function(caller).callee(callee). This is the step that will
+  // show up as well when in listing mode.
+
+  // To add this intermediate probe, we first create it and then create a new
+  // dwarf_query with that probe as base.
+
+  // Build final names for caller and callee
+  string canon_caller = q->final_function_name(caller.name, caller.decl_file,
+                                               caller.decl_line);
+  string canon_callee = q->final_function_name(callee.name, callee.decl_file,
+                                               callee.decl_line);
+
+  // Build the intermediate probe. We replace the function arg with the final
+  // caller, and the callee arg with the final callee. Also, since the
+  // process(str) or module(str) currently in the base_loc is still the one the
+  // user typed in (not necessarily the same as the absolute path we get in the
+  // sole location), we also replace that (otherwise, function(str).* will
+  // return a mishmash of absolute and relative paths in listing mode).
+
+  string module = q->dw.module_name;
+  if (q->has_process)
+    module = path_remove_sysroot(q->sess, module);
+
+  probe_point *pp = new probe_point(*q->base_loc);
+  vector<probe_point::component*> pp_comps;
+  vector<probe_point::component*>::iterator it;
+  for (it = pp->components.begin(); it != pp->components.end(); ++it)
+    {
+      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
+        pp_comps.push_back(new probe_point::component((*it)->functor,
+          new literal_string(module)));
+      else if ((*it)->functor == TOK_FUNCTION)
+        pp_comps.push_back(new probe_point::component(TOK_FUNCTION,
+          new literal_string(canon_caller)));
+      else if ((*it)->functor == TOK_CALLEE || (*it)->functor == TOK_CALLEES)
+        pp_comps.push_back(new probe_point::component(TOK_CALLEE,
+          new literal_string(canon_callee)));
+      else
+        pp_comps.push_back(*it);
+    }
+
+  // Finally create the new probe and the new query (use copy-constructor
+  // instead of creating from scratch so we don't have to rebuild param map)
+  pp->components = pp_comps;
+  dwarf_query q_callee(*q);
+  q_callee.base_loc = pp;
+  q_callee.base_probe = new probe(q->base_probe, pp);
+
+  // Pass on the callers we'll need to add checks for
+  q_callee.callers = callers;
+
+  query_statement(callee.name, callee.decl_file, callee.decl_line,
+                  &callee.die, callee.entrypc, &q_callee);
 }
 
 static void
@@ -1927,7 +1998,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                 continue;
               q->dw.iterate_over_callees (&i->die, callee_val,
                                           callees_num_val,
-                                          q, query_callee);
+                                          q, query_callee, *i);
             }
 
           for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
@@ -1938,7 +2009,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                 continue;
               q->dw.iterate_over_callees (&i->die, callee_val,
                                           callees_num_val,
-                                          q, query_callee);
+                                          q, query_callee, *i);
             }
         }
       else
@@ -1953,7 +2024,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
             for (inline_instance_map_t::iterator i
                    = q->filtered_inlines.begin(); i != q->filtered_inlines.end(); ++i)
               query_inline_instance_info (*i, q);
-	}
+        }
       return DWARF_CB_OK;
     }
   catch (const semantic_error& e)
@@ -4651,19 +4722,13 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   string fn_or_stmt;
   if (q.has_function_str || q.has_function_num)
-    fn_or_stmt = "function";
+    fn_or_stmt = TOK_FUNCTION;
   else
-    fn_or_stmt = "statement";
+    fn_or_stmt = TOK_STATEMENT;
 
   if (q.has_function_str || q.has_statement_str)
       {
-        string retro_name = funcname;
-	if (filename != "")
-          {
-            retro_name += ("@" + string (filename));
-            if (line > 0)
-              retro_name += (":" + lex_cast (line));
-          }
+        string retro_name = q.final_function_name(funcname, filename, line);
         comps.push_back
           (new probe_point::component
            (fn_or_stmt, new literal_string (retro_name)));

@@ -1809,11 +1809,11 @@ dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
 // external function resolution
 struct external_function_query {
   dwflpp* dw;
-  const char* name;
+  const string name;
   Dwarf_Die die;
   Dwarf_Addr addr;
   bool resolved;
-  external_function_query(dwflpp* dw, const char* name):
+  external_function_query(dwflpp* dw, const string& name):
     dw(dw), name(name), resolved(false) {}
 };
 
@@ -1846,13 +1846,11 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                    const string& sym,
                                    long recursion_depth,
                                    void *data,
-                                   void (* callback)(const char*,
-                                                     const char*,
-                                                     int,
-                                                     Dwarf_Die*,
-                                                     Dwarf_Addr,
+                                   void (* callback)(base_func_info&,
+                                                     base_func_info&,
                                                      stack<Dwarf_Addr>*,
                                                      void*),
+                                   base_func_info& caller,
                                    stack<Dwarf_Addr> *callers)
 {
   get_module_dwarf();
@@ -1870,8 +1868,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
 
   Dwarf_Attribute attr;
 
-  int dline;
-  const char *name, *file;
+  base_func_info callee;
   if (dwarf_child(begin_die, &die) != 0)
     return;  // die without children, bail out.
 
@@ -1890,14 +1887,14 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
         case DW_TAG_inlined_subroutine:
           inlined = true;
         case DW_TAG_GNU_call_site:
-          name = dwarf_diename (&die);
-          if (!name)
+          callee.name = dwarf_diename(&die) ?: "";
+          if (callee.name.empty())
             continue;
-          if (name != sym)
+          if (callee.name != sym)
             {
               if (!name_has_wildcard(sym))
                 continue;
-              if (!function_name_matches_pattern(name, sym))
+              if (!function_name_matches_pattern(callee.name, sym))
                 continue;
             }
 
@@ -1938,7 +1935,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                   // remember old focus
                   Dwarf_Die *old_cu = cu;
 
-                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: name);
+                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: callee.name);
                   iterate_over_cus(external_function_cu_callback, &efq, false);
 
                   // restore focus
@@ -1958,28 +1955,33 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
           // from which to obtain file/line info in origin
 
           // Get the file/line number for this callee
-          file = dwarf_decl_file (&origin) ?: "<unknown source>";
-          dwarf_decl_line (&origin, &dline);
+          callee.decl_file = dwarf_decl_file (&origin) ?: "<unknown source>";
+          dwarf_decl_line (&origin, &callee.decl_line);
 
           // add as a caller to match against
           if (!inlined)
             callers->push(caller_uw_addr);
 
-          callback(name, file, dline, inlined ? &die : &origin,
-                   func_addr, callers, data);
+          callee.die = inlined ? die : origin;
+          callee.entrypc = func_addr;
+          callback(callee, caller, callers, data);
 
           // If it's a tail call, print a warning that it may not be caught
           if (!inlined
               && dwarf_attr_integrate(&die, DW_AT_GNU_tail_call, &attr) != NULL)
             sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
                                    ".callee probe may not fire. Try placing the probe "
-                                   "directly on the callee function instead.", name,
-                                   dwarf_diename(begin_die)));
+                                   "directly on the callee function instead.",
+                                   callee.name.c_str(), caller.name.c_str()));
 
-          if (recursion_depth > 1) // .callees(N)
+          // For .callees(N) probes, we recurse on this callee. Note that we
+          // pass the callee we just found as the caller arg for this recursion,
+          // since it (the callee we just found) will be the caller of whatever
+          // callees found inside this recursion.
+          if (recursion_depth > 1)
             iterate_over_callees(inlined ? &die : &origin,
                                  sym, recursion_depth-1, data,
-                                 callback, callers);
+                                 callback, callee, callers);
 
           if (!inlined)
             callers->pop();
@@ -1992,12 +1994,16 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
           // Iterate over the children of the imported unit as if they
           // were inserted in place.
           if (dwarf_attr_die(&die, DW_AT_import, &import))
-            iterate_over_callees (&import, sym, recursion_depth, data, callback, callers);
+            // NB: we pass the same caller arg into it
+            iterate_over_callees (&import, sym, recursion_depth, data,
+                                  callback, caller, callers);
           break;
 
         default:
           if (dwarf_haschildren (&die))
-            iterate_over_callees (&die, sym, recursion_depth, data, callback, callers);
+            // NB: we pass the same caller arg into it
+            iterate_over_callees (&die, sym, recursion_depth, data,
+                                  callback, caller, callers);
           break;
         }
     }

@@ -129,11 +129,10 @@ module_cache
 };
 
 
-struct func_info
+struct base_func_info
 {
-  func_info()
-    : decl_file(NULL), decl_line(-1), addr(0), entrypc(0), prologue_end(0),
-      weak(false), descriptor(false)
+  base_func_info()
+    : decl_file(NULL), decl_line(-1), entrypc(0)
   {
     std::memset(&die, 0, sizeof(die));
   }
@@ -141,26 +140,23 @@ struct func_info
   char const * decl_file;
   int decl_line;
   Dwarf_Die die;
-  Dwarf_Addr addr;
   Dwarf_Addr entrypc;
+};
+
+struct func_info : base_func_info
+{
+  func_info()
+    : addr(0), prologue_end(0), weak(false), descriptor(false) {}
+  Dwarf_Addr addr;
   Dwarf_Addr prologue_end;
   bool weak, descriptor;
 };
 
 
-struct inline_instance_info
+struct inline_instance_info : base_func_info
 {
-  inline_instance_info()
-    : decl_file(NULL), decl_line(-1), entrypc(0)
-  {
-    std::memset(&die, 0, sizeof(die));
-  }
+  inline_instance_info() {}
   bool operator<(const inline_instance_info& other) const;
-  std::string name;
-  char const * decl_file;
-  int decl_line;
-  Dwarf_Addr entrypc;
-  Dwarf_Die die;
 };
 
 
@@ -360,13 +356,11 @@ struct dwflpp
                              const std::string& sym,
                              long recursion_depth,
                              T *data,
-                             void (* callback)(const char*,
-                                               const char*,
-                                               int,
-                                               Dwarf_Die*,
-                                               Dwarf_Addr,
+                             void (* callback)(base_func_info&,
+                                               base_func_info&,
                                                std::stack<Dwarf_Addr>*,
                                                T*),
+                             base_func_info& caller,
                              std::stack<Dwarf_Addr>*callers=NULL)
     {
       // See comment block in iterate_over_modules()
@@ -374,13 +368,11 @@ struct dwflpp
                                  sym,
                                  recursion_depth,
                                  (void*)data,
-                                 (void (*)(const char*,
-                                           const char*,
-                                           int,
-                                           Dwarf_Die*,
-                                           Dwarf_Addr,
+                                 (void (*)(base_func_info&,
+                                           base_func_info&,
                                            std::stack<Dwarf_Addr>*,
                                            void*))callback,
+                                 caller,
                                  callers);
     }
 
@@ -691,13 +683,11 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                    const std::string& sym,
                                    long recursion_depth,
                                    void *data,
-                                   void (* callback)(const char*,
-                                                     const char*,
-                                                     int,
-                                                     Dwarf_Die*,
-                                                     Dwarf_Addr,
+                                   void (* callback)(base_func_info&,
+                                                     base_func_info&,
                                                      std::stack<Dwarf_Addr>*,
                                                      void*),
+                                   base_func_info& caller,
                                    std::stack<Dwarf_Addr> *callers);
 
 #endif // DWFLPP_H
