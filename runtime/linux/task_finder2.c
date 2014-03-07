@@ -1875,10 +1875,10 @@ stap_stop_task_finder(void)
 	debug_task_finder_report();
 #endif
 
-	utrace_exit();
-
 	/* Make sure all outstanding task work requests are canceled. */
 	__stp_tf_cancel_task_work();
+
+	utrace_exit();
 }
 
 #endif /* TASK_FINDER2_C */
