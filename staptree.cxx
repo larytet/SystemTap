@@ -1,5 +1,5 @@
 // parse tree functions
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -1237,6 +1237,18 @@ void probe_point::print (ostream& o, bool print_extras) const
     {
       if (i>0) o << ".";
       probe_point::component* c = components[i];
+      if (!c)
+        {
+          // We might like to excise this weird 0 pointer, just in
+          // case some recursion during the error-handling path, but
+          // can't, because what we have here is a const *this.
+          static int been_here = 0;
+          if (been_here == 0) {
+            been_here ++;
+            throw SEMANTIC_ERROR (_("internal error: missing probe point component"));
+          } else
+            continue; // ... sad panda decides to skip the bad boy
+        }
       o << c->functor;
       if (c->arg)
         o << "(" << *c->arg << ")";
