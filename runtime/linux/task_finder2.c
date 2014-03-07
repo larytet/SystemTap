@@ -169,11 +169,12 @@ static void __stp_tf_free_task_work(struct task_work *work)
 static void __stp_tf_cancel_task_work(void)
 {
 	struct __stp_tf_task_work *node;
+	struct __stp_tf_task_work *tmp;
 	unsigned long flags;
 
 	// Cancel all remaining requests.
 	spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
-	list_for_each_entry(node, &__stp_tf_task_work_list, list) {
+	list_for_each_entry_safe(node, tmp, &__stp_tf_task_work_list, list) {
 	    // Remove the item from the list, cancel it, then free it.
 	    list_del(&node->list);
 	    stp_task_work_cancel(node->task, node->work.func);
