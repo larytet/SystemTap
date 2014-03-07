@@ -97,7 +97,7 @@ mkdir -p $flagdir
 # target jvm pid.  If this is the case, we need to have a
 # nested call to stapbm with the actual pid of the jvm pid
 
-if [[ $arg_jvmpid != *[[:digit:]]* ]]; then
+if ! [[ $arg_jvmpid =~ ^[0-9]+$ ]]; then
     target_pid=`jps -l | grep $arg_jvmpid | cut -f1 -d" "`
     for target in $target_pid; do
 	$0 $arg_command $target $arg_rulename $arg_class "$arg_method" $arg_argcount $arg_probetype $arg_backtrace
