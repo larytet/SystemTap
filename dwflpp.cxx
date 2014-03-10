@@ -346,7 +346,7 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
       dwfl_assert("dwfl_getmodules", off == 0);
     }
 
-  build_blacklist();
+  build_kernel_blacklist();
 }
 
 void
@@ -372,7 +372,7 @@ dwflpp::setup_kernel(const vector<string> &names, bool debuginfo_needed)
                                sess.architecture.c_str(), sess.kernel_build_tree.c_str()));
     }
 
-  build_blacklist();
+  build_kernel_blacklist();
 }
 
 
@@ -388,6 +388,8 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
     dwfl_assert (string(_F("missing process %s %s debuginfo",
                            (*it).c_str(), sess.architecture.c_str())),
                            dwfl_ptr.get()->dwfl);
+
+  build_user_blacklist();
 }
 
 template<> void
@@ -3624,7 +3626,7 @@ dwflpp::blacklisted_p(const string& funcname,
 
 
 void
-dwflpp::build_blacklist()
+dwflpp::build_kernel_blacklist()
 {
   // We build up the regexps in these strings
 
@@ -3759,6 +3761,9 @@ dwflpp::build_blacklist()
   blfn_ret += "|sys_exit";
   blfn_ret += "|sys_exit_group";
 
+  // These functions don't use the normal function-entry ABI, so can't be .return probed safely
+  blfn_ret += "|_start";
+
   // __switch_to changes "current" on x86_64 and i686, so return probes
   // would cause kernel panic, and it is marked as "__kprobes" on x86_64
   if (sess.architecture == "x86_64")
@@ -3770,6 +3775,48 @@ dwflpp::build_blacklist()
   blfn += "|special_mapping_.*";
   blfn += "|.*_pte_.*"; // or "|smaps_pte_range";
   blfile += "|fs/seq_file\\.c";
+
+  blfn += ")$";
+  blfn_ret += ")$";
+  blfile += ")$";
+  blsection += ")"; // NB: no $, sections match just the beginning
+
+  if (sess.verbose > 2)
+    {
+      clog << _("blacklist regexps:") << endl;
+      clog << "blfn: " << blfn << endl;
+      clog << "blfn_ret: " << blfn_ret << endl;
+      clog << "blfile: " << blfile << endl;
+      clog << "blsection: " << blsection << endl;
+    }
+
+  int rc = regcomp (& blacklist_func, blfn.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_func regcomp failed"));
+  rc = regcomp (& blacklist_func_ret, blfn_ret.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_func_ret regcomp failed"));
+  rc = regcomp (& blacklist_file, blfile.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_file regcomp failed"));
+  rc = regcomp (& blacklist_section, blsection.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_section regcomp failed"));
+
+  blacklist_enabled = true;
+}
+
+
+void
+dwflpp::build_user_blacklist()
+{
+  // We build up the regexps in these strings
+
+  // Add ^ anchors at the front; $ will be added just before regcomp.
+
+  string blfn = "^(";
+  string blfn_ret = "^(";
+  string blfile = "^(";
+  string blsection = "^(";
+
+  // These functions don't use the normal function-entry ABI, so can't be .return probed safely
+  blfn_ret += "|_start";
 
   blfn += ")$";
   blfn_ret += ")$";

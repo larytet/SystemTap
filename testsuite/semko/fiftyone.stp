@@ -1,0 +1,3 @@
+#! stap -wp2
+
+probe process("stap").function("_start").return { }

@@ -597,7 +597,8 @@ private:
   regex_t blacklist_file; // file name
   regex_t blacklist_section; // init/exit sections
   bool blacklist_enabled;
-  void build_blacklist();
+  void build_kernel_blacklist();
+  void build_user_blacklist();
   std::string get_blacklist_section(Dwarf_Addr addr);
 
   // Returns the call frame address operations for the given program counter.
