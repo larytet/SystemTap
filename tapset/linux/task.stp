@@ -287,16 +287,25 @@ function task_cpu:long (task:long)
  * Description: This function returns the number of open file handlers for the given task.
  */
 function task_open_file_handles:long (task:long)
-%( kernel_v >= "2.6.15" %?
 %{ /* pure */
     int locked = 0;
     unsigned int count=0, fd, max;
     struct task_struct *t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    /* Older kernels */
+    struct files_struct *f;
+#else
     struct files_struct *fs;
     struct fdtable *f;
+#endif
     t = (struct task_struct *)(long)STAP_ARG_task;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    /* Older kernels */
+    f = kread(&(t->files));
+#else
     fs = kread(&(t->files));
     f = kread(&(fs->fdt));
+#endif
     rcu_read_lock();
     locked = 1;
     max = kread(&(f->max_fds));
@@ -309,27 +318,6 @@ function task_open_file_handles:long (task:long)
     if (locked)
         rcu_read_unlock();
 %}
-%:
-%{ /* pure */
-    int locked = 0;
-    unsigned int count=0, fd, max;
-    struct task_struct *t;
-    struct files_struct *f;
-    t = (struct task_struct *)(long)STAP_ARG_task;
-    f = kread(&(t->files));
-    rcu_read_lock();
-    locked = 1;
-    max = kread(&(f->max_fds));
-    for (fd = 0; fd < max; fd++) {
-                if ( kread(&(f->fd[fd])) != NULL)
-                        count ++;
-        }
-    STAP_RETVALUE = count;
-    CATCH_DEREF_FAULT();
-    if (locked)
-        rcu_read_unlock();
-%}
-%)
 
 /**
  * sfunction task_max_file_handles - The max number of open files for the task
@@ -339,15 +327,22 @@ function task_open_file_handles:long (task:long)
  * Description: This function returns the maximum number of file handlers for the given task.
  */
 function task_max_file_handles:long (task:long)
-%( kernel_v >= "2.6.15" %?
 %{ /* pure */
     int locked = 0;
     struct task_struct *t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    struct files_struct *f;
+#else
     struct files_struct *fs;
     struct fdtable *f;
+#endif
     t = (struct task_struct *)(long)STAP_ARG_task;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    f = kread(&(t->files));
+#else
     fs = kread (&(t->files));
     f = kread(&(fs->fdt));
+#endif
     rcu_read_lock();
     locked = 1;
     STAP_RETVALUE = kread(&(f->max_fds));
@@ -355,18 +350,3 @@ function task_max_file_handles:long (task:long)
     if (locked)
         rcu_read_unlock();
 %}
-%:
-%{ /* pure */
-    int locked = 0;
-    struct task_struct *t;
-    struct files_struct *f;
-    t = (struct task_struct *)(long)STAP_ARG_task;
-    f = kread(&(t->files));
-    rcu_read_lock();
-    locked = 1;
-    STAP_RETVALUE = kread(&(f->max_fds));
-    CATCH_DEREF_FAULT();
-    if (locked)
-        rcu_read_unlock();
-%}
-%)
