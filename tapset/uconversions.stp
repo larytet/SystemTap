@@ -21,7 +21,7 @@
 			if (warn) {					\
 				snprintf(CONTEXT->error_buffer,		\
 				    sizeof(CONTEXT->error_buffer),	\
-				    "user %s copy fault %p", #t, _ptr);	\
+				    "user %s copy fault %p [man error::fault]", #t, _ptr);	\
 				_stp_warn(CONTEXT->error_buffer);	\
 			}						\
 		}							\
@@ -129,7 +129,7 @@ function user_string_n:string (addr:long, n:long)
 		if (rc < 0) {
 			strlcpy(STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
 			snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-				"user string copy fault %ld at %p", rc,
+				"user string copy fault %ld at %p [man error::fault]", rc,
 				(void *) (uintptr_t) STAP_ARG_addr);
 			CONTEXT->last_error = CONTEXT->error_buffer;
 		} else
@@ -200,7 +200,7 @@ function user_string2_n_warn:string (addr:long, n:long, warn_msg:string)
 		// NB: using error_buffer to get local space for the warning, but we're
 		// not aborting, so leave last_error alone.
 		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-				"user string copy fault %ld at %p", rc,
+				"user string copy fault %ld at %p [man error::fault]", rc,
 				(void *) (uintptr_t) STAP_ARG_addr);
 		_stp_warn(CONTEXT->error_buffer);
 		strlcpy (STAP_RETVALUE, STAP_ARG_warn_msg, MAXSTRINGLEN);
@@ -299,7 +299,7 @@ function user_string_utf32:string (addr:long) %{ /* pure */ /* myproc-unprivileg
   if (0) {
 deref_fault: /* branched to from deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-              "user string copy fault at 0x%p", source);
+              "user string copy fault at 0x%p [man error::fault]", source);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -362,7 +362,7 @@ function user_string_utf16:string (addr:long) %{ /* pure */ /* myproc-unprivileg
   if (0) {
 deref_fault: /* branched to from deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-              "user string copy fault at 0x%p", source);
+              "user string copy fault at 0x%p [man error::fault]", source);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}

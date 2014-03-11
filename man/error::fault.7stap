@@ -28,11 +28,18 @@ is unavailable at that moment due to paging.
 These fault conditions are benign because they are caught by the
 systemtap runtime, which cleanly terminates the script.  If quick
 termination is not desired, consider using the
-.IR \-\-suppress\-handler\-errors " or " \-DMAXERRORS=NN
+.IR \-\-skip\-badvars " or " \-\-suppress\-handler\-errors " or " \-DMAXERRORS=NN
 stap options, or wrapping relevant parts of the probe handlers in a
 .IR try / catch
 block.
-
+.PP
+It may be possible to adjust the target program, to make it more likely
+that needed context variables are paged in when systemtap looks for them.
+Consider adding some lightweight processing on the key variables, like a
+.I strlen(foo)
+for a string, or iterating acrosse elements of an array or linked list,
+or touching a few bytes of a heap-allocated block.  The idea is to trigger
+any page faults in the target program, before systemtap would need to (but can't).
 .SH SEE ALSO
 .nh
 .nf

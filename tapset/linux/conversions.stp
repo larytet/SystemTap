@@ -1,5 +1,5 @@
 // conversions tapset
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -25,7 +25,7 @@ deref_fault: /* branched to from deref_string() */
      * really odd in the following error message. Setting a format
      * width of '1' fixes this. */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel string copy fault at %1p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -58,7 +58,7 @@ function kernel_string_n:string (addr:long, n:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel string copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -94,7 +94,7 @@ function kernel_string_utf32:string (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-              "kernel string copy fault at 0x%p", source);
+              "kernel string copy fault at 0x%p [man error::fault]", source);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -157,7 +157,7 @@ function kernel_string_utf16:string (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-              "kernel string copy fault at 0x%p", source);
+              "kernel string copy fault at 0x%p [man error::fault]", source);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -187,7 +187,7 @@ function kernel_long:long (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel long copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel long copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -204,7 +204,7 @@ function kernel_int:long (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel int copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel int copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -221,7 +221,7 @@ function kernel_short:long (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel short copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel short copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -238,7 +238,7 @@ function kernel_char:long (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel char copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel char copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -256,7 +256,7 @@ function kernel_pointer:long (addr:long) %{ /* pure */
   if (0) {
 deref_fault: /* branched to from kread() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel pointer copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel pointer copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}

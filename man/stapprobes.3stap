@@ -473,6 +473,9 @@ allows limited traversal of structures, pointers, and arrays.  More
 syntax allows pretty-printing of individual variables or their groups.
 See also 
 .BR @cast .
+Note that variables may be inaccessible due to them being paged out,
+or for a few other reasons.  See also man
+.IR error::fault (7stap).
 
 .TP
 $var
@@ -1227,9 +1230,7 @@ Users are cautioned to set probes judiciously.
 
 .SS PERF
 
-This 
-.IR prototype
-family of probe points interfaces to the kernel "perf event"
+This family of probe points interfaces to the kernel "perf event"
 infrastructure for controlling hardware performance counters.
 The events being attached to are described by the "type",
 "config" fields of the 
