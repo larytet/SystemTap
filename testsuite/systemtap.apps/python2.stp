@@ -258,12 +258,12 @@ function python2_iterate_over_frames (frame, frame_n)
 }
 
     
-# FUNCTION BACKTRACE
-# FRAME: Pointer to first stack frame
+# FUNCTION BACKTRACE_ONE_FRAME
+# FRAME: Pointer to stack frame
 # SKIP_NAME: Pathnames containing this string are ignored.  Default is "/lib/" to
 #     ignore system python libraries
 
-function python2_backtrace (frame, skip_name)
+function python2_backtrace_one_frame (frame, skip_name)
 {
     if (skip_name == "")
 	skip_name = "/lib/"
@@ -293,14 +293,14 @@ function python2_backtrace (frame, skip_name)
     printf (" at %s:%d\n", co_filename_str, co_firstlineno)
 }
     
-# FUNCTION GET_VARIABLE
-# FRAME: Pointer to first stack frame
+# FUNCTION GETVAR_ONE_FRAME
+# FRAME: Pointer to stack frame
 # MATCH_ARGS: Match function arguments
 # VARIABLE: Variable wildcard to be matched.  Default is "*" to match all variables.
 # SKIP_NAME: Pathnames containing this string are ignored.  Default is "/lib/" to
 #     ignore system python libraries
 
-function python2_get_variable (frame, match_args, variable, skip_name)
+function python2_getvar_one_frame (frame, match_args, variable, skip_name)
 {
     if (skip_name == "")
 	skip_name = "/lib/"
@@ -343,6 +343,30 @@ function python2_get_variable (frame, match_args, variable, skip_name)
 	printf (" in %s at %s", co_name_str, co_filename_str)
 	display_value (arg_value, " = ", " ")
 	printf ("\n")
+    }
+}
+
+# FUNCTION PYTHON2_BACKTRACE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python2_backtrace (skip_name)
+{
+    frame = python2_frame
+    for (i = 0; frame != 0; i++) {
+       python2_backtrace_one_frame (frame, skip_name)
+       frame = python2_iterate_over_frames (frame, i)
+    }
+}
+
+# FUNCTION PYTHON2_GET_VARIABLE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python2_get_variable (variable, skip_name)
+{
+    frame = python2_frame
+    for (i = 0; frame != 0; i++) {
+	python2_getvar_one_frame (frame, 1, variable, skip_name)
+	frame = python2_iterate_over_frames (frame, i)
     }
 }
 

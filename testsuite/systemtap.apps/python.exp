@@ -80,13 +80,18 @@ fi
 
 cd $testsuite/
 
-mkdir tapset
+cat \$srcdir/celsius-bt.stp | sed -e  \"s|PYTHON|python2|g\"  >| celsius-bt-python.stp
+cat \$srcdir/celsius-bt.stp | sed -e  \"s|PYTHON|python3|g\"  >| celsius-bt-python3.stp
+cat \$srcdir/celsius-var.stp | sed -e \"s|PYTHON|python2|g\"  >|  celsius-var-python.stp
+cat \$srcdir/celsius-var.stp | sed -e \"s|PYTHON|python3|g\"  >| celsius-var-python3.stp
+
+if \[ ! -d tapset \] ; then mkdir tapset ; fi
 cat \$srcdir/python2.stp | sed -e \"s|PYTHON2|$testsuite/pyinstall/bin/python|g\" >| tapset/python2.stp
 cat \$srcdir/python3.stp | sed -e \"s|PYTHON3|$testsuite/pyinstall/bin/python3|g\" >| tapset/python3.stp
 
 # Run the tests, once for python2, once for python3
 for PYTHON in python python3 ; do
-    $env(SYSTEMTAP_PATH)/stap -I `pwd`/tapset \$srcdir/celsius-bt.stp -c \"$testsuite/pyinstall/bin/\$PYTHON -sS \$srcdir/celsius.py 30\" >| $testsuite/python.log 2>&1 
+    $env(SYSTEMTAP_PATH)/stap -I `pwd`/tapset `pwd`/celsius-bt-\$PYTHON.stp -c \"$testsuite/pyinstall/bin/\$PYTHON -sS \$srcdir/celsius.py 30\" >| $testsuite/python.log 2>&1 
     MAIN=\$(grep 'main.*at.*systemtap.apps.*celsius.py:\[0-9\]' $testsuite/python.log | wc -l)
     C2F=\$(grep 'celsius_to_farenheit.*celsius:int.*at.*systemtap.apps.*celsius.py:\[0-9\]' $testsuite/python.log | wc -l)
     echo \$MAIN \$C2F
@@ -96,9 +101,9 @@ for PYTHON in python python3 ; do
        echo FAIL: \$PYTHON backtrace
     fi
 
-    echo script \" $env(SYSTEMTAP_PATH)/stap -I `pwd`/tapset \$srcdir/celsius-var.stp -c \\\"$testsuite/pyinstall/bin/\$PYTHON -sS \$srcdir/celsius.py 30\\\" '*'\"  $testsuite/python.log
+    echo script \" $env(SYSTEMTAP_PATH)/stap -I `pwd`/tapset `pwd`/celsius-var-\$PYTHON.stp -c \\\"$testsuite/pyinstall/bin/\$PYTHON -sS \$srcdir/celsius.py 30\\\" '*'\"  $testsuite/python.log
 
-    script -c \" $env(SYSTEMTAP_PATH)/stap -I `pwd`/tapset \$srcdir/celsius-var.stp -c \\\"$testsuite/pyinstall/bin/\$PYTHON -sS \$srcdir/celsius.py 30\\\" '*'\"  $testsuite/python.log
+    script -c \" $env(SYSTEMTAP_PATH)/stap -g --suppress-time-limits -I `pwd`/tapset `pwd`/celsius-var-\$PYTHON.stp -c \\\"$testsuite/pyinstall/bin/\$PYTHON -sS \$srcdir/celsius.py 30\\\" '*'\"  $testsuite/python.log
 
     AGLOBAL9=\$(grep 'global.*str.*aglobal9.*in.*main.*at.*.*systemtap.apps.*celsius.py.*=.*9.*' $testsuite/python.log | wc -l)
     CELSIUS=\$(grep 'arg1.*int.*celsius.*in.*celsius_to_farenheit.*at.*.*systemtap.apps.*celsius.py.*=.*30.*' $testsuite/python.log | wc -l)

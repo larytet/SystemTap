@@ -51,20 +51,33 @@ function p3_set_string (str_p) {
 function get_unicode:string (utf16) {
     if (utf16 == 0)
 	return ""
-    length = @cast (utf16, "PyUnicodeObject", "PYTHON3")->length;
-    unip = @cast (utf16, "PyUnicodeObject", "PYTHON3")->str;
+    compact = @cast (utf16, "PyASCIIObject", "PYTHON3")->state->compact;
+    ascii = @cast (utf16, "PyASCIIObject", "PYTHON3")->state->ascii
+    length = @cast (utf16, "PyASCIIObject", "PYTHON3")->length;
+    if (compact)
+      if (ascii)
+	# this odd incantation is to fetch the data which python3 allocates after the PyASCIIObject struct
+	unip = &@cast (utf16, "PyASCIIObject", "PYTHON3")[1]->ob_base->ob_refcnt
+      else
+	unip = &@cast (utf16, "PyCompactUnicodeObject", "PYTHON3")[1]->_base->ob_base->ob_refcnt
+    else
+      unip = &@cast (utf16, "PyUnicodeObject", "PYTHON3")->data->any
+    
+    
     if (length == 0 || unip == 0)
         return ""
-    newstr = ""
-    
-    # grab every other character
-    # ??? Do we need general purpose UTF routines?
-    for (i = 0; i < length; i++) {
-        if (user_char(unip + (i * 2)) == 0)
-	    break
-	val = user_string_n(unip + (i * 2), 1)
-	newstr = newstr . substr(val,0,1)
+    newstr = user_string (unip)
+    if (! ascii) {
+      newstr = ""
+      # grab every other character for unicode
+      for (i = 0; i < length; i++) {
+    	if (user_char(unip + (i * 2)) == 0)
+    	  break
+    	val = user_string_n(unip + (i * 2), 1)
+    	newstr = newstr . substr(val,0,1)
+      }
     }
+    
     return newstr
 }
 
@@ -158,12 +171,11 @@ function p3_get_set_item (set, i) {
 # RETURNS: DICT_HASH
 
 function p3_get_dict_hash (dict, i) {
-    entries = @cast (dict, "PyDictObject", "PYTHON3")->ma_table;
+    entries = @cast (dict, "PyDictObject", "PYTHON3")->ma_keys;
     n = @cast (dict, "PyDictObject", "PYTHON3")->ma_used;
-    if (i > n)
+    if (i > n || entries == 0)
 	return 0
-  
-    return @cast (entries, "PyDictEntry", "PYTHON3")[i]->me_hash
+    return @cast (entries, "PyDictKeysObject", "PYTHON3")->dk_entries[i]->me_hash
 }
 
 # FUNCTION P3_GET_DICT_KEY
@@ -172,12 +184,11 @@ function p3_get_dict_hash (dict, i) {
 # RETURNS: DICT_KEY
 
 function p3_get_dict_key (dict, i) {
-    entries = @cast (dict, "PyDictObject", "PYTHON3")->ma_table;
+    entries = @cast (dict, "PyDictObject", "PYTHON3")->ma_keys;
     n = @cast (dict, "PyDictObject", "PYTHON3")->ma_used;
-    if (i > n)
+    if (i > n || entries == 0)
 	return 0
-  
-    return @cast (entries, "PyDictEntry", "PYTHON3")[i]->me_key
+    return @cast (entries, "PyDictKeysObject", "PYTHON3")->dk_entries[i]->me_key
 }
 
 # FUNCTION P3_GET_DICT_VALUE
@@ -186,12 +197,18 @@ function p3_get_dict_key (dict, i) {
 # RETURNS: DICT_VALUE
 
 function p3_get_dict_value (dict, i) {
-    entries = @cast (dict, "PyDictObject", "PYTHON3")->ma_table;
+  if (@cast (dict, "PyDictObject", "PYTHON3")->ma_values) {
+    # ?? is this correct for split keys and values table
+    return @cast (entries, "PyDictObject", "PYTHON3")->ma_values[i];
+  }
+  else {
+    # combined keys and values table
+    entries = @cast (dict, "PyDictObject", "PYTHON3")->ma_keys;
     n = @cast (dict, "PyDictObject", "PYTHON3")->ma_used;
-    if (i > n)
+    if (i > n || entries == 0)
 	return 0
-  
-    return @cast (entries, "PyDictEntry", "PYTHON3")[i]->me_value;
+    return @cast (entries, "PyDictKeysObject", "PYTHON3")->dk_entries[i]->me_value
+  }
 }
 
 # FUNCTION P3_DISPLAY_DICT_VARIABLE
@@ -242,16 +259,16 @@ function python3_iterate_over_frames (frame, frame_n)
 }
 
     
-# FUNCTION BACKTRACE
+# FUNCTION BACKTRACE_ONE_FRAME
 # FRAME: Pointer to first stack frame
 # MATCH_FILENAME: Pathnames containing this string are ignored.  Default is "/lib/" to
 #     ignore system python libraries
 
-function python3_backtrace (frame, match_filename)
+function python3_backtrace_one_frame (frame, match_filename)
 {
     f_code = @cast (frame, "PyFrameObject", "PYTHON3")->f_code;
     co_filename_str = p3_get_filename (f_code)
-    if (isinstr (co_filename_str, "/lib/") == 1)
+    if (isinstr (co_filename_str, "importlib") == 1 || isinstr (co_filename_str, "/lib/") == 1)
 	return 0
     if (match_filename != "" && isinstr (co_filename_str, match_filename) == 0)
 	return 0
@@ -276,18 +293,18 @@ function python3_backtrace (frame, match_filename)
     printf (" at %s:%d\n", co_filename_str, co_firstlineno)
 }
     
-# FUNCTION GET_VARIABLE
+# FUNCTION GETVAR_ONE_FRAME
 # FRAME: Pointer to first stack frame
 # MATCH_ARGS: Match function arguments
 # VARIABLE: Variable wildcard to be matched.  Default is "*" to match all variables.
 # MATCH_FILENAME: Pathnames containing this string are ignored.  Default is "/lib/" to
 #     ignore system python libraries
 
-function python3_get_variable (frame, match_args, variable, match_filename)
+function python3_getvar_one_frame (frame, match_args, variable, match_filename)
 {
     f_code = @cast (frame, "PyFrameObject", "PYTHON3")->f_code;
     co_filename_str = p3_get_filename (f_code)
-    if (isinstr (co_filename_str, "/lib/") == 1)
+    if (isinstr (co_filename_str, "importlib") == 1 || isinstr (co_filename_str, "/lib/") == 1)
 	return 0
     if (match_filename != "" && isinstr (co_filename_str, match_filename) == 0)
 	return 0
@@ -326,6 +343,30 @@ function python3_get_variable (frame, match_args, variable, match_filename)
 	printf (" in %s at %s", co_name_str, co_filename_str)
 	p3_display_value (arg_value, " = ", " ")
 	printf ("\n")
+    }
+}
+
+# FUNCTION PYTHON3_BACKTRACE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python3_backtrace (skip_name)
+{
+    frame = python3_frame
+    for (i = 0; frame != 0; i++) {
+       python3_backtrace_one_frame (frame, skip_name)
+       frame = python3_iterate_over_frames (frame, i)
+    }
+}
+
+# FUNCTION PYTHON3_GET_VARIABLE
+# SKIP_NAME: Pathnames containing this string are ignored.
+
+function python3_get_variable (variable, skip_name)
+{
+    frame = python3_frame
+    for (i = 0; frame != 0; i++) {
+	python3_getvar_one_frame (frame, 1, variable, skip_name)
+	frame = python3_iterate_over_frames (frame, i)
     }
 }
 
