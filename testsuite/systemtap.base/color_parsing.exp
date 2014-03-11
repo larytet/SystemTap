@@ -10,7 +10,7 @@ proc checker { TEST EXE EXP } {
 	global test
 
 	if {[string equal $EXE "stap"]} {
-		set cmd "stap --color -e junk"
+		set cmd "stap --color -p4 -e junk"
 		set STR "parse error:"
 	} else {
 		set cmd "staprun -C always"
