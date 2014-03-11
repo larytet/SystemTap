@@ -3575,7 +3575,7 @@ dwflpp::blacklisted_p(const string& funcname,
                       bool has_return)
 {
   if (!blacklist_enabled)
-    return false; // no blacklist for userspace
+    return false;
 
   bool blacklisted = false;
 
@@ -3761,9 +3761,6 @@ dwflpp::build_kernel_blacklist()
   blfn_ret += "|sys_exit";
   blfn_ret += "|sys_exit_group";
 
-  // These functions don't use the normal function-entry ABI, so can't be .return probed safely
-  blfn_ret += "|_start";
-
   // __switch_to changes "current" on x86_64 and i686, so return probes
   // would cause kernel panic, and it is marked as "__kprobes" on x86_64
   if (sess.architecture == "x86_64")
@@ -3815,8 +3812,13 @@ dwflpp::build_user_blacklist()
   string blfile = "^(";
   string blsection = "^(";
 
+  // Non-matching placeholders until we have real things to match
+  blfn += ".^";
+  blfile += ".^";
+  blsection += ".^";
+
   // These functions don't use the normal function-entry ABI, so can't be .return probed safely
-  blfn_ret += "|_start";
+  blfn_ret += "_start";
 
   blfn += ")$";
   blfn_ret += ")$";
