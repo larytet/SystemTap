@@ -186,6 +186,20 @@ probe syscall.clock_settime.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.clone
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %p, %p", clone_flags, stack_start, parent_tid_uaddr,
+	       child_tid_uaddr)
+%( arch == "ia64" %?
+	printf("%d\n", stack_size)
+%)
+}
+probe syscall.clone.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.close
 {
 	printf("%s, %s\n", name, argstr)
@@ -445,16 +459,18 @@ probe syscall.flock.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.fork
+probe syscall.fork ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %p, %p\n", clone_flags, stack_start,
-	       stack_size, parent_tid_uaddr, child_tid_uaddr)
 %(systemtap_v < "2.3" %?
 	printf("%p\n", regs)
 %)
+%(systemtap_v < "2.5" %?
+	printf("%d, %d, %d, %p, %p\n", clone_flags, stack_start,
+	       stack_size, parent_tid_uaddr, child_tid_uaddr)
+%)
 }
-probe syscall.fork.return
+probe syscall.fork.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

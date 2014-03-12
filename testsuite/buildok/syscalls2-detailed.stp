@@ -1393,6 +1393,15 @@ probe syscall.utimensat.return ?, syscall.compat_utimensat.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.vfork ?
+{
+	printf("%s, %s\n", name, argstr)
+}
+probe syscall.vfork.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.vhangup
 {
 	printf("%s, %s\n", name, argstr)

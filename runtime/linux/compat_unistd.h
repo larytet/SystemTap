@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Syscall compatibility defines.
- * Copyright (C) 2013 Red Hat Inc.
+ * Copyright (C) 2013-2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -15,6 +15,9 @@
 
 // On older kernels (like RHEL5), we have to define our own 32-bit
 // syscall numbers.
+#ifndef __NR_ia32_clone
+#define __NR_ia32_clone 120
+#endif
 #ifndef __NR_ia32_close
 #define __NR_ia32_close 6
 #endif
@@ -64,6 +67,7 @@
 #define __NR_ia32_umount2 52
 #endif
 
+#define __NR_compat_clone		__NR_ia32_clone
 #define __NR_compat_close		__NR_ia32_close
 #define __NR_compat_dup3		__NR_ia32_dup3
 #define __NR_compat_faccessat		__NR_ia32_faccessat
@@ -88,6 +92,7 @@
 // On the ppc64 and s390x, the 32-bit syscalls use the same number
 // as the 64-bit syscalls.
 
+#define __NR_compat_clone		__NR_clone
 #define __NR_compat_close		__NR_close
 #define __NR_compat_dup3		__NR_dup3
 #define __NR_compat_faccessat		__NR_faccessat

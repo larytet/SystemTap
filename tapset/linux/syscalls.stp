@@ -1,6 +1,6 @@
 // syscalls tapset part 1 [A-M]
 // Copyright (C) 2005 IBM Corp.
-// Copyright (C) 2005, 2006, 2007, 2010, 2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2007 Quentin Barnes.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -480,6 +480,72 @@ probe __syscall.clock_settime.return =
 probe __syscall.compat_clock_settime.return =
 	kernel.function("compat_sys_clock_settime").return ?
 {
+	retstr = return_str(1, $return)
+}
+
+# clone ______________________________________________________
+#
+# The sys_clone() call was in arch-specific code (sometimes assembly
+# code), especially in older kernels. Its args varied dramatically,
+# from full args to getting nothing but registers. To get around this,
+# we'll just probe do_fork(). The fork()/vfork()/clone() syscalls are
+# just wrappers around do_fork().  We'll reject all probe hits that
+# aren't really clone syscalls (such as calls to sys_fork(),
+# sys_vfork(), and the kernel's internal use of do_fork()).
+#
+# For ia64, this is complicated by the fact that it has a clone2
+# syscall.
+#
+probe syscall.clone = kernel.function("do_fork").call
+{
+%( arch != "ia64" %?
+	@__syscall_compat_gate(%{ __NR_clone %}, %{ __NR_compat_clone %})
+	name = "clone"
+%:
+	@__syscall_gate2(%{ __NR_clone %}, %{ __NR_clone2 %})
+	// This is a bit gross. We're depending on @__syscall_gate2()
+	// to set '__nr' for us. If its implementation changes, this will
+	// need to change.
+	if (__nr == %{ __NR_clone %})
+		name = "clone"
+	else {
+		name = "clone2"
+		stack_size = $stack_size
+	}	
+%)
+	clone_flags = $clone_flags
+	stack_start = $stack_start
+	parent_tid_uaddr = $parent_tidptr
+	child_tid_uaddr = $child_tidptr
+
+%( arch != "ia64" %?
+	argstr = sprintf("%s, %p, %p, %p", __fork_flags($clone_flags),
+			 $stack_start, $parent_tidptr, $child_tidptr)
+%:
+	if (__nr == %{ __NR_clone %})
+		argstr = sprintf("%s, %p, %p, %p", __fork_flags($clone_flags),
+				 $stack_start, $parent_tidptr, $child_tidptr)
+	else			 
+		argstr = sprintf("%s, %p, %p, %p, %p",
+				 __fork_flags($clone_flags), $stack_start,
+				 $stack_size, $parent_tidptr, $child_tidptr)
+%)
+}
+probe syscall.clone.return = kernel.function("do_fork").return
+{
+%( arch != "ia64" %?
+	@__syscall_compat_gate(%{ __NR_clone %}, %{ __NR_compat_clone %})
+	name = "clone"
+%:
+	@__syscall_gate2(%{ __NR_clone %}, %{ __NR_clone2 %})
+	// This is a bit gross. We're depending on @__syscall_gate2()
+	// to set '__nr' for us. If its implementation changes, this will
+	// need to change.
+	if (__nr == %{ __NR_clone %})
+		name = "clone"
+	else
+		name = "clone2"
+%)
 	retstr = return_str(1, $return)
 }
 
@@ -1101,56 +1167,30 @@ probe syscall.flock.return = kernel.function("sys_flock").return
 }
 
 # fork _______________________________________________________
-# long do_fork(unsigned long clone_flags,
-#	unsigned long stack_start,
-#	unsigned long stack_size,
-#	int __user *parent_tidptr,
-#	int __user *child_tidptr)
-probe syscall.fork = kernel.function("do_fork").call
+#
+# SYSCALL_DEFINE0(fork)
+#
+probe syscall.fork = kernel.function("sys_fork").call ?
 {
-	clone_flags = $clone_flags
-	stack_start = $stack_start
-	stack_size = $stack_size
-	parent_tid_uaddr = $parent_tidptr
-	child_tid_uaddr = $child_tidptr
-
-	if (@defined($regs)) {
 %(systemtap_v < "2.3" %?
-		regs = $regs
+	regs = 0
 %)
-		if (!__is_user_regs($regs)) {
-			name = "fork_kernel_thread"
-			argstr = __fork_flags($clone_flags)
-		} else if ($clone_flags & %{ CLONE_VFORK %}) {
-			name = "vfork"
-		} else if (($clone_flags & %{ CSIGNAL %}) != %{ SIGCHLD %}) {
-			name = "clone"
-			argstr = __fork_flags($clone_flags)
-		} else {
-			name = "fork"
-		}
-	} else {
-%(systemtap_v < "2.3" %?
-		regs = 0
+%(systemtap_v < "2.5" %?
+	clone_flags = 0
+	stack_start = 0
+	stack_size = 0
+	parent_tid_uaddr = 0
+	child_tid_uaddr = 0
 %)
-		if ($clone_flags & %{ CLONE_VM | CLONE_UNTRACED %}) {
-			name = "fork_kernel_thread"
-			argstr = __fork_flags($clone_flags)
-		} else if ($clone_flags & %{ CLONE_VFORK %}) {
-			name = "vfork"
-		} else if (($clone_flags & %{ CSIGNAL %}) != %{ SIGCHLD %}) {
-			name = "clone"
-			argstr = __fork_flags($clone_flags)
-		} else {
-			name = "fork"
-		}
-	}
+	name = "fork"
+	argstr = ""
 }
-probe syscall.fork.return = kernel.function("do_fork").return
+probe syscall.fork.return = kernel.function("sys_fork").return ?
 {
 	name = "fork"
 	retstr = return_str(1, $return)
 }
+
 # fremovexattr _______________________________________________
 # long sys_fremovexattr(int fd, char __user *name)
 probe syscall.fremovexattr = kernel.function("sys_fremovexattr").call

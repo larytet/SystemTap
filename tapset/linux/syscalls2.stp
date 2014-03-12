@@ -1,6 +1,6 @@
 // syscalls tapset part 2 [N-Z]
 // Copyright (C) 2005 IBM Corp.
-// Copyright (C) 2005, 2006, 2007, 2010, 2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2007 Quentin Barnes.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -3788,6 +3788,21 @@ probe syscall.utimensat.return = kernel.function("sys_utimensat").return ?
 probe syscall.compat_utimensat.return =  kernel.function("compat_sys_utimensat").return ?
 {
 	name = "utimensat"
+	retstr = return_str(1, $return)
+}
+
+# vfork _______________________________________________________
+#
+# SYSCALL_DEFINE0(vfork)
+#
+probe syscall.vfork = kernel.function("sys_vfork").call ?
+{
+	name = "vfork"
+	argstr = ""
+}
+probe syscall.vfork.return = kernel.function("sys_vfork").return ?
+{
+	name = "vfork"
 	retstr = return_str(1, $return)
 }
 

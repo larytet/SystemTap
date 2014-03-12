@@ -1,4 +1,4 @@
-/* COVERAGE: fork wait4 */
+/* COVERAGE: vfork wait4 */
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -11,19 +11,18 @@ int main ()
 	pid_t child;
 	int status;
 	
-	child = fork();
+	child = vfork();
 #if !defined(__ia64__)
-	// Sometimes glibc substitutes a clone() call for a fork()
-	// call (verified with strace).
-	//staptest// [[[[fork ()!!!!clone (.+, XXXX, XXXX, XXXX)]]]] = NNNN
+	//staptest// vfork () = NNNN
 #else
-	// On RHEL5 ia64, fork() gets turned into clone2().
-	//staptest// [[[[fork ()!!!!clone2 (.+, XXXX, XXXX, XXXX, XXXX)]]]] = NNNN
+	// On RHEL5 ia64, vfork() gets turned into clone() (not
+	// clone2() strangely enough).
+	//staptest// [[[[vfork ()!!!!clone (.+, XXXX, XXXX, XXXX)]]]] = NNNN
 #endif
 	if (!child) {
 		int i = 0xfffff;
 		while (i > 0) i--;
-		exit(0);
+		_exit(0);
 	}
 	wait4(child, &status, WNOHANG, NULL);
 	//staptest// wait4 (NNNN, XXXX, WNOHANG, XXXX) = NNNN
