@@ -1767,18 +1767,29 @@ add_server_trust (
     {
       // Trust is based on certificates. We need only add trust in the
       // same certificate once.
-      if (find (processed_certs.begin (), processed_certs.end (),
-		server->certinfo) != processed_certs.end ())
-	continue;
-      processed_certs.push_back (server->certinfo);
-
-      // We need not contact the server if it is already trusted.
-      if (find (already_trusted.begin (), already_trusted.end (), *server) !=
-	  already_trusted.end ())
+      //
+      // RHBZ 1075685: If the new server to be trusted is selected by address + port,
+      // and there is no avahi assistance available, or the server is not known
+      // to avahi, then its certificate serial number field will be empty. We
+      // therefore have no basis for comparing it to the serial numbers on already-trusted
+      // certificates. In this case, unconditionally contact the new server to obtain
+      // its certificate.
+      if (! server->certinfo.empty ())
 	{
-	  if (s.verbose >= 2)
-	    trust_already_in_place (*server, server_list, cert_db_path, false/*revoking*/);
-	  continue;
+	  // We need not contact the server if it has already been processed.
+	  if (find (processed_certs.begin (), processed_certs.end (),
+		    server->certinfo) != processed_certs.end ())
+	    continue;
+	  processed_certs.push_back (server->certinfo);
+
+	  // We need not contact the server if it is already trusted.
+	  if (find (already_trusted.begin (), already_trusted.end (), *server) !=
+	      already_trusted.end ())
+	    {
+	      if (s.verbose >= 2)
+		trust_already_in_place (*server, server_list, cert_db_path, false/*revoking*/);
+	      continue;
+	    }
 	}
 
       // At a minimum we need an ip_address along with a port
