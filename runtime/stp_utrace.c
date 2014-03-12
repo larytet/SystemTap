@@ -286,12 +286,18 @@ static int utrace_exit(void)
 {
 	utrace_shutdown();
 
+	stp_task_work_exit();
+
+	/* After utrace_shutdown() and stp_task_work_exit() (and the
+	 * code in stap_stop_task_finder()), we're *sure* there are no
+	 * tracepoint probes or task work items running or scheduled
+	 * to be run. So, now would be a great time to actually free
+	 * everything. */
+
 	if (utrace_cachep)
 		kmem_cache_destroy(utrace_cachep);
 	if (utrace_engine_cachep)
 		kmem_cache_destroy(utrace_engine_cachep);
-
-	stp_task_work_exit();
 	return 0;
 }
 
@@ -373,9 +379,14 @@ static void utrace_shutdown(void)
 	unregister_trace_sys_exit(utrace_report_syscall_exit, NULL);
 	tracepoint_synchronize_unregister();
 
-	/* After calling tracepoint_synchronize_unregister(), we're
-	 * sure there are no outstanding tracepoint probes being
-	 * called.  So, now would be a great time to free everything. */
+	/* After tracepoint_synchronize_unregister(), we're *sure*
+	 * there will be no new tracepoint probes running. There could
+	 * be currently running tracepoint probes or task work
+	 * items. So, now would be a great time to cleanup.
+	 *
+	 * Currently running items should be OK, since
+	 * utrace_cleanup() just puts the memory back into the utrace
+	 * kmem caches. */
 	
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - freeing task-specific\n", __FUNCTION__, __LINE__);

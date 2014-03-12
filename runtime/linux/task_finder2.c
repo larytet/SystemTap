@@ -418,15 +418,6 @@ stap_utrace_detach_ops(struct utrace_engine_ops *ops)
 	debug_task_finder_report();
 }
 
-static void
-__stp_task_finder_cleanup(void)
-{
-	// The utrace_shutdown() function detaches and deletes
-	// everything for us - we don't have to go through each
-	// engine.
-	utrace_shutdown();
-}
-
 static char *
 __stp_get_mm_path(struct mm_struct *mm, char *buf, int buflen)
 {
@@ -1849,16 +1840,16 @@ stap_stop_task_finder(void)
 	atomic_set(&__stp_task_finder_state, __STP_TF_STOPPING);
 
 	debug_task_finder_report();
-#if 0
-	/* We don't need this since __stp_task_finder_cleanup()
-	 * removes everything by calling utrace_shutdown(). */
-	stap_utrace_detach_ops(&__stp_utrace_task_finder_ops);
-#endif
-	__stp_task_finder_cleanup();
+
+	// The utrace_shutdown() function detaches and cleans up
+	// everything for us - we don't have to go through each
+	// engine. This also means that the attach_count could end up
+	// > 0 (since we don't got through each engine individually).
+	utrace_shutdown();
+
 	debug_task_finder_report();
 	atomic_set(&__stp_task_finder_state, __STP_TF_STOPPED);
 
-#if 0
 	/* Now that all the engines are detached, make sure
 	 * all the callbacks are finished.  If they aren't, we'll
 	 * crash the kernel when the module is removed. */
@@ -1873,7 +1864,6 @@ stap_stop_task_finder(void)
 		printk(KERN_ERR "it took %d polling loops to quit.\n", i);
 #endif
 	debug_task_finder_report();
-#endif
 
 	/* Make sure all outstanding task work requests are canceled. */
 	__stp_tf_cancel_task_work();
