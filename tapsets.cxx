@@ -2309,10 +2309,16 @@ query_one_library (const char *library, dwflpp & dw,
       specific_loc->from_glob = true;
       vector<probe_point::component*> derived_comps;
 
+      // Create new probe point for the matching library. This is what will be
+      // shown in listing mode. Also replace the process(str) with the real
+      // absolute path rather than keeping what the user typed in.
       vector<probe_point::component*>::iterator it;
       for (it = specific_loc->components.begin();
           it != specific_loc->components.end(); ++it)
-        if ((*it)->functor == TOK_LIBRARY)
+        if ((*it)->functor == TOK_PROCESS)
+          derived_comps.push_back(new probe_point::component(TOK_PROCESS,
+              new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
+        else if ((*it)->functor == TOK_LIBRARY)
           derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
               new literal_string(library_path)));
         else
