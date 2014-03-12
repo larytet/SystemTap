@@ -1,5 +1,14 @@
 * What's new in version 2.5
 
+- A new probe alias "oneshot" allows a single quick script fragment to run, then exit.
+
+- The argv tapset now merges translate-time and run-time positional
+  arguments, so all of these work:
+
+  stap -e 'probe oneshot {println(argv[1]," ",argv[2])}' hello world
+  stap -e 'probe oneshot {println(argv[1]," ",argv[2])}' -G argv_1=hello -G argv_2=world
+  staprun hello.ko argv_1=hello argv_2=world
+
 - SystemTap now falls back on the symbol table for probing
   functions in processes if the debuginfo is not available.
 
