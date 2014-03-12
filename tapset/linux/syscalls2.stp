@@ -164,11 +164,11 @@ probe syscall.openat = kernel.function("compat_sys_openat").call ?,
 	name = "openat"
 	filename = user_string_quoted($filename)
 	flags = $flags
-	mode = $mode
+	mode = __int32($mode)
 	if ($flags & 64)
 		argstr = sprintf("%s, %s, %s, %#o", _dfd_str($dfd),
 			user_string_quoted($filename),
-			_sys_open_flag_str($flags), $mode)
+			_sys_open_flag_str($flags), __int32($mode))
 	else
 		argstr = sprintf("%s, %s, %s", _dfd_str($dfd),
 			user_string_quoted($filename),
