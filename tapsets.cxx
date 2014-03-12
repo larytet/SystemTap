@@ -794,9 +794,6 @@ struct dwarf_query : public base_query
   // has the addr of the caller's caller.
   stack<Dwarf_Addr> *callers;
 
-  // Extracted parameters.
-  string function_val;
-
   bool has_function_str;
   bool has_statement_str;
   bool has_function_num;
