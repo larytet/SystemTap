@@ -1494,7 +1494,7 @@ systemtap_session::check_options (int argc, char * const argv [])
 	{
 	  enable_auto_server (
             _F("For users with the privilege level %s, the module created by compiling your "
-	       "script must be signed by a trusted systemtap compile-server.",
+	       "script must be signed by a trusted systemtap compile-server.  [man stap-server]",
 	       pr_name (credentials)));
 	}
     }
@@ -1570,7 +1570,7 @@ systemtap_session::check_options (int argc, char * const argv [])
       enable_auto_server (
 	_("The kernel on your system requires modules to be signed for loading.\n"
 	  "The module created by compiling your script must be signed by a systemtap "
-	  "compile-server."));
+	  "compile-server.  [man stap-server]"));
 
       // Cache the current system's machine owner key (MOK)
       // information, to pass over to the server.
