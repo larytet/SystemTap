@@ -155,7 +155,8 @@ systemtap_session::systemtap_session ():
   unwindsym_ldd = false;
   client_options = false;
   server_cache = NULL;
-  automatic_server_mode = false;
+  auto_privilege_level_msg = "";
+  auto_server_msgs.clear ();
   use_server_on_error = false;
   try_server_status = try_server_unset;
   use_remote_prefix = false;
@@ -377,7 +378,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   mok_fingerprints = other.mok_fingerprints;
 
   unwindsym_modules = other.unwindsym_modules;
-  automatic_server_mode = other.automatic_server_mode;
+  auto_privilege_level_msg = other.auto_privilege_level_msg;
+  auto_server_msgs = other.auto_server_msgs;
 
   create_tmp_dir();
 }
@@ -1459,24 +1461,27 @@ systemtap_session::check_options (int argc, char * const argv [])
 	  // the privilege level to match our credentials.
 	  if (pr_contains (credentials, pr_stapsys))
 	    {
-	      if (perpass_verbose[0] > 1)
-		cerr << _("Using --privilege=stapsys for member of the group stapsys") << endl;
 	      privilege = pr_stapsys;
 	      server_args.push_back ("--privilege=stapsys");
+	      auto_privilege_level_msg =
+		_("--privilege=stapsys was automatically selected because you are a member "
+		  "of the groups stapusr and stapsys.  [man stap]");
 	    }
 	  else if (pr_contains (credentials, pr_stapusr))
 	    {
-	      if (perpass_verbose[0] > 1)
-		cerr << _("Using --privilege=stapusr for member of the group stapusr") << endl;
 	      privilege = pr_stapusr;
 	      server_args.push_back ("--privilege=stapusr");
+	      auto_privilege_level_msg =
+		_("--privilege=stapusr was automatically selected because you are a member "
+		  "of the group stapusr.  [man stap]");
 	    }
 	  else
 	    {
 	      // Completely unprivileged user.
 	      cerr << _("You are trying to run systemtap as a normal user.\n"
 			"You should either be root, or be part of "
-			"the group \"stapusr\" and possibly one of the groups \"stapsys\" or \"stapdev\".\n");
+			"the group \"stapusr\" and possibly one of the groups "
+			"\"stapsys\" or \"stapdev\".  [man stap]\n");
 #if HAVE_DYNINST
 	      cerr << _("Alternatively, you may specify --runtime=dyninst for userspace probing.\n");
 #endif
@@ -1487,14 +1492,10 @@ systemtap_session::check_options (int argc, char * const argv [])
       // it for pass 5.
       if (! pr_contains (credentials, pr_stapdev))
 	{
-	  if (specified_servers.empty ())
-	    {
-	      if (perpass_verbose[0] > 1)
-		cerr << _F("Using --use-server for user with privilege level %s",
-			   pr_name (privilege))
-		     << endl;
-	      specified_servers.push_back ("");
-	    }
+	  enable_auto_server (
+            _F("For users with the privilege level %s, the module created by compiling your "
+	       "script must be signed by a trusted systemtap compile-server.",
+	       pr_name (credentials)));
 	}
     }
 
@@ -1566,15 +1567,16 @@ systemtap_session::check_options (int argc, char * const argv [])
   if (!client_options && modules_must_be_signed())
     {
       // Force server use to be on, if not on already.
-      if (specified_servers.empty())
-	  specified_servers.push_back ("");
+      enable_auto_server (
+	_("The kernel on your system requires modules to be signed for loading.\n"
+	  "The module created by compiling your script must be signed by a systemtap "
+	  "compile-server."));
 
       // Cache the current system's machine owner key (MOK)
       // information, to pass over to the server.
       get_mok_info();
     }
 }
-
 
 int
 systemtap_session::parse_kernel_config ()
@@ -2301,6 +2303,46 @@ systemtap_session::get_mok_info()
     }
 }
 
+void
+systemtap_session::enable_auto_server (const string &message)
+{
+  // There may be more than one reason to enable auto server mode, so we may be called
+  // more than once. Accumulate the messages.
+  auto_server_msgs.push_back (message);
+
+#if HAVE_NSS
+  // Enable auto server mode, if not enabled already.
+  if (specified_servers.empty())
+    specified_servers.push_back ("");
+#else
+  // Compilation using a server is not supported. exit() after
+  // the first explanation.
+  explain_auto_options ();
+  clog << _("Unable to request compilation by a compile-server\n."
+	    "Without NSS, --use-server is not supported by this version systemtap.") << endl;
+  exit(1);
+#endif
+}
+
+void
+systemtap_session::explain_auto_options()
+{
+  // Was there an automatic privilege setting?
+  if (! auto_privilege_level_msg.empty())
+    clog << auto_privilege_level_msg << endl;
+
+  // Was a server was automatically requested? Handle this one after other auto_settings
+  // which may result in an auto_server setting.
+  if (! auto_server_msgs.empty())
+    {
+      for (vector<string>::iterator i = auto_server_msgs.begin(); i != auto_server_msgs.end(); ++i)
+	{
+	  clog << *i << endl;
+	  clog << _("--use-server was automatically selected in order to request compilation by "
+		    "a compile-server.") << endl;
+	}
+    }
+}
 
 // --------------------------------------------------------------------------
 

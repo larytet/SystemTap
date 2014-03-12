@@ -763,7 +763,7 @@ compile_server_client::passes_0_4 ()
   PROBE1(stap, client__start, &s);
 
   // arguments parsed; get down to business
-  if (s.verbose)
+  if (s.verbose || ! s.auto_server_msgs.empty ())
     clog << _("Using a compile server.") << endl;
 
   struct tms tms_before;
@@ -1199,7 +1199,7 @@ compile_server_client::find_and_connect_to_server ()
   unsigned limit = server_list.size ();
   if (limit == 0)
     {
-      clog << _("Unable to find a suitable compile server.") << endl;
+      clog << _("Unable to find a suitable compile server.  [man stap-server]") << endl;
 
       // Try to explain why.
       vector<compile_server_info> online_servers;

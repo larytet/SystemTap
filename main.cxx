@@ -1,5 +1,5 @@
 // systemtap translator/driver
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
 //
@@ -368,19 +368,15 @@ passes_0_4 (systemtap_session &s)
     {
 #if HAVE_NSS
       compile_server_client client (s);
-      int rc = client.passes_0_4 ();
-      // Need to give a user a better diagnostic, if she didn't
-      // even ask for a server
-      if (rc && s.automatic_server_mode) {
-        cerr << _("Note: --use-server --unprivileged was selected because of stapusr membership.") << endl;
-      }
-      return rc;
+      return client.passes_0_4 ();
 #else
-      s.print_warning("Without NSS, using a compile-server is not supported by this version of systemtap");
+      s.print_warning(_("Without NSS, using a compile-server is not supported by this version of systemtap"));
+
       // This cannot be an attempt to use a server after a local compile failed
       // since --use-server-on-error is locked to 'no' if we don't have
       // NSS.
       assert (! s.try_server ());
+      s.print_warning(_("Ignoring --use-server"));
 #endif
     }
 
@@ -1112,6 +1108,8 @@ main (int argc, char * const argv [])
                 if (ss.try_server ())
                   rc = passes_0_4_again_with_server (ss);
               }
+	    if (rc || s.perpass_verbose[0] >= 1)
+	      s.explain_auto_options ();
           }
         else if (ss.dump_probe_types)
           {

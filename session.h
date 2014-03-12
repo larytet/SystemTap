@@ -239,12 +239,13 @@ public:
   std::string client_options_disallowed_for_unprivileged;
   std::vector<std::string> server_status_strings;
   std::vector<std::string> specified_servers;
-  bool automatic_server_mode;
   std::string server_trust_spec;
   std::vector<std::string> server_args;
   std::string winning_server;
   compile_server_cache* server_cache;
   std::vector<std::string> mok_fingerprints;
+  std::string auto_privilege_level_msg;
+  std::vector<std::string> auto_server_msgs;
 
   bool modules_must_be_signed();
   void get_mok_info();
@@ -423,6 +424,10 @@ public:
   std::string colorize(const std::string& str, const std::string& type);
   std::string colorize(const token* tok);
   std::string parse_stap_color(const std::string& type);
+
+  // Some automatic options settings require explanation.
+  void enable_auto_server (const std::string &message);
+  void explain_auto_options();
 };
 
 struct exit_exception: public std::runtime_error
