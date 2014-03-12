@@ -361,8 +361,14 @@ badCertHandler(void *arg, PRFileDesc *sslSocket)
       /* Since we administer our own client-side databases of trustworthy
 	 certificates, we don't need the domain name(s) on the certificate to
 	 match. If the cert is in our database, then we can trust it.
-	 Issue a warning and accept the certificate.  */
+	 If we know the expected domain name, then issue a warning but,
+	 in any case, accept the certificate.  */
+      secStatus = SECSuccess;
+
       expected = SSL_RevealURL (sslSocket);
+      if (expected == NULL || *expected == '\0')
+	break;
+
       fprintf (stderr, STAP_CSC_01, expected);
 
       /* List the DNS names from the server cert as part of the warning.
@@ -412,8 +418,6 @@ badCertHandler(void *arg, PRFileDesc *sslSocket)
 	}
       while (current != nameList);
 
-      /* Accept the certificate */
-      secStatus = SECSuccess;
       break;
 
     case SEC_ERROR_CA_CERT_INVALID:
