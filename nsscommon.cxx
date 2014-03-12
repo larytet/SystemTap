@@ -953,6 +953,7 @@ gen_cert_db (const string &db_path, const string &extraDnsNames, bool use_passwo
   CERTCertificate *cert = 0;
   SECItem *certDER = 0;
   string dnsNames;
+  string hostname;
   int rc;
   string outFileName;
   FILE *outFile = 0;
@@ -1005,7 +1006,8 @@ gen_cert_db (const string &db_path, const string &extraDnsNames, bool use_passwo
   dnsNames = utsname.nodename;
 
   // Because avahi identifies hosts using a ".local" domain, add one to the list of names.
-  dnsNames += string(",") + dnsNames + ".local";
+  hostname = dnsNames.substr (0, dnsNames.find ('.'));
+  dnsNames += string(",") + hostname + ".local";
 
   // Add any extra names that were supplied.
   if (! extraDnsNames.empty ())
