@@ -1569,26 +1569,45 @@ query_label (string const & func,
 {
   assert (q->has_statement_str || q->has_function_str);
 
-  size_t i = q->results.size();
-
   // weed out functions whose decl_file isn't one of
   // the source files that we actually care about
   if (q->spec_type != function_alone &&
       q->filtered_srcfiles.count(file) == 0)
     return;
 
-  query_statement(func, file, line, scope_die, stmt_addr, q);
+  // To help users, we create an intermediate probe point containing the final
+  // function name, as well as the matched label. See query_callee() for
+  // something similar, but with more comments.
+  string canon_func = q->final_function_name(func, file, line);
 
-  // after the fact, insert the label back into the derivation chain
-  probe_point::component* ppc =
-    new probe_point::component(TOK_LABEL, new literal_string (label));
-  for (; i < q->results.size(); ++i)
+  string module = q->dw.module_name;
+  if (q->has_process)
+    module = path_remove_sysroot(q->sess, module);
+
+  probe_point *pp = new probe_point(*q->base_loc);
+  vector<probe_point::component*> pp_comps;
+  vector<probe_point::component*>::iterator it;
+  for (it = pp->components.begin(); it != pp->components.end(); ++it)
     {
-      derived_probe* p = q->results[i];
-      probe_point* pp = new probe_point(*p->locations[0]);
-      pp->components.push_back (ppc);
-      p->base = p->base->create_alias(p->locations[0], pp);
+      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
+        pp_comps.push_back(new probe_point::component((*it)->functor,
+          new literal_string(module)));
+      else if ((*it)->functor == TOK_FUNCTION)
+        pp_comps.push_back(new probe_point::component(TOK_FUNCTION,
+          new literal_string(canon_func)));
+      else if ((*it)->functor == TOK_LABEL)
+        pp_comps.push_back(new probe_point::component(TOK_LABEL,
+          new literal_string(label)));
+      else
+        pp_comps.push_back(*it);
     }
+
+  pp->components = pp_comps;
+  dwarf_query q_label(*q);
+  q_label.base_loc = pp;
+  q_label.base_probe = new probe(q->base_probe, pp);
+
+  query_statement(func, file, line, scope_die, stmt_addr, &q_label);
 }
 
 static void
