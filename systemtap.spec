@@ -202,9 +202,6 @@ Summary: Programmable system-wide instrumentation system - development headers, 
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-%if 0%{?rhel} == 4
-Requires: kernel >= 2.6.9-11
-%endif
 # Alternate kernel packages kernel-PAE-devel et al. have a virtual
 # provide for kernel-devel, so this requirement does the right thing,
 # at least past RHEL4.
@@ -226,9 +223,6 @@ Summary: Programmable system-wide instrumentation system - runtime
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-%if 0%{?rhel} == 4
-Requires: kernel >= 2.6.9-11
-%endif
 Requires(pre): shadow-utils
 
 %description runtime
