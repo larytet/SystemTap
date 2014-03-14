@@ -3738,11 +3738,9 @@ void
 dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
   if (null_die(scope_die)) {
-    print_format* pf = print_format::create(e->tok, "sprintf");
-    pf->raw_components = "";
-    pf->components = print_format::string_to_components(pf->raw_components);
-    pf->type = pe_string;
-    provide (pf);
+    literal_string *empty = new literal_string("");
+    empty->tok = e->tok;
+    provide(empty);
     return;
   }
 
@@ -3930,6 +3928,15 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
           return;
         }
 
+      // Everything else (pretty-printed vars, and context vars) require a
+      // scope_die in which to search for them. If we don't have that, just
+      // leave it unresolved; we'll produce an error later on.
+      if (null_die(scope_die))
+        {
+          provide(e);
+          return;
+        }
+
       if (!e->components.empty() &&
           e->components.back().type == target_symbol::comp_pretty_print)
         {
@@ -4065,14 +4072,14 @@ dwarf_var_expanding_visitor::getscopes(target_symbol *e)
 {
   if (scopes.empty())
     {
-      if(scope_die != NULL)
+      if(!null_die(scope_die))
         scopes = q.dw.getscopes(scope_die);
       if (scopes.empty())
         //throw semantic_error (_F("unable to find any scopes containing %d", addr), e->tok);
         //                        ((scope_die == NULL) ? "" : (string (" in ") + (dwarf_diename(scope_die) ?: "<unknown>") + "(" + (dwarf_diename(q.dw.cu) ?: "<unknown>") ")" ))
         throw SEMANTIC_ERROR ("unable to find any scopes containing "
                               + lex_cast_hex(addr)
-                              + ((scope_die == NULL) ? ""
+                              + (null_die(scope_die) ? ""
                                  : (string (" in ")
                                     + (dwarf_diename(scope_die) ?: "<unknown>")
                                     + "(" + (dwarf_diename(q.dw.cu) ?: "<unknown>")
