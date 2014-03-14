@@ -4628,8 +4628,10 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
     throw SEMANTIC_ERROR (_F("maxactive value out of range [0,%s]",
                           lex_cast(USHRT_MAX).c_str()), q.base_loc->components.front()->tok);
 
-  // Expand target variables in the probe body
-  if (!null_die(scope_die) || (!q.has_kernel && q.dw.has_gnu_debugdata()))
+  // Expand target variables in the probe body. Even if the scope_die is
+  // invalid, we still want to expand things such as $$vars/$$parms/etc...
+  // (PR15999, PR16473). Access to specific context vars e.g. $argc will not be
+  // expanded and will produce an error during the typeresolution_info pass.
     {
       // XXX: user-space deref's for q.has_process!
 
@@ -4726,13 +4728,11 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           q.has_call = false;
           q.base_probe->body = old_body;
         }
-      // Save the local variables for listing mode
-      if (q.sess.listing_mode_vars)
+      // Save the local variables for listing mode. If the scope_die is null,
+      // local vars aren't accessible, so no need to invoke saveargs (PR10820).
+      if (!null_die(scope_die) && q.sess.listing_mode_vars)
          saveargs(q, scope_die, dwfl_addr);
     }
-  // else - null scope_die - $target variables will produce an error during translate phase
-
-  // PR10820: null scope die, local variables aren't accessible, not necessary to invoke saveargs
 
   // Reset the sole element of the "locations" vector as a
   // "reverse-engineered" form of the incoming (q.base_loc) probe
