@@ -52,8 +52,8 @@ you can do this by adding this option:
 \fB$\fR virt-install [...] --controller=virtio-serial
 .ESAMPLE
 If the domain has already been created, you can simply do \fBport-add\fR
-followed immediately by \fBport-remove\fR. The port will be removed, but the
-controller will remain.
+followed immediately by \fBport-remove\fR, and then power off and restart the
+domain. The port will be removed, but the controller will remain.
 
 .SH OPTIONS
 The following options are supported. Any other option prints a short help
