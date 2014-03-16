@@ -1,12 +1,23 @@
 * What's new in version 2.5
 
-- A new probe alias "oneshot" allows a single quick script fragment to run, then exit.
+- The heuristic algorithms used to search for function-prologue
+  endings were improved, to cover more optimization (or
+  lack-of-optimization, or incorrect-debuginfo) cases.  These
+  heuristics are necessary to find $context parameters for some
+  function-call/entry probes.  We recommend programs be built with
+  CFLAGS+=-grecord-gcc-switches to feed information to the heuristics.
+
+- A new probe alias "oneshot" allows a single quick script fragment to run,
+  then exit.
 
 - The argv tapset now merges translate-time and run-time positional
   arguments, so all of these work:
 
   stap -e 'probe oneshot {println(argv[1]," ",argv[2])}' hello world
-  stap -e 'probe oneshot {println(argv[1]," ",argv[2])}' -G argv_1=hello -G argv_2=world
+
+  stap -e 'probe oneshot {println(argv[1]," ",argv[2])}' \
+       -G argv_1=hello -G argv_2=world
+
   staprun hello.ko argv_1=hello argv_2=world
 
 - SystemTap now falls back on the symbol table for probing
