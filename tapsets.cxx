@@ -7836,10 +7836,34 @@ symbol_table::get_from_elf()
     {
       GElf_Sym sym;
       GElf_Word section;
-      const char *name = dwfl_module_getsym(mod, i, &sym, &section);
+      const char *name;
+      GElf_Addr addr;
+      bool reject;
+
+/* Note that dwfl_module_getsym does adjust the sym.st_value but doesn't
+   try to resolve it to a function address.  dwfl_module_getsym_info leaves
+   the st_value in tact (no adjustment applied) and returns the fully
+   resolved address separately. In that case we can simply reject the
+   symbol if it is SHN_UNDEF and don't need to call reject_section which
+   does extra checks to see whether the address fall in an architecture
+   specific descriptor table (which will never be the case when using the
+   new dwfl_module_getsym_info).  dwfl_module_getsym will only provide us
+   with the (adjusted) st_value of the symbol, which might point into a
+   function descriptor table. So in that case we still have to call
+   reject_section. */
+#if _ELFUTILS_PREREQ (0, 158)
+      name = dwfl_module_getsym_info (mod, i, &sym, &addr, &section,
+				      NULL, NULL);
+      reject = section == SHN_UNDEF;
+#else
+      name = dwfl_module_getsym (mod, i, &sym, &section);
+      addr = value.st_value;
+      reject = reject_section(section);
+#endif
+
       if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
-                   reject_section(section), sym.st_value, &high_addr);
+                   reject, addr, &high_addr);
     }
   return info_present;
 }
