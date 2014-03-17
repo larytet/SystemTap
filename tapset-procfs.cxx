@@ -461,8 +461,10 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
           fname = "_procfs_value_get";
           ec->code = string("    struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string("); /* pure */\n")
 
-            + string("    _stp_copy_from_user(STAP_RETVALUE, data->buffer, data->count);\n")
-            + string("    STAP_RETVALUE[data->count] = '\\0';\n");
+            + string("    if (!_stp_copy_from_user(STAP_RETVALUE, data->buffer, data->count))\n")
+            + string("      STAP_RETVALUE[data->count] = '\\0';\n")
+	    + string("    else\n")
+            + string("      STAP_RETVALUE[0] = '\\0';\n");
         }
       else					// lvalue
         {

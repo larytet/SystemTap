@@ -129,9 +129,9 @@ static long _stp_strncpy_from_user(char *dst, const char __user *src, long count
 
 /** Copy a block of data from user space.
  *
- * If some data could not be copied, this function will pad the copied
- * data to the requested size using zero bytes.
-
+ * If data could not be copied, this function will not modify the
+ * destination.
+ *
  * @param dst Destination address, in kernel space.
  * @param src Source address, in user space.
  * @param count Number of bytes to copy.
@@ -150,7 +150,10 @@ static unsigned long _stp_copy_from_user(char *dst, const char __user *src, unsi
 		if (access_ok(VERIFY_READ, src, count))
 			count = __copy_from_user_inatomic(dst, src, count);
 		else
-			memset(dst, 0, count);
+			/* Notice that if we fail, we don't modify
+			 * the destination. In the failure case, we
+			 * can't trust 'count' to be reasonable. */
+			count = -EFAULT;
                 pagefault_enable();
                 set_fs(_oldfs);
 	}
