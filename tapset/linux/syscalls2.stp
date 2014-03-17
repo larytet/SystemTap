@@ -2874,12 +2874,12 @@ probe syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
 probe syscall.socket = kernel.function("sys_socket").call ?
 {
 	name = "socket"
-	family = $family
-	type = $type
-	protocol = $protocol
-	argstr = sprintf("%s, %s, %s", _sock_family_str($family),
-			 _sock_type_str($type),
-			 _sock_protocol_str($family, $protocol))
+	family = __int32($family)
+	type = __int32($type)
+	protocol = __int32($protocol)
+	argstr = sprintf("%s, %s, %s", _sock_family_str(family),
+			 _sock_type_str(type),
+			 _sock_protocol_str(family, protocol))
 }
 probe syscall.socket.return = kernel.function("sys_socket").return ?
 {
@@ -2914,14 +2914,14 @@ probe syscall.socket.return = kernel.function("sys_socket").return ?
 probe syscall.socketpair = kernel.function("sys_socketpair").call ?
 {
 	name = "socketpair"
-	family = $family
-	type = $type
-	protocol = $protocol
+	family = __int32($family)
+	type = __int32($type)
+	protocol = __int32($protocol)
 	sv_uaddr = $usockvec
 	argstr = sprintf("%s, %s, %s, %p",
-		_sock_family_str($family),
-		_sock_type_str($type),
-		_sock_protocol_str($family, $protocol), sv_uaddr)
+		_sock_family_str(family),
+		_sock_type_str(type),
+		_sock_protocol_str(family, protocol), sv_uaddr)
 }
 probe syscall.socketpair.return = kernel.function("sys_socketpair").return ?
 {
@@ -3856,20 +3856,29 @@ probe syscall.compat_vmsplice.return = kernel.function("compat_sys_vmsplice").re
 #	     int __user *stat_addr,
 #	     int options,
 #	     struct rusage __user *ru)
+# COMPAT_SYSCALL_DEFINE4(wait4,
+#	compat_pid_t, pid,
+#	compat_uint_t __user *, stat_addr,
+#	int, options,
+#	struct compat_rusage __user *, ru)
 #
-probe syscall.wait4 = kernel.function("sys_wait4").call
+probe syscall.wait4 = __syscall.wait4,
+	kernel.function("compat_sys_wait4").call ?
 {
 	name = "wait4"
-	pid = @choose_defined($upid, $pid)
+	pid = __int32(@choose_defined($upid, $pid))
 	status_uaddr = $stat_addr
 	options = $options & 0xffffffff
 	options_str = _wait4_opt_str(options)
 	rusage_uaddr = $ru
-	argstr = sprintf("%d, %p, %s, %p",
-		@choose_defined($upid, $pid),
-		$stat_addr, options_str, $ru)
+	argstr = sprintf("%d, %p, %s, %p", pid, $stat_addr, options_str, $ru)
 }
-probe syscall.wait4.return = kernel.function("sys_wait4").return
+probe __syscall.wait4 = kernel.function("sys_wait4").call
+{
+	@__syscall_gate(%{ __NR_wait4 %})
+}
+probe syscall.wait4.return = __syscall.wait4.return,
+	kernel.function("compat_sys_wait4").return ?
 {
 	name = "wait4"
 
@@ -3882,6 +3891,11 @@ probe syscall.wait4.return = kernel.function("sys_wait4").return
 
 	retstr = return_str(1, $return)
 }
+probe __syscall.wait4.return = kernel.function("sys_wait4").return
+{
+	@__syscall_gate(%{ __NR_wait4 %})
+}
+
 # waitid _____________________________________________________
 #
 # long sys_waitid(int which,

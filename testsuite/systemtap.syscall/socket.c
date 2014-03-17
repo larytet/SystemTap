@@ -72,5 +72,14 @@ int main()
   //staptest// close (NNNN) = 0
 #endif
 
+  socket(-1, SOCK_STREAM, IPPROTO_IP);
+  //staptest// socket (UNKNOWN VALUE: -1, SOCK_STREAM, 0) = -NNNN (EAFNOSUPPORT)
+
+  socket(PF_INET, -1, IPPROTO_IP);
+  //staptest// socket (PF_INET, UNKNOWN VALUE: .+, IPPROTO_IP) = -NNNN (EINVAL)
+
+  socket(PF_INET, SOCK_STREAM, -1);
+  //staptest// socket (PF_INET, SOCK_STREAM, -1) = NNNN (EPROTONOSUPPORT)
+
   return 0;
 }

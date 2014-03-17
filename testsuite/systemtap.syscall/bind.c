@@ -65,6 +65,9 @@ int main()
   bind(sock_inet_stream, (struct sockaddr *)&sin3, sizeof(sin3));
   //staptest// bind (NNNN, {AF_INET, 10.255.254.253, 0}, 16) = -NNNN (EADDRNOTAVAIL)
 
+  bind(sock_inet_stream, (struct sockaddr *)&sin1, -1);
+  //staptest// bind (NNNN, \[\.\.\.\], -1) = -NNNN (EINVAL)
+
   close(sock_inet_stream);
   //staptest// close (NNNN) = 0
 

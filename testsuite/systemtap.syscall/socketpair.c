@@ -63,4 +63,16 @@ int main()
     close(fds[1]);
     //staptest// close (NNNN) = 0
 #endif
+
+    socketpair(-1, SOCK_STREAM, 0, fds);
+    //staptest// socketpair (UNKNOWN VALUE: -1, SOCK_STREAM, 0, XXXX) = -NNNN (EAFNOSUPPORT)
+
+    socketpair(PF_UNIX, -1, 0, fds);
+    //staptest// socketpair (PF_LOCAL, UNKNOWN VALUE: .+, 0, XXXX) = -NNNN (EINVAL)
+
+    socketpair(PF_UNIX, SOCK_STREAM, -1, fds);
+    //staptest// socketpair (PF_LOCAL, SOCK_STREAM, -1, XXXX) = -NNNN (EPROTONOSUPPORT)
+
+    socketpair(PF_UNIX, SOCK_STREAM, 0, (int *)-1);
+    //staptest// socketpair (PF_LOCAL, SOCK_STREAM, 0, 0x[f]+) = -NNNN (EFAULT)
 }

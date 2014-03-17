@@ -3421,12 +3421,12 @@ probe nd_syscall.sigsuspend.return = kprobe.function("sys_sigsuspend").return ?,
 probe nd_syscall.socket = kprobe.function("sys_socket") ?
 {
 	name = "socket"
-	// family = $family
-	// type = $type
-	// protocol = $protocol
-	// argstr = sprintf("%s, %s, %s", _sock_family_str($family),
-	// 			_sock_type_str($type),
-	// 			_sock_protocol_str($family, $protocol))
+	// family = __int32($family)
+	// type = __int32($type)
+	// protocol = __int32($protocol)
+	// argstr = sprintf("%s, %s, %s", _sock_family_str(family),
+	// 			_sock_type_str(type),
+	// 			_sock_protocol_str(family, protocol))
 	asmlinkage()
 	family = int_arg(1)
 	type = int_arg(2)
@@ -3468,14 +3468,14 @@ probe nd_syscall.socket.return = kprobe.function("sys_socket").return ?
 probe nd_syscall.socketpair = kprobe.function("sys_socketpair") ?
 {
 	name = "socketpair"
-	// family = $family
-	// type = $type
-	// protocol = $protocol
+	// family = __int32($family)
+	// type = __int32($type)
+	// protocol = __int32($protocol)
 	// sv_uaddr = $usockvec
 	// argstr = sprintf("%s, %s, %s, %p",
-	// 			_sock_family_str($family),
-	// 			_sock_type_str($type),
-	// 			_sock_protocol_str($family, $protocol),
+	// 			_sock_family_str(family),
+	// 			_sock_type_str(type),
+	// 			_sock_protocol_str(family, protocol),
 	//			sv_uaddr)
 	asmlinkage()
 	family = int_arg(1)
@@ -4632,8 +4632,14 @@ probe nd_syscall.compat_vmsplice.return = kprobe.function("compat_sys_vmsplice")
 #	     int __user *stat_addr,
 #	     int options,
 #	     struct rusage __user *ru)
+# COMPAT_SYSCALL_DEFINE4(wait4,
+#	compat_pid_t, pid,
+#	compat_uint_t __user *, stat_addr,
+#	int, options,
+#	struct compat_rusage __user *, ru)
 #
-probe nd_syscall.wait4 = kprobe.function("sys_wait4") ?
+probe nd_syscall.wait4 = __nd_syscall.wait4,
+	kprobe.function("compat_sys_wait4") ?
 {
 	name = "wait4"
 	// pid = (@defined($upid) ? $upid : $pid)
@@ -4650,10 +4656,15 @@ probe nd_syscall.wait4 = kprobe.function("sys_wait4") ?
 	options = int_arg(3) & 0xffffffff
 	options_str = _wait4_opt_str(options)
 	rusage_uaddr = pointer_arg(4)
-	argstr = sprintf("%d, %p, %s, %p", pid, status_uaddr, _wait4_opt_str(options), rusage_uaddr)
-
+	argstr = sprintf("%d, %p, %s, %p", pid, status_uaddr, options_str,
+			 rusage_uaddr)
 }
-probe nd_syscall.wait4.return = kprobe.function("sys_wait4").return ?
+probe __nd_syscall.wait4 = kprobe.function("sys_wait4")
+{
+	@__syscall_gate(%{ __NR_wait4 %})
+}
+probe nd_syscall.wait4.return = __nd_syscall.wait4.return,
+	kprobe.function("compat_sys_wait4").return ?
 {
 	name = "wait4"
 
@@ -4666,6 +4677,10 @@ probe nd_syscall.wait4.return = kprobe.function("sys_wait4").return ?
 		status_str = _wait_status_str(user_int(status_uaddr))
 
 	retstr = returnstr(1)
+}
+probe __nd_syscall.wait4.return = kprobe.function("sys_wait4").return
+{
+	@__syscall_gate(%{ __NR_wait4 %})
 }
 
 # waitid _____________________________________________________
