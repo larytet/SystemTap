@@ -718,9 +718,9 @@ probe nd_syscall.connect = kprobe.function("sys_connect") ?
 	asmlinkage()
 	sockfd = int_arg(1)
 	serv_addr_uaddr = pointer_arg(2)
-	addrlen = int_arg(3)
+	addrlen = uint_arg(3)
 	@_af_inet_info_u(serv_addr_uaddr, addrlen)
-	argstr = sprintf("%d, %s, %d", sockfd, _struct_sockaddr_u(serv_addr_uaddr, addrlen), addrlen)
+	argstr = sprintf("%d, %s, %u", sockfd, _struct_sockaddr_u(serv_addr_uaddr, addrlen), addrlen)
 }
 probe nd_syscall.connect.return = kprobe.function("sys_connect").return ?
 {
