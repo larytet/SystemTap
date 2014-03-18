@@ -75,7 +75,7 @@ static string TOK_KERNEL("kernel");
 
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
-  module_start(0), module_end(0), cu(NULL),
+  module_start(0), module_end(0), cu(NULL), dwfl(NULL),
   module_dwarf(NULL), function(NULL), blacklist_func(), blacklist_func_ret(),
   blacklist_file(),  blacklist_enabled(false)
 {
@@ -92,7 +92,7 @@ dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
 dwflpp::dwflpp(systemtap_session & session, const vector<string>& names,
 	       bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
-  module_start(0), module_end(0), cu(NULL),
+  module_start(0), module_end(0), cu(NULL), dwfl(NULL),
   module_dwarf(NULL), function(NULL), blacklist_enabled(false)
 {
   if (kernel_p)
@@ -110,7 +110,8 @@ dwflpp::~dwflpp()
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
 
-  dwfl_ptr.reset();
+  if (dwfl)
+    dwfl_end(dwfl);
   // NB: don't "delete mod_info;", as that may be shared
   // between dwflpp instances, and are stored in
   // session.module_cache[] anyway.
@@ -225,7 +226,7 @@ Dwarf_Die *
 dwflpp::query_cu_containing_address(Dwarf_Addr a)
 {
   Dwarf_Addr bias;
-  assert(dwfl_ptr.get()->dwfl);
+  assert(dwfl);
   assert(module);
   get_module_dwarf();
 
@@ -321,7 +322,7 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
     sess.module_cache = new module_cache ();
 
   unsigned offline_search_matches = 0;
-  dwfl_ptr = setup_dwfl_kernel(name, &offline_search_matches, sess);
+  dwfl = setup_dwfl_kernel(name, &offline_search_matches, sess);
 
   if (offline_search_matches < 1)
     {
@@ -333,7 +334,7 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
       throw SEMANTIC_ERROR (_F("missing %s kernel/module debuginfo [man warning::debuginfo] under '%s'",
                                 sess.architecture.c_str(), sess.kernel_build_tree.c_str()));
     }
-  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+
   if (dwfl != NULL)
     {
       ptrdiff_t off = 0;
@@ -357,9 +358,9 @@ dwflpp::setup_kernel(const vector<string> &names, bool debuginfo_needed)
 
   unsigned offline_search_matches = 0;
   set<string> offline_search_names(names.begin(), names.end());
-  dwfl_ptr = setup_dwfl_kernel(offline_search_names,
-			       &offline_search_matches,
-			       sess);
+  dwfl = setup_dwfl_kernel(offline_search_names,
+			   &offline_search_matches,
+			   sess);
 
   if (offline_search_matches < offline_search_names.size())
     {
@@ -383,11 +384,11 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
     sess.module_cache = new module_cache ();
 
   vector<string>::const_iterator it = modules.begin();
-  dwfl_ptr = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
+  dwfl = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
   if (debuginfo_needed && it != modules.end())
     dwfl_assert (string(_F("missing process %s %s debuginfo",
                            (*it).c_str(), sess.architecture.c_str())),
-                           dwfl_ptr.get()->dwfl);
+                           dwfl);
 
   build_user_blacklist();
 }
@@ -400,7 +401,7 @@ dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
                                                    void*),
                                    void *data)
 {
-  dwfl_getmodules (dwfl_ptr.get()->dwfl, callback, data, 0);
+  dwfl_getmodules (dwfl, callback, data, 0);
 
   // Don't complain if we exited dwfl_getmodules early.
   // This could be a $target variable error that will be

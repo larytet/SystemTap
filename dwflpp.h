@@ -442,7 +442,7 @@ struct dwflpp
   bool has_valid_locs();
 
 private:
-  DwflPtr dwfl_ptr;
+  Dwfl * dwfl;
 
   // These are "current" values we focus on.
   Dwarf * module_dwarf;

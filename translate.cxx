@@ -6519,8 +6519,7 @@ emit_symbol_data (systemtap_session& s)
 				     offline searches. */
         offline_search_modules.insert (foo);
     }
-  DwflPtr dwfl_ptr = setup_dwfl_kernel (offline_search_modules, &count, s);
-  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+  Dwfl *dwfl = setup_dwfl_kernel (offline_search_modules, &count, s);
   /* NB: It's not an error to find a few fewer modules than requested.
      There might be third-party modules loaded (e.g. uprobes). */
   /* dwfl_assert("all kernel modules found",
@@ -6535,7 +6534,7 @@ emit_symbol_data (systemtap_session& s)
     }
   while (off > 0);
   dwfl_assert("dwfl_getmodules", off == 0);
-  dwfl_ptr.reset();
+  dwfl_end(dwfl);
 
   // ---- step 2: process any user modules (files) listed
   for (std::set<std::string>::iterator it = s.unwindsym_modules.begin();
@@ -6545,8 +6544,7 @@ emit_symbol_data (systemtap_session& s)
       string modname = *it;
       assert (modname.length() != 0);
       if (! is_user_module (modname)) continue;
-      DwflPtr dwfl_ptr = setup_dwfl_user (modname);
-      Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+      Dwfl *dwfl = setup_dwfl_user (modname);
       if (dwfl != NULL) // tolerate missing data; will warn below
         {
           ptrdiff_t off = 0;
@@ -6559,7 +6557,7 @@ emit_symbol_data (systemtap_session& s)
           while (off > 0);
           dwfl_assert("dwfl_getmodules", off == 0);
         }
-      dwfl_ptr.reset();
+      dwfl_end(dwfl);
     }
 
   emit_symbol_data_done (&ctx, s);

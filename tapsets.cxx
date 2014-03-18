@@ -10743,8 +10743,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
   if (s.kernel_source_tree == "")
     {
       unsigned found;
-      DwflPtr dwfl_ptr = setup_dwfl_kernel ("kernel", &found, s);
-      Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+      Dwfl *dwfl = setup_dwfl_kernel ("kernel", &found, s);
       if (found)
         {
           Dwarf_Die *cudie = 0;

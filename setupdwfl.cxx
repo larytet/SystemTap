@@ -72,11 +72,6 @@ static const Dwfl_Callbacks user_callbacks =
 
 using namespace std;
 
-// Store last kernel and user Dwfl for reuse since they are often
-// re-requested (in phase 2 and then in phase 3).
-static DwflPtr kernel_dwfl;
-static DwflPtr user_dwfl;
-
 // Setup in setup_dwfl_kernel(), for use in setup_dwfl_report_kernel_p().
 // Either offline_search_modname or offline_search_names is
 // used. When offline_search_modname is not NULL then
@@ -88,10 +83,6 @@ static unsigned offline_modules_found;
 // Whether or not we are done reporting kernel modules in
 // set_dwfl_report_kernel_p().
 static bool setup_dwfl_done;
-
-// Kept for user_dwfl cache, user modules don't allow wildcards, so
-// just keep the set of module strings.
-static set<string> user_modset;
 
 // Determines whether or not we will make setup_dwfl_report_kernel_p
 // report true for all module dependencies. This is necessary for
@@ -339,7 +330,7 @@ void debuginfo_path_insert_sysroot(string sysroot)
   debuginfo_usr_path = path_insert_sysroot(sysroot, debuginfo_usr_path);
 }
 
-static DwflPtr
+static Dwfl *
 setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
 {
   Dwfl *dwfl = dwfl_begin (&kernel_callbacks);
@@ -416,13 +407,10 @@ setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
   dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
   *modules_found = offline_modules_found;
 
-  StapDwfl *stap_dwfl = new StapDwfl(dwfl);
-  kernel_dwfl = DwflPtr(stap_dwfl);
-
-  return kernel_dwfl;
+  return dwfl;
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_kernel(const std::string &name,
 		  unsigned *found,
 		  systemtap_session &s)
@@ -439,50 +427,27 @@ setup_dwfl_kernel(const std::string &name,
       modname = NULL;
     }
 
-  if (kernel_dwfl != NULL
-      && offline_search_modname == modname
-      && offline_search_names == names)
-    {
-      *found = offline_modules_found;
-      return kernel_dwfl;
-    }
-
   offline_search_modname = modname;
   offline_search_names = names;
 
   return setup_dwfl_kernel(found, s);
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_kernel(const std::set<std::string> &names,
 		  unsigned *found,
 		  systemtap_session &s)
 {
   current_session_for_find_debuginfo = &s;
-  if (kernel_dwfl != NULL
-      && offline_search_modname == NULL
-      && offline_search_names == names)
-    {
-      *found = offline_modules_found;
-      return kernel_dwfl;
-    }
 
   offline_search_modname = NULL;
   offline_search_names = names;
   return setup_dwfl_kernel(found, s);
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_user(const std::string &name)
 {
-  if (user_dwfl != NULL
-      && user_modset.size() == 1
-      && (*user_modset.begin()) == name)
-    return user_dwfl;
-
-  user_modset.clear();
-  user_modset.insert(name);
-
   Dwfl *dwfl = dwfl_begin (&user_callbacks);
   dwfl_assert("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
@@ -497,13 +462,10 @@ setup_dwfl_user(const std::string &name)
       dwfl = NULL;
     }
 
-  StapDwfl *stap_dwfl = new StapDwfl(dwfl);
-  user_dwfl = DwflPtr(stap_dwfl);
-
-  return user_dwfl;
+  return dwfl;
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
 		const std::vector<std::string>::const_iterator &end,
 		bool all_needed, systemtap_session &s)
@@ -511,10 +473,6 @@ setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
   current_session_for_find_debuginfo = &s;
   // See if we have this dwfl already cached
   set<string> modset(begin, end);
-  if (user_dwfl != NULL && modset == user_modset)
-    return user_dwfl;
-
-  user_modset = modset;
 
   Dwfl *dwfl = dwfl_begin (&user_callbacks);
   dwfl_assert("dwfl_begin", dwfl);
@@ -553,10 +511,7 @@ setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
   if (dwfl)
     dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
 
-  StapDwfl *stap_dwfl = new StapDwfl(dwfl);
-  user_dwfl = DwflPtr(stap_dwfl);
-
-  return user_dwfl;
+  return dwfl;
 }
 
 bool
