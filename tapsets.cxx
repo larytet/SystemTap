@@ -7857,7 +7857,7 @@ symbol_table::get_from_elf()
       reject = section == SHN_UNDEF;
 #else
       name = dwfl_module_getsym (mod, i, &sym, &section);
-      addr = value.st_value;
+      addr = sym.st_value;
       reject = reject_section(section);
 #endif
 
