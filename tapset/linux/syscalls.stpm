@@ -49,6 +49,16 @@
     %)
 %)
 
+@define __pointer(val)
+%(
+    %( CONFIG_COMPAT == "y" %?
+	# If this is a compat task, the high bits of a pointer may be
+	# garbage.
+	(%{ _stp_is_compat_task() %} ? (@val & 0xffffffff) : @val)
+    %:
+	@val
+    %)
+%)
 
 @define _af_inet_info_u(my_addr_uaddr, addrlen)
 %(

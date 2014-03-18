@@ -123,4 +123,11 @@
 
 #endif	/* __ia64__ */
 
+// Older kernels (like RHEL5) supported __NR_sendfile64. For newer
+// kernels, we'll just define __NR_sendfile64 in terms of
+// __NR_sendfile.
+#ifndef __NR_sendfile64
+#define __NR_sendfile64 __NR_sendfile
+#endif
+
 #endif /* _COMPAT_UNISTD_H_ */

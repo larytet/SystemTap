@@ -1676,12 +1676,12 @@ probe syscall.sched_yield.return = kernel.function("sys_sched_yield").return
 probe syscall.select = kernel.function("sys_select").call
 {
 	name = "select"
-	n = $n
+	n = __int32($n)
 	readfds_uaddr = $inp
 	writefds_uaddr = $outp
 	exceptfds_uaddr = $exp
 	timeout_uaddr = $tvp
-	argstr = sprintf("%d, %p, %p, %p, %s", $n, $inp, $outp, $exp,
+	argstr = sprintf("%d, %p, %p, %p, %s", n, $inp, $outp, $exp,
 		_struct_timeval_u($tvp, 1))
 }
 probe syscall.select.return = kernel.function("sys_select").return
@@ -1874,27 +1874,39 @@ probe syscall.send.return = kernel.function("sys_send").return ?
 # COMPAT_SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd,
 #		compat_loff_t __user *, offset, compat_size_t, count)
 #
-probe syscall.sendfile = kernel.function("sys_sendfile").call ?,
-                         kernel.function("sys_sendfile64").call ?,
-			 kernel.function("compat_sys_sendfile").call ?,
-			 kernel.function("compat_sys_sendfile64").call ?
+probe syscall.sendfile = __syscall.sendfile, __syscall.compat_sendfile
 {
 	name = "sendfile"
-	out_fd = $out_fd
-	in_fd = $in_fd
+	out_fd = __int32($out_fd)
+	in_fd = __int32($in_fd)
 	offset_uaddr = $offset
-	count = $count
-	argstr = sprintf("%d, %d, %p, %d", $out_fd, $in_fd, $offset,
-		$count)
+	argstr = sprintf("%d, %d, %p, %u", out_fd, in_fd, $offset, count)
 }
-probe syscall.sendfile.return =
-	kernel.function("sys_sendfile").return ?,
-	kernel.function("sys_sendfile64").return ?,
+probe __syscall.sendfile = kernel.function("sys_sendfile").call ?,
+	kernel.function("sys_sendfile64").call ?
+{
+	@__syscall_gate2(%{ __NR_sendfile %}, %{ __NR_sendfile64 %})
+	count = $count
+}
+probe __syscall.compat_sendfile =
+	kernel.function("compat_sys_sendfile").call ?,
+	kernel.function("compat_sys_sendfile64").call ?,
+	kernel.function("sys32_sendfile").call ?
+{
+	count = __uint32($count)
+}
+probe syscall.sendfile.return = __syscall.sendfile.return ?,
 	kernel.function("compat_sys_sendfile").return ?,
-	kernel.function("compat_sys_sendfile64").return ?
+	kernel.function("compat_sys_sendfile64").return ?,
+	kernel.function("sys32_sendfile").return ?
 {
 	name = "sendfile"
 	retstr = return_str(1, $return)
+}
+probe __syscall.sendfile.return = kernel.function("sys_sendfile").return ?,
+	kernel.function("sys_sendfile64").return ?
+{
+	@__syscall_gate2(%{ __NR_sendfile %}, %{ __NR_sendfile64 %})
 }
 
 # sendmsg ____________________________________________________
@@ -3867,11 +3879,12 @@ probe syscall.wait4 = __syscall.wait4,
 {
 	name = "wait4"
 	pid = __int32(@choose_defined($upid, $pid))
-	status_uaddr = $stat_addr
+	status_uaddr = @__pointer($stat_addr)
 	options = $options & 0xffffffff
 	options_str = _wait4_opt_str(options)
-	rusage_uaddr = $ru
-	argstr = sprintf("%d, %p, %s, %p", pid, $stat_addr, options_str, $ru)
+	rusage_uaddr = @__pointer($ru)
+	argstr = sprintf("%d, %p, %s, %p", pid, status_uaddr, options_str,
+			 rusage_uaddr)
 }
 probe __syscall.wait4 = kernel.function("sys_wait4").call
 {

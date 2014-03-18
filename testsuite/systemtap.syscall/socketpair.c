@@ -74,5 +74,9 @@ int main()
     //staptest// socketpair (PF_LOCAL, SOCK_STREAM, -1, XXXX) = -NNNN (EPROTONOSUPPORT)
 
     socketpair(PF_UNIX, SOCK_STREAM, 0, (int *)-1);
+#ifdef __s390__
+    //staptest// socketpair (PF_LOCAL, SOCK_STREAM, 0, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
     //staptest// socketpair (PF_LOCAL, SOCK_STREAM, 0, 0x[f]+) = -NNNN (EFAULT)
+#endif
 }
