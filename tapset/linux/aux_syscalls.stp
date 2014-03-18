@@ -389,7 +389,7 @@ function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
     sa_dispatch what = (sa_dispatch)STAP_ARG_what;
 
     char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
-    size_t len = clamp((size_t)STAP_ARG_len, (size_t)0, (size_t)128);
+    size_t len = clamp_t(size_t, STAP_ARG_len, 0, 128);
     struct sockaddr *sa = (struct sockaddr *)CONTEXT->buf;
 
     char *stap_retvalue = (char *)(unsigned long)STAP_RETVALUE;
