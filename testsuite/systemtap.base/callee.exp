@@ -252,6 +252,8 @@ if {![installtest_p]} {
    passfail [expect_probe main 3 $expout]
 }
 
+if {[file exists "$test"]} { file delete "$test" }
+
 # testcase callee.multicalls.c
 # allows testing of:
 # - probing of multiple different callees in the same caller
@@ -306,6 +308,8 @@ if {![installtest_p]} {
    set expout [list main foo foo baz main bar bar foo main foo foo baz ]
    passfail [expect_probe main 2 $expout]
 }
+
+if {[file exists "$test"]} { file delete "$test" }
 
 # testcase callee.inlined.c
 # allows testing of:
@@ -362,6 +366,8 @@ if {![installtest_p]} {
    passfail [expect_probe main 2 $expout 1]
 }
 
+if {[file exists "$test"]} { file delete "$test" }
+
 # testcase callee.extern.c
 # allows testing of:
 # - probing of callees located in a different CU
@@ -400,6 +406,8 @@ if {![installtest_p]} {
    set expout [list foo bar]
    passfail [expect_probe foo 0 $expout]
 }
+
+if {[file exists "$test"]} { file delete "$test" }
 
 # testcase callee.reloc.c
 # allows testing of:
@@ -596,3 +604,8 @@ if {[string length $stap_id]} {
    }
    set stap_id ""
 }
+
+# Cleanup files
+if {[file exists "$libobj"]}  { file delete "$libobj" }
+if {[file exists "$libso"]}   { file delete "$libso" }
+if {[file exists "$subtest"]} { file delete "$subtest" }
