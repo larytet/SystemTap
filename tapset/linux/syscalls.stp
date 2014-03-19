@@ -1614,9 +1614,9 @@ probe syscall.gethostname.return = kernel.function("sys_gethostname").return ?
 probe syscall.getitimer = kernel.function("sys_getitimer").call
 {
 	name = "getitimer"
-	which = $which
+	which = __int32($which)
 	value_uaddr = $value
-	argstr = sprintf("%s, %p", _itimer_which_str($which), $value)
+	argstr = sprintf("%s, %p", _itimer_which_str(which), $value)
 }
 probe syscall.getitimer.return = kernel.function("sys_getitimer").return
 {
@@ -1627,9 +1627,9 @@ probe syscall.getitimer.return = kernel.function("sys_getitimer").return
 probe syscall.compat_getitimer = kernel.function("compat_sys_getitimer").call ?
 {
 	name = "getitimer"
-	which = $which
+	which = __int32($which)
 	value_uaddr = $it
-	argstr = sprintf("%s, %p", _itimer_which_str($which), $it)
+	argstr = sprintf("%s, %p", _itimer_which_str(which), $it)
 }
 probe syscall.compat_getitimer.return = kernel.function("compat_sys_getitimer").return ?
 {

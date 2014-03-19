@@ -2121,11 +2121,11 @@ probe syscall.sethostname.return = kernel.function("sys_sethostname").return
 probe syscall.setitimer = kernel.function("sys_setitimer").call
 {
 	name = "setitimer"
-	which = $which
+	which = __int32($which)
 	value_uaddr = $value
 	ovalue_uaddr = $ovalue
-	argstr = sprintf("%s, %s, %p", _itimer_which_str($which),
-		_struct_itimerval_u($value), $ovalue)
+	argstr = sprintf("%s, %s, %p", _itimer_which_str(which),
+			 _struct_itimerval_u($value), $ovalue)
 }
 probe syscall.setitimer.return = kernel.function("sys_setitimer").return
 {
@@ -2140,11 +2140,11 @@ probe syscall.setitimer.return = kernel.function("sys_setitimer").return
 probe syscall.compat_setitimer = kernel.function("compat_sys_setitimer").call ?
 {
 	name = "setitimer"
-	which = $which
+	which = __int32($which)
 	value_uaddr = $in
-	ovalue_uaddr = $out
-	argstr = sprintf("%s, %s, %p", _itimer_which_str($which),
-		_struct_compat_itimerval_u($in), $out)
+	ovalue_uaddr = @__pointer($out)
+	argstr = sprintf("%s, %s, %p", _itimer_which_str(which),
+			 _struct_compat_itimerval_u($in), @__pointer($out))
 }
 probe syscall.compat_setitimer.return = kernel.function("compat_sys_setitimer").return ?
 {
