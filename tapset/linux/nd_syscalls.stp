@@ -2291,7 +2291,11 @@ probe nd_syscall.getrlimit.return = kprobe.function("sys_getrlimit").return ?,
 
 # getrusage __________________________________________________
 # long sys_getrusage(int who, struct rusage __user *ru)
-probe nd_syscall.getrusage = kprobe.function("sys_getrusage") ?
+# COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *,
+#			 ru)
+#
+probe nd_syscall.getrusage = __nd_syscall.getrusage,
+	kprobe.function("compat_sys_getrusage").call ?
 {
 	name = "getrusage"
 	// who = $who
@@ -2311,10 +2315,19 @@ probe nd_syscall.getrusage = kprobe.function("sys_getrusage") ?
 	usage_uaddr = pointer_arg(2)
 	argstr = sprintf("%s, %p", who_str, usage_uaddr)
 }
-probe nd_syscall.getrusage.return = kprobe.function("sys_getrusage").return ?
+probe __nd_syscall.getrusage = kprobe.function("sys_getrusage").call
+{
+	@__syscall_gate(%{ __NR_getrusage %})
+}
+probe nd_syscall.getrusage.return = __nd_syscall.getrusage.return,
+	kprobe.function("compat_sys_getrusage").return ?
 {
 	name = "getrusage"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.getrusage.return = kprobe.function("sys_getrusage").return
+{
+	@__syscall_gate(%{ __NR_getrusage %})
 }
 
 # getsid _____________________________________________________

@@ -1882,6 +1882,7 @@ function _rusage_who_str(w) {
    if(w==0) return "RUSAGE_SELF"
    if(w==-1) return "RUSAGE_CHILDREN"
    if(w==-2) return "RUSAGE_BOTH"
+   if(w==1) return "RUSAGE_THREAD"
    return sprintf("UNKNOWN VALUE: %d", w)
 }
 

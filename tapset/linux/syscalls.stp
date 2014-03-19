@@ -1673,10 +1673,10 @@ probe syscall.get_mempolicy.return = kernel.function("compat_sys_get_mempolicy")
 probe syscall.getpeername = kernel.function("sys_getpeername").call ?
 {
 	name = "getpeername"
-	s = $fd
+	s = __int32($fd)
 	name_uaddr = $usockaddr
 	namelen_uaddr = $usockaddr_len
-	argstr = sprintf("%d, %p, %p", $fd, $usockaddr, $usockaddr_len)
+	argstr = sprintf("%d, %p, %p", s, $usockaddr, $usockaddr_len)
 }
 probe syscall.getpeername.return = kernel.function("sys_getpeername").return ?
 {
@@ -1824,22 +1824,35 @@ probe syscall.getrlimit.return = kernel.function("sys_getrlimit").return ?,
 
 # getrusage __________________________________________________
 # long sys_getrusage(int who, struct rusage __user *ru)
-probe syscall.getrusage = kernel.function("sys_getrusage").call
+# COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *,
+#			 ru)
+#
+probe syscall.getrusage = __syscall.getrusage,
+	kernel.function("compat_sys_getrusage").call ?
 {
 	name = "getrusage"
-	who = $who
-	if ($who == -2) {
+	who = __int32($who)
+	if (who == -2) {
 		# RUSAGE_BOTH is not valid argument for sys_getrusage
-		who_str = sprintf("UNKNOWN VALUE: %d", $who)
+		who_str = sprintf("UNKNOWN VALUE: %d", who)
 	} else
-		who_str = _rusage_who_str($who)
+		who_str = _rusage_who_str(who)
 	usage_uaddr = $ru
 	argstr = sprintf("%s, %p", who_str, usage_uaddr)
 }
-probe syscall.getrusage.return = kernel.function("sys_getrusage").return
+probe __syscall.getrusage = kernel.function("sys_getrusage").call
+{
+	@__syscall_gate(%{ __NR_getrusage %})
+}
+probe syscall.getrusage.return = __syscall.getrusage.return,
+	kernel.function("compat_sys_getrusage").return ?
 {
 	name = "getrusage"
 	retstr = return_str(1, $return)
+}
+probe __syscall.getrusage.return = kernel.function("sys_getrusage").return
+{
+	@__syscall_gate(%{ __NR_getrusage %})
 }
 
 # getsid _____________________________________________________
