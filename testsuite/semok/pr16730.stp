@@ -1,0 +1,20 @@
+#! /bin/sh
+
+# PR16730: We should only list probes that can be traced back to the
+# user's spec, not any auxiliary probes in the tapsets.
+#
+# There happens to be a begin(-1001) initialization probe in socket.stp,
+# but a `stap -l socket.send` shouldn't list that
+
+# First sanity check that the begin(-1001) probe is still present:
+if ! stap -p2 -e 'probe socket.send { next }' | grep -q ^begin; then
+  exit 2
+fi
+
+
+# Now make sure that the begin probe isn't listed:
+if stap -l socket.send | grep -q ^begin; then
+  exit 1
+fi
+
+exit 0

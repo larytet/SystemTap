@@ -77,9 +77,15 @@ printscript(systemtap_session& s, ostream& o)
           assert_no_interrupts();
 
           derived_probe* p = s.probes[i];
+          vector<probe*> chain;
+          p->collect_derivation_chain (chain);
+
+          // PR16730: We should only list probes that can be traced back to the
+          // user's spec, not any auxiliary probes in the tapsets.
+          if (chain.back()->tok->location.file != s.user_file)
+            continue;
+
           if (s.verbose > 2) {
-            vector<probe*> chain;
-            p->collect_derivation_chain (chain);
             p->printsig(cerr); cerr << endl;
             cerr << "chain[" << chain.size() << "]:" << endl;
             for (unsigned j=0; j<chain.size(); j++)
