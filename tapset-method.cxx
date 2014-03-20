@@ -329,6 +329,10 @@ java_builder::build (systemtap_session & sess,
   if (!new_mark_probe)
     throw SEMANTIC_ERROR (_("can't create java method probe"), tok);
 
+  // Link this main probe back to the original base, with an
+  // additional probe intermediate to catch probe listing.
+  new_mark_probe->base = new probe(base, loc);
+
   // Splice base->body in after the parsed body
   new_mark_probe->body = new block (new_mark_probe->body, base->body);
 

@@ -80,11 +80,6 @@ printscript(systemtap_session& s, ostream& o)
           vector<probe*> chain;
           p->collect_derivation_chain (chain);
 
-          // PR16730: We should only list probes that can be traced back to the
-          // user's spec, not any auxiliary probes in the tapsets.
-          if (chain.back()->tok->location.file != s.user_file)
-            continue;
-
           if (s.verbose > 2) {
             p->printsig(cerr); cerr << endl;
             cerr << "chain[" << chain.size() << "]:" << endl;
@@ -111,11 +106,18 @@ printscript(systemtap_session& s, ostream& o)
                   }
               }
           }
-          
-          stringstream tmps;
-          const probe_point *a = p->script_location();
-          a->print(tmps);
-          string pp = tmps.str();
+
+          const string& pp = lex_cast(*p->script_location());
+
+          // PR16730: We should only list probes that can be traced back to the
+          // user's spec, not any auxiliary probes in the tapsets.
+          const source_loc& origin = chain.back()->tok->location;
+          if (origin.file != s.user_file)
+            {
+              if (s.verbose > 1)
+                cerr << "skipping probe " << pp << " from " << origin << endl;
+              continue;
+            }
 
           // Now duplicate-eliminate.  An alias may have expanded to
           // several actual derived probe points, but we only want to
