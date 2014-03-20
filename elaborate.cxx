@@ -542,14 +542,7 @@ match_node::find_and_build (systemtap_session& s,
 
       // Try suffix expansion only if no matches found:
       if (num_results == results.size())
-        try
-          {
-            this->try_suffix_expansion (s, p, loc, pos, results);
-          }
-        catch (const recursive_expansion_error &e)
-          {
-            s.print_error(e); return; // Suppress probe mismatch msg.
-          }
+        this->try_suffix_expansion (s, p, loc, pos, results);
 
       if (! loc->optional && num_results == results.size())
         {
@@ -623,14 +616,7 @@ match_node::find_and_build (systemtap_session& s,
 
       // Try suffix expansion only if no matches found:
       if (num_results == results.size())
-        try
-          {
-            this->try_suffix_expansion (s, p, loc, pos, results);
-          }
-        catch (const recursive_expansion_error &e)
-          {
-            s.print_error(e); return; // Suppress probe mismatch msg.
-          }
+        this->try_suffix_expansion (s, p, loc, pos, results);
 
       if (! loc->optional && num_results == results.size())
         {
@@ -656,15 +642,7 @@ match_node::find_and_build (systemtap_session& s,
         }
 
       unsigned int num_results = results.size();
-
-      try
-        {
-          this->try_suffix_expansion (s, p, loc, pos, results);
-        }
-      catch (const recursive_expansion_error &e)
-        {
-          s.print_error(e); return; // Suppress probe mismatch msg.
-        }
+      this->try_suffix_expansion (s, p, loc, pos, results);
 
       // XXX: how to correctly report alternatives + position numbers
       // for alias suffixes?  file a separate PR to address the issue
@@ -735,10 +713,10 @@ match_node::try_suffix_expansion (systemtap_session& s,
       for (unsigned k=0; k < ends.size(); k++)
         {
           derived_probe_builder *b = ends[k];
-          try 
+          try
             {
               b->build_with_suffix (s, p, loc, param_map, results, suffix);
-            } 
+            }
           catch (const recursive_expansion_error &e)
             {
               // Re-throw:
@@ -896,7 +874,7 @@ alias_expansion_builder::build_with_suffix(systemtap_session & sess,
   // Don't build the alias expansion if infinite recursion is detected.
   if (checkForRecursiveExpansion (use)) {
     stringstream msg;
-    msg << _F("Recursive loop in alias expansion of %s at %s",
+    msg << _F("recursive loop in alias expansion of %s at %s",
               lex_cast(*location).c_str(), lex_cast(location->components.front()->tok->location).c_str());
     // semantic_errors thrown here might be ignored, so we need a special class:
     throw recursive_expansion_error (msg.str());
