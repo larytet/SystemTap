@@ -2492,8 +2492,8 @@ probe syscall.listen = kernel.function("sys_listen").call ?
 {
 	name = "listen"
 	sockfd = __int32($fd)
-	backlog = $backlog
-	argstr = sprintf("%d, %d", __int32($fd), $backlog)
+	backlog = __int32($backlog)
+	argstr = sprintf("%d, %d", __int32($fd), __int32($backlog))
 }
 probe syscall.listen.return = kernel.function("sys_listen").return ?
 {

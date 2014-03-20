@@ -34,6 +34,9 @@ int main()
   listen(sock_stream, 0);
   //staptest// listen (NNNN, 0) = 0
 
+  listen(sock_stream, -1);
+  //staptest// listen (NNNN, -1) = 0
+
   close(sock_stream);
   //staptest// close (NNNN) = 0
 

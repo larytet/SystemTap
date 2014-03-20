@@ -39,7 +39,7 @@ int main()
     getsockopt(fd_null, SOL_SOCKET, SO_OOBINLINE, &optval, &optlen);
     //staptest// getsockopt (NNNN, SOL_SOCKET, SO_OOBINLINE, XXXX, XXXX) = -NNNN (ENOTSOCK)
 
-    getsockopt(sock_stream, SOL_SOCKET, SO_OOBINLINE, (void *)-1, &sinlen);
+    getsockopt(sock_stream, SOL_SOCKET, SO_OOBINLINE, (void *)-1, &optlen);
 #ifdef __s390__
     //staptest// getsockopt (NNNN, SOL_SOCKET, SO_OOBINLINE, 0x[7]?[f]+, XXXX) = -NNNN (EFAULT)
 #else

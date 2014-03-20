@@ -2805,9 +2805,9 @@ probe nd_syscall.setsockopt = kprobe.function("compat_sys_setsockopt") ?,
 	optname = int_arg(3)
 	optname_str = _sockopt_optname_str(optname)
 	optval_uaddr = pointer_arg(4)
-	optlen = int_arg(5)
-	argstr = sprintf("%d, %s, %s, %p, %d", fd, level_str,
-				optname_str, optval_uaddr, optlen)
+	optlen = uint_arg(5)
+	argstr = sprintf("%d, %s, %s, %p, %u", fd, level_str,
+			 optname_str, optval_uaddr, optlen)
 }
 probe nd_syscall.setsockopt.return = kprobe.function("compat_sys_setsockopt").return ?,
                                      kprobe.function("sys_setsockopt").return ?

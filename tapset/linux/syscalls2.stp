@@ -2391,15 +2391,15 @@ probe syscall.setsockopt = kernel.function("compat_sys_setsockopt").call ?,
                            kernel.function("sys_setsockopt").call ?
 {
 	name = "setsockopt"
-	fd = $fd
-	level = $level
-	level_str = _sockopt_level_str($level)
-	optname = $optname
-	optname_str = _sockopt_optname_str($optname)
+	fd = __int32($fd)
+	level = __int32($level)
+	level_str = _sockopt_level_str(level)
+	optname = __int32($optname)
+	optname_str = _sockopt_optname_str(optname)
 	optval_uaddr = $optval
-	optlen = $optlen
-	argstr = sprintf("%d, %s, %s, %p, %d", $fd, level_str,
-		optname_str, $optval, $optlen)
+	optlen = __uint32($optlen)
+	argstr = sprintf("%d, %s, %s, %p, %u", fd, level_str,
+			 optname_str, $optval, optlen)
 }
 probe syscall.setsockopt.return = kernel.function("compat_sys_setsockopt").return ?,
                                   kernel.function("sys_setsockopt").return ?
