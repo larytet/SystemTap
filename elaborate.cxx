@@ -499,10 +499,17 @@ match_node::find_and_build (systemtap_session& s,
         }
       catch (const semantic_error& e)
         {
-          // Ignore semantic_errors, but cleanup
+          // Ignore semantic_errors.
+        }
+
+      // Cleanup if we didn't find anything
+      if (results.size() == num_results)
+        {
           delete simple_pp;
           delete simple_comp;
         }
+
+      num_results = results.size();
 
       // Synthesize "foo*.**bar"
       // NB: any component arg should attach to the latter part only
@@ -522,7 +529,12 @@ match_node::find_and_build (systemtap_session& s,
         }
       catch (const semantic_error& e)
         {
-          // Ignore semantic_errors, but cleanup
+          // Ignore semantic_errors.
+        }
+
+      // Cleanup if we didn't find anything
+      if (results.size() == num_results)
+        {
           delete expanded_pp;
           delete expanded_comp_pre;
           delete expanded_comp_post;
@@ -585,6 +597,8 @@ match_node::find_and_build (systemtap_session& s,
               // (component/functor) level, but at the overall
               // probe_point level.
 
+	      unsigned int inner_results = results.size();
+
 	      // recurse (with the non-wildcard probe point)
 	      try
 	        {
@@ -596,11 +610,14 @@ match_node::find_and_build (systemtap_session& s,
 		  // Ignore semantic_errors while expanding wildcards.
 		  // If we get done and nothing was expanded, the code
 		  // following the loop will complain.
+		}
 
+	      if (results.size() == inner_results)
+		{
 		  // If this wildcard didn't match, cleanup.
 		  delete non_wildcard_pp;
 		  delete non_wildcard_component;
-		}
+	        }
 	    }
 	}
 
@@ -648,7 +665,7 @@ match_node::find_and_build (systemtap_session& s,
         {
           s.print_error(e); return; // Suppress probe mismatch msg.
         }
-      
+
       // XXX: how to correctly report alternatives + position numbers
       // for alias suffixes?  file a separate PR to address the issue
       if (! loc->optional && num_results == results.size())
