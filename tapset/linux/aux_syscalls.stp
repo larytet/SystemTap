@@ -3,6 +3,65 @@
 // Be sure we have the __NR_* defines.
 #include <asm/unistd.h>
 #include "linux/compat_unistd.h"
+
+/*
+* Simple lookup functions for mapping values to names
+* using embedded C. Use these functions to create safe,
+* consistent lookups.
+*/
+
+/* Convenient macro to add defines to an array */
+#define V(a) {a,#a}
+
+typedef struct {
+	long val;
+	char *name;
+} _stp_val_array;
+
+static void
+_stp_lookup_str(const _stp_val_array * const array, long val, char *ptr,
+		int len)
+{
+	int i = 0, slen;
+	while (array[i].name) {
+		if (array[i].val == val) {
+			strlcat (ptr, array[i].name, len);
+			return;
+		}
+		i++;
+	}
+	slen = strlen(ptr);
+	_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+}
+
+static void
+_stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr,
+		   int len)
+{
+	int i = 0, flag = 0, slen;
+
+	if (val == 0) {
+		_stp_lookup_str(array, val, ptr, len);
+		return;
+	}
+
+	while (array[i].name) {
+		if (array[i].val & val) {
+			if (flag)
+				strlcat(ptr, "|", len);
+			strlcat(ptr, array[i].name, len);
+			val &= (~array[i].val);
+			flag = 1;
+		}
+		i++;
+	}
+	if (val) {
+		if (flag)
+			strlcat(ptr, "|", len);
+		slen = strlen(ptr);
+		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+	}
+}
 %}
 
 function _stp_syscall_nr:long ()
@@ -1516,171 +1575,165 @@ function _quotactl_cmd_str(cmd) {
    return sprintf("UNKNOWN VALUE: %d", cmd)
 }
 
-/* see sys/socket.h (for setsockopt) */
-function _sockopt_optname_str(opt) {
-   if(opt==1) return "SO_DEBUG"
-   if(opt==2) return "SO_REUSEADDR"
-   if(opt==3) return "SO_TYPE"
-   if(opt==4) return "SO_ERROR"
-   if(opt==5) return "SO_DONTROUTE"
-   if(opt==6) return "SO_BROADCAST"
-   if(opt==7) return "SO_SNDBUF"
-   if(opt==8) return "SO_RCVBUF"
-   if(opt==9) return "SO_KEEPALIVE"
-   if(opt==10) return "SO_OOBINLINE"
-   if(opt==11) return "SO_NO_CHECK"
-   if(opt==12) return "SO_PRIORITY"
-   if(opt==13) return "SO_LINGER"
-   if(opt==14) return "SO_BSDCOMPAT"
+%{
+#include <linux/socket.h>
 
-   if(opt==16) return "SO_PASSCRED"
-   if(opt==17) return "SO_PEERCRED"
-   if(opt==18) return "SO_RCVLOWAT"
-   if(opt==19) return "SO_SNDLOWAT"
-   if(opt==20) return "SO_RCVTIMEO"
-   if(opt==21) return "SO_SNDTIMEO"
-   if(opt==32) return "SO_SNDBUFFORCE"
-   if(opt==33) return "SO_RCVBUFFORCE"
-   return sprintf("UNKNOWN VALUE: %d", opt)
-}
+static const _stp_val_array const _stp_sockopt_optname_list[] = {
+	V(SO_DEBUG),
+	V(SO_REUSEADDR),
+	V(SO_TYPE),
+	V(SO_ERROR),
+	V(SO_DONTROUTE),
+	V(SO_BROADCAST),
+	V(SO_SNDBUF),
+	V(SO_RCVBUF),
+	V(SO_SNDBUFFORCE),
+	V(SO_RCVBUFFORCE),
+	V(SO_KEEPALIVE),
+	V(SO_OOBINLINE),
+	V(SO_NO_CHECK),
+	V(SO_PRIORITY),
+	V(SO_LINGER),
+	V(SO_BSDCOMPAT),
+#ifdef SO_REUSEPORT
+	V(SO_REUSEPORT),
+#endif
+	V(SO_PASSCRED),
+	V(SO_PEERCRED),
+	V(SO_RCVLOWAT),
+	V(SO_SNDLOWAT),
+	V(SO_RCVTIMEO),
+	V(SO_SNDTIMEO),
+	V(SO_SECURITY_AUTHENTICATION),
+	V(SO_SECURITY_ENCRYPTION_TRANSPORT),
+	V(SO_SECURITY_ENCRYPTION_NETWORK),
+	V(SO_BINDTODEVICE),
+	V(SO_ATTACH_FILTER),
+	V(SO_DETACH_FILTER),
+	V(SO_PEERNAME),
+	V(SO_TIMESTAMP),
+	V(SO_ACCEPTCONN),
+	V(SO_PEERSEC),
+	V(SO_PASSSEC),
+#ifdef SO_TIMESTAMPNS
+	V(SO_TIMESTAMPNS),
+#endif
+#ifdef SO_MARK
+	V(SO_MARK),
+#endif
+#ifdef SO_TIMESTAMPING
+	V(SO_TIMESTAMPING),
+#endif
+#ifdef SO_PROTOCOL
+	V(SO_PROTOCOL),
+#endif
+#ifdef SO_DOMAIN
+	V(SO_DOMAIN),
+#endif
+#ifdef SO_RXQ_OVFL
+	V(SO_RXQ_OVFL),
+#endif
+#ifdef SO_WIFI_STATUS
+	V(SO_WIFI_STATUS),
+#endif
+#ifdef SO_PEEK_OFF
+	V(SO_PEEK_OFF),
+#endif
+#ifdef SO_NOFCS
+	V(SO_NOFCS),
+#endif
+#ifdef SO_LOCK_FILTER
+	V(SO_LOCK_FILTER),
+#endif
+#ifdef SO_SELECT_ERR_QUEUE
+	V(SO_SELECT_ERR_QUEUE),
+#endif
+#ifdef SO_BUSY_POLL
+	V(SO_BUSY_POLL),
+#endif
+#ifdef SO_MAX_PACING_RATE
+	V(SO_MAX_PACING_RATE),
+#endif
+#ifdef SO_BPF_EXTENSIONS
+	V(SO_BPF_EXTENSIONS),
+#endif
+	{0, NULL}
+};
+%}
+
+/* see sys/socket.h (for setsockopt) */
+function _sockopt_optname_str:string(opt:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sockopt_optname_list, STAP_ARG_opt, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_sockopt_level_list[] = {
+	V(SOL_IP),
+	V(SOL_SOCKET),
+	V(SOL_TCP),
+	V(SOL_UDP),
+	V(SOL_IPV6),
+	V(SOL_ICMPV6),
+	V(SOL_SCTP),
+#ifdef SOL_UDPLITE
+	V(SOL_UDPLITE),
+#endif
+	V(SOL_RAW),
+	V(SOL_IPX),
+	V(SOL_AX25),
+	V(SOL_ATALK),
+	V(SOL_NETROM),
+	V(SOL_ROSE),
+	V(SOL_DECNET),
+#ifdef SOL_X25
+	V(SOL_X25),
+#endif
+	V(SOL_PACKET),
+	V(SOL_ATM),
+	V(SOL_AAL),
+	V(SOL_IRDA),
+	V(SOL_NETBEUI),
+	V(SOL_LLC),
+	V(SOL_DCCP),
+	V(SOL_NETLINK),
+	V(SOL_TIPC),
+#ifdef SOL_RXRPC
+	V(SOL_RXRPC),
+#endif
+#ifdef SOL_PPPOL2TP
+	V(SOL_PPPOL2TP),
+#endif
+#ifdef SOL_BLUETOOTH
+	V(SOL_BLUETOOTH),
+#endif
+#ifdef SOL_PNPIPE
+	V(SOL_PNPIPE),
+#endif
+#ifdef SOL_RDS
+	V(SOL_RDS),
+#endif
+	V(SOL_IUCV),
+#ifdef SOL_CAIF
+	V(SOL_CAIF),
+#endif
+#ifdef SOL_ALG
+	V(SOL_ALG),
+#endif
+#ifdef SOL_NFC
+	V(SOL_NFC),
+#endif
+	{0, NULL}
+};
+%}
 
 /* `man 2 setsockopt` for more information */
-function _sockopt_level_str(l) {
-   if(l==0) return "IP"
-   if(l==1) return "SOL_SOCKET" # not ICMP
-   if(l==2) return "IGMP"
-   if(l==3) return "GGP"
-   if(l==4) return "IP-ENCAP"
-   if(l==5) return "ST"
-   if(l==6) return "TCP"
-   if(l==7) return "CBT"
-   if(l==8) return "EGP"
-   if(l==9) return "IGP"
-   if(l==10) return "BBN-RCC-MON"
-   if(l==11) return "NVP-II"
-   if(l==12) return "PUP"
-   if(l==13) return "ARGUS"
-   if(l==14) return "EMCON"
-   if(l==15) return "XNET"
-   if(l==16) return "CHAOS"
-   if(l==17) return "UDP"
-   if(l==18) return "MUX"
-   if(l==19) return "DCN-MEAS"
-   if(l==20) return "HMP"
-   if(l==21) return "PRM"
-   if(l==22) return "XNS-IDP"
-   if(l==23) return "TRUNK-1"
-   if(l==24) return "TRUNK-2"
-   if(l==25) return "LEAF-1"
-   if(l==26) return "LEAF-2"
-   if(l==27) return "RDP"
-   if(l==28) return "IRTP"
-   if(l==29) return "ISO-TP4"
-   if(l==30) return "NETBLT"
-   if(l==31) return "MFE-NSP"
-   if(l==32) return "MERIT-INP"
-   if(l==33) return "SEP"
-   if(l==34) return "3PC"
-   if(l==35) return "IDPR"
-   if(l==36) return "XTP"
-   if(l==37) return "DDP"
-   if(l==38) return "IDPR-CMTP"
-   if(l==39) return "TP++"
-   if(l==40) return "IL"
-   if(l==41) return "IPv6"
-   if(l==42) return "SDRP"
-   if(l==43) return "IPv6-Route"
-   if(l==44) return "IPv6-Frag"
-   if(l==45) return "IDRP"
-   if(l==46) return "RSVP"
-   if(l==47) return "GRE"
-   if(l==48) return "MHRP"
-   if(l==49) return "BNA"
-   if(l==50) return "IPv6-Crypt"
-   if(l==51) return "IPv6-Auth"
-   if(l==52) return "I-NLSP"
-   if(l==53) return "SWIPE"
-   if(l==54) return "NARP"
-   if(l==55) return "MOBILE"
-   if(l==56) return "TLSP"
-   if(l==57) return "SKIP"
-   if(l==58) return "IPv6-ICMP"
-   if(l==59) return "IPv6-NoNxt"
-   if(l==60) return "IPv6-Opts"
-   if(l==62) return "CFTP"
-   if(l==64) return "SAT-EXPAK"
-   if(l==65) return "KRYPTOLAN"
-   if(l==66) return "RVD"
-   if(l==67) return "IPPC"
-   if(l==69) return "SAT-MON"
-   if(l==70) return "VISA"
-   if(l==71) return "IPCV"
-   if(l==72) return "CPNX"
-   if(l==73) return "CPHB"
-   if(l==74) return "WSN"
-   if(l==75) return "PVP"
-   if(l==76) return "BR-SAT-MON"
-   if(l==77) return "SUN-ND"
-   if(l==78) return "WB-MON"
-   if(l==79) return "WB-EXPAK"
-   if(l==80) return "ISO-IP"
-   if(l==81) return "VMTP"
-   if(l==82) return "SECURE-VMTP"
-   if(l==83) return "VINES"
-   if(l==84) return "TTP"
-   if(l==85) return "NSFNET-IGP"
-   if(l==86) return "DGP"
-   if(l==87) return "TCF"
-   if(l==88) return "EIGRP"
-   if(l==89) return "OSPFIGP"
-   if(l==90) return "Sprite-RPC"
-   if(l==91) return "LARP"
-   if(l==92) return "MTP"
-   if(l==93) return "AX.25"
-   if(l==94) return "IPIP"
-   if(l==95) return "MICP"
-   if(l==96) return "SCC-SP"
-   if(l==97) return "ETHERIP"
-   if(l==98) return "ENCAP"
-   if(l==100) return "GMTP"
-   if(l==101) return "IFMP"
-   if(l==102) return "PNNI"
-   if(l==103) return "PIM"
-   if(l==104) return "ARIS"
-   if(l==105) return "SCPS"
-   if(l==106) return "QNX"
-   if(l==107) return "A/N"
-   if(l==108) return "IPComp"
-   if(l==109) return "SNP"
-   if(l==110) return "Compaq-Peer"
-   if(l==111) return "IPX-in-IP"
-   if(l==112) return "VRRP"
-   if(l==113) return "PGM"
-   if(l==115) return "L2TP"
-   if(l==116) return "DDX"
-   if(l==117) return "IATP"
-   if(l==118) return "STP"
-   if(l==119) return "SRP"
-   if(l==120) return "UTI"
-   if(l==121) return "SMP"
-   if(l==122) return "SM"
-   if(l==123) return "PTP"
-   if(l==124) return "ISIS"
-   if(l==125) return "FIRE"
-   if(l==126) return "CRTP"
-   if(l==127) return "CRUDP"
-   if(l==128) return "SSCOPMCE"
-   if(l==129) return "IPLT"
-   if(l==130) return "SPS"
-   if(l==131) return "PIPE"
-   if(l==132) return "SCTP"
-   if(l==133) return "FC"
-   if(l==134) return "RSVP-E2E-IGNORE"
-   if(l==135) return "Mobility-Header"
-   if(l==136) return "UDPLite"
-   if(l==137) return "MPLS-IN-IP"
-   return sprintf("UNKNOWN VALUE: %d", l)
-}
+function _sockopt_level_str:string(level:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sockopt_level_list, STAP_ARG_level, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _sock_family_str(f) {
    if(f==0) return "PF_UNSPEC"
@@ -1932,62 +1985,6 @@ function _adjtimex_return_str(ret) {
 	else
 		return return_str(1, ret)
 }
-
-%{
-/*
-* Simple lookup functions for mapping values to names
-* using embedded C. Use these functions to create safe,
-* consistent lookups.
-*/
-
-/* Convenient macro to add defines to an array */
-#define V(a) {a,#a}
-
-typedef struct {
-	long val;
-	char *name;
-} _stp_val_array;
-
-static void _stp_lookup_str(const _stp_val_array * const array, long val, char *ptr, int len)
-{
-	int i = 0, slen;
-	while (array[i].name) {
-		if (array[i].val == val) {
-			strlcat (ptr, array[i].name, len);
-			return;
-		}
-		i++;
-	}
-	slen = strlen(ptr);
-	_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
-}
-static void _stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr, int len)
-{
-	int i = 0, flag = 0, slen;
-
-	if (val == 0) {
-		_stp_lookup_str(array, val, ptr, len);
-		return;
-	}
-
-	while (array[i].name) {
-		if (array[i].val & val) {
-			if (flag)
-				strlcat(ptr, "|", len);
-			strlcat(ptr, array[i].name, len);
-			val &= (~array[i].val);
-			flag = 1;
-		}
-		i++;
-	}
-	if (val) {
-		if (flag)
-			strlcat(ptr, "|", len);
-		slen = strlen(ptr);
-		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
-	}
-}
-%}
 
 %{
 static const _stp_val_array const _stp_signal_list[] = {

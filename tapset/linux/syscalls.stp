@@ -1876,10 +1876,10 @@ probe syscall.getsid.return = kernel.function("sys_getsid").return
 probe syscall.getsockname = kernel.function("sys_getsockname").call ?
 {
 	name = "getsockname"
-	s = $fd
+	s = __int32($fd)
 	name_uaddr = $usockaddr
 	namelen_uaddr = $usockaddr_len
-	argstr = sprintf("%d, %p, %p", $fd, $usockaddr, $usockaddr_len)
+	argstr = sprintf("%d, %p, %p", s, $usockaddr, $usockaddr_len)
 }
 probe syscall.getsockname.return = kernel.function("sys_getsockname").return ?
 {
@@ -1898,15 +1898,15 @@ probe syscall.getsockopt = kernel.function("compat_sys_getsockopt").call ?,
                            kernel.function("sys_getsockopt").call ?
 {
 	name = "getsockopt"
-	fd = $fd
-	level = $level
-	level_str = _sockopt_level_str($level)
-	optname = $optname
-	optname_str = _sockopt_optname_str($optname)
+	fd = __int32($fd)
+	level = __int32($level)
+	level_str = _sockopt_level_str(level)
+	optname = __int32($optname)
+	optname_str = _sockopt_optname_str(optname)
 	optval_uaddr = $optval
 	optlen_uaddr = $optlen
-	argstr = sprintf("%d, %s, %s, %p, %p", $fd,  _sockopt_level_str($level),
-		_sockopt_optname_str($optname), $optval, $optlen)
+	argstr = sprintf("%d, %s, %s, %p, %p", fd,  _sockopt_level_str(level),
+		_sockopt_optname_str(optname), $optval, $optlen)
 }
 probe syscall.getsockopt.return = kernel.function("compat_sys_getsockopt").return ?,
                                   kernel.function("sys_getsockopt").return ?
