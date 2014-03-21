@@ -4825,12 +4825,12 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                        level, lex_cast_hex(caller_reloc).c_str());
 
           // We want to add a statement like this:
-          // if (!caller_match(user, mod, sec, addr)) next;
+          // if (!_caller_match(user, mod, sec, addr)) next;
           // Something similar is done in semantic_pass_conditions()
 
           functioncall* check = new functioncall();
           check->tok = this->tok;
-          check->function = "caller_match";
+          check->function = "_caller_match";
           check->args.push_back(new literal_number(q.has_process));
           check->args[0]->tok = this->tok;
           check->args.push_back(new literal_number(level));

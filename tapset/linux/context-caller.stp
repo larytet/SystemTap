@@ -64,8 +64,8 @@ function caller_addr:long () { return stack(1) }
  * accounting for relocation. Used in the constructor of
  * dwarf_derived_probe constructor in tapsets.cxx.
  */
-function caller_match:long (user_mode:long, level:long,
-                            module:string, section:string, addr:long) %{
+function _caller_match:long (user_mode:long, level:long,
+                             module:string, section:string, addr:long) %{
    /* pure */ /* myproc-unprivileged */
    /* pragma:unwind */ /* pragma:uprobes */ /* pragma:vma */
    #ifdef STAP_CALLEE_MATCHALL /* Set using -D to have .callee probes fire
