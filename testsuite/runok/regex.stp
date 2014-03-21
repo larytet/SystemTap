@@ -7,10 +7,10 @@ global pass, fail
   result = (@str =~ @regexp);
   n++;
   if (result == !@code) {
-    printf("PASS: #%d: %s %s %s\n", n, @regexp, (@code ? "!~" : "=~"), @str);
+    printf("regex PASS: #%d: %s %s %s\n", n, @regexp, (@code ? "!~" : "=~"), @str);
     pass++
   } else {
-    printf("FAIL: #%d: %s %s %s\n", n, @regexp, (@code ? "!~" : "=~"), @str);
+    printf("regex FAIL: #%d: %s %s %s\n", n, @regexp, (@code ? "!~" : "=~"), @str);
     fail++
   }
 %)
@@ -309,6 +309,6 @@ probe begin {
 }
 
 probe end {
-  printf ("\ntotal PASS: %d, FAIL: %d\n", pass, fail)
+  printf ("\nregex total PASS: %d, FAIL: %d\n", pass, fail)
   if (fail > 0) error ("Oops")
 }
