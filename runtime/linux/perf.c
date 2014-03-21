@@ -12,6 +12,7 @@
 #define _PERF_C_
 
 #include <linux/perf_event.h>
+#include <linux/workqueue.h>
 
 #include "perf.h"
 
@@ -29,7 +30,7 @@ static long _stp_perf_init (struct stap_perf_probe *stp, struct task_struct* tas
 {
 	int cpu;
 
-	if (stp->per_thread) {
+	if (!stp->system_wide) {
 	  if (task == 0) /* need to setup later when we know the task */
 	    return 0;
 	  else  {
@@ -106,12 +107,12 @@ static long _stp_perf_init (struct stap_perf_probe *stp, struct task_struct* tas
 	      return rc;
 	    }
 	  }
-	} /* (stp->per_thread) */
+	} /* (stp->system_wide) */
 	return 0;
 }
 
 /** Delete performance event.
- * Call this to shutdown performance event sampling
+ * Call this to shutdown one performance event sampling
  *
  * @param stp Handle for the event to be unregistered.
  */
@@ -122,13 +123,7 @@ static void _stp_perf_del (struct stap_perf_probe *stp)
     return;
 
   /* shut down performance event sampling */
-  if (stp->per_thread) {
-    if (stp->e.t.per_thread_event) {
-      perf_event_release_kernel(stp->e.t.per_thread_event);
-    }
-    stp->e.t.per_thread_event = NULL;
-  }
-  else {
+  if (stp->system_wide) {
     for_each_possible_cpu(cpu) {
       struct perf_event **event = per_cpu_ptr (stp->e.events, cpu);
       if (*event) {
@@ -138,6 +133,84 @@ static void _stp_perf_del (struct stap_perf_probe *stp)
     _stp_free_percpu (stp->e.events);
     stp->e.events = NULL;
   }
+  else {
+    if (stp->e.t.per_thread_event) {
+      perf_event_release_kernel(stp->e.t.per_thread_event);
+    }
+    stp->e.t.per_thread_event = NULL;
+  }
+}
+
+/** Delete many performance events in reverse order.
+ * Call this to shutdown all performance event sampling
+ *
+ * @param probes A pointer array for the events to be unregistered.
+ * @param n The number of events in the array.
+ */
+static void _stp_perf_del_n (struct stap_perf_probe *probes, size_t n)
+{
+  while (n--)
+    _stp_perf_del(&probes[n]);
+}
+
+struct _stp_perf_work {
+  struct work_struct work;
+  struct stap_perf_probe *probes;
+  size_t nprobes;
+  const char* probe_point;
+  int rc;
+};
+
+/** Initialize many performance events from a workqueue
+ * Even though we're using the kernel interface, perf checks CAP_SYS_ADMIN,
+ * which our mere @stapdev user may not have.  By running via a workqueue,
+ * we'll be in an events/X kernel thread with sufficient privileges.
+ *
+ * @param work The _stp_perf_work encapsulating _stp_perf_init_n parameters.
+ */
+static void _stp_perf_init_work (struct work_struct *work)
+{
+  size_t i;
+  struct _stp_perf_work *pwork =
+    container_of(work, struct _stp_perf_work, work);
+
+  for (i = 0; i < pwork->nprobes; ++i) {
+    struct stap_perf_probe* stp = &pwork->probes[i];
+
+    if (stp->system_wide)
+      pwork->rc = _stp_perf_init(stp, NULL);
+    else if (stp->task_finder)
+#ifdef STP_PERF_USE_TASK_FINDER
+      pwork->rc = stap_register_task_finder_target(&stp->e.t.tgt);
+#else
+      pwork->rc = EINVAL;
+#endif
+
+    if (pwork->rc) {
+      pwork->probe_point = stp->probe->pp;
+      _stp_perf_del_n(pwork->probes, i);
+      break;
+    }
+  }
+}
+
+/** Initialize many performance events
+ * Call this to start all performance event sampling
+ *
+ * @param probes A pointer array for the events to be registered.
+ * @param n The number of events in the array.
+ * @param ppfail A pointer to return the probe_point on failure.
+ */
+static int _stp_perf_init_n (struct stap_perf_probe *probes, size_t n,
+			     const char **ppfail)
+{
+  struct _stp_perf_work pwork = { .probes = probes, .nprobes = n };
+  INIT_WORK(&pwork.work, _stp_perf_init_work);
+  schedule_work(&pwork.work);
+  flush_work(&pwork.work);
+  if (pwork.rc)
+    *ppfail = pwork.probe_point;
+  return pwork.rc;
 }
 
 

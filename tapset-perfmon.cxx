@@ -193,12 +193,15 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
 	  s.op->line() << " },";
 	  s.op->line() << " },";
 	  s.op->line() << " },";
-	  s.op->newline() << ".per_thread=" << "1, ";
+	  s.op->newline() << ".task_finder=" << "1, ";
 	}
       else if (probes[i]->has_counter)
-	s.op->newline() << ".per_thread=" << "1, ";
+	{
+	  // process counters are currently task-found by uprobes
+	  // set neither .system_wide nor .task_finder
+	}
       else
-	s.op->newline() << ".per_thread=" << "0, ";
+	s.op->newline() << ".system_wide=" << "1, ";
       s.op->newline(-1) << "},";
     }
   s.op->newline(-1) << "};";
@@ -240,6 +243,8 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
   common_probe_entryfn_epilogue (s, true);
   s.op->newline(-1) << "}";
   s.op->newline();
+  if (have_a_process_tag)
+    s.op->newline() << "#define STP_PERF_USE_TASK_FINDER 1";
   s.op->newline() << "#include \"linux/perf.c\"";
   s.op->newline();
 }
@@ -248,30 +253,10 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
 void
 perf_derived_probe_group::emit_module_init (systemtap_session& s)
 {
-  bool have_a_process_tag = false;
-  
-  for (unsigned i=0; i < probes.size(); i++)
-    if (probes[i]->has_process)
-      {
-	have_a_process_tag = true;
-	break;
-      }
-
   if (probes.empty()) return;
 
-  s.op->newline() << "for (i=0; i<" << probes.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_perf_probe* stp = & stap_perf_probes [i];";
-  s.op->newline() << "rc = _stp_perf_init(stp, 0);";
-  s.op->newline() << "if (rc) {";
-  s.op->newline(1) << "probe_point = stp->probe->pp;";
-  s.op->newline() << "for (j=0; j<i; j++) {";
-  s.op->newline(1) << "_stp_perf_del(& stap_perf_probes [j]);";
-  s.op->newline(-1) << "}"; // for unwind loop
-  s.op->newline() << "break;";
-  s.op->newline(-1) << "}"; // if-error
-  if (have_a_process_tag)
-    s.op->newline() << "rc = stap_register_task_finder_target(&stp->e.t.tgt);";
-  s.op->newline(-1) << "}"; // for loop
+  s.op->newline() << "rc = _stp_perf_init_n (stap_perf_probes, "
+		  << probes.size() << ", &probe_point);";
 }
 
 
@@ -280,9 +265,8 @@ perf_derived_probe_group::emit_module_exit (systemtap_session& s)
 {
   if (probes.empty()) return;
 
-  s.op->newline() << "for (i=0; i<" << probes.size() << "; i++) {";
-  s.op->newline(1) << "_stp_perf_del(& stap_perf_probes [i]);";
-  s.op->newline(-1) << "}"; // for loop
+  s.op->newline() << "_stp_perf_del_n (stap_perf_probes, "
+		  << probes.size() << ");";
 }
 
 
