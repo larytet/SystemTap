@@ -82,8 +82,10 @@ perf_derived_probe::perf_derived_probe (probe* p, probe_point* l,
   comps.push_back (new probe_point::component (TOK_TYPE, new literal_number(type)));
   comps.push_back (new probe_point::component (TOK_CONFIG, new literal_number (config)));
   comps.push_back (new probe_point::component (TOK_SAMPLE, new literal_number (interval)));
-  comps.push_back (new probe_point::component (TOK_PROCESS, new literal_string (process_name)));
-  comps.push_back (new probe_point::component (TOK_COUNTER, new literal_string (counter)));
+  if (has_process)
+    comps.push_back (new probe_point::component (TOK_PROCESS, new literal_string (process_name)));
+  if (has_counter)
+    comps.push_back (new probe_point::component (TOK_COUNTER, new literal_string (counter)));
 }
 
 
