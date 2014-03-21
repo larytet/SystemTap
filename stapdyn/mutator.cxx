@@ -553,6 +553,8 @@ mutator::update_mutatees()
 bool
 mutator::run ()
 {
+  if (!targets.empty() && !target_mutatee)
+    stapwarn() << "process probes require a target (-c or -x)" << endl;
 
   // Get the stap module ready...
   run_module_init();
