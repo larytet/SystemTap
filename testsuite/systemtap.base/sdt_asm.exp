@@ -45,12 +45,14 @@ if {[istarget "x86_64-*-*"] || [istarget "i*86-*-*"]} {
 	}
 	set ok 0
 	set notok 0
-	set fail "asm"
+	set fail ""
 	expect {
 	    -timeout 180
-	    -re {FAIL: [a-z0-9]} { regexp " .*$" $expect_out(0,string) s;
+	    -re {^sdt_asm PASS: [^\r]*\r\n} { incr ok; exp_continue }
+	    -indices -re {^sdt_asm FAIL: ([^\r ]*)[^\r]*\r\n} {
+	        set s $expect_out(1,string);
 		incr notok; set fail "$fail $s"; exp_continue }
-	    -re {PASS: [a-z0-9]} { incr ok; exp_continue }
+	    -re {^[^\r]*\r\n} { incr notok; exp_continue }
 	    timeout { fail "$test (timeout)" }
 	    eof { }
 	}

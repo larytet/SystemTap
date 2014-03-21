@@ -1,5 +1,12 @@
 #include "sys/sdt.h"
 	.file	"sdt_asm.c"
+#if defined __i386__
+#define SAVE_SP		mov %esp,%ebp
+#define RESTORE_SP	mov %ebp,%esp
+#elif defined __x86_64__
+#define SAVE_SP		mov %rsp,%rbp
+#define RESTORE_SP	mov %rbp,%rsp
+#endif
 	.text
 	.p2align 4,,15
 .globl main
@@ -12,10 +19,10 @@ main:
 	movl    $7, -4(%ebp)
 	STAP_PROBE3(provider,memory,-4(%ebp),-8+4(%ebp),-8+3+1(%ebp));
 #elif defined __x86_64__
-	pushq    %rbp		
+	pushq   %rbp		
 	mov     %rsp, %rbp
-	movl    $7, -4(%rbp)
-	STAP_PROBE3(provider,memory,-4(%rbp),-8+4(%rbp),-8+3+1(%rbp));
+	movq    $7, -8(%rbp)
+	STAP_PROBE3(provider,memory,-8(%rbp),-12+4(%rbp),-12+3+1(%rbp));
 #endif
 #if defined __i386__ || defined __x86_64__
 	mov	$0x10203040, %eax
@@ -32,8 +39,10 @@ main:
 	STAP_PROBE3(provider,di,%dil,%di,%edi);
 	mov	$0x16263646, %ebp
 	STAP_PROBE2(provider,bp,%bp,%ebp);
+	SAVE_SP
 	mov	$0x17273747, %esp
 	STAP_PROBE2(provider,sp,%sp,%esp);
+	RESTORE_SP
 #endif	
 #if defined __x86_64__
 	mov	$0x1020304010203040, %rax
@@ -50,8 +59,10 @@ main:
 	STAP_PROBE1(provider,rdi,%rdi);
 	mov	$0x1626364616263646, %rbp
 	STAP_PROBE1(provider,rbp,%rbp);
+	SAVE_SP
 	mov	$0x1727374717273747, %rsp
 	STAP_PROBE1(provider,rsp,%rsp);
+	RESTORE_SP
 	mov	$0x1828384818283848, %r8
 	STAP_PROBE4(provider,r8,%r8b,%r8w,%r8d,%r8);
 	mov	$0x1929394919293949, %r9
@@ -69,5 +80,12 @@ main:
 	mov	$0x1f2f3f4f1f2f3f4f, %r15
 	STAP_PROBE4(provider,r15,%r15b,%r15w,%r15d,%r15);
 #endif	
+#if defined __i386__
+	mov	$0, %eax
+	pop	%ebp
+#elif defined __x86_64__
+	mov	$0, %rax
+	pop	%rbp
+#endif
 	ret
 	.cfi_endproc
