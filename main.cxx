@@ -756,7 +756,24 @@ passes_0_4 (systemtap_session &s)
   if (s.dump_probe_types)
     s.pattern_root->dump (s);
 
-  if (s.listing_mode || (rc == 0 && s.last_pass == 2))
+  // Dump a list of functions we picked up, if requested.
+  if (s.dump_functions)
+    {
+      map<string,functiondecl*>::const_iterator func;
+      for (func  = s.functions.begin();
+           func != s.functions.end(); ++func)
+        {
+          functiondecl& curfunc = *func->second;
+          if (curfunc.synthetic)
+            continue;
+          if (!s.verbose && startswith(curfunc.name, "_"))
+            continue;
+          curfunc.printsigtags(cout, s.verbose>0 /* all_tags */ );
+          cout << endl;
+        }
+    }
+  // Dump the whole script if requested, or if we stop at 2
+  else if (s.listing_mode || (rc == 0 && s.last_pass == 2))
     printscript(s, cout);
 
   times (& tms_after);
@@ -771,13 +788,14 @@ passes_0_4 (systemtap_session &s)
                       << TIMESPRINT
                       << endl;
 
-  if (rc && !s.listing_mode && !s.try_server ())
+  if (rc && !s.listing_mode && !s.dump_functions && !s.try_server ())
     cerr << _("Pass 2: analysis failed.  [man error::pass2]") << endl;
 
   PROBE1(stap, pass2__end, &s);
 
   assert_no_interrupts();
-  if (rc || s.listing_mode || s.last_pass == 2) return rc;
+  // NB: listing_mode or dump_functions mode set last_pass to 2
+  if (rc || s.last_pass == 2) return rc;
 
   rc = prepare_translate_pass (s);
   assert_no_interrupts();

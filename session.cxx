@@ -120,6 +120,7 @@ systemtap_session::systemtap_session ():
   listing_mode = false;
   listing_mode_vars = false;
   dump_probe_types = false;
+  dump_functions = false;
 
 #ifdef ENABLE_PROLOGUES
   prologue_searching = true;
@@ -305,6 +306,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   listing_mode = other.listing_mode;
   listing_mode_vars = other.listing_mode_vars;
   dump_probe_types = other.dump_probe_types;
+  dump_functions = other.dump_functions;
 
   prologue_searching = other.prologue_searching;
 
@@ -1158,6 +1160,22 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  dump_probe_types = true;
 	  break;
 
+	case LONG_OPT_DUMP_FUNCTIONS:
+	  dump_functions = true;
+	  suppress_warnings = true;
+	  unoptimized = true; // so we keep never-called functions
+	  last_pass = 2;
+	  server_args.push_back ("--dump-functions");
+	  if (have_script)
+	    {
+	      cerr << _("Only one script can be given on the command line.")
+		   << endl;
+	      return 1;
+	    }
+	  cmdline_script = string("probe begin {}");
+	  have_script = true;
+	  break;
+
 	case LONG_OPT_SUPPRESS_HANDLER_ERRORS:
 	  suppress_handler_errors = true;
           c_macros.push_back (string ("STAP_SUPPRESS_HANDLER_ERRORS"));
@@ -1876,7 +1894,7 @@ void
 systemtap_session::print_error (const semantic_error& se)
 {
   // skip error message printing for listing mode with low verbosity
-  if (this->listing_mode && this->verbose <= 1)
+  if ((this->listing_mode || this->dump_functions) && this->verbose <= 1)
     {
       seen_errors[se.errsrc_chain()]++; // increment num_errors()
       return;

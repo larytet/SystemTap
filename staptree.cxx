@@ -529,6 +529,55 @@ void functiondecl::printsig (ostream& o) const
   o << ")";
 }
 
+struct embedded_tags_visitor: public traversing_visitor
+{
+  map<string, bool> tags;
+
+  embedded_tags_visitor(bool all_tags)
+    {
+      tags["/* guru */"] = false;
+      tags["/* unprivileged */"] = false;
+      tags["/* myproc-unprivileged */"] = false;
+      if (all_tags)
+        {
+          tags["/* pure */"] = false;
+          tags["/* unmangled */"] = false;
+        }
+    }
+
+  void find_tags_in_code (const string& s)
+    {
+      map<string, bool>::iterator tag;
+      for (tag = tags.begin(); tag != tags.end(); ++tag)
+        if (!tag->second)
+          tag->second = s.find(tag->first) != string::npos;
+    }
+
+  void visit_embeddedcode (embeddedcode *s)
+    {
+      find_tags_in_code(s->code);
+    }
+
+  void visit_embedded_expr (embedded_expr *e)
+    {
+      find_tags_in_code(e->code);
+    }
+};
+
+void functiondecl::printsigtags (ostream& o, bool all_tags) const
+{
+  this->printsig(o);
+
+  // Visit the function's body to see if there's any embedded_code or
+  // embeddedexpr that have special tags (e.g. /* guru */)
+  embedded_tags_visitor etv(all_tags);
+  this->body->visit(&etv);
+
+  map<string, bool>::const_iterator tag;
+  for (tag = etv.tags.begin(); tag != etv.tags.end(); ++tag)
+    if (tag->second)
+      o << " " << tag->first;
+}
 
 void arrayindex::print (ostream& o) const
 {

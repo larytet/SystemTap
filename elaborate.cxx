@@ -1067,7 +1067,7 @@ derive_probes (systemtap_session& s,
               throw semantic_error(e);
             }
 	  // Only output in listing if -vv is supplied:
-          else if (!s.listing_mode || (s.listing_mode && s.verbose > 1))
+          else if ((!s.listing_mode && !s.dump_functions) || (s.verbose > 1))
             {
               // print this one manually first because it's more important than
               // the optional errs
@@ -1600,6 +1600,18 @@ semantic_pass_symbols (systemtap_session& s)
   // NB: s.files can grow during this iteration, so size() can
   // return gradually increasing numbers.
   s.files.push_back (s.user_file);
+
+  // If we're listing functions, then we need to include all the files. Probe
+  // aliases won't be visited/derived so all we gain are the functions, global
+  // variables, and any real probes (e.g. begin probes). NB: type resolution for
+  // a specific function arg may fail if it could only be determined from a
+  // function call in one of the skipped aliases.
+  if (s.dump_functions)
+    {
+      s.files.insert(s.files.end(), s.library_files.begin(),
+                                    s.library_files.end());
+    }
+
   for (unsigned i = 0; i < s.files.size(); i++)
     {
       assert_no_interrupts();
@@ -1744,7 +1756,8 @@ void add_global_var_display (systemtap_session& s)
 {
   // Don't generate synthetic end probes when in listings mode;
   // it would clutter up the list of probe points with "end ...".
-  if (s.listing_mode) return;
+  // Also don't bother in function dump mode, since it'll never be used.
+  if (s.listing_mode || s.dump_functions) return;
 
   varuse_collecting_visitor vut(s);
 
@@ -1921,6 +1934,10 @@ semantic_pass (systemtap_session& s)
   // so all previous error conditions are disregarded.
   if (s.listing_mode)
     rc = s.probes.empty();
+
+  // If we're dumping functions, only error out if no functions were found
+  if (s.dump_functions)
+    rc = s.functions.empty();
 
   return rc;
 }

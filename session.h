@@ -217,6 +217,7 @@ public:
   bool systemtap_v_check;
   bool tmpdir_opt_set;
   bool dump_probe_types;
+  bool dump_functions;
   int download_dbinfo;
   bool suppress_handler_errors;
   bool suppress_time_limits;

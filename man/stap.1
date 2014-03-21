@@ -530,6 +530,13 @@ Dumps a list of supported probe types. If
 is also specified, the list will be limited to probe types available to unprivileged users.
 
 .TP
+.BI \-\-dump-functions
+Dumps a list of all functions found in library files and exits. Also includes
+their parameters and types. A function of type 'unknown' indicates a function
+that does not return a value. Note that not all function/parameter types may be
+resolved (these are also shown by 'unknown').
+
+.TP
 .BI \-\-remote " URL"
 Set the execution target to the given host.  This option may be
 repeated to target multiple execution targets.  Passes 1-4 are
