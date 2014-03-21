@@ -1786,6 +1786,7 @@ void add_global_var_display (systemtap_session& s)
       string format = l->name;
 
       string indexes;
+      string foreach_value;
       if (!l->index_types.empty())
 	{
 	  // Add index values to the printf format, and prepare
@@ -1807,8 +1808,13 @@ void add_global_var_display (systemtap_session& s)
 	  format += "]";
 
 	  // Iterate over all indexes in the array, sorted by decreasing value
-	  code << "foreach ([" << indexes << "] in "
-	       << l->name << "-)" << endl;
+	  code << "foreach (";
+          if (l->type != pe_stats)
+            {
+              foreach_value = "__val";
+              code << foreach_value << " = ";
+            }
+	  code << "[" << indexes << "] in " << l->name << "-)" << endl;
 	}
       else if (l->type == pe_stats)
 	{
@@ -1836,11 +1842,12 @@ void add_global_var_display (systemtap_session& s)
       code << "printf (\"" << format << "\"";
 
       // Feed indexes to the printf, and include them in the value
-      string value = l->name;
+      string value = !foreach_value.empty() ? foreach_value : l->name;
       if (!l->index_types.empty())
 	{
 	  code << "," << indexes;
-	  value += "[" + indexes + "]";
+          if (foreach_value.empty())
+            value += "[" + indexes + "]";
 	}
 
       // Feed the actual values to the printf
