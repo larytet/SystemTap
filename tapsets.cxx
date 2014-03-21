@@ -58,7 +58,6 @@ extern "C" {
 #include <math.h>
 #include <regex.h>
 #include <unistd.h>
-#include <wordexp.h>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
@@ -7247,17 +7246,15 @@ dwarf_builder::build(systemtap_session & sess,
       module_name = sess.sysroot + module_name;
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
-          wordexp_t words;
-          int rc = wordexp(sess.cmd.c_str(), &words, WRDE_NOCMD|WRDE_UNDEF);
-          if(rc || words.we_wordc <= 0)
-            throw SEMANTIC_ERROR(_("unspecified process probe is invalid without a -c COMMAND"));
-          module_name = sess.sysroot + words.we_wordv[0];
+	  const string &file = sess.cmd_file();
+          if(file.empty())
+            throw SEMANTIC_ERROR(_("process probe is invalid without a -c COMMAND"));
+          module_name = sess.sysroot + file;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
           // in the case of TOK_MARK we need to modify locations as well
           if(location->components[0]->functor==TOK_PROCESS &&
             location->components[0]->arg == 0)
             location->components[0]->arg = new literal_string(module_name);
-          wordfree (& words);
         }
 
       // PR6456  process("/bin/*")  glob handling

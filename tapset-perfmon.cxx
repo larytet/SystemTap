@@ -14,7 +14,6 @@
 #include "util.h"
 
 #include <string>
-#include <wordexp.h>
 
 extern "C" {
 #define __STDC_FORMAT_MACROS
@@ -170,26 +169,13 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << ".callback=enter_perf_probe_" << i << ", ";
       s.op->newline() << ".probe=" << common_probe_init (probes[i]) << ", ";
 
-      string l_process_name;
       if (probes[i]->has_process && !probes[i]->has_counter)
 	{
-	  if (probes[i]->process_name.length() == 0)
-	    {
-	      wordexp_t words;
-	      int rc = wordexp(s.cmd.c_str(), &words, WRDE_NOCMD|WRDE_UNDEF);
-	      if (rc || words.we_wordc <= 0)
-		throw SEMANTIC_ERROR(_("unspecified process probe is invalid without a -c COMMAND"));
-	      l_process_name = words.we_wordv[0];
-	      wordfree (& words);
-	    }
-	  else
-	    l_process_name = probes[i]->process_name;
-
 	  s.op->line() << " .e={";
 	  s.op->line() << " .t={";
 	  s.op->line() << " .tgt={";
 	  s.op->line() << " .purpose=\"perfctr\",";
-	  s.op->line() << " .procname=\"" << l_process_name << "\",";
+	  s.op->line() << " .procname=\"" << probes[i]->process_name << "\",";
 	  s.op->line() << " .pid=0,";
 	  s.op->line() << " .callback=&_stp_perf_probe_cb,";
 	  s.op->line() << " },";
@@ -332,12 +318,6 @@ perf_builder::build(systemtap_session & sess,
   else if (period < 1)
     throw SEMANTIC_ERROR(_("invalid perf sample period ") + lex_cast(period),
                          parameters.find(TOK_SAMPLE)->second->tok);
-  bool proc_p;
-  string proc_n;
-  proc_p = has_null_param(parameters, TOK_PROCESS)
-    || get_param(parameters, TOK_PROCESS, proc_n);
-  if (proc_p)
-    proc_n = find_executable (proc_n, sess.sysroot, sess.sysenv);
 
   string var;
   bool has_counter = get_param(parameters, TOK_COUNTER, var);
@@ -368,13 +348,28 @@ perf_builder::build(systemtap_session & sess,
       base->body = new block (ifs, base->body);
     }
 
+  bool proc_p;
+  string proc_n;
+  if ((proc_p = has_null_param(parameters, TOK_PROCESS)))
+    {
+      proc_n = sess.cmd_file();
+      if (proc_n.empty())
+	throw SEMANTIC_ERROR(_("process probe is invalid without a -c COMMAND"));
+    }
+  else
+    proc_p = get_param(parameters, TOK_PROCESS, proc_n);
+  if (proc_p && !proc_n.empty())
+    proc_n = find_executable (proc_n, sess.sysroot, sess.sysenv);
+
   if (sess.verbose > 1)
-    clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64, type, config, period) << endl;
+    clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64 " process=%s counter=%s",
+	       type, config, period, proc_n.c_str(), var.c_str()) << endl;
 
   finished_results.push_back
     (new perf_derived_probe(base, location, type, config, period, proc_p,
 			    has_counter, proc_n, var));
-  sess.perf_counters[var] = make_pair(proc_n,finished_results.back());
+  if (!var.empty())
+    sess.perf_counters[var] = make_pair(proc_n,finished_results.back());
 }
 
 

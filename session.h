@@ -186,6 +186,7 @@ public:
   std::string output_file;
   std::string size_option;
   std::string cmd;
+  std::string cmd_file();
   std::string compatible; // use (strverscmp(s.compatible.c_str(), "N.M") >= 0)
   int target_pid;
   int last_pass;

@@ -36,6 +36,7 @@ extern "C" {
 #include <elfutils/libdwfl.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <wordexp.h>
 }
 
 #if HAVE_NSS
@@ -1726,6 +1727,19 @@ systemtap_session::parse_kernel_functions ()
     }
   system_map.close();
   return 0;
+}
+
+
+string
+systemtap_session::cmd_file ()
+{
+  wordexp_t words;
+  int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+  string file;
+  if(rc == 0 && words.we_wordc > 0)
+    file = words.we_wordv[0];
+  wordfree (& words);
+  return file;
 }
 
 
