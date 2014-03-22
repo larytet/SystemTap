@@ -320,18 +320,19 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 
 		set ok 0
 		set notok 0
-		set fail "types"
+		set fail ""
 		set uns_notok 0
 		expect {
 		    -timeout 180
 		    # i386 unsigned may xfail because of sign extension
 		    # but fail anything else
-		    -re {FAIL: [a-z_]+var} {
-			regexp " .*$" $expect_out(0,string) s
+		    -re {^sdt_types PASS: [^\r]*\r\n} { incr ok; exp_continue }
+		    -indices -re {^sdt_types FAIL: ([^\r ]*)[^\r]*\r\n} {
+			set s $expect_out(1,string);
 			if {[regexp "unsigned" $s] && [istarget "i*86-*-*"]} {
 			    incr uns_notok }
 			incr notok; set fail "$fail $s"; exp_continue }
-		    -re {PASS: [a-z_]+var} { incr ok; exp_continue }
+		    -re {^[^\r]*\r\n} { incr notok; exp_continue }
 		    timeout { fail "$test types (timeout) $test_suffix" }
 		    eof { }
 		}
@@ -546,8 +547,8 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     }
     catch {close}; catch {wait}
     
-    if { $ok == 51 || $ok == 48 \
-	     || (($ok == 43 || $ok == 40 ) && ([istarget "i*86-*-*"] \
+    if { $ok == 53 || $ok == 50 \
+	     || (($ok == 44 || $ok == 41 ) && ([istarget "i*86-*-*"] \
 						   || [istarget "arm-*-*"]))} {
 	pass "$test wildcard $pbtype_mssg"
     } else {
