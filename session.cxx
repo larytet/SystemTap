@@ -1901,10 +1901,15 @@ systemtap_session::build_error_msg (const semantic_error& e)
   message << colorize(_("semantic error:"), "error") << ' ' << e.what ();
   if (e.tok1 || e.tok2)
     message << ": ";
+  else if (verbose > 1) // no tokens to print, so print any errsrc right there
+    message << _("   thrown from: ") << e.errsrc << endl;
+
   if (e.tok1)
     {
       print_token (message, e.tok1);
       message << endl;
+      if (verbose > 1)
+        message << _("   thrown from: ") << e.errsrc << endl;
       print_error_source (message, align_semantic_error, e.tok1);
     }
   if (e.tok2)
