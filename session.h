@@ -303,7 +303,6 @@ public:
 
   // data for various preprocessor library macros
   std::map<std::string, macrodecl*> library_macros;
-  std::vector<stapfile*> library_macro_files; // for error reporting purposes
 
   // parse trees for the various script files
   stapfile* user_file;
