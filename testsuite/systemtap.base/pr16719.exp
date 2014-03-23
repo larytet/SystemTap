@@ -88,6 +88,7 @@ proc run_stap { probe pattern } {
    }
 
    pass "$test ($subtest)"
+   catch { close -i $stap_id }; catch { wait -i $stap_id }
 }
 
 # Kernel check
