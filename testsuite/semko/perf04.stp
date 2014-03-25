@@ -1,9 +1,11 @@
 #! stap -p2
 
-# bad counter id
 global x
+
 probe perf.hw.cpu_cycles.process("/bin/ls").counter("b") {}
-probe process("/bin/ed").function("main")
+
+probe process("stap").function("main")
 {
- y = @perf(1)
+    # wrong process
+    x = @perf("b")
 }

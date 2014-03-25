@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 # no counter id
 global x

@@ -1,0 +1,7 @@
+global towers_n
+
+probe perf.sw.task_clock.process
+{
+    towers_n += 1
+}
+
