@@ -3872,6 +3872,58 @@ static void semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
 }
 
 
+struct dead_control_remover: public traversing_visitor
+{
+  systemtap_session& session;
+  bool& relaxed_p;
+  statement* control;
+
+  dead_control_remover(systemtap_session& s, bool& r):
+    session(s), relaxed_p(r), control(NULL) {}
+
+  void visit_block (block *b);
+
+  // When a block contains any of these, the following statements are dead.
+  void visit_return_statement (return_statement* s) { control = s; }
+  void visit_next_statement (next_statement* s) { control = s; }
+  void visit_break_statement (break_statement* s) { control = s; }
+  void visit_continue_statement (continue_statement* s) { control = s; }
+};
+
+
+void dead_control_remover::visit_block (block* b)
+{
+  vector<statement*>& vs = b->statements;
+  for (size_t i = 0; i < vs.size() - 1; ++i)
+    {
+      vs[i]->visit (this);
+      if (vs[i] == control)
+        {
+          session.print_warning(_("statement will never be reached"),
+                                vs[i + 1]->tok);
+          vs.erase(vs.begin() + i + 1, vs.end());
+          relaxed_p = false;
+          break;
+        }
+    }
+}
+
+
+static void semantic_pass_dead_control (systemtap_session& s, bool& relaxed_p)
+{
+  // Let's remove code that follow unconditional control statements
+
+  dead_control_remover dc (s, relaxed_p);
+
+  for (unsigned i=0; i<s.probes.size(); i++)
+    s.probes[i]->body->visit(&dc);
+
+  for (map<string,functiondecl*>::iterator it = s.functions.begin();
+       it != s.functions.end(); it++)
+    it->second->body->visit(&dc);
+}
+
+
 struct duplicate_function_remover: public functioncall_traversing_visitor
 {
   systemtap_session& s;
@@ -4014,6 +4066,9 @@ semantic_pass_optimize1 (systemtap_session& s)
       // We also want it in case variables are used in if/case expressions,
       // so enable always.  PR11366
       semantic_pass_const_fold (s, relaxed_p);
+
+      if (!s.unoptimized)
+        semantic_pass_dead_control (s, relaxed_p);
 
       iterations ++;
     }

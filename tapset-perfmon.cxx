@@ -269,26 +269,6 @@ struct perf_builder: public derived_probe_builder
 };
 
 
-struct statement_counter: public update_visitor
-{
-  bool empty;
-  const token* first_tok;
-
-  statement_counter () {}
-
-  void visit_block (block *b)
-  {
-    if (b->statements.size() > 0)
-      {
-	empty = false;
-	first_tok = b->statements[0]->tok;
-      }
-    else
-      empty = true;
-  };
-};
-  
-
 void
 perf_builder::build(systemtap_session & sess,
 		    probe * base,
@@ -325,27 +305,18 @@ perf_builder::build(systemtap_session & sess,
     throw SEMANTIC_ERROR(_("wildcard not allowed with perf probe counter component"));
   if (has_counter)
     {
-      if (var.length() == 0)
+      if (var.empty())
 	throw SEMANTIC_ERROR(_("missing perf probe counter component name"));
-	
+
       period = 0;		// perf_event_attr.sample_freq should be 0
-      map<string, pair<string,derived_probe*> >::iterator it;
-      for (it=sess.perf_counters.begin(); it != sess.perf_counters.end(); it++)
-	if ((*it).first == var)
-	  throw SEMANTIC_ERROR(_("duplicate counter name"));
+      if (sess.perf_counters.count(var) > 0)
+	throw SEMANTIC_ERROR(_("duplicate counter name"));
 
-      struct statement_counter sc;
-      base->body->visit(&sc);
-      if (! sc.empty)
-	sess.print_warning(_("Statements in perf counter probe will never be reached."), sc.first_tok);
-
-      if_statement *ifs = new if_statement ();
-      ifs->tok = base->tok;
-      ifs->thenblock = new next_statement ();
-      ifs->thenblock->tok = base->tok;
-      ifs->elseblock = NULL;
-      ifs->condition = new literal_number(0);
-      base->body = new block (ifs, base->body);
+      // Splice a 'next' into the probe body, and then elaborate.cxx's
+      // dead_stmtexpr_remover() will warn if anything of substance follows.
+      statement* n = new next_statement ();
+      n->tok = base->tok;
+      base->body = new block (n, base->body);
     }
 
   bool proc_p;
