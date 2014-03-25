@@ -122,12 +122,12 @@ global f_name, f_pid, f_prot, f_fam, f_type, f_uid
 
 probe never {
         #workaround to avoid outputing filtering strings
-	print(f_name_str);
-	print(f_pid_str);
-	print(f_prot_str);
-	print(f_fam_str);
-	print(f_type_str);
-	print(f_uid_str);
+	log(f_name_str);
+	log(f_pid_str);
+	log(f_prot_str);
+	log(f_fam_str);
+	log(f_type_str);
+	log(f_uid_str);
 
 	#workaround to make sure that systemtap gets correct types for arrays
 	if_rx["junk"] <<< 0
