@@ -105,4 +105,23 @@ if {! [uprobes_p]} {
     }
 }
 
+set subtest "global"
+
+spawn $stap_path $srcdir/$subdir/perf05.stp
+
+set ok 0
+expect {
+    -timeout 180
+    -re {hit=0x1} { incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch {close}; catch {wait}
+
+if {$ok == 1} {
+    pass "$test $subtest"
+} else {
+    fail "$test $subtest ($ok)"
+}
+
 cleanup_handler $verbose
