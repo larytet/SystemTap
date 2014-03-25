@@ -1,4 +1,4 @@
 #! stap -p2
 
-# pid can't be less than 2
+# probing pid 1 is ok
 probe process(1).begin { }
