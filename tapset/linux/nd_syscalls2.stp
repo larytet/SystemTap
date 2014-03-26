@@ -573,7 +573,7 @@ probe nd_syscall.preadv = __nd_syscall.preadv ?, __nd_syscall.compat_preadv ?
 {
 	name = "preadv"
 }
-probe __nd_syscall.preadv = kernel.function("sys_preadv")
+probe __nd_syscall.preadv = kprobe.function("sys_preadv")
 {
 	# fd = $fd
 	# vector_uaddr = $vec
@@ -588,7 +588,7 @@ probe __nd_syscall.preadv = kernel.function("sys_preadv")
 	offset = (ulong_arg(5) << %{ BITS_PER_LONG %}) + ulong_arg(4)
 	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
 }
-probe __nd_syscall.compat_preadv = kernel.function("compat_sys_preadv")
+probe __nd_syscall.compat_preadv = kprobe.function("compat_sys_preadv")
 {
 	# fd = $fd
 	# vector_uaddr = $vec
@@ -602,8 +602,8 @@ probe __nd_syscall.compat_preadv = kernel.function("compat_sys_preadv")
 	offset = (u32_arg(5) << 32) + u32_arg(4)
 	argstr = sprintf("%d, %p, %d, 0x%x", fd, vector_uaddr, count, offset)
 }
-probe nd_syscall.preadv.return = kernel.function("sys_preadv").return ?,
-				 kernel.function("compat_sys_preadv").return ?
+probe nd_syscall.preadv.return = kprobe.function("sys_preadv").return ?,
+				 kprobe.function("compat_sys_preadv").return ?
 {
 	name = "preadv"
 	retstr = returnstr(1)
@@ -1067,27 +1067,61 @@ probe nd_syscall.reboot.return = kprobe.function("sys_reboot").return ?
 #
 # long sys_recv(int fd, void __user *ubuf, size_t size, unsigned flags)
 #
-probe nd_syscall.recv = kprobe.function("sys_recv") ?
+# On some kernels, the recv() syscall goes through
+# sys_socketcall(), which then calls an inlined version of
+# sys_recv(). So, we need to probe sys_socketcall() also.
+#
+probe nd_syscall.recv = __nd_syscall.socketcall.recv ?,
+	__nd_syscall.compat_socketcall.recv ?,
+	__nd_syscall.recv ?
 {
 	name = "recv"
-	// s = $fd
-	// buf_uaddr = $ubuf
-	// len = $size
-	// flags = $flags
-	// flags_str = _msg_flags_str($flags)
-	// argstr = sprintf("%d, %p, %u, %s", $fd, $ubuf, $size, _msg_flags_str($flags))
-	asmlinkage()
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len,
+			 _msg_flags_str(flags))
+}
+probe __nd_syscall.socketcall.recv = kprobe.function("sys_socketcall").call ?
+{
+	if (int_arg(1) != %{ SYS_RECV %}) next;
+	__args = pointer_arg(2)
+	s = user_int32(&@cast(__args, "ulong")[0])
+	buf_uaddr = user_uint64(&@cast(__args, "ulong")[1])
+	len = user_uint64(&@cast(__args, "ulong")[2])
+	flags = user_uint32(&@cast(__args, "ulong")[3])
+}
+probe __nd_syscall.compat_socketcall.recv =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	if (int_arg(1) != %{ SYS_RECV %}) next;
+	__args = pointer_arg(2)
+	s = user_int32(&@cast(__args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
+	len = user_uint32(&@cast(__args, "unsigned int")[2])
+	flags = user_uint32(&@cast(__args, "unsigned int")[3])
+}
+probe __nd_syscall.recv = kprobe.function("sys_recv").call ?
+{
+	@__syscall_gate(%{ __NR_recv %})
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _msg_flags_str(flags)
-	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len, flags_str)
 }
-probe nd_syscall.recv.return = kprobe.function("sys_recv").return ?
+probe nd_syscall.recv.return = __nd_syscall.socketcall.recv.return ?,
+	__nd_syscall.recv.return ?
 {
 	name = "recv"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.recv.return = 
+	kprobe.function("sys_socketcall").return ?, 
+	kprobe.function("compat_sys_socketcall").return ?
+{
+	if (@entry(int_arg(1)) != %{ SYS_RECV %}) next;
+}
+probe __nd_syscall.recv.return = kprobe.function("sys_recv").return ?
+{
+	@__syscall_gate(%{ __NR_recv %})
 }
 
 # recvfrom ___________________________________________________
@@ -1099,33 +1133,69 @@ probe nd_syscall.recv.return = kprobe.function("sys_recv").return ?
 #		  struct sockaddr __user *addr,
 #		  int __user *addr_len)
 #
-probe nd_syscall.recvfrom = kprobe.function("sys_recvfrom") ?
+#
+# On some kernels, sys_recv() is just a wrapper for sys_recvfrom(). We
+# check the syscall value (and the 'call' value in the case of
+# sys_socketcall) to make sure we're really in a recvfrom() call.
+#
+probe nd_syscall.recvfrom = __nd_syscall.socketcall.recvfrom ?,
+	__nd_syscall.compat_socketcall.recvfrom ?, __nd_syscall.recvfrom ?
 {
 	name = "recvfrom"
-	// s = $fd
-	// buf_uaddr = $ubuf
-	// len = $size
-	// flags = $flags
-	// flags_str = _msg_flags_str($flags)
-	// addr_uaddr = $addr
-	// addrlen_uaddr = $addr_len
-	// argstr = sprintf("%d, %p, %u, %s, %p, %p",
-	// 	$fd, $ubuf, $size, _msg_flags_str($flags), $addr, $addr_len)
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s, %p, %p", s, buf_uaddr, len,
+			 _msg_flags_str(flags), addr_uaddr, addrlen_uaddr)
+}
+probe __nd_syscall.socketcall.recvfrom =
+	kprobe.function("sys_socketcall").call ?
+{
+	if (int_arg(1) != %{ SYS_RECVFROM %}) next
+	__args = pointer_arg(2)
+	s = user_int32(&@cast(__args, "ulong")[0])
+	buf_uaddr = user_uint64(&@cast(__args, "ulong")[1])
+	len = user_uint64(&@cast(__args, "ulong")[2])
+	flags = user_uint32(&@cast(__args, "ulong")[3])
+	addr_uaddr = user_uint64(&@cast(__args, "ulong")[4])
+	addrlen_uaddr = user_uint64(&@cast(__args, "ulong")[5])
+}
+probe __nd_syscall.compat_socketcall.recvfrom =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	if (int_arg(1) != %{ SYS_RECVFROM %}) next
+	__args = pointer_arg(2)
+	s = user_int32(&@cast(__args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
+	len = user_uint32(&@cast(__args, "unsigned int")[2])
+	flags = user_uint32(&@cast(__args, "unsigned int")[3])
+	addr_uaddr = user_uint32(&@cast(__args, "unsigned int")[4])
+	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int")[5])
+}
+probe __nd_syscall.recvfrom = kprobe.function("sys_recvfrom").call ?
+{
+	@__syscall_gate(%{ __NR_recvfrom %})
 	asmlinkage()
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _msg_flags_str(flags)
 	addr_uaddr = pointer_arg(5)
 	addrlen_uaddr = pointer_arg(6)
-	argstr = sprintf("%d, %p, %u, %s, %p, %p", s, buf_uaddr, len,
-			 flags_str, addr_uaddr, addrlen_uaddr)
 }
-probe nd_syscall.recvfrom.return = kprobe.function("sys_recvfrom").return ?
+probe nd_syscall.recvfrom.return = __nd_syscall.socketcall.return ?,
+	__nd_syscall.recvfrom.return ?
 {
 	name = "recvfrom"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.return =
+	kprobe.function("sys_socketcall").return ?,
+	kprobe.function("compat_sys_socketcall").return ?
+{
+	if (@entry(int_arg(1)) != %{ SYS_RECVFROM %}) next;
+}
+probe __nd_syscall.recvfrom.return = kprobe.function("sys_recvfrom").return ?
+{
+	@__syscall_gate(%{ __NR_recvfrom %})
 }
 
 # recvmsg ____________________________________________________

@@ -957,20 +957,59 @@ probe syscall.reboot.return = kernel.function("sys_reboot").return
 #
 # long sys_recv(int fd, void __user *ubuf, size_t size, unsigned flags)
 #
-probe syscall.recv = kernel.function("sys_recv").call ?
+# On some kernels, the recv() syscall goes through
+# sys_socketcall(), which then calls an inlined version of
+# sys_recv(). So, we need to probe sys_socketcall() also.
+#
+probe syscall.recv = __syscall.socketcall.recv ?,
+	__syscall.compat_socketcall.recv ?,
+	__syscall.recv ?
 {
 	name = "recv"
-	s = $fd
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len,
+			 _msg_flags_str(flags))
+}
+probe __syscall.socketcall.recv = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_RECV %}) next;
+	s = user_int32(&@cast($args, "ulong")[0])
+	buf_uaddr = user_uint64(&@cast($args, "ulong")[1])
+	len = user_uint64(&@cast($args, "ulong")[2])
+	flags = user_uint32(&@cast($args, "ulong")[3])
+}
+probe __syscall.compat_socketcall.recv =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_RECV %}) next;
+	s = user_int32(&@cast($args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	len = user_uint32(&@cast($args, "unsigned int")[2])
+	flags = user_uint32(&@cast($args, "unsigned int")[3])
+}
+probe __syscall.recv = kernel.function("sys_recv").call ?
+{
+	@__syscall_gate(%{ __NR_recv %})
+	s = __int32($fd)
 	buf_uaddr = $ubuf
 	len = $size
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
-	argstr = sprintf("%d, %p, %d, %s", $fd, $ubuf, $size, _msg_flags_str($flags))
+	flags = __uint32($flags)
 }
-probe syscall.recv.return = kernel.function("sys_recv").return ?
+probe syscall.recv.return = __syscall.socketcall.recv.return ?,
+	__syscall.recv.return ?
 {
 	name = "recv"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.recv.return = 
+	kernel.function("sys_socketcall").return ?, 
+	kernel.function("compat_sys_socketcall").return ?
+{
+	if ($call != %{ SYS_RECV %}) next;
+}
+probe __syscall.recv.return = kernel.function("sys_recv").return ?
+{
+	@__syscall_gate(%{ __NR_recv %})
 }
 
 # recvfrom ___________________________________________________
@@ -982,23 +1021,63 @@ probe syscall.recv.return = kernel.function("sys_recv").return ?
 #		  struct sockaddr __user *addr,
 #		  int __user *addr_len)
 #
-probe syscall.recvfrom = kernel.function("sys_recvfrom").call ?
+# On some kernels, sys_recv() is just a wrapper for sys_recvfrom(). We
+# check the syscall value (and the 'call' value in the case of
+# sys_socketcall) to make sure we're really in a recvfrom() call.
+#
+probe syscall.recvfrom = __syscall.socketcall.recvfrom ?,
+	__syscall.compat_socketcall.recvfrom ?, __syscall.recvfrom ?
 {
 	name = "recvfrom"
-	s = $fd
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s, %p, %p", s, buf_uaddr, len,
+			 _msg_flags_str(flags), addr_uaddr, addrlen_uaddr)
+}
+probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_RECVFROM %}) next
+	s = user_int32(&@cast($args, "ulong")[0])
+	buf_uaddr = user_uint64(&@cast($args, "ulong")[1])
+	len = user_uint64(&@cast($args, "ulong")[2])
+	flags = user_uint32(&@cast($args, "ulong")[3])
+	addr_uaddr = user_uint64(&@cast($args, "ulong")[4])
+	addrlen_uaddr = user_uint64(&@cast($args, "ulong")[5])
+}
+probe __syscall.compat_socketcall.recvfrom =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_RECVFROM %}) next
+	s = user_int32(&@cast($args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	len = user_uint32(&@cast($args, "unsigned int")[2])
+	flags = user_uint32(&@cast($args, "unsigned int")[3])
+	addr_uaddr = user_uint32(&@cast($args, "unsigned int")[4])
+	addrlen_uaddr = user_uint32(&@cast($args, "unsigned int")[5])
+}
+probe __syscall.recvfrom = kernel.function("sys_recvfrom").call ?
+{
+	@__syscall_gate(%{ __NR_recvfrom %})
+	s = __int32($fd)
 	buf_uaddr = $ubuf
 	len = $size
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
+	flags = __uint32($flags)
 	addr_uaddr = $addr
 	addrlen_uaddr = $addr_len
-	argstr = sprintf("%d, %p, %d, %s, %p, %p",
-		$fd, $ubuf, $size, _msg_flags_str($flags), $addr, $addr_len)
 }
-probe syscall.recvfrom.return = kernel.function("sys_recvfrom").return ?
+probe syscall.recvfrom.return = __syscall.socketcall.return ?,
+	__syscall.recvfrom.return ?
 {
 	name = "recvfrom"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.return = kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
+{
+	if ($call != %{ SYS_RECVFROM %}) next
+}
+probe __syscall.recvfrom.return = kernel.function("sys_recvfrom").return ?
+{
+	@__syscall_gate(%{ __NR_recvfrom %})
 }
 
 # recvmmsg ___________________________________________________

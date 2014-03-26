@@ -130,4 +130,15 @@
 #define __NR_sendfile64 __NR_sendfile
 #endif
 
+#ifndef __NR_syscall_max
+#define __NR_syscall_max 0xffff
+#endif
+
+#ifndef __NR_recv
+#define __NR_recv (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_recvfrom
+#define __NR_recvfrom (__NR_syscall_max + 1)
+#endif
+
 #endif /* _COMPAT_UNISTD_H_ */
