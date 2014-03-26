@@ -35,6 +35,8 @@
 
 #include <cstdlib>
 
+#include <ext/stdio_filebuf.h>
+
 extern "C" {
 #include <glob.h>
 #include <unistd.h>
@@ -49,6 +51,7 @@ extern "C" {
 }
 
 using namespace std;
+using namespace __gnu_cxx;
 
 static void
 uniq_list(list<string>& l)
@@ -356,7 +359,7 @@ run_sdt_benchmark(systemtap_session& s)
 
 // Compilation passes 0 through 4
 static int
-passes_0_4 (systemtap_session &s)
+do_passes_0_4 (systemtap_session &s)
 {
   int rc = 0;
 
@@ -924,6 +927,45 @@ passes_0_4 (systemtap_session &s)
   PROBE1(stap, pass4__end, &s);
 
   return rc;
+}
+
+// Fork a new process for the dirty work
+static int
+passes_0_4 (systemtap_session &s)
+{
+  stringstream ss;
+  pair<bool,int> ret = stap_fork_read(s.perpass_verbose[0], ss);
+
+  if (ret.first) // Child fork
+    {
+      int rc = 1;
+      try
+        {
+          rc = do_passes_0_4 (s);
+          stdio_filebuf<char> buf(ret.second, ios_base::out);
+          ostream o(&buf);
+          if (rc == 0 && s.last_pass > 4)
+            {
+              o << s.module_name << endl;
+              o << s.uprobes_path << endl;
+            }
+          o.flush();
+        }
+      catch (...)
+        {
+          // NB: no cleanup from the fork!
+        }
+      // FIXME: what about cleanup(), but only for this session?
+      // i.e. tapset coverage, report_suppression, but not subsessions.
+      exit(rc ? EXIT_FAILURE : EXIT_SUCCESS);
+    }
+
+  // For passes <= 4, everything was written to cout.
+  // For pass 5, we need the module and maybe uprobes for staprun.
+  if (s.last_pass > 4 && ret.second == 0)
+    ss >> s.module_name >> s.uprobes_path;
+
+  return ret.second;
 }
 
 static int
