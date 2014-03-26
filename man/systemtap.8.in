@@ -98,9 +98,11 @@ the boot process. This command is only available on dracut-based systems. If no
 scripts are specified, create a normal initramfs devoid of any SystemTap files.
 
 The initramfs is created for the current kernel, or the kernel release specified
-by the \fB-r\fR option. The path of the created initramfs defaults
-to \fB/boot/initramfs-KVER.img\fR, where KVER is the output of `uname -r`. Use
-the \fB-o\fR option to specify a different path.
+by the \fB-r\fR option. The path of the created initramfs defaults to
+\fB/boot/initramfs-KVER.img\fR, where KVER is the output of `uname -r`. The
+bootloader is also updated (using \fInew-kernel-pkg\fR(8)) to make the kernel
+entry use the new initramfs file. Use the \fB-o\fR option to specify a different
+path (the bootloader will not be updated).
 
 If the output file already exists, it is overwritten, unless the \fB-b\fR switch
 is given, in which case the file is appended \fB.bak\fR rather than overwritten.
@@ -145,7 +147,7 @@ Answer yes for all prompts.
 .TP
 .BI "-o " PATH.IMG
 When using the \fBonboot\fR command, specify the output path of the created
-initramfs.
+initramfs. When specified, the bootloader configuration is not updated.
 
 .TP
 .B -b
@@ -430,6 +432,8 @@ output of staprun can be captured by setting the LOG_BOOT_ERR option to
 
 .SH SEE ALSO
 .IR stap (1)
+.IR dracut (8)
+.IR new-kernel-pkg (8)
 
 .SH BUGS
 Use the Bugzilla link of the project web page or our mailing list.
