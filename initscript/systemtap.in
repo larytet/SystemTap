@@ -859,10 +859,8 @@ onboot () {
     do_failure "Failed to make temporary file in $dir"
     return 1
   fi
-  # Create the initramfs image. We could have combined this with the
-  # new-kernel-pkg call below using --dracut, but then we would have
-  # lost error-checking and our backing up facilities.
-  out=$($DRACUT --force $TMPINITRAMFS $KRELEASE 2>&1)
+  # Create the initramfs image with stap module enabled.
+  out=$($DRACUT --add stap --force $TMPINITRAMFS $KRELEASE 2>&1)
   # dracut will report success even if some modules (e.g. stap) failed
   # to install some files, so we need to be a bit more involved in
   # checking for errors

@@ -5,10 +5,14 @@
 
 # Return 0 --> install stap module
 # Return 1 --> skip stap module
+# Return 255 --> install stap module only if explicitly requested
 check() {
-   # Install it if we have early-boot scripts
-   [ "$ONBOOT_SCRIPTS" ] && return 0
-   return 1
+   # Do not include stap module if there are no scripts to include
+   [ "$ONBOOT_SCRIPTS" ] || return 1
+   # We're disabled by default: the initscript explicitly uses dracut's
+   # '--add stap' when creating the initramfs. Otherwise, we might be
+   # mistakenly included during e.g. kernel updates.
+   return 255
 }
 
 # We don't depend on anything
