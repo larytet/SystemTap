@@ -37,6 +37,7 @@ STAPRUN=@bindir@/staprun
 UNAME=/bin/uname
 LSMOD=/sbin/lsmod
 DRACUT=/sbin/dracut
+NEWKERNELPKG=/usr/sbin/new-kernel-pkg
 
 # Not actually used directly, but needed by
 # stap dracut module for inclusion in initramfs
@@ -81,6 +82,7 @@ OPTS=
 OPT_ASSUMEYES=
 INITRAMFS=
 BACKUP_INITRAMFS=
+EXPLICIT_INITRAMFS=
 
 echo_usage () {
   echo $"Usage: $prog {start|stop|status|restart|compile|onboot|cleanup|condrestart|try-restart|reload|force-reload} [OPTIONS] [SCRIPTS]"
@@ -202,6 +204,9 @@ parse_args $OPTS
 # Set default output file if not given as an option
 if [ ! "$INITRAMFS" ]; then
   INITRAMFS=/boot/initramfs-$KRELEASE.img
+else
+  # User explicitly specified an img file to output to
+  EXPLICIT_INITRAMFS=1
 fi
 
 # Include configs
@@ -738,9 +743,9 @@ compile () {
   return 0
 }
 
-# Writes info to $DRACUT_SRC, which the stap dracut module will source
+# Writes info to $DRACUT_SRC, which the stap dracut module will source.
 # Includes all needed info such as location of stap/staprun, which
-# scripts to insert, and their options
+# scripts to insert, and their options.
 update_dracut() { # scripts
   local s opts
 
@@ -773,20 +778,29 @@ update_dracut() { # scripts
 backup_initramfs() {
   # does target file exist?
   if [ -f "$INITRAMFS" ]; then
+    clog
     # don't overwrite an existing backup
     if [ ! -f "$INITRAMFS.bak" ]; then
       mv "$INITRAMFS" "$INITRAMFS.bak"
-      clog "Renamed $INITRAMFS"
-      clog "     to $INITRAMFS.bak"
+      clog "  Renamed $INITRAMFS"
+      clog "       to $INITRAMFS.bak ... " -n
       RESTORE_INITRAMFS_ON_FAIL=1
     else
-      clog "Backup already exists: $INITRAMFS.bak"
+      clog "  Backup already exists: $INITRAMFS.bak ... " -n
     fi
   fi
 }
 
 onboot () {
   local s ret ss
+  if [ ! -f "$NEWKERNELPKG" ]; then
+    clog "Could not find $NEWKERNELPKG" -n
+    do_failure "$NEWKERNELPKG not found"
+    clog
+    clog "This feature requires $NEWKERNELPKG."
+    clog "If it is located elsewhere, modify the \$NEWKERNELPKG parameter" -n
+    return 1
+  fi
   if [ ! -f "$DRACUT" ]; then
     clog "Could not find $DRACUT" -n
     do_failure "$DRACUT not found"
@@ -845,6 +859,9 @@ onboot () {
     do_failure "Failed to make temporary file in $dir"
     return 1
   fi
+  # Create the initramfs image. We could have combined this with the
+  # new-kernel-pkg call below using --dracut, but then we would have
+  # lost error-checking and our backing up facilities.
   out=$($DRACUT --force $TMPINITRAMFS $KRELEASE 2>&1)
   # dracut will report success even if some modules (e.g. stap) failed
   # to install some files, so we need to be a bit more involved in
@@ -856,7 +873,7 @@ onboot () {
     else
       do_failure "See dracut log for more info"
     fi
-    echo # We need a new line
+    clog
     if [ -f "$TMPINITRAMFS" ]; then
       rm "$TMPINITRAMFS"
     fi
@@ -864,13 +881,32 @@ onboot () {
     # whatever initramfs they used to boot in is still there)
     if [ "$RESTORE_INITRAMFS_ON_FAIL" ]; then
       mv "$INITRAMFS.bak" "$INITRAMFS"
-      clog "Renamed $INITRAMFS.bak"
-      clog "     to $INITRAMFS"
+      clog "  Renamed $INITRAMFS.bak"
+      clog "       to $INITRAMFS"
     fi
     return 1
   fi
   mv "$TMPINITRAMFS" "$INITRAMFS"
-  might_success "initramfs created"
+  # The initramfs is in place. If the user explicitly specified an
+  # output file using -o, then we should skip updating the bootloader
+  # (the output file may not even be in /boot/).
+  if [ "$EXPLICIT_INITRAMFS" ]; then
+    might_success "initramfs created"
+    clog
+    clog "NB: bootloader was not updated" -n
+    return 0
+  fi
+  clog "done"
+  # We're installing the initramfs in the default location, so user
+  # expects the next boot to use it. Let's also update the bootloader.
+  clog " Updating bootloader ... " -n
+  logex $NEWKERNELPKG --initrdfile="$INITRAMFS" \
+                      --update $KRELEASE
+  if [ $? -ne 0 ]; then
+    do_failure "$NEWKERNELPKG exited with nonzero status"
+    return 1
+  fi
+  might_success "initramfs created and bootloader updated"
   return 0
 }
 
