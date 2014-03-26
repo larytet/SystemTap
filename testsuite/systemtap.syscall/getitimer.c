@@ -19,7 +19,11 @@ int main()
     //staptest// getitimer (BAD VALUE: -1, XXXX) = -NNNN (EINVAL)
 
     getitimer(ITIMER_REAL, (struct itimerval *)-1);
+#ifdef __s390__
+    //staptest// getitimer (ITIMER_REAL, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
     //staptest// getitimer (ITIMER_REAL, 0x[f]+) = -NNNN (EFAULT)
+#endif
 
     return 0;
 }

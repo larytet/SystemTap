@@ -21,7 +21,11 @@ int main()
     //staptest// setitimer (ITIMER_VIRTUAL, UNKNOWN, XXXX) = -NNNN (EFAULT)
 
     setitimer(ITIMER_PROF, &value, (struct itimerval *)-1);
+#ifdef __s390__
+    //staptest// setitimer (ITIMER_PROF, \[0\.000000,30\.000000\], 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
     //staptest// setitimer (ITIMER_PROF, \[0\.000000,30\.000000\], 0x[f]+) = -NNNN (EFAULT)
+#endif
 
     return 0;
 }

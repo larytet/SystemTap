@@ -60,7 +60,7 @@ int main()
   //staptest// bind (NNNN, {AF_INET, 0.0.0.0, 0}, 16) = 0
 
   bind(sock_local, (struct sockaddr *)&sun1, sizeof(sun1));
-  //staptest// bind (NNNN, {AF_UNIX, \.}, 110) = -NNNN (EADDRINUSE)
+  //staptest// bind (NNNN, {AF_UNIX, "\."}, 110) = -NNNN (EADDRINUSE)
 
   bind(sock_inet_stream, (struct sockaddr *)&sin3, sizeof(sin3));
   //staptest// bind (NNNN, {AF_INET, 10.255.254.253, 0}, 16) = -NNNN (EADDRNOTAVAIL)

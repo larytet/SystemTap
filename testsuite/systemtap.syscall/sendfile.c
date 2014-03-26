@@ -45,18 +45,20 @@ int main ()
 	//staptest// sendfile (NNNN, -1, XXXX, 22) = -NNNN (EBADF)
 
 	sendfile (write_fd, read_fd, (off_t *)-1, sizeof(buff));
+#ifdef __s390__
+	//staptest// sendfile (NNNN, NNNN, 0x[7]?[f]+, 22) = -NNNN (EFAULT)
+#else
 	//staptest// sendfile (NNNN, NNNN, 0x[f]+, 22) = -NNNN (EFAULT)
+#endif
 
 	sendfile (write_fd, read_fd, &offset, -1);
 	// The 'count' argument is a size_t, which is an unsigned
 	// long, whose size varies by platform. (The return value
 	// varies here as well, so we'll just ignore it.)
-#if ULONG_MAX == 0xffffffffUL
-	//staptest// sendfile (NNNN, NNNN, XXXX, 4294967295)
-#elif ULONG_MAX == 0xffffffffffffffffUL
+#if __WORDSIZE == 64
 	//staptest// sendfile (NNNN, NNNN, XXXX, 18446744073709551615)
 #else
-#error unhandled ULONG_MAX value
+	//staptest// sendfile (NNNN, NNNN, XXXX, 4294967295)
 #endif
 	close (read_fd);
 	close (write_fd);

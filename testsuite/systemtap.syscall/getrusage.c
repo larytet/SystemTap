@@ -26,7 +26,11 @@ int main()
     //staptest// getrusage (UNKNOWN VALUE: -2, XXXX) = -NNNN (EINVAL)
 
     getrusage(RUSAGE_SELF, (struct rusage *)-1);
+#ifdef __s390__
+    //staptest// getrusage (RUSAGE_SELF, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
     //staptest// getrusage (RUSAGE_SELF, 0x[f]+) = -NNNN (EFAULT)
+#endif
 
     return 0;
 }
