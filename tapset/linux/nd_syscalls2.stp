@@ -1074,15 +1074,15 @@ probe nd_syscall.recv = kprobe.function("sys_recv") ?
 	// buf_uaddr = $ubuf
 	// len = $size
 	// flags = $flags
-	// flags_str = _recvflags_str($flags)
-	// argstr = sprintf("%d, %p, %d, %s", $fd, $ubuf, $size, _recvflags_str($flags))
+	// flags_str = _msg_flags_str($flags)
+	// argstr = sprintf("%d, %p, %u, %s", $fd, $ubuf, $size, _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _recvflags_str(flags)
-	argstr = sprintf("%d, %p, %d, %s", s, buf_uaddr, len, flags_str)
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len, flags_str)
 }
 probe nd_syscall.recv.return = kprobe.function("sys_recv").return ?
 {
@@ -1106,21 +1106,21 @@ probe nd_syscall.recvfrom = kprobe.function("sys_recvfrom") ?
 	// buf_uaddr = $ubuf
 	// len = $size
 	// flags = $flags
-	// flags_str = _recvflags_str($flags)
+	// flags_str = _msg_flags_str($flags)
 	// addr_uaddr = $addr
 	// addrlen_uaddr = $addr_len
-	// argstr = sprintf("%d, %p, %d, %s, %p, %p",
-	// 	$fd, $ubuf, $size, _recvflags_str($flags), $addr, $addr_len)
+	// argstr = sprintf("%d, %p, %u, %s, %p, %p",
+	// 	$fd, $ubuf, $size, _msg_flags_str($flags), $addr, $addr_len)
 	asmlinkage()
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _recvflags_str(flags)
+	flags_str = _msg_flags_str(flags)
 	addr_uaddr = pointer_arg(5)
 	addrlen_uaddr = pointer_arg(6)
-	argstr = sprintf("%d, %p, %d, %s, %p, %p",
-		s, buf_uaddr, len, flags_str, addr_uaddr, addrlen_uaddr)
+	argstr = sprintf("%d, %p, %u, %s, %p, %p", s, buf_uaddr, len,
+			 flags_str, addr_uaddr, addrlen_uaddr)
 }
 probe nd_syscall.recvfrom.return = kprobe.function("sys_recvfrom").return ?
 {
@@ -1140,13 +1140,13 @@ probe nd_syscall.recvmsg = kprobe.function("sys_recvmsg") ?
 	// s = $fd
 	// msg_uaddr = $msg
 	// flags = $flags
-	// flags_str = _recvflags_str($flags)
-	// argstr = sprintf("%d, %p, %s", $fd, $msg, _recvflags_str($flags))
+	// flags_str = _msg_flags_str($flags)
+	// argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	msg_uaddr = pointer_arg(2)
 	flags = uint_arg(3)
-	flags_str = _recvflags_str(flags)
+	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, flags_str)
 }
 probe nd_syscall.recvmsg.return = kprobe.function("sys_recvmsg").return ?
@@ -1167,13 +1167,13 @@ probe nd_syscall.compat_sys_recvmsg = kprobe.function("compat_sys_recvmsg") ?
 	// s = $fd
 	// msg_uaddr = $msg
 	// flags = $flags
-	// argstr = sprintf("%d, %p, %s", $fd, $msg, _recvflags_str($flags))
+	// argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	msg_uaddr = pointer_arg(2)
 	flags = uint_arg(3)
-	flags_str = _recvflags_str(flags)
-	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _recvflags_str(flags))
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
 probe nd_syscall.compat_sys_recvmsg.return = kprobe.function("compat_sys_recvmsg").return ?
 {
@@ -2120,14 +2120,14 @@ probe nd_syscall.send = kprobe.function("sys_send") ?
 	// buf_uaddr = $buff
 	// len = $len
 	// flags = $flags
-	// flags_str = _sendflags_str($flags)
+	// flags_str = _msg_flags_str($flags)
 	// argstr = sprintf("%d, %p, %d, %s", $fd, $buff, $len, flags_str)
 	asmlinkage()
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _sendflags_str(flags)
+	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, %s", s, buf_uaddr, len, flags_str)
 }
 probe nd_syscall.send.return = kprobe.function("sys_send").return ?
@@ -2196,14 +2196,14 @@ probe nd_syscall.sendmsg = kprobe.function("sys_sendmsg") ?
 	// s = $fd
 	// msg_uaddr = $msg
 	// flags = $flags
-	// flags_str = _sendflags_str($flags)
-	// argstr = sprintf("%d, %p, %s", $fd, $msg, _sendflags_str($flags))
+	// flags_str = _msg_flags_str($flags)
+	// argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	msg_uaddr = pointer_arg(2)
 	flags = uint_arg(3)
-	flags_str = _sendflags_str(flags)
-	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _sendflags_str(flags))
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
 probe nd_syscall.sendmsg.return = kprobe.function("sys_sendmsg").return ?
 {
@@ -2221,14 +2221,14 @@ probe nd_syscall.compat_sys_sendmsg = kprobe.function("compat_sys_sendmsg") ?
 	// s = $fd
 	// msg_uaddr = $msg
 	// flags = $flags
-	// flags_str = _sendflags_str($flags)
-	// argstr = sprintf("%d, %p, %s", $fd, $msg, _sendflags_str($flags))
+	// flags_str = _msg_flags_str($flags)
+	// argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	msg_uaddr = pointer_arg(2)
 	flags = uint_arg(3)
-	flags_str = _sendflags_str(flags)
-	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _sendflags_str(flags))
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
 probe nd_syscall.compat_sys_sendmsg.return = kprobe.function("compat_sys_sendmsg").return ?
 {
@@ -2248,17 +2248,17 @@ probe nd_syscall.sendmmsg = kprobe.function("sys_sendmmsg").call ?
 	// mmsg_uaddr = $mmsg
 	// vlen = $vlen
 	// flags = $flags
-	// flags_str = _sendflags_str($flags)
+	// flags_str = _msg_flags_str($flags)
 	// argstr = sprintf("%d, %p, %d, %s", $fd, $mmsg, $vlen,
-	//		 _sendflags_str($flags))
+	//		 _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	mmsg_uaddr = pointer_arg(2)
 	vlen = uint_arg(3)
 	flags = uint_arg(4)
-	flags_str = _sendflags_str(flags)
+	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %d, %s", s, mmsg_uaddr, vlen,
-			 _sendflags_str(flags))
+			 _msg_flags_str(flags))
 }
 probe nd_syscall.sendmmsg.return = kprobe.function("sys_sendmmsg").return ?
 {
@@ -2282,7 +2282,7 @@ probe nd_syscall.sendto = kprobe.function("sys_sendto") ?
 	// buf_uaddr = $buff
 	// len = $len
 	// flags = $flags
-	// flags_str = _sendflags_str($flags)
+	// flags_str = _msg_flags_str($flags)
 	// to_uaddr = $addr
 	// tolen = $addr_len
 	// argstr = sprintf("%d, %p, %d, %s, %s, %d", $fd, $buff,
@@ -2292,7 +2292,7 @@ probe nd_syscall.sendto = kprobe.function("sys_sendto") ?
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _sendflags_str(flags)
+	flags_str = _msg_flags_str(flags)
 	to_uaddr = pointer_arg(5)
 	tolen = int_arg(6)
 	argstr = sprintf("%d, %p, %d, %s, %s, %d", s, buf_uaddr,

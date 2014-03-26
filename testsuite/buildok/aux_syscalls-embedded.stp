@@ -54,8 +54,11 @@ probe begin {
 	print (_wait4_opt_str(0))
 	print (_waitid_opt_str(0))
 
+	print (_msg_flags_str(0))
+%(systemtap_v <= "2.5" %?
 	print (_sendflags_str(0))
 	print (_recvflags_str(0))
+%)
 
 	print (_mlockall_flags_str(0))
 	print (_module_flags_str(0))

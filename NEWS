@@ -84,10 +84,13 @@
 - There is a new context tapset function, pnlabel(), which returns the
   name of the label which fired.
 
-- The following tapset variables are deprecated in release 2.5:
+- The following tapset variables and functions are deprecated in
+  release 2.5:
   - The 'clone_flags', 'stack_start', 'stack_size',
     'parent_tid_uaddr', and 'child_tid_uaddr' variables in the
     'syscall.fork' and 'nd_syscall.fork' probe aliases. 
+  - The '_sendflags_str()' and '_recvflags_str()' functions have been
+    deprecated in favor of the new '_msg_flags_str()' function.
 
 * What's new in version 2.4, 2013-11-06
 

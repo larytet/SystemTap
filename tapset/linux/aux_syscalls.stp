@@ -1221,29 +1221,60 @@ function _wait_status_str(f) {
   return sprintf ("?=0x%x", f)
 }
 
-/* `man sendmsg` for more information */
-function _sendflags_str(f) {
-   if(f & 0x0001) bs="MSG_OOB|".bs
-   if(f & 0x0080) bs="MSG_EOR|".bs
-   if(f & 0x0004) bs="MSG_DONTROUTE|".bs
-   if(f & 0x0040) bs="MSG_DONTWAIT|".bs
-   if(f & 0x4000) bs="MSG_NOSIGNAL|".bs
-   if(f & 0x0800) bs="MSG_CONFIRM|".bs
-   if(f & 0x8000) bs="MSG_MORE|".bs
-   return substr(bs,0,strlen(bs)-1)
-}
+%{
+static const _stp_val_array const _stp_msg_flags_list[] = {
+	V(MSG_OOB),
+	V(MSG_PEEK),
+	V(MSG_DONTROUTE),
+	V(MSG_TRYHARD),
+	V(MSG_CTRUNC),
+	V(MSG_PROBE),
+	V(MSG_TRUNC),
+	V(MSG_DONTWAIT),
+	V(MSG_EOR),
+	V(MSG_WAITALL),
+	V(MSG_FIN),
+	V(MSG_SYN),
+	V(MSG_CONFIRM),
+	V(MSG_RST),
+	V(MSG_ERRQUEUE),
+	V(MSG_NOSIGNAL),
+	V(MSG_MORE),
+#ifdef MSG_WAITFORONE
+	V(MSG_WAITFORONE),
+#endif
+#ifdef MSG_SENDPAGE_NOTLAST
+	V(MSG_SENDPAGE_NOTLAST),
+#endif
+	V(MSG_EOF),
+#ifdef MSG_FASTOPEN
+	V(MSG_FASTOPEN),
+#endif
+#ifdef MSG_CMSG_CLOEXEC
+	V(MSG_CMSG_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
 
-/* `man recv` for more information */
-function _recvflags_str(f) {
-   if(f & 1) bs="MSG_OOB|".bs
-   if(f & 2) bs="MSG_PEEK|".bs
-   if(f & 32) bs="MSG_TRUNC|".bs
-   if(f & 64) bs="MSG_DONTWAIT|".bs
-   if(f & 256) bs="MSG_WAITALL|".bs
-   if(f & 8192) bs="MSG_ERRQUEUE|".bs
-   if(f & 0x40000000) bs="MSG_CMSG_CLOEXEC|".bs
-   return substr(bs,0,strlen(bs)-1)
+function _msg_flags_str:string(flags:long)
+%{ /* pure */
+	// Ignore MSG_CMSG_COMPAT in flags.
+	_stp_lookup_or_str(_stp_msg_flags_list,
+			   (STAP_ARG_flags & ~MSG_CMSG_COMPAT), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%(systemtap_v <= "2.5" %?
+function _sendflags_str:string(flags:long)
+{
+	return _msg_flags_str(flags)
 }
+function _recvflags_str:string(flags:long)
+{
+	return _msg_flags_str(flags)
+}
+%)
 
 /* `man mlockall` for more information */
 function _mlockall_flags_str:string(flags:long)
