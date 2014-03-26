@@ -556,13 +556,13 @@ function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
                 // TODO: We need byte oriented conversion function.
                 _stp_text_str(CONTEXT->out_str, &sun->sun_path[1],
                     len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0);
-                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \\000%s}",
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"\\000%s\"}",
                     CONTEXT->out_str);
             } else
 			{
                 // Just cut path if is too long
                 CONTEXT->buf[127] = '\0';
-                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, %s}",
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"%s\"}",
                     sun->sun_path);
 			}
 		} else if (what & SA_FAMILY)
