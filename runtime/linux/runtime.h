@@ -82,10 +82,14 @@ static void _stp_exit(void);
 #endif
 
 #ifndef preempt_enable_no_resched
+#ifdef CONFIG_PREEMPT_COUNT
 #define preempt_enable_no_resched() do { \
 	barrier();           \
 	preempt_count_dec(); \
 	} while (0)
+#else
+#define preempt_enable_no_resched() barrier()
+#endif
 #endif
 
 /* unprivileged user support */
