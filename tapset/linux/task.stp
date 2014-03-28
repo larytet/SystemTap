@@ -32,6 +32,134 @@ function task_current:long () %{ /* pure */
     STAP_RETVALUE = (long)current;
 %}
 
+function _task_rlimit_cur:long (task:long, nd_limit:long)
+{
+    if (nd_limit < 0 || nd_limit >= %{ RLIM_NLIMITS %}) {
+        return -1;
+    }
+    sig = @cast(task, "task_struct", "kernel<linux/sched.h>")->signal;
+    rlimit = @cast(sig, "signal_struct", "kernel<linux/sched.h>")->rlim;
+    return @cast(rlimit, "rlimit", "kernel<linux/sched.h>")[nd_limit]->rlim_cur;
+}
+
+/* sfunction task_rlimit - The current resource limit of the tash
+ *
+ * @task: task_struct pointer
+ * @lim_str: String representing limit.
+ *
+ * Description: Little bit slower way how ger resource limits of
+ * process.
+ * There is need translate string into number for each call.
+ */
+function task_rlimit:long (task:long, lim_str:string)
+{
+    lim = rlimit_from_str(lim_str);
+    if (lim == -1) { return -1; }
+    return _task_rlimit_cur(task, lim);
+}
+
+/* Fast and "safe" way how to do it. */
+
+function task_rlimit_cpu:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_CPU %} );
+}
+
+function task_rlimit_fsize:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_FSIZE %});
+}
+
+function task_rlimit_data:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_DATA %});
+}
+
+function task_rlimit_stack:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_STACK %});
+}
+
+function task_rlimit_core:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_CORE %});
+}
+
+function task_rlimit_rss:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_RSS %});
+}
+
+function task_rlimit_nproc:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_NPROC %});
+}
+
+function task_rlimit_nofile:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_NOFILE %});
+}
+
+function task_rlimit_memlock:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_MEMLOCK %});
+}
+
+function task_rlimit_as:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_AS %});
+}
+
+function task_rlimit_locks:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_LOCKS %});
+}
+
+function task_rlimit_sigpending:long(task:long)
+{
+    %( kernel_v >= "2.6.8" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_SIGPENDING %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_msgqueue:long(task:long)
+{
+    %( kernel_v >= "2.6.8" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_MSGQUEUE %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_nice:long(task:long)
+{
+    %( kernel_v >= "2.6.12" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_NICE %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_rtprio:long(task:long)
+{
+    %( kernel_v >= "2.6.12" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_RTPRIO %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_rttime:long(task:long)
+{
+    %( kernel_v >= "2.6.25" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_RTTIME %});
+    %:
+        return -1
+    %)
+}
+
 /**
  * sfunction task_parent - The task_struct of the parent task
  *
