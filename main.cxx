@@ -1165,8 +1165,8 @@ main (int argc, char * const argv [])
       // Exiting for any quiet reason.
       return e.rc;
   }
-  catch (const runtime_error &e) {
-      // Some other uncaught runtime_error exception.
+  catch (const exception &e) {
+      // Some other uncaught exception.
       cerr << e.what() << endl;
       return EXIT_FAILURE;
   }
