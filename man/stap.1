@@ -534,7 +534,10 @@ is also specified, the list will be limited to probe types available to unprivil
 Dumps a list of all functions found in library files and exits. Also includes
 their parameters and types. A function of type 'unknown' indicates a function
 that does not return a value. Note that not all function/parameter types may be
-resolved (these are also shown by 'unknown').
+resolved (these are also shown by 'unknown'). This features is very
+memory-intensive and thus may not work properly with \fI--use-server\fR if the
+target server imposes an rlimit on process memory (i.e. through the
+\fI~stap-server/.systemtap/rc\fR configuration file, see \fIstap-server\fR(8)).
 
 .TP
 .BI \-\-remote " URL"
