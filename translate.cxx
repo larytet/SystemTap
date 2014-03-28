@@ -1887,7 +1887,9 @@ c_unparser::emit_module_refresh ()
   o->newline() << "int state = atomic_read (session_state());";
   o->newline() << "if (state != STAP_SESSION_RUNNING && state != STAP_SESSION_STARTING) {";
   // cannot _stp_warn etc. since we're not in probe context
-  o->newline(1) << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\", state);";
+  o->newline(1) << "#if defined(__KERNEL__)";
+  o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\", state);";
+  o->newline() << "#endif";
   o->newline() << "return;";
   o->newline(-1) << "}";
 
