@@ -921,25 +921,28 @@ probe nd_syscall.recv = __nd_syscall.socketcall.recv ?,
 }
 probe __nd_syscall.socketcall.recv = kprobe.function("sys_socketcall").call ?
 {
+	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECV %}) next;
 	__args = pointer_arg(2)
-	s = user_int32(&@cast(__args, "ulong")[0])
-	buf_uaddr = user_uint64(&@cast(__args, "ulong")[1])
-	len = user_uint64(&@cast(__args, "ulong")[2])
+	s = user_int(&@cast(__args, "ulong")[0])
+	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
+	len = user_ulong(&@cast(__args, "ulong")[2])
 	flags = user_uint32(&@cast(__args, "ulong")[3])
 }
 probe __nd_syscall.compat_socketcall.recv =
 	kprobe.function("compat_sys_socketcall").call ?
 {
+	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECV %}) next;
 	__args = pointer_arg(2)
-	s = user_int32(&@cast(__args, "unsigned int")[0])
+	s = user_int(&@cast(__args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
 	len = user_uint32(&@cast(__args, "unsigned int")[2])
 	flags = user_uint32(&@cast(__args, "unsigned int")[3])
 }
 probe __nd_syscall.recv = kprobe.function("sys_recv").call ?
 {
+	asmlinkage()
 	@__syscall_gate(%{ __NR_recv %})
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
@@ -956,7 +959,7 @@ probe __nd_syscall.socketcall.recv.return =
 	kprobe.function("sys_socketcall").return ?, 
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(int_arg(1)) != %{ SYS_RECV %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_RECV %}) next;
 }
 probe __nd_syscall.recv.return = kprobe.function("sys_recv").return ?
 {
@@ -988,21 +991,23 @@ probe nd_syscall.recvfrom = __nd_syscall.socketcall.recvfrom ?,
 probe __nd_syscall.socketcall.recvfrom =
 	kprobe.function("sys_socketcall").call ?
 {
+	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECVFROM %}) next
 	__args = pointer_arg(2)
-	s = user_int32(&@cast(__args, "ulong")[0])
-	buf_uaddr = user_uint64(&@cast(__args, "ulong")[1])
-	len = user_uint64(&@cast(__args, "ulong")[2])
+	s = user_int(&@cast(__args, "ulong")[0])
+	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
+	len = user_ulong(&@cast(__args, "ulong")[2])
 	flags = user_uint32(&@cast(__args, "ulong")[3])
-	addr_uaddr = user_uint64(&@cast(__args, "ulong")[4])
-	addrlen_uaddr = user_uint64(&@cast(__args, "ulong")[5])
+	addr_uaddr = user_ulong(&@cast(__args, "ulong")[4])
+	addrlen_uaddr = user_ulong(&@cast(__args, "ulong")[5])
 }
 probe __nd_syscall.compat_socketcall.recvfrom =
 	kprobe.function("compat_sys_socketcall").call ?
 {
+	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECVFROM %}) next
 	__args = pointer_arg(2)
-	s = user_int32(&@cast(__args, "unsigned int")[0])
+	s = user_int(&@cast(__args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
 	len = user_uint32(&@cast(__args, "unsigned int")[2])
 	flags = user_uint32(&@cast(__args, "unsigned int")[3])
@@ -1145,7 +1150,7 @@ probe nd_syscall.compat_sys_recvmsg =
 	if (int_arg(1) != %{ SYS_RECVMSG %}) next;
 	name = "recvmsg"
 	__args = pointer_arg(2)
-	s = user_int32(&@cast(__args, "unsigned int")[0])
+	s = user_int(&@cast(__args, "unsigned int")[0])
 	msg_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
 	flags = user_uint32(&@cast(__args, "unsigned int")[2])
 	flags_str = _msg_flags_str(flags)

@@ -973,16 +973,16 @@ probe syscall.recv = __syscall.socketcall.recv ?,
 probe __syscall.socketcall.recv = kernel.function("sys_socketcall").call ?
 {
 	if ($call != %{ SYS_RECV %}) next;
-	s = user_int32(&@cast($args, "ulong")[0])
-	buf_uaddr = user_uint64(&@cast($args, "ulong")[1])
-	len = user_uint64(&@cast($args, "ulong")[2])
+	s = user_int(&@cast($args, "ulong")[0])
+	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	len = user_ulong(&@cast($args, "ulong")[2])
 	flags = user_uint32(&@cast($args, "ulong")[3])
 }
 probe __syscall.compat_socketcall.recv =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if ($call != %{ SYS_RECV %}) next;
-	s = user_int32(&@cast($args, "unsigned int")[0])
+	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
 	flags = user_uint32(&@cast($args, "unsigned int")[3])
@@ -1036,18 +1036,18 @@ probe syscall.recvfrom = __syscall.socketcall.recvfrom ?,
 probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
 {
 	if ($call != %{ SYS_RECVFROM %}) next
-	s = user_int32(&@cast($args, "ulong")[0])
-	buf_uaddr = user_uint64(&@cast($args, "ulong")[1])
-	len = user_uint64(&@cast($args, "ulong")[2])
+	s = user_int(&@cast($args, "ulong")[0])
+	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	len = user_ulong(&@cast($args, "ulong")[2])
 	flags = user_uint32(&@cast($args, "ulong")[3])
-	addr_uaddr = user_uint64(&@cast($args, "ulong")[4])
-	addrlen_uaddr = user_uint64(&@cast($args, "ulong")[5])
+	addr_uaddr = user_ulong(&@cast($args, "ulong")[4])
+	addrlen_uaddr = user_ulong(&@cast($args, "ulong")[5])
 }
 probe __syscall.compat_socketcall.recvfrom =
 	kernel.function("compat_sys_socketcall").call ?
 {
 	if ($call != %{ SYS_RECVFROM %}) next
-	s = user_int32(&@cast($args, "unsigned int")[0])
+	s = user_int(&@cast($args, "unsigned int")[0])
 	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	len = user_uint32(&@cast($args, "unsigned int")[2])
 	flags = user_uint32(&@cast($args, "unsigned int")[3])
@@ -1182,7 +1182,7 @@ probe syscall.compat_sys_recvmsg =
 {
 	if ($call != %{ SYS_RECVMSG %}) next;
 	name = "recvmsg"
-	s = user_int32(&@cast($args, "unsigned int")[0])
+	s = user_int(&@cast($args, "unsigned int")[0])
 	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
 	flags = user_uint32(&@cast($args, "unsigned int")[2])
 	flags_str = _msg_flags_str(flags)
