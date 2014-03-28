@@ -121,6 +121,7 @@ systemtap_session::systemtap_session ():
   listing_mode = false;
   listing_mode_vars = false;
   dump_probe_types = false;
+  dump_probe_aliases = false;
   dump_functions = false;
 
 #ifdef ENABLE_PROLOGUES
@@ -307,6 +308,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   listing_mode = other.listing_mode;
   listing_mode_vars = other.listing_mode_vars;
   dump_probe_types = other.dump_probe_types;
+  dump_probe_aliases = other.dump_probe_aliases;
   dump_functions = other.dump_functions;
 
   prologue_searching = other.prologue_searching;
@@ -1159,6 +1161,21 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	case LONG_OPT_DUMP_PROBE_TYPES:
 	  server_args.push_back ("--dump-probe-types");
 	  dump_probe_types = true;
+	  break;
+
+	case LONG_OPT_DUMP_PROBE_ALIASES:
+	  server_args.push_back ("--dump-probe-aliases");
+	  suppress_warnings = true;
+	  dump_probe_aliases = true;
+	  last_pass = 1;
+	  if (have_script)
+	    {
+	      cerr << _("Only one script can be given on the command line.")
+		   << endl;
+	      return 1;
+	    }
+	  cmdline_script = string("probe begin {}");
+	  have_script = true;
 	  break;
 
 	case LONG_OPT_DUMP_FUNCTIONS:

@@ -41,6 +41,7 @@ struct option stap_long_options[] = {
   { "tmpdir",                      required_argument, NULL, LONG_OPT_TMPDIR },
   { "download-debuginfo",          optional_argument, NULL, LONG_OPT_DOWNLOAD_DEBUGINFO },
   { "dump-probe-types",            no_argument,       NULL, LONG_OPT_DUMP_PROBE_TYPES },
+  { "dump-probe-aliases",          no_argument,       NULL, LONG_OPT_DUMP_PROBE_ALIASES },
   { "dump-functions",              no_argument,       NULL, LONG_OPT_DUMP_FUNCTIONS },
   { "privilege",                   required_argument, NULL, LONG_OPT_PRIVILEGE },
   { "suppress-handler-errors",     no_argument,       NULL, LONG_OPT_SUPPRESS_HANDLER_ERRORS },

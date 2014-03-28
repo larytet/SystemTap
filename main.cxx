@@ -697,7 +697,36 @@ passes_0_4 (systemtap_session &s)
       rc ++;
     }
 
-  if (rc == 0 && s.last_pass == 1)
+  // Dump a list of probe aliases picked up, if requested
+  if (s.dump_probe_aliases)
+    {
+      set<string> aliases;
+      vector<stapfile*>::const_iterator file;
+      for (file  = s.library_files.begin();
+           file != s.library_files.end(); ++file)
+        {
+          vector<probe_alias*>::const_iterator alias;
+          for (alias  = (*file)->aliases.begin();
+               alias != (*file)->aliases.end(); ++alias)
+            {
+              stringstream ss;
+              (*alias)->printsig(ss);
+              string str = ss.str();
+              if (!s.verbose && startswith(str, "_"))
+                continue;
+              aliases.insert(str);
+            }
+        }
+
+      set<string>::iterator alias;
+      for (alias  = aliases.begin();
+           alias != aliases.end(); ++alias)
+        {
+          cout << *alias << endl;
+        }
+    }
+  // Dump the parse tree if this is the last pass
+  else if (rc == 0 && s.last_pass == 1)
     {
       cout << _("# parse tree dump") << endl;
       s.user_file->print (cout);

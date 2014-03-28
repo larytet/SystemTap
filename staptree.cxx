@@ -1332,7 +1332,7 @@ void probe_alias::printsig (ostream& o) const
       o << (i>0 ? " = " : "");
       alias_names[i]->print (o);
     }
-  o << " = ";
+  o << (epilogue_style ? " += " : " = ");
   for (unsigned i=0; i<locations.size(); i++)
     {
       if (i > 0) o << ", ";
