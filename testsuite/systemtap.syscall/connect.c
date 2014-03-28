@@ -88,7 +88,7 @@ int main()
 {
     int s, fd_null;
     struct sockaddr_in sin1, sin2, sin4;
-    pid_t pid;
+    pid_t pid = 0;
 
     /* initialize sockaddr's */
     sin1.sin_family = AF_INET;
@@ -106,7 +106,6 @@ int main()
     sin4.sin_addr.s_addr = htonl(0x0AFFFEFD);
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
 
     connect(-1, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (-1, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EBADF)
@@ -149,8 +148,9 @@ int main()
 
     close(fd_null);
     //staptest// close (NNNN) = 0
-
-    (void)kill(pid, SIGKILL);		/* kill server */
+    
+    if (pid > 0)
+	(void)kill(pid, SIGKILL);	/* kill server */
     //staptest// kill (NNNN, SIGKILL) = 0
 
     return 0;

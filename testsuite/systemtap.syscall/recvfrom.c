@@ -92,7 +92,7 @@ int main()
 {
     int s, fd_null;
     struct sockaddr_in sin1, sin2, sin4, from;
-    pid_t pid;
+    pid_t pid = 0;
     char buf[1024];
     fd_set rdfds;
     struct timeval timeout;
@@ -232,7 +232,8 @@ int main()
     close(fd_null);
     //staptest// close (NNNN) = 0
 
-    (void)kill(pid, SIGKILL);		/* kill server */
+    if (pid > 0)
+	(void)kill(pid, SIGKILL);	/* kill server */
     //staptest// kill (NNNN, SIGKILL) = 0
 
     return 0;

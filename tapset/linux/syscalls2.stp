@@ -1089,14 +1089,14 @@ probe __syscall.recvfrom.return = kernel.function("sys_recvfrom").return ?
 probe syscall.recvmmsg = kernel.function("sys_recvmmsg").call ?
 {
 	name = "recvmmsg"
-	s = $fd
+	s = __int32($fd)
 	mmsg_uaddr = $mmsg
-	vlen = $vlen
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
+	vlen = __uint32($vlen)
+	flags = __uint32($flags)
+	flags_str = _msg_flags_str(flags)
 	timeout_uaddr = $timeout
-	argstr = sprintf("%d, %p, %d, %s, %s", $fd, $mmsg, $vlen,
-			 _msg_flags_str($flags),
+	argstr = sprintf("%d, %p, %u, %s, %s", s, $mmsg, vlen,
+			 _msg_flags_str(flags),
 			 _struct_timespec_u($timeout, 1))
 }
 probe syscall.recvmmsg.return = kernel.function("sys_recvmmsg").return ?
@@ -1110,23 +1110,24 @@ probe syscall.recvmmsg.return = kernel.function("sys_recvmmsg").return ?
 # long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
 #			   unsigned vlen, unsigned int flags,
 #			   struct compat_timespec __user *timeout)
-
+#
 probe syscall.compat_recvmmsg = kernel.function("compat_sys_recvmmsg").call ?
 {
-	name = "compat_recvmmsg"
-	s = $fd
+	name = "recvmmsg"
+	s = __int32($fd)
 	mmsg_uaddr = $mmsg
-	vlen = $vlen
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
+	vlen = __uint32($vlen)
+	flags = __uint32($flags)
+	flags_str = _msg_flags_str(flags)
 	timeout_uaddr = $timeout
-	argstr = sprintf("%d, %p, %d, %s, %s", $fd, $mmsg, $vlen,
-			 _msg_flags_str($flags),
+	argstr = sprintf("%d, %p, %u, %s, %s", s, $mmsg, vlen,
+			 _msg_flags_str(flags),
 			 _struct_compat_timespec_u($timeout, 1))
 }
-probe syscall.compat_recvmmsg.return = kernel.function("compat_sys_recvmmsg").return ?
+probe syscall.compat_recvmmsg.return =
+	kernel.function("compat_sys_recvmmsg").return ?
 {
-	name = "compat_recvmmsg"
+	name = "recvmmsg"
 	retstr = return_str(1, $return)
 }
 
@@ -1138,15 +1139,26 @@ probe syscall.compat_recvmmsg.return = kernel.function("compat_sys_recvmmsg").re
 #
 probe syscall.recvmsg = kernel.function("sys_recvmsg").call ?
 {
+%( CONFIG_COMPAT == "y" %?
+	# Avoid probe hits from compat_sys_socketcall() calling
+	# compat_sys_recvmsg(), which sometimes calls
+	# sys_recvmsg(). We could call __syscall_gate2() here with
+	# NR_recvmsg and NR_socketcall, but all we really need to
+	# check is that we're not in a compat task.
+	if (%{ _stp_is_compat_task() %}) next
+%)
 	name = "recvmsg"
-	s = $fd
+	s = __int32($fd)
 	msg_uaddr = $msg
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
-	argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
+	flags = __uint32($flags)
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %s", s, $msg, _msg_flags_str(flags))
 }
 probe syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?
 {
+%( CONFIG_COMPAT == "y" %?
+	if (%{ _stp_is_compat_task() %}) next
+%)
 	name = "recvmsg"
 	retstr = return_str(1, $return)
 }
@@ -1156,18 +1168,31 @@ probe syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?
 #				struct compat_msghdr __user *msg,
 #				unsigned int flags)
 #
-probe syscall.compat_sys_recvmsg = kernel.function("compat_sys_recvmsg").call ?
+# On all tested kernels/architectures, the compat recvmsg() syscall
+# goes through compat_sys_socketcall(). compat_sys_socketcall() then
+# calls an inlined version of compat_sys_recvmsg() on some
+# architectures (like ppc64). So, the only reliable thing to do here
+# is just probe compat_sys_socketcall().
+#
+# Note that this probe should have been either called
+# 'syscall.compat_recvmsg' or just merged with 'syscall.recvmsg'.
+#
+probe syscall.compat_sys_recvmsg =
+	kernel.function("compat_sys_socketcall").call ?
 {
-	name = "compat_sys_recvmsg"
-	s = $fd
-	msg_uaddr = $msg
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
-	argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
+	if ($call != %{ SYS_RECVMSG %}) next;
+	name = "recvmsg"
+	s = user_int32(&@cast($args, "unsigned int")[0])
+	msg_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	flags = user_uint32(&@cast($args, "unsigned int")[2])
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
-probe syscall.compat_sys_recvmsg.return = kernel.function("compat_sys_recvmsg").return ?
+probe syscall.compat_sys_recvmsg.return =
+ 	kernel.function("compat_sys_socketcall").return ?
 {
-	name = "compat_sys_recvmsg"
+	if ($call != %{ SYS_RECVMSG %}) next;
+	name = "recvmsg"
 	retstr = return_str(1, $return)
 }
 

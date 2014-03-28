@@ -1,4 +1,4 @@
-/* COVERAGE: recv */
+/* COVERAGE: recvmsg */
 
 #include <stdio.h>
 #include <unistd.h>
@@ -13,18 +13,42 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/syscall.h>
+#include <limits.h>
 
-static int sfd;			/* shared between start_server and do_child */
+static int sfd, ufd;	/* shared between start_server and do_child */
+
+#define TM	"123456789+"
+
+void sender(int fd)
+{
+	struct msghdr mh;
+	struct iovec iov[1];
+
+	memset(&mh, 0x00, sizeof(mh));
+
+	/* set up msghdr */
+	iov[0].iov_base = TM;
+	iov[0].iov_len = sizeof(TM);
+	mh.msg_iov = iov;
+	mh.msg_iovlen = 1;
+	mh.msg_flags = 0;
+	mh.msg_control = NULL;
+	mh.msg_controllen = 0;
+
+	/* do it */
+	(void)sendmsg(fd, &mh, 0);
+}
 
 void do_child()
 {
     struct sockaddr_in fsin;
+    struct sockaddr_un fsun;
     fd_set afds, rfds;
     int nfds, cc, fd;
-    char c;
 
     FD_ZERO(&afds);
     FD_SET(sfd, &afds);
+    FD_SET(ufd, &afds);
 
     nfds = getdtablesize();
 
@@ -38,6 +62,7 @@ void do_child()
 		   (struct timeval *)0) < 0) {
 	    if (errno != EINTR)
 		exit(1);
+	    continue;
 	}
 	if (FD_ISSET(sfd, &rfds)) {
 	    int newfd;
@@ -49,9 +74,22 @@ void do_child()
 	    /* send something back */
 	    (void)write(newfd, "XXXXX\n", 6);
 	}
+	if (FD_ISSET(ufd, &rfds)) {
+	    int newfd;
+
+	    fromlen = sizeof(fsun);
+	    newfd = accept(ufd, (struct sockaddr *)&fsun, &fromlen);
+	    if (newfd >= 0)
+		FD_SET(newfd, &afds);
+	}
 	for (fd = 0; fd < nfds; ++fd) {
-	    if (fd != sfd && FD_ISSET(fd, &rfds)) {
-		if ((cc = read(fd, &c, 1)) == 0) {
+	    if (fd != sfd && fd != ufd && FD_ISSET(fd, &rfds)) {
+		char rbuf[1024];
+
+		cc = read(fd, rbuf, sizeof(rbuf));
+		if (cc && rbuf[0] == 'R')
+		    sender(fd);
+		if (cc == 0 || (cc < 0 && errno != EINTR)) {
 		    (void)close(fd);
 		    FD_CLR(fd, &afds);
 		}
@@ -61,17 +99,25 @@ void do_child()
 }
 
 pid_t
-start_server(struct sockaddr_in *sin0)
+start_server(struct sockaddr_in *ssin, struct sockaddr_un *ssun)
 {
-    struct sockaddr_in sin1 = *sin0;
     pid_t pid;
 
     sfd = socket(PF_INET, SOCK_STREAM, 0);
     if (sfd < 0)
 	return -1;
-    if (bind(sfd, (struct sockaddr *)&sin1, sizeof(sin1)) < 0)
+    if (bind(sfd, (struct sockaddr *)ssin, sizeof(*ssin)) < 0)
 	return -1;
     if (listen(sfd, 10) < 0)
+	return -1;
+
+    /* set up UNIX-domain socket */
+    ufd = socket(PF_UNIX, SOCK_STREAM, 0);
+    if (ufd < 0)
+	return -1;
+    if (bind(ufd, (struct sockaddr *)ssun, sizeof(*ssun)))
+	return -1;
+    if (listen(ufd, 10) < 0)
 	return -1;
 
     switch (pid = fork()) {
@@ -90,22 +136,30 @@ start_server(struct sockaddr_in *sin0)
 int main()
 {
     int s, fd_null;
-    struct sockaddr_in sin1, sin2, sin4;
+    struct sockaddr_in sin1, sin2, sin4, from;
     pid_t pid = 0;
     char buf[1024];
     fd_set rdfds;
     struct timeval timeout;
-
-    /* On several platforms, glibc substitutes recvfrom() for
-     * recv(). We could assume that if SYS_recv is defined, we'll
-     * actually use recv(), but that isn't true on all platforms. So,
-     * we'll just accept recv() or recvfrom(). */
+    socklen_t fromlen;
+    struct msghdr msgdat;
+    struct iovec iov;
+    struct sockaddr_un sun1;
+    char tmpsunpath[1024];
 
     /* initialize sockaddr's */
     sin1.sin_family = AF_INET;
     sin1.sin_port = htons((getpid() % 32768) + 11000);
     sin1.sin_addr.s_addr = INADDR_ANY;
-    pid = start_server(&sin1);
+
+    (void)strcpy(tmpsunpath, "udsockXXXXXX");
+    s = mkstemp(tmpsunpath);
+    close(s);
+    unlink(tmpsunpath);
+    sun1.sun_family = AF_UNIX;
+    strcpy(sun1.sun_path, tmpsunpath);
+
+    pid = start_server(&sin1, &sun1);
 
     sin2.sin_family = AF_INET;
     /* this port must be unused! */
@@ -115,14 +169,26 @@ int main()
     sin4.sin_family = 47;	/* bogus address family */
     sin4.sin_port = 0;
     sin4.sin_addr.s_addr = htonl(0x0AFFFEFD);
+    fromlen = sizeof(from);
+
+    iov.iov_base = buf;
+    iov.iov_len = sizeof(buf);
+    msgdat.msg_name = &from;
+    msgdat.msg_namelen = fromlen;
+    msgdat.msg_iov = &iov;
+    msgdat.msg_iovlen = 1;
+    msgdat.msg_control = NULL;
+    msgdat.msg_controllen = 0;
+    msgdat.msg_flags = 0;
 
     fd_null = open("/dev/null", O_WRONLY);
+    //staptest// open ("/dev/null", O_WRONLY) = NNNN
 
-    recv(-1, buf, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (-1, XXXX, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = -NNNN (EBADF)
+    recvmsg(-1, &msgdat, 0);
+    //staptest// recvmsg (-1, XXXX, 0x0) = -NNNN (EBADF)
 
-    recv(fd_null, buf, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = -NNNN (ENOTSOCK)
+    recvmsg(fd_null, &msgdat, 0);
+    //staptest// recvmsg (NNNN, XXXX, 0x0) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_STREAM, 0);
     //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
@@ -130,7 +196,7 @@ int main()
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
-    /* Wait for something to be readable, else we won't detect EFAULT */
+    /* Wait for something to be readable */
     FD_ZERO(&rdfds);
     FD_SET(s, &rdfds);
     timeout.tv_sec = 2;
@@ -138,11 +204,8 @@ int main()
     select(s + 1, &rdfds, 0, 0, &timeout);
     //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
 
-    recv(s, (void *)-1, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (NNNN, 0x[f]+, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = -NNNN (EFAULT)
-
-    recv(s, buf, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = 6
+    recvmsg(s, (struct msghdr *)-1, 0);
+    //staptest// recvmsg (NNNN, 0x[f]+, 0x0) = -NNNN (EFAULT)
 
     close(s);
     //staptest// close (NNNN) = 0
@@ -161,15 +224,25 @@ int main()
     select(s + 1, &rdfds, 0, 0, &timeout);
     //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
 
-    recv(s, buf, sizeof(buf), -1);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX[[[[, 0x0, 0x0]]]]?) = -NNNN (EINVAL)
+    // Note that the exact failure return value can differ here, so
+    // we'll just ignore it.
+    recvmsg(s, &msgdat, -1);
+    //staptest// recvmsg (NNNN, XXXX, MSG_[^ ]+|XXXX) = -NNNN
 
-    recv(s, buf, (size_t)-1, 0);
-#if __WORDSIZE == 64
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 18446744073709551615, 0x0[[[[, 0x0, 0x0]]]]?) = 6
-#else
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 4294967295, 0x0[[[[, 0x0, 0x0]]]]?) = 6
-#endif
+    close(s);
+    //staptest// close (NNNN) = 0
+
+    s = socket(PF_UNIX, SOCK_STREAM, 0);
+    //staptest// socket (PF_LOCAL, SOCK_STREAM, 0) = NNNN
+
+    connect(s, (struct sockaddr *)&sun1, sizeof(sun1));
+    //staptest// connect (NNNN, {AF_UNIX, "[^"]+"}, 110) = 0
+
+    write(s, "R", 1);
+    //staptest// write (NNNN, "R", 1) = 1
+
+    recvmsg(s, &msgdat, 0);
+    //staptest// recvmsg (NNNN, XXXX, 0x0) = 11
 
     close(s);
     //staptest// close (NNNN) = 0
@@ -180,6 +253,8 @@ int main()
     if (pid > 0)
 	(void)kill(pid, SIGKILL);	/* kill server */
     //staptest// kill (NNNN, SIGKILL) = 0
+
+    (void)unlink(tmpsunpath);
 
     return 0;
 }

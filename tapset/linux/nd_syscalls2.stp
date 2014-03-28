@@ -1191,11 +1191,64 @@ probe __nd_syscall.socketcall.return =
 	kprobe.function("sys_socketcall").return ?,
 	kprobe.function("compat_sys_socketcall").return ?
 {
-	if (@entry(int_arg(1)) != %{ SYS_RECVFROM %}) next;
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_RECVFROM %}) next;
 }
 probe __nd_syscall.recvfrom.return = kprobe.function("sys_recvfrom").return ?
 {
 	@__syscall_gate(%{ __NR_recvfrom %})
+}
+
+# recvmmsg ___________________________________________________
+#
+# long sys_recvmmsg(int fd, struct mmsghdr __user *mmsg,
+#		    unsigned int vlen, unsigned int flags,
+#		    struct timespec __user *timeout)
+#
+probe nd_syscall.recvmmsg = kprobe.function("sys_recvmmsg").call ?
+{
+	name = "recvmmsg"
+	asmlinkage()
+	s = int_arg(1)
+	mmsg_uaddr = pointer_arg(2)
+	vlen = uint_arg(3)
+	flags = uint_arg(4)
+	flags_str = _msg_flags_str(flags)
+	timeout_uaddr = pointer_arg(5)
+	argstr = sprintf("%d, %p, %u, %s, %s", s, mmsg_uaddr, vlen,
+			 _msg_flags_str(flags),
+			 _struct_timespec_u(timeout_uaddr, 1))
+}
+probe nd_syscall.recvmmsg.return = kprobe.function("sys_recvmmsg").return ?
+{
+	name = "recvmmsg"
+	retstr = returnstr(1)
+}
+
+# compat_recvmmsg ___________________________________________________
+#
+# long compat_sys_recvmmsg(int fd, struct compat_mmsghdr __user *mmsg,
+#			   unsigned vlen, unsigned int flags,
+#			   struct compat_timespec __user *timeout)
+#
+probe nd_syscall.compat_recvmmsg = kprobe.function("compat_sys_recvmmsg").call ?
+{
+	name = "recvmmsg"
+	asmlinkage()
+	s = int_arg(1)
+	mmsg_uaddr = pointer_arg(2)
+	vlen = uint_arg(3)
+	flags = uint_arg(4)
+	flags_str = _msg_flags_str(flags)
+	timeout_uaddr = pointer_arg(5)
+	argstr = sprintf("%d, %p, %u, %s, %s", s, mmsg_uaddr, vlen,
+			 _msg_flags_str(flags),
+			 _struct_compat_timespec_u(timeout_uaddr, 1))
+}
+probe nd_syscall.compat_recvmmsg.return =
+	kprobe.function("compat_sys_recvmmsg").return ?
+{
+	name = "recvmmsg"
+	retstr = returnstr(1)
 }
 
 # recvmsg ____________________________________________________
@@ -1204,14 +1257,17 @@ probe __nd_syscall.recvfrom.return = kprobe.function("sys_recvfrom").return ?
 #		 struct msghdr __user *msg,
 #		 unsigned int flags)
 #
-probe nd_syscall.recvmsg = kprobe.function("sys_recvmsg") ?
+probe nd_syscall.recvmsg = kprobe.function("sys_recvmsg").call ?
 {
+%( CONFIG_COMPAT == "y" %?
+	# Avoid probe hits from compat_sys_socketcall() calling
+	# compat_sys_recvmsg(), which sometimes calls
+	# sys_recvmsg(). We could call __syscall_gate2() here with
+	# NR_recvmsg and NR_socketcall, but all we really need to
+	# check is that we're not in a compat task.
+	if (%{ _stp_is_compat_task() %}) next
+%)
 	name = "recvmsg"
-	// s = $fd
-	// msg_uaddr = $msg
-	// flags = $flags
-	// flags_str = _msg_flags_str($flags)
-	// argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
 	asmlinkage()
 	s = int_arg(1)
 	msg_uaddr = pointer_arg(2)
@@ -1221,6 +1277,9 @@ probe nd_syscall.recvmsg = kprobe.function("sys_recvmsg") ?
 }
 probe nd_syscall.recvmsg.return = kprobe.function("sys_recvmsg").return ?
 {
+%( CONFIG_COMPAT == "y" %?
+	if (%{ _stp_is_compat_task() %}) next
+%)
 	name = "recvmsg"
 	retstr = returnstr(1)
 }
@@ -1231,22 +1290,32 @@ probe nd_syscall.recvmsg.return = kprobe.function("sys_recvmsg").return ?
 #				struct compat_msghdr __user *msg,
 #				unsigned int flags)
 #
-probe nd_syscall.compat_sys_recvmsg = kprobe.function("compat_sys_recvmsg") ?
+# On all tested kernels/architectures, the compat recvmsg() syscall
+# goes through compat_sys_socketcall(). compat_sys_socketcall() then
+# calls an inlined version of compat_sys_recvmsg() on some
+# architectures (like ppc64). So, the only reliable thing to do here
+# is just probe compat_sys_socketcall().
+#
+# Note that this probe should have been either called
+# 'syscall.compat_recvmsg' or just merged with 'syscall.recvmsg'.
+#
+probe nd_syscall.compat_sys_recvmsg =
+	kprobe.function("compat_sys_socketcall").call ?
 {
-	name = "compat_sys_recvmsg"
-	// s = $fd
-	// msg_uaddr = $msg
-	// flags = $flags
-	// argstr = sprintf("%d, %p, %s", $fd, $msg, _msg_flags_str($flags))
 	asmlinkage()
-	s = int_arg(1)
-	msg_uaddr = pointer_arg(2)
-	flags = uint_arg(3)
+	if (int_arg(1) != %{ SYS_RECVMSG %}) next;
+	name = "recvmsg"
+	__args = pointer_arg(2)
+	s = user_int32(&@cast(__args, "unsigned int")[0])
+	msg_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
+	flags = user_uint32(&@cast(__args, "unsigned int")[2])
 	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
-probe nd_syscall.compat_sys_recvmsg.return = kprobe.function("compat_sys_recvmsg").return ?
+probe nd_syscall.compat_sys_recvmsg.return =
+	kprobe.function("compat_sys_socketcall").return ?
 {
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_RECVMSG %}) next;
 	name = "compat_sys_recvmsg"
 	retstr = returnstr(1)
 }
