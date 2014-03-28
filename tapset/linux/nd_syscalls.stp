@@ -39,11 +39,6 @@
 probe nd_syscall.accept = __nd_syscall.accept4 ?, __nd_syscall.accept ?
 {
 	name = "accept"
-	// sockfd = $fd
-	// addr_uaddr = $upeer_sockaddr
-	// addrlen_uaddr = $upeer_addrlen
-	// argstr = sprintf("%d, %p, %p, %s", $fd, $upeer_sockaddr,
-	//	$upeer_addrlen, flags_str)
 	asmlinkage()
 	sockfd = int_arg(1)
 	addr_uaddr = pointer_arg(2)
@@ -78,10 +73,6 @@ probe nd_syscall.accept.return = kprobe.function("sys_accept4").return ?,
 probe nd_syscall.access = kprobe.function("sys_access") ?
 {
 	name = "access"
-	// pathname = user_string($filename)
-	// mode = $mode
-	// mode_str = _access_mode_str($mode)
-	// argstr = sprintf("%s, %s", user_string_quoted($filename), mode_str)
 	asmlinkage()
 	pathname = user_string_quoted(pointer_arg(1))
 	mode = int_arg(2)
@@ -99,8 +90,6 @@ probe nd_syscall.access.return = kprobe.function("sys_access").return ?
 probe nd_syscall.acct = kprobe.function("sys_acct") ?
 {
 	name = "acct"
-	// filename = user_string($name)
-	// argstr = user_string_quoted($name)
 	asmlinkage()
 	filename = user_string_quoted(pointer_arg(1))
 	argstr = user_string_quoted(pointer_arg(1))
@@ -121,16 +110,6 @@ probe nd_syscall.acct.return = kprobe.function("sys_acct").return ?
 probe nd_syscall.add_key = kprobe.function("sys_add_key") ?
 {
 	name = "add_key"
-	// type_uaddr = $_type
-	// description_auddr = $_description
-	// payload_uaddr = $_payload
-	// plen = $plen
-	// ringid = $ringid
-	// argstr = sprintf("%s, %s, %s, %d, %d",
-	// 		user_string_quoted($_type),
-	// 		user_string_quoted($_description),
-	// 		text_strn(user_string($_payload), syscall_string_trunc, 1),
-	// 		$plen, $ringid)
 	asmlinkage()
 	type_uaddr = pointer_arg(1)
 	description_uaddr = pointer_arg(2)
@@ -168,21 +147,18 @@ probe nd_syscall.adjtimex = kprobe.function("sys_adjtimex") ?
 	* buf_time_tv_usec = __uget_timex_m($txc_p, 10)
 	* buf_tick         = __uget_timex_m($txc_p, 11)
 	*/
-	// argstr = sprintf("%p", $txc_p)
 	asmlinkage()
 	argstr = sprintf("%p", pointer_arg(1))
 }
 probe nd_syscall.adjtimex.return = kprobe.function("sys_adjtimex").return ?
 {
 	name = "adjtimex"
-	// retstr = _adjtimex_return_str($return)
 	retstr = _adjtimex_return_str(returnval())
 }
 # long compat_sys_adjtimex(struct compat_timex __user *utp)
 probe nd_syscall.compat_adjtimex = kprobe.function("compat_sys_adjtimex") ?
 {
 	name = "compat_adjtimex"
-	// argstr = sprintf("%p", $utp)
 	asmlinkage()
 	argstr = sprintf("%p", pointer_arg(1))
 }
@@ -200,8 +176,6 @@ probe nd_syscall.alarm = kprobe.function("sys32_alarm") ?,
                          kprobe.function("sys_alarm") ?
 {
 	name = "alarm"
-	// seconds = $seconds
-	// argstr = sprint($seconds)
 	asmlinkage()
 	seconds = uint_arg(1)
 	argstr = sprint(seconds)
@@ -218,12 +192,6 @@ probe nd_syscall.alarm.return = kprobe.function("sys32_alarm").return ?,
 probe nd_syscall.bdflush = kprobe.function("sys_bdflush") ?
 {
 	name = "bdflush"
-	// func = $func
-	// data = $data
-	// if (($func >= 2) && ($func % 2 == 0))
-	// 	data_str = sprintf("%p", $data)
-	// else
-	// 	data_str = sprintf("%d", $data)
 	asmlinkage()
 	func = int_arg(1)
 	data = long_arg(2)
@@ -244,10 +212,6 @@ probe nd_syscall.bdflush.return = kprobe.function("sys_bdflush").return ?
 probe nd_syscall.bind = kprobe.function("sys_bind") ?
 {
 	name = "bind"
-	// sockfd = $fd
-	// my_addr_uaddr = $umyaddr
-	// addrlen = $addrlen
-	// argstr = sprintf("%d, %s, %d", $fd, _struct_sockaddr_u($umyaddr, $addrlen), $addrlen)
 	asmlinkage()
 	sockfd = int_arg(1)
 	my_addr_uaddr = pointer_arg(2)
@@ -267,7 +231,6 @@ probe nd_syscall.brk = kprobe.function("ia64_brk") ?,
                        kprobe.function("sys_brk") ?
 {
 	name = "brk"
-	// brk = $brk
 	asmlinkage()
 	brk = ulong_arg(1)
 	argstr = sprintf("%p", brk)
@@ -295,9 +258,6 @@ probe nd_syscall.brk.return = kprobe.function("ia64_brk").return ?,
 probe nd_syscall.capget = kprobe.function("sys_capget") ?
 {
 	name = "capget"
-	// header_uaddr = $header
-	// data_uaddr = $dataptr
-	// argstr = sprintf("%p, %p", $header, $dataptr)
 	asmlinkage()
 	header_uaddr = pointer_arg(1)
 	data_uaddr = pointer_arg(2)
@@ -324,9 +284,6 @@ probe nd_syscall.capget.return = kprobe.function("sys_capget").return ?
 probe nd_syscall.capset = kprobe.function("sys_capset") ?
 {
 	name = "capset"
-	// header_uaddr = $header
-	// data_uaddr = $data
-	// argstr = sprintf("%p, %p", $header, $data)
 	asmlinkage()
 	header_uaddr = pointer_arg(1)
 	data_uaddr = pointer_arg(2)
@@ -343,8 +300,6 @@ probe nd_syscall.capset.return = kprobe.function("sys_capset").return ?
 probe nd_syscall.chdir = kprobe.function("sys_chdir") ?
 {
 	name = "chdir"
-	// path = user_string($filename)
-	// argstr = user_string_quoted($filename)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	argstr = user_string_quoted(pointer_arg(1))
@@ -360,9 +315,6 @@ probe nd_syscall.chdir.return = kprobe.function("sys_chdir").return ?
 probe nd_syscall.chmod = kprobe.function("sys_chmod") ?
 {
 	name = "chmod"
-	// path = user_string($filename)
-	// mode = $mode
-	// argstr = sprintf("%s, %#o", user_string_quoted($filename), mode)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	mode = uint_arg(2)
@@ -379,10 +331,6 @@ probe nd_syscall.chmod.return = kprobe.function("sys_chmod").return ?
 probe nd_syscall.chown = kprobe.function("sys_chown") ?
 {
 	name = "chown"
-	// path = user_string($filename)
-	// owner = __int32($user)
-	// group = __int32($group)
-	// argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	owner = __int32(uint_arg(2))
@@ -401,10 +349,6 @@ probe nd_syscall.chown.return = kprobe.function("sys_chown").return ?
 probe nd_syscall.chown16 = kprobe.function("sys_chown16") ?
 {
 	name = "chown16"
-	// path = user_string($filename)
-	// owner = __short($user)
-	// group = __short($group)
-	// argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	owner = __short(uint_arg(2))
@@ -422,8 +366,6 @@ probe nd_syscall.chown16.return = kprobe.function("sys_chown16").return ?
 probe nd_syscall.chroot = kprobe.function("sys_chroot") ?
 {
 	name = "chroot"
-	// path = user_string($filename)
-	// argstr = user_string_quoted($filename)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	argstr = user_string_quoted(pointer_arg(1))
@@ -442,10 +384,6 @@ probe nd_syscall.clock_getres = kprobe.function("compat_clock_getres") ?,
                                 kprobe.function("sys_clock_getres") ?
 {
 	name = "clock_getres"
-	// clk_id = $which_clock
-	// clk_id_str = _get_wc_str($which_clock)
-	// res_uaddr = $tp
-	// argstr = sprintf("%s, %p", _get_wc_str($which_clock), $tp)
 	asmlinkage()
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
@@ -465,9 +403,6 @@ probe nd_syscall.clock_getres.return = kprobe.function("compat_clock_getres").re
 probe nd_syscall.clock_gettime = kprobe.function("sys_clock_gettime") ?
 {
 	name = "clock_gettime"
-	// clk_id = $which_clock
-	// clk_id_str = _get_wc_str($which_clock)
-	// argstr = sprintf("%s, %p", _get_wc_str($which_clock), $tp)
 	asmlinkage()
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
@@ -489,12 +424,6 @@ probe nd_syscall.clock_nanosleep = kprobe.function("sys_clock_nanosleep").call
 {
 	@__syscall_gate(%{ __NR_clock_nanosleep %})
 	name = "clock_nanosleep"
-	// if ($flags == 1)
-	//	flag_str = "TIMER_ABSTIME"
-	// else
-	//	flag_str = sprintf("0x%x", $flags)
-	// argstr = sprintf("%s, %s, %s, %p", _get_wc_str($which_clock), flag_str,
-	//		_struct_timespec_u($rqtp, 1), $rmtp)
 	asmlinkage()
 	flags = int_arg(2)
 	if (flags == 1)
@@ -520,12 +449,6 @@ probe nd_syscall.compat_clock_nanosleep = kprobe.function("compat_clock_nanoslee
                                           kprobe.function("compat_sys_clock_nanosleep").call ?
 {
 	name = "clock_nanosleep"
-	// if ($flags == 1)
-	//	flag_str = "TIMER_ABSTIME"
-	// else
-	//	flag_str = sprintf("0x%x", $flags)
-	// argstr = sprintf("%s, %s, %s, %p", _get_wc_str($which_clock), flag_str,
-	//		_struct_compat_timespec_u($rqtp, 1), $rmtp)
 	asmlinkage()
 	flags = int_arg(2)
 	if (flags == 1)
@@ -557,10 +480,6 @@ probe nd_syscall.clock_settime = __nd_syscall.clock_settime,
 probe __nd_syscall.clock_settime = kprobe.function("sys_clock_settime").call
 {
 	@__syscall_gate(%{ __NR_clock_settime %})
-	// clk_id = $which_clock
-	// clk_id_str = _get_wc_str($which_clock)
-	// tp_uaddr = $tp
-	// argstr = sprintf("%s, %s", clk_id_str, _struct_timespec_u($tp, 1))
 	asmlinkage()
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
@@ -570,11 +489,6 @@ probe __nd_syscall.clock_settime = kprobe.function("sys_clock_settime").call
 probe __nd_syscall.compat_clock_settime =
 	kprobe.function("compat_sys_clock_settime").call ?
 {
-	// clk_id = $which_clock
-	// clk_id_str = _get_wc_str($which_clock)
-	// tp_uaddr = $tp
-	// argstr = sprintf("%s, %s", clk_id_str,
-	//		 _struct_compat_timespec_u($tp, 1))
 	asmlinkage()
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
@@ -695,7 +609,6 @@ probe nd_syscall.close = kprobe.function("sys_close") ?
 {
 	@__syscall_compat_gate(%{ __NR_close %}, %{ __NR_compat_close %})
 	name = "close"
-	// fd = $fd
 	asmlinkage()
 	fd = int_arg(1)
 	argstr = sprint(fd)
@@ -711,10 +624,6 @@ probe nd_syscall.close.return = kprobe.function("sys_close").return ?
 probe nd_syscall.connect = kprobe.function("sys_connect") ?
 {
 	name = "connect"
-	// sockfd = $fd
-	// serv_addr_uaddr = $uservaddr
-	// addrlen = $addrlen
-	// argstr = sprintf("%d, %s, %d", $fd, _struct_sockaddr_u($uservaddr, $addrlen), $addrlen)
 	asmlinkage()
 	sockfd = int_arg(1)
 	serv_addr_uaddr = pointer_arg(2)
@@ -733,9 +642,6 @@ probe nd_syscall.connect.return = kprobe.function("sys_connect").return ?
 probe nd_syscall.creat = kprobe.function("sys_creat") ?
 {
 	name = "creat"
-	// mode = $mode
-	// pathname = user_string($pathname)
-	// argstr = sprintf("%s, %#o", user_string_quoted($pathname), $mode)
 	asmlinkage()
 	mode = int_arg(2)
 	pathname = user_string_quoted(pointer_arg(1))
@@ -752,9 +658,6 @@ probe nd_syscall.creat.return = kprobe.function("sys_creat").return ?
 probe nd_syscall.delete_module = kprobe.function("sys_delete_module") ?
 {
 	name = "delete_module"
-	// name_user = user_string($name_user)
-	// flags = $flags
-	// argstr = sprintf("%s, %s", user_string_quoted($name_user), _module_flags_str($flags))
 	asmlinkage()
 	name_user = user_string_quoted(pointer_arg(1))
 	flags = uint_arg(2)
@@ -771,8 +674,6 @@ probe nd_syscall.delete_module.return = kprobe.function("sys_delete_module").ret
 probe nd_syscall.dup = kprobe.function("sys_dup") ?
 {
 	name = "dup"
-	// oldfd = $fildes
-	// argstr = sprint($fildes)
 	asmlinkage()
 # 'old_fd' should have been 'oldfd.  Deprecate the old name.
 %(systemtap_v <= "1.4" %?
@@ -792,13 +693,6 @@ probe nd_syscall.dup.return = kprobe.function("sys_dup").return ?
 probe nd_syscall.dup2 = kprobe.function("sys_dup2")
 {
 	name = "dup2"
-	// oldfd = $oldfd
-	// newfd = $newfd
-	// # The dup2 syscall doesn't have a 'flags' argument. But, the
-	// # syscall.dup2 and syscall.dup3 probes used to be combined, so
-	// # both probes need a 'flags' variable.
-	// flags = 0
-	// argstr = sprintf("%d, %d", $oldfd, $newfd)
 	asmlinkage()
 	oldfd = int_arg(1)
 	newfd = int_arg(2)
@@ -820,10 +714,6 @@ probe nd_syscall.dup3 = kprobe.function("sys_dup3") ?
 {
 	@__syscall_compat_gate(%{ __NR_dup3 %}, %{ __NR_compat_dup3 %})
 	name = "dup3";
-	// oldfd = $oldfd
-	// newfd = $newfd
-	// flags = $flags
-	// argstr = sprintf("%d, %d, %s", $oldfd, $newfd, _dup3_flag_str(flags));
 	asmlinkage()
 	oldfd = int_arg(1)
 	newfd = int_arg(2)
@@ -846,8 +736,6 @@ probe nd_syscall.epoll_create = __nd_syscall.epoll_create1 !,
 }
 probe __nd_syscall.epoll_create1 = kprobe.function("sys_epoll_create1")
 {
-	// size = @defined($size) ? $size : 0;
-	// flags = @defined($flags) ? $flags : 0;
  	asmlinkage()
 	size = 0;
 	flags = int_arg(1)
@@ -862,8 +750,6 @@ probe __nd_syscall.epoll_create1 = kprobe.function("sys_epoll_create1")
 probe __nd_syscall.epoll_create = kprobe.function("sys_epoll_create")
 {
 	name = "epoll_create"
-	// size = $size
-	// argstr = sprint($size)
 	asmlinkage()
 	size = int_arg(1)
 	flags = 0
@@ -896,12 +782,6 @@ probe nd_syscall.epoll_ctl = kprobe.function("compat_sys_epoll_ctl") ?,
                              kprobe.function("sys_epoll_ctl") ?
 {
 	name = "epoll_ctl"
-	// epfd = $epfd
-	// eop = $op
-	// eop_str = _opoll_op_str($op)
-	// efd = $fd
-	// eevent_uaddr = $event
-	// eargstr = sprintf("%d, %s, %d, %p", $epfd, _opoll_op_str($op), $fd, $event)
 	asmlinkage()
 	epfd = int_arg(1)
 	op = int_arg(2)
@@ -934,7 +814,6 @@ probe nd_syscall.epoll_pwait = kprobe.function("compat_sys_epoll_pwait") ?,
 	name = "epoll_pwait"
 	asmlinkage()
 	argstr = sprintf("%d, %p, %d, %d, %p, %d",
-//		$epfd, $events, $maxevents, $timeout, $sigmask, $sigsetsize)
 		int_arg(1), pointer_arg(2), int_arg(3), int_arg(4), pointer_arg(5), ulong_arg(6))
 }
 probe nd_syscall.epoll_pwait.return = kprobe.function("compat_sys_epoll_pwait").return ?,
@@ -956,11 +835,6 @@ probe nd_syscall.epoll_wait = kprobe.function("compat_sys_epoll_wait") ?,
                               kprobe.function("sys_epoll_wait") ?
 {
 	name = "epoll_wait"
-	// epfd = $epfd
-	// events_uaddr = $events
-	// maxevents = $maxevents
-	// timeout = $timeout
-	// argstr = sprintf("%d, %p, %d, %d", $epfd, $events, $maxevents, $timeout)
 	asmlinkage()
 	epfd = int_arg(1)
 	events_uaddr = pointer_arg(2)
@@ -998,7 +872,6 @@ probe __nd_syscall.eventfd2 = kprobe.function("sys_eventfd2")
 probe __nd_syscall.eventfd = kprobe.function("sys_eventfd")
 {
 	name = "eventfd"
-	// argstr = sprint($count)
 	asmlinkage()
 	flags = 0
 	argstr = sprint(uint_arg(1))
@@ -1033,9 +906,6 @@ probe __nd_syscall.eventfd.return = kprobe.function("sys_eventfd").return
 probe nd_syscall.execve = kprobe.function("sys_execve")
 {
 	name = "execve"
-	// filename = user_string($filename)
-	// args = __get_argv($argv, 0)
-	// argstr = sprintf("%s %s", filename, __get_argv($argv, 1))
 	asmlinkage()
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_argv(pointer_arg(2), 0)
@@ -1079,9 +949,6 @@ probe nd_syscall.execve.return = kprobe.function("do_execve").return
 probe nd_syscall.compat_execve = kprobe.function("compat_sys_execve").call ?
 {
 	name = "compat_execve"
-	// filename = user_string($filename)
-	// args = __get_compat_argv($argv, 0)
-	// argstr = sprintf("%s %s", filename, __get_compat_argv($argv, 1))
 	asmlinkage()
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_compat_argv(pointer_arg(2), 0)
@@ -1105,9 +972,6 @@ probe nd_syscall.compat_execve.return =
 probe nd_syscall.compat_execve = kprobe.function("compat_do_execve").call ?
 {
 	name = "compat_execve"
-	// filename = kernel_string($filename)
-	// args = __get_compat_argv($argv, 0)
-	// argstr = sprintf("%s %s", filename, __get_compat_argv($argv, 1))
 	filename = kernel_string(pointer_arg(1))
 	args = __get_compat_argv(pointer_arg(2), 0)
 	argstr = sprintf("%s %s", filename,
@@ -1126,8 +990,6 @@ probe nd_syscall.compat_execve.return =
 probe nd_syscall.exit = kprobe.function("do_exit").call
 {
 	name = "exit"
-	// status = $code
-	// argstr = sprint($code)
 	asmlinkage()
 	status = int_arg(1)
 	argstr = sprint(status)
@@ -1142,8 +1004,6 @@ probe nd_syscall.exit = kprobe.function("do_exit").call
 probe nd_syscall.exit_group = kprobe.function("sys_exit_group").call ?
 {
 	name = "exit_group"
-	// status = $error_code
-	// argstr = sprint($error_code)
 	asmlinkage()
 	status = int_arg(1)
 	argstr = sprint(status)
@@ -1160,12 +1020,6 @@ probe nd_syscall.faccessat = kprobe.function("sys_faccessat") ?
 	@__syscall_compat_gate(%{ __NR_faccessat %},
 			       %{ __NR_compat_faccessat %})
 	name = "faccessat"
-	// dirfd = $dfd
-	// dirfd_str = _dfd_str($dfd)
-	// pathname = user_string($filename)
-	// mode = $mode
-	// mode_str = _access_mode_str($mode)
-	// argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted($filename), mode_str)
 	asmlinkage()
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
@@ -1188,11 +1042,6 @@ probe nd_syscall.faccessat.return = kprobe.function("sys_faccessat").return ?
 probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
 {
 	name = "fadvise64"
-	// fd = $fd
-	// offset = $offset
-	// len = $len
-	// advice = $advice
-	// argstr = sprintf("%d, %d, %d, %s", $fd, $offset, $len, _fadvice_advice_str($advice))
 	asmlinkage()
 	fd = int_arg(1)
 	offset = longlong_arg(2)
@@ -1212,11 +1061,6 @@ probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
 probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 {
 	name = "fadvise64_64"
-	// fd = $fd
-	// offset = $offset
-	// len = $len
-	// advice = $advice
-	// argstr = sprintf("%d, %d, %d, %s", $fd, $offset, $len, _fadvice_advice_str($advice))
 	asmlinkage()
 	fd = int_arg(1)
 	offset = longlong_arg(2)
@@ -1235,8 +1079,6 @@ probe nd_syscall.fadvise64_64.return = kprobe.function("sys_fadvise64_64").retur
 probe nd_syscall.fchdir = kprobe.function("sys_fchdir") ?
 {
 	name = "fchdir"
-	// fd = $fd
-	// argstr = sprint($fd)
 	asmlinkage()
 	fd = int_arg(1)
 	argstr = sprint(fd)
@@ -1252,8 +1094,6 @@ probe nd_syscall.fchdir.return = kprobe.function("sys_fchdir").return ?
 probe nd_syscall.fchmod = kprobe.function("sys_fchmod") ?
 {
 	name = "fchmod"
-	// fildes = $fd
-	// mode = $mode
 	asmlinkage()
 	fildes = int_arg(1)
 	mode = uint_arg(2) # SAFE?
@@ -1274,11 +1114,6 @@ probe nd_syscall.fchmodat = kprobe.function("sys_fchmodat") ?
 	@__syscall_compat_gate(%{ __NR_fchmodat %},
 			       %{ __NR_compat_fchmodat %})
 	name = "fchmodat"
-	// dirfd = $dfd
-	// dirfd_str = _dfd_str($dfd)
-	// pathname = user_string($filename)
-	// mode = $mode
-	// argstr = sprintf("%s, %s, %#o", dirfd_str, user_string_quoted($filename), $mode)
 	asmlinkage()
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
@@ -1299,10 +1134,6 @@ probe nd_syscall.fchmodat.return = kprobe.function("sys_fchmodat").return ?
 probe nd_syscall.fchown = kprobe.function("sys_fchown") ?
 {
 	name = "fchown"
-	// fd = $fd
-	// owner = __int32($user)
-	// group = __int32($group)
-	// argstr = sprintf("%d, %d, %d", $fd, owner, group)
 	asmlinkage()
 	fd = int_arg(1)
 	owner = __int32(uint_arg(2))
@@ -1320,10 +1151,6 @@ probe nd_syscall.fchown.return = kprobe.function("sys_fchown").return ?
 probe nd_syscall.fchown16 = kprobe.function("sys_fchown16") ?
 {
 	name = "fchown16"
-	// fd = $fd
-	// owner = __short($user)
-	// group = __short($group)
-	// argstr = sprintf("%d, %d, %d", $fd, owner, group)
 	asmlinkage()
 	fd = int_arg(1)
 	owner = __short(uint_arg(2))
@@ -1345,15 +1172,6 @@ probe nd_syscall.fchownat = kprobe.function("sys_fchownat") ?
 	@__syscall_compat_gate(%{ __NR_fchownat %},
 			       %{ __NR_compat_fchownat %})
 	name = "fchownat"
-	// dirfd = $dfd
-	// dirfd_str = _dfd_str($dfd)
-	// pathname = user_string($filename)
-	// owner = __int32($user)
-	// group = __int32($group)
-	// flags = $flag
-	// flags_str = _at_flag_str($flag)
-	// argstr = sprintf("%s, %s, %d, %d, %s",
-	// 	dirfd_str, user_string_quoted($filename), owner, group, flags_str)
 	asmlinkage()
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
@@ -1385,11 +1203,6 @@ probe nd_syscall.fcntl = kprobe.function("compat_sys_fcntl") ?,
                          kprobe.function("sys_fcntl") ?
 {
 	name = "fcntl"
-	// fd = $fd
-	// cmd = $cmd
-	// cmd_str = _fcntl_cmd_str($cmd)
-	// arg = $arg
-	// argstr = sprintf("%d, %s, %p", $fd, _fcntl_cmd_str($cmd), $arg)
 	asmlinkage()
 	fd = int_arg(1)
 	cmd = int_arg(2)
@@ -1411,7 +1224,6 @@ probe nd_syscall.fcntl.return = kprobe.function("compat_sys_fcntl").return ?,
 probe nd_syscall.fdatasync = kprobe.function("sys_fdatasync") ?
 {
 	name = "fdatasync"
-	// fd = $fd
 	asmlinkage()
 	fd = int_arg(1)
 	argstr = sprint(fd)
@@ -1428,11 +1240,6 @@ probe nd_syscall.fdatasync.return = kprobe.function("sys_fdatasync").return ?
 probe nd_syscall.fgetxattr = kprobe.function("sys_fgetxattr") ?
 {
 	name = "fgetxattr"
-	// filedes = $fd
-	// name2 = user_string($name)
-	// value_uaddr = $value
-	// size  = $size
-	// argstr = sprintf("%d, %s, %p, %d", $fd, user_string_quoted($name), value_uaddr, size)
 	asmlinkage()
 	filedes = int_arg(1)
 # 'name2' should have been 'name_str'.  Deprecate the old name.
@@ -1454,9 +1261,6 @@ probe nd_syscall.fgetxattr.return = kprobe.function("sys_fgetxattr").return ?
 probe nd_syscall.flistxattr = kprobe.function("sys_flistxattr") ?
 {
 	name = "flistxattr"
-	// filedes = $fd
-	// list_uaddr = $list
-	// size = $size
 	asmlinkage()
 	filedes = int_arg(1)
 	list_uaddr = pointer_arg(2)
@@ -1474,8 +1278,6 @@ probe nd_syscall.flistxattr.return = kprobe.function("sys_flistxattr").return ?
 probe nd_syscall.flock = kprobe.function("sys_flock") ?
 {
 	name = "flock"
-	// fd = $fd
-	// operation = $cmd
 	asmlinkage()
 	fd = int_arg(1)
 	operation = int_arg(2)
@@ -1517,9 +1319,6 @@ probe nd_syscall.fork.return = kprobe.function("sys_fork").return ?
 probe nd_syscall.fremovexattr = kprobe.function("sys_fremovexattr") ?
 {
 	name = "fremovexattr"
-	// filedes = $fd
-	// name2 = user_string($name)
-	// argstr = sprintf("%d, %s", $fd, user_string_quoted($name))
 	asmlinkage()
 	filedes = int_arg(1)
 
@@ -1549,12 +1348,6 @@ probe nd_syscall.fremovexattr.return = kprobe.function("sys_fremovexattr").retur
 probe nd_syscall.fsetxattr = kprobe.function("sys_fsetxattr") ?
 {
 	name = "fsetxattr"
-	// filedes = $fd
-	// name2 = user_string($name)
-	// value_uaddr = $value
-	// size = $size
-	// flags = $flags
-	// argstr = sprintf("%d, %s, %p, %d, %p", filedes, user_string_quoted($name), value_uaddr, size, flags)
 	asmlinkage()
 	filedes = int_arg(1)
 # 'name2' should have been 'name_str'.  Deprecate the old name.
@@ -1591,9 +1384,6 @@ probe nd_syscall.fstat = kprobe.function("sys_fstat") ?,
                          kprobe.function("compat_sys_newfstat") ?
 {
 	name = "fstat"
-	// filedes = $fd
-	// buf_uaddr = $statbuf
-	// argstr = sprintf("%d, %p", $fd, $statbuf)
 	asmlinkage()
 	filedes = int_arg(1)
 	buf_uaddr = pointer_arg(2)
@@ -1621,10 +1411,6 @@ probe nd_syscall.fstatat = kprobe.function("sys_fstatat64") ?,
                            kprobe.function("sys32_fstatat64") ?
 {
 	name = "fstatat"
-	// dirfd = $dfd
-	// path = user_string($filename)
-	// buf_uaddr = $statbuf
-	// argstr = sprintf("%s, %s, %p, %s", _dfd_str($dfd), user_string_quoted($filename), $statbuf, _at_flag_str($flag))
 	asmlinkage()
 	dirfd = int_arg(1)
 	path = user_string_quoted(pointer_arg(2))
@@ -1648,9 +1434,6 @@ probe nd_syscall.fstatfs = kprobe.function("compat_sys_fstatfs") ?,
                            kprobe.function("sys_fstatfs") ?
 {
 	name = "fstatfs"
-	// fd = $fd
-	// buf_uaddr = $buf
-	// argstr = sprintf("%d, %p", $fd, $buf)
 	asmlinkage()
 	fd = int_arg(1)
 	buf_uaddr = pointer_arg(2)
@@ -1671,10 +1454,6 @@ probe nd_syscall.fstatfs64 = kprobe.function("compat_sys_fstatfs64") ?,
                              kprobe.function("sys_fstatfs64") ?
 {
 	name = "fstatfs"
-	// fd = $fd
-	// sz = $sz
-	// buf_uaddr = $buf
-	// argstr = sprintf("%d, %d, %p", $fd, $sz, $buf)
 	asmlinkage()
 	fd = int_arg(1)
 	sz = ulong_arg(2)
@@ -1693,7 +1472,6 @@ probe nd_syscall.fstatfs64.return = kprobe.function("compat_sys_fstatfs64").retu
 probe nd_syscall.fsync = kprobe.function("sys_fsync") ?
 {
 	name = "fsync"
-	// fd = $fd
 	asmlinkage()
 	fd = int_arg(1)
 	argstr = sprint(fd)
@@ -1711,8 +1489,6 @@ probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
 			     __nd_syscall.compat_ftruncate ?
 {
 	name = "ftruncate"
-	// fd = $fd
-	// length = $length
 	asmlinkage()
 	fd = int_arg(1)
 	argstr = sprintf("%d, %d", fd, length)
@@ -1741,8 +1517,6 @@ probe nd_syscall.ftruncate.return =
 probe nd_syscall.ftruncate64 = kprobe.function("sys_ftruncate64") ?
 {
 	name = "ftruncate"
-	// fd = $fd
-	// length = $length
 	asmlinkage()
 	fd = int_arg(1)
 	length = longlong_arg(2)
@@ -1768,18 +1542,6 @@ probe nd_syscall.ftruncate64.return = kprobe.function("sys_ftruncate64").return 
 probe nd_syscall.futex = kprobe.function("sys_futex") ?
 {
 	name = "futex"
-	// futex_uaddr = $uaddr
-	// op = $op
-	// val = $val
-	// utime_uaddr = $utime
-	// uaddr2_uaddr = $uaddr2
-	// val3 = $val3
-	// if (op == 0)
-	//	argstr = sprintf("%p, %s, %d, %s", $uaddr, _futex_op_str($op),
-	//		$val, _struct_timespec_u($utime, 1))
-	// else
-	//	argstr = sprintf("%p, %s, %d", $uaddr, _futex_op_str($op),
-	//		$val)
 	asmlinkage()
 	futex_uaddr = pointer_arg(1)
 	op = int_arg(2)
@@ -1803,18 +1565,6 @@ probe nd_syscall.futex.return = kprobe.function("sys_futex").return ?
 probe nd_syscall.compat_futex = kprobe.function("compat_sys_futex") ?
 {
 	name = "futex"
-	// futex_uaddr = $uaddr
-	// op = $op
-	// val = $val
-	// utime_uaddr = $utime
-	// uaddr2_uaddr = $uaddr2
-	// val3 = $val3
-	// if (op == 0)
-	//	argstr = sprintf("%p, %s, %d, %s", $uaddr, _futex_op_str($op),
-	//		$val, _struct_compat_timespec_u($utime, 1))
-	// else
-	//	argstr = sprintf("%p, %s, %d", $uaddr, _futex_op_str($op),
-	//		$val)
 	asmlinkage()
 	futex_uaddr = pointer_arg(1)
 	op = int_arg(2)
@@ -1845,12 +1595,6 @@ probe nd_syscall.compat_futex.return = kprobe.function("compat_sys_futex").retur
 probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 {
 	name = "futimesat"
-	// dirfd = $dfd
-	// filename_uaddr = $filename
-	// filename = user_string($filename)
-	// tvp_uaddr = $utimes
-	// argstr = sprintf("%s, %s, %s", _dfd_str($dfd), user_string_quoted($filename),
-	// 	_struct_timeval_u($utimes, 2))
 	asmlinkage()
 	dirfd = int_arg(1)
 	filename_uaddr = pointer_arg(2)
@@ -1862,12 +1606,6 @@ probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
 {
 	name = "futimesat"
-	// dirfd = $dfd
-	// filename_uaddr = $filename
-	// filename = user_string($filename)
-	// tvp_uaddr = $utimes
-	// argstr = sprintf("%s, %s, %s", _dfd_str($dfd), user_string_quoted($filename),
-	// 	_struct_timeval_u($utimes, 2))
 	asmlinkage()
 	dirfd = uint_arg(1)
 	filename_uaddr = pointer_arg(2)
@@ -1892,8 +1630,6 @@ probe nd_syscall.compat_futimesat.return = kprobe.function("compat_sys_futimesat
 probe nd_syscall.getcwd = kprobe.function("sys_getcwd") ?
 {
 	name = "getcwd"
-	// buf_uaddr = $buf
-	// size = $size
 	asmlinkage()
 	buf_uaddr = pointer_arg(1)
 	size = ulong_arg(2)
@@ -1917,10 +1653,6 @@ probe nd_syscall.getdents = kprobe.function("sys_getdents") ?,
                             kprobe.function("compat_sys_getdents64") ?
 {
 	name = "getdents"
-	// fd = $fd
-	// dirp_uaddr = $dirent
-	// count = $count
-	// argstr = sprintf("%d, %p, %d", $fd, $dirent, $count)
 	asmlinkage()
 	fd = int_arg(1)
 	dirp_uaddr = pointer_arg(2)
@@ -2004,9 +1736,6 @@ probe nd_syscall.getgroups = kprobe.function("sys_getgroups16") ?,
                              kprobe.function("sys_getgroups") ?
 {
 	name = "getgroups"
-	// size = $gidsetsize
-	// list_uaddr = $grouplist
-	// argstr = sprintf("%d, %p", $gidsetsize, $grouplist)
 	asmlinkage()
 	size = int_arg(1)
 	list_uaddr = pointer_arg(2)
@@ -2025,8 +1754,6 @@ probe nd_syscall.getgroups.return = kprobe.function("sys_getgroups16").return ?,
 probe nd_syscall.gethostname = kprobe.function("sys_gethostname") ?
 {
 	name = "gethostname"
-	// name_uaddr = $name
-	// len = $len
 	asmlinkage()
 	name_uaddr = pointer_arg(1)
 	len = int_arg(2)
@@ -2044,9 +1771,6 @@ probe nd_syscall.gethostname.return = kprobe.function("sys_gethostname").return 
 probe nd_syscall.getitimer = kprobe.function("sys_getitimer") ?
 {
 	name = "getitimer"
-	// which = $which
-	// value_uaddr = $value
-	// argstr = sprintf("%s, %p", _itimer_which_str($which), $value)
 	asmlinkage()
 	which = int_arg(1)
 	value_uaddr = pointer_arg(2)
@@ -2061,9 +1785,6 @@ probe nd_syscall.getitimer.return = kprobe.function("sys_getitimer").return ?
 probe nd_syscall.compat_getitimer = kprobe.function("compat_sys_getitimer") ?
 {
 	name = "getitimer"
-	// which = $which
-	// value_uaddr = $it
-	// argstr = sprintf("%s, %p", _itimer_which_str($which), $it)
 	asmlinkage()
 	which = int_arg(1)
 	value_uaddr = pointer_arg(2)
@@ -2090,13 +1811,6 @@ probe nd_syscall.get_mempolicy = kprobe.function("compat_sys_get_mempolicy") ?,
                                  kprobe.function("sys_get_mempolicy") ?
 {
 	name = "get_mempolicy"
-	// policy_uaddr = $policy
-	// nmask_uaddr = $nmask
-	// maxnode = $maxnode
-	// addr = $addr
-	// flags = $flags
-	// argstr = sprintf("%p, %p, %d, %p, 0x%x", $policy,
-	// 		$nmask, $maxnode, $addr, $flags)
 	asmlinkage()
 	policy_uaddr = pointer_arg(1)
 	nmask_uaddr = pointer_arg(2)
@@ -2119,10 +1833,6 @@ probe nd_syscall.get_mempolicy.return = kprobe.function("compat_sys_get_mempolic
 probe nd_syscall.getpeername = kprobe.function("sys_getpeername") ?
 {
 	name = "getpeername"
-	// s = $fd
-	// name_uaddr = $usockaddr
-	// namelen_uaddr = $usockaddr_len
-	// argstr = sprintf("%d, %p, %p", $fd, $usockaddr, $usockaddr_len)
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
@@ -2141,8 +1851,6 @@ probe nd_syscall.getpgid = kprobe.function("sys_getpgid") ?
 {
 	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
-	// pid = $pid
-	// argstr = sprintf("%d", $pid)
 	asmlinkage()
 	pid = int_arg(1)
 	argstr = sprintf("%d", pid)
@@ -2198,8 +1906,6 @@ probe nd_syscall.getppid.return = kprobe.function("sys_getppid").return
 probe nd_syscall.getpriority = kprobe.function("sys_getpriority") ?
 {
 	name = "getpriority"
-	// which = $which
-	// who = $who
 	asmlinkage()
 	which = int_arg(1)
 	who = int_arg(2)
@@ -2222,10 +1928,6 @@ probe nd_syscall.getresgid = kprobe.function("sys_getresgid16") ?,
                              kprobe.function("sys_getresgid") ?
 {
 	name = "getresgid"
-	// rgid_uaddr = $rgid
-	// egid_uaddr = $egid
-	// sgid_uaddr = $sgid
-	// argstr = sprintf("%p, %p, %p", $rgid, $egid, $sgid)
 	asmlinkage()
 	rgid_uaddr = pointer_arg(1)
 	egid_uaddr = pointer_arg(2)
@@ -2247,10 +1949,6 @@ probe nd_syscall.getresuid = kprobe.function("sys_getresuid16") ?,
                              kprobe.function("sys_getresuid") ?
 {
 	name = "getresuid"
-	// ruid_uaddr = $ruid
-	// euid_uaddr = $euid
-	// suid_uaddr = $suid
-	// argstr = sprintf("%p, %p, %p", $ruid, $euid, $suid)
 	asmlinkage()
 	ruid_uaddr = pointer_arg(1)
 	euid_uaddr = pointer_arg(2)
@@ -2273,9 +1971,6 @@ probe nd_syscall.getrlimit = kprobe.function("sys_getrlimit") ?,
                              kprobe.function("compat_sys_getrlimit") ?
 {
 	name = "getrlimit"
-	// resource = $resource
-	// rlim_uaddr = $rlim
-	// argstr = sprintf("%s, %p", _rlimit_resource_str($resource), $rlim)
 	asmlinkage()
 	resource = uint_arg(1)
 	rlim_uaddr = pointer_arg(2)
@@ -2298,13 +1993,6 @@ probe nd_syscall.getrusage = __nd_syscall.getrusage,
 	kprobe.function("compat_sys_getrusage").call ?
 {
 	name = "getrusage"
-	// who = $who
-	// if ($who == -2) {
-	//	# RUSAGE_BOTH is not valid argument for sys_getrusage
-	//	who_str = sprintf("UNKNOWN VALUE: %d", $who)
-	// } else
-	//	who_str = _rusage_who_str($who)
-	// usage_uaddr = $ru
 	asmlinkage()
 	who = int_arg(1)
 	if (who == -2) {
@@ -2335,7 +2023,6 @@ probe __nd_syscall.getrusage.return = kprobe.function("sys_getrusage").return
 probe nd_syscall.getsid = kprobe.function("sys_getsid") ?
 {
 	name = "getsid"
-	// pid = $pid
 	asmlinkage()
 	pid = int_arg(1)
 	argstr = sprint(pid)
@@ -2353,10 +2040,6 @@ probe nd_syscall.getsid.return = kprobe.function("sys_getsid").return ?
 probe nd_syscall.getsockname = kprobe.function("sys_getsockname") ?
 {
 	name = "getsockname"
-	// s = $fd
-	// name_uaddr = $usockaddr
-	// namelen_uaddr = $usockaddr_len
-	// argstr = sprintf("%d, %p, %p", $fd, $usockaddr, $usockaddr_len)
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
@@ -2380,15 +2063,6 @@ probe nd_syscall.getsockopt = kprobe.function("compat_sys_getsockopt") ?,
                               kprobe.function("sys_getsockopt") ?
 {
 	name = "getsockopt"
-	// fd = $fd
-	// level = $level
-	// level_str = _sockopt_level_str($level)
-	// optname = $optname
-	// optname_str = _sockopt_optname_str($optname)
-	// optval_uaddr = $optval
-	// optlen_uaddr = $optlen
-	// argstr = sprintf("%d, %s, %s, %p, %p", $fd,  _sockopt_level_str($level),
-	// 		_sockopt_optname_str($optname), $optval, $optlen)
 	asmlinkage()
 	fd = int_arg(1)
 	level = int_arg(2)
@@ -2432,9 +2106,6 @@ probe nd_syscall.gettimeofday = kprobe.function("compat_sys_gettimeofday") ?,
                                 kprobe.function("sys_gettimeofday") ?
 {
 	name = "gettimeofday"
-	// tv_uaddr = $tv
-	// tz_uaddr = $tz
-	// argstr = sprintf("%p, %p", $tv, $tz)
 	asmlinkage()
 	tv_uaddr = pointer_arg(1)
 	tz_uaddr = pointer_arg(2)
@@ -2475,14 +2146,6 @@ probe nd_syscall.getuid.return = kprobe.function("sys_getuid16").return ?,
 probe nd_syscall.getxattr = kprobe.function("sys_getxattr") ?
 {
 	name = "getxattr"
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	// 	name2 = user_string($name)
-	// 	value_uaddr = $value
-	// 	size = $size
-	// 	argstr = sprintf("%s, %s, %p, %d",
-	//		user_string_quoted(@defined($pathname) ? $pathname : $path),
-	// 		user_string_quoted($name),
-	// 		value_uaddr, size)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 # 'name2' should have been 'name_str'.  Deprecate the old name.
@@ -2511,10 +2174,6 @@ probe nd_syscall.getxattr.return = kprobe.function("sys_getxattr").return ?
 probe nd_syscall.init_module = kprobe.function("sys_init_module") ?
 {
 	name = "init_module"
-	// umod_uaddr = $umod
-	// len = $len
-	// uargs = user_string($uargs)
-	// argstr = sprintf("%p, %d, %s", $umod, $len, user_string_quoted($uargs))
 	asmlinkage()
 	umod_uaddr = pointer_arg(1)
 	len = ulong_arg(2)
@@ -2534,13 +2193,6 @@ probe nd_syscall.init_module.return = kprobe.function("sys_init_module").return 
 probe nd_syscall.inotify_add_watch = kprobe.function("sys_inotify_add_watch") ?
 {
 	name = "inotify_add_watch"
-	// 	fd = $fd
-	// 	mask = $mask
-	//	path_uaddr = (@defined($pathname) ? $pathname : $path)
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	//	argstr = sprintf("%d, %s, %s", $fd,
-	//		user_string_quoted(@defined($pathname) ? $pathname : $path),
-	//		_inotify_watch_mask_str($mask))
 	asmlinkage()
 	fd = int_arg(1)
 	path_uaddr = pointer_arg(2)
@@ -2605,9 +2257,6 @@ probe __nd_syscall.inotify_init.return =
 probe nd_syscall.inotify_rm_watch = kprobe.function("sys_inotify_rm_watch") ?
 {
 	name = "inotify_rm_watch"
-	// fd = $fd
-	// wd = $wd
-	// argstr = sprintf("%d, %d", $fd, $wd)
 	asmlinkage()
 	fd = int_arg(1)
 	wd = uint_arg(2)
@@ -2626,9 +2275,6 @@ probe nd_syscall.inotify_rm_watch.return = kprobe.function("sys_inotify_rm_watch
 probe nd_syscall.io_cancel = kprobe.function("sys_io_cancel") ?
 {
 	name = "io_cancel"
-	// ctx_id = $ctx_id
-	// iocb_uaddr = $iocb
-	// result_uaddr = $result
 	asmlinkage()
 	ctx_id = ulong_arg(1)
 	iocb_uaddr = pointer_arg(2)
@@ -2649,10 +2295,6 @@ probe nd_syscall.ioctl = kprobe.function("compat_sys_ioctl") ?,
                          kprobe.function("sys_ioctl") ?
 {
 	name = "ioctl"
-	// fd = $fd
-	// request = $cmd
-	// argp = $arg
-	// argstr = sprintf("%d, %d, %p", $fd, $cmd, $arg)
 	asmlinkage()
 	fd = int_arg(1)
 	request = int_arg(2)
@@ -2671,7 +2313,6 @@ probe nd_syscall.ioctl.return = kprobe.function("compat_sys_ioctl").return ?,
 probe nd_syscall.io_destroy = kprobe.function("sys_io_destroy") ?
 {
 	name = "io_destroy"
-	// ctx = $ctx
 	asmlinkage()
 	ctx = ulong_arg(1)
 	argstr = sprintf("%d", ctx)
@@ -2697,14 +2338,6 @@ probe nd_syscall.io_destroy.return = kprobe.function("sys_io_destroy").return ?
 probe nd_syscall.io_getevents = kprobe.function("sys_io_getevents") ?
 {
 	name = "io_getevents"
-	// ctx_id = $ctx_id
-	// min_nr = $min_nr
-	// nr = $nr
-	// events_uaddr = $events
-	// timeout_uaddr = $timeout
-	// timestr = _struct_timespec_u($timeout, 1)
-	// argstr = sprintf("%d, %d, %d, %p, %p, %s", $ctx_id, $min_nr,
-	// 	$nr, $events, $timeout, timestr)
 	asmlinkage()
 	ctx_id = ulong_arg(1)
 	min_nr = long_arg(2)
@@ -2725,14 +2358,6 @@ probe nd_syscall.compat_io_getevents =
 	kprobe.function("compat_sys_io_getevents") ?
 {
 	name = "io_getevents"
-	// ctx_id = $ctx_id
-	// min_nr = $min_nr
-	// nr = $nr
-	// events_uaddr = $events
-	// timeout_uaddr = $timeout
-	// timestr = _struct_compat_compat_timespec_u($timeout, 1)
-	// argstr = sprintf("%d, %d, %d, %p, %p, %s", $ctx_id, $min_nr,
-	// 	$nr, $events, $timeout, timestr)
 	asmlinkage()
 	ctx_id = ulong_arg(1)
 	min_nr = long_arg(2)
@@ -2756,10 +2381,6 @@ probe nd_syscall.compat_io_getevents.return =
 probe nd_syscall.ioperm = kprobe.function("sys_ioperm") ?
 {
 	name = "ioperm"
-	// from = $from
-	// num = $num
-	// turn_on = $turn_on
-	// argstr = sprintf("%d, %d, %d", $from, $num, $turn_on)
 	asmlinkage()
 	from = ulong_arg(1)
 	num = ulong_arg(2)
@@ -2778,9 +2399,6 @@ probe nd_syscall.ioperm.return = kprobe.function("sys_ioperm").return ?
 probe nd_syscall.io_setup = kprobe.function("sys_io_setup") ?
 {
 	name = "io_setup"
-	// maxevents = $nr_events
-	// ctxp_uaddr = $ctxp
-	// argstr = sprintf("%d, %p", $nr_events, $ctxp)
 	asmlinkage()
 	maxevents = uint_arg(1)
 	ctxp_uaddr = pointer_arg(2)
@@ -2797,9 +2415,6 @@ probe nd_syscall.io_setup.return = kprobe.function("sys_io_setup").return ?
 probe nd_syscall.compat_io_setup = kprobe.function("compat_sys_io_setup") ?
 {
 	name = "io_setup"
-	// maxevents = $nr_reqs
-	// ctxp_uaddr = $ctx32p
-	// argstr = sprintf("%d, %p", $nr_reqs, $ctx32p)
 	asmlinkage()
 	maxevents = uint_arg(1)
 	ctxp_uaddr = pointer_arg(2)
@@ -2818,10 +2433,6 @@ probe nd_syscall.compat_io_setup.return = kprobe.function("compat_sys_io_setup")
 probe nd_syscall.io_submit = kprobe.function("sys_io_submit") ?
 {
 	name = "io_submit"
-	// ctx_id = $ctx_id
-	// nr = $nr
-	// iocbpp_uaddr = $iocbpp
-	// argstr = sprintf("%d, %d, %p", $ctx_id, $nr, $iocbpp)
 	asmlinkage()
 	ctx_id = ulong_arg(1)
 	nr = long_arg(2)
@@ -2838,10 +2449,6 @@ probe nd_syscall.io_submit.return = kprobe.function("sys_io_submit").return ?
 probe nd_syscall.compat_io_submit = kprobe.function("compat_sys_io_submit") ?
 {
 	name = "io_submit"
-	// ctx_id = $ctx_id
-	// nr = $nr
-	// iocbpp_uaddr = $iocb
-	// argstr = sprintf("%d, %d, %p", $ctx_id, $nr, $iocb)
 	asmlinkage()
 	ctx_id = ulong_arg(1)
 	nr = int_arg(2)
@@ -2860,9 +2467,6 @@ probe nd_syscall.compat_io_submit.return = kprobe.function("compat_sys_io_submit
 probe nd_syscall.ioprio_get = kprobe.function("sys_ioprio_get") ?
 {
 	name = "ioprio_get"
-	// which = $which
-	// who = $who
-	// argstr = sprintf("%d, %d", $which, $who)
 	asmlinkage()
 	which = int_arg(1)
 	who = int_arg(2)
@@ -2880,10 +2484,6 @@ probe nd_syscall.ioprio_get.return = kprobe.function("sys_ioprio_get").return ?
 probe nd_syscall.ioprio_set = kprobe.function("sys_ioprio_set") ?
 {
 	name = "ioprio_set"
-	// which = $which
-	// who = $who
-	// ioprio = $ioprio
-	// argstr = sprintf("%d, %d, %d", $which, $who, $ioprio)
 	asmlinkage()
 	which = int_arg(1)
 	who = int_arg(2)
@@ -2910,11 +2510,6 @@ probe nd_syscall.kexec_load = kprobe.function("compat_sys_kexec_load") ?,
                               kprobe.function("sys_kexec_load") ?
 {
 	name = "kexec_load"
-	// entry = $entry
-	// nr_segments = $nr_segments
-	// segments_uaddr = $segments
-	// flags = $flags
-	// argstr = sprintf("%p, %d, %p, %d", $entry, $nr_segments, $segments, $flags)
 	asmlinkage()
 	entry = ulong_arg(1)
 	nr_segments = ulong_arg(2)
@@ -2941,7 +2536,6 @@ probe nd_syscall.keyctl = kprobe.function("compat_sys_keyctl") ?,
                           kprobe.function("sys_keyctl") ?
 {
 	name = "keyctl"
-	// argstr = sprintf("%d, ...", $option)
 	asmlinkage()
 	argstr = sprintf("%d, ...", uint_arg(1))
 
@@ -2958,9 +2552,6 @@ probe nd_syscall.keyctl.return = kprobe.function("compat_sys_keyctl").return ?,
 probe nd_syscall.kill = kprobe.function("sys_kill") ?
 {
 	name = "kill"
-	// pid = $pid
-	// sig = $sig
-	// argstr = sprintf("%d, %s", $pid, _signal_name($sig))
 	asmlinkage()
 	pid = int_arg(1)
 	sig = int_arg(2)
@@ -2978,10 +2569,6 @@ probe nd_syscall.kill.return = kprobe.function("sys_kill").return ?
 probe nd_syscall.lchown = kprobe.function("sys_lchown") ?
 {
 	name = "lchown"
-	// path = user_string($filename)
-	// owner = __int32($user)
-	// group = __int32($group)
-	// argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	owner = __int32(uint_arg(2))
@@ -3001,10 +2588,6 @@ probe nd_syscall.lchown.return = kprobe.function("sys_lchown").return ?
 probe nd_syscall.lchown16 = kprobe.function("sys_lchown16") ?
 {
 	name = "lchown16"
-	// path = user_string($filename)
-	// owner = __short($user)
-	// group = __short($group)
-	// argstr = sprintf("%s, %d, %d", user_string_quoted($filename), owner, group)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	owner = __short(uint_arg(2))
@@ -3025,15 +2608,6 @@ probe nd_syscall.lchown16.return = kprobe.function("sys_lchown16").return ?
 probe nd_syscall.lgetxattr = kprobe.function("sys_lgetxattr") ?
 {
 	name = "lgetxattr"
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	// 	# FIXME
-	// 	name2 = user_string($name)
-	// 	value_uaddr = $value
-	// 	size = $size
-	// 	argstr = sprintf("%s, %s, %p, %d",
-	//		user_string_quoted(@defined($pathname) ? $pathname : $path),
-	// 		user_string_quoted($name),
-	// 		value_uaddr, size)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 # 'name2' should have been 'name_str'.  Deprecate the old name.
@@ -3059,11 +2633,6 @@ probe nd_syscall.lgetxattr.return = kprobe.function("sys_lgetxattr").return ?
 probe nd_syscall.link = kprobe.function("sys_link") ?
 {
 	name = "link"
-	// oldpath = user_string($oldname)
-	// newpath = user_string($newname)
-	// argstr = sprintf("%s, %s",
-	// 	user_string_quoted($oldname),
-	// 	user_string_quoted($newname))
 	asmlinkage()
 	oldpath = user_string_quoted(pointer_arg(1))
 	newpath = user_string_quoted(pointer_arg(2))
@@ -3085,18 +2654,6 @@ probe nd_syscall.linkat = kprobe.function("sys_linkat") ?
 {
 	@__syscall_compat_gate(%{ __NR_linkat %}, %{ __NR_compat_linkat %})
 	name = "linkat"
-	// olddirfd = $olddfd
-	// olddirfd_str = _dfd_str($olddfd)
-	// oldpath = user_string($oldname)
-	// newdirfd = $newdfd
-	// newdirfd_str = _dfd_str($newdfd)
-	// newpath = user_string($newname)
-	// flags = $flags
-	// flags_str = _at_flag_str($flags)
-	// argstr = sprintf("%s, %s, %s, %s, %s",
-	// 	olddirfd_str, user_string_quoted($oldname),
-	// 	newdirfd_str, user_string_quoted($newname),
-	// 	flags_str)
 	asmlinkage()
 	olddirfd = int_arg(1)
 	olddirfd_str = _dfd_str(olddirfd)
@@ -3123,9 +2680,6 @@ probe nd_syscall.linkat.return = kprobe.function("sys_linkat").return ?
 probe nd_syscall.listen = kprobe.function("sys_listen") ?
 {
 	name = "listen"
-	// sockfd = $fd
-	// backlog = $backlog
-	// argstr = sprintf("%d, %d", $fd, $backlog)
 	asmlinkage()
 	sockfd = int_arg(1)
 	backlog = int_arg(2)
@@ -3143,13 +2697,6 @@ probe nd_syscall.listen.return = kprobe.function("sys_listen").return ?
 probe nd_syscall.listxattr = kprobe.function("sys_listxattr") ?
 {
 	name = "listxattr"
-	// 	list_uaddr = $list
-	// 	size = $size
-	//	path_uaddr = (@defined($pathname) ? $pathname : $path)
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	//	argstr = sprintf("%s, %p, %d",
-	//		user_string_quoted(@defined($pathname) ? $pathname : $path),
-	//		$list, $size)
 	asmlinkage()
 	path_uaddr = pointer_arg(1)
 	path = user_string_quoted(path_uaddr)
@@ -3169,13 +2716,6 @@ probe nd_syscall.listxattr.return = kprobe.function("sys_listxattr").return ?
 probe nd_syscall.llistxattr = kprobe.function("sys_llistxattr") ?
 {
 	name = "llistxattr"
-	// 	list_uaddr = $list
-	// 	size = $size
-	//	path_uaddr = (@defined($pathname) ? $pathname : $path)
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	//	argstr = sprintf("%s, %p, %d",
-	//		user_string_quoted(@defined($pathname) ? $pathname : $path),
-	//		$list, $size)
 	asmlinkage()
 	path_uaddr = pointer_arg(1)
 	path = user_string_quoted(path_uaddr)
@@ -3198,14 +2738,6 @@ probe nd_syscall.llistxattr.return = kprobe.function("sys_llistxattr").return ?
 probe nd_syscall.llseek = kprobe.function("sys_llseek") ?
 {
 	name = "llseek"
-	// fd = $fd
-	// offset_high = $offset_high
-	// offset_low = $offset_low
-	// result_uaddr = $result
-	// whence = $origin
-	// whence_str = _seek_whence_str($origin)
-	// argstr = sprintf("%d, 0x%x, 0x%x, %p, %s", $fd, $offset_high,
-	// 	$offset_low, $result, whence_str)
 	asmlinkage()
 	fd = int_arg(1)
 	offset_high = ulong_arg(2)
@@ -3228,10 +2760,6 @@ probe nd_syscall.llseek.return = kprobe.function("sys_llseek").return ?
 probe nd_syscall.lookup_dcookie = kprobe.function("sys_lookup_dcookie") ?
 {
 	name = "lookup_dcookie"
-	// cookie = $cookie64
-	// buffer_uaddr = $buf
-	// len = $len
-	// argstr = sprintf("%d, %p, %d", $cookie64, $buf, $len)
 	asmlinkage()
 	cookie = ulonglong_arg(1)
 	buffer_uaddr = pointer_arg(2)
@@ -3250,13 +2778,6 @@ probe nd_syscall.lookup_dcookie.return = kprobe.function("sys_lookup_dcookie").r
 probe nd_syscall.lremovexattr = kprobe.function("sys_lremovexattr") ?
 {
 	name = "lremovexattr"
-	// 	name_uaddr = $name
-	// 	name2 = user_string($name)
-	//	path_uaddr = (@defined($pathname) ? $pathname : $path)
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	//	argstr = sprintf("%s, %s",
-	//		user_string_quoted(@defined($pathname) ? $pathname : $path),
-	//		user_string_quoted($name))
 	asmlinkage()
 	path_uaddr = pointer_arg(1)
 	path = user_string_quoted(path_uaddr)
@@ -3282,12 +2803,6 @@ probe nd_syscall.lremovexattr.return = kprobe.function("sys_lremovexattr").retur
 probe nd_syscall.lseek = __nd_syscall.lseek, __nd_syscall.compat_lseek ?
 {
 	name = "lseek"
-	// fildes = $fd
-	// # offset = __int32($offset)
-	// offset = $offset
-	// whence = $origin
-	// whence_str = _seek_whence_str($origin)
-	// argstr = sprintf("%d, %d, %s", $fd, offset, whence_str)
 	asmlinkage()
 	fildes = int_arg(1)
 	whence = uint_arg(3)
@@ -3296,13 +2811,11 @@ probe nd_syscall.lseek = __nd_syscall.lseek, __nd_syscall.compat_lseek ?
 }
 probe __nd_syscall.lseek = kprobe.function("sys_lseek")
 {
-	// offset = $offset
 	asmlinkage()
 	offset = long_arg(2)
 }
 probe __nd_syscall.compat_lseek = kprobe.function("compat_sys_lseek")
 {
-	// offset = __int32($offset)
 	asmlinkage()
 	offset = s32_arg(2)
 }
@@ -3323,17 +2836,6 @@ probe nd_syscall.lseek.return = kprobe.function("sys_lseek").return,
 probe nd_syscall.lsetxattr = kprobe.function("sys_lsetxattr") ?
 {
 	name = "lsetxattr"
-	//	path_uaddr = (@defined($pathname) ? $pathname : $path)
-	//	path = user_string(@defined($pathname) ? $pathname : $path)
-	// 	name_uaddr = $name
-	// 	name_str = user_string($name)
-	// 	value_uaddr = $value
-	// 	size = $size
-	// 	flags = $flags
-	//	argstr = sprintf("%s, %s, %p, %d, %d",
-	//			user_string_quoted(@defined($pathname) ? $pathname : $path),
-	//			user_string_quoted($name),
-	//			value_uaddr, $size, $flags)
 	asmlinkage()
 	path_uaddr = pointer_arg(1)
 	path = user_string_quoted(path_uaddr)
@@ -3370,9 +2872,6 @@ probe nd_syscall.lstat = kprobe.function("sys_lstat") ?,
                          kprobe.function("sys_oabi_lstat64") ?
 {
 	name = "lstat"
-	// path = user_string($filename)
-	// buf_uaddr = $statbuf
-	// argstr = sprintf("%s, %p", user_string_quoted($filename), $statbuf)
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	buf_uaddr = pointer_arg(2)
@@ -3395,11 +2894,6 @@ probe nd_syscall.lstat.return = kprobe.function("sys_lstat").return ?,
 probe nd_syscall.madvise = kprobe.function("sys_madvise") ?
 {
 	name = "madvise"
-	// start = $start
-	// length = $len_in
-	// advice = $behavior
-	// advice_str = _madvice_advice_str($behavior)
-	// argstr = sprintf("%p, %d, %s", $start, $len_in, _madvice_advice_str($behavior))
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
@@ -3432,14 +2926,6 @@ probe nd_syscall.mbind = kprobe.function("compat_sys_mbind") ?,
                          kprobe.function("sys_mbind") ?
 {
 	name = "mbind"
-	// start = $start
-	// len = $len
-	// mode = $mode
-	// nmask_uaddr = $nmask
-	// maxnode = $maxnode
-	// flags = $flags
-	// argstr = sprintf("%d, %d, %d, %p, %d, 0x%x", $start, $len, $mode,
-	// 			$nmask, $maxnode, $flags)
 	asmlinkage()
 	start = ulong_arg(1)
 	len = long_arg(2)
@@ -3464,7 +2950,6 @@ probe nd_syscall.mbind.return = kprobe.function("compat_sys_mbind").return ?,
 probe nd_syscall.migrate_pages = kprobe.function("sys_migrate_pages") ?
 {
 	name = "migrate_pages"
-	// argstr = sprintf("%d, %d, %p, %p", $pid, $maxnode, $old_nodes, $new_nodes)
 	asmlinkage()
 	argstr = sprintf("%d, %d, %p, %p", int_arg(1), ulong_arg(2), pointer_arg(3), pointer_arg(4))
 }
@@ -3480,10 +2965,6 @@ probe nd_syscall.migrate_pages.return = kprobe.function("sys_migrate_pages").ret
 probe nd_syscall.mincore = kprobe.function("sys_mincore") ?
 {
 	name = "mincore"
-	// start = $start
-	// length = $len
-	// vec_uaddr = $vec
-	// argstr = sprintf("%p, %d, %p", $start, $len, $vec)
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
@@ -3501,10 +2982,6 @@ probe nd_syscall.mincore.return = kprobe.function("sys_mincore").return ?
 probe nd_syscall.mkdir = kprobe.function("sys_mkdir") ?
 {
 	name = "mkdir"
-	// pathname_uaddr = $pathname
-	// pathname = user_string($pathname)
-	// mode = $mode
-	// argstr = sprintf("%s, %#o", user_string_quoted($pathname), $mode)
 	asmlinkage()
 	pathname_uaddr = pointer_arg(1)
 	pathname = user_string_quoted(pathname_uaddr)
@@ -3524,10 +3001,6 @@ probe nd_syscall.mkdirat = kprobe.function("sys_mkdirat") ?
 {
 	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
 	name = "mkdirat"
-	// dirfd = $dfd
-	// pathname = user_string($pathname)
-	// mode = $mode
-	// argstr = sprintf("%d, %s, %#o", $dfd, user_string_quoted($pathname), $mode)
 	asmlinkage()
 	dirfd = int_arg(1)
 	pathname = user_string_quoted(pointer_arg(2))
@@ -3546,10 +3019,6 @@ probe nd_syscall.mkdirat.return = kprobe.function("sys_mkdirat").return ?
 probe nd_syscall.mknod = kprobe.function("sys_mknod") ?
 {
 	name = "mknod"
-	// pathname = user_string($filename)
-	// mode = $mode
-	// dev = $dev
-	// argstr = sprintf("%s, %s, %p", user_string_quoted($filename), _mknod_mode_str($mode), dev)
 	asmlinkage()
 	pathname = user_string_quoted(pointer_arg(1))
 	mode = int_arg(2)
@@ -3570,14 +3039,6 @@ probe nd_syscall.mknod.return = kprobe.function("sys_mknod").return ?
 probe nd_syscall.mknodat = kprobe.function("sys_mknodat") ?
 {
 	name = "mknodat"
-	// dirfd = $dfd
-	// dirfd_str = _dfd_str($dfd)
-	// pathname = user_string($filename)
-	// mode = $mode
-	// mode_str = _mknod_mode_str($mode)
-	// dev = $dev
-	// argstr = sprintf("%s, %s, %s, %p",
-	// 	dirfd_str, user_string_quoted($filename), mode_str, $dev)
 	asmlinkage()
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
@@ -3601,9 +3062,6 @@ probe nd_syscall.mknodat.return = kprobe.function("sys_mknodat").return ?
 probe nd_syscall.mlock = kprobe.function("sys_mlock") ?
 {
 	name = "mlock"
-	// addr = $start
-	// len = $len
-	// argstr = sprintf("%p, %d", $start, $len)
 	asmlinkage()
 	addr = ulong_arg(1)
 	len = ulong_arg(2)
@@ -3621,8 +3079,6 @@ probe nd_syscall.mlock.return = kprobe.function("sys_mlock").return ?
 probe nd_syscall.mlockall = kprobe.function("sys_mlockall") ?
 {
 	name = "mlockall"
-	// flags = $flags
-	// argstr = _mlockall_flags_str($flags)
 	asmlinkage()
 	flags = int_arg(1)
 	argstr = _mlockall_flags_str(flags)
@@ -3639,10 +3095,6 @@ probe nd_syscall.mlockall.return = kprobe.function("sys_mlockall").return ?
 probe nd_syscall.modify_ldt = kprobe.function("sys_modify_ldt") ?
 {
 	name = "modify_ldt"
-	// func = $func
-	// ptr_uaddr = $ptr
-	// bytecount = $bytecount
-	// argstr = sprintf("%d, %p, %d", $func, $ptr, $bytecount)
 	asmlinkage()
 	func = int_arg(1)
 	ptr_uaddr = pointer_arg(2)
@@ -3672,7 +3124,6 @@ probe nd_syscall.move_pages = kprobe.function("compat_sys_move_pages") ?,
                               kprobe.function("sys_move_pages") ?
 {
 	name = "move_pages"
-	// argstr = sprintf("%d, %d, %p, %p, 0x%x", $pid, $nr_pages, $nodes, $status, $flags)
 	asmlinkage()
 	argstr = sprintf("%d, %d, %p, %p, 0x%x", int_arg(1), ulong_arg(2), pointer_arg(4), pointer_arg(5), int_arg(6))
 }
@@ -3698,17 +3149,6 @@ probe nd_syscall.mount = kprobe.function("compat_sys_mount") ?,
                          kprobe.function("sys_mount") ?
 {
 	name = "mount"
-	// source = user_string($dev_name)
-	// target = user_string($dir_name)
-	// filesystemtype = user_string($type)
-	// mountflags = $flags
-	// mountflags_str = _mountflags_str($flags)
-	// data = text_strn(user_string($data), syscall_string_trunc, 1)
-	// argstr = sprintf("%s, %s, %s, %s, %s",
-	// 	user_string_quoted($dev_name),
-	// 	user_string_quoted($dir_name),
-	// 	user_string_quoted($type),
-	// 	mountflags_str, data)
 	asmlinkage()
 	source = user_string_quoted(pointer_arg(1))
 	target = user_string_quoted(pointer_arg(2))
@@ -3739,19 +3179,6 @@ probe nd_syscall.mount.return = kprobe.function("compat_sys_mount").return ?,
 probe nd_syscall.mmap2 = kprobe.function("sys_mmap_pgoff") ?
 {
 	name = "mmap2"
-	// start = $addr
-	// length = $len
-	// prot = $prot
-	// flags = $flags
-	// # Although the kernel gets an unsigned long fd, on the
-	// # user-side it is a signed int.  Fix this.
-	// fd = __int32($fd)
-	// # $pgoff is the number of pages. Convert this back into a
-	// # number of bytes.
-	// pgoffset = $pgoff * %{ PAGE_SIZE %}
-	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
-	// 	_mprotect_prot_str($prot), _mmap_flags($flags),
-	// 	__int32($fd), pgoffset)
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
@@ -3780,11 +3207,6 @@ probe nd_syscall.mmap2.return = kprobe.function("sys_mmap_pgoff").return ?
 probe nd_syscall.mprotect = kprobe.function("sys_mprotect") ?
 {
 	name = "mprotect"
-	// addr = $start
-	// len = $len
-	// prot = $prot
-	// prot_str = _mprotect_prot_str($prot)
-	// argstr = sprintf("%p, %d, %s", $start, $len, _mprotect_prot_str($prot))
 	asmlinkage()
 	addr = ulong_arg(1)
 	len = ulong_arg(2)
@@ -3810,10 +3232,6 @@ probe nd_syscall.mq_getsetattr = kprobe.function("compat_sys_mq_getsetattr") ?,
                                  kprobe.function("sys_mq_getsetattr") ?
 {
 	name = "mq_getsetattr"
-	// mqdes = $mqdes
-	// u_mqstat_uaddr = $u_mqstat
-	// u_omqstat_uaddr = $u_omqstat
-	// argstr = sprintf("%d, %p, %p", $mqdes, $u_mqstat, $u_omqstat)
 	asmlinkage()
 	mqdes = int_arg(1)
 	u_mqstat_uaddr = pointer_arg(2)
@@ -3835,9 +3253,6 @@ probe nd_syscall.mq_notify = kprobe.function("compat_sys_mq_notify") ?,
                              kprobe.function("sys_mq_notify") ?
 {
 	name = "mq_notify"
-	// mqdes = $mqdes
-	// notification_uaddr = $u_notification
-	// argstr = sprintf("%d, %p", $mqdes, $u_notification)
 	asmlinkage()
 	mqdes = int_arg(1)
 	notification_uaddr = pointer_arg(2)
@@ -3863,16 +3278,6 @@ probe nd_syscall.mq_open = kprobe.function("compat_sys_mq_open") ?,
                            kprobe.function("sys_mq_open") ?
 {
 	name = "mq_open"
-	// name_uaddr = $u_name
-	// filename = user_string($u_name)
-	// mode = $mode
-	// u_attr_uaddr = $u_attr
-	// oflag = $oflag
-	// if (oflag & 64)
-	//	argstr = sprintf("%s, %s, %#o, %p", user_string_quoted($u_name),
-	//		_sys_open_flag_str($oflag), $mode, $u_attr)
-	// else
-	//	argstr = sprintf("%s, %s", user_string_quoted($u_name), _sys_open_flag_str($oflag))
 	asmlinkage()
 	name_uaddr = pointer_arg(1)
 	filename = user_string_quoted(name_uaddr)
@@ -3908,13 +3313,6 @@ probe nd_syscall.mq_timedreceive = kprobe.function("compat_sys_mq_timedreceive")
                                    kprobe.function("sys_mq_timedreceive") ?
 {
 	name = "mq_timedreceive"
-	// mqdes = $mqdes
-	// msg_ptr_uaddr = $u_msg_ptr
-	// msg_len = $msg_len
-	// msg_prio_uaddr = $u_msg_prio
-	// abs_timout_uaddr = $u_abs_timeout
-	// argstr = sprintf("%d, %p, %d, %p, %p", $mqdes, $u_msg_ptr, $msg_len,
-	// 		$u_msg_prio, $u_abs_timeout)
 	asmlinkage()
 	mqdes = int_arg(1)
 	msg_ptr_uaddr = pointer_arg(2)
@@ -3946,13 +3344,6 @@ probe nd_syscall.mq_timedsend = kprobe.function("compat_sys_mq_timedsend") ?,
                                 kprobe.function("sys_mq_timedsend") ?
 {
 	name = "mq_timedsend"
-	// mqdes = $mqdes
-	// msg_ptr_uaddr = $u_msg_ptr
-	// msg_len = $msg_len
-	// msg_prio = $msg_prio
-	// abs_timeout_uaddr = $u_abs_timeout
-	// argstr = sprintf("%d, %p, %d, %d, %p", $mqdes, $u_msg_ptr, $msg_len,
-	// 		$msg_prio, $u_abs_timeout)
 	asmlinkage()
 	mqdes = int_arg(1)
 	msg_ptr_uaddr = pointer_arg(2)
@@ -3975,9 +3366,6 @@ probe nd_syscall.mq_timedsend.return = kprobe.function("compat_sys_mq_timedsend"
 probe nd_syscall.mq_unlink = kprobe.function("sys_mq_unlink") ?
 {
 	name = "mq_unlink"
-	// u_name_uaddr = $u_name
-	// u_name = user_string($u_name)
-	// argstr = user_string_quoted($u_name)
 	asmlinkage()
 	u_name_uaddr = pointer_arg(1)
 	u_name = user_string_quoted(u_name_uaddr)
@@ -4000,13 +3388,6 @@ probe nd_syscall.mremap = kprobe.function("ia64_mremap") ?,
                           kprobe.function("sys_mremap") ?
 {
 	name = "mremap"
-	// old_address = $addr
-	// old_size = $old_len
-	// new_size = $new_len
-	// flags = $flags
-	// new_address = $new_addr
-	// argstr = sprintf("%p, %d, %d, %s, %p", $addr, $old_len, $new_len,
-	// 	_mremap_flags($flags), $new_addr)
 	asmlinkage()
 	old_address = ulong_arg(1)
 	old_size = ulong_arg(2)
@@ -4029,10 +3410,6 @@ probe nd_syscall.mremap.return = kprobe.function("ia64_mremap").return ?,
 probe nd_syscall.msgctl = kprobe.function("sys_msgctl") ?
 {
 	name = "msgctl"
-	// msqid = $msqid
-	// cmd = $cmd
-	// buf_uaddr = $buf
-	// argstr = sprintf("%d, %d, %p", $msqid, $cmd, $buf)
 	asmlinkage()
 	msqid = int_arg(1)
 	cmd = int_arg(2)
@@ -4051,10 +3428,6 @@ probe nd_syscall.msgctl.return = kprobe.function("sys_msgctl").return ?
 probe nd_syscall.compat_sys_msgctl = kprobe.function("compat_sys_msgctl") ?
 {
 	name = "compat_sys_msgctl"
-	// msqid = $first
-	// cmd = $second
-	// buf_uaddr = $uptr
-	// argstr = sprintf("%d, %d, %p", $first, $second, $uptr)
 	asmlinkage()
 	msqid = int_arg(1)
 	cmd = int_arg(2)
@@ -4073,10 +3446,6 @@ probe nd_syscall.compat_sys_msgctl.return = kprobe.function("compat_sys_msgctl")
 probe nd_syscall.msgget = kprobe.function("sys_msgget") ?
 {
 	name = "msgget"
-	// key = $key
-	// msgflg = $msgflg
-	// msgflg_str = _sys_open_flag_str($msgflg)
-	// argstr = sprintf("%d, %s", $key, _sys_open_flag_str($msgflg))
 	asmlinkage()
 	key = int_arg(1)
 	msgflg = int_arg(2)
@@ -4099,12 +3468,6 @@ probe nd_syscall.msgget.return = kprobe.function("sys_msgget").return ?
 probe nd_syscall.msgrcv = kprobe.function("sys_msgrcv") ?
 {
 	name = "msgrcv"
-	// msqid = $msqid
-	// msgp_uaddr = $msgp
-	// msgsz = $msgsz
-	// msgtyp = $msgtyp
-	// msgflg = $msgflg
-	// argstr = sprintf("%d, %p, %d, %d, %d", $msqid, $msgp, $msgsz, $msgtyp, $msgflg)
 	asmlinkage()
 	msqid = int_arg(1)
 	msgp_uaddr = pointer_arg(2)
@@ -4126,12 +3489,6 @@ probe nd_syscall.msgrcv.return = kprobe.function("sys_msgrcv").return ?
 probe nd_syscall.compat_sys_msgrcv = kprobe.function("compat_sys_msgrcv") ?
 {
 	name = "compat_sys_msgrcv"
-	// msqid = $first
-	// msgp_uaddr = $uptr
-	// msgsz = $second
-	// msgtyp = $msgtyp
-	// msgflg = $third
-	// argstr = sprintf("%d, %p, %d, %d", $first, $uptr, $second, $third)
 	asmlinkage()
 	msqid = int_arg(1)
 	msgp_uaddr = pointer_arg(5)
@@ -4155,11 +3512,6 @@ probe nd_syscall.compat_sys_msgrcv.return = kprobe.function("compat_sys_msgrcv")
 probe nd_syscall.msgsnd = kprobe.function("sys_msgsnd") ?
 {
 	name = "msgsnd"
-	// msqid = $msqid
-	// msgp_uaddr = $msgp
-	// msgsz = $msgsz
-	// msgflg = $msgflg
-	// argstr = sprintf("%d, %p, %d, %d", $msqid, $msgp, $msgsz, $msgflg)
 	asmlinkage()
 	msqid = int_arg(1)
 	msgp_uaddr = pointer_arg(2)
@@ -4179,11 +3531,6 @@ probe nd_syscall.msgsnd.return = kprobe.function("sys_msgsnd").return ?
 probe nd_syscall.compat_sys_msgsnd = kprobe.function("compat_sys_msgsnd") ?
 {
 	name = "compat_sys_msgsnd"
-	// msqid = $first
-	// msgp_uaddr = $uptr
-	// msgsz = $second
-	// msgflg = $third
-	// argstr = sprintf("%d, %p, %d, %d", $first, $uptr, $second, $third)
 	asmlinkage()
 	msqid = int_arg(1)
 	msgp_uaddr = pointer_arg(4)
@@ -4202,9 +3549,6 @@ probe nd_syscall.compat_sys_msgsnd.return = kprobe.function("compat_sys_msgsnd")
 probe nd_syscall.msync = kprobe.function("sys_msync") ?
 {
 	name = "msync"
-	// start = $start
-	// length = $len
-	// flags = $flags
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
@@ -4222,8 +3566,6 @@ probe nd_syscall.msync.return = kprobe.function("sys_msync").return ?
 probe nd_syscall.munlock = kprobe.function("sys_munlock") ?
 {
 	name = "munlock"
-	// addr = $start
-	// len = $len
 	asmlinkage()
 	addr = ulong_arg(1)
 	len = ulong_arg(2)
@@ -4253,8 +3595,6 @@ probe nd_syscall.munlockall.return = kprobe.function("sys_munlockall").return ?
 probe nd_syscall.munmap = kprobe.function("sys_munmap") ?
 {
 	name = "munmap"
-	// start = $addr
-	// length = $len
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
