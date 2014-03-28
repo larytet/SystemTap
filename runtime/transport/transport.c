@@ -135,16 +135,20 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 
 		_stp_target = st->target;
 		st->res = systemtap_module_init();
-		if (st->res == 0)
+		if (st->res == 0) {
 			_stp_probes_started = 1;
 
-                /* Register the module notifier. */
-                if (!_stp_module_notifier_active) {
-                        int rc = register_module_notifier(& _stp_module_notifier_nb);
-                        if (rc == 0)
-                                _stp_module_notifier_active = 1;
-                        else
-                                _stp_warn ("Cannot register module notifier (%d)\n", rc);
+                        /* Register the module notifier ... */
+                        /* NB: but not if the module_init stuff
+                           failed: something nasty has happened, and
+                           we want no further probing started.  PR16766 */
+                        if (!_stp_module_notifier_active) {
+                                int rc = register_module_notifier(& _stp_module_notifier_nb);
+                                if (rc == 0)
+                                        _stp_module_notifier_active = 1;
+                                else
+                                        _stp_warn ("Cannot register module notifier (%d)\n", rc);
+                        }
                 }
 
 		/* Called from the user context in response to a proc

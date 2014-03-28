@@ -1881,8 +1881,19 @@ c_unparser::emit_module_refresh ()
 {
   o->newline() << "static void systemtap_module_refresh (void) {";
   o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
+
+  /* If we're not in STARTING/RUNNING state, don't try doing any work.
+     PR16766 */
+  o->newline() << "int state = atomic_read (session_state());";
+  o->newline() << "if (state != STAP_SESSION_RUNNING && state != STAP_SESSION_STARTING) {";
+  // cannot _stp_warn etc. since we're not in probe context
+  o->newline(1) << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\", state);";
+  o->newline() << "return;";
+  o->newline(-1) << "}";
+
   o->newline() << "(void) i;";
   o->newline() << "(void) j;";
+
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
     {
