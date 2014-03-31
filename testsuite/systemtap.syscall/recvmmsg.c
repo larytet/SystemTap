@@ -252,17 +252,51 @@ int main()
     recvmmsg(s, msgs, 2, MSG_DONTWAIT, (struct timespec *)-1);
     //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, UNKNOWN) = -NNNN (EFAULT)
 
+    close(s);
+    //staptest// close (NNNN) = 0
+
+    s = socket(PF_UNIX, SOCK_STREAM, 0);
+    //staptest// socket (PF_LOCAL, SOCK_STREAM, 0) = NNNN
+
+    connect(s, (struct sockaddr *)&sun1, sizeof(sun1));
+    //staptest// connect (NNNN, {AF_UNIX, "[^"]+"}, 110) = 0
+
     write(s, "R", 1);
     //staptest// write (NNNN, "R", 1) = 1
 
-    recvmmsg(s, msgs, 2, 0, NULL);
-    //staptest// recvmmsg (NNNN, XXXX, 2, 0x0, NULL) = NNNN
+    /* Wait for something to be readable */
+    FD_ZERO(&rdfds);
+    FD_SET(s, &rdfds);
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    select(s + 1, &rdfds, 0, 0, &timeout);
+    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+
+    recvmmsg(s, msgs, 2, MSG_WAITFORONE, NULL);
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_WAITFORONE, NULL) = NNNN
+
+    close(s);
+    //staptest// close (NNNN) = 0
+
+    s = socket(PF_UNIX, SOCK_STREAM, 0);
+    //staptest// socket (PF_LOCAL, SOCK_STREAM, 0) = NNNN
+
+    connect(s, (struct sockaddr *)&sun1, sizeof(sun1));
+    //staptest// connect (NNNN, {AF_UNIX, "[^"]+"}, 110) = 0
 
     write(s, "R", 1);
     //staptest// write (NNNN, "R", 1) = 1
 
-    recvmmsg(s, msgs, 2, 0, &tim);
-    //staptest// recvmmsg (NNNN, XXXX, 2, 0x0, \[0.000020000\]) = NNNN
+    /* Wait for something to be readable */
+    FD_ZERO(&rdfds);
+    FD_SET(s, &rdfds);
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    select(s + 1, &rdfds, 0, 0, &timeout);
+    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+
+    recvmmsg(s, msgs, 2, MSG_WAITFORONE, &tim);
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_WAITFORONE, \[0.000020000\]) = NNNN
 
     close(s);
     //staptest// close (NNNN) = 0
