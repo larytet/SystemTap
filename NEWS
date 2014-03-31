@@ -1,5 +1,11 @@
 * What's new in version 2.5
 
+- New switches have been added to help inspect the contents of installed
+  library files:
+
+  stap --dump-function --> lists all library functions and their args
+  stap --dump-probe-aliases --> list all library probe aliases
+
 - The heuristic algorithms used to search for function-prologue
   endings were improved, to cover more optimization (or
   lack-of-optimization, or incorrect-debuginfo) cases.  These
