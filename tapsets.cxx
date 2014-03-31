@@ -2599,13 +2599,7 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
 
   defined_ops.push (e);
   try {
-    // NB: provide<>/require<> are NOT typesafe.  So even though a defined_op is
-    // defined with a target_symbol* operand, a subsidiary call may attempt to
-    // rewrite it to a general expression* instead, and require<> happily
-    // casts to/from void*, causing possible memory corruption.  We use
-    // expression* here, being the general case of rewritten $variable.
-    expression *foo1 = e->operand;
-    foo1 = require (foo1);
+    replace (e->operand);
 
     // NB: Formerly, we had some curious cases to consider here, depending on what
     // various visit_target_symbol() implementations do for successful or
@@ -2633,15 +2627,14 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
     //
     // procfs: success: rewrites to function; failure: semantic_error
 
-    target_symbol* foo2 = dynamic_cast<target_symbol*> (foo1);
-    if (foo2 && foo2->saved_conversion_error) // failing
+    target_symbol* tsym = dynamic_cast<target_symbol*> (e->operand);
+    if (tsym && tsym->saved_conversion_error) // failing
       resolved = false;
-    else if (foo2) // unresolved but not marked failing
+    else if (tsym) // unresolved but not marked failing
       {
         // There are some visitors that won't touch certain target_symbols,
         // e.g. dwarf_var_expanding_visitor won't resolve @cast.  We should
         // leave it for now so some other visitor can have a chance.
-        e->operand = foo2;
         provide (e);
         return;
       }

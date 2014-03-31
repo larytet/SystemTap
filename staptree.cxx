@@ -446,6 +446,7 @@ void cast_op::print (ostream& o) const
   if (addressof)
     o << "&";
   o << name << '(' << *operand;
+  if (type_name.length() > 0)
   o << ", " << lex_cast_qstring (type_name);
   if (module.length() > 0)
     o << ", " << lex_cast_qstring (module);

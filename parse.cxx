@@ -183,7 +183,9 @@ private: // nonterminals
   continue_statement* parse_continue_statement ();
   indexable* parse_indexable ();
   const token *parse_hist_op_or_bare_name (hist_op *&hop, string &name);
-  target_symbol *parse_target_symbol (const token* t);
+  target_symbol *parse_target_symbol ();
+  cast_op *parse_cast_op ();
+  atvar_op *parse_atvar_op ();
   expression* parse_entry_op (const token* t);
   expression* parse_defined_op (const token* t);
   expression* parse_perf_op (const token* t);
@@ -203,9 +205,11 @@ private: // nonterminals
   expression* parse_multiplicative ();
   expression* parse_unary ();
   expression* parse_crement ();
+  expression* parse_dwarf_value ();
   expression* parse_value ();
   expression* parse_symbol ();
 
+  bool peek_target_symbol_components ();
   void parse_target_symbol_components (target_symbol* e);
 };
 
@@ -3294,12 +3298,12 @@ parser::parse_crement () // as in "increment" / "decrement"
       e->op = t->content;
       e->tok = t;
       next ();
-      e->operand = parse_value ();
+      e->operand = parse_dwarf_value ();
       return e;
     }
 
   // post-crement or non-crement
-  expression *op1 = parse_value ();
+  expression *op1 = parse_dwarf_value ();
 
   t = peek ();
   if (t && t->type == tok_operator
@@ -3314,6 +3318,52 @@ parser::parse_crement () // as in "increment" / "decrement"
     }
   else
     return op1;
+}
+
+
+expression*
+parser::parse_dwarf_value ()
+{
+  expression* expr = NULL;
+  target_symbol* tsym = NULL;
+
+  // With '&' we'll definitely be making a target symbol of some sort
+  bool addressof = false;
+  if (peek_op ("&"))
+    {
+      swallow ();
+      addressof = true;
+    }
+
+  // First try target_symbol types: $var, @cast, and @var.
+  // Otherwise just get a plain value of any sort.
+  const token* t = peek ();
+  if (t && t->type == tok_identifier && t->content[0] == '$')
+    expr = tsym = parse_target_symbol ();
+  else if (tok_is (t, tok_operator, "@cast"))
+    expr = tsym = parse_cast_op ();
+  else if (tok_is (t, tok_operator, "@var"))
+    expr = tsym = parse_atvar_op ();
+  else
+    expr = parse_value ();
+
+  // If we had '&' or see any target suffixes, that forces a target_symbol.
+  if (!tsym && (addressof || peek_target_symbol_components ()))
+    {
+      cast_op *cop = new cast_op;
+      cop->tok = expr->tok;
+      cop->operand = expr;
+      expr = tsym = cop;
+    }
+
+  if (tsym)
+    {
+      // Parse the rest of any kind of target symbol
+      tsym->addressof = addressof;
+      parse_target_symbol_components (tsym);
+    }
+
+  return expr;
 }
 
 
@@ -3345,11 +3395,6 @@ parser::parse_value ()
         throw PARSE_ERROR (_("expected ')'"));
       swallow ();
       return e;
-    }
-  else if (t->type == tok_operator && t->content == "&")
-    {
-      next (); // Cannot swallow, passing token on...
-      return parse_target_symbol (t);
     }
   else if (t->type == tok_identifier
            || (t->type == tok_operator && t->content[0] == '@'))
@@ -3408,8 +3453,8 @@ parser::parse_indexable ()
 }
 
 
-// var, indexable[index], func(parms), printf("...", ...), $var,r
-// @cast, @defined, @entry, @var, $var->member, @stat_op(stat)
+// var, indexable[index], func(parms), printf("...", ...),
+// @defined, @entry, @stat_op(stat)
 expression* parser::parse_symbol ()
 {
   hist_op *hop = NULL;
@@ -3421,12 +3466,7 @@ expression* parser::parse_symbol ()
     {
       // If we didn't get a hist_op, then we did get an identifier. We can
       // now scrutinize this identifier for the various magic forms of identifier
-      // (printf, @stat_op, and $var...)
-
-      if (name == "@cast"
-	  || name == "@var"
-	  || (name.size() > 0 && name[0] == '$'))
-        return parse_target_symbol (t);
+      // (printf, @stat_op...)
 
       // NB: PR11343: @defined() is not incompatible with earlier versions
       // of stap, so no need to check session.compatible for 1.2
@@ -3633,6 +3673,7 @@ expression* parser::parse_symbol ()
           else
             throw PARSE_ERROR (_("expected ',' or ']'"));
         }
+
       return ai;
     }
 
@@ -3646,20 +3687,27 @@ expression* parser::parse_symbol ()
   return sym;
 }
 
-// Parse a @cast or $var.  Given head token has already been consumed.
-target_symbol* parser::parse_target_symbol (const token* t)
+// Parse a $var.
+target_symbol* parser::parse_target_symbol ()
 {
-  bool addressof = false;
-  if (t->type == tok_operator && t->content == "&")
+  const token* t = next ();
+  if (t->type == tok_identifier && t->content[0]=='$')
     {
-      addressof = true;
-      // Don't delete t before trying next token.
-      // We might need it in the error message when there is no next token.
-      const token *next_t = next ();
-      delete t;
-      t = next_t;
+      // target_symbol time
+      target_symbol *tsym = new target_symbol;
+      tsym->tok = t;
+      tsym->name = t->content;
+      return tsym;
     }
 
+  throw PARSE_ERROR (_("expected $var"));
+}
+
+
+// Parse a @cast.
+cast_op* parser::parse_cast_op ()
+{
+  const token* t = next ();
   if (t->type == tok_operator && t->content == "@cast")
     {
       cast_op *cop = new cast_op;
@@ -3669,28 +3717,25 @@ target_symbol* parser::parse_target_symbol (const token* t)
       cop->operand = parse_expression ();
       expect_op(",");
       expect_unknown(tok_string, cop->type_name);
+      if (cop->type_name.empty())
+        throw PARSE_ERROR (_("expected non-empty string"));
       if (peek_op (","))
         {
           swallow ();
           expect_unknown(tok_string, cop->module);
         }
       expect_op(")");
-      parse_target_symbol_components(cop);
-      cop->addressof = addressof;
       return cop;
     }
 
-  if (t->type == tok_identifier && t->content[0]=='$')
-    {
-      // target_symbol time
-      target_symbol *tsym = new target_symbol;
-      tsym->tok = t;
-      tsym->name = t->content;
-      parse_target_symbol_components(tsym);
-      tsym->addressof = addressof;
-      return tsym;
-    }
+  throw PARSE_ERROR (_("expected @cast"));
+}
 
+
+// Parse a @var.
+atvar_op* parser::parse_atvar_op ()
+{
+  const token* t = next ();
   if (t->type == tok_operator && t->content == "@var")
     {
       atvar_op *aop = new atvar_op;
@@ -3711,12 +3756,10 @@ target_symbol* parser::parse_target_symbol (const token* t)
       else
         aop->module = "";
       expect_op(")");
-      parse_target_symbol_components(aop);
-      aop->addressof = addressof;
       return aop;
     }
 
-  throw PARSE_ERROR (_("expected @cast, @var or $var"));
+  throw PARSE_ERROR (_("expected @var"));
 }
 
 
@@ -3726,9 +3769,7 @@ expression* parser::parse_defined_op (const token* t)
   defined_op* dop = new defined_op;
   dop->tok = t;
   expect_op("(");
-  // no need for parse_hist_op... etc., as @defined takes only target_symbols as its operand.
-  const token* tt = next ();
-  dop->operand = parse_target_symbol (tt);
+  dop->operand = parse_expression ();
   expect_op(")");
   return dop;
 }
@@ -3760,6 +3801,12 @@ expression* parser::parse_perf_op (const token* t)
 }
 
 
+bool
+parser::peek_target_symbol_components ()
+{
+  return peek_op ("->") || peek_op ("[")
+    || tok_is (peek (), tok_identifier, "$");
+}
 
 void
 parser::parse_target_symbol_components (target_symbol* e)

@@ -338,7 +338,7 @@ struct atvar_op: public target_symbol
 
 struct defined_op: public expression
 {
-  target_symbol *operand;
+  expression *operand;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
