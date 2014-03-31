@@ -272,8 +272,8 @@ int main()
     select(s + 1, &rdfds, 0, 0, &timeout);
     //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
 
-    recvmmsg(s, msgs, 2, MSG_WAITFORONE, NULL);
-    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_WAITFORONE, NULL) = NNNN
+    recvmmsg(s, msgs, 2, MSG_DONTWAIT, NULL);
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, NULL) = NNNN
 
     close(s);
     //staptest// close (NNNN) = 0
@@ -295,8 +295,8 @@ int main()
     select(s + 1, &rdfds, 0, 0, &timeout);
     //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
 
-    recvmmsg(s, msgs, 2, MSG_WAITFORONE, &tim);
-    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_WAITFORONE, \[0.000020000\]) = NNNN
+    recvmmsg(s, msgs, 2, MSG_DONTWAIT, &tim);
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, \[0.000020000\]) = NNNN
 
     close(s);
     //staptest// close (NNNN) = 0
