@@ -65,7 +65,8 @@ uniq_list(list<string>& l)
 static void
 printscript(systemtap_session& s, ostream& o)
 {
-  if (s.listing_mode)
+  if (s.dump_mode == systemtap_session::dump_matched_probes ||
+      s.dump_mode == systemtap_session::dump_matched_probes_vars)
     {
       // We go through some heroic measures to produce clean output.
       // Record the alias and probe pointer as <name, set<derived_probe *> >
@@ -131,7 +132,7 @@ printscript(systemtap_session& s, ostream& o)
           o << it->first; // probe name or alias
 
           // Print the locals and arguments for -L mode only
-          if (s.listing_mode_vars)
+          if (s.dump_mode == systemtap_session::dump_matched_probes_vars)
             {
               map<string,unsigned> var_count; // format <"name:type",count>
               map<string,unsigned> arg_count;
@@ -678,27 +679,45 @@ passes_0_4 (systemtap_session &s)
   // PASS 1b: PARSING USER SCRIPT
   PROBE1(stap, pass1b__start, &s);
 
-  if (s.script_file == "-")
+  // Only try to parse a user script if the user provided one, or if we have to
+  // make one (as is the case for listing mode). Otherwise, s.user_script
+  // remains NULL.
+  if (!s.script_file.empty() ||
+      !s.cmdline_script.empty() ||
+      s.dump_mode == systemtap_session::dump_matched_probes ||
+      s.dump_mode == systemtap_session::dump_matched_probes_vars)
     {
-      s.user_file = parse (s, cin, s.guru_mode, false /* errs_as_warnings */);
-    }
-  else if (s.script_file != "")
-    {
-      s.user_file = parse (s, s.script_file, s.guru_mode, false /* errs_as_warnings */);
-    }
-  else
-    {
-      istringstream ii (s.cmdline_script);
-      s.user_file = parse (s, ii, s.guru_mode, false /* errs_as_warnings */);
-    }
-  if (s.user_file == 0)
-    {
-      // Syntax errors already printed.
-      rc ++;
+      if (s.script_file == "-")
+        {
+          s.user_file = parse (s, cin, s.guru_mode,
+                               false /* errs_as_warnings */);
+        }
+      else if (s.script_file != "")
+        {
+          s.user_file = parse (s, s.script_file, s.guru_mode,
+                               false /* errs_as_warnings */);
+        }
+      else if (s.cmdline_script != "")
+        {
+          istringstream ii (s.cmdline_script);
+          s.user_file = parse (s, ii, s.guru_mode,
+                               false /* errs_as_warnings */);
+        }
+      else // listing mode
+        {
+          istringstream ii ("probe " + s.dump_matched_pattern + " {}");
+          s.user_file = parse (s, ii, s.guru_mode,
+                               false /* errs_as_warnings */);
+        }
+      if (s.user_file == 0)
+        {
+          // Syntax errors already printed.
+          rc ++;
+        }
     }
 
   // Dump a list of probe aliases picked up, if requested
-  if (s.dump_probe_aliases)
+  if (s.dump_mode == systemtap_session::dump_probe_aliases)
     {
       set<string> aliases;
       vector<stapfile*>::const_iterator file;
@@ -765,13 +784,15 @@ passes_0_4 (systemtap_session &s)
            << endl;
     }
 
-  if (rc && !s.listing_mode)
+  if (rc && !s.dump_mode)
     cerr << _("Pass 1: parse failed.  [man error::pass1]") << endl;
 
   PROBE1(stap, pass1__end, &s);
 
   assert_no_interrupts();
-  if (rc || s.last_pass == 1) return rc;
+  if (rc || s.last_pass == 1 ||
+      s.dump_mode == systemtap_session::dump_probe_aliases)
+    return rc;
 
   times (& tms_before);
   gettimeofday (&tv_before, NULL);
@@ -782,11 +803,10 @@ passes_0_4 (systemtap_session &s)
   rc = semantic_pass (s);
 
   // Dump a list of known probe point types, if requested.
-  if (s.dump_probe_types)
+  if (s.dump_mode == systemtap_session::dump_probe_types)
     s.pattern_root->dump (s);
-
   // Dump a list of functions we picked up, if requested.
-  if (s.dump_functions)
+  else if (s.dump_mode == systemtap_session::dump_functions)
     {
       map<string,functiondecl*>::const_iterator func;
       for (func  = s.functions.begin();
@@ -802,7 +822,9 @@ passes_0_4 (systemtap_session &s)
         }
     }
   // Dump the whole script if requested, or if we stop at 2
-  else if (s.listing_mode || (rc == 0 && s.last_pass == 2))
+  else if (s.dump_mode == systemtap_session::dump_matched_probes ||
+           s.dump_mode == systemtap_session::dump_matched_probes_vars ||
+           (rc == 0 && s.last_pass == 2))
     printscript(s, cout);
 
   times (& tms_after);
@@ -817,14 +839,16 @@ passes_0_4 (systemtap_session &s)
                       << TIMESPRINT
                       << endl;
 
-  if (rc && !s.listing_mode && !s.dump_functions && !s.try_server ())
+  if (rc && !s.dump_mode && !s.try_server ())
     cerr << _("Pass 2: analysis failed.  [man error::pass2]") << endl;
 
   PROBE1(stap, pass2__end, &s);
 
   assert_no_interrupts();
-  // NB: listing_mode or dump_functions mode set last_pass to 2
-  if (rc || s.last_pass == 2) return rc;
+  // NB: none of the dump modes need to go beyond pass-2. If this changes, break
+  // into individual modes here.
+  if (rc || s.last_pass == 2 || s.dump_mode)
+    return rc;
 
   rc = prepare_translate_pass (s);
   assert_no_interrupts();
@@ -1148,10 +1172,10 @@ main (int argc, char * const argv [])
         manage_server_trust (ss);
 #endif
 
-        // Run the passes only if a script has been specified. The requirement for
-        // a script has already been checked in systemtap_session::check_options.
-        // Run the passes also if a dump of supported probe types has been requested via a server.
-        if (ss.have_script || (ss.dump_probe_types && ! s.specified_servers.empty ()))
+        // Run the passes only if a script has been specified or if we're
+        // dumping something. The requirement for a script has already been
+        // checked in systemtap_session::check_options.
+        if (ss.have_script || ss.dump_mode)
           {
             // Run passes 0-4 for each unique session,
             // either locally or using a compile-server.
@@ -1165,12 +1189,6 @@ main (int argc, char * const argv [])
               }
 	    if (rc || s.perpass_verbose[0] >= 1)
 	      s.explain_auto_options ();
-          }
-        else if (ss.dump_probe_types)
-          {
-            // Dump a list of known probe point types, if requested.
-            register_standard_tapsets(ss);
-            ss.pattern_root->dump (ss);
           }
       }
 

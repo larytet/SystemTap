@@ -68,6 +68,24 @@ stap \- systemtap script translator/driver
 [
 .I ARGUMENTS
 ]
+.br
+.B stap
+[
+.I OPTIONS
+]
+.B \-\-dump-probe-types
+.br
+.B stap
+[
+.I OPTIONS
+]
+.B \-\-dump-probe-aliases
+.br
+.B stap
+[
+.I OPTIONS
+]
+.B \-\-dump-functions
 
 .SH DESCRIPTION
 
@@ -525,7 +543,7 @@ the operation is performed.
 
 .TP
 .BI \-\-dump-probe-types
-Dumps a list of supported probe types. If
+Dumps a list of supported probe types and exits. If
 .IR \-\-privilege=stapusr
 is also specified, the list will be limited to probe types available to unprivileged users.
 

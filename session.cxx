@@ -118,11 +118,8 @@ systemtap_session::systemtap_session ():
   unoptimized = false;
   suppress_warnings = false;
   panic_warnings = false;
-  listing_mode = false;
-  listing_mode_vars = false;
-  dump_probe_types = false;
-  dump_probe_aliases = false;
-  dump_functions = false;
+  dump_mode = systemtap_session::dump_none;
+  dump_matched_pattern = "";
 
 #ifdef ENABLE_PROLOGUES
   prologue_searching = true;
@@ -305,11 +302,8 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   unoptimized = other.unoptimized;
   suppress_warnings = other.suppress_warnings;
   panic_warnings = other.panic_warnings;
-  listing_mode = other.listing_mode;
-  listing_mode_vars = other.listing_mode_vars;
-  dump_probe_types = other.dump_probe_types;
-  dump_probe_aliases = other.dump_probe_aliases;
-  dump_functions = other.dump_functions;
+  dump_mode = other.dump_mode;
+  dump_matched_pattern = other.dump_matched_pattern;
 
   prologue_searching = other.prologue_searching;
 
@@ -490,11 +484,15 @@ systemtap_session::usage (int exitcode)
   version ();
   clog
     << endl
-    << _F("Usage: stap [options] FILE         Run script in file.\n"
-     "   or: stap [options] -            Run script on stdin.\n"
-     "   or: stap [options] -e SCRIPT    Run given script.\n"
-     "   or: stap [options] -l PROBE     List matching probes.\n"
-     "   or: stap [options] -L PROBE     List matching probes and local variables.\n\n"
+    << _F(
+     "Usage: stap [options] FILE                    Run script in file.\n"
+     "   or: stap [options] -                       Run script on stdin.\n"
+     "   or: stap [options] -e SCRIPT               Run given script.\n"
+     "   or: stap [options] -l PROBE                List matching probes.\n"
+     "   or: stap [options] -L PROBE                List matching probes and local variables.\n"
+     "   or: stap [options] --dump-probe-types      List available probe types.\n"
+     "   or: stap [options] --dump-probe-aliases    List available probe aliases.\n"
+     "   or: stap [options] --dump-functions        List available functions.\n\n"
      "Options (in %s/rc and on command line):\n"
      "   --         end of translator options, script options follow\n"
      "   -h --help  show help\n"
@@ -687,11 +685,6 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
               cerr << _("Invalid pass number (should be 1-5).") << endl;
               return 1;
             }
-          if (listing_mode && last_pass != 2)
-            {
-              cerr << _("Listing (-l) mode implies pass 2.") << endl;
-              return 1;
-            }
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           break;
 
@@ -878,22 +871,30 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'L':
-          listing_mode_vars = true;
-          unoptimized = true; // This causes retention of variables for listing_mode
-          // fallthrough
-        case 'l':
-	  suppress_warnings = true;
-          listing_mode = true;
-          last_pass = 2;
-          if (have_script)
+          if (dump_mode)
             {
-	      cerr << _("Only one script can be given on the command line.")
-		   << endl;
-	      return 1;
+              cerr << _("ERROR: only one of the -l/-L/--dump-* "
+                        "switches may be specified") << endl;
+              return 1;
             }
-	  server_args.push_back (string ("-") + (char)grc + optarg);
-          cmdline_script = string("probe ") + string(optarg) + " {}";
-          have_script = true;
+          server_args.push_back (string ("-") + (char)grc + optarg);
+          dump_mode = systemtap_session::dump_matched_probes_vars;
+          dump_matched_pattern = optarg;
+          unoptimized = true; // This causes retention of vars for listing
+          suppress_warnings = true;
+          break;
+
+        case 'l':
+          if (dump_mode)
+            {
+              cerr << _("ERROR: only one of the -l/-L/--dump-* "
+                        "switches may be specified") << endl;
+              return 1;
+            }
+          server_args.push_back (string ("-") + (char)grc + optarg);
+          dump_mode = systemtap_session::dump_matched_probes;
+          dump_matched_pattern = optarg;
+          suppress_warnings = true;
           break;
 
         case 'F':
@@ -1158,41 +1159,41 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  systemtap_v_check = true;
 	  break;
 
-	case LONG_OPT_DUMP_PROBE_TYPES:
-	  server_args.push_back ("--dump-probe-types");
-	  dump_probe_types = true;
-	  break;
+        case LONG_OPT_DUMP_PROBE_TYPES:
+          if (dump_mode)
+            {
+              cerr << _("ERROR: only one of the -l/-L/--dump-* "
+                        "switches may be specified") << endl;
+              return 1;
+            }
+          server_args.push_back ("--dump-probe-types");
+          dump_mode = systemtap_session::dump_probe_types;
+          break;
 
-	case LONG_OPT_DUMP_PROBE_ALIASES:
-	  server_args.push_back ("--dump-probe-aliases");
-	  suppress_warnings = true;
-	  dump_probe_aliases = true;
-	  last_pass = 1;
-	  if (have_script)
-	    {
-	      cerr << _("Only one script can be given on the command line.")
-		   << endl;
-	      return 1;
-	    }
-	  cmdline_script = string("probe begin {}");
-	  have_script = true;
-	  break;
+        case LONG_OPT_DUMP_PROBE_ALIASES:
+          if (dump_mode)
+            {
+              cerr << _("ERROR: only one of the -l/-L/--dump-* "
+                        "switches may be specified") << endl;
+              return 1;
+            }
+          server_args.push_back ("--dump-probe-aliases");
+          suppress_warnings = true;
+          dump_mode = systemtap_session::dump_probe_aliases;
+          break;
 
-	case LONG_OPT_DUMP_FUNCTIONS:
-	  dump_functions = true;
-	  suppress_warnings = true;
-	  unoptimized = true; // so we keep never-called functions
-	  last_pass = 2;
-	  server_args.push_back ("--dump-functions");
-	  if (have_script)
-	    {
-	      cerr << _("Only one script can be given on the command line.")
-		   << endl;
-	      return 1;
-	    }
-	  cmdline_script = string("probe begin {}");
-	  have_script = true;
-	  break;
+        case LONG_OPT_DUMP_FUNCTIONS:
+          if (dump_mode)
+            {
+              cerr << _("ERROR: only one of the -l/-L/--dump-* "
+                        "switches may be specified") << endl;
+              return 1;
+            }
+          server_args.push_back ("--dump-functions");
+          suppress_warnings = true;
+          dump_mode = systemtap_session::dump_functions;
+          unoptimized = true; // Keep unused functions (which is all of them)
+          break;
 
 	case LONG_OPT_SUPPRESS_HANDLER_ERRORS:
 	  suppress_handler_errors = true;
@@ -1423,8 +1424,10 @@ systemtap_session::check_options (int argc, char * const argv [])
         args.push_back (string (argv[i]));
     }
 
-  // We don't need a script with --list-servers, --trust-servers, or --dump-probe-types.
-  bool need_script = server_status_strings.empty () && server_trust_spec.empty () && ! dump_probe_types;
+  // We don't need a script with --list-servers, --trust-servers, or any dump mode
+  bool need_script = server_status_strings.empty () &&
+                     server_trust_spec.empty () &&
+                     !dump_mode;
 
   if (benchmark_sdt_loops > 0 || benchmark_sdt_threads > 0)
     {
@@ -1449,6 +1452,16 @@ systemtap_session::check_options (int argc, char * const argv [])
   if (need_script && ! have_script)
     {
       cerr << _("A script must be specified.") << endl;
+      usage(1);
+    }
+  if (dump_mode && have_script)
+    {
+      cerr << _("Cannot specify a script with -l/-L/--dump-* switches.") << endl;
+      usage(1);
+    }
+  if (dump_mode && last_pass != 5)
+    {
+      cerr << _("Cannot specify -p with -l/-L/--dump-* switches.") << endl;
       usage(1);
     }
 
@@ -1849,7 +1862,8 @@ void
 systemtap_session::register_library_aliases()
 {
   vector<stapfile*> files(library_files);
-  files.push_back(user_file);
+  if (user_file) // May be NULL, e.g. in dump modes
+    files.push_back(user_file);
 
   for (unsigned f = 0; f < files.size(); ++f)
     {
@@ -1925,7 +1939,7 @@ void
 systemtap_session::print_error (const semantic_error& se)
 {
   // skip error message printing for listing mode with low verbosity
-  if ((this->listing_mode || this->dump_functions) && this->verbose <= 1)
+  if (this->dump_mode && this->verbose <= 1)
     {
       seen_errors[se.errsrc_chain()]++; // increment num_errors()
       return;

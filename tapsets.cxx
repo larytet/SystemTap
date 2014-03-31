@@ -4729,8 +4729,9 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
         }
       // Save the local variables for listing mode. If the scope_die is null,
       // local vars aren't accessible, so no need to invoke saveargs (PR10820).
-      if (!null_die(scope_die) && q.sess.listing_mode_vars)
-         saveargs(q, scope_die, dwfl_addr);
+      if (!null_die(scope_die) &&
+          q.sess.dump_mode == systemtap_session::dump_matched_probes_vars)
+        saveargs(q, scope_die, dwfl_addr);
     }
 
   // Reset the sole element of the "locations" vector as a

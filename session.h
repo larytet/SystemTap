@@ -197,8 +197,6 @@ public:
   bool modname_given;
   bool keep_tmpdir;
   bool guru_mode;
-  bool listing_mode;
-  bool listing_mode_vars;
   bool bulk_mode;
   bool unoptimized;
   bool suppress_warnings;
@@ -217,9 +215,19 @@ public:
   bool privilege_set;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
-  bool dump_probe_types;
-  bool dump_probe_aliases;
-  bool dump_functions;
+
+  enum
+   { dump_none,               // no dumping requested
+     dump_probe_types,        // dump standard tapset probes
+     dump_probe_aliases,      // dump tapset probe aliases
+     dump_functions,          // dump tapset functions
+     dump_matched_probes,     // dump matching probes (-l)
+     dump_matched_probes_vars // dump matching probes and their variables (-L)
+   } dump_mode;
+
+  // Pattern to match against in listing mode (-l/-L)
+  std::string dump_matched_pattern;
+
   int download_dbinfo;
   bool suppress_handler_errors;
   bool suppress_time_limits;

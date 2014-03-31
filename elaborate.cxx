@@ -1066,8 +1066,8 @@ derive_probes (systemtap_session& s,
             {
               throw semantic_error(e);
             }
-	  // Only output in listing if -vv is supplied:
-          else if ((!s.listing_mode && !s.dump_functions) || (s.verbose > 1))
+	  // Only output in dump mode if -vv is supplied:
+          else if (!s.dump_mode || (s.verbose > 1))
             {
               // print this one manually first because it's more important than
               // the optional errs
@@ -1597,19 +1597,22 @@ semantic_pass_symbols (systemtap_session& s)
 {
   symresolution_info sym (s);
 
-  // NB: s.files can grow during this iteration, so size() can
-  // return gradually increasing numbers.
-  s.files.push_back (s.user_file);
-
   // If we're listing functions, then we need to include all the files. Probe
   // aliases won't be visited/derived so all we gain are the functions, global
   // variables, and any real probes (e.g. begin probes). NB: type resolution for
   // a specific function arg may fail if it could only be determined from a
   // function call in one of the skipped aliases.
-  if (s.dump_functions)
+  if (s.dump_mode == systemtap_session::dump_functions)
     {
       s.files.insert(s.files.end(), s.library_files.begin(),
                                     s.library_files.end());
+    }
+  else if (s.user_file)
+    {
+      // Normal run: seed s.files with user_file and let it grow through the
+      // find_* functions. NB: s.files can grow during this iteration, so
+      // size() can return gradually increasing numbers.
+      s.files.push_back (s.user_file);
     }
 
   for (unsigned i = 0; i < s.files.size(); i++)
@@ -1754,10 +1757,10 @@ semantic_pass_symbols (systemtap_session& s)
 // Keep unread global variables for probe end value display.
 void add_global_var_display (systemtap_session& s)
 {
-  // Don't generate synthetic end probes when in listings mode;
-  // it would clutter up the list of probe points with "end ...".
-  // Also don't bother in function dump mode, since it'll never be used.
-  if (s.listing_mode || s.dump_functions) return;
+  // Don't generate synthetic end probes when in listing mode; it would clutter
+  // up the list of probe points with "end ...". In fact, don't bother in any
+  // dump mode at all, since it'll never be used.
+  if (s.dump_mode) return;
 
   varuse_collecting_visitor vut(s);
 
@@ -1920,7 +1923,7 @@ semantic_pass (systemtap_session& s)
       if (rc == 0) rc = semantic_pass_stats (s);
       if (rc == 0) embeddedcode_info_pass (s);
 
-      if (s.num_errors() == 0 && s.probes.size() == 0 && !s.listing_mode)
+      if (s.num_errors() == 0 && s.probes.size() == 0 && !s.dump_mode)
         throw SEMANTIC_ERROR (_("no probes found"));
     }
   catch (const semantic_error& e)
@@ -1932,11 +1935,12 @@ semantic_pass (systemtap_session& s)
   // PR11443
   // NB: listing mode only cares whether we have any probes,
   // so all previous error conditions are disregarded.
-  if (s.listing_mode)
+  if (s.dump_mode == systemtap_session::dump_matched_probes ||
+      s.dump_mode == systemtap_session::dump_matched_probes_vars)
     rc = s.probes.empty();
 
   // If we're dumping functions, only error out if no functions were found
-  if (s.dump_functions)
+  if (s.dump_mode == systemtap_session::dump_functions)
     rc = s.functions.empty();
 
   return rc;
@@ -2305,7 +2309,8 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
       functiondecl* fd = it->second;
       if (ftv.traversed.find(fd) == ftv.traversed.end())
         {
-          if (fd->tok->location.file->name == s.user_file->name && ! fd->synthetic)// !tapset
+          if (! fd->synthetic && s.user_file &&
+              fd->tok->location.file->name == s.user_file->name) // !tapset
             s.print_warning (_F("Eliding unused function '%s'", fd->name.c_str()), fd->tok);
           // s.functions.erase (it); // NB: can't, since we're already iterating upon it
           new_unused_functions.push_back (fd);
@@ -2360,7 +2365,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
         if (vut.read.find (l) == vut.read.end() &&
             vut.written.find (l) == vut.written.end())
           {
-            if (l->tok->location.file->name == s.user_file->name) // !tapset
+            if (s.user_file &&
+                l->tok->location.file->name == s.user_file->name) // !tapset
               s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
 	    if (s.tapset_compile_coverage) {
 	      s.probes[i]->unused_locals.push_back
@@ -2401,7 +2407,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           if (vut.read.find (l) == vut.read.end() &&
               vut.written.find (l) == vut.written.end())
             {
-              if (l->tok->location.file->name == s.user_file->name) // !tapset
+              if (s.user_file &&
+                  l->tok->location.file->name == s.user_file->name) // !tapset
                 s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
               if (s.tapset_compile_coverage) {
                 fd->unused_locals.push_back (fd->locals[j]);
@@ -2442,7 +2449,8 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
       if (vut.read.find (l) == vut.read.end() &&
           vut.written.find (l) == vut.written.end())
         {
-          if (l->tok->location.file->name == s.user_file->name) // !tapset
+          if (s.user_file &&
+              l->tok->location.file->name == s.user_file->name) // !tapset
             s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
 	  if (s.tapset_compile_coverage) {
 	    s.unused_globals.push_back(s.globals[i]);
@@ -2531,7 +2539,8 @@ dead_assignment_remover::visit_assignment (assignment* e)
                 session.print_warning("eliding write-only ", *e->left->tok);
               else
               */
-              if (e->left->tok->location.file->name == session.user_file->name) // !tapset
+              if (session.user_file &&
+                  e->left->tok->location.file->name == session.user_file->name) // !tapset
                 session.print_warning(_F("Eliding assignment to '%s'", leftvar->name.c_str()), e->tok);
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
@@ -2806,7 +2815,8 @@ dead_stmtexpr_remover::visit_expr_statement (expr_statement *s)
         session.print_warning("eliding never-assigned ", *s->value->tok);
       else
       */
-      if (s->value->tok->location.file->name == session.user_file->name) // not tapset
+      if (session.user_file &&
+          s->value->tok->location.file->name == session.user_file->name) // not tapset
         session.print_warning("Eliding side-effect-free expression ", s->tok);
 
       // NB: this 0 pointer is invalid to leave around for any length of
