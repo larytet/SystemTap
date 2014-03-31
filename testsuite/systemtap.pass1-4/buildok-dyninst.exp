@@ -129,6 +129,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/syscalls2-detailed.stp -
 	buildok/systemtap_privilege.stp -
 	buildok/task-embedded.stp -
+	buildok/task_rlimit_test.stp -
 	buildok/task_test.stp -
 	buildok/task_time-embedded.stp -
 	buildok/tcp-all-probes.stp -

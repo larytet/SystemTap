@@ -1,3 +1,5 @@
+#! stap -p4
+
 probe begin
 {
     print (task_rlimit_cpu(0) +
