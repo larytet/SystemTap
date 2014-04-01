@@ -16,6 +16,11 @@
 
 #include "perf.h"
 
+#ifndef INIT_WORK_ONSTACK
+#define INIT_WORK_ONSTACK(_work, _func) INIT_WORK((_work), (_func))
+#define destroy_work_on_stack(_work) do { (void)(_work); } while (0)
+#endif
+
 /** @file perf.c
  * @brief Implements performance monitoring hardware support
  */
@@ -205,11 +210,12 @@ static int _stp_perf_init_n (struct stap_perf_probe *probes, size_t n,
 			     const char **ppfail)
 {
   struct _stp_perf_work pwork = { .probes = probes, .nprobes = n };
-  INIT_WORK(&pwork.work, _stp_perf_init_work);
+  INIT_WORK_ONSTACK(&pwork.work, _stp_perf_init_work);
   schedule_work(&pwork.work);
   flush_work(&pwork.work);
   if (pwork.rc)
     *ppfail = pwork.probe_point;
+  destroy_work_on_stack(&pwork.work);
   return pwork.rc;
 }
 
