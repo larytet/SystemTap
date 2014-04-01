@@ -53,7 +53,10 @@ proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING ar
 		}
 		timeout { 
                     fail "$TEST_NAME shutdown (timeout)"
+                    # Let's try INT again, then KILL in case it's not sufficient
                     exec kill -INT -- -[exp_pid] 
+                    sleep 3
+                    exec kill -KILL -- -[exp_pid]
                 }
 		eof { fail "$TEST_NAME shutdown (eof)" }
 	    }
@@ -65,6 +68,9 @@ proc stap_run_error { TEST_NAME EXPECT_ERROR ERROR_STRING OUTPUT_CHECK_STRING ar
     }
     # again for good measure
     exec kill -INT -- -[exp_pid]
+    sleep 3
+    # and again for a really good measure
+    exec kill -KILL -- -[exp_pid]
     catch close
     wait
 }
