@@ -924,10 +924,10 @@ probe __nd_syscall.socketcall.recv = kprobe.function("sys_socketcall").call ?
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECV %}) next;
 	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "ulong")[0])
+	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
 	len = user_ulong(&@cast(__args, "ulong")[2])
-	flags = user_uint32(&@cast(__args, "ulong")[3])
+	flags = __uint32(user_ulong(&@cast(__args, "ulong")[3]))
 }
 probe __nd_syscall.compat_socketcall.recv =
 	kprobe.function("compat_sys_socketcall").call ?
@@ -994,12 +994,12 @@ probe __nd_syscall.socketcall.recvfrom =
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECVFROM %}) next
 	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "ulong")[0])
+	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
 	len = user_ulong(&@cast(__args, "ulong")[2])
-	flags = user_uint32(&@cast(__args, "ulong")[3])
+	flags = __uint32(user_ulong(&@cast(__args, "ulong")[3]))
 	addr_uaddr = user_ulong(&@cast(__args, "ulong")[4])
-	addrlen_uaddr = user_ulong(&@cast(__args, "ulong")[5])
+	addrlen_uaddr = __uint32(user_ulong(&@cast(__args, "ulong")[5]))
 }
 probe __nd_syscall.compat_socketcall.recvfrom =
 	kprobe.function("compat_sys_socketcall").call ?
@@ -1966,7 +1966,7 @@ probe nd_syscall.send = kprobe.function("sys_send") ?
 	len = ulong_arg(3)
 	flags = uint_arg(4)
 	flags_str = _msg_flags_str(flags)
-	argstr = sprintf("%d, %p, %d, %s", s, buf_uaddr, len, flags_str)
+	argstr = sprintf("%d, %p, %u, %s", s, buf_uaddr, len, flags_str)
 }
 probe nd_syscall.send.return = kprobe.function("sys_send").return ?
 {
@@ -2091,24 +2091,67 @@ probe nd_syscall.sendmmsg.return = kprobe.function("sys_sendmmsg").return ?
 #		struct sockaddr __user *addr,
 #		int addr_len)
 #
-probe nd_syscall.sendto = kprobe.function("sys_sendto") ?
+probe nd_syscall.sendto = __nd_syscall.sendto ?,
+	__nd_syscall.socketcall.sendto ?,
+	__nd_syscall.compat_socketcall.sendto ?
 {
 	name = "sendto"
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s, %s, %u", s, buf_uaddr,
+			 len, flags_str,
+			 _struct_sockaddr_u(to_uaddr, tolen), tolen)
+}
+probe __nd_syscall.sendto = kprobe.function("sys_sendto").call ?
+{
 	asmlinkage()
+	@__syscall_gate(%{ __NR_sendto %})
 	s = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
 	flags = uint_arg(4)
-	flags_str = _msg_flags_str(flags)
 	to_uaddr = pointer_arg(5)
-	tolen = int_arg(6)
-	argstr = sprintf("%d, %p, %d, %s, %s, %d", s, buf_uaddr,
-			len, flags_str, _struct_sockaddr_u(to_uaddr, tolen), tolen)
+	tolen = uint_arg(6)
 }
-probe nd_syscall.sendto.return = kprobe.function("sys_sendto").return ?
+probe __nd_syscall.socketcall.sendto = kprobe.function("sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_SENDTO %}) next;
+	__args = pointer_arg(2)
+	s = __int32(user_ulong(&@cast(__args, "ulong")[0]))
+	buf_uaddr = user_ulong(&@cast(__args, "ulong")[1])
+	len = user_ulong(&@cast(__args, "ulong")[2])
+	flags = __uint32(user_ulong(&@cast(__args, "ulong")[3]))
+	to_uaddr = user_ulong(&@cast(__args, "ulong")[4])
+	tolen = __uint32(user_ulong(&@cast(__args, "ulong")[5]))
+}
+probe __nd_syscall.compat_socketcall.sendto = 
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_SENDTO %}) next;
+	__args = pointer_arg(2)
+	s = user_int(&@cast(__args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
+	len = user_uint32(&@cast(__args, "unsigned int")[2])
+	flags = user_uint32(&@cast(__args, "unsigned int")[3])
+	to_uaddr = user_uint32(&@cast(__args, "unsigned int")[4])
+	tolen = user_uint32(&@cast(__args, "unsigned int")[5])
+}
+probe nd_syscall.sendto.return = __nd_syscall.sendto.return ?,
+	__nd_syscall.socketcall.sendto.return ?
 {
 	name = "sendto"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.sendto.return = kprobe.function("sys_sendto").return ?
+{
+	@__syscall_gate(%{ __NR_sendto %})
+}
+probe __nd_syscall.socketcall.recv.return = 
+	kprobe.function("sys_socketcall").return ?, 
+	kprobe.function("compat_sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_SENDTO %}) next;
 }
 
 # setdomainname ______________________________________________

@@ -4,6 +4,9 @@
 #include <asm/unistd.h>
 #include "linux/compat_unistd.h"
 
+// Be sure we have the SYS_* defines.
+#include <linux/net.h>
+
 /*
 * Simple lookup functions for mapping values to names
 * using embedded C. Use these functions to create safe,

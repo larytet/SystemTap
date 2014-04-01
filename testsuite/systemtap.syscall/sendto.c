@@ -1,4 +1,4 @@
-/* COVERAGE: recv */
+/* COVERAGE: sendto */
 
 #include <stdio.h>
 #include <unistd.h>
@@ -21,7 +21,7 @@ void do_child()
     struct sockaddr_in fsin;
     fd_set afds, rfds;
     int nfds, cc, fd;
-    char c;
+    char buf[1024];
 
     FD_ZERO(&afds);
     FD_SET(sfd, &afds);
@@ -46,12 +46,11 @@ void do_child()
 	    newfd = accept(sfd, (struct sockaddr *)&fsin, &fromlen);
 	    if (newfd >= 0)
 		FD_SET(newfd, &afds);
-	    /* send something back */
-	    (void)write(newfd, "XXXXX\n", 6);
 	}
 	for (fd = 0; fd < nfds; ++fd) {
 	    if (fd != sfd && FD_ISSET(fd, &rfds)) {
-		if ((cc = read(fd, &c, 1)) == 0) {
+		cc = read(fd, buf, sizeof(buf));
+		if (cc == 0 || (cc < 0 && errno != EINTR)) {
 		    (void)close(fd);
 		    FD_CLR(fd, &afds);
 		}
@@ -90,59 +89,49 @@ start_server(struct sockaddr_in *sin0)
 int main()
 {
     int s, fd_null;
-    struct sockaddr_in sin1, sin2, sin4;
+    struct sockaddr_in sin1;
     pid_t pid = 0;
     char buf[1024];
     fd_set rdfds;
     struct timeval timeout;
 
-    /* On several platforms, glibc substitutes recvfrom() for
-     * recv(). We could assume that if SYS_recv is defined, we'll
-     * actually use recv(), but that isn't true on all platforms. So,
-     * we'll just accept recv() or recvfrom(). */
-
     /* initialize sockaddr's */
     sin1.sin_family = AF_INET;
     sin1.sin_port = htons((getpid() % 32768) + 11000);
     sin1.sin_addr.s_addr = INADDR_ANY;
+
+    signal(SIGPIPE, SIG_IGN);
+
     pid = start_server(&sin1);
-
-    sin2.sin_family = AF_INET;
-    /* this port must be unused! */
-    sin2.sin_port = htons((getpid() % 32768) + 10000);
-    sin2.sin_addr.s_addr = INADDR_ANY;
-
-    sin4.sin_family = 47;	/* bogus address family */
-    sin4.sin_port = 0;
-    sin4.sin_addr.s_addr = htonl(0x0AFFFEFD);
 
     fd_null = open("/dev/null", O_WRONLY);
 
-    recv(-1, buf, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (-1, XXXX, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = -NNNN (EBADF)
+    sendto(-1, buf, sizeof(buf), 0, NULL, 0);
+    //staptest// sendto (-1, XXXX, 1024, 0x0, NULL, 0) = -NNNN (EBADF)
 
-    recv(fd_null, buf, sizeof(buf), MSG_DONTWAIT);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = -NNNN (ENOTSOCK)
+    sendto(fd_null, buf, sizeof(buf), MSG_DONTWAIT, NULL, 0);
+    //staptest// sendto (NNNN, XXXX, 1024, MSG_DONTWAIT, NULL, 0) = -NNNN (ENOTSOCK)
 
-    s = socket(PF_INET, SOCK_STREAM, 0);
-    //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
+    s = socket(PF_INET, SOCK_DGRAM, 0);
+    //staptest// socket (PF_INET, SOCK_DGRAM, IPPROTO_IP) = NNNN
 
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
-    /* Wait for something to be readable, else we won't detect EFAULT */
-    FD_ZERO(&rdfds);
-    FD_SET(s, &rdfds);
-    timeout.tv_sec = 2;
-    timeout.tv_usec = 0;
-    select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    sendto(s, (void *)buf, sizeof(buf), MSG_OOB, (struct sockaddr *)&sin1,
+	   sizeof(sin1));
+    //staptest// sendto (NNNN, XXXX, 1024, MSG_OOB, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EOPNOTSUPP)
 
-    recv(s, (void *)-1, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (NNNN, 0x[f]+, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = -NNNN (EFAULT)
+    sendto(s, (void *)-1, sizeof(buf), 0, (struct sockaddr *)&sin1,
+	   sizeof(sin1));
+    //staptest// sendto (NNNN, 0x[f]+, 1024, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EFAULT)
 
-    recv(s, buf, sizeof(buf), 0);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = 6
+    sendto(s, (void *)buf, -1, 0, (struct sockaddr *)&sin1, sizeof(sin1));
+#if __WORDSIZE == 64
+    //staptest// sendto (NNNN, XXXX, 18446744073709551615, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EMSGSIZE)
+#else
+    //staptest// sendto (NNNN, XXXX, 4294967295, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EMSGSIZE)
+#endif
 
     close(s);
     //staptest// close (NNNN) = 0
@@ -153,23 +142,18 @@ int main()
     connect(s, (struct sockaddr *)&sin1, sizeof(sin1));
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
-    /* Wait for something to be readable */
-    FD_ZERO(&rdfds);
-    FD_SET(s, &rdfds);
-    timeout.tv_sec = 2;
-    timeout.tv_usec = 0;
-    select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&sin1, sizeof(sin1));
+    //staptest// sendto (NNNN, XXXX, 1024, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = 1024
 
-    recv(s, buf, sizeof(buf), -1);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX[[[[, 0x0, 0x0]]]]?) = -NNNN (EINVAL)
+    sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)&sin1, -1);
+    //staptest// sendto (NNNN, XXXX, 1024, 0x0, {unknown .+}, 4294967295) = -NNNN (EINVAL)
 
-    recv(s, buf, (size_t)-1, MSG_DONTWAIT);
-#if __WORDSIZE == 64
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = 6
-#else
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 4294967295, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = 6
-#endif
+    sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)-1, sizeof(sin1));
+    //staptest// sendto (NNNN, XXXX, 1024, 0x0, \[\.\.\.\], 16) = -NNNN (EFAULT)
+
+    // Ignore the return value on this sendto() call.
+    sendto(s, buf, sizeof(buf), -1, (struct sockaddr *)&sin1, sizeof(sin1));
+    //staptest// sendto (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX, {AF_INET, 0.0.0.0, NNNN}, 16)
 
     close(s);
     //staptest// close (NNNN) = 0

@@ -189,8 +189,8 @@ int main()
     recvmmsg(-1, msgs, 2, 0, NULL);
     //staptest// recvmmsg (-1, XXXX, 2, 0x0, NULL) = -NNNN (EBADF)
 
-    recvmmsg(fd_null, msgs, 2, 0, NULL);
-    //staptest// recvmmsg (NNNN, XXXX, 2, 0x0, NULL) = -NNNN (ENOTSOCK)
+    recvmmsg(fd_null, msgs, 2, MSG_DONTWAIT, NULL);
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, NULL) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_STREAM, 0);
     //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN

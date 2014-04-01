@@ -120,8 +120,9 @@ int main()
     recvfrom(-1, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
     //staptest// recvfrom (-1, XXXX, 1024, 0x0, XXXX, XXXX) = -NNNN (EBADF)
 
-    recvfrom(fd_null, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
-    //staptest// recvfrom (NNNN, XXXX, 1024, 0x0, XXXX, XXXX) = -NNNN (ENOTSOCK)
+    recvfrom(fd_null, buf, sizeof(buf), MSG_DONTWAIT, (struct sockaddr *)&from,
+	     &fromlen);
+    //staptest// recvfrom (NNNN, XXXX, 1024, MSG_DONTWAIT, XXXX, XXXX) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_STREAM, 0);
     //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
@@ -219,11 +220,12 @@ int main()
     recvfrom(s, buf, sizeof(buf), -1, (struct sockaddr *)&from, &fromlen);
     //staptest// recvfrom (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX, XXXX, XXXX) = -NNNN
 
-    recvfrom(s, buf, (size_t)-1, 0, (struct sockaddr *)&from, &fromlen);
+    recvfrom(s, buf, (size_t)-1, MSG_DONTWAIT, (struct sockaddr *)&from,
+	     &fromlen);
 #if __WORDSIZE == 64
-    //staptest// recvfrom (NNNN, XXXX, 18446744073709551615, 0x0, XXXX, XXXX) = 6
+    //staptest// recvfrom (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT, XXXX, XXXX) = 6
 #else
-    //staptest// recvfrom (NNNN, XXXX, 4294967295, 0x0, XXXX, XXXX) = 6
+    //staptest// recvfrom (NNNN, XXXX, 4294967295, MSG_DONTWAIT, XXXX, XXXX) = 6
 #endif
 
     close(s);

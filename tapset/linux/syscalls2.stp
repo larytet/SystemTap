@@ -973,10 +973,10 @@ probe syscall.recv = __syscall.socketcall.recv ?,
 probe __syscall.socketcall.recv = kernel.function("sys_socketcall").call ?
 {
 	if ($call != %{ SYS_RECV %}) next;
-	s = user_int(&@cast($args, "ulong")[0])
+	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
-	flags = user_uint32(&@cast($args, "ulong")[3])
+	flags = __uint32(user_ulong(&@cast($args, "ulong")[3]))
 }
 probe __syscall.compat_socketcall.recv =
 	kernel.function("compat_sys_socketcall").call ?
@@ -1036,12 +1036,12 @@ probe syscall.recvfrom = __syscall.socketcall.recvfrom ?,
 probe __syscall.socketcall.recvfrom = kernel.function("sys_socketcall").call ?
 {
 	if ($call != %{ SYS_RECVFROM %}) next
-	s = user_int(&@cast($args, "ulong")[0])
+	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	len = user_ulong(&@cast($args, "ulong")[2])
-	flags = user_uint32(&@cast($args, "ulong")[3])
+	flags = __uint32(user_ulong(&@cast($args, "ulong")[3]))
 	addr_uaddr = user_ulong(&@cast($args, "ulong")[4])
-	addrlen_uaddr = user_ulong(&@cast($args, "ulong")[5])
+	addrlen_uaddr = __uint32(user_ulong(&@cast($args, "ulong")[5]))
 }
 probe __syscall.compat_socketcall.recvfrom =
 	kernel.function("compat_sys_socketcall").call ?
@@ -1952,12 +1952,12 @@ probe syscall.compat_sys_semtimedop.return = kernel.function("compat_sys_semtime
 probe syscall.send = kernel.function("sys_send").call ?
 {
 	name = "send"
-	s = $fd
+	s = __int32($fd)
 	buf_uaddr = $buff
 	len = $len
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
-	argstr = sprintf("%d, %p, %d, %s", $fd, $buff, $len, flags_str)
+	flags = __uint32($flags)
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", s, $buff, $len, flags_str)
 }
 probe syscall.send.return = kernel.function("sys_send").return ?
 {
@@ -2081,21 +2081,56 @@ probe syscall.sendmmsg.return = kernel.function("sys_sendmmsg").return ?
 #		struct sockaddr __user *addr,
 #		int addr_len)
 #
-probe syscall.sendto = kernel.function("sys_sendto").call ?
+probe syscall.sendto = __syscall.sendto ?, __syscall.socketcall.sendto ?,
+	__syscall.compat_socketcall.sendto ?
 {
 	name = "sendto"
-	s = $fd
+	flags_str = _msg_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s, %s, %u", s, buf_uaddr,
+			 len, flags_str,
+			 _struct_sockaddr_u(to_uaddr, tolen), tolen)
+}
+probe __syscall.sendto = kernel.function("sys_sendto").call ?
+{
+	@__syscall_gate(%{ __NR_sendto %})
+	s = __int32($fd)
 	buf_uaddr = $buff
 	len = $len
-	flags = $flags
-	flags_str = _msg_flags_str($flags)
+	flags = __uint32($flags)
 	to_uaddr = $addr
-	tolen = $addr_len
-	argstr = sprintf("%d, %p, %d, %s, %s, %d", $fd, $buff,
-		$len, flags_str, _struct_sockaddr_u($addr, $addr_len), $addr_len)
+	tolen = __uint32($addr_len)
 }
-probe syscall.sendto.return = kernel.function("sys_sendto").return ?
+probe __syscall.socketcall.sendto = kernel.function("sys_socketcall").call ?
 {
+	if ($call != %{ SYS_SENDTO %}) next;
+	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	buf_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	len = user_ulong(&@cast($args, "ulong")[2])
+	flags = __uint32(user_ulong(&@cast($args, "ulong")[3]))
+	to_uaddr = user_ulong(&@cast($args, "ulong")[4])
+	tolen = __uint32(user_ulong(&@cast($args, "ulong")[5]))
+}
+probe __syscall.compat_socketcall.sendto = 
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_SENDTO %}) next;
+	s = user_int(&@cast($args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	len = user_uint32(&@cast($args, "unsigned int")[2])
+	flags = user_uint32(&@cast($args, "unsigned int")[3])
+	to_uaddr = user_uint32(&@cast($args, "unsigned int")[4])
+	tolen = user_uint32(&@cast($args, "unsigned int")[5])
+}
+probe syscall.sendto.return = kernel.function("sys_sendto").return ?,
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
+{
+	if (@defined($call)) {
+		if ($call != %{ SYS_SENDTO %}) next;
+	}
+	else {
+		@__syscall_gate(%{ __NR_sendto %})
+	}
 	name = "sendto"
 	retstr = return_str(1, $return)
 }

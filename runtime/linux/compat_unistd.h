@@ -140,5 +140,8 @@
 #ifndef __NR_recvfrom
 #define __NR_recvfrom (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_sendto
+#define __NR_sendto (__NR_syscall_max + 1)
+#endif
 
 #endif /* _COMPAT_UNISTD_H_ */

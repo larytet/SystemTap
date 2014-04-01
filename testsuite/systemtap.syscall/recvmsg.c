@@ -187,8 +187,8 @@ int main()
     recvmsg(-1, &msgdat, 0);
     //staptest// recvmsg (-1, XXXX, 0x0) = -NNNN (EBADF)
 
-    recvmsg(fd_null, &msgdat, 0);
-    //staptest// recvmsg (NNNN, XXXX, 0x0) = -NNNN (ENOTSOCK)
+    recvmsg(fd_null, &msgdat, MSG_DONTWAIT);
+    //staptest// recvmsg (NNNN, XXXX, MSG_DONTWAIT) = -NNNN (ENOTSOCK)
 
     s = socket(PF_INET, SOCK_STREAM, 0);
     //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
@@ -241,8 +241,16 @@ int main()
     write(s, "R", 1);
     //staptest// write (NNNN, "R", 1) = 1
 
-    recvmsg(s, &msgdat, 0);
-    //staptest// recvmsg (NNNN, XXXX, 0x0) = 11
+    /* Wait for something to be readable */
+    FD_ZERO(&rdfds);
+    FD_SET(s, &rdfds);
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    select(s + 1, &rdfds, 0, 0, &timeout);
+    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+
+    recvmsg(s, &msgdat, MSG_DONTWAIT);
+    //staptest// recvmsg (NNNN, XXXX, MSG_DONTWAIT) = 11
 
     close(s);
     //staptest// close (NNNN) = 0
