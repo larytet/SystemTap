@@ -89,7 +89,10 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 		}
 		timeout { 
                     fail "$TEST_NAME shutdown (timeout)"
-                    exec kill -INT -- -[exp_pid] 
+                    # Let's try INT again, then KILL in case it's not sufficient
+                    exec kill -INT -- -[exp_pid]
+                    sleep 3
+                    exec kill -KILL -- -[exp_pid]
                 }
 		eof { fail "$TEST_NAME shutdown (eof)" }
 	    }
@@ -103,6 +106,9 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
     }
   # again for good measure
   exec kill -INT -- -[exp_pid]
+  sleep 3
+  # and again for a really good measure
+  exec kill -KILL -- -[exp_pid]
   catch close
   wait
 }
