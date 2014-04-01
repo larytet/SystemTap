@@ -27,7 +27,7 @@ void do_child()
     FD_ZERO(&afds);
     FD_SET(sfd, &afds);
 
-    nfds = getdtablesize();
+    nfds = FD_SETSIZE;
 
     /* accept connections until killed */
     while (1) {
