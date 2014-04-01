@@ -149,7 +149,7 @@ int main()
     //staptest// sendto (NNNN, XXXX, 1024, 0x0, {unknown .+}, 4294967295) = -NNNN (EINVAL)
 
     sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)-1, sizeof(sin1));
-    //staptest// sendto (NNNN, XXXX, 1024, 0x0, \[\.\.\.\], 16) = -NNNN (EFAULT)
+    //staptest// sendto (NNNN, XXXX, 1024, 0x0, {\.\.\.}, 16) = -NNNN (EFAULT)
 
     // Ignore the return value on this sendto() call.
     sendto(s, buf, sizeof(buf), -1, (struct sockaddr *)&sin1, sizeof(sin1));

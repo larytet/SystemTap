@@ -472,7 +472,7 @@ function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
 
     if (_stp_copy_from_user(CONTEXT->buf, ptr, len))
 	{
-		strlcpy(STAP_RETVALUE, "[...]", MAXSTRINGLEN);
+		strlcpy(STAP_RETVALUE, "{...}", MAXSTRINGLEN);
 		return;
 	}
 

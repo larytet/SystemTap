@@ -48,7 +48,7 @@ int main()
   //staptest// bind (-1, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EBADF)
 
   bind(sock_inet_stream, (struct sockaddr *)-1, sizeof(struct sockaddr_in));
-  //staptest// bind (NNNN, \[\.\.\.\], 16) = -NNNN (EFAULT)
+  //staptest// bind (NNNN, {\.\.\.}, 16) = -NNNN (EFAULT)
 
   bind(sock_inet_stream, (struct sockaddr *)&sin1, 3);
   //staptest// bind (NNNN, {.+}, 3) = -NNNN (EINVAL)

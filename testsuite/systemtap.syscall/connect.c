@@ -114,7 +114,7 @@ int main()
     //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
 
     connect(s, (struct sockaddr *)-1, sizeof(sin1));
-    //staptest// connect (NNNN, \[\.\.\.\], 16) = -NNNN (EFAULT)
+    //staptest// connect (NNNN, {\.\.\.\}, 16) = -NNNN (EFAULT)
 
     connect(s, (struct sockaddr *)&sin1, -1);
     //staptest// connect (NNNN, {unknown .+}, 4294967295) = -NNNN (EINVAL)
