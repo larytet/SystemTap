@@ -60,6 +60,9 @@
 #ifndef __NR_ia32_rt_sigprocmask
 #define __NR_ia32_rt_sigprocmask 175
 #endif
+#ifndef __NR_ia32_sendmmsg
+#define __NR_ia32_sendmmsg 345
+#endif
 #ifndef __NR_ia32_symlinkat
 #define __NR_ia32_symlinkat 304
 #endif
@@ -82,6 +85,7 @@
 #define __NR_compat_readlinkat		__NR_ia32_readlinkat
 #define __NR_compat_renameat		__NR_ia32_renameat
 #define __NR_compat_rt_sigprocmask	__NR_ia32_rt_sigprocmask
+#define __NR_compat_sendmmsg		__NR_ia32_sendmmsg
 #define __NR_compat_symlinkat		__NR_ia32_symlinkat
 #define __NR_compat_umount2		__NR_ia32_umount2
 
@@ -107,6 +111,7 @@
 #define __NR_compat_readlinkat		__NR_readlinkat
 #define __NR_compat_renameat		__NR_renameat
 #define __NR_compat_rt_sigprocmask	__NR_rt_sigprocmask
+#define __NR_compat_sendmmsg		__NR_sendmmsg
 #define __NR_compat_symlinkat		__NR_symlinkat
 #define __NR_compat_umount2		__NR_umount2
 
@@ -139,6 +144,9 @@
 #endif
 #ifndef __NR_recvfrom
 #define __NR_recvfrom (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_sendmmsg
+#define __NR_sendmmsg (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_sendto
 #define __NR_sendto (__NR_syscall_max + 1)

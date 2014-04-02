@@ -6,6 +6,7 @@
 
 // Be sure we have the SYS_* defines.
 #include <linux/net.h>
+#include "linux/compat_net.h"
 
 /*
 * Simple lookup functions for mapping values to names
