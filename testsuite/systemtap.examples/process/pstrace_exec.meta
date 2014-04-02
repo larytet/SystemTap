@@ -10,4 +10,4 @@ output: trace
 scope: system-wide
 description: The pstrace_exec.stp script watches each exec operation. If the exec contains a substring that matches the script's command-line argument, it prints out that process and all of its ancestors.
 test_check: stap -p4 pstrace_exec.stp bash
-test_installcheck: stap pstrace_exec.stp -c "sleep 0.2" bash
+test_installcheck: stap pstrace_exec.stp -c "sleep 1" bash

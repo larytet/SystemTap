@@ -10,4 +10,4 @@ output: sorted-list on-exit
 scope: system-wide
 description: Combination shell/systemtap script to measure system call counts and times.  Can be filtered by process IDs, process names and users.
 test_check: file ./syscalltimes
-test_installcheck: ./syscalltimes -c 'sleep 0.2'
+test_installcheck: ./syscalltimes -c 'sleep 1'

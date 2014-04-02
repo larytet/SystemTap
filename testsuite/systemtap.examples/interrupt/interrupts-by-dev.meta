@@ -11,4 +11,4 @@ scope: system-wide
 description: The interrupts-by-dev.stp script profiles interrupts received by each device per 100 ms.
 test_support: stap -l 'kernel.trace("irq_handler_entry")'
 test_check: stap -p4 interrupts-by-dev.stp
-test_installcheck: stap interrupts-by-dev.stp -c "sleep 0.2"
+test_installcheck: stap interrupts-by-dev.stp -c "sleep 1"

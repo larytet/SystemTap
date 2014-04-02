@@ -35,7 +35,7 @@ proc run_command { test action command } {
     if { $command != "" } then {
 	# use stress instead of sleep if time >= 1
 	if {[file executable /usr/bin/stress]} {
-	    regsub {sleep ([1-9])} $command {stress -c 1 -t \1} command
+	    regsub {sleep ([1-9])} $command {cd /tmp; stress -c 4 -i 4 -m 4 --vm-bytes 32M -d 4 --hdd-bytes 32M -t \1} command
 	}
 	verbose -log "attempting command $command"
 	set res [catch {exec sh -c $command 2>@1} value]
