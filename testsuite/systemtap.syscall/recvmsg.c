@@ -87,7 +87,7 @@ void do_child()
 		char rbuf[1024];
 
 		cc = read(fd, rbuf, sizeof(rbuf));
-		if (cc && rbuf[0] == 'R')
+		if (cc > 0 && rbuf[0] == 'R')
 		    sender(fd);
 		if (cc == 0 || (cc < 0 && errno != EINTR)) {
 		    (void)close(fd);
