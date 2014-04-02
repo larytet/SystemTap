@@ -64,8 +64,8 @@ function vm_fault_contains:long (value:long, test:long)
  *
  * Context: The process which triggered the fault
  */
-probe vm.pagefault = kernel.function("__handle_mm_fault@mm/memory.c") ?,
-                     kernel.function("handle_mm_fault@mm/memory.c") ?
+probe vm.pagefault = kernel.function("handle_mm_fault@mm/memory.c").call !,
+		     kernel.function("__handle_mm_fault@mm/memory.c").call
 {
 	name = "pagefault"
 	write_access = (@defined($flags)
@@ -84,8 +84,8 @@ probe vm.pagefault = kernel.function("__handle_mm_fault@mm/memory.c") ?,
  * nor major fault.
  */
 probe vm.pagefault.return =
-		kernel.function("__handle_mm_fault@mm/memory.c").return ?,
-		kernel.function("handle_mm_fault@mm/memory.c").return ?
+		kernel.function("handle_mm_fault@mm/memory.c").return !,
+		kernel.function("__handle_mm_fault@mm/memory.c").return
 {
 	name = "pagefault"
 	fault_type = $return
