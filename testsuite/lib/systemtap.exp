@@ -155,6 +155,7 @@ proc print_systemtap_version {} {
 proc setup_systemtap_environment {} {
     global srcdir env server_pid logfile systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
+    global kill_needs_doubledash
 
     # need an absolute SRCDIR for the top-level src/ tree
     # XXX: or, we could change nearby uses of ${SRCDIR}/testsuite to ${SRCDIR}
@@ -230,6 +231,25 @@ proc setup_systemtap_environment {} {
     } else {
         set systemtap_java_p 0
     }
+
+    # There are some kill executables that had issues with -SIG -PID, thinking
+    # that the -PID was an option (procps-ng v3.3.2 and v3.3.3) and thus require
+    # a -- before -PID. So check for those, otherwise, just assume that no -- is
+    # needed.
+    if {![catch {exec kill --version 2>@1} killver]} {
+      if {[string match "*procps-ng 3.3.\[23\]" $killver]} {
+         set kill_needs_doubledash 1
+      } else {
+         # any other procps versions support the standard convention
+         # and anything not procps (e.g. util-linux) supports both
+         set kill_needs_doubledash 0
+      }
+    } else {
+      # kill doesn't support --version (e.g. busybox), just assume standard
+      # convention
+      set kill_needs_doubledash 0
+    }
+
     return 1
 }
 
@@ -656,4 +676,27 @@ proc prelink { FILE ADDR } {
     return 0
   }
   return 1
+}
+
+# Send signal SIG to PID. If KILL_TIMEOUT > 0, waits KILL_TIMEOUT seconds before
+# also sending a SIGKILL signal to PID. SIG can be with or without leading '-'.
+proc kill { SIG PID {KILL_TIMEOUT 0} } {
+   global kill_needs_doubledash
+
+   if {$kill_needs_doubledash} {
+      set PID "-- $PID"
+   }
+   if {![string match -* $SIG]} {
+      set SIG "-$SIG"
+   }
+
+   verbose -log "Executing: kill $SIG $PID"
+   catch {eval exec kill $SIG $PID}
+
+   if {[expr [string is integer $KILL_TIMEOUT] \
+          && [expr $KILL_TIMEOUT > 0]]} {
+      sleep $KILL_TIMEOUT
+      verbose -log "Executing: kill -KILL $PID"
+      catch {eval exec kill -KILL $PID}
+   }
 }
