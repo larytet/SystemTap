@@ -2071,10 +2071,10 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
      cpu_to_logical_apicid                     NULL-decl_file
    */
 
-  // Fetch all srcline records, sorted by address.
+  // Fetch all srcline records, sorted by address. No need to free lines, it's a
+  // direct pointer to the CU's cached lines.
   dwarf_assert ("dwarf_getsrclines",
                 dwarf_getsrclines(cu, &lines, &nlines));
-  // XXX: free lines[] later, but how?
 
   // We normally ignore a function's decl_line, since it is associated with the
   // line at which the identifier appears in the declaration, and has no
@@ -2230,8 +2230,6 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         }
 
     } // loop over functions
-
-  // XXX: how to free lines?
 }
 
 
