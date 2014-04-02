@@ -105,7 +105,7 @@ proc expect_list { func callee expout } {
          exp_continue
       }
       timeout {
-         exec kill -s KILL -- -[exp_pid]
+         kill -INT -[exp_pid] 2
       }
    }
    catch {close}; catch {wait}
@@ -156,7 +156,7 @@ proc expect_probe { func callee expout {inlined 0} } {
          exp_continue
       }
       timeout {
-         exec kill -s KILL -- -[exp_pid]
+         kill -INT -[exp_pid] 2
       }
    }
    catch {close}; catch {wait}
@@ -485,7 +485,7 @@ if {!$failed} {
       -timeout 30
       -re "$regexp" { set failed 0 }
       timeout {
-         exec kill -s KILL -- -[exp_pid]
+         kill -INT -[exp_pid] 2
       }
    }
    catch {close}; catch {wait}
@@ -523,8 +523,8 @@ if {![installtest_p]} {
    expect {
       -timeout 30
       -re {systemtap_module_init\(\)\ returned\ 0} { set failed 0 }
-      timeout { exec kill -s KILL -- -[exp_pid] }
-      eof { exec kill -s KILL -- -[exp_pid] }
+      timeout { kill -INT -[exp_pid] 2 }
+      eof { kill -INT -[exp_pid] 2 }
    }
    if {!$failed} {
       pass "$test ($subtest - $subsubtest)"
@@ -551,7 +551,7 @@ if {![installtest_p]} {
    expect {
       -timeout 30
       timeout {
-         exec kill -s KILL -- -[exp_pid]
+         kill -INT -[exp_pid] 2
       }
       # Any output at all is a bad sign
       -re ".+" { }
@@ -593,12 +593,12 @@ if {![installtest_p]} {
 
 # Cleanup stap if still running
 if {[string length $stap_id]} {
-   exec kill -s TERM [exp_pid -i $stap_id]
+   kill -TERM [exp_pid -i $stap_id]
    expect {
       -timeout 30
       -i $stap_id
       timeout {
-         exec kill -s KILL -- -[exp_pid -i $stap_id]
+         kill -INT -[exp_pid -i $stap_id] 2
       }
       eof { }
    }

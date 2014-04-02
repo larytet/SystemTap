@@ -139,7 +139,7 @@ proc list_servers { TEST_NAME SERVER_SPEC args } {
 	    set failed 1
 	}
 	timeout { 
-	    exec kill -INT -- -[exp_pid]
+	    kill -INT -[exp_pid] 2
 	    set failed 1
 	}
     }
@@ -306,7 +306,7 @@ expect {
     -timeout 150
     -re {^.*\r\n} { exp_continue }
     timeout { 
-	exec kill -INT -- -[exp_pid]
+	kill -INT -[exp_pid] 2
 	set failed 1
     }
 }
@@ -339,7 +339,7 @@ expect {
     -timeout 150
     -re {^.*\r\n} { exp_continue }
     timeout { 
-	exec kill -INT -- -[exp_pid]
+	kill -INT -[exp_pid] 2
 	set failed 1
     }
 }
@@ -461,7 +461,7 @@ foreach privilege {"--unprivileged" "--privilege=stapusr" "--privilege=stapsys"}
 	}
 	-re {^.*\r\n} { exp_continue }
 	timeout { 
-	    exec kill -INT -- -[exp_pid]
+	    kill -INT -[exp_pid] 2
 	}
     }
     catch {close}; catch {wait}
@@ -543,7 +543,7 @@ foreach privilege {"--unprivileged" "--privilege=stapusr" "--privilege=stapsys"}
 		exp_continue
 	    }
 	    timeout { 
-		exec kill -INT -- -[exp_pid]
+		kill -INT -[exp_pid] 2
 		set failed 1
 	    }
 	}
@@ -611,7 +611,7 @@ if {$no_module == 1 || ! [installtest_p]} {
 	    exp_continue;
 	}
 	timeout { 
-	    exec kill -INT -- -[exp_pid]
+	    kill -INT -[exp_pid] 2
 	    set failed 1
 	}
     }

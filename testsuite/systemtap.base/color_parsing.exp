@@ -42,7 +42,7 @@ proc checker { TEST EXE EXP } {
 		}
 		timeout {
 			fail "$test ($TEST - $EXE: timeout)"
-			exec kill -s KILL -- -[exp_pid -i $stap_id]
+			kill -INT -[exp_pid -i $stap_id] 2
 		}
 		eof { if {$failed} {fail "$test ($TEST - $EXE: unexpected EOF)"} }
 	}

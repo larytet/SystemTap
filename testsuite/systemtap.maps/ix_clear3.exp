@@ -20,7 +20,7 @@ foreach runtime [get_runtime_list] {
 	    pass "$testname passed"
 	}
 	timeout {
-	    exec kill -INT -- -[exp_pid]
+	    kill -INT -[exp_pid] 2
 	    fail "$testname timed out"
 	}
 	eof { 

@@ -90,32 +90,32 @@ set sixthid $spawn_id
 expect {
     -timeout 180
     -i $firstid timeout {
-        exec kill -INT -- -[exp_pid -i $firstid]
+        kill -INT -[exp_pid -i $firstid] 2
         fail "$test (timeout 1)"
         exp_continue
     }
     -i $secondid timeout {
-        exec kill -INT -- -[exp_pid -i $secondid]
+        kill -INT -[exp_pid -i $secondid] 2
         fail "$test (timeout 2)"
         exp_continue
     }
     -i $thirdid timeout {
-        exec kill -INT -- -[exp_pid -i $thirdid]
+        kill -INT -[exp_pid -i $thirdid] 2
         fail "$test (timeout 3)"
         exp_continue
     }
     -i $fourthid timeout {
-        exec kill -INT -- -[exp_pid -i $fourthid]
+        kill -INT -[exp_pid -i $fourthid] 2
         fail "$test (timeout 4)"
         exp_continue
     }
     -i $fifthid timeout {
-        exec kill -INT -- -[exp_pid -i $fifthid]
+        kill -INT -[exp_pid -i $fifthid] 2
         fail "$test (timeout 5)"
         exp_continue
     }
     -i $sixthid timeout {
-        exec kill -INT -- -[exp_pid -i $sixthid]
+        kill -INT -[exp_pid -i $sixthid] 2
         fail "$test (timeout 6)"
         exp_continue
     }

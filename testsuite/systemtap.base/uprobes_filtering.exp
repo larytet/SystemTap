@@ -44,7 +44,7 @@ set failed 1
 expect {
 	-timeout 30
 	-re {systemtap_module_init\(\)\ returned\ 0} { set failed 0 }
-	timeout {exec kill -s KILL -- -[exp_pid -i $stap_id]}
+	timeout {kill -INT -[exp_pid -i $stap_id] 2}
 }
 if {$failed} {
 	fail "$test (timeout: can't start benchmark monitor)"
@@ -72,7 +72,7 @@ if {[as_root "$installed_stap --benchmark-sdt-loops=$root_loops"]} {
 }
 
 # 5. Stop process from step 2
-exec kill -s TERM [exp_pid -i $stap_id]
+kill -TERM [exp_pid -i $stap_id]
 set prehandler_hitcount -1
 set handler_hitcount -1
 expect {
@@ -87,7 +87,7 @@ expect {
 	}
 	timeout {
 		fail "$test (timeout: can't stop benchmark monitor)"
-		exec kill -s KILL -- -[exp_pid -i $stap_id]
+		kill -INT -[exp_pid -i $stap_id] 2
 	}
 }
 catch { close -i $stap_id } ; catch { wait -i $stap_id }

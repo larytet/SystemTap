@@ -24,8 +24,8 @@ proc run_stap { probe pattern } {
    expect {
       -timeout 30
       -re {systemtap_module_init\(\)\ returned\ 0} { set failed 0 }
-      timeout { exec kill -s KILL -- -[exp_pid] }
-      eof { exec kill -s KILL -- -[exp_pid] }
+      timeout { kill -INT -[exp_pid] 2 }
+      eof { kill -INT -[exp_pid] 2 }
    }
 
    # Check if stap was able to start
@@ -33,6 +33,7 @@ proc run_stap { probe pattern } {
       pass "$test ($subtest - started stap)"
    } else {
       fail "$test ($subtest - can't start stap)"
+      kill -INT -[exp_pid] 2
       catch { close }; catch { wait }
       return
    }
@@ -53,6 +54,7 @@ proc run_stap { probe pattern } {
       pass "$test ($subtest - fd clean)"
    } else {
       fail "$test ($subtest - found target file in fd)"
+      kill -INT -[exp_pid] 2
       catch { close -i $stap_id }; catch { wait -i $stap_id }
       return
    }
@@ -61,6 +63,7 @@ proc run_stap { probe pattern } {
    if {[catch {open /proc/[exp_pid -i $stap_id]/maps} chan]} {
       # Can't open maps file
       untested "$test ($subtest - can't open maps file)"
+      kill -INT -[exp_pid] 2
       catch { close -i $stap_id }; catch { wait -i $stap_id }
       return
    }
@@ -83,11 +86,13 @@ proc run_stap { probe pattern } {
       pass "$test ($subtest - maps clean)"
    } else {
       fail "$test ($subtest - found target file in maps)"
+      kill -INT -[exp_pid] 2
       catch { close -i $stap_id }; catch { wait -i $stap_id }
       return
    }
 
    pass "$test ($subtest)"
+   kill -INT -[exp_pid] 2
    catch { close -i $stap_id }; catch { wait -i $stap_id }
 }
 
