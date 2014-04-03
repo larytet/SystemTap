@@ -3336,7 +3336,6 @@ parser::parse_dwarf_value ()
     }
 
   // First try target_symbol types: $var, @cast, and @var.
-  // Otherwise just get a plain value of any sort.
   const token* t = peek ();
   if (t && t->type == tok_identifier && t->content[0] == '$')
     expr = tsym = parse_target_symbol ();
@@ -3344,11 +3343,17 @@ parser::parse_dwarf_value ()
     expr = tsym = parse_cast_op ();
   else if (tok_is (t, tok_operator, "@var"))
     expr = tsym = parse_atvar_op ();
+  else if (addressof && strverscmp(session.compatible.c_str(), "2.6") < 0)
+    // '&' on old version only allowed specific target_symbol types
+    throw PARSE_ERROR (_("expected @cast, @var or $var"));
   else
+    // Otherwise just get a plain value of any sort.
     expr = parse_value ();
 
   // If we had '&' or see any target suffixes, that forces a target_symbol.
-  if (!tsym && (addressof || peek_target_symbol_components ()))
+  // For compatibility, we only do this starting with 2.6.
+  if (!tsym && (addressof || peek_target_symbol_components ())
+      && strverscmp(session.compatible.c_str(), "2.6") >= 0)
     {
       cast_op *cop = new cast_op;
       cop->tok = expr->tok;
