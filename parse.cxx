@@ -1384,6 +1384,7 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
       atwords.insert("@cast");
       atwords.insert("@defined");
       atwords.insert("@entry");
+      atwords.insert("@perf");
       atwords.insert("@var");
       atwords.insert("@avg");
       atwords.insert("@count");
@@ -3749,10 +3750,6 @@ expression* parser::parse_entry_op (const token* t)
 expression* parser::parse_perf_op (const token* t)
 {
   perf_op* pop = new perf_op;
-
-  if (strverscmp(session.compatible.c_str(), "2.1") < 0)
-    throw PARSE_ERROR (_("expected @cast, @var or $var"));
-
   pop->tok = t;
   expect_op("(");
   pop->operand = parse_literal_string ();
