@@ -4301,6 +4301,24 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 }
 
 
+struct dwarf_autocast_expanding_visitor: public var_expanding_visitor
+{
+  systemtap_session& s;
+
+  dwarf_autocast_expanding_visitor(systemtap_session& s): s(s) {}
+  void visit_autocast_op (autocast_op* e);
+};
+
+
+void
+dwarf_autocast_expanding_visitor::visit_autocast_op (autocast_op* e)
+{
+  // TODO PR13664, glean the type from e->operand, then expand like @cast.
+
+  var_expanding_visitor::visit_autocast_op (e);
+}
+
+
 struct dwarf_atvar_expanding_visitor: public var_expanding_visitor
 {
   systemtap_session& s;
@@ -5135,6 +5153,10 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   s.code_filters.push_back(filter);
 
   filter = new dwarf_atvar_expanding_visitor(s, *dw);
+  s.code_filters.push_back(filter);
+
+  // NB: visit autocast last, so it can use types resolved from @cast/@var
+  filter = new dwarf_autocast_expanding_visitor(s);
   s.code_filters.push_back(filter);
 
   register_function_and_statement_variants(s, root->bind(TOK_KERNEL), dw, pr_privileged);

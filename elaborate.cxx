@@ -1126,6 +1126,11 @@ struct symbol_fetcher
     sym = e;
   }
 
+  void visit_autocast_op (autocast_op* e)
+  {
+    sym = e;
+  }
+
   void throwone (const token* t)
   {
     if (t->type == tok_operator && t->content == ".") // guess someone misused . in $foo->bar.baz expression
@@ -2937,6 +2942,7 @@ struct void_statement_reducer: public update_visitor
   void visit_target_symbol (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
   void visit_cast_op (cast_op* e);
+  void visit_autocast_op (autocast_op* e);
   void visit_defined_op (defined_op* e);
 
   // these are a bit hairy to grok due to the intricacies of indexables and
@@ -2952,6 +2958,9 @@ struct void_statement_reducer: public update_visitor
   void visit_pre_crement (pre_crement* e) { provide (e); }
   void visit_post_crement (post_crement* e) { provide (e); }
   void visit_assignment (assignment* e) { provide (e); }
+
+private:
+  void reduce_target_symbol (target_symbol* e, expression* operand=NULL);
 };
 
 
@@ -3228,19 +3237,22 @@ void_statement_reducer::visit_print_format (print_format* e)
 }
 
 void
-void_statement_reducer::visit_atvar_op (atvar_op* e)
+void_statement_reducer::reduce_target_symbol (target_symbol* e,
+                                              expression* operand)
 {
-  visit_target_symbol (e);
-}
-
-void
-void_statement_reducer::visit_target_symbol (target_symbol* e)
-{
-  // When target_symbol isn't needed, it's just as good to
-  // evaluate any array indexes directly
+  // When the result of any target_symbol isn't needed, it's just as good to
+  // evaluate the operand and any array indexes directly
 
   block *b = new block;
   b->tok = e->tok;
+
+  if (operand)
+    {
+      expr_statement *es = new expr_statement;
+      es->value = operand;
+      es->tok = es->value->tok;
+      b->statements.push_back(es);
+    }
 
   for (unsigned i=0; i<e->components.size(); i++ )
     {
@@ -3253,16 +3265,6 @@ void_statement_reducer::visit_target_symbol (target_symbol* e)
       b->statements.push_back(es);
     }
 
-  if (b->statements.empty())
-    {
-      delete b;
-      provide (e);
-      return;
-    }
-
-  if (session.verbose>2)
-    clog << _("Eliding unused target symbol ") << *e->tok << endl;
-
   b->visit(this);
   relaxed_p = false;
   e = 0;
@@ -3270,37 +3272,35 @@ void_statement_reducer::visit_target_symbol (target_symbol* e)
 }
 
 void
+void_statement_reducer::visit_atvar_op (atvar_op* e)
+{
+  if (session.verbose>2)
+    clog << _("Eliding unused target symbol ") << *e->tok << endl;
+  reduce_target_symbol (e);
+}
+
+void
+void_statement_reducer::visit_target_symbol (target_symbol* e)
+{
+  if (session.verbose>2)
+    clog << _("Eliding unused target symbol ") << *e->tok << endl;
+  reduce_target_symbol (e);
+}
+
+void
 void_statement_reducer::visit_cast_op (cast_op* e)
 {
-  // When the result of a cast operation isn't needed, it's just as good to
-  // evaluate the operand and any array indexes directly
-
-  block *b = new block;
-  b->tok = e->tok;
-
-  expr_statement *es = new expr_statement;
-  es->value = e->operand;
-  es->tok = es->value->tok;
-  b->statements.push_back(es);
-
-  for (unsigned i=0; i<e->components.size(); i++ )
-    {
-      if (e->components[i].type != target_symbol::comp_expression_array_index)
-        continue;
-
-      es = new expr_statement;
-      es->value = e->components[i].expr_index;
-      es->tok = es->value->tok;
-      b->statements.push_back(es);
-    }
-
   if (session.verbose>2)
     clog << _("Eliding unused typecast ") << *e->tok << endl;
+  reduce_target_symbol (e, e->operand);
+}
 
-  b->visit(this);
-  relaxed_p = false;
-  e = 0;
-  provide (e);
+void
+void_statement_reducer::visit_autocast_op (autocast_op* e)
+{
+  if (session.verbose>2)
+    clog << _("Eliding unused autocast ") << *e->tok << endl;
+  reduce_target_symbol (e, e->operand);
 }
 
 
@@ -4689,6 +4689,18 @@ typeresolution_info::visit_cast_op (cast_op* e)
   else
     throw SEMANTIC_ERROR(_F("type definition '%s' not found in '%s'",
                             e->type_name.c_str(), e->module.c_str()), e->tok);
+}
+
+
+void
+typeresolution_info::visit_autocast_op (autocast_op* e)
+{
+  // Like cast_op, a implicit autocast_op shouldn't survive this far
+  // unless it was not resolved and its value is really needed.
+  if (e->saved_conversion_error)
+    throw (* (e->saved_conversion_error));
+  else
+    throw SEMANTIC_ERROR(_("unknown type in dereference"), e->tok);
 }
 
 

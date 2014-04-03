@@ -201,6 +201,7 @@ struct c_unparser: public unparser, public visitor
   void visit_stat_op (stat_op* e);
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
+  void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
@@ -4398,6 +4399,13 @@ void
 c_unparser::visit_cast_op (cast_op* e)
 {
   throw SEMANTIC_ERROR(_("cannot translate general @cast expression"), e->tok);
+}
+
+
+void
+c_unparser::visit_autocast_op (autocast_op* e)
+{
+  throw SEMANTIC_ERROR(_("cannot translate general dereference expression"), e->tok);
 }
 
 

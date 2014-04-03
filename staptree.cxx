@@ -446,11 +446,20 @@ void cast_op::print (ostream& o) const
   if (addressof)
     o << "&";
   o << name << '(' << *operand;
-  if (type_name.length() > 0)
   o << ", " << lex_cast_qstring (type_name);
   if (module.length() > 0)
     o << ", " << lex_cast_qstring (module);
   o << ')';
+  for (unsigned i = 0; i < components.size(); ++i)
+    o << components[i];
+}
+
+
+void autocast_op::print (ostream& o) const
+{
+  if (addressof)
+    o << "&";
+  o << '(' << *operand << ')';
   for (unsigned i = 0; i < components.size(); ++i)
     o << components[i];
 }
@@ -1576,6 +1585,13 @@ cast_op::visit (visitor* u)
 
 
 void
+autocast_op::visit (visitor* u)
+{
+  u->visit_autocast_op(this);
+}
+
+
+void
 atvar_op::visit (visitor* u)
 {
   u->visit_atvar_op(this);
@@ -1919,6 +1935,13 @@ traversing_visitor::visit_cast_op (cast_op* e)
 }
 
 void
+traversing_visitor::visit_autocast_op (autocast_op* e)
+{
+  e->operand->visit (this);
+  e->visit_components (this);
+}
+
+void
 traversing_visitor::visit_atvar_op (atvar_op* e)
 {
   e->visit_components (this);
@@ -2132,6 +2155,17 @@ varuse_collecting_visitor::visit_cast_op (cast_op *e)
     embedded_seen = true;
 
   functioncall_traversing_visitor::visit_cast_op (e);
+}
+
+void
+varuse_collecting_visitor::visit_autocast_op (autocast_op *e)
+{
+  // As with target_symbols, unresolved cast assignments need to preserved
+  // for later error handling.
+  if (is_active_lvalue (e))
+    embedded_seen = true;
+
+  functioncall_traversing_visitor::visit_autocast_op (e);
 }
 
 void
@@ -2581,6 +2615,12 @@ throwing_visitor::visit_cast_op (cast_op* e)
 }
 
 void
+throwing_visitor::visit_autocast_op (autocast_op* e)
+{
+  throwone (e->tok);
+}
+
+void
 throwing_visitor::visit_defined_op (defined_op* e)
 {
   throwone (e->tok);
@@ -2867,6 +2907,14 @@ update_visitor::visit_cast_op (cast_op* e)
 }
 
 void
+update_visitor::visit_autocast_op (autocast_op* e)
+{
+  replace (e->operand);
+  e->visit_components (this);
+  provide (e);
+}
+
+void
 update_visitor::visit_atvar_op (atvar_op* e)
 {
   e->visit_components (this);
@@ -3127,6 +3175,12 @@ void
 deep_copy_visitor::visit_cast_op (cast_op* e)
 {
   update_visitor::visit_cast_op(new cast_op(*e));
+}
+
+void
+deep_copy_visitor::visit_autocast_op (autocast_op* e)
+{
+  update_visitor::visit_autocast_op(new autocast_op(*e));
 }
 
 void

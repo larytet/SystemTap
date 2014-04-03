@@ -3328,12 +3328,8 @@ parser::parse_dwarf_value ()
   target_symbol* tsym = NULL;
 
   // With '&' we'll definitely be making a target symbol of some sort
-  bool addressof = false;
-  if (peek_op ("&"))
-    {
-      swallow ();
-      addressof = true;
-    }
+  const token* addrtok = peek_op ("&") ? next () : NULL;
+  bool addressof = (addrtok != NULL);
 
   // First try target_symbol types: $var, @cast, and @var.
   const token* t = peek ();
@@ -3355,8 +3351,8 @@ parser::parse_dwarf_value ()
   if (!tsym && (addressof || peek_target_symbol_components ())
       && strverscmp(session.compatible.c_str(), "2.6") >= 0)
     {
-      cast_op *cop = new cast_op;
-      cop->tok = expr->tok;
+      autocast_op *cop = new autocast_op;
+      cop->tok = addrtok ?: peek ();
       cop->operand = expr;
       expr = tsym = cop;
     }
