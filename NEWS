@@ -97,6 +97,8 @@
     'syscall.fork' and 'nd_syscall.fork' probe aliases. 
   - The '_sendflags_str()' and '_recvflags_str()' functions have been
     deprecated in favor of the new '_msg_flags_str()' function.
+  - The 'flags' and 'flags_str' variables in the 'syscall.accept' and
+    'nd_syscall.accept' probe alias.
 
 * What's new in version 2.4, 2013-11-06
 

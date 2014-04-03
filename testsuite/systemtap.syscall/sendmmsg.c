@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/syscall.h>
+#include <linux/net.h>
 
 static int sfd;			/* shared between start_server and do_child */
 
@@ -89,10 +90,10 @@ start_server(struct sockaddr_in *sin0)
 
 int main()
 {
-    /* Only try this test if we have 'SYS_sendmmsg'. Unfortunately,
+    /* Only try this test if we have sendmmsg(). Unfortunately,
      * on RHEL6 we have SYS_sendmmsg(), but no glibc support for
      * sendmmsg(). */
-#ifdef SYS_sendmmsg
+#if defined(SYS_sendmmsg) || defined (SYS_SENDMMSG)
     int s, fd_null;
     struct sockaddr_in sin1, from;
     pid_t pid = 0;

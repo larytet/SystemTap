@@ -139,6 +139,12 @@
 #define __NR_syscall_max 0xffff
 #endif
 
+#ifndef __NR_accept
+#define __NR_accept (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_accept4
+#define __NR_accept4 (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_recv
 #define __NR_recv (__NR_syscall_max + 1)
 #endif

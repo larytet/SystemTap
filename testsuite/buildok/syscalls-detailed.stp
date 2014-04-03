@@ -3,10 +3,23 @@
 probe syscall.accept
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s), %d, %p, %p\n", flags, flags_str, sockfd, addr_uaddr,
-	       addrlen_uaddr)
+	printf("%d, %p, %p\n", sockfd, addr_uaddr, addrlen_uaddr)
+%(systemtap_v <= "2.5" %?
+	printf("%d(%s)\n", flags, flags_str)
+%)
 }
 probe syscall.accept.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.accept4
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %p, %d(%s)\n", sockfd, addr_uaddr, addrlen_uaddr,
+	       flags, flags_str)
+}
+probe syscall.accept4.return
 {
 	printf("%s, %s\n", name, retstr)
 }

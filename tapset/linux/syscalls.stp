@@ -26,34 +26,119 @@
 
 
 # accept _____________________________________________________
-# long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,
-#                 int __user *upeer_addrlen, int flags)
-# SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
-#		int __user *, upeer_addrlen, int, flags)
-probe syscall.accept = _syscall.accept4 ?, _syscall.accept ?
+#
+# asmlinkage long sys_accept(int fd, struct sockaddr __user *upeer_sockaddr,
+#			     int __user *upeer_addrlen)
+#
+probe syscall.accept = __syscall.accept ?, __syscall.socketcall.accept ?,
+	__syscall.compat_socketcall.accept ?
 {
 	name = "accept"
-	sockfd = $fd
+%(systemtap_v <= "2.5" %?
+	# systemtap <= 2.5 combined accept and accept4
+	flags = 0
+	flags_str = "0x0"
+	argstr = sprintf("%d, %p, %p, %s", sockfd, addr_uaddr, addrlen_uaddr,
+			 flags_str)
+%:
+	argstr = sprintf("%d, %p, %p", sockfd, addr_uaddr, addrlen_uaddr)
+%)
+}
+probe __syscall.accept = kernel.function("sys_accept").call
+{
+	@__syscall_gate(%{ __NR_accept %})
+	sockfd = __int32($fd)
 	addr_uaddr = $upeer_sockaddr
 	addrlen_uaddr = $upeer_addrlen
-	argstr = sprintf("%d, %p, %p, %s", $fd, $upeer_sockaddr,
-		$upeer_addrlen, flags_str)
 }
-probe _syscall.accept4 = kernel.function("sys_accept4").call
+probe __syscall.socketcall.accept = kernel.function("sys_socketcall").call ?
 {
-	flags = $flags
-	flags_str = _sock_flags_str($flags)
+	if ($call != %{ SYS_ACCEPT %}) next;
+	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	addrlen_uaddr = user_ulong(&@cast($args, "ulong")[2])
 }
-probe _syscall.accept = kernel.function("sys_accept").call
+probe __syscall.compat_socketcall.accept =
+	kernel.function("compat_sys_socketcall").call ?
 {
-	flags = 0
-	flags_str = "0"
+	if ($call != %{ SYS_ACCEPT %}) next;
+	sockfd = user_int(&@cast($args, "unsigned int")[0])
+	addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	addrlen_uaddr = user_uint32(&@cast($args, "unsigned int")[2])
 }
-probe syscall.accept.return = kernel.function("sys_accept4").return ?,
-                              kernel.function("sys_accept").return ?
+probe syscall.accept.return = __syscall.accept.return ?,
+	__syscall.socketcall.accept.return ?
 {
 	name = "accept"
 	retstr = return_str(1, $return)
+}
+probe __syscall.accept.return = kernel.function("sys_accept").return ?
+{
+	@__syscall_gate(%{ __NR_accept %})
+}
+probe __syscall.socketcall.accept.return =
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
+{
+	if ($call != %{ SYS_ACCEPT %}) next;
+}
+
+# accept4 ____________________________________________________
+#
+# SYSCALL_DEFINE4(accept4, int, fd, struct sockaddr __user *, upeer_sockaddr,
+#		  int __user *, upeer_addrlen, int, flags)
+#
+probe syscall.accept4 = __syscall.accept4 ?, __syscall.socketcall.accept4 ?,
+	__syscall.compat_socketcall.accept4 ?
+{
+	name = "accept4"
+	flags_str = _sock_flags_str(flags)
+	argstr = sprintf("%d, %p, %p, %s", sockfd, addr_uaddr, addrlen_uaddr,
+			 flags_str)
+}
+probe __syscall.accept4 = kernel.function("sys_accept4").call
+{
+	// Why isn't the compat syscall number '__NR_compat_accept4'?
+	// On all tested platforms, there wasn't a different syscall
+	// number for accept4().
+	@__syscall_compat_gate(%{ __NR_accept4 %}, %{ __NR_accept4 %})
+	sockfd = __int32($fd)
+	addr_uaddr = $upeer_sockaddr
+	addrlen_uaddr = $upeer_addrlen
+	flags = __int32($flags)
+}
+probe __syscall.socketcall.accept4 = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_ACCEPT4 %}) next;
+	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	addrlen_uaddr = user_ulong(&@cast($args, "ulong")[2])
+	flags = __int32(user_ulong(&@cast($args, "ulong")[3]))
+}
+probe __syscall.compat_socketcall.accept4 =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_ACCEPT4 %}) next;
+	sockfd = user_int(&@cast($args, "unsigned int")[0])
+	addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	addrlen_uaddr = user_uint32(&@cast($args, "unsigned int")[2])
+	flags = user_int(&@cast($args, "unsigned int")[3])
+}
+probe syscall.accept4.return = __syscall.accept4.return ?,
+	__syscall.socketcall.accept4.return ?
+{
+	name = "accept4"
+	retstr = return_str(1, $return)
+}
+probe __syscall.accept4.return = kernel.function("sys_accept4").return ?
+{
+	@__syscall_compat_gate(%{ __NR_accept4 %}, %{ __NR_accept4 %})
+}
+probe __syscall.socketcall.accept4.return =
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
+{
+	if ($call != %{ SYS_ACCEPT4 %}) next;
 }
 
 # access _____________________________________________________
