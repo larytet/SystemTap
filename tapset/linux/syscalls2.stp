@@ -2867,10 +2867,10 @@ probe syscall.shmget.return = kernel.function("sys_shmget").return ?
 probe syscall.shutdown = kernel.function("sys_shutdown").call ?
 {
 	name = "shutdown"
-	s = $fd
-	how = $how
-	how_str = _shutdown_how_str($how)
-	argstr = sprintf("%d, %s", $fd, how_str)
+	s = __int32($fd)
+	how = __int32($how)
+	how_str = _shutdown_how_str(how)
+	argstr = sprintf("%d, %s", s, how_str)
 }
 probe syscall.shutdown.return = kernel.function("sys_shutdown").return ?
 {

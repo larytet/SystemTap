@@ -1330,12 +1330,20 @@ function _priority_which_str(which) {
    return sprintf("UNKNOWN VALUE: %d", which)
 }
 
-function _shutdown_how_str(how) {
-   if(how==0) return "SHUT_RD"
-   if(how==1) return "SHUT_WR"
-   if(how==2) return "SHUT_RDWR"
-   return sprintf("UNKNOWN VALUE: %d", how)
-}
+%{
+static const _stp_val_array const _stp_shutdown_how_list[] = {
+	V(SHUT_RD),
+	V(SHUT_WR),
+	V(SHUT_RDWR),
+	{0, NULL}
+};
+%}
+
+function _shutdown_how_str(how)
+%{ /* pure */
+	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 // Needed for function __reboot_magic_str:string. Unfortunately cannot

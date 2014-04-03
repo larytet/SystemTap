@@ -19,4 +19,16 @@
 #define SYS_SENDMMSG 20
 #endif
 
+/* Older kernels don't have these defined. On some kernels these are
+ * enums, but the following code should still work. */
+#ifndef SHUT_RD
+#define SHUT_RD 0
+#endif
+#ifndef SHUT_WR
+#define SHUT_WR 1
+#endif
+#ifndef SHUT_RDWR
+#define SHUT_RDWR 2
+#endif
+
 #endif /* _COMPAT_NET_H_ */
