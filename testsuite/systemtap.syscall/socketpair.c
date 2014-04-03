@@ -11,7 +11,7 @@ int main()
     //staptest// socketpair (PF_UNSPEC, SOCK_STREAM, 0, XXXX) = -NNNN (EAFNOSUPPORT)
 
     socketpair(PF_INET, 75, IPPROTO_IP, fds);
-    //staptest// socketpair (PF_INET, UNKNOWN VALUE: NNNN, IPPROTO_IP, XXXX) = -NNNN (EINVAL)
+    //staptest// socketpair (PF_INET, 0x4b, IPPROTO_IP, XXXX) = -NNNN (EINVAL)
 
     socketpair(PF_UNIX, SOCK_STREAM, 0, 0);
     //staptest// socketpair (PF_LOCAL, SOCK_STREAM, 0, 0x0) = -NNNN (EFAULT)
@@ -68,7 +68,11 @@ int main()
     //staptest// socketpair (UNKNOWN VALUE: -1, SOCK_STREAM, 0, XXXX) = -NNNN (EAFNOSUPPORT)
 
     socketpair(PF_UNIX, -1, 0, fds);
-    //staptest// socketpair (PF_LOCAL, UNKNOWN VALUE: .+, 0, XXXX) = -NNNN (EINVAL)
+#if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
+    //staptest// socketpair (PF_LOCAL, SOCK_CLOEXEC|SOCK_NONBLOCK|0xfff7f7ff, 0, XXXX) = -NNNN (EINVAL)
+#else
+    //staptest// socketpair (PF_LOCAL, 0xffffffff, 0, XXXX) = -NNNN (EINVAL)
+#endif
 
     socketpair(PF_UNIX, SOCK_STREAM, -1, fds);
     //staptest// socketpair (PF_LOCAL, SOCK_STREAM, -1, XXXX) = -NNNN (EPROTONOSUPPORT)

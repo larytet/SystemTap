@@ -21,7 +21,7 @@ int main()
   //staptest// socket (PF_UNSPEC, SOCK_STREAM, 0) = -NNNN (EAFNOSUPPORT)
 
   socket(PF_INET, 75, IPPROTO_IP);
-  //staptest// socket (PF_INET, UNKNOWN VALUE: NNNN, IPPROTO_IP) = -NNNN (EINVAL)
+  //staptest// socket (PF_INET, 0x4b, IPPROTO_IP) = -NNNN (EINVAL)
 
   s = socket(PF_LOCAL, SOCK_DGRAM, 0);
   //staptest// socket (PF_LOCAL, SOCK_DGRAM, 0) = NNNN
@@ -76,7 +76,14 @@ int main()
   //staptest// socket (UNKNOWN VALUE: -1, SOCK_STREAM, 0) = -NNNN (EAFNOSUPPORT)
 
   socket(PF_INET, -1, IPPROTO_IP);
-  //staptest// socket (PF_INET, UNKNOWN VALUE: .+, IPPROTO_IP) = -NNNN (EINVAL)
+#if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)
+  //staptest// socket (PF_INET, SOCK_CLOEXEC|SOCK_NONBLOCK|0xfff7f7ff, IPPROTO_IP) = -NNNN (EINVAL)
+#else
+  //staptest// socket (PF_INET, 0xffffffff, IPPROTO_IP) = -NNNN (EINVAL)
+#endif
+
+  socket(PF_INET, 0, IPPROTO_IP);
+  //staptest// socket (PF_INET, 0x0, IPPROTO_IP) = -NNNN (ESOCKTNOSUPPORT)
 
   socket(PF_INET, SOCK_STREAM, -1);
   //staptest// socket (PF_INET, SOCK_STREAM, -1) = NNNN (EPROTONOSUPPORT)

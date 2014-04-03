@@ -1812,67 +1812,107 @@ function _sock_type_str:string(type:long)
 #else
 	int t = (int)STAP_ARG_type;
 #endif
+	int data_added = 0;
 
+	/*
+	 * This is a bit tricky. We've got 2 types of information
+	 * here. A socket type and a possible combination of socket
+	 * flags. In addition, we only want one final listing of
+	 * any unknown bits set.
+	 *
+	 * We can't call _stp_lookup_str() here since it would go
+	 * ahead and display any unknown type value, and we want to
+	 * wait until after any possible flags are displayed.
+	 */
 	switch (t) {
 	case SOCK_STREAM:
 		strlcpy (STAP_RETVALUE, "SOCK_STREAM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_DGRAM:
 		strlcpy (STAP_RETVALUE, "SOCK_DGRAM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_RAW:
 		strlcpy (STAP_RETVALUE, "SOCK_RAW", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_RDM:
 		strlcpy (STAP_RETVALUE, "SOCK_RDM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_SEQPACKET:
 		strlcpy (STAP_RETVALUE, "SOCK_SEQPACKET", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 #ifdef SOL_DCCP
 	case SOCK_DCCP:
 		strlcpy (STAP_RETVALUE, "SOCK_DCCP", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 #endif
 	case SOCK_PACKET:
 		strlcpy (STAP_RETVALUE, "SOCK_PACKET", MAXSTRINGLEN);
-		break;
-	default:
-		snprintf (STAP_RETVALUE, MAXSTRINGLEN, "UNKNOWN VALUE: %d", t);
+		t = 0;
+		data_added = 1;
 		break;
 	}
 
 #ifdef SOCK_TYPE_MASK
+	/* We can't use _stp_lookup_or_str() here since if none of
+	 * these flags are set it would put a "0x0" on the end, which
+	 * we don't want to add to the socket type. */
 	if (flags & SOCK_CLOEXEC) {
-		strlcat (STAP_RETVALUE, "|SOCK_CLOEXEC", MAXSTRINGLEN);
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, "SOCK_CLOEXEC", MAXSTRINGLEN);
+		flags &= ~SOCK_CLOEXEC;
+		data_added = 1;
 	}
 	if (flags & SOCK_NONBLOCK) {
-		strlcat (STAP_RETVALUE, "|SOCK_NONBLOCK", MAXSTRINGLEN);
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, "SOCK_NONBLOCK", MAXSTRINGLEN);
+		flags &= ~SOCK_NONBLOCK;
+		data_added = 1;
 	}
+	
+	/* If we have any leftover flags bits, add them back to the
+	 * type bits to get displayed together. */
+	t |= flags;
 #endif
+
+	/* Display any leftover bits. */
+	if (t != 0 || !data_added) {
+		int slen;
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen,
+			      "0x%x", t);
+	}
+%}
+
+%{
+static const _stp_val_array const _stp_sock_flags_list[] = {
+#ifdef SOCK_TYPE_MASK
+	V(SOCK_CLOEXEC),
+	V(SOCK_NONBLOCK),
+#endif
+	{0, NULL}
+};
 %}
 
 function _sock_flags_str:string(f:long)
 %{ /* pure */
-#ifdef SOCK_TYPE_MASK
-	int flags = (int)STAP_ARG_f;
-	int len;
-
-	STAP_RETVALUE[0] = '\0';
-	if (flags & SOCK_CLOEXEC) {
-		strlcat (STAP_RETVALUE, "SOCK_CLOEXEC|", MAXSTRINGLEN);
-	}
-	if (flags & SOCK_NONBLOCK) {
-		strlcat (STAP_RETVALUE, "SOCK_NONBLOCK|", MAXSTRINGLEN);
-	}
-	len = strlen(STAP_RETVALUE);
-	if (len) {
-		STAP_RETVALUE[len - 1] = '\0';
-	}
-	else {
-		strlcat (STAP_RETVALUE, "0", MAXSTRINGLEN);
-	}
-#endif
+	_stp_lookup_or_str(_stp_sock_flags_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 %{
