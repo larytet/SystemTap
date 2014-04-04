@@ -1965,7 +1965,7 @@ systemtap_session::build_error_msg (const semantic_error& e)
   if (e.tok1 || e.tok2)
     message << ": ";
   else if (verbose > 1) // no tokens to print, so print any errsrc right there
-    message << _("   thrown from: ") << e.errsrc << endl;
+    message << endl << _("   thrown from: ") << e.errsrc;
 
   if (e.tok1)
     {
