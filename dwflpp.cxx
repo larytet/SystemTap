@@ -1551,9 +1551,9 @@ dwflpp::has_single_line_record (dwarf_query * q, char const * srcfile, int linen
 
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         int lines[2],
+                                         int linenos[2],
                                          bool need_single_match,
-                                         enum line_t line_type,
+                                         enum lineno_t lineno_type,
                                          void (* callback) (const dwarf_line_t& line,
                                                             void * arg),
                                          const std::string& func_pattern,
@@ -1564,14 +1564,14 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
   // XXX: MUST GET RID OF THIS (see also comment block before
   // has_single_line_record())
   dwarf_query * q = static_cast<dwarf_query *>(data);
-  int lineno = lines[0];
+  int lineno = linenos[0];
   auto_free_ref<Dwarf_Line**> free_srcsp(srcsp);
 
   get_module_dwarf();
   if (!this->function)
     return;
 
-  if (line_type == RELATIVE)
+  if (lineno_type == RELATIVE)
     {
       Dwarf_Addr addr;
       Dwarf_Line *line;
@@ -1601,13 +1601,13 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
         }
       lineno += line_number;
     }
-  else if (line_type == WILDCARD) {
+  else if (lineno_type == WILDCARD) {
     if (name_has_wildcard(func_pattern)) /* PR14774: look at whole file if function name is wildcard */
       lineno = 0;
     else
       function_line (&lineno);
   }
-  else if (line_type == RANGE) { /* correct lineno */
+  else if (lineno_type == RANGE) { /* correct lineno */
       int start_lineno;
 
       if (name_has_wildcard(func_pattern)) /* PR10294: wider range like statement("*@foo.c") */
@@ -1615,11 +1615,11 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
       else
          function_line (&start_lineno);
       lineno = lineno < start_lineno ? start_lineno : lineno;
-      if (lineno > lines[1]) { /* invalid line range */
+      if (lineno > linenos[1]) { /* invalid line range */
         stringstream advice;
-        advice << _("Invalid line range (") << lines[0] << "-" << lines[1] << ")";
-        if (start_lineno > lines[1])
-          advice << _(", the end line number ") << lines[1] << " < " << start_lineno;
+        advice << _("Invalid line range (") << linenos[0] << "-" << linenos[1] << ")";
+        if (start_lineno > linenos[1])
+          advice << _(", the end line number ") << linenos[1] << " < " << start_lineno;
         throw SEMANTIC_ERROR (advice.str());
        }
   }
@@ -1639,13 +1639,13 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
       if (ret != 0) /* tolerate invalid line number */
         break;
 
-      if (line_type == WILDCARD || line_type == RANGE)
+      if (lineno_type == WILDCARD || lineno_type == RANGE)
         {
           Dwarf_Addr line_addr;
 
           dwarf_lineno (srcsp [0], &lineno);
 	  /* Maybe lineno will exceed the input end */
-	  if (line_type == RANGE && lineno > lines[1])
+	  if (lineno_type == RANGE && lineno > linenos[1])
  	     break;
           line_probed = lines_probed.insert(lineno);
           if (lineno != l || line_probed.second == false || nsrcs > 1)
@@ -1716,9 +1716,9 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
             callback (dwarf_line_t(srcsp[i]), data);
         }
 
-      if (line_type == ABSOLUTE || line_type == RELATIVE)
+      if (lineno_type == ABSOLUTE || lineno_type == RELATIVE)
         break;
-      else if (line_type == RANGE && l == lines[1])
+      else if (lineno_type == RANGE && l == linenos[1])
         break;
     }
 }

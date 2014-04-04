@@ -38,7 +38,7 @@ struct base_query;
 struct dwarf_query;
 struct external_function_query;
 
-enum line_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
+enum lineno_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
 enum info_status { info_unknown, info_present, info_absent };
 
 // module -> cu die[]
@@ -306,18 +306,18 @@ struct dwflpp
 
   template<typename T>
   void iterate_over_srcfile_lines (char const * srcfile,
-                                   int lines[2],
+                                   int linenos[2],
                                    bool need_single_match,
-                                   enum line_t line_type,
+                                   enum lineno_t lineno_type,
                                    void (*callback) (const dwarf_line_t&, T*),
                                    const std::string& func_pattern,
                                    T *data)
     {
       // See comment block in iterate_over_modules()
       iterate_over_srcfile_lines<void>(srcfile,
-                                       lines,
+                                       linenos,
                                        need_single_match,
-                                       line_type,
+                                       lineno_type,
                                        (void (*)(const dwarf_line_t&,
                                                  void*))callback,
                                        func_pattern,
@@ -659,9 +659,9 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
                                                               size_t));
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         int lines[2],
+                                         int linenos[2],
                                          bool need_single_match,
-                                         enum line_t line_type,
+                                         enum lineno_t lineno_type,
                                          void (* callback) (const dwarf_line_t& line,
                                                             void * arg),
                                          const std::string& func_pattern,

@@ -834,8 +834,8 @@ struct dwarf_query : public base_query
   vector<string> scopes;
   string function;
   string file;
-  line_t line_type;
-  int line[2];
+  lineno_t lineno_type;
+  int linenos[2];
   bool query_done;	// Found exact match
 
   // Holds the prologue end of the current function
@@ -1118,8 +1118,8 @@ dwarf_query::handle_query_module()
 void
 dwarf_query::parse_function_spec(const string & spec)
 {
-  line_type = ABSOLUTE;
-  line[0] = line[1] = 0;
+  lineno_type = ABSOLUTE;
+  linenos[0] = linenos[1] = 0;
 
   size_t src_pos, line_pos, dash_pos, scope_pos;
 
@@ -1158,26 +1158,28 @@ dwarf_query::parse_function_spec(const string & spec)
           // classify the line spec
           spec_type = function_file_and_line;
           if (spec[line_pos] == '+')
-            line_type = RELATIVE;
+            lineno_type = RELATIVE;
           else if (spec[line_pos + 1] == '*' &&
                    spec.length() == line_pos + 2)
-            line_type = WILDCARD;
+            lineno_type = WILDCARD;
           else
-            line_type = ABSOLUTE;
+            lineno_type = ABSOLUTE;
 
-          if (line_type != WILDCARD)
+          if (lineno_type != WILDCARD)
             try
               {
                 // try to parse either N or N-M
                 dash_pos = spec.find('-', line_pos + 1);
                 if (dash_pos == string::npos)
-                  line[0] = line[1] = lex_cast<int>(spec.substr(line_pos + 1));
+                  linenos[0] = linenos[1] = lex_cast<int>(spec.substr(line_pos + 1));
                 else
                   {
-                    line_type = RANGE;
-                    line[0] = lex_cast<int>(spec.substr(line_pos + 1,
+                    lineno_type = RANGE;
+                    linenos[0] = lex_cast<int>(spec.substr(line_pos + 1,
                                                         dash_pos - line_pos - 1));
-                    line[1] = lex_cast<int>(spec.substr(dash_pos + 1));
+                    linenos[1] = lex_cast<int>(spec.substr(dash_pos + 1));
+                    if (linenos[0] > linenos[1])
+                      throw runtime_error("bad range");
                   }
               }
             catch (runtime_error & exn)
@@ -1209,18 +1211,18 @@ dwarf_query::parse_function_spec(const string & spec)
       if (spec_type == function_file_and_line)
         {
           clog << ", line ";
-          switch (line_type)
+          switch (lineno_type)
             {
             case ABSOLUTE:
-              clog << line[0];
+              clog << linenos[0];
               break;
 
             case RELATIVE:
-              clog << "+" << line[0];
+              clog << "+" << linenos[0];
               break;
 
             case RANGE:
-              clog << line[0] << " - " << line[1];
+              clog << linenos[0] << " - " << linenos[1];
               break;
 
             case WILDCARD:
@@ -1973,8 +1975,8 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
             q->has_label ? query_srcfile_label : query_srcfile_line;
           for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
                i != q->filtered_srcfiles.end(); ++i)
-            q->dw.iterate_over_srcfile_lines (i->c_str(), q->line, q->has_statement_str,
-                                              q->line_type, callback, q->function, q);
+            q->dw.iterate_over_srcfile_lines (i->c_str(), q->linenos, q->has_statement_str,
+                                              q->lineno_type, callback, q->function, q);
         }
       else if (q->has_label)
         {
