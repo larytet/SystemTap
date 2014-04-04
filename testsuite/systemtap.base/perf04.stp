@@ -1,10 +1,6 @@
 global main
-global counter_a
 
-probe perf.hw.instructions.counter("a")
-{
-    counter_a += 1
-}
+probe perf.hw.instructions.counter("a") { }
 
 probe process(@1).statement("main@towers.c")
 {

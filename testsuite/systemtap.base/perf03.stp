@@ -1,15 +1,9 @@
 global towers
 global main
 
-probe perf.hw.instructions.process(@1).counter("a")
-{
-    counter_a += 1
-}
+probe perf.hw.instructions.process(@1).counter("a") { }
 
-probe perf.hw.instructions.process(@1).counter("b")
-{
-    counter_b += 1
-}
+probe perf.hw.instructions.process(@1).counter("b") { }
 
 probe process(@1).statement("towers@towers.c")
 {
@@ -25,7 +19,6 @@ probe end
 {
     printf("count main=%d\n", @count(main))
     printf("count towers=%d\n", @count(towers))
-    printf("counter %d/%d\n", counter_a, counter_b)
     printf("min main=%d\nmin towers=%d\n", @min(main), @min(towers))
     printf("max main=%d\nmax towers=%d\n", @max(main), @max(towers))
 }
