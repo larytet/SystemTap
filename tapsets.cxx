@@ -1746,6 +1746,9 @@ query_srcfile_label (const dwarf_line_t& line, dwarf_query * q)
 static void
 query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
 {
+  assert (q->has_statement_str || q->has_function_str);
+  assert (q->spec_type == function_file_and_line);
+
   Dwarf_Addr addr = line.addr();
 
   int lineno = line.lineno();
@@ -1757,16 +1760,11 @@ query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
 	{
 	  if (q->sess.verbose>3)
 	    clog << _("function DIE lands on srcfile\n");
-	  if (q->has_statement_str)
-            {
-              Dwarf_Die scope;
-              q->dw.inner_die_containing_pc(i->die, addr, scope);
-              query_statement (i->name, i->decl_file,
-                               lineno, // NB: not q->line !
-                               &scope, addr, q);
-            }
-	  else
-	    query_func_info (i->entrypc, *i, q);
+	  Dwarf_Die scope;
+	  q->dw.inner_die_containing_pc(i->die, addr, scope);
+	  query_statement (i->name, i->decl_file,
+	                   lineno, // NB: not q->line !
+	                   &scope, addr, q);
 	}
     }
 
@@ -1778,16 +1776,11 @@ query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
 	{
 	  if (q->sess.verbose>3)
 	    clog << _("inline instance DIE lands on srcfile\n");
-	  if (q->has_statement_str)
-            {
-              Dwarf_Die scope;
-              q->dw.inner_die_containing_pc(i->die, addr, scope);
-              query_statement (i->name, i->decl_file,
-                               lineno, // NB: not q->line !
-                               &scope, addr, q);
-            }
-	  else
-	    query_inline_instance_info (*i, q);
+	  Dwarf_Die scope;
+	  q->dw.inner_die_containing_pc(i->die, addr, scope);
+	  query_statement (i->name, i->decl_file,
+	                   lineno, // NB: not q->line !
+	                   &scope, addr, q);
 	}
     }
 }
