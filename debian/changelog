@@ -1,3 +1,15 @@
+systemtap (2.3-2) unstable; urgency=low
+
+  * Don't Suggest linux-* since that won't guarantee right version anyway
+    (Closes: #724561, #735459).
+  * Depend on python:any for cross-installability (Closes: #726087).
+  * Bump required libelf-dev and libdw-dev version (Closes: #730019).
+  * Make systemtap-sdt-dev arch:all so that gcc and libc can B-D on it
+    (Closes: #726248).
+  * Bump Standards-Version to 3.9.5, no changes necessary.
+
+ -- Timo Juhani Lindfors <timo.lindfors@iki.fi>  Sat, 05 Apr 2014 10:40:10 +0300
+
 systemtap (2.3-1) unstable; urgency=low
 
   * New upstream release.
