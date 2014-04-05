@@ -7,7 +7,7 @@ Build-Depends: debhelper (>= 7.0.50~), libelf-dev (>= 0.148),
  libdw-dev (>= 0.148), libsqlite3-dev, texlive-latex-base, texlive-latex-recommended,
  texlive-latex-extra, texlive-fonts-recommended, libnss3-dev, libnspr4-dev, pkg-config,
  libnss3-tools, xmlto, latex2html, libavahi-client-dev
-Standards-Version: 3.9.4
+Standards-Version: 3.9.5
 Homepage: http://sourceware.org/systemtap/
 Vcs-Git: git://git.debian.org/git/collab-maint/systemtap.git
 Vcs-Browser: http://git.debian.org/?p=collab-maint/systemtap.git
