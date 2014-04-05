@@ -16,7 +16,7 @@ Package: systemtap
 Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
 Depends: systemtap-runtime (= ${binary:Version}), ${shlibs:Depends}, ${misc:Depends},
  systemtap-common (= ${source:Version}), make
-Suggests: systemtap-doc, vim-addon-manager, linux-image, linux-headers, linux-debug
+Suggests: systemtap-doc, vim-addon-manager
 Description: instrumentation system for Linux
  SystemTap provides infrastructure to simplify the gathering of
  information about the running Linux system.
