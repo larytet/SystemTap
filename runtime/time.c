@@ -221,7 +221,9 @@ __stp_time_cpufreq_callback(struct notifier_block *self,
 
     switch (state) {
         case CPUFREQ_POSTCHANGE:
+#ifdef CPUFREQ_RESUMECHANGE
         case CPUFREQ_RESUMECHANGE:
+#endif
             freqs = (struct cpufreq_freqs *)vfreqs;
             freq_khz = freqs->new;
             time = per_cpu_ptr(stp_time, freqs->cpu);
