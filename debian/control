@@ -103,7 +103,7 @@ Description: instrumentation system for Linux (client for compile server)
 
 Package: systemtap-sdt-dev
 Architecture: i386 amd64 ia64 s390 powerpc powerpcspe arm armel armeb armhf
-Depends: ${misc:Depends}, python
+Depends: ${misc:Depends}, python:any
 Description: statically defined probes development files
  This package contains header file and executable (dtrace) that
  can be used to add static probes into userspace applications
