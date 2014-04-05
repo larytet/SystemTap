@@ -272,7 +272,7 @@ struct symbol: public indexable
 };
 
 
-struct target_symbol: public symbol
+struct target_symbol: public expression
 {
   enum component_type
     {
@@ -304,6 +304,7 @@ struct target_symbol: public symbol
       void print (std::ostream& o) const;
     };
 
+  std::string name;
   bool addressof;
   std::vector<component> components;
   semantic_error* saved_conversion_error; // hand-made linked list

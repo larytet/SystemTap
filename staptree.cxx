@@ -3167,7 +3167,6 @@ void
 deep_copy_visitor::visit_target_symbol (target_symbol* e)
 {
   target_symbol* n = new target_symbol(*e);
-  n->referent = NULL; // don't copy!
   update_visitor::visit_target_symbol(n);
 }
 

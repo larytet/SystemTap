@@ -1106,37 +1106,14 @@ struct symbol_fetcher
     sym = e;
   }
 
-  void visit_target_symbol (target_symbol* e)
-  {
-    sym = e;
-  }
-
   void visit_arrayindex (arrayindex* e)
   {
     e->base->visit (this);
   }
 
-  void visit_atvar_op (atvar_op *e)
-  {
-    sym = e;
-  }
-
-  void visit_cast_op (cast_op* e)
-  {
-    sym = e;
-  }
-
-  void visit_autocast_op (autocast_op* e)
-  {
-    sym = e;
-  }
-
   void throwone (const token* t)
   {
-    if (t->type == tok_operator && t->content == ".") // guess someone misused . in $foo->bar.baz expression
-      throw SEMANTIC_ERROR (_("Expecting symbol or array index expression, try -> instead"), t);
-    else
-      throw SEMANTIC_ERROR (_("Expecting symbol or array index expression"), t);
+    throw SEMANTIC_ERROR (_("Expecting symbol or array index expression"), t);
   }
 };
 
@@ -2504,16 +2481,64 @@ struct dead_assignment_remover: public update_visitor
 };
 
 
+// symbol_fetcher augmented to allow target-symbol types, but NULLed.
+struct assignment_symbol_fetcher
+  : public symbol_fetcher
+{
+  assignment_symbol_fetcher (symbol *&sym): symbol_fetcher(sym)
+  {}
+
+  void visit_target_symbol (target_symbol* e)
+  {
+    sym = NULL;
+  }
+
+  void visit_atvar_op (atvar_op *e)
+  {
+    sym = NULL;
+  }
+
+  void visit_cast_op (cast_op* e)
+  {
+    sym = NULL;
+  }
+
+  void visit_autocast_op (autocast_op* e)
+  {
+    sym = NULL;
+  }
+
+  void throwone (const token* t)
+  {
+    if (t->type == tok_operator && t->content == ".")
+      // guess someone misused . in $foo->bar.baz expression
+      // XXX why are we only checking this in lvalues?
+      throw SEMANTIC_ERROR (_("Expecting lvalue expression, try -> instead"), t);
+    else
+      throw SEMANTIC_ERROR (_("Expecting lvalue expression"), t);
+  }
+};
+
+symbol *
+get_assignment_symbol_within_expression (expression *e)
+{
+  symbol *sym = NULL;
+  assignment_symbol_fetcher fetcher(sym);
+  e->visit (&fetcher);
+  return sym; // NB: may be null!
+}
+
+
 void
 dead_assignment_remover::visit_assignment (assignment* e)
 {
   replace (e->left);
   replace (e->right);
 
-  symbol* left = get_symbol_within_expression (e->left);
-  vardecl* leftvar = left->referent; // NB: may be 0 for unresolved $target
-  if (leftvar) // not unresolved $target, so intended sideeffect may be elided
+  symbol* left = get_assignment_symbol_within_expression (e->left);
+  if (left) // not unresolved $target, so intended sideeffect may be elided
     {
+      vardecl* leftvar = left->referent;
       if (vut.read.find(leftvar) == vut.read.end()) // var never read?
         {
           // NB: Not so fast!  The left side could be an array whose
