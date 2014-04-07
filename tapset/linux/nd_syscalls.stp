@@ -2993,7 +2993,8 @@ probe nd_syscall.madvise = kprobe.function("sys_madvise") ?
 	length = ulong_arg(2)
 	advice = int_arg(3)
 	advice_str = _madvice_advice_str(advice)
-	argstr = sprintf("%p, %d, %s", start, length, _madvice_advice_str(advice))
+	argstr = sprintf("%p, %u, %s", start, length,
+			 _madvice_advice_str(advice))
 }
 probe nd_syscall.madvise.return = kprobe.function("sys_madvise").return ?
 {

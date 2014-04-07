@@ -2790,9 +2790,10 @@ probe syscall.madvise = kernel.function("sys_madvise").call ?
 	name = "madvise"
 	start = $start
 	length = $len_in
-	advice = $behavior
-	advice_str = _madvice_advice_str($behavior)
-	argstr = sprintf("%p, %d, %s", $start, $len_in, _madvice_advice_str($behavior))
+	advice = __int32($behavior)
+	advice_str = _madvice_advice_str(advice)
+	argstr = sprintf("%p, %u, %s", $start, $len_in,
+			 _madvice_advice_str(advice))
 }
 probe syscall.madvise.return = kernel.function("sys_madvise").return ?
 {

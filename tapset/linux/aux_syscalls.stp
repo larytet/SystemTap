@@ -1533,14 +1533,52 @@ function _mremap_flags(flags) {
 	return substr(msg,0,strlen(msg)-1)
 }
 
-function _madvice_advice_str(behavior) {
-   if(behavior==0x00000000) return "MADV_NORMAL"
-   if(behavior==0x00000001) return "MADV_RANDOM"
-   if(behavior==0x00000002) return "MADV_SEQUENTIAL"
-   if(behavior==0x00000003) return "MADV_WILLNEED"
-   if(behavior==0x00000004) return "MADV_DONTNEED"
-   return sprintf("UNKNOWN VALUE: %d", behavior)
-}
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_madvice_advice_list[] = {
+	V(MADV_NORMAL),
+	V(MADV_RANDOM),
+	V(MADV_SEQUENTIAL),
+	V(MADV_WILLNEED),
+	V(MADV_DONTNEED),
+	V(MADV_REMOVE),
+	V(MADV_DONTFORK),
+	V(MADV_DOFORK),
+#ifdef MADV_HWPOISON
+	V(MADV_HWPOISON),
+#endif
+#ifdef MADV_SOFT_OFFLINE
+	V(MADV_SOFT_OFFLINE),
+#endif
+#ifdef MADV_MERGEABLE
+	V(MADV_MERGEABLE),
+#endif
+#ifdef MADV_UNMERGEABLE
+	V(MADV_UNMERGEABLE),
+#endif
+#ifdef MADV_HUGEPAGE
+	V(MADV_HUGEPAGE),
+#endif
+#ifdef MADV_NOHUGEPAGE
+	V(MADV_NOHUGEPAGE),
+#endif
+#ifdef MADV_DONTDUMP
+	V(MADV_DONTDUMP),
+#endif
+#ifdef MADV_DODUMP
+	V(MADV_DODUMP),
+#endif
+	{0, NULL}
+};
+%}
+
+function _madvice_advice_str(behavior)
+%{ /* pure */
+	_stp_lookup_str(_stp_madvice_advice_list,
+			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _fadvice_advice_str(behavior) {
    if(behavior==0x00000000) return "FADV_NORMAL"
