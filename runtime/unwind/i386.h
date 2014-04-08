@@ -73,6 +73,32 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs,
 					    int sanitize)
 {
+        if (!regs) {
+	        asm("lea (%%eip), %1 \n\t"
+		    "mov %%ebx, 0%0 \n\t"
+		    "mov %%ecx, 8%0 \n\t"
+		    "mov %%edx, 16%0 \n\t"
+		    "mov %%esi, 24%0 \n\t"
+		    "mov %%edi, 32%0 \n\t"
+		    "mov %%ebp, 40%0 \n\t"
+		    "mov %%eax, 48%0 \n\t"
+		    "mov %%xds, 56%0 \n\t"
+		    "mov %%xes, 60%0 \n\t"
+		    "mov %%xfs, 64%0 \n\t"
+		    "mov %%xgs, 68%0 \n\t"
+		    "mov %%orig_eax, 72%0 \n\t"
+		    "mov %%xcs, 88%0 \n\t"
+		    "mov %%eflags, 92%0 \n\t"
+		    "mov %%esp, 100%0 \n\t"
+		    "mov %%xss, 108%0 \n\t"
+#ifdef STAPCONF_X86_UNIREGS
+		    : "=m"(info->regs), "=r" (info->regs.ip));
+#else
+		    : "=m"(info->regs), "=r" (info->regs.eip));
+#endif /* STAPCONF_X86_UNIREGS */
+		return;
+	}
+
 	if (&info->regs == regs) { /* happens when unwinding kernel->user */
 		info->call_frame = 1;
 		return;

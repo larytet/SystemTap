@@ -6581,11 +6581,18 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 {
   // Print out a definition of the runtime's _stp_modules[] globals.
   ctx->output << "\n";
+  ctx->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_0 [] = {{ 0 },};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_1 [] = {{ 0 },};\n";
+  ctx->output << "static struct _stp_section _stp_module_self_sections [] = {{0},};\n";
+  ctx->output << "#endif /* defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA) */\n";
+  ctx->output << "static struct _stp_module _stp_module_self = {0};\n";
   ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
   for (unsigned i=0; i<ctx->stp_module_index; i++)
     {
       ctx->output << "& _stp_module_" << i << ",\n";
     }
+  ctx->output << "& _stp_module_self,\n";
   ctx->output << "};\n";
   ctx->output << "static unsigned _stp_num_modules = " << ctx->stp_module_index << ";\n";
 

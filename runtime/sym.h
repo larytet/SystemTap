@@ -95,7 +95,6 @@ struct _stp_module {
 	int build_id_len;
 };
 
-
 /* Defined by translator-generated stap-symbols.h. */
 static struct _stp_module *_stp_modules [];
 static unsigned _stp_num_modules;
@@ -116,4 +115,10 @@ static void _stp_kmodule_update_address(const char* module,
                                         const char* section,
                                         unsigned long offset);
 
+#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)
+static struct _stp_module _stp_module_self;
+static struct _stp_section _stp_module_self_sections[];
+static struct _stp_symbol _stp_module_self_symbols_0[];
+static struct _stp_symbol _stp_module_self_symbols_1[];
+#endif /* defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA) */
 #endif /* _STP_SYM_H_ */
