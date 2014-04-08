@@ -35,7 +35,7 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #ifdef STAPCONF_TASK_UID
 	uid_t euid = current->euid;
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 	uid_t euid = from_kuid_munged(current_user_ns(), current_euid());
 #else
 	uid_t euid = current_euid();

@@ -341,7 +341,7 @@ static int _stp_transport_init(void)
 	_stp_uid = current->uid;
 	_stp_gid = current->gid;
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 	_stp_uid = from_kuid_munged(current_user_ns(), current_uid());
 	_stp_gid = from_kgid_munged(current_user_ns(), current_gid());
 #else
