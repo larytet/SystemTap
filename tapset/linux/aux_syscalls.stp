@@ -1315,13 +1315,38 @@ function _module_flags_str:string(flags:long)
 		str[strlen(str)-1] = '\0';
 %}
 
-function _sched_policy_str(policy) {
-   if(policy==0) return "SCHED_OTHER"
-   if(policy==1) return "SCHED_FIFO"
-   if(policy==2) return "SCHED_RR"
-   if(policy==3) return "SCHED_BATCH"
-   return sprintf("UNKNOWN VALUE: %d", policy)
-}
+%{
+#include <linux/sched.h>
+
+static const _stp_val_array const _stp_sched_policy_list[] = {
+	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
+	V(SCHED_FIFO),
+	V(SCHED_RR),
+	V(SCHED_BATCH),
+#ifdef SCHED_IDLE
+	V(SCHED_IDLE),
+#endif
+#ifdef SCHED_DEADLINE
+	V(SCHED_DEADLINE),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sched_policy_str(policy)
+%{
+	unsigned int policy = (unsigned int)STAP_ARG_policy;
+#ifdef SCHED_RESET_ON_FORK
+	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
+	policy &= ~SCHED_RESET_ON_FORK;
+#endif
+	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE,
+			MAXSTRINGLEN);
+#ifdef SCHED_RESET_ON_FORK
+	if (reset_on_fork)
+		strlcat(STAP_RETVALUE, "|SCHED_RESET_ON_FORK", MAXSTRINGLEN);
+#endif			
+%}
 
 function _priority_which_str(which) {
    if(which==0) return "PRIO_PROCESS"

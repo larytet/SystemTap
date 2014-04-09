@@ -1676,29 +1676,45 @@ probe syscall.sched_get_priority_min.return = kernel.function("sys_sched_get_pri
 probe syscall.sched_getscheduler = kernel.function("sys_sched_getscheduler").call
 {
 	name = "sched_getscheduler"
-	pid = $pid
-	argstr = sprint($pid)
+	pid = __int32($pid)
+	argstr = sprint(pid)
 }
 probe syscall.sched_getscheduler.return = kernel.function("sys_sched_getscheduler").return
 {
 	name = "sched_getscheduler"
 	retstr = return_str(1, $return)
 }
+
 # sched_rr_get_interval ______________________________________
 #
 # long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 #
-probe syscall.sched_rr_get_interval = kernel.function("sys_sched_rr_get_interval").call
+probe syscall.sched_rr_get_interval = __syscall.sched_rr_get_interval, 
+	kernel.function("compat_sys_sched_rr_get_interval").call ?,
+	kernel.function("sys32_sched_rr_get_interval").call ?
 {
 	name = "sched_rr_get_interval"
-	pid = $pid
+	pid = __int32($pid)
 	tp_uaddr = $interval
-	argstr = sprintf("%d, %s", $pid, _struct_timespec_u($interval, 1))
+	argstr = sprintf("%d, %p", pid, $interval)
 }
-probe syscall.sched_rr_get_interval.return = kernel.function("sys_sched_rr_get_interval").return
+probe __syscall.sched_rr_get_interval =
+	kernel.function("sys_sched_rr_get_interval").call
+{
+	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
+}
+probe syscall.sched_rr_get_interval.return =
+	__syscall.sched_rr_get_interval.return,
+	kernel.function("compat_sys_sched_rr_get_interval").return ?,
+	kernel.function("sys32_sched_rr_get_interval").return ?
 {
 	name = "sched_rr_get_interval"
 	retstr = return_str(1, $return)
+}
+probe __syscall.sched_rr_get_interval.return =
+	kernel.function("sys_sched_rr_get_interval").return
+{
+	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
 }
 
 # sched_setaffinity __________________________________________
@@ -1744,11 +1760,11 @@ probe syscall.sched_setparam.return = kernel.function("sys_sched_setparam").retu
 probe syscall.sched_setscheduler = kernel.function("sys_sched_setscheduler").call ?
 {
 	name = "sched_setscheduler"
-	pid = $pid
-	policy = $policy
-	policy_str = _sched_policy_str($policy)
+	pid = __int32($pid)
+	policy = __int32($policy)
+	policy_str = _sched_policy_str(policy)
 	p_uaddr = $param
-	argstr = sprintf("%d, %s, %p", $pid, policy_str, $param)
+	argstr = sprintf("%d, %s, %p", pid, policy_str, $param)
 }
 probe syscall.sched_setscheduler.return = kernel.function("sys_sched_setscheduler").return ?
 {

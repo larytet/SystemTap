@@ -1689,18 +1689,33 @@ probe nd_syscall.sched_getscheduler.return = kprobe.function("sys_sched_getsched
 #
 # long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 #
-probe nd_syscall.sched_rr_get_interval = kprobe.function("sys_sched_rr_get_interval") ?
+probe nd_syscall.sched_rr_get_interval = __nd_syscall.sched_rr_get_interval,
+	kprobe.function("compat_sys_sched_rr_get_interval").call ?,
+	kprobe.function("sys32_sched_rr_get_interval").call ?
 {
 	name = "sched_rr_get_interval"
 	asmlinkage()
 	pid = int_arg(1)
 	tp_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %s", pid, _struct_timespec_u(tp_uaddr, 1))
+	argstr = sprintf("%d, %p", pid, tp_uaddr)
 }
-probe nd_syscall.sched_rr_get_interval.return = kprobe.function("sys_sched_rr_get_interval").return ?
+probe __nd_syscall.sched_rr_get_interval =
+	kprobe.function("sys_sched_rr_get_interval").call
+{
+	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
+}
+probe nd_syscall.sched_rr_get_interval.return =
+	__nd_syscall.sched_rr_get_interval.return,
+	kprobe.function("compat_sys_sched_rr_get_interval").return ?,
+	kernel.function("sys32_sched_rr_get_interval").return ?
 {
 	name = "sched_rr_get_interval"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.sched_rr_get_interval.return =
+	kprobe.function("sys_sched_rr_get_interval").return
+{
+	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
 }
 
 # sched_setaffinity __________________________________________
