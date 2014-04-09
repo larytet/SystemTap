@@ -557,6 +557,7 @@ if {![installtest_p]} {
       -re ".+" { }
       eof { set failed 0 }
    }
+   catch { close }; catch { wait }
 
    # Restore LD_LIBRARY_PATH
    set env(LD_LIBRARY_PATH) $oldpath
@@ -566,7 +567,6 @@ if {![installtest_p]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
-      catch { close }; catch { wait }
    }
 }
 
@@ -602,6 +602,7 @@ if {[string length $stap_id]} {
       }
       eof { }
    }
+   catch {close -i $stap_id}; catch {wait -i $stap_id}
    set stap_id ""
 }
 
