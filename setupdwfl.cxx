@@ -400,7 +400,10 @@ setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
         {
           rc = download_kernel_debuginfo(s, hex);
           if(rc >= 0)
-            return setup_dwfl_kernel (modules_found, s);
+            {
+              dwfl_end (dwfl);
+              return setup_dwfl_kernel (modules_found, s);
+            }
         }
     }
 

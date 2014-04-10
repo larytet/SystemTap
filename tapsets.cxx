@@ -10770,6 +10770,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
                 }
             }
         }
+      dwfl_end (dwfl);
     }
 
   // prefixes
