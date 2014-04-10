@@ -635,7 +635,7 @@ static void _stp_kmodule_update_address(const char* module,
     if(reloc && !strcmp(".strtab",reloc)){
       int i;
       unsigned long j = 0;
-      struct module *mod = find_module(THIS_MODULE->name);
+      struct module *mod = THIS_MODULE;
       if(mod){
 	for(i = 0; i < mod->num_symtab; i++){
 	  j += sizeof(mod->symtab[i]);
@@ -644,17 +644,8 @@ static void _stp_kmodule_update_address(const char* module,
 	  //	  _stp_printf("0x%lx, \"%s\" %d\n",(mod->symtab[i].st_value - address),(mod->strtab + mod->symtab[i].st_name), mod->num_symtab);
 	  //	  _stp_print_flush();
 	}
-	_stp_modules[_stp_num_modules-1]->num_sections++;
-	_stp_modules[_stp_num_modules-1]->sections = _stp_module_self_sections;
-	_stp_modules[_stp_num_modules-1]->sections[0].name = ".symtab";
 	_stp_modules[_stp_num_modules-1]->sections[0].size = j;
 	_stp_modules[_stp_num_modules-1]->sections[0].static_addr = address;
-	_stp_modules[_stp_num_modules-1]->sections[0].symbols = _stp_module_self_symbols_0;
-	_stp_modules[_stp_num_modules-1]->sections[0].num_symbols = 0;
-	_stp_modules[_stp_num_modules-1]->num_sections++;
-	_stp_modules[_stp_num_modules-1]->sections[1].name = ".text";
-	_stp_modules[_stp_num_modules-1]->sections[1].symbols = _stp_module_self_symbols_1;
-	_stp_modules[_stp_num_modules-1]->sections[1].num_symbols = 0;
       if(mod->core_text_size > mod->init_text_size)
 	  _stp_modules[_stp_num_modules-1]->sections[1].size = mod->core_text_size;
 	else

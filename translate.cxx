@@ -6577,17 +6577,37 @@ emit_symbol_data (systemtap_session& s)
 }
 
 void
+self_unwind_declarations(unwindsym_dump_context *ctx)
+{
+  ctx->output << "static uint8_t _stp_module_self_eh_frame [] = {0,};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_0[] = {{0},};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_1[] = {{0},};\n";
+  ctx->output << "static struct _stp_section _stp_module_self_sections[] = {\n";
+  ctx->output << "{.name = \".symtab\", .symbols = _stp_module_self_symbols_0, .num_symbols = 0},\n";
+  ctx->output << "{.name = \".text\", .symbols = _stp_module_self_symbols_1, .num_symbols = 0},\n";
+  ctx->output << "};\n";
+  ctx->output << "static struct _stp_module _stp_module_self = {\n";
+  ctx->output << ".name = \"stap_self_tmp_value\",\n";
+  ctx->output << ".path = \"stap_self_tmp_value\",\n";
+  ctx->output << ".num_sections = 2,\n";
+  ctx->output << ".sections = _stp_module_self_sections,\n";
+  ctx->output << ".eh_frame = _stp_module_self_eh_frame,\n";
+  ctx->output << ".eh_frame_len = 0,\n";
+  ctx->output << ".unwind_hdr_addr = 0x0,\n";
+  ctx->output << ".unwind_hdr = NULL,\n";
+  ctx->output << ".unwind_hdr_len = 0,\n";
+  ctx->output << ".debug_frame = NULL,\n";
+  ctx->output << ".debug_frame_len = 0,\n";
+  ctx->output << "};\n";
+}
+
+void
 emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 {
   // Print out a definition of the runtime's _stp_modules[] globals.
   ctx->output << "\n";
-  ctx->output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
-  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_0 [] = {{ 0 },};\n";
-  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_1 [] = {{ 0 },};\n";
-  ctx->output << "static struct _stp_section _stp_module_self_sections [] = {{0},};\n";
-  ctx->output << "#endif /* defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA) */\n";
-  ctx->output << "static struct _stp_module _stp_module_self = {0};\n";
-  ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
+  self_unwind_declarations(ctx);
+   ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
   for (unsigned i=0; i<ctx->stp_module_index; i++)
     {
       ctx->output << "& _stp_module_" << i << ",\n";
