@@ -456,6 +456,7 @@ struct print_format: public expression
       type = conv_unspecified;
       literal_string.clear();
     }
+    format_component() { clear(); }
     inline void set_flag(format_flag f) { flags |= f; }
     inline bool test_flag(format_flag f) const { return flags & f; }
   };
