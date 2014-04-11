@@ -614,6 +614,7 @@ static void _stp_kmodule_update_address(const char* module,
     if(reloc && !strcmp(".altinstr_replacement", reloc)){
       _stp_num_modules++;
       _stp_modules[_stp_num_modules-1]->name = modname;
+      _stp_modules[_stp_num_modules-1]->path = modname; //we've already been inserted at this point, so the path variable will still be unique
     }
     if(reloc && !strcmp(".note.gnu.build-id",reloc)){
       _stp_modules[_stp_num_modules-1]->notes_sect = address;
