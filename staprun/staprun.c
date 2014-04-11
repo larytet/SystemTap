@@ -467,14 +467,14 @@ int main(int argc, char **argv)
            us to extend argv[], with all the C fun that entails. */
 #ifdef HAVE_OPENAT
         if (relay_basedir_fd >= 0) {
-                char ** new_argv = calloc(sizeof(char *),argc+1);
+                char ** new_argv = calloc(sizeof(char *),argc+2);
                 const int new_Foption_size = 10; /* -FNNNNN */
                 char * new_Foption = malloc(new_Foption_size);
                 int i;
 
                 if (new_argv && new_Foption) {
                         snprintf (new_Foption, new_Foption_size, "-F%d", relay_basedir_fd);
-                        for (i=0; argv[i] != NULL; i++)
+                        for (i=0; i < argc && argv[i] != NULL; i++)
                                 new_argv[i] = argv[i];
                         new_argv[i++] = new_Foption; /* overwrite the NULL */
                         new_argv[i++] = NULL; /* ensconce a new NULL */
