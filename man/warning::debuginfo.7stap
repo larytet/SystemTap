@@ -123,6 +123,7 @@ option, in case such a server is already running.
 .IR stap (1),
 .IR stappaths (7),
 .IR stap-server (8),
+.IR stap-prep (1),
 .IR strip (1),
 .IR error::dwarf (7stap),
 .IR error::reporting (7stap),
