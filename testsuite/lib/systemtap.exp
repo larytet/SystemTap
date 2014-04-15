@@ -693,9 +693,14 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
    verbose -log "Executing: kill $SIG $PID"
    catch {eval exec kill $SIG $PID}
 
-   if {[expr [string is integer $KILL_TIMEOUT] \
-          && [expr $KILL_TIMEOUT > 0]]} {
-      sleep $KILL_TIMEOUT
+   if {$KILL_TIMEOUT > 0} {
+      while {$KILL_TIMEOUT > 0} {
+         if {![file isdirectory /proc/$PID]} {
+            return
+         }
+         sleep 1
+         incr KILL_TIMEOUT -1
+      }
       verbose -log "Executing: kill -KILL $PID"
       catch {eval exec kill -KILL $PID}
    }
