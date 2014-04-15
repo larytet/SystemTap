@@ -13,6 +13,9 @@
   function-call/entry probes.  We recommend programs be built with
   CFLAGS+=-grecord-gcc-switches to feed information to the heuristics.
 
+- The stap --use-server option now more correctly supports address:port
+  type parametrization, for manual use in the absence of avahi.
+
 - A new probe alias "oneshot" allows a single quick script fragment to run,
   then exit.
 
