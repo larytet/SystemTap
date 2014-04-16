@@ -110,6 +110,11 @@ dwflpp::~dwflpp()
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
 
+  cu_lines_cache_t::iterator i;
+  for (i = cu_lines_cache.begin(); i != cu_lines_cache.end(); ++i)
+    delete_map(*i->second);
+  delete_map(cu_lines_cache);
+
   if (dwfl)
     dwfl_end(dwfl);
   // NB: don't "delete mod_info;", as that may be shared
@@ -1480,6 +1485,68 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
   return 0;
 }
 
+
+// Comparator function for sorting
+static bool
+compare_lines(Dwarf_Line* a, Dwarf_Line* b)
+{
+  if (a == b)
+    return false;
+
+  int lineno_a = safe_dwarf_lineno(a);
+  int lineno_b = safe_dwarf_lineno(b);
+  if (lineno_a == lineno_b)
+    return safe_dwarf_lineaddr(a) < safe_dwarf_lineaddr(b);
+  return lineno_a < lineno_b;
+}
+
+// Interface to CU lines cache sorted by lineno
+lines_t*
+dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
+{
+  assert(cu);
+
+  srcfile_lines_cache_t *srcfile_lines = cu_lines_cache[cu];
+  if (!srcfile_lines)
+    {
+      srcfile_lines = new srcfile_lines_cache_t();
+      cu_lines_cache[cu] = srcfile_lines;
+    }
+
+  lines_t *lines = (*srcfile_lines)[srcfile];
+  if (!lines)
+    {
+      size_t nlines_cu = 0;
+      Dwarf_Lines *lines_cu = NULL;
+      dwarf_assert("dwarf_getsrclines",
+                   dwarf_getsrclines(cu, &lines_cu, &nlines_cu));
+
+      lines = new lines_t();
+      (*srcfile_lines)[srcfile] = lines;
+
+      for (size_t i = 0; i < nlines_cu; i++)
+        {
+          Dwarf_Line *line = dwarf_onesrcline(lines_cu, i);
+          const char *linesrc = safe_dwarf_linesrc(line);
+          if (strcmp(srcfile, linesrc))
+            continue;
+          lines->push_back(line);
+        }
+
+      if (lines->size() > 1)
+        sort(lines->begin(), lines->end(), compare_lines);
+
+      if (sess.verbose > 3)
+        {
+          clog << "found the following lines for %s:" << endl;
+          lines_t::iterator i;
+          for (i  = lines->begin(); i != lines->end(); ++i)
+            cout << safe_dwarf_lineno(*i) << " = " << hex
+                 << safe_dwarf_lineaddr(*i) << dec << endl;
+        }
+    }
+  return lines;
+}
 
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,

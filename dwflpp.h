@@ -74,6 +74,18 @@ typedef unordered_map<void*, Dwarf_Die> cu_die_parent_cache_t;
 // cu die -> (die -> parent die)
 typedef unordered_map<void*, cu_die_parent_cache_t*> mod_cu_die_parent_cache_t;
 
+// Dwarf_Line[] (sorted by lineno)
+typedef std::vector<Dwarf_Line*> lines_t;
+typedef std::pair<lines_t::iterator,
+                  lines_t::iterator>
+        lines_range_t;
+
+// srcfile -> Dwarf_Line[]
+typedef unordered_map<std::string, lines_t*> srcfile_lines_cache_t;
+
+// cu die -> (srcfile -> Dwarf_Line[])
+typedef unordered_map<void*, srcfile_lines_cache_t*> cu_lines_cache_t;
+
 typedef std::vector<func_info> func_info_map_t;
 typedef std::vector<inline_instance_info> inline_instance_map_t;
 
@@ -460,6 +472,9 @@ private:
   void cache_die_parents(cu_die_parent_cache_t* parents, Dwarf_Die* die);
   cu_die_parent_cache_t *get_die_parents();
 
+  // Cache for cu lines sorted by lineno
+  cu_lines_cache_t cu_lines_cache;
+
   Dwarf_Die* get_parent_scope(Dwarf_Die* die);
 
   /* The global alias cache is used to resolve any DIE found in a
@@ -513,6 +528,9 @@ private:
 
   static int mod_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
   static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
+
+  lines_t* get_cu_lines_sorted_by_lineno(const char *srcfile);
+
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
 
