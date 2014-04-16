@@ -846,6 +846,9 @@ struct dwarf_query : public base_query
   inline_instance_map_t filtered_inlines;
   func_info_map_t filtered_functions;
 
+  // Helper when we want to iterate over both
+  base_func_info_map_t filtered_all();
+
   void query_module_functions ();
 
   string final_function_name(const string& final_func,
@@ -1358,6 +1361,21 @@ dwarf_query::final_function_name(const string& final_func,
   return final_name;
 }
 
+base_func_info_map_t
+dwarf_query::filtered_all(void)
+{
+  vector<base_func_info> r;
+  func_info_map_t::const_iterator f;
+  for (f  = filtered_functions.begin();
+       f != filtered_functions.end(); ++f)
+    r.push_back(*f);
+  inline_instance_map_t::const_iterator i;
+  for (i  = filtered_inlines.begin();
+       i != filtered_inlines.end(); ++i)
+    r.push_back(*i);
+  return r;
+}
+
 // The critical determining factor when interpreting a pattern
 // string is, perhaps surprisingly: "presence of a lineno". The
 // presence of a lineno changes the search strategy completely.
@@ -1717,14 +1735,9 @@ query_func_info (Dwarf_Addr entrypc,
 static void
 query_srcfile_label (Dwarf_Addr addr, int lineno, dwarf_query * q)
 {
-  for (func_info_map_t::iterator i = q->filtered_functions.begin();
-       i != q->filtered_functions.end(); ++i)
-    if (q->dw.die_has_pc (i->die, addr))
-      q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                 q, query_label);
-
-  for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-       i != q->filtered_inlines.end(); ++i)
+  base_func_info_map_t bfis = q->filtered_all();
+  base_func_info_map_t::iterator i;
+  for (i = bfis.begin(); i != bfis.end(); ++i)
     if (q->dw.die_has_pc (i->die, addr))
       q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
                                  q, query_label);
@@ -1736,38 +1749,22 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
   assert (q->has_statement_str || q->has_function_str);
   assert (q->spec_type == function_file_and_line);
 
-  for (func_info_map_t::iterator i = q->filtered_functions.begin();
-       i != q->filtered_functions.end(); ++i)
+  base_func_info_map_t bfis = q->filtered_all();
+  base_func_info_map_t::iterator i;
+  for (i = bfis.begin(); i != bfis.end(); ++i)
     {
       if (q->dw.die_has_pc (i->die, addr))
-	{
-	  if (q->sess.verbose>3)
-	    clog << _("function DIE lands on srcfile\n");
-	  Dwarf_Die scope;
-	  q->dw.inner_die_containing_pc(i->die, addr, scope);
-	  query_statement (i->name, i->decl_file,
-	                   lineno, // NB: not q->line !
-	                   &scope, addr, q);
-	}
-    }
-
-  for (inline_instance_map_t::iterator i
-	 = q->filtered_inlines.begin();
-       i != q->filtered_inlines.end(); ++i)
-    {
-      if (q->dw.die_has_pc (i->die, addr))
-	{
-	  if (q->sess.verbose>3)
-	    clog << _("inline instance DIE lands on srcfile\n");
-	  Dwarf_Die scope;
-	  q->dw.inner_die_containing_pc(i->die, addr, scope);
-	  query_statement (i->name, i->decl_file,
-	                   lineno, // NB: not q->line !
-	                   &scope, addr, q);
-	}
+        {
+          if (q->sess.verbose>3)
+            clog << _("filtered DIE lands on srcfile\n");
+          Dwarf_Die scope;
+          q->dw.inner_die_containing_pc(i->die, addr, scope);
+          query_statement (i->name, i->decl_file,
+                           lineno, // NB: not q->line !
+                           &scope, addr, q);
+        }
     }
 }
-
 
 bool
 inline_instance_info::operator<(const inline_instance_info& other) const
@@ -1961,13 +1958,9 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
         }
       else if (q->has_label)
         {
-          for (func_info_map_t::iterator i = q->filtered_functions.begin();
-               i != q->filtered_functions.end(); ++i)
-            q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                       q, query_label);
-
-          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-               i != q->filtered_inlines.end(); ++i)
+          base_func_info_map_t bfis = q->filtered_all();
+          base_func_info_map_t::iterator i;
+          for (i = bfis.begin(); i != bfis.end(); ++i)
             q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
                                        q, query_label);
         }
@@ -1981,19 +1974,9 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
           // in query_callee because we only want the filtering to apply to the
           // first level, not to callees that are recursed into if
           // callees_num_val > 1.
-          for (func_info_map_t::iterator i = q->filtered_functions.begin();
-               i != q->filtered_functions.end(); ++i)
-            {
-              if (q->spec_type != function_alone &&
-                  q->filtered_srcfiles.count(i->decl_file) == 0)
-                continue;
-              q->dw.iterate_over_callees (&i->die, callee_val,
-                                          callees_num_val,
-                                          q, query_callee, *i);
-            }
-
-          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-               i != q->filtered_inlines.end(); ++i)
+          base_func_info_map_t bfis = q->filtered_all();
+          base_func_info_map_t::iterator i;
+          for (i = bfis.begin(); i != bfis.end(); ++i)
             {
               if (q->spec_type != function_alone &&
                   q->filtered_srcfiles.count(i->decl_file) == 0)
@@ -2047,14 +2030,9 @@ dwarf_query::query_module_functions ()
       vector<Dwarf_Die> cus;
       Dwarf_Die cu_mem;
 
-      for (func_info_map_t::iterator i = filtered_functions.begin();
-           i != filtered_functions.end(); ++i)
-        if (dwarf_diecu(&i->die, &cu_mem, NULL, NULL) &&
-            used_cus.insert(cu_mem.addr).second)
-          cus.push_back(cu_mem);
-
-      for (inline_instance_map_t::iterator i = filtered_inlines.begin();
-           i != filtered_inlines.end(); ++i)
+      base_func_info_map_t bfis = filtered_all();
+      base_func_info_map_t::iterator i;
+      for (i = bfis.begin(); i != bfis.end(); ++i)
         if (dwarf_diecu(&i->die, &cu_mem, NULL, NULL) &&
             used_cus.insert(cu_mem.addr).second)
           cus.push_back(cu_mem);

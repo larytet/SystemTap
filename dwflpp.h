@@ -31,6 +31,7 @@ extern "C" {
 }
 
 
+struct base_func_info;
 struct func_info;
 struct inline_instance_info;
 struct symbol_table;
@@ -86,6 +87,7 @@ typedef unordered_map<std::string, lines_t*> srcfile_lines_cache_t;
 // cu die -> (srcfile -> Dwarf_Line[])
 typedef unordered_map<void*, srcfile_lines_cache_t*> cu_lines_cache_t;
 
+typedef std::vector<base_func_info> base_func_info_map_t;
 typedef std::vector<func_info> func_info_map_t;
 typedef std::vector<inline_instance_info> inline_instance_map_t;
 
