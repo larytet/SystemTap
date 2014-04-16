@@ -1699,6 +1699,60 @@ dwflpp::collect_lines_for_single_lineno(char const * srcfile,
                                          : lineno);
 }
 
+static bool
+functions_have_lineno(base_func_info_map_t& funcs,
+                      lines_t *lines, int lineno)
+{
+  lines_range_t lineno_range = lineno_equal_range(lines, lineno);
+  if (lineno_range.first == lineno_range.second)
+    return false; // no LRs at this lineno
+
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    if (!collect_lines_in_die(lineno_range, &func->die).empty())
+      return true;
+
+  return false;
+}
+
+void
+dwflpp::suggest_alternative_linenos(char const * srcfile,
+                                    int lineno,
+                                    base_func_info_map_t& funcs)
+{
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+
+  // Look around lineno for linenos with LRs.
+  int lo_try = -1;
+  int hi_try = -1;
+  for (size_t i = 1; i < 6; ++i)
+    {
+      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        lo_try = lineno - i;
+      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        hi_try = lineno + i;
+    }
+
+  stringstream advice;
+  advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
+
+  if (lo_try > 0 || hi_try > 0)
+    {
+      //TRANSLATORS: Here we are trying to advise what source file
+      //TRANSLATORS: to attempt.
+      advice << _(" (try ");
+      if (lo_try > 0)
+        advice << ":" << lo_try;
+      if (lo_try > 0 && hi_try > 0)
+        advice << _(" or ");
+      if (hi_try > 0)
+        advice << ":" << hi_try;
+      advice << ")";
+    }
+  throw SEMANTIC_ERROR (advice.str());
+}
+
 static base_func_info_map_t
 get_funcs_in_srcfile(base_func_info_map_t& funcs,
                      const char * srcfile)
@@ -1775,6 +1829,17 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
           if (is_new_addr)
             callback(addr, lineno, data);
         }
+    }
+  // No LRs found at the wanted lineno. So let's suggest other ones if user was
+  // targeting a specific lineno (ABSOLUTE or RELATIVE).
+  else if (lineno_type == ABSOLUTE ||
+           lineno_type == RELATIVE)
+    {
+      int lineno = linenos[0];
+      if (lineno_type == RELATIVE)
+        // just pick the first function and make it relative to that
+        lineno += current_funcs[0].decl_line;
+      suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
 }
 
