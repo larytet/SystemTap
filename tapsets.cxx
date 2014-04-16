@@ -405,10 +405,6 @@ static const string TOK_CLASS("class");;
 static const string TOK_CALLEE("callee");;
 static const string TOK_CALLEES("callees");;
 
-static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
-static void query_addr(Dwarf_Addr addr, dwarf_query *q);
-static void query_plt_statement(dwarf_query *q);
-
 // Can we handle this query with just symbol-table info?
 enum dbinfo_reqt
 {
@@ -424,6 +420,9 @@ struct dwarf_query;
 struct dwflpp;
 struct symbol_table;
 
+static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
+static void query_addr(Dwarf_Addr addr, dwarf_query *q);
+static void query_plt_statement(dwarf_query *q);
 
 struct
 symbol_table
@@ -960,20 +959,6 @@ dwarf_query::dwarf_query(probe * base_probe,
 
   dbinfo_reqt = assess_dbinfo_reqt();
   query_done = false;
-}
-
-
-func_info_map_t *
-get_filtered_functions(dwarf_query *q)
-{
-  return &q->filtered_functions;
-}
-
-
-inline_instance_map_t *
-get_filtered_inlines(dwarf_query *q)
-{
-  return &q->filtered_inlines;
 }
 
 

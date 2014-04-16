@@ -35,7 +35,6 @@ struct func_info;
 struct inline_instance_info;
 struct symbol_table;
 struct base_query;
-struct dwarf_query;
 struct external_function_query;
 
 enum lineno_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
@@ -77,11 +76,6 @@ typedef unordered_map<void*, cu_die_parent_cache_t*> mod_cu_die_parent_cache_t;
 
 typedef std::vector<func_info> func_info_map_t;
 typedef std::vector<inline_instance_info> inline_instance_map_t;
-
-
-/* XXX FIXME functions that dwflpp needs from tapsets.cxx */
-func_info_map_t *get_filtered_functions(dwarf_query *q);
-inline_instance_map_t *get_filtered_inlines(dwarf_query *q);
 
 
 struct
@@ -520,8 +514,6 @@ private:
   static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
-
-  bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
   static void loc2c_error (void *, const char *fmt, ...) __attribute__ ((noreturn));
 
