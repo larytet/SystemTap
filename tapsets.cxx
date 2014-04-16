@@ -1947,14 +1947,16 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                    ".statement() probe, not .function()"),
                                    q->base_probe->tok);
 
-          // If we have a pattern string with target *line*, we
-          // have to look at lines in all the matched srcfiles.
           void (* callback) (Dwarf_Addr, int, dwarf_query*) =
             q->has_label ? query_srcfile_label : query_srcfile_line;
-          for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
-               i != q->filtered_srcfiles.end(); ++i)
-            q->dw.iterate_over_srcfile_lines (i->c_str(), q->linenos, q->has_statement_str,
-                                              q->lineno_type, callback, q->function, q);
+
+          base_func_info_map_t bfis = q->filtered_all();
+
+          set<string>::const_iterator srcfile;
+          for (srcfile  = q->filtered_srcfiles.begin();
+               srcfile != q->filtered_srcfiles.end(); ++srcfile)
+            q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
+                                             q->lineno_type, bfis, callback, q);
         }
       else if (q->has_label)
         {

@@ -1500,6 +1500,31 @@ compare_lines(Dwarf_Line* a, Dwarf_Line* b)
   return lineno_a < lineno_b;
 }
 
+// Comparator object for searching Dwarf_Lines with a specific lineno when we
+// don't have a Dwarf_Line of our own to search for (hence why a or b is always
+// NULL).
+struct lineno_comparator {
+  int lineno;
+  lineno_comparator(int lineno): lineno(lineno) {}
+  bool operator() (Dwarf_Line* a, Dwarf_Line* b)
+    {
+      assert(a || b);
+      if (a)
+        return safe_dwarf_lineno(a) < lineno;
+      else
+        return lineno < safe_dwarf_lineno(b);
+    }
+};
+
+// Returns a range of lines in between begin and end with wanted lineno. If
+// none exist, points to where it would have been.
+static lines_range_t
+lineno_equal_range(lines_t* v, int lineno)
+{
+  lineno_comparator lc(lineno);
+  return equal_range(v->begin(), v->end(), (Dwarf_Line*)NULL, lc);
+}
+
 // Interface to CU lines cache sorted by lineno
 lines_t*
 dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
@@ -1548,17 +1573,209 @@ dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
   return lines;
 }
 
+static Dwarf_Line*
+get_func_first_line(Dwarf_Die *cu, base_func_info& func)
+{
+  // dwarf_getsrc_die() uses binary search to find the Dwarf_Line, but will
+  // return the wrong line if not found.
+  Dwarf_Line *line = dwarf_getsrc_die(cu, func.entrypc);
+  if (line && safe_dwarf_lineaddr(line) == func.entrypc)
+    return line;
+
+  // Line not found (or line at wrong addr). We have to resort to a slower
+  // linear method. We won't find an exact match (probably this is an inlined
+  // instance), so just settle on the first Dwarf_Line with lowest addr which
+  // falls in the die.
+  size_t nlines = 0;
+  Dwarf_Lines *lines = NULL;
+  dwarf_assert("dwarf_getsrclines",
+               dwarf_getsrclines(cu, &lines, &nlines));
+
+  for (size_t i = 0; i < nlines; i++)
+    {
+      line = dwarf_onesrcline(lines, i);
+      if (dwarf_haspc(&func.die, safe_dwarf_lineaddr(line)))
+        return line;
+    }
+  return NULL;
+}
+
+static lines_t
+collect_lines_in_die(lines_range_t range, Dwarf_Die *die)
+{
+  lines_t lines_in_die;
+  for (lines_t::iterator line  = range.first;
+                         line != range.second; ++line)
+    if (dwarf_haspc(die, safe_dwarf_lineaddr(*line)))
+      lines_in_die.push_back(*line);
+  return lines_in_die;
+}
+
+static void
+add_matching_lines_in_func(Dwarf_Die *cu,
+                           lines_t *cu_lines,
+                           base_func_info& func,
+                           lines_t& matching_lines)
+{
+  Dwarf_Line *start_line = get_func_first_line(cu, func);
+  if (!start_line)
+    return;
+
+  for (int lineno = safe_dwarf_lineno(start_line);;)
+    {
+      lines_range_t range = lineno_equal_range(cu_lines, lineno);
+
+      // We consider the lineno still part of the die if at least one of them
+      // falls in the die.
+      lines_t lines_in_die = collect_lines_in_die(range, &func.die);
+      if (lines_in_die.empty())
+        break;
+
+      // Just pick the first LR even if there are more than one. Since the lines
+      // are sorted by lineno and then addr, the first one is the one with the
+      // lowest addr.
+      matching_lines.push_back(lines_in_die[0]);
+
+      // break out if there are no more lines, otherwise, go to the next lineno
+      if (range.second == cu_lines->end())
+        break;
+      lineno = safe_dwarf_lineno(*range.second);
+    }
+}
+
+void
+dwflpp::collect_all_lines(char const * srcfile,
+                          base_func_info_map_t& funcs,
+                          lines_t& matching_lines)
+{
+  // This is where we handle WILDCARD lineno types.
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    add_matching_lines_in_func(cu, cu_lines, *func, matching_lines);
+}
+
+
+static void
+add_matching_line_in_die(lines_t *cu_lines,
+                         lines_t& matching_lines,
+                         Dwarf_Die *die, int lineno)
+{
+  lines_range_t lineno_range = lineno_equal_range(cu_lines, lineno);
+  lines_t lines_in_die = collect_lines_in_die(lineno_range, die);
+  if (lines_in_die.empty())
+    return;
+
+  // Even if there are more than 1 LRs, just pick the first one. Since the lines
+  // are sorted by lineno and then addr, the first one is the one with the
+  // lowest addr. This is similar to what GDB does.
+  matching_lines.push_back(lines_in_die[0]);
+}
+
+void
+dwflpp::collect_lines_for_single_lineno(char const * srcfile,
+                                        int lineno,
+                                        bool is_relative,
+                                        base_func_info_map_t& funcs,
+                                        lines_t& matching_lines)
+{
+  /* Here, we handle ABSOLUTE and RELATIVE lineno types. Relative line numbers
+   * are a bit special. The issue is that functions (esp. inlined ones) may not
+   * even have a LR corresponding to the first valid line of code. So, applying
+   * an offset to the 'first' LR found in the DIE can be quite imprecise.
+   *     Instead, we use decl_line, which although does not necessarily have a
+   * LR associated with it (it can sometimes still happen esp. if the code is
+   * written in OTB-style), it serves as an anchor on which we can apply the
+   * offset to yield a lineno that will not change with compiler optimization.
+   *     It also has the added benefit of being consistent with the lineno
+   * printed by e.g. stap -l kernel.function("vfs_read"), so users can be
+   * confident from what lineno we adjust.
+   */
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    add_matching_line_in_die(cu_lines, matching_lines, &func->die,
+                             is_relative ? lineno + func->decl_line
+                                         : lineno);
+}
+
+static base_func_info_map_t
+get_funcs_in_srcfile(base_func_info_map_t& funcs,
+                     const char * srcfile)
+{
+  base_func_info_map_t matching_funcs;
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    if (strcmp(srcfile, func->decl_file) == 0)
+      matching_funcs.push_back(*func);
+  return matching_funcs;
+}
+
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          int linenos[2],
-                                         bool need_single_match,
                                          enum lineno_t lineno_type,
+                                         base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
                                                             int, void*),
-                                         const std::string& func_pattern,
                                          void *data)
 {
-  throw SEMANTIC_ERROR("under construction");
+  /* Matching line records (LRs) to user-provided linenos is trickier than it
+   * seems. The fate of all functions is one of three possibilities:
+   *  1. it's a normal function, with a subprogram DIE and a bona fide lowpc
+   *     and highpc attribute.
+   *  2. it's an inlined function (one/multiple inlined_subroutine DIE, with one
+   *     abstract_origin DIE)
+   *  3. it's both a normal function and an inlined function. For example, if
+   *     the funtion has been inlined only in some places, we'll have a DIE for
+   *     the normal subprogram DIE as well as inlined_subroutine DIEs.
+   *
+   * Multiple LRs for the same lineno but different addresses can simply happen
+   * due to the function appearing in multiple forms. E.g. a function inlined
+   * in two spots can yield two sets of LRs for its linenos at the different
+   * addresses where it is inlined.
+   *     This is why the collect_* functions used here try to match up LRs back
+   * to their originating DIEs. For example, in the function
+   * collect_lines_for_single_lineno(), we filter first by DIE so that a lineno
+   * corresponding to multiple addrs in multiple inlined_subroutine DIEs yields
+   * a probe for each of them.
+   */
+  assert(cu);
+
+  // only work on the functions found in the current srcfile
+  base_func_info_map_t current_funcs = get_funcs_in_srcfile(funcs, srcfile);
+  if (current_funcs.empty())
+    return;
+
+  // collect lines
+  lines_t matching_lines;
+  if (lineno_type == ABSOLUTE)
+    collect_lines_for_single_lineno(srcfile, linenos[0], false, /* is_relative */
+                                    current_funcs, matching_lines);
+  else if (lineno_type == RELATIVE)
+    collect_lines_for_single_lineno(srcfile, linenos[0], true, /* is_relative */
+                                    current_funcs, matching_lines);
+  else if (lineno_type == WILDCARD)
+    collect_all_lines(srcfile, current_funcs, matching_lines);
+  else // RANGE
+    for (int lineno = linenos[0]; lineno <= linenos[1]; lineno++)
+      collect_lines_for_single_lineno(srcfile, lineno, false, /* is_relative */
+                                      current_funcs, matching_lines);
+
+  // call back with matching lines
+  if (!matching_lines.empty())
+    {
+      set<Dwarf_Addr> probed_addrs;
+      for (lines_t::iterator line  = matching_lines.begin();
+                             line != matching_lines.end(); ++line)
+        {
+          int lineno = safe_dwarf_lineno(*line);
+          Dwarf_Addr addr = safe_dwarf_lineaddr(*line);
+          bool is_new_addr = probed_addrs.insert(addr).second;
+          if (is_new_addr)
+            callback(addr, lineno, data);
+        }
+    }
 }
 
 

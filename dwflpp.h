@@ -315,21 +315,19 @@ struct dwflpp
   template<typename T>
   void iterate_over_srcfile_lines (char const * srcfile,
                                    int linenos[2],
-                                   bool need_single_match,
                                    enum lineno_t lineno_type,
+                                   base_func_info_map_t& funcs,
                                    void (*callback) (Dwarf_Addr,
                                                      int, T*),
-                                   const std::string& func_pattern,
                                    T *data)
     {
       // See comment block in iterate_over_modules()
       iterate_over_srcfile_lines<void>(srcfile,
                                        linenos,
-                                       need_single_match,
                                        lineno_type,
+                                       funcs,
                                        (void (*)(Dwarf_Addr,
                                                  int, void*))callback,
-                                       func_pattern,
                                        (void*)data);
     }
 
@@ -533,6 +531,15 @@ private:
 
   lines_t* get_cu_lines_sorted_by_lineno(const char *srcfile);
 
+  void collect_lines_for_single_lineno(char const * srcfile,
+                                       int lineno,
+                                       bool is_relative,
+                                       base_func_info_map_t& funcs,
+                                       lines_t& matching_lines);
+  void collect_all_lines(char const * srcfile,
+                         base_func_info_map_t& funcs,
+                         lines_t& matching_lines);
+
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
 
@@ -673,11 +680,10 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          int linenos[2],
-                                         bool need_single_match,
                                          enum lineno_t lineno_type,
+                                         base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
                                                             int, void*),
-                                         const std::string& func_pattern,
                                          void *data);
 template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
