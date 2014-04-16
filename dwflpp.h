@@ -303,7 +303,8 @@ struct dwflpp
                                    int linenos[2],
                                    bool need_single_match,
                                    enum lineno_t lineno_type,
-                                   void (*callback) (const dwarf_line_t&, T*),
+                                   void (*callback) (Dwarf_Addr,
+                                                     int, T*),
                                    const std::string& func_pattern,
                                    T *data)
     {
@@ -312,8 +313,8 @@ struct dwflpp
                                        linenos,
                                        need_single_match,
                                        lineno_type,
-                                       (void (*)(const dwarf_line_t&,
-                                                 void*))callback,
+                                       (void (*)(Dwarf_Addr,
+                                                 int, void*))callback,
                                        func_pattern,
                                        (void*)data);
     }
@@ -654,8 +655,8 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          int linenos[2],
                                          bool need_single_match,
                                          enum lineno_t lineno_type,
-                                         void (* callback) (const dwarf_line_t& line,
-                                                            void * arg),
+                                         void (* callback) (Dwarf_Addr,
+                                                            int, void*),
                                          const std::string& func_pattern,
                                          void *data);
 template<> void

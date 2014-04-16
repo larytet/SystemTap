@@ -1488,11 +1488,13 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
     }
   else
     {
-      dwarf_line_t address_line(dwarf_getsrc_die(cudie, addr));
+      Dwarf_Line *address_line = dwarf_getsrc_die(cudie, addr);
+      Dwarf_Addr address_line_addr = addr;
       if (address_line)
         {
-          file = address_line.linesrc();
-          line = address_line.lineno();
+          file = safe_dwarf_linesrc(address_line);
+          line = safe_dwarf_lineno(address_line);
+          address_line_addr = safe_dwarf_lineaddr(address_line);
         }
 
       // Verify that a raw address matches the beginning of a
@@ -1500,13 +1502,13 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
       // is at the start of an assembly instruction.  Mark probes are in the
       // middle of a macro and thus not strictly at a statement beginning.
       // Guru mode may override this check.
-      if (!q->has_mark && (!address_line || address_line.addr() != addr))
+      if (!q->has_mark && (!address_line || address_line_addr != addr))
         {
           stringstream msg;
           msg << _F("address %#" PRIx64 " does not match the beginning of a statement",
                     addr);
           if (address_line)
-            msg << _F(" (try %#" PRIx64 ")", address_line.addr());
+            msg << _F(" (try %#" PRIx64 ")", address_line_addr);
           else
             msg << _F(" (no line info found for '%s', in module '%s')",
                       dw.cu_name().c_str(), dw.module_name.c_str());
@@ -1713,10 +1715,8 @@ query_func_info (Dwarf_Addr entrypc,
 
 
 static void
-query_srcfile_label (const dwarf_line_t& line, dwarf_query * q)
+query_srcfile_label (Dwarf_Addr addr, int lineno, dwarf_query * q)
 {
-  Dwarf_Addr addr = line.addr();
-
   for (func_info_map_t::iterator i = q->filtered_functions.begin();
        i != q->filtered_functions.end(); ++i)
     if (q->dw.die_has_pc (i->die, addr))
@@ -1731,14 +1731,10 @@ query_srcfile_label (const dwarf_line_t& line, dwarf_query * q)
 }
 
 static void
-query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
+query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
 {
   assert (q->has_statement_str || q->has_function_str);
   assert (q->spec_type == function_file_and_line);
-
-  Dwarf_Addr addr = line.addr();
-
-  int lineno = line.lineno();
 
   for (func_info_map_t::iterator i = q->filtered_functions.begin();
        i != q->filtered_functions.end(); ++i)
@@ -1956,7 +1952,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
 
           // If we have a pattern string with target *line*, we
           // have to look at lines in all the matched srcfiles.
-          void (* callback) (const dwarf_line_t&, dwarf_query*) =
+          void (* callback) (Dwarf_Addr, int, dwarf_query*) =
             q->has_label ? query_srcfile_label : query_srcfile_line;
           for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
                i != q->filtered_srcfiles.end(); ++i)

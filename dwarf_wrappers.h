@@ -63,56 +63,43 @@ dwarf_assert(const std::string& desc, const void* ptr)
     dwarf_assert(desc, -1);
 }
 
-
-class dwarf_line_t
+inline int
+safe_dwarf_lineno(const Dwarf_Line* line)
 {
-public:
-  const Dwarf_Line* line;
-  dwarf_line_t() : line(0) {}
-  dwarf_line_t(const Dwarf_Line* line_) : line(line_) {}
+  int lineno;
+  dwarf_assert("dwarf_lineno",
+               dwarf_lineno(const_cast<Dwarf_Line*>(line), &lineno));
+  return lineno;
+}
 
-  dwarf_line_t& operator= (const Dwarf_Line* line_)
-  {
-    line = (line_);
-    return *this;
-  }
+inline Dwarf_Addr
+safe_dwarf_lineaddr(const Dwarf_Line* line)
+{
+  Dwarf_Addr addr;
+  dwarf_assert("dwarf_lineaddr",
+               dwarf_lineaddr(const_cast<Dwarf_Line*>(line), &addr));
+  return addr;
+}
 
-  operator bool() const
-  {
-    return line != 0;
-  }
+inline const char*
+safe_dwarf_linesrc(const Dwarf_Line* line,
+                   Dwarf_Word* mtime = NULL,
+                   Dwarf_Word* length = NULL)
+{
+  const char* linesrc =
+    dwarf_linesrc(const_cast<Dwarf_Line*>(line), mtime, length);
+  dwarf_assert("dwarf_linesrc", linesrc);
+  return linesrc;
+}
 
-  int lineno() const
-  {
-    int lineval;
-    if (!line)
-      dwarf_assert("dwarf_line_t::lineno", -1);
-    dwarf_lineno(const_cast<Dwarf_Line*>(line), &lineval);
-    return lineval;
-  }
-  Dwarf_Addr addr() const
-  {
-    Dwarf_Addr addrval;
-    if (!line)
-      dwarf_assert("dwarf_line_t::addr", -1);
-    dwarf_lineaddr(const_cast<Dwarf_Line*>(line), &addrval);
-    return addrval;
-  }
-  const char* linesrc(Dwarf_Word* mtime = 0, Dwarf_Word* length = 0)
-  {
-    const char* retval = dwarf_linesrc(const_cast<Dwarf_Line*>(line), mtime,
-                                                               length);
-    dwarf_assert("dwarf_line_t::linesrc", retval);
-    return retval;
-  }
-  bool is_prologue_end() const
-  {
-    bool flag;
-    dwarf_assert("dwarf_line_t::is_prologue_end",
-      dwarf_lineprologueend (const_cast<Dwarf_Line*>(line), &flag));
-    return flag;
-  }
-};
+inline bool
+safe_dwarf_lineprologueend(const Dwarf_Line* line)
+{
+  bool flag;
+  dwarf_assert("is_prologue_end",
+               dwarf_lineprologueend(const_cast<Dwarf_Line*>(line), &flag));
+  return flag;
+}
 
 
 // Look up the DIE for a reference-form attribute name

@@ -1486,8 +1486,8 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          int linenos[2],
                                          bool need_single_match,
                                          enum lineno_t lineno_type,
-                                         void (* callback) (const dwarf_line_t& line,
-                                                            void * arg),
+                                         void (* callback) (Dwarf_Addr,
+                                                            int, void*),
                                          const std::string& func_pattern,
                                          void *data)
 {
@@ -1882,16 +1882,15 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       if (it->decl_file == 0) it->decl_file = "";
 
       unsigned entrypc_srcline_idx = 0;
-      dwarf_line_t entrypc_srcline;
+      Dwarf_Line *entrypc_srcline = NULL;
       // open-code binary search for exact match
       {
         unsigned l = 0, h = nlines;
         while (l < h)
           {
             entrypc_srcline_idx = (l + h) / 2;
-            const dwarf_line_t lr(dwarf_onesrcline(lines,
-                                                   entrypc_srcline_idx));
-            Dwarf_Addr addr = lr.addr();
+            Dwarf_Line* lr = dwarf_onesrcline(lines, entrypc_srcline_idx);
+            Dwarf_Addr addr = safe_dwarf_lineaddr(lr);
             if (addr == entrypc) { entrypc_srcline = lr; break; }
             else if (l + 1 == h) { break; } // ran off bottom of tree
             else if (addr < entrypc) { l = entrypc_srcline_idx; }
@@ -1909,7 +1908,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         }
 
       if (entrypc == 0)
-        { 
+        {
           if (sess.verbose > 2)
             clog << _F("null entrypc dwarf line record for function '%s'\n",
                        it->name.c_str());
@@ -1935,18 +1934,18 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // the entrypc maps to a statement in the body rather than the
       // declaration.
 
-      int entrypc_srcline_lineno = entrypc_srcline.lineno();
+      int entrypc_srcline_lineno = safe_dwarf_lineno(entrypc_srcline);
       unsigned postprologue_srcline_idx = entrypc_srcline_idx;
-      dwarf_line_t postprologue_srcline;
+      Dwarf_Line *postprologue_srcline = entrypc_srcline;
 
       while (postprologue_srcline_idx < nlines)
         {
           postprologue_srcline = dwarf_onesrcline(lines,
                                                   postprologue_srcline_idx);
-          Dwarf_Addr lineaddr   = postprologue_srcline.addr();
-          const char* linesrc   = postprologue_srcline.linesrc();
-          int lineno            = postprologue_srcline.lineno();
-          bool lineprologue_end = postprologue_srcline.is_prologue_end();
+          Dwarf_Addr lineaddr   = safe_dwarf_lineaddr(postprologue_srcline);
+          const char* linesrc   = safe_dwarf_linesrc(postprologue_srcline);
+          int lineno            = safe_dwarf_lineno(postprologue_srcline);
+          bool lineprologue_end = safe_dwarf_lineprologueend(postprologue_srcline);
 
           if (sess.verbose>2)
             clog << _F("checking line record %#" PRIx64 "@%s:%d%s\n", lineaddr,
@@ -1977,12 +1976,13 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
         } // loop over srclines
 
-      Dwarf_Addr postprologue_addr = postprologue_srcline.addr();
+
+      Dwarf_Addr postprologue_addr = safe_dwarf_lineaddr(postprologue_srcline);
       if (postprologue_addr >= highpc)
         {
           // pick addr of previous line record
-          dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx-1));
-          postprologue_addr = lr.addr();
+          Dwarf_Line *lr = dwarf_onesrcline(lines, postprologue_srcline_idx-1);
+          postprologue_addr = safe_dwarf_lineaddr(lr);
         }
 
       it->prologue_end = postprologue_addr;
@@ -1992,11 +1992,15 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           clog << _F("prologue found function '%s'", it->name.c_str());
           // Add a little classification datum
           //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
-          if (postprologue_addr == entrypc) clog << _(" (naked)");
+          if (postprologue_addr == entrypc)
+            clog << _(" (naked)");
           //TRANSLATORS: Here we're adding some classification datum (ie we went over)
-          if (postprologue_srcline.addr() >= highpc) clog << _(" (tail-call?)");
+          if (safe_dwarf_lineaddr(postprologue_srcline) >= highpc)
+            clog << _(" (tail-call?)");
           //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
-          if (postprologue_srcline.is_prologue_end()) clog << _(" (marked)");
+          if (safe_dwarf_lineprologueend(postprologue_srcline))
+            clog << _(" (marked)");
+
           clog << " = 0x" << hex << postprologue_addr << dec << "\n";
         }
 
