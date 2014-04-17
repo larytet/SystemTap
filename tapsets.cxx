@@ -1510,9 +1510,9 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
       Dwarf_Addr address_line_addr = addr;
       if (address_line)
         {
-          file = safe_dwarf_linesrc(address_line);
-          line = safe_dwarf_lineno(address_line);
-          address_line_addr = safe_dwarf_lineaddr(address_line);
+          file = DWARF_LINESRC(address_line);
+          line = DWARF_LINENO(address_line);
+          address_line_addr = DWARF_LINEADDR(address_line);
         }
 
       // Verify that a raw address matches the beginning of a

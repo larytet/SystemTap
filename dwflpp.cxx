@@ -1493,10 +1493,10 @@ compare_lines(Dwarf_Line* a, Dwarf_Line* b)
   if (a == b)
     return false;
 
-  int lineno_a = safe_dwarf_lineno(a);
-  int lineno_b = safe_dwarf_lineno(b);
+  int lineno_a = DWARF_LINENO(a);
+  int lineno_b = DWARF_LINENO(b);
   if (lineno_a == lineno_b)
-    return safe_dwarf_lineaddr(a) < safe_dwarf_lineaddr(b);
+    return DWARF_LINEADDR(a) < DWARF_LINEADDR(b);
   return lineno_a < lineno_b;
 }
 
@@ -1510,9 +1510,9 @@ struct lineno_comparator {
     {
       assert(a || b);
       if (a)
-        return safe_dwarf_lineno(a) < lineno;
+        return DWARF_LINENO(a) < lineno;
       else
-        return lineno < safe_dwarf_lineno(b);
+        return lineno < DWARF_LINENO(b);
     }
 };
 
@@ -1552,7 +1552,7 @@ dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
       for (size_t i = 0; i < nlines_cu; i++)
         {
           Dwarf_Line *line = dwarf_onesrcline(lines_cu, i);
-          const char *linesrc = safe_dwarf_linesrc(line);
+          const char *linesrc = DWARF_LINESRC(line);
           if (strcmp(srcfile, linesrc))
             continue;
           lines->push_back(line);
@@ -1566,8 +1566,8 @@ dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
           clog << "found the following lines for %s:" << endl;
           lines_t::iterator i;
           for (i  = lines->begin(); i != lines->end(); ++i)
-            cout << safe_dwarf_lineno(*i) << " = " << hex
-                 << safe_dwarf_lineaddr(*i) << dec << endl;
+            cout << DWARF_LINENO(*i) << " = " << hex
+                 << DWARF_LINEADDR(*i) << dec << endl;
         }
     }
   return lines;
@@ -1579,7 +1579,7 @@ get_func_first_line(Dwarf_Die *cu, base_func_info& func)
   // dwarf_getsrc_die() uses binary search to find the Dwarf_Line, but will
   // return the wrong line if not found.
   Dwarf_Line *line = dwarf_getsrc_die(cu, func.entrypc);
-  if (line && safe_dwarf_lineaddr(line) == func.entrypc)
+  if (line && DWARF_LINEADDR(line) == func.entrypc)
     return line;
 
   // Line not found (or line at wrong addr). We have to resort to a slower
@@ -1594,7 +1594,7 @@ get_func_first_line(Dwarf_Die *cu, base_func_info& func)
   for (size_t i = 0; i < nlines; i++)
     {
       line = dwarf_onesrcline(lines, i);
-      if (dwarf_haspc(&func.die, safe_dwarf_lineaddr(line)))
+      if (dwarf_haspc(&func.die, DWARF_LINEADDR(line)))
         return line;
     }
   return NULL;
@@ -1606,7 +1606,7 @@ collect_lines_in_die(lines_range_t range, Dwarf_Die *die)
   lines_t lines_in_die;
   for (lines_t::iterator line  = range.first;
                          line != range.second; ++line)
-    if (dwarf_haspc(die, safe_dwarf_lineaddr(*line)))
+    if (dwarf_haspc(die, DWARF_LINEADDR(*line)))
       lines_in_die.push_back(*line);
   return lines_in_die;
 }
@@ -1621,7 +1621,7 @@ add_matching_lines_in_func(Dwarf_Die *cu,
   if (!start_line)
     return;
 
-  for (int lineno = safe_dwarf_lineno(start_line);;)
+  for (int lineno = DWARF_LINENO(start_line);;)
     {
       lines_range_t range = lineno_equal_range(cu_lines, lineno);
 
@@ -1639,7 +1639,7 @@ add_matching_lines_in_func(Dwarf_Die *cu,
       // break out if there are no more lines, otherwise, go to the next lineno
       if (range.second == cu_lines->end())
         break;
-      lineno = safe_dwarf_lineno(*range.second);
+      lineno = DWARF_LINENO(*range.second);
     }
 }
 
@@ -1823,8 +1823,8 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
       for (lines_t::iterator line  = matching_lines.begin();
                              line != matching_lines.end(); ++line)
         {
-          int lineno = safe_dwarf_lineno(*line);
-          Dwarf_Addr addr = safe_dwarf_lineaddr(*line);
+          int lineno = DWARF_LINENO(*line);
+          Dwarf_Addr addr = DWARF_LINEADDR(*line);
           bool is_new_addr = probed_addrs.insert(addr).second;
           if (is_new_addr)
             callback(addr, lineno, data);
@@ -2239,7 +2239,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           {
             entrypc_srcline_idx = (l + h) / 2;
             Dwarf_Line* lr = dwarf_onesrcline(lines, entrypc_srcline_idx);
-            Dwarf_Addr addr = safe_dwarf_lineaddr(lr);
+            Dwarf_Addr addr = DWARF_LINEADDR(lr);
             if (addr == entrypc) { entrypc_srcline = lr; break; }
             else if (l + 1 == h) { break; } // ran off bottom of tree
             else if (addr < entrypc) { l = entrypc_srcline_idx; }
@@ -2283,7 +2283,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // the entrypc maps to a statement in the body rather than the
       // declaration.
 
-      int entrypc_srcline_lineno = safe_dwarf_lineno(entrypc_srcline);
+      int entrypc_srcline_lineno = DWARF_LINENO(entrypc_srcline);
       unsigned postprologue_srcline_idx = entrypc_srcline_idx;
       Dwarf_Line *postprologue_srcline = entrypc_srcline;
 
@@ -2291,10 +2291,10 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         {
           postprologue_srcline = dwarf_onesrcline(lines,
                                                   postprologue_srcline_idx);
-          Dwarf_Addr lineaddr   = safe_dwarf_lineaddr(postprologue_srcline);
-          const char* linesrc   = safe_dwarf_linesrc(postprologue_srcline);
-          int lineno            = safe_dwarf_lineno(postprologue_srcline);
-          bool lineprologue_end = safe_dwarf_lineprologueend(postprologue_srcline);
+          Dwarf_Addr lineaddr   = DWARF_LINEADDR(postprologue_srcline);
+          const char* linesrc   = DWARF_LINESRC(postprologue_srcline);
+          int lineno            = DWARF_LINENO(postprologue_srcline);
+          bool lineprologue_end = DWARF_LINEPROLOGUEEND(postprologue_srcline);
 
           if (sess.verbose>2)
             clog << _F("checking line record %#" PRIx64 "@%s:%d%s\n", lineaddr,
@@ -2326,12 +2326,12 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         } // loop over srclines
 
 
-      Dwarf_Addr postprologue_addr = safe_dwarf_lineaddr(postprologue_srcline);
+      Dwarf_Addr postprologue_addr = DWARF_LINEADDR(postprologue_srcline);
       if (postprologue_addr >= highpc)
         {
           // pick addr of previous line record
           Dwarf_Line *lr = dwarf_onesrcline(lines, postprologue_srcline_idx-1);
-          postprologue_addr = safe_dwarf_lineaddr(lr);
+          postprologue_addr = DWARF_LINEADDR(lr);
         }
 
       it->prologue_end = postprologue_addr;
@@ -2344,10 +2344,10 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           if (postprologue_addr == entrypc)
             clog << _(" (naked)");
           //TRANSLATORS: Here we're adding some classification datum (ie we went over)
-          if (safe_dwarf_lineaddr(postprologue_srcline) >= highpc)
+          if (DWARF_LINEADDR(postprologue_srcline) >= highpc)
             clog << _(" (tail-call?)");
           //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
-          if (safe_dwarf_lineprologueend(postprologue_srcline))
+          if (DWARF_LINEPROLOGUEEND(postprologue_srcline))
             clog << _(" (marked)");
 
           clog << " = 0x" << hex << postprologue_addr << dec << "\n";

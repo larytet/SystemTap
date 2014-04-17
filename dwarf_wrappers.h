@@ -73,41 +73,64 @@ dwarf_assert(const std::string& desc, const void* ptr,
     dwarf_assert(desc, -1, file, line);
 }
 
+#define DWARF_LINENO(line) \
+  safe_dwarf_lineno(line, __FILE__, __LINE__)
+
 inline int
-safe_dwarf_lineno(const Dwarf_Line* line)
+safe_dwarf_lineno(const Dwarf_Line* line,
+                  const std::string& errfile, int errline)
 {
   int lineno;
-  DWARF_ASSERT("dwarf_lineno",
-               dwarf_lineno(const_cast<Dwarf_Line*>(line), &lineno));
+  dwarf_assert("dwarf_lineno",
+               dwarf_lineno(const_cast<Dwarf_Line*>(line), &lineno),
+               errfile, errline);
   return lineno;
 }
 
+#define DWARF_LINEADDR(line) \
+  safe_dwarf_lineaddr(line, __FILE__, __LINE__)
+
 inline Dwarf_Addr
-safe_dwarf_lineaddr(const Dwarf_Line* line)
+safe_dwarf_lineaddr(const Dwarf_Line* line,
+                    const std::string& errfile, int errline)
 {
   Dwarf_Addr addr;
-  DWARF_ASSERT("dwarf_lineaddr",
-               dwarf_lineaddr(const_cast<Dwarf_Line*>(line), &addr));
+  dwarf_assert("dwarf_lineaddr",
+               dwarf_lineaddr(const_cast<Dwarf_Line*>(line), &addr),
+               errfile, errline);
   return addr;
 }
 
+#define DWARF_LINESRC(line) \
+  safe_dwarf_linesrc(line, NULL, NULL, __FILE__, __LINE__)
+#define DWARF_LINESRC2(line, mtime) \
+  safe_dwarf_linesrc(line, mtime, NULL, __FILE__, __LINE__)
+#define DWARF_LINESRC3(line, mtime, length) \
+  safe_dwarf_linesrc(line, mtime, length, __FILE__, __LINE__)
+
 inline const char*
 safe_dwarf_linesrc(const Dwarf_Line* line,
-                   Dwarf_Word* mtime = NULL,
-                   Dwarf_Word* length = NULL)
+                   Dwarf_Word* mtime,
+                   Dwarf_Word* length,
+                   const std::string& errfile, int errline)
 {
   const char* linesrc =
     dwarf_linesrc(const_cast<Dwarf_Line*>(line), mtime, length);
-  DWARF_ASSERT("dwarf_linesrc", linesrc);
+  dwarf_assert("dwarf_linesrc", linesrc, errfile, errline);
   return linesrc;
 }
 
+#define DWARF_LINEPROLOGUEEND(line) \
+  safe_dwarf_lineprologueend(line, __FILE__, __LINE__)
+
 inline bool
-safe_dwarf_lineprologueend(const Dwarf_Line* line)
+safe_dwarf_lineprologueend(const Dwarf_Line* line,
+                           const std::string& errfile, int errline)
 {
   bool flag;
-  DWARF_ASSERT("is_prologue_end",
-               dwarf_lineprologueend(const_cast<Dwarf_Line*>(line), &flag));
+  dwarf_assert("is_prologue_end",
+               dwarf_lineprologueend(const_cast<Dwarf_Line*>(line), &flag),
+               errfile, errline);
   return flag;
 }
 
