@@ -1,5 +1,8 @@
 * What's new in version 2.5
 
+- Statement probes (e.g. process.statement) are now faster to resolve,
+  more precise, and work better with inlined functions.
+
 - New switches have been added to help inspect the contents of installed
   library files:
 
