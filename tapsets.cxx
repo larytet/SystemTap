@@ -2078,7 +2078,7 @@ validate_module_elf (Dwfl_Module *mod, const char *name,  base_query *q)
 
   GElf_Ehdr ehdr_mem;
   GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-  if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+  if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
   assert(em);
   int elf_machine = em->e_machine;
   const char* debug_filename = "";
@@ -6563,7 +6563,7 @@ sdt_query::handle_probe_entry()
      dwarfless register-name mappings depend on it. */
   GElf_Ehdr ehdr_mem;
   GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-  if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+  if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
   assert(em);
   int elf_machine = em->e_machine;
   sdt_uprobe_var_expanding_visitor svv (sess, elf_machine, module_val,

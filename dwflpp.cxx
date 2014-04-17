@@ -349,7 +349,7 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
           off = dwfl_getmodules (dwfl, &add_module_build_id_to_hash, &s, off);
         }
       while (off > 0);
-      dwfl_assert("dwfl_getmodules", off == 0);
+      DWFL_ASSERT("dwfl_getmodules", off == 0);
     }
 
   build_kernel_blacklist();
@@ -391,7 +391,7 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
   vector<string>::const_iterator it = modules.begin();
   dwfl = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
   if (debuginfo_needed && it != modules.end())
-    dwfl_assert (string(_F("missing process %s %s debuginfo",
+    DWFL_ASSERT (string(_F("missing process %s %s debuginfo",
                            (*it).c_str(), sess.architecture.c_str())),
                            dwfl);
 
@@ -411,7 +411,7 @@ dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
   // Don't complain if we exited dwfl_getmodules early.
   // This could be a $target variable error that will be
   // reported soon anyway.
-  // dwfl_assert("dwfl_getmodules", off == 0);
+  // DWFL_ASSERT("dwfl_getmodules", off == 0);
 
   // PR6864 XXX: For dwarfless case (if .../vmlinux is missing), then the
   // "kernel" module is not reported in the loop above.  However, we
@@ -498,7 +498,7 @@ dwflpp::func_is_exported()
   assert (function);
 
   int syms = dwfl_module_getsymtab (module);
-  dwfl_assert (_("Getting symbols"), syms >= 0);
+  DWFL_ASSERT (_("Getting symbols"), syms >= 0);
 
   for (int i = 0; i < syms; i++)
     {
@@ -1450,7 +1450,7 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
 	    {
 	      GElf_Ehdr ehdr_mem;
 	      GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-	      if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+	      if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
 
 	      GElf_Rela relamem;
 	      GElf_Rela *rela = NULL;
@@ -1543,7 +1543,7 @@ dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
     {
       size_t nlines_cu = 0;
       Dwarf_Lines *lines_cu = NULL;
-      dwarf_assert("dwarf_getsrclines",
+      DWARF_ASSERT("dwarf_getsrclines",
                    dwarf_getsrclines(cu, &lines_cu, &nlines_cu));
 
       lines = new lines_t();
@@ -1588,7 +1588,7 @@ get_func_first_line(Dwarf_Die *cu, base_func_info& func)
   // falls in the die.
   size_t nlines = 0;
   Dwarf_Lines *lines = NULL;
-  dwarf_assert("dwarf_getsrclines",
+  DWARF_ASSERT("dwarf_getsrclines",
                dwarf_getsrclines(cu, &lines, &nlines));
 
   for (size_t i = 0; i < nlines; i++)
@@ -2149,7 +2149,7 @@ dwflpp::collect_srcfiles_matching (string const & pattern,
   // NB: fnmatch() is used without FNM_PATHNAME.
   string prefixed_pattern = string("*/") + pattern;
 
-  dwarf_assert ("dwarf_getsrcfiles",
+  DWARF_ASSERT ("dwarf_getsrcfiles",
                 dwarf_getsrcfiles (cu, &srcfiles, &nfiles));
   {
   for (size_t i = 0; i < nfiles; ++i)
@@ -2193,7 +2193,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
   // Fetch all srcline records, sorted by address. No need to free lines, it's a
   // direct pointer to the CU's cached lines.
-  dwarf_assert ("dwarf_getsrclines",
+  DWARF_ASSERT ("dwarf_getsrclines",
                 dwarf_getsrclines(cu, &lines, &nlines));
 
   // We normally ignore a function's decl_line, since it is associated with the
@@ -2225,7 +2225,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       Dwarf_Addr entrypc = it->entrypc;
       Dwarf_Addr highpc; // NB: highpc is exclusive: [entrypc,highpc)
-      dwfl_assert ("dwarf_highpc", dwarf_highpc (& it->die,
+      DWFL_ASSERT ("dwarf_highpc", dwarf_highpc (& it->die,
                                                  & highpc));
 
       if (it->decl_file == 0) it->decl_file = "";
@@ -2455,7 +2455,7 @@ dwflpp::die_has_pc (Dwarf_Die & die, Dwarf_Addr pc)
   int res = dwarf_haspc (&die, pc);
   // dwarf_ranges will return -1 if a function die has no DW_AT_ranges
   // if (res == -1)
-  //    dwarf_assert ("dwarf_haspc", res);
+  //    DWARF_ASSERT ("dwarf_haspc", res);
   return res == 1;
 }
 
@@ -2538,13 +2538,13 @@ void
 dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 {
   int n = dwfl_module_relocations (module);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
   Dwarf_Addr reloc_address = address;
   const char *secname = "";
   if (n > 1)
     {
       int i = dwfl_module_relocate_address (module, &reloc_address);
-      dwfl_assert ("dwfl_module_relocate_address", i >= 0);
+      DWFL_ASSERT ("dwfl_module_relocate_address", i >= 0);
       secname = dwfl_module_relocation_info (module, i, NULL);
     }
 
@@ -2557,7 +2557,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 
   if (n > 0 && !(n == 1 && secname == NULL))
    {
-      dwfl_assert ("dwfl_module_relocation_info", secname);
+      DWFL_ASSERT ("dwfl_module_relocation_info", secname);
       if (n > 1 || secname[0] != '\0')
         {
           // This gives us the module name, and section name within the
@@ -3362,7 +3362,7 @@ dwflpp::vardie_from_symtable (Dwarf_Die *vardie, Dwarf_Addr *addr)
 
   *addr = 0;
   int syms = dwfl_module_getsymtab (module);
-  dwfl_assert (_("Getting symbols"), syms >= 0);
+  DWFL_ASSERT (_("Getting symbols"), syms >= 0);
 
   for (int i = 0; *addr == 0 && i < syms; i++)
     {
@@ -3978,7 +3978,7 @@ dwflpp::get_blacklist_section(Dwarf_Addr addr)
     {
       Elf_Scn* scn = 0;
       size_t shstrndx;
-      dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+      DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
       while ((scn = elf_nextscn (elf, scn)) != NULL)
         {
           GElf_Shdr shdr_mem;
@@ -4017,7 +4017,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
   elf = dwfl_module_getelf (module, &bias);
   Elf_Scn *probe_scn = NULL;
 
-  dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+  DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
 
   bool have_section = false;
 
@@ -4040,7 +4040,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
       elf = dwarf_getelf (dwfl_module_getdwarf (module, &bias));
       if (! elf)
 	return NULL;
-      dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+      DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
       probe_scn = NULL;
       while ((probe_scn = elf_nextscn (elf, probe_scn)))
 	{

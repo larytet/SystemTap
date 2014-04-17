@@ -32,42 +32,52 @@ extern "C" {
 #define DW_ATE_UTF 0x10
 #endif
 
+#define DWFL_ASSERT(desc, arg) \
+  dwfl_assert(desc, arg, __FILE__, __LINE__)
 
 // NB: "rc == 0" means OK in this case
-void dwfl_assert(const std::string& desc, int rc);
+void dwfl_assert(const std::string& desc, int rc,
+                 const std::string& file, int line);
 
 // Throw error if pointer is NULL
 inline void
-dwfl_assert(const std::string& desc, const void* ptr)
+dwfl_assert(const std::string& desc, const void* ptr,
+            const std::string& file, int line)
 {
   if (!ptr)
-    dwfl_assert(desc, -1);
+    dwfl_assert(desc, -1, file, line);
 }
 
 // Throw error if condition is false
 inline void
-dwfl_assert(const std::string& desc, bool condition)
+dwfl_assert(const std::string& desc, bool condition,
+            const std::string& file, int line)
 {
   if (!condition)
-    dwfl_assert(desc, -1);
+    dwfl_assert(desc, -1, file, line);
 }
 
+#define DWARF_ASSERT(desc, arg) \
+  dwarf_assert(desc, arg, __FILE__, __LINE__)
+
 // NB: "rc == 0" means OK in this case
-void dwarf_assert(const std::string& desc, int rc);
+void dwarf_assert(const std::string& desc, int rc,
+                  const std::string& file, int line);
 
 // Throw error if pointer is NULL
 inline void
-dwarf_assert(const std::string& desc, const void* ptr)
+dwarf_assert(const std::string& desc, const void* ptr,
+             const std::string& file, int line)
 {
   if (!ptr)
-    dwarf_assert(desc, -1);
+    dwarf_assert(desc, -1, file, line);
 }
 
 inline int
 safe_dwarf_lineno(const Dwarf_Line* line)
 {
   int lineno;
-  dwarf_assert("dwarf_lineno",
+  DWARF_ASSERT("dwarf_lineno",
                dwarf_lineno(const_cast<Dwarf_Line*>(line), &lineno));
   return lineno;
 }
@@ -76,7 +86,7 @@ inline Dwarf_Addr
 safe_dwarf_lineaddr(const Dwarf_Line* line)
 {
   Dwarf_Addr addr;
-  dwarf_assert("dwarf_lineaddr",
+  DWARF_ASSERT("dwarf_lineaddr",
                dwarf_lineaddr(const_cast<Dwarf_Line*>(line), &addr));
   return addr;
 }
@@ -88,7 +98,7 @@ safe_dwarf_linesrc(const Dwarf_Line* line,
 {
   const char* linesrc =
     dwarf_linesrc(const_cast<Dwarf_Line*>(line), mtime, length);
-  dwarf_assert("dwarf_linesrc", linesrc);
+  DWARF_ASSERT("dwarf_linesrc", linesrc);
   return linesrc;
 }
 
@@ -96,7 +106,7 @@ inline bool
 safe_dwarf_lineprologueend(const Dwarf_Line* line)
 {
   bool flag;
-  dwarf_assert("is_prologue_end",
+  DWARF_ASSERT("is_prologue_end",
                dwarf_lineprologueend(const_cast<Dwarf_Line*>(line), &flag));
   return flag;
 }
