@@ -35,10 +35,10 @@ for {set i 0} {$i < [all_compile_flags]} {incr i} {
 	    if { [info procs ${runtime}_kfails] ne "" } {
 		${runtime}_kfails $i
 	    }
-	    spawn stap --runtime=$runtime -c ./stmt_rel.x -e "probe process(\"./stmt_rel.x\").statement(\"Move@stmt_rel.c+1\") {printf(\"Move %d\\n\",\$s1)}"
+	    spawn stap --runtime=$runtime -c ./stmt_rel.x -e "probe process(\"./stmt_rel.x\").statement(\"Move@stmt_rel.c+2\") {printf(\"Move %d\\n\",\$s1)}"
 	} elseif {[uprobes_p]} {
 	    set test_name "$test-$extra_name"
-	    spawn stap -c ./stmt_rel.x -e "probe process(\"./stmt_rel.x\").statement(\"Move@stmt_rel.c+1\") {printf(\"Move %d\\n\",\$s1)}"
+	    spawn stap -c ./stmt_rel.x -e "probe process(\"./stmt_rel.x\").statement(\"Move@stmt_rel.c+2\") {printf(\"Move %d\\n\",\$s1)}"
 	} else {
 	    untested "$test-$extra_name"
 	    continue
