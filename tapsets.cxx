@@ -405,10 +405,6 @@ static const string TOK_CLASS("class");;
 static const string TOK_CALLEE("callee");;
 static const string TOK_CALLEES("callees");;
 
-static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
-static void query_addr(Dwarf_Addr addr, dwarf_query *q);
-static void query_plt_statement(dwarf_query *q);
-
 // Can we handle this query with just symbol-table info?
 enum dbinfo_reqt
 {
@@ -424,6 +420,9 @@ struct dwarf_query;
 struct dwflpp;
 struct symbol_table;
 
+static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
+static void query_addr(Dwarf_Addr addr, dwarf_query *q);
+static void query_plt_statement(dwarf_query *q);
 
 struct
 symbol_table
@@ -834,8 +833,8 @@ struct dwarf_query : public base_query
   vector<string> scopes;
   string function;
   string file;
-  line_t line_type;
-  int line[2];
+  lineno_t lineno_type;
+  int linenos[2];
   bool query_done;	// Found exact match
 
   // Holds the prologue end of the current function
@@ -846,6 +845,9 @@ struct dwarf_query : public base_query
   // Map official entrypc -> func_info object
   inline_instance_map_t filtered_inlines;
   func_info_map_t filtered_functions;
+
+  // Helper when we want to iterate over both
+  base_func_info_map_t filtered_all();
 
   void query_module_functions ();
 
@@ -960,20 +962,6 @@ dwarf_query::dwarf_query(probe * base_probe,
 
   dbinfo_reqt = assess_dbinfo_reqt();
   query_done = false;
-}
-
-
-func_info_map_t *
-get_filtered_functions(dwarf_query *q)
-{
-  return &q->filtered_functions;
-}
-
-
-inline_instance_map_t *
-get_filtered_inlines(dwarf_query *q)
-{
-  return &q->filtered_inlines;
 }
 
 
@@ -1118,8 +1106,8 @@ dwarf_query::handle_query_module()
 void
 dwarf_query::parse_function_spec(const string & spec)
 {
-  line_type = ABSOLUTE;
-  line[0] = line[1] = 0;
+  lineno_type = ABSOLUTE;
+  linenos[0] = linenos[1] = 0;
 
   size_t src_pos, line_pos, dash_pos, scope_pos;
 
@@ -1158,26 +1146,28 @@ dwarf_query::parse_function_spec(const string & spec)
           // classify the line spec
           spec_type = function_file_and_line;
           if (spec[line_pos] == '+')
-            line_type = RELATIVE;
+            lineno_type = RELATIVE;
           else if (spec[line_pos + 1] == '*' &&
                    spec.length() == line_pos + 2)
-            line_type = WILDCARD;
+            lineno_type = WILDCARD;
           else
-            line_type = ABSOLUTE;
+            lineno_type = ABSOLUTE;
 
-          if (line_type != WILDCARD)
+          if (lineno_type != WILDCARD)
             try
               {
                 // try to parse either N or N-M
                 dash_pos = spec.find('-', line_pos + 1);
                 if (dash_pos == string::npos)
-                  line[0] = line[1] = lex_cast<int>(spec.substr(line_pos + 1));
+                  linenos[0] = linenos[1] = lex_cast<int>(spec.substr(line_pos + 1));
                 else
                   {
-                    line_type = RANGE;
-                    line[0] = lex_cast<int>(spec.substr(line_pos + 1,
+                    lineno_type = RANGE;
+                    linenos[0] = lex_cast<int>(spec.substr(line_pos + 1,
                                                         dash_pos - line_pos - 1));
-                    line[1] = lex_cast<int>(spec.substr(dash_pos + 1));
+                    linenos[1] = lex_cast<int>(spec.substr(dash_pos + 1));
+                    if (linenos[0] > linenos[1])
+                      throw runtime_error("bad range");
                   }
               }
             catch (runtime_error & exn)
@@ -1209,18 +1199,18 @@ dwarf_query::parse_function_spec(const string & spec)
       if (spec_type == function_file_and_line)
         {
           clog << ", line ";
-          switch (line_type)
+          switch (lineno_type)
             {
             case ABSOLUTE:
-              clog << line[0];
+              clog << linenos[0];
               break;
 
             case RELATIVE:
-              clog << "+" << line[0];
+              clog << "+" << linenos[0];
               break;
 
             case RANGE:
-              clog << line[0] << " - " << line[1];
+              clog << linenos[0] << " - " << linenos[1];
               break;
 
             case WILDCARD:
@@ -1371,6 +1361,21 @@ dwarf_query::final_function_name(const string& final_func,
   return final_name;
 }
 
+base_func_info_map_t
+dwarf_query::filtered_all(void)
+{
+  vector<base_func_info> r;
+  func_info_map_t::const_iterator f;
+  for (f  = filtered_functions.begin();
+       f != filtered_functions.end(); ++f)
+    r.push_back(*f);
+  inline_instance_map_t::const_iterator i;
+  for (i  = filtered_inlines.begin();
+       i != filtered_inlines.end(); ++i)
+    r.push_back(*i);
+  return r;
+}
+
 // The critical determining factor when interpreting a pattern
 // string is, perhaps surprisingly: "presence of a lineno". The
 // presence of a lineno changes the search strategy completely.
@@ -1501,11 +1506,13 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
     }
   else
     {
-      dwarf_line_t address_line(dwarf_getsrc_die(cudie, addr));
+      Dwarf_Line *address_line = dwarf_getsrc_die(cudie, addr);
+      Dwarf_Addr address_line_addr = addr;
       if (address_line)
         {
-          file = address_line.linesrc();
-          line = address_line.lineno();
+          file = DWARF_LINESRC(address_line);
+          line = DWARF_LINENO(address_line);
+          address_line_addr = DWARF_LINEADDR(address_line);
         }
 
       // Verify that a raw address matches the beginning of a
@@ -1513,13 +1520,13 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
       // is at the start of an assembly instruction.  Mark probes are in the
       // middle of a macro and thus not strictly at a statement beginning.
       // Guru mode may override this check.
-      if (!q->has_mark && (!address_line || address_line.addr() != addr))
+      if (!q->has_mark && (!address_line || address_line_addr != addr))
         {
           stringstream msg;
           msg << _F("address %#" PRIx64 " does not match the beginning of a statement",
                     addr);
           if (address_line)
-            msg << _F(" (try %#" PRIx64 ")", address_line.addr());
+            msg << _F(" (try %#" PRIx64 ")", address_line_addr);
           else
             msg << _F(" (no line info found for '%s', in module '%s')",
                       dw.cu_name().c_str(), dw.module_name.c_str());
@@ -1726,72 +1733,38 @@ query_func_info (Dwarf_Addr entrypc,
 
 
 static void
-query_srcfile_label (const dwarf_line_t& line, dwarf_query * q)
+query_srcfile_label (Dwarf_Addr addr, int lineno, dwarf_query * q)
 {
-  Dwarf_Addr addr = line.addr();
-
-  for (func_info_map_t::iterator i = q->filtered_functions.begin();
-       i != q->filtered_functions.end(); ++i)
-    if (q->dw.die_has_pc (i->die, addr))
-      q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                 q, query_label);
-
-  for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-       i != q->filtered_inlines.end(); ++i)
+  base_func_info_map_t bfis = q->filtered_all();
+  base_func_info_map_t::iterator i;
+  for (i = bfis.begin(); i != bfis.end(); ++i)
     if (q->dw.die_has_pc (i->die, addr))
       q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
                                  q, query_label);
 }
 
 static void
-query_srcfile_line (const dwarf_line_t& line, dwarf_query * q)
+query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
 {
-  Dwarf_Addr addr = line.addr();
+  assert (q->has_statement_str || q->has_function_str);
+  assert (q->spec_type == function_file_and_line);
 
-  int lineno = line.lineno();
-
-  for (func_info_map_t::iterator i = q->filtered_functions.begin();
-       i != q->filtered_functions.end(); ++i)
+  base_func_info_map_t bfis = q->filtered_all();
+  base_func_info_map_t::iterator i;
+  for (i = bfis.begin(); i != bfis.end(); ++i)
     {
       if (q->dw.die_has_pc (i->die, addr))
-	{
-	  if (q->sess.verbose>3)
-	    clog << _("function DIE lands on srcfile\n");
-	  if (q->has_statement_str)
-            {
-              Dwarf_Die scope;
-              q->dw.inner_die_containing_pc(i->die, addr, scope);
-              query_statement (i->name, i->decl_file,
-                               lineno, // NB: not q->line !
-                               &scope, addr, q);
-            }
-	  else
-	    query_func_info (i->entrypc, *i, q);
-	}
-    }
-
-  for (inline_instance_map_t::iterator i
-	 = q->filtered_inlines.begin();
-       i != q->filtered_inlines.end(); ++i)
-    {
-      if (q->dw.die_has_pc (i->die, addr))
-	{
-	  if (q->sess.verbose>3)
-	    clog << _("inline instance DIE lands on srcfile\n");
-	  if (q->has_statement_str)
-            {
-              Dwarf_Die scope;
-              q->dw.inner_die_containing_pc(i->die, addr, scope);
-              query_statement (i->name, i->decl_file,
-                               lineno, // NB: not q->line !
-                               &scope, addr, q);
-            }
-	  else
-	    query_inline_instance_info (*i, q);
-	}
+        {
+          if (q->sess.verbose>3)
+            clog << _("filtered DIE lands on srcfile\n");
+          Dwarf_Die scope;
+          q->dw.inner_die_containing_pc(i->die, addr, scope);
+          query_statement (i->name, i->decl_file,
+                           lineno, // NB: not q->line !
+                           &scope, addr, q);
+        }
     }
 }
-
 
 bool
 inline_instance_info::operator<(const inline_instance_info& other) const
@@ -1974,24 +1947,22 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                    ".statement() probe, not .function()"),
                                    q->base_probe->tok);
 
-          // If we have a pattern string with target *line*, we
-          // have to look at lines in all the matched srcfiles.
-          void (* callback) (const dwarf_line_t&, dwarf_query*) =
+          void (* callback) (Dwarf_Addr, int, dwarf_query*) =
             q->has_label ? query_srcfile_label : query_srcfile_line;
-          for (set<string>::const_iterator i = q->filtered_srcfiles.begin();
-               i != q->filtered_srcfiles.end(); ++i)
-            q->dw.iterate_over_srcfile_lines (i->c_str(), q->line, q->has_statement_str,
-                                              q->line_type, callback, q->function, q);
+
+          base_func_info_map_t bfis = q->filtered_all();
+
+          set<string>::const_iterator srcfile;
+          for (srcfile  = q->filtered_srcfiles.begin();
+               srcfile != q->filtered_srcfiles.end(); ++srcfile)
+            q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
+                                             q->lineno_type, bfis, callback, q);
         }
       else if (q->has_label)
         {
-          for (func_info_map_t::iterator i = q->filtered_functions.begin();
-               i != q->filtered_functions.end(); ++i)
-            q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                       q, query_label);
-
-          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-               i != q->filtered_inlines.end(); ++i)
+          base_func_info_map_t bfis = q->filtered_all();
+          base_func_info_map_t::iterator i;
+          for (i = bfis.begin(); i != bfis.end(); ++i)
             q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
                                        q, query_label);
         }
@@ -2005,19 +1976,9 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
           // in query_callee because we only want the filtering to apply to the
           // first level, not to callees that are recursed into if
           // callees_num_val > 1.
-          for (func_info_map_t::iterator i = q->filtered_functions.begin();
-               i != q->filtered_functions.end(); ++i)
-            {
-              if (q->spec_type != function_alone &&
-                  q->filtered_srcfiles.count(i->decl_file) == 0)
-                continue;
-              q->dw.iterate_over_callees (&i->die, callee_val,
-                                          callees_num_val,
-                                          q, query_callee, *i);
-            }
-
-          for (inline_instance_map_t::iterator i = q->filtered_inlines.begin();
-               i != q->filtered_inlines.end(); ++i)
+          base_func_info_map_t bfis = q->filtered_all();
+          base_func_info_map_t::iterator i;
+          for (i = bfis.begin(); i != bfis.end(); ++i)
             {
               if (q->spec_type != function_alone &&
                   q->filtered_srcfiles.count(i->decl_file) == 0)
@@ -2071,14 +2032,9 @@ dwarf_query::query_module_functions ()
       vector<Dwarf_Die> cus;
       Dwarf_Die cu_mem;
 
-      for (func_info_map_t::iterator i = filtered_functions.begin();
-           i != filtered_functions.end(); ++i)
-        if (dwarf_diecu(&i->die, &cu_mem, NULL, NULL) &&
-            used_cus.insert(cu_mem.addr).second)
-          cus.push_back(cu_mem);
-
-      for (inline_instance_map_t::iterator i = filtered_inlines.begin();
-           i != filtered_inlines.end(); ++i)
+      base_func_info_map_t bfis = filtered_all();
+      base_func_info_map_t::iterator i;
+      for (i = bfis.begin(); i != bfis.end(); ++i)
         if (dwarf_diecu(&i->die, &cu_mem, NULL, NULL) &&
             used_cus.insert(cu_mem.addr).second)
           cus.push_back(cu_mem);
@@ -2122,7 +2078,7 @@ validate_module_elf (Dwfl_Module *mod, const char *name,  base_query *q)
 
   GElf_Ehdr ehdr_mem;
   GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-  if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+  if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
   assert(em);
   int elf_machine = em->e_machine;
   const char* debug_filename = "";
@@ -6607,7 +6563,7 @@ sdt_query::handle_probe_entry()
      dwarfless register-name mappings depend on it. */
   GElf_Ehdr ehdr_mem;
   GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-  if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+  if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
   assert(em);
   int elf_machine = em->e_machine;
   sdt_uprobe_var_expanding_visitor svv (sess, elf_machine, module_val,
