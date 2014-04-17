@@ -1,45 +1,89 @@
 set test "stmt_rel"
 
-set line1 ""
-spawn stap -l "kernel.statement(\"bio_init@fs/bio.c+2\")"
-expect {
-    -timeout 180
-    -re {[0-9][0-9][0-9]} { regexp "\[0-9\]\[0-9\]\[0-9\]" $expect_out(0,string) line1; }
-    timeout { fail "$test C (timeout)" }
-    eof { }
-}
-catch {close}; catch {wait}
+# Tests that relative linenos are consistent with wildcard linenos.
 
-set line2 ""
-spawn stap -l "kernel.statement(\"bio_init@fs/bio.c+3\")"
-expect {
-    -timeout 180
-    -re {[0-9][0-9][0-9]} { regexp "\[0-9\]\[0-9\]\[0-9\]" $expect_out(0,string) line2; }
-    timeout { fail "$test C (timeout)" }
-    eof { }
-}
-catch {close}; catch {wait}
+proc get_listings { probe_point } {
+   global test
 
-if { $line1 < $line2 } {
-    pass "$test line numbers"
+   # Get listing from stap -l
+   if {![catch {exec stap -l ${probe_point} 2>@1} output]} {
+      return [split $output "\n"]
+   }
+}
+
+proc parse_lineno { function line } {
+   global test
+
+   # Look for digits between : and "
+   if {[regexp "$function:(\[0-9\]+)\"" $line match submatch]} {
+      return $submatch
+   } else {
+      verbose -log "can't parse lineno in $line"
+      return 0
+   }
+}
+
+proc get_function_decl_line { function } {
+   set probe_point "kernel.function\(\"$function\"\)"
+   set line [lindex [get_listings $probe_point] 0]
+   return [parse_lineno $function $line]
+}
+
+proc collect_valid_linenos { function } {
+   set linenos ""
+   set probe_point "kernel.statement\(\"$function:*\"\)"
+   foreach line [get_listings $probe_point] {
+      lappend linenos [parse_lineno $function $line]
+   }
+   return $linenos
+}
+
+proc is_valid_rel_lineno { function decl_line rel } {
+   set probe_point "kernel.statement\(\"$function+$rel\"\)"
+   set lines [get_listings $probe_point]
+   if {$lines == ""} {
+      return 0
+   } else {
+      set line [lindex $lines 0]
+      set lineno [parse_lineno $function $line]
+      return [expr $lineno == [expr $decl_line + $rel]]
+   }
+}
+
+proc test_stmt_rel { function } {
+   global test
+
+   set valid_linenos [collect_valid_linenos $function]
+   set last_valid_lineno [lindex $valid_linenos end]
+
+   set decl_line [get_function_decl_line $function]
+   set max_valid_rel [expr $last_valid_lineno - $decl_line]
+
+   set valid_rel_linenos ""
+   foreach rel [exec seq 0 $max_valid_rel] {
+      if {[is_valid_rel_lineno $function $decl_line $rel]} {
+         lappend valid_rel_linenos [expr $decl_line + $rel]
+      }
+   }
+
+   if {$valid_rel_linenos == $valid_linenos} {
+      pass "$test ($function - same linenos in rel and wildcard)"
+   } else {
+      fail "$test ($function - different linenos!)"
+      verbose -log "wildcard linenos: $valid_linenos"
+      verbose -log "rel linenos: $valid_rel_linenos"
+   }
+}
+
+# Sanity check that bio_init has at least 3 linenos
+if {[expr [llength [get_listings "bio_init@fs/bio.c"]] < 3]} {
+   pass "$test (bio_init sanity check)"
 } else {
-    fail "$test line numbers"
+   fail "$test (bio_init sanity check)"
 }
 
-set ok 0
-spawn stap -l "kernel.statement(\"bio_init@fs/bio.c:*\")"
-expect {
-    -timeout 180
-    -re {[0-9][0-9][0-9]} { incr ok; exp_continue }
-    timeout { fail "$test C (timeout)" }
-    eof { }
-}
-catch {close}; catch {wait}
+test_stmt_rel {bio_init@fs/bio.c}
+test_stmt_rel {bio_reset@fs/bio.c}
+test_stmt_rel {vfs_read@fs/read_write.c}
+test_stmt_rel {vfs_write@fs/read_write.c}
 
-# bio_init drifts a bit in different kernels. 
-# maybe 3, 4 or 15 lines in it.
-if { $ok >= 3 } {
-    pass "$test wildcard"
-} else {
-    fail "$test wildcard ($ok)"
-}
