@@ -127,9 +127,7 @@ common_probe_entryfn_prologue (systemtap_session& s,
     }
   s.op->newline() << "#endif";
 
-  s.op->newline() << "#if INTERRUPTIBLE";
-  s.op->newline() << "preempt_disable ();";
-  s.op->newline() << "#else";
+  s.op->newline() << "#if !INTERRUPTIBLE";
   s.op->newline() << "local_irq_save (flags);";
   s.op->newline() << "#endif";
 
@@ -154,41 +152,16 @@ common_probe_entryfn_prologue (systemtap_session& s,
   s.op->indent(-1);
 
   s.op->newline() << "c = _stp_runtime_entryfn_get_context();";
-  if (s.runtime_usermode_p())
-    {
-      s.op->newline() << "if (!c) {";
-      s.op->newline(1) << "#if !INTERRUPTIBLE";
-      s.op->newline() << "atomic_inc (skipped_count());";
-      s.op->newline() << "#endif";
-      s.op->newline() << "#ifdef STP_TIMING";
-      s.op->newline() << "atomic_inc (skipped_count_reentrant());";
-      s.op->newline() << "#ifdef DEBUG_REENTRANCY";
-      s.op->newline() << "_stp_warn (\"Skipped %s\\n\", " << probe << "->pp);";
-      s.op->newline() << "#endif";
-      s.op->newline() << "#endif";
-      s.op->newline() << "goto probe_epilogue;";
-      s.op->newline(-1) << "}";
-    }
-
-  s.op->newline() << "if (atomic_inc_return (& c->busy) != 1) {";
+  s.op->newline() << "if (!c) {";
   s.op->newline(1) << "#if !INTERRUPTIBLE";
   s.op->newline() << "atomic_inc (skipped_count());";
   s.op->newline() << "#endif";
   s.op->newline() << "#ifdef STP_TIMING";
   s.op->newline() << "atomic_inc (skipped_count_reentrant());";
-  s.op->newline() << "#ifdef DEBUG_REENTRANCY";
-  s.op->newline() << "_stp_warn (\"Skipped %s due to %s residency on cpu %u\\n\", "
-               << probe << "->pp, c->probe_point ?: \"?\", smp_processor_id());";
-  // NB: There is a conceivable race condition here with reading
-  // c->probe_point, knowing that this other probe is sort of running.
-  // However, in reality, it's interrupted.  Plus even if it were able
-  // to somehow start again, and stop before we read c->probe_point,
-  // at least we have that   ?: "?"  bit in there to avoid a NULL deref.
   s.op->newline() << "#endif";
-  s.op->newline() << "#endif";
-  s.op->newline() << "atomic_dec (& c->busy);";
   s.op->newline() << "goto probe_epilogue;";
   s.op->newline(-1) << "}";
+
   s.op->newline();
   s.op->newline() << "c->last_stmt = 0;";
   s.op->newline() << "c->last_error = 0;";
@@ -337,18 +310,9 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   s.op->newline(-1) << "}";
 
 
-  s.op->newline() << "atomic_dec (&c->busy);";
-
   s.op->newline(-1) << "probe_epilogue:"; // context is free
   s.op->indent(1);
 
-  // In dyninst mode, we're not done with the context yet, since
-  // _stp_error() still needs a context structure (since the log
-  // buffers are stored there).
-  if (!s.runtime_usermode_p())
-    {
-      s.op->newline() << "_stp_runtime_entryfn_put_context(c);";
-    }
   if (! s.suppress_handler_errors) // PR 13306
     {
       // Check for excessive skip counts.
@@ -358,15 +322,16 @@ common_probe_entryfn_epilogue (systemtap_session& s,
       s.op->newline(-1) << "}";
     }
 
-  s.op->newline() << "#if INTERRUPTIBLE";
-  s.op->newline() << "preempt_enable_no_resched ();";
-  s.op->newline() << "#else";
+  // We mustn't release the context until after all _stp_error(), so dyninst
+  // mode can still access the log buffers stored therein.
+  s.op->newline() << "_stp_runtime_entryfn_put_context(c);";
+
+  s.op->newline() << "#if !INTERRUPTIBLE";
   s.op->newline() << "local_irq_restore (flags);";
   s.op->newline() << "#endif";
 
   if (s.runtime_usermode_p())
     {
-      s.op->newline() << "_stp_runtime_entryfn_put_context(c);";
       s.op->newline() << "errno = _stp_saved_errno;";
     }
 
@@ -8244,7 +8209,6 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
                   << "sup->spec_index >= " << probes.size() << ") {";
   s.op->newline(1) << "_stp_error (\"bad spec_index %d (max " << probes.size()
 		   << "): %s\", sup->spec_index, c->probe_point);";
-  s.op->newline() << "atomic_dec (&c->busy);";
   s.op->newline() << "goto probe_epilogue;";
   s.op->newline(-1) << "}";
   s.op->newline() << "c->uregs = regs;";
@@ -8274,7 +8238,6 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
                   << "sup->spec_index >= " << probes.size() << ") {";
   s.op->newline(1) << "_stp_error (\"bad spec_index %d (max " << probes.size()
 		   << "): %s\", sup->spec_index, c->probe_point);";
-  s.op->newline() << "atomic_dec (&c->busy);";
   s.op->newline() << "goto probe_epilogue;";
   s.op->newline(-1) << "}";
 

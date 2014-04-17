@@ -45,12 +45,25 @@ static void _stp_runtime_contexts_free(void)
 
 static struct context * _stp_runtime_entryfn_get_context(void)
 {
-	return contexts[smp_processor_id()];
+	struct context* __restrict__ c = NULL;
+	preempt_disable ();
+	c = contexts[smp_processor_id()];
+	if (c != NULL) {
+		if (atomic_inc_return(&c->busy) == 1)
+			return c;
+		atomic_dec(&c->busy);
+	}
+	preempt_enable_no_resched();
+	return NULL;
 }
 
-static inline void _stp_runtime_entryfn_put_context(struct context *c __attribute__((unused)))
+static inline void _stp_runtime_entryfn_put_context(struct context *c)
 {
-	/* Do nothing. */
+	if (c && c == contexts[smp_processor_id()]) {
+		atomic_dec(&c->busy);
+		preempt_enable_no_resched();
+	}
+	/* else, warn about bad state? */
 	return;
 }
 

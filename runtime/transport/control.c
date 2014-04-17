@@ -416,6 +416,7 @@ static void _stp_ctl_free_buffer(struct _stp_buffer *bptr)
    on error. */
 static int _stp_ctl_send(int type, void *data, unsigned len)
 {
+	struct context* __restrict__ c = NULL;
 	struct _stp_buffer *bptr;
 	unsigned long flags;
 	unsigned hlen;
@@ -439,22 +440,36 @@ static int _stp_ctl_send(int type, void *data, unsigned len)
 		return 0;
 	}
 
+	/* Prevent probe reentrancy while grabbing probe-used locks.
+	   Since _stp_ctl_send may be called from arbitrary probe context, we
+	   have to make sure that all locks it wants can't possibly be held
+	   outside probe context too.  This includes:
+	    * _stp_ctl_ready_lock
+	    * _stp_pool_q->lock
+	    * _stp_ctl_special_msg_lock
+	   We ensure this by grabbing the context here and everywhere else that
+	   uses those locks, so such a probe will appear reentrant and be
+	   skipped rather than deadlock.  */
+	c = _stp_runtime_entryfn_get_context();
+
 	/* get a buffer from the free pool */
 	bptr = _stp_ctl_get_buffer(type, data, len);
 	if (unlikely(bptr == NULL)) {
 		/* Nothing else we can do... but let's not spam the kernel
                    with these reports. */
                 /* printk(KERN_ERR "ctl_write_msg type=%d len=%d ENOMEM\n", type, len); */
+		_stp_runtime_entryfn_put_context(c);
 		return -ENOMEM;
 	}
 
-	/* put it on the pool of ready buffers. Even though we are
-	   holding a lock, calling list_add_tail() is safe here since
-	   it will be totally inlined from the list.h header file so
-	   we cannot recursively hit a kprobe inside the lock. */
+	/* Put it on the pool of ready buffers.  It's possible to recursively
+	   hit a probe here, like a kprobe in NMI or the lock tracepoints, but
+	   they will be squashed since we're holding the context busy.  */
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	list_add_tail(&bptr->list, &_stp_ctl_ready_q);
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+
+	_stp_runtime_entryfn_put_context(c);
 
 	/* It would be nice if we could speed up the notification
 	   timer at this point, but calling mod_timer() at this
@@ -487,18 +502,24 @@ static int _stp_ctl_send_notify(int type, void *data, unsigned len)
 static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
+	struct context* __restrict__ c = NULL;
 	struct _stp_buffer *bptr;
 	int len;
 	unsigned long flags;
+
+	/* Prevent probe reentrancy while grabbing probe-used locks.  */
+	c = _stp_runtime_entryfn_get_context();
 
 	/* wait for nonempty ready queue */
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	while (list_empty(&_stp_ctl_ready_q)) {
 		spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+		_stp_runtime_entryfn_put_context(c);
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(_stp_ctl_wq, !list_empty(&_stp_ctl_ready_q)))
 			return -ERESTARTSYS;
+		c = _stp_runtime_entryfn_get_context();
 		spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	}
 
@@ -506,6 +527,9 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	bptr = (struct _stp_buffer *)_stp_ctl_ready_q.next;
 	list_del_init(&bptr->list);
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+
+	/* NB: we can't hold the context across copy_to_user, as it might fault.  */
+	_stp_runtime_entryfn_put_context(c);
 
 	/* write it out */
 	len = bptr->len + 4;
@@ -521,7 +545,9 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	}
 
 	/* put it on the pool of free buffers */
+	c = _stp_runtime_entryfn_get_context();
 	_stp_ctl_free_buffer(bptr);
+	_stp_runtime_entryfn_put_context(c);
 
 	return len;
 }
