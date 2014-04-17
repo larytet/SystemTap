@@ -354,13 +354,8 @@ java_builder::build (systemtap_session & sess,
      $8 - backtrace
   */
 
-  string leftbits;
-  if(sess.verbose >= 2)
-    leftbits = "STAPBM_VERBOSE=true " + string(PKGLIBDIR) + "/stapbm install " +
-      lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
-  else
-    leftbits = string(PKGLIBDIR) + "/stapbm install " +
-      lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
+  string leftbits = string(PKGLIBDIR) + "/stapbm install " +
+    lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
 
   string rightbits = " " + lex_cast_qstring(class_str_val) +
     " " + lex_cast_qstring(method_str_val) +
@@ -385,12 +380,8 @@ java_builder::build (systemtap_session & sess,
   stringstream end_code;
   end_code << "probe end, error {" << endl;
 
-  if(sess.verbose >= 2)
-    leftbits = "STAPBM_VERBOSE=true " + string(PKGLIBDIR) + "/stapbm uninstall " +
-      lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
-  else
-    leftbits = string(PKGLIBDIR) + "/stapbm uninstall " +
-      lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
+  leftbits = string(PKGLIBDIR) + "/stapbm uninstall " +
+    lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
   // rightbits are the same as the begin probe
 
   end_code << "system(" << literal_string(leftbits) << " . " << rule_name

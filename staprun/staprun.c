@@ -454,6 +454,14 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	char verbose_level[33];
+	sprintf(verbose_level, "%d", verbose);
+	rc = setenv("SYSTEMTAP_VERBOSE", verbose_level, 0);
+	if (rc) {
+		_perr("SYSTEMTAP_VERBOSE setenv failed");
+		exit(-1);
+	}
+
 	if (init_staprun())
 		exit(1);
 
