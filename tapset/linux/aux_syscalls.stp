@@ -1333,8 +1333,8 @@ static const _stp_val_array const _stp_sched_policy_list[] = {
 };
 %}
 
-function _sched_policy_str(policy)
-%{
+function _sched_policy_str:string(policy)
+%{ /* pure */
 	unsigned int policy = (unsigned int)STAP_ARG_policy;
 #ifdef SCHED_RESET_ON_FORK
 	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
