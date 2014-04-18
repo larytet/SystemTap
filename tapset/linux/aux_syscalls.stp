@@ -1364,7 +1364,7 @@ static const _stp_val_array const _stp_shutdown_how_list[] = {
 };
 %}
 
-function _shutdown_how_str(how)
+function _shutdown_how_str:string(how)
 %{ /* pure */
 	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
 			STAP_RETVALUE, MAXSTRINGLEN);
@@ -1598,7 +1598,7 @@ static const _stp_val_array const _stp_madvice_advice_list[] = {
 };
 %}
 
-function _madvice_advice_str(behavior)
+function _madvice_advice_str:string(behavior)
 %{ /* pure */
 	_stp_lookup_str(_stp_madvice_advice_list,
 			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
