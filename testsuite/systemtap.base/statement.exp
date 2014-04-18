@@ -1,5 +1,5 @@
 set test "statement"
-if {![utrace_p]} { untested "$test -p2"; return }
+if {![utrace_p]} { untested "$test"; return }
 
 catch {exec gcc -g -o $test $srcdir/$subdir/$test.c} err
 if {$err == "" && [file exists $test]} {
@@ -90,8 +90,7 @@ expect_probes * * 9
 
 # Now we do some consistent probe checking
 
-# ABSOLUTE and RANGE don't care about the function, so single or wild should
-# give the same results
+# ABSOLUTE and RANGE should give the same results for wild and single func
 set subtest "ABSOLUTE - single func"
 expect_probes foo 5 1
 set subtest "ABSOLUTE - wild func"
@@ -100,6 +99,17 @@ set subtest "RANGE - single func"
 expect_probes foo 5-7 3
 set subtest "RANGE - wild func"
 expect_probes * 5-7 3
+
+# But ABSOLUTE and RANGE shouldn't give any results if the linenos fall outside
+# the given func(s)
+set subtest "ABSOLUTE - outside single func"
+expect_probes bar 5 0
+set subtest "ABSOLUTE - outside wild func"
+expect_probes {[bm]*} 5 0
+set subtest "RANGE - outside single func"
+expect_probes bar 5-7 0
+set subtest "RANGE - outside wild func"
+expect_probes {[bm]*} 5-7 0
 
 # RELATIVE and WILDCARD must be applied *per* function
 set subtest "RELATIVE - single func"

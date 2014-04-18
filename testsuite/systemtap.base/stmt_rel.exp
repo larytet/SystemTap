@@ -76,7 +76,7 @@ proc test_stmt_rel { function } {
 }
 
 # Sanity check that bio_init has at least 3 linenos
-if {[expr [llength [get_listings "bio_init@fs/bio.c"]] < 3]} {
+if {[expr [llength [collect_valid_linenos {bio_init@fs/bio.c}]] > 3]} {
    pass "$test (bio_init sanity check)"
 } else {
    fail "$test (bio_init sanity check)"
