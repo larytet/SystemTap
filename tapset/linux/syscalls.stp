@@ -1829,8 +1829,8 @@ probe syscall.getppid.return = kernel.function("sys_getppid").return
 probe syscall.getpriority = kernel.function("sys_getpriority").call
 {
 	name = "getpriority"
-	which = $which
-	who = $who
+	which = __int32($which)
+	who = __int32($who)
 	argstr = sprintf("%s, %d", _priority_which_str(which), who)
 }
 probe syscall.getpriority.return = kernel.function("sys_getpriority").return

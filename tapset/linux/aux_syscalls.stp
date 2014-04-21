@@ -1348,12 +1348,20 @@ function _sched_policy_str:string(policy:long)
 #endif			
 %}
 
-function _priority_which_str(which) {
-   if(which==0) return "PRIO_PROCESS"
-   if(which==1) return "PRIO_PGRP"
-   if(which==2) return "PRIO_USER"
-   return sprintf("UNKNOWN VALUE: %d", which)
-}
+%{
+static const _stp_val_array const _stp_priority_which_list[] = {
+	V(PRIO_PROCESS),
+	V(PRIO_PGRP),
+	V(PRIO_USER),
+	{0, NULL}
+};
+%}
+
+function _priority_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_priority_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 static const _stp_val_array const _stp_shutdown_how_list[] = {
@@ -1364,7 +1372,7 @@ static const _stp_val_array const _stp_shutdown_how_list[] = {
 };
 %}
 
-function _shutdown_how_str:string(how)
+function _shutdown_how_str:string(how:long)
 %{ /* pure */
 	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
 			STAP_RETVALUE, MAXSTRINGLEN);

@@ -2438,11 +2438,12 @@ probe syscall.setpgid.return = kernel.function("sys_setpgid").return
 probe syscall.setpriority = kernel.function("sys_setpriority").call
 {
 	name = "setpriority"
-	which = $which
-	which_str = _priority_which_str($which)
-	who = $who
-	prio = $niceval
-	argstr = sprintf("%s, %d, %d", which_str, $who, $niceval)
+	which = __int32($which)
+	which_str = _priority_which_str(__int32($which))
+	who = __int32($who)
+	prio = __int32($niceval)
+	argstr = sprintf("%s, %d, %d", which_str, __int32($who),
+			 __int32($niceval))
 }
 probe syscall.setpriority.return = kernel.function("sys_setpriority").return
 {
