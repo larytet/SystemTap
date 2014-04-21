@@ -1333,7 +1333,7 @@ static const _stp_val_array const _stp_sched_policy_list[] = {
 };
 %}
 
-function _sched_policy_str:string(policy)
+function _sched_policy_str:string(policy:long)
 %{ /* pure */
 	unsigned int policy = (unsigned int)STAP_ARG_policy;
 #ifdef SCHED_RESET_ON_FORK
@@ -1375,48 +1375,45 @@ function _shutdown_how_str:string(how)
 // be inlined into the function since these header file defines static
 // functions on some architectures.
 #include <linux/reboot.h>
+
+static const _stp_val_array const _stp_reboot_magic_list[] = {
+	V(LINUX_REBOOT_MAGIC1),
+	V(LINUX_REBOOT_MAGIC2),
+	V(LINUX_REBOOT_MAGIC2A),
+	V(LINUX_REBOOT_MAGIC2B),
+	V(LINUX_REBOOT_MAGIC2C),
+	{0, NULL}
+};
 %}
 
 function _reboot_magic_str:string(magic:long)
 %{ /* pure */
-	int magic = (int)STAP_ARG_magic;
-	switch (magic) {
-	case LINUX_REBOOT_MAGIC1:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC1", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2A:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2A", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2B:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2B", MAXSTRINGLEN);
-		break;
-/*
-	LINUX_REBOOT_MAGIC2C is supported from kernel 2.6
-*/
-#ifdef LINUX_REBOOT_MAGIC2C
-	case LINUX_REBOOT_MAGIC2C:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2C", MAXSTRINGLEN);
-		break;
-#endif
-	default:
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "UNKNOWN VALUE: %d", magic);
-	}
+	unsigned int magic = (unsigned int)STAP_ARG_magic;
+	_stp_lookup_str(_stp_reboot_magic_list, magic, STAP_RETVALUE,
+			MAXSTRINGLEN);
 %}
 
-function _reboot_flag_str(flag) {
-   if(flag==0x01234567) return "LINUX_REBOOT_CMD_RESTART"
-   if(flag==0xCDEF0123) return "LINUX_REBOOT_CMD_HALT"
-   if(flag==0x4321FEDC) return "LINUX_REBOOT_CMD_POWER_OFF"
-   if(flag==0xA1B2C3D4) return "LINUX_REBOOT_CMD_RESTART2"
-   if(flag==0x89ABCDEF) return "LINUX_REBOOT_CMD_CAD_ON"
-   if(flag==0x00000000) return "LINUX_REBOOT_CMD_CAD_OFF"
-   if(flag==0xD000FCE2) return "LINUX_REBOOT_CMD_SW_SUSPEND"
-   if(flag==0x45584543) return "LINUX_REBOOT_CMD_KEXEC"
-   return sprintf("UNKNOWN VALUE: %d", flag)
-}
+%{
+#include <linux/reboot.h>
+static const _stp_val_array const _stp_reboot_flag_list[] = {
+	V(LINUX_REBOOT_CMD_RESTART),
+	V(LINUX_REBOOT_CMD_HALT),
+	V(LINUX_REBOOT_CMD_CAD_ON),
+	V(LINUX_REBOOT_CMD_CAD_OFF),
+	V(LINUX_REBOOT_CMD_POWER_OFF),
+	V(LINUX_REBOOT_CMD_RESTART2),
+	V(LINUX_REBOOT_CMD_SW_SUSPEND),
+	V(LINUX_REBOOT_CMD_KEXEC),
+	{0, NULL}
+};	
+%}
+
+function _reboot_flag_str:string(flag:long)
+%{  /* pure */
+	unsigned int flag = (unsigned int)STAP_ARG_flag;
+	_stp_lookup_str(_stp_reboot_flag_list, flag, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _waitid_which_str(flag) {
    if(flag==0) return "P_ALL"

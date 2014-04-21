@@ -937,12 +937,12 @@ probe syscall.readv.return = kernel.function("compat_sys_readv").return ?,
 probe syscall.reboot = kernel.function("sys_reboot").call
 {
 	name = "reboot"
-	magic = $magic1
-	magic_str = _reboot_magic_str($magic1)
-	magic2 = $magic2
-	magic2_str =_reboot_magic_str($magic2)
-	flag = $cmd
-	flag_str =  _reboot_flag_str($cmd)
+	magic = __int32($magic1)
+	magic_str = _reboot_magic_str(__int32($magic1))
+	magic2 = __int32($magic2)
+	magic2_str =_reboot_magic_str(__int32($magic2))
+	flag = __uint32($cmd)
+	flag_str =  _reboot_flag_str(__uint32($cmd))
 	arg_uaddr = $arg
 	argstr = sprintf("%s, %s, %s, %p", magic_str, magic2_str,
 		flag_str, $arg)
@@ -2419,9 +2419,9 @@ probe syscall.set_mempolicy.return = kernel.function("compat_sys_set_mempolicy")
 probe syscall.setpgid = kernel.function("sys_setpgid").call
 {
 	name = "setpgid"
-	pid = $pid
-	pgid = $pgid
-	argstr = sprintf("%d, %d", $pid, $pgid)
+	pid = __int32($pid)
+	pgid = __int32($pgid)
+	argstr = sprintf("%d, %d", __int32($pid), __int32($pgid))
 }
 probe syscall.setpgid.return = kernel.function("sys_setpgid").return
 {

@@ -45,6 +45,9 @@
 #ifndef __NR_ia32_mkdirat
 #define __NR_ia32_mkdirat 296
 #endif
+#ifndef __NR_ia32_mmap2
+#define __NR_ia32_mmap2 192
+#endif
 #ifndef __NR_ia32_open
 #define __NR_ia32_open 5
 #endif
@@ -144,6 +147,9 @@
 #endif
 #ifndef __NR_accept4
 #define __NR_accept4 (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_mmap2
+#define __NR_mmap2 (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_recv
 #define __NR_recv (__NR_syscall_max + 1)

@@ -1775,8 +1775,8 @@ probe syscall.getpgid = kernel.function("sys_getpgid").call
 {
 	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
-	pid = $pid
-	argstr = sprintf("%d", $pid)
+	pid = __int32($pid)
+	argstr = sprintf("%d", __int32($pid))
 }
 probe syscall.getpgid.return = kernel.function("sys_getpgid").return
 {

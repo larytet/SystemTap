@@ -148,6 +148,7 @@ probe nd_syscall.mmap32.return = kprobe.function("sys32_mmap").return
 #
 probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
 {
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
 }
 probe __nd_syscall.mmap2 = kprobe.function("sys32_mmap2")
@@ -175,6 +176,7 @@ probe __nd_syscall.mmap_pgoff = kprobe.function("sys_mmap_pgoff")
 probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?,
 	kprobe.function("sys_mmap_pgoff").return ?
 {
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
 	retstr = returnstr(2)
 }
