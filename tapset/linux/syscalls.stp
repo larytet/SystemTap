@@ -147,8 +147,8 @@ probe syscall.access = kernel.function("sys_access").call
 {
 	name = "access"
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	mode_str = _access_mode_str($mode)
+	mode = __int32($mode)
+	mode_str = _access_mode_str(__int32($mode))
 	argstr = sprintf("%s, %s", user_string_quoted($filename), mode_str)
 }
 probe syscall.access.return = kernel.function("sys_access").return
@@ -999,9 +999,10 @@ probe syscall.faccessat = kernel.function("sys_faccessat").call ?
 	dirfd = $dfd
 	dirfd_str = _dfd_str($dfd)
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	mode_str = _access_mode_str($mode)
-	argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted($filename), mode_str)
+	mode = __int32($mode)
+	mode_str = _access_mode_str(__int32($mode))
+	argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted($filename),
+			 mode_str)
 }
 probe syscall.faccessat.return = kernel.function("sys_faccessat").return ?
 {

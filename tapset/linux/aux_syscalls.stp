@@ -1031,15 +1031,25 @@ function _sys_open_flag_str:string (f:long)
 #endif
 %}
 
+%{
+/* Notice that the kernel defines and the user defines are named
+ * differently. */
+static const _stp_val_array const _stp_access_mode_list[] = {
+	{0, "F_OK"},
+	{MAY_READ, "R_OK"},
+	{MAY_WRITE, "W_OK"},
+	{MAY_EXEC, "X_OK"},
+	{0, NULL}
+};
+%}
 
 /* `man 2 open` for more information */
-function _access_mode_str(m) {
-	if((m & 7) == 0) return "F_OK"	
-	if(m & 4) bs="R_OK |".bs
-	if(m & 2) bs="W_OK |".bs
-	if(m & 1) bs="X_OK |".bs
-	return substr(bs,0,strlen(bs)-2)
-}
+function _access_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	_stp_lookup_or_str(_stp_access_mode_list, mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /* `man 2 open` for more information */
 function _sys_open_mode_str(f) {
