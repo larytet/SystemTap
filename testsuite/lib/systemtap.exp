@@ -460,7 +460,7 @@ if {[catch {exec stap --skip-badvars -w -p2 -e {probe syscall.open {println (arg
     exit 1
 }
 
-# Make sure all development packages for the supported ABIs (-m64 -m32/-m31)
+# Make more likely that all development packages for the supported ABIs (-m64 -m32/-m31)
 # are installed by building a quick hello.c and hello.cxx program with both.
 set source "hello.c"
 set hello_file [open $source "w"]
@@ -475,9 +475,6 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     puts "\n\n\n**** failed gcc [arch_compile_flag_name $i] smoke test:\n"
     puts $result
     puts "Please install libgcc and glibc development packages for [arch_compile_flag_name $i]\n"
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
   }
 }
 set source "hello.cxx"
@@ -494,9 +491,6 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     puts "\n\n\n**** failed g++ [arch_compile_flag_name $i] smoke test:\n"
     puts $result
     puts "Please install libstdc++-devel package for [arch_compile_flag_name $i]\n"
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
   }
 }
 catch { eval [list exec rm -f] [glob "hello.c*" "hello-*"] }
