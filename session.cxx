@@ -1717,7 +1717,7 @@ systemtap_session::parse_kernel_functions ()
 	clog << _F("Kernel symbol table %s unavailable, (%s)",
 		   system_map_path.c_str(), strerror(errno)) << endl;
 
-      string system_map_path = "/boot/System.map-" + kernel_release;
+      system_map_path = "/boot/System.map-" + kernel_release;
       system_map.clear();
       system_map.open(system_map_path.c_str(), ifstream::in);
       if (! system_map.is_open())
