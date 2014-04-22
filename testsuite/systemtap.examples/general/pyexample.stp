@@ -1,0 +1,49 @@
+#!/usr/bin/env stap
+# Copyright (C) 2014 Red Hat, Inc.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+
+
+probe python.function_entry
+{
+    %( $# >= 1 %?
+       variable = @1
+       %:
+       variable = "*"
+       %)
+    %( $# >= 2 %?
+       skip_name = @2
+       %:
+       skip_name = ""
+       %)
+  if (isinstr(pp(), "libpython2"))
+    {
+      python2_backtrace (skip_name)
+      python2_get_variable (variable, skip_name)
+    }
+  else
+    {
+      python3_backtrace (skip_name)
+      python3_get_variable (variable, skip_name)
+    }
+}
+
+probe python.function_return
+{
+    %( $# >= 1 %?
+       variable = @1
+       %:
+       variable = "*"
+       %)
+    %( $# >= 2 %?
+       skip_name = @2
+       %:
+       skip_name = ""
+       %)
+    if (isinstr(pp(), "libpython2"))
+      python2_get_variable (variable, skip_name)
+    else
+      python3_get_variable (variable, skip_name)
+}
