@@ -26,6 +26,7 @@
 #include <trace/events/sched.h>
 #include <trace/events/syscalls.h>
 #include "stp_task_work.c"
+#include "linux/stp_tracepoint.h"
 
 /*
  * Per-thread structure private to utrace implementation.
@@ -235,28 +236,28 @@ static int utrace_init(void)
 	if (unlikely(!utrace_engine_cachep))
 		goto error;
 
-	rc = register_trace_sched_process_fork(utrace_report_clone, NULL);
+	rc = STP_TRACE_REGISTER(sched_process_fork, utrace_report_clone);
 	if (unlikely(rc != 0)) {
 		_stp_error("register_trace_sched_process_fork failed: %d", rc);
 		goto error;
 	}
-	rc = register_trace_sched_process_exit(utrace_report_death, NULL);
+	rc = STP_TRACE_REGISTER(sched_process_exit, utrace_report_death);
 	if (unlikely(rc != 0)) {
 		_stp_error("register_trace_sched_process_exit failed: %d", rc);
 		goto error2;
 	}
-	rc = register_trace_sys_enter(utrace_report_syscall_entry, NULL);
+	rc = STP_TRACE_REGISTER(sys_enter, utrace_report_syscall_entry);
 	if (unlikely(rc != 0)) {
 		_stp_error("register_trace_sys_enter failed: %d", rc);
 		goto error3;
 	}
-	rc = register_trace_sys_exit(utrace_report_syscall_exit, NULL);
+	rc = STP_TRACE_REGISTER(sys_exit, utrace_report_syscall_exit);
 	if (unlikely(rc != 0)) {
 		_stp_error("register_trace_sys_exit failed: %d", rc);
 		goto error4;
 	}
 
-	rc = register_trace_sched_process_exec(utrace_report_exec, NULL);
+	rc = STP_TRACE_REGISTER(sched_process_exec, utrace_report_exec);
 	if (unlikely(rc != 0)) {
 		_stp_error("register_sched_process_exec failed: %d", rc);
 		goto error5;
@@ -266,13 +267,13 @@ static int utrace_init(void)
 	return 0;
 
 error5:
-	unregister_trace_sys_exit(utrace_report_syscall_exit, NULL);
+	STP_TRACE_UNREGISTER(sys_exit, utrace_report_syscall_exit);
 error4:
-	unregister_trace_sys_enter(utrace_report_syscall_entry, NULL);
+	STP_TRACE_UNREGISTER(sys_enter, utrace_report_syscall_entry);
 error3:
-	unregister_trace_sched_process_exit(utrace_report_death, NULL);
+	STP_TRACE_UNREGISTER(sched_process_exit, utrace_report_death);
 error2:
-	unregister_trace_sched_process_fork(utrace_report_clone, NULL);
+	STP_TRACE_UNREGISTER(sched_process_fork, utrace_report_clone);
 	tracepoint_synchronize_unregister();
 error:
 	if (utrace_cachep) {
@@ -388,11 +389,11 @@ static void utrace_shutdown(void)
 	printk(KERN_ERR "%s:%d entry\n", __FUNCTION__, __LINE__);
 #endif
 	/* Unregister all the tracepoint probes. */
-	unregister_trace_sched_process_exec(utrace_report_exec, NULL);
-	unregister_trace_sched_process_fork(utrace_report_clone, NULL);
-	unregister_trace_sched_process_exit(utrace_report_death, NULL);
-	unregister_trace_sys_enter(utrace_report_syscall_entry, NULL);
-	unregister_trace_sys_exit(utrace_report_syscall_exit, NULL);
+	STP_TRACE_UNREGISTER(sched_process_exec, utrace_report_exec);
+	STP_TRACE_UNREGISTER(sched_process_fork, utrace_report_clone);
+	STP_TRACE_UNREGISTER(sched_process_exit, utrace_report_death);
+	STP_TRACE_UNREGISTER(sys_enter, utrace_report_syscall_entry);
+	STP_TRACE_UNREGISTER(sys_exit, utrace_report_syscall_exit);
 
 	/* When tracepoint_synchronize_unregister() returns, all
 	 * currently executing tracepoint probes will be finished. */
