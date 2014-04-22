@@ -1099,7 +1099,7 @@ probe syscall.swapoff.return
 probe syscall.swapon
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d\n", path, swapflags)
+	printf("%s, %d, %s\n", path, swapflags, swapflags_str)
 }
 probe syscall.swapon.return
 {

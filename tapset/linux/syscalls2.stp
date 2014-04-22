@@ -3336,8 +3336,10 @@ probe syscall.swapon = kernel.function("sys_swapon").call ?
 {
 	name = "swapon"
 	path = user_string_quoted($specialfile)
-	swapflags = $swap_flags
-	argstr = sprintf("%s, %d", user_string_quoted($specialfile), swapflags)
+	swapflags = __int32($swap_flags)
+	swapflags_str = _swapon_flags_str(__int32($swap_flags))
+	argstr = sprintf("%s, %s", user_string_quoted($specialfile),
+			 swapflags_str)
 }
 probe syscall.swapon.return = kernel.function("sys_swapon").return ?
 {
@@ -3472,10 +3474,10 @@ probe syscall.sysinfo.return = kernel.function("compat_sys_sysinfo").return ?,
 probe syscall.syslog = kernel.function("sys_syslog").call
 {
 	name = "syslog"
-	type = $type
+	type = __int32($type)
 	bufp_uaddr = $buf
-	len = $len
-	argstr = sprintf("%d, %p, %d", $type, $buf, $len)
+	len = __int32($len)
+	argstr = sprintf("%d, %p, %d", __int32($type), $buf, __int32($len))
 }
 probe syscall.syslog.return = kernel.function("sys_syslog").return
 {

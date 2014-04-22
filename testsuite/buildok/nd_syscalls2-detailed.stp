@@ -1103,7 +1103,7 @@ probe nd_syscall.swapoff.return
 probe nd_syscall.swapon
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d\n", path, swapflags)
+	printf("%s, %d, %s\n", path, swapflags, swapflags_str)
 }
 probe nd_syscall.swapon.return
 {

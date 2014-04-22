@@ -3443,7 +3443,9 @@ probe nd_syscall.swapon = kprobe.function("sys_swapon") ?
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	swapflags = int_arg(2)
-	argstr = sprintf("%s, %d", user_string_quoted(pointer_arg(1)), swapflags)
+	swapflags_str = _swapon_flags_str(swapflags)
+	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
+			 swapflags_str)
 }
 probe nd_syscall.swapon.return = kprobe.function("sys_swapon").return ?
 {

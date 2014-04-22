@@ -2833,6 +2833,38 @@ function _ptrace_return_geteventmsg_data(request,data)
 		return user_long(data)
 }
 
+%{
+#include <linux/swap.h>
+
+static const _stp_val_array const _stp_swapon_flags_list[] = {
+	V(SWAP_FLAG_PREFER),
+#ifdef SWAP_FLAG_DISCARD
+	V(SWAP_FLAG_DISCARD),
+#endif
+#ifdef SWAP_FLAG_DISCARD_ONCE
+	V(SWAP_FLAG_DISCARD_ONCE),
+#endif
+#ifdef SWAP_FLAG_DISCARD_PAGES
+	V(SWAP_FLAG_DISCARD_PAGES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _swapon_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_swapon_flags_list,
+			   (flags & ~SWAP_FLAG_PRIO_MASK), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (STAP_ARG_flags & SWAP_FLAG_PREFER) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, 
+			      "|%d", flags & SWAP_FLAG_PRIO_MASK);
+	}
+%}
+
 /* do_fork helper function to determine fork type. */
 function __is_user_regs:long (regs:long)
 %{
