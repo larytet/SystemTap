@@ -5,19 +5,19 @@
 // can't be too simple either, otherwise we won't even have an inline instance.
 
 __attribute__((always_inline))
-int baz(int a, int b) {
+inline int baz(int a, int b) {
    return a + b;
 }
 
 __attribute__((always_inline))
-int foo(int a, int b) {
+inline int foo(int a, int b) {
    int c = a*2 + b;
    c = baz(b, c);
    return c;
 }
 
 __attribute__((always_inline))
-int bar(int a, int b) {
+inline int bar(int a, int b) {
    int c = a + b;
    c = foo(c, a*b);
    return c;

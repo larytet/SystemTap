@@ -36,11 +36,8 @@ proc compile_subtest { {n 1} } {
       incr n -1
    }
 
-   # We have to turn off -Wattributes because some C subtests use the
-   # ((always_inline)) attribute, which emits a warning
    set res [target_compile [concat $sources] ${test} \
-            executable "additional_flags=-O additional_flags=-g \
-            additional_flags=-Wno-attributes"]
+            executable "additional_flags=-O additional_flags=-g"]
    if { $res != "" } { return 1 }
    return 0
 }
