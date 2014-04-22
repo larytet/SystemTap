@@ -519,7 +519,7 @@ concatenation.)
 .TP
 $return
 is available in return probes only for functions that are declared
-with a return value.
+with a return value, which can be determined using @defined($return).
 .TP
 $var[N]
 indexes into an array.  The index given with a literal number or even
