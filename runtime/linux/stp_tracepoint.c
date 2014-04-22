@@ -80,7 +80,8 @@ int add_probe(struct tracepoint_entry *e, void *probe, void *data)
 	}
 	if (found)
 		return -EEXIST;
-	p = kmalloc(sizeof(struct stp_tp_probe), GFP_KERNEL);
+	p = _stp_kmalloc_gfp(sizeof(struct stp_tp_probe),
+			STP_ALLOC_SLEEP_FLAGS);
 	if (!p)
 		return -ENOMEM;
 	p->tp_func.func = probe;
@@ -103,7 +104,7 @@ int remove_probe(struct tracepoint_entry *e, void *probe, void *data)
 	}
 	if (found) {
 		list_del(&p->list);
-		kfree(p);
+		_stp_kfree(p);
 		return 0;
 	} else {
 		WARN_ON(1);
@@ -155,7 +156,8 @@ struct tracepoint_entry *add_tracepoint(const char *name)
 	 * Using kmalloc here to allocate a variable length element. Could
 	 * cause some memory fragmentation if overused.
 	 */
-	e = kmalloc(sizeof(struct tracepoint_entry) + name_len, GFP_KERNEL);
+	e = _stp_kmalloc_gfp(sizeof(struct tracepoint_entry) + name_len,
+			STP_ALLOC_SLEEP_FLAGS);
 	if (!e)
 		return ERR_PTR(-ENOMEM);
 	memcpy(&e->name[0], name, name_len);
@@ -174,7 +176,7 @@ static
 void remove_tracepoint(struct tracepoint_entry *e)
 {
 	hlist_del(&e->hlist);
-	kfree(e);
+	_stp_kfree(e);
 }
 
 int stp_tracepoint_probe_register(const char *name, void *probe, void *data)
