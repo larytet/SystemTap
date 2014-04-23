@@ -444,7 +444,7 @@ set exeflags "$exeflags compiler=gcc"
 if {[regexp "^(x86_64|i.86)$" $::tcl_platform(machine)] == 0} {
 set exeflags "$exeflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=nr"
 }
-set res [target_compile $srcdir/systemtap.unprivileged/loop.c $exepath executable "$exeflags"]
+set res [target_compile $srcdir/$subdir/loop.c $exepath executable "$exeflags"]
 if { $res == "" } {
     pass "$test exe compile"
 } else {

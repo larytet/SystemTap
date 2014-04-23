@@ -414,6 +414,8 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "vzalloc_node", "STAPCONF_VZALLOC_NODE");
   output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
+  output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.c_macros.size(); i++)
@@ -431,6 +433,8 @@ compile_pass (systemtap_session& s)
   // Kernels can be compiled with CONFIG_CC_OPTIMIZE_FOR_SIZE to select
   // -Os, otherwise -O2 is the default.
   o << "EXTRA_CFLAGS += -freorder-blocks" << endl; // improve on -Os
+  o << "EXTRA_CFLAGS += -fasynchronous-unwind-tables" << endl; // add for generating eh_frame
+  o << "EXTRA_CFLAGS := $(filter-out -fno-asynchonous-unwind-tables,$(EXTRA_CFLAGS))" << endl;
 
   // We used to allow the user to override default optimization when so
   // requested by adding a -O[0123s] so they could determine the

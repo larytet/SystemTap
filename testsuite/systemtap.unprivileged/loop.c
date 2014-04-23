@@ -40,7 +40,9 @@ main (int argc, char *argv[]) {
     /* Don't loop if an argument was passed */
     if (argc > 1)
       return 0;
+#if !defined NOSLEEP
     usleep (250000); /* 1/4 second pause.  */
+#endif
   }
   return j;
 }

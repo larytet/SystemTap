@@ -1643,6 +1643,10 @@ c_unparser::emit_module_init ()
       o->assert_0_indent(); 
     }
 
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "#include \"linux/stp_tracepoint.c\"";
+  o->newline() << "#endif";
+
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
@@ -1745,6 +1749,15 @@ c_unparser::emit_module_init ()
   o->newline() << "rc = _stp_init_time();";  // Kick off the Big Bang.
   o->newline() << "if (rc) {";
   o->newline(1) << "_stp_error (\"couldn't initialize gettimeofday\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
+
+  // initialize tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "rc = stp_tracepoint_init();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"couldn't initialize tracepoints\");";
   o->newline() << "goto out;";
   o->newline(-1) << "}";
   o->newline() << "#endif";
@@ -1863,6 +1876,11 @@ c_unparser::emit_module_init ()
   o->newline() << "synchronize_sched();";
   o->newline() << "#endif";
 
+  // In case tracepoints were started, they need to be cleaned up
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
+
   // In case gettimeofday was started, it needs to be stopped
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
   o->newline() << " _stp_kill_time();";  // An error is no cause to hurry...
@@ -1979,6 +1997,11 @@ c_unparser::emit_module_exit ()
       o->newline() << "struct context* __restrict__ c;";
       o->newline() << "c = _stp_runtime_entryfn_get_context();";
     }
+
+  // teardown tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
 
   // teardown gettimeofday (if needed)
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
@@ -6577,15 +6600,42 @@ emit_symbol_data (systemtap_session& s)
 }
 
 void
+self_unwind_declarations(unwindsym_dump_context *ctx)
+{
+  ctx->output << "static uint8_t _stp_module_self_eh_frame [] = {0,};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_0[] = {{0},};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_1[] = {{0},};\n";
+  ctx->output << "static struct _stp_section _stp_module_self_sections[] = {\n";
+  ctx->output << "{.name = \".symtab\", .symbols = _stp_module_self_symbols_0, .num_symbols = 0},\n";
+  ctx->output << "{.name = \".text\", .symbols = _stp_module_self_symbols_1, .num_symbols = 0},\n";
+  ctx->output << "};\n";
+  ctx->output << "static struct _stp_module _stp_module_self = {\n";
+  ctx->output << ".name = \"stap_self_tmp_value\",\n";
+  ctx->output << ".path = \"stap_self_tmp_value\",\n";
+  ctx->output << ".num_sections = 2,\n";
+  ctx->output << ".sections = _stp_module_self_sections,\n";
+  ctx->output << ".eh_frame = _stp_module_self_eh_frame,\n";
+  ctx->output << ".eh_frame_len = 0,\n";
+  ctx->output << ".unwind_hdr_addr = 0x0,\n";
+  ctx->output << ".unwind_hdr = NULL,\n";
+  ctx->output << ".unwind_hdr_len = 0,\n";
+  ctx->output << ".debug_frame = NULL,\n";
+  ctx->output << ".debug_frame_len = 0,\n";
+  ctx->output << "};\n";
+}
+
+void
 emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 {
   // Print out a definition of the runtime's _stp_modules[] globals.
   ctx->output << "\n";
-  ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
+  self_unwind_declarations(ctx);
+   ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
   for (unsigned i=0; i<ctx->stp_module_index; i++)
     {
       ctx->output << "& _stp_module_" << i << ",\n";
     }
+  ctx->output << "& _stp_module_self,\n";
   ctx->output << "};\n";
   ctx->output << "static unsigned _stp_num_modules = " << ctx->stp_module_index << ";\n";
 
