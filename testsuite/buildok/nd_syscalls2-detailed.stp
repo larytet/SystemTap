@@ -42,12 +42,22 @@ probe nd_syscall.ni_syscall.return
 	printf("%s %s\n", name, retstr)
 }
 
-probe nd_syscall.open, nd_syscall.openat ?
+probe nd_syscall.open
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%s %d %d\n", filename, flags, mode)
 }
-probe nd_syscall.open.return, nd_syscall.openat.return ?
+probe nd_syscall.open.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.openat ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s) %s %d %d\n", dfd, dfd_str, filename, flags, mode)
+}
+probe nd_syscall.openat.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -245,7 +255,7 @@ probe nd_syscall.readlink.return
 probe nd_syscall.readlinkat ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %s %p %d\n", dfd, path, buf_uaddr, bufsiz)
+	printf("%d(%s) %s %p %d\n", dfd, dfd_str, path, buf_uaddr, bufsiz)
 }
 probe nd_syscall.readlinkat.return ?
 {
@@ -1103,7 +1113,7 @@ probe nd_syscall.swapoff.return
 probe nd_syscall.swapon
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d\n", path, swapflags)
+	printf("%s, %d, %s\n", path, swapflags, swapflags_str)
 }
 probe nd_syscall.swapon.return
 {
@@ -1391,6 +1401,8 @@ probe nd_syscall.utime.return ?, nd_syscall.compat_utime.return ?
 probe nd_syscall.utimensat ?, nd_syscall.compat_utimensat ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d(%s), %p(%s), %p, %d(%s)\n", dfd, dfd_str, filename_uaddr,
+	       filename, tsp_uaddr, flags, flags_str)
 }
 probe nd_syscall.utimensat.return ?, nd_syscall.compat_utimensat.return ?
 {

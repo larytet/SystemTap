@@ -583,8 +583,8 @@ probe nd_syscall.futex.return, nd_syscall.compat_futex.return ?
 probe nd_syscall.futimesat ?, nd_syscall.compat_futimesat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p(%s), %p\n", dirfd, filename_uaddr, filename,
-	       tvp_uaddr)
+	printf("%d(%s), %p(%s), %p\n", dirfd, dirfd_str, filename_uaddr,
+	       filename, tvp_uaddr)
 }
 probe nd_syscall.futimesat.return ?, nd_syscall.compat_futimesat.return ?
 {

@@ -1694,10 +1694,10 @@ systemtap_session::parse_kernel_exports ()
         kernel_exports.insert (tokens[1]);
     }
   if (verbose > 2)
-    clog << _NF("Parsed kernel %s, which contained one vmlinux export",
-                        "Parsed kernel %s, which contained %zu vmlinux exports",
-                         kernel_exports.size(), kernel_exports_file.c_str(),
-                         kernel_exports.size()) << endl;
+    clog << _NF("Parsed kernel \"%s\", containing one vmlinux export",
+                "Parsed kernel \"%s\", containing %zu vmlinux exports",
+                kernel_exports.size(), kernel_exports_file.c_str(),
+                kernel_exports.size()) << endl;
 
   kef.close();
   return 0;
@@ -1717,14 +1717,14 @@ systemtap_session::parse_kernel_functions ()
 	clog << _F("Kernel symbol table %s unavailable, (%s)",
 		   system_map_path.c_str(), strerror(errno)) << endl;
 
-      string system_map_path2 = "/boot/System.map-" + kernel_release;
+      system_map_path = "/boot/System.map-" + kernel_release;
       system_map.clear();
-      system_map.open(system_map_path2.c_str(), ifstream::in);
+      system_map.open(system_map_path.c_str(), ifstream::in);
       if (! system_map.is_open())
         {
 	  if (verbose > 1)
 	    clog << _F("Kernel symbol table %s unavailable, (%s)",
-		       system_map_path2.c_str(), strerror(errno)) << endl;
+		       system_map_path.c_str(), strerror(errno)) << endl;
         }
     }
 
@@ -1756,6 +1756,12 @@ systemtap_session::parse_kernel_functions ()
       kernel_functions.insert(name);
     }
   system_map.close();
+
+  if (verbose > 2)
+    clog << _F("Parsed kernel \"%s\", ", system_map_path.c_str())
+         << _NF("containing %zu symbol", "containing %zu symbols",
+                kernel_functions.size(), kernel_functions.size()) << endl;
+
   return 0;
 }
 
@@ -1965,7 +1971,7 @@ systemtap_session::build_error_msg (const semantic_error& e)
   if (e.tok1 || e.tok2)
     message << ": ";
   else if (verbose > 1) // no tokens to print, so print any errsrc right there
-    message << _("   thrown from: ") << e.errsrc << endl;
+    message << endl << _("   thrown from: ") << e.errsrc;
 
   if (e.tok1)
     {

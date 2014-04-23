@@ -286,7 +286,6 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "atomic_set (session_state(), STAP_SESSION_ERROR);";
       s.op->newline() << "_stp_exit ();";
       s.op->newline(-1) << "}";
-      s.op->newline() << "atomic_dec (& c->busy);";
       s.op->newline() << "goto probe_epilogue;";
       s.op->newline(-1) << "}";
 
@@ -344,7 +343,6 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "atomic_set (session_state(), STAP_SESSION_ERROR);";
       s.op->newline() << "_stp_exit ();";
       s.op->newline(-1) << "}";
-      s.op->newline() << "atomic_dec (& c->busy);";
       s.op->newline() << "goto probe_epilogue;";
       s.op->newline(-1) << "}";
 

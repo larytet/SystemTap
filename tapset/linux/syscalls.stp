@@ -147,8 +147,8 @@ probe syscall.access = kernel.function("sys_access").call
 {
 	name = "access"
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	mode_str = _access_mode_str($mode)
+	mode = __int32($mode)
+	mode_str = _access_mode_str(__int32($mode))
 	argstr = sprintf("%s, %s", user_string_quoted($filename), mode_str)
 }
 probe syscall.access.return = kernel.function("sys_access").return
@@ -996,12 +996,13 @@ probe syscall.faccessat = kernel.function("sys_faccessat").call ?
 	@__syscall_compat_gate(%{ __NR_faccessat %},
 			       %{ __NR_compat_faccessat %})
 	name = "faccessat"
-	dirfd = $dfd
-	dirfd_str = _dfd_str($dfd)
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	mode_str = _access_mode_str($mode)
-	argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted($filename), mode_str)
+	mode = __int32($mode)
+	mode_str = _access_mode_str(__int32($mode))
+	argstr = sprintf("%s, %s, %s", dirfd_str, user_string_quoted($filename),
+			 mode_str)
 }
 probe syscall.faccessat.return = kernel.function("sys_faccessat").return ?
 {
@@ -1085,8 +1086,8 @@ probe syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 	@__syscall_compat_gate(%{ __NR_fchmodat %},
 			       %{ __NR_compat_fchmodat %})
 	name = "fchmodat"
-	dirfd = $dfd
-	dirfd_str = _dfd_str($dfd)
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	pathname = user_string_quoted($filename)
 	mode = $mode
 	argstr = sprintf("%s, %s, %#o", dirfd_str, user_string_quoted($filename), $mode)
@@ -1140,8 +1141,8 @@ probe syscall.fchownat = kernel.function("sys_fchownat").call ?
 	@__syscall_compat_gate(%{ __NR_fchownat %},
 			       %{ __NR_compat_fchownat %})
 	name = "fchownat"
-	dirfd = $dfd
-	dirfd_str = _dfd_str($dfd)
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	pathname = user_string_quoted($filename)
 	owner = __int32($user)
 	group = __int32($group)
@@ -1528,31 +1529,40 @@ probe syscall.compat_futex.return = kernel.function("compat_sys_futex").return ?
 
 probe syscall.futimesat = kernel.function("sys_futimesat").call ?
 {
+	@__syscall_gate(%{ __NR_futimesat %})
 	name = "futimesat"
-	dirfd = $dfd
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	filename_uaddr = $filename
 	filename = user_string_quoted($filename)
 	tvp_uaddr = $utimes
-	argstr = sprintf("%s, %s, %s", _dfd_str($dfd), user_string_quoted($filename),
-		_struct_timeval_u($utimes, 2))
+	argstr = sprintf("%s, %s, %s", _dfd_str(__int32($dfd)),
+			 user_string_quoted($filename),
+			 _struct_timeval_u($utimes, 2))
 }
 probe syscall.compat_futimesat = kernel.function("compat_sys_futimesat").call ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
 	name = "futimesat"
-	dirfd = $dfd
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	filename_uaddr = $filename
 	filename = user_string_quoted($filename)
 	tvp_uaddr = $t
-	argstr = sprintf("%s, %s, %s", _dfd_str($dfd), user_string_quoted($filename),
-		_struct_compat_timeval_u($t, 2))
+	argstr = sprintf("%s, %s, %s", _dfd_str(__int32($dfd)),
+			 user_string_quoted($filename),
+			 _struct_compat_timeval_u($t, 2))
 }
 probe syscall.futimesat.return = kernel.function("sys_futimesat").return ?
 {
+	@__syscall_gate(%{ __NR_futimesat %})
 	name = "futimesat"
 	retstr = return_str(1, $return)
 }
-probe syscall.compat_futimesat.return = kernel.function("compat_sys_futimesat").return ?
+probe syscall.compat_futimesat.return =
+	kernel.function("compat_sys_futimesat").return ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
 	name = "futimesat"
 	retstr = return_str(1, $return)
 }
@@ -1775,8 +1785,8 @@ probe syscall.getpgid = kernel.function("sys_getpgid").call
 {
 	@__syscall_compat_gate(%{ __NR_getpgid %}, %{ __NR_compat_getpgid %})
 	name = "getpgid"
-	pid = $pid
-	argstr = sprintf("%d", $pid)
+	pid = __int32($pid)
+	argstr = sprintf("%d", __int32($pid))
 }
 probe syscall.getpgid.return = kernel.function("sys_getpgid").return
 {
@@ -1829,8 +1839,8 @@ probe syscall.getppid.return = kernel.function("sys_getppid").return
 probe syscall.getpriority = kernel.function("sys_getpriority").call
 {
 	name = "getpriority"
-	which = $which
-	who = $who
+	which = __int32($which)
+	who = __int32($who)
 	argstr = sprintf("%s, %d", _priority_which_str(which), who)
 }
 probe syscall.getpriority.return = kernel.function("sys_getpriority").return
@@ -2551,18 +2561,18 @@ probe syscall.linkat = kernel.function("sys_linkat").call ?
 {
 	@__syscall_compat_gate(%{ __NR_linkat %}, %{ __NR_compat_linkat %})
 	name = "linkat"
-	olddirfd = $olddfd
-	olddirfd_str = _dfd_str($olddfd)
+	olddirfd = __int32($olddfd)
+	olddirfd_str = _dfd_str(__int32($olddfd))
 	oldpath = user_string_quoted($oldname)
-	newdirfd = $newdfd
-	newdirfd_str = _dfd_str($newdfd)
+	newdirfd = __int32($newdfd)
+	newdirfd_str = _dfd_str(__int32($newdfd))
 	newpath = user_string_quoted($newname)
 	flags = $flags
 	flags_str = _at_flag_str($flags)
 	argstr = sprintf("%s, %s, %s, %s, %s",
-		olddirfd_str, user_string_quoted($oldname),
-		newdirfd_str, user_string_quoted($newname),
-		flags_str)
+			 olddirfd_str, user_string_quoted($oldname),
+			 newdirfd_str, user_string_quoted($newname),
+			 flags_str)
 }
 probe syscall.linkat.return = kernel.function("sys_linkat").return ?
 {

@@ -39,6 +39,9 @@ int main()
   //staptest// alarm (0) = 0
 #endif
 
+  alarm(-1);
+  alarm(0);
+
   sleep(1);
   //staptest// nanosleep (\[1.000000000\], XXXX) = 0
 

@@ -334,7 +334,7 @@ static Dwfl *
 setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
 {
   Dwfl *dwfl = dwfl_begin (&kernel_callbacks);
-  dwfl_assert ("dwfl_begin", dwfl);
+  DWFL_ASSERT ("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
 
   // We have a problem with -r REVISION vs -r BUILDDIR here.  If
@@ -400,11 +400,14 @@ setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
         {
           rc = download_kernel_debuginfo(s, hex);
           if(rc >= 0)
-            return setup_dwfl_kernel (modules_found, s);
+            {
+              dwfl_end (dwfl);
+              return setup_dwfl_kernel (modules_found, s);
+            }
         }
     }
 
-  dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+  DWFL_ASSERT ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
   *modules_found = offline_modules_found;
 
   return dwfl;
@@ -449,13 +452,13 @@ Dwfl*
 setup_dwfl_user(const std::string &name)
 {
   Dwfl *dwfl = dwfl_begin (&user_callbacks);
-  dwfl_assert("dwfl_begin", dwfl);
+  DWFL_ASSERT("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
 
   // XXX: should support buildid-based naming
   const char *cname = name.c_str();
   Dwfl_Module *mod = dwfl_report_offline (dwfl, cname, cname, -1);
-  dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+  DWFL_ASSERT ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
   if (! mod)
     {
       dwfl_end(dwfl);
@@ -475,7 +478,7 @@ setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
   set<string> modset(begin, end);
 
   Dwfl *dwfl = dwfl_begin (&user_callbacks);
-  dwfl_assert("dwfl_begin", dwfl);
+  DWFL_ASSERT("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
   Dwfl_Module *mod = NULL;
   // XXX: should support buildid-based naming
@@ -509,7 +512,7 @@ setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
     }
 
   if (dwfl)
-    dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+    DWFL_ASSERT ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
 
   return dwfl;
 }

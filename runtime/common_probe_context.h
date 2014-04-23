@@ -3,6 +3,7 @@
    Available to C-based probe handlers as fields of the CONTEXT ptr.  */
 
 #ifdef __DYNINST__
+
 /* The index of this context structure with the array of allocated
    context structures. */
 int data_index;
@@ -15,15 +16,17 @@ pthread_mutex_t lock;
 
 /* The transport data for this context structure. */
 struct _stp_transport_context_data transport_data;
-#endif
+
+#else
 
 /* Used to indicate whether a probe context is in use.
-   Tested in the code entering the probe setup by common_probe_entry_prologue
-   and cleared by the common_probe_entry_epilogue code. When an early error
-   forces a goto probe_epilogue then needs an explicitly atomic_dec() first.
+   Tested in the probe prologue by _stp_runtime_entryfn_get_context
+   and cleared in the epilogue via _stp_runtime_entryfn_put_context.
    All context busy flags are tested on module unload to prevent unloading
    while some probe is still running.  */
 atomic_t busy;
+
+#endif
 
 /* The fully-resolved probe point associated with a currently running probe
    handler, including alias and wild-card expansion effects.

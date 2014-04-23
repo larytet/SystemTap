@@ -275,17 +275,23 @@ error2:
 	unregister_trace_sched_process_fork(utrace_report_clone, NULL);
 	tracepoint_synchronize_unregister();
 error:
-	if (utrace_cachep)
+	if (utrace_cachep) {
 		kmem_cache_destroy(utrace_cachep);
-	if (utrace_engine_cachep)
+		utrace_cachep = NULL;
+	}
+	if (utrace_engine_cachep) {
 		kmem_cache_destroy(utrace_engine_cachep);
+		utrace_engine_cachep = NULL;
+	}
 	return rc;
 }
 
 static int utrace_exit(void)
 {
+#ifdef STP_TF_DEBUG
+	printk(KERN_ERR "%s:%d - entry\n", __FUNCTION__, __LINE__);
+#endif
 	utrace_shutdown();
-
 	stp_task_work_exit();
 
 	/* After utrace_shutdown() and stp_task_work_exit() (and the
@@ -294,10 +300,18 @@ static int utrace_exit(void)
 	 * to be run. So, now would be a great time to actually free
 	 * everything. */
 
-	if (utrace_cachep)
+	if (utrace_cachep) {
 		kmem_cache_destroy(utrace_cachep);
-	if (utrace_engine_cachep)
+		utrace_cachep = NULL;
+	}
+	if (utrace_engine_cachep) {
 		kmem_cache_destroy(utrace_engine_cachep);
+		utrace_engine_cachep = NULL;
+	}
+
+#ifdef STP_TF_DEBUG
+	printk(KERN_ERR "%s:%d - exit\n", __FUNCTION__, __LINE__);
+#endif
 	return 0;
 }
 
@@ -366,40 +380,50 @@ static void utrace_shutdown(void)
 	struct hlist_head *head;
 	struct hlist_node *node, *node2;
 
-	if (atomic_dec_and_test(&utrace_state) != __UTRACE_UNREGISTERED)
+	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
 		return;
+	atomic_set(&utrace_state, __UTRACE_UNREGISTERED);
 
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d entry\n", __FUNCTION__, __LINE__);
 #endif
+	/* Unregister all the tracepoint probes. */
 	unregister_trace_sched_process_exec(utrace_report_exec, NULL);
 	unregister_trace_sched_process_fork(utrace_report_clone, NULL);
 	unregister_trace_sched_process_exit(utrace_report_death, NULL);
 	unregister_trace_sys_enter(utrace_report_syscall_entry, NULL);
 	unregister_trace_sys_exit(utrace_report_syscall_exit, NULL);
+
+	/* When tracepoint_synchronize_unregister() returns, all
+	 * currently executing tracepoint probes will be finished. */
 	tracepoint_synchronize_unregister();
 
-	/* After tracepoint_synchronize_unregister(), we're *sure*
-	 * there will be no new tracepoint probes running. There could
-	 * be currently running tracepoint probes or task work
-	 * items. So, now would be a great time to cleanup.
+	/* (We'd like to wait here until all currrently executing
+	 * task_work items are finished (by calling
+	 * stp_task_work_exit()), but that gets stuck.)
 	 *
-	 * Currently running items should be OK, since
+	 * After the code above we're *sure* there are no tracepoint
+	 * probes running (or scheduled to be run). There could be
+	 * currently running task_work items.  Go ahead and cleanup
+	 * everything.  Currently running items should be OK, since
 	 * utrace_cleanup() just puts the memory back into the utrace
 	 * kmem caches. */
-	
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - freeing task-specific\n", __FUNCTION__, __LINE__);
 #endif
 	spin_lock(&task_utrace_lock);
 	for (i = 0; i < TASK_UTRACE_TABLE_SIZE; i++) {
 		head = &task_utrace_table[i];
-		stap_hlist_for_each_entry_safe(utrace, node, node2, head, hlist) {
+		stap_hlist_for_each_entry_safe(utrace, node, node2, head,
+					       hlist) {
 			hlist_del(&utrace->hlist);
 			utrace_cleanup(utrace);
 		}
 	}
 	spin_unlock(&task_utrace_lock);
+#ifdef STP_TF_DEBUG
+	printk(KERN_ERR "%s:%d - done\n", __FUNCTION__, __LINE__);
+#endif
 }
 
 /*
@@ -476,6 +500,7 @@ static void utrace_free(struct utrace *utrace)
 	spin_unlock(&task_utrace_lock);
 
 	/* Free the utrace struct. */
+	spin_lock(&utrace->lock);
 #ifdef STP_TF_DEBUG
 	if (unlikely(utrace->reporting)
 	    || unlikely(!list_empty(&utrace->attached))
@@ -504,6 +529,7 @@ static void utrace_free(struct utrace *utrace)
 				: "UNKNOWN"));
 		utrace->report_work_added = 0;
 	}
+	spin_unlock(&utrace->lock);
 
 	kmem_cache_free(utrace_cachep, utrace);
 }
@@ -1905,9 +1931,6 @@ static const struct utrace_engine_ops *start_callback(
 			report->spurious = false;
 			return NULL;
 		}
-#ifdef STP_TF_DEBUG
-		printk(KERN_ERR "%s:%d\n", __FUNCTION__, __LINE__);
-#endif
 
 		/*
 		 * finish_callback() reset utrace->reporting after the
@@ -1919,17 +1942,11 @@ static const struct utrace_engine_ops *start_callback(
 		utrace->reporting = engine;
 		smp_mb();
 		want = engine->flags;
-#ifdef STP_TF_DEBUG
-		printk(KERN_ERR "%s:%d\n", __FUNCTION__, __LINE__);
-#endif
 	}
 
 	if (want & ENGINE_STOP)
 		report->action = UTRACE_STOP;
 
-#ifdef STP_TF_DEBUG
-	printk(KERN_ERR "%s:%d\n", __FUNCTION__, __LINE__);
-#endif
 	if (want & event) {
 		report->spurious = false;
 		return ops;
@@ -1973,7 +1990,11 @@ static void utrace_report_exec(void *cb_data __attribute__ ((unused)),
 			       pid_t old_pid __attribute__((unused)),
 			       struct linux_binprm *bprm __attribute__ ((unused)))
 {
-	struct utrace *utrace = task_utrace_struct(task);
+	struct utrace *utrace;
+
+	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
+		return;
+	utrace = task_utrace_struct(task);
 
 	if (utrace && utrace->utrace_flags & UTRACE_EVENT(EXEC)) {
 		INIT_REPORT(report);
@@ -2038,7 +2059,11 @@ static void utrace_report_syscall_entry(void *cb_data __attribute__ ((unused)),
 					struct pt_regs *regs, long id)
 {
 	struct task_struct *task = current;
-	struct utrace *utrace = task_utrace_struct(task);
+	struct utrace *utrace;
+
+	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
+		return;
+	utrace = task_utrace_struct(task);
 
 	/* FIXME: Is this 100% correct? */
 	if (utrace
@@ -2073,7 +2098,11 @@ static void utrace_report_syscall_exit(void *cb_data __attribute__ ((unused)),
 				       struct pt_regs *regs, long ret)
 {
 	struct task_struct *task = current;
-	struct utrace *utrace = task_utrace_struct(task);
+	struct utrace *utrace;
+
+	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
+		return;
+	utrace = task_utrace_struct(task);
 
 	/* FIXME: Is this 100% correct? */
 	if (utrace
@@ -2100,7 +2129,11 @@ static void utrace_report_clone(void *cb_data __attribute__ ((unused)),
 				struct task_struct *task,
 				struct task_struct *child)
 {
-	struct utrace *utrace = task_utrace_struct(task);
+	struct utrace *utrace;
+
+	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
+		return;
+	utrace = task_utrace_struct(task);
 
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - parent %p, child %p, current %p\n",
@@ -2199,8 +2232,12 @@ static void utrace_finish_vfork(struct task_struct *task)
 static void utrace_report_death(void *cb_data __attribute__ ((unused)),
 				struct task_struct *task)
 {
-	struct utrace *utrace = task_utrace_struct(task);
+	struct utrace *utrace;
 	INIT_REPORT(report);
+
+	if (atomic_read(&utrace_state) != __UTRACE_REGISTERED)
+		return;
+	utrace = task_utrace_struct(task);
 
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - task %p, utrace %p, flags %lx\n", __FUNCTION__, __LINE__, task, utrace, utrace ? utrace->utrace_flags : 0);

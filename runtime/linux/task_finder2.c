@@ -35,10 +35,10 @@ static atomic_t __stp_attach_count = ATOMIC_INIT (0);
 
 #define debug_task_finder_attach() (atomic_inc(&__stp_attach_count))
 #define debug_task_finder_detach() (atomic_dec(&__stp_attach_count))
-#define debug_task_finder_report() (_stp_dbug(__FUNCTION__, __LINE__, \
-					      "attach count: %d, inuse count: %d\n", \
-					      atomic_read(&__stp_attach_count), \
-					      atomic_read(&__stp_inuse_count)))
+#define debug_task_finder_report()					\
+    (printk(KERN_ERR "%s:%d - attach count: %d, inuse count: %d\n",	\
+	    __FUNCTION__, __LINE__, atomic_read(&__stp_attach_count),	\
+	    atomic_read(&__stp_inuse_count)))
 #else
 #define debug_task_finder_attach()	/* empty */
 #define debug_task_finder_detach()	/* empty */
@@ -807,7 +807,7 @@ __stp_utrace_attach_match_filename(struct task_struct *tsk,
 #ifdef STAPCONF_TASK_UID
 	tsk_euid = tsk->euid;
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 	tsk_euid = from_kuid_munged(current_user_ns(), task_euid(tsk));
 #else
 	tsk_euid = task_euid(tsk);
@@ -1697,7 +1697,7 @@ stap_start_task_finder(void)
 #ifdef STAPCONF_TASK_UID
 		tsk_euid = tsk->euid;
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 		tsk_euid = from_kuid_munged(current_user_ns(), task_euid(tsk));
 #else
 		tsk_euid = task_euid(tsk);
@@ -1762,9 +1762,20 @@ stap_task_finder_post_init(void)
 		return;
 	}
 
+#ifdef DEBUG_TASK_FINDER
+	printk(KERN_ERR "%s:%d - entry.\n", __FUNCTION__, __LINE__);
+#endif
 	rcu_read_lock();
 	do_each_thread(grp, tsk) {
 		struct list_head *tgt_node;
+
+		if (atomic_read(&__stp_task_finder_state) != __STP_TF_RUNNING) {
+#ifdef DEBUG_TASK_FINDER
+			printk(KERN_ERR "%s:%d - exiting early...\n",
+			       __FUNCTION__, __LINE__);
+#endif
+			break;
+		}
 
 		/* If in stap -c/-x mode, skip over other processes. */
 		if (_stp_target && tsk->tgid != _stp_target)
@@ -1813,6 +1824,9 @@ stap_task_finder_post_init(void)
 	} while_each_thread(grp, tsk);
 	rcu_read_unlock();
 	atomic_set(&__stp_task_finder_complete, 1);
+#ifdef DEBUG_TASK_FINDER
+	printk(KERN_ERR "%s:%d - exit.\n", __FUNCTION__, __LINE__);
+#endif
 	return;
 }
 
@@ -1832,13 +1846,13 @@ stap_stop_task_finder(void)
 {
 #ifdef DEBUG_TASK_FINDER
 	int i = 0;
-#endif
 
+	printk(KERN_ERR "%s:%d - entry\n", __FUNCTION__, __LINE__);
+#endif
 	if (atomic_read(&__stp_task_finder_state) == __STP_TF_UNITIALIZED)
 		return;
 
 	atomic_set(&__stp_task_finder_state, __STP_TF_STOPPING);
-
 	debug_task_finder_report();
 
 	// The utrace_shutdown() function detaches and cleans up
@@ -1865,10 +1879,14 @@ stap_stop_task_finder(void)
 #endif
 	debug_task_finder_report();
 
-	/* Make sure all outstanding task work requests are canceled. */
+	/* Make sure all outstanding task work requests are finished. */
+	stp_task_work_exit();
 	__stp_tf_cancel_task_work();
 
 	utrace_exit();
+#ifdef DEBUG_TASK_FINDER
+	printk(KERN_ERR "%s:%d - exit\n", __FUNCTION__, __LINE__);
+#endif
 }
 
 #endif /* TASK_FINDER2_C */

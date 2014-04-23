@@ -36,11 +36,8 @@ proc compile_subtest { {n 1} } {
       incr n -1
    }
 
-   # We have to turn off -Wattributes because some C subtests use the
-   # ((always_inline)) attribute, which emits a warning
    set res [target_compile [concat $sources] ${test} \
-            executable "additional_flags=-O additional_flags=-g \
-            additional_flags=-Wno-attributes"]
+            executable "additional_flags=-O additional_flags=-g"]
    if { $res != "" } { return 1 }
    return 0
 }
@@ -557,6 +554,7 @@ if {![installtest_p]} {
       -re ".+" { }
       eof { set failed 0 }
    }
+   catch { close }; catch { wait }
 
    # Restore LD_LIBRARY_PATH
    set env(LD_LIBRARY_PATH) $oldpath
@@ -566,7 +564,6 @@ if {![installtest_p]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
-      catch { close }; catch { wait }
    }
 }
 
@@ -602,6 +599,7 @@ if {[string length $stap_id]} {
       }
       eof { }
    }
+   catch {close -i $stap_id}; catch {wait -i $stap_id}
    set stap_id ""
 }
 

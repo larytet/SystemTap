@@ -1031,15 +1031,25 @@ function _sys_open_flag_str:string (f:long)
 #endif
 %}
 
+%{
+/* Notice that the kernel defines and the user defines are named
+ * differently. */
+static const _stp_val_array const _stp_access_mode_list[] = {
+	{0, "F_OK"},
+	{MAY_READ, "R_OK"},
+	{MAY_WRITE, "W_OK"},
+	{MAY_EXEC, "X_OK"},
+	{0, NULL}
+};
+%}
 
 /* `man 2 open` for more information */
-function _access_mode_str(m) {
-	if((m & 7) == 0) return "F_OK"	
-	if(m & 4) bs="R_OK |".bs
-	if(m & 2) bs="W_OK |".bs
-	if(m & 1) bs="X_OK |".bs
-	return substr(bs,0,strlen(bs)-2)
-}
+function _access_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	_stp_lookup_or_str(_stp_access_mode_list, mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /* `man 2 open` for more information */
 function _sys_open_mode_str(f) {
@@ -1315,20 +1325,53 @@ function _module_flags_str:string(flags:long)
 		str[strlen(str)-1] = '\0';
 %}
 
-function _sched_policy_str(policy) {
-   if(policy==0) return "SCHED_OTHER"
-   if(policy==1) return "SCHED_FIFO"
-   if(policy==2) return "SCHED_RR"
-   if(policy==3) return "SCHED_BATCH"
-   return sprintf("UNKNOWN VALUE: %d", policy)
-}
+%{
+#include <linux/sched.h>
 
-function _priority_which_str(which) {
-   if(which==0) return "PRIO_PROCESS"
-   if(which==1) return "PRIO_PGRP"
-   if(which==2) return "PRIO_USER"
-   return sprintf("UNKNOWN VALUE: %d", which)
-}
+static const _stp_val_array const _stp_sched_policy_list[] = {
+	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
+	V(SCHED_FIFO),
+	V(SCHED_RR),
+	V(SCHED_BATCH),
+#ifdef SCHED_IDLE
+	V(SCHED_IDLE),
+#endif
+#ifdef SCHED_DEADLINE
+	V(SCHED_DEADLINE),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sched_policy_str:string(policy:long)
+%{ /* pure */
+	unsigned int policy = (unsigned int)STAP_ARG_policy;
+#ifdef SCHED_RESET_ON_FORK
+	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
+	policy &= ~SCHED_RESET_ON_FORK;
+#endif
+	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE,
+			MAXSTRINGLEN);
+#ifdef SCHED_RESET_ON_FORK
+	if (reset_on_fork)
+		strlcat(STAP_RETVALUE, "|SCHED_RESET_ON_FORK", MAXSTRINGLEN);
+#endif			
+%}
+
+%{
+static const _stp_val_array const _stp_priority_which_list[] = {
+	V(PRIO_PROCESS),
+	V(PRIO_PGRP),
+	V(PRIO_USER),
+	{0, NULL}
+};
+%}
+
+function _priority_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_priority_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 static const _stp_val_array const _stp_shutdown_how_list[] = {
@@ -1339,7 +1382,7 @@ static const _stp_val_array const _stp_shutdown_how_list[] = {
 };
 %}
 
-function _shutdown_how_str(how)
+function _shutdown_how_str:string(how:long)
 %{ /* pure */
 	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
 			STAP_RETVALUE, MAXSTRINGLEN);
@@ -1350,48 +1393,45 @@ function _shutdown_how_str(how)
 // be inlined into the function since these header file defines static
 // functions on some architectures.
 #include <linux/reboot.h>
+
+static const _stp_val_array const _stp_reboot_magic_list[] = {
+	V(LINUX_REBOOT_MAGIC1),
+	V(LINUX_REBOOT_MAGIC2),
+	V(LINUX_REBOOT_MAGIC2A),
+	V(LINUX_REBOOT_MAGIC2B),
+	V(LINUX_REBOOT_MAGIC2C),
+	{0, NULL}
+};
 %}
 
 function _reboot_magic_str:string(magic:long)
 %{ /* pure */
-	int magic = (int)STAP_ARG_magic;
-	switch (magic) {
-	case LINUX_REBOOT_MAGIC1:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC1", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2A:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2A", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2B:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2B", MAXSTRINGLEN);
-		break;
-/*
-	LINUX_REBOOT_MAGIC2C is supported from kernel 2.6
-*/
-#ifdef LINUX_REBOOT_MAGIC2C
-	case LINUX_REBOOT_MAGIC2C:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2C", MAXSTRINGLEN);
-		break;
-#endif
-	default:
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "UNKNOWN VALUE: %d", magic);
-	}
+	unsigned int magic = (unsigned int)STAP_ARG_magic;
+	_stp_lookup_str(_stp_reboot_magic_list, magic, STAP_RETVALUE,
+			MAXSTRINGLEN);
 %}
 
-function _reboot_flag_str(flag) {
-   if(flag==0x01234567) return "LINUX_REBOOT_CMD_RESTART"
-   if(flag==0xCDEF0123) return "LINUX_REBOOT_CMD_HALT"
-   if(flag==0x4321FEDC) return "LINUX_REBOOT_CMD_POWER_OFF"
-   if(flag==0xA1B2C3D4) return "LINUX_REBOOT_CMD_RESTART2"
-   if(flag==0x89ABCDEF) return "LINUX_REBOOT_CMD_CAD_ON"
-   if(flag==0x00000000) return "LINUX_REBOOT_CMD_CAD_OFF"
-   if(flag==0xD000FCE2) return "LINUX_REBOOT_CMD_SW_SUSPEND"
-   if(flag==0x45584543) return "LINUX_REBOOT_CMD_KEXEC"
-   return sprintf("UNKNOWN VALUE: %d", flag)
-}
+%{
+#include <linux/reboot.h>
+static const _stp_val_array const _stp_reboot_flag_list[] = {
+	V(LINUX_REBOOT_CMD_RESTART),
+	V(LINUX_REBOOT_CMD_HALT),
+	V(LINUX_REBOOT_CMD_CAD_ON),
+	V(LINUX_REBOOT_CMD_CAD_OFF),
+	V(LINUX_REBOOT_CMD_POWER_OFF),
+	V(LINUX_REBOOT_CMD_RESTART2),
+	V(LINUX_REBOOT_CMD_SW_SUSPEND),
+	V(LINUX_REBOOT_CMD_KEXEC),
+	{0, NULL}
+};	
+%}
+
+function _reboot_flag_str:string(flag:long)
+%{  /* pure */
+	unsigned int flag = (unsigned int)STAP_ARG_flag;
+	_stp_lookup_str(_stp_reboot_flag_list, flag, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _waitid_which_str(flag) {
    if(flag==0) return "P_ALL"
@@ -1573,7 +1613,7 @@ static const _stp_val_array const _stp_madvice_advice_list[] = {
 };
 %}
 
-function _madvice_advice_str(behavior)
+function _madvice_advice_str:string(behavior)
 %{ /* pure */
 	_stp_lookup_str(_stp_madvice_advice_list,
 			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
@@ -2081,9 +2121,9 @@ function __ulong:long(val:long) %{ /* pure */
 %}
 
 # For utimensat and futimesat, the directory fd can have a special value
-function _dfd_str(d) {
-	# 0xffffff9c is a 32-bit -100, for compatability mode.
-	if((d == -100) || (d == 0xffffff9c)) return "AT_FDCWD"
+function _dfd_str:string(d:long)
+{
+	if (d == %{ AT_FDCWD %}) return "AT_FDCWD"
 	return sprint(d)
 }
 
@@ -2802,6 +2842,38 @@ function _ptrace_return_geteventmsg_data(request,data)
 	if (request == %{ PTRACE_GETEVENTMSG %})
 		return user_long(data)
 }
+
+%{
+#include <linux/swap.h>
+
+static const _stp_val_array const _stp_swapon_flags_list[] = {
+	V(SWAP_FLAG_PREFER),
+#ifdef SWAP_FLAG_DISCARD
+	V(SWAP_FLAG_DISCARD),
+#endif
+#ifdef SWAP_FLAG_DISCARD_ONCE
+	V(SWAP_FLAG_DISCARD_ONCE),
+#endif
+#ifdef SWAP_FLAG_DISCARD_PAGES
+	V(SWAP_FLAG_DISCARD_PAGES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _swapon_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_swapon_flags_list,
+			   (flags & ~SWAP_FLAG_PRIO_MASK), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (STAP_ARG_flags & SWAP_FLAG_PREFER) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, 
+			      "|%d", flags & SWAP_FLAG_PRIO_MASK);
+	}
+%}
 
 /* do_fork helper function to determine fork type. */
 function __is_user_regs:long (regs:long)

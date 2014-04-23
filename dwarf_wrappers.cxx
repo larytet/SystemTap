@@ -18,7 +18,8 @@
 
 using namespace std;
 
-void dwfl_assert(const string& desc, int rc)
+void dwfl_assert(const string& desc, int rc,
+                 const string& file, int line)
 {
   if (rc == 0)
     return;
@@ -27,10 +28,11 @@ void dwfl_assert(const string& desc, int rc)
     msg += (dwfl_errmsg (rc) ?: "?");
   else
     msg += std::strerror (rc);
-  throw SEMANTIC_ERROR (msg);
+  throw semantic_error (file+":"+lex_cast(line), msg);
 }
 
-void dwarf_assert(const string& desc, int rc)
+void dwarf_assert(const string& desc, int rc,
+                  const string& file, int line)
 {
   if (rc == 0)
     return;
@@ -39,7 +41,7 @@ void dwarf_assert(const string& desc, int rc)
     msg += dwarf_errmsg (rc);
   else
     msg += std::strerror (rc);
-  throw SEMANTIC_ERROR (msg);
+  throw semantic_error (file+":"+lex_cast(line), msg);
 }
 
 

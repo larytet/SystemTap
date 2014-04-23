@@ -151,17 +151,19 @@ probe nd_syscall.openat = kprobe.function("compat_sys_openat") ?,
 {
 	name = "openat"
 	asmlinkage()
+	dfd = int_arg(1)
+	dfd_str = _dfd_str(dfd)
 	filename = user_string_quoted(pointer_arg(2))
 	flags = int_arg(3)
 	mode = int_arg(4)
 	if (flags & 64)
-		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(int_arg(1)),
-				user_string_quoted(pointer_arg(2)),
-				_sys_open_flag_str(flags), mode)
+		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(dfd),
+				 user_string_quoted(pointer_arg(2)),
+				 _sys_open_flag_str(flags), mode)
 	else
-		argstr = sprintf("%s, %s, %s", _dfd_str(int_arg(1)),
-			user_string_quoted(pointer_arg(2)),
-			_sys_open_flag_str(flags))
+		argstr = sprintf("%s, %s, %s", _dfd_str(dfd),
+				 user_string_quoted(pointer_arg(2)),
+				 _sys_open_flag_str(flags))
 }
 probe nd_syscall.openat.return = kprobe.function("compat_sys_openat").return ?,
                                  kprobe.function("sys_openat").return ?
@@ -835,11 +837,12 @@ probe nd_syscall.readlinkat = kprobe.function("sys_readlinkat") ?
 	name = "readlinkat"
 	asmlinkage()
 	dfd = int_arg(1)
+	dfd_str = _dfd_str(dfd)
 	path = user_string_quoted(pointer_arg(2))
 	buf_uaddr = pointer_arg(3)
 	bufsiz = int_arg(4)
-	argstr = sprintf("%s, %s, %p, %d", _dfd_str(dfd), user_string_quoted(pointer_arg(2)),
-			buf_uaddr, bufsiz)
+	argstr = sprintf("%s, %s, %p, %d", _dfd_str(dfd),
+			 user_string_quoted(pointer_arg(2)), buf_uaddr, bufsiz)
 }
 probe nd_syscall.readlinkat.return = kprobe.function("sys_readlinkat").return ?
 {
@@ -1689,18 +1692,33 @@ probe nd_syscall.sched_getscheduler.return = kprobe.function("sys_sched_getsched
 #
 # long sys_sched_rr_get_interval(pid_t pid, struct timespec __user *interval)
 #
-probe nd_syscall.sched_rr_get_interval = kprobe.function("sys_sched_rr_get_interval") ?
+probe nd_syscall.sched_rr_get_interval = __nd_syscall.sched_rr_get_interval,
+	kprobe.function("compat_sys_sched_rr_get_interval").call ?,
+	kprobe.function("sys32_sched_rr_get_interval").call ?
 {
 	name = "sched_rr_get_interval"
 	asmlinkage()
 	pid = int_arg(1)
 	tp_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %s", pid, _struct_timespec_u(tp_uaddr, 1))
+	argstr = sprintf("%d, %p", pid, tp_uaddr)
 }
-probe nd_syscall.sched_rr_get_interval.return = kprobe.function("sys_sched_rr_get_interval").return ?
+probe __nd_syscall.sched_rr_get_interval =
+	kprobe.function("sys_sched_rr_get_interval").call
+{
+	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
+}
+probe nd_syscall.sched_rr_get_interval.return =
+	__nd_syscall.sched_rr_get_interval.return,
+	kprobe.function("compat_sys_sched_rr_get_interval").return ?,
+	kernel.function("sys32_sched_rr_get_interval").return ?
 {
 	name = "sched_rr_get_interval"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.sched_rr_get_interval.return =
+	kprobe.function("sys_sched_rr_get_interval").return
+{
+	@__syscall_gate(%{ __NR_sched_rr_get_interval %})
 }
 
 # sched_setaffinity __________________________________________
@@ -3428,7 +3446,9 @@ probe nd_syscall.swapon = kprobe.function("sys_swapon") ?
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	swapflags = int_arg(2)
-	argstr = sprintf("%s, %d", user_string_quoted(pointer_arg(1)), swapflags)
+	swapflags_str = _swapon_flags_str(swapflags)
+	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
+			 swapflags_str)
 }
 probe nd_syscall.swapon.return = kprobe.function("sys_swapon").return ?
 {
@@ -4177,15 +4197,33 @@ probe nd_syscall.utimensat = kprobe.function("sys_utimensat") ?
 {
 	name = "utimensat"
 	asmlinkage()
-	argstr = sprintf("%s, %s, %s, %s", _dfd_str(int_arg(1)), user_string_quoted(pointer_arg(2)),
-				_struct_timespec_u(pointer_arg(3), 2), _at_flag_str(int_arg(4)))
+	dfd = int_arg(1)
+	dfd_str = _dfd_str(dfd)
+	filename_uaddr = pointer_arg(2)
+	filename = user_string_quoted(filename_uaddr)
+	tsp_uaddr = pointer_arg(3)
+	flags = int_arg(4)
+	flags_str = _at_flag_str(flags)
+	argstr = sprintf("%s, %s, %s, %s", _dfd_str(dfd),
+			 user_string_quoted(filename_uaddr),
+			 _struct_timespec_u(tsp_uaddr, 2),
+			 _at_flag_str(flags))
 }
 probe nd_syscall.compat_utimensat = kprobe.function("compat_sys_utimensat") ?
 {
 	name = "utimensat"
 	asmlinkage()
-	argstr = sprintf("%s, %s, %s, %s", _dfd_str(uint_arg(1)), user_string_quoted(pointer_arg(2)),
-				 _struct_compat_timespec_u(pointer_arg(3), 2), _at_flag_str(int_arg(4)))
+	dfd = int_arg(1)
+	dfd_str = _dfd_str(dfd)
+	filename_uaddr = pointer_arg(2)
+	filename = user_string_quoted(filename_uaddr)
+	tsp_uaddr = pointer_arg(3)
+	flags = int_arg(4)
+	flags_str = _at_flag_str(flags)
+	argstr = sprintf("%s, %s, %s, %s", _dfd_str(dfd),
+			 user_string_quoted(filename_uaddr),
+			 _struct_compat_timespec_u(tsp_uaddr, 2),
+			 _at_flag_str(flags))
 }
 probe nd_syscall.utimensat.return = kprobe.function("sys_utimensat").return ?
 {

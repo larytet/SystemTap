@@ -1,5 +1,8 @@
 * What's new in version 2.5
 
+- Statement probes (e.g. process.statement) are now faster to resolve,
+  more precise, and work better with inlined functions.
+
 - New switches have been added to help inspect the contents of installed
   library files:
 
@@ -12,6 +15,9 @@
   heuristics are necessary to find $context parameters for some
   function-call/entry probes.  We recommend programs be built with
   CFLAGS+=-grecord-gcc-switches to feed information to the heuristics.
+
+- The stap --use-server option now more correctly supports address:port
+  type parametrization, for manual use in the absence of avahi.
 
 - A new probe alias "oneshot" allows a single quick script fragment to run,
   then exit.

@@ -6,6 +6,7 @@
 int main()
 {
     pid_t pgid;
+    pid_t pid = getpid();
 
     pgid = getpgrp();
     // On some platforms (like RHEL5 ia64), getpgrp() is implemented
@@ -15,8 +16,17 @@ int main()
     pgid = getpgid(0);
     //staptest// getpgid (0) = NNNN
 
+    (void)getpgid(-1);
+    //staptest// getpgid (-1) = -NNNN (ESRCH)
+
     setpgid(0, 0);
     //staptest// setpgid (0, 0) = 0
+
+    setpgid(pid, -1);
+    //staptest// setpgid (NNNN, -1) = -NNNN (EINVAL)
+
+    setpgid(-1, pgid);
+    //staptest// setpgid (-1, NNNN) = -NNNN (ESRCH)
 
     pgid = getpgrp();
     //staptest// [[[[getpgrp ()!!!!getpgid (0)]]]] = NNNN

@@ -5493,7 +5493,7 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
       it = fdes.begin();
       Dwarf_Addr first_addr = (*it).first;
       int res = dwfl_module_relocate_address (mod, &first_addr);
-      dwfl_assert ("create_debug_frame_hdr, dwfl_module_relocate_address",
+      DWFL_ASSERT ("create_debug_frame_hdr, dwfl_module_relocate_address",
 		   res >= 0);
       *debug_frame_off = (*it).first - first_addr;
     }
@@ -5646,7 +5646,7 @@ dump_build_id (Dwfl_Module *m,
         int i;
 
         i = dwfl_module_relocate_address (m, &reloc_vaddr);
-        dwfl_assert ("dwfl_module_relocate_address reloc_vaddr", i >= 0);
+        DWFL_ASSERT ("dwfl_module_relocate_address reloc_vaddr", i >= 0);
 
         secname = dwfl_module_relocation_info (m, i, NULL);
 
@@ -5704,7 +5704,7 @@ dump_section_list (Dwfl_Module *m,
 
   // Look up the relocation basis for symbols
   int n = dwfl_module_relocations (m);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
 
  if (n == 0)
     {
@@ -5782,11 +5782,11 @@ dump_symbol_tables (Dwfl_Module *m,
   dwfl_module_info (m, NULL, NULL, &end, NULL, NULL, NULL, NULL);
 
   int syments = dwfl_module_getsymtab(m);
-  dwfl_assert (_F("Getting symbol table for %s", modname), syments >= 0);
+  DWFL_ASSERT (_F("Getting symbol table for %s", modname), syments >= 0);
 
   // Look up the relocation basis for symbols
   int n = dwfl_module_relocations (m);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
 
   /* Needed on ppc64, for function descriptors. */
   Dwarf_Addr elf_bias;
@@ -5833,7 +5833,7 @@ dump_symbol_tables (Dwfl_Module *m,
 		  int ki;
 		  extra_offset = sym_addr;
 		  ki = dwfl_module_relocate_address (m, &extra_offset);
-		  dwfl_assert ("dwfl_module_relocate_address extra_offset",
+		  DWFL_ASSERT ("dwfl_module_relocate_address extra_offset",
 			       ki >= 0);
 
 		  if (c->session.verbose > 2)
@@ -5853,7 +5853,7 @@ dump_symbol_tables (Dwfl_Module *m,
                   kretprobe_trampoline_addr = sym_addr;
                   ki = dwfl_module_relocate_address(m,
 						    &kretprobe_trampoline_addr);
-                  dwfl_assert ("dwfl_module_relocate_address, kretprobe_trampoline_addr", ki >= 0);
+                  DWFL_ASSERT ("dwfl_module_relocate_address, kretprobe_trampoline_addr", ki >= 0);
 
 		  if (! c->session.need_symbols
 		      && extra_offset != 0)
@@ -5895,7 +5895,7 @@ dump_symbol_tables (Dwfl_Module *m,
 		  func_desc_addr = sym_addr;
 
 		  opd = dwfl_module_address_section (m, &sym_addr, &opd_bias);
-		  dwfl_assert ("dwfl_module_address_section opd", opd != NULL);
+		  DWFL_ASSERT ("dwfl_module_address_section opd", opd != NULL);
 
 		  Elf_Data *opd_data = elf_rawdata (opd, NULL);
 		  assert(opd_data != NULL);
@@ -5916,7 +5916,7 @@ dump_symbol_tables (Dwfl_Module *m,
               if (n > 0) // only try to relocate if there exist relocation bases
                 {
                   int ki = dwfl_module_relocate_address (m, &sym_addr);
-                  dwfl_assert ("dwfl_module_relocate_address sym_addr", ki >= 0);
+                  DWFL_ASSERT ("dwfl_module_relocate_address sym_addr", ki >= 0);
                   secname = dwfl_module_relocation_info (m, ki, NULL);
 
 		  if (func_desc_addr != 0)
@@ -6535,7 +6535,7 @@ emit_symbol_data (systemtap_session& s)
   Dwfl *dwfl = setup_dwfl_kernel (offline_search_modules, &count, s);
   /* NB: It's not an error to find a few fewer modules than requested.
      There might be third-party modules loaded (e.g. uprobes). */
-  /* dwfl_assert("all kernel modules found",
+  /* DWFL_ASSERT("all kernel modules found",
      count >= offline_search_modules.size()); */
 
   ptrdiff_t off = 0;
@@ -6546,7 +6546,7 @@ emit_symbol_data (systemtap_session& s)
       off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
     }
   while (off > 0);
-  dwfl_assert("dwfl_getmodules", off == 0);
+  DWFL_ASSERT("dwfl_getmodules", off == 0);
   dwfl_end(dwfl);
 
   // ---- step 2: process any user modules (files) listed
@@ -6568,7 +6568,7 @@ emit_symbol_data (systemtap_session& s)
               off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
             }
           while (off > 0);
-          dwfl_assert("dwfl_getmodules", off == 0);
+          DWFL_ASSERT("dwfl_getmodules", off == 0);
         }
       dwfl_end(dwfl);
     }

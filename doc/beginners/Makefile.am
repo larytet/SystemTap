@@ -18,10 +18,15 @@ all: $(SBG).pdf $(SBG)/index.html
 $(SBG).pdf:
 # We're force to have this workaround due to BZ920216
 # which requires a connection to an X server
-if HAVE_XVFB
-	-xvfb-run -a publican build --formats=pdf,html --langs=en-US
+if HAVE_FOP
+PDFTOOL=--pdftool=fop
 else
-	publican build --formats=pdf,html --langs=en-US
+PDFTOOL=
+endif
+if HAVE_XVFB
+	-xvfb-run -a publican build --formats=pdf,html --langs=en-US $(PDFTOOL)
+else
+	publican build --formats=pdf,html --langs=en-US $(PDFTOOL)
 endif
 	mv build/en-US/pdf/*$(SBG)*.pdf $(SBG).pdf
 

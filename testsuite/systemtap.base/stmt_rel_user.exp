@@ -17,7 +17,7 @@ for {set i 0} {$i < [all_compile_flags]} {incr i} {
     set rel_flags "$rel_flags additional_flags=-Winline"
     set rel_flags "$rel_flags additional_flags=-g"
     set rel_flags "$rel_flags $extra_flag"
-    set res [target_compile $srcdir/$subdir/stmt_rel.c [pwd]/stmt_rel.x executable $rel_flags]
+    set res [target_compile $srcdir/$subdir/$test.c [pwd]/$test.x executable $rel_flags]
     if { $res != "" } {
 	verbose "target_compile failed: $res" 2
 	fail "$test-$extra_name compiling"
@@ -35,10 +35,10 @@ for {set i 0} {$i < [all_compile_flags]} {incr i} {
 	    if { [info procs ${runtime}_kfails] ne "" } {
 		${runtime}_kfails $i
 	    }
-	    spawn stap --runtime=$runtime -c ./stmt_rel.x -e "probe process(\"./stmt_rel.x\").statement(\"Move@stmt_rel.c+1\") {printf(\"Move %d\\n\",\$s1)}"
+	    spawn stap --runtime=$runtime -c ./$test.x -e "probe process(\"./$test.x\").statement(\"Move@$test.c+2\") {printf(\"Move %d\\n\",\$s1)}"
 	} elseif {[uprobes_p]} {
 	    set test_name "$test-$extra_name"
-	    spawn stap -c ./stmt_rel.x -e "probe process(\"./stmt_rel.x\").statement(\"Move@stmt_rel.c+1\") {printf(\"Move %d\\n\",\$s1)}"
+	    spawn stap -c ./$test.x -e "probe process(\"./$test.x\").statement(\"Move@$test.c+2\") {printf(\"Move %d\\n\",\$s1)}"
 	} else {
 	    untested "$test-$extra_name"
 	    continue

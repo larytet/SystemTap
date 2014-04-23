@@ -9,7 +9,7 @@ p = { { &200, 400 }, { &100, 200 } }
 *a->x=200, a->y=200, *b->x=200, b->y=200
 p = { { &300, 600 }, { &200, 200 } }}
 
-set listspec "process(\"$test.exe\").statement(\"foo@*:7\")"
+set listspec "process(\"$test.exe\").statement(\"foo@*:13\")"
 
 proc exe_uses_implicit_ptr {exe} {
   if {[catch {exec readelf --debug-dump=info,loc $exe | \

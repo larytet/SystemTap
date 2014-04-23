@@ -56,19 +56,47 @@ int main()
 #endif
 
   access("foobar1", R_OK|W_OK);
-  //staptest// access ("foobar1", W_OK |R_OK) = 0
+  //staptest// access ("foobar1", R_OK|W_OK) = 0
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", R_OK|W_OK, 0);
-  //staptest// faccessat (AT_FDCWD, "foobar1", W_OK |R_OK) = 0
+  //staptest// faccessat (AT_FDCWD, "foobar1", R_OK|W_OK) = 0
 #endif
 
   access("foobar1", R_OK|W_OK|X_OK);
-  //staptest// access ("foobar1", X_OK |W_OK |R_OK) = -NNNN (EACCES)
+  //staptest// access ("foobar1", R_OK|W_OK|X_OK) = -NNNN (EACCES)
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", R_OK|W_OK|X_OK, 0);
-  //staptest// faccessat (AT_FDCWD, "foobar1", X_OK |W_OK |R_OK) = -NNNN (EACCES)
+  //staptest// faccessat (AT_FDCWD, "foobar1", R_OK|W_OK|X_OK) = -NNNN (EACCES)
+#endif
+
+  access((char *)-1, F_OK);
+#ifdef __s390__
+  //staptest// access ([7]?[f]+, F_OK) = -NNNN (EFAULT)
+#else
+  //staptest// access ([f]+, F_OK) = -NNNN (EFAULT)
+#endif
+
+  access("foobar1", -1);
+  //staptest// access ("foobar1", R_OK|W_OK|X_OK|0x[f]+8) = -NNNN (EINVAL)
+
+#if GLIBC_SUPPORT
+  faccessat(-1, "foobar1", F_OK, 0);
+  //staptest// faccessat (-1, "foobar1", F_OK) = -NNNN (EBADF)
+
+  faccessat(AT_FDCWD, (char *)-1, F_OK, 0);
+#ifdef __s390__
+  //staptest// faccessat (AT_FDCWD, [7]?[f]+, F_OK) = -NNNN (EFAULT)
+#else
+  //staptest// faccessat (AT_FDCWD, [f]+, F_OK) = -NNNN (EFAULT)
+#endif
+
+  faccessat(AT_FDCWD, "foobar1", -1, 0);
+  //staptest// faccessat (AT_FDCWD, "foobar1", R_OK|W_OK|X_OK|0x[f]+8) = -NNNN (EINVAL)
+
+  // We can't test the last argument to faccessat() as a -1, since
+  // glibc will realize that's wrong and not issue a syscall.
 #endif
 
   return 0;
