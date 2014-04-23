@@ -781,10 +781,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        if [ -d %{archdir} ]; then
+	 if [ -d ${archdir} ]; then
             ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
             ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
-        fi
+	 fi
     done
 done
 
@@ -818,10 +818,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        if [ -d %{archdir} ]; then
+	 if [ -d ${archdir} ]; then
             ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
             ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
-	fi
+	 fi
     done
 done
 
