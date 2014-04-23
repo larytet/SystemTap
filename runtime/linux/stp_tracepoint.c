@@ -107,7 +107,6 @@ int remove_probe(struct tracepoint_entry *e, void *probe, void *data)
 		_stp_kfree(p);
 		return 0;
 	} else {
-		WARN_ON(1);
 		return -ENOENT;
 	}
 }
@@ -147,8 +146,6 @@ struct tracepoint_entry *add_tracepoint(const char *name)
 	head = &tracepoint_table[hash & (TRACEPOINT_TABLE_SIZE - 1)];
 	hlist_for_each_entry(e, head, hlist) {
 		if (!strcmp(name, e->name)) {
-			printk(KERN_NOTICE
-				"tracepoint %s busy\n", name);
 			return ERR_PTR(-EEXIST);        /* Already there */
 		}
 	}
@@ -179,6 +176,32 @@ void remove_tracepoint(struct tracepoint_entry *e)
 	_stp_kfree(e);
 }
 
+static
+void do_tracepoint_probe_register(struct tracepoint *tp,
+		void *probe, void *data)
+{
+	int ret = tracepoint_probe_register(tp, probe, data);
+	if (ret) {
+		dbug_tp(1, "error (%d) registering probe '%s'\n",
+				ret, tp->name);
+	} else {
+		dbug_tp(2, "registered probe '%s'\n", tp->name);
+	}
+}
+
+static
+void do_tracepoint_probe_unregister(struct tracepoint *tp,
+		void *probe, void *data)
+{
+	int ret = tracepoint_probe_unregister(tp, probe, data);
+	if (ret) {
+		dbug_tp(1, "error (%d) unregistering probe '%s'\n",
+				ret, tp->name);
+	} else {
+		dbug_tp(2, "unregistered probe '%s'\n", tp->name);
+	}
+}
+
 int stp_tracepoint_probe_register(const char *name, void *probe, void *data)
 {
 	struct tracepoint_entry *e;
@@ -198,13 +221,15 @@ int stp_tracepoint_probe_register(const char *name, void *probe, void *data)
 	if (ret)
 		goto end;
 	e->refcount++;
+	dbug_tp(2, "added probe on '%s'\n", name);
 	if (e->tp) {
-		ret = tracepoint_probe_register(e->tp, probe, data);
-		WARN_ON_ONCE(ret);
-		ret = 0;
+		do_tracepoint_probe_register(e->tp, probe, data);
 	}
 end:
 	mutex_unlock(&stp_tracepoint_mutex);
+	if (ret) {
+		dbug_tp(1, "error (%d) adding probe on '%s'\n", ret, name);
+	}
 	return ret;
 }
 
@@ -224,14 +249,16 @@ int stp_tracepoint_probe_unregister(const char *name, void *probe, void *data)
 	if (ret)
 		goto end;
 	if (e->tp) {
-		ret = tracepoint_probe_unregister(e->tp, probe, data);
-		WARN_ON_ONCE(ret);
-		ret = 0;
+		do_tracepoint_probe_unregister(e->tp, probe, data);
 	}
 	if (!--e->refcount)
 		remove_tracepoint(e);
+	dbug_tp(2, "removed probe on '%s'\n", name);
 end:
 	mutex_unlock(&stp_tracepoint_mutex);
+	if (ret) {
+		dbug_tp(1, "error (%d) removing probe on '%s'\n", ret, name);
+	}
 	return ret;
 }
 
@@ -253,25 +280,25 @@ int stp_tracepoint_coming(struct tp_module *tp_mod)
 		if (!e) {
 			e = add_tracepoint(tp->name);
 			if (IS_ERR(e)) {
-				pr_warn("LTTng: error (%ld) adding tracepoint\n",
-					PTR_ERR(e));
+				dbug_tp(1, "error (%ld) adding %s:%s\n",
+					PTR_ERR(e), tp_mod->mod->name, tp->name);
 				continue;
 			}
 		}
 		/* If already enabled, just check consistency */
 		if (e->tp) {
-			WARN_ON(e->tp != tp);
+			if (e->tp != tp) {
+				dbug_tp(1, "found duplicate '%s'\n", tp->name);
+			}
 			continue;
 		}
 		e->tp = tp;
 		e->refcount++;
+		dbug_tp(2, "added %s:%s\n", tp_mod->mod->name, tp->name);
 		/* register each (probe, data) */
 		list_for_each_entry(p, &e->probes, list) {
-			int ret;
-
-			ret = tracepoint_probe_register(e->tp,
+			do_tracepoint_probe_register(e->tp,
 					p->tp_func.func, p->tp_func.data);
-			WARN_ON_ONCE(ret);
 		}
 	}
 	mutex_unlock(&stp_tracepoint_mutex);
@@ -295,15 +322,13 @@ int stp_tracepoint_going(struct tp_module *tp_mod)
 			continue;
 		/* unregister each (probe, data) */
 		list_for_each_entry(p, &e->probes, list) {
-			int ret;
-
-			ret = tracepoint_probe_unregister(e->tp,
+			do_tracepoint_probe_unregister(e->tp,
 					p->tp_func.func, p->tp_func.data);
-			WARN_ON_ONCE(ret);
 		}
 		e->tp = NULL;
 		if (!--e->refcount)
 			remove_tracepoint(e);
+		dbug_tp(2, "removed %s:%s\n", tp_mod->mod->name, tp->name);
 	}
 	mutex_unlock(&stp_tracepoint_mutex);
 	return 0;
@@ -344,7 +369,7 @@ int stp_tracepoint_module_init(void)
 static
 void stp_tracepoint_module_exit(void)
 {
-	WARN_ON(unregister_tracepoint_module_notifier(&stp_tracepoint_notifier));
+	(void)unregister_tracepoint_module_notifier(&stp_tracepoint_notifier);
 }
 
 #else /* #ifdef CONFIG_MODULES */
@@ -374,26 +399,26 @@ void stp_kernel_tracepoint_add(struct tracepoint *tp, void *priv)
 	if (!e) {
 		e = add_tracepoint(tp->name);
 		if (IS_ERR(e)) {
-			pr_warn("LTTng: error (%ld) adding tracepoint\n",
-				PTR_ERR(e));
+			dbug_tp(1, "error (%ld) adding kernel:%s\n",
+				PTR_ERR(e), tp->name);
 			*ret = (int) PTR_ERR(e);
 			goto end;
 		}
 	}
 	/* If already enabled, just check consistency */
 	if (e->tp) {
-		WARN_ON(e->tp != tp);
+		if (e->tp != tp) {
+			dbug_tp(1, "found duplicate '%s'\n", tp->name);
+		}
 		goto end;
 	}
 	e->tp = tp;
 	e->refcount++;
+	dbug_tp(2, "added kernel:%s\n", tp->name);
 	/* register each (probe, data) */
 	list_for_each_entry(p, &e->probes, list) {
-		int ret;
-
-		ret = tracepoint_probe_register(e->tp,
+		do_tracepoint_probe_register(e->tp,
 				p->tp_func.func, p->tp_func.data);
-		WARN_ON_ONCE(ret);
 	}
 end:
 	mutex_unlock(&stp_tracepoint_mutex);
@@ -412,6 +437,7 @@ void stp_kernel_tracepoint_remove(struct tracepoint *tp, void *priv)
 		goto end;
 	}
 	remove_tracepoint(e);
+	dbug_tp(2, "removed kernel:%s\n", tp->name);
 end:
 	mutex_unlock(&stp_tracepoint_mutex);
 }
@@ -419,25 +445,16 @@ end:
 static
 int stp_tracepoint_init(void)
 {
+	int error_ret = 0;
 	int ret = 0;
 
 	for_each_kernel_tracepoint(stp_kernel_tracepoint_add, &ret);
-	if (ret)
-		goto error;
-	ret = stp_tracepoint_module_init();
-	if (ret)
-		goto error_module;
-	return 0;
+	if (!ret)
+		ret = stp_tracepoint_module_init();
+	if (!ret)
+		return 0;
 
-error_module:
-	{
-		int error_ret = 0;
-
-		for_each_kernel_tracepoint(stp_kernel_tracepoint_remove,
-				&error_ret);
-		WARN_ON(error_ret);
-	}
-error:
+	for_each_kernel_tracepoint(stp_kernel_tracepoint_remove, &error_ret);
 	return ret;
 }
 
@@ -448,13 +465,14 @@ void stp_tracepoint_exit(void)
 
 	stp_tracepoint_module_exit();
 	for_each_kernel_tracepoint(stp_kernel_tracepoint_remove, &ret);
-	WARN_ON(ret);
 	mutex_lock(&stp_tracepoint_mutex);
 	for (i = 0; i < TRACEPOINT_TABLE_SIZE; i++) {
 		struct hlist_head *head = &tracepoint_table[i];
 
 		/* All tracepoints should be removed */
-		WARN_ON(!hlist_empty(head));
+		if (!hlist_empty(head)) {
+			dbug_tp(1, "tracepoint_table[%d] is not empty!\n", i);
+		}
 	}
 	mutex_unlock(&stp_tracepoint_mutex);
 }
