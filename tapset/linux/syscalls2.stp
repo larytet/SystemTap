@@ -162,17 +162,19 @@ probe syscall.openat = kernel.function("compat_sys_openat").call ?,
                        kernel.function("sys_openat").call ?
 {
 	name = "openat"
+	dfd = __int32($dfd)
+	dfd_str = _dfd_str(__int32($dfd))
 	filename = user_string_quoted($filename)
 	flags = $flags
 	mode = __int32($mode)
 	if ($flags & 64)
-		argstr = sprintf("%s, %s, %s, %#o", _dfd_str($dfd),
-			user_string_quoted($filename),
-			_sys_open_flag_str($flags), __int32($mode))
+		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(__int32($dfd)),
+				 user_string_quoted($filename),
+				 _sys_open_flag_str($flags), __int32($mode))
 	else
-		argstr = sprintf("%s, %s, %s", _dfd_str($dfd),
-			user_string_quoted($filename),
-			_sys_open_flag_str($flags))
+		argstr = sprintf("%s, %s, %s", _dfd_str(__int32($dfd)),
+				 user_string_quoted($filename),
+				 _sys_open_flag_str(__int32($flags)))
 }
 probe syscall.openat.return = kernel.function("compat_sys_openat").return ?,
                               kernel.function("sys_openat").return ?
@@ -883,11 +885,12 @@ probe syscall.readlinkat = kernel.function("sys_readlinkat").call ?
 	@__syscall_compat_gate(%{ __NR_readlinkat %},
 			       %{ __NR_compat_readlinkat %})
 	name = "readlinkat"
-	dfd = $dfd
+	dfd = __int32($dfd)
+	dfd_str = _dfd_str(__int32($dfd))
 	buf_uaddr = $buf
 	bufsiz = $bufsiz
 	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %s, %p, %d", _dfd_str($dfd),
+	argstr = sprintf("%s, %s, %p, %d", _dfd_str(__int32($dfd)),
 		user_string_quoted(@choose_defined($pathname, $path)),
 		$buf, $bufsiz)
 }
@@ -1270,17 +1273,17 @@ probe syscall.renameat = kernel.function("sys_renameat").call ?
 {
 	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
 	name = "renameat"
-	olddfd = $olddfd
-	olddfd_str = _dfd_str($olddfd)
+	olddfd = __int32($olddfd)
+	olddfd_str = _dfd_str(__int32($olddfd))
 	oldname = $oldname
 	oldname_str = user_string_quoted($oldname)
-	newdfd = $newdfd
-	newdfd_str = _dfd_str($newdfd)
+	newdfd = __int32($newdfd)
+	newdfd_str = _dfd_str(__int32($newdfd))
 	newname = $newname
 	newname_str = user_string_quoted($newname)
-	argstr = sprintf("%s, %s, %s, %s",
-		olddfd_str, user_string_quoted($oldname),
-		newdfd_str, user_string_quoted($newname))
+	argstr = sprintf("%s, %s, %s, %s", olddfd_str,
+			 user_string_quoted($oldname),
+			 newdfd_str, user_string_quoted($newname))
 }
 probe syscall.renameat.return = kernel.function("sys_renameat").return ?
 {
@@ -3375,8 +3378,8 @@ probe syscall.symlinkat = kernel.function("sys_symlinkat").call ?
 	name = "symlinkat"
 	oldname = $oldname
 	oldname_str = user_string_quoted($oldname)
-	newdfd = $newdfd
-	newdfd_str = _dfd_str($newdfd)
+	newdfd = __int32($newdfd)
+	newdfd_str = _dfd_str(__int32($newdfd))
 	newname = $newname
 	newname_str = user_string_quoted($newname)
 	argstr = sprintf("%s, %s, %s", user_string_quoted($oldname),
@@ -3861,13 +3864,14 @@ probe syscall.unlink.return = kernel.function("sys_unlink").return
 probe syscall.unlinkat = kernel.function("sys_unlinkat").call ?
 {
 	name = "unlinkat"
-	dfd = $dfd
-	dfd_str = _dfd_str($dfd)
+	dfd = __int32($dfd)
+	dfd_str = _dfd_str(__int32($dfd))
 	pathname = $pathname
 	pathname_str = user_string_quoted($pathname)
 	flag = $flag
 	flag_str = _at_flag_str($flag)
-	argstr = sprintf("%s, %s, %s", dfd_str, user_string_quoted($pathname), flag_str)
+	argstr = sprintf("%s, %s, %s", dfd_str, user_string_quoted($pathname),
+			 flag_str)
 }
 probe syscall.unlinkat.return = kernel.function("sys_unlinkat").return ?
 {
@@ -4023,14 +4027,32 @@ probe syscall.compat_sys_utimes.return = kernel.function("compat_sys_utimes").re
 probe syscall.utimensat = kernel.function("sys_utimensat").call ?
 {
 	name = "utimensat"
-	argstr = sprintf("%s, %s, %s, %s", _dfd_str($dfd), user_string_quoted($filename), _struct_timespec_u($utimes, 2),
-		_at_flag_str($flags))
+	dfd = __int32($dfd)
+	dfd_str = _dfd_str(__int32($dfd))
+	filename_uaddr = $filename
+	filename = user_string_quoted($filename)
+	tsp_uaddr = $utimes
+	flags = __int32($flags)
+	flags_str = _at_flag_str(__int32($flags))
+	argstr = sprintf("%s, %s, %s, %s", _dfd_str(__int32($dfd)),
+			 user_string_quoted($filename),
+			 _struct_timespec_u($utimes, 2),
+			 _at_flag_str(__int32($flags)))
 }
 probe syscall.compat_utimensat = kernel.function("compat_sys_utimensat").call ?
 {
 	name = "utimensat"
-	argstr = sprintf("%s, %s, %s, %s", _dfd_str($dfd), user_string_quoted($filename), _struct_compat_timespec_u($t, 2),
-		_at_flag_str($flags))
+	dfd = __int32($dfd)
+	dfd_str = _dfd_str(__int32($dfd))
+	filename_uaddr = $filename
+	filename = user_string_quoted($filename)
+	tsp_uaddr = $t
+	flags = __int32($flags)
+	flags_str = _at_flag_str(__int32($flags))
+	argstr = sprintf("%s, %s, %s, %s", _dfd_str(__int32($dfd)),
+			 user_string_quoted($filename),
+			 _struct_compat_timespec_u($t, 2),
+			 _at_flag_str(__int32($flags)))
 }
 probe syscall.utimensat.return = kernel.function("sys_utimensat").return ?
 {

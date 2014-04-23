@@ -1688,33 +1688,41 @@ probe nd_syscall.compat_futex.return = kprobe.function("compat_sys_futex").retur
 
 probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 {
-	name = "futimesat"
 	asmlinkage()
+	@__syscall_gate(%{ __NR_futimesat %})
+	name = "futimesat"
 	dirfd = int_arg(1)
+	dirfd_str = _dfd_str(dirfd)
 	filename_uaddr = pointer_arg(2)
 	filename = user_string_quoted(filename_uaddr)
 	tvp_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %s, %s", _dfd_str(dirfd), user_string_quoted(filename_uaddr),
-		_struct_timeval_u(tvp_uaddr, 2))
+	argstr = sprintf("%s, %s, %s", _dfd_str(dirfd),
+			 user_string_quoted(filename_uaddr),
+			 _struct_timeval_u(tvp_uaddr, 2))
 }
 probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
 {
-	name = "futimesat"
 	asmlinkage()
-	dirfd = uint_arg(1)
+	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
+	name = "futimesat"
+	dirfd = int_arg(1)
+	dirfd_str = _dfd_str(dirfd)
 	filename_uaddr = pointer_arg(2)
 	filename = user_string_quoted(pointer_arg(2))
 	tvp_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %s, %s", _dfd_str(uint_arg(1)), user_string_quoted(pointer_arg(2)),
-		_struct_compat_timeval_u(pointer_arg(3), 2))
+	argstr = sprintf("%s, %s, %s", _dfd_str(int_arg(1)),
+			 user_string_quoted(pointer_arg(2)),
+			 _struct_compat_timeval_u(pointer_arg(3), 2))
 }
 probe nd_syscall.futimesat.return = kprobe.function("sys_futimesat").return ?
 {
+	@__syscall_gate(%{ __NR_futimesat %})
 	name = "futimesat"
 	retstr = returnstr(1)
 }
 probe nd_syscall.compat_futimesat.return = kprobe.function("compat_sys_futimesat").return ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
 	name = "futimesat"
 	retstr = returnstr(1)
 }
