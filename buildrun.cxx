@@ -414,6 +414,8 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "vzalloc_node", "STAPCONF_VZALLOC_NODE");
   output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
+  output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.c_macros.size(); i++)

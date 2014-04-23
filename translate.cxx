@@ -1643,6 +1643,10 @@ c_unparser::emit_module_init ()
       o->assert_0_indent(); 
     }
 
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "#include \"linux/stp_tracepoint.c\"";
+  o->newline() << "#endif";
+
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
@@ -1745,6 +1749,15 @@ c_unparser::emit_module_init ()
   o->newline() << "rc = _stp_init_time();";  // Kick off the Big Bang.
   o->newline() << "if (rc) {";
   o->newline(1) << "_stp_error (\"couldn't initialize gettimeofday\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
+
+  // initialize tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "rc = stp_tracepoint_init();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"couldn't initialize tracepoints\");";
   o->newline() << "goto out;";
   o->newline(-1) << "}";
   o->newline() << "#endif";
@@ -1863,6 +1876,11 @@ c_unparser::emit_module_init ()
   o->newline() << "synchronize_sched();";
   o->newline() << "#endif";
 
+  // In case tracepoints were started, they need to be cleaned up
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
+
   // In case gettimeofday was started, it needs to be stopped
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
   o->newline() << " _stp_kill_time();";  // An error is no cause to hurry...
@@ -1979,6 +1997,11 @@ c_unparser::emit_module_exit ()
       o->newline() << "struct context* __restrict__ c;";
       o->newline() << "c = _stp_runtime_entryfn_get_context();";
     }
+
+  // teardown tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
 
   // teardown gettimeofday (if needed)
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
