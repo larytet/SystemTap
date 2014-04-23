@@ -1067,9 +1067,9 @@ probe syscall.fchdir.return = kernel.function("sys_fchdir").return
 probe syscall.fchmod = kernel.function("sys_fchmod").call
 {
 	name = "fchmod"
-	fildes = $fd
-	mode = $mode
-	argstr = sprintf("%d, %#o", $fd, $mode)
+	fildes = __int32($fd)
+	mode = __uint32($mode)
+	argstr = sprintf("%d, %#o", __int32($fd), __uint32($mode))
 }
 probe syscall.fchmod.return = kernel.function("sys_fchmod").return
 {
@@ -1105,10 +1105,10 @@ probe syscall.fchmodat.return = kernel.function("sys_fchmodat").return ?
 probe syscall.fchown = kernel.function("sys_fchown").call
 {
 	name = "fchown"
-	fd = $fd
+	fd = __int32($fd)
 	owner = __int32($user)
 	group = __int32($group)
-	argstr = sprintf("%d, %d, %d", $fd, owner, group)
+	argstr = sprintf("%d, %d, %d", fd, owner, group)
 }
 probe syscall.fchown.return = kernel.function("sys_fchown").return
 {
@@ -1146,10 +1146,11 @@ probe syscall.fchownat = kernel.function("sys_fchownat").call ?
 	pathname = user_string_quoted($filename)
 	owner = __int32($user)
 	group = __int32($group)
-	flags = $flag
-	flags_str = _at_flag_str($flag)
-	argstr = sprintf("%s, %s, %d, %d, %s",
-		dirfd_str, user_string_quoted($filename), owner, group, flags_str)
+	flags = __int32($flag)
+	flags_str = _at_flag_str(__int32($flag))
+	argstr = sprintf("%s, %s, %d, %d, %s", dirfd_str,
+			 user_string_quoted($filename), owner, group,
+			 flags_str)
 }
 probe syscall.fchownat.return = kernel.function("sys_fchownat").return ?
 {
