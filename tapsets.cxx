@@ -6438,10 +6438,14 @@ private:
   void handle_probe_entry();
 
   static void setup_note_probe_entry_callback (sdt_query *me,
+                                               const string& scn_name,
+                                               const string& note_name,
                                                int type,
                                                const char *data,
                                                size_t len);
-  void setup_note_probe_entry (int type, const char *data, size_t len);
+  void setup_note_probe_entry (const string& scn_name,
+                               const string& note_name, int type,
+                               const char *data, size_t len);
 
   void convert_probe(probe *base);
   void record_semaphore(vector<derived_probe *> & results, unsigned start);
@@ -6650,24 +6654,30 @@ sdt_query::init_probe_scn()
 }
 
 void
-sdt_query::setup_note_probe_entry_callback (sdt_query *me, int type, const char *data, size_t len)
+sdt_query::setup_note_probe_entry_callback (sdt_query *me,
+                                            const string& scn_name,
+                                            const string& note_name, int type,
+                                            const char *data, size_t len)
 {
-  me->setup_note_probe_entry (type, data, len);
+  me->setup_note_probe_entry (scn_name, note_name, type, data, len);
 }
 
 
 void
-sdt_query::setup_note_probe_entry (int type, const char *data, size_t len)
+sdt_query::setup_note_probe_entry (const string& scn_name,
+                                   const string& note_name, int type,
+                                   const char *data, size_t len)
 {
-  //  if (nhdr.n_namesz == sizeof _SDT_NOTE_NAME
-  //      && !memcmp (data->d_buf + name_off,
-  //		  _SDT_NOTE_NAME, sizeof _SDT_NOTE_NAME))
-
-  // probes are in the .note.stapsdt section
+  if (scn_name.compare(".note.stapsdt"))
+    return;
+#define _SDT_NOTE_NAME "stapsdt"
+  if (note_name.compare(_SDT_NOTE_NAME))
+    return;
 #define _SDT_NOTE_TYPE 3
   if (type != _SDT_NOTE_TYPE)
     return;
 
+  // we found a probe entry
   union
   {
     Elf64_Addr a64[3];

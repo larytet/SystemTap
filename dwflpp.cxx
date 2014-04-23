@@ -1181,6 +1181,8 @@ dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
 
 template<> int
 dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                const string&,
+                                                                const string&,
                                                                 int,
                                                                 const char*,
                                                                 size_t))
@@ -1208,6 +1210,7 @@ dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
 	case SHT_NOTE:
 	  if (!(shdr.sh_flags & SHF_ALLOC))
 	    {
+	      string scn_name = elf_strptr(elf, shstrndx, shdr.sh_name);
 	      Elf_Data *data = elf_getdata (scn, NULL);
 	      size_t next;
 	      GElf_Nhdr nhdr;
@@ -1216,7 +1219,14 @@ dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
 	      for (size_t offset = 0;
 		   (next = gelf_getnote (data, offset, &nhdr, &name_off, &desc_off)) > 0;
 		   offset = next)
-		(*callback) (object, nhdr.n_type, (const char*)((long)(data->d_buf) + (long)desc_off), nhdr.n_descsz);
+		{
+		  const char *note_name_addr = (const char *)data->d_buf + name_off;
+		  const char *note_desc_addr = (const char *)data->d_buf + desc_off;
+		  string note_name = nhdr.n_namesz > 1 // n_namesz includes NULL
+		                     ? string(note_name_addr, nhdr.n_namesz-1) : "";
+		  (*callback) (object, scn_name, note_name, nhdr.n_type,
+		               note_desc_addr, nhdr.n_descsz);
+		}
 	    }
 	  break;
 	}

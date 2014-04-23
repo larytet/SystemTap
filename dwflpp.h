@@ -283,11 +283,15 @@ struct dwflpp
 
   template<typename T>
   int iterate_over_notes (T *object,
-			  void (* callback)(T*, int, const char*, size_t))
+                          void (* callback)(T*, const std::string&,
+                                                const std::string&,
+                                                int, const char*, size_t))
     {
       // See comment block in iterate_over_modules()
       return iterate_over_notes<void>((void*)object,
                                       (void (*)(void*,
+                                                const std::string&,
+                                                const std::string&,
                                                 int,
                                                 const char*,
                                                 size_t))callback);
@@ -670,6 +674,8 @@ dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
                                  void *data);
 template<> int
 dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                const std::string&,
+                                                                const std::string&,
                                                                 int,
                                                                 const char*,
                                                                 size_t));
