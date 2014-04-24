@@ -13,8 +13,11 @@ int main()
     klogctl(0 /* SYSLOG_ACTION_CLOSE */, NULL, 0);
     //staptest// syslog (0, 0x0, 0)
 
-    klogctl(2 /* SYSLOG_ACTION_READ */, buf, sizeof(buf) - 1);
-    //staptest// syslog (2, XXXX, 1023)
+    /* NB: we can't test SYSLOG_ACTION_READ here, because it can
+       block in the case of an empty kernel kmsg buffer. */
+
+    klogctl(3 /* SYSLOG_ACTION_READ_ALL */, buf, sizeof(buf) - 1);
+    //staptest// syslog (3, XXXX, 1023)
 
     klogctl(-1, buf, sizeof(buf) - 1);
     //staptest// syslog (-1, XXXX, 1023)
