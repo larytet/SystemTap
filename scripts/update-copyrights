@@ -1,0 +1,89 @@
+#!/bin/bash
+
+if [ $# -lt 2 ]; then
+   echo "Usage: $0 <company> <domain>">&2
+   echo "This script updates copyright lines for <company> for files modified">&2
+   echo "this year by authors whose email addresses are at <domain>.">&2
+   echo "Usage example: $0 \"Red Hat\" redhat.com">&2
+   exit 1
+fi
+
+company=$1
+domain=$2
+
+# Switch to root directory of repo
+rootdir=$(git rev-parse --show-toplevel)
+if [ $? -ne 0 ]; then
+   exit 1
+fi
+cd $rootdir
+
+# This script has the potential to create a massive diff, so to help going back
+# for some reason, enforce a clean working directory.
+git diff --exit-code --quiet
+if [ $? -ne 0 ]; then
+   echo "Working directory must be clean">&2
+   echo "Please stash or commit changes">&2
+   exit 1
+fi
+
+set -e
+
+year=$(date +%Y)
+lastyear=$(expr $year - 1)
+
+echo -n "Fetching in-tree copyrighted files... "
+
+# Collect all the files in the tree with copyrights older than this year
+old_copyrighted_files=
+for file in $(git ls-tree --full-tree --name-only -r HEAD); do
+
+   # Exclude po dir
+   if [ ! -d $file ] && \
+      [[ $file != po/* ]] && \
+      grep -q -E 'Copyright \(C\) .*[0-9]{4}\s+'"$company" $file; then
+
+      # Add to the list if it's not copyrighted for this year
+      if ! grep -q "Copyright (C) .*$year.*$company" $file; then
+         old_copyrighted_files="$old_copyrighted_files $file"
+      fi
+   fi
+done
+
+echo "done"
+echo -n "Checking year of last modification... "
+
+# For each of those files, do a git log to determine if it has been modified by
+# an author at domain this year
+needs_updating=
+for file in $old_copyrighted_files; do
+   authors_this_year=$(git log --format='%ae' --after="$lastyear-12-31" -- "$file")
+   for author in $authors_this_year; do
+      if [[ $author == *@$domain ]]; then
+         needs_updating="$needs_updating $file"
+         break
+      fi
+   done
+done
+
+echo "done"
+echo -n "Updating copyright years... "
+
+# Update all the copyright lines to the current year
+n=0
+for file in $needs_updating; do
+
+   # Modify the copyright line
+   sed -i -r '0,/Copyright \(C\) .*[0-9]{4}\s+'"$company"'/s/(.*Copyright \(C\).*)([0-9]{4})\s+('"$company"'.*)/\1'$year' \3/' $file
+
+   # If it wasn't modified, output warning
+   git diff --exit-code --quiet $file && \
+      echo "File $file could not be updated. Continuing...">&2 || \
+      n=$(expr $n + 1)
+done
+
+echo "done ($n files)"
+
+if [ $n -gt 0 ]; then
+   echo "Please carefully review modifications"
+fi
