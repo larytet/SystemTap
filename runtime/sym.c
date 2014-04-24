@@ -609,12 +609,10 @@ static void _stp_kmodule_update_address(const char* module,
   unsigned mi, si;
 #if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)
   if(!strcmp(module, THIS_MODULE->name)){
-    static char modname[STP_MODULE_NAME_LEN];
-    strlcpy(modname, module, strlen(module)+1);
     if(reloc && !strcmp(".altinstr_replacement", reloc)){
       _stp_num_modules++;
-      _stp_module_self.name = modname;
-      _stp_module_self.path = modname; //we've already been inserted at this point, so the path variable will still be unique
+      _stp_module_self.name = THIS_MODULE->name;
+      _stp_module_self.path = THIS_MODULE->name; //we've already been inserted at this point, so the path variable will still be unique
     }
     if(reloc && !strcmp(".note.gnu.build-id",reloc)){
       _stp_module_self.notes_sect = address;
