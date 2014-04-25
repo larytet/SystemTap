@@ -22,7 +22,7 @@ proc has_function { output wanted func } {
 }
 
 # Get output for --dump-functions
-if {[catch {exec -ignorestderr stap --dump-functions 2>/dev/null} output]} {
+if {[catch {exec stap --dump-functions 2>/dev/null} output]} {
    fail "$test (can't get output of stap --dump-functions)"
    return
 } else {
@@ -30,7 +30,7 @@ if {[catch {exec -ignorestderr stap --dump-functions 2>/dev/null} output]} {
 }
 
 # Get output for -v --dump-functions
-if {[catch {exec -ignorestderr stap -v --dump-functions 2>/dev/null} outputv]} {
+if {[catch {exec stap -v --dump-functions 2>/dev/null} outputv]} {
    fail "$test (can't get output of stap -v --dump-functions)"
    return
 } else {
