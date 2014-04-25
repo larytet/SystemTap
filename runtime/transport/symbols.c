@@ -101,6 +101,24 @@ struct module_sect_attrs
 #endif
 
 
+#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
+static unsigned _stp_module_nsections (struct module_sect_attrs *attrs)
+{
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+	/* We have the answer right here!  */
+	return attrs->nsections;
+#else
+	/* Since grp.attrs is the same length and NULL-terminated,
+	 * we can count the sections from that.  */
+	struct attribute **gattr = &attrs->grp.attrs[0];
+	while (*gattr != NULL)
+		++gattr;
+	return gattr - &attrs->grp.attrs[0];
+#endif
+}
+#endif
+
+
 static int _stp_module_notifier (struct notifier_block * nb,
                                  unsigned long val, void *data)
 {
@@ -111,17 +129,17 @@ static int _stp_module_notifier (struct notifier_block * nb,
            related fields at all in struct module.  XXX: autoconf for
            that directly? */
 
-#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
         struct module *mod = data;
         struct module_sect_attrs *attrs = mod->sect_attrs;
-        unsigned i;
+        unsigned i, nsections = _stp_module_nsections(attrs);
 
         if (val == MODULE_STATE_COMING) {
                 /* A module is arriving.  Register all of its section
                    addresses, as though staprun sent us a bunch of
                    STP_RELOCATE messages.  Now ... where did the
                    fishie go? */
-                for (i=0; i<attrs->nsections; i++) 
+                for (i=0; i<nsections; i++)
                         _stp_kmodule_update_address(mod->name, 
                                                     attrs->attrs[i].name,
                                                     attrs->attrs[i].address);
@@ -132,7 +150,7 @@ static int _stp_module_notifier (struct notifier_block * nb,
         }
         else if (val == MODULE_STATE_LIVE) {
                 /* The init section(s) may have been unloaded. */
-                for (i=0; i<attrs->nsections; i++) 
+                for (i=0; i<nsections; i++)
                         if (strstr(attrs->attrs[i].name, "init.") != NULL)
                         _stp_kmodule_update_address(mod->name, 
                                                     attrs->attrs[i].name,
@@ -162,19 +180,19 @@ static int _stp_module_update_self (void)
 {
 	/* Only bother if we need unwinding and have module_sect_attrs.  */
 #if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)
-#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19)
+#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
 
 	bool found_eh_frame = false;
-	unsigned int i;
 	struct module *mod = THIS_MODULE;
 	struct module_sect_attrs *attrs = mod->sect_attrs;
+	unsigned i, nsections = _stp_module_nsections(attrs);
 
 	/* We've already been inserted at this point, so the path variable will
 	 * still be unique.  */
 	_stp_module_self.name = mod->name;
 	_stp_module_self.path = mod->name;
 
-	for (i=0; i<attrs->nsections; i++) {
+	for (i=0; i<nsections; i++) {
 		struct module_sect_attr *attr = &attrs->attrs[i];
 		if (!attr->name)
 			continue;
@@ -204,7 +222,7 @@ static int _stp_module_update_self (void)
 		 * the position of the next closest section.  (if any!)  */
 		const unsigned long base = (unsigned long) _stp_module_self.eh_frame;
 		unsigned long maxlen = 0, len = 0;
-		for (i=0; i<attrs->nsections; i++) {
+		for (i=0; i<nsections; i++) {
 			unsigned long address = attrs->attrs[i].address;
 			if (base < address && (maxlen == 0 || address < base + maxlen))
 				maxlen = address - base;
@@ -224,7 +242,7 @@ static int _stp_module_update_self (void)
 		_stp_module_self.eh_frame_len = len;
 	}
 
-#endif /* defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19) */
+#endif /* defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11) */
 #endif /* defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA) */
 
 	return 0;
