@@ -702,3 +702,48 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
       catch {eval exec kill -KILL $PID}
    }
 }
+
+# Compares vers1 to vers2. Returns an integer less than, equal to, or greater
+# than zero if vers1 is before, equal, or after vers2. Similar to the GNU
+# extension strverscmp(3), but restricted to simple M.N... version numbers.
+proc strverscmp { vers1 vers2 } {
+
+   # Check that both versions are valid M.N... format
+   if {![regexp {^[0-9]+(\.[0-9]+)*$} $vers1]} {
+      error "$vers1 is not a valid version number"
+   }
+   if {![regexp {^[0-9]+(\.[0-9]+)*$} $vers2]} {
+      error "$vers2 is not a valid version number"
+   }
+
+   while {1} {
+
+      # Get the next M for each as well as following N...
+      regexp {^([0-9]+)(\.(.*))?} $vers1 dummy subvers1 dummy nextvers1
+      regexp {^([0-9]+)(\.(.*))?} $vers2 dummy subvers2 dummy nextvers2
+
+      # Compare M
+      if {$subvers1 < $subvers2} { return -1 }
+      if {$subvers1 > $subvers2} { return  1 }
+      # The M parts are equal
+
+      # Check if one (or both) of them don't have a next subversion
+      if {![string length $nextvers1] \
+       && ![string length $nextvers2]} { return  0 }
+      if {![string length $nextvers1] \
+       && [string length $nextvers2]}  { return -1 }
+      if {[string length $nextvers1] \
+       && ![string length $nextvers2]} { return  1 }
+
+      # They both have a subversion following, let's re-iterate
+
+      # Sanity check that we're making progress and not looping forever
+      if {[string length $nextvers1] >= [string length $vers1]} \
+         { error "$vers1 not converging" }
+      if {[string length $nextvers2] >= [string length $vers2]} \
+         { error "$vers2 not converging" }
+
+      set vers1 $nextvers1
+      set vers2 $nextvers2
+   }
+}
