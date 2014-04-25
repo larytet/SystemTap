@@ -463,6 +463,7 @@ compile_pass (systemtap_session& s)
   o << s.module_name << "-y := ";
   for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
     {
+      if (s.auxiliary_outputs[i]->trailer_p) continue;
       string srcname = s.auxiliary_outputs[i]->filename;
       assert (srcname != "" && srcname.rfind('/') != string::npos);
       string objname = srcname.substr(srcname.rfind('/')+1); // basename
@@ -482,6 +483,17 @@ compile_pass (systemtap_session& s)
     objname[objname.size()-1] = 'o'; // now objname
     o << " " + objname;
   }
+  // and once again, for the trailer type auxiliary outputs.
+  for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
+    {
+      if (! s.auxiliary_outputs[i]->trailer_p) continue;
+      string srcname = s.auxiliary_outputs[i]->filename;
+      assert (srcname != "" && srcname.rfind('/') != string::npos);
+      string objname = srcname.substr(srcname.rfind('/')+1); // basename
+      assert (objname != "" && objname[objname.size()-1] == 'c');
+      objname[objname.size()-1] = 'o'; // now objname
+      o << " " + objname;
+    }
   o << endl;
 
   // add all stapconf dependencies

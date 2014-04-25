@@ -2215,11 +2215,12 @@ systemtap_session::reset_tmp_dir()
   create_tmp_dir();
 }
 
-translator_output* systemtap_session::op_create_auxiliary()
+translator_output* systemtap_session::op_create_auxiliary(bool trailer_p)
 {
   static int counter = 0;
   string tmpname = this->tmpdir + "/" + this->module_name + "_aux_" + lex_cast(counter++) + ".c";
   translator_output* n = new translator_output (tmpname);
+  n->trailer_p = trailer_p;
   auxiliary_outputs.push_back (n);
   return n;
 }

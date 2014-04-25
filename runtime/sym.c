@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Symbolic Lookup Functions
- * Copyright (C) 2005-2013 Red Hat Inc.
+ * Copyright (C) 2005-2014 Red Hat Inc.
  * Copyright (C) 2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -622,8 +622,13 @@ static void _stp_kmodule_update_address(const char* module,
       u32 seg_length = 1;
       u32 total_length = 0;
 
+      /* Assume that there will be a 0x00000000 terminator word.  For
+         userspace, this comes from crtend.o.  For us, this is ensured
+         by translate.cxx's T_800 terminator. */
       while (seg_length != 0){
 	seg_length = get_unaligned((u32*) addr);
+        if (seg_length == ~0) /* quietly give up on 8-byte length */
+            seg_length = 0;
 	addr += seg_length + 4;
 	total_length += seg_length + 4;
       }

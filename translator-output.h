@@ -25,6 +25,7 @@ class translator_output
 
 public:
   std::string filename;
+  bool trailer_p; // is this file to be linked before or after main generated source file
 
   translator_output (std::ostream& file);
   translator_output (const std::string& filename, size_t bufsize = 8192);

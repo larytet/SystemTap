@@ -6627,6 +6627,16 @@ self_unwind_declarations(unwindsym_dump_context *ctx)
 void
 emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 {
+  // Add a .eh_frame terminator dummy object file, much like
+  // libgcc/crtstuff.c's EH_FRAME_SECTION_NAME closer.  We need this in
+  // order for runtime/sym.c 
+  translator_output *T_800 = s.op_create_auxiliary(true);
+  T_800->newline() << "__extension__ unsigned int T_800 []"; // assumed 32-bits wide
+  T_800->newline(1) << "__attribute__((used, section(\".eh_frame\"), aligned(4)))";
+  T_800->newline() << "= { 0 };";
+  T_800->newline(-1);
+  T_800->assert_0_indent (); // flush to disk
+
   // Print out a definition of the runtime's _stp_modules[] globals.
   ctx->output << "\n";
   self_unwind_declarations(ctx);
