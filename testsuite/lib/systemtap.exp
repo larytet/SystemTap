@@ -387,7 +387,7 @@ proc fullpath { path } {
 }
 
 proc get_system_info {} {
-    global Host Snapshot Distro GCC_Version env SElinux
+    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux
 
     set Host [exec /bin/uname -a]
     if [file exists ../SNAPSHOT] {
@@ -412,9 +412,12 @@ proc get_system_info {} {
     set n [exec echo "__GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__" | cpp -P]
     set n [string map {" " "."} $n]
     set n [string map {"\n" ""} $n]
-    # Plus full version between square brackets.
+    set GCC_Version "$n"
+    # Plus full version between square brackets for GCC_FullVersion
     set full [exec gcc --version | head -1]
-    set GCC_Version "$n \[$full\]"
+    set GCC_FullVersion "$n \[$full\]"
+    # Parse elfutils version stap was compiled with
+    regexp {version [^/]*/([^,]*)} [exec stap -V 2>@ stdout] all ELF_Version
     # selinux status
     if [file exists /usr/sbin/getenforce] {
         set SElinux [exec /usr/sbin/getenforce]
