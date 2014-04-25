@@ -607,60 +607,6 @@ static void _stp_kmodule_update_address(const char* module,
                                         unsigned long address)
 {
   unsigned mi, si;
-#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)
-  if(!strcmp(module, THIS_MODULE->name)){
-    if(reloc && !strcmp(".altinstr_replacement", reloc)){
-      _stp_num_modules++;
-      _stp_module_self.name = THIS_MODULE->name;
-      _stp_module_self.path = THIS_MODULE->name; //we've already been inserted at this point, so the path variable will still be unique
-    }
-    if(reloc && !strcmp(".note.gnu.build-id",reloc)){
-      _stp_module_self.notes_sect = address;
-    }
-    if(reloc && !strcmp(".eh_frame", reloc)){
-      void* addr =(void*) address;
-      u32 seg_length = 1;
-      u32 total_length = 0;
-
-      /* Assume that there will be a 0x00000000 terminator word.  For
-         userspace, this comes from crtend.o.  For us, this is ensured
-         by translate.cxx's T_800 terminator. */
-      while (seg_length != 0){
-	seg_length = get_unaligned((u32*) addr);
-        if (seg_length == ~0) /* quietly give up on 8-byte length */
-            seg_length = 0;
-	addr += seg_length + 4;
-	total_length += seg_length + 4;
-      }
-      total_length -= 4; //remove last increment
-      _stp_module_self.eh_frame_len = total_length;
-      _stp_module_self.eh_frame = (void*)address;
-    }
-    if(reloc && !strcmp(".strtab",reloc)){
-      int i;
-      unsigned long j = 0;
-      struct module *mod = THIS_MODULE;
-      if(mod){
-	for(i = 0; i < mod->num_symtab; i++){
-	  j += sizeof(mod->symtab[i]);
-	  //	  _stp_module_self_symbols_0[i].addr = (mod->symtab[i].st_value - address);
-	  //	  _stp_module_self_symbols_0[i].symbol = (mod->strtab + mod->symtab[i].st_name);
-	  //	  _stp_printf("0x%lx, \"%s\" %d\n",(mod->symtab[i].st_value - address),(mod->strtab + mod->symtab[i].st_name), mod->num_symtab);
-	  //	  _stp_print_flush();
-	}
-	_stp_module_self.sections[0].size = j;
-	_stp_module_self.sections[0].static_addr = address;
-      if(mod->core_text_size > mod->init_text_size)
-	  _stp_module_self.sections[1].size = mod->core_text_size;
-	else
-	  _stp_module_self.sections[1].size = mod->init_text_size;
-      }
-    }
-    if(reloc && !strcmp(".text",reloc)){
-      _stp_module_self.sections[1].static_addr = address;
-    }
-  }
-#endif /* defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA) */
   for (mi=0; mi<_stp_num_modules; mi++)
     {
       const char *note_sectname = ".note.gnu.build-id";

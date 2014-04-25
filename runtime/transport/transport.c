@@ -427,6 +427,10 @@ static int _stp_transport_init(void)
 	if (_stp_print_init() < 0)
 		goto err2;
 
+	/* set _stp_module_self dynamic info */
+	if (_stp_module_update_self() < 0)
+		goto err3;
+
 	/* start transport */
 	_stp_transport_data_fs_start();
 

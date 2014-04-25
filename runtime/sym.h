@@ -97,7 +97,7 @@ struct _stp_module {
 
 /* Defined by translator-generated stap-symbols.h. */
 static struct _stp_module *_stp_modules [];
-static unsigned _stp_num_modules;
+static const unsigned _stp_num_modules;
 
 /* Used in the unwinder to special case unwinding through kretprobes. */
 /* Initialized through translator (stap-symbols.h) relative to kernel */

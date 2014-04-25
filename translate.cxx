@@ -6647,7 +6647,7 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
     }
   ctx->output << "& _stp_module_self,\n";
   ctx->output << "};\n";
-  ctx->output << "static unsigned _stp_num_modules = " << ctx->stp_module_index << ";\n";
+  ctx->output << "static const unsigned _stp_num_modules = ARRAY_SIZE(_stp_modules);\n";
 
   ctx->output << "static unsigned long _stp_kretprobe_trampoline = ";
   // Special case for -1, which is invalid in hex if host width > target width.
