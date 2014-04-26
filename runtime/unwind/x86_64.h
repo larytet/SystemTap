@@ -106,29 +106,40 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
 					    int sanitize)
 {
         if(regs == NULL){
-	        asm("lea (%%rip), %1 \n\t"
-		    "mov %%r15, 0%0 \n\t"
-		    "mov %%r14, 8%0 \n\t"
-		    "mov %%r13, 16%0 \n\t"
-		    "mov %%r12, 24%0 \n\t"
-		    "mov %%rbp, 32%0 \n\t"
-		    "mov %%rbx, 40%0 \n\t"
-		    "mov %%r11, 48%0 \n\t"
-		    "mov %%r10, 56%0 \n\t"
-		    "mov %%r9, 64%0 \n\t"
-		    "mov %%r8, 72%0 \n\t"
-		    "mov %%rax, 80%0 \n\t"
-		    "mov %%rcx, 88%0 \n\t"
-		    "mov %%rdx, 96%0 \n\t"
-		    "mov %%rsi, 104%0 \n\t"
-		    "mov %%rdi, 112%0 \n\t"
-		    "mov %%cs, 136%0 \n\t"
-		    "mov %%rsp, 152%0 \n\t"
+		/* NB: This uses an "=m" output constraint to indicate we're
+		 * writing all of info->regs, but then uses an "r" input
+		 * pointer for the actual writes.  This is to be sure we have
+		 * something we can offset properly.  */
+		asm("lea (%%rip), %1 \n\t"
+		    "mov %%r15,   0(%2) \n\t"
+		    "mov %%r14,   8(%2) \n\t"
+		    "mov %%r13,  16(%2) \n\t"
+		    "mov %%r12,  24(%2) \n\t"
+		    "mov %%rbp,  32(%2) \n\t"
+		    "mov %%rbx,  40(%2) \n\t"
+		    "mov %%r11,  48(%2) \n\t"
+		    "mov %%r10,  56(%2) \n\t"
+		    "mov %%r9,   64(%2) \n\t"
+		    "mov %%r8,   72(%2) \n\t"
+		    "mov %%rax,  80(%2) \n\t"
+		    "mov %%rcx,  88(%2) \n\t"
+		    "mov %%rdx,  96(%2) \n\t"
+		    "mov %%rsi, 104(%2) \n\t"
+		    "mov %%rdi, 112(%2) \n\t"
+		    /* "mov %%orig_rax, 120(%2) \n\t" */
+		    /* "mov %%rip, 128(%2) \n\t" */
+		    "mov %%cs, 136(%2) \n\t"
+		    /* "mov %%eflags, 144(%2) \n\t" */
+		    "mov %%rsp, 152(%2) \n\t"
+		    "mov %%ss, 160(%2) \n\t"
+		    : "=m" (info->regs),
 #ifdef STAPCONF_X86_UNIREGS
-		    : "=m"(info->regs), "=r" (info->regs.ip));
+		      "=r" (info->regs.ip)
 #else
-		    : "=m"(info->regs), "=r" (info->regs.rip));
+		      "=r" (info->regs.rip)
 #endif /* STAPCONF_X86_UNIREGS */
+		    : "r" (&info->regs)
+		    );
 	        return;
         }
 
