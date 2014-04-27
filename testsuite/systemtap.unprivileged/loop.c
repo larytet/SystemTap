@@ -19,8 +19,10 @@ inline int ibar (void) {
   return libloopfunc ();
 }
 
-/* We need a threaded app. */
-inline int tbar (void) {
+/* We need a threaded app.  It should not be inline,
+   so a .callee("tbar") test will require the GNU_call_site* DWARF goo
+   to match, not just the presence of a mere DW_AT_inline=3 case. */
+int tbar (void) {
   void *x;
   int j = 0;
   STAP_PROBE(_test_, main_enter);

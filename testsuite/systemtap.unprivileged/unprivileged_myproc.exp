@@ -1,5 +1,4 @@
 set test "unprivileged myproc"
-
 if {![installtest_p]} { untested $test; return }
 if {![uprobes_p]} { untested $test; return }
 
@@ -320,6 +319,19 @@ proc test_probes { privilege } {
 	    {
 		setup_kfail GCC *-*-*
 	    }
+	    process(string).function(string).callee(string) -
+	    process(string).function(string).callees -
+	    process(string).function(string).callees(number) -
+	    process.function(string).callee(string) -
+	    process.function(string).callees -
+	    process.function(string).callees(number)
+            {
+                global GCC_Version
+                verbose -log "gcc version $GCC_Version"
+                if {[strverscmp $GCC_Version 4.7] < 0} then {
+                    setup_kfail GCC *-*-*
+                }
+            }
 	    process.function(number).return -
 	    process.function(string).return -
 	    process.library(string).function(number).return -
