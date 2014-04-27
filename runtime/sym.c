@@ -413,6 +413,8 @@ static int _stp_usermodule_check(struct task_struct *tsk, const char *path_name,
   return 0;
 #endif
 
+  WARN_ON(!path_name);
+
   for (i = 0; i < _stp_num_modules; i++)
     {
       m = _stp_modules[i];
