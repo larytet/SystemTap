@@ -2361,7 +2361,7 @@ probe nd_syscall.inotify_rm_watch = kprobe.function("sys_inotify_rm_watch") ?
 	name = "inotify_rm_watch"
 	asmlinkage()
 	fd = int_arg(1)
-	wd = uint_arg(2)
+	wd = int_arg(2)
 	argstr = sprintf("%d, %d", fd, wd)
 }
 probe nd_syscall.inotify_rm_watch.return = kprobe.function("sys_inotify_rm_watch").return ?

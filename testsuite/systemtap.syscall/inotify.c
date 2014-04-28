@@ -24,5 +24,30 @@ int main()
   //staptest// inotify_init1 (IN_NONBLOCK|IN_CLOEXEC) = NNNN
 #endif
 
+  inotify_init1(-1);
+  //staptest// inotify_init1 (IN_[^ ]+|XXXX) = -NNNN
+
+  inotify_add_watch(-1, "/tmp", IN_MODIFY);
+  //staptest// inotify_add_watch (-1, "/tmp", IN_MODIFY) = -NNNN
+
+  inotify_add_watch(fd, (char *)-1, IN_MODIFY);
+#ifdef __s390__
+  //staptest// inotify_add_watch (NNNN, [7]?[f]+, IN_MODIFY) = -NNNN (EFAULT)
+#else
+  //staptest// inotify_add_watch (NNNN, [f]+, IN_MODIFY) = -NNNN (EFAULT)
+#endif
+
+  wd = inotify_add_watch(fd, "/tmp", -1);
+  //staptest// inotify_add_watch (NNNN, "/tmp", IN_[^ ]+|XXXX) =
+
+  inotify_rm_watch(fd, wd);
+  //staptest// inotify_rm_watch (NNNN, NNNN) =
+
+  inotify_rm_watch(-1, wd);
+  //staptest// inotify_rm_watch (-1, NNNN) = -NNNN (EBADF)
+
+  inotify_rm_watch(fd, -1);
+  //staptest// inotify_rm_watch (NNNN, -1) = -NNNN (EINVAL)
+
   return 0;
 }

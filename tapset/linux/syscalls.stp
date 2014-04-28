@@ -2122,13 +2122,13 @@ probe syscall.init_module.return = kernel.function("sys_init_module").return ?
 probe syscall.inotify_add_watch = kernel.function("sys_inotify_add_watch").call ?
 {
 	name = "inotify_add_watch"
-	fd = $fd
-	mask = $mask
+	fd = __int32($fd)
+	mask = __uint32($mask)
 	path_uaddr = @choose_defined($pathname, $path)
 	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%d, %s, %s", $fd,
-		user_string_quoted(@choose_defined($pathname, $path)),
-		_inotify_watch_mask_str($mask))
+	argstr = sprintf("%d, %s, %s", __int32($fd),
+			 user_string_quoted(@choose_defined($pathname, $path)),
+			 _inotify_watch_mask_str(__uint32($mask)))
 }
 
 probe syscall.inotify_add_watch.return = kernel.function("sys_inotify_add_watch").return ?
@@ -2151,7 +2151,7 @@ probe __syscall.inotify_init1 = kernel.function("sys_inotify_init1").call ?
 	@__syscall_compat_gate(%{ __NR_inotify_init1 %},
 			       %{ __NR_compat_inotify_init1 %})
 	name = "inotify_init1"
-	flags = $flags
+	flags = __int32($flags)
 	argstr = _inotify_init1_flag_str(flags)
 }
 probe __syscall.inotify_init = kernel.function("sys_inotify_init").call ?
@@ -2186,9 +2186,9 @@ probe __syscall.inotify_init.return =
 probe syscall.inotify_rm_watch = kernel.function("sys_inotify_rm_watch").call ?
 {
 	name = "inotify_rm_watch"
-	fd = $fd
-	wd = $wd
-	argstr = sprintf("%d, %d", $fd, $wd)
+	fd = __int32($fd)
+	wd = __int32($wd)
+	argstr = sprintf("%d, %d", __int32($fd), __int32($wd))
 }
 probe syscall.inotify_rm_watch.return = kernel.function("sys_inotify_rm_watch").return ?
 {
