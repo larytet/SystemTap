@@ -45,6 +45,9 @@ int main()
     accept4(s, (struct sockaddr *)&sin1, (socklen_t *)-1, 0);
     //staptest// accept4 (NNNN, XXXX, 0x[f]+, 0x0) = -NNNN (EINVAL)
 
+#ifndef SOCK_CLOEXEC
+#define SOCK_CLOEXEC 02000000
+#endif
     accept4(s, (struct sockaddr *)&sin1, (socklen_t *)&sinlen, SOCK_CLOEXEC);
     //staptest// accept4 (NNNN, XXXX, XXXX, SOCK_CLOEXEC) = -NNNN (EINVAL)
 
