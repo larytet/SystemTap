@@ -42,7 +42,7 @@ function _task_rlimit_cur:long (task:long, nd_limit:long)
     return @cast(rlimit, "rlimit", "kernel<linux/sched.h>")[nd_limit]->rlim_cur;
 }
 
-/* sfunction task_rlimit - The current resource limit of the tash
+/* sfunction task_rlimit - The current resource limit of the task
  *
  * @task: task_struct pointer
  * @lim_str: String representing limit.
