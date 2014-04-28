@@ -49,7 +49,10 @@ proc run_one_test {filename flags bits suite} {
 	return
     }
 
-    set cmd "staprun ${test_module} -c $syscall_dir/${testname}"
+    # Use -R here, in case a previous staprun hangs up or leaves the
+    # syscall.ko module in memory, which would block all subsequent
+    # invocations.
+    set cmd "staprun -R ${test_module} -c $syscall_dir/${testname}"
     
     # Extract additional C flags needed to compile
     set add_flags ""
