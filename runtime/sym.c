@@ -313,7 +313,7 @@ static int _stp_build_id_check (struct _stp_module *m,
 }
 
 
-/* Validate module/kernel based on build-id (if present)
+/* Validate all-modules + kernel based on build-id (if present).
 *  The completed case is the following combination:
 *	   Debuginfo 		 Module			         Kernel	
 * 			   X				X
@@ -327,6 +327,7 @@ static int _stp_module_check(void)
   struct _stp_module *m = NULL;
   unsigned long notes_addr, base_addr;
   unsigned i,j;
+  int rc = 0;
 
 #ifdef STP_NO_BUILDID_CHECK
   return 0;
@@ -335,8 +336,12 @@ static int _stp_module_check(void)
   for (i = 0; i < _stp_num_modules; i++)
     {
       m = _stp_modules[i];
+
       if (m->build_id_len > 0 && m->notes_sect != 0) {
           dbug_sym(1, "build-id validation [%s]\n", m->name); /* kernel only */
+
+          /* skip userspace program */
+          if (m->name[0] != '/') continue;
 
           /* notes end address */
           if (!strcmp(m->name, "kernel")) {
@@ -354,10 +359,12 @@ static int _stp_module_check(void)
                   notes_addr, base_addr);
               continue;
           }
-          return _stp_build_id_check (m, notes_addr, NULL);
+
+          rc |=  _stp_build_id_check (m, notes_addr, NULL);
       } /* end checking */
     } /* end loop */
-  return 0;
+
+  return rc;
 }
 
 
@@ -374,9 +381,13 @@ static int _stp_kmodule_check (const char *name)
   return 0;
 #endif
 
+  WARN_ON(!name || name[0]=='/'); // non-userspace only
+
   for (i = 0; i < _stp_num_modules; i++)
     {
       m = _stp_modules[i];
+
+      /* PR16406 must be unique kernel module name (non-/-prefixed path) */
       if (strcmp (name, m->name)) continue;
 
       if (m->build_id_len > 0 && m->notes_sect != 0) {
@@ -395,7 +406,7 @@ static int _stp_kmodule_check (const char *name)
       } /* end checking */
     } /* end loop */
 
-  return 0; /* name not found */
+  return 0; /* not found */
 }
 
 
@@ -413,13 +424,15 @@ static int _stp_usermodule_check(struct task_struct *tsk, const char *path_name,
   return 0;
 #endif
 
-  WARN_ON(!path_name);
+  WARN_ON(!path_name || path_name[0]!='/'); // user-space only
 
   for (i = 0; i < _stp_num_modules; i++)
     {
       m = _stp_modules[i];
-      if (strcmp(path_name, _stp_modules[i]->path) != 0)
-	continue;
+
+      /* PR16406 must be unique userspace name (/-prefixed path); it's also in m->name */
+      if (strcmp(path_name, m->path) != 0) continue;
+
       if (m->build_id_len > 0) {
 	int ret, build_id_len;
 
@@ -436,7 +449,7 @@ static int _stp_usermodule_check(struct task_struct *tsk, const char *path_name,
       }
     }
 
-  return 0;
+  return 0; /* not found */
 }
 
 

@@ -241,7 +241,7 @@ proc test_probes { privilege } {
     
     set effective_uid [exec /usr/bin/id -u]
     set stap [exec /usr/bin/which stap]
-    
+
     # Start the test executable in the background
     set our_pid [exec ./loop &]
     verbose -log "our ./loop pid is $our_pid"
@@ -251,6 +251,8 @@ proc test_probes { privilege } {
     if {$effective_uid != 0} {
 	# ask for password here, if required ...
 	as_root { true }
+        # trigger PR16406 scenario if possible
+        as_root { /sbin/modprobe loop }
 	# ... and not here.
 	exec sudo ./loop &
 	# Give it a chance to start

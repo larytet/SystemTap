@@ -6210,17 +6210,17 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   const char *mainfile;
   dwfl_module_info (m, NULL, NULL, NULL, NULL, NULL, &mainfile, NULL);
 
-  // For user space modules store canonical path and base name.
+  // For user space modules store canonical path.
   // For kernel modules just the name itself.
   string mainpath = resolve_path(mainfile);
-  const char *mainname = mainpath.c_str() + mainpath.rfind('/');
-  if (modname[0] == '/')
-    mainname++;
+  string mainname;
+  if (modname[0] == '/') // userspace
+    mainname = lex_cast_qstring (path_remove_sysroot(c->session,mainpath));
   else
-    mainname = modname.c_str();
+    mainname = lex_cast_qstring (modname);
 
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
-  c->output << ".name = " << lex_cast_qstring (mainname) << ", \n";
+  c->output << ".name = " << mainname.c_str() << ",\n";
   c->output << ".path = " << lex_cast_qstring (path_remove_sysroot(c->session,mainpath)) << ",\n";
   c->output << ".eh_frame_addr = 0x" << hex << eh_addr << dec << ", \n";
   c->output << ".unwind_hdr_addr = 0x" << hex << eh_frame_hdr_addr

@@ -72,8 +72,8 @@ struct _stp_section {
 };
 
 struct _stp_module {
-        const char* name; /* basename, may be duplicate! */
-        const char* path; /* canonical filesystem path used for runtime matching */
+        const char* name; /* module name (kernel) or /canonical/path for userspace*/
+        const char* path; /* canonical filesystem path (kernel .ko or user) */
 	struct _stp_section *sections;
   	unsigned num_sections;
 
