@@ -953,6 +953,83 @@ function _sys_pipe2_flag_str:string (f:long)
     str[strlen(str)-1] = '\0';
 %}
 
+%{
+#include <linux/fcntl.h>
+ 
+static const _stp_val_array const _stp_open_mode_flags_list[] = {
+#ifdef O_CREAT
+	V(O_CREAT),
+#endif
+#ifdef O_EXCL
+	V(O_EXCL),
+#endif
+#ifdef O_NOCTTY
+	V(O_NOCTTY),
+#endif
+#ifdef O_TRUNC
+	V(O_TRUNC),
+#endif
+#ifdef O_APPEND
+	V(O_APPEND),
+#endif
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+
+/* Here's a comment from the kernel source:
+ *
+ * ====
+ * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
+ * the O_SYNC flag.  We continue to use the existing numerical value
+ * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * This new value is used to request true Posix O_SYNC semantics.  It is
+ * defined in this strange way to make sure applications compiled against
+ * new headers get at least O_DSYNC semantics on older kernels.
+ * ====
+ *
+ * On RHEL6 (2.6.32-431.3.1.el6.x86_64), the user headers are ahead of
+ * the kernel source and define O_DSYNC, but the kernel just ignores
+ * the extra bit set. We'll try to handle it here.
+ */
+#ifndef O_DSYNC
+	{ O_SYNC | 04000000, "O_SYNC" },
+#endif
+#ifdef O_SYNC
+	V(O_SYNC),
+#endif
+#ifdef O_DSYNC
+	V(O_DSYNC),
+#endif
+#ifdef O_ASYNC
+	V(O_ASYNC),
+#elif defined(FASYNC)
+	{ FASYNC, "O_ASYNC" },
+#endif
+#ifdef O_DIRECT
+	V(O_DIRECT),
+#endif
+#ifdef O_LARGEFILE
+	V(O_LARGEFILE),
+#endif
+#ifdef O_DIRECTORY
+	V(O_DIRECTORY),
+#endif
+#ifdef O_NOFOLLOW
+	V(O_NOFOLLOW),
+#endif
+#ifdef O_NOATIME
+	V(O_NOATIME),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+#ifdef O_PATH
+	V(O_PATH),
+#endif
+	{0, NULL}
+};
+%}
+
 /* `man 2 open` for more information */
 function _sys_open_flag_str:string (f:long)
 %{ /* pure */
@@ -970,65 +1047,12 @@ function _sys_open_flag_str:string (f:long)
 		strlcpy (STAP_RETVALUE, "O_RDONLY", MAXSTRINGLEN);
 	}
 
-#ifdef O_APPEND
-	if (flags & O_APPEND)
-		strlcat (STAP_RETVALUE, "|O_APPEND", MAXSTRINGLEN);
-#endif
-#ifdef O_ASYNC
-	if (flags & O_ASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#elif defined(FASYNC)
-	if (flags & FASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#endif
-#ifdef O_CLOEXEC
-	if (flags & O_CLOEXEC)
-		strlcat (STAP_RETVALUE, "|O_CLOEXEC", MAXSTRINGLEN);
-#endif
-#ifdef O_CREAT
-	if (flags & O_CREAT)
-		strlcat (STAP_RETVALUE, "|O_CREAT", MAXSTRINGLEN);
-#endif
-#ifdef O_DIRECT
-	if (flags & O_DIRECT)
-		strlcat (STAP_RETVALUE, "|O_DIRECT", MAXSTRINGLEN);
-#endif
-#ifdef O_DIRECTORY
-	if (flags & O_DIRECTORY)
-		strlcat (STAP_RETVALUE, "|O_DIRECTORY", MAXSTRINGLEN);
-#endif
-#ifdef O_EXCL
-	if (flags & O_EXCL)
-		strlcat (STAP_RETVALUE, "|O_EXCL", MAXSTRINGLEN);
-#endif
-#ifdef O_LARGEFILE
-	if (flags & O_LARGEFILE)
-		strlcat (STAP_RETVALUE, "|O_LARGEFILE", MAXSTRINGLEN);
-#endif
-#ifdef O_NOATIME
-	if (flags & O_NOATIME)
-		strlcat (STAP_RETVALUE, "|O_NOATIME", MAXSTRINGLEN);
-#endif
-#ifdef O_NOCTTY
-	if (flags & O_NOCTTY)
-		strlcat (STAP_RETVALUE, "|O_NOCTTY", MAXSTRINGLEN);
-#endif
-#ifdef O_NOFOLLOW
-	if (flags & O_NOFOLLOW)
-		strlcat (STAP_RETVALUE, "|O_NOFOLLOW", MAXSTRINGLEN);
-#endif
-#ifdef O_NONBLOCK
-	if (flags & O_NONBLOCK)
-		strlcat (STAP_RETVALUE, "|O_NONBLOCK", MAXSTRINGLEN);
-#endif
-#ifdef O_SYNC
-	if (flags & O_SYNC)
-		strlcat (STAP_RETVALUE, "|O_SYNC", MAXSTRINGLEN);
-#endif
-#ifdef O_TRUNC
-	if (flags & O_TRUNC)
-		strlcat (STAP_RETVALUE, "|O_TRUNC", MAXSTRINGLEN);
-#endif
+	flags &= ~O_ACCMODE;
+	if (flags) {
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_open_mode_flags_list, flags,
+				   STAP_RETVALUE, MAXSTRINGLEN);
+	}
 %}
 
 %{

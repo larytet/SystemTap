@@ -737,7 +737,7 @@ probe nd_syscall.creat = kprobe.function("sys_creat") ?
 {
 	name = "creat"
 	asmlinkage()
-	mode = int_arg(2)
+	mode = uint_arg(2)
 	pathname = user_string_quoted(pointer_arg(1))
 	argstr = sprintf("%s, %#o", user_string_quoted(pointer_arg(1)), mode)
 }

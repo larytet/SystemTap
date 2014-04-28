@@ -640,7 +640,7 @@ probe syscall.close = kernel.function("sys_close").call
 {
 	@__syscall_compat_gate(%{ __NR_close %}, %{ __NR_compat_close %})
 	name = "close"
-	fd = $fd
+	fd = __int32($fd)
 	argstr = sprint(fd)
 }
 probe syscall.close.return = kernel.function("sys_close").return
@@ -649,6 +649,7 @@ probe syscall.close.return = kernel.function("sys_close").return
 	name = "close"
 	retstr = return_str(1, $return)
 }
+
 # connect ____________________________________________________
 # long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 probe syscall.connect = kernel.function("sys_connect").call ?
@@ -671,9 +672,10 @@ probe syscall.connect.return = kernel.function("sys_connect").return ?
 probe syscall.creat = kernel.function("sys_creat").call ?
 {
 	name = "creat"
-	mode = $mode
+	mode = __uint32($mode)
 	pathname = user_string_quoted($pathname)
-	argstr = sprintf("%s, %#o", user_string_quoted($pathname), $mode)
+	argstr = sprintf("%s, %#o", user_string_quoted($pathname),
+			 __uint32($mode))
 }
 probe syscall.creat.return = kernel.function("sys_creat").return ?
 {
