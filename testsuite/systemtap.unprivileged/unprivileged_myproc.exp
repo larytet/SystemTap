@@ -320,11 +320,7 @@ proc test_probes { privilege } {
 		setup_kfail GCC *-*-*
 	    }
 	    process(string).function(string).callee(string) -
-	    process(string).function(string).callees -
-	    process(string).function(string).callees(number) -
-	    process.function(string).callee(string) -
-	    process.function(string).callees -
-	    process.function(string).callees(number)
+	    process.function(string).callee(string)
             {
                 global GCC_Version
                 verbose -log "gcc version $GCC_Version"
