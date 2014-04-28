@@ -1,5 +1,10 @@
 * What's new in version 2.5
 
+- Systemtap now supports backtracing through its own, invoking module.
+
+- Java probes now support backtracing using the print_java_backtrace()
+  and sprint_java_backtrace() functions.
+
 - Statement probes (e.g. process.statement) are now faster to resolve,
   more precise, and work better with inlined functions.
 
