@@ -36,12 +36,17 @@ int tbar (void) {
 
 main (int argc, char *argv[]) {
   int j = 0;
+  /* Don't loop if an argument was passed */
+  /* We split into two cases rather than check in a single loop because
+   * GCC can output screwy debuginfo otherwise (RHBZ1092144) */
+  if (argc > 1) {
+    j += ibar ();
+    j += tbar ();
+    return 0;
+  }
   for (;;) {
     j += ibar ();
     j += tbar ();
-    /* Don't loop if an argument was passed */
-    if (argc > 1)
-      return 0;
 #if !defined NOSLEEP
     usleep (250000); /* 1/4 second pause.  */
 #endif
