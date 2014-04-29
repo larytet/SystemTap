@@ -379,7 +379,7 @@ function python2_get_variable (variable, skip_name)
     }
 }
 
-probe python.function_entry = process(@PYTHON2_LIBRARY).mark ("function__entry")
+probe python2.function_entry = process(@PYTHON2_LIBRARY).mark ("function__entry")
 {
   # fedora and rhel python pass function name and line number, not frame pointer
   # so grab the frame pointer using debuginfo
@@ -387,9 +387,12 @@ probe python.function_entry = process(@PYTHON2_LIBRARY).mark ("function__entry")
    python2_frame = $f
 }
 
-probe python.function_return = process(@PYTHON2_LIBRARY).mark ("function__return")
+probe python2.function_return = process(@PYTHON2_LIBRARY).mark ("function__return")
 {
   # fedora and rhel python pass function name and line number, not frame pointer
   # unfortunately the frame pointer is not always available in debuginfo
   # python2_frame = $arg1
 }
+
+probe python.function_entry = python2.function_entry {}
+probe python.function_return = python2.function_return {}
