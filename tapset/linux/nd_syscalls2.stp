@@ -3549,11 +3549,13 @@ probe nd_syscall.sysfs = kprobe.function("sys_sysfs") ?
 	arg1 = ulong_arg(2)
 	arg2 = ulong_arg(3)
 	if (option == 1)
-		argstr = sprintf("%d, %s, %d", option, user_string_quoted(arg1), arg2)
+		argstr = sprintf("%d, %s", option, user_string_quoted(arg1))
 	else if (option == 2)
 		argstr = sprintf("%d, %d, %p", option, arg1, arg2)
+	else if (option == 3)
+		argstr = sprintf("%d", option)
 	else
-		argstr = sprintf("%d, %d, %d", option, arg1, arg2)
+		argstr = sprintf("%d, 0x%x, 0x%x", option, arg1, arg2)
 }
 probe nd_syscall.sysfs.return = kprobe.function("sys_sysfs").return ?
 {
