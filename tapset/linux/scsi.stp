@@ -1,6 +1,6 @@
 // scsi tapset
 // Copyright (C) 2005, 2006, 2009 IBM Corp.
-// Copyright (C) 2010 Red Hat
+// Copyright (C) 2014 Red Hat
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General

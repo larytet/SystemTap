@@ -42,7 +42,7 @@ output:
 .SAMPLE
 % stap -V
 Systemtap translator/driver (version 2.3/0.156, rpm 2.3-1.fc19)
-Copyright (C) 2005-2013 Red Hat, Inc. and others
+Copyright (C) 2005-2014 Red Hat, Inc. and others
 [...]
 .ESAMPLE
 This indicates systemtap version 2.3 with elfutils version 0.156.

@@ -1,6 +1,6 @@
 /*  -*- linux-c -*-
  * Stack tracing functions
- * Copyright (C) 2005-2009, 2011 Red Hat Inc.
+ * Copyright (C) 2005-2009, 2014 Red Hat Inc.
  * Copyright (C) 2005 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
