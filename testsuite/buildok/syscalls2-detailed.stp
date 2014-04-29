@@ -902,7 +902,10 @@ probe syscall.shmctl.return ?
 probe syscall.compat_sys_shmctl ?
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v <= "2.5" %?
 	printf("%d, %d, %p\n", first, second, uptr_uaddr)
+%)
+	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
 }
 probe syscall.compat_sys_shmctl.return ?
 {

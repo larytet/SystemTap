@@ -2833,9 +2833,14 @@ probe syscall.shmctl.return = kernel.function("sys_shmctl").return ?
 probe syscall.compat_sys_shmctl = kernel.function("compat_sys_shmctl").call ?
 {
 	name = "compat_sys_shmctl"
+%( systemtap_v <= "2.5" %?
 	first = $first
 	second = $second
 	uptr_uaddr = $uptr
+%)
+	shmid = $first
+	cmd = $second
+	buf_uaddr = $uptr
 	argstr = sprintf("%d, %d, %p", $first, $second, $uptr)
 }
 probe syscall.compat_sys_shmctl.return = kernel.function("compat_sys_shmctl").return ?

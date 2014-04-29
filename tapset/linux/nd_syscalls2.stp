@@ -2902,10 +2902,15 @@ probe nd_syscall.shmctl.return = kprobe.function("sys_shmctl").return ?
 probe nd_syscall.compat_sys_shmctl = kprobe.function("compat_sys_shmctl") ?
 {
 	name = "compat_sys_shmctl"
+%( systemtap_v <= "2.5" %?
 	first = int_arg(1)
 	second = int_arg(2)
 	uptr_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", first, second, uptr_uaddr)
+%)
+	shmid = int_arg(1)
+	cmd = int_arg(2)
+	buf_uaddr = pointer_arg(3)
+	argstr = sprintf("%d, %d, %p", shmid, cmd, buf_uaddr)
 }
 probe nd_syscall.compat_sys_shmctl.return = kprobe.function("compat_sys_shmctl").return ?
 {

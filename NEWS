@@ -110,6 +110,10 @@
     deprecated in favor of the new '_msg_flags_str()' function.
   - The 'flags' and 'flags_str' variables in the 'syscall.accept' and
     'nd_syscall.accept' probe alias.
+  - The 'first', 'second', and 'uptr_uaddr' variables in the
+    'syscall.compat_sys_shmctl', and 'nd_syscall.compat_sys_shmctl'
+    probe aliases have been deprecated in favor of the new 'shmid',
+    'cmd', and 'buf_uaddr' variables.
 
 * What's new in version 2.4, 2013-11-06
 
