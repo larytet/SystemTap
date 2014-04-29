@@ -2471,12 +2471,9 @@ function _inotify_init1_flag_str:string(f:long)
 
 function _dup3_flag_str:string(f:long)
 %{ /* pure */
-#ifdef O_CLOEXEC
-	if (STAP_ARG_f == O_CLOEXEC)
-		strlcpy (STAP_RETVALUE, "O_CLOEXEC", MAXSTRINGLEN);
-	else
-#endif
-		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_open_mode_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{

@@ -703,8 +703,8 @@ probe syscall.delete_module.return = kernel.function("sys_delete_module").return
 probe syscall.dup = kernel.function("sys_dup").call
 {
 	name = "dup"
-	oldfd = $fildes
-	argstr = sprint($fildes)
+	oldfd = __int32($fildes)
+	argstr = sprint(__int32($fildes))
 }
 probe syscall.dup.return = kernel.function("sys_dup").return
 {
@@ -717,13 +717,13 @@ probe syscall.dup.return = kernel.function("sys_dup").return
 probe syscall.dup2 = kernel.function("sys_dup2").call
 {
 	name = "dup2"
-	oldfd = $oldfd
-	newfd = $newfd
+	oldfd = __int32($oldfd)
+	newfd = __int32($newfd)
 	# The dup2 syscall doesn't have a 'flags' argument. But, the
 	# syscall.dup2 and syscall.dup3 probes used to be combined, so
 	# both probes need a 'flags' variable.
 	flags = 0
-	argstr = sprintf("%d, %d", $oldfd, $newfd)
+	argstr = sprintf("%d, %d", __int32($oldfd), __int32($newfd))
 }
 probe syscall.dup2.return = kernel.function("sys_dup2").return
 {
@@ -737,10 +737,11 @@ probe syscall.dup3 = kernel.function("sys_dup3").call ?
 {
 	@__syscall_compat_gate(%{ __NR_dup3 %}, %{ __NR_compat_dup3 %})
 	name = "dup3";
-	oldfd = $oldfd
-	newfd = $newfd
-	flags = $flags
-	argstr = sprintf("%d, %d, %s", $oldfd, $newfd, _dup3_flag_str(flags));
+	oldfd = __int32($oldfd)
+	newfd = __int32($newfd)
+	flags = __int32($flags)
+	argstr = sprintf("%d, %d, %s", __int32($oldfd), __int32($newfd),
+			 _dup3_flag_str(flags));
 }
 probe syscall.dup3.return = kernel.function("sys_dup3").return ?
 {
