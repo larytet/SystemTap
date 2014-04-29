@@ -1190,7 +1190,7 @@ probe nd_syscall.fchmod = kprobe.function("sys_fchmod") ?
 	name = "fchmod"
 	asmlinkage()
 	fildes = int_arg(1)
-	mode = uint_arg(2) # SAFE?
+	mode = uint_arg(2)
 	argstr = sprintf("%d, %#o", fildes, mode)
 }
 probe nd_syscall.fchmod.return = kprobe.function("sys_fchmod").return ?

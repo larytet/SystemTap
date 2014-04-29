@@ -382,7 +382,7 @@ probe syscall.chmod = kernel.function("sys_chmod").call
 {
 	name = "chmod"
 	path = user_string_quoted($filename)
-	mode = $mode
+	mode = __uint32($mode)
 	argstr = sprintf("%s, %#o", user_string_quoted($filename), mode)
 }
 probe syscall.chmod.return = kernel.function("sys_chmod").return
@@ -1092,8 +1092,9 @@ probe syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 	dirfd = __int32($dfd)
 	dirfd_str = _dfd_str(__int32($dfd))
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	argstr = sprintf("%s, %s, %#o", dirfd_str, user_string_quoted($filename), $mode)
+	mode = __uint32($mode)
+	argstr = sprintf("%s, %s, %#o", dirfd_str,
+			 user_string_quoted($filename), __uint32($mode))
 }
 probe syscall.fchmodat.return = kernel.function("sys_fchmodat").return ?
 {
