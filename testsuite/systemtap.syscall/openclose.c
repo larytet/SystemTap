@@ -150,9 +150,21 @@ int main()
   open("foobarX", -1, S_IRWXU);
   //staptest// open ("foobarX", O_[^ ]+|XXXX, 0700) =
 
+  fd1 = open("foobarY", O_WRONLY|O_CREAT, -1);
+  //staptest// open ("foobarY", O_WRONLY|O_CREAT[[[[|O_LARGEFILE]]]]?, 037777777777) = NNNN
+
+  close(fd1);
+  //staptest// close (NNNN) = 0
+
 #if GLIBC_SUPPORT
   openat(AT_FDCWD, "foobarX", -1, S_IRWXU);
   //staptest// openat (AT_FDCWD, "foobarX", O_[^ ]+|XXXX, 0700) =
+
+  fd1 = openat(AT_FDCWD, "foobarZ", O_WRONLY|O_CREAT, -1);
+  //staptest// openat (AT_FDCWD, "foobarZ", O_WRONLY|O_CREAT[[[[|O_LARGEFILE]]]]?, 037777777777) = NNNN
+
+  close(fd1);
+  //staptest// close (NNNN) = 0
 #endif
 
   close(-1);
