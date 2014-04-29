@@ -615,7 +615,7 @@ systemtap_session::usage (int exitcode)
     "              variables (e.g. PATH, LD_LIBRARY_PATH) are assumed to be\n"
     "              relative to the sysroot.\n"
     "   --suppress-time-limits\n"
-    "              disable -DSTP_NO_OVERLOAD -DMAXACTION and -DMAXTRYACTION limits\n"
+    "              disable -DSTP_OVERLOAD, -DMAXACTION, and -DMAXTRYACTION limits\n"
     , compatible.c_str()) << endl
   ;
 
