@@ -4031,7 +4031,7 @@ probe nd_syscall.unlinkat = kprobe.function("sys_unlinkat") ?
 	dfd_str = _dfd_str(dfd)
 	pathname = pointer_arg(2)
 	pathname_str = user_string_quoted(pathname)
-	flag = int_arg(3)
+	flag = uint_arg(3)
 	flag_str = _at_flag_str(flag)
 	argstr = sprintf("%s, %s, %s", dfd_str, user_string_quoted(pathname), flag_str)
 }

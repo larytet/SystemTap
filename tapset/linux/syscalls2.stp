@@ -1821,7 +1821,7 @@ probe syscall.select.return = kernel.function("sys_select").return
 probe syscall.compat_select = kernel.function("compat_sys_select").call ?
 {
 	name = "select"
-	n = $n
+	n = __int32($n)
 	readfds_uaddr = $inp
 	writefds_uaddr = $outp
 	exceptfds_uaddr = $exp
@@ -3876,8 +3876,8 @@ probe syscall.unlinkat = kernel.function("sys_unlinkat").call ?
 	dfd_str = _dfd_str(__int32($dfd))
 	pathname = $pathname
 	pathname_str = user_string_quoted($pathname)
-	flag = $flag
-	flag_str = _at_flag_str($flag)
+	flag = __uint32($flag)
+	flag_str = _at_flag_str(__uint32($flag))
 	argstr = sprintf("%s, %s, %s", dfd_str, user_string_quoted($pathname),
 			 flag_str)
 }
