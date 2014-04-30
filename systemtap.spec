@@ -68,7 +68,7 @@
 
 Name: systemtap
 Version: 2.5
-Release: 2%{?dist}
+Release: 1%{?dist}
 # for version, see also configure.ac
 
 
@@ -1017,6 +1017,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Web Apr 30 2014 Jonathan Lebon <jlebon@redhat.com> - 2.5-1
+- Upstream release.
+
 * Thu Feb 13 2014 Lukas Berk <lberk@redhat.com>
 - Add directory checks for runtime-java sym links
 
