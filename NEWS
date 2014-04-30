@@ -1,4 +1,6 @@
-* What's new in version 2.5
+* What's new in version 2.6
+
+* What's new in version 2.5, 2014-04-30
 
 - Systemtap now supports backtracing through its own, invoking module.
 
