@@ -864,9 +864,9 @@ probe syscall.readlink = kernel.function("sys_readlink").call
 	name = "readlink"
 	path = user_string_quoted($path)
 	buf_uaddr = $buf
-	bufsiz = $bufsiz
+	bufsiz = __int32($bufsiz)
 	argstr = sprintf("%s, %p, %d", user_string_quoted($path),
-		$buf, $bufsiz)
+		$buf, __int32($bufsiz))
 }
 probe syscall.readlink.return = kernel.function("sys_readlink").return
 {
@@ -888,11 +888,11 @@ probe syscall.readlinkat = kernel.function("sys_readlinkat").call ?
 	dfd = __int32($dfd)
 	dfd_str = _dfd_str(__int32($dfd))
 	buf_uaddr = $buf
-	bufsiz = $bufsiz
+	bufsiz = __int32($bufsiz)
 	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %s, %p, %d", _dfd_str(__int32($dfd)),
 		user_string_quoted(@choose_defined($pathname, $path)),
-		$buf, $bufsiz)
+		$buf, __int32($bufsiz))
 }
 
 probe syscall.readlinkat.return = kernel.function("sys_readlinkat").return ?

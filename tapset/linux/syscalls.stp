@@ -2572,8 +2572,8 @@ probe syscall.linkat = kernel.function("sys_linkat").call ?
 	newdirfd = __int32($newdfd)
 	newdirfd_str = _dfd_str(__int32($newdfd))
 	newpath = user_string_quoted($newname)
-	flags = $flags
-	flags_str = _at_flag_str($flags)
+	flags = __int32($flags)
+	flags_str = _at_flag_str(__int32($flags))
 	argstr = sprintf("%s, %s, %s, %s, %s",
 			 olddirfd_str, user_string_quoted($oldname),
 			 newdirfd_str, user_string_quoted($newname),
