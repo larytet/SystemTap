@@ -1772,9 +1772,10 @@ systemtap_session::cmd_file ()
   wordexp_t words;
   int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
   string file;
-  if(rc == 0 && words.we_wordc > 0)
+  if(rc == 0)
     {
-      file = words.we_wordv[0];
+      if (words.we_wordc > 0)
+        file = words.we_wordv[0];
       wordfree (& words);
     }
   return file;
