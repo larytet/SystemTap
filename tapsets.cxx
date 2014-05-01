@@ -392,6 +392,8 @@ symbol_table
   module_info *mod_info;	// associated module
   map<string, func_info*> map_by_name;
   multimap<Dwarf_Addr, func_info*> map_by_addr;
+  map<string, Dwarf_Addr> globals;
+  map<string, Dwarf_Addr> locals;
   typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
   typedef pair<iterator_t, iterator_t> range_t;
 #ifdef __powerpc__
@@ -7698,6 +7700,12 @@ symbol_table::get_from_elf()
       if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
                    reject, addr, &high_addr);
+      if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
+               && GELF_ST_BIND(sym.st_info) == STB_GLOBAL)
+        globals[name] = addr;
+      if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
+               && GELF_ST_BIND(sym.st_info) == STB_LOCAL)
+        locals[name] = addr;
     }
   return info_present;
 }
