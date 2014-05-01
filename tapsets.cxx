@@ -399,11 +399,6 @@ symbol_table
 #endif
   void add_symbol(const char *name, bool weak, bool descriptor,
                   Dwarf_Addr addr, Dwarf_Addr *high_addr);
-  enum info_status read_symbols(FILE *f, const string& path);
-  enum info_status read_from_elf_file(const string& path,
-				      systemtap_session &sess);
-  enum info_status read_from_text_file(const string& path,
-				       systemtap_session &sess);
   enum info_status get_from_elf();
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
@@ -7612,103 +7607,6 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
   // TODO: Use a multimap in case there are multiple static
   // functions with the same name?
   map_by_addr.insert(make_pair(addr, fi));
-}
-
-enum info_status
-symbol_table::read_symbols(FILE *f, const string& path)
-{
-  // Based on do_kernel_symbols() in runtime/staprun/symbols.c
-  int ret;
-  char *name = 0;
-  char *mod = 0;
-  char type;
-  unsigned long long addr;
-  Dwarf_Addr high_addr = 0;
-  int line = 0;
-
-#if __GLIBC__ >2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 7)
-#define MS_FMT "%ms"
-#else
-#define MS_FMT "%as"
-#endif
-  // %ms (newer than %as) mallocs space for the string and stores its address.
-  while ((ret = fscanf(f, "%llx %c " MS_FMT " [" MS_FMT, &addr, &type, &name, &mod)) > 0)
-    {
-      auto_free free_name(name);
-      auto_free free_mod(mod);
-      line++;
-      if (ret < 3)
-        {
-          cerr << _F("Symbol table error: Line %d of symbol list from %s is not in correct format: address type name [module]\n",
-                     line, path.c_str());
-          // Caller should delete symbol_table object.
-          return info_absent;
-        }
-      else if (ret > 3)
-        {
-          // Modules are loaded above the kernel, so if we're getting
-          // modules, we're done.
-          break;
-        }
-      if (type == 'T' || type == 't' || type == 'W')
-        add_symbol(name, (type == 'W'), false, (Dwarf_Addr) addr, &high_addr);
-    }
-
-  if (map_by_addr.size() < 1)
-    {
-      cerr << _F("Symbol table error: %s contains no function symbols.\n",
-                 path.c_str()) << endl;
-      return info_absent;
-    }
-  return info_present;
-}
-
-// NB: This currently unused.  We use get_from_elf() instead because
-// that gives us raw addresses -- which we need for modules -- whereas
-// nm provides the address relative to the beginning of the section.
-enum info_status
-symbol_table::read_from_elf_file(const string &path,
-				 systemtap_session &sess)
-{
-  vector<string> cmd;
-  cmd.push_back("/usr/bin/nm");
-  cmd.push_back("-n");
-  cmd.push_back("--defined-only");
-  cmd.push_back("path");
-
-  FILE *f;
-  int child_fd;
-  pid_t child = stap_spawn_piped(sess.verbose, cmd, NULL, &child_fd);
-  if (child <= 0 || !(f = fdopen(child_fd, "r")))
-    {
-      // nm failures are detected by stap_waitpid
-      cerr << _F("Internal error reading symbol table from %s -- %s\n",
-                 path.c_str(), strerror(errno));
-      return info_absent;
-    }
-  enum info_status status = read_symbols(f, path);
-  if (fclose(f) || stap_waitpid(sess.verbose, child))
-    {
-      if (status == info_present)
-        sess.print_warning("nm cannot read symbol table from " + path);
-      return info_absent;
-    }
-  return status;
-}
-
-enum info_status
-symbol_table::read_from_text_file(const string& path,
-				  systemtap_session &sess)
-{
-  FILE *f = fopen(path.c_str(), "r");
-  if (!f)
-    {
-      sess.print_warning("cannot read symbol table from " + path + " -- " + strerror(errno));
-      return info_absent;
-    }
-  enum info_status status = read_symbols(f, path);
-  (void) fclose(f);
-  return status;
 }
 
 void
