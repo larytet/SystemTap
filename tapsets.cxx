@@ -5618,6 +5618,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 {
   enum regwidths {QI, QIh, HI, SI, DI};
   sdt_uprobe_var_expanding_visitor(systemtap_session& s,
+                                   dwflpp& dw,
                                    int elf_machine,
                                    const string & process_name,
 				   const string & provider_name,
@@ -5625,9 +5626,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 				   stap_sdt_probe_type probe_type,
 				   const string & arg_string,
 				   int ac):
-    session (s), elf_machine (elf_machine), process_name (process_name),
-    provider_name (provider_name), probe_name (probe_name),
-    probe_type (probe_type), arg_count ((unsigned) ac)
+    session (s), dw (dw), elf_machine (elf_machine),
+    process_name (process_name), provider_name (provider_name),
+    probe_name (probe_name), probe_type (probe_type), arg_count ((unsigned) ac)
   {
     /* Register name mapping table depends on the elf machine of this particular
        probe target process/file, not upon the host.  So we can't just
@@ -5667,6 +5668,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
          DRI ("%r14b", 14, QI);
       DRI ("%r15", 15, DI); DRI ("%r15d", 15, SI); DRI ("%r15w", 15, HI);
          DRI ("%r15b", 15, QI);
+      DRI ("%rip", 16, DI); DRI ("%eip", 16, SI); DRI ("%ip", 16, HI);
     } else if (elf_machine == EM_386) {
       DRI ("%eax", 0, SI); DRI ("%ax", 0, HI); DRI ("%al", 0, QI);
          DRI ("%ah", 0, QIh);
@@ -5832,6 +5834,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   }
 
   systemtap_session& session;
+  dwflpp& dw;
   int elf_machine;
   const string & process_name;
   const string & provider_name;
@@ -5910,6 +5913,8 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
+  static unsigned tick = 0;
+
   try
     {
       unsigned argno = 0; // the N in $argN
@@ -6267,6 +6272,128 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           goto matched;
         }
 
+      // test for [OFF+]VARNAME[+OFF][(REG)], where VARNAME is a variable name.
+      // NB: Despite PR11821, we can use regnames here, since the parentheses
+      // make things unambiguous.
+      rc = regexp_match (asmarg, string("^(([0-9]+)[+])?([a-zA-Z_][a-zA-Z0-9_]*)([+][0-9]+)?([(](")+regnames+string(")[)])?$"), matches);
+      if (! rc)
+        {
+          assert(matches.size() >= 4);
+          string varname = matches[3];
+
+          // OFF can be before VARNAME (put in matches[2]) or after (put in
+          // matches[4]) (or both?). Seems like in most cases it comes after,
+          // unless the code was compiled with -fPIC.
+          int64_t offset = 0;
+          if (!matches[2].empty())
+            offset += lex_cast<int64_t>(matches[2]);
+          if (matches.size() >= 5 && !matches[4].empty())
+            offset += lex_cast<int64_t>(matches[4]);
+
+          string regname;
+          if (matches.size() >= 7)
+            regname = matches[6];
+
+          // If it's just VARNAME, then proceed. If it's VARNAME(REGISTER), then
+          // only proceed if it's RIP-relative addressing on x86_64.
+          if (regname.empty() || (regname == "%rip" && elf_machine == EM_X86_64))
+            {
+              dw.mod_info->get_symtab();
+              if (dw.mod_info->symtab_status != info_present)
+                goto not_matched;
+
+              assert(dw.mod_info->sym_table);
+              map<string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
+              map<string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
+              Dwarf_Addr addr = 0;
+
+              // check symtab locals then globals
+              if (locals.count(varname))
+                addr = locals[varname];
+              if (globals.count(varname))
+                addr = globals[varname];
+
+              if (addr)
+                {
+                  // add whatever offset is in the operand
+                  addr += offset;
+
+                  // adjust for dw bias because relocate_address() expects a
+                  // libdw address and this addr is from the symtab
+                  dw.get_module_dwarf(false, false);
+                  addr -= dw.module_bias;
+
+                  string reloc_section;
+                  Dwarf_Addr reloc_addr = dw.relocate_address(addr, reloc_section);
+
+                  // OK, we have an address for the variable. Let's create a
+                  // function that will just relocate it at runtime, and then
+                  // call user_[u]int*() on the address it returns.
+
+                  functioncall *user_int_call = new functioncall;
+                  switch (precision)
+                    {
+                    case 1: case -1:
+                      user_int_call->function = "user_int8"; break;
+                    case 2:
+                      user_int_call->function = "user_uint16"; break;
+                    case -2:
+                      user_int_call->function = "user_int16"; break;
+                    case 4:
+                      user_int_call->function = "user_uint32"; break;
+                    case -4:
+                      user_int_call->function = "user_int32"; break;
+                    case 8: case -8:
+                      user_int_call->function = "user_int64"; break;
+                    default: user_int_call->function = "user_long";
+                    }
+                  user_int_call->tok = e->tok;
+
+                  functiondecl *get_addr_decl = new functiondecl;
+                  get_addr_decl->tok = e->tok;
+                  get_addr_decl->synthetic = true;
+                  get_addr_decl->name = "_sdt_arg_get_addr_" + lex_cast(tick++);
+                  get_addr_decl->type = pe_long;
+
+                  // build _stp_[ku]module_relocate(module, addr, current)
+                  stringstream ss;
+                  ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
+                  ss << "STAP_RETURN(";
+
+                  if (is_user_module(process_name))
+                    {
+                      ss << "_stp_umodule_relocate(";
+                        ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
+                        ss << "0x" << hex << reloc_addr << dec << ", ";
+                        ss << "current";
+                      ss << ")";
+                    }
+                  else // NB: in practice sdt.h probes are for userspace only
+                    {
+                      ss << "_stp_kmodule_relocate(";
+                        ss << "\"" << process_name << "\", ";
+                        ss << "\"" << reloc_section << "\", ";
+                        ss << "0x" << hex << reloc_addr << dec;
+                      ss << ")";
+                    }
+                  ss << ");" << endl;
+
+                  embeddedcode *ec = new embeddedcode;
+                  ec->tok = e->tok;
+                  ec->code = ss.str();
+                  get_addr_decl->body = ec;
+                  get_addr_decl->join(session);
+
+                  functioncall *get_addr_call = new functioncall;
+                  get_addr_call->tok = e->tok;
+                  get_addr_call->function = get_addr_decl->name;
+                  user_int_call->args.push_back(get_addr_call);
+
+                  argexpr = user_int_call;
+                  goto matched;
+                }
+            }
+        }
 
     not_matched:
       // The asmarg operand was not recognized.  Back down to dwarf.
@@ -6529,9 +6656,9 @@ sdt_query::handle_probe_entry()
   if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
   assert(em);
   int elf_machine = em->e_machine;
-  sdt_uprobe_var_expanding_visitor svv (sess, elf_machine, module_val,
-					provider_name, probe_name,
-					probe_type, arg_string, arg_count);
+  sdt_uprobe_var_expanding_visitor svv (sess, dw, elf_machine, module_val,
+                                        provider_name, probe_name, probe_type,
+                                        arg_string, arg_count);
   svv.replace (new_base->body);
   need_debug_info = svv.need_debug_info;
 
