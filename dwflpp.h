@@ -108,7 +108,7 @@ module_info
   std::set<std::string> plt_funcs;
   std::set<std::pair<std::string,std::string> > marks; /* <provider,name> */
 
-  void get_symtab(base_query *q);
+  void get_symtab();
   void update_symtab(cu_function_cache_t *funcs);
 
   module_info(const char *name) :

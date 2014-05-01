@@ -1002,7 +1002,7 @@ dwarf_query::query_module_symtab()
   if (dbinfo_reqt == dbr_need_symtab)
     {
       if (mi->symtab_status == info_unknown)
-        mi->get_symtab(this);
+        mi->get_symtab();
       if (mi->symtab_status == info_absent)
         return;
     }
@@ -1050,7 +1050,7 @@ dwarf_query::handle_query_module()
   dw.get_module_dwarf(false, report);
 
   // prebuild the symbol table to resolve aliases
-  dw.mod_info->get_symtab(this);
+  dw.mod_info->get_symtab();
 
   // reset the dupe-checking for each new module
   alias_dupes.clear();
@@ -7874,7 +7874,7 @@ symbol_table::purge_syscall_stubs()
 }
 
 void
-module_info::get_symtab(base_query *q)
+module_info::get_symtab()
 {
   if (symtab_status != info_unknown)
     return;
@@ -10440,7 +10440,7 @@ int
 tracepoint_query::handle_query_cu(Dwarf_Die * cudie)
 {
   dw.focus_on_cu (cudie);
-  dw.mod_info->get_symtab(this);
+  dw.mod_info->get_symtab();
 
   // look at each function to see if it's a tracepoint
   string function = "stapprobe_" + tracepoint;
