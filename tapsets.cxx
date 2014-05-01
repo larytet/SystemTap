@@ -380,10 +380,7 @@ enum dbinfo_reqt
 };
 
 
-struct base_query; // forward decls
-struct dwarf_query;
-struct dwflpp;
-struct symbol_table;
+struct dwarf_query; // forward decl
 
 static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
