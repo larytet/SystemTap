@@ -13,13 +13,13 @@ probe syscall.accept.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.accept4
+probe syscall.accept4 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %p, %p, %d(%s)\n", sockfd, addr_uaddr, addrlen_uaddr,
 	       flags, flags_str)
 }
-probe syscall.accept4.return
+probe syscall.accept4.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
