@@ -58,7 +58,11 @@ int main()
 #endif
 
   select(1, &rfds, NULL, NULL, (struct timeval *)-1);
-  //staptest// select (1, XXXX, 0x[0]+, 0x[0]+, UNKNOWN) = -NNNN (EFAULT)
+#ifdef __s390__
+  //staptest// select (1, XXXX, 0x[0]+, 0x[0]+, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+  //staptest// select (1, XXXX, 0x[0]+, 0x[0]+, 0x[f]+) = -NNNN (EFAULT)
+#endif
 
 #ifdef SYS_pselect6
   pselect( 1, &rfds, NULL, NULL, &tim, &sigs);

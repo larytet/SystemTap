@@ -112,14 +112,21 @@ function _struct_timeval_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tv, ptr, n*sizeof(struct timeval)) == 0) {
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct timeval)) == 0) {
 			if (n == 2)
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld][%ld.%.06ld]", 
-					tv[0].tv_sec, tv[0].tv_usec, tv[1].tv_sec, tv[1].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 tv[0].tv_sec, tv[0].tv_usec,
+					 tv[1].tv_sec, tv[1].tv_usec);
 			else
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld]", tv[0].tv_sec, tv[0].tv_usec);
-	   	} else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", tv[0].tv_sec,
+					 tv[0].tv_usec);
+	   	}
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %}
 
@@ -133,14 +140,23 @@ function _struct_compat_timeval_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tv, ptr, 	n*sizeof(struct compat_timeval)) == 0)
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct compat_timeval)) == 0) {
 			if (n == 2)
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld][%ld.%.06ld]", 
-					(long)tv[0].tv_sec, (long)tv[0].tv_usec, (long)tv[1].tv_sec, (long)tv[1].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec,
+					 (long)tv[1].tv_sec,
+					 (long)tv[1].tv_usec);
 			else
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld]", (long)tv[0].tv_sec, (long)tv[0].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec);
+		}
 	   	else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 #endif
 %}
@@ -153,10 +169,13 @@ function _struct_timezone_u:string(uaddr:long)
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tz,ptr,sizeof(struct timezone)) == 0)
-			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]", tz.tz_minuteswest, tz.tz_dsttime);
+		if (_stp_copy_from_user((char*)&tz, ptr,
+					sizeof(struct timezone)) == 0)
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]",
+				 tz.tz_minuteswest, tz.tz_dsttime);
 		else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %} 
 
@@ -165,6 +184,16 @@ function _struct_timezone_u:string(uaddr:long)
 // _struct_utimbuf_actime, _struct_utimbuf_modtime,
 // _struct_compat_utimbuf_actime, _struct_compat_utimbuf_modtime
 #include <linux/utime.h>
+%}
+
+function _stp_clock_nanosleep_flags_str:string(flags:long)
+%{ /* pure */
+	static const _stp_val_array const nanosleep_flags_list[] = {
+		V(TIMER_ABSTIME),
+		{0, NULL}
+	};
+	_stp_lookup_str(nanosleep_flags_list, (unsigned int)STAP_ARG_flags,
+			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 // Returns the value of the actime field of a utimbuf in user space
@@ -246,9 +275,12 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char *)&ts, ptr, n*sizeof(struct timespec)))  {
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
-		} else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
 			char *str;
 			int len, i = 0;
 			ptr = STAP_RETVALUE;
@@ -259,16 +291,22 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
 					str = "UTIME_OMIT";
 				if (str)
-					len = snprintf(ptr, MAXSTRINGLEN, "[%s]", str);
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
 				else
-					len = snprintf(ptr, MAXSTRINGLEN, "[%ld.%09ld]", (long)ts[i].tv_sec, ts[i].tv_nsec);
-				ptr += len; i++;
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       ts[i].tv_nsec);
+				ptr += len;
+				i++;
 			}
 		}
 	}
 #undef STP_UTIME_NOW
 #undef STP_UTIME_OMIT
 %}
+
 function _struct_compat_timespec_u:string(uaddr:long, n:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
@@ -281,9 +319,12 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char *)&ts, ptr, n*sizeof(struct compat_timespec)))  {
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
-		} else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct compat_timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
 			char *str;
 			int len, i = 0;
 			ptr = STAP_RETVALUE;
@@ -294,10 +335,15 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
 					str = "UTIME_OMIT";
 				if (str)
-					len = snprintf(ptr, MAXSTRINGLEN, "[%s]", str);
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
 				else
-					len = snprintf(ptr, MAXSTRINGLEN, "[%ld.%09ld]", (long)ts[i].tv_sec, (long)ts[i].tv_nsec);
-				ptr += len; i++;
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       (long)ts[i].tv_nsec);
+				ptr += len;
+				i++;
 			}
 		}
 	}
@@ -936,15 +982,45 @@ function _nfsctl_cmd_str(cmd) {
  *    syscall.clock_getres
  *    syscall.clock_nanosleep
  */
-function _get_wc_str(wc) {
-   if(wc==0) return "CLOCK_REALTIME"
-   if(wc==1) return "CLOCK_MONOTONIC"
-   if(wc==2) return "CLOCK_PROCESS_CPUTIME_ID"
-   if(wc==3) return "CLOCK_THREAD_CPUTIME_ID"
-   if(wc==4) return "CLOCK_REALTIME_HR"
-   if(wc==5) return "CLOCK_MONOTONIC_HR"
-   return sprintf("BAD VALUE: %d", wc)
-}
+%{
+#include <linux/time.h>
+
+static const _stp_val_array const _stp_wc_str_list[] = {
+	V(CLOCK_REALTIME),
+	V(CLOCK_MONOTONIC),
+	V(CLOCK_PROCESS_CPUTIME_ID),
+	V(CLOCK_THREAD_CPUTIME_ID),
+#ifdef CLOCK_MONOTONIC_RAW
+	V(CLOCK_MONOTONIC_RAW),
+#endif
+#ifdef CLOCK_REALTIME_COARSE
+	V(CLOCK_REALTIME_COARSE),
+#endif
+#ifdef CLOCK_MONOTONIC_COARSE
+	V(CLOCK_MONOTONIC_COARSE),
+#endif
+#ifdef CLOCK_BOOTTIME
+	V(CLOCK_BOOTTIME),
+#endif
+#ifdef CLOCK_REALTIME_ALARM
+	V(CLOCK_REALTIME_ALARM),
+#endif
+#ifdef CLOCK_BOOTTIME_ALARM
+	V(CLOCK_BOOTTIME_ALARM),
+#endif
+	V(CLOCK_SGI_CYCLE),
+#ifdef CLOCK_TAI
+	V(CLOCK_TAI),
+#endif
+	{0, NULL}
+};
+%}
+
+function _get_wc_str:string(wc:long)
+%{ /* pure */
+	unsigned int clkid = (unsigned int)STAP_ARG_wc;
+	_stp_lookup_str(_stp_wc_str_list, clkid, STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _flock_cmd_str(c) {
    if(c & 1) bs="LOCK_SH|".bs

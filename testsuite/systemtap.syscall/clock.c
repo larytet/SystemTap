@@ -18,6 +18,13 @@ int main()
   
   syscall(SYS_time, NULL);
   //staptest// time (0x[0]+) = NNNN
+
+  syscall(SYS_time, -1);
+#ifdef __s390__
+  //staptest// time (0x[7]?[f]+) = -NNNN
+#else
+  //staptest// time (0x[f]+) = -NNNN
+#endif
 #endif
 
   t = syscall(SYS_gettimeofday, &tv, NULL);
@@ -25,6 +32,34 @@ int main()
 
   settimeofday(&tv, NULL);
   //staptest// settimeofday (\[NNNN.NNNN\], NULL) =
+
+  settimeofday((struct timeval *)-1, NULL);
+#ifdef __s390__
+  //staptest// settimeofday (0x[7]?[f]+, NULL) = -NNNN (EFAULT)
+#else
+  //staptest// settimeofday (0x[f]+, NULL) = -NNNN (EFAULT)
+#endif
+
+  settimeofday(&tv, (struct timezone *)-1);
+#ifdef __s390__
+  //staptest// settimeofday (\[NNNN.NNNN\], 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+  //staptest// settimeofday (\[NNNN.NNNN\], 0x[f]+) = -NNNN (EFAULT)
+#endif
+
+  syscall(SYS_gettimeofday, -1, NULL);
+#ifdef __s390__
+  //staptest// gettimeofday (0x[7]?[f]+, 0x[0]+) = -NNNN (EFAULT)
+#else
+  //staptest// gettimeofday (0x[f]+, 0x[0]+) = -NNNN (EFAULT)
+#endif
+
+  syscall(SYS_gettimeofday, &tv, -1);
+#ifdef __s390__
+  //staptest// gettimeofday (XXXX, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+  //staptest// gettimeofday (XXXX, 0x[f]+) = -NNNN (EFAULT)
+#endif
 
   syscall(SYS_clock_gettime, CLOCK_REALTIME, &ts);
   //staptest// clock_gettime (CLOCK_REALTIME, XXXX) = 0
@@ -34,6 +69,16 @@ int main()
 
   syscall(SYS_clock_getres, CLOCK_REALTIME, &ts);
   //staptest// clock_getres (CLOCK_REALTIME, XXXX) = 0
+
+  syscall(SYS_clock_getres, -1, &ts);
+  //staptest// clock_getres (0xffffffff, XXXX) = -NNNN (EINVAL)
+
+  syscall(SYS_clock_getres, CLOCK_REALTIME, -1);
+#ifdef __s390__
+  //staptest// clock_getres (CLOCK_REALTIME, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+  //staptest// clock_getres (CLOCK_REALTIME, 0x[f]+) = -NNNN (EFAULT)
+#endif
 
   syscall(SYS_clock_gettime, CLOCK_MONOTONIC, &ts);
   //staptest// clock_gettime (CLOCK_MONOTONIC, XXXX) = 0
@@ -73,6 +118,41 @@ int main()
   syscall(SYS_clock_nanosleep, CLOCK_REALTIME, 0x0, &ts);
   //staptest// clock_nanosleep (CLOCK_REALTIME, 0x0, \[NNNN.NNNN\], XXXX) = 0
   
+  syscall(SYS_clock_gettime, -1, &ts);
+  //staptest// clock_gettime (0x[f]+, XXXX) = -NNNN (EINVAL)
+
+  syscall(SYS_clock_gettime, CLOCK_REALTIME, -1);
+#ifdef __s390__
+  //staptest// clock_gettime (CLOCK_REALTIME, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+  //staptest// clock_gettime (CLOCK_REALTIME, 0x[f]+) = -NNNN (EFAULT)
+#endif
+
+  syscall(SYS_clock_settime, -1, &ts);
+  //staptest// clock_settime (0x[f]+, \[NNNN.NNNN\]) = -NNNN (EINVAL)
+
+  syscall(SYS_clock_settime, CLOCK_MONOTONIC, -1);
+#ifdef __s390__
+  //staptest// clock_settime (CLOCK_MONOTONIC, 0x[7]?[f]+) = -NNNN
+#else
+  //staptest// clock_settime (CLOCK_MONOTONIC, 0x[f]+) = -NNNN
+#endif
+
+  ts.tv_sec = 0;   ts.tv_nsec = 10000;  
+  syscall(SYS_clock_nanosleep, -1, 0x0, &ts);
+  //staptest// clock_nanosleep (0x[f]+, 0x0, \[NNNN.NNNN\], XXXX) = -NNNN
+  ts.tv_sec = 0;   ts.tv_nsec = 10000;  
+
+  syscall(SYS_clock_nanosleep, CLOCK_REALTIME, -1, &ts);
+  //staptest// clock_nanosleep (CLOCK_REALTIME, 0x[f]+, \[NNNN.NNNN\], XXXX) = 0
+  ts.tv_sec = 0;   ts.tv_nsec = 10000;  
+
+  syscall(SYS_clock_nanosleep, CLOCK_REALTIME, 0x0, -1);
+#ifdef __s390__
+  //staptest// clock_nanosleep (CLOCK_REALTIME, 0x0, 0x[7]?[f]+, XXXX) = -NNNN (EFAULT)
+#else
+  //staptest// clock_nanosleep (CLOCK_REALTIME, 0x0, 0x[f]+, XXXX) = -NNNN (EFAULT)
+#endif
+
   return 0;
 }
-

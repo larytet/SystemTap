@@ -57,7 +57,11 @@ int main()
 #endif
 
   syscall(__NR_utimes, "foobar", (struct timeval *)-1);
-  //staptest// utimes ("foobar", UNKNOWN) = -NNNN
+#ifdef __s390__
+  //staptest// utimes ("foobar", 0x[7]?[f]+) = -NNNN
+#else
+  //staptest// utimes ("foobar", 0x[f]+) = -NNNN
+#endif
 #endif /* __NR_utimes */
 
 #ifdef __NR_futimesat
@@ -78,7 +82,11 @@ int main()
 #endif
 
   syscall(__NR_futimesat, AT_FDCWD, "foobar", (struct timeval *)-1);
-  //staptest// futimesat (AT_FDCWD, "foobar", UNKNOWN) = -NNNN
+#ifdef __s390__
+  //staptest// futimesat (AT_FDCWD, "foobar", 0x[7]?[f]+) = -NNNN
+#else
+  //staptest// futimesat (AT_FDCWD, "foobar", 0x[f]+) = -NNNN
+#endif
 #endif /* __NR_futimesat */
 
 #if defined(__NR_utimensat) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
@@ -110,7 +118,11 @@ int main()
 #endif
 
   syscall(__NR_utimensat, AT_FDCWD, "foobar", (struct timespec *)-1, AT_SYMLINK_NOFOLLOW);
-  //staptest// utimensat (AT_FDCWD, "foobar", UNKNOWN, AT_SYMLINK_NOFOLLOW)
+#ifdef __s390__
+  //staptest// utimensat (AT_FDCWD, "foobar", 0x[7]?[f]+, AT_SYMLINK_NOFOLLOW)
+#else
+  //staptest// utimensat (AT_FDCWD, "foobar", 0x[f]+, AT_SYMLINK_NOFOLLOW)
+#endif
 
   syscall(__NR_utimensat, AT_FDCWD, "foobar", ts, -1);
   //staptest// utimensat (AT_FDCWD, "foobar", \[UTIME_NOW\]\[UTIME_OMIT\], 0x[f]+)

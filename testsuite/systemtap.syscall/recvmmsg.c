@@ -250,7 +250,11 @@ int main()
     //staptest// recvmmsg (NNNN, XXXX, 4294967295, MSG_DONTWAIT, NULL) = -NNNN (EAGAIN)
 
     recvmmsg(s, msgs, 2, MSG_DONTWAIT, (struct timespec *)-1);
-    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, UNKNOWN) = -NNNN (EFAULT)
+#ifdef __s390__
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, 0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, 0x[f]+) = -NNNN (EFAULT)
+#endif
 
     close(s);
     //staptest// close (NNNN) = 0
