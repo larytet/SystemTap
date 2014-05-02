@@ -1,0 +1,16 @@
+set test bz1027459
+
+exec touch trace1
+spawn stap $srcdir/$subdir/$test.stp
+set ok 0
+expect {
+	-timeout 60
+	-re {^hi\r\n} { incr ok; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+}
+wait
+if {$ok == 1} then { pass "$test -p5" } else { fail "$test -p5 ($ok)" }
+exec rm -f trace1
+
+
