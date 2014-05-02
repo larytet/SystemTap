@@ -387,7 +387,7 @@ proc fullpath { path } {
 }
 
 proc get_system_info {} {
-    global Host Snapshot Distro GCC_Version env SElinux
+    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux
 
     set Host [exec /bin/uname -a]
     if [file exists ../SNAPSHOT] {
@@ -412,9 +412,12 @@ proc get_system_info {} {
     set n [exec echo "__GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__" | cpp -P]
     set n [string map {" " "."} $n]
     set n [string map {"\n" ""} $n]
-    # Plus full version between square brackets.
+    set GCC_Version "$n"
+    # Plus full version between square brackets for GCC_FullVersion
     set full [exec gcc --version | head -1]
-    set GCC_Version "$n \[$full\]"
+    set GCC_FullVersion "$n \[$full\]"
+    # Parse elfutils version stap was compiled with
+    regexp {version [^/]*/([^,]*)} [exec stap -V 2>@ stdout] all ELF_Version
     # selinux status
     if [file exists /usr/sbin/getenforce] {
         set SElinux [exec /usr/sbin/getenforce]
@@ -460,7 +463,7 @@ if {[catch {exec stap --skip-badvars -w -p2 -e {probe syscall.open {println (arg
     exit 1
 }
 
-# Make sure all development packages for the supported ABIs (-m64 -m32/-m31)
+# Make more likely that all development packages for the supported ABIs (-m64 -m32/-m31)
 # are installed by building a quick hello.c and hello.cxx program with both.
 set source "hello.c"
 set hello_file [open $source "w"]
@@ -475,9 +478,6 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     puts "\n\n\n**** failed gcc [arch_compile_flag_name $i] smoke test:\n"
     puts $result
     puts "Please install libgcc and glibc development packages for [arch_compile_flag_name $i]\n"
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
   }
 }
 set source "hello.cxx"
@@ -494,9 +494,6 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     puts "\n\n\n**** failed g++ [arch_compile_flag_name $i] smoke test:\n"
     puts $result
     puts "Please install libstdc++-devel package for [arch_compile_flag_name $i]\n"
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
   }
 }
 catch { eval [list exec rm -f] [glob "hello.c*" "hello-*"] }
@@ -693,10 +690,60 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
    verbose -log "Executing: kill $SIG $PID"
    catch {eval exec kill $SIG $PID}
 
-   if {[expr [string is integer $KILL_TIMEOUT] \
-          && [expr $KILL_TIMEOUT > 0]]} {
-      sleep $KILL_TIMEOUT
+   if {$KILL_TIMEOUT > 0} {
+      while {$KILL_TIMEOUT > 0} {
+         if {![file isdirectory /proc/$PID]} {
+            return
+         }
+         sleep 1
+         incr KILL_TIMEOUT -1
+      }
       verbose -log "Executing: kill -KILL $PID"
       catch {eval exec kill -KILL $PID}
+   }
+}
+
+# Compares vers1 to vers2. Returns an integer less than, equal to, or greater
+# than zero if vers1 is before, equal, or after vers2. Similar to the GNU
+# extension strverscmp(3), but restricted to simple M.N... version numbers.
+proc strverscmp { vers1 vers2 } {
+
+   # Check that both versions are valid M.N... format
+   if {![regexp {^[0-9]+(\.[0-9]+)*$} $vers1]} {
+      error "$vers1 is not a valid version number"
+   }
+   if {![regexp {^[0-9]+(\.[0-9]+)*$} $vers2]} {
+      error "$vers2 is not a valid version number"
+   }
+
+   while {1} {
+
+      # Get the next M for each as well as following N...
+      regexp {^([0-9]+)(\.(.*))?} $vers1 dummy subvers1 dummy nextvers1
+      regexp {^([0-9]+)(\.(.*))?} $vers2 dummy subvers2 dummy nextvers2
+
+      # Compare M
+      if {$subvers1 < $subvers2} { return -1 }
+      if {$subvers1 > $subvers2} { return  1 }
+      # The M parts are equal
+
+      # Check if one (or both) of them don't have a next subversion
+      if {![string length $nextvers1] \
+       && ![string length $nextvers2]} { return  0 }
+      if {![string length $nextvers1] \
+       && [string length $nextvers2]}  { return -1 }
+      if {[string length $nextvers1] \
+       && ![string length $nextvers2]} { return  1 }
+
+      # They both have a subversion following, let's re-iterate
+
+      # Sanity check that we're making progress and not looping forever
+      if {[string length $nextvers1] >= [string length $vers1]} \
+         { error "$vers1 not converging" }
+      if {[string length $nextvers2] >= [string length $vers2]} \
+         { error "$vers2 not converging" }
+
+      set vers1 $nextvers1
+      set vers2 $nextvers2
    }
 }

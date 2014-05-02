@@ -67,8 +67,8 @@
 %define dracutstap %{dracutlibdir}/modules.d/99stap
 
 Name: systemtap
-Version: 2.5
-Release: 2%{?dist}
+Version: 2.6
+Release: 1%{?dist}
 # for version, see also configure.ac
 
 
@@ -302,7 +302,7 @@ Requires: strace
 # that provides nc has changed over time (from 'nc' to
 # 'nmap-ncat'). So, we'll do a file-based require.
 Requires: /usr/bin/nc
-%ifnarch ia64
+%ifnarch ia64 ppc64le
 Requires: prelink
 %endif
 # testsuite/systemtap.server/client.exp needs avahi
@@ -337,6 +337,7 @@ License: GPLv2+
 URL: http://sourceware.org/systemtap/
 Requires: systemtap-runtime = %{version}-%{release}
 Requires: byteman > 2.0
+Requires: net-tools
 
 %description runtime-java
 This package includes support files needed to run systemtap scripts
@@ -780,10 +781,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        if [ -d %{archdir} ]; then
+	 if [ -d ${archdir} ]; then
             ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
             ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
-        fi
+	 fi
     done
 done
 
@@ -817,10 +818,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        if [ -d %{archdir} ]; then
+	 if [ -d ${archdir} ]; then
             ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
             ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
-	fi
+	 fi
     done
 done
 
@@ -1016,6 +1017,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Wed Apr 30 2014 Jonathan Lebon <jlebon@redhat.com> - 2.5-1
+- Upstream release.
+
 * Thu Feb 13 2014 Lukas Berk <lberk@redhat.com>
 - Add directory checks for runtime-java sym links
 

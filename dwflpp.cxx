@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -109,6 +109,11 @@ dwflpp::~dwflpp()
   delete_map(cu_inl_function_cache);
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
+
+  cu_lines_cache_t::iterator i;
+  for (i = cu_lines_cache.begin(); i != cu_lines_cache.end(); ++i)
+    delete_map(*i->second);
+  delete_map(cu_lines_cache);
 
   if (dwfl)
     dwfl_end(dwfl);
@@ -344,7 +349,7 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
           off = dwfl_getmodules (dwfl, &add_module_build_id_to_hash, &s, off);
         }
       while (off > 0);
-      dwfl_assert("dwfl_getmodules", off == 0);
+      DWFL_ASSERT("dwfl_getmodules", off == 0);
     }
 
   build_kernel_blacklist();
@@ -386,7 +391,7 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
   vector<string>::const_iterator it = modules.begin();
   dwfl = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
   if (debuginfo_needed && it != modules.end())
-    dwfl_assert (string(_F("missing process %s %s debuginfo",
+    DWFL_ASSERT (string(_F("missing process %s %s debuginfo",
                            (*it).c_str(), sess.architecture.c_str())),
                            dwfl);
 
@@ -406,7 +411,7 @@ dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
   // Don't complain if we exited dwfl_getmodules early.
   // This could be a $target variable error that will be
   // reported soon anyway.
-  // dwfl_assert("dwfl_getmodules", off == 0);
+  // DWFL_ASSERT("dwfl_getmodules", off == 0);
 
   // PR6864 XXX: For dwarfless case (if .../vmlinux is missing), then the
   // "kernel" module is not reported in the loop above.  However, we
@@ -493,7 +498,7 @@ dwflpp::func_is_exported()
   assert (function);
 
   int syms = dwfl_module_getsymtab (module);
-  dwfl_assert (_("Getting symbols"), syms >= 0);
+  DWFL_ASSERT (_("Getting symbols"), syms >= 0);
 
   for (int i = 0; i < syms; i++)
     {
@@ -1445,7 +1450,7 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
 	    {
 	      GElf_Ehdr ehdr_mem;
 	      GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-	      if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+	      if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
 
 	      GElf_Rela relamem;
 	      GElf_Rela *rela = NULL;
@@ -1481,245 +1486,360 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
 }
 
 
-// This little test routine represents an unfortunate breakdown in
-// abstraction between dwflpp (putatively, a layer right on top of
-// elfutils), and dwarf_query (interpreting a systemtap probe point).
-// It arises because we sometimes try to fix up slightly-off
-// .statement() probes (something we find out in fairly low-level).
-//
-// An alternative would be to put some more intelligence into query_cu(),
-// and have it print additional suggestions after finding that
-// q->dw.iterate_over_srcfile_lines resulted in no new finished_results.
-
-bool
-dwflpp::has_single_line_record (dwarf_query * q, char const * srcfile, int lineno)
+// Comparator function for sorting
+static bool
+compare_lines(Dwarf_Line* a, Dwarf_Line* b)
 {
-  if (lineno < 0)
+  if (a == b)
     return false;
 
-  Dwarf_Line **srcsp = NULL;
-  size_t nsrcs = 0;
+  int lineno_a = DWARF_LINENO(a);
+  int lineno_b = DWARF_LINENO(b);
+  if (lineno_a == lineno_b)
+    return DWARF_LINEADDR(a) < DWARF_LINEADDR(b);
+  return lineno_a < lineno_b;
+}
 
-  dwarf_assert ("dwarf_getsrc_file",
-		dwarf_getsrc_file (module_dwarf,
-				   srcfile, lineno, 0,
-				   &srcsp, &nsrcs));
-
-  if (nsrcs != 1)
+// Comparator object for searching Dwarf_Lines with a specific lineno when we
+// don't have a Dwarf_Line of our own to search for (hence why a or b is always
+// NULL).
+struct lineno_comparator {
+  int lineno;
+  lineno_comparator(int lineno): lineno(lineno) {}
+  bool operator() (Dwarf_Line* a, Dwarf_Line* b)
     {
-      if (sess.verbose>4)
-	clog << _F("alternative line %d rejected: nsrcs=%zu", lineno, nsrcs) << endl;
-      return false;
+      assert(a || b);
+      if (a)
+        return DWARF_LINENO(a) < lineno;
+      else
+        return lineno < DWARF_LINENO(b);
+    }
+};
+
+// Returns a range of lines in between begin and end with wanted lineno. If
+// none exist, points to where it would have been.
+static lines_range_t
+lineno_equal_range(lines_t* v, int lineno)
+{
+  lineno_comparator lc(lineno);
+  return equal_range(v->begin(), v->end(), (Dwarf_Line*)NULL, lc);
+}
+
+// Interface to CU lines cache sorted by lineno
+lines_t*
+dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
+{
+  assert(cu);
+
+  srcfile_lines_cache_t *srcfile_lines = cu_lines_cache[cu];
+  if (!srcfile_lines)
+    {
+      srcfile_lines = new srcfile_lines_cache_t();
+      cu_lines_cache[cu] = srcfile_lines;
     }
 
-  // We also try to filter out lines that leave the selected
-  // functions (if any).
-
-  dwarf_line_t line(srcsp[0]);
-  Dwarf_Addr addr = line.addr();
-
-  func_info_map_t *filtered_functions = get_filtered_functions(q);
-  for (func_info_map_t::iterator i = filtered_functions->begin();
-       i != filtered_functions->end(); ++i)
+  lines_t *lines = (*srcfile_lines)[srcfile];
+  if (!lines)
     {
-      if (die_has_pc (i->die, addr))
-	{
-	  if (sess.verbose>4)
-	    clog << _F("alternative line %d accepted: fn=%s", lineno, i->name.c_str()) << endl;
-	  return true;
-	}
-    }
+      size_t nlines_cu = 0;
+      Dwarf_Lines *lines_cu = NULL;
+      DWARF_ASSERT("dwarf_getsrclines",
+                   dwarf_getsrclines(cu, &lines_cu, &nlines_cu));
 
-  inline_instance_map_t *filtered_inlines = get_filtered_inlines(q);
-  for (inline_instance_map_t::iterator i = filtered_inlines->begin();
-       i != filtered_inlines->end(); ++i)
+      lines = new lines_t();
+      (*srcfile_lines)[srcfile] = lines;
+
+      for (size_t i = 0; i < nlines_cu; i++)
+        {
+          Dwarf_Line *line = dwarf_onesrcline(lines_cu, i);
+          const char *linesrc = DWARF_LINESRC(line);
+          if (strcmp(srcfile, linesrc))
+            continue;
+          lines->push_back(line);
+        }
+
+      if (lines->size() > 1)
+        sort(lines->begin(), lines->end(), compare_lines);
+
+      if (sess.verbose > 3)
+        {
+          clog << "found the following lines for %s:" << endl;
+          lines_t::iterator i;
+          for (i  = lines->begin(); i != lines->end(); ++i)
+            cout << DWARF_LINENO(*i) << " = " << hex
+                 << DWARF_LINEADDR(*i) << dec << endl;
+        }
+    }
+  return lines;
+}
+
+static Dwarf_Line*
+get_func_first_line(Dwarf_Die *cu, base_func_info& func)
+{
+  // dwarf_getsrc_die() uses binary search to find the Dwarf_Line, but will
+  // return the wrong line if not found.
+  Dwarf_Line *line = dwarf_getsrc_die(cu, func.entrypc);
+  if (line && DWARF_LINEADDR(line) == func.entrypc)
+    return line;
+
+  // Line not found (or line at wrong addr). We have to resort to a slower
+  // linear method. We won't find an exact match (probably this is an inlined
+  // instance), so just settle on the first Dwarf_Line with lowest addr which
+  // falls in the die.
+  size_t nlines = 0;
+  Dwarf_Lines *lines = NULL;
+  DWARF_ASSERT("dwarf_getsrclines",
+               dwarf_getsrclines(cu, &lines, &nlines));
+
+  for (size_t i = 0; i < nlines; i++)
     {
-      if (die_has_pc (i->die, addr))
-	{
-	  if (sess.verbose>4)
-	    clog << _F("alternative line %d accepted: ifn=%s", lineno, i->name.c_str()) << endl;
-	  return true;
-	}
+      line = dwarf_onesrcline(lines, i);
+      if (dwarf_haspc(&func.die, DWARF_LINEADDR(line)))
+        return line;
     }
+  return NULL;
+}
 
-  if (sess.verbose>4)
-    //TRANSLATORS:  given line number leaves (is beyond) given function.
-    clog << _F("alternative line %d rejected: leaves selected fns", lineno) << endl;
-  return false;
+static lines_t
+collect_lines_in_die(lines_range_t range, Dwarf_Die *die)
+{
+  lines_t lines_in_die;
+  for (lines_t::iterator line  = range.first;
+                         line != range.second; ++line)
+    if (dwarf_haspc(die, DWARF_LINEADDR(*line)))
+      lines_in_die.push_back(*line);
+  return lines_in_die;
+}
+
+static void
+add_matching_lines_in_func(Dwarf_Die *cu,
+                           lines_t *cu_lines,
+                           base_func_info& func,
+                           lines_t& matching_lines)
+{
+  Dwarf_Line *start_line = get_func_first_line(cu, func);
+  if (!start_line)
+    return;
+
+  for (int lineno = DWARF_LINENO(start_line);;)
+    {
+      lines_range_t range = lineno_equal_range(cu_lines, lineno);
+
+      // We consider the lineno still part of the die if at least one of them
+      // falls in the die.
+      lines_t lines_in_die = collect_lines_in_die(range, &func.die);
+      if (lines_in_die.empty())
+        break;
+
+      // Just pick the first LR even if there are more than one. Since the lines
+      // are sorted by lineno and then addr, the first one is the one with the
+      // lowest addr.
+      matching_lines.push_back(lines_in_die[0]);
+
+      // break out if there are no more lines, otherwise, go to the next lineno
+      if (range.second == cu_lines->end())
+        break;
+      lineno = DWARF_LINENO(*range.second);
+    }
+}
+
+void
+dwflpp::collect_all_lines(char const * srcfile,
+                          base_func_info_map_t& funcs,
+                          lines_t& matching_lines)
+{
+  // This is where we handle WILDCARD lineno types.
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    add_matching_lines_in_func(cu, cu_lines, *func, matching_lines);
 }
 
 
-template<> void
-dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         int lines[2],
-                                         bool need_single_match,
-                                         enum line_t line_type,
-                                         void (* callback) (const dwarf_line_t& line,
-                                                            void * arg),
-                                         const std::string& func_pattern,
-                                         void *data)
+static void
+add_matching_line_in_die(lines_t *cu_lines,
+                         lines_t& matching_lines,
+                         Dwarf_Die *die, int lineno)
 {
-  Dwarf_Line **srcsp = NULL;
-  size_t nsrcs = 0;
-  // XXX: MUST GET RID OF THIS (see also comment block before
-  // has_single_line_record())
-  dwarf_query * q = static_cast<dwarf_query *>(data);
-  int lineno = lines[0];
-  auto_free_ref<Dwarf_Line**> free_srcsp(srcsp);
-
-  get_module_dwarf();
-  if (!this->function)
+  lines_range_t lineno_range = lineno_equal_range(cu_lines, lineno);
+  lines_t lines_in_die = collect_lines_in_die(lineno_range, die);
+  if (lines_in_die.empty())
     return;
 
-  if (line_type == RELATIVE)
+  // Even if there are more than 1 LRs, just pick the first one. Since the lines
+  // are sorted by lineno and then addr, the first one is the one with the
+  // lowest addr. This is similar to what GDB does.
+  matching_lines.push_back(lines_in_die[0]);
+}
+
+void
+dwflpp::collect_lines_for_single_lineno(char const * srcfile,
+                                        int lineno,
+                                        bool is_relative,
+                                        base_func_info_map_t& funcs,
+                                        lines_t& matching_lines)
+{
+  /* Here, we handle ABSOLUTE and RELATIVE lineno types. Relative line numbers
+   * are a bit special. The issue is that functions (esp. inlined ones) may not
+   * even have a LR corresponding to the first valid line of code. So, applying
+   * an offset to the 'first' LR found in the DIE can be quite imprecise.
+   *     Instead, we use decl_line, which although does not necessarily have a
+   * LR associated with it (it can sometimes still happen esp. if the code is
+   * written in OTB-style), it serves as an anchor on which we can apply the
+   * offset to yield a lineno that will not change with compiler optimization.
+   *     It also has the added benefit of being consistent with the lineno
+   * printed by e.g. stap -l kernel.function("vfs_read"), so users can be
+   * confident from what lineno we adjust.
+   */
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    add_matching_line_in_die(cu_lines, matching_lines, &func->die,
+                             is_relative ? lineno + func->decl_line
+                                         : lineno);
+}
+
+static bool
+functions_have_lineno(base_func_info_map_t& funcs,
+                      lines_t *lines, int lineno)
+{
+  lines_range_t lineno_range = lineno_equal_range(lines, lineno);
+  if (lineno_range.first == lineno_range.second)
+    return false; // no LRs at this lineno
+
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    if (!collect_lines_in_die(lineno_range, &func->die).empty())
+      return true;
+
+  return false;
+}
+
+void
+dwflpp::suggest_alternative_linenos(char const * srcfile,
+                                    int lineno,
+                                    base_func_info_map_t& funcs)
+{
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+
+  // Look around lineno for linenos with LRs.
+  int lo_try = -1;
+  int hi_try = -1;
+  for (size_t i = 1; i < 6; ++i)
     {
-      Dwarf_Addr addr;
-      Dwarf_Line *line;
-      int line_number;
-
-      if (!die_entrypc(this->function, &addr))
-        return;
-
-      if (addr != 0)
-        {
-          line = dwarf_getsrc_die (this->cu, addr);
-          dwarf_assert ("dwarf_getsrc_die", line == NULL);
-          dwarf_assert ("dwarf_lineno", dwarf_lineno (line, &line_number));
-        }
-      else if (dwarf_decl_line (this->function, &line_number) != 0)
-        {
-          // use DW_AT_decl_line as a fallback method
-          Dwarf_Attribute type_attr;
-          Dwarf_Word constant;
-          if (dwarf_attr_integrate (this->function, DW_AT_decl_line, &type_attr))
-            {
-              dwarf_formudata (&type_attr, &constant);
-              line_number = constant;
-            }
-          else
-            return;
-        }
-      lineno += line_number;
+      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        lo_try = lineno - i;
+      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        hi_try = lineno + i;
     }
-  else if (line_type == WILDCARD) {
-    if (name_has_wildcard(func_pattern)) /* PR14774: look at whole file if function name is wildcard */
-      lineno = 0;
-    else
-      function_line (&lineno);
-  }
-  else if (line_type == RANGE) { /* correct lineno */
-      int start_lineno;
 
-      if (name_has_wildcard(func_pattern)) /* PR10294: wider range like statement("*@foo.c") */
-         start_lineno = lineno;
-      else
-         function_line (&start_lineno);
-      lineno = lineno < start_lineno ? start_lineno : lineno;
-      if (lineno > lines[1]) { /* invalid line range */
-        stringstream advice;
-        advice << _("Invalid line range (") << lines[0] << "-" << lines[1] << ")";
-        if (start_lineno > lines[1])
-          advice << _(", the end line number ") << lines[1] << " < " << start_lineno;
-        throw SEMANTIC_ERROR (advice.str());
-       }
-  }
+  stringstream advice;
+  advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
 
-
-  for (int l = lineno; ; l = l + 1)
+  if (lo_try > 0 || hi_try > 0)
     {
-      set<int> lines_probed;
-      pair<set<int>::iterator,bool> line_probed;
-      int ret = 0;
+      //TRANSLATORS: Here we are trying to advise what source file
+      //TRANSLATORS: to attempt.
+      advice << _(" (try ");
+      if (lo_try > 0)
+        advice << ":" << lo_try;
+      if (lo_try > 0 && hi_try > 0)
+        advice << _(" or ");
+      if (hi_try > 0)
+        advice << ":" << hi_try;
+      advice << ")";
+    }
+  throw SEMANTIC_ERROR (advice.str());
+}
 
-      assert_no_interrupts();
+static base_func_info_map_t
+get_funcs_in_srcfile(base_func_info_map_t& funcs,
+                     const char * srcfile)
+{
+  base_func_info_map_t matching_funcs;
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    if (strcmp(srcfile, func->decl_file) == 0)
+      matching_funcs.push_back(*func);
+  return matching_funcs;
+}
 
-      nsrcs = 0;
-      ret = dwarf_getsrc_file (module_dwarf, srcfile, l, 0,
-					 &srcsp, &nsrcs);
-      if (ret != 0) /* tolerate invalid line number */
-        break;
+template<> void
+dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
+                                         int linenos[2],
+                                         enum lineno_t lineno_type,
+                                         base_func_info_map_t& funcs,
+                                         void (* callback) (Dwarf_Addr,
+                                                            int, void*),
+                                         void *data)
+{
+  /* Matching line records (LRs) to user-provided linenos is trickier than it
+   * seems. The fate of all functions is one of three possibilities:
+   *  1. it's a normal function, with a subprogram DIE and a bona fide lowpc
+   *     and highpc attribute.
+   *  2. it's an inlined function (one/multiple inlined_subroutine DIE, with one
+   *     abstract_origin DIE)
+   *  3. it's both a normal function and an inlined function. For example, if
+   *     the funtion has been inlined only in some places, we'll have a DIE for
+   *     the normal subprogram DIE as well as inlined_subroutine DIEs.
+   *
+   * Multiple LRs for the same lineno but different addresses can simply happen
+   * due to the function appearing in multiple forms. E.g. a function inlined
+   * in two spots can yield two sets of LRs for its linenos at the different
+   * addresses where it is inlined.
+   *     This is why the collect_* functions used here try to match up LRs back
+   * to their originating DIEs. For example, in the function
+   * collect_lines_for_single_lineno(), we filter first by DIE so that a lineno
+   * corresponding to multiple addrs in multiple inlined_subroutine DIEs yields
+   * a probe for each of them.
+   */
+  assert(cu);
 
-      if (line_type == WILDCARD || line_type == RANGE)
+  // only work on the functions found in the current srcfile
+  base_func_info_map_t current_funcs = get_funcs_in_srcfile(funcs, srcfile);
+  if (current_funcs.empty())
+    return;
+
+  // collect lines
+  lines_t matching_lines;
+  if (lineno_type == ABSOLUTE)
+    collect_lines_for_single_lineno(srcfile, linenos[0], false, /* is_relative */
+                                    current_funcs, matching_lines);
+  else if (lineno_type == RELATIVE)
+    collect_lines_for_single_lineno(srcfile, linenos[0], true, /* is_relative */
+                                    current_funcs, matching_lines);
+  else if (lineno_type == WILDCARD)
+    collect_all_lines(srcfile, current_funcs, matching_lines);
+  else // RANGE
+    for (int lineno = linenos[0]; lineno <= linenos[1]; lineno++)
+      collect_lines_for_single_lineno(srcfile, lineno, false, /* is_relative */
+                                      current_funcs, matching_lines);
+
+  // call back with matching lines
+  if (!matching_lines.empty())
+    {
+      set<Dwarf_Addr> probed_addrs;
+      for (lines_t::iterator line  = matching_lines.begin();
+                             line != matching_lines.end(); ++line)
         {
-          Dwarf_Addr line_addr;
-
-          dwarf_lineno (srcsp [0], &lineno);
-	  /* Maybe lineno will exceed the input end */
-	  if (line_type == RANGE && lineno > lines[1])
- 	     break;
-          line_probed = lines_probed.insert(lineno);
-          if (lineno != l || line_probed.second == false || nsrcs > 1)
-            continue;
-          dwarf_lineaddr (srcsp [0], &line_addr);
-          if (!function_name_matches(func_pattern) && dwarf_haspc (function, line_addr) != 1)
-            break;
+          int lineno = DWARF_LINENO(*line);
+          Dwarf_Addr addr = DWARF_LINEADDR(*line);
+          bool is_new_addr = probed_addrs.insert(addr).second;
+          if (is_new_addr)
+            callback(addr, lineno, data);
         }
-
-      // NB: Formerly, we used to filter, because:
-
-      // dwarf_getsrc_file gets one *near hits* for line numbers, not
-      // exact matches.  For example, an existing file but a nonexistent
-      // line number will be rounded up to the next definition in that
-      // file.  This may be similar to the GDB breakpoint algorithm, but
-      // we don't want to be so fuzzy in systemtap land.  So we filter.
-
-      // But we now see the error of our ways, and skip this filtering.
-
-      // XXX: the code also fails to match e.g.  inline function
-      // definitions when the srcfile is a header file rather than the
-      // CU name.
-
-      size_t remaining_nsrcs = nsrcs;
-
-      if (need_single_match && remaining_nsrcs > 1)
-        {
-          // We wanted a single line record (a unique address for the
-          // line) and we got a bunch of line records. We're going to
-          // skip this probe (throw an exception) but before we throw
-          // we're going to look around a bit to see if there's a low or
-          // high line number nearby which *doesn't* have this problem,
-          // so we can give the user some advice.
-
-          int lo_try = -1;
-          int hi_try = -1;
-          for (size_t i = 1; i < 6; ++i)
-            {
-              if (lo_try == -1 && has_single_line_record(q, srcfile, lineno - i))
-                lo_try = lineno - i;
-
-              if (hi_try == -1 && has_single_line_record(q, srcfile, lineno + i))
-                hi_try = lineno + i;
-            }
-
-          stringstream advice;
-          advice << _F("multiple addresses for %s:%d [man error::dwarf]", srcfile, lineno);
-          if (lo_try > 0 || hi_try > 0)
-            {
-              //TRANSLATORS: Here we are trying to advise what source file 
-              //TRANSLATORS: to attempt.
-              advice << _(" (try ");
-              if (lo_try > 0)
-                advice << srcfile << ":" << lo_try;
-              if (lo_try > 0 && hi_try > 0)
-                advice << _(" or ");
-              if (hi_try > 0)
-                advice << srcfile << ":" << hi_try;
-              advice << ")";
-            }
-          throw SEMANTIC_ERROR (advice.str());
-        }
-
-      for (size_t i = 0; i < nsrcs; ++i)
-        {
-          assert_no_interrupts();
-          if (srcsp [i]) // skip over mismatched lines
-            callback (dwarf_line_t(srcsp[i]), data);
-        }
-
-      if (line_type == ABSOLUTE || line_type == RELATIVE)
-        break;
-      else if (line_type == RANGE && l == lines[1])
-        break;
+    }
+  // No LRs found at the wanted lineno. So let's suggest other ones if user was
+  // targeting a specific lineno (ABSOLUTE or RELATIVE).
+  else if (lineno_type == ABSOLUTE ||
+           lineno_type == RELATIVE)
+    {
+      int lineno = linenos[0];
+      if (lineno_type == RELATIVE)
+        // just pick the first function and make it relative to that
+        lineno += current_funcs[0].decl_line;
+      suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
 }
 
@@ -2029,7 +2149,7 @@ dwflpp::collect_srcfiles_matching (string const & pattern,
   // NB: fnmatch() is used without FNM_PATHNAME.
   string prefixed_pattern = string("*/") + pattern;
 
-  dwarf_assert ("dwarf_getsrcfiles",
+  DWARF_ASSERT ("dwarf_getsrcfiles",
                 dwarf_getsrcfiles (cu, &srcfiles, &nfiles));
   {
   for (size_t i = 0; i < nfiles; ++i)
@@ -2071,10 +2191,10 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
      cpu_to_logical_apicid                     NULL-decl_file
    */
 
-  // Fetch all srcline records, sorted by address.
-  dwarf_assert ("dwarf_getsrclines",
+  // Fetch all srcline records, sorted by address. No need to free lines, it's a
+  // direct pointer to the CU's cached lines.
+  DWARF_ASSERT ("dwarf_getsrclines",
                 dwarf_getsrclines(cu, &lines, &nlines));
-  // XXX: free lines[] later, but how?
 
   // We normally ignore a function's decl_line, since it is associated with the
   // line at which the identifier appears in the declaration, and has no
@@ -2105,22 +2225,21 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       Dwarf_Addr entrypc = it->entrypc;
       Dwarf_Addr highpc; // NB: highpc is exclusive: [entrypc,highpc)
-      dwfl_assert ("dwarf_highpc", dwarf_highpc (& it->die,
+      DWFL_ASSERT ("dwarf_highpc", dwarf_highpc (& it->die,
                                                  & highpc));
 
       if (it->decl_file == 0) it->decl_file = "";
 
       unsigned entrypc_srcline_idx = 0;
-      dwarf_line_t entrypc_srcline;
+      Dwarf_Line *entrypc_srcline = NULL;
       // open-code binary search for exact match
       {
         unsigned l = 0, h = nlines;
         while (l < h)
           {
             entrypc_srcline_idx = (l + h) / 2;
-            const dwarf_line_t lr(dwarf_onesrcline(lines,
-                                                   entrypc_srcline_idx));
-            Dwarf_Addr addr = lr.addr();
+            Dwarf_Line* lr = dwarf_onesrcline(lines, entrypc_srcline_idx);
+            Dwarf_Addr addr = DWARF_LINEADDR(lr);
             if (addr == entrypc) { entrypc_srcline = lr; break; }
             else if (l + 1 == h) { break; } // ran off bottom of tree
             else if (addr < entrypc) { l = entrypc_srcline_idx; }
@@ -2138,7 +2257,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         }
 
       if (entrypc == 0)
-        { 
+        {
           if (sess.verbose > 2)
             clog << _F("null entrypc dwarf line record for function '%s'\n",
                        it->name.c_str());
@@ -2164,18 +2283,18 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // the entrypc maps to a statement in the body rather than the
       // declaration.
 
-      int entrypc_srcline_lineno = entrypc_srcline.lineno();
+      int entrypc_srcline_lineno = DWARF_LINENO(entrypc_srcline);
       unsigned postprologue_srcline_idx = entrypc_srcline_idx;
-      dwarf_line_t postprologue_srcline;
+      Dwarf_Line *postprologue_srcline = entrypc_srcline;
 
       while (postprologue_srcline_idx < nlines)
         {
           postprologue_srcline = dwarf_onesrcline(lines,
                                                   postprologue_srcline_idx);
-          Dwarf_Addr lineaddr   = postprologue_srcline.addr();
-          const char* linesrc   = postprologue_srcline.linesrc();
-          int lineno            = postprologue_srcline.lineno();
-          bool lineprologue_end = postprologue_srcline.is_prologue_end();
+          Dwarf_Addr lineaddr   = DWARF_LINEADDR(postprologue_srcline);
+          const char* linesrc   = DWARF_LINESRC(postprologue_srcline);
+          int lineno            = DWARF_LINENO(postprologue_srcline);
+          bool lineprologue_end = DWARF_LINEPROLOGUEEND(postprologue_srcline);
 
           if (sess.verbose>2)
             clog << _F("checking line record %#" PRIx64 "@%s:%d%s\n", lineaddr,
@@ -2206,12 +2325,13 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
         } // loop over srclines
 
-      Dwarf_Addr postprologue_addr = postprologue_srcline.addr();
+
+      Dwarf_Addr postprologue_addr = DWARF_LINEADDR(postprologue_srcline);
       if (postprologue_addr >= highpc)
         {
           // pick addr of previous line record
-          dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx-1));
-          postprologue_addr = lr.addr();
+          Dwarf_Line *lr = dwarf_onesrcline(lines, postprologue_srcline_idx-1);
+          postprologue_addr = DWARF_LINEADDR(lr);
         }
 
       it->prologue_end = postprologue_addr;
@@ -2221,17 +2341,19 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           clog << _F("prologue found function '%s'", it->name.c_str());
           // Add a little classification datum
           //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
-          if (postprologue_addr == entrypc) clog << _(" (naked)");
+          if (postprologue_addr == entrypc)
+            clog << _(" (naked)");
           //TRANSLATORS: Here we're adding some classification datum (ie we went over)
-          if (postprologue_srcline.addr() >= highpc) clog << _(" (tail-call?)");
+          if (DWARF_LINEADDR(postprologue_srcline) >= highpc)
+            clog << _(" (tail-call?)");
           //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
-          if (postprologue_srcline.is_prologue_end()) clog << _(" (marked)");
+          if (DWARF_LINEPROLOGUEEND(postprologue_srcline))
+            clog << _(" (marked)");
+
           clog << " = 0x" << hex << postprologue_addr << dec << "\n";
         }
 
     } // loop over functions
-
-  // XXX: how to free lines?
 }
 
 
@@ -2333,7 +2455,7 @@ dwflpp::die_has_pc (Dwarf_Die & die, Dwarf_Addr pc)
   int res = dwarf_haspc (&die, pc);
   // dwarf_ranges will return -1 if a function die has no DW_AT_ranges
   // if (res == -1)
-  //    dwarf_assert ("dwarf_haspc", res);
+  //    DWARF_ASSERT ("dwarf_haspc", res);
   return res == 1;
 }
 
@@ -2416,13 +2538,13 @@ void
 dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 {
   int n = dwfl_module_relocations (module);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
   Dwarf_Addr reloc_address = address;
   const char *secname = "";
   if (n > 1)
     {
       int i = dwfl_module_relocate_address (module, &reloc_address);
-      dwfl_assert ("dwfl_module_relocate_address", i >= 0);
+      DWFL_ASSERT ("dwfl_module_relocate_address", i >= 0);
       secname = dwfl_module_relocation_info (module, i, NULL);
     }
 
@@ -2435,7 +2557,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 
   if (n > 0 && !(n == 1 && secname == NULL))
    {
-      dwfl_assert ("dwfl_module_relocation_info", secname);
+      DWFL_ASSERT ("dwfl_module_relocation_info", secname);
       if (n > 1 || secname[0] != '\0')
         {
           // This gives us the module name, and section name within the
@@ -3240,7 +3362,7 @@ dwflpp::vardie_from_symtable (Dwarf_Die *vardie, Dwarf_Addr *addr)
 
   *addr = 0;
   int syms = dwfl_module_getsymtab (module);
-  dwfl_assert (_("Getting symbols"), syms >= 0);
+  DWFL_ASSERT (_("Getting symbols"), syms >= 0);
 
   for (int i = 0; *addr == 0 && i < syms; i++)
     {
@@ -3856,7 +3978,7 @@ dwflpp::get_blacklist_section(Dwarf_Addr addr)
     {
       Elf_Scn* scn = 0;
       size_t shstrndx;
-      dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+      DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
       while ((scn = elf_nextscn (elf, scn)) != NULL)
         {
           GElf_Shdr shdr_mem;
@@ -3895,7 +4017,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
   elf = dwfl_module_getelf (module, &bias);
   Elf_Scn *probe_scn = NULL;
 
-  dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+  DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
 
   bool have_section = false;
 
@@ -3918,7 +4040,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
       elf = dwarf_getelf (dwfl_module_getdwarf (module, &bias));
       if (! elf)
 	return NULL;
-      dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+      DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
       probe_scn = NULL;
       while ((probe_scn = elf_nextscn (elf, probe_scn)))
 	{

@@ -112,14 +112,21 @@ function _struct_timeval_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tv, ptr, n*sizeof(struct timeval)) == 0) {
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct timeval)) == 0) {
 			if (n == 2)
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld][%ld.%.06ld]", 
-					tv[0].tv_sec, tv[0].tv_usec, tv[1].tv_sec, tv[1].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 tv[0].tv_sec, tv[0].tv_usec,
+					 tv[1].tv_sec, tv[1].tv_usec);
 			else
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld]", tv[0].tv_sec, tv[0].tv_usec);
-	   	} else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", tv[0].tv_sec,
+					 tv[0].tv_usec);
+	   	}
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %}
 
@@ -133,14 +140,23 @@ function _struct_compat_timeval_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tv, ptr, 	n*sizeof(struct compat_timeval)) == 0)
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct compat_timeval)) == 0) {
 			if (n == 2)
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld][%ld.%.06ld]", 
-					(long)tv[0].tv_sec, (long)tv[0].tv_usec, (long)tv[1].tv_sec, (long)tv[1].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec,
+					 (long)tv[1].tv_sec,
+					 (long)tv[1].tv_usec);
 			else
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld]", (long)tv[0].tv_sec, (long)tv[0].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec);
+		}
 	   	else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 #endif
 %}
@@ -153,10 +169,13 @@ function _struct_timezone_u:string(uaddr:long)
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tz,ptr,sizeof(struct timezone)) == 0)
-			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]", tz.tz_minuteswest, tz.tz_dsttime);
+		if (_stp_copy_from_user((char*)&tz, ptr,
+					sizeof(struct timezone)) == 0)
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]",
+				 tz.tz_minuteswest, tz.tz_dsttime);
 		else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %} 
 
@@ -165,6 +184,16 @@ function _struct_timezone_u:string(uaddr:long)
 // _struct_utimbuf_actime, _struct_utimbuf_modtime,
 // _struct_compat_utimbuf_actime, _struct_compat_utimbuf_modtime
 #include <linux/utime.h>
+%}
+
+function _stp_clock_nanosleep_flags_str:string(flags:long)
+%{ /* pure */
+	static const _stp_val_array const nanosleep_flags_list[] = {
+		V(TIMER_ABSTIME),
+		{0, NULL}
+	};
+	_stp_lookup_str(nanosleep_flags_list, (unsigned int)STAP_ARG_flags,
+			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 // Returns the value of the actime field of a utimbuf in user space
@@ -246,9 +275,12 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char *)&ts, ptr, n*sizeof(struct timespec)))  {
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
-		} else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
 			char *str;
 			int len, i = 0;
 			ptr = STAP_RETVALUE;
@@ -259,16 +291,22 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
 					str = "UTIME_OMIT";
 				if (str)
-					len = snprintf(ptr, MAXSTRINGLEN, "[%s]", str);
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
 				else
-					len = snprintf(ptr, MAXSTRINGLEN, "[%ld.%09ld]", (long)ts[i].tv_sec, ts[i].tv_nsec);
-				ptr += len; i++;
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       ts[i].tv_nsec);
+				ptr += len;
+				i++;
 			}
 		}
 	}
 #undef STP_UTIME_NOW
 #undef STP_UTIME_OMIT
 %}
+
 function _struct_compat_timespec_u:string(uaddr:long, n:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
@@ -281,9 +319,12 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char *)&ts, ptr, n*sizeof(struct compat_timespec)))  {
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
-		} else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct compat_timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
 			char *str;
 			int len, i = 0;
 			ptr = STAP_RETVALUE;
@@ -294,10 +335,15 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
 					str = "UTIME_OMIT";
 				if (str)
-					len = snprintf(ptr, MAXSTRINGLEN, "[%s]", str);
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
 				else
-					len = snprintf(ptr, MAXSTRINGLEN, "[%ld.%09ld]", (long)ts[i].tv_sec, (long)ts[i].tv_nsec);
-				ptr += len; i++;
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       (long)ts[i].tv_nsec);
+				ptr += len;
+				i++;
 			}
 		}
 	}
@@ -820,21 +866,48 @@ function _adjtx_mode_str(f) {
    return substr(bs,0,strlen(bs)-1)
 }
 
-function _inotify_watch_mask_str(f) {
-	if (f & 0x00000001) bs="IN_ACCESS|"
-	if (f & 0x00000002) bs=bs."IN_MODIFY|"
-	if (f & 0x00000004) bs=bs."IN_ATTRIB|"
-	if (f & 0x00000008) bs=bs."IN_CLOSE_WRITE|"
-	if (f & 0x00000010) bs=bs."IN_CLOSE_NOWRITE|"
-	if (f & 0x00000020) bs=bs."IN_OPEN|"
-	if (f & 0x00000040) bs=bs."IN_MOVED_FROM|"
-	if (f & 0x00000080) bs=bs."IN_MOVED_TO|"
-	if (f & 0x00000100) bs=bs."IN_CREATE|"
-	if (f & 0x00000200) bs=bs."IN_DELETE|"
-	if (f & 0x00000400) bs=bs."IN_DELETE_SELF|"
-	if (f & 0x00000800) bs=bs."IN_MOVE_SELF|"
-	return substr(bs,0,strlen(bs)-1)
-}
+%{
+#if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
+#include <linux/inotify.h>
+#endif
+ 
+/* Ignore helper events IN_CLOSE and IN_MOVE, which are just
+ * combinations of other events. */
+
+static const _stp_val_array const _stp_inotify_watch_mask_list[] = {
+	V(IN_ACCESS),
+	V(IN_MODIFY),
+	V(IN_ATTRIB),
+	V(IN_CLOSE_WRITE),
+	V(IN_CLOSE_NOWRITE),
+	V(IN_OPEN),
+ 	V(IN_MOVED_FROM),
+	V(IN_MOVED_TO),
+	V(IN_CREATE),
+	V(IN_DELETE),
+	V(IN_DELETE_SELF),
+	V(IN_MOVE_SELF),
+	V(IN_UNMOUNT),
+	V(IN_Q_OVERFLOW),
+	V(IN_IGNORED),
+	V(IN_ONLYDIR),
+	V(IN_DONT_FOLLOW),
+#ifdef IN_EXCL_UNLINK
+	V(IN_EXCL_UNLINK),
+#endif
+	V(IN_MASK_ADD),
+	V(IN_ISDIR),
+	V(IN_ONESHOT),
+	{0, NULL}
+};
+%}
+
+function _inotify_watch_mask_str:string(mask:long)
+%{ /* pure */
+	uint32_t mask = (uint32_t)STAP_ARG_mask;
+	_stp_lookup_or_str(_stp_inotify_watch_mask_list, mask, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /*
  * Return the symbolic string representation
@@ -909,15 +982,45 @@ function _nfsctl_cmd_str(cmd) {
  *    syscall.clock_getres
  *    syscall.clock_nanosleep
  */
-function _get_wc_str(wc) {
-   if(wc==0) return "CLOCK_REALTIME"
-   if(wc==1) return "CLOCK_MONOTONIC"
-   if(wc==2) return "CLOCK_PROCESS_CPUTIME_ID"
-   if(wc==3) return "CLOCK_THREAD_CPUTIME_ID"
-   if(wc==4) return "CLOCK_REALTIME_HR"
-   if(wc==5) return "CLOCK_MONOTONIC_HR"
-   return sprintf("BAD VALUE: %d", wc)
-}
+%{
+#include <linux/time.h>
+
+static const _stp_val_array const _stp_wc_str_list[] = {
+	V(CLOCK_REALTIME),
+	V(CLOCK_MONOTONIC),
+	V(CLOCK_PROCESS_CPUTIME_ID),
+	V(CLOCK_THREAD_CPUTIME_ID),
+#ifdef CLOCK_MONOTONIC_RAW
+	V(CLOCK_MONOTONIC_RAW),
+#endif
+#ifdef CLOCK_REALTIME_COARSE
+	V(CLOCK_REALTIME_COARSE),
+#endif
+#ifdef CLOCK_MONOTONIC_COARSE
+	V(CLOCK_MONOTONIC_COARSE),
+#endif
+#ifdef CLOCK_BOOTTIME
+	V(CLOCK_BOOTTIME),
+#endif
+#ifdef CLOCK_REALTIME_ALARM
+	V(CLOCK_REALTIME_ALARM),
+#endif
+#ifdef CLOCK_BOOTTIME_ALARM
+	V(CLOCK_BOOTTIME_ALARM),
+#endif
+	V(CLOCK_SGI_CYCLE),
+#ifdef CLOCK_TAI
+	V(CLOCK_TAI),
+#endif
+	{0, NULL}
+};
+%}
+
+function _get_wc_str:string(wc:long)
+%{ /* pure */
+	unsigned int clkid = (unsigned int)STAP_ARG_wc;
+	_stp_lookup_str(_stp_wc_str_list, clkid, STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _flock_cmd_str(c) {
    if(c & 1) bs="LOCK_SH|".bs
@@ -953,6 +1056,83 @@ function _sys_pipe2_flag_str:string (f:long)
     str[strlen(str)-1] = '\0';
 %}
 
+%{
+#include <linux/fcntl.h>
+ 
+static const _stp_val_array const _stp_open_mode_flags_list[] = {
+#ifdef O_CREAT
+	V(O_CREAT),
+#endif
+#ifdef O_EXCL
+	V(O_EXCL),
+#endif
+#ifdef O_NOCTTY
+	V(O_NOCTTY),
+#endif
+#ifdef O_TRUNC
+	V(O_TRUNC),
+#endif
+#ifdef O_APPEND
+	V(O_APPEND),
+#endif
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+
+/* Here's a comment from the kernel source:
+ *
+ * ====
+ * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
+ * the O_SYNC flag.  We continue to use the existing numerical value
+ * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * This new value is used to request true Posix O_SYNC semantics.  It is
+ * defined in this strange way to make sure applications compiled against
+ * new headers get at least O_DSYNC semantics on older kernels.
+ * ====
+ *
+ * On RHEL6 (2.6.32-431.3.1.el6.x86_64), the user headers are ahead of
+ * the kernel source and define O_DSYNC, but the kernel just ignores
+ * the extra bit set. We'll try to handle it here.
+ */
+#ifndef O_DSYNC
+	{ O_SYNC | 04000000, "O_SYNC" },
+#endif
+#ifdef O_SYNC
+	V(O_SYNC),
+#endif
+#ifdef O_DSYNC
+	V(O_DSYNC),
+#endif
+#ifdef O_ASYNC
+	V(O_ASYNC),
+#elif defined(FASYNC)
+	{ FASYNC, "O_ASYNC" },
+#endif
+#ifdef O_DIRECT
+	V(O_DIRECT),
+#endif
+#ifdef O_LARGEFILE
+	V(O_LARGEFILE),
+#endif
+#ifdef O_DIRECTORY
+	V(O_DIRECTORY),
+#endif
+#ifdef O_NOFOLLOW
+	V(O_NOFOLLOW),
+#endif
+#ifdef O_NOATIME
+	V(O_NOATIME),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+#ifdef O_PATH
+	V(O_PATH),
+#endif
+	{0, NULL}
+};
+%}
+
 /* `man 2 open` for more information */
 function _sys_open_flag_str:string (f:long)
 %{ /* pure */
@@ -970,76 +1150,33 @@ function _sys_open_flag_str:string (f:long)
 		strlcpy (STAP_RETVALUE, "O_RDONLY", MAXSTRINGLEN);
 	}
 
-#ifdef O_APPEND
-	if (flags & O_APPEND)
-		strlcat (STAP_RETVALUE, "|O_APPEND", MAXSTRINGLEN);
-#endif
-#ifdef O_ASYNC
-	if (flags & O_ASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#elif defined(FASYNC)
-	if (flags & FASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#endif
-#ifdef O_CLOEXEC
-	if (flags & O_CLOEXEC)
-		strlcat (STAP_RETVALUE, "|O_CLOEXEC", MAXSTRINGLEN);
-#endif
-#ifdef O_CREAT
-	if (flags & O_CREAT)
-		strlcat (STAP_RETVALUE, "|O_CREAT", MAXSTRINGLEN);
-#endif
-#ifdef O_DIRECT
-	if (flags & O_DIRECT)
-		strlcat (STAP_RETVALUE, "|O_DIRECT", MAXSTRINGLEN);
-#endif
-#ifdef O_DIRECTORY
-	if (flags & O_DIRECTORY)
-		strlcat (STAP_RETVALUE, "|O_DIRECTORY", MAXSTRINGLEN);
-#endif
-#ifdef O_EXCL
-	if (flags & O_EXCL)
-		strlcat (STAP_RETVALUE, "|O_EXCL", MAXSTRINGLEN);
-#endif
-#ifdef O_LARGEFILE
-	if (flags & O_LARGEFILE)
-		strlcat (STAP_RETVALUE, "|O_LARGEFILE", MAXSTRINGLEN);
-#endif
-#ifdef O_NOATIME
-	if (flags & O_NOATIME)
-		strlcat (STAP_RETVALUE, "|O_NOATIME", MAXSTRINGLEN);
-#endif
-#ifdef O_NOCTTY
-	if (flags & O_NOCTTY)
-		strlcat (STAP_RETVALUE, "|O_NOCTTY", MAXSTRINGLEN);
-#endif
-#ifdef O_NOFOLLOW
-	if (flags & O_NOFOLLOW)
-		strlcat (STAP_RETVALUE, "|O_NOFOLLOW", MAXSTRINGLEN);
-#endif
-#ifdef O_NONBLOCK
-	if (flags & O_NONBLOCK)
-		strlcat (STAP_RETVALUE, "|O_NONBLOCK", MAXSTRINGLEN);
-#endif
-#ifdef O_SYNC
-	if (flags & O_SYNC)
-		strlcat (STAP_RETVALUE, "|O_SYNC", MAXSTRINGLEN);
-#endif
-#ifdef O_TRUNC
-	if (flags & O_TRUNC)
-		strlcat (STAP_RETVALUE, "|O_TRUNC", MAXSTRINGLEN);
-#endif
+	flags &= ~O_ACCMODE;
+	if (flags) {
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_open_mode_flags_list, flags,
+				   STAP_RETVALUE, MAXSTRINGLEN);
+	}
 %}
 
+%{
+/* Notice that the kernel defines and the user defines are named
+ * differently. */
+static const _stp_val_array const _stp_access_mode_list[] = {
+	{0, "F_OK"},
+	{MAY_READ, "R_OK"},
+	{MAY_WRITE, "W_OK"},
+	{MAY_EXEC, "X_OK"},
+	{0, NULL}
+};
+%}
 
 /* `man 2 open` for more information */
-function _access_mode_str(m) {
-	if((m & 7) == 0) return "F_OK"	
-	if(m & 4) bs="R_OK |".bs
-	if(m & 2) bs="W_OK |".bs
-	if(m & 1) bs="X_OK |".bs
-	return substr(bs,0,strlen(bs)-2)
-}
+function _access_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	_stp_lookup_or_str(_stp_access_mode_list, mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /* `man 2 open` for more information */
 function _sys_open_mode_str(f) {
@@ -1315,20 +1452,53 @@ function _module_flags_str:string(flags:long)
 		str[strlen(str)-1] = '\0';
 %}
 
-function _sched_policy_str(policy) {
-   if(policy==0) return "SCHED_OTHER"
-   if(policy==1) return "SCHED_FIFO"
-   if(policy==2) return "SCHED_RR"
-   if(policy==3) return "SCHED_BATCH"
-   return sprintf("UNKNOWN VALUE: %d", policy)
-}
+%{
+#include <linux/sched.h>
 
-function _priority_which_str(which) {
-   if(which==0) return "PRIO_PROCESS"
-   if(which==1) return "PRIO_PGRP"
-   if(which==2) return "PRIO_USER"
-   return sprintf("UNKNOWN VALUE: %d", which)
-}
+static const _stp_val_array const _stp_sched_policy_list[] = {
+	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
+	V(SCHED_FIFO),
+	V(SCHED_RR),
+	V(SCHED_BATCH),
+#ifdef SCHED_IDLE
+	V(SCHED_IDLE),
+#endif
+#ifdef SCHED_DEADLINE
+	V(SCHED_DEADLINE),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sched_policy_str:string(policy:long)
+%{ /* pure */
+	unsigned int policy = (unsigned int)STAP_ARG_policy;
+#ifdef SCHED_RESET_ON_FORK
+	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
+	policy &= ~SCHED_RESET_ON_FORK;
+#endif
+	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE,
+			MAXSTRINGLEN);
+#ifdef SCHED_RESET_ON_FORK
+	if (reset_on_fork)
+		strlcat(STAP_RETVALUE, "|SCHED_RESET_ON_FORK", MAXSTRINGLEN);
+#endif			
+%}
+
+%{
+static const _stp_val_array const _stp_priority_which_list[] = {
+	V(PRIO_PROCESS),
+	V(PRIO_PGRP),
+	V(PRIO_USER),
+	{0, NULL}
+};
+%}
+
+function _priority_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_priority_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 static const _stp_val_array const _stp_shutdown_how_list[] = {
@@ -1339,7 +1509,7 @@ static const _stp_val_array const _stp_shutdown_how_list[] = {
 };
 %}
 
-function _shutdown_how_str(how)
+function _shutdown_how_str:string(how:long)
 %{ /* pure */
 	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
 			STAP_RETVALUE, MAXSTRINGLEN);
@@ -1350,48 +1520,45 @@ function _shutdown_how_str(how)
 // be inlined into the function since these header file defines static
 // functions on some architectures.
 #include <linux/reboot.h>
+
+static const _stp_val_array const _stp_reboot_magic_list[] = {
+	V(LINUX_REBOOT_MAGIC1),
+	V(LINUX_REBOOT_MAGIC2),
+	V(LINUX_REBOOT_MAGIC2A),
+	V(LINUX_REBOOT_MAGIC2B),
+	V(LINUX_REBOOT_MAGIC2C),
+	{0, NULL}
+};
 %}
 
 function _reboot_magic_str:string(magic:long)
 %{ /* pure */
-	int magic = (int)STAP_ARG_magic;
-	switch (magic) {
-	case LINUX_REBOOT_MAGIC1:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC1", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2A:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2A", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2B:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2B", MAXSTRINGLEN);
-		break;
-/*
-	LINUX_REBOOT_MAGIC2C is supported from kernel 2.6
-*/
-#ifdef LINUX_REBOOT_MAGIC2C
-	case LINUX_REBOOT_MAGIC2C:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2C", MAXSTRINGLEN);
-		break;
-#endif
-	default:
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "UNKNOWN VALUE: %d", magic);
-	}
+	unsigned int magic = (unsigned int)STAP_ARG_magic;
+	_stp_lookup_str(_stp_reboot_magic_list, magic, STAP_RETVALUE,
+			MAXSTRINGLEN);
 %}
 
-function _reboot_flag_str(flag) {
-   if(flag==0x01234567) return "LINUX_REBOOT_CMD_RESTART"
-   if(flag==0xCDEF0123) return "LINUX_REBOOT_CMD_HALT"
-   if(flag==0x4321FEDC) return "LINUX_REBOOT_CMD_POWER_OFF"
-   if(flag==0xA1B2C3D4) return "LINUX_REBOOT_CMD_RESTART2"
-   if(flag==0x89ABCDEF) return "LINUX_REBOOT_CMD_CAD_ON"
-   if(flag==0x00000000) return "LINUX_REBOOT_CMD_CAD_OFF"
-   if(flag==0xD000FCE2) return "LINUX_REBOOT_CMD_SW_SUSPEND"
-   if(flag==0x45584543) return "LINUX_REBOOT_CMD_KEXEC"
-   return sprintf("UNKNOWN VALUE: %d", flag)
-}
+%{
+#include <linux/reboot.h>
+static const _stp_val_array const _stp_reboot_flag_list[] = {
+	V(LINUX_REBOOT_CMD_RESTART),
+	V(LINUX_REBOOT_CMD_HALT),
+	V(LINUX_REBOOT_CMD_CAD_ON),
+	V(LINUX_REBOOT_CMD_CAD_OFF),
+	V(LINUX_REBOOT_CMD_POWER_OFF),
+	V(LINUX_REBOOT_CMD_RESTART2),
+	V(LINUX_REBOOT_CMD_SW_SUSPEND),
+	V(LINUX_REBOOT_CMD_KEXEC),
+	{0, NULL}
+};	
+%}
+
+function _reboot_flag_str:string(flag:long)
+%{  /* pure */
+	unsigned int flag = (unsigned int)STAP_ARG_flag;
+	_stp_lookup_str(_stp_reboot_flag_list, flag, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _waitid_which_str(flag) {
    if(flag==0) return "P_ALL"
@@ -1533,14 +1700,52 @@ function _mremap_flags(flags) {
 	return substr(msg,0,strlen(msg)-1)
 }
 
-function _madvice_advice_str(behavior) {
-   if(behavior==0x00000000) return "MADV_NORMAL"
-   if(behavior==0x00000001) return "MADV_RANDOM"
-   if(behavior==0x00000002) return "MADV_SEQUENTIAL"
-   if(behavior==0x00000003) return "MADV_WILLNEED"
-   if(behavior==0x00000004) return "MADV_DONTNEED"
-   return sprintf("UNKNOWN VALUE: %d", behavior)
-}
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_madvice_advice_list[] = {
+	V(MADV_NORMAL),
+	V(MADV_RANDOM),
+	V(MADV_SEQUENTIAL),
+	V(MADV_WILLNEED),
+	V(MADV_DONTNEED),
+	V(MADV_REMOVE),
+	V(MADV_DONTFORK),
+	V(MADV_DOFORK),
+#ifdef MADV_HWPOISON
+	V(MADV_HWPOISON),
+#endif
+#ifdef MADV_SOFT_OFFLINE
+	V(MADV_SOFT_OFFLINE),
+#endif
+#ifdef MADV_MERGEABLE
+	V(MADV_MERGEABLE),
+#endif
+#ifdef MADV_UNMERGEABLE
+	V(MADV_UNMERGEABLE),
+#endif
+#ifdef MADV_HUGEPAGE
+	V(MADV_HUGEPAGE),
+#endif
+#ifdef MADV_NOHUGEPAGE
+	V(MADV_NOHUGEPAGE),
+#endif
+#ifdef MADV_DONTDUMP
+	V(MADV_DONTDUMP),
+#endif
+#ifdef MADV_DODUMP
+	V(MADV_DODUMP),
+#endif
+	{0, NULL}
+};
+%}
+
+function _madvice_advice_str:string(behavior)
+%{ /* pure */
+	_stp_lookup_str(_stp_madvice_advice_list,
+			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _fadvice_advice_str(behavior) {
    if(behavior==0x00000000) return "FADV_NORMAL"
@@ -2043,9 +2248,9 @@ function __ulong:long(val:long) %{ /* pure */
 %}
 
 # For utimensat and futimesat, the directory fd can have a special value
-function _dfd_str(d) {
-	# 0xffffff9c is a 32-bit -100, for compatability mode.
-	if((d == -100) || (d == 0xffffff9c)) return "AT_FDCWD"
+function _dfd_str:string(d:long)
+{
+	if (d == %{ AT_FDCWD %}) return "AT_FDCWD"
 	return sprint(d)
 }
 
@@ -2321,34 +2526,30 @@ function _signalfd4_flags_str:string(f:long)
 #if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
 #include <linux/inotify.h>
 #endif
+
+static const _stp_val_array const _stp_inotify_init1_flag_list[] = {
+#if defined(IN_NONBLOCK)
+	V(IN_NONBLOCK),
+#endif
+#if defined(IN_CLOEXEC)
+	V(IN_CLOEXEC),
+#endif
+	{0, NULL}
+};
 %}
+
 function _inotify_init1_flag_str:string(f:long)
 %{ /* pure */
-  long flags = STAP_ARG_f;
-  char *str = STAP_RETVALUE;
-  int len;
-
-  str[0] = '\0';
-#if defined(IN_CLOEXEC) && defined(IN_NONBLOCK)
-  if (flags & IN_NONBLOCK)
-    strlcat(str, "IN_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & IN_CLOEXEC)
-    strlcat(str, "IN_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = '\0';
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_inotify_init1_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 function _dup3_flag_str:string(f:long)
 %{ /* pure */
-#ifdef O_CLOEXEC
-	if (STAP_ARG_f == O_CLOEXEC)
-		strlcpy (STAP_RETVALUE, "O_CLOEXEC", MAXSTRINGLEN);
-	else
-#endif
-		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_open_mode_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
@@ -2764,6 +2965,38 @@ function _ptrace_return_geteventmsg_data(request,data)
 	if (request == %{ PTRACE_GETEVENTMSG %})
 		return user_long(data)
 }
+
+%{
+#include <linux/swap.h>
+
+static const _stp_val_array const _stp_swapon_flags_list[] = {
+	V(SWAP_FLAG_PREFER),
+#ifdef SWAP_FLAG_DISCARD
+	V(SWAP_FLAG_DISCARD),
+#endif
+#ifdef SWAP_FLAG_DISCARD_ONCE
+	V(SWAP_FLAG_DISCARD_ONCE),
+#endif
+#ifdef SWAP_FLAG_DISCARD_PAGES
+	V(SWAP_FLAG_DISCARD_PAGES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _swapon_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_swapon_flags_list,
+			   (flags & ~SWAP_FLAG_PRIO_MASK), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (STAP_ARG_flags & SWAP_FLAG_PREFER) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, 
+			      "|%d", flags & SWAP_FLAG_PRIO_MASK);
+	}
+%}
 
 /* do_fork helper function to determine fork type. */
 function __is_user_regs:long (regs:long)

@@ -11,8 +11,11 @@ set ok2 0
 spawn stap $srcdir/$subdir/backtrace.stp
 expect {
     -timeout 30
+    -re {^WARNING: no or bad debug frame hdr[^\r\n]*\r\n} { exp_continue }
+    -re {^WARNING: No binary search table for eh frame, doing slow linear search for stap[^\r\n]*\r\n} { exp_continue }
     -re {^[^\r\n ]*\r\n} { incr ok; exp_continue }
     -re {^ [^\r\n]*\r\n} { incr ok2; exp_continue }
+
     eof { }
     timeout { fail "$test (timeout)" }
 }
@@ -31,6 +34,9 @@ set ok2 0
 spawn stap $srcdir/$subdir/backtrace.stp -d kernel
 expect {
     -timeout 30
+    -re {^WARNING: no or bad debug frame hdr[^\r\n]*\r\n} { exp_continue }
+    -re {^WARNING: No binary search table for eh frame, doing slow linear search for stap[^\r\n]*\r\n} { exp_continue }
+    -re {^WARNING: DWARF expression stack underflow in CFI[^\r\n]*\r\n} { exp_continue }
     -re {^[^\r\n ]*\r\n} { incr ok; exp_continue }
     -re {^ [^\r\n]*\r\n} { incr ok2; exp_continue }
     eof { }
@@ -38,3 +44,24 @@ expect {
 }
 catch { close }; wait
 if {$ok == 3 && $ok2 >= $ok} then { pass "$test ($ok $ok2)" } else { fail "$test ($ok $ok2)" }
+
+set test "self-unwind-ensure-exact"
+
+if {![istarget "x86_64-*-*"] && ![istarget "i*86-*-*"]} {
+  setup_kfail 10739 [istarget]
+}
+
+set ok 0
+spawn stap $srcdir/$subdir/backtrace.stp -d kernel
+expect {
+    -timeout 30
+    -re {^WARNING: no or bad debug frame hdr[^\r\n]*\r\n} { exp_continue }
+    -re {^WARNING: No binary search table for eh frame, doing slow linear search for stap_self_tmp_value[^\r\n]*\r\n} { exp_continue }
+    -re {^WARNING: DWARF expression stack underflow in CFI[^\r\n]*\r\n} { exp_continue }
+    -re {[^\r\n]*inexact*[^\r\n]*\r\n} { incr ok; exp_continue }
+    eof { }
+    timeout { fail "$test (timeout)" }
+}
+catch { close }; wait
+if {$ok == 0} then { pass "$test ($ok)" } else { fail "$test ($ok)" }
+

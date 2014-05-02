@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -31,14 +31,14 @@ extern "C" {
 }
 
 
+struct base_func_info;
 struct func_info;
 struct inline_instance_info;
 struct symbol_table;
 struct base_query;
-struct dwarf_query;
 struct external_function_query;
 
-enum line_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
+enum lineno_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
 enum info_status { info_unknown, info_present, info_absent };
 
 // module -> cu die[]
@@ -75,13 +75,21 @@ typedef unordered_map<void*, Dwarf_Die> cu_die_parent_cache_t;
 // cu die -> (die -> parent die)
 typedef unordered_map<void*, cu_die_parent_cache_t*> mod_cu_die_parent_cache_t;
 
+// Dwarf_Line[] (sorted by lineno)
+typedef std::vector<Dwarf_Line*> lines_t;
+typedef std::pair<lines_t::iterator,
+                  lines_t::iterator>
+        lines_range_t;
+
+// srcfile -> Dwarf_Line[]
+typedef unordered_map<std::string, lines_t*> srcfile_lines_cache_t;
+
+// cu die -> (srcfile -> Dwarf_Line[])
+typedef unordered_map<void*, srcfile_lines_cache_t*> cu_lines_cache_t;
+
+typedef std::vector<base_func_info> base_func_info_map_t;
 typedef std::vector<func_info> func_info_map_t;
 typedef std::vector<inline_instance_info> inline_instance_map_t;
-
-
-/* XXX FIXME functions that dwflpp needs from tapsets.cxx */
-func_info_map_t *get_filtered_functions(dwarf_query *q);
-inline_instance_map_t *get_filtered_inlines(dwarf_query *q);
 
 
 struct
@@ -306,21 +314,20 @@ struct dwflpp
 
   template<typename T>
   void iterate_over_srcfile_lines (char const * srcfile,
-                                   int lines[2],
-                                   bool need_single_match,
-                                   enum line_t line_type,
-                                   void (*callback) (const dwarf_line_t&, T*),
-                                   const std::string& func_pattern,
+                                   int linenos[2],
+                                   enum lineno_t lineno_type,
+                                   base_func_info_map_t& funcs,
+                                   void (*callback) (Dwarf_Addr,
+                                                     int, T*),
                                    T *data)
     {
       // See comment block in iterate_over_modules()
       iterate_over_srcfile_lines<void>(srcfile,
-                                       lines,
-                                       need_single_match,
-                                       line_type,
-                                       (void (*)(const dwarf_line_t&,
-                                                 void*))callback,
-                                       func_pattern,
+                                       linenos,
+                                       lineno_type,
+                                       funcs,
+                                       (void (*)(Dwarf_Addr,
+                                                 int, void*))callback,
                                        (void*)data);
     }
 
@@ -465,6 +472,9 @@ private:
   void cache_die_parents(cu_die_parent_cache_t* parents, Dwarf_Die* die);
   cu_die_parent_cache_t *get_die_parents();
 
+  // Cache for cu lines sorted by lineno
+  cu_lines_cache_t cu_lines_cache;
+
   Dwarf_Die* get_parent_scope(Dwarf_Die* die);
 
   /* The global alias cache is used to resolve any DIE found in a
@@ -518,10 +528,23 @@ private:
 
   static int mod_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
   static int cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v);
+
+  lines_t* get_cu_lines_sorted_by_lineno(const char *srcfile);
+
+  void collect_lines_for_single_lineno(char const * srcfile,
+                                       int lineno,
+                                       bool is_relative,
+                                       base_func_info_map_t& funcs,
+                                       lines_t& matching_lines);
+  void collect_all_lines(char const * srcfile,
+                         base_func_info_map_t& funcs,
+                         lines_t& matching_lines);
+  void suggest_alternative_linenos(char const * srcfile,
+                                   int lineno,
+                                   base_func_info_map_t& funcs);
+
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
-
-  bool has_single_line_record (dwarf_query * q, char const * srcfile, int lineno);
 
   static void loc2c_error (void *, const char *fmt, ...) __attribute__ ((noreturn));
 
@@ -659,12 +682,11 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
                                                               size_t));
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         int lines[2],
-                                         bool need_single_match,
-                                         enum line_t line_type,
-                                         void (* callback) (const dwarf_line_t& line,
-                                                            void * arg),
-                                         const std::string& func_pattern,
+                                         int linenos[2],
+                                         enum lineno_t lineno_type,
+                                         base_func_info_map_t& funcs,
+                                         void (* callback) (Dwarf_Addr,
+                                                            int, void*),
                                          void *data);
 template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,

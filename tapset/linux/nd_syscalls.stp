@@ -475,37 +475,61 @@ probe nd_syscall.chroot.return = kprobe.function("sys_chroot").return ?
 # long compat_clock_getres(clockid_t which_clock, struct compat_timespec __user *tp)
 #
 probe nd_syscall.clock_getres = kprobe.function("compat_clock_getres") ?,
-                                kprobe.function("sys_clock_getres") ?
+	kprobe.function("compat_sys_clock_getres") ?,
+	__nd_syscall.clock_getres ?
 {
-	name = "clock_getres"
 	asmlinkage()
+	name = "clock_getres"
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
 	res_uaddr = pointer_arg(2)
 	argstr = sprintf("%s, %p", clk_id_str, res_uaddr)
 }
-probe nd_syscall.clock_getres.return = kprobe.function("compat_clock_getres").return ?,
-                                       kprobe.function("sys_clock_getres").return ?
+probe __nd_syscall.clock_getres = kprobe.function("sys_clock_getres")
+{
+	@__syscall_gate(%{ __NR_clock_getres %})
+}
+probe nd_syscall.clock_getres.return =
+	kprobe.function("compat_clock_getres").return ?,
+	kprobe.function("compat_sys_clock_getres").return ?,
+	__nd_syscall.clock_getres.return ?
 {
 	name = "clock_getres"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.clock_getres.return =
+	kprobe.function("sys_clock_getres").return
+{
+	@__syscall_gate(%{ __NR_clock_getres %})
 }
 
 # clock_gettime ______________________________________________
 # long sys_clock_gettime(clockid_t which_clock, struct timespec __user *tp)
 #
-probe nd_syscall.clock_gettime = kprobe.function("sys_clock_gettime") ?
+probe nd_syscall.clock_gettime = __nd_syscall.clock_gettime,
+	kprobe.function("compat_sys_clock_gettime") ?
 {
 	name = "clock_gettime"
 	asmlinkage()
 	clk_id = int_arg(1)
 	clk_id_str = _get_wc_str(clk_id)
-	argstr = sprintf("%s, %p", clk_id_str, pointer_arg(2))
+	tp_uaddr = pointer_arg(2)
+	argstr = sprintf("%s, %p", clk_id_str, tp_uaddr)
 }
-probe nd_syscall.clock_gettime.return = kprobe.function("sys_clock_gettime").return ?
+probe __nd_syscall.clock_gettime = kprobe.function("sys_clock_gettime").call
+{
+	@__syscall_gate(%{ __NR_clock_gettime %})
+}
+probe nd_syscall.clock_gettime.return = __nd_syscall.clock_gettime.return, 
+	kprobe.function("compat_sys_clock_gettime").return ?
 {
 	name = "clock_gettime"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.clock_gettime.return =
+	kprobe.function("sys_clock_gettime").return
+{
+	@__syscall_gate(%{ __NR_clock_gettime %})
 }
 
 # clock_nanosleep ____________________________________________
@@ -519,42 +543,54 @@ probe nd_syscall.clock_nanosleep = kprobe.function("sys_clock_nanosleep").call
 	@__syscall_gate(%{ __NR_clock_nanosleep %})
 	name = "clock_nanosleep"
 	asmlinkage()
+	clk_id = int_arg(1)
+	clk_id_str = _get_wc_str(clk_id)
 	flags = int_arg(2)
-	if (flags == 1)
-		flag_str = "TIMER_ABSTIME"
-	else
-		flag_str = sprintf("0x%x", flags)
+%(systemtap_v <= "2.6" %?
+	flag_str = _stp_clock_nanosleep_flags_str(flags)
+%)
+	flags_str = _stp_clock_nanosleep_flags_str(flags)
+	req_uaddr = pointer_arg(3)
+	rem_uaddr = pointer_arg(4)
 	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(int_arg(1)), flag_str,
-		_struct_timespec_u(pointer_arg(3), 1), pointer_arg(4))
+			 _struct_timespec_u(req_uaddr, 1), pointer_arg(4))
 }
-probe nd_syscall.clock_nanosleep.return = kprobe.function("sys_clock_nanosleep").return ?
+probe nd_syscall.clock_nanosleep.return =
+	kprobe.function("sys_clock_nanosleep").return ?
 {
 	@__syscall_gate(%{ __NR_clock_nanosleep %})
 	name = "clock_nanosleep"
 	retstr = returnstr(1)
 }
+
 # compat_clock_nanosleep ________________________________________
 #
 # long compat_clock_nanosleep(clockid_t which_clock, int flags,
 #			struct compat_timespec __user *rqtp,
 #			struct compat_timespec __user *rmtp)
 #
-probe nd_syscall.compat_clock_nanosleep = kprobe.function("compat_clock_nanosleep").call ?,
-                                          kprobe.function("compat_sys_clock_nanosleep").call ?
+probe nd_syscall.compat_clock_nanosleep =
+	kprobe.function("compat_clock_nanosleep").call ?,
+	kprobe.function("compat_sys_clock_nanosleep").call ?
 {
 	name = "clock_nanosleep"
 	asmlinkage()
+	clk_id = int_arg(1)
+	clk_id_str = _get_wc_str(clk_id)
 	flags = int_arg(2)
-	if (flags == 1)
-		flag_str = "TIMER_ABSTIME"
-	else
-		flag_str = sprintf("0x%x", flags)
-	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(int_arg(1)), flag_str,
-		_struct_compat_timespec_u(pointer_arg(3), 1),
-		pointer_arg(4))
+%(systemtap_v <= "2.6" %?
+	flag_str = _stp_clock_nanosleep_flags_str(flags)
+%)
+	flags_str = _stp_clock_nanosleep_flags_str(flags)
+	req_uaddr = pointer_arg(3)
+	rem_uaddr = pointer_arg(4)
+	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(int_arg(1)), flags_str,
+			 _struct_compat_timespec_u(req_uaddr, 1),
+			 pointer_arg(4))
 }
-probe nd_syscall.compat_clock_nanosleep.return = kprobe.function("compat_clock_nanosleep").return ?,
-                                                 kprobe.function("compat_sys_clock_nanosleep").return ?
+probe nd_syscall.compat_clock_nanosleep.return =
+	kprobe.function("compat_clock_nanosleep").return ?,
+	kprobe.function("compat_sys_clock_nanosleep").return ?
 {
 	name = "clock_nanosleep"
 	retstr = returnstr(1)
@@ -737,7 +773,7 @@ probe nd_syscall.creat = kprobe.function("sys_creat") ?
 {
 	name = "creat"
 	asmlinkage()
-	mode = int_arg(2)
+	mode = uint_arg(2)
 	pathname = user_string_quoted(pointer_arg(1))
 	argstr = sprintf("%s, %#o", user_string_quoted(pointer_arg(1)), mode)
 }
@@ -1190,7 +1226,7 @@ probe nd_syscall.fchmod = kprobe.function("sys_fchmod") ?
 	name = "fchmod"
 	asmlinkage()
 	fildes = int_arg(1)
-	mode = uint_arg(2) # SAFE?
+	mode = uint_arg(2)
 	argstr = sprintf("%d, %#o", fildes, mode)
 }
 probe nd_syscall.fchmod.return = kprobe.function("sys_fchmod").return ?
@@ -1688,33 +1724,41 @@ probe nd_syscall.compat_futex.return = kprobe.function("compat_sys_futex").retur
 
 probe nd_syscall.futimesat = kprobe.function("sys_futimesat") ?
 {
-	name = "futimesat"
 	asmlinkage()
+	@__syscall_gate(%{ __NR_futimesat %})
+	name = "futimesat"
 	dirfd = int_arg(1)
+	dirfd_str = _dfd_str(dirfd)
 	filename_uaddr = pointer_arg(2)
 	filename = user_string_quoted(filename_uaddr)
 	tvp_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %s, %s", _dfd_str(dirfd), user_string_quoted(filename_uaddr),
-		_struct_timeval_u(tvp_uaddr, 2))
+	argstr = sprintf("%s, %s, %s", _dfd_str(dirfd),
+			 user_string_quoted(filename_uaddr),
+			 _struct_timeval_u(tvp_uaddr, 2))
 }
 probe nd_syscall.compat_futimesat = kprobe.function("compat_sys_futimesat") ?
 {
-	name = "futimesat"
 	asmlinkage()
-	dirfd = uint_arg(1)
+	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
+	name = "futimesat"
+	dirfd = int_arg(1)
+	dirfd_str = _dfd_str(dirfd)
 	filename_uaddr = pointer_arg(2)
 	filename = user_string_quoted(pointer_arg(2))
 	tvp_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %s, %s", _dfd_str(uint_arg(1)), user_string_quoted(pointer_arg(2)),
-		_struct_compat_timeval_u(pointer_arg(3), 2))
+	argstr = sprintf("%s, %s, %s", _dfd_str(int_arg(1)),
+			 user_string_quoted(pointer_arg(2)),
+			 _struct_compat_timeval_u(pointer_arg(3), 2))
 }
 probe nd_syscall.futimesat.return = kprobe.function("sys_futimesat").return ?
 {
+	@__syscall_gate(%{ __NR_futimesat %})
 	name = "futimesat"
 	retstr = returnstr(1)
 }
 probe nd_syscall.compat_futimesat.return = kprobe.function("compat_sys_futimesat").return ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
 	name = "futimesat"
 	retstr = returnstr(1)
 }
@@ -2353,7 +2397,7 @@ probe nd_syscall.inotify_rm_watch = kprobe.function("sys_inotify_rm_watch") ?
 	name = "inotify_rm_watch"
 	asmlinkage()
 	fd = int_arg(1)
-	wd = uint_arg(2)
+	wd = int_arg(2)
 	argstr = sprintf("%d, %d", fd, wd)
 }
 probe nd_syscall.inotify_rm_watch.return = kprobe.function("sys_inotify_rm_watch").return ?
@@ -2993,7 +3037,8 @@ probe nd_syscall.madvise = kprobe.function("sys_madvise") ?
 	length = ulong_arg(2)
 	advice = int_arg(3)
 	advice_str = _madvice_advice_str(advice)
-	argstr = sprintf("%p, %d, %s", start, length, _madvice_advice_str(advice))
+	argstr = sprintf("%p, %u, %s", start, length,
+			 _madvice_advice_str(advice))
 }
 probe nd_syscall.madvise.return = kprobe.function("sys_madvise").return ?
 {

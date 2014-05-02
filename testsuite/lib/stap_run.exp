@@ -123,7 +123,7 @@ proc wait_n_secs {N_SECS} {
 	if {$ncpu > 2} {
 	    set ncpu [expr $ncpu - 2]
 	}
-	puts "$STRESS -c $ncpu -t $N_SECS"
+	send_log "executing: $STRESS -c $ncpu -t $N_SECS"
 	exec $STRESS -c $ncpu -t $N_SECS
     } else {
 	# fallback method
@@ -141,13 +141,13 @@ proc wait_5_secs {} {
 }
 
 proc print_system_info {} {
-	global Host Snapshot Distro GCC_Version SElinux
+	global Host Snapshot Distro GCC_FullVersion SElinux
 
 	clone_output "\nHost: $Host"
 	if {[string compare $Snapshot "unknown"]!=0} {
 		clone_output "Snapshot: $Snapshot"
 	}
-	clone_output "GCC: $GCC_Version"
+	clone_output "GCC: $GCC_FullVersion"
 	clone_output "Distro: $Distro"
         clone_output "SElinux: $SElinux"
         clone_output "\n"

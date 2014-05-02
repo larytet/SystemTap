@@ -1,5 +1,4 @@
 set test "unprivileged myproc"
-
 if {![installtest_p]} { untested $test; return }
 if {![uprobes_p]} { untested $test; return }
 
@@ -242,7 +241,7 @@ proc test_probes { privilege } {
     
     set effective_uid [exec /usr/bin/id -u]
     set stap [exec /usr/bin/which stap]
-    
+
     # Start the test executable in the background
     set our_pid [exec ./loop &]
     verbose -log "our ./loop pid is $our_pid"
@@ -252,6 +251,8 @@ proc test_probes { privilege } {
     if {$effective_uid != 0} {
 	# ask for password here, if required ...
 	as_root { true }
+        # trigger PR16406 scenario if possible
+        as_root { /sbin/modprobe loop }
 	# ... and not here.
 	exec sudo ./loop &
 	# Give it a chance to start
@@ -320,6 +321,15 @@ proc test_probes { privilege } {
 	    {
 		setup_kfail GCC *-*-*
 	    }
+	    process(string).function(string).callee(string) -
+	    process.function(string).callee(string)
+            {
+                global GCC_Version
+                verbose -log "gcc version $GCC_Version"
+                if {[strverscmp $GCC_Version 4.7] < 0} then {
+                    setup_kfail GCC *-*-*
+                }
+            }
 	    process.function(number).return -
 	    process.function(string).return -
 	    process.library(string).function(number).return -
@@ -444,7 +454,7 @@ set exeflags "$exeflags compiler=gcc"
 if {[regexp "^(x86_64|i.86)$" $::tcl_platform(machine)] == 0} {
 set exeflags "$exeflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=nr"
 }
-set res [target_compile $srcdir/systemtap.unprivileged/loop.c $exepath executable "$exeflags"]
+set res [target_compile $srcdir/$subdir/loop.c $exepath executable "$exeflags"]
 if { $res == "" } {
     pass "$test exe compile"
 } else {

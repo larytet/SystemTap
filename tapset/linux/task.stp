@@ -1,6 +1,6 @@
 // task information tapset
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2010-2013 Red Hat Inc.
+// Copyright (C) 2010-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -42,7 +42,7 @@ function _task_rlimit_cur:long (task:long, nd_limit:long)
     return @cast(rlimit, "rlimit", "kernel<linux/sched.h>")[nd_limit]->rlim_cur;
 }
 
-/* sfunction task_rlimit - The current resource limit of the tash
+/* sfunction task_rlimit - The current resource limit of the task
  *
  * @task: task_struct pointer
  * @lim_str: String representing limit.

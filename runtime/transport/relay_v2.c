@@ -4,7 +4,7 @@
  * code started as a proposed relayfs interface called 'utt'.  It has
  * been modified and simplified for systemtap.
  *
- * Changes Copyright (C) 2009-2010 Red Hat Inc.
+ * Changes Copyright (C) 2009-2014 Red Hat Inc.
  *
  * Original utt code by:
  *   Copyright (C) 2006 Jens Axboe <axboe@suse.de>

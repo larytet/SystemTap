@@ -1,6 +1,6 @@
 /* -*- linux-c -*-
  * kernel stack unwinding
- * Copyright (C) 2008-2011, 2013 Red Hat Inc.
+ * Copyright (C) 2008-2011, 2014 Red Hat Inc.
  *
  * Based on old kernel code that is
  * Copyright (C) 2002-2006 Novell, Inc.
@@ -860,6 +860,12 @@ adjustStartLoc (unsigned long startLoc,
 {
   unsigned long vm_addr = 0;
 
+  /* If we're unwinding the current module, then the addresses
+     we've got don't require adjustment, they didn't come from user
+     space */
+  if(strcmp(THIS_MODULE->name,m->name)==0)
+      return startLoc;
+
   /* XXX - some, or all, of this should really be done by
      _stp_module_relocate and/or read_pointer. */
   dbug_unwind(2, "adjustStartLoc=%lx, ptrType=%s, m=%s, s=%s eh=%d\n",
@@ -891,6 +897,7 @@ adjustStartLoc (unsigned long startLoc,
     return startLoc + vm_addr;
   else
     return startLoc + vm_addr - s->sec_load_offset;
+
 }
 
 /* If we previously created an unwind header, then use it now to binary search */
@@ -1385,10 +1392,11 @@ static int unwind_frame(struct unwind_context *context,
 			if (!startLoc)
 				continue;
 			endLoc = startLoc + locRange;
-			if (pc > endLoc) {
+// removal because this is a way of checking if the next fde is in range, if the fde's aren't sorted (which is why we're doing a linear search in the first place, than this check is bogus
+                        /*if (pc > endLoc) {
                                 dbug_unwind(1, "pc (%lx) > endLoc(%lx)\n", pc, endLoc);
 				goto done;
-			}
+				}*/
 			dbug_unwind(3, "endLoc=%lx\n", endLoc);
 			if (pc >= startLoc && pc < endLoc)
 				break;

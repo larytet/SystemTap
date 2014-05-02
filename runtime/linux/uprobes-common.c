@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * uprobe Functions
- * Copyright (C) 2010 Red Hat Inc.
+ * Copyright (C) 2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -68,8 +68,14 @@ static int stap_uprobe_change_plus (struct task_struct *tsk, unsigned long reloc
     #ifdef DEBUG_UPROBES
     _stp_dbug(__FUNCTION__,__LINE__, "+uprobe spec %d idx %d process %s[%d] addr %p pp %s\n", spec_index, (slotted_p ? i : -1), tsk->comm, tsk->tgid, (void*)(relocation+sups->address), sups->probe->pp);
     #endif
-    if ((rc = _stp_usermodule_check(tsk, (const char*)stf->pathname, relocation)))
-      return rc;
+
+    /* NB: check for user-module build-id only if we have a pathname
+       at all; for a process(PID#).* probe, we may not.  If at some
+       point we map process(PID#) to process("/proc/PID#/exe"), we'll
+       get a pathname. */
+    if (stf->pathname)
+            if ((rc = _stp_usermodule_check(tsk, stf->pathname, relocation)))
+                    return rc;
 
     /* Here, slotted_p implies that `i' points to the single
        stap_uprobes[] element that has been slotted in for registration

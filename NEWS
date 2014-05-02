@@ -1,9 +1,19 @@
-* What's new in version 2.5
+* What's new in version 2.6
+
+* What's new in version 2.5, 2014-04-30
+
+- Systemtap now supports backtracing through its own, invoking module.
+
+- Java probes now support backtracing using the print_java_backtrace()
+  and sprint_java_backtrace() functions.
+
+- Statement probes (e.g. process.statement) are now faster to resolve,
+  more precise, and work better with inlined functions.
 
 - New switches have been added to help inspect the contents of installed
   library files:
 
-  stap --dump-function --> lists all library functions and their args
+  stap --dump-functions --> list all library functions and their args
   stap --dump-probe-aliases --> list all library probe aliases
 
 - The heuristic algorithms used to search for function-prologue
@@ -12,6 +22,9 @@
   heuristics are necessary to find $context parameters for some
   function-call/entry probes.  We recommend programs be built with
   CFLAGS+=-grecord-gcc-switches to feed information to the heuristics.
+
+- The stap --use-server option now more correctly supports address:port
+  type parametrization, for manual use in the absence of avahi.
 
 - A new probe alias "oneshot" allows a single quick script fragment to run,
   then exit.
@@ -99,6 +112,10 @@
     deprecated in favor of the new '_msg_flags_str()' function.
   - The 'flags' and 'flags_str' variables in the 'syscall.accept' and
     'nd_syscall.accept' probe alias.
+  - The 'first', 'second', and 'uptr_uaddr' variables in the
+    'syscall.compat_sys_shmctl', and 'nd_syscall.compat_sys_shmctl'
+    probe aliases have been deprecated in favor of the new 'shmid',
+    'cmd', and 'buf_uaddr' variables.
 
 * What's new in version 2.4, 2013-11-06
 

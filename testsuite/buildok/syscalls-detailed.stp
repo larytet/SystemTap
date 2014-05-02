@@ -13,13 +13,13 @@ probe syscall.accept.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.accept4
+probe syscall.accept4 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %p, %p, %d(%s)\n", sockfd, addr_uaddr, addrlen_uaddr,
 	       flags, flags_str)
 }
-probe syscall.accept4.return
+probe syscall.accept4.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -172,7 +172,7 @@ probe syscall.clock_getres.return
 probe syscall.clock_gettime
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s)\n", clk_id, clk_id_str)
+	printf("%d(%s), %p\n", clk_id, clk_id_str, tp_uaddr)
 }
 probe syscall.clock_gettime.return
 {
@@ -182,7 +182,11 @@ probe syscall.clock_gettime.return
 probe syscall.clock_nanosleep, syscall.compat_clock_nanosleep ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s)\n", flags, flag_str)
+	printf("%d(%s), %d(%s), %p, %p\n", clk_id, clk_id_str, flags,
+	       flags_str, req_uaddr, rem_uaddr)
+%(systemtap_v <= "2.6" %?
+	printf("%s\n", flag_str)
+%)
 }
 probe syscall.clock_nanosleep.return, syscall.compat_clock_nanosleep.return ?
 {
@@ -583,8 +587,8 @@ probe syscall.futex.return, syscall.compat_futex.return ?
 probe syscall.futimesat ?, syscall.compat_futimesat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p(%s), %p\n", dirfd, filename_uaddr, filename,
-	       tvp_uaddr)
+	printf("%d(%s), %p(%s), %p\n", dirfd, dirfd_str, filename_uaddr,
+	       filename, tvp_uaddr)
 }
 probe syscall.futimesat.return ?, syscall.compat_futimesat.return ?
 {

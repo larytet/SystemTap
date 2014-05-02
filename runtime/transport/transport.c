@@ -296,11 +296,18 @@ static void _stp_ctl_work_callback(unsigned long val)
 {
 	int do_io = 0;
 	unsigned long flags;
+	struct context* __restrict__ c = NULL;
+
+	/* Prevent probe reentrancy while grabbing probe-used locks.  */
+	c = _stp_runtime_entryfn_get_context();
 
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	if (!list_empty(&_stp_ctl_ready_q))
 		do_io = 1;
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+
+	_stp_runtime_entryfn_put_context(c);
+
 	if (do_io)
 		wake_up_interruptible(&_stp_ctl_wq);
 
@@ -341,7 +348,7 @@ static int _stp_transport_init(void)
 	_stp_uid = current->uid;
 	_stp_gid = current->gid;
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 	_stp_uid = from_kuid_munged(current_user_ns(), current_uid());
 	_stp_gid = from_kgid_munged(current_user_ns(), current_gid());
 #else
@@ -419,6 +426,10 @@ static int _stp_transport_init(void)
 	/* create print buffers */
 	if (_stp_print_init() < 0)
 		goto err2;
+
+	/* set _stp_module_self dynamic info */
+	if (_stp_module_update_self() < 0)
+		goto err3;
 
 	/* start transport */
 	_stp_transport_data_fs_start();

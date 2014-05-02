@@ -1,5 +1,5 @@
 // tapset for procfs
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -286,7 +286,6 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "atomic_set (session_state(), STAP_SESSION_ERROR);";
       s.op->newline() << "_stp_exit ();";
       s.op->newline(-1) << "}";
-      s.op->newline() << "atomic_dec (& c->busy);";
       s.op->newline() << "goto probe_epilogue;";
       s.op->newline(-1) << "}";
 
@@ -344,7 +343,6 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "atomic_set (session_state(), STAP_SESSION_ERROR);";
       s.op->newline() << "_stp_exit ();";
       s.op->newline(-1) << "}";
-      s.op->newline() << "atomic_dec (& c->busy);";
       s.op->newline() << "goto probe_epilogue;";
       s.op->newline(-1) << "}";
 

@@ -63,11 +63,13 @@ staprun/staprun.c
 staprun/staprun_funcs.c
 staprun/staprun.h
 staprun/stapsh.c
+staprun/strfloctime.c
 stap-serverd.cxx
 stap-sign-module.cxx
 stapsslerr.h
 staptree.cxx
 staptree.h
+stapvirt.c
 tapset-been.cxx
 tapset-dynprobe.cxx
 tapset-dynprobe.h

@@ -410,7 +410,7 @@ public:
   std::set<std::string> rpms_checked; // enlisted by filename+rpm_type
   std::set<std::string> rpms_to_install; // resulting rpms
 
-  translator_output* op_create_auxiliary();
+  translator_output* op_create_auxiliary(bool trailer_p = false);
 
   const token* last_token;
   void print_token (std::ostream& o, const token* tok);

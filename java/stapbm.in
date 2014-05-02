@@ -34,9 +34,9 @@ SYSTEMTAP_DIR=${SYSTEMTAP_DIR-$HOME/.systemtap}
 BYTEMAN_HOME=${BYTEMAN_HOME-/usr/share/java/byteman}
 JAVA_HOME=${JAVA_HOME-/usr/lib/jvm/java}
 BYTEMAN_INSTALL_OPTS=${BYTEMAN_INSTALL_OPTS--Dorg.jboss.byteman.transform.all=true}
-STAPBM_VERBOSE=${STAPBM_VERBOSE-no}
+SYSTEMTAP_VERBOSE=${SYSTEMTAP_VERBOSE-0}
 
-if [ "$STAPBM_VERBOSE" != "no" ]; then
+if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     BYTEMAN_INSTALL_OPTS="$BYTEMAN_INSTALL_OPTS -Dorg.jboss.byteman.verbose"
 else
     exec >/dev/null 2>&1
@@ -120,7 +120,7 @@ flock -x 200  # exclusive-lock it
 if [ -s $byteman_installed_portfile ]; then
     bmport=`cat $byteman_installed_portfile`
 
-    if [ "$STAPBM_VERBOSE" != "no" ]; then
+    if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
         echo "Byteman agent reused for java pid $target_pid, port $bmport"
     fi
 
@@ -141,7 +141,7 @@ else
 # byteman and its use of VMAttach libraries, for our case it always makes sense to use
 # byteman classes directly and avoid -javaagent
 
-    if [ "$STAPBM_VERBOSE" != "no" ]; then
+    if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
 	echo java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
     fi
     java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
@@ -151,7 +151,7 @@ else
     fi
     echo $bmport > $byteman_installed_portfile
 
-    if [ "$STAPBM_VERBOSE" != "no" ]; then
+    if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
         echo "Byteman agent installed for java pid $target_pid, port $bmport"
     fi
     # XXX: Erase file to keep it from sticking around indefinitely,
@@ -214,7 +214,7 @@ btmfile=$flagdir/`hostname`-$$.btm
 echo_bytemanrule > $btmfile
 trap 'rm -f $btmfile' 0 1 2 3 4 5 9 15
 
-if [ "$STAPBM_VERBOSE" != "no" ]; then
+if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     echo "Byteman rule file:"
     cat $btmfile
 fi
@@ -225,7 +225,7 @@ else
     bmcmd=-l
 fi
 
-if [ "$STAPBM_VERBOSE" != "no" ]; then
+if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     echo java -classpath ${BYTEMAN_SUBMIT_JAR}:${BYTEMAN_JAR} org.jboss.byteman.agent.submit.Submit -p $bmport $bmcmd $btmfile
 fi
 

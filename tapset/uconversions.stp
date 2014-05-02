@@ -1,5 +1,5 @@
 // userspace conversions tapset
-// Copyright (C) 2005-2012 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -259,12 +259,20 @@ function user_string_n2_quoted:string (addr:long, inlen:long, outlen:long)
 	else {
 		int rc = _stp_text_str(STAP_RETVALUE,
 			(char *)(uintptr_t)STAP_ARG_addr, inlen, outlen, 1, 1);
-		if (rc < 0)
+		if (rc < 0) {
 #if STAP_COMPAT_VERSION < STAP_VERSION(2,3) // PR15044
 			strlcpy(STAP_RETVALUE, "<unknown>", MAXSTRINGLEN);
 #else
-			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p", (void *)(long)STAP_ARG_addr);
+#ifdef CONFIG_COMPAT
+			if (_stp_is_compat_task())
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%x",
+					 (compat_long_t)STAP_ARG_addr);
+			else
 #endif
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%p",
+					 (void *)(long)STAP_ARG_addr);
+#endif
+		}
 	}
 %}
 

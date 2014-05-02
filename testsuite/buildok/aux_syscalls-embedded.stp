@@ -3,7 +3,8 @@
 probe begin {
 	print (_struct_timeval_u(0,0))
 	print (_struct_compat_timeval_u(0,0))
-	print (_struct_timezone_u (0))
+	print (_struct_timezone_u(0))
+	print (_stp_clock_nanosleep_flags_str(0))
 	print (_struct_utimbuf_actime(0))
 	print (_struct_utimbuf_modtime(0))
 	print (_struct_compat_utimbuf_actime(0))

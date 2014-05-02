@@ -4,6 +4,18 @@ set testpath "$srcdir/$subdir"
 # The purpose of this testcase is to verify that .callee[s] probes function
 # properly in a variety of situations.
 
+# Requires GCC v4.7 and stap compiled with elfutils 0.153
+if {[strverscmp $GCC_Version 4.7] < 0} {
+   verbose -log "skipping $test.exp: GCC too old ($GCC_Version vs. 4.7)"
+   untested $test
+   return
+}
+if {[strverscmp $ELF_Version 0.153] < 0} {
+   verbose -log "skipping $test.exp: elfutils too old ($ELF_Version vs. 0.153)"
+   untested $test
+   return
+}
+
 # We move on to other subtests if a subtest fails, but within subtests, we fail
 # the whole subtest if a subsubtest fails. Hope that makes sense.
 
@@ -36,11 +48,8 @@ proc compile_subtest { {n 1} } {
       incr n -1
    }
 
-   # We have to turn off -Wattributes because some C subtests use the
-   # ((always_inline)) attribute, which emits a warning
    set res [target_compile [concat $sources] ${test} \
-            executable "additional_flags=-O additional_flags=-g \
-            additional_flags=-Wno-attributes"]
+            executable "additional_flags=-O additional_flags=-g"]
    if { $res != "" } { return 1 }
    return 0
 }
@@ -557,6 +566,7 @@ if {![installtest_p]} {
       -re ".+" { }
       eof { set failed 0 }
    }
+   catch { close }; catch { wait }
 
    # Restore LD_LIBRARY_PATH
    set env(LD_LIBRARY_PATH) $oldpath
@@ -566,7 +576,6 @@ if {![installtest_p]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
-      catch { close }; catch { wait }
    }
 }
 
@@ -602,6 +611,7 @@ if {[string length $stap_id]} {
       }
       eof { }
    }
+   catch {close -i $stap_id}; catch {wait -i $stap_id}
    set stap_id ""
 }
 

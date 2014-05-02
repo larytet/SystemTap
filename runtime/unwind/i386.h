@@ -1,7 +1,7 @@
 /* -*- linux-c -*-
  *
  * 32-bit x86 dwarf unwinder header file
- * Copyright (C) 2008, 2010, 2011 Red Hat Inc.
+ * Copyright (C) 2008, 2010, 2014 Red Hat Inc.
  * Copyright (C) 2002-2006 Novell, Inc.
  * 
  * This file is part of systemtap, and is free software.  You can
@@ -68,11 +68,57 @@
 #define user_mode_vm(regs)  user_mode(regs)
 #endif
 
-
 static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs,
 					    int sanitize)
 {
+        if (!regs) {
+		/* NB: This uses an "=m" output constraint to indicate we're
+		 * writing all of info->regs, but then uses an "r" input
+		 * pointer for the actual writes.  This is to be sure we have
+		 * something we can offset properly.
+		 * NB2: kernel pt_regs haven't always included fs and gs, which
+		 * means the offsets of the fields after have changed over
+		 * time.  We'll reconvene at orig_eax to fill the end.  */
+		asm("movl $1f, %1; 1: \n\t"
+		    "mov %%ebx, 0(%2) \n\t"
+		    "mov %%ecx, 4(%2) \n\t"
+		    "mov %%edx, 8(%2) \n\t"
+		    "mov %%esi, 12(%2) \n\t"
+		    "mov %%edi, 16(%2) \n\t"
+		    "mov %%ebp, 20(%2) \n\t"
+		    "mov %%eax, 24(%2) \n\t"
+		    "mov %%ds, 28(%2) \n\t"
+		    "mov %%es, 32(%2) \n\t"
+#if defined(STAPCONF_X86_XFS) || defined (STAPCONF_X86_FS)
+		    "mov %%fs, 36(%2) \n\t"
+#endif
+#ifdef STAPCONF_X86_GS
+		    "mov %%gs, 40(%2) \n\t"
+#endif
+		    /* "mov %%orig_eax, 0(%3) \n\t" */
+		    /* "mov %%eip, 4(%3) \n\t" */
+		    "mov %%cs, 8(%3) \n\t"
+		    /* "mov %%eflags, 12(%3) \n\t" */
+		    "mov %%esp, 16(%3) \n\t"
+		    "mov %%ss, 20(%3) \n\t"
+		    : "=m" (info->regs),
+#ifdef STAPCONF_X86_UNIREGS
+		      "=m" (info->regs.ip)
+#else
+		      "=m" (info->regs.eip)
+#endif /* STAPCONF_X86_UNIREGS */
+		    : "r"(&info->regs),
+#ifdef STAPCONF_X86_UNIREGS
+		      "r" (&info->regs.orig_ax)
+#else
+		      "r" (&info->regs.orig_eax)
+#endif /* STAPCONF_X86_UNIREGS */
+		    );
+
+		return;
+	}
+
 	if (&info->regs == regs) { /* happens when unwinding kernel->user */
 		info->call_frame = 1;
 		return;

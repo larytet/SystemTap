@@ -1644,6 +1644,10 @@ c_unparser::emit_module_init ()
       o->assert_0_indent(); 
     }
 
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "#include \"linux/stp_tracepoint.c\"";
+  o->newline() << "#endif";
+
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
@@ -1746,6 +1750,15 @@ c_unparser::emit_module_init ()
   o->newline() << "rc = _stp_init_time();";  // Kick off the Big Bang.
   o->newline() << "if (rc) {";
   o->newline(1) << "_stp_error (\"couldn't initialize gettimeofday\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
+
+  // initialize tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "rc = stp_tracepoint_init();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"couldn't initialize tracepoints\");";
   o->newline() << "goto out;";
   o->newline(-1) << "}";
   o->newline() << "#endif";
@@ -1864,6 +1877,11 @@ c_unparser::emit_module_init ()
   o->newline() << "synchronize_sched();";
   o->newline() << "#endif";
 
+  // In case tracepoints were started, they need to be cleaned up
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
+
   // In case gettimeofday was started, it needs to be stopped
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
   o->newline() << " _stp_kill_time();";  // An error is no cause to hurry...
@@ -1980,6 +1998,11 @@ c_unparser::emit_module_exit ()
       o->newline() << "struct context* __restrict__ c;";
       o->newline() << "c = _stp_runtime_entryfn_get_context();";
     }
+
+  // teardown tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
 
   // teardown gettimeofday (if needed)
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
@@ -5501,7 +5524,7 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
       it = fdes.begin();
       Dwarf_Addr first_addr = (*it).first;
       int res = dwfl_module_relocate_address (mod, &first_addr);
-      dwfl_assert ("create_debug_frame_hdr, dwfl_module_relocate_address",
+      DWFL_ASSERT ("create_debug_frame_hdr, dwfl_module_relocate_address",
 		   res >= 0);
       *debug_frame_off = (*it).first - first_addr;
     }
@@ -5654,7 +5677,7 @@ dump_build_id (Dwfl_Module *m,
         int i;
 
         i = dwfl_module_relocate_address (m, &reloc_vaddr);
-        dwfl_assert ("dwfl_module_relocate_address reloc_vaddr", i >= 0);
+        DWFL_ASSERT ("dwfl_module_relocate_address reloc_vaddr", i >= 0);
 
         secname = dwfl_module_relocation_info (m, i, NULL);
 
@@ -5712,7 +5735,7 @@ dump_section_list (Dwfl_Module *m,
 
   // Look up the relocation basis for symbols
   int n = dwfl_module_relocations (m);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
 
  if (n == 0)
     {
@@ -5790,11 +5813,11 @@ dump_symbol_tables (Dwfl_Module *m,
   dwfl_module_info (m, NULL, NULL, &end, NULL, NULL, NULL, NULL);
 
   int syments = dwfl_module_getsymtab(m);
-  dwfl_assert (_F("Getting symbol table for %s", modname), syments >= 0);
+  DWFL_ASSERT (_F("Getting symbol table for %s", modname), syments >= 0);
 
   // Look up the relocation basis for symbols
   int n = dwfl_module_relocations (m);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
 
   /* Needed on ppc64, for function descriptors. */
   Dwarf_Addr elf_bias;
@@ -5841,7 +5864,7 @@ dump_symbol_tables (Dwfl_Module *m,
 		  int ki;
 		  extra_offset = sym_addr;
 		  ki = dwfl_module_relocate_address (m, &extra_offset);
-		  dwfl_assert ("dwfl_module_relocate_address extra_offset",
+		  DWFL_ASSERT ("dwfl_module_relocate_address extra_offset",
 			       ki >= 0);
 
 		  if (c->session.verbose > 2)
@@ -5861,7 +5884,7 @@ dump_symbol_tables (Dwfl_Module *m,
                   kretprobe_trampoline_addr = sym_addr;
                   ki = dwfl_module_relocate_address(m,
 						    &kretprobe_trampoline_addr);
-                  dwfl_assert ("dwfl_module_relocate_address, kretprobe_trampoline_addr", ki >= 0);
+                  DWFL_ASSERT ("dwfl_module_relocate_address, kretprobe_trampoline_addr", ki >= 0);
 
 		  if (! c->session.need_symbols
 		      && extra_offset != 0)
@@ -5903,7 +5926,7 @@ dump_symbol_tables (Dwfl_Module *m,
 		  func_desc_addr = sym_addr;
 
 		  opd = dwfl_module_address_section (m, &sym_addr, &opd_bias);
-		  dwfl_assert ("dwfl_module_address_section opd", opd != NULL);
+		  DWFL_ASSERT ("dwfl_module_address_section opd", opd != NULL);
 
 		  Elf_Data *opd_data = elf_rawdata (opd, NULL);
 		  assert(opd_data != NULL);
@@ -5924,7 +5947,7 @@ dump_symbol_tables (Dwfl_Module *m,
               if (n > 0) // only try to relocate if there exist relocation bases
                 {
                   int ki = dwfl_module_relocate_address (m, &sym_addr);
-                  dwfl_assert ("dwfl_module_relocate_address sym_addr", ki >= 0);
+                  DWFL_ASSERT ("dwfl_module_relocate_address sym_addr", ki >= 0);
                   secname = dwfl_module_relocation_info (m, ki, NULL);
 
 		  if (func_desc_addr != 0)
@@ -6195,17 +6218,17 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   const char *mainfile;
   dwfl_module_info (m, NULL, NULL, NULL, NULL, NULL, &mainfile, NULL);
 
-  // For user space modules store canonical path and base name.
+  // For user space modules store canonical path.
   // For kernel modules just the name itself.
   string mainpath = resolve_path(mainfile);
-  const char *mainname = mainpath.c_str() + mainpath.rfind('/');
-  if (modname[0] == '/')
-    mainname++;
+  string mainname;
+  if (modname[0] == '/') // userspace
+    mainname = lex_cast_qstring (path_remove_sysroot(c->session,mainpath));
   else
-    mainname = modname.c_str();
+    mainname = lex_cast_qstring (modname);
 
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
-  c->output << ".name = " << lex_cast_qstring (mainname) << ", \n";
+  c->output << ".name = " << mainname.c_str() << ",\n";
   c->output << ".path = " << lex_cast_qstring (path_remove_sysroot(c->session,mainpath)) << ",\n";
   c->output << ".eh_frame_addr = 0x" << hex << eh_addr << dec << ", \n";
   c->output << ".unwind_hdr_addr = 0x" << hex << eh_frame_hdr_addr
@@ -6543,7 +6566,7 @@ emit_symbol_data (systemtap_session& s)
   Dwfl *dwfl = setup_dwfl_kernel (offline_search_modules, &count, s);
   /* NB: It's not an error to find a few fewer modules than requested.
      There might be third-party modules loaded (e.g. uprobes). */
-  /* dwfl_assert("all kernel modules found",
+  /* DWFL_ASSERT("all kernel modules found",
      count >= offline_search_modules.size()); */
 
   ptrdiff_t off = 0;
@@ -6554,7 +6577,7 @@ emit_symbol_data (systemtap_session& s)
       off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
     }
   while (off > 0);
-  dwfl_assert("dwfl_getmodules", off == 0);
+  DWFL_ASSERT("dwfl_getmodules", off == 0);
   dwfl_end(dwfl);
 
   // ---- step 2: process any user modules (files) listed
@@ -6576,7 +6599,7 @@ emit_symbol_data (systemtap_session& s)
               off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
             }
           while (off > 0);
-          dwfl_assert("dwfl_getmodules", off == 0);
+          DWFL_ASSERT("dwfl_getmodules", off == 0);
         }
       dwfl_end(dwfl);
     }
@@ -6585,17 +6608,54 @@ emit_symbol_data (systemtap_session& s)
 }
 
 void
+self_unwind_declarations(unwindsym_dump_context *ctx)
+{
+  ctx->output << "static uint8_t _stp_module_self_eh_frame [] = {0,};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_0[] = {{0},};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_1[] = {{0},};\n";
+  ctx->output << "static struct _stp_section _stp_module_self_sections[] = {\n";
+  ctx->output << "{.name = \".symtab\", .symbols = _stp_module_self_symbols_0, .num_symbols = 0},\n";
+  ctx->output << "{.name = \".text\", .symbols = _stp_module_self_symbols_1, .num_symbols = 0},\n";
+  ctx->output << "};\n";
+  ctx->output << "static struct _stp_module _stp_module_self = {\n";
+  ctx->output << ".name = \"stap_self_tmp_value\",\n";
+  ctx->output << ".path = \"stap_self_tmp_value\",\n";
+  ctx->output << ".num_sections = 2,\n";
+  ctx->output << ".sections = _stp_module_self_sections,\n";
+  ctx->output << ".eh_frame = _stp_module_self_eh_frame,\n";
+  ctx->output << ".eh_frame_len = 0,\n";
+  ctx->output << ".unwind_hdr_addr = 0x0,\n";
+  ctx->output << ".unwind_hdr = NULL,\n";
+  ctx->output << ".unwind_hdr_len = 0,\n";
+  ctx->output << ".debug_frame = NULL,\n";
+  ctx->output << ".debug_frame_len = 0,\n";
+  ctx->output << "};\n";
+}
+
+void
 emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 {
+  // Add a .eh_frame terminator dummy object file, much like
+  // libgcc/crtstuff.c's EH_FRAME_SECTION_NAME closer.  We need this in
+  // order for runtime/sym.c 
+  translator_output *T_800 = s.op_create_auxiliary(true);
+  T_800->newline() << "__extension__ unsigned int T_800 []"; // assumed 32-bits wide
+  T_800->newline(1) << "__attribute__((used, section(\".eh_frame\"), aligned(4)))";
+  T_800->newline() << "= { 0 };";
+  T_800->newline(-1);
+  T_800->assert_0_indent (); // flush to disk
+
   // Print out a definition of the runtime's _stp_modules[] globals.
   ctx->output << "\n";
-  ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
+  self_unwind_declarations(ctx);
+   ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
   for (unsigned i=0; i<ctx->stp_module_index; i++)
     {
       ctx->output << "& _stp_module_" << i << ",\n";
     }
+  ctx->output << "& _stp_module_self,\n";
   ctx->output << "};\n";
-  ctx->output << "static unsigned _stp_num_modules = " << ctx->stp_module_index << ";\n";
+  ctx->output << "static const unsigned _stp_num_modules = ARRAY_SIZE(_stp_modules);\n";
 
   ctx->output << "static unsigned long _stp_kretprobe_trampoline = ";
   // Special case for -1, which is invalid in hex if host width > target width.

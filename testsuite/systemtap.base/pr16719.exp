@@ -101,6 +101,12 @@ proc run_stap { probe pattern } {
 set subtest "kernel"
 run_stap {vfs.read} {*/vmlinux}
 
+# Kernel tracepoint check
+# Bad stap would have open /usr/lib/debug/lib/modules/`uname -r`/vmlinux
+# (from getting s.kernel_source_tree in tracepoint_builder::init_dw().)
+set subtest "tracepoint"
+run_stap {kernel.trace("sched_switch")!,never} {*/vmlinux}
+
 # User check
 # Bad stap would have open /usr/bin/ls or /usr/lib/debug/usr/bin/ls.debug
 set subtest "user"

@@ -615,7 +615,7 @@ systemtap_session::usage (int exitcode)
     "              variables (e.g. PATH, LD_LIBRARY_PATH) are assumed to be\n"
     "              relative to the sysroot.\n"
     "   --suppress-time-limits\n"
-    "              disable -DSTP_NO_OVERLOAD -DMAXACTION and -DMAXTRYACTION limits\n"
+    "              disable -DSTP_OVERLOAD, -DMAXACTION, and -DMAXTRYACTION limits\n"
     , compatible.c_str()) << endl
   ;
 
@@ -1694,10 +1694,10 @@ systemtap_session::parse_kernel_exports ()
         kernel_exports.insert (tokens[1]);
     }
   if (verbose > 2)
-    clog << _NF("Parsed kernel %s, which contained one vmlinux export",
-                        "Parsed kernel %s, which contained %zu vmlinux exports",
-                         kernel_exports.size(), kernel_exports_file.c_str(),
-                         kernel_exports.size()) << endl;
+    clog << _NF("Parsed kernel \"%s\", containing one vmlinux export",
+                "Parsed kernel \"%s\", containing %zu vmlinux exports",
+                kernel_exports.size(), kernel_exports_file.c_str(),
+                kernel_exports.size()) << endl;
 
   kef.close();
   return 0;
@@ -1717,14 +1717,14 @@ systemtap_session::parse_kernel_functions ()
 	clog << _F("Kernel symbol table %s unavailable, (%s)",
 		   system_map_path.c_str(), strerror(errno)) << endl;
 
-      string system_map_path2 = "/boot/System.map-" + kernel_release;
+      system_map_path = "/boot/System.map-" + kernel_release;
       system_map.clear();
-      system_map.open(system_map_path2.c_str(), ifstream::in);
+      system_map.open(system_map_path.c_str(), ifstream::in);
       if (! system_map.is_open())
         {
 	  if (verbose > 1)
 	    clog << _F("Kernel symbol table %s unavailable, (%s)",
-		       system_map_path2.c_str(), strerror(errno)) << endl;
+		       system_map_path.c_str(), strerror(errno)) << endl;
         }
     }
 
@@ -1756,6 +1756,12 @@ systemtap_session::parse_kernel_functions ()
       kernel_functions.insert(name);
     }
   system_map.close();
+
+  if (verbose > 2)
+    clog << _F("Parsed kernel \"%s\", ", system_map_path.c_str())
+         << _NF("containing %zu symbol", "containing %zu symbols",
+                kernel_functions.size(), kernel_functions.size()) << endl;
+
   return 0;
 }
 
@@ -1766,9 +1772,30 @@ systemtap_session::cmd_file ()
   wordexp_t words;
   int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
   string file;
-  if(rc == 0 && words.we_wordc > 0)
-    file = words.we_wordv[0];
-  wordfree (& words);
+  if(rc == 0)
+    {
+      if (words.we_wordc > 0)
+        file = words.we_wordv[0];
+      wordfree (& words);
+    }
+  else
+    {
+      switch (rc)
+        {
+        case WRDE_BADCHAR:
+          throw SEMANTIC_ERROR(_("command contains illegal characters"));
+        case WRDE_BADVAL:
+          throw SEMANTIC_ERROR(_("command contains undefined shell variables"));
+        case WRDE_CMDSUB:
+          throw SEMANTIC_ERROR(_("command contains command substitutions"));
+        case WRDE_NOSPACE:
+          throw SEMANTIC_ERROR(_("out of memory"));
+        case WRDE_SYNTAX:
+          throw SEMANTIC_ERROR(_("command contains shell syntax errors"));
+        default:
+          throw SEMANTIC_ERROR(_("unspecified wordexp failure"));
+        }
+    }
   return file;
 }
 
@@ -1965,7 +1992,7 @@ systemtap_session::build_error_msg (const semantic_error& e)
   if (e.tok1 || e.tok2)
     message << ": ";
   else if (verbose > 1) // no tokens to print, so print any errsrc right there
-    message << _("   thrown from: ") << e.errsrc << endl;
+    message << endl << _("   thrown from: ") << e.errsrc;
 
   if (e.tok1)
     {
@@ -2209,11 +2236,12 @@ systemtap_session::reset_tmp_dir()
   create_tmp_dir();
 }
 
-translator_output* systemtap_session::op_create_auxiliary()
+translator_output* systemtap_session::op_create_auxiliary(bool trailer_p)
 {
   static int counter = 0;
   string tmpname = this->tmpdir + "/" + this->module_name + "_aux_" + lex_cast(counter++) + ".c";
   translator_output* n = new translator_output (tmpname);
+  n->trailer_p = trailer_p;
   auxiliary_outputs.push_back (n);
   return n;
 }

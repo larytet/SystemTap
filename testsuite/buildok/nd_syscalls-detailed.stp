@@ -172,7 +172,7 @@ probe nd_syscall.clock_getres.return
 probe nd_syscall.clock_gettime
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s)\n", clk_id, clk_id_str)
+	printf("%d(%s), %p\n", clk_id, clk_id_str, tp_uaddr)
 }
 probe nd_syscall.clock_gettime.return
 {
@@ -182,7 +182,11 @@ probe nd_syscall.clock_gettime.return
 probe nd_syscall.clock_nanosleep, nd_syscall.compat_clock_nanosleep ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s)\n", flags, flag_str)
+	printf("%d(%s), %d(%s), %p, %p\n", clk_id, clk_id_str, flags, flags_str,
+	       req_uaddr, rem_uaddr)
+%(systemtap_v <= "2.6" %?
+	printf("%s\n", flag_str)
+%)
 }
 probe nd_syscall.clock_nanosleep.return, nd_syscall.compat_clock_nanosleep.return ?
 {
@@ -583,8 +587,8 @@ probe nd_syscall.futex.return, nd_syscall.compat_futex.return ?
 probe nd_syscall.futimesat ?, nd_syscall.compat_futimesat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p(%s), %p\n", dirfd, filename_uaddr, filename,
-	       tvp_uaddr)
+	printf("%d(%s), %p(%s), %p\n", dirfd, dirfd_str, filename_uaddr,
+	       filename, tvp_uaddr)
 }
 probe nd_syscall.futimesat.return ?, nd_syscall.compat_futimesat.return ?
 {

@@ -329,6 +329,8 @@ compile_pass (systemtap_session& s)
   output_dual_exportconf(s, o, "alloc_vm_area", "free_vm_area", "STAPCONF_VM_AREA");
   output_autoconf(s, o, "autoconf-procfs-owner.c", "STAPCONF_PROCFS_OWNER", NULL);
   output_autoconf(s, o, "autoconf-alloc-percpu-align.c", "STAPCONF_ALLOC_PERCPU_ALIGN", NULL);
+  output_autoconf(s, o, "autoconf-x86-fs.c", "STAPCONF_X86_FS", NULL);
+  output_autoconf(s, o, "autoconf-x86-xfs.c", "STAPCONF_X86_XFS", NULL);
   output_autoconf(s, o, "autoconf-x86-gs.c", "STAPCONF_X86_GS", NULL);
   output_autoconf(s, o, "autoconf-grsecurity.c", "STAPCONF_GRSECURITY", NULL);
   output_autoconf(s, o, "autoconf-trace-printk.c", "STAPCONF_TRACE_PRINTK", NULL);
@@ -414,6 +416,8 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "vzalloc_node", "STAPCONF_VZALLOC_NODE");
   output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
+  output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
+
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
   for (unsigned i=0; i<s.c_macros.size(); i++)
@@ -431,6 +435,9 @@ compile_pass (systemtap_session& s)
   // Kernels can be compiled with CONFIG_CC_OPTIMIZE_FOR_SIZE to select
   // -Os, otherwise -O2 is the default.
   o << "EXTRA_CFLAGS += -freorder-blocks" << endl; // improve on -Os
+
+  // Generate eh_frame for self-backtracing
+  o << "EXTRA_CFLAGS += -fasynchronous-unwind-tables" << endl;
 
   // We used to allow the user to override default optimization when so
   // requested by adding a -O[0123s] so they could determine the
@@ -459,6 +466,7 @@ compile_pass (systemtap_session& s)
   o << s.module_name << "-y := ";
   for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
     {
+      if (s.auxiliary_outputs[i]->trailer_p) continue;
       string srcname = s.auxiliary_outputs[i]->filename;
       assert (srcname != "" && srcname.rfind('/') != string::npos);
       string objname = srcname.substr(srcname.rfind('/')+1); // basename
@@ -478,6 +486,17 @@ compile_pass (systemtap_session& s)
     objname[objname.size()-1] = 'o'; // now objname
     o << " " + objname;
   }
+  // and once again, for the trailer type auxiliary outputs.
+  for (unsigned i=0; i<s.auxiliary_outputs.size(); i++)
+    {
+      if (! s.auxiliary_outputs[i]->trailer_p) continue;
+      string srcname = s.auxiliary_outputs[i]->filename;
+      assert (srcname != "" && srcname.rfind('/') != string::npos);
+      string objname = srcname.substr(srcname.rfind('/')+1); // basename
+      assert (objname != "" && objname[objname.size()-1] == 'c');
+      objname[objname.size()-1] = 'o'; // now objname
+      o << " " + objname;
+    }
   o << endl;
 
   // add all stapconf dependencies

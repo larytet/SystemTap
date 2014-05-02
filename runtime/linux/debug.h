@@ -1,5 +1,5 @@
 /* Systemtap Debug Macros
- * Copyright (C) 2008 Red Hat Inc.
+ * Copyright (C) 2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -74,6 +74,16 @@
 	} while (0)
 #else
 #define dbug_sym(level, args...) ;
+#endif
+
+
+#ifdef DEBUG_TRACEPOINTS
+#define dbug_tp(level, args...) do {					\
+		if ((level) <= DEBUG_TRACEPOINTS)			\
+			_stp_dbug(__FUNCTION__, __LINE__, args);	\
+	} while (0)
+#else
+#define dbug_tp(level, args...) ;
 #endif
 
 #endif /* _STP_LINUX_DEBUG_H_ */

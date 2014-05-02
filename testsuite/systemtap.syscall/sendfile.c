@@ -1,4 +1,4 @@
-/* COVERAGE: sendfile */
+/* COVERAGE: sendfile sendfile64 */
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>

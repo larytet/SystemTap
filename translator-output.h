@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005, 2009, 2013 Red Hat Inc.
+// Copyright (C) 2005, 2009, 2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -25,6 +25,7 @@ class translator_output
 
 public:
   std::string filename;
+  bool trailer_p; // is this file to be linked before or after main generated source file
 
   translator_output (std::ostream& file);
   translator_output (const std::string& filename, size_t bufsize = 8192);

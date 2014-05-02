@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -466,6 +466,7 @@ struct print_format: public expression
       type = conv_unspecified;
       literal_string.clear();
     }
+    format_component() { clear(); }
     inline void set_flag(format_flag f) { flags |= f; }
     inline bool test_flag(format_flag f) const { return flags & f; }
   };

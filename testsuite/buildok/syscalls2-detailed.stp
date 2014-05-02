@@ -42,12 +42,22 @@ probe syscall.ni_syscall.return
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.open, syscall.openat ?
+probe syscall.open
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%s %d %d\n", filename, flags, mode)
 }
-probe syscall.open.return, syscall.openat.return ?
+probe syscall.open.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.openat ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s) %s %d %d\n", dfd, dfd_str, filename, flags, mode)
+}
+probe syscall.openat.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -242,7 +252,7 @@ probe syscall.readlink.return
 probe syscall.readlinkat ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %s %p %d\n", dfd, path, buf_uaddr, bufsiz)
+	printf("%d(%s) %s %p %d\n", dfd, dfd_str, path, buf_uaddr, bufsiz)
 }
 probe syscall.readlinkat.return ?
 {
@@ -892,7 +902,10 @@ probe syscall.shmctl.return ?
 probe syscall.compat_sys_shmctl ?
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v <= "2.5" %?
 	printf("%d, %d, %p\n", first, second, uptr_uaddr)
+%)
+	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
 }
 probe syscall.compat_sys_shmctl.return ?
 {
@@ -1099,7 +1112,7 @@ probe syscall.swapoff.return
 probe syscall.swapon
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d\n", path, swapflags)
+	printf("%s, %d, %s\n", path, swapflags, swapflags_str)
 }
 probe syscall.swapon.return
 {
@@ -1387,6 +1400,8 @@ probe syscall.utime.return ?, syscall.compat_utime.return ?
 probe syscall.utimensat ?, syscall.compat_utimensat ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d(%s), %p(%s), %p, %d(%s)\n", dfd, dfd_str, filename_uaddr,
+	       filename, tsp_uaddr, flags, flags_str)
 }
 probe syscall.utimensat.return ?, syscall.compat_utimensat.return ?
 {

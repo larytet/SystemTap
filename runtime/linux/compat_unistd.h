@@ -33,6 +33,9 @@
 #ifndef __NR_ia32_fchownat
 #define __NR_ia32_fchownat 298
 #endif
+#ifndef __NR_ia32_futimesat
+#define __NR_ia32_futimesat 299
+#endif
 #ifndef __NR_ia32_getpgid
 #define __NR_ia32_getpgid 132
 #endif
@@ -44,6 +47,9 @@
 #endif
 #ifndef __NR_ia32_mkdirat
 #define __NR_ia32_mkdirat 296
+#endif
+#ifndef __NR_ia32_mmap2
+#define __NR_ia32_mmap2 192
 #endif
 #ifndef __NR_ia32_open
 #define __NR_ia32_open 5
@@ -76,6 +82,7 @@
 #define __NR_compat_faccessat		__NR_ia32_faccessat
 #define __NR_compat_fchmodat		__NR_ia32_fchmodat
 #define __NR_compat_fchownat		__NR_ia32_fchownat
+#define __NR_compat_futimesat		__NR_ia32_futimesat
 #define __NR_compat_getpgid		__NR_ia32_getpgid
 #define __NR_compat_inotify_init1	__NR_ia32_inotify_init1
 #define __NR_compat_linkat		__NR_ia32_linkat
@@ -102,6 +109,7 @@
 #define __NR_compat_faccessat		__NR_faccessat
 #define __NR_compat_fchmodat		__NR_fchmodat
 #define __NR_compat_fchownat		__NR_fchownat
+#define __NR_compat_futimesat		__NR_futimesat
 #define __NR_compat_getpgid		__NR_getpgid
 #define __NR_compat_inotify_init1	__NR_inotify_init1
 #define __NR_compat_linkat		__NR_linkat
@@ -144,6 +152,9 @@
 #endif
 #ifndef __NR_accept4
 #define __NR_accept4 (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_mmap2
+#define __NR_mmap2 (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_recv
 #define __NR_recv (__NR_syscall_max + 1)
