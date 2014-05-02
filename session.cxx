@@ -1778,6 +1778,24 @@ systemtap_session::cmd_file ()
         file = words.we_wordv[0];
       wordfree (& words);
     }
+  else
+    {
+      switch (rc)
+        {
+        case WRDE_BADCHAR:
+          throw SEMANTIC_ERROR(_("command contains illegal characters"));
+        case WRDE_BADVAL:
+          throw SEMANTIC_ERROR(_("command contains undefined shell variables"));
+        case WRDE_CMDSUB:
+          throw SEMANTIC_ERROR(_("command contains command substitutions"));
+        case WRDE_NOSPACE:
+          throw SEMANTIC_ERROR(_("out of memory"));
+        case WRDE_SYNTAX:
+          throw SEMANTIC_ERROR(_("command contains shell syntax errors"));
+        default:
+          throw SEMANTIC_ERROR(_("unspecified wordexp failure"));
+        }
+    }
   return file;
 }
 

@@ -753,11 +753,14 @@ threads will be probed.  However, if systemtap was invoked with the
 .IR \-c " or " \-x
 options, then process probes are restricted to the process
 hierarchy associated with the target process.  If a process probe is
-specified without a PID or FULLPATH, but with the 
+unspecified (i.e. without a PID or FULLPATH), but with the
 .IR \-c "
 option, the PATH of the
 .IR \-c "
-cmd will be heuristically filled into the process PATH.
+cmd will be heuristically filled into the process PATH. In that case,
+only command parameters are allowed in the \fI-c\fR command (i.e. no
+command substitution allowed and no occurrences of any of these
+characters: '|&;<>(){}').
 
 .PP
 Third, symbolic static instrumentation compiled into programs and
