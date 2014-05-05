@@ -13,13 +13,13 @@ probe nd_syscall.accept.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.accept4
+probe nd_syscall.accept4 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %p, %p, %d(%s)\n", sockfd, addr_uaddr, addrlen_uaddr,
 	       flags, flags_str)
 }
-probe nd_syscall.accept4.return
+probe nd_syscall.accept4.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -476,7 +476,7 @@ probe nd_syscall.flock.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.fork
+probe nd_syscall.fork ?
 {
 	printf("%s, %s\n", name, argstr)
 %(systemtap_v < "2.3" %?
@@ -487,7 +487,7 @@ probe nd_syscall.fork
 	       stack_size, parent_tid_uaddr, child_tid_uaddr)
 %)
 }
-probe nd_syscall.fork.return
+probe nd_syscall.fork.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

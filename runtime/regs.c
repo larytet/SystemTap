@@ -57,6 +57,10 @@ static long _stp_get_sp(struct pt_regs *regs)
 	return RREG(sp, regs);
 }
 
+#endif	/* __x86_64__ */
+
+#if defined(__x86_64__) || defined(__ia64__)
+
 /* Ensure that the upper 32 bits of val are a sign-extension of the lower 32. */
 static int64_t __stp_sign_extend32(int64_t val)
 {
@@ -64,7 +68,7 @@ static int64_t __stp_sign_extend32(int64_t val)
 	return *val_ptr32;
 }
 
-#endif	/* __x86_64__ */
+#endif	/* __x86_64__ || __ia64__ */
 
 #if defined(__i386__) || defined(__x86_64__)
 /*
