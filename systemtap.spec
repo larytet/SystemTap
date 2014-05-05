@@ -27,9 +27,8 @@
 %{!?with_dyninst: %global with_dyninst 0}
 %endif
 %{!?with_systemd: %global with_systemd 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
-%{!?with_emacsvim: %global with_emacsvim 1}
-%{!?with_java: %global with_java 1}
-# don't want to build runtime-virthost for f18 or RHEL5/6
+%{!?with_emacsvim: %global with_emacsvim 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
+%{!?with_java: %global with_java 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 %{!?with_virthost: %global with_virthost 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
 %{!?with_virtguest: %global with_virtguest 1}
 %{!?with_dracut: %global with_dracut 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
