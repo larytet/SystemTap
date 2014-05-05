@@ -224,7 +224,9 @@ static void *kallsyms___lock_task_sighand;
 #ifdef STP_USE_DWARF_UNWINDER
 #include "unwind.c"
 #else
-struct unwind_context { };
+/* We still need unwind.h for a few structures (unwind_context and
+ * unwind_cache). */
+#include "unwind/unwind.h"
 #endif
 
 #ifdef module_param_cb			/* kernels >= 2.6.36 */
