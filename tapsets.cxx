@@ -5846,6 +5846,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   bool need_debug_info;
 
   void visit_target_symbol (target_symbol* e);
+  unsigned get_target_symbol_argno_and_validate (target_symbol* e);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
@@ -5909,6 +5910,39 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
     assert(0); // shouldn't get here
 }
 
+unsigned
+sdt_uprobe_var_expanding_visitor::get_target_symbol_argno_and_validate (target_symbol *e)
+{
+  // parsing
+  unsigned argno = 0;
+  if (startswith(e->name, "$arg"))
+    {
+      try
+        {
+          argno = lex_cast<unsigned>(e->name.substr(4));
+        }
+      catch (const runtime_error& f)
+        {
+          // non-integral $arg suffix: e.g. $argKKKSDF
+          argno = 0;
+        }
+    }
+
+  // validation
+  if (arg_count == 0 || // a sdt.h variant without .probe-stored arg_count
+      argno < 1 || argno > arg_count) // a $argN with out-of-range N
+    {
+      // NB: Either
+      // 1) uprobe1_type $argN or $FOO (we don't know the arg_count)
+      // 2) uprobe2_type $FOO (no probe args)
+      // both of which get resolved later.
+      // Throw it now, and it might be resolved by DWARF later.
+      need_debug_info = true;
+      throw SEMANTIC_ERROR(_("target-symbol requires debuginfo"), e->tok);
+    }
+  assert (arg_tokens.size() >= argno);
+  return argno;
+}
 
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
@@ -5917,30 +5951,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 
   try
     {
-      unsigned argno = 0; // the N in $argN
-      try
-	{
-	  if (startswith(e->name, "$arg"))
-	    argno = lex_cast<unsigned>(e->name.substr(4));
-	}
-      catch (const runtime_error& f) // non-integral $arg suffix: e.g. $argKKKSDF
-	{
-          argno = 0;
-	}
-
-      if (arg_count == 0 || // a sdt.h variant without .probe-stored arg_count
-          argno < 1 || argno > arg_count) // a $argN with out-of-range N
-	{
-	  // NB: Either
-	  // 1) uprobe1_type $argN or $FOO (we don't know the arg_count)
-	  // 2) uprobe2_type $FOO (no probe args)
-	  // both of which get resolved later.
-	  // Throw it now, and it might be resolved by DWARF later.
-	  need_debug_info = true;
-	  throw SEMANTIC_ERROR(_("target-symbol requires debuginfo"), e->tok);
-	}
-
-      assert (arg_tokens.size() >= argno);
+      unsigned argno = get_target_symbol_argno_and_validate(e); // the N in $argN
       string asmarg = arg_tokens[argno-1];   // $arg1 => arg_tokens[0]
 
       // Now we try to parse this thing, which is an assembler operand
