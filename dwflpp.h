@@ -407,7 +407,7 @@ struct dwflpp
                                       std::string const & local,
                                       const target_symbol *e,
                                       bool lvalue,
-                                      exp_type & ty);
+                                      Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_local (std::vector<Dwarf_Die>& scopes,
                                  Dwarf_Addr pc,
                                  std::string const & local,
@@ -418,7 +418,7 @@ struct dwflpp
                                        Dwarf_Addr pc,
                                        const target_symbol *e,
                                        bool lvalue,
-                                       exp_type & ty);
+                                       Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_return (Dwarf_Die *scope_die,
                                   Dwarf_Addr pc,
                                   const target_symbol *e,
@@ -427,7 +427,7 @@ struct dwflpp
   std::string literal_stmt_for_pointer (Dwarf_Die *type_die,
                                         const target_symbol *e,
                                         bool lvalue,
-                                        exp_type & ty);
+                                        Dwarf_Die *die_mem);
   Dwarf_Die* type_die_for_pointer (Dwarf_Die *type_die,
                                    const target_symbol *e,
                                    Dwarf_Die *die_mem);
@@ -597,7 +597,7 @@ private:
                                        const target_symbol *e,
                                        std::string &,
                                        std::string &,
-                                       exp_type & ty);
+                                       Dwarf_Die *enddie);
 
   std::string express_as_string (std::string prelude,
                                  std::string postlude,

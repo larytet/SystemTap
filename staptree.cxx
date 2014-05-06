@@ -2006,6 +2006,203 @@ traversing_visitor::visit_hist_op (hist_op* e)
 
 
 void
+expression_visitor::visit_literal_string (literal_string* e)
+{
+  traversing_visitor::visit_literal_string (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_literal_number (literal_number* e)
+{
+  traversing_visitor::visit_literal_number (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_embedded_expr (embedded_expr* e)
+{
+  traversing_visitor::visit_embedded_expr (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_binary_expression (binary_expression* e)
+{
+  traversing_visitor::visit_binary_expression (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_unary_expression (unary_expression* e)
+{
+  traversing_visitor::visit_unary_expression (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_pre_crement (pre_crement* e)
+{
+  traversing_visitor::visit_pre_crement (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_post_crement (post_crement* e)
+{
+  traversing_visitor::visit_post_crement (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_logical_or_expr (logical_or_expr* e)
+{
+  traversing_visitor::visit_logical_or_expr (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_logical_and_expr (logical_and_expr* e)
+{
+  traversing_visitor::visit_logical_and_expr (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_array_in (array_in* e)
+{
+  traversing_visitor::visit_array_in (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_regex_query (regex_query* e)
+{
+  traversing_visitor::visit_regex_query (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_comparison (comparison* e)
+{
+  traversing_visitor::visit_comparison (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_concatenation (concatenation* e)
+{
+  traversing_visitor::visit_concatenation (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_ternary_expression (ternary_expression* e)
+{
+  traversing_visitor::visit_ternary_expression (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_assignment (assignment* e)
+{
+  traversing_visitor::visit_assignment (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_symbol (symbol* e)
+{
+  traversing_visitor::visit_symbol (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_target_symbol (target_symbol* e)
+{
+  traversing_visitor::visit_target_symbol (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_arrayindex (arrayindex* e)
+{
+  traversing_visitor::visit_arrayindex (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_functioncall (functioncall* e)
+{
+  traversing_visitor::visit_functioncall (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_print_format (print_format* e)
+{
+  traversing_visitor::visit_print_format (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_stat_op (stat_op* e)
+{
+  traversing_visitor::visit_stat_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_hist_op (hist_op* e)
+{
+  traversing_visitor::visit_hist_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_cast_op (cast_op* e)
+{
+  traversing_visitor::visit_cast_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_autocast_op (autocast_op* e)
+{
+  traversing_visitor::visit_autocast_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_atvar_op (atvar_op* e)
+{
+  traversing_visitor::visit_atvar_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_defined_op (defined_op* e)
+{
+  traversing_visitor::visit_defined_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_entry_op (entry_op* e)
+{
+  traversing_visitor::visit_entry_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_perf_op (perf_op* e)
+{
+  traversing_visitor::visit_perf_op (e);
+  visit_expression (e);
+}
+
+
+void
 functioncall_traversing_visitor::visit_functioncall (functioncall* e)
 {
   traversing_visitor::visit_functioncall (e);

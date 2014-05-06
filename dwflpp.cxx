@@ -3196,12 +3196,11 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                                         const target_symbol *e,
                                         string &,
                                         string &,
-                                        exp_type & ty)
+                                        Dwarf_Die *typedie)
 {
   /* First boil away any qualifiers associated with the type DIE of
      the final location to be accessed.  */
 
-  Dwarf_Die typedie_mem, *typedie = &typedie_mem;
   resolve_unqualified_inner_typedie (start_typedie, typedie, e);
 
   /* If we're looking for an address, then we can just provide what
@@ -3215,7 +3214,6 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
         throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
 
       c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "STAP_RETVALUE");
-      ty = pe_long;
       return;
     }
 
@@ -3264,7 +3262,6 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       // Fallthrough. enumeration_types are always scalar.
     case DW_TAG_enumeration_type:
 
-      ty = pe_long;
       if (lvalue)
         c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
                            "STAP_ARG_value");
@@ -3280,7 +3277,6 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
 
         if (lvalue)
           {
-            ty = pe_long;
             if (typetag == DW_TAG_array_type)
               throw SEMANTIC_ERROR (_("cannot write to array address"), e->tok);
             if (typetag == DW_TAG_reference_type ||
@@ -3299,7 +3295,6 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
             // For several reasons, this was taken back out, leaving
             // pointer-to-string "conversion" (copying) to tapset functions.
 
-            ty = pe_long;
             if (typetag == DW_TAG_array_type)
               c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
             else
@@ -3394,7 +3389,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
                                 string const & local,
                                 const target_symbol *e,
                                 bool lvalue,
-                                exp_type & ty)
+                                Dwarf_Die *die_mem)
 {
   Dwarf_Die vardie;
   Dwarf_Attribute fb_attr_mem, *fb_attr = NULL;
@@ -3465,7 +3460,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
                                   &vardie, &typedie, lvalue, e,
-                                  prelude, postlude, ty);
+                                  prelude, postlude, die_mem);
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
@@ -3498,7 +3493,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                                  Dwarf_Addr pc,
                                  const target_symbol *e,
                                  bool lvalue,
-                                 exp_type & ty)
+                                 Dwarf_Die *die_mem)
 {
   if (sess.verbose>2)
       clog << _F("literal_stmt_for_return: finding return value for %s (%s)\n",
@@ -3551,7 +3546,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
                                   &vardie, &typedie, lvalue, e,
-                                  prelude, postlude, ty);
+                                  prelude, postlude, die_mem);
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
@@ -3580,7 +3575,7 @@ string
 dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
                                   const target_symbol *e,
                                   bool lvalue,
-                                  exp_type & ty)
+                                  Dwarf_Die *die_mem)
 {
   if (sess.verbose>2)
       clog << _F("literal_stmt_for_pointer: finding value for %s (%s)\n",
@@ -3632,7 +3627,7 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
                                   &vardie, &typedie, lvalue, e,
-                                  prelude, postlude, ty);
+                                  prelude, postlude, die_mem);
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);

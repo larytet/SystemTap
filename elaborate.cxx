@@ -1569,6 +1569,36 @@ static int semantic_pass_stats (systemtap_session&);
 static int semantic_pass_conditions (systemtap_session&);
 
 
+struct expression_build_no_more_visitor : public expression_visitor
+{
+  // Clear extra details from every expression, like DWARF type info, so that
+  // builders can safely release them in build_no_more.  From here on out,
+  // we're back to basic types only.
+  void visit_expression(expression *e)
+    {
+      e->type_details.reset();
+    }
+};
+
+static void
+build_no_more (systemtap_session& s)
+{
+  expression_build_no_more_visitor v;
+
+  for (unsigned i=0; i<s.probes.size(); i++)
+    s.probes[i]->body->visit(&v);
+
+  for (map<string,functiondecl*>::iterator it = s.functions.begin();
+       it != s.functions.end(); it++)
+    it->second->body->visit(&v);
+
+  // Inform all derived_probe builders that we're done with
+  // all resolution, so it's time to release caches.
+  s.pattern_root->build_no_more (s);
+}
+
+
+
 // Link up symbols to their declarations.  Set the session's
 // files/probes/functions/globals vectors from the transitively
 // reached set of stapfiles in s.library_files, starting from
@@ -1705,9 +1735,7 @@ semantic_pass_symbols (systemtap_session& s)
         }
     }
 
-  // Inform all derived_probe builders that we're done with
-  // all resolution, so it's time to release caches.
-  s.pattern_root->build_no_more (s);
+  build_no_more (s);
 
   if(s.systemtap_v_check){ 
     for(unsigned i=0;i<s.globals.size();i++){

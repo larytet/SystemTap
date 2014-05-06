@@ -25,6 +25,16 @@ extern "C" {
 
 #include "util.h"
 
+#if defined(HAVE_TR1_MEMORY)
+#include <tr1/memory>
+using std::tr1::shared_ptr;
+#elif defined(HAVE_BOOST_SHARED_PTR_HPP)
+#include <boost/shared_ptr.hpp>
+using boost::shared_ptr;
+#else
+#error "No shared_ptr implementation found; get boost or modern g++"
+#endif
+
 struct token; // parse.h
 struct systemtap_session; // session.h
 
@@ -97,6 +107,18 @@ enum exp_type
 
 std::ostream& operator << (std::ostream& o, const exp_type& e);
 
+struct exp_type_details
+{
+  virtual ~exp_type_details () {};
+
+  // A process-wide unique identifier; probably a pointer.
+  virtual uintptr_t id () const = 0;
+  bool operator==(const exp_type_details& other) const
+    { return id () == other.id (); }
+};
+typedef shared_ptr<exp_type_details> exp_type_ptr;
+
+
 struct token;
 struct visitor;
 struct update_visitor;
@@ -109,6 +131,7 @@ struct visitable
 struct expression : public visitable
 {
   exp_type type;
+  exp_type_ptr type_details;
   const token* tok;
   expression ();
   virtual ~expression ();
@@ -874,6 +897,42 @@ struct traversing_visitor: public visitor
   void visit_next_statement (next_statement* s);
   void visit_break_statement (break_statement* s);
   void visit_continue_statement (continue_statement* s);
+  void visit_literal_string (literal_string* e);
+  void visit_literal_number (literal_number* e);
+  void visit_embedded_expr (embedded_expr* e);
+  void visit_binary_expression (binary_expression* e);
+  void visit_unary_expression (unary_expression* e);
+  void visit_pre_crement (pre_crement* e);
+  void visit_post_crement (post_crement* e);
+  void visit_logical_or_expr (logical_or_expr* e);
+  void visit_logical_and_expr (logical_and_expr* e);
+  void visit_array_in (array_in* e);
+  void visit_regex_query (regex_query* e);
+  void visit_comparison (comparison* e);
+  void visit_concatenation (concatenation* e);
+  void visit_ternary_expression (ternary_expression* e);
+  void visit_assignment (assignment* e);
+  void visit_symbol (symbol* e);
+  void visit_target_symbol (target_symbol* e);
+  void visit_arrayindex (arrayindex* e);
+  void visit_functioncall (functioncall* e);
+  void visit_print_format (print_format* e);
+  void visit_stat_op (stat_op* e);
+  void visit_hist_op (hist_op* e);
+  void visit_cast_op (cast_op* e);
+  void visit_autocast_op (autocast_op* e);
+  void visit_atvar_op (atvar_op* e);
+  void visit_defined_op (defined_op* e);
+  void visit_entry_op (entry_op* e);
+  void visit_perf_op (perf_op* e);
+};
+
+
+// A visitor that calls a generic visit_expression on every expression.
+struct expression_visitor: public traversing_visitor
+{
+  virtual void visit_expression(expression *e) = 0;
+
   void visit_literal_string (literal_string* e);
   void visit_literal_number (literal_number* e);
   void visit_embedded_expr (embedded_expr* e);

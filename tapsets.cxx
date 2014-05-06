@@ -426,6 +426,17 @@ static bool null_die(Dwarf_Die *die)
   return (!die || !memcmp(die, &null, sizeof(null)));
 }
 
+struct exp_type_dwarf : public exp_type_details
+{
+  // NB: We don't own this dwflpp, so don't use it after build_no_more!
+  // A shared_ptr might help, but expressions are currently so leaky
+  // that we'd probably never clear all references... :/
+  dwflpp* dw;
+  Dwarf_Die die;
+  exp_type_dwarf(dwflpp* dw, Dwarf_Die* die): dw(dw), die(*die) {}
+  uintptr_t id () const { return reinterpret_cast<uintptr_t>(die.addr); }
+};
+
 
 enum
 function_spec_type
@@ -3140,10 +3151,10 @@ static const string EMBEDDED_FETCH_DEREF_DONE = string("\n")
   + "#undef store_deref\n";
 
 static functioncall*
-synthetic_embedded_deref_call(systemtap_session& session,
+synthetic_embedded_deref_call(dwflpp& dw,
+                              Dwarf_Die* function_type,
                               const string& function_name,
                               const string& function_code,
-                              exp_type function_type,
                               bool userspace_p,
                               bool lvalue_p,
                               target_symbol* e,
@@ -3154,7 +3165,8 @@ synthetic_embedded_deref_call(systemtap_session& session,
   fdecl->synthetic = true;
   fdecl->tok = e->tok;
   fdecl->name = function_name;
-  fdecl->type = function_type;
+  // The fdecl type is generic, but we'll be detailed on the fcall below.
+  fdecl->type = pe_long;
 
   embeddedcode *ec = new embeddedcode;
   ec->tok = e->tok;
@@ -3169,8 +3181,10 @@ synthetic_embedded_deref_call(systemtap_session& session,
   // Synthesize a functioncall.
   functioncall* fcall = new functioncall;
   fcall->tok = e->tok;
+  fcall->referent = fdecl;
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
+  fcall->type_details.reset(new exp_type_dwarf(&dw, function_type));
 
   // If this code snippet uses a precomputed pointer,
   // pass that as the first argument.
@@ -3218,7 +3232,7 @@ synthetic_embedded_deref_call(systemtap_session& session,
     }
 
   // Add the synthesized decl to the session, and return the call.
-  fdecl->join (session);
+  fdecl->join (dw.sess);
   return fcall;
 }
 
@@ -3237,15 +3251,15 @@ dwarf_pretty_print::deref (target_symbol* e)
   string name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
 
   string code;
-  exp_type type = pe_long;
+  Dwarf_Die endtype;
   if (pointer)
-    code = dw.literal_stmt_for_pointer (&pointer_type, e, false, type);
+    code = dw.literal_stmt_for_pointer (&pointer_type, e, false, &endtype);
   else if (!local.empty())
-    code = dw.literal_stmt_for_local (scopes, pc, local, e, false, type);
+    code = dw.literal_stmt_for_local (scopes, pc, local, e, false, &endtype);
   else
-    code = dw.literal_stmt_for_return (&scopes[0], pc, e, false, type);
+    code = dw.literal_stmt_for_return (&scopes[0], pc, e, false, &endtype);
 
-  return synthetic_embedded_deref_call(dw.sess, name, code, type,
+  return synthetic_embedded_deref_call(dw, &endtype, name, code,
                                        userspace_p, lvalue_p, e, pointer);
 }
 
@@ -3878,15 +3892,15 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
                       + "_" + lex_cast(tick++));
 
 
-      exp_type type = pe_long;
       string code;
+      Dwarf_Die endtype;
       if (q.has_return && (e->name == "$return"))
-        code = q.dw.literal_stmt_for_return (scope_die, addr, e, lvalue, type);
+        code = q.dw.literal_stmt_for_return (scope_die, addr, e, lvalue, &endtype);
       else
         code = q.dw.literal_stmt_for_local (getscopes(e), addr, e->sym_name(),
-                                            e, lvalue, type);
+                                            e, lvalue, &endtype);
 
-      functioncall* n = synthetic_embedded_deref_call(q.sess, fname, code, type,
+      functioncall* n = synthetic_embedded_deref_call(q.dw, &endtype, fname, code,
                                                       userspace_p, lvalue, e);
 
       if (lvalue)
@@ -4075,7 +4089,7 @@ dwarf_cast_query::handle_query_module()
     return;
 
   string code;
-  exp_type type = pe_long;
+  Dwarf_Die endtype;
 
   try
     {
@@ -4093,7 +4107,7 @@ dwarf_cast_query::handle_query_module()
           return;
         }
 
-      code = dw.literal_stmt_for_pointer (type_die, &e, lvalue, type);
+      code = dw.literal_stmt_for_pointer (type_die, &e, lvalue, &endtype);
     }
   catch (const semantic_error& er)
     {
@@ -4110,7 +4124,7 @@ dwarf_cast_query::handle_query_module()
 		  + "_" + e.sym_name()
 		  + "_" + lex_cast(tick++));
 
-  result = synthetic_embedded_deref_call(dw.sess, fname, code, type,
+  result = synthetic_embedded_deref_call(dw, &endtype, fname, code,
                                          userspace_p, lvalue, &e, e.operand);
 }
 
@@ -4302,9 +4316,9 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
           return DWARF_CB_ABORT;
         }
 
-      exp_type type = pe_long;
+      Dwarf_Die endtype;
       string code = q->dw.literal_stmt_for_local (scopes, 0, q->e.sym_name(),
-                                                  &q->e, q->lvalue, type);
+                                                  &q->e, q->lvalue, &endtype);
 
       if (code.empty())
         return DWARF_CB_OK;
@@ -4314,7 +4328,7 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
                       + "_" + q->e.sym_name()
                       + "_" + lex_cast(q->tick++));
 
-      q->result = synthetic_embedded_deref_call (q->sess, fname, code, type,
+      q->result = synthetic_embedded_deref_call (q->dw, &endtype, fname, code,
                                                  q->userspace_p, q->lvalue,
                                                  &q->e);
     }
@@ -9839,10 +9853,10 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
                       + "_" + e->sym_name()
                       + "_" + lex_cast(tick++));
 
-      exp_type type = pe_long;
-      string code = dw.literal_stmt_for_pointer (&arg->type_die, e, lvalue, type);
+      Dwarf_Die endtype;
+      string code = dw.literal_stmt_for_pointer (&arg->type_die, e, lvalue, &endtype);
 
-      functioncall* n = synthetic_embedded_deref_call(dw.sess, fname, code, type,
+      functioncall* n = synthetic_embedded_deref_call(dw, &endtype, fname, code,
                                                       userspace_p, lvalue, e, e2);
 
       if (lvalue)
