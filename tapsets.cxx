@@ -5677,6 +5677,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   expression* try_parse_arg_effective_addr (target_symbol *e,
                                             const string& asmarg,
                                             long precision);
+  expression* try_parse_arg_varname (target_symbol *e,
+                                     const string& asmarg,
+                                     long precision);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
@@ -6295,11 +6298,144 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_effective_addr (target_symbol *e
   return argexpr;
 }
 
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
+                                                         const string& asmarg,
+                                                         long precision)
+{
+  static unsigned tick = 0;
+  expression *argexpr = NULL;
+
+  // test for [OFF+]VARNAME[+OFF][(REGISTER)], where VARNAME is a variable
+  // name. NB: Despite PR11821, we can use regnames here, since the parentheses
+  // make things unambiguous.
+  string regex = "^(([0-9]+)[+])?([a-zA-Z_][a-zA-Z0-9_]*)([+][0-9]+)?([(]("
+                 + regnames + ")[)])?$";
+  vector<string> matches;
+  if (!regexp_match(asmarg, regex, matches))
+    {
+      assert(matches.size() >= 4);
+      string varname = matches[3];
+
+      // OFF can be before VARNAME (put in matches[2]) or after (put in
+      // matches[4]) (or both?). Seems like in most cases it comes after,
+      // unless the code was compiled with -fPIC.
+      int64_t offset = 0;
+      if (!matches[2].empty())
+        offset += lex_cast<int64_t>(matches[2]);
+      if (matches.size() >= 5 && !matches[4].empty())
+        offset += lex_cast<int64_t>(matches[4]);
+
+      string regname;
+      if (matches.size() >= 7)
+        regname = matches[6];
+
+      // If it's just VARNAME, then proceed. If it's VARNAME(REGISTER), then
+      // only proceed if it's RIP-relative addressing on x86_64.
+      if (regname.empty() || (regname == "%rip" && elf_machine == EM_X86_64))
+        {
+          dw.mod_info->get_symtab();
+          if (dw.mod_info->symtab_status != info_present)
+            throw SEMANTIC_ERROR(_("can't retrieve symbol table"));
+
+          assert(dw.mod_info->sym_table);
+          map<string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
+          map<string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
+          Dwarf_Addr addr = 0;
+
+          // check symtab locals then globals
+          if (locals.count(varname))
+            addr = locals[varname];
+          if (globals.count(varname))
+            addr = globals[varname];
+
+          if (addr)
+            {
+              // add whatever offset is in the operand
+              addr += offset;
+
+              // adjust for dw bias because relocate_address() expects a
+              // libdw address and this addr is from the symtab
+              dw.get_module_dwarf(false, false);
+              addr -= dw.module_bias;
+
+              string reloc_section;
+              Dwarf_Addr reloc_addr = dw.relocate_address(addr, reloc_section);
+
+              // OK, we have an address for the variable. Let's create a
+              // function that will just relocate it at runtime, and then
+              // call user_[u]int*() on the address it returns.
+
+              functioncall *user_int_call = new functioncall;
+              switch (precision)
+                {
+                case 1: case -1:
+                  user_int_call->function = "user_int8"; break;
+                case 2:
+                  user_int_call->function = "user_uint16"; break;
+                case -2:
+                  user_int_call->function = "user_int16"; break;
+                case 4:
+                  user_int_call->function = "user_uint32"; break;
+                case -4:
+                  user_int_call->function = "user_int32"; break;
+                case 8: case -8:
+                  user_int_call->function = "user_int64"; break;
+                default: user_int_call->function = "user_long";
+                }
+              user_int_call->tok = e->tok;
+
+              functiondecl *get_addr_decl = new functiondecl;
+              get_addr_decl->tok = e->tok;
+              get_addr_decl->synthetic = true;
+              get_addr_decl->name = "_sdt_arg_get_addr_" + lex_cast(tick++);
+              get_addr_decl->type = pe_long;
+
+              // build _stp_[ku]module_relocate(module, addr, current)
+              stringstream ss;
+              ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
+              ss << "STAP_RETURN(";
+
+              if (is_user_module(process_name))
+                {
+                  ss << "_stp_umodule_relocate(";
+                    ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
+                    ss << "0x" << hex << reloc_addr << dec << ", ";
+                    ss << "current";
+                  ss << ")";
+                }
+              else // NB: in practice sdt.h probes are for userspace only
+                {
+                  ss << "_stp_kmodule_relocate(";
+                    ss << "\"" << process_name << "\", ";
+                    ss << "\"" << reloc_section << "\", ";
+                    ss << "0x" << hex << reloc_addr << dec;
+                  ss << ")";
+                }
+              ss << ");" << endl;
+
+              embeddedcode *ec = new embeddedcode;
+              ec->tok = e->tok;
+              ec->code = ss.str();
+              get_addr_decl->body = ec;
+              get_addr_decl->join(session);
+
+              functioncall *get_addr_call = new functioncall;
+              get_addr_call->tok = e->tok;
+              get_addr_call->function = get_addr_decl->name;
+              user_int_call->args.push_back(get_addr_call);
+
+              argexpr = user_int_call;
+            }
+        }
+    }
+
+  return argexpr;
+}
+
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
-  static unsigned tick = 0;
-
   try
     {
       unsigned argno = get_target_symbol_argno_and_validate(e); // the N in $argN
@@ -6321,9 +6457,6 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 
       expression* argexpr = 0; // filled in in case of successful parse
 
-      vector<string> matches;
-      int rc;
-
       // Parse (and remove from asmarg) the leading length
       long precision = parse_out_arg_precision(asmarg);
 
@@ -6342,149 +6475,33 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
             goto matched;
           if ((argexpr = try_parse_arg_effective_addr(e, asmarg, precision)) != NULL)
             goto matched;
+          if ((argexpr = try_parse_arg_varname(e, asmarg, precision)) != NULL)
+            goto matched;
         }
       catch (const semantic_error& err)
         {
           e->chain(err);
-          goto not_matched;
         }
 
-      // test for [OFF+]VARNAME[+OFF][(REG)], where VARNAME is a variable name.
-      // NB: Despite PR11821, we can use regnames here, since the parentheses
-      // make things unambiguous.
-      rc = regexp_match (asmarg, string("^(([0-9]+)[+])?([a-zA-Z_][a-zA-Z0-9_]*)([+][0-9]+)?([(](")+regnames+string(")[)])?$"), matches);
-      if (! rc)
-        {
-          assert(matches.size() >= 4);
-          string varname = matches[3];
-
-          // OFF can be before VARNAME (put in matches[2]) or after (put in
-          // matches[4]) (or both?). Seems like in most cases it comes after,
-          // unless the code was compiled with -fPIC.
-          int64_t offset = 0;
-          if (!matches[2].empty())
-            offset += lex_cast<int64_t>(matches[2]);
-          if (matches.size() >= 5 && !matches[4].empty())
-            offset += lex_cast<int64_t>(matches[4]);
-
-          string regname;
-          if (matches.size() >= 7)
-            regname = matches[6];
-
-          // If it's just VARNAME, then proceed. If it's VARNAME(REGISTER), then
-          // only proceed if it's RIP-relative addressing on x86_64.
-          if (regname.empty() || (regname == "%rip" && elf_machine == EM_X86_64))
-            {
-              dw.mod_info->get_symtab();
-              if (dw.mod_info->symtab_status != info_present)
-                goto not_matched;
-
-              assert(dw.mod_info->sym_table);
-              map<string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
-              map<string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
-              Dwarf_Addr addr = 0;
-
-              // check symtab locals then globals
-              if (locals.count(varname))
-                addr = locals[varname];
-              if (globals.count(varname))
-                addr = globals[varname];
-
-              if (addr)
-                {
-                  // add whatever offset is in the operand
-                  addr += offset;
-
-                  // adjust for dw bias because relocate_address() expects a
-                  // libdw address and this addr is from the symtab
-                  dw.get_module_dwarf(false, false);
-                  addr -= dw.module_bias;
-
-                  string reloc_section;
-                  Dwarf_Addr reloc_addr = dw.relocate_address(addr, reloc_section);
-
-                  // OK, we have an address for the variable. Let's create a
-                  // function that will just relocate it at runtime, and then
-                  // call user_[u]int*() on the address it returns.
-
-                  functioncall *user_int_call = new functioncall;
-                  switch (precision)
-                    {
-                    case 1: case -1:
-                      user_int_call->function = "user_int8"; break;
-                    case 2:
-                      user_int_call->function = "user_uint16"; break;
-                    case -2:
-                      user_int_call->function = "user_int16"; break;
-                    case 4:
-                      user_int_call->function = "user_uint32"; break;
-                    case -4:
-                      user_int_call->function = "user_int32"; break;
-                    case 8: case -8:
-                      user_int_call->function = "user_int64"; break;
-                    default: user_int_call->function = "user_long";
-                    }
-                  user_int_call->tok = e->tok;
-
-                  functiondecl *get_addr_decl = new functiondecl;
-                  get_addr_decl->tok = e->tok;
-                  get_addr_decl->synthetic = true;
-                  get_addr_decl->name = "_sdt_arg_get_addr_" + lex_cast(tick++);
-                  get_addr_decl->type = pe_long;
-
-                  // build _stp_[ku]module_relocate(module, addr, current)
-                  stringstream ss;
-                  ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
-                  ss << "STAP_RETURN(";
-
-                  if (is_user_module(process_name))
-                    {
-                      ss << "_stp_umodule_relocate(";
-                        ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
-                        ss << "0x" << hex << reloc_addr << dec << ", ";
-                        ss << "current";
-                      ss << ")";
-                    }
-                  else // NB: in practice sdt.h probes are for userspace only
-                    {
-                      ss << "_stp_kmodule_relocate(";
-                        ss << "\"" << process_name << "\", ";
-                        ss << "\"" << reloc_section << "\", ";
-                        ss << "0x" << hex << reloc_addr << dec;
-                      ss << ")";
-                    }
-                  ss << ");" << endl;
-
-                  embeddedcode *ec = new embeddedcode;
-                  ec->tok = e->tok;
-                  ec->code = ss.str();
-                  get_addr_decl->body = ec;
-                  get_addr_decl->join(session);
-
-                  functioncall *get_addr_call = new functioncall;
-                  get_addr_call->tok = e->tok;
-                  get_addr_call->function = get_addr_decl->name;
-                  user_int_call->args.push_back(get_addr_call);
-
-                  argexpr = user_int_call;
-                  goto matched;
-                }
-            }
-        }
-
-    not_matched:
       // The asmarg operand was not recognized.  Back down to dwarf.
       if (! session.suppress_warnings)
         {
           if (probe_type == UPROBE3_TYPE)
-            session.print_warning (_F("Can't parse SDT_V3 operand '%s' [man error::sdt]", asmarg.c_str()), e->tok);
+            session.print_warning (_F("Can't parse SDT_V3 operand '%s' "
+                                      "[man error::sdt]", asmarg.c_str()),
+                                   e->tok);
           else // must be *PROBE2; others don't get asm operands
-            session.print_warning (_F("Downgrading SDT_V2 probe argument to dwarf, can't parse '%s' [man error::sdt]",
-                                      asmarg.c_str()), e->tok);
+            session.print_warning (_F("Downgrading SDT_V2 probe argument to "
+                                      "dwarf, can't parse '%s' [man error::sdt]",
+                                      asmarg.c_str()),
+                                   e->tok);
         }
-      assert (argexpr == 0);
+
       need_debug_info = true;
-      throw SEMANTIC_ERROR(_("SDT asm not understood, requires debuginfo [man error::sdt]"), e->tok);
+      throw SEMANTIC_ERROR(_("SDT asm not understood, requires debuginfo "
+                             "[man error::sdt]"), e->tok);
+
+      /* NOTREACHED */
 
     matched:
       assert (argexpr != 0);
@@ -6498,7 +6515,6 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           if (e->addressof)
             throw SEMANTIC_ERROR(_("cannot take address of sdt variable"), e->tok);
           provide (argexpr);
-          return;
         }
       else  // $var->foo
         {
@@ -6510,10 +6526,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           cast->type_name = probe_name + "_arg" + lex_cast(argno);
           cast->module = process_name;
           cast->visit(this);
-          return;
         }
-
-      /* NOTREACHED */
     }
   catch (const semantic_error &er)
     {
