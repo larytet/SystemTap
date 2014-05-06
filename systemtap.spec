@@ -301,7 +301,7 @@ Requires: strace
 # that provides nc has changed over time (from 'nc' to
 # 'nmap-ncat'). So, we'll do a file-based require.
 Requires: /usr/bin/nc
-%ifnarch ia64 ppc64le
+%ifnarch ia64 ppc64le aarch64
 Requires: prelink
 %endif
 # testsuite/systemtap.server/client.exp needs avahi
