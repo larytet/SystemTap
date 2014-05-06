@@ -5948,13 +5948,14 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // and hope for the best.  Here is the syntax for a few architectures.
       // Note that the power iN syntax is only for V3 sdt.h; gcc emits the i.
       //
-      //      literal	reg	reg	reg +	base+index*size+offset
-      //	      	      indirect offset
-      // x86	$N	%rR	(%rR)	N(%rR)  O(%bR,%iR,S)
-      // power	iN	R	(R)	N(R)
-      // ia64	N	rR	[r16]
-      // s390	N	%rR	0(rR)	N(r15)
-      // arm	#N	rR	[rR]	[rR, #N]
+      //        literal reg reg      reg+     base+index*size+ VAR VAR+off RIP-relative
+      //                    indirect offset   offset                       VAR+off
+      // x86    $N      %rR (%rR)    N(%rR)   O(%bR,%iR,S)     var var+off var+off(%rip)
+      // x86_64 $N      %rR (%rR)    N(%rR)   O(%bR,%iR,S)     var var+off var+off(%rip)
+      // power  iN      R   (R)      N(R)
+      // ia64   N       rR  [r16]
+      // s390   N       %rR 0(rR)    N(r15)
+      // arm    #N      rR  [rR]     [rR, #N]
 
       expression* argexpr = 0; // filled in in case of successful parse
 
