@@ -98,10 +98,14 @@
 
 #endif	/* __x86_64__ */
 
-#if defined(__powerpc64__) || defined (__s390x__)
+#if defined(__powerpc64__) || defined (__s390x__) || defined(__aarch64__)
 
 // On the ppc64 and s390x, the 32-bit syscalls use the same number
 // as the 64-bit syscalls.
+//
+// On arm64, the 32-bit syscall *can* use different numbers than the
+// 64-bit syscalls, but the majority do not. The following syscalls
+// use the same number.
 
 #define __NR_compat_clone		__NR_clone
 #define __NR_compat_close		__NR_close
@@ -123,7 +127,7 @@
 #define __NR_compat_symlinkat		__NR_symlinkat
 #define __NR_compat_umount2		__NR_umount2
 
-#endif	/* __powerpc64__ || __s390x__ */
+#endif	/* __powerpc64__ || __s390x__ || __aarch64__ */
 
 #if defined(__ia64__)
 
