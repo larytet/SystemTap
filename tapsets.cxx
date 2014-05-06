@@ -5630,6 +5630,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
     process_name (process_name), provider_name (provider_name),
     probe_name (probe_name), probe_type (probe_type), arg_count ((unsigned) ac)
   {
+    // sanity check that we're not somehow here for a kernel probe
+    assert(is_user_module(process_name));
+
     build_dwarf_registers();
 
     need_debug_info = false;
@@ -6107,9 +6110,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
           get_arg1->tok = e->tok;
           get_arg1->code = string("/* unprivileged */ /* pure */")
             + string(" ((int64_t)") + type
-            + (is_user_module (process_name)
-               ? string("u_fetch_register(")
-               : string("k_fetch_register("))
+            + string("u_fetch_register(")
             + lex_cast(dwarf_regs[regname].first) + string("))")
             + width_adjust;
           argexpr = get_arg1;
@@ -6187,9 +6188,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *
       embedded_expr *get_arg1 = new embedded_expr;
       get_arg1->tok = e->tok;
       get_arg1->code = string("/* unprivileged */ /* pure */")
-        + (is_user_module (process_name)
-           ? string("u_fetch_register(")
-           : string("k_fetch_register("))
+        + string("u_fetch_register(")
         + lex_cast(dwarf_regs[regname].first) + string(")");
       // XXX: may we ever need to cast that to a narrower type?
 
@@ -6256,9 +6255,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_effective_addr (target_symbol *e
       // synthesize user_long(%{fetch_register(R1)+fetch_register(R2)*N%} + D)
 
       embedded_expr *get_arg1 = new embedded_expr;
-      string regfn = is_user_module (process_name)
-        ? string("u_fetch_register")
-        : string("k_fetch_register"); // NB: in practice sdt.h probes are for userspace only
+      string regfn = "u_fetch_register";
 
       get_arg1->tok = e->tok;
       get_arg1->code = string("/* unprivileged */ /* pure */")
@@ -6371,25 +6368,11 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               // build _stp_[ku]module_relocate(module, addr, current)
               stringstream ss;
               ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
-              ss << "STAP_RETURN(";
-
-              if (is_user_module(process_name))
-                {
-                  ss << "_stp_umodule_relocate(";
-                    ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
-                    ss << "0x" << hex << reloc_addr << dec << ", ";
-                    ss << "current";
-                  ss << ")";
-                }
-              else // NB: in practice sdt.h probes are for userspace only
-                {
-                  ss << "_stp_kmodule_relocate(";
-                    ss << "\"" << process_name << "\", ";
-                    ss << "\"" << reloc_section << "\", ";
-                    ss << "0x" << hex << reloc_addr << dec;
-                  ss << ")";
-                }
-              ss << ");" << endl;
+              ss << "STAP_RETURN(_stp_umodule_relocate(";
+                ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
+                ss << "0x" << hex << reloc_addr << dec << ", ";
+                ss << "current";
+              ss << "));" << endl;
 
               embeddedcode *ec = new embeddedcode;
               ec->tok = e->tok;
