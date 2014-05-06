@@ -5848,6 +5848,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   void visit_target_symbol (target_symbol* e);
   unsigned get_target_symbol_argno_and_validate (target_symbol* e);
   long parse_out_arg_precision(string& asmarg);
+  expression* try_parse_arg_literal (target_symbol *e,
+                                     const string& asmarg,
+                                     long precision);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
@@ -5966,6 +5969,53 @@ sdt_uprobe_var_expanding_visitor::parse_out_arg_precision(string& asmarg)
   return precision;
 }
 
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
+                                                         const string& asmarg,
+                                                         long precision)
+{
+  expression *argexpr = NULL;
+
+  // Here, we test for a numeric literal.
+  // Only accept (signed) decimals throughout. XXX
+
+  // PR11821.  NB: on powerpc, literals are not prefixed with $,
+  // so this regex does not match.  But that's OK, since without
+  // -mregnames, we can't tell them apart from register numbers
+  // anyway.  With -mregnames, we could, if gcc somehow
+  // communicated to us the presence of that option, but alas it
+  // doesn't.  http://gcc.gnu.org/PR44995.
+  vector<string> matches;
+  if (!regexp_match (asmarg, "^[i\\$#][-]?[0-9][0-9]*$", matches))
+    {
+      string sn = matches[0].substr(1);
+      int64_t n;
+
+      // We have to pay attention to the size & sign, as gcc sometimes
+      // propagates constants that don't quite match, like a negative
+      // value to fill an unsigned type.
+      // NB: let it throw if something happens
+      switch (precision)
+        {
+        case -1: n = lex_cast<  int8_t>(sn); break;
+        case  1: n = lex_cast< uint8_t>(sn); break;
+        case -2: n = lex_cast< int16_t>(sn); break;
+        case  2: n = lex_cast<uint16_t>(sn); break;
+        case -4: n = lex_cast< int32_t>(sn); break;
+        case  4: n = lex_cast<uint32_t>(sn); break;
+        default:
+        case -8: n = lex_cast< int64_t>(sn); break;
+        case  8: n = lex_cast<uint64_t>(sn); break;
+        }
+
+      literal_number* ln = new literal_number(n);
+      ln->tok = e->tok;
+      argexpr = ln;
+    }
+
+  return argexpr;
+}
+
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
@@ -6000,46 +6050,15 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // Parse (and remove from asmarg) the leading length
       long precision = parse_out_arg_precision(asmarg);
 
-      // test for a numeric literal.
-      // Only accept (signed) decimals throughout. XXX
-
-      // PR11821.  NB: on powerpc, literals are not prefixed with $,
-      // so this regex does not match.  But that's OK, since without
-      // -mregnames, we can't tell them apart from register numbers
-      // anyway.  With -mregnames, we could, if gcc somehow
-      // communicated to us the presence of that option, but alas it
-      // doesn't.  http://gcc.gnu.org/PR44995.
-      rc = regexp_match (asmarg, "^[i\\$#][-]?[0-9][0-9]*$", matches);
-      if (! rc)
+      try
         {
-	  string sn = matches[0].substr(1);
-	  int64_t n;
-	  try
-	    {
-	      // We have to pay attention to the size & sign, as gcc sometimes
-	      // propagates constants that don't quite match, like a negative
-	      // value to fill an unsigned type.
-	      switch (precision)
-		{
-		case -1: n = lex_cast<  int8_t>(sn); break;
-		case  1: n = lex_cast< uint8_t>(sn); break;
-		case -2: n = lex_cast< int16_t>(sn); break;
-		case  2: n = lex_cast<uint16_t>(sn); break;
-		case -4: n = lex_cast< int32_t>(sn); break;
-		case  4: n = lex_cast<uint32_t>(sn); break;
-		default:
-		case -8: n = lex_cast< int64_t>(sn); break;
-		case  8: n = lex_cast<uint64_t>(sn); break;
-		}
-	    }
-	  catch (std::runtime_error&)
-	    {
-	      goto not_matched;
-	    }
-	  literal_number* ln = new literal_number(n);
-	  ln->tok = e->tok;
-          argexpr = ln;
-          goto matched;
+          if ((argexpr = try_parse_arg_literal(e, asmarg, precision)) != NULL)
+            goto matched;
+        }
+      catch (const semantic_error& err)
+        {
+          e->chain(err);
+          goto not_matched;
         }
 
       if (dwarf_regs.empty())
