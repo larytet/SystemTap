@@ -11,6 +11,45 @@
 #ifndef _COMPAT_UNISTD_H_
 #define _COMPAT_UNISTD_H_
 
+// Older kernels (like RHEL5) supported __NR_sendfile64. For newer
+// kernels, we'll just define __NR_sendfile64 in terms of
+// __NR_sendfile.
+#ifndef __NR_sendfile64
+#define __NR_sendfile64 __NR_sendfile
+#endif
+
+#ifndef __NR_syscall_max
+#define __NR_syscall_max 0xffff
+#endif
+
+#ifndef __NR_accept
+#define __NR_accept (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_accept4
+#define __NR_accept4 (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_futimesat
+#define __NR_futimesat (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_mmap2
+#define __NR_mmap2 (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_open
+#define __NR_open (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_recv
+#define __NR_recv (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_recvfrom
+#define __NR_recvfrom (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_sendmmsg
+#define __NR_sendmmsg (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_sendto
+#define __NR_sendto (__NR_syscall_max + 1)
+#endif
+
 #if defined(__x86_64__)
 
 // On older kernels (like RHEL5), we have to define our own 32-bit
@@ -139,38 +178,5 @@
 #endif
 
 #endif	/* __ia64__ */
-
-// Older kernels (like RHEL5) supported __NR_sendfile64. For newer
-// kernels, we'll just define __NR_sendfile64 in terms of
-// __NR_sendfile.
-#ifndef __NR_sendfile64
-#define __NR_sendfile64 __NR_sendfile
-#endif
-
-#ifndef __NR_syscall_max
-#define __NR_syscall_max 0xffff
-#endif
-
-#ifndef __NR_accept
-#define __NR_accept (__NR_syscall_max + 1)
-#endif
-#ifndef __NR_accept4
-#define __NR_accept4 (__NR_syscall_max + 1)
-#endif
-#ifndef __NR_mmap2
-#define __NR_mmap2 (__NR_syscall_max + 1)
-#endif
-#ifndef __NR_recv
-#define __NR_recv (__NR_syscall_max + 1)
-#endif
-#ifndef __NR_recvfrom
-#define __NR_recvfrom (__NR_syscall_max + 1)
-#endif
-#ifndef __NR_sendmmsg
-#define __NR_sendmmsg (__NR_syscall_max + 1)
-#endif
-#ifndef __NR_sendto
-#define __NR_sendto (__NR_syscall_max + 1)
-#endif
 
 #endif /* _COMPAT_UNISTD_H_ */
