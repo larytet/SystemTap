@@ -5671,6 +5671,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   expression* try_parse_arg_register (target_symbol *e,
                                       const string& asmarg,
                                       long precision);
+  expression* try_parse_arg_offset_register (target_symbol *e,
+                                             const string& asmarg,
+                                             long precision);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
@@ -6109,6 +6112,94 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
   return argexpr;
 }
 
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *e,
+                                                                 const string& asmarg,
+                                                                 long precision)
+{
+  expression *argexpr = NULL;
+
+  // test for OFFSET(REGISTER) where OFFSET is +-N+-N+-N
+  // NB: Despite PR11821, we can use regnames here, since the parentheses
+  // make things unambiguous. (Note: gdb/stap-probe.c also parses this)
+  // On ARM test for [REGISTER, OFFSET]
+
+  string regexp;
+  int reg, offset1;
+  if (elf_machine == EM_ARM)
+    {
+      regexp = "^\\[(" + regnames + ")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
+      reg = 1;
+      offset1 = 3;
+    }
+  else
+    {
+      regexp = "^([+-]?[0-9]*)([+-][0-9]*)?([+-][0-9]*)?[(](" + regnames + ")[)]$";
+      reg = 4;
+      offset1 = 1;
+    }
+
+  vector<string> matches;
+  if (!regexp_match(asmarg, regexp, matches))
+    {
+      string regname;
+      int64_t disp = 0;
+      if (matches[reg].length())
+        regname = matches[reg];
+      if (dwarf_regs.find (regname) == dwarf_regs.end())
+        throw SEMANTIC_ERROR(_F("unrecognized register '%s'", regname.c_str()));
+
+      for (int i=offset1; i <= (offset1 + 2); i++)
+        if (matches[i].length())
+          // should decode positive/negative hex/decimal
+          // NB: let it throw if something happens
+          disp += lex_cast<int64_t>(matches[i]);
+
+      // synthesize user_long(%{fetch_register(R)%} + D)
+      embedded_expr *get_arg1 = new embedded_expr;
+      get_arg1->tok = e->tok;
+      get_arg1->code = string("/* unprivileged */ /* pure */")
+        + (is_user_module (process_name)
+           ? string("u_fetch_register(")
+           : string("k_fetch_register("))
+        + lex_cast(dwarf_regs[regname].first) + string(")");
+      // XXX: may we ever need to cast that to a narrower type?
+
+      literal_number* inc = new literal_number(disp);
+      inc->tok = e->tok;
+
+      binary_expression *be = new binary_expression;
+      be->tok = e->tok;
+      be->left = get_arg1;
+      be->op = "+";
+      be->right = inc;
+
+      functioncall *fc = new functioncall;
+      switch (precision)
+        {
+        case 1: case -1:
+          fc->function = "user_int8"; break;
+        case 2:
+          fc->function = "user_uint16"; break;
+        case -2:
+          fc->function = "user_int16"; break;
+        case 4:
+          fc->function = "user_uint32"; break;
+        case -4:
+          fc->function = "user_int32"; break;
+        case 8: case -8:
+          fc->function = "user_int64"; break;
+        default: fc->function = "user_long";
+        }
+      fc->tok = e->tok;
+      fc->args.push_back(be);
+
+      argexpr = fc;
+    }
+
+  return argexpr;
+}
+
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
@@ -6152,94 +6243,14 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 
           if ((argexpr = try_parse_arg_register(e, asmarg, precision)) != NULL)
             goto matched;
+          if ((argexpr = try_parse_arg_offset_register(e, asmarg, precision)) != NULL)
+            goto matched;
         }
       catch (const semantic_error& err)
         {
           e->chain(err);
           goto not_matched;
         }
-
-      int reg, offset1;
-      // test for OFFSET(REGISTER) where OFFSET is +-N+-N+-N
-      // NB: Despite PR11821, we can use regnames here, since the parentheses
-      // make things unambiguous. (Note: gdb/stap-probe.c also parses this)
-      // On ARM test for [REGISTER, OFFSET]
-     if (elf_machine == EM_ARM)
-       {
-         rc = regexp_match (asmarg, string("^\\[(")+regnames+string(")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$"), matches);
-         reg = 1;
-         offset1 = 3;
-       }
-     else
-       {
-         rc = regexp_match (asmarg, string("^([+-]?[0-9]*)([+-][0-9]*)?([+-][0-9]*)?[(](")+regnames+string(")[)]$"), matches);
-         reg = 4;
-         offset1 = 1;
-       }
-      if (! rc)
-        {
-          string regname;
-          int64_t disp = 0;
-          if (matches[reg].length())
-            regname = matches[reg];
-          if (dwarf_regs.find (regname) == dwarf_regs.end())
-            goto not_matched;
-
-          for (int i=offset1; i <= (offset1 + 2); i++)
-            if (matches[i].length())
-              try
-                {
-                  disp += lex_cast<int64_t>(matches[i]); // should decode positive/negative hex/decimal
-                }
-                catch (const runtime_error& f) // unparseable offset
-                  {
-                    goto not_matched; // can't just 'break' out of
-                                      // this case or use a sentinel
-                                      // value, unfortunately
-                  }
-
-                  // synthesize user_long(%{fetch_register(R)%} + D)
-                  embedded_expr *get_arg1 = new embedded_expr;
-                  get_arg1->tok = e->tok;
-                  get_arg1->code = string("/* unprivileged */ /* pure */")
-                    + (is_user_module (process_name)
-                       ? string("u_fetch_register(")
-                       : string("k_fetch_register("))
-                    + lex_cast(dwarf_regs[regname].first) + string(")");
-                  // XXX: may we ever need to cast that to a narrower type?
-
-                  literal_number* inc = new literal_number(disp);
-                  inc->tok = e->tok;
-
-                  binary_expression *be = new binary_expression;
-                  be->tok = e->tok;
-                  be->left = get_arg1;
-                  be->op = "+";
-                  be->right = inc;
-
-                  functioncall *fc = new functioncall;
-		  switch (precision)
-		    {
-		    case 1: case -1:
-		      fc->function = "user_int8"; break;
-		    case 2:
-		      fc->function = "user_uint16"; break;
-		    case -2:
-		      fc->function = "user_int16"; break;
-		    case 4:
-		      fc->function = "user_uint32"; break;
-		    case -4:
-		      fc->function = "user_int32"; break;
-                    case 8: case -8:
-		      fc->function = "user_int64"; break;
-		    default: fc->function = "user_long";
-		    }
-                  fc->tok = e->tok;
-                  fc->args.push_back(be);
-
-                  argexpr = fc;
-                  goto matched;
-                }
 
       // test for OFFSET(BASE_REGISTER,INDEX_REGISTER[,SCALE]) where OFFSET is +-N+-N+-N
       // NB: Despite PR11821, we can use regnames here, since the parentheses
