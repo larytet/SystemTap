@@ -2403,10 +2403,7 @@ query_one_library (const char *library, dwflpp & dw,
 void
 dwarf_query::query_library (const char *library)
 {
-  string library_path =
-    query_one_library (library, dw, user_lib, base_probe, base_loc, results);
-  if (!library_path.empty())
-    visited_modules.insert(library_path);
+  query_one_library (library, dw, user_lib, base_probe, base_loc, results);
 }
 
 struct plt_expanding_visitor: public var_expanding_visitor
