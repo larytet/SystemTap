@@ -5630,195 +5630,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
     process_name (process_name), provider_name (provider_name),
     probe_name (probe_name), probe_type (probe_type), arg_count ((unsigned) ac)
   {
-    /* Register name mapping table depends on the elf machine of this particular
-       probe target process/file, not upon the host.  So we can't just
-       #ifdef _i686_ etc. */
-
-#define DRI(name,num,width)  dwarf_regs[name]=make_pair(num,width)
-    if (elf_machine == EM_X86_64) {
-      DRI ("%rax", 0, DI); DRI ("%eax", 0, SI); DRI ("%ax", 0, HI);
-      	 DRI ("%al", 0, QI); DRI ("%ah", 0, QIh);
-      DRI ("%rdx", 1, DI); DRI ("%edx", 1, SI); DRI ("%dx", 1, HI);
-         DRI ("%dl", 1, QI); DRI ("%dh", 1, QIh);
-      DRI ("%rcx", 2, DI); DRI ("%ecx", 2, SI); DRI ("%cx", 2, HI);
-         DRI ("%cl", 2, QI); DRI ("%ch", 2, QIh);
-      DRI ("%rbx", 3, DI); DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI);
-         DRI ("%bl", 3, QI); DRI ("%bh", 3, QIh);
-      DRI ("%rsi", 4, DI); DRI ("%esi", 4, SI); DRI ("%si", 4, HI);
-         DRI ("%sil", 4, QI);
-      DRI ("%rdi", 5, DI); DRI ("%edi", 5, SI); DRI ("%di", 5, HI);
-         DRI ("%dil", 5, QI);
-      DRI ("%rbp", 6, DI); DRI ("%ebp", 6, SI); DRI ("%bp", 6, HI);
-         DRI ("%bpl", 6, QI);
-      DRI ("%rsp", 7, DI); DRI ("%esp", 7, SI); DRI ("%sp", 7, HI);
-         DRI ("%spl", 7, QI);
-      DRI ("%r8", 8, DI); DRI ("%r8d", 8, SI); DRI ("%r8w", 8, HI);
-         DRI ("%r8b", 8, QI);
-      DRI ("%r9", 9, DI); DRI ("%r9d", 9, SI); DRI ("%r9w", 9, HI);
-         DRI ("%r9b", 9, QI);
-      DRI ("%r10", 10, DI); DRI ("%r10d", 10, SI); DRI ("%r10w", 10, HI);
-         DRI ("%r10b", 10, QI);
-      DRI ("%r11", 11, DI); DRI ("%r11d", 11, SI); DRI ("%r11w", 11, HI);
-         DRI ("%r11b", 11, QI);
-      DRI ("%r12", 12, DI); DRI ("%r12d", 12, SI); DRI ("%r12w", 12, HI);
-         DRI ("%r12b", 12, QI);
-      DRI ("%r13", 13, DI); DRI ("%r13d", 13, SI); DRI ("%r13w", 13, HI);
-         DRI ("%r13b", 13, QI);
-      DRI ("%r14", 14, DI); DRI ("%r14d", 14, SI); DRI ("%r14w", 14, HI);
-         DRI ("%r14b", 14, QI);
-      DRI ("%r15", 15, DI); DRI ("%r15d", 15, SI); DRI ("%r15w", 15, HI);
-         DRI ("%r15b", 15, QI);
-      DRI ("%rip", 16, DI); DRI ("%eip", 16, SI); DRI ("%ip", 16, HI);
-    } else if (elf_machine == EM_386) {
-      DRI ("%eax", 0, SI); DRI ("%ax", 0, HI); DRI ("%al", 0, QI);
-         DRI ("%ah", 0, QIh);
-      DRI ("%ecx", 1, SI); DRI ("%cx", 1, HI); DRI ("%cl", 1, QI);
-         DRI ("%ch", 1, QIh);
-      DRI ("%edx", 2, SI); DRI ("%dx", 2, HI); DRI ("%dl", 2, QI);
-         DRI ("%dh", 2, QIh);
-      DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI); DRI ("%bl", 3, QI);
-         DRI ("%bh", 3, QIh);
-      DRI ("%esp", 4, SI); DRI ("%sp", 4, HI);
-      DRI ("%ebp", 5, SI); DRI ("%bp", 5, HI);
-      DRI ("%esi", 6, SI); DRI ("%si", 6, HI); DRI ("%sil", 6, QI);
-      DRI ("%edi", 7, SI); DRI ("%di", 7, HI); DRI ("%dil", 7, QI);
-    } else if (elf_machine == EM_PPC || elf_machine == EM_PPC64) {
-      DRI ("%r0", 0, DI);
-      DRI ("%r1", 1, DI);
-      DRI ("%r2", 2, DI);
-      DRI ("%r3", 3, DI);
-      DRI ("%r4", 4, DI);
-      DRI ("%r5", 5, DI);
-      DRI ("%r6", 6, DI);
-      DRI ("%r7", 7, DI);
-      DRI ("%r8", 8, DI);
-      DRI ("%r9", 9, DI);
-      DRI ("%r10", 10, DI);
-      DRI ("%r11", 11, DI);
-      DRI ("%r12", 12, DI);
-      DRI ("%r13", 13, DI);
-      DRI ("%r14", 14, DI);
-      DRI ("%r15", 15, DI);
-      DRI ("%r16", 16, DI);
-      DRI ("%r17", 17, DI);
-      DRI ("%r18", 18, DI);
-      DRI ("%r19", 19, DI);
-      DRI ("%r20", 20, DI);
-      DRI ("%r21", 21, DI);
-      DRI ("%r22", 22, DI);
-      DRI ("%r23", 23, DI);
-      DRI ("%r24", 24, DI);
-      DRI ("%r25", 25, DI);
-      DRI ("%r26", 26, DI);
-      DRI ("%r27", 27, DI);
-      DRI ("%r28", 28, DI);
-      DRI ("%r29", 29, DI);
-      DRI ("%r30", 30, DI);
-      DRI ("%r31", 31, DI);
-      // PR11821: unadorned register "names" without -mregnames
-      DRI ("0", 0, DI);
-      DRI ("1", 1, DI);
-      DRI ("2", 2, DI);
-      DRI ("3", 3, DI);
-      DRI ("4", 4, DI);
-      DRI ("5", 5, DI);
-      DRI ("6", 6, DI);
-      DRI ("7", 7, DI);
-      DRI ("8", 8, DI);
-      DRI ("9", 9, DI);
-      DRI ("10", 10, DI);
-      DRI ("11", 11, DI);
-      DRI ("12", 12, DI);
-      DRI ("13", 13, DI);
-      DRI ("14", 14, DI);
-      DRI ("15", 15, DI);
-      DRI ("16", 16, DI);
-      DRI ("17", 17, DI);
-      DRI ("18", 18, DI);
-      DRI ("19", 19, DI);
-      DRI ("20", 20, DI);
-      DRI ("21", 21, DI);
-      DRI ("22", 22, DI);
-      DRI ("23", 23, DI);
-      DRI ("24", 24, DI);
-      DRI ("25", 25, DI);
-      DRI ("26", 26, DI);
-      DRI ("27", 27, DI);
-      DRI ("28", 28, DI);
-      DRI ("29", 29, DI);
-      DRI ("30", 30, DI);
-      DRI ("31", 31, DI);
-    } else if (elf_machine == EM_S390) {
-      DRI ("%r0", 0, DI);
-      DRI ("%r1", 1, DI);
-      DRI ("%r2", 2, DI);
-      DRI ("%r3", 3, DI);
-      DRI ("%r4", 4, DI);
-      DRI ("%r5", 5, DI);
-      DRI ("%r6", 6, DI);
-      DRI ("%r7", 7, DI);
-      DRI ("%r8", 8, DI);
-      DRI ("%r9", 9, DI);
-      DRI ("%r10", 10, DI);
-      DRI ("%r11", 11, DI);
-      DRI ("%r12", 12, DI);
-      DRI ("%r13", 13, DI);
-      DRI ("%r14", 14, DI);
-      DRI ("%r15", 15, DI);
-    } else if (elf_machine == EM_ARM) {
-      DRI ("r0", 0, SI);
-      DRI ("r1", 1, SI);
-      DRI ("r2", 2, SI);
-      DRI ("r3", 3, SI);
-      DRI ("r4", 4, SI);
-      DRI ("r5", 5, SI);
-      DRI ("r6", 6, SI);
-      DRI ("r7", 7, SI);
-      DRI ("r8", 8, SI);
-      DRI ("r9", 9, SI);
-      DRI ("r10", 10, SI); DRI ("sl", 10, SI);
-      DRI ("fp", 11, SI);
-      DRI ("ip", 12, SI);
-      DRI ("sp", 13, SI);
-      DRI ("lr", 14, SI);
-      DRI ("pc", 15, SI);
-    } else if (elf_machine == EM_AARCH64) {
-      DRI ("x0", 0, DI); DRI ("w0", 0, SI);
-      DRI ("x1", 1, DI); DRI ("w1", 1, SI);
-      DRI ("x2", 2, DI); DRI ("w2", 2, SI);
-      DRI ("x3", 3, DI); DRI ("w3", 3, SI);
-      DRI ("x4", 4, DI); DRI ("w4", 4, SI);
-      DRI ("x5", 5, DI); DRI ("w5", 5, SI);
-      DRI ("x6", 6, DI); DRI ("w6", 6, SI);
-      DRI ("x7", 7, DI); DRI ("w7", 7, SI);
-      DRI ("x8", 8, DI); DRI ("w8", 8, SI);
-      DRI ("x9", 9, DI); DRI ("w9", 9, SI);
-      DRI ("x10", 10, DI); DRI ("w10", 10, SI);
-      DRI ("x11", 11, DI); DRI ("w11", 11, SI);
-      DRI ("x12", 12, DI); DRI ("w12", 12, SI);
-      DRI ("x13", 13, DI); DRI ("w13", 13, SI);
-      DRI ("x14", 14, DI); DRI ("w14", 14, SI);
-      DRI ("x15", 15, DI); DRI ("w15", 15, SI);
-      DRI ("x16", 16, DI); DRI ("w16", 16, SI);
-      DRI ("x17", 17, DI); DRI ("w17", 17, SI);
-      DRI ("x18", 18, DI); DRI ("w18", 18, SI);
-      DRI ("x19", 19, DI); DRI ("w19", 19, SI);
-      DRI ("x20", 20, DI); DRI ("w20", 20, SI);
-      DRI ("x21", 21, DI); DRI ("w21", 21, SI);
-      DRI ("x22", 22, DI); DRI ("w22", 22, SI);
-      DRI ("x23", 23, DI); DRI ("w23", 23, SI);
-      DRI ("x24", 24, DI); DRI ("w24", 24, SI);
-      DRI ("x25", 25, DI); DRI ("w25", 25, SI);
-      DRI ("x26", 26, DI); DRI ("w26", 26, SI);
-      DRI ("x27", 27, DI); DRI ("w27", 27, SI);
-      DRI ("x28", 28, DI); DRI ("w28", 28, SI);
-      DRI ("x29", 29, DI); DRI ("w29", 29, SI);
-      DRI ("x30", 30, DI); DRI ("w30", 30, SI);
-      DRI ("sp", 31, DI);
-    } else if (arg_count) {
-      /* permit this case; just fall back to dwarf */
-    }
-#undef DRI
+    build_dwarf_registers();
 
     need_debug_info = false;
     if (probe_type == uprobe3_type)
@@ -5842,9 +5654,14 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   stap_sdt_probe_type probe_type;
   unsigned arg_count;
   vector<string> arg_tokens;
+
   map<string, pair<unsigned,int> > dwarf_regs;
+  string regnames;
+  string percent_regnames;
+
   bool need_debug_info;
 
+  void build_dwarf_registers();
   void visit_target_symbol (target_symbol* e);
   unsigned get_target_symbol_argno_and_validate (target_symbol* e);
   long parse_out_arg_precision(string& asmarg);
@@ -5857,6 +5674,218 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   void visit_cast_op (cast_op* e);
 };
 
+void
+sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
+{
+  /* Register name mapping table depends on the elf machine of this particular
+     probe target process/file, not upon the host.  So we can't just
+     #ifdef _i686_ etc. */
+
+#define DRI(name,num,width)  dwarf_regs[name]=make_pair(num,width)
+  if (elf_machine == EM_X86_64) {
+    DRI ("%rax", 0, DI); DRI ("%eax", 0, SI); DRI ("%ax", 0, HI);
+       DRI ("%al", 0, QI); DRI ("%ah", 0, QIh);
+    DRI ("%rdx", 1, DI); DRI ("%edx", 1, SI); DRI ("%dx", 1, HI);
+       DRI ("%dl", 1, QI); DRI ("%dh", 1, QIh);
+    DRI ("%rcx", 2, DI); DRI ("%ecx", 2, SI); DRI ("%cx", 2, HI);
+       DRI ("%cl", 2, QI); DRI ("%ch", 2, QIh);
+    DRI ("%rbx", 3, DI); DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI);
+       DRI ("%bl", 3, QI); DRI ("%bh", 3, QIh);
+    DRI ("%rsi", 4, DI); DRI ("%esi", 4, SI); DRI ("%si", 4, HI);
+       DRI ("%sil", 4, QI);
+    DRI ("%rdi", 5, DI); DRI ("%edi", 5, SI); DRI ("%di", 5, HI);
+       DRI ("%dil", 5, QI);
+    DRI ("%rbp", 6, DI); DRI ("%ebp", 6, SI); DRI ("%bp", 6, HI);
+       DRI ("%bpl", 6, QI);
+    DRI ("%rsp", 7, DI); DRI ("%esp", 7, SI); DRI ("%sp", 7, HI);
+       DRI ("%spl", 7, QI);
+    DRI ("%r8", 8, DI); DRI ("%r8d", 8, SI); DRI ("%r8w", 8, HI);
+       DRI ("%r8b", 8, QI);
+    DRI ("%r9", 9, DI); DRI ("%r9d", 9, SI); DRI ("%r9w", 9, HI);
+       DRI ("%r9b", 9, QI);
+    DRI ("%r10", 10, DI); DRI ("%r10d", 10, SI); DRI ("%r10w", 10, HI);
+       DRI ("%r10b", 10, QI);
+    DRI ("%r11", 11, DI); DRI ("%r11d", 11, SI); DRI ("%r11w", 11, HI);
+       DRI ("%r11b", 11, QI);
+    DRI ("%r12", 12, DI); DRI ("%r12d", 12, SI); DRI ("%r12w", 12, HI);
+       DRI ("%r12b", 12, QI);
+    DRI ("%r13", 13, DI); DRI ("%r13d", 13, SI); DRI ("%r13w", 13, HI);
+       DRI ("%r13b", 13, QI);
+    DRI ("%r14", 14, DI); DRI ("%r14d", 14, SI); DRI ("%r14w", 14, HI);
+       DRI ("%r14b", 14, QI);
+    DRI ("%r15", 15, DI); DRI ("%r15d", 15, SI); DRI ("%r15w", 15, HI);
+       DRI ("%r15b", 15, QI);
+    DRI ("%rip", 16, DI); DRI ("%eip", 16, SI); DRI ("%ip", 16, HI);
+  } else if (elf_machine == EM_386) {
+    DRI ("%eax", 0, SI); DRI ("%ax", 0, HI); DRI ("%al", 0, QI);
+       DRI ("%ah", 0, QIh);
+    DRI ("%ecx", 1, SI); DRI ("%cx", 1, HI); DRI ("%cl", 1, QI);
+       DRI ("%ch", 1, QIh);
+    DRI ("%edx", 2, SI); DRI ("%dx", 2, HI); DRI ("%dl", 2, QI);
+       DRI ("%dh", 2, QIh);
+    DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI); DRI ("%bl", 3, QI);
+       DRI ("%bh", 3, QIh);
+    DRI ("%esp", 4, SI); DRI ("%sp", 4, HI);
+    DRI ("%ebp", 5, SI); DRI ("%bp", 5, HI);
+    DRI ("%esi", 6, SI); DRI ("%si", 6, HI); DRI ("%sil", 6, QI);
+    DRI ("%edi", 7, SI); DRI ("%di", 7, HI); DRI ("%dil", 7, QI);
+  } else if (elf_machine == EM_PPC || elf_machine == EM_PPC64) {
+    DRI ("%r0", 0, DI);
+    DRI ("%r1", 1, DI);
+    DRI ("%r2", 2, DI);
+    DRI ("%r3", 3, DI);
+    DRI ("%r4", 4, DI);
+    DRI ("%r5", 5, DI);
+    DRI ("%r6", 6, DI);
+    DRI ("%r7", 7, DI);
+    DRI ("%r8", 8, DI);
+    DRI ("%r9", 9, DI);
+    DRI ("%r10", 10, DI);
+    DRI ("%r11", 11, DI);
+    DRI ("%r12", 12, DI);
+    DRI ("%r13", 13, DI);
+    DRI ("%r14", 14, DI);
+    DRI ("%r15", 15, DI);
+    DRI ("%r16", 16, DI);
+    DRI ("%r17", 17, DI);
+    DRI ("%r18", 18, DI);
+    DRI ("%r19", 19, DI);
+    DRI ("%r20", 20, DI);
+    DRI ("%r21", 21, DI);
+    DRI ("%r22", 22, DI);
+    DRI ("%r23", 23, DI);
+    DRI ("%r24", 24, DI);
+    DRI ("%r25", 25, DI);
+    DRI ("%r26", 26, DI);
+    DRI ("%r27", 27, DI);
+    DRI ("%r28", 28, DI);
+    DRI ("%r29", 29, DI);
+    DRI ("%r30", 30, DI);
+    DRI ("%r31", 31, DI);
+    // PR11821: unadorned register "names" without -mregnames
+    DRI ("0", 0, DI);
+    DRI ("1", 1, DI);
+    DRI ("2", 2, DI);
+    DRI ("3", 3, DI);
+    DRI ("4", 4, DI);
+    DRI ("5", 5, DI);
+    DRI ("6", 6, DI);
+    DRI ("7", 7, DI);
+    DRI ("8", 8, DI);
+    DRI ("9", 9, DI);
+    DRI ("10", 10, DI);
+    DRI ("11", 11, DI);
+    DRI ("12", 12, DI);
+    DRI ("13", 13, DI);
+    DRI ("14", 14, DI);
+    DRI ("15", 15, DI);
+    DRI ("16", 16, DI);
+    DRI ("17", 17, DI);
+    DRI ("18", 18, DI);
+    DRI ("19", 19, DI);
+    DRI ("20", 20, DI);
+    DRI ("21", 21, DI);
+    DRI ("22", 22, DI);
+    DRI ("23", 23, DI);
+    DRI ("24", 24, DI);
+    DRI ("25", 25, DI);
+    DRI ("26", 26, DI);
+    DRI ("27", 27, DI);
+    DRI ("28", 28, DI);
+    DRI ("29", 29, DI);
+    DRI ("30", 30, DI);
+    DRI ("31", 31, DI);
+  } else if (elf_machine == EM_S390) {
+    DRI ("%r0", 0, DI);
+    DRI ("%r1", 1, DI);
+    DRI ("%r2", 2, DI);
+    DRI ("%r3", 3, DI);
+    DRI ("%r4", 4, DI);
+    DRI ("%r5", 5, DI);
+    DRI ("%r6", 6, DI);
+    DRI ("%r7", 7, DI);
+    DRI ("%r8", 8, DI);
+    DRI ("%r9", 9, DI);
+    DRI ("%r10", 10, DI);
+    DRI ("%r11", 11, DI);
+    DRI ("%r12", 12, DI);
+    DRI ("%r13", 13, DI);
+    DRI ("%r14", 14, DI);
+    DRI ("%r15", 15, DI);
+  } else if (elf_machine == EM_ARM) {
+    DRI ("r0", 0, SI);
+    DRI ("r1", 1, SI);
+    DRI ("r2", 2, SI);
+    DRI ("r3", 3, SI);
+    DRI ("r4", 4, SI);
+    DRI ("r5", 5, SI);
+    DRI ("r6", 6, SI);
+    DRI ("r7", 7, SI);
+    DRI ("r8", 8, SI);
+    DRI ("r9", 9, SI);
+    DRI ("r10", 10, SI); DRI ("sl", 10, SI);
+    DRI ("fp", 11, SI);
+    DRI ("ip", 12, SI);
+    DRI ("sp", 13, SI);
+    DRI ("lr", 14, SI);
+    DRI ("pc", 15, SI);
+  } else if (elf_machine == EM_AARCH64) {
+    DRI ("x0", 0, DI); DRI ("w0", 0, SI);
+    DRI ("x1", 1, DI); DRI ("w1", 1, SI);
+    DRI ("x2", 2, DI); DRI ("w2", 2, SI);
+    DRI ("x3", 3, DI); DRI ("w3", 3, SI);
+    DRI ("x4", 4, DI); DRI ("w4", 4, SI);
+    DRI ("x5", 5, DI); DRI ("w5", 5, SI);
+    DRI ("x6", 6, DI); DRI ("w6", 6, SI);
+    DRI ("x7", 7, DI); DRI ("w7", 7, SI);
+    DRI ("x8", 8, DI); DRI ("w8", 8, SI);
+    DRI ("x9", 9, DI); DRI ("w9", 9, SI);
+    DRI ("x10", 10, DI); DRI ("w10", 10, SI);
+    DRI ("x11", 11, DI); DRI ("w11", 11, SI);
+    DRI ("x12", 12, DI); DRI ("w12", 12, SI);
+    DRI ("x13", 13, DI); DRI ("w13", 13, SI);
+    DRI ("x14", 14, DI); DRI ("w14", 14, SI);
+    DRI ("x15", 15, DI); DRI ("w15", 15, SI);
+    DRI ("x16", 16, DI); DRI ("w16", 16, SI);
+    DRI ("x17", 17, DI); DRI ("w17", 17, SI);
+    DRI ("x18", 18, DI); DRI ("w18", 18, SI);
+    DRI ("x19", 19, DI); DRI ("w19", 19, SI);
+    DRI ("x20", 20, DI); DRI ("w20", 20, SI);
+    DRI ("x21", 21, DI); DRI ("w21", 21, SI);
+    DRI ("x22", 22, DI); DRI ("w22", 22, SI);
+    DRI ("x23", 23, DI); DRI ("w23", 23, SI);
+    DRI ("x24", 24, DI); DRI ("w24", 24, SI);
+    DRI ("x25", 25, DI); DRI ("w25", 25, SI);
+    DRI ("x26", 26, DI); DRI ("w26", 26, SI);
+    DRI ("x27", 27, DI); DRI ("w27", 27, SI);
+    DRI ("x28", 28, DI); DRI ("w28", 28, SI);
+    DRI ("x29", 29, DI); DRI ("w29", 29, SI);
+    DRI ("x30", 30, DI); DRI ("w30", 30, SI);
+    DRI ("sp", 31, DI);
+  } else if (arg_count) {
+    /* permit this case; just fall back to dwarf */
+  }
+#undef DRI
+
+  // Build regex pieces out of the known dwarf_regs.  We keep two separate
+  // lists: ones with the % prefix (and thus unambigiuous even despite PR11821),
+  // and ones with no prefix (and thus only usable in unambiguous contexts).
+  map<string,pair<unsigned,int> >::const_iterator ri;
+  for (ri = dwarf_regs.begin(); ri != dwarf_regs.end(); ri++)
+    {
+      string regname = ri->first;
+      assert (regname != "");
+      regnames += string("|")+regname;
+      if (regname[0]=='%')
+        percent_regnames += string("|")+regname;
+    }
+
+  // clip off leading |
+  if (regnames != "")
+    regnames = regnames.substr(1);
+  if (percent_regnames != "")
+    percent_regnames = percent_regnames.substr(1);
+}
 
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
@@ -6042,8 +6071,6 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 
       expression* argexpr = 0; // filled in in case of successful parse
 
-      string percent_regnames;
-      string regnames;
       vector<string> matches;
       int rc;
 
@@ -6054,31 +6081,16 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
         {
           if ((argexpr = try_parse_arg_literal(e, asmarg, precision)) != NULL)
             goto matched;
+
+          // all other matches require registers
+          if (regnames == "")
+            throw SEMANTIC_ERROR("no registers to use for parsing");
         }
       catch (const semantic_error& err)
         {
           e->chain(err);
           goto not_matched;
         }
-
-      if (dwarf_regs.empty())
-	goto not_matched;
-
-      // Build regex pieces out of the known dwarf_regs.  We keep two separate
-      // lists: ones with the % prefix (and thus unambigiuous even despite PR11821),
-      // and ones with no prefix (and thus only usable in unambiguous contexts).
-      for (map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.begin(); ri != dwarf_regs.end(); ri++)
-        {
-          string regname = ri->first;
-          assert (regname != "");
-          regnames += string("|")+regname;
-          if (regname[0]=='%')
-            percent_regnames += string("|")+regname;
-        }
-      // clip off leading |
-      regnames = regnames.substr(1);
-      if (percent_regnames != "")
-          percent_regnames = percent_regnames.substr(1);
 
       // test for REGISTER
       // NB: Because PR11821, we must use percent_regnames here.
