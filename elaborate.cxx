@@ -4872,13 +4872,13 @@ typeresolution_info::visit_functioncall (functioncall* e)
           resolved (ee->tok, ft, e->referent->formal_args[i], i);
         }
       if (at == pe_stats)
-        invalid (e->tok, at);
+        invalid (ee->tok, at);
       if (ft == pe_stats)
         invalid (fe_tok, ft);
       if (at != pe_unknown && ft != pe_unknown && ft != at)
         mismatch (ee->tok, ee->type, e->referent->formal_args[i], i);
       if (at == pe_unknown)
-        unresolved (e->tok);
+        unresolved (ee->tok);
     }
 }
 
