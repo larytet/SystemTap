@@ -5668,6 +5668,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   expression* try_parse_arg_literal (target_symbol *e,
                                      const string& asmarg,
                                      long precision);
+  expression* try_parse_arg_register (target_symbol *e,
+                                      const string& asmarg,
+                                      long precision);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
@@ -6045,6 +6048,67 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
   return argexpr;
 }
 
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
+                                                          const string& asmarg,
+                                                          long precision)
+{
+  expression *argexpr = NULL;
+
+  // test for REGISTER
+  // NB: Because PR11821, we must use percent_regnames here.
+  string regexp;
+  if (elf_machine == EM_PPC || elf_machine == EM_PPC64 || elf_machine == EM_ARM)
+    regexp = "^(" + regnames + ")$";
+  else
+    regexp = "^(" + percent_regnames + ")$";
+
+  vector<string> matches;
+  if (!regexp_match(asmarg, regexp, matches))
+    {
+      string regname = matches[1];
+      map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.find (regname);
+      if (ri != dwarf_regs.end()) // known register
+        {
+          embedded_expr *get_arg1 = new embedded_expr;
+          string width_adjust;
+          switch (ri->second.second)
+            {
+            case QI: width_adjust = ") & 0xff)"; break;
+            case QIh: width_adjust = ">>8) & 0xff)"; break;
+            case HI:
+              // preserve 16 bit register signness
+              width_adjust = ") & 0xffff)";
+              if (precision < 0)
+                width_adjust += " << 48 >> 48";
+              break;
+            case SI:
+              // preserve 32 bit register signness
+              width_adjust = ") & 0xffffffff)";
+              if (precision < 0)
+                width_adjust += " << 32 >> 32";
+              break;
+            default: width_adjust = "))";
+            }
+          string type = "";
+          if (probe_type == uprobe3_type)
+            type = (precision < 0
+                    ? "(int" : "(uint") + lex_cast(abs(precision) * 8) + "_t)";
+          type = type + "((";
+          get_arg1->tok = e->tok;
+          get_arg1->code = string("/* unprivileged */ /* pure */")
+            + string(" ((int64_t)") + type
+            + (is_user_module (process_name)
+               ? string("u_fetch_register(")
+               : string("k_fetch_register("))
+            + lex_cast(dwarf_regs[regname].first) + string("))")
+            + width_adjust;
+          argexpr = get_arg1;
+        }
+    }
+  return argexpr;
+}
+
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
@@ -6085,62 +6149,14 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           // all other matches require registers
           if (regnames == "")
             throw SEMANTIC_ERROR("no registers to use for parsing");
+
+          if ((argexpr = try_parse_arg_register(e, asmarg, precision)) != NULL)
+            goto matched;
         }
       catch (const semantic_error& err)
         {
           e->chain(err);
           goto not_matched;
-        }
-
-      // test for REGISTER
-      // NB: Because PR11821, we must use percent_regnames here.
-      if (elf_machine == EM_PPC || elf_machine == EM_PPC64 || elf_machine == EM_ARM)
-	rc = regexp_match (asmarg, string("^(")+regnames+string(")$"), matches);
-      else
-	rc = regexp_match (asmarg, string("^(")+percent_regnames+string(")$"), matches);
-      if (! rc)
-        {
-          string regname = matches[1];
-	  map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.find (regname);
-          if (ri != dwarf_regs.end()) // known register
-            {
-              embedded_expr *get_arg1 = new embedded_expr;
-	      string width_adjust;
-	      switch (ri->second.second)
-		{
-		case QI: width_adjust = ") & 0xff)"; break;
-		case QIh: width_adjust = ">>8) & 0xff)"; break;
-		case HI:
-		  // preserve 16 bit register signness
-		  width_adjust = ") & 0xffff)";
-		  if (precision < 0)
-		    width_adjust += " << 48 >> 48";
-		  break;
-		case SI:
-		  // preserve 32 bit register signness
-		  width_adjust = ") & 0xffffffff)";
-		  if (precision < 0)
-		    width_adjust += " << 32 >> 32";
-		  break;
-		default: width_adjust = "))";
-		}
-              string type = "";
-	      if (probe_type == uprobe3_type)
-		type = (precision < 0
-			? "(int" : "(uint") + lex_cast(abs(precision) * 8) + "_t)";
-	      type = type + "((";
-              get_arg1->tok = e->tok;
-              get_arg1->code = string("/* unprivileged */ /* pure */")
-                + string(" ((int64_t)") + type
-                + (is_user_module (process_name)
-                   ? string("u_fetch_register(")
-                   : string("k_fetch_register("))
-                + lex_cast(dwarf_regs[regname].first) + string("))")
-		+ width_adjust;
-              argexpr = get_arg1;
-              goto matched;
-            }
-          // invalid register name, fall through
         }
 
       int reg, offset1;
