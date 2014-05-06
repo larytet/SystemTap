@@ -6118,6 +6118,28 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
   return argexpr;
 }
 
+static string
+precision_to_function(long precision)
+{
+  switch (precision)
+    {
+    case 1: case -1:
+      return "user_int8";
+    case 2:
+      return "user_uint16";
+    case -2:
+      return "user_int16";
+    case 4:
+      return "user_uint32";
+    case -4:
+      return "user_int32";
+    case 8: case -8:
+      return "user_int64";
+    default:
+      return "user_long";
+    }
+}
+
 expression*
 sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *e,
                                                                  const string& asmarg,
@@ -6181,22 +6203,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *
       be->right = inc;
 
       functioncall *fc = new functioncall;
-      switch (precision)
-        {
-        case 1: case -1:
-          fc->function = "user_int8"; break;
-        case 2:
-          fc->function = "user_uint16"; break;
-        case -2:
-          fc->function = "user_int16"; break;
-        case 4:
-          fc->function = "user_uint32"; break;
-        case -4:
-          fc->function = "user_int32"; break;
-        case 8: case -8:
-          fc->function = "user_int64"; break;
-        default: fc->function = "user_long";
-        }
+      fc->function = precision_to_function(precision);
       fc->tok = e->tok;
       fc->args.push_back(be);
 
@@ -6273,22 +6280,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_effective_addr (target_symbol *e
       be->right = inc;
 
       functioncall *fc = new functioncall;
-      switch (precision)
-        {
-        case 1: case -1:
-          fc->function = "user_int8"; break;
-        case 2:
-          fc->function = "user_uint16"; break;
-        case -2:
-          fc->function = "user_int16"; break;
-        case 4:
-          fc->function = "user_uint32"; break;
-        case -4:
-          fc->function = "user_int32"; break;
-        case 8: case -8:
-          fc->function = "user_int64"; break;
-        default: fc->function = "user_long";
-        }
+      fc->function = precision_to_function(precision);
       fc->tok = e->tok;
       fc->args.push_back(be);
 
@@ -6367,22 +6359,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               // call user_[u]int*() on the address it returns.
 
               functioncall *user_int_call = new functioncall;
-              switch (precision)
-                {
-                case 1: case -1:
-                  user_int_call->function = "user_int8"; break;
-                case 2:
-                  user_int_call->function = "user_uint16"; break;
-                case -2:
-                  user_int_call->function = "user_int16"; break;
-                case 4:
-                  user_int_call->function = "user_uint32"; break;
-                case -4:
-                  user_int_call->function = "user_int32"; break;
-                case 8: case -8:
-                  user_int_call->function = "user_int64"; break;
-                default: user_int_call->function = "user_long";
-                }
+              user_int_call->function = precision_to_function(precision);
               user_int_call->tok = e->tok;
 
               functiondecl *get_addr_decl = new functiondecl;
