@@ -92,10 +92,11 @@
 #endif
 
 
-#if defined __x86_64__ || defined __i386__  || defined __powerpc__ || defined __arm__ || defined __sparc__
- #define STAP_NOP "\tnop "
-#else
+/* The ia64 and s390 nop instructions take an argument. */
+#if defined(__ia64__) || defined(__s390__) || defined(__s390x__)
  #define STAP_NOP "\tnop 0 "
+#else
+ #define STAP_NOP "\tnop "
 #endif
 
 #ifndef STAP_SDT_VOLATILE /* allow users to override */
