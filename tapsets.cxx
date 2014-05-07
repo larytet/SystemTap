@@ -433,8 +433,11 @@ struct exp_type_dwarf : public exp_type_details
   // that we'd probably never clear all references... :/
   dwflpp* dw;
   Dwarf_Die die;
-  exp_type_dwarf(dwflpp* dw, Dwarf_Die* die): dw(dw), die(*die) {}
+  bool userspace_p;
+  exp_type_dwarf(dwflpp* dw, Dwarf_Die* die, bool userspace_p)
+    : dw(dw), die(*die), userspace_p(userspace_p) {}
   uintptr_t id () const { return reinterpret_cast<uintptr_t>(die.addr); }
+  functioncall *expand(autocast_op* e, bool lvalue);
 };
 
 
@@ -3184,7 +3187,7 @@ synthetic_embedded_deref_call(dwflpp& dw,
   fcall->referent = fdecl;
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
-  fcall->type_details.reset(new exp_type_dwarf(&dw, function_type));
+  fcall->type_details.reset(new exp_type_dwarf(&dw, function_type, userspace_p));
 
   // If this code snippet uses a precomputed pointer,
   // pass that as the first argument.
@@ -4236,21 +4239,40 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 }
 
 
-struct dwarf_autocast_expanding_visitor: public var_expanding_visitor
+functioncall *
+exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 {
-  systemtap_session& s;
+  static unsigned tick = 0;
 
-  dwarf_autocast_expanding_visitor(systemtap_session& s): s(s) {}
-  void visit_autocast_op (autocast_op* e);
-};
+  try
+    {
+      Dwarf_Die cu_mem;
+      dw->focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
+      if (!e->components.empty() &&
+	  e->components.back().type == target_symbol::comp_pretty_print)
+	{
+	  if (lvalue)
+	    throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), e->tok);
 
-void
-dwarf_autocast_expanding_visitor::visit_autocast_op (autocast_op* e)
-{
-  // TODO PR13664, glean the type from e->operand, then expand like @cast.
+	  dwarf_pretty_print dpp(*dw, &die, e->operand, true, userspace_p, *e);
+	  return dpp.expand();
+	}
 
-  var_expanding_visitor::visit_autocast_op (e);
+      Dwarf_Die endtype;
+      string code = dw->literal_stmt_for_pointer (&die, e, lvalue, &endtype);
+
+      string fname = (string(lvalue ? "_dwarf_autocast_set" : "_dwarf_autocast_get")
+		      + "_" + lex_cast(tick++));
+
+      return synthetic_embedded_deref_call(*dw, &endtype, fname, code,
+					  userspace_p, lvalue, e, e->operand);
+    }
+  catch (const semantic_error &er)
+    {
+      e->chain (er);
+      return NULL;
+    }
 }
 
 
@@ -5088,10 +5110,6 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   s.code_filters.push_back(filter);
 
   filter = new dwarf_atvar_expanding_visitor(s, *dw);
-  s.code_filters.push_back(filter);
-
-  // NB: visit autocast last, so it can use types resolved from @cast/@var
-  filter = new dwarf_autocast_expanding_visitor(s);
   s.code_filters.push_back(filter);
 
   register_function_and_statement_variants(s, root->bind(TOK_KERNEL), dw, pr_privileged);

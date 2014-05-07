@@ -70,6 +70,7 @@ struct typeresolution_info: public visitor
   systemtap_session& session;
   unsigned num_newly_resolved;
   unsigned num_still_unresolved;
+  unsigned num_available_autocasts;
   bool assert_resolvability;
   int mismatch_complexity;
   functiondecl* current_function;

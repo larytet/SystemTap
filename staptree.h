@@ -107,6 +107,8 @@ enum exp_type
 
 std::ostream& operator << (std::ostream& o, const exp_type& e);
 
+struct functioncall;
+struct autocast_op;
 struct exp_type_details
 {
   virtual ~exp_type_details () {};
@@ -115,6 +117,9 @@ struct exp_type_details
   virtual uintptr_t id () const = 0;
   bool operator==(const exp_type_details& other) const
     { return id () == other.id (); }
+
+  // Expand this autocast_op into a function call
+  virtual functioncall *expand(autocast_op* e, bool lvalue) = 0;
 };
 typedef shared_ptr<exp_type_details> exp_type_ptr;
 

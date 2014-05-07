@@ -1735,8 +1735,6 @@ semantic_pass_symbols (systemtap_session& s)
         }
     }
 
-  build_no_more (s);
-
   if(s.systemtap_v_check){ 
     for(unsigned i=0;i<s.globals.size();i++){
       if(s.globals[i]->systemtap_v_conditional)
@@ -1941,6 +1939,8 @@ semantic_pass (systemtap_session& s)
       s.print_error (e);
       rc ++;
     }
+
+  build_no_more (s);
 
   // PR11443
   // NB: listing mode only cares whether we have any probes,
@@ -4181,6 +4181,38 @@ semantic_pass_optimize2 (systemtap_session& s)
 // ------------------------------------------------------------------------
 // type resolution
 
+struct autocast_expanding_visitor: public var_expanding_visitor
+{
+  typeresolution_info& ti;
+  autocast_expanding_visitor(typeresolution_info& ti): ti(ti) {}
+
+  void visit_autocast_op (autocast_op* e)
+    {
+      const bool lvalue = is_active_lvalue (e);
+      const exp_type_ptr& details = e->operand->type_details;
+      if (details)
+        {
+          functioncall* n = details->expand (e, lvalue);
+          if (n)
+            {
+              ti.num_newly_resolved++;
+
+              if (lvalue)
+                {
+                  // Provide the functioncall to our parent, so that it can be
+                  // used to substitute for the assignment node immediately above
+                  // us.
+                  assert(!target_symbol_setter_functioncalls.empty());
+                  *(target_symbol_setter_functioncalls.top()) = n;
+                }
+
+              n->visit (this);
+              return;
+            }
+        }
+      var_expanding_visitor::visit_autocast_op (e);
+    }
+};
 
 static int
 semantic_pass_types (systemtap_session& s)
@@ -4200,6 +4232,7 @@ semantic_pass_types (systemtap_session& s)
       iterations ++;
       ti.num_newly_resolved = 0;
       ti.num_still_unresolved = 0;
+      ti.num_available_autocasts = 0;
 
       for (map<string,functiondecl*>::iterator it = s.functions.begin();
                                                it != s.functions.end(); it++)
@@ -4219,6 +4252,14 @@ semantic_pass_types (systemtap_session& s)
           //   ti.unresolved (fd->tok);
           for (unsigned i=0; i < fd->locals.size(); ++i)
             ti.check_local (fd->locals[i]);
+
+          // Check and run the autocast expanding visitor.
+          if (ti.num_available_autocasts > 0)
+            {
+              autocast_expanding_visitor aev (ti);
+              aev.replace (fd->body);
+              ti.num_available_autocasts = 0;
+            }
         }
 
       for (unsigned j=0; j<s.probes.size(); j++)
@@ -4232,6 +4273,14 @@ semantic_pass_types (systemtap_session& s)
           pn->body->visit (& ti);
           for (unsigned i=0; i < pn->locals.size(); ++i)
             ti.check_local (pn->locals[i]);
+
+          // Check and run the autocast expanding visitor.
+          if (ti.num_available_autocasts > 0)
+            {
+              autocast_expanding_visitor aev (ti);
+              aev.replace (pn->body);
+              ti.num_available_autocasts = 0;
+            }
 
           probe_point* pp = pn->sole_location();
           if (pp->condition)
@@ -4752,8 +4801,15 @@ typeresolution_info::visit_autocast_op (autocast_op* e)
   // unless it was not resolved and its value is really needed.
   if (e->saved_conversion_error)
     throw (* (e->saved_conversion_error));
-  else
+  else if (assert_resolvability)
     throw SEMANTIC_ERROR(_("unknown type in dereference"), e->tok);
+
+  t = pe_long;
+  e->operand->visit (this);
+
+  num_still_unresolved++;
+  if (e->operand->type_details)
+    num_available_autocasts++;
 }
 
 
