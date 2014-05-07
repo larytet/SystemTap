@@ -423,13 +423,22 @@ systemtap_session::clone(const string& arch, const string& release)
   return s;
 }
 
+
+string
+systemtap_session::version_string ()
+{
+  return _F("%s/%s, %s",
+            VERSION, dwfl_version(NULL), STAP_EXTENDED_VERSION);
+}
+
 void
 systemtap_session::version ()
 {
-  clog << _F("Systemtap translator/driver (version %s/%s, %s)\n"
+  clog << _F("Systemtap translator/driver (version %s)\n"
              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.",
-             VERSION, dwfl_version(NULL), STAP_EXTENDED_VERSION) << endl;
+             version_string().c_str());
+
   clog << _("enabled features:")
 #ifdef HAVE_AVAHI
        << " AVAHI"
