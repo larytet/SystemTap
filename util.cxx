@@ -496,6 +496,15 @@ string find_executable(const string& name, const string& sysroot,
 }
 
 
+bool is_fully_resolved(const string& path, const string& sysroot,
+		       const map<string, string>& sysenv,
+		       const string& env_path)
+{
+  return !path.empty()
+      && !contains_glob_chars(path)
+      && path.find('/') != string::npos
+      && path == find_executable(path, sysroot, sysenv, env_path);
+}
 
 const string cmdstr_quoted(const string& cmd)
 {

@@ -630,22 +630,15 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
 
       if (has_process)
         module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
-      if (has_library)
+
+      // Library probe? Let's target that instead if it is fully resolved (such
+      // as what query_one_library() would have done for us). Otherwise, we
+      // resort to iterate_over_libraries().
+      if (has_library && is_fully_resolved(library_name, sess.sysroot, sess.sysenv,
+                                           "LD_LIBRARY_PATH"))
         {
-          if (! contains_glob_chars (library_name))
-            {
-              path = path_remove_sysroot(sess, module_val);
-              module_val = find_executable (library_name, sess.sysroot,
-                                            sess.sysenv, "LD_LIBRARY_PATH");
-	      if (module_val.find('/') == string::npos)
-		{
-		  // We didn't find library_name so use iterate_over_libraries
-		  module_val = path;
-		  path = library_name;
-		}
-            }
-          else
-            path = library_name;
+          path = path_remove_sysroot(sess, module_val);
+          module_val = library_name;
         }
     }
 
@@ -2320,10 +2313,10 @@ query_module (Dwfl_Module *mod,
             q->sess.sym_stext = lookup_symbol_address (mod, "_stext");
         }
 
-      // We either have a wildcard or an unresolved library
-      if (q->has_library && (contains_glob_chars (q->path)
-			     || q->path.find('/') == string::npos))
-        // handle .library(GLOB)
+      // If there is a .library component, then q->path will hold the path to
+      // the executable if the library was fully resolved. If not (e.g. not
+      // absolute, or globby), resort to iterate_over_libraries().
+      if (q->has_library && q->path.empty())
         q->dw.iterate_over_libraries (&q->query_library_callback, q);
       // .plt is translated to .plt.statement(N).  We only want to iterate for the
       // .plt case
@@ -7746,17 +7739,15 @@ dwarf_builder::build(systemtap_session & sess,
          script_file.close();
       }
 
-      if (get_param (parameters, TOK_LIBRARY, user_lib)
-	  && user_lib.length() && ! contains_glob_chars (user_lib))
-	{
-	  module_name = find_executable (user_lib, sess.sysroot, sess.sysenv,
-					 "LD_LIBRARY_PATH");
-	  if (module_name.find('/') == string::npos)
-	    // We didn't find user_lib so use iterate_over_libraries
-	    module_name = user_path;
-	}
+      // If this is a library probe, then target the library module instead. We
+      // do this only if the library path is already fully resolved (such as
+      // what query_one_library() would have done for us). Otherwise, we resort
+      // to iterate_over_libraries.
+      if (get_param (parameters, TOK_LIBRARY, user_lib) && !user_lib.empty()
+          && is_fully_resolved(user_lib, sess.sysroot, sess.sysenv, "LD_LIBRARY_PATH"))
+        module_name = user_lib;
       else
-	module_name = user_path; // canonicalize it
+        module_name = user_path; // canonicalize it
 
       // uretprobes aren't available everywhere
       if (has_null_param(parameters, TOK_RETURN) && !sess.runtime_usermode_p())
