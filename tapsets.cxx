@@ -723,6 +723,9 @@ struct dwarf_query : public base_query
   string user_path;
   string user_lib;
 
+  set<string> visited_libraries;
+  bool resolved_library;
+
   virtual void handle_query_module();
   void query_module_dwarf();
   void query_module_symtab();
@@ -897,7 +900,8 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 const string user_lib)
   : base_query(dw, params), results(results), base_probe(base_probe),
     base_loc(base_loc), user_path(user_path), user_lib(user_lib),
-    callers(NULL), has_relative(false), relative_val(0), prologue_end(0)
+    resolved_library(false), callers(NULL), has_relative(false),
+    relative_val(0), prologue_end(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
@@ -2358,7 +2362,37 @@ base_query::query_library_callback (base_query *me, const char *data)
 }
 
 
-string
+probe*
+build_library_probe(dwflpp& dw,
+                    const string& library,
+                    probe *base_probe,
+                    probe_point *base_loc)
+{
+  probe_point* specific_loc = new probe_point(*base_loc);
+  specific_loc->optional = true;
+  specific_loc->from_glob = true;
+  vector<probe_point::component*> derived_comps;
+
+  // Create new probe point for the matching library. This is what will be
+  // shown in listing mode. Also replace the process(str) with the real
+  // absolute path rather than keeping what the user typed in.
+  vector<probe_point::component*>::iterator it;
+  for (it = specific_loc->components.begin();
+      it != specific_loc->components.end(); ++it)
+    if ((*it)->functor == TOK_PROCESS)
+      derived_comps.push_back(new probe_point::component(TOK_PROCESS,
+          new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
+    else if ((*it)->functor == TOK_LIBRARY)
+      derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
+          new literal_string(path_remove_sysroot(dw.sess, library))));
+    else
+      derived_comps.push_back(*it);
+  probe_point* derived_loc = new probe_point(*specific_loc);
+  derived_loc->components = derived_comps;
+  return new probe (new probe (base_probe, specific_loc), derived_loc);
+}
+
+bool
 query_one_library (const char *library, dwflpp & dw,
     const string user_lib, probe * base_probe, probe_point *base_loc,
     vector<derived_probe *> & results)
@@ -2367,41 +2401,22 @@ query_one_library (const char *library, dwflpp & dw,
     {
       string library_path = find_executable (library, "", dw.sess.sysenv,
                                              "LD_LIBRARY_PATH");
-      probe_point* specific_loc = new probe_point(*base_loc);
-      specific_loc->optional = true;
-      specific_loc->from_glob = true;
-      vector<probe_point::component*> derived_comps;
-
-      // Create new probe point for the matching library. This is what will be
-      // shown in listing mode. Also replace the process(str) with the real
-      // absolute path rather than keeping what the user typed in.
-      vector<probe_point::component*>::iterator it;
-      for (it = specific_loc->components.begin();
-          it != specific_loc->components.end(); ++it)
-        if ((*it)->functor == TOK_PROCESS)
-          derived_comps.push_back(new probe_point::component(TOK_PROCESS,
-              new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
-        else if ((*it)->functor == TOK_LIBRARY)
-          derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
-              new literal_string(library_path)));
-        else
-          derived_comps.push_back(*it);
-      probe_point* derived_loc = new probe_point(*specific_loc);
-      derived_loc->components = derived_comps;
-      probe *new_base = new probe (new probe (base_probe, specific_loc), derived_loc);
+      probe *new_base = build_library_probe(dw, library_path, base_probe, base_loc);
       derive_probes(dw.sess, new_base, results);
       if (dw.sess.verbose > 2)
         clog << _("module=") << library_path << endl;
-      return library_path;
+      return true;
     }
-  return "";
+  return false;
 }
 
 
 void
 dwarf_query::query_library (const char *library)
 {
-  query_one_library (library, dw, user_lib, base_probe, base_loc, results);
+  visited_libraries.insert(library);
+  if (query_one_library (library, dw, user_lib, base_probe, base_loc, results))
+    resolved_library = true;
 }
 
 struct plt_expanding_visitor: public var_expanding_visitor
@@ -6719,6 +6734,9 @@ struct sdt_query : public base_query
             vector<derived_probe *> & results, const string user_lib);
 
   void query_library (const char *data);
+  set<string> visited_libraries;
+  bool resolved_library;
+
   void query_plt (const char *entry, size_t addr) {}
   void handle_query_module();
 
@@ -6777,11 +6795,11 @@ private:
 sdt_query::sdt_query(probe * base_probe, probe_point * base_loc,
                      dwflpp & dw, literal_map_t const & params,
                      vector<derived_probe *> & results, const string user_lib):
-  base_query(dw, params), probe_type(unknown_probe_type),
-  probe_loc(unknown_section), base_probe(base_probe),
-  base_loc(base_loc), params(params), results(results), user_lib(user_lib),
-  probe_scn_offset(0), probe_scn_addr(0), arg_count(0), base(0), pc(0),
-  semaphore_load_offset(0), semaphore(0)
+  base_query(dw, params), resolved_library(false),
+  probe_type(unknown_probe_type), probe_loc(unknown_section),
+  base_probe(base_probe), base_loc(base_loc), params(params), results(results),
+  user_lib(user_lib), probe_scn_offset(0), probe_scn_addr(0), arg_count(0),
+  base(0), pc(0), semaphore_load_offset(0), semaphore(0)
 {
   assert(get_string_param(params, TOK_MARK, pp_mark));
   get_string_param(params, TOK_PROVIDER, pp_provider); // pp_provider == "" -> unspecified
@@ -7314,7 +7332,9 @@ sdt_query::convert_location ()
 void
 sdt_query::query_library (const char *library)
 {
-    query_one_library (library, dw, user_lib, base_probe, base_loc, results);
+  visited_libraries.insert(library);
+  if (query_one_library (library, dw, user_lib, base_probe, base_loc, results))
+    resolved_library = true;
 }
 
 string
@@ -7795,6 +7815,27 @@ dwarf_builder::build(systemtap_session & sess,
       modules_seen.insert(sdtq.visited_modules.begin(),
                           sdtq.visited_modules.end());
 
+      string lib;
+      if (results_pre == finished_results.size() && !sdtq.resolved_library
+          && get_param(filled_parameters, TOK_LIBRARY, lib)
+          && !lib.empty() && !sdtq.visited_libraries.empty())
+        {
+          // The library didn't fit any DT_NEEDED libraries. As a last effort,
+          // let's try to look for the library directly.
+          string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
+                                                "LD_LIBRARY_PATH");
+          if (resolved_lib.find('/') != string::npos)
+            {
+              probe *new_base = build_library_probe(*dw, resolved_lib,
+                                                    base, location);
+              derive_probes(sess, new_base, finished_results);
+              sess.print_warning(_F("'%s' is not a needed library of '%s'. "
+                                    "Specify the full path to squelch this warning.",
+                                    resolved_lib.c_str(), dw->module_name.c_str()));
+              return;
+            }
+        }
+
       // Did we fail to find a mark?
       if (results_pre == finished_results.size() && !location->from_glob)
         {
@@ -7882,6 +7923,27 @@ dwarf_builder::build(systemtap_session & sess,
           clog << endl;
         }
     } // i_n_r > 0
+
+  string lib;
+  if (results_pre == results_post && !q.resolved_library
+      && get_param(filled_parameters, TOK_LIBRARY, lib)
+      && !lib.empty() && !q.visited_libraries.empty())
+    {
+      // The library didn't fit any DT_NEEDED libraries. As a last effort,
+      // let's try to look for the library directly.
+      string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
+                                            "LD_LIBRARY_PATH");
+      if (resolved_lib.find('/') != string::npos)
+        {
+          probe *new_base = build_library_probe(*dw, resolved_lib,
+                                                base, location);
+          derive_probes(sess, new_base, finished_results);
+          sess.print_warning(_F("'%s' is not a needed library of '%s'. "
+                                "Specify the full path to squelch this warning.",
+                                resolved_lib.c_str(), dw->module_name.c_str()));
+          return;
+        }
+    }
 
   // If we just failed to resolve a function/plt by name, we can suggest
   // something. We only suggest things for probe points that were not
