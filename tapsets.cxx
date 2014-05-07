@@ -7834,6 +7834,14 @@ dwarf_builder::build(systemtap_session & sess,
                                     resolved_lib.c_str(), dw->module_name.c_str()));
               return;
             }
+
+          // Otherwise, let's suggest from the DT_NEEDED libraries
+          string sugs = levenshtein_suggest(lib, sdtq.visited_libraries, 5);
+          if (!sugs.empty())
+            throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
+                                      "no match (similar libraries: %s)",
+                                      sugs.find(',') == string::npos,
+                                      sugs.c_str()));
         }
 
       // Did we fail to find a mark?
@@ -7943,6 +7951,14 @@ dwarf_builder::build(systemtap_session & sess,
                                 resolved_lib.c_str(), dw->module_name.c_str()));
           return;
         }
+
+      // Otherwise, let's suggest from the DT_NEEDED libraries
+      string sugs = levenshtein_suggest(lib, q.visited_libraries, 5);
+      if (!sugs.empty())
+        throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
+                                  "no match (similar libraries: %s)",
+                                  sugs.find(',') == string::npos,
+                                  sugs.c_str()));
     }
 
   // If we just failed to resolve a function/plt by name, we can suggest
