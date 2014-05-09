@@ -430,27 +430,13 @@ if {[file exists "$test"]} { file delete "$test" }
 
 set subtest "reloc"
 set failed 0
-set stap_id ""
 
 # We first compile the shared lib
 set subsubtest "shlib compilation"
 if {!$failed} {
-   catch {exec gcc -g -O -c -fPIC "${testpath}/${test}.${subtest}.lib.c"} err
-   set libobj "${test}.${subtest}.lib.o"
-   if {$err == "" && [file exists $libobj]} {
-      pass "$test ($subtest - $subsubtest)"
-   } else {
-      fail "$test ($subtest - $subsubtest)"
-      set failed 1
-   }
-}
-
-# Make it into a shared lib
-set subsubtest "shlib creation"
-if {!$failed} {
    set libso "lib$subtest.so"
-   catch {exec gcc -shared -o $libso $libobj} err
-   if {$err == "" && [file exists "$libso"]} {
+   catch {exec gcc -g -O -fPIC -shared -o $libso "${testpath}/${test}.${subtest}.lib.c"} err
+   if {$err == "" && [file exists $libso]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
@@ -539,6 +525,5 @@ if {![installtest_p]} {
 }
 
 # Cleanup files
-if {[file exists "$libobj"]}  { file delete "$libobj" }
 if {[file exists "$libso"]}   { file delete "$libso" }
 if {[file exists "$subtest"]} { file delete "$subtest" }
