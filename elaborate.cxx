@@ -4690,7 +4690,10 @@ void resolve_2types (Referrer* referrer, Referent* referent,
 void
 typeresolution_info::visit_symbol (symbol* e)
 {
-  assert (e->referent != 0);
+  if (e->referent == 0)
+    throw SEMANTIC_ERROR (_F("internal error: unresolved symbol '%s'",
+                             e->name.c_str()), e->tok);
+
   resolve_2types (e, e->referent, this, t);
 }
 
@@ -4902,7 +4905,9 @@ typeresolution_info::visit_arrayindex (arrayindex* e)
 void
 typeresolution_info::visit_functioncall (functioncall* e)
 {
-  assert (e->referent != 0);
+  if (e->referent == 0)
+    throw SEMANTIC_ERROR (_F("internal error: unresolved function call to '%s'",
+                             e->function.c_str()), e->tok);
 
   resolve_2types (e, e->referent, this, t, true); // accept unknown type
 
