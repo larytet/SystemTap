@@ -5847,6 +5847,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 
   void visit_target_symbol (target_symbol* e);
   unsigned get_target_symbol_argno_and_validate (target_symbol* e);
+  long parse_out_arg_precision(string& asmarg);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
@@ -5944,6 +5945,27 @@ sdt_uprobe_var_expanding_visitor::get_target_symbol_argno_and_validate (target_s
   return argno;
 }
 
+long
+sdt_uprobe_var_expanding_visitor::parse_out_arg_precision(string& asmarg)
+{
+  long precision;
+  if (asmarg.find('@') != string::npos)
+    {
+      precision = lex_cast<int>(asmarg.substr(0, asmarg.find('@')));
+      asmarg = asmarg.substr(asmarg.find('@')+1);
+    }
+  else
+    {
+      // V1/V2 do not have precision field so default to signed long
+      // V3 asm does not have precision field so default to unsigned long
+      if (probe_type == uprobe3_type)
+        precision = sizeof(long); // this is an asm probe
+      else
+        precision = -sizeof(long);
+    }
+  return precision;
+}
+
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
@@ -5973,25 +5995,10 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       string percent_regnames;
       string regnames;
       vector<string> matches;
-      long precision;
       int rc;
 
-      // Parse the leading length
-
-      if (asmarg.find('@') != string::npos)
-	{
-	  precision = lex_cast<int>(asmarg.substr(0, asmarg.find('@')));
-	  asmarg = asmarg.substr(asmarg.find('@')+1);
-	}
-      else
-	{
-	  // V1/V2 do not have precision field so default to signed long
-	  // V3 asm does not have precision field so default to unsigned long
-	  if (probe_type == uprobe3_type)
-	    precision = sizeof(long); // this is an asm probe
-	  else
-	    precision = -sizeof(long);
-	}
+      // Parse (and remove from asmarg) the leading length
+      long precision = parse_out_arg_precision(asmarg);
 
       // test for a numeric literal.
       // Only accept (signed) decimals throughout. XXX
