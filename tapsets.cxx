@@ -380,10 +380,7 @@ enum dbinfo_reqt
 };
 
 
-struct base_query; // forward decls
-struct dwarf_query;
-struct dwflpp;
-struct symbol_table;
+struct dwarf_query; // forward decl
 
 static int query_cu (Dwarf_Die * cudie, dwarf_query *q);
 static void query_addr(Dwarf_Addr addr, dwarf_query *q);
@@ -395,6 +392,8 @@ symbol_table
   module_info *mod_info;	// associated module
   map<string, func_info*> map_by_name;
   multimap<Dwarf_Addr, func_info*> map_by_addr;
+  map<string, Dwarf_Addr> globals;
+  map<string, Dwarf_Addr> locals;
   typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
   typedef pair<iterator_t, iterator_t> range_t;
 #ifdef __powerpc__
@@ -402,11 +401,6 @@ symbol_table
 #endif
   void add_symbol(const char *name, bool weak, bool descriptor,
                   Dwarf_Addr addr, Dwarf_Addr *high_addr);
-  enum info_status read_symbols(FILE *f, const string& path);
-  enum info_status read_from_elf_file(const string& path,
-				      systemtap_session &sess);
-  enum info_status read_from_text_file(const string& path,
-				       systemtap_session &sess);
   enum info_status get_from_elf();
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
@@ -1002,7 +996,7 @@ dwarf_query::query_module_symtab()
   if (dbinfo_reqt == dbr_need_symtab)
     {
       if (mi->symtab_status == info_unknown)
-        mi->get_symtab(this);
+        mi->get_symtab();
       if (mi->symtab_status == info_absent)
         return;
     }
@@ -1050,7 +1044,7 @@ dwarf_query::handle_query_module()
   dw.get_module_dwarf(false, report);
 
   // prebuild the symbol table to resolve aliases
-  dw.mod_info->get_symtab(this);
+  dw.mod_info->get_symtab();
 
   // reset the dupe-checking for each new module
   alias_dupes.clear();
@@ -5624,6 +5618,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 {
   enum regwidths {QI, QIh, HI, SI, DI};
   sdt_uprobe_var_expanding_visitor(systemtap_session& s,
+                                   dwflpp& dw,
                                    int elf_machine,
                                    const string & process_name,
 				   const string & provider_name,
@@ -5631,198 +5626,14 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 				   stap_sdt_probe_type probe_type,
 				   const string & arg_string,
 				   int ac):
-    session (s), elf_machine (elf_machine), process_name (process_name),
-    provider_name (provider_name), probe_name (probe_name),
-    probe_type (probe_type), arg_count ((unsigned) ac)
+    session (s), dw (dw), elf_machine (elf_machine),
+    process_name (process_name), provider_name (provider_name),
+    probe_name (probe_name), probe_type (probe_type), arg_count ((unsigned) ac)
   {
-    /* Register name mapping table depends on the elf machine of this particular
-       probe target process/file, not upon the host.  So we can't just
-       #ifdef _i686_ etc. */
+    // sanity check that we're not somehow here for a kernel probe
+    assert(is_user_module(process_name));
 
-#define DRI(name,num,width)  dwarf_regs[name]=make_pair(num,width)
-    if (elf_machine == EM_X86_64) {
-      DRI ("%rax", 0, DI); DRI ("%eax", 0, SI); DRI ("%ax", 0, HI);
-      	 DRI ("%al", 0, QI); DRI ("%ah", 0, QIh);
-      DRI ("%rdx", 1, DI); DRI ("%edx", 1, SI); DRI ("%dx", 1, HI);
-         DRI ("%dl", 1, QI); DRI ("%dh", 1, QIh);
-      DRI ("%rcx", 2, DI); DRI ("%ecx", 2, SI); DRI ("%cx", 2, HI);
-         DRI ("%cl", 2, QI); DRI ("%ch", 2, QIh);
-      DRI ("%rbx", 3, DI); DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI);
-         DRI ("%bl", 3, QI); DRI ("%bh", 3, QIh);
-      DRI ("%rsi", 4, DI); DRI ("%esi", 4, SI); DRI ("%si", 4, HI);
-         DRI ("%sil", 4, QI);
-      DRI ("%rdi", 5, DI); DRI ("%edi", 5, SI); DRI ("%di", 5, HI);
-         DRI ("%dil", 5, QI);
-      DRI ("%rbp", 6, DI); DRI ("%ebp", 6, SI); DRI ("%bp", 6, HI);
-         DRI ("%bpl", 6, QI);
-      DRI ("%rsp", 7, DI); DRI ("%esp", 7, SI); DRI ("%sp", 7, HI);
-         DRI ("%spl", 7, QI);
-      DRI ("%r8", 8, DI); DRI ("%r8d", 8, SI); DRI ("%r8w", 8, HI);
-         DRI ("%r8b", 8, QI);
-      DRI ("%r9", 9, DI); DRI ("%r9d", 9, SI); DRI ("%r9w", 9, HI);
-         DRI ("%r9b", 9, QI);
-      DRI ("%r10", 10, DI); DRI ("%r10d", 10, SI); DRI ("%r10w", 10, HI);
-         DRI ("%r10b", 10, QI);
-      DRI ("%r11", 11, DI); DRI ("%r11d", 11, SI); DRI ("%r11w", 11, HI);
-         DRI ("%r11b", 11, QI);
-      DRI ("%r12", 12, DI); DRI ("%r12d", 12, SI); DRI ("%r12w", 12, HI);
-         DRI ("%r12b", 12, QI);
-      DRI ("%r13", 13, DI); DRI ("%r13d", 13, SI); DRI ("%r13w", 13, HI);
-         DRI ("%r13b", 13, QI);
-      DRI ("%r14", 14, DI); DRI ("%r14d", 14, SI); DRI ("%r14w", 14, HI);
-         DRI ("%r14b", 14, QI);
-      DRI ("%r15", 15, DI); DRI ("%r15d", 15, SI); DRI ("%r15w", 15, HI);
-         DRI ("%r15b", 15, QI);
-    } else if (elf_machine == EM_386) {
-      DRI ("%eax", 0, SI); DRI ("%ax", 0, HI); DRI ("%al", 0, QI);
-         DRI ("%ah", 0, QIh);
-      DRI ("%ecx", 1, SI); DRI ("%cx", 1, HI); DRI ("%cl", 1, QI);
-         DRI ("%ch", 1, QIh);
-      DRI ("%edx", 2, SI); DRI ("%dx", 2, HI); DRI ("%dl", 2, QI);
-         DRI ("%dh", 2, QIh);
-      DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI); DRI ("%bl", 3, QI);
-         DRI ("%bh", 3, QIh);
-      DRI ("%esp", 4, SI); DRI ("%sp", 4, HI);
-      DRI ("%ebp", 5, SI); DRI ("%bp", 5, HI);
-      DRI ("%esi", 6, SI); DRI ("%si", 6, HI); DRI ("%sil", 6, QI);
-      DRI ("%edi", 7, SI); DRI ("%di", 7, HI); DRI ("%dil", 7, QI);
-    } else if (elf_machine == EM_PPC || elf_machine == EM_PPC64) {
-      DRI ("%r0", 0, DI);
-      DRI ("%r1", 1, DI);
-      DRI ("%r2", 2, DI);
-      DRI ("%r3", 3, DI);
-      DRI ("%r4", 4, DI);
-      DRI ("%r5", 5, DI);
-      DRI ("%r6", 6, DI);
-      DRI ("%r7", 7, DI);
-      DRI ("%r8", 8, DI);
-      DRI ("%r9", 9, DI);
-      DRI ("%r10", 10, DI);
-      DRI ("%r11", 11, DI);
-      DRI ("%r12", 12, DI);
-      DRI ("%r13", 13, DI);
-      DRI ("%r14", 14, DI);
-      DRI ("%r15", 15, DI);
-      DRI ("%r16", 16, DI);
-      DRI ("%r17", 17, DI);
-      DRI ("%r18", 18, DI);
-      DRI ("%r19", 19, DI);
-      DRI ("%r20", 20, DI);
-      DRI ("%r21", 21, DI);
-      DRI ("%r22", 22, DI);
-      DRI ("%r23", 23, DI);
-      DRI ("%r24", 24, DI);
-      DRI ("%r25", 25, DI);
-      DRI ("%r26", 26, DI);
-      DRI ("%r27", 27, DI);
-      DRI ("%r28", 28, DI);
-      DRI ("%r29", 29, DI);
-      DRI ("%r30", 30, DI);
-      DRI ("%r31", 31, DI);
-      // PR11821: unadorned register "names" without -mregnames
-      DRI ("0", 0, DI);
-      DRI ("1", 1, DI);
-      DRI ("2", 2, DI);
-      DRI ("3", 3, DI);
-      DRI ("4", 4, DI);
-      DRI ("5", 5, DI);
-      DRI ("6", 6, DI);
-      DRI ("7", 7, DI);
-      DRI ("8", 8, DI);
-      DRI ("9", 9, DI);
-      DRI ("10", 10, DI);
-      DRI ("11", 11, DI);
-      DRI ("12", 12, DI);
-      DRI ("13", 13, DI);
-      DRI ("14", 14, DI);
-      DRI ("15", 15, DI);
-      DRI ("16", 16, DI);
-      DRI ("17", 17, DI);
-      DRI ("18", 18, DI);
-      DRI ("19", 19, DI);
-      DRI ("20", 20, DI);
-      DRI ("21", 21, DI);
-      DRI ("22", 22, DI);
-      DRI ("23", 23, DI);
-      DRI ("24", 24, DI);
-      DRI ("25", 25, DI);
-      DRI ("26", 26, DI);
-      DRI ("27", 27, DI);
-      DRI ("28", 28, DI);
-      DRI ("29", 29, DI);
-      DRI ("30", 30, DI);
-      DRI ("31", 31, DI);
-    } else if (elf_machine == EM_S390) {
-      DRI ("%r0", 0, DI);
-      DRI ("%r1", 1, DI);
-      DRI ("%r2", 2, DI);
-      DRI ("%r3", 3, DI);
-      DRI ("%r4", 4, DI);
-      DRI ("%r5", 5, DI);
-      DRI ("%r6", 6, DI);
-      DRI ("%r7", 7, DI);
-      DRI ("%r8", 8, DI);
-      DRI ("%r9", 9, DI);
-      DRI ("%r10", 10, DI);
-      DRI ("%r11", 11, DI);
-      DRI ("%r12", 12, DI);
-      DRI ("%r13", 13, DI);
-      DRI ("%r14", 14, DI);
-      DRI ("%r15", 15, DI);
-    } else if (elf_machine == EM_ARM) {
-      DRI ("r0", 0, SI);
-      DRI ("r1", 1, SI);
-      DRI ("r2", 2, SI);
-      DRI ("r3", 3, SI);
-      DRI ("r4", 4, SI);
-      DRI ("r5", 5, SI);
-      DRI ("r6", 6, SI);
-      DRI ("r7", 7, SI);
-      DRI ("r8", 8, SI);
-      DRI ("r9", 9, SI);
-      DRI ("r10", 10, SI); DRI ("sl", 10, SI);
-      DRI ("fp", 11, SI);
-      DRI ("ip", 12, SI);
-      DRI ("sp", 13, SI);
-      DRI ("lr", 14, SI);
-      DRI ("pc", 15, SI);
-    } else if (elf_machine == EM_AARCH64) {
-      DRI ("x0", 0, DI); DRI ("w0", 0, SI);
-      DRI ("x1", 1, DI); DRI ("w1", 1, SI);
-      DRI ("x2", 2, DI); DRI ("w2", 2, SI);
-      DRI ("x3", 3, DI); DRI ("w3", 3, SI);
-      DRI ("x4", 4, DI); DRI ("w4", 4, SI);
-      DRI ("x5", 5, DI); DRI ("w5", 5, SI);
-      DRI ("x6", 6, DI); DRI ("w6", 6, SI);
-      DRI ("x7", 7, DI); DRI ("w7", 7, SI);
-      DRI ("x8", 8, DI); DRI ("w8", 8, SI);
-      DRI ("x9", 9, DI); DRI ("w9", 9, SI);
-      DRI ("x10", 10, DI); DRI ("w10", 10, SI);
-      DRI ("x11", 11, DI); DRI ("w11", 11, SI);
-      DRI ("x12", 12, DI); DRI ("w12", 12, SI);
-      DRI ("x13", 13, DI); DRI ("w13", 13, SI);
-      DRI ("x14", 14, DI); DRI ("w14", 14, SI);
-      DRI ("x15", 15, DI); DRI ("w15", 15, SI);
-      DRI ("x16", 16, DI); DRI ("w16", 16, SI);
-      DRI ("x17", 17, DI); DRI ("w17", 17, SI);
-      DRI ("x18", 18, DI); DRI ("w18", 18, SI);
-      DRI ("x19", 19, DI); DRI ("w19", 19, SI);
-      DRI ("x20", 20, DI); DRI ("w20", 20, SI);
-      DRI ("x21", 21, DI); DRI ("w21", 21, SI);
-      DRI ("x22", 22, DI); DRI ("w22", 22, SI);
-      DRI ("x23", 23, DI); DRI ("w23", 23, SI);
-      DRI ("x24", 24, DI); DRI ("w24", 24, SI);
-      DRI ("x25", 25, DI); DRI ("w25", 25, SI);
-      DRI ("x26", 26, DI); DRI ("w26", 26, SI);
-      DRI ("x27", 27, DI); DRI ("w27", 27, SI);
-      DRI ("x28", 28, DI); DRI ("w28", 28, SI);
-      DRI ("x29", 29, DI); DRI ("w29", 29, SI);
-      DRI ("x30", 30, DI); DRI ("w30", 30, SI);
-      DRI ("sp", 31, DI);
-    } else if (arg_count) {
-      /* permit this case; just fall back to dwarf */
-    }
-#undef DRI
+    build_dwarf_registers();
 
     need_debug_info = false;
     if (probe_type == uprobe3_type)
@@ -5838,6 +5649,7 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   }
 
   systemtap_session& session;
+  dwflpp& dw;
   int elf_machine;
   const string & process_name;
   const string & provider_name;
@@ -5845,16 +5657,250 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   stap_sdt_probe_type probe_type;
   unsigned arg_count;
   vector<string> arg_tokens;
+
   map<string, pair<unsigned,int> > dwarf_regs;
+  string regnames;
+  string percent_regnames;
+
   bool need_debug_info;
 
+  void build_dwarf_registers();
   void visit_target_symbol (target_symbol* e);
+  unsigned get_target_symbol_argno_and_validate (target_symbol* e);
+  long parse_out_arg_precision(string& asmarg);
+  expression* try_parse_arg_literal (target_symbol *e,
+                                     const string& asmarg,
+                                     long precision);
+  expression* try_parse_arg_register (target_symbol *e,
+                                      const string& asmarg,
+                                      long precision);
+  expression* try_parse_arg_offset_register (target_symbol *e,
+                                             const string& asmarg,
+                                             long precision);
+  expression* try_parse_arg_effective_addr (target_symbol *e,
+                                            const string& asmarg,
+                                            long precision);
+  expression* try_parse_arg_varname (target_symbol *e,
+                                     const string& asmarg,
+                                     long precision);
   void visit_target_symbol_arg (target_symbol* e);
   void visit_target_symbol_context (target_symbol* e);
   void visit_atvar_op (atvar_op* e);
   void visit_cast_op (cast_op* e);
 };
 
+void
+sdt_uprobe_var_expanding_visitor::build_dwarf_registers ()
+{
+  /* Register name mapping table depends on the elf machine of this particular
+     probe target process/file, not upon the host.  So we can't just
+     #ifdef _i686_ etc. */
+
+#define DRI(name,num,width)  dwarf_regs[name]=make_pair(num,width)
+  if (elf_machine == EM_X86_64) {
+    DRI ("%rax", 0, DI); DRI ("%eax", 0, SI); DRI ("%ax", 0, HI);
+       DRI ("%al", 0, QI); DRI ("%ah", 0, QIh);
+    DRI ("%rdx", 1, DI); DRI ("%edx", 1, SI); DRI ("%dx", 1, HI);
+       DRI ("%dl", 1, QI); DRI ("%dh", 1, QIh);
+    DRI ("%rcx", 2, DI); DRI ("%ecx", 2, SI); DRI ("%cx", 2, HI);
+       DRI ("%cl", 2, QI); DRI ("%ch", 2, QIh);
+    DRI ("%rbx", 3, DI); DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI);
+       DRI ("%bl", 3, QI); DRI ("%bh", 3, QIh);
+    DRI ("%rsi", 4, DI); DRI ("%esi", 4, SI); DRI ("%si", 4, HI);
+       DRI ("%sil", 4, QI);
+    DRI ("%rdi", 5, DI); DRI ("%edi", 5, SI); DRI ("%di", 5, HI);
+       DRI ("%dil", 5, QI);
+    DRI ("%rbp", 6, DI); DRI ("%ebp", 6, SI); DRI ("%bp", 6, HI);
+       DRI ("%bpl", 6, QI);
+    DRI ("%rsp", 7, DI); DRI ("%esp", 7, SI); DRI ("%sp", 7, HI);
+       DRI ("%spl", 7, QI);
+    DRI ("%r8", 8, DI); DRI ("%r8d", 8, SI); DRI ("%r8w", 8, HI);
+       DRI ("%r8b", 8, QI);
+    DRI ("%r9", 9, DI); DRI ("%r9d", 9, SI); DRI ("%r9w", 9, HI);
+       DRI ("%r9b", 9, QI);
+    DRI ("%r10", 10, DI); DRI ("%r10d", 10, SI); DRI ("%r10w", 10, HI);
+       DRI ("%r10b", 10, QI);
+    DRI ("%r11", 11, DI); DRI ("%r11d", 11, SI); DRI ("%r11w", 11, HI);
+       DRI ("%r11b", 11, QI);
+    DRI ("%r12", 12, DI); DRI ("%r12d", 12, SI); DRI ("%r12w", 12, HI);
+       DRI ("%r12b", 12, QI);
+    DRI ("%r13", 13, DI); DRI ("%r13d", 13, SI); DRI ("%r13w", 13, HI);
+       DRI ("%r13b", 13, QI);
+    DRI ("%r14", 14, DI); DRI ("%r14d", 14, SI); DRI ("%r14w", 14, HI);
+       DRI ("%r14b", 14, QI);
+    DRI ("%r15", 15, DI); DRI ("%r15d", 15, SI); DRI ("%r15w", 15, HI);
+       DRI ("%r15b", 15, QI);
+    DRI ("%rip", 16, DI); DRI ("%eip", 16, SI); DRI ("%ip", 16, HI);
+  } else if (elf_machine == EM_386) {
+    DRI ("%eax", 0, SI); DRI ("%ax", 0, HI); DRI ("%al", 0, QI);
+       DRI ("%ah", 0, QIh);
+    DRI ("%ecx", 1, SI); DRI ("%cx", 1, HI); DRI ("%cl", 1, QI);
+       DRI ("%ch", 1, QIh);
+    DRI ("%edx", 2, SI); DRI ("%dx", 2, HI); DRI ("%dl", 2, QI);
+       DRI ("%dh", 2, QIh);
+    DRI ("%ebx", 3, SI); DRI ("%bx", 3, HI); DRI ("%bl", 3, QI);
+       DRI ("%bh", 3, QIh);
+    DRI ("%esp", 4, SI); DRI ("%sp", 4, HI);
+    DRI ("%ebp", 5, SI); DRI ("%bp", 5, HI);
+    DRI ("%esi", 6, SI); DRI ("%si", 6, HI); DRI ("%sil", 6, QI);
+    DRI ("%edi", 7, SI); DRI ("%di", 7, HI); DRI ("%dil", 7, QI);
+  } else if (elf_machine == EM_PPC || elf_machine == EM_PPC64) {
+    DRI ("%r0", 0, DI);
+    DRI ("%r1", 1, DI);
+    DRI ("%r2", 2, DI);
+    DRI ("%r3", 3, DI);
+    DRI ("%r4", 4, DI);
+    DRI ("%r5", 5, DI);
+    DRI ("%r6", 6, DI);
+    DRI ("%r7", 7, DI);
+    DRI ("%r8", 8, DI);
+    DRI ("%r9", 9, DI);
+    DRI ("%r10", 10, DI);
+    DRI ("%r11", 11, DI);
+    DRI ("%r12", 12, DI);
+    DRI ("%r13", 13, DI);
+    DRI ("%r14", 14, DI);
+    DRI ("%r15", 15, DI);
+    DRI ("%r16", 16, DI);
+    DRI ("%r17", 17, DI);
+    DRI ("%r18", 18, DI);
+    DRI ("%r19", 19, DI);
+    DRI ("%r20", 20, DI);
+    DRI ("%r21", 21, DI);
+    DRI ("%r22", 22, DI);
+    DRI ("%r23", 23, DI);
+    DRI ("%r24", 24, DI);
+    DRI ("%r25", 25, DI);
+    DRI ("%r26", 26, DI);
+    DRI ("%r27", 27, DI);
+    DRI ("%r28", 28, DI);
+    DRI ("%r29", 29, DI);
+    DRI ("%r30", 30, DI);
+    DRI ("%r31", 31, DI);
+    // PR11821: unadorned register "names" without -mregnames
+    DRI ("0", 0, DI);
+    DRI ("1", 1, DI);
+    DRI ("2", 2, DI);
+    DRI ("3", 3, DI);
+    DRI ("4", 4, DI);
+    DRI ("5", 5, DI);
+    DRI ("6", 6, DI);
+    DRI ("7", 7, DI);
+    DRI ("8", 8, DI);
+    DRI ("9", 9, DI);
+    DRI ("10", 10, DI);
+    DRI ("11", 11, DI);
+    DRI ("12", 12, DI);
+    DRI ("13", 13, DI);
+    DRI ("14", 14, DI);
+    DRI ("15", 15, DI);
+    DRI ("16", 16, DI);
+    DRI ("17", 17, DI);
+    DRI ("18", 18, DI);
+    DRI ("19", 19, DI);
+    DRI ("20", 20, DI);
+    DRI ("21", 21, DI);
+    DRI ("22", 22, DI);
+    DRI ("23", 23, DI);
+    DRI ("24", 24, DI);
+    DRI ("25", 25, DI);
+    DRI ("26", 26, DI);
+    DRI ("27", 27, DI);
+    DRI ("28", 28, DI);
+    DRI ("29", 29, DI);
+    DRI ("30", 30, DI);
+    DRI ("31", 31, DI);
+  } else if (elf_machine == EM_S390) {
+    DRI ("%r0", 0, DI);
+    DRI ("%r1", 1, DI);
+    DRI ("%r2", 2, DI);
+    DRI ("%r3", 3, DI);
+    DRI ("%r4", 4, DI);
+    DRI ("%r5", 5, DI);
+    DRI ("%r6", 6, DI);
+    DRI ("%r7", 7, DI);
+    DRI ("%r8", 8, DI);
+    DRI ("%r9", 9, DI);
+    DRI ("%r10", 10, DI);
+    DRI ("%r11", 11, DI);
+    DRI ("%r12", 12, DI);
+    DRI ("%r13", 13, DI);
+    DRI ("%r14", 14, DI);
+    DRI ("%r15", 15, DI);
+  } else if (elf_machine == EM_ARM) {
+    DRI ("r0", 0, SI);
+    DRI ("r1", 1, SI);
+    DRI ("r2", 2, SI);
+    DRI ("r3", 3, SI);
+    DRI ("r4", 4, SI);
+    DRI ("r5", 5, SI);
+    DRI ("r6", 6, SI);
+    DRI ("r7", 7, SI);
+    DRI ("r8", 8, SI);
+    DRI ("r9", 9, SI);
+    DRI ("r10", 10, SI); DRI ("sl", 10, SI);
+    DRI ("fp", 11, SI);
+    DRI ("ip", 12, SI);
+    DRI ("sp", 13, SI);
+    DRI ("lr", 14, SI);
+    DRI ("pc", 15, SI);
+  } else if (elf_machine == EM_AARCH64) {
+    DRI ("x0", 0, DI); DRI ("w0", 0, SI);
+    DRI ("x1", 1, DI); DRI ("w1", 1, SI);
+    DRI ("x2", 2, DI); DRI ("w2", 2, SI);
+    DRI ("x3", 3, DI); DRI ("w3", 3, SI);
+    DRI ("x4", 4, DI); DRI ("w4", 4, SI);
+    DRI ("x5", 5, DI); DRI ("w5", 5, SI);
+    DRI ("x6", 6, DI); DRI ("w6", 6, SI);
+    DRI ("x7", 7, DI); DRI ("w7", 7, SI);
+    DRI ("x8", 8, DI); DRI ("w8", 8, SI);
+    DRI ("x9", 9, DI); DRI ("w9", 9, SI);
+    DRI ("x10", 10, DI); DRI ("w10", 10, SI);
+    DRI ("x11", 11, DI); DRI ("w11", 11, SI);
+    DRI ("x12", 12, DI); DRI ("w12", 12, SI);
+    DRI ("x13", 13, DI); DRI ("w13", 13, SI);
+    DRI ("x14", 14, DI); DRI ("w14", 14, SI);
+    DRI ("x15", 15, DI); DRI ("w15", 15, SI);
+    DRI ("x16", 16, DI); DRI ("w16", 16, SI);
+    DRI ("x17", 17, DI); DRI ("w17", 17, SI);
+    DRI ("x18", 18, DI); DRI ("w18", 18, SI);
+    DRI ("x19", 19, DI); DRI ("w19", 19, SI);
+    DRI ("x20", 20, DI); DRI ("w20", 20, SI);
+    DRI ("x21", 21, DI); DRI ("w21", 21, SI);
+    DRI ("x22", 22, DI); DRI ("w22", 22, SI);
+    DRI ("x23", 23, DI); DRI ("w23", 23, SI);
+    DRI ("x24", 24, DI); DRI ("w24", 24, SI);
+    DRI ("x25", 25, DI); DRI ("w25", 25, SI);
+    DRI ("x26", 26, DI); DRI ("w26", 26, SI);
+    DRI ("x27", 27, DI); DRI ("w27", 27, SI);
+    DRI ("x28", 28, DI); DRI ("w28", 28, SI);
+    DRI ("x29", 29, DI); DRI ("w29", 29, SI);
+    DRI ("x30", 30, DI); DRI ("w30", 30, SI);
+    DRI ("sp", 31, DI);
+  } else if (arg_count) {
+    /* permit this case; just fall back to dwarf */
+  }
+#undef DRI
+
+  // Build regex pieces out of the known dwarf_regs.  We keep two separate
+  // lists: ones with the % prefix (and thus unambigiuous even despite PR11821),
+  // and ones with no prefix (and thus only usable in unambiguous contexts).
+  map<string,pair<unsigned,int> >::const_iterator ri;
+  for (ri = dwarf_regs.begin(); ri != dwarf_regs.end(); ri++)
+    {
+      string regname = ri->first;
+      assert (regname != "");
+      regnames += string("|")+regname;
+      if (regname[0]=='%')
+        percent_regnames += string("|")+regname;
+    }
+
+  // clip off leading |
+  if (regnames != "")
+    regnames = regnames.substr(1);
+  if (percent_regnames != "")
+    percent_regnames = percent_regnames.substr(1);
+}
 
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
@@ -5912,36 +5958,447 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
     assert(0); // shouldn't get here
 }
 
+unsigned
+sdt_uprobe_var_expanding_visitor::get_target_symbol_argno_and_validate (target_symbol *e)
+{
+  // parsing
+  unsigned argno = 0;
+  if (startswith(e->name, "$arg"))
+    {
+      try
+        {
+          argno = lex_cast<unsigned>(e->name.substr(4));
+        }
+      catch (const runtime_error& f)
+        {
+          // non-integral $arg suffix: e.g. $argKKKSDF
+          argno = 0;
+        }
+    }
+
+  // validation
+  if (arg_count == 0 || // a sdt.h variant without .probe-stored arg_count
+      argno < 1 || argno > arg_count) // a $argN with out-of-range N
+    {
+      // NB: Either
+      // 1) uprobe1_type $argN or $FOO (we don't know the arg_count)
+      // 2) uprobe2_type $FOO (no probe args)
+      // both of which get resolved later.
+      // Throw it now, and it might be resolved by DWARF later.
+      need_debug_info = true;
+      throw SEMANTIC_ERROR(_("target-symbol requires debuginfo"), e->tok);
+    }
+  assert (arg_tokens.size() >= argno);
+  return argno;
+}
+
+long
+sdt_uprobe_var_expanding_visitor::parse_out_arg_precision(string& asmarg)
+{
+  long precision;
+  if (asmarg.find('@') != string::npos)
+    {
+      precision = lex_cast<int>(asmarg.substr(0, asmarg.find('@')));
+      asmarg = asmarg.substr(asmarg.find('@')+1);
+    }
+  else
+    {
+      // V1/V2 do not have precision field so default to signed long
+      // V3 asm does not have precision field so default to unsigned long
+      if (probe_type == uprobe3_type)
+        precision = sizeof(long); // this is an asm probe
+      else
+        precision = -sizeof(long);
+    }
+  return precision;
+}
+
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
+                                                         const string& asmarg,
+                                                         long precision)
+{
+  expression *argexpr = NULL;
+
+  // Here, we test for a numeric literal.
+  // Only accept (signed) decimals throughout. XXX
+
+  // PR11821.  NB: on powerpc, literals are not prefixed with $,
+  // so this regex does not match.  But that's OK, since without
+  // -mregnames, we can't tell them apart from register numbers
+  // anyway.  With -mregnames, we could, if gcc somehow
+  // communicated to us the presence of that option, but alas it
+  // doesn't.  http://gcc.gnu.org/PR44995.
+  vector<string> matches;
+  if (!regexp_match (asmarg, "^[i\\$#][-]?[0-9][0-9]*$", matches))
+    {
+      string sn = matches[0].substr(1);
+      int64_t n;
+
+      // We have to pay attention to the size & sign, as gcc sometimes
+      // propagates constants that don't quite match, like a negative
+      // value to fill an unsigned type.
+      // NB: let it throw if something happens
+      switch (precision)
+        {
+        case -1: n = lex_cast<  int8_t>(sn); break;
+        case  1: n = lex_cast< uint8_t>(sn); break;
+        case -2: n = lex_cast< int16_t>(sn); break;
+        case  2: n = lex_cast<uint16_t>(sn); break;
+        case -4: n = lex_cast< int32_t>(sn); break;
+        case  4: n = lex_cast<uint32_t>(sn); break;
+        default:
+        case -8: n = lex_cast< int64_t>(sn); break;
+        case  8: n = lex_cast<uint64_t>(sn); break;
+        }
+
+      literal_number* ln = new literal_number(n);
+      ln->tok = e->tok;
+      argexpr = ln;
+    }
+
+  return argexpr;
+}
+
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
+                                                          const string& asmarg,
+                                                          long precision)
+{
+  expression *argexpr = NULL;
+
+  // test for REGISTER
+  // NB: Because PR11821, we must use percent_regnames here.
+  string regexp;
+  if (elf_machine == EM_PPC || elf_machine == EM_PPC64 || elf_machine == EM_ARM)
+    regexp = "^(" + regnames + ")$";
+  else
+    regexp = "^(" + percent_regnames + ")$";
+
+  vector<string> matches;
+  if (!regexp_match(asmarg, regexp, matches))
+    {
+      string regname = matches[1];
+      map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.find (regname);
+      if (ri != dwarf_regs.end()) // known register
+        {
+          embedded_expr *get_arg1 = new embedded_expr;
+          string width_adjust;
+          switch (ri->second.second)
+            {
+            case QI: width_adjust = ") & 0xff)"; break;
+            case QIh: width_adjust = ">>8) & 0xff)"; break;
+            case HI:
+              // preserve 16 bit register signness
+              width_adjust = ") & 0xffff)";
+              if (precision < 0)
+                width_adjust += " << 48 >> 48";
+              break;
+            case SI:
+              // preserve 32 bit register signness
+              width_adjust = ") & 0xffffffff)";
+              if (precision < 0)
+                width_adjust += " << 32 >> 32";
+              break;
+            default: width_adjust = "))";
+            }
+          string type = "";
+          if (probe_type == uprobe3_type)
+            type = (precision < 0
+                    ? "(int" : "(uint") + lex_cast(abs(precision) * 8) + "_t)";
+          type = type + "((";
+          get_arg1->tok = e->tok;
+          get_arg1->code = string("/* unprivileged */ /* pure */")
+            + string(" ((int64_t)") + type
+            + string("u_fetch_register(")
+            + lex_cast(dwarf_regs[regname].first) + string("))")
+            + width_adjust;
+          argexpr = get_arg1;
+        }
+    }
+  return argexpr;
+}
+
+static string
+precision_to_function(long precision)
+{
+  switch (precision)
+    {
+    case 1: case -1:
+      return "user_int8";
+    case 2:
+      return "user_uint16";
+    case -2:
+      return "user_int16";
+    case 4:
+      return "user_uint32";
+    case -4:
+      return "user_int32";
+    case 8: case -8:
+      return "user_int64";
+    default:
+      return "user_long";
+    }
+}
+
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *e,
+                                                                 const string& asmarg,
+                                                                 long precision)
+{
+  expression *argexpr = NULL;
+
+  // test for OFFSET(REGISTER) where OFFSET is +-N+-N+-N
+  // NB: Despite PR11821, we can use regnames here, since the parentheses
+  // make things unambiguous. (Note: gdb/stap-probe.c also parses this)
+  // On ARM test for [REGISTER, OFFSET]
+
+  string regexp;
+  int reg, offset1;
+  if (elf_machine == EM_ARM)
+    {
+      regexp = "^\\[(" + regnames + ")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
+      reg = 1;
+      offset1 = 3;
+    }
+  else
+    {
+      regexp = "^([+-]?[0-9]*)([+-][0-9]*)?([+-][0-9]*)?[(](" + regnames + ")[)]$";
+      reg = 4;
+      offset1 = 1;
+    }
+
+  vector<string> matches;
+  if (!regexp_match(asmarg, regexp, matches))
+    {
+      string regname;
+      int64_t disp = 0;
+      if (matches[reg].length())
+        regname = matches[reg];
+      if (dwarf_regs.find (regname) == dwarf_regs.end())
+        throw SEMANTIC_ERROR(_F("unrecognized register '%s'", regname.c_str()));
+
+      for (int i=offset1; i <= (offset1 + 2); i++)
+        if (matches[i].length())
+          // should decode positive/negative hex/decimal
+          // NB: let it throw if something happens
+          disp += lex_cast<int64_t>(matches[i]);
+
+      // synthesize user_long(%{fetch_register(R)%} + D)
+      embedded_expr *get_arg1 = new embedded_expr;
+      get_arg1->tok = e->tok;
+      get_arg1->code = string("/* unprivileged */ /* pure */")
+        + string("u_fetch_register(")
+        + lex_cast(dwarf_regs[regname].first) + string(")");
+      // XXX: may we ever need to cast that to a narrower type?
+
+      literal_number* inc = new literal_number(disp);
+      inc->tok = e->tok;
+
+      binary_expression *be = new binary_expression;
+      be->tok = e->tok;
+      be->left = get_arg1;
+      be->op = "+";
+      be->right = inc;
+
+      functioncall *fc = new functioncall;
+      fc->function = precision_to_function(precision);
+      fc->tok = e->tok;
+      fc->args.push_back(be);
+
+      argexpr = fc;
+    }
+
+  return argexpr;
+}
+
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_effective_addr (target_symbol *e,
+                                                                const string& asmarg,
+                                                                long precision)
+{
+  expression *argexpr = NULL;
+
+  // test for OFFSET(BASE_REGISTER,INDEX_REGISTER[,SCALE]) where OFFSET is +-N+-N+-N
+  // NB: Despite PR11821, we can use regnames here, since the parentheses
+  // make things unambiguous. (Note: gdb/stap-probe.c also parses this)
+  string regexp = "^([+-]?[0-9]*)([+-][0-9]*)?([+-][0-9]*)?[(](" + regnames + "),(" +
+                                                                   regnames + ")(,[1248])?[)]$";
+  vector<string> matches;
+  if (!regexp_match(asmarg, regexp, matches))
+    {
+      string baseregname;
+      string indexregname;
+      int64_t disp = 0;
+      short scale = 1;
+
+      if (matches[6].length())
+        // NB: let it throw if we can't cast
+        scale = lex_cast<short>(matches[6].substr(1)); // NB: skip the comma!
+
+      if (matches[4].length())
+        baseregname = matches[4];
+      if (dwarf_regs.find (baseregname) == dwarf_regs.end())
+        throw SEMANTIC_ERROR(_F("unrecognized base register '%s'", baseregname.c_str()));
+
+      if (matches[5].length())
+        indexregname = matches[5];
+      if (dwarf_regs.find (indexregname) == dwarf_regs.end())
+        throw SEMANTIC_ERROR(_F("unrecognized index register '%s'", indexregname.c_str()));
+
+      for (int i = 1; i <= 3; i++) // up to three OFFSET terms
+        if (matches[i].length())
+          // should decode positive/negative hex/decimal
+          // NB: let it throw if something happens
+          disp += lex_cast<int64_t>(matches[i]);
+
+      // synthesize user_long(%{fetch_register(R1)+fetch_register(R2)*N%} + D)
+
+      embedded_expr *get_arg1 = new embedded_expr;
+      string regfn = "u_fetch_register";
+
+      get_arg1->tok = e->tok;
+      get_arg1->code = string("/* unprivileged */ /* pure */")
+        + regfn + string("(")+lex_cast(dwarf_regs[baseregname].first)+string(")")
+        + string("+(")
+        + regfn + string("(")+lex_cast(dwarf_regs[indexregname].first)+string(")")
+        + string("*")
+        + lex_cast(scale)
+        + string(")");
+
+      // NB: could plop this +DISPLACEMENT bit into the embedded-c expression too
+      literal_number* inc = new literal_number(disp);
+      inc->tok = e->tok;
+
+      binary_expression *be = new binary_expression;
+      be->tok = e->tok;
+      be->left = get_arg1;
+      be->op = "+";
+      be->right = inc;
+
+      functioncall *fc = new functioncall;
+      fc->function = precision_to_function(precision);
+      fc->tok = e->tok;
+      fc->args.push_back(be);
+
+      argexpr = fc;
+    }
+
+  return argexpr;
+}
+
+expression*
+sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
+                                                         const string& asmarg,
+                                                         long precision)
+{
+  static unsigned tick = 0;
+  expression *argexpr = NULL;
+
+  // test for [OFF+]VARNAME[+OFF][(REGISTER)], where VARNAME is a variable
+  // name. NB: Despite PR11821, we can use regnames here, since the parentheses
+  // make things unambiguous.
+  string regex = "^(([0-9]+)[+])?([a-zA-Z_][a-zA-Z0-9_]*)([+][0-9]+)?([(]("
+                 + regnames + ")[)])?$";
+  vector<string> matches;
+  if (!regexp_match(asmarg, regex, matches))
+    {
+      assert(matches.size() >= 4);
+      string varname = matches[3];
+
+      // OFF can be before VARNAME (put in matches[2]) or after (put in
+      // matches[4]) (or both?). Seems like in most cases it comes after,
+      // unless the code was compiled with -fPIC.
+      int64_t offset = 0;
+      if (!matches[2].empty())
+        offset += lex_cast<int64_t>(matches[2]);
+      if (matches.size() >= 5 && !matches[4].empty())
+        offset += lex_cast<int64_t>(matches[4]);
+
+      string regname;
+      if (matches.size() >= 7)
+        regname = matches[6];
+
+      // If it's just VARNAME, then proceed. If it's VARNAME(REGISTER), then
+      // only proceed if it's RIP-relative addressing on x86_64.
+      if (regname.empty() || (regname == "%rip" && elf_machine == EM_X86_64))
+        {
+          dw.mod_info->get_symtab();
+          if (dw.mod_info->symtab_status != info_present)
+            throw SEMANTIC_ERROR(_("can't retrieve symbol table"));
+
+          assert(dw.mod_info->sym_table);
+          map<string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
+          map<string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
+          Dwarf_Addr addr = 0;
+
+          // check symtab locals then globals
+          if (locals.count(varname))
+            addr = locals[varname];
+          if (globals.count(varname))
+            addr = globals[varname];
+
+          if (addr)
+            {
+              // add whatever offset is in the operand
+              addr += offset;
+
+              // adjust for dw bias because relocate_address() expects a
+              // libdw address and this addr is from the symtab
+              dw.get_module_dwarf(false, false);
+              addr -= dw.module_bias;
+
+              string reloc_section;
+              Dwarf_Addr reloc_addr = dw.relocate_address(addr, reloc_section);
+
+              // OK, we have an address for the variable. Let's create a
+              // function that will just relocate it at runtime, and then
+              // call user_[u]int*() on the address it returns.
+
+              functioncall *user_int_call = new functioncall;
+              user_int_call->function = precision_to_function(precision);
+              user_int_call->tok = e->tok;
+
+              functiondecl *get_addr_decl = new functiondecl;
+              get_addr_decl->tok = e->tok;
+              get_addr_decl->synthetic = true;
+              get_addr_decl->name = "_sdt_arg_get_addr_" + lex_cast(tick++);
+              get_addr_decl->type = pe_long;
+
+              // build _stp_[ku]module_relocate(module, addr, current)
+              stringstream ss;
+              ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
+              ss << "STAP_RETURN(_stp_umodule_relocate(";
+                ss << "\"" << path_remove_sysroot(session, process_name) << "\", ";
+                ss << "0x" << hex << reloc_addr << dec << ", ";
+                ss << "current";
+              ss << "));" << endl;
+
+              embeddedcode *ec = new embeddedcode;
+              ec->tok = e->tok;
+              ec->code = ss.str();
+              get_addr_decl->body = ec;
+              get_addr_decl->join(session);
+
+              functioncall *get_addr_call = new functioncall;
+              get_addr_call->tok = e->tok;
+              get_addr_call->function = get_addr_decl->name;
+              user_int_call->args.push_back(get_addr_call);
+
+              argexpr = user_int_call;
+            }
+        }
+    }
+
+  return argexpr;
+}
 
 void
 sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
 {
   try
     {
-      unsigned argno = 0; // the N in $argN
-      try
-	{
-	  if (startswith(e->name, "$arg"))
-	    argno = lex_cast<unsigned>(e->name.substr(4));
-	}
-      catch (const runtime_error& f) // non-integral $arg suffix: e.g. $argKKKSDF
-	{
-          argno = 0;
-	}
-
-      if (arg_count == 0 || // a sdt.h variant without .probe-stored arg_count
-          argno < 1 || argno > arg_count) // a $argN with out-of-range N
-	{
-	  // NB: Either
-	  // 1) uprobe1_type $argN or $FOO (we don't know the arg_count)
-	  // 2) uprobe2_type $FOO (no probe args)
-	  // both of which get resolved later.
-	  // Throw it now, and it might be resolved by DWARF later.
-	  need_debug_info = true;
-	  throw SEMANTIC_ERROR(_("target-symbol requires debuginfo"), e->tok);
-	}
-
-      assert (arg_tokens.size() >= argno);
+      unsigned argno = get_target_symbol_argno_and_validate(e); // the N in $argN
       string asmarg = arg_tokens[argno-1];   // $arg1 => arg_tokens[0]
 
       // Now we try to parse this thing, which is an assembler operand
@@ -5949,344 +6406,62 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // and hope for the best.  Here is the syntax for a few architectures.
       // Note that the power iN syntax is only for V3 sdt.h; gcc emits the i.
       //
-      //      literal	reg	reg	reg +	base+index*size+offset
-      //	      	      indirect offset
-      // x86	$N	%rR	(%rR)	N(%rR)  O(%bR,%iR,S)
-      // power	iN	R	(R)	N(R)
-      // ia64	N	rR	[r16]
-      // s390	N	%rR	0(rR)	N(r15)
-      // arm	#N	rR	[rR]	[rR, #N]
+      //        literal reg reg      reg+     base+index*size+ VAR VAR+off RIP-relative
+      //                    indirect offset   offset                       VAR+off
+      // x86    $N      %rR (%rR)    N(%rR)   O(%bR,%iR,S)     var var+off var+off(%rip)
+      // x86_64 $N      %rR (%rR)    N(%rR)   O(%bR,%iR,S)     var var+off var+off(%rip)
+      // power  iN      R   (R)      N(R)
+      // ia64   N       rR  [r16]
+      // s390   N       %rR 0(rR)    N(r15)
+      // arm    #N      rR  [rR]     [rR, #N]
 
       expression* argexpr = 0; // filled in in case of successful parse
 
-      string percent_regnames;
-      string regnames;
-      vector<string> matches;
-      long precision;
-      int rc;
+      // Parse (and remove from asmarg) the leading length
+      long precision = parse_out_arg_precision(asmarg);
 
-      // Parse the leading length
-
-      if (asmarg.find('@') != string::npos)
-	{
-	  precision = lex_cast<int>(asmarg.substr(0, asmarg.find('@')));
-	  asmarg = asmarg.substr(asmarg.find('@')+1);
-	}
-      else
-	{
-	  // V1/V2 do not have precision field so default to signed long
-	  // V3 asm does not have precision field so default to unsigned long
-	  if (probe_type == uprobe3_type)
-	    precision = sizeof(long); // this is an asm probe
-	  else
-	    precision = -sizeof(long);
-	}
-
-      // test for a numeric literal.
-      // Only accept (signed) decimals throughout. XXX
-
-      // PR11821.  NB: on powerpc, literals are not prefixed with $,
-      // so this regex does not match.  But that's OK, since without
-      // -mregnames, we can't tell them apart from register numbers
-      // anyway.  With -mregnames, we could, if gcc somehow
-      // communicated to us the presence of that option, but alas it
-      // doesn't.  http://gcc.gnu.org/PR44995.
-      rc = regexp_match (asmarg, "^[i\\$#][-]?[0-9][0-9]*$", matches);
-      if (! rc)
+      try
         {
-	  string sn = matches[0].substr(1);
-	  int64_t n;
-	  try
-	    {
-	      // We have to pay attention to the size & sign, as gcc sometimes
-	      // propagates constants that don't quite match, like a negative
-	      // value to fill an unsigned type.
-	      switch (precision)
-		{
-		case -1: n = lex_cast<  int8_t>(sn); break;
-		case  1: n = lex_cast< uint8_t>(sn); break;
-		case -2: n = lex_cast< int16_t>(sn); break;
-		case  2: n = lex_cast<uint16_t>(sn); break;
-		case -4: n = lex_cast< int32_t>(sn); break;
-		case  4: n = lex_cast<uint32_t>(sn); break;
-		default:
-		case -8: n = lex_cast< int64_t>(sn); break;
-		case  8: n = lex_cast<uint64_t>(sn); break;
-		}
-	    }
-	  catch (std::runtime_error&)
-	    {
-	      goto not_matched;
-	    }
-	  literal_number* ln = new literal_number(n);
-	  ln->tok = e->tok;
-          argexpr = ln;
-          goto matched;
+          if ((argexpr = try_parse_arg_literal(e, asmarg, precision)) != NULL)
+            goto matched;
+
+          // all other matches require registers
+          if (regnames == "")
+            throw SEMANTIC_ERROR("no registers to use for parsing");
+
+          if ((argexpr = try_parse_arg_register(e, asmarg, precision)) != NULL)
+            goto matched;
+          if ((argexpr = try_parse_arg_offset_register(e, asmarg, precision)) != NULL)
+            goto matched;
+          if ((argexpr = try_parse_arg_effective_addr(e, asmarg, precision)) != NULL)
+            goto matched;
+          if ((argexpr = try_parse_arg_varname(e, asmarg, precision)) != NULL)
+            goto matched;
+        }
+      catch (const semantic_error& err)
+        {
+          e->chain(err);
         }
 
-      if (dwarf_regs.empty())
-	goto not_matched;
-
-      // Build regex pieces out of the known dwarf_regs.  We keep two separate
-      // lists: ones with the % prefix (and thus unambigiuous even despite PR11821),
-      // and ones with no prefix (and thus only usable in unambiguous contexts).
-      for (map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.begin(); ri != dwarf_regs.end(); ri++)
-        {
-          string regname = ri->first;
-          assert (regname != "");
-          regnames += string("|")+regname;
-          if (regname[0]=='%')
-            percent_regnames += string("|")+regname;
-        }
-      // clip off leading |
-      regnames = regnames.substr(1);
-      if (percent_regnames != "")
-          percent_regnames = percent_regnames.substr(1);
-
-      // test for REGISTER
-      // NB: Because PR11821, we must use percent_regnames here.
-      if (elf_machine == EM_PPC || elf_machine == EM_PPC64 || elf_machine == EM_ARM)
-	rc = regexp_match (asmarg, string("^(")+regnames+string(")$"), matches);
-      else
-	rc = regexp_match (asmarg, string("^(")+percent_regnames+string(")$"), matches);
-      if (! rc)
-        {
-          string regname = matches[1];
-	  map<string,pair<unsigned,int> >::iterator ri = dwarf_regs.find (regname);
-          if (ri != dwarf_regs.end()) // known register
-            {
-              embedded_expr *get_arg1 = new embedded_expr;
-	      string width_adjust;
-	      switch (ri->second.second)
-		{
-		case QI: width_adjust = ") & 0xff)"; break;
-		case QIh: width_adjust = ">>8) & 0xff)"; break;
-		case HI:
-		  // preserve 16 bit register signness
-		  width_adjust = ") & 0xffff)";
-		  if (precision < 0)
-		    width_adjust += " << 48 >> 48";
-		  break;
-		case SI:
-		  // preserve 32 bit register signness
-		  width_adjust = ") & 0xffffffff)";
-		  if (precision < 0)
-		    width_adjust += " << 32 >> 32";
-		  break;
-		default: width_adjust = "))";
-		}
-              string type = "";
-	      if (probe_type == uprobe3_type)
-		type = (precision < 0
-			? "(int" : "(uint") + lex_cast(abs(precision) * 8) + "_t)";
-	      type = type + "((";
-              get_arg1->tok = e->tok;
-              get_arg1->code = string("/* unprivileged */ /* pure */")
-                + string(" ((int64_t)") + type
-                + (is_user_module (process_name)
-                   ? string("u_fetch_register(")
-                   : string("k_fetch_register("))
-                + lex_cast(dwarf_regs[regname].first) + string("))")
-		+ width_adjust;
-              argexpr = get_arg1;
-              goto matched;
-            }
-          // invalid register name, fall through
-        }
-
-      int reg, offset1;
-      // test for OFFSET(REGISTER) where OFFSET is +-N+-N+-N
-      // NB: Despite PR11821, we can use regnames here, since the parentheses
-      // make things unambiguous. (Note: gdb/stap-probe.c also parses this)
-      // On ARM test for [REGISTER, OFFSET]
-     if (elf_machine == EM_ARM)
-       {
-         rc = regexp_match (asmarg, string("^\\[(")+regnames+string(")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$"), matches);
-         reg = 1;
-         offset1 = 3;
-       }
-     else
-       {
-         rc = regexp_match (asmarg, string("^([+-]?[0-9]*)([+-][0-9]*)?([+-][0-9]*)?[(](")+regnames+string(")[)]$"), matches);
-         reg = 4;
-         offset1 = 1;
-       }
-      if (! rc)
-        {
-          string regname;
-          int64_t disp = 0;
-          if (matches[reg].length())
-            regname = matches[reg];
-          if (dwarf_regs.find (regname) == dwarf_regs.end())
-            goto not_matched;
-
-          for (int i=offset1; i <= (offset1 + 2); i++)
-            if (matches[i].length())
-              try
-                {
-                  disp += lex_cast<int64_t>(matches[i]); // should decode positive/negative hex/decimal
-                }
-                catch (const runtime_error& f) // unparseable offset
-                  {
-                    goto not_matched; // can't just 'break' out of
-                                      // this case or use a sentinel
-                                      // value, unfortunately
-                  }
-
-                  // synthesize user_long(%{fetch_register(R)%} + D)
-                  embedded_expr *get_arg1 = new embedded_expr;
-                  get_arg1->tok = e->tok;
-                  get_arg1->code = string("/* unprivileged */ /* pure */")
-                    + (is_user_module (process_name)
-                       ? string("u_fetch_register(")
-                       : string("k_fetch_register("))
-                    + lex_cast(dwarf_regs[regname].first) + string(")");
-                  // XXX: may we ever need to cast that to a narrower type?
-
-                  literal_number* inc = new literal_number(disp);
-                  inc->tok = e->tok;
-
-                  binary_expression *be = new binary_expression;
-                  be->tok = e->tok;
-                  be->left = get_arg1;
-                  be->op = "+";
-                  be->right = inc;
-
-                  functioncall *fc = new functioncall;
-		  switch (precision)
-		    {
-		    case 1: case -1:
-		      fc->function = "user_int8"; break;
-		    case 2:
-		      fc->function = "user_uint16"; break;
-		    case -2:
-		      fc->function = "user_int16"; break;
-		    case 4:
-		      fc->function = "user_uint32"; break;
-		    case -4:
-		      fc->function = "user_int32"; break;
-                    case 8: case -8:
-		      fc->function = "user_int64"; break;
-		    default: fc->function = "user_long";
-		    }
-                  fc->tok = e->tok;
-                  fc->args.push_back(be);
-
-                  argexpr = fc;
-                  goto matched;
-                }
-
-      // test for OFFSET(BASE_REGISTER,INDEX_REGISTER[,SCALE]) where OFFSET is +-N+-N+-N
-      // NB: Despite PR11821, we can use regnames here, since the parentheses
-      // make things unambiguous. (Note: gdb/stap-probe.c also parses this)
-      rc = regexp_match (asmarg, string("^([+-]?[0-9]*)([+-][0-9]*)?([+-][0-9]*)?[(](")+regnames+string("),(")+regnames+string(")(,[1248])?[)]$"), matches);
-      if (! rc)
-        {
-          string baseregname;
-          string indexregname;
-          int64_t disp = 0;
-          short scale = 1;
-
-          if (matches[6].length())
-            try
-              {
-                scale = lex_cast<short>(matches[6].substr(1)); // NB: skip the comma!
-                // We could verify that scale is one of 1,2,4,8,
-                // but it doesn't really matter.  An erroneous
-                // address merely results in run-time errors.
-        }
-            catch (const runtime_error &f) // unparseable scale
-              {
-                  goto not_matched;
-              }
-
-          if (matches[4].length())
-            baseregname = matches[4];
-          if (dwarf_regs.find (baseregname) == dwarf_regs.end())
-            goto not_matched;
-
-          if (matches[5].length())
-            indexregname = matches[5];
-          if (dwarf_regs.find (indexregname) == dwarf_regs.end())
-            goto not_matched;
-
-          for (int i = 1; i <= 3; i++) // up to three OFFSET terms
-            if (matches[i].length())
-              try
-                {
-                  disp += lex_cast<int64_t>(matches[i]); // should decode positive/negative hex/decimal
-                }
-              catch (const runtime_error& f) // unparseable offset
-                {
-                  goto not_matched; // can't just 'break' out of
-                  // this case or use a sentinel
-                  // value, unfortunately
-                }
-
-          // synthesize user_long(%{fetch_register(R1)+fetch_register(R2)*N%} + D)
-
-          embedded_expr *get_arg1 = new embedded_expr;
-          string regfn = is_user_module (process_name)
-            ? string("u_fetch_register")
-            : string("k_fetch_register"); // NB: in practice sdt.h probes are for userspace only
-
-          get_arg1->tok = e->tok;
-          get_arg1->code = string("/* unprivileged */ /* pure */")
-            + regfn + string("(")+lex_cast(dwarf_regs[baseregname].first)+string(")")
-            + string("+(")
-            + regfn + string("(")+lex_cast(dwarf_regs[indexregname].first)+string(")")
-            + string("*")
-            + lex_cast(scale)
-            + string(")");
-
-          // NB: could plop this +DISPLACEMENT bit into the embedded-c expression too
-          literal_number* inc = new literal_number(disp);
-          inc->tok = e->tok;
-
-          binary_expression *be = new binary_expression;
-          be->tok = e->tok;
-          be->left = get_arg1;
-          be->op = "+";
-          be->right = inc;
-
-          functioncall *fc = new functioncall;
-          switch (precision)
-            {
-            case 1: case -1:
-              fc->function = "user_int8"; break;
-            case 2:
-              fc->function = "user_uint16"; break;
-            case -2:
-              fc->function = "user_int16"; break;
-            case 4:
-              fc->function = "user_uint32"; break;
-            case -4:
-              fc->function = "user_int32"; break;
-            case 8: case -8:
-              fc->function = "user_int64"; break;
-            default: fc->function = "user_long";
-            }
-          fc->tok = e->tok;
-          fc->args.push_back(be);
-
-          argexpr = fc;
-          goto matched;
-        }
-
-
-    not_matched:
       // The asmarg operand was not recognized.  Back down to dwarf.
       if (! session.suppress_warnings)
         {
           if (probe_type == UPROBE3_TYPE)
-            session.print_warning (_F("Can't parse SDT_V3 operand '%s' [man error::sdt]", asmarg.c_str()), e->tok);
+            session.print_warning (_F("Can't parse SDT_V3 operand '%s' "
+                                      "[man error::sdt]", asmarg.c_str()),
+                                   e->tok);
           else // must be *PROBE2; others don't get asm operands
-            session.print_warning (_F("Downgrading SDT_V2 probe argument to dwarf, can't parse '%s' [man error::sdt]",
-                                      asmarg.c_str()), e->tok);
+            session.print_warning (_F("Downgrading SDT_V2 probe argument to "
+                                      "dwarf, can't parse '%s' [man error::sdt]",
+                                      asmarg.c_str()),
+                                   e->tok);
         }
-      assert (argexpr == 0);
+
       need_debug_info = true;
-      throw SEMANTIC_ERROR(_("SDT asm not understood, requires debuginfo [man error::sdt]"), e->tok);
+      throw SEMANTIC_ERROR(_("SDT asm not understood, requires debuginfo "
+                             "[man error::sdt]"), e->tok);
+
+      /* NOTREACHED */
 
     matched:
       assert (argexpr != 0);
@@ -6300,7 +6475,6 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           if (e->addressof)
             throw SEMANTIC_ERROR(_("cannot take address of sdt variable"), e->tok);
           provide (argexpr);
-          return;
         }
       else  // $var->foo
         {
@@ -6312,10 +6486,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           cast->type_name = probe_name + "_arg" + lex_cast(argno);
           cast->module = process_name;
           cast->visit(this);
-          return;
         }
-
-      /* NOTREACHED */
     }
   catch (const semantic_error &er)
     {
@@ -6438,10 +6609,14 @@ private:
   void handle_probe_entry();
 
   static void setup_note_probe_entry_callback (sdt_query *me,
+                                               const string& scn_name,
+                                               const string& note_name,
                                                int type,
                                                const char *data,
                                                size_t len);
-  void setup_note_probe_entry (int type, const char *data, size_t len);
+  void setup_note_probe_entry (const string& scn_name,
+                               const string& note_name, int type,
+                               const char *data, size_t len);
 
   void convert_probe(probe *base);
   void record_semaphore(vector<derived_probe *> & results, unsigned start);
@@ -6531,9 +6706,9 @@ sdt_query::handle_probe_entry()
   if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
   assert(em);
   int elf_machine = em->e_machine;
-  sdt_uprobe_var_expanding_visitor svv (sess, elf_machine, module_val,
-					provider_name, probe_name,
-					probe_type, arg_string, arg_count);
+  sdt_uprobe_var_expanding_visitor svv (sess, dw, elf_machine, module_val,
+                                        provider_name, probe_name, probe_type,
+                                        arg_string, arg_count);
   svv.replace (new_base->body);
   need_debug_info = svv.need_debug_info;
 
@@ -6650,24 +6825,30 @@ sdt_query::init_probe_scn()
 }
 
 void
-sdt_query::setup_note_probe_entry_callback (sdt_query *me, int type, const char *data, size_t len)
+sdt_query::setup_note_probe_entry_callback (sdt_query *me,
+                                            const string& scn_name,
+                                            const string& note_name, int type,
+                                            const char *data, size_t len)
 {
-  me->setup_note_probe_entry (type, data, len);
+  me->setup_note_probe_entry (scn_name, note_name, type, data, len);
 }
 
 
 void
-sdt_query::setup_note_probe_entry (int type, const char *data, size_t len)
+sdt_query::setup_note_probe_entry (const string& scn_name,
+                                   const string& note_name, int type,
+                                   const char *data, size_t len)
 {
-  //  if (nhdr.n_namesz == sizeof _SDT_NOTE_NAME
-  //      && !memcmp (data->d_buf + name_off,
-  //		  _SDT_NOTE_NAME, sizeof _SDT_NOTE_NAME))
-
-  // probes are in the .note.stapsdt section
+  if (scn_name.compare(".note.stapsdt"))
+    return;
+#define _SDT_NOTE_NAME "stapsdt"
+  if (note_name.compare(_SDT_NOTE_NAME))
+    return;
 #define _SDT_NOTE_TYPE 3
   if (type != _SDT_NOTE_TYPE)
     return;
 
+  // we found a probe entry
   union
   {
     Elf64_Addr a64[3];
@@ -7607,103 +7788,6 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
   map_by_addr.insert(make_pair(addr, fi));
 }
 
-enum info_status
-symbol_table::read_symbols(FILE *f, const string& path)
-{
-  // Based on do_kernel_symbols() in runtime/staprun/symbols.c
-  int ret;
-  char *name = 0;
-  char *mod = 0;
-  char type;
-  unsigned long long addr;
-  Dwarf_Addr high_addr = 0;
-  int line = 0;
-
-#if __GLIBC__ >2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 7)
-#define MS_FMT "%ms"
-#else
-#define MS_FMT "%as"
-#endif
-  // %ms (newer than %as) mallocs space for the string and stores its address.
-  while ((ret = fscanf(f, "%llx %c " MS_FMT " [" MS_FMT, &addr, &type, &name, &mod)) > 0)
-    {
-      auto_free free_name(name);
-      auto_free free_mod(mod);
-      line++;
-      if (ret < 3)
-        {
-          cerr << _F("Symbol table error: Line %d of symbol list from %s is not in correct format: address type name [module]\n",
-                     line, path.c_str());
-          // Caller should delete symbol_table object.
-          return info_absent;
-        }
-      else if (ret > 3)
-        {
-          // Modules are loaded above the kernel, so if we're getting
-          // modules, we're done.
-          break;
-        }
-      if (type == 'T' || type == 't' || type == 'W')
-        add_symbol(name, (type == 'W'), false, (Dwarf_Addr) addr, &high_addr);
-    }
-
-  if (map_by_addr.size() < 1)
-    {
-      cerr << _F("Symbol table error: %s contains no function symbols.\n",
-                 path.c_str()) << endl;
-      return info_absent;
-    }
-  return info_present;
-}
-
-// NB: This currently unused.  We use get_from_elf() instead because
-// that gives us raw addresses -- which we need for modules -- whereas
-// nm provides the address relative to the beginning of the section.
-enum info_status
-symbol_table::read_from_elf_file(const string &path,
-				 systemtap_session &sess)
-{
-  vector<string> cmd;
-  cmd.push_back("/usr/bin/nm");
-  cmd.push_back("-n");
-  cmd.push_back("--defined-only");
-  cmd.push_back("path");
-
-  FILE *f;
-  int child_fd;
-  pid_t child = stap_spawn_piped(sess.verbose, cmd, NULL, &child_fd);
-  if (child <= 0 || !(f = fdopen(child_fd, "r")))
-    {
-      // nm failures are detected by stap_waitpid
-      cerr << _F("Internal error reading symbol table from %s -- %s\n",
-                 path.c_str(), strerror(errno));
-      return info_absent;
-    }
-  enum info_status status = read_symbols(f, path);
-  if (fclose(f) || stap_waitpid(sess.verbose, child))
-    {
-      if (status == info_present)
-        sess.print_warning("nm cannot read symbol table from " + path);
-      return info_absent;
-    }
-  return status;
-}
-
-enum info_status
-symbol_table::read_from_text_file(const string& path,
-				  systemtap_session &sess)
-{
-  FILE *f = fopen(path.c_str(), "r");
-  if (!f)
-    {
-      sess.print_warning("cannot read symbol table from " + path + " -- " + strerror(errno));
-      return info_absent;
-    }
-  enum info_status status = read_symbols(f, path);
-  (void) fclose(f);
-  return status;
-}
-
 void
 symbol_table::prepare_section_rejection(Dwfl_Module *mod __attribute__ ((unused)))
 {
@@ -7793,6 +7877,12 @@ symbol_table::get_from_elf()
       if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
                    reject, addr, &high_addr);
+      if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
+               && GELF_ST_BIND(sym.st_info) == STB_GLOBAL)
+        globals[name] = addr;
+      if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
+               && GELF_ST_BIND(sym.st_info) == STB_LOCAL)
+        locals[name] = addr;
     }
   return info_present;
 }
@@ -7864,7 +7954,7 @@ symbol_table::purge_syscall_stubs()
 }
 
 void
-module_info::get_symtab(base_query *q)
+module_info::get_symtab()
 {
   if (symtab_status != info_unknown)
     return;
@@ -10430,7 +10520,7 @@ int
 tracepoint_query::handle_query_cu(Dwarf_Die * cudie)
 {
   dw.focus_on_cu (cudie);
-  dw.mod_info->get_symtab(this);
+  dw.mod_info->get_symtab();
 
   // look at each function to see if it's a tracepoint
   string function = "stapprobe_" + tracepoint;

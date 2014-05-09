@@ -108,7 +108,7 @@ module_info
   std::set<std::string> plt_funcs;
   std::set<std::pair<std::string,std::string> > marks; /* <provider,name> */
 
-  void get_symtab(base_query *q);
+  void get_symtab();
   void update_symtab(cu_function_cache_t *funcs);
 
   module_info(const char *name) :
@@ -283,11 +283,15 @@ struct dwflpp
 
   template<typename T>
   int iterate_over_notes (T *object,
-			  void (* callback)(T*, int, const char*, size_t))
+                          void (* callback)(T*, const std::string&,
+                                                const std::string&,
+                                                int, const char*, size_t))
     {
       // See comment block in iterate_over_modules()
       return iterate_over_notes<void>((void*)object,
                                       (void (*)(void*,
+                                                const std::string&,
+                                                const std::string&,
                                                 int,
                                                 const char*,
                                                 size_t))callback);
@@ -670,6 +674,8 @@ dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
                                  void *data);
 template<> int
 dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                const std::string&,
+                                                                const std::string&,
                                                                 int,
                                                                 const char*,
                                                                 size_t));
