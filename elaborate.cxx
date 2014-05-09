@@ -4223,6 +4223,15 @@ semantic_pass_types (systemtap_session& s)
   unsigned iterations = 0;
   typeresolution_info ti (s);
 
+  // Globals never have detailed types.
+  // If we null them now, then all remaining vardecls can be detailed.
+  for (unsigned j=0; j<s.globals.size(); j++)
+    {
+      vardecl* gd = s.globals[j];
+      if (!gd->type_details)
+        gd->type_details = ti.null_type;
+    }
+
   ti.assert_resolvability = false;
   // XXX: maybe convert to exception-based error signalling
   while (1)
@@ -4327,11 +4336,18 @@ semantic_pass_types (systemtap_session& s)
 }
 
 
+struct exp_type_null : public exp_type_details
+{
+  uintptr_t id () const { return 0; }
+  bool expandable() const { return false; }
+  functioncall *expand(autocast_op*, bool) { return NULL; }
+};
 
 typeresolution_info::typeresolution_info (systemtap_session& s):
   session(s), num_newly_resolved(0), num_still_unresolved(0),
   assert_resolvability(false), mismatch_complexity(0),
-  current_function(0), current_probe(0), t(pe_unknown)
+  current_function(0), current_probe(0), t(pe_unknown),
+  null_type(new exp_type_null())
 {
 }
 
@@ -4528,6 +4544,21 @@ typeresolution_info::visit_assignment (assignment *e)
           e->left->type != e->right->type)
         mismatch (e);
 
+      // Propagate type details from the RHS to the assignment
+      if (e->type == e->right->type &&
+          e->right->type_details && !e->type_details)
+        resolved_details(e->right->type_details, e->type_details);
+
+      // Propagate type details from the assignment to the LHS
+      if (e->type == e->left->type && e->type_details)
+        {
+          if (e->left->type_details &&
+              *e->left->type_details != *e->type_details &&
+              *e->left->type_details != *null_type)
+            resolved_details(null_type, e->left->type_details);
+          else if (!e->left->type_details)
+            resolved_details(e->type_details, e->left->type_details);
+        }
     }
   else
     throw SEMANTIC_ERROR (_("unsupported assignment operator ") + e->op);
@@ -4640,6 +4671,13 @@ typeresolution_info::visit_ternary_expression (ternary_expression* e)
     }
   else if (e->type != sub_type)
     mismatch (e->tok, sub_type, e->type);
+
+  // Propagate type details from both true/false branches
+  if (!e->type_details &&
+      e->type == e->truevalue->type && e->type == e->falsevalue->type &&
+      e->truevalue->type_details && e->falsevalue->type_details &&
+      *e->truevalue->type_details == *e->falsevalue->type_details)
+    resolved_details(e->truevalue->type_details, e->type_details);
 }
 
 
@@ -4695,6 +4733,22 @@ typeresolution_info::visit_symbol (symbol* e)
                              e->name.c_str()), e->tok);
 
   resolve_2types (e, e->referent, this, t);
+
+  if (e->type == e->referent->type)
+    {
+      // If both have type details, then they either must agree;
+      // otherwise force them both to null.
+      if (e->type_details && e->referent->type_details &&
+          *e->type_details != *e->referent->type_details)
+        {
+          resolved_details(null_type, e->type_details);
+          resolved_details(null_type, e->referent->type_details);
+        }
+      else if (e->type_details && !e->referent->type_details)
+        resolved_details(e->type_details, e->referent->type_details);
+      else if (!e->type_details && e->referent->type_details)
+        resolved_details(e->referent->type_details, e->type_details);
+    }
 }
 
 
@@ -4811,7 +4865,8 @@ typeresolution_info::visit_autocast_op (autocast_op* e)
   e->operand->visit (this);
 
   num_still_unresolved++;
-  if (e->operand->type_details)
+  if (e->operand->type_details &&
+      e->operand->type_details->expandable())
     num_available_autocasts++;
 }
 
@@ -5604,6 +5659,14 @@ typeresolution_info::resolved (const token *tok, exp_type type,
       resolved_type res(tok, decl, index);
       resolved_types.push_back(res);
     }
+}
+
+void
+typeresolution_info::resolved_details (const exp_type_ptr& src,
+                                       exp_type_ptr& dest)
+{
+  num_newly_resolved ++;
+  dest = src;
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

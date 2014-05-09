@@ -437,6 +437,7 @@ struct exp_type_dwarf : public exp_type_details
   exp_type_dwarf(dwflpp* dw, Dwarf_Die* die, bool userspace_p)
     : dw(dw), die(*die), userspace_p(userspace_p) {}
   uintptr_t id () const { return reinterpret_cast<uintptr_t>(die.addr); }
+  bool expandable() const { return true; }
   functioncall *expand(autocast_op* e, bool lvalue);
 };
 
@@ -2695,6 +2696,7 @@ dwarf_pretty_print::expand ()
   fdecl->type = pe_string;
 
   functioncall* fcall = new functioncall;
+  fcall->referent = fdecl;
   fcall->tok = ts->tok;
   fcall->function = fdecl->name;
   fcall->type = pe_string;

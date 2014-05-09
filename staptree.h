@@ -117,8 +117,11 @@ struct exp_type_details
   virtual uintptr_t id () const = 0;
   bool operator==(const exp_type_details& other) const
     { return id () == other.id (); }
+  bool operator!=(const exp_type_details& other) const
+    { return !(*this == other); }
 
   // Expand this autocast_op into a function call
+  virtual bool expandable() const = 0;
   virtual functioncall *expand(autocast_op* e, bool lvalue) = 0;
 };
 typedef shared_ptr<exp_type_details> exp_type_ptr;
@@ -567,6 +570,7 @@ struct symboldecl // unique object per (possibly implicit)
   const token* systemtap_v_conditional; //checking systemtap compatibility
   std::string name;
   exp_type type;
+  exp_type_ptr type_details;
   symboldecl ();
   virtual ~symboldecl ();
   virtual void print (std::ostream &o) const = 0;

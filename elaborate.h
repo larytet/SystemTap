@@ -104,12 +104,17 @@ struct typeresolution_info: public visitor
                  const symboldecl* decl, int index = -1);
   void resolved (const token* tok, exp_type type,
                  const symboldecl* decl = NULL, int index = -1);
+  void resolved_details (const exp_type_ptr& src, exp_type_ptr& dest);
 
   exp_type t; // implicit parameter for nested visit call; may clobber
               // Upon entry to one of the visit_* calls, the incoming
               // `t' value is the type inferred for that node from 
               // context.  It may match or conflict with the node's 
               // preexisting type, or it may be unknown.
+
+  // Expressions with NULL type_details may be as-yet-unknown.
+  // If they have this null_type, they're explicitly *not* a rich type.
+  const exp_type_ptr null_type;
 
   void visit_block (block* s);
   void visit_try_block (try_block* s);
