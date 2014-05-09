@@ -29,7 +29,7 @@
  * more task-specific data.
  */
 function task_current:long () %{ /* pure */
-    STAP_RETVALUE = (long)current;
+    STAP_RETVALUE = (unsigned long)current;
 %}
 
 function _task_rlimit_cur:long (task:long, nd_limit:long)
@@ -238,7 +238,7 @@ function pid2task:long (pid:long) %{ /* pure */
 #endif /* 2.6.24 */
 #endif /* 2.6.31 */
     rcu_read_unlock();
-    STAP_RETVALUE = (long)t;
+    STAP_RETVALUE = (unsigned long)t;
 %}
 
 /**
