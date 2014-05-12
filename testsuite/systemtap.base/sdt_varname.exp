@@ -1,6 +1,11 @@
 set test "sdt_varname"
 set testpath "$srcdir/$subdir"
 
+if {![installtest_p]} {
+   untested "$test"
+   return
+}
+
 # In this testcase, we verify that stap can parse SDT operands of the type
 # [off+]varname[+off][(reg)]. These occur when the operands refer to STB_GLOBAL
 # or STB_LOCAL objects.
@@ -10,8 +15,8 @@ set exepath "$test"
 
 proc test_cleanup {} {
    global sopath exepath
-   #if {[file exists "$sopath"]}  { file delete "$sopath" }
-   #if {[file exists "$exepath"]}   { file delete "$exepath" }
+   if {[file exists "$sopath"]}  { file delete "$sopath" }
+   if {[file exists "$exepath"]}   { file delete "$exepath" }
 }
 
 set failed 0
@@ -19,7 +24,7 @@ set failed 0
 # Compile the shared lib
 set libflags [sdt_includes]
 set libflags "$libflags additional_flags=-shared"
-#set libflags "$libflags additional_flags=-fPIC"
+set libflags "$libflags additional_flags=-fPIC"
 set libflags "$libflags additional_flags=-DSDT_VARNAME_LIB"
 set libflags "$libflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=m"
 set res [target_compile $testpath/$test.c $sopath executable $libflags]
