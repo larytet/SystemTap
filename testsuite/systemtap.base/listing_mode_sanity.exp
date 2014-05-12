@@ -1,4 +1,4 @@
-set test "listing_mode"
+set test "listing_mode_sanity"
 
 # This test is a sanity-check that listing mode (-l and -L) works
 # properly.
