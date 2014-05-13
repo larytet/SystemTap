@@ -155,27 +155,14 @@ probe_point*
 derived_probe::script_location () const
 {
   // This feeds function::pn() in the tapset, which is documented as the
-  // script-level probe point expression, *after wildcard expansion*.  If
-  // it were not for wildcard stuff, we'd just return the last item in the
-  // derivation chain.  But alas ... we need to search for the last one
-  // that doesn't have a * in the textual representation.  Heuristics, eww.
+  // script-level probe point expression, *after wildcard expansion*.
   vector<probe_point*> chain;
   collect_derivation_pp_chain (chain);
 
-  // NB: we actually start looking from the second-to-last item, so the user's
-  // direct input is not considered.  Input like 'kernel.function("init_once")'
-  // will thus be listed with the resolved @file:line too, disambiguating the
-  // distinct functions by this name, and matching our historical behavior.
-  for (int i=chain.size()-2; i>=0; i--)
-    {
-      probe_point pp_copy (* chain [i]);
-      // drop any ?/! denotations that would confuse a glob-char search
-      pp_copy.optional = false;
-      pp_copy.sufficient = false;
-      string pp_printed = lex_cast(pp_copy);
-      if (! contains_glob_chars(pp_printed))
-        return chain[i];
-    }
+  // Go backwards until we hit the first well-formed probe point
+  for (int i=chain.size()-1; i>=0; i--)
+    if (chain[i]->well_formed)
+      return chain[i];
 
   // If that didn't work, just fallback to -something-.
   return sole_location();

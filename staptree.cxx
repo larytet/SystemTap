@@ -95,20 +95,22 @@ symboldecl::~symboldecl ()
 
 probe_point::probe_point (std::vector<component*> const & comps):
   components(comps), optional (false), sufficient (false),
-  from_glob (false), condition (0)
+  from_glob (false), well_formed (false), condition (0)
 {
 }
 
 // NB: shallow-copy of compoonents & condition!
 probe_point::probe_point (const probe_point& pp):
   components(pp.components), optional (pp.optional), sufficient (pp.sufficient),
-  from_glob (pp.from_glob), condition (pp.condition)
+  from_glob (pp.from_glob), well_formed (pp.well_formed),
+  condition (pp.condition)
 {
 }
 
 
 probe_point::probe_point ():
-  optional (false), sufficient (false), from_glob (false), condition (0)
+  optional (false), sufficient (false), from_glob (false),
+  well_formed (false), condition (0)
 {
 }
 
