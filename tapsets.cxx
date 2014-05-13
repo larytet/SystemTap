@@ -1538,6 +1538,8 @@ query_statement (string const & func,
 static void
 query_addr(Dwarf_Addr addr, dwarf_query *q)
 {
+  assert(q->has_function_num || q->has_statement_num);
+
   dwflpp &dw = q->dw;
 
   if (q->sess.verbose > 2)
@@ -1646,8 +1648,16 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
         }
     }
 
+  // We're ready to build a probe, but before, we need to create the final,
+  // well-formed version of this location with all the components filled in
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_FUNCTION, addr, true /* hex */ );
+  q->replace_probe_point_component_arg(TOK_STATEMENT, addr, true /* hex */ );
+
   // Build a probe at this point
   query_statement(dw.function_name, file, line, scope, addr, q);
+
+  q->unmount_well_formed_probe_point();
 }
 
 static void
