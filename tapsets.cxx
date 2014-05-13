@@ -1690,39 +1690,16 @@ query_label (string const & func,
       q->filtered_srcfiles.count(file) == 0)
     return;
 
-  // To help users, we create an intermediate probe point containing the final
-  // function name, as well as the matched label. See query_callee() for
-  // something similar, but with more comments.
+  // Create the final well-formed probe
   string canon_func = q->final_function_name(func, file, line);
 
-  string module = q->dw.module_name;
-  if (q->has_process)
-    module = path_remove_sysroot(q->sess, module);
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+  q->replace_probe_point_component_arg(TOK_LABEL, label);
 
-  probe_point *pp = new probe_point(*q->base_loc);
-  vector<probe_point::component*> pp_comps;
-  vector<probe_point::component*>::iterator it;
-  for (it = pp->components.begin(); it != pp->components.end(); ++it)
-    {
-      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
-        pp_comps.push_back(new probe_point::component((*it)->functor,
-          new literal_string(module)));
-      else if ((*it)->functor == TOK_FUNCTION)
-        pp_comps.push_back(new probe_point::component(TOK_FUNCTION,
-          new literal_string(canon_func)));
-      else if ((*it)->functor == TOK_LABEL)
-        pp_comps.push_back(new probe_point::component(TOK_LABEL,
-          new literal_string(label)));
-      else
-        pp_comps.push_back(*it);
-    }
+  query_statement(func, file, line, scope_die, stmt_addr, q);
 
-  pp->components = pp_comps;
-  dwarf_query q_label(*q);
-  q_label.base_loc = pp;
-  q_label.base_probe = new probe(q->base_probe, pp);
-
-  query_statement(func, file, line, scope_die, stmt_addr, &q_label);
+  q->unmount_well_formed_probe_point();
 }
 
 static void
