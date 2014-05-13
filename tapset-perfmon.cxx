@@ -345,8 +345,14 @@ perf_builder::build(systemtap_session & sess,
     clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64 " process=%s counter=%s",
 	       type, config, period, proc_n.c_str(), var.c_str()) << endl;
 
+  // The user-provided pp is already well-formed. Let's add a copy on the chain
+  // and set it as the new base
+  probe_point *new_location = new probe_point(*location);
+  new_location->well_formed = true;
+  probe *new_base = new probe(base, new_location);
+
   finished_results.push_back
-    (new perf_derived_probe(base, location, type, config, period, proc_p,
+    (new perf_derived_probe(new_base, location, type, config, period, proc_p,
 			    has_counter, proc_n, var));
   if (!var.empty())
     sess.perf_counters[var] = make_pair(proc_n,finished_results.back());
