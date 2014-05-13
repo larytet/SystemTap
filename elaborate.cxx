@@ -4184,7 +4184,61 @@ semantic_pass_optimize2 (systemtap_session& s)
 struct autocast_expanding_visitor: public var_expanding_visitor
 {
   typeresolution_info& ti;
-  autocast_expanding_visitor(typeresolution_info& ti): ti(ti) {}
+  autocast_expanding_visitor (typeresolution_info& ti): ti(ti) {}
+
+  void resolve_functioncall (functioncall* fc)
+    {
+      // This is a very limited version of semantic_pass_symbols, but we're
+      // late in the game at this point.  We won't get a chance to optimize,
+      // but for now the only functions we expect are kernel/user_string from
+      // pretty-printing, which don't need optimization.
+
+      systemtap_session& s = ti.session;
+      size_t nfiles = s.files.size();
+
+      symresolution_info sym (s);
+      sym.current_function = ti.current_function;
+      sym.current_probe = ti.current_probe;
+      fc->visit (&sym);
+
+      // NB: synthetic functions get tacked onto the origin file, so we won't
+      // see them growing s.files[].  Traverse it directly.
+      if (fc->referent)
+        {
+          functiondecl* fd = fc->referent;
+          sym.current_function = fd;
+          sym.current_probe = 0;
+          fd->body->visit (&sym);
+        }
+
+      while (nfiles < s.files.size())
+        {
+          stapfile* dome = s.files[nfiles++];
+          for (size_t i = 0; i < dome->functions.size(); ++i)
+            {
+              functiondecl* fd = dome->functions[i];
+              sym.current_function = fd;
+              sym.current_probe = 0;
+              fd->body->visit (&sym);
+              // NB: not adding to s.functions just yet...
+            }
+        }
+
+      // Add only the direct functions we need.
+      functioncall_traversing_visitor ftv;
+      fc->visit (&ftv);
+      for (set<functiondecl*>::iterator it = ftv.traversed.begin();
+           it != ftv.traversed.end(); ++it)
+        {
+          functiondecl* fd = *it;
+          pair<map<string,functiondecl*>::iterator,bool> inserted =
+            s.functions.insert (make_pair (fd->name, fd));
+          if (!inserted.second && inserted.first->second != fd)
+            throw SEMANTIC_ERROR
+              (_F("resolved function '%s' conflicts with an existing function",
+                  fd->name.c_str()), fc->tok);
+        }
+    }
 
   void visit_autocast_op (autocast_op* e)
     {
@@ -4192,10 +4246,12 @@ struct autocast_expanding_visitor: public var_expanding_visitor
       const exp_type_ptr& details = e->operand->type_details;
       if (details)
         {
-          functioncall* n = details->expand (e, lvalue);
-          if (n)
+          functioncall* fc = details->expand (e, lvalue);
+          if (fc)
             {
               ti.num_newly_resolved++;
+
+              resolve_functioncall (fc);
 
               if (lvalue)
                 {
@@ -4203,10 +4259,10 @@ struct autocast_expanding_visitor: public var_expanding_visitor
                   // used to substitute for the assignment node immediately above
                   // us.
                   assert(!target_symbol_setter_functioncalls.empty());
-                  *(target_symbol_setter_functioncalls.top()) = n;
+                  *(target_symbol_setter_functioncalls.top()) = fc;
                 }
 
-              n->visit (this);
+              fc->visit (this);
               return;
             }
         }
