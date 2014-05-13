@@ -9786,18 +9786,35 @@ hwbkpt_builder::build(systemtap_session & sess,
   has_write = (parameters.find(TOK_HWBKPT_WRITE) != parameters.end());
   has_rw = (parameters.find(TOK_HWBKPT_RW) != parameters.end());
 
+  // Make an intermediate pp that is well-formed. It's pretty much the same as
+  // the user-provided one, except that the addr literal is well-typed.
+  probe_point* well_formed_loc = new probe_point(*location);
+  well_formed_loc->well_formed = true;
+
+  vector<probe_point::component*> well_formed_comps;
+  vector<probe_point::component*>::iterator it;
+  for (it = location->components.begin();
+      it != location->components.end(); ++it)
+    if ((*it)->functor == TOK_HWBKPT && has_addr)
+      well_formed_comps.push_back(new probe_point::component(TOK_HWBKPT,
+          new literal_number(hwbkpt_address, true /* hex */ )));
+    else
+      well_formed_comps.push_back(*it);
+  well_formed_loc->components = well_formed_comps;
+  probe *new_base = new probe (base, well_formed_loc);
+
   if (!has_len)
 	len = 1;
 
   if (has_addr)
-      finished_results.push_back (new hwbkpt_derived_probe (base,
+      finished_results.push_back (new hwbkpt_derived_probe (new_base,
 							    location,
 							    hwbkpt_address,
 							    "",len,0,
 							    has_write,
 							    has_rw));
   else if (has_symbol_str)
-      finished_results.push_back (new hwbkpt_derived_probe (base,
+      finished_results.push_back (new hwbkpt_derived_probe (new_base,
 							    location,
 							    0,
 							    symbol_str_val,len,0,
