@@ -4254,13 +4254,7 @@ struct autocast_expanding_visitor: public var_expanding_visitor
               resolve_functioncall (fc);
 
               if (lvalue)
-                {
-                  // Provide the functioncall to our parent, so that it can be
-                  // used to substitute for the assignment node immediately above
-                  // us.
-                  assert(!target_symbol_setter_functioncalls.empty());
-                  *(target_symbol_setter_functioncalls.top()) = fc;
-                }
+                provide_lvalue_call (fc);
 
               fc->visit (this);
               return;

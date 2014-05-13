@@ -2424,6 +2424,16 @@ var_expanding_visitor::var_expanding_visitor (): op()
 }
 
 
+void
+var_expanding_visitor::provide_lvalue_call(functioncall* fcall)
+{
+  // Provide the functioncall to our parent, so that it can be used to
+  // substitute for the assignment node immediately above us.
+  assert(!target_symbol_setter_functioncalls.empty());
+  *(target_symbol_setter_functioncalls.top()) = fcall;
+}
+
+
 bool
 var_expanding_visitor::rewrite_lvalue(const token* tok, const std::string& eop,
                                       expression*& lvalue, expression*& rvalue)
@@ -3909,13 +3919,7 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
                                                       userspace_p, lvalue, e);
 
       if (lvalue)
-        {
-          // Provide the functioncall to our parent, so that it can be
-          // used to substitute for the assignment node immediately above
-          // us.
-          assert(!target_symbol_setter_functioncalls.empty());
-          *(target_symbol_setter_functioncalls.top()) = n;
-        }
+	provide_lvalue_call (n);
 
       // Revisit the functioncall so arguments can be expanded.
       n->visit (this);
@@ -4229,13 +4233,7 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
     }
 
   if (lvalue)
-    {
-      // Provide the functioncall to our parent, so that it can be
-      // used to substitute for the assignment node immediately above
-      // us.
-      assert(!target_symbol_setter_functioncalls.empty());
-      *(target_symbol_setter_functioncalls.top()) = result;
-    }
+    provide_lvalue_call (result);
 
   result->visit (this);
 }
@@ -4429,13 +4427,7 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
           s.unwindsym_modules.insert(module);
 
           if (lvalue)
-            {
-              // Provide the functioncall to our parent, so that it can be
-              // used to substitute for the assignment node immediately above
-              // us.
-              assert(!target_symbol_setter_functioncalls.empty());
-              *(target_symbol_setter_functioncalls.top()) = result;
-            }
+	    provide_lvalue_call (result);
 
           result->visit(this);
           return;
@@ -9880,13 +9872,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
                                                       userspace_p, lvalue, e, e2);
 
       if (lvalue)
-        {
-          // Provide the functioncall to our parent, so that it can be
-          // used to substitute for the assignment node immediately above
-          // us.
-          assert(!target_symbol_setter_functioncalls.empty());
-          *(target_symbol_setter_functioncalls.top()) = n;
-        }
+	provide_lvalue_call (n);
 
       // Revisit the functioncall so arguments can be expanded.
       n->visit (this);

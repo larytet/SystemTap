@@ -512,13 +512,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       n->function = fname;
 
       if (lvalue)
-        {
-          // Provide the functioncall to our parent, so that it can be
-          // used to substitute for the assignment node immediately above
-          // us.
-          assert(!target_symbol_setter_functioncalls.empty());
-          *(target_symbol_setter_functioncalls.top()) = n;
-        }
+        provide_lvalue_call (n);
 
       provide (n);
     }
