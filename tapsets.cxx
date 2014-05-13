@@ -1735,61 +1735,25 @@ query_callee (base_func_info& callee,
   assert (q->has_callee || q->has_callees_num);
 
   // OK, we found a callee for a targeted caller. To help users see the
-  // derivation, let's add an intermediate probe to the chain. E.g. right now we
-  // have .function(pattern).callee(pattern) (or .callees) and we want to add as
-  // the next step .function(caller).callee(callee). This is the step that will
-  // show up as well when in listing mode.
+  // derivation, we add the well-formed form .function(caller).callee(callee).
 
-  // To add this intermediate probe, we first create it and then create a new
-  // dwarf_query with that probe as base.
-
-  // Build final names for caller and callee
   string canon_caller = q->final_function_name(caller.name, caller.decl_file,
                                                caller.decl_line);
   string canon_callee = q->final_function_name(callee.name, callee.decl_file,
                                                callee.decl_line);
 
-  // Build the intermediate probe. We replace the function arg with the final
-  // caller, and the callee arg with the final callee. Also, since the
-  // process(str) or module(str) currently in the base_loc is still the one the
-  // user typed in (not necessarily the same as the absolute path we get in the
-  // sole location), we also replace that (otherwise, function(str).* will
-  // return a mishmash of absolute and relative paths in listing mode).
-
-  string module = q->dw.module_name;
-  if (q->has_process)
-    module = path_remove_sysroot(q->sess, module);
-
-  probe_point *pp = new probe_point(*q->base_loc);
-  vector<probe_point::component*> pp_comps;
-  vector<probe_point::component*>::iterator it;
-  for (it = pp->components.begin(); it != pp->components.end(); ++it)
-    {
-      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
-        pp_comps.push_back(new probe_point::component((*it)->functor,
-          new literal_string(module)));
-      else if ((*it)->functor == TOK_FUNCTION)
-        pp_comps.push_back(new probe_point::component(TOK_FUNCTION,
-          new literal_string(canon_caller)));
-      else if ((*it)->functor == TOK_CALLEE || (*it)->functor == TOK_CALLEES)
-        pp_comps.push_back(new probe_point::component(TOK_CALLEE,
-          new literal_string(canon_callee)));
-      else
-        pp_comps.push_back(*it);
-    }
-
-  // Finally create the new probe and the new query (use copy-constructor
-  // instead of creating from scratch so we don't have to rebuild param map)
-  pp->components = pp_comps;
-  dwarf_query q_callee(*q);
-  q_callee.base_loc = pp;
-  q_callee.base_probe = new probe(q->base_probe, pp);
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_FUNCTION, canon_caller);
+  q->replace_probe_point_component_arg(TOK_CALLEES, TOK_CALLEE, canon_callee);
+  q->replace_probe_point_component_arg(TOK_CALLEE, canon_callee);
 
   // Pass on the callers we'll need to add checks for
-  q_callee.callers = callers;
+  q->callers = callers;
 
   query_statement(callee.name, callee.decl_file, callee.decl_line,
-                  &callee.die, callee.entrypc, &q_callee);
+                  &callee.die, callee.entrypc, q);
+
+  q->unmount_well_formed_probe_point();
 }
 
 static void
