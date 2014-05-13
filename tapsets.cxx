@@ -2369,7 +2369,6 @@ build_library_probe(dwflpp& dw,
                     probe_point *base_loc)
 {
   probe_point* specific_loc = new probe_point(*base_loc);
-  specific_loc->optional = true;
   specific_loc->from_glob = true;
   vector<probe_point::component*> derived_comps;
 
@@ -2401,8 +2400,16 @@ query_one_library (const char *library, dwflpp & dw,
     {
       string library_path = find_executable (library, "", dw.sess.sysenv,
                                              "LD_LIBRARY_PATH");
-      probe *new_base = build_library_probe(dw, library_path, base_probe, base_loc);
-      derive_probes(dw.sess, new_base, results);
+      probe *new_base = build_library_probe(dw, library_path,
+                                            base_probe, base_loc);
+
+      // We pass true for the optional parameter of derive_probes() here to
+      // indicate that we don't mind if the probe doesn't resolve. This is
+      // because users expect wildcarded probe points to only apply to a subset
+      // of matching libraries, in the sense of "any", rather than "all", just
+      // like module("*") and process("*"). See also dwarf_builder::build().
+      derive_probes(dw.sess, new_base, results, true /* optional */ );
+
       if (dw.sess.verbose > 2)
         clog << _("module=") << library_path << endl;
       return true;

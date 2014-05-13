@@ -965,6 +965,19 @@ derive_probes (systemtap_session& s,
                bool optional,
                bool rethrow_errors)
 {
+  // We need a static to track whether the current probe is optional so that
+  // even if we recurse into derive_probes with optional = false, errors will
+  // still be ignored. The undo_parent_optional bool ensures we reset the
+  // static at the same level we had it set.
+  static bool parent_optional = false;
+  bool undo_parent_optional = false;
+
+  if (optional && !parent_optional)
+    {
+      parent_optional = true;
+      undo_parent_optional = true;
+    }
+
   vector <semantic_error> optional_errs;
 
   for (unsigned i = 0; i < p->locations.size(); ++i)
@@ -980,19 +993,13 @@ derive_probes (systemtap_session& s,
         {
           unsigned num_atbegin = dps.size();
 
-          // Pass down optional flag from e.g. alias reference to each
-          // probe_point instance.  We do this by temporarily overriding
-          // the probe_point optional flag.  We could instead deep-copy
-          // and set a flag on the copy permanently.
-          bool old_loc_opt = loc->optional;
-          loc->optional = loc->optional || optional;
           try
 	    {
 	      s.pattern_root->find_and_build (s, p, loc, 0, dps); // <-- actual derivation!
 	    }
           catch (const semantic_error& e)
 	    {
-              if (!loc->optional)
+              if (!loc->optional && !parent_optional)
                 throw semantic_error(e);
               else /* tolerate failure for optional probe */
                 {
@@ -1005,10 +1012,9 @@ derive_probes (systemtap_session& s,
                 }
 	    }
 
-          loc->optional = old_loc_opt;
           unsigned num_atend = dps.size();
 
-          if (! (loc->optional||optional) && // something required, but
+          if (! (loc->optional||parent_optional) && // something required, but
               num_atbegin == num_atend) // nothing new derived!
             throw SEMANTIC_ERROR (_("no match"));
 
@@ -1060,6 +1066,9 @@ derive_probes (systemtap_session& s,
             }
         }
     }
+
+  if (undo_parent_optional)
+    parent_optional = false;
 }
 
 
