@@ -8783,6 +8783,7 @@ struct kprobe_derived_probe: public derived_probe
 			probe_point *location,
 			const string& name,
 			int64_t stmt_addr,
+			bool has_call,
 			bool has_return,
 			bool has_statement,
 			bool has_maxactive,
@@ -8794,6 +8795,7 @@ struct kprobe_derived_probe: public derived_probe
 			);
   string symbol_name;
   Dwarf_Addr addr;
+  bool has_call;
   bool has_return;
   bool has_statement;
   bool has_maxactive;
@@ -8843,6 +8845,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    probe_point *location,
 					    const string& name,
 					    int64_t stmt_addr,
+					    bool has_call,
 					    bool has_return,
 					    bool has_statement,
 					    bool has_maxactive,
@@ -8853,7 +8856,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    const string& library
 					    ):
   derived_probe (base, location, true /* .components soon rewritten */ ),
-  symbol_name (name), addr (stmt_addr),
+  symbol_name (name), addr (stmt_addr), has_call (has_call),
   has_return (has_return), has_statement (has_statement),
   has_maxactive (has_maxactive), has_path (has_path),
   has_library (has_library),
@@ -8893,6 +8896,8 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
         comps.push_back (new probe_point::component(TOK_FUNCTION, new literal_string(name)));
     }
 
+  if (has_call)
+    comps.push_back (new probe_point::component(TOK_CALL));
   if (has_return)
     comps.push_back (new probe_point::component(TOK_RETURN));
   if (has_maxactive)
@@ -8920,9 +8925,9 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 
       derived_probe *entry_handler
 	= new kprobe_derived_probe (sess, results, base, location, name, 0,
-				    false, has_statement, has_maxactive,
-				    has_path, has_library, maxactive_val,
-				    path, library);
+				    true /* has_call */, false /* has_return */,
+				    has_statement, has_maxactive, has_path,
+				    has_library, maxactive_val, path, library);
       results.push_back (entry_handler);
 
       base->body = old_body;
@@ -9344,11 +9349,12 @@ kprobe_builder::build(systemtap_session & sess,
   string path, library, path_tgt, library_tgt;
   int64_t statement_num_val = 0, maxactive_val = 0;
   bool has_function_str, has_module_str, has_statement_num;
-  bool has_absolute, has_return, has_maxactive;
+  bool has_absolute, has_call, has_return, has_maxactive;
   bool has_path, has_library;
 
   has_function_str = get_param(parameters, TOK_FUNCTION, function_string_val);
   has_module_str = get_param(parameters, TOK_MODULE, module_string_val);
+  has_call = has_null_param (parameters, TOK_CALL);
   has_return = has_null_param (parameters, TOK_RETURN);
   has_maxactive = get_param(parameters, TOK_MAXACTIVE, maxactive_val);
   has_statement_num = get_param(parameters, TOK_STATEMENT, statement_num_val);
@@ -9376,9 +9382,10 @@ kprobe_builder::build(systemtap_session & sess,
 	  derived_probe *dp
 	    = new kprobe_derived_probe (sess, finished_results, base,
 					location, function_string_val,
-					0, has_return, has_statement_num,
-					has_maxactive, has_path, has_library,
-					maxactive_val, path_tgt, library_tgt);
+					0, has_call, has_return,
+					has_statement_num, has_maxactive,
+					has_path, has_library, maxactive_val,
+					path_tgt, library_tgt);
 	  finished_results.push_back (dp);
 	}
       else
@@ -9405,8 +9412,8 @@ kprobe_builder::build(systemtap_session & sess,
 	    {
               derived_probe *dp
                 = new kprobe_derived_probe (sess, finished_results, base,
-                                            location, *it, 0, has_return,
-                                            has_statement_num,
+                                            location, *it, 0, has_call,
+                                            has_return, has_statement_num,
                                             has_maxactive, has_path,
                                             has_library, maxactive_val,
                                             path_tgt, library_tgt);
@@ -9425,6 +9432,7 @@ kprobe_builder::build(systemtap_session & sess,
 							    base,
 							    location, "",
 							    statement_num_val,
+							    has_call,
 							    has_return,
 							    has_statement_num,
 							    has_maxactive,
