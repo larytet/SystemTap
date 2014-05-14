@@ -3195,7 +3195,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                                         bool lvalue,
                                         const target_symbol *e,
                                         string &,
-                                        string &,
+                                        string & postlude,
                                         Dwarf_Die *typedie)
 {
   /* First boil away any qualifiers associated with the type DIE of
@@ -3304,6 +3304,9 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
           }
       break;
     }
+
+  if (lvalue)
+    postlude += "  STAP_RETVALUE = STAP_ARG_value;\n";
 }
 
 
