@@ -7108,7 +7108,13 @@ sdt_query::convert_probe (probe *base)
 probe*
 sdt_query::convert_location ()
 {
+  string module = dw.module_name;
+  if (has_process)
+    module = path_remove_sysroot(sess, module);
+
   probe_point* specific_loc = new probe_point(*base_loc);
+  specific_loc->well_formed = true;
+
   vector<probe_point::component*> derived_comps;
 
   vector<probe_point::component*>::iterator it;
@@ -7116,6 +7122,10 @@ sdt_query::convert_location ()
        it != specific_loc->components.end(); ++it)
     if ((*it)->functor == TOK_PROCESS)
       {
+        // replace the possibly incomplete path to process
+        *it = new probe_point::component(TOK_PROCESS,
+                new literal_string(has_library ? path : module));
+
         // copy the process name
         derived_comps.push_back(*it);
       }
