@@ -3805,8 +3805,11 @@ expression* parser::parse_perf_op (const token* t)
 bool
 parser::peek_target_symbol_components ()
 {
-  return peek_op ("->") || peek_op ("[")
-    || tok_is (peek (), tok_identifier, "$");
+  const token * t = peek ();
+  return t &&
+    ((t->type == tok_operator && (t->content == "->" || t->content == "["))
+     || (t->type == tok_identifier &&
+         t->content.find_first_not_of('$') == string::npos));
 }
 
 void
