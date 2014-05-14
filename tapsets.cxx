@@ -741,6 +741,20 @@ struct dwarf_query : public base_query
   void unmount_well_formed_probe_point();
   stack<pair<probe_point*, probe*> > previous_bases;
 
+  void replace_probe_point_component_arg(const string& functor,
+                                         const string& new_functor,
+                                         int64_t new_arg,
+                                         bool hex = false);
+  void replace_probe_point_component_arg(const string& functor,
+                                         int64_t new_arg,
+                                         bool hex = false);
+  void replace_probe_point_component_arg(const string& functor,
+                                         const string& new_functor,
+                                         const string& new_arg);
+  void replace_probe_point_component_arg(const string& functor,
+                                         const string& new_arg);
+  void remove_probe_point_component(const string& functor);
+
   // Track addresses we've already seen in a given module
   set<Dwarf_Addr> alias_dupes;
 
@@ -1336,6 +1350,70 @@ dwarf_query::unmount_well_formed_probe_point()
   base_probe = previous_bases.top().second;
 
   previous_bases.pop();
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               const string& new_functor,
+                                               int64_t new_arg,
+                                               bool hex)
+{
+  // only allow these operations if we're editing the well-formed loc
+  assert(!previous_bases.empty());
+
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    if ((*it)->functor == functor)
+      *it = new probe_point::component(new_functor,
+              new literal_number(new_arg, hex));
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               int64_t new_arg,
+                                               bool hex)
+{
+  replace_probe_point_component_arg(functor, functor, new_arg, hex);
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               const string& new_functor,
+                                               const string& new_arg)
+{
+  // only allow these operations if we're editing the well-formed loc
+  assert(!previous_bases.empty());
+
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    if ((*it)->functor == functor)
+      *it = new probe_point::component(new_functor,
+              new literal_string(new_arg));
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               const string& new_arg)
+{
+  replace_probe_point_component_arg(functor, functor, new_arg);
+}
+
+void
+dwarf_query::remove_probe_point_component(const string& functor)
+{
+  // only allow these operations if we're editing the well-formed loc
+  assert(!previous_bases.empty());
+
+  vector<probe_point::component*> new_comps;
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    if ((*it)->functor != functor)
+      new_comps.push_back(*it);
+
+  base_loc->components = new_comps;
 }
 
 enum dbinfo_reqt
