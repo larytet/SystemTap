@@ -1679,8 +1679,20 @@ query_plt_statement(dwarf_query *q)
   q->dw.get_module_dwarf(false, false);
   addr -= q->dw.module_bias;
 
+  // Create the final well-formed probe point
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_STATEMENT, q->statement_num_val, true /* hex */ );
+
+  // We remove the .plt part here, since if the user provided a .plt probe, then
+  // the higher-level probe point is already well-formed. On the other hand, if
+  // the user provides a .plt(PATTERN).statement(0xABCD), the PATTERN is
+  // irrelevant (we won't iterate over plts) so just take it out.
+  q->remove_probe_point_component(TOK_PLT);
+
   // Build a probe at this point
   query_statement(q->plt_val, NULL, -1, NULL, addr, q);
+
+  q->unmount_well_formed_probe_point();
 }
 
 static void
@@ -2422,9 +2434,15 @@ base_query::query_plt_callback (base_query *me, const char *entry, size_t addres
 void
 query_one_plt (const char *entry, long addr, dwflpp & dw,
     probe * base_probe, probe_point *base_loc,
-    vector<derived_probe *> & results)
+    vector<derived_probe *> & results, base_query *q)
 {
+      string module = dw.module_name;
+      if (q->has_process)
+        module = path_remove_sysroot(dw.sess, module);
+
       probe_point* specific_loc = new probe_point(*base_loc);
+      specific_loc->well_formed = true;
+
       vector<probe_point::component*> derived_comps;
 
       if (dw.sess.verbose > 2)
@@ -2433,8 +2451,16 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
       vector<probe_point::component*>::iterator it;
       for (it = specific_loc->components.begin();
           it != specific_loc->components.end(); ++it)
-        if ((*it)->functor == TOK_PLT)
+        if ((*it)->functor == TOK_PROCESS)
           {
+            // Replace with fully resolved path
+            *it = new probe_point::component(TOK_PROCESS,
+                    new literal_string(q->has_library ? q->path : module));
+            derived_comps.push_back(*it);
+          }
+        else if ((*it)->functor == TOK_PLT)
+          {
+            // Replace possibly globby component
             *it = new probe_point::component(TOK_PLT,
                                              new literal_string(entry));
             derived_comps.push_back(*it);
@@ -2457,7 +2483,7 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
 void
 dwarf_query::query_plt (const char *entry, size_t address)
 {
-  query_one_plt (entry, address, dw, base_probe, base_loc, results);
+  query_one_plt (entry, address, dw, base_probe, base_loc, results, this);
 }
 
 // This would more naturally fit into elaborate.cxx:semantic_pass_symbols,
