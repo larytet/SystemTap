@@ -1767,8 +1767,17 @@ query_func_info (Dwarf_Addr entrypc,
 		 func_info & fi,
 		 dwarf_query * q)
 {
+  assert(q->has_function_str || q->has_statement_str);
+
   try
     {
+      string canon_func = q->final_function_name(fi.name, fi.decl_file,
+                                                 fi.decl_line);
+
+      q->mount_well_formed_probe_point();
+      q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+      q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
+
       // If it's a .return probe, we need to emit a *retprobe based on the
       // entrypc (PR13200). Note however that if prologue_end is valid,
       // dwarf_derived_probe will still take advantage of it by creating a new
@@ -1784,6 +1793,8 @@ query_func_info (Dwarf_Addr entrypc,
           query_statement (fi.name, fi.decl_file, fi.decl_line,
                            &fi.die, fi.prologue_end, q);
         }
+
+      q->unmount_well_formed_probe_point();
     }
   catch (semantic_error &e)
     {
