@@ -1854,9 +1854,19 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
             clog << _("filtered DIE lands on srcfile\n");
           Dwarf_Die scope;
           q->dw.inner_die_containing_pc(i->die, addr, scope);
+
+          string canon_func = q->final_function_name(i->name, i->decl_file,
+                                                     lineno /* NB: not i->decl_line */ );
+
+          q->mount_well_formed_probe_point();
+          q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+          q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
+
           query_statement (i->name, i->decl_file,
                            lineno, // NB: not q->line !
                            &scope, addr, q);
+
+          q->unmount_well_formed_probe_point();
         }
     }
 }
