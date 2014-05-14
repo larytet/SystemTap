@@ -1750,11 +1750,23 @@ query_inline_instance_info (inline_instance_info & ii,
   try
     {
       assert (! q->has_return); // checked by caller already
+      assert (q->has_function_str || q->has_statement_str);
+
       if (q->sess.verbose>2)
         clog << _F("querying entrypc %#" PRIx64 " of instance of inline '%s'\n",
                    ii.entrypc, ii.name.c_str());
+
+      string canon_func = q->final_function_name(ii.name, ii.decl_file,
+                                                 ii.decl_line);
+
+      q->mount_well_formed_probe_point();
+      q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+      q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
+
       query_statement (ii.name, ii.decl_file, ii.decl_line,
                        &ii.die, ii.entrypc, q);
+
+      q->unmount_well_formed_probe_point();
     }
   catch (semantic_error &e)
     {
