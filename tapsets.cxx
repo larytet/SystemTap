@@ -737,6 +737,10 @@ struct dwarf_query : public base_query
 		       Dwarf_Die *scope_die,
 		       Dwarf_Addr addr);
 
+  void mount_well_formed_probe_point();
+  void unmount_well_formed_probe_point();
+  stack<pair<probe_point*, probe*> > previous_bases;
+
   // Track addresses we've already seen in a given module
   set<Dwarf_Addr> alias_dupes;
 
@@ -1292,6 +1296,46 @@ dwarf_query::add_probe_point(const string& dw_funcname,
           break;
         }
     }
+}
+
+void
+dwarf_query::mount_well_formed_probe_point()
+{
+  string module = dw.module_name;
+  if (has_process)
+    module = path_remove_sysroot(sess, module);
+
+  vector<probe_point::component*> comps;
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    {
+      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
+        comps.push_back(new probe_point::component((*it)->functor,
+          new literal_string(has_library ? path : module)));
+      else
+        comps.push_back(*it);
+    }
+
+  probe_point *pp = new probe_point(*base_loc);
+  pp->well_formed = true;
+  pp->components = comps;
+
+  previous_bases.push(make_pair(base_loc, base_probe));
+
+  base_loc = pp;
+  base_probe = new probe(base_probe, pp);
+}
+
+void
+dwarf_query::unmount_well_formed_probe_point()
+{
+  assert(!previous_bases.empty());
+
+  base_loc = previous_bases.top().first;
+  base_probe = previous_bases.top().second;
+
+  previous_bases.pop();
 }
 
 enum dbinfo_reqt
