@@ -347,6 +347,8 @@ struct target_symbol: public expression
   void visit_components (visitor* u);
   void visit_components (update_visitor* u);
   void assert_no_components(const std::string& tapset, bool pretty_ok=false);
+  size_t pretty_print_depth () const;
+  bool check_pretty_print (bool lvalue=false) const;
 };
 
 std::ostream& operator << (std::ostream& o, const target_symbol::component& c);

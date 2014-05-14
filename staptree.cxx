@@ -274,6 +274,32 @@ target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
 }
 
 
+size_t
+target_symbol::pretty_print_depth () const
+{
+  if (! components.empty ())
+    {
+      const component& last = components.back ();
+      if (last.type == comp_pretty_print)
+	return last.member.length ();
+    }
+  return 0;
+}
+
+
+bool
+target_symbol::check_pretty_print (bool lvalue) const
+{
+  if (pretty_print_depth () == 0)
+    return false;
+
+  if (lvalue)
+    throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), tok);
+
+  return true;
+}
+
+
 void target_symbol::chain (const semantic_error &er)
 {
   semantic_error* e = new semantic_error(er);

@@ -2676,10 +2676,10 @@ dwarf_pretty_print::init_ts (const target_symbol& e)
   if (ts->addressof)
     throw SEMANTIC_ERROR(_("cannot take address of pretty-printed variable"), ts->tok);
 
-  if (ts->components.empty() ||
-      ts->components.back().type != target_symbol::comp_pretty_print)
+  size_t depth = ts->pretty_print_depth ();
+  if (depth == 0)
     throw SEMANTIC_ERROR(_("invalid target_symbol for pretty-print"), ts->tok);
-  print_full = ts->components.back().member.length() > 1;
+  print_full = depth > 1;
   ts->components.pop_back();
 }
 
@@ -3688,8 +3688,7 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 
   target_symbol *tsym = new target_symbol(*e);
 
-  bool pretty = (!e->components.empty() &&
-                 e->components[0].type == target_symbol::comp_pretty_print);
+  bool pretty = e->check_pretty_print ();
   string format = pretty ? "=%s" : "=%#x";
 
   // Convert $$parms to sprintf of a list of parms and active local vars
@@ -3879,12 +3878,8 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
           return;
         }
 
-      if (!e->components.empty() &&
-          e->components.back().type == target_symbol::comp_pretty_print)
+      if (e->check_pretty_print (lvalue))
         {
-          if (lvalue)
-            throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), e->tok);
-
           if (q.has_return && (e->name == "$return"))
             {
               dwarf_pretty_print dpp (q.dw, scope_die, addr,
@@ -4105,12 +4100,8 @@ dwarf_cast_query::handle_query_module()
       Dwarf_Die cu_mem;
       dw.focus_on_cu(dwarf_diecu(type_die, &cu_mem, NULL, NULL));
 
-      if (!e.components.empty() &&
-          e.components.back().type == target_symbol::comp_pretty_print)
+      if (e.check_pretty_print (lvalue))
         {
-          if (lvalue)
-            throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), e.tok);
-
           dwarf_pretty_print dpp(dw, type_die, e.operand, true, userspace_p, e);
           result = dpp.expand();
           return;
@@ -4249,12 +4240,8 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
       Dwarf_Die cu_mem;
       dw->focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
-      if (!e->components.empty() &&
-	  e->components.back().type == target_symbol::comp_pretty_print)
+      if (e->check_pretty_print (lvalue))
 	{
-	  if (lvalue)
-	    throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), e->tok);
-
 	  dwarf_pretty_print dpp(*dw, &die, e->operand, true, userspace_p, *e);
 	  return dpp.expand();
 	}
@@ -4329,8 +4316,7 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
 
       q->dw.focus_on_cu (cudie);
 
-      if (! q->e.components.empty() &&
-          q->e.components.back().type == target_symbol::comp_pretty_print)
+      if (q->e.check_pretty_print (q->lvalue))
         {
           dwarf_pretty_print dpp (q->dw, scopes, 0, q->e.sym_name(),
                                   q->userspace_p, q->e);
@@ -5938,8 +5924,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
           tsym->components = e->components;
 
           expression *texp = require<expression> (tsym);
-          if (!e->components.empty() &&
-              e->components[0].type == target_symbol::comp_pretty_print)
+          if (e->check_pretty_print ())
             pf->raw_components += "=%s";
           else
             pf->raw_components += "=%#x";
@@ -9850,11 +9835,8 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       target_symbol* e2 = deep_copy_visitor::deep_copy(e);
       e2->components.clear();
 
-      if (e->components.back().type == target_symbol::comp_pretty_print)
+      if (e->check_pretty_print (lvalue))
         {
-          if (lvalue)
-            throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), e->tok);
-
           dwarf_pretty_print dpp(dw, &arg->type_die, e2, arg->isptr, false, *e);
           dpp.expand()->visit (this);
           return;
@@ -9931,8 +9913,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
               continue;
             }
 
-          if (!e->components.empty() &&
-              e->components[0].type == target_symbol::comp_pretty_print)
+          if (e->check_pretty_print ())
             pf->raw_components += "=%s";
           else
             pf->raw_components += args[i].isptr ? "=%p" : "=%#x";
