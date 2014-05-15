@@ -800,10 +800,14 @@ alias_derived_probe::alias_derived_probe(probe *base, probe_point *l,
   // XXX pretty nasty -- this was cribbed from printscript() in main.cxx
   assert (alias->alias_names.size() >= 1);
   alias_loc = new probe_point(*alias->alias_names[0]); // XXX: [0] is arbitrary; it would make just as much sense to collect all of the names
-  if (suffix) {
-    alias_loc->components.insert(alias_loc->components.end(),
-                                 suffix->begin(), suffix->end());
-  }
+  alias_loc->well_formed = true;
+  vector<probe_point::component*>::const_iterator it;
+  for (it = suffix->begin(); it != suffix->end(); ++it)
+    {
+      alias_loc->components.push_back(*it);
+      if (isglob((*it)->functor))
+        alias_loc->well_formed = false; // needs further derivation
+    }
 }
 
 alias_derived_probe::~alias_derived_probe ()
