@@ -829,7 +829,7 @@ struct dwarf_query : public base_query
   void query_module_functions ();
 
   string final_function_name(const string& final_func,
-                             const string& final_file,
+                             const char* final_file,
                              int final_line);
 };
 
@@ -1457,13 +1457,13 @@ dwarf_query::assess_dbinfo_reqt()
 
 string
 dwarf_query::final_function_name(const string& final_func,
-                                 const string& final_file,
+                                 const char* final_file,
                                  int final_line)
 {
   string final_name = final_func;
-  if (final_file != "")
+  if (final_file && *final_file != '\0')
     {
-      final_name += ("@" + final_file);
+      final_name += ("@" + string(final_file));
       if (final_line > 0)
         final_name += (":" + lex_cast(final_line));
     }
@@ -4832,7 +4832,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   if (q.has_function_str || q.has_statement_str)
       {
-        string retro_name = q.final_function_name(funcname, filename, line);
+        string retro_name = q.final_function_name(funcname, filename.c_str(), line);
         comps.push_back
           (new probe_point::component
            (fn_or_stmt, new literal_string (retro_name)));
