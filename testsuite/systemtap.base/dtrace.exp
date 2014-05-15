@@ -176,14 +176,16 @@ verbose -log "$dtrace -C -I$incpath -h -s $idpath -o XXX.h"
 catch {exec $dtrace -C -I$incpath -h -s $idpath -o XXX.h}
 spawn cat XXX.h
 expect {
-    "DTRACE_PROBE (tstsyscall, test0)" {incr ok}
-    "short arg1, int arg2, int arg3, int arg4" {incr ok}
+    -re {DTRACE_PROBE \(tstsyscall, test0\)} {incr ok; exp_continue}
+    -re {short arg1, int arg2, int arg3, int arg4} {incr ok; exp_continue}
+    -re {DTRACE_PROBE. \(tstsyscall, test., arg1, arg2, arg3, arg4, arg5\)} {incr ok}
+    eof { }
 }
 catch {close}; catch {wait}
-if { $ok != 3} {
+if { $ok == 4} {
     pass "dtrace -C -Iincpath -h -o XXX.h"
 } else {
-    fail "dtrace -C -Iincpath -h -o XXX.h"
+    fail "dtrace -C -Iincpath -h -o XXX.h $ok"
 }
 exec rm -f XXX.h
 
@@ -192,14 +194,16 @@ verbose -log "$dtrace -C --no-pyparsing -I$incpath -h -s $idpath -o XXX.h"
 catch {exec $dtrace -C --no-pyparsing -I$incpath -h -s $idpath -o XXX.h}
 spawn cat XXX.h
 expect {
-    "DTRACE_PROBE (tstsyscall, test0)" {incr ok}
-    "short arg1, int arg2, int arg3, int arg4" {incr ok}
+    -re {DTRACE_PROBE \(tstsyscall, test0\)} {incr ok; exp_continue}
+    -re {short arg1, int arg2, int arg3, int arg4} {incr ok; exp_continue}
+    -re {DTRACE_PROBE. \(tstsyscall, test., arg1, arg2, arg3, arg4, arg5\)} {incr ok}
+    eof { }
 }
 catch {close}; catch {wait}
-if { $ok != 3} {
+if { $ok == 4} {
     pass "dtrace -C --no-pyparsing -Iincpath -h -o XXX.h"
 } else {
-    fail "dtrace -C --no-pyparsing -Iincpath -h -o XXX.h"
+    fail "dtrace -C --no-pyparsing -Iincpath -h -o XXX.h $ok"
 }
 exec rm -f XXX.h
 

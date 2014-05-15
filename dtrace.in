@@ -253,8 +253,8 @@ class _ReProvider(_HeaderCreator):
                     else:
                         arg = arg + argstr[i]
                     i += 1
-                args.append(arg.split())
-
+                if len(arg) > 0:
+                    args.append(arg.split())
                 probes_def += self.add_probe(self.provider, this_probe, args)
             elif line.find("}") != -1 and have_provider:
                 have_provider = False
