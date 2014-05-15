@@ -1696,7 +1696,7 @@ query_plt_statement(dwarf_query *q)
 }
 
 static void
-query_label (string const & func,
+query_label (const base_func_info& func,
              char const * label,
              char const * file,
              int line,
@@ -1713,13 +1713,13 @@ query_label (string const & func,
     return;
 
   // Create the final well-formed probe
-  string canon_func = q->final_function_name(func, file, line);
+  string canon_func = q->final_function_name(func.name, file, line);
 
   q->mount_well_formed_probe_point();
   q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
   q->replace_probe_point_component_arg(TOK_LABEL, label);
 
-  query_statement(func, file, line, scope_die, stmt_addr, q);
+  query_statement(func.name, file, line, scope_die, stmt_addr, q);
 
   q->unmount_well_formed_probe_point();
 }
@@ -1824,18 +1824,6 @@ query_func_info (Dwarf_Addr entrypc,
     {
       q->sess.print_error (e);
     }
-}
-
-
-static void
-query_srcfile_label (Dwarf_Addr addr, int lineno, dwarf_query * q)
-{
-  base_func_info_map_t bfis = q->filtered_all();
-  base_func_info_map_t::iterator i;
-  for (i = bfis.begin(); i != bfis.end(); ++i)
-    if (q->dw.die_has_pc (i->die, addr))
-      q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                 q, query_label);
 }
 
 static void
@@ -2044,32 +2032,16 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
             (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
         q->dw.resolve_prologue_endings (q->filtered_functions);
 
-      if (q->spec_type == function_file_and_line)
+      if (q->has_label)
         {
-          // .statement(...:NN) often gets mixed up with .function(...:NN)
-          if (q->has_function_str)
-            q->sess.print_warning (_("For probing a particular line, use a "
-                                   ".statement() probe, not .function()"),
-                                   q->base_probe->tok);
-
-          void (* callback) (Dwarf_Addr, int, dwarf_query*) =
-            q->has_label ? query_srcfile_label : query_srcfile_line;
-
-          base_func_info_map_t bfis = q->filtered_all();
-
-          set<string>::const_iterator srcfile;
-          for (srcfile  = q->filtered_srcfiles.begin();
-               srcfile != q->filtered_srcfiles.end(); ++srcfile)
-            q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
-                                             q->lineno_type, bfis, callback, q);
-        }
-      else if (q->has_label)
-        {
+          enum lineno_t lineno_type = WILDCARD;
+          if (q->spec_type == function_file_and_line)
+            lineno_type = q->lineno_type;
           base_func_info_map_t bfis = q->filtered_all();
           base_func_info_map_t::iterator i;
           for (i = bfis.begin(); i != bfis.end(); ++i)
-            q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                       q, query_label);
+            q->dw.iterate_over_labels (&i->die, q->label_val, *i, q->linenos,
+                                       lineno_type, q, query_label);
         }
       else if (q->has_callee || q->has_callees_num)
         {
@@ -2092,6 +2064,23 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                           callees_num_val,
                                           q, query_callee, *i);
             }
+        }
+      else if (q->spec_type == function_file_and_line)
+        {
+          // .statement(...:NN) often gets mixed up with .function(...:NN)
+          if (q->has_function_str)
+            q->sess.print_warning (_("For probing a particular line, use a "
+                                   ".statement() probe, not .function()"),
+                                   q->base_probe->tok);
+
+          base_func_info_map_t bfis = q->filtered_all();
+
+          set<string>::const_iterator srcfile;
+          for (srcfile  = q->filtered_srcfiles.begin();
+               srcfile != q->filtered_srcfiles.end(); ++srcfile)
+            q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
+                                             q->lineno_type, bfis,
+                                             query_srcfile_line, q);
         }
       else
         {
