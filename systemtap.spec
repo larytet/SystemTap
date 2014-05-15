@@ -39,6 +39,7 @@
 %{!?with_mokutil: %global with_mokutil 0}
 %{!?with_openssl: %global with_openssl 0}
 %endif
+%{!?with_pyparsing: %global with_pyparsing 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 
 %ifarch ppc64le
 %global with_virthost 0
@@ -277,6 +278,9 @@ Summary: Static probe support tools
 Group: Development/System
 License: GPLv2+ and Public Domain
 URL: http://sourceware.org/systemtap/
+%if %{with_pyparsing}
+Requires: pyparsing
+%endif
 
 %description sdt-devel
 This package includes the <sys/sdt.h> header file used for static
