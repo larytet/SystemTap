@@ -656,6 +656,13 @@ keywords: <a href="keyword-index.html#SIGNALS">SIGNALS</a> <br>
 <li><a href="general/helloworld.stp">general/helloworld.stp</a> - SystemTap "Hello World" Program<br>
 keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>A basic &quot;Hello World&quot; program implemented in SystemTap script. It prints out &quot;hello world&quot; message and then immediately exits.<p><font size="-2"><pre># stap helloworld.stp</pre></font></p>
+</li><li><a href="general/py2example.stp">general/py2example.stp</a> - SystemTap python 2 support tapset<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>A python support tapset that displays backtraces and variable values <p><font size="-2"><pre># stap -I tapset -c &#39;/usr/bin/python2 pyexample.py 35&#39; py2example.stp</pre></font></p>
+</li><li><a href="general/py3example.stp">general/py3example.stp</a> - SystemTap python 3 support tapset<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>A python support tapset that displays backtraces and variable values<p><font size="-2"><pre># stap -g --suppress-time-limits -I tapset -c &#39;/usr/bin/python3 \
+pyexample.py 35&#39; py3example.stp</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).<p><font size="-2"><pre># stap -g eatmydata.stp -c &#39;strace ls || true&#39;</pre></font></p>
@@ -689,7 +696,10 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li></ul>
 <h3><a name="STAPGAMES"><a href="#STAPGAMES">&para;</a> STAPGAMES</a></h3>
 <ul>
-<li><a href="stapgames/block.stp">stapgames/block.stp</a> - block breaker game<br>
+<li><a href="stapgames/2048.stp">stapgames/2048.stp</a> - 2048<br>
+keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
+<p>The modern classic 2048 sliding-tiles game, using local keyboard and ansi animation.<p><font size="-2"><pre># stap -p4 2048.stp</pre></font></p>
+</li><li><a href="stapgames/block.stp">stapgames/block.stp</a> - block breaker game<br>
 keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
 <p>A block game where you progressively break the ceiling blocks until clearing the level<p><font size="-2"><pre># stap -p4 -Itapset/ block.stp</pre></font></p>
 </li><li><a href="stapgames/eater.stp">stapgames/eater.stp</a> - eater game<br>
