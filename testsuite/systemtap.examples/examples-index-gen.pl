@@ -173,7 +173,7 @@ print KEYHTML "<p><tt>";
 foreach $keyword (sort keys %keywords) {
     print KEYHTML '<a href="#' . (uc $keyword) . '">'
 		  . (uc $keyword)
-                  . " (". (scalar keys @{$keywords{$keyword}}). ")</a>";
+                  . "(". (scalar keys @{$keywords{$keyword}}). ")</a> ";
 }
 print KEYHTML "</tt></p>\n";
 
