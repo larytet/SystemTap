@@ -1233,8 +1233,9 @@ dwarf_query::add_probe_point(const string& dw_funcname,
       clog << " pc=0x" << hex << addr << dec;
     }
 
-  bool bad = dw.blacklisted_p (funcname, filename, line, module,
-                               addr, has_return);
+  dwflpp::blacklisted_type blacklisted = dw.blacklisted_p (funcname, filename,
+                                                           line, module, addr,
+                                                           has_return);
   if (sess.verbose > 1)
     clog << endl;
 
@@ -1245,7 +1246,7 @@ dwarf_query::add_probe_point(const string& dw_funcname,
       reloc_section = "_stext"; // a message to runtime's _stp_module_relocate
     }
 
-  if (! bad)
+  if (!blacklisted)
     {
       sess.unwindsym_modules.insert (module);
 
@@ -1262,6 +1263,33 @@ dwarf_query::add_probe_point(const string& dw_funcname,
           results.push_back (new dwarf_derived_probe(funcname, filename, line,
                                                      module, reloc_section, addr, reloc_addr,
                                                      *this, scope_die));
+        }
+    }
+  else
+    {
+      switch (blacklisted)
+        {
+        case dwflpp::blacklisted_section:
+          sess.print_warning(_F("function %s is in blacklisted section",
+                                funcname.c_str()), base_probe->tok);
+          break;
+        case dwflpp::blacklisted_kprobes:
+          sess.print_warning(_F("kprobes function %s is blacklisted",
+                                funcname.c_str()), base_probe->tok);
+          break;
+        case dwflpp::blacklisted_function_return:
+          sess.print_warning(_F("function %s return probe is blacklisted",
+                                funcname.c_str()), base_probe->tok);
+          break;
+        case dwflpp::blacklisted_file:
+          sess.print_warning(_F("function %s is in blacklisted file",
+                                funcname.c_str()), base_probe->tok);
+          break;
+        case dwflpp::blacklisted_function:
+        default:
+          sess.print_warning(_F("function %s is blacklisted",
+                                funcname.c_str()), base_probe->tok);
+          break;
         }
     }
 }

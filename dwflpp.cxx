@@ -3691,7 +3691,7 @@ in_kprobes_function(systemtap_session& sess, Dwarf_Addr addr)
 }
 
 
-bool
+enum dwflpp::blacklisted_type
 dwflpp::blacklisted_p(const string& funcname,
                       const string& filename,
                       int,
@@ -3700,50 +3700,44 @@ dwflpp::blacklisted_p(const string& funcname,
                       bool has_return)
 {
   if (!blacklist_enabled)
-    return false;
+    return dwflpp::blacklisted_none;
 
-  bool blacklisted = false;
+  enum dwflpp::blacklisted_type blacklisted = dwflpp::blacklisted_none;
 
   // check against section blacklist
   string section = get_blacklist_section(addr);
+
   // PR6503: modules don't need special init/exit treatment
   if (module == TOK_KERNEL && !regexec (&blacklist_section, section.c_str(), 0, NULL, 0))
-    {
-      blacklisted = true;
-      if (sess.verbose>1)
-        clog << _(" init/exit");
-    }
+    blacklisted = dwflpp::blacklisted_section;
 
   // Check for function marked '__kprobes'.
-  if (module == TOK_KERNEL && in_kprobes_function(sess, addr))
+  else if (module == TOK_KERNEL && in_kprobes_function(sess, addr))
+    blacklisted = dwflpp::blacklisted_kprobes;
+
+  // Check probe point against function blacklist
+  else if (!regexec(&blacklist_func, funcname.c_str(), 0, NULL, 0))
+    blacklisted = dwflpp::blacklisted_function;
+
+  // Check probe point against function return blacklist
+  else if (has_return && !regexec(&blacklist_func_ret, funcname.c_str(), 0, NULL, 0))
+    blacklisted = dwflpp::blacklisted_function_return;
+
+  // Check probe point against file blacklist
+  else if (!regexec(&blacklist_file, filename.c_str(), 0, NULL, 0))
+    blacklisted = dwflpp::blacklisted_file;
+
+  if (blacklisted)
     {
-      blacklisted = true;
       if (sess.verbose>1)
-        clog << _(" __kprobes");
+        clog << _(" - blacklisted");
+      if (sess.guru_mode)
+        {
+          blacklisted = dwflpp::blacklisted_none;
+          if (sess.verbose>1)
+            clog << _(" but not skipped (guru mode enabled)");
+        }
     }
-
-  // Check probe point against file/function blacklists.
-  int goodfn = regexec (&blacklist_func, funcname.c_str(), 0, NULL, 0);
-  if (has_return)
-    goodfn = goodfn && regexec (&blacklist_func_ret, funcname.c_str(), 0, NULL, 0);
-  int goodfile = regexec (&blacklist_file, filename.c_str(), 0, NULL, 0);
-
-  if (! (goodfn && goodfile))
-    {
-      blacklisted = true;
-      if (sess.verbose>1)
-        clog << _(" file/function blacklist");
-    }
-
-  if (sess.guru_mode && blacklisted)
-    {
-      blacklisted = false;
-      if (sess.verbose>1)
-        clog << _(" - not skipped (guru mode enabled)");
-    }
-
-  if (blacklisted && sess.verbose>1)
-    clog << _(" - skipped");
 
   // This probe point is not blacklisted.
   return blacklisted;

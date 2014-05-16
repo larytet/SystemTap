@@ -436,12 +436,21 @@ struct dwflpp
                                    const target_symbol *e,
                                    Dwarf_Die *die_mem);
 
-  bool blacklisted_p(const std::string& funcname,
-                     const std::string& filename,
-                     int line,
-                     const std::string& module,
-                     Dwarf_Addr addr,
-                     bool has_return);
+  enum blacklisted_type
+    {  blacklisted_none, // not blacklisted
+       blacklisted_section,
+       blacklisted_kprobes,
+       blacklisted_function,
+       blacklisted_function_return,
+       blacklisted_file
+    };
+
+  blacklisted_type blacklisted_p(const std::string& funcname,
+                                 const std::string& filename,
+                                 int line,
+                                 const std::string& module,
+                                 Dwarf_Addr addr,
+                                 bool has_return);
 
   Dwarf_Addr relocate_address(Dwarf_Addr addr, std::string& reloc_section);
 
