@@ -1766,6 +1766,9 @@ systemtap_session::parse_kernel_functions ()
     }
   system_map.close();
 
+  if (kernel_functions.size() == 0)
+    print_warning ("Kernel function symbol table missing [man warning::symbols]", 0);
+
   if (verbose > 2)
     clog << _F("Parsed kernel \"%s\", ", system_map_path.c_str())
          << _NF("containing %zu symbol", "containing %zu symbols",
