@@ -67,9 +67,9 @@ probe __nd_syscall.socketcall.accept = kprobe.function("sys_socketcall").call ?
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_ACCEPT %}) next;
 	__args = pointer_arg(2)
-	sockfd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	addr_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	addrlen_uaddr = user_ulong(&@cast(__args, "ulong")[2])
+	sockfd = __int32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[0]))
+	addr_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[1])
+	addrlen_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[2])
 }
 probe __nd_syscall.compat_socketcall.accept =
 	kprobe.function("compat_sys_socketcall").call ?
@@ -77,9 +77,9 @@ probe __nd_syscall.compat_socketcall.accept =
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_ACCEPT %}) next;
 	__args = pointer_arg(2)
-	sockfd = user_int(&@cast(__args, "unsigned int")[0])
-	addr_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int")[2])
+	sockfd = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
+	addr_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
+	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
 }
 probe nd_syscall.accept.return = __nd_syscall.accept.return ?,
 	__nd_syscall.socketcall.accept.return ?
@@ -129,10 +129,10 @@ probe __nd_syscall.socketcall.accept4 = kprobe.function("sys_socketcall").call ?
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_ACCEPT4 %}) next;
 	__args = pointer_arg(2)
-	sockfd = __int32(user_ulong(&@cast(__args, "ulong")[0]))
-	addr_uaddr = user_ulong(&@cast(__args, "ulong")[1])
-	addrlen_uaddr = user_ulong(&@cast(__args, "ulong")[2])
-	flags = __int32(user_ulong(&@cast(__args, "ulong")[3]))
+	sockfd = __int32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[0]))
+	addr_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[1])
+	addrlen_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[2])
+	flags = __int32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[3]))
 }
 probe __nd_syscall.compat_socketcall.accept4 =
 	kprobe.function("compat_sys_socketcall").call ?
@@ -140,10 +140,10 @@ probe __nd_syscall.compat_socketcall.accept4 =
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_ACCEPT4 %}) next;
 	__args = pointer_arg(2)
-	sockfd = user_int(&@cast(__args, "unsigned int")[0])
-	addr_uaddr = user_uint32(&@cast(__args, "unsigned int")[1])
-	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int")[2])
-	flags = user_int(&@cast(__args, "unsigned int")[3])
+	sockfd = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
+	addr_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
+	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
+	flags = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[3])
 }
 probe nd_syscall.accept4.return = __nd_syscall.accept4.return ?,
 	__nd_syscall.socketcall.accept4.return ?
