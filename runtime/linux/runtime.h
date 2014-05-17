@@ -97,7 +97,7 @@ static void _stp_exit(void);
 #ifdef STAPCONF_TASK_UID
 #define STP_CURRENT_EUID (current->euid)
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 #ifndef STAPCONF_FROM_KUID_MUNGED
 #define from_kuid_munged(user_ns, uid) ((uid))
 #define from_kgid_munged(user_ns, gid) ((gid))
