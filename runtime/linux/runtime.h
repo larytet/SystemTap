@@ -97,11 +97,15 @@ static void _stp_exit(void);
 #ifdef STAPCONF_TASK_UID
 #define STP_CURRENT_EUID (current->euid)
 #else
-#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-#ifndef STAPCONF_FROM_KUID_MUNGED
+
+/* intending to catch old distros where from_k*id_munged didn't exist or weren't exported; 
+   we lack a programmatic way of catching this right now. */
+#ifdef STAP_FAKE_KID_MUNGED
 #define from_kuid_munged(user_ns, uid) ((uid))
 #define from_kgid_munged(user_ns, gid) ((gid))
-#endif /* !STAPCONF_FROM_KUID_MUNGED */
+#endif
+
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 #define STP_CURRENT_EUID (from_kuid_munged(current_user_ns(), task_euid(current)))
 #else
 #define STP_CURRENT_EUID (task_euid(current))
