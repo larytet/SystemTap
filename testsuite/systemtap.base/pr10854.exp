@@ -4,8 +4,9 @@
 
 set test "pr10854"
 
-# precompile the script module
-set compile { exec stap $srcdir/$subdir/$test.stp sys_read vfs*@fs/*.c -p4 }
+# precompile the script module (use -w to suppress warnings re. blacklisted
+# functions such as vfs_caches_init_early())
+set compile { exec stap -w $srcdir/$subdir/$test.stp sys_read vfs*@fs/*.c -p4 }
 if { [catch { set module [eval $compile] } msg ] } {
     fail "compiling $test.stp: $msg"
     untested "$test runloop"
