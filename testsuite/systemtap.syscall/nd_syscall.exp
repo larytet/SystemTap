@@ -19,7 +19,7 @@ proc test_procedure {} {
     # here, then just use it down in run_one_test(). The test script
     # uses wildcards to cover every syscall and takes time to parse.
     set script "$srcdir/$subdir/${test_script}"
-    set cmd "stap -p4 -m ${test_module_name} --skip-badvars ${script}"
+    set cmd "SYSTEMTAP_DEBUGINFO_PATH=/dev/null stap -p4 -m ${test_module_name} --skip-badvars ${script}"
     exec /bin/rm -f ${test_module}
     catch {eval exec $cmd} output
     send_log $output
