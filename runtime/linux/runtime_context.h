@@ -20,10 +20,10 @@ static int _stp_runtime_contexts_alloc(void)
 	for_each_possible_cpu(cpu) {
 		/* Module init, so in user context, safe to use
 		 * "sleeping" allocation. */
-		contexts[cpu] = _stp_kzalloc_gfp(sizeof(struct context),
-						 STP_ALLOC_SLEEP_FLAGS);
+                contexts[cpu] = _stp_vzalloc_node(sizeof (struct context),
+                                                  cpu_to_node(cpu));
 		if (contexts[cpu] == NULL) {
-			_stp_error ("context (size %lu) allocation failed",
+			_stp_error ("context (size %lu per cpu) allocation failed",
 				    (unsigned long) sizeof (struct context));
 			return -ENOMEM;
 		}
@@ -37,7 +37,7 @@ static void _stp_runtime_contexts_free(void)
 
 	for_each_possible_cpu(cpu) {
 		if (contexts[cpu] != NULL) {
-			_stp_kfree(contexts[cpu]);
+			_stp_vfree(contexts[cpu]);
 			contexts[cpu] = NULL;
 		}
 	}
