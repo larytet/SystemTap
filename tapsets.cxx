@@ -11506,7 +11506,6 @@ all_session_groups(systemtap_session& s)
   DOONE(utrace);
   DOONE(itrace);
   DOONE(dynprobe);
-  DOONE(java);
   DOONE(task_finder);
 #undef DOONE
   return g;
