@@ -629,23 +629,21 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
       has_statement = get_number_param(params, TOK_STATEMENT, statement_num_val);
 
       if (has_process)
-        module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
-      if (has_library)
         {
-          if (! contains_glob_chars (library_name))
-            {
-              path = path_remove_sysroot(sess, module_val);
-              module_val = find_executable (library_name, sess.sysroot,
-                                            sess.sysenv, "LD_LIBRARY_PATH");
-	      if (module_val.find('/') == string::npos)
-		{
-		  // We didn't find library_name so use iterate_over_libraries
-		  module_val = path;
-		  path = library_name;
-		}
-            }
-          else
-            path = library_name;
+          module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
+          if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
+            throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
+                                    module_val.c_str()));
+        }
+
+      // Library probe? Let's target that instead if it is fully resolved (such
+      // as what query_one_library() would have done for us). Otherwise, we
+      // resort to iterate_over_libraries().
+      if (has_library && is_fully_resolved(library_name, sess.sysroot, sess.sysenv,
+                                           "LD_LIBRARY_PATH"))
+        {
+          path = path_remove_sysroot(sess, module_val);
+          module_val = library_name;
         }
     }
 
@@ -725,6 +723,9 @@ struct dwarf_query : public base_query
   string user_path;
   string user_lib;
 
+  set<string> visited_libraries;
+  bool resolved_library;
+
   virtual void handle_query_module();
   void query_module_dwarf();
   void query_module_symtab();
@@ -736,6 +737,24 @@ struct dwarf_query : public base_query
 		       int line,
 		       Dwarf_Die *scope_die,
 		       Dwarf_Addr addr);
+
+  void mount_well_formed_probe_point();
+  void unmount_well_formed_probe_point();
+  stack<pair<probe_point*, probe*> > previous_bases;
+
+  void replace_probe_point_component_arg(const string& functor,
+                                         const string& new_functor,
+                                         int64_t new_arg,
+                                         bool hex = false);
+  void replace_probe_point_component_arg(const string& functor,
+                                         int64_t new_arg,
+                                         bool hex = false);
+  void replace_probe_point_component_arg(const string& functor,
+                                         const string& new_functor,
+                                         const string& new_arg);
+  void replace_probe_point_component_arg(const string& functor,
+                                         const string& new_arg);
+  void remove_probe_point_component(const string& functor);
 
   // Track addresses we've already seen in a given module
   set<Dwarf_Addr> alias_dupes;
@@ -811,7 +830,7 @@ struct dwarf_query : public base_query
   void query_module_functions ();
 
   string final_function_name(const string& final_func,
-                             const string& final_file,
+                             const char* final_file,
                              int final_line);
 };
 
@@ -881,7 +900,8 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 const string user_lib)
   : base_query(dw, params), results(results), base_probe(base_probe),
     base_loc(base_loc), user_path(user_path), user_lib(user_lib),
-    callers(NULL), has_relative(false), relative_val(0), prologue_end(0)
+    resolved_library(false), callers(NULL), has_relative(false),
+    relative_val(0), prologue_end(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
@@ -1294,6 +1314,110 @@ dwarf_query::add_probe_point(const string& dw_funcname,
     }
 }
 
+void
+dwarf_query::mount_well_formed_probe_point()
+{
+  string module = dw.module_name;
+  if (has_process)
+    module = path_remove_sysroot(sess, module);
+
+  vector<probe_point::component*> comps;
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    {
+      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
+        comps.push_back(new probe_point::component((*it)->functor,
+          new literal_string(has_library ? path : module)));
+      else
+        comps.push_back(*it);
+    }
+
+  probe_point *pp = new probe_point(*base_loc);
+  pp->well_formed = true;
+  pp->components = comps;
+
+  previous_bases.push(make_pair(base_loc, base_probe));
+
+  base_loc = pp;
+  base_probe = new probe(base_probe, pp);
+}
+
+void
+dwarf_query::unmount_well_formed_probe_point()
+{
+  assert(!previous_bases.empty());
+
+  base_loc = previous_bases.top().first;
+  base_probe = previous_bases.top().second;
+
+  previous_bases.pop();
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               const string& new_functor,
+                                               int64_t new_arg,
+                                               bool hex)
+{
+  // only allow these operations if we're editing the well-formed loc
+  assert(!previous_bases.empty());
+
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    if ((*it)->functor == functor)
+      *it = new probe_point::component(new_functor,
+              new literal_number(new_arg, hex));
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               int64_t new_arg,
+                                               bool hex)
+{
+  replace_probe_point_component_arg(functor, functor, new_arg, hex);
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               const string& new_functor,
+                                               const string& new_arg)
+{
+  // only allow these operations if we're editing the well-formed loc
+  assert(!previous_bases.empty());
+
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    if ((*it)->functor == functor)
+      *it = new probe_point::component(new_functor,
+              new literal_string(new_arg));
+}
+
+void
+dwarf_query::replace_probe_point_component_arg(const string& functor,
+                                               const string& new_arg)
+{
+  replace_probe_point_component_arg(functor, functor, new_arg);
+}
+
+void
+dwarf_query::remove_probe_point_component(const string& functor)
+{
+  // only allow these operations if we're editing the well-formed loc
+  assert(!previous_bases.empty());
+
+  vector<probe_point::component*> new_comps;
+  vector<probe_point::component*>::iterator it;
+  for (it  = base_loc->components.begin();
+       it != base_loc->components.end(); ++it)
+    if ((*it)->functor != functor)
+      new_comps.push_back(*it);
+
+  base_loc->components = new_comps;
+}
+
 enum dbinfo_reqt
 dwarf_query::assess_dbinfo_reqt()
 {
@@ -1335,13 +1459,13 @@ dwarf_query::assess_dbinfo_reqt()
 
 string
 dwarf_query::final_function_name(const string& final_func,
-                                 const string& final_file,
+                                 const char* final_file,
                                  int final_line)
 {
   string final_name = final_func;
-  if (final_file != "")
+  if (final_file && *final_file != '\0')
     {
-      final_name += ("@" + final_file);
+      final_name += ("@" + string(final_file));
       if (final_line > 0)
         final_name += (":" + lex_cast(final_line));
     }
@@ -1416,6 +1540,8 @@ query_statement (string const & func,
 static void
 query_addr(Dwarf_Addr addr, dwarf_query *q)
 {
+  assert(q->has_function_num || q->has_statement_num);
+
   dwflpp &dw = q->dw;
 
   if (q->sess.verbose > 2)
@@ -1524,8 +1650,16 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
         }
     }
 
+  // We're ready to build a probe, but before, we need to create the final,
+  // well-formed version of this location with all the components filled in
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_FUNCTION, addr, true /* hex */ );
+  q->replace_probe_point_component_arg(TOK_STATEMENT, addr, true /* hex */ );
+
   // Build a probe at this point
   query_statement(dw.function_name, file, line, scope, addr, q);
+
+  q->unmount_well_formed_probe_point();
 }
 
 static void
@@ -1547,12 +1681,24 @@ query_plt_statement(dwarf_query *q)
   q->dw.get_module_dwarf(false, false);
   addr -= q->dw.module_bias;
 
+  // Create the final well-formed probe point
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_STATEMENT, q->statement_num_val, true /* hex */ );
+
+  // We remove the .plt part here, since if the user provided a .plt probe, then
+  // the higher-level probe point is already well-formed. On the other hand, if
+  // the user provides a .plt(PATTERN).statement(0xABCD), the PATTERN is
+  // irrelevant (we won't iterate over plts) so just take it out.
+  q->remove_probe_point_component(TOK_PLT);
+
   // Build a probe at this point
   query_statement(q->plt_val, NULL, -1, NULL, addr, q);
+
+  q->unmount_well_formed_probe_point();
 }
 
 static void
-query_label (string const & func,
+query_label (const base_func_info& func,
              char const * label,
              char const * file,
              int line,
@@ -1568,39 +1714,16 @@ query_label (string const & func,
       q->filtered_srcfiles.count(file) == 0)
     return;
 
-  // To help users, we create an intermediate probe point containing the final
-  // function name, as well as the matched label. See query_callee() for
-  // something similar, but with more comments.
-  string canon_func = q->final_function_name(func, file, line);
+  // Create the final well-formed probe
+  string canon_func = q->final_function_name(func.name, file, line);
 
-  string module = q->dw.module_name;
-  if (q->has_process)
-    module = path_remove_sysroot(q->sess, module);
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+  q->replace_probe_point_component_arg(TOK_LABEL, label);
 
-  probe_point *pp = new probe_point(*q->base_loc);
-  vector<probe_point::component*> pp_comps;
-  vector<probe_point::component*>::iterator it;
-  for (it = pp->components.begin(); it != pp->components.end(); ++it)
-    {
-      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
-        pp_comps.push_back(new probe_point::component((*it)->functor,
-          new literal_string(module)));
-      else if ((*it)->functor == TOK_FUNCTION)
-        pp_comps.push_back(new probe_point::component(TOK_FUNCTION,
-          new literal_string(canon_func)));
-      else if ((*it)->functor == TOK_LABEL)
-        pp_comps.push_back(new probe_point::component(TOK_LABEL,
-          new literal_string(label)));
-      else
-        pp_comps.push_back(*it);
-    }
+  query_statement(func.name, file, line, scope_die, stmt_addr, q);
 
-  pp->components = pp_comps;
-  dwarf_query q_label(*q);
-  q_label.base_loc = pp;
-  q_label.base_probe = new probe(q->base_probe, pp);
-
-  query_statement(func, file, line, scope_die, stmt_addr, &q_label);
+  q->unmount_well_formed_probe_point();
 }
 
 static void
@@ -1613,61 +1736,25 @@ query_callee (base_func_info& callee,
   assert (q->has_callee || q->has_callees_num);
 
   // OK, we found a callee for a targeted caller. To help users see the
-  // derivation, let's add an intermediate probe to the chain. E.g. right now we
-  // have .function(pattern).callee(pattern) (or .callees) and we want to add as
-  // the next step .function(caller).callee(callee). This is the step that will
-  // show up as well when in listing mode.
+  // derivation, we add the well-formed form .function(caller).callee(callee).
 
-  // To add this intermediate probe, we first create it and then create a new
-  // dwarf_query with that probe as base.
-
-  // Build final names for caller and callee
   string canon_caller = q->final_function_name(caller.name, caller.decl_file,
                                                caller.decl_line);
   string canon_callee = q->final_function_name(callee.name, callee.decl_file,
                                                callee.decl_line);
 
-  // Build the intermediate probe. We replace the function arg with the final
-  // caller, and the callee arg with the final callee. Also, since the
-  // process(str) or module(str) currently in the base_loc is still the one the
-  // user typed in (not necessarily the same as the absolute path we get in the
-  // sole location), we also replace that (otherwise, function(str).* will
-  // return a mishmash of absolute and relative paths in listing mode).
-
-  string module = q->dw.module_name;
-  if (q->has_process)
-    module = path_remove_sysroot(q->sess, module);
-
-  probe_point *pp = new probe_point(*q->base_loc);
-  vector<probe_point::component*> pp_comps;
-  vector<probe_point::component*>::iterator it;
-  for (it = pp->components.begin(); it != pp->components.end(); ++it)
-    {
-      if ((*it)->functor == TOK_PROCESS || (*it)->functor == TOK_MODULE)
-        pp_comps.push_back(new probe_point::component((*it)->functor,
-          new literal_string(module)));
-      else if ((*it)->functor == TOK_FUNCTION)
-        pp_comps.push_back(new probe_point::component(TOK_FUNCTION,
-          new literal_string(canon_caller)));
-      else if ((*it)->functor == TOK_CALLEE || (*it)->functor == TOK_CALLEES)
-        pp_comps.push_back(new probe_point::component(TOK_CALLEE,
-          new literal_string(canon_callee)));
-      else
-        pp_comps.push_back(*it);
-    }
-
-  // Finally create the new probe and the new query (use copy-constructor
-  // instead of creating from scratch so we don't have to rebuild param map)
-  pp->components = pp_comps;
-  dwarf_query q_callee(*q);
-  q_callee.base_loc = pp;
-  q_callee.base_probe = new probe(q->base_probe, pp);
+  q->mount_well_formed_probe_point();
+  q->replace_probe_point_component_arg(TOK_FUNCTION, canon_caller);
+  q->replace_probe_point_component_arg(TOK_CALLEES, TOK_CALLEE, canon_callee);
+  q->replace_probe_point_component_arg(TOK_CALLEE, canon_callee);
 
   // Pass on the callers we'll need to add checks for
-  q_callee.callers = callers;
+  q->callers = callers;
 
   query_statement(callee.name, callee.decl_file, callee.decl_line,
-                  &callee.die, callee.entrypc, &q_callee);
+                  &callee.die, callee.entrypc, q);
+
+  q->unmount_well_formed_probe_point();
 }
 
 static void
@@ -1677,11 +1764,23 @@ query_inline_instance_info (inline_instance_info & ii,
   try
     {
       assert (! q->has_return); // checked by caller already
+      assert (q->has_function_str || q->has_statement_str);
+
       if (q->sess.verbose>2)
         clog << _F("querying entrypc %#" PRIx64 " of instance of inline '%s'\n",
                    ii.entrypc, ii.name.c_str());
+
+      string canon_func = q->final_function_name(ii.name, ii.decl_file,
+                                                 ii.decl_line);
+
+      q->mount_well_formed_probe_point();
+      q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+      q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
+
       query_statement (ii.name, ii.decl_file, ii.decl_line,
                        &ii.die, ii.entrypc, q);
+
+      q->unmount_well_formed_probe_point();
     }
   catch (semantic_error &e)
     {
@@ -1694,8 +1793,17 @@ query_func_info (Dwarf_Addr entrypc,
 		 func_info & fi,
 		 dwarf_query * q)
 {
+  assert(q->has_function_str || q->has_statement_str);
+
   try
     {
+      string canon_func = q->final_function_name(fi.name, fi.decl_file,
+                                                 fi.decl_line);
+
+      q->mount_well_formed_probe_point();
+      q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+      q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
+
       // If it's a .return probe, we need to emit a *retprobe based on the
       // entrypc (PR13200). Note however that if prologue_end is valid,
       // dwarf_derived_probe will still take advantage of it by creating a new
@@ -1711,23 +1819,13 @@ query_func_info (Dwarf_Addr entrypc,
           query_statement (fi.name, fi.decl_file, fi.decl_line,
                            &fi.die, fi.prologue_end, q);
         }
+
+      q->unmount_well_formed_probe_point();
     }
   catch (semantic_error &e)
     {
       q->sess.print_error (e);
     }
-}
-
-
-static void
-query_srcfile_label (Dwarf_Addr addr, int lineno, dwarf_query * q)
-{
-  base_func_info_map_t bfis = q->filtered_all();
-  base_func_info_map_t::iterator i;
-  for (i = bfis.begin(); i != bfis.end(); ++i)
-    if (q->dw.die_has_pc (i->die, addr))
-      q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                 q, query_label);
 }
 
 static void
@@ -1746,9 +1844,19 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
             clog << _("filtered DIE lands on srcfile\n");
           Dwarf_Die scope;
           q->dw.inner_die_containing_pc(i->die, addr, scope);
+
+          string canon_func = q->final_function_name(i->name, i->decl_file,
+                                                     lineno /* NB: not i->decl_line */ );
+
+          q->mount_well_formed_probe_point();
+          q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
+          q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
+
           query_statement (i->name, i->decl_file,
                            lineno, // NB: not q->line !
                            &scope, addr, q);
+
+          q->unmount_well_formed_probe_point();
         }
     }
 }
@@ -1926,32 +2034,16 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
             (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
         q->dw.resolve_prologue_endings (q->filtered_functions);
 
-      if (q->spec_type == function_file_and_line)
+      if (q->has_label)
         {
-          // .statement(...:NN) often gets mixed up with .function(...:NN)
-          if (q->has_function_str)
-            q->sess.print_warning (_("For probing a particular line, use a "
-                                   ".statement() probe, not .function()"),
-                                   q->base_probe->tok);
-
-          void (* callback) (Dwarf_Addr, int, dwarf_query*) =
-            q->has_label ? query_srcfile_label : query_srcfile_line;
-
-          base_func_info_map_t bfis = q->filtered_all();
-
-          set<string>::const_iterator srcfile;
-          for (srcfile  = q->filtered_srcfiles.begin();
-               srcfile != q->filtered_srcfiles.end(); ++srcfile)
-            q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
-                                             q->lineno_type, bfis, callback, q);
-        }
-      else if (q->has_label)
-        {
+          enum lineno_t lineno_type = WILDCARD;
+          if (q->spec_type == function_file_and_line)
+            lineno_type = q->lineno_type;
           base_func_info_map_t bfis = q->filtered_all();
           base_func_info_map_t::iterator i;
           for (i = bfis.begin(); i != bfis.end(); ++i)
-            q->dw.iterate_over_labels (&i->die, q->label_val, i->name,
-                                       q, query_label);
+            q->dw.iterate_over_labels (&i->die, q->label_val, *i, q->linenos,
+                                       lineno_type, q, query_label);
         }
       else if (q->has_callee || q->has_callees_num)
         {
@@ -1974,6 +2066,23 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                           callees_num_val,
                                           q, query_callee, *i);
             }
+        }
+      else if (q->spec_type == function_file_and_line)
+        {
+          // .statement(...:NN) often gets mixed up with .function(...:NN)
+          if (q->has_function_str)
+            q->sess.print_warning (_("For probing a particular line, use a "
+                                   ".statement() probe, not .function()"),
+                                   q->base_probe->tok);
+
+          base_func_info_map_t bfis = q->filtered_all();
+
+          set<string>::const_iterator srcfile;
+          for (srcfile  = q->filtered_srcfiles.begin();
+               srcfile != q->filtered_srcfiles.end(); ++srcfile)
+            q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
+                                             q->lineno_type, bfis,
+                                             query_srcfile_line, q);
         }
       else
         {
@@ -2213,10 +2322,10 @@ query_module (Dwfl_Module *mod,
             q->sess.sym_stext = lookup_symbol_address (mod, "_stext");
         }
 
-      // We either have a wildcard or an unresolved library
-      if (q->has_library && (contains_glob_chars (q->path)
-			     || q->path.find('/') == string::npos))
-        // handle .library(GLOB)
+      // If there is a .library component, then q->path will hold the path to
+      // the executable if the library was fully resolved. If not (e.g. not
+      // absolute, or globby), resort to iterate_over_libraries().
+      if (q->has_library && q->path.empty())
         q->dw.iterate_over_libraries (&q->query_library_callback, q);
       // .plt is translated to .plt.statement(N).  We only want to iterate for the
       // .plt case
@@ -2253,7 +2362,36 @@ base_query::query_library_callback (base_query *me, const char *data)
 }
 
 
-string
+probe*
+build_library_probe(dwflpp& dw,
+                    const string& library,
+                    probe *base_probe,
+                    probe_point *base_loc)
+{
+  probe_point* specific_loc = new probe_point(*base_loc);
+  specific_loc->from_glob = true;
+  vector<probe_point::component*> derived_comps;
+
+  // Create new probe point for the matching library. This is what will be
+  // shown in listing mode. Also replace the process(str) with the real
+  // absolute path rather than keeping what the user typed in.
+  vector<probe_point::component*>::iterator it;
+  for (it = specific_loc->components.begin();
+      it != specific_loc->components.end(); ++it)
+    if ((*it)->functor == TOK_PROCESS)
+      derived_comps.push_back(new probe_point::component(TOK_PROCESS,
+          new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
+    else if ((*it)->functor == TOK_LIBRARY)
+      derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
+          new literal_string(path_remove_sysroot(dw.sess, library))));
+    else
+      derived_comps.push_back(*it);
+  probe_point* derived_loc = new probe_point(*specific_loc);
+  derived_loc->components = derived_comps;
+  return new probe (new probe (base_probe, specific_loc), derived_loc);
+}
+
+bool
 query_one_library (const char *library, dwflpp & dw,
     const string user_lib, probe * base_probe, probe_point *base_loc,
     vector<derived_probe *> & results)
@@ -2262,44 +2400,30 @@ query_one_library (const char *library, dwflpp & dw,
     {
       string library_path = find_executable (library, "", dw.sess.sysenv,
                                              "LD_LIBRARY_PATH");
-      probe_point* specific_loc = new probe_point(*base_loc);
-      specific_loc->optional = true;
-      specific_loc->from_glob = true;
-      vector<probe_point::component*> derived_comps;
+      probe *new_base = build_library_probe(dw, library_path,
+                                            base_probe, base_loc);
 
-      // Create new probe point for the matching library. This is what will be
-      // shown in listing mode. Also replace the process(str) with the real
-      // absolute path rather than keeping what the user typed in.
-      vector<probe_point::component*>::iterator it;
-      for (it = specific_loc->components.begin();
-          it != specific_loc->components.end(); ++it)
-        if ((*it)->functor == TOK_PROCESS)
-          derived_comps.push_back(new probe_point::component(TOK_PROCESS,
-              new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
-        else if ((*it)->functor == TOK_LIBRARY)
-          derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
-              new literal_string(library_path)));
-        else
-          derived_comps.push_back(*it);
-      probe_point* derived_loc = new probe_point(*specific_loc);
-      derived_loc->components = derived_comps;
-      probe *new_base = new probe (new probe (base_probe, specific_loc), derived_loc);
-      derive_probes(dw.sess, new_base, results);
+      // We pass true for the optional parameter of derive_probes() here to
+      // indicate that we don't mind if the probe doesn't resolve. This is
+      // because users expect wildcarded probe points to only apply to a subset
+      // of matching libraries, in the sense of "any", rather than "all", just
+      // like module("*") and process("*"). See also dwarf_builder::build().
+      derive_probes(dw.sess, new_base, results, true /* optional */ );
+
       if (dw.sess.verbose > 2)
         clog << _("module=") << library_path << endl;
-      return library_path;
+      return true;
     }
-  return "";
+  return false;
 }
 
 
 void
 dwarf_query::query_library (const char *library)
 {
-  string library_path =
-    query_one_library (library, dw, user_lib, base_probe, base_loc, results);
-  if (!library_path.empty())
-    visited_modules.insert(library_path);
+  visited_libraries.insert(library);
+  if (query_one_library (library, dw, user_lib, base_probe, base_loc, results))
+    resolved_library = true;
 }
 
 struct plt_expanding_visitor: public var_expanding_visitor
@@ -2326,9 +2450,15 @@ base_query::query_plt_callback (base_query *me, const char *entry, size_t addres
 void
 query_one_plt (const char *entry, long addr, dwflpp & dw,
     probe * base_probe, probe_point *base_loc,
-    vector<derived_probe *> & results)
+    vector<derived_probe *> & results, base_query *q)
 {
+      string module = dw.module_name;
+      if (q->has_process)
+        module = path_remove_sysroot(dw.sess, module);
+
       probe_point* specific_loc = new probe_point(*base_loc);
+      specific_loc->well_formed = true;
+
       vector<probe_point::component*> derived_comps;
 
       if (dw.sess.verbose > 2)
@@ -2337,8 +2467,16 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
       vector<probe_point::component*>::iterator it;
       for (it = specific_loc->components.begin();
           it != specific_loc->components.end(); ++it)
-        if ((*it)->functor == TOK_PLT)
+        if ((*it)->functor == TOK_PROCESS)
           {
+            // Replace with fully resolved path
+            *it = new probe_point::component(TOK_PROCESS,
+                    new literal_string(q->has_library ? q->path : module));
+            derived_comps.push_back(*it);
+          }
+        else if ((*it)->functor == TOK_PLT)
+          {
+            // Replace possibly globby component
             *it = new probe_point::component(TOK_PLT,
                                              new literal_string(entry));
             derived_comps.push_back(*it);
@@ -2361,7 +2499,7 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
 void
 dwarf_query::query_plt (const char *entry, size_t address)
 {
-  query_one_plt (entry, address, dw, base_probe, base_loc, results);
+  query_one_plt (entry, address, dw, base_probe, base_loc, results, this);
 }
 
 // This would more naturally fit into elaborate.cxx:semantic_pass_symbols,
@@ -4700,7 +4838,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   if (q.has_function_str || q.has_statement_str)
       {
-        string retro_name = q.final_function_name(funcname, filename, line);
+        string retro_name = q.final_function_name(funcname, filename.c_str(), line);
         comps.push_back
           (new probe_point::component
            (fn_or_stmt, new literal_string (retro_name)));
@@ -6603,6 +6741,9 @@ struct sdt_query : public base_query
             vector<derived_probe *> & results, const string user_lib);
 
   void query_library (const char *data);
+  set<string> visited_libraries;
+  bool resolved_library;
+
   void query_plt (const char *entry, size_t addr) {}
   void handle_query_module();
 
@@ -6661,11 +6802,11 @@ private:
 sdt_query::sdt_query(probe * base_probe, probe_point * base_loc,
                      dwflpp & dw, literal_map_t const & params,
                      vector<derived_probe *> & results, const string user_lib):
-  base_query(dw, params), probe_type(unknown_probe_type),
-  probe_loc(unknown_section), base_probe(base_probe),
-  base_loc(base_loc), params(params), results(results), user_lib(user_lib),
-  probe_scn_offset(0), probe_scn_addr(0), arg_count(0), base(0), pc(0),
-  semaphore_load_offset(0), semaphore(0)
+  base_query(dw, params), resolved_library(false),
+  probe_type(unknown_probe_type), probe_loc(unknown_section),
+  base_probe(base_probe), base_loc(base_loc), params(params), results(results),
+  user_lib(user_lib), probe_scn_offset(0), probe_scn_addr(0), arg_count(0),
+  base(0), pc(0), semaphore_load_offset(0), semaphore(0)
 {
   assert(get_string_param(params, TOK_MARK, pp_mark));
   get_string_param(params, TOK_PROVIDER, pp_provider); // pp_provider == "" -> unspecified
@@ -7108,7 +7249,13 @@ sdt_query::convert_probe (probe *base)
 probe*
 sdt_query::convert_location ()
 {
+  string module = dw.module_name;
+  if (has_process)
+    module = path_remove_sysroot(sess, module);
+
   probe_point* specific_loc = new probe_point(*base_loc);
+  specific_loc->well_formed = true;
+
   vector<probe_point::component*> derived_comps;
 
   vector<probe_point::component*>::iterator it;
@@ -7116,6 +7263,10 @@ sdt_query::convert_location ()
        it != specific_loc->components.end(); ++it)
     if ((*it)->functor == TOK_PROCESS)
       {
+        // replace the possibly incomplete path to process
+        *it = new probe_point::component(TOK_PROCESS,
+                new literal_string(has_library ? path : module));
+
         // copy the process name
         derived_comps.push_back(*it);
       }
@@ -7188,7 +7339,9 @@ sdt_query::convert_location ()
 void
 sdt_query::query_library (const char *library)
 {
-    query_one_library (library, dw, user_lib, base_probe, base_loc, results);
+  visited_libraries.insert(library);
+  if (query_one_library (library, dw, user_lib, base_probe, base_loc, results))
+    resolved_library = true;
 }
 
 string
@@ -7527,6 +7680,9 @@ dwarf_builder::build(systemtap_session & sess,
       // PR13338: unquote glob results
       module_name = unescape_glob_chars (module_name);
       user_path = find_executable (module_name, "", sess.sysenv); // canonicalize it
+      if (!is_fully_resolved(user_path, "", sess.sysenv))
+        throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
+                                user_path.c_str()));
 
       // if the executable starts with "#!", we look for the interpreter of the script
       {
@@ -7618,17 +7774,15 @@ dwarf_builder::build(systemtap_session & sess,
          script_file.close();
       }
 
-      if (get_param (parameters, TOK_LIBRARY, user_lib)
-	  && user_lib.length() && ! contains_glob_chars (user_lib))
-	{
-	  module_name = find_executable (user_lib, sess.sysroot, sess.sysenv,
-					 "LD_LIBRARY_PATH");
-	  if (module_name.find('/') == string::npos)
-	    // We didn't find user_lib so use iterate_over_libraries
-	    module_name = user_path;
-	}
+      // If this is a library probe, then target the library module instead. We
+      // do this only if the library path is already fully resolved (such as
+      // what query_one_library() would have done for us). Otherwise, we resort
+      // to iterate_over_libraries.
+      if (get_param (parameters, TOK_LIBRARY, user_lib) && !user_lib.empty()
+          && is_fully_resolved(user_lib, sess.sysroot, sess.sysenv, "LD_LIBRARY_PATH"))
+        module_name = user_lib;
       else
-	module_name = user_path; // canonicalize it
+        module_name = user_path; // canonicalize it
 
       // uretprobes aren't available everywhere
       if (has_null_param(parameters, TOK_RETURN) && !sess.runtime_usermode_p())
@@ -7667,6 +7821,35 @@ dwarf_builder::build(systemtap_session & sess,
       // We need to update modules_seen with the modules we've visited
       modules_seen.insert(sdtq.visited_modules.begin(),
                           sdtq.visited_modules.end());
+
+      string lib;
+      if (results_pre == finished_results.size() && !sdtq.resolved_library
+          && get_param(filled_parameters, TOK_LIBRARY, lib)
+          && !lib.empty() && !sdtq.visited_libraries.empty())
+        {
+          // The library didn't fit any DT_NEEDED libraries. As a last effort,
+          // let's try to look for the library directly.
+          string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
+                                                "LD_LIBRARY_PATH");
+          if (resolved_lib.find('/') != string::npos)
+            {
+              probe *new_base = build_library_probe(*dw, resolved_lib,
+                                                    base, location);
+              derive_probes(sess, new_base, finished_results);
+              sess.print_warning(_F("'%s' is not a needed library of '%s'. "
+                                    "Specify the full path to squelch this warning.",
+                                    resolved_lib.c_str(), dw->module_name.c_str()));
+              return;
+            }
+
+          // Otherwise, let's suggest from the DT_NEEDED libraries
+          string sugs = levenshtein_suggest(lib, sdtq.visited_libraries, 5);
+          if (!sugs.empty())
+            throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
+                                      "no match (similar libraries: %s)",
+                                      sugs.find(',') == string::npos,
+                                      sugs.c_str()));
+        }
 
       // Did we fail to find a mark?
       if (results_pre == finished_results.size() && !location->from_glob)
@@ -7755,6 +7938,35 @@ dwarf_builder::build(systemtap_session & sess,
           clog << endl;
         }
     } // i_n_r > 0
+
+  string lib;
+  if (results_pre == results_post && !q.resolved_library
+      && get_param(filled_parameters, TOK_LIBRARY, lib)
+      && !lib.empty() && !q.visited_libraries.empty())
+    {
+      // The library didn't fit any DT_NEEDED libraries. As a last effort,
+      // let's try to look for the library directly.
+      string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
+                                            "LD_LIBRARY_PATH");
+      if (resolved_lib.find('/') != string::npos)
+        {
+          probe *new_base = build_library_probe(*dw, resolved_lib,
+                                                base, location);
+          derive_probes(sess, new_base, finished_results);
+          sess.print_warning(_F("'%s' is not a needed library of '%s'. "
+                                "Specify the full path to squelch this warning.",
+                                resolved_lib.c_str(), dw->module_name.c_str()));
+          return;
+        }
+
+      // Otherwise, let's suggest from the DT_NEEDED libraries
+      string sugs = levenshtein_suggest(lib, q.visited_libraries, 5);
+      if (!sugs.empty())
+        throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
+                                  "no match (similar libraries: %s)",
+                                  sugs.find(',') == string::npos,
+                                  sugs.c_str()));
+    }
 
   // If we just failed to resolve a function/plt by name, we can suggest
   // something. We only suggest things for probe points that were not
@@ -8773,6 +8985,7 @@ struct kprobe_derived_probe: public derived_probe
 			probe_point *location,
 			const string& name,
 			int64_t stmt_addr,
+			bool has_call,
 			bool has_return,
 			bool has_statement,
 			bool has_maxactive,
@@ -8784,6 +8997,7 @@ struct kprobe_derived_probe: public derived_probe
 			);
   string symbol_name;
   Dwarf_Addr addr;
+  bool has_call;
   bool has_return;
   bool has_statement;
   bool has_maxactive;
@@ -8833,6 +9047,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    probe_point *location,
 					    const string& name,
 					    int64_t stmt_addr,
+					    bool has_call,
 					    bool has_return,
 					    bool has_statement,
 					    bool has_maxactive,
@@ -8843,7 +9058,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    const string& library
 					    ):
   derived_probe (base, location, true /* .components soon rewritten */ ),
-  symbol_name (name), addr (stmt_addr),
+  symbol_name (name), addr (stmt_addr), has_call (has_call),
   has_return (has_return), has_statement (has_statement),
   has_maxactive (has_maxactive), has_path (has_path),
   has_library (has_library),
@@ -8883,6 +9098,8 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
         comps.push_back (new probe_point::component(TOK_FUNCTION, new literal_string(name)));
     }
 
+  if (has_call)
+    comps.push_back (new probe_point::component(TOK_CALL));
   if (has_return)
     comps.push_back (new probe_point::component(TOK_RETURN));
   if (has_maxactive)
@@ -8910,9 +9127,9 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 
       derived_probe *entry_handler
 	= new kprobe_derived_probe (sess, results, base, location, name, 0,
-				    false, has_statement, has_maxactive,
-				    has_path, has_library, maxactive_val,
-				    path, library);
+				    true /* has_call */, false /* has_return */,
+				    has_statement, has_maxactive, has_path,
+				    has_library, maxactive_val, path, library);
       results.push_back (entry_handler);
 
       base->body = old_body;
@@ -9334,11 +9551,12 @@ kprobe_builder::build(systemtap_session & sess,
   string path, library, path_tgt, library_tgt;
   int64_t statement_num_val = 0, maxactive_val = 0;
   bool has_function_str, has_module_str, has_statement_num;
-  bool has_absolute, has_return, has_maxactive;
+  bool has_absolute, has_call, has_return, has_maxactive;
   bool has_path, has_library;
 
   has_function_str = get_param(parameters, TOK_FUNCTION, function_string_val);
   has_module_str = get_param(parameters, TOK_MODULE, module_string_val);
+  has_call = has_null_param (parameters, TOK_CALL);
   has_return = has_null_param (parameters, TOK_RETURN);
   has_maxactive = get_param(parameters, TOK_MAXACTIVE, maxactive_val);
   has_statement_num = get_param(parameters, TOK_STATEMENT, statement_num_val);
@@ -9366,9 +9584,10 @@ kprobe_builder::build(systemtap_session & sess,
 	  derived_probe *dp
 	    = new kprobe_derived_probe (sess, finished_results, base,
 					location, function_string_val,
-					0, has_return, has_statement_num,
-					has_maxactive, has_path, has_library,
-					maxactive_val, path_tgt, library_tgt);
+					0, has_call, has_return,
+					has_statement_num, has_maxactive,
+					has_path, has_library, maxactive_val,
+					path_tgt, library_tgt);
 	  finished_results.push_back (dp);
 	}
       else
@@ -9395,8 +9614,8 @@ kprobe_builder::build(systemtap_session & sess,
 	    {
               derived_probe *dp
                 = new kprobe_derived_probe (sess, finished_results, base,
-                                            location, *it, 0, has_return,
-                                            has_statement_num,
+                                            location, *it, 0, has_call,
+                                            has_return, has_statement_num,
                                             has_maxactive, has_path,
                                             has_library, maxactive_val,
                                             path_tgt, library_tgt);
@@ -9415,6 +9634,7 @@ kprobe_builder::build(systemtap_session & sess,
 							    base,
 							    location, "",
 							    statement_num_val,
+							    has_call,
 							    has_return,
 							    has_statement_num,
 							    has_maxactive,
@@ -9786,18 +10006,35 @@ hwbkpt_builder::build(systemtap_session & sess,
   has_write = (parameters.find(TOK_HWBKPT_WRITE) != parameters.end());
   has_rw = (parameters.find(TOK_HWBKPT_RW) != parameters.end());
 
+  // Make an intermediate pp that is well-formed. It's pretty much the same as
+  // the user-provided one, except that the addr literal is well-typed.
+  probe_point* well_formed_loc = new probe_point(*location);
+  well_formed_loc->well_formed = true;
+
+  vector<probe_point::component*> well_formed_comps;
+  vector<probe_point::component*>::iterator it;
+  for (it = location->components.begin();
+      it != location->components.end(); ++it)
+    if ((*it)->functor == TOK_HWBKPT && has_addr)
+      well_formed_comps.push_back(new probe_point::component(TOK_HWBKPT,
+          new literal_number(hwbkpt_address, true /* hex */ )));
+    else
+      well_formed_comps.push_back(*it);
+  well_formed_loc->components = well_formed_comps;
+  probe *new_base = new probe (base, well_formed_loc);
+
   if (!has_len)
 	len = 1;
 
   if (has_addr)
-      finished_results.push_back (new hwbkpt_derived_probe (base,
+      finished_results.push_back (new hwbkpt_derived_probe (new_base,
 							    location,
 							    hwbkpt_address,
 							    "",len,0,
 							    has_write,
 							    has_rw));
   else if (has_symbol_str)
-      finished_results.push_back (new hwbkpt_derived_probe (base,
+      finished_results.push_back (new hwbkpt_derived_probe (new_base,
 							    location,
 							    0,
 							    symbol_str_val,len,0,

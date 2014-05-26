@@ -186,6 +186,10 @@ java_builder::build (systemtap_session & sess,
   bool has_return = has_null_param (parameters, TOK_RETURN);
   bool has_line_number = false;
 
+  // wildcards in Java probes are not allowed, so the location is already
+  // well-formed
+  loc->well_formed = true;
+
   //find if we're probing at a specific line number
   size_t line_position = 0;
 

@@ -747,6 +747,7 @@ struct probe_point
   bool optional;
   bool sufficient;
   bool from_glob;
+  bool well_formed; // used in derived_probe::script_location()
   expression* condition;
   void print (std::ostream& o, bool print_extras=true) const;
   probe_point ();
@@ -776,7 +777,6 @@ struct probe
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &) const;
   virtual const probe_alias *get_alias () const { return 0; }
   virtual probe_point *get_alias_loc () const { return 0; }
-  virtual probe* create_alias(probe_point* l, probe_point* a);
   virtual ~probe() {}
   bool privileged;
   std::string name;

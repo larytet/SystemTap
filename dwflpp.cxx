@@ -1857,9 +1857,11 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
 template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                                   const string& sym,
-                                  const string& function,
+                                  const base_func_info& function,
+                                  int linenos[2],
+                                  enum lineno_t lineno_type,
                                   void *data,
-                                  void (* callback)(const string&,
+                                  void (* callback)(const base_func_info&,
                                                     const char*,
                                                     const char*,
                                                     int,
@@ -1908,8 +1910,20 @@ dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                                                 (dwarf_diename(&scope) ?: "<unknown>"),
                                                 lex_cast_hex(dwarf_dieoffset(&scope)).c_str()));
                         }
-                      callback(function, name, file, dline,
-                               &scope, stmt_addr, data);
+
+                      bool matches_lineno;
+                      if (lineno_type == ABSOLUTE)
+                        matches_lineno = dline == linenos[0];
+                      else if (lineno_type == RELATIVE)
+                        matches_lineno = dline == linenos[0] + function.decl_line;
+                      else if (lineno_type == RANGE)
+                        matches_lineno = (linenos[0] <= dline && dline <= linenos[1]);
+                      else // WILDCARD
+                        matches_lineno = true;
+
+                      if (matches_lineno)
+                        callback(function, name, file, dline,
+                                 &scope, stmt_addr, data);
                     }
                 }
             }
@@ -1924,12 +1938,14 @@ dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
 	  // Iterate over the children of the imported unit as if they
 	  // were inserted in place.
 	  if (dwarf_attr_die(&die, DW_AT_import, &import))
-	    iterate_over_labels (&import, sym, function, data, callback);
+	    iterate_over_labels (&import, sym, function, linenos,
+	                         lineno_type, data, callback);
 	  break;
 
         default:
           if (dwarf_haschildren (&die))
-            iterate_over_labels (&die, sym, function, data, callback);
+            iterate_over_labels (&die, sym, function, linenos,
+                                 lineno_type, data, callback);
           break;
         }
     }
