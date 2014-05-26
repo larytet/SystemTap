@@ -629,7 +629,12 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
       has_statement = get_number_param(params, TOK_STATEMENT, statement_num_val);
 
       if (has_process)
-        module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
+        {
+          module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
+          if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
+            throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
+                                    module_val.c_str()));
+        }
 
       // Library probe? Let's target that instead if it is fully resolved (such
       // as what query_one_library() would have done for us). Otherwise, we
@@ -7648,6 +7653,9 @@ dwarf_builder::build(systemtap_session & sess,
       // PR13338: unquote glob results
       module_name = unescape_glob_chars (module_name);
       user_path = find_executable (module_name, "", sess.sysenv); // canonicalize it
+      if (!is_fully_resolved(user_path, "", sess.sysenv))
+        throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
+                                user_path.c_str()));
 
       // if the executable starts with "#!", we look for the interpreter of the script
       {
