@@ -19,9 +19,28 @@ proc test_procedure {} {
     # here, then just use it down in run_one_test(). The test script
     # uses wildcards to cover every syscall and takes time to parse.
     set script "$srcdir/$subdir/${test_script}"
-    set cmd "SYSTEMTAP_DEBUGINFO_PATH=/dev/null stap -p4 -m ${test_module_name} --skip-badvars ${script}"
+    set cmd "stap -p4 -m ${test_module_name} --skip-badvars ${script}"
     exec /bin/rm -f ${test_module}
+
+    # Remember any set value of SYSTEMTAP_DEBUGINFO_PATH
+    if {[info exists env(SYSTEMTAP_DEBUGINFO_PATH)]} {
+        set old_path $env(SYSTEMTAP_DEBUGINFO_PATH)
+        set restore_old_path 1
+    } else {
+        set restore_old_path 0
+    }
+
+    # Override SYSTEMTAP_DEBUGINFO_PATH to ensure no debuginfo could be used
+    set env(SYSTEMTAP_DEBUGINFO_PATH) ""
     catch {eval exec $cmd} output
+
+    # Restore any previous value, otherwise unset it
+    if {$restore_old_path} {
+        set env(SYSTEMTAP_DEBUGINFO_PATH) $old_path
+    } else {
+        unset env(SYSTEMTAP_DEBUGINFO_PATH)
+    }
+
     send_log $output
     if {[file exists ${test_module}]} {
 	pass "${script} compilation"
