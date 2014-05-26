@@ -1573,7 +1573,7 @@ dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
 
       if (sess.verbose > 3)
         {
-          clog << "found the following lines for %s:" << endl;
+          clog << _F("found the following lines for %s:", srcfile) << endl;
           lines_t::iterator i;
           for (i  = lines->begin(); i != lines->end(); ++i)
             cout << DWARF_LINENO(*i) << " = " << hex
