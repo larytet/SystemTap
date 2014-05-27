@@ -6531,7 +6531,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               get_addr_decl->name = "_sdt_arg_get_addr_" + lex_cast(tick++);
               get_addr_decl->type = pe_long;
 
-              // build _stp_[ku]module_relocate(module, addr, current)
+              // build _stp_umodule_relocate(module, addr, current)
               stringstream ss;
               ss << " /* unprivileged */ /* pure */ /* pragma:vma */" << endl;
               ss << "STAP_RETURN(_stp_umodule_relocate(";
