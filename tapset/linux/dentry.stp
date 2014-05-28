@@ -188,7 +188,7 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 	    && @cast(dentry, "dentry")->d_op->d_dname
 	    && (!__dentry_IS_ROOT(dentry)
 		|| dentry != @cast(vfsmnt, "vfsmount")->mnt_root))
-		return "UNKNOWN"
+          return sprintf("UNKNOWN:[%p]", dentry)
 
         root = & @cast(task, "task_struct")->fs->root
 
