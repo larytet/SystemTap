@@ -1782,7 +1782,15 @@ string
 systemtap_session::cmd_file ()
 {
   wordexp_t words;
-  int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+  int rc;
+  if (target_pid && cmd == "")
+    {
+      string pid_path = string("/proc/") + lex_cast(target_pid) + "/exe";
+      rc = wordexp (pid_path.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+    }
+  else // default is to assume -c flag was given
+    rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+  
   string file;
   if(rc == 0)
     {

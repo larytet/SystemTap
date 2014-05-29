@@ -7537,12 +7537,16 @@ dwarf_builder::build(systemtap_session & sess,
             }
           catch (const semantic_error& e)
             {
-              throw SEMANTIC_ERROR(_("invalid -c command for unspecified process"
+              if(sess.target_pid)
+                throw SEMANTIC_ERROR(_("invlaid -x pid for unspecified process"
+                                       " probe [man stapprobes]"), NULL, NULL, &e);
+              else
+                throw SEMANTIC_ERROR(_("invalid -c command for unspecified process"
                                      " probe [man stapprobes]"), NULL, NULL, &e);
             }
           if(file.empty())
             throw SEMANTIC_ERROR(_("unspecified process probe is invalid without"
-                                   " a -c COMMAND [man stapprobes]"));
+                                   " a -c COMMAND or -x PID [man stapprobes]"));
           module_name = sess.sysroot + file;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
           // in the case of TOK_MARK we need to modify locations as well
