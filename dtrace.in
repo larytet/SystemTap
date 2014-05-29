@@ -26,9 +26,10 @@ from shlex import split
 from subprocess import call
 from tempfile import mkstemp
 try:
-    from pyparsing import Optional, Word, Literal, Forward, alphas, nums, \
-        Group, ZeroOrMore, OneOrMore, oneOf, delimitedList, cStyleComment, \
-        restOfLine, ParserElement, ParseException, Suppress, nestedExpr, SkipTo
+    from pyparsing import alphas, cStyleComment, delimitedList, Group, \
+        Keyword, lineno, Literal, nestedExpr, nums, oneOf, OneOrMore, \
+        Optional, ParseException, ParserElement, restOfLine, restOfLine, \
+        Suppress, Word, ZeroOrMore
     HAVE_PYP = True
 except ImportError:
     HAVE_PYP = False
@@ -115,16 +116,20 @@ class _PypProvider(_HeaderCreator):
         self.dtrace_statements = None
 
     def dtrace_bnf(self):
+        self.current_probe = ""
         if self.dtrace_statements is not None:
             return
         ParserElement.setDefaultWhitespaceChars(' \f\r\n\t\v')
         ident = Word(alphas+"_", alphas+nums+"_$")
+        probe_ident = Word(alphas+nums+"_$")
         semi = Literal(";").suppress()
         integer = Word( nums )
         lbrace = Literal("{").suppress()
         rbrace = Literal("}").suppress()
         type_name = ident
         varname = ident
+        PROBE = Keyword("probe")
+        PROVIDER = Keyword("provider")
         array_size = integer | ident  
         varname_spec = varname + Optional("[" + array_size + "]")
         struct_decl = Group(oneOf("struct union") + varname + Suppress(nestedExpr('{','}')) + semi)
@@ -135,10 +140,14 @@ class _PypProvider(_HeaderCreator):
                                + Suppress(nestedExpr('{','}'))) + Optional(varname) + semi
         typedef = ZeroOrMore("typedef" + (member_decl)) + semi
         decls = OneOrMore(struct_typedef | struct_decl | typedef | enum_decl)
-        probe_decl = Group(oneOf("probe") + ident + "(" + Optional(Group(delimitedList(member_decl))) + ")" + semi)
+        def memoize_probe(instring, loc, tokens):
+            self.current_probe = tokens[0][1]
+            self.current_lineno = lineno(loc,instring)
+        probe_decl = Group(PROBE + probe_ident + "(" + Optional(Group(delimitedList(member_decl))) + ")" + Optional(semi))
+        probe_decl.setParseAction(memoize_probe)
         probe_decls = OneOrMore(probe_decl)
 
-        provider_decl = (oneOf("provider") + Optional(ident)
+        provider_decl = (PROVIDER + Optional(ident)
                          + lbrace + Group(probe_decls) + rbrace + Optional(semi))
         dtrace_statement = Group(decls | provider_decl)
         self.dtrace_statements = ZeroOrMore(dtrace_statement)
@@ -176,9 +185,10 @@ class _PypProvider(_HeaderCreator):
                 # pyparsing-1.5.0 does not support parseAll
                 self.ast = self.bnf.parseFile(provider).asList()
         except ParseException, err:
-            print err.line
-            print " "*(err.column-1) + "^"
-            print err
+            if len(self.current_probe):
+                print "%s:%s:%d: syntax error near:\nprobe %s\n" % (sys.argv[0],provider, self.current_lineno, self.current_probe)
+            else:
+                print "%s:%s:%d syntax error near:\n%s\n" % (sys.argv[0],provider,err.lineno, err.line)
             sys.exit(1)
   
         probes_def = ""
