@@ -126,19 +126,15 @@ class _PypProvider(_HeaderCreator):
         type_name = ident
         varname = ident
         array_size = integer | ident  
-        type_spec = (Optional(oneOf("unsigned const"))
-                     + oneOf("int long short float double char void")
-                     + Optional(Word("*"), default=""))
         varname_spec = varname + Optional("[" + array_size + "]")
         struct_decl = Group(oneOf("struct union") + varname + Suppress(nestedExpr('{','}')) + semi)
         enum_decl = Group("enum" + varname + Suppress(nestedExpr('{','}')) + semi)
-        member_decl = Group((type_spec | Optional("struct") + type_name) 
+        member_decl = Group((Optional(oneOf("struct unsigned const")) + type_name)
                             + Optional(Word("*"), default="") + Optional(varname_spec))
         struct_typedef = Group(Literal("typedef") + Literal("struct") + varname
                                + Suppress(nestedExpr('{','}'))) + Optional(varname) + semi
         typedef = ZeroOrMore("typedef" + (member_decl)) + semi
         decls = OneOrMore(struct_typedef | struct_decl | typedef | enum_decl)
-#        decls.setDebug()
         probe_decl = Group(oneOf("probe") + ident + "(" + Optional(Group(delimitedList(member_decl))) + ")" + semi)
         probe_decls = OneOrMore(probe_decl)
 
