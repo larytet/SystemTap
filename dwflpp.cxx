@@ -2271,6 +2271,20 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
             else if (addr < entrypc) { l = entrypc_srcline_idx; }
             else { h = entrypc_srcline_idx; }
           }
+
+        // We may by chance have fallen on the second of two consecutive line
+        // records for the same addr. If the previous Dwarf_Line is indeed at
+        // the same address, pick that one instead. It means that there is no
+        // prologue, which the code that follows will soon find. (BZ1099133).
+        if (entrypc_srcline && entrypc_srcline_idx > 0)
+          {
+            Dwarf_Line* lr = dwarf_onesrcline(lines, entrypc_srcline_idx-1);
+            if (DWARF_LINEADDR(lr) == entrypc)
+              {
+                entrypc_srcline = lr;
+                entrypc_srcline_idx--;
+              }
+          }
       }
       if (!entrypc_srcline)
         {
