@@ -2262,8 +2262,8 @@ probe syscall.ioctl = kernel.function("compat_sys_ioctl").call ?,
 	name = "ioctl"
 	fd = $fd
 	request = $cmd
-	argp = $arg
-	argstr = sprintf("%d, %d, %p", $fd, $cmd, $arg)
+	argp = @choose_defined($arg, $arg32)
+	argstr = sprintf("%d, %d, %p", $fd, $cmd, argp)
 }
 probe syscall.ioctl.return = kernel.function("compat_sys_ioctl").return ?,
                              kernel.function("sys_ioctl").return ?
