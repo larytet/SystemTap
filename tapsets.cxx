@@ -7538,7 +7538,7 @@ dwarf_builder::build(systemtap_session & sess,
           catch (const semantic_error& e)
             {
               if(sess.target_pid)
-                throw SEMANTIC_ERROR(_("invlaid -x pid for unspecified process"
+                throw SEMANTIC_ERROR(_("invalid -x pid for unspecified process"
                                        " probe [man stapprobes]"), NULL, NULL, &e);
               else
                 throw SEMANTIC_ERROR(_("invalid -c command for unspecified process"

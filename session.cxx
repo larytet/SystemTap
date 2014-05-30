@@ -1782,38 +1782,53 @@ string
 systemtap_session::cmd_file ()
 {
   wordexp_t words;
-  int rc;
+  string file;
+  
   if (target_pid && cmd == "")
     {
       string pid_path = string("/proc/") + lex_cast(target_pid) + "/exe";
-      rc = wordexp (pid_path.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+      char buf[1024];
+      ssize_t path_len = readlink(pid_path.c_str(), buf, sizeof(buf) - 1);
+
+      if (path_len > 0)
+        {
+          file = string(buf);
+        }
+      else
+        {
+          if (target_pid < 0)
+            {
+              throw SEMANTIC_ERROR(_("pid is a negative value"));
+            }
+          throw SEMANTIC_ERROR(_("pid does not correspond to a running process"));
+        }
     }
   else // default is to assume -c flag was given
-    rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
-  
-  string file;
-  if(rc == 0)
-    {
-      if (words.we_wordc > 0)
-        file = words.we_wordv[0];
-      wordfree (& words);
-    }
-  else
-    {
-      switch (rc)
+    {  
+      int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+      if(rc == 0)
         {
-        case WRDE_BADCHAR:
-          throw SEMANTIC_ERROR(_("command contains illegal characters"));
-        case WRDE_BADVAL:
-          throw SEMANTIC_ERROR(_("command contains undefined shell variables"));
-        case WRDE_CMDSUB:
-          throw SEMANTIC_ERROR(_("command contains command substitutions"));
-        case WRDE_NOSPACE:
-          throw SEMANTIC_ERROR(_("out of memory"));
-        case WRDE_SYNTAX:
-          throw SEMANTIC_ERROR(_("command contains shell syntax errors"));
-        default:
-          throw SEMANTIC_ERROR(_("unspecified wordexp failure"));
+          if (words.we_wordc > 0)
+            file = words.we_wordv[0];
+          wordfree (& words);
+        }
+      else
+        {
+          switch (rc)
+            {
+              case WRDE_BADCHAR:
+                throw SEMANTIC_ERROR(_("command contains illegal characters"));
+              case WRDE_BADVAL:
+                throw SEMANTIC_ERROR(_("command contains undefined shell variables"));
+              case WRDE_CMDSUB:
+                throw SEMANTIC_ERROR(_("command contains command substitutions"));
+              case WRDE_NOSPACE:
+                throw SEMANTIC_ERROR(_("out of memory"));
+              case WRDE_SYNTAX:
+                throw SEMANTIC_ERROR(_("command contains shell syntax errors"));
+              default:
+                throw SEMANTIC_ERROR(_("unspecified wordexp failure"));
+           }  
         }
     }
   return file;
