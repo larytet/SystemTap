@@ -2222,6 +2222,18 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
   DWARF_ASSERT ("dwarf_getsrclines",
                 dwarf_getsrclines(cu, &lines, &nlines));
 
+  // Dump them into our own array for easier searching. They should already be
+  // sorted by addr, but we doublecheck that here. We want to keep the indices
+  // between lines and addrs the same.
+  vector<Dwarf_Addr> addrs;
+  for (size_t i = 0; i < nlines; i++)
+    {
+      Dwarf_Line* line = dwarf_onesrcline(lines, i);
+      Dwarf_Addr addr = DWARF_LINEADDR(line);
+      if (!addrs.empty() && addr < addrs.back())
+        throw SEMANTIC_ERROR(_("lines from dwarf_getsrclines() not sorted"));
+      addrs.push_back(addr);
+    }
   // We normally ignore a function's decl_line, since it is associated with the
   // line at which the identifier appears in the declaration, and has no
   // meaningful relation to the lineno associated with the entrypc (which is
@@ -2258,20 +2270,16 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       unsigned entrypc_srcline_idx = 0;
       Dwarf_Line *entrypc_srcline = NULL;
-      // open-code binary search for exact match
       {
-        unsigned l = 0, h = nlines;
-        while (l < h)
+        vector<Dwarf_Addr>::const_iterator it_addr =
+          lower_bound(addrs.begin(), addrs.end(), entrypc);
+        if (it_addr != addrs.end())
           {
-            entrypc_srcline_idx = (l + h) / 2;
-            Dwarf_Line* lr = dwarf_onesrcline(lines, entrypc_srcline_idx);
-            Dwarf_Addr addr = DWARF_LINEADDR(lr);
-            if (addr == entrypc) { entrypc_srcline = lr; break; }
-            else if (l + 1 == h) { break; } // ran off bottom of tree
-            else if (addr < entrypc) { l = entrypc_srcline_idx; }
-            else { h = entrypc_srcline_idx; }
+            entrypc_srcline_idx = it_addr - addrs.begin();
+            entrypc_srcline = dwarf_onesrcline(lines, entrypc_srcline_idx);
           }
       }
+
       if (!entrypc_srcline)
         {
           if (sess.verbose > 2)
