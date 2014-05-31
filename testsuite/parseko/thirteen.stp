@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 %{ /* embedded code not permitted since -g not supplied */ %}
 

@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 # error message should neatly trace through the calls:
 @define bar(b) %( @bluff %)

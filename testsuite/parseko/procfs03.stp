@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 probe procfs("bar2").umask(0002).write {
 	printf("The user wrote: %s", $value)

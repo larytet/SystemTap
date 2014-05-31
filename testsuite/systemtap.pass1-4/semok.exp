@@ -11,6 +11,7 @@ proc dyninst_kfails {test} {
 	semok/bz10475.stp -
 	semok/context-globals.stp -
 	semok/defined_list_vars.stp -
+	semok/deprecated01.stp -
 	semok/doubleglob.stp -
 	semok/entry01.stp -
 	semok/entry02.stp -
@@ -44,7 +45,14 @@ proc dyninst_kfails {test} {
 	semok/twentyfive.stp -
 	semok/twentyfour.stp -
 	semok/twentynine.stp -
-	semok/twentyseven.stp {
+	semok/twentyseven.stp -
+	semok/umask01.stp -
+	semok/umask02.stp -
+	semok/umask03.stp -
+	semok/umask04.stp -
+	semok/umask05.stp -
+	semok/umask06.stp -
+	semok/umask07.stp {
 	    # Use setup_kfail DYNINST <target triplet> for known
 	    # failures when running with the dyninst runtime (scripts
 	    # that use kernel features or kernel-only tapset
