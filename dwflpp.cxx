@@ -2273,7 +2273,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       {
         vector<Dwarf_Addr>::const_iterator it_addr =
           lower_bound(addrs.begin(), addrs.end(), entrypc);
-        if (it_addr != addrs.end())
+        if (it_addr != addrs.end() && *it_addr == entrypc)
           {
             entrypc_srcline_idx = it_addr - addrs.begin();
             entrypc_srcline = dwarf_onesrcline(lines, entrypc_srcline_idx);
