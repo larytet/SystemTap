@@ -103,6 +103,8 @@ struct c_unparser: public unparser, public visitor
   void emit_lock_decls (const varuse_collecting_visitor& v);
   void emit_locks ();
   void emit_probe (derived_probe* v);
+  void emit_probe_condition_initialize(derived_probe* v);
+  void emit_probe_condition_update(derived_probe* v);
   void emit_unlocks ();
 
   void emit_compiled_printfs ();
@@ -1085,7 +1087,10 @@ c_unparser::emit_common_header ()
 
   emit_compiled_printfs();
 
-  o->newline();
+  // Updated in probe handlers to signal that a module refresh is needed.
+  o->newline( 0)  << "#ifdef STP_ON_THE_FLY";
+  o->newline( 0)  << "static unsigned need_module_refresh = 0;";
+  o->newline( 0)  << "#endif";
 }
 
 
@@ -1821,6 +1826,14 @@ c_unparser::emit_module_init ()
       o->newline() << "if (rc) goto out;";
     }
 
+  o->newline() << "#ifdef STP_ON_THE_FLY";
+
+  // Initialize probe conditions
+  for (unsigned i=0; i<session->probes.size(); i++)
+    emit_probe_condition_initialize(session->probes[i]);
+
+  o->newline() << "#endif"; // STP_ON_THE_FLY
+
   // Run all probe registrations.  This actually runs begin probes.
 
   for (unsigned i=0; i<g.size(); i++)
@@ -2419,6 +2432,17 @@ c_unparser::emit_probe (derived_probe* v)
       // someday be local
 
       o->indent(1);
+
+      if (!v->probes_with_affected_conditions.empty())
+        {
+          o->newline() << "#ifdef STP_ON_THE_FLY";
+          for (set<derived_probe*>::const_iterator
+                it  = v->probes_with_affected_conditions.begin();
+                it != v->probes_with_affected_conditions.end(); ++it)
+            emit_probe_condition_update(*it);
+          o->newline() << "#endif";
+        }
+
       if (v->needs_global_locks ())
 	emit_unlocks ();
 
@@ -2433,6 +2457,45 @@ c_unparser::emit_probe (derived_probe* v)
   this->already_checked_action_count = false;
 }
 
+// Initializes the cond_enabled field by evaluating condition predicate.
+void
+c_unparser::emit_probe_condition_initialize(derived_probe* v)
+{
+  unsigned i = v->session_index;
+  assert(i < session->probes.size());
+
+  expression *cond = v->sole_location()->condition;
+  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
+
+  o->newline() << cond_enabled << " = ";
+  if (!cond) // no condition --> always enabled
+    o->line() << "1";
+  else
+    cond->visit(this);
+  o->line() << ";";
+}
+
+// Updates the cond_enabled field and sets need_module_refresh if it was
+// changed.
+void
+c_unparser::emit_probe_condition_update(derived_probe* v)
+{
+  unsigned i = v->session_index;
+  assert(i < session->probes.size());
+
+  expression *cond = v->sole_location()->condition;
+  assert(cond);
+
+  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
+
+  o->newline() << "if (" << cond_enabled << " != ";
+  v->sole_location()->condition->visit(this);
+  o->line() << ") {";
+  o->newline(1) << cond_enabled << " = !" << cond_enabled << ";";
+  if (v->on_the_fly_supported()) // don't bother refreshing if on-the-fly not supported
+    o->newline() << "need_module_refresh = 1;";
+  o->newline(-1) << "}";
+}
 
 void
 c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
@@ -7121,6 +7184,7 @@ translate_pass (systemtap_session& s)
       for (unsigned i=0; i<s.probes.size(); i++)
 	{
         assert_no_interrupts();
+        s.probes[i]->session_index = i;
         if (s.probes[i]->needs_global_locks())
 	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
 	}
@@ -7138,7 +7202,6 @@ translate_pass (systemtap_session& s)
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
           derived_probe* p = s.probes[i];
-          p->session_index = i;
           s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name << ", "
                           << lex_cast_qstring (*p->sole_location()) << ", "
                           << lex_cast_qstring (*p->script_location()) << ", "
