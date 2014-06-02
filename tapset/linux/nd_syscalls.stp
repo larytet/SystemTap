@@ -943,11 +943,18 @@ probe nd_syscall.epoll_pwait = kprobe.function("compat_sys_epoll_pwait") ?,
 {
 	name = "epoll_pwait"
 	asmlinkage()
-	argstr = sprintf("%d, %p, %d, %d, %p, %d",
-		int_arg(1), pointer_arg(2), int_arg(3), int_arg(4), pointer_arg(5), ulong_arg(6))
+	epfd = int_arg(1)
+	events_uaddr = pointer_arg(2)
+	maxevents = int_arg(3)
+	timeout = int_arg(4)
+	sigmask_uaddr = pointer_arg(5)
+	sigsetsize = ulong_arg(6)
+	argstr = sprintf("%d, %p, %d, %d, %p, %d", epfd, events_uaddr,
+			 maxevents, timeout, sigmask_uaddr, sigsetsize)
 }
-probe nd_syscall.epoll_pwait.return = kprobe.function("compat_sys_epoll_pwait").return ?,
-                                      kprobe.function("sys_epoll_pwait").return ?
+probe nd_syscall.epoll_pwait.return =
+	kprobe.function("compat_sys_epoll_pwait").return ?,
+	kprobe.function("sys_epoll_pwait").return ?
 {
 	name = "epoll_pwait"
 	retstr = returnstr(1)
@@ -964,6 +971,8 @@ probe nd_syscall.epoll_pwait.return = kprobe.function("compat_sys_epoll_pwait").
 probe nd_syscall.epoll_wait = kprobe.function("compat_sys_epoll_wait") ?,
                               kprobe.function("sys_epoll_wait") ?
 {
+	@__syscall_compat_gate(%{ __NR_epoll_wait %},
+			       %{ __NR_compat_epoll_wait %})
 	name = "epoll_wait"
 	asmlinkage()
 	epfd = int_arg(1)
@@ -975,6 +984,8 @@ probe nd_syscall.epoll_wait = kprobe.function("compat_sys_epoll_wait") ?,
 probe nd_syscall.epoll_wait.return = kprobe.function("compat_sys_epoll_wait").return ?,
                                      kprobe.function("sys_epoll_wait").return ?
 {
+	@__syscall_compat_gate(%{ __NR_epoll_wait %},
+			       %{ __NR_compat_epoll_wait %})
 	name = "epoll_wait"
 	retstr = returnstr(1)
 }

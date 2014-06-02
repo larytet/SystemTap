@@ -2177,12 +2177,17 @@ function _sock_protocol_str:string(family:long, protocol:long) {
     return sprintf("%d", protocol)
 }
 
-function _opoll_op_str(o) {
-   if(o==1) return "EPOLL_CTL_ADD"
-   if(o==3) return "EPOLL_CTL_MOD"
-   if(o==2) return "EPOLL_CTL_DEL"
-   return sprintf("UNKNOWN VALUE: %d", o)
-}
+function _opoll_op_str:string(o:long)
+%{ /* pure */
+	static const _stp_val_array const opoll_op_list[] = {
+		V(EPOLL_CTL_ADD),
+		V(EPOLL_CTL_MOD),
+		V(EPOLL_CTL_DEL),
+		{0, NULL}
+	};
+	_stp_lookup_str(opoll_op_list, (unsigned int)STAP_ARG_o,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _epoll_events_str(e) {
    if(e==1) return "EPOLLIN"
@@ -2468,10 +2473,14 @@ function _at_flag_str:string(f:long)
 %}
 function _epoll_create1_flag_str:string(f:long)
 %{ /* pure */
+	static const _stp_val_array const epoll_create1_flags_list[] = {
 #ifdef EPOLL_CLOEXEC
-	if (STAP_ARG_f == EPOLL_CLOEXEC)
-		strlcpy (STAP_RETVALUE, "EPOLL_CLOEXEC", MAXSTRINGLEN);
+		V(EPOLL_CLOEXEC),
 #endif
+		{0, NULL}
+	};
+	_stp_lookup_or_str(epoll_create1_flags_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 %{

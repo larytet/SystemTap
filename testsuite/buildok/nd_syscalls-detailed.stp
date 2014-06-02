@@ -304,6 +304,8 @@ probe nd_syscall.epoll_ctl.return ?
 probe nd_syscall.epoll_pwait ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %d, %d\n", epfd, events_uaddr, maxevents, timeout)
+	printf("%p, %d\n", sigmask_uaddr, sigsetsize)
 }
 probe nd_syscall.epoll_pwait.return ?
 {
