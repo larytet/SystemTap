@@ -220,6 +220,9 @@ public:
   virtual bool needs_global_locks () { return true; }
   // by default, probes need locks around global variables
 
+  virtual bool on_the_fly_supported () { return false; }
+  // on-the-fly arming/disarming depends on probe type
+
   // Location of semaphores to activate sdt probes
   Dwarf_Addr sdt_semaphore_addr;
 
