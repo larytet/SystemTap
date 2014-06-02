@@ -228,6 +228,10 @@ public:
 
   // index into session.probes[], set and used during translation
   unsigned session_index;
+
+  // List of other derived probes whose conditions may be affected by
+  // this probe.
+  std::set<derived_probe*> probes_with_affected_conditions;
 };
 
 // ------------------------------------------------------------------------

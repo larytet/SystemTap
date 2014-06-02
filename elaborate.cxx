@@ -1384,52 +1384,120 @@ semantic_pass_vars (systemtap_session & sess)
 //
 // becomes:
 //
-// probe begin(MAX) { if (! (g1 || g2)) %{ disable_probe_foo %} }
 // probe foo { if (! (g1 || g2)) next; ... }
 // probe bar { ... g1 ++ ...;
 //             if (g1 || g2) %{ enable_probe_foo %} else %{ disable_probe_foo %}
 //           }
 //
-// XXX: As a first cut, do only the "inline probe condition" part of the
-// transform.
+// In other words, we perform two transformations:
+//    (1) Inline probe condition into its body.
+//    (2) For each probe that modifies a global var in use in any probe's
+//        condition, re-evaluate those probes' condition at the end of that
+//        probe's body.
+//
+// Here, we do all of (1), and half of (2): we simply collect the dependency
+// info between probes, which the translator will use to emit the affected
+// probes' condition re-evaluation. The translator will also ensure that the
+// conditions are evaluated using the globals' starting values prior to any
+// probes starting.
+
+// Adds the condition expression to the front of the probe's body
+static void
+derived_probe_condition_inline (derived_probe *p)
+{
+  expression* e = p->sole_location()->condition;
+  assert(e);
+
+  if_statement *ifs = new if_statement ();
+  ifs->tok = e->tok;
+  ifs->thenblock = new next_statement ();
+  ifs->thenblock->tok = e->tok;
+  ifs->elseblock = NULL;
+  unary_expression *notex = new unary_expression ();
+  notex->op = "!";
+  notex->tok = e->tok;
+  notex->operand = e;
+  ifs->condition = notex;
+  p->body = new block (ifs, p->body);
+}
 
 static int
 semantic_pass_conditions (systemtap_session & sess)
 {
+  map<derived_probe*, set<vardecl*> > vars_read_in_cond;
+  map<derived_probe*, set<vardecl*> > vars_written_in_body;
+
+  // do a first pass through the probes to ensure safety, inline any condition,
+  // and collect var usage
   for (unsigned i = 0; i < sess.probes.size(); ++i)
     {
       derived_probe* p = sess.probes[i];
       expression* e = p->sole_location()->condition;
+
       if (e)
         {
-          varuse_collecting_visitor vut(sess);
-          e->visit (& vut);
+          varuse_collecting_visitor vcv_cond(sess);
+          e->visit (& vcv_cond);
 
-          if (! vut.written.empty())
-            {
-              string err = (_("probe condition must not modify any variables"));
-              sess.print_error (SEMANTIC_ERROR (err, e->tok));
-            }
-          else if (vut.embedded_seen)
-            {
-              sess.print_error (SEMANTIC_ERROR (_("probe condition must not include impure embedded-C"), e->tok));
-            }
+          if (!vcv_cond.written.empty())
+            sess.print_error (SEMANTIC_ERROR (_("probe condition must not "
+                                                "modify any variables"),
+                                              e->tok));
+          else if (vcv_cond.embedded_seen)
+            sess.print_error (SEMANTIC_ERROR (_("probe condition must not "
+                                                "include impure embedded-C"),
+                                              e->tok));
 
-          // Add the condition expression to the front of the
-          // derived_probe body.
-          if_statement *ifs = new if_statement ();
-          ifs->tok = e->tok;
-          ifs->thenblock = new next_statement ();
-          ifs->thenblock->tok = e->tok;
-          ifs->elseblock = NULL;
-          unary_expression *notex = new unary_expression ();
-          notex->op = "!";
-          notex->tok = e->tok;
-          notex->operand = e;
-          ifs->condition = notex;
-          p->body = new block (ifs, p->body);
+          derived_probe_condition_inline(p);
+
+          vars_read_in_cond[p].insert(vcv_cond.read.begin(),
+                                      vcv_cond.read.end());
+        }
+
+      varuse_collecting_visitor vcv_body(sess);
+      p->body->visit (& vcv_body);
+
+      vars_written_in_body[p].insert(vcv_body.written.begin(),
+                                     vcv_body.written.end());
+    }
+
+  // do a second pass to collect affected probes
+  bool need_on_the_fly = false;
+  for (unsigned i = 0; i < sess.probes.size(); ++i)
+    {
+      derived_probe *p = sess.probes[i];
+
+      // for each variable this probe modifies...
+      set<vardecl*>::const_iterator var;
+      for (var  = vars_written_in_body[p].begin();
+           var != vars_written_in_body[p].end(); ++var)
+        {
+          // collect probes which could be affected
+          for (unsigned j = 0; j < sess.probes.size(); ++j)
+            {
+              if (vars_read_in_cond[sess.probes[j]].count(*var))
+                {
+                  if (!p->probes_with_affected_conditions.count(sess.probes[j]))
+                    {
+                      p->probes_with_affected_conditions.insert(sess.probes[j]);
+                      if (sess.verbose > 2)
+                        clog << "probe " << i << " can affect condition of "
+                                "probe " << j << endl;
+                    }
+                  need_on_the_fly = true;
+                }
+            }
         }
     }
+
+  // Emit STP_ON_THE_FLY macro if needed.
+  if (need_on_the_fly && !sess.runtime_usermode_p())
+    sess.c_macros.push_back("STP_ON_THE_FLY");
+
+  // As an extra precaution, explicitly disable STP_ON_THE_FLY if in usermode in
+  // case user provided -D STP_ON_THE_FLY.
+  else if (sess.runtime_usermode_p())
+    sess.c_macros.push_back("STP_ON_THE_FLY_DISABLED");
 
   return sess.num_errors();
 }

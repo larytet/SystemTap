@@ -6947,6 +6947,10 @@ translate_pass (systemtap_session& s)
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
 
+      s.op->newline() << "#ifdef STP_ON_THE_FLY_DISABLED";
+      s.op->newline() << "#undef STP_ON_THE_FLY";
+      s.op->newline() << "#endif";
+
       s.op->newline() << "#include \"runtime.h\"";
 
       // Emit embeds ahead of time, in case they affect context layout
