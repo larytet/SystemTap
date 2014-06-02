@@ -1087,10 +1087,27 @@ c_unparser::emit_common_header ()
 
   emit_compiled_printfs();
 
-  // Updated in probe handlers to signal that a module refresh is needed.
   o->newline( 0)  << "#ifdef STP_ON_THE_FLY";
+
+  // Updated in probe handlers to signal that a module refresh is needed.
+  // Checked and cleared by common epilogue after scheduling refresh work.
   o->newline( 0)  << "static unsigned need_module_refresh = 0;";
+
+  // We will use a workqueue to schedule module_refresh work when we need
+  // to enable/disable probes.
+  o->newline( 0)  << "#include <linux/workqueue.h>";
+  o->newline( 0)  << "static struct work_struct module_refresher_work;";
+  o->newline( 0)  << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+  o->newline( 0)  << "static void module_refresher(void *data) {";
+  o->newline( 0)  << "#else";
+  o->newline( 0)  << "static void module_refresher(struct work_struct *work) {";
   o->newline( 0)  << "#endif";
+  o->newline( 1)  <<    "systemtap_module_refresh();";
+  o->newline(-1)  << "}";
+
+  o->newline( 0)  << "#endif"; // STP_ON_THE_FLY
+
+  o->newline();
 }
 
 
@@ -1828,6 +1845,13 @@ c_unparser::emit_module_init ()
 
   o->newline() << "#ifdef STP_ON_THE_FLY";
 
+  // Initialize workqueue needed for on-the-fly arming/disarming
+  o->newline() << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+  o->newline() << "INIT_WORK(&module_refresher_work, module_refresher, NULL);";
+  o->newline() << "#else";
+  o->newline() << "INIT_WORK(&module_refresher_work, module_refresher);";
+  o->newline() << "#endif";
+
   // Initialize probe conditions
   for (unsigned i=0; i<session->probes.size(); i++)
     emit_probe_condition_initialize(session->probes[i]);
@@ -1958,6 +1982,7 @@ c_unparser::emit_module_exit ()
   // This signals any other probes that may be invoked in the next little
   // while to abort right away.  Currently running probes are allowed to
   // terminate.  These may set STAP_SESSION_ERROR!
+
 
   // We're processing the derived_probe_group list in reverse
   // order.  This ensures that probes get unregistered in reverse
@@ -7013,6 +7038,9 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#ifdef STP_ON_THE_FLY_DISABLED";
       s.op->newline() << "#undef STP_ON_THE_FLY";
       s.op->newline() << "#endif";
+
+      // Emit systemtap_module_refresh() prototype so we can reference it
+      s.op->newline() << "static void systemtap_module_refresh (void);";
 
       s.op->newline() << "#include \"runtime.h\"";
 

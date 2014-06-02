@@ -214,6 +214,16 @@ void
 common_probe_entryfn_epilogue (systemtap_session& s,
                                bool overload_processing)
 {
+  // Check if we need to enable/disable probes based on the latest values of
+  // probes_condition_enabled[].
+
+  s.op->newline( 0) <<  "#ifdef STP_ON_THE_FLY";
+  s.op->newline( 0) <<  "if (need_module_refresh) {";
+  s.op->newline(+1) <<    "need_module_refresh = 0;";
+  s.op->newline( 0) <<    "schedule_work(&module_refresher_work);";
+  s.op->newline(-1) <<  "}";
+  s.op->newline( 0) <<  "#endif";
+
   if (overload_processing && !s.runtime_usermode_p())
     s.op->newline() << "#if defined(STP_TIMING) || defined(STP_OVERLOAD)";
   else

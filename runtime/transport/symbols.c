@@ -17,7 +17,6 @@
 #define KERN_CONT	""
 #endif
 
-static void systemtap_module_refresh (void);
 static int _stp_kmodule_check (const char*);
 
 /* PR12612: pre-commit-3abb860f values */
