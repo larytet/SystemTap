@@ -211,6 +211,7 @@ struct hrtimer_derived_probe: public derived_probe
   // unprivileged users.
   void emit_privilege_assertion (translator_output*) {}
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged (o); }
+  bool on_the_fly_supported () { return true; }
 };
 
 
@@ -219,6 +220,7 @@ struct hrtimer_derived_probe_group: public generic_dpg<hrtimer_derived_probe>
 public:
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
+  void emit_module_refresh (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
 };
 
@@ -306,23 +308,77 @@ hrtimer_derived_probe_group::emit_module_init (systemtap_session& s)
 {
   if (probes.empty()) return;
 
-  s.op->newline() << "_stp_hrtimer_init();";
-  s.op->newline() << "for (i=0; i<" << probes.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_hrtimer_probe* stp = & stap_hrtimer_probes [i];";
-  s.op->newline() << "probe_point = stp->probe->pp;";
+  s.op->newline( 0) <<  "_stp_hrtimer_init();";
+  s.op->newline( 0) <<  "for (i=0; i<" << probes.size() << "; i++) {";
+  s.op->newline(+1) <<    "struct stap_hrtimer_probe* stp = & stap_hrtimer_probes [i];";
+  s.op->newline( 0) <<    "probe_point = stp->probe->pp;";
 
   // Note: no partial failure rollback is needed for kernel hrtimer
   // probes (hrtimer_start only "fails" if the timer was already
   // active, which cannot be). But, stapdyn timer probes need a
   // rollback, and it won't hurt the kernel hrtimers.
-  s.op->newline() << "rc = _stp_hrtimer_create(stp, _stp_hrtimer_notify_function);";
-  s.op->newline() << "if (rc) {";
-  s.op->indent(1);
-  s.op->newline() << "for (j=i-1; j>=0; j--)"; // partial rollback
-  s.op->newline(1) << "_stp_hrtimer_cancel(& stap_hrtimer_probes[j]);";
-  s.op->newline(-1) << "break;"; // don't attempt to register any more
+  s.op->newline( 0) <<    "rc = _stp_hrtimer_create(stp, _stp_hrtimer_notify_function);";
+  s.op->newline( 0) <<    "if (rc) {";
+  s.op->newline(+1) <<      "for (j=i-1; j>=0; j--) {"; // partial rollback
+  s.op->newline(+1) <<        "_stp_hrtimer_cancel(& stap_hrtimer_probes[j]);";
+  s.op->newline( 0) <<        "#ifdef STP_ON_THE_FLY";
+  s.op->newline( 0) <<        "stap_hrtimer_probes[j].enabled = 0;";
+  s.op->newline( 0) <<        "#endif";
+  s.op->newline(-1) <<      "}";
+  s.op->newline( 0) <<      "break;"; // don't attempt to register any more
+  s.op->newline(-1) <<    "}";
+
+  // If the probe condition is off, then don't bother starting the timer
+  s.op->newline( 0) <<    "#ifdef STP_ON_THE_FLY";
+  s.op->newline( 0) <<    "if (!stp->probe->cond_enabled) {";
+  s.op->newline(+1) <<      "dbug_otf(\"not starting (hrtimer) pidx %zu\\n\", stp->probe->index);";
+  s.op->newline( 0) <<      "continue;";
+  s.op->newline(-1) <<    "}";
+  s.op->newline( 0) <<    "#endif";
+
+  // Start the timer (with rollback on failure)
+  s.op->newline( 0) <<    "rc = _stp_hrtimer_start(stp);";
+  s.op->newline( 0) <<    "if (rc) {";
+  s.op->newline(+1) <<      "for (j=i-1; j>=0; j--) {"; // partial rollback
+  s.op->newline(+1) <<        "_stp_hrtimer_cancel(& stap_hrtimer_probes[j]);";
+  s.op->newline( 0) <<        "#ifdef STP_ON_THE_FLY";
+  s.op->newline( 0) <<        "stap_hrtimer_probes[j].enabled = 0;";
+  s.op->newline( 0) <<        "#endif";
+  s.op->newline(-1) <<      "}";
+  s.op->newline( 0) <<      "break;"; // don't attempt to register any more
+  s.op->newline(-1) <<    "}";
+
+  // Mark as enabled since we successfully started the timer
+  s.op->newline( 0) <<    "#ifdef STP_ON_THE_FLY";
+  s.op->newline( 0) <<    "stp->enabled = 1;";
+  s.op->newline( 0) <<    "#endif";
+  s.op->newline(-1) <<  "}"; // for loop
+}
+
+
+void
+hrtimer_derived_probe_group::emit_module_refresh (systemtap_session& s)
+{
+  if (probes.empty()) return;
+
+  // Check if we need to enable/disable any timers
+  s.op->newline( 0) << "#ifdef STP_ON_THE_FLY";
+
+  s.op->newline( 0) << "for (i=0; i <" << probes.size() << "; i++) {";
+  s.op->newline(+1) <<   "struct stap_hrtimer_probe* stp = &stap_hrtimer_probes[i];";
+  // timer disabled, but condition says enabled?
+  s.op->newline( 0) <<   "if (!stp->enabled && stp->probe->cond_enabled) {";
+  s.op->newline(+1) <<     "dbug_otf(\"enabling (hrtimer) pidx %zu\\n\", stp->probe->index);";
+  s.op->newline( 0) <<     "_stp_hrtimer_start(stp);";
+  // timer enabled, but condition says disabled?
+  s.op->newline(-1) <<   "} else if (stp->enabled && !stp->probe->cond_enabled) {";
+  s.op->newline(+1) <<     "dbug_otf(\"disabling (hrtimer) pidx %zu\\n\", stp->probe->index);";
+  s.op->newline( 0) <<     "_stp_hrtimer_cancel(stp);";
+  s.op->newline(-1) <<   "}";
+  s.op->newline( 0) <<   "stp->enabled = stp->probe->cond_enabled;";
   s.op->newline(-1) << "}";
-  s.op->newline(-1) << "}"; // for loop
+
+  s.op->newline( 0) << "#endif";
 }
 
 
@@ -333,7 +389,7 @@ hrtimer_derived_probe_group::emit_module_exit (systemtap_session& s)
 
   s.op->newline() << "for (i=0; i<" << probes.size() << "; i++)";
   s.op->indent(1);
-  s.op->newline() << "_stp_hrtimer_cancel(& stap_hrtimer_probes[i]);";
+  s.op->newline() << "_stp_hrtimer_delete(& stap_hrtimer_probes[i]);";
   s.op->indent(-1);
 }
 

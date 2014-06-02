@@ -18,9 +18,10 @@ static unsigned long stap_hrtimer_resolution = 0;
 
 struct stap_hrtimer_probe {
 	struct hrtimer hrtimer;
-	const struct stap_probe * const probe;
+	const struct stap_probe * probe;
 	int64_t intrv;
 	int64_t rnd;
+	unsigned enabled;
 };
 
 // The function signature changed in 2.6.21.
@@ -89,21 +90,34 @@ static inline void _stp_hrtimer_update(struct stap_hrtimer_probe *stp)
 
 
 static int
-_stp_hrtimer_create(struct stap_hrtimer_probe *stp,
-		    hrtimer_return_t (*function)(struct hrtimer *))
+_stp_hrtimer_start(struct stap_hrtimer_probe *stp)
 {
-	hrtimer_init(&stp->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	stp->hrtimer.function = function;
 	(void)hrtimer_start(&stp->hrtimer, _stp_hrtimer_get_interval(stp),
 			    HRTIMER_MODE_REL);
 	return 0;
 }
 
+static int
+_stp_hrtimer_create(struct stap_hrtimer_probe *stp,
+		    hrtimer_return_t (*function)(struct hrtimer *))
+{
+	hrtimer_init(&stp->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	stp->hrtimer.function = function;
+	return 0;
+}
+
+// For kernel-mode, there is no difference between cancel/delete.
 
 static void
 _stp_hrtimer_cancel(struct stap_hrtimer_probe *stp)
 {
 	hrtimer_cancel(&stp->hrtimer);
+}
+
+static void
+_stp_hrtimer_delete(struct stap_hrtimer_probe *stp)
+{
+	_stp_hrtimer_cancel(stp);
 }
 
 #else  /* kernel version < 2.6.17 */
