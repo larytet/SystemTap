@@ -27,7 +27,7 @@ foreach runtime [get_runtime_list] {
     set exe_id $spawn_id
 
     if {$runtime != ""} {
-        set cur_test_name "$test_name($runtime)"
+        set cur_test_name "$test_name ($runtime)"
 
         # Run stap with -x $PID
         stap_run $cur_test_name no_load $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp -x [exp_pid -i $exe_id]
