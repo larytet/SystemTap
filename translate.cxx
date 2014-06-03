@@ -6448,11 +6448,18 @@ static int find_vdso(const char *path, const struct stat *, int type)
 {
   if (type == FTW_F)
     {
+      /* Assume that if the path's basename starts with 'vdso' and
+       * ends with '.so', it is the vdso.
+       *
+       * Note that this logic should match up with the logic in the
+       * _stp_vma_match_vdso() function in runtime/vma.c. */
       const char *name = strrchr(path, '/');
       if (name)
 	{
+	  const char *ext;
+
 	  name++;
-	  const char *ext = strrchr(name, '.');
+	  ext = strrchr(name, '.');
 	  if (ext
 	      && strncmp("vdso", name, 4) == 0
 	      && strcmp(".so", ext) == 0)

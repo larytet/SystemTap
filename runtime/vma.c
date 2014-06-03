@@ -39,11 +39,29 @@ static void _stp_vma_match_vdso(struct task_struct *tsk)
       for (i = 0; i < _stp_num_modules && found == NULL; i++) {
 	struct _stp_module *m = _stp_modules[i];
 	if (m->path[0] == '/'
-	    && m->num_sections == 1
-	    && strncmp(m->name, "vdso", 4) == 0)
+	    && m->num_sections == 1)
 	  {
 	    unsigned long notes_addr;
 	    int all_ok = 1;
+
+	    /* Assume that if the path's basename starts with 'vdso'
+	     * and ends with '.so', it is the vdso.
+	     *
+	     * Note that this logic should match up with the logic in
+	     * the find_vdso() function in translate.cxx. */
+	    const char *name = strrchr(m->path, '/');
+	    if (name)
+	      {
+		const char *ext;
+
+		name++;
+		ext = strrchr(name, '.');
+		if (!ext
+		    || strncmp("vdso", name, 4) != 0
+		    || strcmp(".so", ext) != 0)
+		  continue;
+	      }
+
 	    notes_addr = vdso_addr + m->build_id_offset;
 	    dbug_task_vma(1,"notes_addr %s: 0x%lx + 0x%lx = 0x%lx (len: %x)\n", m->path,
 		  vdso_addr, m->build_id_offset, notes_addr, m->build_id_len);
