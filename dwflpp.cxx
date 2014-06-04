@@ -2913,12 +2913,15 @@ dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
 
   /* DWARF file */
   const char *debugfile;
-  if (dwfl_module_info (module, NULL, NULL, NULL, NULL, NULL, NULL,
-			&debugfile) == NULL)
-    debugfile = _("<unknown debug file>");
-
   locstr += _(" from ");
-  locstr += debugfile;
+  if (dwfl_module_info (module, NULL, NULL, NULL, NULL, NULL, NULL,
+			&debugfile) == NULL || debugfile == NULL)
+    {
+      locstr += _("unknown debug file for ");
+      locstr += module_name;
+    }
+  else
+    locstr += debugfile;
 
   /* Find the first function-like DIE with a name in scope.  */
   Dwarf_Die funcdie_mem;
