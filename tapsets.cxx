@@ -1199,7 +1199,7 @@ dwarf_query::parse_function_spec(const string & spec)
 
             case ENUMERATED:
               {
-                vector<int>::const_iterator linenos_it,range_it;
+                vector<int>::const_iterator linenos_it;
                 for (linenos_it = linenos.begin(); linenos_it != linenos.end(); ++linenos_it)
                   {
                     vector<int>::const_iterator range_it(linenos_it);

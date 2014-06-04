@@ -1778,7 +1778,7 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
 
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         const vector<int> linenos,
+                                         const vector<int>& linenos,
                                          enum lineno_t lineno_type,
                                          base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
@@ -1859,7 +1859,7 @@ template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                                   const string& sym,
                                   const base_func_info& function,
-                                  const vector<int> linenos,
+                                  const vector<int>& linenos,
                                   enum lineno_t lineno_type,
                                   void *data,
                                   void (* callback)(const base_func_info&,
