@@ -90,37 +90,37 @@ expect_probes * * 9
 
 # Now we do some consistent probe checking
 
-# ABSOLUTE, RANGE, and ENUMERATED should give the same results for wild and single func
+# ABSOLUTE and ENUMERATED should give the same results for wild and single func
 set subtest "ABSOLUTE - single func"
 expect_probes foo 5 1
 set subtest "ABSOLUTE - wild func"
 expect_probes * 5 1
-set subtest "RANGE - single func"
+set subtest "ENUMERATED - single func 1"
 expect_probes foo 5-7 3
-set subtest "RANGE - wild func"
-expect_probes * 5-7 3
-set subtest "ENUMERATED - single func"
+set subtest "ENUMERATED - single func 2"
 expect_probes foo 5,6,7 3
-set subtest "ENUMERATED and RANGE - single func"
+set subtest "ENUMERATED - single func 3"
 expect_probes foo 5,6-7 3
-set subtest "ENUMERATED - wild func"
+set subtest "ENUMERATED - wild func 1"
+expect_probes * 5-7 3
+set subtest "ENUMERATED - wild func 2"
 expect_probes * 5,6,7 3
-set subtest "ENUMERATED and RANGE - wild func"
+set subtest "ENUMERATED - wild func 3"
 expect_probes * 5-6,7 3
 
-# But ABSOLUTE, RANGE, and ENUMERATED shouldn't give any results if the linenos fall outside
-# the given func(s)
+# But ABSOLUTE and ENUMERATED shouldn't give any results if the linenos fall
+# outside the given func(s)
 set subtest "ABSOLUTE - outside single func"
 expect_probes bar 5 0
 set subtest "ABSOLUTE - outside wild func"
 expect_probes {[bm]*} 5 0
-set subtest "RANGE - outside single func"
+set subtest "ENUMERATED - outside single func 1"
 expect_probes bar 5-7 0
-set subtest "RANGE - outside wild func"
-expect_probes {[bm]*} 5-7 0
-set subtest "ENUMERATED - outside single func"
+set subtest "ENUMERATED - outside single func 2"
 expect_probes bar 5-6,7 0
-set subtest "ENUMERATED - outside wild func"
+set subtest "ENUMERATED - outside wild func 1"
+expect_probes {[bm]*} 5-7 0
+set subtest "ENUMERATED - outside wild func 2"
 expect_probes {[bm]*} 5,6-7 0
 
 # RELATIVE and WILDCARD must be applied *per* function
@@ -144,30 +144,31 @@ expect_semerror * 15 "no line records .* \\(try"
 set subtest "RELATIVE - error for no lines"
 expect_semerror main +4 "no line records .* \\(try"
 
-# RANGE on a function is bound by function linenos
-set subtest "RANGE - out-of-bounds lower"
-expect_probes foo 0-5 2
-set subtest "RANGE - out-of-bounds upper"
-expect_probes foo 5-999 3
-
 # ENUMERATED on a function is bound by function linenos
-set subtest "ENUMERATED - out-of-bounds lower"
+set subtest "ENUMERATED - out-of-bounds lower 1"
+expect_probes foo 0-5 2
+set subtest "ENUMERATED - out-of-bounds lower 2"
+expect_probes foo 0,1-4,5 2
+set subtest "ENUMERATED - out-of-bounds lower 3"
 expect_probes foo 0,1,2,3,4,5 2
-set subtest "ENUMERATED - out-of-bounds upper"
+set subtest "ENUMERATED - out-of-bounds upper 1"
+expect_probes foo 5-999 3
+set subtest "ENUMERATED - out-of-bounds upper 2"
 expect_probes foo 5,6,7,998,999 3
 
-# RANGE overlapping two functions yields intersection of range and filtered
-# functions
-set subtest "RANGE - single func overlapping"
+# ENUMERATED overlapping two functions yields intersection of range and
+# filtered functions
+set subtest "ENUMERATED - single func overlapping 1"
 expect_probes foo 5-13 3
-set subtest "RANGE - wildcard func overlapping"
-expect_probes * 5-13 6
-
-# ENUMERATED overlapping two functions yields intersection of range and filtered
-# functions
-set subtest "ENUMERATED - single func overlapping"
+set subtest "ENUMERATED - single func overlapping 2"
+expect_probes foo 5,6-7,8,9,10-12,13 3
+set subtest "ENUMERATED - single func overlapping 3"
 expect_probes foo 5,6,7,8,9,10,11,12,13 3
-set subtest "ENUMERATED - wildcard func overlapping"
+set subtest "ENUMERATED - wildcard func overlapping 1"
+expect_probes * 5-13 6
+set subtest "ENUMERATED - wildcard func overlapping 2"
+expect_probes * 5-6,7-13 6
+set subtest "ENUMERATED - wildcard func overlapping 3"
 expect_probes * 5,6,7,8,9,10,11,12,13 6
 
 if {[file exists "$test"]}   { file delete "$test" }
