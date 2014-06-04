@@ -38,7 +38,7 @@ struct symbol_table;
 struct base_query;
 struct external_function_query;
 
-enum lineno_t { ABSOLUTE, RELATIVE, RANGE, WILDCARD };
+enum lineno_t { ABSOLUTE, RELATIVE, WILDCARD, ENUMERATED };
 enum info_status { info_unknown, info_present, info_absent };
 
 // module -> cu die[]
@@ -318,7 +318,7 @@ struct dwflpp
 
   template<typename T>
   void iterate_over_srcfile_lines (char const * srcfile,
-                                   int linenos[2],
+                                   const std::vector<int> linenos,
                                    enum lineno_t lineno_type,
                                    base_func_info_map_t& funcs,
                                    void (*callback) (Dwarf_Addr,
@@ -339,7 +339,7 @@ struct dwflpp
   void iterate_over_labels (Dwarf_Die *begin_die,
                             const std::string& sym,
                             const base_func_info& function,
-                            int linenos[2],
+                            const std::vector<int> linenos,
                             enum lineno_t lineno_type,
                             T *data,
                             void (* callback)(const base_func_info&,
@@ -705,7 +705,7 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
                                                               size_t));
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         int linenos[2],
+                                         const std::vector<int> linenos,
                                          enum lineno_t lineno_type,
                                          base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
@@ -715,7 +715,7 @@ template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                                   const std::string& sym,
                                   const base_func_info& function,
-                                  int linenos[2],
+                                  const std::vector<int> linenos,
                                   enum lineno_t lineno_type,
                                   void *data,
                                   void (* callback)(const base_func_info&,

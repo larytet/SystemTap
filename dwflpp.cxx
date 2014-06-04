@@ -1778,7 +1778,7 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
 
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
-                                         int linenos[2],
+                                         const vector<int> linenos,
                                          enum lineno_t lineno_type,
                                          base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
@@ -1822,9 +1822,9 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                     current_funcs, matching_lines);
   else if (lineno_type == WILDCARD)
     collect_all_lines(srcfile, current_funcs, matching_lines);
-  else // RANGE
-    for (int lineno = linenos[0]; lineno <= linenos[1]; lineno++)
-      collect_lines_for_single_lineno(srcfile, lineno, false, /* is_relative */
+  else if (lineno_type == ENUMERATED)
+    for (vector<int>::const_iterator it = linenos.begin(); it != linenos.end(); it++)
+      collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
                                       current_funcs, matching_lines);
 
   // call back with matching lines
@@ -1859,7 +1859,7 @@ template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                                   const string& sym,
                                   const base_func_info& function,
-                                  int linenos[2],
+                                  const vector<int> linenos,
                                   enum lineno_t lineno_type,
                                   void *data,
                                   void (* callback)(const base_func_info&,
@@ -1917,8 +1917,8 @@ dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
                         matches_lineno = dline == linenos[0];
                       else if (lineno_type == RELATIVE)
                         matches_lineno = dline == linenos[0] + function.decl_line;
-                      else if (lineno_type == RANGE)
-                        matches_lineno = (linenos[0] <= dline && dline <= linenos[1]);
+                      else if (lineno_type == ENUMERATED)
+                        matches_lineno = (binary_search(linenos.begin(), linenos.end(), dline));
                       else // WILDCARD
                         matches_lineno = true;
 

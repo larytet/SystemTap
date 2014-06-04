@@ -812,7 +812,7 @@ struct dwarf_query : public base_query
   string function;
   string file;
   lineno_t lineno_type;
-  int linenos[2];
+  vector<int> linenos;
   bool query_done;	// Found exact match
 
   // Holds the prologue end of the current function
@@ -1086,9 +1086,7 @@ void
 dwarf_query::parse_function_spec(const string & spec)
 {
   lineno_type = ABSOLUTE;
-  linenos[0] = linenos[1] = 0;
-
-  size_t src_pos, line_pos, dash_pos, scope_pos;
+  size_t src_pos, line_pos, scope_pos;
 
   // look for named scopes
   scope_pos = spec.rfind("::");
@@ -1135,18 +1133,29 @@ dwarf_query::parse_function_spec(const string & spec)
           if (lineno_type != WILDCARD)
             try
               {
-                // try to parse either N or N-M
-                dash_pos = spec.find('-', line_pos + 1);
-                if (dash_pos == string::npos)
-                  linenos[0] = linenos[1] = lex_cast<int>(spec.substr(line_pos + 1));
+                // try to parse N, N-M, or N,M,O,P, or combination thereof...
+                if (spec.find_first_of(",-", line_pos + 1) != string::npos)
+                  {
+                    lineno_type = ENUMERATED;
+                    vector<string> sub_specs;
+                    tokenize(spec.substr(line_pos + 1), sub_specs, ",");
+                    vector<string>::const_iterator line_spec;
+                    for (line_spec = sub_specs.begin(); line_spec != sub_specs.end(); ++line_spec)
+                      {
+                        vector<string> ranges;
+                        tokenize(*line_spec, ranges, "-");
+                        if (ranges.size() > 1)
+                            for (int i = lex_cast<int>(ranges.front()); i <= lex_cast<int>(ranges.back()); i++)
+                                linenos.push_back(i);
+                        else
+                            linenos.push_back(lex_cast<int>(ranges.at(0)));
+                      }
+                    sort(linenos.begin(), linenos.end());
+                  }
                 else
                   {
-                    lineno_type = RANGE;
-                    linenos[0] = lex_cast<int>(spec.substr(line_pos + 1,
-                                                        dash_pos - line_pos - 1));
-                    linenos[1] = lex_cast<int>(spec.substr(dash_pos + 1));
-                    if (linenos[0] > linenos[1])
-                      throw runtime_error("bad range");
+                    linenos.push_back(lex_cast<int>(spec.substr(line_pos + 1)));
+                    linenos.push_back(lex_cast<int>(spec.substr(line_pos + 1)));
                   }
               }
             catch (runtime_error & exn)
@@ -1188,8 +1197,23 @@ dwarf_query::parse_function_spec(const string & spec)
               clog << "+" << linenos[0];
               break;
 
-            case RANGE:
-              clog << linenos[0] << " - " << linenos[1];
+            case ENUMERATED:
+              {
+                vector<int>::const_iterator linenos_it,range_it;
+                for (linenos_it = linenos.begin(); linenos_it != linenos.end(); ++linenos_it)
+                  {
+                    vector<int>::const_iterator range_it(linenos_it);
+                    while ((range_it+1) != linenos.end() && *range_it + 1 == *(range_it+1))
+                        ++range_it;
+                    if (linenos_it == range_it)
+                        clog << *linenos_it;
+                    else
+                        clog << *linenos_it << "-" << *range_it;
+                    if (range_it + 1 != linenos.end())
+                      clog << ",";
+                    linenos_it = range_it;
+                  }
+                }
               break;
 
             case WILDCARD:
