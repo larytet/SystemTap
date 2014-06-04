@@ -10,6 +10,7 @@
 
 #include "dwflpp.h"
 #include "config.h"
+#include <cxxabi.h>
 #include "staptree.h"
 #include "elaborate.h"
 #include "tapsets.h"
@@ -2807,6 +2808,187 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
   return fb_attr;
 }
 
+/* Produce a human readable name for a DIE. */
+static string
+die_name_string (Dwarf_Die *die)
+{
+  string res;
+  const char *name = dwarf_linkage_name(die);
+  if (name == NULL)
+    name = dwarf_diename (die);
+
+  size_t demangle_buffer_len = 0;
+  char *demangle_buffer = NULL;
+  if (name != NULL && name[0] == '_' && name[1] == 'Z')
+    {
+      int status = -1;
+      char *dsymname = abi::__cxa_demangle (name, demangle_buffer,
+					    &demangle_buffer_len, &status);
+      if (status == 0)
+	name = demangle_buffer = dsymname;
+    }
+  if (name != NULL)
+    res = name;
+  else
+    res = _("<unknown");
+  free (demangle_buffer);
+
+  return res;
+}
+
+/* Returns a source line and column string based on the inlined DIE or the pc if DIE is NULL. */
+string
+dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
+{
+  string linestr;
+
+  int lineno, col;
+  const char *src = NULL;
+  lineno = col = -1;
+
+  if (die == NULL)
+    {
+      Dwarf_Line *line = dwarf_getsrc_die (cu, pc);
+      if (line != NULL)
+	{
+	  src = dwarf_linesrc (line, NULL, NULL);
+	  dwarf_lineno (line, &lineno);
+	  dwarf_linecol (line, &col);
+	}
+    }
+  else
+    {
+      Dwarf_Files *files;
+      if (dwarf_getsrcfiles (cu, &files, NULL) == 0)
+	{
+	  Dwarf_Attribute attr;
+	  Dwarf_Word val;
+	  if (dwarf_formudata (dwarf_attr (die, DW_AT_call_file, &attr),
+			       &val) == 0)
+	    {
+	      src = dwarf_filesrc (files, val, NULL, NULL);
+	      if (dwarf_formudata (dwarf_attr (die, DW_AT_call_line,
+					       &attr), &val) == 0)
+		{
+		  lineno = val;
+		  if (dwarf_formudata (dwarf_attr (die, DW_AT_call_column,
+						   &attr), &val) == 0)
+		    col = val;
+		}
+	    }
+	}
+    }
+
+  if (src != NULL)
+    {
+      linestr += src;
+      if (lineno > 0)
+	{
+	  linestr += ":" + lex_cast(lineno);
+	  if (col > 0)
+	    linestr += ":" + lex_cast(col);
+	}
+    }
+  else
+    linestr += _("unknown source");
+
+  return linestr;
+}
+
+/* Returns a human readable PC and DIE offset for use in error messages.
+   Includes PC, DIE offset, DWARF file used and (inlined) source locations.  */
+string
+dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
+{
+  string locstr;
+
+  /* PC */
+  locstr = _("pc: ");
+  locstr += lex_cast_hex(pc);
+  locstr += ", ";
+
+  /* DIE offset */
+  locstr += _("dieoffset: ");
+  locstr += lex_cast_hex(dwarf_dieoffset(die));
+
+  /* DWARF file */
+  const char *debugfile;
+  if (dwfl_module_info (module, NULL, NULL, NULL, NULL, NULL, NULL,
+			&debugfile) == NULL)
+    debugfile = _("<unknown debug file>");
+
+  locstr += _(" from ");
+  locstr += debugfile;
+
+  /* Find the first function-like DIE with a name in scope.  */
+  Dwarf_Die funcdie_mem;
+  Dwarf_Die *funcdie = NULL;
+  const char *funcname = NULL;
+  Dwarf_Die *scopes = NULL;
+  int nscopes = dwarf_getscopes (cu, pc, &scopes);
+  for (int i = 0; funcname == NULL && i < nscopes; i++)
+    {
+      Dwarf_Die *scope = &scopes[i];
+      int tag = dwarf_tag (scope);
+      if (tag == DW_TAG_subprogram
+	  || tag == DW_TAG_inlined_subroutine
+	  || tag == DW_TAG_entry_point)
+	funcname = die_name_string (scope).c_str();
+      if (funcname != NULL)
+	{
+	  funcdie_mem = *scope;
+	  funcdie = &funcdie_mem;
+	}
+    }
+  free (scopes);
+
+  /* source location */
+  if (funcname == NULL)
+    locstr += _(" in unknown function at ") + pc_die_line_string (pc, NULL);
+  else
+    {
+      int nscopes = dwarf_getscopes_die (funcdie, &scopes);
+      if (nscopes > 0)
+	{
+	  /* scopes[0] == funcdie, the lowest level, for which we already have
+	     the name.  This is the actual source location where it
+	     happened.  */
+	  locstr += _(" in ");
+	  locstr += funcname;
+	  locstr +=  _(" at ");
+	  locstr += pc_die_line_string (pc, NULL);
+
+	  /* last_scope is the source location where the next inlined frame/function
+	     call was done. */
+	  Dwarf_Die *last_scope = &scopes[0];
+	  for (int i = 1; i < nscopes; i++)
+	    {
+	      Dwarf_Die *scope = &scopes[i];
+	      int tag = dwarf_tag (scope);
+	      if (tag != DW_TAG_inlined_subroutine
+		  && tag != DW_TAG_entry_point
+		  && tag != DW_TAG_subprogram)
+		continue;
+
+	      locstr += _(" inlined by ");
+	      locstr += die_name_string (scope);
+	      locstr += _(" at ");
+	      locstr += pc_die_line_string (pc, last_scope);
+
+	      /* Found the "top-level" in which everything was inlined.  */
+	      if (tag == DW_TAG_subprogram)
+		break;
+
+	      last_scope = scope;
+	    }
+	}
+      else
+	_(" in unknown function at ") + pc_die_line_string (pc, NULL);
+      free (scopes);
+    }
+
+  return locstr;
+}
 
 struct location *
 dwflpp::translate_location(struct obstack *pool,
@@ -2855,13 +3037,16 @@ dwflpp::translate_location(struct obstack *pool,
       }
 
       /* FALLTHROUGH */
-      throw SEMANTIC_ERROR (_F("not accessible at this address [man error::dwarf] (%s, dieoffset: %s)",
-                               lex_cast_hex(pc).c_str(), lex_cast_hex(dwarf_dieoffset(die)).c_str()),
-                               e->tok);
+      throw SEMANTIC_ERROR(_F("not accessible at this address [man error::dwarf] (%s)",
+			      pc_die_location_as_string(pc, die).c_str()),
+			   e->tok);
 
     default:			/* Shouldn't happen.  */
     case -1:
-      throw SEMANTIC_ERROR (_F("dwarf_getlocation_addr failed [man error::dwarf] , %s", dwarf_errmsg(-1)), e->tok);
+      throw SEMANTIC_ERROR (_F("dwarf_getlocation_addr failed [man error::dwarf] , %s (%s)",
+			       dwarf_errmsg(-1),
+			       pc_die_location_as_string(pc, die).c_str()),
+			    e->tok);
     }
 
   Dwarf_Op *cfa_ops;
