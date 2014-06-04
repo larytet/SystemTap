@@ -2808,6 +2808,55 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
   return fb_attr;
 }
 
+/* Returns a human readable string with suggested locations where a
+   DIE attribute is valid.  */
+static string
+suggested_locations_string(Dwarf_Attribute *attr)
+{
+  string locsstr;
+  if (attr == NULL)
+    locsstr = "";
+  else
+    {
+      // If we don't have dwarf_getlocations just suggest nothing.
+#if _ELFUTILS_PREREQ (0, 158)
+      Dwarf_Op *expr;
+      size_t exprlen;
+      Dwarf_Addr base, start, end;
+      ptrdiff_t off = 0;
+
+      off = dwarf_getlocations (attr, off, &base,
+				&start, &end,
+				&expr, &exprlen);
+      if (off > 0)
+	{
+	  locsstr = _(" alternative locations: ");
+
+	  while (off > 0)
+            {
+	      locsstr += "[";
+	      locsstr += lex_cast_hex(start);
+	      locsstr += ",";
+	      locsstr += lex_cast_hex(end);
+	      locsstr += "]";
+
+	      off = dwarf_getlocations (attr, off, &base,
+					&start, &end,
+					&expr, &exprlen);
+	      if (off > 0)
+		locsstr += ", ";
+	    }
+	}
+      else
+	locsstr = "";
+#else
+      locsstr = "";
+#endif /* _ELFUTILS_PREREQ (0, 158) */
+    }
+
+ return locsstr;
+}
+
 /* Produce a human readable name for a DIE. */
 static string
 die_name_string (Dwarf_Die *die)
@@ -3040,15 +3089,17 @@ dwflpp::translate_location(struct obstack *pool,
       }
 
       /* FALLTHROUGH */
-      throw SEMANTIC_ERROR(_F("not accessible at this address [man error::dwarf] (%s)",
-			      pc_die_location_as_string(pc, die).c_str()),
+      throw SEMANTIC_ERROR(_F("not accessible at this address [man error::dwarf] (%s)%s",
+			      pc_die_location_as_string(pc, die).c_str(),
+			      suggested_locations_string(attr).c_str()),
 			   e->tok);
 
     default:			/* Shouldn't happen.  */
     case -1:
-      throw SEMANTIC_ERROR (_F("dwarf_getlocation_addr failed [man error::dwarf] , %s (%s)",
+      throw SEMANTIC_ERROR (_F("dwarf_getlocation_addr failed [man error::dwarf] , %s (%s)%s",
 			       dwarf_errmsg(-1),
-			       pc_die_location_as_string(pc, die).c_str()),
+			       pc_die_location_as_string(pc, die).c_str(),
+			       suggested_locations_string(attr).c_str()),
 			    e->tok);
     }
 
