@@ -2397,7 +2397,7 @@ bool
 systemtap_session::modules_must_be_signed()
 {
   ifstream statm("/sys/module/module/parameters/sig_enforce");
-  char status;
+  char status = 'N';
 
   statm >> status;
   if (status == 'Y')
