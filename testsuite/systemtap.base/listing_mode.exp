@@ -809,6 +809,9 @@ if {$exepath != ""} {
    stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54-55\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54,55-56\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
    stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:*\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
@@ -883,6 +886,9 @@ if {$exepath != ""} {
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
 
    stap_list_cmd "process.statement(\"foo@$test.c:24-25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list_cmd "process.statement(\"foo@$test.c:24,25-26\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
    stap_list_cmd "process.statement(\"foo@$test.c:*\")" \
