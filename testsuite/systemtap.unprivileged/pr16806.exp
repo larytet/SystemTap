@@ -67,12 +67,15 @@ set script " \
    } \
 "
 
-set rc [catch {eval exec stap -p4 -m $modpath -e {$script}} out]
-if {$rc == 0 && [regexp "^$modpath.ko$" "$out"]} {
+# If we're on a platform with uprobes not built in, we need to ensure first
+# that it is inserted. Let's run the script once and hope the uprobes.ko stays
+# inserted.
+set rc [catch {eval exec stap -m $modpath -e {$script} -c /bin/true} out]
+if {$rc == 0 && [file exists "$modpath.ko"]} {
    pass "$test ko compile"
 } else {
    fail "$test ko compile"
-   verbose -log "stap -p4 output: $out"
+   verbose -log "stap output: $out"
    cleanup_test
    return
 }
@@ -81,7 +84,7 @@ if {$rc == 0 && [regexp "^$modpath.ko$" "$out"]} {
 # to a pass (otherwise we would have crashed).
 set max [expr [exec date +%s] + 60]
 while {[expr [exec date +%s] < $max]} {
-   catch {exec staprun $modpath.ko -c "timeout 0.2 ./$exepath"} out
+   catch {exec staprun $modpath.ko -c "timeout 1 ./$exepath"} out
    if {![regexp "entered ibar" "$out"]} {
       fail "$test staprun"
       verbose -log "staprun output: $out"
