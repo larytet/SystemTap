@@ -2815,10 +2815,9 @@ suggested_locations_string(Dwarf_Attribute *attr)
 {
   string locsstr;
   if (attr == NULL)
-    locsstr = "";
+    locsstr = "<no alternatives for NULL attribute>";
   else
     {
-      // If we don't have dwarf_getlocations just suggest nothing.
 #if _ELFUTILS_PREREQ (0, 158)
       Dwarf_Op *expr;
       size_t exprlen;
@@ -2830,7 +2829,7 @@ suggested_locations_string(Dwarf_Attribute *attr)
 				&expr, &exprlen);
       if (off > 0)
 	{
-	  locsstr = _(" alternative locations: ");
+	  locsstr = _("alternative locations: ");
 
 	  while (off > 0)
             {
@@ -2847,14 +2846,17 @@ suggested_locations_string(Dwarf_Attribute *attr)
 		locsstr += ", ";
 	    }
 	}
+      else if (off == 0)
+	locsstr = _("<no alternative locations>");
       else
-	locsstr = "";
+	locsstr = _F("<error getting alternative locations: %s>",
+		     dwarf_errmsg(-1));
 #else
-      locsstr = "";
+      locsstr = "<cannot suggest any alternative locations, elfutils too old>";
 #endif /* _ELFUTILS_PREREQ (0, 158) */
     }
 
- return locsstr;
+  return locsstr;
 }
 
 /* Produce a human readable name for a DIE. */
@@ -2885,7 +2887,8 @@ die_name_string (Dwarf_Die *die)
   return res;
 }
 
-/* Returns a source line and column string based on the inlined DIE or the pc if DIE is NULL. */
+/* Returns a source line and column string based on the inlined DIE
+   or based on the pc if DIE is NULL. */
 string
 dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
 {
@@ -2944,17 +2947,12 @@ dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
   return linestr;
 }
 
-/* Returns a human readable PC and DIE offset for use in error messages.
-   Includes PC, DIE offset, DWARF file used and (inlined) source locations.  */
+/* Returns a human readable DIE offset for use in error messages.
+   Includes DIE offset and DWARF file used. */
 string
-dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
+dwflpp::die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
 {
   string locstr;
-
-  /* PC */
-  locstr = _("pc: ");
-  locstr += lex_cast_hex(pc);
-  locstr += ", ";
 
   /* DIE offset */
   locstr += _("dieoffset: ");
@@ -2971,6 +2969,17 @@ dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
     }
   else
     locstr += debugfile;
+
+  return locstr;
+}
+
+/* Returns a human readable (inlined) function and source file/line location
+   for a DIE and pc location.  */
+string
+dwflpp::die_location_as_function_string(Dwarf_Addr pc, Dwarf_Die *die)
+{
+  string locstr;
+  locstr = "function: ";
 
   /* Find the first function-like DIE with a name in scope.  */
   Dwarf_Die funcdie_mem;
@@ -2996,7 +3005,7 @@ dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
 
   /* source location */
   if (funcname == NULL)
-    locstr += _(" in unknown function at ") + pc_die_line_string (pc, NULL);
+    locstr += _("<unknown> at ") + pc_die_line_string (pc, NULL);
   else
     {
       int nscopes = dwarf_getscopes_die (funcdie, &scopes);
@@ -3005,7 +3014,6 @@ dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
 	  /* scopes[0] == funcdie, the lowest level, for which we already have
 	     the name.  This is the actual source location where it
 	     happened.  */
-	  locstr += _(" in ");
 	  locstr += funcname;
 	  locstr +=  _(" at ");
 	  locstr += pc_die_line_string (pc, NULL);
@@ -3035,7 +3043,11 @@ dwflpp::pc_die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
 	    }
 	}
       else
-	_(" in unknown function at ") + pc_die_line_string (pc, NULL);
+	{
+	  locstr += funcname;
+	  locstr += _(" at ");
+	  locstr += pc_die_line_string (pc, NULL);
+	}
       free (scopes);
     }
 
@@ -3089,18 +3101,27 @@ dwflpp::translate_location(struct obstack *pool,
       }
 
       /* FALLTHROUGH */
-      throw SEMANTIC_ERROR(_F("not accessible at this address [man error::dwarf] (%s)%s",
-			      pc_die_location_as_string(pc, die).c_str(),
-			      suggested_locations_string(attr).c_str()),
-			   e->tok);
+      {
+	string msg = _F("not accessible at this address (pc: %s) [man error::dwarf]", lex_cast_hex(pc).c_str());
+	semantic_error err(ERR_SRC, msg, e->tok);
+	err.details.push_back(die_location_as_string(pc, die));
+	err.details.push_back(die_location_as_function_string(pc, die));
+	err.details.push_back(suggested_locations_string(attr));
+	throw err;
+      }
 
     default:			/* Shouldn't happen.  */
     case -1:
-      throw SEMANTIC_ERROR (_F("dwarf_getlocation_addr failed [man error::dwarf] , %s (%s)%s",
-			       dwarf_errmsg(-1),
-			       pc_die_location_as_string(pc, die).c_str(),
-			       suggested_locations_string(attr).c_str()),
-			    e->tok);
+      {
+	string msg = _F("dwarf_getlocation_addr failed at this address (pc: %s) [man error::dwarf]", lex_cast_hex(pc).c_str());
+	semantic_error err(ERR_SRC, msg, e->tok);
+	string dwarf_err = _F("dwarf_error: %s", dwarf_errmsg(-1));
+	err.details.push_back(dwarf_err);
+	err.details.push_back(die_location_as_string(pc, die));
+	err.details.push_back(die_location_as_function_string(pc, die));
+	err.details.push_back(suggested_locations_string(attr));
+	throw err;
+      }
     }
 
   Dwarf_Op *cfa_ops;

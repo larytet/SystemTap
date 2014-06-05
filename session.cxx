@@ -2026,12 +2026,18 @@ systemtap_session::build_error_msg (const semantic_error& e)
   message << colorize(_("semantic error:"), "error") << ' ' << e.what ();
   if (e.tok1 || e.tok2)
     message << ": ";
-  else if (verbose > 1) // no tokens to print, so print any errsrc right there
-    message << endl << _("   thrown from: ") << e.errsrc;
+  else
+    {
+      print_error_details (message, align_semantic_error, e);
+      message << endl;
+      if (verbose > 1) // no tokens to print, so print any errsrc right there
+	message << _("   thrown from: ") << e.errsrc;
+    }
 
   if (e.tok1)
     {
       print_token (message, e.tok1);
+      print_error_details (message, align_semantic_error, e);
       message << endl;
       if (verbose > 1)
         message << _("   thrown from: ") << e.errsrc << endl;
@@ -2108,6 +2114,15 @@ systemtap_session::print_error_source (std::ostream& message,
       message << colorize(tok->chain) << endl;
       print_error_source (message, align, tok->chain);
     }
+}
+
+void
+systemtap_session::print_error_details (std::ostream& message,
+					std::string& align,
+					const semantic_error& e)
+{
+  for (size_t i = 0; i < e.details.size(); ++i)
+    message << endl << align << e.details[i];
 }
 
 void

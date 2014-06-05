@@ -34,6 +34,12 @@ struct semantic_error: public std::runtime_error
   const token* tok2;
   std::string errsrc;
 
+  // Extra details to explain the error or provide alternatives to the user.
+  // Each one printed after the main error message and tokens aligned on
+  // separate lines. Just push_back anything you want that better explains
+  // the error to the user (not meant for extra verbose developer messages).
+  std::vector<std::string> details;
+
   ~semantic_error () throw ()
     {
       if (chain)
@@ -54,7 +60,7 @@ struct semantic_error: public std::runtime_error
   /* override copy-ctor to deep-copy chain */
   semantic_error (const semantic_error& other):
       runtime_error(other), tok1(other.tok1), tok2(other.tok2),
-      errsrc(other.errsrc), chain (0)
+      errsrc(other.errsrc), details(other.details), chain (0)
     {
       if (other.chain)
         set_chain(*other.chain);

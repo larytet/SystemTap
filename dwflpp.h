@@ -583,7 +583,8 @@ private:
                                                  Dwarf_Die *vardie,
                                                  Dwarf_Attribute *fb_attr_mem);
 
-  std::string pc_die_location_as_string(Dwarf_Addr, Dwarf_Die*);
+  std::string die_location_as_string(Dwarf_Addr, Dwarf_Die*);
+  std::string die_location_as_function_string(Dwarf_Addr, Dwarf_Die*);
   std::string pc_die_line_string(Dwarf_Addr, Dwarf_Die*);
 
   struct location *translate_location(struct obstack *pool,

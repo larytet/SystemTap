@@ -418,6 +418,7 @@ public:
   void print_error (const semantic_error& e);
   std::string build_error_msg (const semantic_error& e);
   void print_error_source (std::ostream&, std::string&, const token* tok);
+  void print_error_details (std::ostream&, std::string&, const semantic_error&);
   void print_error (const parse_error &pe,
                     const token* tok,
                     const std::string &input_name,
