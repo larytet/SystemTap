@@ -2979,23 +2979,23 @@ string
 dwflpp::die_location_as_function_string(Dwarf_Addr pc, Dwarf_Die *die)
 {
   string locstr;
-  locstr = "function: ";
+  locstr = _("function: ");
 
   /* Find the first function-like DIE with a name in scope.  */
   Dwarf_Die funcdie_mem;
   Dwarf_Die *funcdie = NULL;
-  const char *funcname = NULL;
+  string funcname = "";
   Dwarf_Die *scopes = NULL;
   int nscopes = dwarf_getscopes (cu, pc, &scopes);
-  for (int i = 0; funcname == NULL && i < nscopes; i++)
+  for (int i = 0; funcname == "" && i < nscopes; i++)
     {
       Dwarf_Die *scope = &scopes[i];
       int tag = dwarf_tag (scope);
       if (tag == DW_TAG_subprogram
 	  || tag == DW_TAG_inlined_subroutine
 	  || tag == DW_TAG_entry_point)
-	funcname = die_name_string (scope).c_str();
-      if (funcname != NULL)
+	funcname = die_name_string (scope);
+      if (funcname != "")
 	{
 	  funcdie_mem = *scope;
 	  funcdie = &funcdie_mem;
@@ -3004,7 +3004,7 @@ dwflpp::die_location_as_function_string(Dwarf_Addr pc, Dwarf_Die *die)
   free (scopes);
 
   /* source location */
-  if (funcname == NULL)
+  if (funcname == "")
     locstr += _("<unknown> at ") + pc_die_line_string (pc, NULL);
   else
     {
