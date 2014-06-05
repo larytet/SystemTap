@@ -3736,8 +3736,13 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 				       NULL, &addr_loc, 1, &tail, NULL, NULL);
 	}
       else
-        throw SEMANTIC_ERROR (_F("failed to retrieve location attribute for '%s' [man error::dwarf] (dieoffset: %s)",
-                                 local.c_str(), lex_cast_hex(dwarf_dieoffset(&vardie)).c_str()), e->tok);
+	{
+	  string msg = _F("failed to retrieve location attribute for '%s' [man error::dwarf]", local.c_str());
+	  semantic_error err(ERR_SRC, msg, e->tok);
+	  err.details.push_back(die_location_as_string(pc, &vardie));
+	  err.details.push_back(die_location_as_function_string(pc, &vardie));
+	  throw err;
+	}
     }
   else
     head = translate_location (&pool, &attr_mem, &vardie, pc, fb_attr, &tail, e);
@@ -3746,7 +3751,13 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 
   Dwarf_Die typedie;
   if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
-    throw SEMANTIC_ERROR(_F("failed to retrieve type attribute for '%s' [man error::dwarf] (dieoffset: %s)", local.c_str(), lex_cast_hex(dwarf_dieoffset(&vardie)).c_str()), e->tok);
+    {
+      string msg = _F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str());
+      semantic_error err(ERR_SRC, msg, e->tok);
+      err.details.push_back(die_location_as_string(pc, &vardie));
+      err.details.push_back(die_location_as_function_string(pc, &vardie));
+      throw err;
+    }
 
   translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
