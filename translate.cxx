@@ -7047,24 +7047,6 @@ translate_pass (systemtap_session& s)
 	}
       s.op->assert_0_indent();
 
-      // Run a varuse_collecting_visitor over probes that need global
-      // variable locks.  We'll use this information later in
-      // emit_locks()/emit_unlocks().
-      for (unsigned i=0; i<s.probes.size(); i++)
-	{
-        assert_no_interrupts();
-        if (s.probes[i]->needs_global_locks())
-	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
-	}
-      s.op->assert_0_indent();
-
-      for (unsigned i=0; i<s.probes.size(); i++)
-        {
-          assert_no_interrupts();
-          s.up->emit_probe (s.probes[i]);
-        }
-      s.op->assert_0_indent();
-
       // Let's find some stats for the embedded pp strings.  Maybe they
       // are small and uniform enough to justify putting char[MAX]'s into
       // the array instead of relocated char*'s.
@@ -7129,7 +7111,29 @@ translate_pass (systemtap_session& s)
                       << "STAP_PROBE_INIT_NAME(PN) "
                       << "STAP_PROBE_INIT_TIMING(L, D) "
                       << "}";
-      s.op->newline(-1) << "} static stap_probes[] = {";
+      s.op->newline(-1) << "} static stap_probes[];";
+      s.op->assert_0_indent();
+#undef CALCIT
+
+      // Run a varuse_collecting_visitor over probes that need global
+      // variable locks.  We'll use this information later in
+      // emit_locks()/emit_unlocks().
+      for (unsigned i=0; i<s.probes.size(); i++)
+	{
+        assert_no_interrupts();
+        if (s.probes[i]->needs_global_locks())
+	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
+	}
+      s.op->assert_0_indent();
+
+      for (unsigned i=0; i<s.probes.size(); i++)
+        {
+          assert_no_interrupts();
+          s.up->emit_probe (s.probes[i]);
+        }
+      s.op->assert_0_indent();
+
+      s.op->newline() << "static struct stap_probe stap_probes[] = {";
       s.op->indent(1);
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
@@ -7142,8 +7146,6 @@ translate_pass (systemtap_session& s)
                           << lex_cast_qstring (p->derived_locations()) << "),";
         }
       s.op->newline(-1) << "};";
-      s.op->assert_0_indent();
-#undef CALCIT
 
       if (s.runtime_usermode_p())
         {
@@ -7155,6 +7157,7 @@ translate_pass (systemtap_session& s)
           s.op->assert_0_indent();
         }
 
+      s.op->assert_0_indent();
       s.op->newline();
       s.up->emit_module_init ();
       s.op->assert_0_indent();
