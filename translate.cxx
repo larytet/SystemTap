@@ -1935,16 +1935,29 @@ void
 c_unparser::emit_module_refresh ()
 {
   o->newline() << "static void systemtap_module_refresh (void) {";
-  o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
+  o->newline(1) << "int state;";
+  o->newline() << "int i=0, j=0;"; // for derived_probe_group use
+
+  // Ensure we're only doing the refreshing one at a time. NB: it's important
+  // that we get the lock prior to checking the session_state, in case whoever
+  // is holding the lock (e.g. systemtap_module_exit()) changes it.
+  o->newline() << "#ifdef STP_ON_THE_FLY";
+  o->newline() << "mutex_lock(&module_refresh_mutex);";
+  o->newline() << "#endif";
 
   /* If we're not in STARTING/RUNNING state, don't try doing any work.
      PR16766 */
-  o->newline() << "int state = atomic_read (session_state());";
+  o->newline() << "state = atomic_read (session_state());";
   o->newline() << "if (state != STAP_SESSION_RUNNING && state != STAP_SESSION_STARTING && state != STAP_SESSION_ERROR) {";
   // cannot _stp_warn etc. since we're not in probe context
   o->newline(1) << "#if defined(__KERNEL__)";
   o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\\n\", state);";
   o->newline() << "#endif";
+
+  o->newline() << "#ifdef STP_ON_THE_FLY";
+  o->newline() << "mutex_unlock(&module_refresh_mutex);";
+  o->newline() << "#endif";
+
   o->newline() << "return;";
   o->newline(-1) << "}";
 
@@ -1956,6 +1969,11 @@ c_unparser::emit_module_refresh ()
     {
       g[i]->emit_module_refresh (*session);
     }
+
+  o->newline() << "#ifdef STP_ON_THE_FLY";
+  o->newline() << "mutex_unlock(&module_refresh_mutex);";
+  o->newline() << "#endif";
+
   o->newline(-1) << "}\n";
 }
 
@@ -1983,6 +2001,10 @@ c_unparser::emit_module_exit ()
   // while to abort right away.  Currently running probes are allowed to
   // terminate.  These may set STAP_SESSION_ERROR!
 
+  // Get the lock before exiting to ensure there's no one in module_refresh
+  o->newline() << "#ifdef STP_ON_THE_FLY";
+  o->newline() << "mutex_lock(&module_refresh_mutex);";
+  o->newline() << "#endif";
 
   // We're processing the derived_probe_group list in reverse
   // order.  This ensures that probes get unregistered in reverse
@@ -1991,6 +2013,10 @@ c_unparser::emit_module_exit ()
   for (vector<derived_probe_group*>::reverse_iterator i = g.rbegin();
        i != g.rend(); i++)
     (*i)->emit_module_exit (*session); // NB: runs "end" probes
+
+  o->newline() << "#ifdef STP_ON_THE_FLY";
+  o->newline() << "mutex_unlock(&module_refresh_mutex);";
+  o->newline() << "#endif";
 
   // But some other probes may have launched too during unregistration.
   // Let's wait a while to make sure they're all done, done, done.
@@ -7041,6 +7067,15 @@ translate_pass (systemtap_session& s)
 
       // Emit systemtap_module_refresh() prototype so we can reference it
       s.op->newline() << "static void systemtap_module_refresh (void);";
+
+      // When on-the-fly [dis]arming is used, module_refresh can be called from
+      // both the module notifier, as well as when probes need to be
+      // armed/disarmed. We need to protect it to ensure it's only run one at a
+      // time.
+      s.op->newline() << "#ifdef STP_ON_THE_FLY";
+      s.op->newline() << "#include <linux/mutex.h>";
+      s.op->newline() << "static DEFINE_MUTEX(module_refresh_mutex);";
+      s.op->newline() << "#endif";
 
       s.op->newline() << "#include \"runtime.h\"";
 
