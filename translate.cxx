@@ -7104,8 +7104,11 @@ translate_pass (systemtap_session& s)
         }
 
       s.op->newline() << "struct stap_probe {";
-      s.op->newline(1) << "size_t index;";
+      s.op->newline(1) << "const size_t index;";
       s.op->newline() << "void (* const ph) (struct context*);";
+      s.op->newline() << "#ifdef STP_ON_THE_FLY";
+      s.op->newline() << "unsigned cond_enabled;";
+      s.op->newline() << "#endif";
       s.op->newline() << "#if defined(STP_TIMING) || defined(STP_ALIBI)";
       CALCIT(location);
       CALCIT(derivation);
@@ -7126,7 +7129,7 @@ translate_pass (systemtap_session& s)
                       << "STAP_PROBE_INIT_NAME(PN) "
                       << "STAP_PROBE_INIT_TIMING(L, D) "
                       << "}";
-      s.op->newline(-1) << "} static const stap_probes[] = {";
+      s.op->newline(-1) << "} static stap_probes[] = {";
       s.op->indent(1);
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
