@@ -34,6 +34,7 @@ extern "C" {
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <elfutils/libdwfl.h>
+#include <elfutils/version.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <wordexp.h>
@@ -427,8 +428,16 @@ systemtap_session::clone(const string& arch, const string& release)
 string
 systemtap_session::version_string ()
 {
-  return _F("%s/%s, %s",
-            VERSION, dwfl_version(NULL), STAP_EXTENDED_VERSION);
+  string elfutils_version1;
+#ifdef _ELFUTILS_VERSION
+  elfutils_version1 = "0." + lex_cast(_ELFUTILS_VERSION);
+#endif
+  string elfutils_version2 = dwfl_version(NULL);
+
+  if (elfutils_version1 != elfutils_version2)
+    elfutils_version2 += string("/") + elfutils_version1;
+
+  return string (VERSION) + "/" + elfutils_version2 + ", " + STAP_EXTENDED_VERSION;
 }
 
 void
