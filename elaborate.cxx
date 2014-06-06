@@ -4244,7 +4244,7 @@ struct autocast_expanding_visitor: public var_expanding_visitor
     {
       const bool lvalue = is_active_lvalue (e);
       const exp_type_ptr& details = e->operand->type_details;
-      if (details)
+      if (details && !e->saved_conversion_error)
         {
           functioncall* fc = details->expand (e, lvalue);
           if (fc)
@@ -4906,7 +4906,7 @@ typeresolution_info::visit_autocast_op (autocast_op* e)
 {
   // Like cast_op, a implicit autocast_op shouldn't survive this far
   // unless it was not resolved and its value is really needed.
-  if (e->saved_conversion_error)
+  if (assert_resolvability && e->saved_conversion_error)
     throw (* (e->saved_conversion_error));
   else if (assert_resolvability)
     throw SEMANTIC_ERROR(_("unknown type in dereference"), e->tok);
