@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# There are many kinds of expressions, but most operators are lower precedence
+# than autocast (parser::parse_dwarf_value).  We should be able to parse
+# autocasts on anything inside that though, having higher precedence.
+# Any (expr) is also valid, but it's not interesting to enumerate them.
+
+expressions=(
+  '(6 * 9)'                     # any parenthesized expression 
+  '"the ultimate answer"'       # literal_string
+  '42'                          # literal_number
+  '%{ 42 %}'                    # embedded_expr
+  'answer'                      # symbol
+  '@max(answer)'                # stat_op
+  '@defined(answer)'            # defined_op
+  '@entry(answer)'              # entry_op
+  '@perf("answer")'             # perf_op
+  'answer[6,9]'                 # symbol arrayindex
+  '@hist_log(answer)[42]'       # hist_op arrayindex
+  'report(answer)'              # functioncall
+  'print(answer)'               # print_format
+)
+
+for e in "${expressions[@]}"; do
+
+  # Try a few different flavors of autocast
+  autocast_expressions=(
+    "& $e"
+    "$e ->member"
+    "$e [index]"
+    "$e \$"
+    "$e \$\$"
+    "& $e ->member [index]"
+    "$e [index] ->member\$"
+  )
+
+  for ae in "${autocast_expressions[@]}"; do
+    echo "probe begin { ( $ae ) }"
+  done
+
+done |
+stap "$@" -g -p1 -

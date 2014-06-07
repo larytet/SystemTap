@@ -1,0 +1,22 @@
+#! stap -p1
+
+probe begin {
+  // The autocast operators have higher precedence than array_in, so the first
+  // two mean the same thing, and the third overrides precedence.
+  ( & foo in bar )
+  ( & (foo) in bar )
+  ( & (foo in bar) )
+
+  // These are all the same, as precedence collects it all before array_in.
+  ( foo -> baz in bar )
+  ( (foo) -> baz in bar )
+  ( (foo -> baz) in bar )
+
+
+  // You can override precedence with parentheses to apply trailing autocast
+  // operators to the array_in itself.  Without the parentheses, "-> baz"
+  // should apply to the RHS "bar", but autocast isn't indexable, so that's a
+  // parse error.  (see parseko/autocast03.stp)
+  ( (foo in bar) -> baz )
+}
+

@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# $expressions and $autocast_expressions should mirror parseok/autocast01.stp.
+# But now we're running stap --compatible=2.5, so they should each fail.
+
+expressions=(
+  '(6 * 9)'                     # any parenthesized expression 
+  '"the ultimate answer"'       # literal_string
+  '42'                          # literal_number
+  '%{ 42 %}'                    # embedded_expr
+  'answer'                      # symbol
+  '@max(answer)'                # stat_op
+  '@defined(answer)'            # defined_op
+  '@entry(answer)'              # entry_op
+  '@perf("answer")'             # perf_op
+  'answer[6,9]'                 # symbol arrayindex
+  '@hist_log(answer)[42]'       # hist_op arrayindex
+  'report(answer)'              # functioncall
+  'print(answer)'               # print_format
+)
+
+ok=0
+for e in "${expressions[@]}"; do
+
+  autocast_expressions=(
+    "& $e"
+    "$e ->member"
+    "$e [index]"
+    "$e \$"
+    "$e \$\$"
+    "& $e ->member [index]"
+    "$e [index] ->member\$"
+  )
+
+  for ae in "${autocast_expressions[@]}"; do
+    if [ "$ae" == "answer [index]" ] ; then
+      # this one reveals a flaw of this test iteration;
+      # it's actually parsed as an arrayindex, always ok.
+      continue
+    fi
+
+    if stap "$@" -g -p1 -e "probe begin { ( $ae ) }" --compatible=2.5 ; then
+      echo >&2 "autocast '$ae' shouldn't work on stap 2.5!"
+      ok=$(( $ok + 1 ))
+    fi
+  done
+
+done
+
+if [ $ok -eq 0 ] ; then
+  echo >&2 "All autocasts failed correctly on stap 2.5"
+  exit 1 # XFAIL
+else
+  echo >&2 "$ok autocasts didn't fail correctly on stap 2.5!"
+  exit 0 # XPASS
+fi
+

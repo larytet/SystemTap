@@ -1,0 +1,8 @@
+#! stap -p2
+
+probe begin
+{
+    // Test that DWARF types directly transfer through expressions,
+    // even failing properly when the field doesn't exist.
+    println( (& @cast(0, "sockaddr_un", "<sys/un.h>")) -> no_such_field )
+}

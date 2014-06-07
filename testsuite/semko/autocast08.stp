@@ -1,0 +1,8 @@
+#! stap -p2
+
+probe begin
+{
+    // Test that autocast writes fail without guru mode
+    sun = & @cast(0, "sockaddr_un", "<sys/un.h>");
+    sun->sun_path[0] = 0
+}
