@@ -4237,6 +4237,9 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 
   try
     {
+      if (lvalue && !dw->sess.guru_mode)
+	throw SEMANTIC_ERROR(_("write not permitted; need stap -g"), e->tok);
+
       Dwarf_Die cu_mem;
       dw->focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
