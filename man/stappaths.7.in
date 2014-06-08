@@ -97,7 +97,10 @@ The location of kernel module building infrastructure.
 @prefix@/share/doc/systemtap*/examples
 Examples with greater detail can be found here. Each example comes with a .txt
 or .meta file explaining what the example, sample or demo does and how it is
-ordinarily run.
+ordinarily run.  See also
+.nh
+.IR http://sourceware.org/systemtap/examples/
+.hy
 .TP
 $SYSTEMTAP_DIR/ssl/server
 User's server\-side SSL certificate database. If SYSTEMTAP_DIR is not
