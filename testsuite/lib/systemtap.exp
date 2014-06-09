@@ -542,7 +542,7 @@ proc stap_run_batch {filename args} {
 
     expect {
 	-timeout -1
-        -re {[^\r]*\r} { verbose -log $expect_out(0,string); exp_continue }
+        -re {[^\r\n]*\r\n} { exp_continue }
         eof { }
     }
     set results [wait]
