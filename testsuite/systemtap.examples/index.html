@@ -38,7 +38,7 @@
            		<li><a href="keyword-index.html">By Keyword</a></li>
          	</ul>
 
-<h2>All Examples</h2>
+<h2>All 124 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -73,6 +73,13 @@ keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.ht
 keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
 &#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p>
+</li><li><a name="general/py2example.stp"></a><a href="#general/py2example.stp">&para;</a> <a href="general/py2example.stp">general/py2example.stp</a> - SystemTap python 2 support tapset<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>A python support tapset that displays backtraces and variable values <p><font size="-2"><pre># stap -I tapset -c &#39;/usr/bin/python2 pyexample.py 35&#39; py2example.stp</pre></font></p>
+</li><li><a name="general/py3example.stp"></a><a href="#general/py3example.stp">&para;</a> <a href="general/py3example.stp">general/py3example.stp</a> - SystemTap python 3 support tapset<br>
+keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>A python support tapset that displays backtraces and variable values<p><font size="-2"><pre># stap -g --suppress-time-limits -I tapset -c &#39;/usr/bin/python3 \
+pyexample.py 35&#39; py3example.stp</pre></font></p>
 </li><li><a name="general/regex.stp"></a><a href="#general/regex.stp">&para;</a> <a href="general/regex.stp">general/regex.stp</a> - Report opened files whose names match a given regex<br>
 keywords: <a href="keyword-index.html#REGEX">REGEX</a> <br>
 <p>Uses the regex functionality to detect opened files whose names match a pattern given on the command line. If no command line parameter is given, demonstrate by filtering for files that end with an extension showing them to be an archive.<p><font size="-2"><pre># stap regex.stp -c &quot;sleep 1&quot;</pre></font></p>
@@ -390,6 +397,9 @@ keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 </li><li><a name="profiling/topsys.stp"></a><a href="#profiling/topsys.stp">&para;</a> <a href="profiling/topsys.stp">profiling/topsys.stp</a> - Show Processes Doing Polling Operations<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p> The topsys.stp script lists out the top twenty systemcalls for the previous 5 seconds. The output is sorted from most frequent to least frequent.<p><font size="-2"><pre># stap topsys.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a name="stapgames/2048.stp"></a><a href="#stapgames/2048.stp">&para;</a> <a href="stapgames/2048.stp">stapgames/2048.stp</a> - 2048<br>
+keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
+<p>The modern classic 2048 sliding-tiles game, using local keyboard and ansi animation.<p><font size="-2"><pre># stap -p4 2048.stp</pre></font></p>
 </li><li><a name="stapgames/block.stp"></a><a href="#stapgames/block.stp">&para;</a> <a href="stapgames/block.stp">stapgames/block.stp</a> - block breaker game<br>
 keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
 <p>A block game where you progressively break the ceiling blocks until clearing the level<p><font size="-2"><pre># stap -p4 -Itapset/ block.stp</pre></font></p>

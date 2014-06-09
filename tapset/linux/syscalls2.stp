@@ -1997,7 +1997,7 @@ probe syscall.send.return = kernel.function("sys_send").return ?
 # COMPAT_SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd,
 #		compat_loff_t __user *, offset, compat_size_t, count)
 #
-probe syscall.sendfile = __syscall.sendfile, __syscall.compat_sendfile
+probe syscall.sendfile = __syscall.sendfile ?, __syscall.compat_sendfile ?
 {
 	name = "sendfile"
 	out_fd = __int32($out_fd)
@@ -3982,8 +3982,8 @@ probe syscall.compat_utime = kernel.function("compat_sys_utime").call ?
 	filename_uaddr = $filename
 	filename = user_string_quoted($filename)
 	buf_uaddr = $t
-	actime = user_long(&$t->actime)
-	modtime = user_long(&$t->modtime)
+	actime = _struct_compat_utimbuf_actime(buf_uaddr)
+	modtime = _struct_compat_utimbuf_modtime(buf_uaddr)
 	argstr = sprintf("%s, [%s, %s]", user_string_quoted($filename),
 		ctime(actime), ctime(modtime))
 }

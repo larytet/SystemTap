@@ -24,9 +24,9 @@ else
 PDFTOOL=
 endif
 if HAVE_XVFB
-	-xvfb-run -a publican build --formats=pdf,html --langs=en-US $(PDFTOOL)
+	-xvfb-run -a publican build --formats=pdf,html --langs=en-US $(PDFTOOL) || xvfb-run -a publican build --formats=pdf,html --langs=en-US
 else
-	publican build --formats=pdf,html --langs=en-US $(PDFTOOL)
+	publican build --formats=pdf,html --langs=en-US $(PDFTOOL) || publican build --formats=pdf,html --langs=en-US
 endif
 	mv build/en-US/pdf/*$(SBG)*.pdf $(SBG).pdf
 

@@ -1948,6 +1948,23 @@ keywords: simple
   # stap helloworld.stp
 
 
+general/py2example.stp - SystemTap python 2 support tapset
+keywords: simple
+
+  A python support tapset that displays backtraces and variable values 
+
+  # stap -I tapset -c '/usr/bin/python2 pyexample.py 35' py2example.stp
+
+
+general/py3example.stp - SystemTap python 3 support tapset
+keywords: simple
+
+  A python support tapset that displays backtraces and variable values
+
+  # stap -g --suppress-time-limits -I tapset -c '/usr/bin/python3 \
+  pyexample.py 35' py3example.stp
+
+
 io/eatmydata.stp - disable fsync
 keywords: io guru simple
 
@@ -2041,6 +2058,15 @@ keywords: network tcp socket guru
 
 
 = STAPGAMES =
+
+stapgames/2048.stp - 2048
+keywords: stapgames
+
+  The modern classic 2048 sliding-tiles game, using local keyboard and
+  ansi animation.
+
+  # stap -p4 2048.stp
+
 
 stapgames/block.stp - block breaker game
 keywords: stapgames

@@ -155,27 +155,14 @@ probe_point*
 derived_probe::script_location () const
 {
   // This feeds function::pn() in the tapset, which is documented as the
-  // script-level probe point expression, *after wildcard expansion*.  If
-  // it were not for wildcard stuff, we'd just return the last item in the
-  // derivation chain.  But alas ... we need to search for the last one
-  // that doesn't have a * in the textual representation.  Heuristics, eww.
+  // script-level probe point expression, *after wildcard expansion*.
   vector<probe_point*> chain;
   collect_derivation_pp_chain (chain);
 
-  // NB: we actually start looking from the second-to-last item, so the user's
-  // direct input is not considered.  Input like 'kernel.function("init_once")'
-  // will thus be listed with the resolved @file:line too, disambiguating the
-  // distinct functions by this name, and matching our historical behavior.
-  for (int i=chain.size()-2; i>=0; i--)
-    {
-      probe_point pp_copy (* chain [i]);
-      // drop any ?/! denotations that would confuse a glob-char search
-      pp_copy.optional = false;
-      pp_copy.sufficient = false;
-      string pp_printed = lex_cast(pp_copy);
-      if (! contains_glob_chars(pp_printed))
-        return chain[i];
-    }
+  // Go backwards until we hit the first well-formed probe point
+  for (int i=chain.size()-1; i>=0; i--)
+    if (chain[i]->well_formed)
+      return chain[i];
 
   // If that didn't work, just fallback to -something-.
   return sole_location();
@@ -813,10 +800,14 @@ alias_derived_probe::alias_derived_probe(probe *base, probe_point *l,
   // XXX pretty nasty -- this was cribbed from printscript() in main.cxx
   assert (alias->alias_names.size() >= 1);
   alias_loc = new probe_point(*alias->alias_names[0]); // XXX: [0] is arbitrary; it would make just as much sense to collect all of the names
-  if (suffix) {
-    alias_loc->components.insert(alias_loc->components.end(),
-                                 suffix->begin(), suffix->end());
-  }
+  alias_loc->well_formed = true;
+  vector<probe_point::component*>::const_iterator it;
+  for (it = suffix->begin(); it != suffix->end(); ++it)
+    {
+      alias_loc->components.push_back(*it);
+      if (isglob((*it)->functor))
+        alias_loc->well_formed = false; // needs further derivation
+    }
 }
 
 alias_derived_probe::~alias_derived_probe ()
@@ -829,21 +820,6 @@ probe_point*
 alias_derived_probe::sole_location () const
 {
   return const_cast<probe_point*>(alias_loc);
-}
-
-
-probe*
-probe::create_alias(probe_point* l, probe_point* a)
-{
-  vector<probe_point*> aliases(1, a);
-  probe_alias* p = new probe_alias(aliases);
-  p->tok = tok;
-  p->locations.push_back(l);
-  p->body = body;
-  p->base = this;
-  p->privileged = privileged;
-  p->epilogue_style = false;
-  return new alias_derived_probe(this, l, p);
 }
 
 
@@ -989,6 +965,19 @@ derive_probes (systemtap_session& s,
                bool optional,
                bool rethrow_errors)
 {
+  // We need a static to track whether the current probe is optional so that
+  // even if we recurse into derive_probes with optional = false, errors will
+  // still be ignored. The undo_parent_optional bool ensures we reset the
+  // static at the same level we had it set.
+  static bool parent_optional = false;
+  bool undo_parent_optional = false;
+
+  if (optional && !parent_optional)
+    {
+      parent_optional = true;
+      undo_parent_optional = true;
+    }
+
   vector <semantic_error> optional_errs;
 
   for (unsigned i = 0; i < p->locations.size(); ++i)
@@ -1004,19 +993,13 @@ derive_probes (systemtap_session& s,
         {
           unsigned num_atbegin = dps.size();
 
-          // Pass down optional flag from e.g. alias reference to each
-          // probe_point instance.  We do this by temporarily overriding
-          // the probe_point optional flag.  We could instead deep-copy
-          // and set a flag on the copy permanently.
-          bool old_loc_opt = loc->optional;
-          loc->optional = loc->optional || optional;
           try
 	    {
 	      s.pattern_root->find_and_build (s, p, loc, 0, dps); // <-- actual derivation!
 	    }
           catch (const semantic_error& e)
 	    {
-              if (!loc->optional)
+              if (!loc->optional && !parent_optional)
                 throw semantic_error(e);
               else /* tolerate failure for optional probe */
                 {
@@ -1029,10 +1012,9 @@ derive_probes (systemtap_session& s,
                 }
 	    }
 
-          loc->optional = old_loc_opt;
           unsigned num_atend = dps.size();
 
-          if (! (loc->optional||optional) && // something required, but
+          if (! (loc->optional||parent_optional) && // something required, but
               num_atbegin == num_atend) // nothing new derived!
             throw SEMANTIC_ERROR (_("no match"));
 
@@ -1084,6 +1066,9 @@ derive_probes (systemtap_session& s,
             }
         }
     }
+
+  if (undo_parent_optional)
+    parent_optional = false;
 }
 
 

@@ -1,5 +1,15 @@
 * What's new in version 2.6
 
+- SystemTap now supports SDT probes with operands that refer to symbols.
+
+- While in listing mode (-l/-L), probes printed are now more consistent
+  and precise.
+
+- Statement probes now support enumerated linenos to probe discontiguous
+  linenos using the form:
+
+  process.statement("foo@file.c:3,5-7,9")
+
 * What's new in version 2.5, 2014-04-30
 
 - Systemtap now supports backtracing through its own, invoking module.

@@ -446,10 +446,11 @@ of a possibly long source directory path.
 Finally, the third part is optional if the file name part was given,
 and identifies the line number in the source file preceded by a ":"
 or a "+".  The line number is assumed to be an
-absolute line number if preceded by a ":", or relative to the entry of
-the function if preceded by a "+".  
+absolute line number if preceded by a ":", or relative to the
+declaration line of the function if preceded by a "+".
 All the lines in the function can be matched with ":*".  
-A range of lines x through y can be matched with ":x\-y".
+A range of lines x through y can be matched with ":x\-y". Ranges and
+specific lines can be mixed using commas, e.g. ":x,y\-z".
 .PP
 As an alternative, PATTERN may be a numeric constant, indicating an
 address.  Such an address may be found from symbol tables of the
@@ -813,11 +814,16 @@ to the working directory if they contain a "/" character, otherwise in
 .BR $PATH .
 If PATH names refer to scripts, the actual interpreters (specified in the
 script in the first line after the #! characters) are probed.
+
+.PP
 If PATH is a process component parameter referring to shared libraries
-then all processes that map it at runtime would be selected for
-probing.  If PATH is a library component parameter referring to shared
-libraries then the process specified by the process component would be
-selected.  
+then all processes that map it at runtime would be selected for probing.
+If PATH is a library component parameter referring to shared libraries
+then the process specified by the process component would be selected.
+Note that the PATH pattern in a library component will always apply to
+libraries statically determined to be in use by the process. However,
+you may also specify the full path to any library file even if not
+statically needed by the process.
 
 .PP
 A .plt probe will probe functions in the program linkage table
@@ -1113,15 +1119,49 @@ probes defined in
 export the lowercase names of the verdict constants (e.g. NF_DROP
 becomes nf_drop) as local variables.
 
-.SS MARKERS
+.SS KERNEL TRACEPOINTS
 
-This family of probe points hooks up to static probing markers
-inserted into the kernel or modules.  These markers are special macro
-calls inserted by kernel developers to make probing faster and more
-reliable than with DWARF-based probes.  Further, DWARF debugging
-information is 
+This family of probe points hooks up to static probing tracepoints
+inserted into the kernel or modules.  As with markers, these
+tracepoints are special macro calls inserted by kernel developers to
+make probing faster and more reliable than with DWARF-based probes,
+and DWARF debugging information is not required to probe tracepoints.
+Tracepoints have an extra advantage of more strongly-typed parameters
+than markers.
+
+Tracepoint probes look like:
+.BR kernel.trace("name") .
+The tracepoint name string, which may contain the usual wildcard
+characters, is matched against the names defined by the kernel
+developers in the tracepoint header files.
+
+The handler associated with a tracepoint-based probe may read the
+optional parameters specified at the macro call site.  These are
+named according to the declaration by the tracepoint author.  For
+example, the tracepoint probe
+.BR kernel.trace("sched_switch")
+provides the parameters
+.BR $rq ", " $prev ", and " $next .
+If the parameter is a complex type, as in a struct pointer, then a
+script can access fields with the same syntax as DWARF $target
+variables.  Also, tracepoint parameters cannot be modified, but in
+guru-mode a script may modify fields of parameters.
+
+The name of the tracepoint is available in
+.BR $$name ,
+and a string of name=value pairs for all parameters of the tracepoint
+is available in
+.BR $$vars " or " $$parms .
+
+.SS KERNEL MARKERS (OBSOLETE)
+
+This family of probe points hooks up to an older style of static
+probing markers inserted into older kernels or modules.  These markers
+are special STAP_MARK macro calls inserted by kernel developers to
+make probing faster and more reliable than with DWARF-based probes.
+Further, DWARF debugging information is
 .I not
-required to probe markers.
+required to probe markers.  
 
 Marker probe points begin with 
 .BR kernel .
@@ -1145,42 +1185,6 @@ The marker format string associated with a marker is available in
 .BR $format .
 And also the marker name string is available in
 .BR $name .
-
-.SS TRACEPOINTS
-
-This family of probe points hooks up to static probing tracepoints
-inserted into the kernel or modules.  As with markers, these
-tracepoints are special macro calls inserted by kernel developers to
-make probing faster and more reliable than with DWARF-based probes,
-and DWARF debugging information is not required to probe tracepoints.
-Tracepoints have an extra advantage of more strongly-typed parameters
-than markers.
-
-Tracepoint probes begin with 
-.BR kernel .
-The next part names the tracepoint itself:
-.BR trace("name") .
-The tracepoint name string, which may contain the usual wildcard
-characters, is matched against the names defined by the kernel
-developers in the tracepoint header files.
-
-The handler associated with a tracepoint-based probe may read the
-optional parameters specified at the macro call site.  These are
-named according to the declaration by the tracepoint author.  For
-example, the tracepoint probe
-.BR kernel.trace("sched_switch")
-provides the parameters
-.BR $rq ", " $prev ", and " $next .
-If the parameter is a complex type, as in a struct pointer, then a
-script can access fields with the same syntax as DWARF $target
-variables.  Also, tracepoint parameters cannot be modified, but in
-guru-mode a script may modify fields of parameters.
-
-The name of the tracepoint is available in
-.BR $$name ,
-and a string of name=value pairs for all parameters of the tracepoint
-is available in
-.BR $$vars " or " $$parms .
 
 .SS HARDWARE BREAKPOINTS
 This family of probes is used to set hardware watchpoints for a given
@@ -1298,8 +1302,12 @@ a probe at the statement at that line number.  Use the
 kernel.statement
 probe instead.
 .TP
+kernel.trace("sched_*")
+refers to all scheduler-related (really, prefixed) tracepoints in
+the kernel.
+.TP
 kernel.mark("getuid")
-refers to an STAP_MARK(getuid, ...) macro call in the kernel.
+refers to an obsolete STAP_MARK(getuid, ...) macro call in the kernel.
 .TP
 module("usb*").function("*sync*").return
 refers to the moment of return from all functions with "sync" in the

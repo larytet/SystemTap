@@ -34,6 +34,7 @@ extern "C" {
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <elfutils/libdwfl.h>
+#include <elfutils/version.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <wordexp.h>
@@ -423,13 +424,30 @@ systemtap_session::clone(const string& arch, const string& release)
   return s;
 }
 
+
+string
+systemtap_session::version_string ()
+{
+  string elfutils_version1;
+#ifdef _ELFUTILS_VERSION
+  elfutils_version1 = "0." + lex_cast(_ELFUTILS_VERSION);
+#endif
+  string elfutils_version2 = dwfl_version(NULL);
+
+  if (elfutils_version1 != elfutils_version2)
+    elfutils_version2 += string("/") + elfutils_version1;
+
+  return string (VERSION) + "/" + elfutils_version2 + ", " + STAP_EXTENDED_VERSION;
+}
+
 void
 systemtap_session::version ()
 {
-  clog << _F("Systemtap translator/driver (version %s/%s, %s)\n"
+  clog << _F("Systemtap translator/driver (version %s)\n"
              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.",
-             VERSION, dwfl_version(NULL), STAP_EXTENDED_VERSION) << endl;
+             version_string().c_str());
+
   clog << _("enabled features:")
 #ifdef HAVE_AVAHI
        << " AVAHI"
@@ -1757,6 +1775,9 @@ systemtap_session::parse_kernel_functions ()
     }
   system_map.close();
 
+  if (kernel_functions.size() == 0)
+    print_warning ("Kernel function symbol table missing [man warning::symbols]", 0);
+
   if (verbose > 2)
     clog << _F("Parsed kernel \"%s\", ", system_map_path.c_str())
          << _NF("containing %zu symbol", "containing %zu symbols",
@@ -1770,30 +1791,53 @@ string
 systemtap_session::cmd_file ()
 {
   wordexp_t words;
-  int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
   string file;
-  if(rc == 0)
+  
+  if (target_pid && cmd == "")
     {
-      if (words.we_wordc > 0)
-        file = words.we_wordv[0];
-      wordfree (& words);
-    }
-  else
-    {
-      switch (rc)
+      string pid_path = string("/proc/") + lex_cast(target_pid) + "/exe";
+      char buf[1024];
+      ssize_t path_len = readlink(pid_path.c_str(), buf, sizeof(buf) - 1);
+
+      if (path_len > 0)
         {
-        case WRDE_BADCHAR:
-          throw SEMANTIC_ERROR(_("command contains illegal characters"));
-        case WRDE_BADVAL:
-          throw SEMANTIC_ERROR(_("command contains undefined shell variables"));
-        case WRDE_CMDSUB:
-          throw SEMANTIC_ERROR(_("command contains command substitutions"));
-        case WRDE_NOSPACE:
-          throw SEMANTIC_ERROR(_("out of memory"));
-        case WRDE_SYNTAX:
-          throw SEMANTIC_ERROR(_("command contains shell syntax errors"));
-        default:
-          throw SEMANTIC_ERROR(_("unspecified wordexp failure"));
+          file = string(buf);
+        }
+      else
+        {
+          if (target_pid < 0)
+            {
+              throw SEMANTIC_ERROR(_("pid is a negative value"));
+            }
+          throw SEMANTIC_ERROR(_("pid does not correspond to a running process"));
+        }
+    }
+  else // default is to assume -c flag was given
+    {  
+      int rc = wordexp (cmd.c_str (), &words, WRDE_NOCMD|WRDE_UNDEF);
+      if(rc == 0)
+        {
+          if (words.we_wordc > 0)
+            file = words.we_wordv[0];
+          wordfree (& words);
+        }
+      else
+        {
+          switch (rc)
+            {
+              case WRDE_BADCHAR:
+                throw SEMANTIC_ERROR(_("command contains illegal characters"));
+              case WRDE_BADVAL:
+                throw SEMANTIC_ERROR(_("command contains undefined shell variables"));
+              case WRDE_CMDSUB:
+                throw SEMANTIC_ERROR(_("command contains command substitutions"));
+              case WRDE_NOSPACE:
+                throw SEMANTIC_ERROR(_("out of memory"));
+              case WRDE_SYNTAX:
+                throw SEMANTIC_ERROR(_("command contains shell syntax errors"));
+              default:
+                throw SEMANTIC_ERROR(_("unspecified wordexp failure"));
+           }  
         }
     }
   return file;
@@ -1991,12 +2035,18 @@ systemtap_session::build_error_msg (const semantic_error& e)
   message << colorize(_("semantic error:"), "error") << ' ' << e.what ();
   if (e.tok1 || e.tok2)
     message << ": ";
-  else if (verbose > 1) // no tokens to print, so print any errsrc right there
-    message << endl << _("   thrown from: ") << e.errsrc;
+  else
+    {
+      print_error_details (message, align_semantic_error, e);
+      message << endl;
+      if (verbose > 1) // no tokens to print, so print any errsrc right there
+	message << _("   thrown from: ") << e.errsrc;
+    }
 
   if (e.tok1)
     {
       print_token (message, e.tok1);
+      print_error_details (message, align_semantic_error, e);
       message << endl;
       if (verbose > 1)
         message << _("   thrown from: ") << e.errsrc << endl;
@@ -2076,9 +2126,19 @@ systemtap_session::print_error_source (std::ostream& message,
 }
 
 void
+systemtap_session::print_error_details (std::ostream& message,
+					std::string& align,
+					const semantic_error& e)
+{
+  for (size_t i = 0; i < e.details.size(); ++i)
+    message << endl << align << e.details[i];
+}
+
+void
 systemtap_session::print_warning (const string& message_str, const token* tok)
 {
-  if (suppress_warnings)
+  // Only output in dump mode if -vv is supplied:
+  if (suppress_warnings && (!dump_mode || verbose <= 1))
     return; // NB: don't count towards suppressed_warnings count
 
   // Duplicate elimination
@@ -2346,7 +2406,7 @@ bool
 systemtap_session::modules_must_be_signed()
 {
   ifstream statm("/sys/module/module/parameters/sig_enforce");
-  char status;
+  char status = 'N';
 
   statm >> status;
   if (status == 'Y')

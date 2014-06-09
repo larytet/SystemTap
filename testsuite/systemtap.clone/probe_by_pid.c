@@ -3,12 +3,13 @@
 
 void test_function(void)
 {
-    sleep(1);
     (void) getpid();
+    sleep(1);
 }
 
 int main(void)
 {
+    sleep(1); // so that post-prologue doesn't fall inside loop
     while (1) {
 	test_function();
     }

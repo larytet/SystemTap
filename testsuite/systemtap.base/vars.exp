@@ -7,35 +7,105 @@
 # generated.  However, there's still the ifdef'ed STP_LEGACY_PRINT code which
 # has the format string we care about here.  If that ever goes away, we'll
 # probably have to fall back to comparing pass-2 output instead.
-    
+#
+# NB2: We FAIL if any of the functions tested have no locals or no
+# params to ensure we're not testing a null hypothesis.
+
 set test "vars"
 
-# grab C statement that $$vars yields
-set cmd [concat stap -p3 -e {"probe kernel.statement(\"bio_copy_user@fs/bio.c+1\") \{print (\$\$vars)\}"} | grep {"_stp_snprintf.*="} | sed -e {"s/^.*MAXSTRINGLEN, \"//"} -e {s/\".*$//}]
-catch {eval exec $cmd} vars
-
-# grab C statement that $$parms yields
-set cmd [regsub "vars" $cmd "parms"]
-catch {eval exec $cmd} parms
-
-# grab C statement that $$locals yields
-set cmd [regsub "parms" $cmd "locals"]
-catch {eval exec $cmd} locals
-
-# syntax check of $$vars C statement
-set vars_ok [regexp "(\[a-z_\]+=%#llx *)+" $vars]
-if {!$vars_ok} {
-    fail "$test"
-} else {
-    pass "$test"
+proc get_listings { probe_point } {
+   if {![catch {exec stap -l ${probe_point} 2>@1} output]} {
+      return [split $output "\n"]
+   }
 }
 
-# $$vars should be equivalent to $$parms + $$locals
-if {![string equal $vars "$parms $locals"]} {
-    fail "$test parms/locals"
-    verbose -log "vars=$vars="
-    verbose -log "rest=$parms $locals="
-} else {
-    pass "$test parms/locals"
+proc parse_lineno { function line } {
+   if {[regexp "$function:(\[0-9\]+)\"" $line dummy submatch]} {
+      return $submatch
+   } else {
+      verbose -log "can't parse lineno in $line"
+      return 0
+   }
 }
 
+proc get_first_valid_lineno { function } {
+   set linenos ""
+   set probe_point "kernel.statement\(\"$function:*\"\)"
+   set line [lindex [get_listings $probe_point] 0]
+   return [parse_lineno $function $line]
+}
+
+proc grab_C_statements { probe_point type } {
+
+   set cmd [concat stap -p3 -e { "probe kernel.statement(\"$probe_point\") {print (\$\$$type)}" } \
+            | grep {"_stp_snprintf.*="} \
+            | sed -e {"s/^.*MAXSTRINGLEN, \"//"} -e "s/\".*$//"]
+   catch {eval exec $cmd} out
+
+   if {$out == ""} {
+      error "no output for $type"
+   } else {
+      verbose -log "output for $type: $out"
+   }
+
+   return $out
+}
+
+proc get_vars { probe_point } {
+   set vars [grab_C_statements $probe_point vars]
+
+   # syntax check of $$vars c statement
+   set syntax_ok [regexp "(\[a-z_\]+=%#llx *)+" $vars]
+   if {!$syntax_ok} {
+      error "bad vars syntax"
+      verbose -log "vars is $vars"
+   }
+
+   return $vars
+}
+
+proc get_parms { probe_point } {
+   return [grab_C_statements $probe_point parms]
+}
+
+proc get_locals { probe_point } {
+   return [grab_C_statements $probe_point locals]
+}
+
+proc test_function { function } {
+   global test
+   set subtest "$test - $function"
+
+   set lineno [get_first_valid_lineno $function]
+   if {$lineno == 0} {
+      fail "$subtest (no first lineno)"
+      return
+   } else {
+      pass "$subtest (first lineno is $lineno)"
+   }
+
+   if {[catch {
+      set probe_point "$function:$lineno"
+      set vars [get_vars $probe_point]
+      set parms [get_parms $probe_point]
+      set locals [get_locals $probe_point]
+   } err]} {
+      fail "$subtest ($err)"
+      return
+   } else {
+      pass "$subtest"
+   }
+
+   # $$vars should be equivalent to $$parms + $$locals
+   if {![string equal $vars "$parms $locals"]} {
+       fail "$subtest (parms/locals)"
+       verbose -log "vars=$vars="
+       verbose -log "rest=$parms $locals="
+   } else {
+       pass "$subtest (parms/locals)"
+   }
+}
+
+# Test a few different functions
+test_function {bio_copy_user@fs/bio.c}
+test_function {vfs_read@fs/read_write.c}

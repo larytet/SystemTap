@@ -1,0 +1,46 @@
+set test_name "proc_by_pid"
+if {! [installtest_p]} {
+    untested $test_name
+    return
+}
+
+# Build the test program
+set compile_result [target_compile $srcdir/$subdir/$test_name.c  ./$test_name executable "additional_flags=-g [sdt_includes]"]
+
+if {$compile_result != ""} {
+    verbose -log "target_compile failed: $compile_result" 2
+    fail "$test_name - unable to compile, $compile_result"
+    untested "$test_name"
+    return
+} else {
+    pass "$test_name - compiled successfully"
+}
+
+# Expected output
+set output_string "Encountered \[0-4\] functions, and \[0-2\] marks"
+
+# Running the test program and script
+foreach runtime [get_runtime_list] {
+    # Run the instance of the test program
+    verbose -log "running test program"
+    spawn ./$test_name
+    set exe_id $spawn_id
+
+    if {$runtime != ""} {
+        set cur_test_name "$test_name ($runtime)"
+
+        # Run stap with -x $PID
+        stap_run $cur_test_name no_load $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp -x [exp_pid -i $exe_id]
+    } elseif {[uprobes_p]} {
+        # Run stap with -x $PID
+        stap_run $test_name no_load $output_string $srcdir/$subdir/$test_name.stp -x [exp_pid -i $exe_id]
+    } else {
+        untested "$test_name (uprobes)"
+        continue
+    }
+    kill -INT -[exp_pid -i $exe_id] 2
+    catch {close -i $exe_id}
+    catch {wait -i $exe_id}
+}
+
+exec rm -f ./$test_name

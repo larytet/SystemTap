@@ -97,7 +97,7 @@ static void _stp_exit(void);
 #ifdef STAPCONF_TASK_UID
 #define STP_CURRENT_EUID (current->euid)
 #else
-#ifdef CONFIG_USER_NS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 #ifndef STAPCONF_FROM_KUID_MUNGED
 #define from_kuid_munged(user_ns, uid) ((uid))
 #define from_kgid_munged(user_ns, gid) ((gid))
@@ -224,7 +224,9 @@ static void *kallsyms___lock_task_sighand;
 #ifdef STP_USE_DWARF_UNWINDER
 #include "unwind.c"
 #else
-struct unwind_context { };
+/* We still need unwind.h for a few structures (unwind_context and
+ * unwind_cache). */
+#include "unwind/unwind.h"
 #endif
 
 #ifdef module_param_cb			/* kernels >= 2.6.36 */

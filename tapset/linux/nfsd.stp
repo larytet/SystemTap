@@ -40,7 +40,7 @@
 
 /*Get file handler from struct svc_fh */
 function __svc_fh:string(fh :long) %{  /* pure */
-	struct svc_fh * fhp = (struct svc_fh *) (long)(STAP_ARG_fh);
+	struct svc_fh * fhp = (struct svc_fh *) (unsigned long)(STAP_ARG_fh);
 	struct knfsd_fh *fh = &fhp->fh_handle;
 
 	snprintf(STAP_RETVALUE, MAXSTRINGLEN,
@@ -154,7 +154,7 @@ function __rqstp_uid:long(rqstp:long)
 	# net/sunrpc/auth_generic.c.
 	return %{ /* pure */
 		  from_kuid_munged(&init_user_ns,
-				   ((struct svc_rqst *)STAP_ARG_rqstp)->rq_cred.cr_uid) %}
+				   ((struct svc_rqst *)(unsigned long)STAP_ARG_rqstp)->rq_cred.cr_uid) %}
 %:
 	return @cast(rqstp, "svc_rqst", "kernel:nfsd")->rq_cred->cr_uid
 %)
@@ -168,7 +168,7 @@ function __rqstp_gid:long(rqstp:long)
 	# net/sunrpc/auth_generic.c.
 	return %{ /* pure */
 		  from_kgid_munged(&init_user_ns,
-				   ((struct svc_rqst *)STAP_ARG_rqstp)->rq_cred.cr_gid) %}
+				   ((struct svc_rqst *)(unsigned long)STAP_ARG_rqstp)->rq_cred.cr_gid) %}
 %:
 	return @cast(rqstp, "svc_rqst", "kernel:nfsd")->rq_cred->cr_gid
 %)

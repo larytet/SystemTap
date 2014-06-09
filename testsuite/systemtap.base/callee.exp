@@ -422,7 +422,7 @@ if {[file exists "$test"]} { file delete "$test" }
 # allows testing of:
 # - proper relocation of caller addr
 
-# in this test, we will compile our very own shared lib as well as a sample
+# In this test, we will compile our very own shared lib as well as a sample
 # executable that uses the shared lib to verify that relocation works properly.
 # So as expected, it's a bit more involved than the previous tests and we can't
 # really use the nice procs we have in place. Everything has to be done 'by
@@ -430,27 +430,13 @@ if {[file exists "$test"]} { file delete "$test" }
 
 set subtest "reloc"
 set failed 0
-set stap_id ""
 
 # We first compile the shared lib
 set subsubtest "shlib compilation"
 if {!$failed} {
-   catch {exec gcc -g -O -c -fPIC "${testpath}/${test}.${subtest}.lib.c"} err
-   set libobj "${test}.${subtest}.lib.o"
-   if {$err == "" && [file exists $libobj]} {
-      pass "$test ($subtest - $subsubtest)"
-   } else {
-      fail "$test ($subtest - $subsubtest)"
-      set failed 1
-   }
-}
-
-# Make it into a shared lib
-set subsubtest "shlib creation"
-if {!$failed} {
    set libso "lib$subtest.so"
-   catch {exec gcc -shared -o $libso $libobj} err
-   if {$err == "" && [file exists "$libso"]} {
+   catch {exec gcc -g -O -fPIC -shared -o $libso "${testpath}/${test}.${subtest}.lib.c"} err
+   if {$err == "" && [file exists $libso]} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
@@ -461,7 +447,7 @@ if {!$failed} {
 # Compile executable
 set subsubtest "exe compilation"
 if {!$failed} {
-   catch {exec gcc -L[exec pwd] -o $subtest -l$subtest \
+   catch {exec gcc -L[pwd] -o $subtest -l$subtest -Wl,-rpath,[pwd] \
           "${testpath}/${test}.${subtest}.c"} err
    if {$err == "" && [file exists "$subtest"]} {
       pass "$test ($subtest - $subsubtest)"
@@ -506,13 +492,8 @@ if {!$failed} {
    }
 }
 
-# We can now actually try out the probe. Unfortunately, we need to make use of
-# LD_LIBRARY_PATH when running ./$subtest. But since stap doesn't carry it
-# forward, we can't just do 'LD_LIBRARY_PATH=/path/ stap -e ... -c ./$subtest'.
-# We need to start stap and the executable independently.
-
-# First we start background stap
-set subsubtest "probing shlib foo .callees - start stap"
+# Actually probe it
+set subsubtest "probing shlib foo .callees"
 if {![installtest_p]} {
    untested "$test ($subtest - $subsubtest)"
 } elseif {!$failed} {
@@ -525,97 +506,24 @@ if {![installtest_p]} {
       } \
    "
 
-   # Start stap in the background
-   eval spawn stap -we {$script} --vp 00003
-   set stap_id $spawn_id
+   # Spawn stap
+   eval spawn stap -we {$script} -c "./$subtest"
    set failed 1
    expect {
       -timeout 30
-      -re {systemtap_module_init\(\)\ returned\ 0} { set failed 0 }
-      timeout { kill -INT -[exp_pid] 2 }
-      eof { kill -INT -[exp_pid] 2 }
-   }
-   if {!$failed} {
-      pass "$test ($subtest - $subsubtest)"
-   } else {
-      fail "$test ($subtest - $subsubtest)"
-      catch { close }; catch { wait }
-      set stap_id ""
-   }
-}
-
-# Now we run the executable
-set subsubtest "probing shlib foo .callees - start exe"
-if {![installtest_p]} {
-   untested "$test ($subtest - $subsubtest)"
-} elseif {!$failed} {
-
-   # We first need to set the LD_LIBRARY_PATH
-   set oldpath $env(LD_LIBRARY_PATH)
-   set env(LD_LIBRARY_PATH) [exec pwd]:$oldpath
-   verbose -log "LD_LIBRARY_PATH set to \"$env(LD_LIBRARY_PATH)\""
-
-   eval spawn ./${subtest}
-   set failed 1
-   expect {
-      -timeout 30
-      timeout {
-         kill -INT -[exp_pid] 2
-      }
-      # Any output at all is a bad sign
-      -re ".+" { }
-      eof { set failed 0 }
-   }
-   catch { close }; catch { wait }
-
-   # Restore LD_LIBRARY_PATH
-   set env(LD_LIBRARY_PATH) $oldpath
-   verbose -log "LD_LIBRARY_PATH set back to \"$env(LD_LIBRARY_PATH)\""
-
-   if {!$failed} {
-      pass "$test ($subtest - $subsubtest)"
-   } else {
-      fail "$test ($subtest - $subsubtest)"
-   }
-}
-
-# Finally, we analyze the output from stap
-set subsubtest "probing shlib foo .callees - check"
-if {![installtest_p]} {
-   untested "$test ($subtest - $subsubtest)"
-} elseif {!$failed && [string length $stap_id]} {
-
-   set failed 1
-   expect {
-      -timeout 5
-      -i $stap_id
       {caller foo callee bar} { set failed 0 }
-      timeout { }
+      timeout { kill -INT -[exp_pid] 2 }
       eof { }
    }
+   catch {close}; catch {wait}
+
    if {!$failed} {
       pass "$test ($subtest - $subsubtest)"
    } else {
       fail "$test ($subtest - $subsubtest)"
    }
-}
-
-# Cleanup stap if still running
-if {[string length $stap_id]} {
-   kill -TERM [exp_pid -i $stap_id]
-   expect {
-      -timeout 30
-      -i $stap_id
-      timeout {
-         kill -INT -[exp_pid -i $stap_id] 2
-      }
-      eof { }
-   }
-   catch {close -i $stap_id}; catch {wait -i $stap_id}
-   set stap_id ""
 }
 
 # Cleanup files
-if {[file exists "$libobj"]}  { file delete "$libobj" }
 if {[file exists "$libso"]}   { file delete "$libso" }
 if {[file exists "$subtest"]} { file delete "$subtest" }

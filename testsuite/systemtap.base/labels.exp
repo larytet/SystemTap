@@ -74,7 +74,7 @@ if {$ok == 0} { pass "$test :N .label $ok" } { fail "$test :N .label $ok" }
 # line number 
 
 set ok 0
-spawn stap -l "process(\"$label_exepath\").function(\"foo@${label_srcpath}:4\").label(\"*\")"
+spawn stap -l "process(\"$label_exepath\").function(\"foo@${label_srcpath}:5\").label(\"*\")"
 
 expect {
     -timeout 180

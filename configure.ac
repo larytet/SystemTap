@@ -559,10 +559,15 @@ fi
 AC_CONFIG_FILES([includes/sys/sdt-config.h po/Makefile.in])
 
 if test $build_elfutils = yes -a $enable_translator = yes; then
+  here=`pwd`
   case "$with_elfutils" in
   /*) elfutils_srcdir="$with_elfutils" ;;
-  *) elfutils_srcdir="../$with_elfutils" ;;
+  *) elfutils_srcdir="${here}/$with_elfutils" ;;
   esac
+
+  if ! test -f ${elfutils_srcdir}/configure; then
+    AC_MSG_ERROR([No ${elfutils_srcdir}/configure, forgot to run autoreconf -i?])
+  fi
   AC_MSG_NOTICE([running ${elfutils_srcdir}/configure])
 
   save_CFLAGS="$CFLAGS"
@@ -582,7 +587,6 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
   # Note that $libdir might be using a quoted use of $exec_prefix or $prefix.
   # So we must make sure to pass those settings to elfutils configure.
   elfutils_rpath="-Wl,--enable-new-dtags,-rpath,${libdir}/${PACKAGE_NAME}"
-  here=`pwd`
   # Check whether this is a source release, or a source checkout.
   # We need --enable-maintainer-mode if it isn't a source release.
   # elfutils.spec is only distributed in source releases.

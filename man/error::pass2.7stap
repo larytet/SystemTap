@@ -62,8 +62,20 @@ to list available context variables for given probes.  Use the
 .IR @defined()
 expression to test for the resolvability of a context variable expression.
 Consider using the
-.IR "stap --skip-badvars"
+.IR "stap \-\-skip\-badvars"
 option to silently replace misbehaving context variable expressions with zero.
+
+.TP
+module cache inconsistencies
+Occasionally, the systemtap module cache ($HOME/.systemtap/cache) might 
+contain obsolete information from a prior system configuration/version,
+and produce false results as systemtap attempts to reuse it.  Retrying
+with
+.IR "stap \-\-poison\-cache ..."
+forces new information to be generated.  
+.BR Note:
+this should not happen and likely represents a systemtap bug.  Please
+report it.
 
 .SH GATHERING MORE INFORMATION
 Increasing the verbosity of pass-2 with an option such as

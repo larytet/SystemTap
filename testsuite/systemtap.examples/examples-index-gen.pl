@@ -124,7 +124,7 @@ open (FULLHTML, ">$fullhtml")
     || die "couldn't open $fullhtml: $!";
 print "Creating $fullhtml...\n";
 print FULLHTML $HTMLHEADER;
-print FULLHTML "<h2>All Examples</h2>\n";
+print FULLHTML "<h2>All " . scalar (keys %scripts) . " Examples</h2>\n";
 print FULLHTML "<ul>\n";
 
 foreach $meta (sort keys %scripts) {
@@ -172,7 +172,8 @@ print KEYHTML "<h2>Examples by Keyword</h2>\n";
 print KEYHTML "<p><tt>";
 foreach $keyword (sort keys %keywords) {
     print KEYHTML '<a href="#' . (uc $keyword) . '">'
-		  . (uc $keyword) . "</a> ";
+		  . (uc $keyword)
+                  . "(". (scalar keys @{$keywords{$keyword}}). ")</a> ";
 }
 print KEYHTML "</tt></p>\n";
 

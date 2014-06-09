@@ -108,6 +108,6 @@ set subtest "tracepoint"
 run_stap {kernel.trace("sched_switch")!,never} {*/vmlinux}
 
 # User check
-# Bad stap would have open /usr/bin/ls or /usr/lib/debug/usr/bin/ls.debug
+# Bad stap would have open /bin/ls or /usr/lib/debug/bin/ls.debug
 set subtest "user"
-run_stap {process("/usr/bin/ls").function("main")} {*/usr/bin/ls}
+run_stap {process("/bin/ls").function("main")} {*/bin/ls}

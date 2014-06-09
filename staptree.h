@@ -44,6 +44,12 @@ struct semantic_error: public std::runtime_error
   const token* tok2;
   std::string errsrc;
 
+  // Extra details to explain the error or provide alternatives to the user.
+  // Each one printed after the main error message and tokens aligned on
+  // separate lines. Just push_back anything you want that better explains
+  // the error to the user (not meant for extra verbose developer messages).
+  std::vector<std::string> details;
+
   ~semantic_error () throw ()
     {
       if (chain)
@@ -64,7 +70,7 @@ struct semantic_error: public std::runtime_error
   /* override copy-ctor to deep-copy chain */
   semantic_error (const semantic_error& other):
       runtime_error(other), tok1(other.tok1), tok2(other.tok2),
-      errsrc(other.errsrc), chain (0)
+      errsrc(other.errsrc), details(other.details), chain (0)
     {
       if (other.chain)
         set_chain(*other.chain);
@@ -791,6 +797,7 @@ struct probe_point
   bool optional;
   bool sufficient;
   bool from_glob;
+  bool well_formed; // used in derived_probe::script_location()
   expression* condition;
   void print (std::ostream& o, bool print_extras=true) const;
   probe_point ();
@@ -820,7 +827,6 @@ struct probe
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &) const;
   virtual const probe_alias *get_alias () const { return 0; }
   virtual probe_point *get_alias_loc () const { return 0; }
-  virtual probe* create_alias(probe_point* l, probe_point* a);
   virtual ~probe() {}
   bool privileged;
   std::string name;

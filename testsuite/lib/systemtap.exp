@@ -374,6 +374,7 @@ proc normalize_arch { arch } {
     if {$arch == "armv5tel"} then {return "arm"}
     if {$arch == "armv7l"} then {return "arm"}
     if {$arch == "armv7lh"} then {return "arm"}
+    if {$arch == "aarch64"} then {return "arm64"}
     return $arch
 }
 

@@ -125,6 +125,7 @@ option, in case such a server is already running.
 .IR stap-server (8),
 .IR stap-prep (1),
 .IR strip (1),
+.IR warning::symbols (7stap),
 .IR error::dwarf (7stap),
 .IR error::reporting (7stap),
 .IR error::contextvars (7stap),

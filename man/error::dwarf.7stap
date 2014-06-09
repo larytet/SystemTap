@@ -32,6 +32,18 @@ Note that, due to another gcc bug (PR51358)
 can actually sometimes make debuginfo quality worse than for
 .IR "-O2 -g" .
 
+Another related problem involves debuginfo quality for the
+prologue area of a function (PR15123), wherein a program
+compiled with CFLAGS=-mfentry (especially the kernel, for ftrace)
+may lack accurate debuginfo for the entry instructions for gcc
+prior to version 4.8.  If able, arrange to compile your programs
+with 
+.IR "-grecord-gcc-switches"
+CFLAGS, and/or try rerunning systemtap with
+.nh
+.IR $PR15123_ASSUME_MFENTRY=1 .
+.hy
+
 .TP
 function inlining
 Even modern gcc sometimes has problems with parameters for inlined functions.
@@ -40,7 +52,9 @@ It may be necessary to change the script to probe at a slightly different place
 .IR .statement() " probe, instead of a " .function() " probe,"
 somewhere a few source lines into the body of the inlined function.  Or try
 putting a probe at the call site of the inlined function.  Or use the
+.nh
 .IR "if @defined($var) { ... }"
+.hy
 script language construct to test for the resolvability of the context
 variable before using it.
 
@@ -52,6 +66,7 @@ to choose to place a probe, especially a statement probe specified by line
 number.  Systemtap may advise to try a nearby line number, but these may
 not work well either.  Consider placing a probe by a statement wildcard
 or line number range.
+
 
 .SH ALTERNATIVES
 

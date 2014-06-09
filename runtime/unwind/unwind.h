@@ -13,6 +13,7 @@
 #ifndef _STP_UNWIND_H_
 #define _STP_UNWIND_H_
 
+#ifdef STP_USE_DWARF_UNWINDER
 struct unwind_frame_info
 {
     struct pt_regs regs;
@@ -342,6 +343,9 @@ struct unwind_context {
 };
 
 static const struct cfa badCFA = { ARRAY_SIZE(reg_info), 1 };
+#else  /* !STP_USE_DWARF_UNWINDER */
+struct unwind_context { };
+#endif /* !STP_USE_DWARF_UNWINDER */
 
 #ifndef MAXBACKTRACE
 #define MAXBACKTRACE 20

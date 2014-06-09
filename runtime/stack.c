@@ -424,8 +424,8 @@ static void _stp_stack_kernel_print(struct context *c, int sym_flags)
 		return;
 	}
 	else
-	/* Arch specific fallback for kernel backtraces. */
-	__stp_stack_print(regs, sym_flags, MAXBACKTRACE);
+		/* Arch specific fallback for kernel backtraces. */
+		__stp_stack_print(c->kregs, sym_flags, MAXBACKTRACE);
 #endif
 }
 

@@ -92,7 +92,7 @@ stap \- systemtap script translator/driver
 The
 .IR stap
 program is the front-end to the Systemtap tool.  It accepts probing
-instructions (written in a simple scripting language), translates
+instructions written in a simple domain-specific language, translates
 those instructions into C code, compiles this C code, and loads the
 resulting module into a running Linux kernel or a DynInst user-space
 mutator, to perform the requested system trace/probe functions.  You
@@ -103,10 +103,12 @@ the script voluntarily invokes the
 .I exit()
 function, or by sufficient number of soft errors.
 .PP
-The language, which is described in a later section, is strictly typed,
-declaration free, procedural, and inspired by
-.IR awk .
-It allows source code points or events in the kernel to be associated
+The language, which is described the
+.IR "SCRIPT LANGUAGE" 
+section below, is strictly typed, expressive, declaration free, procedural,
+prototyping-friendly, and inspired by
+.IR awk " and " C .
+It allows source code points or events in the system to be associated
 with handlers, which are subroutines that are executed synchronously.  It is
 somewhat similar conceptually to "breakpoint command lists" in the
 .IR gdb
@@ -252,7 +254,7 @@ effect of setting target() to the pid of the command ran.
 .TP
 .BI \-x " PID"
 Sets target() to PID. This allows scripts to be written that filter on
-a specific process.
+a specific process. Scripts run independent of the PID's lifespan.
 .TP
 .BI \-e " SCRIPT"
 Run the given SCRIPT specified on the command line.
@@ -308,7 +310,7 @@ details.
 
 .TP
 .BI \-\-check\-version
-This option is used to check if the active script has any constructors
+This option is used to check if the active script has any constructs
 that may be systemtap version specific.  See the DEPRECATION section
 for more details.
 
@@ -689,7 +691,7 @@ parser for substitution.  See below.
 .SH SCRIPT LANGUAGE
 
 The systemtap script language resembles
-.IR awk .
+.IR awk " and " C .
 There are two main outermost constructs: probes and functions.  Within
 these, statements and expressions use C-like operator syntax and
 precedence.
@@ -891,12 +893,11 @@ and user scripts.
 
 .SS VARIABLES
 Identifiers for variables and functions are an alphanumeric sequence,
-and may include "_" and "$" characters.  They may not start with a
+and may include \fB_\fR and \fB$\fR characters.  They may not start with a
 plain digit, as in C.  Each variable is by default local to the probe
 or function statement block within which it is mentioned, and therefore
 its scope and lifetime is limited to a particular probe or function
 invocation.
-.\" XXX add statistics type here once it's supported
 .PP
 Scalar variables are implicitly typed as either string or integer.
 Associative arrays also have a string or integer value, and a
@@ -956,6 +957,18 @@ typed arrays.
 .SAMPLE
 .BR global " wrapped_array1%[10]", " wrapped_array2%"
 .ESAMPLE
+
+.PP
+Many types of probe points provide context variables, which are
+run-time values, safely extracted from the kernel or userspace program
+being probed.  These are prefixed with the \fB$\fR character.  The
+CONTEXT VARIABLES section in
+.IR stapprobes (7stap)
+lists what is available for each type of probe point.  These context
+variables become normal string or numeric scalars once they are stored
+in normal script variables.  See the TYPECASTING section below on how
+to to turn them back into typed pointers for further processing as
+context variables.
 
 .SS STATEMENTS
 Statements enable procedural control flow.  They may occur within
@@ -1385,11 +1398,12 @@ probe end {
 .ESAMPLE
 
 .SS TYPECASTING
-Once a pointer has been saved into a script integer variable, the
-translator loses the type information necessary to access members from
-that pointer.  Using the
+Once a pointer (see the CONTEXT VARIABLES section of 
+.IR stapprobes (3stap))
+has been saved into a script integer variable, the translator loses the type
+information necessary to access members from that pointer.  Using the
 .I @cast()
-operator tells the translator how to read a pointer.
+operator tells the translator how to interpret the number as a typed pointer.
 .SAMPLE
 @cast(p, "type_name"[, "module"])\->member
 .ESAMPLE
@@ -1431,8 +1445,7 @@ Multiple headers may be specified in sequence to resolve a codependency.
 Values acquired by 
 .BR @cast
 may be pretty-printed by the 
-.BR
-$ " and " $$
+.BR $ " and " $$
 suffix operators, the same way as described in the CONTEXT VARIABLES
 section of the
 .IR stapprobes (3stap) 
@@ -1678,7 +1691,11 @@ processes, then use rmmod to unload the systemtap module.
 .SH EXAMPLES
 See the
 .IR stapex (3stap)
-manual page for a collection of samples.
+manual page for a brief collection of samples, or a large set of
+installed samples under the systemtap documentation/testsuite
+directories.  See
+.IR stappaths (7stap)
+for the likely location of these on the system.
 
 .SH CACHING
 The systemtap translator caches the pass 3 output (the generated C
@@ -1981,7 +1998,7 @@ timer.{jiffies,s,sec,ms,msec,us,usec,ns,nsec}(n)*
 timer.hz(n)
 .RE
 
-.SS SCRIPTING LANGUAGE RESTRICTIONS
+.SS SCRIPT LANGUAGE RESTRICTIONS
 The following scripting language features are unavailable to all unprivileged users:
 
 .RS

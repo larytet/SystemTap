@@ -57,7 +57,7 @@ spawn stap $file $time -c "$stap_cmd"
 
 expect {
 	-timeout 180
-	-re "semantic error:" { failtest; return }
+	-re "semantic error:" { failtest "semantic error (main1)"; return }
 	-re {^(\d+)\r\n} { set stp_pid $expect_out(1,string) }
 	timeout { failtest "timeout (main1)"; return }
 	eof { failtest "eof (main1)"; return }

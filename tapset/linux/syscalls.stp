@@ -793,7 +793,7 @@ probe syscall.epoll_create = kernel.function("sys_epoll_create1").call !,
                              kernel.function("sys_epoll_create").call ?
 {
 	size = @choose_defined($size, 0);
-	flags = @choose_defined($flags, 0);
+	flags = __int32(@choose_defined($flags, 0));
 	if (flags == 0) {
 		name = "epoll_create";
 		argstr = sprint(size);
@@ -805,7 +805,7 @@ probe syscall.epoll_create = kernel.function("sys_epoll_create1").call !,
 probe syscall.epoll_create.return = kernel.function("sys_epoll_create1").return !,
                                     kernel.function("sys_epoll_create").return ?
 {
-	flags = @choose_defined($flags, 0);
+	flags = __int32(@choose_defined($flags, 0));
 	name = (flags == 0) ? "epoll_create" : "epoll_create1";
 	retstr = return_str(1, $return)
 }
@@ -820,12 +820,12 @@ probe syscall.epoll_ctl = kernel.function("compat_sys_epoll_ctl").call ?,
                           kernel.function("sys_epoll_ctl").call ?
 {
 	name = "epoll_ctl"
-	epfd = $epfd
+	epfd = __int32($epfd)
 	op = $op
 	op_str = _opoll_op_str($op)
-	fd = $fd
+	fd = __int32($fd)
 	event_uaddr = $event
-	argstr = sprintf("%d, %s, %d, %p", $epfd, _opoll_op_str($op), $fd, $event)
+	argstr = sprintf("%d, %s, %d, %p", epfd, _opoll_op_str($op), fd, $event)
 }
 probe syscall.epoll_ctl.return = kernel.function("compat_sys_epoll_ctl").return ?,
                                  kernel.function("sys_epoll_ctl").return ?
@@ -849,8 +849,15 @@ probe syscall.epoll_pwait = kernel.function("compat_sys_epoll_pwait").call ?,
                             kernel.function("sys_epoll_pwait").call ?
 {
 	name = "epoll_pwait"
+	epfd = __int32($epfd)
+	events_uaddr = $events
+	maxevents = __int32($maxevents)
+	timeout = __int32($timeout)
+	sigmask_uaddr = $sigmask
+	sigsetsize = $sigsetsize
 	argstr = sprintf("%d, %p, %d, %d, %p, %d",
-		$epfd, $events, $maxevents, $timeout, $sigmask, $sigsetsize)
+			 __int32($epfd), $events, __int32($maxevents),
+			 __int32($timeout), $sigmask, $sigsetsize)
 }
 probe syscall.epoll_pwait.return = kernel.function("compat_sys_epoll_pwait").return ?,
                                    kernel.function("sys_epoll_pwait").return ?
@@ -870,16 +877,20 @@ probe syscall.epoll_pwait.return = kernel.function("compat_sys_epoll_pwait").ret
 probe syscall.epoll_wait = kernel.function("compat_sys_epoll_wait").call ?,
                            kernel.function("sys_epoll_wait").call ?
 {
+	@__syscall_compat_gate(%{ __NR_epoll_wait %},
+			       %{ __NR_compat_epoll_wait %})
 	name = "epoll_wait"
-	epfd = $epfd
+	epfd = __int32($epfd)
 	events_uaddr = $events
-	maxevents = $maxevents
-	timeout = $timeout
-	argstr = sprintf("%d, %p, %d, %d", $epfd, $events, $maxevents, $timeout)
+	maxevents = __int32($maxevents)
+	timeout = __int32($timeout)
+	argstr = sprintf("%d, %p, %d, %d", epfd, $events, maxevents, timeout)
 }
 probe syscall.epoll_wait.return = kernel.function("compat_sys_epoll_wait").return ?,
                                   kernel.function("sys_epoll_wait").return ?
 {
+	@__syscall_compat_gate(%{ __NR_epoll_wait %},
+			       %{ __NR_compat_epoll_wait %})
 	name = "epoll_wait"
 	retstr = return_str(1, $return)
 }
@@ -2262,8 +2273,8 @@ probe syscall.ioctl = kernel.function("compat_sys_ioctl").call ?,
 	name = "ioctl"
 	fd = $fd
 	request = $cmd
-	argp = $arg
-	argstr = sprintf("%d, %d, %p", $fd, $cmd, $arg)
+	argp = @choose_defined($arg, $arg32)
+	argstr = sprintf("%d, %d, %p", $fd, $cmd, argp)
 }
 probe syscall.ioctl.return = kernel.function("compat_sys_ioctl").return ?,
                              kernel.function("sys_ioctl").return ?
