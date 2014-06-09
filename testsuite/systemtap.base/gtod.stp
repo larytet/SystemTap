@@ -2,7 +2,7 @@ global count = 0
 
 probe syscall.setsid {
 	if (pid() == target()) {
-		printf("%014d :%02d kern\n", gettimeofday_us(), count);
+		printf(":%02d %014d kern\n", count, gettimeofday_us());
 		count ++;
 	}
 }
