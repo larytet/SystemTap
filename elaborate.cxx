@@ -5039,15 +5039,8 @@ typeresolution_info::visit_block (block* e)
 {
   for (unsigned i=0; i<e->statements.size(); i++)
     {
-      try
-	{
-	  t = pe_unknown;
-	  e->statements[i]->visit (this);
-	}
-      catch (const semantic_error& e)
-	{
-	  session.print_error (e);
-        }
+      t = pe_unknown;
+      e->statements[i]->visit (this);
     }
 }
 
