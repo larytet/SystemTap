@@ -20,6 +20,15 @@ if {[info exists ::env(LISTING_MODE_SUBTEST)]} {
    set TARGET_SUBTEST ""
 }
 
+# Check if .callee probes are supported (requires GCC v4.7 and stap compiled
+# with elfutils 0.153)
+if {[strverscmp $GCC_Version 4.7] < 0 || \
+    [strverscmp $ELF_Version 0.153] < 0} {
+   set callee_supported 0
+} else {
+   set callee_supported 1
+}
+
 # Runs stap -l $pp and checks that every line output matches $exp. If $exp is
 # missing, checks that lines match $pp. If $exp starts with 're:' then the rest
 # of it is treated as a regular expression.  If $nlines_exp is not -1, then
@@ -232,10 +241,19 @@ proc testing_probe {probe_type} {
 
 # Reports all probe types in the list that haven't been tested
 proc report_untested_probes {} {
-   global test all_probe_types
+   global test all_probe_types callee_supported
 
    foreach probe_type $all_probe_types {
       switch $probe_type {
+
+         kernel.function(string).callee(string) -
+         kernel.function(string).callees -
+         kernel.function(string).callees(number)
+         {
+            if {!$callee_supported} {
+               setup_kfail CALLEE *-*-*
+            }
+         }
 
          kernel.function(string).inline
          {
@@ -286,6 +304,30 @@ proc report_untested_probes {} {
          {
             # Not easy to reliably test on all kernels
             setup_kfail MODULE *-*-*
+         }
+
+         process.function(string).callee(string) -
+         process.function(string).callees -
+         process.function(string).callees(number) -
+         process(string).function(string).callee(string) -
+         process(string).function(string).callees -
+         process(string).function(string).callees(number)
+         {
+            if {!$callee_supported} {
+               setup_kfail CALLEE *-*-*
+            }
+         }
+
+         process.library(string).function(string).callee(string) -
+         process.library(string).function(string).callees -
+         process.library(string).function(string).callees(number) -
+         process(string).library(string).function(string).callee(string) -
+         process(string).library(string).function(string).callees -
+         process(string).library(string).function(string).callees(number)
+         {
+            if {!$callee_supported} {
+               setup_kfail CALLEE *-*-*
+            }
          }
 
          process(string).insn -
@@ -432,23 +474,26 @@ testing_probe {kernel.function(string).call}
 stap_list {kernel.function("vfs_read").call} \
    {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).call}
 
-testing_probe {kernel.function(string).callee(string)}
+if {$callee_supported} {
 
-stap_list {kernel.function("vfs_read").callee("*")} \
-   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+   testing_probe {kernel.function(string).callee(string)}
 
-testing_probe {kernel.function(string).callees}
+   stap_list {kernel.function("vfs_read").callee("*")} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
 
-stap_list {kernel.function("vfs_read").callees} \
-   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+   testing_probe {kernel.function(string).callees}
 
-testing_probe {kernel.function(string).callees(number)}
+   stap_list {kernel.function("vfs_read").callees} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
 
-stap_list {kernel.function("vfs_read").callees(1)} \
-   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+   testing_probe {kernel.function(string).callees(number)}
 
-stap_list {kernel.function("vfs_read").callees(2)} \
-   {re:kernel.function\("[^@]+@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+   stap_list {kernel.function("vfs_read").callees(1)} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+
+   stap_list {kernel.function("vfs_read").callees(2)} \
+      {re:kernel.function\("[^@]+@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+}
 
 testing_probe {kernel.function(string).exported}
 
@@ -609,23 +654,26 @@ if {$exepath != ""} {
    stap_list_cmd "process.function(\"foo\").call" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.call"
 
-   testing_probe {process.function(string).callee(string)}
+   if {$callee_supported} {
 
-   stap_list_cmd "process.function(\"foo\").callee(\"bar\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+      testing_probe {process.function(string).callee(string)}
 
-   testing_probe {process.function(string).callees}
+      stap_list_cmd "process.function(\"foo\").callee(\"bar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
 
-   stap_list_cmd "process.function(\"foo\").callees" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+      testing_probe {process.function(string).callees}
 
-   testing_probe {process.function(string).callees(number)}
+      stap_list_cmd "process.function(\"foo\").callees" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
 
-   stap_list_cmd "process.function(\"foo\").callees(1)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+      testing_probe {process.function(string).callees(number)}
 
-   stap_list_cmd "process.function(\"foo\").callees(2)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2}
+      stap_list_cmd "process.function(\"foo\").callees(1)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      stap_list_cmd "process.function(\"foo\").callees(2)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2}
+   }
 
    testing_probe {process.function(string).exported}
 
@@ -689,23 +737,26 @@ if {$exepath != ""} {
    stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").call" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.call"
 
-   testing_probe {process.library(string).function(string).callee(string)}
+   if {$callee_supported} {
 
-   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:46\"\\\)"
+      testing_probe {process.library(string).function(string).callee(string)}
 
-   testing_probe {process.library(string).function(string).callees}
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:46\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:46\"\\\)"
+      testing_probe {process.library(string).function(string).callees}
 
-   testing_probe {process.library(string).function(string).callees(number)}
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:46\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(1)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:46\"\\\)"
+      testing_probe {process.library(string).function(string).callees(number)}
 
-   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(2)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"lib(foo|bar)@\[^:\]+:(53|46)\"\\\)\\\.callee\\\(\"(libbar|libinln)@\[^:\]+:(46|41)\"\\\)" {2}
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(1)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:53\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:46\"\\\)"
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(2)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"lib(foo|bar)@\[^:\]+:(53|46)\"\\\)\\\.callee\\\(\"(libbar|libinln)@\[^:\]+:(46|41)\"\\\)" {2}
+   }
 
    testing_probe {process.library(string).function(string).exported}
 
