@@ -271,12 +271,24 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #endif
 
 #else /* ! STAPCONF_REGSET */
+
 /* Downgrade to pt_dwarf_register access. */
-#define u_fetch_register(regno) \
-  pt_regs_fetch_register(c->uregs, regno)
+
 #define u_store_register(regno, value) \
   pt_regs_store_register(c->uregs, regno, value)
+
+/* If we're in a 32/31-bit task in a 64-bit kernel, we need to emulate
+ * 32-bitness by masking the output of pt_regs_fetch_register() */
+#ifndef CONFIG_COMPAT
+#define u_fetch_register(regno) \
+  pt_regs_fetch_register(c->uregs, regno)
+#else
+#define u_fetch_register(regno) \
+  (_stp_is_compat_task() ? (0xffffffff & pt_regs_fetch_register(c->uregs, regno)) \
+                         : pt_regs_fetch_register(c->uregs, regno))
 #endif
+
+#endif /* STAPCONF_REGSET */
 
 
 /* The deref and store_deref macros are called to safely access addresses
