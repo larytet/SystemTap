@@ -162,8 +162,8 @@ if {$library_addr == 0} {
    fail "$test (no library addr to play with)"
 }
 
-set exefullpath [exec realpath $exepath]
-set sofullpath [exec realpath $sopath]
+set exefullpath [exec readlink -f $exepath]
+set sofullpath [exec readlink -f $sopath]
 
 # Runs stap_list with variations in the way the executable is specified.
 # Varies the -c command as well as the process("path").
