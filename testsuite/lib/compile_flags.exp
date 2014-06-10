@@ -67,6 +67,11 @@ proc all_compile_flag_native_p { INDEX } {
   return 0
 }
 
+# Is INDEX a configuration with optimization turned on?
+proc all_compile_flag_optimized_p { INDEX } {
+  return [expr (($INDEX / 2) % 3) > 0]
+}
+
 # Additional compile flag to use for with target_compile.
 # Given INDEX starts at zero and should be smaller than the number
 # returned by all_compile_flags.
