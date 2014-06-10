@@ -428,8 +428,8 @@ struct exp_type_dwarf : public exp_type_details
   dwflpp* dw;
   Dwarf_Die die;
   bool userspace_p;
-  exp_type_dwarf(dwflpp* dw, Dwarf_Die* die, bool userspace_p)
-    : dw(dw), die(*die), userspace_p(userspace_p) {}
+  bool is_pointer;
+  exp_type_dwarf(dwflpp* dw, Dwarf_Die* die, bool userspace_p, bool addressof);
   uintptr_t id () const { return reinterpret_cast<uintptr_t>(die.addr); }
   bool expandable() const { return true; }
   functioncall *expand(autocast_op* e, bool lvalue);
@@ -1877,6 +1877,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
   base_func_info_map_t::iterator i;
   for (i = bfis.begin(); i != bfis.end(); ++i)
     {
+      if (i->name == "__put_unused_fd")
+        clog << "func " << i->name << " offset:" << lex_cast_hex(dwarf_dieoffset(&i->die)) << " has_pc(" << lex_cast_hex(addr) << "):" << q->dw.die_has_pc(i->die, addr) << endl;
       if (q->dw.die_has_pc (i->die, addr))
         {
           if (q->sess.verbose>3)
@@ -3383,7 +3385,8 @@ synthetic_embedded_deref_call(dwflpp& dw,
   fcall->referent = fdecl;
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
-  fcall->type_details.reset(new exp_type_dwarf(&dw, function_type, userspace_p));
+  fcall->type_details.reset(new exp_type_dwarf(&dw, function_type,
+                                               userspace_p, e->addressof));
 
   // If this code snippet uses a precomputed pointer,
   // pass that as the first argument.
@@ -4414,6 +4417,23 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 }
 
 
+static bool resolve_pointer_type(Dwarf_Die& die, bool& isptr);
+
+exp_type_dwarf::exp_type_dwarf(dwflpp* dw, Dwarf_Die* die,
+                               bool userspace_p, bool addressof):
+  dw(dw), die(*die), userspace_p(userspace_p), is_pointer(false)
+{
+  // is_pointer tells us whether a value is a pointer to the given type, so we
+  // can dereference it; otherwise it will be treated as an end point.
+  if (addressof)
+    // we're already looking at the pointed-to type
+    is_pointer = true;
+  else
+    // use the same test as tracepoints to see what we have
+    resolve_pointer_type(this->die, is_pointer);
+}
+
+
 functioncall *
 exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 {
@@ -4421,15 +4441,29 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 
   try
     {
+      // make sure we're not dereferencing base types or void
+      bool deref_p = is_pointer && !null_die(&die);
+      if (!deref_p)
+        e->assert_no_components("autocast", true);
+
       if (lvalue && !dw->sess.guru_mode)
 	throw SEMANTIC_ERROR(_("write not permitted; need stap -g"), e->tok);
+
+      if (e->components.empty())
+        {
+          if (e->addressof)
+            throw SEMANTIC_ERROR(_("cannot take address of tracepoint variable"), e->tok);
+
+          // no components and no addressof?  how did this autocast come to be?
+          throw SEMANTIC_ERROR(_("internal error: no-op autocast encountered"), e->tok);
+        }
 
       Dwarf_Die cu_mem;
       dw->focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
       if (e->check_pretty_print (lvalue))
 	{
-	  dwarf_pretty_print dpp(*dw, &die, e->operand, true, userspace_p, *e);
+	  dwarf_pretty_print dpp(*dw, &die, e->operand, deref_p, userspace_p, *e);
 	  return dpp.expand();
 	}
 
@@ -10190,8 +10224,9 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       //     trace ("*") { $foo->bar }
     }
 
-  // make sure we're not dereferencing base types
-  if (!arg->isptr)
+  // make sure we're not dereferencing base types or void
+  bool deref_p = arg->isptr && !null_die(&arg->type_die);
+  if (!deref_p)
     e->assert_no_components("tracepoint", true);
 
   // we can only write to dereferenced fields, and only if guru mode is on
@@ -10223,7 +10258,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 
       if (e->check_pretty_print (lvalue))
         {
-          dwarf_pretty_print dpp(dw, &arg->type_die, e2, arg->isptr, false, *e);
+          dwarf_pretty_print dpp(dw, &arg->type_die, e2, deref_p, false, *e);
           dpp.expand()->visit (this);
           return;
         }
@@ -10392,54 +10427,76 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
 
 
 static bool
-resolve_tracepoint_arg_type(tracepoint_arg& arg)
+resolve_pointer_type(Dwarf_Die& die, bool& isptr)
 {
   Dwarf_Die type;
-  switch (dwarf_tag(&arg.type_die))
+  switch (dwarf_tag(&die))
     {
     case DW_TAG_typedef:
     case DW_TAG_const_type:
     case DW_TAG_volatile_type:
       // iterate on the referent type
-      return (dwarf_attr_die(&arg.type_die, DW_AT_type, &arg.type_die)
-              && resolve_tracepoint_arg_type(arg));
+      return (dwarf_attr_die(&die, DW_AT_type, &die)
+              && resolve_pointer_type(die, isptr));
+
     case DW_TAG_base_type:
     case DW_TAG_enumeration_type:
+    case DW_TAG_structure_type:
+    case DW_TAG_union_type:
       // base types will simply be treated as script longs
-      arg.isptr = false;
+      // structs/unions must be referenced by pointer elsewhere
+      isptr = false;
       return true;
+
+    case DW_TAG_array_type:
     case DW_TAG_pointer_type:
-      // pointers can be treated as script longs,
+    case DW_TAG_reference_type:
+    case DW_TAG_rvalue_reference_type:
+      // pointer-like types can be treated as script longs,
       // and if we know their type, they can also be dereferenced
-      type = arg.type_die;
-      while (dwarf_attr_die(&arg.type_die, DW_AT_type, &arg.type_die))
+      isptr = true;
+      type = die;
+      while (dwarf_attr_die(&type, DW_AT_type, &type))
         {
           // It still might be a non-type, e.g. const void,
           // so we need to strip away all qualifiers.
-          int tag = dwarf_tag(&arg.type_die);
+          int tag = dwarf_tag(&type);
           if (tag != DW_TAG_typedef &&
               tag != DW_TAG_const_type &&
               tag != DW_TAG_volatile_type)
             {
-              arg.isptr = true;
-              break;
+              die = type;
+              return true;
             }
         }
-      if (!arg.isptr)
-        arg.type_die = type;
-      arg.typecast = "(intptr_t)";
+      // otherwise use a null_die to indicate void
+      std::memset(&die, 0, sizeof(die));
       return true;
-    case DW_TAG_structure_type:
-    case DW_TAG_union_type:
-      // for structs/unions which are passed by value, we turn it into
-      // a pointer that can be dereferenced.
-      arg.isptr = true;
-      arg.typecast = "(intptr_t)&";
-      return true;
+
     default:
       // should we consider other types too?
       return false;
     }
+}
+
+
+static bool
+resolve_tracepoint_arg_type(tracepoint_arg& arg)
+{
+  if (!resolve_pointer_type(arg.type_die, arg.isptr))
+    return false;
+
+  if (arg.isptr)
+    arg.typecast = "(intptr_t)";
+  else if (dwarf_tag(&arg.type_die) == DW_TAG_structure_type ||
+           dwarf_tag(&arg.type_die) == DW_TAG_union_type)
+    {
+      // for structs/unions which are passed by value, we turn it into
+      // a pointer that can be dereferenced.
+      arg.isptr = true;
+      arg.typecast = "(intptr_t)&";
+    }
+  return true;
 }
 
 
