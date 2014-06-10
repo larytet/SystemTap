@@ -1103,8 +1103,8 @@ probe syscall.fadvise64_64.return = kernel.function("sys_fadvise64_64").return ?
 probe syscall.fchdir = kernel.function("sys_fchdir").call
 {
 	name = "fchdir"
-	fd = $fd
-	argstr = sprint($fd)
+	fd = __int32($fd)
+	argstr = sprint(__int32($fd))
 }
 probe syscall.fchdir.return = kernel.function("sys_fchdir").return
 {
@@ -2937,8 +2937,9 @@ probe syscall.mkdir = kernel.function("sys_mkdir").call
 	name = "mkdir"
 	pathname_uaddr = $pathname
 	pathname = user_string_quoted($pathname)
-	mode = $mode
-	argstr = sprintf("%s, %#o", user_string_quoted($pathname), $mode)
+	mode = __uint32($mode)
+	argstr = sprintf("%s, %#o", user_string_quoted($pathname),
+			 __uint32($mode))
 }
 probe syscall.mkdir.return = kernel.function("sys_mkdir").return
 {
@@ -2953,10 +2954,12 @@ probe syscall.mkdirat = kernel.function("sys_mkdirat").call ?
 {
 	@__syscall_compat_gate(%{ __NR_mkdirat %}, %{ __NR_compat_mkdirat %})
 	name = "mkdirat"
-	dirfd = $dfd
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	pathname = user_string_quoted($pathname)
-	mode = $mode
-	argstr = sprintf("%s, %s, %#o", _dfd_str($dfd), user_string_quoted($pathname), $mode)
+	mode = __uint32($mode)
+	argstr = sprintf("%s, %s, %#o", _dfd_str(__int32($dfd)),
+			 user_string_quoted($pathname), __uint32($mode))
 }
 probe syscall.mkdirat.return = kernel.function("sys_mkdirat").return ?
 {

@@ -1187,7 +1187,7 @@ probe syscall.mkdir.return
 probe syscall.mkdirat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %d\n", dirfd, pathname, mode)
+	printf("%d(%s), %s, %d\n", dirfd, dirfd_str, pathname, mode)
 }
 probe syscall.mkdirat.return ?
 {
