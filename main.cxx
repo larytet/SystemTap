@@ -567,8 +567,7 @@ passes_0_4 (systemtap_session &s)
               if (s.verbose>2)
                 clog << _F("Processing tapset \"%s\"", globbuf.gl_pathv[j]) << endl;
 
-              stapfile* f = parse_library_macros (s, globbuf.gl_pathv[j],
-                                                  true /* errs_as_warnings */);
+              stapfile* f = parse_library_macros (s, globbuf.gl_pathv[j]);
               if (f == 0)
                 s.print_warning(_F("macro tapset \"%s\" has errors, and will be skipped.", string(globbuf.gl_pathv[j]).c_str()));
               else
@@ -592,6 +591,13 @@ passes_0_4 (systemtap_session &s)
 
   for (unsigned i=0; i<s.include_path.size(); i++)
     {
+      unsigned tapset_flags = pf_guru | pf_squash_errors;
+
+      // The first path is special, as it's the builtin tapset.
+      // Allow all features no matter what s.compatible says.
+      if (i == 0)
+        tapset_flags |= pf_no_compatible;
+
       // now iterate upon it
       for (unsigned k=0; k<version_suffixes.size(); k++)
         {
@@ -654,9 +660,7 @@ passes_0_4 (systemtap_session &s)
               // root-equivalent privileges anyway; stapsys and stapusr use a remote compilation
               // with a trusted environment, where client-side $XDG_DATA_DIRS are not passed.
 
-              stapfile* f = parse (s, globbuf.gl_pathv[j],
-                                    true /* privileged */,
-                                    true /* errs_as_warnings */);
+              stapfile* f = parse (s, globbuf.gl_pathv[j], tapset_flags);
               if (f == 0)
                 s.print_warning(_F("tapset \"%s\" has errors, and will be skipped", string(globbuf.gl_pathv[j]).c_str()));
               else
@@ -687,27 +691,24 @@ passes_0_4 (systemtap_session &s)
       s.dump_mode == systemtap_session::dump_matched_probes ||
       s.dump_mode == systemtap_session::dump_matched_probes_vars)
     {
+      unsigned user_flags = s.guru_mode ? pf_guru : 0;
       if (s.script_file == "-")
         {
-          s.user_file = parse (s, cin, s.guru_mode,
-                               false /* errs_as_warnings */);
+          s.user_file = parse (s, cin, user_flags);
         }
       else if (s.script_file != "")
         {
-          s.user_file = parse (s, s.script_file, s.guru_mode,
-                               false /* errs_as_warnings */);
+          s.user_file = parse (s, s.script_file, user_flags);
         }
       else if (s.cmdline_script != "")
         {
           istringstream ii (s.cmdline_script);
-          s.user_file = parse (s, ii, s.guru_mode,
-                               false /* errs_as_warnings */);
+          s.user_file = parse (s, ii, user_flags);
         }
       else // listing mode
         {
           istringstream ii ("probe " + s.dump_matched_pattern + " {}");
-          s.user_file = parse (s, ii, s.guru_mode,
-                               false /* errs_as_warnings */);
+          s.user_file = parse (s, ii, user_flags);
         }
       if (s.user_file == 0)
         {

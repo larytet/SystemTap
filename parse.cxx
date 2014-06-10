@@ -41,11 +41,13 @@ public:
   bool ate_comment; // current token follows a comment
   bool ate_whitespace; // the most recent token followed whitespace
   bool saw_tokens; // the lexer found tokens (before preprocessing occurred)
+  bool check_compatible; // whether to gate features on session.compatible
 
   token* scan ();
   lexer (istream&, const string&, systemtap_session&);
   void set_current_file (stapfile* f);
   void set_current_token_chain (const token* tok);
+  inline bool has_version (const char* v) const;
 
   static set<string> keywords;
   static set<string> atwords;
@@ -71,12 +73,12 @@ private:
 class parser
 {
 public:
-  parser (systemtap_session& s, const string& n, istream& i, bool p);
+  parser (systemtap_session& s, const string& n, istream& i, unsigned flags=0);
   ~parser ();
 
-  stapfile* parse (bool errs_as_warnings);
-  probe* parse_synthetic_probe (const token* chain, bool errs_as_warnings);
-  stapfile* parse_library_macros (bool errs_as_warnings);
+  stapfile* parse ();
+  probe* parse_synthetic_probe (const token* chain);
+  stapfile* parse_library_macros ();
 
 private:
   typedef enum {
@@ -98,6 +100,7 @@ private:
   systemtap_session& session;
   string input_name;
   lexer input;
+  bool errs_as_warnings;
   bool privileged;
   parse_context context;
 
@@ -217,15 +220,15 @@ private: // nonterminals
 // ------------------------------------------------------------------------
 
 stapfile*
-parse (systemtap_session& s, istream& i, bool pr, bool errs_as_warnings)
+parse (systemtap_session& s, istream& i, unsigned flags)
 {
-  parser p (s, "<input>", i, pr);
-  return p.parse (errs_as_warnings);
+  parser p (s, "<input>", i, flags);
+  return p.parse ();
 }
 
 
 stapfile*
-parse (systemtap_session& s, const string& name, bool pr, bool errs_as_warnings)
+parse (systemtap_session& s, const string& name, unsigned flags)
 {
   ifstream i(name.c_str(), ios::in);
   if (i.fail())
@@ -237,12 +240,12 @@ parse (systemtap_session& s, const string& name, bool pr, bool errs_as_warnings)
       return 0;
     }
 
-  parser p (s, name, i, pr);
-  return p.parse (errs_as_warnings);
+  parser p (s, name, i, flags);
+  return p.parse ();
 }
 
 stapfile*
-parse_library_macros (systemtap_session& s, const string& name, bool errs_as_warnings)
+parse_library_macros (systemtap_session& s, const string& name)
 {
   ifstream i(name.c_str(), ios::in);
   if (i.fail())
@@ -254,24 +257,26 @@ parse_library_macros (systemtap_session& s, const string& name, bool errs_as_war
       return 0;
     }
 
-  parser p (s, name, i, false); // TODOXX pr is ...? should path be full??
-  return p.parse_library_macros (errs_as_warnings);
+  parser p (s, name, i);
+  return p.parse_library_macros ();
 }
 
 probe*
 parse_synthetic_probe (systemtap_session &s, std::istream& i, const token* tok)
 {
-  parser p (s, "<synthetic>", i, false);
-  return p.parse_synthetic_probe (tok, false);
+  parser p (s, "<synthetic>", i);
+  return p.parse_synthetic_probe (tok);
 }
 
 // ------------------------------------------------------------------------
 
 
-parser::parser (systemtap_session& s, const string &n, istream& i, bool p):
-  session (s), input_name (n), input (i, input_name, s), privileged (p),
+parser::parser (systemtap_session& s, const string &n, istream& i, unsigned flags):
+  session (s), input_name (n), input (i, input_name, s),
+  errs_as_warnings(flags & pf_squash_errors), privileged (flags & pf_guru),
   context(con_unknown), systemtap_v_seen(0), last_t (0), next_t (0), num_errors (0)
 {
+  input.check_compatible = !(flags & pf_no_compatible);
 }
 
 parser::~parser()
@@ -707,7 +712,7 @@ parser::slurp_pp1_body (vector<const token*>& body)
 
 // Used for parsing .stpm files.
 stapfile*
-parser::parse_library_macros (bool errs_as_warnings)
+parser::parse_library_macros ()
 {
   stapfile* f = new stapfile;
   input.set_current_file (f);
@@ -1342,7 +1347,7 @@ parser::peek_kw (std::string const & kw)
 
 
 lexer::lexer (istream& input, const string& in, systemtap_session& s):
-  ate_comment(false), ate_whitespace(false), saw_tokens(false),
+  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(true),
   input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
   cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
   cursor_column (1), session(s), current_file (0), current_token_chain (0)
@@ -1426,6 +1431,15 @@ lexer::input_peek (unsigned n)
   if (input_pointer + n >= input_end)
     return -1; // EOF
   return (unsigned char)*(input_pointer + n);
+}
+
+
+bool
+lexer::has_version (const char* v) const
+{
+  return check_compatible
+    ? strverscmp(session.compatible.c_str(), v) >= 0
+    : true;
 }
 
 
@@ -1625,7 +1639,7 @@ skip:
 	      switch (c)
 		{
                 case 'x':
-                  if (strverscmp(session.compatible.c_str(), "2.3") < 0)
+                  if (!has_version("2.3"))
                     goto the_default;
 		case 'a':
 		case 'b':
@@ -1790,7 +1804,7 @@ token::make_junk (const string new_msg)
 // ------------------------------------------------------------------------
 
 stapfile*
-parser::parse (bool errs_as_warnings)
+parser::parse ()
 {
   stapfile* f = new stapfile;
   input.set_current_file (f);
@@ -1885,7 +1899,7 @@ parser::parse (bool errs_as_warnings)
 
 
 probe*
-parser::parse_synthetic_probe (const token* chain, bool errs_as_warnings)
+parser::parse_synthetic_probe (const token* chain)
 {
   probe* p = NULL;
   stapfile* f = new stapfile;
@@ -2422,8 +2436,7 @@ parser::consume_string_literals(const token *t)
   // NB for versions prior to 2.0: but don't skip over intervening comments
   const token *n = peek();
   while (n != NULL && n->type == tok_string
-         && ! (strverscmp(session.compatible.c_str(), "2.0") < 0
-               && input.ate_comment))
+         && ! (!input.has_version("2.0") && input.ate_comment))
     {
       ls->value.append(next()->content); // consume and append the token
       n = peek();
@@ -3339,7 +3352,7 @@ parser::parse_dwarf_value ()
     expr = tsym = parse_cast_op ();
   else if (tok_is (t, tok_operator, "@var"))
     expr = tsym = parse_atvar_op ();
-  else if (addressof && strverscmp(session.compatible.c_str(), "2.6") < 0)
+  else if (addressof && !input.has_version("2.6"))
     // '&' on old version only allowed specific target_symbol types
     throw PARSE_ERROR (_("expected @cast, @var or $var"));
   else
@@ -3349,7 +3362,7 @@ parser::parse_dwarf_value ()
   // If we had '&' or see any target suffixes, that forces a target_symbol.
   // For compatibility, we only do this starting with 2.6.
   if (!tsym && (addressof || peek_target_symbol_components ())
-      && strverscmp(session.compatible.c_str(), "2.6") >= 0)
+      && input.has_version("2.6"))
     {
       autocast_op *cop = new autocast_op;
       cop->tok = addrtok ?: peek ();
