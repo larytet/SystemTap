@@ -114,6 +114,10 @@ proc java_p {} {
     return $systemtap_java_p
 }
 
+proc hw_breakpoint_p {} {
+   global have_hw_breakpoint_p
+   return $have_hw_breakpoint_p
+}
 
 proc get_runtime_list {} {
     # Always return the default runtime.
@@ -155,6 +159,7 @@ proc print_systemtap_version {} {
 proc setup_systemtap_environment {} {
     global srcdir env server_pid logfile systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
+    global have_hw_breakpoint_p
     global kill_needs_doubledash
 
     # need an absolute SRCDIR for the top-level src/ tree
@@ -230,6 +235,13 @@ proc setup_systemtap_environment {} {
         set systemtap_java_p 1
     } else {
         set systemtap_java_p 0
+    }
+
+    # Remember if this selfsame version of systemtap supports HW breakpoints
+    if {! [catch {exec stap -l {kernel.data(0x123).rw}}]} {
+        set have_hw_breakpoint_p 1
+    } else {
+        set have_hw_breakpoint_p 0
     }
 
     # There are some kill executables that had issues with -SIG -PID, thinking

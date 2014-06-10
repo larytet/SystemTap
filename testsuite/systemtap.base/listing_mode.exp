@@ -246,6 +246,18 @@ proc report_untested_probes {} {
    foreach probe_type $all_probe_types {
       switch $probe_type {
 
+         kernel.data(number).length(number).rw -
+         kernel.data(number).length(number).write -
+         kernel.data(number).rw -
+         kernel.data(number).write -
+         kernel.data(string).rw -
+         kernel.data(string).write
+         {
+            if {![hw_breakpoint_p]} {
+               setup_kfail HW_BKPT *-*-*
+            }
+         }
+
          kernel.function(string).callee(string) -
          kernel.function(string).callees -
          kernel.function(string).callees(number)
@@ -404,29 +416,32 @@ testing_probe {java(string).class(string).method(string).return}
 
 stap_list {java("JavaProc").class("MyClass").method("MyMethod").return}
 
-testing_probe {kernel.data(number).length(number).rw}
+if {[hw_breakpoint_p]} {
 
-stap_list {kernel.data(0x123).length(456).rw}
+   testing_probe {kernel.data(number).length(number).rw}
 
-testing_probe {kernel.data(number).length(number).write}
+   stap_list {kernel.data(0x123).length(456).rw}
 
-stap_list {kernel.data(0x123).length(456).write}
+   testing_probe {kernel.data(number).length(number).write}
 
-testing_probe {kernel.data(number).rw}
+   stap_list {kernel.data(0x123).length(456).write}
 
-stap_list {kernel.data(0x123).rw}
+   testing_probe {kernel.data(number).rw}
 
-testing_probe {kernel.data(number).write}
+   stap_list {kernel.data(0x123).rw}
 
-stap_list {kernel.data(0x123).write}
+   testing_probe {kernel.data(number).write}
 
-testing_probe {kernel.data(string).rw}
+   stap_list {kernel.data(0x123).write}
 
-stap_list {kernel.data("abcd").rw}
+   testing_probe {kernel.data(string).rw}
 
-testing_probe {kernel.data(string).write}
+   stap_list {kernel.data("abcd").rw}
 
-stap_list {kernel.data("abcd").write}
+   testing_probe {kernel.data(string).write}
+
+   stap_list {kernel.data("abcd").write}
+}
 
 if {$kernel_addr != 0} {
 
