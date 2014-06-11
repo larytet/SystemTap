@@ -29,16 +29,6 @@ if {[strverscmp $GCC_Version 4.7] < 0 || \
    set callee_supported 1
 }
 
-# Check if .plt probes are supported
-switch -regexp $::tcl_platform(machine) {
-   {^(ppc|ppc64|s390|s390x)$} {
-      set plt_supported 0
-   }
-   default {
-      set plt_supported 1
-   }
-}
-
 # Runs stap -l $pp and checks that every line output matches $exp. If $exp is
 # missing, checks that lines match $pp. If $exp starts with 're:' then the rest
 # of it is treated as a regular expression.  If $nlines_exp is not -1, then
@@ -251,7 +241,7 @@ proc testing_probe {probe_type} {
 
 # Reports all probe types in the list that haven't been tested
 proc report_untested_probes {} {
-   global test all_probe_types callee_supported plt_supported
+   global test all_probe_types callee_supported
 
    foreach probe_type $all_probe_types {
       switch $probe_type {
@@ -369,7 +359,7 @@ proc report_untested_probes {} {
          process(string).plt(string) -
          process(string).plt(string).statement(number)
          {
-            if {!$plt_supported} {
+            if {![plt_probes_p]} {
                setup_kfail PLT *-*-*
             }
          }
@@ -839,7 +829,7 @@ if {$exepath != ""} {
    stap_list_cmd_lib "process.library(\"sopath\").mark(\"mark\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
 
-   if {$plt_supported} {
+   if {[plt_probes_p]} {
 
       testing_probe {process.library(string).plt}
 
@@ -921,7 +911,7 @@ if {$exepath != ""} {
    stap_list_cmd "process.mark(\"mark\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
 
-   if {$plt_supported} {
+   if {[plt_probes_p]} {
 
       testing_probe {process.plt}
 
