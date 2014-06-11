@@ -38,8 +38,7 @@ function _task_rlimit_cur:long (task:long, nd_limit:long)
         return -1;
     }
     sig = @cast(task, "task_struct", "kernel<linux/sched.h>")->signal;
-    rlimit = @cast(sig, "signal_struct", "kernel<linux/sched.h>")->rlim;
-    return @cast(rlimit, "rlimit", "kernel<linux/sched.h>")[nd_limit]->rlim_cur;
+    return sig->rlim[nd_limit]->rlim_cur;
 }
 
 /* sfunction task_rlimit - The current resource limit of the task
