@@ -641,22 +641,22 @@ if {$exepath != ""} {
       testing_probe {process.function(number)}
 
       stap_list_cmd "process.function(0x$process_addr)" \
-         "process(\"$exefullpath\").function(0x$process_addr)"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)"
 
       testing_probe {process.function(number).call}
 
       stap_list_cmd "process.function(0x$process_addr).call" \
-         "process(\"$exefullpath\").function(0x$process_addr).call"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.call"
 
       testing_probe {process.function(number).exported}
 
       stap_list_cmd "process.function(0x$process_addr).exported" \
-         "process(\"$exefullpath\").function(0x$process_addr).exported"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.exported"
 
       testing_probe {process.function(number).return}
 
       stap_list_cmd "process.function(0x$process_addr).return" \
-         "process(\"$exefullpath\").function(0x$process_addr).return"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.return"
    }
 
    testing_probe {process.function(string)}
@@ -724,22 +724,22 @@ if {$exepath != ""} {
       testing_probe {process.library(string).function(number)}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr)" \
-         "process(\"$exefullpath\").library(\"$sofullpath\").function(0x$library_addr)"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)"
 
       testing_probe {process.library(string).function(number).call}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr).call" \
-         "process(\"$exefullpath\").library(\"$sofullpath\").function(0x$library_addr).call"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)\\\.call"
 
       testing_probe {process.library(string).function(number).exported}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr).exported" \
-         "process(\"$exefullpath\").library(\"$sofullpath\").function(0x$library_addr).exported"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)\\\.exported"
 
       testing_probe {process.library(string).function(number).return}
 
       stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr).return" \
-         "process(\"$exefullpath\").library(\"$sofullpath\").function(0x$library_addr).return"
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)\\\.return"
    }
 
    testing_probe {process.library(string).function(string)}
