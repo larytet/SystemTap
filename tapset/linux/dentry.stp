@@ -42,8 +42,8 @@ function __dentry_prepend:string(dentry:long,name:string)
  */
 function d_name:string(dentry:long)
 {
-        len = @cast(dentry, "dentry")->d_name->len;
-        return kernel_string_n(@cast(dentry, "dentry")->d_name->name, len);
+        s = & @cast(dentry, "dentry")->d_name;
+        return kernel_string_n(s->name, s->len);
 }
 
 
@@ -53,25 +53,24 @@ function __inode_first_dentry:long(inode:long)
         d_alias = @choose_defined(
                         @cast(inode, "struct inode")->i_dentry->first,
                         @cast(inode, "struct inode")->i_dentry->next)
-        dentry = d_alias - (& @cast(0, "struct dentry")->d_alias)
-        return dentry
+
+        return & @container_of(d_alias, "struct dentry", d_alias)
 }
 
 
 function __inode_vfsmount:long(inode:long)
 {
         /* s_mounts was added in kernel 3.6, commit b3d9b7a3c.  */
-        if (@defined(&@cast(0, "struct super_block")->s_mounts)) {
+        if (@type_member_defined("struct super_block", s_mounts)) {
                 mnt_ns = @cast(task_current(), "struct task_struct")->nsproxy->mnt_ns
                 sb = @cast(inode, "struct inode")->i_sb
 
                 /* Look for the mount which matches the current namespace */
-                head = &@cast(sb, "struct super_block")->s_mounts
-                for (pos = @cast(head, "struct list_head")->next; pos != head;
-                                pos = @cast(pos, "struct list_head")->next) {
-                        mount = pos - (& @cast(0, "struct mount")->mnt_instance)
-                        if (@cast(mount, "struct mount")->mnt_ns == mnt_ns)
-                                return & @cast(mount, "struct mount")->mnt
+                head = &sb->s_mounts
+                for (pos = head->next; pos != head; pos = pos->next) {
+                        mount = & @container_of(pos, "struct mount", mnt_instance)
+                        if (mount->mnt_ns == mnt_ns)
+                                return & mount->mnt
                 }
         }
         return 0
@@ -134,7 +133,7 @@ function reverse_path_walk:string(dentry:long)
  */
 function real_mount:long(vfsmnt:long)
 {
-	if (@defined(@cast(0, "mount")->mnt_parent)) {
+	if (@type_member_defined("mount", mnt_parent)) {
 		/*
 		 * The following is the script language equivalent of:
 		 *
@@ -148,11 +147,10 @@ function real_mount:long(vfsmnt:long)
 		 * More spelled out in C, the above would look like:
 		 *
 		 *    return (vfsmnt - offsetof(struct mount, mnt));
-		 * 
-		 * Notice we're casting 0 here on purpose to find the
-		 * offset of the 'mnt' member of 'struct mount.
+                 *
+                 * but here we're also making sure it won't wrap around.
 		 */
-		offset = &@cast(0, "mount")->mnt
+		offset = @offsetof("mount", mnt)
 		if (vfsmnt < 0 || vfsmnt > offset)
 			return (vfsmnt - offset)
 	}
@@ -183,58 +181,48 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 	 * dentry == vfsmnt->mnt_root.  In that case, we'll just go
 	 * ahead and handle them normally.
 	 */
-	if (@defined(@cast(0, "dentry")->d_op->d_dname)
-	    && @cast(dentry, "dentry")->d_op
-	    && @cast(dentry, "dentry")->d_op->d_dname
-	    && (!__dentry_IS_ROOT(dentry)
-		|| dentry != @cast(vfsmnt, "vfsmount")->mnt_root))
-          return sprintf("UNKNOWN:[%p]", dentry)
+	dentry = & @cast(dentry, "dentry")
+	vfsmnt = & @cast(vfsmnt, "vfsmount")
+	if (@type_member_defined("dentry", d_op->d_dname)
+	    && dentry->d_op && dentry->d_op->d_dname
+	    && (!__dentry_IS_ROOT(dentry) || dentry != vfsmnt->mnt_root))
+	  return sprintf("UNKNOWN:[%p]", dentry)
 
-        root = & @cast(task, "task_struct")->fs->root
+	root = & @cast(task, "task_struct")->fs->root
 
-        while (1) {
+	while (1) {
 		# If we've found the right dentry/vfsmnt, we're done.
-		#
-		# (Why check for 'struct path' and 'struct vfs_path'?
-		# Later RHEL5 kernels renamed 'struct path' to 'struct
-		# vfs_path'.)
-		if (@defined(@cast(0, "path")->dentry)
-		    ? (dentry == @cast(root, "path")->dentry
-		       && vfsmnt == @cast(root, "path")->mnt)
-		    : (dentry == @cast(root, "vfs_path")->dentry
-		       && vfsmnt == @cast(root, "vfs_path")->mnt))
-                        break;
+		if (dentry == root->dentry && vfsmnt == root->mnt)
+			break;
 
-                if (dentry == @cast(vfsmnt, "vfsmount")->mnt_root ||
-                    __dentry_IS_ROOT(dentry)) {
-			if (! @defined(@cast(0, "vfsmount")->mnt_parent)) {
-				mnt = real_mount(vfsmnt)
+		if (dentry == vfsmnt->mnt_root || __dentry_IS_ROOT(dentry)) {
+			if (! @type_member_defined("vfsmount", mnt_parent)) {
+				mnt = & @cast(real_mount(vfsmnt), "mount")
 				if (mnt == 0)
 					return "<unknown>"
 
 				/* Global root? */
-				if (@cast(mnt, "mount")->mnt_parent == vfsmnt)
+				if (mnt->mnt_parent == vfsmnt)
 					return sprintf("/%s", name);
 
-				dentry = @cast(mnt, "mount")->mnt_mountpoint
-				vfsmnt = &@cast(mnt, "mount")->mnt_parent->mnt
+				dentry = mnt->mnt_mountpoint
+				vfsmnt = & mnt->mnt_parent->mnt
 			}
 			else {
 				/* Global root? */
-				if (@cast(vfsmnt, "vfsmount")->mnt_parent
-				    == vfsmnt)
+				if (vfsmnt->mnt_parent == vfsmnt)
 					return sprintf("/%s", name);
 
-				dentry = @cast(vfsmnt, "vfsmount")->mnt_mountpoint
-				vfsmnt = @cast(vfsmnt, "vfsmount")->mnt_parent
+				dentry = vfsmnt->mnt_mountpoint
+				vfsmnt = vfsmnt->mnt_parent
 			}
-                        continue;
-                }
-                name = __dentry_prepend(dentry, name);
-                dentry = @cast(dentry, "dentry")->d_parent;
-        }
+			continue;
+		}
+		name = __dentry_prepend(dentry, name);
+		dentry = dentry->d_parent;
+	}
 
-        return sprintf("/%s", name);
+	return sprintf("/%s", name);
 }
 
 
