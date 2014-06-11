@@ -29,6 +29,16 @@ if {[strverscmp $GCC_Version 4.7] < 0 || \
    set callee_supported 1
 }
 
+# Check if .plt probes are supported
+switch -regexp $::tcl_platform(machine) {
+   {^(ppc|ppc64|s390|s390x)$} {
+      set plt_supported 0
+   }
+   default {
+      set plt_supported 1
+   }
+}
+
 # Runs stap -l $pp and checks that every line output matches $exp. If $exp is
 # missing, checks that lines match $pp. If $exp starts with 're:' then the rest
 # of it is treated as a regular expression.  If $nlines_exp is not -1, then
@@ -241,7 +251,7 @@ proc testing_probe {probe_type} {
 
 # Reports all probe types in the list that haven't been tested
 proc report_untested_probes {} {
-   global test all_probe_types callee_supported
+   global test all_probe_types callee_supported plt_supported
 
    foreach probe_type $all_probe_types {
       switch $probe_type {
@@ -339,6 +349,28 @@ proc report_untested_probes {} {
          {
             if {!$callee_supported} {
                setup_kfail CALLEE *-*-*
+            }
+         }
+
+         process.library(string).plt -
+         process.library(string).plt.statement(number) -
+         process.library(string).plt(string) -
+         process.library(string).plt(string).statement(number) -
+         process(string).library(string).plt -
+         process(string).library(string).plt.statement(number) -
+         process(string).library(string).plt(string) -
+         process(string).library(string).plt(string).statement(number) -
+         process.plt -
+         process.plt.statement(number) -
+         process.plt(string) -
+         process.plt(string).statement(number) -
+         process(string).plt -
+         process(string).plt.statement(number) -
+         process(string).plt(string) -
+         process(string).plt(string).statement(number)
+         {
+            if {!$plt_supported} {
+               setup_kfail PLT *-*-*
             }
          }
 
@@ -807,37 +839,40 @@ if {$exepath != ""} {
    stap_list_cmd_lib "process.library(\"sopath\").mark(\"mark\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
 
-   testing_probe {process.library(string).plt}
+   if {$plt_supported} {
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
+      testing_probe {process.library(string).plt}
 
-   testing_probe {process.library(string).plt.statement(number)}
+      stap_list_cmd_lib "process.library(\"sopath\").plt" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt.statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      testing_probe {process.library(string).plt.statement(number)}
 
-   testing_probe {process.library(string).plt(string)}
+      stap_list_cmd_lib "process.library(\"sopath\").plt.statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt(\"libbar\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\)"
+      testing_probe {process.library(string).plt(string)}
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt(\"libba?\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\)"
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libbar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt(\"\\\[lp\\\]*\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"(libbar|printf)\"\\\)" {-1}
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libba?\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\)"
 
-   testing_probe {process.library(string).plt(string).statement(number)}
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"\\\[lp\\\]*\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"(libbar|printf)\"\\\)" {-1}
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt(\"libbar\").statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      testing_probe {process.library(string).plt(string).statement(number)}
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt(\"libba?\").statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libbar\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").plt(\"\\\[lp\\\]*\").statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libba?\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"\\\[lp\\\]*\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+   }
 
    testing_probe {process.library(string).provider(string).mark(string)}
 
@@ -886,37 +921,40 @@ if {$exepath != ""} {
    stap_list_cmd "process.mark(\"mark\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
 
-   testing_probe {process.plt}
+   if {$plt_supported} {
 
-   stap_list_cmd "process.plt" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
+      testing_probe {process.plt}
 
-   testing_probe {process.plt.statement(number)}
+      stap_list_cmd "process.plt" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
 
-   stap_list_cmd "process.plt.statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      testing_probe {process.plt.statement(number)}
 
-   testing_probe {process.plt(string)}
+      stap_list_cmd "process.plt.statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
 
-   stap_list_cmd "process.plt(\"libfoo\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+      testing_probe {process.plt(string)}
 
-   stap_list_cmd "process.plt(\"libfo?\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+      stap_list_cmd "process.plt(\"libfoo\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
 
-   stap_list_cmd "process.plt(\"\\\[lp\\\]*\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\)" {-1}
+      stap_list_cmd "process.plt(\"libfo?\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
 
-   testing_probe {process.plt(string).statement(number)}
+      stap_list_cmd "process.plt(\"\\\[lp\\\]*\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\)" {-1}
 
-   stap_list_cmd "process.plt(\"libfoo\").statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      testing_probe {process.plt(string).statement(number)}
 
-   stap_list_cmd "process.plt(\"libfo?\").statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      stap_list_cmd "process.plt(\"libfoo\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
 
-   stap_list_cmd "process.plt(\"\\\[lp\\\]*\").statement(0x123)" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+      stap_list_cmd "process.plt(\"libfo?\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+
+      stap_list_cmd "process.plt(\"\\\[lp\\\]*\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+   }
 
    testing_probe {process.provider(string).mark(string)}
 
