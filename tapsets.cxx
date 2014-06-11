@@ -500,6 +500,8 @@ struct dwarf_derived_probe: public derived_probe
   void emit_privilege_assertion (translator_output*);
   void print_dupe_stamp(ostream& o);
 
+  bool on_the_fly_supported () { return true; }
+
   // Pattern registration helpers.
   static void register_statement_variants(match_node * root,
 					  dwarf_builder * dw,
@@ -5514,6 +5516,9 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "const unsigned maxactive_p:1;";
   s.op->newline() << "const unsigned optional_p:1;";
   s.op->newline() << "unsigned registered_p:1;";
+  s.op->newline() << "#ifdef STP_ON_THE_FLY";
+  s.op->newline() << "unsigned enabled_p:1;";
+  s.op->newline() << "#endif";
   s.op->newline() << "const unsigned short maxactive_val;";
 
   // data saved in the kretprobe_instance packet
@@ -5725,7 +5730,18 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(  ) <<      "#else";
   s.op->newline(  ) <<      "rc = register_kretprobe (& kp->u.krp);";
   s.op->newline(  ) <<      "#endif";
-  s.op->newline(-1) <<    "} else {";
+
+  // should it be disabled right away?
+  s.op->newline(  ) <<      "#ifdef STP_ON_THE_FLY";
+  s.op->newline(  ) <<      "if (rc == 0 && !sdp->probe->cond_enabled) {";
+  s.op->newline( 1) <<        "rc = disable_kretprobe (& kp->u.krp);";
+  s.op->newline(  ) <<        "if (rc != 0)";
+  s.op->newline( 1) <<          "unregister_kretprobe (& kp->u.krp);";
+  s.op->newline(-1) <<        "else dbug_otf(\"disabled (kretprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<      "}";
+  s.op->newline(  ) <<      "#endif";
+
+  s.op->newline(-1) <<    "} else {"; // !sdp->return_p
 
   // to ensure safeness of bspcache, always use aggr_kprobe on ia64
   s.op->newline( 1) <<      "kp->u.kp.addr = (void *) relocated_addr;";
@@ -5742,6 +5758,17 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline(  ) <<      "#else";
   s.op->newline(  ) <<      "rc = register_kprobe (& kp->u.kp);";
   s.op->newline(  ) <<      "#endif";
+
+  // should it be disabled right away?
+  s.op->newline(  ) <<      "#ifdef STP_ON_THE_FLY";
+  s.op->newline(  ) <<      "if (rc == 0 && !sdp->probe->cond_enabled) {";
+  s.op->newline( 1) <<        "rc = disable_kprobe (& kp->u.kp);";
+  s.op->newline(  ) <<        "if (rc != 0)";
+  s.op->newline( 1) <<          "unregister_kprobe (& kp->u.kp);";
+  s.op->newline(-1) <<        "else dbug_otf(\"disabled (kprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<      "};";
+  s.op->newline(  ) <<      "#endif";
+
   s.op->newline(-1) <<    "}";
   s.op->newline(  ) <<    "if (rc) {"; // PR6749: tolerate a failed register_*probe.
   s.op->newline( 1) <<      "sdp->registered_p = 0;";
@@ -5768,6 +5795,12 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
 #endif
 
   s.op->newline(  ) <<    "else sdp->registered_p = 1;";
+
+  // the enabled_p field is now in agreement with cond_enabled (if registered)
+  s.op->newline(  ) <<    "#ifdef STP_ON_THE_FLY";
+  s.op->newline(  ) <<    "sdp->enabled_p = !sdp->registered_p ? 0 : sdp->probe->cond_enabled;";
+  s.op->newline(  ) <<    "#endif";
+
   s.op->newline(-1) <<  "}"; // for loop
 }
 
@@ -5812,6 +5845,16 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
   s.op->newline(  ) <<        "#else";
   s.op->newline(  ) <<        "rc = register_kretprobe (& kp->u.krp);";
   s.op->newline(  ) <<        "#endif";
+
+  // should it be disabled right away?
+  s.op->newline(  ) <<        "#ifdef STP_ON_THE_FLY";
+  s.op->newline(  ) <<        "if (rc == 0 && !sdp->probe->cond_enabled) {";
+  s.op->newline( 1) <<          "rc = disable_kretprobe (& kp->u.krp);";
+  s.op->newline(  ) <<          "if (rc != 0)";
+  s.op->newline( 1) <<            "unregister_kretprobe (& kp->u.krp);";
+  s.op->newline(-1) <<          "else dbug_otf(\"disabled (kretprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<        "}";
+  s.op->newline(  ) <<        "#endif";
   s.op->newline(-1) <<      "} else {";
 
   // to ensure safeness of bspcache, always use aggr_kprobe on ia64
@@ -5828,6 +5871,16 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
   s.op->newline(-2) <<        "}";
   s.op->newline(  ) <<        "#else";
   s.op->newline(  ) <<        "rc = register_kprobe (& kp->u.kp);";
+  s.op->newline(  ) <<        "#endif";
+
+  // should it be disabled right away?
+  s.op->newline(  ) <<        "#ifdef STP_ON_THE_FLY";
+  s.op->newline(  ) <<        "if (rc == 0 && !sdp->probe->cond_enabled) {";
+  s.op->newline( 1) <<          "rc = disable_kprobe (& kp->u.kp);";
+  s.op->newline(  ) <<          "if (rc != 0)";
+  s.op->newline( 1) <<            "unregister_kprobe (& kp->u.kp);";
+  s.op->newline(-1) <<          "else dbug_otf(\"disabled (kprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<        "}";
   s.op->newline(  ) <<        "#endif";
   s.op->newline(-1) <<      "}";
   s.op->newline(  ) <<      "if (rc == 0) sdp->registered_p = 1;";
@@ -5858,7 +5911,42 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
   s.op->newline(  ) <<      "unregister_kprobe (&kp->dummy);";
   s.op->newline(  ) <<      "#endif";
   s.op->newline(  ) <<      "sdp->registered_p = 0;";
-  s.op->newline(-1) <<    "}";
+
+  s.op->newline(-1) <<    "#ifdef STP_ON_THE_FLY";
+
+  // does it need to be enabled?
+  s.op->newline(  ) <<    "} else if (!sdp->enabled_p && sdp->probe->cond_enabled) {";
+  s.op->newline( 1) <<      "if (sdp->return_p) {";
+  s.op->newline( 1) <<        "if (enable_kretprobe(&kp->u.krp) != 0)";
+  s.op->newline( 1) <<          "unregister_kretprobe(&kp->u.krp);";
+  s.op->newline(-1) <<        "else dbug_otf(\"enabling (kretprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<      "} else {";
+  s.op->newline( 1) <<        "if (enable_kprobe(&kp->u.kp) != 0)";
+  s.op->newline( 1) <<          "unregister_kprobe(&kp->u.kp);";
+  s.op->newline(-1) <<        "else dbug_otf(\"enabling (kprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<      "}";
+
+  // does it need to be disabled?
+  s.op->newline(-1) <<    "} else if (sdp->enabled_p && !sdp->probe->cond_enabled) {";
+  s.op->newline( 1) <<      "if (sdp->return_p) {";
+  s.op->newline( 1) <<        "if (disable_kretprobe(&kp->u.krp) != 0)";
+  s.op->newline( 1) <<          "unregister_kretprobe(&kp->u.krp);";
+  s.op->newline(-1) <<        "else dbug_otf(\"disabling (kretprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<      "} else {";
+  s.op->newline( 1) <<        "if (disable_kprobe(&kp->u.kp) != 0)";
+  s.op->newline( 1) <<          "unregister_kprobe(&kp->u.kp);";
+  s.op->newline(-1) <<        "else dbug_otf(\"disabling (kprobe) pidx %zu\\n\", sdp->probe->index);";
+  s.op->newline(-1) <<      "}";
+
+  s.op->newline(-1) <<    "#endif"; // STP_ON_THE_FLY
+
+  s.op->newline(  ) <<    "}";
+
+  // the enabled_p field is now in agreement with cond_enabled (if successfully registered)
+  s.op->newline(  ) <<    "#ifdef STP_ON_THE_FLY";
+  s.op->newline(  ) <<    "sdp->enabled_p = !sdp->registered_p ? 0 : sdp->probe->cond_enabled;";
+  s.op->newline(  ) <<    "#endif";
+
 
   s.op->newline(-1) <<  "}"; // for loop
 }
