@@ -84,18 +84,17 @@ function __ip6_skb_proto:long(addr:long)
         nf_repeat = 4
         nf_stop = 5
 
-        indev = $in; outdev = $out
-        indev_name = kernel_string2(@cast(indev,"struct net_device")->name,
-                                    "")
-        outdev_name = kernel_string2(@cast(outdev,"struct net_device")->name,
-                                     "")
+        indev = & @cast($in, "struct net_device")
+        outdev = & @cast($out, "struct net_device")
+        indev_name = kernel_string2(indev->name, "")
+        outdev_name = kernel_string2(outdev->name, "")
 
         if (indev) {
-           indev_mac_len = @cast(indev,"struct net_device")->addr_len
+           indev_mac_len = indev->addr_len
            in_mac = __get_mac_addr(indev)
         }
         if (outdev) {
-           outdev_mac_len = @cast(outdev,"struct net_device")->addr_len
+           outdev_mac_len = outdev->addr_len
            out_mac = __get_mac_addr(outdev)
         }
 %)
@@ -121,20 +120,19 @@ function __ip6_skb_proto:long(addr:long)
            fin = __tcp_skb_fin(tcphdr)
         }
 
-        udphdr = tcphdr /* the same place where tcphdr would have been */
+        /* udphdr is in the same place where tcphdr would have been */
+        udphdr = & @cast(tcphdr, "udphdr")
         if (protocol == ipproto_udp) {
-           dport = ntohs(@cast(udphdr,"udphdr")->dest)
-           sport = ntohs(@cast(udphdr,"udphdr")->source)
+           dport = ntohs(udphdr->dest)
+           sport = ntohs(udphdr->source)
         }
 %)
 
 @define netfilter_ip6_setup %(
-        iphdr = __get_skb_iphdr($skb)
+        iphdr = &@cast(__get_skb_iphdr($skb), "ipv6hdr")
         family = %{ /* pure */ AF_INET6 %}
-        saddr = format_ipaddr(&@cast(iphdr, "ipv6hdr")->saddr,
-                              %{ /* pure */ AF_INET6 %})
-        daddr = format_ipaddr(&@cast(iphdr, "ipv6hdr")->daddr,
-                              %{ /* pure */ AF_INET6 %})
+        saddr = format_ipaddr(&iphdr->saddr, %{ /* pure */ AF_INET6 %})
+        daddr = format_ipaddr(&iphdr->daddr, %{ /* pure */ AF_INET6 %})
         protocol = __ip6_skb_proto($skb)
 
         length = @cast($skb, "struct sk_buff")->len
@@ -151,10 +149,11 @@ function __ip6_skb_proto:long(addr:long)
            fin = __tcp_skb_fin(tcphdr)
         }
 
-        udphdr = tcphdr /* the same place where tcphdr would have been */
+        /* udphdr is in the same place where tcphdr would have been */
+        udphdr = & @cast(tcphdr, "udphdr")
         if (protocol == ipproto_udp) {
-           dport = ntohs(@cast(udphdr,"udphdr")->dest)
-           sport = ntohs(@cast(udphdr,"udphdr")->source)
+           dport = ntohs(udphdr->dest)
+           sport = ntohs(udphdr->source)
         }        
 %)
 
@@ -415,13 +414,13 @@ function __read4:long (x:long) %{ /* pure */
 
 @define netfilter_arp_setup %(
 # XXX: include functionality to parse ARP packet contents
-        arphdr = __get_skb_arphdr($skb)
+        arphdr = & @cast(__get_skb_arphdr($skb), "struct arphdr")
         family = %{ /* pure */ NF_ARP %} // from linux/netfilter_arp.h
-        ar_hrd = ntohs(@cast(arphdr, "struct arphdr")->ar_hrd)
-        ar_pro = ntohs(@cast(arphdr, "struct arphdr")->ar_pro)
-        ar_hln = @cast(arphdr, "struct arphdr")->ar_hln
-        ar_pln = @cast(arphdr, "struct arphdr")->ar_pln
-        ar_op = ntohs(@cast(arphdr, "struct arphdr")->ar_op)
+        ar_hrd = ntohs(arphdr->ar_hrd)
+        ar_pro = ntohs(arphdr->ar_pro)
+        ar_hln = arphdr->ar_hln
+        ar_pln = arphdr->ar_pln
+        ar_op = ntohs(arphdr->ar_op)
 
         ar_data = arphdr + 8
         if (ar_hrd == 0x001 && ar_pro == 0x800) {
