@@ -942,22 +942,22 @@ probe __nd_syscall.socketcall.recv = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECV %}) next;
-	__args = pointer_arg(2)
-	s = __int32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[0]))
-	buf_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[1])
-	len = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[2])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[3]))
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	s = __int32(user_ulong(&(__args)[0]))
+	buf_uaddr = user_ulong(&(__args)[1])
+	len = user_ulong(&(__args)[2])
+	flags = __uint32(user_ulong(&(__args)[3]))
 }
 probe __nd_syscall.compat_socketcall.recv =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECV %}) next;
-	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
-	buf_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
-	len = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
-	flags = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[3])
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	buf_uaddr = user_uint32(&(__args)[1])
+	len = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
 }
 probe __nd_syscall.recv = kprobe.function("sys_recv").call ?
 {
@@ -1012,26 +1012,26 @@ probe __nd_syscall.socketcall.recvfrom =
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECVFROM %}) next
-	__args = pointer_arg(2)
-	s = __int32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[0]))
-	buf_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[1])
-	len = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[2])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[3]))
-	addr_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[4])
-	addrlen_uaddr = __uint32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[5]))
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	s = __int32(user_ulong(&(__args)[0]))
+	buf_uaddr = user_ulong(&(__args)[1])
+	len = user_ulong(&(__args)[2])
+	flags = __uint32(user_ulong(&(__args)[3]))
+	addr_uaddr = user_ulong(&(__args)[4])
+	addrlen_uaddr = __uint32(user_ulong(&(__args)[5]))
 }
 probe __nd_syscall.compat_socketcall.recvfrom =
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECVFROM %}) next
-	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
-	buf_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
-	len = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
-	flags = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[3])
-	addr_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[4])
-	addrlen_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[5])
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	buf_uaddr = user_uint32(&(__args)[1])
+	len = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
+	addr_uaddr = user_uint32(&(__args)[4])
+	addrlen_uaddr = user_uint32(&(__args)[5])
 }
 probe __nd_syscall.recvfrom = kprobe.function("sys_recvfrom").call ?
 {
@@ -1168,10 +1168,10 @@ probe nd_syscall.compat_sys_recvmsg =
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_RECVMSG %}) next;
 	name = "recvmsg"
-	__args = pointer_arg(2)
-   s = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
-	msg_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
-	flags = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	msg_uaddr = user_uint32(&(__args)[1])
+	flags = user_uint32(&(__args)[2])
 	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
@@ -2112,10 +2112,10 @@ probe nd_syscall.compat_sys_sendmsg =
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_SENDMSG %}) next;
 	name = "sendmsg"
-	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
-	msg_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
-	flags = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	msg_uaddr = user_uint32(&(__args)[1])
+	flags = user_uint32(&(__args)[2])
 	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
 }
@@ -2162,11 +2162,11 @@ probe __nd_syscall.compat_socketcall.sendmmsg =
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_SENDMMSG %}) next;
-	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
-	mmsg_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
-	vlen = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
-	flags = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[3])
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	mmsg_uaddr = user_uint32(&(__args)[1])
+	vlen = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
 }
 probe __nd_syscall.compat_sendmmsg =
 	kprobe.function("compat_sys_sendmmsg").call ?
@@ -2241,26 +2241,26 @@ probe __nd_syscall.socketcall.sendto = kprobe.function("sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_SENDTO %}) next;
-	__args = pointer_arg(2)
-	s = __int32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[0]))
-	buf_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[1])
-	len = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[2])
-	flags = __uint32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[3]))
-	to_uaddr = user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[4])
-	tolen = __uint32(user_ulong(&@cast(__args, "ulong", "kernel<linux/types.h>")[5]))
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	s = __int32(user_ulong(&(__args)[0]))
+	buf_uaddr = user_ulong(&(__args)[1])
+	len = user_ulong(&(__args)[2])
+	flags = __uint32(user_ulong(&(__args)[3]))
+	to_uaddr = user_ulong(&(__args)[4])
+	tolen = __uint32(user_ulong(&(__args)[5]))
 }
 probe __nd_syscall.compat_socketcall.sendto = 
 	kprobe.function("compat_sys_socketcall").call ?
 {
 	asmlinkage()
 	if (int_arg(1) != %{ SYS_SENDTO %}) next;
-	__args = pointer_arg(2)
-	s = user_int(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[0])
-	buf_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[1])
-	len = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[2])
-	flags = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[3])
-	to_uaddr = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[4])
-	tolen = user_uint32(&@cast(__args, "unsigned int", "kernel<linux/types.h>")[5])
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	buf_uaddr = user_uint32(&(__args)[1])
+	len = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
+	to_uaddr = user_uint32(&(__args)[4])
+	tolen = user_uint32(&(__args)[5])
 }
 probe nd_syscall.sendto.return = __nd_syscall.sendto.return ?,
 	__nd_syscall.socketcall.sendto.return ?
