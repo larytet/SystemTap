@@ -53,9 +53,11 @@ function bio_rw_str(rw:long)
 /* returns start sector */
 function __bio_start_sect:long(bio:long)
 {
-    bi_bdev = bio ? @cast(bio, "bio")->bi_bdev : 0
-    bd_part = bi_bdev ? @cast(bi_bdev, "block_device")->bd_part : 0
-    return bd_part ? @cast(bd_part, "hd_struct")->start_sect : -1
+    try {
+        return @cast(bio, "bio")->bi_bdev->bd_part->start_sect
+    } catch {
+        return -1
+    }
 }
 
 /* returns the block device name */
