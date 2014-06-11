@@ -237,6 +237,16 @@ proc report_untested_probes {} {
    foreach probe_type $all_probe_types {
       switch $probe_type {
 
+         java(number).class(string).method(string) -
+         java(number).class(string).method(string).return -
+         java(string).class(string).method(string) -
+         java(string).class(string).method(string).return
+         {
+            if {![java_p]} {
+               setup_kfail JAVA *-*-*
+            }
+         }
+
          kernel.data(number).length(number).rw -
          kernel.data(number).length(number).write -
          kernel.data(number).rw -
@@ -413,21 +423,24 @@ stap_list {error(-1)}
 stap_list {error(0)}
 stap_list {error(1)}
 
-testing_probe {java(number).class(string).method(string)}
+if {[java_p]} {
 
-stap_list {java(123).class("MyClass").method("MyMethod")}
+   testing_probe {java(number).class(string).method(string)}
 
-testing_probe {java(number).class(string).method(string).return}
+   stap_list {java(123).class("MyClass").method("MyMethod")}
 
-stap_list {java(123).class("MyClass").method("MyMethod").return}
+   testing_probe {java(number).class(string).method(string).return}
 
-testing_probe {java(string).class(string).method(string)}
+   stap_list {java(123).class("MyClass").method("MyMethod").return}
 
-stap_list {java("JavaProc").class("MyClass").method("MyMethod")}
+   testing_probe {java(string).class(string).method(string)}
 
-testing_probe {java(string).class(string).method(string).return}
+   stap_list {java("JavaProc").class("MyClass").method("MyMethod")}
 
-stap_list {java("JavaProc").class("MyClass").method("MyMethod").return}
+   testing_probe {java(string).class(string).method(string).return}
+
+   stap_list {java("JavaProc").class("MyClass").method("MyMethod").return}
+}
 
 if {[hwbkpt_probes_p]} {
 
