@@ -74,13 +74,20 @@ proc stap_list {pp {exp ""} {nlines_exp 1} {arguments ""}} {
    pass $subtest
 }
 
-# Returns the address to vfs_read from /proc/kallsyms
+# Returns the address to vfs_read using stap. NB: we can't use kallsyms because
+# the addresses might show up as all 0s for non-root.
 proc get_kernel_function_number {} {
-   if {[catch {exec grep -E "^\[0-9a-f\]+ T vfs_read$" "/proc/kallsyms"} out]} {
+   if {[catch {exec stap -vvl {kernel.function("vfs_read")} 2>@1} out]} {
       return 0
    }
-   regexp "(\[0-9a-f\]+)" $out dummy addr
-   return [string trimleft $addr 0]
+   if {![regexp -line "^probe vfs_read@.* pc=0x(\[0-9a-f\]+)" $out dummy addr]} {
+      return 0
+   }
+   set addr [string trimleft $addr 0]
+   if {$addr == ""} {
+      return 0
+   }
+   return $addr
 }
 
 set kernel_addr [get_kernel_function_number]
