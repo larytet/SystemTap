@@ -324,10 +324,8 @@ proc test_probes { privilege } {
 	    process(string).function(string).callee(string) -
 	    process.function(string).callee(string)
             {
-                global GCC_Version
-                verbose -log "gcc version $GCC_Version"
-                if {[strverscmp $GCC_Version 4.7] < 0} then {
-                    setup_kfail GCC *-*-*
+                if {![callee_probes_p]} {
+                    setup_kfail CALLEE *-*-*
                 }
             }
 	    process.function(number).return -
