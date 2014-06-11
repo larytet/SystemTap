@@ -99,6 +99,11 @@ proc perf_probes_p {} {
     return [grep_kallsyms perf_event_create_kernel_counter]
 }
 
+proc hwbkpt_probes_p {} {
+   global have_hw_breakpoint_p
+   return $have_hw_breakpoint_p
+}
+
 proc dyninst_p {} {
     global systemtap_dyninst_p
     return $systemtap_dyninst_p
@@ -112,11 +117,6 @@ proc nss_p {} {
 proc java_p {} {
     global systemtap_java_p
     return $systemtap_java_p
-}
-
-proc hw_breakpoint_p {} {
-   global have_hw_breakpoint_p
-   return $have_hw_breakpoint_p
 }
 
 proc get_runtime_list {} {

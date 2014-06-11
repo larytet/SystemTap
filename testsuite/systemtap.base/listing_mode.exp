@@ -253,7 +253,7 @@ proc report_untested_probes {} {
          kernel.data(string).rw -
          kernel.data(string).write
          {
-            if {![hw_breakpoint_p]} {
+            if {![hwbkpt_probes_p]} {
                setup_kfail HW_BKPT *-*-*
             }
          }
@@ -438,7 +438,7 @@ testing_probe {java(string).class(string).method(string).return}
 
 stap_list {java("JavaProc").class("MyClass").method("MyMethod").return}
 
-if {[hw_breakpoint_p]} {
+if {[hwbkpt_probes_p]} {
 
    testing_probe {kernel.data(number).length(number).rw}
 
