@@ -40,6 +40,9 @@ static inline Stat probe_timing(size_t index)
 	index = clamp_t(size_t, index, 0, STP_PROBE_COUNT - 1);
 	return g_probe_timing[index];
 }
+#ifdef STP_ON_THE_FLY
+Stat g_refresh_timing;
+#endif
 #endif
 
 
@@ -73,6 +76,9 @@ static int stp_session_init(void)
 		// NB: we don't check for null return here, but instead at
 		// passage to probe handlers and at final printing.
 		g_probe_timing[i] = _stp_stat_init(HIST_NONE);
+#ifdef STP_ON_THE_FLY
+	g_refresh_timing = _stp_stat_init(HIST_NONE);
+#endif
 #endif
 
 	return 0;

@@ -1938,6 +1938,13 @@ c_unparser::emit_module_refresh ()
   o->newline(1) << "int state;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
 
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#if defined(STP_ON_THE_FLY) && defined(STP_TIMING)";
+      o->newline() << "cycles_t cycles_atstart = get_cycles();";
+      o->newline() << "#endif";
+    }
+
   // Ensure we're only doing the refreshing one at a time. NB: it's important
   // that we get the lock prior to checking the session_state, in case whoever
   // is holding the lock (e.g. systemtap_module_exit()) changes it.
@@ -1968,6 +1975,21 @@ c_unparser::emit_module_refresh ()
   for (unsigned i=0; i<g.size(); i++)
     {
       g[i]->emit_module_refresh (*session);
+    }
+
+  if (!session->runtime_usermode_p())
+    {
+      // see also common_probe_entryfn_epilogue()
+      o->newline() << "#if defined(STP_ON_THE_FLY) && defined(STP_TIMING)";
+      o->newline() << "if (likely(g_refresh_timing)) {";
+      o->newline(1) << "cycles_t cycles_atend = get_cycles ();";
+      o->newline() << "int32_t cycles_elapsed = ((int32_t)cycles_atend > (int32_t)cycles_atstart)";
+      o->newline(1) << "? ((int32_t)cycles_atend - (int32_t)cycles_atstart)";
+      o->newline() << ": (~(int32_t)0) - (int32_t)cycles_atstart + (int32_t)cycles_atend + 1;";
+      o->indent(-1);
+      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed);";
+      o->newline(-1) << "}";
+      o->newline() << "#endif";
     }
 
   o->newline() << "#ifdef STP_ON_THE_FLY";
@@ -2101,6 +2123,24 @@ c_unparser::emit_module_exit ()
   o->newline(-1) << "}";
   o->newline() << "#endif"; // STP_TIMING
   o->newline(-1) << "}";
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#if defined(STP_ON_THE_FLY) && defined(STP_TIMING)";
+      o->newline() << "_stp_printf(\"----- refresh report:\\n\");";
+      o->newline() << "if (likely (g_refresh_timing)) {";
+      o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
+      o->newline() << "if (stats->count) {";
+      o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
+      o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
+      o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
+      o->newline() <<  "(long long) avg, (long long) stats->max);";
+      o->newline(-3) << "}";
+      o->newline() << "_stp_stat_del (g_refresh_timing);";
+      o->newline(-1) << "}";
+      o->newline() << "#endif"; // STP_ON_THE_FLY && STP_TIMING
+    }
+
   o->newline() << "_stp_print_flush();";
   o->newline() << "#endif";
 
