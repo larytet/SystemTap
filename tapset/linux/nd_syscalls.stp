@@ -1069,7 +1069,7 @@ probe nd_syscall.execve.return = kprobe.function("sys_execve").return
 probe nd_syscall.execve = kprobe.function("do_execve").call
 {
 	name = "execve"
-	filename = kernel_string(pointer_arg(1))
+	filename = kernel_string_quoted(pointer_arg(1))
 	args = __get_argv(pointer_arg(2), 0)
 	argstr = sprintf("%s %s", filename, __get_argv(pointer_arg(2), 1))
 }
@@ -1113,7 +1113,7 @@ probe nd_syscall.compat_execve.return =
 probe nd_syscall.compat_execve = kprobe.function("compat_do_execve").call ?
 {
 	name = "compat_execve"
-	filename = kernel_string(pointer_arg(1))
+	filename = kernel_string_quoted(pointer_arg(1))
 	args = __get_compat_argv(pointer_arg(2), 0)
 	argstr = sprintf("%s %s", filename,
 			 __get_compat_argv(pointer_arg(2), 1))
