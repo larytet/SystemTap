@@ -56,7 +56,7 @@ function kernel_string2:string (addr:long, err_msg:string) {
  * as a string, without double quotes.
  */
 function kernel_string_quoted:string (addr:long)
-%{ /* pure */ /* myproc-unprivileged */
+%{ /* pure */
   int rc = 0;
   if (STAP_ARG_addr != 0)
     rc = _stp_text_str(STAP_RETVALUE,
