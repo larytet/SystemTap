@@ -6673,7 +6673,49 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 		       + (*it) + "'");
 }
 
+struct max_action_info: public functioncall_traversing_visitor
+{
+  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
 
+  systemtap_session& sess;
+  unsigned statement_count;
+  static const unsigned max_statement_count = ~0;
+
+  void add_stmt_count (unsigned val)
+    {
+      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
+    }
+  void add_max_stmt_count () { statement_count = max_statement_count; }
+
+  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
+  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
+  void visit_expr_statement (expr_statement *stmt)
+    {
+      add_stmt_count(1);
+      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
+    }
+  void visit_if_statement (if_statement *stmt)
+    {
+      add_stmt_count(1);
+      stmt->condition->visit(this);
+      max_action_info tmp_visitor_then (sess);
+      max_action_info tmp_visitor_else (sess);
+      stmt->thenblock->visit(& tmp_visitor_then);
+      if (stmt->elseblock)
+        {
+          stmt->elseblock->visit(& tmp_visitor_else);
+        }
+
+      add_stmt_count(max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count));
+    }
+
+  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
+  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
+  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
+  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
+  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
+  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
+};
 
 
 struct recursion_info: public traversing_visitor
@@ -6801,6 +6843,15 @@ translate_pass (systemtap_session& s)
                   (ri.recursive ? _(" recursive") : _(" non-recursive"))) << endl;
       unsigned nesting = ri.nesting_max + 1; /* to account for initial probe->function call */
       if (ri.recursive) nesting += 10;
+
+      //looping through probes
+      for (vector<derived_probe*>::iterator it = s.probes.begin(); it != s.probes.end(); it++)
+        {
+	  max_action_info mai (s);
+          it[0]->body->visit (& mai);
+          if (s.verbose > 1)
+	    clog << _F("%d statements for probe %s", mai.statement_count, it[0]->name.c_str()) << endl;
+        }
 
       // This is at the very top of the file.
       // All "static" defines (not dependend on session state).
