@@ -4221,6 +4221,7 @@ struct dwarf_cast_expanding_visitor: public var_expanding_visitor
 {
   systemtap_session& s;
   dwarf_builder& db;
+  map<string,string> compiled_headers;
 
   dwarf_cast_expanding_visitor(systemtap_session& s, dwarf_builder& db):
     s(s), db(db) {}
@@ -4330,6 +4331,14 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
   if (module[module.size() - 1] == '>' &&
       (module[0] == '<' || startswith(module, "kernel<")))
     {
+      string header = module;
+      map<string,string>::const_iterator it = compiled_headers.find(header);
+      if (it != compiled_headers.end())
+        {
+          module = it->second;
+          return;
+        }
+
       string cached_module;
       if (s.use_cache)
         {
@@ -4343,7 +4352,7 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
                   if (s.verbose > 2)
                     //TRANSLATORS: Here we're using a cached module.
                     clog << _("Pass 2: using cached ") << cached_module << endl;
-                  module = cached_module;
+                  compiled_headers[header] = module = cached_module;
                   close(fd);
                   return;
                 }
@@ -4356,6 +4365,7 @@ void dwarf_cast_expanding_visitor::filter_special_modules(string& module)
           // try to save typequery in the cache
           if (s.use_cache)
             copy_file(module, cached_module, s.verbose > 2);
+          compiled_headers[header] = module;
         }
     }
 }
