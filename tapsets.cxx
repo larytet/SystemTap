@@ -2962,6 +2962,13 @@ void
 dwarf_pretty_print::recurse (Dwarf_Die* start_type, target_symbol* e,
                              print_format* pf, bool top)
 {
+  // deal with initial void* pointers
+  if (!deref_p && null_die(start_type))
+    {
+      push_deref (pf, "%p", e);
+      return;
+    }
+
   Dwarf_Die type;
   dw.resolve_unqualified_inner_typedie (start_type, &type, e);
 
@@ -4459,7 +4466,8 @@ exp_type_dwarf::expand(autocast_op* e, bool lvalue)
         }
 
       Dwarf_Die cu_mem;
-      dw->focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
+      if (!null_die(&die))
+        dw->focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
       if (e->check_pretty_print (lvalue))
 	{
@@ -10429,6 +10437,12 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
 static bool
 resolve_pointer_type(Dwarf_Die& die, bool& isptr)
 {
+  if (null_die(&die))
+    {
+      isptr = true;
+      return true;
+    }
+
   Dwarf_Die type;
   switch (dwarf_tag(&die))
     {
