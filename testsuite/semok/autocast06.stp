@@ -11,9 +11,10 @@ probe begin
     println(sun->sun_family)
 
     // Different types can also be assigned, but it degrades to plain long
+    // (These are actually the same, but coming from different cast modules.)
     if (randint(2))
         sun2 = & @cast(0, "sockaddr_un", "<sys/un.h>");
     else
-        sun2 = & @cast(0, "sockaddr_un", "<linux/un.h>");
+        sun2 = & @cast(0, "sockaddr_un", "<sys/socket.h><sys/un.h>");
     println(sun2)
 }
