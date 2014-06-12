@@ -10255,6 +10255,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       symbol* sym = new symbol;
       sym->tok = e->tok;
       sym->name = "__tracepoint_arg_" + arg->name;
+      sym->type_details.reset(new exp_type_dwarf(&dw, &arg->type_die, false, false));
       provide (sym);
     }
   else
