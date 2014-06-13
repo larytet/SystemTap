@@ -211,7 +211,7 @@ struct hrtimer_derived_probe: public derived_probe
   // unprivileged users.
   void emit_privilege_assertion (translator_output*) {}
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged (o); }
-  bool on_the_fly_supported () { return true; }
+  bool on_the_fly_supported (systemtap_session&) { return true; }
 };
 
 

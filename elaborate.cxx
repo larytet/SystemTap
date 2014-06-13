@@ -1485,7 +1485,7 @@ semantic_pass_conditions (systemtap_session & sess)
                                 "probe " << j << endl;
                     }
                   if (!on_the_fly_supported
-                      && sess.probes[j]->on_the_fly_supported())
+                      && sess.probes[j]->on_the_fly_supported(sess))
                     {
                       on_the_fly_supported = true;
                       if (sess.verbose > 2)

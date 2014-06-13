@@ -500,7 +500,7 @@ struct dwarf_derived_probe: public derived_probe
   void emit_privilege_assertion (translator_output*);
   void print_dupe_stamp(ostream& o);
 
-  bool on_the_fly_supported () { return true; }
+  bool on_the_fly_supported (systemtap_session&) { return true; }
 
   // Pattern registration helpers.
   static void register_statement_variants(match_node * root,
@@ -567,6 +567,7 @@ struct uprobe_derived_probe: public dwarf_derived_probe
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged_process_owner (o); }
   void getargs(std::list<std::string> &arg_set) const;
   void saveargs(int nargs);
+  bool on_the_fly_supported(systemtap_session&);
 private:
   list<string> args;
 };
@@ -8674,6 +8675,14 @@ uprobe_derived_probe::emit_privilege_assertion (translator_output* o)
   // These probes are allowed for unprivileged users, but only in the
   // context of processes which they own.
   emit_process_owner_assertion (o);
+}
+
+
+bool
+uprobe_derived_probe::on_the_fly_supported(systemtap_session& s)
+{
+  // We only support on-the-fly arming and disarming for inode-uprobes
+  return kernel_supports_inode_uprobes(s);
 }
 
 

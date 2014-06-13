@@ -2583,7 +2583,7 @@ c_unparser::emit_probe_condition_update(derived_probe* v)
   v->sole_location()->condition->visit(this);
   o->line() << ") {";
   o->newline(1) << cond_enabled << " = !" << cond_enabled << ";";
-  if (v->on_the_fly_supported()) // don't bother refreshing if on-the-fly not supported
+  if (v->on_the_fly_supported(*session)) // don't bother refreshing if on-the-fly not supported
     o->newline() << "need_module_refresh = 1;";
   o->newline(-1) << "}";
 }
