@@ -728,8 +728,8 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
               pid_val = 0;
               get_string_param(params, TOK_PROCESS, module_val);
             }
-          module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
-          if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
+          module_val = find_executable (module_val, "", sess.sysenv);
+          if (!is_fully_resolved(module_val, "", sess.sysenv))
             throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
                                     module_val.to_string().c_str()));
         }
