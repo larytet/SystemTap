@@ -17,8 +17,15 @@
 
 # Source function library.
 if [ -f /etc/rc.d/init.d/functions ]; then
+
+  # This initscript is not compatible with the systemctl redirect on
+  # newer platforms because it omits the command-line parameters for
+  # the standard actions (e.g. start, stop, restart, etc...).
+  SYSTEMCTL_SKIP_REDIRECT=1
+
   # Red Hat init functions
   . /etc/rc.d/init.d/functions
+
 else
   # Default init functions
   success () {
