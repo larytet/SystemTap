@@ -298,6 +298,52 @@ static int _stp_ctl_alloc_special_buffers(void)
 }
 
 
+/* Free the buffers for all "special" message types, plus generic
+   warning and error messages.  */
+static void _stp_ctl_free_special_buffers(void)
+{
+	if (_stp_ctl_start_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_start_msg);
+		_stp_ctl_start_msg = NULL;
+	}
+
+	if (_stp_ctl_exit_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_exit_msg);
+		_stp_ctl_exit_msg = NULL;
+	}
+
+	if (_stp_ctl_transport_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_transport_msg);
+		_stp_ctl_transport_msg = NULL;
+	}
+
+	if (_stp_ctl_request_exit_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_request_exit_msg);
+		_stp_ctl_request_exit_msg = NULL;
+	}
+
+	if (_stp_ctl_oob_warn != NULL) {
+		_stp_mempool_free(_stp_ctl_oob_warn);
+		_stp_ctl_oob_warn = NULL;
+	}
+
+	if (_stp_ctl_oob_err != NULL) {
+		_stp_mempool_free(_stp_ctl_oob_err);
+		_stp_ctl_oob_err = NULL;
+	}
+
+	if (_stp_ctl_system_warn != NULL) {
+		_stp_mempool_free(_stp_ctl_system_warn);
+		_stp_ctl_system_warn = NULL;
+	}
+
+	if (_stp_ctl_realtime_err != NULL) {
+		_stp_mempool_free(_stp_ctl_realtime_err);
+		_stp_ctl_realtime_err = NULL;
+	}
+}
+
+
 /* Get a buffer based on type, possibly a generic buffer, when all else
    fails returns NULL and there is nothing we can do.  */
 static struct _stp_buffer *_stp_ctl_get_buffer(int type, void *data,
@@ -631,14 +677,15 @@ err0:
 
 static void _stp_unregister_ctl_channel(void)
 {
-	struct list_head *p, *tmp;
+	struct _stp_buffer *bptr, *tmp;
 
 	_stp_unregister_ctl_channel_fs();
 
 	/* Return memory to pool and free it. */
-	list_for_each_safe(p, tmp, &_stp_ctl_ready_q) {
-		list_del(p);
-		_stp_mempool_free(p);
+	list_for_each_entry_safe(bptr, tmp, &_stp_ctl_ready_q, list) {
+		list_del(&bptr->list);
+		_stp_ctl_free_buffer(bptr);
 	}
+	_stp_ctl_free_special_buffers();
 	_stp_mempool_destroy(_stp_pool_q);
 }
