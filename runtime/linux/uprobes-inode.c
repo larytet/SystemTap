@@ -375,15 +375,16 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
 			for (i=0; i < c->perf_counters_dim; i++) {
                             if ((c->perf_counters)[i] > -1)
 			    _stp_perf_read_init ((c->perf_counters)[i], task);
-		        }
+			}
 			ret = stapiu_register(target->inode, c);
 			if (ret) {
 				c->registered = 0;
 				_stp_warn("probe %s inode-offset %p registration error (rc %d)",
                                           c->probe->pp, (void*) (uintptr_t) c->offset, ret);
                                 ret = 0; /* Don't abort entire stap script just for this. */
+			} else {
+				c->registered = 1;
 			}
-			c->registered = 1;
 		}
 	}
 	if (ret)
