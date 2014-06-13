@@ -92,6 +92,10 @@ static void _stp_exit(void);
 #endif
 #endif
 
+#ifndef rcu_dereference_sched
+#define rcu_dereference_sched(p) rcu_dereference(p)
+#endif
+
 /* unprivileged user support */
 
 #ifdef STAPCONF_TASK_UID
