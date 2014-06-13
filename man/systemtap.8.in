@@ -40,10 +40,11 @@ The configuration file of the initscript is located at
 GLOBAL PARAMETERS section.
 
 Scripts must be placed in the \fB@sysconfdir@/systemtap/script.d\fR directory
-and must have a \fB.stp\fR extension. When referring to them on the command-line
-however, there in no need to include the \fB.stp\fR extension. The scripts
-directory may be changed by setting the SCRIPT_PATH parameter in the
-configuration file.
+and must have a \fB.stp\fR extension. When referring to them on the
+command-line however, there in no need to include the \fB.stp\fR extension.
+Script names can only contain alphanumeric characters (and '_') and must not
+start with a number. The scripts directory may be changed by setting the
+SCRIPT_PATH parameter in the configuration file.
 
 .SH COMMANDS
 One of the commands below must be specified:
