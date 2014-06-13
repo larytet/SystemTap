@@ -6698,15 +6698,22 @@ struct max_action_info: public functioncall_traversing_visitor
     {
       add_stmt_count(1);
       stmt->condition->visit(this);
-      max_action_info tmp_visitor_then (sess);
-      max_action_info tmp_visitor_else (sess);
-      stmt->thenblock->visit(& tmp_visitor_then);
+ 
+      unsigned tmp_statement_count = statement_count;
+      unsigned then_count = 0;
+      unsigned else_count = 0;
+
+      stmt->thenblock->visit(this);
+      then_count = statement_count - tmp_statement_count;
+      statement_count = tmp_statement_count;
       if (stmt->elseblock)
         {
-          stmt->elseblock->visit(& tmp_visitor_else);
+          stmt->elseblock->visit(this);
+          else_count = statement_count - tmp_statement_count;
+          statement_count = tmp_statement_count;
         }
 
-      add_stmt_count(max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count));
+      add_stmt_count(max(then_count, else_count));
     }
 
   void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
