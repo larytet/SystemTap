@@ -242,18 +242,32 @@ ALLOW_CACHEONLY=$?
 check_bool $LOG_BOOT_ERR
 LOG_BOOT_ERR=$?
 
+is_valid_script_name () {
+  # Same rules as stap -m with the addition of starting
+  # with a non-digit so that valid shell variables can be
+  # formed from it (for the config file).
+  if [[ $1 =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]]; then
+    log "$1 is not a valid script name (must match [a-zA-Z_][a-zA-Z0-9_]*)"
+    return 1
+  fi
+}
+
 __get_all_scripts () {
   local s
   if [ $ALLOW_CACHEONLY -eq 1 ]; then
     for s in "$CACHE_PATH"/*.ko; do
       if [ -f "$s" ]; then
-        basename "$s" | sed s/\.ko$//g
+        script=`basename "$s" .ko`
+        is_valid_script_name $script
+        [ $? -eq 0 ] && echo $script
       fi
     done
   fi
   for s in "$SCRIPT_PATH"/*.stp; do
     if [ -f "$s" ]; then
-      basename "$s" | sed s/\.stp$//g
+      script=`basename "$s" .stp`
+      is_valid_script_name $script
+      [ $? -eq 0 ] && echo $script
     fi
   done
 }
@@ -588,7 +602,12 @@ start () {
 
   start_scripts=$SCRIPTS
   if [ -n "$DEFAULT_START" -a -z "$OPT_SCRIPTS" ]; then
-    start_scripts="$DEFAULT_START"
+
+    # Sanity check the names
+    for s in $DEFAULT_START; do
+      is_valid_script_name $s
+      [ $? -eq 0 ] && start_scripts="$start_scripts $s"
+    done
   fi
 
   if [ -z "$start_scripts" ]; then
