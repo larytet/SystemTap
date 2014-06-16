@@ -7174,6 +7174,7 @@ translate_pass (systemtap_session& s)
 	s.op->newline() << "struct stp_globals {};";
 
       // Common (static atomic) state of the stap session.
+      s.op->newline();
       s.op->newline() << "#include \"common_session_state.h\"";
 
       s.op->newline() << "#include \"probe_lock.h\" ";
@@ -7251,6 +7252,7 @@ translate_pass (systemtap_session& s)
             clog << "*" << endl;                                                \
         }
 
+      s.op->newline();
       s.op->newline() << "struct stap_probe {";
       s.op->newline(1) << "const size_t index;";
       s.op->newline() << "void (* const ph) (struct context*);";
