@@ -376,6 +376,13 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
                             if ((c->perf_counters)[i] > -1)
 			    _stp_perf_read_init ((c->perf_counters)[i], task);
 			}
+#ifdef STP_ON_THE_FLY
+			if (!c->probe->cond_enabled) {
+				dbug_otf("not registering (u%sprobe) pidx %zu\n",
+					 c->return_p ? "ret" : "", c->probe->index);
+				continue;
+			}
+#endif
 			ret = stapiu_register(target->inode, c);
 			if (ret) {
 				c->registered = 0;
@@ -391,6 +398,43 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
 		stapiu_target_unreg(target);
 	return ret;
 }
+
+
+#ifdef STP_ON_THE_FLY
+
+/* Register/unregister a target's uprobe consumers if their associated probe
+ * handlers have their conditions enabled/disabled. */
+static void
+stapiu_target_refresh(struct stapiu_target *target)
+{
+	struct stapiu_consumer *c;
+
+	// go through every consumer
+	list_for_each_entry(c, &target->consumers, target_consumer) {
+
+		// should we unregister it?
+		if (c->registered && !c->probe->cond_enabled) {
+
+			c->registered = 0;
+			dbug_otf("unregistering (u%sprobe) pidx %zu\n",
+				 c->return_p ? "ret" : "", c->probe->index);
+			stapiu_unregister(target->inode, c);
+
+		// should we register it?
+		} else if (!c->registered && c->probe->cond_enabled) {
+
+			dbug_otf("registering (u%sprobe) pidx %zu\n",
+				 c->return_p ? "ret" : "", c->probe->index);
+			if (stapiu_register(target->inode, c) != 0)
+				dbug_otf("couldn't register (u%sprobe) pidx %zu\n",
+					 c->return_p ? "ret" : "", c->probe->index);
+			else
+				c->registered = 1;
+		}
+	}
+}
+
+#endif
 
 
 /* Cleanup every target.  */
@@ -454,6 +498,29 @@ stapiu_init(struct stapiu_target *targets, size_t ntargets,
 	return ret;
 }
 
+#ifdef STP_ON_THE_FLY
+
+/* Refresh the entire inode-uprobes subsystem.  */
+static void
+stapiu_refresh(struct stapiu_target *targets, size_t ntargets)
+{
+	size_t i;
+
+	for (i = 0; i < ntargets; ++i) {
+		struct stapiu_target *target = &targets[i];
+
+		// we need to lock it to ensure probes don't get
+		// registered under our feet
+		stapiu_target_lock(target);
+
+		if (target->inode)
+			stapiu_target_refresh(target);
+
+		stapiu_target_unlock(target);
+	}
+}
+
+#endif
 
 /* Shutdown the entire inode-uprobes subsystem.  */
 static void

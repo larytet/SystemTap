@@ -8621,6 +8621,7 @@ private:
   // Using the upstream inode-based uprobes
   void emit_module_inode_decls (systemtap_session& s);
   void emit_module_inode_init (systemtap_session& s);
+  void emit_module_inode_refresh (systemtap_session& s);
   void emit_module_inode_exit (systemtap_session& s);
 
   // Using the dyninst backend (via stapdyn)
@@ -8631,6 +8632,7 @@ private:
 public:
   void emit_module_decls (systemtap_session& s);
   void emit_module_init (systemtap_session& s);
+  void emit_module_refresh (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
 };
 
@@ -9181,6 +9183,19 @@ uprobe_derived_probe_group::emit_module_inode_init (systemtap_session& s)
 
 
 void
+uprobe_derived_probe_group::emit_module_inode_refresh (systemtap_session& s)
+{
+  if (probes.empty()) return;
+  s.op->newline() << "/* ---- inode uprobes ---- */";
+  s.op->newline() << "#ifdef STP_ON_THE_FLY";
+  s.op->newline() << "stapiu_refresh ("
+                  << "stap_inode_uprobe_targets, "
+                  << "ARRAY_SIZE(stap_inode_uprobe_targets));";
+  s.op->newline() << "#endif";
+}
+
+
+void
 uprobe_derived_probe_group::emit_module_inode_exit (systemtap_session& s)
 {
   if (probes.empty()) return;
@@ -9285,6 +9300,14 @@ uprobe_derived_probe_group::emit_module_init (systemtap_session& s)
     emit_module_inode_init (s);
   else
     emit_module_utrace_init (s);
+}
+
+
+void
+uprobe_derived_probe_group::emit_module_refresh (systemtap_session& s)
+{
+  if (!s.runtime_usermode_p() && kernel_supports_inode_uprobes (s))
+    emit_module_inode_refresh (s);
 }
 
 
