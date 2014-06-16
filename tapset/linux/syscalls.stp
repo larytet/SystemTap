@@ -382,7 +382,14 @@ probe syscall.chmod = kernel.function("sys_chmod").call
 {
 	name = "chmod"
 	path = user_string_quoted($filename)
-	mode = __uint32($mode)
+%( arch == "i386" %?
+	# Why @cast() here? Even though the user passes an unsigned
+	# int (32-bits), some kernels (2.6.32-431.el6.i686) get an
+	# unsigned short (16-bits).
+	mode = @cast(&$mode, "unsigned int")
+%:
+	mode = $mode
+%)
 	argstr = sprintf("%s, %#o", user_string_quoted($filename), mode)
 }
 probe syscall.chmod.return = kernel.function("sys_chmod").return
@@ -1118,8 +1125,15 @@ probe syscall.fchmod = kernel.function("sys_fchmod").call
 {
 	name = "fchmod"
 	fildes = __int32($fd)
-	mode = __uint32($mode)
-	argstr = sprintf("%d, %#o", __int32($fd), __uint32($mode))
+%( arch == "i386" %?
+	# Why @cast() here? Even though the user passes an unsigned
+	# int (32-bits), some kernels (2.6.32-431.el6.i686) get an
+	# unsigned short (16-bits).
+	mode = @cast(&$mode, "unsigned int")
+%:
+	mode = $mode
+%)
+	argstr = sprintf("%d, %#o", __int32($fd), mode)
 }
 probe syscall.fchmod.return = kernel.function("sys_fchmod").return
 {
@@ -1139,9 +1153,16 @@ probe syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 	dirfd = __int32($dfd)
 	dirfd_str = _dfd_str(__int32($dfd))
 	pathname = user_string_quoted($filename)
-	mode = __uint32($mode)
+%( arch == "i386" %?
+	# Why @cast() here? Even though the user passes an unsigned
+	# int (32-bits), some kernels (2.6.32-431.el6.i686) get an
+	# unsigned short (16-bits).
+	mode = @cast(&$mode, "unsigned int")
+%:
+	mode = $mode
+%)
 	argstr = sprintf("%s, %s, %#o", dirfd_str,
-			 user_string_quoted($filename), __uint32($mode))
+			 user_string_quoted($filename), mode)
 }
 probe syscall.fchmodat.return = kernel.function("sys_fchmodat").return ?
 {
