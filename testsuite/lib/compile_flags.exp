@@ -52,6 +52,26 @@ proc arch_compile_flag_name { INDEX } {
   }
 }
 
+# Number of bits for compile flag for use in generated files or
+# user/test messages.
+#
+# Given INDEX starts at zero and should be smaller than the number
+# returned by arch_compile_flags.
+proc arch_compile_flag_bits { INDEX } {
+  # Notice that even though s390/s390x is 31 bits, we'll call it 32.
+  if { [arch_compile_flags] == 1 } {
+    switch -regexp $::tcl_platform(machine) {
+      {^ia64$} { return 64 }
+      default { return 32 }
+    }
+  }
+
+  switch $INDEX {
+    0 { return 64 }
+    1 { return 32 }
+  }
+}
+
 # Number of different combinations of compile flags.
 proc all_compile_flags {} {
   # There are 3 sets of flags for each architecture.
