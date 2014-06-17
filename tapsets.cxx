@@ -5480,52 +5480,6 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline() << "/* ---- dwarf probes ---- */";
 
-  // Warn of misconfigured kernels
-  s.op->newline() << "#if ! defined(CONFIG_KPROBES)";
-  s.op->newline() << "#error \"Need CONFIG_KPROBES!\"";
-  s.op->newline() << "#endif";
-  s.op->newline();
-
-  s.op->newline() << "#ifndef KRETACTIVE";
-  s.op->newline() << "#define KRETACTIVE (max(15,6*(int)num_possible_cpus()))";
-  s.op->newline() << "#endif";
-
-  // Forward decls
-  s.op->newline() << "#include \"linux/kprobes-common.h\"";
-
-  // Forward declare the master entry functions
-  s.op->newline() << "static int enter_kprobe_probe (struct kprobe *inst,";
-  s.op->line() << " struct pt_regs *regs);";
-  s.op->newline() << "static int enter_kretprobe_probe (struct kretprobe_instance *inst,";
-  s.op->line() << " struct pt_regs *regs);";
-
-  // Emit an array of kprobe/kretprobe pointers
-  s.op->newline() << "#if defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline() << "static void * stap_unreg_kprobes[" << probes_by_module.size() << "];";
-  s.op->newline() << "#endif";
-
-  // Emit the actual probe list.
-
-  // NB: we used to plop a union { struct kprobe; struct kretprobe } into
-  // struct stap_dwarf_probe, but it being initialized data makes it add
-  // hundreds of bytes of padding per stap_dwarf_probe.  (PR5673)
-  s.op->newline() << "static struct stap_dwarf_kprobe stap_dwarf_kprobes[" << probes_by_module.size() << "];";
-  // NB: bss!
-
-  s.op->newline() << "static struct stap_dwarf_probe {";
-  s.op->newline(1) << "const unsigned return_p:1;";
-  s.op->newline() << "const unsigned maxactive_p:1;";
-  s.op->newline() << "const unsigned optional_p:1;";
-  s.op->newline() << "unsigned registered_p:1;";
-  s.op->newline() << "#ifdef STP_ON_THE_FLY";
-  s.op->newline() << "unsigned enabled_p:1;";
-  s.op->newline() << "#endif";
-  s.op->newline() << "const unsigned short maxactive_val;";
-
-  // data saved in the kretprobe_instance packet
-  s.op->newline() << "const unsigned short saved_longs;";
-  s.op->newline() << "const unsigned short saved_strings;";
-
   // Let's find some stats for the embedded strings.  Maybe they
   // are small and uniform enough to justify putting char[MAX]'s into
   // the array instead of relocated char*'s.
@@ -5550,24 +5504,45 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 #define CALCIT(var)                                                     \
   if ((var##_name_max-(var##_name_tot/all_name_cnt)) < (3 * sizeof(void*))) \
     {                                                                   \
-      s.op->newline() << "const char " << #var << "[" << var##_name_max << "];"; \
+      s.op->newline() << "#define STAP_DWARF_PROBE_STR_" << #var << " " \
+                      << "const char " << #var                          \
+                      << "[" << var##_name_max << "]";                 \
       if (s.verbose > 2) clog << "stap_dwarf_probe " << #var            \
                               << "[" << var##_name_max << "]" << endl;  \
     }                                                                   \
   else                                                                  \
     {                                                                   \
-      s.op->newline() << "const char * const " << #var << ";";                 \
+      s.op->newline() << "#define STAP_DWARF_PROBE_STR_" << #var << " " \
+                      << "const char * const " << #var << "";          \
       if (s.verbose > 2) clog << "stap_dwarf_probe *" << #var << endl;  \
     }
 
   CALCIT(module);
   CALCIT(section);
+
 #undef CALCIT
 
-  s.op->newline() << "const unsigned long address;";
-  s.op->newline() << "const struct stap_probe * const probe;";
-  s.op->newline() << "const struct stap_probe * const entry_probe;";
-  s.op->newline(-1) << "} stap_dwarf_probes[] = {";
+  s.op->newline() << "#include \"linux/kprobes.c\"";
+
+#define UNDEFIT(var) s.op->newline() << "#undef STAP_DWARF_PROBE_STR_" << #var
+  UNDEFIT(module);
+  UNDEFIT(section);
+#undef UNDEFIT
+
+  // Emit an array of kprobe/kretprobe pointers
+  s.op->newline() << "#if defined(STAPCONF_UNREGISTER_KPROBES)";
+  s.op->newline() << "static void * stap_unreg_kprobes[" << probes_by_module.size() << "];";
+  s.op->newline() << "#endif";
+
+  // Emit the actual probe list.
+
+  // NB: we used to plop a union { struct kprobe; struct kretprobe } into
+  // struct stap_dwarf_probe, but it being initialized data makes it add
+  // hundreds of bytes of padding per stap_dwarf_probe.  (PR5673)
+  s.op->newline() << "static struct stap_dwarf_kprobe stap_dwarf_kprobes[" << probes_by_module.size() << "];";
+  // NB: bss!
+
+  s.op->newline() << "static struct stap_dwarf_probe stap_dwarf_probes[] = {";
   s.op->indent(1);
 
   for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
@@ -5675,18 +5650,6 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   common_probe_entryfn_epilogue (s, true);
   s.op->newline(-1) << "}";
   s.op->newline() << "return 0;";
-  s.op->newline(-1) << "}";
-
-  s.op->newline();
-  s.op->newline() << "static int enter_kretprobe_probe (struct kretprobe_instance *inst,";
-  s.op->line() << " struct pt_regs *regs) {";
-  s.op->newline(1) << "return enter_kretprobe_common(inst, regs, 0);";
-  s.op->newline(-1) << "}";
-
-  s.op->newline();
-  s.op->newline() << "static int enter_kretprobe_entry_probe (struct kretprobe_instance *inst,";
-  s.op->line() << " struct pt_regs *regs) {";
-  s.op->newline(1) << "return enter_kretprobe_common(inst, regs, 1);";
   s.op->newline(-1) << "}";
 
   s.op->newline();
