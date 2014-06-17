@@ -182,116 +182,25 @@ stapkp_init(struct stap_dwarf_probe *probes,
             struct stap_dwarf_kprobe *kprobes,
             size_t nprobes)
 {
-   int rc = 0;
-
    size_t i;
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
       struct stap_dwarf_kprobe *kp = &kprobes[i];
-      const char *probe_point;
+      int rc = 0;
 
-      unsigned long relocated_addr
-         = _stp_kmodule_relocate(sdp->module, sdp->section, sdp->address);
+      rc = stapkp_register_probe(sdp, kp);
+      // XXX: check if it should be disabled right away
 
-      if (relocated_addr == 0)
-         continue; // quietly; assume module is absent
-
-      probe_point = sdp->probe->pp; // for error messages
-
-      if (sdp->return_p) {
-
-         kp->u.krp.kp.addr = (void *) relocated_addr;
-         if (sdp->maxactive_p) {
-            kp->u.krp.maxactive = sdp->maxactive_val;
-         } else {
-            kp->u.krp.maxactive = KRETACTIVE;
-         }
-
-         kp->u.krp.handler = &enter_kretprobe_probe;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
-         if (sdp->entry_probe) {
-            kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;
-            kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) +
-                                  sdp->saved_strings * MAXSTRINGLEN;
-         }
-#endif
-
-         // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-#ifdef __ia64__
-         kp->dummy.addr = kp->u.krp.kp.addr;
-         kp->dummy.pre_handler = NULL;
-         rc = register_kprobe (& kp->dummy);
-         if (rc == 0) {
-            rc = register_kretprobe (& kp->u.krp);
-            if (rc != 0)
-               unregister_kprobe (& kp->dummy);
-         }
-#else
-         rc = register_kretprobe (& kp->u.krp);
-#endif
-
-         // should it be disabled right away?
-#ifdef STP_ON_THE_FLY
-         if (rc == 0 && !sdp->probe->cond_enabled) {
-            rc = disable_kretprobe (& kp->u.krp);
-            if (rc != 0)
-               unregister_kretprobe (& kp->u.krp);
-            else
-               dbug_otf("disabled (kretprobe) pidx %zu\n", sdp->probe->index);
-         }
-#endif
-
-      } else { // !sdp->return_p
-
-         // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-         kp->u.kp.addr = (void *) relocated_addr;
-         kp->u.kp.pre_handler = &enter_kprobe_probe;
-
-#ifdef __ia64__
-         kp->dummy.addr = kp->u.kp.addr;
-         kp->dummy.pre_handler = NULL;
-         rc = register_kprobe (& kp->dummy);
-         if (rc == 0) {
-            rc = register_kprobe (& kp->u.kp);
-            if (rc != 0)
-               unregister_kprobe (& kp->dummy);
-         }
-#else
-         rc = register_kprobe (& kp->u.kp);
-#endif
-
-         // should it be disabled right away?
-#ifdef STP_ON_THE_FLY
-         if (rc == 0 && !sdp->probe->cond_enabled) {
-            rc = disable_kprobe (& kp->u.kp);
-            if (rc != 0)
-               unregister_kprobe (& kp->u.kp);
-            else
-               dbug_otf("disabled (kprobe) pidx %zu\n", sdp->probe->index);
-         }
-#endif
+      // NB: We keep going even if a probe failed to register (PR6749). We only
+      // warn about it if it wasn't optional.
+      if (rc && !sdp->optional_p) {
+         _stp_warn("probe %s (address 0x%lx) registration error (rc %d)",
+                   sdp->probe->pp, stapkp_relocate_addr(sdp), rc);
       }
+   }
 
-      if (rc) { // PR6749: tolerate a failed register_*probe.
-         sdp->registered_p = 0;
-         if (!sdp->optional_p)
-            _stp_warn ("probe %s (address 0x%lx) registration error (rc %d)",
-                       probe_point, (unsigned long) relocated_addr, rc);
-         rc = 0; // continue with other probes
-         // XXX: shall we increment numskipped?
-      } else
-         sdp->registered_p = 1;
-
-      // the enabled_p field is now in agreement with cond_enabled (if registered)
-#ifdef STP_ON_THE_FLY
-      sdp->enabled_p = !sdp->registered_p ? 0 : sdp->probe->cond_enabled;
-#endif
-
-   } // for loop
-
-   return rc;
+   return 0;
 }
 
 
@@ -307,94 +216,16 @@ stapkp_refresh(struct stap_dwarf_probe *probes,
       struct stap_dwarf_probe *sdp = &probes[i];
       struct stap_dwarf_kprobe *kp = &kprobes[i];
 
-      unsigned long relocated_addr
-         = _stp_kmodule_relocate (sdp->module, sdp->section, sdp->address);
-
-      int rc;
+      unsigned long addr = stapkp_relocate_addr(sdp);
 
       // new module arrived?
-      if (sdp->registered_p == 0 && relocated_addr != 0) {
+      if (sdp->registered_p == 0 && addr != 0) {
 
-         if (sdp->return_p) {
-            kp->u.krp.kp.addr = (void *) relocated_addr;
-            if (sdp->maxactive_p) {
-               kp->u.krp.maxactive = sdp->maxactive_val;
-            } else {
-               kp->u.krp.maxactive = KRETACTIVE;
-            }
-
-            kp->u.krp.handler = &enter_kretprobe_probe;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
-            if (sdp->entry_probe) {
-               kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;
-               kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) +
-                                     sdp->saved_strings * MAXSTRINGLEN;
-            }
-#endif
-
-#ifdef __ia64__
-            // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-            kp->dummy.addr = kp->u.krp.kp.addr;
-            kp->dummy.pre_handler = NULL;
-            rc = register_kprobe (& kp->dummy);
-            if (rc == 0) {
-               rc = register_kretprobe (& kp->u.krp);
-               if (rc != 0)
-                  unregister_kprobe (& kp->dummy);
-            }
-#else
-            rc = register_kretprobe (& kp->u.krp);
-#endif
-
-#ifdef STP_ON_THE_FLY
-            // should it be disabled right away?
-            if (rc == 0 && !sdp->probe->cond_enabled) {
-               rc = disable_kretprobe (& kp->u.krp);
-               if (rc != 0)
-                  unregister_kretprobe (& kp->u.krp);
-               else
-                  dbug_otf("disabled (kretprobe) pidx %zu\n",
-                           sdp->probe->index);
-            }
-#endif
-         } else {
-
-            kp->u.kp.addr = (void *) relocated_addr;
-            kp->u.kp.pre_handler = &enter_kprobe_probe;
-
-#ifdef __ia64__
-            // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-            kp->dummy.addr = kp->u.kp.addr;
-            kp->dummy.pre_handler = NULL;
-            rc = register_kprobe (& kp->dummy);
-            if (rc == 0) {
-               rc = register_kprobe (& kp->u.kp);
-               if (rc != 0)
-                  unregister_kprobe (& kp->dummy);
-            }
-#else
-            rc = register_kprobe (& kp->u.kp);
-#endif
-
-#ifdef STP_ON_THE_FLY
-            // should it be disabled right away?
-            if (rc == 0 && !sdp->probe->cond_enabled) {
-               rc = disable_kprobe (& kp->u.kp);
-               if (rc != 0)
-                  unregister_kprobe (& kp->u.kp);
-               else
-                  dbug_otf("disabled (kprobe) pidx %zu\n",
-                           sdp->probe->index);
-            }
-#endif
-         }
-
-         if (rc == 0)
-            sdp->registered_p = 1;
+         stapkp_register_probe(sdp, kp);
+         // XXX: check if it should be disabled right away
 
       // old module disappeared?
-      } else if (sdp->registered_p == 1 && relocated_addr == 0) {
+      } else if (sdp->registered_p == 1 && addr == 0) {
 
          if (sdp->return_p) {
 
