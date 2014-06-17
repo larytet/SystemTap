@@ -343,6 +343,59 @@ stapkp_unregister_probes(struct stap_dwarf_probe *probes,
 }
 
 
+#ifdef STP_ON_THE_FLY
+
+static void
+stapkp_refresh_probe(struct stap_dwarf_probe *sdp,
+                     struct stap_dwarf_kprobe *kp)
+{
+   if (!sdp->registered_p)
+      return;
+
+   // does it need to be enabled?
+   if (!sdp->enabled_p && sdp->probe->cond_enabled) {
+
+      if (sdp->return_p) {
+         if (enable_kretprobe(&kp->u.krp) != 0) {
+            unregister_kretprobe(&kp->u.krp);
+            sdp->registered_p = 0;
+         } else
+            dbug_otf("enabling (kretprobe) pidx %zu\n", sdp->probe->index);
+      } else {
+         if (enable_kprobe(&kp->u.kp) != 0) {
+            unregister_kprobe(&kp->u.kp);
+            sdp->registered_p = 0;
+         } else
+            dbug_otf("enabling (kprobe) pidx %zu\n", sdp->probe->index);
+      }
+
+      if (sdp->registered_p)
+         sdp->enabled_p = 1;
+
+   // does it need to be disabled?
+   } else if (sdp->enabled_p && !sdp->probe->cond_enabled) {
+
+      if (sdp->return_p) {
+         if (disable_kretprobe(&kp->u.krp) != 0) {
+            unregister_kretprobe(&kp->u.krp);
+            sdp->registered_p = 0;
+         } else
+            dbug_otf("disabling (kretprobe) pidx %zu\n", sdp->probe->index);
+      } else {
+         if (disable_kprobe(&kp->u.kp) != 0) {
+            unregister_kprobe(&kp->u.kp);
+            sdp->registered_p = 0;
+         } else
+            dbug_otf("disabling (kprobe) pidx %zu\n", sdp->probe->index);
+      }
+
+      sdp->enabled_p = 0;
+   }
+}
+
+#endif
+
+
 static int
 stapkp_init(struct stap_dwarf_probe *probes,
             struct stap_dwarf_kprobe *kprobes,
@@ -397,45 +450,15 @@ stapkp_refresh(struct stap_dwarf_probe *probes,
 
 #ifdef STP_ON_THE_FLY
 
-      // does it need to be enabled?
-      } else if (!sdp->enabled_p && sdp->probe->cond_enabled) {
+      // does it need to be enabled/disabled?
+      } else if ((!sdp->enabled_p && sdp->probe->cond_enabled)
+              || (sdp->enabled_p && !sdp->probe->cond_enabled)) {
 
-         if (sdp->return_p) {
-            if (enable_kretprobe(&kp->u.krp) != 0)
-               unregister_kretprobe(&kp->u.krp);
-            else
-               dbug_otf("enabling (kretprobe) pidx %zu\n", sdp->probe->index);
-         } else {
-            if (enable_kprobe(&kp->u.kp) != 0)
-               unregister_kprobe(&kp->u.kp);
-            else
-               dbug_otf("enabling (kprobe) pidx %zu\n", sdp->probe->index);
-         }
+         stapkp_refresh_probe(sdp, kp);
 
-      // does it need to be disabled?
-      } else if (sdp->enabled_p && !sdp->probe->cond_enabled) {
-
-         if (sdp->return_p) {
-            if (disable_kretprobe(&kp->u.krp) != 0)
-               unregister_kretprobe(&kp->u.krp);
-            else
-               dbug_otf("disabling (kretprobe) pidx %zu\n", sdp->probe->index);
-         } else {
-            if (disable_kprobe(&kp->u.kp) != 0)
-               unregister_kprobe(&kp->u.kp);
-            else
-               dbug_otf("disabling (kprobe) pidx %zu\n", sdp->probe->index);
-         }
-#endif // STP_ON_THE_FLY
-      }
-
-      // the enabled_p field is now in agreement with cond_enabled (if
-      // successfully registered)
-#ifdef STP_ON_THE_FLY
-      sdp->enabled_p = !sdp->registered_p ? 0 : sdp->probe->cond_enabled;
 #endif
-
-   } // for loop
+      }
+   }
 }
 
 
