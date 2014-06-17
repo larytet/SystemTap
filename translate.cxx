@@ -2393,9 +2393,10 @@ c_unparser::emit_probe (derived_probe* v)
       if (session->verbose > 1)
         clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
 
-      if (mai.statement_count < mai.max_statement_count) // this is a finite-statement-count probe
+      if (mai.statement_count < mai.max_statement_count && session->unoptimized) // this is a finite-statement-count probe
         {
-          o->newline() << "if (c->actionremaining < " << mai.statement_count << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
+          o->newline() << "if (c->actionremaining < " << mai.statement_count 
+                       << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
           this->already_checked_action_count = true;
         }
 
