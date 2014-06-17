@@ -2246,6 +2246,8 @@ struct max_action_info: public functioncall_traversing_visitor
       statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
     }
 
+  void note_recursive_functioncall (functioncall *e) { add_max_stmt_count(); }
+
   void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
   void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
   void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
@@ -2393,7 +2395,7 @@ c_unparser::emit_probe (derived_probe* v)
 
       if (mai.statement_count < mai.max_statement_count) // this is a finite-statement-count probe
         {
-          o->newline() << "if (MAXACTION < " << mai.statement_count << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
+          o->newline() << "if (c->actionremaining < " << mai.statement_count << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
           this->already_checked_action_count = true;
         }
 
@@ -2417,6 +2419,7 @@ c_unparser::emit_probe (derived_probe* v)
 
 
   this->current_probe = 0;
+  this->already_checked_action_count = false;
 }
 
 

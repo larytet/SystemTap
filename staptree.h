@@ -907,6 +907,7 @@ struct functioncall_traversing_visitor: public traversing_visitor
   functiondecl* current_function;
   functioncall_traversing_visitor(): current_function(0) {}
   void visit_functioncall (functioncall* e);
+  virtual void note_recursive_functioncall (functioncall* e);
 };
 
 

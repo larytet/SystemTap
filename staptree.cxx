@@ -1998,8 +1998,13 @@ functioncall_traversing_visitor::visit_functioncall (functioncall* e)
       e->referent->body->visit (this);
       current_function = last_current_function;
     }
+  else { this->note_recursive_functioncall(e); }
 }
 
+void
+functioncall_traversing_visitor::note_recursive_functioncall (functioncall* e)
+{
+}
 
 void
 varuse_collecting_visitor::visit_try_block (try_block *s)
