@@ -2231,21 +2231,19 @@ struct max_action_info: public functioncall_traversing_visitor
       add_stmt_count(1);
       stmt->condition->visit(this);
 
-      unsigned tmp_statement_count = statement_count;
-      unsigned then_count = 0;
-      unsigned else_count = 0;
-
-      stmt->thenblock->visit(this);
-      then_count = statement_count - tmp_statement_count;
-      statement_count = tmp_statement_count;
+      // Create new visitors for the two forks.  Copy the traversed[] set
+      // to prevent infinite recursion for a   function f () { if (a) f() }
+      max_action_info tmp_visitor_then (*this);
+      max_action_info tmp_visitor_else (*this);
+      stmt->thenblock->visit(& tmp_visitor_then);
       if (stmt->elseblock)
         {
-          stmt->elseblock->visit(this);
-          else_count = statement_count - tmp_statement_count;
-          statement_count = tmp_statement_count;
+          stmt->elseblock->visit(& tmp_visitor_else);
         }
 
-      add_stmt_count(max(then_count, else_count));
+      // Simply overwrite our copy of statement_count, since these
+      // visitor copies already included our starting count.
+      statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
     }
 
   void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
