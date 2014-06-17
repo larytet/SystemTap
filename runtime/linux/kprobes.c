@@ -177,6 +177,49 @@ static void * stap_unreg_kprobes[];
 #endif
 
 
+static void
+stapkp_unregister_probe(struct stap_dwarf_probe *sdp,
+                        struct stap_dwarf_kprobe *kp)
+{
+   if (sdp->return_p) {
+
+      unregister_kretprobe (&kp->u.krp);
+      atomic_add (kp->u.krp.nmissed, skipped_count());
+
+#ifdef STP_TIMING
+      if (kp->u.krp.nmissed)
+         _stp_warn ("Skipped due to missed kretprobe/1 on '%s': %d\n",
+                    sdp->probe->pp, kp->u.krp.nmissed);
+#endif
+
+      atomic_add (kp->u.krp.kp.nmissed, skipped_count());
+
+#ifdef STP_TIMING
+      if (kp->u.krp.kp.nmissed)
+         _stp_warn ("Skipped due to missed kretprobe/2 on '%s': %lu\n",
+                    sdp->probe->pp, kp->u.krp.kp.nmissed);
+#endif
+
+   } else {
+
+      unregister_kprobe (&kp->u.kp);
+      atomic_add (kp->u.kp.nmissed, skipped_count());
+
+#ifdef STP_TIMING
+      if (kp->u.kp.nmissed)
+         _stp_warn ("Skipped due to missed kprobe on '%s': %lu\n",
+                    sdp->probe->pp, kp->u.kp.nmissed);
+#endif
+
+   }
+#if defined(__ia64__)
+   unregister_kprobe (&kp->dummy);
+#endif
+
+   sdp->registered_p = 0;
+}
+
+
 static int
 stapkp_init(struct stap_dwarf_probe *probes,
             struct stap_dwarf_kprobe *kprobes,
@@ -227,42 +270,7 @@ stapkp_refresh(struct stap_dwarf_probe *probes,
       // old module disappeared?
       } else if (sdp->registered_p == 1 && addr == 0) {
 
-         if (sdp->return_p) {
-
-            unregister_kretprobe (&kp->u.krp);
-            atomic_add (kp->u.krp.nmissed, skipped_count());
-
-#ifdef STP_TIMING
-            if (kp->u.krp.nmissed)
-               _stp_warn ("Skipped due to missed kretprobe/1 on '%s': %d\n",
-                          sdp->probe->pp, kp->u.krp.nmissed);
-#endif
-
-            atomic_add (kp->u.krp.kp.nmissed, skipped_count());
-
-#ifdef STP_TIMING
-            if (kp->u.krp.kp.nmissed)
-               _stp_warn ("Skipped due to missed kretprobe/2 on '%s': %lu\n",
-                          sdp->probe->pp, kp->u.krp.kp.nmissed);
-#endif
-
-         } else {
-
-            unregister_kprobe (&kp->u.kp);
-            atomic_add (kp->u.kp.nmissed, skipped_count());
-
-#ifdef STP_TIMING
-            if (kp->u.kp.nmissed)
-               _stp_warn ("Skipped due to missed kprobe on '%s': %lu\n",
-                          sdp->probe->pp, kp->u.kp.nmissed);
-#endif
-
-         }
-#if defined(__ia64__)
-         unregister_kprobe (&kp->dummy);
-#endif
-
-         sdp->registered_p = 0;
+         stapkp_unregister_probe(sdp, kp);
 
 #ifdef STP_ON_THE_FLY
 
