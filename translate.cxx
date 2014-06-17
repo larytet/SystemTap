@@ -72,6 +72,7 @@ struct c_unparser: public unparser, public visitor
   unsigned tmpvar_counter;
   unsigned label_counter;
   unsigned action_counter;
+  bool already_checked_action_count;
 
   varuse_collecting_visitor vcv_needs_global_locks;
 
@@ -82,7 +83,7 @@ struct c_unparser: public unparser, public visitor
   c_unparser (systemtap_session* ss):
     session (ss), o (ss->op), current_probe(0), current_function (0),
     tmpvar_counter (0), label_counter (0), action_counter(0),
-    vcv_needs_global_locks (*ss) {}
+    already_checked_action_count(false), vcv_needs_global_locks (*ss) {}
   ~c_unparser () {}
 
   void emit_map_type_instantiations ();
@@ -2101,6 +2102,7 @@ c_unparser::emit_function (functiondecl* v)
   this->current_function = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
+  this->already_checked_action_count = false;
 
   o->newline() << "__label__ out;";
   o->newline()
@@ -2203,6 +2205,57 @@ c_unparser::emit_function (functiondecl* v)
   o->newline(-1) << "}\n";
 }
 
+struct max_action_info: public functioncall_traversing_visitor
+{
+  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
+
+  systemtap_session& sess;
+  unsigned statement_count;
+  static const unsigned max_statement_count = ~0;
+
+  void add_stmt_count (unsigned val)
+    {
+      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
+    }
+  void add_max_stmt_count () { statement_count = max_statement_count; }
+
+  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
+  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
+  void visit_expr_statement (expr_statement *stmt)
+    {
+      add_stmt_count(1);
+      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
+    }
+  void visit_if_statement (if_statement *stmt)
+    {
+      add_stmt_count(1);
+      stmt->condition->visit(this);
+
+      unsigned tmp_statement_count = statement_count;
+      unsigned then_count = 0;
+      unsigned else_count = 0;
+
+      stmt->thenblock->visit(this);
+      then_count = statement_count - tmp_statement_count;
+      statement_count = tmp_statement_count;
+      if (stmt->elseblock)
+        {
+          stmt->elseblock->visit(this);
+          else_count = statement_count - tmp_statement_count;
+          statement_count = tmp_statement_count;
+        }
+
+      add_stmt_count(max(then_count, else_count));
+    }
+
+  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
+  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
+  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
+  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
+  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
+  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
+};
+
 
 #define DUPMETHOD_CALL 0
 #define DUPMETHOD_ALIAS 0
@@ -2215,6 +2268,7 @@ c_unparser::emit_probe (derived_probe* v)
   this->current_probe = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
+  this->already_checked_action_count = false;
 
   // If we about to emit a probe that is exactly the same as another
   // probe previously emitted, make the second probe just call the
@@ -2333,6 +2387,17 @@ c_unparser::emit_probe (derived_probe* v)
         }
 
       v->initialize_probe_context_vars (o);
+
+      max_action_info mai (*session);
+      v->body->visit (&mai);
+      if (session->verbose > 1)
+        clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
+
+      if (mai.statement_count < mai.max_statement_count) // this is a finite-statement-count probe
+        {
+          o->newline() << "if (MAXACTION < " << mai.statement_count << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
+          this->already_checked_action_count = true;
+        }
 
       v->body->visit (this);
 
@@ -2985,8 +3050,10 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
 
   // Update if needed, or after queueing up a few actions, in case of very
   // large code sequences.
-  if (((update && action_counter > 0) || action_counter >= 10/*<-arbitrary*/) && !session->suppress_time_limits)
+  if (((update && action_counter > 0) || action_counter >= 10/*<-arbitrary*/)
+    && !session->suppress_time_limits && !already_checked_action_count)
     {
+
       o->newline() << "c->actionremaining -= " << action_counter << ";";
       o->newline() << "if (unlikely (c->actionremaining <= 0)) {";
       o->newline(1) << "c->last_error = ";
@@ -6673,58 +6740,6 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 		       + (*it) + "'");
 }
 
-struct max_action_info: public functioncall_traversing_visitor
-{
-  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
-
-  systemtap_session& sess;
-  unsigned statement_count;
-  static const unsigned max_statement_count = ~0;
-
-  void add_stmt_count (unsigned val)
-    {
-      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
-    }
-  void add_max_stmt_count () { statement_count = max_statement_count; }
-
-  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
-  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
-  void visit_expr_statement (expr_statement *stmt)
-    {
-      add_stmt_count(1);
-      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
-    }
-  void visit_if_statement (if_statement *stmt)
-    {
-      add_stmt_count(1);
-      stmt->condition->visit(this);
- 
-      unsigned tmp_statement_count = statement_count;
-      unsigned then_count = 0;
-      unsigned else_count = 0;
-
-      stmt->thenblock->visit(this);
-      then_count = statement_count - tmp_statement_count;
-      statement_count = tmp_statement_count;
-      if (stmt->elseblock)
-        {
-          stmt->elseblock->visit(this);
-          else_count = statement_count - tmp_statement_count;
-          statement_count = tmp_statement_count;
-        }
-
-      add_stmt_count(max(then_count, else_count));
-    }
-
-  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
-  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
-  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
-  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
-  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
-  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
-};
-
-
 struct recursion_info: public traversing_visitor
 {
   recursion_info (systemtap_session& s): sess(s), nesting_max(0), recursive(false) {}
@@ -6850,15 +6865,6 @@ translate_pass (systemtap_session& s)
                   (ri.recursive ? _(" recursive") : _(" non-recursive"))) << endl;
       unsigned nesting = ri.nesting_max + 1; /* to account for initial probe->function call */
       if (ri.recursive) nesting += 10;
-
-      //looping through probes
-      for (vector<derived_probe*>::iterator it = s.probes.begin(); it != s.probes.end(); it++)
-        {
-	  max_action_info mai (s);
-          it[0]->body->visit (& mai);
-          if (s.verbose > 1)
-	    clog << _F("%d statements for probe %s", mai.statement_count, it[0]->name.c_str()) << endl;
-        }
 
       // This is at the very top of the file.
       // All "static" defines (not dependend on session state).
