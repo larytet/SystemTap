@@ -90,81 +90,146 @@ stapkp_relocate_addr(struct stap_dwarf_probe *sdp)
 
 
 static int
-stapkp_register_probe(struct stap_dwarf_probe *sdp,
+stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp,
                       struct stap_dwarf_kprobe *kp)
 {
-   int rc = 0;
-
    unsigned long addr = stapkp_relocate_addr(sdp);
-
    if (addr == 0)
-      return 0; // quietly; assume module is absent
+      return 1;
 
-   if (sdp->return_p) {
+   kp->u.kp.addr = (void *) addr;
+   kp->u.kp.pre_handler = &enter_kprobe_probe;
 
-      kp->u.krp.kp.addr = (void *) addr;
-      if (sdp->maxactive_p) {
-         kp->u.krp.maxactive = sdp->maxactive_val;
-      } else {
-         kp->u.krp.maxactive = KRETACTIVE;
-      }
-
-      kp->u.krp.handler = &enter_kretprobe_probe;
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
-      if (sdp->entry_probe) {
-         kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;
-         kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) +
-                               sdp->saved_strings * MAXSTRINGLEN;
-      }
+#ifdef __ia64__ // PR6028
+   kp->dummy.addr = kp->u.kp.addr;
+   kp->dummy.pre_handler = NULL;
 #endif
 
-      // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-#ifdef __ia64__
-      kp->dummy.addr = kp->u.krp.kp.addr;
-      kp->dummy.pre_handler = NULL;
-      rc = register_kprobe (& kp->dummy);
-      if (rc == 0) {
-         rc = register_kretprobe (& kp->u.krp);
-         if (rc != 0)
-            unregister_kprobe (& kp->dummy);
-      }
-#else
-      rc = register_kretprobe (& kp->u.krp);
-#endif
+   return 0;
+}
 
-   } else { // !sdp->return_p
 
-      // to ensure safeness of bspcache, always use aggr_kprobe on ia64
-      kp->u.kp.addr = (void *) addr;
-      kp->u.kp.pre_handler = &enter_kprobe_probe;
+static int
+stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp,
+                            struct stap_dwarf_kprobe *kp)
+{
+   int ret = 0;
 
-#ifdef __ia64__
-      kp->dummy.addr = kp->u.kp.addr;
-      kp->dummy.pre_handler = NULL;
-      rc = register_kprobe (& kp->dummy);
-      if (rc == 0) {
-         rc = register_kprobe (& kp->u.kp);
-         if (rc != 0)
-            unregister_kprobe (& kp->dummy);
-      }
-#else
-      rc = register_kprobe (& kp->u.kp);
-#endif
-
+#ifndef __ia64__
+   ret = register_kprobe (& kp->u.kp);
+#else // PR6028
+   ret = register_kprobe (& kp->dummy);
+   if (ret == 0) {
+      ret = register_kprobe (& kp->u.kp);
+      if (ret != 0)
+         unregister_kprobe (& kp->dummy);
    }
+#endif
 
-   if (rc)
-      sdp->registered_p = 0;
-   else
-      sdp->registered_p = 1;
+   sdp->registered_p = (ret ? 0 : 1);
 
 #ifdef STP_ON_THE_FLY
    // kprobes are enabled by default upon registration
    sdp->enabled_p = sdp->registered_p;
 #endif
 
-   return rc;
+   return ret;
+}
+
+
+static int
+stapkp_register_kprobe(struct stap_dwarf_probe *sdp,
+                       struct stap_dwarf_kprobe *kp)
+{
+   int ret = stapkp_prepare_kprobe(sdp, kp);
+   if (ret == 0)
+      ret = stapkp_arch_register_kprobe(sdp, kp);
+   return ret;
+}
+
+
+static int
+stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp,
+                         struct stap_dwarf_kprobe *kp)
+{
+   unsigned long addr = stapkp_relocate_addr(sdp);
+   if (addr == 0)
+      return 1;
+
+   kp->u.krp.kp.addr = (void *) addr;
+
+   if (sdp->maxactive_p)
+      kp->u.krp.maxactive = sdp->maxactive_val;
+   else
+      kp->u.krp.maxactive = KRETACTIVE;
+
+   kp->u.krp.handler = &enter_kretprobe_probe;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+   if (sdp->entry_probe) {
+      kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;
+      kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) +
+                            sdp->saved_strings * MAXSTRINGLEN;
+   }
+#endif
+
+#ifdef __ia64__ // PR6028
+   kp->dummy.addr = kp->u.krp.kp.addr;
+   kp->dummy.pre_handler = NULL;
+#endif
+
+   return 0;
+}
+
+
+static int
+stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp,
+                               struct stap_dwarf_kprobe *kp)
+{
+   int ret = 0;
+
+#ifndef __ia64__
+   ret = register_kretprobe (& kp->u.krp);
+#else // PR6028
+   ret = register_kprobe (& kp->dummy);
+   if (ret == 0) {
+      ret = register_kretprobe (& kp->u.krp);
+      if (ret != 0)
+         unregister_kprobe (& kp->dummy);
+   }
+#endif
+
+   sdp->registered_p = (ret ? 0 : 1);
+
+#ifdef STP_ON_THE_FLY
+   // kprobes are enabled by default upon registration
+   sdp->enabled_p = sdp->registered_p;
+#endif
+
+   return ret;
+}
+
+
+static int
+stapkp_register_kretprobe(struct stap_dwarf_probe *sdp,
+                          struct stap_dwarf_kprobe *kp)
+{
+   int ret = stapkp_prepare_kretprobe(sdp, kp);
+   if (ret == 0)
+      ret = stapkp_arch_register_kretprobe(sdp, kp);
+   return ret;
+}
+
+
+static int
+stapkp_register_probe(struct stap_dwarf_probe *sdp,
+                      struct stap_dwarf_kprobe *kp)
+{
+   if (sdp->registered_p)
+      return 0;
+
+   return sdp->return_p ? stapkp_register_kretprobe(sdp, kp)
+                        : stapkp_register_kprobe(sdp, kp);
 }
 
 
