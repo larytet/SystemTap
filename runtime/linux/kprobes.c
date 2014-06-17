@@ -82,6 +82,15 @@ enter_kretprobe_entry_probe(struct kretprobe_instance *inst,
 }
 
 
+#if defined(STAPCONF_UNREGISTER_KPROBES)
+
+// The actual size is set later on in
+// dwarf_derived_probe_group::emit_module_decls().
+static void * stap_unreg_kprobes[];
+
+#endif
+
+
 static int
 stapkp_init(struct stap_dwarf_probe *probes,
             struct stap_dwarf_kprobe *kprobes,
@@ -380,5 +389,115 @@ stapkp_refresh(struct stap_dwarf_probe *probes,
 
    } // for loop
 }
+
+
+static void
+stapkp_exit(struct stap_dwarf_probe *probes,
+            struct stap_dwarf_kprobe *kprobes,
+            size_t nprobes)
+{
+   size_t i, j;
+
+#if defined(STAPCONF_UNREGISTER_KPROBES)
+
+   //Unregister kprobes by batch interfaces.
+   j = 0;
+   for (i = 0; i < nprobes; i++) {
+
+      struct stap_dwarf_probe *sdp = &probes[i];
+      struct stap_dwarf_kprobe *kp = &kprobes[i];
+
+      if (! sdp->registered_p)
+         continue;
+      if (!sdp->return_p)
+         stap_unreg_kprobes[j++] = &kp->u.kp;
+   }
+
+   unregister_kprobes((struct kprobe **)stap_unreg_kprobes, j);
+
+   j = 0;
+   for (i = 0; i < nprobes; i++) {
+
+      struct stap_dwarf_probe *sdp = &probes[i];
+      struct stap_dwarf_kprobe *kp = &kprobes[i];
+
+      if (! sdp->registered_p)
+         continue;
+      if (sdp->return_p)
+         stap_unreg_kprobes[j++] = &kp->u.krp;
+   }
+
+   unregister_kretprobes((struct kretprobe **)stap_unreg_kprobes, j);
+
+#ifdef __ia64__
+   j = 0;
+   for (i = 0; i < nprobes; i++) {
+
+      struct stap_dwarf_probe *sdp = &probes[i];
+      struct stap_dwarf_kprobe *kp = &kprobes[i];
+
+      if (! sdp->registered_p)
+         continue;
+      stap_unreg_kprobes[j++] = &kp->dummy;
+   }
+
+   unregister_kprobes((struct kprobe **)stap_unreg_kprobes, j);
+#endif
+
+#endif /* STAPCONF_UNREGISTER_KPROBES */
+
+   for (i = 0; i < nprobes; i++) {
+
+      struct stap_dwarf_probe *sdp = &probes[i];
+      struct stap_dwarf_kprobe *kp = &kprobes[i];
+
+      if (!sdp->registered_p)
+         continue;
+
+      if (sdp->return_p) {
+
+#if !defined(STAPCONF_UNREGISTER_KPROBES)
+         unregister_kretprobe (&kp->u.krp);
+#endif
+
+         atomic_add (kp->u.krp.nmissed, skipped_count());
+
+#ifdef STP_TIMING
+         if (kp->u.krp.nmissed)
+            _stp_warn ("Skipped due to missed kretprobe/1 on '%s': %d\n",
+                       sdp->probe->pp, kp->u.krp.nmissed);
+#endif
+
+         atomic_add (kp->u.krp.kp.nmissed, skipped_count());
+
+#ifdef STP_TIMING
+         if (kp->u.krp.kp.nmissed)
+            _stp_warn ("Skipped due to missed kretprobe/2 on '%s': %lu\n",
+                       sdp->probe->pp, kp->u.krp.kp.nmissed);
+#endif
+
+      } else {
+
+#if !defined(STAPCONF_UNREGISTER_KPROBES)
+         unregister_kprobe (&kp->u.kp);
+#endif
+
+         atomic_add (kp->u.kp.nmissed, skipped_count());
+
+#ifdef STP_TIMING
+         if (kp->u.kp.nmissed)
+            _stp_warn ("Skipped due to missed kprobe on '%s': %lu\n",
+                       sdp->probe->pp, kp->u.kp.nmissed);
+#endif
+
+      }
+
+#if !defined(STAPCONF_UNREGISTER_KPROBES) && defined(__ia64__)
+      unregister_kprobe (&kp->dummy);
+#endif
+      sdp->registered_p = 0;
+   }
+}
+
 
 #endif /* _KPROBES_C_ */

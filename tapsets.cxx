@@ -5691,71 +5691,14 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
 void
 dwarf_derived_probe_group::emit_module_exit (systemtap_session& s)
 {
-  //Unregister kprobes by batch interfaces.
-  s.op->newline() << "#if defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline() << "j = 0;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarf_probe *sdp = & stap_dwarf_probes[i];";
-  s.op->newline() << "struct stap_dwarf_kprobe *kp = & stap_dwarf_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "if (!sdp->return_p)";
-  s.op->newline(1) << "stap_unreg_kprobes[j++] = &kp->u.kp;";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "unregister_kprobes((struct kprobe **)stap_unreg_kprobes, j);";
-  s.op->newline() << "j = 0;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarf_probe *sdp = & stap_dwarf_probes[i];";
-  s.op->newline() << "struct stap_dwarf_kprobe *kp = & stap_dwarf_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "if (sdp->return_p)";
-  s.op->newline(1) << "stap_unreg_kprobes[j++] = &kp->u.krp;";
-  s.op->newline(-2) << "}";
-  s.op->newline() << "unregister_kretprobes((struct kretprobe **)stap_unreg_kprobes, j);";
-  s.op->newline() << "#ifdef __ia64__";
-  s.op->newline() << "j = 0;";
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarf_probe *sdp = & stap_dwarf_probes[i];";
-  s.op->newline() << "struct stap_dwarf_kprobe *kp = & stap_dwarf_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "stap_unreg_kprobes[j++] = &kp->dummy;";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "unregister_kprobes((struct kprobe **)stap_unreg_kprobes, j);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "#endif";
+  if (probes_by_module.empty()) return;
 
-  s.op->newline() << "for (i=0; i<" << probes_by_module.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_dwarf_probe *sdp = & stap_dwarf_probes[i];";
-  s.op->newline() << "struct stap_dwarf_kprobe *kp = & stap_dwarf_kprobes[i];";
-  s.op->newline() << "if (! sdp->registered_p) continue;";
-  s.op->newline() << "if (sdp->return_p) {";
-  s.op->newline() << "#if !defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline(1) << "unregister_kretprobe (&kp->u.krp);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "atomic_add (kp->u.krp.nmissed, skipped_count());";
-  s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (kp->u.krp.nmissed)";
-  s.op->newline(1) << "_stp_warn (\"Skipped due to missed kretprobe/1 on '%s': %d\\n\", sdp->probe->pp, kp->u.krp.nmissed);";
-  s.op->newline(-1) << "#endif";
-  s.op->newline() << "atomic_add (kp->u.krp.kp.nmissed, skipped_count());";
-  s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (kp->u.krp.kp.nmissed)";
-  s.op->newline(1) << "_stp_warn (\"Skipped due to missed kretprobe/2 on '%s': %lu\\n\", sdp->probe->pp, kp->u.krp.kp.nmissed);";
-  s.op->newline(-1) << "#endif";
-  s.op->newline(-1) << "} else {";
-  s.op->newline() << "#if !defined(STAPCONF_UNREGISTER_KPROBES)";
-  s.op->newline(1) << "unregister_kprobe (&kp->u.kp);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "atomic_add (kp->u.kp.nmissed, skipped_count());";
-  s.op->newline() << "#ifdef STP_TIMING";
-  s.op->newline() << "if (kp->u.kp.nmissed)";
-  s.op->newline(1) << "_stp_warn (\"Skipped due to missed kprobe on '%s': %lu\\n\", sdp->probe->pp, kp->u.kp.nmissed);";
-  s.op->newline(-1) << "#endif";
-  s.op->newline(-1) << "}";
-  s.op->newline() << "#if !defined(STAPCONF_UNREGISTER_KPROBES) && defined(__ia64__)";
-  s.op->newline() << "unregister_kprobe (&kp->dummy);";
-  s.op->newline() << "#endif";
-  s.op->newline() << "sdp->registered_p = 0;";
-  s.op->newline(-1) << "}";
+  s.op->newline() << "/* ---- dwarf probes ---- */";
+
+  s.op->newline() << "stapkp_exit( "
+                                << "stap_dwarf_probes, "
+                                << "stap_dwarf_kprobes, "
+                                << "ARRAY_SIZE(stap_dwarf_probes));";
 }
 
 static void sdt_v3_tokenize(const string& str, vector<string>& tokens)
