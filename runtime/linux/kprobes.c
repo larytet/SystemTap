@@ -410,55 +410,84 @@ stapkp_unregister_probes(struct stap_dwarf_probe *probes,
 
 #ifdef STP_ON_THE_FLY
 
-static void
+static int
+stapkp_should_enable_probe(struct stap_dwarf_probe *sdp)
+{
+   return  sdp->registered_p
+       && !sdp->enabled_p
+       &&  sdp->probe->cond_enabled;
+}
+
+
+static int
+stapkp_enable_probe(struct stap_dwarf_probe *sdp,
+                    struct stap_dwarf_kprobe *kp)
+{
+   int ret = 0;
+
+   dbug_otf("enabling (k%sprobe) pidx %zu\n",
+            sdp->return_p ? "ret" : "", sdp->probe->index);
+
+   ret = sdp->return_p ? enable_kretprobe(&kp->u.krp)
+                       : enable_kprobe(&kp->u.kp);
+
+   if (ret == 0)
+      sdp->enabled_p = 1;
+   else {
+      stapkp_unregister_probe(sdp, kp);
+      dbug_otf("failed to enable (k%sprobe) pidx %zu (rc %d)\n",
+               sdp->return_p ? "ret" : "", sdp->probe->index, ret);
+   }
+
+   return ret;
+}
+
+
+static int
+stapkp_should_disable_probe(struct stap_dwarf_probe *sdp)
+{
+   return  sdp->registered_p
+       &&  sdp->enabled_p
+       && !sdp->probe->cond_enabled;
+}
+
+
+static int
+stapkp_disable_probe(struct stap_dwarf_probe *sdp,
+                     struct stap_dwarf_kprobe *kp)
+{
+   int ret = 0;
+
+   dbug_otf("disabling (k%sprobe) pidx %zu\n",
+            sdp->return_p ? "ret" : "", sdp->probe->index);
+
+   ret = sdp->return_p ? disable_kretprobe(&kp->u.krp)
+                       : disable_kprobe(&kp->u.kp);
+
+   if (ret == 0)
+      sdp->enabled_p = 0;
+   else {
+      stapkp_unregister_probe(sdp, kp);
+      dbug_otf("failed to disable (k%sprobe) pidx %zu (rc %d)\n",
+               sdp->return_p ? "ret" : "", sdp->probe->index, ret);
+   }
+
+   return ret;
+}
+
+
+static int
 stapkp_refresh_probe(struct stap_dwarf_probe *sdp,
                      struct stap_dwarf_kprobe *kp)
 {
-   if (!sdp->registered_p)
-      return;
-
-   // does it need to be enabled?
-   if (!sdp->enabled_p && sdp->probe->cond_enabled) {
-
-      if (sdp->return_p) {
-         if (enable_kretprobe(&kp->u.krp) != 0) {
-            unregister_kretprobe(&kp->u.krp);
-            sdp->registered_p = 0;
-         } else
-            dbug_otf("enabling (kretprobe) pidx %zu\n", sdp->probe->index);
-      } else {
-         if (enable_kprobe(&kp->u.kp) != 0) {
-            unregister_kprobe(&kp->u.kp);
-            sdp->registered_p = 0;
-         } else
-            dbug_otf("enabling (kprobe) pidx %zu\n", sdp->probe->index);
-      }
-
-      if (sdp->registered_p)
-         sdp->enabled_p = 1;
-
-   // does it need to be disabled?
-   } else if (sdp->enabled_p && !sdp->probe->cond_enabled) {
-
-      if (sdp->return_p) {
-         if (disable_kretprobe(&kp->u.krp) != 0) {
-            unregister_kretprobe(&kp->u.krp);
-            sdp->registered_p = 0;
-         } else
-            dbug_otf("disabling (kretprobe) pidx %zu\n", sdp->probe->index);
-      } else {
-         if (disable_kprobe(&kp->u.kp) != 0) {
-            unregister_kprobe(&kp->u.kp);
-            sdp->registered_p = 0;
-         } else
-            dbug_otf("disabling (kprobe) pidx %zu\n", sdp->probe->index);
-      }
-
-      sdp->enabled_p = 0;
-   }
+   if (stapkp_should_enable_probe(sdp))
+      return stapkp_enable_probe(sdp, kp);
+   if (stapkp_should_disable_probe(sdp))
+      return stapkp_disable_probe(sdp, kp);
+   return 0;
 }
 
-#endif
+#endif /* STP_ON_THE_FLY */
 
 
 static int
@@ -474,7 +503,13 @@ stapkp_init(struct stap_dwarf_probe *probes,
       int rc = 0;
 
       rc = stapkp_register_probe(sdp, kp);
-      // XXX: check if it should be disabled right away
+      if (rc == 1) // failed to relocate addr?
+         continue; // don't fuss about it, module probably not loaded
+
+#ifdef STP_ON_THE_FLY
+      if (rc == 0 && stapkp_should_disable_probe(sdp))
+         rc = stapkp_disable_probe(sdp, kp);
+#endif
 
       // NB: We keep going even if a probe failed to register (PR6749). We only
       // warn about it if it wasn't optional.
@@ -505,22 +540,20 @@ stapkp_refresh(struct stap_dwarf_probe *probes,
       // new module arrived?
       if (sdp->registered_p == 0 && addr != 0) {
 
-         stapkp_register_probe(sdp, kp);
-         // XXX: check if it should be disabled right away
+         int rc = stapkp_register_probe(sdp, kp);
+#ifdef STP_ON_THE_FLY
+         if (rc == 0 && stapkp_should_disable_probe(sdp))
+            stapkp_disable_probe(sdp, kp);
+#endif
 
       // old module disappeared?
       } else if (sdp->registered_p == 1 && addr == 0) {
-
          stapkp_unregister_probe(sdp, kp);
 
 #ifdef STP_ON_THE_FLY
-
-      // does it need to be enabled/disabled?
-      } else if ((!sdp->enabled_p && sdp->probe->cond_enabled)
-              || (sdp->enabled_p && !sdp->probe->cond_enabled)) {
-
+      } else if (stapkp_should_enable_probe(sdp)
+              || stapkp_should_disable_probe(sdp)) {
          stapkp_refresh_probe(sdp, kp);
-
 #endif
       }
    }
