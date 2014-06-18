@@ -2091,6 +2091,56 @@ c_unparser::emit_module_exit ()
   o->newline(-1) << "}\n";
 }
 
+struct max_action_info: public functioncall_traversing_visitor
+{
+  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
+
+  systemtap_session& sess;
+  unsigned statement_count;
+  static const unsigned max_statement_count = ~0;
+
+  void add_stmt_count (unsigned val)
+    {
+      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
+    }
+  void add_max_stmt_count () { statement_count = max_statement_count; }
+
+  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
+  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
+  void visit_expr_statement (expr_statement *stmt)
+    {
+      add_stmt_count(1);
+      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
+    }
+  void visit_if_statement (if_statement *stmt)
+    {
+      add_stmt_count(1);
+      stmt->condition->visit(this);
+
+      // Create new visitors for the two forks.  Copy the traversed[] set
+      // to prevent infinite recursion for a   function f () { if (a) f() }
+      max_action_info tmp_visitor_then (*this);
+      max_action_info tmp_visitor_else (*this);
+      stmt->thenblock->visit(& tmp_visitor_then);
+      if (stmt->elseblock)
+        {
+          stmt->elseblock->visit(& tmp_visitor_else);
+        }
+
+      // Simply overwrite our copy of statement_count, since these
+      // visitor copies already included our starting count.
+      statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
+    }
+
+  void note_recursive_functioncall (functioncall *e) { add_max_stmt_count(); }
+
+  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
+  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
+  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
+  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
+  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
+  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
+};
 
 void
 c_unparser::emit_function (functiondecl* v)
@@ -2177,6 +2227,17 @@ c_unparser::emit_function (functiondecl* v)
 
   o->newline() << "#define STAP_ERROR(...) do { snprintf(CONTEXT->error_buffer, MAXSTRINGLEN, __VA_ARGS__); CONTEXT->last_error = CONTEXT->error_buffer; goto out; } while (0)";
   o->newline() << "#define return goto out"; // redirect embedded-C return
+
+  max_action_info mai (*session);
+  v->body->visit (&mai);
+
+  if (mai.statement_count < mai.max_statement_count && !session->unoptimized) // this is a finite-statement-count function
+    {
+      o->newline() << "if (c->actionremaining < " << mai.statement_count
+                   << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
+      this->already_checked_action_count = true;
+    }
+
   v->body->visit (this);
   o->newline() << "#undef return";
   o->newline() << "#undef STAP_ERROR";
@@ -2203,59 +2264,9 @@ c_unparser::emit_function (functiondecl* v)
   }
   o->newline() << "#undef STAP_RETVALUE";
   o->newline(-1) << "}\n";
+
+  this->already_checked_action_count = false;
 }
-
-struct max_action_info: public functioncall_traversing_visitor
-{
-  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
-
-  systemtap_session& sess;
-  unsigned statement_count;
-  static const unsigned max_statement_count = ~0;
-
-  void add_stmt_count (unsigned val)
-    {
-      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
-    }
-  void add_max_stmt_count () { statement_count = max_statement_count; }
-
-  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
-  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
-  void visit_expr_statement (expr_statement *stmt)
-    {
-      add_stmt_count(1);
-      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
-    }
-  void visit_if_statement (if_statement *stmt)
-    {
-      add_stmt_count(1);
-      stmt->condition->visit(this);
-
-      // Create new visitors for the two forks.  Copy the traversed[] set
-      // to prevent infinite recursion for a   function f () { if (a) f() }
-      max_action_info tmp_visitor_then (*this);
-      max_action_info tmp_visitor_else (*this);
-      stmt->thenblock->visit(& tmp_visitor_then);
-      if (stmt->elseblock)
-        {
-          stmt->elseblock->visit(& tmp_visitor_else);
-        }
-
-      // Simply overwrite our copy of statement_count, since these
-      // visitor copies already included our starting count.
-      statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
-    }
-
-  void note_recursive_functioncall (functioncall *e) { add_max_stmt_count(); }
-
-  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
-  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
-  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
-  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
-  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
-  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
-};
-
 
 #define DUPMETHOD_CALL 0
 #define DUPMETHOD_ALIAS 0
@@ -2393,12 +2404,13 @@ c_unparser::emit_probe (derived_probe* v)
       if (session->verbose > 1)
         clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
 
-      if (mai.statement_count < mai.max_statement_count && session->unoptimized) // this is a finite-statement-count probe
+      if (mai.statement_count < mai.max_statement_count && !session->unoptimized) // this is a finite-statement-count probe
         {
           o->newline() << "if (c->actionremaining < " << mai.statement_count 
                        << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
           this->already_checked_action_count = true;
         }
+
 
       v->body->visit (this);
 
