@@ -82,6 +82,92 @@ enter_kretprobe_entry_probe(struct kretprobe_instance *inst,
 }
 
 
+static unsigned long
+stapkp_relocate_addr(struct stap_dwarf_probe *sdp)
+{
+   return _stp_kmodule_relocate(sdp->module, sdp->section, sdp->address);
+}
+
+
+static int
+stapkp_register_probe(struct stap_dwarf_probe *sdp,
+                      struct stap_dwarf_kprobe *kp)
+{
+   int rc = 0;
+
+   unsigned long addr = stapkp_relocate_addr(sdp);
+
+   if (addr == 0)
+      return 0; // quietly; assume module is absent
+
+   if (sdp->return_p) {
+
+      kp->u.krp.kp.addr = (void *) addr;
+      if (sdp->maxactive_p) {
+         kp->u.krp.maxactive = sdp->maxactive_val;
+      } else {
+         kp->u.krp.maxactive = KRETACTIVE;
+      }
+
+      kp->u.krp.handler = &enter_kretprobe_probe;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
+      if (sdp->entry_probe) {
+         kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;
+         kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) +
+                               sdp->saved_strings * MAXSTRINGLEN;
+      }
+#endif
+
+      // to ensure safeness of bspcache, always use aggr_kprobe on ia64
+#ifdef __ia64__
+      kp->dummy.addr = kp->u.krp.kp.addr;
+      kp->dummy.pre_handler = NULL;
+      rc = register_kprobe (& kp->dummy);
+      if (rc == 0) {
+         rc = register_kretprobe (& kp->u.krp);
+         if (rc != 0)
+            unregister_kprobe (& kp->dummy);
+      }
+#else
+      rc = register_kretprobe (& kp->u.krp);
+#endif
+
+   } else { // !sdp->return_p
+
+      // to ensure safeness of bspcache, always use aggr_kprobe on ia64
+      kp->u.kp.addr = (void *) addr;
+      kp->u.kp.pre_handler = &enter_kprobe_probe;
+
+#ifdef __ia64__
+      kp->dummy.addr = kp->u.kp.addr;
+      kp->dummy.pre_handler = NULL;
+      rc = register_kprobe (& kp->dummy);
+      if (rc == 0) {
+         rc = register_kprobe (& kp->u.kp);
+         if (rc != 0)
+            unregister_kprobe (& kp->dummy);
+      }
+#else
+      rc = register_kprobe (& kp->u.kp);
+#endif
+
+   }
+
+   if (rc)
+      sdp->registered_p = 0;
+   else
+      sdp->registered_p = 1;
+
+#ifdef STP_ON_THE_FLY
+   // kprobes are enabled by default upon registration
+   sdp->enabled_p = sdp->registered_p;
+#endif
+
+   return rc;
+}
+
+
 #if defined(STAPCONF_UNREGISTER_KPROBES)
 
 // The actual size is set later on in
