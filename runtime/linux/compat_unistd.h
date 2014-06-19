@@ -66,6 +66,9 @@
 #ifndef __NR_ia32_epoll_wait
 #define __NR_ia32_epoll_wait 256
 #endif
+#ifndef __NR_ia32_eventfd2
+#define __NR_ia32_eventfd2 328
+#endif
 #ifndef __NR_ia32_faccessat
 #define __NR_ia32_faccessat 307
 #endif
@@ -122,6 +125,7 @@
 #define __NR_compat_close		__NR_ia32_close
 #define __NR_compat_dup3		__NR_ia32_dup3
 #define __NR_compat_epoll_wait		__NR_ia32_epoll_wait
+#define __NR_compat_eventfd2		__NR_ia32_eventfd2
 #define __NR_compat_faccessat		__NR_ia32_faccessat
 #define __NR_compat_fchmodat		__NR_ia32_fchmodat
 #define __NR_compat_fchownat		__NR_ia32_fchownat
@@ -154,6 +158,7 @@
 #define __NR_compat_close		__NR_close
 #define __NR_compat_dup3		__NR_dup3
 #define __NR_compat_epoll_wait		__NR_epoll_wait
+#define __NR_compat_eventfd2		__NR_eventfd2
 #define __NR_compat_faccessat		__NR_faccessat
 #define __NR_compat_fchmodat		__NR_fchmodat
 #define __NR_compat_fchownat		__NR_fchownat

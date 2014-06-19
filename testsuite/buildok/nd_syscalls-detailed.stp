@@ -325,7 +325,7 @@ probe nd_syscall.epoll_wait.return ?
 probe nd_syscall.eventfd ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", flags)
+	printf("%u, %d, %s\n", count, flags, flags_str)
 }
 probe nd_syscall.eventfd.return ?
 {

@@ -2487,24 +2487,25 @@ function _epoll_create1_flag_str:string(f:long)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 #include <linux/eventfd.h>
 #endif
-%}
-function _eventfd2_flag_str:string(f:long)
-%{ /* pure */
-  long flags = STAP_ARG_f;
-  char *str = STAP_RETVALUE;
-  int len;
 
-  str[0] = '\0';
-#if defined(EFD_CLOEXEC) && defined(EFD_NONBLOCK)
-  if (flags & EFD_NONBLOCK)
-    strlcat(str, "EFD_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & EFD_CLOEXEC)
-    strlcat(str, "EFD_CLOEXEC|", MAXSTRINGLEN);
+static const _stp_val_array const _stp_eventfd2_flag_list[] = {
+#ifdef EFD_NONBLOCK
+	V(EFD_NONBLOCK),
 #endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = '\0';
+#ifdef EFD_CLOEXEC
+	V(EFD_CLOEXEC),
+#endif
+#ifdef EFD_SEMAPHORE
+	V(EFD_SEMAPHORE),
+#endif
+	{0, NULL}
+};
+%}
+function _eventfd2_flag_str:string(flags:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_eventfd2_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
