@@ -1,5 +1,8 @@
 set test bz1027459
 
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
 exec touch trace1
 spawn stap $srcdir/$subdir/$test.stp
 set ok 0
@@ -9,7 +12,7 @@ expect {
 	timeout { fail "$test (timeout)" }
 	eof { }
 }
-wait
+catch {close}; catch {wait}
 if {$ok == 1} then { pass "$test -p5" } else { fail "$test -p5 ($ok)" }
 exec rm -f trace1
 
