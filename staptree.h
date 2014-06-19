@@ -903,7 +903,8 @@ struct traversing_visitor: public visitor
 // It uses an internal set object to prevent infinite recursion.
 struct functioncall_traversing_visitor: public traversing_visitor
 {
-  std::set<functiondecl*> traversed;
+  std::set<functiondecl*> seen;
+  std::set<functiondecl*> nested;
   functiondecl* current_function;
   functioncall_traversing_visitor(): current_function(0) {}
   void visit_functioncall (functioncall* e);

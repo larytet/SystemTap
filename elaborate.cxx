@@ -2292,7 +2292,7 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
   for (map<string,functiondecl*>::iterator it = s.functions.begin(); it != s.functions.end(); it++)
     {
       functiondecl* fd = it->second;
-      if (ftv.traversed.find(fd) == ftv.traversed.end())
+      if (ftv.seen.find(fd) == ftv.seen.end())
         {
           if (! fd->synthetic && s.user_file &&
               fd->tok->location.file->name == s.user_file->name) // !tapset
@@ -3151,7 +3151,7 @@ void_statement_reducer::visit_functioncall (functioncall* e)
     }
 
   varuse_collecting_visitor vut(session);
-  vut.traversed.insert (e->referent);
+  vut.seen.insert (e->referent);
   vut.current_function = e->referent;
   e->referent->body->visit (& vut);
   if (!vut.side_effect_free_wrt (focal_vars))

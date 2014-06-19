@@ -2117,7 +2117,7 @@ struct max_action_info: public functioncall_traversing_visitor
       add_stmt_count(1);
       stmt->condition->visit(this);
 
-      // Create new visitors for the two forks.  Copy the traversed[] set
+      // Create new visitors for the two forks.  Copy the nested[] set
       // to prevent infinite recursion for a   function f () { if (a) f() }
       max_action_info tmp_visitor_then (*this);
       max_action_info tmp_visitor_else (*this);
