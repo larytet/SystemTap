@@ -21,6 +21,8 @@
 #endif
 
 
+// NB: this struct is set up by the stapkp_prepare_* functions prior to
+// registering and zero'ed out again after each unregister
 struct stap_dwarf_kprobe {
    union { struct kprobe kp; struct kretprobe krp; } u;
    #ifdef __ia64__
@@ -284,6 +286,10 @@ stapkp_unregister_probe(struct stap_dwarf_probe *sdp,
    unregister_kprobe (&kp->dummy);
 #endif
 
+   // PR16861: kprobes may have left some things in the k[ret]probe struct.
+   // Let's reset it to be sure it's safe for re-use.
+   memset(kp, 0, sizeof(struct stap_dwarf_kprobe));
+
    sdp->registered_p = 0;
 #ifdef STP_ON_THE_FLY
    sdp->enabled_p = 0;
@@ -523,8 +529,12 @@ stapkp_init(struct stap_dwarf_probe *probes,
 }
 
 
+/* stapkp_refresh is called for two reasons: either a kprobe needs to be
+ * enabled/disabled (modname is NULL), or a module has been loaded/unloaded and
+ * kprobes need to be registered/unregistered (modname is !NULL). */
 static void
-stapkp_refresh(struct stap_dwarf_probe *probes,
+stapkp_refresh(const char *modname,
+               struct stap_dwarf_probe *probes,
                struct stap_dwarf_kprobe *kprobes,
                size_t nprobes)
 {
@@ -535,20 +545,23 @@ stapkp_refresh(struct stap_dwarf_probe *probes,
       struct stap_dwarf_probe *sdp = &probes[i];
       struct stap_dwarf_kprobe *kp = &kprobes[i];
 
-      unsigned long addr = stapkp_relocate_addr(sdp);
+      // was this probe's target module loaded/unloaded
+      if (modname && sdp->module
+            && strcmp(modname, sdp->module) == 0) {
+         int rc;
+         unsigned long addr = stapkp_relocate_addr(sdp);
 
-      // new module arrived?
-      if (sdp->registered_p == 0 && addr != 0) {
-
-         int rc = stapkp_register_probe(sdp, kp);
+         // module being loaded?
+         if (sdp->registered_p == 0 && addr != 0) {
+            stapkp_register_probe(sdp, kp);
 #ifdef STP_ON_THE_FLY
-         if (rc == 0 && stapkp_should_disable_probe(sdp))
-            stapkp_disable_probe(sdp, kp);
+            if (stapkp_should_disable_probe(sdp))
+               stapkp_disable_probe(sdp, kp);
 #endif
-
-      // old module disappeared?
-      } else if (sdp->registered_p == 1 && addr == 0) {
-         stapkp_unregister_probe(sdp, kp);
+         // module/section being unloaded?
+         } else if (sdp->registered_p == 1 && addr == 0) {
+            stapkp_unregister_probe(sdp, kp);
+         }
 
 #ifdef STP_ON_THE_FLY
       } else if (stapkp_should_enable_probe(sdp)

@@ -1102,7 +1102,7 @@ c_unparser::emit_common_header ()
   o->newline( 0)  << "#else";
   o->newline( 0)  << "static void module_refresher(struct work_struct *work) {";
   o->newline( 0)  << "#endif";
-  o->newline( 1)  <<    "systemtap_module_refresh();";
+  o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
   o->newline(-1)  << "}";
 
   o->newline( 0)  << "#endif"; // STP_ON_THE_FLY
@@ -1934,7 +1934,7 @@ c_unparser::emit_module_init ()
 void
 c_unparser::emit_module_refresh ()
 {
-  o->newline() << "static void systemtap_module_refresh (void) {";
+  o->newline() << "static void systemtap_module_refresh (const char *modname) {";
   o->newline(1) << "int state;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
 
@@ -7106,7 +7106,7 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#endif";
 
       // Emit systemtap_module_refresh() prototype so we can reference it
-      s.op->newline() << "static void systemtap_module_refresh (void);";
+      s.op->newline() << "static void systemtap_module_refresh (const char* modname);";
 
       // When on-the-fly [dis]arming is used, module_refresh can be called from
       // both the module notifier, as well as when probes need to be

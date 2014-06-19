@@ -5682,6 +5682,7 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
   s.op->newline() << "/* ---- dwarf probes ---- */";
 
   s.op->newline() << "stapkp_refresh( "
+                                   << "modname, "
                                    << "stap_dwarf_probes, "
                                    << "stap_dwarf_kprobes, "
                                    << "ARRAY_SIZE(stap_dwarf_probes));";
