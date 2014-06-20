@@ -47,11 +47,7 @@ static void _stp_runtime_contexts_free(void)
 	}
 
 	/* Sync to make sure existing readers are done.  */
-#ifdef STAPCONF_SYNCHRONIZE_SCHED
-	synchronize_sched();
-#else
-	synchronize_kernel();
-#endif
+	stp_synchronize_sched();
 
 	/* Now we can actually free the contexts.  */
 	for_each_possible_cpu(cpu) {

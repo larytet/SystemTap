@@ -37,6 +37,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/profile.h>
+#include <linux/rcupdate.h>
 //#include <linux/utsrelease.h> // newer kernels only
 //#include <linux/compile.h>
 #ifdef STAPCONF_GENERATED_COMPILE
@@ -275,6 +276,20 @@ static struct kernel_param_ops param_ops_int64_t = {
 };
 #endif
 #undef _STP_KERNEL_PARAM_ARG
+
+
+static inline void stp_synchronize_sched(void)
+{
+#if defined(STAPCONF_SYNCHRONIZE_SCHED)
+  synchronize_sched();
+#elif defined(STAPCONF_SYNCHRONIZE_RCU)
+  synchronize_rcu();
+#elif defined(STAPCONF_SYNCHRONIZE_KERNEL)
+  synchronize_kernel();
+#else
+#error "No implementation for stp_synchronize_sched!"
+#endif
+}
 
 /************* Module Stuff ********************/
 

@@ -1872,9 +1872,7 @@ c_unparser::emit_module_init ()
 
   // For any partially registered/unregistered kernel facilities.
   o->newline() << "atomic_set (session_state(), STAP_SESSION_STOPPED);";
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // In case tracepoints were started, they need to be cleaned up
   o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
@@ -1958,9 +1956,7 @@ c_unparser::emit_module_exit ()
   // Let's wait a while to make sure they're all done, done, done.
 
   // cargo cult prologue
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // NB: systemtap_module_exit is assumed to be called from ordinary
   // user context, say during module unload.  Among other things, this
@@ -1969,9 +1965,7 @@ c_unparser::emit_module_exit ()
 
   // cargo cult epilogue
   o->newline() << "atomic_set (session_state(), STAP_SESSION_STOPPED);";
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // XXX: might like to have an escape hatch, in case some probe is
   // genuinely stuck somehow

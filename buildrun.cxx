@@ -323,6 +323,8 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-uaccess.c", "STAPCONF_LINUX_UACCESS_H", NULL);
   output_autoconf(s, o, "autoconf-oneachcpu-retry.c", "STAPCONF_ONEACHCPU_RETRY", NULL);
   output_autoconf(s, o, "autoconf-dpath-path.c", "STAPCONF_DPATH_PATH", NULL);
+  output_exportconf(s, o, "synchronize_kernel", "STAPCONF_SYNCHRONIZE_KERNEL");
+  output_exportconf(s, o, "synchronize_rcu", "STAPCONF_SYNCHRONIZE_RCU");
   output_exportconf(s, o, "synchronize_sched", "STAPCONF_SYNCHRONIZE_SCHED");
   output_autoconf(s, o, "autoconf-task-uid.c", "STAPCONF_TASK_UID", NULL);
   output_autoconf(s, o, "autoconf-from_kuid_munged.c", "STAPCONF_FROM_KUID_MUNGED", NULL);
