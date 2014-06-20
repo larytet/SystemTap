@@ -1831,6 +1831,8 @@ MAXACTION
 Maximum number of statements to execute during any single probe hit
 (with interrupts disabled),
 default 1000.
+Note that for straight-through probe handlers lacking loops or recursion,
+due to optimization, this parameter may be interpreted too conservatively.
 .TP
 MAXACTION_INTERRUPTIBLE
 Maximum number of statements to execute during any single probe hit
