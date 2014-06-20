@@ -2234,7 +2234,7 @@ c_unparser::emit_function (functiondecl* v)
   if (mai.statement_count < mai.max_statement_count && !session->unoptimized) // this is a finite-statement-count function
     {
       o->newline() << "if (c->actionremaining < " << mai.statement_count
-                   << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
+                   << ") { c->last_error = " << STAP_T_04 << "goto out; }";
       this->already_checked_action_count = true;
     }
 
@@ -2407,7 +2407,7 @@ c_unparser::emit_probe (derived_probe* v)
       if (mai.statement_count < mai.max_statement_count && !session->unoptimized) // this is a finite-statement-count probe
         {
           o->newline() << "if (c->actionremaining < " << mai.statement_count 
-                       << ") { c->last_error = \"MAXACTION too low\"; goto out; }";
+                       << ") { c->last_error = " << STAP_T_04 << " goto out; }";
           this->already_checked_action_count = true;
         }
 
