@@ -10,6 +10,10 @@
 
   process.statement("foo@file.c:3,5-7,9")
 
+- Statement counting is now suppressed in the generated c code for probes that
+  are non-recursive and loop-free. Statement counting can be turned back on in
+  unoptimize mode (-u).
+
 * What's new in version 2.5, 2014-04-30
 
 - Systemtap now supports backtracing through its own, invoking module.
