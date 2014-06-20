@@ -16,6 +16,8 @@
 #error "Need CONFIG_KPROBES!"
 #endif
 
+#include <linux/kprobes.h>
+
 #ifndef KRETACTIVE
 #define KRETACTIVE (max(15, 6 * (int)num_possible_cpus()))
 #endif
@@ -107,6 +109,14 @@ stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp,
    kp->dummy.pre_handler = NULL;
 #endif
 
+#ifdef STP_ON_THE_FLY
+   if (!sdp->probe->cond_enabled) {
+      kp->u.kp.flags |= KPROBE_FLAG_DISABLED;
+      dbug_otf("registering as disabled (kprobe) pidx %zu\n",
+               sdp->probe->index);
+   }
+#endif
+
    return 0;
 }
 
@@ -131,8 +141,7 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp,
    sdp->registered_p = (ret ? 0 : 1);
 
 #ifdef STP_ON_THE_FLY
-   // kprobes are enabled by default upon registration
-   sdp->enabled_p = sdp->registered_p;
+   sdp->enabled_p = sdp->registered_p ? !kprobe_disabled(& kp->u.kp) : 0;
 #endif
 
    return ret;
@@ -180,6 +189,14 @@ stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp,
    kp->dummy.pre_handler = NULL;
 #endif
 
+#ifdef STP_ON_THE_FLY
+   if (!sdp->probe->cond_enabled) {
+      kp->u.krp.kp.flags |= KPROBE_FLAG_DISABLED;
+      dbug_otf("registering as disabled (kretprobe) pidx %zu\n",
+               sdp->probe->index);
+   }
+#endif
+
    return 0;
 }
 
@@ -204,8 +221,7 @@ stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp,
    sdp->registered_p = (ret ? 0 : 1);
 
 #ifdef STP_ON_THE_FLY
-   // kprobes are enabled by default upon registration
-   sdp->enabled_p = sdp->registered_p;
+   sdp->enabled_p = sdp->registered_p ? !kprobe_disabled(& kp->u.krp.kp) : 0;
 #endif
 
    return ret;
@@ -512,11 +528,6 @@ stapkp_init(struct stap_dwarf_probe *probes,
       if (rc == 1) // failed to relocate addr?
          continue; // don't fuss about it, module probably not loaded
 
-#ifdef STP_ON_THE_FLY
-      if (rc == 0 && stapkp_should_disable_probe(sdp))
-         rc = stapkp_disable_probe(sdp, kp);
-#endif
-
       // NB: We keep going even if a probe failed to register (PR6749). We only
       // warn about it if it wasn't optional.
       if (rc && !sdp->optional_p) {
@@ -552,16 +563,11 @@ stapkp_refresh(const char *modname,
          unsigned long addr = stapkp_relocate_addr(sdp);
 
          // module being loaded?
-         if (sdp->registered_p == 0 && addr != 0) {
+         if (sdp->registered_p == 0 && addr != 0)
             stapkp_register_probe(sdp, kp);
-#ifdef STP_ON_THE_FLY
-            if (stapkp_should_disable_probe(sdp))
-               stapkp_disable_probe(sdp, kp);
-#endif
          // module/section being unloaded?
-         } else if (sdp->registered_p == 1 && addr == 0) {
+         else if (sdp->registered_p == 1 && addr == 0)
             stapkp_unregister_probe(sdp, kp);
-         }
 
 #ifdef STP_ON_THE_FLY
       } else if (stapkp_should_enable_probe(sdp)
