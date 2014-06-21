@@ -1423,6 +1423,7 @@ read_cert_info_from_file (const string &certPath, string &fingerprint)
     {
       nsscommon_error (_F("Could not create arena while decoding certificate from file %s",
 			  certPath.c_str ()));
+      fclose (certFile);
       goto done;
     }
       

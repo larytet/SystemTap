@@ -1962,7 +1962,7 @@ struct external_function_query {
   Dwarf_Addr addr;
   bool resolved;
   external_function_query(dwflpp* dw, const string& name):
-    dw(dw), name(name), resolved(false) {}
+    dw(dw), name(name), addr(0), resolved(false) {}
 };
 
 int

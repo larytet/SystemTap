@@ -458,6 +458,7 @@ struct print_format: public expression
     {
       flags = 0;
       widthtype = width_unspecified;
+      precision = 0;
       prectype = prec_unspecified;
       type = conv_unspecified;
       literal_string.clear();
