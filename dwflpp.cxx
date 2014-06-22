@@ -3342,6 +3342,7 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_typedef:
         case DW_TAG_const_type:
         case DW_TAG_volatile_type:
+        case DW_TAG_restrict_type:
           /* Just iterate on the referent type.  */
           dwarf_die_type (typedie, typedie, c.tok);
           break;
@@ -3471,7 +3472,8 @@ dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
   *innerdie = *typedie;
   while (typetag == DW_TAG_typedef ||
          typetag == DW_TAG_const_type ||
-         typetag == DW_TAG_volatile_type)
+         typetag == DW_TAG_volatile_type ||
+         typetag == DW_TAG_restrict_type)
     {
       if (!dwarf_attr_die (innerdie, DW_AT_type, innerdie))
         throw SEMANTIC_ERROR (_F("cannot get type of pointee: %s", dwarf_errmsg(-1)), e->tok);

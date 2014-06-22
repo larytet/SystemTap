@@ -10381,6 +10381,7 @@ resolve_tracepoint_arg_type(tracepoint_arg& arg)
     case DW_TAG_typedef:
     case DW_TAG_const_type:
     case DW_TAG_volatile_type:
+    case DW_TAG_restrict_type:
       // iterate on the referent type
       return (dwarf_attr_die(&arg.type_die, DW_AT_type, &arg.type_die)
               && resolve_tracepoint_arg_type(arg));
@@ -10400,7 +10401,8 @@ resolve_tracepoint_arg_type(tracepoint_arg& arg)
           int tag = dwarf_tag(&arg.type_die);
           if (tag != DW_TAG_typedef &&
               tag != DW_TAG_const_type &&
-              tag != DW_TAG_volatile_type)
+              tag != DW_TAG_volatile_type &&
+              tag != DW_TAG_restrict_type)
             {
               arg.isptr = true;
               break;
