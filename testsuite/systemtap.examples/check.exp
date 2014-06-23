@@ -4,6 +4,11 @@
 # The .meta files contain information categorizing the script.  The
 # .meta files are composed of lines of tags. Each tag is followed by a
 # value.
+#
+# To restrict scripts to test, set the CHECK_ONLY environment variable.
+# For example, to only test the badname and fntimes scripts, run:
+#
+#    make installcheck RUNTESTFLAGS="check.exp" CHECK_ONLY="badname fntimes"
 
 #open the file and read in all the lines of data in FILE
 #return a string with the data
@@ -56,7 +61,16 @@ proc run_command { test action command } {
 
 
 set src_examples [fullpath $srcdir/systemtap.examples]
-set meta_files [lsort [exec find  $src_examples -path "*.meta"]]
+
+if {[info exists env(CHECK_ONLY)]} {
+    set name_match "-false"
+    foreach file $env(CHECK_ONLY) {
+      set name_match "$name_match -o -name $file.meta"
+    }
+    set meta_files [lsort [eval exec find $src_examples -path "*.meta" $name_match]]
+} else {
+    set meta_files [lsort [exec find $src_examples -path "*.meta"]]
+}
 
 set curdir [pwd]
 verbose -log "SAVED PWD=$curdir"
