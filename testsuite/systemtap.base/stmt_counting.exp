@@ -2,71 +2,51 @@ set test_names {"stmt_counting_recursion" "stmt_counting_loops" "stmt_counting_s
 
 foreach test_name $test_names {
     set test_val 6
-    set test_max_action 50
-    # currently, max action is like 31 or something. so that max is fiiine.
-
+    # Expected output
+    set output_string "pass"
     if {! [installtest_p]} { 
         untested $test_name 
         return      
     }
-                              
-    # Expected output
-    set output_string "pass"
+    verbose -log "running test $test_name"
 
-    # basic test, no flags given
-    foreach runtime [get_runtime_list] {
-        if {$runtime != ""} {
-            set cur_test_name "$test_name ($runtime)"
-            stap_run $cur_test_name no_load $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp $test_val
-        } elseif {[uprobes_p]} {
-          stap_run $test_name no_load $output_string $srcdir/$subdir/$test_name.stp $test_val
-        } else {
-            untested "$test_name (uprobes)"
-            continue
-        }
-    }
+    set stap_flags {"" "-u" "-DMAXACTION=40" "-DMAXACTION=1"}
+    foreach stap_flag $stap_flags {           
+        verbose -log "running test $test_name with flag: $stap_flag"
+                   
+        foreach runtime [get_runtime_list] {
+            if {$runtime != ""} {
+                verbose -log "runtime flag is $runtime"
+                set cur_test_name "$test_name ($runtime)"
+                
+                if {$stap_flag == "-DMAXACTION=1"} {
+                    spawn stap --runtime=$runtime $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                    expect {
+                        -re {ERROR.*MAXACTION} { pass $test_name }
+                    }
+                } elseif {$stap_flag == ""}  {
+                    stap_run $cur_test_name no_load $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp $test_val
+                } else {
+                    stap_run $cur_test_name no_load $output_string --runtime=$runtime $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                }
 
-    #with -u flag
-    foreach runtime [get_runtime_list] {
-        if {$runtime != ""} {
-            set cur_test_name "$test_name ($runtime)"
-            stap_run $cur_test_name no_load $output_string --runtime=$runtime -u $srcdir/$subdir/$test_name.stp $test_val
-        } elseif {[uprobes_p]} {
-          stap_run $test_name no_load $output_string -u $srcdir/$subdir/$test_name.stp $test_val
-        } else {
-            untested "$test_name (uprobes)"
-            continue
-        }
-    }
+            } elseif {[uprobes_p]} {
+                if {$stap_flag == "-DMAXACTION=1"} {
+                    spawn stap $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                    expect {
+                        -re {ERROR.*MAXACTION} { pass $test_name }
+                    }
+                } elseif {$stap_flag == ""} {
+                    stap_run $test_name no_load $output_string $srcdir/$subdir/$test_name.stp $test_val
 
-
-    #with MAXACTIONS and no error
-    foreach runtime [get_runtime_list] {
-        if {$runtime != ""} {
-            set cur_test_name "$test_name($runtime)"
-            stap_run $cur_test_name no_load $output_string --runtime=$runtime -DMAXACTION=$test_max_action $srcdir/$subdir/$test_name.stp $test_val
-        } elseif {[uprobes_p]} {
-          stap_run $test_name no_load $output_string -DMAXACTION=$test_max_action $srcdir/$subdir/$test_name.stp $test_val
-        } else {
-            untested "$test_name (uprobes)"
-            continue
-        }
-    }
-
-    #with MAXACTIONS that triggers an error
-    set test_max_action 1
-    foreach runtime [get_runtime_list] {
-        if {$runtime != ""} {
-            set cur_test_name "$test_name($runtime)"
-            spawn stap --runtime=$runtime -DMAXACTION=$test_max_action $srcdir/$subdir/$test_name.stp $test_val
-        } elseif {[uprobes_p]} {
-          spawn stap -DMAXACTION=$test_max_action $srcdir/$subdir/$test_name.stp $test_val
-          expect {
-              -re {ERROR.*MAXACTION} { pass $test_name }
-          }
-        } else {
-            untested "$test_name (uprobes)"
-            continue
+                } else {
+                    stap_run $test_name no_load $output_string $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                }
+                
+            } else {
+                untested "$test_name (uprobes)"
+                continue
+            }
         }
     }
 }
