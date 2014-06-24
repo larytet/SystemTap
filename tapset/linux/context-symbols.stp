@@ -95,6 +95,8 @@ function sprint_stack:string(stk:string) { return sprint_syms(stk) }
  * and earlier versions. Prior to 2.0, probefunc() obtained the function
  * name from the probe point string as returned by pp(), and used the
  * current address as a fallback.
+ *
+ * Consider using ppfunc() instead.
  */
 function probefunc:string () %( systemtap_v < "2.0" %?
 %{ /* pure */ /* pragma:symbols */
