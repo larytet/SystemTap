@@ -143,11 +143,13 @@ process.function, .statement	begin, end, error, never
 process.mark \fI(backup)\fP	timer
 	perf
 	procfs
-\fBAUTO-DWARF\fP	kernel.statement.absolute
+\fBAUTO-GENERATED-DWARF\fP	kernel.statement.absolute
 	kernel.data
 kernel.trace	kprobe.function
 	process.statement.absolute
 	process.begin, .end, .error
+	netfilter
+	java
 .TE
 
 .SH PROBE POINT FAMILIES
