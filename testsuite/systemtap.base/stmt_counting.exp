@@ -1,0 +1,52 @@
+set test_names {"stmt_counting_recursion" "stmt_counting_loops" "stmt_counting_straight" "stmt_counting_functions"}
+
+foreach test_name $test_names {
+    set test_val 6
+    # Expected output
+    set output_string "pass"
+    if {! [installtest_p]} { 
+        untested $test_name 
+        return      
+    }
+    verbose -log "running test $test_name"
+
+    set stap_flags {"" "-u" "-DMAXACTION=40" "-DMAXACTION=1"}
+    foreach stap_flag $stap_flags {           
+        verbose -log "running test $test_name with flag: $stap_flag"
+                   
+        foreach runtime [get_runtime_list] {
+            if {$runtime != ""} {
+                verbose -log "runtime flag is $runtime"
+                set cur_test_name "$test_name ($runtime)"
+                
+                if {$stap_flag == "-DMAXACTION=1"} {
+                    spawn stap --runtime=$runtime $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                    expect {
+                        -re {ERROR.*MAXACTION} { pass $test_name }
+                    }
+                } elseif {$stap_flag == ""}  {
+                    stap_run $cur_test_name no_load $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp $test_val
+                } else {
+                    stap_run $cur_test_name no_load $output_string --runtime=$runtime $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                }
+
+            } elseif {[uprobes_p]} {
+                if {$stap_flag == "-DMAXACTION=1"} {
+                    spawn stap $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                    expect {
+                        -re {ERROR.*MAXACTION} { pass $test_name }
+                    }
+                } elseif {$stap_flag == ""} {
+                    stap_run $test_name no_load $output_string $srcdir/$subdir/$test_name.stp $test_val
+
+                } else {
+                    stap_run $test_name no_load $output_string $stap_flag $srcdir/$subdir/$test_name.stp $test_val
+                }
+                
+            } else {
+                untested "$test_name (uprobes)"
+                continue
+            }
+        }
+    }
+}
