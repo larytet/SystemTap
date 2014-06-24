@@ -1,0 +1,26 @@
+# stap stmt_counting_straight.stp 6
+
+global num
+global a
+probe begin {
+  a = $1
+  printf("systemtap starting probe\n");
+  if (a == 1) { a = -300; }
+  else { num++; }
+  if (a == 2) { a = -300; }
+  else { num++; }
+  if (a == 3) { a = -300;  }
+  else { num++;  }
+  if (a == 4) { a = -300; }
+  else {  num++;  }
+  if (a == 5) { a = -300; }
+  else {  num++;  }
+
+  printf("systemtap ending probe\n");
+  if (num == 5)
+    printf("passed the test\n");
+  else
+    printf("failed the test\n");
+  exit();
+}
+
