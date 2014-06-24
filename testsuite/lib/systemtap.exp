@@ -137,6 +137,10 @@ proc module_refresh_p {} {
     return [min_kernel_vers_p 2.6.29]
 }
 
+proc hrtimer_p {} {
+    return [min_kernel_vers_p 2.6.17]
+}
+
 # Returns 1 if kernel vers >= @min, 0 otherwise. The @min parameter must be in
 # the format x.y.z (e.g. 2.6.18).
 proc min_kernel_vers_p {min} {
