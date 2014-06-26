@@ -528,7 +528,8 @@ probe syscall.fstat.return
 probe syscall.fstatat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %p\n", dirfd, path, buf_uaddr)
+	printf("%d(%s), %s, %p, %d(%s)\n", dirfd, dirfd_str, path,
+	       buf_uaddr, flags, flags_str)
 }
 probe syscall.fstatat.return ?
 {

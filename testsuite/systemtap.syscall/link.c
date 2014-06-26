@@ -82,7 +82,7 @@ int main()
 #endif
 
   linkat(AT_FDCWD, "nonexist", AT_FDCWD, "foo", -1);
-  //staptest// linkat (AT_FDCWD, "nonexist", AT_FDCWD, "foo", 0x[f]+) = -NNNN (EINVAL)
+  //staptest// linkat (AT_FDCWD, "nonexist", AT_FDCWD, "foo", AT_[^ ]+|XXXX) = -NNNN (EINVAL)
 #endif
 
   symlink("foobar", "Sfoobar");

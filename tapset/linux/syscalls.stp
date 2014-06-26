@@ -1279,7 +1279,7 @@ probe syscall.fcntl.return = kernel.function("compat_sys_fcntl").return ?,
 probe syscall.fdatasync = kernel.function("sys_fdatasync").call
 {
 	name = "fdatasync"
-	fd = $fd
+	fd = __int32($fd)
 	argstr = sprint(fd)
 }
 probe syscall.fdatasync.return = kernel.function("sys_fdatasync").return
@@ -1428,9 +1428,9 @@ probe syscall.fstat = kernel.function("sys_fstat").call ?,
                       kernel.function("compat_sys_newfstat").call ?
 {
 	name = "fstat"
-	filedes = $fd
+	filedes = __int32($fd)
 	buf_uaddr = $statbuf
-	argstr = sprintf("%d, %p", $fd, $statbuf)
+	argstr = sprintf("%d, %p", __int32($fd), $statbuf)
 }
 probe syscall.fstat.return = kernel.function("sys_fstat").return ?,
                              kernel.function("sys_fstat64").return ?,
@@ -1451,18 +1451,24 @@ probe syscall.fstat.return = kernel.function("sys_fstat").return ?,
 probe syscall.fstatat = kernel.function("sys_fstatat64").call ?,
                         kernel.function("sys_newfstatat").call ?,
                         kernel.function("compat_sys_newfstatat").call ?,
-                        kernel.function("sys32_fstatat64").call ?
+                        kernel.function("sys32_fstatat64").call ?,
+                        kernel.function("sys32_fstatat").call ?
 {
 	name = "fstatat"
-	dirfd = $dfd
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(__int32($dfd))
 	path = user_string_quoted($filename)
 	buf_uaddr = $statbuf
-	argstr = sprintf("%s, %s, %p, %s", _dfd_str($dfd), user_string_quoted($filename), $statbuf, _at_flag_str($flag))
+	flags = __int32($flag)
+	flags_str = _at_flag_str(__int32($flag))
+	argstr = sprintf("%s, %s, %p, %s", dirfd_str,
+			 user_string_quoted($filename), $statbuf, flags_str)
 }
 probe syscall.fstatat.return = kernel.function("sys_fstatat64").return ?,
                                kernel.function("sys_newfstatat").return ?,
                                kernel.function("compat_sys_newfstatat").return ?,
-                               kernel.function("sys32_fstatat64").return ?
+                               kernel.function("sys32_fstatat64").return ?,
+			       kernel.function("sys32_fstatat").return ?
 {
 	name = "fstatat"
 	retstr = return_str(1, $return)
@@ -1512,7 +1518,7 @@ probe syscall.fstatfs64.return = kernel.function("compat_sys_fstatfs64").return 
 probe syscall.fsync = kernel.function("sys_fsync").call
 {
 	name = "fsync"
-	fd = $fd
+	fd = __int32($fd)
 	argstr = sprint(fd)
 }
 probe syscall.fsync.return = kernel.function("sys_fsync").return

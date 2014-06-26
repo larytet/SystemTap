@@ -2459,13 +2459,20 @@ static const _stp_val_array const _stp_atflag_list[] = {
 #ifdef AT_SYMLINK_FOLLOW
 	V(AT_SYMLINK_FOLLOW),
 #endif
+#ifdef AT_NO_AUTOMOUNT
+	V(AT_NO_AUTOMOUNT),
+#endif
+#ifdef AT_EMPTY_PATH
+	V(AT_EMPTY_PATH),
+#endif
 	{0, NULL}
 };
 %}
 
 function _at_flag_str:string(f:long)
 %{ /* pure */
-	_stp_lookup_str(_stp_atflag_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
+	_stp_lookup_or_str(_stp_atflag_list, STAP_ARG_f, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
