@@ -307,7 +307,10 @@ int init_module (void)
   rc = _stp_transport_init();
   if (rc)
     return rc;
-  return systemtap_kernel_module_init();
+  rc = systemtap_kernel_module_init();
+  if (rc)
+    _stp_transport_close();
+  return rc;
 }
 
 static void systemtap_kernel_module_exit (void);
