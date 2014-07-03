@@ -1063,7 +1063,7 @@ keywords: syscall nanosleep
 
 
 process/strace.stp - Trace system calls
-keywords: process syscalls
+keywords: process syscall
 
   The script loosely emulates strace, when applied to individual
   processes or hierarchies (via -c/-x), or the entire system (without

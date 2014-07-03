@@ -334,7 +334,7 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#SCH
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#NANOSLEEP">NANOSLEEP</a> <br>
 <p>The script watches each nanosleep syscall on the system. At the end of each nanosleep syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the &quot;nanosleep:&quot; key, and the duration of the sleep in microseconds.<p><font size="-2"><pre># stap sleeptime.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="process/strace.stp"></a><a href="#process/strace.stp">&para;</a> <a href="process/strace.stp">process/strace.stp</a> - Trace system calls<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALLS">SYSCALLS</a> <br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>The script loosely emulates strace, when applied to individual processes or hierarchies (via -c/-x), or the entire system (without -c/-x).  A few output configuration parameters may be set with -G.<p><font size="-2"><pre># stap strace.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="process/syscalls_by_pid.stp"></a><a href="#process/syscalls_by_pid.stp">&para;</a> <a href="process/syscalls_by_pid.stp">process/syscalls_by_pid.stp</a> - System-Wide Count of Syscalls by PID<br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
