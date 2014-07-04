@@ -91,12 +91,12 @@ keywords: simple
 general/para-callgraph-verbose.stp - Callgraph Tracing with Verbose Arguments
 keywords: trace callgraph
 
-  Print a timed per-thread callgraph, complete with pretty-printed
-  function parameters and return values.  The first parameter names the
-  function probe points to trace.  The optional second parameter names
-  the probe points for trigger functions, which acts to enable tracing
-  for only those functions that occur while the current thread is
-  nested within the trigger.
+  Print a timed per-thread microsecond-timed callgraph, complete with
+  pretty-printed function parameters and return values.  The first
+  parameter names the function probe points to trace.  The optional
+  second parameter names the probe points for trigger functions, which
+  acts to enable tracing for only those functions that occur while the
+  current thread is nested within the trigger.
 
   # stap para-callgraph-verbose.stp 'kernel.function("*@fs/proc*.c")' \
   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
@@ -105,12 +105,12 @@ keywords: trace callgraph
 general/para-callgraph.stp - Callgraph Tracing with Arguments
 keywords: trace callgraph
 
-  Print a timed per-thread callgraph, complete with function parameters
-  and return values.  The first parameter names the function probe
-  points to trace.  The optional second parameter names the probe
-  points for trigger functions, which acts to enable tracing for only
-  those functions that occur while the current thread is nested within
-  the trigger.
+  Print a timed per-thread microsecond-timed callgraph, complete with
+  function parameters and return values.  The first parameter names the
+  function probe points to trace.  The optional second parameter names
+  the probe points for trigger functions, which acts to enable tracing
+  for only those functions that occur while the current thread is
+  nested within the trigger.
 
   # stap para-callgraph.stp 'kernel.function("*@fs/proc*.c")' \
   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
