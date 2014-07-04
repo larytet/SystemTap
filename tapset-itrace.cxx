@@ -117,6 +117,22 @@ struct itrace_builder: public derived_probe_builder
         sess.unwindsym_modules.insert (path);
         path_tgt = path_remove_sysroot(sess, path);
       }
+    else // (has_pid)
+      {
+        int rc = -1;
+        if (pid > 0)
+          rc = kill(pid, 0);
+        if (rc == -1)
+          switch (errno) // ignore EINVAL: invalid signal
+            {
+              case ESRCH:
+                throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+              case EPERM:
+                throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+              default:
+                throw SEMANTIC_ERROR(_("invalid pid"));
+            }
+      }
 
     finished_results.push_back(new itrace_derived_probe(sess, base, location,
 							has_path, path_tgt, pid,
