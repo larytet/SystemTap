@@ -7553,7 +7553,8 @@ dwarf_builder::build(systemtap_session & sess,
     }
   else if (has_param(filled_parameters, TOK_PROCESS))
       {
-      module_name = sess.sysroot + module_name;
+        // NB: module_name is not yet set!
+
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
           string file;
@@ -7575,10 +7576,18 @@ dwarf_builder::build(systemtap_session & sess,
                                    " a -c COMMAND or -x PID [man stapprobes]"));
           module_name = sess.sysroot + file;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
-          // in the case of TOK_MARK we need to modify locations as well
+          // in the case of TOK_MARK we need to modify locations as well   // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
-            location->components[0]->arg == 0)
+             location->components[0]->arg == 0)
             location->components[0]->arg = new literal_string(module_name);
+        }
+
+      // NB: must specifically handle the classical ("string") form here, to make sure
+      // we get the module_name out.
+      else if (get_param (parameters, TOK_PROCESS, module_name))
+        {
+          module_name = sess.sysroot + module_name;
+          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
         }
 
       else if (get_param (parameters, TOK_PROCESS, proc_pid))
@@ -7587,10 +7596,13 @@ dwarf_builder::build(systemtap_session & sess,
           module_name = sess.sysroot + pid_path;
           // change it so it is mapped by the executable path and not the PID
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);
-          // in the case of TOK_MARK we need to modify locations as well
+          // in the case of TOK_MARK we need to modify locations as well  // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
-            location->components[0]->arg == 0)
+             location->components[0]->arg == 0)
             location->components[0]->arg = new literal_string(module_name);
+          // XXX: the above probably interferes with passing proc_pid to the new 
+          // uprobe_derived_probe p->pid, so the task-finder can associate this
+          // probe with only the given PID.
         }
 
       // PR6456  process("/bin/*")  glob handling
