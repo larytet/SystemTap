@@ -1,3 +1,14 @@
+systemtap (2.3-2.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Make systemtap-sdt-dev architecture dependent again, build it on every
+    architecture, move the sys/sdt.h to the multiarch include path, and don't
+    ship the sdt headers on architectures where systemtap is not built.
+    Closes: #748694.
+    Doesn't need to be M-A: foreign. Closes: #749035.
+
+ -- Matthias Klose <doko@debian.org>  Sat, 05 Jul 2014 17:08:01 +0200
+
 systemtap (2.3-2) unstable; urgency=low
 
   * Don't Suggest linux-* since that won't guarantee right version anyway

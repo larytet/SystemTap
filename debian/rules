@@ -10,6 +10,8 @@ CONF_FLAGS = --enable-sqlite --disable-crash --enable-docs --disable-pie \
 	     --enable-translator --disable-publican \
 	     --libexecdir=/usr/lib $(shell dpkg-buildflags --export=configure)
 
+DEB_HOST_MULTIARCH ?= $(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
 # Building of man pages takes A LOT of time
 ifeq (,$(filter stap_disable_refdocs,$(DEB_BUILD_OPTIONS)))
 	CONF_FLAGS += --enable-refdocs
@@ -49,6 +51,16 @@ override_dh_auto_install:
 
 	# Remove empty file to make lintian happy, patch sent to xmlto upstream
 	rm -f debian/tmp/usr/share/doc/systemtap/tapsets/tapsets.proc
+
+override_dh_install:
+	dh_install
+ifneq (,$(filter systemtap-runtime,$(shell dh_listpackages -s)))
+	mkdir -p debian/systemtap-sdt-dev/usr/include/$(DEB_HOST_MULTIARCH)
+	mv debian/systemtap-sdt-dev/usr/include/sys \
+		debian/systemtap-sdt-dev/usr/include/$(DEB_HOST_MULTIARCH)/.
+else
+	rm -rf debian/systemtap-sdt-dev/usr/include
+endif
 
 override_dh_compress:
 	dh_compress -X.stp -X.wav -Xsocktop -Xsyscalltimes -X.pdf

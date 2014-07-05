@@ -102,7 +102,7 @@ Description: instrumentation system for Linux (client for compile server)
  information about the running Linux system.
 
 Package: systemtap-sdt-dev
-Architecture: all
+Architecture: any
 Depends: ${misc:Depends}, python:any
 Description: statically defined probes development files
  This package contains header file and executable (dtrace) that
