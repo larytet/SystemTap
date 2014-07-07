@@ -7592,6 +7592,18 @@ dwarf_builder::build(systemtap_session & sess,
 
       else if (get_param (parameters, TOK_PROCESS, proc_pid))
         {
+          // check that the pid given corresponds to a running process
+          if (proc_pid < 1 || kill(proc_pid, 0) == -1)
+              switch (errno) // ignore EINVAL: invalid signal
+              {
+                case ESRCH:
+                  throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+                case EPERM:
+                  throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+                default:
+                  throw SEMANTIC_ERROR(_("invalid pid"));
+              }
+
           string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
           module_name = sess.sysroot + pid_path;
           // change it so it is mapped by the executable path and not the PID
