@@ -21,7 +21,7 @@
 %else
 %{!?publican_brand: %global publican_brand fedora}
 %endif
-%ifnarch s390 s390x %{arm} aarch64 ppc64le
+%ifarch %{ix86} x86_64 ppc ppc64
 %{!?with_dyninst: %global with_dyninst 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 %else
 %{!?with_dyninst: %global with_dyninst 0}
@@ -1020,6 +1020,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Mon Jul 07 2014 Josh Stone <jistone@redhat.com>
+- Flip with_dyninst to an %ifarch whitelist.
+
 * Wed Apr 30 2014 Jonathan Lebon <jlebon@redhat.com> - 2.5-1
 - Upstream release.
 
