@@ -144,7 +144,9 @@ proc get_process_function_number {} {
    if {[catch {exec nm $exepath} out]} {
       return 0
    }
-   regexp "(\[0-9a-f\]+) T main" $out dummy addr
+   if {![regexp "(\[0-9a-f\]+) T main" $out dummy addr]} {
+      return 0
+   }
    return [string trimleft $addr 0]
 }
 
@@ -160,7 +162,9 @@ proc get_library_function_number {} {
    if {[catch {exec nm $sopath} out]} {
       return 0
    }
-   regexp "(\[0-9a-f\]+) T libfoo" $out dummy addr
+   if {![regexp "(\[0-9a-f\]+) T libfoo" $out dummy addr]} {
+      return 0
+   }
    return [string trimleft $addr 0]
 }
 
