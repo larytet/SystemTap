@@ -137,17 +137,21 @@ if { $res == "" } {
     test_cleanup
 }
 
-# Returns the address to main in compiled executable using nm
+# Returns the address to main in compiled executable using stap
 proc get_process_function_number {} {
    global exepath
 
-   if {[catch {exec nm $exepath} out]} {
+   if {[catch {exec stap -vvl "process(\"$exepath\").function(\"main\")" 2>@1} out]} {
       return 0
    }
-   if {![regexp "(\[0-9a-f\]+) T main" $out dummy addr]} {
+   if {![regexp -line "^probe main@.* pc=0x(\[0-9a-f\]+)" $out dummy addr]} {
       return 0
    }
-   return [string trimleft $addr 0]
+   set addr [string trimleft $addr 0]
+   if {$addr == ""} {
+      return 0
+   }
+   return $addr
 }
 
 set process_addr [get_process_function_number]
@@ -155,17 +159,21 @@ if {$process_addr == 0} {
    fail "$test (no process addr to play with)"
 }
 
-# Returns the address to libfoo in compiled library using nm
+# Returns the address to libfoo in compiled library using stap
 proc get_library_function_number {} {
-   global sopath
+   global exepath sopath
 
-   if {[catch {exec nm $sopath} out]} {
+   if {[catch {exec stap -vvl "process(\"$exepath\").library(\"$sopath\").function(\"libfoo\")" 2>@1} out]} {
       return 0
    }
-   if {![regexp "(\[0-9a-f\]+) T libfoo" $out dummy addr]} {
+   if {![regexp -line "^probe libfoo@.* pc=0x(\[0-9a-f\]+)" $out dummy addr]} {
       return 0
    }
-   return [string trimleft $addr 0]
+   set addr [string trimleft $addr 0]
+   if {$addr == ""} {
+      return 0
+   }
+   return $addr
 }
 
 set library_addr [get_library_function_number]
