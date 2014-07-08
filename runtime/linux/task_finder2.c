@@ -1801,17 +1801,23 @@ stap_task_finder_post_init(void)
 						    UTRACE_ATTACH_MATCH_OPS,
 						    &tgt->ops, tgt);
 			if (engine != NULL && !IS_ERR(engine)) {
-				/* We found a target task. Stop it. */
-				int rc = utrace_control(tsk, engine,
-							UTRACE_INTERRUPT);
-				/* If utrace_control() returns
-				 * EINPROGRESS when we're trying to
-				 * stop/interrupt, that means the task
-				 * hasn't stopped quite yet, but will
-				 * soon.  Ignore this error. */
-				if (rc != 0 && rc != -EINPROGRESS) {
-					_stp_error("utrace_control returned error %d on pid %d",
-						   rc, (int)tsk->pid);
+				/* Only try to interrupt tasks in the
+				 * TASK_INTERRUPTIBLE state. */
+				if (tsk->state == TASK_INTERRUPTIBLE) {
+					/* We found a target task. Stop it. */
+					int rc = utrace_control(tsk, engine,
+								UTRACE_INTERRUPT);
+					/* If utrace_control() returns
+					 * EINPROGRESS when we're
+					 * trying to stop/interrupt,
+					 * that means the task hasn't
+					 * stopped quite yet, but will
+					 * soon.  Ignore this
+					 * error. */
+					if (rc != 0 && rc != -EINPROGRESS) {
+						_stp_error("utrace_control returned error %d on pid %d",
+							   rc, (int)tsk->pid);
+					}
 				}
 				utrace_engine_put(engine);
 
