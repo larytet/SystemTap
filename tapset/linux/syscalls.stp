@@ -1259,11 +1259,11 @@ probe syscall.fcntl = kernel.function("compat_sys_fcntl").call ?,
                       kernel.function("sys_fcntl").call ?
 {
 	name = "fcntl"
-	fd = $fd
-	cmd = $cmd
-	cmd_str = _fcntl_cmd_str($cmd)
+	fd = __int32($fd)
+	cmd = __int32($cmd)
+	cmd_str = _fcntl_cmd_str(cmd)
 	arg = $arg
-	argstr = sprintf("%d, %s, %p", $fd, _fcntl_cmd_str($cmd), $arg)
+	argstr = sprintf("%d, %s, %p", __int32($fd), _fcntl_cmd_str(cmd), $arg)
 }
 probe syscall.fcntl.return = kernel.function("compat_sys_fcntl").return ?,
                              kernel.function("compat_sys_fcntl64").return ?,

@@ -1756,25 +1756,67 @@ function _fadvice_advice_str(behavior) {
    return sprintf("UNKNOWN VALUE: %d", behavior)
 }
 
-function _fcntl_cmd_str(cmd) {
-   if(cmd==0) return "F_DUPFD"
-   if(cmd==1) return "F_GETFD"
-   if(cmd==2) return "F_SETFD"
-   if(cmd==3) return "F_GETFL"
-   if(cmd==4) return "F_SETFL"
-   if(cmd==5) return "F_GETLK"
-   if(cmd==6) return "F_SETLK"
-   if(cmd==7) return "F_SETLKW"
-   if(cmd==8) return "F_SETOWN"
-   if(cmd==9) return "F_GETOWN"
-   if(cmd==10) return "F_SETSIG"
-   if(cmd==11) return "F_GETSIG"
-   if(cmd==12) return "F_GETLK64"
-   if(cmd==13) return "F_SETLK64"
-   if(cmd==14) return "F_SETLKW64"
-   if(cmd==1030) return "F_DUPFD_CLOEXEC"
-   return sprintf("UNKNOWN VALUE: %d", cmd)
-}
+%{
+#include <linux/fcntl.h>
+
+static const _stp_val_array const _stp_fcntl_cmd_list[] = {
+	V(F_DUPFD),
+	V(F_GETFD),
+	V(F_SETFD),
+	V(F_GETFL),
+	V(F_SETFL),
+	V(F_GETLK),
+	V(F_SETLK),
+	V(F_SETLKW),
+	V(F_SETOWN),
+	V(F_GETOWN),
+	V(F_SETSIG),
+	V(F_GETSIG),
+#ifdef F_GETLK64
+	V(F_GETLK64),
+#endif
+#ifdef F_SETLK64
+	V(F_SETLK64),
+#endif
+#ifdef F_SETLKW64
+	V(F_SETLKW64),
+#endif
+#ifdef F_SETOWN_EX
+	V(F_SETOWN_EX),
+#endif
+#ifdef F_GETOWN_EX
+	V(F_GETOWN_EX),
+#endif
+#ifdef F_GETOWNER_UIDS
+	V(F_GETOWNER_UIDS),
+#endif
+#ifdef F_SETLEASE
+	V(F_SETLEASE),
+#endif
+#ifdef F_GETLEASE
+	V(F_GETLEASE),
+#endif
+#ifdef F_DUPFD_CLOEXEC
+ 	V(F_DUPFD_CLOEXEC),
+#endif
+#ifdef F_NOTIFY
+	V(F_NOTIFY),
+#endif
+#ifdef F_SETPIPE_SZ
+	V(F_SETPIPE_SZ),
+#endif
+#ifdef F_GETPIPE_SZ
+	V(F_GETPIPE_SZ),
+#endif
+	{0, NULL}
+};
+%}
+
+function _fcntl_cmd_str:string(cmd:long)
+%{
+	_stp_lookup_str(_stp_fcntl_cmd_list, (unsigned int)STAP_ARG_cmd,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 #include <linux/fs.h>
