@@ -7543,10 +7543,16 @@ dwarf_builder::build(systemtap_session & sess,
     }
   else if (get_param (parameters, TOK_MODULE, module_name))
     {
-      size_t dash_pos = 0;
-      while((dash_pos=module_name.find('-'))!=string::npos)
-        module_name.replace(int(dash_pos),1,"_");
-      filled_parameters[TOK_MODULE] = new literal_string(module_name);
+      // If not a full path was given, then it's an in-tree module. Replace any
+      // dashes with underscores.
+      if (!is_fully_resolved(module_name, sess.sysroot, sess.sysenv))
+        {
+          size_t dash_pos = 0;
+          while((dash_pos=module_name.find('-'))!=string::npos)
+            module_name.replace(int(dash_pos),1,"_");
+          filled_parameters[TOK_MODULE] = new literal_string(module_name);
+        }
+
       // NB: glob patterns get expanded later, during the offline
       // elfutils module listing.
       dw = get_kern_dw(sess, module_name);
