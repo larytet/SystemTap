@@ -127,6 +127,12 @@ proc java_p {} {
     return $systemtap_java_p
 }
 
+proc bootprobing_p {} {
+    global Dracut_Version
+    return [expr [strverscmp $Dracut_Version 025] >= 0 && \
+                 [file exists "/usr/sbin/new-kernel-pkg"]]
+}
+
 proc get_runtime_list {} {
     # Always return the default runtime.
     set runtime_list [list ""]
@@ -408,7 +414,7 @@ proc fullpath { path } {
 }
 
 proc get_system_info {} {
-    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux
+    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux Dracut_Version
 
     set Host [exec /bin/uname -a]
     if [file exists ../SNAPSHOT] {
@@ -445,6 +451,8 @@ proc get_system_info {} {
     } else {
         set SElinux "unknown"
     }
+    # Parse dracut version
+    regexp {\d[^\-]*} [exec sh -c "dracut --help 2>&1 | grep Version || echo 0"] Dracut_Version
 }
 
 if {! [setup_systemtap_environment]} then {
