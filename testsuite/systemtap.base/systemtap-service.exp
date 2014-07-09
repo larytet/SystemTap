@@ -35,7 +35,7 @@ verbose -log "Using scriptdir $__script_d"
 verbose -log "Using service name $__servicename"
 
 # back up existing configuration
-exec rm -f $__etc_systemtap.backup
+exec rm -rf $__etc_systemtap.backup
 exec mv $__etc_systemtap $__etc_systemtap.backup
 exec mkdir -p $__conf_d $__script_d
 exec touch $__config
