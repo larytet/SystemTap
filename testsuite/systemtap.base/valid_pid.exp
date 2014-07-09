@@ -1,0 +1,55 @@
+set test_scripts {
+"probe process(\$1).syscall{exit();}"
+"probe process(\$1).begin{exit();}"
+"probe process(\$1).end{exit();}"
+"probe process(\$1).thread.begin{exit();}"
+"probe process(\$1).function(\"main\"){exit();}"
+"probe process(\$1).mark(\"*\"){exit();}"
+"probe process(\$1).plt(\"*\"){exit();}"
+"probe process(\$1).provider(\"*\").mark(\"*\"){exit();}"
+
+"probe process.begin{exit();}"
+"probe process.end{exit();}"
+"probe process.thread.begin{exit();}"
+"probe process.function(\"main\"){exit();}"
+"probe process.plt(\"*\"){exit();}"
+"probe process.mark(\"*\"){exit();}"
+"probe process.provider(\"*\").mark(\"*\"){exit();}"
+
+"probe process(\$1).insn{exit();}"
+"probe process(\$1).statement(200){exit();}"
+}
+
+spawn stap -e "probe begin{}"
+set exe_id $spawn_id
+set valid_pid [exp_pid -i $exe_id]
+verbose -log "valid pid is: $valid_pid"
+
+# pids are: invalid, valid
+set pids "1234567890 $valid_pid"
+
+foreach test_script $test_scripts {
+    foreach pid $pids {
+
+       if {((([regexp {insn} $test_script] || [regexp {statement} $test_script]) && ![utrace_orig_p]) || ![uprobes_p]) || ([regexp {plt} $test_script] && ![plt_probes_p])} {
+            untested "script: $test_script pid: $pid"
+            continue
+        } else {
+            if { [regexp {1} $test_script] } { 
+                spawn stap -p2 -e $test_script $pid
+            } else {
+                spawn stap -p2 -e $test_script -x $pid
+            }
+        }
+        expect {
+            -re {semantic error: [ A-Za-z]*pid[ A-Za-z]*} { if {$pid != $valid_pid } { pass "$test_script $pid" } else { fail "$test_script $pid" } }
+            -re {semantic error: [ A-Za-z]*cannot find executable[ A-Za-z]*} { if {(([regexp {function} $test_script] || [regexp {plt} $test_script]) || [regexp {mark} $test_script]) && $pid != $valid_pid} { pass "$test_script $pid" } }
+            # only checking that a semantic error about a pid is not raised 
+            # when a valid pid is given. don't really care if other errors are
+            # thrown
+            eof  { if {$pid == $valid_pid } { pass "$test_script $pid" } else { fail "$test_script $pid" } }
+        }
+    }
+}
+
+kill -INT -[exp_pid -i $exe_id] 2
