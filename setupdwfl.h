@@ -24,6 +24,8 @@ extern "C" {
 #include <elfutils/libdwfl.h>
 }
 
+std::string modname_from_path(const std::string &path);
+
 Dwfl *setup_dwfl_kernel(const std::string &name,
 			  unsigned *found,
 			  systemtap_session &s);

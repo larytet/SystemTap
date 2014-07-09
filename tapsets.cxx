@@ -4671,6 +4671,9 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                                          // module & section specify a relocation
                                          // base for <addr>, unless section==""
                                          // (equivalently module=="kernel")
+                                         // for userspace, it's a full path, for
+                                         // modules, it's either a full path, or
+                                         // the basename (e.g. 'btrfs')
                                          const string& module,
                                          const string& section,
                                          // NB: dwfl_addr is the virtualized
@@ -4695,6 +4698,10 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
     saved_longs(0), saved_strings(0),
     entry_handler(0)
 {
+  // If we were given a fullpath to a kernel module, then get the simple name
+  if (q.has_module && is_fully_resolved(module, q.dw.sess.sysroot, q.dw.sess.sysenv))
+    this->module = modname_from_path(module);
+
   if (user_lib.size() != 0)
     has_library = true;
 
@@ -4940,7 +4947,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           check->args[0]->tok = this->tok;
           check->args.push_back(new literal_number(level));
           check->args[1]->tok = this->tok;
-          check->args.push_back(new literal_string(module));
+          check->args.push_back(new literal_string(this->module));
           check->args[2]->tok = this->tok;
           check->args.push_back(new literal_string(caller_section));
           check->args[3]->tok = this->tok;
