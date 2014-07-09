@@ -23,7 +23,7 @@
 #include "procfs.c"
 #include <linux/mm.h>
 #include "uidgid_compatibility.h"
-#include "mm.h"
+#include "mmv.h"
 
 /*
  * The following kernel commit, which first appeared in kernel 2.6.23,
