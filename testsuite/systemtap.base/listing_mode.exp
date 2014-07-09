@@ -686,19 +686,9 @@ if {$exepath != ""} {
       stap_list_cmd "process.function(0x$process_addr)" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)"
 
-      testing_probe {process(number).function(number)}
-
-      stap_list "process($valid_pid).function(0x$process_addr)" \
-          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)"
-
       testing_probe {process.function(number).call}
 
       stap_list_cmd "process.function(0x$process_addr).call" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.call"
-
-      testing_probe {process(number).function(number).call}
-
-      stap_list "process($valid_pid).function(0x$process_addr).call" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.call"
 
       testing_probe {process.function(number).exported}
@@ -706,19 +696,9 @@ if {$exepath != ""} {
       stap_list_cmd "process.function(0x$process_addr).exported" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.exported"
 
-      testing_probe {process(number).function(number).exported}
-
-      stap_list "process($valid_pid).function(0x$process_addr).exported" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.exported"
-
       testing_probe {process.function(number).return}
 
       stap_list_cmd "process.function(0x$process_addr).return" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.return"
-
-      testing_probe {process(number).function(number).return}
-
-      stap_list "process($valid_pid).function(0x$process_addr).return" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.return"
    }
 
@@ -727,19 +707,9 @@ if {$exepath != ""} {
    stap_list_cmd "process.function(\"foo\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)"
 
-   testing_probe {process(number).function(string)}
-
-   stap_list "process($valid_pid).function(\"foo\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)"
-
    testing_probe {process.function(string).call}
 
    stap_list_cmd "process.function(\"foo\").call" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.call"
-
-   testing_probe {process(number).function(string).call}
-
-   stap_list "process($valid_pid).function(\"foo\").call" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.call"
 
    if {[callee_probes_p]} {
@@ -749,19 +719,9 @@ if {$exepath != ""} {
       stap_list_cmd "process.function(\"foo\").callee(\"bar\")" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
 
-      testing_probe {process(number).function(string).callee(string)}
-
-      stap_list "process($valid_pid).function(\"foo\").callee(\"bar\")" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
-
       testing_probe {process.function(string).callees}
 
       stap_list_cmd "process.function(\"foo\").callees" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
-
-      testing_probe {process(number).function(string).callees}
-
-      stap_list "process($valid_pid).function(\"foo\").callees" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
 
       testing_probe {process.function(string).callees(number)}
@@ -771,14 +731,6 @@ if {$exepath != ""} {
 
       stap_list_cmd "process.function(\"foo\").callees(2)" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2} 
-
-      testing_probe {process(number).function(string).callees(number)}
-
-      stap_list "process($valid_pid).function(\"foo\").callees(1)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
-
-      stap_list "process($valid_pid).function(\"foo\").callees(2)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2}
    }
 
    testing_probe {process.function(string).exported}
@@ -786,19 +738,9 @@ if {$exepath != ""} {
    stap_list_cmd "process.function(\"main\").exported" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.exported"
 
-   testing_probe {process(number).function(string).exported}
-
-   stap_list "process($valid_pid).function(\"main\").exported" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.exported"
-
    testing_probe {process.function(string).inline}
 
    stap_list_cmd "process.function(\"inln\").inline" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"inln@\[^:\]+:11\"\\\)\\\.inline"
-
-   testing_probe {process(number).function(string).inline}
-
-   stap_list "process($valid_pid).function(\"inln\").inline" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"inln@\[^:\]+:11\"\\\)\\\.inline"
 
    testing_probe {process.function(string).label(string)}
@@ -815,28 +757,9 @@ if {$exepath != ""} {
    stap_list_cmd "process.function(\"main@$test.c:33\").label(\"main_labe?\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
 
-   testing_probe {process(number).function(string).label(string)}
-
-   stap_list "process($valid_pid).function(\"main\").label(\"main_label\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
-
-   stap_list "process($valid_pid).function(\"main\").label(\"main_labe?\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
-
-   stap_list "process($valid_pid).function(\"main@$test.c:33\").label(\"main_label\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
-
-   stap_list "process($valid_pid).function(\"main@$test.c:33\").label(\"main_labe?\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
-
    testing_probe {process.function(string).return}
 
    stap_list_cmd "process.function(\"main\").return" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.return"
-
-   testing_probe {process(number).function(string).return}
-
-   stap_list "process($valid_pid).function(\"main\").return" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.return"
 
    if {$library_addr != 0} {
@@ -1009,11 +932,6 @@ if {$exepath != ""} {
    stap_list_cmd "process.mark(\"mark\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
 
-   testing_probe {process(number).mark(string)}
-
-   stap_list "process($valid_pid).mark(\"mark\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
-
    if {[plt_probes_p]} {
 
       testing_probe {process.plt}
@@ -1021,19 +939,9 @@ if {$exepath != ""} {
       stap_list_cmd "process.plt" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
 
-      testing_probe {process(number).plt}
-
-      stap_list "process($valid_pid).plt" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
-
       testing_probe {process.plt.statement(number)}
 
       stap_list_cmd "process.plt.statement(0x123)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
-
-      testing_probe {process(number).plt.statement(number)}
-
-      stap_list "process($valid_pid).plt.statement(0x123)" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
 
       testing_probe {process.plt(string)}
@@ -1047,17 +955,6 @@ if {$exepath != ""} {
       stap_list_cmd "process.plt(\"\\\[lp\\\]*\")" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\)" {-1}
 
-      testing_probe {process(number).plt(string)}
-
-      stap_list "process($valid_pid).plt(\"libfoo\")" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
-
-      stap_list "process($valid_pid).plt(\"libfo?\")" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
-
-      stap_list "process($valid_pid).plt(\"\\\[lp\\\]*\")" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\)" {-1}
-
       testing_probe {process.plt(string).statement(number)}
 
       stap_list_cmd "process.plt(\"libfoo\").statement(0x123)" \
@@ -1068,17 +965,6 @@ if {$exepath != ""} {
 
       stap_list_cmd "process.plt(\"\\\[lp\\\]*\").statement(0x123)" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
-
-      testing_probe {process(number).plt(string).statement(number)}
-
-      stap_list "process($valid_pid).plt(\"libfoo\").statement(0x123)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
-
-      stap_list "process($valid_pid).plt(\"libfo?\").statement(0x123)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
-
-      stap_list "process($valid_pid).plt(\"\\\[lp\\\]*\").statement(0x123)" \
-         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
    }
 
    testing_probe {process.provider(string).mark(string)}
@@ -1086,21 +972,11 @@ if {$exepath != ""} {
    stap_list_cmd "process.provider(\"main\").mark(\"mark\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.provider\\\(\"main\"\\\)\\\.mark\\\(\"mark\"\\\)"
 
-   testing_probe {process(number).provider(string).mark(string)}
-
-   stap_list "process($valid_pid).provider(\"main\").mark(\"mark\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.provider\\\(\"main\"\\\)\\\.mark\\\(\"mark\"\\\)"
-
    if {$process_addr != 0} {
 
       testing_probe {process.statement(number)}
 
       stap_list_cmd "process.statement(0x$process_addr)" \
-         "process(\"$exefullpath\").statement(0x$process_addr)"
-
-      testing_probe {process(number).statement(number)}
-
-      stap_list "process($valid_pid).statement(0x$process_addr)" \
          "process(\"$exefullpath\").statement(0x$process_addr)"
    }
 
@@ -1132,6 +1008,171 @@ if {$exepath != ""} {
 
    stap_list_cmd "process.statement(\"foo@$test.c:*\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+}
+
+testing_probe {process.syscall}
+
+stap_list {process.syscall}
+
+testing_probe {process.syscall.return}
+
+stap_list {process.syscall.return}
+
+testing_probe {process.thread.begin}
+
+stap_list {process.thread.begin}
+
+testing_probe {process.thread.end}
+
+stap_list {process.thread.end}
+
+# All the process(number).* probes. for number, need to use a valid pid 
+# instead of just 1, so that errors about permissions dont arise.
+testing_probe {process(number).begin}
+
+stap_list "process($valid_pid).begin"
+
+testing_probe {process(number).end}
+
+stap_list "process($valid_pid).end"
+
+if {$exepath != ""} {
+
+   if {$process_addr != 0} {
+
+      testing_probe {process(number).function(number)}
+
+      stap_list "process($valid_pid).function(0x$process_addr)" \
+          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)"
+
+      testing_probe {process(number).function(number).call}
+
+      stap_list "process($valid_pid).function(0x$process_addr).call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.call"
+
+      testing_probe {process(number).function(number).exported}
+
+      stap_list "process($valid_pid).function(0x$process_addr).exported" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.exported"
+
+      testing_probe {process(number).function(number).return}
+
+      stap_list "process($valid_pid).function(0x$process_addr).return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.return"
+   }
+
+   testing_probe {process(number).function(string)}
+
+   stap_list "process($valid_pid).function(\"foo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   testing_probe {process(number).function(string).call}
+
+   stap_list "process($valid_pid).function(\"foo\").call" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.call"
+
+   if {[callee_probes_p]} {
+
+      testing_probe {process(number).function(string).callee(string)}
+
+      stap_list "process($valid_pid).function(\"foo\").callee(\"bar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process(number).function(string).callees}
+
+      stap_list "process($valid_pid).function(\"foo\").callees" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process(number).function(string).callees(number)}
+
+      stap_list "process($valid_pid).function(\"foo\").callees(1)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      stap_list "process($valid_pid).function(\"foo\").callees(2)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2}
+   }
+
+   testing_probe {process(number).function(string).exported}
+
+   stap_list "process($valid_pid).function(\"main\").exported" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.exported"
+
+   testing_probe {process(number).function(string).inline}
+
+   stap_list "process($valid_pid).function(\"inln\").inline" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"inln@\[^:\]+:11\"\\\)\\\.inline"
+
+   testing_probe {process(number).function(string).label(string)}
+
+   stap_list "process($valid_pid).function(\"main\").label(\"main_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list "process($valid_pid).function(\"main\").label(\"main_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list "process($valid_pid).function(\"main@$test.c:33\").label(\"main_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list "process($valid_pid).function(\"main@$test.c:33\").label(\"main_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   testing_probe {process(number).function(string).return}
+
+   stap_list "process($valid_pid).function(\"main\").return" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.return"
+
+   testing_probe {process(number).mark(string)}
+
+   stap_list "process($valid_pid).mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {[plt_probes_p]} {
+
+      testing_probe {process(number).plt}
+
+      stap_list "process($valid_pid).plt" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
+
+      testing_probe {process(number).plt.statement(number)}
+
+      stap_list "process($valid_pid).plt.statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+
+      testing_probe {process(number).plt(string)}
+
+      stap_list "process($valid_pid).plt(\"libfoo\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+
+      stap_list "process($valid_pid).plt(\"libfo?\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+
+      stap_list "process($valid_pid).plt(\"\\\[lp\\\]*\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\)" {-1}
+
+      testing_probe {process(number).plt(string).statement(number)}
+
+      stap_list "process($valid_pid).plt(\"libfoo\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+
+      stap_list "process($valid_pid).plt(\"libfo?\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+
+      stap_list "process($valid_pid).plt(\"\\\[lp\\\]*\").statement(0x123)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(0x\[a-f0-9\]+\\\)"
+   }
+
+   testing_probe {process(number).provider(string).mark(string)}
+
+   stap_list "process($valid_pid).provider(\"main\").mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.provider\\\(\"main\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {$process_addr != 0} {
+
+      testing_probe {process(number).statement(number)}
+
+      stap_list "process($valid_pid).statement(0x$process_addr)" \
+         "process(\"$exefullpath\").statement(0x$process_addr)"
+   }
 
    testing_probe {process(number).statement(string)}
 
@@ -1162,32 +1203,6 @@ if {$exepath != ""} {
    stap_list "process($valid_pid).statement(\"foo@$test.c:*\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 }
-
-testing_probe {process.syscall}
-
-stap_list {process.syscall}
-
-testing_probe {process.syscall.return}
-
-stap_list {process.syscall.return}
-
-testing_probe {process.thread.begin}
-
-stap_list {process.thread.begin}
-
-testing_probe {process.thread.end}
-
-stap_list {process.thread.end}
-
-# need to use a valid pid instead of just 1, so that errors about permissions
-# dont arise.
-testing_probe {process(number).begin}
-
-stap_list "process($valid_pid).begin"
-
-testing_probe {process(number).end}
-
-stap_list "process($valid_pid).end"
 
 testing_probe {process(number).syscall}
 
