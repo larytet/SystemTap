@@ -1,0 +1,136 @@
+%{
+
+#include "mmv.c"
+
+%}
+
+global MMV_TYPE_NUMBER
+global MMV_TYPE_STRING
+
+global MMV_SEM_COUNTER
+global MMV_SEM_INSTANT
+global MMV_SEM_DISCRETE
+
+probe begin(-1)
+{
+	MMV_TYPE_NUMBER = %{ /* pure */ /* unprivileged */ MMV_TYPE_I64 %}
+	MMV_TYPE_STRING = %{ /* pure */ /* unprivileged */ MMV_TYPE_STRING %}
+
+	MMV_SEM_COUNTER = %{ /* pure */ /* unprivileged */ MMV_SEM_COUNTER %}
+	MMV_SEM_INSTANT = %{ /* pure */ /* unprivileged */ MMV_SEM_INSTANT %}
+	MMV_SEM_DISCRETE = %{ /* pure */ /* unprivileged */ MMV_SEM_DISCRETE %}
+}
+
+function mmv_add_instance:long(internal:long, external:string)
+%{
+	int32_t internal = (int32_t)STAP_ARG_internal;
+	char *external = (char *)(unsigned long)STAP_ARG_external;
+	STAP_RETVALUE = __stp_mmv_add_instance(internal, external);
+	if (STAP_RETVALUE < 0) {
+		CONTEXT->last_error = "No more instances available (increase STP_MAX_INSTANCES)";
+	}
+%}
+
+function mmv_add_indom:long(serial:long, shorttext:string, helptext:string)
+%{
+	uint32_t serial = (uint32_t)STAP_ARG_serial;
+	char *shorttext = (char *)(unsigned long)STAP_ARG_shorttext;
+	char *helptext = (char *)(unsigned long)STAP_ARG_helptext;
+	STAP_RETVALUE = __stp_mmv_add_indom(serial, shorttext, helptext);
+	if (STAP_RETVALUE == -1) {
+		CONTEXT->last_error = "No more indoms available (increase STP_MAX_INDOMS)";
+	}
+	else if (STAP_RETVALUE == -3) {
+		CONTEXT->last_error = "No more strings available";
+	}
+	else if (STAP_RETVALUE < 0) {
+		CONTEXT->last_error = "Unknown mmv_add_indom error";
+	}
+%}
+
+function mmv_add_indom_instance:long(indom:long, instance:long)
+%{
+	int indom = (int)STAP_ARG_indom;
+	int instance = (int)STAP_ARG_instance;
+	STAP_RETVALUE = __stp_mmv_add_indom_instance(indom, instance);
+	if (STAP_RETVALUE == -1) {
+		CONTEXT->last_error = "Invalid indom or instance identifier";
+	}
+	else if (STAP_RETVALUE < 0) {
+		CONTEXT->last_error = "Unknown mmv_add_indom_instance error";
+	}
+%}
+
+function mmv_units:long(dimSpace:long, dimTime:long, dimCount:long,
+			scaleSpace:long, scaleTime:long, scaleCount:long)
+%{
+	mmv_units_t units;
+	units.dimSpace = STAP_ARG_dimSpace;
+	units.dimTime = STAP_ARG_dimTime;
+	units.dimCount = STAP_ARG_dimCount;
+	units.scaleSpace = STAP_ARG_scaleSpace;
+	units.scaleTime = STAP_ARG_scaleTime;
+	units.scaleCount = STAP_ARG_scaleCount;
+	STAP_RETVALUE = *(uint32_t *)&units;
+%}
+
+function mmv_add_metric:long(name:string, item:long, type:long,
+			     semantics:long, units:long, indom_serial:long,
+			     shorttext:string, helptext:string)
+%{
+	char *name = (char *)(unsigned long)STAP_ARG_name;
+	uint32_t item = (uint32_t)STAP_ARG_item;
+	mmv_metric_type_t type = (mmv_metric_type_t)STAP_ARG_type;
+	mmv_metric_sem_t semantics = (mmv_metric_sem_t)STAP_ARG_semantics;
+	mmv_units_t units = *(mmv_units_t *)&STAP_ARG_units;
+	uint32_t indom_serial = (uint32_t)STAP_ARG_indom_serial;
+	char *shorttext = (char *)(unsigned long)STAP_ARG_shorttext;
+	char *helptext = (char *)(unsigned long)STAP_ARG_helptext;
+	STAP_RETVALUE = __stp_mmv_add_metric(name, item, type, semantics,
+					     units, indom_serial, shorttext,
+					     helptext);
+	if (STAP_RETVALUE < 0) {
+		CONTEXT->last_error = "No more metrics available (increase STP_MAX_METRICS)";
+	}
+%}
+
+function mmv_stats_start:long(cluster:long, flags:long)
+%{
+	int32_t cluster = (int32_t)STAP_ARG_cluster;
+	int32_t flags = (int32_t)STAP_ARG_flags;
+	STAP_RETVALUE = __stp_mmv_stats_init(cluster, flags);
+%}
+
+function mmv_stats_stop:long()
+%{
+	// FIXME: Hmm, what to do here? The real mmv_stats_stop()
+	// function removes the file and unmaps the memory.
+	STAP_RETVALUE = __stp_mmv_stats_stop();
+%}
+
+function mmv_lookup_value:long(metric:long, instance:long)
+%{
+	STAP_RETVALUE = __stp_mmv_lookup_value((int)STAP_ARG_metric,
+					       (int)STAP_ARG_instance);
+	if (STAP_RETVALUE < 0) {
+		CONTEXT->last_error = "Couldn't find value";
+	}
+%}
+
+function mmv_set_value:long(v:long, value:long)
+%{
+	STAP_RETVALUE = __stp_mmv_set_value((int)STAP_ARG_v, STAP_ARG_value);
+	if (STAP_RETVALUE < 0) {
+		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			  "Couldn't set value: %d", (int)STAP_RETVALUE);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+	}
+%}
+
+function mmv_inc_value:long(v:long, inc:long)
+%{
+	STAP_RETVALUE = __stp_mmv_inc_value((int)STAP_ARG_v, STAP_ARG_inc);
+	if (STAP_RETVALUE < 0) {
+		CONTEXT->last_error = "Couldn't increment value";
+	}
+%}
