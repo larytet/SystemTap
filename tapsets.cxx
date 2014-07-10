@@ -5257,6 +5257,7 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   match_node* uprobes[] = {
       root->bind(TOK_PROCESS),
       root->bind_str(TOK_PROCESS),
+      root->bind_num(TOK_PROCESS),
       root->bind(TOK_PROCESS)->bind_str(TOK_LIBRARY),
       root->bind_str(TOK_PROCESS)->bind_str(TOK_LIBRARY),
   };
@@ -7535,6 +7536,7 @@ dwarf_builder::build(systemtap_session & sess,
   literal_map_t filled_parameters = parameters;
 
   string module_name;
+  int64_t proc_pid;
   if (has_null_param (parameters, TOK_KERNEL))
     {
       dw = get_kern_dw(sess, "kernel");
@@ -7549,9 +7551,10 @@ dwarf_builder::build(systemtap_session & sess,
       // elfutils module listing.
       dw = get_kern_dw(sess, module_name);
     }
-  else if (get_param (parameters, TOK_PROCESS, module_name) || has_null_param(parameters, TOK_PROCESS))
+  else if (has_param(filled_parameters, TOK_PROCESS))
       {
-      module_name = sess.sysroot + module_name;
+        // NB: module_name is not yet set!
+
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
           string file;
@@ -7573,10 +7576,45 @@ dwarf_builder::build(systemtap_session & sess,
                                    " a -c COMMAND or -x PID [man stapprobes]"));
           module_name = sess.sysroot + file;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
-          // in the case of TOK_MARK we need to modify locations as well
+          // in the case of TOK_MARK we need to modify locations as well   // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
-            location->components[0]->arg == 0)
+             location->components[0]->arg == 0)
             location->components[0]->arg = new literal_string(module_name);
+        }
+
+      // NB: must specifically handle the classical ("string") form here, to make sure
+      // we get the module_name out.
+      else if (get_param (parameters, TOK_PROCESS, module_name))
+        {
+          module_name = sess.sysroot + module_name;
+          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+        }
+
+      else if (get_param (parameters, TOK_PROCESS, proc_pid))
+        {
+          // check that the pid given corresponds to a running process
+          if (proc_pid < 1 || kill(proc_pid, 0) == -1)
+              switch (errno) // ignore EINVAL: invalid signal
+              {
+                case ESRCH:
+                  throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+                case EPERM:
+                  throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+                default:
+                  throw SEMANTIC_ERROR(_("invalid pid"));
+              }
+
+          string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
+          module_name = sess.sysroot + pid_path;
+          // change it so it is mapped by the executable path and not the PID
+          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+          // in the case of TOK_MARK we need to modify locations as well  // XXX why?
+          if(location->components[0]->functor==TOK_PROCESS &&
+             location->components[0]->arg == 0)
+            location->components[0]->arg = new literal_string(module_name);
+          // XXX: the above probably interferes with passing proc_pid to the new 
+          // uprobe_derived_probe p->pid, so the task-finder can associate this
+          // probe with only the given PID.
         }
 
       // PR6456  process("/bin/*")  glob handling
