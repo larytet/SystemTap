@@ -362,6 +362,10 @@ process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
 process("PATH").function("foo").callee("bar")
 process("PATH").function("foo").callees(DEPTH)
+process(PID).function("NAME")
+process(PID).function("myfun").label("foo")
+process(PID).plt("NAME)
+process(PID).statement("*@FILE.c:123")
 process(PID).statement(ADDRESS).absolute
 .ESAMPLE
 (See the USER-SPACE section below for more information on the process
@@ -772,6 +776,8 @@ probed:
 .SAMPLE
 process("PATH").mark("LABEL")
 process("PATH").provider("PROVIDER").mark("LABEL")
+process(PID).mark("LABEL")
+process(PID).provider("PROVIDER").mark("LABEL")
 .ESAMPLE
 .PP
 A
@@ -806,6 +812,9 @@ process("PATH").library("PATH").statement("*@FILE.c:123")
 process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
 process("PATH").function("foo").callee("bar")
+process(PID).function("NAME")
+process(PID).statement("*@FILE.c:123")
+process(PID).plt("NAME")
 .ESAMPLE
 
 .PP
