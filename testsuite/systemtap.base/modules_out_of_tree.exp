@@ -31,13 +31,11 @@ write_to_file "stap_$test.c" {
 
    MODULE_LICENSE("GPL");
 
-   static int __init stap_TEST_init(void)
-   {
+   static int __init stap_TEST_init(void) {
       return 0;
    }
 
-   static void __exit stap_TEST_cleanup(void)
-   {
+   static void __exit stap_TEST_cleanup(void) {
       return;
    }
 
@@ -79,7 +77,7 @@ if {[catch {exec stap -l $pp} out] || ![regexp $reg $out]} {
 # OK now let's actually go for a run
 set subtest "probing"
 
-if {![installtest_p] || !$am_root} {
+if {![installtest_p] || !$am_root || ![module_refresh_p]} {
    untested "$test ($subtest)"
    test_cleanup
    return
