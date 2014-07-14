@@ -65,7 +65,7 @@
 
 %define dracutlibdir %{_prefix}/lib/dracut
 %define dracutstap %{dracutlibdir}/modules.d/99stap
-+%{!?_licensedir:%global license %%doc}
+%{!?_licensedir:%global license %%doc}
 
 Name: systemtap
 Version: 2.6
