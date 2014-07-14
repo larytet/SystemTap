@@ -510,59 +510,6 @@ private:
   void saveargs(dwarf_query& q, Dwarf_Die* scope_die, Dwarf_Addr dwfl_addr);
 };
 
-
-struct uprobe_derived_probe: public dwarf_derived_probe
-{
-  int pid; // 0 => unrestricted
-
-  uprobe_derived_probe (const string& function,
-                        const string& filename,
-                        int line,
-                        const string& module,
-                        const string& section,
-                        Dwarf_Addr dwfl_addr,
-                        Dwarf_Addr addr,
-                        dwarf_query & q,
-                        Dwarf_Die* scope_die):
-    dwarf_derived_probe(function, filename, line, module, section,
-                        dwfl_addr, addr, q, scope_die), pid(0)
-  {}
-
-  // alternate constructor for process(PID).statement(ADDR).absolute
-  uprobe_derived_probe (probe *base,
-                        probe_point *location,
-                        int pid,
-                        Dwarf_Addr addr,
-                        bool has_return):
-    dwarf_derived_probe(base, location, addr, has_return), pid(pid)
-  {}
-
-  void join_group (systemtap_session& s);
-
-  void emit_privilege_assertion (translator_output*);
-  void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged_process_owner (o); }
-  void getargs(std::list<std::string> &arg_set) const;
-  void saveargs(int nargs);
-private:
-  list<string> args;
-};
-
-struct dwarf_derived_probe_group: public derived_probe_group
-{
-private:
-  multimap<string,dwarf_derived_probe*> probes_by_module;
-  typedef multimap<string,dwarf_derived_probe*>::iterator p_b_m_iterator;
-
-public:
-  dwarf_derived_probe_group() {}
-  void enroll (dwarf_derived_probe* probe);
-  void emit_module_decls (systemtap_session& s);
-  void emit_module_init (systemtap_session& s);
-  void emit_module_refresh (systemtap_session& s);
-  void emit_module_exit (systemtap_session& s);
-};
-
-
 // Helper struct to thread through the dwfl callbacks.
 struct base_query
 {
@@ -602,109 +549,10 @@ struct base_query
   string module_val; // has_kernel => module_val = "kernel"
   string path;	     // executable path if module is a .so
   string plt_val;    // has_plt => plt wildcard
+  int64_t pid;
 
   virtual void handle_query_module() = 0;
 };
-
-
-base_query::base_query(dwflpp & dw, literal_map_t const & params):
-  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false)
-{
-  has_kernel = has_null_param (params, TOK_KERNEL);
-  if (has_kernel)
-    module_val = "kernel";
-
-  has_module = get_string_param (params, TOK_MODULE, module_val);
-  if (has_module)
-    has_process = false;
-  else
-    {
-      string library_name;
-      long statement_num_val;
-      has_process = get_string_param(params, TOK_PROCESS, module_val);
-      has_library = get_string_param (params, TOK_LIBRARY, library_name);
-      if ((has_plt = has_null_param (params, TOK_PLT)))
-        plt_val = "*";
-      else has_plt = get_string_param (params, TOK_PLT, plt_val);
-      has_statement = get_number_param(params, TOK_STATEMENT, statement_num_val);
-
-      if (has_process)
-        {
-          module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
-          if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
-            throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
-                                    module_val.c_str()));
-        }
-
-      // Library probe? Let's target that instead if it is fully resolved (such
-      // as what query_one_library() would have done for us). Otherwise, we
-      // resort to iterate_over_libraries().
-      if (has_library && is_fully_resolved(library_name, sess.sysroot, sess.sysenv,
-                                           "LD_LIBRARY_PATH"))
-        {
-          path = path_remove_sysroot(sess, module_val);
-          module_val = library_name;
-        }
-    }
-
-  assert (has_kernel || has_process || has_module);
-}
-
-base_query::base_query(dwflpp & dw, const string & module_val)
-  : sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
-    module_val(module_val)
-{
-  // NB: This uses '/' to distinguish between kernel modules and userspace,
-  // which means that userspace modules won't get any PATH searching.
-  if (module_val.find('/') == string::npos)
-    {
-      has_kernel = (module_val == TOK_KERNEL);
-      has_module = !has_kernel;
-      has_process = false;
-    }
-  else
-    {
-      has_kernel = has_module = false;
-      has_process = true;
-    }
-}
-
-bool
-base_query::has_null_param(literal_map_t const & params,
-			   string const & k)
-{
-  return derived_probe_builder::has_null_param(params, k);
-}
-
-
-bool
-base_query::get_string_param(literal_map_t const & params,
-			     string const & k, string & v)
-{
-  return derived_probe_builder::get_param (params, k, v);
-}
-
-
-bool
-base_query::get_number_param(literal_map_t const & params,
-			     string const & k, long & v)
-{
-  int64_t value;
-  bool present = derived_probe_builder::get_param (params, k, value);
-  v = (long) value;
-  return present;
-}
-
-
-bool
-base_query::get_number_param(literal_map_t const & params,
-			     string const & k, Dwarf_Addr & v)
-{
-  int64_t value;
-  bool present = derived_probe_builder::get_param (params, k, value);
-  v = (Dwarf_Addr) value;
-  return present;
-}
 
 struct dwarf_query : public base_query
 {
@@ -834,6 +682,173 @@ struct dwarf_query : public base_query
                              int final_line);
 };
 
+struct uprobe_derived_probe: public dwarf_derived_probe
+{
+  int pid; // 0 => unrestricted
+
+  uprobe_derived_probe (const string& function,
+                        const string& filename,
+                        int line,
+                        const string& module,
+                        const string& section,
+                        Dwarf_Addr dwfl_addr,
+                        Dwarf_Addr addr,
+                        dwarf_query & q,
+                        Dwarf_Die* scope_die):
+    dwarf_derived_probe(function, filename, line, module, section,
+                        dwfl_addr, addr, q, scope_die), pid(q.pid)
+  {}
+
+  // alternate constructor for process(PID).statement(ADDR).absolute
+  uprobe_derived_probe (probe *base,
+                        probe_point *location,
+                        int pid,
+                        Dwarf_Addr addr,
+                        bool has_return):
+    dwarf_derived_probe(base, location, addr, has_return), pid(pid)
+  {}
+
+  void join_group (systemtap_session& s);
+
+  void emit_privilege_assertion (translator_output*);
+  void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged_process_owner (o); }
+  void getargs(std::list<std::string> &arg_set) const;
+  void saveargs(int nargs);
+private:
+  list<string> args;
+};
+
+struct dwarf_derived_probe_group: public derived_probe_group
+{
+private:
+  multimap<string,dwarf_derived_probe*> probes_by_module;
+  typedef multimap<string,dwarf_derived_probe*>::iterator p_b_m_iterator;
+
+public:
+  dwarf_derived_probe_group() {}
+  void enroll (dwarf_derived_probe* probe);
+  void emit_module_decls (systemtap_session& s);
+  void emit_module_init (systemtap_session& s);
+  void emit_module_refresh (systemtap_session& s);
+  void emit_module_exit (systemtap_session& s);
+};
+
+base_query::base_query(dwflpp & dw, literal_map_t const & params):
+  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false)
+{
+  has_kernel = has_null_param (params, TOK_KERNEL);
+  if (has_kernel)
+    module_val = "kernel";
+
+  has_module = get_string_param (params, TOK_MODULE, module_val);
+  if (has_module)
+    has_process = false;
+  else
+    {
+      string library_name;
+      long statement_num_val;
+      has_process =  derived_probe_builder::has_param(params, TOK_PROCESS);
+      has_library = get_string_param (params, TOK_LIBRARY, library_name);
+      if ((has_plt = has_null_param (params, TOK_PLT)))
+        plt_val = "*";
+      else has_plt = get_string_param (params, TOK_PLT, plt_val);
+      has_statement = get_number_param(params, TOK_STATEMENT, statement_num_val);
+
+      if (has_process)
+        {
+          if (get_number_param(params, TOK_PROCESS, pid))
+            {
+              // check that the pid given corresponds to a running process
+              if (pid < 1 || kill(pid, 0) == -1)
+                  switch (errno) // ignore EINVAL: invalid signal
+                  {
+                    case ESRCH:
+                      throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+                    case EPERM:
+                      throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+                    default:
+                      throw SEMANTIC_ERROR(_("invalid pid"));
+                  }
+              string pid_path = string("/proc/") + lex_cast(pid) + "/exe";
+              module_val = sess.sysroot + pid_path;
+            }
+          else
+              get_string_param(params, TOK_PROCESS, module_val);
+          module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
+          if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
+            throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
+                                    module_val.c_str()));
+        }
+
+      // Library probe? Let's target that instead if it is fully resolved (such
+      // as what query_one_library() would have done for us). Otherwise, we
+      // resort to iterate_over_libraries().
+      if (has_library && is_fully_resolved(library_name, sess.sysroot, sess.sysenv,
+                                           "LD_LIBRARY_PATH"))
+        {
+          path = path_remove_sysroot(sess, module_val);
+          module_val = library_name;
+        }
+    }
+
+  assert (has_kernel || has_process || has_module);
+}
+
+base_query::base_query(dwflpp & dw, const string & module_val)
+  : sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
+    module_val(module_val)
+{
+  // NB: This uses '/' to distinguish between kernel modules and userspace,
+  // which means that userspace modules won't get any PATH searching.
+  if (module_val.find('/') == string::npos)
+    {
+      has_kernel = (module_val == TOK_KERNEL);
+      has_module = !has_kernel;
+      has_process = false;
+    }
+  else
+    {
+      has_kernel = has_module = false;
+      has_process = true;
+    }
+}
+
+bool
+base_query::has_null_param(literal_map_t const & params,
+			   string const & k)
+{
+  return derived_probe_builder::has_null_param(params, k);
+}
+
+
+bool
+base_query::get_string_param(literal_map_t const & params,
+			     string const & k, string & v)
+{
+  return derived_probe_builder::get_param (params, k, v);
+}
+
+
+bool
+base_query::get_number_param(literal_map_t const & params,
+			     string const & k, long & v)
+{
+  int64_t value;
+  bool present = derived_probe_builder::get_param (params, k, value);
+  v = (long) value;
+  return present;
+}
+
+
+bool
+base_query::get_number_param(literal_map_t const & params,
+			     string const & k, Dwarf_Addr & v)
+{
+  int64_t value;
+  bool present = derived_probe_builder::get_param (params, k, value);
+  v = (Dwarf_Addr) value;
+  return present;
+}
 
 static void delete_session_module_cache (systemtap_session& s); // forward decl
 
@@ -7606,8 +7621,7 @@ dwarf_builder::build(systemtap_session & sess,
 
           string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
           module_name = sess.sysroot + pid_path;
-          // change it so it is mapped by the executable path and not the PID
-          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+
           // in the case of TOK_MARK we need to modify locations as well  // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
              location->components[0]->arg == 0)
