@@ -549,7 +549,7 @@ struct base_query
   string module_val; // has_kernel => module_val = "kernel"
   string path;	     // executable path if module is a .so
   string plt_val;    // has_plt => plt wildcard
-  int64_t pid;
+  int64_t pid_val;
 
   virtual void handle_query_module() = 0;
 };
@@ -696,7 +696,7 @@ struct uprobe_derived_probe: public dwarf_derived_probe
                         dwarf_query & q,
                         Dwarf_Die* scope_die):
     dwarf_derived_probe(function, filename, line, module, section,
-                        dwfl_addr, addr, q, scope_die), pid(q.pid)
+                        dwfl_addr, addr, q, scope_die), pid(q.pid_val)
   {}
 
   // alternate constructor for process(PID).statement(ADDR).absolute
@@ -734,7 +734,8 @@ public:
 };
 
 base_query::base_query(dwflpp & dw, literal_map_t const & params):
-  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false)
+  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
+  pid_val(0)
 {
   has_kernel = has_null_param (params, TOK_KERNEL);
   if (has_kernel)
@@ -756,10 +757,10 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
 
       if (has_process)
         {
-          if (get_number_param(params, TOK_PROCESS, pid))
+          if (get_number_param(params, TOK_PROCESS, pid_val))
             {
               // check that the pid given corresponds to a running process
-              if (pid < 1 || kill(pid, 0) == -1)
+              if (pid_val < 1 || kill(pid_val, 0) == -1)
                   switch (errno) // ignore EINVAL: invalid signal
                   {
                     case ESRCH:
@@ -769,11 +770,15 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
                     default:
                       throw SEMANTIC_ERROR(_("invalid pid"));
                   }
-              string pid_path = string("/proc/") + lex_cast(pid) + "/exe";
+              string pid_path = string("/proc/") + lex_cast(pid_val) + "/exe";
               module_val = sess.sysroot + pid_path;
             }
-          else
+          else 
+            {
+              // reset the pid_val in case anything weird got written into it
+              pid_val = 0;
               get_string_param(params, TOK_PROCESS, module_val);
+            }
           module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
           if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
             throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
@@ -796,7 +801,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
 
 base_query::base_query(dwflpp & dw, const string & module_val)
   : sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
-    module_val(module_val)
+    module_val(module_val), pid_val(0)
 {
   // NB: This uses '/' to distinguish between kernel modules and userspace,
   // which means that userspace modules won't get any PATH searching.
