@@ -2225,7 +2225,9 @@ c_unparser::emit_function (functiondecl* v)
   max_action_info mai (*session);
   v->body->visit (&mai);
 
-  if (mai.statement_count < mai.max_statement_count && !session->unoptimized) // this is a finite-statement-count function
+  if (mai.statement_count < mai.max_statement_count
+      && !session->suppress_time_limits
+      && !session->unoptimized) // this is a finite-statement-count function
     {
       o->newline() << "if (c->actionremaining < " << mai.statement_count
                    << ") { c->last_error = " << STAP_T_04 << "goto out; }";
@@ -2398,7 +2400,9 @@ c_unparser::emit_probe (derived_probe* v)
       if (session->verbose > 1)
         clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
 
-      if (mai.statement_count < mai.max_statement_count && !session->unoptimized) // this is a finite-statement-count probe
+      if (mai.statement_count < mai.max_statement_count
+          && !session->suppress_time_limits
+          && !session->unoptimized) // this is a finite-statement-count probe
         {
           o->newline() << "if (c->actionremaining < " << mai.statement_count 
                        << ") { c->last_error = " << STAP_T_04 << " goto out; }";
