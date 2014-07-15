@@ -2562,7 +2562,10 @@ c_unparser::emit_probe_condition_initialize(derived_probe* v)
   if (!cond) // no condition --> always enabled
     o->line() << "1";
   else
-    cond->visit(this);
+    {
+      o->line() << "!!"; // turn general integer into boolean 0/1
+      cond->visit(this);
+    }
   o->line() << ";";
 }
 
@@ -2579,12 +2582,20 @@ c_unparser::emit_probe_condition_update(derived_probe* v)
 
   string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
 
+  // Concurrency note: we can be assured of being in the only critical
+  // section that can modify one of the globals implicated in the
+  // conditional of another probe (since we modify it in our probe
+  // handler, so must have exclusive-locked it).  So, we don't have to
+  // be too paranoid about setting the other probe's cond_enabled
+  // field: no one else could be running who could set/clear it.
+
   o->newline() << "if (" << cond_enabled << " != ";
+  o->line() << "!!"; // NB: turn general integer into boolean 1 or 0
   v->sole_location()->condition->visit(this);
   o->line() << ") {";
-  o->newline(1) << cond_enabled << " = !" << cond_enabled << ";";
+  o->newline(1) << cond_enabled << " ^= 1;"; // toggle it 
   if (v->on_the_fly_supported(*session)) // don't bother refreshing if on-the-fly not supported
-    o->newline() << "need_module_refresh = 1;";
+    o->newline() << "need_module_refresh = 1;"; // XXX: still, use atomic_set here
   o->newline(-1) << "}";
 }
 
@@ -7257,7 +7268,7 @@ translate_pass (systemtap_session& s)
       s.op->newline(1) << "const size_t index;";
       s.op->newline() << "void (* const ph) (struct context*);";
       s.op->newline() << "#ifdef STP_ON_THE_FLY";
-      s.op->newline() << "unsigned cond_enabled;";
+      s.op->newline() << "unsigned cond_enabled:1;"; // just one bit required
       s.op->newline() << "#endif";
       s.op->newline() << "#if defined(STP_TIMING) || defined(STP_ALIBI)";
       CALCIT(location);
