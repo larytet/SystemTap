@@ -145,6 +145,25 @@ the <systemtap@sourceware.org> mailing list.
   or kernel versions.  Luckily, many code mistakes show up easily in
   the pass-4 tests.
 
+- i18n
+
+  We use the zanata [1] system for managing translations of runtime
+  strings.  If interested, create yourself a zanata account, and help
+  translate online!  In addition, you can ship systemtap sources
+  to/from zanata by installing the zanata-cli and getting a
+  $HOME/.config/zanata.ini file:
+
+  To send gettext sources files to zanata:
+  % zanata-cli push -s po -t po
+  % zanata-cli push --push-type trans -s po -t po
+
+  To receive any contributed translations:
+  % zanata-cli pull -s po -t po
+
+  [1] https://translate.zanata.org/zanata/iteration/view/systemtap/master
+  [2] http://zanata.org/help/cli/cli-push
+  [3] http://zanata.org/help/cli/cli-pull
+
 - meta
 
   Proposed changes to these guidelines should be discussed on the

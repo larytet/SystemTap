@@ -367,6 +367,9 @@ update-po:
 	| grep -v staprun/config.h \
 	| sort > $(srcdir)/po/POTFILES.in
 	$(MAKE) -C po update-po
+	@echo
+	@echo
+	@echo push to / pull from zanata if appropriate and repeat
 
 
 # Any extra flags, such as:
