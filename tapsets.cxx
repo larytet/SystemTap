@@ -581,6 +581,8 @@ struct base_query
   static bool get_number_param(literal_map_t const & params,
 			       string const & k, long & v);
   static bool get_number_param(literal_map_t const & params,
+			       string const & k, long long & v);
+  static bool get_number_param(literal_map_t const & params,
 			       string const & k, Dwarf_Addr & v);
   static void query_library_callback (base_query *me, const char *data);
   static void query_plt_callback (base_query *me, const char *link, size_t addr);
@@ -707,6 +709,17 @@ base_query::get_string_param(literal_map_t const & params,
 bool
 base_query::get_number_param(literal_map_t const & params,
 			     string const & k, long & v)
+{
+  int64_t value;
+  bool present = derived_probe_builder::get_param (params, k, value);
+  v = (long) value;
+  return present;
+}
+
+
+bool
+base_query::get_number_param(literal_map_t const & params,
+			     string const & k, long long & v)
 {
   int64_t value;
   bool present = derived_probe_builder::get_param (params, k, value);
