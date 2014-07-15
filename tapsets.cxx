@@ -523,10 +523,7 @@ struct uprobe_derived_probe: public dwarf_derived_probe
                         Dwarf_Addr dwfl_addr,
                         Dwarf_Addr addr,
                         dwarf_query & q,
-                        Dwarf_Die* scope_die):
-    dwarf_derived_probe(function, filename, line, module, section,
-                        dwfl_addr, addr, q, scope_die), pid(q.pid_val)
-  {}
+                        Dwarf_Die* scope_die);
 
   // alternate constructor for process(PID).statement(ADDR).absolute
   uprobe_derived_probe (probe *base,
@@ -855,6 +852,21 @@ struct dwarf_query : public base_query
                              const char* final_file,
                              int final_line);
 };
+
+
+uprobe_derived_probe::uprobe_derived_probe (const string& function,
+                        const string& filename,
+                        int line,
+                        const string& module,
+                        const string& section,
+                        Dwarf_Addr dwfl_addr,
+                        Dwarf_Addr addr,
+                        dwarf_query & q,
+                        Dwarf_Die* scope_die):
+    dwarf_derived_probe(function, filename, line, module, section,
+                        dwfl_addr, addr, q, scope_die), pid(q.pid_val)
+  {}
+
 
 static void delete_session_module_cache (systemtap_session& s); // forward decl
 
