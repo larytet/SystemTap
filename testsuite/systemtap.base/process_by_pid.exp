@@ -1,0 +1,48 @@
+set test_name "process_by_pid"
+
+if {! [installtest_p]} {
+    untested $test_name
+    return
+}
+
+# building the test program
+set compile_result [target_compile $srcdir/$subdir/$test_name.c ./$test_name executable "additional_flags=-g [sdt_includes]"]
+
+proc sleep_twenty_secs {} {
+    wait_n_secs 20;
+    return 0;
+}
+
+# expected output
+set output_string "pass"
+
+# running multiple instances of the test program
+# the idea behind this is that in the stap script, it will check the pid it is
+# probing against the one that we told it to probe. if all goes well, then we
+# know that process(PID).* probes will probe processes based on their PID and
+# not the program it is runnning.
+set pid1 [exec ./$test_name &]
+set pid2 [exec ./$test_name &]
+set pid3 [exec ./$test_name &]
+
+# running the script
+foreach runtime [get_runtime_list] {
+    verbose -log "starting the stap script"
+    if {$runtime != ""} {
+        set cur_test_name "$test_name ($runtime)"
+        stap_run $cur_test_name sleep_twenty_secs $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp $pid2
+    } elseif {[uprobes_p]} {
+        stap_run $test_name sleep_twenty_secs $output_string $srcdir/$subdir/$test_name.stp $pid2        
+    } else {
+        untested $test_name
+        continue
+    }
+}
+
+# kill all the instances of the test program.
+kill -INT $pid1 2
+kill -INT $pid2 2
+kill -INT $pid3 2
+
+# remove the executable
+exec rm -f ./$test_name
