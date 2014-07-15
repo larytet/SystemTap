@@ -10,11 +10,9 @@ probe begin {
 }
 
 probe process($1).function("*") {
-  if ($1 != pid()) {
+  if ($1 != pid())
     error("failed in process(PID).function(\"*\")");
-  } else if (!probed["function"]){
-    probed["function"] ++;
-  }
+  probed["function"] ++;
 }
 
 probe process($1).function("main").label("marker_here") ? {
@@ -26,35 +24,27 @@ probe process($1).function("main").label("marker_here") ? {
 }
 
 probe process($1).statement("*") {
-  if ($1 != pid()) {
+  if ($1 != pid())
     error("failed in process(PID).statement\"*\")");
-  } else if (!probed["statement"]){
-    probed["statement"]++;
-  }
+  probed["statement"]++;
 }
 
 probe process($1).plt {
-  if ($1 != pid()) {
+  if ($1 != pid())
     error("failed in process(PID).plt");
-  } else if (!probed["plt"]){
-    probed["plt"] ++;
-  }
+  probed["plt"] ++;
 }
 
 probe process($1).provider("*").mark("*") {
-  if ($1 != pid()) {
+  if ($1 != pid())
     error("failed in process(PID).provider(\"*\").mark(\"*\")");
-  } else if (!probed["provider"]){
-    probed["provider"] ++;
-  }
+  probed["provider"] ++;
 }
 
 probe process($1).mark("*") {
-  if ($1 != pid()) {
+  if ($1 != pid())
     error("failed in process(PID).mark(\"*\")");
-  } else if (!probed["mark"]){
-    probed["mark"] ++;
-  }
+  probed["mark"] ++;
 }
 
 probe end {
