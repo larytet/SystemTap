@@ -1462,7 +1462,6 @@ semantic_pass_conditions (systemtap_session & sess)
     }
 
   // do a second pass to collect affected probes
-  bool on_the_fly_supported = false;
   for (unsigned i = 0; i < sess.probes.size(); ++i)
     {
       derived_probe *p = sess.probes[i];
@@ -1484,28 +1483,10 @@ semantic_pass_conditions (systemtap_session & sess)
                         clog << "probe " << i << " can affect condition of "
                                 "probe " << j << endl;
                     }
-                  if (!on_the_fly_supported
-                      && sess.probes[j]->on_the_fly_supported(sess))
-                    {
-                      on_the_fly_supported = true;
-                      if (sess.verbose > 2)
-                        clog << "turning on STP_ON_THE_FLY for probe "
-                             << j << endl;
-                    }
                 }
             }
         }
     }
-
-  // Emit STP_ON_THE_FLY macro only if at least one of the affected probe points
-  // supports on-the-fly operations.
-  if (on_the_fly_supported && !sess.runtime_usermode_p())
-    sess.c_macros.push_back("STP_ON_THE_FLY");
-
-  // As an extra precaution, explicitly disable STP_ON_THE_FLY if in usermode in
-  // case user provided -D STP_ON_THE_FLY.
-  else if (sess.runtime_usermode_p())
-    sess.c_macros.push_back("STP_ON_THE_FLY_DISABLED");
 
   return sess.num_errors();
 }

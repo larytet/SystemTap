@@ -41,7 +41,7 @@ struct stap_dwarf_probe {
    const unsigned maxactive_p:1;
    const unsigned optional_p:1;
    unsigned registered_p:1;
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    unsigned enabled_p:1;
 #endif
    const unsigned short maxactive_val;
@@ -109,7 +109,7 @@ stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp,
    kp->dummy.pre_handler = NULL;
 #endif
 
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    if (!sdp->probe->cond_enabled) {
       kp->u.kp.flags |= KPROBE_FLAG_DISABLED;
       dbug_otf("registering as disabled (kprobe) pidx %zu\n",
@@ -140,7 +140,7 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp,
 
    sdp->registered_p = (ret ? 0 : 1);
 
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    sdp->enabled_p = sdp->registered_p ? !kprobe_disabled(& kp->u.kp) : 0;
 #endif
 
@@ -189,7 +189,7 @@ stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp,
    kp->dummy.pre_handler = NULL;
 #endif
 
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    if (!sdp->probe->cond_enabled) {
       kp->u.krp.kp.flags |= KPROBE_FLAG_DISABLED;
       dbug_otf("registering as disabled (kretprobe) pidx %zu\n",
@@ -220,7 +220,7 @@ stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp,
 
    sdp->registered_p = (ret ? 0 : 1);
 
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    sdp->enabled_p = sdp->registered_p ? !kprobe_disabled(& kp->u.krp.kp) : 0;
 #endif
 
@@ -307,7 +307,7 @@ stapkp_unregister_probe(struct stap_dwarf_probe *sdp,
    memset(kp, 0, sizeof(struct stap_dwarf_kprobe));
 
    sdp->registered_p = 0;
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    sdp->enabled_p = 0;
 #endif
 
@@ -390,7 +390,7 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
          continue;
 
       sdp->registered_p = 0;
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
       sdp->enabled_p = 0;
 #endif
 
@@ -430,7 +430,7 @@ stapkp_unregister_probes(struct stap_dwarf_probe *probes,
 }
 
 
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
 
 static int
 stapkp_should_enable_probe(struct stap_dwarf_probe *sdp)
@@ -509,7 +509,7 @@ stapkp_refresh_probe(struct stap_dwarf_probe *sdp,
    return 0;
 }
 
-#endif /* STP_ON_THE_FLY && VERSION >= 2.6.30 */
+#endif /* LINUX_VERSION_CODE >= 2.6.30 */
 
 
 static int
@@ -569,7 +569,7 @@ stapkp_refresh(const char *modname,
          else if (sdp->registered_p == 1 && addr == 0)
             stapkp_unregister_probe(sdp, kp);
 
-#if defined(STP_ON_THE_FLY) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
       } else if (stapkp_should_enable_probe(sdp)
               || stapkp_should_disable_probe(sdp)) {
          stapkp_refresh_probe(sdp, kp);

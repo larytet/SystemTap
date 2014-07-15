@@ -382,13 +382,11 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
                             if ((c->perf_counters)[i] > -1)
 			    _stp_perf_read_init ((c->perf_counters)[i], task);
 			}
-#ifdef STP_ON_THE_FLY
 			if (!c->probe->cond_enabled) {
 				dbug_otf("not registering (u%sprobe) pidx %zu\n",
 					 c->return_p ? "ret" : "", c->probe->index);
 				continue;
 			}
-#endif
 			if (stapiu_register(target->inode, c) != 0)
 				_stp_warn("probe %s inode-offset %p registration error (rc %d)",
 					  c->probe->pp, (void*) (uintptr_t) c->offset, ret);
@@ -399,8 +397,6 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
 	return ret;
 }
 
-
-#ifdef STP_ON_THE_FLY
 
 /* Register/unregister a target's uprobe consumers if their associated probe
  * handlers have their conditions enabled/disabled. */
@@ -430,8 +426,6 @@ stapiu_target_refresh(struct stapiu_target *target)
 		}
 	}
 }
-
-#endif
 
 
 /* Cleanup every target.  */
@@ -495,8 +489,6 @@ stapiu_init(struct stapiu_target *targets, size_t ntargets,
 	return ret;
 }
 
-#ifdef STP_ON_THE_FLY
-
 /* Refresh the entire inode-uprobes subsystem.  */
 static void
 stapiu_refresh(struct stapiu_target *targets, size_t ntargets)
@@ -516,8 +508,6 @@ stapiu_refresh(struct stapiu_target *targets, size_t ntargets)
 		stapiu_target_unlock(target);
 	}
 }
-
-#endif
 
 /* Shutdown the entire inode-uprobes subsystem.  */
 static void

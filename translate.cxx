@@ -1087,25 +1087,24 @@ c_unparser::emit_common_header ()
 
   emit_compiled_printfs();
 
-  o->newline( 0)  << "#ifdef STP_ON_THE_FLY";
+  if (!session->runtime_usermode_p())
+    {
+      // Updated in probe handlers to signal that a module refresh is needed.
+      // Checked and cleared by common epilogue after scheduling refresh work.
+      o->newline( 0)  << "static unsigned need_module_refresh = 0;";
 
-  // Updated in probe handlers to signal that a module refresh is needed.
-  // Checked and cleared by common epilogue after scheduling refresh work.
-  o->newline( 0)  << "static unsigned need_module_refresh = 0;";
-
-  // We will use a workqueue to schedule module_refresh work when we need
-  // to enable/disable probes.
-  o->newline( 0)  << "#include <linux/workqueue.h>";
-  o->newline( 0)  << "static struct work_struct module_refresher_work;";
-  o->newline( 0)  << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
-  o->newline( 0)  << "static void module_refresher(void *data) {";
-  o->newline( 0)  << "#else";
-  o->newline( 0)  << "static void module_refresher(struct work_struct *work) {";
-  o->newline( 0)  << "#endif";
-  o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
-  o->newline(-1)  << "}";
-
-  o->newline( 0)  << "#endif"; // STP_ON_THE_FLY
+      // We will use a workqueue to schedule module_refresh work when we need
+      // to enable/disable probes.
+      o->newline( 0)  << "#include <linux/workqueue.h>";
+      o->newline( 0)  << "static struct work_struct module_refresher_work;";
+      o->newline( 0)  << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+      o->newline( 0)  << "static void module_refresher(void *data) {";
+      o->newline( 0)  << "#else";
+      o->newline( 0)  << "static void module_refresher(struct work_struct *work) {";
+      o->newline( 0)  << "#endif";
+      o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
+      o->newline(-1)  << "}";
+    }
 
   o->newline();
 }
@@ -1843,20 +1842,19 @@ c_unparser::emit_module_init ()
       o->newline() << "if (rc) goto out;";
     }
 
-  o->newline() << "#ifdef STP_ON_THE_FLY";
-
-  // Initialize workqueue needed for on-the-fly arming/disarming
-  o->newline() << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
-  o->newline() << "INIT_WORK(&module_refresher_work, module_refresher, NULL);";
-  o->newline() << "#else";
-  o->newline() << "INIT_WORK(&module_refresher_work, module_refresher);";
-  o->newline() << "#endif";
+  if (!session->runtime_usermode_p())
+    {
+      // Initialize workqueue needed for on-the-fly arming/disarming
+      o->newline() << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+      o->newline() << "INIT_WORK(&module_refresher_work, module_refresher, NULL);";
+      o->newline() << "#else";
+      o->newline() << "INIT_WORK(&module_refresher_work, module_refresher);";
+      o->newline() << "#endif";
+    }
 
   // Initialize probe conditions
   for (unsigned i=0; i<session->probes.size(); i++)
     emit_probe_condition_initialize(session->probes[i]);
-
-  o->newline() << "#endif"; // STP_ON_THE_FLY
 
   // Run all probe registrations.  This actually runs begin probes.
 
@@ -1940,7 +1938,7 @@ c_unparser::emit_module_refresh ()
 
   if (!session->runtime_usermode_p())
     {
-      o->newline() << "#if defined(STP_ON_THE_FLY) && defined(STP_TIMING)";
+      o->newline() << "#if defined(STP_TIMING)";
       o->newline() << "cycles_t cycles_atstart = get_cycles();";
       o->newline() << "#endif";
     }
@@ -1948,9 +1946,8 @@ c_unparser::emit_module_refresh ()
   // Ensure we're only doing the refreshing one at a time. NB: it's important
   // that we get the lock prior to checking the session_state, in case whoever
   // is holding the lock (e.g. systemtap_module_exit()) changes it.
-  o->newline() << "#ifdef STP_ON_THE_FLY";
-  o->newline() << "mutex_lock(&module_refresh_mutex);";
-  o->newline() << "#endif";
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_lock(&module_refresh_mutex);";
 
   /* If we're not in STARTING/RUNNING state, don't try doing any work.
      PR16766 */
@@ -1961,9 +1958,8 @@ c_unparser::emit_module_refresh ()
   o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\\n\", state);";
   o->newline() << "#endif";
 
-  o->newline() << "#ifdef STP_ON_THE_FLY";
-  o->newline() << "mutex_unlock(&module_refresh_mutex);";
-  o->newline() << "#endif";
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
 
   o->newline() << "return;";
   o->newline(-1) << "}";
@@ -1980,7 +1976,7 @@ c_unparser::emit_module_refresh ()
   if (!session->runtime_usermode_p())
     {
       // see also common_probe_entryfn_epilogue()
-      o->newline() << "#if defined(STP_ON_THE_FLY) && defined(STP_TIMING)";
+      o->newline() << "#if defined(STP_TIMING)";
       o->newline() << "if (likely(g_refresh_timing)) {";
       o->newline(1) << "cycles_t cycles_atend = get_cycles ();";
       o->newline() << "int32_t cycles_elapsed = ((int32_t)cycles_atend > (int32_t)cycles_atstart)";
@@ -1992,9 +1988,8 @@ c_unparser::emit_module_refresh ()
       o->newline() << "#endif";
     }
 
-  o->newline() << "#ifdef STP_ON_THE_FLY";
-  o->newline() << "mutex_unlock(&module_refresh_mutex);";
-  o->newline() << "#endif";
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
 
   o->newline(-1) << "}\n";
 }
@@ -2024,9 +2019,8 @@ c_unparser::emit_module_exit ()
   // terminate.  These may set STAP_SESSION_ERROR!
 
   // Get the lock before exiting to ensure there's no one in module_refresh
-  o->newline() << "#ifdef STP_ON_THE_FLY";
-  o->newline() << "mutex_lock(&module_refresh_mutex);";
-  o->newline() << "#endif";
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_lock(&module_refresh_mutex);";
 
   // We're processing the derived_probe_group list in reverse
   // order.  This ensures that probes get unregistered in reverse
@@ -2036,9 +2030,8 @@ c_unparser::emit_module_exit ()
        i != g.rend(); i++)
     (*i)->emit_module_exit (*session); // NB: runs "end" probes
 
-  o->newline() << "#ifdef STP_ON_THE_FLY";
-  o->newline() << "mutex_unlock(&module_refresh_mutex);";
-  o->newline() << "#endif";
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
 
   // But some other probes may have launched too during unregistration.
   // Let's wait a while to make sure they're all done, done, done.
@@ -2126,7 +2119,7 @@ c_unparser::emit_module_exit ()
 
   if (!session->runtime_usermode_p())
     {
-      o->newline() << "#if defined(STP_ON_THE_FLY) && defined(STP_TIMING)";
+      o->newline() << "#if defined(STP_TIMING)";
       o->newline() << "_stp_printf(\"----- refresh report:\\n\");";
       o->newline() << "if (likely (g_refresh_timing)) {";
       o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
@@ -2138,7 +2131,7 @@ c_unparser::emit_module_exit ()
       o->newline(-3) << "}";
       o->newline() << "_stp_stat_del (g_refresh_timing);";
       o->newline(-1) << "}";
-      o->newline() << "#endif"; // STP_ON_THE_FLY && STP_TIMING
+      o->newline() << "#endif"; // STP_TIMING
     }
 
   o->newline() << "_stp_print_flush();";
@@ -2526,12 +2519,10 @@ c_unparser::emit_probe (derived_probe* v)
 
       if (!v->probes_with_affected_conditions.empty())
         {
-          o->newline() << "#ifdef STP_ON_THE_FLY";
           for (set<derived_probe*>::const_iterator
                 it  = v->probes_with_affected_conditions.begin();
                 it != v->probes_with_affected_conditions.end(); ++it)
             emit_probe_condition_update(*it);
-          o->newline() << "#endif";
         }
 
       if (v->needs_global_locks ())
@@ -2594,7 +2585,9 @@ c_unparser::emit_probe_condition_update(derived_probe* v)
   v->sole_location()->condition->visit(this);
   o->line() << ") {";
   o->newline(1) << cond_enabled << " ^= 1;"; // toggle it 
-  if (v->on_the_fly_supported(*session)) // don't bother refreshing if on-the-fly not supported
+  // don't bother refreshing if on-the-fly not supported
+  if (!session->runtime_usermode_p()
+      && v->on_the_fly_supported(*session))
     o->newline() << "need_module_refresh = 1;"; // XXX: still, use atomic_set here
   o->newline(-1) << "}";
 }
@@ -7112,10 +7105,6 @@ translate_pass (systemtap_session& s)
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
 
-      s.op->newline() << "#ifdef STP_ON_THE_FLY_DISABLED";
-      s.op->newline() << "#undef STP_ON_THE_FLY";
-      s.op->newline() << "#endif";
-
       // Emit systemtap_module_refresh() prototype so we can reference it
       s.op->newline() << "static void systemtap_module_refresh (const char* modname);";
 
@@ -7123,10 +7112,11 @@ translate_pass (systemtap_session& s)
       // both the module notifier, as well as when probes need to be
       // armed/disarmed. We need to protect it to ensure it's only run one at a
       // time.
-      s.op->newline() << "#ifdef STP_ON_THE_FLY";
-      s.op->newline() << "#include <linux/mutex.h>";
-      s.op->newline() << "static DEFINE_MUTEX(module_refresh_mutex);";
-      s.op->newline() << "#endif";
+      if (!s.runtime_usermode_p())
+        {
+          s.op->newline() << "#include <linux/mutex.h>";
+          s.op->newline() << "static DEFINE_MUTEX(module_refresh_mutex);";
+        }
 
       s.op->newline() << "#include \"runtime.h\"";
 
@@ -7267,9 +7257,7 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "struct stap_probe {";
       s.op->newline(1) << "const size_t index;";
       s.op->newline() << "void (* const ph) (struct context*);";
-      s.op->newline() << "#ifdef STP_ON_THE_FLY";
       s.op->newline() << "unsigned cond_enabled:1;"; // just one bit required
-      s.op->newline() << "#endif";
       s.op->newline() << "#if defined(STP_TIMING) || defined(STP_ALIBI)";
       CALCIT(location);
       CALCIT(derivation);

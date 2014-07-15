@@ -321,37 +321,39 @@ hrtimer_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline( 0) <<    "if (rc) {";
   s.op->newline(+1) <<      "for (j=i-1; j>=0; j--) {"; // partial rollback
   s.op->newline(+1) <<        "_stp_hrtimer_cancel(& stap_hrtimer_probes[j]);";
-  s.op->newline( 0) <<        "#ifdef STP_ON_THE_FLY";
-  s.op->newline( 0) <<        "stap_hrtimer_probes[j].enabled = 0;";
-  s.op->newline( 0) <<        "#endif";
+  if (!s.runtime_usermode_p())
+    s.op->newline( 0) <<        "stap_hrtimer_probes[j].enabled = 0;";
   s.op->newline(-1) <<      "}";
   s.op->newline( 0) <<      "break;"; // don't attempt to register any more
   s.op->newline(-1) <<    "}";
 
-  // If the probe condition is off, then don't bother starting the timer
-  s.op->newline( 0) <<    "#ifdef STP_ON_THE_FLY";
-  s.op->newline( 0) <<    "if (!stp->probe->cond_enabled) {";
-  s.op->newline(+1) <<      "dbug_otf(\"not starting (hrtimer) pidx %zu\\n\", stp->probe->index);";
-  s.op->newline( 0) <<      "continue;";
-  s.op->newline(-1) <<    "}";
-  s.op->newline( 0) <<    "#endif";
+  // If not in kernel mode, then we always want to start the timer because
+  // on-the-fly starting/stopping is not supported.
+  if (!s.runtime_usermode_p())
+    {
+      // If the probe condition is off, then don't bother starting the timer
+      s.op->newline( 0) <<    "if (!stp->probe->cond_enabled) {";
+      s.op->newline(+1) <<      "dbug_otf(\"not starting (hrtimer) pidx %zu\\n\",";
+      s.op->newline( 0) <<               "stp->probe->index);";
+      s.op->newline( 0) <<      "continue;";
+      s.op->newline(-1) <<    "}";
+    }
 
   // Start the timer (with rollback on failure)
   s.op->newline( 0) <<    "rc = _stp_hrtimer_start(stp);";
   s.op->newline( 0) <<    "if (rc) {";
   s.op->newline(+1) <<      "for (j=i-1; j>=0; j--) {"; // partial rollback
   s.op->newline(+1) <<        "_stp_hrtimer_cancel(& stap_hrtimer_probes[j]);";
-  s.op->newline( 0) <<        "#ifdef STP_ON_THE_FLY";
-  s.op->newline( 0) <<        "stap_hrtimer_probes[j].enabled = 0;";
-  s.op->newline( 0) <<        "#endif";
+  if (!s.runtime_usermode_p())
+    s.op->newline( 0) <<        "stap_hrtimer_probes[j].enabled = 0;";
   s.op->newline(-1) <<      "}";
   s.op->newline( 0) <<      "break;"; // don't attempt to register any more
   s.op->newline(-1) <<    "}";
 
   // Mark as enabled since we successfully started the timer
-  s.op->newline( 0) <<    "#ifdef STP_ON_THE_FLY";
-  s.op->newline( 0) <<    "stp->enabled = 1;";
-  s.op->newline( 0) <<    "#endif";
+  if (!s.runtime_usermode_p())
+    s.op->newline( 0) <<    "stp->enabled = 1;";
+
   s.op->newline(-1) <<  "}"; // for loop
 }
 
@@ -359,11 +361,9 @@ hrtimer_derived_probe_group::emit_module_init (systemtap_session& s)
 void
 hrtimer_derived_probe_group::emit_module_refresh (systemtap_session& s)
 {
-  if (probes.empty()) return;
+  if (probes.empty() || s.runtime_usermode_p()) return;
 
   // Check if we need to enable/disable any timers
-  s.op->newline( 0) << "#ifdef STP_ON_THE_FLY";
-
   s.op->newline( 0) << "for (i=0; i <" << probes.size() << "; i++) {";
   s.op->newline(+1) <<   "struct stap_hrtimer_probe* stp = &stap_hrtimer_probes[i];";
   // timer disabled, but condition says enabled?
@@ -377,8 +377,6 @@ hrtimer_derived_probe_group::emit_module_refresh (systemtap_session& s)
   s.op->newline(-1) <<   "}";
   s.op->newline( 0) <<   "stp->enabled = stp->probe->cond_enabled;";
   s.op->newline(-1) << "}";
-
-  s.op->newline( 0) << "#endif";
 }
 
 
