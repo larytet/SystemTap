@@ -41,9 +41,6 @@ struct stap_dwarf_probe {
    const unsigned maxactive_p:1;
    const unsigned optional_p:1;
    unsigned registered_p:1;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-   unsigned enabled_p:1;
-#endif
    const unsigned short maxactive_val;
 
    // data saved in the kretprobe_instance packet
@@ -140,10 +137,6 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp,
 
    sdp->registered_p = (ret ? 0 : 1);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-   sdp->enabled_p = sdp->registered_p ? !kprobe_disabled(& kp->u.kp) : 0;
-#endif
-
    return ret;
 }
 
@@ -219,10 +212,6 @@ stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp,
 #endif
 
    sdp->registered_p = (ret ? 0 : 1);
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-   sdp->enabled_p = sdp->registered_p ? !kprobe_disabled(& kp->u.krp.kp) : 0;
-#endif
 
    return ret;
 }
@@ -307,9 +296,6 @@ stapkp_unregister_probe(struct stap_dwarf_probe *sdp,
    memset(kp, 0, sizeof(struct stap_dwarf_kprobe));
 
    sdp->registered_p = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-   sdp->enabled_p = 0;
-#endif
 
    stapkp_add_missed(sdp, kp);
 }
@@ -390,9 +376,6 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
          continue;
 
       sdp->registered_p = 0;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-      sdp->enabled_p = 0;
-#endif
 
       stapkp_add_missed(sdp, kp);
    }
@@ -433,10 +416,23 @@ stapkp_unregister_probes(struct stap_dwarf_probe *probes,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
 
 static int
-stapkp_should_enable_probe(struct stap_dwarf_probe *sdp)
+stapkp_enabled(struct stap_dwarf_probe *sdp,
+               struct stap_dwarf_kprobe *kp)
+{
+   if (!sdp->registered_p)
+      return 0;
+
+   return sdp->return_p ? !kprobe_disabled(&kp->u.krp.kp)
+                        : !kprobe_disabled(&kp->u.kp);
+}
+
+
+static int
+stapkp_should_enable_probe(struct stap_dwarf_probe *sdp,
+                           struct stap_dwarf_kprobe *kp)
 {
    return  sdp->registered_p
-       && !sdp->enabled_p
+       && !stapkp_enabled(sdp, kp)
        &&  sdp->probe->cond_enabled;
 }
 
@@ -453,9 +449,7 @@ stapkp_enable_probe(struct stap_dwarf_probe *sdp,
    ret = sdp->return_p ? enable_kretprobe(&kp->u.krp)
                        : enable_kprobe(&kp->u.kp);
 
-   if (ret == 0)
-      sdp->enabled_p = 1;
-   else {
+   if (ret != 0) {
       stapkp_unregister_probe(sdp, kp);
       dbug_otf("failed to enable (k%sprobe) pidx %zu (rc %d)\n",
                sdp->return_p ? "ret" : "", sdp->probe->index, ret);
@@ -466,10 +460,11 @@ stapkp_enable_probe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_should_disable_probe(struct stap_dwarf_probe *sdp)
+stapkp_should_disable_probe(struct stap_dwarf_probe *sdp,
+                            struct stap_dwarf_kprobe *kp)
 {
    return  sdp->registered_p
-       &&  sdp->enabled_p
+       &&  stapkp_enabled(sdp, kp)
        && !sdp->probe->cond_enabled;
 }
 
@@ -486,9 +481,7 @@ stapkp_disable_probe(struct stap_dwarf_probe *sdp,
    ret = sdp->return_p ? disable_kretprobe(&kp->u.krp)
                        : disable_kprobe(&kp->u.kp);
 
-   if (ret == 0)
-      sdp->enabled_p = 0;
-   else {
+   if (ret != 0) {
       stapkp_unregister_probe(sdp, kp);
       dbug_otf("failed to disable (k%sprobe) pidx %zu (rc %d)\n",
                sdp->return_p ? "ret" : "", sdp->probe->index, ret);
@@ -502,9 +495,9 @@ static int
 stapkp_refresh_probe(struct stap_dwarf_probe *sdp,
                      struct stap_dwarf_kprobe *kp)
 {
-   if (stapkp_should_enable_probe(sdp))
+   if (stapkp_should_enable_probe(sdp, kp))
       return stapkp_enable_probe(sdp, kp);
-   if (stapkp_should_disable_probe(sdp))
+   if (stapkp_should_disable_probe(sdp, kp))
       return stapkp_disable_probe(sdp, kp);
    return 0;
 }
@@ -570,8 +563,8 @@ stapkp_refresh(const char *modname,
             stapkp_unregister_probe(sdp, kp);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-      } else if (stapkp_should_enable_probe(sdp)
-              || stapkp_should_disable_probe(sdp)) {
+      } else if (stapkp_should_enable_probe(sdp, kp)
+              || stapkp_should_disable_probe(sdp, kp)) {
          stapkp_refresh_probe(sdp, kp);
 #endif
       }
