@@ -378,6 +378,10 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
       sdp->registered_p = 0;
 
       stapkp_add_missed(sdp, kp);
+
+      // PR16861: kprobes may have left some things in the k[ret]probe struct.
+      // Let's reset it to be sure it's safe for re-use.
+      memset(sdp->kprobe, 0, sizeof(struct stap_dwarf_kprobe));
    }
 }
 
