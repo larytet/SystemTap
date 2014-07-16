@@ -446,7 +446,7 @@ systemtap_session::version ()
 {
   clog << _F("Systemtap translator/driver (version %s)\n"
              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
-             "This is free software; see the source for copying conditions.",
+             "This is free software; see the source for copying conditions.\n",
              version_string().c_str());
 
   clog << _("enabled features:")

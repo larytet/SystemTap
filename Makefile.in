@@ -2269,8 +2269,23 @@ update-po:
 	| sort > $(srcdir)/po/POTFILES.in
 	$(MAKE) -C po update-po
 	@echo
+	@echo if systemtam.pot is shown as modified ...
 	@echo
-	@echo push to / pull from zanata if appropriate and repeat
+	(cd $(srcdir)/po; git status *.pot)
+	@echo
+	@echo ... then check in with zanata ...
+	@echo
+	@echo % cd $(srcdir)
+	@echo % zanata-cli push -s po -t po
+	@echo % zanata-cli pull -s po -t po
+	@echo
+	@echo if the .po files are shown as modified ...
+	@echo
+	(cd $(srcdir)/po; git status *.po)
+	@echo
+	@echo ... regenerate just once ...
+	@echo
+	@echo % $(MAKE) -C `pwd` update-po
 uprobes:
 	$(MAKE) -C $(srcdir)/runtime/uprobes clean default
 install-uprobes:
