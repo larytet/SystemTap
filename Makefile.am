@@ -375,8 +375,8 @@ update-po:
 	@echo ... then check in with zanata ...
 	@echo
 	@echo % cd $(srcdir)
-	@echo % zanata-cli push -s po -t po
-	@echo % zanata-cli pull -s po -t po
+	@echo % zanata-cli -B push -s po -t po
+	@echo % zanata-cli -B pull -s po -t po
 	@echo
 	@echo if the .po files are shown as modified ...
 	@echo

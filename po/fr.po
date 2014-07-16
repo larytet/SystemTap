@@ -23,13 +23,14 @@
 # 	* The word "location" has been translated to "adresse" but this is
 # 	  usually not strictly correct as the location may refer to a register
 # 	  for example. Maybe "emplacement" or "localisation" would be better.
+# Frank Ch. Eigler <fche@redhat.com>, 2014. #zanata
 msgid ""
 msgstr ""
-"Project-Id-Version: systemtap 2.5\n"
+"Project-Id-Version: systemtap 2.6\n"
 "Report-Msgid-Bugs-To: systemtap@sourceware.org\n"
-"POT-Creation-Date: 2014-07-15 19:50-0400\n"
-"PO-Revision-Date: 2011-04-05 04:53-0400\n"
-"Last-Translator: Adrien Kunysz <adrien@kunysz.be>\n"
+"POT-Creation-Date: 2014-07-15 20:37-0400\n"
+"PO-Revision-Date: 2014-07-15 08:16-0400\n"
+"Last-Translator: Frank Ch. Eigler <fche@redhat.com>\n"
 "Language-Team: French\n"
 "Language: fr\n"
 "MIME-Version: 1.0\n"
@@ -84,16 +85,16 @@ msgstr ""
 "valeur par défaut."
 
 #: cache.cxx:278
-#, fuzzy, c-format
+#, c-format
 msgid "Cache clean interval file %s missing, creating default."
 msgstr ""
-"Le fichier de limite de taille de cache %s/%s est manquant, création avec la "
+"Le fichier de limite de taille de cache %s est manquant, création avec la "
 "valeur par défaut."
 
 #: cache.cxx:287
-#, fuzzy, c-format
+#, c-format
 msgid "clean_cache stat error: %s"
-msgstr "erreur de regcomp %s rc=%d"
+msgstr "erreur de clean_cache %s"
 
 #: cache.cxx:297
 #, fuzzy, c-format
@@ -106,23 +107,23 @@ msgid "Cleaning cache, interval reached %lu s > %lu s."
 msgstr ""
 
 #: cache.cxx:318
-#, fuzzy, c-format
+#, c-format
 msgid "clean_cache glob error rc=%d"
-msgstr "erreur de regcomp %s rc=%d"
+msgstr "erreur de clean_cache glob rc=%d"
 
 #: cache.cxx:325
-#, fuzzy, c-format
+#, c-format
 msgid "clean_cache regcomp error rc=%d"
-msgstr "erreur de regcomp %s rc=%d"
+msgstr "erreur de clean_cache regcomp rc=%d"
 
 #: cache.cxx:379
 msgid "Cache cleaning successful, removed entries: "
 msgstr "Nettoyage du cache effectué, entrées supprimées : "
 
 #: cache.cxx:388
-#, fuzzy, c-format
+#, c-format
 msgid "clean_cache utime error: %s"
-msgstr "erreur de regcomp %s rc=%d"
+msgstr "erreur de clean_cache utime: %s"
 
 #: cache.cxx:395
 msgid "Cache cleaning skipped, no cache path."
@@ -5123,17 +5124,17 @@ msgid "process probes not available without kernel CONFIG_UTRACE"
 msgstr ""
 "les probes 'process' ne sont pas disponibles sans un noyau CONFIG_UTRACE"
 
-#: tapset-itrace.cxx:129 tapsets.cxx:637 tapsets.cxx:7645
+#: tapset-itrace.cxx:129 tapsets.cxx:639 tapsets.cxx:7658
 #: tapset-utrace.cxx:699
 msgid "pid given does not correspond to a running process"
 msgstr ""
 
-#: tapset-itrace.cxx:131 tapsets.cxx:639 tapsets.cxx:7647
+#: tapset-itrace.cxx:131 tapsets.cxx:641 tapsets.cxx:7660
 #: tapset-utrace.cxx:701
 msgid "invalid permissions for signalling given pid"
 msgstr ""
 
-#: tapset-itrace.cxx:133 tapsets.cxx:641 tapsets.cxx:7649
+#: tapset-itrace.cxx:133 tapsets.cxx:643 tapsets.cxx:7662
 #: tapset-utrace.cxx:703
 #, fuzzy
 msgid "invalid pid"
@@ -5178,7 +5179,7 @@ msgstr "mark_builder nettoie le cache"
 msgid " cannot be opened: "
 msgstr " ne peut être ouvert : "
 
-#: tapset-mark.cxx:731 tapsets.cxx:7781 tapsets.cxx:7973
+#: tapset-mark.cxx:731 tapsets.cxx:7794 tapsets.cxx:7986
 #, fuzzy, c-format
 msgid "no match (similar mark: %s)"
 msgstr "le motif '%s' correspond à la fonction '%s'\n"
@@ -5295,7 +5296,7 @@ msgstr ""
 msgid "duplicate counter name"
 msgstr "nom de fonction dupliqué"
 
-#: tapset-perfmon.cxx:332 tapsets.cxx:7616
+#: tapset-perfmon.cxx:332 tapsets.cxx:7629
 msgid "invalid -c command for unspecified process probe [man stapprobes]"
 msgstr ""
 
@@ -5371,125 +5372,125 @@ msgstr "un chemin procfs ne peut pas se terminer avec '/'"
 msgid "need read/write component"
 msgstr "besoin d'un composant read/write"
 
-#: tapsets.cxx:654 tapsets.cxx:7794
+#: tapsets.cxx:656 tapsets.cxx:7807
 #, fuzzy, c-format
 msgid "cannot find executable '%s'"
 msgstr "incapable de trouver le type : %s"
 
-#: tapsets.cxx:957
+#: tapsets.cxx:970
 msgid ".callees(N) only acceptable for N >= 1"
 msgstr ""
 
-#: tapsets.cxx:1207
+#: tapsets.cxx:1220
 #, c-format
 msgid "parse '%s'"
 msgstr "analyse '%s'"
 
-#: tapsets.cxx:1263
+#: tapsets.cxx:1276
 #, c-format
 msgid "malformed specification '%s'"
 msgstr "spécification malformée '%s'"
 
-#: tapsets.cxx:1301
+#: tapsets.cxx:1314
 msgid "probe "
 msgstr ""
 
-#: tapsets.cxx:1303
+#: tapsets.cxx:1316
 msgid " kernel"
 msgstr " noyau"
 
-#: tapsets.cxx:1305
+#: tapsets.cxx:1318
 msgid " module="
 msgstr ""
 
-#: tapsets.cxx:1307
+#: tapsets.cxx:1320
 msgid " process="
 msgstr " processus="
 
-#: tapsets.cxx:1349
+#: tapsets.cxx:1362
 #, c-format
 msgid "function %s is in blacklisted section"
 msgstr ""
 
-#: tapsets.cxx:1353
+#: tapsets.cxx:1366
 #, c-format
 msgid "kprobes function %s is blacklisted"
 msgstr ""
 
-#: tapsets.cxx:1357
+#: tapsets.cxx:1370
 #, c-format
 msgid "function %s return probe is blacklisted"
 msgstr ""
 
-#: tapsets.cxx:1361
+#: tapsets.cxx:1374
 #, c-format
 msgid "function %s is in blacklisted file"
 msgstr ""
 
-#: tapsets.cxx:1366
+#: tapsets.cxx:1379
 #, c-format
 msgid "function %s is blacklisted"
 msgstr ""
 
-#: tapsets.cxx:1695
+#: tapsets.cxx:1708
 #, fuzzy, c-format
 msgid "address %#<PRIx64> does not match the beginning of a statement"
 msgstr "l'adresse 0x%#<PRIx64> ne correspond pas au début d'une instruction"
 
-#: tapsets.cxx:1698
+#: tapsets.cxx:1711
 #, fuzzy, c-format
 msgid " (try %#<PRIx64>)"
 msgstr " (essayez 0x%#<PRIx64>)"
 
-#: tapsets.cxx:1700
+#: tapsets.cxx:1713
 #, c-format
 msgid " (no line info found for '%s', in module '%s')"
 msgstr " (pas d'information de ligne trouvée pour '%s', dans le module '%s')"
 
-#: tapsets.cxx:1826
+#: tapsets.cxx:1839
 #, c-format
 msgid "querying entrypc %#<PRIx64> of instance of inline '%s'\n"
 msgstr "requète de l'entrypc %#<PRIx64> de l'instance en ligne '%s'\n"
 
-#: tapsets.cxx:1900
+#: tapsets.cxx:1913
 #, fuzzy
 msgid "filtered DIE lands on srcfile\n"
 msgstr "le DIE de la fonction indique un fichier source\n"
 
-#: tapsets.cxx:1951
+#: tapsets.cxx:1964
 #, c-format
 msgid "selected inline instance of %s\n"
 msgstr "instance en ligne de %s sélectionnée\n"
 
-#: tapsets.cxx:2006
+#: tapsets.cxx:2019
 #, c-format
 msgid "checking instances of inline %s\n"
 msgstr "vérification de l'instance en ligne %s\n"
 
-#: tapsets.cxx:2018
+#: tapsets.cxx:2031
 #, c-format
 msgid "selected function %s\n"
 msgstr "fonction sélectionnée %s\n"
 
-#: tapsets.cxx:2055
+#: tapsets.cxx:2068
 #, c-format
 msgid "focused on CU '%s', in module '%s'\n"
 msgstr "concentré sur l'unité de compilation '%s' dans le module '%s'\n"
 
-#: tapsets.cxx:2130
+#: tapsets.cxx:2143
 msgid ""
 "For probing a particular line, use a .statement() probe, not .function()"
 msgstr ""
 "Pour instrumenter une ligne spécifique, utilisez un probe .statement(), pas ."
 "function()"
 
-#: tapsets.cxx:2278
+#: tapsets.cxx:2291
 #, c-format
 msgid "ELF machine %s|%s (code %d) mismatch with target %s in '%s'"
 msgstr ""
 "La machine ELF %s|%s (code %d) ne correspond pas à la cible %s dans '%s'"
 
-#: tapsets.cxx:2285
+#: tapsets.cxx:2298
 #, fuzzy, c-format
 msgid ""
 "focused on module '%s' = [%#<PRIx64>-%#<PRIx64>, bias %#<PRIx64> file %s ELF "
@@ -5498,25 +5499,25 @@ msgstr ""
 "concentré sur le module '%s' = [0x%#<PRIx64>, -0x%#<PRIx64>, biais 0x"
 "%#<PRIx64> fichier %s machine ELF %s|%s (code %d)\n"
 
-#: tapsets.cxx:2366
+#: tapsets.cxx:2379
 #, c-format
 msgid "focused on module '%s'\n"
 msgstr "concentré sur le module '%s'\n"
 
-#: tapsets.cxx:2470
+#: tapsets.cxx:2483
 msgid "module="
 msgstr ""
 
-#: tapsets.cxx:2521
+#: tapsets.cxx:2534
 #, c-format
 msgid "plt entry=%s\n"
 msgstr ""
 
-#: tapsets.cxx:2570
+#: tapsets.cxx:2583
 msgid "deleting module_cache"
 msgstr "suppression de module_cache"
 
-#: tapsets.cxx:2679
+#: tapsets.cxx:2692
 #, fuzzy, c-format
 msgid ""
 "Only the following assign operator is implemented on target variables: %s"
@@ -5525,75 +5526,75 @@ msgstr ""
 "cibles : %s"
 
 # XXX: still need to find a good translation for pretty-print*
-#: tapsets.cxx:2875
+#: tapsets.cxx:2888
 msgid "cannot take address of pretty-printed variable"
 msgstr ""
 
-#: tapsets.cxx:2879
+#: tapsets.cxx:2892
 msgid "invalid target_symbol for pretty-print"
 msgstr ""
 
-#: tapsets.cxx:3835
+#: tapsets.cxx:3848
 msgid "unknown type to save in kretprobe"
 msgstr "type inconnu à sauvegarder dans kretprobe"
 
-#: tapsets.cxx:3982 tapsets.cxx:10359
+#: tapsets.cxx:3995 tapsets.cxx:10372
 #, fuzzy
 msgid "variable location problem [man error::dwarf]: "
 msgstr "problème de localisation de variable"
 
-#: tapsets.cxx:4035
+#: tapsets.cxx:4048
 #, fuzzy
 msgid "write to target variable not permitted; need stap -g"
 msgstr "la modification d'une variable cible n'est pas permise"
 
-#: tapsets.cxx:4047
+#: tapsets.cxx:4060
 msgid "write to target variable not permitted in .return probes"
 msgstr ""
 "la modification d'une variable cible n'est pas permise dans un probe .return"
 
-#: tapsets.cxx:4056
+#: tapsets.cxx:4069
 msgid "cannot write to context variable"
 msgstr "ne peut modifier une variable contextuelle"
 
-#: tapsets.cxx:4059 tapsets.cxx:6139 tapsets.cxx:10317
+#: tapsets.cxx:4072 tapsets.cxx:6152 tapsets.cxx:10330
 msgid "cannot take address of context variable"
 msgstr "ne peut prendre l'adresse d'une variable contextuelle"
 
-#: tapsets.cxx:4080 tapsets.cxx:4312 tapsets.cxx:10280
+#: tapsets.cxx:4093 tapsets.cxx:4325 tapsets.cxx:10293
 msgid "cannot write to pretty-printed variable"
 msgstr ""
 
-#: tapsets.cxx:4202
+#: tapsets.cxx:4215
 #, fuzzy, c-format
 msgid "perf counter '%s' not defined"
 msgstr "modifier le marker '%s' n'est pas permi"
 
 #. TRANSLATORS: Here we're using a cached module.
-#: tapsets.cxx:4360
+#: tapsets.cxx:4373
 msgid "Pass 2: using cached "
 msgstr "Passe 2 : utilisation du module en cache "
 
-#: tapsets.cxx:4383
+#: tapsets.cxx:4396
 #, fuzzy
 msgid "write to @cast context variable not permitted; need stap -g"
 msgstr "la modification d'une variable de contexte @cast n'est pas permise"
 
-#: tapsets.cxx:4554
+#: tapsets.cxx:4567
 #, fuzzy
 msgid "write to @var variable not permitted; need stap -g"
 msgstr "la modification d'une variable cible n'est pas permise"
 
-#: tapsets.cxx:4615
+#: tapsets.cxx:4628
 msgid ", in "
 msgstr ""
 
-#: tapsets.cxx:4613
+#: tapsets.cxx:4626
 #, fuzzy, c-format
 msgid "unable to find global '%s' in %s%s%s"
 msgstr "incapable de trouver le membre '%s' pour %s%s%s"
 
-#: tapsets.cxx:4696
+#: tapsets.cxx:4709
 #, fuzzy
 msgid ""
 "process probes not available without kernel CONFIG_UTRACE or "
@@ -5601,41 +5602,41 @@ msgid ""
 msgstr ""
 "les probes 'process' ne sont pas disponibles sans un noyau CONFIG_UTRACE"
 
-#: tapsets.cxx:4759
+#: tapsets.cxx:4772
 msgid "missing relocation basis"
 msgstr ""
 
-#: tapsets.cxx:4761
+#: tapsets.cxx:4774
 msgid "inconsistent relocation address"
 msgstr "adresse de relocalisation inconsistente"
 
-#: tapsets.cxx:4771
+#: tapsets.cxx:4784
 #, c-format
 msgid "maxactive value out of range [0,%s]"
 msgstr "valeur maxactive hors des limites [0,%s]"
 
-#: tapsets.cxx:4791
+#: tapsets.cxx:4804
 #, c-format
 msgid ""
 "expanding .return vars at prologue_end (0x%s) rather than entrypc (0x%s)\n"
 msgstr ""
 
-#: tapsets.cxx:4946
+#: tapsets.cxx:4959
 #, c-format
 msgid "adding caller checks for callee %s\n"
 msgstr ""
 
-#: tapsets.cxx:4968
+#: tapsets.cxx:4981
 #, c-format
 msgid "adding caller check [u]stack(%d) == reloc(0x%s)\n"
 msgstr ""
 
-#: tapsets.cxx:5017
+#: tapsets.cxx:5030
 #, c-format
 msgid "saveargs: examining '%s' (dieoffset: %#<PRIx64>)\n"
 msgstr "saveargs : examun de '%s' (adresse relative du DIE : %#<PRIx64>)\n"
 
-#: tapsets.cxx:5029
+#: tapsets.cxx:5042
 #, c-format
 msgid ""
 "saveargs: failed to retrieve type name for return value (dieoffset: %s)\n"
@@ -5643,21 +5644,21 @@ msgstr ""
 "saveargs : échec de récupération du nom du type pour la valeur de retour "
 "(adresse relative du DIE : %s)\n"
 
-#: tapsets.cxx:5057
+#: tapsets.cxx:5070
 #, c-format
 msgid "saveargs: failed to retrieve name for local (dieoffset: %s)\n"
 msgstr ""
 "saveargs : échec de récupération du nom de la variable locale (adresse "
 "relative du DIE : %s)\n"
 
-#: tapsets.cxx:5063
+#: tapsets.cxx:5076
 #, c-format
 msgid "saveargs: finding location for local '%s' (dieoffset: %s)\n"
 msgstr ""
 "saveargs : recherche de l'adresse de la variable locale '%s' (adresse "
 "relative du DIE : %s)\n"
 
-#: tapsets.cxx:5085
+#: tapsets.cxx:5098
 #, c-format
 msgid ""
 "saveargs: failed to resolve the location for local '%s' (dieoffset: %s)\n"
@@ -5665,7 +5666,7 @@ msgstr ""
 "saveargs : échec de résolution de l'adresse de la variable localte "
 "'%s' (adresse relative du DIE : %s)\n"
 
-#: tapsets.cxx:5096
+#: tapsets.cxx:5109
 #, c-format
 msgid ""
 "saveargs: local '%s' (dieoffset: %s) is not available at this address (%s)\n"
@@ -5673,42 +5674,42 @@ msgstr ""
 "saveargs : la variable locale '%s' (adresse relative du DIE : %s) n'est pas "
 "disponible à cette adresse (%s)\n"
 
-#: tapsets.cxx:5110
+#: tapsets.cxx:5123
 #, c-format
 msgid "saveargs: failed to retrieve type name for local '%s' (dieoffset: %s)\n"
 msgstr ""
 "saveargs : échec de récupération du nom du type pour la variable locale "
 "'%s' (adresse relative du DIE : %s)\n"
 
-#: tapsets.cxx:6219
+#: tapsets.cxx:6232
 msgid "target-symbol requires debuginfo"
 msgstr ""
 
-#: tapsets.cxx:6409
+#: tapsets.cxx:6422
 #, fuzzy, c-format
 msgid "unrecognized register '%s'"
 msgstr "variante de timer non reconnue"
 
-#: tapsets.cxx:6472
+#: tapsets.cxx:6485
 #, fuzzy, c-format
 msgid "unrecognized base register '%s'"
 msgstr "variante de timer non reconnue"
 
-#: tapsets.cxx:6477
+#: tapsets.cxx:6490
 #, fuzzy, c-format
 msgid "unrecognized index register '%s'"
 msgstr "variante de timer non reconnue"
 
-#: tapsets.cxx:6558
+#: tapsets.cxx:6571
 msgid "can't retrieve symbol table"
 msgstr ""
 
-#: tapsets.cxx:6680
+#: tapsets.cxx:6693
 #, c-format
 msgid "Can't parse SDT_V3 operand '%s' [man error::sdt]"
 msgstr ""
 
-#: tapsets.cxx:6684
+#: tapsets.cxx:6697
 #, fuzzy, c-format
 msgid ""
 "Downgrading SDT_V2 probe argument to dwarf, can't parse '%s' [man error::sdt]"
@@ -5716,21 +5717,21 @@ msgstr ""
 "Rétrogradation des arguments de probe SDT_V2 vers dwarf, ne peut analyser "
 "'%s'"
 
-#: tapsets.cxx:6691
+#: tapsets.cxx:6704
 msgid "SDT asm not understood, requires debuginfo [man error::sdt]"
 msgstr ""
 
 #. TRANSLATORS: We're mapping the operand to a new expression*.
-#: tapsets.cxx:6701
+#: tapsets.cxx:6714
 #, c-format
 msgid "mapped asm operand %s to "
 msgstr "correspondance de l'opérande asm %s à "
 
-#: tapsets.cxx:6706
+#: tapsets.cxx:6719
 msgid "cannot take address of sdt variable"
 msgstr "ne peut prendre l'adresse d'une variable sdt"
 
-#: tapsets.cxx:6790
+#: tapsets.cxx:6803
 #, fuzzy, c-format
 msgid "unable to find plt variable '%s' (alternatives: %s)"
 msgstr ""
@@ -5738,65 +5739,65 @@ msgstr ""
 
 #. TRANSLATORS: Describing what probe type (kprobe or uprobe) the probe
 #. TRANSLATORS: is matched to.
-#: tapsets.cxx:6904
+#: tapsets.cxx:6917
 #, c-format
 msgid "matched probe_name %s probe type "
 msgstr "probe_name %s correspond au type de probe "
 
-#: tapsets.cxx:7163 tapsets.cxx:7222
+#: tapsets.cxx:7176 tapsets.cxx:7235
 msgid " (provider "
 msgstr " (fournisseur "
 
-#: tapsets.cxx:7163
+#: tapsets.cxx:7176
 #, c-format
 msgid " saw .note.stapsdt %s%s "
 msgstr " vu .note.stapdst %s%s "
 
-#: tapsets.cxx:7184
+#: tapsets.cxx:7197
 #, c-format
 msgid "got unknown probe_type : 0x%x"
 msgstr "obtenu probe_type inconnu : 0x%x"
 
-#: tapsets.cxx:7222
+#: tapsets.cxx:7235
 msgid "saw .probes "
 msgstr "vu .probes "
 
-#: tapsets.cxx:7242
+#: tapsets.cxx:7255
 #, c-format
 msgid "looking for semaphore symbol %s "
 msgstr "recherche du symbole de sémaphore %s "
 
-#: tapsets.cxx:7263
+#: tapsets.cxx:7276
 msgid ", found at 0x"
 msgstr ", trouvé à 0x"
 
-#: tapsets.cxx:7268
+#: tapsets.cxx:7281
 msgid ", not found"
 msgstr ", pas trouvé"
 
-#: tapsets.cxx:7358
+#: tapsets.cxx:7371
 msgid "probe_type == uprobe1, use statement addr: 0x"
 msgstr "probe_type == uprobe1, utilisez l'adresse d'instruction 0x"
 
-#: tapsets.cxx:7362
+#: tapsets.cxx:7375
 msgid "probe_type == uprobe2, use statement addr: 0x"
 msgstr "probe_type == uprobe2, utilisez l'adresse d'instruction 0x"
 
-#: tapsets.cxx:7366
+#: tapsets.cxx:7379
 msgid "probe_type == uprobe3, use statement addr: 0x"
 msgstr "probe_type == uprobe3, utilisez l'adresse d'instruction 0x"
 
-#: tapsets.cxx:7370
+#: tapsets.cxx:7383
 #, c-format
 msgid "probe_type == use_uprobe_no_dwarf, use label name: _stapprobe1_%s"
 msgstr ""
 "probe_type == use_uprobe_no_dwarf, utilisez le nom d'étiquette _stapprobe1_%s"
 
-#: tapsets.cxx:7613
+#: tapsets.cxx:7626
 msgid "invalid -x pid for unspecified process probe [man stapprobes]"
 msgstr ""
 
-#: tapsets.cxx:7620
+#: tapsets.cxx:7633
 #, fuzzy
 msgid ""
 "unspecified process probe is invalid without a -c COMMAND or -x PID [man "
@@ -5805,147 +5806,147 @@ msgstr ""
 "les probes 'process' ne sont pas disponibles sans un noyau CONFIG_UTRACE"
 
 # XXX: that's glob as in glob(), not sure how to translate
-#: tapsets.cxx:7681
+#: tapsets.cxx:7694
 #, c-format
 msgid "glob %s error (%s)"
 msgstr ""
 
-#: tapsets.cxx:7715 tapsets.cxx:7857
+#: tapsets.cxx:7728 tapsets.cxx:7870
 #, c-format
 msgid "Expanded process(\"%s\") to process(\"%s\")"
 msgstr "Extension de process(\"%s\") en process(\"%s\")"
 
-#: tapsets.cxx:7754 tapsets.cxx:7766 tapsets.cxx:8094 tapsets.cxx:8106
+#: tapsets.cxx:7767 tapsets.cxx:7779 tapsets.cxx:8107 tapsets.cxx:8119
 #, fuzzy, c-format
 msgid "no match (similar function: %s)"
 msgstr "le motif '%s' correspond à la fonction '%s'\n"
 
-#: tapsets.cxx:7903
+#: tapsets.cxx:7916
 #, fuzzy
 msgid "process return probes not available [man error::inode-uprobes]"
 msgstr ""
 "les probes 'process' ne sont pas disponibles sans un noyau CONFIG_UTRACE"
 
-#: tapsets.cxx:7923
+#: tapsets.cxx:7936
 #, c-format
 msgid "dwarf_builder::build for %s"
 msgstr "dwarf_builder::build pour %s"
 
-#: tapsets.cxx:7949 tapsets.cxx:8066
+#: tapsets.cxx:7962 tapsets.cxx:8079
 #, c-format
 msgid ""
 "'%s' is not a needed library of '%s'. Specify the full path to squelch this "
 "warning."
 msgstr ""
 
-#: tapsets.cxx:7958 tapsets.cxx:8075
+#: tapsets.cxx:7971 tapsets.cxx:8088
 #, fuzzy, c-format
 msgid "no match (similar library: %s)"
 msgstr "le motif '%s' correspond à la fonction '%s'\n"
 
-#: tapsets.cxx:7991 tapsets.cxx:9740
+#: tapsets.cxx:8004 tapsets.cxx:9753
 #, fuzzy
 msgid "absolute statement probe in unprivileged script; need stap -g"
 msgstr "probe statement().absolute dans un script non privilégié"
 
-#: tapsets.cxx:8034
+#: tapsets.cxx:8047
 #, fuzzy, c-format
 msgid "cannot probe .return of %u inlined function %s"
 msgstr "ne peut instrumenter .return de %u fonction en ligne %s"
 
-#: tapsets.cxx:8040
+#: tapsets.cxx:8053
 #, fuzzy, c-format
 msgid "skipped .return probe of %u inlined function"
 msgstr "probe .return ignorée pour %u fonction en ligne"
 
-#: tapsets.cxx:8321
+#: tapsets.cxx:8334
 #, fuzzy
 msgid "Error: Cannot find vmlinux."
 msgstr "Erreur : ne peut trouver vmlinux."
 
-#: tapsets.cxx:8482
+#: tapsets.cxx:8495
 #, fuzzy
 msgid "absolute process probes not available [man error::inode-uprobes]"
 msgstr ""
 "les probes 'process' ne sont pas disponibles sans un noyau CONFIG_UTRACE"
 
-#: tapsets.cxx:9897
+#: tapsets.cxx:9910
 #, c-format
 msgid "Too many hardware breakpoint probes requested for %s (%zu vs. %u)"
 msgstr "Trop de points d'arrêt matériel demandés pour %s (%zu vs. %u)"
 
-#: tapsets.cxx:10107
+#: tapsets.cxx:10120
 msgid "CONFIG_PERF_EVENTS not available on this kernel"
 msgstr "CONFIG_PERF_EVENTS indisponible dans ce noyau"
 
-#: tapsets.cxx:10110
+#: tapsets.cxx:10123
 msgid "CONFIG_HAVE_HW_BREAKPOINT not available on this kernel"
 msgstr "CONFIG_HAVE_HW_BREAKPOINT indisponible dans ce noyau"
 
-#: tapsets.cxx:10239
+#: tapsets.cxx:10252
 msgid " (alternatives: "
 msgstr " (alternatives :"
 
-#: tapsets.cxx:10237
+#: tapsets.cxx:10250
 #, fuzzy, c-format
 msgid "unable to find tracepoint variable '%s'%s"
 msgstr ""
 "incapable de trouver la variable de tracepoint '%s' (alternatives : %s)"
 
-#: tapsets.cxx:10253
+#: tapsets.cxx:10266
 #, fuzzy, c-format
 msgid "write to tracepoint variable '%s' not permitted; need stap -g"
 msgstr "modification de variable de tracepoint '%s' pas permis"
 
-#: tapsets.cxx:10262
+#: tapsets.cxx:10275
 msgid "cannot take address of tracepoint variable"
 msgstr "incapable de prendre l'adresse d'une variable de tracepoint"
 
-#: tapsets.cxx:10320
+#: tapsets.cxx:10333
 #, c-format
 msgid "write to tracepoint '%s' not permitted"
 msgstr "modification du tracepoint '%s' pas permis"
 
-#: tapsets.cxx:10526
+#: tapsets.cxx:10539
 #, c-format
 msgid "cannot get type of parameter '%s' of tracepoint '%s'"
 msgstr "incapable d'obtenir le type du paramètre '%s' du tracepoint '%s'"
 
-#: tapsets.cxx:10532
+#: tapsets.cxx:10545
 #, fuzzy, c-format
 msgid "found parameter for tracepoint '%s': type:'%s' name:'%s' %s"
 msgstr "paramètre trouvé pour le tracepoint '%s' : type '%s', nom '%s'"
 
-#: tapsets.cxx:10962
+#: tapsets.cxx:10975
 msgid "tracepoint_builder releasing dwflpp"
 msgstr "tracepoint_builder libère dwflpp"
 
-#: tapsets.cxx:10988
+#: tapsets.cxx:11001
 #, c-format
 msgid "Pass 2: getting a tracepoint query for %zu headers: "
 msgstr ""
 
-#: tapsets.cxx:11010
+#: tapsets.cxx:11023
 #, c-format
 msgid "Pass 2: using cached %s"
 msgstr "Passe 2 : utilisation du cache %s"
 
-#: tapsets.cxx:11142
+#: tapsets.cxx:11155
 #, c-format
 msgid "Located kernel source tree (DW_AT_comp_dir) at '%s'"
 msgstr "Trouvé arbre des sources du noyau (DW_AT_comp_dir) dans '%s'"
 
-#: tapsets.cxx:11148
+#: tapsets.cxx:11161
 #, fuzzy, c-format
 msgid "Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'"
 msgstr "Trouvé arbre des sources du noyau (DW_AT_comp_dir) dans '%s'"
 
 # XXX: glob() again
-#: tapsets.cxx:11195
+#: tapsets.cxx:11208
 msgid "Checking tracepoint glob "
 msgstr ""
 
-#: tapsets.cxx:11262
+#: tapsets.cxx:11275
 #, fuzzy, c-format
 msgid "no match (similar tracepoint: %s)"
 msgstr "le motif '%s' correspond à la fonction '%s'\n"
@@ -6618,68 +6619,3 @@ msgstr "erreur de autosprintf/vasprintf %s"
 #: util.h:187
 msgid "bad lexical cast"
 msgstr ""
-
-#~ msgid "alternative line %d rejected: nsrcs=%zu"
-#~ msgstr "ligne alternative %d rejetée : nsrcs=%zu"
-
-#~ msgid "alternative line %d accepted: fn=%s"
-#~ msgstr "ligne alternative %d acceptée : fn=%s"
-
-#~ msgid "alternative line %d accepted: ifn=%s"
-#~ msgstr "ligne alternative %d acceptée : ifn=%s"
-
-#~ msgid "alternative line %d rejected: leaves selected fns"
-#~ msgstr ""
-#~ "ligne alternative %d rejetée : hors des limites des fonctions "
-#~ "sélectionnées"
-
-#~ msgid "Invalid line range ("
-#~ msgstr "Intervalle invalide ("
-
-#~ msgid ", the end line number "
-#~ msgstr ", numéro de ligne de fin "
-
-#, fuzzy
-#~ msgid ""
-#~ "failed to retrieve location attribute for '%s' [man error::dwarf] "
-#~ "(dieoffset: %s)"
-#~ msgstr ""
-#~ "échec de la récupération de l'adresse pour la variable localte "
-#~ "'%s' (offset du DIE : %s)"
-
-#, fuzzy
-#~ msgid ""
-#~ "failed to retrieve type attribute for '%s' [man error::dwarf] (dieoffset: "
-#~ "%s)"
-#~ msgstr ""
-#~ "échec de la récupération de l'adresse pour la variable localte "
-#~ "'%s' (offset du DIE : %s)"
-
-#, fuzzy
-#~ msgid " init/exit"
-#~ msgstr "ignoré : init/exit"
-
-#, fuzzy
-#~ msgid " __kprobes"
-#~ msgstr "ignoré : __kprobes"
-
-#~ msgid "inline instance DIE lands on srcfile\n"
-#~ msgstr "le DIE de la fonction en lighe indique un fichier source\n"
-
-#, fuzzy
-#~ msgid ""
-#~ "Symbol table error: Line %d of symbol list from %s is not in correct "
-#~ "format: address type name [module]\n"
-#~ msgstr ""
-#~ "Erreur de table de symboles : La ligne %d de la liste de symboles de %s "
-#~ "n'a pas le format correct : adresse type nom [module]"
-
-#, fuzzy
-#~ msgid "Symbol table error: %s contains no function symbols.\n"
-#~ msgstr ""
-#~ "Erreur de table de symboles : %s ne contient pas de symboles de fonction."
-
-#, fuzzy
-#~ msgid "Internal error reading symbol table from %s -- %s\n"
-#~ msgstr ""
-#~ "Erreur interne lors de la lecture de la table de symboles depuis %s -- %s"
