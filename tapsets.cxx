@@ -5544,6 +5544,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "static struct stap_dwarf_probe stap_dwarf_probes[] = {";
   s.op->indent(1);
 
+  size_t stap_dwarf_kprobe_idx = 0;
   for (p_b_m_iterator it = probes_by_module.begin(); it != probes_by_module.end(); it++)
     {
       dwarf_derived_probe* p = it->second;
@@ -5571,6 +5572,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << " .module=\"" << p->module << "\",";
       s.op->line() << " .section=\"" << p->section << "\",";
       s.op->line() << " .probe=" << common_probe_init (p) << ",";
+      s.op->line() << " .kprobe=&stap_dwarf_kprobes[" << stap_dwarf_kprobe_idx++ << "],";
       s.op->line() << " },";
     }
 
@@ -5668,7 +5670,6 @@ dwarf_derived_probe_group::emit_module_init (systemtap_session& s)
 
   s.op->newline() << "rc = stapkp_init( "
                                      << "stap_dwarf_probes, "
-                                     << "stap_dwarf_kprobes, "
                                      << "ARRAY_SIZE(stap_dwarf_probes));";
 }
 
@@ -5683,7 +5684,6 @@ dwarf_derived_probe_group::emit_module_refresh (systemtap_session& s)
   s.op->newline() << "stapkp_refresh( "
                                    << "modname, "
                                    << "stap_dwarf_probes, "
-                                   << "stap_dwarf_kprobes, "
                                    << "ARRAY_SIZE(stap_dwarf_probes));";
 }
 
@@ -5697,7 +5697,6 @@ dwarf_derived_probe_group::emit_module_exit (systemtap_session& s)
 
   s.op->newline() << "stapkp_exit( "
                                 << "stap_dwarf_probes, "
-                                << "stap_dwarf_kprobes, "
                                 << "ARRAY_SIZE(stap_dwarf_probes));";
 }
 

@@ -56,6 +56,7 @@ struct stap_dwarf_probe {
    const unsigned long address;
    const struct stap_probe * const probe;
    const struct stap_probe * const entry_probe;
+   struct stap_dwarf_kprobe * const kprobe;
 };
 
 
@@ -91,24 +92,24 @@ stapkp_relocate_addr(struct stap_dwarf_probe *sdp)
 
 
 static int
-stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp,
-                      struct stap_dwarf_kprobe *kp)
+stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp)
 {
+   struct kprobe *kp = &sdp->kprobe->u.kp;
    unsigned long addr = stapkp_relocate_addr(sdp);
    if (addr == 0)
       return 1;
 
-   kp->u.kp.addr = (void *) addr;
-   kp->u.kp.pre_handler = &enter_kprobe_probe;
+   kp->addr = (void *) addr;
+   kp->pre_handler = &enter_kprobe_probe;
 
 #ifdef __ia64__ // PR6028
-   kp->dummy.addr = kp->u.kp.addr;
-   kp->dummy.pre_handler = NULL;
+   sdp->kprobe->dummy.addr = kp->addr;
+   sdp->kprobe->dummy.pre_handler = NULL;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    if (!sdp->probe->cond_enabled) {
-      kp->u.kp.flags |= KPROBE_FLAG_DISABLED;
+      kp->flags |= KPROBE_FLAG_DISABLED;
       dbug_otf("registering as disabled (kprobe) pidx %zu\n",
                sdp->probe->index);
    }
@@ -119,19 +120,19 @@ stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp,
-                            struct stap_dwarf_kprobe *kp)
+stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp)
 {
    int ret = 0;
+   struct kprobe *kp = &sdp->kprobe->u.kp;
 
 #ifndef __ia64__
-   ret = register_kprobe (& kp->u.kp);
+   ret = register_kprobe(kp);
 #else // PR6028
-   ret = register_kprobe (& kp->dummy);
+   ret = register_kprobe(&sdp->kprobe->dummy);
    if (ret == 0) {
-      ret = register_kprobe (& kp->u.kp);
+      ret = register_kprobe(kp);
       if (ret != 0)
-         unregister_kprobe (& kp->dummy);
+         unregister_kprobe(&sdp->kprobe->dummy);
    }
 #endif
 
@@ -142,49 +143,48 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_register_kprobe(struct stap_dwarf_probe *sdp,
-                       struct stap_dwarf_kprobe *kp)
+stapkp_register_kprobe(struct stap_dwarf_probe *sdp)
 {
-   int ret = stapkp_prepare_kprobe(sdp, kp);
+   int ret = stapkp_prepare_kprobe(sdp);
    if (ret == 0)
-      ret = stapkp_arch_register_kprobe(sdp, kp);
+      ret = stapkp_arch_register_kprobe(sdp);
    return ret;
 }
 
 
 static int
-stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp,
-                         struct stap_dwarf_kprobe *kp)
+stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp)
 {
+   struct kretprobe *krp = &sdp->kprobe->u.krp;
    unsigned long addr = stapkp_relocate_addr(sdp);
    if (addr == 0)
       return 1;
 
-   kp->u.krp.kp.addr = (void *) addr;
+   krp->kp.addr = (void *) addr;
 
    if (sdp->maxactive_p)
-      kp->u.krp.maxactive = sdp->maxactive_val;
+      krp->maxactive = sdp->maxactive_val;
    else
-      kp->u.krp.maxactive = KRETACTIVE;
+      krp->maxactive = KRETACTIVE;
 
-   kp->u.krp.handler = &enter_kretprobe_probe;
+   krp->handler = &enter_kretprobe_probe;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,25)
    if (sdp->entry_probe) {
-      kp->u.krp.entry_handler = &enter_kretprobe_entry_probe;
-      kp->u.krp.data_size = sdp->saved_longs * sizeof(int64_t) +
-                            sdp->saved_strings * MAXSTRINGLEN;
+      krp->entry_handler = &enter_kretprobe_entry_probe;
+      krp->data_size = sdp->saved_longs * sizeof(int64_t) +
+                       sdp->saved_strings * MAXSTRINGLEN;
    }
 #endif
 
 #ifdef __ia64__ // PR6028
-   kp->dummy.addr = kp->u.krp.kp.addr;
-   kp->dummy.pre_handler = NULL;
+   sdp->kprobe->dummy.addr = krp->kp.addr;
+   sdp->kprobe->dummy.pre_handler = NULL;
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
    if (!sdp->probe->cond_enabled) {
-      kp->u.krp.kp.flags |= KPROBE_FLAG_DISABLED;
+      krp->kp.flags |= KPROBE_FLAG_DISABLED;
       dbug_otf("registering as disabled (kretprobe) pidx %zu\n",
                sdp->probe->index);
    }
@@ -195,19 +195,19 @@ stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp,
-                               struct stap_dwarf_kprobe *kp)
+stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp)
 {
    int ret = 0;
+   struct kretprobe *krp = &sdp->kprobe->u.krp;
 
 #ifndef __ia64__
-   ret = register_kretprobe (& kp->u.krp);
+   ret = register_kretprobe(krp);
 #else // PR6028
-   ret = register_kprobe (& kp->dummy);
+   ret = register_kprobe(&sdp->kprobe->dummy);
    if (ret == 0) {
-      ret = register_kretprobe (& kp->u.krp);
+      ret = register_kretprobe(krp);
       if (ret != 0)
-         unregister_kprobe (& kp->dummy);
+         unregister_kprobe(&sdp->kprobe->dummy);
    }
 #endif
 
@@ -218,86 +218,85 @@ stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_register_kretprobe(struct stap_dwarf_probe *sdp,
-                          struct stap_dwarf_kprobe *kp)
+stapkp_register_kretprobe(struct stap_dwarf_probe *sdp)
 {
-   int ret = stapkp_prepare_kretprobe(sdp, kp);
+   int ret = stapkp_prepare_kretprobe(sdp);
    if (ret == 0)
-      ret = stapkp_arch_register_kretprobe(sdp, kp);
+      ret = stapkp_arch_register_kretprobe(sdp);
    return ret;
 }
 
 
 static int
-stapkp_register_probe(struct stap_dwarf_probe *sdp,
-                      struct stap_dwarf_kprobe *kp)
+stapkp_register_probe(struct stap_dwarf_probe *sdp)
 {
    if (sdp->registered_p)
       return 0;
 
-   return sdp->return_p ? stapkp_register_kretprobe(sdp, kp)
-                        : stapkp_register_kprobe(sdp, kp);
+   return sdp->return_p ? stapkp_register_kretprobe(sdp)
+                        : stapkp_register_kprobe(sdp);
 }
 
 
 static void
-stapkp_add_missed(struct stap_dwarf_probe *sdp,
-                  struct stap_dwarf_kprobe *kp)
+stapkp_add_missed(struct stap_dwarf_probe *sdp)
 {
    if (sdp->return_p) {
 
-      atomic_add (kp->u.krp.nmissed, skipped_count());
+      struct kretprobe *krp = &sdp->kprobe->u.krp;
 
+      atomic_add(krp->nmissed, skipped_count());
 #ifdef STP_TIMING
-      if (kp->u.krp.nmissed)
+      if (krp->nmissed)
          _stp_warn ("Skipped due to missed kretprobe/1 on '%s': %d\n",
-                    sdp->probe->pp, kp->u.krp.nmissed);
+                    sdp->probe->pp, krp->nmissed);
 #endif
 
-      atomic_add (kp->u.krp.kp.nmissed, skipped_count());
-
+      atomic_add(krp->kp.nmissed, skipped_count());
 #ifdef STP_TIMING
-      if (kp->u.krp.kp.nmissed)
+      if (krp->kp.nmissed)
          _stp_warn ("Skipped due to missed kretprobe/2 on '%s': %lu\n",
-                    sdp->probe->pp, kp->u.krp.kp.nmissed);
+                    sdp->probe->pp, krp->kp.nmissed);
 #endif
 
    } else {
 
-      atomic_add (kp->u.kp.nmissed, skipped_count());
+      struct kprobe *kp = &sdp->kprobe->u.kp;
 
+      atomic_add (kp->nmissed, skipped_count());
 #ifdef STP_TIMING
-      if (kp->u.kp.nmissed)
+      if (kp->nmissed)
          _stp_warn ("Skipped due to missed kprobe on '%s': %lu\n",
-                    sdp->probe->pp, kp->u.kp.nmissed);
+                    sdp->probe->pp, kp->nmissed);
 #endif
    }
 }
 
 
 static void
-stapkp_unregister_probe(struct stap_dwarf_probe *sdp,
-                        struct stap_dwarf_kprobe *kp)
+stapkp_unregister_probe(struct stap_dwarf_probe *sdp)
 {
+   struct stap_dwarf_kprobe *sdk = sdp->kprobe;
+
    if (!sdp->registered_p)
       return;
 
    if (sdp->return_p)
-      unregister_kretprobe (&kp->u.krp);
+      unregister_kretprobe (&sdk->u.krp);
    else
-      unregister_kprobe (&kp->u.kp);
+      unregister_kprobe (&sdk->u.kp);
 
 #if defined(__ia64__)
-   unregister_kprobe (&kp->dummy);
+   unregister_kprobe (&sdk->dummy);
 #endif
 
    sdp->registered_p = 0;
 
-   stapkp_add_missed(sdp, kp);
+   stapkp_add_missed(sdp);
 
    // PR16861: kprobes may have left some things in the k[ret]probe struct.
    // Let's reset it to be sure it's safe for re-use.
-   memset(kp, 0, sizeof(struct stap_dwarf_kprobe));
+   memset(sdk, 0, sizeof(struct stap_dwarf_kprobe));
 }
 
 
@@ -317,7 +316,6 @@ enum collect_type {
 
 static size_t
 stapkp_collect_registered_probes(struct stap_dwarf_probe *probes,
-                                 struct stap_dwarf_kprobe *kprobes,
                                  size_t nprobes, enum collect_type type)
 {
    size_t i, j;
@@ -326,18 +324,18 @@ stapkp_collect_registered_probes(struct stap_dwarf_probe *probes,
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
-      struct stap_dwarf_kprobe *kp = &kprobes[i];
+      struct stap_dwarf_kprobe *sdk = sdp->kprobe;
 
       if (!sdp->registered_p)
          continue;
 
       if (type == COLLECT_KPROBES && !sdp->return_p)
-         stap_unreg_kprobes[j++] = &kp->u.kp;
+         stap_unreg_kprobes[j++] = &sdk->u.kp;
       else if (type == COLLECT_KRETPROBES && sdp->return_p)
-         stap_unreg_kprobes[j++] = &kp->u.krp;
+         stap_unreg_kprobes[j++] = &sdk->u.krp;
 #if defined(__ia64__)
       else if (type == COLLECT_DUMMYS)
-         stap_unreg_kprobes[j++] = &kp->dummy;
+         stap_unreg_kprobes[j++] = &sdk->dummy;
 #endif
    }
 
@@ -346,21 +344,20 @@ stapkp_collect_registered_probes(struct stap_dwarf_probe *probes,
 
 static void
 stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
-                               struct stap_dwarf_kprobe *kprobes,
                                size_t nprobes)
 {
    size_t i, n;
 
-   n = stapkp_collect_registered_probes(probes, kprobes,
+   n = stapkp_collect_registered_probes(probes,
                                         nprobes, COLLECT_KPROBES);
    unregister_kprobes((struct kprobe **)stap_unreg_kprobes, n);
 
-   n = stapkp_collect_registered_probes(probes, kprobes,
+   n = stapkp_collect_registered_probes(probes,
                                         nprobes, COLLECT_KRETPROBES);
    unregister_kretprobes((struct kretprobe **)stap_unreg_kprobes, n);
 
 #ifdef __ia64__
-   n = stapkp_collect_registered_probes(probes, kprobes,
+   n = stapkp_collect_registered_probes(probes,
                                         nprobes, COLLECT_DUMMYS);
    unregister_kprobes((struct kprobe **)stap_unreg_kprobes, n);
 #endif
@@ -370,14 +367,13 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
-      struct stap_dwarf_kprobe *kp = &kprobes[i];
 
       if (!sdp->registered_p)
          continue;
 
       sdp->registered_p = 0;
 
-      stapkp_add_missed(sdp, kp);
+      stapkp_add_missed(sdp);
 
       // PR16861: kprobes may have left some things in the k[ret]probe struct.
       // Let's reset it to be sure it's safe for re-use.
@@ -390,13 +386,12 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
 
 static void
 stapkp_unregister_probes(struct stap_dwarf_probe *probes,
-                         struct stap_dwarf_kprobe *kprobes,
                          size_t nprobes)
 {
 #if defined(STAPCONF_UNREGISTER_KPROBES)
 
    // Unregister using batch mode
-   stapkp_batch_unregister_probes(probes, kprobes, nprobes);
+   stapkp_batch_unregister_probes(probes, nprobes);
 
 #else
 
@@ -405,12 +400,11 @@ stapkp_unregister_probes(struct stap_dwarf_probe *probes,
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
-      struct stap_dwarf_kprobe *kp = &kprobes[i];
 
       if (!sdp->registered_p)
          continue;
 
-      stapkp_unregister_probe(sdp, kp);
+      stapkp_unregister_probe(sdp);
    }
 
 #endif
@@ -420,41 +414,38 @@ stapkp_unregister_probes(struct stap_dwarf_probe *probes,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
 
 static int
-stapkp_enabled(struct stap_dwarf_probe *sdp,
-               struct stap_dwarf_kprobe *kp)
+stapkp_enabled(struct stap_dwarf_probe *sdp)
 {
    if (!sdp->registered_p)
       return 0;
 
-   return sdp->return_p ? !kprobe_disabled(&kp->u.krp.kp)
-                        : !kprobe_disabled(&kp->u.kp);
+   return sdp->return_p ? !kprobe_disabled(&sdp->kprobe->u.krp.kp)
+                        : !kprobe_disabled(&sdp->kprobe->u.kp);
 }
 
 
 static int
-stapkp_should_enable_probe(struct stap_dwarf_probe *sdp,
-                           struct stap_dwarf_kprobe *kp)
+stapkp_should_enable_probe(struct stap_dwarf_probe *sdp)
 {
    return  sdp->registered_p
-       && !stapkp_enabled(sdp, kp)
+       && !stapkp_enabled(sdp)
        &&  sdp->probe->cond_enabled;
 }
 
 
 static int
-stapkp_enable_probe(struct stap_dwarf_probe *sdp,
-                    struct stap_dwarf_kprobe *kp)
+stapkp_enable_probe(struct stap_dwarf_probe *sdp)
 {
    int ret = 0;
 
    dbug_otf("enabling (k%sprobe) pidx %zu\n",
             sdp->return_p ? "ret" : "", sdp->probe->index);
 
-   ret = sdp->return_p ? enable_kretprobe(&kp->u.krp)
-                       : enable_kprobe(&kp->u.kp);
+   ret = sdp->return_p ? enable_kretprobe(&sdp->kprobe->u.krp)
+                       : enable_kprobe(&sdp->kprobe->u.kp);
 
    if (ret != 0) {
-      stapkp_unregister_probe(sdp, kp);
+      stapkp_unregister_probe(sdp);
       dbug_otf("failed to enable (k%sprobe) pidx %zu (rc %d)\n",
                sdp->return_p ? "ret" : "", sdp->probe->index, ret);
    }
@@ -464,29 +455,27 @@ stapkp_enable_probe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_should_disable_probe(struct stap_dwarf_probe *sdp,
-                            struct stap_dwarf_kprobe *kp)
+stapkp_should_disable_probe(struct stap_dwarf_probe *sdp)
 {
    return  sdp->registered_p
-       &&  stapkp_enabled(sdp, kp)
+       &&  stapkp_enabled(sdp)
        && !sdp->probe->cond_enabled;
 }
 
 
 static int
-stapkp_disable_probe(struct stap_dwarf_probe *sdp,
-                     struct stap_dwarf_kprobe *kp)
+stapkp_disable_probe(struct stap_dwarf_probe *sdp)
 {
    int ret = 0;
 
    dbug_otf("disabling (k%sprobe) pidx %zu\n",
             sdp->return_p ? "ret" : "", sdp->probe->index);
 
-   ret = sdp->return_p ? disable_kretprobe(&kp->u.krp)
-                       : disable_kprobe(&kp->u.kp);
+   ret = sdp->return_p ? disable_kretprobe(&sdp->kprobe->u.krp)
+                       : disable_kprobe(&sdp->kprobe->u.kp);
 
    if (ret != 0) {
-      stapkp_unregister_probe(sdp, kp);
+      stapkp_unregister_probe(sdp);
       dbug_otf("failed to disable (k%sprobe) pidx %zu (rc %d)\n",
                sdp->return_p ? "ret" : "", sdp->probe->index, ret);
    }
@@ -496,13 +485,12 @@ stapkp_disable_probe(struct stap_dwarf_probe *sdp,
 
 
 static int
-stapkp_refresh_probe(struct stap_dwarf_probe *sdp,
-                     struct stap_dwarf_kprobe *kp)
+stapkp_refresh_probe(struct stap_dwarf_probe *sdp)
 {
-   if (stapkp_should_enable_probe(sdp, kp))
-      return stapkp_enable_probe(sdp, kp);
-   if (stapkp_should_disable_probe(sdp, kp))
-      return stapkp_disable_probe(sdp, kp);
+   if (stapkp_should_enable_probe(sdp))
+      return stapkp_enable_probe(sdp);
+   if (stapkp_should_disable_probe(sdp))
+      return stapkp_disable_probe(sdp);
    return 0;
 }
 
@@ -511,17 +499,15 @@ stapkp_refresh_probe(struct stap_dwarf_probe *sdp,
 
 static int
 stapkp_init(struct stap_dwarf_probe *probes,
-            struct stap_dwarf_kprobe *kprobes,
             size_t nprobes)
 {
    size_t i;
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
-      struct stap_dwarf_kprobe *kp = &kprobes[i];
       int rc = 0;
 
-      rc = stapkp_register_probe(sdp, kp);
+      rc = stapkp_register_probe(sdp);
       if (rc == 1) // failed to relocate addr?
          continue; // don't fuss about it, module probably not loaded
 
@@ -543,7 +529,6 @@ stapkp_init(struct stap_dwarf_probe *probes,
 static void
 stapkp_refresh(const char *modname,
                struct stap_dwarf_probe *probes,
-               struct stap_dwarf_kprobe *kprobes,
                size_t nprobes)
 {
    size_t i;
@@ -551,7 +536,6 @@ stapkp_refresh(const char *modname,
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
-      struct stap_dwarf_kprobe *kp = &kprobes[i];
 
       // was this probe's target module loaded/unloaded
       if (modname && sdp->module
@@ -561,15 +545,15 @@ stapkp_refresh(const char *modname,
 
          // module being loaded?
          if (sdp->registered_p == 0 && addr != 0)
-            stapkp_register_probe(sdp, kp);
+            stapkp_register_probe(sdp);
          // module/section being unloaded?
          else if (sdp->registered_p == 1 && addr == 0)
-            stapkp_unregister_probe(sdp, kp);
+            stapkp_unregister_probe(sdp);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-      } else if (stapkp_should_enable_probe(sdp, kp)
-              || stapkp_should_disable_probe(sdp, kp)) {
-         stapkp_refresh_probe(sdp, kp);
+      } else if (stapkp_should_enable_probe(sdp)
+              || stapkp_should_disable_probe(sdp)) {
+         stapkp_refresh_probe(sdp);
 #endif
       }
    }
@@ -578,10 +562,9 @@ stapkp_refresh(const char *modname,
 
 static void
 stapkp_exit(struct stap_dwarf_probe *probes,
-            struct stap_dwarf_kprobe *kprobes,
             size_t nprobes)
 {
-   stapkp_unregister_probes(probes, kprobes, nprobes);
+   stapkp_unregister_probes(probes, nprobes);
 }
 
 
