@@ -125,6 +125,25 @@ run_subtest "many_vars_2" [list 0 3 \
    }
 }
 
+# NB: This is a tricky test for locking. Probe 1 needs to write-lock var1, but
+# also read-lock var2 which needs to be read during the re-evaluation of probe
+# 0's condition in the epilogue of probe 1. XXX: make this testcase also parse
+# locking info?
+run_subtest "many_vars_3" [list 1 0 \
+                                2 0] {
+   global var1 = 29
+   global var2 = -0x123
+   probe timer.s(1) if (var1 || var2) {
+      next
+   }
+   probe timer.s(2) {
+      var1--
+   }
+   probe timer.s(3) {
+      var2--
+   }
+}
+
 run_subtest "many_probes_1" [list 2 0 \
                                   2 1] {
    global var1 = 0

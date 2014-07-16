@@ -2451,6 +2451,22 @@ c_unparser::emit_probe (derived_probe* v)
         {
           varuse_collecting_visitor vut(*session);
           v->body->visit (& vut);
+
+          // also visit any probe conditions which this current probe might
+          // evaluate so that read locks are emitted as necessary: e.g. suppose
+          //    probe X if (a || b) {...} probe Y {a = ...} probe Z {b = ...}
+          // then Y and Z will already write-lock a and b respectively, but they
+          // also need a read-lock on b and a respectively, since they will read
+          // them when evaluating the new cond_enabled field (see c_unparser::
+          // emit_probe_condition_update()).
+          for (set<derived_probe*>::const_iterator
+                it  = v->probes_with_affected_conditions.begin();
+                it != v->probes_with_affected_conditions.end(); ++it)
+            {
+              assert((*it)->sole_location()->condition != NULL);
+              (*it)->sole_location()->condition->visit (& vut);
+            }
+
           emit_lock_decls (vut);
         }
 
@@ -2573,12 +2589,10 @@ c_unparser::emit_probe_condition_update(derived_probe* v)
 
   string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
 
-  // Concurrency note: we can be assured of being in the only critical
-  // section that can modify one of the globals implicated in the
-  // conditional of another probe (since we modify it in our probe
-  // handler, so must have exclusive-locked it).  So, we don't have to
-  // be too paranoid about setting the other probe's cond_enabled
-  // field: no one else could be running who could set/clear it.
+  // Concurrency note: we're safe modifying cond_enabled here since we emit
+  // locks not only for globals we write to, but also for globals read in other
+  // probes' whose conditions we visit below (see in c_unparser::emit_probe). So
+  // we can be assured we're the only ones modifying cond_enabled.
 
   o->newline() << "if (" << cond_enabled << " != ";
   o->line() << "!!"; // NB: turn general integer into boolean 1 or 0
