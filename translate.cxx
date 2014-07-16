@@ -1091,7 +1091,7 @@ c_unparser::emit_common_header ()
     {
       // Updated in probe handlers to signal that a module refresh is needed.
       // Checked and cleared by common epilogue after scheduling refresh work.
-      o->newline( 0)  << "static unsigned need_module_refresh = 0;";
+      o->newline( 0)  << "static atomic_t need_module_refresh = ATOMIC_INIT(0);";
 
       // We will use a workqueue to schedule module_refresh work when we need
       // to enable/disable probes.
@@ -2588,7 +2588,7 @@ c_unparser::emit_probe_condition_update(derived_probe* v)
   // don't bother refreshing if on-the-fly not supported
   if (!session->runtime_usermode_p()
       && v->on_the_fly_supported(*session))
-    o->newline() << "need_module_refresh = 1;"; // XXX: still, use atomic_set here
+    o->newline() << "atomic_set(&need_module_refresh, 1);";
   o->newline(-1) << "}";
 }
 

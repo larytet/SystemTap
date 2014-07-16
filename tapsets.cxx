@@ -217,9 +217,8 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   if (!s.runtime_usermode_p())
     {
       // Check if a refresh is required
-      s.op->newline( 0) <<  "if (need_module_refresh) {";
-      s.op->newline(+1) <<    "need_module_refresh = 0;";
-      s.op->newline( 0) <<    "schedule_work(&module_refresher_work);";
+      s.op->newline( 0) <<  "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1) {";
+      s.op->newline(+1) <<    "schedule_work(&module_refresher_work);";
       s.op->newline(-1) <<  "}";
     }
 
