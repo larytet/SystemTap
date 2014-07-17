@@ -55,13 +55,6 @@ typedef enum mmv_metric_sem {
 } mmv_metric_sem_t;
 
 typedef struct {
-    uint64_t		indom;		/* Offset into files indom section */
-    uint32_t		padding;	/* zero filled, alignment bits */
-    int32_t		internal;	/* Internal instance ID */
-    char		external[MMV_NAMEMAX];	/* External instance ID */
-} mmv_disk_instances_t;
-
-typedef struct {
     uint32_t		serial;		/* Unique identifier */
     uint32_t		count;		/* Number of instances */
     uint64_t		offset;		/* Offset of first instance */
