@@ -2612,7 +2612,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   unsigned numvars = 0;
 
   if (session->verbose > 1)
-    clog << "probe " << *current_probe->sole_location() << " locks ";
+    clog << "probe " << current_probe->session_index << " "
+            "('" << *current_probe->sole_location() << "') locks";
 
   // We can only make this static in kernel mode.  In stapdyn mode,
   // the globals and their locks are in shared memory.
@@ -2663,8 +2664,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
 
       numvars ++;
       if (session->verbose > 1)
-        clog << v->name << "[" << (read_p ? "r" : "")
-             << (write_p ? "w" : "")  << "] ";
+        clog << " " << v->name << "[" << (read_p ? "r" : "")
+             << (write_p ? "w" : "")  << "]";
     }
 
   o->newline(-1) << "};";
@@ -2672,7 +2673,7 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   if (session->verbose > 1)
     {
       if (!numvars)
-        clog << _("nothing");
+        clog << _(" nothing");
       clog << endl;
     }
 }
