@@ -72,6 +72,7 @@ struct c_unparser: public unparser, public visitor
   unsigned tmpvar_counter;
   unsigned label_counter;
   unsigned action_counter;
+  bool already_checked_action_count;
 
   varuse_collecting_visitor vcv_needs_global_locks;
 
@@ -82,7 +83,7 @@ struct c_unparser: public unparser, public visitor
   c_unparser (systemtap_session* ss):
     session (ss), o (ss->op), current_probe(0), current_function (0),
     tmpvar_counter (0), label_counter (0), action_counter(0),
-    vcv_needs_global_locks (*ss) {}
+    already_checked_action_count(false), vcv_needs_global_locks (*ss) {}
   ~c_unparser () {}
 
   void emit_map_type_instantiations ();
@@ -1873,9 +1874,7 @@ c_unparser::emit_module_init ()
 
   // For any partially registered/unregistered kernel facilities.
   o->newline() << "atomic_set (session_state(), STAP_SESSION_STOPPED);";
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // In case tracepoints were started, they need to be cleaned up
   o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
@@ -1959,9 +1958,7 @@ c_unparser::emit_module_exit ()
   // Let's wait a while to make sure they're all done, done, done.
 
   // cargo cult prologue
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // NB: systemtap_module_exit is assumed to be called from ordinary
   // user context, say during module unload.  Among other things, this
@@ -1970,9 +1967,7 @@ c_unparser::emit_module_exit ()
 
   // cargo cult epilogue
   o->newline() << "atomic_set (session_state(), STAP_SESSION_STOPPED);";
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // XXX: might like to have an escape hatch, in case some probe is
   // genuinely stuck somehow
@@ -2091,6 +2086,56 @@ c_unparser::emit_module_exit ()
   o->newline(-1) << "}\n";
 }
 
+struct max_action_info: public functioncall_traversing_visitor
+{
+  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
+
+  systemtap_session& sess;
+  unsigned statement_count;
+  static const unsigned max_statement_count = ~0;
+
+  void add_stmt_count (unsigned val)
+    {
+      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
+    }
+  void add_max_stmt_count () { statement_count = max_statement_count; }
+
+  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
+  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
+  void visit_expr_statement (expr_statement *stmt)
+    {
+      add_stmt_count(1);
+      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
+    }
+  void visit_if_statement (if_statement *stmt)
+    {
+      add_stmt_count(1);
+      stmt->condition->visit(this);
+
+      // Create new visitors for the two forks.  Copy the nested[] set
+      // to prevent infinite recursion for a   function f () { if (a) f() }
+      max_action_info tmp_visitor_then (*this);
+      max_action_info tmp_visitor_else (*this);
+      stmt->thenblock->visit(& tmp_visitor_then);
+      if (stmt->elseblock)
+        {
+          stmt->elseblock->visit(& tmp_visitor_else);
+        }
+
+      // Simply overwrite our copy of statement_count, since these
+      // visitor copies already included our starting count.
+      statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
+    }
+
+  void note_recursive_functioncall (functioncall *e) { add_max_stmt_count(); }
+
+  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
+  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
+  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
+  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
+  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
+  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
+};
 
 void
 c_unparser::emit_function (functiondecl* v)
@@ -2102,6 +2147,7 @@ c_unparser::emit_function (functiondecl* v)
   this->current_function = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
+  this->already_checked_action_count = false;
 
   o->newline() << "__label__ out;";
   o->newline()
@@ -2176,6 +2222,19 @@ c_unparser::emit_function (functiondecl* v)
 
   o->newline() << "#define STAP_ERROR(...) do { snprintf(CONTEXT->error_buffer, MAXSTRINGLEN, __VA_ARGS__); CONTEXT->last_error = CONTEXT->error_buffer; goto out; } while (0)";
   o->newline() << "#define return goto out"; // redirect embedded-C return
+
+  max_action_info mai (*session);
+  v->body->visit (&mai);
+
+  if (mai.statement_count < mai.max_statement_count
+      && !session->suppress_time_limits
+      && !session->unoptimized) // this is a finite-statement-count function
+    {
+      o->newline() << "if (c->actionremaining < " << mai.statement_count
+                   << ") { c->last_error = " << STAP_T_04 << "goto out; }";
+      this->already_checked_action_count = true;
+    }
+
   v->body->visit (this);
   o->newline() << "#undef return";
   o->newline() << "#undef STAP_ERROR";
@@ -2202,8 +2261,9 @@ c_unparser::emit_function (functiondecl* v)
   }
   o->newline() << "#undef STAP_RETVALUE";
   o->newline(-1) << "}\n";
-}
 
+  this->already_checked_action_count = false;
+}
 
 #define DUPMETHOD_CALL 0
 #define DUPMETHOD_ALIAS 0
@@ -2216,6 +2276,7 @@ c_unparser::emit_probe (derived_probe* v)
   this->current_probe = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
+  this->already_checked_action_count = false;
 
   // If we about to emit a probe that is exactly the same as another
   // probe previously emitted, make the second probe just call the
@@ -2335,6 +2396,21 @@ c_unparser::emit_probe (derived_probe* v)
 
       v->initialize_probe_context_vars (o);
 
+      max_action_info mai (*session);
+      v->body->visit (&mai);
+      if (session->verbose > 1)
+        clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
+
+      if (mai.statement_count < mai.max_statement_count
+          && !session->suppress_time_limits
+          && !session->unoptimized) // this is a finite-statement-count probe
+        {
+          o->newline() << "if (c->actionremaining < " << mai.statement_count 
+                       << ") { c->last_error = " << STAP_T_04 << " goto out; }";
+          this->already_checked_action_count = true;
+        }
+
+
       v->body->visit (this);
 
       record_actions(0, v->body->tok, true);
@@ -2355,6 +2431,7 @@ c_unparser::emit_probe (derived_probe* v)
 
 
   this->current_probe = 0;
+  this->already_checked_action_count = false;
 }
 
 
@@ -2986,8 +3063,10 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
 
   // Update if needed, or after queueing up a few actions, in case of very
   // large code sequences.
-  if (((update && action_counter > 0) || action_counter >= 10/*<-arbitrary*/) && !session->suppress_time_limits)
+  if (((update && action_counter > 0) || action_counter >= 10/*<-arbitrary*/)
+    && !session->suppress_time_limits && !already_checked_action_count)
     {
+
       o->newline() << "c->actionremaining -= " << action_counter << ";";
       o->newline() << "if (unlikely (c->actionremaining <= 0)) {";
       o->newline(1) << "c->last_error = ";
@@ -6222,10 +6301,19 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   // For kernel modules just the name itself.
   string mainpath = resolve_path(mainfile);
   string mainname;
-  if (modname[0] == '/') // userspace
+  if (is_user_module(modname)) // userspace
     mainname = lex_cast_qstring (path_remove_sysroot(c->session,mainpath));
   else
-    mainname = lex_cast_qstring (modname);
+    { // kernel module
+
+      // If the module name is the full path to the ko, then we have to retrieve
+      // the actual name by which the module will be known inside the kernel.
+      // Otherwise, section relocations would be mismatched.
+      if (is_fully_resolved(modname, c->session.sysroot, c->session.sysenv))
+        mainname = lex_cast_qstring (modname_from_path(modname));
+      else
+        mainname = lex_cast_qstring (modname);
+    }
 
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
   c->output << ".name = " << mainname.c_str() << ",\n";
@@ -6679,9 +6767,6 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
       s.print_warning (_("missing unwind/symbol data for module '")
 		       + (*it) + "'");
 }
-
-
-
 
 struct recursion_info: public traversing_visitor
 {

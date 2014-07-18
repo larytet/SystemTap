@@ -117,6 +117,7 @@ handle_fields (struct obstack *pool,
 	case DW_TAG_typedef:
 	case DW_TAG_const_type:
 	case DW_TAG_volatile_type:
+	case DW_TAG_restrict_type:
 	  /* Just iterate on the referent type.  */
 	  break;
 
@@ -231,7 +232,8 @@ handle_fields (struct obstack *pool,
       typetag = dwarf_tag (typedie);
       if (typetag != DW_TAG_typedef &&
 	  typetag != DW_TAG_const_type &&
-	  typetag != DW_TAG_volatile_type)
+	  typetag != DW_TAG_volatile_type &&
+	  typetag != DW_TAG_restrict_type)
 	break;
       if (dwarf_attr_integrate (typedie, DW_AT_type, &attr_mem) == NULL)
 	error (2, 0, _("cannot get type of field: %s"), dwarf_errmsg (-1));
@@ -417,6 +419,10 @@ print_type (Dwarf_Die *typedie, char space)
 	  case DW_TAG_volatile_type:
 	    print_type (die, space);
 	    printf (" volatile");
+	    break;
+	  case DW_TAG_restrict_type:
+	    print_type (die, space);
+	    printf (" restrict");
 	    break;
 	  default:
 	    printf ("%c<unknown %#x>", space, tag);

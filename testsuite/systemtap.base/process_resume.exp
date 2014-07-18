@@ -1,0 +1,82 @@
+# This test answers the following questions:
+#
+# - Can we attach to stopped processes correctly? Before PR?????? fix,
+#   stap would cause a kernel warn.
+#
+# - Does resuming work on those processes? Before PR?????? fix,
+#   processes would get stuck.
+
+set test "process_resume"
+
+# Only run on make installcheck and if we have utrace
+if {![installtest_p]} { untested "$test"; return }
+if {![utrace_p]} { untested "$test : no kernel utrace support found"; return }
+
+# "load" generation function for stap_run.  It waits a bit, tells the
+# test program to continue and then waits a bit.
+proc resume_load {} {
+    global pid
+
+    wait_n_secs 2
+    kill -cont $pid 0
+    wait_n_secs 2
+    return 0
+}
+
+set getpid_script {
+    global getpid_calls = 0
+    probe begin { printf("systemtap starting probe\n") }
+    probe syscall.getpid { getpid_calls++ }
+    probe end { printf("systemtap ending probe\n")
+	printf("getpid calls = %d\n", getpid_calls) }
+}
+# Notice we don't care how many getpid() calls we see.
+set getpid_script_output "getpid calls = \[0-9\]\r\n"
+
+set end_script {
+    global end_probes_fired = 0
+    probe begin { printf("systemtap starting probe\n") }
+    probe process("%s").end { end_probes_fired++ }
+    probe end { printf("systemtap ending probe\n")
+	printf("end probes = %%d\n", end_probes_fired) }
+}
+set end_script_output "end probes = 1\r\n"
+
+# Compile test program.
+set res [target_compile $srcdir/$subdir/${test}.c ${test} executable \
+    "additional_flags=-O2 additional_flags=-g"]
+if { $res != "" } {
+    verbose "target_compile failed: $res" 2
+    fail "${test}: unable to compile ${test}.c"
+    return
+}
+
+# Start the application and put it in the background before each
+# test. It will stop itself and be resumed by the 'resume_load' proc.
+
+set TEST_NAME "${test}-getpid"
+set pid [exec ./$test &]
+#spawn "./$test"
+#set id $spawn_id
+#set pid [exp_pid -i $spawn_id]
+stap_run $TEST_NAME resume_load $getpid_script_output -e $getpid_script
+if {[file isdirectory /proc/$pid]} {
+    kill -KILL $pid 0
+    fail "$TEST_NAME: process didn't resume properly"
+} else {
+    pass "$TEST_NAME: process resumed properly"
+}
+
+set TEST_NAME "${test}-end"
+set pid [exec ./$test &]
+set script [format $end_script $test]
+stap_run $TEST_NAME resume_load $end_script_output -e $script
+if {[file isdirectory /proc/$pid]} {
+    kill -KILL $pid 0
+    fail "$TEST_NAME: process didn't resume properly"
+} else {
+    pass "$TEST_NAME: process resumed properly"
+}
+
+# Cleanup
+if { $verbose == 0 } { catch { exec rm -f $test } }

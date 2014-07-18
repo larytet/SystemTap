@@ -1,5 +1,8 @@
 set test "wordexp"
 
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
 # Makes sure SystemTap gracefully handles various -c failures.
 
 proc expect_semerror { command experror } {

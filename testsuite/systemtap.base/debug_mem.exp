@@ -1,0 +1,31 @@
+set test debug_mem
+set script "$srcdir/$subdir/$test.stp"
+
+if {![installtest_p]} { untested $test; return }
+
+if { [catch {exec stap -g -DDEBUG_MEM=1 "$script"} out] } {
+    fail "$test (run)"
+    return
+} else {
+    pass "$test (run)"
+}
+
+set errors 0
+spawn dmesg
+expect {
+    -timeout 60
+    -re {SYSTEMTAP DEBUG_MEM TEST\r\n} { set errors 0; exp_continue }
+    -re {SYSTEMTAP ERROR:[^\r\n]+\r\n} { incr errors; exp_continue }
+    -re {^[^\r\n]+\r\n} {
+	# ignore output we're not interested in
+	exp_continue }
+    timeout { verbose -log "TIMEOUT" }
+}
+catch { close }
+catch { wait }
+
+if { $errors == 0 } {
+    pass "$test"
+} else {
+    fail "$test ($errors)"
+}

@@ -271,6 +271,8 @@ err_attr:
 	return rc;
 }
 
+static inline void stp_synchronize_sched(void) { }
+
 /*
  * For stapdyn to work in a multiprocess environment, the module must be
  * prepared to be loaded multiple times in different processes.  Thus, we have

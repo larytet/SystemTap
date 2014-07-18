@@ -32,10 +32,14 @@ AC_PROG_MAKE_SET
 AC_SUBST(CFLAGS)
 AC_SUBST(CXXFLAGS)
 AC_SYS_LARGEFILE
-AM_GNU_GETTEXT(external)
-AM_GNU_GETTEXT_VERSION([0.18.2])
 AC_CHECK_FUNCS(ppoll)
 AC_CHECK_FUNCS(openat)
+AM_GNU_GETTEXT(external)
+AM_GNU_GETTEXT_VERSION([0.18.2])
+
+if test "x$GMSGFMT" = "x:"; then
+   AC_MSG_ERROR([missing gnu /usr/bin/msgfmt])
+fi
 
 dnl Handle the prologues option.
 dnl

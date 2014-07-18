@@ -7058,6 +7058,28 @@ rm -rf conftest*
 
 fi
 
+for ac_func in ppoll
+do :
+  ac_fn_c_check_func "$LINENO" "ppoll" "ac_cv_func_ppoll"
+if test "x$ac_cv_func_ppoll" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_PPOLL 1
+_ACEOF
+
+fi
+done
+
+for ac_func in openat
+do :
+  ac_fn_c_check_func "$LINENO" "openat" "ac_cv_func_openat"
+if test "x$ac_cv_func_openat" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_OPENAT 1
+_ACEOF
+
+fi
+done
+
 
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether NLS is requested" >&5
 $as_echo_n "checking whether NLS is requested... " >&6; }
@@ -9122,28 +9144,10 @@ $as_echo "#define HAVE_DCGETTEXT 1" >>confdefs.h
 
 
 
-for ac_func in ppoll
-do :
-  ac_fn_c_check_func "$LINENO" "ppoll" "ac_cv_func_ppoll"
-if test "x$ac_cv_func_ppoll" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_PPOLL 1
-_ACEOF
 
+if test "x$GMSGFMT" = "x:"; then
+   as_fn_error $? "missing gnu /usr/bin/msgfmt" "$LINENO" 5
 fi
-done
-
-for ac_func in openat
-do :
-  ac_fn_c_check_func "$LINENO" "openat" "ac_cv_func_openat"
-if test "x$ac_cv_func_openat" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_OPENAT 1
-_ACEOF
-
-fi
-done
-
 
 if test "${enable_prologues+set}" != set; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking to see if prologue searching should be the default" >&5

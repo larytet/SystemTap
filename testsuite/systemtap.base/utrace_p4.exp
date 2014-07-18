@@ -27,6 +27,9 @@ proc dyninst_xfails {test} {
     }
 }
 
+# start a program for probes reliant on a PID
+set pid [exec sleep 1h &]
+
 # Initialize variables
 set begin_script {"probe process(\"/bin/ls\").begin { print(\"ls begin\") }"}
 set end_script {"probe process(\"/bin/ls\").end { print(\"ls end\") }"}
@@ -37,13 +40,13 @@ set thread_begin_script {"probe process(\"/bin/ls\").thread.begin { print(\"ls t
 set thread_end_script {"probe process(\"/bin/ls\").thread.end { print(\"ls thread.end\") }"}
 set all_begin_script {"probe process.begin { print(\"begin\") }"}
 
-set pid_begin_script {"probe process(123).begin { print(\"123 begin\") }"}
-set pid_end_script {"probe process(123).end { print(\"123 end\") }"}
-set pid_syscall_script {"probe process(123).syscall { printf(\"|%d\", \$syscall) }"}
-set pid_parms_script {"probe process(123).syscall { printf(\"|%s\", \$\$parms) }"}
-set pid_syscall_return_script {"probe process(123).syscall.return { printf(\"|%d\", \$syscall) }"}
-set pid_thread_begin_script {"probe process(123).thread.begin { print(\"123 thread.begin\") }"}
-set pid_thread_end_script {"probe process(123).thread.end { print(\"123 thread.end\") }"}
+set pid_begin_script [string map "PID $pid" {"probe process(PID).begin { print(\"PID begin\") }"}]
+set pid_end_script [string map "PID $pid" {"probe process(PID).end { print(\"PID end\") }"}]
+set pid_syscall_script [string map "PID $pid" {"probe process(PID).syscall { printf(\"|%d\", \$syscall) }"}]
+set pid_parms_script [string map "PID $pid" {"probe process(PID).syscall { printf(\"|%s\", \$\$parms) }"}]
+set pid_syscall_return_script [string map "PID $pid" {"probe process(PID).syscall.return { printf(\"|%d\", \$syscall) }"}]
+set pid_thread_begin_script [string map "PID $pid" {"probe process(PID).thread.begin { print(\"PID thread.begin\") }"}]
+set pid_thread_end_script [string map "PID $pid" {"probe process(PID).thread.end { print(\"PID thread.end\") }"}]
 
 #
 # Do some utrace compile tests.
@@ -305,3 +308,6 @@ if {![utrace_p]} {
     }
 }
 
+# kill the process that we were using for testing probes
+kill -INT $pid 2
+catch {exec {}}

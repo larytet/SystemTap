@@ -52,7 +52,7 @@ struct token
   friend class parser;
   friend class lexer;
 private:
-  token() {}
+  token(): chain(0) {}
   token(const token& other):
     location(other.location), type(other.type), content(other.content),
     msg(other.msg), chain(other.chain) {}

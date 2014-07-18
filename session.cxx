@@ -252,6 +252,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   pattern_root(new match_node),
   user_file (other.user_file),
   dfa_counter(0),
+  dfa_maxtag (0),
   need_tagged_dfa(other.need_tagged_dfa),
   be_derived_probes(0),
   dwarf_derived_probes(0),
@@ -445,7 +446,7 @@ systemtap_session::version ()
 {
   clog << _F("Systemtap translator/driver (version %s)\n"
              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
-             "This is free software; see the source for copying conditions.",
+             "This is free software; see the source for copying conditions.\n",
              version_string().c_str());
 
   clog << _("enabled features:")

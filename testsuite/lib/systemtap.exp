@@ -99,6 +99,19 @@ proc perf_probes_p {} {
     return [grep_kallsyms perf_event_create_kernel_counter]
 }
 
+proc hwbkpt_probes_p {} {
+   global have_hw_breakpoint_p
+   return $have_hw_breakpoint_p
+}
+
+# Callee probes require GCC v4.7 and stap compiled
+# with elfutils 0.153
+proc callee_probes_p {} {
+   global GCC_Version ELF_Version
+   return [expr [strverscmp $GCC_Version 4.7] >= 0 && \
+                [strverscmp $ELF_Version 0.153] >= 0]
+}
+
 proc dyninst_p {} {
     global systemtap_dyninst_p
     return $systemtap_dyninst_p
@@ -114,6 +127,33 @@ proc java_p {} {
     return $systemtap_java_p
 }
 
+proc bootprobing_p {} {
+    global Dracut_Version
+    return [expr [strverscmp $Dracut_Version 025] >= 0 && \
+                 [file exists "/usr/sbin/new-kernel-pkg"]]
+}
+
+proc module_refresh_p {} {
+    return [min_kernel_vers_p 2.6.29]
+}
+
+# Returns 1 if kernel vers >= @min, 0 otherwise. The @min parameter must be in
+# the format x.y.z (e.g. 2.6.18).
+proc min_kernel_vers_p {min} {
+
+    # Check proper format
+    if {![regexp {^[0-9]+(\.[0-9]+)*$} $min]} {
+        error "$min is not a valid version number"
+    }
+
+    set uname [exec uname -r]
+
+    if {![regexp {^([0-9]+\.[0-9]+\.[0-9]+).*} $uname dummy cur]} {
+        error "can't parse version number from uname -r"
+    }
+
+    return [expr [strverscmp $cur $min] >= 0]
+}
 
 proc get_runtime_list {} {
     # Always return the default runtime.
@@ -155,6 +195,7 @@ proc print_systemtap_version {} {
 proc setup_systemtap_environment {} {
     global srcdir env server_pid logfile systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
+    global have_hw_breakpoint_p
     global kill_needs_doubledash
 
     # need an absolute SRCDIR for the top-level src/ tree
@@ -230,6 +271,13 @@ proc setup_systemtap_environment {} {
         set systemtap_java_p 1
     } else {
         set systemtap_java_p 0
+    }
+
+    # Remember if this selfsame version of systemtap supports HW breakpoints
+    if {! [catch {exec stap -l {kernel.data(0x123).rw}}]} {
+        set have_hw_breakpoint_p 1
+    } else {
+        set have_hw_breakpoint_p 0
     }
 
     # There are some kill executables that had issues with -SIG -PID, thinking
@@ -388,7 +436,7 @@ proc fullpath { path } {
 }
 
 proc get_system_info {} {
-    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux
+    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux Dracut_Version
 
     set Host [exec /bin/uname -a]
     if [file exists ../SNAPSHOT] {
@@ -425,6 +473,8 @@ proc get_system_info {} {
     } else {
         set SElinux "unknown"
     }
+    # Parse dracut version
+    regexp {\d[^\-]*} [exec sh -c "dracut --help 2>&1 | grep Version || echo 0"] Dracut_Version
 }
 
 if {! [setup_systemtap_environment]} then {
@@ -689,7 +739,9 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
    }
 
    verbose -log "Executing: kill $SIG $PID"
-   catch {eval exec kill $SIG $PID}
+   if {[catch {eval exec kill $SIG $PID} killout]} {
+      verbose -log "kill: $killout"
+   }
 
    if {$KILL_TIMEOUT > 0} {
       while {$KILL_TIMEOUT > 0} {
@@ -700,7 +752,9 @@ proc kill { SIG PID {KILL_TIMEOUT 0} } {
          incr KILL_TIMEOUT -1
       }
       verbose -log "Executing: kill -KILL $PID"
-      catch {eval exec kill -KILL $PID}
+      if {[catch {eval exec kill -KILL $PID} killout]} {
+         verbose -log "kill: $killout"
+      }
    }
 }
 

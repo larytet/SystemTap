@@ -49,11 +49,11 @@ for {set i 0} { $i < 3 } {incr i } {
     # 'ok' is the number of passes
     set ok 0
 
-    # 'count' contains the current count (iteration number) for each
+    # 'iteration_num' contains the current iteration number for each
     # of the 3 sets of lines
-    set count(appl) -1
-    set count(kern) -1
-    set count(prog) -1
+    set iteration_num(appl) -1
+    set iteration_num(kern) -1
+    set iteration_num(prog) -1
 
     # 'us_time' contains the reported time for each of the 3 sets of lines
     set us_time(appl) 0
@@ -74,18 +74,19 @@ for {set i 0} { $i < 3 } {incr i } {
 	# We found a 'appl|kern|prog' line
 	-re {^\:([0-9]+) ([0-9]+) (appl|kern|prog)\r\n} {
 	    set type $expect_out(3,string)
-	    set count($type) $expect_out(1,string)
+	    set iteration_num($type) $expect_out(1,string)
 	    set us_time($type) $expect_out(2,string)
 
 	    # If we've seen all the lines for this iteration, check
 	    # the times.
-	    if {$count(appl) == $count(kern) && $count(kern) == $count(prog)} {
+	    if {$iteration_num(appl) == $iteration_num(kern) \
+		    && $iteration_num(kern) == $iteration_num(prog)} {
 		set appl_diff [abs_diff $us_time(appl) $us_time(kern)]
 		set prog_diff [abs_diff $us_time(prog) $us_time(kern)]
 		if {$appl_diff < $variance && $prog_diff < $variance} {
 		    incr ok
 		} else {
-		    verbose -log "difference of ($appl_diff, $prog_diff) for count $count(kern) is too large"
+		    verbose -log "difference of ($appl_diff, $prog_diff) for iteration $iteration_num(kern) is too large"
 		}
 		if {$appl_diff > $max_diff} { set max_diff $appl_diff }
 		if {$prog_diff > $max_diff} { set max_diff $prog_diff }

@@ -16,11 +16,11 @@ set testexe   "[pwd]/$test"
 set testflags "additional_flags=-g additional_flags=-O0"
 set teststp   "$testpath/$test.stp"
 
-# When possible explicitly set 64 bit mode if kernel is 64 bit.
-switch -regexp $::tcl_platform(machine) {
-    {^(x86_64|ppc64|s390x)$} {
-        set testflags "$testflags additional_flags=-m64"
-    }
+# When possible explicitly set 64 bit mode if kernel is 64 bit. So, we
+# grab the 1st set of compile flags.
+set arch_flag [arch_compile_flag 0]
+if { $arch_flag != "" } {
+    set testflags "$testflags $arch_flag"
 }
 
 set res [target_compile $testsrc $testexe executable $testflags]

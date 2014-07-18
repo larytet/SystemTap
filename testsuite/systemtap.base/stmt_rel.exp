@@ -66,13 +66,15 @@ proc test_stmt_rel { function } {
       }
    }
 
-   if {$valid_rel_linenos == $valid_linenos} {
-      pass "$test ($function - same linenos in rel and wildcard)"
-   } else {
-      fail "$test ($function - different linenos!)"
-      verbose -log "wildcard linenos: $valid_linenos"
-      verbose -log "rel linenos: $valid_rel_linenos"
+   foreach lineno $valid_linenos {
+      if {[lsearch -integer -exact $valid_rel_linenos $lineno] < 0} {
+         fail "$test ($function - lineno not in rel)"
+         verbose -log "wildcard lineno $lineno not in rel linenos: $valid_rel_linenos"
+         return
+      }
    }
+
+   pass "$test ($function - linenos in wildcard also in rel)"
 }
 
 # Sanity check that bio_init has at least 3 linenos

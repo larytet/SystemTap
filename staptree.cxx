@@ -2236,17 +2236,25 @@ functioncall_traversing_visitor::visit_functioncall (functioncall* e)
   traversing_visitor::visit_functioncall (e);
 
   // prevent infinite recursion
-  if (traversed.find (e->referent) == traversed.end ())
+  if (nested.find (e->referent) == nested.end ())
     {
-      traversed.insert (e->referent);
+      if (seen.find(e->referent) == seen.end())
+        seen.insert (e->referent);
+      nested.insert (e->referent);
       // recurse
       functiondecl* last_current_function = current_function;
       current_function = e->referent;
       e->referent->body->visit (this);
       current_function = last_current_function;
+      nested.erase (e->referent);
     }
+  else { this->note_recursive_functioncall(e); }
 }
 
+void
+functioncall_traversing_visitor::note_recursive_functioncall (functioncall* e)
+{
+}
 
 void
 varuse_collecting_visitor::visit_try_block (try_block *s)

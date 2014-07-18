@@ -538,10 +538,7 @@ struct uprobe_derived_probe: public dwarf_derived_probe
                         Dwarf_Addr dwfl_addr,
                         Dwarf_Addr addr,
                         dwarf_query & q,
-                        Dwarf_Die* scope_die):
-    dwarf_derived_probe(function, filename, line, module, section,
-                        dwfl_addr, addr, q, scope_die), pid(0)
-  {}
+                        Dwarf_Die* scope_die);
 
   // alternate constructor for process(PID).statement(ADDR).absolute
   uprobe_derived_probe (probe *base,
@@ -577,7 +574,6 @@ public:
   void emit_module_exit (systemtap_session& s);
 };
 
-
 // Helper struct to thread through the dwfl callbacks.
 struct base_query
 {
@@ -600,6 +596,8 @@ struct base_query
   static bool get_number_param(literal_map_t const & params,
 			       string const & k, long & v);
   static bool get_number_param(literal_map_t const & params,
+			       string const & k, long long & v);
+  static bool get_number_param(literal_map_t const & params,
 			       string const & k, Dwarf_Addr & v);
   static void query_library_callback (base_query *me, const char *data);
   static void query_plt_callback (base_query *me, const char *link, size_t addr);
@@ -617,13 +615,14 @@ struct base_query
   string module_val; // has_kernel => module_val = "kernel"
   string path;	     // executable path if module is a .so
   string plt_val;    // has_plt => plt wildcard
+  int64_t pid_val;
 
   virtual void handle_query_module() = 0;
 };
 
-
 base_query::base_query(dwflpp & dw, literal_map_t const & params):
-  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false)
+  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
+  pid_val(0)
 {
   has_kernel = has_null_param (params, TOK_KERNEL);
   if (has_kernel)
@@ -636,7 +635,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
     {
       string library_name;
       long statement_num_val;
-      has_process = get_string_param(params, TOK_PROCESS, module_val);
+      has_process =  derived_probe_builder::has_param(params, TOK_PROCESS);
       has_library = get_string_param (params, TOK_LIBRARY, library_name);
       if ((has_plt = has_null_param (params, TOK_PLT)))
         plt_val = "*";
@@ -645,6 +644,28 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
 
       if (has_process)
         {
+          if (get_number_param(params, TOK_PROCESS, pid_val))
+            {
+              // check that the pid given corresponds to a running process
+              if (pid_val < 1 || kill(pid_val, 0) == -1)
+                  switch (errno) // ignore EINVAL: invalid signal
+                  {
+                    case ESRCH:
+                      throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+                    case EPERM:
+                      throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+                    default:
+                      throw SEMANTIC_ERROR(_("invalid pid"));
+                  }
+              string pid_path = string("/proc/") + lex_cast(pid_val) + "/exe";
+              module_val = sess.sysroot + pid_path;
+            }
+          else 
+            {
+              // reset the pid_val in case anything weird got written into it
+              pid_val = 0;
+              get_string_param(params, TOK_PROCESS, module_val);
+            }
           module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
           if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
             throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
@@ -667,7 +688,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
 
 base_query::base_query(dwflpp & dw, const string & module_val)
   : sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
-    module_val(module_val)
+    module_val(module_val), pid_val(0)
 {
   // NB: This uses '/' to distinguish between kernel modules and userspace,
   // which means that userspace modules won't get any PATH searching.
@@ -703,6 +724,17 @@ base_query::get_string_param(literal_map_t const & params,
 bool
 base_query::get_number_param(literal_map_t const & params,
 			     string const & k, long & v)
+{
+  int64_t value;
+  bool present = derived_probe_builder::get_param (params, k, value);
+  v = (long) value;
+  return present;
+}
+
+
+bool
+base_query::get_number_param(literal_map_t const & params,
+			     string const & k, long long & v)
 {
   int64_t value;
   bool present = derived_probe_builder::get_param (params, k, value);
@@ -850,8 +882,21 @@ struct dwarf_query : public base_query
 };
 
 
-static void delete_session_module_cache (systemtap_session& s); // forward decl
+uprobe_derived_probe::uprobe_derived_probe (const string& function,
+                        const string& filename,
+                        int line,
+                        const string& module,
+                        const string& section,
+                        Dwarf_Addr dwfl_addr,
+                        Dwarf_Addr addr,
+                        dwarf_query & q,
+                        Dwarf_Die* scope_die):
+    dwarf_derived_probe(function, filename, line, module, section,
+                        dwfl_addr, addr, q, scope_die), pid(q.pid_val)
+  {}
 
+
+static void delete_session_module_cache (systemtap_session& s); // forward decl
 
 struct dwarf_builder: public derived_probe_builder
 {
@@ -4753,6 +4798,9 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                                          // module & section specify a relocation
                                          // base for <addr>, unless section==""
                                          // (equivalently module=="kernel")
+                                         // for userspace, it's a full path, for
+                                         // modules, it's either a full path, or
+                                         // the basename (e.g. 'btrfs')
                                          const string& module,
                                          const string& section,
                                          // NB: dwfl_addr is the virtualized
@@ -4777,6 +4825,10 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
     saved_longs(0), saved_strings(0),
     entry_handler(0)
 {
+  // If we were given a fullpath to a kernel module, then get the simple name
+  if (q.has_module && is_fully_resolved(module, q.dw.sess.sysroot, q.dw.sess.sysenv))
+    this->module = modname_from_path(module);
+
   if (user_lib.size() != 0)
     has_library = true;
 
@@ -5022,7 +5074,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           check->args[0]->tok = this->tok;
           check->args.push_back(new literal_number(level));
           check->args[1]->tok = this->tok;
-          check->args.push_back(new literal_string(module));
+          check->args.push_back(new literal_string(this->module));
           check->args[2]->tok = this->tok;
           check->args.push_back(new literal_string(caller_section));
           check->args[3]->tok = this->tok;
@@ -5339,6 +5391,7 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   match_node* uprobes[] = {
       root->bind(TOK_PROCESS),
       root->bind_str(TOK_PROCESS),
+      root->bind_num(TOK_PROCESS),
       root->bind(TOK_PROCESS)->bind_str(TOK_LIBRARY),
       root->bind_str(TOK_PROCESS)->bind_str(TOK_LIBRARY),
   };
@@ -7616,23 +7669,31 @@ dwarf_builder::build(systemtap_session & sess,
   literal_map_t filled_parameters = parameters;
 
   string module_name;
+  int64_t proc_pid;
   if (has_null_param (parameters, TOK_KERNEL))
     {
       dw = get_kern_dw(sess, "kernel");
     }
   else if (get_param (parameters, TOK_MODULE, module_name))
     {
-      size_t dash_pos = 0;
-      while((dash_pos=module_name.find('-'))!=string::npos)
-        module_name.replace(int(dash_pos),1,"_");
-      filled_parameters[TOK_MODULE] = new literal_string(module_name);
+      // If not a full path was given, then it's an in-tree module. Replace any
+      // dashes with underscores.
+      if (!is_fully_resolved(module_name, sess.sysroot, sess.sysenv))
+        {
+          size_t dash_pos = 0;
+          while((dash_pos=module_name.find('-'))!=string::npos)
+            module_name.replace(int(dash_pos),1,"_");
+          filled_parameters[TOK_MODULE] = new literal_string(module_name);
+        }
+
       // NB: glob patterns get expanded later, during the offline
       // elfutils module listing.
       dw = get_kern_dw(sess, module_name);
     }
-  else if (get_param (parameters, TOK_PROCESS, module_name) || has_null_param(parameters, TOK_PROCESS))
+  else if (has_param(filled_parameters, TOK_PROCESS))
       {
-      module_name = sess.sysroot + module_name;
+        // NB: module_name is not yet set!
+
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
           string file;
@@ -7654,10 +7715,44 @@ dwarf_builder::build(systemtap_session & sess,
                                    " a -c COMMAND or -x PID [man stapprobes]"));
           module_name = sess.sysroot + file;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
-          // in the case of TOK_MARK we need to modify locations as well
+          // in the case of TOK_MARK we need to modify locations as well   // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
-            location->components[0]->arg == 0)
+             location->components[0]->arg == 0)
             location->components[0]->arg = new literal_string(module_name);
+        }
+
+      // NB: must specifically handle the classical ("string") form here, to make sure
+      // we get the module_name out.
+      else if (get_param (parameters, TOK_PROCESS, module_name))
+        {
+          module_name = sess.sysroot + module_name;
+          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+        }
+
+      else if (get_param (parameters, TOK_PROCESS, proc_pid))
+        {
+          // check that the pid given corresponds to a running process
+          if (proc_pid < 1 || kill(proc_pid, 0) == -1)
+              switch (errno) // ignore EINVAL: invalid signal
+              {
+                case ESRCH:
+                  throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+                case EPERM:
+                  throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+                default:
+                  throw SEMANTIC_ERROR(_("invalid pid"));
+              }
+
+          string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
+          module_name = sess.sysroot + pid_path;
+
+          // in the case of TOK_MARK we need to modify locations as well  // XXX why?
+          if(location->components[0]->functor==TOK_PROCESS &&
+             location->components[0]->arg == 0)
+            location->components[0]->arg = new literal_string(module_name);
+          // XXX: the above probably interferes with passing proc_pid to the new 
+          // uprobe_derived_probe p->pid, so the task-finder can associate this
+          // probe with only the given PID.
         }
 
       // PR6456  process("/bin/*")  glob handling
@@ -10460,6 +10555,7 @@ resolve_pointer_type(Dwarf_Die& die, bool& isptr)
     case DW_TAG_typedef:
     case DW_TAG_const_type:
     case DW_TAG_volatile_type:
+    case DW_TAG_restrict_type:
       // iterate on the referent type
       return (dwarf_attr_die(&die, DW_AT_type, &die)
               && resolve_pointer_type(die, isptr));
@@ -10488,7 +10584,8 @@ resolve_pointer_type(Dwarf_Die& die, bool& isptr)
           int tag = dwarf_tag(&type);
           if (tag != DW_TAG_typedef &&
               tag != DW_TAG_const_type &&
-              tag != DW_TAG_volatile_type)
+              tag != DW_TAG_volatile_type &&
+              tag != DW_TAG_restrict_type)
             {
               die = type;
               return true;

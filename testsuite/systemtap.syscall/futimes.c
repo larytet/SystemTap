@@ -125,7 +125,7 @@ int main()
 #endif
 
   syscall(__NR_utimensat, AT_FDCWD, "foobar", ts, -1);
-  //staptest// utimensat (AT_FDCWD, "foobar", \[UTIME_NOW\]\[UTIME_OMIT\], 0x[f]+)
+  //staptest// utimensat (AT_FDCWD, "foobar", \[UTIME_NOW\]\[UTIME_OMIT\], AT_[^ ]+|XXXX)
 #endif 
 
   return 0;

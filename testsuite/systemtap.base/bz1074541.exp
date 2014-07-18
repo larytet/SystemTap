@@ -1,0 +1,11 @@
+set test "./bz1074541"
+
+for {set x 0} {$x<20} {incr x} {
+        verbose -log "Attempt no. ${x} to crash the kernel..."
+        spawn stap -ge "probe netfilter.ipv4.local_in { \$verdict = nf_drop; exit() }" -c "ping -qfc 1000 127.0.0.1"
+        wait
+}
+
+# If the kernel didn't crash, the testcase succeeded.
+pass "$test"
+

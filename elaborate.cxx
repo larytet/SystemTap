@@ -277,7 +277,12 @@ derived_probe_builder::has_null_param (std::map<std::string, literal*> const & p
   return (i != params.end() && i->second == NULL);
 }
 
-
+bool
+derived_probe_builder::has_param (std::map<std::string, literal*> const & params,
+                                       const std::string& key)
+{
+  return (params.find(key) != params.end());
+}
 
 // ------------------------------------------------------------------------
 // Members of match_key.
@@ -2302,7 +2307,7 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
   for (map<string,functiondecl*>::iterator it = s.functions.begin(); it != s.functions.end(); it++)
     {
       functiondecl* fd = it->second;
-      if (ftv.traversed.find(fd) == ftv.traversed.end())
+      if (ftv.seen.find(fd) == ftv.seen.end())
         {
           if (! fd->synthetic && s.user_file &&
               fd->tok->location.file->name == s.user_file->name) // !tapset
@@ -3213,7 +3218,7 @@ void_statement_reducer::visit_functioncall (functioncall* e)
     }
 
   varuse_collecting_visitor vut(session);
-  vut.traversed.insert (e->referent);
+  vut.seen.insert (e->referent);
   vut.current_function = e->referent;
   e->referent->body->visit (& vut);
   if (!vut.side_effect_free_wrt (focal_vars))
@@ -4212,8 +4217,8 @@ struct autocast_expanding_visitor: public var_expanding_visitor
       // Add only the direct functions we need.
       functioncall_traversing_visitor ftv;
       fc->visit (&ftv);
-      for (set<functiondecl*>::iterator it = ftv.traversed.begin();
-           it != ftv.traversed.end(); ++it)
+      for (set<functiondecl*>::iterator it = ftv.seen.begin();
+           it != ftv.seen.end(); ++it)
         {
           functiondecl* fd = *it;
           pair<map<string,functiondecl*>::iterator,bool> inserted =

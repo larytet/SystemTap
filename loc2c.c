@@ -2243,7 +2243,8 @@ pointer_stride (Dwarf_Die *typedie, struct location *origin)
   int typetag = dwarf_tag (&die_mem);
   while (typetag == DW_TAG_typedef ||
 	 typetag == DW_TAG_const_type ||
-	 typetag == DW_TAG_volatile_type)
+	 typetag == DW_TAG_volatile_type ||
+	 typetag == DW_TAG_restrict_type)
     {
       if (dwarf_attr_integrate (&die_mem, DW_AT_type, &attr_mem) == NULL
 	  || dwarf_formref_die (&attr_mem, &die_mem) == NULL)

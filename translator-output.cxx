@@ -15,7 +15,7 @@
 using namespace std;
 
 translator_output::translator_output (ostream& f):
-  buf(0), o2 (0), o (f), tablevel (0)
+  buf(0), o2 (0), o (f), tablevel (0), trailer_p(false)
 {
 }
 
@@ -25,7 +25,8 @@ translator_output::translator_output (const string& filename, size_t bufsize):
   o2 (new ofstream (filename.c_str ())),
   o (*o2),
   tablevel (0),
-  filename (filename)
+  filename (filename),
+  trailer_p (false)
 {
   o2->rdbuf()->pubsetbuf(buf, bufsize);
 }

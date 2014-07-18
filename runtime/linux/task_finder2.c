@@ -1805,10 +1805,12 @@ stap_task_finder_post_init(void)
 				int rc = utrace_control(tsk, engine,
 							UTRACE_INTERRUPT);
 				/* If utrace_control() returns
-				 * EINPROGRESS when we're trying to
-				 * stop/interrupt, that means the task
-				 * hasn't stopped quite yet, but will
-				 * soon.  Ignore this error. */
+				 * EINPROGRESS when we're
+				 * trying to stop/interrupt,
+				 * that means the task hasn't
+				 * stopped quite yet, but will
+				 * soon.  Ignore this
+				 * error. */
 				if (rc != 0 && rc != -EINPROGRESS) {
 					_stp_error("utrace_control returned error %d on pid %d",
 						   rc, (int)tsk->pid);

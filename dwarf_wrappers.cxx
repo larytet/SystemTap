@@ -117,6 +117,7 @@ dwarf_type_name(Dwarf_Die *type_die, ostream& o)
     case DW_TAG_array_type:
     case DW_TAG_const_type:
     case DW_TAG_volatile_type:
+    case DW_TAG_restrict_type:
       done = false;
       break;
 
@@ -178,6 +179,9 @@ dwarf_type_name(Dwarf_Die *type_die, ostream& o)
       break;
     case DW_TAG_volatile_type:
       o << " volatile";
+      break;
+    case DW_TAG_restrict_type:
+      o << " restrict";
       break;
     default:
       return false;

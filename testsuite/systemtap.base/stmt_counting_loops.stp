@@ -1,0 +1,33 @@
+# stap stmt_counting_loops.stp 6
+# substituting 5 for some really large number
+# can trigger a MAXACTION error
+
+global num
+probe begin {
+  printf("systemtap starting probe\n");
+  for (i=1; i<10 && i<=$1; i++){
+    func1(i);
+  }
+
+ for (i=1; i<10 && i<=$1; i++){
+    func2(i); 
+  }
+  printf("systemtap ending probe\n");
+  if (num == 0)
+    printf("pass\n");
+  else
+    printf("fail\n");
+  exit();
+}
+
+function func1 (a) {
+  for (j=0; j<=$1; j+=a)
+    num++;
+}
+
+function func2 (b) {
+  for (k=$1; k>=0; k=k-b)
+    num --;
+}
+
+

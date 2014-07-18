@@ -1,5 +1,7 @@
 ########### Startup Server #############
-# Don't attempt these tests if the client/server are not available
+# Don't attempt these tests if the client/server are not available or
+# we aren't doing 'make installcheck'
+if {! [installtest_p]} { untested "Server Locale Tests"; return }
 if {! [setup_server]} then {
     untested "Server Locale Tests"
     return

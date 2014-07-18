@@ -324,6 +324,8 @@ struct derived_probe_builder
                          const std::string& key, std::string& value);
   static bool get_param (literal_map_t const & parameters,
                          const std::string& key, int64_t& value);
+  static bool has_param (literal_map_t const & parameters,
+                          const std::string& key);
 };
 
 

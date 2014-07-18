@@ -10,6 +10,17 @@
 
   process.statement("foo@file.c:3,5-7,9")
 
+- Statement counting is now suppressed in the generated c code for probes that
+  are non-recursive and loop-free. Statement counting can be turned back on in
+  unoptimize mode (-u).
+
+- SystemTap now asserts that the PID provided for a process probe corresponds
+  to a runnning process.
+
+- DWARF process probes can be bound to a specific process using the form:
+
+  process(PID).function("*")
+
 * What's new in version 2.5, 2014-04-30
 
 - Systemtap now supports backtracing through its own, invoking module.

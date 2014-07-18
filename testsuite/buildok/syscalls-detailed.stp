@@ -325,7 +325,7 @@ probe syscall.epoll_wait.return ?
 probe syscall.eventfd ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", flags)
+	printf("%u, %d, %s\n", count, flags, flags_str)
 }
 probe syscall.eventfd.return ?
 {
@@ -528,7 +528,8 @@ probe syscall.fstat.return
 probe syscall.fstatat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %p\n", dirfd, path, buf_uaddr)
+	printf("%d(%s), %s, %p, %d(%s)\n", dirfd, dirfd_str, path,
+	       buf_uaddr, flags, flags_str)
 }
 probe syscall.fstatat.return ?
 {
@@ -1187,7 +1188,7 @@ probe syscall.mkdir.return
 probe syscall.mkdirat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %d\n", dirfd, pathname, mode)
+	printf("%d(%s), %s, %d\n", dirfd, dirfd_str, pathname, mode)
 }
 probe syscall.mkdirat.return ?
 {

@@ -37,6 +37,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/profile.h>
+#include <linux/rcupdate.h>
 //#include <linux/utsrelease.h> // newer kernels only
 //#include <linux/compile.h>
 #ifdef STAPCONF_GENERATED_COMPILE
@@ -90,6 +91,10 @@ static void _stp_exit(void);
 #else
 #define preempt_enable_no_resched() barrier()
 #endif
+#endif
+
+#ifndef rcu_dereference_sched
+#define rcu_dereference_sched(p) rcu_dereference(p)
 #endif
 
 /* unprivileged user support */
@@ -180,6 +185,9 @@ static void *kallsyms_task_work_add;
 static void *kallsyms_task_work_cancel;
 #endif
 
+#if !defined(STAPCONF_TRY_TO_WAKE_UP_EXPORTED) && !defined(STAPCONF_WAKE_UP_STATE_EXPORTED)
+static void *kallsyms_wake_up_state;
+#endif
 #if !defined(STAPCONF_SIGNAL_WAKE_UP_STATE_EXPORTED)
 static void *kallsyms_signal_wake_up_state;
 #endif
@@ -272,6 +280,20 @@ static struct kernel_param_ops param_ops_int64_t = {
 #endif
 #undef _STP_KERNEL_PARAM_ARG
 
+
+static inline void stp_synchronize_sched(void)
+{
+#if defined(STAPCONF_SYNCHRONIZE_SCHED)
+  synchronize_sched();
+#elif defined(STAPCONF_SYNCHRONIZE_RCU)
+  synchronize_rcu();
+#elif defined(STAPCONF_SYNCHRONIZE_KERNEL)
+  synchronize_kernel();
+#else
+#error "No implementation for stp_synchronize_sched!"
+#endif
+}
+
 /************* Module Stuff ********************/
 
 
@@ -288,7 +310,10 @@ int init_module (void)
   rc = _stp_transport_init();
   if (rc)
     return rc;
-  return systemtap_kernel_module_init();
+  rc = systemtap_kernel_module_init();
+  if (rc)
+    _stp_transport_close();
+  return rc;
 }
 
 static void systemtap_kernel_module_exit (void);

@@ -501,6 +501,7 @@ struct print_format: public expression
     {
       flags = 0;
       widthtype = width_unspecified;
+      precision = 0;
       prectype = prec_unspecified;
       type = conv_unspecified;
       literal_string.clear();
@@ -985,10 +986,12 @@ struct expression_visitor: public traversing_visitor
 // It uses an internal set object to prevent infinite recursion.
 struct functioncall_traversing_visitor: public traversing_visitor
 {
-  std::set<functiondecl*> traversed;
+  std::set<functiondecl*> seen;
+  std::set<functiondecl*> nested;
   functiondecl* current_function;
   functioncall_traversing_visitor(): current_function(0) {}
   void visit_functioncall (functioncall* e);
+  virtual void note_recursive_functioncall (functioncall* e);
 };
 
 

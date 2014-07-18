@@ -1,7 +1,9 @@
 /* <tapsetdescription>
  * The indent tapset provides functions to generate indented lines for
  * nested kinds of trace messages.  Each line contains a relative
- * timestamp, and the process name / pid.
+ * timestamp, and the process name / pid.  The timestamp is as per
+ * provided by the __indent_timestamp function, which by default
+ * measures microseconds.
  * </tapsetdescription>
  */
 
@@ -35,8 +37,9 @@ function _generic_indent (idx, desc, delta)
  * indentation for a thread. Call it with a small positive or
  * matching negative delta. If this is the real outermost,
  * initial level of indentation, then the function resets the 
- * relative timestamp base to zero. An example is shown at the 
- * end of this file.
+ * relative timestamp base to zero.  The timestamp is as per
+ * provided by the __indent_timestamp function, which by default
+ * measures microseconds.
  */
 function thread_indent:string (delta:long)
 {

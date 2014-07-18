@@ -3297,8 +3297,7 @@ resolve_host (
 	      if (status != 0)
 		hbuf[0] = '\0';
 
-	      resolved_host *new_host = new resolved_host(hbuf, new_address);
-	      cached_hosts.push_back(*new_host);
+	      cached_hosts.push_back(resolved_host(hbuf, new_address));
 	    }
 	}
       if (addr_info)

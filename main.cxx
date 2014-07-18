@@ -345,9 +345,9 @@ run_sdt_benchmark(systemtap_session& s)
   gettimeofday (&tv_after, NULL);
   if (s.verbose > 0)
     clog << _F("Completed SDT benchmark in %ldusr/%ldsys/%ldreal ms.",
-               (tms_after.tms_utime - tms_before.tms_utime) * 1000 / _sc_clk_tck,
-               (tms_after.tms_stime - tms_before.tms_stime) * 1000 / _sc_clk_tck,
-               ((tv_after.tv_sec - tv_before.tv_sec) * 1000 +
+               (long)(tms_after.tms_utime - tms_before.tms_utime) * 1000 / _sc_clk_tck,
+               (long)(tms_after.tms_stime - tms_before.tms_stime) * 1000 / _sc_clk_tck,
+               (long)((tv_after.tv_sec - tv_before.tv_sec) * 1000 +
                 ((long)tv_after.tv_usec - (long)tv_before.tv_usec) / 1000))
          << endl;
 

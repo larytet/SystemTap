@@ -109,6 +109,22 @@ static void utrace_report_exec(void *cb_data __attribute__ ((unused)),
 #define __UTRACE_REGISTERED	1
 static atomic_t utrace_state = ATOMIC_INIT(__UTRACE_UNREGISTERED);
 
+// If wake_up_state() is exported, use it.
+#if defined(STAPCONF_WAKE_UP_STATE_EXPORTED)
+#define stp_wake_up_state wake_up_state
+// Otherwise, try to use try_to_wake_up(). The wake_up_state()
+// function is just a wrapper around try_to_wake_up().
+#elif defined(STAPCONF_TRY_TO_WAKE_UP_EXPORTED)
+static inline int stp_wake_up_state(struct task_struct *p, unsigned int state)
+{
+	return try_to_wake_up(p, state, 0);
+}
+// Otherwise, we'll have to look up wake_up_state() with kallsyms.
+#else
+typedef typeof(&wake_up_state) wake_up_state_fn;
+#define stp_wake_up_state (* (wake_up_state_fn)kallsyms_wake_up_state)
+#endif
+
 #if !defined(STAPCONF_SIGNAL_WAKE_UP_STATE_EXPORTED)
 // Sigh. On kernel's without signal_wake_up_state(), there is no
 // declaration to use in 'typeof(&signal_wake_up_state)'. So, we'll
@@ -188,6 +204,14 @@ static int utrace_init(void)
 		INIT_HLIST_HEAD(&task_utrace_table[i]);
 	}
 
+#if !defined(STAPCONF_TRY_TO_WAKE_UP_EXPORTED) \
+    && !defined(STAPCONF_WAKE_UP_STATE_EXPORTED)
+	kallsyms_wake_up_state = (void *)kallsyms_lookup_name("wake_up_state");
+        if (kallsyms_wake_up_state == NULL) {
+		_stp_error("Can't resolve wake_up_state!");
+		goto error;
+        }
+#endif
 #if !defined(STAPCONF_SIGNAL_WAKE_UP_STATE_EXPORTED)
 	/* The signal_wake_up_state() function (which replaces
 	 * signal_wake_up() in newer kernels) isn't exported. Look up
@@ -316,6 +340,29 @@ static int utrace_exit(void)
 	return 0;
 }
 
+/*
+ * stp_task_notify_resume() is our version of
+ * set_notify_resume(). When called, the task_work infrastructure will
+ * cause utrace_resume() to get called.
+ */
+static void
+stp_task_notify_resume(struct task_struct *target, struct utrace *utrace)
+{
+	if (! utrace->task_work_added) {
+		int rc = stp_task_work_add(target, &utrace->work);
+		if (rc == 0) {
+			utrace->task_work_added = 1;
+		}
+		/* stp_task_work_add() returns -ESRCH if the task has
+		 * already passed exit_task_work(). Just ignore this
+		 * error. */
+		else if (rc != -ESRCH) {
+			printk(KERN_ERR "%s:%d - task_work_add() returned %d\n",
+			       __FUNCTION__, __LINE__, rc);
+		}
+	}
+}
+
 static void utrace_resume(struct task_work *work);
 static void utrace_report_work(struct task_work *work);
 
@@ -348,21 +395,29 @@ static void utrace_cleanup(struct utrace *utrace)
 	}
 
 	if (utrace->task_work_added) {
+#ifdef STP_TF_DEBUG
 		if (stp_task_work_cancel(utrace->task, &utrace_resume) == NULL)
 			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
 			       __FUNCTION__, __LINE__, utrace->task,
 			       utrace->task->tgid,
 			       (utrace->task->comm ? utrace->task->comm
 				: "UNKNOWN"));
+#else
+		stp_task_work_cancel(utrace->task, &utrace_resume);
+#endif
 		utrace->task_work_added = 0;
 	}
 	if (utrace->report_work_added) {
+#ifdef STP_TF_DEBUG
 		if (stp_task_work_cancel(utrace->task, &utrace_report_work) == NULL)
 			printk(KERN_ERR "%s:%d - task_work_cancel() failed? task %p, %d, %s\n",
 			       __FUNCTION__, __LINE__, utrace->task,
 			       utrace->task->tgid,
 			       (utrace->task->comm ? utrace->task->comm
 				: "UNKNOWN"));
+#else
+		stp_task_work_cancel(utrace->task, &utrace_report_work);
+#endif
 		utrace->report_work_added = 0;
 	}
 	spin_unlock(&utrace->lock);
@@ -945,7 +1000,11 @@ static int utrace_set_events(struct task_struct *target,
 	 * If utrace_report_death() is already progress now,
 	 * it's too late to clear the death event bits.
 	 */
-	if (((old_flags & ~events) & _UTRACE_DEATH_EVENTS) && utrace->death)
+	if (target->exit_state &&
+	    (((events & ~old_flags) & _UTRACE_DEATH_EVENTS) ||
+	     (utrace->death &&
+	      ((old_flags & ~events) & _UTRACE_DEATH_EVENTS)) ||
+	     (utrace->reap && ((old_flags & ~events) & UTRACE_EVENT(REAP)))))
 		goto unlock;
 
 	/*
@@ -1035,20 +1094,7 @@ static bool utrace_do_stop(struct task_struct *target, struct utrace *utrace)
 		spin_unlock_irq(&target->sighand->siglock);
 	} else if (utrace->resume > UTRACE_REPORT) {
 		utrace->resume = UTRACE_REPORT;
-		if (! utrace->task_work_added) {
-			int rc = stp_task_work_add(target, &utrace->work);
-			if (rc == 0) {
-				utrace->task_work_added = 1;
-			}
-			/* stp_task_work_add() returns -ESRCH if the task
-			 * has already passed exit_task_work(). Just
-			 * ignore this error. */
-			else if (rc != -ESRCH) {
-				printk(KERN_ERR
-				       "%s:%d - task_work_add() returned %d\n",
-				       __FUNCTION__, __LINE__, rc);
-			}
-		}
+		stp_task_notify_resume(target, utrace);
 	}
 
 	return task_is_traced(target);
@@ -1066,10 +1112,7 @@ static void utrace_wakeup(struct task_struct *target, struct utrace *utrace)
 	    target->signal->group_stop_count)
 		target->state = TASK_STOPPED;
 	else
-		/* FIXME: Had to change wake_up_state() to
-		 * wake_up_process() here (since wake_up_state() isn't
-		 * exported).  Reasonable? */
-		wake_up_process(target);
+		stp_wake_up_state(target, __TASK_TRACED);
 	spin_unlock_irq(&target->sighand->siglock);
 }
 
@@ -1175,20 +1218,9 @@ relock:
 		 * Ensure a reporting pass when we're resumed.
 		 */
 		utrace->resume = action;
-		if (! utrace->task_work_added) {
-			int rc = stp_task_work_add(task, &utrace->work);
-			if (rc == 0) {
-				utrace->task_work_added = 1;
-			}
-			/* stp_task_work_add() returns -ESRCH if the task
-			 * has already passed exit_task_work(). Just
-			 * ignore this error. */
-			else if (rc != -ESRCH) {
-				printk(KERN_ERR
-				       "%s:%d - stp_task_work_add() returned %d\n",
-				       __FUNCTION__, __LINE__, rc);
-			}
-		}
+		stp_task_notify_resume(task, utrace);
+		if (action == UTRACE_INTERRUPT)
+			set_thread_flag(TIF_SIGPENDING);
 	}
 
 	/*
@@ -1540,21 +1572,7 @@ static int utrace_control(struct task_struct *target,
 		clear_engine_wants_stop(engine);
 		if (action < utrace->resume) {
 			utrace->resume = action;
-			if (! utrace->task_work_added) {
-				ret = stp_task_work_add(target, &utrace->work);
-				if (ret == 0) {
-					utrace->task_work_added = 1;
-				}
-				/* stp_task_work_add() returns -ESRCH if
-				 * the task has already passed
-				 * exit_task_work(). Just ignore this
-				 * error. */
-				else if (ret != -ESRCH) {
-					printk(KERN_ERR
-					       "%s:%d - stp_task_work_add() returned %d\n",
-					       __FUNCTION__, __LINE__, ret);
-				}
-			}
+			stp_task_notify_resume(target, utrace);
 		}
 		break;
 
@@ -1574,6 +1592,7 @@ static int utrace_control(struct task_struct *target,
 		 * we've serialized any later recalc_sigpending() after our
 		 * setting of utrace->resume to force it on.
 		 */
+		stp_task_notify_resume(target, utrace);
 		if (reset) {
 			/*
 			 * This is really just to keep the invariant that
@@ -1583,35 +1602,12 @@ static int utrace_control(struct task_struct *target,
 			 */
 			set_tsk_thread_flag(target, TIF_SIGPENDING);
 		} else {
-			int rc = 0;
-
-			if (! utrace->task_work_added) {
-				rc = stp_task_work_add(target, &utrace->work);
-				/* stp_task_work_add() returns -ESRCH
-				 * if the task has already passed
-				 * exit_task_work(). Just ignore this
-				 * error. */
-				if (rc == 0 || rc == -ESRCH) {
-					utrace->task_work_added = 1;
-					rc = 0;
-				}
-				else {
-					printk(KERN_ERR
-					       "%s:%d - task_work_add() returned %d\n",
-					       __FUNCTION__, __LINE__, rc);
-				}
-			}
-
-			if (likely(rc == 0)) {
-				struct sighand_struct *sighand;
-				unsigned long irqflags;
-
-				sighand = stp_lock_task_sighand(target,
-								&irqflags);
-				if (likely(sighand)) {
-					stp_signal_wake_up(target, 0);
-					unlock_task_sighand(target, &irqflags);
-				}
+			struct sighand_struct *sighand;
+			unsigned long irqflags;
+			sighand = stp_lock_task_sighand(target, &irqflags);
+			if (likely(sighand)) {
+				stp_signal_wake_up(target, 0);
+				unlock_task_sighand(target, &irqflags);
 			}
 		}
 		break;
@@ -1764,20 +1760,9 @@ static void finish_report(struct task_struct *task, struct utrace *utrace,
 	if (resume < utrace->resume) {
 		spin_lock(&utrace->lock);
 		utrace->resume = resume;
-		if (! utrace->task_work_added) {
-			int rc = stp_task_work_add(task, &utrace->work);
-			if (rc == 0) {
-				utrace->task_work_added = 1;
-			}
-			/* stp_task_work_add() returns -ESRCH if the task
-			 * has already passed exit_task_work(). Just
-			 * ignore this error. */
-			else if (rc != -ESRCH) {
-				printk(KERN_ERR
-				       "%s:%d - task_work_add() returned %d\n",
-				       __FUNCTION__, __LINE__, rc);
-			}
-		}
+		stp_task_notify_resume(task, utrace);
+		if (resume == UTRACE_INTERRUPT)
+			set_tsk_thread_flag(task, TIF_SIGPENDING);
 		spin_unlock(&utrace->lock);
 	}
 
@@ -2323,12 +2308,16 @@ static void finish_resume_report(struct task_struct *task,
 		utrace_stop(task, utrace, report->resume_action);
 		break;
 
+	case UTRACE_INTERRUPT:
+		if (!signal_pending(task)) {
+			stp_task_notify_resume(task, utrace);
+			set_tsk_thread_flag(task, TIF_SIGPENDING);
+		}
+		break;
+
 	case UTRACE_REPORT:
 	case UTRACE_RESUME:
 	default:
-#if 0
-		user_disable_single_step(task);
-#endif
 		break;
 	}
 }
@@ -2385,6 +2374,14 @@ static void utrace_resume(struct task_work *work)
 		/* Remember that this task_work_func is finished. */
 		stp_task_work_func_done();
 		return;
+	case UTRACE_INTERRUPT:
+		/*
+		 * Note that UTRACE_INTERRUPT reporting was handled by
+		 * utrace_get_signal() in original utrace. In this
+		 * utrace version, we'll handle it here like UTRACE_REPORT.
+		 *
+		 * Fallthrough...
+		 */
 	case UTRACE_REPORT:
 		if (unlikely(!(utrace->utrace_flags & UTRACE_EVENT(QUIESCE))))
 			break;

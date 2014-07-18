@@ -1,0 +1,38 @@
+# stap stmt_counting_functions.stp ##
+# where ## > 5
+
+global num
+probe begin {
+  printf("systemtap starting probe\n");
+  if ($1 != func1($1))
+    num = 0;
+  else {
+    func1($1);
+    if (num < 0)
+      num = 0;
+    else 
+      num = num + $1;
+  }
+
+  printf("systemtap ending probe\n");
+  if (num = (num + $1))
+    printf("passed the test\n");
+  else
+    printf("failed the test\n");
+  exit();
+}
+
+function func1 (a){
+  if (a == 1) { a = -300; }
+  else { num++; }
+  if (a == 2) { a = -300; }
+  else { num++; }
+  if (a == 3) { a = -300;  }
+  else { num++;  }
+  if (a == 4) { a = -300; }
+  else {  num++;  }
+  if (a == 5) { a = -300; }
+  else {  num++;  }
+  return a;
+}
+

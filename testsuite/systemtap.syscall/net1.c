@@ -17,6 +17,7 @@ int main()
 
   flags = fcntl(listenfd, F_GETFL, 0);
   //staptest// fcntl[64]* (NNNN, F_GETFL, 0x[0]+) = NNNN
+
   fcntl(listenfd, F_SETFL, flags | O_NONBLOCK);
   //staptest// fcntl[64]* (NNNN, F_SETFL, XXXX) = 0
 
@@ -35,6 +36,16 @@ int main()
   //staptest// accept (NNNN, 0x0, 0x0) = -NNNN (EAGAIN)
 
   close(cfd);
+
+  flags = fcntl(-1, F_GETFL, 0);
+  //staptest// fcntl[64]* (-1, F_GETFL, 0x[0]+) = -NNNN (EBADF)
+
+  flags = fcntl(listenfd, -1, 0);
+  //staptest// fcntl[64]* (NNNN, 0x[f]+, 0x[0]+) = -NNNN
+
+  flags = fcntl(listenfd, F_GETFL, -1);
+  //staptest// fcntl[64]* (NNNN, F_GETFL, 0x[f]+) = NNNN
+
   close(listenfd);
   return 0;
 }
