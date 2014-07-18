@@ -71,6 +71,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/nd_syscalls-arch-detailed.stp -
 	buildok/nd_syscalls-detailed.stp -
 	buildok/nd_syscalls2-detailed.stp -
+	buildok/netfilter-glob.stp -
 	buildok/netfilter01.stp -
 	buildok/netfilter02.stp -
 	buildok/netfilter03.stp -
