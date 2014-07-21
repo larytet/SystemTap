@@ -114,7 +114,7 @@ static int _stp_mmv_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * kernel automatically decrements it. */
 	get_page(page);
 	vmf->page = page;
-	return VM_FAULT_MAJOR | VM_FAULT_LOCKED;
+	return VM_FAULT_MAJOR;
 }
 
 struct vm_operations_struct _stp_mmv_vm_ops = {
