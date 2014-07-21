@@ -891,7 +891,9 @@ onboot () {
   # dracut will report success even if some modules (e.g. stap) failed
   # to install some files, so we need to be a bit more involved in
   # checking for errors
-  if [ $? -ne 0 ] || [[ "$out" == *ERROR* ]]; then
+  if [ $? -ne 0 ] || \
+      [[ "$out" == *ERROR* ]] || \
+      ( [ -n "$ss" ] && ! lsinitrd "$TMPINITRAMFS" | grep -q ${STAPRUN:1} ); then
     do_failure "The initramfs creation is unsuccessful"
     if [ -f /var/log/dracut.log ]; then
       do_failure "See /var/log/dracut.log for more info"
