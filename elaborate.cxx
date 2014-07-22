@@ -5009,6 +5009,11 @@ typeresolution_info::visit_functioncall (functioncall* e)
   if (e->type == pe_stats)
     invalid (e->tok, e->type);
 
+  const exp_type_ptr& func_type = e->referent->type_details;
+  if (func_type && e->referent->type == e->type
+      && (!e->type_details || *func_type != *e->type_details))
+    resolved_details(e->referent->type_details, e->type_details);
+
   // now resolve the function parameters
   if (e->args.size() != e->referent->formal_args.size())
     unresolved (e->tok); // symbol resolution should prevent this
@@ -5328,6 +5333,18 @@ typeresolution_info::visit_return_statement (return_statement* e)
     }
   if (e->value->type == pe_stats)
     invalid (e->value->tok, e->value->type);
+
+  const exp_type_ptr& value_type = e->value->type_details;
+  if (value_type && current_function->type == e->value->type)
+    {
+      exp_type_ptr& func_type = current_function->type_details;
+      if (!func_type)
+        // The function can take on the type details of the return value.
+        resolved_details(value_type, func_type);
+      else if (*func_type != *value_type && *func_type != *null_type)
+        // Conflicting return types?  NO TYPE FOR YOU!
+        resolved_details(null_type, func_type);
+    }
 }
 
 void

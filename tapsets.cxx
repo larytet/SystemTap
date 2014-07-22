@@ -3420,6 +3420,8 @@ synthetic_embedded_deref_call(dwflpp& dw,
   fdecl->name = function_name;
   // The fdecl type is generic, but we'll be detailed on the fcall below.
   fdecl->type = pe_long;
+  fdecl->type_details.reset(new exp_type_dwarf(&dw, function_type,
+                                               userspace_p, e->addressof));
 
   embeddedcode *ec = new embeddedcode;
   ec->tok = e->tok;
@@ -3437,8 +3439,7 @@ synthetic_embedded_deref_call(dwflpp& dw,
   fcall->referent = fdecl;
   fcall->function = fdecl->name;
   fcall->type = fdecl->type;
-  fcall->type_details.reset(new exp_type_dwarf(&dw, function_type,
-                                               userspace_p, e->addressof));
+  fcall->type_details = fdecl->type_details;
 
   // If this code snippet uses a precomputed pointer,
   // pass that as the first argument.

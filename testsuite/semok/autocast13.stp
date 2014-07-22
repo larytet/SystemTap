@@ -1,0 +1,16 @@
+#! stap -p2
+
+function sockaddr_un(ptr)
+{
+    // Make sure multiple returns still resolve the function to a rich type
+    if (randint(2))
+        return & @cast(ptr, "sockaddr_un", "<sys/un.h>")
+    else
+        return & @cast(0xc0ffee, "sockaddr_un", "<sys/un.h>")
+}
+
+probe begin
+{
+    // Test DWARF types returned from function calls
+    println( sockaddr_un(0) -> sun_family )
+}
