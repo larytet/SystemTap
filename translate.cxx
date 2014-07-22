@@ -1914,9 +1914,42 @@ c_unparser::emit_module_init ()
       o->newline() << "hrtimer_init(&module_refresh_timer, CLOCK_MONOTONIC,";
       o->newline() << "             HRTIMER_MODE_REL);";
       o->newline() << "module_refresh_timer.function = &module_refresh_timer_cb;";
-      o->newline() << "hrtimer_start(&module_refresh_timer,";
-      o->newline() << "              ktime_set(0, STP_ON_THE_FLY_INTERVAL),";
-      o->newline() << "              HRTIMER_MODE_REL);";
+
+      // We check here if it's worth it to start the timer at all. We only need
+      // the background timer if there is a probe which doesn't support directy
+      // scheduling work (otf_safe_context() == false), but yet does affect the
+      // condition of at least one probe which supports on-the-fly operations.
+      {
+        // for each derived probe...
+        bool start_timer = false;
+        for (unsigned i=0; i<session->probes.size() && !start_timer; i++)
+          {
+            // if it isn't safe in this probe type to directly schedule work,
+            // and this probe could affect other probes...
+            if (session->probes[i]->group
+                && !session->probes[i]->group->otf_safe_context(*session)
+                && !session->probes[i]->probes_with_affected_conditions.empty())
+              {
+                // and if any of those possible probes support on-the-fly operations,
+                // then we'll need the timer
+                for (set<derived_probe*>::const_iterator
+                      it  = session->probes[i]->probes_with_affected_conditions.begin();
+                      it != session->probes[i]->probes_with_affected_conditions.end()
+                            && !start_timer; ++it)
+                  {
+                    if ((*it)->group->otf_supported(*session))
+                      start_timer = true;
+                  }
+              }
+          }
+
+        if (start_timer)
+          {
+            o->newline() << "hrtimer_start(&module_refresh_timer,";
+            o->newline() << "              ktime_set(0, STP_ON_THE_FLY_INTERVAL),";
+            o->newline() << "              HRTIMER_MODE_REL);";
+          }
+      }
     }
 
   o->newline() << "return 0;";
