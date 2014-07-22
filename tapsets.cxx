@@ -4671,6 +4671,9 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                                          // module & section specify a relocation
                                          // base for <addr>, unless section==""
                                          // (equivalently module=="kernel")
+                                         // for userspace, it's a full path, for
+                                         // modules, it's either a full path, or
+                                         // the basename (e.g. 'btrfs')
                                          const string& module,
                                          const string& section,
                                          // NB: dwfl_addr is the virtualized
@@ -4695,6 +4698,10 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
     saved_longs(0), saved_strings(0),
     entry_handler(0)
 {
+  // If we were given a fullpath to a kernel module, then get the simple name
+  if (q.has_module && is_fully_resolved(module, q.dw.sess.sysroot, q.dw.sess.sysenv))
+    this->module = modname_from_path(module);
+
   if (user_lib.size() != 0)
     has_library = true;
 
@@ -4940,7 +4947,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           check->args[0]->tok = this->tok;
           check->args.push_back(new literal_number(level));
           check->args[1]->tok = this->tok;
-          check->args.push_back(new literal_string(module));
+          check->args.push_back(new literal_string(this->module));
           check->args[2]->tok = this->tok;
           check->args.push_back(new literal_string(caller_section));
           check->args[3]->tok = this->tok;
@@ -5257,6 +5264,7 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
   match_node* uprobes[] = {
       root->bind(TOK_PROCESS),
       root->bind_str(TOK_PROCESS),
+      root->bind_num(TOK_PROCESS),
       root->bind(TOK_PROCESS)->bind_str(TOK_LIBRARY),
       root->bind_str(TOK_PROCESS)->bind_str(TOK_LIBRARY),
   };
@@ -7535,23 +7543,31 @@ dwarf_builder::build(systemtap_session & sess,
   literal_map_t filled_parameters = parameters;
 
   string module_name;
+  int64_t proc_pid;
   if (has_null_param (parameters, TOK_KERNEL))
     {
       dw = get_kern_dw(sess, "kernel");
     }
   else if (get_param (parameters, TOK_MODULE, module_name))
     {
-      size_t dash_pos = 0;
-      while((dash_pos=module_name.find('-'))!=string::npos)
-        module_name.replace(int(dash_pos),1,"_");
-      filled_parameters[TOK_MODULE] = new literal_string(module_name);
+      // If not a full path was given, then it's an in-tree module. Replace any
+      // dashes with underscores.
+      if (!is_fully_resolved(module_name, sess.sysroot, sess.sysenv))
+        {
+          size_t dash_pos = 0;
+          while((dash_pos=module_name.find('-'))!=string::npos)
+            module_name.replace(int(dash_pos),1,"_");
+          filled_parameters[TOK_MODULE] = new literal_string(module_name);
+        }
+
       // NB: glob patterns get expanded later, during the offline
       // elfutils module listing.
       dw = get_kern_dw(sess, module_name);
     }
-  else if (get_param (parameters, TOK_PROCESS, module_name) || has_null_param(parameters, TOK_PROCESS))
+  else if (has_param(filled_parameters, TOK_PROCESS))
       {
-      module_name = sess.sysroot + module_name;
+        // NB: module_name is not yet set!
+
       if(has_null_param(filled_parameters, TOK_PROCESS))
         {
           string file;
@@ -7573,10 +7589,45 @@ dwarf_builder::build(systemtap_session & sess,
                                    " a -c COMMAND or -x PID [man stapprobes]"));
           module_name = sess.sysroot + file;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);// this needs to be used in place of the blank map
-          // in the case of TOK_MARK we need to modify locations as well
+          // in the case of TOK_MARK we need to modify locations as well   // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
-            location->components[0]->arg == 0)
+             location->components[0]->arg == 0)
             location->components[0]->arg = new literal_string(module_name);
+        }
+
+      // NB: must specifically handle the classical ("string") form here, to make sure
+      // we get the module_name out.
+      else if (get_param (parameters, TOK_PROCESS, module_name))
+        {
+          module_name = sess.sysroot + module_name;
+          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+        }
+
+      else if (get_param (parameters, TOK_PROCESS, proc_pid))
+        {
+          // check that the pid given corresponds to a running process
+          if (proc_pid < 1 || kill(proc_pid, 0) == -1)
+              switch (errno) // ignore EINVAL: invalid signal
+              {
+                case ESRCH:
+                  throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
+                case EPERM:
+                  throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
+                default:
+                  throw SEMANTIC_ERROR(_("invalid pid"));
+              }
+
+          string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
+          module_name = sess.sysroot + pid_path;
+          // change it so it is mapped by the executable path and not the PID
+          filled_parameters[TOK_PROCESS] = new literal_string(module_name);
+          // in the case of TOK_MARK we need to modify locations as well  // XXX why?
+          if(location->components[0]->functor==TOK_PROCESS &&
+             location->components[0]->arg == 0)
+            location->components[0]->arg = new literal_string(module_name);
+          // XXX: the above probably interferes with passing proc_pid to the new 
+          // uprobe_derived_probe p->pid, so the task-finder can associate this
+          // probe with only the given PID.
         }
 
       // PR6456  process("/bin/*")  glob handling

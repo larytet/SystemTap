@@ -133,6 +133,28 @@ proc bootprobing_p {} {
                  [file exists "/usr/sbin/new-kernel-pkg"]]
 }
 
+proc module_refresh_p {} {
+    return [min_kernel_vers_p 2.6.29]
+}
+
+# Returns 1 if kernel vers >= @min, 0 otherwise. The @min parameter must be in
+# the format x.y.z (e.g. 2.6.18).
+proc min_kernel_vers_p {min} {
+
+    # Check proper format
+    if {![regexp {^[0-9]+(\.[0-9]+)*$} $min]} {
+        error "$min is not a valid version number"
+    }
+
+    set uname [exec uname -r]
+
+    if {![regexp {^([0-9]+\.[0-9]+\.[0-9]+).*} $uname dummy cur]} {
+        error "can't parse version number from uname -r"
+    }
+
+    return [expr [strverscmp $cur $min] >= 0]
+}
+
 proc get_runtime_list {} {
     # Always return the default runtime.
     set runtime_list [list ""]

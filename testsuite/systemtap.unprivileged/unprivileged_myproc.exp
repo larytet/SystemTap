@@ -67,6 +67,27 @@ set myproc_probe_types [list \
   "process(number).syscall.return" \
   "process(number).thread.begin" \
   "process(number).thread.end" \
+  "process(number).function(number)" \
+  "process(number).function(number).call" \
+  "process(number).function(number).exported" \
+  "process(number).function(number).return" \
+  "process(number).function(string)" \
+  "process(number).function(string).call" \
+  "process(number).function(string).callee(string)" \
+  "process(number).function(string).callees" \
+  "process(number).function(string).callees(number)" \
+  "process(number).function(string).exported" \
+  "process(number).function(string).inline" \
+  "process(number).function(string).label(string)" \
+  "process(number).function(string).return" \
+  "process(number).mark(string)" \
+  "process(number).plt" \
+  "process(number).plt.statement(number)" \
+  "process(number).plt(string)" \
+  "process(number).plt(string).statement(number)" \
+  "process(number).provider(string).mark(string)" \
+  "process(number).statement(number)" \
+  "process(number).statement(string)" \
   "process(string).begin" \
   "process(string).end" \
   "process(string).function(number)" \

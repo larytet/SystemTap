@@ -32,6 +32,7 @@ int main(void)
    globalvar = libfoo(globalvar);
 main_label:
    STAP_PROBE1(main, mark, globalvar);
+   while (1) {sleep(5000);}
    return 0;
 }
 

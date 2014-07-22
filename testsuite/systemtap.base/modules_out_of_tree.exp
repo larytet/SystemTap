@@ -1,0 +1,113 @@
+set test "modules_out_of_tree"
+set am_root [expr 0 == [exec id -u]]
+
+# In this test, we verify support for out-of-tree kernel kernel modules.
+# We do this by first compiling our very own kernel module and then
+# listing and probing it.
+
+file mkdir "$test"
+cd "$test"
+
+proc test_cleanup {} {
+   global test
+
+   cd ..
+   file delete -force "$test"
+}
+
+proc write_to_file {file data} {
+   global test
+
+   set data [string map "TEST $test" $data]
+   set file [open "$file" w]
+   puts $file $data
+   close $file
+}
+
+write_to_file "stap_$test.c" {
+   #include <linux/kernel.h>
+   #include <linux/module.h>
+   #include <linux/init.h>
+
+   MODULE_LICENSE("GPL");
+
+   static int __init stap_TEST_init(void) {
+      return 0;
+   }
+
+   static void __exit stap_TEST_cleanup(void) {
+      return;
+   }
+
+   module_init(stap_TEST_init);
+   module_exit(stap_TEST_cleanup);
+}
+
+write_to_file "Makefile" {
+   obj-m := stap_TEST.o
+   default:
+	make -C /lib/modules/$(shell uname -r)/build M=$$PWD
+}
+
+set modpath [pwd]/stap_$test
+
+set subtest "compilation"
+if {[catch {exec make} err] || ![file exists $modpath.ko]} {
+   fail "$test ($subtest)"
+   test_cleanup
+   return
+} else {
+   pass "$test ($subtest)"
+}
+
+set pp "module(\"$modpath.ko\").function(\"stap_${test}_init\")"
+set reg "^module\\\(\"$modpath.ko\"\\\)"
+set reg "$reg\\\.function\\\(\"stap_${test}_init@$modpath.c:8\"\\\)$"
+
+# Let's try listing a function first
+set subtest "listing"
+if {[catch {exec stap -l $pp} out] || ![regexp $reg $out]} {
+   fail "$test ($subtest)"
+   test_cleanup
+   return
+} else {
+   pass "$test ($subtest)"
+}
+
+# OK now let's actually go for a run
+set subtest "probing"
+
+if {![installtest_p] || !$am_root || ![module_refresh_p]} {
+   untested "$test ($subtest)"
+   test_cleanup
+   return
+}
+
+set script "probe $pp { println(\"hit\") }"
+set command "insmod $modpath.ko && rmmod $modpath.ko"
+
+# Spawn stap
+set failed 1
+spawn stap -e $script -c $command
+expect {
+   -timeout 30
+   hit {
+      set failed 0
+   }
+   timeout {
+      verbose -log "$test timed out"
+      kill -INT -[exp_pid] 2
+   }
+}
+catch {close}; catch {wait}
+
+if {$failed} {
+   fail "$test ($subtest)"
+   test_cleanup
+   return
+} else {
+   pass "$test ($subtest)"
+}
+
+test_cleanup
+

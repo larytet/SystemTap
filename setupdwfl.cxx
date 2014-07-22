@@ -105,9 +105,13 @@ static const string abrt_path =
                       ? "/usr/libexec/abrt-action-install-debuginfo-to-abrt-cache"
                     : ""));
 
-// The module name is the basename (without the extension) of the
-// module path, with ',' and '-' replaced by '_'.
-static string
+// The module name is the basename (without the extension) of the module path,
+// with ',' and '-' replaced by '_'. This is a (more or less safe) heuristic:
+// the actual name by which the module is known once inside the kernel is not
+// derived from the path, but from the .gnu.linkonce.this_module section of the
+// KO. In practice, modules in /lib/modules/ respect this convention, and we
+// require it as well for out-of-tree kernel modules.
+string
 modname_from_path(const string &path)
 {
   size_t dot = path.rfind('.');

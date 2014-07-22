@@ -1803,7 +1803,7 @@ stap_task_finder_post_init(void)
 			if (engine != NULL && !IS_ERR(engine)) {
 				/* Only try to interrupt tasks in the
 				 * TASK_INTERRUPTIBLE state. */
-				if (tsk->state == TASK_INTERRUPTIBLE) {
+				if (tsk->state & TASK_INTERRUPTIBLE) {
 					/* We found a target task. Stop it. */
 					int rc = utrace_control(tsk, engine,
 								UTRACE_INTERRUPT);

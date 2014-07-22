@@ -6306,10 +6306,19 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   // For kernel modules just the name itself.
   string mainpath = resolve_path(mainfile);
   string mainname;
-  if (modname[0] == '/') // userspace
+  if (is_user_module(modname)) // userspace
     mainname = lex_cast_qstring (path_remove_sysroot(c->session,mainpath));
   else
-    mainname = lex_cast_qstring (modname);
+    { // kernel module
+
+      // If the module name is the full path to the ko, then we have to retrieve
+      // the actual name by which the module will be known inside the kernel.
+      // Otherwise, section relocations would be mismatched.
+      if (is_fully_resolved(modname, c->session.sysroot, c->session.sysenv))
+        mainname = lex_cast_qstring (modname_from_path(modname));
+      else
+        mainname = lex_cast_qstring (modname);
+    }
 
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
   c->output << ".name = " << mainname.c_str() << ",\n";

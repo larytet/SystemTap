@@ -277,7 +277,12 @@ derived_probe_builder::has_null_param (std::map<std::string, literal*> const & p
   return (i != params.end() && i->second == NULL);
 }
 
-
+bool
+derived_probe_builder::has_param (std::map<std::string, literal*> const & params,
+                                       const std::string& key)
+{
+  return (params.find(key) != params.end());
+}
 
 // ------------------------------------------------------------------------
 // Members of match_key.

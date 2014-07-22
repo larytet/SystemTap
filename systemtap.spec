@@ -65,6 +65,7 @@
 
 %define dracutlibdir %{_prefix}/lib/dracut
 %define dracutstap %{dracutlibdir}/modules.d/99stap
+%{!?_licensedir:%global license %%doc}
 
 Name: systemtap
 Version: 2.6
@@ -867,7 +868,8 @@ done
 %dir %attr(0755,stap-server,stap-server) %{_localstatedir}/log/stap-server
 %ghost %config(noreplace) %attr(0644,stap-server,stap-server) %{_localstatedir}/log/stap-server/log
 %ghost %attr(0755,stap-server,stap-server) %{_localstatedir}/run/stap-server
-%doc README README.unprivileged AUTHORS NEWS COPYING
+%doc README README.unprivileged AUTHORS NEWS 
+%license COPYING
 
 
 %files devel -f systemtap.lang
@@ -883,7 +885,8 @@ done
 %{_mandir}/man7/error*
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man7/warning*
-%doc README README.unprivileged AUTHORS NEWS COPYING
+%doc README README.unprivileged AUTHORS NEWS 
+%license COPYING
 %if %{with_java}
 %dir %{_libexecdir}/systemtap
 %{_libexecdir}/systemtap/libHelperSDT_*.so
@@ -924,12 +927,14 @@ done
 %if %{with_dyninst}
 %{_mandir}/man8/stapdyn.8*
 %endif
-%doc README README.security AUTHORS NEWS COPYING
+%doc README README.security AUTHORS NEWS 
+%license COPYING
 
 
 %files client -f systemtap.lang
 %defattr(-,root,root)
-%doc README README.unprivileged AUTHORS NEWS COPYING examples
+%doc README README.unprivileged AUTHORS NEWS examples
+%license COPYING
 %if %{with_docs}
 %doc docs.installed/*.pdf
 %doc docs.installed/tapsets/*.html
@@ -975,7 +980,8 @@ done
 %{_includedir}/sys/sdt.h
 %{_includedir}/sys/sdt-config.h
 %{_mandir}/man1/dtrace.1*
-%doc README AUTHORS NEWS COPYING
+%doc README AUTHORS NEWS 
+%license COPYING
 
 
 %files testsuite
