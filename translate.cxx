@@ -1106,14 +1106,10 @@ c_unparser::emit_common_header ()
       o->newline(-1)  << "}";
 
       o->newline( 0)  << "#include <linux/hrtimer.h>";
+      o->newline( 0)  << "#include \"timer.h\"";
       o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
 
-      o->newline( 0)  << "#ifdef STAPCONF_HRTIMER_REL";
-      o->newline( 0)  << "static int";
-      o->newline( 0)  << "#else";
-      o->newline( 0)  << "static enum hrtimer_restart";
-      o->newline( 0)  << "#endif";
-      o->newline( 0)  << "module_refresh_timer_cb(struct hrtimer *timer) {";
+      o->newline( 0)  << "hrtimer_return_t module_refresh_timer_cb(struct hrtimer *timer) {";
       o->newline(+1)  <<   "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1)";
       o->newline(+1)  <<     "schedule_work(&module_refresher_work);";
       o->newline(-1)  <<   "hrtimer_set_expires(timer,";
