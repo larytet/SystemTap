@@ -65,7 +65,6 @@
 
 %define dracutlibdir %{_prefix}/lib/dracut
 %define dracutstap %{dracutlibdir}/modules.d/99stap
-%{!?_licensedir:%global license %%doc}
 
 Name: systemtap
 Version: 2.6
@@ -869,6 +868,7 @@ done
 %ghost %config(noreplace) %attr(0644,stap-server,stap-server) %{_localstatedir}/log/stap-server/log
 %ghost %attr(0755,stap-server,stap-server) %{_localstatedir}/run/stap-server
 %doc README README.unprivileged AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
 %license COPYING
 
 
@@ -886,6 +886,7 @@ done
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man7/warning*
 %doc README README.unprivileged AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
 %license COPYING
 %if %{with_java}
 %dir %{_libexecdir}/systemtap
@@ -928,12 +929,14 @@ done
 %{_mandir}/man8/stapdyn.8*
 %endif
 %doc README README.security AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
 %license COPYING
 
 
 %files client -f systemtap.lang
 %defattr(-,root,root)
 %doc README README.unprivileged AUTHORS NEWS examples
+%{!?_licensedir:%global license %%doc}
 %license COPYING
 %if %{with_docs}
 %doc docs.installed/*.pdf
@@ -981,6 +984,7 @@ done
 %{_includedir}/sys/sdt-config.h
 %{_mandir}/man1/dtrace.1*
 %doc README AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
 %license COPYING
 
 
