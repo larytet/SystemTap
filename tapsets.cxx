@@ -214,14 +214,6 @@ void
 common_probe_entryfn_epilogue (systemtap_session& s,
                                bool overload_processing)
 {
-  if (!s.runtime_usermode_p())
-    {
-      // Check if a refresh is required
-      s.op->newline( 0) <<  "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1) {";
-      s.op->newline(+1) <<    "schedule_work(&module_refresher_work);";
-      s.op->newline(-1) <<  "}";
-    }
-
   if (overload_processing && !s.runtime_usermode_p())
     s.op->newline() << "#if defined(STP_TIMING) || defined(STP_OVERLOAD)";
   else

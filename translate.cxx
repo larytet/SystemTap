@@ -1104,6 +1104,23 @@ c_unparser::emit_common_header ()
       o->newline( 0)  << "#endif";
       o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
       o->newline(-1)  << "}";
+
+      o->newline( 0)  << "#include <linux/hrtimer.h>";
+      o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
+
+      o->newline( 0)  << "#ifdef STAPCONF_HRTIMER_REL";
+      o->newline( 0)  << "static int";
+      o->newline( 0)  << "#else";
+      o->newline( 0)  << "static enum hrtimer_restart";
+      o->newline( 0)  << "#endif";
+      o->newline( 0)  << "module_refresh_timer_cb(struct hrtimer *timer) {";
+      o->newline(+1)  <<   "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1)";
+      o->newline(+1)  <<     "schedule_work(&module_refresher_work);";
+      o->newline(-1)  <<   "hrtimer_set_expires(timer,";
+      o->newline( 0)  <<   "  ktime_add(hrtimer_get_expires(timer),";
+      o->newline( 0)  <<   "            ktime_set(0, 1000000))); "; // 1 ms. XXX: make tunable
+      o->newline( 0)  <<   "return HRTIMER_RESTART;";
+      o->newline(-1)  << "}";
     }
 
   o->newline();
@@ -1883,13 +1900,26 @@ c_unparser::emit_module_init ()
   o->newline() << "if (atomic_read (session_state()) == STAP_SESSION_STARTING)";
   // NB: only other valid state value is ERROR, in which case we don't
   o->newline(1) << "atomic_set (session_state(), STAP_SESSION_RUNNING);";
+  o->newline(-1);
 
   // Run all post-session starting code.
   for (unsigned i=0; i<g.size(); i++)
     {
       g[i]->emit_module_post_init (*session);
     }
-  o->newline(-1) << "return 0;";
+
+  if (!session->runtime_usermode_p())
+    {
+      // Initialize hrtimer needed for on-the-fly arming/disarming
+      o->newline() << "hrtimer_init(&module_refresh_timer, CLOCK_MONOTONIC,";
+      o->newline() << "             HRTIMER_MODE_REL);";
+      o->newline() << "module_refresh_timer.function = &module_refresh_timer_cb;";
+      o->newline() << "hrtimer_start(&module_refresh_timer,";
+      o->newline() << "              ktime_set(0, 1000000),"; // 1 ms. XXX: make tunable
+      o->newline() << "              HRTIMER_MODE_REL);";
+    }
+
+  o->newline() << "return 0;";
 
   // Error handling path; by now all partially registered probe groups
   // have been unregistered.
@@ -2017,6 +2047,9 @@ c_unparser::emit_module_exit ()
   // This signals any other probes that may be invoked in the next little
   // while to abort right away.  Currently running probes are allowed to
   // terminate.  These may set STAP_SESSION_ERROR!
+
+  if (!session->runtime_usermode_p())
+    o->newline() << "hrtimer_cancel(&module_refresh_timer);";
 
   // Get the lock before exiting to ensure there's no one in module_refresh
   if (!session->runtime_usermode_p())
