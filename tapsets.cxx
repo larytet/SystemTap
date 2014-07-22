@@ -3578,6 +3578,10 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   else
     exp = gen_mapped_saved_return(repl, e->sym_name());
 
+  // Propagate the DWARF type to the expression in the return probe.
+  if (repl->type_details && !exp->type_details)
+    exp->type_details = repl->type_details;
+
   // Provide the variable to our parent so it can be used as a
   // substitute for the target symbol.
   provide (exp);

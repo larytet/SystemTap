@@ -1,0 +1,17 @@
+#! stap -p2
+
+probe kernel.function("schedule_tail").return ?
+{
+    // Test the type propagated from a value saved at entry, with an error
+    // (semok/autocast11.stp makes sure this normally works)
+    mm = $prev->mm
+    println(mm->no_such_member)
+}
+
+probe process("stap").function("main").return ?
+{
+    // NB: if the access above fails as it should, we won't even get here, but
+    // this is still useful to give --runtime=dyninst something to test.
+    a = $argv
+    println(a->no_such_member)
+}
