@@ -8,12 +8,16 @@ if {[expr 0 != [exec id -u]]} {
 
 # First find the "etc/systemtap" directory. This needs to work well
 # with devtoolset too.
-set __etc_systemtap [ exec readlink -f $env(SYSTEMTAP_PATH)/../../etc/systemtap ]
+catch {exec readlink -f $env(SYSTEMTAP_PATH)/../../etc/systemtap} __etc_systemtap
 if {! [file exists $__etc_systemtap]} {
-    set __etc_systemtap [ exec readlink -f $env(SYSTEMTAP_PATH)/../etc/systemtap ]
+    catch {exec readlink -f $env(SYSTEMTAP_PATH)/../etc/systemtap} __etc_systemtap
 }
 if {! [file exists $__etc_systemtap]} {
-    fail "${test} - can't find systemtap etc directory"
+    untested "${test} - can't find systemtap etc directory"
+    return
+}
+if {! [regexp "/etc/systemtap$" "$__etc_systemtap"]} {
+    fail "${test} - weird etc/systemtap dir ($__etc_systemtap)"
     return
 }
 pass "${test} - found systemtap etc directory"
@@ -24,21 +28,39 @@ set __config $__etc_systemtap/config
 set __servicename systemtap
 
 for {set i 2} {$i<4} {incr i} {
-	set status [catch {exec scl_enabled devtoolset-$i} output]
-	if {$status == 0} {
-		set __servicename devtoolset-$i-systemtap
-	}
+    if {! [catch {exec scl_enabled devtoolset-$i}]} {
+        set __servicename devtoolset-$i-systemtap
+    }
+}
+
+# If there is no service file, then we have nothing to test. This is usually
+# the case when stap is built from source. On Fedora and RHEL the service is
+# provided by the systemtap-initscript RPM package.
+
+set __servicefile /etc/rc.d/init.d/$__servicename
+
+if {! [file exists $__servicefile]} {
+    untested "${test} (service file $__servicefile present)"
+    return
 }
 
 verbose -log "Using confdir $__conf_d"
 verbose -log "Using scriptdir $__script_d"
 verbose -log "Using service name $__servicename"
+verbose -log "Using service file $__servicefile"
 
 # back up existing configuration
-exec rm -rf $__etc_systemtap.backup
-exec mv $__etc_systemtap $__etc_systemtap.backup
-exec mkdir -p $__conf_d $__script_d
-exec touch $__config
+catch {exec rm -rf $__etc_systemtap.backup}
+if {[catch {exec mv $__etc_systemtap $__etc_systemtap.backup} msg ]} {
+    fail "${test} - failed creating configuration backup ($msg)"
+    return
+}
+if {[catch {exec mkdir -p $__conf_d $__script_d}]} {
+    fail "${test} - failed creating directories $__conf_d $__script_d"
+}
+if {[catch {exec touch $__config}]} {
+    fail "${test} - failed creating file $__config"
+}
 
 proc check_exitcode {command expecode} {
     global errorCode test __subtest
@@ -61,13 +83,13 @@ proc check_exitcode {command expecode} {
 proc check_file_content {file content timeoutsec} {
     verbose -log "checking for $content in $file"
     if {! [file exists "$file"]} {
-        fail "$content (file $file not found)"
+        fail "$test (file $file not found)"
         return
     }
     set found 0
     for {set i 0} {$i<$timeoutsec} {incr i} {
         set command "grep $content $file"
-        if {! [catch {eval exec "$command"} msg]} {
+        if {! [catch {eval exec "$command"}]} {
             set found 1
             break
         }
@@ -97,8 +119,7 @@ check_exitcode "service $__servicename stop" 0
 
 # Testing basic commands with one script
 set __subtest "one script"
-exec rm -f /var/log/systemtap.log
-exec rm -f /tmp/stap-script1.log
+catch {exec rm -f /tmp/stap-script1.log}
 
 set file [open "$__script_d/script1.stp" w]
 puts $file "probe timer.ms(500){ print(\"script1out\\n\"); }"
@@ -113,7 +134,7 @@ check_file_content "/tmp/stap-script1.log" "script1out" 30
 check_exitcode "service $__servicename status" 0
 check_exitcode "service $__servicename restart" 0
 check_exitcode "service $__servicename status" 0
-exec rm -f /tmp/stap-script1.log
+catch {exec rm -f /tmp/stap-script1.log}
 check_exitcode "service $__servicename restart" 0
 check_file_content "/tmp/stap-script1.log" "script1out" 30
 check_exitcode "service $__servicename cleanup -y" 0
@@ -132,8 +153,8 @@ set file [open "$__conf_d/script2.conf" w]
 puts $file "script2_OPT='-o /tmp/stap-script2.log'"
 close $file
 
-exec echo > /tmp/stap-script1.log
-exec echo > /tmp/stap-script2.log
+catch {exec echo > /tmp/stap-script1.log}
+catch {exec echo > /tmp/stap-script2.log}
 
 # --- both scripts stopped
 set __subtest "both scripts stopped"
@@ -143,7 +164,7 @@ check_exitcode "grep script2out /tmp/stap-script2.log" 1
 verbose -log "running 'service $__servicename status' ..."
 eval spawn "service $__servicename status"
 expect {
-    -timeout 5
+    -timeout 90
     -re {^script1\ is\ stopped\r\n} { 
         pass "${test}::${__subtest} (script1 is stopped)" 
         exp_continue 
@@ -164,12 +185,12 @@ catch {close}; catch {wait}
 set __subtest "only script1 runs"
 
 check_exitcode "service $__servicename start script1" 0
-sleep 5
+check_file_content "/tmp/stap-script1.log" "script1out" 30
 
 verbose -log "running 'service $__servicename status' ..."
 eval spawn "service $__servicename status"
 expect {
-    -timeout 5
+    -timeout 90
     -re {^script1\([0-9]+\)\ is\ running...\r\n} { 
         pass "${test}::${__subtest} (script1 is running)"
         exp_continue
@@ -193,14 +214,14 @@ check_exitcode "grep script2out /tmp/stap-script2.log" 1
 set __subtest "only script2 runs"
 
 check_exitcode "service $__servicename stop script1" 0
-exec echo > /tmp/stap-script1.log
+catch {exec echo > /tmp/stap-script1.log}
 check_exitcode "service $__servicename start script2" 0
-sleep 5
+check_file_content "/tmp/stap-script2.log" "script2out" 30
 
 verbose -log "running 'service $__servicename status' ... "
 eval spawn "service $__servicename status"
 expect {
-    -timeout 5
+    -timeout 90
     -re {^script1\ is\ stopped\r\n} {
         pass "${test}::${__subtest} (script1 is stopped)"
         exp_continue
@@ -223,15 +244,16 @@ check_exitcode "grep script1out /tmp/stap-script1.log" 1
 # --- both scripts run
 set __subtest "both scripts run"
 check_exitcode "service $__servicename stop script2" 0
-exec echo > /tmp/stap-script1.log
-exec echo > /tmp/stap-script2.log
+catch {exec echo > /tmp/stap-script1.log}
+catch {exec echo > /tmp/stap-script2.log}
 check_exitcode "service $__servicename start" 0
-sleep 5
+check_file_content "/tmp/stap-script1.log" "script1out" 30
+check_file_content "/tmp/stap-script2.log" "script2out" 30
 
 verbose -log "running 'service $__servicename status' ... "
 eval spawn "service $__servicename status"
 expect {
-    -timeout 5
+    -timeout 90
     -re {^script1\([0-9]+\)\ is\ running...\r\n} {
         pass "${test}::${__subtest} (script1 is running)"
         exp_continue
@@ -248,20 +270,17 @@ expect {
 }
 catch {close}; catch {wait}
 
-check_file_content "/tmp/stap-script1.log" "script1out" 30
-check_file_content "/tmp/stap-script2.log" "script2out" 30
-
 check_exitcode "service $__servicename stop" 0
 
 # remove test1 and test2 scripts
-exec rm -f "$__script_d/script2.stp" "$__conf_d/script2.conf"
-exec rm -f "$__script_d/script1.stp" "$__conf_d/script1.conf"
-
+catch {exec rm -f "$__script_d/script1.stp" "$__conf_d/script1.conf"}
+catch {exec rm -f "$__script_d/script2.stp" "$__conf_d/script2.conf"}
+catch {exec rm -f "/tmp/stap-script1.log" "/tmp/stap-script2.log"}
 
 # Testing script with bad name (bz1109084)
 set __subtest "bz1109084"
 set __tmp_log "/tmp/stap-service-test-log"
-exec rm -f $__tmp_log
+catch {exec rm -f $__tmp_log}
 
 set file [open "$__script_d/script1-blah.stp" w]
 puts $file "probe timer.ms(500){ print(\"script1out\\n\"); }"
@@ -275,7 +294,7 @@ sleep 5
 check_exitcode "service $__servicename start" 5
 sleep 5
 check_exitcode "grep \"not a valid script name\" $__tmp_log" 0
-exec rm -f $__tmp_log
+catch {exec rm -f $__tmp_log}
 
 set __subtest "boot time probing"
 if {[bootprobing_p]} {
@@ -390,7 +409,7 @@ if {[bootprobing_p]} {
     eval spawn "service $__servicename onboot"
     set __counter 0
     expect {
-        -timeout 40
+        -timeout 160
         -re {^ +Creating initramfs without scripts[^\r\n]+done\r\n} {
             incr __counter
             exp_continue
@@ -412,16 +431,16 @@ if {[bootprobing_p]} {
     set __subtest "boot probing - check script4 not in initramfs anymore"
     check_exitcode "lsinitrd | grep script4" 1
 
+    # clean up script3, script4
+    catch {exec rm -f "$__script_d/script3.stp" "$__conf_d/script3.conf"}
+    catch {exec rm -f "$__script_d/script4.stp" "$__conf_d/script4.conf"}
 } else {
     untested "${test}::${__subtest}"
 }
 
-# clean up script3, script4
-exec rm -f "$__script_d/script3.stp" "$__conf_d/script3.conf"
-exec rm -f "$__script_d/script4.stp" "$__conf_d/script4.conf"
-
 # restore configuration
-exec rm -rf $__etc_systemtap
-exec mv $__etc_systemtap.backup $__etc_systemtap
-
+catch {exec rm -rf $__etc_systemtap}
+if {[catch {exec mv $__etc_systemtap.backup $__etc_systemtap} msg]} {
+    fail "${test} - failed restoring backed up configuration ($msg)"
+}
 
