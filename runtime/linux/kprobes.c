@@ -35,6 +35,14 @@
 #define KRETACTIVE (max(15, 6 * (int)num_possible_cpus()))
 #endif
 
+// This shouldn't happen, but check as a precaution. If we're on kver >= 2.6.30,
+// then we must also have STP_ON_THE_FLY_TIMER_ENABLE (which is turned on for
+// kver >= 2.6.17, see translate_pass()). This indicates that the background
+// timer is available and thus that kprobes can be armed/disarmed on-the-fly.
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30) \
+      && !defined(STP_ON_THE_FLY_TIMER_ENABLE)
+#error "STP_ON_THE_FLY_TIMER_ENABLE undefined"
+#endif
 
 // NB: this struct is set up by the stapkp_prepare_* functions prior to
 // registering and zero'ed out again after each unregister

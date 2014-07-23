@@ -1105,6 +1105,7 @@ c_unparser::emit_common_header ()
       o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
       o->newline(-1)  << "}";
 
+      o->newline( 0)  << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
       o->newline( 0)  << "#include <linux/hrtimer.h>";
       o->newline( 0)  << "#include \"timer.h\"";
       o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
@@ -1121,6 +1122,7 @@ c_unparser::emit_common_header ()
       o->newline( 0)  <<   "            ktime_set(0, STP_ON_THE_FLY_INTERVAL))); ";
       o->newline( 0)  <<   "return HRTIMER_RESTART;";
       o->newline(-1)  << "}";
+      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_ENABLE */";
     }
 
   o->newline();
@@ -1910,6 +1912,8 @@ c_unparser::emit_module_init ()
 
   if (!session->runtime_usermode_p())
     {
+      o->newline() << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+
       // Initialize hrtimer needed for on-the-fly arming/disarming
       o->newline() << "hrtimer_init(&module_refresh_timer, CLOCK_MONOTONIC,";
       o->newline() << "             HRTIMER_MODE_REL);";
@@ -1950,6 +1954,8 @@ c_unparser::emit_module_init ()
             o->newline() << "              HRTIMER_MODE_REL);";
           }
       }
+
+      o->newline() << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
     }
 
   o->newline() << "return 0;";
@@ -2082,7 +2088,11 @@ c_unparser::emit_module_exit ()
   // terminate.  These may set STAP_SESSION_ERROR!
 
   if (!session->runtime_usermode_p())
-    o->newline() << "hrtimer_cancel(&module_refresh_timer);";
+    {
+      o->newline() << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+      o->newline() << "hrtimer_cancel(&module_refresh_timer);";
+      o->newline() << "#endif";
+    }
 
   // Get the lock before exiting to ensure there's no one in module_refresh
   if (!session->runtime_usermode_p())
@@ -7191,14 +7201,22 @@ translate_pass (systemtap_session& s)
       // Emit systemtap_module_refresh() prototype so we can reference it
       s.op->newline() << "static void systemtap_module_refresh (const char* modname);";
 
-      // When on-the-fly [dis]arming is used, module_refresh can be called from
-      // both the module notifier, as well as when probes need to be
-      // armed/disarmed. We need to protect it to ensure it's only run one at a
-      // time.
       if (!s.runtime_usermode_p())
         {
+          // When on-the-fly [dis]arming is used, module_refresh can be called from
+          // both the module notifier, as well as when probes need to be
+          // armed/disarmed. We need to protect it to ensure it's only run one at a
+          // time.
           s.op->newline() << "#include <linux/mutex.h>";
           s.op->newline() << "static DEFINE_MUTEX(module_refresh_mutex);";
+
+          // For some probes, on-the-fly support is provided through a
+          // background timer (module_refresh_timer). We need to disable that
+          // part if hrtimers are not supported.
+          s.op->newline() << "#include <linux/version.h>";
+          s.op->newline() << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)";
+          s.op->newline() << "#define STP_ON_THE_FLY_TIMER_ENABLE";
+          s.op->newline() << "#endif";
         }
 
       s.op->newline() << "#include \"runtime.h\"";
