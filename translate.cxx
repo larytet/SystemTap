@@ -1109,12 +1109,16 @@ c_unparser::emit_common_header ()
       o->newline( 0)  << "#include \"timer.h\"";
       o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
 
+      o->newline( 0)  << "#ifndef STP_ON_THE_FLY_INTERVAL";
+      o->newline( 0)  << "#define STP_ON_THE_FLY_INTERVAL (100*1000*1000)"; // default to 100 ms
+      o->newline( 0)  << "#endif";
+
       o->newline( 0)  << "hrtimer_return_t module_refresh_timer_cb(struct hrtimer *timer) {";
       o->newline(+1)  <<   "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1)";
       o->newline(+1)  <<     "schedule_work(&module_refresher_work);";
       o->newline(-1)  <<   "hrtimer_set_expires(timer,";
       o->newline( 0)  <<   "  ktime_add(hrtimer_get_expires(timer),";
-      o->newline( 0)  <<   "            ktime_set(0, 1000000))); "; // 1 ms. XXX: make tunable
+      o->newline( 0)  <<   "            ktime_set(0, STP_ON_THE_FLY_INTERVAL))); ";
       o->newline( 0)  <<   "return HRTIMER_RESTART;";
       o->newline(-1)  << "}";
     }
@@ -1911,7 +1915,7 @@ c_unparser::emit_module_init ()
       o->newline() << "             HRTIMER_MODE_REL);";
       o->newline() << "module_refresh_timer.function = &module_refresh_timer_cb;";
       o->newline() << "hrtimer_start(&module_refresh_timer,";
-      o->newline() << "              ktime_set(0, 1000000),"; // 1 ms. XXX: make tunable
+      o->newline() << "              ktime_set(0, STP_ON_THE_FLY_INTERVAL),";
       o->newline() << "              HRTIMER_MODE_REL);";
     }
 
