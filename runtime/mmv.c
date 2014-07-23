@@ -10,6 +10,8 @@
 #ifndef _MMV_C_
 #define _MMV_C_
 
+#include "mmv.h"
+
 static void _stp_mmv_data_init(void *data, size_t nbytes);
 
 #if defined(__KERNEL__)
@@ -22,7 +24,8 @@ static void _stp_mmv_data_init(void *data, size_t nbytes);
 //
 // Storage for global instances, indoms, and metrics.
 //
-// FIXME: For now, no locking.
+// FIXME: Now we lock the _stp_mmv_data structure. But, we need
+// individual locks for each value.
 //
 #define _STP_MMV_DISK_HEADER	0
 #define _STP_MMV_DISK_TOC	1
@@ -34,7 +37,12 @@ static void _stp_mmv_data_init(void *data, size_t nbytes);
 
 #define _STP_MMV_MAX_SECTIONS	7
 
+#define _STP_MMV_STATE_UNFINALIZED 0
+#define _STP_MMV_STATE_FINALIZED 1
+
 struct __stp_mmv_data {
+	struct mutex data_mutex;
+	atomic_t state;
 	void *data;			/* data pointer */
 	size_t nbytes;			/* allocated size */
 	size_t size;			/* size used */
@@ -44,11 +52,19 @@ struct __stp_mmv_data {
 };
 
 static struct __stp_mmv_data _stp_mmv_data = {
-	NULL, 0, 0, { 0 }, { NULL }, { 0 }
+	.state = ATOMIC_INIT(_STP_MMV_STATE_UNFINALIZED),
+	.data = NULL,
+	.nbytes = 0,
+	.size = 0,
+	.offset = { 0 },
+	.ptr = { NULL },
+	.nitems = { 0 }
 };
 
 static void _stp_mmv_data_init(void *data, size_t nbytes)
 {
+	mutex_init(&_stp_mmv_data.data_mutex);
+
 	// We could think about allocating a __stp_mmv_data structure
 	// here, instead of having a static one. But, right now we'll
 	// only ever have one of these files.
@@ -69,12 +85,11 @@ static void _stp_mmv_data_init(void *data, size_t nbytes)
 
 	// We have no idea how big the indoms, instances, metrics,
 	// value, and string sections should be, so don't worry about
-	// them now.
+	// them now. As we allocate, we move those sections around.
 }
 
-//FIXME: need to lock the mmv_data so simultaneous allocs work
-//properly. Hmm, probably the caller(s) should lock.
-
+/* Note that the _stp_mmv_data.data_mutex must be held when
+ * __stp_mmv_alloc_data_item() is called. */
 static void *
 __stp_mmv_alloc_data_item(int item_type, size_t item_size)
 {
@@ -190,10 +205,20 @@ __stp_mmv_alloc_data_item(int item_type, size_t item_size)
 static int
 __stp_mmv_add_instance(int32_t internal, char *external)
 {
-	mmv_disk_instance_t *instance = (mmv_disk_instance_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_INSTANCES, sizeof(mmv_disk_instance_t));
+	mmv_disk_instance_t *instance;
+	int rc;
 
-	if (IS_ERR(instance))
-		return PTR_ERR(instance);
+	mutex_lock(&_stp_mmv_data.data_mutex);
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED) {
+		rc = -EROFS;
+		goto unlock;
+	}
+
+	instance = (mmv_disk_instance_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_INSTANCES, sizeof(mmv_disk_instance_t));
+	if (IS_ERR(instance)) {
+		rc = PTR_ERR(instance);
+		goto unlock;
+	}
 
 	// Real 'indom' value gets filled in later when the instance
 	// gets added to the indom.
@@ -201,7 +226,10 @@ __stp_mmv_add_instance(int32_t internal, char *external)
 	instance->padding = 0;
 	instance->internal = internal;
 	strncpy (instance->external, external, MMV_NAMEMAX);
-	return (_stp_mmv_data.nitems[_STP_MMV_DISK_INSTANCES] - 1);
+	rc = _stp_mmv_data.nitems[_STP_MMV_DISK_INSTANCES] - 1;
+unlock:
+	mutex_unlock(&_stp_mmv_data.data_mutex);
+	return rc;
 }
 
 static int
@@ -230,6 +258,13 @@ __stp_mmv_add_indom(uint32_t serial, char *shorttext, char *helptext)
 	int shorttext_idx = 0;
 	int helptext_idx = 0;
 	mmv_disk_indom_t *indom;
+	int rc;
+
+	mutex_lock(&_stp_mmv_data.data_mutex);
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED) {
+		rc = -EROFS;
+		goto unlock;
+	}
 
 	/* Notice we're adding the strings first. This way the pointer
 	 * returned by __stp_mmv_alloc_data_item() will remain
@@ -240,12 +275,16 @@ __stp_mmv_add_indom(uint32_t serial, char *shorttext, char *helptext)
 		shorttext_idx = __stp_mmv_add_string(shorttext);
 	if (helptext != NULL && strlen(helptext))
 		helptext_idx = __stp_mmv_add_string(helptext);
-	if (shorttext_idx < 0 || helptext_idx < 0)
-		return -ENOMEM;
+	if (shorttext_idx < 0 || helptext_idx < 0) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
 
 	indom = (mmv_disk_indom_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_INDOMS, sizeof(mmv_disk_indom_t));
-	if (IS_ERR(indom))
-		return PTR_ERR(indom);
+	if (IS_ERR(indom)) {
+		rc = PTR_ERR(indom);
+		goto unlock;
+	}
 
 	indom->serial = serial;
 	indom->count = 0;
@@ -256,7 +295,10 @@ __stp_mmv_add_indom(uint32_t serial, char *shorttext, char *helptext)
 	if (helptext != NULL && strlen(helptext))
 		indom->helptext = (_stp_mmv_data.offset[_STP_MMV_DISK_STRINGS]
 				   + (helptext_idx * sizeof(mmv_disk_string_t)));
-	return (_stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS] - 1);
+	rc = _stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS] - 1;
+unlock:
+	mutex_unlock(&_stp_mmv_data.data_mutex);
+	return rc;
 }
 
 // FIXME: I think we have a problem here. All the instances added to
@@ -266,15 +308,26 @@ __stp_mmv_add_indom(uint32_t serial, char *shorttext, char *helptext)
 static int
 __stp_mmv_add_indom_instance(int indom_idx, int instance_idx)
 {
-	mmv_disk_indom_t *indom = (mmv_disk_indom_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_INDOMS];
-	mmv_disk_instance_t *instance = (mmv_disk_instance_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_INSTANCES];
+	mmv_disk_indom_t *indom;
+	mmv_disk_instance_t *instance;
 	uint64_t instance_offset;
+	int rc = 0;
 
-	if (indom_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS]
-	    || instance_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_INSTANCES]) {
-		// Error message provided by caller.
-		return -EINVAL;
+	mutex_lock(&_stp_mmv_data.data_mutex);
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED) {
+		rc = -EROFS;
+		goto unlock;
 	}
+
+	if (indom_idx < 0
+	    || indom_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS]
+	    || instance_idx < 0
+	    || instance_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_INSTANCES]) {
+		rc = -EINVAL;
+		goto unlock;
+	}
+	indom = (mmv_disk_indom_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_INDOMS];
+	instance = (mmv_disk_instance_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_INSTANCES];
 
 	indom[indom_idx].count++;
 	instance_offset = _stp_mmv_data.offset[_STP_MMV_DISK_INSTANCES]
@@ -285,7 +338,9 @@ __stp_mmv_add_indom_instance(int indom_idx, int instance_idx)
 	instance[instance_idx].indom = _stp_mmv_data.offset[_STP_MMV_DISK_INDOMS]
 		+ (indom_idx * sizeof(mmv_disk_indom_t));
 		
-	return 0;
+unlock:
+	mutex_unlock(&_stp_mmv_data.data_mutex);
+	return rc;
 }
 
 static mmv_disk_indom_t *
@@ -311,6 +366,13 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 	mmv_disk_metric_t *metric;
 	mmv_disk_value_t *value;
 	uint64_t metric_offset;
+	int rc;
+
+	mutex_lock(&_stp_mmv_data.data_mutex);
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED) {
+		rc = -EROFS;
+		goto unlock;
+	}
 
 	/* Notice we're adding the strings first. This way the pointer
 	 * returned by __stp_mmv_alloc_data_item() will remain
@@ -321,12 +383,16 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		shorttext_idx = __stp_mmv_add_string(shorttext);
 	if (helptext != NULL && strlen(helptext))
 		helptext_idx = __stp_mmv_add_string(helptext);
-	if (shorttext_idx < 0 || helptext_idx < 0)
-		return -ENOMEM;
+	if (shorttext_idx < 0 || helptext_idx < 0) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
 	
 	metric = (mmv_disk_metric_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_METRICS, sizeof(mmv_disk_metric_t));
-	if (IS_ERR(metric))
-		return PTR_ERR(metric);
+	if (IS_ERR(metric)) {
+		rc = PTR_ERR(metric);
+		goto unlock;
+	}
 
 	strncpy(metric->name, name, MMV_NAMEMAX);
 	metric->item = item;
@@ -349,8 +415,10 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 			 * sizeof(mmv_disk_metric_t));
 	if (metric->indom == 0) {
 		value = (mmv_disk_value_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUES, sizeof(mmv_disk_value_t));
-		if (IS_ERR(value))
-			return PTR_ERR(value);
+		if (IS_ERR(value)) {
+			rc = PTR_ERR(value);
+			goto unlock;
+		}
 
 		value->metric = (_stp_mmv_data.offset[_STP_MMV_DISK_METRICS]
 				 + metric_offset);
@@ -363,8 +431,8 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		int value_idx = -1;
 		
 		if (indom == NULL) {
-			// Error message provided by caller.
-			return -EINVAL;
+			rc = -EINVAL;
+			goto unlock;
 		}
 		
 		/* Notice we're caching the indom count from the indom
@@ -373,8 +441,10 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		indom_count = indom->count;
 		for (i = 0; i < indom_count; i++) {
 			value = (mmv_disk_value_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUES, sizeof(mmv_disk_value_t));
-			if (IS_ERR(value))
-				return PTR_ERR(value);
+			if (IS_ERR(value)) {
+				rc = PTR_ERR(value);
+				goto unlock;
+			}
 
 			/* Remember starting value index. */
 			if (value_idx < 0)
@@ -390,22 +460,33 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 			value[i].instance = indom->offset;
 		}
 	}
-	return (_stp_mmv_data.nitems[_STP_MMV_DISK_METRICS] - 1);
+	rc = _stp_mmv_data.nitems[_STP_MMV_DISK_METRICS] - 1;
+unlock:
+	mutex_unlock(&_stp_mmv_data.data_mutex);
+	return rc;
 }
 
 static int
 __stp_mmv_stats_init(int cluster, mmv_stats_flags_t flags)
 {
-	mmv_disk_header_t *hdr = (mmv_disk_header_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER];
-	mmv_disk_toc_t *toc = (mmv_disk_toc_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_TOC];
+	mmv_disk_header_t *hdr;
+	mmv_disk_toc_t *toc;
 	int tocidx = 0;
 
+	mutex_lock(&_stp_mmv_data.data_mutex);
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED) {
+		mutex_unlock(&_stp_mmv_data.data_mutex);
+		return -EINVAL;
+	}
+
+	hdr = (mmv_disk_header_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER];
+	toc = (mmv_disk_toc_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_TOC];
 	strcpy(hdr->magic, "MMV");
 	hdr->version = 1;
 	hdr->g1 = _stp_random_u(999999);
 	hdr->g2 = 0;
 	hdr->tocs = 2;
-	if (_stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS] > 0)
+	if (_stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS])
 		hdr->tocs += 2;
 	if (_stp_mmv_data.nitems[_STP_MMV_DISK_STRINGS])
 		hdr->tocs++;
@@ -442,12 +523,23 @@ __stp_mmv_stats_init(int cluster, mmv_stats_flags_t flags)
 	// Setting g2 to the same value as g1 lets clients know that
 	// we are finished initializing.
 	hdr->g2 = hdr->g1;
+	atomic_set(&_stp_mmv_data.state, _STP_MMV_STATE_FINALIZED);
+	mutex_unlock(&_stp_mmv_data.data_mutex);
 	return 0;
 }
 
 static int
 __stp_mmv_stats_stop(void)
 {
+	mutex_lock(&_stp_mmv_data.data_mutex);
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED) {
+		mmv_disk_header_t *hdr;
+
+		hdr = (mmv_disk_header_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER];
+		hdr->g2 = 0;
+		atomic_set(&_stp_mmv_data.state, _STP_MMV_STATE_UNFINALIZED);
+	}
+	mutex_unlock(&_stp_mmv_data.data_mutex);
 	return 0;
 }
 
@@ -460,6 +552,9 @@ __stp_mmv_lookup_value(int metric_idx, int instance_idx)
 		+ (sizeof(mmv_disk_metric_t) * metric_idx);
 	uint64_t instance_offset;
 	int i;
+
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED)
+		return -EROFS;
 
 	if (metric_idx < 0
 	    || metric_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_METRICS])
@@ -490,6 +585,9 @@ __stp_mmv_set_value(int value_idx, uint64_t value)
 	mmv_disk_value_t *v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
 	mmv_disk_metric_t *m;
 
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED)
+		return -EROFS;
+
 	if (value_idx < 0
 	    || value_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_VALUES]) {
 		return -EINVAL;
@@ -506,14 +604,18 @@ __stp_mmv_set_value(int value_idx, uint64_t value)
 static int
 __stp_mmv_inc_value(int value_idx, uint64_t inc)
 {
-	mmv_disk_value_t *v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
+	mmv_disk_value_t *v;
 	mmv_disk_metric_t *m;
+
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED)
+		return -EROFS;
 
 	if (value_idx < 0
 	    || value_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_VALUES]) {
 		return -EINVAL;
 	}
 
+	v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
 	m = (mmv_disk_metric_t *)((char *)_stp_mmv_data.data + v[value_idx].metric);
 	if (m->type != MMV_TYPE_I64) {
 		return -EINVAL;
