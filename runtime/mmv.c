@@ -553,7 +553,7 @@ __stp_mmv_lookup_value(int metric_idx, int instance_idx)
 	uint64_t instance_offset;
 	int i;
 
-	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED)
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED)
 		return -EROFS;
 
 	if (metric_idx < 0
@@ -585,7 +585,7 @@ __stp_mmv_set_value(int value_idx, uint64_t value)
 	mmv_disk_value_t *v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
 	mmv_disk_metric_t *m;
 
-	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED)
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED)
 		return -EROFS;
 
 	if (value_idx < 0
@@ -607,7 +607,7 @@ __stp_mmv_inc_value(int value_idx, uint64_t inc)
 	mmv_disk_value_t *v;
 	mmv_disk_metric_t *m;
 
-	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED)
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED)
 		return -EROFS;
 
 	if (value_idx < 0
