@@ -2632,10 +2632,12 @@ c_unparser::emit_probe_condition_update(derived_probe* v)
   v->sole_location()->condition->visit(this);
   o->line() << ") {";
   o->newline(1) << cond_enabled << " ^= 1;"; // toggle it 
+
   // don't bother refreshing if on-the-fly not supported
   if (!session->runtime_usermode_p()
-      && v->on_the_fly_supported(*session))
+      && v->group && v->group->otf_supported(*session))
     o->newline() << "atomic_set(&need_module_refresh, 1);";
+
   o->newline(-1) << "}";
 }
 

@@ -401,6 +401,7 @@ mark_derived_probe::join_group (systemtap_session& s)
       s.embeds.push_back(ec);
     }
   s.mark_derived_probes->enroll (this);
+  this->group = s.mark_derived_probes;
 }
 
 

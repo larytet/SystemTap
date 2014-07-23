@@ -490,8 +490,6 @@ struct dwarf_derived_probe: public derived_probe
   void emit_privilege_assertion (translator_output*);
   void print_dupe_stamp(ostream& o);
 
-  bool on_the_fly_supported (systemtap_session&) { return true; }
-
   // Pattern registration helpers.
   static void register_statement_variants(match_node * root,
 					  dwarf_builder * dw,
@@ -557,7 +555,6 @@ struct uprobe_derived_probe: public dwarf_derived_probe
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged_process_owner (o); }
   void getargs(std::list<std::string> &arg_set) const;
   void saveargs(int nargs);
-  bool on_the_fly_supported(systemtap_session&);
 private:
   list<string> args;
 };
@@ -575,6 +572,10 @@ public:
   void emit_module_init (systemtap_session& s);
   void emit_module_refresh (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
+  bool otf_supported (systemtap_session& s) { return true; }
+
+  // workqueue handling not safe in kprobes context
+  bool otf_safe_context (systemtap_session& s) { return false; }
 };
 
 // Helper struct to thread through the dwfl callbacks.
@@ -4754,6 +4755,9 @@ dwarf_derived_probe::join_group (systemtap_session& s)
   if (! s.dwarf_derived_probes)
     s.dwarf_derived_probes = new dwarf_derived_probe_group ();
   s.dwarf_derived_probes->enroll (this);
+  this->group = s.dwarf_derived_probes;
+  if (has_return && entry_handler)
+    entry_handler->group = s.dwarf_derived_probes;
 }
 
 
@@ -8300,6 +8304,15 @@ public:
   void emit_module_init (systemtap_session& s);
   void emit_module_refresh (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
+
+  // on-the-fly only supported for inode-uprobes
+  bool otf_supported (systemtap_session& s)
+    { return !s.runtime_usermode_p()
+             && kernel_supports_inode_uprobes(s); }
+
+  // workqueue manipulation is safe in uprobes
+  bool otf_safe_context (systemtap_session& s)
+    { return otf_supported(s); }
 };
 
 
@@ -8309,6 +8322,8 @@ uprobe_derived_probe::join_group (systemtap_session& s)
   if (! s.uprobe_derived_probes)
     s.uprobe_derived_probes = new uprobe_derived_probe_group ();
   s.uprobe_derived_probes->enroll (this);
+  this->group = s.uprobe_derived_probes;
+
   if (s.runtime_usermode_p())
     enable_dynprobes(s);
   else
@@ -8343,14 +8358,6 @@ uprobe_derived_probe::emit_privilege_assertion (translator_output* o)
   // These probes are allowed for unprivileged users, but only in the
   // context of processes which they own.
   emit_process_owner_assertion (o);
-}
-
-
-bool
-uprobe_derived_probe::on_the_fly_supported(systemtap_session& s)
-{
-  // We only support on-the-fly arming and disarming for inode-uprobes
-  return kernel_supports_inode_uprobes(s);
 }
 
 
@@ -9163,11 +9170,10 @@ void kprobe_derived_probe::printsig (ostream& o) const
 
 void kprobe_derived_probe::join_group (systemtap_session& s)
 {
-
   if (! s.kprobe_derived_probes)
 	s.kprobe_derived_probes = new kprobe_derived_probe_group ();
   s.kprobe_derived_probes->enroll (this);
-
+  this->group = s.kprobe_derived_probes;
 }
 
 void kprobe_derived_probe_group::enroll (kprobe_derived_probe* p)
@@ -9787,6 +9793,7 @@ void hwbkpt_derived_probe::join_group (systemtap_session& s)
   if (! s.hwbkpt_derived_probes)
     s.hwbkpt_derived_probes = new hwbkpt_derived_probe_group ();
   s.hwbkpt_derived_probes->enroll (this, s);
+  this->group = s.hwbkpt_derived_probes;
 }
 
 void hwbkpt_derived_probe_group::enroll (hwbkpt_derived_probe* p, systemtap_session& s)
@@ -10476,6 +10483,7 @@ tracepoint_derived_probe::join_group (systemtap_session& s)
   if (! s.tracepoint_derived_probes)
     s.tracepoint_derived_probes = new tracepoint_derived_probe_group ();
   s.tracepoint_derived_probes->enroll (this);
+  this->group = s.tracepoint_derived_probes;
 }
 
 

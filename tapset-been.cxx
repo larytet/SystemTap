@@ -103,6 +103,7 @@ be_derived_probe::join_group (systemtap_session& s)
   if (! s.be_derived_probes)
     s.be_derived_probes = new be_derived_probe_group ();
   s.be_derived_probes->enroll (this);
+  this->group = s.be_derived_probes;
 }
 
 

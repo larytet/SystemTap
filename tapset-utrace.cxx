@@ -209,6 +209,7 @@ utrace_derived_probe::join_group (systemtap_session& s)
       s.utrace_derived_probes = new utrace_derived_probe_group ();
     }
   s.utrace_derived_probes->enroll (this);
+  this->group = s.utrace_derived_probes;
 
   if (s.runtime_usermode_p())
     enable_dynprobes(s);

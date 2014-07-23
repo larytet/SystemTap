@@ -232,6 +232,7 @@ netfilter_derived_probe::join_group (systemtap_session& s)
   if (! s.netfilter_derived_probes)
     s.netfilter_derived_probes = new netfilter_derived_probe_group ();
   s.netfilter_derived_probes->enroll (this);
+  this->group = s.netfilter_derived_probes;
 }
 
 

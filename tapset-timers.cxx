@@ -78,6 +78,7 @@ timer_derived_probe::join_group (systemtap_session& s)
   if (! s.timer_derived_probes)
     s.timer_derived_probes = new timer_derived_probe_group ();
   s.timer_derived_probes->enroll (this);
+  this->group = s.timer_derived_probes;
 }
 
 
@@ -211,7 +212,6 @@ struct hrtimer_derived_probe: public derived_probe
   // unprivileged users.
   void emit_privilege_assertion (translator_output*) {}
   void print_dupe_stamp(ostream& o) { print_dupe_stamp_unprivileged (o); }
-  bool on_the_fly_supported (systemtap_session&) { return true; }
 };
 
 
@@ -222,6 +222,13 @@ public:
   void emit_module_init (systemtap_session& s);
   void emit_module_refresh (systemtap_session& s);
   void emit_module_exit (systemtap_session& s);
+
+  bool otf_supported (systemtap_session& s)
+    { return !s.runtime_usermode_p(); }
+
+  // workqueue manipulation is safe in hrtimers
+  bool otf_safe_context (systemtap_session& s)
+    { return otf_supported(s); }
 };
 
 
@@ -231,6 +238,7 @@ hrtimer_derived_probe::join_group (systemtap_session& s)
   if (! s.hrtimer_derived_probes)
     s.hrtimer_derived_probes = new hrtimer_derived_probe_group ();
   s.hrtimer_derived_probes->enroll (this);
+  this->group = s.hrtimer_derived_probes;
 }
 
 
@@ -431,6 +439,7 @@ profile_derived_probe::join_group (systemtap_session& s)
   if (! s.profile_derived_probes)
     s.profile_derived_probes = new profile_derived_probe_group ();
   s.profile_derived_probes->enroll (this);
+  this->group = s.profile_derived_probes;
 }
 
 

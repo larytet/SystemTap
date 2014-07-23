@@ -86,6 +86,7 @@ itrace_derived_probe::join_group (systemtap_session& s)
     s.itrace_derived_probes = new itrace_derived_probe_group ();
 
   s.itrace_derived_probes->enroll (this);
+  this->group = s.itrace_derived_probes;
 
   enable_task_finder(s);
 }
