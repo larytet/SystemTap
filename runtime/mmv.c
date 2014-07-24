@@ -205,6 +205,10 @@ __stp_mmv_alloc_data_item(int item_type, size_t item_size)
 			if (section_moved[_STP_MMV_DISK_INSTANCES]
 			    && value[i].instance)
 				value[i].instance += item_size;
+			if (section_moved[_STP_MMV_DISK_STRINGS]) {
+				if (value[i].extra)
+					value[i].extra += item_size;
+			}
 		}
 	}
 	
@@ -255,7 +259,7 @@ __stp_mmv_add_string(char *str)
 	/* Note that this function returns 0 for "no string needed"
 	 * and for "the 1st string offset". So, callers should be
 	 * careful. */
-	if (str == NULL || strlen(str) == 0)
+	if (str == NULL)
 		return 0;
 
 	string = (mmv_disk_string_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_STRINGS, sizeof(mmv_disk_string_t));
@@ -386,6 +390,7 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 {
 	int shorttext_idx = 0;
 	int helptext_idx = 0;
+	int string_idx = 0;
 	mmv_disk_metric_t *metric;
 	mmv_disk_value_t *value;
 	mmv_disk_value_extra_t *value_extra;
@@ -395,6 +400,10 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 	mutex_lock(&_stp_mmv_data.data_mutex);
 	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_UNFINALIZED) {
 		rc = -EROFS;
+		goto unlock;
+	}
+	if (type != MMV_TYPE_I64 && type != MMV_TYPE_STRING) {
+		rc = -EINVAL;
 		goto unlock;
 	}
 
@@ -438,6 +447,13 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 	metric_offset = ((_stp_mmv_data.nitems[_STP_MMV_DISK_METRICS] - 1)
 			 * sizeof(mmv_disk_metric_t));
 	if (metric->indom == 0) {
+		if (type == MMV_TYPE_STRING) {
+			string_idx = __stp_mmv_add_string("");
+			if (string_idx < 0) {
+				rc = -ENOMEM;
+				goto unlock;
+			}
+		}
 		value_extra = (mmv_disk_value_extra_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUE_EXTRAS, sizeof(mmv_disk_value_extra_t));
 		value = (mmv_disk_value_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUES, sizeof(mmv_disk_value_t));
 		if (IS_ERR(value_extra) || IS_ERR(value)) {
@@ -448,12 +464,16 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		value->metric = (_stp_mmv_data.offset[_STP_MMV_DISK_METRICS]
 				 + metric_offset);
 		value->instance = 0;
+		if (type == MMV_TYPE_STRING)
+			value->extra = (_stp_mmv_data.offset[_STP_MMV_DISK_STRINGS]
+					+ (string_idx * sizeof(mmv_disk_string_t)));
 	}
 	else {
 		mmv_disk_indom_t *indom = __stp_mmv_lookup_disk_indom(indom_serial);
 		int i;
 		uint32_t indom_count;
 		int value_idx = -1;
+		int starting_string_idx = -1;
 		
 		if (indom == NULL) {
 			rc = -EINVAL;
@@ -465,6 +485,16 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		 * pointer could become invalid. */
 		indom_count = indom->count;
 		for (i = 0; i < indom_count; i++) {
+			if (type == MMV_TYPE_STRING) {
+				string_idx = __stp_mmv_add_string("");
+				if (string_idx < 0) {
+					rc = -ENOMEM;
+					goto unlock;
+				}
+				/* Remember starting string index. */
+				if (starting_string_idx < 0)
+					starting_string_idx = string_idx;
+			}
 			value_extra = (mmv_disk_value_extra_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUE_EXTRAS, sizeof(mmv_disk_value_extra_t));
 			value = (mmv_disk_value_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUES, sizeof(mmv_disk_value_t));
 			if (IS_ERR(value_extra) || IS_ERR(value)) {
@@ -475,15 +505,22 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 			/* Remember starting value index. */
 			if (value_idx < 0)
 				value_idx = _stp_mmv_data.nitems[_STP_MMV_DISK_VALUES] - 1;
+
+			if (type == MMV_TYPE_STRING)
+				value->extra = (_stp_mmv_data.offset[_STP_MMV_DISK_STRINGS]
+						+ (string_idx * sizeof(mmv_disk_string_t)));
 		}			
 		/* Now that all the values are allocated, pointer
 		 * values and offsets should remain valid. */
 		value = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
 		indom = __stp_mmv_lookup_disk_indom(indom_serial);
-		for (i = value_idx; i < (indom_count + value_idx); i++) {
-			value[i].metric = (_stp_mmv_data.offset[_STP_MMV_DISK_METRICS]
-					   + metric_offset);
-			value[i].instance = indom->offset;
+		for (i = 0; i < indom_count; i++) {
+			value[i + value_idx].metric = (_stp_mmv_data.offset[_STP_MMV_DISK_METRICS]
+						       + metric_offset);
+			value[i + value_idx].instance = indom->offset;
+			if (type == MMV_TYPE_STRING)
+				value[i + value_idx].extra = (_stp_mmv_data.offset[_STP_MMV_DISK_STRINGS]
+					+ (i + starting_string_idx * sizeof(mmv_disk_string_t)));
 		}
 	}
 	rc = _stp_mmv_data.nitems[_STP_MMV_DISK_METRICS] - 1;
@@ -676,6 +713,36 @@ __stp_mmv_inc_value(int value_idx, uint64_t inc)
 	}
 	mutex_lock(&value_extra[value_idx].mutex);
 	v[value_idx].value.ll += inc;
+	mutex_unlock(&value_extra[value_idx].mutex);
+	return 0;
+}
+
+static int
+__stp_mmv_set_string_value(int value_idx, const char *str_value)
+{
+	mmv_disk_value_t *v;
+	mmv_disk_value_extra_t *value_extra;
+	mmv_disk_metric_t *m;
+	mmv_disk_string_t *string;
+
+	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED)
+		return -EROFS;
+
+	if (value_idx < 0
+	    || value_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_VALUES]) {
+		return -EINVAL;
+	}
+	
+	v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
+	value_extra = (mmv_disk_value_extra_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUE_EXTRAS];
+	m = (mmv_disk_metric_t *)((char *)_stp_mmv_data.data + v[value_idx].metric);
+	string = (mmv_disk_string_t *)((char *)_stp_mmv_data.data + v[value_idx].extra);
+	if (m->type != MMV_TYPE_STRING) {
+		return -EINVAL;
+	}
+	mutex_lock(&value_extra[value_idx].mutex);
+	strncpy(string->payload, str_value, MMV_STRINGMAX);
+	string->payload[MMV_STRINGMAX-1] = '\0';
 	mutex_unlock(&value_extra[value_idx].mutex);
 	return 0;
 }

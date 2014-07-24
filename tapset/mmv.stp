@@ -128,7 +128,7 @@ function mmv_add_metric:long(name:string, item:long, type:long,
 			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
 			break;
 		case -EINVAL:
-			CONTEXT->last_error = "Invalid indom identifier";
+			CONTEXT->last_error = "Invalid type or indom identifier";
 			break;
 		default:
 			snprintf (CONTEXT->error_buffer,
@@ -216,6 +216,28 @@ function mmv_set_value:long(v:long, value:long)
 function mmv_inc_value:long(v:long, inc:long)
 %{
 	STAP_RETVALUE = __stp_mmv_inc_value((int)STAP_ARG_v, STAP_ARG_inc);
+	if (STAP_RETVALUE < 0) {
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "mmv_stats_start() hasn't been called";
+			break;
+		case -EINVAL:
+			CONTEXT->last_error = "Invalid value identifier or type.";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
+	}
+%}
+
+function mmv_set_string_value:long(v:long, str_value:string)
+%{
+	STAP_RETVALUE = __stp_mmv_set_string_value((int)STAP_ARG_v,
+						   (const char *)STAP_ARG_str_value);
 	if (STAP_RETVALUE < 0) {
 		switch (STAP_RETVALUE) {
 		case -EROFS:
