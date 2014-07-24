@@ -21,24 +21,36 @@ static void _stp_mmv_data_init(void *data, size_t nbytes);
 #error "Not written yet"
 #endif
 
+// Notice this structure isn't in mmv.h. That's because even though it
+// gets stored in the data buffer, we don't expose it to clients.
+//
+// This structure stores extra information needed by values (that we
+// don't want the clients mucking around with). One
+// mmv_disk_value_extra_t structure gets allocated for each
+// mmv_disk_value_t structure. They are always in the same order (the
+// Nth mmv_disk_value_t structure is associated with the Nth
+// mmv_disk_value_extra_t structure).
+typedef struct {
+	struct mutex mutex;
+} mmv_disk_value_extra_t;
+
 //
 // Storage for global instances, indoms, and metrics.
 //
-// FIXME: Now we lock the _stp_mmv_data structure. But, we need
-// individual locks for each value.
-//
-#define _STP_MMV_DISK_HEADER	0
-#define _STP_MMV_DISK_TOC	1
-#define _STP_MMV_DISK_INDOMS	2
-#define _STP_MMV_DISK_INSTANCES 3
-#define _STP_MMV_DISK_METRICS	4
-#define _STP_MMV_DISK_VALUES	5
-#define _STP_MMV_DISK_STRINGS	6
+#define _STP_MMV_DISK_HEADER		0
+#define _STP_MMV_DISK_TOC		1
+#define _STP_MMV_DISK_INDOMS		2
+#define _STP_MMV_DISK_INSTANCES 	3
+#define _STP_MMV_DISK_METRICS		4
+#define _STP_MMV_DISK_VALUES		5
+#define _STP_MMV_DISK_STRINGS		6
+#define _STP_MMV_DISK_VALUE_EXTRAS	7
 
-#define _STP_MMV_MAX_SECTIONS	7
+#define _STP_MMV_MAX_SECTIONS		8
 
-#define _STP_MMV_STATE_UNFINALIZED 0
-#define _STP_MMV_STATE_FINALIZED 1
+#define _STP_MMV_STATE_UNFINALIZED	0
+#define _STP_MMV_STATE_FINALIZED	1
+#define _STP_MMV_STATE_STOPPED		2
 
 struct __stp_mmv_data {
 	struct mutex data_mutex;
@@ -83,9 +95,9 @@ static void _stp_mmv_data_init(void *data, size_t nbytes)
 		+ _stp_mmv_data.size;
 	_stp_mmv_data.size += (sizeof(mmv_disk_toc_t) * _STP_MMV_MAX_SECTIONS);
 
-	// We have no idea how big the indoms, instances, metrics,
-	// value, and string sections should be, so don't worry about
-	// them now. As we allocate, we move those sections around.
+	// We have no idea how big the rest of the sections should be,
+	// so don't worry about them now. As we allocate, we move
+	// those sections around.
 }
 
 /* Note that the _stp_mmv_data.data_mutex must be held when
@@ -94,6 +106,9 @@ static void *
 __stp_mmv_alloc_data_item(int item_type, size_t item_size)
 {
 	char *ptr;
+
+	if (! mutex_is_locked(&_stp_mmv_data.data_mutex))
+		return ERR_PTR(-EINVAL);
 
 	/* If there is space enough for another data item? */
 	if ((_stp_mmv_data.nbytes - _stp_mmv_data.size) < item_size)
@@ -365,6 +380,7 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 	int helptext_idx = 0;
 	mmv_disk_metric_t *metric;
 	mmv_disk_value_t *value;
+	mmv_disk_value_extra_t *value_extra;
 	uint64_t metric_offset;
 	int rc;
 
@@ -414,8 +430,9 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 	metric_offset = ((_stp_mmv_data.nitems[_STP_MMV_DISK_METRICS] - 1)
 			 * sizeof(mmv_disk_metric_t));
 	if (metric->indom == 0) {
+		value_extra = (mmv_disk_value_extra_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUE_EXTRAS, sizeof(mmv_disk_value_extra_t));
 		value = (mmv_disk_value_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUES, sizeof(mmv_disk_value_t));
-		if (IS_ERR(value)) {
+		if (IS_ERR(value_extra) || IS_ERR(value)) {
 			rc = PTR_ERR(value);
 			goto unlock;
 		}
@@ -440,8 +457,9 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		 * pointer could become invalid. */
 		indom_count = indom->count;
 		for (i = 0; i < indom_count; i++) {
+			value_extra = (mmv_disk_value_extra_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUE_EXTRAS, sizeof(mmv_disk_value_extra_t));
 			value = (mmv_disk_value_t *)__stp_mmv_alloc_data_item(_STP_MMV_DISK_VALUES, sizeof(mmv_disk_value_t));
-			if (IS_ERR(value)) {
+			if (IS_ERR(value_extra) || IS_ERR(value)) {
 				rc = PTR_ERR(value);
 				goto unlock;
 			}
@@ -520,6 +538,22 @@ __stp_mmv_stats_init(int cluster, mmv_stats_flags_t flags)
 		tocidx++;
 	}
 
+	// Notice we don't add a TOC for the "value extra"
+	// section. The client doesn't know it is there.
+	//
+	// Now that all allocations are finished (and nothing will be
+	// moving around), we can go ahead and initialize the "value
+	// extra" section.
+	if (_stp_mmv_data.nitems[_STP_MMV_DISK_VALUE_EXTRAS]) {
+		int i;
+		mmv_disk_value_extra_t *value_extra;
+
+		value_extra = _stp_mmv_data.ptr[_STP_MMV_DISK_VALUE_EXTRAS];
+		for (i = 0;
+		     i < _stp_mmv_data.nitems[_STP_MMV_DISK_VALUE_EXTRAS]; i++)
+			mutex_init(&value_extra[i].mutex);
+	}
+
 	// Setting g2 to the same value as g1 lets clients know that
 	// we are finished initializing.
 	hdr->g2 = hdr->g1;
@@ -537,7 +571,12 @@ __stp_mmv_stats_stop(void)
 
 		hdr = (mmv_disk_header_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER];
 		hdr->g2 = 0;
-		atomic_set(&_stp_mmv_data.state, _STP_MMV_STATE_UNFINALIZED);
+
+		// Why _STP_MMV_STATE_STOPPED? We could set the state
+		// back to _STP_MMV_STATE_UNFINALIZED if we
+		// reinitialized _stp_mmv_data, but that's too much
+		// work for now.
+		atomic_set(&_stp_mmv_data.state, _STP_MMV_STATE_STOPPED);
 	}
 	mutex_unlock(&_stp_mmv_data.data_mutex);
 	return 0;
@@ -582,7 +621,8 @@ __stp_mmv_lookup_value(int metric_idx, int instance_idx)
 static int
 __stp_mmv_set_value(int value_idx, uint64_t value)
 {
-	mmv_disk_value_t *v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
+	mmv_disk_value_t *v;
+	mmv_disk_value_extra_t *value_extra;
 	mmv_disk_metric_t *m;
 
 	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED)
@@ -592,12 +632,16 @@ __stp_mmv_set_value(int value_idx, uint64_t value)
 	    || value_idx >= _stp_mmv_data.nitems[_STP_MMV_DISK_VALUES]) {
 		return -EINVAL;
 	}
-
+	
+	v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
+	value_extra = (mmv_disk_value_extra_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUE_EXTRAS];
 	m = (mmv_disk_metric_t *)((char *)_stp_mmv_data.data + v[value_idx].metric);
 	if (m->type != MMV_TYPE_I64) {
 		return -EINVAL;
 	}
+	mutex_lock(&value_extra[value_idx].mutex);
 	v[value_idx].value.ll = value;
+	mutex_unlock(&value_extra[value_idx].mutex);
 	return 0;
 }
 
@@ -605,6 +649,7 @@ static int
 __stp_mmv_inc_value(int value_idx, uint64_t inc)
 {
 	mmv_disk_value_t *v;
+	mmv_disk_value_extra_t *value_extra;
 	mmv_disk_metric_t *m;
 
 	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED)
@@ -616,11 +661,14 @@ __stp_mmv_inc_value(int value_idx, uint64_t inc)
 	}
 
 	v = (mmv_disk_value_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUES];
+	value_extra = (mmv_disk_value_extra_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_VALUE_EXTRAS];
 	m = (mmv_disk_metric_t *)((char *)_stp_mmv_data.data + v[value_idx].metric);
 	if (m->type != MMV_TYPE_I64) {
 		return -EINVAL;
 	}
+	mutex_lock(&value_extra[value_idx].mutex);
 	v[value_idx].value.ll += inc;
+	mutex_unlock(&value_extra[value_idx].mutex);
 	return 0;
 }
 
