@@ -316,10 +316,6 @@ unlock:
 	return rc;
 }
 
-// FIXME: I think we have a problem here. All the instances added to
-// an indom must be consecutive. We'll either have to error if they
-// are not or rearrange things behind the scene.
-
 static int
 __stp_mmv_add_indom_instance(int indom_idx, int instance_idx)
 {
@@ -344,12 +340,24 @@ __stp_mmv_add_indom_instance(int indom_idx, int instance_idx)
 	indom = (mmv_disk_indom_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_INDOMS];
 	instance = (mmv_disk_instance_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_INSTANCES];
 
-	indom[indom_idx].count++;
 	instance_offset = _stp_mmv_data.offset[_STP_MMV_DISK_INSTANCES]
 		+ (instance_idx * sizeof(mmv_disk_instance_t));
-	if (indom[indom_idx].offset == 0
-	    || indom[indom_idx].offset > instance_offset)
+	/* If this is the first instance added to this indom, save
+	 * the offset. */
+	if (indom[indom_idx].offset == 0)
 		indom[indom_idx].offset = instance_offset;
+	/* Otherwise, make sure this instance is consecutive with the
+	 * last one. If it isn't, error.
+	 * 
+	 * In theory, we could rearrange the instances, but we could
+	 * end up where it is impossible to satisfy everyone.*/
+	else if ((indom[indom_idx].offset + sizeof(mmv_disk_instance_t))
+		 != instance_offset) {
+		rc = -EINVAL;
+		goto unlock;
+	}
+	indom[indom_idx].count++;
+
 	instance[instance_idx].indom = _stp_mmv_data.offset[_STP_MMV_DISK_INDOMS]
 		+ (indom_idx * sizeof(mmv_disk_indom_t));
 		

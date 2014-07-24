@@ -27,7 +27,20 @@ function mmv_add_instance:long(internal:long, external:string)
 	char *external = (char *)(unsigned long)STAP_ARG_external;
 	STAP_RETVALUE = __stp_mmv_add_instance(internal, external);
 	if (STAP_RETVALUE < 0) {
-		CONTEXT->last_error = "No more instances available (increase STP_MAX_INSTANCES)";
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
+			break;
+		case -ENOMEM:
+			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
 
@@ -37,14 +50,21 @@ function mmv_add_indom:long(serial:long, shorttext:string, helptext:string)
 	char *shorttext = (char *)(unsigned long)STAP_ARG_shorttext;
 	char *helptext = (char *)(unsigned long)STAP_ARG_helptext;
 	STAP_RETVALUE = __stp_mmv_add_indom(serial, shorttext, helptext);
-	if (STAP_RETVALUE == -1) {
-		CONTEXT->last_error = "No more indoms available (increase STP_MAX_INDOMS)";
-	}
-	else if (STAP_RETVALUE == -3) {
-		CONTEXT->last_error = "No more strings available";
-	}
-	else if (STAP_RETVALUE < 0) {
-		CONTEXT->last_error = "Unknown mmv_add_indom error";
+	if (STAP_RETVALUE < 0) {
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
+			break;
+		case -ENOMEM:
+			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
 
@@ -53,11 +73,21 @@ function mmv_add_indom_instance:long(indom:long, instance:long)
 	int indom = (int)STAP_ARG_indom;
 	int instance = (int)STAP_ARG_instance;
 	STAP_RETVALUE = __stp_mmv_add_indom_instance(indom, instance);
-	if (STAP_RETVALUE == -1) {
-		CONTEXT->last_error = "Invalid indom or instance identifier";
-	}
-	else if (STAP_RETVALUE < 0) {
-		CONTEXT->last_error = "Unknown mmv_add_indom_instance error";
+	if (STAP_RETVALUE < 0) {
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
+			break;
+		case -EINVAL:
+			CONTEXT->last_error = "Invalid indom or instance identifier or non-consecutive instance";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
 
@@ -90,7 +120,23 @@ function mmv_add_metric:long(name:string, item:long, type:long,
 					     units, indom_serial, shorttext,
 					     helptext);
 	if (STAP_RETVALUE < 0) {
-		CONTEXT->last_error = "No more metrics available (increase STP_MAX_METRICS)";
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
+			break;
+		case -ENOMEM:
+			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
+			break;
+		case -EINVAL:
+			CONTEXT->last_error = "Invalid indom identifier";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
 
@@ -99,13 +145,29 @@ function mmv_stats_start:long(cluster:long, flags:long)
 	int32_t cluster = (int32_t)STAP_ARG_cluster;
 	int32_t flags = (int32_t)STAP_ARG_flags;
 	STAP_RETVALUE = __stp_mmv_stats_init(cluster, flags);
+	if (STAP_RETVALUE < 0) {
+		switch (STAP_RETVALUE) {
+		case -EINVAL:
+			CONTEXT->last_error = "Can't restart mmv stats.";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
+	}
 %}
 
 function mmv_stats_stop:long()
 %{
-	// FIXME: Hmm, what to do here? The real mmv_stats_stop()
-	// function removes the file and unmaps the memory.
 	STAP_RETVALUE = __stp_mmv_stats_stop();
+	if (STAP_RETVALUE < 0) {
+		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+			  "Unknown error %d", (int)STAP_RETVALUE);
+		CONTEXT->last_error = CONTEXT->error_buffer;
+	}
 %}
 
 function mmv_lookup_value:long(metric:long, instance:long)
@@ -113,7 +175,20 @@ function mmv_lookup_value:long(metric:long, instance:long)
 	STAP_RETVALUE = __stp_mmv_lookup_value((int)STAP_ARG_metric,
 					       (int)STAP_ARG_instance);
 	if (STAP_RETVALUE < 0) {
-		CONTEXT->last_error = "Couldn't find value";
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "mmv_stats_start() hasn't been called";
+			break;
+		case -EINVAL:
+			CONTEXT->last_error = "Invalid metric or instance identifier.";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
 
@@ -121,9 +196,20 @@ function mmv_set_value:long(v:long, value:long)
 %{
 	STAP_RETVALUE = __stp_mmv_set_value((int)STAP_ARG_v, STAP_ARG_value);
 	if (STAP_RETVALUE < 0) {
-		snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-			  "Couldn't set value: %d", (int)STAP_RETVALUE);
-		CONTEXT->last_error = CONTEXT->error_buffer;
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "mmv_stats_start() hasn't been called";
+			break;
+		case -EINVAL:
+			CONTEXT->last_error = "Invalid value identifier or type.";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
 
@@ -131,6 +217,19 @@ function mmv_inc_value:long(v:long, inc:long)
 %{
 	STAP_RETVALUE = __stp_mmv_inc_value((int)STAP_ARG_v, STAP_ARG_inc);
 	if (STAP_RETVALUE < 0) {
-		CONTEXT->last_error = "Couldn't increment value";
+		switch (STAP_RETVALUE) {
+		case -EROFS:
+			CONTEXT->last_error = "mmv_stats_start() hasn't been called";
+			break;
+		case -EINVAL:
+			CONTEXT->last_error = "Invalid value identifier or type.";
+			break;
+		default:
+			snprintf (CONTEXT->error_buffer,
+				  sizeof(CONTEXT->error_buffer),
+				  "Unknown error %d", (int)STAP_RETVALUE);
+			CONTEXT->last_error = CONTEXT->error_buffer;
+			break;
+		}
 	}
 %}
