@@ -50,7 +50,6 @@ typedef struct {
 
 #define _STP_MMV_STATE_UNFINALIZED	0
 #define _STP_MMV_STATE_FINALIZED	1
-#define _STP_MMV_STATE_STOPPED		2
 
 struct __stp_mmv_data {
 	struct mutex data_mutex;
@@ -73,21 +72,16 @@ static struct __stp_mmv_data _stp_mmv_data = {
 	.nitems = { 0 }
 };
 
-static void _stp_mmv_data_init(void *data, size_t nbytes)
+static void __stp_mmv_data_reset(void)
 {
-	mutex_init(&_stp_mmv_data.data_mutex);
-
-	// We could think about allocating a __stp_mmv_data structure
-	// here, instead of having a static one. But, right now we'll
-	// only ever have one of these files.
-	_stp_mmv_data.data = data;
-	_stp_mmv_data.nbytes = nbytes;
-
 	_stp_mmv_data.size = 0;
+	memset(_stp_mmv_data.offset, 0, sizeof(_stp_mmv_data.offset));
 	_stp_mmv_data.offset[_STP_MMV_DISK_HEADER] = _stp_mmv_data.size;
+	memset(_stp_mmv_data.ptr, 0, sizeof(_stp_mmv_data.ptr));
 	_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER] = _stp_mmv_data.data
 		+ _stp_mmv_data.size;
 	_stp_mmv_data.size += sizeof(mmv_disk_header_t);
+	memset(_stp_mmv_data.nitems, 0, sizeof(_stp_mmv_data.nitems));
 
 	// TOC (Table Of Contents) section. Always assume the max.
 	_stp_mmv_data.offset[_STP_MMV_DISK_TOC] = _stp_mmv_data.size;
@@ -97,7 +91,20 @@ static void _stp_mmv_data_init(void *data, size_t nbytes)
 
 	// We have no idea how big the rest of the sections should be,
 	// so don't worry about them now. As we allocate, we move
-	// those sections around.
+	// those sections around and resize them.
+	atomic_set(&_stp_mmv_data.state, _STP_MMV_STATE_UNFINALIZED);
+}
+
+static void _stp_mmv_data_init(void *data, size_t nbytes)
+{
+	mutex_init(&_stp_mmv_data.data_mutex);
+
+	// We could think about allocating a __stp_mmv_data structure
+	// here, instead of having a static one. But, right now we'll
+	// only ever have one of these files.
+	_stp_mmv_data.data = data;
+	_stp_mmv_data.nbytes = nbytes;
+	__stp_mmv_data_reset();
 }
 
 /* Note that the _stp_mmv_data.data_mutex must be held when
@@ -546,7 +553,10 @@ __stp_mmv_stats_init(int cluster, mmv_stats_flags_t flags)
 	toc = (mmv_disk_toc_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_TOC];
 	strcpy(hdr->magic, "MMV");
 	hdr->version = 1;
-	hdr->g1 = _stp_random_u(999999);
+	if (hdr->g1 == 0)
+		hdr->g1 = _stp_random_u(999999);
+	else
+		hdr->g1++;
 	hdr->g2 = 0;
 	hdr->tocs = 2;
 	if (_stp_mmv_data.nitems[_STP_MMV_DISK_INDOMS])
@@ -611,17 +621,14 @@ static int
 __stp_mmv_stats_stop(void)
 {
 	mutex_lock(&_stp_mmv_data.data_mutex);
-	if (atomic_read(&_stp_mmv_data.state) != _STP_MMV_STATE_FINALIZED) {
+	if (atomic_read(&_stp_mmv_data.state) == _STP_MMV_STATE_FINALIZED) {
 		mmv_disk_header_t *hdr;
 
 		hdr = (mmv_disk_header_t *)_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER];
 		hdr->g2 = 0;
 
-		// Why _STP_MMV_STATE_STOPPED? We could set the state
-		// back to _STP_MMV_STATE_UNFINALIZED if we
-		// reinitialized _stp_mmv_data, but that's too much
-		// work for now.
-		atomic_set(&_stp_mmv_data.state, _STP_MMV_STATE_STOPPED);
+		/* Delete all the metrics. */
+		__stp_mmv_data_reset();
 	}
 	mutex_unlock(&_stp_mmv_data.data_mutex);
 	return 0;
