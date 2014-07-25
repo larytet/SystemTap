@@ -1,0 +1,120 @@
+set test_name additional_scripts
+
+# test scripts and arguements
+set script1 { "probe begin\{printf(\"beginning\")\}" }
+set script2 { "probe process.begin\{printf(\"%s\", \$1)\}" }
+set timeout_script { "probe timer.s(15) \{ printf(\"ending\") exit ()\}" }
+set script_alias { "probe pb=process.begin {exit();} probe process.end{exit();}" }
+set bad_script { "probe pppppppp.begin { exit(); }" }
+set script_file "$srcdir/$subdir/$test_name.stp"
+set arg1 { "\"hello\"" }
+
+# running test scripts
+# -E and no -e or script file
+# -E is for additional scripts. a "main" script or script file must be given
+eval spawn stap -v -E $timeout_script
+expect {
+  -timeout 60
+  -re {A script must be specified} { pass "$test_name (no script)" }
+  eof { fail "$test_name (no script)" }
+}
+
+# -E BAD_SCRIPT, where BAD_SCRIPT causes a semantic error
+eval spawn stap -v -e $script1 -E $bad_script
+set success 0
+expect {
+  -timeout 120
+  -re {semantic error[ A-Za-z:]+'pppppppp'} { set success 1 }
+}
+if { $success == 1 } { pass "$test_name (-E BAD_SCRIPT) " }  { fail "$test_name (-E BAD_SCRIPT)" }
+
+# -E SCRIPT,
+eval spawn stap -v -e $script1 -E $timeout_script
+set success 0
+expect {
+  -timeout 120
+  -re {beginning} { 
+    set success 1
+    verbose -log "saw:beginning"
+    exp_continue
+  }
+  -re {ending} { 
+    if { $success == 1 } {
+      verbose -log "saw:ending"
+      set success 2
+    }
+    exp_continue 
+  }
+}
+if { $success == 2 } { pass "$test_name (-e and -E ) " }  { fail "$test_name (-e and -E)" }
+
+# script file  and -E
+eval spawn stap -v  $script_file -E $timeout_script
+set success 0
+expect {
+  -timeout 120
+  -re {a process began} {
+    if { $success == 0 } {
+      verbose -log "\nsaw:a process began"
+      set success 1 
+    }
+    exp_continue
+  }
+  -re {ending} { 
+    if { $success == 1 } { 
+      set success 2
+      verbose -log "\nsaw:ending"
+    }
+    exp_continue
+  }
+}
+if { $success == 2 } { pass "$test_name (file and -E ) " }  { fail "$test_name (file and -E)" }
+
+# multiple -E, with an argument mixed in there
+eval spawn stap -v -e $script2 -E $script1 -E $timeout_script $arg1
+set success 0
+expect {
+  -timeout 120
+  -re {beginning} { 
+    set success 1
+    verbose -log "\nsaw:beginning"
+    exp_continue
+  }
+  -re {hello} {
+    if { $success == 1 } { 
+      verbose -log "\nsaw:hello"
+      set success 2 
+    }
+    exp_continue
+  }
+  -re {ending} { 
+    if { $success == 2 } { 
+      set success 3
+      verbose -log "\nsaw:ending"
+    }
+    exp_continue 
+  }
+}
+if { $success == 3 } { pass "$test_name (multiple -E ) " }  { fail "$test_name (multiple -E)" }
+
+# -E, with probe point listing
+eval spawn stap -l "pb" -E $script_alias
+set success 0
+expect {
+  -timeout 120
+  -re {pb} { if { $success == 0 } { set success 1 } }
+  -re {process.begin} { if { $success == 0 } { set success 1 } }
+  -re {process.end} { set success 4 }
+}
+if { $success == 1 } { pass "$test_name (-E listing probes) " }  { fail "$test_name (-E listing probes)" }
+
+# -E BAD_SCRIPT when listing probes. should still list the proper probe pts
+eval spawn stap -l "pb" -E $script_alias -E $bad_script
+set success 0
+expect {
+  -timeout 120
+  -re {pb} { if { $success == 0 } { set success 1 } }
+  -re {process.begin} { if { $success == 0 } { set success 1 } }
+  -re {process.end} { set success 4 }
+}
+if { $success == 1 } { pass "$test_name (-E BAD_SCRIPT listing probes) " }  { fail "$test_name (-E BAD_SCRIPT listing probes)" }

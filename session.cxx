@@ -559,6 +559,8 @@ systemtap_session::usage (int exitcode)
     "              %s\n"
     "   -o FILE    send script output to file, instead of stdout. This supports\n" 
     "              strftime(3) formats for FILE\n"
+    "   -E SCRIPT  run the SCRIPT in addition to the main script specified\n"
+    "              through -e or a script file\n"
     "   -c CMD     start the probes, run CMD, and exit when it finishes\n"
     "   -x PID     sets target() to PID\n"
     "   -F         run as on-file flight recorder with -o.\n"

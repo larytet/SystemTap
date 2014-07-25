@@ -259,6 +259,11 @@ a specific process. Scripts run independent of the PID's lifespan.
 .BI \-e " SCRIPT"
 Run the given SCRIPT specified on the command line.
 .TP
+.BI \-E " SCRIPT"
+Run the given SCRIPT specified. This SCRIPT is run in addition to the main
+script specified, through -e, or as a script file. This option can be repeated
+to run multiple scripts, and can be used in listing mode (\-l/\-L).
+.TP
 .BI \-l " PROBE"
 Instead of running a probe script, just list all available probe
 points matching the given single probe point.  The pattern may include
