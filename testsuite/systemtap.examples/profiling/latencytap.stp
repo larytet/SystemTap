@@ -245,6 +245,7 @@ probe begin {
   explain("scsi_execute_req",3,"Executing raw SCSI command");
   explain("sd_ioctl",3,"SCSI disk ioctl");
   explain("shrink_icache_memory",3,"reducing inode cache memory footprint");
+  explain("sigsuspend",3,"waiting for a signal");
   explain("smpboot_thread_fn",2,"percpu hotplug kernel thread");
   explain("sock_sendmsg",2,"Sending data over socket");
   explain("sr_cd_check",3,"Checking CDROM media present");
