@@ -24,11 +24,12 @@
 - SystemTap now accepts additional scripts through the new -E SCRIPT option.
   There still needs to be a main script specified through -e or file in order
   to provide an additional script. This makes it feasible to have scripts in
-  the $HOME/.systemtap/rc file. Such a script could be, for example:
+  the $HOME/.systemtap/rc file.  For example:
 
   -E 'probe begin, end, error { log("systemtap script " . pn()) }'
+  -E 'probe timer.s(30) { error ("timeout") }
 
-  The -E SCRIPT option can also be used in lisitng mode (-l/-L), such that
+  The -E SCRIPT option can also be used in listing mode (-l/-L), such that
   probe points for the additional scripts will not listed, but other parts of
   the script are still available, such as macros or aliases.
 
