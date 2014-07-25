@@ -65,7 +65,6 @@ systemtap_session::systemtap_session ():
   runtime_mode(kernel_runtime),
   base_hash(0),
   pattern_root(new match_node),
-  user_file (0),
   dfa_counter (0),
   dfa_maxstate (0),
   dfa_maxtag (0),
@@ -250,7 +249,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   runtime_mode(other.runtime_mode),
   base_hash(0),
   pattern_root(new match_node),
-  user_file (other.user_file),
+  user_files (other.user_files),
   dfa_counter(0),
   dfa_maxtag (0),
   need_tagged_dfa(other.need_tagged_dfa),
@@ -364,6 +363,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   // copy them from "other".  In the same order as declared...
   script_file = other.script_file;
   cmdline_script = other.cmdline_script;
+  additional_scripts = other.additional_scripts;
   c_macros = other.c_macros;
   args = other.args;
   kbuildflags = other.kbuildflags;
@@ -734,14 +734,21 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
         case 'e':
 	  if (have_script)
-	    {
-	      cerr << _("Only one script can be given on the command line.")
-		   << endl;
+           {
+             cerr << _("Only one script can be given on the command line.")
+                  << endl;
               return 1;
-	    }
+           }
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           cmdline_script = string (optarg);
           have_script = true;
+          break;
+
+        case 'E':
+          server_args.push_back (string("-") + (char)grc + optarg);
+          additional_scripts.push_back(string (optarg));
+          // don't set have_script to true, since this script is meant to be
+          // given in addition to a script/script_file.
           break;
 
         case 'o':
@@ -1934,8 +1941,7 @@ void
 systemtap_session::register_library_aliases()
 {
   vector<stapfile*> files(library_files);
-  if (user_file) // May be NULL, e.g. in dump modes
-    files.push_back(user_file);
+  files.insert(files.end(), user_files.begin(), user_files.end());
 
   for (unsigned f = 0; f < files.size(); ++f)
     {
@@ -2499,6 +2505,16 @@ systemtap_session::explain_auto_options()
 		    "a compile-server.") << endl;
 	}
     }
+}
+
+bool
+systemtap_session::is_user_file (const string &name)
+{
+  // base the check on the name of the user_file
+  for (vector<stapfile*>::iterator it = user_files.begin(); it != user_files.end(); it++)
+    if (name == (*it)->name)
+      return true;
+  return false; // no match
 }
 
 // --------------------------------------------------------------------------

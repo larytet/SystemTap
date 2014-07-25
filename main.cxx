@@ -112,8 +112,11 @@ printscript(systemtap_session& s, ostream& o)
 
           // PR16730: We should only list probes that can be traced back to the
           // user's spec, not any auxiliary probes in the tapsets.
+          // Also, do not want to the probes that are from the additional
+          // scripts (-E SCRIPT) to be listed.
           const source_loc& origin = chain.back()->tok->location;
-          if (origin.file != s.user_file)
+          // "<input>" is the name of the main script file.
+          if (origin.file->name != "<input>")
             {
               if (s.verbose > 1)
                 cerr << "skipping probe " << pp << " from " << origin << endl;
@@ -694,26 +697,43 @@ passes_0_4 (systemtap_session &s)
       unsigned user_flags = s.guru_mode ? pf_guru : 0;
       if (s.script_file == "-")
         {
-          s.user_file = parse (s, cin, user_flags);
+          s.user_files.push_back (parse (s, "<input>", cin, user_flags));
         }
       else if (s.script_file != "")
         {
-          s.user_file = parse (s, s.script_file, user_flags);
+          s.user_files.push_back (parse (s, s.script_file, user_flags));
         }
       else if (s.cmdline_script != "")
         {
           istringstream ii (s.cmdline_script);
-          s.user_file = parse (s, ii, user_flags);
+          s.user_files.push_back(parse (s, "<input>", ii, user_flags));
         }
       else // listing mode
         {
           istringstream ii ("probe " + s.dump_matched_pattern + " {}");
-          s.user_file = parse (s, ii, user_flags);
+          s.user_files.push_back (parse (s, "<input>", ii, user_flags));
         }
-      if (s.user_file == 0)
+
+      // parses the additional script(s) (-E script). does so even if in listing
+      // mode, incase there is something special in the additional script(s),
+      // like a macro or alias. give them a unique name to differentiate the
+      // scripts that were inputted.
+      unsigned count = 1;
+      for (vector<string>::iterator script = s.additional_scripts.begin(); script != s.additional_scripts.end(); script++)
         {
-          // Syntax errors already printed.
-          rc ++;
+          string input_name = "<input" + lex_cast(count) + ">";
+          istringstream ii (*script);
+          s.user_files.push_back(parse (s, input_name, ii, user_flags));
+          count ++;
+        }
+
+      for(vector<stapfile*>::iterator it = s.user_files.begin(); it != s.user_files.end(); it++)
+        {
+          if (!(*it))
+            {
+              // Syntax errors already printed.
+              rc ++;
+            }
         }
     }
 
@@ -749,7 +769,8 @@ passes_0_4 (systemtap_session &s)
   else if (rc == 0 && s.last_pass == 1)
     {
       cout << _("# parse tree dump") << endl;
-      s.user_file->print (cout);
+      for (vector<stapfile*>::iterator it = s.user_files.begin(); it != s.user_files.end(); it++)
+        (*it)->print (cout);
       cout << endl;
       if (s.verbose)
         for (unsigned i=0; i<s.library_files.size(); i++)

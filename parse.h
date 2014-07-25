@@ -89,7 +89,7 @@ enum parse_flag
   };
 
 
-stapfile* parse (systemtap_session& s, std::istream& i, unsigned flags);
+stapfile* parse (systemtap_session& s,const std::string& n, std::istream& i, unsigned flags);
 stapfile* parse (systemtap_session& s, const std::string& n, unsigned flags);
 
 stapfile* parse_library_macros (systemtap_session& s, const std::string& n);

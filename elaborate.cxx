@@ -1609,12 +1609,12 @@ semantic_pass_symbols (systemtap_session& s)
       s.files.insert(s.files.end(), s.library_files.begin(),
                                     s.library_files.end());
     }
-  else if (s.user_file)
+  else if (!s.user_files.empty())
     {
-      // Normal run: seed s.files with user_file and let it grow through the
+      // Normal run: seed s.files with user_files and let it grow through the
       // find_* functions. NB: s.files can grow during this iteration, so
       // size() can return gradually increasing numbers.
-      s.files.push_back (s.user_file);
+      s.files.insert (s.files.end(), s.user_files.begin(), s.user_files.end());
     }
 
   for (unsigned i = 0; i < s.files.size(); i++)
@@ -2309,8 +2309,7 @@ void semantic_pass_opt1 (systemtap_session& s, bool& relaxed_p)
       functiondecl* fd = it->second;
       if (ftv.seen.find(fd) == ftv.seen.end())
         {
-          if (! fd->synthetic && s.user_file &&
-              fd->tok->location.file->name == s.user_file->name) // !tapset
+          if (! fd->synthetic && s.is_user_file(fd->tok->location.file->name))
             s.print_warning (_F("Eliding unused function '%s'", fd->name.c_str()), fd->tok);
           // s.functions.erase (it); // NB: can't, since we're already iterating upon it
           new_unused_functions.push_back (fd);
@@ -2365,8 +2364,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
         if (vut.read.find (l) == vut.read.end() &&
             vut.written.find (l) == vut.written.end())
           {
-            if (s.user_file &&
-                l->tok->location.file->name == s.user_file->name) // !tapset
+            if (s.is_user_file(l->tok->location.file->name))
               s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
 	    if (s.tapset_compile_coverage) {
 	      s.probes[i]->unused_locals.push_back
@@ -2407,8 +2405,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
           if (vut.read.find (l) == vut.read.end() &&
               vut.written.find (l) == vut.written.end())
             {
-              if (s.user_file &&
-                  l->tok->location.file->name == s.user_file->name) // !tapset
+              if (s.is_user_file(l->tok->location.file->name))
                 s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
               if (s.tapset_compile_coverage) {
                 fd->unused_locals.push_back (fd->locals[j]);
@@ -2449,8 +2446,7 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
       if (vut.read.find (l) == vut.read.end() &&
           vut.written.find (l) == vut.written.end())
         {
-          if (s.user_file &&
-              l->tok->location.file->name == s.user_file->name) // !tapset
+          if (s.is_user_file(l->tok->location.file->name)) 
             s.print_warning (_F("Eliding unused variable '%s'", l->name.c_str()), l->tok);
 	  if (s.tapset_compile_coverage) {
 	    s.unused_globals.push_back(s.globals[i]);
@@ -2587,8 +2583,7 @@ dead_assignment_remover::visit_assignment (assignment* e)
                 session.print_warning("eliding write-only ", *e->left->tok);
               else
               */
-              if (session.user_file &&
-                  e->left->tok->location.file->name == session.user_file->name) // !tapset
+              if (session.is_user_file(e->left->tok->location.file->name)) 
                 session.print_warning(_F("Eliding assignment to '%s'", leftvar->name.c_str()), e->tok);
               provide (e->right); // goodbye assignment*
               relaxed_p = false;
@@ -2863,8 +2858,7 @@ dead_stmtexpr_remover::visit_expr_statement (expr_statement *s)
         session.print_warning("eliding never-assigned ", *s->value->tok);
       else
       */
-      if (session.user_file &&
-          s->value->tok->location.file->name == session.user_file->name) // not tapset
+      if (session.is_user_file(s->value->tok->location.file->name))
         session.print_warning("Eliding side-effect-free expression ", s->tok);
 
       // NB: this 0 pointer is invalid to leave around for any length of

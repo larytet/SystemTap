@@ -220,12 +220,11 @@ private: // nonterminals
 // ------------------------------------------------------------------------
 
 stapfile*
-parse (systemtap_session& s, istream& i, unsigned flags)
+parse (systemtap_session& s, const string& n, istream& i, unsigned flags)
 {
-  parser p (s, "<input>", i, flags);
+  parser p (s, n, i, flags);
   return p.parse ();
 }
-
 
 stapfile*
 parse (systemtap_session& s, const string& name, unsigned flags)

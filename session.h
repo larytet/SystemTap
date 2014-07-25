@@ -151,6 +151,7 @@ public:
   // command line args
   std::string script_file; // FILE
   std::string cmdline_script; // -e PROGRAM
+  std::vector<std::string> additional_scripts; // -E SCRIPT
   bool have_script;
   std::vector<std::string> include_path;
   int include_arg_start;
@@ -317,7 +318,7 @@ public:
   std::map<std::string, macrodecl*> library_macros;
 
   // parse trees for the various script files
-  stapfile* user_file;
+  std::vector<stapfile*> user_files;
   std::vector<stapfile*> library_files;
 
   // filters to run over all code before symbol resolution
@@ -440,6 +441,8 @@ public:
   // Some automatic options settings require explanation.
   void enable_auto_server (const std::string &message);
   void explain_auto_options();
+
+  bool is_user_file (const std::string& name);
 };
 
 struct exit_exception: public std::runtime_error
