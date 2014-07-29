@@ -1,5 +1,5 @@
 # PR14297-related testing
-set stap_path $env(SYSTEMTAP_PATH)/stap
+set stap_path [file normalize $env(SYSTEMTAP_PATH)/stap]
 
 proc test_list { test input output_re } {
     spawn stap -l $input
@@ -36,6 +36,15 @@ test_plt_list plt-glob2 {process("stap").plt("re*")} \
 
 test_plt_list plt-non-glob {process("stap").plt("read")} \
     "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\)\r\n$"
+
+test_plt_list plt-glob-ret {process("stap").plt("re??").return} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\).return\r\n$"
+
+test_plt_list plt-glob2-ret {process("stap").plt("re*").return} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"re\[a-zA-Z0-9_\]*\"\\\).return\r\n"
+
+test_plt_list plt-non-glob-ret {process("stap").plt("read").return} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\).return\r\n$"
 
 test_uprobes_list mark-non-glob {process("stap").mark("pass5__end")} \
     "^process\\\(\"$stap_path\"\\\)\\\.mark\\\(\"pass5__end\"\\\)\r\n$"

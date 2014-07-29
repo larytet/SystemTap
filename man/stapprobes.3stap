@@ -364,7 +364,8 @@ process("PATH").function("foo").callee("bar")
 process("PATH").function("foo").callees(DEPTH)
 process(PID).function("NAME")
 process(PID).function("myfun").label("foo")
-process(PID).plt("NAME)
+process(PID).plt("NAME")
+process(PID).plt("NAME").return
 process(PID).statement("*@FILE.c:123")
 process(PID).statement(ADDRESS).absolute
 .ESAMPLE
@@ -817,6 +818,7 @@ process("PATH").library("PATH").statement("*@FILE.c:123")
 process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
 process("PATH").function("foo").callee("bar")
+process("PATH").plt("NAME").return
 process(PID).function("NAME")
 process(PID).statement("*@FILE.c:123")
 process(PID).plt("NAME")
@@ -846,7 +848,9 @@ A .plt probe will probe functions in the program linkage table
 corresponding to the rest of the probe point.  .plt can be specified
 as a shorthand for .plt("*").  The symbol name is available as a
 $$name context variable; function arguments are not available, since
-PLTs are processed without debuginfo.
+PLTs are processed without debuginfo.  A .plt.return probe places a
+probe at the moment \fBafter\fR the return from the named 
+function.
 
 .PP
 If the PATH string contains wildcards as in the MPATTERN case, then

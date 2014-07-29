@@ -2578,7 +2578,15 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
       string e = string(entry);
       plt_expanding_visitor pltv (e);
       pltv.replace (new_base->body);
-      derive_probes(dw.sess, new_base, results);
+
+      literal_map_t params;
+      for (unsigned i = 0; i < derived_loc->components.size(); ++i)
+       {
+          probe_point::component *c = derived_loc->components[i];
+          params[c->functor] = c->arg;
+       }
+      dwarf_query derived_q(new_base, derived_loc, dw, params, results, "", "");
+      dw.iterate_over_modules<base_query>(&query_module, &derived_q);
 }
 
 
@@ -5368,10 +5376,13 @@ dwarf_derived_probe::register_plt_variants(systemtap_session& s,
   root->bind_str(TOK_PLT)
     ->bind_privilege(pr_all)
     ->bind(dw);
-  root->bind(TOK_PLT)->bind_num(TOK_STATEMENT)
+
+  root->bind(TOK_PLT)
+    ->bind(TOK_RETURN)
     ->bind_privilege(pr_all)
     ->bind(dw);
-  root->bind_str(TOK_PLT)->bind_num(TOK_STATEMENT)
+  root->bind_str(TOK_PLT)
+    ->bind(TOK_RETURN)
     ->bind_privilege(pr_all)
     ->bind(dw);
 }

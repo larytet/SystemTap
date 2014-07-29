@@ -78,12 +78,12 @@ if { [error_handler [expr {$res == ""}] "target_compile plt.x" ""] } { return }
 # test process.plt
 
 set pp {process("./plt.x").plt, process("./libplt1.so").plt, process("./libplt2.so").plt}
-stap_run3 "plt" "$script" "$pp" -c "$exepath >/dev/null"
+stap_run3 "plt" "$script" "$pp" "noreturn" -c "$exepath >/dev/null"
 
 # test process.library.plt
 
 set pp {process("./plt.x").plt, process("./plt.x").library("libplt*").plt}
-stap_run3 "plt library" "$script" "$pp" -c "$exepath >/dev/null"
+stap_run3 "plt library" "$script" "$pp" "noreturn" -c "$exepath >/dev/null"
 
 # test process.library.plt prelinked
 
@@ -95,19 +95,66 @@ if {[prelink_p]} {
     } else {
         pass "plt prelink libplt1.so"
         set pp {process("./plt.x").plt, process("./plt.x").library("libplt*").plt}
-        stap_run3 "plt prelinked library" "$script" "$pp" -c "$exepath >/dev/null"
+        stap_run3 "plt prelinked library" "$script" "$pp" "noreturn" -c "$exepath >/dev/null"
     }
 } else {
     untested "plt prelink libplt1.so"
     untested "plt prelinked library"
 }
 
+# test .plt.return: .plt/.plt.return should cancel out
+set ::result_string \
+{__cxa_finalize 0
+__libc_start_main 0
+__xpg_basename 0
+asctime 0
+asprintf 0
+basename2 0
+bsearch 0
+critters 0
+datetime 0
+find_critter 0
+fprintf 0
+fputs 0
+free 0
+localtime 0
+malloc 0
+memcpy 0
+open 0
+open2 0
+open3 0
+print_critter 0
+printf 0
+qsort 0
+register_printf_function 0
+savestring 0
+stpcpy 0
+strcmp 0
+strftime 0
+strlen 0
+time 0
+widgets 0
+xmalloc 0
+zenme 0}
+
+# test process.plt.return
+
+set pp {process("./plt.x").plt, process("./libplt1.so").plt, process("./libplt2.so").plt}
+stap_run3 "plt.return" "$script" "$pp" "return" -c "$exepath >/dev/null"
+
+# test process.library.plt.return
+
+set pp {process("./plt.x").plt, process("./plt.x").library("libplt*").plt}
+stap_run3 "plt.return library" "$script" "$pp" "return" -c "$exepath >/dev/null"
+
+
+
 # test process.plt("glob")
 
 set ok 0
 set ::result_string {strcmp 51}
 set pp {process("./libplt2.so").plt("strcmp")}
-stap_run3 "plt glob" "$script" "$pp" -c "$exepath >/dev/null"
+stap_run3 "plt glob" "$script" "$pp" "noreturn" -c "$exepath >/dev/null"
 
 
 cleanup_handler $verbose

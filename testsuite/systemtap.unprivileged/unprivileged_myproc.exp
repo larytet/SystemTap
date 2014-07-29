@@ -24,9 +24,9 @@ set myproc_probe_types [list \
   "process.function(string).callees" \
   "process.function(string).callees(number)" \
   "process.plt" \
-  "process.plt.statement(number)" \
+  "process.plt.return" \
   "process.plt(string)" \
-  "process.plt(string).statement(number)" \
+  "process.plt(string).return" \
   "process.library(string).function(number)" \
   "process.library(string).function(number).call" \
   "process.library(string).function(number).inline" \
@@ -42,9 +42,9 @@ set myproc_probe_types [list \
   "process.library(string).function(string).callees" \
   "process.library(string).function(string).callees(number)" \
   "process.library(string).plt" \
-  "process.library(string).plt.statement(number)" \
+  "process.library(string).plt.return" \
   "process.library(string).plt(string)" \
-  "process.library(string).plt(string).statement(number)" \
+  "process.library(string).plt(string).return" \
   "process.library(string).mark(string)" \
   "process.library(string).provider(string).mark(string)" \
   "process.library(string).statement(number)" \
@@ -82,9 +82,9 @@ set myproc_probe_types [list \
   "process(number).function(string).return" \
   "process(number).mark(string)" \
   "process(number).plt" \
-  "process(number).plt.statement(number)" \
+  "process(number).plt.return" \
   "process(number).plt(string)" \
-  "process(number).plt(string).statement(number)" \
+  "process(number).plt(string).return" \
   "process(number).provider(string).mark(string)" \
   "process(number).statement(number)" \
   "process(number).statement(string)" \
@@ -124,17 +124,17 @@ set myproc_probe_types [list \
   "process(string).library(string).statement(number)" \
   "process(string).library(string).statement(string)" \
   "process(string).library(string).plt" \
-  "process(string).library(string).plt.statement(number)" \
+  "process(string).library(string).plt.return" \
   "process(string).library(string).plt(string)" \
-  "process(string).library(string).plt(string).statement(number)" \
+  "process(string).library(string).plt(string).return" \
   "process(string).mark(string)" \
   "process(string).provider(string).mark(string)" \
   "process(string).statement(number)" \
   "process(string).statement(string)" \
   "process(string).plt" \
-  "process(string).plt.statement(number)" \
+  "process(string).plt.return" \
   "process(string).plt(string)" \
-  "process(string).plt(string).statement(number)" \
+  "process(string).plt(string).return" \
   "process(string).syscall" \
   "process(string).syscall.return" \
   "process(string).thread.begin" \
@@ -214,13 +214,6 @@ proc add_args { probe_type pid } {
     regsub -all "library\\(string\\).statement\\(number\\)" $probe "library(string).statement($addr_of_libloopfunc)" probe
     # Replace "library(string).statement(string)" with "library(string).statement("libloopfunc@libloop.c:*")"
     regsub -all "library\\(string\\).statement\\(string\\)" $probe "library(string).statement(\"libloopfunc@libloop.c:*\")" probe
-
-    # Replace "library(string).plt.statement(number)" with
-    # "library(string).plt.statement($addr_of_libloopfunc)"
-    regsub -all "library\\(string\\).plt.statement\\(number\\)" $probe "library(string).plt.statement($addr_of_libloopfunc)" probe
-    # Replace "library(string).plt(string).statement(number)" with
-    # "library(string).plt(string).statement($addr_of_libloopfunc)"
-    regsub -all "library\\(string\\).plt\\(string\\).statement\\(number\\)" $probe "library(string).plt(string).statement($addr_of_libloopfunc)" probe
 
     # Replace "statement(number)" with "statement($addr_of_bar)"
     regsub -all "statement\\(number\\)" $probe "statement($addr_of_bar)" probe

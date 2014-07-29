@@ -1,5 +1,7 @@
 * What's new in version 2.6
 
+- process("PATH").library("PATH").plt("NAME").return probes are now supported.
+
 - SystemTap now supports SDT probes with operands that refer to symbols.
 
 - While in listing mode (-l/-L), probes printed are now more consistent
