@@ -1587,16 +1587,6 @@ c_unparser::emit_kernel_module_init ()
   o->newline(1) << "int rc = 0;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
 
-  // FIXME: This needs to go somewhere else, but for now...
-  o->newline() << "#ifdef STP_MMV";
-  o->newline() << "rc = _stp_mmv_init();";
-  o->newline() << "if (rc) {";
-  o->indent(1);
-  o->newline() << "_stp_mmv_exit();";
-  o->newline() << "goto out;";
-  o->newline(-1) << "}";
-  o->newline() << "#endif";
-  
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
     {
@@ -1640,14 +1630,6 @@ c_unparser::emit_kernel_module_exit ()
     {
       (*i)->emit_kernel_module_exit (*session);
     }
-
-  // FIXME: This needs to go somewhere else, but for now...
-  o->newline() << "#ifdef STP_MMV";
-  o->newline() << "_stp_mmv_exit();";
-  o->newline() << "#endif";
-
-  o->newline(-1) << "}\n";
-  o->assert_0_indent(); 
 }
 
 

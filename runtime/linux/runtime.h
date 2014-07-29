@@ -295,6 +295,27 @@ static inline void stp_synchronize_sched(void)
 
 
 static int systemtap_kernel_module_init (void);
+static void systemtap_kernel_module_exit (void);
+
+static int _stp_runtime_module_init(void)
+{
+  int rc = 0;
+
+#ifdef STP_MMV
+  rc = _stp_mmv_init();
+  if (rc)
+    _stp_mmv_exit();
+#endif
+
+  return rc;
+}
+
+static void _stp_runtime_module_exit(void)
+{
+#ifdef STP_MMV
+  _stp_mmv_exit();
+#endif
+}
 
 static unsigned long stap_hash_seed; /* Init during module startup */
 int init_module (void)
@@ -307,16 +328,23 @@ int init_module (void)
   rc = _stp_transport_init();
   if (rc)
     return rc;
+
   rc = systemtap_kernel_module_init();
-  if (rc)
+  if (rc) {
     _stp_transport_close();
+    return rc;
+  }
+
+  rc = _stp_runtime_module_init();
+  if (rc)
+    cleanup_module();
+
   return rc;
 }
 
-static void systemtap_kernel_module_exit (void);
-
 void cleanup_module(void)
 {
+  _stp_runtime_module_exit();
   systemtap_kernel_module_exit();
   _stp_transport_close();
 }
