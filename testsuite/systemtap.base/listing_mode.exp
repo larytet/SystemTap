@@ -375,11 +375,11 @@ proc report_untested_probes {} {
          process.library(string).plt -
          process.library(string).plt.return -
          process.library(string).plt(string) -
-         process.library(string).plt(string.return) -
+         process.library(string).plt(string).return -
          process(string).library(string).plt -
          process(string).library(string).plt.return -
          process(string).library(string).plt(string) -
-         process(string).library(string).plt(string.return) -
+         process(string).library(string).plt(string).return -
          process.plt -
          process.plt.return -
          process.plt(string) -

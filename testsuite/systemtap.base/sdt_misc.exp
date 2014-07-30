@@ -7,8 +7,7 @@ set test "sdt_misc"
 # 4. Test probe in shared object
 # 5. Test attaching to a running process with markers in a shared object
 # 6. Test .mark probe wildcard matching
-# 7. Test types defined in sdt_misc_.d.  This requires -g
-# 8. Test V3 $$parms support
+# 7. Test V3 $$parms support
 
 set v_flags {{-DSTAP_SDT_V1} {-DSTAP_SDT_V2} {-DSTAP_SDT_V3}}
 set pbtype_mssgs {{V1_uprobe} {V2_uprobe} {V3_uprobe}}
@@ -559,59 +558,10 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	fail "$test wildcard ($ok) $pbtype_mssg"
     }
     
-    # 7. Test types defined in sdt_misc_.d.  This requires -g
-    
-    set supbc_flags "$sup_flags additional_flags=-g additional_flags=-DNO_SLEEP"
-    set supbc_exepath "[pwd]/sdt_misc_${pbtype_mssg}_types.x"
-    set res [target_compile $srcdir/$subdir/sdt_misc.c $supbc_exepath \
-		 executable $supbc_flags]
-    if { $res != "" } {
-	incr fail_count
-	verbose "target_compile failed: $res" 2
-	fail "$test compiling -g $pbtype_mssg --types"
-	cleanup_handler $verbose
-	return
-    } else {
-	pass "$test compiling -g $pbtype_mssg --types"
-    }
-    
-    foreach runtime [get_runtime_list] {
-	set test_xtra ""
-	if {$runtime != ""} {
-	    set test_xtra " ($runtime)"
-	    verbose -log "spawn $stap_path --runtime=$runtime -c $supbc_exepath -e \"probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}\""
-	    spawn $stap_path --runtime=$runtime -c $supbc_exepath -e "probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}"
-	} elseif {[uprobes_p]} {
-	    verbose -log "spawn $stap_path -c $supbc_exepath -e \"probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}\""
-	    spawn $stap_path -c $supbc_exepath -e "probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}"
-	} else {
-	    untested "$test $pbtype_mssg --types"
-	    continue
-	}
-	set ok 0
-	expect {
-	    -timeout 180
-	    -re {In test_probe_4 dtrace probe 0x4 0x5} { incr ok; exp_continue }
-	    timeout { fail "$test (timeout)" }
-	    eof { }
-	}
-	catch {close}; catch {wait}
-    
-	if {$ok == 1} {
-	    pass "$test ${pbtype_mssg}${test_xtra} --types"
-	} else {
-	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
-		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} --types"
-	    } else {
-		incr fail_count
-		fail "$test ($ok) ${pbtype_mssg}${test_xtra} --types"
-	    }
-	}
-    }
 } ; # end pbtype_flags
 
 
-# 8. Test V3 $$parms support
+# 7. Test V3 $$parms support
 
 foreach runtime [get_runtime_list] {
     set test_xtra ""
