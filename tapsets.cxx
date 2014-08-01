@@ -4222,7 +4222,7 @@ dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
   add_block->tok = e->tok;
 
   systemtap_session &s = this->q.sess;
-  map<string, pair<string,derived_probe*> >::iterator it;
+  unordered_map<string, pair<string,derived_probe*> >::iterator it;
   // Find the associated perf.counter probe
   for (it=s.perf_counters.begin();
        it != s.perf_counters.end();
@@ -4911,7 +4911,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
       for (pcii = v.perf_counter_refs.begin();
 	   pcii != v.perf_counter_refs.end(); pcii++)
 	{
-	  map<string, pair<string,derived_probe*> >::iterator it;
+	  unordered_map<string, pair<string,derived_probe*> >::iterator it;
 	  // Find the associated perf counter probe
 	  for (it=q.sess.perf_counters.begin() ;
 	       it != q.sess.perf_counters.end();
@@ -5427,7 +5427,7 @@ dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_outp
        pcii != perf_counter_refs.end();
        pcii++)
     {
-      map<string, pair<string,derived_probe*> >::iterator it;
+      unordered_map<string, pair<string,derived_probe*> >::iterator it;
       // Find the associated perf.counter probe
       unsigned i = 0;
       for (it=s.perf_counters.begin() ;
@@ -8717,7 +8717,7 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
       for (pcii = p->perf_counter_refs.begin();
 	   pcii != p->perf_counter_refs.end(); pcii++)
 	{
-	  map<string, pair<string,derived_probe*> >::iterator it;
+          unordered_map<string, pair<string,derived_probe*> >::iterator it;
 	  unsigned i = 0;
 	  // Find the associated perf.counter probe
 	  for (it=s.perf_counters.begin() ;
@@ -9016,7 +9016,7 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
       for (pcii = p->perf_counter_refs.begin();
 	   pcii != p->perf_counter_refs.end(); pcii++)
 	{
-	  map<string, pair<string,derived_probe*> >::iterator it;
+          unordered_map<string, pair<string,derived_probe*> >::iterator it;
 	  unsigned i = 0;
 	  // Find the associated perf.counter probe
 	  for (it=s.perf_counters.begin() ;
