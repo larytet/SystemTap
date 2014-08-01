@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (C) 2008 Red Hat Inc.
+# Copyright (C) 2008, 2014 Red Hat Inc.
 # 
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -26,6 +26,14 @@
 #   config_opts['restart_cmds'] = [
 #       'sudo virsh destroy kvm-rawhide-64-1',
 #       'sudo virsh start kvm-rawhide-64-1',
+#       ]
+#
+# Here's a config file used then monitoring a beaker system
+# (https://beaker-project.org/):
+#
+#   config_opts['system_name'] = "ibm-z10-38"
+#   config_opts['restart_cmds'] = [
+#       'bkr system-power --action reboot ibm-z10-38'
 #       ]
 
 import sys
