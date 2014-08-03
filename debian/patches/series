@@ -2,3 +2,4 @@ debversion.diff
 suggest-readme.debian.diff
 0001-For-xen-kernels-handle-cpufreq_register_notifier-fai.patch
 0001-PR15803-netfilter-tolerate-absent-context-when-colle.patch
+dtrace-no-std-include-path.diff

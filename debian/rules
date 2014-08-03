@@ -19,6 +19,10 @@ else
 	CONF_FLAGS += --disable-refdocs
 endif
 
+ifeq (,$(filter systemtap-runtime,$(shell dh_listpackages -s)))
+  sdt_only := yes
+endif
+
 %:
 	dh $@ --parallel
 
@@ -28,7 +32,13 @@ override_dh_auto_test:
 override_dh_auto_configure:
 	dh_auto_configure -- $(CONF_FLAGS)
 
+override_dh_auto_build:
+ifneq ($(sdt_only),yes)
+	dh_auto_build
+endif
+
 override_dh_auto_install:
+ifneq ($(sdt_only),yes)
 	dh_auto_install
 
 	# Install vim files
@@ -51,15 +61,20 @@ override_dh_auto_install:
 
 	# Remove empty file to make lintian happy, patch sent to xmlto upstream
 	rm -f debian/tmp/usr/share/doc/systemtap/tapsets/tapsets.proc
+endif
 
 override_dh_install:
+ifeq ($(sdt_only),yes)
+	install -m 755 -D dtrace debian/systemtap-sdt-dev/usr/bin/dtrace
+	install -m 644 -D man/dtrace.1 debian/systemtap-sdt-dev/usr/share/man/man1/dtrace.1
+	mkdir -p debian/systemtap-sdt-dev/usr/include/$(DEB_HOST_MULTIARCH)/sys
+	install -m 644 includes/sys/*.h \
+		debian/systemtap-sdt-dev/usr/include/$(DEB_HOST_MULTIARCH)/sys/.
+else
 	dh_install
-ifneq (,$(filter systemtap-runtime,$(shell dh_listpackages -s)))
 	mkdir -p debian/systemtap-sdt-dev/usr/include/$(DEB_HOST_MULTIARCH)
 	mv debian/systemtap-sdt-dev/usr/include/sys \
 		debian/systemtap-sdt-dev/usr/include/$(DEB_HOST_MULTIARCH)/.
-else
-	rm -rf debian/systemtap-sdt-dev/usr/include
 endif
 
 override_dh_compress:
@@ -67,4 +82,6 @@ override_dh_compress:
 
 override_dh_fixperms:
 	dh_fixperms
+ifneq ($(sdt_only),yes)
 	chmod 4754 debian/systemtap-runtime/usr/bin/staprun
+endif

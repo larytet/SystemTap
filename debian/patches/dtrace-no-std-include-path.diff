@@ -1,0 +1,13 @@
+Index: b/dtrace.in
+===================================================================
+--- a/dtrace.in
++++ b/dtrace.in
+@@ -265,7 +265,7 @@ def main():
+         CC = os.environ.get("CC", "gcc")
+         CFLAGS = "-g " + os.environ.get("CFLAGS", "")
+         retcode = call(shlex.split(CC) + defines + includes + shlex.split(CFLAGS) +
+-             ["-fPIC", "-I.", "-I@prefix@/include", "-c", fn, "-o",
++             ["-fPIC", "-I.", "-c", fn, "-o",
+               filename + suffix], shell=False)
+         if (retcode != 0):
+             print "\"gcc " + fn + "\" failed"
