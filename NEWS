@@ -84,6 +84,7 @@
   machine-owner-keys maintained by a trusted stap-server on the
   network.  (Key enrollment requires a one-time reboot and BIOS
   conversation.)
+  https://sourceware.org/systemtap/wiki/SecureBoot
 
 - SystemTap now reports more accurate and succinct errors on type
   mismatches.
