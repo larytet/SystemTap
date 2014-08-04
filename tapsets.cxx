@@ -379,6 +379,7 @@ static const string TOK_METHOD("method");
 static const string TOK_CLASS("class");;
 static const string TOK_CALLEE("callee");;
 static const string TOK_CALLEES("callees");;
+static const string TOK_NEAREST("nearest");;
 
 // Can we handle this query with just symbol-table info?
 enum dbinfo_reqt
@@ -845,6 +846,8 @@ struct dwarf_query : public base_query
   bool has_inline;
   bool has_return;
 
+  bool has_nearest;
+
   bool has_maxactive;
   long maxactive_val;
 
@@ -1004,6 +1007,7 @@ dwarf_query::dwarf_query(probe * base_probe,
   has_exported = has_null_param(params, TOK_EXPORTED);
   has_inline = has_null_param(params, TOK_INLINE);
   has_return = has_null_param(params, TOK_RETURN);
+  has_nearest = has_null_param(params, TOK_NEAREST);
   has_maxactive = get_number_param(params, TOK_MAXACTIVE, maxactive_val);
   has_absolute = has_null_param(params, TOK_ABSOLUTE);
   has_mark = false;
@@ -2180,7 +2184,8 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                srcfile != q->filtered_srcfiles.end(); ++srcfile)
             q->dw.iterate_over_srcfile_lines(srcfile->c_str(), q->linenos,
                                              q->lineno_type, bfis,
-                                             query_srcfile_line, q);
+                                             query_srcfile_line,
+                                             q->has_nearest, q);
         }
       else
         {
@@ -5289,6 +5294,9 @@ dwarf_derived_probe::register_statement_variants(match_node * root,
 						 privilege_t privilege)
 {
   root
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  root->bind(TOK_NEAREST)
     ->bind_privilege(privilege)
     ->bind(dw);
 }

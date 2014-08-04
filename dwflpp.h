@@ -323,6 +323,7 @@ struct dwflpp
                                    base_func_info_map_t& funcs,
                                    void (*callback) (Dwarf_Addr,
                                                      int, T*),
+                                   bool has_nearest,
                                    T *data)
     {
       // See comment block in iterate_over_modules()
@@ -332,6 +333,7 @@ struct dwflpp
                                        funcs,
                                        (void (*)(Dwarf_Addr,
                                                  int, void*))callback,
+                                       has_nearest,
                                        (void*)data);
     }
 
@@ -559,6 +561,12 @@ private:
   void suggest_alternative_linenos(char const * srcfile,
                                    int lineno,
                                    base_func_info_map_t& funcs);
+  void insert_alternative_linenos(char const * srcfile,
+                                   int lineno,
+                                   base_func_info_map_t& funcs,
+                                   void (* callback) (Dwarf_Addr,
+                                                      int, void*),
+                                   void *data);
 
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
@@ -710,6 +718,7 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
                                                             int, void*),
+                                         bool has_nearest,
                                          void *data);
 template<> void
 dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,

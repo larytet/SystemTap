@@ -1776,6 +1776,72 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
   return matching_funcs;
 }
 
+void
+dwflpp::insert_alternative_linenos(char const * srcfile,
+                                    int lineno,
+                                    base_func_info_map_t& funcs,
+                                    void (* callback) (Dwarf_Addr,
+                                                       int, void*),
+                                    void *data)
+{
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+
+  // Look around lineno for linenos with LRs.
+  int lo_try = -1;
+  int hi_try = -1;
+  for (size_t i = 1; i < 6; ++i)
+    {
+      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        lo_try = lineno - i;
+      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        hi_try = lineno + i;
+    }
+
+  int new_lineno;
+  if (lo_try > 0 && hi_try > 0)
+    {
+      // pick the nearest line number
+      if (lineno - lo_try < lineno - hi_try)
+        new_lineno = lo_try;
+      else
+        new_lineno = hi_try;
+    }
+  else if (lo_try > 0)
+    {
+      new_lineno = lo_try;
+    }
+  else if (hi_try > 0)
+    {
+      new_lineno = hi_try;
+    }
+  else
+    {
+      stringstream advice;
+      advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
+      throw SEMANTIC_ERROR (advice.str());
+    }
+  clog << _F("insert a kprobe at %s:%d (no line record at %s:%d)\n",
+             srcfile, new_lineno, srcfile, lineno);
+
+  // collect lines
+  lines_t matching_lines;
+  collect_lines_for_single_lineno(srcfile, new_lineno, false, /* is_relative */
+                                  funcs, matching_lines);
+  // call back with matching lines
+  assert (!matching_lines.empty());
+  set<Dwarf_Addr> probed_addrs;
+  for (lines_t::iterator line  = matching_lines.begin();
+                         line != matching_lines.end(); ++line)
+    {
+      int near_lineno = DWARF_LINENO(*line);
+      Dwarf_Addr addr = DWARF_LINEADDR(*line);
+      bool is_new_addr = probed_addrs.insert(addr).second;
+      if (is_new_addr)
+        callback(addr, near_lineno, data);
+    }
+}
+
 template<> void
 dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          const vector<int>& linenos,
@@ -1783,6 +1849,7 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
                                          base_func_info_map_t& funcs,
                                          void (* callback) (Dwarf_Addr,
                                                             int, void*),
+                                         bool has_nearest,
                                          void *data)
 {
   /* Matching line records (LRs) to user-provided linenos is trickier than it
@@ -1850,7 +1917,13 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
       if (lineno_type == RELATIVE)
         // just pick the first function and make it relative to that
         lineno += current_funcs[0].decl_line;
-      suggest_alternative_linenos(srcfile, lineno, current_funcs);
+
+      if (has_nearest) {
+        // This function inserts a kprobe into the nearest line number
+        // rather than suggesting near line numbers and exiting.
+        insert_alternative_linenos(srcfile, lineno, current_funcs, callback, data);
+      } else
+        suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
 }
 
