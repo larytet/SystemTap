@@ -3930,30 +3930,55 @@ probe nd_syscall.truncate = __nd_syscall.truncate ?,
 	asmlinkage()
 	path_uaddr = pointer_arg(1)
 	path = user_string_quoted(path_uaddr)
-	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+	argstr = sprintf("%s, %u", user_string_quoted(path_uaddr), length)
 }
 probe __nd_syscall.truncate = kprobe.function("sys_truncate")
 {
+%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+	# Avoid probe hits from compat_sys_truncate() calling
+	# compat_sys_truncate().  The following kernel commit
+	# switched to a generic compat_sys_truncate() which doesn't
+	# go through sys_truncate():
+	#
+	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
+	#   Author: Al Viro <viro@zeniv.linux.org.uk>
+	#   Date:   Sun Feb 24 13:49:08 2013 -0500
+	#
+	#       fix compat truncate/ftruncate
+	#
+	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+	#
+	# We could call one of the syscall_gate macros here, but the
+	# syscall number is the same number on ppc64 for the 64-bit
+	# and 32-bit syscall. So, just check that we're not in a
+	# compat task.
+	if (%{ _stp_is_compat_task() %}) next
+%)
 	asmlinkage()
 	length = ulong_arg(2)
 }
 probe __nd_syscall.truncate64 = kprobe.function("sys_truncate64")
 {
 	asmlinkage()
-	length = longlong_arg(2)
+	length = ulonglong_arg(2)
 }
 probe __nd_syscall.compat_truncate = kprobe.function("compat_sys_truncate")
 {
 	asmlinkage()
-	length = int_arg(2)
+	length = uint_arg(2)
 }
-probe nd_syscall.truncate.return =
-	kprobe.function("sys_truncate").return ?,
+probe nd_syscall.truncate.return = __nd_syscall.truncate.return,
 	kprobe.function("sys_truncate64").return ?,
 	kprobe.function("compat_sys_truncate").return ?
 {
 	name = "truncate"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.truncate.return = kprobe.function("sys_truncate").return
+{
+%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+	if (%{ _stp_is_compat_task() %}) next
+%)
 }
 
 # tux ________________________________________________________

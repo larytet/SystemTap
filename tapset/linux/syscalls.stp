@@ -1530,28 +1530,61 @@ probe syscall.fsync.return = kernel.function("sys_fsync").return
 # long sys_ftruncate(unsigned int fd, unsigned long length)
 # COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
 #
-probe syscall.ftruncate = kernel.function("sys_ftruncate").call,
-			  kernel.function("compat_sys_ftruncate").call ?
+probe syscall.ftruncate = __syscall.ftruncate, __syscall.compat_ftruncate ?
 {
 	name = "ftruncate"
-	fd = $fd
-	length = $length
-	argstr = sprintf("%d, %d", fd, length)
+	fd = __int32($fd)
+	argstr = sprintf("%d, %u", fd, length)
 }
-probe syscall.ftruncate.return =
-	kernel.function("sys_ftruncate").return,
+probe __syscall.ftruncate = kernel.function("sys_ftruncate").call
+{
+%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+	# Avoid probe hits from compat_sys_ftruncate() calling
+	# compat_sys_ftruncate().  The following kernel commit
+	# switched to a generic compat_sys_ftruncate() which doesn't
+	# go through sys_ftruncate():
+	#
+	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
+	#   Author: Al Viro <viro@zeniv.linux.org.uk>
+	#   Date:   Sun Feb 24 13:49:08 2013 -0500
+	#
+	#       fix compat truncate/ftruncate
+	#
+	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+	#
+	# We could call one of the syscall_gate macros here, but the
+	# syscall number is the same number on ppc64 for the 64-bit
+	# and 32-bit syscall. So, just check that we're not in a
+	# compat task.
+	if (%{ _stp_is_compat_task() %}) next
+%)
+	length = __ulong($length)
+}
+probe __syscall.compat_ftruncate =
+	kernel.function("compat_sys_ftruncate").call ?
+{
+	length = __uint32($length)
+}
+probe syscall.ftruncate.return = __syscall.ftruncate.return,
 	kernel.function("compat_sys_ftruncate").return ?
 {
 	name = "ftruncate"
 	retstr = return_str(1, $return)
 }
+probe __syscall.ftruncate.return = kernel.function("sys_ftruncate").return
+{
+%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+	if (%{ _stp_is_compat_task() %}) next
+%)
+}
+
 
 # ftruncate64 ________________________________________________
 # long sys_ftruncate64(unsigned int fd, loff_t length)
 probe syscall.ftruncate64 = kernel.function("sys_ftruncate64").call ?
 {
 	name = "ftruncate"
-	fd = $fd
+	fd = __int32($fd)
 	length = $length
 	argstr = sprintf("%d, %d", fd, length)
 }
@@ -2773,13 +2806,13 @@ probe syscall.llistxattr.return = kernel.function("sys_llistxattr").return
 probe syscall.llseek = kernel.function("sys_llseek").call ?
 {
 	name = "llseek"
-	fd = $fd
+	fd = __int32($fd)
 	offset_high = $offset_high
 	offset_low = $offset_low
 	result_uaddr = $result
 	whence = @choose_defined($whence, $origin)
 	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
-	argstr = sprintf("%d, 0x%x, 0x%x, %p, %s", $fd, $offset_high,
+	argstr = sprintf("%d, 0x%x, 0x%x, %p, %s", fd, $offset_high,
 		$offset_low, $result, whence_str)
 }
 probe syscall.llseek.return = kernel.function("sys_llseek").return ?
@@ -2841,7 +2874,7 @@ probe syscall.lseek = __syscall.lseek, __syscall.compat_lseek ?
 }
 probe __syscall.lseek = kernel.function("sys_lseek").call
 {
-	fildes = $fd
+	fildes = __int32($fd)
 	offset = $offset
 	whence = @choose_defined($whence, $origin)
 	whence_str = _seek_whence_str(@choose_defined($whence, $origin))

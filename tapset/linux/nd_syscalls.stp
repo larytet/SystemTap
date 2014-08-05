@@ -1634,10 +1634,31 @@ probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
 	name = "ftruncate"
 	asmlinkage()
 	fd = int_arg(1)
-	argstr = sprintf("%d, %d", fd, length)
+	argstr = sprintf("%d, %u", fd, length)
 }
 probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 {
+%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+	# Avoid probe hits from compat_sys_ftruncate() calling
+	# compat_sys_ftruncate().  The following kernel commit
+	# switched to a generic compat_sys_ftruncate() which doesn't
+	# go through sys_ftruncate():
+	#
+	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
+	#   Author: Al Viro <viro@zeniv.linux.org.uk>
+	#   Date:   Sun Feb 24 13:49:08 2013 -0500
+	#
+	#       fix compat truncate/ftruncate
+	#
+	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+	#
+	# We could call one of the syscall_gate macros here, but the
+	# syscall number is the same number on ppc64 for the 64-bit
+	# and 32-bit syscall. So, just check that we're not in a
+	# compat task.
+	if (%{ _stp_is_compat_task() %}) next
+%)
+
 	asmlinkage()
 	length = ulong_arg(2)
 }
@@ -1647,12 +1668,17 @@ probe __nd_syscall.compat_ftruncate =
 	asmlinkage()
 	length = uint_arg(2)
 }
-probe nd_syscall.ftruncate.return =
-	kprobe.function("sys_ftruncate").return,
+probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 	kprobe.function("compat_sys_ftruncate").return ?
 {
 	name = "ftruncate"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return
+{
+%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+	if (%{ _stp_is_compat_task() %}) next
+%)
 }
 
 # ftruncate64 ________________________________________________

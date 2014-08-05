@@ -49,6 +49,12 @@
 #ifndef __NR_sendto
 #define __NR_sendto (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_getsockopt
+#define __NR_getsockopt (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_setsockopt
+#define __NR_setsockopt (__NR_syscall_max + 1)
+#endif
 
 #if defined(__x86_64__)
 

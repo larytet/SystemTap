@@ -1835,15 +1835,21 @@ function _fcntl_cmd_str:string(cmd:long)
 #ifndef SEEK_HOLE
 #define SEEK_HOLE	4
 #endif
+static const _stp_val_array const _stp_seek_whence_list[] = {
+	V(SEEK_SET),
+	V(SEEK_CUR),
+	V(SEEK_END),
+	V(SEEK_DATA),
+	V(SEEK_HOLE),
+	{0, NULL}
+};
+
 %}
-function _seek_whence_str(w) {
-   if (w == %{ SEEK_SET %}) return "SEEK_SET"
-   if (w == %{ SEEK_CUR %}) return "SEEK_CUR"
-   if (w == %{ SEEK_END %}) return "SEEK_END"
-   if (w == %{ SEEK_DATA %}) return "SEEK_DATA"
-   if (w == %{ SEEK_HOLE %}) return "SEEK_HOLE"
-   return sprintf("UNKNOWN VALUE: %d", w)
-}
+function _seek_whence_str:string(w:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_seek_whence_list, (unsigned int)STAP_ARG_w,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _quotactl_cmd_str(cmd) {
    if(cmd==0x800002) return "Q_QUOTAON"
