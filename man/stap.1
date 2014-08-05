@@ -1804,6 +1804,17 @@ or
 .I stapusr
 groups.
 .PP
+If the current system has Secure Boot turned on in the UEFI firmware,
+all kernel modules must be signed. The systemtap compile server can
+sign modules with a MOK (Machine Owner Key) that it has in common with
+a client system. See the following wiki page for more details:
+.PP
+.RS
+.nh
+.BR https://sourceware.org/systemtap/wiki/SecureBoot
+.hy
+.RE
+.PP
 The translator asserts certain safety constraints.  It aims to ensure
 that no handler routine can run for very long, allocate memory,
 perform unsafe operations, or in unintentionally interfere with the
