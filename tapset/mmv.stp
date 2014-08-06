@@ -25,6 +25,21 @@ global MMV_SEM_COUNTER
 global MMV_SEM_INSTANT
 global MMV_SEM_DISCRETE
 
+global MMV_SPACE_BYTE
+global MMV_SPACE_KBYTE
+global MMV_SPACE_MBYTE
+global MMV_SPACE_GBYTE
+global MMV_SPACE_TBYTE
+global MMV_SPACE_PBYTE
+global MMV_SPACE_EBYTE
+
+global MMV_TIME_NSEC
+global MMV_TIME_USEC
+global MMV_TIME_MSEC
+global MMV_TIME_SEC
+global MMV_TIME_MIN
+global MMV_TIME_HOUR
+
 probe begin(-1)
 {
 	MMV_TYPE_NUMBER = %{ /* pure */ /* unprivileged */ MMV_TYPE_I64 %}
@@ -33,6 +48,21 @@ probe begin(-1)
 	MMV_SEM_COUNTER = %{ /* pure */ /* unprivileged */ MMV_SEM_COUNTER %}
 	MMV_SEM_INSTANT = %{ /* pure */ /* unprivileged */ MMV_SEM_INSTANT %}
 	MMV_SEM_DISCRETE = %{ /* pure */ /* unprivileged */ MMV_SEM_DISCRETE %}
+
+	MMV_SPACE_BYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_BYTE %}
+	MMV_SPACE_KBYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_KBYTE %}
+	MMV_SPACE_MBYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_MBYTE %}
+	MMV_SPACE_GBYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_GBYTE %}
+	MMV_SPACE_TBYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_TBYTE %}
+	MMV_SPACE_PBYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_PBYTE %}
+	MMV_SPACE_EBYTE = %{ /* pure */ /* unprivileged */ MMV_SPACE_EBYTE %}
+
+	MMV_TIME_NSEC = %{ /* pure */ /* unprivileged */ MMV_TIME_NSEC %}
+	MMV_TIME_USEC = %{ /* pure */ /* unprivileged */ MMV_TIME_USEC %}
+	MMV_TIME_MSEC = %{ /* pure */ /* unprivileged */ MMV_TIME_MSEC %}
+	MMV_TIME_SEC = %{ /* pure */ /* unprivileged */ MMV_TIME_SEC %}
+	MMV_TIME_MIN = %{ /* pure */ /* unprivileged */ MMV_TIME_MIN %}
+	MMV_TIME_HOUR = %{ /* pure */ /* unprivileged */ MMV_TIME_HOUR %}
 }
 
 /**
@@ -143,18 +173,21 @@ function mmv_add_indom_instance:long(indom:long, instance:long)
  * @dimSpace: space dimension
  * @dimTime: time dimension
  * @dimCount: event dimension
- * @scaleSpace: 0 for bytes, 1 for kilobytes, 2 for megabytes, 3 for
- * gigabytes, or 4 for terabytes.
- * @scaleTime: 0 for nanoseconds, 1 for microseconds, 2 for
- * milliseconds, 3 for seconds, 4 for minutes, or 5 for hours.
+ * @scaleSpace: MMV_SPACE_BYTE for bytes, MMV_SPACE_KBYTE for
+ * kilobytes, MMV_SPACE_MBYTE for megabytes, MMV_SPACE_GBYTE for
+ * gigabytes, MMV_SPACE_TBYTE for terabytes, MMV_SPACE_PBYTE for
+ * petabytes, or MMV_SPACE_EBYTE for exabytes.
+ * @scaleTime: MMV_TIME_NSEC for nanoseconds, MMV_TIME_USEC for
+ * microseconds, MMV_TIME_MSEC for milliseconds, MMV_TIME_SEC for
+ * seconds, MMV_TIME_MIN for minutes, or MMV_TIME_HOUR for hours.
  * @scaleCount: Powers of 10. 0 for 10^0, 6 for 10^6, etc.
  *
  * mmv_units returns an encoded dimension/scale value used when
  * creating a metric with @mmv_add_metric.
  * 
- * For example, values of (1, -1, 0, 2, 3, 0 } would represent
- * megabytes/second. Values of (0, 1, -1, 0, 5, 6) would represent
- * hours/million events.
+ * For example, values of (1, -1, 0, MMV_SPACE_MBYTE, MMV_TIME_SEC, 0)
+ * would represent megabytes/second. Values of (0, 1, -1, 0,
+ * MMV_TIME_HOUR, 6) would represent hours/million events.
  */
 function mmv_units:long(dimSpace:long, dimTime:long, dimCount:long, scaleSpace:long, scaleTime:long, scaleCount:long)
 %{
