@@ -1804,10 +1804,12 @@ or
 .I stapusr
 groups.
 .PP
-If the current system has Secure Boot turned on in the UEFI firmware,
-all kernel modules must be signed. The systemtap compile server can
-sign modules with a MOK (Machine Owner Key) that it has in common with
-a client system. See the following wiki page for more details:
+If the current system has SecureBoot turned on in the UEFI firmware,
+all kernel modules must be signed.  (Some kernels may allow disabling
+SecureBoot long after booting with a key sequence such as SysRq-X,
+making it unnecessary to sign modules.)  The systemtap compile server
+can sign modules with a MOK (Machine Owner Key) that it has in common
+with a client system. See the following wiki page for more details:
 .PP
 .RS
 .nh
