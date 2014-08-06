@@ -1,7 +1,21 @@
+// mmv tapset
+// Copyright (c) 2014 Red Hat Inc.
+//
+// This file is part of systemtap, and is free software.  You can
+// redistribute it and/or modify it under the terms of the GNU General
+// Public License (GPL); either version 2, or (at your option) any
+// later version.
+
+/* <tapsetdescription>
+ * The MMV (Memory Mapped Values) set of functions provide a way to
+ * export systemtap values to users using a memory mapped file. The
+ * file gets created in /proc/systemtap/{MODULE_NAME}/mmv. This file
+ * can be read with very low overhead.
+ * </tapsetdescription>
+ */
+
 %{
-
 #include "mmv.c"
-
 %}
 
 global MMV_TYPE_NUMBER
@@ -21,6 +35,20 @@ probe begin(-1)
 	MMV_SEM_DISCRETE = %{ /* pure */ /* unprivileged */ MMV_SEM_DISCRETE %}
 }
 
+/**
+ * sfunction mmv_add_instance - Add an instance.
+ *
+ * @internal: Internal instance ID.
+ * @external: External string instance name.
+ * 
+ * Some performance metrics have an associated set of values, e.g. the
+ * number of I/O disk operations is a metric, that has a set of
+ * values, one per disk spindle on any particular system.  Each value
+ * is associated with an instance identifier that may be used to
+ * differentiate between the values that particular performance
+ * metric.  Instance identifiers have both an internal (integer)
+ * encoding and an external (textual) name.
+ */
 function mmv_add_instance:long(internal:long, external:string)
 %{
 	int32_t internal = (int32_t)STAP_ARG_internal;
@@ -32,7 +60,7 @@ function mmv_add_instance:long(internal:long, external:string)
 			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
 			break;
 		case -ENOMEM:
-			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
+			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MMV_DATA_SIZE)";
 			break;
 		default:
 			snprintf (CONTEXT->error_buffer,
@@ -44,6 +72,18 @@ function mmv_add_instance:long(internal:long, external:string)
 	}
 %}
 
+/**
+ * sfunction mmv_add_indom - Add an indom (instance domain).
+ *
+ * @serial: Unique identifier.
+ * @shorttext: Optional one-line help text.
+ * @helptext: Optional full help text.
+ *
+ * @mmv_add_indom adds an instance domain. An instance domain is the
+ * set of instance identifiers for a single performance metric. Use
+ * @mmv_add_indom_instance to add an instance to a particular instance
+ * domain.
+ */
 function mmv_add_indom:long(serial:long, shorttext:string, helptext:string)
 %{
 	uint32_t serial = (uint32_t)STAP_ARG_serial;
@@ -56,7 +96,7 @@ function mmv_add_indom:long(serial:long, shorttext:string, helptext:string)
 			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
 			break;
 		case -ENOMEM:
-			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
+			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MMV_DATA_SIZE)";
 			break;
 		default:
 			snprintf (CONTEXT->error_buffer,
@@ -68,6 +108,12 @@ function mmv_add_indom:long(serial:long, shorttext:string, helptext:string)
 	}
 %}
 
+/**
+ * sfunction mmv_add_indom_instance - Associate an instance with an instance domain.
+ *
+ * @indom: Indom identifier returned by @mmv_add_instance.
+ * @instance: Instance identifier returned by @mmv_add_instance.
+ */
 function mmv_add_indom_instance:long(indom:long, instance:long)
 %{
 	int indom = (int)STAP_ARG_indom;
@@ -91,8 +137,26 @@ function mmv_add_indom_instance:long(indom:long, instance:long)
 	}
 %}
 
-function mmv_units:long(dimSpace:long, dimTime:long, dimCount:long,
-			scaleSpace:long, scaleTime:long, scaleCount:long)
+/**
+ * sfunction mmv_units - Returns encoded dimension/scale value for a metric.
+ *
+ * @dimSpace: space dimension
+ * @dimTime: time dimension
+ * @dimCount: event dimension
+ * @scaleSpace: 0 for bytes, 1 for kilobytes, 2 for megabytes, 3 for
+ * gigabytes, or 4 for terabytes.
+ * @scaleTime: 0 for nanoseconds, 1 for microseconds, 2 for
+ * milliseconds, 3 for seconds, 4 for minutes, or 5 for hours.
+ * @scaleCount: Powers of 10. 0 for 10^0, 6 for 10^6, etc.
+ *
+ * mmv_units returns an encoded dimension/scale value used when
+ * creating a metric with @mmv_add_metric.
+ * 
+ * For example, values of (1, -1, 0, 2, 3, 0 } would represent
+ * megabytes/second. Values of (0, 1, -1, 0, 5, 6) would represent
+ * hours/million events.
+ */
+function mmv_units:long(dimSpace:long, dimTime:long, dimCount:long, scaleSpace:long, scaleTime:long, scaleCount:long)
 %{
 	mmv_units_t units;
 	units.dimSpace = STAP_ARG_dimSpace;
@@ -104,9 +168,21 @@ function mmv_units:long(dimSpace:long, dimTime:long, dimCount:long,
 	STAP_RETVALUE = *(uint32_t *)&units;
 %}
 
-function mmv_add_metric:long(name:string, item:long, type:long,
-			     semantics:long, units:long, indom_serial:long,
-			     shorttext:string, helptext:string)
+/**
+ * sfunction mmv_add_metric - Add a new metric.
+ *
+ * @name: Name of the metric.
+ * @item: Item number.
+ * @type: Metric type. Either @MMV_TYPE_NUMBER or @MMV_TYPE_STRING.
+ * @semantics: Semantics. Either @MMV_SEM_COUNTER, @MMV_SEM_INSTANT,
+ * or @MMV_SEM_DISCRETE.
+ * @units: Output of @mmv_units describing metric's dimensions.
+ * @indom_serial: Serial number passed into @mmv_add_indom or 0 for
+ * no indom.
+ * @shorttext: Optional one-line help text.
+ * @helptext: Optional full help text.
+ */
+function mmv_add_metric:long(name:string, item:long, type:long, semantics:long, units:long, indom_serial:long, shorttext:string, helptext:string)
 %{
 	char *name = (char *)(unsigned long)STAP_ARG_name;
 	uint32_t item = (uint32_t)STAP_ARG_item;
@@ -125,7 +201,7 @@ function mmv_add_metric:long(name:string, item:long, type:long,
 			CONTEXT->last_error = "No modifications allowed after mmv_stats_start() is called";
 			break;
 		case -ENOMEM:
-			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MAX_DATA_SIZE)";
+			CONTEXT->last_error = "No more 'mmv' memory available (increase STP_MMV_DATA_SIZE)";
 			break;
 		case -EINVAL:
 			CONTEXT->last_error = "Invalid type or indom identifier";
@@ -140,6 +216,17 @@ function mmv_add_metric:long(name:string, item:long, type:long,
 	}
 %}
 
+/**
+ * sfunction mmv_stats_start - Start providing memory mapped value metrics.
+ *
+ * @cluster: Preferred cluster ID to be used for metrics created by
+ * @mmv_stats_start.
+ * @flags: Unused.
+ *
+ * After adding all desired metrics with @mmv_add_metric,
+ * @mmv_stats_start should be called to start providing memory mapped
+ * value metrics.
+ */
 function mmv_stats_start:long(cluster:long, flags:long)
 %{
 	int32_t cluster = (int32_t)STAP_ARG_cluster;
@@ -160,6 +247,12 @@ function mmv_stats_start:long(cluster:long, flags:long)
 	}
 %}
 
+/**
+ * sfunction mmv_stats_stop - Stop providing memory mapped value metrics.
+ *
+ * When @mmv_stats_stop is called, memory mapped value metrics stop
+ * being provided.
+ */
 function mmv_stats_stop:long()
 %{
 	STAP_RETVALUE = __stp_mmv_stats_stop();
@@ -170,6 +263,13 @@ function mmv_stats_stop:long()
 	}
 %}
 
+/**
+ * sfunction mmv_lookup_value - Lookup the value identifier of a metric instance.
+ *
+ * @metric: Metric identifier returned by @mmv_add_metric.
+ * @instance: An instance identifier returned by @mmv_add_instance or
+ * 0 (if the metric only has a single value).
+ */
 function mmv_lookup_value:long(metric:long, instance:long)
 %{
 	STAP_RETVALUE = __stp_mmv_lookup_value((int)STAP_ARG_metric,
@@ -192,6 +292,12 @@ function mmv_lookup_value:long(metric:long, instance:long)
 	}
 %}
 
+/**
+ * sfunction mmv_set_value - Set the value of a numeric metric.
+ *
+ * @v: Value identifier returned by @mmv_lookup_value.
+ * @value: Value to set.
+ */
 function mmv_set_value:long(v:long, value:long)
 %{
 	STAP_RETVALUE = __stp_mmv_set_value((int)STAP_ARG_v, STAP_ARG_value);
@@ -213,6 +319,12 @@ function mmv_set_value:long(v:long, value:long)
 	}
 %}
 
+/**
+ * sfunction mmv_inc_value - Increment the value of a numeric metric.
+ *
+ * @v: Value identifier returned by @mmv_lookup_value.
+ * @inc: Increment value to add.
+ */
 function mmv_inc_value:long(v:long, inc:long)
 %{
 	STAP_RETVALUE = __stp_mmv_inc_value((int)STAP_ARG_v, STAP_ARG_inc);
@@ -234,6 +346,12 @@ function mmv_inc_value:long(v:long, inc:long)
 	}
 %}
 
+/**
+ * sfunction mmv_set_string_value - Set the value of a string metric.
+ *
+ * @v: Value identifier returned by @mmv_lookup_value.
+ * @str_value: String value to set.
+ */
 function mmv_set_string_value:long(v:long, str_value:string)
 %{
 	STAP_RETVALUE = __stp_mmv_set_string_value((int)STAP_ARG_v,
