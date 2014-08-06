@@ -1602,7 +1602,6 @@ c_unparser::emit_kernel_module_init ()
       o->newline() << "goto out;";
       o->newline(-1) << "}";
     }
-
   o->newline(-1) << "out:";
   o->indent(1);
   o->newline() << "return rc;";
@@ -1630,6 +1629,8 @@ c_unparser::emit_kernel_module_exit ()
     {
       (*i)->emit_kernel_module_exit (*session);
     }
+  o->newline(-1) << "}\n";
+  o->assert_0_indent(); 
 }
 
 
