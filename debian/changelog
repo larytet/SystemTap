@@ -1,3 +1,11 @@
+systemtap (2.3-2.3) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Build using autotools-dev. Good enough to run the configure script,
+    and dh-autoreconf breaks the po/ update.
+
+ -- Matthias Klose <doko@debian.org>  Wed, 06 Aug 2014 10:01:07 +0200
+
 systemtap (2.3-2.2) unstable; urgency=high
 
   * Non-maintainer upload.
