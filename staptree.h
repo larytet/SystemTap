@@ -689,6 +689,7 @@ struct foreach_loop: public statement
 {
   // this part is a specialization of arrayindex
   std::vector<symbol*> indexes;
+  std::vector<expression*> array_slice; // optional array slice to iterate over
   indexable *base;
   int sort_direction; // -1: decreasing, 0: none, 1: increasing
   unsigned sort_column; // 0: value, 1..N: index

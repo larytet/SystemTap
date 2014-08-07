@@ -2578,6 +2578,18 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
       current_lvalue = last_lvalue;
     }
 
+  // visit the additional specified array slice
+  for (unsigned i=0; i<s->array_slice.size(); i++)
+    {
+      if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
+        {
+          expression* last_lvalue = current_lvalue;
+          current_lvalue = s->array_slice[i]; // leave a mark for ::visit_symbol
+          s->array_slice[i]->visit (this);
+          current_lvalue = last_lvalue;
+        }
+    }
+
   // The value is an lvalue too
   if (s->value)
     {

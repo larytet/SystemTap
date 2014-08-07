@@ -1979,6 +1979,9 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
 {
   for (unsigned i=0; i<e->indexes.size(); i++)
     e->indexes[i]->visit (this);
+  for (unsigned i=0; i<e->array_slice.size(); i++)
+    if (e->array_slice[i]->tok->type != tok_operator || e->array_slice[i]->tok->content != "*")
+      e->array_slice[i]->visit(this);
 
   symbol *array = NULL;
   hist_op *hist = NULL;
@@ -2004,6 +2007,20 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
     {
       assert (hist);
       hist->visit (this);
+    }
+
+  // repeating a portion of the above
+  // checking that the array indexing in foreach ([..] in foo[..]) is reasonable
+  // at this stage.
+  if (array && !e->array_slice.empty())
+    {
+      if (!find_var (array->name, e->array_slice.size (), array->tok))
+        {
+          stringstream msg;
+          msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
+                    e->array_slice.size(), array->name.c_str());
+          throw SEMANTIC_ERROR (msg.str(), array->tok);
+        }
     }
 
   if (e->value)
@@ -5160,29 +5177,56 @@ typeresolution_info::visit_foreach_loop (foreach_loop* e)
       assert (array);
       if (e->indexes.size() != array->referent->index_types.size())
 	unresolved (e->tok); // symbol resolution should prevent this
-      else for (unsigned i=0; i<e->indexes.size(); i++)
-	{
-	  expression* ee = e->indexes[i];
-	  exp_type& ft = array->referent->index_types [i];
-	  t = ft;
-	  ee->visit (this);
-	  exp_type at = ee->type;
+      else
+        {
+          for (unsigned i=0; i<e->indexes.size(); i++)
+            {
+              expression* ee = e->indexes[i];
+              exp_type& ft = array->referent->index_types [i];
+              t = ft;
+              ee->visit (this);
+              exp_type at = ee->type;
 
-	  if ((at == pe_string || at == pe_long) && ft == pe_unknown)
-	    {
-	      // propagate to formal type
-	      ft = at;
-	      resolved (ee->tok, ee->type, array->referent, i);
-	    }
-	  if (at == pe_stats)
-	    invalid (ee->tok, at);
-	  if (ft == pe_stats)
-	    invalid (ee->tok, ft);
-	  if (at != pe_unknown && ft != pe_unknown && ft != at)
-	    mismatch (ee->tok, ee->type, array->referent, i);
-	  if (at == pe_unknown)
-	    unresolved (ee->tok);
-	}
+              if ((at == pe_string || at == pe_long) && ft == pe_unknown)
+                {
+                  // propagate to formal type
+                  ft = at;
+                  resolved (ee->tok, ee->type, array->referent, i);
+                }
+              if (at == pe_stats)
+                invalid (ee->tok, at);
+              if (ft == pe_stats)
+                invalid (ee->tok, ft);
+              if (at != pe_unknown && ft != pe_unknown && ft != at)
+                mismatch (ee->tok, ee->type, array->referent, i);
+              if (at == pe_unknown)
+                unresolved (ee->tok);
+            }
+          for (unsigned i=0; i<e->array_slice.size(); i++)
+            if (e->array_slice[i]->tok->type != tok_operator || e->array_slice[i]->tok->content != "*")
+              {
+                expression* ee = e->array_slice[i];
+                exp_type& ft = array->referent->index_types [i];
+                t = ft;
+                ee->visit (this);
+                exp_type at = ee->type;
+
+                if ((at == pe_string || at == pe_long) && ft == pe_unknown)
+                  {
+                    // propagate to formal type
+                    ft = at;
+                    resolved (ee->tok, ee->type, array->referent, i);
+                  }
+                if (at == pe_stats)
+                  invalid (ee->tok, at);
+                if (ft == pe_stats)
+                  invalid (ee->tok, ft);
+                if (at != pe_unknown && ft != pe_unknown && ft != at)
+                  mismatch (ee->tok, ee->type, array->referent, i);
+                if (at == pe_unknown)
+                  unresolved (ee->tok);
+              }
+        }
       t = pe_unknown;
       array->visit (this);
       wanted_value = array->type;

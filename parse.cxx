@@ -2848,6 +2848,43 @@ parser::parse_foreach_loop ()
 
   s->base = parse_indexable();
 
+  // check if there was an array slice that was specified
+  t = peek();
+  if (t && t->type == tok_operator && t->content == "[")
+    {
+      swallow();
+      while (1)
+        {
+          t = peek();
+          expression* expr = 0;
+          if (t && t->type == tok_operator && t->content == "*")
+            {
+              t = next();
+              symbol* sym = new symbol;
+              sym->tok = t;
+              expr = sym;
+            }
+          else
+            expr = parse_expression ();
+          s->array_slice.push_back (expr);
+
+          t = peek ();
+          if (t && t->type == tok_operator && t->content == ",")
+            {
+              swallow ();
+              continue;
+            }
+          else if (t && t->type == tok_operator && t->content == "]")
+            {
+              swallow ();
+              break;
+            }
+          else
+            throw PARSE_ERROR (_("expected ',' or ']'"));
+        }
+    }
+
+
   // check for atword, see also expect_ident_or_atword,
   t = peek ();
   if (t && t->type == tok_operator && t->content[0] == '@')

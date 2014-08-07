@@ -3597,6 +3597,41 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  c_assign (v, iv.get_key (mv, v.type(), i), s->tok);
 	}
 
+      // in the case that the user specified something like
+      // foreach ([a,b] in foo[*, 123]), need to check that it iterates over
+      // the specified values, ie b is alwasy going to be 123
+      if (!s->array_slice.empty())
+        {
+          //add in the beginning portion of the if statement
+          o->newline() << "if (false";
+          for (unsigned i = 0; i < s->array_slice.size(); ++i)
+            // only output a comparsion if the expression is not "*".
+            if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
+            {
+              o->line() << " || ";
+              if (s->indexes[i]->type == pe_string)
+                {
+                  if (s->array_slice[i]->type != pe_string)
+                    throw SEMANTIC_ERROR (_("expected string types"), s->tok);
+                  o->line() << "strncmp(" << getvar (s->indexes[i]->referent) << ", ";
+                  s->array_slice[i]->visit(this);
+                  o->line() << ", MAXSTRINGLEN) !=0";
+                }
+              else if (s->indexes[i]->type == pe_long)
+                {
+                  if (s->array_slice[i]->type != pe_long)
+                    throw SEMANTIC_ERROR (_("expected numeric types"), s->tok);
+                  o->line() << getvar (s->indexes[i]->referent) << " != ";
+                  s->array_slice[i]->visit(this);
+                }
+              else
+              {
+                throw SEMANTIC_ERROR (_("unexpected type"), s->tok);
+              }
+            }
+          o->line() << ") goto " << contlabel << ";"; // end of the if statment
+        }
+
       if (s->value)
         {
 	  var v = getvar (s->value->referent);
