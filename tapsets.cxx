@@ -2627,7 +2627,7 @@ struct dwarf_var_expanding_visitor: public var_expanding_visitor
   map<std::string, expression *> return_ts_map;
   vector<Dwarf_Die> scopes;
   // probe counter name -> pointer of associated probe
-  std::set<derived_probe*> perf_counter_refs;
+  std::set<std::string> perf_counter_refs;
   bool visited;
 
   dwarf_var_expanding_visitor(dwarf_query & q, Dwarf_Die *sd, Dwarf_Addr a):
@@ -4222,23 +4222,23 @@ dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
   add_block->tok = e->tok;
 
   systemtap_session &s = this->q.sess;
-  unordered_map<string, pair<string,derived_probe*> >::iterator it;
+  std::vector<std::pair<std::string,std::string> >::iterator it;
   // Find the associated perf.counter probe
   for (it=s.perf_counters.begin();
        it != s.perf_counters.end();
        it++)
     if ((*it).first == e_lit_val)
       {
-	// if perf .function("name") omitted, then set it to this process name
-	if ((*it).second.first.length() == 0)
-	  ((*it).second).first = this->q.user_path;
-	if (((*it).second).first == this->q.user_path)
+	// if perf .process("name") omitted, then set it to this process name
+	if ((*it).second.length() == 0)
+	  (*it).second = this->q.user_path;
+	if ((*it).second == this->q.user_path)
 	  break;
       }
 
   if (it != s.perf_counters.end())
     {
-      perf_counter_refs.insert((*it).second.second);
+      perf_counter_refs.insert((*it).first);
       // __perf_read_N is assigned in the probe prologue
       symbol* sym = new symbol;
       sym->tok = e->tok;
@@ -4907,16 +4907,16 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
       // Propagate perf.counters so we can emit later
       this->perf_counter_refs = v.perf_counter_refs;
       // Emit local var used to save the perf counter read value
-      std::set<derived_probe*>::iterator pcii;
+      std::set<string>::iterator pcii;
       for (pcii = v.perf_counter_refs.begin();
 	   pcii != v.perf_counter_refs.end(); pcii++)
 	{
-	  unordered_map<string, pair<string,derived_probe*> >::iterator it;
+	  std::vector<std::pair<std::string,std::string> >::iterator it;
 	  // Find the associated perf counter probe
 	  for (it=q.sess.perf_counters.begin() ;
 	       it != q.sess.perf_counters.end();
 	       it++)
-	    if ((*it).second.second == (*pcii))
+	    if ((*it).first == (*pcii))
 	      break;
 	  vardecl* vd = new vardecl;
 	  vd->name = "__perf_read_" + (*it).first;
@@ -5422,18 +5422,18 @@ dwarf_derived_probe::register_patterns(systemtap_session& s)
 void
 dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_output * o)
 {
-  std::set<derived_probe*>::iterator pcii;
+  std::set<string>::iterator pcii;
   for (pcii = perf_counter_refs.begin();
        pcii != perf_counter_refs.end();
        pcii++)
     {
-      unordered_map<string, pair<string,derived_probe*> >::iterator it;
+      std::vector<std::pair<std::string,std::string> >::iterator it;
       // Find the associated perf.counter probe
       unsigned i = 0;
       for (it=s.perf_counters.begin() ;
 	   it != s.perf_counters.end();
 	   it++, i++)
-	if ((*it).second.second == (*pcii))
+	if ((*it).first == (*pcii))
 	  break;
       // place the perf counter read so it precedes stp_lock_probe
       o->newline() << "l->l___perf_read_" + (*it).first
@@ -8712,17 +8712,17 @@ uprobe_derived_probe_group::emit_module_utrace_decls (systemtap_session& s)
       // List of perf counters used by each probe
       // This list is an index into struct stap_perf_probe,
       uprobe_derived_probe *p = probes[pci];
-      std::set<derived_probe*>::iterator pcii;
+      std::set<string>::iterator pcii;
       s.op->newline() << "long perf_counters_" + lex_cast(pci) + "[] = {";
       for (pcii = p->perf_counter_refs.begin();
 	   pcii != p->perf_counter_refs.end(); pcii++)
 	{
-          unordered_map<string, pair<string,derived_probe*> >::iterator it;
+          std::vector<std::pair<std::string,std::string> >::iterator it;
 	  unsigned i = 0;
 	  // Find the associated perf.counter probe
 	  for (it=s.perf_counters.begin() ;
 	       it != s.perf_counters.end(); it++, i++)
-	    if ((*it).second.second == (*pcii))
+	    if ((*it).first == (*pcii))
 	      break;
 	  s.op->line() << lex_cast(i) << ", ";
 	}
@@ -9011,17 +9011,17 @@ uprobe_derived_probe_group::emit_module_inode_decls (systemtap_session& s)
       // List of perf counters used by each probe
       // This list is an index into struct stap_perf_probe,
       uprobe_derived_probe *p = probes[pci];
-      std::set<derived_probe*>::iterator pcii;
+      std::set<string>::iterator pcii;
       s.op->newline() << "long perf_counters_" + lex_cast(pci) + "[] = {";
       for (pcii = p->perf_counter_refs.begin();
 	   pcii != p->perf_counter_refs.end(); pcii++)
 	{
-          unordered_map<string, pair<string,derived_probe*> >::iterator it;
+          vector<std::pair<string,string> >:: iterator it;
 	  unsigned i = 0;
 	  // Find the associated perf.counter probe
 	  for (it=s.perf_counters.begin() ;
 	       it != s.perf_counters.end(); it++, i++)
-	    if ((*it).second.second == (*pcii))
+	    if ((*it).first == (*pcii))
 	      break;
 	  s.op->line() << lex_cast(i) << ", ";
 	}

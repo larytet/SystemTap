@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -224,7 +224,7 @@ public:
   Dwarf_Addr sdt_semaphore_addr;
 
   // perf.counter probes that this probe references
-  std::set<derived_probe*> perf_counter_refs;
+  std::set<std::string> perf_counter_refs;
 
   // index into session.probes[], set and used during translation
   unsigned session_index;

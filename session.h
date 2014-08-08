@@ -29,7 +29,6 @@ extern "C" {
 #include <elfutils/libdw.h>
 }
 
-#include "unordered.h"
 #include "privilege.h"
 #include "util.h"
 
@@ -331,7 +330,7 @@ public:
   std::vector<vardecl*> globals;
   std::map<std::string,functiondecl*> functions;
   // probe counter name -> probe associated with counter
-  unordered_map<std::string, std::pair<std::string,derived_probe*> > perf_counters;
+  std::vector<std::pair<std::string,std::string> > perf_counters;
   std::vector<derived_probe*> probes; // see also *_probes groups below
   std::vector<embeddedcode*> embeds;
   std::map<std::string, statistic_decl> stat_decls;

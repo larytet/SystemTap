@@ -309,7 +309,12 @@ perf_builder::build(systemtap_session & sess,
 	throw SEMANTIC_ERROR(_("missing perf probe counter component name"));
 
       period = 0;		// perf_event_attr.sample_freq should be 0
-      if (sess.perf_counters.count(var) > 0)
+      vector<std::pair<string,string> >:: iterator it;
+      for (it=sess.perf_counters.begin() ;
+	   it != sess.perf_counters.end(); it++)
+	if ((*it).first == var)
+	  break;
+      if (it != sess.perf_counters.end())
 	throw SEMANTIC_ERROR(_("duplicate counter name"));
 
       // Splice a 'next' into the probe body, and then elaborate.cxx's
@@ -355,7 +360,7 @@ perf_builder::build(systemtap_session & sess,
     (new perf_derived_probe(new_base, location, type, config, period, proc_p,
 			    has_counter, proc_n, var));
   if (!var.empty())
-    sess.perf_counters[var] = make_pair(proc_n,finished_results.back());
+    sess.perf_counters.push_back(make_pair (var, proc_n));
 }
 
 

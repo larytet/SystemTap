@@ -122,4 +122,21 @@ if {$ok == 1} {
     fail "$test $subtest ($ok)"
 }
 
+set subtest "counter order"
+
+spawn $srcdir/$subdir/perf.sh $stap_path
+
+expect {
+    -timeout 180
+    -re {PASS: [0-9 ]+} { regexp " .*$" $expect_out(0,string) s; 
+        pass "$subtest $s"; exp_continue }
+    -re {UNRESOLVED: [0-9 ]+} { regexp " .*$" $expect_out(0,string) s; 
+        unresolved "$subtest $s"; exp_continue }
+    -re {FAIL: [0-9 ]+} { regexp " .*$" $expect_out(0,string) s; 
+        fail "$subtest $s"; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch {close}; catch {wait}
+
 cleanup_handler $verbose
