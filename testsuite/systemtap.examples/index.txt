@@ -1163,7 +1163,7 @@ keywords: profiling function
   will print a sorted list from most frequently to least frequently
   called function.
 
-  # stap  functioncallcount.stp "*@mm/*.c" -c "sleep 1"
+  # stap -w functioncallcount.stp "*@mm/*.c" -c "sleep 1"
 
 
 profiling/latencytap.stp - Show Reasons and Durations for Processes Sleeping
