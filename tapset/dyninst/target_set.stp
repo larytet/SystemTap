@@ -7,7 +7,7 @@ function target_set_pid (pid)
 	return ([pid] in _target_set)
 }
 
-probe begin
+probe init
 {
 	if (target())
 		_target_set[target()] = stp_pid()

@@ -5,7 +5,7 @@
 #endif
 %}
 
-global _reg_offsets, _stp_regs_registered, _sp_offset, _ss_offset
+global _reg_offsets[34], _sp_offset, _ss_offset
 
 function test_x86_fs:long() %{ /* pure */
 #if defined(STAPCONF_X86_XFS) || defined (STAPCONF_X86_FS)
@@ -48,8 +48,6 @@ if (test_x86_gs()) {
 	_reg_offsets["eflags"] = _reg_offsets["flags"] = (_offset += 4)
 	_reg_offsets["esp"] = _reg_offsets["sp"] = _sp_offset = (_offset += 4)
 	_reg_offsets["xss"] = _reg_offsets["ss"] = _ss_offset = (_offset += 4)
-
-	_stp_regs_registered = 1
 }
 
 function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
@@ -96,8 +94,6 @@ function register:long (name:string) {
 		error("cannot access CPU registers in this context")
 		return 0
 	}
-	if (!_stp_regs_registered)
-		_stp_register_regs()
 	offset = _reg_offsets[name]
 	if (offset == 0 && !(name in _reg_offsets)) {
 		error("Unknown register: " . name)

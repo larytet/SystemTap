@@ -1,8 +1,8 @@
 /* Dwarfless register access for arm */
 
-global _reg_offsets, _stp_regs_registered
+global _reg_offsets[30]
 
-function _stp_register_regs() {
+probe init {
 
 	/* Same order as pt_regs */
 	_reg_offsets["r0"] =  0		_reg_offsets["a1"] =  0
@@ -23,8 +23,6 @@ function _stp_register_regs() {
 	_reg_offsets["pc"] = 60
 	_reg_offsets["cpsr"] = 64
 	_reg_offsets["orig_r0"] = 68
-
-	_stp_regs_registered = 1
 }
 
 function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
@@ -59,8 +57,6 @@ function register:long (name:string) {
 		error("cannot access CPU registers in this context")
 		return 0
 	}
-	if (!_stp_regs_registered)
-		_stp_register_regs()
 	offset = _reg_offsets[name]
 	if (offset == 0 && !(name in _reg_offsets)) {
 		error("Unknown register: " . name)

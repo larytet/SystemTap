@@ -8,7 +8,7 @@
 
 
 global argc = $#
-global argv
+global argv[32]
 
 // individual argv[N] slots may be overridden at run time:
 // stap FOO.stp -G argc=2 -G argv_1="hello" -G argv_2="world"
@@ -46,7 +46,7 @@ global argv_30 = %( $# >= 30 %? @30 %: "" %)
 global argv_31 = %( $# >= 31 %? @31 %: "" %)
 global argv_32 = %( $# >= 32 %? @32 %: "" %)
 
-probe begin(-1) {
+probe init {
   argv[1] = argv_1
   argv[2] = argv_2
   argv[3] = argv_3

@@ -945,13 +945,7 @@ function sa_handler_str(handler) {
 
 global __sig[64]
 
-/**
- * sfunction signal_str - Returns the string representation of a signal number
- *
- * @num: the signal number to convert to string.
- */
-function signal_str(num) {
-    if (!(64 in __sig)) {
+probe init {
 	__sig[1] = "HUP"
 	__sig[2] = "INT"
 	__sig[3] = "QUIT"
@@ -1016,6 +1010,13 @@ function signal_str(num) {
 	__sig[62] = "RTMIN+30"
 	__sig[63] = "RTMIN+31"
 	__sig[64] = "RTMIN+32"
-    }
+}
+
+/**
+ * sfunction signal_str - Returns the string representation of a signal number
+ *
+ * @num: the signal number to convert to string.
+ */
+function signal_str(num) {
     return __sig[num]
 }
