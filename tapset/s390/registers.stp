@@ -114,7 +114,7 @@ probe init {
  * Though the flag says 31bit, asm-s390/thread_info.h comment
  * says "32bit process"
  */
-function probing_32bit_app() %{ /* pure */
+function probing_32bit_app:long() %{ /* pure */
 	if (CONTEXT->user_mode_p && _stp_is_compat_task())
 		STAP_RETVALUE = 1;
 	else

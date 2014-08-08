@@ -57,7 +57,7 @@ function _stp_register_regs() {
 	 */
 }
 
-function probing_32bit_app() %{ /* pure */
+function probing_32bit_app:long() %{ /* pure */
         STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
 %}
 
