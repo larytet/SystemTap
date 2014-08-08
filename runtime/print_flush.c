@@ -24,7 +24,6 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 	void *entry = NULL;
 
 	/* check to see if there is anything in the buffer */
-	dbug_trans(1, "len = %zu\n", len);
 	if (likely(len == 0))
 		return;
 
@@ -32,6 +31,8 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 
 	if (unlikely(_stp_transport_get_state() != STP_TRANSPORT_RUNNING))
 		return;
+
+	dbug_trans(1, "len = %zu\n", len);
 
 #ifdef STP_BULKMODE
 #ifdef NO_PERCPU_HEADERS
