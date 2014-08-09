@@ -30,7 +30,9 @@ static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem);
 static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
 	u32 type;
-	static int started = 0;
+        // these might be accessed from reentrant calls
+	static atomic_t started = ATOMIC_INIT(0);
+	static atomic_t stopped_while_starting = ATOMIC_INIT(0);
 
 #ifdef STAPCONF_TASK_UID
 	uid_t euid = current->euid;
@@ -59,18 +61,32 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 
 	switch (type) {
 	case STP_START:
-		if (started == 0) {
+                if (atomic_read(& started) == 0)
+                {
 			struct _stp_msg_start st;
 			if (count < sizeof(st))
 				return 0;
 			if (copy_from_user(&st, buf, sizeof(st)))
 				return -EFAULT;
 			_stp_handle_start(&st);
-			started = 1;
+                        // PR17232: NB: an STP_EXIT might come in while we're still busy here.
+                        // That's OK, we'll catch it on the rebound.
+			atomic_set (& started, 1);
+                        if (atomic_read (&stopped_while_starting)) {
+                                dbug_trans(1, "handling deferred STP_EXIT received while starting!\n");
+                                _stp_cleanup_and_exit(1);
+                        }
 		}
 		break;
 	case STP_EXIT:
-		_stp_cleanup_and_exit(1);
+                // PR17232: this message can theoretically arrive
+                // while we're still handling an STP_START.
+                if (atomic_read(& started))
+                        _stp_cleanup_and_exit(1);
+                else {
+                        dbug_trans(1, "STP_EXIT received while starting!\n");
+                        atomic_set(& stopped_while_starting, 1);
+                }
 		break;
 	case STP_BULK:
 #ifdef STP_BULKMODE
@@ -145,6 +161,11 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #endif
 		return -EINVAL;
 	}
+
+#if defined(DEBUG_TRANS) && (DEBUG_TRANS >= 2)
+	if (type < STP_MAX_CMD)
+		dbug_trans2("Completed %s\n", _stp_command_name[type]);
+#endif
 
 	return count + sizeof(u32); /* Pretend that we absorbed the entire message. */
 }

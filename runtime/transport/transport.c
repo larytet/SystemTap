@@ -36,7 +36,8 @@ static pid_t _stp_target = 0;
 static int _stp_probes_started = 0;
 
 /* _stp_transport_mutext guards _stp_start_called and _stp_exit_called.
-   We only want to do the startup and exit sequences once.  */
+   We only want to do the startup and exit sequences once.  Note that
+   these indicate the respective process starting, not their conclusion. */
 static int _stp_start_called = 0;
 static int _stp_exit_called = 0;
 static DEFINE_MUTEX(_stp_transport_mutex);
@@ -178,18 +179,21 @@ static void _stp_cleanup_and_exit(int send_exit)
 	_stp_exit_called = 1;
 	mutex_unlock(&_stp_transport_mutex);
 
-	/* Note, we can be sure that the startup sequence has finished
-           if handle_exit is true because it depends on _stp_start_called
-	   being set to true. _stp_start_called can only be set to true
-	   in _stp_handle_start() in response to a _STP_START message on
-	   the control channel. Only one writer can have the control
-	   channel open at a time, so the whole startup sequence in
-	   _stp_handle_start() has to be completed before another message
-	   can be send.  _stp_cleanup_and_exit() can only be called through
-	   either a _STP_EXIT message, which cannot arrive while _STP_START
-	   is still being handled, or when the module is unloaded. The
-	   module can only be unloaded when there are no more users that
-	   keep the control channel open.  */
+	/* Note, before PR17232, we thought we could be sure that the
+           startup sequence has finished if handle_exit is true
+           because it depends on _stp_start_called being set to
+           true. _stp_start_called can only be set to true in
+           _stp_handle_start() in response to a _STP_START message on
+           the control channel. Only one writer can have the control
+           channel open at a time, so the whole startup sequence in
+           _stp_handle_start() has to be completed before another
+           message can be sent ... except for multiple threads /
+           signal handlers in staprun (PR17232)!
+           _stp_cleanup_and_exit() can only be called through either a
+           _STP_EXIT message, which cannot arrive while _STP_START is
+           still being handled, or when the module is unloaded. The
+           module can only be unloaded when there are no more users
+           that keep the control channel open.  */
 	if (handle_exit) {
 		int failures;
 
@@ -238,7 +242,7 @@ static void _stp_request_exit(void)
 {
 	static int called = 0;
 	if (!called) {
-		/* we only want to do this once */
+		/* we only want to do this once; XXX: why? what's the harm? */
 		called = 1;
 		dbug_trans(1, "ctl_send STP_REQUEST_EXIT\n");
 		/* Called from the timer when _stp_exit_flag has been
