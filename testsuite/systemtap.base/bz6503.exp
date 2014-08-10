@@ -5,6 +5,11 @@
 # Not BZ6503:
 #   ypserve does not work
 #   <https://bugzilla.redhat.com/show_bug.cgi?id=6503>
+#
+# Unfortunately, PR17249 indicates that module-init probes
+# have subsequently broken (due to kernel notification timing
+# changes).
+#
 
 set test bz6503
 

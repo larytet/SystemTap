@@ -125,40 +125,44 @@ static int _stp_module_notifier (struct notifier_block * nb,
         /* Prior to 2.6.11, struct module contained a module_sections
            attribute vector rather than module_sect_attrs.  Prior to
            2.6.19, module_sect_attrs lacked a number-of-sections
-           field.  Without CONFIG_KALLSYMS, we don't get any of the
+           field.  Past 3.8, MODULE_STATE_COMING is sent too early to 
+           let us probe module init functions.
+
+           Without CONFIG_KALLSYMS, we don't get any of the
            related fields at all in struct module.  XXX: autoconf for
            that directly? */
 
 #if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
         struct module *mod = data;
-        struct module_sect_attrs *attrs = mod->sect_attrs;
-        unsigned i, nsections = _stp_module_nsections(attrs);
+        struct module_sect_attrs *attrs;
+        unsigned i, nsections;
+        WARN_ON (!mod);
 
-        if (val == MODULE_STATE_COMING) {
-                /* A module is arriving.  Register all of its section
-                   addresses, as though staprun sent us a bunch of
-                   STP_RELOCATE messages.  Now ... where did the
-                   fishie go? */
-                for (i=0; i<nsections; i++)
+        if (val == MODULE_STATE_COMING ||
+            val == MODULE_STATE_LIVE) {
+                /* A module is arriving or has arrived.  Register all
+                   of its section addresses, as though staprun sent us
+                   a bunch of STP_RELOCATE messages.  Now ... where
+                   did the fishie go? */
+
+                attrs = mod->sect_attrs;
+                if (attrs == NULL) // until add_sect_attrs(), may be zero
+                        return NOTIFY_DONE; // remain ignorant
+
+                nsections = _stp_module_nsections(attrs);
+                for (i=0; i<nsections; i++) {
+                        int init_p = (strstr(attrs->attrs[i].name, "init.") != NULL);
+                        int init_gone_p = (val == MODULE_STATE_LIVE); // likely already unloaded
+
                         _stp_kmodule_update_address(mod->name, 
                                                     attrs->attrs[i].name,
-                                                    attrs->attrs[i].address);
+                                                    ((init_p && init_gone_p) ? 0 : attrs->attrs[i].address));
+                }
 
                 /* Verify build-id. */
                 if (_stp_kmodule_check (mod->name))
                    _stp_kmodule_update_address(mod->name, NULL, 0); /* Pretend it was never here. */
-        }
-        else if (val == MODULE_STATE_LIVE) {
-                /* The init section(s) may have been unloaded. */
-                for (i=0; i<nsections; i++)
-                        if (strstr(attrs->attrs[i].name, "init.") != NULL)
-                        _stp_kmodule_update_address(mod->name, 
-                                                    attrs->attrs[i].name,
-                                                    0);
-
-                /* No need to verify build-id here; if it failed when COMING,
-                   all other section names will already have reloc=0. */
-        }
+        }        
         else if (val == MODULE_STATE_GOING) {
                 /* Unregister all sections. */
                 _stp_kmodule_update_address(mod->name, NULL, 0);
