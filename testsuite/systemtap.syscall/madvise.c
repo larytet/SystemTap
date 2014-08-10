@@ -67,6 +67,12 @@ int main(int argc, char *argv[])
     madvise(file, size, MADV_DOFORK);
     //staptest// madvise (XXXX, 40960, MADV_DOFORK) = 0
 
+    /* NB: the following two can cause alarming kernel messages to appear
+       in the logs.  Ignore these:
+       [107552.743276] Injecting memory failure for page 7d42f at 55578000
+       [107552.745627] MCE 0x7d42f: dirty LRU page recovery: Recovered
+    */
+
 #ifdef MADV_HWPOISON
     /* Ignore return value */
     madvise(file, size, MADV_HWPOISON);
