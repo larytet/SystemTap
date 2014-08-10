@@ -29,10 +29,9 @@ static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem);
 
 static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
+        static DEFINE_MUTEX(cmd_mutex);
 	u32 type;
-        // these might be accessed from reentrant calls
-	static atomic_t started = ATOMIC_INIT(0);
-	static atomic_t stopped_while_starting = ATOMIC_INIT(0);
+        int rc = 0;
 
 #ifdef STAPCONF_TASK_UID
 	uid_t euid = current->euid;
@@ -59,44 +58,45 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 			    (int)count);
 #endif
 
+        // PR17232: preclude reentrancy during handling of messages.
+        // This also permits use of static variables in the switch/case.
+        mutex_lock (& cmd_mutex);
+        // NB: past this point, no 'return;' - use 'goto out;'
+
 	switch (type) {
 	case STP_START:
-                if (atomic_read(& started) == 0)
-                {
-			struct _stp_msg_start st;
-			if (count < sizeof(st))
-				return 0;
-			if (copy_from_user(&st, buf, sizeof(st)))
-				return -EFAULT;
-			_stp_handle_start(&st);
-                        // PR17232: NB: an STP_EXIT might come in while we're still busy here.
-                        // That's OK, we'll catch it on the rebound.
-			atomic_set (& started, 1);
-                        if (atomic_read (&stopped_while_starting)) {
-                                dbug_trans(1, "handling deferred STP_EXIT received while starting!\n");
-                                _stp_cleanup_and_exit(1);
-                        }
-		}
-		break;
-	case STP_EXIT:
-                // PR17232: this message can theoretically arrive
-                // while we're still handling an STP_START.
-                if (atomic_read(& started))
-                        _stp_cleanup_and_exit(1);
-                else {
-                        dbug_trans(1, "STP_EXIT received while starting!\n");
-                        atomic_set(& stopped_while_starting, 1);
+        {
+                static struct _stp_msg_start st;
+                if (count < sizeof(st)) {
+                        rc = 0; // ?
+                        goto out;
                 }
+                if (copy_from_user(&st, buf, sizeof(st))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
+                _stp_handle_start(&st);
+        }
+        break;
+
+	case STP_EXIT:
+                _stp_cleanup_and_exit(1);
 		break;
+
 	case STP_BULK:
 #ifdef STP_BULKMODE
-		return count + sizeof(u32);
+                // no action needed
+                break;
 #else
-		return -EINVAL;
+		rc = -EINVAL;
+                goto out;
 #endif
+
 	case STP_RELOCATION:
-		if (euid != 0)
-			return -EPERM;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
                 /* This message is too large to copy here.
                    Further error checking is within the
                    function, but XXX no rc is passed back. */
@@ -114,12 +114,18 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
                    (euid=0) isn't multithreaded, and doesn't pass this
                    filehandle anywhere. */
                 static struct _stp_msg_tzinfo tzi;
-		if (euid != 0)
-			return -EPERM;
-                if (count < sizeof(tzi))
-                        return 0;
-                if (copy_from_user(&tzi, buf, sizeof(tzi)))
-                        return -EFAULT;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
+                if (count < sizeof(tzi)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&tzi, buf, sizeof(tzi))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
                 _stp_handle_tzinfo(&tzi);
         }
         break;
@@ -128,12 +134,18 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
         {
                 /* NB PR13445: as above. */
                 static struct _stp_msg_privilege_credentials pc;
-		if (euid != 0)
-			return -EPERM;
-                if (count < sizeof(pc))
-                        return 0;
-                if (copy_from_user(&pc, buf, sizeof(pc)))
-                        return -EFAULT;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
+                if (count < sizeof(pc)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&pc, buf, sizeof(pc))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
                 _stp_handle_privilege_credentials(&pc);
         }
         break;
@@ -142,12 +154,18 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
         {
                 /* NB PR13445: as above. */
                 static struct _stp_msg_remote_id rem;
-		if (euid != 0)
-			return -EPERM;
-                if (count < sizeof(rem))
-                        return 0;
-                if (copy_from_user(&rem, buf, sizeof(rem)))
-                        return -EFAULT;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
+                if (count < sizeof(rem)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&rem, buf, sizeof(rem))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
                 _stp_handle_remote_id(&rem);
         }
         break;
@@ -159,15 +177,21 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #ifdef DEBUG_TRANS
 		dbug_trans2("invalid command type %d\n", type);
 #endif
-		return -EINVAL;
+		rc = -EINVAL;
+                goto out;
 	}
+
+        // fall through
+	rc = count + sizeof(u32); /* Pretend that we absorbed the entire message. */
+
+out:
+        mutex_unlock (& cmd_mutex);
 
 #if defined(DEBUG_TRANS) && (DEBUG_TRANS >= 2)
 	if (type < STP_MAX_CMD)
-		dbug_trans2("Completed %s\n", _stp_command_name[type]);
+		dbug_trans2("Completed %s (rc=%d)\n", _stp_command_name[type], rc);
 #endif
-
-	return count + sizeof(u32); /* Pretend that we absorbed the entire message. */
+        return rc;
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(_stp_ctl_wq);

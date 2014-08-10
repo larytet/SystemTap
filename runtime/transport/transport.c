@@ -105,14 +105,21 @@ static struct timer_list _stp_ctl_work_timer;
  *	_stp_handle_start - handle STP_START
  */
 
+// PR17232: This might be called more than once, but not concurrently
+// or reentrantly with itself, or with _stp_cleanup_and_exit.  (The
+// latter case is not obvious: _stp_cleanup_and_exit could be called
+// from the mutex-protected ctl message handler, so that's fine; or
+// it could be called from the module cleanup function, by which time
+// we know there is no ctl connection and thus no messages.  So again
+// no concurrency.
+
 static void _stp_handle_start(struct _stp_msg_start *st)
 {
 	int handle_startup;
 
-	mutex_lock(&_stp_transport_mutex);
+        // protect against excessive or premature startup
 	handle_startup = (! _stp_start_called && ! _stp_exit_called);
 	_stp_start_called = 1;
-	mutex_unlock(&_stp_transport_mutex);
 	
 	if (handle_startup) {
 		dbug_trans(1, "stp_handle_start\n");
@@ -164,47 +171,33 @@ static void _stp_handle_start(struct _stp_msg_start *st)
 	}
 }
 
-/* common cleanup code. */
-/* This is called from the kernel thread when an exit was requested */
-/* by staprun or the exit() function. */
+
+// _stp_cleanup_and_exit: handle STP_EXIT and cleanup_module
+//
 /* We need to call it both times because we want to clean up properly */
 /* when someone does /sbin/rmmod on a loaded systemtap module. */
 static void _stp_cleanup_and_exit(int send_exit)
 {
 	int handle_exit;
-	int start_finished;
 
-	mutex_lock(&_stp_transport_mutex);
+        // protect against excessive or premature cleanup
 	handle_exit = (_stp_start_called && ! _stp_exit_called);
 	_stp_exit_called = 1;
-	mutex_unlock(&_stp_transport_mutex);
 
-	/* Note, before PR17232, we thought we could be sure that the
-           startup sequence has finished if handle_exit is true
-           because it depends on _stp_start_called being set to
-           true. _stp_start_called can only be set to true in
-           _stp_handle_start() in response to a _STP_START message on
-           the control channel. Only one writer can have the control
-           channel open at a time, so the whole startup sequence in
-           _stp_handle_start() has to be completed before another
-           message can be sent ... except for multiple threads /
-           signal handlers in staprun (PR17232)!
-           _stp_cleanup_and_exit() can only be called through either a
-           _STP_EXIT message, which cannot arrive while _STP_START is
-           still being handled, or when the module is unloaded. The
-           module can only be unloaded when there are no more users
-           that keep the control channel open.  */
 	if (handle_exit) {
 		int failures;
 
+                dbug_trans(1, "cleanup_and_exit (%d)\n", send_exit);
+
 	        /* Unregister the module notifier. */
 	        if (_stp_module_notifier_active) {
+                        int rc = unregister_module_notifier(& _stp_module_notifier_nb);
+                        if (rc)
+                                _stp_warn("module_notifier unregister error %d", rc);
 	                _stp_module_notifier_active = 0;
-	                (void) unregister_module_notifier(& _stp_module_notifier_nb);
-	                /* -ENOENT is possible, if we were not already registered */
+                        stp_synchronize_sched(); // paranoia: try to ensure no further calls in progress
 	        }
 
-                dbug_trans(1, "cleanup_and_exit (%d)\n", send_exit);
 		_stp_exit_flag = 1;
 
 		if (_stp_probes_started) {
@@ -238,6 +231,11 @@ static void _stp_cleanup_and_exit(int send_exit)
 	}
 }
 
+
+// Coming from script type sources, e.g. the exit() tapset function:
+// consists of sending a message to staprun/stapio, and definitely
+// NOT calling _stp_cleanup_and_exit(), since that function requires
+// a more user context to run from.
 static void _stp_request_exit(void)
 {
 	static int called = 0;
