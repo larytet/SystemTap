@@ -162,12 +162,11 @@ wrapping conditional and won't benefit from overhead savings.
 .TS
 l l.
 \fBDISARMABLE	exceptions\fP
-kprobe.function
 kernel.function, kernel.statement
 module.function, module.statement
 process.*.function, process.*.statement
 process.*.plt, process.*.mark
-timer.	perf-based timer.profile
+timer.	timer.profile
 java
 .TE 
 
