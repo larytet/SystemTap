@@ -1922,8 +1922,6 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
   base_func_info_map_t::iterator i;
   for (i = bfis.begin(); i != bfis.end(); ++i)
     {
-      if (i->name == "__put_unused_fd")
-        clog << "func " << i->name << " offset:" << lex_cast_hex(dwarf_dieoffset(&i->die)) << " has_pc(" << lex_cast_hex(addr) << "):" << q->dw.die_has_pc(i->die, addr) << endl;
       if (q->dw.die_has_pc (i->die, addr))
         {
           if (q->sess.verbose>3)
