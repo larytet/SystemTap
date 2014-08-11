@@ -6,11 +6,12 @@
   probe kernel.function("vfs_read") if (i > 4) { ... }
 
   will automatically register/unregister the associated kprobe on vfs_read
-  whenever the value of the condition changes. This allows us to avoid probe
-  overhead when we're not interested. To disable this feature, and return to the
-  "always on" behaviour, simply inline and invert the condition:
+  whenever the value of the condition changes (as some probe handler
+  modifies 'i').  This allows us to avoid probe overhead when we're not
+  interested.  If the arming capability is not relevant/useful, nest the
+  condition in the normal probe handler:
 
-  probe kernel.function("vfs_read") { if (i <= 4) next; ... }
+  probe kernel.function("vfs_read") { if (i > 4) { ... } }
 
 - statement("*@file:NNN").nearest probes now available to let systemtap
   translate probe to nearest probe-able line to one given if necessary

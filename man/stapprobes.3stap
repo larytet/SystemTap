@@ -147,10 +147,29 @@ process.mark \fI(backup)\fP	timer
 	kernel.data
 kernel.trace	kprobe.function
 	process.statement.absolute
-	process.begin, .end, .error
+	process.begin, .end
 	netfilter
 	java
 .TE
+
+.SH ON-THE-FLY ARMING
+
+The following types of probe points may be armed/disarmed on-the-fly
+to save overheads during uninteresting times.  Arming conditions may
+also be added to other types of probes, but will be treated as a
+wrapping conditional and won't benefit from overhead savings.
+
+.TS
+l l.
+\fBDISARMABLE	exceptions\fP
+kprobe.function
+kernel.function, kernel.statement
+module.function, module.statement
+process.*.function, process.*.statement
+process.*.plt, process.*.mark
+timer.	perf-based timer.profile
+java
+.TE 
 
 .SH PROBE POINT FAMILIES
 

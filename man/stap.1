@@ -968,7 +968,7 @@ Many types of probe points provide context variables, which are
 run-time values, safely extracted from the kernel or userspace program
 being probed.  These are prefixed with the \fB$\fR character.  The
 CONTEXT VARIABLES section in
-.IR stapprobes (7stap)
+.IR stapprobes (3stap)
 lists what is available for each type of probe point.  These context
 variables become normal string or numeric scalars once they are stored
 in normal script variables.  See the TYPECASTING section below on how
@@ -1130,6 +1130,7 @@ handler") that is to be executed when any of those events occur.  The
 general syntax is as follows:
 .SAMPLE
 .BR probe " PROBEPOINT [" , " PROBEPOINT] " { " [STMT ...] " }
+.BR probe " PROBEPOINT [" , " PROBEPOINT] " "if (" CONDITION ") { " "[STMT ...]" " }"
 .ESAMPLE
 .PP
 Events are specified in a special syntax called "probe points".  There
@@ -1159,6 +1160,17 @@ See the
 .IR stapprobes (3stap)
 man pages to see the kinds of context variables available at each kind
 of probe point.
+.PP
+Probes may be decorated with an 
+.IR "arming condition" ,
+consisting of a simple boolean expression on read-only global script
+variables.  While disarmed (condition evaluates to false), some probe
+types reduce or eliminate their run-time overheads.  When an arming
+condition evaluates to true, probes will be
+.I soon
+re-armed, and their probe handlers will start getting called as the
+events fire.  (Some events may be lost during the arming interval.  If
+this is unacceptable, do not use arming conditions for those probes.)
 .PP
 New probe points may be defined using "aliases".  Probe point aliases
 look similar to probe definitions, but instead of activating a probe
