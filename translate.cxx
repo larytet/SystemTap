@@ -2099,6 +2099,7 @@ struct max_action_info: public functioncall_traversing_visitor
       statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
     }
   void add_max_stmt_count () { statement_count = max_statement_count; }
+  bool statement_count_finite() { return statement_count < max_statement_count; }
 
   void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
   void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
@@ -5048,6 +5049,18 @@ c_unparser::visit_functioncall (functioncall* e)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
+
+  if (!already_checked_action_count && !session->suppress_time_limits
+      && !session->unoptimized)
+    {
+      max_action_info mai (*session);
+      e->referent->body->visit(&mai);
+      // if an unoptimized function/probe called an optimized function, then
+      // increase the counter, since the subtraction isn't done within an
+      // optimized function
+      if(mai.statement_count_finite())
+        record_actions (mai.statement_count, e->tok, true);
+    }
 }
 
 
