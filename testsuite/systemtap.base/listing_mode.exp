@@ -342,7 +342,9 @@ proc report_untested_probes {} {
          module(string).function(string).return -
          module(string).function(string).return.maxactive(number) -
          module(string).statement(number) -
-         module(string).statement(string)
+         module(string).statement(number).nearest -
+         module(string).statement(string) -
+         module(string).statement(string).nearest
          {
             # Not easy to reliably test on all kernels
             setup_kfail MODULE *-*-*
@@ -589,6 +591,10 @@ if {$kernel_addr != 0} {
 
    stap_list "kernel.statement(0x$kernel_addr)"
 
+   testing_probe {kernel.statement(number).nearest}
+
+   stap_list "kernel.statement(0x$kernel_addr).nearest"
+
    testing_probe {kernel.statement(number).absolute}
 
    stap_list "kernel.statement(0x$kernel_addr).absolute" \
@@ -599,6 +605,11 @@ testing_probe {kernel.statement(string)}
 
 stap_list {kernel.statement("vfs_read")} \
    {re:kernel.statement\("vfs_read@[^:]+:[0-9]+"\)}
+
+testing_probe {kernel.statement(string).nearest}
+
+stap_list {kernel.statement("vfs_read").nearest} \
+   {re:kernel.statement\("vfs_read@[^:]+:[0-9]+"\).nearest}
 
 testing_probe {kernel.trace(string)}
 
@@ -908,6 +919,11 @@ if {$exepath != ""} {
 
       stap_list_cmd_lib "process.library(\"sopath\").statement(0x$library_addr)" \
          "process(\"$exefullpath\").library(\"$sofullpath\").statement(0x$library_addr)"
+
+      testing_probe {process.library(string).statement(number).nearest}
+
+      stap_list_cmd_lib "process.library(\"sopath\").statement(0x$library_addr).nearest" \
+         "process(\"$exefullpath\").library(\"$sofullpath\").statement(0x$library_addr).nearest"
    }
 
    testing_probe {process.library(string).statement(string)}
@@ -938,6 +954,11 @@ if {$exepath != ""} {
 
    stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:*\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   testing_probe {process.library(string).statement(string).nearest}
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:58\").nearest" \
+       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\).nearest"
 
    testing_probe {process.mark(string)}
 
@@ -988,6 +1009,11 @@ if {$exepath != ""} {
 
       stap_list_cmd "process.statement(0x$process_addr)" \
          "process(\"$exefullpath\").statement(0x$process_addr)"
+
+      testing_probe {process.statement(number).nearest}
+
+      stap_list_cmd "process.statement(0x$process_addr).nearest" \
+         "process(\"$exefullpath\").statement(0x$process_addr).nearest"
    }
 
    testing_probe {process.statement(string)}
@@ -1018,6 +1044,11 @@ if {$exepath != ""} {
 
    stap_list_cmd "process.statement(\"foo@$test.c:*\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   testing_probe {process.statement(string).nearest}
+
+   stap_list_cmd "process.statement(\"foo@$test.c:24,25-26\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
 }
 
 testing_probe {process.syscall}
@@ -1182,6 +1213,11 @@ if {$exepath != ""} {
 
       stap_list "process($valid_pid).statement(0x$process_addr)" \
          "process(\"$exefullpath\").statement(0x$process_addr)"
+
+      testing_probe {process(number).statement(number).nearest}
+
+      stap_list "process($valid_pid).statement(0x$process_addr).nearest" \
+         "process(\"$exefullpath\").statement(0x$process_addr).nearest"
    }
 
    testing_probe {process(number).statement(string)}
@@ -1211,6 +1247,11 @@ if {$exepath != ""} {
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
    stap_list "process($valid_pid).statement(\"foo@$test.c:*\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   testing_probe {process(number).statement(string).nearest}
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:29\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 }
 

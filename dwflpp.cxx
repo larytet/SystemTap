@@ -1790,7 +1790,7 @@ dwflpp::insert_alternative_linenos(char const * srcfile,
   // Look around lineno for linenos with LRs.
   int lo_try = -1;
   int hi_try = -1;
-  for (size_t i = 1; i < 6; ++i)
+  for (size_t i = 1; i < 6; ++i) // XXX: parametrize this 6 .. maybe .nearest(6) ?
     {
       if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
         lo_try = lineno - i;
@@ -1821,8 +1821,8 @@ dwflpp::insert_alternative_linenos(char const * srcfile,
       advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
       throw SEMANTIC_ERROR (advice.str());
     }
-  clog << _F("insert a kprobe at %s:%d (no line record at %s:%d)\n",
-             srcfile, new_lineno, srcfile, lineno);
+  // clog << _F("insert a kprobe at %s:%d (no line record at %s:%d)\n",
+  // srcfile, new_lineno, srcfile, lineno);
 
   // collect lines
   lines_t matching_lines;
@@ -1840,6 +1840,9 @@ dwflpp::insert_alternative_linenos(char const * srcfile,
       if (is_new_addr)
         callback(addr, near_lineno, data);
     }
+
+  // XXX: the derivation chain of the new derived probe messes up the
+  // original statement's :LINENO, replacing instead of preserving it
 }
 
 template<> void

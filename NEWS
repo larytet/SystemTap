@@ -12,6 +12,9 @@
 
   probe kernel.function("vfs_read") { if (i <= 4) next; ... }
 
+- statement("*@file:NNN").nearest probes now available to let systemtap
+  translate probe to nearest probe-able line to one given if necessary
+
 - process("PATH").library("PATH").plt("NAME").return probes are now supported.
 
 - SystemTap now supports SDT probes with operands that refer to symbols.

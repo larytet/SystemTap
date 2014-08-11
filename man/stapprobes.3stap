@@ -352,12 +352,14 @@ module(MPATTERN).function(PATTERN).return
 module(MPATTERN).function(PATTERN).inline
 module(MPATTERN).function(PATTERN).label(LPATTERN)
 kernel.statement(PATTERN)
+kernel.statement(PATTERN).nearest
 kernel.statement(ADDRESS).absolute
 module(MPATTERN).statement(PATTERN)
 process("PATH").function("NAME")
 process("PATH").statement("*@FILE.c:123")
 process("PATH").library("PATH").function("NAME")
 process("PATH").library("PATH").statement("*@FILE.c:123")
+process("PATH").library("PATH").statement("*@FILE.c:123").nearest
 process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
 process("PATH").function("foo").callee("bar")
@@ -367,6 +369,7 @@ process(PID).function("myfun").label("foo")
 process(PID).plt("NAME")
 process(PID).plt("NAME").return
 process(PID).statement("*@FILE.c:123")
+process(PID).statement("*@FILE.c:123").nearest
 process(PID).statement(ADDRESS).absolute
 .ESAMPLE
 (See the USER-SPACE section below for more information on the process
@@ -400,6 +403,9 @@ Filters the results to include only exported functions.
 \fB.statement\fR
 Places a probe at the exact spot, exposing those local variables that
 are visible there.
+.TP
+\fB.statement.nearest\fR
+Places a probe at the nearest available spot to the given statement.
 .TP
 \fB.callee\fR
 Places a probe on the callee function given in the \fB.callee\fR
