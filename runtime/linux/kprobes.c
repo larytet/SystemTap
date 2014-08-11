@@ -18,6 +18,19 @@
 
 #include <linux/kprobes.h>
 
+#ifdef DEBUG_KPROBES
+#define dbug_stapkp(args...) do {					\
+		_stp_dbug(__FUNCTION__, __LINE__, args);		\
+	} while (0)
+#define dbug_stapkp_cond(cond, args...) do {				\
+		if (cond)						\
+			dbug_stapkp(args);				\
+	} while (0)
+#else
+#define dbug_stapkp(args...) ;
+#define dbug_stapkp_cond(cond, args...) ;
+#endif
+
 #ifndef KRETACTIVE
 #define KRETACTIVE (max(15, 6 * (int)num_possible_cpus()))
 #endif
@@ -127,6 +140,7 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp)
 
 #ifndef __ia64__
    ret = register_kprobe(kp);
+   dbug_stapkp_cond(ret == 0, "+kprobe %p\n", kp->addr);
 #else // PR6028
    ret = register_kprobe(&sdp->kprobe->dummy);
    if (ret == 0) {
@@ -134,6 +148,8 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp)
       if (ret != 0)
          unregister_kprobe(&sdp->kprobe->dummy);
    }
+   dbug_stapkp_cond(ret == 0, "+kprobe %p\n", sdp->kprobe->dummy.addr);
+   dbug_stapkp_cond(ret == 0, "+kprobe %p\n", kp->addr);
 #endif
 
    sdp->registered_p = (ret ? 0 : 1);
@@ -202,6 +218,7 @@ stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp)
 
 #ifndef __ia64__
    ret = register_kretprobe(krp);
+   dbug_stapkp_cond(ret == 0, "+kretprobe %p\n", krp->kp.addr);
 #else // PR6028
    ret = register_kprobe(&sdp->kprobe->dummy);
    if (ret == 0) {
@@ -209,6 +226,8 @@ stapkp_arch_register_kretprobe(struct stap_dwarf_probe *sdp)
       if (ret != 0)
          unregister_kprobe(&sdp->kprobe->dummy);
    }
+   dbug_stapkp_cond(ret == 0, "+kprobe %p\n", sdp->kprobe->dummy.addr);
+   dbug_stapkp_cond(ret == 0, "+kretprobe %p\n", krp->kp.addr);
 #endif
 
    sdp->registered_p = (ret ? 0 : 1);
@@ -281,13 +300,17 @@ stapkp_unregister_probe(struct stap_dwarf_probe *sdp)
    if (!sdp->registered_p)
       return;
 
-   if (sdp->return_p)
+   if (sdp->return_p) {
       unregister_kretprobe (&sdk->u.krp);
-   else
+      dbug_stapkp("-kretprobe %p\n", sdk->u.krp.kp.addr);
+   } else {
       unregister_kprobe (&sdk->u.kp);
+      dbug_stapkp("-kprobe %p\n", sdk->u.kp.addr);
+   }
 
 #if defined(__ia64__)
    unregister_kprobe (&sdk->dummy);
+   dbug_stapkp("-kprobe %p\n", sdk->dummy.addr);
 #endif
 
    sdp->registered_p = 0;
@@ -351,15 +374,18 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
    n = stapkp_collect_registered_probes(probes,
                                         nprobes, COLLECT_KPROBES);
    unregister_kprobes((struct kprobe **)stap_unreg_kprobes, n);
+   dbug_stapkp_cond(n > 0, "-kprobe * %zd\n", n);
 
    n = stapkp_collect_registered_probes(probes,
                                         nprobes, COLLECT_KRETPROBES);
    unregister_kretprobes((struct kretprobe **)stap_unreg_kprobes, n);
+   dbug_stapkp_cond(n > 0, "-kretprobe * %zd\n", n);
 
 #ifdef __ia64__
    n = stapkp_collect_registered_probes(probes,
                                         nprobes, COLLECT_DUMMYS);
    unregister_kprobes((struct kprobe **)stap_unreg_kprobes, n);
+   dbug_stapkp_cond(n > 0, "-kprobe * %zd\n", n);
 #endif
 
    // Now for all of those we just unregistered, we need to update registered_p
