@@ -86,8 +86,14 @@ static int _stp_module_notifier (struct notifier_block * nb,
                                  unsigned long val, void *data);
 static struct notifier_block _stp_module_notifier_nb = {
         .notifier_call = _stp_module_notifier,
-        .priority = 1 /* As per kernel/trace/trace_kprobe.c, 
-                         invoked after kprobe module callback. */
+        // We used to have this set to 1 before since that is also what
+        // kernel/trace/trace_kprobe.c does as well. The idea was that we should
+        // be notified _after_ the kprobe infrastruture itself is notified.
+        // However, that was the exact opposite of what was happening (we were
+        // called _before_ kprobes). In the end, we do not have a hard
+        // requirement as to being called before or after kprobes itself, so
+        // just leave the default of 0. (See also PR16861).
+        .priority = 0
 };
 
 #if STP_TRANSPORT_VERSION == 2

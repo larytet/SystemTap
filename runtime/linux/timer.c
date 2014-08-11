@@ -1,5 +1,5 @@
 /* -*- linux-c -*- 
- * Dyninst Timer Functions
+ * Kernel Timer Functions
  * Copyright (C) 2012 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -11,37 +11,7 @@
 #ifndef _LINUX_TIMER_C_
 #define _LINUX_TIMER_C_
 
-// If we're on kernels >= 2.6.17, use hrtimers.
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)
-
-static unsigned long stap_hrtimer_resolution = 0;
-
-struct stap_hrtimer_probe {
-	struct hrtimer hrtimer;
-	const struct stap_probe * const probe;
-	int64_t intrv;
-	int64_t rnd;
-};
-
-// The function signature changed in 2.6.21.
-#ifdef STAPCONF_HRTIMER_REL
-typedef int hrtimer_return_t;
-#else
-typedef enum hrtimer_restart hrtimer_return_t;
-#endif
-
-
-// autoconf: add get/set expires if missing (pre 2.6.28-rc1)
-#ifndef STAPCONF_HRTIMER_GETSET_EXPIRES
-#define hrtimer_get_expires(timer) ((timer)->expires)
-#define hrtimer_set_expires(timer, time) (void)((timer)->expires = (time))
-#endif
-
-// autoconf: adapt to HRTIMER_REL -> HRTIMER_MODE_REL renaming near 2.6.21
-#ifdef STAPCONF_HRTIMER_REL
-#define HRTIMER_MODE_REL HRTIMER_REL
-#endif
-
+#include "timer.h"
 
 static void _stp_hrtimer_init(void)
 {
@@ -89,16 +59,23 @@ static inline void _stp_hrtimer_update(struct stap_hrtimer_probe *stp)
 
 
 static int
-_stp_hrtimer_create(struct stap_hrtimer_probe *stp,
-		    hrtimer_return_t (*function)(struct hrtimer *))
+_stp_hrtimer_start(struct stap_hrtimer_probe *stp)
 {
-	hrtimer_init(&stp->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	stp->hrtimer.function = function;
 	(void)hrtimer_start(&stp->hrtimer, _stp_hrtimer_get_interval(stp),
 			    HRTIMER_MODE_REL);
 	return 0;
 }
 
+static int
+_stp_hrtimer_create(struct stap_hrtimer_probe *stp,
+		    hrtimer_return_t (*function)(struct hrtimer *))
+{
+	hrtimer_init(&stp->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	stp->hrtimer.function = function;
+	return 0;
+}
+
+// For kernel-mode, there is no difference between cancel/delete.
 
 static void
 _stp_hrtimer_cancel(struct stap_hrtimer_probe *stp)
@@ -106,10 +83,10 @@ _stp_hrtimer_cancel(struct stap_hrtimer_probe *stp)
 	hrtimer_cancel(&stp->hrtimer);
 }
 
-#else  /* kernel version < 2.6.17 */
-
-#error "not implemented"
-
-#endif  /* kernel version < 2.6.17 */
+static void
+_stp_hrtimer_delete(struct stap_hrtimer_probe *stp)
+{
+	_stp_hrtimer_cancel(stp);
+}
 
 #endif /* _LINUX_TIMER_C_ */

@@ -162,7 +162,6 @@ struct typeresolution_info: public visitor
 
 // ------------------------------------------------------------------------
 
-
 // A derived_probe is a probe that has been elaborated by
 // binding to a matching provider.  The locations std::vector
 // may be smaller or larger than the base probe, since a
@@ -176,6 +175,7 @@ struct derived_probe: public probe
   derived_probe (probe* b, probe_point* l, bool rewrite_loc=false);
   probe* base; // the original parsed probe
   probe_point* base_pp; // the probe_point that led to this derivation
+  derived_probe_group* group; // the group we belong to
   virtual ~derived_probe () {}
   virtual void join_group (systemtap_session& s) = 0;
   virtual probe_point* sole_location () const;
@@ -228,6 +228,10 @@ public:
 
   // index into session.probes[], set and used during translation
   unsigned session_index;
+
+  // List of other derived probes whose conditions may be affected by
+  // this probe.
+  std::set<derived_probe*> probes_with_affected_conditions;
 };
 
 // ------------------------------------------------------------------------
@@ -291,6 +295,20 @@ struct derived_probe_group
   // itself may be called a few times, to generate the code in a few
   // different places in the probe module.)
   // The generated code may use pre-declared "int i, j;".
+
+  // Support for on-the-fly operations is implemented in the runtime using a
+  // workqueue which calls module_refresh(). Depending on the probe type, it may
+  // not be safe to manipulate the workqueue in the context of the probe handler
+  // (otf_safe_context() = false). In this case, we rely on a background timer
+  // to schedule the work. Otherwise, if the probe context is safe
+  // (otf_safe_context() = true), we can directly schedule the work.
+
+  virtual bool otf_supported (systemtap_session& s) { return false; }
+  // Support for on-the-fly arming/disarming depends on probe type
+
+  virtual bool otf_safe_context (systemtap_session& s) { return false; }
+  // Whether this probe type occurs in a safe context. To be safe, we default to
+  // no, which means we'll rely on a background timer.
 };
 
 

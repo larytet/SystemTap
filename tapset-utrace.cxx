@@ -209,6 +209,7 @@ utrace_derived_probe::join_group (systemtap_session& s)
       s.utrace_derived_probes = new utrace_derived_probe_group ();
     }
   s.utrace_derived_probes->enroll (this);
+  this->group = s.utrace_derived_probes;
 
   if (s.runtime_usermode_p())
     enable_dynprobes(s);
@@ -876,7 +877,7 @@ utrace_derived_probe_group::emit_module_linux_decls (systemtap_session& s)
 
       // call probe function
       s.op->newline() << "(*p->probe->ph) (c);";
-      common_probe_entryfn_epilogue (s, true);
+      common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
 
       s.op->newline() << "return;";
       s.op->newline(-1) << "}";
@@ -905,7 +906,7 @@ utrace_derived_probe_group::emit_module_linux_decls (systemtap_session& s)
 
       // call probe function
       s.op->newline() << "(*p->probe->ph) (c);";
-      common_probe_entryfn_epilogue (s, true);
+      common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
 
       s.op->newline() << "if ((atomic_read (session_state()) != STAP_SESSION_STARTING) && (atomic_read (session_state()) != STAP_SESSION_RUNNING)) {";
       s.op->indent(1);
@@ -1193,7 +1194,7 @@ utrace_derived_probe_group::emit_module_dyninst_decls (systemtap_session& s)
   // XXX: the way that dyninst rewrites stuff is probably going to be
   // ...  very confusing to our backtracer (at least if we stay in process)
   s.op->newline() << "(*sup->probe->ph) (c);";
-  common_probe_entryfn_epilogue (s, true);
+  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline() << "return 0;";
   s.op->newline(-1) << "}";
   s.op->assert_0_indent();

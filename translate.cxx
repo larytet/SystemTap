@@ -103,6 +103,8 @@ struct c_unparser: public unparser, public visitor
   void emit_lock_decls (const varuse_collecting_visitor& v);
   void emit_locks ();
   void emit_probe (derived_probe* v);
+  void emit_probe_condition_initialize(derived_probe* v);
+  void emit_probe_condition_update(derived_probe* v);
   void emit_unlocks ();
 
   void emit_compiled_printfs ();
@@ -1085,6 +1087,44 @@ c_unparser::emit_common_header ()
 
   emit_compiled_printfs();
 
+  if (!session->runtime_usermode_p())
+    {
+      // Updated in probe handlers to signal that a module refresh is needed.
+      // Checked and cleared by common epilogue after scheduling refresh work.
+      o->newline( 0)  << "static atomic_t need_module_refresh = ATOMIC_INIT(0);";
+
+      // We will use a workqueue to schedule module_refresh work when we need
+      // to enable/disable probes.
+      o->newline( 0)  << "#include <linux/workqueue.h>";
+      o->newline( 0)  << "static struct work_struct module_refresher_work;";
+      o->newline( 0)  << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+      o->newline( 0)  << "static void module_refresher(void *data) {";
+      o->newline( 0)  << "#else";
+      o->newline( 0)  << "static void module_refresher(struct work_struct *work) {";
+      o->newline( 0)  << "#endif";
+      o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
+      o->newline(-1)  << "}";
+
+      o->newline( 0)  << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+      o->newline( 0)  << "#include <linux/hrtimer.h>";
+      o->newline( 0)  << "#include \"timer.h\"";
+      o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
+
+      o->newline( 0)  << "#ifndef STP_ON_THE_FLY_INTERVAL";
+      o->newline( 0)  << "#define STP_ON_THE_FLY_INTERVAL (100*1000*1000)"; // default to 100 ms
+      o->newline( 0)  << "#endif";
+
+      o->newline( 0)  << "hrtimer_return_t module_refresh_timer_cb(struct hrtimer *timer) {";
+      o->newline(+1)  <<   "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1)";
+      o->newline(+1)  <<     "schedule_work(&module_refresher_work);";
+      o->newline(-1)  <<   "hrtimer_set_expires(timer,";
+      o->newline( 0)  <<   "  ktime_add(hrtimer_get_expires(timer),";
+      o->newline( 0)  <<   "            ktime_set(0, STP_ON_THE_FLY_INTERVAL))); ";
+      o->newline( 0)  <<   "return HRTIMER_RESTART;";
+      o->newline(-1)  << "}";
+      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_ENABLE */";
+    }
+
   o->newline();
 }
 
@@ -1821,6 +1861,20 @@ c_unparser::emit_module_init ()
       o->newline() << "if (rc) goto out;";
     }
 
+  if (!session->runtime_usermode_p())
+    {
+      // Initialize workqueue needed for on-the-fly arming/disarming
+      o->newline() << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+      o->newline() << "INIT_WORK(&module_refresher_work, module_refresher, NULL);";
+      o->newline() << "#else";
+      o->newline() << "INIT_WORK(&module_refresher_work, module_refresher);";
+      o->newline() << "#endif";
+    }
+
+  // Initialize probe conditions
+  for (unsigned i=0; i<session->probes.size(); i++)
+    emit_probe_condition_initialize(session->probes[i]);
+
   // Run all probe registrations.  This actually runs begin probes.
 
   for (unsigned i=0; i<g.size(); i++)
@@ -1848,13 +1902,63 @@ c_unparser::emit_module_init ()
   o->newline() << "if (atomic_read (session_state()) == STAP_SESSION_STARTING)";
   // NB: only other valid state value is ERROR, in which case we don't
   o->newline(1) << "atomic_set (session_state(), STAP_SESSION_RUNNING);";
+  o->newline(-1);
 
   // Run all post-session starting code.
   for (unsigned i=0; i<g.size(); i++)
     {
       g[i]->emit_module_post_init (*session);
     }
-  o->newline(-1) << "return 0;";
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+
+      // Initialize hrtimer needed for on-the-fly arming/disarming
+      o->newline() << "hrtimer_init(&module_refresh_timer, CLOCK_MONOTONIC,";
+      o->newline() << "             HRTIMER_MODE_REL);";
+      o->newline() << "module_refresh_timer.function = &module_refresh_timer_cb;";
+
+      // We check here if it's worth it to start the timer at all. We only need
+      // the background timer if there is a probe which doesn't support directy
+      // scheduling work (otf_safe_context() == false), but yet does affect the
+      // condition of at least one probe which supports on-the-fly operations.
+      {
+        // for each derived probe...
+        bool start_timer = false;
+        for (unsigned i=0; i<session->probes.size() && !start_timer; i++)
+          {
+            // if it isn't safe in this probe type to directly schedule work,
+            // and this probe could affect other probes...
+            if (session->probes[i]->group
+                && !session->probes[i]->group->otf_safe_context(*session)
+                && !session->probes[i]->probes_with_affected_conditions.empty())
+              {
+                // and if any of those possible probes support on-the-fly operations,
+                // then we'll need the timer
+                for (set<derived_probe*>::const_iterator
+                      it  = session->probes[i]->probes_with_affected_conditions.begin();
+                      it != session->probes[i]->probes_with_affected_conditions.end()
+                            && !start_timer; ++it)
+                  {
+                    if ((*it)->group->otf_supported(*session))
+                      start_timer = true;
+                  }
+              }
+          }
+
+        if (start_timer)
+          {
+            o->newline() << "hrtimer_start(&module_refresh_timer,";
+            o->newline() << "              ktime_set(0, STP_ON_THE_FLY_INTERVAL),";
+            o->newline() << "              HRTIMER_MODE_REL);";
+          }
+      }
+
+      o->newline() << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
+    }
+
+  o->newline() << "return 0;";
 
   // Error handling path; by now all partially registered probe groups
   // have been unregistered.
@@ -1897,17 +2001,35 @@ c_unparser::emit_module_init ()
 void
 c_unparser::emit_module_refresh ()
 {
-  o->newline() << "static void systemtap_module_refresh (void) {";
-  o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
+  o->newline() << "static void systemtap_module_refresh (const char *modname) {";
+  o->newline(1) << "int state;";
+  o->newline() << "int i=0, j=0;"; // for derived_probe_group use
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#if defined(STP_TIMING)";
+      o->newline() << "cycles_t cycles_atstart = get_cycles();";
+      o->newline() << "#endif";
+    }
+
+  // Ensure we're only doing the refreshing one at a time. NB: it's important
+  // that we get the lock prior to checking the session_state, in case whoever
+  // is holding the lock (e.g. systemtap_module_exit()) changes it.
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_lock(&module_refresh_mutex);";
 
   /* If we're not in STARTING/RUNNING state, don't try doing any work.
      PR16766 */
-  o->newline() << "int state = atomic_read (session_state());";
+  o->newline() << "state = atomic_read (session_state());";
   o->newline() << "if (state != STAP_SESSION_RUNNING && state != STAP_SESSION_STARTING && state != STAP_SESSION_ERROR) {";
   // cannot _stp_warn etc. since we're not in probe context
   o->newline(1) << "#if defined(__KERNEL__)";
-  o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\", state);";
+  o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\\n\", state);";
   o->newline() << "#endif";
+
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
+
   o->newline() << "return;";
   o->newline(-1) << "}";
 
@@ -1919,6 +2041,25 @@ c_unparser::emit_module_refresh ()
     {
       g[i]->emit_module_refresh (*session);
     }
+
+  if (!session->runtime_usermode_p())
+    {
+      // see also common_probe_entryfn_epilogue()
+      o->newline() << "#if defined(STP_TIMING)";
+      o->newline() << "if (likely(g_refresh_timing)) {";
+      o->newline(1) << "cycles_t cycles_atend = get_cycles ();";
+      o->newline() << "int32_t cycles_elapsed = ((int32_t)cycles_atend > (int32_t)cycles_atstart)";
+      o->newline(1) << "? ((int32_t)cycles_atend - (int32_t)cycles_atstart)";
+      o->newline() << ": (~(int32_t)0) - (int32_t)cycles_atstart + (int32_t)cycles_atend + 1;";
+      o->indent(-1);
+      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed);";
+      o->newline(-1) << "}";
+      o->newline() << "#endif";
+    }
+
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
+
   o->newline(-1) << "}\n";
 }
 
@@ -1946,6 +2087,17 @@ c_unparser::emit_module_exit ()
   // while to abort right away.  Currently running probes are allowed to
   // terminate.  These may set STAP_SESSION_ERROR!
 
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+      o->newline() << "hrtimer_cancel(&module_refresh_timer);";
+      o->newline() << "#endif";
+    }
+
+  // Get the lock before exiting to ensure there's no one in module_refresh
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_lock(&module_refresh_mutex);";
+
   // We're processing the derived_probe_group list in reverse
   // order.  This ensures that probes get unregistered in reverse
   // order of the way they were registered.
@@ -1953,6 +2105,9 @@ c_unparser::emit_module_exit ()
   for (vector<derived_probe_group*>::reverse_iterator i = g.rbegin();
        i != g.rend(); i++)
     (*i)->emit_module_exit (*session); // NB: runs "end" probes
+
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
 
   // But some other probes may have launched too during unregistration.
   // Let's wait a while to make sure they're all done, done, done.
@@ -2037,6 +2192,24 @@ c_unparser::emit_module_exit ()
   o->newline(-1) << "}";
   o->newline() << "#endif"; // STP_TIMING
   o->newline(-1) << "}";
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#if defined(STP_TIMING)";
+      o->newline() << "_stp_printf(\"----- refresh report:\\n\");";
+      o->newline() << "if (likely (g_refresh_timing)) {";
+      o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
+      o->newline() << "if (stats->count) {";
+      o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
+      o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
+      o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
+      o->newline() <<  "(long long) avg, (long long) stats->max);";
+      o->newline(-3) << "}";
+      o->newline() << "_stp_stat_del (g_refresh_timing);";
+      o->newline(-1) << "}";
+      o->newline() << "#endif"; // STP_TIMING
+    }
+
   o->newline() << "_stp_print_flush();";
   o->newline() << "#endif";
 
@@ -2354,6 +2527,22 @@ c_unparser::emit_probe (derived_probe* v)
         {
           varuse_collecting_visitor vut(*session);
           v->body->visit (& vut);
+
+          // also visit any probe conditions which this current probe might
+          // evaluate so that read locks are emitted as necessary: e.g. suppose
+          //    probe X if (a || b) {...} probe Y {a = ...} probe Z {b = ...}
+          // then Y and Z will already write-lock a and b respectively, but they
+          // also need a read-lock on b and a respectively, since they will read
+          // them when evaluating the new cond_enabled field (see c_unparser::
+          // emit_probe_condition_update()).
+          for (set<derived_probe*>::const_iterator
+                it  = v->probes_with_affected_conditions.begin();
+                it != v->probes_with_affected_conditions.end(); ++it)
+            {
+              assert((*it)->sole_location()->condition != NULL);
+              (*it)->sole_location()->condition->visit (& vut);
+            }
+
           emit_lock_decls (vut);
         }
 
@@ -2419,6 +2608,15 @@ c_unparser::emit_probe (derived_probe* v)
       // someday be local
 
       o->indent(1);
+
+      if (!v->probes_with_affected_conditions.empty())
+        {
+          for (set<derived_probe*>::const_iterator
+                it  = v->probes_with_affected_conditions.begin();
+                it != v->probes_with_affected_conditions.end(); ++it)
+            emit_probe_condition_update(*it);
+        }
+
       if (v->needs_global_locks ())
 	emit_unlocks ();
 
@@ -2433,6 +2631,58 @@ c_unparser::emit_probe (derived_probe* v)
   this->already_checked_action_count = false;
 }
 
+// Initializes the cond_enabled field by evaluating condition predicate.
+void
+c_unparser::emit_probe_condition_initialize(derived_probe* v)
+{
+  unsigned i = v->session_index;
+  assert(i < session->probes.size());
+
+  expression *cond = v->sole_location()->condition;
+  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
+
+  o->newline() << cond_enabled << " = ";
+  if (!cond) // no condition --> always enabled
+    o->line() << "1";
+  else
+    {
+      o->line() << "!!"; // turn general integer into boolean 0/1
+      cond->visit(this);
+    }
+  o->line() << ";";
+}
+
+// Updates the cond_enabled field and sets need_module_refresh if it was
+// changed.
+void
+c_unparser::emit_probe_condition_update(derived_probe* v)
+{
+  unsigned i = v->session_index;
+  assert(i < session->probes.size());
+
+  expression *cond = v->sole_location()->condition;
+  assert(cond);
+
+  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
+
+  // Concurrency note: we're safe modifying cond_enabled here since we emit
+  // locks not only for globals we write to, but also for globals read in other
+  // probes' whose conditions we visit below (see in c_unparser::emit_probe). So
+  // we can be assured we're the only ones modifying cond_enabled.
+
+  o->newline() << "if (" << cond_enabled << " != ";
+  o->line() << "!!"; // NB: turn general integer into boolean 1 or 0
+  v->sole_location()->condition->visit(this);
+  o->line() << ") {";
+  o->newline(1) << cond_enabled << " ^= 1;"; // toggle it 
+
+  // don't bother refreshing if on-the-fly not supported
+  if (!session->runtime_usermode_p()
+      && v->group && v->group->otf_supported(*session))
+    o->newline() << "atomic_set(&need_module_refresh, 1);";
+
+  o->newline(-1) << "}";
+}
 
 void
 c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
@@ -2440,7 +2690,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   unsigned numvars = 0;
 
   if (session->verbose > 1)
-    clog << "probe " << *current_probe->sole_location() << " locks ";
+    clog << "probe " << current_probe->session_index << " "
+            "('" << *current_probe->sole_location() << "') locks";
 
   // We can only make this static in kernel mode.  In stapdyn mode,
   // the globals and their locks are in shared memory.
@@ -2491,8 +2742,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
 
       numvars ++;
       if (session->verbose > 1)
-        clog << v->name << "[" << (read_p ? "r" : "")
-             << (write_p ? "w" : "")  << "] ";
+        clog << " " << v->name << "[" << (read_p ? "r" : "")
+             << (write_p ? "w" : "")  << "]";
     }
 
   o->newline(-1) << "};";
@@ -2500,7 +2751,7 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   if (session->verbose > 1)
     {
       if (!numvars)
-        clog << _("nothing");
+        clog << _(" nothing");
       clog << endl;
     }
 }
@@ -6947,6 +7198,27 @@ translate_pass (systemtap_session& s)
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
 
+      // Emit systemtap_module_refresh() prototype so we can reference it
+      s.op->newline() << "static void systemtap_module_refresh (const char* modname);";
+
+      if (!s.runtime_usermode_p())
+        {
+          // When on-the-fly [dis]arming is used, module_refresh can be called from
+          // both the module notifier, as well as when probes need to be
+          // armed/disarmed. We need to protect it to ensure it's only run one at a
+          // time.
+          s.op->newline() << "#include <linux/mutex.h>";
+          s.op->newline() << "static DEFINE_MUTEX(module_refresh_mutex);";
+
+          // For some probes, on-the-fly support is provided through a
+          // background timer (module_refresh_timer). We need to disable that
+          // part if hrtimers are not supported.
+          s.op->newline() << "#include <linux/version.h>";
+          s.op->newline() << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)";
+          s.op->newline() << "#define STP_ON_THE_FLY_TIMER_ENABLE";
+          s.op->newline() << "#endif";
+        }
+
       s.op->newline() << "#include \"runtime.h\"";
 
       // Emit embeds ahead of time, in case they affect context layout
@@ -7004,6 +7276,7 @@ translate_pass (systemtap_session& s)
 	s.op->newline() << "struct stp_globals {};";
 
       // Common (static atomic) state of the stap session.
+      s.op->newline();
       s.op->newline() << "#include \"common_session_state.h\"";
 
       s.op->newline() << "#include \"probe_lock.h\" ";
@@ -7041,24 +7314,6 @@ translate_pass (systemtap_session& s)
 	  s.op->newline();
 	  s.up->emit_function (it->second);
 	}
-      s.op->assert_0_indent();
-
-      // Run a varuse_collecting_visitor over probes that need global
-      // variable locks.  We'll use this information later in
-      // emit_locks()/emit_unlocks().
-      for (unsigned i=0; i<s.probes.size(); i++)
-	{
-        assert_no_interrupts();
-        if (s.probes[i]->needs_global_locks())
-	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
-	}
-      s.op->assert_0_indent();
-
-      for (unsigned i=0; i<s.probes.size(); i++)
-        {
-          assert_no_interrupts();
-          s.up->emit_probe (s.probes[i]);
-        }
       s.op->assert_0_indent();
 
       // Let's find some stats for the embedded pp strings.  Maybe they
@@ -7099,9 +7354,11 @@ translate_pass (systemtap_session& s)
             clog << "*" << endl;                                                \
         }
 
+      s.op->newline();
       s.op->newline() << "struct stap_probe {";
-      s.op->newline(1) << "size_t index;";
+      s.op->newline(1) << "const size_t index;";
       s.op->newline() << "void (* const ph) (struct context*);";
+      s.op->newline() << "unsigned cond_enabled:1;"; // just one bit required
       s.op->newline() << "#if defined(STP_TIMING) || defined(STP_ALIBI)";
       CALCIT(location);
       CALCIT(derivation);
@@ -7122,12 +7379,34 @@ translate_pass (systemtap_session& s)
                       << "STAP_PROBE_INIT_NAME(PN) "
                       << "STAP_PROBE_INIT_TIMING(L, D) "
                       << "}";
-      s.op->newline(-1) << "} static const stap_probes[] = {";
+      s.op->newline(-1) << "} static stap_probes[];";
+      s.op->assert_0_indent();
+#undef CALCIT
+
+      // Run a varuse_collecting_visitor over probes that need global
+      // variable locks.  We'll use this information later in
+      // emit_locks()/emit_unlocks().
+      for (unsigned i=0; i<s.probes.size(); i++)
+	{
+        assert_no_interrupts();
+        s.probes[i]->session_index = i;
+        if (s.probes[i]->needs_global_locks())
+	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
+	}
+      s.op->assert_0_indent();
+
+      for (unsigned i=0; i<s.probes.size(); i++)
+        {
+          assert_no_interrupts();
+          s.up->emit_probe (s.probes[i]);
+        }
+      s.op->assert_0_indent();
+
+      s.op->newline() << "static struct stap_probe stap_probes[] = {";
       s.op->indent(1);
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
           derived_probe* p = s.probes[i];
-          p->session_index = i;
           s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name << ", "
                           << lex_cast_qstring (*p->sole_location()) << ", "
                           << lex_cast_qstring (*p->script_location()) << ", "
@@ -7135,8 +7414,6 @@ translate_pass (systemtap_session& s)
                           << lex_cast_qstring (p->derived_locations()) << "),";
         }
       s.op->newline(-1) << "};";
-      s.op->assert_0_indent();
-#undef CALCIT
 
       if (s.runtime_usermode_p())
         {
@@ -7148,6 +7425,7 @@ translate_pass (systemtap_session& s)
           s.op->assert_0_indent();
         }
 
+      s.op->assert_0_indent();
       s.op->newline();
       s.up->emit_module_init ();
       s.op->assert_0_indent();

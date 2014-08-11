@@ -401,6 +401,7 @@ mark_derived_probe::join_group (systemtap_session& s)
       s.embeds.push_back(ec);
     }
   s.mark_derived_probes->enroll (this);
+  this->group = s.mark_derived_probes;
 }
 
 
@@ -516,7 +517,7 @@ mark_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "(*smp->probe->ph) (c);";
   s.op->newline() << "c->ips.kmark.mark_va_list = NULL;";
 
-  common_probe_entryfn_epilogue (s, true);
+  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline(-1) << "}";
 
   return;

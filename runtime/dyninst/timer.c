@@ -35,20 +35,8 @@ static void _stp_hrtimer_init(void)
 
 
 static int
-_stp_hrtimer_create(struct stap_hrtimer_probe *shp, void (*function)(sigval_t))
+_stp_hrtimer_start(struct stap_hrtimer_probe *shp)
 {
-	int rc;
-
-	/* Create the timer. */
-	shp->sigev.sigev_notify = SIGEV_THREAD;
-	shp->sigev.sigev_value.sival_ptr = shp;
-	shp->sigev.sigev_notify_function = function;
-	shp->sigev.sigev_notify_attributes = NULL;
-	rc = timer_create(CLOCK_MONOTONIC, &shp->sigev, &shp->timer_id);
-	if (rc) {
-		return rc;
-	}
-
 	/* Specify a timer with the correct initial value (possibly
 	 * randomized a bit).
 	 *
@@ -72,8 +60,21 @@ _stp_hrtimer_create(struct stap_hrtimer_probe *shp, void (*function)(sigval_t))
 		shp->its.it_value.tv_sec = i / NSEC_PER_SEC;
 		shp->its.it_value.tv_nsec = i % NSEC_PER_SEC;
 	}
-	rc = timer_settime(shp->timer_id, 0, &shp->its, NULL);
-	return rc;
+	return timer_settime(shp->timer_id, 0, &shp->its, NULL);
+}
+
+
+static int
+_stp_hrtimer_create(struct stap_hrtimer_probe *shp, void (*function)(sigval_t))
+{
+	int rc;
+
+	/* Create the timer. */
+	shp->sigev.sigev_notify = SIGEV_THREAD;
+	shp->sigev.sigev_value.sival_ptr = shp;
+	shp->sigev.sigev_notify_function = function;
+	shp->sigev.sigev_notify_attributes = NULL;
+	return timer_create(CLOCK_MONOTONIC, &shp->sigev, &shp->timer_id);
 }
 
 
@@ -98,6 +99,13 @@ static void _stp_hrtimer_update(struct stap_hrtimer_probe *shp)
 
 
 static void _stp_hrtimer_cancel(struct stap_hrtimer_probe *shp)
+{
+	shp->its.it_value.tv_sec = 0;
+	shp->its.it_value.tv_nsec = 0;
+	timer_settime(shp->timer_id, 0, &shp->its, NULL);
+}
+
+static void _stp_hrtimer_delete(struct stap_hrtimer_probe *shp)
 {
 	(void) timer_delete(shp->timer_id);
 }

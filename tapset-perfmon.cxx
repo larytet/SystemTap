@@ -94,6 +94,7 @@ perf_derived_probe::join_group (systemtap_session& s)
   if (! s.perf_derived_probes)
     s.perf_derived_probes = new perf_derived_probe_group ();
   s.perf_derived_probes->enroll (this);
+  this->group = s.perf_derived_probes;
 
   if (has_process && !has_counter)
     enable_task_finder(s);
@@ -228,7 +229,7 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(-1) << "}";
 
   s.op->newline() << "(*stp->probe->ph) (c);";
-  common_probe_entryfn_epilogue (s, true);
+  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline(-1) << "}";
   s.op->newline();
   if (have_a_process_tag)
