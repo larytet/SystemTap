@@ -5290,15 +5290,6 @@ c_unparser::visit_functioncall (functioncall* e)
   o->newline() << c_funcname (r->name) << " (c);";
   o->newline() << "if (unlikely(c->last_error)) goto out;";
 
-  // return result from retvalue slot
-  if (r->type == pe_unknown)
-    // If we passed typechecking, then nothing will use this return value
-    o->newline() << "(void) 0;";
-  else
-    o->newline() << "c->locals[c->nesting+1]"
-                 << "." << c_funcname (r->name)
-                 << ".__retvalue;";
-
   if (!already_checked_action_count && !session->suppress_time_limits
       && !session->unoptimized)
     {
@@ -5310,6 +5301,17 @@ c_unparser::visit_functioncall (functioncall* e)
       if(mai.statement_count_finite())
         record_actions (mai.statement_count, e->tok, true);
     }
+
+  // return result from retvalue slot NB: this must be last, for the
+  // enclosing statement-expression ({ ... }) to carry this value.
+  if (r->type == pe_unknown)
+    // If we passed typechecking, then nothing will use this return value
+    o->newline() << "(void) 0;";
+  else
+    o->newline() << "c->locals[c->nesting+1]"
+                 << "." << c_funcname (r->name)
+                 << ".__retvalue;";
+
 }
 
 
