@@ -35,4 +35,4 @@ static void _stp_runtime_module_exit(void)
 #endif
 }
 
-#endif _LINUX_MODULE_H_
+#endif /* _LINUX_MODULE_H_ */
