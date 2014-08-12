@@ -108,40 +108,43 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 #else  /* STP_TRANSPORT_VERSION != 1 */
 	{
 		unsigned long flags;
+		struct context* __restrict__ c = NULL;
 		char *bufp = pb->buf;
-                int locked_p;
+
+		/* Prevent probe reentrancy on _stp_print_lock.
+		 *
+		 * Since stp_print_flush may be called from probe context, we
+		 * have to make sure that its lock, _stp_print_lock, can't
+		 * possibly be held outside probe context too.  We ensure this
+		 * by grabbing the context here, so any probe triggered by this
+		 * region will appear reentrant and be skipped rather than
+		 * deadlock.  Failure to get_context just means we're already
+		 * in a probe, which is fine.
+		 *
+		 * (see also _stp_ctl_send for a similar situation)
+		 */
+		c = _stp_runtime_entryfn_get_context();
 
 		dbug_trans(1, "calling _stp_data_write...\n");
+		spin_lock_irqsave(&_stp_print_lock, flags);
+		while (len > 0) {
+			size_t bytes_reserved;
 
-                // A spin_lock_irqsave at this point can trigger
-                // nesting if for example lockdep is enabled and
-                // lock-related tracepoints are activated.  Better to
-                // try quickly once (XXX or a few times) than to die.
-                // XXX: this is a highly contended lock
-		locked_p = spin_trylock_irqsave(&_stp_print_lock, flags);
-                if (locked_p) {
-                        while (len > 0) {
-                                size_t bytes_reserved;
-                                
-                                bytes_reserved = _stp_data_write_reserve(len, &entry);
-                                if (likely(entry && bytes_reserved > 0)) {
-                                        memcpy(_stp_data_entry_data(entry), bufp,
-                                               bytes_reserved);
-                                        _stp_data_write_commit(entry);
-                                        bufp += bytes_reserved;
-                                        len -= bytes_reserved;
-                                }
-                                else {
-                                        atomic_inc(&_stp_transport_failures);
-                                        break;
-                                }
-                        }
-                        spin_unlock_irqrestore(&_stp_print_lock, flags);
-                }
-                else {
-                        atomic_inc(&_stp_transport_failures);
-                }
-
+			bytes_reserved = _stp_data_write_reserve(len, &entry);
+			if (likely(entry && bytes_reserved > 0)) {
+				memcpy(_stp_data_entry_data(entry), bufp,
+				       bytes_reserved);
+				_stp_data_write_commit(entry);
+				bufp += bytes_reserved;
+				len -= bytes_reserved;
+			}
+			else {
+			    atomic_inc(&_stp_transport_failures);
+			    break;
+			}
+		}
+		spin_unlock_irqrestore(&_stp_print_lock, flags);
+		_stp_runtime_entryfn_put_context(c);
 	}
 #endif /* STP_TRANSPORT_VERSION != 1 */
 #endif /* !STP_BULKMODE */
