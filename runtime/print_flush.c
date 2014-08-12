@@ -109,26 +109,39 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 	{
 		unsigned long flags;
 		char *bufp = pb->buf;
+                int locked_p;
 
 		dbug_trans(1, "calling _stp_data_write...\n");
-		spin_lock_irqsave(&_stp_print_lock, flags);
-		while (len > 0) {
-			size_t bytes_reserved;
 
-			bytes_reserved = _stp_data_write_reserve(len, &entry);
-			if (likely(entry && bytes_reserved > 0)) {
-				memcpy(_stp_data_entry_data(entry), bufp,
-				       bytes_reserved);
-				_stp_data_write_commit(entry);
-				bufp += bytes_reserved;
-				len -= bytes_reserved;
-			}
-			else {
-			    atomic_inc(&_stp_transport_failures);
-			    break;
-			}
-		}
-		spin_unlock_irqrestore(&_stp_print_lock, flags);
+                // A spin_lock_irqsave at this point can trigger
+                // nesting if for example lockdep is enabled and
+                // lock-related tracepoints are activated.  Better to
+                // try quickly once (XXX or a few times) than to die.
+                // XXX: this is a highly contended lock
+		locked_p = spin_trylock_irqsave(&_stp_print_lock, flags);
+                if (locked_p) {
+                        while (len > 0) {
+                                size_t bytes_reserved;
+                                
+                                bytes_reserved = _stp_data_write_reserve(len, &entry);
+                                if (likely(entry && bytes_reserved > 0)) {
+                                        memcpy(_stp_data_entry_data(entry), bufp,
+                                               bytes_reserved);
+                                        _stp_data_write_commit(entry);
+                                        bufp += bytes_reserved;
+                                        len -= bytes_reserved;
+                                }
+                                else {
+                                        atomic_inc(&_stp_transport_failures);
+                                        break;
+                                }
+                        }
+                        spin_unlock_irqrestore(&_stp_print_lock, flags);
+                }
+                else {
+                        atomic_inc(&_stp_transport_failures);
+                }
+
 	}
 #endif /* STP_TRANSPORT_VERSION != 1 */
 #endif /* !STP_BULKMODE */
