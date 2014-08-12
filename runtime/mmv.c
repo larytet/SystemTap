@@ -76,12 +76,14 @@ static void __stp_mmv_data_reset(void)
 {
 	_stp_mmv_data.size = 0;
 	memset(_stp_mmv_data.offset, 0, sizeof(_stp_mmv_data.offset));
-	_stp_mmv_data.offset[_STP_MMV_DISK_HEADER] = _stp_mmv_data.size;
 	memset(_stp_mmv_data.ptr, 0, sizeof(_stp_mmv_data.ptr));
+	memset(_stp_mmv_data.nitems, 0, sizeof(_stp_mmv_data.nitems));
+
+	// Add header.
+	_stp_mmv_data.offset[_STP_MMV_DISK_HEADER] = _stp_mmv_data.size;
 	_stp_mmv_data.ptr[_STP_MMV_DISK_HEADER] = _stp_mmv_data.data
 		+ _stp_mmv_data.size;
 	_stp_mmv_data.size += sizeof(mmv_disk_header_t);
-	memset(_stp_mmv_data.nitems, 0, sizeof(_stp_mmv_data.nitems));
 
 	// TOC (Table Of Contents) section. Always assume the max.
 	_stp_mmv_data.offset[_STP_MMV_DISK_TOC] = _stp_mmv_data.size;

@@ -1582,6 +1582,11 @@ c_unparser::emit_kernel_module_init ()
   if (session->runtime_usermode_p())
     return;
 
+  // This file gets included here so that tapsets can set #defines
+  // that will cause extra initialization code to be run.
+  o->newline();
+  o->newline() << "#include \"linux/module.c\"";
+
   o->newline();
   o->newline() << "static int systemtap_kernel_module_init (void) {";
   o->newline(1) << "int rc = 0;";
