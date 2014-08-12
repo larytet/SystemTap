@@ -122,6 +122,10 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 		 * in a probe, which is fine.
 		 *
 		 * (see also _stp_ctl_send for a similar situation)
+                 *
+                 * A better solution would be to replace this
+                 * concurrency-control-laden effort with a lockless
+                 * algorithm.
 		 */
 		c = _stp_runtime_entryfn_get_context();
 
