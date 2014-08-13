@@ -26,15 +26,14 @@ function poly (val) %{ /* unprivileged */
   int i;
   int root = 1;
   int j = STAP_ARG_val;
-  for (i = 0; ;i++)
-    {
-      if (root > j)
+  if (j < 0)
+     j = -j;
+  for (root = 1; root < __LONG_MAX__; root *= 10)
+     if (root > j)
 	{
-	  STAP_RETVALUE = ("%d\n", (root/10) * (j / (root/10)));
-	  STAP_RETURN(STAP_RETVALUE);
+	  STAP_RETURN ((root/10) * (j / (root/10)))
 	}
-      root = root * 10;
-    }
+  STAP_RETURN(0);
   %}
 
 probe process("/usr/bin/cat").function("main")
