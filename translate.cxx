@@ -2641,14 +2641,13 @@ c_unparser::emit_probe_condition_initialize(derived_probe* v)
   expression *cond = v->sole_location()->condition;
   string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
 
-  o->newline() << cond_enabled << " = ";
-  if (!cond) // no condition --> always enabled
-    o->line() << "1";
-  else
-    {
-      o->line() << "!!"; // turn general integer into boolean 0/1
-      cond->visit(this);
-    }
+  // no condition --> always enabled (initialized via STAP_PROBE_INIT)
+  if (!cond)
+    return;
+
+  // turn general integer into boolean 0/1
+  o->newline() << cond_enabled << " = !!";
+  cond->visit(this);
   o->line() << ";";
 }
 
@@ -7377,7 +7376,7 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#define STAP_PROBE_INIT_NAME(PN)";
       s.op->newline() << "#endif";
       s.op->newline() << "#define STAP_PROBE_INIT(I, PH, PP, PN, L, D) "
-                      << "{ .index=(I), .ph=(PH), .pp=(PP), "
+                      << "{ .index=(I), .ph=(PH), .cond_enabled=1, .pp=(PP), "
                       << "STAP_PROBE_INIT_NAME(PN) "
                       << "STAP_PROBE_INIT_TIMING(L, D) "
                       << "}";
