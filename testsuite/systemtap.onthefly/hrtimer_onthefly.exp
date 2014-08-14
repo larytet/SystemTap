@@ -97,14 +97,17 @@ proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
          {timer.profile, kernel.trace(\"*\")} \
          TIMER 1500" $script]
    } elseif {[string match $TIMER "max"]} {
-      set script [string map "timer.us(TIMER5) \
-         {begin, end, error, kernel.function(\"*@workqueue.c\"), \
-          process.begin, process.end, kernel.trace(\"*\"), \
-          process(\"echo\").function(\"*\"), \
+      set max_pps "begin, end, error, kernel.function(\"*@workqueue.c\"), \
+                   process.begin, process.end, kernel.trace(\"*\")"
+      if {[uprobes_p]} {
+         set max_pps "$max_pps, process(\"echo\").function(\"*\")"
+      }
+      set max_pps "$max_pps, \
           netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
           netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
-          perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?} \
-         TIMER 1500" $script]
+          perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?"
+      set script [string map "timer.us(TIMER5) {$max_pps} \
+                              TIMER 1500" $script]
    } else {
       set script [string map "TIMER5 [expr $TIMER * 5] \
                               TIMER $TIMER" $script]

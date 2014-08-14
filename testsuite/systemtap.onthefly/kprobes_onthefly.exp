@@ -130,13 +130,16 @@ proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
       set script [string map "timer.us(TIMER) \
          {timer.profile, kernel.trace(\"*\")}" $script]
    } elseif {[string match $TIMER "max"]} {
-      set script [string map "timer.us(TIMER) \
-         {begin, end, error, kernel.function(\"*@workqueue.c\"), \
-          process.begin, process.end, kernel.trace(\"*\"), \
-          process(\"echo\").function(\"*\"), \
+      set max_pps "begin, end, error, kernel.function(\"*@workqueue.c\"), \
+                   process.begin, process.end, kernel.trace(\"*\")"
+      if {[uprobes_p]} {
+         set max_pps "$max_pps, process(\"echo\").function(\"*\")"
+      }
+      set max_pps "$max_pps, \
           netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
           netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
-          perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?}" $script]
+          perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?"
+      set script [string map "timer.us(TIMER) {$max_pps}" $script]
    } else {
       set script [string map "TIMER $TIMER" $script]
    }
