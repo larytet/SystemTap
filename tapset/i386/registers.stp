@@ -23,7 +23,7 @@ function test_x86_gs:long() %{ /* pure */
 #endif
 %}
 
-function _stp_register_regs() {
+probe init {
 
 	/* Same order as pt_regs */
 	_offset = 0

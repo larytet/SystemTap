@@ -2,7 +2,7 @@
 
 global _reg_offsets[44]
 
-function _stp_register_regs() {
+probe init {
 	/* Same order as pt_regs */
 	_reg_offsets["r0"] = 0
 	_reg_offsets["r1"] = 8
