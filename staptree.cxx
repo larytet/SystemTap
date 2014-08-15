@@ -1167,6 +1167,16 @@ void foreach_loop::print (ostream& o) const
     }
   o << "] in ";
   base->print (o);
+  if (!array_slice.empty())
+    {
+      o << "[";
+      for (unsigned i=0; i<array_slice.size(); i++)
+        {
+          if (i > 0) o << ", ";
+          array_slice[i]->print (o);
+        }
+      o << "]";
+    }
   if (sort_direction != 0 && sort_column == 0)
     {
       switch (sort_aggr)

@@ -2862,6 +2862,7 @@ parser::parse_foreach_loop ()
               t = next();
               symbol* sym = new symbol;
               sym->tok = t;
+              sym->name = t->content;
               expr = sym;
             }
           else
