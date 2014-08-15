@@ -3,5 +3,6 @@
 // Tests if all probes in the tcp tapset are resolvable.
 
 probe tcp.*,
-      tcp.*.*,
-      tcp.*.*.* {}
+      tcp.*.return,
+      tcp.ip*.*,
+      tcp.ip*.*.return {}
