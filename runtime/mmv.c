@@ -526,7 +526,8 @@ __stp_mmv_add_metric(char *name, uint32_t item, mmv_metric_type_t type,
 		for (i = 0; i < indom_count; i++) {
 			value[i + value_idx].metric = (_stp_mmv_data.offset[_STP_MMV_DISK_METRICS]
 						       + metric_offset);
-			value[i + value_idx].instance = indom->offset;
+			value[i + value_idx].instance = indom->offset
+				+ (i * sizeof(mmv_disk_instance_t));
 			if (type == MMV_TYPE_STRING)
 				value[i + value_idx].extra = (_stp_mmv_data.offset[_STP_MMV_DISK_STRINGS]
 					+ (i + starting_string_idx * sizeof(mmv_disk_string_t)));
