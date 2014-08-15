@@ -69,6 +69,11 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 	    # Increase this to 8K worth of data.
 	    exp_match_max 8192
 
+	    # Avoid PR17274 to propagate
+	    set origexpinternal 1
+	    if {"[exp_internal -info]" == "0"} {set origexpinternal 0}
+	    exp_internal 0
+
 	    expect {
 		-timeout 20
 		-re $warning_regexp {
@@ -93,6 +98,7 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
                 }
 		eof { fail "$TEST_NAME shutdown (eof)" }
 	    }
+	    exp_internal $origexpinternal
 	}
 	-re "semantic error:" { fail "$TEST_NAME compilation" }
 	timeout { 
