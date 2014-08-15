@@ -3409,6 +3409,17 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
     {
       itervar iv = parent->getiter (array);
       parent->o->newline() << iv.declare();
+
+      // Create temporaries for the array slice indexes that aren't wildcards
+      for (unsigned i=0; i<s->array_slice.size(); i++)
+        {
+          if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
+            {
+              tmpvar slice_index = parent->gensym (s->array_slice[i]->type);
+              slice_index.declare(*parent);
+              s->array_slice[i]->visit (this);
+            }
+        }
     }
   else
    {
@@ -3560,6 +3571,23 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  o->newline() << *limitv << " = 0LL;";
       }
 
+      vector<tmpvar *> array_slice_vars;
+      // store the the variables corresponding to the index of the array slice
+      // as temporary variables
+      if (!s->array_slice.empty())
+          for (unsigned i = 0; i < s->array_slice.size(); ++i)
+            {
+              if (s->array_slice[i]->tok->type == tok_operator && s->array_slice[i]->tok->content == "*")
+                array_slice_vars.push_back(NULL);
+              else
+                {
+                  tmpvar *asvar = new tmpvar(gensym(s->array_slice[i]->type));
+                  if (s->array_slice[i]->type == pe_long);
+                  c_assign(asvar->value(), s->array_slice[i], "tmp_value");
+                  array_slice_vars.push_back(asvar);
+                }
+            }
+
       record_actions(1, s->tok, true);
 
       // condition
@@ -3605,28 +3633,30 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
           //add in the beginning portion of the if statement
           o->newline() << "if (false";
           for (unsigned i = 0; i < s->array_slice.size(); ++i)
+
             // only output a comparsion if the expression is not "*".
-            if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
+            if (s->array_slice[i]->tok->type != tok_operator
+                || s->array_slice[i]->tok->content != "*")
             {
               o->line() << " || ";
               if (s->indexes[i]->type == pe_string)
                 {
                   if (s->array_slice[i]->type != pe_string)
                     throw SEMANTIC_ERROR (_("expected string types"), s->tok);
-                  o->line() << "strncmp(" << getvar (s->indexes[i]->referent) << ", ";
-                  s->array_slice[i]->visit(this);
+                  o->line() << "strncmp(" << getvar (s->indexes[i]->referent)
+                            << ", " << *array_slice_vars[i];
                   o->line() << ", MAXSTRINGLEN) !=0";
                 }
               else if (s->indexes[i]->type == pe_long)
                 {
                   if (s->array_slice[i]->type != pe_long)
                     throw SEMANTIC_ERROR (_("expected numeric types"), s->tok);
-                  o->line() << getvar (s->indexes[i]->referent) << " != ";
-                  s->array_slice[i]->visit(this);
+                  o->line() << getvar (s->indexes[i]->referent) << " != "
+                            << *array_slice_vars[i];
                 }
               else
               {
-                throw SEMANTIC_ERROR (_("unexpected type"), s->tok);
+                  throw SEMANTIC_ERROR (_("unexpected type"), s->tok);
               }
             }
           o->line() << ") goto " << contlabel << ";"; // end of the if statment
