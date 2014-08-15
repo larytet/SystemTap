@@ -1694,11 +1694,21 @@ function _statfs_f_type_str(f) {
    return sprintf("UNKNOWN VALUE: %d", f)
 }
 
-function _mremap_flags(flags) {
-	if (flags & 1) msg="MREMAP_MAYMOVE|"
-	if (flags & 2) msg="MREMAP_FIXED|".msg
-	return substr(msg,0,strlen(msg)-1)
-}
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_mremap_flags_list[] = {
+	V(MREMAP_MAYMOVE),
+	V(MREMAP_FIXED),
+	{0, NULL}
+};
+%}
+
+function _mremap_flags:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mremap_flags_list, (uint32_t)STAP_ARG_flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 #include <linux/mman.h>
@@ -2700,7 +2710,8 @@ function get_mmap_args:string (args:long)
 
 	if(_stp_copy_from_user((char *)&a,(char *)(unsigned long)STAP_ARG_args, sizeof(a))== 0) {
 		int len;
-		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx, %ld, ", (long)a.addr, (long)a.len);
+		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx, %lu, ",
+			      (unsigned long)a.addr, (unsigned long)a.len);
 		_stp_lookup_or_str(_stp_mprotect_list, a.prot, STAP_RETVALUE, MAXSTRINGLEN);
 		strlcat (STAP_RETVALUE, ", ", MAXSTRINGLEN);
 		_stp_lookup_or_str(_stp_mmap_list, a.flags, STAP_RETVALUE, MAXSTRINGLEN);

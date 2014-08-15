@@ -104,11 +104,47 @@ int main()
   //staptest// close (NNNN) = 0
 
   poll(&pfd, 1, 0);
-  //staptest// poll (XXXX, 1, 0)
+  //staptest// poll (XXXX, 1, 0) = NNNN
+
+  poll((struct pollfd *)-1, 1, 0);
+#ifdef __s390__
+  //staptest// poll (0x[7]?[f]+, 1, 0) = -NNNN (EFAULT)
+#else
+  //staptest// poll (0x[f]+, 1, 0) = -NNNN (EFAULT)
+#endif
+
+  poll(&pfd, -1, 0);
+  //staptest// poll (XXXX, 4294967295, 0) = -NNNN (EINVAL)
+
+  // A timetout value of -1 means an infinite timeout. So, we'll also
+  // send a NULL pollfd structure pointer.
+  poll(NULL, 1, -1);
+  //staptest// poll (0x0, 1, -1) = -NNNN (EFAULT)
 
 #ifdef SYS_ppoll
   ppoll(&pfd, 1, &tim, &sigs);
-  //staptest//  ppoll (XXXX, 1, \[0.200000000\], XXXX, 8)
+  //staptest//  ppoll (XXXX, 1, \[0.200000000\], XXXX, 8) = NNNN
+
+  ppoll((struct pollfd *)-1, 1, &tim, &sigs);
+#ifdef __s390__
+  //staptest//  ppoll (0x[7]?[f]+, 1, \[0.200000000\], XXXX, 8) = -NNNN (EFAULT)
+#else
+  //staptest//  ppoll (0x[f]+, 1, \[0.200000000\], XXXX, 8) = -NNNN (EFAULT)
+#endif
+
+  ppoll(&pfd, -1, &tim, &sigs);
+  //staptest//  ppoll (XXXX, 4294967295, \[0.200000000\], XXXX, 8) = -NNNN (EINVAL)
+
+  // Specifying a timespec pointer of -1 will crash the test
+  // executable, so we'll have to skip it.
+  //ppoll((struct pollfd *)-1, 1, (struct timespec *)-1, &sigs);
+
+  ppoll(&pfd, 1, &tim, (sigset_t *)-1);
+#ifdef __s390__
+  //staptest//  ppoll (XXXX, 1, \[0.200000000\], 0x[7]?[f]+, 8) = -NNNN (EFAULT)
+#else
+  //staptest//  ppoll (XXXX, 1, \[0.200000000\], 0x[f]+, 8) = -NNNN (EFAULT)
+#endif
 #endif
 
   return 0;

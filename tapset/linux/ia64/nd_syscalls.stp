@@ -10,14 +10,6 @@
 probe nd_syscall.mmap = kprobe.function("sys_mmap") ?
 {
 	name = "mmap"
-	// start = $addr
-	// len = $len
-	// prot = $prot
-	// flags = $flags
-	// fd = $fd
-	// offset = $off
-	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
-	// 		_mprotect_prot_str($prot), _mmap_flags($flags), $fd, $off)
 	asmlinkage()
 	start = ulong_arg(1)
 	len = ulong_arg(2)
@@ -25,7 +17,7 @@ probe nd_syscall.mmap = kprobe.function("sys_mmap") ?
 	flags = int_arg(4)
 	fd = int_arg(5)
 	offset = long_arg(6)
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", start, len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
 			_mprotect_prot_str(prot), _mmap_flags(flags), fd, offset)
 }
 
@@ -40,15 +32,6 @@ probe nd_syscall.mmap.return = kprobe.function("sys_mmap").return ?
 probe nd_syscall.mmap2 = kprobe.function("sys_mmap2") ?
 {
 	name = "mmap2"
-	// start = $addr
-	// length = $len
-	// prot = $prot
-	// flags = $flags
-	// fd = $fd
-	// pgoffset = $pgoff
-	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr,
-	// 		$len, _mprotect_prot_str($prot), _mmap_flags($flags),
-	// 		$fd, $pgoff)
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
@@ -56,7 +39,7 @@ probe nd_syscall.mmap2 = kprobe.function("sys_mmap2") ?
 	flags = int_arg(4)
 	fd = int_arg(5)
 	pgoffset = long_arg(6)
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", start, length,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
 			_mprotect_prot_str(prot), _mmap_flags(flags), fd, pgoffset)
 }
 probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?

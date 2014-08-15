@@ -3245,7 +3245,7 @@ probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?
 	# $pgoff is the number of pages. Convert this back into a
 	# number of bytes.
 	pgoffset = $pgoff * %{ PAGE_SIZE %}
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
 		_mprotect_prot_str($prot), _mmap_flags($flags),
 		__int32($fd), pgoffset)
 }

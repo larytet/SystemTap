@@ -33,7 +33,7 @@ int main()
 	//staptest// fstat (NNNN, XXXX) = 0
 
 	r = mmap(NULL, 4096, PROT_READ, MAP_SHARED, fd, 0);
-	//staptest// mmap[2]* (XXXX, 4096, PROT_READ, MAP_SHARED, NNNN, 0) = XXXX
+	//staptest// mmap[2]* (0x0, 4096, PROT_READ, MAP_SHARED, NNNN, 0) = XXXX
 
 	mlock(r, 4096);
 	//staptest// mlock (XXXX, 4096) = 0
@@ -55,7 +55,7 @@ int main()
 
 	// Ensure the 6th argument is handled correctly..
 	r = mmap(NULL, 6, PROT_READ, MAP_PRIVATE, fd, 65536);
-	//staptest// mmap[2]* (XXXX, 6, PROT_READ, MAP_PRIVATE, NNNN, 65536) = XXXX
+	//staptest// mmap[2]* (0x0, 6, PROT_READ, MAP_PRIVATE, NNNN, 65536) = XXXX
 
 	munmap(r, 6);
 	//staptest// munmap (XXXX, 6) = 0
@@ -63,7 +63,7 @@ int main()
 	close(fd);
 
 	r = mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	//staptest// mmap[2]* (XXXX, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
+	//staptest// mmap[2]* (0x0, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
 
 	mprotect(r, 4096, PROT_READ);
 	//staptest// mprotect (XXXX, 4096, PROT_READ) = 0
@@ -72,13 +72,49 @@ int main()
 	//staptest// munmap (XXXX, 12288) = 0
 
 	r = mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-	//staptest// mmap[2]* (XXXX, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
+	//staptest// mmap[2]* (0x0, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
 
 	r = mremap(r, 8192, 4096, 0);
-	//// mremap (XXXX, 8192, 4096, 0) = XXXX
+	//staptest// mremap (XXXX, 8192, 4096, 0x0, XXXX) = XXXX
 
 	munmap(r, 4096);
-	//// munmap (XXXX, 4096) = 0
+	//staptest// munmap (XXXX, 4096) = 0
+
+	// powerpc64's glibc rejects this one. On ia64, the call
+	// fails, while on most other architectures it works. So,
+	// ignore the return values.
+#ifndef __powerpc64__
+	r = mmap((void *)-1, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	//staptest// mmap[2]* (0x[f]+, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 
+
+	munmap(r, 8192);
+	//staptest// munmap (XXXX, 8192) = 
+#endif
+
+	r = mmap(NULL, -1, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+#if __WORDSIZE == 64
+	//staptest// mmap[2]* (0x0, 18446744073709551615, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = -XXXX (ENOMEM)
+#else
+	//staptest// mmap[2]* (0x0, 4294967295, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = -XXXX (ENOMEM)
+#endif
+
+	// powerpc's glibc (both 32-bit and 64-bit) rejects this one.
+#ifndef __powerpc__
+	r = mmap(NULL, 8192, -1, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	//staptest// mmap[2]* (0x0, 8192, PROT_[^ ]+|XXXX, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = XXXX
+
+	munmap(r, 8192);
+	//staptest// munmap (XXXX, 8192) = 0
+#endif
+
+	r = mmap(NULL, 8192, PROT_READ|PROT_WRITE, -1, -1, 0);
+	//staptest// mmap[2]* (0x0, 8192, PROT_READ|PROT_WRITE, MAP_[^ ]+|XXXX, -1, 0) = -XXXX
+
+	// Unfortunately, glibc and/or the syscall wrappers will
+	// reject a -1 offset, especially on a 32-bit exe on a 64-bit
+	// OS. So, we can't really test this one.
+	//
+	// r = mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, -1);
 
 	return 0;
 }

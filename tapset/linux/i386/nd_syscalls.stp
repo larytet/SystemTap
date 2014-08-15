@@ -79,15 +79,6 @@ probe nd_syscall.ipc.return = kprobe.function("sys_ipc").return ?
 probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
 {
 	name = "mmap2"
-	// start = $addr
-	// length = $len
-	// prot = $prot
-	// flags = $flags
-	// fd = __int32($fd)
-	// pgoffset = $pgoff
-	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr,
-	// 		$len, _mprotect_prot_str($prot), _mmap_flags($flags),
-	// 		__int32($fd), $pgoff)
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
@@ -96,7 +87,7 @@ probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
 	# Although the kernel gets an unsigned long fd, on the
 	# user-side it is a signed int.  Fix this.
 	fd = int_arg(5)
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", start,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start,
 			length, _mprotect_prot_str(prot), _mmap_flags(flags),
 			fd, pgoffset)
 }

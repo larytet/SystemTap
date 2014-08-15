@@ -1370,12 +1370,12 @@ probe nd_syscall.unshare.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.uselib
+probe nd_syscall.uselib ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%p(%s)\n", library_uaddr, library)
 }
-probe nd_syscall.uselib.return
+probe nd_syscall.uselib.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

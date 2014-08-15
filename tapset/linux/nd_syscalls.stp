@@ -3410,7 +3410,7 @@ probe nd_syscall.mmap2 = kprobe.function("sys_mmap_pgoff") ?
 	# $pgoff is the number of pages. Convert this back into a
 	# number of bytes.
 	pgoffset = ulong_arg(6) * %{ PAGE_SIZE %}
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", start, length,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
 		_mprotect_prot_str(prot), _mmap_flags(flags),
 		fd, pgoffset)
 }
