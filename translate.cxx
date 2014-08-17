@@ -1116,6 +1116,8 @@ c_unparser::emit_common_header ()
 
       o->newline( 0)  << "hrtimer_return_t module_refresh_timer_cb(struct hrtimer *timer) {";
       o->newline(+1)  <<   "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1)";
+      // NB: one might like to invoke systemtap_module_refresh(NULL) directly from
+      // here ... however hrtimers are called from an unsleepable context, so no can do.
       o->newline(+1)  <<     "schedule_work(&module_refresher_work);";
       o->newline(-1)  <<   "hrtimer_set_expires(timer,";
       o->newline( 0)  <<   "  ktime_add(hrtimer_get_expires(timer),";
@@ -2094,7 +2096,12 @@ c_unparser::emit_module_exit ()
       o->newline() << "#endif";
     }
 
+  // cargo cult prologue ... hope to flush any pending workqueue items too
+  o->newline() << "stp_synchronize_sched();";
+
   // Get the lock before exiting to ensure there's no one in module_refresh
+  // NB: this should't be able to happen, because both the module_refresh_timer
+  // and the workqueue ought to have been shut down by now.
   if (!session->runtime_usermode_p())
     o->newline() << "mutex_lock(&module_refresh_mutex);";
 

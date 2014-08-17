@@ -283,6 +283,7 @@ static struct kernel_param_ops param_ops_int64_t = {
 
 static inline void stp_synchronize_sched(void)
 {
+  flush_scheduled_work();
 #if defined(STAPCONF_SYNCHRONIZE_SCHED)
   synchronize_sched();
 #elif defined(STAPCONF_SYNCHRONIZE_RCU)
