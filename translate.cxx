@@ -960,7 +960,7 @@ c_unparser::emit_common_header ()
       // That's because they're only dependent on the probe body, which is already
       // "hashed" in above.
 
-      if (tmp_probe_contents.count(oss.str()) == 0) // unique
+      if (session->unoptimized || tmp_probe_contents.count(oss.str()) == 0) // unique
         {
           tmp_probe_contents[oss.str()] = dp->name; // save it
 
@@ -2480,7 +2480,7 @@ c_unparser::emit_probe (derived_probe* v)
 
   // If an identical probe has already been emitted, just call that
   // one.
-  if (probe_contents.count(oss.str()) != 0)
+  if (!session->unoptimized && probe_contents.count(oss.str()) != 0)
     {
       string dupe = probe_contents[oss.str()];
 
