@@ -3710,7 +3710,16 @@ expression* parser::parse_symbol ()
 
       while (1)
         {
-          ai->indexes.push_back (parse_expression ());
+          if (peek_op("*"))
+            {
+              t = next ();
+              symbol* ast_sym = new symbol;
+              ast_sym->tok = t;
+              ast_sym->name = t->content;
+              ai->indexes.push_back (ast_sym);
+            }
+          else
+            ai->indexes.push_back (parse_expression ());
           if (peek_op ("]"))
             {
 	      swallow ();

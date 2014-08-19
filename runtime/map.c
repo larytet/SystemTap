@@ -110,6 +110,27 @@ static struct map_node *_stp_map_iter(MAP map, struct map_node *m)
 	return mlist_map_node(mlist_next(&m->lnode));
 }
 
+static struct map_node *_stp_map_iterdel(MAP map, struct map_node *m)
+{
+  struct map_node *r_map;
+  if (map == NULL)
+    return NULL;
+
+  if (mlist_next(&m->lnode) == &map->head)
+    r_map =  NULL;
+  else
+    r_map = mlist_map_node(mlist_next(&m->lnode));
+  /* remove node from old hash list */
+  mhlist_del_init(&m->hnode);
+
+  /* remove from entry list */
+  mlist_del(&m->lnode);
+
+  /* add to free pool */
+  mlist_add(&m->lnode, &map->pool);
+  return r_map;
+}
+
 /** Clears all the elements in a map.
  * @param map 
  */

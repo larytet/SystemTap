@@ -2478,7 +2478,7 @@ varuse_collecting_visitor::visit_assignment (assignment *e)
 void
 varuse_collecting_visitor::visit_symbol (symbol *e)
 {
-  if (e->referent == 0)
+  if (e->referent == 0 && (e->tok->type != tok_operator || e->name != "*"))
     throw SEMANTIC_ERROR (_("symbol without referent"), e->tok);
 
   // We could handle initialized globals by marking them as "written".

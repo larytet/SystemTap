@@ -866,6 +866,20 @@ public:
       return "_stp_map_iter (" + mv.value() + ", " + value() + ")";
   }
 
+  string next (mapvar const & mv, unsigned del) const
+  {
+    if (!del)
+      return next(mv);
+
+    if (mv.type() != referent_ty)
+      throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
+
+    if (mv.is_parallel())
+      return "_stp_map_iterdel (" + mv.fetch_existing_aggregate() + ", " + value() + ")";
+    else
+      return "_stp_map_iterdel (" + mv.value() + ", " + value() + ")";
+  }
+
   string value () const
   {
     return "l->" + name;
@@ -3852,6 +3866,15 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
     {
       assert (array->referent != 0);
       vardecl* r = array->referent;
+      bool array_slice = false;
+
+      for (unsigned i = 0; i < e->indexes.size(); i ++)
+        if (e->indexes[i]->tok->type == tok_operator
+            && e->indexes[i]->tok->content == "*")
+          {
+            array_slice = true;
+            break;
+          }
 
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
@@ -3860,6 +3883,12 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
 	  ix.declare (*(parent->parent));
 	  e->indexes[i]->visit(parent);
 	}
+
+      if (array_slice)
+        {
+          itervar iv = parent->parent->getiter(array);
+          parent->parent->o->newline() << iv.declare();
+        }
     }
   else
     {
@@ -3876,13 +3905,83 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
 
   if (array)
     {
-      vector<tmpvar> idx;
-      parent->load_map_indices (e, idx);
+      bool array_slice = false;
+      for (unsigned i = 0; i < e->indexes.size(); i ++)
+        if (e->indexes[i]->tok->type == tok_operator
+            && e->indexes[i]->tok->content == "*")
+          {
+            array_slice = true;
+            break;
+          }
 
-      {
-	mapvar mvar = parent->getmap (array->referent, e->tok);
-	parent->o->newline() << mvar.del (idx) << ";";
-      }
+      if (!array_slice) // delete a single element
+        {
+          vector<tmpvar> idx;
+          parent->load_map_indices (e, idx);
+          mapvar mvar = parent->getmap (array->referent, e->tok);
+          parent->o->newline() << mvar.del (idx) << ";";
+        }
+      else // delete elements if they match the array slice.
+        {
+          // create tmpvars for the array indexes, storing NULL where there is
+          // no specific value that the index should be
+          vector<tmpvar *> array_slice_vars;
+          for (unsigned i=0; i<e->indexes.size(); i++)
+            {
+              tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
+              if (e->indexes[i]->tok->type == tok_operator
+                  && e->indexes[i]->tok->content == "*")
+                array_slice_vars.push_back(NULL);
+              else
+                {
+                  parent->c_assign (asvar->value(), e->indexes[i], "tmp var");
+                  array_slice_vars.push_back(asvar);
+                }
+            }
+
+          mapvar mvar = parent->getmap (array->referent, e->tok);
+          itervar iv = parent->getiter(array);
+          vector<tmpvar> idx;
+
+          // iterate through the map, deleting elements that match the array slice
+          string ctr = lex_cast (parent->label_counter++);
+          string toplabel = "top_" + ctr;
+          string breaklabel = "break_" + ctr;
+
+          parent->o->newline() << iv << " = " << iv.start(mvar) << ";";
+          parent->o->newline() << toplabel << ":";
+
+          parent->o->newline(1) << "if (!(" << iv << "))";
+          parent->o->newline(1) << "goto " << breaklabel << ";";
+
+          // insert the comparison for keys that aren't wildcards
+          parent->o->newline(-1) << "if (true"; // in can all are wildcards
+          for (unsigned i=0; i<array_slice_vars.size(); i++)
+            if (array_slice_vars[i] != NULL)
+              {
+              if (array_slice_vars[i]->type() == pe_long)
+                parent->o->line() << " && " << *array_slice_vars[i] << " == "
+                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+              else if (array_slice_vars[i]->type() == pe_string)
+                parent->o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                                  << ", MAXSTRINGLEN) == 0";
+              else
+                throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
+              }
+          parent->o->line() <<  ")";
+          // conditional is true, so delete item and go to the next item
+          parent->o->newline(1) << iv << " = " << iv.next(mvar, 1) << ";";
+
+          parent->o->newline(-1) << "else";
+          parent->o->newline(1) << iv << " = " << iv.next(mvar, 0) << ";";
+
+          parent->o->newline(-1) << "goto " << toplabel << ";";
+
+          parent->o->newline(-1) << breaklabel<< ":";
+          parent->o->newline(1) << "; /* dummy statement */";
+          parent->o->indent(-1);
+        }
     }
   else
     {

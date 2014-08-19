@@ -2045,8 +2045,42 @@ delete_statement_symresolution_info:
 
   void visit_arrayindex (arrayindex* e)
   {
-    parent->visit_arrayindex (e);
+    // Can't settle for visiting the parent version as it won't skip processing
+    // wildcards, and can't add the conditional below that skips processing
+    // wildcards as that will cause wildcards to be processed in expressions
+    // that don't support them.
+    for (unsigned i=0; i<e->indexes.size(); i++)
+      if (e->indexes[i]->tok->type != tok_operator
+          || e->indexes[i]->tok->content != "*")
+        e->indexes[i]->visit (this);
+
+    symbol *array = NULL;
+    hist_op *hist = NULL;
+    classify_indexable(e->base, array, hist);
+
+    if (array)
+      {
+        if (array->referent)
+          return;
+
+        vardecl* d = parent->find_var (array->name, e->indexes.size (), array->tok);
+        if (d)
+          array->referent = d;
+        else
+          {
+            stringstream msg;
+            msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
+                      e->indexes.size(), array->name.c_str());
+            throw SEMANTIC_ERROR (msg.str(), e->tok);
+          }
+    }
+  else
+    {
+      assert (hist);
+      hist->visit (this);
+    }
   }
+
   void visit_functioncall (functioncall* e)
   {
     parent->visit_functioncall (e);
@@ -4984,6 +5018,8 @@ typeresolution_info::visit_arrayindex (arrayindex* e)
     unresolved (e->tok); // symbol resolution should prevent this
   else for (unsigned i=0; i<e->indexes.size(); i++)
     {
+      if (e->indexes[i]->tok->type == tok_operator && e->indexes[i]->tok->content == "*")
+        continue;
       expression* ee = e->indexes[i];
       exp_type& ft = array->referent->index_types [i];
       t = ft;
