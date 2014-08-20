@@ -2593,10 +2593,10 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
     {
       if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
         {
-          expression* last_lvalue = current_lvalue;
-          current_lvalue = s->array_slice[i]; // leave a mark for ::visit_symbol
+          expression* last_lrvalue = current_lrvalue;
+          current_lrvalue = s->array_slice[i]; // leave a mark for ::visit_symbol
           s->array_slice[i]->visit (this);
-          current_lvalue = last_lvalue;
+          current_lrvalue = last_lrvalue;
         }
     }
 
