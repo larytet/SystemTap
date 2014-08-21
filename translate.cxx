@@ -4248,6 +4248,19 @@ c_tmpcounter::visit_array_in (array_in* e)
     {
       assert (array->referent != 0);
       vardecl* r = array->referent;
+      bool array_slice = false;
+
+      // A boolean result.
+      tmpvar res = parent->gensym (e->type);
+      res.declare (*parent);
+
+      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
+        if (e->operand->indexes[i]->tok->type == tok_operator
+            && e->operand->indexes[i]->tok->content == "*")
+          {
+            array_slice = true;
+            break;
+          }
 
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
@@ -4257,9 +4270,11 @@ c_tmpcounter::visit_array_in (array_in* e)
 	  e->operand->indexes[i]->visit(this);
 	}
 
-      // A boolean result.
-      tmpvar res = parent->gensym (e->type);
-      res.declare (*parent);
+      if (array_slice)
+        {
+          itervar iv = parent->getiter(array);
+          parent->o->newline() << iv.declare();
+        }
     }
   else
     {
@@ -4286,15 +4301,97 @@ c_unparser::visit_array_in (array_in* e)
     {
       stmt_expr block(*this);
 
-      vector<tmpvar> idx;
-      load_map_indices (e->operand, idx);
-      // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
-
       tmpvar res = gensym (pe_long);
-      mapvar mvar = getmap (array->referent, e->tok);
-      c_assign (res, mvar.exists(idx), e->tok);
+      vector<tmpvar> idx;
 
-      o->newline() << res << ";";
+      // determine if the array index contains an asterisk
+      bool array_slice = false;
+      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
+        if (e->operand->indexes[i]->tok->type == tok_operator
+            && e->operand->indexes[i]->tok->content == "*")
+          {
+            array_slice = true;
+            break;
+          }
+
+      if (!array_slice) // checking for membership of a specific element
+        {
+          load_map_indices (e->operand, idx);
+          // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+
+          mapvar mvar = getmap (array->referent, e->tok);
+          c_assign (res, mvar.exists(idx), e->tok);
+
+          o->newline() << res << ";";
+        }
+      else
+        {
+          // create tmpvars for the array indexes, storing NULL where there is
+          // no specific value that the index should be
+          vector<tmpvar *> array_slice_vars;
+          for (unsigned i=0; i<e->operand->indexes.size(); i++)
+            {
+              tmpvar *asvar = new tmpvar(gensym(e->operand->indexes[i]->type));
+              if (e->operand->indexes[i]->tok->type == tok_operator
+                  && e->operand->indexes[i]->tok->content == "*")
+                array_slice_vars.push_back(NULL);
+              else
+                {
+                  c_assign (asvar->value(), e->operand->indexes[i], "tmp var");
+                  array_slice_vars.push_back(asvar);
+                }
+            }
+
+          mapvar mvar = getmap (array->referent, e->operand->tok);
+          itervar iv = getiter(array);
+          vector<tmpvar> idx;
+
+          string ctr = lex_cast (label_counter++);
+          string toplabel = "top_" + ctr;
+          string contlabel = "continue_" + ctr;
+          string breaklabel = "break_" + ctr;
+
+          o->newline() << iv << " = " << iv.start(mvar) << ";";
+          c_assign (res, "0", e->tok); // set the default to 0
+
+          o->newline() << toplabel << ":";
+
+          o->newline(1) << "if (!(" << iv << "))";
+          o->newline(1) << "goto " << breaklabel << ";";
+
+          // generate code for comparing the keys to the index slice
+          o->newline(-1) << "if (true";
+          for (unsigned i=0; i<array_slice_vars.size(); i++)
+            {
+              if (array_slice_vars[i] != NULL)
+                {
+                if (array_slice_vars[i]->type() == pe_long)
+                  o->line() << " && " << *array_slice_vars[i] << " == "
+                            << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+                else if (array_slice_vars[i]->type() == pe_string)
+                  o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                            << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                            << ", MAXSTRINGLEN) == 0";
+                else
+                  throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
+                }
+            }
+          o->line() <<  "){";
+          o->indent(1);
+          // conditional is true, so set res and go to break
+          c_assign (res, "1", e->tok);
+          o->newline() << "goto " << breaklabel << ";";
+          o->newline(-1) << "}";
+
+          // else, keep iterating
+          o->newline() << iv << " = " << iv.next(mvar) << ";";
+          o->newline() << "goto " << toplabel << ";";
+
+          o->newline(-1) << breaklabel<< ":";
+          o->newline(1) << "; /* dummy statement */";
+          o->newline(-1) << res << ";";
+        }
+
     }
   else
     {

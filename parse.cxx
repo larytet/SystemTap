@@ -3129,8 +3129,20 @@ parser::parse_array_in ()
 
   while (1)
     {
-      expression* op1 = parse_comparison_or_regex_query ();
-      indexes.push_back (op1);
+      t = peek();
+      if (t && t->type == tok_operator && t->content == "*" && parenthesized)
+        {
+          t = next();
+          symbol* sym = new symbol;
+          sym->tok = t;
+          sym->name = t->content;
+          indexes.push_back(sym);
+        }
+      else
+        {
+          expression* op1 = parse_comparison_or_regex_query ();
+          indexes.push_back (op1);
+        }
 
       if (parenthesized)
         {

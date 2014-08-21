@@ -2168,6 +2168,46 @@ symresolution_info::visit_arrayindex (arrayindex* e)
     }
 }
 
+void
+symresolution_info::visit_array_in (array_in* e)
+{
+  arrayindex* ai = e->operand;
+
+  // Can not settle for calling e->operand->visit(this) as it won't skip
+  // visiting wildcard symbols. Can not add in the below conditional to
+  // visit_arrayindex because wildcards aren't supported in all expressions that
+  // use array indexes.
+  for (unsigned i=0; i<ai->indexes.size(); i++)
+    if (ai->indexes[i]->tok->type != tok_operator || ai->indexes[i]->tok->content != "*")
+    ai->indexes[i]->visit (this);
+
+  symbol *array = NULL;
+  hist_op *hist = NULL;
+  classify_indexable(ai->base, array, hist);
+
+  if (array)
+    {
+      if (array->referent)
+	return;
+
+      vardecl* d = find_var (array->name, ai->indexes.size (), array->tok);
+      if (d)
+	array->referent = d;
+      else
+	{
+	  stringstream msg;
+          msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
+                    ai->indexes.size(), array->name.c_str());
+	  throw SEMANTIC_ERROR (msg.str(), ai->tok);
+	}
+    }
+  else
+    {
+      assert (hist);
+      hist->visit (this);
+    }
+}
+
 
 void
 symresolution_info::visit_functioncall (functioncall* e)
