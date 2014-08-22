@@ -2052,7 +2052,7 @@ delete_statement_symresolution_info:
     for (unsigned i=0; i<e->indexes.size(); i++)
       if (e->indexes[i]->tok->type != tok_operator
           || e->indexes[i]->tok->content != "*")
-        e->indexes[i]->visit (this);
+        e->indexes[i]->visit (parent);
 
     symbol *array = NULL;
     hist_op *hist = NULL;
@@ -2077,7 +2077,7 @@ delete_statement_symresolution_info:
   else
     {
       assert (hist);
-      hist->visit (this);
+      hist->visit (parent);
     }
   }
 
