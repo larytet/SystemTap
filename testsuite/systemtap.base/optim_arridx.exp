@@ -75,4 +75,9 @@ printf("elide_global_b=%#x\\n", elide_global_b)
 }
 }
 
+# avoid propagating PR17301
+set origdir $env(SYSTEMTAP_DIR)
+set env(SYSTEMTAP_DIR) /dev/null
 stap_run_exact $test $srcdir/$subdir/$test.stp -p2 -v 2>/dev/null
+set env(SYSTEMTAP_DIR) $origdir
+
