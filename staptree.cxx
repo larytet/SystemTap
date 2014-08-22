@@ -398,7 +398,10 @@ void array_in::print (ostream& o) const
   for (unsigned i=0; i<operand->indexes.size(); i++)
     {
       if (i > 0) o << ", ";
-      operand->indexes[i]->print (o);
+      if (operand->indexes[i])
+        operand->indexes[i]->print (o);
+      else
+        o << "*";
     }
   o << "] in ";
   operand->base->print (o);
@@ -622,7 +625,13 @@ void arrayindex::print (ostream& o) const
   base->print (o);
   o << "[";
   for (unsigned i=0; i<indexes.size(); i++)
-    o << (i>0 ? ", " : "") << *indexes[i];
+    {
+      o << (i>0 ? ", " : "");
+      if (indexes[i]==0)
+        o << "*";
+      else
+        o << *indexes[i];
+    }
   o << "]";
 }
 
@@ -1173,7 +1182,10 @@ void foreach_loop::print (ostream& o) const
       for (unsigned i=0; i<array_slice.size(); i++)
         {
           if (i > 0) o << ", ";
-          array_slice[i]->print (o);
+          if (array_slice[i])
+            array_slice[i]->print (o);
+          else
+            o << "*";
         }
       o << "]";
     }
@@ -2009,7 +2021,8 @@ void
 traversing_visitor::visit_arrayindex (arrayindex* e)
 {
   for (unsigned i=0; i<e->indexes.size(); i++)
-    e->indexes[i]->visit (this);
+    if (e->indexes[i])
+      e->indexes[i]->visit (this);
 
   e->base->visit(this);
 }
@@ -2478,7 +2491,9 @@ varuse_collecting_visitor::visit_assignment (assignment *e)
 void
 varuse_collecting_visitor::visit_symbol (symbol *e)
 {
-  if (e->referent == 0 && (e->tok->type != tok_operator || e->name != "*"))
+  if (e == 0)
+    return;
+  if (e->referent == 0)
     throw SEMANTIC_ERROR (_("symbol without referent"), e->tok);
 
   // We could handle initialized globals by marking them as "written".
@@ -2591,7 +2606,7 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
   // visit the additional specified array slice
   for (unsigned i=0; i<s->array_slice.size(); i++)
     {
-      if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
+      if (s->array_slice[i])
         s->array_slice[i]->visit (this);
     }
 

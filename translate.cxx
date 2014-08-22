@@ -3427,7 +3427,7 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
       // Create temporaries for the array slice indexes that aren't wildcards
       for (unsigned i=0; i<s->array_slice.size(); i++)
         {
-          if (s->array_slice[i]->tok->type != tok_operator || s->array_slice[i]->tok->content != "*")
+          if (s->array_slice[i])
             {
               tmpvar slice_index = parent->gensym (s->array_slice[i]->type);
               slice_index.declare(*parent);
@@ -3591,15 +3591,14 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       if (!s->array_slice.empty())
           for (unsigned i = 0; i < s->array_slice.size(); ++i)
             {
-              if (s->array_slice[i]->tok->type == tok_operator && s->array_slice[i]->tok->content == "*")
-                array_slice_vars.push_back(NULL);
-              else
+              if (s->array_slice[i])
                 {
                   tmpvar *asvar = new tmpvar(gensym(s->array_slice[i]->type));
-                  if (s->array_slice[i]->type == pe_long);
-                  c_assign(asvar->value(), s->array_slice[i], "tmp_value");
+                  c_assign(asvar->value(), s->array_slice[i], "array slice index");
                   array_slice_vars.push_back(asvar);
                 }
+              else
+                array_slice_vars.push_back(NULL);
             }
 
       record_actions(1, s->tok, true);
@@ -3649,8 +3648,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
           for (unsigned i = 0; i < s->array_slice.size(); ++i)
 
             // only output a comparsion if the expression is not "*".
-            if (s->array_slice[i]->tok->type != tok_operator
-                || s->array_slice[i]->tok->content != "*")
+            if (s->array_slice[i])
             {
               o->line() << " || ";
               if (s->indexes[i]->type == pe_string)
@@ -3869,8 +3867,7 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
       bool array_slice = false;
 
       for (unsigned i = 0; i < e->indexes.size(); i ++)
-        if (e->indexes[i]->tok->type == tok_operator
-            && e->indexes[i]->tok->content == "*")
+        if (e->indexes[i] == NULL)
           {
             array_slice = true;
             break;
@@ -3879,9 +3876,12 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
-	  tmpvar ix = parent->parent->gensym (r->index_types[i]);
-	  ix.declare (*(parent->parent));
-	  e->indexes[i]->visit(parent);
+          if (array_slice && e->indexes[i])
+            {
+	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
+	      ix.declare (*(parent->parent));
+	      e->indexes[i]->visit(parent);
+            }
 	}
 
       if (array_slice)
@@ -3907,8 +3907,7 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
     {
       bool array_slice = false;
       for (unsigned i = 0; i < e->indexes.size(); i ++)
-        if (e->indexes[i]->tok->type == tok_operator
-            && e->indexes[i]->tok->content == "*")
+        if (e->indexes[i] == NULL)
           {
             array_slice = true;
             break;
@@ -3928,15 +3927,14 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
           vector<tmpvar *> array_slice_vars;
           for (unsigned i=0; i<e->indexes.size(); i++)
             {
-              tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
-              if (e->indexes[i]->tok->type == tok_operator
-                  && e->indexes[i]->tok->content == "*")
-                array_slice_vars.push_back(NULL);
-              else
+              if (e->indexes[i])
                 {
+                  tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
                   parent->c_assign (asvar->value(), e->indexes[i], "tmp var");
                   array_slice_vars.push_back(asvar);
                 }
+              else
+                array_slice_vars.push_back(NULL);
             }
 
           mapvar mvar = parent->getmap (array->referent, e->tok);
@@ -4255,8 +4253,7 @@ c_tmpcounter::visit_array_in (array_in* e)
       res.declare (*parent);
 
       for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
-        if (e->operand->indexes[i]->tok->type == tok_operator
-            && e->operand->indexes[i]->tok->content == "*")
+        if (e->operand->indexes[i] == NULL)
           {
             array_slice = true;
             break;
@@ -4265,9 +4262,12 @@ c_tmpcounter::visit_array_in (array_in* e)
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
-	  tmpvar ix = parent->gensym (r->index_types[i]);
-	  ix.declare (*parent);
-	  e->operand->indexes[i]->visit(this);
+	  if (array_slice && e->operand->indexes[i])
+            {
+              tmpvar ix = parent->gensym (r->index_types[i]);
+              ix.declare (*parent);
+              e->operand->indexes[i]->visit(this);
+            }
 	}
 
       if (array_slice)
@@ -4307,8 +4307,7 @@ c_unparser::visit_array_in (array_in* e)
       // determine if the array index contains an asterisk
       bool array_slice = false;
       for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
-        if (e->operand->indexes[i]->tok->type == tok_operator
-            && e->operand->indexes[i]->tok->content == "*")
+        if (e->operand->indexes[i] == NULL)
           {
             array_slice = true;
             break;
@@ -4331,15 +4330,14 @@ c_unparser::visit_array_in (array_in* e)
           vector<tmpvar *> array_slice_vars;
           for (unsigned i=0; i<e->operand->indexes.size(); i++)
             {
-              tmpvar *asvar = new tmpvar(gensym(e->operand->indexes[i]->type));
-              if (e->operand->indexes[i]->tok->type == tok_operator
-                  && e->operand->indexes[i]->tok->content == "*")
-                array_slice_vars.push_back(NULL);
-              else
+              if (e->operand->indexes[i])
                 {
+                  tmpvar *asvar = new tmpvar(gensym(e->operand->indexes[i]->type));
                   c_assign (asvar->value(), e->operand->indexes[i], "tmp var");
                   array_slice_vars.push_back(asvar);
                 }
+              else
+                array_slice_vars.push_back(NULL);
             }
 
           mapvar mvar = getmap (array->referent, e->operand->tok);

@@ -1980,7 +1980,7 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
   for (unsigned i=0; i<e->indexes.size(); i++)
     e->indexes[i]->visit (this);
   for (unsigned i=0; i<e->array_slice.size(); i++)
-    if (e->array_slice[i]->tok->type != tok_operator || e->array_slice[i]->tok->content != "*")
+    if (e->array_slice[i])
       e->array_slice[i]->visit(this);
 
   symbol *array = NULL;
@@ -2050,8 +2050,7 @@ delete_statement_symresolution_info:
     // wildcards as that will cause wildcards to be processed in expressions
     // that don't support them.
     for (unsigned i=0; i<e->indexes.size(); i++)
-      if (e->indexes[i]->tok->type != tok_operator
-          || e->indexes[i]->tok->content != "*")
+      if (e->indexes[i])
         e->indexes[i]->visit (parent);
 
     symbol *array = NULL;
@@ -2139,7 +2138,13 @@ void
 symresolution_info::visit_arrayindex (arrayindex* e)
 {
   for (unsigned i=0; i<e->indexes.size(); i++)
-    e->indexes[i]->visit (this);
+    {
+      // assuming that if NULL, it was originally a wildcard (*)
+      if (e->indexes[i] == NULL)
+        throw SEMANTIC_ERROR(_("wildcard not allowed in array index"), e->tok);
+      else
+        e->indexes[i]->visit (this);
+    }
 
   symbol *array = NULL;
   hist_op *hist = NULL;
@@ -2178,8 +2183,8 @@ symresolution_info::visit_array_in (array_in* e)
   // visit_arrayindex because wildcards aren't supported in all expressions that
   // use array indexes.
   for (unsigned i=0; i<ai->indexes.size(); i++)
-    if (ai->indexes[i]->tok->type != tok_operator || ai->indexes[i]->tok->content != "*")
-    ai->indexes[i]->visit (this);
+    if (ai->indexes[i])
+      ai->indexes[i]->visit (this);
 
   symbol *array = NULL;
   hist_op *hist = NULL;
@@ -5058,28 +5063,29 @@ typeresolution_info::visit_arrayindex (arrayindex* e)
     unresolved (e->tok); // symbol resolution should prevent this
   else for (unsigned i=0; i<e->indexes.size(); i++)
     {
-      if (e->indexes[i]->tok->type == tok_operator && e->indexes[i]->tok->content == "*")
-        continue;
-      expression* ee = e->indexes[i];
-      exp_type& ft = array->referent->index_types [i];
-      t = ft;
-      ee->visit (this);
-      exp_type at = ee->type;
-
-      if ((at == pe_string || at == pe_long) && ft == pe_unknown)
+      if (e->indexes[i])
         {
-          // propagate to formal type
-          ft = at;
-          resolved (ee->tok, ft, array->referent, i);
+          expression* ee = e->indexes[i];
+          exp_type& ft = array->referent->index_types [i];
+          t = ft;
+          ee->visit (this);
+          exp_type at = ee->type;
+
+          if ((at == pe_string || at == pe_long) && ft == pe_unknown)
+            {
+              // propagate to formal type
+              ft = at;
+              resolved (ee->tok, ft, array->referent, i);
+            }
+          if (at == pe_stats)
+            invalid (ee->tok, at);
+          if (ft == pe_stats)
+            invalid (ee->tok, ft);
+          if (at != pe_unknown && ft != pe_unknown && ft != at)
+            mismatch (ee->tok, ee->type, array->referent, i);
+          if (at == pe_unknown)
+              unresolved (ee->tok);
         }
-      if (at == pe_stats)
-        invalid (ee->tok, at);
-      if (ft == pe_stats)
-        invalid (ee->tok, ft);
-      if (at != pe_unknown && ft != pe_unknown && ft != at)
-        mismatch (ee->tok, ee->type, array->referent, i);
-      if (at == pe_unknown)
-	  unresolved (ee->tok);
     }
 }
 
@@ -5279,7 +5285,7 @@ typeresolution_info::visit_foreach_loop (foreach_loop* e)
                 unresolved (ee->tok);
             }
           for (unsigned i=0; i<e->array_slice.size(); i++)
-            if (e->array_slice[i]->tok->type != tok_operator || e->array_slice[i]->tok->content != "*")
+            if (e->array_slice[i])
               {
                 expression* ee = e->array_slice[i];
                 exp_type& ft = array->referent->index_types [i];

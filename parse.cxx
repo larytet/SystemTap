@@ -2856,18 +2856,13 @@ parser::parse_foreach_loop ()
       while (1)
         {
           t = peek();
-          expression* expr = 0;
           if (t && t->type == tok_operator && t->content == "*")
             {
-              t = next();
-              symbol* sym = new symbol;
-              sym->tok = t;
-              sym->name = t->content;
-              expr = sym;
+              swallow();
+              s->array_slice.push_back (NULL);
             }
           else
-            expr = parse_expression ();
-          s->array_slice.push_back (expr);
+            s->array_slice.push_back (parse_expression());
 
           t = peek ();
           if (t && t->type == tok_operator && t->content == ",")
@@ -3132,11 +3127,8 @@ parser::parse_array_in ()
       t = peek();
       if (t && t->type == tok_operator && t->content == "*" && parenthesized)
         {
-          t = next();
-          symbol* sym = new symbol;
-          sym->tok = t;
-          sym->name = t->content;
-          indexes.push_back(sym);
+          swallow();
+          indexes.push_back(NULL);
         }
       else
         {
@@ -3724,11 +3716,8 @@ expression* parser::parse_symbol ()
         {
           if (peek_op("*"))
             {
-              t = next ();
-              symbol* ast_sym = new symbol;
-              ast_sym->tok = t;
-              ast_sym->name = t->content;
-              ai->indexes.push_back (ast_sym);
+              swallow();
+              ai->indexes.push_back (NULL);
             }
           else
             ai->indexes.push_back (parse_expression ());
