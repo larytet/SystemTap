@@ -3876,7 +3876,7 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
-          if (array_slice && e->indexes[i])
+          if (!array_slice || e->indexes[i])
             {
 	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
 	      ix.declare (*(parent->parent));
@@ -4262,7 +4262,7 @@ c_tmpcounter::visit_array_in (array_in* e)
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
-	  if (array_slice && e->operand->indexes[i])
+	  if (!array_slice || e->operand->indexes[i])
             {
               tmpvar ix = parent->gensym (r->index_types[i]);
               ix.declare (*parent);
