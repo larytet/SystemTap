@@ -7523,7 +7523,12 @@ dwarf_builder::build(systemtap_session & sess,
           // in the case of TOK_MARK we need to modify locations as well   // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
              location->components[0]->arg == 0)
-            location->components[0]->arg = new literal_string(module_name);
+            {
+              if (sess.target_pid)
+                location->components[0]->arg = new literal_number(sess.target_pid);
+              else
+                location->components[0]->arg = new literal_string(module_name);
+            }
         }
 
       // NB: must specifically handle the classical ("string") form here, to make sure
@@ -7537,16 +7542,9 @@ dwarf_builder::build(systemtap_session & sess,
       else if (get_param (parameters, TOK_PROCESS, proc_pid))
         {
           // check that the pid given corresponds to a running process
-          if (proc_pid < 1 || kill(proc_pid, 0) == -1)
-              switch (errno) // ignore EINVAL: invalid signal
-              {
-                case ESRCH:
-                  throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
-                case EPERM:
-                  throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
-                default:
-                  throw SEMANTIC_ERROR(_("invalid pid"));
-              }
+          string pid_err_msg;
+          if (is_valid_pid(proc_pid, pid_err_msg))
+            throw SEMANTIC_ERROR(pid_err_msg);
 
           string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
           module_name = sess.sysroot + pid_path;
@@ -7554,10 +7552,7 @@ dwarf_builder::build(systemtap_session & sess,
           // in the case of TOK_MARK we need to modify locations as well  // XXX why?
           if(location->components[0]->functor==TOK_PROCESS &&
              location->components[0]->arg == 0)
-            location->components[0]->arg = new literal_string(module_name);
-          // XXX: the above probably interferes with passing proc_pid to the new 
-          // uprobe_derived_probe p->pid, so the task-finder can associate this
-          // probe with only the given PID.
+            location->components[0]->arg = new literal_number(sess.target_pid);
         }
 
       // PR6456  process("/bin/*")  glob handling

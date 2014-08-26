@@ -1108,6 +1108,26 @@ get_self_path()
   return string(file);
 }
 
+bool
+is_valid_pid (int pid, string& err_msg)
+{
+  err_msg = "";
+  if (pid < 0 || kill(pid, 0) == -1)
+    {
+      switch (errno) // ignore EINVAL: invalid signal
+      {
+        case ESRCH:
+          err_msg = "pid given does not correspond to a running process";
+        case EPERM:
+          err_msg = "invalid permissions for signalling given pid";
+        default:
+          err_msg = "invalid pid";
+      }
+      return false;
+    }
+  return true;
+}
+
 // String sorter using the Levenshtein algorithm
 // TODO: Performance may be improved by adding a maximum distance
 // parameter which would abort the operation if we know the final

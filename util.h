@@ -102,6 +102,7 @@ int elf_class_from_normalized_machine(const std::string& machine);
 std::string autosprintf(const char* format, ...) __attribute__ ((format (printf, 1, 2)));
 const std::set<std::string>& localization_variables();
 std::string get_self_path();
+bool is_valid_pid (int pid, std::string& err_msg);
 
 // stringification generics
 

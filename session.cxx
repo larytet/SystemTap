@@ -1803,22 +1803,12 @@ systemtap_session::cmd_file ()
   
   if (target_pid && cmd == "")
     {
-      string pid_path = string("/proc/") + lex_cast(target_pid) + "/exe";
-      char buf[1024];
-      ssize_t path_len = readlink(pid_path.c_str(), buf, sizeof(buf) - 1);
+      // check that the target_pid corresponds to a running process
+      string err_msg;
+      if(!is_valid_pid (target_pid, err_msg))
+        throw SEMANTIC_ERROR(err_msg);
 
-      if (path_len > 0)
-        {
-          file = string(buf);
-        }
-      else
-        {
-          if (target_pid < 0)
-            {
-              throw SEMANTIC_ERROR(_("pid is a negative value"));
-            }
-          throw SEMANTIC_ERROR(_("pid does not correspond to a running process"));
-        }
+      file = string("/proc/") + lex_cast(target_pid) + "/exe";
     }
   else // default is to assume -c flag was given
     {  
