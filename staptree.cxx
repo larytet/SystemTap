@@ -2491,8 +2491,6 @@ varuse_collecting_visitor::visit_assignment (assignment *e)
 void
 varuse_collecting_visitor::visit_symbol (symbol *e)
 {
-  if (e == 0)
-    return;
   if (e->referent == 0)
     throw SEMANTIC_ERROR (_("symbol without referent"), e->tok);
 

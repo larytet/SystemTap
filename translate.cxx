@@ -866,16 +866,14 @@ public:
       return "_stp_map_iter (" + mv.value() + ", " + value() + ")";
   }
 
-  string next (mapvar const & mv, unsigned del) const
+  // Cannot handle deleting and iterating on pmaps
+  string del_next (mapvar const & mv) const
   {
-    if (!del)
-      return next(mv);
-
     if (mv.type() != referent_ty)
       throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
 
     if (mv.is_parallel())
-      return "_stp_map_iterdel (" + mv.fetch_existing_aggregate() + ", " + value() + ")";
+      throw SEMANTIC_ERROR(_("deleting a value of an unsupported map type"));
     else
       return "_stp_map_iterdel (" + mv.value() + ", " + value() + ")";
   }
@@ -3873,22 +3871,23 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
             break;
           }
 
-      // One temporary per index dimension.
-      for (unsigned i=0; i<r->index_types.size(); i++)
-	{
-          if (!array_slice || e->indexes[i])
-            {
-	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
-	      ix.declare (*(parent->parent));
-	      e->indexes[i]->visit(parent);
-            }
-	}
-
       if (array_slice)
         {
           itervar iv = parent->parent->getiter(array);
           parent->parent->o->newline() << iv.declare();
         }
+
+      // One temporary per index dimension.
+      for (unsigned i=0; i<r->index_types.size(); i++)
+	{
+          if (array->referent->type  == pe_stats || !array_slice || e->indexes[i])
+            {
+	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
+	      ix.declare (*(parent->parent));
+              if (e->indexes[i])
+	        e->indexes[i]->visit(parent);
+            }
+	}
     }
   else
     {
@@ -3922,9 +3921,14 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
         }
       else // delete elements if they match the array slice.
         {
+          vardecl* r = array->referent;
+          mapvar mvar = parent->getmap (r, e->tok);
+          itervar iv = parent->getiter(array);
+
           // create tmpvars for the array indexes, storing NULL where there is
           // no specific value that the index should be
           vector<tmpvar *> array_slice_vars;
+          vector<tmpvar> idx; // for the indexes if the variable is a pmap
           for (unsigned i=0; i<e->indexes.size(); i++)
             {
               if (e->indexes[i])
@@ -3932,14 +3936,32 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
                   tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
                   parent->c_assign (asvar->value(), e->indexes[i], "tmp var");
                   array_slice_vars.push_back(asvar);
+                  if (mvar.is_parallel())
+                    idx.push_back(*asvar);
                 }
               else
-                array_slice_vars.push_back(NULL);
+                {
+                  array_slice_vars.push_back(NULL);
+                  if (mvar.is_parallel())
+                    {
+                      tmpvar *asvar = new tmpvar(parent->gensym(r->index_types[i]));
+                      idx.push_back(*asvar);
+                    }
+                }
             }
 
-          mapvar mvar = parent->getmap (array->referent, e->tok);
-          itervar iv = parent->getiter(array);
-          vector<tmpvar> idx;
+          // Why does this make deleting aggregates work?
+          if (mvar.is_parallel())
+            {
+              parent->o->newline() << "if (unlikely(NULL == "
+                                   << mvar.calculate_aggregate() << ")) {";
+              parent->o->newline(1) << "c->last_error = ";
+              parent->o->line() << STAP_T_05 << mvar << "\";";
+              parent->o->newline() << "c->last_stmt = "
+                                   << lex_cast_qstring(*e->tok) << ";";
+              parent->o->newline() << "goto out;";
+              parent->o->newline(-1) << "}";
+            }
 
           // iterate through the map, deleting elements that match the array slice
           string ctr = lex_cast (parent->label_counter++);
@@ -3949,11 +3971,11 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
           parent->o->newline() << iv << " = " << iv.start(mvar) << ";";
           parent->o->newline() << toplabel << ":";
 
-          parent->o->newline(1) << "if (!(" << iv << "))";
-          parent->o->newline(1) << "goto " << breaklabel << ";";
+          parent->o->newline(1) << "if (!(" << iv << ")){";
+          parent->o->newline(1) << "goto " << breaklabel << ";}";
 
           // insert the comparison for keys that aren't wildcards
-          parent->o->newline(-1) << "if (true"; // in can all are wildcards
+          parent->o->newline(-1) << "if (true"; // in case all are wildcards
           for (unsigned i=0; i<array_slice_vars.size(); i++)
             if (array_slice_vars[i] != NULL)
               {
@@ -3967,12 +3989,27 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
               else
                 throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
               }
-          parent->o->line() <<  ")";
-          // conditional is true, so delete item and go to the next item
-          parent->o->newline(1) << iv << " = " << iv.next(mvar, 1) << ";";
 
-          parent->o->newline(-1) << "else";
-          parent->o->newline(1) << iv << " = " << iv.next(mvar, 0) << ";";
+          parent->o->line() <<  ") {";
+
+          // conditional is true, so delete item and go to the next item
+          if (mvar.is_parallel())
+            {
+              parent->o->indent(1);
+              // fills in the wildcards with the current iteration's (map) indexes
+              for (unsigned i = 0; i<array_slice_vars.size(); i++)
+                if (array_slice_vars[i] == NULL)
+                  parent->c_assign (idx[i].value(),
+                                    iv.get_key(mvar, r->index_types[i], i),
+                                    r->index_types[i], "tmpvar", e->tok);
+              parent->o->newline() << iv << " = " << iv.next(mvar) << ";";
+              parent->o->newline() << mvar.del(idx) << ";";
+            }
+          else
+            parent->o->newline(1) << iv << " = " << iv.del_next(mvar) << ";";
+
+          parent->o->newline(-1) << "} else";
+          parent->o->newline(1) << iv << " = " << iv.next(mvar) << ";";
 
           parent->o->newline(-1) << "goto " << toplabel << ";";
 
