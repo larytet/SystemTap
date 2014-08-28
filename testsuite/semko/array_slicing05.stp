@@ -4,5 +4,5 @@ probe begin {
   val [1, 2, 3] = 4
 
   # arity issues
-  foreach ([a, b, c] in val[*,*,*,*,*,*]) {exit();}
+  delete val[*,*,*,*]
 }

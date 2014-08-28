@@ -3950,7 +3950,6 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
                 }
             }
 
-          // Why does this make deleting aggregates work?
           if (mvar.is_parallel())
             {
               parent->o->newline() << "if (unlikely(NULL == "
