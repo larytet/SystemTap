@@ -2002,25 +2002,19 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
 	      throw SEMANTIC_ERROR (msg.str(), array->tok);
 	    }
 	}
-    }
-  else
-    {
-      assert (hist);
-      hist->visit (this);
-    }
 
-  // repeating a portion of the above
-  // checking that the array indexing in foreach ([..] in foo[..]) is reasonable
-  // at this stage.
-  if (array && !e->array_slice.empty())
-    {
-      if (!find_var (array->name, e->array_slice.size (), array->tok))
+      if (!e->array_slice.empty() && e->array_slice.size() != e->indexes.size())
         {
           stringstream msg;
           msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
                     e->array_slice.size(), array->name.c_str());
           throw SEMANTIC_ERROR (msg.str(), array->tok);
         }
+    }
+  else
+    {
+      assert (hist);
+      hist->visit (this);
     }
 
   if (e->value)
@@ -2045,39 +2039,7 @@ delete_statement_symresolution_info:
 
   void visit_arrayindex (arrayindex* e)
   {
-    // Can't settle for visiting the parent version as it won't skip processing
-    // wildcards, and can't add the conditional below that skips processing
-    // wildcards as that will cause wildcards to be processed in expressions
-    // that don't support them.
-    for (unsigned i=0; i<e->indexes.size(); i++)
-      if (e->indexes[i])
-        e->indexes[i]->visit (parent);
-
-    symbol *array = NULL;
-    hist_op *hist = NULL;
-    classify_indexable(e->base, array, hist);
-
-    if (array)
-      {
-        if (array->referent)
-          return;
-
-        vardecl* d = parent->find_var (array->name, e->indexes.size (), array->tok);
-        if (d)
-          array->referent = d;
-        else
-          {
-            stringstream msg;
-            msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                      e->indexes.size(), array->name.c_str());
-            throw SEMANTIC_ERROR (msg.str(), e->tok);
-          }
-    }
-  else
-    {
-      assert (hist);
-      hist->visit (parent);
-    }
+    parent->visit_arrayindex(e, true);
   }
 
   void visit_functioncall (functioncall* e)
@@ -2137,11 +2099,20 @@ symresolution_info::visit_symbol (symbol* e)
 void
 symresolution_info::visit_arrayindex (arrayindex* e)
 {
+  visit_arrayindex(e, false);
+}
+
+void
+symresolution_info::visit_arrayindex (arrayindex* e, bool wildcard_ok)
+{
   for (unsigned i=0; i<e->indexes.size(); i++)
     {
       // assuming that if NULL, it was originally a wildcard (*)
       if (e->indexes[i] == NULL)
-        throw SEMANTIC_ERROR(_("wildcard not allowed in array index"), e->tok);
+        {
+          if (!wildcard_ok)
+            throw SEMANTIC_ERROR(_("wildcard not allowed in array index"), e->tok);
+        }
       else
         e->indexes[i]->visit (this);
     }
@@ -2173,44 +2144,11 @@ symresolution_info::visit_arrayindex (arrayindex* e)
     }
 }
 
+
 void
 symresolution_info::visit_array_in (array_in* e)
 {
-  arrayindex* ai = e->operand;
-
-  // Can not settle for calling e->operand->visit(this) as it won't skip
-  // visiting wildcard symbols. Can not add in the below conditional to
-  // visit_arrayindex because wildcards aren't supported in all expressions that
-  // use array indexes.
-  for (unsigned i=0; i<ai->indexes.size(); i++)
-    if (ai->indexes[i])
-      ai->indexes[i]->visit (this);
-
-  symbol *array = NULL;
-  hist_op *hist = NULL;
-  classify_indexable(ai->base, array, hist);
-
-  if (array)
-    {
-      if (array->referent)
-	return;
-
-      vardecl* d = find_var (array->name, ai->indexes.size (), array->tok);
-      if (d)
-	array->referent = d;
-      else
-	{
-	  stringstream msg;
-          msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                    ai->indexes.size(), array->name.c_str());
-	  throw SEMANTIC_ERROR (msg.str(), ai->tok);
-	}
-    }
-  else
-    {
-      assert (hist);
-      hist->visit (this);
-    }
+  visit_arrayindex(e->operand, true);
 }
 
 
