@@ -1,0 +1,12 @@
+#! stap -p1
+
+global val
+probe begin {
+  val[1, 2, 3] = 4
+  stats [1, 1] <<< 1; 
+
+  foreach ([a, b, c] in val[*,*,*]);
+  foreach ([a, b] in stats[*,*]@count+);
+  delete val[*,*,*];
+  if ([*,*,*] in val);
+}

@@ -1,133 +1,137 @@
 set test_name array_slicing
 
-# parse errors
-set script {"global foo; probe begin { foo \[2, 3\] = 3; foreach (c=\[a,b\]  in foo\[\]) { print (c) } }"}
-stap_compile {$test_name foreach} 0 $script
-
-# semantic errors
-set script {"probe begin {foreach (c=\[a,b\]  in foo\[\*,\*\]) { print(c) } }"}
-stap_compile {$test_name foreach} 0 $script
-
 # basic version of the script to be used. values need to be subbed in for each test
-set script {
-  global val; ALT_VAL
-  probe begin {
-    val[val1,val2] = VALUE1; val[val3,val4] = VALUE2
-    print("systemtap starting probe\nsystemtap ending probe\n");
-    foreach (a=[b,c] in val[VAL1,VAL2]) {print(a)} 
-    print(" end"); exit();
-  }
+set script { \
+  global val; \
+  probe begin { \
+    val[$1, $2] = $3; val[$4,$5] = $6 \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    foreach (a=[b,c] in val[$7,$8]) {print(a)} \
+    print(" end"); exit(); \
+  } \
 }
 
 # this is set up to act like a normal for loop
-set script1 [string map {ALT_VAL " " val1 2 val2 {"hello"} VALUE1 1 val3 1 val4 {"hey"} VALUE2 1 VAL1 {*} VAL2 {*}} $script]
-stap_run {$test_name foreach (... val[*, *])} "" "11 end" --poison-cache -e $script1
+stap_run {$test_name foreach (... val[*, *])} "" "11 end" -e $script 2 {"hello"} 1 1 {"hey"} 1 * *
 
 # testing foreach( a=[b,c] in val[int, int] )
-set script1 [string map {ALT_VAL " " val1 2 val2 2 VALUE1 2 val3 3 val4 4 VALUE2 90 VAL1 2 VAL2 2} $script]
-stap_run {$test_name foreach (... val[int, int])} "" "2 end" --poison-cache -e $script1
+stap_run {$test_name foreach (... val[int, int])} "" "2 end"  -e $script 2 2 2 3 3 3 2 2
 
 # testing foreach( a=[b,c] in val[string, string] ), where there is a match
-set script1 [string map {ALT_VAL " " val1 {"asdf"} val2 {"jkl"} VALUE1 9 val3 {"fdsa"} val4 {"lkj"} VALUE2 3 VAL1 {"asdf"} VAL2 {"jkl"}} $script]
-stap_run {$test_name foreach (... val[string, string])} "" "9 end" --poison-cache -e $script1
+stap_run {$test_name foreach (... val[string, string])} "" "1 end"  -e $script {"asdf"} {"jkl"} 1 {"fdsa"} {"lkj"} 2 {"asdf"} {"jkl"}
 
 # testing foreach( a=[b,c] in val[variable, *] ), where there is a match
-set script1 [string map {ALT_VAL "global alt_val = 9;" val1 9 val2 1 VALUE1 4 val3 8 val4 9 VALUE2 5 VAL1 alt_val VAL2 {*}} $script]
-stap_run {$test_name foreach (... val[variable, *])} "" "4 end" --poison-cache -e $script1
+stap_run {$test_name foreach (... val[variable, *])} "" "4 end"  -e $script 9 1 4 8 9 9 {val[8,9]} *
 
-# testing foreach( a=[b,c] in val[varaible/int, string] ), where there is a match
-set script1 [string map {ALT_VAL "global alt_val = 9;" val1 9 val2 {"hello"} VALUE1 4 val3 alt_val val4 {"fdsasdf"} VALUE2 6 VAL1 alt_val VAL2 {"hello"}} $script]
-stap_run {$test_name foreach (... val[variable, string])} "" "4 end" --poison-cache -e $script1
+# testing foreach( a=[b,c] in val[string, variable/string] ), where there is a match
+stap_run {$test_name foreach (... val[variable, string])} "" "asdf end"  -e $script {"hi"} {"hello"} {"asdf"} {"hi"} {"hi"} {"hello"} {"hi"} {val["hi","hi"]}
 
 # testing foreach(... val[c,d]){c++;d++}
 # in this case, expecting the c++ and d++ to not affect the c and d in the array slice
-set script {
-  global val, c=1, d=3;
-  probe begin {
-    print("systemtap starting probe\nsystemtap ending probe\n");
-    val[1,3]=5; val[2,3]=6;
-    foreach ([a,b] in val[c,d]){print(val[a,b]);c++;d++}
-  }
+set script { \
+  global val, c=1, d=3; \
+  probe begin { \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    val[1,3]=5; val[2,3]=6; \
+    foreach ([a,b] in val[c,d]){print(val[a,b]);c++;d++} \
+  } \
 }
 stap_run {$test_name foreach (... val[c,d]) {c++;d++;}} "" "5" -e $script
 
 # testing foreach(.. val[expression, *])
-set script {
-  global val, c=1, d=2;
-  probe begin {
-    print("systemtap starting probe\nsystemtap ending probe\n");
-    val[1,3]=5; val[2,3]=6;
-    foreach ([a,b] in val[(c==d ? d : c), *]){print(val[a,b])}
-  }
+set script { \
+  global val, c=1, d=2; \
+  probe begin { \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    val[1,3]=5; val[2,3]=6; \
+    foreach ([a,b] in val[(c==d ? d : c), *]){print(val[a,b])} \
+  } \
 }
 stap_run {$test_name foreach (... val[expression,*])} "" "5" -e $script
 
 # testing sorting in foreach loops
-set script {
-  global val, stats
-  probe begin {
-    val[1, 1] = 1; val[3, 3] = 5; val[1, 2] = 2; val[2, 2] = 4; val[2, 1] = 3;
-    stats [1, 1] <<< 9;
-    stats [2, 1] <<< 2; stats [2, 1] <<< 6;
-    stats [23, 1] <<< 5;
-    print("systemtap starting probe\nsystemtap ending probe\n");
-    foreach (c=[a, b] in val[*,*]+) print(c);
-    foreach (c=[a, b] in val[*,*]-) print(c);
-    foreach ([a,b] in stats[*,1] @sum-) print(@sum(stats[a,b]));
-  }
+set script { \
+  global val, stats \
+  probe begin { \
+    val[1, 1] = 1; val[3, 3] = 5; val[1, 2] = 2; val[2, 2] = 4; val[2, 1] = 3; \
+    stats [1, 1] <<< 9; \
+    stats [2, 1] <<< 2; stats [2, 1] <<< 6; \
+    stats [23, 1] <<< 5; \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    foreach (c=[a, b] in val[*,*]+) print(c); \
+    foreach (c=[a, b] in val[*,*]-) print(c); \
+    foreach ([a,b] in stats[*,1] @sum-) print(@sum(stats[a,b])); \
+  } \
 }
 stap_run {$test_name foreach sorting} "" "1234554321985" -e $script
 
 
 # testing array slicing with delete statements
-set script {
-  global val;
-  probe begin {
-    val[val1,val2]=VALUE1; val[val3,val4]=VALUE2;
-    print("systemtap starting probe\nsystemtap ending probe\n");
-    delete val[VAL1,VAL2];
-    print(val[val1,val2]);print(val[val3,val4]); exit();
-  }
+set script { \
+  global val; \
+  probe begin { \
+    val[9, "hello"] = 9; val[300,"there"] = 6; \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    delete val[$1, $2]; \
+    print(val[9, "hello"]);print(val[300, "there"]); exit(); \
+  } \
 }
 
 # testing delete val[*,*]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 90 val3 300 val4 {"there"} VALUE2 62 VAL1 {*} VAL2 {*}} $script]
-stap_run {$test_name delete val[*,*]} "" "00" -e $script1
+stap_run {$test_name delete val[*,*]} "" "00" -e $script * *
 
 # testing delete val[*, string]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 9 val3 300 val4 {"there"} VALUE2 6 VAL1 {*} VAL2 {"hello"}} $script]
-stap_run {$test_name delete val[*, string]} "" "06" -e $script1
+stap_run {$test_name delete val[*, string]} "" "06" -e $script * {"hello"}
 
 # testing delete val[int,*]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 9 val3 300 val4 {"there"} VALUE2 6 VAL1 {300} VAL2 {*}} $script]
-stap_run {$test_name delete val[int, *]} "" "90" -e $script1
+stap_run {$test_name delete val[int, *]} "" "90" -e $script 300 *
 
 # testing delete val[expression,*]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 9 val3 300 val4 {"there"} VALUE2 6 VAL1 {(val[9,"hello"] == val[300,"there"] ? 9 : 300)} VAL2 {*}} $script]
-stap_run {$test_name delete val[epression, *]} "" "90" -e $script1
+stap_run {$test_name delete val[epression, *]} "" "90" -e $script {(val[9,"hello"] == val[300,"there"] ? 9 : 300)} *
 
+# testing delete statements on pmaps
+set script { \
+  global stats \
+  probe begin { \
+    stats [1, 1] <<< 9; stats [1, 1] <<< 2; stats [1, 1] <<< 6; \
+    stats [2, 2] <<< 1; \
+    delete stats [1, *]; \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    print (@count(stats[1, 1])); print(@count(stats[2,2])); \
+  } \
+}
+stap_run {$test_name delete pmaps} "" "01" -e $script
+
+# testing delete statements on pmaps THIS ONE SHOULD WORK
+set script { \
+  global stats \
+  probe begin { \
+    stats [1, 1] <<< 9; stats [1, 1] <<< 2; stats [1, 1] <<< 6; \
+    stats [2, 2] <<< 1; \
+    delete stats [1, 1]; \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    print (@count(stats[1, 1])); print(@count(stats[2,2])); \
+  } \
+}
+stap_run {$test_name delete pmaps works} "" "01" -e $script
 
 # testing membership, [*, *] in foo
-set script {
-  global val;
-  probe begin {
-    val[val1,val2]=VALUE1; val[val3,val4]=VALUE2;
-    print("systemtap starting probe\nsystemtap ending probe\n");
-    if ([VAL1,VAL2] in val) { print("in");} else {print ("not in");} exit();
-  }
+set script { \
+  global val; \
+  probe begin { \
+    val[9,"hello"] = 9; val[300,"there"] = 6; \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    if ([$1, $2] in val) { print("in");} else {print ("not in");} exit(); \
+  } \
 }
 # testing membership [*,*]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 90 val3 300 val4 {"there"} VALUE2 62 VAL1 {*} VAL2 {*}} $script]
-stap_run {$test_name membership [*,*] in val} "" "in" -e $script1
+stap_run {$test_name membership [*,*] in val} "" "in" -e $script * *
 
 # testing membership [*, string]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 9 val3 300 val4 {"there"} VALUE2 6 VAL1 {*} VAL2 {"hello"}} $script]
-stap_run {$test_name membership val[*, string] in val} "" "in" -e $script1
+stap_run {$test_name membership val[*, string] in val} "" "in" -e $script * {"hello"}
 
 # testing membership [int,*]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 9 val3 300 val4 {"there"} VALUE2 6 VAL1 {309} VAL2 {*}} $script]
-stap_run {$test_name membership val[int, *] in val} "" "not in" -e $script1
+stap_run {$test_name membership val[int, *] in val} "" "not in" -e $script 309 *
 
 # testing membership [expression,*]
-set script1 [string map {val1 9 val2 {"hello"} VALUE1 9 val3 300 val4 {"there"} VALUE2 6 VAL1 {(val[9, "hello"] == val[300, "there"]? 9 : 900)} VAL2 {*}} $script]
-stap_run {$test_name membership val[expression,*] in val} "" "not in" -e $script1
+stap_run {$test_name membership val[expression,*] in val} "" "not in" -e $script {(val[9, "hello"] == val[300, "there"]? 9 : 900)} *
