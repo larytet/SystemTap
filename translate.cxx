@@ -4380,6 +4380,19 @@ c_unparser::visit_array_in (array_in* e)
           itervar iv = getiter(array);
           vector<tmpvar> idx;
 
+          // we may not need to aggregate if we're already in a foreach
+          bool pre_agg = (aggregations_active.count(mvar.value()) > 0);
+          if (mvar.is_parallel() && !pre_agg)
+            {
+              o->newline() << "if (unlikely(NULL == "
+                           << mvar.calculate_aggregate() << ")) {";
+              o->newline(1) << "c->last_error = ";
+              o->line() << STAP_T_05 << mvar << "\";";
+              o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+              o->newline() << "goto out;";
+              o->newline(-1) << "}";
+            }
+
           string ctr = lex_cast (label_counter++);
           string toplabel = "top_" + ctr;
           string contlabel = "continue_" + ctr;
