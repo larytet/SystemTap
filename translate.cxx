@@ -3642,7 +3642,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       if (!s->array_slice.empty())
         {
           //add in the beginning portion of the if statement
-          o->newline() << "if (false";
+          o->newline() << "if (0"; // in case all are wildcards
           for (unsigned i = 0; i < s->array_slice.size(); ++i)
 
             // only output a comparsion if the expression is not "*".
@@ -3974,7 +3974,7 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
           parent->o->newline(1) << "goto " << breaklabel << ";}";
 
           // insert the comparison for keys that aren't wildcards
-          parent->o->newline(-1) << "if (true"; // in case all are wildcards
+          parent->o->newline(-1) << "if (1"; // in case all are wildcards
           for (unsigned i=0; i<array_slice_vars.size(); i++)
             if (array_slice_vars[i] != NULL)
               {
@@ -4394,7 +4394,7 @@ c_unparser::visit_array_in (array_in* e)
           o->newline(1) << "goto " << breaklabel << ";";
 
           // generate code for comparing the keys to the index slice
-          o->newline(-1) << "if (true";
+          o->newline(-1) << "if (1"; // in case all are wildcards
           for (unsigned i=0; i<array_slice_vars.size(); i++)
             {
               if (array_slice_vars[i] != NULL)
