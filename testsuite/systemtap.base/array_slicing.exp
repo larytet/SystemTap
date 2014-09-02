@@ -123,6 +123,7 @@ stap_run {$test_name membership [int, *] in val} "" "not in" -e $script 309 *
 # testing membership [expression,*]
 stap_run {$test_name membership [expression,*] in val} "" "not in" -e $script {(val[9, "hello"] == val[300, "there"]? 9 : 900)} *
 
+# testing membership with pmaps
 set script { global stats \
   probe begin {stats[1,1] <<< 2; exit();} \
   probe end { \
@@ -131,3 +132,13 @@ set script { global stats \
   } \
 }
 stap_run {$test_name membership pmaps} "" "10" -e $script
+
+# testing membership with pmaps, to make sure it doesn't re-aggregate in the loop
+set script { global stats \
+  probe begin {stats[1,1] <<< 2; exit();} \
+  probe end { \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    foreach([x,y] in stats) println([1,*] in stats) \
+  } \
+}
+stap_run {$test_name membership pmaps (2)} "" "1" -e $script
