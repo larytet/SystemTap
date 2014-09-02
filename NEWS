@@ -59,6 +59,15 @@
   delete val[*, 2, *]
   [*, 2, *] in val
 
+- Integer expressions which are derived from DWARF values, like context $vars,
+  @cast, and @var, will now carry that type information into subsequent reads.
+  Such expressions can now use "->" and "[]" operators, as can local variables
+  which were assigned such values.
+
+  foo = $param->foo; printf("x:%d y:%d\n", foo->x, foo->y)
+  printf("my value is %d\n", ($type == 42 ? $foo : $bar)->value)
+  printf("my parent pid is %d\n", task_parent(task_current())->tgid)
+
 * What's new in version 2.5, 2014-04-30
 
 - Systemtap now supports backtracing through its own, invoking module.
