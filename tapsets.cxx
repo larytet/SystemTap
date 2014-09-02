@@ -662,16 +662,10 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
           if (get_number_param(params, TOK_PROCESS, pid_val))
             {
               // check that the pid given corresponds to a running process
-              if (pid_val < 1 || kill(pid_val, 0) == -1)
-                  switch (errno) // ignore EINVAL: invalid signal
-                  {
-                    case ESRCH:
-                      throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
-                    case EPERM:
-                      throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
-                    default:
-                      throw SEMANTIC_ERROR(_("invalid pid"));
-                  }
+              string pid_err_msg;
+              if (!is_valid_pid(pid_val, pid_err_msg))
+                throw SEMANTIC_ERROR(pid_err_msg);
+
               string pid_path = string("/proc/") + lex_cast(pid_val) + "/exe";
               module_val = sess.sysroot + pid_path;
             }

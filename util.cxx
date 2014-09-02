@@ -1109,10 +1109,10 @@ get_self_path()
 }
 
 bool
-is_valid_pid (int pid, string& err_msg)
+is_valid_pid (pid_t pid, string& err_msg)
 {
   err_msg = "";
-  if (pid < 0 || kill(pid, 0) == -1)
+  if (pid <= 0 || kill(pid, 0) == -1)
     {
       switch (errno) // ignore EINVAL: invalid signal
       {

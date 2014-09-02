@@ -688,21 +688,9 @@ struct utrace_builder: public derived_probe_builder
     // Check that if a pid was given, then it corresponds to a running process.
     if (has_pid || sess.target_pid)
       {
-        int rc = -1;
-        if (has_pid && pid > 0)
-          rc = kill(pid, 0);
-        else if (!has_pid && sess.target_pid > 0) // pid given using -x flag
-          rc = kill(sess.target_pid, 0);
-        if (rc == -1)
-          switch (errno) // ignore EINVAL: invalid signal
-            {
-              case ESRCH:
-                throw SEMANTIC_ERROR(_("pid given does not correspond to a running process"));
-              case EPERM:
-                throw SEMANTIC_ERROR(_("invalid permissions for signalling given pid"));
-              default:
-                throw SEMANTIC_ERROR(_("invalid pid"));
-            }
+	string pid_err_msg;
+	if (!is_valid_pid(has_pid ? pid : sess.target_pid, pid_err_msg))
+	  throw SEMANTIC_ERROR(pid_err_msg);
       }
 
     // If we didn't get a path or pid, this means to probe everything.
