@@ -240,11 +240,16 @@ __stp_time_cpufreq_callback(struct notifier_block *self,
 #ifdef DEBUG_TIME
                     _stp_warn ("cpu%d %p freq->%d\n", freqs->cpu, (void*)time, freqs->new);
 #endif
+#if defined(STAPCONF_SMPCALL_5ARGS) || defined(STAPCONF_SMPCALL_4ARGS)
                     (void) smp_call_function_single (freqs->cpu, &__stp_time_smp_callback, 0,
 #ifdef STAPCONF_SMPCALL_5ARGS
                                                      1, /* nonatomic */
 #endif
                                                      0); /* not wait */
+#else
+                    /* RHEL4ish: cannot direct to a single cpu ... so broadcast to them all */
+                    (void) smp_call_function (&__stp_time_smp_callback, NULL, 0, 0);
+#endif
             }
             break;
     }
