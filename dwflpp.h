@@ -558,15 +558,15 @@ private:
   void collect_all_lines(char const * srcfile,
                          base_func_info_map_t& funcs,
                          lines_t& matching_lines);
+  std::pair<int,int> get_nearest_linenos(char const * srcfile,
+                                         int lineno,
+                                         base_func_info_map_t& funcs);
+  int get_nearest_lineno(char const * srcfile,
+                         int lineno,
+                         base_func_info_map_t& funcs);
   void suggest_alternative_linenos(char const * srcfile,
                                    int lineno,
                                    base_func_info_map_t& funcs);
-  void insert_alternative_linenos(char const * srcfile,
-                                   int lineno,
-                                   base_func_info_map_t& funcs,
-                                   void (* callback) (Dwarf_Addr,
-                                                      int, void*),
-                                   void *data);
 
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);

@@ -1726,39 +1726,76 @@ functions_have_lineno(base_func_info_map_t& funcs,
   return false;
 }
 
+// returns pair of valid linenos surrounding target lineno
+pair<int,int>
+dwflpp::get_nearest_linenos(char const * srcfile,
+                            int lineno,
+                            base_func_info_map_t& funcs)
+{
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+
+  // Look around lineno for linenos with LRs.
+  pair<int,int> nearest_linenos = make_pair(-1, -1);
+  for (size_t i = 1; i < 6; ++i)
+    {
+      if (nearest_linenos.first == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        nearest_linenos.first = lineno - i;
+      if (nearest_linenos.second == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        nearest_linenos.second = lineno + i;
+    }
+
+  return nearest_linenos;
+}
+
+// returns nearest valid lineno to target lineno
+int
+dwflpp::get_nearest_lineno(char const * srcfile,
+                           int lineno,
+                           base_func_info_map_t& funcs)
+{
+  assert(cu);
+  pair<int,int> nearest_linenos = get_nearest_linenos(srcfile, lineno, funcs);
+
+  if (nearest_linenos.first > 0
+      && nearest_linenos.second > 0)
+    {
+      // pick the nearest line number (break tie to upper)
+      if (lineno - nearest_linenos.first < nearest_linenos.second - lineno)
+        return nearest_linenos.first;
+      else
+        return nearest_linenos.second;
+    }
+  else if (nearest_linenos.first > 0)
+    return nearest_linenos.first;
+  else if (nearest_linenos.second > 0)
+    return nearest_linenos.second;
+  else
+    return -1;
+}
+
 void
 dwflpp::suggest_alternative_linenos(char const * srcfile,
                                     int lineno,
                                     base_func_info_map_t& funcs)
 {
   assert(cu);
-  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
-
-  // Look around lineno for linenos with LRs.
-  int lo_try = -1;
-  int hi_try = -1;
-  for (size_t i = 1; i < 6; ++i)
-    {
-      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
-        lo_try = lineno - i;
-      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
-        hi_try = lineno + i;
-    }
+  pair<int,int> nearest_linenos = get_nearest_linenos(srcfile, lineno, funcs);
 
   stringstream advice;
   advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
 
-  if (lo_try > 0 || hi_try > 0)
+  if (nearest_linenos.first > 0 || nearest_linenos.second > 0)
     {
       //TRANSLATORS: Here we are trying to advise what source file
       //TRANSLATORS: to attempt.
       advice << _(" (try ");
-      if (lo_try > 0)
-        advice << ":" << lo_try;
-      if (lo_try > 0 && hi_try > 0)
+      if (nearest_linenos.first > 0)
+        advice << ":" << nearest_linenos.first;
+      if (nearest_linenos.first > 0 && nearest_linenos.second > 0)
         advice << _(" or ");
-      if (hi_try > 0)
-        advice << ":" << hi_try;
+      if (nearest_linenos.second > 0)
+        advice << ":" << nearest_linenos.second;
       advice << ")";
     }
   throw SEMANTIC_ERROR (advice.str());
@@ -1774,75 +1811,6 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
     if (strcmp(srcfile, func->decl_file) == 0)
       matching_funcs.push_back(*func);
   return matching_funcs;
-}
-
-void
-dwflpp::insert_alternative_linenos(char const * srcfile,
-                                    int lineno,
-                                    base_func_info_map_t& funcs,
-                                    void (* callback) (Dwarf_Addr,
-                                                       int, void*),
-                                    void *data)
-{
-  assert(cu);
-  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
-
-  // Look around lineno for linenos with LRs.
-  int lo_try = -1;
-  int hi_try = -1;
-  for (size_t i = 1; i < 6; ++i) // XXX: parametrize this 6 .. maybe .nearest(6) ?
-    {
-      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
-        lo_try = lineno - i;
-      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
-        hi_try = lineno + i;
-    }
-
-  int new_lineno;
-  if (lo_try > 0 && hi_try > 0)
-    {
-      // pick the nearest line number
-      if (lineno - lo_try < lineno - hi_try)
-        new_lineno = lo_try;
-      else
-        new_lineno = hi_try;
-    }
-  else if (lo_try > 0)
-    {
-      new_lineno = lo_try;
-    }
-  else if (hi_try > 0)
-    {
-      new_lineno = hi_try;
-    }
-  else
-    {
-      stringstream advice;
-      advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
-      throw SEMANTIC_ERROR (advice.str());
-    }
-  // clog << _F("insert a kprobe at %s:%d (no line record at %s:%d)\n",
-  // srcfile, new_lineno, srcfile, lineno);
-
-  // collect lines
-  lines_t matching_lines;
-  collect_lines_for_single_lineno(srcfile, new_lineno, false, /* is_relative */
-                                  funcs, matching_lines);
-  // call back with matching lines
-  assert (!matching_lines.empty());
-  set<Dwarf_Addr> probed_addrs;
-  for (lines_t::iterator line  = matching_lines.begin();
-                         line != matching_lines.end(); ++line)
-    {
-      int near_lineno = DWARF_LINENO(*line);
-      Dwarf_Addr addr = DWARF_LINEADDR(*line);
-      bool is_new_addr = probed_addrs.insert(addr).second;
-      if (is_new_addr)
-        callback(addr, near_lineno, data);
-    }
-
-  // XXX: the derivation chain of the new derived probe messes up the
-  // original statement's :LINENO, replacing instead of preserving it
 }
 
 template<> void
@@ -1897,6 +1865,23 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
       collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
                                       current_funcs, matching_lines);
 
+  // should we try to collect the nearest line if we didn't collect everything on first try?
+  if (matching_lines.empty() && has_nearest)
+    {
+      int lineno = linenos[0];
+      if (lineno_type == RELATIVE)
+        // just pick the first function and make it relative to that
+        lineno += current_funcs[0].decl_line;
+
+      int nearest_lineno = get_nearest_lineno(srcfile, lineno, current_funcs);
+      if (nearest_lineno > 0)
+        collect_lines_for_single_lineno(srcfile, nearest_lineno, false, /* is_relative */
+                                        current_funcs, matching_lines);
+
+      // XXX: the derivation chain of the new derived probe messes up the
+      // original statement's :LINENO, replacing instead of preserving it
+    }
+
   // call back with matching lines
   if (!matching_lines.empty())
     {
@@ -1921,12 +1906,7 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
         // just pick the first function and make it relative to that
         lineno += current_funcs[0].decl_line;
 
-      if (has_nearest) {
-        // This function inserts a kprobe into the nearest line number
-        // rather than suggesting near line numbers and exiting.
-        insert_alternative_linenos(srcfile, lineno, current_funcs, callback, data);
-      } else
-        suggest_alternative_linenos(srcfile, lineno, current_funcs);
+      suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
 }
 
