@@ -228,7 +228,7 @@ proc setup_systemtap_environment {} {
     # All hail the prophet lockdep
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
     puts $chan "--rlimit-cpu=300"
-    puts $chan "-E 'probe timer.s(3100){error(\"probe timeout after 3100 s\")}'"
+    puts $chan "-E 'probe timer.s(900){error(\"probe timeout after 15 minutes\")}'"
     close $chan
 
     # Erase the old server log file.
