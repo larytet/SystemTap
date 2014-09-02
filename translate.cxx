@@ -868,6 +868,18 @@ public:
       return "_stp_map_iter (" + mv.value() + ", " + value() + ")";
   }
 
+  // Cannot handle deleting and iterating on pmaps
+  string del_next (mapvar const & mv) const
+  {
+    if (mv.type() != referent_ty)
+      throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
+
+    if (mv.is_parallel())
+      throw SEMANTIC_ERROR(_("deleting a value of an unsupported map type"));
+    else
+      return "_stp_map_iterdel (" + mv.value() + ", " + value() + ")";
+  }
+
   string value () const
   {
     return "l->" + name;
@@ -3665,6 +3677,17 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
     {
       itervar iv = parent->getiter (array);
       parent->o->newline() << iv.declare();
+
+      // Create temporaries for the array slice indexes that aren't wildcards
+      for (unsigned i=0; i<s->array_slice.size(); i++)
+        {
+          if (s->array_slice[i])
+            {
+              tmpvar slice_index = parent->gensym (s->array_slice[i]->type);
+              slice_index.declare(*parent);
+              s->array_slice[i]->visit (this);
+            }
+        }
     }
   else
    {
@@ -3816,6 +3839,22 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  o->newline() << *limitv << " = 0LL;";
       }
 
+      vector<tmpvar *> array_slice_vars;
+      // store the the variables corresponding to the index of the array slice
+      // as temporary variables
+      if (!s->array_slice.empty())
+          for (unsigned i = 0; i < s->array_slice.size(); ++i)
+            {
+              if (s->array_slice[i])
+                {
+                  tmpvar *asvar = new tmpvar(gensym(s->array_slice[i]->type));
+                  c_assign(asvar->value(), s->array_slice[i], "array slice index");
+                  array_slice_vars.push_back(asvar);
+                }
+              else
+                array_slice_vars.push_back(NULL);
+            }
+
       record_actions(1, s->tok, true);
 
       // condition
@@ -3852,6 +3891,42 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  var v = getvar (s->indexes[i]->referent);
 	  c_assign (v, iv.get_key (mv, v.type(), i), s->tok);
 	}
+
+      // in the case that the user specified something like
+      // foreach ([a,b] in foo[*, 123]), need to check that it iterates over
+      // the specified values, ie b is alwasy going to be 123
+      if (!s->array_slice.empty())
+        {
+          //add in the beginning portion of the if statement
+          o->newline() << "if (0"; // in case all are wildcards
+          for (unsigned i = 0; i < s->array_slice.size(); ++i)
+
+            // only output a comparsion if the expression is not "*".
+            if (s->array_slice[i])
+            {
+              o->line() << " || ";
+              if (s->indexes[i]->type == pe_string)
+                {
+                  if (s->array_slice[i]->type != pe_string)
+                    throw SEMANTIC_ERROR (_("expected string types"), s->tok);
+                  o->line() << "strncmp(" << getvar (s->indexes[i]->referent)
+                            << ", " << *array_slice_vars[i];
+                  o->line() << ", MAXSTRINGLEN) !=0";
+                }
+              else if (s->indexes[i]->type == pe_long)
+                {
+                  if (s->array_slice[i]->type != pe_long)
+                    throw SEMANTIC_ERROR (_("expected numeric types"), s->tok);
+                  o->line() << getvar (s->indexes[i]->referent) << " != "
+                            << *array_slice_vars[i];
+                }
+              else
+              {
+                  throw SEMANTIC_ERROR (_("unexpected type"), s->tok);
+              }
+            }
+          o->line() << ") goto " << contlabel << ";"; // end of the if statment
+        }
 
       if (s->value)
         {
@@ -4043,13 +4118,31 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
     {
       assert (array->referent != 0);
       vardecl* r = array->referent;
+      bool array_slice = false;
+
+      for (unsigned i = 0; i < e->indexes.size(); i ++)
+        if (e->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
+
+      if (array_slice)
+        {
+          itervar iv = parent->parent->getiter(array);
+          parent->parent->o->newline() << iv.declare();
+        }
 
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
-	  tmpvar ix = parent->parent->gensym (r->index_types[i]);
-	  ix.declare (*(parent->parent));
-	  e->indexes[i]->visit(parent);
+          if (array->referent->type  == pe_stats || !array_slice || e->indexes[i])
+            {
+	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
+	      ix.declare (*(parent->parent));
+              if (e->indexes[i])
+	        e->indexes[i]->visit(parent);
+            }
 	}
     }
   else
@@ -4067,13 +4160,118 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
 
   if (array)
     {
-      vector<tmpvar> idx;
-      parent->load_map_indices (e, idx);
+      bool array_slice = false;
+      for (unsigned i = 0; i < e->indexes.size(); i ++)
+        if (e->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
 
-      {
-	mapvar mvar = parent->getmap (array->referent, e->tok);
-	parent->o->newline() << mvar.del (idx) << ";";
-      }
+      if (!array_slice) // delete a single element
+        {
+          vector<tmpvar> idx;
+          parent->load_map_indices (e, idx);
+          mapvar mvar = parent->getmap (array->referent, e->tok);
+          parent->o->newline() << mvar.del (idx) << ";";
+        }
+      else // delete elements if they match the array slice.
+        {
+          vardecl* r = array->referent;
+          mapvar mvar = parent->getmap (r, e->tok);
+          itervar iv = parent->getiter(array);
+
+          // create tmpvars for the array indexes, storing NULL where there is
+          // no specific value that the index should be
+          vector<tmpvar *> array_slice_vars;
+          vector<tmpvar> idx; // for the indexes if the variable is a pmap
+          for (unsigned i=0; i<e->indexes.size(); i++)
+            {
+              if (e->indexes[i])
+                {
+                  tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
+                  parent->c_assign (asvar->value(), e->indexes[i], "tmp var");
+                  array_slice_vars.push_back(asvar);
+                  if (mvar.is_parallel())
+                    idx.push_back(*asvar);
+                }
+              else
+                {
+                  array_slice_vars.push_back(NULL);
+                  if (mvar.is_parallel())
+                    {
+                      tmpvar *asvar = new tmpvar(parent->gensym(r->index_types[i]));
+                      idx.push_back(*asvar);
+                    }
+                }
+            }
+
+          if (mvar.is_parallel())
+            {
+              parent->o->newline() << "if (unlikely(NULL == "
+                                   << mvar.calculate_aggregate() << ")) {";
+              parent->o->newline(1) << "c->last_error = ";
+              parent->o->line() << STAP_T_05 << mvar << "\";";
+              parent->o->newline() << "c->last_stmt = "
+                                   << lex_cast_qstring(*e->tok) << ";";
+              parent->o->newline() << "goto out;";
+              parent->o->newline(-1) << "}";
+            }
+
+          // iterate through the map, deleting elements that match the array slice
+          string ctr = lex_cast (parent->label_counter++);
+          string toplabel = "top_" + ctr;
+          string breaklabel = "break_" + ctr;
+
+          parent->o->newline() << iv << " = " << iv.start(mvar) << ";";
+          parent->o->newline() << toplabel << ":";
+
+          parent->o->newline(1) << "if (!(" << iv << ")){";
+          parent->o->newline(1) << "goto " << breaklabel << ";}";
+
+          // insert the comparison for keys that aren't wildcards
+          parent->o->newline(-1) << "if (1"; // in case all are wildcards
+          for (unsigned i=0; i<array_slice_vars.size(); i++)
+            if (array_slice_vars[i] != NULL)
+              {
+              if (array_slice_vars[i]->type() == pe_long)
+                parent->o->line() << " && " << *array_slice_vars[i] << " == "
+                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+              else if (array_slice_vars[i]->type() == pe_string)
+                parent->o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                                  << ", MAXSTRINGLEN) == 0";
+              else
+                throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
+              }
+
+          parent->o->line() <<  ") {";
+
+          // conditional is true, so delete item and go to the next item
+          if (mvar.is_parallel())
+            {
+              parent->o->indent(1);
+              // fills in the wildcards with the current iteration's (map) indexes
+              for (unsigned i = 0; i<array_slice_vars.size(); i++)
+                if (array_slice_vars[i] == NULL)
+                  parent->c_assign (idx[i].value(),
+                                    iv.get_key(mvar, r->index_types[i], i),
+                                    r->index_types[i], "tmpvar", e->tok);
+              parent->o->newline() << iv << " = " << iv.next(mvar) << ";";
+              parent->o->newline() << mvar.del(idx) << ";";
+            }
+          else
+            parent->o->newline(1) << iv << " = " << iv.del_next(mvar) << ";";
+
+          parent->o->newline(-1) << "} else";
+          parent->o->newline(1) << iv << " = " << iv.next(mvar) << ";";
+
+          parent->o->newline(-1) << "goto " << toplabel << ";";
+
+          parent->o->newline(-1) << breaklabel<< ":";
+          parent->o->newline(1) << "; /* dummy statement */";
+          parent->o->indent(-1);
+        }
     }
   else
     {
@@ -4340,18 +4538,35 @@ c_tmpcounter::visit_array_in (array_in* e)
     {
       assert (array->referent != 0);
       vardecl* r = array->referent;
-
-      // One temporary per index dimension.
-      for (unsigned i=0; i<r->index_types.size(); i++)
-	{
-	  tmpvar ix = parent->gensym (r->index_types[i]);
-	  ix.declare (*parent);
-	  e->operand->indexes[i]->visit(this);
-	}
+      bool array_slice = false;
 
       // A boolean result.
       tmpvar res = parent->gensym (e->type);
       res.declare (*parent);
+
+      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
+        if (e->operand->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
+
+      // One temporary per index dimension.
+      for (unsigned i=0; i<r->index_types.size(); i++)
+	{
+	  if (!array_slice || e->operand->indexes[i])
+            {
+              tmpvar ix = parent->gensym (r->index_types[i]);
+              ix.declare (*parent);
+              e->operand->indexes[i]->visit(this);
+            }
+	}
+
+      if (array_slice)
+        {
+          itervar iv = parent->getiter(array);
+          parent->o->newline() << iv.declare();
+        }
     }
   else
     {
@@ -4378,15 +4593,108 @@ c_unparser::visit_array_in (array_in* e)
     {
       stmt_expr block(*this);
 
-      vector<tmpvar> idx;
-      load_map_indices (e->operand, idx);
-      // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
-
       tmpvar res = gensym (pe_long);
-      mapvar mvar = getmap (array->referent, e->tok);
-      c_assign (res, mvar.exists(idx), e->tok);
+      vector<tmpvar> idx;
 
-      o->newline() << res << ";";
+      // determine if the array index contains an asterisk
+      bool array_slice = false;
+      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
+        if (e->operand->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
+
+      if (!array_slice) // checking for membership of a specific element
+        {
+          load_map_indices (e->operand, idx);
+          // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+
+          mapvar mvar = getmap (array->referent, e->tok);
+          c_assign (res, mvar.exists(idx), e->tok);
+
+          o->newline() << res << ";";
+        }
+      else
+        {
+          // create tmpvars for the array indexes, storing NULL where there is
+          // no specific value that the index should be
+          vector<tmpvar *> array_slice_vars;
+          for (unsigned i=0; i<e->operand->indexes.size(); i++)
+            {
+              if (e->operand->indexes[i])
+                {
+                  tmpvar *asvar = new tmpvar(gensym(e->operand->indexes[i]->type));
+                  c_assign (asvar->value(), e->operand->indexes[i], "tmp var");
+                  array_slice_vars.push_back(asvar);
+                }
+              else
+                array_slice_vars.push_back(NULL);
+            }
+
+          mapvar mvar = getmap (array->referent, e->operand->tok);
+          itervar iv = getiter(array);
+          vector<tmpvar> idx;
+
+          // we may not need to aggregate if we're already in a foreach
+          bool pre_agg = (aggregations_active.count(mvar.value()) > 0);
+          if (mvar.is_parallel() && !pre_agg)
+            {
+              o->newline() << "if (unlikely(NULL == "
+                           << mvar.calculate_aggregate() << ")) {";
+              o->newline(1) << "c->last_error = ";
+              o->line() << STAP_T_05 << mvar << "\";";
+              o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+              o->newline() << "goto out;";
+              o->newline(-1) << "}";
+            }
+
+          string ctr = lex_cast (label_counter++);
+          string toplabel = "top_" + ctr;
+          string contlabel = "continue_" + ctr;
+          string breaklabel = "break_" + ctr;
+
+          o->newline() << iv << " = " << iv.start(mvar) << ";";
+          c_assign (res, "0", e->tok); // set the default to 0
+
+          o->newline() << toplabel << ":";
+
+          o->newline(1) << "if (!(" << iv << "))";
+          o->newline(1) << "goto " << breaklabel << ";";
+
+          // generate code for comparing the keys to the index slice
+          o->newline(-1) << "if (1"; // in case all are wildcards
+          for (unsigned i=0; i<array_slice_vars.size(); i++)
+            {
+              if (array_slice_vars[i] != NULL)
+                {
+                if (array_slice_vars[i]->type() == pe_long)
+                  o->line() << " && " << *array_slice_vars[i] << " == "
+                            << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+                else if (array_slice_vars[i]->type() == pe_string)
+                  o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                            << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                            << ", MAXSTRINGLEN) == 0";
+                else
+                  throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
+                }
+            }
+          o->line() <<  "){";
+          o->indent(1);
+          // conditional is true, so set res and go to break
+          c_assign (res, "1", e->tok);
+          o->newline() << "goto " << breaklabel << ";";
+          o->newline(-1) << "}";
+
+          // else, keep iterating
+          o->newline() << iv << " = " << iv.next(mvar) << ";";
+          o->newline() << "goto " << toplabel << ";";
+
+          o->newline(-1) << breaklabel<< ":";
+          o->newline(1) << "; /* dummy statement */";
+          o->newline(-1) << res << ";";
+        }
+
     }
   else
     {

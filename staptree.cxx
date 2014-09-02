@@ -398,7 +398,10 @@ void array_in::print (ostream& o) const
   for (unsigned i=0; i<operand->indexes.size(); i++)
     {
       if (i > 0) o << ", ";
-      operand->indexes[i]->print (o);
+      if (operand->indexes[i])
+        operand->indexes[i]->print (o);
+      else
+        o << "*";
     }
   o << "] in ";
   operand->base->print (o);
@@ -622,7 +625,13 @@ void arrayindex::print (ostream& o) const
   base->print (o);
   o << "[";
   for (unsigned i=0; i<indexes.size(); i++)
-    o << (i>0 ? ", " : "") << *indexes[i];
+    {
+      o << (i>0 ? ", " : "");
+      if (indexes[i]==0)
+        o << "*";
+      else
+        o << *indexes[i];
+    }
   o << "]";
 }
 
@@ -1167,6 +1176,19 @@ void foreach_loop::print (ostream& o) const
     }
   o << "] in ";
   base->print (o);
+  if (!array_slice.empty())
+    {
+      o << "[";
+      for (unsigned i=0; i<array_slice.size(); i++)
+        {
+          if (i > 0) o << ", ";
+          if (array_slice[i])
+            array_slice[i]->print (o);
+          else
+            o << "*";
+        }
+      o << "]";
+    }
   if (sort_direction != 0 && sort_column == 0)
     {
       switch (sort_aggr)
@@ -1999,7 +2021,8 @@ void
 traversing_visitor::visit_arrayindex (arrayindex* e)
 {
   for (unsigned i=0; i<e->indexes.size(); i++)
-    e->indexes[i]->visit (this);
+    if (e->indexes[i])
+      e->indexes[i]->visit (this);
 
   e->base->visit(this);
 }
@@ -2576,6 +2599,13 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
       current_lvalue = s->indexes[i]; // leave a mark for ::visit_symbol
       s->indexes[i]->visit (this);
       current_lvalue = last_lvalue;
+    }
+
+  // visit the additional specified array slice
+  for (unsigned i=0; i<s->array_slice.size(); i++)
+    {
+      if (s->array_slice[i])
+        s->array_slice[i]->visit (this);
     }
 
   // The value is an lvalue too

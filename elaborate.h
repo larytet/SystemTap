@@ -59,8 +59,10 @@ public:
   void visit_symbol (symbol* e);
   void visit_foreach_loop (foreach_loop* e);
   void visit_arrayindex (arrayindex* e);
+  void visit_arrayindex (arrayindex *e, bool wildcard_ok);
   void visit_functioncall (functioncall* e);
   void visit_delete_statement (delete_statement* s);
+  void visit_array_in (array_in *e);
 };
 
 

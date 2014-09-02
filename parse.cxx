@@ -2848,6 +2848,39 @@ parser::parse_foreach_loop ()
 
   s->base = parse_indexable();
 
+  // check if there was an array slice that was specified
+  t = peek();
+  if (t && t->type == tok_operator && t->content == "[")
+    {
+      swallow();
+      while (1)
+        {
+          t = peek();
+          if (t && t->type == tok_operator && t->content == "*")
+            {
+              swallow();
+              s->array_slice.push_back (NULL);
+            }
+          else
+            s->array_slice.push_back (parse_expression());
+
+          t = peek ();
+          if (t && t->type == tok_operator && t->content == ",")
+            {
+              swallow ();
+              continue;
+            }
+          else if (t && t->type == tok_operator && t->content == "]")
+            {
+              swallow ();
+              break;
+            }
+          else
+            throw PARSE_ERROR (_("expected ',' or ']'"));
+        }
+    }
+
+
   // check for atword, see also expect_ident_or_atword,
   t = peek ();
   if (t && t->type == tok_operator && t->content[0] == '@')
@@ -3091,8 +3124,17 @@ parser::parse_array_in ()
 
   while (1)
     {
-      expression* op1 = parse_comparison_or_regex_query ();
-      indexes.push_back (op1);
+      t = peek();
+      if (t && t->type == tok_operator && t->content == "*" && parenthesized)
+        {
+          swallow();
+          indexes.push_back(NULL);
+        }
+      else
+        {
+          expression* op1 = parse_comparison_or_regex_query ();
+          indexes.push_back (op1);
+        }
 
       if (parenthesized)
         {
@@ -3672,7 +3714,13 @@ expression* parser::parse_symbol ()
 
       while (1)
         {
-          ai->indexes.push_back (parse_expression ());
+          if (peek_op("*"))
+            {
+              swallow();
+              ai->indexes.push_back (NULL);
+            }
+          else
+            ai->indexes.push_back (parse_expression ());
           if (peek_op ("]"))
             {
 	      swallow ();
