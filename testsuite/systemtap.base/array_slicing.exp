@@ -102,19 +102,6 @@ set script { \
 }
 stap_run {$test_name delete pmaps} "" "01" -e $script
 
-# testing delete statements on pmaps THIS ONE SHOULD WORK
-set script { \
-  global stats \
-  probe begin { \
-    stats [1, 1] <<< 9; stats [1, 1] <<< 2; stats [1, 1] <<< 6; \
-    stats [2, 2] <<< 1; \
-    delete stats [1, 1]; \
-    print("systemtap starting probe\nsystemtap ending probe\n"); \
-    print (@count(stats[1, 1])); print(@count(stats[2,2])); \
-  } \
-}
-stap_run {$test_name delete pmaps works} "" "01" -e $script
-
 # testing membership, [*, *] in foo
 set script { \
   global val; \
@@ -128,10 +115,19 @@ set script { \
 stap_run {$test_name membership [*,*] in val} "" "in" -e $script * *
 
 # testing membership [*, string]
-stap_run {$test_name membership val[*, string] in val} "" "in" -e $script * {"hello"}
+stap_run {$test_name membership [*, string] in val} "" "in" -e $script * {"hello"}
 
 # testing membership [int,*]
-stap_run {$test_name membership val[int, *] in val} "" "not in" -e $script 309 *
+stap_run {$test_name membership [int, *] in val} "" "not in" -e $script 309 *
 
 # testing membership [expression,*]
-stap_run {$test_name membership val[expression,*] in val} "" "not in" -e $script {(val[9, "hello"] == val[300, "there"]? 9 : 900)} *
+stap_run {$test_name membership [expression,*] in val} "" "not in" -e $script {(val[9, "hello"] == val[300, "there"]? 9 : 900)} *
+
+set script { global stats \
+  probe begin {stats[1,1] <<< 2; exit();} \
+  probe end { \
+    print("systemtap starting probe\nsystemtap ending probe\n"); \
+    print([1, *] in stats); print([2, *] in stats) \
+  } \
+}
+stap_run {$test_name membership pmaps} "" "10" -e $script
