@@ -7543,7 +7543,7 @@ dwarf_builder::build(systemtap_session & sess,
         {
           // check that the pid given corresponds to a running process
           string pid_err_msg;
-          if (is_valid_pid(proc_pid, pid_err_msg))
+          if (!is_valid_pid(proc_pid, pid_err_msg))
             throw SEMANTIC_ERROR(pid_err_msg);
 
           string pid_path = string("/proc/") + lex_cast(proc_pid) + "/exe";
