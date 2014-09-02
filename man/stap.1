@@ -1029,10 +1029,20 @@ evaluated once at the beginning of the loop.
 Same as above, used when the array is indexed with a tuple of keys.
 A sorting suffix may be used on at most one VAR or ARRAY identifier.
 .TP
+.BR foreach " ([VAR1, VAR2, ...] " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+Same as above, where iterations are limited to elements in the array where
+the keys match the index values specified. The symbol * can be used to specify
+an index and will be treated as a wildcard.
+.TP
 .BR foreach " (VALUE = VAR " in " ARRAY [ "limit " EXP ]) STMT"
 This variant of foreach saves current value into VALUE on each
 iteration, so it is the same as ARRAY[VAR].  This also works with a
 tuple of keys.  Sorting suffixes on VALUE have the same effect as on ARRAY.
+.TP
+.BR foreach " (VALUE = VAR " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+Same as above, where iterations are limited to elements in the array where the
+keys match the index values specified. The symbol * can be used to specify
+an index and will be treated as a wildcard.
 .TP
 .BR break ", " continue
 Exit or iterate the innermost nesting loop
@@ -1057,7 +1067,11 @@ outer try/catch blocks, if any.
 Same as above, plus assign the error message to the string scalar variable VAR.
 .TP
 .BR delete " ARRAY[INDEX1, INDEX2, ...]"
-Remove from ARRAY the element specified by the index tuple.  The value will no
+Remove from ARRAY the element specified by the index tuple.
+If the index tuple contains a * in place of an index, the * is treated as a
+wildcard and all elements with keys that match the index tuple will be removed
+from ARRAY.
+The value will no
 longer be available, and subsequent iterations will not report the element.
 It is not an error to delete an element that does not exist.
 .TP
@@ -1106,6 +1120,8 @@ array membership check
 .RB exp " in " array
 .br
 .BR "[" exp1 ", " exp2 ", " ... "] in " array
+.br
+.BR "[" "*" ", " "*" ", ... "] in " array
 
 .SS REGULAR EXPRESSION MATCHING
 The scripting language supports regular expression matching.
