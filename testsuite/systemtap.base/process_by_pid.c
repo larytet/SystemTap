@@ -1,6 +1,8 @@
 #include "sys/sdt.h"
 
-void sleeper () {}
+void sleeper () {
+  sleep(1);
+}
 
 int main () {
     while (1) {  

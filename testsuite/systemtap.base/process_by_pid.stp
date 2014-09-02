@@ -53,5 +53,11 @@ probe end {
       && probed["statement"] > 0 && probed["provider"] > 0)
     printf("pass\n");
   else
-    printf("fail: did not hit all probe points successfully.\n");
+    {
+      printf("fail: did not hit all probe points successfully.\n");
+      // print out some information to find out as to where the test failed
+      printf("Hit: function:%d, plt:%d, mark:%d, statement:%d, provider:%d",
+          probed["function"], probed["plt"], probed["mark"], probed["statement"],
+          probed["provider"]);
+    }
 }
