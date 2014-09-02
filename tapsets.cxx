@@ -1235,6 +1235,11 @@ dwarf_query::parse_function_spec(const string & spec)
               {
                 goto bad;
               }
+
+            // only allow .nearest with ABSOLUTE and RELATIVE linenos
+            if (has_nearest && lineno_type != ABSOLUTE
+                            && lineno_type != RELATIVE)
+              throw SEMANTIC_ERROR(_(".nearest is only valid with absolute or relative line numbers"));
         }
     }
 
