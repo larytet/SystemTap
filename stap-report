@@ -104,7 +104,7 @@ elif [ -f /var/log/packages ]; then
   run "cat /var/log/packages | egrep 'systemtap|elfutils|kernel|gcc|dyninst|avahi|nss|nspr|dejagnu' | sort -k9"
 fi
 run "egrep 'PROBE|TRACE|MARKER|KALLSYM|_DEBUG_|LOCKDEP|LOCKING|MODULE|FENTRY|_SIG' /lib/modules/`uname -r`/build/.config | grep -v not.set | sort | fmt -w 80"
-run "find /debugfs /proc /sys /dev /sys/kernel/debug -path '*kprobe*' -o -path '*yama*' -type f 2>/dev/null | xargs grep -H ."
+run "find /debugfs /proc /sys /dev /sys/kernel/debug -type f -path '*kprobe*' -o -path '*yama*' 2>/dev/null | xargs grep -H ."
 run "lsmod"
 run "avahi-browse -r -t _stap._tcp"
 run "ifconfig -a"
@@ -112,7 +112,7 @@ run "ps awux | grep stap"
 for file in /boot/vmlinuz-`uname -r` /usr/lib/debug/lib/modules/`uname -r`/vmlinux /lib/modules/`uname -r`/build/vmlinux
 do
     if [ -f $file ]; then
-        run "eu-readelf -n $file | grep Build"
+        run "(eu-readelf -n $file || readelf -n $file) | grep Build"
     fi
 done
 run "hexdump -C /sys/kernel/notes"
