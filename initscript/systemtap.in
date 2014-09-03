@@ -384,7 +384,7 @@ stap_getopt () { # opts
   local ret
   # TODO: support quoted options
   getopt -s bash -u \
-         -l 'vp:' \
+         -l 'vp:,save-uprobes' \
          -o 'hVvtp:I:e:o:R:r:m:kgPc:x:D:bs:uqwl:d:L:FS:' -- $@
   ret=$?
   [ $ret -ne 0 ] && slog "Failed to parse parameters. ($@)"
@@ -403,8 +403,6 @@ get_compile_opts () { # opts
        skip=1 ;;
     -h|-V|-k|-F)
       ;;
-    -u)
-      echo -n "--save-uprobes " ;;
     *)
       echo -n $o" " ;;
     esac
@@ -422,7 +420,7 @@ get_run_opts () { # normalized_opts
   show=0
   for o in $opts; do
     case $o in
-    -u)
+    --save-uprobes)
       # Use cached uprobes module, if available
       if [ -f "$CACHE_PATH/uprobes/uprobes.ko" ]; then
         echo -n "-u$CACHE_PATH/uprobes/uprobes.ko "
