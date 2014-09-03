@@ -403,6 +403,8 @@ get_compile_opts () { # opts
        skip=1 ;;
     -h|-V|-k|-F)
       ;;
+    -u)
+      echo -n "--save-uprobes " ;;
     *)
       echo -n $o" " ;;
     esac
@@ -491,6 +493,13 @@ compile_script () { # script checkcache
   pushd "$tmpdir" &> /dev/null
   logex $STAP -m "$1" -p4 -r $KRELEASE $opts "$f"
   ret=$?
+  if [ $ret -eq 0 ]; then
+    if [ -f "uprobes/uprobes.ko" ]; then
+      logex mkdir -p "$CACHE_PATH/uprobes"
+      logex mv "uprobes/uprobes.ko" "$CACHE_PATH/uprobes/"
+      ret=$?
+    fi
+  fi
   if [ $ret -eq 0 ]; then
     $UNAME -a > "$1.opts"
     echo $opts >> "$1.opts"
