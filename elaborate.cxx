@@ -1978,13 +1978,21 @@ semantic_pass (systemtap_session& s)
       if (rc == 0) rc = semantic_pass_vars (s);
       if (rc == 0) rc = semantic_pass_stats (s);
       if (rc == 0) embeddedcode_info_pass (s);
-
-      if (s.num_errors() == 0 && s.probes.size() == 0 && !s.dump_mode)
-        throw SEMANTIC_ERROR (_("no probes found"));
     }
   catch (const semantic_error& e)
     {
       s.print_error (e);
+      rc ++;
+    }
+
+  bool no_primary_probes = true;
+  for (unsigned i = 0; i < s.probes.size(); i++)
+    if (s.is_primary_probe(s.probes[i]))
+      no_primary_probes = false;
+
+  if (s.num_errors() == 0 && no_primary_probes && !s.dump_mode)
+    {
+      s.print_error(SEMANTIC_ERROR(_("no probes found")));
       rc ++;
     }
 
@@ -1995,7 +2003,7 @@ semantic_pass (systemtap_session& s)
   // so all previous error conditions are disregarded.
   if (s.dump_mode == systemtap_session::dump_matched_probes ||
       s.dump_mode == systemtap_session::dump_matched_probes_vars)
-    rc = s.probes.empty();
+    rc = no_primary_probes;
 
   // If we're dumping functions, only error out if no functions were found
   if (s.dump_mode == systemtap_session::dump_functions)

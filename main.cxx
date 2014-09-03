@@ -114,14 +114,8 @@ printscript(systemtap_session& s, ostream& o)
           // user's spec, not any auxiliary probes in the tapsets.
           // Also, do not want to the probes that are from the additional
           // scripts (-E SCRIPT) to be listed.
-          const source_loc& origin = chain.back()->tok->location;
-          // "<input>" is the name of the main script file.
-          if (origin.file->name != "<input>")
-            {
-              if (s.verbose > 1)
-                cerr << "skipping probe " << pp << " from " << origin << endl;
-              continue;
-            }
+          if (!s.is_primary_probe(p))
+            continue;
 
           // Now duplicate-eliminate.  An alias may have expanded to
           // several actual derived probe points, but we only want to

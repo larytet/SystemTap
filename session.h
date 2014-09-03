@@ -441,6 +441,7 @@ public:
   void explain_auto_options();
 
   bool is_user_file (const std::string& name);
+  bool is_primary_probe (derived_probe *dp);
 };
 
 struct exit_exception: public std::runtime_error

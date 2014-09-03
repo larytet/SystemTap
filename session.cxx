@@ -2507,6 +2507,22 @@ systemtap_session::is_user_file (const string &name)
   return false; // no match
 }
 
+bool
+systemtap_session::is_primary_probe (derived_probe *dp)
+{
+  // We check if this probe is from the primary user file by going back to its
+  // original probe and checking if that probe was found in the primary user
+  // file.
+
+  if (user_files.empty())
+    return false;
+
+  vector<probe*> chain;
+  dp->collect_derivation_chain (chain);
+  const source_loc& origin = chain.back()->tok->location;
+  return origin.file == user_files[0];
+}
+
 // --------------------------------------------------------------------------
 
 /*
