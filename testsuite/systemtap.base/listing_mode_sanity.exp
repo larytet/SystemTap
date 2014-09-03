@@ -31,17 +31,17 @@ if {![catch {exec stap -l junk 2>@1} output]} {
 }
 
 if {![catch {exec stap -v -l junk 2>@1} outputv]} {
-  fail "$test (stap -l junk exited successfully)"
+  fail "$test (stap -v -l junk exited successfully)"
   return
 } else {
-  pass "$test (stap -l junk exited badly)"
+  pass "$test (stap -v -l junk exited badly)"
 }
 
 if {![catch {exec stap -vv -l junk 2>@1} outputvv]} {
-  fail "$test (stap -l junk exited successfully)"
+  fail "$test (stap -vv -l junk exited successfully)"
   return
 } else {
-  pass "$test (stap -l junk exited badly)"
+  pass "$test (stap -vv -l junk exited badly)"
 }
 
 # Split outputs into lines
