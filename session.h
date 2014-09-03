@@ -209,7 +209,6 @@ public:
   bool need_uprobes;
   bool need_unwind;
   bool need_symbols;
-  bool built_uprobes;
   std::string uprobes_path;
   std::string uprobes_hash;
   bool load_only; // flight recorder mode

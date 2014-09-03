@@ -990,7 +990,7 @@ passes_0_4 (systemtap_session &s)
 	}
 
       // Copy uprobes module to the current directory.
-      if (s.save_uprobes && s.built_uprobes && !pending_interrupts)
+      if (s.save_uprobes && !s.uprobes_path.empty() && !pending_interrupts)
         {
           rc = create_dir("uprobes");
           if (! rc)
