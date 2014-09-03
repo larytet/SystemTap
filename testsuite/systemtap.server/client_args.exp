@@ -165,6 +165,12 @@ set valid_options [list \
 ]
 
 set ::result_string "$no_error_result"
+
+# avoid propagating issue similar to PR17301
+set origdir $env(SYSTEMTAP_DIR)
+catch {exec mktemp -d} tmpdir
+set env(SYSTEMTAP_DIR) $tmpdir
+
 foreach options $valid_options {
     # Replace the `uname -r` substring, which varies from run to run, with a generic
     # one, for reporting/regression purposes
@@ -187,3 +193,6 @@ foreach options $valid_options {
 	}
     }
 }
+
+set env(SYSTEMTAP_DIR) $origdir
+catch {exec rm -rf $tmpdir}
