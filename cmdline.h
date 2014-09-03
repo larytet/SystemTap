@@ -59,6 +59,7 @@ enum {
   LONG_OPT_BENCHMARK_SDT_LOOPS,
   LONG_OPT_BENCHMARK_SDT_THREADS,
   LONG_OPT_COLOR_ERRS,
+  LONG_OPT_SAVE_UPROBES,
 };
 
 // NB: when adding new options, consider very carefully whether they

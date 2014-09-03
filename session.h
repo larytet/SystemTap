@@ -195,6 +195,7 @@ public:
   unsigned verbose;
   bool timing;
   bool save_module;
+  bool save_uprobes;
   bool modname_given;
   bool keep_tmpdir;
   bool guru_mode;
@@ -208,6 +209,7 @@ public:
   bool need_uprobes;
   bool need_unwind;
   bool need_symbols;
+  bool built_uprobes;
   std::string uprobes_path;
   std::string uprobes_hash;
   bool load_only; // flight recorder mode

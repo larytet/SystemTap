@@ -602,8 +602,10 @@ make_uprobes (systemtap_session& s)
     clog << _("uprobes rebuild exit code: ") << rc << endl;
   if (rc)
     s.set_try_server ();
-  else
+  else {
     s.uprobes_path = dir + "/uprobes.ko";
+    s.built_uprobes = true;
+  }
   return rc;
 }
 

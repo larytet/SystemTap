@@ -133,6 +133,7 @@ systemtap_session::systemtap_session ():
   output_file = ""; // -o FILE
   tmpdir_opt_set = false;
   save_module = false;
+  save_uprobes = false;
   modname_given = false;
   keep_tmpdir = false;
   cmd = "";
@@ -144,6 +145,7 @@ systemtap_session::systemtap_session ():
   need_uprobes = false;
   need_unwind = false;
   need_symbols = false;
+  built_uprobes = false;
   uprobes_path = "";
   load_only = false;
   skip_badvars = false;
@@ -313,6 +315,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   output_file = other.output_file; // XXX how should multiple remotes work?
   tmpdir_opt_set = false;
   save_module = other.save_module;
+  save_uprobes = other.save_uprobes;
   modname_given = other.modname_given;
   keep_tmpdir = other.keep_tmpdir;
   cmd = other.cmd;
@@ -324,6 +327,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   need_uprobes = false;
   need_unwind = false;
   need_symbols = false;
+  built_uprobes = false;
   uprobes_path = "";
   load_only = other.load_only;
   skip_badvars = other.skip_badvars;
@@ -635,6 +639,8 @@ systemtap_session::usage (int exitcode)
     "              relative to the sysroot.\n"
     "   --suppress-time-limits\n"
     "              disable -DSTP_OVERLOAD, -DMAXACTION, and -DMAXTRYACTION limits\n"
+    "   --save-uprobes\n"
+    "              save uprobes.ko to current directory if it is built from source\n"
     , compatible.c_str()) << endl
   ;
 
@@ -1386,6 +1392,10 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           color_errors = color_mode == color_always
               || (color_mode == color_auto && isatty(STDERR_FILENO) &&
                     strcmp(getenv("TERM") ?: "notdumb", "dumb"));
+          break;
+
+        case LONG_OPT_SAVE_UPROBES:
+          save_uprobes = true;
           break;
 
 	case '?':

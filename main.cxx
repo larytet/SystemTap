@@ -988,6 +988,14 @@ passes_0_4 (systemtap_session &s)
 	  string module_dest_path = s.module_filename();
 	  copy_file(module_src_path, module_dest_path, s.verbose > 1);
 	}
+
+      // Copy uprobes module to the current directory.
+      if (s.save_uprobes && s.built_uprobes && !pending_interrupts)
+        {
+          rc = create_dir("uprobes");
+          if (! rc)
+            copy_file(s.uprobes_path, "uprobes/uprobes.ko", s.verbose > 1);
+        }
     }
 
   PROBE1(stap, pass4__end, &s);
