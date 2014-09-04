@@ -1251,8 +1251,8 @@ if {$exepath != ""} {
 
    testing_probe {process(number).statement(string).nearest}
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c:29\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+   stap_list "process($valid_pid).statement(\"foo@$test.c:29\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
 }
 
 testing_probe {process(number).syscall}
