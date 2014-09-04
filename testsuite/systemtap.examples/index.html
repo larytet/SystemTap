@@ -371,7 +371,7 @@ keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The linetimes.stp script takes two arguments: where to find the function and the function name. linetimes.stp will instrument each line in the function. It will print out the number of times that the function is called, a table with the average and maximum time each line takes, and control flow information when the script exits.<p><font size="-2"><pre># stap linetimes.stp kernel sys_nanosleep -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="profiling/perf.stp"></a><a href="#profiling/perf.stp">&para;</a> <a href="profiling/perf.stp">profiling/perf.stp</a> - Show performance ratios using perf.counter to access performance counters<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
-<p>On exit the perf.stp script provides a sorted list showing cycles per insn, branches per insn, and cache refs per insn<p><font size="-2"><pre># stap perf.stp -c &quot;find /usr/bin -name \&quot;l*\&quot; -printf \&quot;%h/%f %s %Cx \
+<p>On exit the perf.stp script provides a sorted list showing cycles per insn, branches per insn, and cache refs per insn<p><font size="-2"><pre># stap -w perf.stp -c &quot;find /usr/bin -name \&quot;l*\&quot; -printf \&quot;%h/%f %s %Cx \
 %Ck%CM %Y\n\&quot;&quot;</pre></font></p>
 </li><li><a name="profiling/periodic.stp"></a><a href="#profiling/periodic.stp">&para;</a> <a href="profiling/periodic.stp">profiling/periodic.stp</a> - Show the Period of the Various Timers on the System<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
