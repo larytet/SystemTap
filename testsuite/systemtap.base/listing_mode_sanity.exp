@@ -7,6 +7,7 @@ set test "listing_mode_sanity"
 # - no 'semantic error' messages, unless -vv is supplied
 # - no probes found = bad exit code, probes found = good exit code
 # - check verbatim the output of -l/-L for e.g. kernel.function("vfs_read")
+# - arguments to -l are allowed, not treated as a script (but still no -e)
 # - check that -l ** doesn't crash anything (BZ1065757)
 
 proc has_line { output wanted probe } {
@@ -88,6 +89,21 @@ if {[regexp "^kernel\\.function\\(\"vfs_read@\[^\"\]*\"\\) \\\$file:struct file\
    pass "$test ($subtest)"
 } else {
    fail "$test ($subtest)"
+   return
+}
+
+# Check that arguments to -l work, and aren't treated as have_script
+if {[catch {exec stap -l \$1.function(@2) kernel vfs_read 2>@1}]} {
+   fail "$test (using arguments exited badly)"
+   return
+} else {
+   pass "$test (using arguments exited ok)"
+}
+# but a -e script still conflicts with listing
+if {[catch {exec stap -l \$1.function(@2) kernel vfs_read -e {probe begin {}} 2>@1}]} {
+   pass "$test (using arguments and script exited badly)"
+} else {
+   fail "$test (using arguments and script exited ok)"
    return
 }
 

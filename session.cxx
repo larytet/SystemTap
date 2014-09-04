@@ -1449,7 +1449,7 @@ systemtap_session::check_options (int argc, char * const argv [])
 {
   for (int i = optind; i < argc; i++)
     {
-      if (! have_script)
+      if (! have_script && ! dump_mode)
         {
           script_file = string (argv[i]);
           have_script = true;
