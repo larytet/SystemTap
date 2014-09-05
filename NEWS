@@ -1,3 +1,5 @@
+* What's new in version 2.7
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:
@@ -33,7 +35,7 @@
   unoptimize mode (-u).
 
 - SystemTap now asserts that the PID provided for a process probe corresponds
-  to a runnning process.
+  to a running process.
 
 - DWARF process probes can be bound to a specific process using the form:
 
