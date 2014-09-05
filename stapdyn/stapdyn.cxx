@@ -43,7 +43,7 @@ static void __attribute__ ((noreturn))
 usage (int rc)
 {
   clog << "Usage: " << program_invocation_short_name
-       << " MODULE [-v] [-c CMD | -x PID] [-o FILE] [-C WHEN] [globalname=value ...]" << endl
+       << " MODULE [-v] [-c CMD | -x PID] [-o FILE] [-C WHEN] [globalname=value ...] [-V]" << endl
        << "-v              Increase verbosity." << endl
        << "-c cmd          Command \'cmd\' will be run and " << program_invocation_short_name << " will" << endl
        << "                exit when it does.  The '_stp_target' variable" << endl
@@ -52,7 +52,8 @@ usage (int rc)
        << "-o FILE         Send output to FILE. This supports strftime(3)" << endl
        << "                formats for FILE." << endl
        << "-C WHEN         Enable colored errors. WHEN must be either 'auto'," << endl
-       << "                'never', or 'always'. Set to 'auto' by default." << endl;
+       << "                'never', or 'always'. Set to 'auto' by default." << endl
+       << "-V              Show version." << endl;
 
   exit (rc);
 }
