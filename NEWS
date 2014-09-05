@@ -1,4 +1,4 @@
-* What's new in version 2.6
+* What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:
   kprobes, uprobes, and timer.*s(NUM) probes. For example, this probe
