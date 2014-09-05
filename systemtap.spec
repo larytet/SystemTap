@@ -1030,6 +1030,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Fri Sep 05 2014 Josh Stone <jistone@redhat.com> - 2.6-1
+- Upstream release.
+
 * Mon Jul 07 2014 Josh Stone <jistone@redhat.com>
 - Flip with_dyninst to an %ifarch whitelist.
 
