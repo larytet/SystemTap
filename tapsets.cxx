@@ -1950,6 +1950,17 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
           string canon_func = q->final_function_name(i->name, i->decl_file,
                                                      lineno /* NB: not i->decl_line */ );
 
+          if (q->has_nearest)
+            {
+              int lineno_nearest = q->linenos[0];
+              if (q->lineno_type == RELATIVE)
+                lineno_nearest += i->decl_line;
+              string canon_func_nearest = q->final_function_name(i->name, i->decl_file,
+                                                                 lineno_nearest);
+              q->mount_well_formed_probe_point();
+              q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func_nearest);
+            }
+
           q->mount_well_formed_probe_point();
           q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
           q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
@@ -1959,6 +1970,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
                            &scope, addr, q);
 
           q->unmount_well_formed_probe_point();
+          if (q->has_nearest)
+            q->unmount_well_formed_probe_point();
         }
     }
 }

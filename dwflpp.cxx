@@ -1877,9 +1877,6 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
       if (nearest_lineno > 0)
         collect_lines_for_single_lineno(srcfile, nearest_lineno, false, /* is_relative */
                                         current_funcs, matching_lines);
-
-      // XXX: the derivation chain of the new derived probe messes up the
-      // original statement's :LINENO, replacing instead of preserving it
     }
 
   // call back with matching lines
