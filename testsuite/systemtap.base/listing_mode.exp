@@ -957,8 +957,11 @@ if {$exepath != ""} {
 
    testing_probe {process.library(string).statement(string).nearest}
 
-   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:58\").nearest" \
-       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\).nearest"
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:57\").nearest" \
+       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:57\"\\\).nearest"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c+3\").nearest" \
+       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:57\"\\\).nearest"
 
    testing_probe {process.mark(string)}
 
@@ -1047,8 +1050,11 @@ if {$exepath != ""} {
 
    testing_probe {process.statement(string).nearest}
 
-   stap_list_cmd "process.statement(\"foo@$test.c:24,25-26\").nearest" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
+   stap_list_cmd "process.statement(\"foo@$test.c:28\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:28\"\\\).nearest"
+
+   stap_list_cmd "process.statement(\"foo@$test.c+5\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:28\"\\\).nearest"
 }
 
 testing_probe {process.syscall}
@@ -1252,7 +1258,10 @@ if {$exepath != ""} {
    testing_probe {process(number).statement(string).nearest}
 
    stap_list "process($valid_pid).statement(\"foo@$test.c:29\").nearest" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:29\"\\\).nearest"
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c+6\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:29\"\\\).nearest"
 }
 
 testing_probe {process(number).syscall}
