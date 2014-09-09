@@ -495,13 +495,16 @@ compile_script () { # script checkcache
     return 1
   fi
   pushd "$tmpdir" &> /dev/null
-  logex $STAP -m "$1" -p4 -r $KRELEASE $opts "$f"
+  logex $STAP -m "$1" -p4 -r $KRELEASE --save-uprobes $opts "$f"
   ret=$?
   if [ $ret -eq 0 ]; then
     if [ -f "uprobes/uprobes.ko" ]; then
+      logex touch "$CACHE_PATH/$1.uprobes"
       logex mkdir -p "$CACHE_PATH/uprobes"
       logex mv "uprobes/uprobes.ko" "$CACHE_PATH/uprobes/"
       ret=$?
+    elif [ -f "$CACHE_PATH/$1.uprobes" ]; then
+      rm "$CACHE_PATH/$1.uprobes"
     fi
   fi
   if [ $ret -eq 0 ]; then
@@ -574,6 +577,10 @@ start_script () { # script
   opts=`get_run_opts $opts`
   mode=$?
   [ $mode -eq 0 ] && return 2
+
+  if [ -f "$CACHE_PATH/$s.uprobes" ]; then
+    opts="$opts -u$CACHE_PATH/uprobes/uprobes.ko"
+  fi
 
   clog " Starting $1 ... " -n
   tmpdir=`mktemp -d -p "$TEMP_PATH" cache.XXXXXXXX`  # bz7097
@@ -767,7 +774,7 @@ compile () {
     return 1
   fi
   for s in $SCRIPTS; do
-    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" 2> /dev/null`
+    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes" 2> /dev/null`
   done
   ss=`echo -n $ss`
   if [ "$ss" ]; then
@@ -960,7 +967,7 @@ cleanup () {
   fi
 
   for s in $SCRIPTS; do
-    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" 2> /dev/null`
+    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes" 2> /dev/null`
   done
   ss=`echo -n $ss`
   if [ "$ss" ]; then
@@ -968,7 +975,7 @@ cleanup () {
     ask_yesno "Do you really want to remove above caches"
     [ $? -eq 0 ] && return 0
     for s in $SCRIPTS; do
-      logex rm -f "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts"
+      logex rm -f "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes"
       [ $? -ne 0 ] && might_fail $"failed to clean cache $s.ko"
     done
     might_success "done"
