@@ -1108,8 +1108,9 @@ dwarf_query::query_module_symtab()
                ++iter)
             {
               fi = iter->second;
-              if (!null_die(&fi->die))
-                continue;       // already handled in query_module_dwarf()
+              if (!null_die(&fi->die) // already handled in query_module_dwarf()
+                  || fi->descriptor) // ppc opd (and also undefined symbols)
+                continue;
               if (dw.function_name_matches_pattern(fi->name, function_str_val))
                 query_symtab_func_info(*fi, this);
             }
