@@ -305,6 +305,8 @@ def main():
     s_filename = ""
     includes = []
     defines = []
+    ignore_options = ["-64", "-32", "-fpic", "-fPIC"]
+
     while i < len(sys.argv):
         if sys.argv[i] == "-o":
             i += 1
@@ -330,7 +332,7 @@ def main():
             HAVE_PYP = False
         elif sys.argv[i] == "--types":
             print sys.argv[0] + ": note: obsolete option --types used"
-        elif sys.argv[i] == "-64" or sys.argv[i] == "-32":
+        elif sys.argv[i] in ignore_options:
             pass                # dtrace users sometimes pass these flags
         elif sys.argv[i] == "--help":
             dtrace_help()

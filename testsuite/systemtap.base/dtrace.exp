@@ -53,12 +53,12 @@ set incpath "/tmp/dtrace_inc"
 # -----------------------------------------------------------------
 # test command line option and file handling 
 
-verbose -log "$dtrace -G -s $dpath -o XXX.o"
-catch {exec $dtrace -G -s $dpath -o XXX.o}
+verbose -log "$dtrace -G -64 -fPIC -s $dpath -o XXX.o"
+catch {exec $dtrace -G -64 -fPIC -s $dpath -o XXX.o}
 if {[file exists XXX.o]} then {
-    pass "dtrace -G -o XXX.o"
+    pass "dtrace -G -64 -fPIC -o XXX.o"
 } else {
-    fail "dtrace -G -o XXX.o"
+    fail "dtrace -G -64 -fPIC -o XXX.o"
 }
 exec rm -f XXX.o
 
