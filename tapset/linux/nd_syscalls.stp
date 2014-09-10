@@ -552,7 +552,7 @@ probe nd_syscall.clock_nanosleep = kprobe.function("sys_clock_nanosleep").call
 	flags_str = _stp_clock_nanosleep_flags_str(flags)
 	req_uaddr = pointer_arg(3)
 	rem_uaddr = pointer_arg(4)
-	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(int_arg(1)), flag_str,
+	argstr = sprintf("%s, %s, %s, %p", _get_wc_str(int_arg(1)), flags_str,
 			 _struct_timespec_u(req_uaddr, 1), pointer_arg(4))
 }
 probe nd_syscall.clock_nanosleep.return =
