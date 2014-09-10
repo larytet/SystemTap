@@ -123,7 +123,7 @@ if {$dontTest == 1} {
     untested "$test $subtest"
 } else {
     set subtest "server reacts to avahi-daemon restart"
-    if {![as_root "service avahi-daemon restart"]} {
+    if {[as_root "service avahi-daemon restart 2>&1"]} {
 	# Could not restart the avahi daemon
 	set dontTest 1
     } else {
