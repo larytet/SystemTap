@@ -55,6 +55,9 @@
 #ifndef __NR_setsockopt
 #define __NR_setsockopt (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_sigprocmask
+#define __NR_sigprocmask (__NR_syscall_max + 1)
+#endif
 
 #if defined(__x86_64__)
 

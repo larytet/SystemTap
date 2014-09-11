@@ -3109,6 +3109,7 @@ probe syscall.sigprocmask = __syscall.sigprocmask ?,
 }
 probe __syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?
 {
+	@__syscall_gate(%{ __NR_sigprocmask %})
 	oldset_uaddr = $oset
 }
 probe __syscall.compat_sigprocmask =
@@ -3116,11 +3117,16 @@ probe __syscall.compat_sigprocmask =
 {
 	oldset_uaddr = __uint32($oset)
 }
-probe syscall.sigprocmask.return = kernel.function("sys_sigprocmask").return ?,
+probe syscall.sigprocmask.return = __syscall.sigprocmask.return ?,
 	kernel.function("compat_sys_sigprocmask").return ?
 {
 	name = "sigprocmask"
 	retstr = return_str(1, $return)
+}
+probe __syscall.sigprocmask.return =
+	kernel.function("sys_sigprocmask").return ?
+{
+	@__syscall_gate(%{ __NR_sigprocmask %})
 }
 
 # sigreturn __________________________________________________
@@ -3549,10 +3555,11 @@ probe syscall.tee.return = kernel.function("sys_tee").return ?
 probe syscall.tgkill = kernel.function("sys_tgkill").call
 {
 	name = "tgkill"
-	tgid = $tgid
-	pid = $pid
-	sig = $sig
-	argstr = sprintf("%d, %d, %s", $tgid, $pid, _signal_name($sig))
+	tgid = __int32($tgid)
+	pid = __int32($pid)
+	sig = __int32($sig)
+	argstr = sprintf("%d, %d, %s", __int32($tgid), __int32($pid),
+			 _signal_name(__int32($sig)))
 }
 probe syscall.tgkill.return = kernel.function("sys_tgkill").return
 {
