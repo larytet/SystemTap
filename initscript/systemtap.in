@@ -978,9 +978,15 @@ cleanup () {
       logex rm -f "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes"
       [ $? -ne 0 ] && might_fail $"failed to clean cache $s.ko"
     done
-    might_success "done"
-    return 0
   fi
+  # If none of the remaining scripts require uprobes.ko, then delete it as well
+  if [ -d "$CACHE_PATH/uprobes" ]; then
+    if ! ls "$CACHE_PATH/*.uprobes" &>/dev/null; then
+      logex rm -rf "$CACHE_PATH/uprobes"
+    fi
+  fi
+  might_success "done"
+  return 0
 }
 
 # Restart scripts
