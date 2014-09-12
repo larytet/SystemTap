@@ -688,6 +688,12 @@ below for more information.
 .BI \-\-dyninst
 Shorthand for \fI\-\-runtime=dyninst\fR.
 
+.TP
+.BI \-\-save-uprobes
+On machines that require SystemTap to build its own uprobes module (kernels
+prior to version 3.5), this option instructs SystemTap to also save a copy of
+the module in the current directory (creating a new "uprobes" directory first).
+
 .SH ARGUMENTS
 
 Any additional arguments on the command line are passed to the script
