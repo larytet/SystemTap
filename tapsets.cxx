@@ -890,6 +890,8 @@ struct dwarf_query : public base_query
   string final_function_name(const string& final_func,
                              const char* final_file,
                              int final_line);
+
+  bool is_fully_specified_function();
 };
 
 
@@ -1574,10 +1576,24 @@ dwarf_query::final_function_name(const string& final_func,
   return final_name;
 }
 
+bool
+dwarf_query::is_fully_specified_function()
+{
+  // A fully specified function is one that was given using a .function() probe
+  // by full name (no wildcards), and specific srcfile and decl_line.
+  return (has_function_str
+          && spec_type == function_file_and_line
+          && !dw.name_has_wildcard(function)
+          && filtered_srcfiles.size() == 1
+          && !filtered_functions.empty()
+          && lineno_type == ABSOLUTE
+          && filtered_functions[0].decl_line == linenos[0]);
+}
+
 base_func_info_map_t
 dwarf_query::filtered_all(void)
 {
-  vector<base_func_info> r;
+  base_func_info_map_t r;
   func_info_map_t::const_iterator f;
   for (f  = filtered_functions.begin();
        f != filtered_functions.end(); ++f)
@@ -2182,7 +2198,13 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                           q, query_callee, *i);
             }
         }
-      else if (q->spec_type == function_file_and_line)
+      else if (q->spec_type == function_file_and_line
+              // User specified function, file and lineno, but if they match
+              // exactly a specific function in a specific line at a specific
+              // decl_line, the user doesn't actually want to probe a lineno,
+              // but rather the function itself. So let fall through to
+              // query_func_info/query_inline_instance_info in final else.
+               && !q->is_fully_specified_function())
         {
           // .statement(...:NN) often gets mixed up with .function(...:NN)
           if (q->has_function_str)
