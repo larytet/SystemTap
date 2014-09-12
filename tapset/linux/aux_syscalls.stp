@@ -1216,14 +1216,24 @@ function _mknod_mode_str(mode) {
    return ""
 }
 
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_msync_flag_list[] = {
+	V(MS_ASYNC),
+	V(MS_INVALIDATE),
+	V(MS_SYNC),
+	{0, NULL}
+};
+%}
+
 /* `man msync` for more information */
-function _msync_flag_str(f) {
-	if (f & 7 == 0) return ""
-	if(f & 4) bs="MS_SYNC|".bs
-	if(f & 2) bs="MS_INVALIDATE|".bs
-	if(f & 1) bs="MS_ASYNC|".bs
-	return substr(bs,0,strlen(bs)-1)
-}
+function _msync_flag_str:string(f:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_msync_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 function _internal_wait_opt_str(f,bit_num,bit_str) {
   retval=""
@@ -1417,23 +1427,21 @@ function _recvflags_str:string(flags:long)
 }
 %)
 
+%{
+#include <linux/mman.h>
+static const _stp_val_array const _stp_mlockall_flags_list[] = {
+	V(MCL_CURRENT),
+	V(MCL_FUTURE),
+	{0, NULL}
+};
+%}
+
 /* `man mlockall` for more information */
 function _mlockall_flags_str:string(flags:long)
 %{ /* pure */
-	#include <linux/mman.h>
-	int len;
-	long f = STAP_ARG_flags;
-	char *str = STAP_RETVALUE;
-	str[0] = '\0';
-	if (f & MCL_CURRENT)
-		strlcat(str, "MCL_CURRENT|", MAXSTRINGLEN);
-	if (f & MCL_FUTURE)
-		strlcat(str, "MCL_FUTURE|", MAXSTRINGLEN);
-	len = strlen(str);
-	if (len)
-		str[strlen(str)-1] = '\0';
-	else	
-		snprintf(str, MAXSTRINGLEN, "0x%lx", f);
+	uint32_t flags = (uint32_t)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_mlockall_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 /* used by sys_delete_module */

@@ -3285,7 +3285,7 @@ probe nd_syscall.mlock = kprobe.function("sys_mlock") ?
 	asmlinkage()
 	addr = ulong_arg(1)
 	len = ulong_arg(2)
-	argstr = sprintf("%p, %d", addr, len)
+	argstr = sprintf("%p, %u", addr, len)
 }
 probe nd_syscall.mlock.return = kprobe.function("sys_mlock").return ?
 {
@@ -3773,7 +3773,7 @@ probe nd_syscall.msync = kprobe.function("sys_msync") ?
 	start = ulong_arg(1)
 	length = ulong_arg(2)
 	flags = int_arg(3)
-	argstr = sprintf("%p, %d, %s", start, length, _msync_flag_str(flags))
+	argstr = sprintf("%p, %u, %s", start, length, _msync_flag_str(flags))
 }
 probe nd_syscall.msync.return = kprobe.function("sys_msync").return ?
 {
@@ -3818,7 +3818,7 @@ probe nd_syscall.munmap = kprobe.function("sys_munmap") ?
 	asmlinkage()
 	start = ulong_arg(1)
 	length = ulong_arg(2)
-	argstr = sprintf("%p, %d", start, length)
+	argstr = sprintf("%p, %u", start, length)
 }
 probe nd_syscall.munmap.return = kprobe.function("sys_munmap").return ?
 {

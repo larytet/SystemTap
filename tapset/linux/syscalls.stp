@@ -3125,7 +3125,7 @@ probe syscall.mlock = kernel.function("sys_mlock").call ?
 	name = "mlock"
 	addr = $start
 	len = $len
-	argstr = sprintf("%p, %d", $start, $len)
+	argstr = sprintf("%p, %u", $start, $len)
 }
 probe syscall.mlock.return = kernel.function("sys_mlock").return ?
 {
@@ -3139,8 +3139,8 @@ probe syscall.mlock.return = kernel.function("sys_mlock").return ?
 probe syscall.mlockall = kernel.function("sys_mlockall").call ?
 {
 	name = "mlockall"
-	flags = $flags
-	argstr = _mlockall_flags_str($flags)
+	flags = __int32($flags)
+	argstr = _mlockall_flags_str(flags)
 }
 probe syscall.mlockall.return = kernel.function("sys_mlockall").return ?
 {
@@ -3594,8 +3594,8 @@ probe syscall.msync = kernel.function("sys_msync").call ?
 	name = "msync"
 	start = $start
 	length = $len
-	flags = $flags
-	argstr = sprintf("%p, %d, %s", start, length, _msync_flag_str(flags))
+	flags = __int32($flags)
+	argstr = sprintf("%p, %u, %s", start, length, _msync_flag_str(flags))
 }
 probe syscall.msync.return = kernel.function("sys_msync").return ?
 {
@@ -3638,7 +3638,7 @@ probe syscall.munmap = kernel.function("sys_munmap").call
 	name = "munmap"
 	start = $addr
 	length = $len
-	argstr = sprintf("%p, %d", start, length)
+	argstr = sprintf("%p, %u", start, length)
 }
 probe syscall.munmap.return = kernel.function("sys_munmap").return
 {
