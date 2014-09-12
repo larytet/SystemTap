@@ -2303,7 +2303,7 @@ probe nd_syscall.setfsgid = kprobe.function("sys_setfsgid16") ?,
 {
 	name = "setfsgid"
 	asmlinkage()
-	fsgid = uint_arg(1)
+	fsgid = int_arg(1)
 	argstr = sprint(fsgid)
 }
 probe nd_syscall.setfsgid.return = kprobe.function("sys_setfsgid16").return ?,
@@ -2322,7 +2322,7 @@ probe nd_syscall.setfsuid = kprobe.function("sys_setfsuid16") ?,
 {
 	name = "setfsuid"
 	asmlinkage()
-	fsuid = uint_arg(1)
+	fsuid = int_arg(1)
 	argstr = sprint(fsuid)
 }
 probe nd_syscall.setfsuid.return = kprobe.function("sys_setfsuid16").return ?,
@@ -2342,7 +2342,7 @@ probe nd_syscall.setgid = kprobe.function("sys_setgid16") ?,
 {
 	name = "setgid"
 	asmlinkage()
-	gid = uint_arg(1)
+	gid = int_arg(1)
 	argstr = sprint(gid)
 }
 probe nd_syscall.setgid.return = kprobe.function("sys_setgid16").return ?,
@@ -2821,7 +2821,7 @@ probe nd_syscall.setuid = kprobe.function("sys_setuid16") ?,
 {
 	name = "setuid"
 	asmlinkage()
-	uid = uint_arg(1)
+	uid = int_arg(1)
 	argstr = sprint(uid)
 }
 probe nd_syscall.setuid.return = kprobe.function("sys_setuid16").return ?,

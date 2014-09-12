@@ -26,7 +26,7 @@ int main ()
   //staptest// setuid (4096) = NNNN
 
   setuid(-1);
-  //staptest// setuid (4294967295) = NNNN
+  //staptest// setuid (-1) = NNNN
 
   seteuid(4097);
   //staptest// setresuid (-1, 4097, -1) = NNNN
@@ -62,7 +62,7 @@ int main ()
   //staptest// setgid (4098) = NNNN
 
   setgid(-1);
-  //staptest// setgid (4294967295) = NNNN
+  //staptest// setgid (-1) = NNNN
 
   setegid(4099);
   //staptest// setresgid (-1, 4099, -1) = NNNN
@@ -109,8 +109,14 @@ int main ()
   setfsuid(5004);
   //staptest// setfsuid (5004) = NNNN
 
+  setfsuid(-1);
+  //staptest// setfsuid (-1) = NNNN
+
   setfsgid(5005);
   //staptest// setfsgid (5005) = NNNN
+
+  setfsgid(-1);
+  //staptest// setfsgid (-1) = NNNN
   
   return 0;
 }	
