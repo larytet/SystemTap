@@ -1118,10 +1118,13 @@ is_valid_pid (pid_t pid, string& err_msg)
       {
         case ESRCH:
           err_msg = "pid given does not correspond to a running process";
+          break;
         case EPERM:
           err_msg = "invalid permissions for signalling given pid";
+          break;
         default:
           err_msg = "invalid pid";
+          break;
       }
       return false;
     }
