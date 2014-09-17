@@ -40,7 +40,23 @@ int main()
 #endif
 
   alarm(-1);
+#if defined(__ia64__) || defined(__arm__)
+  //staptest// setitimer (ITIMER_REAL, \[0.000000,-1.000000\], XXXX) = 0
+#else
+#if __WORDSIZE == 64
+  // Sigh. On s390x and ppc64, the kernel gets a 32-bit value.
+  //staptest// alarm ([[[[18446744073709551615!!!!4294967295]]]]) = 0
+#else
+  //staptest// alarm (4294967295) = 0
+#endif
+#endif
+
   alarm(0);
+#if defined(__ia64__) || defined(__arm__)
+  //staptest// setitimer (ITIMER_REAL, \[0.000000,0.000000\], XXXX) = NNNN
+#else
+  //staptest// alarm (0) = NNNN
+#endif
 
   sleep(1);
   //staptest// nanosleep (\[1.000000000\], XXXX) = 0
@@ -53,6 +69,20 @@ int main()
 
   nanosleep(&t, NULL); 
   //staptest// nanosleep (\[0.000000789\], 0x[0]+) = 0
+
+  nanosleep((struct timespec *)-1, NULL);
+#ifdef __s390__
+  //staptest// nanosleep (0x[7]?[f]+, 0x[0]+) = -NNNN
+#else
+  //staptest// nanosleep (0x[f]+, 0x[0]+) = -NNNN
+#endif
+
+  nanosleep(&t, (struct timespec *)-1);
+#ifdef __s390__
+  //staptest// nanosleep (\[0.000000789\], 0x[7]?[f]+) = NNNN
+#else
+  //staptest// nanosleep (\[0.000000789\], 0x[f]+) = NNNN
+#endif
 
   return 0;
 }

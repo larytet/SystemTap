@@ -739,21 +739,27 @@ probe nd_syscall.ppc64_sys_stime.return = kprobe.function("ppc64_sys_stime").ret
 	retstr = returnstr(1)
 }
 
-# ppc64_newuname ________________________________________
+# ppc[64]_newuname ________________________________________
 #
 # asmlinkage int ppc64_newuname(struct new_utsname __user * name)
+# long ppc_newuname(struct new_utsname __user * name)
 #
-probe nd_syscall.ppc64_newuname = kprobe.function("ppc64_newuname") ?
+probe nd_syscall.ppc64_newuname = __nd_syscall.ppc64_newuname ?,
+	kprobe.function("ppc_newuname") ?
 {
-	name = "ppc64_newuname"
-	// name_uaddr = $name
-	asmlinkage()
+	name = "uname"
 	name_uaddr = pointer_arg(1)
 	argstr = sprintf("%p", name_uaddr)
 }
-probe nd_syscall.ppc64_newuname.return = kprobe.function("ppc64_newuname").return ?
+probe __nd_syscall.ppc64_newuname = kprobe.function("ppc64_newuname") ?
 {
-	name = "ppc64_newuname"
+	asmlinkage()
+}
+probe nd_syscall.ppc64_newuname.return =
+	kprobe.function("ppc64_newuname").return ?,
+	kprobe.function("ppc_newuname").return ?
+{
+	name = "uname"
 	retstr = returnstr(1)
 }
 

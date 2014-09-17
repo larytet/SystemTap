@@ -1803,9 +1803,9 @@ probe syscall.getgroups = kernel.function("sys_getgroups16").call ?,
                           kernel.function("sys_getgroups").call ?
 {
 	name = "getgroups"
-	size = $gidsetsize
+	size = __int32($gidsetsize)
 	list_uaddr = $grouplist
-	argstr = sprintf("%d, %p", $gidsetsize, $grouplist)
+	argstr = sprintf("%d, %p", __int32($gidsetsize), $grouplist)
 }
 probe syscall.getgroups.return = kernel.function("sys_getgroups16").return ?,
                                  kernel.function("sys32_getgroups16").return ?,
@@ -1821,7 +1821,7 @@ probe syscall.gethostname = kernel.function("sys_gethostname").call ?
 {
 	name = "gethostname"
 	name_uaddr = $name
-	len = $len
+	len = __int32($len)
 	argstr = sprintf ("%p, %d", name_uaddr, len)
 }
 probe syscall.gethostname.return = kernel.function("sys_gethostname").return ?

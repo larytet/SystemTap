@@ -622,19 +622,24 @@ probe syscall.ppc64_sys_stime.return = kernel.function("ppc64_sys_stime").return
 	name = "ppc64_sys_stime"
 	retstr = return_str(1, $return)
 }
-# ppc64_newuname ________________________________________
+
+# ppc[64]_newuname ________________________________________
 #
 # asmlinkage int ppc64_newuname(struct new_utsname __user * name)
+# long ppc_newuname(struct new_utsname __user * name)
 #
-probe syscall.ppc64_newuname = kernel.function("ppc64_newuname") ?
+probe syscall.ppc64_newuname = kernel.function("ppc64_newuname") ?,
+	kernel.function("ppc_newuname") ?
 {
-	name = "ppc64_newuname"
+	name = "uname"
 	name_uaddr = $name
 	argstr = sprintf("%p", name_uaddr)
 }
-probe syscall.ppc64_newuname.return = kernel.function("ppc64_newuname").return ?
+probe syscall.ppc64_newuname.return =
+	kernel.function("ppc64_newuname").return ?,
+	kernel.function("ppc_newuname").return ?
 {
-	name = "ppc64_newuname"
+	name = "uname"
 	retstr = return_str(1, $return)
 }
 

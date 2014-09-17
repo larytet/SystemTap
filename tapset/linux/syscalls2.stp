@@ -2314,9 +2314,9 @@ probe syscall.setgroups = kernel.function("sys_setgroups16").call ?,
                           kernel.function("sys_setgroups").call ?
 {
 	name = "setgroups"
-	size = $gidsetsize
+	size = __int32($gidsetsize)
 	list_uaddr = $grouplist
-	argstr = sprintf("%d, %p", $gidsetsize, $grouplist)
+	argstr = sprintf("%d, %p", __int32($gidsetsize), $grouplist)
 }
 probe syscall.setgroups.return = kernel.function("sys_setgroups16").return ?,
                                  kernel.function("sys32_setgroups16").return ?,
@@ -2337,8 +2337,8 @@ probe syscall.sethostname = kernel.function("sys_sethostname").call
 	name = "sethostname"
 	hostname_uaddr = $name
 	name_str = user_string_quoted($name)
-	len = $len
-	argstr = sprintf("%s, %d", user_string_quoted($name), $len)
+	len = __int32($len)
+	argstr = sprintf("%s, %d", user_string_quoted($name), __int32($len))
 }
 probe syscall.sethostname.return = kernel.function("sys_sethostname").return
 {
