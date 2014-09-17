@@ -1112,20 +1112,14 @@ bool
 is_valid_pid (pid_t pid, string& err_msg)
 {
   err_msg = "";
-  if (pid <= 0 || kill(pid, 0) == -1)
+  if (pid <= 0)
     {
-      switch (errno) // ignore EINVAL: invalid signal
-      {
-        case ESRCH:
-          err_msg = "pid given does not correspond to a running process";
-          break;
-        case EPERM:
-          err_msg = "invalid permissions for signalling given pid";
-          break;
-        default:
-          err_msg = "invalid pid";
-          break;
-      }
+      err_msg = _F("cannot probe pid %d: Invalid pid", pid);
+      return false;
+    }
+  else if (kill(pid, 0) == -1)
+    {
+      err_msg = _F("cannot probe pid %d: %s", pid, strerror(errno));
       return false;
     }
   return true;
