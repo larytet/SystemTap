@@ -95,7 +95,7 @@ struct stap_task_finder_target {
 };
 
 static LIST_HEAD(__stp_tf_task_work_list);
-static DEFINE_SPINLOCK(__stp_tf_task_work_list_lock);
+static STP_DEFINE_SPINLOCK(__stp_tf_task_work_list_lock);
 struct __stp_tf_task_work {
 	struct list_head list;
 	struct task_struct *task;
@@ -132,9 +132,9 @@ __stp_tf_alloc_task_work(void *data)
 	// list for easier lookup, but as short as the list should be
 	// (and as short lived as these items are) the extra overhead
 	// probably isn't worth the effort.
-	spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
+	stp_spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
 	list_add(&tf_work->list, &__stp_tf_task_work_list);
-	spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
+	stp_spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
 
 	return &tf_work->work;
 }
@@ -150,14 +150,14 @@ static void __stp_tf_free_task_work(struct task_work *work)
 	tf_work = container_of(work, struct __stp_tf_task_work, work);
 
 	// Remove the item from the list.
-	spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
+	stp_spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
 	list_for_each_entry(node, &__stp_tf_task_work_list, list) {
 		if (tf_work == node) {
 			list_del(&tf_work->list);
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
+	stp_spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
 
 	// Actually free the data.
 	_stp_kfree(tf_work);
@@ -173,14 +173,14 @@ static void __stp_tf_cancel_task_work(void)
 	unsigned long flags;
 
 	// Cancel all remaining requests.
-	spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
+	stp_spin_lock_irqsave(&__stp_tf_task_work_list_lock, flags);
 	list_for_each_entry_safe(node, tmp, &__stp_tf_task_work_list, list) {
 	    // Remove the item from the list, cancel it, then free it.
 	    list_del(&node->list);
 	    stp_task_work_cancel(node->task, node->work.func);
 	    _stp_kfree(node);
 	}
-	spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
+	stp_spin_unlock_irqrestore(&__stp_tf_task_work_list_lock, flags);
 }
 
 static u32
