@@ -21,7 +21,11 @@
 #define STAT_LOCK(sd)		do {} while (0)
 #define STAT_UNLOCK(sd)		do {} while (0)
 /* get/put_cpu wrappers.  Unnecessary if caller is already atomic. */
+#ifdef CONFIG_PREEMPT_RT_FULL
+#define STAT_GET_CPU()		raw_smp_processor_id()
+#else
 #define STAT_GET_CPU()		smp_processor_id()
+#endif
 #define STAT_PUT_CPU()		do {} while (0)
 #endif
 
