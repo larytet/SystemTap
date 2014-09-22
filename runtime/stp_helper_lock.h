@@ -19,10 +19,16 @@
 
 #ifdef CONFIG_PREEMPT_RT_FULL
 
+#define stp_spinlock_t raw_spinlock_t
+
 #define STP_DEFINE_SPINLOCK(lock)	DEFINE_RAW_SPINLOCK(lock)
+
+static inline void stp_spin_lock_init(raw_spinlock_t *lock)	{ raw_spin_lock_init(lock); }
 
 static inline void stp_spin_lock(raw_spinlock_t *lock)		{ raw_spin_lock(lock); }
 static inline void stp_spin_unlock(raw_spinlock_t *lock)	{ raw_spin_unlock(lock); }
+
+static inline void stp_spin_unlock_wait(raw_spinlock_t *lock)	{ raw_spin_unlock_wait(lock); }
 
 #define stp_spin_lock_irqsave(lock, flags)		raw_spin_lock_irqsave(lock, flags)
 #define stp_spin_unlock_irqrestore(lock, flags)		raw_spin_unlock_irqrestore(lock, flags)
@@ -33,7 +39,7 @@ static inline void stp_spin_unlock(raw_spinlock_t *lock)	{ raw_spin_unlock(lock)
 static inline void stp_read_lock(raw_spinlock_t *lock)		{ raw_spin_lock(lock); }
 static inline void stp_read_unlock(raw_spinlock_t *lock)	{ raw_spin_unlock(lock); }
 static inline void stp_write_lock(raw_spinlock_t *lock)		{ raw_spin_lock(lock); }
-static inline void stp_write_unlock(raw_spinlock_t *lock) 	{ raw_spin_unlock(lock); }
+static inline void stp_write_unlock(raw_spinlock_t *lock)	{ raw_spin_unlock(lock); }
 
 #define stp_read_lock_irqsave(lock, flags)		raw_spin_lock_irqsave(lock, flags)
 #define stp_read_unlock_irqrestore(lock, flags)		raw_spin_unlock_irqrestore(lock, flags)
@@ -41,10 +47,17 @@ static inline void stp_write_unlock(raw_spinlock_t *lock) 	{ raw_spin_unlock(loc
 #define stp_write_unlock_irqrestore(lock, flags) 	raw_spin_unlock_irqrestore(lock, flags)
   
 #else
+
+#define stp_spinlock_t spinlock_t
+
 #define STP_DEFINE_SPINLOCK(lock)	DEFINE_SPINLOCK(lock)
+
+static inline void stp_spin_lock_init(spinlock_t *lock)		{ spin_lock_init(lock); }
 
 static inline void stp_spin_lock(spinlock_t *lock)		{ spin_lock(lock); }
 static inline void stp_spin_unlock(spinlock_t *lock)		{ spin_unlock(lock); }
+
+static inline void stp_spin_unlock_wait(spinlock_t *lock)	{ spin_unlock_wait(lock); }
 
 #define stp_spin_lock_irqsave(lock, flags)		spin_lock_irqsave(lock, flags)
 #define stp_spin_unlock_irqrestore(lock, flags)		spin_unlock_irqrestore(lock, flags)
