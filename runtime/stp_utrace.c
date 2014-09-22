@@ -85,7 +85,7 @@ struct utrace {
 
 static struct hlist_head task_utrace_table[TASK_UTRACE_TABLE_SIZE];
 //DEFINE_MUTEX(task_utrace_mutex);      /* Protects task_utrace_table */
-static DEFINE_SPINLOCK(task_utrace_lock); /* Protects task_utrace_table */
+static STP_DEFINE_SPINLOCK(task_utrace_lock); /* Protects task_utrace_table */
 
 static struct kmem_cache *utrace_cachep;
 static struct kmem_cache *utrace_engine_cachep;
@@ -468,7 +468,7 @@ static void utrace_shutdown(void)
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - freeing task-specific\n", __FUNCTION__, __LINE__);
 #endif
-	spin_lock(&task_utrace_lock);
+	stp_spin_lock(&task_utrace_lock);
 	for (i = 0; i < TASK_UTRACE_TABLE_SIZE; i++) {
 		head = &task_utrace_table[i];
 		stap_hlist_for_each_entry_safe(utrace, node, node2, head,
@@ -477,7 +477,7 @@ static void utrace_shutdown(void)
 			utrace_cleanup(utrace);
 		}
 	}
-	spin_unlock(&task_utrace_lock);
+	stp_spin_unlock(&task_utrace_lock);
 #ifdef STP_TF_DEBUG
 	printk(KERN_ERR "%s:%d - done\n", __FUNCTION__, __LINE__);
 #endif
@@ -524,7 +524,7 @@ static bool utrace_task_alloc(struct task_struct *task)
 	stp_init_task_work(&utrace->work, &utrace_resume);
 	stp_init_task_work(&utrace->report_work, &utrace_report_work);
 
-	spin_lock(&task_utrace_lock);
+	stp_spin_lock(&task_utrace_lock);
 	u = __task_utrace_struct(task);
 	if (u == NULL) {
 		hlist_add_head(&utrace->hlist,
@@ -533,7 +533,7 @@ static bool utrace_task_alloc(struct task_struct *task)
 	else {
 		kmem_cache_free(utrace_cachep, utrace);
 	}
-	spin_unlock(&task_utrace_lock);
+	stp_spin_unlock(&task_utrace_lock);
 
 	return true;
 }
@@ -552,9 +552,9 @@ static void utrace_free(struct utrace *utrace)
 
 	/* Remove this utrace from the mapping list of tasks to
 	 * struct utrace. */
-	spin_lock(&task_utrace_lock);
+	stp_spin_lock(&task_utrace_lock);
 	hlist_del(&utrace->hlist);
-	spin_unlock(&task_utrace_lock);
+	stp_spin_unlock(&task_utrace_lock);
 
 	/* Free the utrace struct. */
 	stp_spin_lock(&utrace->lock);
@@ -595,9 +595,9 @@ static struct utrace *task_utrace_struct(struct task_struct *task)
 {
 	struct utrace *utrace;
 
-	spin_lock(&task_utrace_lock);
+	stp_spin_lock(&task_utrace_lock);
 	utrace = __task_utrace_struct(task);
-	spin_unlock(&task_utrace_lock);
+	stp_spin_unlock(&task_utrace_lock);
 	return utrace;
 }
 
