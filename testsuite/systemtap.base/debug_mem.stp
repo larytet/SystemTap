@@ -1,0 +1,6 @@
+probe begin {
+	// printk a line so we can look for DEBUG_MEM errors after it
+	printk(7, "SYSTEMTAP DEBUG_MEM TEST")
+	exit()
+}
+

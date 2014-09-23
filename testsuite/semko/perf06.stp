@@ -1,0 +1,13 @@
+#! stap -p2
+
+global x
+
+# missing process name
+probe perf.hw.cpu_cycles.process
+{
+    x <<< 1
+}
+
+# NB: this used to wait until pass-3 to resolve and possibly fail. This is bad
+# for caching, since we might take some past success and skip over the current
+# process state altogether.

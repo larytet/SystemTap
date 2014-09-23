@@ -1,0 +1,10 @@
+#! stap -p1
+
+probe begin {
+
+  // LHS is parsed as an arrayindex
+  ( foo[1] in bar )
+
+  // LHS is parsed as an autocast
+  ( (foo)[1] in bar )
+}

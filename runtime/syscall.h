@@ -85,7 +85,7 @@
 #define MREMAP_SYSCALL_NO(tsk)		163
 #endif
 
-#if defined(__arm__)
+#if defined(__arm__) || defined(__aarch64__)
 #define MMAP_SYSCALL_NO(tsk)		90
 #define MMAP2_SYSCALL_NO(tsk)		192
 #define MPROTECT_SYSCALL_NO(tsk)	125

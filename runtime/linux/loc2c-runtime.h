@@ -271,12 +271,24 @@ static void ursl_store64 (const struct usr_regset_lut* lut,unsigned lutsize,  in
 #endif
 
 #else /* ! STAPCONF_REGSET */
+
 /* Downgrade to pt_dwarf_register access. */
-#define u_fetch_register(regno) \
-  pt_regs_fetch_register(c->uregs, regno)
+
 #define u_store_register(regno, value) \
   pt_regs_store_register(c->uregs, regno, value)
+
+/* If we're in a 32/31-bit task in a 64-bit kernel, we need to emulate
+ * 32-bitness by masking the output of pt_regs_fetch_register() */
+#ifndef CONFIG_COMPAT
+#define u_fetch_register(regno) \
+  pt_regs_fetch_register(c->uregs, regno)
+#else
+#define u_fetch_register(regno) \
+  (_stp_is_compat_task() ? (0xffffffff & pt_regs_fetch_register(c->uregs, regno)) \
+                         : pt_regs_fetch_register(c->uregs, regno))
 #endif
+
+#endif /* STAPCONF_REGSET */
 
 
 /* The deref and store_deref macros are called to safely access addresses
@@ -563,6 +575,56 @@ extern void __store_deref_bad(void);
       STORE_DEREF_FAULT(addr);						      \
   })
 
+#elif defined (__aarch64__)
+
+#define _stp_deref(size, addr, seg)                                           \
+  ({									      \
+    int _bad = 0;							      \
+    intptr_t _v = 0;							      \
+    mm_segment_t _oldfs = get_fs();                                           \
+    set_fs(seg);                                                              \
+    pagefault_disable();                                                      \
+    if (lookup_bad_addr((unsigned long)addr, size))			      \
+      _bad = 1;                                                               \
+    else                                                                      \
+      switch (size)                                                           \
+        {                                                                     \
+	case 1: __get_user_asm("ldrb", "%w", _v, (unsigned long)addr, _bad); break;\
+	case 2: __get_user_asm("ldrh", "%w",_v, (unsigned long)addr, _bad); break;\
+	case 4: __get_user_asm("ldr", "%w",_v,  (unsigned long)addr, _bad); break;\
+	case 8: __get_user_asm("ldr", "%",_v,  (unsigned long)addr, _bad); break;\
+        default: BUILD_BUG();			                              \
+        }                                                                     \
+    pagefault_enable();                                                       \
+    set_fs(_oldfs);                                                           \
+    if (_bad)								      \
+      DEREF_FAULT(addr);						      \
+    _v;									      \
+  })
+
+#define _stp_store_deref(size, addr, value, seg)                              \
+  ({									      \
+    int _bad = 0;							      \
+    mm_segment_t _oldfs = get_fs();                                           \
+    set_fs(seg);                                                              \
+    pagefault_disable();                                                      \
+    if (lookup_bad_addr((unsigned long)addr, size))			      \
+      _bad = 1;                                                               \
+    else                                                                      \
+      switch (size)                                                           \
+        {                                                                     \
+	case 1: __put_user_asm("strb", "%w", ((u8)(value)), addr, _bad); break;\
+	case 2: __put_user_asm("strh", "%w", ((u16)(value)), addr, _bad); break;\
+	case 4: __put_user_asm("str", "%w", ((u32)(value)), addr, _bad); break;\
+	case 8: __put_user_asm("str", "%", ((u64)(value)), addr, _bad); break;\
+        default: BUILD_BUG();                                                 \
+        }                                                                     \
+    pagefault_enable();                                                       \
+    set_fs(_oldfs);                                                           \
+    if (_bad)								      \
+      STORE_DEREF_FAULT(addr);						      \
+  })
+
 #elif defined (__arm__)
 
 /* Macros for ARM lifted from 2.6.21.1's linux/include/asm-arm/uaccess.h
@@ -674,18 +736,19 @@ extern void __store_deref_bad(void);
 
 #define _stp_deref(size, addr, seg)					\
   ({									\
+     unsigned long __gu_addr = (unsigned long)(addr);			\
      int _bad = 0;							\
      intptr_t _v=0;							\
      mm_segment_t _oldfs = get_fs();                                    \
      set_fs(seg);                                                       \
      pagefault_disable();                                               \
-     if (lookup_bad_addr((unsigned long)addr, size))			\
+     if (lookup_bad_addr(__gu_addr, size))				\
       _bad = 1;                                                         \
      else                                                               \
       switch (size){							\
-      case 1: __stp_get_user_asm_byte(_v, addr, _bad); break;           \
-      case 2: __stp_get_user_asm_half(_v, addr, _bad); break;           \
-      case 4: __stp_get_user_asm_word(_v, addr, _bad); break;           \
+      case 1: __stp_get_user_asm_byte(_v, __gu_addr, _bad); break;	\
+      case 2: __stp_get_user_asm_half(_v, __gu_addr, _bad); break;	\
+      case 4: __stp_get_user_asm_word(_v, __gu_addr, _bad); break;	\
       default: __get_user_bad(); break;                                 \
       }                                                                 \
     pagefault_enable();                                                 \
@@ -697,21 +760,22 @@ extern void __store_deref_bad(void);
 
 #define _stp_store_deref(size, addr, value, seg)                        \
   ({									\
+    unsigned long __pu_addr = (unsigned long)(addr);			\
     int _bad=0;								\
-    mm_segment_t _oldfs = get_fs();                                           \
-    set_fs(seg);                                                              \
-    pagefault_disable();                                                      \
-    if (lookup_bad_addr((unsigned long)addr, size))			\
+    mm_segment_t _oldfs = get_fs();					\
+    set_fs(seg);							\
+    pagefault_disable();						\
+    if (lookup_bad_addr(__pu_addr, size))				\
       _bad = 1;                                                         \
     else                                                                \
       switch (size){							\
-      case 1: __stp_put_user_asm_byte(value, addr, _bad); break;	\
-      case 2: __stp_put_user_asm_half(value, addr, _bad); break;	\
-      case 4: __stp_put_user_asm_word(value, addr, _bad); break;	\
+      case 1: __stp_put_user_asm_byte(value, __pu_addr, _bad); break;	\
+      case 2: __stp_put_user_asm_half(value, __pu_addr, _bad); break;	\
+      case 4: __stp_put_user_asm_word(value, __pu_addr, _bad); break;	\
       default: __put_user_bad(); break;                                 \
       }                                                                 \
-    pagefault_enable();                                                       \
-    set_fs(_oldfs);                                                           \
+    pagefault_enable();							\
+    set_fs(_oldfs);							\
     if (_bad)								\
 	   STORE_DEREF_FAULT(addr);						\
    })

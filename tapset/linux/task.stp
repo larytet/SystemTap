@@ -1,6 +1,6 @@
 // task information tapset
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2010 Red Hat Inc.
+// Copyright (C) 2010-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -29,8 +29,135 @@
  * more task-specific data.
  */
 function task_current:long () %{ /* pure */
-    STAP_RETVALUE = (long)current;
+    STAP_RETVALUE = (unsigned long)current;
 %}
+
+function _task_rlimit_cur:long (task:long, nd_limit:long)
+{
+    if (nd_limit < 0 || nd_limit >= %{ RLIM_NLIMITS %}) {
+        return -1;
+    }
+    sig = @cast(task, "task_struct", "kernel<linux/sched.h>")->signal;
+    return sig->rlim[nd_limit]->rlim_cur;
+}
+
+/* sfunction task_rlimit - The current resource limit of the task
+ *
+ * @task: task_struct pointer
+ * @lim_str: String representing limit.
+ *
+ * Description: Little bit slower way how ger resource limits of
+ * process.
+ * There is need translate string into number for each call.
+ */
+function task_rlimit:long (task:long, lim_str:string)
+{
+    lim = rlimit_from_str(lim_str);
+    if (lim == -1) { return -1; }
+    return _task_rlimit_cur(task, lim);
+}
+
+/* Fast and "safe" way how to do it. */
+
+function task_rlimit_cpu:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_CPU %} );
+}
+
+function task_rlimit_fsize:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_FSIZE %});
+}
+
+function task_rlimit_data:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_DATA %});
+}
+
+function task_rlimit_stack:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_STACK %});
+}
+
+function task_rlimit_core:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_CORE %});
+}
+
+function task_rlimit_rss:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_RSS %});
+}
+
+function task_rlimit_nproc:long (task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_NPROC %});
+}
+
+function task_rlimit_nofile:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_NOFILE %});
+}
+
+function task_rlimit_memlock:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_MEMLOCK %});
+}
+
+function task_rlimit_as:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_AS %});
+}
+
+function task_rlimit_locks:long(task:long)
+{
+    return _task_rlimit_cur(task, %{ RLIMIT_LOCKS %});
+}
+
+function task_rlimit_sigpending:long(task:long)
+{
+    %( kernel_v >= "2.6.8" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_SIGPENDING %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_msgqueue:long(task:long)
+{
+    %( kernel_v >= "2.6.8" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_MSGQUEUE %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_nice:long(task:long)
+{
+    %( kernel_v >= "2.6.12" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_NICE %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_rtprio:long(task:long)
+{
+    %( kernel_v >= "2.6.12" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_RTPRIO %});
+    %:
+        return -1
+    %)
+}
+
+function task_rlimit_rttime:long(task:long)
+{
+    %( kernel_v >= "2.6.25" %?
+        return _task_rlimit_cur(task, %{ RLIMIT_RTTIME %});
+    %:
+        return -1
+    %)
+}
 
 /**
  * sfunction task_parent - The task_struct of the parent task
@@ -110,7 +237,7 @@ function pid2task:long (pid:long) %{ /* pure */
 #endif /* 2.6.24 */
 #endif /* 2.6.31 */
     rcu_read_unlock();
-    STAP_RETVALUE = (long)t;
+    STAP_RETVALUE = (unsigned long)t;
 %}
 
 /**
@@ -158,7 +285,11 @@ function task_gid:long (task:long) %{ /* pure */
 #define task_gid(task)		(task_cred_xxx((task), gid))
 #endif
     /* XXX: We can't easily kread this rcu-protected field. */
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_gid(t));
+#else
     STAP_RETVALUE = task_gid (t);
+#endif
 #endif
 %}
 
@@ -181,7 +312,11 @@ function task_egid:long (task:long) %{ /* pure */
 #define task_egid(task)		(task_cred_xxx((task), egid))
 #endif
     /* XXX: We can't easily kread this rcu-protected field. */
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_egid(t));
+#else
     STAP_RETVALUE = task_egid (t);
+#endif
 #endif
 %}
 
@@ -199,7 +334,11 @@ function task_uid:long (task:long) %{ /* pure */
     CATCH_DEREF_FAULT();
 #else
     /* XXX: We can't easily kread this rcu-protected field. */
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_uid(t));
+#else
     STAP_RETVALUE = task_uid (t);
+#endif
 #endif
 %}
 
@@ -217,7 +356,11 @@ function task_euid:long (task:long) %{ /* pure */
     CATCH_DEREF_FAULT();
 #else
     /* XXX: We can't easily kread this rcu-protected field. */
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_euid(t));
+#else
     STAP_RETVALUE = task_euid (t);
+#endif
 #endif
 %}
 
@@ -271,16 +414,25 @@ function task_cpu:long (task:long)
  * Description: This function returns the number of open file handlers for the given task.
  */
 function task_open_file_handles:long (task:long)
-%( kernel_v >= "2.6.15" %?
 %{ /* pure */
     int locked = 0;
     unsigned int count=0, fd, max;
     struct task_struct *t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    /* Older kernels */
+    struct files_struct *f;
+#else
     struct files_struct *fs;
     struct fdtable *f;
+#endif
     t = (struct task_struct *)(long)STAP_ARG_task;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    /* Older kernels */
+    f = kread(&(t->files));
+#else
     fs = kread(&(t->files));
     f = kread(&(fs->fdt));
+#endif
     rcu_read_lock();
     locked = 1;
     max = kread(&(f->max_fds));
@@ -293,27 +445,6 @@ function task_open_file_handles:long (task:long)
     if (locked)
         rcu_read_unlock();
 %}
-%:
-%{ /* pure */
-    int locked = 0;
-    unsigned int count=0, fd, max;
-    struct task_struct *t;
-    struct files_struct *f;
-    t = (struct task_struct *)(long)STAP_ARG_task;
-    f = kread(&(t->files));
-    rcu_read_lock();
-    locked = 1;
-    max = kread(&(f->max_fds));
-    for (fd = 0; fd < max; fd++) {
-                if ( kread(&(f->fd[fd])) != NULL)
-                        count ++;
-        }
-    STAP_RETVALUE = count;
-    CATCH_DEREF_FAULT();
-    if (locked)
-        rcu_read_unlock();
-%}
-%)
 
 /**
  * sfunction task_max_file_handles - The max number of open files for the task
@@ -323,15 +454,22 @@ function task_open_file_handles:long (task:long)
  * Description: This function returns the maximum number of file handlers for the given task.
  */
 function task_max_file_handles:long (task:long)
-%( kernel_v >= "2.6.15" %?
 %{ /* pure */
     int locked = 0;
     struct task_struct *t;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    struct files_struct *f;
+#else
     struct files_struct *fs;
     struct fdtable *f;
+#endif
     t = (struct task_struct *)(long)STAP_ARG_task;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
+    f = kread(&(t->files));
+#else
     fs = kread (&(t->files));
     f = kread(&(fs->fdt));
+#endif
     rcu_read_lock();
     locked = 1;
     STAP_RETVALUE = kread(&(f->max_fds));
@@ -339,18 +477,3 @@ function task_max_file_handles:long (task:long)
     if (locked)
         rcu_read_unlock();
 %}
-%:
-%{ /* pure */
-    int locked = 0;
-    struct task_struct *t;
-    struct files_struct *f;
-    t = (struct task_struct *)(long)STAP_ARG_task;
-    f = kread(&(t->files));
-    rcu_read_lock();
-    locked = 1;
-    STAP_RETVALUE = kread(&(f->max_fds));
-    CATCH_DEREF_FAULT();
-    if (locked)
-        rcu_read_unlock();
-%}
-%)

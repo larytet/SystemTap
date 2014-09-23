@@ -12,5 +12,5 @@ probe kernel.function("setattr_copy")!,
       && inode_nr == $3
       && $attr->ia_valid & ATTR_MODE)
     printf ("%s(%d) %s 0x%x/%u %o %d\n",
-      execname(), pid(), probefunc(), dev_nr, inode_nr, $attr->ia_mode, uid())
+      execname(), pid(), ppfunc(), dev_nr, inode_nr, $attr->ia_mode, uid())
 }

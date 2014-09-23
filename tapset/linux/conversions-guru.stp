@@ -1,5 +1,5 @@
 // guru-mode conversions tapset
-// Copyright (C) 2010 Red Hat Inc.
+// Copyright (C) 2010-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -20,7 +20,7 @@ function set_kernel_string (addr:long, val:string) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from store_deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel string copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -41,7 +41,7 @@ function set_kernel_string_n (addr:long, n:long, val:string) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from store_deref_string() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel string copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel string copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -60,7 +60,7 @@ function set_kernel_long (addr:long, val:long) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel long copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel long copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -79,7 +79,7 @@ function set_kernel_int (addr:long, val:long) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel int copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel int copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -98,7 +98,7 @@ function set_kernel_short (addr:long, val:long) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel short copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel short copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -117,7 +117,7 @@ function set_kernel_char (addr:long, val:long) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel char copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel char copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}
@@ -136,7 +136,7 @@ function set_kernel_pointer (addr:long, val:long) %{ /* guru */
   if (0) {
 deref_fault: /* branched to from kwrite() */
     snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
-        "kernel pointer copy fault at 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+        "kernel pointer copy fault at 0x%p [man error::fault]", (void *) (uintptr_t) STAP_ARG_addr);
     CONTEXT->last_error = CONTEXT->error_buffer;
   }
 %}

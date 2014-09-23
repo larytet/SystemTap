@@ -14,7 +14,7 @@
 			Graphing Disk and CPU Utilization - http://sourceware.org/systemtap/examples/general/graphs.stp
 		</remark>
 
-	<para>This section describes how you can graph disk and CPU utilization in real-time, i.e. in samples of 1 second each.</para>
+	<para>This section describes how you can graph disk and CPU utilization in real-time, that is, in samples of 1 second each.</para>
 
 <formalpara id="scriptdiskusage">
 		<title>disk-usage-graph.stp</title>
@@ -119,7 +119,7 @@ pause 1</screen>
 <para><xref linkend="gnuoutputsample"/> presents a cleaner, more useful graphical output. This graph can show you the level of utilization for both I/O and CPU, in real time.</para>
 
 <remark>
-	question: does this script also capture stap process? i.e. does the graph also include CPU utilization by systemtap while the script is running?
+	question: does this script also capture stap process? that is, does the graph also include CPU utilization by systemtap while the script is running?
 </remark>
 
 

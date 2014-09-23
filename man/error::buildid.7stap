@@ -63,14 +63,25 @@ A build-id mismatch could be caused by a few different situations.
 The main one is where the executable versions or architecture were
 different between the systemtap translation and execution
 times/places.  For example, one may run a stap-server on a slightly
-different version of the OS distribution.  The kernel running on the
-workstation may be slightly different from the version being targeted
-- perhaps due to a pending kernel upgrade leaving different files on
-disk versus running in memory.  If your OS distribution uses separate
-debuginfo packages, the split .IR .debug files may not exactly match
-the main binaries.
+different version of the OS distribution.  Someone may have rebuilt a
+new kernel image, but preserved the previous version numbers.  The
+kernel running on the workstation may be slightly different from the
+version being targeted - perhaps due to a pending kernel upgrade
+leaving different files on disk versus running in memory.  If your OS
+distribution uses separate debuginfo packages, the split \fI.debug\fR
+files may not exactly match the main binaries.
+
+.PP
+
+To disable build-id verification errors, if one is confident that they
+are an artefact of build accidents rather than a real mismatch, one
+might try the
+.IR -DSTP_NO_BUILDID_CHECK
+option.
 
 .SH SEE ALSO
+.nh
+.nf
 .IR http://fedoraproject.org/wiki/Releases/FeatureBuildId ,
 .IR stap (1),
 .IR stapprobes (3stap),

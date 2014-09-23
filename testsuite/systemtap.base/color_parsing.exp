@@ -10,7 +10,7 @@ proc checker { TEST EXE EXP } {
 	global test
 
 	if {[string equal $EXE "stap"]} {
-		set cmd "stap --color -e junk"
+		set cmd "stap --color -p4 -e junk"
 		set STR "parse error:"
 	} else {
 		set cmd "staprun -C always"
@@ -42,7 +42,7 @@ proc checker { TEST EXE EXP } {
 		}
 		timeout {
 			fail "$test ($TEST - $EXE: timeout)"
-			exec kill -s KILL -[exp_pid -i $stap_id]
+			kill -INT -[exp_pid -i $stap_id] 2
 		}
 		eof { if {$failed} {fail "$test ($TEST - $EXE: unexpected EOF)"} }
 	}
@@ -70,12 +70,18 @@ proc stap_check_parse { TEST ENV EXP } {
 	set env(SYSTEMTAP_COLORS) "$ENV"
 	verbose -log "SYSTEMTAP_COLORS set to \"$env(SYSTEMTAP_COLORS)\""
 
-	# Test stap and staprun
-	checker "$TEST" "stap"    "$EXP"
-	checker "$TEST" "staprun" "$EXP"
+	# Test stap
+	checker "$TEST" "stap" "$EXP"
+
+	# Test staprun if installcheck
+	if {[installtest_p]} {
+		checker "$TEST" "staprun" "$EXP"
+	} else {
+		untested "$test ($TEST - staprun)"
+	}
 }
 
-stap_check_parse "empty"	"" "01;31"
+stap_check_parse "empty"	"" ""
 stap_check_parse "short_key1"	"a" ""
 stap_check_parse "short_key2"	"a:" ""
 stap_check_parse "short_key3"	"a:error=41" ""

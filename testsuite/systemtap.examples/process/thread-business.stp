@@ -9,8 +9,7 @@ global top_threads = 20
 probe nd_syscall.* # use non-dwarf variant; we don't need context data
 {
   activity[execname(),tid()]<<<1
-  syscall_name = substr(pn(), 11 /* skip nd_syscall. */, 20 /* large enough */)
-  history = syscall_name." ".activity2[execname(),tid()]
+  history = name." ".activity2[execname(),tid()]
   activity2[execname(),tid()] = substr(history,0,syscall_history_length)
 }
 

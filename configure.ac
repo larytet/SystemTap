@@ -1,7 +1,7 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 2.3, systemtap@sourceware.org, systemtap)
+AC_INIT([systemtap], 2.6, systemtap@sourceware.org, systemtap)
 dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
 dnl                      doc/SystemTap_Beginners_Guide/en-US/Book_Info.xml
 
@@ -16,7 +16,7 @@ AM_MAINTAINER_MODE
 m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_USE_SYSTEM_EXTENSIONS
-AM_PROG_MKDIR_P
+AC_PROG_MKDIR_P
 AC_SUBST(MKDIR_P)
 AC_PROG_LN_S
 AC_PROG_CC
@@ -32,10 +32,14 @@ AC_PROG_MAKE_SET
 AC_SUBST(CFLAGS)
 AC_SUBST(CXXFLAGS)
 AC_SYS_LARGEFILE
-AM_GNU_GETTEXT(external)
-AM_GNU_GETTEXT_VERSION(0.17)
 AC_CHECK_FUNCS(ppoll)
 AC_CHECK_FUNCS(openat)
+AM_GNU_GETTEXT(external)
+AM_GNU_GETTEXT_VERSION([0.18.2])
+
+if test "x$GMSGFMT" = "x:"; then
+   AC_MSG_ERROR([missing gnu /usr/bin/msgfmt])
+fi
 
 dnl Handle the prologues option.
 dnl
@@ -455,14 +459,11 @@ AC_MSG_NOTICE([stap will link $stap_LIBS])
 
 # staprun has more modest libelf needs
 if test $build_elfutils = no; then
-  AC_CHECK_HEADERS([libelf.h])
-
   save_LIBS="$LIBS"
   dnl this will only succeed with elfutils 0.142+
-  AC_CHECK_LIB(elf,elf_getshdrstrndx,[
-    AC_DEFINE([HAVE_ELF_GETSHDRSTRNDX],[1],[Define to 1 if libelf has elf_getshdrstrndx])
-    staprun_LIBS="$staprun_LIBS -lelf"
-  ])
+  AC_CHECK_LIB(elf,elf_getshdrstrndx,[],[
+    AC_MSG_FAILURE([libelf too old, need 0.142+])])
+  staprun_LIBS="$staprun_LIBS -lelf"
   LIBS="$save_LIBS"
 else
   # We built our own and staprun_LDFLAGS points at the install.
@@ -525,6 +526,20 @@ if test "$with_dyninst" != "no"; then
 fi
 AM_CONDITIONAL([HAVE_DYNINST], [test "${have_dyninst}" = "yes"])
 
+dnl Check for the libvirt and libxml2 devel packages
+
+dnl We require libvirt >= 1.0.2 because stapvirt relies on the
+dnl virDomainOpenChannel function, which was implemented in 1.0.2.
+PKG_CHECK_MODULES([libvirt], [libvirt >= 1.0.2], [
+   have_libvirt=yes
+   AC_DEFINE([HAVE_LIBVIRT],[1],[Define to 1 if libvirt development libraries are installed])
+   ], [have_libvirt=no])
+AM_CONDITIONAL([HAVE_LIBVIRT], [test "${have_libvirt}" = "yes"])
+PKG_CHECK_MODULES([libxml2], [libxml-2.0], [
+   have_libxml2=yes
+   AC_DEFINE([HAVE_LIBXML2],[1],[Define to 1 if libxml2 development libraries are installed])
+   ], [have_libxml2=no])
+AM_CONDITIONAL([HAVE_LIBXML2], [test "${have_libxml2}" = "yes"])
 
 AC_CACHE_CHECK([for assembler .section "?" flags support], stap_cv_sectionq, [
 old_CFLAGS="$CFLAGS"
@@ -548,10 +563,15 @@ fi
 AC_CONFIG_FILES([includes/sys/sdt-config.h po/Makefile.in])
 
 if test $build_elfutils = yes -a $enable_translator = yes; then
+  here=`pwd`
   case "$with_elfutils" in
   /*) elfutils_srcdir="$with_elfutils" ;;
-  *) elfutils_srcdir="../$with_elfutils" ;;
+  *) elfutils_srcdir="${here}/$with_elfutils" ;;
   esac
+
+  if ! test -f ${elfutils_srcdir}/configure; then
+    AC_MSG_ERROR([No ${elfutils_srcdir}/configure, forgot to run autoreconf -i?])
+  fi
   AC_MSG_NOTICE([running ${elfutils_srcdir}/configure])
 
   save_CFLAGS="$CFLAGS"
@@ -571,7 +591,6 @@ if test $build_elfutils = yes -a $enable_translator = yes; then
   # Note that $libdir might be using a quoted use of $exec_prefix or $prefix.
   # So we must make sure to pass those settings to elfutils configure.
   elfutils_rpath="-Wl,--enable-new-dtags,-rpath,${libdir}/${PACKAGE_NAME}"
-  here=`pwd`
   # Check whether this is a source release, or a source checkout.
   # We need --enable-maintainer-mode if it isn't a source release.
   # elfutils.spec is only distributed in source releases.
@@ -626,7 +645,10 @@ AC_ARG_WITH([java],
      [Specify JDK directory to compile libHelperSDT.so against (default is /usr/lib/jvm/java)])],
   [],
   [with_java=/usr/lib/jvm/java])
-AC_CHECK_FILE([$with_java],[],[with_java=no])
+dnl don't use AC_CHECK_FILE here, as that blocks cross-compiling
+if test ! -d "$with_java"; then
+   with_java=no
+fi
 AC_SUBST(JAVADIR, "${with_java}") # always needed to compile
 
 if test "$with_java" != "no"; then
@@ -668,9 +690,10 @@ AC_SUBST(STAP_PREFIX, "$stap_prefix")
 AC_CONFIG_HEADERS([config.h:config.in])
 AC_CONFIG_FILES([Makefile doc/Makefile man/Makefile \
 doc/beginners/Makefile doc/SystemTap_Tapset_Reference/Makefile \
-man/stappaths.7 \
+man/stappaths.7 man/systemtap.8 \
 initscript/config.systemtap initscript/config.stap-server \
-initscript/systemtap initscript/stap-server ])
+initscript/systemtap initscript/stap-server \
+initscript/99stap/module-setup.sh ])
 AC_CONFIG_SUBDIRS(testsuite)
 if test $enable_translator == "yes"; then
 	AC_CONFIG_FILES([run-stap], [chmod +x run-stap])
@@ -681,7 +704,9 @@ AC_CONFIG_FILES(java/Makefile)
 AC_CONFIG_FILES([java/stapbm], [chmod +x java/stapbm])
 AC_CONFIG_FILES(staprun/Makefile)
 AC_CONFIG_FILES([staprun/run-staprun], [chmod +x staprun/run-staprun])
-AC_CONFIG_FILES(re2c-migrate/Makefile)
+AC_CONFIG_FILES([staprun/guest/stapshd], [chmod +x staprun/guest/stapshd])
+AC_CONFIG_FILES([staprun/guest/stapsh-daemon], [chmod +x staprun/guest/stapsh-daemon])
+AC_CONFIG_FILES([staprun/guest/stapsh@.service])
 
 # Setup "shadow" directory doc/beginners that has everything setup for
 # publican in one directory (through directory links if necessary).

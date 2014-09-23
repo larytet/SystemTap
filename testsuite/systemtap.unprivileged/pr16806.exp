@@ -1,0 +1,98 @@
+set test "pr16806"
+
+if {![installtest_p]} { untested $test; return }
+if {![uprobes_p]} { untested $test; return }
+
+set exepath "loop"
+set sopath "libloop.so"
+set modpath "modloop"
+
+# This testcase verifies that utrace shuts down cleanly during rapid module
+# insertion/removal and does not cause a kernel crash.
+
+proc cleanup_test {} {
+   global exepath sopath modpath
+   if {[file exists "$exepath"]}  { file delete "$exepath" }
+   if {[file exists "$sopath"]}   { file delete "$sopath" }
+   if {[file exists "$modpath.ko"]} { file delete "$modpath.ko" }
+}
+
+# Need to build a user shared library.
+set libflags [sdt_includes]
+set libflags "$libflags additional_flags=-g"
+set libflags "$libflags additional_flags=-O"
+set libflags "$libflags additional_flags=-Wall"
+set libflags "$libflags additional_flags=-Werror"
+set libflags "$libflags additional_flags=-I."
+set libflags "$libflags additional_flags=-shared"
+set libflags "$libflags additional_flags=-fPIC"
+set res [target_compile $srcdir/$subdir/libloop.c $sopath executable "$libflags"]
+if { $res == "" } {
+   pass "$test library compile"
+} else {
+   fail "$test library compile: $res"
+   cleanup_test
+   return
+}
+
+# Need to build a user application
+set exeflags "additional_flags=-g"
+# Add NOSLEEP to disable usleep() call. This makes a kernel crash much easier to
+# trigger.
+set exeflags "$exeflags additional_flags=-DNOSLEEP"
+set exeflags "$exeflags additional_flags=-O"
+set exeflags "$exeflags additional_flags=-lpthread"
+set exeflags "$exeflags [sdt_includes]"
+set exeflags "$exeflags additional_flags=-Wl,-rpath,[pwd]"
+set exeflags "$exeflags additional_flags=-L[pwd] additional_flags=-lloop"
+set exeflags "$exeflags compiler=gcc"
+# ppc64 needs a more restrictive constraint for the probe args
+if {[regexp "^(x86_64|i.86)$" $::tcl_platform(machine)] == 0} {
+   set exeflags "$exeflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=nr"
+}
+set res [target_compile $srcdir/$subdir/loop.c $exepath executable "$exeflags"]
+if { $res == "" } {
+   pass "$test exe compile"
+} else {
+   fail "$test exe compile: $res"
+   cleanup_test
+   return
+}
+
+# Create module
+set script " \
+   probe process(\"./$exepath\").function(\"ibar\") { \
+      println(\"entered ibar\") \
+      exit() \
+   } \
+"
+
+# If we're on a platform with uprobes not built in, we need to ensure first
+# that it is inserted. Let's run the script once and hope the uprobes.ko stays
+# inserted.
+set rc [catch {eval exec stap -m $modpath -e {$script} -c /bin/true} out]
+if {$rc == 0 && [file exists "$modpath.ko"]} {
+   pass "$test ko compile"
+} else {
+   fail "$test ko compile"
+   verbose -log "stap output: $out"
+   cleanup_test
+   return
+}
+
+# For 60s, keep inserting the module using staprun. If we survive, just default
+# to a pass (otherwise we would have crashed).
+set max [expr [exec date +%s] + 60]
+while {[expr [exec date +%s] < $max]} {
+   catch {exec staprun $modpath.ko -c "timeout 1 ./$exepath"} out
+   if {![regexp "entered ibar" "$out"]} {
+      fail "$test staprun"
+      verbose -log "staprun output: $out"
+      cleanup_test
+      return
+   }
+}
+
+cleanup_test
+pass "$test"
+

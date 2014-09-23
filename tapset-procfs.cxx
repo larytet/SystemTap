@@ -1,5 +1,5 @@
 // tapset for procfs
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -126,6 +126,7 @@ procfs_derived_probe::join_group (systemtap_session& s)
       s.embeds.push_back(ec);
     }
   s.procfs_derived_probes->enroll (this);
+  this->group = s.procfs_derived_probes;
 }
 
 
@@ -145,9 +146,9 @@ procfs_derived_probe_group::enroll (procfs_derived_probe* p)
 
       // You can only specify 1 read and 1 write probe.
       if (p->write && pset->write_probe != NULL)
-        throw semantic_error(_("only one write procfs probe can exist for procfs path \"") + p->path + "\"");
+        throw SEMANTIC_ERROR(_("only one write procfs probe can exist for procfs path \"") + p->path + "\"");
       else if (! p->write && pset->read_probe != NULL)
-        throw semantic_error(_("only one read procfs probe can exist for procfs path \"") + p->path + "\"");
+        throw SEMANTIC_ERROR(_("only one read procfs probe can exist for procfs path \"") + p->path + "\"");
 
       // XXX: multiple writes should be acceptable
     }
@@ -286,7 +287,6 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "atomic_set (session_state(), STAP_SESSION_ERROR);";
       s.op->newline() << "_stp_exit ();";
       s.op->newline(-1) << "}";
-      s.op->newline() << "atomic_dec (& c->busy);";
       s.op->newline() << "goto probe_epilogue;";
       s.op->newline(-1) << "}";
 
@@ -298,7 +298,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "spp->needs_fill = 0;";
       s.op->newline() << "spp->count = strlen(spp->buffer);";
 
-      common_probe_entryfn_epilogue (s, true);
+      common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
 
       s.op->newline() << "if (spp->needs_fill) {";
       s.op->newline(1) << "spp->needs_fill = 0;";
@@ -344,7 +344,6 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "atomic_set (session_state(), STAP_SESSION_ERROR);";
       s.op->newline() << "_stp_exit ();";
       s.op->newline(-1) << "}";
-      s.op->newline() << "atomic_dec (& c->busy);";
       s.op->newline() << "goto probe_epilogue;";
       s.op->newline(-1) << "}";
 
@@ -356,7 +355,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(1) << "retval = count;";
       s.op->newline(-1) << "}";
 
-      common_probe_entryfn_epilogue (s, true);
+      common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
     }
 
   s.op->newline() << "return retval;";
@@ -429,19 +428,19 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       assert(e->name.size() > 0 && e->name[0] == '$');
 
       if (e->name != "$value")
-        throw semantic_error (_("invalid target symbol for procfs probe, $value expected"),
+        throw SEMANTIC_ERROR (_("invalid target symbol for procfs probe, $value expected"),
                               e->tok);
 
       e->assert_no_components("procfs");
 
       bool lvalue = is_active_lvalue(e);
       if (write_probe && lvalue)
-        throw semantic_error(_("procfs $value variable is read-only in a procfs write probe"), e->tok);
+        throw SEMANTIC_ERROR(_("procfs $value variable is read-only in a procfs write probe"), e->tok);
   else if (! write_probe && ! lvalue)
-    throw semantic_error(_("procfs $value variable cannot be read in a procfs read probe"), e->tok);
+    throw SEMANTIC_ERROR(_("procfs $value variable cannot be read in a procfs read probe"), e->tok);
 
       if (e->addressof)
-        throw semantic_error(_("cannot take address of procfs variable"), e->tok);
+        throw SEMANTIC_ERROR(_("cannot take address of procfs variable"), e->tok);
 
       // Remember that we've seen a target variable.
       target_symbol_seen = true;
@@ -461,8 +460,10 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
           fname = "_procfs_value_get";
           ec->code = string("    struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string("); /* pure */\n")
 
-            + string("    _stp_copy_from_user(STAP_RETVALUE, data->buffer, data->count);\n")
-            + string("    STAP_RETVALUE[data->count] = '\\0';\n");
+            + string("    if (!_stp_copy_from_user(STAP_RETVALUE, data->buffer, data->count))\n")
+            + string("      STAP_RETVALUE[data->count] = '\\0';\n")
+	    + string("    else\n")
+            + string("      STAP_RETVALUE[0] = '\\0';\n");
         }
       else					// lvalue
         {
@@ -482,7 +483,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
             }
           else
             {
-              throw semantic_error (_("Only the following assign operators are"
+              throw SEMANTIC_ERROR (_("Only the following assign operators are"
                                     " implemented on procfs read target variables:"
                                     " '=', '.='"), e->tok);
             }
@@ -512,13 +513,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       n->function = fname;
 
       if (lvalue)
-        {
-          // Provide the functioncall to our parent, so that it can be
-          // used to substitute for the assignment node immediately above
-          // us.
-          assert(!target_symbol_setter_functioncalls.empty());
-          *(target_symbol_setter_functioncalls.top()) = n;
-        }
+        provide_lvalue_call (n);
 
       provide (n);
     }
@@ -570,7 +565,7 @@ procfs_builder::build(systemtap_session & sess,
   if (get_param(parameters, TOK_MAXSIZE, maxsize_val))
     {
       if (maxsize_val <= 0)
-	throw semantic_error (_("maxsize must be greater than 0"));
+	throw SEMANTIC_ERROR (_("maxsize must be greater than 0"));
     }
 
   // If no procfs path, default to "command".  The runtime will do
@@ -592,31 +587,31 @@ procfs_builder::build(systemtap_session & sess,
         {
           // Make sure it doesn't start with '/'.
           if (end_pos == 0)
-            throw semantic_error (_("procfs path cannot start with a '/'"),
+            throw SEMANTIC_ERROR (_("procfs path cannot start with a '/'"),
                                   location->components.front()->tok);
 
           component = path.substr(start_pos, end_pos - start_pos);
           // Make sure it isn't empty.
           if (component.size() == 0)
-            throw semantic_error (_("procfs path component cannot be empty"),
+            throw SEMANTIC_ERROR (_("procfs path component cannot be empty"),
                                   location->components.front()->tok);
           // Make sure it isn't relative.
           else if (component == "." || component == "..")
-            throw semantic_error (_("procfs path cannot be relative (and contain '.' or '..')"), location->components.front()->tok);
+            throw SEMANTIC_ERROR (_("procfs path cannot be relative (and contain '.' or '..')"), location->components.front()->tok);
 
           start_pos = end_pos + 1;
         }
       component = path.substr(start_pos);
       // Make sure it doesn't end with '/'.
       if (component.size() == 0)
-        throw semantic_error (_("procfs path cannot end with a '/'"), location->components.front()->tok);
+        throw SEMANTIC_ERROR (_("procfs path cannot end with a '/'"), location->components.front()->tok);
       // Make sure it isn't relative.
       else if (component == "." || component == "..")
-        throw semantic_error (_("procfs path cannot be relative (and contain '.' or '..')"), location->components.front()->tok);
+        throw SEMANTIC_ERROR (_("procfs path cannot be relative (and contain '.' or '..')"), location->components.front()->tok);
     }
 
   if (!(has_read ^ has_write))
-    throw semantic_error (_("need read/write component"), location->components.front()->tok);
+    throw SEMANTIC_ERROR (_("need read/write component"), location->components.front()->tok);
 
   finished_results.push_back(new procfs_derived_probe(sess, base, location,
                                                       path, has_write,

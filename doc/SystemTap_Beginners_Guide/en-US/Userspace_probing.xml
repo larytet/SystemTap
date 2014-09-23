@@ -4,47 +4,44 @@ open.org/docbook/xml/4.5/docbookx.dtd" [
 ]>
 
 <chapter id="userspace-probing">
-	<title>User-Space Probing</title>
+	<title>User-space Probing</title>
 
 <para>
-SystemTap initially focused on kernel-space probing.  However,
+SystemTap initially focused on kernel-space probing. Because
 there are many instances where user-space probing can help diagnose
-a problem.  SystemTap 0.6 added support to allow probing user-space processes.
-SystemTap includes support for probing the entry into and return from a
-function in user-space processes, probing predefined markers in
-user-space code, and monitoring user-process events.
+a problem, SystemTap 0.6 added support to allow probing user-space processes.
+SystemTap can probe the entry into and return from a
+function in user-space processes, probe predefined markers in
+user-space code, and monitor user-process events.
 </para>
 
 <para>
 SystemTap requires the uprobes module to perform user-space probing. If your
-Linux kernel is version 3.5 or higher, it already includes uprobes. The
-following command can verify whether the current kernel supports uprobes
-natively:
+Linux kernel is version 3.5 or higher, it already includes uprobes.
+To verify that the current kernel supports uprobes natively, run the following command:
 </para>
 
-<screen>grep CONFIG_UPROBES /boot/config-`uname -r`</screen>
+<screen><command>grep CONFIG_UPROBES /boot/config-`uname -r`</command></screen>
 
 <para>
-If uprobes is integrated, the output should be:
+If uprobes is integrated, the output of this command is as follows:
 </para>
 
 <screen>CONFIG_UPROBES=y</screen>
 
 <para>
-If you are running a kernel prior to version 3.5, SystemTap will automatically
-build the uprobes module. However, you will also need the utrace kernel
-extensions, which is required by the SystemTap user-space probing to track
+If you are running a kernel prior to version 3.5, SystemTap automatically
+builds the uprobes module. However, you also need the utrace kernel
+extensions required by the SystemTap user-space probing to track
 various user-space events. More details about the utrace infrastructure are
 available at <ulink url="http://sourceware.org/systemtap/wiki/utrace" />.
-The following command determines whether the currently running Linux kernel
-provides the needed utrace support:
+To determine whether the currently running Linux kernel provides the needed utrace support, type the following at a shell prompt:
 </para>
 
-<screen>grep CONFIG_UTRACE /boot/config-`uname -r`</screen>
+<screen><command>grep CONFIG_UTRACE /boot/config-`uname -r`</command></screen>
 
 <para>
-If the Linux kernel supports user-space probing, the following output is
-printed:
+If the Linux kernel supports user-space probing, the command produces the following output:
 </para>
 
 <screen>CONFIG_UTRACE=y</screen>
@@ -62,14 +59,16 @@ printed:
 
 <para>
 All user-space event probes begin with <emphasis>process</emphasis>.
-The process events can be limited to a specific running process by specifying the process ID.
-The process events can also be limited to monitoring a particular executable
-by specifying the path to executable (PATH).
-SystemTap makes use of the <command>PATH</command> environment variable,
-so both the name used on the command-line to start the executable and the absolute path
-to the executable can be used.
+You can limit the process events to a specific running process by specifying the process ID.
+You can also limit the process events to monitor a particular executable
+by specifying the path to the executable (PATH).
+SystemTap makes use of the <envar>PATH</envar> environment variable, which allows
+you to use both the name used on the command-line to start the executable and
+the absolute path to the executable.
+</para>
+<para>
 Several of the user-space probe events limit their scope to a
-particular executable name (PATH) because
+particular executable name (PATH), because
 SystemTap must use debug information to statically analyze where to
 place the probes. But for many user-space probe events, the process ID
 and executable name are optional. 
@@ -89,7 +88,7 @@ The entry to the user-space function <replaceable>function</replaceable> for the
 This event is the user-space analogue of the
 <command>kernel.function("<replaceable>function</replaceable>")</command> event.
 It allows wildcards for the function <replaceable>function</replaceable>
-and <command>.return</command> suffix.
+and <literal>.return</literal> suffix.
 </para>
 </listitem>
 </varlistentry>
@@ -109,26 +108,26 @@ The earliest instruction in the code for <replaceable>statement</replaceable>. T
 <listitem>
 <para>The static probe point <replaceable>marker</replaceable> defined in
 <replaceable>PATH</replaceable>.
-Wildcards can be used for <replaceable>marker</replaceable> to specify
-mutiple marks with a single probe.
-The static probe points may also have numbered arguments ($1, $2, etc.)
-available to the probe.
-A variety of user-space packages such as Java include these static
+You can use wildcards for <replaceable>marker</replaceable> to specify
+multiple marks with a single probe.
+The static probe points may also have numbered arguments ($1, $2, and so on)
+available to the probe.</para>
+<para>A variety of user-space packages such as Java include these static
 probe points.
 Most packages that provide static probe points also
 provide aliases for the raw user-space mark events.
 Below is one such alias for the x86_64 Java hotspot JVM:
  </para>
-<screen>probe hotspot.gc_begin =
-  process("/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64/jre/lib/amd64/server/libjvm.so").mark("gc__begin")</screen>
+<programlisting>probe hotspot.gc_begin =
+  process("/usr/lib/jvm/java-1.6.0-openjdk-1.6.0.0.x86_64/jre/lib/amd64/server/libjvm.so").mark("gc__begin")</programlisting>
 </listitem>
 </varlistentry>
 
 <varlistentry>
 <term>process.begin</term>
 <listitem>
-<para>User-space process is created.
-This can be limited to a particular process ID or a full path to the
+<para>A user-space process is created.
+You can limit this to a particular process ID or a full path to the
 executable.</para>
 </listitem>
 </varlistentry>
@@ -136,8 +135,8 @@ executable.</para>
 <varlistentry>
 <term>process.thread.begin</term>
 <listitem>
-<para>User-space thread is created.
-This can be limited to a particular process ID or a full path to the
+<para>A user-space thread is created.
+You can limit this to a particular process ID or a full path to the
 executable.</para>
 </listitem>
 </varlistentry>
@@ -145,8 +144,8 @@ executable.</para>
 <varlistentry>
 <term>process.end</term>
 <listitem>
-<para>User-space process died.
-This can be limited to a particular process ID or a full path to the
+<para>A user-space process dies.
+You can limit this to a particular process ID or a full path to the
 executable.</para>
 </listitem>
 </varlistentry>
@@ -154,8 +153,8 @@ executable.</para>
 <varlistentry>
 <term>process.thread.end</term>
 <listitem>
-<para>User-space thread is destroyed.
-This can be limited to a particular process ID or a full path to the
+<para>A user-space thread is destroyed.
+You can limit this to a particular process ID or a full path to the
 executable.</para>
 </listitem>
 </varlistentry>
@@ -163,13 +162,13 @@ executable.</para>
 <varlistentry>
 <term>process.syscall</term>
 <listitem>
-<para>User-space process makes a system call.
-The system call number is available via $syscall context variable, and 
-the fist six arguments are available via $arg1 through $arg6.
-The ".return" suffix will place the probe at the return from the system call.
-For the "syscall.return" the return value is available through the
-$return context variable.
-This can be limited to a particular process ID or a full path to the
+<para>A user-space process makes a system call.
+The system call number is available in the <varname>$syscall</varname> context variable, and 
+the fist six arguments are available in <varname>$arg1</varname> through <varname>$arg6</varname>.
+The <literal>.return</literal> suffix places the probe at the return from the system call.
+For <command>syscall.return</command>, the return value is available through the
+<varname>$return</varname> context variable.</para>
+<para>You can limit this to a particular process ID or a full path to the
 executable.</para>
 </listitem>
 </varlistentry>
@@ -188,12 +187,14 @@ executable.</para>
 </indexterm>
 
 <para>
-User-space target variables can be accessed in the same manner as described in
+You can access user-space target variables in the same manner as described in
 <xref linkend="targetvariables"/>.
-However, in Linux there are separate address spaces for the user and
+In Linux, however, there are separate address spaces for the user and
 kernel code.
-When using "->" operator SystemTap will access the appropriate address space.
-For pointers to base types such as integers and strings
+When using the <literal>-&gt;</literal> operator, SystemTap accesses the appropriate address space.
+</para>
+<para>
+For pointers to base types such as integers and strings,
 there are a number of functions listed below to access user-space data.
 The first argument for each functions is the pointer to the data item.
 </para>
@@ -204,7 +205,7 @@ The first argument for each functions is the pointer to the data item.
 <term>user_char(<replaceable>address</replaceable>)</term>
 <listitem>
 <para>
-Obtain the character at <replaceable>address</replaceable> for the current
+Obtains the character at <replaceable>address</replaceable> for the current
 user process.
 </para>
 </listitem>
@@ -214,7 +215,7 @@ user process.
 <term>user_short(<replaceable>address</replaceable>)</term>
 <listitem>
 <para>
-Obtain the short at <replaceable>address</replaceable> for the current
+Obtains the short integer at <replaceable>address</replaceable> for the current
 user process.
 </para>
 </listitem>
@@ -224,7 +225,7 @@ user process.
 <term>user_int(<replaceable>address</replaceable>)</term>
 <listitem>
 <para>
-Obtain the int at <replaceable>address</replaceable> for the current
+Obtains the integer at <replaceable>address</replaceable> for the current
 user process.
 </para>
 </listitem>
@@ -234,7 +235,7 @@ user process.
 <term>user_long(<replaceable>address</replaceable>)</term>
 <listitem>
 <para>
-Obtain the long at <replaceable>address</replaceable> for the current
+Obtains the long integer at <replaceable>address</replaceable> for the current
 user process.
 </para>
 </listitem>
@@ -244,7 +245,7 @@ user process.
 <term>user_string(<replaceable>address</replaceable>)</term>
 <listitem>
 <para>
-Obtain the string at <replaceable>address</replaceable> for the current
+Obtains the string at <replaceable>address</replaceable> for the current
 user process.
 </para>
 </listitem>
@@ -254,7 +255,7 @@ user process.
 <term>user_string_n(<replaceable>address</replaceable>, <replaceable>n</replaceable>)</term>
 <listitem>
 <para>
-Obtain the string at <replaceable>address</replaceable> for the current
+Obtains the string at <replaceable>address</replaceable> for the current
 user process and limits the string to <replaceable>n</replaceable> bytes.
 </para>
 </listitem>
@@ -281,7 +282,7 @@ FIXME description of how to use the stack backtracing
 -->
 
 <para>
-      The probe point (<command>pp</command>) function indicates which
+      The probe point (<function>pp</function>) function indicates which
       particular event triggered the SystemTap event handler.
       A probe on the entry into a function would list the function name.
       However, in many cases the same probe point event may be triggered by
@@ -301,28 +302,27 @@ FIXME description of how to use the stack backtracing
       debug information to walk the stack to generate stack traces for 32-bit
       and 64-bit x86 processors; other processor architectures do not yet
       support the use of debug information to unwind the user-space stack.
-      You will need to use the
-      <command>-d <replaceable>executable</replaceable></command>
-      for the application executable and <command>-ldd</command>
-      for shared libraries to ensure that the needed debug information
-      is used to produce the user-space stack backtraces.
+			To ensure that the needed debug information is used to produce the
+			user-space stack backtraces, use the
+			<option>-d <replaceable>executable</replaceable></option> option for
+			executables and <option>-ldd</option> for shared libraries.
 </para>
 
 <para>
-      If you want to see how the function <command>xmalloc</command> function is
-      being called by the command <command>ls</command>, you could use the
-      user-space backtrack functions to provide that information.  With the
-      debuginfo for the <command>ls</command> command installed the following
-      SystemTap command will provide a backtrace each time the
-      <command>xmalloc</command> function is called:
+      For example, you can use the user-space backtrack functions to see how
+			the <function>xmalloc</function> function is
+      being called by the <command>ls</command> command. With the
+      debuginfo for the <command>ls</command> command installed, the following
+      SystemTap command provides a backtrace each time the
+      <function>xmalloc</function> function is called:
 </para>
 
-<screen>stap -d /bin/ls --ldd \
--e 'probe process("ls").function("xmalloc") {print_usyms(ubacktrace())}' \
--c "ls /"</screen>
+<screen><command>stap -d /bin/ls --ldd \</command>
+<command>-e 'probe process("ls").function("xmalloc") {print_usyms(ubacktrace())}' \</command>
+<command>-c "ls /"</command></screen>
 
 <para>
-When the SystemTap script runs will have output similar to the following:
+When executed, this command produces output similar to the following:
 </para>
 
 <screen>
@@ -345,9 +345,9 @@ cgroup	home  lost+found  mnt	 opt	     root	srv	 usr
 
 <para>
       For more details on the functions available for user-space stack
-      backtraces look at the <command>ucontext-symbols.stp</command> and
-      <command>ucontext-unwind.stp</command> tapsets. The descriptions
-      of the functions in those tapsets can also be found in the
+      backtraces, refer to <filename>ucontext-symbols.stp</filename> and
+      <filename>ucontext-unwind.stp</filename> tapsets. You can also find
+			the description of the functions in the aforementioned tapsets in the
       <citetitle>SystemTap Tapset Reference Manual</citetitle>.
 </para>
 

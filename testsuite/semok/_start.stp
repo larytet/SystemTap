@@ -1,0 +1,11 @@
+#! stap -p2
+#
+# https://bugzilla.redhat.com/show_bug.cgi?id=1073605
+#
+# We can't return-probe _start, because the stack is not normal,
+# but entry probes should still be allowed.
+
+probe process("stap").function("_start")
+{
+    println(pp())
+}

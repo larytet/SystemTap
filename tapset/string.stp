@@ -1,5 +1,5 @@
 // Standard string functions tapset.
-// Copyright (C) 2009 Red Hat, Inc.
+// Copyright (C) 2009-2014 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -15,7 +15,7 @@
  * can be zero up to MAXSTRINGLEN.
  */
 function strlen:long(s:string) %{ /* pure */ /* unprivileged */
-        STAP_RETVALUE = strlen(STAP_ARG_s);
+	STAP_RETURN(strlen(STAP_ARG_s));
 %}
 
 /**
@@ -48,11 +48,11 @@ function substr:string(str:string,start:long, length:long) %{ /* pure */ /* unpr
  */
 function stringat:long(str:string, pos:long) %{ /* pure */ /* unprivileged */
 	if (STAP_ARG_pos >= 0 && STAP_ARG_pos < strlen(STAP_ARG_str))
-		STAP_RETVALUE = STAP_ARG_str[STAP_ARG_pos];
+                STAP_RETURN(STAP_ARG_str[STAP_ARG_pos]);
 	else {
 		STAP_RETVALUE = 0;
 #if STAP_COMPAT_VERSION >= STAP_VERSION(2,3) // PR15044
-		CONTEXT->last_error = "Position out of bounds";
+                STAP_ERROR("Position out of bounds");
 #endif
 	}
 %}
@@ -67,10 +67,7 @@ function stringat:long(str:string, pos:long) %{ /* pure */ /* unprivileged */
  * otherwise zero. 
  */
 function isinstr:long(s1:string,s2:string) %{ /* pure */ /* unprivileged */
-	if (strstr(STAP_ARG_s1,STAP_ARG_s2) != NULL)
-		STAP_RETVALUE = 1;
-	else
-		STAP_RETVALUE = 0;
+	STAP_RETURN (strstr(STAP_ARG_s1,STAP_ARG_s2) != NULL);
 %}
 
 /**
@@ -85,7 +82,7 @@ function isinstr:long(s1:string,s2:string) %{ /* pure */ /* unprivileged */
  */
 function text_str:string(input:string) 
 %{ /* pure */ /* unprivileged */
-	if (_stp_text_str(STAP_RETVALUE, STAP_ARG_input, 0, 0, 0) < 0) {
+	if (_stp_text_str(STAP_RETVALUE, STAP_ARG_input, 0, 0, 0, 0) < 0) {
 		STAP_RETVALUE[0] = '\0';
 	}
 %}
@@ -107,7 +104,7 @@ function text_strn:string(input:string, len:long, quoted:long)
 %{ /* pure */ /* unprivileged */
 	int64_t len = clamp_t(int64_t, STAP_ARG_len, 0, MAXSTRINGLEN);
 	if (_stp_text_str(
-			STAP_RETVALUE, STAP_ARG_input, len, STAP_ARG_quoted, 0) < 0) {
+			STAP_RETVALUE, STAP_ARG_input, 0, len, STAP_ARG_quoted, 0) < 0) {
 		STAP_RETVALUE[0] = '\0';
 	}
 %}
@@ -131,8 +128,7 @@ function str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
 
 	STAP_RETVALUE[0] = '\0';
 	if(strlen_srch_str == 0) {
-		strlcat(STAP_RETVALUE, ptr_base, MAXSTRINGLEN);
-		return;
+                STAP_RETURN (ptr_base);
 	}
 
 	while((ptr = strstr(ptr, STAP_ARG_srch_str)) != NULL) {
@@ -159,7 +155,7 @@ function str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
  */
 function strtol:long(str:string, base:long)
 %{ /* pure */ /* unprivileged */
-	STAP_RETVALUE = simple_strtol(STAP_ARG_str, NULL, STAP_ARG_base);
+	STAP_RETURN(simple_strtol(STAP_ARG_str, NULL, STAP_ARG_base));
 %}
 
 /**
@@ -173,5 +169,5 @@ function strtol:long(str:string, base:long)
  */
 function isdigit:long(str:string)
 %{ /* pure */ /* unprivileged */
-	STAP_RETVALUE = isdigit(STAP_ARG_str[0]);
+ 	STAP_RETURN(isdigit(STAP_ARG_str[0]));
 %}

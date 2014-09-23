@@ -10,36 +10,37 @@ main (int argc, char **argv)
 
   char char_var = '~';
   const char const_char_var = '!';
-  volatile char volatile_char_var = '!';
+  volatile char volatile_char_var = '@';
   char *ptr_char_var = &char_var;
   const char *ptr_const_char_var = &char_var;
   char * const char_ptr_const_var = &char_var;
   volatile char *ptr_volatile_char_var = &char_var;
   char * volatile char_ptr_volatile_var = &char_var;
+  unsigned char uchar_var = 0x81U;
 
-  short int short_int_var = 32767;
-  const short int const_short_int_var = -32767;
-  volatile short int volatile_short_int_var = -32767;
+  short int short_int_var = 0x7fff;
+  const short int const_short_int_var = -0x7fff;
+  volatile short int volatile_short_int_var = -0x8000;
   short int *ptr_short_int_var = &short_int_var;
   const short int *ptr_const_short_int_var = &short_int_var;
   short int * const short_int_ptr_const_var = &short_int_var;
   volatile short int *ptr_volatile_short_int_var = &short_int_var;
   short int * volatile short_int_ptr_volatile_var = &short_int_var;
-  unsigned short int short_uint_var = (unsigned short)0xffff8001;
+  unsigned short int short_uint_var = 0x8001U;
 
-  int int_var = 65536;
-  const int const_int_var = -65536;
-  volatile int volatile_int_var = -65536;
+  int int_var = 0x7fffffff;
+  const int const_int_var = -0x7fffffff;
+  volatile int volatile_int_var = -0x80000000;
   int *ptr_int_var = &int_var;
   const int *ptr_const_int_var = &int_var;
   int * const int_ptr_const_var = &int_var;
   volatile int *ptr_volatile_int_var = &int_var;
   int * volatile int_ptr_volatile_var = &int_var;
-  unsigned int uint_var = (unsigned int)0xffff8001;
+  unsigned int uint_var = (unsigned int)0xffff8001U;
 
-  long int long_int_var = 65536;
-  const long int const_long_int_var = -65536;
-  volatile long int volatile_long_int_var = -65536;
+  long int long_int_var = 0x6fffffff;
+  const long int const_long_int_var = -0x6fffffff;
+  volatile long int volatile_long_int_var = -0x70000000;
   long int *ptr_long_int_var = &long_int_var;
   const long int *ptr_const_long_int_var = &long_int_var;
   long int * const long_int_ptr_const_var = &long_int_var;
@@ -48,14 +49,15 @@ main (int argc, char **argv)
 
   /* c89 doesn't define __STDC_VERSION. With -pedantic warns about long long. */
 #if ! defined NO_LONG_LONG && __SIZEOF_SIZE_T__ == 8
-  long long int long_long_int_var = 65536;
-  const long long int const_long_long_int_var = -65536;
-  volatile long long int volatile_long_long_int_var = -65536;
+  long long int long_long_int_var = 0x7fffffffffffffffLL;
+  const long long int const_long_long_int_var = -0x7fffffffffffffffLL;
+  volatile long long int volatile_long_long_int_var = -0x7fffffffffffffffLL - 1;
   long long int *ptr_long_long_int_var = &long_long_int_var;
   const long long int *ptr_const_long_long_int_var = &long_long_int_var;
   long long int * const long_long_int_ptr_const_var = &long_long_int_var;
   volatile long long int *ptr_volatile_long_long_int_var = &long_long_int_var;
   long long int * volatile long_long_int_ptr_volatile_var = &long_long_int_var;
+  unsigned long long long_long_uint_var = (unsigned long long)0xffffffff80000001ULL;
 #endif
 
 #if defined(STAP_SDT_V1)
@@ -116,6 +118,7 @@ main (int argc, char **argv)
   STAP_PROBE2(provider,char_ptr_const_var,char_ptr_const_var,&char_var);
   STAP_PROBE2(provider,ptr_volatile_char_var,ptr_volatile_char_var,&char_var);
   STAP_PROBE2(provider,char_ptr_volatile_var,char_ptr_volatile_var,&char_var);
+  STAP_PROBE3(provider,unsigned_char_var,uchar_var, (unsigned char)0x81U, &uchar_var);
 
   /* short */
   STAP_PROBE1(provider,short_int_var,short_int_var);
@@ -126,7 +129,7 @@ main (int argc, char **argv)
   STAP_PROBE2(provider,short_int_ptr_const_var,short_int_ptr_const_var,&short_int_var);
   STAP_PROBE2(provider,ptr_volatile_short_int_var,ptr_volatile_short_int_var,&short_int_var);
   STAP_PROBE2(provider,short_int_ptr_volatile_var,short_int_ptr_volatile_var,&short_int_var);
-  STAP_PROBE3(provider,unsigned_short_int_var,short_uint_var, 0x8001, &short_uint_var);
+  STAP_PROBE3(provider,unsigned_short_int_var,short_uint_var, (unsigned short)0x8001U, &short_uint_var);
 
   /* int */
   STAP_PROBE1(provider,int_var,int_var);
@@ -137,7 +140,7 @@ main (int argc, char **argv)
   STAP_PROBE2(provider,int_ptr_const_var,int_ptr_const_var,&int_var);
   STAP_PROBE2(provider,ptr_volatile_int_var,ptr_volatile_int_var,&int_var);
   STAP_PROBE2(provider,int_ptr_volatile_var,int_ptr_volatile_var,&int_var);
-  STAP_PROBE3(provider,unsigned_int_var,uint_var, 0x8001, &uint_var);
+  STAP_PROBE3(provider,unsigned_int_var,uint_var, (unsigned int)0xffff8001U, &uint_var);
 
   /* long */
   STAP_PROBE1(provider,long_int_var,long_int_var);
@@ -159,7 +162,10 @@ main (int argc, char **argv)
   STAP_PROBE2(provider,long_long_int_ptr_const_var,long_long_int_ptr_const_var,&long_long_int_var);
   STAP_PROBE2(provider,ptr_volatile_long_long_int_var,ptr_volatile_long_long_int_var,&long_long_int_var);
   STAP_PROBE2(provider,long_long_int_ptr_volatile_var,long_long_int_ptr_volatile_var,&long_long_int_var);
+  STAP_PROBE3(provider,unsigned_long_long_int_var,long_long_uint_var, (unsigned long long)0xffffffff80000001ULL, &long_long_uint_var);
 #endif
+
+  /* misc */
 
   STAP_PROBE1(provider,arr_char,ARRAY(arr_char));
 # if !defined(__cplusplus) || \

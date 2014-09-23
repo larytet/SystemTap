@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Context Runtime Functions
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -152,7 +152,7 @@ static void _stp_runtime_entryfn_put_context(struct context *c)
 	tls_context = NULL;
 	pthread_mutex_unlock(&c->lock);
     }
-    // else, warn about bad state?
+    /* else, warn about bad state? */
     return;
 }
 
@@ -180,7 +180,10 @@ static void _stp_runtime_context_wait(void)
 		
 	for (i = 0; i < _stp_runtime_num_contexts; i++) {
 	    struct context *c = stp_session_context(i);
-	    if (atomic_read (&c->busy)) {
+	    int ret = pthread_mutex_trylock(&c->lock);
+	    if (ret == 0)
+		pthread_mutex_unlock(&c->lock);
+	    else if (ret == EBUSY) {
 		holdon = 1;
 
 		/* Just In case things are really stuck, let's print
@@ -203,6 +206,7 @@ static void _stp_runtime_context_wait(void)
 		    hold_index = i;
 		}
 	    }
+	    /* else other pthread error == broken? what then? */
 	}
 
 #ifdef STAP_OVERRIDE_STUCK_CONTEXT

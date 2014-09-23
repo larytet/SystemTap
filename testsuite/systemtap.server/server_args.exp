@@ -45,7 +45,7 @@ proc stap_direct_and_with_client {stap options} {
 	    }
 	    -re {^.*\r\n} { exp_continue }
 	    timeout { 
-		exec kill -INT -[exp_pid]
+		kill -INT -[exp_pid] 2
 	    }
 	}
 	catch {close}; catch {wait}
@@ -66,20 +66,23 @@ proc stap_direct_and_with_client {stap options} {
     verbose -log $res_stap_client
 
     # Now check the output
-    set skip 0
+    set skip_hostname_mode 0
     set n 0
     set expected [split $res_stap "\n"]
     set received [split $res_stap_client "\n"]
     foreach line $received {
-	# Instructed to skip a line?
-	if {$skip} {
-	    set skip [expr $skip - 1]
-	    verbose -log "skipping: $line"
-	    continue
+	# Instructed to skip hostnames?
+	if {$skip_hostname_mode} {
+	    if {[regexp {^  \S+$} $line]} {
+		verbose -log "skipping: $line"
+		continue
+	    } else {
+		set skip_hostname_mode 0
+	    }
 	}
 	# Ignore warnings about the domain name on the certificate not matching
 	if {[regexp {^WARNING: The domain name, [^,]*, does not match the DNS name\(s\) on the server certificate:} $line]} {
-	    set skip 1
+	    set skip_hostname_mode 1
 	    verbose -log "skipping: $line"
 	    continue
 	}

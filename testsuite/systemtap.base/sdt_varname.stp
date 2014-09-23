@@ -1,0 +1,19 @@
+
+probe process(@1).provider("main").mark("mark") {
+   printf("main globalvar = %d\n", $arg1)
+   printf("main main_globalvar = %d\n", $arg2)
+   printf("main localvar = %d\n", $arg3)
+   printf("main localstruct.bar = %d\n", $arg4)
+   printf("main localstruct.zoo = %d\n", $arg5)
+   printf("main localstruct.poo = %d\n", $arg6)
+}
+
+probe process(@1).library(@2).provider("lib").mark("mark") {
+   printf("lib globalvar = %d\n", $arg1)
+   printf("lib lib_globalvar = %d\n", $arg2)
+   printf("lib localvar = %d\n", $arg3)
+   printf("lib localstruct.bar = %d\n", $arg4)
+   printf("lib localstruct.zoo = %d\n", $arg5)
+   printf("lib localstruct.poo = %d\n", $arg6)
+}
+

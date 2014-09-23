@@ -1,0 +1,5 @@
+#! stap -p1
+
+probe foo {
+  somethinglovely->foo = 1;
+}

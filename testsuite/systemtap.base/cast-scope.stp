@@ -6,7 +6,7 @@ probe process.function("length@cast-scope.cxx")
   function_string .= sprintf("function cast: %s\n", @cast($str, "std::string")$$)
 }
 
-probe process.statement("length@cast-scope.cxx+4")
+probe process.statement("length@cast-scope.cxx+5")
 {
   statement_string .= sprintf("statement direct: %s\n", $str$$)
   statement_string .= sprintf("statement cast: %s\n", @cast($str, "std::string")$$)

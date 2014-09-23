@@ -10,6 +10,6 @@
 
 	<remark>- add use of exit() here</remark>
 
-	<remark>- add "basic constructs" here; i.e. using if/else, while loops, for loops, examples; if done, consider moving up to before Useful_SystemTap_Scripts.xm, after Understanding_How_SystemTap_Works.xml</remark>
+	<remark>- add "basic constructs" here; that is, using if/else, while loops, for loops, examples; if done, consider moving up to before Useful_SystemTap_Scripts.xm, after Understanding_How_SystemTap_Works.xml</remark>
 </chapter>
 

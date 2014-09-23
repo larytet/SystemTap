@@ -18,8 +18,10 @@ int main (int argc, char *argv[])
 	for (i=0; i<100; i++) {
 		// change last 4 chars for correctly sorting even if the
 		// time stamps are completely same.
-		printf("%8ld%06ld :%02d appl\n", tv[i][0].tv_sec, tv[i][0].tv_usec, i);
-		printf("%8ld%06ld :%02d prog\n", tv[i][1].tv_sec, tv[i][1].tv_usec, i);
+	    	printf(":%02d %8ld%06ld appl\n", i, tv[i][0].tv_sec,
+		       tv[i][0].tv_usec);
+		printf(":%02d %8ld%06ld prog\n", i, tv[i][1].tv_sec,
+		       tv[i][1].tv_usec);
 	}
 	return 0;
 }

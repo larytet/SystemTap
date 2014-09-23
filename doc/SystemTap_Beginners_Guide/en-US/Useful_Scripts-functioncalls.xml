@@ -41,7 +41,7 @@ no script in examples
 </remark>
 
 
-	<para>This section describes how to identify how many times the system called a specific kernel function in a 30-second sample. Depending on your use of wildcards, you can also use this script to target multiple kernel functions.</para>
+	<para>This section describes how to identify how many times the system called a specific kernel function in a 30-second sample. Depending on the use of wildcards, you can also use this script to target multiple kernel functions.</para>
 
 <formalpara id="countcalls">
 	<title>functioncallcount.stp</title>

@@ -1,0 +1,15 @@
+global main
+
+probe perf.hw.instructions.counter("a") { }
+
+probe process(@1).statement("main@towers.c")
+{
+    # counter "a" has no defined process so the default is ours
+    main <<< @perf("a")
+}
+
+probe end
+{
+    printf("count main=%d\n", @count(main))
+}
+

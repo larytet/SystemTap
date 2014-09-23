@@ -1,0 +1,12 @@
+#! stap -p2
+
+probe begin
+{
+    sun_path = @cast(0, "sockaddr_un", "<sys/un.h>")->sun_path;
+
+    // The extra parentheses are necessary so the parser will read this as an
+    // expression with an autocast [0] on it, rather than an arrayindex on a
+    // global.  That distinction can't be made while parsing, because globals
+    // aren't known yet.
+    println((sun_path)[0])
+}

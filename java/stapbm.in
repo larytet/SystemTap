@@ -7,11 +7,12 @@
 # $5 - method
 # $6 - number of args
 # $7 - entry/exit/line
+# $8 - backtrace trigger
 
 exec 1>&2  # redirect byteman/etc. tracing output to stderr, for easier filtering
 
-if [ $# -ne 7 ]; then
-    echo "need exactly seven arguments"
+if [[ $# -gt 8 || $# -lt 7 ]]; then
+    echo "need seven or eight arguments"
     exit 1
 fi
 
@@ -23,24 +24,28 @@ arg_method=$5
 arg_argcount=$6
 arg_probetype=$7
 
+if [ $# -eq 7 ]; then
+    arg_backtrace=0
+else
+    arg_backtrace=$8
+fi
+
 SYSTEMTAP_DIR=${SYSTEMTAP_DIR-$HOME/.systemtap}
 BYTEMAN_HOME=${BYTEMAN_HOME-/usr/share/java/byteman}
 JAVA_HOME=${JAVA_HOME-/usr/lib/jvm/java}
 BYTEMAN_INSTALL_OPTS=${BYTEMAN_INSTALL_OPTS--Dorg.jboss.byteman.transform.all=true}
-STAPBM_VERBOSE=${STAPBM_VERBOSE-no}
+SYSTEMTAP_VERBOSE=${SYSTEMTAP_VERBOSE-0}
 
-
-if [ "$STAPBM_VERBOSE" != "no" ]; then
+if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     BYTEMAN_INSTALL_OPTS="$BYTEMAN_INSTALL_OPTS -Dorg.jboss.byteman.verbose"
 else
     exec >/dev/null 2>&1
 fi
 
-
 # the byteman and byteman-submit jars should be in ${BYTEMAN_HOME}/lib
 BYTEMAN_JAR=${BYTEMAN_HOME}/byteman.jar
 if [ ! -r ${BYTEMAN_JAR} ]; then
-    echo "Missing $BYTEMAN_JAR" 
+    echo "Missing $BYTEMAN_JAR"
     exit 1
 fi
 
@@ -92,10 +97,10 @@ mkdir -p $flagdir
 # target jvm pid.  If this is the case, we need to have a
 # nested call to stapbm with the actual pid of the jvm pid
 
-if [[ $arg_jvmpid != *[[:digit:]]* ]]; then
+if ! [[ $arg_jvmpid =~ ^[0-9]+$ ]]; then
     target_pid=`jps -l | grep $arg_jvmpid | cut -f1 -d" "`
     for target in $target_pid; do
-	$0 $arg_command $target $arg_rulename $arg_class $arg_method $arg_argcount $arg_probetype
+	$0 $arg_command $target $arg_rulename $arg_class "$arg_method" $arg_argcount $arg_probetype $arg_backtrace
     done;
     exit 0
 else
@@ -115,9 +120,10 @@ flock -x 200  # exclusive-lock it
 if [ -s $byteman_installed_portfile ]; then
     bmport=`cat $byteman_installed_portfile`
 
-    if [ "$STAPBM_VERBOSE" != "no" ]; then
+    if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
         echo "Byteman agent reused for java pid $target_pid, port $bmport"
     fi
+
 
     # XXX: liveness-check the port; bmsubmit with no argument just lists current rules
     # if fails, delete the _portfile and retry everything
@@ -132,10 +138,10 @@ else
 
 # There are two ways to invoke and run byteman operations with the jvm's we're interested
 # in, we can alter the startup arguments to include a -javaagent parameter, or use
-# byteman and its use of VMAttach libraries, for our case it always makes sense to use 
+# byteman and its use of VMAttach libraries, for our case it always makes sense to use
 # byteman classes directly and avoid -javaagent
 
-    if [ "$STAPBM_VERBOSE" != "no" ]; then
+    if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
 	echo java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
     fi
     java -classpath ${BYTEMAN_INSTALL_JAR}:${BYTEMAN_JAR}:${TOOLS_JAR} org.jboss.byteman.agent.install.Install -b -p $bmport $BYTEMAN_INSTALL_OPTS $target_pid
@@ -145,7 +151,7 @@ else
     fi
     echo $bmport > $byteman_installed_portfile
 
-    if [ "$STAPBM_VERBOSE" != "no" ]; then
+    if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
         echo "Byteman agent installed for java pid $target_pid, port $bmport"
     fi
     # XXX: Erase file to keep it from sticking around indefinitely,
@@ -174,20 +180,31 @@ function echo_bytemanrule()
 	    ;;
     esac
     echo "IF TRUE"
+    if [ "$arg_backtrace" == "1" ]; then
+	echo 'DO STAP_BACKTRACE("'$arg_rulename'");'
+    else
+	echo -n 'DO '
+    fi
     case "$arg_argcount" in
-        0) echo 'DO METHOD_STAP_PROBE0("'$arg_rulename'")' ;;
-        1) echo 'DO METHOD_STAP_PROBE1("'$arg_rulename'", $1)' ;;
-        2) echo 'DO METHOD_STAP_PROBE2("'$arg_rulename'", $1, $2)' ;;
-        3) echo 'DO METHOD_STAP_PROBE3("'$arg_rulename'", $1, $2, $3)' ;;
-        4) echo 'DO METHOD_STAP_PROBE4("'$arg_rulename'", $1, $2, $3, $4)' ;;
-        5) echo 'DO METHOD_STAP_PROBE5("'$arg_rulename'", $1, $2, $3, $4, $5)' ;;
-        6) echo 'DO METHOD_STAP_PROBE6("'$arg_rulename'", $1, $2, $3, $4, $5, $6)' ;;
-        7) echo 'DO METHOD_STAP_PROBE7("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7)' ;;
-        8) echo 'DO METHOD_STAP_PROBE8("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8)' ;;
-        9) echo 'DO METHOD_STAP_PROBE9("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9)' ;;
-	10) echo 'DO METHOD_STAP_PROBE10("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)' ;;
+        0) echo -n 'METHOD_STAP_PROBE0("'$arg_rulename'")' ;;
+        1) echo -n 'METHOD_STAP_PROBE1("'$arg_rulename'", $1)' ;;
+        2) echo -n 'METHOD_STAP_PROBE2("'$arg_rulename'", $1, $2)' ;;
+        3) echo -n 'METHOD_STAP_PROBE3("'$arg_rulename'", $1, $2, $3)' ;;
+        4) echo -n 'METHOD_STAP_PROBE4("'$arg_rulename'", $1, $2, $3, $4)' ;;
+        5) echo -n 'METHOD_STAP_PROBE5("'$arg_rulename'", $1, $2, $3, $4, $5)' ;;
+        6) echo -n 'METHOD_STAP_PROBE6("'$arg_rulename'", $1, $2, $3, $4, $5, $6)' ;;
+        7) echo -n 'METHOD_STAP_PROBE7("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7)' ;;
+        8) echo -n 'METHOD_STAP_PROBE8("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8)' ;;
+        9) echo -n 'METHOD_STAP_PROBE9("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9)' ;;
+	10) echo -n 'METHOD_STAP_PROBE10("'$arg_rulename'", $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)' ;;
         *) echo 'bad arg-count'; exit 1 ;;
     esac
+    if [ "$arg_backtrace" == "1" ]; then
+	echo ';'
+	echo 'METHOD_BT_DELETE("'$arg_rulename'")'
+    else
+	echo ''
+    fi
     echo "ENDRULE"
 }
 
@@ -197,7 +214,7 @@ btmfile=$flagdir/`hostname`-$$.btm
 echo_bytemanrule > $btmfile
 trap 'rm -f $btmfile' 0 1 2 3 4 5 9 15
 
-if [ "$STAPBM_VERBOSE" != "no" ]; then
+if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     echo "Byteman rule file:"
     cat $btmfile
 fi
@@ -208,7 +225,7 @@ else
     bmcmd=-l
 fi
 
-if [ "$STAPBM_VERBOSE" != "no" ]; then
+if [ "$SYSTEMTAP_VERBOSE" != "0" ]; then
     echo java -classpath ${BYTEMAN_SUBMIT_JAR}:${BYTEMAN_JAR} org.jboss.byteman.agent.submit.Submit -p $bmport $bmcmd $btmfile
 fi
 

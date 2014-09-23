@@ -122,63 +122,6 @@ diff -bB -u -p -Nr src-3.2.2/configure src-3.2.2-new/configure
  # -I${DLINCLDIR} is added to the compile rule for importdl.o
  
  DLINCLDIR=.
-diff -bB -u -p -Nr src-3.2.2/configure.in src-3.2.2-new/configure.in
---- src-3.2.2/configure.in	2011-09-03 12:16:50.000000000 -0400
-+++ src-3.2.2-new/configure.in	2012-01-23 16:47:44.518908944 -0500
-@@ -2525,6 +2525,53 @@ if test "$with_valgrind" != no; then
-     OPT="-DDYNAMIC_ANNOTATIONS_ENABLED=1 $OPT"
- fi
- 
-+# Check for dtrace support
-+AC_MSG_CHECKING(for --with-dtrace)
-+AC_ARG_WITH(dtrace,
-+            AC_HELP_STRING(--with(out)-dtrace, disable/enable dtrace support))
-+
-+AC_SUBST(DTRACE)
-+AC_SUBST(DFLAGS)
-+DTRACE=
-+DFLAGS=
-+if test ! -z "$with_dtrace"
-+then
-+    AC_CHECK_SIZEOF([long])
-+    if [test "$ac_cv_sizeof_long" -eq 8]
-+    then
-+        DFLAGS="-64"
-+    else
-+        DFLAGS="-32"
-+    fi
-+
-+    #if dtrace -G -o /dev/null Include/pydtrace.d 2>/dev/null
-+    if true
-+    then
-+        AC_DEFINE(WITH_DTRACE, 1, 
-+         [Define if you want to compile in Dtrace support])
-+        with_dtrace="Sun"
-+        DTRACEOBJS="Python/dtrace.o"
-+        DTRADEHDRS=""
-+        DTRACE=dtrace
-+    elif dtrace -h -o /dev/null -s Include/pydtrace.d
-+    then
-+        AC_DEFINE(WITH_DTRACE, 1, 
-+         [Define if you want to compile in Dtrace support])
-+        with_dtrace="Apple"
-+        DTRACEOBJS=""
-+        DTRADEHDRS="pydtrace.h"
-+        DTRACE=dtrace
-+    else
-+        with_dtrace="no"
-+    fi
-+else
-+    with_dtrace="no"
-+fi
-+
-+AC_MSG_RESULT($with_dtrace)
-+AC_SUBST(DTRACEOBJS)
-+AC_SUBST(DTRACEHDRS)
-+
- # -I${DLINCLDIR} is added to the compile rule for importdl.o
- AC_SUBST(DLINCLDIR)
- DLINCLDIR=.
 diff -bB -u -p -Nr src-3.2.2/Include/pydtrace.d src-3.2.2-new/Include/pydtrace.d
 --- src-3.2.2/Include/pydtrace.d	1969-12-31 19:00:00.000000000 -0500
 +++ src-3.2.2-new/Include/pydtrace.d	2012-01-24 10:30:26.643772689 -0500
@@ -203,7 +146,7 @@ diff -bB -u -p -Nr src-3.2.2/Include/pydtrace.d src-3.2.2-new/Include/pydtrace.d
 diff -bB -u -p -Nr src-3.2.2/Makefile.pre.in src-3.2.2-new/Makefile.pre.in
 --- src-3.2.2/Makefile.pre.in	2011-09-03 12:16:45.000000000 -0400
 +++ src-3.2.2-new/Makefile.pre.in	2012-01-23 16:47:19.425222658 -0500
-@@ -49,6 +49,10 @@ SHELL=		/bin/sh
+@@ -52,6 +52,10 @@ SHELL=		/bin/sh
  # Use this to make a link between python$(VERSION) and python in $(BINDIR)
  LN=		@LN@
  
@@ -214,7 +157,7 @@ diff -bB -u -p -Nr src-3.2.2/Makefile.pre.in src-3.2.2-new/Makefile.pre.in
  # Portable install script (configure doesn't always guess right)
  INSTALL=	@INSTALL@
  INSTALL_PROGRAM=@INSTALL_PROGRAM@
-@@ -333,6 +337,7 @@ PYTHON_OBJS=	\
+@@ -373,6 +377,7 @@ PYTHON_OBJS=	\
  		Python/formatter_unicode.o \
  		Python/fileutils.o \
  		Python/$(DYNLOADFILE) \
@@ -222,9 +165,9 @@ diff -bB -u -p -Nr src-3.2.2/Makefile.pre.in src-3.2.2-new/Makefile.pre.in
  		$(LIBOBJS) \
  		$(MACHDEP_OBJS) \
  		$(THREADOBJ)
-@@ -654,6 +659,29 @@ Objects/typeobject.o: $(srcdir)/Objects/
- $(srcdir)/Objects/typeslots.inc: $(srcdir)/Include/typeslots.h $(srcdir)/Objects/typeslots.py
- 	$(PYTHON) $(srcdir)/Objects/typeslots.py < $(srcdir)/Include/typeslots.h > $(srcdir)/Objects/typeslots.inc
+@@ -755,6 +760,29 @@ Objects/typeobject.o: Objects/typeslots.
+ Objects/typeslots.inc: $(srcdir)/Include/typeslots.h $(srcdir)/Objects/typeslots.py
+ 	$(PYTHON) $(srcdir)/Objects/typeslots.py < $(srcdir)/Include/typeslots.h > Objects/typeslots.inc
  
 +# Only generated --with-dtrace
 +Include/pydtrace.h: $(srcdir)/Include/pydtrace.d
@@ -252,15 +195,15 @@ diff -bB -u -p -Nr src-3.2.2/Makefile.pre.in src-3.2.2-new/Makefile.pre.in
  ############################################################################
  # Header files
  
-@@ -1246,6 +1274,7 @@ clean: pycremoval
- 	find . -name '*.so.[0-9]*.[0-9]*' -exec rm -f {} ';'
+@@ -1388,6 +1416,7 @@ clean: pycremoval
  	find build -name 'fficonfig.h' -exec rm -f {} ';' || true
- 	find build -name 'fficonfig.py' -exec rm -f {} ';' || true
-+	rm -f Include/pydtrace.h Include/phelper.h
+ 	find build -name '*.py' -exec rm -f {} ';' || true
+ 	find build -name '*.py[co]' -exec rm -f {} ';' || true
++	-rm -f Include/pydtrace.h Include/phelper.h
+ 	-rm -f pybuilddir.txt
  	-rm -f Lib/lib2to3/*Grammar*.pickle
- 
- profile-removal:
-@@ -1275,6 +1304,7 @@ distclean: clobber
+ 	-rm -f Modules/_testembed Modules/_freeze_importlib
+@@ -1418,6 +1447,7 @@ distclean: clobber
  			   -o -name '*.orig' -o -name '*.rej' \
  			   -o -name '*.bak' ')' \
  			   -exec rm -f {} ';'

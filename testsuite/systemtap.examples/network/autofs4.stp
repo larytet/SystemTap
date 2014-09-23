@@ -52,7 +52,7 @@ probe module("autofs4").function("autofs4_expire_direct").return
 }
 
 probe
-module("autofs4").statement("autofs4_expire_direct@fs/autofs4/expire.c+17") ?
+module("autofs4").statement("autofs4_expire_direct@fs/autofs4/expire.c+17").nearest ?
 {
         relative_path = reverse_path_walk($mnt->mnt_mountpoint)
         root_path = reverse_path_walk($mnt->mnt_parent->mnt_mountpoint)

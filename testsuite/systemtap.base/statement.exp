@@ -1,97 +1,174 @@
-set test bz6905
+set test "statement"
+if {![utrace_p]} { untested "$test"; return }
 
 catch {exec gcc -g -o $test $srcdir/$subdir/$test.c} err
-if {$err == "" && [file exists $test]} then { pass "$test compile" } else { fail "$test compile" }
-
-if {![utrace_p]} {
-    untested "$test -p2"
+if {$err == "" && [file exists $test]} {
+   pass "$test compile"
 } else {
-    spawn stap -p2 $srcdir/$subdir/$test.stp
-    set hint 0
-    set probes 0
-    expect {
-	-timeout 60
-	-re "# probes" { incr hint; exp_continue }
-	-re {process.*statement.*} { incr probes; exp_continue }
-	timeout { fail "$test (timeout)" }
-	eof { }
-    }
-    wait
-    if { $hint == 1 && $probes > 0 } then {
-	pass "$test -p2"
-    } else {
-	fail "$test -p2 ($probes)"
-    }
-}
-if { $verbose == 0 } { catch { exec rm -f $test } }
-
-set test bz10294
-
-catch {exec gcc -g -o $test $srcdir/$subdir/$test.c} err
-if {$err == "" && [file exists $test]} then { pass "$test compile" } else { fail "$test compile" }
-
-if {![utrace_p]} {
-    untested "$test -p2"
-} else {
-    spawn stap -p2 $srcdir/$subdir/$test.stp
-    set hint 0
-    set probes 0
-    expect {
-        -timeout 60
-        -re "# probes" { incr hint; exp_continue }
-        -re {process.*statement.*} { incr probes; exp_continue }
-        timeout { fail "$test (timeout)" }
-        eof { }
-    }
-    wait
-    if { $hint == 1 && $probes == 1 } then {
-	pass "$test -p2"
-    } else {
-	fail "$test -p2 ($probes)"
-    }
+   fail "$test compile"
 }
 
-set no_func stmtnofunc
-if {![utrace_p]} {
-    untested "$no_func"
-} else {
-    set func_script "probe process(\"%s\").statement(\"foo@%s.c:*\") {}"
-    set script [format $func_script "./$test" "$test"]
-    spawn stap -p2 -we $script
-    expect {
-        -timeout 60
-        -re {semantic error: .*while resolving probe point.*\r\n} { xfail $no_func }
-        timeout { fail "$no_func (timeout)" }
-        eof { fail $no_func }
-    }
-    wait
+proc expect_probes { function linenos nprobes_expected } {
+   global test subtest
+
+   # if it's not relative, then tack on ':'
+   if {![string match +* $linenos]} {
+      set linenos ":$linenos"
+   }
+
+   set func_script "process(\"%s\").statement(\"%s@%s.c%s\")"
+   set script [format $func_script "./$test" $function "$test" $linenos]
+
+   spawn stap -l $script
+   set probes 0
+   expect {
+      -timeout 30
+      -re {^process\(\"[^\"]*\"\)\.statement\(\"[^\"]*\"\)\r\n} {
+         # " <-- for vim expect syntax highlighting
+         incr probes
+         exp_continue
+      }
+      timeout {
+         fail "$test ($subtest - timeout)"
+         kill -INT -[exp_pid] 2
+      }
+      eof { }
+   }
+   catch {close}; catch {wait}
+   if { $probes != $nprobes_expected } then {
+      fail "$test ($subtest - expected $nprobes_expected probes, got $probes)"
+   } else {
+      pass "$test ($subtest - matched $probes probes)"
+   }
 }
-if { $verbose == 0 } { catch { exec rm -f $test } }
 
+proc expect_semerror { function linenos semerror_expected } {
+   global test subtest
 
-set test bz14774
+   # if it's not relative, then tack on ':'
+   if {![string match +* $linenos]} {
+      set linenos ":$linenos"
+   }
 
-catch {exec gcc -g -o $test $srcdir/$subdir/$test.c} err
-if {$err == "" && [file exists $test]} then { pass "$test compile" } else { fail "$test cmpile" }
+   set func_script "process(\"%s\").statement(\"%s@%s.c%s\")"
+   set script [format $func_script "./$test" $function "$test" $linenos]
 
-if {![utrace_p]} {
-    untested "$test -p2"
-} else {
-    set func_script "probe process(\"%s\").statement(\"*@%s.c:*\") {}"
-    set script [format $func_script "./$test" "$test"]
-    spawn stap -p2 -we $script
-    set hint 0
-    set probes 0
-    set skipped 0
-    expect {
-        -timeout 60
-        -re "# probes" { incr hint; exp_continue }
-        -re {process\("[^"]+"\)\.statement\("[^"]+"\) /\*} { incr probes; exp_continue }
-        timeout { fail "$test (timeout)" }
-        eof { }
-    }
-    catch { wait }
-    catch { close }
-    if { $hint == 1 && $probes >= 9 } then { pass "$test -p2" } else { fail "$test -p2 ($probes)" }
+   spawn stap -p2 -e "probe $script {}"
+   set found_err 0
+   expect {
+      -timeout 30
+      -re "semantic error: $semerror_expected" {
+         # " <-- for vim expect syntax highlighting
+         set found_err 1
+      }
+      timeout {
+         fail "$test ($subtest - timeout)"
+         kill -INT -[exp_pid] 2
+      }
+      eof { }
+   }
+   catch {close}; catch {wait}
+   if { $found_err } then {
+      pass "$test ($subtest - got semantic error)"
+   } else {
+      fail "$test ($subtest - no semantic error)"
+   }
 }
-if { $verbose == 0 } { catch { exec rm -f $test } }
+
+# BZ6905  - simple wildcard probing of a specific function
+set subtest bz6905
+expect_probes foo * 4
+
+# BZ10294 - func@file:N equivalent to func@file:N-N
+set subtest bz10294
+expect_probes foo 6-6 1
+expect_probes nonexitent_func * 0
+
+# BZ14774 - *@file:* matches all the lines
+set subtest bz14774
+expect_probes * * 9
+
+# Now we do some consistent probe checking
+
+# ABSOLUTE and ENUMERATED should give the same results for wild and single func
+set subtest "ABSOLUTE - single func"
+expect_probes foo 5 1
+set subtest "ABSOLUTE - wild func"
+expect_probes * 5 1
+set subtest "ENUMERATED - single func 1"
+expect_probes foo 5-7 3
+set subtest "ENUMERATED - single func 2"
+expect_probes foo 5,6,7 3
+set subtest "ENUMERATED - single func 3"
+expect_probes foo 5,6-7 3
+set subtest "ENUMERATED - wild func 1"
+expect_probes * 5-7 3
+set subtest "ENUMERATED - wild func 2"
+expect_probes * 5,6,7 3
+set subtest "ENUMERATED - wild func 3"
+expect_probes * 5-6,7 3
+
+# But ABSOLUTE and ENUMERATED shouldn't give any results if the linenos fall
+# outside the given func(s)
+set subtest "ABSOLUTE - outside single func"
+expect_probes bar 5 0
+set subtest "ABSOLUTE - outside wild func"
+expect_probes {[bm]*} 5 0
+set subtest "ENUMERATED - outside single func 1"
+expect_probes bar 5-7 0
+set subtest "ENUMERATED - outside single func 2"
+expect_probes bar 5-6,7 0
+set subtest "ENUMERATED - outside wild func 1"
+expect_probes {[bm]*} 5-7 0
+set subtest "ENUMERATED - outside wild func 2"
+expect_probes {[bm]*} 5,6-7 0
+
+# RELATIVE and WILDCARD must be applied *per* function
+set subtest "RELATIVE - single func"
+expect_probes foo +2 1
+# the test below only grabs foo and main because bar+2 is invalid, since bar is
+# all on one line
+set subtest "RELATIVE - wild func"
+expect_probes * +2 2
+set subtest "WILDCARD - single func"
+expect_probes foo * 4
+set subtest "WILDCARD - wild func"
+expect_probes * * 9
+
+# ABSOLUTE and RELATIVE on a line with no records gives an error with
+# suggestions
+set subtest "ABSOLUTE - error for no lines - single func"
+expect_semerror main 15 "no line records .* \\(try"
+set subtest "ABSOLUTE - error for no lines - wild func"
+expect_semerror * 15 "no line records .* \\(try"
+set subtest "RELATIVE - error for no lines"
+expect_semerror main +4 "no line records .* \\(try"
+
+# ENUMERATED on a function is bound by function linenos
+set subtest "ENUMERATED - out-of-bounds lower 1"
+expect_probes foo 0-5 2
+set subtest "ENUMERATED - out-of-bounds lower 2"
+expect_probes foo 0,1-4,5 2
+set subtest "ENUMERATED - out-of-bounds lower 3"
+expect_probes foo 0,1,2,3,4,5 2
+set subtest "ENUMERATED - out-of-bounds upper 1"
+expect_probes foo 5-999 3
+set subtest "ENUMERATED - out-of-bounds upper 2"
+expect_probes foo 5,6,7,998,999 3
+
+# ENUMERATED overlapping two functions yields intersection of range and
+# filtered functions
+set subtest "ENUMERATED - single func overlapping 1"
+expect_probes foo 5-13 3
+set subtest "ENUMERATED - single func overlapping 2"
+expect_probes foo 5,6-7,8,9,10-12,13 3
+set subtest "ENUMERATED - single func overlapping 3"
+expect_probes foo 5,6,7,8,9,10,11,12,13 3
+set subtest "ENUMERATED - wildcard func overlapping 1"
+expect_probes * 5-13 6
+set subtest "ENUMERATED - wildcard func overlapping 2"
+expect_probes * 5-6,7-13 6
+set subtest "ENUMERATED - wildcard func overlapping 3"
+expect_probes * 5,6,7,8,9,10,11,12,13 6
+
+if {[file exists "$test"]}   { file delete "$test" }

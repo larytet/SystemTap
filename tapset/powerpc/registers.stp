@@ -1,8 +1,8 @@
 /* Dwarfless register access for powerpc */
 
-global _reg_offsets, _stp_regs_registered
+global _reg_offsets[44]
 
-function _stp_register_regs() {
+probe init {
 	/* Same order as pt_regs */
 	_reg_offsets["r0"] = 0
 	_reg_offsets["r1"] = 8
@@ -55,10 +55,9 @@ function _stp_register_regs() {
 	 * reg32_offset = _reg_offsets["reg"]/2
 	 * or somesuch
 	 */
-	_stp_regs_registered = 1
 }
 
-function probing_32bit_app() %{ /* pure */
+function probing_32bit_app:long() %{ /* pure */
         STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
 %}
 
@@ -92,8 +91,6 @@ function _stp_register:long (name:string, sign_extend:long) {
 		error("cannot access CPU registers in this context")
 		return 0
 	}
-	if (!_stp_regs_registered)
-		_stp_register_regs()
 	offset = _reg_offsets[name]
 	if (offset == 0 && !(name in _reg_offsets)) {
 		error("Unknown register: " . name)

@@ -1,0 +1,48 @@
+set test "wordexp"
+
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
+# Makes sure SystemTap gracefully handles various -c failures.
+
+proc expect_semerror { command experror } {
+   global test
+   set subtest "$test -c \"$command\""
+
+   set script "probe process.function(\"foo\") { next }"
+   if {[string length $command]} {
+      eval spawn stap -e {$script} -c {$command}
+   } else {
+      eval spawn stap -e {$script}
+   }
+
+   set failed 1
+   expect {
+      -timeout 20
+      -re "$experror" {
+         set failed 0
+      }
+      eof {
+         fail "$subtest (eof)"
+      }
+      timeout {
+         kill -INT -[exp_pid] 2
+         fail "$subtest (timeout)"
+      }
+   }
+   catch {close}; catch {wait}
+   if {!$failed} {
+      pass "$subtest"
+   }
+}
+
+expect_semerror "" \
+   "semantic error: unspecified process probe is invalid without a -c COMMAND"
+expect_semerror "ls || true" \
+   "semantic error: invalid -c command .* illegal characters"
+expect_semerror "ls \$HOPEFULLYTHISISNTACTUALLYDEFINED" \
+   "semantic error: invalid -c command .* undefined shell variables"
+expect_semerror "ls `out`" \
+   "semantic error: invalid -c command .* contains command substitutions"
+expect_semerror "ls \"string" \
+   "semantic error: invalid -c command .* contains shell syntax errors"

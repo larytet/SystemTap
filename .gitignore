@@ -36,3 +36,4 @@ lib-elfutils
 stamp-elfutils
 dtrace
 stappaths.7
+.zanata-cache

@@ -731,7 +731,7 @@ global _fam_num2str[34],   _fam_str2num[34]
 global _state_num2str[5],  _state_str2num[5]
 global _type_num2str[11],  _type_str2num[11]
 
-probe begin(-1001)
+probe init
 {
 	/* From /etc/protocols.
 	 * Many of these protocols aren't currently used over

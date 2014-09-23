@@ -1,0 +1,7 @@
+#! stap -up2
+
+probe begin
+{
+    // Test that unused autocasts cause an error in unoptimized mode
+    foo->has->no->type
+}

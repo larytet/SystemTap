@@ -1,0 +1,18 @@
+#!/bin/bash
+//bin/true && exec stap -p2 --disable-cache $0 "$@"
+
+// The --disable-cache above is to make sure we're using the same generated
+// @cast module for both -- so even when we have to make it, it's still reused
+// in a given session.  (see also semok/autocast06.stp)
+
+probe begin
+{
+    // Test multiple DWARF assignments to a local can propagate types if
+    // they're the same underneath.
+    if (randint(2))
+        sun = & @cast(0, "sockaddr_un", "<sys/un.h>");
+    else
+        sun = & @cast(1, "sockaddr_un", "<sys/un.h>");
+    println(sun->sun_family)
+}
+

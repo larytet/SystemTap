@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2012 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -57,7 +57,6 @@ struct tracepoint_derived_probe_group;
 struct hrtimer_derived_probe_group;
 struct procfs_derived_probe_group;
 struct dynprobe_derived_probe_group;
-struct java_derived_probe_group;
 struct embeddedcode;
 struct stapdfa;
 class translator_output;
@@ -94,12 +93,20 @@ struct parse_error: public std::runtime_error
 {
   const token* tok;
   bool skip_some;
-  parse_error (const std::string& msg):
-    runtime_error (msg), tok (0), skip_some (true) {}
-  parse_error (const std::string& msg, const token* t):
-    runtime_error (msg), tok (t), skip_some (true) {}
-  parse_error (const std::string& msg, bool skip):
-    runtime_error (msg), tok (0), skip_some (skip) {}
+  const parse_error *chain;
+  const std::string errsrc;
+  ~parse_error () throw () {}
+  parse_error (const std::string& src, const std::string& msg):
+    runtime_error (msg), tok (0), skip_some (true), chain(0), errsrc(src) {}
+  parse_error (const std::string& src, const std::string& msg, const token* t):
+    runtime_error (msg), tok (t), skip_some (true), chain(0), errsrc(src) {}
+  parse_error (const std::string& src, const std::string& msg, bool skip):
+    runtime_error (msg), tok (0), skip_some (skip), chain(0), errsrc(src) {}
+
+  std::string errsrc_chain(void) const
+    {
+      return errsrc + (chain ? "|" + chain->errsrc_chain() : "");
+    }
 };
 
 struct systemtap_session
@@ -131,6 +138,7 @@ public:
   // command line parsing
   int  parse_cmdline (int argc, char * const argv []);
   bool parse_cmdline_runtime (const std::string& opt_runtime);
+  std::string version_string ();
   void version ();
   void usage (int exitcode);
   void check_options (int argc, char * const argv []);
@@ -142,6 +150,7 @@ public:
   // command line args
   std::string script_file; // FILE
   std::string cmdline_script; // -e PROGRAM
+  std::vector<std::string> additional_scripts; // -E SCRIPT
   bool have_script;
   std::vector<std::string> include_path;
   int include_arg_start;
@@ -178,6 +187,7 @@ public:
   std::string output_file;
   std::string size_option;
   std::string cmd;
+  std::string cmd_file();
   std::string compatible; // use (strverscmp(s.compatible.c_str(), "N.M") >= 0)
   int target_pid;
   int last_pass;
@@ -185,11 +195,10 @@ public:
   unsigned verbose;
   bool timing;
   bool save_module;
+  bool save_uprobes;
   bool modname_given;
   bool keep_tmpdir;
   bool guru_mode;
-  bool listing_mode;
-  bool listing_mode_vars;
   bool bulk_mode;
   bool unoptimized;
   bool suppress_warnings;
@@ -208,7 +217,19 @@ public:
   bool privilege_set;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
-  bool dump_probe_types;
+
+  enum
+   { dump_none,               // no dumping requested
+     dump_probe_types,        // dump standard tapset probes
+     dump_probe_aliases,      // dump tapset probe aliases
+     dump_functions,          // dump tapset functions
+     dump_matched_probes,     // dump matching probes (-l)
+     dump_matched_probes_vars // dump matching probes and their variables (-L)
+   } dump_mode;
+
+  // Pattern to match against in listing mode (-l/-L)
+  std::string dump_matched_pattern;
+
   int download_dbinfo;
   bool suppress_handler_errors;
   bool suppress_time_limits;
@@ -231,11 +252,16 @@ public:
   std::string client_options_disallowed_for_unprivileged;
   std::vector<std::string> server_status_strings;
   std::vector<std::string> specified_servers;
-  bool automatic_server_mode;
   std::string server_trust_spec;
   std::vector<std::string> server_args;
   std::string winning_server;
   compile_server_cache* server_cache;
+  std::vector<std::string> mok_fingerprints;
+  std::string auto_privilege_level_msg;
+  std::vector<std::string> auto_server_msgs;
+
+  bool modules_must_be_signed();
+  void get_mok_info();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -274,10 +300,6 @@ public:
   std::string stapconf_path;    // path to the cached stapconf
   stap_hash *base_hash;         // hash common to all caching
 
-  // dwarfless operation
-  bool consult_symtab;
-  std::string kernel_symtab_path;
-
   // Skip bad $ vars
   bool skip_badvars;
 
@@ -294,10 +316,9 @@ public:
 
   // data for various preprocessor library macros
   std::map<std::string, macrodecl*> library_macros;
-  std::vector<stapfile*> library_macro_files; // for error reporting purposes
 
   // parse trees for the various script files
-  stapfile* user_file;
+  std::vector<stapfile*> user_files;
   std::vector<stapfile*> library_files;
 
   // filters to run over all code before symbol resolution
@@ -309,7 +330,7 @@ public:
   std::vector<vardecl*> globals;
   std::map<std::string,functiondecl*> functions;
   // probe counter name -> probe associated with counter
-  std::map<std::string, std::pair<std::string,derived_probe*> > perf_counters;
+  std::vector<std::pair<std::string,std::string> > perf_counters;
   std::vector<derived_probe*> probes; // see also *_probes groups below
   std::vector<embeddedcode*> embeds;
   std::map<std::string, statistic_decl> stat_decls;
@@ -345,7 +366,6 @@ public:
   hrtimer_derived_probe_group* hrtimer_derived_probes;
   procfs_derived_probe_group* procfs_derived_probes;
   dynprobe_derived_probe_group* dynprobe_derived_probes;
-  java_derived_probe_group* java_derived_probes;
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
@@ -374,30 +394,55 @@ public:
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
 
-  std::set<std::string> seen_errors;
   std::set<std::string> seen_warnings;
-  unsigned num_errors () { return seen_errors.size() + (panic_warnings ? seen_warnings.size() : 0); }
+  int suppressed_warnings;
+  std::map<std::string, int> seen_errors; // NB: can change to a set if threshold is 1
+  int suppressed_errors;
+  int warningerr_count; // see comment in systemtap_session::print_error
 
-  std::set<std::string> rpms_to_install;
+  // Returns number of critical errors (not counting those part of warnings)
+  unsigned num_errors ()
+    {
+      return (seen_errors.size() // all the errors we've encountered
+        - warningerr_count       // except those considered warningerrs
+        + (panic_warnings ? seen_warnings.size() : 0)); // plus warnings if -W given
+    }
 
-  translator_output* op_create_auxiliary();
+  std::set<std::string> rpms_checked; // enlisted by filename+rpm_type
+  std::set<std::string> rpms_to_install; // resulting rpms
+
+  translator_output* op_create_auxiliary(bool trailer_p = false);
 
   const token* last_token;
   void print_token (std::ostream& o, const token* tok);
   void print_error (const semantic_error& e);
+  std::string build_error_msg (const semantic_error& e);
   void print_error_source (std::ostream&, std::string&, const token* tok);
+  void print_error_details (std::ostream&, std::string&, const semantic_error&);
   void print_error (const parse_error &pe,
-                       const token* tok,
-                       const std::string &input_name);
+                    const token* tok,
+                    const std::string &input_name,
+                    bool is_warningerr = false);
+  std::string build_error_msg (const parse_error &pe,
+                               const token* tok,
+                               const std::string &input_name);
   void print_warning (const std::string& w, const token* tok = 0);
   void printscript(std::ostream& o);
+  void report_suppression();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
 
-  std::string colorize(std::string str, std::string type);
-  std::string colorize(const token& tok);
-  std::string parse_stap_color(std::string type);
+  std::string colorize(const std::string& str, const std::string& type);
+  std::string colorize(const token* tok);
+  std::string parse_stap_color(const std::string& type);
+
+  // Some automatic options settings require explanation.
+  void enable_auto_server (const std::string &message);
+  void explain_auto_options();
+
+  bool is_user_file (const std::string& name);
+  bool is_primary_probe (derived_probe *dp);
 };
 
 struct exit_exception: public std::runtime_error

@@ -1,6 +1,51 @@
+This directory contains sets of scripts for testing plain kprobes or
+systemtap probes on a set of kernel functions. It tries to bisect the
+list if a probe on a set of kernel functions crashes the system.
+
+Here's a workflow:
+
+1) First put a list of functions to probe in a file, by default called
+'probes.all'. If you'd like a list of all kernel functions, you can
+run 'gen_code_all.sh'.
+
+2a) To test plain kprobes, run:
+
+# ./kprobes_test.py
+
+2b) To test systemtap probes, run:
+
+# ./stap_probes_test.py
+
+3) Wait for the script to finish. Feel free to watch kprobes_test.log
+for progress. If the system crashes, restart it. Either
+'kprobe_test.py' or 'stap_probes_test.py' should get automatically run
+when the system gets restarted.
+
+If you'd like help monitoring the target system, you can use
+'monitor_system.py', which will try to automatically reboot a remote
+system if the system can't be reached.
+
+4) When the script (either ./kprobes_test.py or ./stap_probes_test.py)
+finishes, you'll see the following output files.
+
+- probes.unregistered is a file that contains the list of kernel
+  functions where a probe couldn't be registered.
+- probes.untriggered is a file that contains the list of kernel
+  functions where a probe could be registered, but the kernel
+  function wasn't actually called.  So, we don't really know whether
+  these functions passed or failed.
+- probes.passed is a file that contains the list of kernel functions
+  where a probe was registered and the kerenel function was called
+  with no crash.
+- probes.failed is a file that contains the list of kernel functions
+  where a probe was registered and the kernel function was called
+  that caused a crash.
+
+
 Here are the original instructions for 'gen_whitelist', which tested
-systemtap probe safety.  This modified code tests the underlying
-kprobes themselves.
+systemtap probe safety.
+
+====
 
 To start a kprobes test run:
    runtest whitelist.exp

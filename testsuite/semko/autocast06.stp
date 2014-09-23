@@ -1,0 +1,14 @@
+#! stap -p2
+
+probe begin
+{
+    // Test multiple DWARF assignments to a local shouldn't propagate types if
+    // they're the different underneath.  The assignments themselves are ok,
+    // but we won't have a type to deref.
+    // (These are actually the same, but coming from different cast modules.)
+    if (randint(2))
+        sun = & @cast(0, "sockaddr_un", "<sys/un.h>");
+    else
+        sun = & @cast(0, "sockaddr_un", "<sys/socket.h><sys/un.h>");
+    println(sun->sun_family)
+}

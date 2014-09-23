@@ -153,8 +153,8 @@ proc run_ls_1_sec {} {
 
     spawn $exepath
     set exe_id $spawn_id
-    after 1000;
-    exec kill -INT -[exp_pid -i $exe_id]
+    wait_n_secs 1;
+    kill -INT -[exp_pid -i $exe_id] 1
     catch {close -i $exe_id}
     catch {wait -i $exe_id}
     return 0;

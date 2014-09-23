@@ -1,0 +1,6 @@
+#! stap -up4
+
+// test all netfilter aliases, unoptimized to check locals too
+probe netfilter.** {
+    next
+}

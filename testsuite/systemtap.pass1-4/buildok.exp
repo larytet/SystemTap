@@ -9,15 +9,6 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     # (Note that tcl doesn't like comments directly inside the switch
     # statement, but comments can go in sub-blocks.)
     switch $test {
-	buildok/fortyfive.stp -
-	buildok/nd_syscalls-all-probes.stp -
-	buildok/nd_syscalls-arch-detailed.stp -
-	buildok/nd_syscalls-detailed.stp -
-	buildok/nd_syscalls2-detailed.stp {
-	    # Any test that uses nd_syscalls probes do not work on ia64.
-	    if {$rc != 0 && [istarget ia64-*-*]} { setup_kfail 6971 ia64-*-* }
-	}
-
 	buildok/memory-write_shared_copy.stp {
 	    if {$rc != 0} { setup_kfail 1155 *-*-* } }
 
@@ -25,16 +16,18 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/memory-write_shared_copy.stp -
 	buildok/networking-change_rx_flag.stp -
 	buildok/nfs-fop.check_flags.stp -
-	buildok/nfs_proc-detailed.stp -
-	buildok/nfsd-detailed.stp -
-	buildok/rpc-detailed.stp -
 	buildok/scheduler-cpu_off.stp -
+	buildok/scheduler-cpu_on.stp -
 	buildok/scheduler-ctxswitch.stp -
 	buildok/scheduler-migrate.stp -
 	buildok/signal-check_ignored.stp -
 	buildok/signal-handle.stp -
-	buildok/tty-resize.stp -
-	buildok/vfs-detailed.stp {
+	buildok/tty-resize.stp {
+	    # (Note that if a test fails because of debuginfo-quality
+	    # problems, don't kfail a tapset's entire test. Extract
+	    # the failing probe/function's test into a new file and
+	    # kfail that.)
+	    #
 	    # Use setup_kfail GCC <target triplet> for
 	    # debuginfo-quality problems.
 	    if {$rc != 0} { setup_kfail GCC *-*-* } }

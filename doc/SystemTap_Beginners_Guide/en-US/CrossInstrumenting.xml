@@ -49,11 +49,11 @@
   </para>
 
   <para>
-    Normally, however, SystemTap scripts can only be run on systems where SystemTap is deployed (as in <xref linkend="using-setup"/>). This could mean that if you want to run SystemTap on ten systems, you would need to deploy SystemTap on <emphasis>all</emphasis> those systems.  In some cases, this may be neither feasible nor desired. For instance, corporate policy may prohibit an administrator from installing RPMs that provide compilers or debug information on specific machines, which will prevent the deployment of SystemTap.
+    Normally, however, SystemTap scripts can only be run on systems where SystemTap is deployed (as in <xref linkend="using-setup"/>). This could mean that if you want to run SystemTap on ten systems, you would need to deploy SystemTap on <emphasis>all</emphasis> those systems.  In some cases, this may be neither feasible nor desired. For instance, corporate policy may prohibit an administrator from installing RPM packages that provide compilers or debug information on specific machines, and thus prevent the deployment of SystemTap. To work around this problem, SystemTap allows you to use <firstterm>cross-instrumentation</firstterm>.
   </para>
 
   <para>
-    To work around this, you can resort to <firstterm>cross-instrumentation</firstterm>. Cross-instrumentation is the process of generating SystemTap instrumentation module from a SystemTap script on one computer to be used on another computer. This process offers the following benefits:
+    Cross-instrumentation is the process of generating SystemTap instrumentation module from a SystemTap script on one computer to be used on another computer. This process offers the following benefits:
   </para>
 <indexterm>
 <primary>cross-instrumentation</primary>
@@ -73,7 +73,7 @@
 
     <listitem>
       <para>
-	Each <emphasis>target machine</emphasis> only needs one RPM to be installed to use the generated SystemTap instrumentation module: <filename>systemtap-runtime</filename>.
+	Each <emphasis>target machine</emphasis> only needs one RPM package to be installed in order to use the generated SystemTap instrumentation module: the <package>systemtap-runtime</package> package.
       </para>
     </listitem>
   </itemizedlist>
@@ -96,11 +96,9 @@
 	</para>
 
 	-->
-  <note>
-    <title>Note</title>
 
     <para>
-      For the sake of simplicity, we will be using the following terms
+      For the sake of simplicity, the following terms are used
       throughout this section:
     </para>
 
@@ -116,8 +114,8 @@
 <primary>instrumentation module</primary>
 <secondary>cross-instrumentation</secondary>
 </indexterm>
-	  <emphasis>instrumentation module</emphasis> &mdash; the
-	  kernel module built from a SystemTap script; i.e. the
+	  <emphasis>Instrumentation module</emphasis> &mdash; the
+	  kernel module built from a SystemTap script. The
 	  <emphasis>SystemTap module</emphasis> is built on the <emphasis>host
 	  system</emphasis>, and will be loaded on the <emphasis>target
 	  kernel</emphasis> of <emphasis>target
@@ -136,9 +134,9 @@
 <primary>host system</primary>
 <secondary>cross-instrumentation</secondary>
 </indexterm>
-	  <emphasis>host system</emphasis> &mdash; the system on
-	  which you compile the instrumentation modules (from SystemTap
-	  scripts), to be loaded on <emphasis>target
+	  <emphasis>Host system</emphasis> &mdash; the system on
+	  which you compile the <emphasis>instrumentation modules</emphasis> from SystemTap
+	  scripts in order to load them on <emphasis>target
 	  systems</emphasis>.
 	</para>
       </listitem>
@@ -155,9 +153,9 @@
 <secondary>cross-instrumentation</secondary>
 </indexterm>
 
-	  <emphasis>target system</emphasis> &mdash; the system for which you
-	  are building the <emphasis>instrumentation module</emphasis> (from
-	  SystemTap scripts).
+	  <emphasis>Target system</emphasis> &mdash; the system for which you
+	  are building the <emphasis>instrumentation modules</emphasis> from
+	  SystemTap scripts.
 	</para>
       </listitem>
 
@@ -172,14 +170,13 @@
 <primary>target kernel</primary>
 <secondary>cross-instrumentation</secondary>
 </indexterm>
-	  <emphasis>target kernel</emphasis> &mdash; the kernel of
+	  <emphasis>Target kernel</emphasis> &mdash; the kernel of
 	  the <emphasis>target system</emphasis>. This is the kernel on which
-	  you wish to load/run the <emphasis>instrumentation
+	  you intend to load or run the <emphasis>instrumentation
 	  module</emphasis>.
 	</para>
       </listitem>
     </itemizedlist>
-  </note>
 
 <!--
 		running a SystemTap script on a target system where SystemTap is not installed. Normally, to run a SystemTap script on a system, you need to deploy SystemTap on it first (as in <xref linkend="installproper"/>).
@@ -189,8 +186,11 @@
 		This section teaches you how to deploy SystemTap on a host machine, from which you can create the necessary kernel module/s to be loaded on client machines. These kernel modules are built from SystemTap scripts you wish to run on the client machine.
 	</para>-->
 
+  <para>
+    To configure a host system and target systems, complete the following steps: 
+  </para>
+
   <procedure id="preppingxcompile">
-    <title>Configuring a Host System and Target Systems</title>
 <indexterm>
 <primary>cross-instrumentation</primary>
 <secondary>configuration</secondary>
@@ -209,7 +209,7 @@
 </indexterm>
     <step>
       <para>
-	Install the <filename>systemtap-runtime</filename> RPM on each
+	Install the <package>systemtap-runtime</package> package on each
 	<emphasis>target system</emphasis>.
       </para>
     </step>
@@ -217,8 +217,7 @@
     <step>
       <para>
 	Determine the kernel running on each <emphasis>target system</emphasis>
-	by running <command>uname -r</command> on each
-	<emphasis>target system</emphasis>.
+	by running the <command>uname -r</command> command on each of these systems.
       </para>
     </step>
 
@@ -236,11 +235,11 @@
     <step>
       <para>
 	Using the <emphasis>target kernel</emphasis> version determined earlier,
-	install the <emphasis>target kernel</emphasis> and related RPMs on the
-	<emphasis>host system</emphasis> by the method described in <xref
+	install the <emphasis>target kernel</emphasis> and related RPM packages on the
+	<emphasis>host system</emphasis> as described in <xref
 	linkend="install-kinfo"/>. If multiple <emphasis>target
 	systems</emphasis> use different <emphasis>target kernels</emphasis>,
-	you will need to repeat this step for each different kernel used on the
+	repeat this step for each different kernel used on the
 	<emphasis>target systems</emphasis>.
       </para>
     </step>
@@ -248,7 +247,7 @@
   </procedure>
 
   <para>
-    After performing <xref linkend="preppingxcompile"/>, you can now build the
+    After completing these steps, you can now build the
     <emphasis>instrumentation module</emphasis> (for any <emphasis>target
     system</emphasis>) on the <emphasis>host system</emphasis>.
   </para>
@@ -259,15 +258,15 @@
     appropriate values):
   </para>
 
-<screen>stap -r <replaceable>kernel_version</replaceable> <replaceable>script</replaceable> -m <replaceable>module_name</replaceable></screen>
+<screen><command>stap -r <replaceable>kernel_version</replaceable> <replaceable>script</replaceable> -m <replaceable>module_name</replaceable></command></screen>
 
   <para>
-    Here, <command><replaceable>kernel_version</replaceable></command> refers to
+    Here, <replaceable>kernel_version</replaceable> refers to
     the version of the <emphasis>target kernel</emphasis> (the output of
-    <command>uname -r</command> on the target machine),
-    <command><replaceable>script</replaceable></command> refers to the script to
-    be converted into an <emphasis>instrumentation module</emphasis>, and
-    <command><replaceable>module_name</replaceable></command> is the desired
+    the <command>uname -r</command> command on the target machine),
+    <replaceable>script</replaceable> refers to the script to
+    be converted into the <emphasis>instrumentation module</emphasis>, and
+    <replaceable>module_name</replaceable> is the desired
     name of the <emphasis>instrumentation module</emphasis>.
   </para>
 
@@ -285,9 +284,10 @@
 	<primary>architecture notation, determining</primary>
 </indexterm>
     <para>
-      To determine the architecture notation of a running kernel, run
-      <command>uname -m</command>.
+      To determine the architecture notation of a running kernel, you can run the following command:
     </para>
+
+    <screen><command>uname -m</command></screen>
   </note>
 
   <para>
@@ -295,7 +295,7 @@
     it to the <emphasis>target system</emphasis> and then load it using:
   </para>
 
-<screen>staprun <replaceable>module_name</replaceable>.ko</screen>
+<screen><command>staprun <replaceable>module_name</replaceable>.ko</command></screen>
 
   <para>
     For example, to create the
@@ -305,18 +305,16 @@
     2.6.18-92.1.10.el5 (on x86_64 architecture), use the following command:
   </para>
 
-  <para>
-    <command>stap -r 2.6.18-92.1.10.el5 -e 'probe vfs.read {exit()}' -m simple</command>
-  </para>
+  <screen><command>stap -r 2.6.18-92.1.10.el5 -e 'probe vfs.read {exit()}' -m simple</command></screen>
 
   <para>
-    This will create a module named <filename>simple.ko</filename>. To use the
-    <emphasis>instrumentation module</emphasis> <filename>simple.ko</filename>,
+    This creates a module named <filename>simple.ko</filename>. To use this
+    <emphasis>instrumentation module</emphasis>,
     copy it to the <emphasis>target system</emphasis> and run the following
     command (on the <emphasis>target system</emphasis>):
   </para>
 
-  <para><command>staprun simple.ko</command></para>
+  <screen><command>staprun simple.ko</command></screen>
 
 <!--<procedure id="preppingxcompile">
 	<title>Preparing for a Cross-Compile</title>

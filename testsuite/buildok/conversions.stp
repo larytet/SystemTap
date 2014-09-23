@@ -30,6 +30,8 @@ probe begin {
   print (user_int_warn(2342))
   print (user_long(2342))
   print (user_long_warn(2342))
+  print (user_ulong(2342))
+  print (user_ulong_warn(2342))
   print (user_char(2342))
   print (user_char_warn(2342))
 

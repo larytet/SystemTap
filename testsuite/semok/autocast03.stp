@@ -1,0 +1,10 @@
+#! stap -p2
+
+probe begin
+{
+    // Test DWARF through a ternary expression
+    println( (randint(2)
+                ? & @cast(0, "sockaddr_un", "<sys/un.h>")
+                : & @cast(1, "sockaddr_un", "<sys/un.h>")
+                ) -> sun_family )
+}

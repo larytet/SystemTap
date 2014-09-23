@@ -38,11 +38,11 @@ global FUTEX_WAIT = 0 /*, FUTEX_WAKE = 1 */
 global FUTEX_PRIVATE_FLAG = 128 /* linux 2.6.22+ */
 global FUTEX_CLOCK_REALTIME = 256 /* linux 2.6.29+ */
 
-function process_mutex_init(mutex, probefunc)
+function process_mutex_init(mutex, ppfunc)
 {
   if (verbose && (mutex in mutex_init_stack)) {
     printf("error: %s: mutex %p is already initialized at\n%s\n",
-	   probefunc, mutex, mutex_init_stack[mutex])
+	   ppfunc, mutex, mutex_init_stack[mutex])
   }
   if (keep_stats) {
     mutex_init_stack[mutex] = sprint_ubacktrace()
@@ -52,7 +52,7 @@ function process_mutex_init(mutex, probefunc)
     printf("init %p at\n%s\n", mutex, sprint_ubacktrace())
   }
   if (verbose) {
-    printf("%s: mutex %p %s\n", probefunc, mutex, mutex_names[mutex])
+    printf("%s: mutex %p %s\n", ppfunc, mutex, mutex_names[mutex])
   }
 }
 
@@ -71,17 +71,25 @@ function show_contention(mutex, stack, type)
   }
 }
 
+// we use @defined($muex) and @defined($rwlock) here because
+// on 64 bit systems, the wildcard search takes us through
+// both 64 bit and 32 bit libc (which doesn't have debuginfo),
+// this means the probe point resolved from the 32 bit library
+// has no context info
 probe process("/lib*/libc.so*").function("pthread_mutex_init")
 {
-  process_mutex_init($mutex, probefunc())
+  if(@defined($mutex))
+    process_mutex_init($mutex, ppfunc())
 }
 probe process("/lib*/libpthread.so*").function("__pthread_mutex_init")
 {
-  process_mutex_init($mutex, probefunc())
+  if(@defined($mutex))
+    process_mutex_init($mutex, ppfunc())
 }
 probe process("/lib*/libpthread.so*").function("__pthread_rwlock_init")
 {
-  process_mutex_init($rwlock, probefunc())
+  if(@defined($rwlock))
+    process_mutex_init($rwlock, ppfunc())
 }
 
 probe syscall.futex.return

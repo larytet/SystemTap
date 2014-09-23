@@ -1,0 +1,25 @@
+global towers
+global main
+
+probe perf.hw.instructions.process(@1).counter("a") { }
+
+probe perf.hw.instructions.process(@1).counter("b") { }
+
+probe process(@1).statement("towers@towers.c")
+{
+    towers <<< @perf("a")
+}
+
+probe process(@1).statement("main@towers.c")
+{
+    main <<< @perf("b")
+}
+
+probe end
+{
+    printf("count main=%d\n", @count(main))
+    printf("count towers=%d\n", @count(towers))
+    printf("min main=%d\nmin towers=%d\n", @min(main), @min(towers))
+    printf("max main=%d\nmax towers=%d\n", @max(main), @max(towers))
+}
+

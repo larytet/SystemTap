@@ -1,0 +1,11 @@
+# Used when systemd is not available. Runs 'service stapshd reload' when a port
+# gets hotplugged/unplugged. This will create stapshd-daemon instances for new
+# ports and kill stapshd-daemon instances for no longer existing ports.
+# Should end up in /lib/udev/rules.d if it exists (RHEL6) or /etc/udev/rules.d
+# otherwise (RHEL5). NB: RHEL5 udev doesn't know ATTR{name}, so it will fire
+# no matter the actual name of the port, which shouldn't be an issue.
+# Docs: systemd.device(5), udev(7)
+
+SUBSYSTEM=="virtio-ports", ATTR{name}=="org.systemtap.stapsh.[0-9]*", \
+  RUN+="/sbin/service stapshd reload"
+

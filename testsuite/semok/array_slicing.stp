@@ -1,0 +1,13 @@
+#! stap -p2
+
+global val, stats
+probe begin {
+  val[1, 2, "a", "b"] = 3
+  stats[1, 1] <<< 1
+
+  foreach ([r, s, t, u] in val[*, *, *, *]) {exit()}
+  foreach ([a, b] in stats[*, *]@count+) {exit()}
+  delete val[1, *, "a", *]
+  delete stats[1, 1]
+  if ([*, 2, "a", *] in val) {exit()}
+}

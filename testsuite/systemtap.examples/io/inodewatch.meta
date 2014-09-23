@@ -10,4 +10,4 @@ output: trace
 scope: system-wide
 description:  The inodewatch.stp outputs the executable name and process id each time a read or write occurs to the specified inode on the specified major/minor device.
 test_check: stap -p4 inodewatch.stp 0x08 0x01 100
-test_installcheck: stap inodewatch.stp 0x08 0x01 100 -c "sleep 0.2"
+test_installcheck: stap inodewatch.stp 0x08 0x01 100 -c "sleep 1"

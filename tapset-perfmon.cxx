@@ -1,5 +1,5 @@
 // tapset for HW performance monitoring
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -14,7 +14,6 @@
 #include "util.h"
 
 #include <string>
-#include <wordexp.h>
 
 extern "C" {
 #define __STDC_FORMAT_MACROS
@@ -82,8 +81,10 @@ perf_derived_probe::perf_derived_probe (probe* p, probe_point* l,
   comps.push_back (new probe_point::component (TOK_TYPE, new literal_number(type)));
   comps.push_back (new probe_point::component (TOK_CONFIG, new literal_number (config)));
   comps.push_back (new probe_point::component (TOK_SAMPLE, new literal_number (interval)));
-  comps.push_back (new probe_point::component (TOK_PROCESS, new literal_string (process_name)));
-  comps.push_back (new probe_point::component (TOK_COUNTER, new literal_string (counter)));
+  if (has_process)
+    comps.push_back (new probe_point::component (TOK_PROCESS, new literal_string (process_name)));
+  if (has_counter)
+    comps.push_back (new probe_point::component (TOK_COUNTER, new literal_string (counter)));
 }
 
 
@@ -93,6 +94,7 @@ perf_derived_probe::join_group (systemtap_session& s)
   if (! s.perf_derived_probes)
     s.perf_derived_probes = new perf_derived_probe_group ();
   s.perf_derived_probes->enroll (this);
+  this->group = s.perf_derived_probes;
 
   if (has_process && !has_counter)
     enable_task_finder(s);
@@ -168,37 +170,27 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << ".callback=enter_perf_probe_" << i << ", ";
       s.op->newline() << ".probe=" << common_probe_init (probes[i]) << ", ";
 
-      string l_process_name;
       if (probes[i]->has_process && !probes[i]->has_counter)
 	{
-	  if (probes[i]->process_name.length() == 0)
-	    {
-	      wordexp_t words;
-	      int rc = wordexp(s.cmd.c_str(), &words, WRDE_NOCMD|WRDE_UNDEF);
-	      if (rc || words.we_wordc <= 0)
-		throw semantic_error(_("unspecified process probe is invalid without a -c COMMAND"));
-	      l_process_name = words.we_wordv[0];
-	      wordfree (& words);
-	    }
-	  else
-	    l_process_name = probes[i]->process_name;
-
 	  s.op->line() << " .e={";
 	  s.op->line() << " .t={";
 	  s.op->line() << " .tgt={";
 	  s.op->line() << " .purpose=\"perfctr\",";
-	  s.op->line() << " .procname=\"" << l_process_name << "\",";
+	  s.op->line() << " .procname=\"" << probes[i]->process_name << "\",";
 	  s.op->line() << " .pid=0,";
 	  s.op->line() << " .callback=&_stp_perf_probe_cb,";
 	  s.op->line() << " },";
 	  s.op->line() << " },";
 	  s.op->line() << " },";
-	  s.op->newline() << ".per_thread=" << "1, ";
+	  s.op->newline() << ".task_finder=" << "1, ";
 	}
       else if (probes[i]->has_counter)
-	s.op->newline() << ".per_thread=" << "1, ";
+	{
+	  // process counters are currently task-found by uprobes
+	  // set neither .system_wide nor .task_finder
+	}
       else
-	s.op->newline() << ".per_thread=" << "0, ";
+	s.op->newline() << ".system_wide=" << "1, ";
       s.op->newline(-1) << "},";
     }
   s.op->newline(-1) << "};";
@@ -237,9 +229,11 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline(-1) << "}";
 
   s.op->newline() << "(*stp->probe->ph) (c);";
-  common_probe_entryfn_epilogue (s, true);
+  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline(-1) << "}";
   s.op->newline();
+  if (have_a_process_tag)
+    s.op->newline() << "#define STP_PERF_USE_TASK_FINDER 1";
   s.op->newline() << "#include \"linux/perf.c\"";
   s.op->newline();
 }
@@ -248,30 +242,10 @@ perf_derived_probe_group::emit_module_decls (systemtap_session& s)
 void
 perf_derived_probe_group::emit_module_init (systemtap_session& s)
 {
-  bool have_a_process_tag = false;
-  
-  for (unsigned i=0; i < probes.size(); i++)
-    if (probes[i]->has_process)
-      {
-	have_a_process_tag = true;
-	break;
-      }
-
   if (probes.empty()) return;
 
-  s.op->newline() << "for (i=0; i<" << probes.size() << "; i++) {";
-  s.op->newline(1) << "struct stap_perf_probe* stp = & stap_perf_probes [i];";
-  s.op->newline() << "rc = _stp_perf_init(stp, 0);";
-  s.op->newline() << "if (rc) {";
-  s.op->newline(1) << "probe_point = stp->probe->pp;";
-  s.op->newline() << "for (j=0; j<i; j++) {";
-  s.op->newline(1) << "_stp_perf_del(& stap_perf_probes [j]);";
-  s.op->newline(-1) << "}"; // for unwind loop
-  s.op->newline() << "break;";
-  s.op->newline(-1) << "}"; // if-error
-  if (have_a_process_tag)
-    s.op->newline() << "rc = stap_register_task_finder_target(&stp->e.t.tgt);";
-  s.op->newline(-1) << "}"; // for loop
+  s.op->newline() << "rc = _stp_perf_init_n (stap_perf_probes, "
+		  << probes.size() << ", &probe_point);";
 }
 
 
@@ -280,9 +254,8 @@ perf_derived_probe_group::emit_module_exit (systemtap_session& s)
 {
   if (probes.empty()) return;
 
-  s.op->newline() << "for (i=0; i<" << probes.size() << "; i++) {";
-  s.op->newline(1) << "_stp_perf_del(& stap_perf_probes [i]);";
-  s.op->newline(-1) << "}"; // for loop
+  s.op->newline() << "_stp_perf_del_n (stap_perf_probes, "
+		  << probes.size() << ");";
 }
 
 
@@ -297,26 +270,6 @@ struct perf_builder: public derived_probe_builder
 };
 
 
-struct statement_counter: public update_visitor
-{
-  bool empty;
-  const token* first_tok;
-
-  statement_counter () {}
-
-  void visit_block (block *b)
-  {
-    if (b->statements.size() > 0)
-      {
-	empty = false;
-	first_tok = b->statements[0]->tok;
-      }
-    else
-      empty = true;
-  };
-};
-  
-
 void
 perf_builder::build(systemtap_session & sess,
 		    probe * base,
@@ -327,9 +280,9 @@ perf_builder::build(systemtap_session & sess,
   // XXX need additional version checks too?
   // --- perhaps look for export of perf_event_create_kernel_counter
   if (sess.kernel_exports.find("perf_event_create_kernel_counter") == sess.kernel_exports.end())
-    throw semantic_error (_("perf probes not available without exported perf_event_create_kernel_counter"));
+    throw SEMANTIC_ERROR (_("perf probes not available without exported perf_event_create_kernel_counter"));
   if (sess.kernel_config["CONFIG_PERF_EVENTS"] != "y")
-    throw semantic_error (_("perf probes not available without CONFIG_PERF_EVENTS"));
+    throw SEMANTIC_ERROR (_("perf probes not available without CONFIG_PERF_EVENTS"));
 
   int64_t type;
   bool has_type = get_param(parameters, TOK_TYPE, type);
@@ -344,51 +297,71 @@ perf_builder::build(systemtap_session & sess,
   if (!has_period)
     period = 1000000; // XXX: better parametrize this default
   else if (period < 1)
-    throw semantic_error(_("invalid perf sample period ") + lex_cast(period),
+    throw SEMANTIC_ERROR(_("invalid perf sample period ") + lex_cast(period),
                          parameters.find(TOK_SAMPLE)->second->tok);
-  bool proc_p;
-  string proc_n;
-  proc_p = has_null_param(parameters, TOK_PROCESS)
-    || get_param(parameters, TOK_PROCESS, proc_n);
-  if (proc_p)
-    proc_n = find_executable (proc_n, sess.sysroot, sess.sysenv);
 
   string var;
   bool has_counter = get_param(parameters, TOK_COUNTER, var);
   if (var.find_first_of("*?[") != string::npos)
-    throw semantic_error(_("wildcard not allowed with perf probe counter component"));
+    throw SEMANTIC_ERROR(_("wildcard not allowed with perf probe counter component"));
   if (has_counter)
     {
-      if (var.length() == 0)
-	throw semantic_error(_("missing perf probe counter component name"));
-	
+      if (var.empty())
+	throw SEMANTIC_ERROR(_("missing perf probe counter component name"));
+
       period = 0;		// perf_event_attr.sample_freq should be 0
-      map<string, pair<string,derived_probe*> >::iterator it;
-      for (it=sess.perf_counters.begin(); it != sess.perf_counters.end(); it++)
+      vector<std::pair<string,string> >:: iterator it;
+      for (it=sess.perf_counters.begin() ;
+	   it != sess.perf_counters.end(); it++)
 	if ((*it).first == var)
-	  throw semantic_error(_("duplicate counter name"));
+	  break;
+      if (it != sess.perf_counters.end())
+	throw SEMANTIC_ERROR(_("duplicate counter name"));
 
-      struct statement_counter sc;
-      base->body->visit(&sc);
-      if (! sc.empty)
-	sess.print_warning(_("Statements in perf counter probe will never be reached."), sc.first_tok);
-
-      if_statement *ifs = new if_statement ();
-      ifs->tok = base->tok;
-      ifs->thenblock = new next_statement ();
-      ifs->thenblock->tok = base->tok;
-      ifs->elseblock = NULL;
-      ifs->condition = new literal_number(0);
-      base->body = new block (ifs, base->body);
+      // Splice a 'next' into the probe body, and then elaborate.cxx's
+      // dead_stmtexpr_remover() will warn if anything of substance follows.
+      statement* n = new next_statement ();
+      n->tok = base->tok;
+      base->body = new block (n, base->body);
     }
 
+  bool proc_p;
+  string proc_n;
+  if ((proc_p = has_null_param(parameters, TOK_PROCESS)))
+    {
+      try
+        {
+          proc_n = sess.cmd_file();
+        }
+      catch (semantic_error& e)
+        {
+          throw SEMANTIC_ERROR(_("invalid -c command for unspecified process"
+                                 " probe [man stapprobes]"), NULL, NULL, &e);
+        }
+      if (proc_n.empty())
+	throw SEMANTIC_ERROR(_("unspecified process probe is invalid without a "
+                               "-c COMMAND [man stapprobes]"));
+    }
+  else
+    proc_p = get_param(parameters, TOK_PROCESS, proc_n);
+  if (proc_p && !proc_n.empty())
+    proc_n = find_executable (proc_n, sess.sysroot, sess.sysenv);
+
   if (sess.verbose > 1)
-    clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64, type, config, period) << endl;
+    clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64 " process=%s counter=%s",
+	       type, config, period, proc_n.c_str(), var.c_str()) << endl;
+
+  // The user-provided pp is already well-formed. Let's add a copy on the chain
+  // and set it as the new base
+  probe_point *new_location = new probe_point(*location);
+  new_location->well_formed = true;
+  probe *new_base = new probe(base, new_location);
 
   finished_results.push_back
-    (new perf_derived_probe(base, location, type, config, period, proc_p,
+    (new perf_derived_probe(new_base, location, type, config, period, proc_p,
 			    has_counter, proc_n, var));
-  sess.perf_counters[var] = make_pair(proc_n,finished_results.back());
+  if (!var.empty())
+    sess.perf_counters.push_back(make_pair (var, proc_n));
 }
 
 

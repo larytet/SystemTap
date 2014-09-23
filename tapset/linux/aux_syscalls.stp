@@ -1,3 +1,84 @@
+
+%{
+// Be sure we have the __NR_* defines.
+#include <asm/unistd.h>
+#include "linux/compat_unistd.h"
+
+// Be sure we have the SYS_* defines.
+#include <linux/net.h>
+#include "linux/compat_net.h"
+
+/*
+* Simple lookup functions for mapping values to names
+* using embedded C. Use these functions to create safe,
+* consistent lookups.
+*/
+
+/* Convenient macro to add defines to an array */
+#define V(a) {a,#a}
+
+typedef struct {
+	long val;
+	char *name;
+} _stp_val_array;
+
+static void
+_stp_lookup_str(const _stp_val_array * const array, long val, char *ptr,
+		int len)
+{
+	int i = 0, slen;
+	while (array[i].name) {
+		if (array[i].val == val) {
+			strlcat (ptr, array[i].name, len);
+			return;
+		}
+		i++;
+	}
+	slen = strlen(ptr);
+	_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+}
+
+static void
+_stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr,
+		   int len)
+{
+	int i = 0, flag = 0, slen;
+
+	if (val == 0) {
+		_stp_lookup_str(array, val, ptr, len);
+		return;
+	}
+
+	while (array[i].name) {
+		if (array[i].val & val) {
+			if (flag)
+				strlcat(ptr, "|", len);
+			strlcat(ptr, array[i].name, len);
+			val &= (~array[i].val);
+			flag = 1;
+		}
+		i++;
+	}
+	if (val) {
+		if (flag)
+			strlcat(ptr, "|", len);
+		slen = strlen(ptr);
+		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+	}
+}
+%}
+
+function _stp_syscall_nr:long ()
+%{ /* pure */
+	struct pt_regs *regs = _stp_current_pt_regs();
+	if (!regs) {
+		CONTEXT->last_error = ("Cannot access syscall number"
+				       " (no registers available)");
+		return;
+	}
+	STAP_RETVALUE = syscall_get_nr(current, regs);
+%}
+
 %{
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -28,17 +109,24 @@ function _struct_timeval_u:string(uaddr:long, n:long)
 	struct timeval tv[n];
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	
-	if (ptr == NULL || n > 2)
+	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tv, ptr, n*sizeof(struct timeval)) == 0) {
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct timeval)) == 0) {
 			if (n == 2)
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld][%ld.%.06ld]", 
-					tv[0].tv_sec, tv[0].tv_usec, tv[1].tv_sec, tv[1].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 tv[0].tv_sec, tv[0].tv_usec,
+					 tv[1].tv_sec, tv[1].tv_usec);
 			else
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld]", tv[0].tv_sec, tv[0].tv_usec);
-	   	} else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", tv[0].tv_sec,
+					 tv[0].tv_usec);
+	   	}
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %}
 
@@ -49,17 +137,26 @@ function _struct_compat_timeval_u:string(uaddr:long, n:long)
 	struct compat_timeval tv[n];
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 
-	if (ptr == NULL || n > 2)
+	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tv, ptr, 	n*sizeof(struct compat_timeval)) == 0)
+		if (_stp_copy_from_user((char*)&tv, ptr,
+					n*sizeof(struct compat_timeval)) == 0) {
 			if (n == 2)
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld][%ld.%.06ld]", 
-					(long)tv[0].tv_sec, (long)tv[0].tv_usec, (long)tv[1].tv_sec, (long)tv[1].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld][%ld.%.06ld]", 
+					 (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec,
+					 (long)tv[1].tv_sec,
+					 (long)tv[1].tv_usec);
 			else
-				snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld.%06ld]", (long)tv[0].tv_sec, (long)tv[0].tv_usec);
+				snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+					 "[%ld.%06ld]", (long)tv[0].tv_sec,
+					 (long)tv[0].tv_usec);
+		}
 	   	else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 #endif
 %}
@@ -72,10 +169,13 @@ function _struct_timezone_u:string(uaddr:long)
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&tz,ptr,sizeof(struct timezone)) == 0)
-			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]", tz.tz_minuteswest, tz.tz_dsttime);
+		if (_stp_copy_from_user((char*)&tz, ptr,
+					sizeof(struct timezone)) == 0)
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d, %d]",
+				 tz.tz_minuteswest, tz.tz_dsttime);
 		else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %} 
 
@@ -84,6 +184,16 @@ function _struct_timezone_u:string(uaddr:long)
 // _struct_utimbuf_actime, _struct_utimbuf_modtime,
 // _struct_compat_utimbuf_actime, _struct_compat_utimbuf_modtime
 #include <linux/utime.h>
+%}
+
+function _stp_clock_nanosleep_flags_str:string(flags:long)
+%{ /* pure */
+	static const _stp_val_array const nanosleep_flags_list[] = {
+		V(TIMER_ABSTIME),
+		{0, NULL}
+	};
+	_stp_lookup_str(nanosleep_flags_list, (unsigned int)STAP_ARG_flags,
+			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 // Returns the value of the actime field of a utimbuf in user space
@@ -162,12 +272,15 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 	struct timespec ts[n];
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 
-	if (ptr == NULL || n > 2)
+	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char *)&ts, ptr, n*sizeof(struct timespec)))  {
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
-		} else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
 			char *str;
 			int len, i = 0;
 			ptr = STAP_RETVALUE;
@@ -178,16 +291,22 @@ function _struct_timespec_u:string(uaddr:long, n:long)
 				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
 					str = "UTIME_OMIT";
 				if (str)
-					len = snprintf(ptr, MAXSTRINGLEN, "[%s]", str);
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
 				else
-					len = snprintf(ptr, MAXSTRINGLEN, "[%ld.%09ld]", (long)ts[i].tv_sec, ts[i].tv_nsec);
-				ptr += len; i++;
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       ts[i].tv_nsec);
+				ptr += len;
+				i++;
 			}
 		}
 	}
 #undef STP_UTIME_NOW
 #undef STP_UTIME_OMIT
 %}
+
 function _struct_compat_timespec_u:string(uaddr:long, n:long)
 %{ /* pure */
 #ifdef CONFIG_COMPAT
@@ -197,12 +316,15 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 	struct compat_timespec ts[n];
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 
-	if (ptr == NULL || n > 2)
+	if (ptr == NULL || n < 1 || n > 2)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char *)&ts, ptr, n*sizeof(struct compat_timespec)))  {
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
-		} else {
+		if (_stp_copy_from_user((char *)&ts, ptr,
+		    n*sizeof(struct compat_timespec)))  {
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
+		}
+		else {
 			char *str;
 			int len, i = 0;
 			ptr = STAP_RETVALUE;
@@ -213,10 +335,15 @@ function _struct_compat_timespec_u:string(uaddr:long, n:long)
 				else if (ts[i].tv_nsec == STP_UTIME_OMIT)
 					str = "UTIME_OMIT";
 				if (str)
-					len = snprintf(ptr, MAXSTRINGLEN, "[%s]", str);
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%s]", str);
 				else
-					len = snprintf(ptr, MAXSTRINGLEN, "[%ld.%09ld]", (long)ts[i].tv_sec, (long)ts[i].tv_nsec);
-				ptr += len; i++;
+					len = snprintf(ptr, MAXSTRINGLEN,
+						       "[%ld.%09ld]",
+						       (long)ts[i].tv_sec,
+						       (long)ts[i].tv_nsec);
+				ptr += len;
+				i++;
 			}
 		}
 	}
@@ -240,6 +367,26 @@ function _struct_itimerspec_u:string(uaddr:long)
 			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]",
 				(int)its.it_interval.tv_sec, (int)its.it_interval.tv_nsec,
 				(int)its.it_value.tv_sec, (int)its.it_value.tv_nsec);
+	}	
+%}
+
+function _struct_compat_itimerspec_u:string(uaddr:long)
+%{ /* pure */
+	struct compat_itimerspec its;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char *)&its, ptr, sizeof(its)))
+			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+		else
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				 "[%d.%06d,%d.%06d]",
+				 (int)its.it_interval.tv_sec,
+				 (int)its.it_interval.tv_nsec,
+				 (int)its.it_value.tv_sec,
+				 (int)its.it_value.tv_nsec);
 	}	
 %}
 
@@ -280,7 +427,7 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 %}
 
 %{
-// Needed for function _struct_sockaddr_u. Unfortunately cannot be
+// Needed for function _struct_sockaddr_u_impl. Unfortunately cannot be
 // inlined into the function since these header files define static
 // functions themselves.
 #include <linux/socket.h>
@@ -288,27 +435,91 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 #include <linux/netlink.h>
 %}
 
+%{
+// Enum for _struct_sockaddr_u_* functions.
+typedef enum {
+    SA_PRETTY           = 1,
+    SA_IP_ADDR          = 2,
+    SA_TCP_PORT         = 4,
+    SA_FAMILY           = 8,
+    SA_IPV6_FLOWINFO    = 16,
+    SA_IPV6_SCOPE_ID    = 32,
+} sa_dispatch;
+%}
+
+function _struct_sockaddr_u_ip_addr:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IP_ADDR %});
+}
+
+function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_TCP_PORT %});
+}
+
+function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IP_ADDR | SA_TCP_PORT %});
+}
+
+function _struct_sockaddr_u_sa_family:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_FAMILY %});
+}
+
+function _struct_sockaddr_u_ipv6_flowinfo:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IPV6_FLOWINFO %});
+}
+
+function _struct_sockaddr_u_ipv6_scope_id:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IPV6_SCOPE_ID %});
+}
+
 function _struct_sockaddr_u:string(uaddr:long, len:long)
+{
+    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_PRETTY %});
+}
+
+%{
+#define STAP_NEED_CONTEXT_SOCKADDR_BIG_BUFFERS 1
+%}
+
+function _struct_sockaddr_u_impl:string(uaddr:long, len:long, what:long)
 %{ /* pure */
+
+
 #include <linux/version.h>
 #include <linux/in6.h>
 #include <linux/un.h>
 #include <linux/if_packet.h>
 
-	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
-	char buf[128];
-	size_t len = STAP_ARG_len < 128 ? STAP_ARG_len : 128;
-	struct sockaddr *sa = (struct sockaddr *)buf;
+    sa_dispatch what = (sa_dispatch)STAP_ARG_what;
+
+    char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+    size_t len = clamp_t(size_t, STAP_ARG_len, 0, 128);
+    struct sockaddr *sa = (struct sockaddr *)CONTEXT->buf;
+
+    char *stap_retvalue = (char *)(unsigned long)STAP_RETVALUE;
+    int maxstringlen = MAXSTRINGLEN;
+    size_t n;
 
 	if (ptr == NULL)
 	{
-		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 		return;
 	}
 
-	if (_stp_copy_from_user(buf, ptr, len))
+    // This helps handle variable lenght sockaddr_un.
+    // Some application - like systemd - sends path string
+    // without ending null character. Kernel will handle this
+    // but we need pretty output without random memory stuff.
+    memset(CONTEXT->buf, 0, 128);
+
+    if (_stp_copy_from_user(CONTEXT->buf, ptr, len))
 	{
-		strlcpy (STAP_RETVALUE, "[...]", MAXSTRINGLEN);
+		strlcpy(STAP_RETVALUE, "{...}", MAXSTRINGLEN);
 		return;
 	}
 
@@ -325,55 +536,198 @@ function _struct_sockaddr_u:string(uaddr:long, len:long)
 
 	if ((sa->sa_family == AF_INET) && (len == sizeof(struct sockaddr_in)))
 	{
-		struct sockaddr_in *sin = (struct sockaddr_in *)buf;
-#ifndef NIPQUAD_FMT			// kver >= 2.6.36
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_INET, %pI4, %d}",
-			 &sin->sin_addr, _stp_ntohs(sin->sin_port));
+		struct sockaddr_in *sin = (struct sockaddr_in *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+#ifndef NIPQUAD_FMT                     // kver >= 2.6.36
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_INET, %pI4, %d}",
+                &sin->sin_addr, _stp_ntohs(sin->sin_port));
 #else
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_INET, " NIPQUAD_FMT ", %d}",
-			 NIPQUAD(sin->sin_addr), _stp_ntohs(sin->sin_port));
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                "{AF_INET, " NIPQUAD_FMT ", %d}",
+                NIPQUAD(sin->sin_addr), _stp_ntohs(sin->sin_port));
 #endif
+            return;
+        }
+
+        if (what & SA_FAMILY)
+        {
+            n = strlcpy(stap_retvalue, "AF_INET", maxstringlen);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IP_ADDR)
+        {
+#ifndef NIPQUAD_FMT                     // kver >= 2.6.36
+            n = snprintf(stap_retvalue, maxstringlen, "%pI4", &sin->sin_addr);
+#else
+            n = snprintf(stap_retvalue, maxstringlen, NIPQUAD_FMT,
+                    NIPQUAD(sin->sin_addr));
+#endif
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_TCP_PORT)
+        {
+            n = snprintf(stap_retvalue, maxstringlen, "%d",
+            _stp_ntohs(sin->sin_port));
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
 	}
+    // Why 2 * sizeof (char) here?
+    // Because I want to support abstract sockets with
+    // at least one usable byte after initial \0 char.
+    // Unnamed sockets aren't supported yet.
 	else if ((sa->sa_family == AF_UNIX)
-		 && (len == sizeof(struct sockaddr_un)))
-	{	
-		struct sockaddr_un *sun = (struct sockaddr_un *)buf;	
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, %s}",
-			 sun->sun_path); 
+            && ((len == sizeof(struct sockaddr_un))
+            || (len >= ((sizeof(sa_family_t)) + (2 * sizeof(char))))))
+	{
+		struct sockaddr_un *sun = (struct sockaddr_un *)CONTEXT->buf;
+		if (what & SA_PRETTY)
+		{
+
+			// Support for abstract sockets
+			if (sun->sun_path[0] == '\0')
+			{
+                // Abstract sockets aren't string oriented.
+                // We need conversion on this place.
+                // No check of ret value, because _stp_text_str returns
+                // "<unknown>" if bad things happen.
+                //
+                // Well. There can be NUL chars inside sun_path.
+                // We just stop at first NUL char. 
+                // TODO: We need byte oriented conversion function.
+                _stp_text_str(CONTEXT->out_str, &sun->sun_path[1],
+                    len - sizeof(sa_family_t), MAXSTRINGLEN - 1, 0, 0);
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"\\000%s\"}",
+                    CONTEXT->out_str);
+            } else
+			{
+                // Just cut path if is too long
+                CONTEXT->buf[127] = '\0';
+                snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{AF_UNIX, \"%s\"}",
+                    sun->sun_path);
+			}
+		} else if (what & SA_FAMILY)
+		{
+            strlcpy(STAP_RETVALUE, "AF_UNIX", MAXSTRINGLEN);
+		} else
+		{
+			strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+		}
 	}
 	else if ((sa->sa_family == AF_NETLINK)
 		 && (len == sizeof(struct sockaddr_nl)))
 	{
-		struct sockaddr_nl *nl = (struct sockaddr_nl *)buf;
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_NETLINK, pid=%d, groups=%08x}",
-			 nl->nl_pid, nl->nl_groups);
-	}
+		struct sockaddr_nl *nl = (struct sockaddr_nl *)CONTEXT->buf;
+
+        if (what & SA_PRETTY) {
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                "{AF_NETLINK, pid=%d, groups=%08x}",
+                nl->nl_pid, nl->nl_groups);
+        } else if (what & SA_FAMILY)
+        {
+            strlcpy(STAP_RETVALUE, "AF_NETLINK", MAXSTRINGLEN);
+        } else
+        {
+            strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+        }
+    }
 	else if ((sa->sa_family == AF_INET6)
 		 && (len == sizeof(struct sockaddr_in6)))
 	{
-		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)buf;
+		struct sockaddr_in6 *sin = (struct sockaddr_in6 *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
 #ifndef NIP6_FMT			// kver >= 2.6.36
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_INET6, %pI6, %d}", &sin->sin6_addr,
-			 _stp_ntohs(sin->sin6_port));
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_INET6, %pI6, %d}", &sin->sin6_addr,
+                 _stp_ntohs(sin->sin6_port));
 #else
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_INET6, " NIP6_FMT ", %d}", NIP6(sin->sin6_addr),
-			 _stp_ntohs(sin->sin6_port));
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_INET6, " NIP6_FMT ", %d}", NIP6(sin->sin6_addr),
+                 _stp_ntohs(sin->sin6_port));
 #endif
+            return;
+        }
+
+        if (what & SA_FAMILY)
+        {
+            n = strlcpy(stap_retvalue, "AF_INET6", maxstringlen);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IP_ADDR)
+        {
+#ifndef NIP6_FMT			// kver >= 2.6.36
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%pI6", &sin->sin6_addr);
+#else
+            n = snprintf(stap_retvalue, maxstringlen,
+                 NIP6_FMT, NIP6(sin->sin6_addr));
+#endif
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_TCP_PORT)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                "%d", _stp_ntohs(sin->sin6_port));
+            // (n - 1) mean: cut of null char
+            stap_retvalue += (n);
+            maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IPV6_FLOWINFO)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%d", sin->sin6_flowinfo);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
+
+        if (what & SA_IPV6_SCOPE_ID)
+        {
+            n = snprintf(stap_retvalue, maxstringlen,
+                 "%d", sin->sin6_flowinfo);
+			// (n - 1) mean: cut of null char
+			stap_retvalue += (n);
+			maxstringlen -= (n - 1);
+        }
 	}
 	else if ((sa->sa_family == AF_PACKET)
-		 && (len == sizeof(struct sockaddr_ll))) 
+		 && (len == sizeof(struct sockaddr_ll)))
 	{
-		struct sockaddr_ll *sll = (struct sockaddr_ll *)buf;
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			 "{AF_PACKET, proto=%d, ind=%d, hatype=%d, pkttype=%d, halen=%d, addr=0x%llx}",
-			 (int)sll->sll_protocol, sll->sll_ifindex,
-			 (int)sll->sll_hatype, (int)sll->sll_pkttype,
-			 (int)sll->sll_halen,
-			 (long long)(*(uint64_t *)sll->sll_addr));
+		struct sockaddr_ll *sll = (struct sockaddr_ll *)CONTEXT->buf;
+
+        if (what & SA_PRETTY)
+        {
+            snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+                 "{AF_PACKET, proto=%d, ind=%d, hatype=%d, pkttype=%d, halen=%d, addr=0x%llx}",
+                 (int)sll->sll_protocol, sll->sll_ifindex,
+                 (int)sll->sll_hatype, (int)sll->sll_pkttype,
+                 (int)sll->sll_halen,
+                 (long long)(*(uint64_t *)sll->sll_addr));
+        } else if (what & SA_FAMILY)
+        { 
+            strlcpy(STAP_RETVALUE, "AF_PACKET", MAXSTRINGLEN);
+        } else
+        {
+            strlcpy(STAP_RETVALUE, "", MAXSTRINGLEN);
+        }
 	}
 	else
 	{
@@ -512,21 +866,48 @@ function _adjtx_mode_str(f) {
    return substr(bs,0,strlen(bs)-1)
 }
 
-function _inotify_watch_mask_str(f) {
-	if (f & 0x00000001) bs="IN_ACCESS|"
-	if (f & 0x00000002) bs=bs."IN_MODIFY|"
-	if (f & 0x00000004) bs=bs."IN_ATTRIB|"
-	if (f & 0x00000008) bs=bs."IN_CLOSE_WRITE|"
-	if (f & 0x00000010) bs=bs."IN_CLOSE_NOWRITE|"
-	if (f & 0x00000020) bs=bs."IN_OPEN|"
-	if (f & 0x00000040) bs=bs."IN_MOVED_FROM|"
-	if (f & 0x00000080) bs=bs."IN_MOVED_TO|"
-	if (f & 0x00000100) bs=bs."IN_CREATE|"
-	if (f & 0x00000200) bs=bs."IN_DELETE|"
-	if (f & 0x00000400) bs=bs."IN_DELETE_SELF|"
-	if (f & 0x00000800) bs=bs."IN_MOVE_SELF|"
-	return substr(bs,0,strlen(bs)-1)
-}
+%{
+#if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
+#include <linux/inotify.h>
+#endif
+ 
+/* Ignore helper events IN_CLOSE and IN_MOVE, which are just
+ * combinations of other events. */
+
+static const _stp_val_array const _stp_inotify_watch_mask_list[] = {
+	V(IN_ACCESS),
+	V(IN_MODIFY),
+	V(IN_ATTRIB),
+	V(IN_CLOSE_WRITE),
+	V(IN_CLOSE_NOWRITE),
+	V(IN_OPEN),
+ 	V(IN_MOVED_FROM),
+	V(IN_MOVED_TO),
+	V(IN_CREATE),
+	V(IN_DELETE),
+	V(IN_DELETE_SELF),
+	V(IN_MOVE_SELF),
+	V(IN_UNMOUNT),
+	V(IN_Q_OVERFLOW),
+	V(IN_IGNORED),
+	V(IN_ONLYDIR),
+	V(IN_DONT_FOLLOW),
+#ifdef IN_EXCL_UNLINK
+	V(IN_EXCL_UNLINK),
+#endif
+	V(IN_MASK_ADD),
+	V(IN_ISDIR),
+	V(IN_ONESHOT),
+	{0, NULL}
+};
+%}
+
+function _inotify_watch_mask_str:string(mask:long)
+%{ /* pure */
+	uint32_t mask = (uint32_t)STAP_ARG_mask;
+	_stp_lookup_or_str(_stp_inotify_watch_mask_list, mask, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /*
  * Return the symbolic string representation
@@ -601,15 +982,45 @@ function _nfsctl_cmd_str(cmd) {
  *    syscall.clock_getres
  *    syscall.clock_nanosleep
  */
-function _get_wc_str(wc) {
-   if(wc==0) return "CLOCK_REALTIME"
-   if(wc==1) return "CLOCK_MONOTONIC"
-   if(wc==2) return "CLOCK_PROCESS_CPUTIME_ID"
-   if(wc==3) return "CLOCK_THREAD_CPUTIME_ID"
-   if(wc==4) return "CLOCK_REALTIME_HR"
-   if(wc==5) return "CLOCK_MONOTONIC_HR"
-   return sprintf("BAD VALUE: %d", wc)
-}
+%{
+#include <linux/time.h>
+
+static const _stp_val_array const _stp_wc_str_list[] = {
+	V(CLOCK_REALTIME),
+	V(CLOCK_MONOTONIC),
+	V(CLOCK_PROCESS_CPUTIME_ID),
+	V(CLOCK_THREAD_CPUTIME_ID),
+#ifdef CLOCK_MONOTONIC_RAW
+	V(CLOCK_MONOTONIC_RAW),
+#endif
+#ifdef CLOCK_REALTIME_COARSE
+	V(CLOCK_REALTIME_COARSE),
+#endif
+#ifdef CLOCK_MONOTONIC_COARSE
+	V(CLOCK_MONOTONIC_COARSE),
+#endif
+#ifdef CLOCK_BOOTTIME
+	V(CLOCK_BOOTTIME),
+#endif
+#ifdef CLOCK_REALTIME_ALARM
+	V(CLOCK_REALTIME_ALARM),
+#endif
+#ifdef CLOCK_BOOTTIME_ALARM
+	V(CLOCK_BOOTTIME_ALARM),
+#endif
+	V(CLOCK_SGI_CYCLE),
+#ifdef CLOCK_TAI
+	V(CLOCK_TAI),
+#endif
+	{0, NULL}
+};
+%}
+
+function _get_wc_str:string(wc:long)
+%{ /* pure */
+	unsigned int clkid = (unsigned int)STAP_ARG_wc;
+	_stp_lookup_str(_stp_wc_str_list, clkid, STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _flock_cmd_str(c) {
    if(c & 1) bs="LOCK_SH|".bs
@@ -635,10 +1046,91 @@ function _sys_pipe2_flag_str:string (f:long)
   if (flags & O_CLOEXEC)
     strlcat(str, "O_CLOEXEC|", MAXSTRINGLEN);
 #endif
+  if (flags == 0) {
+    strlcpy(str, "0", MAXSTRINGLEN);
+    return;
+  }
 
   len = strlen(str);
   if (len)
-    str[strlen(str)-1] = 0;
+    str[strlen(str)-1] = '\0';
+%}
+
+%{
+#include <linux/fcntl.h>
+ 
+static const _stp_val_array const _stp_open_mode_flags_list[] = {
+#ifdef O_CREAT
+	V(O_CREAT),
+#endif
+#ifdef O_EXCL
+	V(O_EXCL),
+#endif
+#ifdef O_NOCTTY
+	V(O_NOCTTY),
+#endif
+#ifdef O_TRUNC
+	V(O_TRUNC),
+#endif
+#ifdef O_APPEND
+	V(O_APPEND),
+#endif
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+
+/* Here's a comment from the kernel source:
+ *
+ * ====
+ * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
+ * the O_SYNC flag.  We continue to use the existing numerical value
+ * for O_DSYNC semantics now, but using the correct symbolic name for it.
+ * This new value is used to request true Posix O_SYNC semantics.  It is
+ * defined in this strange way to make sure applications compiled against
+ * new headers get at least O_DSYNC semantics on older kernels.
+ * ====
+ *
+ * On RHEL6 (2.6.32-431.3.1.el6.x86_64), the user headers are ahead of
+ * the kernel source and define O_DSYNC, but the kernel just ignores
+ * the extra bit set. We'll try to handle it here.
+ */
+#ifndef O_DSYNC
+	{ O_SYNC | 04000000, "O_SYNC" },
+#endif
+#ifdef O_SYNC
+	V(O_SYNC),
+#endif
+#ifdef O_DSYNC
+	V(O_DSYNC),
+#endif
+#ifdef O_ASYNC
+	V(O_ASYNC),
+#elif defined(FASYNC)
+	{ FASYNC, "O_ASYNC" },
+#endif
+#ifdef O_DIRECT
+	V(O_DIRECT),
+#endif
+#ifdef O_LARGEFILE
+	V(O_LARGEFILE),
+#endif
+#ifdef O_DIRECTORY
+	V(O_DIRECTORY),
+#endif
+#ifdef O_NOFOLLOW
+	V(O_NOFOLLOW),
+#endif
+#ifdef O_NOATIME
+	V(O_NOATIME),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+#ifdef O_PATH
+	V(O_PATH),
+#endif
+	{0, NULL}
+};
 %}
 
 /* `man 2 open` for more information */
@@ -658,76 +1150,33 @@ function _sys_open_flag_str:string (f:long)
 		strlcpy (STAP_RETVALUE, "O_RDONLY", MAXSTRINGLEN);
 	}
 
-#ifdef O_APPEND
-	if (flags & O_APPEND)
-		strlcat (STAP_RETVALUE, "|O_APPEND", MAXSTRINGLEN);
-#endif
-#ifdef O_ASYNC
-	if (flags & O_ASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#elif defined(FASYNC)
-	if (flags & FASYNC)
-		strlcat (STAP_RETVALUE, "|O_ASYNC", MAXSTRINGLEN);
-#endif
-#ifdef O_CLOEXEC
-	if (flags & O_CLOEXEC)
-		strlcat (STAP_RETVALUE, "|O_CLOEXEC", MAXSTRINGLEN);
-#endif
-#ifdef O_CREAT
-	if (flags & O_CREAT)
-		strlcat (STAP_RETVALUE, "|O_CREAT", MAXSTRINGLEN);
-#endif
-#ifdef O_DIRECT
-	if (flags & O_DIRECT)
-		strlcat (STAP_RETVALUE, "|O_DIRECT", MAXSTRINGLEN);
-#endif
-#ifdef O_DIRECTORY
-	if (flags & O_DIRECTORY)
-		strlcat (STAP_RETVALUE, "|O_DIRECTORY", MAXSTRINGLEN);
-#endif
-#ifdef O_EXCL
-	if (flags & O_EXCL)
-		strlcat (STAP_RETVALUE, "|O_EXCL", MAXSTRINGLEN);
-#endif
-#ifdef O_LARGEFILE
-	if (flags & O_LARGEFILE)
-		strlcat (STAP_RETVALUE, "|O_LARGEFILE", MAXSTRINGLEN);
-#endif
-#ifdef O_NOATIME
-	if (flags & O_NOATIME)
-		strlcat (STAP_RETVALUE, "|O_NOATIME", MAXSTRINGLEN);
-#endif
-#ifdef O_NOCTTY
-	if (flags & O_NOCTTY)
-		strlcat (STAP_RETVALUE, "|O_NOCTTY", MAXSTRINGLEN);
-#endif
-#ifdef O_NOFOLLOW
-	if (flags & O_NOFOLLOW)
-		strlcat (STAP_RETVALUE, "|O_NOFOLLOW", MAXSTRINGLEN);
-#endif
-#ifdef O_NONBLOCK
-	if (flags & O_NONBLOCK)
-		strlcat (STAP_RETVALUE, "|O_NONBLOCK", MAXSTRINGLEN);
-#endif
-#ifdef O_SYNC
-	if (flags & O_SYNC)
-		strlcat (STAP_RETVALUE, "|O_SYNC", MAXSTRINGLEN);
-#endif
-#ifdef O_TRUNC
-	if (flags & O_TRUNC)
-		strlcat (STAP_RETVALUE, "|O_TRUNC", MAXSTRINGLEN);
-#endif
+	flags &= ~O_ACCMODE;
+	if (flags) {
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_open_mode_flags_list, flags,
+				   STAP_RETVALUE, MAXSTRINGLEN);
+	}
 %}
 
+%{
+/* Notice that the kernel defines and the user defines are named
+ * differently. */
+static const _stp_val_array const _stp_access_mode_list[] = {
+	{0, "F_OK"},
+	{MAY_READ, "R_OK"},
+	{MAY_WRITE, "W_OK"},
+	{MAY_EXEC, "X_OK"},
+	{0, NULL}
+};
+%}
 
 /* `man 2 open` for more information */
-function _access_mode_str(m) {
-	if((m & 7) == 0) return "F_OK"	
-	if(m & 4) bs="R_OK |".bs
-	if(m & 2) bs="W_OK |".bs
-	if(m & 1) bs="X_OK |".bs
-	return substr(bs,0,strlen(bs)-2)
-}
+function _access_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	_stp_lookup_or_str(_stp_access_mode_list, mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /* `man 2 open` for more information */
 function _sys_open_mode_str(f) {
@@ -913,29 +1362,60 @@ function _wait_status_str(f) {
   return sprintf ("?=0x%x", f)
 }
 
-/* `man sendmsg` for more information */
-function _sendflags_str(f) {
-   if(f & 0x0001) bs="MSG_OOB|".bs
-   if(f & 0x0080) bs="MSG_EOR|".bs
-   if(f & 0x0004) bs="MSG_DONTROUTE|".bs
-   if(f & 0x0040) bs="MSG_DONTWAIT|".bs
-   if(f & 0x4000) bs="MSG_NOSIGNAL|".bs
-   if(f & 0x0800) bs="MSG_CONFIRM|".bs
-   if(f & 0x8000) bs="MSG_MORE|".bs
-   return substr(bs,0,strlen(bs)-1)
-}
+%{
+static const _stp_val_array const _stp_msg_flags_list[] = {
+	V(MSG_OOB),
+	V(MSG_PEEK),
+	V(MSG_DONTROUTE),
+	V(MSG_TRYHARD),
+	V(MSG_CTRUNC),
+	V(MSG_PROBE),
+	V(MSG_TRUNC),
+	V(MSG_DONTWAIT),
+	V(MSG_EOR),
+	V(MSG_WAITALL),
+	V(MSG_FIN),
+	V(MSG_SYN),
+	V(MSG_CONFIRM),
+	V(MSG_RST),
+	V(MSG_ERRQUEUE),
+	V(MSG_NOSIGNAL),
+	V(MSG_MORE),
+#ifdef MSG_WAITFORONE
+	V(MSG_WAITFORONE),
+#endif
+#ifdef MSG_SENDPAGE_NOTLAST
+	V(MSG_SENDPAGE_NOTLAST),
+#endif
+	V(MSG_EOF),
+#ifdef MSG_FASTOPEN
+	V(MSG_FASTOPEN),
+#endif
+#ifdef MSG_CMSG_CLOEXEC
+	V(MSG_CMSG_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
 
-/* `man recv` for more information */
-function _recvflags_str(f) {
-   if(f & 1) bs="MSG_OOB|".bs
-   if(f & 2) bs="MSG_PEEK|".bs
-   if(f & 32) bs="MSG_TRUNC|".bs
-   if(f & 64) bs="MSG_DONTWAIT|".bs
-   if(f & 256) bs="MSG_WAITALL|".bs
-   if(f & 8192) bs="MSG_ERRQUEUE|".bs
-   if(f & 0x40000000) bs="MSG_CMSG_CLOEXEC|".bs
-   return substr(bs,0,strlen(bs)-1)
+function _msg_flags_str:string(flags:long)
+%{ /* pure */
+	// Ignore MSG_CMSG_COMPAT in flags.
+	_stp_lookup_or_str(_stp_msg_flags_list,
+			   (STAP_ARG_flags & ~MSG_CMSG_COMPAT), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%(systemtap_v <= "2.5" %?
+function _sendflags_str:string(flags:long)
+{
+	return _msg_flags_str(flags)
 }
+function _recvflags_str:string(flags:long)
+{
+	return _msg_flags_str(flags)
+}
+%)
 
 /* `man mlockall` for more information */
 function _mlockall_flags_str:string(flags:long)
@@ -972,75 +1452,113 @@ function _module_flags_str:string(flags:long)
 		str[strlen(str)-1] = '\0';
 %}
 
-function _sched_policy_str(policy) {
-   if(policy==0) return "SCHED_OTHER"
-   if(policy==1) return "SCHED_FIFO"
-   if(policy==2) return "SCHED_RR"
-   if(policy==3) return "SCHED_BATCH"
-   return sprintf("UNKNOWN VALUE: %d", policy)
-}
+%{
+#include <linux/sched.h>
 
-function _priority_which_str(which) {
-   if(which==0) return "PRIO_PROCESS"
-   if(which==1) return "PRIO_PGRP"
-   if(which==2) return "PRIO_USER"
-   return sprintf("UNKNOWN VALUE: %d", which)
-}
+static const _stp_val_array const _stp_sched_policy_list[] = {
+	{SCHED_NORMAL, "SCHED_OTHER"}, // SCHED_NORMAL==SCHED_OTHER
+	V(SCHED_FIFO),
+	V(SCHED_RR),
+	V(SCHED_BATCH),
+#ifdef SCHED_IDLE
+	V(SCHED_IDLE),
+#endif
+#ifdef SCHED_DEADLINE
+	V(SCHED_DEADLINE),
+#endif
+	{0, NULL}
+};
+%}
 
-function _shutdown_how_str(how) {
-   if(how==0) return "SHUT_RD"
-   if(how==1) return "SHUT_WR"
-   if(how==2) return "SHUT_RDWR"
-   return sprintf("UNKNOWN VALUE: %d", how)
-}
+function _sched_policy_str:string(policy:long)
+%{ /* pure */
+	unsigned int policy = (unsigned int)STAP_ARG_policy;
+#ifdef SCHED_RESET_ON_FORK
+	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
+	policy &= ~SCHED_RESET_ON_FORK;
+#endif
+	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE,
+			MAXSTRINGLEN);
+#ifdef SCHED_RESET_ON_FORK
+	if (reset_on_fork)
+		strlcat(STAP_RETVALUE, "|SCHED_RESET_ON_FORK", MAXSTRINGLEN);
+#endif			
+%}
+
+%{
+static const _stp_val_array const _stp_priority_which_list[] = {
+	V(PRIO_PROCESS),
+	V(PRIO_PGRP),
+	V(PRIO_USER),
+	{0, NULL}
+};
+%}
+
+function _priority_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_priority_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_shutdown_how_list[] = {
+	V(SHUT_RD),
+	V(SHUT_WR),
+	V(SHUT_RDWR),
+	{0, NULL}
+};
+%}
+
+function _shutdown_how_str:string(how:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_shutdown_how_list, (unsigned int)STAP_ARG_how,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 // Needed for function __reboot_magic_str:string. Unfortunately cannot
 // be inlined into the function since these header file defines static
 // functions on some architectures.
 #include <linux/reboot.h>
+
+static const _stp_val_array const _stp_reboot_magic_list[] = {
+	V(LINUX_REBOOT_MAGIC1),
+	V(LINUX_REBOOT_MAGIC2),
+	V(LINUX_REBOOT_MAGIC2A),
+	V(LINUX_REBOOT_MAGIC2B),
+	V(LINUX_REBOOT_MAGIC2C),
+	{0, NULL}
+};
 %}
 
 function _reboot_magic_str:string(magic:long)
 %{ /* pure */
-	int magic = (int)STAP_ARG_magic;
-	switch (magic) {
-	case LINUX_REBOOT_MAGIC1:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC1", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2A:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2A", MAXSTRINGLEN);
-		break;
-	case LINUX_REBOOT_MAGIC2B:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2B", MAXSTRINGLEN);
-		break;
-/*
-	LINUX_REBOOT_MAGIC2C is supported from kernel 2.6
-*/
-#ifdef LINUX_REBOOT_MAGIC2C
-	case LINUX_REBOOT_MAGIC2C:
-		strlcpy(STAP_RETVALUE, "LINUX_REBOOT_MAGIC2C", MAXSTRINGLEN);
-		break;
-#endif
-	default:
-		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "UNKNOWN VALUE: %d", magic);
-	}
+	unsigned int magic = (unsigned int)STAP_ARG_magic;
+	_stp_lookup_str(_stp_reboot_magic_list, magic, STAP_RETVALUE,
+			MAXSTRINGLEN);
 %}
 
-function _reboot_flag_str(flag) {
-   if(flag==0x01234567) return "LINUX_REBOOT_CMD_RESTART"
-   if(flag==0xCDEF0123) return "LINUX_REBOOT_CMD_HALT"
-   if(flag==0x4321FEDC) return "LINUX_REBOOT_CMD_POWER_OFF"
-   if(flag==0xA1B2C3D4) return "LINUX_REBOOT_CMD_RESTART2"
-   if(flag==0x89ABCDEF) return "LINUX_REBOOT_CMD_CAD_ON"
-   if(flag==0x00000000) return "LINUX_REBOOT_CMD_CAD_OFF"
-   if(flag==0xD000FCE2) return "LINUX_REBOOT_CMD_SW_SUSPEND"
-   if(flag==0x45584543) return "LINUX_REBOOT_CMD_KEXEC"
-   return sprintf("UNKNOWN VALUE: %d", flag)
-}
+%{
+#include <linux/reboot.h>
+static const _stp_val_array const _stp_reboot_flag_list[] = {
+	V(LINUX_REBOOT_CMD_RESTART),
+	V(LINUX_REBOOT_CMD_HALT),
+	V(LINUX_REBOOT_CMD_CAD_ON),
+	V(LINUX_REBOOT_CMD_CAD_OFF),
+	V(LINUX_REBOOT_CMD_POWER_OFF),
+	V(LINUX_REBOOT_CMD_RESTART2),
+	V(LINUX_REBOOT_CMD_SW_SUSPEND),
+	V(LINUX_REBOOT_CMD_KEXEC),
+	{0, NULL}
+};	
+%}
+
+function _reboot_flag_str:string(flag:long)
+%{  /* pure */
+	unsigned int flag = (unsigned int)STAP_ARG_flag;
+	_stp_lookup_str(_stp_reboot_flag_list, flag, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _waitid_which_str(flag) {
    if(flag==0) return "P_ALL"
@@ -1176,20 +1694,68 @@ function _statfs_f_type_str(f) {
    return sprintf("UNKNOWN VALUE: %d", f)
 }
 
-function _mremap_flags(flags) {
-	if (flags & 1) msg="MREMAP_MAYMOVE|"
-	if (flags & 2) msg="MREMAP_FIXED|".msg
-	return substr(msg,0,strlen(msg)-1)
-}
+%{
+#include <linux/mman.h>
 
-function _madvice_advice_str(behavior) {
-   if(behavior==0x00000000) return "MADV_NORMAL"
-   if(behavior==0x00000001) return "MADV_RANDOM"
-   if(behavior==0x00000002) return "MADV_SEQUENTIAL"
-   if(behavior==0x00000003) return "MADV_WILLNEED"
-   if(behavior==0x00000004) return "MADV_DONTNEED"
-   return sprintf("UNKNOWN VALUE: %d", behavior)
-}
+static const _stp_val_array const _stp_mremap_flags_list[] = {
+	V(MREMAP_MAYMOVE),
+	V(MREMAP_FIXED),
+	{0, NULL}
+};
+%}
+
+function _mremap_flags:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mremap_flags_list, (uint32_t)STAP_ARG_flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#include <linux/mman.h>
+
+static const _stp_val_array const _stp_madvice_advice_list[] = {
+	V(MADV_NORMAL),
+	V(MADV_RANDOM),
+	V(MADV_SEQUENTIAL),
+	V(MADV_WILLNEED),
+	V(MADV_DONTNEED),
+	V(MADV_REMOVE),
+	V(MADV_DONTFORK),
+	V(MADV_DOFORK),
+#ifdef MADV_HWPOISON
+	V(MADV_HWPOISON),
+#endif
+#ifdef MADV_SOFT_OFFLINE
+	V(MADV_SOFT_OFFLINE),
+#endif
+#ifdef MADV_MERGEABLE
+	V(MADV_MERGEABLE),
+#endif
+#ifdef MADV_UNMERGEABLE
+	V(MADV_UNMERGEABLE),
+#endif
+#ifdef MADV_HUGEPAGE
+	V(MADV_HUGEPAGE),
+#endif
+#ifdef MADV_NOHUGEPAGE
+	V(MADV_NOHUGEPAGE),
+#endif
+#ifdef MADV_DONTDUMP
+	V(MADV_DONTDUMP),
+#endif
+#ifdef MADV_DODUMP
+	V(MADV_DODUMP),
+#endif
+	{0, NULL}
+};
+%}
+
+function _madvice_advice_str:string(behavior)
+%{ /* pure */
+	_stp_lookup_str(_stp_madvice_advice_list,
+			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _fadvice_advice_str(behavior) {
    if(behavior==0x00000000) return "FADV_NORMAL"
@@ -1200,25 +1766,67 @@ function _fadvice_advice_str(behavior) {
    return sprintf("UNKNOWN VALUE: %d", behavior)
 }
 
-function _fcntl_cmd_str(cmd) {
-   if(cmd==0) return "F_DUPFD"
-   if(cmd==1) return "F_GETFD"
-   if(cmd==2) return "F_SETFD"
-   if(cmd==3) return "F_GETFL"
-   if(cmd==4) return "F_SETFL"
-   if(cmd==5) return "F_GETLK"
-   if(cmd==6) return "F_SETLK"
-   if(cmd==7) return "F_SETLKW"
-   if(cmd==8) return "F_SETOWN"
-   if(cmd==9) return "F_GETOWN"
-   if(cmd==10) return "F_SETSIG"
-   if(cmd==11) return "F_GETSIG"
-   if(cmd==12) return "F_GETLK64"
-   if(cmd==13) return "F_SETLK64"
-   if(cmd==14) return "F_SETLKW64"
-   if(cmd==1030) return "F_DUPFD_CLOEXEC"
-   return sprintf("UNKNOWN VALUE: %d", cmd)
-}
+%{
+#include <linux/fcntl.h>
+
+static const _stp_val_array const _stp_fcntl_cmd_list[] = {
+	V(F_DUPFD),
+	V(F_GETFD),
+	V(F_SETFD),
+	V(F_GETFL),
+	V(F_SETFL),
+	V(F_GETLK),
+	V(F_SETLK),
+	V(F_SETLKW),
+	V(F_SETOWN),
+	V(F_GETOWN),
+	V(F_SETSIG),
+	V(F_GETSIG),
+#ifdef F_GETLK64
+	V(F_GETLK64),
+#endif
+#ifdef F_SETLK64
+	V(F_SETLK64),
+#endif
+#ifdef F_SETLKW64
+	V(F_SETLKW64),
+#endif
+#ifdef F_SETOWN_EX
+	V(F_SETOWN_EX),
+#endif
+#ifdef F_GETOWN_EX
+	V(F_GETOWN_EX),
+#endif
+#ifdef F_GETOWNER_UIDS
+	V(F_GETOWNER_UIDS),
+#endif
+#ifdef F_SETLEASE
+	V(F_SETLEASE),
+#endif
+#ifdef F_GETLEASE
+	V(F_GETLEASE),
+#endif
+#ifdef F_DUPFD_CLOEXEC
+ 	V(F_DUPFD_CLOEXEC),
+#endif
+#ifdef F_NOTIFY
+	V(F_NOTIFY),
+#endif
+#ifdef F_SETPIPE_SZ
+	V(F_SETPIPE_SZ),
+#endif
+#ifdef F_GETPIPE_SZ
+	V(F_GETPIPE_SZ),
+#endif
+	{0, NULL}
+};
+%}
+
+function _fcntl_cmd_str:string(cmd:long)
+%{
+	_stp_lookup_str(_stp_fcntl_cmd_list, (unsigned int)STAP_ARG_cmd,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 #include <linux/fs.h>
@@ -1237,15 +1845,21 @@ function _fcntl_cmd_str(cmd) {
 #ifndef SEEK_HOLE
 #define SEEK_HOLE	4
 #endif
+static const _stp_val_array const _stp_seek_whence_list[] = {
+	V(SEEK_SET),
+	V(SEEK_CUR),
+	V(SEEK_END),
+	V(SEEK_DATA),
+	V(SEEK_HOLE),
+	{0, NULL}
+};
+
 %}
-function _seek_whence_str(w) {
-   if (w == %{ SEEK_SET %}) return "SEEK_SET"
-   if (w == %{ SEEK_CUR %}) return "SEEK_CUR"
-   if (w == %{ SEEK_END %}) return "SEEK_END"
-   if (w == %{ SEEK_DATA %}) return "SEEK_DATA"
-   if (w == %{ SEEK_HOLE %}) return "SEEK_HOLE"
-   return sprintf("UNKNOWN VALUE: %d", w)
-}
+function _seek_whence_str:string(w:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_seek_whence_list, (unsigned int)STAP_ARG_w,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _quotactl_cmd_str(cmd) {
    if(cmd==0x800002) return "Q_QUOTAON"
@@ -1267,171 +1881,165 @@ function _quotactl_cmd_str(cmd) {
    return sprintf("UNKNOWN VALUE: %d", cmd)
 }
 
-/* see sys/socket.h (for setsockopt) */
-function _sockopt_optname_str(opt) {
-   if(opt==1) return "SO_DEBUG"
-   if(opt==2) return "SO_REUSEADDR"
-   if(opt==3) return "SO_TYPE"
-   if(opt==4) return "SO_ERROR"
-   if(opt==5) return "SO_DONTROUTE"
-   if(opt==6) return "SO_BROADCAST"
-   if(opt==7) return "SO_SNDBUF"
-   if(opt==8) return "SO_RCVBUF"
-   if(opt==9) return "SO_KEEPALIVE"
-   if(opt==10) return "SO_OOBINLINE"
-   if(opt==11) return "SO_NO_CHECK"
-   if(opt==12) return "SO_PRIORITY"
-   if(opt==13) return "SO_LINGER"
-   if(opt==14) return "SO_BSDCOMPAT"
+%{
+#include <linux/socket.h>
 
-   if(opt==16) return "SO_PASSCRED"
-   if(opt==17) return "SO_PEERCRED"
-   if(opt==18) return "SO_RCVLOWAT"
-   if(opt==19) return "SO_SNDLOWAT"
-   if(opt==20) return "SO_RCVTIMEO"
-   if(opt==21) return "SO_SNDTIMEO"
-   if(opt==32) return "SO_SNDBUFFORCE"
-   if(opt==33) return "SO_RCVBUFFORCE"
-   return sprintf("UNKNOWN VALUE: %d", opt)
-}
+static const _stp_val_array const _stp_sockopt_optname_list[] = {
+	V(SO_DEBUG),
+	V(SO_REUSEADDR),
+	V(SO_TYPE),
+	V(SO_ERROR),
+	V(SO_DONTROUTE),
+	V(SO_BROADCAST),
+	V(SO_SNDBUF),
+	V(SO_RCVBUF),
+	V(SO_SNDBUFFORCE),
+	V(SO_RCVBUFFORCE),
+	V(SO_KEEPALIVE),
+	V(SO_OOBINLINE),
+	V(SO_NO_CHECK),
+	V(SO_PRIORITY),
+	V(SO_LINGER),
+	V(SO_BSDCOMPAT),
+#ifdef SO_REUSEPORT
+	V(SO_REUSEPORT),
+#endif
+	V(SO_PASSCRED),
+	V(SO_PEERCRED),
+	V(SO_RCVLOWAT),
+	V(SO_SNDLOWAT),
+	V(SO_RCVTIMEO),
+	V(SO_SNDTIMEO),
+	V(SO_SECURITY_AUTHENTICATION),
+	V(SO_SECURITY_ENCRYPTION_TRANSPORT),
+	V(SO_SECURITY_ENCRYPTION_NETWORK),
+	V(SO_BINDTODEVICE),
+	V(SO_ATTACH_FILTER),
+	V(SO_DETACH_FILTER),
+	V(SO_PEERNAME),
+	V(SO_TIMESTAMP),
+	V(SO_ACCEPTCONN),
+	V(SO_PEERSEC),
+	V(SO_PASSSEC),
+#ifdef SO_TIMESTAMPNS
+	V(SO_TIMESTAMPNS),
+#endif
+#ifdef SO_MARK
+	V(SO_MARK),
+#endif
+#ifdef SO_TIMESTAMPING
+	V(SO_TIMESTAMPING),
+#endif
+#ifdef SO_PROTOCOL
+	V(SO_PROTOCOL),
+#endif
+#ifdef SO_DOMAIN
+	V(SO_DOMAIN),
+#endif
+#ifdef SO_RXQ_OVFL
+	V(SO_RXQ_OVFL),
+#endif
+#ifdef SO_WIFI_STATUS
+	V(SO_WIFI_STATUS),
+#endif
+#ifdef SO_PEEK_OFF
+	V(SO_PEEK_OFF),
+#endif
+#ifdef SO_NOFCS
+	V(SO_NOFCS),
+#endif
+#ifdef SO_LOCK_FILTER
+	V(SO_LOCK_FILTER),
+#endif
+#ifdef SO_SELECT_ERR_QUEUE
+	V(SO_SELECT_ERR_QUEUE),
+#endif
+#ifdef SO_BUSY_POLL
+	V(SO_BUSY_POLL),
+#endif
+#ifdef SO_MAX_PACING_RATE
+	V(SO_MAX_PACING_RATE),
+#endif
+#ifdef SO_BPF_EXTENSIONS
+	V(SO_BPF_EXTENSIONS),
+#endif
+	{0, NULL}
+};
+%}
+
+/* see sys/socket.h (for setsockopt) */
+function _sockopt_optname_str:string(opt:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sockopt_optname_list, STAP_ARG_opt, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_sockopt_level_list[] = {
+	V(SOL_IP),
+	V(SOL_SOCKET),
+	V(SOL_TCP),
+	V(SOL_UDP),
+	V(SOL_IPV6),
+	V(SOL_ICMPV6),
+	V(SOL_SCTP),
+#ifdef SOL_UDPLITE
+	V(SOL_UDPLITE),
+#endif
+	V(SOL_RAW),
+	V(SOL_IPX),
+	V(SOL_AX25),
+	V(SOL_ATALK),
+	V(SOL_NETROM),
+	V(SOL_ROSE),
+	V(SOL_DECNET),
+#ifdef SOL_X25
+	V(SOL_X25),
+#endif
+	V(SOL_PACKET),
+	V(SOL_ATM),
+	V(SOL_AAL),
+	V(SOL_IRDA),
+	V(SOL_NETBEUI),
+	V(SOL_LLC),
+	V(SOL_DCCP),
+	V(SOL_NETLINK),
+	V(SOL_TIPC),
+#ifdef SOL_RXRPC
+	V(SOL_RXRPC),
+#endif
+#ifdef SOL_PPPOL2TP
+	V(SOL_PPPOL2TP),
+#endif
+#ifdef SOL_BLUETOOTH
+	V(SOL_BLUETOOTH),
+#endif
+#ifdef SOL_PNPIPE
+	V(SOL_PNPIPE),
+#endif
+#ifdef SOL_RDS
+	V(SOL_RDS),
+#endif
+	V(SOL_IUCV),
+#ifdef SOL_CAIF
+	V(SOL_CAIF),
+#endif
+#ifdef SOL_ALG
+	V(SOL_ALG),
+#endif
+#ifdef SOL_NFC
+	V(SOL_NFC),
+#endif
+	{0, NULL}
+};
+%}
 
 /* `man 2 setsockopt` for more information */
-function _sockopt_level_str(l) {
-   if(l==0) return "IP"
-   if(l==1) return "SOL_SOCKET" # not ICMP
-   if(l==2) return "IGMP"
-   if(l==3) return "GGP"
-   if(l==4) return "IP-ENCAP"
-   if(l==5) return "ST"
-   if(l==6) return "TCP"
-   if(l==7) return "CBT"
-   if(l==8) return "EGP"
-   if(l==9) return "IGP"
-   if(l==10) return "BBN-RCC-MON"
-   if(l==11) return "NVP-II"
-   if(l==12) return "PUP"
-   if(l==13) return "ARGUS"
-   if(l==14) return "EMCON"
-   if(l==15) return "XNET"
-   if(l==16) return "CHAOS"
-   if(l==17) return "UDP"
-   if(l==18) return "MUX"
-   if(l==19) return "DCN-MEAS"
-   if(l==20) return "HMP"
-   if(l==21) return "PRM"
-   if(l==22) return "XNS-IDP"
-   if(l==23) return "TRUNK-1"
-   if(l==24) return "TRUNK-2"
-   if(l==25) return "LEAF-1"
-   if(l==26) return "LEAF-2"
-   if(l==27) return "RDP"
-   if(l==28) return "IRTP"
-   if(l==29) return "ISO-TP4"
-   if(l==30) return "NETBLT"
-   if(l==31) return "MFE-NSP"
-   if(l==32) return "MERIT-INP"
-   if(l==33) return "SEP"
-   if(l==34) return "3PC"
-   if(l==35) return "IDPR"
-   if(l==36) return "XTP"
-   if(l==37) return "DDP"
-   if(l==38) return "IDPR-CMTP"
-   if(l==39) return "TP++"
-   if(l==40) return "IL"
-   if(l==41) return "IPv6"
-   if(l==42) return "SDRP"
-   if(l==43) return "IPv6-Route"
-   if(l==44) return "IPv6-Frag"
-   if(l==45) return "IDRP"
-   if(l==46) return "RSVP"
-   if(l==47) return "GRE"
-   if(l==48) return "MHRP"
-   if(l==49) return "BNA"
-   if(l==50) return "IPv6-Crypt"
-   if(l==51) return "IPv6-Auth"
-   if(l==52) return "I-NLSP"
-   if(l==53) return "SWIPE"
-   if(l==54) return "NARP"
-   if(l==55) return "MOBILE"
-   if(l==56) return "TLSP"
-   if(l==57) return "SKIP"
-   if(l==58) return "IPv6-ICMP"
-   if(l==59) return "IPv6-NoNxt"
-   if(l==60) return "IPv6-Opts"
-   if(l==62) return "CFTP"
-   if(l==64) return "SAT-EXPAK"
-   if(l==65) return "KRYPTOLAN"
-   if(l==66) return "RVD"
-   if(l==67) return "IPPC"
-   if(l==69) return "SAT-MON"
-   if(l==70) return "VISA"
-   if(l==71) return "IPCV"
-   if(l==72) return "CPNX"
-   if(l==73) return "CPHB"
-   if(l==74) return "WSN"
-   if(l==75) return "PVP"
-   if(l==76) return "BR-SAT-MON"
-   if(l==77) return "SUN-ND"
-   if(l==78) return "WB-MON"
-   if(l==79) return "WB-EXPAK"
-   if(l==80) return "ISO-IP"
-   if(l==81) return "VMTP"
-   if(l==82) return "SECURE-VMTP"
-   if(l==83) return "VINES"
-   if(l==84) return "TTP"
-   if(l==85) return "NSFNET-IGP"
-   if(l==86) return "DGP"
-   if(l==87) return "TCF"
-   if(l==88) return "EIGRP"
-   if(l==89) return "OSPFIGP"
-   if(l==90) return "Sprite-RPC"
-   if(l==91) return "LARP"
-   if(l==92) return "MTP"
-   if(l==93) return "AX.25"
-   if(l==94) return "IPIP"
-   if(l==95) return "MICP"
-   if(l==96) return "SCC-SP"
-   if(l==97) return "ETHERIP"
-   if(l==98) return "ENCAP"
-   if(l==100) return "GMTP"
-   if(l==101) return "IFMP"
-   if(l==102) return "PNNI"
-   if(l==103) return "PIM"
-   if(l==104) return "ARIS"
-   if(l==105) return "SCPS"
-   if(l==106) return "QNX"
-   if(l==107) return "A/N"
-   if(l==108) return "IPComp"
-   if(l==109) return "SNP"
-   if(l==110) return "Compaq-Peer"
-   if(l==111) return "IPX-in-IP"
-   if(l==112) return "VRRP"
-   if(l==113) return "PGM"
-   if(l==115) return "L2TP"
-   if(l==116) return "DDX"
-   if(l==117) return "IATP"
-   if(l==118) return "STP"
-   if(l==119) return "SRP"
-   if(l==120) return "UTI"
-   if(l==121) return "SMP"
-   if(l==122) return "SM"
-   if(l==123) return "PTP"
-   if(l==124) return "ISIS"
-   if(l==125) return "FIRE"
-   if(l==126) return "CRTP"
-   if(l==127) return "CRUDP"
-   if(l==128) return "SSCOPMCE"
-   if(l==129) return "IPLT"
-   if(l==130) return "SPS"
-   if(l==131) return "PIPE"
-   if(l==132) return "SCTP"
-   if(l==133) return "FC"
-   if(l==134) return "RSVP-E2E-IGNORE"
-   if(l==135) return "Mobility-Header"
-   if(l==136) return "UDPLite"
-   if(l==137) return "MPLS-IN-IP"
-   return sprintf("UNKNOWN VALUE: %d", l)
-}
+function _sockopt_level_str:string(level:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sockopt_level_list, STAP_ARG_level, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 function _sock_family_str(f) {
    if(f==0) return "PF_UNSPEC"
@@ -1475,75 +2083,169 @@ function _sock_type_str:string(type:long)
 #else
 	int t = (int)STAP_ARG_type;
 #endif
+	int data_added = 0;
 
+	/*
+	 * This is a bit tricky. We've got 2 types of information
+	 * here. A socket type and a possible combination of socket
+	 * flags. In addition, we only want one final listing of
+	 * any unknown bits set.
+	 *
+	 * We can't call _stp_lookup_str() here since it would go
+	 * ahead and display any unknown type value, and we want to
+	 * wait until after any possible flags are displayed.
+	 */
 	switch (t) {
 	case SOCK_STREAM:
 		strlcpy (STAP_RETVALUE, "SOCK_STREAM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_DGRAM:
 		strlcpy (STAP_RETVALUE, "SOCK_DGRAM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_RAW:
 		strlcpy (STAP_RETVALUE, "SOCK_RAW", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_RDM:
 		strlcpy (STAP_RETVALUE, "SOCK_RDM", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 	case SOCK_SEQPACKET:
 		strlcpy (STAP_RETVALUE, "SOCK_SEQPACKET", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 #ifdef SOL_DCCP
 	case SOCK_DCCP:
 		strlcpy (STAP_RETVALUE, "SOCK_DCCP", MAXSTRINGLEN);
+		t = 0;
+		data_added = 1;
 		break;
 #endif
 	case SOCK_PACKET:
 		strlcpy (STAP_RETVALUE, "SOCK_PACKET", MAXSTRINGLEN);
-		break;
-	default:
-		snprintf (STAP_RETVALUE, MAXSTRINGLEN, "UNKNOWN VALUE: %d", t);
+		t = 0;
+		data_added = 1;
 		break;
 	}
 
 #ifdef SOCK_TYPE_MASK
+	/* We can't use _stp_lookup_or_str() here since if none of
+	 * these flags are set it would put a "0x0" on the end, which
+	 * we don't want to add to the socket type. */
 	if (flags & SOCK_CLOEXEC) {
-		strlcat (STAP_RETVALUE, "|SOCK_CLOEXEC", MAXSTRINGLEN);
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, "SOCK_CLOEXEC", MAXSTRINGLEN);
+		flags &= ~SOCK_CLOEXEC;
+		data_added = 1;
 	}
 	if (flags & SOCK_NONBLOCK) {
-		strlcat (STAP_RETVALUE, "|SOCK_NONBLOCK", MAXSTRINGLEN);
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		strlcat (STAP_RETVALUE, "SOCK_NONBLOCK", MAXSTRINGLEN);
+		flags &= ~SOCK_NONBLOCK;
+		data_added = 1;
 	}
+	
+	/* If we have any leftover flags bits, add them back to the
+	 * type bits to get displayed together. */
+	t |= flags;
 #endif
+
+	/* Display any leftover bits. */
+	if (t != 0 || !data_added) {
+		int slen;
+		if (data_added)
+			strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen,
+			      "0x%x", t);
+	}
+%}
+
+%{
+static const _stp_val_array const _stp_sock_flags_list[] = {
+#ifdef SOCK_TYPE_MASK
+	V(SOCK_CLOEXEC),
+	V(SOCK_NONBLOCK),
+#endif
+	{0, NULL}
+};
 %}
 
 function _sock_flags_str:string(f:long)
 %{ /* pure */
-#ifdef SOCK_TYPE_MASK
-	int flags = (int)STAP_ARG_f;
-	int len;
+	_stp_lookup_or_str(_stp_sock_flags_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
-	STAP_RETVALUE[0] = '\0';
-	if (flags & SOCK_CLOEXEC) {
-		strlcat (STAP_RETVALUE, "SOCK_CLOEXEC|", MAXSTRINGLEN);
-	}
-	if (flags & SOCK_NONBLOCK) {
-		strlcat (STAP_RETVALUE, "SOCK_NONBLOCK|", MAXSTRINGLEN);
-	}
-	len = strlen(STAP_RETVALUE);
-	if (len) {
-		STAP_RETVALUE[len - 1] = '\0';
-	}
-	else {
-		strlcat (STAP_RETVALUE, "0", MAXSTRINGLEN);
-	}
+%{
+// Be sure we have the IPPROTO_* defines. But, on some older kernels
+// we don't have all of them defined. Also note that on some older
+// kernels these values are enum values, not defines. But, the
+// following code should work anyway.
+#include <linux/in.h>
+#ifndef IPPROTO_TP
+#define IPPROTO_TP 29
+#endif
+#ifndef IPPROTO_MTP
+#define IPPROTO_MTP 92
+#endif
+#ifndef IPPROTO_ENCAP
+#define IPPROTO_ENCAP 98
+#endif
+#ifndef IPPROTO_UDPLITE
+#define IPPROTO_UDPLITE 136
 #endif
 %}
 
-function _opoll_op_str(o) {
-   if(o==1) return "EPOLL_CTL_ADD"
-   if(o==3) return "EPOLL_CTL_MOD"
-   if(o==2) return "EPOLL_CTL_DEL"
-   return sprintf("UNKNOWN VALUE: %d", o)
+function _sock_protocol_str:string(family:long, protocol:long) {
+    if (family == %{ PF_INET %} || family == %{ PF_INET6 %}) {
+	if (protocol == %{ IPPROTO_IP %}) return "IPPROTO_IP"
+	if (protocol == %{ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
+	if (protocol == %{ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
+	if (protocol == %{ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
+	if (protocol == %{ IPPROTO_TCP %}) return "IPPROTO_TCP"
+	if (protocol == %{ IPPROTO_EGP %}) return "IPPROTO_EGP"
+	if (protocol == %{ IPPROTO_PUP %}) return "IPPROTO_PUP"
+	if (protocol == %{ IPPROTO_UDP %}) return "IPPROTO_UDP"
+	if (protocol == %{ IPPROTO_IDP %}) return "IPPROTO_IDP"
+	if (protocol == %{ IPPROTO_TP %}) return "IPPROTO_TP"
+	if (protocol == %{ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
+	if (protocol == %{ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
+	if (protocol == %{ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
+	if (protocol == %{ IPPROTO_GRE %}) return "IPPROTO_GRE"
+	if (protocol == %{ IPPROTO_ESP %}) return "IPPROTO_ESP"
+	if (protocol == %{ IPPROTO_AH %}) return "IPPROTO_AH"
+	if (protocol == %{ IPPROTO_MTP %}) return "IPPROTO_MTP"
+	if (protocol == %{ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
+	if (protocol == %{ IPPROTO_PIM %}) return "IPPROTO_PIM"
+	if (protocol == %{ IPPROTO_COMP %}) return "IPPROTO_COMP"
+	if (protocol == %{ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
+	if (protocol == %{ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
+	if (protocol == %{ IPPROTO_RAW %}) return "IPPROTO_RAW"
+    }
+    return sprintf("%d", protocol)
 }
+
+function _opoll_op_str:string(o:long)
+%{ /* pure */
+	static const _stp_val_array const opoll_op_list[] = {
+		V(EPOLL_CTL_ADD),
+		V(EPOLL_CTL_MOD),
+		V(EPOLL_CTL_DEL),
+		{0, NULL}
+	};
+	_stp_lookup_str(opoll_op_list, (unsigned int)STAP_ARG_o,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _epoll_events_str(e) {
    if(e==1) return "EPOLLIN"
@@ -1584,6 +2286,7 @@ function _rusage_who_str(w) {
    if(w==0) return "RUSAGE_SELF"
    if(w==-1) return "RUSAGE_CHILDREN"
    if(w==-2) return "RUSAGE_BOTH"
+   if(w==1) return "RUSAGE_THREAD"
    return sprintf("UNKNOWN VALUE: %d", w)
 }
 
@@ -1598,15 +2301,19 @@ function __int32:long(val:long) %{ /* pure */
 	STAP_RETVALUE = (int32_t)STAP_ARG_val;
 %}
 
+function __uint32:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (uint32_t)STAP_ARG_val;
+%}
+
 /* Unsigned values can get get sign-extended and become negative. */
 function __ulong:long(val:long) %{ /* pure */
 	STAP_RETVALUE = (unsigned long)STAP_ARG_val;
 %}
 
 # For utimensat and futimesat, the directory fd can have a special value
-function _dfd_str(d) {
-	# 0xffffff9c is a 32-bit -100, for compatability mode.
-	if((d == -100) || (d == 0xffffff9c)) return "AT_FDCWD"
+function _dfd_str:string(d:long)
+{
+	if (d == %{ AT_FDCWD %}) return "AT_FDCWD"
 	return sprint(d)
 }
 
@@ -1629,62 +2336,6 @@ function _adjtimex_return_str(ret) {
 	else
 		return return_str(1, ret)
 }
-
-%{
-/*
-* Simple lookup functions for mapping values to names
-* using embedded C. Use these functions to create safe,
-* consistent lookups.
-*/
-
-/* Convenient macro to add defines to an array */
-#define V(a) {a,#a}
-
-typedef struct {
-	long val;
-	char *name;
-} _stp_val_array;
-
-static void _stp_lookup_str(const _stp_val_array * const array, long val, char *ptr, int len)
-{
-	int i = 0, slen;
-	while (array[i].name) {
-		if (array[i].val == val) {
-			strlcat (ptr, array[i].name, len);
-			return;
-		}
-		i++;
-	}
-	slen = strlen(ptr);
-	_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
-}
-static void _stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr, int len)
-{
-	int i = 0, flag = 0, slen;
-
-	if (val == 0) {
-		_stp_lookup_str(array, val, ptr, len);
-		return;
-	}
-
-	while (array[i].name) {
-		if (array[i].val & val) {
-			if (flag)
-				strlcat(ptr, "|", len);
-			strlcat(ptr, array[i].name, len);
-			val &= (~array[i].val);
-			flag = 1;
-		}
-		i++;
-	}
-	if (val) {
-		if (flag)
-			strlcat(ptr, "|", len);
-		slen = strlen(ptr);
-		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
-	}
-}
-%}
 
 %{
 static const _stp_val_array const _stp_signal_list[] = {
@@ -1716,6 +2367,7 @@ static const _stp_val_array const _stp_signal_list[] = {
 	V(SIGVTALRM),
 	{SIGIO,"SIGIO/SIGPOLL"},
 	V(SIGPWR),
+	{SIGTRAP|0x80,"TRACESYSGOOD"},
 	{0, NULL}
 };
 
@@ -1724,7 +2376,8 @@ static void _stp_sigset_str(sigset_t *mask, char *ptr, int len)
 	const _stp_val_array * const array = _stp_signal_list;
 	int i = 0, flag = 0;
 	while (array[i].name) {
-		if (array[i].val && sigismember(mask, array[i].val)) {
+		if (array[i].val > 0 && array[i].val <= _NSIG
+		    && sigismember(mask, array[i].val)) {
 			if (flag)
 				strlcat(ptr, "|", len);
 			strlcat(ptr, array[i].name, len);
@@ -1864,13 +2517,20 @@ static const _stp_val_array const _stp_atflag_list[] = {
 #ifdef AT_SYMLINK_FOLLOW
 	V(AT_SYMLINK_FOLLOW),
 #endif
+#ifdef AT_NO_AUTOMOUNT
+	V(AT_NO_AUTOMOUNT),
+#endif
+#ifdef AT_EMPTY_PATH
+	V(AT_EMPTY_PATH),
+#endif
 	{0, NULL}
 };
 %}
 
 function _at_flag_str:string(f:long)
 %{ /* pure */
-	_stp_lookup_str(_stp_atflag_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
+	_stp_lookup_or_str(_stp_atflag_list, STAP_ARG_f, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
@@ -1878,34 +2538,39 @@ function _at_flag_str:string(f:long)
 %}
 function _epoll_create1_flag_str:string(f:long)
 %{ /* pure */
+	static const _stp_val_array const epoll_create1_flags_list[] = {
 #ifdef EPOLL_CLOEXEC
-	if (STAP_ARG_f == EPOLL_CLOEXEC)
-		strlcpy (STAP_RETVALUE, "EPOLL_CLOEXEC", MAXSTRINGLEN);
+		V(EPOLL_CLOEXEC),
 #endif
+		{0, NULL}
+	};
+	_stp_lookup_or_str(epoll_create1_flags_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 %{
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 #include <linux/eventfd.h>
 #endif
-%}
-function _eventfd2_flag_str:string(f:long)
-%{ /* pure */
-  long flags = STAP_ARG_f;
-  char *str = STAP_RETVALUE;
-  int len;
 
-  str[0] = '\0';
-#if defined(EFD_CLOEXEC) && defined(EFD_NONBLOCK)
-  if (flags & EFD_NONBLOCK)
-    strlcat(str, "EFD_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & EFD_CLOEXEC)
-    strlcat(str, "EFD_CLOEXEC|", MAXSTRINGLEN);
+static const _stp_val_array const _stp_eventfd2_flag_list[] = {
+#ifdef EFD_NONBLOCK
+	V(EFD_NONBLOCK),
 #endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = '\0';
+#ifdef EFD_CLOEXEC
+	V(EFD_CLOEXEC),
+#endif
+#ifdef EFD_SEMAPHORE
+	V(EFD_SEMAPHORE),
+#endif
+	{0, NULL}
+};
+%}
+function _eventfd2_flag_str:string(flags:long)
+%{ /* pure */
+	uint32_t flags = (uint32_t)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_eventfd2_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
@@ -1936,34 +2601,30 @@ function _signalfd4_flags_str:string(f:long)
 #if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
 #include <linux/inotify.h>
 #endif
+
+static const _stp_val_array const _stp_inotify_init1_flag_list[] = {
+#if defined(IN_NONBLOCK)
+	V(IN_NONBLOCK),
+#endif
+#if defined(IN_CLOEXEC)
+	V(IN_CLOEXEC),
+#endif
+	{0, NULL}
+};
 %}
+
 function _inotify_init1_flag_str:string(f:long)
 %{ /* pure */
-  long flags = STAP_ARG_f;
-  char *str = STAP_RETVALUE;
-  int len;
-
-  str[0] = '\0';
-#if defined(IN_CLOEXEC) && defined(IN_NONBLOCK)
-  if (flags & IN_NONBLOCK)
-    strlcat(str, "IN_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & IN_CLOEXEC)
-    strlcat(str, "IN_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = '\0';
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_inotify_init1_flag_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 function _dup3_flag_str:string(f:long)
 %{ /* pure */
-#ifdef O_CLOEXEC
-	if (STAP_ARG_f == O_CLOEXEC)
-		strlcpy (STAP_RETVALUE, "O_CLOEXEC", MAXSTRINGLEN);
-	else
-#endif
-		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	unsigned int flags = (unsigned int)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_open_mode_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
@@ -2049,7 +2710,8 @@ function get_mmap_args:string (args:long)
 
 	if(_stp_copy_from_user((char *)&a,(char *)(unsigned long)STAP_ARG_args, sizeof(a))== 0) {
 		int len;
-		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx, %ld, ", (long)a.addr, (long)a.len);
+		_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx, %lu, ",
+			      (unsigned long)a.addr, (unsigned long)a.len);
 		_stp_lookup_or_str(_stp_mprotect_list, a.prot, STAP_RETVALUE, MAXSTRINGLEN);
 		strlcat (STAP_RETVALUE, ", ", MAXSTRINGLEN);
 		_stp_lookup_or_str(_stp_mmap_list, a.flags, STAP_RETVALUE, MAXSTRINGLEN);
@@ -2379,6 +3041,38 @@ function _ptrace_return_geteventmsg_data(request,data)
 	if (request == %{ PTRACE_GETEVENTMSG %})
 		return user_long(data)
 }
+
+%{
+#include <linux/swap.h>
+
+static const _stp_val_array const _stp_swapon_flags_list[] = {
+	V(SWAP_FLAG_PREFER),
+#ifdef SWAP_FLAG_DISCARD
+	V(SWAP_FLAG_DISCARD),
+#endif
+#ifdef SWAP_FLAG_DISCARD_ONCE
+	V(SWAP_FLAG_DISCARD_ONCE),
+#endif
+#ifdef SWAP_FLAG_DISCARD_PAGES
+	V(SWAP_FLAG_DISCARD_PAGES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _swapon_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_swapon_flags_list,
+			   (flags & ~SWAP_FLAG_PRIO_MASK), STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (STAP_ARG_flags & SWAP_FLAG_PREFER) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, 
+			      "|%d", flags & SWAP_FLAG_PRIO_MASK);
+	}
+%}
 
 /* do_fork helper function to determine fork type. */
 function __is_user_regs:long (regs:long)

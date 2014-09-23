@@ -8,16 +8,16 @@
 
 <indexterm>
 <primary>script examples</primary>
-<secondary>identifying contended user-space locks (i.e. futex contentions)</secondary>
+<secondary>identifying contended user-space locks (futex contentions)</secondary>
 </indexterm>
 
 <indexterm>
 <primary>examples of SystemTap scripts</primary>
-<secondary>identifying contended user-space locks (i.e. futex contentions)</secondary>
+<secondary>identifying contended user-space locks (futex contentions)</secondary>
 </indexterm>
 
 <indexterm>
-<primary>identifying contended user-space locks (i.e. futex contentions)</primary>
+<primary>identifying contended user-space locks (futex contentions)</primary>
 <secondary>examples of SystemTap scripts</secondary>
 </indexterm>
 

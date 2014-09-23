@@ -1,0 +1,56 @@
+set test "dump_probe_aliases"
+
+# This test verifies that stap --dump-probe-aliases works properly.
+# Namely, we look for specific aliases in the stap output. We also check
+# that only the -v version includes aliases starting with '_'.
+
+proc has_alias { output wanted alias } {
+   global test subtest
+
+   set inlist [lsearch $output $alias]
+   if {[expr  $wanted && $inlist > 0] \
+    || [expr !$wanted && $inlist < 0]} {
+      pass "$test ($subtest)"
+   } else {
+      fail "$test ($subtest)"
+   }
+}
+
+# Get output for --dump-probe-aliases
+if {[catch {exec stap --dump-probe-aliases 2>/dev/null} output]} {
+   fail "$test (can't get output of stap --dump-probe-aliases)"
+   return
+} else {
+   pass "$test (got output of stap --dump-probe-aliases)"
+}
+
+# Get output for -v --dump-probe-aliases
+if {[catch {exec stap -v --dump-probe-aliases 2>/dev/null} outputv]} {
+   fail "$test (can't get output of stap -v --dump-probe-aliases)"
+   return
+} else {
+   pass "$test (got output of stap -v --dump-probe-aliases)"
+}
+
+# Split outputs into lines
+set output  [split $output  "\n"]
+set outputv [split $outputv "\n"]
+
+set subtest "oneshot in output"
+has_alias $output 1 "oneshot += begin"
+
+set subtest "vfs.read in output"
+has_alias $output 1 "vfs.read = kernel.function(\"vfs_read\")"
+
+set subtest "__syscall.lseek not in output"
+has_alias $output 0 "__syscall.lseek = kernel.function(\"sys_lseek\").call"
+
+set subtest "oneshot in -v output"
+has_alias $outputv 1 "oneshot += begin"
+
+set subtest "vfs.read in -v output"
+has_alias $outputv 1 "vfs.read = kernel.function(\"vfs_read\")"
+
+set subtest "__syscall.lseek in -v output"
+has_alias $outputv 1 "__syscall.lseek = kernel.function(\"sys_lseek\").call"
+

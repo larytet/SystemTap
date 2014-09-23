@@ -1,0 +1,7 @@
+#! stap -p1
+
+global val
+probe begin {
+  val[1, 2, 3] = 4
+  foreach ([a, b, c] in val[]);
+}

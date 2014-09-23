@@ -1,0 +1,6 @@
+#! stap -p1
+
+# bad guru_mode comparison operator - not '==' or '!='
+%( guru_mode >= 0 %?
+   probe begin { }
+%)

@@ -1,5 +1,5 @@
 // Setup routines for creating fully populated DWFLs. Used in pass 2 and 3.
-// Copyright (C) 2009-2013 Red Hat, Inc.
+// Copyright (C) 2009-2014 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -72,11 +72,6 @@ static const Dwfl_Callbacks user_callbacks =
 
 using namespace std;
 
-// Store last kernel and user Dwfl for reuse since they are often
-// re-requested (in phase 2 and then in phase 3).
-static DwflPtr kernel_dwfl;
-static DwflPtr user_dwfl;
-
 // Setup in setup_dwfl_kernel(), for use in setup_dwfl_report_kernel_p().
 // Either offline_search_modname or offline_search_names is
 // used. When offline_search_modname is not NULL then
@@ -88,10 +83,6 @@ static unsigned offline_modules_found;
 // Whether or not we are done reporting kernel modules in
 // set_dwfl_report_kernel_p().
 static bool setup_dwfl_done;
-
-// Kept for user_dwfl cache, user modules don't allow wildcards, so
-// just keep the set of module strings.
-static set<string> user_modset;
 
 // Determines whether or not we will make setup_dwfl_report_kernel_p
 // report true for all module dependencies. This is necessary for
@@ -114,9 +105,13 @@ static const string abrt_path =
                       ? "/usr/libexec/abrt-action-install-debuginfo-to-abrt-cache"
                     : ""));
 
-// The module name is the basename (without the extension) of the
-// module path, with ',' and '-' replaced by '_'.
-static string
+// The module name is the basename (without the extension) of the module path,
+// with ',' and '-' replaced by '_'. This is a (more or less safe) heuristic:
+// the actual name by which the module is known once inside the kernel is not
+// derived from the path, but from the .gnu.linkonce.this_module section of the
+// KO. In practice, modules in /lib/modules/ respect this convention, and we
+// require it as well for out-of-tree kernel modules.
+string
 modname_from_path(const string &path)
 {
   size_t dot = path.rfind('.');
@@ -339,11 +334,11 @@ void debuginfo_path_insert_sysroot(string sysroot)
   debuginfo_usr_path = path_insert_sysroot(sysroot, debuginfo_usr_path);
 }
 
-static DwflPtr
+static Dwfl *
 setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
 {
   Dwfl *dwfl = dwfl_begin (&kernel_callbacks);
-  dwfl_assert ("dwfl_begin", dwfl);
+  DWFL_ASSERT ("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
 
   // We have a problem with -r REVISION vs -r BUILDDIR here.  If
@@ -409,20 +404,20 @@ setup_dwfl_kernel (unsigned *modules_found, systemtap_session &s)
         {
           rc = download_kernel_debuginfo(s, hex);
           if(rc >= 0)
-            return setup_dwfl_kernel (modules_found, s);
+            {
+              dwfl_end (dwfl);
+              return setup_dwfl_kernel (modules_found, s);
+            }
         }
     }
 
-  dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+  DWFL_ASSERT ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
   *modules_found = offline_modules_found;
 
-  StapDwfl *stap_dwfl = new StapDwfl(dwfl);
-  kernel_dwfl = DwflPtr(stap_dwfl);
-
-  return kernel_dwfl;
+  return dwfl;
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_kernel(const std::string &name,
 		  unsigned *found,
 		  systemtap_session &s)
@@ -439,71 +434,45 @@ setup_dwfl_kernel(const std::string &name,
       modname = NULL;
     }
 
-  if (kernel_dwfl != NULL
-      && offline_search_modname == modname
-      && offline_search_names == names)
-    {
-      *found = offline_modules_found;
-      return kernel_dwfl;
-    }
-
   offline_search_modname = modname;
   offline_search_names = names;
 
   return setup_dwfl_kernel(found, s);
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_kernel(const std::set<std::string> &names,
 		  unsigned *found,
 		  systemtap_session &s)
 {
   current_session_for_find_debuginfo = &s;
-  if (kernel_dwfl != NULL
-      && offline_search_modname == NULL
-      && offline_search_names == names)
-    {
-      *found = offline_modules_found;
-      return kernel_dwfl;
-    }
 
   offline_search_modname = NULL;
   offline_search_names = names;
   return setup_dwfl_kernel(found, s);
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_user(const std::string &name)
 {
-  if (user_dwfl != NULL
-      && user_modset.size() == 1
-      && (*user_modset.begin()) == name)
-    return user_dwfl;
-
-  user_modset.clear();
-  user_modset.insert(name);
-
   Dwfl *dwfl = dwfl_begin (&user_callbacks);
-  dwfl_assert("dwfl_begin", dwfl);
+  DWFL_ASSERT("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
 
   // XXX: should support buildid-based naming
   const char *cname = name.c_str();
   Dwfl_Module *mod = dwfl_report_offline (dwfl, cname, cname, -1);
-  dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+  DWFL_ASSERT ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
   if (! mod)
     {
       dwfl_end(dwfl);
       dwfl = NULL;
     }
 
-  StapDwfl *stap_dwfl = new StapDwfl(dwfl);
-  user_dwfl = DwflPtr(stap_dwfl);
-
-  return user_dwfl;
+  return dwfl;
 }
 
-DwflPtr
+Dwfl*
 setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
 		const std::vector<std::string>::const_iterator &end,
 		bool all_needed, systemtap_session &s)
@@ -511,13 +480,9 @@ setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
   current_session_for_find_debuginfo = &s;
   // See if we have this dwfl already cached
   set<string> modset(begin, end);
-  if (user_dwfl != NULL && modset == user_modset)
-    return user_dwfl;
-
-  user_modset = modset;
 
   Dwfl *dwfl = dwfl_begin (&user_callbacks);
-  dwfl_assert("dwfl_begin", dwfl);
+  DWFL_ASSERT("dwfl_begin", dwfl);
   dwfl_report_begin (dwfl);
   Dwfl_Module *mod = NULL;
   // XXX: should support buildid-based naming
@@ -551,12 +516,9 @@ setup_dwfl_user(std::vector<std::string>::const_iterator &begin,
     }
 
   if (dwfl)
-    dwfl_assert ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
+    DWFL_ASSERT ("dwfl_report_end", dwfl_report_end(dwfl, NULL, NULL));
 
-  StapDwfl *stap_dwfl = new StapDwfl(dwfl);
-  user_dwfl = DwflPtr(stap_dwfl);
-
-  return user_dwfl;
+  return dwfl;
 }
 
 bool

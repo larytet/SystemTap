@@ -1,10 +1,9 @@
-#! stap -p2
+#! stap -p1
 
-# @perf not supported
+# bad counter id
 global x
-probe perf.hw.cpu_cycles.process("/bin/ed").counter("a") {} 
-probe process("/bin/ed").begin
+probe perf.hw.cpu_cycles.process("/bin/ls").counter("b") {}
+probe process("/bin/ed").function("main")
 {
- x = @perf("a")
+ y = @perf(1)
 }
-

@@ -20,19 +20,16 @@ set env(SYSTEMTAP_DIR) $local_systemtap_dir
 # Set up the script we'll use.
 set basic_script {"probe process(\"hash_add_buildid\").function(\"main\") { println(1) }" }
 
-# Force 64-bit (when necessary) to be sure of what we're testing.
-switch -regexp $::tcl_platform(machine) {
-    {^i\d86$} { set arches [list "-default"] }
-    {^x86_64$} { set arches [list "-m64" "-m32" "ia64" "ppc" "s390"]}
-    default { unsupported "$test"; return }
-}
-
-foreach arch $arches {
-
+for {set i 0} {$i < [arch_compile_flags]} {incr i} {
   set test_flags "additional_flags=-g"
+  set extra_flag [arch_compile_flag $i]
+  set arch_name [arch_compile_flag_name $i]
 
-  if {$arch != "-default"} {
-    set test_flags "$test_flags additional_flags=$arch"
+  if { $extra_flag == ""} {
+    set arch "-default"
+  } else {
+    set arch "-${arch_name}"
+    set test_flags "$test_flags $extra_flag"
   }
 
 

@@ -1,5 +1,5 @@
 // parse tree functions
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -95,20 +95,22 @@ symboldecl::~symboldecl ()
 
 probe_point::probe_point (std::vector<component*> const & comps):
   components(comps), optional (false), sufficient (false),
-  condition (0)
+  from_glob (false), well_formed (false), condition (0)
 {
 }
 
 // NB: shallow-copy of compoonents & condition!
 probe_point::probe_point (const probe_point& pp):
   components(pp.components), optional (pp.optional), sufficient (pp.sufficient),
+  from_glob (pp.from_glob), well_formed (pp.well_formed),
   condition (pp.condition)
 {
 }
 
 
 probe_point::probe_point ():
-  optional (false), sufficient (false), condition (0)
+  optional (false), sufficient (false), from_glob (false),
+  well_formed (false), condition (0)
 {
 }
 
@@ -164,15 +166,18 @@ vardecl::set_arity (int a, const token* t)
     return;
 
   if (a == 0 && maxsize > 0)
-    throw semantic_error (_("inconsistent arity"), tok);
+    throw SEMANTIC_ERROR (_("inconsistent arity"), tok);
 
   if (arity != a && arity >= 0)
     {
-      semantic_error err (_F("inconsistent arity (%s vs %d)",
-                             lex_cast(arity).c_str(), a), t?:tok);
+      semantic_error err (ERR_SRC, _F("inconsistent arity (%s vs %d)",
+                                      lex_cast(arity).c_str(), a), t?:tok);
       if (arity_tok)
-	err.chain = new semantic_error (_F("arity %s first inferred here",
+        {
+          semantic_error chain(ERR_SRC, _F("arity %s first inferred here",
                                            lex_cast(arity).c_str()), arity_tok);
+          err.set_chain(chain);
+        }
       throw err;
     }
 
@@ -206,9 +211,9 @@ void
 functiondecl::join (systemtap_session& s)
 {
   if (!synthetic)
-    throw semantic_error (_("internal error, joining a non-synthetic function"), tok);
+    throw SEMANTIC_ERROR (_("internal error, joining a non-synthetic function"), tok);
   if (!s.functions.insert (make_pair (name, this)).second)
-    throw semantic_error (_F("synthetic function '%s' conflicts with an existing function",
+    throw SEMANTIC_ERROR (_F("synthetic function '%s' conflicts with an existing function",
                              name.c_str()), tok);
   tok->location.file->functions.push_back (this);
 }
@@ -254,20 +259,46 @@ target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
     {
     case comp_literal_array_index:
     case comp_expression_array_index:
-      throw semantic_error(_F("%s variable '%s' may not be used as array",
+      throw SEMANTIC_ERROR(_F("%s variable '%s' may not be used as array",
                               tapset.c_str(), name.c_str()), components[0].tok);
     case comp_struct_member:
-      throw semantic_error(_F("%s variable '%s' may not be used as a structure",
+      throw SEMANTIC_ERROR(_F("%s variable '%s' may not be used as a structure",
                               tapset.c_str(), name.c_str()), components[0].tok);
     case comp_pretty_print:
       if (!pretty_ok)
-        throw semantic_error(_F("%s variable '%s' may not be pretty-printed",
+        throw SEMANTIC_ERROR(_F("%s variable '%s' may not be pretty-printed",
                                 tapset.c_str(), name.c_str()), components[0].tok);
       return;
     default:
-      throw semantic_error (_F("invalid use of %s variable '%s'",
+      throw SEMANTIC_ERROR (_F("invalid use of %s variable '%s'",
                             tapset.c_str(), name.c_str()), components[0].tok);
     }
+}
+
+
+size_t
+target_symbol::pretty_print_depth () const
+{
+  if (! components.empty ())
+    {
+      const component& last = components.back ();
+      if (last.type == comp_pretty_print)
+	return last.member.length ();
+    }
+  return 0;
+}
+
+
+bool
+target_symbol::check_pretty_print (bool lvalue) const
+{
+  if (pretty_print_depth () == 0)
+    return false;
+
+  if (lvalue)
+    throw SEMANTIC_ERROR(_("cannot write to pretty-printed variable"), tok);
+
+  return true;
 }
 
 
@@ -276,8 +307,12 @@ void target_symbol::chain (const semantic_error &er)
   semantic_error* e = new semantic_error(er);
   if (!e->tok1)
     e->tok1 = this->tok;
-  assert (e->chain == 0);
-  e->chain = this->saved_conversion_error;
+  assert (e->get_chain() == 0);
+  if (this->saved_conversion_error)
+    {
+      e->set_chain(*this->saved_conversion_error);
+      delete this->saved_conversion_error;
+    }
   this->saved_conversion_error = e;
 }
 
@@ -363,7 +398,10 @@ void array_in::print (ostream& o) const
   for (unsigned i=0; i<operand->indexes.size(); i++)
     {
       if (i > 0) o << ", ";
-      operand->indexes[i]->print (o);
+      if (operand->indexes[i])
+        operand->indexes[i]->print (o);
+      else
+        o << "*";
     }
   o << "] in ";
   operand->base->print (o);
@@ -448,6 +486,16 @@ void cast_op::print (ostream& o) const
 }
 
 
+void autocast_op::print (ostream& o) const
+{
+  if (addressof)
+    o << "&";
+  o << '(' << *operand << ')';
+  for (unsigned i = 0; i < components.size(); ++i)
+    o << components[i];
+}
+
+
 void defined_op::print (ostream& o) const
 {
   o << "@defined(" << *operand << ")";
@@ -522,13 +570,68 @@ void functiondecl::printsig (ostream& o) const
   o << ")";
 }
 
+struct embedded_tags_visitor: public traversing_visitor
+{
+  map<string, bool> tags;
+
+  embedded_tags_visitor(bool all_tags)
+    {
+      tags["/* guru */"] = false;
+      tags["/* unprivileged */"] = false;
+      tags["/* myproc-unprivileged */"] = false;
+      if (all_tags)
+        {
+          tags["/* pure */"] = false;
+          tags["/* unmangled */"] = false;
+        }
+    }
+
+  void find_tags_in_code (const string& s)
+    {
+      map<string, bool>::iterator tag;
+      for (tag = tags.begin(); tag != tags.end(); ++tag)
+        if (!tag->second)
+          tag->second = s.find(tag->first) != string::npos;
+    }
+
+  void visit_embeddedcode (embeddedcode *s)
+    {
+      find_tags_in_code(s->code);
+    }
+
+  void visit_embedded_expr (embedded_expr *e)
+    {
+      find_tags_in_code(e->code);
+    }
+};
+
+void functiondecl::printsigtags (ostream& o, bool all_tags) const
+{
+  this->printsig(o);
+
+  // Visit the function's body to see if there's any embedded_code or
+  // embeddedexpr that have special tags (e.g. /* guru */)
+  embedded_tags_visitor etv(all_tags);
+  this->body->visit(&etv);
+
+  map<string, bool>::const_iterator tag;
+  for (tag = etv.tags.begin(); tag != etv.tags.end(); ++tag)
+    if (tag->second)
+      o << " " << tag->first;
+}
 
 void arrayindex::print (ostream& o) const
 {
   base->print (o);
   o << "[";
   for (unsigned i=0; i<indexes.size(); i++)
-    o << (i>0 ? ", " : "") << *indexes[i];
+    {
+      o << (i>0 ? ", " : "");
+      if (indexes[i]==0)
+        o << "*";
+      else
+        o << *indexes[i];
+    }
   o << "]";
 }
 
@@ -543,10 +646,11 @@ void functioncall::print (ostream& o) const
 
 
 print_format*
-print_format::create(const token *t)
+print_format::create(const token *t, const char *n)
 {
   bool stream, format, delim, newline, _char;
-  const char *n = t->content.c_str();
+  if (n == NULL) n = t->content.c_str();
+  const char *o = n;
 
   stream = true;
   format = delim = newline = _char = false;
@@ -589,7 +693,7 @@ print_format::create(const token *t)
 	return NULL;
     }
 
-  print_format *pf = new print_format(stream, format, delim, newline, _char);
+  print_format *pf = new print_format(stream, format, delim, newline, _char, o);
   pf->tok = t;
   return pf;
 }
@@ -900,7 +1004,7 @@ print_format::string_to_components(string const & str)
 	}
 
       if (curr.type == conv_unspecified)
-	throw parse_error(_("invalid or missing conversion specifier"));
+	throw PARSE_ERROR(_("invalid or missing conversion specifier"));
 
       ++i;
       res.push_back(curr);
@@ -913,7 +1017,7 @@ print_format::string_to_components(string const & str)
       if (curr.type == conv_literal)
 	res.push_back(curr);
       else
-	throw parse_error(_("trailing incomplete print format conversion"));
+	throw PARSE_ERROR(_("trailing incomplete print format conversion"));
     }
 
   return res;
@@ -922,7 +1026,7 @@ print_format::string_to_components(string const & str)
 
 void print_format::print (ostream& o) const
 {
-  o << tok->content << "(";
+  o << print_format_type << "(";
   if (print_with_format)
     o << lex_cast_qstring (raw_components);
   if (print_with_delim)
@@ -1072,6 +1176,19 @@ void foreach_loop::print (ostream& o) const
     }
   o << "] in ";
   base->print (o);
+  if (!array_slice.empty())
+    {
+      o << "[";
+      for (unsigned i=0; i<array_slice.size(); i++)
+        {
+          if (i > 0) o << ", ";
+          if (array_slice[i])
+            array_slice[i]->print (o);
+          else
+            o << "*";
+        }
+      o << "]";
+    }
   if (sort_direction != 0 && sort_column == 0)
     {
       switch (sort_aggr)
@@ -1229,6 +1346,18 @@ void probe_point::print (ostream& o, bool print_extras) const
     {
       if (i>0) o << ".";
       probe_point::component* c = components[i];
+      if (!c)
+        {
+          // We might like to excise this weird 0 pointer, just in
+          // case some recursion during the error-handling path, but
+          // can't, because what we have here is a const *this.
+          static int been_here = 0;
+          if (been_here == 0) {
+            been_here ++;
+            throw SEMANTIC_ERROR (_("internal error: missing probe point component"));
+          } else
+            continue; // ... sad panda decides to skip the bad boy
+        }
       o << c->functor;
       if (c->arg)
         o << "(" << *c->arg << ")";
@@ -1263,7 +1392,7 @@ void probe_alias::printsig (ostream& o) const
       o << (i>0 ? " = " : "");
       alias_names[i]->print (o);
     }
-  o << " = ";
+  o << (epilogue_style ? " += " : " = ");
   for (unsigned i=0; i<locations.size(); i++)
     {
       if (i > 0) o << ", ";
@@ -1506,6 +1635,13 @@ cast_op::visit (visitor* u)
 
 
 void
+autocast_op::visit (visitor* u)
+{
+  u->visit_autocast_op(this);
+}
+
+
+void
 atvar_op::visit (visitor* u)
 {
   u->visit_atvar_op(this);
@@ -1601,9 +1737,9 @@ classify_indexable(indexable* ix,
   hist_out = NULL;
   assert(ix != NULL);
   if (!(ix->is_symbol (array_out) || ix->is_hist_op (hist_out)))
-    throw semantic_error(_("Expecting symbol or histogram operator"), ix->tok);
+    throw SEMANTIC_ERROR(_("Expecting symbol or histogram operator"), ix->tok);
   if (!(hist_out || array_out))
-    throw semantic_error(_("Failed to classify indexable"), ix->tok);
+    throw SEMANTIC_ERROR(_("Failed to classify indexable"), ix->tok);
 }
 
 
@@ -1849,6 +1985,13 @@ traversing_visitor::visit_cast_op (cast_op* e)
 }
 
 void
+traversing_visitor::visit_autocast_op (autocast_op* e)
+{
+  e->operand->visit (this);
+  e->visit_components (this);
+}
+
+void
 traversing_visitor::visit_atvar_op (atvar_op* e)
 {
   e->visit_components (this);
@@ -1878,7 +2021,8 @@ void
 traversing_visitor::visit_arrayindex (arrayindex* e)
 {
   for (unsigned i=0; i<e->indexes.size(); i++)
-    e->indexes[i]->visit (this);
+    if (e->indexes[i])
+      e->indexes[i]->visit (this);
 
   e->base->visit(this);
 }
@@ -1913,22 +2057,227 @@ traversing_visitor::visit_hist_op (hist_op* e)
 
 
 void
+expression_visitor::visit_literal_string (literal_string* e)
+{
+  traversing_visitor::visit_literal_string (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_literal_number (literal_number* e)
+{
+  traversing_visitor::visit_literal_number (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_embedded_expr (embedded_expr* e)
+{
+  traversing_visitor::visit_embedded_expr (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_binary_expression (binary_expression* e)
+{
+  traversing_visitor::visit_binary_expression (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_unary_expression (unary_expression* e)
+{
+  traversing_visitor::visit_unary_expression (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_pre_crement (pre_crement* e)
+{
+  traversing_visitor::visit_pre_crement (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_post_crement (post_crement* e)
+{
+  traversing_visitor::visit_post_crement (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_logical_or_expr (logical_or_expr* e)
+{
+  traversing_visitor::visit_logical_or_expr (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_logical_and_expr (logical_and_expr* e)
+{
+  traversing_visitor::visit_logical_and_expr (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_array_in (array_in* e)
+{
+  traversing_visitor::visit_array_in (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_regex_query (regex_query* e)
+{
+  traversing_visitor::visit_regex_query (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_comparison (comparison* e)
+{
+  traversing_visitor::visit_comparison (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_concatenation (concatenation* e)
+{
+  traversing_visitor::visit_concatenation (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_ternary_expression (ternary_expression* e)
+{
+  traversing_visitor::visit_ternary_expression (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_assignment (assignment* e)
+{
+  traversing_visitor::visit_assignment (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_symbol (symbol* e)
+{
+  traversing_visitor::visit_symbol (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_target_symbol (target_symbol* e)
+{
+  traversing_visitor::visit_target_symbol (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_arrayindex (arrayindex* e)
+{
+  traversing_visitor::visit_arrayindex (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_functioncall (functioncall* e)
+{
+  traversing_visitor::visit_functioncall (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_print_format (print_format* e)
+{
+  traversing_visitor::visit_print_format (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_stat_op (stat_op* e)
+{
+  traversing_visitor::visit_stat_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_hist_op (hist_op* e)
+{
+  traversing_visitor::visit_hist_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_cast_op (cast_op* e)
+{
+  traversing_visitor::visit_cast_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_autocast_op (autocast_op* e)
+{
+  traversing_visitor::visit_autocast_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_atvar_op (atvar_op* e)
+{
+  traversing_visitor::visit_atvar_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_defined_op (defined_op* e)
+{
+  traversing_visitor::visit_defined_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_entry_op (entry_op* e)
+{
+  traversing_visitor::visit_entry_op (e);
+  visit_expression (e);
+}
+
+void
+expression_visitor::visit_perf_op (perf_op* e)
+{
+  traversing_visitor::visit_perf_op (e);
+  visit_expression (e);
+}
+
+
+void
 functioncall_traversing_visitor::visit_functioncall (functioncall* e)
 {
   traversing_visitor::visit_functioncall (e);
 
   // prevent infinite recursion
-  if (traversed.find (e->referent) == traversed.end ())
+  if (nested.find (e->referent) == nested.end ())
     {
-      traversed.insert (e->referent);
+      if (seen.find(e->referent) == seen.end())
+        seen.insert (e->referent);
+      nested.insert (e->referent);
       // recurse
       functiondecl* last_current_function = current_function;
       current_function = e->referent;
       e->referent->body->visit (this);
       current_function = last_current_function;
+      nested.erase (e->referent);
     }
+  else { this->note_recursive_functioncall(e); }
 }
 
+void
+functioncall_traversing_visitor::note_recursive_functioncall (functioncall* e)
+{
+}
 
 void
 varuse_collecting_visitor::visit_try_block (try_block *s)
@@ -1958,13 +2307,13 @@ varuse_collecting_visitor::visit_embeddedcode (embeddedcode *s)
       ! session.runtime_usermode_p () &&
       s->code.find ("/* unprivileged */") == string::npos &&
       s->code.find ("/* myproc-unprivileged */") == string::npos)
-    throw semantic_error (_F("function may not be used when --privilege=%s is specified",
+    throw SEMANTIC_ERROR (_F("function may not be used when --privilege=%s is specified",
 			     pr_name (session.privilege)),
 			  current_function->tok);
 
   // Don't allow /* guru */ functions unless -g is active.
   if (!session.guru_mode && s->code.find ("/* guru */") != string::npos)
-    throw semantic_error (_("function may not be used unless -g is specified"),
+    throw SEMANTIC_ERROR (_("function may not be used unless -g is specified"),
 			  current_function->tok);
 
   // PR14524: Support old-style THIS->local syntax on per-function basis.
@@ -2000,13 +2349,13 @@ varuse_collecting_visitor::visit_embedded_expr (embedded_expr *e)
       ! session.runtime_usermode_p () &&
       e->code.find ("/* unprivileged */") == string::npos &&
       e->code.find ("/* myproc-unprivileged */") == string::npos)
-    throw semantic_error (_F("embedded expression may not be used when --privilege=%s is specified",
+    throw SEMANTIC_ERROR (_F("embedded expression may not be used when --privilege=%s is specified",
 			     pr_name (session.privilege)),
 			  e->tok);
 
   // Don't allow /* guru */ functions unless -g is active.
   if (!session.guru_mode && e->code.find ("/* guru */") != string::npos)
-    throw semantic_error (_("embedded expression may not be used unless -g is specified"),
+    throw SEMANTIC_ERROR (_("embedded expression may not be used unless -g is specified"),
 			  e->tok);
 
   // We want to elide embedded-C functions when possible.  For
@@ -2062,6 +2411,17 @@ varuse_collecting_visitor::visit_cast_op (cast_op *e)
     embedded_seen = true;
 
   functioncall_traversing_visitor::visit_cast_op (e);
+}
+
+void
+varuse_collecting_visitor::visit_autocast_op (autocast_op *e)
+{
+  // As with target_symbols, unresolved cast assignments need to preserved
+  // for later error handling.
+  if (is_active_lvalue (e))
+    embedded_seen = true;
+
+  functioncall_traversing_visitor::visit_autocast_op (e);
 }
 
 void
@@ -2132,7 +2492,7 @@ void
 varuse_collecting_visitor::visit_symbol (symbol *e)
 {
   if (e->referent == 0)
-    throw semantic_error (_("symbol without referent"), e->tok);
+    throw SEMANTIC_ERROR (_("symbol without referent"), e->tok);
 
   // We could handle initialized globals by marking them as "written".
   // However, this current visitor may be called for a function or
@@ -2241,6 +2601,13 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
       current_lvalue = last_lvalue;
     }
 
+  // visit the additional specified array slice
+  for (unsigned i=0; i<s->array_slice.size(); i++)
+    {
+      if (s->array_slice[i])
+        s->array_slice[i]->visit (this);
+    }
+
   // The value is an lvalue too
   if (s->value)
     {
@@ -2313,7 +2680,7 @@ throwing_visitor::throwing_visitor (): msg (_("invalid element")) {}
 void
 throwing_visitor::throwone (const token* t)
 {
-  throw semantic_error (msg, t);
+  throw SEMANTIC_ERROR (msg, t);
 }
 
 void
@@ -2506,6 +2873,12 @@ throwing_visitor::visit_atvar_op (atvar_op* e)
 
 void
 throwing_visitor::visit_cast_op (cast_op* e)
+{
+  throwone (e->tok);
+}
+
+void
+throwing_visitor::visit_autocast_op (autocast_op* e)
 {
   throwone (e->tok);
 }
@@ -2738,7 +3111,7 @@ void
 update_visitor::visit_regex_query (regex_query* e)
 {
   replace (e->left);
-  replace (e->right); // TODOXXX do we need to replace literal in RHS?
+  replace (e->right); // XXX: do we *need* to replace literal in RHS?
   provide (e);
 }
 
@@ -2790,6 +3163,14 @@ update_visitor::visit_target_symbol (target_symbol* e)
 
 void
 update_visitor::visit_cast_op (cast_op* e)
+{
+  replace (e->operand);
+  e->visit_components (this);
+  provide (e);
+}
+
+void
+update_visitor::visit_autocast_op (autocast_op* e)
 {
   replace (e->operand);
   e->visit_components (this);
@@ -3049,7 +3430,6 @@ void
 deep_copy_visitor::visit_target_symbol (target_symbol* e)
 {
   target_symbol* n = new target_symbol(*e);
-  n->referent = NULL; // don't copy!
   update_visitor::visit_target_symbol(n);
 }
 
@@ -3057,6 +3437,12 @@ void
 deep_copy_visitor::visit_cast_op (cast_op* e)
 {
   update_visitor::visit_cast_op(new cast_op(*e));
+}
+
+void
+deep_copy_visitor::visit_autocast_op (autocast_op* e)
+{
+  update_visitor::visit_autocast_op(new autocast_op(*e));
 }
 
 void

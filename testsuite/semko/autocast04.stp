@@ -1,0 +1,8 @@
+#! stap -p2
+
+probe begin
+{
+    // Test DWARF through an assignment, with an unknown field
+    bad = (sun = & @cast(0, "sockaddr_un", "<sys/un.h>")) -> no_such_field;
+    printf("%p is bad %d\n", sun, bad)
+}

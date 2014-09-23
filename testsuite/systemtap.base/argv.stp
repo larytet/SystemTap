@@ -1,0 +1,7 @@
+#! stap
+
+probe oneshot {
+  printf ("argc=%d\n", argc)
+  for (i=1; i<=argc; i++)
+    printf ("argv[%d]=%s\n", i, argv[i])
+}

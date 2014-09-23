@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 @define bar(b) %( @b %)
 @define foo(a) %( @bar(@a) %)

@@ -13,7 +13,7 @@ probe perf.hw.cpu_cycles.process("/usr/bin/find").counter("find_cycles") {}
 probe perf.hw.branch_instructions.process("/usr/bin/find").counter("find_branches") {} 
 probe perf.hw.cache_references.process("/usr/bin/find").counter("find_cache_refs") {} 
 
-probe process("/usr/bin/find").function("visit")
+probe process("/usr/bin/find").function("visit")  # generally .inline'd, thus the need for debuginfo
 {
  insn["find_insns"] = @perf("find_insns")
  insns <<< (insn["find_insns"])
@@ -25,8 +25,9 @@ probe process("/usr/bin/find").function("visit")
  cacherefs <<< insn["find_cache_refs"]
 }
 
-# in lieu of .return
-probe process("/usr/bin/find").statement("visit@ftsfind.c+13") 
+
+probe process("/usr/bin/find").function("visit").return !,
+      process("/usr/bin/find").statement("visit@ftsfind.c+13").nearest  # in lieu of .inline.return
 {
     dividend = (@perf("find_cycles") - insn["find_cycles"])
     divisor =  (@perf("find_insns") - insn["find_insns"])
@@ -47,11 +48,17 @@ probe process("/usr/bin/find").statement("visit@ftsfind.c+13")
 
 probe end
 {
- printf ("Cycles per Insn\n\n")
- print (@hist_log(cycles_per_insn))
- printf ("\nBranches per Insn\n\n")
- print (@hist_log(branch_per_insn))
- printf ("Cache Refs per Insn\n\n")
- print (@hist_log(cacheref_per_insn))
+ if (@count(cycles_per_insn)) {
+   printf ("Cycles per Insn\n\n")
+   print (@hist_log(cycles_per_insn))
+ }
+ if (@count(branch_per_insn)) {
+   printf ("\nBranches per Insn\n\n")
+   print (@hist_log(branch_per_insn))
+ }
+ if (@count(cacheref_per_insn)) {
+   printf ("Cache Refs per Insn\n\n")
+   print (@hist_log(cacheref_per_insn))
+ }
 }
 

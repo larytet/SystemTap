@@ -1,5 +1,5 @@
 // stapdyn mutatee declarations
-// Copyright (C) 2012-2013 Red Hat Inc.
+// Copyright (C) 2012-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -36,14 +36,17 @@ class mutatee {
     std::vector<dynprobe_location> attached_probes;
     BPatch_function* utrace_enter_function;
 
+    // process.end probes saved to run after exec
+    std::vector<dynprobe_location> exec_proc_end_probes;
+
     // disable implicit constructors by not implementing these
     mutatee (const mutatee& other);
     mutatee& operator= (const mutatee& other);
 
     void update_semaphores(unsigned short delta, size_t start=0);
 
-    void call_utrace_dynprobe(const dynprobe_location& probe,
-                              BPatch_thread* thread=NULL);
+    void call_utrace_dynprobes(const std::vector<dynprobe_location>& probes,
+                               BPatch_thread* thread=NULL);
     void instrument_utrace_dynprobe(const dynprobe_location& probe);
     void instrument_global_dynprobe_target(const dynprobe_target& target);
     void instrument_global_dynprobes(const std::vector<dynprobe_target>& targets);
@@ -73,8 +76,7 @@ class mutatee {
                                      const std::vector<dynprobe_target>& targets);
 
     // Look for probe matches in all objects.
-    void instrument_dynprobes(const std::vector<dynprobe_target>& targets,
-                              bool after_exec_p=false);
+    void instrument_dynprobes(const std::vector<dynprobe_target>& targets);
 
     // Copy data for forked instrumentation
     void copy_forked_instrumentation(mutatee& other);
@@ -102,12 +104,11 @@ class mutatee {
 
     bool check_exit() { return check_dyninst_exit(process); }
 
-    void begin_callback();
-    void exit_callback(BPatch_thread *thread);
+    void begin_callback(BPatch_thread *thread=NULL);
+    void exit_callback(BPatch_thread *thread, bool exec_p=false);
     void thread_callback(BPatch_thread *thread, bool create_p);
 
-    void find_attached_probes(uint64_t flag,
-			      std::vector<const dynprobe_location *>&probes);
+    std::vector<dynprobe_location> find_attached_probes(uint64_t flag);
 };
 
 #endif // MUTATEE_H

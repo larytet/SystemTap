@@ -1,7 +1,7 @@
 // rpc tapset
 // Copyright (C) 2006 IBM Corp.
 // Copyright (C) 2007 Bull S.A.S
-// Copyright (C) 2008, 2010-2013 Red Hat
+// Copyright (C) 2008, 2010-2014 Red Hat
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -165,7 +165,8 @@ probe _sunrpc.clnt.create_client.rpc_new_client_inline =
 		args = $args
 %)
 		__args = $args
-		servername = kernel_string($args->servername)
+		servername = __rpc_format_servername($args->servername,
+						     $args->address)
 		progname = kernel_string($args->program->name)
 		prog = $args->prognumber
 		vers = vers_from_prog($args->program, $args->version)
@@ -179,7 +180,9 @@ probe _sunrpc.clnt.create_client.rpc_new_client_inline =
 		args = __rpc_create_args[tid()]
 %)
 		__args = __rpc_create_args[tid()]
-		servername = kernel_string(@cast(__args, "rpc_create_args", "kernel:sunrpc")->servername)
+		servername = __rpc_format_servername(@cast(__args, "rpc_create_args", "kernel:sunrpc")->servername,
+						     @cast(__args, "rpc_create_args", "kernel:sunrpc")->address)
+
 		progname = kernel_string(@cast(__args, "rpc_create_args", "kernel:sunrpc")->program->name)
 		prog = @cast(__args, "rpc_create_args", "kernel:sunrpc")->prognumber
 		vers = vers_from_prog(@cast(__args, "rpc_create_args", "kernel:sunrpc")->program, @cast(__args, "rpc_create_args", "kernel:sunrpc")->version)
@@ -197,7 +200,8 @@ probe _sunrpc.clnt.create_client.rpc_new_client =
 {
 	if (@defined($args)) {
 		# kernel > 2.6.18
-		servername = kernel_string($args->servername)
+		servername = __rpc_format_servername($args->servername,
+						     $args->address)
 		progname = kernel_string($args->program->name)
 		prog = $args->prognumber
 		vers = vers_from_prog($args->program, $args->version)
@@ -205,7 +209,7 @@ probe _sunrpc.clnt.create_client.rpc_new_client =
 	}
 	else {
 		# kernel <= 2.6.18
-		servername = kernel_string($servname)
+		servername = __rpc_format_servername($servname, &$xprt->addr)
 		progname = kernel_string($program->name)
 		prog = $program->number
 		vers = vers_from_prog($program, $vers)
@@ -220,7 +224,7 @@ probe _sunrpc.clnt.create_client.rpc_create_client =
 	kernel.function("rpc_create_client") !,
 	module("sunrpc").function("rpc_create_client")
 {
-	servername = kernel_string($servname)
+	servername = __rpc_format_servername($servname, &$xprt->addr)
 	if (@defined($info)) {
 		progname = kernel_string($info->name)
 		prog = $info->number
@@ -286,10 +290,16 @@ probe _sunrpc.clnt.create_client.return.rpc_create_client =
 probe sunrpc.clnt.clone_client = kernel.function("rpc_clone_client") !,
       	module("sunrpc").function("rpc_clone_client")
 {
-	servername = kernel_string(@choose_defined($clnt->cl_server,
-				   @cast(rcu_dereference($clnt->cl_xprt),
-					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -334,10 +344,16 @@ probe sunrpc.clnt.clone_client.return =
 probe sunrpc.clnt.shutdown_client = kernel.function("rpc_shutdown_client") !,
       	module("sunrpc").function("rpc_shutdown_client")
 {
-	servername = kernel_string(@choose_defined($clnt->cl_server,
-				   @cast(rcu_dereference($clnt->cl_xprt),
-					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -406,10 +422,16 @@ probe sunrpc.clnt.bind_new_program =
 	kernel.function("rpc_bind_new_program") !,
       	module("sunrpc").function("rpc_bind_new_program")
 {
-	servername = kernel_string(@choose_defined($old->cl_server,
-				   @cast(rcu_dereference($old->cl_xprt),
-					 "struct rpc_xprt")->servername))
-	old_progname = kernel_string($old->cl_protname)
+	if (@defined($old->cl_server))
+		servername = __rpc_format_servername($old->cl_server,
+						     &$old->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($old->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	old_progname = kernel_string(@choose_defined($old->cl_program->name,
+						     $old->cl_protname))
 	old_prog = prog_from_clnt($old)
 	old_vers = vers_from_clnt($old)
 	progname = kernel_string($program->name)
@@ -447,10 +469,16 @@ probe sunrpc.clnt.bind_new_program.return =
 probe sunrpc.clnt.call_sync = kernel.function("rpc_call_sync") !,
       	module("sunrpc").function("rpc_call_sync")
 {
-	servername = kernel_string(@choose_defined($clnt->cl_server,
-				   @cast(rcu_dereference($clnt->cl_xprt),
-					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -494,10 +522,16 @@ probe sunrpc.clnt.call_sync.return = kernel.function("rpc_call_sync").return !,
 probe sunrpc.clnt.call_async = kernel.function("rpc_call_async") !,
       	module("sunrpc").function("rpc_call_async")
 {
-	servername = kernel_string(@choose_defined($clnt->cl_server,
-				   @cast(rcu_dereference($clnt->cl_xprt),
-					 "struct rpc_xprt")->servername))
-	progname = kernel_string($clnt->cl_protname)
+	if (@defined($clnt->cl_server))
+		servername = __rpc_format_servername($clnt->cl_server,
+						     &$clnt->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($clnt->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
+	progname = kernel_string(@choose_defined($clnt->cl_program->name,
+						 $clnt->cl_protname))
 	prog = prog_from_clnt($clnt)
 	vers = vers_from_clnt($clnt)
 	prot = prot_from_clnt($clnt)
@@ -538,9 +572,14 @@ probe sunrpc.clnt.call_async.return =
 probe sunrpc.clnt.restart_call = kernel.function("rpc_restart_call") !,
       	module("sunrpc").function("rpc_restart_call")
 {
-	servername = kernel_string(@choose_defined($task->tk_client->cl_server,
-				   @cast(rcu_dereference($task->tk_client->cl_xprt),
-					 "struct rpc_xprt")->servername))
+	if (@defined($task->tk_client->cl_server))
+		servername = __rpc_format_servername($task->tk_client->cl_server,
+						     &$task->tk_client->cl_xprt->addr)
+	else {
+		__xprt = rcu_dereference($task->tk_client->cl_xprt)
+		servername = __rpc_format_servername(@cast(__xprt, "rpc_xprt")->servername,
+						     &@cast(__xprt, "rpc_xprt")->addr)
+	}
 	prog = prog_from_clnt($task->tk_client)
 	xid = $task->tk_rqstp->rq_xid
 	tk_pid = $task->tk_pid
@@ -1185,3 +1224,33 @@ function addr_from_rqst_str:string(rqstp:long)
 			  @cast(addr, "sockaddr_in6")->sin6_port)
 }
 
+%{
+#include <linux/un.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+%}
+
+function __rpc_format_servername:string(servername:long, address:long)
+{
+	printf("__rpc_format_servername: %p\n", servername)
+	if (servername != 0)
+		return kernel_string(servername)
+
+	// If 'servername' is NULL, create a string representation of
+	// the passed-in address.
+	// 
+	// Note that 'address' is a generic 'struct sockaddr'. When
+	// you use it you have to cast it to the more specific
+	// structure based on the family type.
+	if (@cast(address, "sockaddr")->sa_family == %{ /* pure */ /* unprivileged */ AF_LOCAL %}) {
+		return kernel_string(@cast(address, "sockaddr_un")->sun_path)
+	}
+	else if (@cast(address, "sockaddr")->sa_family == %{ /* pure */ /* unprivileged */ AF_INET %}) {
+		return format_ipaddr(&@cast(address, "sockaddr_in")->sin_addr->s_addr, %{ /* pure */ /* unprivileged */ AF_INET %})
+	}
+	else if (@cast(address, "sockaddr")->sa_family == %{ /* pure */ /* unprivileged */ AF_INET6 %}) {
+		return format_ipaddr(&@cast(address, "sockaddr_in6")->sin6_addr,
+				     %{ /* pure */ /* unprivileged */ AF_INET6 %})
+	}
+	return "*unknown address family*"
+}

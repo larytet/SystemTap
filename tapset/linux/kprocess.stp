@@ -1,5 +1,6 @@
 // kernel process tapset
 // Copyright (C) 2006 Intel Corporation.
+// Copyright (C) 2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -47,38 +48,70 @@ probe kprocess.start = kernel.function("schedule_tail") { }
 
 /**
  * probe kprocess.exec - Attempt to exec to a new program
+ *
  * @filename: The path to the new executable
+ * @name: Name of the system call ("execve") (SystemTap v2.5+)
+ * @args: The arguments to pass to the new executable, including
+ * the 0th arg (SystemTap v2.5+)
+ * @argstr: A string containing the filename followed by the
+ * arguments to pass, excluding 0th arg (SystemTap v2.5+)
  *
  * Context:
  *  The caller of exec.
  *
- *  Fires whenever a process attempts to exec to a new program.
+ *  Fires whenever a process attempts to exec to a new program. Aliased
+ *  to the syscall.execve probe in SystemTap v2.5+.
  */
+%(systemtap_v <= "2.4" %?
 probe kprocess.exec = 
     kernel.function("do_execve"),
     kernel.function("compat_do_execve") ?
 {
     filename = kernel_string($filename)
 }
+%:
+probe kprocess.exec = syscall.execve
+{
+   /*
+   name = "execve"
+   filename = user_string_quoted(@choose_defined($filename, $name))
+   # kernel 3.0 changed the pointer's name to __argv
+   __argv = @choose_defined($__argv, $argv)
+   args = __get_argv(__argv, 0)
+   argstr = sprintf("%s %s", filename, __get_argv(__argv, 1))
+   */
+}
+%)
 
 
 /**
  * probe kprocess.exec_complete - Return from exec to a new program
  * @errno: The error number resulting from the exec
  * @success: A boolean indicating whether the exec was successful
+ * @name: Name of the system call ("execve") (SystemTap v2.5+)
+ * @retstr: A string representation of errno (SystemTap v2.5+)
  *
  * Context:
  *  On success, the context of the new executable.
  *  On failure, remains in the context of the caller.
  *
- *  Fires at the completion of an exec call.
+ *  Fires at the completion of an exec call. Aliased to the
+ *  syscall.execve.return probe in SystemTap v2.5+.
  */
+%(systemtap_v <= "2.4" %?
 probe kprocess.exec_complete =
     kernel.function("do_execve").return,
     kernel.function("compat_do_execve").return ?
+%:
+probe kprocess.exec_complete = syscall.execve.return
+%)
 {
     errno = $return
     success = (errno >= 0)
+    /*
+    name = "execve"
+    retstr = return_str(1, $return)
+    */
 }
 
 

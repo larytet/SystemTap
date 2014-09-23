@@ -18,7 +18,7 @@ probe syscall.mmap = kernel.function("sys_mmap") ?
 	# user-side it is a signed int.  Fix this.
 	fd = __int32($fd)
         offset = $off
-        argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
+        argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
                 _mprotect_prot_str($prot), _mmap_flags($flags),
 		__int32($fd), $off)
 }
@@ -40,7 +40,7 @@ probe syscall.mmap2 = kernel.function("sys_mmap2") ?
         flags = $flags
         fd = $fd
         pgoffset = $pgoff
-        argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr,
+        argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr,
                 $len, _mprotect_prot_str($prot), _mmap_flags($flags),
                 $fd, $pgoff)
 }

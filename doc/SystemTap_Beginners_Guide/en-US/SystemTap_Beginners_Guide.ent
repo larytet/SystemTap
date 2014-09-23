@@ -6,3 +6,4 @@
 <!ENTITY PROD "Red Hat Enterprise Linux">
 <!ENTITY PROD2 "Fedora">
 <!ENTITY HOLDER "Red Hat, Inc">
+<!ENTITY BZURL "http://sourceware.org/bugzilla/">

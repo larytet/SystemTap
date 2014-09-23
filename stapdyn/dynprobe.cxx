@@ -1,5 +1,5 @@
 // stapdyn probe functions
-// Copyright (C) 2012-2013 Red Hat Inc.
+// Copyright (C) 2012-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -90,7 +90,7 @@ find_dynprobes(void* module, vector<dynprobe_target>& targets)
       for (uint64_t j = 0; j < t.probes.size(); ++j)
         staplog(3) << "  offset:" << lex_cast_hex(t.probes[j].offset)
                    << " semaphore:" << lex_cast_hex(t.probes[j].semaphore)
-                   << " flags:" << t.probes[j].flags << endl;
+                   << " flags:" << lex_cast_hex(t.probes[j].flags) << endl;
     }
 
   return 0;

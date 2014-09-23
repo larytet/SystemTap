@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * Context Runtime Functions
- * Copyright (C) 2012 Red Hat Inc.
+ * Copyright (C) 2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -12,6 +12,7 @@
 #define _LINUX_RUNTIME_CONTEXT_H_
 
 static struct context *contexts[NR_CPUS] = { NULL };
+static struct context *free_contexts[NR_CPUS] = { NULL };
 
 static int _stp_runtime_contexts_alloc(void)
 {
@@ -20,43 +21,71 @@ static int _stp_runtime_contexts_alloc(void)
 	for_each_possible_cpu(cpu) {
 		/* Module init, so in user context, safe to use
 		 * "sleeping" allocation. */
-		contexts[cpu] = _stp_kzalloc_gfp(sizeof(struct context),
-						 STP_ALLOC_SLEEP_FLAGS);
-		if (contexts[cpu] == NULL) {
-			_stp_error ("context (size %lu) allocation failed",
+		struct context *c = _stp_vzalloc_node(sizeof (struct context),
+						      cpu_to_node(cpu));
+		if (c == NULL) {
+			_stp_error ("context (size %lu per cpu) allocation failed",
 				    (unsigned long) sizeof (struct context));
 			return -ENOMEM;
 		}
+		rcu_assign_pointer(contexts[cpu], c);
 	}
 	return 0;
 }
 
+/* We should be free of all probes by this time, but for example the timer for
+ * _stp_ctl_work_callback may still be running and looking for contexts.  We
+ * use RCU-sched synchronization to be sure its safe to free them.  */
 static void _stp_runtime_contexts_free(void)
 {
 	int cpu;
 
+	/* First clear all pointers to prevent new readers.  */
 	for_each_possible_cpu(cpu) {
-		if (contexts[cpu] != NULL) {
-			_stp_kfree(contexts[cpu]);
-			contexts[cpu] = NULL;
+		free_contexts[cpu] = contexts[cpu];
+		rcu_assign_pointer(contexts[cpu], NULL);
+	}
+
+	/* Sync to make sure existing readers are done.  */
+	stp_synchronize_sched();
+
+	/* Now we can actually free the contexts.  */
+	for_each_possible_cpu(cpu) {
+		struct context *c = free_contexts[cpu];
+		if (c != NULL) {
+			free_contexts[cpu] = NULL;
+			_stp_vfree(c);
 		}
 	}
 }
 
-static struct context * _stp_runtime_entryfn_get_context(void)
-{
-	return contexts[smp_processor_id()];
-}
-
-static inline void _stp_runtime_entryfn_put_context(struct context *c __attribute__((unused)))
-{
-	/* Do nothing. */
-	return;
-}
-
 static inline struct context * _stp_runtime_get_context(void)
 {
-	return contexts[smp_processor_id()];
+	return rcu_dereference_sched(contexts[smp_processor_id()]);
+}
+
+static struct context * _stp_runtime_entryfn_get_context(void)
+{
+	struct context* __restrict__ c = NULL;
+	preempt_disable ();
+	c = _stp_runtime_get_context();
+	if (c != NULL) {
+		if (atomic_inc_return(&c->busy) == 1)
+			return c;
+		atomic_dec(&c->busy);
+	}
+	preempt_enable_no_resched();
+	return NULL;
+}
+
+static inline void _stp_runtime_entryfn_put_context(struct context *c)
+{
+	if (c && c == _stp_runtime_get_context()) {
+		atomic_dec(&c->busy);
+		preempt_enable_no_resched();
+	}
+	/* else, warn about bad state? */
+	return;
 }
 
 static void _stp_runtime_context_wait(void)

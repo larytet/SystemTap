@@ -1,6 +1,6 @@
 // scsi tapset
 // Copyright (C) 2005, 2006, 2009 IBM Corp.
-// Copyright (C) 2010 Red Hat
+// Copyright (C) 2014 Red Hat
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -126,15 +126,19 @@ probe scsi.iodispatching
  * @scsi_timer_pending: 1 if a timer is pending on this request
  */
 probe scsi.iodone
-	= module("scsi_mod").function("scsi_done@drivers/scsi/scsi.c")!,
+	= kernel.trace("scsi_dispatch_cmd_done")!,
+	  module("scsi_mod").function("scsi_done@drivers/scsi/scsi.c")!,
 	  kernel.function("scsi_done@drivers/scsi/scsi.c")?
 
 {
-	host_no = $cmd->device->host->host_no
-	channel = $cmd->device->channel
-	lun = $cmd->device->lun
-	dev_id = $cmd->device->id
-	device_state = $cmd->device->sdev_state
+	# Why is the @cast() needed here? When the probe alias uses
+	# the "scsi_dispatch_cmd_done" tracepoint, the type info isn't
+	# in scope. 
+	host_no = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->host->host_no
+	channel = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->channel
+	lun = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->lun
+	dev_id = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->id
+	device_state = @cast($cmd->device, "scsi_device", "kernel:scsi_mod")->sdev_state
 	device_state_str = describe_device_state(device_state)
 	data_direction = $cmd->sc_data_direction
 	data_direction_str = describe_data_direction(data_direction)

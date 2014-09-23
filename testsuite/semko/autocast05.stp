@@ -1,0 +1,9 @@
+#! stap -p2
+
+global sun
+probe begin
+{
+    // Test DWARF assigned to a global shouldn't propagate types
+    sun = & @cast(0, "sockaddr_un", "<sys/un.h>");
+    println(sun->sun_family)
+}

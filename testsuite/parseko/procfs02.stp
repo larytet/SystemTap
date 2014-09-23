@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 probe procfs.umask(0880).read {}
 

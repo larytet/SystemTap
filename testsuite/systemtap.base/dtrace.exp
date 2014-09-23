@@ -18,7 +18,9 @@ puts $fp "
 
 provider tstsyscall
 {
- probe test(INT16 arg1, INT32 arg2, INT32 arg3, INT32 arg4, struct astruct arg5)
+ probe test0();
+ probe test1(INT16 arg1, INT32 arg2, INT32 arg3, INT32 arg4, struct astruct arg5);
+ probe test2(INT16 arg1, INT32 arg2, INT32 arg3, INT32 arg4, struct astruct arg5);
 }
 "
 close $fp
@@ -39,7 +41,9 @@ puts $fp "
 
 provider tstsyscall
 {
- probe test(INT16 arg1, INT32 arg2, INT32 arg3, INT32 arg4, struct astruct arg5)
+ probe test0();
+ probe test1(INT16 arg1, INT32 arg2, INT32 arg3, INT32 arg4, struct astruct arg5);
+ probe test2(INT16 arg1, INT32 arg2, INT32 arg3, INT32 arg4, struct astruct arg5);
 }
 "
 close $fp
@@ -172,13 +176,34 @@ verbose -log "$dtrace -C -I$incpath -h -s $idpath -o XXX.h"
 catch {exec $dtrace -C -I$incpath -h -s $idpath -o XXX.h}
 spawn cat XXX.h
 expect {
-    "short arg1, int arg2, int arg3, int arg4" {incr ok}
+    -re {DTRACE_PROBE \(tstsyscall, test0\)} {incr ok; exp_continue}
+    -re {short arg1, int arg2, int arg3, int arg4} {incr ok; exp_continue}
+    -re {DTRACE_PROBE. \(tstsyscall, test., arg1, arg2, arg3, arg4, arg5\)} {incr ok}
+    eof { }
 }
 catch {close}; catch {wait}
-if { $ok != 0} {
+if { $ok == 4} {
     pass "dtrace -C -Iincpath -h -o XXX.h"
 } else {
-    fail "dtrace -C -Iincpath -h -o XXX.h"
+    fail "dtrace -C -Iincpath -h -o XXX.h $ok"
+}
+exec rm -f XXX.h
+
+set ok 0
+verbose -log "$dtrace -C --no-pyparsing -I$incpath -h -s $idpath -o XXX.h"
+catch {exec $dtrace -C --no-pyparsing -I$incpath -h -s $idpath -o XXX.h}
+spawn cat XXX.h
+expect {
+    -re {DTRACE_PROBE \(tstsyscall, test0\)} {incr ok; exp_continue}
+    -re {short arg1, int arg2, int arg3, int arg4} {incr ok; exp_continue}
+    -re {DTRACE_PROBE. \(tstsyscall, test., arg1, arg2, arg3, arg4, arg5\)} {incr ok}
+    eof { }
+}
+catch {close}; catch {wait}
+if { $ok == 4} {
+    pass "dtrace -C --no-pyparsing -Iincpath -h -o XXX.h"
+} else {
+    fail "dtrace -C --no-pyparsing -Iincpath -h -o XXX.h $ok"
 }
 exec rm -f XXX.h
 

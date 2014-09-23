@@ -56,6 +56,7 @@ PRInt32 PR_Read_Complete (PRFileDesc *fd, void *buf, PRInt32 requestedBytes);
 const char *server_cert_nickname ();
 std::string server_cert_db_path ();
 std::string local_client_cert_db_path ();
+std::string add_cert_db_prefix (const std::string &db_path);
 
 void nsscommon_error (const std::string &msg, int logit = 1);
 
@@ -76,6 +77,10 @@ void sign_file (
 );
 
 CERTCertList *get_cert_list_from_db (const std::string &cert_nickname);
+
+SECStatus
+read_cert_info_from_file (const std::string &certPath,
+			  std::string &fingerprint);
 
 #endif // defined(c_plusplus) || defined(__cplusplus)
 

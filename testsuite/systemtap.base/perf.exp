@@ -1,6 +1,7 @@
 set test "perf"
 
 if {! [installtest_p]} { untested "$test"; return }
+if {! [perf_probes_p]} { untested "$test"; return }
 
 proc cleanup_handler { verbose } {
     catch {exec rm -f towers.x}
@@ -20,31 +21,17 @@ if { $res != "" } {
     pass "$test compiling towers.c"
 }
 
-spawn $stap_path -c $exepath -e "
-global towers_n
-global XXX_n
-
-probe perf.sw.task_clock.process(\"$exepath\")
-{
- towers_n += 1
-}
-
-probe perf.sw.task_clock.process(\"XXX\") 
-{ 
- XXX_n += 1
-}
-"
+spawn $stap_path $srcdir/$subdir/perf01.stp $exepath -c $exepath
 
 # there is no "XXX" process so this probe should have been ignored
 set ok 0
 expect {
     -timeout 180
-    -re {towers_n=0x[0-9a-f][0-9a-f]} { incr ok; exp_continue }
-    -re {XXX_n=0x0} { incr ok; exp_continue }
+    -re {^towers_n=0x[0-9a-f]{2,}\r\n} { incr ok; exp_continue }
+    -re {^XXX_n=0x0\r\n} { incr ok; exp_continue }
     timeout { fail "$test (timeout)" }
     eof { }
 }
-
 catch {close}; catch {wait}
 
 if {$ok == 2} {
@@ -55,23 +42,15 @@ if {$ok == 2} {
 
 set subtest "process"
 
-spawn $stap_path -c $exepath -e "
-global towers_n
-
-probe perf.sw.task_clock.process
-{
- towers_n += 1
-}
-"
+spawn $stap_path $srcdir/$subdir/perf02.stp -c $exepath
 
 set ok 0
 expect {
     -timeout 180
-    -re {towers_n=0x[0-9a-f][0-9a-f]} { incr ok; exp_continue }
+    -re {^towers_n=0x[0-9a-f]{2,}\r\n} { incr ok; exp_continue }
     timeout { fail "$test (timeout)" }
     eof { }
 }
-
 catch {close}; catch {wait}
 
 if {$ok == 1} {
@@ -84,158 +63,80 @@ set subtest "counter"
 
 target_compile $srcdir/$subdir/towers.c $exepath executable "additional_flags=-g"
 
-spawn $stap_path -c $exepath -e "
-global towers
-global main
+if {! [uprobes_p]} {
+    untested "$test $subtest"
+} else {
+    spawn $stap_path $srcdir/$subdir/perf03.stp $exepath -c $exepath
 
-probe perf.hw.instructions.process(\"$exepath\").counter(\"a\")
-{
- counter_a += 1
+    set ok 0
+    expect {
+	-timeout 180
+	-re {^count main=1\r\n} { incr ok; exp_continue }
+	-re {^count towers=500\r\n} { incr ok; exp_continue }
+	-re {^min main=[0-9]{6,}\r\n} { incr ok; exp_continue }
+	-re {^min towers=[0-9]{6,}\r\n} { incr ok; exp_continue }
+	-re {^max main=[0-9]{6,}\r\n} { incr ok; exp_continue }
+	-re {^max towers=[0-9]{9,}\r\n} { incr ok; exp_continue }
+	-re {^WARNING:[^\r]*not supported by this kernel[^\r]*\r\n} {
+	    # If this type of perf probe isn't supported by this kernel,
+	    # kfail the test.
+	    setup_kfail 15727 *-*-*; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+
+    spawn $stap_path $srcdir/$subdir/perf04.stp $exepath -c $exepath
+
+    expect {
+	-timeout 180
+	-re {^count main=1\r\n} { incr ok; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+
+    if {$ok == 7} {
+	pass "$test $subtest"
+    } else {
+	fail "$test $subtest ($ok)"
+    }
 }
 
-probe perf.hw.instructions.process(\"$exepath\").counter(\"b\")
-{
- counter_b += 1
-}
+set subtest "global"
 
-probe process(\"$exepath\").statement(\"towers@towers.c\")
-{
- towers <<< @perf(\"a\")
-}
-
-probe process(\"$exepath\").statement(\"main@towers.c\")
-{
- main <<< @perf(\"b\")
-}
-
-probe end
-{
- printf(\"count main=%d\\ncount towers=%d\\ncounter %d/%d\\n\", @count(main), @count(towers), counter_a, counter_b)
- printf(\"min main=%d\\nmin towers=%d\\n\", @min(main), @min(towers))
- printf(\"max main=%d\\nmax towers=%d\\n\", @max(main), @max(towers))
-}
-"
+spawn $stap_path $srcdir/$subdir/perf05.stp
 
 set ok 0
 expect {
     -timeout 180
-    -re {count main=1} { incr ok; exp_continue }
-    -re {count towers=500} { incr ok; exp_continue }
-    -re {min main=[0-9][0-9][0-9][0-9][0-9][0-9]} { incr ok; exp_continue }
-    -re {min towers=[0-9][0-9][0-9][0-9][0-9][0-9]} { incr ok; exp_continue }
-    -re {max main=[0-9][0-9][0-9][0-9][0-9][0-9]} { incr ok; exp_continue }
-    -re {max towers=[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]} { incr ok; exp_continue }
-    -re {not supported by this kernel} {
-	# If this type of perf probe isn't supported by this kernel,
-	# kfail the test.
-	setup_kfail 15727 *-*-*; exp_continue }
-    timeout { fail "$test (timeout)" }
-    eof { }
-}
-
-catch {close}; catch {wait}
-
-spawn $stap_path -c $exepath -e "
-global main
-global counter_a
-
-probe perf.hw.instructions.counter(\"a\")
-{
- counter_a += 1
-}
-
-probe process(\"$exepath\").statement(\"main@towers.c\")
-{
- # counter \"a\" has no defined process so the default is $exepath
- main <<< @perf(\"a\")
-}
-
-probe end
-{
- printf(\"count main=%d\\n\", @count(main))
-}
-"
-
-expect {
-    -timeout 180
-    -re {count main=1} { incr ok; exp_continue }
+    -re {^hit=0x1\r\n} { incr ok; exp_continue }
     timeout { fail "$test (timeout)" }
     eof { }
 }
 catch {close}; catch {wait}
 
-if {$ok == 7} {
+if {$ok == 1} {
     pass "$test $subtest"
 } else {
     fail "$test $subtest ($ok)"
 }
 
-set subtest "error check"
+set subtest "counter order"
 
-spawn $stap_path -e "
-global x
+spawn $srcdir/$subdir/perf.sh $stap_path
 
-probe perf.hw.cpu_cycles.process(\"$exepath\").counter(\"a\") {} 
-
-probe process(\"$exepath\").function(\"main\")
-{
- # wrong type
- x = \"b\" . @perf(\"a\")
-}"
-
-set ok 0
 expect {
     -timeout 180
-    -re {semantic error:.*type mismatch.*long vs. string} { incr ok; exp_continue }
+    -re {PASS: [0-9 ]+} { regexp " .*$" $expect_out(0,string) s; 
+        pass "$subtest $s"; exp_continue }
+    -re {UNRESOLVED: [0-9 ]+} { regexp " .*$" $expect_out(0,string) s; 
+        unresolved "$subtest $s"; exp_continue }
+    -re {FAIL: [0-9 ]+} { regexp " .*$" $expect_out(0,string) s; 
+        fail "$subtest $s"; exp_continue }
     timeout { fail "$test (timeout)" }
     eof { }
 }
 catch {close}; catch {wait}
-
-spawn $stap_path -e "
-global x
-
-probe perf.hw.cpu_cycles.process(\"/bin/ls\").counter(\"b\") {}
-
-probe process(\"$exepath\").function(\"main\")
-{
- # wrong process
- y = @perf(\"b\")
-}"
-
-expect {
-    -timeout 180
-    -re {semantic error: perf counter 'b' not defined} { incr ok; exp_continue }
-    timeout { fail "$test (timeout)" }
-    eof { }
-}
-catch {close}; catch {wait}
-
-spawn $stap_path -e "
-global x
-
-probe perf.hw.cpu_cycles.process(\"/bin/ls\").counter(\"a\") {}
-
-probe process(\"$exepath\").function(\"main\")
-{
- # wrong counter
- y = @perf(\"b\")
-}"
-
-expect {
-    -timeout 180
-    -re {semantic error: perf counter 'b' not defined} { incr ok; exp_continue }
-    timeout { fail "$test (timeout)" }
-    eof { }
-}
-
-catch {close}; catch {wait}
-
-if {$ok == 3} {
-    pass "$test $subtest"
-} else {
-    fail "$test $subtest ($ok)"
-}
-
 
 cleanup_handler $verbose

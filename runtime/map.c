@@ -110,6 +110,19 @@ static struct map_node *_stp_map_iter(MAP map, struct map_node *m)
 	return mlist_map_node(mlist_next(&m->lnode));
 }
 
+static struct map_node *_stp_map_iterdel(MAP map, struct map_node *m)
+{
+  struct map_node *r_map;
+
+  if (map == NULL)
+    return NULL;
+
+  r_map = _stp_map_iter(map, m);
+  _new_map_del_node(map, m);
+
+  return r_map;
+}
+
 /** Clears all the elements in a map.
  * @param map 
  */

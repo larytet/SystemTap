@@ -1,0 +1,12 @@
+#! stap -p2
+
+probe begin
+{
+    sun_path = @cast(0, "sockaddr_un", "<sys/un.h>")->sun_path;
+
+    // The parser treats this as an arrayindex on a global, rather than an
+    // autocast [0], because it can't know yet whether it really is a global.
+    // This is a syntax ambiguity which we've chosen to resolve in the legacy
+    // direction.  If you really wanted autocast, use (sun_path)[0].
+    println(sun_path[0])
+}

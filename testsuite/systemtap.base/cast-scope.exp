@@ -9,10 +9,19 @@ set srcfile "$srcdir/$subdir/$test.cxx"
 set stpfile "$srcdir/$subdir/$test.stp"
 
 proc dyninst_kfails {index} {
+
     # The dyninst runtime isn't multi-arch, it only works on the
     # native architecture. PR14490.
     if {! [all_compile_flag_native_p $index]} {
 	setup_kfail 14490 "*-*-*"
+    }
+
+    # On ppc, stapdyn does not retrieve all registers, causing
+    # various failures (such as the inability to retrieve DWARF
+    # vars in unoptimized code). PR15614.
+    if {[string match ppc* $::tcl_platform(machine)] && \
+        ![all_compile_flag_optimized_p $index]} {
+	setup_kfail 15614 "*-*-*"
     }
 }
 
@@ -33,12 +42,6 @@ for {set i 0} {$i < [all_compile_flags]} {incr i} {
 
     if {[installtest_p]} {
 	foreach runtime [get_runtime_list] {
-	    # On some builds without any optimization our prologue
-	    # detection fails. PR13420.
-	    if {$extra_name == "m64" || $extra_name == "m32" \
-		    || $extra_name == "m31"} {
-		setup_kfail 13420 "*-*-*"
-	    }
 	    if {$runtime != ""} {
 		if {[info procs ${runtime}_kfails] ne ""} {
 		    ${runtime}_kfails $i

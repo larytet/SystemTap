@@ -1,0 +1,18 @@
+#! stap -p2
+
+function sockaddr_un(ptr)
+{
+    // Make sure multiple conflicting returns don't resolve a type.
+    // (These are actually the same, but coming from different cast modules.)
+    if (randint(2))
+        return & @cast(ptr, "sockaddr_un", "<sys/un.h>");
+    else
+        return & @cast(ptr, "sockaddr_un", "<sys/socket.h><sys/un.h>");
+}
+
+probe begin
+{
+    // Test DWARF types returned from function calls,
+    // even failing properly when the field doesn't exist.
+    println( sockaddr_un(0) -> sun_family )
+}

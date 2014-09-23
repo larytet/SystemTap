@@ -60,7 +60,7 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 		}
 	    }
 
-	    exec kill -INT -[exp_pid]
+	    kill -INT -[exp_pid]
 
 	    # check the output to see if it is sane
 	    set output "^systemtap ending probe\r\n$OUTPUT_CHECK_STRING"
@@ -68,6 +68,11 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 	    # By default, "expect -re" will match up to 2000 chars.
 	    # Increase this to 8K worth of data.
 	    exp_match_max 8192
+
+	    # Avoid PR17274 to propagate
+	    set origexpinternal 1
+	    if {"[exp_internal -info]" == "0"} {set origexpinternal 0}
+	    exp_internal 0
 
 	    expect {
 		-timeout 20
@@ -89,20 +94,21 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 		}
 		timeout { 
                     fail "$TEST_NAME shutdown (timeout)"
-                    exec kill -INT -[exp_pid] 
+                    kill -INT -[exp_pid]
                 }
 		eof { fail "$TEST_NAME shutdown (eof)" }
 	    }
+	    exp_internal $origexpinternal
 	}
 	-re "semantic error:" { fail "$TEST_NAME compilation" }
 	timeout { 
             fail "$TEST_NAME startup (timeout)"
-            exec kill -INT -[exp_pid]
+            kill -INT -[exp_pid]
         }
 	eof { fail "$TEST_NAME startup (eof)" }
     }
-  # again for good measure
-  exec kill -INT -[exp_pid]
+  # again for good measure with KILL after 3s
+  kill -INT -[exp_pid] 3
   catch close
   wait
 }
@@ -113,22 +119,41 @@ proc no_load {} {
     return 0
 }
 
-# Load function to use when you need to wait 5 seconds.
-proc wait_5_secs {} {
-    # Tcl_Sleep appears to have a cow if the systme clock jumps, so
-    # instead of the built-in "after", use /usr/bin/sleep.
-    catch { exec sleep 5 }
+proc wait_n_secs {N_SECS} {
+    if {[file executable /usr/bin/stress]} {
+	# stress package is installed
+	set STRESS /usr/bin/stress 
+    }
+    if {$N_SECS > 0 && [info exists STRESS]} {
+	set ncpu [exec getconf _NPROCESSORS_CONF]
+	if {$ncpu > 2} {
+	    set ncpu [expr $ncpu - 2]
+	}
+	send_log "executing: $STRESS -c $ncpu -t $N_SECS"
+	exec $STRESS -c $ncpu -t $N_SECS
+    } else {
+	# fallback method
+	# Tcl_Sleep does not always handle the system clock jumping, 
+	# so instead of the built-in "after", use /usr/bin/sleep.
+	catch { exec sleep $N_SECS }
+    }
     return 0;
 }
 
+
+# Load function to use when you need to wait 5 seconds.
+proc wait_5_secs {} {
+    return [wait_n_secs 5];
+}
+
 proc print_system_info {} {
-	global Host Snapshot Distro GCC_Version SElinux
+	global Host Snapshot Distro GCC_FullVersion SElinux
 
 	clone_output "\nHost: $Host"
 	if {[string compare $Snapshot "unknown"]!=0} {
 		clone_output "Snapshot: $Snapshot"
 	}
-	clone_output "GCC: $GCC_Version"
+	clone_output "GCC: $GCC_FullVersion"
 	clone_output "Distro: $Distro"
         clone_output "SElinux: $SElinux"
         clone_output "\n"

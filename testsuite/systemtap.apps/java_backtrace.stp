@@ -1,0 +1,6 @@
+#!/usr/bin/env stap
+
+probe java("singleparam").class("singleparam").method("printMessage(short)")
+{
+  print_java_backtrace()
+}

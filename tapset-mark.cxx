@@ -1,5 +1,5 @@
 // tapset for kernel static markers
-// Copyright (C) 2005-2010 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -96,10 +96,10 @@ mark_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
   int argnum = atoi (argnum_s.c_str());
 
   if (argnum < 1 || argnum > (int)mark_args.size())
-    throw semantic_error (_("invalid marker argument number"), e->tok);
+    throw SEMANTIC_ERROR (_("invalid marker argument number"), e->tok);
 
   if (is_active_lvalue (e))
-    throw semantic_error(_("write to marker parameter not permitted"), e->tok);
+    throw SEMANTIC_ERROR(_("write to marker parameter not permitted"), e->tok);
 
   e->assert_no_components("marker");
 
@@ -119,7 +119,7 @@ mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   string sname = e->name;
 
   if (is_active_lvalue (e))
-    throw semantic_error(_F("write to marker '%s' not permitted", sname.c_str()), e->tok);
+    throw SEMANTIC_ERROR(_F("write to marker '%s' not permitted", sname.c_str()), e->tok);
 
   e->assert_no_components("marker");
 
@@ -140,9 +140,7 @@ mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
  else if (e->name == "$$vars" || e->name == "$$parms")
   {
      //copy from tracepoint
-     token* pf_tok = new token(*e->tok);
-     pf_tok->content = "sprintf";
-     print_format* pf = print_format::create(pf_tok);
+     print_format* pf = print_format::create(e->tok, "sprintf");
 
      for (unsigned i = 0; i < mark_args.size(); ++i)
         {
@@ -183,7 +181,7 @@ mark_var_expanding_visitor::visit_target_symbol (target_symbol* e)
   try
     {
       if (e->addressof)
-        throw semantic_error(_("cannot take address of marker variable"), e->tok);
+        throw SEMANTIC_ERROR(_("cannot take address of marker variable"), e->tok);
 
       if (startswith(e->name, "$arg"))
         visit_target_symbol_arg (e);
@@ -191,7 +189,7 @@ mark_var_expanding_visitor::visit_target_symbol (target_symbol* e)
                || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
       else
-        throw semantic_error (_("invalid target symbol for marker, $argN, $name, $format, $$parms or $$vars expected"),
+        throw SEMANTIC_ERROR (_("invalid target symbol for marker, $argN, $name, $format, $$parms or $$vars expected"),
                               e->tok);
     }
   catch (const semantic_error &er)
@@ -403,6 +401,7 @@ mark_derived_probe::join_group (systemtap_session& s)
       s.embeds.push_back(ec);
     }
   s.mark_derived_probes->enroll (this);
+  this->group = s.mark_derived_probes;
 }
 
 
@@ -446,7 +445,7 @@ mark_derived_probe::initialize_probe_context_vars (translator_output* o)
 	  break;
 
 	default:
-	  throw semantic_error (_("cannot expand unknown type"));
+	  throw SEMANTIC_ERROR (_("cannot expand unknown type"));
 	  break;
 	}
     }
@@ -518,7 +517,7 @@ mark_derived_probe_group::emit_module_decls (systemtap_session& s)
   s.op->newline() << "(*smp->probe->ph) (c);";
   s.op->newline() << "c->ips.kmark.mark_va_list = NULL;";
 
-  common_probe_entryfn_epilogue (s, true);
+  common_probe_entryfn_epilogue (s, true, otf_safe_context(s));
   s.op->newline(-1) << "}";
 
   return;
@@ -571,6 +570,9 @@ private:
     mark_cache_const_iterator_pair_t;
   mark_cache_t mark_cache;
 
+  string suggest_marks(systemtap_session& sess,
+                       const string& mark);
+
 public:
   mark_builder(): cache_initialized(false) {}
 
@@ -591,6 +593,30 @@ public:
              vector<derived_probe *> & finished_results);
 };
 
+
+string
+mark_builder::suggest_marks(systemtap_session& sess,
+                           const string& mark)
+{
+  if (mark.empty() || mark_cache.empty())
+    return "";
+
+  set<string> marks;
+
+  // Collect all markers from cache
+  for (mark_cache_const_iterator_t it = mark_cache.begin();
+       it != mark_cache.end(); it++)
+    marks.insert(it->first);
+
+  if (sess.verbose > 2)
+    clog << "suggesting from " << marks.size()
+         << " kernel marks" << endl;
+
+  if (marks.empty())
+    return "";
+
+  return levenshtein_suggest(mark, marks, 5); // print top 5 marks only
+}
 
 void
 mark_builder::build(systemtap_session & sess,
@@ -671,6 +697,8 @@ mark_builder::build(systemtap_session & sess,
       module_markers.close();
     }
 
+  unsigned results_pre = finished_results.size();
+
   // Search marker list for matching markers
   for (mark_cache_const_iterator_t it = mark_cache.begin();
        it != mark_cache.end(); it++)
@@ -695,6 +723,16 @@ mark_builder::build(systemtap_session & sess,
 	      finished_results.push_back (dp);
 	    }
 	}
+    }
+
+  if (results_pre == finished_results.size() && !loc->from_glob)
+    {
+      string sugs = suggest_marks(sess, mark_str_val);
+      if (!sugs.empty())
+        throw SEMANTIC_ERROR (_NF("no match (similar mark: %s)",
+                                  "no match (similar marks: %s)",
+                                  sugs.find(',') == string::npos,
+                                  sugs.c_str()));
     }
 }
 

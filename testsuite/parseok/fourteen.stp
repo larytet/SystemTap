@@ -33,3 +33,10 @@ global
    %: "FAIL10"
    %)
 %)
+
+global
+%( guru_mode == 1 %? guru_mode
+%: %( guru_mode == 0 %? not_guru_mode
+   %: "FAIL11"
+   %)
+%)

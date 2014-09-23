@@ -1,0 +1,113 @@
+set test "pr16719"
+
+if {![installtest_p]} {
+   untested "$test"
+   return
+}
+
+# This test makes sure that stap doesn't keep unnecessary files open during
+# pass-5 execution. For kernel probing, we check for vmlinux. For userspace
+# probing, we check for the binary or the corresponding debug file.
+
+# Run stap with probe and once we reach pass-5, check in /proc/$pid/[fd,maps]
+# for any opened/mapped file with the given pattern.
+proc run_stap { probe pattern } {
+   global test subtest
+
+   # Build the stap command
+   set script "probe $probe { next }"
+
+   # Spawn stap
+   eval spawn stap -e {$script} --vp 00003
+   set stap_id $spawn_id
+   set failed 1
+   expect {
+      -timeout 30
+      -re {systemtap_module_init\(\)\ returned\ 0} { set failed 0 }
+      timeout { kill -INT -[exp_pid] 2 }
+      eof { kill -INT -[exp_pid] 2 }
+   }
+
+   # Check if stap was able to start
+   if {!$failed} {
+      pass "$test ($subtest - started stap)"
+   } else {
+      fail "$test ($subtest - can't start stap)"
+      kill -INT -[exp_pid] 2
+      catch { close }; catch { wait }
+      return
+   }
+
+   # Check /proc/$pid/fd
+   foreach file [glob -nocomplain /proc/[exp_pid -i $stap_id]/fd/*] {
+      # Make sure it's a symlink
+      if {![catch {file readlink $file} link]} {
+         # Check that it matches the pattern
+         if {[string match $pattern $link]} {
+            verbose -log "link $link matches pattern $pattern"
+            set failed 1
+         }
+      }
+   }
+
+   if {!$failed} {
+      pass "$test ($subtest - fd clean)"
+   } else {
+      fail "$test ($subtest - found target file in fd)"
+      kill -INT -[exp_pid] 2
+      catch { close -i $stap_id }; catch { wait -i $stap_id }
+      return
+   }
+
+   # Check /proc/$pid/maps
+   if {[catch {open /proc/[exp_pid -i $stap_id]/maps} chan]} {
+      # Can't open maps file
+      untested "$test ($subtest - can't open maps file)"
+      kill -INT -[exp_pid] 2
+      catch { close -i $stap_id }; catch { wait -i $stap_id }
+      return
+   }
+
+   # Read in maps line by line
+   while {[gets $chan line] >= 0} {
+      set fields [lreplace "$line" 0 -1]
+      set file [lindex $fields 5]
+      if {[expr [string length $file] && \
+             [file exists $file] && \
+             [string match $pattern $file]]} {
+         verbose -log "file $file matches pattern $pattern"
+         set failed 1
+      }
+
+   }
+   catch {close $chan}
+
+   if {!$failed} {
+      pass "$test ($subtest - maps clean)"
+   } else {
+      fail "$test ($subtest - found target file in maps)"
+      kill -INT -[exp_pid] 2
+      catch { close -i $stap_id }; catch { wait -i $stap_id }
+      return
+   }
+
+   pass "$test ($subtest)"
+   kill -INT -[exp_pid] 2
+   catch { close -i $stap_id }; catch { wait -i $stap_id }
+}
+
+# Kernel check
+# Bad stap would have open /usr/lib/debug/lib/modules/`uname -r`/vmlinux
+set subtest "kernel"
+run_stap {vfs.read} {*/vmlinux}
+
+# Kernel tracepoint check
+# Bad stap would have open /usr/lib/debug/lib/modules/`uname -r`/vmlinux
+# (from getting s.kernel_source_tree in tracepoint_builder::init_dw().)
+set subtest "tracepoint"
+run_stap {kernel.trace("sched_switch")!,never} {*/vmlinux}
+
+# User check
+# Bad stap would have open /bin/ls or /usr/lib/debug/bin/ls.debug
+set subtest "user"
+run_stap {process("/bin/ls").function("main")} {*/bin/ls}

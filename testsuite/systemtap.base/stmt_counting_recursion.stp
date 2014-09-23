@@ -1,0 +1,25 @@
+# stap stmt_counting_recursion.stp 5
+
+global num
+probe begin {
+  printf("systemtap starting probe\n");
+  func1(1);
+  printf("systemtap ending probe\n");
+  if (num == $1*2 -1)
+    printf("pass\n");
+  else
+    printf("fail\n");
+  exit();
+}
+
+function func1 (a) {
+  num++;
+  if (a < $1)
+    func2(a);
+}
+
+function func2 (b) {
+  num++;
+  func1(b+1);
+}
+
