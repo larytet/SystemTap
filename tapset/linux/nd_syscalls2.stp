@@ -3816,19 +3816,40 @@ probe nd_syscall.timer_getoverrun.return = kprobe.function("sys_timer_getoverrun
 #
 # long sys_timer_gettime(timer_t timer_id,
 #			 struct itimerspec __user *setting)
+# long compat_sys_timer_gettime(timer_t timer_id,
+#			 struct itimerspec __user *setting)
 #
-probe nd_syscall.timer_gettime = kprobe.function("sys_timer_gettime") ?
+probe nd_syscall.timer_gettime = __nd_syscall.timer_gettime,
+	__nd_syscall.compat_timer_gettime ?
 {
 	name = "timer_gettime"
+}
+
+probe __nd_syscall.timer_gettime = kprobe.function("sys_timer_gettime")
+{
+	@__syscall_gate(%{ __NR_timer_gettime %})
 	asmlinkage()
 	timerid = int_arg(1)
 	value_uaddr = pointer_arg(2)
 	argstr = sprintf("%d, %p", timerid, value_uaddr)
 }
-probe nd_syscall.timer_gettime.return = kprobe.function("sys_timer_gettime").return ?
+probe __nd_syscall.compat_timer_gettime = kprobe.function("compat_sys_timer_gettime") ?
+{
+	asmlinkage()
+	timerid = int_arg(1)
+	value_uaddr = pointer_arg(2)
+	argstr = sprintf("%d, %p", timerid, value_uaddr)
+}
+probe nd_syscall.timer_gettime.return =
+	__nd_syscall.timer_gettime.return,
+	kprobe.function("compat_sys_timer_gettime").return ?
 {
 	name = "timer_gettime"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.timer_gettime.return = kprobe.function("sys_timer_gettime").return
+{
+	@__syscall_gate(%{ __NR_timer_gettime %})
 }
 
 # timer_settime ______________________________________________

@@ -41,7 +41,8 @@ proc run_one_test {filename flags bits suite} {
 	return
     }
 
-    set res [target_compile $filename $syscall_dir/$testname executable $flags]
+    set flags "$flags additional_flags=-lrt"
+    set res [target_compile $filename $syscall_dir/$testname executable $flags ]
     if { $res != "" } {
 	send_log "$bits-bit $testname $suite : no corresponding devel environment found\n"
 	untested "$bits-bit $testname $suite"
