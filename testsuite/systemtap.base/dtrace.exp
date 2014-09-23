@@ -207,6 +207,46 @@ if { $ok == 4} {
 }
 exec rm -f XXX.h
 
+set ok 0
+set pypath "/tmp/pypath.d"
+set $fp [open $pypath "w"]
+puts $fp "
+#include <sys/types.h>
+
+provider alpha {
+	probe request__start(string, uint8_t, uint16_t, int, void *);
+	probe request__one(string, uint8_t, uint32_t, int, int);
+	probe client__two(int, int);
+	probe client__three(int, string, pid_t, zoneid_t);
+	probe input__stop(int, int, uint32_t, uint32_t, int8_t, uint8_t*, double*);
+};
+
+#ifdef DCL_AFTER_PROVIDER
+typedef unsigned short int __u_short;
+typedef const static unsigned short __u_c_short;
+#endif
+
+#pragma D attributes Unknown provider alpha provider
+"
+close $fp
+verbose -log "$dtrace -C -h -s $pypath -o XXX.h"
+spawn $dtrace -C -DDCL_AFTER_PROVIDER -h -s $pypath -o XXX.h
+expect {
+    -re {Warning.*syntax error} {incr ok; exp_continue}
+    -re {Warning.*--no-pyparsing} {incr ok; exp_continue}
+    eof { }
+}
+catch {close}; catch {wait}
+if {[file exists XXX.h]} then {
+    incr ok;
+}
+if { $ok == 3} {
+    pass "dtrace parser check"
+} else {
+    fail "dtrace parser check $ok"
+}
+exec rm -f XXX.h
+
 verbose -log "$dtrace -I$incpath -G -s $idpath"
 catch {exec $dtrace -G -s $dpath}
 if {[file exists test.o]} then {
