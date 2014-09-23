@@ -7,16 +7,17 @@ set test "sdt_misc"
 # 4. Test probe in shared object
 # 5. Test attaching to a running process with markers in a shared object
 # 6. Test .mark probe wildcard matching
-# 7. Test types defined in sdt_misc_.d.  This requires -g
-# 8. Test V3 asm support
+# 7. Test V3 $$parms support
 
 set v_flags {{-DSTAP_SDT_V1} {-DSTAP_SDT_V2} {-DSTAP_SDT_V3}}
 set pbtype_mssgs {{V1_uprobe} {V2_uprobe} {V3_uprobe}}
 set pbtype_flags {{additional_flags=-g} {} {}}
+set fail_count 0
 
 proc cleanup_handler { verbose } {
     global pbtype_mssgs
-    if { $verbose == 0 } {
+    global fail_count
+    if { $verbose == 0 && $fail_count == 0 } {
 	foreach x $pbtype_mssgs {
 	    catch {exec rm -f libsdt_${x}.so libsdt_${x}_shared.so \
 		       sdt_misc_${x}.x sdt_misc_${x}_loop.x \
@@ -25,9 +26,14 @@ proc cleanup_handler { verbose } {
 		       sdt_misc_${x}_types.x libsdt_${x}_loop.so }
 	}
 	catch {exec rm -f sdt_misc_.c sdt_misc_.h sdt_misc_.o sdt_types.x \
-		   sdt_asm.x ,semclean ,semout}
+		   ,semclean ,semout}
+    } else {
+	verbose -log "kept sdt_misc*.* test files due to failing tests"
     }
 }
+
+# Start with a clean slate
+cleanup_handler 0
 
 # Compile a C program to use as the user-space probing target
 set stap_path $env(SYSTEMTAP_PATH)/stap
@@ -63,6 +69,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     if {[file exists $sup_hpath] && [file exists $sup_opath]} then {
 	pass "$test dtrace $pbtype_mssg"
     } else {
+	incr fail_count
 	fail "$test dtrace $pbtype_mssg"
 	cleanup_handler $verbose
 	return
@@ -76,6 +83,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $sup_exepath \
 		 executable $sup_flags]
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling $pbtype_mssg"
 	cleanup_handler $verbose
@@ -127,6 +135,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra}"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra}"
 	    }
 	}
@@ -139,6 +148,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $loop_exepath \
 		 executable $loop_flags]
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling $pbtype_mssg -DLOOP"
 	cleanup_handler $verbose
@@ -151,21 +161,31 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	set test_xtra ""
 	if {$runtime != ""} {
 	    set test_xtra " ($runtime)"
+
+	    if {$runtime == "dyninst"} {
+		# With --runtime=dyninst these tests will fail since
+		# the dyninst runtime needs a target executable
+		# (either '-c exe' or '-x pid'). So, skip these tests
+		# to speed up test execution.
+		xfail "$test ${pbtype_mssg}${test_xtra} attach"
+		continue
+	    }
+
 	    # This is perhaps a wee bit clumsy
-	    verbose -log "$loop_exepath >| ,semclean 2>&1 & TEST=\$! ; \
+	    verbose -log "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
 		$stap_path --runtime=$runtime $srcdir/$subdir/sdt_misc.stp $loop_exepath >| ,semout ; \
-		/usr/bin/kill -SIGINT \$TEST"
-	    system "$loop_exepath >,semclean 2>&1 & TEST=\$! ; \
+		/bin/kill -SIGINT \$TEST"
+	    catch {system "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
 		$stap_path --runtime=$runtime $srcdir/$subdir/sdt_misc.stp $loop_exepath >| ,semout ; \
-		/usr/bin/kill -SIGINT \$TEST"
+		/bin/kill -SIGINT \$TEST"}
 	} elseif {[uprobes_p]} {
 	    # This is perhaps a wee bit clumsy
-	    verbose -log "$loop_exepath >| ,semclean 2>&1 & TEST=\$! ; \
+	    verbose -log "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
 		$stap_path $srcdir/$subdir/sdt_misc.stp $loop_exepath >| ,semout ; \
-		/usr/bin/kill -SIGINT \$TEST"
-	    system "$loop_exepath >,semclean 2>&1 & TEST=\$! ; \
+		/bin/kill -SIGINT \$TEST"
+	    catch {system "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
 		$stap_path $srcdir/$subdir/sdt_misc.stp $loop_exepath >| ,semout ; \
-		/usr/bin/kill -SIGINT \$TEST"
+		/bin/kill -SIGINT \$TEST"}
 	} else {
 	    untested "$test $pbtype_mssg attach"
 	    continue
@@ -192,6 +212,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} attach"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra} attach"
 	    }
 	}
@@ -210,6 +231,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 4 && $ko == 0} {
 	    pass "$test ${pbtype_mssg}${test_xtra} epilogue"
 	} else {
+	    incr fail_count
 	    fail "$test ($ok) ${pbtype_mssg}${test_xtra} epilogue"
 	}
     }
@@ -272,6 +294,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 		verbose "target_compile failed: $res" 2
 		# -std=gnu++0x and -std=c++0x are not universally accepted
 		if {[string first "unrecognized command line option" $res] == -1} {
+		    incr fail_count
 		    fail "$test compiling types $test_suffix"
 		} else {
 		    untested "$test compiling types $test_suffix"
@@ -299,18 +322,19 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 
 		set ok 0
 		set notok 0
-		set fail "types"
+		set fail ""
 		set uns_notok 0
 		expect {
 		    -timeout 180
 		    # i386 unsigned may xfail because of sign extension
 		    # but fail anything else
-		    -re {FAIL: [a-z_]+var} {
-			regexp " .*$" $expect_out(0,string) s
+		    -re {^sdt_types PASS: [^\r]*\r\n} { incr ok; exp_continue }
+		    -indices -re {^sdt_types FAIL: ([^\r ]*)[^\r]*\r\n} {
+			set s $expect_out(1,string);
 			if {[regexp "unsigned" $s] && [istarget "i*86-*-*"]} {
 			    incr uns_notok }
 			incr notok; set fail "$fail $s"; exp_continue }
-		    -re {PASS: [a-z_]+var} { incr ok; exp_continue }
+		    -re {^[^\r]*\r\n} { incr notok; exp_continue }
 		    timeout { fail "$test types (timeout) $test_suffix" }
 		    eof { }
 		}
@@ -320,6 +344,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 		    if { [lindex $type_xfail $j] || $notok == $uns_notok} {
 			xfail "$test types $fail $test_suffix"
 		    } else {
+			incr fail_count
 			fail "$test types $fail $test_suffix"
 		    }
 		} else {
@@ -344,6 +369,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     set res [target_compile $srcdir/$subdir/sdt_misc.c $sup_exepath \
 		 executable $sup42_flags ]
     if { $res0 != "" || $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res0 $res" 2
 	fail "$test compiling -shared $pbtype_mssg"
 	cleanup_handler $verbose
@@ -385,6 +411,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) shared ${pbtype_mssg}${test_xtra}"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) shared ${pbtype_mssg}${test_xtra}"
 	    }
 	}
@@ -407,6 +434,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 		 executable $loop_flags]
     set test_suffix "$pbtype_mssg -DLOOP with markers in a shared object"
     if { $res != "" } {
+	incr fail_count
 	verbose "target_compile failed: $res" 2
 	fail "$test compiling $test_suffix"
 	cleanup_handler $verbose
@@ -419,20 +447,31 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	set test_xtra ""
 	if {$runtime != ""} {
 	    set test_xtra " ($runtime)"
-	    # With --runtime=dyninst these tests will fail since the
-	    # dyninst runtime needs a target executable (either '-c
-	    # exe' or '-x pid'). So, skip these tests to speed up test
-	    # execution.
-	    xfail "$test ${pbtype_mssg}${test_xtra} shared attach"
-	    continue
+
+	    if {$runtime == "dyninst"} {
+		# With --runtime=dyninst these tests will fail since
+		# the dyninst runtime needs a target executable
+		# (either '-c exe' or '-x pid'). So, skip these tests
+		# to speed up test execution.
+		xfail "$test ${pbtype_mssg}${test_xtra} shared attach"
+		continue
+	    }
+
+	    # This is perhaps a wee bit clumsy
+	    verbose -log "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
+		$stap_path --runtime=$runtime $srcdir/$subdir/sdt_misc.stp $loop_exepath $supl_sopath >| ,semout ; \
+		/bin/kill -SIGINT \$TEST"
+	    catch {system "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
+		$stap_path --runtime=$runtime $srcdir/$subdir/sdt_misc.stp $loop_exepath $supl_sopath >| ,semout ; \
+		/bin/kill -SIGINT \$TEST"}
 	} elseif {[uprobes_p]} {
 	    # This is perhaps a wee bit clumsy
-	    verbose -log "$loop_exepath >| ,semclean 2>&1 & TEST=\$! ; \
+	    verbose -log "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
 		$stap_path $srcdir/$subdir/sdt_misc.stp $loop_exepath $supl_sopath >| ,semout ; \
-		/usr/bin/kill -SIGINT \$TEST"
-	    system "$loop_exepath >,semclean 2>&1 & TEST=\$! ; \
+		/bin/kill -SIGINT \$TEST"
+	    catch {system "$loop_exepath > ,semclean 2>&1 & TEST=\$! ; \
 		$stap_path $srcdir/$subdir/sdt_misc.stp $loop_exepath $supl_sopath >| ,semout ; \
-		/usr/bin/kill -SIGINT \$TEST"
+		/bin/kill -SIGINT \$TEST"}
 	} else {
 	    untested "$test $pbtype_mssg shared attach"
 	    continue
@@ -459,6 +498,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} shared attach"
 	    } else {
+		incr fail_count
 		fail "$test ($ok) ${pbtype_mssg}${test_xtra} shared attach"
 	    }
 	}
@@ -477,6 +517,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 4 && $ko == 0} {
 	    pass "$test ${pbtype_mssg}${test_xtra} shared shared epilogue"
 	} else {
+	    incr fail_count
 	    fail "$test ($ok) ${pbtype_mssg}${test_xtra} shared epilogue"
 	}
     }
@@ -508,111 +549,19 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     }
     catch {close}; catch {wait}
     
-    if { $ok == 51 || $ok == 48 \
-	     || (($ok == 43 || $ok == 40 ) && ([istarget "i.86-*-*"] \
+    if { $ok == 53 || $ok == 50 \
+	     || (($ok == 44 || $ok == 41 ) && ([istarget "i*86-*-*"] \
 						   || [istarget "arm-*-*"]))} {
 	pass "$test wildcard $pbtype_mssg"
     } else {
+	incr fail_count
 	fail "$test wildcard ($ok) $pbtype_mssg"
     }
     
-    # 7. Test types defined in sdt_misc_.d.  This requires -g
-    
-    set supbc_flags "$sup_flags additional_flags=-g additional_flags=-DNO_SLEEP"
-    set supbc_exepath "[pwd]/sdt_misc_${pbtype_mssg}_types.x"
-    set res [target_compile $srcdir/$subdir/sdt_misc.c $supbc_exepath \
-		 executable $supbc_flags]
-    if { $res != "" } {
-	verbose "target_compile failed: $res" 2
-	fail "$test compiling -g $pbtype_mssg --types"
-	cleanup_handler $verbose
-	return
-    } else {
-	pass "$test compiling -g $pbtype_mssg --types"
-    }
-    
-    foreach runtime [get_runtime_list] {
-	set test_xtra ""
-	if {$runtime != ""} {
-	    set test_xtra " ($runtime)"
-	    verbose -log "spawn $stap_path --runtime=$runtime -c $supbc_exepath -e \"probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}\""
-	    spawn $stap_path --runtime=$runtime -c $supbc_exepath -e "probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}"
-	} elseif {[uprobes_p]} {
-	    verbose -log "spawn $stap_path -c $supbc_exepath -e \"probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}\""
-	    spawn $stap_path -c $supbc_exepath -e "probe process(\"$supbc_exepath\").mark(\"test_probe_4\") {printf(\"In %s dtrace probe %#x %#x\\n\", \$\$name, \$arg1->a, \$arg1->b)}"
-	} else {
-	    untested "$test $pbtype_mssg --types"
-	    continue
-	}
-	set ok 0
-	expect {
-	    -timeout 180
-	    -re {In test_probe_4 dtrace probe 0x4 0x5} { incr ok; exp_continue }
-	    timeout { fail "$test (timeout)" }
-	    eof { }
-	}
-	catch {close}; catch {wait}
-    
-	if {$ok == 1} {
-	    pass "$test ${pbtype_mssg}${test_xtra} --types"
-	} else {
-	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
-		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} --types"
-	    } else {
-		fail "$test ($ok) ${pbtype_mssg}${test_xtra} --types"
-	    }
-	}
-    }
 } ; # end pbtype_flags
 
-# 8. Test V3 asm support
 
-if {[istarget "x86_64-*-*"] || [istarget "i*86-*-*"]} {
-    set asm_flags [sdt_includes]
-    # avoid WARNING for @defined($no_such_var)
-    set asm_flags "$asm_flags additional_flags=-g"
-    set res [target_compile $srcdir/$subdir/sdt_asm.S sdt_asm.x \
-		 executable $asm_flags]
-    if { $res != "" } {
-	verbose "target_compile failed: $res" 2
-	fail "$test compiling sdt_asm.S"
-    } else {
-	pass "$test compiling sdt_asm.S"
-    }
-    
-    foreach runtime [get_runtime_list] {
-	set test_xtra ""
-	if {$runtime != ""} {
-	    set test_xtra " ($runtime)"
-	    verbose -log "spawn $stap_path --runtime=$runtime -c [pwd]/sdt_asm.x $srcdir/$subdir/sdt_asm.stp [pwd]/sdt_asm.x"
-	    spawn $stap_path --runtime=$runtime -c [pwd]/sdt_asm.x $srcdir/$subdir/sdt_asm.stp [pwd]/sdt_asm.x
-	} elseif {[uprobes_p]} {
-	    verbose -log "spawn $stap_path -c [pwd]/sdt_asm.x $srcdir/$subdir/sdt_asm.stp [pwd]/sdt_asm.x"
-	    spawn $stap_path -c [pwd]/sdt_asm.x $srcdir/$subdir/sdt_asm.stp [pwd]/sdt_asm.x
-	} else {
-	    untested "$test asm"
-	    continue
-	}
-	set ok 0
-	set notok 0
-	set fail "asm"
-	expect {
-	    -timeout 180
-	    -re {FAIL: [a-z0-9]} { regexp " .*$" $expect_out(0,string) s;
-		incr notok; set fail "$fail $s"; exp_continue }
-	    -re {PASS: [a-z0-9]} { incr ok; exp_continue }
-	    timeout { fail "$test (timeout)" }
-	    eof { }
-	}
-	catch {close}; catch {wait}
-    
-	if { $notok != 0 || $ok == 0} {
-	    fail "$test asm${test_xtra} ($ok) $fail"
-	} else {
-	    pass "$test asm${test_xtra} ($ok)"
-	}
-    }
-} ; # x86_64 | i.86
+# 7. Test V3 $$parms support
 
 foreach runtime [get_runtime_list] {
     set test_xtra ""
@@ -640,6 +589,7 @@ foreach runtime [get_runtime_list] {
     if {$ok == 1} {
 	pass "$test \$\$parms${test_xtra}"
     } else {
+	incr fail_count
 	fail "$test ($ok) \$\$parms${test_xtra}"
     }
 }

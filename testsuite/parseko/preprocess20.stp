@@ -1,0 +1,6 @@
+#! stap -p1
+
+# bad guru_mode value - not 0 or 1
+%( guru_mode == 2 %?
+   probe begin { }
+%)

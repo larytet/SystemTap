@@ -1,5 +1,5 @@
 // translation pass
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2008 Intel Corporation.
 // Copyright (C) 2010 Novell Corporation.
 //
@@ -72,6 +72,7 @@ struct c_unparser: public unparser, public visitor
   unsigned tmpvar_counter;
   unsigned label_counter;
   unsigned action_counter;
+  bool already_checked_action_count;
 
   varuse_collecting_visitor vcv_needs_global_locks;
 
@@ -82,7 +83,7 @@ struct c_unparser: public unparser, public visitor
   c_unparser (systemtap_session* ss):
     session (ss), o (ss->op), current_probe(0), current_function (0),
     tmpvar_counter (0), label_counter (0), action_counter(0),
-    vcv_needs_global_locks (*ss) {}
+    already_checked_action_count(false), vcv_needs_global_locks (*ss) {}
   ~c_unparser () {}
 
   void emit_map_type_instantiations ();
@@ -100,9 +101,11 @@ struct c_unparser: public unparser, public visitor
   void emit_module_exit ();
   void emit_function (functiondecl* v);
   void emit_lock_decls (const varuse_collecting_visitor& v);
-  void emit_locks (const varuse_collecting_visitor& v);
+  void emit_locks ();
   void emit_probe (derived_probe* v);
-  void emit_unlocks (const varuse_collecting_visitor& v);
+  void emit_probe_condition_initialize(derived_probe* v);
+  void emit_probe_condition_update(derived_probe* v);
+  void emit_unlocks ();
 
   void emit_compiled_printfs ();
   void emit_compiled_printf_locals ();
@@ -201,6 +204,7 @@ struct c_unparser: public unparser, public visitor
   void visit_stat_op (stat_op* e);
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
+  void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
@@ -452,7 +456,7 @@ public:
           // See also mapvar::init().
 
           if (local)
-            throw semantic_error(_F("unsupported local stats init for %s", value().c_str()));
+            throw SEMANTIC_ERROR(_F("unsupported local stats init for %s", value().c_str()));
 
           string prefix = "global_set(" + c_name() + ", _stp_stat_init (";
           // Check for errors during allocation.
@@ -476,7 +480,7 @@ public:
               break;
 
             default:
-              throw semantic_error(_F("unsupported stats type for %s", value().c_str()));
+              throw SEMANTIC_ERROR(_F("unsupported stats type for %s", value().c_str()));
             }
 
           prefix = prefix + ")); ";
@@ -484,7 +488,7 @@ public:
         }
 
       default:
-        throw semantic_error(_F("unsupported initializer for %s", value().c_str()));
+        throw SEMANTIC_ERROR(_F("unsupported initializer for %s", value().c_str()));
       }
   }
 
@@ -498,7 +502,7 @@ public:
       case pe_stats:
 	return "_stp_stat_del (" + value () + ");";
       default:
-        throw semantic_error(_F("unsupported deallocator for %s", value().c_str()));
+        throw SEMANTIC_ERROR(_F("unsupported deallocator for %s", value().c_str()));
       }
   }
 
@@ -630,7 +634,7 @@ struct mapvar
 	    result += 'x';
 	    break;
 	  default:
-	    throw semantic_error(_("unknown type of map"));
+	    throw SEMANTIC_ERROR(_("unknown type of map"));
 	    break;
 	  }
       }
@@ -651,7 +655,7 @@ struct mapvar
     for (unsigned i = 0; i < indices.size(); ++i)
       {
 	if (indices[i].type() != index_types[i])
-	  throw semantic_error(_("index type mismatch"));
+	  throw SEMANTIC_ERROR(_("index type mismatch"));
 	result += ", ";
 	result += indices[i].value();
       }
@@ -667,7 +671,7 @@ struct mapvar
   string calculate_aggregate() const
   {
     if (!is_parallel())
-      throw semantic_error(_("aggregating non-parallel map type"));
+      throw SEMANTIC_ERROR(_("aggregating non-parallel map type"));
 
     return function_keysym("agg") + " (" + value() + ")";
   }
@@ -675,7 +679,7 @@ struct mapvar
   string fetch_existing_aggregate() const
   {
     if (!is_parallel())
-      throw semantic_error(_("fetching aggregate of non-parallel map type"));
+      throw SEMANTIC_ERROR(_("fetching aggregate of non-parallel map type"));
 
     return "_stp_pmap_get_agg(" + value() + ")";
   }
@@ -693,7 +697,7 @@ struct mapvar
       return ("((uintptr_t)" + call_prefix("get", indices)
 	      + ") != (uintptr_t) 0)");
     else
-      throw semantic_error(_("checking existence of an unsupported map type"));
+      throw SEMANTIC_ERROR(_("checking existence of an unsupported map type"));
   }
 
   string get (vector<tmpvar> const & indices, bool pre_agg=false) const
@@ -706,7 +710,7 @@ struct mapvar
     else if (type() == pe_long || type() == pe_stats)
       return call_prefix("get", indices, pre_agg) + ")";
     else
-      throw semantic_error(_("getting a value from an unsupported map type"));
+      throw SEMANTIC_ERROR(_("getting a value from an unsupported map type"));
   }
 
   string add (vector<tmpvar> const & indices, tmpvar const & val) const
@@ -717,7 +721,7 @@ struct mapvar
     if (type() == pe_stats)
       res += (call_prefix("add", indices) + ", " + val.value() + ")");
     else
-      throw semantic_error(_("adding a value of an unsupported map type"));
+      throw SEMANTIC_ERROR(_("adding a value of an unsupported map type"));
 
     res += "; if (unlikely(rc)) { c->last_error = ";
     res += STAP_T_01 +
@@ -739,7 +743,7 @@ struct mapvar
     else if (type() == pe_long)
       res += (call_prefix("set", indices) + ", " + val.value() + ")");
     else
-      throw semantic_error(_("setting a value of an unsupported map type"));
+      throw SEMANTIC_ERROR(_("setting a value of an unsupported map type"));
 
     res += "; if (unlikely(rc)) { c->last_error = ";
     res += STAP_T_01 +
@@ -767,7 +771,7 @@ struct mapvar
   string init () const
   {
     if (local)
-      throw semantic_error(_F("unsupported local map init for %s", value().c_str()));
+      throw SEMANTIC_ERROR(_F("unsupported local map init for %s", value().c_str()));
 
     string prefix = "global_set(" + c_name() + ", ";
     prefix += function_keysym("new") + " ("
@@ -832,7 +836,7 @@ public:
       name("__tmp" + lex_cast(counter++))
   {
     if (referent_ty == pe_unknown)
-      throw semantic_error(_("iterating over unknown reference type"), e->tok);
+      throw SEMANTIC_ERROR(_("iterating over unknown reference type"), e->tok);
   }
 
   string declare () const
@@ -845,7 +849,7 @@ public:
     string res;
 
     if (mv.type() != referent_ty)
-      throw semantic_error(_("inconsistent iterator type in itervar::start()"));
+      throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::start()"));
 
     if (mv.is_parallel())
       return "_stp_map_start (" + mv.fetch_existing_aggregate() + ")";
@@ -856,12 +860,24 @@ public:
   string next (mapvar const & mv) const
   {
     if (mv.type() != referent_ty)
-      throw semantic_error(_("inconsistent iterator type in itervar::next()"));
+      throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
 
     if (mv.is_parallel())
       return "_stp_map_iter (" + mv.fetch_existing_aggregate() + ", " + value() + ")";
     else
       return "_stp_map_iter (" + mv.value() + ", " + value() + ")";
+  }
+
+  // Cannot handle deleting and iterating on pmaps
+  string del_next (mapvar const & mv) const
+  {
+    if (mv.type() != referent_ty)
+      throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
+
+    if (mv.is_parallel())
+      throw SEMANTIC_ERROR(_("deleting a value of an unsupported map type"));
+    else
+      return "_stp_map_iterdel (" + mv.value() + ", " + value() + ")";
   }
 
   string value () const
@@ -883,14 +899,14 @@ public:
 	return "(" + mv.function_keysym("key_get_str", true)
 	  + " (" + value() + ", " + lex_cast(i+1) + ") ?: \"\")";
       default:
-	throw semantic_error(_("illegal key type"));
+	throw SEMANTIC_ERROR(_("illegal key type"));
       }
   }
 
   string get_value (mapvar const& mv, exp_type ty) const
   {
     if (ty != referent_ty)
-      throw semantic_error(_("inconsistent iterator value in itervar::get_value()"));
+      throw SEMANTIC_ERROR(_("inconsistent iterator value in itervar::get_value()"));
 
     switch (ty)
       {
@@ -902,7 +918,7 @@ public:
       case pe_stats:
 	return mv.function_keysym("get_stat_data", true) + " ("+ value() + ")";
       default:
-	throw semantic_error(_("illegal value type"));
+	throw SEMANTIC_ERROR(_("illegal value type"));
       }
   }
 };
@@ -956,7 +972,7 @@ c_unparser::emit_common_header ()
       // That's because they're only dependent on the probe body, which is already
       // "hashed" in above.
 
-      if (tmp_probe_contents.count(oss.str()) == 0) // unique
+      if (session->unoptimized || tmp_probe_contents.count(oss.str()) == 0) // unique
         {
           tmp_probe_contents[oss.str()] = dp->name; // save it
 
@@ -1083,6 +1099,46 @@ c_unparser::emit_common_header ()
 
   emit_compiled_printfs();
 
+  if (!session->runtime_usermode_p())
+    {
+      // Updated in probe handlers to signal that a module refresh is needed.
+      // Checked and cleared by common epilogue after scheduling refresh work.
+      o->newline( 0)  << "static atomic_t need_module_refresh = ATOMIC_INIT(0);";
+
+      // We will use a workqueue to schedule module_refresh work when we need
+      // to enable/disable probes.
+      o->newline( 0)  << "#include <linux/workqueue.h>";
+      o->newline( 0)  << "static struct work_struct module_refresher_work;";
+      o->newline( 0)  << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+      o->newline( 0)  << "static void module_refresher(void *data) {";
+      o->newline( 0)  << "#else";
+      o->newline( 0)  << "static void module_refresher(struct work_struct *work) {";
+      o->newline( 0)  << "#endif";
+      o->newline( 1)  <<    "systemtap_module_refresh(NULL);";
+      o->newline(-1)  << "}";
+
+      o->newline( 0)  << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+      o->newline( 0)  << "#include <linux/hrtimer.h>";
+      o->newline( 0)  << "#include \"timer.h\"";
+      o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
+
+      o->newline( 0)  << "#ifndef STP_ON_THE_FLY_INTERVAL";
+      o->newline( 0)  << "#define STP_ON_THE_FLY_INTERVAL (100*1000*1000)"; // default to 100 ms
+      o->newline( 0)  << "#endif";
+
+      o->newline( 0)  << "hrtimer_return_t module_refresh_timer_cb(struct hrtimer *timer) {";
+      o->newline(+1)  <<   "if (atomic_cmpxchg(&need_module_refresh, 1, 0) == 1)";
+      // NB: one might like to invoke systemtap_module_refresh(NULL) directly from
+      // here ... however hrtimers are called from an unsleepable context, so no can do.
+      o->newline(+1)  <<     "schedule_work(&module_refresher_work);";
+      o->newline(-1)  <<   "hrtimer_set_expires(timer,";
+      o->newline( 0)  <<   "  ktime_add(hrtimer_get_expires(timer),";
+      o->newline( 0)  <<   "            ktime_set(0, STP_ON_THE_FLY_INTERVAL))); ";
+      o->newline( 0)  <<   "return HRTIMER_RESTART;";
+      o->newline(-1)  << "}";
+      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_ENABLE */";
+    }
+
   o->newline();
 }
 
@@ -1103,7 +1159,7 @@ c_unparser::get_compiled_printf (bool print_to_stream, const string& format)
   map<pair<bool, string>, string>::iterator it =
     compiled_printfs.find(make_pair(print_to_stream, format));
   if (it == compiled_printfs.end())
-    throw semantic_error (_("internal error translating printf"));
+    throw SEMANTIC_ERROR (_("internal error translating printf"));
   return it->second;
 }
 
@@ -1643,6 +1699,10 @@ c_unparser::emit_module_init ()
       o->assert_0_indent(); 
     }
 
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "#include \"linux/stp_tracepoint.c\"";
+  o->newline() << "#endif";
+
   o->newline();
   o->newline() << "static int systemtap_module_init (void) {";
   o->newline(1) << "int rc = 0;";
@@ -1749,6 +1809,15 @@ c_unparser::emit_module_init ()
   o->newline(-1) << "}";
   o->newline() << "#endif";
 
+  // initialize tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << "rc = stp_tracepoint_init();";
+  o->newline() << "if (rc) {";
+  o->newline(1) << "_stp_error (\"couldn't initialize tracepoints\");";
+  o->newline() << "goto out;";
+  o->newline(-1) << "}";
+  o->newline() << "#endif";
+
   // NB: we don't need per-_stp_module task_finders, since a single common one
   // set up in runtime/sym.c's _stp_sym_init() will scan through all _stp_modules. XXX - check this!
   o->newline() << "(void) probe_point;";
@@ -1806,6 +1875,20 @@ c_unparser::emit_module_init ()
       o->newline() << "if (rc) goto out;";
     }
 
+  if (!session->runtime_usermode_p())
+    {
+      // Initialize workqueue needed for on-the-fly arming/disarming
+      o->newline() << "#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20)";
+      o->newline() << "INIT_WORK(&module_refresher_work, module_refresher, NULL);";
+      o->newline() << "#else";
+      o->newline() << "INIT_WORK(&module_refresher_work, module_refresher);";
+      o->newline() << "#endif";
+    }
+
+  // Initialize probe conditions
+  for (unsigned i=0; i<session->probes.size(); i++)
+    emit_probe_condition_initialize(session->probes[i]);
+
   // Run all probe registrations.  This actually runs begin probes.
 
   for (unsigned i=0; i<g.size(); i++)
@@ -1833,13 +1916,63 @@ c_unparser::emit_module_init ()
   o->newline() << "if (atomic_read (session_state()) == STAP_SESSION_STARTING)";
   // NB: only other valid state value is ERROR, in which case we don't
   o->newline(1) << "atomic_set (session_state(), STAP_SESSION_RUNNING);";
+  o->newline(-1);
 
   // Run all post-session starting code.
   for (unsigned i=0; i<g.size(); i++)
     {
       g[i]->emit_module_post_init (*session);
     }
-  o->newline(-1) << "return 0;";
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+
+      // Initialize hrtimer needed for on-the-fly arming/disarming
+      o->newline() << "hrtimer_init(&module_refresh_timer, CLOCK_MONOTONIC,";
+      o->newline() << "             HRTIMER_MODE_REL);";
+      o->newline() << "module_refresh_timer.function = &module_refresh_timer_cb;";
+
+      // We check here if it's worth it to start the timer at all. We only need
+      // the background timer if there is a probe which doesn't support directy
+      // scheduling work (otf_safe_context() == false), but yet does affect the
+      // condition of at least one probe which supports on-the-fly operations.
+      {
+        // for each derived probe...
+        bool start_timer = false;
+        for (unsigned i=0; i<session->probes.size() && !start_timer; i++)
+          {
+            // if it isn't safe in this probe type to directly schedule work,
+            // and this probe could affect other probes...
+            if (session->probes[i]->group
+                && !session->probes[i]->group->otf_safe_context(*session)
+                && !session->probes[i]->probes_with_affected_conditions.empty())
+              {
+                // and if any of those possible probes support on-the-fly operations,
+                // then we'll need the timer
+                for (set<derived_probe*>::const_iterator
+                      it  = session->probes[i]->probes_with_affected_conditions.begin();
+                      it != session->probes[i]->probes_with_affected_conditions.end()
+                            && !start_timer; ++it)
+                  {
+                    if ((*it)->group->otf_supported(*session))
+                      start_timer = true;
+                  }
+              }
+          }
+
+        if (start_timer)
+          {
+            o->newline() << "hrtimer_start(&module_refresh_timer,";
+            o->newline() << "              ktime_set(0, STP_ON_THE_FLY_INTERVAL),";
+            o->newline() << "              HRTIMER_MODE_REL);";
+          }
+      }
+
+      o->newline() << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
+    }
+
+  o->newline() << "return 0;";
 
   // Error handling path; by now all partially registered probe groups
   // have been unregistered.
@@ -1859,8 +1992,11 @@ c_unparser::emit_module_init ()
 
   // For any partially registered/unregistered kernel facilities.
   o->newline() << "atomic_set (session_state(), STAP_SESSION_STOPPED);";
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
+  o->newline() << "stp_synchronize_sched();";
+
+  // In case tracepoints were started, they need to be cleaned up
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
   o->newline() << "#endif";
 
   // In case gettimeofday was started, it needs to be stopped
@@ -1879,15 +2015,65 @@ c_unparser::emit_module_init ()
 void
 c_unparser::emit_module_refresh ()
 {
-  o->newline() << "static void systemtap_module_refresh (void) {";
-  o->newline(1) << "int i=0, j=0;"; // for derived_probe_group use
+  o->newline() << "static void systemtap_module_refresh (const char *modname) {";
+  o->newline(1) << "int state;";
+  o->newline() << "int i=0, j=0;"; // for derived_probe_group use
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#if defined(STP_TIMING)";
+      o->newline() << "cycles_t cycles_atstart = get_cycles();";
+      o->newline() << "#endif";
+    }
+
+  // Ensure we're only doing the refreshing one at a time. NB: it's important
+  // that we get the lock prior to checking the session_state, in case whoever
+  // is holding the lock (e.g. systemtap_module_exit()) changes it.
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_lock(&module_refresh_mutex);";
+
+  /* If we're not in STARTING/RUNNING state, don't try doing any work.
+     PR16766 */
+  o->newline() << "state = atomic_read (session_state());";
+  o->newline() << "if (state != STAP_SESSION_RUNNING && state != STAP_SESSION_STARTING && state != STAP_SESSION_ERROR) {";
+  // cannot _stp_warn etc. since we're not in probe context
+  o->newline(1) << "#if defined(__KERNEL__)";
+  o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\\n\", state);";
+  o->newline() << "#endif";
+
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
+
+  o->newline() << "return;";
+  o->newline(-1) << "}";
+
   o->newline() << "(void) i;";
   o->newline() << "(void) j;";
+
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
     {
       g[i]->emit_module_refresh (*session);
     }
+
+  if (!session->runtime_usermode_p())
+    {
+      // see also common_probe_entryfn_epilogue()
+      o->newline() << "#if defined(STP_TIMING)";
+      o->newline() << "if (likely(g_refresh_timing)) {";
+      o->newline(1) << "cycles_t cycles_atend = get_cycles ();";
+      o->newline() << "int32_t cycles_elapsed = ((int32_t)cycles_atend > (int32_t)cycles_atstart)";
+      o->newline(1) << "? ((int32_t)cycles_atend - (int32_t)cycles_atstart)";
+      o->newline() << ": (~(int32_t)0) - (int32_t)cycles_atstart + (int32_t)cycles_atend + 1;";
+      o->indent(-1);
+      o->newline() << "_stp_stat_add(g_refresh_timing, cycles_elapsed);";
+      o->newline(-1) << "}";
+      o->newline() << "#endif";
+    }
+
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
+
   o->newline(-1) << "}\n";
 }
 
@@ -1915,6 +2101,22 @@ c_unparser::emit_module_exit ()
   // while to abort right away.  Currently running probes are allowed to
   // terminate.  These may set STAP_SESSION_ERROR!
 
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
+      o->newline() << "hrtimer_cancel(&module_refresh_timer);";
+      o->newline() << "#endif";
+    }
+
+  // cargo cult prologue ... hope to flush any pending workqueue items too
+  o->newline() << "stp_synchronize_sched();";
+
+  // Get the lock before exiting to ensure there's no one in module_refresh
+  // NB: this should't be able to happen, because both the module_refresh_timer
+  // and the workqueue ought to have been shut down by now.
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_lock(&module_refresh_mutex);";
+
   // We're processing the derived_probe_group list in reverse
   // order.  This ensures that probes get unregistered in reverse
   // order of the way they were registered.
@@ -1923,13 +2125,14 @@ c_unparser::emit_module_exit ()
        i != g.rend(); i++)
     (*i)->emit_module_exit (*session); // NB: runs "end" probes
 
+  if (!session->runtime_usermode_p())
+    o->newline() << "mutex_unlock(&module_refresh_mutex);";
+
   // But some other probes may have launched too during unregistration.
   // Let's wait a while to make sure they're all done, done, done.
 
   // cargo cult prologue
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // NB: systemtap_module_exit is assumed to be called from ordinary
   // user context, say during module unload.  Among other things, this
@@ -1938,9 +2141,7 @@ c_unparser::emit_module_exit ()
 
   // cargo cult epilogue
   o->newline() << "atomic_set (session_state(), STAP_SESSION_STOPPED);";
-  o->newline() << "#ifdef STAPCONF_SYNCHRONIZE_SCHED";
-  o->newline() << "synchronize_sched();";
-  o->newline() << "#endif";
+  o->newline() << "stp_synchronize_sched();";
 
   // XXX: might like to have an escape hatch, in case some probe is
   // genuinely stuck somehow
@@ -1966,6 +2167,11 @@ c_unparser::emit_module_exit ()
       o->newline() << "struct context* __restrict__ c;";
       o->newline() << "c = _stp_runtime_entryfn_get_context();";
     }
+
+  // teardown tracepoints (if needed)
+  o->newline() << "#ifdef STAP_NEED_TRACEPOINTS";
+  o->newline() << " stp_tracepoint_exit();";
+  o->newline() << "#endif";
 
   // teardown gettimeofday (if needed)
   o->newline() << "#ifdef STAP_NEED_GETTIMEOFDAY";
@@ -2005,6 +2211,24 @@ c_unparser::emit_module_exit ()
   o->newline(-1) << "}";
   o->newline() << "#endif"; // STP_TIMING
   o->newline(-1) << "}";
+
+  if (!session->runtime_usermode_p())
+    {
+      o->newline() << "#if defined(STP_TIMING)";
+      o->newline() << "_stp_printf(\"----- refresh report:\\n\");";
+      o->newline() << "if (likely (g_refresh_timing)) {";
+      o->newline(1) << "struct stat_data *stats = _stp_stat_get (g_refresh_timing, 0);";
+      o->newline() << "if (stats->count) {";
+      o->newline(1) << "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);";
+      o->newline() << "_stp_printf (\"hits: %lld, cycles: %lldmin/%lldavg/%lldmax\\n\",";
+      o->newline(2) << "(long long) stats->count, (long long) stats->min, ";
+      o->newline() <<  "(long long) avg, (long long) stats->max);";
+      o->newline(-3) << "}";
+      o->newline() << "_stp_stat_del (g_refresh_timing);";
+      o->newline(-1) << "}";
+      o->newline() << "#endif"; // STP_TIMING
+    }
+
   o->newline() << "_stp_print_flush();";
   o->newline() << "#endif";
 
@@ -2054,6 +2278,57 @@ c_unparser::emit_module_exit ()
   o->newline(-1) << "}\n";
 }
 
+struct max_action_info: public functioncall_traversing_visitor
+{
+  max_action_info(systemtap_session& s): sess(s), statement_count(0) {}
+
+  systemtap_session& sess;
+  unsigned statement_count;
+  static const unsigned max_statement_count = ~0;
+
+  void add_stmt_count (unsigned val)
+    {
+      statement_count = (statement_count > max_statement_count - val) ? max_statement_count : statement_count + val;
+    }
+  void add_max_stmt_count () { statement_count = max_statement_count; }
+  bool statement_count_finite() { return statement_count < max_statement_count; }
+
+  void visit_for_loop (for_loop* stmt) { add_max_stmt_count(); }
+  void visit_foreach_loop (foreach_loop* stmt) { add_max_stmt_count(); }
+  void visit_expr_statement (expr_statement *stmt)
+    {
+      add_stmt_count(1);
+      traversing_visitor::visit_expr_statement(stmt); // which will trigger visit_functioncall, if applicable
+    }
+  void visit_if_statement (if_statement *stmt)
+    {
+      add_stmt_count(1);
+      stmt->condition->visit(this);
+
+      // Create new visitors for the two forks.  Copy the nested[] set
+      // to prevent infinite recursion for a   function f () { if (a) f() }
+      max_action_info tmp_visitor_then (*this);
+      max_action_info tmp_visitor_else (*this);
+      stmt->thenblock->visit(& tmp_visitor_then);
+      if (stmt->elseblock)
+        {
+          stmt->elseblock->visit(& tmp_visitor_else);
+        }
+
+      // Simply overwrite our copy of statement_count, since these
+      // visitor copies already included our starting count.
+      statement_count = max(tmp_visitor_then.statement_count, tmp_visitor_else.statement_count);
+    }
+
+  void note_recursive_functioncall (functioncall *e) { add_max_stmt_count(); }
+
+  void visit_null_statement (null_statement *stmt) { add_stmt_count(1); }
+  void visit_return_statement (return_statement *stmt) { add_stmt_count(1); }
+  void visit_delete_statement (delete_statement *stmt) { add_stmt_count(1); }
+  void visit_next_statement (next_statement *stmt) { add_stmt_count(1); }
+  void visit_break_statement (break_statement *stmt) { add_stmt_count(1); }
+  void visit_continue_statement (continue_statement *stmt) { add_stmt_count(1); }
+};
 
 void
 c_unparser::emit_function (functiondecl* v)
@@ -2065,6 +2340,7 @@ c_unparser::emit_function (functiondecl* v)
   this->current_function = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
+  this->already_checked_action_count = false;
 
   o->newline() << "__label__ out;";
   o->newline()
@@ -2106,7 +2382,7 @@ c_unparser::emit_function (functiondecl* v)
   for (unsigned i=0; i<v->locals.size(); i++)
     {
       if (v->locals[i]->index_types.size() > 0) // array?
-	throw semantic_error (_("array locals not supported, missing global declaration?"),
+	throw SEMANTIC_ERROR (_("array locals not supported, missing global declaration?"),
                               v->locals[i]->tok);
 
       o->newline() << getvar (v->locals[i]).init();
@@ -2119,9 +2395,42 @@ c_unparser::emit_function (functiondecl* v)
       o->newline() << retvalue.init();
     }
 
+  switch (v->type)
+    {
+    case pe_long:
+      o->newline() << "#define STAP_RETURN(v) do { STAP_RETVALUE = (int64_t) (v); " 
+        "goto out; } while(0)";
+      break;
+
+    case pe_string:
+      o->newline() <<
+        "#define STAP_RETURN(v) do { strlcpy(STAP_RETVALUE, (v), MAXSTRINGLEN); "
+        "goto out; } while(0)";
+      break;
+
+    default:
+      o->newline() << "#define STAP_RETURN() do { goto out; } while(0)";
+      break;
+    }
+
+  o->newline() << "#define STAP_ERROR(...) do { snprintf(CONTEXT->error_buffer, MAXSTRINGLEN, __VA_ARGS__); CONTEXT->last_error = CONTEXT->error_buffer; goto out; } while (0)";
   o->newline() << "#define return goto out"; // redirect embedded-C return
+
+  max_action_info mai (*session);
+  v->body->visit (&mai);
+
+  if (mai.statement_count_finite() && !session->suppress_time_limits
+      && !session->unoptimized) // this is a finite-statement-count function
+    {
+      o->newline() << "if (c->actionremaining < " << mai.statement_count
+                   << ") { c->last_error = " << STAP_T_04 << "goto out; }";
+      this->already_checked_action_count = true;
+    }
+
   v->body->visit (this);
   o->newline() << "#undef return";
+  o->newline() << "#undef STAP_ERROR";
+  o->newline() << "#undef STAP_RETURN";
 
   this->current_function = 0;
 
@@ -2144,8 +2453,9 @@ c_unparser::emit_function (functiondecl* v)
   }
   o->newline() << "#undef STAP_RETVALUE";
   o->newline(-1) << "}\n";
-}
 
+  this->already_checked_action_count = false;
+}
 
 #define DUPMETHOD_CALL 0
 #define DUPMETHOD_ALIAS 0
@@ -2158,6 +2468,7 @@ c_unparser::emit_probe (derived_probe* v)
   this->current_probe = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
+  this->already_checked_action_count = false;
 
   // If we about to emit a probe that is exactly the same as another
   // probe previously emitted, make the second probe just call the
@@ -2188,7 +2499,7 @@ c_unparser::emit_probe (derived_probe* v)
 
   // If an identical probe has already been emitted, just call that
   // one.
-  if (probe_contents.count(oss.str()) != 0)
+  if (!session->unoptimized && probe_contents.count(oss.str()) != 0)
     {
       string dupe = probe_contents[oss.str()];
 
@@ -2231,12 +2542,28 @@ c_unparser::emit_probe (derived_probe* v)
       o->newline() << "__label__ out;";
 
       // emit static read/write lock decls for global variables
-      varuse_collecting_visitor vut(*session);
       if (v->needs_global_locks ())
         {
-	  v->body->visit (& vut);
-	  emit_lock_decls (vut);
-	}
+          varuse_collecting_visitor vut(*session);
+          v->body->visit (& vut);
+
+          // also visit any probe conditions which this current probe might
+          // evaluate so that read locks are emitted as necessary: e.g. suppose
+          //    probe X if (a || b) {...} probe Y {a = ...} probe Z {b = ...}
+          // then Y and Z will already write-lock a and b respectively, but they
+          // also need a read-lock on b and a respectively, since they will read
+          // them when evaluating the new cond_enabled field (see c_unparser::
+          // emit_probe_condition_update()).
+          for (set<derived_probe*>::const_iterator
+                it  = v->probes_with_affected_conditions.begin();
+                it != v->probes_with_affected_conditions.end(); ++it)
+            {
+              assert((*it)->sole_location()->condition != NULL);
+              (*it)->sole_location()->condition->visit (& vut);
+            }
+
+          emit_lock_decls (vut);
+        }
 
       // initialize frame pointer
       o->newline() << "struct " << v->name << "_locals * __restrict__ l = "
@@ -2254,7 +2581,7 @@ c_unparser::emit_probe (derived_probe* v)
 
       // emit all read/write locks for global variables
       if (v->needs_global_locks ())
-	  emit_locks (vut);
+        emit_locks ();
 
       // initialize locals
       for (unsigned j=0; j<v->locals.size(); j++)
@@ -2262,7 +2589,7 @@ c_unparser::emit_probe (derived_probe* v)
 	  if (v->locals[j]->synthetic)
             continue;
 	  if (v->locals[j]->index_types.size() > 0) // array?
-            throw semantic_error (_("array locals not supported, missing global declaration?"),
+            throw SEMANTIC_ERROR (_("array locals not supported, missing global declaration?"),
                                   v->locals[j]->tok);
 	  else if (v->locals[j]->type == pe_long)
 	    o->newline() << "l->" << c_localname (v->locals[j]->name)
@@ -2271,11 +2598,25 @@ c_unparser::emit_probe (derived_probe* v)
 	    o->newline() << "l->" << c_localname (v->locals[j]->name)
 			 << "[0] = '\\0';";
 	  else
-	    throw semantic_error (_("unsupported local variable type"),
+	    throw SEMANTIC_ERROR (_("unsupported local variable type"),
 				  v->locals[j]->tok);
         }
 
       v->initialize_probe_context_vars (o);
+
+      max_action_info mai (*session);
+      v->body->visit (&mai);
+      if (session->verbose > 1)
+        clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
+
+      if (mai.statement_count_finite() && !session->suppress_time_limits
+          && !session->unoptimized) // this is a finite-statement-count probe
+        {
+          o->newline() << "if (c->actionremaining < " << mai.statement_count 
+                       << ") { c->last_error = " << STAP_T_04 << " goto out; }";
+          this->already_checked_action_count = true;
+        }
+
 
       v->body->visit (this);
 
@@ -2286,8 +2627,17 @@ c_unparser::emit_probe (derived_probe* v)
       // someday be local
 
       o->indent(1);
+
+      if (!v->probes_with_affected_conditions.empty())
+        {
+          for (set<derived_probe*>::const_iterator
+                it  = v->probes_with_affected_conditions.begin();
+                it != v->probes_with_affected_conditions.end(); ++it)
+            emit_probe_condition_update(*it);
+        }
+
       if (v->needs_global_locks ())
-	emit_unlocks (vut);
+	emit_unlocks ();
 
       // XXX: do this flush only if the body included a
       // print/printf/etc. routine!
@@ -2297,8 +2647,60 @@ c_unparser::emit_probe (derived_probe* v)
 
 
   this->current_probe = 0;
+  this->already_checked_action_count = false;
 }
 
+// Initializes the cond_enabled field by evaluating condition predicate.
+void
+c_unparser::emit_probe_condition_initialize(derived_probe* v)
+{
+  unsigned i = v->session_index;
+  assert(i < session->probes.size());
+
+  expression *cond = v->sole_location()->condition;
+  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
+
+  // no condition --> always enabled (initialized via STAP_PROBE_INIT)
+  if (!cond)
+    return;
+
+  // turn general integer into boolean 0/1
+  o->newline() << cond_enabled << " = !!";
+  cond->visit(this);
+  o->line() << ";";
+}
+
+// Updates the cond_enabled field and sets need_module_refresh if it was
+// changed.
+void
+c_unparser::emit_probe_condition_update(derived_probe* v)
+{
+  unsigned i = v->session_index;
+  assert(i < session->probes.size());
+
+  expression *cond = v->sole_location()->condition;
+  assert(cond);
+
+  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
+
+  // Concurrency note: we're safe modifying cond_enabled here since we emit
+  // locks not only for globals we write to, but also for globals read in other
+  // probes' whose conditions we visit below (see in c_unparser::emit_probe). So
+  // we can be assured we're the only ones modifying cond_enabled.
+
+  o->newline() << "if (" << cond_enabled << " != ";
+  o->line() << "!!"; // NB: turn general integer into boolean 1 or 0
+  v->sole_location()->condition->visit(this);
+  o->line() << ") {";
+  o->newline(1) << cond_enabled << " ^= 1;"; // toggle it 
+
+  // don't bother refreshing if on-the-fly not supported
+  if (!session->runtime_usermode_p()
+      && v->group && v->group->otf_supported(*session))
+    o->newline() << "atomic_set(&need_module_refresh, 1);";
+
+  o->newline(-1) << "}";
+}
 
 void
 c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
@@ -2306,7 +2708,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   unsigned numvars = 0;
 
   if (session->verbose > 1)
-    clog << "probe " << *current_probe->sole_location() << " locks ";
+    clog << "probe " << current_probe->session_index << " "
+            "('" << *current_probe->sole_location() << "') locks";
 
   // We can only make this static in kernel mode.  In stapdyn mode,
   // the globals and their locks are in shared memory.
@@ -2319,10 +2722,11 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   for (unsigned i = 0; i < session->globals.size(); i++)
     {
       vardecl* v = session->globals[i];
-      bool read_p = vut.read.find(v) != vut.read.end();
-      bool write_p = vut.written.find(v) != vut.written.end();
+      bool read_p = vut.read.count(v) > 0;
+      bool write_p = vut.written.count(v) > 0;
       if (!read_p && !write_p) continue;
 
+      bool written_p;
       if (v->type == pe_stats) // read and write locks are flipped
         // Specifically, a "<<<" to a stats object is considered a
         // "shared-lock" operation, since it's implicitly done
@@ -2332,7 +2736,10 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
         {
           if (write_p && !read_p) { read_p = true; write_p = false; }
           else if (read_p && !write_p) { read_p = false; write_p = true; }
+          written_p = vcv_needs_global_locks.read.count(v) > 0;
         }
+      else
+        written_p = vcv_needs_global_locks.written.count(v) > 0;
 
       // We don't need to read lock "read-mostly" global variables.  A
       // "read-mostly" global variable is only written to within
@@ -2340,12 +2747,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
       // begin/end probes).  If vcv_needs_global_locks doesn't mark
       // the global as written to, then we don't have to lock it
       // here to read it safely.
-      if (read_p && !write_p)
-        {
-	  if (vcv_needs_global_locks.written.find(v)
-	      == vcv_needs_global_locks.written.end())
-	    continue;
-	}
+      if (!written_p && read_p && !write_p)
+        continue;
 
       o->newline() << "{";
       o->newline(1) << ".lock = global_lock(" + c_globalname(v->name) + "),";
@@ -2357,8 +2760,8 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
 
       numvars ++;
       if (session->verbose > 1)
-        clog << v->name << "[" << (read_p ? "r" : "")
-             << (write_p ? "w" : "")  << "] ";
+        clog << " " << v->name << "[" << (read_p ? "r" : "")
+             << (write_p ? "w" : "")  << "]";
     }
 
   o->newline(-1) << "};";
@@ -2366,14 +2769,14 @@ c_unparser::emit_lock_decls(const varuse_collecting_visitor& vut)
   if (session->verbose > 1)
     {
       if (!numvars)
-        clog << _("nothing");
+        clog << _(" nothing");
       clog << endl;
     }
 }
 
 
 void
-c_unparser::emit_locks(const varuse_collecting_visitor&)
+c_unparser::emit_locks()
 {
   o->newline() << "if (!stp_lock_probe(locks, ARRAY_SIZE(locks)))";
   o->newline(1) << "return;";
@@ -2382,7 +2785,7 @@ c_unparser::emit_locks(const varuse_collecting_visitor&)
 
 
 void
-c_unparser::emit_unlocks(const varuse_collecting_visitor&)
+c_unparser::emit_unlocks()
 {
   o->newline() << "stp_unlock_probe(locks, ARRAY_SIZE(locks));";
 }
@@ -2414,7 +2817,7 @@ mapvar::value_typename(exp_type e)
     case pe_stats:
       return "STAT";
     default:
-      throw semantic_error(_("array type is neither string nor long"));
+      throw SEMANTIC_ERROR(_("array type is neither string nor long"));
     }
 }
 
@@ -2428,7 +2831,7 @@ mapvar::key_typename(exp_type e)
     case pe_string:
       return "STRING";
     default:
-      throw semantic_error(_("array key is neither string nor long"));
+      throw SEMANTIC_ERROR(_("array key is neither string nor long"));
     }
 }
 
@@ -2442,7 +2845,7 @@ mapvar::shortname(exp_type e)
     case pe_string:
       return "s";
     default:
-      throw semantic_error(_("array type is neither string nor long"));
+      throw SEMANTIC_ERROR(_("array type is neither string nor long"));
     }
 }
 
@@ -2500,7 +2903,7 @@ c_unparser::c_typename (exp_type e)
     case pe_stats: return string("Stat");
     case pe_unknown:
     default:
-      throw semantic_error (_("cannot expand unknown type"));
+      throw SEMANTIC_ERROR (_("cannot expand unknown type"));
     }
 }
 
@@ -2584,7 +2987,7 @@ c_unparser::c_expression (expression *e)
   // otherwise, limit the use of this function to literal numbers and
   // strings.
   if (e->tok->type != tok_number && e->tok->type != tok_string)
-    throw semantic_error(_("unsupported c_expression token type"));
+    throw SEMANTIC_ERROR(_("unsupported c_expression token type"));
 
   // Create a fake output stream so we can grab the string output.
   ostringstream oss;
@@ -2615,7 +3018,7 @@ c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
       o->newline() << lvalue << " = " << rvalue << ";";
       break;
     default:
-      throw semantic_error (_("unknown lvalue type in assignment"), tok);
+      throw SEMANTIC_ERROR (_("unknown lvalue type in assignment"), tok);
     }
 }
 
@@ -2636,7 +3039,7 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
   else
     {
       string fullmsg = msg + _(" type unsupported");
-      throw semantic_error (fullmsg, rvalue->tok);
+      throw SEMANTIC_ERROR (fullmsg, rvalue->tok);
     }
 }
 
@@ -2656,7 +3059,7 @@ c_unparser::c_assign (const string& lvalue, const string& rvalue,
   else
     {
       string fullmsg = msg + _(" type unsupported");
-      throw semantic_error (fullmsg, tok);
+      throw SEMANTIC_ERROR (fullmsg, tok);
     }
 }
 
@@ -2684,7 +3087,7 @@ c_unparser_assignment::c_assignop(tmpvar & res,
   if (res.type() == pe_string)
     {
       if (post)
-	throw semantic_error (_("post assignment on strings not supported"),
+	throw SEMANTIC_ERROR (_("post assignment on strings not supported"),
 			      tok);
       if (op == "=")
 	{
@@ -2698,7 +3101,7 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	  res = lval;
 	}
       else
-        throw semantic_error (_F("string assignment operator %s unsupported", op.c_str()), tok);
+        throw SEMANTIC_ERROR (_F("string assignment operator %s unsupported", op.c_str()), tok);
     }
   else if (op == "<<<")
     {
@@ -2730,12 +3133,12 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	macop = op;
       else
 	// internal error
-	throw semantic_error (_("unknown macop for assignment"), tok);
+	throw SEMANTIC_ERROR (_("unknown macop for assignment"), tok);
 
       if (post)
 	{
           if (macop == "/" || macop == "%" || op == "=")
-            throw semantic_error (_("invalid post-mode operator"), tok);
+            throw SEMANTIC_ERROR (_("invalid post-mode operator"), tok);
 
 	  o->newline() << res << " = " << lval << ";";
 
@@ -2772,7 +3175,7 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	}
     }
     else
-      throw semantic_error (_("assignment type not yet implemented"), tok);
+      throw SEMANTIC_ERROR (_("assignment type not yet implemented"), tok);
 }
 
 
@@ -2859,9 +3262,9 @@ c_unparser::is_local(vardecl const *r, token const *tok)
     }
 
   if (tok)
-    throw semantic_error (_("unresolved symbol"), tok);
+    throw SEMANTIC_ERROR (_("unresolved symbol"), tok);
   else
-    throw semantic_error (_("unresolved symbol: ") + r->name);
+    throw SEMANTIC_ERROR (_("unresolved symbol: ") + r->name);
 }
 
 
@@ -2900,7 +3303,7 @@ mapvar
 c_unparser::getmap(vardecl *v, token const *tok)
 {
   if (v->arity < 1)
-    throw semantic_error(_("attempt to use scalar where map expected"), tok);
+    throw SEMANTIC_ERROR(_("attempt to use scalar where map expected"), tok);
   statistic_decl sd;
   std::map<std::string, statistic_decl>::const_iterator i;
   i = session->stat_decls.find(v->name);
@@ -2928,8 +3331,10 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
 
   // Update if needed, or after queueing up a few actions, in case of very
   // large code sequences.
-  if (((update && action_counter > 0) || action_counter >= 10/*<-arbitrary*/) && !session->suppress_time_limits)
+  if (((update && action_counter > 0) || action_counter >= 10/*<-arbitrary*/)
+    && !session->suppress_time_limits && !already_checked_action_count)
     {
+
       o->newline() << "c->actionremaining -= " << action_counter << ";";
       o->newline() << "if (unlikely (c->actionremaining <= 0)) {";
       o->newline(1) << "c->last_error = ";
@@ -3138,7 +3543,7 @@ c_unparser::visit_for_loop (for_loop *s)
 
   o->newline() << "if (! (";
   if (s->cond->type != pe_long)
-    throw semantic_error (_("expected numeric type"), s->cond->tok);
+    throw SEMANTIC_ERROR (_("expected numeric type"), s->cond->tok);
   s->cond->visit (this);
   o->line() << ")) goto " << breaklabel << ";";
 
@@ -3272,6 +3677,17 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
     {
       itervar iv = parent->getiter (array);
       parent->o->newline() << iv.declare();
+
+      // Create temporaries for the array slice indexes that aren't wildcards
+      for (unsigned i=0; i<s->array_slice.size(); i++)
+        {
+          if (s->array_slice[i])
+            {
+              tmpvar slice_index = parent->gensym (s->array_slice[i]->type);
+              slice_index.declare(*parent);
+              s->array_slice[i]->visit (this);
+            }
+        }
     }
   else
    {
@@ -3283,7 +3699,7 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
      // our bucket index.
 
      if (s->indexes.size() != 1 || s->indexes[0]->referent->type != pe_long)
-       throw semantic_error(_("Invalid indexing of histogram"), s->tok);
+       throw SEMANTIC_ERROR(_("Invalid indexing of histogram"), s->tok);
 
       // Then declare what we need to form the aggregate we're
       // iterating over, and all the tmpvars needed by our call to
@@ -3423,6 +3839,22 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  o->newline() << *limitv << " = 0LL;";
       }
 
+      vector<tmpvar *> array_slice_vars;
+      // store the the variables corresponding to the index of the array slice
+      // as temporary variables
+      if (!s->array_slice.empty())
+          for (unsigned i = 0; i < s->array_slice.size(); ++i)
+            {
+              if (s->array_slice[i])
+                {
+                  tmpvar *asvar = new tmpvar(gensym(s->array_slice[i]->type));
+                  c_assign(asvar->value(), s->array_slice[i], "array slice index");
+                  array_slice_vars.push_back(asvar);
+                }
+              else
+                array_slice_vars.push_back(NULL);
+            }
+
       record_actions(1, s->tok, true);
 
       // condition
@@ -3459,6 +3891,42 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  var v = getvar (s->indexes[i]->referent);
 	  c_assign (v, iv.get_key (mv, v.type(), i), s->tok);
 	}
+
+      // in the case that the user specified something like
+      // foreach ([a,b] in foo[*, 123]), need to check that it iterates over
+      // the specified values, ie b is alwasy going to be 123
+      if (!s->array_slice.empty())
+        {
+          //add in the beginning portion of the if statement
+          o->newline() << "if (0"; // in case all are wildcards
+          for (unsigned i = 0; i < s->array_slice.size(); ++i)
+
+            // only output a comparsion if the expression is not "*".
+            if (s->array_slice[i])
+            {
+              o->line() << " || ";
+              if (s->indexes[i]->type == pe_string)
+                {
+                  if (s->array_slice[i]->type != pe_string)
+                    throw SEMANTIC_ERROR (_("expected string types"), s->tok);
+                  o->line() << "strncmp(" << getvar (s->indexes[i]->referent)
+                            << ", " << *array_slice_vars[i];
+                  o->line() << ", MAXSTRINGLEN) !=0";
+                }
+              else if (s->indexes[i]->type == pe_long)
+                {
+                  if (s->array_slice[i]->type != pe_long)
+                    throw SEMANTIC_ERROR (_("expected numeric types"), s->tok);
+                  o->line() << getvar (s->indexes[i]->referent) << " != "
+                            << *array_slice_vars[i];
+                }
+              else
+              {
+                  throw SEMANTIC_ERROR (_("unexpected type"), s->tok);
+              }
+            }
+          o->line() << ") goto " << contlabel << ";"; // end of the if statment
+        }
 
       if (s->value)
         {
@@ -3554,10 +4022,10 @@ void
 c_unparser::visit_return_statement (return_statement* s)
 {
   if (current_function == 0)
-    throw semantic_error (_("cannot 'return' from probe"), s->tok);
+    throw SEMANTIC_ERROR (_("cannot 'return' from probe"), s->tok);
 
   if (s->value->type != current_function->type)
-    throw semantic_error (_("return type mismatch"), current_function->tok,
+    throw SEMANTIC_ERROR (_("return type mismatch"), current_function->tok,
                           s->tok);
 
   c_assign ("l->__retvalue", s->value, "return value");
@@ -3570,7 +4038,7 @@ void
 c_unparser::visit_next_statement (next_statement* s)
 {
   if (current_probe == 0)
-    throw semantic_error (_("cannot 'next' from function"), s->tok);
+    throw SEMANTIC_ERROR (_("cannot 'next' from function"), s->tok);
 
   record_actions(1, s->tok, true);
   o->newline() << "goto out;";
@@ -3634,7 +4102,7 @@ delete_statement_operand_visitor::visit_symbol (symbol* e)
 	  break;
 	case pe_unknown:
 	default:
-	  throw semantic_error(_("Cannot delete unknown expression type"), e->tok);
+	  throw SEMANTIC_ERROR(_("Cannot delete unknown expression type"), e->tok);
 	}
     }
 }
@@ -3650,18 +4118,36 @@ delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
     {
       assert (array->referent != 0);
       vardecl* r = array->referent;
+      bool array_slice = false;
+
+      for (unsigned i = 0; i < e->indexes.size(); i ++)
+        if (e->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
+
+      if (array_slice)
+        {
+          itervar iv = parent->parent->getiter(array);
+          parent->parent->o->newline() << iv.declare();
+        }
 
       // One temporary per index dimension.
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
-	  tmpvar ix = parent->parent->gensym (r->index_types[i]);
-	  ix.declare (*(parent->parent));
-	  e->indexes[i]->visit(parent);
+          if (array->referent->type  == pe_stats || !array_slice || e->indexes[i])
+            {
+	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
+	      ix.declare (*(parent->parent));
+              if (e->indexes[i])
+	        e->indexes[i]->visit(parent);
+            }
 	}
     }
   else
     {
-      throw semantic_error(_("cannot delete histogram bucket entries\n"), e->tok);
+      throw SEMANTIC_ERROR(_("cannot delete histogram bucket entries\n"), e->tok);
     }
 }
 
@@ -3674,17 +4160,122 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
 
   if (array)
     {
-      vector<tmpvar> idx;
-      parent->load_map_indices (e, idx);
+      bool array_slice = false;
+      for (unsigned i = 0; i < e->indexes.size(); i ++)
+        if (e->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
 
-      {
-	mapvar mvar = parent->getmap (array->referent, e->tok);
-	parent->o->newline() << mvar.del (idx) << ";";
-      }
+      if (!array_slice) // delete a single element
+        {
+          vector<tmpvar> idx;
+          parent->load_map_indices (e, idx);
+          mapvar mvar = parent->getmap (array->referent, e->tok);
+          parent->o->newline() << mvar.del (idx) << ";";
+        }
+      else // delete elements if they match the array slice.
+        {
+          vardecl* r = array->referent;
+          mapvar mvar = parent->getmap (r, e->tok);
+          itervar iv = parent->getiter(array);
+
+          // create tmpvars for the array indexes, storing NULL where there is
+          // no specific value that the index should be
+          vector<tmpvar *> array_slice_vars;
+          vector<tmpvar> idx; // for the indexes if the variable is a pmap
+          for (unsigned i=0; i<e->indexes.size(); i++)
+            {
+              if (e->indexes[i])
+                {
+                  tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
+                  parent->c_assign (asvar->value(), e->indexes[i], "tmp var");
+                  array_slice_vars.push_back(asvar);
+                  if (mvar.is_parallel())
+                    idx.push_back(*asvar);
+                }
+              else
+                {
+                  array_slice_vars.push_back(NULL);
+                  if (mvar.is_parallel())
+                    {
+                      tmpvar *asvar = new tmpvar(parent->gensym(r->index_types[i]));
+                      idx.push_back(*asvar);
+                    }
+                }
+            }
+
+          if (mvar.is_parallel())
+            {
+              parent->o->newline() << "if (unlikely(NULL == "
+                                   << mvar.calculate_aggregate() << ")) {";
+              parent->o->newline(1) << "c->last_error = ";
+              parent->o->line() << STAP_T_05 << mvar << "\";";
+              parent->o->newline() << "c->last_stmt = "
+                                   << lex_cast_qstring(*e->tok) << ";";
+              parent->o->newline() << "goto out;";
+              parent->o->newline(-1) << "}";
+            }
+
+          // iterate through the map, deleting elements that match the array slice
+          string ctr = lex_cast (parent->label_counter++);
+          string toplabel = "top_" + ctr;
+          string breaklabel = "break_" + ctr;
+
+          parent->o->newline() << iv << " = " << iv.start(mvar) << ";";
+          parent->o->newline() << toplabel << ":";
+
+          parent->o->newline(1) << "if (!(" << iv << ")){";
+          parent->o->newline(1) << "goto " << breaklabel << ";}";
+
+          // insert the comparison for keys that aren't wildcards
+          parent->o->newline(-1) << "if (1"; // in case all are wildcards
+          for (unsigned i=0; i<array_slice_vars.size(); i++)
+            if (array_slice_vars[i] != NULL)
+              {
+              if (array_slice_vars[i]->type() == pe_long)
+                parent->o->line() << " && " << *array_slice_vars[i] << " == "
+                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+              else if (array_slice_vars[i]->type() == pe_string)
+                parent->o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                                  << ", MAXSTRINGLEN) == 0";
+              else
+                throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
+              }
+
+          parent->o->line() <<  ") {";
+
+          // conditional is true, so delete item and go to the next item
+          if (mvar.is_parallel())
+            {
+              parent->o->indent(1);
+              // fills in the wildcards with the current iteration's (map) indexes
+              for (unsigned i = 0; i<array_slice_vars.size(); i++)
+                if (array_slice_vars[i] == NULL)
+                  parent->c_assign (idx[i].value(),
+                                    iv.get_key(mvar, r->index_types[i], i),
+                                    r->index_types[i], "tmpvar", e->tok);
+              parent->o->newline() << iv << " = " << iv.next(mvar) << ";";
+              parent->o->newline() << mvar.del(idx) << ";";
+            }
+          else
+            parent->o->newline(1) << iv << " = " << iv.del_next(mvar) << ";";
+
+          parent->o->newline(-1) << "} else";
+          parent->o->newline(1) << iv << " = " << iv.next(mvar) << ";";
+
+          parent->o->newline(-1) << "goto " << toplabel << ";";
+
+          parent->o->newline(-1) << breaklabel<< ":";
+          parent->o->newline(1) << "; /* dummy statement */";
+          parent->o->indent(-1);
+        }
     }
   else
     {
-      throw semantic_error(_("cannot delete histogram bucket entries\n"), e->tok);
+      throw SEMANTIC_ERROR(_("cannot delete histogram bucket entries\n"), e->tok);
     }
 }
 
@@ -3710,7 +4301,7 @@ void
 c_unparser::visit_break_statement (break_statement* s)
 {
   if (loop_break_labels.empty())
-    throw semantic_error (_("cannot 'break' outside loop"), s->tok);
+    throw SEMANTIC_ERROR (_("cannot 'break' outside loop"), s->tok);
 
   record_actions(1, s->tok, true);
   o->newline() << "goto " << loop_break_labels.back() << ";";
@@ -3721,7 +4312,7 @@ void
 c_unparser::visit_continue_statement (continue_statement* s)
 {
   if (loop_continue_labels.empty())
-    throw semantic_error (_("cannot 'continue' outside loop"), s->tok);
+    throw SEMANTIC_ERROR (_("cannot 'continue' outside loop"), s->tok);
 
   record_actions(1, s->tok, true);
   o->newline() << "goto " << loop_continue_labels.back() << ";";
@@ -3795,7 +4386,7 @@ c_unparser::visit_embedded_expr (embedded_expr* e)
   else if (e->type == pe_string)
     o->line() << "((const char *) (" << e->code << "))";
   else
-    throw semantic_error (_("expected numeric or string type"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric or string type"), e->tok);
 
   o->line() << ")";
 }
@@ -3807,7 +4398,7 @@ c_unparser::visit_binary_expression (binary_expression* e)
   if (e->type != pe_long ||
       e->left->type != pe_long ||
       e->right->type != pe_long)
-    throw semantic_error (_("expected numeric types"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric types"), e->tok);
 
   if (e->op == "+" ||
       e->op == "-" ||
@@ -3872,7 +4463,7 @@ c_unparser::visit_binary_expression (binary_expression* e)
       o->newline(-1) << "})";
     }
   else
-    throw semantic_error (_("operator not yet implemented"), e->tok);
+    throw SEMANTIC_ERROR (_("operator not yet implemented"), e->tok);
 }
 
 
@@ -3881,7 +4472,7 @@ c_unparser::visit_unary_expression (unary_expression* e)
 {
   if (e->type != pe_long ||
       e->operand->type != pe_long)
-    throw semantic_error (_("expected numeric types"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric types"), e->tok);
 
   if (e->op == "-")
     {
@@ -3910,7 +4501,7 @@ c_unparser::visit_logical_or_expr (logical_or_expr* e)
   if (e->type != pe_long ||
       e->left->type != pe_long ||
       e->right->type != pe_long)
-    throw semantic_error (_("expected numeric types"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric types"), e->tok);
 
   o->line() << "((";
   e->left->visit (this);
@@ -3926,7 +4517,7 @@ c_unparser::visit_logical_and_expr (logical_and_expr* e)
   if (e->type != pe_long ||
       e->left->type != pe_long ||
       e->right->type != pe_long)
-    throw semantic_error (_("expected numeric types"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric types"), e->tok);
 
   o->line() << "((";
   e->left->visit (this);
@@ -3947,18 +4538,35 @@ c_tmpcounter::visit_array_in (array_in* e)
     {
       assert (array->referent != 0);
       vardecl* r = array->referent;
-
-      // One temporary per index dimension.
-      for (unsigned i=0; i<r->index_types.size(); i++)
-	{
-	  tmpvar ix = parent->gensym (r->index_types[i]);
-	  ix.declare (*parent);
-	  e->operand->indexes[i]->visit(this);
-	}
+      bool array_slice = false;
 
       // A boolean result.
       tmpvar res = parent->gensym (e->type);
       res.declare (*parent);
+
+      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
+        if (e->operand->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
+
+      // One temporary per index dimension.
+      for (unsigned i=0; i<r->index_types.size(); i++)
+	{
+	  if (!array_slice || e->operand->indexes[i])
+            {
+              tmpvar ix = parent->gensym (r->index_types[i]);
+              ix.declare (*parent);
+              e->operand->indexes[i]->visit(this);
+            }
+	}
+
+      if (array_slice)
+        {
+          itervar iv = parent->getiter(array);
+          parent->o->newline() << iv.declare();
+        }
     }
   else
     {
@@ -3985,15 +4593,108 @@ c_unparser::visit_array_in (array_in* e)
     {
       stmt_expr block(*this);
 
-      vector<tmpvar> idx;
-      load_map_indices (e->operand, idx);
-      // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
-
       tmpvar res = gensym (pe_long);
-      mapvar mvar = getmap (array->referent, e->tok);
-      c_assign (res, mvar.exists(idx), e->tok);
+      vector<tmpvar> idx;
 
-      o->newline() << res << ";";
+      // determine if the array index contains an asterisk
+      bool array_slice = false;
+      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
+        if (e->operand->indexes[i] == NULL)
+          {
+            array_slice = true;
+            break;
+          }
+
+      if (!array_slice) // checking for membership of a specific element
+        {
+          load_map_indices (e->operand, idx);
+          // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+
+          mapvar mvar = getmap (array->referent, e->tok);
+          c_assign (res, mvar.exists(idx), e->tok);
+
+          o->newline() << res << ";";
+        }
+      else
+        {
+          // create tmpvars for the array indexes, storing NULL where there is
+          // no specific value that the index should be
+          vector<tmpvar *> array_slice_vars;
+          for (unsigned i=0; i<e->operand->indexes.size(); i++)
+            {
+              if (e->operand->indexes[i])
+                {
+                  tmpvar *asvar = new tmpvar(gensym(e->operand->indexes[i]->type));
+                  c_assign (asvar->value(), e->operand->indexes[i], "tmp var");
+                  array_slice_vars.push_back(asvar);
+                }
+              else
+                array_slice_vars.push_back(NULL);
+            }
+
+          mapvar mvar = getmap (array->referent, e->operand->tok);
+          itervar iv = getiter(array);
+          vector<tmpvar> idx;
+
+          // we may not need to aggregate if we're already in a foreach
+          bool pre_agg = (aggregations_active.count(mvar.value()) > 0);
+          if (mvar.is_parallel() && !pre_agg)
+            {
+              o->newline() << "if (unlikely(NULL == "
+                           << mvar.calculate_aggregate() << ")) {";
+              o->newline(1) << "c->last_error = ";
+              o->line() << STAP_T_05 << mvar << "\";";
+              o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+              o->newline() << "goto out;";
+              o->newline(-1) << "}";
+            }
+
+          string ctr = lex_cast (label_counter++);
+          string toplabel = "top_" + ctr;
+          string contlabel = "continue_" + ctr;
+          string breaklabel = "break_" + ctr;
+
+          o->newline() << iv << " = " << iv.start(mvar) << ";";
+          c_assign (res, "0", e->tok); // set the default to 0
+
+          o->newline() << toplabel << ":";
+
+          o->newline(1) << "if (!(" << iv << "))";
+          o->newline(1) << "goto " << breaklabel << ";";
+
+          // generate code for comparing the keys to the index slice
+          o->newline(-1) << "if (1"; // in case all are wildcards
+          for (unsigned i=0; i<array_slice_vars.size(); i++)
+            {
+              if (array_slice_vars[i] != NULL)
+                {
+                if (array_slice_vars[i]->type() == pe_long)
+                  o->line() << " && " << *array_slice_vars[i] << " == "
+                            << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+                else if (array_slice_vars[i]->type() == pe_string)
+                  o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                            << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                            << ", MAXSTRINGLEN) == 0";
+                else
+                  throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
+                }
+            }
+          o->line() <<  "){";
+          o->indent(1);
+          // conditional is true, so set res and go to break
+          c_assign (res, "1", e->tok);
+          o->newline() << "goto " << breaklabel << ";";
+          o->newline(-1) << "}";
+
+          // else, keep iterating
+          o->newline() << iv << " = " << iv.next(mvar) << ";";
+          o->newline() << "goto " << toplabel << ";";
+
+          o->newline(-1) << breaklabel<< ":";
+          o->newline(1) << "; /* dummy statement */";
+          o->newline(-1) << res << ";";
+        }
+
     }
   else
     {
@@ -4053,7 +4754,7 @@ c_unparser::visit_comparison (comparison* e)
   if (e->left->type == pe_string)
     {
       if (e->right->type != pe_string)
-        throw semantic_error (_("expected string types"), e->tok);
+        throw SEMANTIC_ERROR (_("expected string types"), e->tok);
 
       o->line() << "({";
       o->indent(1);
@@ -4072,7 +4773,7 @@ c_unparser::visit_comparison (comparison* e)
   else if (e->left->type == pe_long)
     {
       if (e->right->type != pe_long)
-        throw semantic_error (_("expected numeric types"), e->tok);
+        throw SEMANTIC_ERROR (_("expected numeric types"), e->tok);
 
       o->line() << "((";
       e->left->visit (this);
@@ -4081,7 +4782,7 @@ c_unparser::visit_comparison (comparison* e)
       o->line() << "))";
     }
   else
-    throw semantic_error (_("unexpected type"), e->left->tok);
+    throw SEMANTIC_ERROR (_("unexpected type"), e->left->tok);
 
   o->line() << ")";
 }
@@ -4101,12 +4802,12 @@ void
 c_unparser::visit_concatenation (concatenation* e)
 {
   if (e->op != ".")
-    throw semantic_error (_("unexpected concatenation operator"), e->tok);
+    throw SEMANTIC_ERROR (_("unexpected concatenation operator"), e->tok);
 
   if (e->type != pe_string ||
       e->left->type != pe_string ||
       e->right->type != pe_string)
-    throw semantic_error (_("expected string types"), e->tok);
+    throw SEMANTIC_ERROR (_("expected string types"), e->tok);
 
   tmpvar t = gensym (e->type);
 
@@ -4124,12 +4825,12 @@ void
 c_unparser::visit_ternary_expression (ternary_expression* e)
 {
   if (e->cond->type != pe_long)
-    throw semantic_error (_("expected numeric condition"), e->cond->tok);
+    throw SEMANTIC_ERROR (_("expected numeric condition"), e->cond->tok);
 
   if (e->truevalue->type != e->falsevalue->type ||
       e->type != e->truevalue->type ||
       (e->truevalue->type != pe_long && e->truevalue->type != pe_string))
-    throw semantic_error (_("expected matching types"), e->tok);
+    throw SEMANTIC_ERROR (_("expected matching types"), e->tok);
 
   o->line() << "((";
   e->cond->visit (this);
@@ -4155,21 +4856,21 @@ c_unparser::visit_assignment (assignment* e)
   if (e->op == "<<<")
     {
       if (e->type != pe_long)
-	throw semantic_error (_("non-number <<< expression"), e->tok);
+	throw SEMANTIC_ERROR (_("non-number <<< expression"), e->tok);
 
       if (e->left->type != pe_stats)
-	throw semantic_error (_("non-stats left operand to <<< expression"), e->left->tok);
+	throw SEMANTIC_ERROR (_("non-stats left operand to <<< expression"), e->left->tok);
 
       if (e->right->type != pe_long)
-	throw semantic_error (_("non-number right operand to <<< expression"), e->right->tok);
+	throw SEMANTIC_ERROR (_("non-number right operand to <<< expression"), e->right->tok);
 
     }
   else
     {
       if (e->type != e->left->type)
-	throw semantic_error (_("type mismatch"), e->tok, e->left->tok);
+	throw SEMANTIC_ERROR (_("type mismatch"), e->tok, e->left->tok);
       if (e->right->type != e->left->type)
-	throw semantic_error (_("type mismatch"), e->right->tok, e->left->tok);
+	throw SEMANTIC_ERROR (_("type mismatch"), e->right->tok, e->left->tok);
     }
 
   c_unparser_assignment tav (this, e->op, e->right);
@@ -4190,7 +4891,7 @@ c_unparser::visit_pre_crement (pre_crement* e)
 {
   if (e->type != pe_long ||
       e->type != e->operand->type)
-    throw semantic_error (_("expected numeric type"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric type"), e->tok);
 
   c_unparser_assignment tav (this, e->op, false);
   e->operand->visit (& tav);
@@ -4210,7 +4911,7 @@ c_unparser::visit_post_crement (post_crement* e)
 {
   if (e->type != pe_long ||
       e->type != e->operand->type)
-    throw semantic_error (_("expected numeric type"), e->tok);
+    throw SEMANTIC_ERROR (_("expected numeric type"), e->tok);
 
   c_unparser_assignment tav (this, e->op, true);
   e->operand->visit (& tav);
@@ -4224,7 +4925,7 @@ c_unparser::visit_symbol (symbol* e)
   vardecl* r = e->referent;
 
   if (r->index_types.size() != 0)
-    throw semantic_error (_("invalid reference to array"), e->tok);
+    throw SEMANTIC_ERROR (_("invalid reference to array"), e->tok);
 
   var v = getvar(r, e->tok);
   o->line() << v;
@@ -4319,7 +5020,7 @@ c_unparser_assignment::prepare_rvalue (string const & op,
 	// "x += 1".
         rval.override("1");
       else
-        throw semantic_error (_("need rvalue for assignment"), tok);
+        throw SEMANTIC_ERROR (_("need rvalue for assignment"), tok);
     }
 }
 
@@ -4330,7 +5031,7 @@ c_unparser_assignment::visit_symbol (symbol *e)
 
   assert (e->referent != 0);
   if (e->referent->index_types.size() != 0)
-    throw semantic_error (_("unexpected reference to array"), e->tok);
+    throw SEMANTIC_ERROR (_("unexpected reference to array"), e->tok);
 
   // parent->o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
   exp_type ty = rvalue ? rvalue->type : e->type;
@@ -4349,42 +5050,49 @@ c_unparser_assignment::visit_symbol (symbol *e)
 void
 c_unparser::visit_target_symbol (target_symbol* e)
 {
-  throw semantic_error(_("cannot translate general target-symbol expression"), e->tok);
+  throw SEMANTIC_ERROR(_("cannot translate general target-symbol expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_atvar_op (atvar_op* e)
 {
-  throw semantic_error(_("cannot translate general @var expression"), e->tok);
+  throw SEMANTIC_ERROR(_("cannot translate general @var expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_cast_op (cast_op* e)
 {
-  throw semantic_error(_("cannot translate general @cast expression"), e->tok);
+  throw SEMANTIC_ERROR(_("cannot translate general @cast expression"), e->tok);
+}
+
+
+void
+c_unparser::visit_autocast_op (autocast_op* e)
+{
+  throw SEMANTIC_ERROR(_("cannot translate general dereference expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_defined_op (defined_op* e)
 {
-  throw semantic_error(_("cannot translate general @defined expression"), e->tok);
+  throw SEMANTIC_ERROR(_("cannot translate general @defined expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_entry_op (entry_op* e)
 {
-  throw semantic_error(_("cannot translate general @entry expression"), e->tok);
+  throw SEMANTIC_ERROR(_("cannot translate general @entry expression"), e->tok);
 }
 
 
 void
 c_unparser::visit_perf_op (perf_op* e)
 {
-  throw semantic_error(_("cannot translate general @perf expression"), e->tok);
+  throw SEMANTIC_ERROR(_("cannot translate general @perf expression"), e->tok);
 }
 
 
@@ -4435,12 +5143,12 @@ c_unparser::load_map_indices(arrayindex *e,
 
       if (r->index_types.size() == 0 ||
 	  r->index_types.size() != e->indexes.size())
-	throw semantic_error (_("invalid array reference"), e->tok);
+	throw SEMANTIC_ERROR (_("invalid array reference"), e->tok);
 
       for (unsigned i=0; i<r->index_types.size(); i++)
 	{
 	  if (r->index_types[i] != e->indexes[i]->type)
-	    throw semantic_error (_("array index type mismatch"), e->indexes[i]->tok);
+	    throw SEMANTIC_ERROR (_("array index type mismatch"), e->indexes[i]->tok);
 
 	  tmpvar ix = gensym (r->index_types[i]);
 	  if (e->indexes[i]->tok->type == tok_number
@@ -4484,7 +5192,7 @@ c_tmpcounter::load_aggregate (expression *e)
       !parent->get_foreach_loop_value(arr, agg_value))
     {
       if (!arr)
-	throw semantic_error(_("expected arrayindex expression"), e->tok);
+	throw SEMANTIC_ERROR(_("expected arrayindex expression"), e->tok);
       load_map_indices (arr);
     }
 }
@@ -4496,7 +5204,7 @@ c_unparser::load_aggregate (expression *e, aggvar & agg)
   symbol *sym = get_symbol_within_expression (e);
 
   if (sym->referent->type != pe_stats)
-    throw semantic_error (_("unexpected aggregate of non-statistic"), sym->tok);
+    throw SEMANTIC_ERROR (_("unexpected aggregate of non-statistic"), sym->tok);
 
   var *v;
   if (sym->referent->arity == 0)
@@ -4512,7 +5220,7 @@ c_unparser::load_aggregate (expression *e, aggvar & agg)
 
       arrayindex *arr = NULL;
       if (!expression_is_arrayindex (e, arr))
-	throw semantic_error(_("unexpected aggregate of non-arrayindex"), e->tok);
+	throw SEMANTIC_ERROR(_("unexpected aggregate of non-arrayindex"), e->tok);
 
       // If we have a foreach_loop value, we don't need to index the map
       string agg_value;
@@ -4594,7 +5302,7 @@ c_tmpcounter::visit_arrayindex (arrayindex *e)
       // First all the stuff related to indexing into the histogram
 
       if (e->indexes.size() != 1)
-	throw semantic_error(_("Invalid indexing of histogram"), e->tok);
+	throw SEMANTIC_ERROR(_("Invalid indexing of histogram"), e->tok);
       tmpvar ix = parent->gensym (pe_long);
       ix.declare (*parent);
       e->indexes[0]->visit(this);
@@ -4630,7 +5338,7 @@ c_unparser::visit_arrayindex (arrayindex* e)
     {
       // Visiting an statistic-valued array in a non-lvalue context is prohibited.
       if (array->referent->type == pe_stats)
-	throw semantic_error (_("statistic-valued array in rvalue context"), e->tok);
+	throw SEMANTIC_ERROR (_("statistic-valued array in rvalue context"), e->tok);
 
       stmt_expr block(*this);
 
@@ -4724,7 +5432,7 @@ c_tmpcounter_assignment::visit_arrayindex (arrayindex *e)
     }
   else
     {
-      throw semantic_error(_("cannot assign to histogram buckets"), e->tok);
+      throw SEMANTIC_ERROR(_("cannot assign to histogram buckets"), e->tok);
     }
 }
 
@@ -4744,7 +5452,7 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
       translator_output *o = parent->o;
 
       if (array->referent->index_types.size() == 0)
-	throw semantic_error (_("unexpected reference to scalar"), e->tok);
+	throw SEMANTIC_ERROR (_("unexpected reference to scalar"), e->tok);
 
       // nb: Do not adjust the order of the next few lines; the tmpvar
       // allocation order must remain the same between
@@ -4815,7 +5523,7 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
     }
   else
     {
-      throw semantic_error(_("cannot assign to histogram buckets"), e->tok);
+      throw SEMANTIC_ERROR(_("cannot assign to histogram buckets"), e->tok);
     }
 }
 
@@ -4844,7 +5552,7 @@ c_unparser::visit_functioncall (functioncall* e)
   functiondecl* r = e->referent;
 
   if (r->formal_args.size() != e->args.size())
-    throw semantic_error (_("invalid length argument list"), e->tok);
+    throw SEMANTIC_ERROR (_("invalid length argument list"), e->tok);
 
   stmt_expr block(*this);
 
@@ -4860,7 +5568,7 @@ c_unparser::visit_functioncall (functioncall* e)
       tmpvar t = gensym(e->args[i]->type);
 
       if (r->formal_args[i]->type != e->args[i]->type)
-	throw semantic_error (_("function argument type mismatch"),
+	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
       if (e->args[i]->tok->type == tok_number
@@ -4880,7 +5588,7 @@ c_unparser::visit_functioncall (functioncall* e)
   for (unsigned i=0; i<e->args.size(); i++)
     {
       if (r->formal_args[i]->type != e->args[i]->type)
-	throw semantic_error (_("function argument type mismatch"),
+	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
       c_assign ("c->locals[c->nesting+1]." +
@@ -4896,7 +5604,20 @@ c_unparser::visit_functioncall (functioncall* e)
   o->newline() << c_funcname (r->name) << " (c);";
   o->newline() << "if (unlikely(c->last_error)) goto out;";
 
-  // return result from retvalue slot
+  if (!already_checked_action_count && !session->suppress_time_limits
+      && !session->unoptimized)
+    {
+      max_action_info mai (*session);
+      e->referent->body->visit(&mai);
+      // if an unoptimized function/probe called an optimized function, then
+      // increase the counter, since the subtraction isn't done within an
+      // optimized function
+      if(mai.statement_count_finite())
+        record_actions (mai.statement_count, e->tok, true);
+    }
+
+  // return result from retvalue slot NB: this must be last, for the
+  // enclosing statement-expression ({ ... }) to carry this value.
   if (r->type == pe_unknown)
     // If we passed typechecking, then nothing will use this return value
     o->newline() << "(void) 0;";
@@ -4904,6 +5625,7 @@ c_unparser::visit_functioncall (functioncall* e)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
+
 }
 
 
@@ -4948,9 +5670,9 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
 	    {
 	    default:
 	    case pe_unknown:
-	      throw semantic_error(_("cannot print unknown expression type"), e->args[i]->tok);
+	      throw SEMANTIC_ERROR(_("cannot print unknown expression type"), e->args[i]->tok);
 	    case pe_stats:
-	      throw semantic_error(_("cannot print a raw stats object"), e->args[i]->tok);
+	      throw SEMANTIC_ERROR(_("cannot print a raw stats object"), e->args[i]->tok);
 	    case pe_long:
 	      format << "%d";
 	      break;
@@ -5008,7 +5730,7 @@ c_tmpcounter::visit_print_format (print_format* e)
 	  tmp.push_back(t);
 	  if (e->args[i]->type == pe_unknown)
 	    {
-	      throw semantic_error(_("unknown type of arg to print operator"),
+	      throw SEMANTIC_ERROR(_("unknown type of arg to print operator"),
 				   e->args[i]->tok);
 	    }
 
@@ -5083,7 +5805,7 @@ c_unparser::visit_print_format (print_format* e)
       // PR10750: Enforce a reasonable limit on # of varargs
       // 32 varargs leads to max 256 bytes on the stack
       if (e->args.size() > 32)
-        throw semantic_error(_NF("additional argument to print", "too many arguments to print (%zu)",
+        throw SEMANTIC_ERROR(_NF("additional argument to print", "too many arguments to print (%zu)",
                                 e->args.size(), e->args.size()), e->tok);
 
       // Compute actual arguments
@@ -5459,7 +6181,7 @@ static void create_debug_frame_hdr (const unsigned char e_ident[],
       it = fdes.begin();
       Dwarf_Addr first_addr = (*it).first;
       int res = dwfl_module_relocate_address (mod, &first_addr);
-      dwfl_assert ("create_debug_frame_hdr, dwfl_module_relocate_address",
+      DWFL_ASSERT ("create_debug_frame_hdr, dwfl_module_relocate_address",
 		   res >= 0);
       *debug_frame_off = (*it).first - first_addr;
     }
@@ -5612,7 +6334,7 @@ dump_build_id (Dwfl_Module *m,
         int i;
 
         i = dwfl_module_relocate_address (m, &reloc_vaddr);
-        dwfl_assert ("dwfl_module_relocate_address reloc_vaddr", i >= 0);
+        DWFL_ASSERT ("dwfl_module_relocate_address reloc_vaddr", i >= 0);
 
         secname = dwfl_module_relocation_info (m, i, NULL);
 
@@ -5626,7 +6348,7 @@ dump_build_id (Dwfl_Module *m,
 
 	if (modname[0] != '/')
 	  if (!secname || strcmp(secname, ".note.gnu.build-id"))
-	    throw semantic_error (_("unexpected build-id reloc section ") +
+	    throw SEMANTIC_ERROR (_("unexpected build-id reloc section ") +
 				  string(secname ?: "null"));
 
         build_id_vaddr = reloc_vaddr;
@@ -5670,7 +6392,7 @@ dump_section_list (Dwfl_Module *m,
 
   // Look up the relocation basis for symbols
   int n = dwfl_module_relocations (m);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
 
  if (n == 0)
     {
@@ -5748,11 +6470,11 @@ dump_symbol_tables (Dwfl_Module *m,
   dwfl_module_info (m, NULL, NULL, &end, NULL, NULL, NULL, NULL);
 
   int syments = dwfl_module_getsymtab(m);
-  dwfl_assert (_F("Getting symbol table for %s", modname), syments >= 0);
+  DWFL_ASSERT (_F("Getting symbol table for %s", modname), syments >= 0);
 
   // Look up the relocation basis for symbols
   int n = dwfl_module_relocations (m);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
 
   /* Needed on ppc64, for function descriptors. */
   Dwarf_Addr elf_bias;
@@ -5799,7 +6521,7 @@ dump_symbol_tables (Dwfl_Module *m,
 		  int ki;
 		  extra_offset = sym_addr;
 		  ki = dwfl_module_relocate_address (m, &extra_offset);
-		  dwfl_assert ("dwfl_module_relocate_address extra_offset",
+		  DWFL_ASSERT ("dwfl_module_relocate_address extra_offset",
 			       ki >= 0);
 
 		  if (c->session.verbose > 2)
@@ -5819,7 +6541,7 @@ dump_symbol_tables (Dwfl_Module *m,
                   kretprobe_trampoline_addr = sym_addr;
                   ki = dwfl_module_relocate_address(m,
 						    &kretprobe_trampoline_addr);
-                  dwfl_assert ("dwfl_module_relocate_address, kretprobe_trampoline_addr", ki >= 0);
+                  DWFL_ASSERT ("dwfl_module_relocate_address, kretprobe_trampoline_addr", ki >= 0);
 
 		  if (! c->session.need_symbols
 		      && extra_offset != 0)
@@ -5861,7 +6583,7 @@ dump_symbol_tables (Dwfl_Module *m,
 		  func_desc_addr = sym_addr;
 
 		  opd = dwfl_module_address_section (m, &sym_addr, &opd_bias);
-		  dwfl_assert ("dwfl_module_address_section opd", opd != NULL);
+		  DWFL_ASSERT ("dwfl_module_address_section opd", opd != NULL);
 
 		  Elf_Data *opd_data = elf_rawdata (opd, NULL);
 		  assert(opd_data != NULL);
@@ -5882,7 +6604,7 @@ dump_symbol_tables (Dwfl_Module *m,
               if (n > 0) // only try to relocate if there exist relocation bases
                 {
                   int ki = dwfl_module_relocate_address (m, &sym_addr);
-                  dwfl_assert ("dwfl_module_relocate_address sym_addr", ki >= 0);
+                  DWFL_ASSERT ("dwfl_module_relocate_address sym_addr", ki >= 0);
                   secname = dwfl_module_relocation_info (m, ki, NULL);
 
 		  if (func_desc_addr != 0)
@@ -6153,17 +6875,26 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   const char *mainfile;
   dwfl_module_info (m, NULL, NULL, NULL, NULL, NULL, &mainfile, NULL);
 
-  // For user space modules store canonical path and base name.
+  // For user space modules store canonical path.
   // For kernel modules just the name itself.
-  const char *mainpath = canonicalize_file_name(mainfile);
-  const char *mainname = strrchr(mainpath, '/');
-  if (modname[0] == '/')
-    mainname++;
+  string mainpath = resolve_path(mainfile);
+  string mainname;
+  if (is_user_module(modname)) // userspace
+    mainname = lex_cast_qstring (path_remove_sysroot(c->session,mainpath));
   else
-    mainname = modname.c_str();
+    { // kernel module
+
+      // If the module name is the full path to the ko, then we have to retrieve
+      // the actual name by which the module will be known inside the kernel.
+      // Otherwise, section relocations would be mismatched.
+      if (is_fully_resolved(modname, c->session.sysroot, c->session.sysenv))
+        mainname = lex_cast_qstring (modname_from_path(modname));
+      else
+        mainname = lex_cast_qstring (modname);
+    }
 
   c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
-  c->output << ".name = " << lex_cast_qstring (mainname) << ", \n";
+  c->output << ".name = " << mainname.c_str() << ",\n";
   c->output << ".path = " << lex_cast_qstring (path_remove_sysroot(c->session,mainpath)) << ",\n";
   c->output << ".eh_frame_addr = 0x" << hex << eh_addr << dec << ", \n";
   c->output << ".unwind_hdr_addr = 0x" << hex << eh_frame_hdr_addr
@@ -6343,9 +7074,8 @@ void emit_symbol_data_done (unwindsym_dump_context*, systemtap_session&);
 
 
 void
-add_unwindsym_iol_callback (void *q, const char *data)
+add_unwindsym_iol_callback (set<string> *added, const char *data)
 {
-  std::set<std::string> *added = (std::set<std::string>*)q;
   added->insert (string (data));
 }
 
@@ -6355,9 +7085,9 @@ query_module (Dwfl_Module *mod,
               void **,
               const char *,
               Dwarf_Addr,
-              void *arg)
+              struct dwflpp *dwflpp)
 {
-  ((struct dwflpp*)arg)->focus_on_module(mod, NULL);
+  dwflpp->focus_on_module(mod, NULL);
   return DWARF_CB_OK;
 }
 
@@ -6375,14 +7105,13 @@ add_unwindsym_ldd (systemtap_session &s)
       assert (modname.length() != 0);
       if (! is_user_module (modname)) continue;
 
-      struct dwflpp *mod_dwflpp = new dwflpp(s, modname, false);
-      mod_dwflpp->iterate_over_modules (&query_module, mod_dwflpp);
-      if (mod_dwflpp->module) // existing binary
+      dwflpp mod_dwflpp (s, modname, false);
+      mod_dwflpp.iterate_over_modules(&query_module, &mod_dwflpp);
+      if (mod_dwflpp.module) // existing binary
         {
-          assert (mod_dwflpp->module_name != "");
-          mod_dwflpp->iterate_over_libraries (&add_unwindsym_iol_callback, &added);
+          assert (mod_dwflpp.module_name != "");
+          mod_dwflpp.iterate_over_libraries (&add_unwindsym_iol_callback, &added);
         }
-      delete mod_dwflpp;
     }
 
   s.unwindsym_modules.insert (added.begin(), added.end());
@@ -6392,11 +7121,18 @@ static int find_vdso(const char *path, const struct stat *, int type)
 {
   if (type == FTW_F)
     {
+      /* Assume that if the path's basename starts with 'vdso' and
+       * ends with '.so', it is the vdso.
+       *
+       * Note that this logic should match up with the logic in the
+       * _stp_vma_match_vdso() function in runtime/vma.c. */
       const char *name = strrchr(path, '/');
       if (name)
 	{
+	  const char *ext;
+
 	  name++;
-	  const char *ext = strrchr(name, '.');
+	  ext = strrchr(name, '.');
 	  if (ext
 	      && strncmp("vdso", name, 4) == 0
 	      && strcmp(".so", ext) == 0)
@@ -6499,11 +7235,10 @@ emit_symbol_data (systemtap_session& s)
 				     offline searches. */
         offline_search_modules.insert (foo);
     }
-  DwflPtr dwfl_ptr = setup_dwfl_kernel (offline_search_modules, &count, s);
-  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+  Dwfl *dwfl = setup_dwfl_kernel (offline_search_modules, &count, s);
   /* NB: It's not an error to find a few fewer modules than requested.
      There might be third-party modules loaded (e.g. uprobes). */
-  /* dwfl_assert("all kernel modules found",
+  /* DWFL_ASSERT("all kernel modules found",
      count >= offline_search_modules.size()); */
 
   ptrdiff_t off = 0;
@@ -6514,8 +7249,8 @@ emit_symbol_data (systemtap_session& s)
       off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
     }
   while (off > 0);
-  dwfl_assert("dwfl_getmodules", off == 0);
-  dwfl_ptr.reset();
+  DWFL_ASSERT("dwfl_getmodules", off == 0);
+  dwfl_end(dwfl);
 
   // ---- step 2: process any user modules (files) listed
   for (std::set<std::string>::iterator it = s.unwindsym_modules.begin();
@@ -6525,8 +7260,7 @@ emit_symbol_data (systemtap_session& s)
       string modname = *it;
       assert (modname.length() != 0);
       if (! is_user_module (modname)) continue;
-      DwflPtr dwfl_ptr = setup_dwfl_user (modname);
-      Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+      Dwfl *dwfl = setup_dwfl_user (modname);
       if (dwfl != NULL) // tolerate missing data; will warn below
         {
           ptrdiff_t off = 0;
@@ -6537,26 +7271,63 @@ emit_symbol_data (systemtap_session& s)
               off = dwfl_getmodules (dwfl, &dump_unwindsyms, (void *) &ctx, off);
             }
           while (off > 0);
-          dwfl_assert("dwfl_getmodules", off == 0);
+          DWFL_ASSERT("dwfl_getmodules", off == 0);
         }
-      dwfl_ptr.reset();
+      dwfl_end(dwfl);
     }
 
   emit_symbol_data_done (&ctx, s);
 }
 
 void
+self_unwind_declarations(unwindsym_dump_context *ctx)
+{
+  ctx->output << "static uint8_t _stp_module_self_eh_frame [] = {0,};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_0[] = {{0},};\n";
+  ctx->output << "static struct _stp_symbol _stp_module_self_symbols_1[] = {{0},};\n";
+  ctx->output << "static struct _stp_section _stp_module_self_sections[] = {\n";
+  ctx->output << "{.name = \".symtab\", .symbols = _stp_module_self_symbols_0, .num_symbols = 0},\n";
+  ctx->output << "{.name = \".text\", .symbols = _stp_module_self_symbols_1, .num_symbols = 0},\n";
+  ctx->output << "};\n";
+  ctx->output << "static struct _stp_module _stp_module_self = {\n";
+  ctx->output << ".name = \"stap_self_tmp_value\",\n";
+  ctx->output << ".path = \"stap_self_tmp_value\",\n";
+  ctx->output << ".num_sections = 2,\n";
+  ctx->output << ".sections = _stp_module_self_sections,\n";
+  ctx->output << ".eh_frame = _stp_module_self_eh_frame,\n";
+  ctx->output << ".eh_frame_len = 0,\n";
+  ctx->output << ".unwind_hdr_addr = 0x0,\n";
+  ctx->output << ".unwind_hdr = NULL,\n";
+  ctx->output << ".unwind_hdr_len = 0,\n";
+  ctx->output << ".debug_frame = NULL,\n";
+  ctx->output << ".debug_frame_len = 0,\n";
+  ctx->output << "};\n";
+}
+
+void
 emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
 {
+  // Add a .eh_frame terminator dummy object file, much like
+  // libgcc/crtstuff.c's EH_FRAME_SECTION_NAME closer.  We need this in
+  // order for runtime/sym.c 
+  translator_output *T_800 = s.op_create_auxiliary(true);
+  T_800->newline() << "__extension__ unsigned int T_800 []"; // assumed 32-bits wide
+  T_800->newline(1) << "__attribute__((used, section(\".eh_frame\"), aligned(4)))";
+  T_800->newline() << "= { 0 };";
+  T_800->newline(-1);
+  T_800->assert_0_indent (); // flush to disk
+
   // Print out a definition of the runtime's _stp_modules[] globals.
   ctx->output << "\n";
-  ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
+  self_unwind_declarations(ctx);
+   ctx->output << "static struct _stp_module *_stp_modules [] = {\n";
   for (unsigned i=0; i<ctx->stp_module_index; i++)
     {
       ctx->output << "& _stp_module_" << i << ",\n";
     }
+  ctx->output << "& _stp_module_self,\n";
   ctx->output << "};\n";
-  ctx->output << "static unsigned _stp_num_modules = " << ctx->stp_module_index << ";\n";
+  ctx->output << "static const unsigned _stp_num_modules = ARRAY_SIZE(_stp_modules);\n";
 
   ctx->output << "static unsigned long _stp_kretprobe_trampoline = ";
   // Special case for -1, which is invalid in hex if host width > target width.
@@ -6574,9 +7345,6 @@ emit_symbol_data_done (unwindsym_dump_context *ctx, systemtap_session& s)
       s.print_warning (_("missing unwind/symbol data for module '")
 		       + (*it) + "'");
 }
-
-
-
 
 struct recursion_info: public traversing_visitor
 {
@@ -6677,10 +7445,10 @@ translate_pass (systemtap_session& s)
 	}
       catch (const runtime_error)
 	{
-	  throw semantic_error(_F("parse error in compatibility version: %s", s.compatible.c_str()));
+	  throw SEMANTIC_ERROR(_F("parse error in compatibility version: %s", s.compatible.c_str()));
 	}
       if (major < 0 || major > 255 || minor < 0 || minor > 255)
-	throw semantic_error(_F("compatibility version out of range: %s", s.compatible.c_str()));
+	throw SEMANTIC_ERROR(_F("compatibility version out of range: %s", s.compatible.c_str()));
       s.op->newline() << "#define STAP_VERSION(a, b) ( ((a) << 8) + (b) )";
       s.op->newline() << "#ifndef STAP_COMPAT_VERSION";
       s.op->newline() << "#define STAP_COMPAT_VERSION STAP_VERSION("
@@ -6746,6 +7514,27 @@ translate_pass (systemtap_session& s)
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
 
+      // Emit systemtap_module_refresh() prototype so we can reference it
+      s.op->newline() << "static void systemtap_module_refresh (const char* modname);";
+
+      if (!s.runtime_usermode_p())
+        {
+          // When on-the-fly [dis]arming is used, module_refresh can be called from
+          // both the module notifier, as well as when probes need to be
+          // armed/disarmed. We need to protect it to ensure it's only run one at a
+          // time.
+          s.op->newline() << "#include <linux/mutex.h>";
+          s.op->newline() << "static DEFINE_MUTEX(module_refresh_mutex);";
+
+          // For some probes, on-the-fly support is provided through a
+          // background timer (module_refresh_timer). We need to disable that
+          // part if hrtimers are not supported.
+          s.op->newline() << "#include <linux/version.h>";
+          s.op->newline() << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,17)";
+          s.op->newline() << "#define STP_ON_THE_FLY_TIMER_ENABLE";
+          s.op->newline() << "#endif";
+        }
+
       s.op->newline() << "#include \"runtime.h\"";
 
       // Emit embeds ahead of time, in case they affect context layout
@@ -6803,6 +7592,7 @@ translate_pass (systemtap_session& s)
 	s.op->newline() << "struct stp_globals {};";
 
       // Common (static atomic) state of the stap session.
+      s.op->newline();
       s.op->newline() << "#include \"common_session_state.h\"";
 
       s.op->newline() << "#include \"probe_lock.h\" ";
@@ -6840,24 +7630,6 @@ translate_pass (systemtap_session& s)
 	  s.op->newline();
 	  s.up->emit_function (it->second);
 	}
-      s.op->assert_0_indent();
-
-      // Run a varuse_collecting_visitor over probes that need global
-      // variable locks.  We'll use this information later in
-      // emit_locks()/emit_unlocks().
-      for (unsigned i=0; i<s.probes.size(); i++)
-	{
-        assert_no_interrupts();
-        if (s.probes[i]->needs_global_locks())
-	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
-	}
-      s.op->assert_0_indent();
-
-      for (unsigned i=0; i<s.probes.size(); i++)
-        {
-          assert_no_interrupts();
-          s.up->emit_probe (s.probes[i]);
-        }
       s.op->assert_0_indent();
 
       // Let's find some stats for the embedded pp strings.  Maybe they
@@ -6898,9 +7670,11 @@ translate_pass (systemtap_session& s)
             clog << "*" << endl;                                                \
         }
 
+      s.op->newline();
       s.op->newline() << "struct stap_probe {";
-      s.op->newline(1) << "size_t index;";
+      s.op->newline(1) << "const size_t index;";
       s.op->newline() << "void (* const ph) (struct context*);";
+      s.op->newline() << "unsigned cond_enabled:1;"; // just one bit required
       s.op->newline() << "#if defined(STP_TIMING) || defined(STP_ALIBI)";
       CALCIT(location);
       CALCIT(derivation);
@@ -6917,16 +7691,38 @@ translate_pass (systemtap_session& s)
       s.op->newline() << "#define STAP_PROBE_INIT_NAME(PN)";
       s.op->newline() << "#endif";
       s.op->newline() << "#define STAP_PROBE_INIT(I, PH, PP, PN, L, D) "
-                      << "{ .index=(I), .ph=(PH), .pp=(PP), "
+                      << "{ .index=(I), .ph=(PH), .cond_enabled=1, .pp=(PP), "
                       << "STAP_PROBE_INIT_NAME(PN) "
                       << "STAP_PROBE_INIT_TIMING(L, D) "
                       << "}";
-      s.op->newline(-1) << "} static const stap_probes[] = {";
+      s.op->newline(-1) << "} static stap_probes[];";
+      s.op->assert_0_indent();
+#undef CALCIT
+
+      // Run a varuse_collecting_visitor over probes that need global
+      // variable locks.  We'll use this information later in
+      // emit_locks()/emit_unlocks().
+      for (unsigned i=0; i<s.probes.size(); i++)
+	{
+        assert_no_interrupts();
+        s.probes[i]->session_index = i;
+        if (s.probes[i]->needs_global_locks())
+	    s.probes[i]->body->visit (&cup.vcv_needs_global_locks);
+	}
+      s.op->assert_0_indent();
+
+      for (unsigned i=0; i<s.probes.size(); i++)
+        {
+          assert_no_interrupts();
+          s.up->emit_probe (s.probes[i]);
+        }
+      s.op->assert_0_indent();
+
+      s.op->newline() << "static struct stap_probe stap_probes[] = {";
       s.op->indent(1);
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
           derived_probe* p = s.probes[i];
-          p->session_index = i;
           s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name << ", "
                           << lex_cast_qstring (*p->sole_location()) << ", "
                           << lex_cast_qstring (*p->script_location()) << ", "
@@ -6934,8 +7730,6 @@ translate_pass (systemtap_session& s)
                           << lex_cast_qstring (p->derived_locations()) << "),";
         }
       s.op->newline(-1) << "};";
-      s.op->assert_0_indent();
-#undef CALCIT
 
       if (s.runtime_usermode_p())
         {
@@ -6947,6 +7741,7 @@ translate_pass (systemtap_session& s)
           s.op->assert_0_indent();
         }
 
+      s.op->assert_0_indent();
       s.op->newline();
       s.up->emit_module_init ();
       s.op->assert_0_indent();

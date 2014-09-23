@@ -16,7 +16,7 @@ if {[catch {eval exec $cmd} output]} {
 
 
 foreach line [split $output "\n"] {
-    if {[regexp {^kernel.function\(\"sys_([^@]+)} $line match fn]} {
+    if {[regexp {^kernel.function\(\"[Ss]y[Ss]_([^@]+)} $line match fn]} {
 	if {![info exists funcname($fn)]} {
 	    set funcname($fn) 0
 	}

@@ -99,15 +99,6 @@ probe nd_syscall.sysctl32.return = kprobe.function("sys32_sysctl").return ?
 probe nd_syscall.mmap = kprobe.function("sys_mmap") ?
 {
 	name = "mmap"
-	// start = $addr
-	// len = $len
-	// prot = $prot
-	// flags = $flags
-	// fd = __int32($fd)
-	// offset = $off
-	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
-	// 	_mprotect_prot_str($prot), _mmap_flags($flags),
-	//	__int32($fd), $off)
 	asmlinkage()
 	start = ulong_arg(1)
 	len = ulong_arg(2)
@@ -117,7 +108,7 @@ probe nd_syscall.mmap = kprobe.function("sys_mmap") ?
 	# user-side it is a signed int.  Fix this.
 	fd = int_arg(5)
 	offset = ulong_arg(6)
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", start, len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
 		_mprotect_prot_str(prot), _mmap_flags(flags), fd, offset)
 }
 probe nd_syscall.mmap.return = kprobe.function("sys_mmap").return ?
@@ -146,21 +137,31 @@ probe nd_syscall.mmap32.return = kprobe.function("sys32_mmap").return
 #	unsigned long prot, unsigned long flags,
 #	unsigned long fd, unsigned long pgoff)
 #
-probe nd_syscall.mmap2 = kprobe.function("sys_mmap_pgoff") ?,
-	kprobe.function("sys32_mmap2") ?
+probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap_pgoff ?
 {
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
-	// argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
-	// 	_mprotect_prot_str($prot), _mmap_flags($flags),
-	//	__int32($fd), $pgoff)
+}
+probe __nd_syscall.mmap2 = kprobe.function("sys32_mmap2")
+{
 	asmlinkage()
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", ulong_arg(1), ulong_arg(2),
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", ulong_arg(1), ulong_arg(2),
 		_mprotect_prot_str(ulong_arg(3)), _mmap_flags(ulong_arg(4)),
 		int_arg(5), ulong_arg(6))
 }
-probe nd_syscall.mmap2.return = kprobe.function("sys_mmap_pgoff").return ?,
-	kprobe.function("sys32_mmap2").return ?
+probe __nd_syscall.mmap_pgoff = kprobe.function("sys_mmap_pgoff")
 {
+	asmlinkage()
+	# $pgoff is the number of pages. Convert this back into a
+	# number of bytes.
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", ulong_arg(1), ulong_arg(2),
+		_mprotect_prot_str(ulong_arg(3)), _mmap_flags(ulong_arg(4)),
+		int_arg(5), ulong_arg(6) * %{ PAGE_SIZE %})
+}
+probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?,
+	kprobe.function("sys_mmap_pgoff").return ?
+{
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
 	retstr = returnstr(2)
 }

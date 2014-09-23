@@ -1,0 +1,287 @@
+set test "affection"
+
+# Goal: Ensure that the mechanism for figuring out which probes can affect the
+# conditions of which other probes works properly. Also verifies that the probes
+# lock the proper variables.
+
+# Reads output from stap line by line and returns a list of pairs denoting
+# affection. E.g. "1 0 3 4" means that probe 1 affects probe 0 and probe 3
+# affects probe 4.
+proc parse_affection {output} {
+   set ret ""
+   set re "probe (\[0-9\]+) can affect condition of probe (\[0-9\]+)"
+   foreach line [split $output "\n"] {
+      if {[regexp "^$re$" $line dummy pidx1 pidx2]} {
+         set ret "$ret $pidx1 $pidx2"
+      }
+   }
+   return [string trimleft $ret]
+}
+
+# Reads output from stap line by line and returns a list of pairs denoting
+# locking. E.g. "1 {var1[r] var2[w]} 2 {}" means that probe 1 read-locks var1
+# and write-locks var2, while probe 2 locks nothing.
+proc parse_locking {output} {
+   set ret ""
+   set re "probe (\[0-9\]+) \\('\[^'\]+'\\) locks (.*)"
+   foreach line [split $output "\n"] {
+      if {[regexp "^$re$" $line dummy pidx vars] && \
+          ![string equal $vars "nothing"]} {
+         lappend ret $pidx $vars
+      }
+   }
+   return $ret
+}
+
+# Runs a subtest
+# @subtest: the name of the subtest
+# @expected_affection: the affection expected given as a list of pairs
+# @expected_locking: the locking expected given as a list of pairs
+# @script: script to test
+proc run_subtest {subtest expected_affection expected_locking script} {
+   global test
+
+   verbose -log "running: stap -p3 -vvv -e $script"
+   if {[catch {exec stap -p3 -vvv -e $script 2>@1} out]} {
+      fail "$test - $subtest (stap -p3)"
+      verbose -log "stap output: $out"
+      return
+   }
+
+   set actual_affection [parse_affection $out]
+   verbose -log "expected affection: $expected_affection"
+   verbose -log "received affection: $actual_affection"
+   if {$expected_affection != $actual_affection} {
+      fail "$test - $subtest (affection)"
+      return
+   }
+
+   set actual_locking [parse_locking $out]
+   verbose -log "expected locking: $expected_locking"
+   verbose -log "received locking: $actual_locking"
+   if {$expected_locking != $actual_locking} {
+      fail "$test - $subtest (locking)"
+      return
+   }
+
+   pass "$test - $subtest"
+}
+
+### SUBTESTS ###
+
+# No affection
+# NB: the [list 0 {enabled[rw]}] means "probe 0 locks var enabled for rw"
+run_subtest "none" "" [list 0 {enabled[rw]}] {
+   global enabled = 0 // NB: we try not just 0/1 but other integral values too
+   probe timer.s(5) {
+       enabled = enabled ? 0 : 100;
+   }
+}
+
+# NB: the [list 1 0] means "probe 1 affects condition of probe 0"
+run_subtest "simple1" [list 1 0] [list 0 {enabled[r]} \
+                                       1 {enabled[rw]}] {
+   global enabled = 0
+   probe timer.s(1) if (enabled != 0) {
+      next
+   }
+   probe timer.s(5) {
+      enabled = !enabled
+   }
+}
+
+run_subtest "simple2" [list 0 1] [list 0 {enabled[rw]} \
+                                       1 {enabled[r]}] {
+   global enabled = 0
+   probe timer.s(5) {
+      enabled = enabled ? 0 : -9999
+   }
+   probe timer.s(1) if (enabled & 0xFFFF) {
+      next
+   }
+}
+
+run_subtest "self1" [list 0 0] [list 0 {enabled[rw]}] {
+   global enabled = 0
+   probe timer.s(1) if (enabled) {
+      enabled = !enabled
+   }
+}
+
+run_subtest "self2" [list 0 1 \
+                          1 1] \
+                    [list 0 {enabled[rw]} \
+                          1 {enabled[rw]}] {
+   global enabled = 0
+   probe timer.s(5) {
+      enabled = !enabled
+   }
+   probe timer.s(1) if (enabled * 1 != 0) {
+      enabled = !enabled
+   }
+}
+
+run_subtest "many_vars_1" [list 1 0] [list 0 {var1[r] var2[r] var3[r]} \
+                                           1 {var1[rw] var2[rw] var3[rw]}] {
+   global var1 = 0
+   global var2 = 1
+   global var3
+   probe timer.s(1) if (var1 && (var2 || var3)) {
+      next
+   }
+   probe timer.s(5) {
+      var1 = !var1
+      var2 = 0xFFFF // not just boolean range!
+      var3 = var1 && var2
+   }
+}
+
+run_subtest "many_vars_2" [list 0 3 \
+                                1 3 \
+                                2 3] \
+                          [list 0 {var1[rw] var2[r] var3[r]} \
+                                1 {var1[r] var2[rw] var3[r]} \
+                                2 {var1[r] var2[r] var3[rw]} \
+                                3 {var1[r] var2[r] var3[r]}] {
+   global var1 = 0
+   global var2 = -1
+   global var3
+   probe timer.s(5) {
+      var1 = !var1
+   }
+   probe timer.s(7) {
+      var2 = ~var2
+   }
+   probe timer.s(11) {
+      var3 = 1-var3
+   }
+   probe timer.s(1) if (var1 && (var2 || var3)) {
+      next
+   }
+}
+
+# NB: This is a tricky test for locking. Probe 1 needs to write-lock var1, but
+# also read-lock var2 which needs to be read during the re-evaluation of probe
+# 0's condition in the epilogue of probe 1.
+run_subtest "many_vars_3" [list 1 0 \
+                                2 0] \
+                          [list 0 {var1[r] var2[r]} \
+                                1 {var1[rw] var2[r]} \
+                                2 {var1[r] var2[rw]}] {
+   global var1 = 29
+   global var2 = -0x123
+   probe timer.s(1) if (var1 || var2) {
+      next
+   }
+   probe timer.s(2) {
+      var1--
+   }
+   probe timer.s(3) {
+      var2--
+   }
+}
+
+run_subtest "many_probes_1" [list 2 0 \
+                                  2 1] \
+                            [list 0 {var1[r]} \
+                                  1 {var1[r]} \
+                                  2 {var1[rw]}] {
+   global var1 = 0
+   probe timer.s(5) if (var1) {
+      next
+   }
+   probe timer.s(7) if (!var1) {
+      next
+   }
+   probe timer.s(11) {
+      var1 = !var1
+   }
+}
+
+run_subtest "many_probes_2" [list 0 0 \
+                                  0 3 \
+                                  1 0 \
+                                  1 3 \
+                                  2 1 \
+                                  2 3] \
+                            [list 0 {var1[rw] var2[r] var3[r]} \
+                                  1 {var1[r] var2[rw] var3[r]} \
+                                  2 {var1[r] var2[r] var3[rw]} \
+                                  3 {var1[r] var2[r] var3[r]}] {
+   global var1 = 0
+   global var2 = 1
+   global var3
+   probe timer.s(5) if (var1 || var2) {
+      var1 = !var1
+   }
+   probe timer.s(7) if (var3) {
+      var2 = !var2
+   }
+   probe timer.s(11) {
+      var3 = !var3
+   }
+   probe timer.s(1) if (var1 && (var2 || var3)) {
+      next
+   }
+}
+
+run_subtest "functions_1" [list 1 0] \
+                          [list 0 {enabled[r]} \
+                                1 {enabled[rw]}] {
+   global enabled = 0
+   probe timer.s(1) if (enabled) {
+      next
+   }
+   function toggler() {
+      enabled = !enabled
+   }
+   probe timer.s(5) {
+      toggler()
+   }
+}
+
+run_subtest "functions_2" [list 1 0] \
+                          [list 0 {enabled[r]} \
+                                1 {enabled[rw]}] {
+   global enabled = 0
+   probe timer.s(1) if (enabled) {
+      next
+   }
+   function realtoggler() {
+      enabled = !enabled
+   }
+   function faketoggler() {
+      realtoggler()
+   }
+   probe timer.s(5) {
+      faketoggler()
+   }
+}
+
+run_subtest "functions_3" [list 0 1 \
+                                1 0 \
+                                1 1 \
+                                2 0 \
+                                2 1] \
+                          [list 0 {var1[r] var2[rw]} \
+                                1 {var1[rw] var2[r]} \
+                                2 {var1[rw] var2[rw]}] {
+   global var1 = 0
+   global var2 = 1
+   function toggler1() {
+      var2 = !var2
+   }
+   probe timer.s(1) if (var1) {
+      toggler1()
+   }
+   function toggler2() {
+      var1 = !var1
+   }
+   probe timer.s(2) if (!var2 || var1) {
+      toggler2()
+   }
+   probe timer.s(5) {
+      toggler1()
+      toggler2()
+   }
+}

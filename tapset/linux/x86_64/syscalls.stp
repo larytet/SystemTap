@@ -97,7 +97,7 @@ probe syscall.mmap = kernel.function("sys_mmap") ?
 	# user-side it is a signed int.  Fix this.
 	fd = __int32($fd)
 	offset = $off
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
 		_mprotect_prot_str($prot), _mmap_flags($flags),
 		__int32($fd), $off)
 }
@@ -130,7 +130,7 @@ probe syscall.mmap32 = kernel.function("sys32_mmap")
 		fd = user_long(&@cast($arg, "mmap_arg_struct")->fd)
 		offset = user_long(&@cast($arg, "mmap_arg_struct")->offset)
 	}
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", start, len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
 			 _mprotect_prot_str(prot), _mmap_flags(flags),
 			 fd, offset)
 }
@@ -145,9 +145,9 @@ probe syscall.mmap32.return = kernel.function("sys32_mmap").return
 #	unsigned long prot, unsigned long flags,
 #	unsigned long fd, unsigned long pgoff)
 # The function is removed since 2.6.33
-probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?,
-	kernel.function("sys32_mmap2") ?
+probe syscall.mmap2 = __syscall.mmap2 ?, __syscall.mmap_pgoff ?
 {
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
         start = $addr
         length = $len
@@ -156,15 +156,23 @@ probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?,
 	# Although the kernel gets an unsigned long fd, on the
 	# user-side it is a signed int.  Fix this.
         fd = __int32($fd)
-        pgoffset = $pgoff
-	argstr = sprintf("%p, %d, %s, %s, %d, %d", $addr, $len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
 		_mprotect_prot_str($prot), _mmap_flags($flags),
-		__int32($fd), $pgoff)
+		__int32($fd), pgoffset)
+}
+probe __syscall.mmap2 = kernel.function("sys32_mmap2")
+{
+        pgoffset = $pgoff
+}
+probe __syscall.mmap_pgoff = kernel.function("sys_mmap_pgoff")
+{
+        pgoffset = $pgoff * %{ PAGE_SIZE %}
 }
 
-probe syscall.mmap2.return = kernel.function("sys_mmap_pgoff").return ?,
-	kernel.function("sys32_mmap2").return ?
+probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?,
+	kernel.function("sys_mmap_pgoff").return ?
 {
+	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
 	retstr = return_str(2, $return)
 }

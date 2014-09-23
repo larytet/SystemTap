@@ -1,7 +1,7 @@
 // IP tapset
 //
 // Copyright (C) 2009, IBM Inc.
-// Copyright (C) 2010, 2012 Red Hat Inc.
+// Copyright (C) 2010, 2014 Red Hat Inc.
 //
 // Author : Breno Leitao <leitao@linux.vnet.ibm.com>
 //
@@ -108,7 +108,8 @@ function __ip_sock_daddr:long (sock:long)
     }
 %( CONFIG_IPV6 == "[ym]" %?
     else if (family == %{ /* pure */ /* unprivileged */ AF_INET6 %}) {
-	return (&@cast(sock, "inet_sock", "kernel<net/ip.h>")->pinet6->daddr)
+	return @choose_defined(&@cast(sock, "inet_sock", "kernel<net/ip.h>")->sk->__sk_common->skc_v6_daddr,
+			       &@cast(sock, "inet_sock", "kernel<net/ip.h>")->pinet6->daddr)
     }
 %)
     return 0

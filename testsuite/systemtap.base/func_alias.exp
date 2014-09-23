@@ -38,26 +38,6 @@ proc run_one_test {flags bits} {
     exec rm -f $target
 }
 
-set do_32_bit_pass 1
-set do_64_bit_pass 0
-set flags32 ""
-set flags64 ""
-switch -regexp $::tcl_platform(machine) {
-    ^ia64$ {
-        set do_32_bit_pass 0
-        set do_64_bit_pass 1
-    }
-    ^(x86_64|ppc64)$ {
-        set do_64_bit_pass 1
-        set flags32 "additional_flags=-m32"
-        set flags64 "additional_flags=-m64"
-    }
-    ^s390x$ {
-        set do_64_bit_pass 1
-        set flags32 "additional_flags=-m31"
-        set flags64 "additional_flags=-m64"
-    }
+for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+    run_one_test [arch_compile_flag $i] [arch_compile_flag_bits $i]
 }
-
-if {$do_64_bit_pass} { run_one_test $flags64 64 }
-if {$do_32_bit_pass} { run_one_test $flags32 32 }

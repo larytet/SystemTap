@@ -1,7 +1,7 @@
 /* -*- linux-c -*-
  *
  * control channel
- * Copyright (C) 2007-2011 Red Hat Inc.
+ * Copyright (C) 2007-2014 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -29,13 +29,14 @@ static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem);
 
 static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
+        static DEFINE_MUTEX(cmd_mutex);
 	u32 type;
-	static int started = 0;
+        int rc = 0;
 
 #ifdef STAPCONF_TASK_UID
 	uid_t euid = current->euid;
 #else
-#ifdef CONFIG_UIDGID_STRICT_TYPE_CHECKS
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
 	uid_t euid = from_kuid_munged(current_user_ns(), current_euid());
 #else
 	uid_t euid = current_euid();
@@ -57,30 +58,45 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 			    (int)count);
 #endif
 
+        // PR17232: preclude reentrancy during handling of messages.
+        // This also permits use of static variables in the switch/case.
+        mutex_lock (& cmd_mutex);
+        // NB: past this point, no 'return;' - use 'goto out;'
+
 	switch (type) {
 	case STP_START:
-		if (started == 0) {
-			struct _stp_msg_start st;
-			if (count < sizeof(st))
-				return 0;
-			if (copy_from_user(&st, buf, sizeof(st)))
-				return -EFAULT;
-			_stp_handle_start(&st);
-			started = 1;
-		}
-		break;
+        {
+                static struct _stp_msg_start st;
+                if (count < sizeof(st)) {
+                        rc = 0; // ?
+                        goto out;
+                }
+                if (copy_from_user(&st, buf, sizeof(st))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
+                _stp_handle_start(&st);
+        }
+        break;
+
 	case STP_EXIT:
-		_stp_cleanup_and_exit(1);
+                _stp_cleanup_and_exit(1);
 		break;
+
 	case STP_BULK:
 #ifdef STP_BULKMODE
-		return count + sizeof(u32);
+                // no action needed
+                break;
 #else
-		return -EINVAL;
+		rc = -EINVAL;
+                goto out;
 #endif
+
 	case STP_RELOCATION:
-		if (euid != 0)
-			return -EPERM;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
                 /* This message is too large to copy here.
                    Further error checking is within the
                    function, but XXX no rc is passed back. */
@@ -98,12 +114,18 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
                    (euid=0) isn't multithreaded, and doesn't pass this
                    filehandle anywhere. */
                 static struct _stp_msg_tzinfo tzi;
-		if (euid != 0)
-			return -EPERM;
-                if (count < sizeof(tzi))
-                        return 0;
-                if (copy_from_user(&tzi, buf, sizeof(tzi)))
-                        return -EFAULT;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
+                if (count < sizeof(tzi)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&tzi, buf, sizeof(tzi))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
                 _stp_handle_tzinfo(&tzi);
         }
         break;
@@ -112,12 +134,18 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
         {
                 /* NB PR13445: as above. */
                 static struct _stp_msg_privilege_credentials pc;
-		if (euid != 0)
-			return -EPERM;
-                if (count < sizeof(pc))
-                        return 0;
-                if (copy_from_user(&pc, buf, sizeof(pc)))
-                        return -EFAULT;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
+                if (count < sizeof(pc)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&pc, buf, sizeof(pc))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
                 _stp_handle_privilege_credentials(&pc);
         }
         break;
@@ -126,12 +154,18 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
         {
                 /* NB PR13445: as above. */
                 static struct _stp_msg_remote_id rem;
-		if (euid != 0)
-			return -EPERM;
-                if (count < sizeof(rem))
-                        return 0;
-                if (copy_from_user(&rem, buf, sizeof(rem)))
-                        return -EFAULT;
+		if (euid != 0) {
+                        rc = -EPERM;
+                        goto out;
+                }
+                if (count < sizeof(rem)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&rem, buf, sizeof(rem))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
                 _stp_handle_remote_id(&rem);
         }
         break;
@@ -143,10 +177,21 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #ifdef DEBUG_TRANS
 		dbug_trans2("invalid command type %d\n", type);
 #endif
-		return -EINVAL;
+		rc = -EINVAL;
+                goto out;
 	}
 
-	return count + sizeof(u32); /* Pretend that we absorbed the entire message. */
+        // fall through
+	rc = count + sizeof(u32); /* Pretend that we absorbed the entire message. */
+
+out:
+        mutex_unlock (& cmd_mutex);
+
+#if defined(DEBUG_TRANS) && (DEBUG_TRANS >= 2)
+	if (type < STP_MAX_CMD)
+		dbug_trans2("Completed %s (rc=%d)\n", _stp_command_name[type], rc);
+#endif
+        return rc;
 }
 
 static DECLARE_WAIT_QUEUE_HEAD(_stp_ctl_wq);
@@ -298,6 +343,52 @@ static int _stp_ctl_alloc_special_buffers(void)
 }
 
 
+/* Free the buffers for all "special" message types, plus generic
+   warning and error messages.  */
+static void _stp_ctl_free_special_buffers(void)
+{
+	if (_stp_ctl_start_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_start_msg);
+		_stp_ctl_start_msg = NULL;
+	}
+
+	if (_stp_ctl_exit_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_exit_msg);
+		_stp_ctl_exit_msg = NULL;
+	}
+
+	if (_stp_ctl_transport_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_transport_msg);
+		_stp_ctl_transport_msg = NULL;
+	}
+
+	if (_stp_ctl_request_exit_msg != NULL) {
+		_stp_mempool_free(_stp_ctl_request_exit_msg);
+		_stp_ctl_request_exit_msg = NULL;
+	}
+
+	if (_stp_ctl_oob_warn != NULL) {
+		_stp_mempool_free(_stp_ctl_oob_warn);
+		_stp_ctl_oob_warn = NULL;
+	}
+
+	if (_stp_ctl_oob_err != NULL) {
+		_stp_mempool_free(_stp_ctl_oob_err);
+		_stp_ctl_oob_err = NULL;
+	}
+
+	if (_stp_ctl_system_warn != NULL) {
+		_stp_mempool_free(_stp_ctl_system_warn);
+		_stp_ctl_system_warn = NULL;
+	}
+
+	if (_stp_ctl_realtime_err != NULL) {
+		_stp_mempool_free(_stp_ctl_realtime_err);
+		_stp_ctl_realtime_err = NULL;
+	}
+}
+
+
 /* Get a buffer based on type, possibly a generic buffer, when all else
    fails returns NULL and there is nothing we can do.  */
 static struct _stp_buffer *_stp_ctl_get_buffer(int type, void *data,
@@ -416,6 +507,7 @@ static void _stp_ctl_free_buffer(struct _stp_buffer *bptr)
    on error. */
 static int _stp_ctl_send(int type, void *data, unsigned len)
 {
+	struct context* __restrict__ c = NULL;
 	struct _stp_buffer *bptr;
 	unsigned long flags;
 	unsigned hlen;
@@ -439,22 +531,36 @@ static int _stp_ctl_send(int type, void *data, unsigned len)
 		return 0;
 	}
 
+	/* Prevent probe reentrancy while grabbing probe-used locks.
+	   Since _stp_ctl_send may be called from arbitrary probe context, we
+	   have to make sure that all locks it wants can't possibly be held
+	   outside probe context too.  This includes:
+	    * _stp_ctl_ready_lock
+	    * _stp_pool_q->lock
+	    * _stp_ctl_special_msg_lock
+	   We ensure this by grabbing the context here and everywhere else that
+	   uses those locks, so such a probe will appear reentrant and be
+	   skipped rather than deadlock.  */
+	c = _stp_runtime_entryfn_get_context();
+
 	/* get a buffer from the free pool */
 	bptr = _stp_ctl_get_buffer(type, data, len);
 	if (unlikely(bptr == NULL)) {
 		/* Nothing else we can do... but let's not spam the kernel
                    with these reports. */
                 /* printk(KERN_ERR "ctl_write_msg type=%d len=%d ENOMEM\n", type, len); */
+		_stp_runtime_entryfn_put_context(c);
 		return -ENOMEM;
 	}
 
-	/* put it on the pool of ready buffers. Even though we are
-	   holding a lock, calling list_add_tail() is safe here since
-	   it will be totally inlined from the list.h header file so
-	   we cannot recursively hit a kprobe inside the lock. */
+	/* Put it on the pool of ready buffers.  It's possible to recursively
+	   hit a probe here, like a kprobe in NMI or the lock tracepoints, but
+	   they will be squashed since we're holding the context busy.  */
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	list_add_tail(&bptr->list, &_stp_ctl_ready_q);
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+
+	_stp_runtime_entryfn_put_context(c);
 
 	/* It would be nice if we could speed up the notification
 	   timer at this point, but calling mod_timer() at this
@@ -487,18 +593,24 @@ static int _stp_ctl_send_notify(int type, void *data, unsigned len)
 static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
+	struct context* __restrict__ c = NULL;
 	struct _stp_buffer *bptr;
 	int len;
 	unsigned long flags;
+
+	/* Prevent probe reentrancy while grabbing probe-used locks.  */
+	c = _stp_runtime_entryfn_get_context();
 
 	/* wait for nonempty ready queue */
 	spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	while (list_empty(&_stp_ctl_ready_q)) {
 		spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+		_stp_runtime_entryfn_put_context(c);
 		if (file->f_flags & O_NONBLOCK)
 			return -EAGAIN;
 		if (wait_event_interruptible(_stp_ctl_wq, !list_empty(&_stp_ctl_ready_q)))
 			return -ERESTARTSYS;
+		c = _stp_runtime_entryfn_get_context();
 		spin_lock_irqsave(&_stp_ctl_ready_lock, flags);
 	}
 
@@ -506,6 +618,9 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	bptr = (struct _stp_buffer *)_stp_ctl_ready_q.next;
 	list_del_init(&bptr->list);
 	spin_unlock_irqrestore(&_stp_ctl_ready_lock, flags);
+
+	/* NB: we can't hold the context across copy_to_user, as it might fault.  */
+	_stp_runtime_entryfn_put_context(c);
 
 	/* write it out */
 	len = bptr->len + 4;
@@ -521,7 +636,9 @@ static ssize_t _stp_ctl_read_cmd(struct file *file, char __user *buf,
 	}
 
 	/* put it on the pool of free buffers */
+	c = _stp_runtime_entryfn_get_context();
 	_stp_ctl_free_buffer(bptr);
+	_stp_runtime_entryfn_put_context(c);
 
 	return len;
 }
@@ -605,14 +722,15 @@ err0:
 
 static void _stp_unregister_ctl_channel(void)
 {
-	struct list_head *p, *tmp;
+	struct _stp_buffer *bptr, *tmp;
 
 	_stp_unregister_ctl_channel_fs();
 
 	/* Return memory to pool and free it. */
-	list_for_each_safe(p, tmp, &_stp_ctl_ready_q) {
-		list_del(p);
-		_stp_mempool_free(p);
+	list_for_each_entry_safe(bptr, tmp, &_stp_ctl_ready_q, list) {
+		list_del(&bptr->list);
+		_stp_ctl_free_buffer(bptr);
 	}
+	_stp_ctl_free_special_buffers();
 	_stp_mempool_destroy(_stp_pool_q);
 }

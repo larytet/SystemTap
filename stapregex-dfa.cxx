@@ -149,7 +149,7 @@ arc_compare (const arc_priority& a, const arc_priority& b)
 /* Manage the linked list of states in a DFA: */
 
 state::state (state_kernel *kernel)
-  : next(NULL), kernel(kernel), accepts(false), accept_outcome(0) {}
+  : label(~0), next(NULL), kernel(kernel), accepts(false), accept_outcome(0) {}
 
 state *
 dfa::add_state (state *s)
@@ -316,9 +316,15 @@ te_closure (state_kernel *start, int ntags, bool is_initial = false)
         {
           /* Delete all existing next.map_items of the form m[tag,x]. */
           for (list<map_item>::iterator it = next.map_items.begin();
-               it != next.map_items.end(); it++)
+               it != next.map_items.end(); )
             if (it->first == (unsigned) tag)
-              next.map_items.erase (it);
+              {
+                list<map_item>::iterator next_it = it;
+                next_it++;
+                next.map_items.erase (it);
+                it = next_it;
+              }
+            else it++;
 
           /* Add m[tag,x] to next.map_items, where x is the smallest
              nonnegative integer such that m[tag,x] does not occur
@@ -423,7 +429,9 @@ dfa::dfa (ins *i, int ntags, vector<string>& outcome_snippets)
   first = last = NULL;
 
   ins *start = &i[0];
-  state_kernel *initial_kernel = te_closure(make_kernel(start), ntags, true);
+  state_kernel *seed_kernel = make_kernel(start);
+  state_kernel *initial_kernel = te_closure(seed_kernel, ntags, true);
+  delete seed_kernel;
   state *initial = add_state(new state(initial_kernel));
   queue<state *> worklist; worklist.push(initial);
 

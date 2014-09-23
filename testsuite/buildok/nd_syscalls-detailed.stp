@@ -3,10 +3,23 @@
 probe nd_syscall.accept
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s), %d, %p, %p\n", flags, flags_str, sockfd, addr_uaddr,
-	       addrlen_uaddr)
+	printf("%d, %p, %p\n", sockfd, addr_uaddr, addrlen_uaddr)
+%(systemtap_v <= "2.5" %?
+	printf("%d(%s)\n", flags, flags_str)
+%)
 }
 probe nd_syscall.accept.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.accept4 ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %p, %d(%s)\n", sockfd, addr_uaddr, addrlen_uaddr,
+	       flags, flags_str)
+}
+probe nd_syscall.accept4.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -74,8 +87,13 @@ probe nd_syscall.bdflush.return ?
 probe nd_syscall.bind
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v >= "2.5" %?
+	printf("%d, %p, %d, %s\n", sockfd, my_addr_uaddr, addrlen, uaddr_af)
+%:
 	printf("%d, %p, %d\n", sockfd, my_addr_uaddr, addrlen)
+%)
 }
+
 probe nd_syscall.bind.return
 {
 	printf("%s, %s\n", name, retstr)
@@ -154,7 +172,7 @@ probe nd_syscall.clock_getres.return
 probe nd_syscall.clock_gettime
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s)\n", clk_id, clk_id_str)
+	printf("%d(%s), %p\n", clk_id, clk_id_str, tp_uaddr)
 }
 probe nd_syscall.clock_gettime.return
 {
@@ -164,7 +182,11 @@ probe nd_syscall.clock_gettime.return
 probe nd_syscall.clock_nanosleep, nd_syscall.compat_clock_nanosleep ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d(%s)\n", flags, flag_str)
+	printf("%d(%s), %d(%s), %p, %p\n", clk_id, clk_id_str, flags, flags_str,
+	       req_uaddr, rem_uaddr)
+%(systemtap_v <= "2.6" %?
+	printf("%s\n", flag_str)
+%)
 }
 probe nd_syscall.clock_nanosleep.return, nd_syscall.compat_clock_nanosleep.return ?
 {
@@ -177,6 +199,20 @@ probe nd_syscall.clock_settime
 	printf("%d(%s), %p\n", clk_id, clk_id_str, tp_uaddr)
 }
 probe nd_syscall.clock_settime.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.clone
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %p, %p", clone_flags, stack_start, parent_tid_uaddr,
+	       child_tid_uaddr)
+%( arch == "ia64" %?
+	printf("%d\n", stack_size)
+%)
+}
+probe nd_syscall.clone.return
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -194,7 +230,11 @@ probe nd_syscall.close.return
 probe nd_syscall.connect
 {
 	printf("%s, %s\n", name, argstr)
+%( systemtap_v >= "2.5" %?
+	printf("%d, %p, %d, %s\n", sockfd, serv_addr_uaddr, addrlen, uaddr_af)
+%:
 	printf("%d, %p, %d\n", sockfd, serv_addr_uaddr, addrlen)
+%)
 }
 probe nd_syscall.connect.return
 {
@@ -231,12 +271,12 @@ probe nd_syscall.dup.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.dup2
+probe nd_syscall.dup2, nd_syscall.dup3 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %d, %d\n", oldfd, newfd, flags)
 }
-probe nd_syscall.dup2.return
+probe nd_syscall.dup2.return, nd_syscall.dup3.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -264,6 +304,8 @@ probe nd_syscall.epoll_ctl.return ?
 probe nd_syscall.epoll_pwait ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %d, %d\n", epfd, events_uaddr, maxevents, timeout)
+	printf("%p, %d\n", sigmask_uaddr, sigsetsize)
 }
 probe nd_syscall.epoll_pwait.return ?
 {
@@ -283,7 +325,7 @@ probe nd_syscall.epoll_wait.return ?
 probe nd_syscall.eventfd ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", flags)
+	printf("%u, %d, %s\n", count, flags, flags_str)
 }
 probe nd_syscall.eventfd.return ?
 {
@@ -436,16 +478,18 @@ probe nd_syscall.flock.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.fork
+probe nd_syscall.fork ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %p, %p\n", clone_flags, stack_start,
-	       stack_size, parent_tid_uaddr, child_tid_uaddr)
 %(systemtap_v < "2.3" %?
 	printf("%p\n", regs)
 %)
+%(systemtap_v < "2.5" %?
+	printf("%d, %d, %d, %p, %p\n", clone_flags, stack_start,
+	       stack_size, parent_tid_uaddr, child_tid_uaddr)
+%)
 }
-probe nd_syscall.fork.return
+probe nd_syscall.fork.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -484,7 +528,8 @@ probe nd_syscall.fstat.return
 probe nd_syscall.fstatat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %p\n", dirfd, path, buf_uaddr)
+	printf("%d(%s), %s, %p, %d(%s)\n", dirfd, dirfd_str, path,
+	       buf_uaddr, flags, flags_str)
 }
 probe nd_syscall.fstatat.return ?
 {
@@ -545,8 +590,8 @@ probe nd_syscall.futex.return, nd_syscall.compat_futex.return ?
 probe nd_syscall.futimesat ?, nd_syscall.compat_futimesat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p(%s), %p\n", dirfd, filename_uaddr, filename,
-	       tvp_uaddr)
+	printf("%d(%s), %p(%s), %p\n", dirfd, dirfd_str, filename_uaddr,
+	       filename, tvp_uaddr)
 }
 probe nd_syscall.futimesat.return ?, nd_syscall.compat_futimesat.return ?
 {
@@ -1143,7 +1188,7 @@ probe nd_syscall.mkdir.return
 probe nd_syscall.mkdirat ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %s, %d\n", dirfd, pathname, mode)
+	printf("%d(%s), %s, %d\n", dirfd, dirfd_str, pathname, mode)
 }
 probe nd_syscall.mkdirat.return ?
 {

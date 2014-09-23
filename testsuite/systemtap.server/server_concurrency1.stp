@@ -1,0 +1,6 @@
+
+probe module("[a-c]*").function("*") {
+  printf("hello");
+  exit();
+}
+

@@ -85,7 +85,7 @@ uses systemtap/testsuite/systemtap.examples/process/syscalls_by_p*.stp
 </example>
 
 <para>
-	If you prefer the output to display the process IDs instead of the process names,
+	To display the process IDs instead of the process names,
 	use the following script instead.
 </para>
 

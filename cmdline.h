@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2012 Red Hat Inc.
+// Copyright (C) 2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -40,6 +40,8 @@ enum {
   LONG_OPT_TMPDIR,
   LONG_OPT_DOWNLOAD_DEBUGINFO,
   LONG_OPT_DUMP_PROBE_TYPES,
+  LONG_OPT_DUMP_PROBE_ALIASES,
+  LONG_OPT_DUMP_FUNCTIONS,
   LONG_OPT_PRIVILEGE,
   LONG_OPT_SUPPRESS_HANDLER_ERRORS,
   LONG_OPT_MODINFO,
@@ -53,14 +55,16 @@ enum {
   LONG_OPT_SUPPRESS_TIME_LIMITS,
   LONG_OPT_RUNTIME,
   LONG_OPT_RUNTIME_DYNINST,
+  LONG_OPT_BENCHMARK_SDT,
   LONG_OPT_BENCHMARK_SDT_LOOPS,
   LONG_OPT_BENCHMARK_SDT_THREADS,
   LONG_OPT_COLOR_ERRS,
+  LONG_OPT_SAVE_UPROBES,
 };
 
 // NB: when adding new options, consider very carefully whether they
 // should be restricted from stap clients (after --client-options)!
-#define STAP_SHORT_OPTIONS "hVvtp:I:e:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:J:jWG:"
+#define STAP_SHORT_OPTIONS "hVvtp:I:e:E:o:R:r:a:m:kgPc:x:D:bs:uqwl:d:L:FS:B:J:jWG:"
 
 #define OWE5 "tter"
 #define OWE1 "uild-"

@@ -67,7 +67,7 @@ typedef char string_t[MAXSTRINGLEN];
 /* We allow the user to completely turn overload processing off
    (as opposed to tuning it by overriding the values above) by
    running:  stap -DSTP_NO_OVERLOAD {other options}.  */
-#if !defined(STP_NO_OVERLOAD) && !defined(STAP_NO_OVERLOAD) && !defined(STAP_SUPPRESS_TIME_LIMITS)
+#if !defined(STP_NO_OVERLOAD) && !defined(STAP_NO_OVERLOAD) && !defined(STAP_SUPPRESS_TIME_LIMITS_ENABLE)
 #define STP_OVERLOAD
 #endif
 

@@ -1,0 +1,18 @@
+global FSNOTIFY_EVENT_PATH = 1
+
+probe kernel.function("fsnotify") ?
+{
+    if (!target_set_pid(pid())) {
+	next
+    }
+    if ($data_is == FSNOTIFY_EVENT_PATH) {
+        path = task_dentry_path(task_current(), @cast($data, "path")->dentry,
+				@cast($data, "path")->mnt);
+        println(path);
+    }
+}
+
+probe begin
+{
+    printf("begin\n")
+}

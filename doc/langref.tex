@@ -42,7 +42,8 @@
 \item[]}
 {\end{list}}
 
-\usepackage{babel}
+\usepackage[english]{babel}
+
 \makeatother
 \begin{document}
 
@@ -94,7 +95,7 @@ problem. SystemTap was designed to eliminate the need for a developer to
 go through the tedious instrument, recompile, install, and reboot sequence
 normally required to collect this kind of data. To do this, it provides a
 simple command-line interface and scripting language for writing
-instrumenation for both kernel and user space.
+instrumentation for both kernel and user space.
 With SystemTap, developers, system administrators, and users can easily write
 scripts that gather and manipulate system data that is otherwise unavailable
 from standard Linux tools. Users of SystemTap will find it to be a significant
@@ -659,7 +660,7 @@ Here is an example of the various permitted methods of embedded C code inclusion
 
 /* Reads the char value stored at a given address: */ 
 function __read_char:long(addr:long) %{ /* pure */
-         STAP_RETVALUE = kderef(sizeof(char), STAP_ARG_addr);
+         STAP_RETURN(kderef(sizeof(char), STAP_ARG_addr));
          CATCH_DEREF_FAULT ();
 %} /* <-- function body */
 
@@ -712,28 +713,39 @@ name = kread(&(dev->name));
 The memory locations reserved for input and output values are provided
 to a function using macros named
 \texttt{STAP\_ARG\_foo}\index{STAP_ARG_} (for arguments named
-\texttt{foo}) and \texttt{STAP\_RETVALUE}\index{STAP_RETVALUE}. The
-following are examples.
+\texttt{foo}) and \texttt{STAP\_RETVALUE}\index{STAP_RETVALUE}.
+Errors may be signalled with \texttt{STAP\_ERROR}.  The function may return                       early with \texttt{STAP\_RETURN}.  Here are some examples:
 
 \begin{vindent}
 \begin{verbatim}
-function add_one (val:long) %{
-    STAP_RETVALUE = STAP_ARG_val + 1;
+function integer_ops:long (val) %{
+  STAP_RETVALUE = STAP_ARG_val + 1;
+  if (STAP_RETVALUE == 4)
+      STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);
+  if (STAP_RETVALUE == 3)
+      STAP_RETURN(0);
+  STAP_RETVALUE ++;
 %}
-function add_one_str:string (val:string) %{
-    strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
-    strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+function string_ops:string (val) %{
+  strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
+  strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+  if (strcmp (STAP_RETVALUE, "three-two-one"))
+      STAP_RETURN("parameter should be three-two-");
+%}
+function no_ops () %{
+    STAP_RETURN(); /* function inferred with no return value */
 %}
 \end{verbatim}
 \end{vindent}
 
-The function argument and return value types should be stated;
-the translator does not analyze the embedded C code within the function.
-You should examine
-C code generated for ordinary script language functions to write compatible
-embedded-C. Note that all SystemTap functions and probes run with interrupts
-disabled, thus you cannot call functions that might sleep within the embedded
-C.
+The function argument and return value types should be stated if the
+translator cannot infer them from usage.  The translator does not
+analyze the embedded C code within the function.
+
+You should examine C code generated for ordinary script language
+functions to write compatible embedded-C.  Usually, all SystemTap
+functions and probes run with interrupts disabled, thus you cannot
+call functions that might sleep within the embedded C.
 
 \subsection{Embedded C pragma comments}
 
@@ -989,8 +1001,8 @@ General syntax:
 
 \begin{vindent}
 \begin{verbatim}
-kernel.function("func[@file]"
-module("modname").function("func[@file]"
+kernel.function("func[@file]")
+module("modname").function("func[@file]")
 \end{verbatim}
 \end{vindent}
 Examples:
@@ -1873,12 +1885,12 @@ it generates an error. The following subsections list these operators.
 \index{unary}
 \texttt{+ - ! \textasciitilde{} ++ -{}-}
 
-\subsubsection{Binary numeric, string comparison, or regular expression matching operators}
+\subsubsection{Numeric \& string comparison, regular expression matching operators}
 \index{comparison}
 \texttt{< > <= >= == !=} \verb+=~+ \verb+!~+
 
-The regular expression matching (\verb+=~+ and \verb+!~+) is currently
-an experimental feature. The second operand must be a string literal
+The regular expression matching (\verb+=~+ and \verb+!~+) is a
+recent feature. The second operand must be a string literal
 containing a syntactically valid regular expression. The regular
 expression syntax supports most of the features of POSIX Extended
 Regular Expressions, except for subexpression reuse (\verb+\1+)
@@ -2152,9 +2164,9 @@ The following code adapts to the presence of a kernel CONFIG option.
 \end{vindent}
 
 
-\subsection{Preprocessor macros (experimental)}
+\subsection{Preprocessor macros}
 
-This is an experimental feature whose semantics are subject to change.
+This feature lets scripts eliminate some types of repetition.
 
 \subsubsection{Local macros}
 

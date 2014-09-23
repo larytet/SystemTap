@@ -43,6 +43,7 @@ foreach runtime [get_runtime_list] {
     expect {
 	-timeout 30
 	-re {^ERROR:[^\r\n]*\r\n} { incr ko; exp_continue }
+	-re {^WARNING:[^\r\n]*\r\n} { incr ko; exp_continue }
 	-re {^9997\r\n} { incr ko; exp_continue }
 	eof { }
 	timeout { fail "$test passive${test_extra} (timeout)" }
@@ -51,7 +52,7 @@ foreach runtime [get_runtime_list] {
     # The actual comparing of passive values to what we expect.
     # For debugging purposes, output the value of the variables
     # so we can see which value failed (if any)
-    if {$ko == 2} then {
+    if {$ko == 4} then {
 	pass "$test passive${test_extra} ($ko)"
     } else {
 	fail "$test passive${test_extra} ($ko)"

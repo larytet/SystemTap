@@ -1,0 +1,70 @@
+set test "sdt_varname"
+set testpath "$srcdir/$subdir"
+
+if {![installtest_p]} {
+   untested "$test"
+   return
+}
+
+# In this testcase, we verify that stap can parse SDT operands of the type
+# [off+]varname[+off][(reg)]. These occur when the operands refer to STB_GLOBAL
+# or STB_LOCAL objects.
+
+set sopath "lib$test.so"
+set exepath "$test"
+
+proc test_cleanup {} {
+   global sopath exepath
+   if {[file exists "$sopath"]}  { file delete "$sopath" }
+   if {[file exists "$exepath"]}   { file delete "$exepath" }
+}
+
+set failed 0
+
+# Compile the shared lib
+set libflags [sdt_includes]
+set libflags "$libflags additional_flags=-shared"
+set libflags "$libflags additional_flags=-fPIC"
+set libflags "$libflags additional_flags=-DSDT_VARNAME_LIB"
+set libflags "$libflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=m"
+set res [target_compile $testpath/$test.c $sopath executable $libflags]
+if { $res == "" } {
+    pass "$test library compile"
+} else {
+    fail "$test library compile: $res"
+    test_cleanup
+    return
+}
+
+# Compile the executable
+set exeflags [sdt_includes]
+set exeflags "$exeflags additional_flags=-l$test"
+set exeflags "$exeflags additional_flags=-Wl,-rpath,[pwd]"
+set exeflags "$exeflags additional_flags=-L."
+set exeflags "$exeflags additional_flags=-DSDT_VARNAME_MAIN"
+set exeflags "$exeflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=m"
+set res [target_compile $testpath/$test.c $exepath executable $exeflags]
+if { $res == "" } {
+    pass "$test exe compile"
+} else {
+    fail "$test exe compile: $res"
+    test_cleanup
+    return
+}
+
+# Test it
+set ::result_string {main globalvar = 1
+main main_globalvar = 2
+main localvar = 3
+main localstruct.bar = 4
+main localstruct.zoo = 5
+main localstruct.poo = 6
+lib globalvar = 1
+lib lib_globalvar = 7
+lib localvar = 8
+lib localstruct.bar = 9
+lib localstruct.zoo = 10
+lib localstruct.poo = 11}
+
+stap_run2 $testpath/$test.stp $exepath $sopath -c "./$exepath"
+test_cleanup

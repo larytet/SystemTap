@@ -4,8 +4,11 @@
 stap \- systemtap script translator/driver
 
 .\" macros
+.\" do not nest SAMPLEs
 .de SAMPLE
 .br
+
+.nr oldin \\n(.i
 .RS
 .nf
 .nh
@@ -14,6 +17,8 @@ stap \- systemtap script translator/driver
 .hy
 .fi
 .RE
+.in \\n[oldin]u
+
 ..
 
 .SH SYNOPSIS
@@ -63,13 +68,31 @@ stap \- systemtap script translator/driver
 [
 .I ARGUMENTS
 ]
+.br
+.B stap
+[
+.I OPTIONS
+]
+.B \-\-dump-probe-types
+.br
+.B stap
+[
+.I OPTIONS
+]
+.B \-\-dump-probe-aliases
+.br
+.B stap
+[
+.I OPTIONS
+]
+.B \-\-dump-functions
 
 .SH DESCRIPTION
 
 The
 .IR stap
 program is the front-end to the Systemtap tool.  It accepts probing
-instructions (written in a simple scripting language), translates
+instructions written in a simple domain-specific language, translates
 those instructions into C code, compiles this C code, and loads the
 resulting module into a running Linux kernel or a DynInst user-space
 mutator, to perform the requested system trace/probe functions.  You
@@ -80,10 +103,12 @@ the script voluntarily invokes the
 .I exit()
 function, or by sufficient number of soft errors.
 .PP
-The language, which is described in a later section, is strictly typed,
-declaration free, procedural, and inspired by
-.IR awk .
-It allows source code points or events in the kernel to be associated
+The language, which is described the
+.IR "SCRIPT LANGUAGE" 
+section below, is strictly typed, expressive, declaration free, procedural,
+prototyping-friendly, and inspired by
+.IR awk " and " C .
+It allows source code points or events in the system to be associated
 with handlers, which are subroutines that are executed synchronously.  It is
 somewhat similar conceptually to "breakpoint command lists" in the
 .IR gdb
@@ -131,13 +156,16 @@ embedded C.
 .TP
 .B \-P
 Prologue-searching mode.  Activate heuristics to work around incorrect
-debugging information for $target variables.
+debugging information for $context variables.
 .TP
 .B \-u
 Unoptimized mode.  Disable unused code elision during elaboration.
 .TP
 .B \-w
 Suppressed warnings mode.  Disables all warning messages.
+.TP
+.B \-W
+Treat all warnings as errors.
 .TP
 .BI \-b
 Use bulk mode (percpu files) for kernel-to-user data transfer.
@@ -226,10 +254,15 @@ effect of setting target() to the pid of the command ran.
 .TP
 .BI \-x " PID"
 Sets target() to PID. This allows scripts to be written that filter on
-a specific process.
+a specific process. Scripts run independent of the PID's lifespan.
 .TP
 .BI \-e " SCRIPT"
 Run the given SCRIPT specified on the command line.
+.TP
+.BI \-E " SCRIPT"
+Run the given SCRIPT specified. This SCRIPT is run in addition to the main
+script specified, through -e, or as a script file. This option can be repeated
+to run multiple scripts, and can be used in listing mode (\-l/\-L).
 .TP
 .BI \-l " PROBE"
 Instead of running a probe script, just list all available probe
@@ -282,7 +315,7 @@ details.
 
 .TP
 .BI \-\-check\-version
-This option is used to check if the active script has any constructors
+This option is used to check if the active script has any constructs
 that may be systemtap version specific.  See the DEPRECATION section
 for more details.
 
@@ -314,8 +347,8 @@ default colors would be expressed as
 .nh
 \fBerror=01;31:warning=00;33:source=00;34:caret=01:token=01\fR.
 .hy
-If SYSTEMTAP_COLORS is absent or empty, the default colors will be used. If it
-is invalid, coloring is turned off.
+If SYSTEMTAP_COLORS is absent, the default colors will be used. If it is empty
+or invalid, coloring is turned off.
 
 .TP
 .BI \-\-disable\-cache
@@ -517,9 +550,23 @@ the operation is performed.
 
 .TP
 .BI \-\-dump-probe-types
-Dumps a list of supported probe types. If
+Dumps a list of supported probe types and exits. If
 .IR \-\-privilege=stapusr
 is also specified, the list will be limited to probe types available to unprivileged users.
+
+.TP
+.BI \-\-dump-probe-aliases
+Dumps a list of all probe aliases found in library files and exits.
+
+.TP
+.BI \-\-dump-functions
+Dumps a list of all functions found in library files and exits. Also includes
+their parameters and types. A function of type 'unknown' indicates a function
+that does not return a value. Note that not all function/parameter types may be
+resolved (these are also shown by 'unknown'). This features is very
+memory-intensive and thus may not work properly with \fI--use-server\fR if the
+target server imposes an rlimit on process memory (i.e. through the
+\fI~stap-server/.systemtap/rc\fR configuration file, see \fIstap-server\fR(8)).
 
 .TP
 .BI \-\-remote " URL"
@@ -527,20 +574,40 @@ Set the execution target to the given host.  This option may be
 repeated to target multiple execution targets.  Passes 1-4 are
 completed locally as normal to build the script, and then pass 5 will
 copy the module to the target and run it.  Acceptable URL forms include:
-.B [USER@]HOSTNAME
-and
-.B ssh://[USER@]HOSTNAME/
-This mode uses ssh, optionally using a username not matching your own.
-If a custom ssh_config file is in use, add
-.B SendEnv LANG
-to retain internationalization functionality.
-The 
-.B direct://
-URL is available as a special loopback mode to run on the local host.
+.RS
+.TP
+\fB[USER@]HOSTNAME\fR, \fBssh://[USER@]HOSTNAME\fR
+This mode uses ssh, optionally using a username not matching your own. If a
+custom ssh_config file is in use, add \fBSendEnv LANG\fR to retain
+internationalization functionality.
+.TP
+\fBlibvirt://DOMAIN\fR, \fBlibvirt://DOMAIN/LIBVIRT_URI\fR
+This mode uses \fIstapvirt\fR to execute the script on a domain managed by
+libvirt. Optionally, LIBVIRT_URI may be specified to connect to a specific
+driver and/or a remote host. For example, to connect to the local privileged
+QEMU driver, use:
+.SAMPLE
+--remote libvirt://MyDomain/qemu:///system
+.ESAMPLE
+See the page at
+.nh
+<http://libvirt.org/uri.html>
+.hy
+for supported URIs. Also see \fIstapvirt\fR(1) for more information on how to
+prepare the domain for stap probing.
+.TP
+\fBunix:PATH\fR
+This mode connects to a UNIX socket. This can be used with a QEMU virtio-serial
+port for executing scripts inside a running virtual machine.
+.TP
+\fBdirect://\fR
+Special loopback mode to run on the local host.
+.RE
+.IP
 
 .TP
 .BI \-\-remote\-prefix
-Prefix each line of remote output with "N:", where N is the index of the remote
+Prefix each line of remote output with "N: ", where N is the index of the remote
 execution target from which the given line originated.
 
 .TP
@@ -555,7 +622,7 @@ as not providing an OPTION value to
 .IR \-\-download\-debuginfo
 .TP
 .BI no
-explicitly disable automatic dowloading of debuginfo. This is the same as
+explicitly disable automatic downloading of debuginfo. This is the same as
 not using the option at all.
 .TP
 .BI ask
@@ -607,8 +674,8 @@ to be relative to the directory provided by \fI\-\-sysroot\fR, if provided.
 
 .TP
 .BI \-\-suppress\-time\-limits
-Disable \-DSTP_NO_OVERLOAD \-MAXACTION \-MAXTRYLOCK options.  This option
-requires guru mode.
+Disable \-DSTP_OVERLOAD related options as well as \-DMAXACTION and \-DMAXTRYLOCK.
+This option requires guru mode.
 
 .TP
 .BI \-\-runtime "=MODE"
@@ -629,7 +696,7 @@ parser for substitution.  See below.
 .SH SCRIPT LANGUAGE
 
 The systemtap script language resembles
-.IR awk .
+.IR awk " and " C .
 There are two main outermost constructs: probes and functions.  Within
 these, statements and expressions use C-like operator syntax and
 precedence.
@@ -742,6 +809,13 @@ and the third part is a string literal, either "stapusr" or "stapsys"
 or "stapdev".
 .PP
 If the first part is the identifier
+.BR guru_mode ,
+the test refers to if the systemtap script is
+compiled with guru_mode. Here the second part is
+.BR == " or " != ,
+and the third part is a number, either 1 or 0.
+.PP
+If the first part is the identifier
 .BR runtime ,
 the test refers to the systemtap runtime mode. See
 .BR ALTERNATE\ RUNTIMES
@@ -777,7 +851,7 @@ probe kernel.function (
 %)
 .ESAMPLE
 
-.SS PREPROCESSOR MACROS (EXPERIMENTAL)
+.SS PREPROCESSOR MACROS
 The preprocessor also supports a simple macro facility, run as a
 separate pass before conditional preprocessing.
 .PP
@@ -824,12 +898,11 @@ and user scripts.
 
 .SS VARIABLES
 Identifiers for variables and functions are an alphanumeric sequence,
-and may include "_" and "$" characters.  They may not start with a
+and may include \fB_\fR and \fB$\fR characters.  They may not start with a
 plain digit, as in C.  Each variable is by default local to the probe
 or function statement block within which it is mentioned, and therefore
 its scope and lifetime is limited to a particular probe or function
 invocation.
-.\" XXX add statistics type here once it's supported
 .PP
 Scalar variables are implicitly typed as either string or integer.
 Associative arrays also have a string or integer value, and a
@@ -861,9 +934,9 @@ automatically at session shutdown.  The translator will
 infer for each its value type, and if it is used as an array, its key
 types.  Optionally, scalar globals may be initialized with a string
 or number literal.  The following declaration marks variables as global.  
-.RS
+.SAMPLE
 .BR global " var1" , " var2" , " var3=4"
-.RE
+.ESAMPLE
 .PP
 Global variables can also be set as module options. One can do this by either
 using the \-G option, or the module must first be compiled using stap \-p4.
@@ -871,8 +944,6 @@ Global variables can then be set on the command line when calling staprun on
 the module generated by stap \-p4. See
 .IR staprun (8)
 for more information.
-.RS
-.RE
 .PP
 Arrays are limited in size by the MAXMAPENTRIES variable -- see the
 .B SAFETY AND SECURITY
@@ -880,17 +951,29 @@ section for details.  Optionally, global arrays may be declared with a
 maximum size in brackets, overriding MAXMAPENTRIES for that array only.
 Note that this doesn't indicate the type of keys for the array, just the
 size.
-.RS
+.SAMPLE
 .BR global " tiny_array[10]" , " normal_array" , " big_array[50000]"
-.RE
+.ESAMPLE
 .PP
 Arrays may be configured for wrapping using the '%' suffix.  This
 causes older elements to be overwritten if more elements are inserted
 than the array can hold. This works for both associative and statistics
 typed arrays.
-.RS
+.SAMPLE
 .BR global " wrapped_array1%[10]", " wrapped_array2%"
-.RE
+.ESAMPLE
+
+.PP
+Many types of probe points provide context variables, which are
+run-time values, safely extracted from the kernel or userspace program
+being probed.  These are prefixed with the \fB$\fR character.  The
+CONTEXT VARIABLES section in
+.IR stapprobes (3stap)
+lists what is available for each type of probe point.  These context
+variables become normal string or numeric scalars once they are stored
+in normal script variables.  See the TYPECASTING section below on how
+to to turn them back into typed pointers for further processing as
+context variables.
 
 .SS STATEMENTS
 Statements enable procedural control flow.  They may occur within
@@ -946,10 +1029,20 @@ evaluated once at the beginning of the loop.
 Same as above, used when the array is indexed with a tuple of keys.
 A sorting suffix may be used on at most one VAR or ARRAY identifier.
 .TP
+.BR foreach " ([VAR1, VAR2, ...] " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+Same as above, where iterations are limited to elements in the array where
+the keys match the index values specified. The symbol * can be used to specify
+an index and will be treated as a wildcard.
+.TP
 .BR foreach " (VALUE = VAR " in " ARRAY [ "limit " EXP ]) STMT"
 This variant of foreach saves current value into VALUE on each
 iteration, so it is the same as ARRAY[VAR].  This also works with a
 tuple of keys.  Sorting suffixes on VALUE have the same effect as on ARRAY.
+.TP
+.BR foreach " (VALUE = VAR " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+Same as above, where iterations are limited to elements in the array where the
+keys match the index values specified. The symbol * can be used to specify
+an index and will be treated as a wildcard.
 .TP
 .BR break ", " continue
 Exit or iterate the innermost nesting loop
@@ -974,7 +1067,11 @@ outer try/catch blocks, if any.
 Same as above, plus assign the error message to the string scalar variable VAR.
 .TP
 .BR delete " ARRAY[INDEX1, INDEX2, ...]"
-Remove from ARRAY the element specified by the index tuple.  The value will no
+Remove from ARRAY the element specified by the index tuple.
+If the index tuple contains a * in place of an index, the * is treated as a
+wildcard and all elements with keys that match the index tuple will be removed
+from ARRAY.
+The value will no
 longer be available, and subsequent iterations will not report the element.
 It is not an error to delete an element that does not exist.
 .TP
@@ -1023,10 +1120,12 @@ array membership check
 .RB exp " in " array
 .br
 .BR "[" exp1 ", " exp2 ", " ... "] in " array
+.br
+.BR "[" "*" ", " "*" ", ... "] in " array
 
-.SS REGULAR EXPRESSION MATCHING (experimental)
-The scripting language has proof-of-concept support for regular
-expression matching. The basic syntax is as follows:
+.SS REGULAR EXPRESSION MATCHING
+The scripting language supports regular expression matching.
+The basic syntax is as follows:
 .SAMPLE
 .BR exp " =~ " regex
 .BR exp " !~ " regex
@@ -1047,6 +1146,7 @@ handler") that is to be executed when any of those events occur.  The
 general syntax is as follows:
 .SAMPLE
 .BR probe " PROBEPOINT [" , " PROBEPOINT] " { " [STMT ...] " }
+.BR probe " PROBEPOINT [" , " PROBEPOINT] " "if (" CONDITION ") { " "[STMT ...]" " }"
 .ESAMPLE
 .PP
 Events are specified in a special syntax called "probe points".  There
@@ -1064,15 +1164,29 @@ include
 .I variables
 defined in the
 .I source code
-at that spot.  These "target variables" are presented to the script as
-variables whose names are prefixed with "$".  They may be accessed
+at that spot.  These "context variables" are presented to the script
+as variables whose names are prefixed with "$".  They may be accessed
 only if the kernel's compiler preserved them despite optimization.
 This is the same constraint that a debugger user faces when working
-with optimized code.  Some other events have very little context.
+with optimized code.  In addition, the objects must exist in paged-in
+memory at the moment of the systemtap probe handler's execution,
+because systemtap must not cause (suppresses) any additional paging.
+Some probe types have very little context.
 See the 
 .IR stapprobes (3stap)
 man pages to see the kinds of context variables available at each kind
 of probe point.
+.PP
+Probes may be decorated with an 
+.IR "arming condition" ,
+consisting of a simple boolean expression on read-only global script
+variables.  While disarmed (condition evaluates to false), some probe
+types reduce or eliminate their run-time overheads.  When an arming
+condition evaluates to true, probes will be
+.I soon
+re-armed, and their probe handlers will start getting called as the
+events fire.  (Some events may be lost during the arming interval.  If
+this is unacceptable, do not use arming conditions for those probes.)
 .PP
 New probe points may be defined using "aliases".  Probe point aliases
 look similar to probe definitions, but instead of activating a probe
@@ -1086,7 +1200,6 @@ definition is implicitly added as a prologue to any probe that refers
 to the alias. While for the epilogue style alias, the statement block
 that follows an alias definition is implicitly added as an epilogue to
 any probe that refers to the alias.  For example:
-
 .SAMPLE
 probe syscall.read = kernel.function("sys_read") {
   fildes = $fd
@@ -1193,10 +1306,10 @@ Character.
 Signed decimal.
 .TP
 %m
-Safely reads kernel memory at the given address, outputs its content.  The precision specifier determines the number of bytes to read.  Default is 1 byte.
+Safely reads kernel memory at the given address, outputs its content.  The optional precision specifier (not field width) determines the number of bytes to read - default is 1 byte.  %10.4m prints 4 bytes of the memory in a 10-character-wide field.
 .TP
 %M
-Same as %m, but outputs in hexadecimal.  The minimal size of output is double the precision specifier.
+Same as %m, but outputs in hexadecimal.  The minimal size of output is double the optional precision specifier - default is 1 byte (2 hex chars).  %10.4M prints 4 bytes of the memory as 8 hexadecimal characters in a 10-character-wide field.
 .TP
 %o
 Unsigned octal.
@@ -1228,25 +1341,25 @@ non-printing values with either C-like escapes or raw octal.
 .PP
 Examples:
 .SAMPLE
-	a = "alice", b = "bob", p = 0x1234abcd, i = 123, j = \-1, id[a] = 1234, id[b] = 4567
-	print("hello")
-		Prints: hello
-	println(b)
-		Prints: bob\\n
-	println(a . " is " . sprint(16))
-		Prints: alice is 16
-	foreach (name in id)  printdln("|", strlen(name), name, id[name])
-		Prints: 5|alice|1234\\n3|bob|4567
-	printf("%c is %s; %x or %X or %p; %d or %u\\n",97,a,p,p,p,j,j)
-		Prints: a is alice; 1234abcd or 1234ABCD or 0x1234abcd; \-1 or 18446744073709551615\\n
-	printf("2 bytes of kernel buffer at address %p: %2m", p, p)
-		Prints: 2 byte of kernel buffer at address 0x1234abcd: <binary data>
-	printf("%4b", p)
-		Prints (these values as binary data): 0x1234abcd
-	printf("%#o %#x %#X\\n", 1, 2, 3)
-		Prints: 01 0x2 0X3
-	printf("%#c %#c %#c\\n", 0, 9, 42)
-		Prints: \\000 \\t *
+a = "alice", b = "bob", p = 0x1234abcd, i = 123, j = \-1, id[a] = 1234, id[b] = 4567
+print("hello")
+	Prints: hello
+println(b)
+	Prints: bob\\n
+println(a . " is " . sprint(16))
+	Prints: alice is 16
+foreach (name in id)  printdln("|", strlen(name), name, id[name])
+	Prints: 5|alice|1234\\n3|bob|4567
+printf("%c is %s; %x or %X or %p; %d or %u\\n",97,a,p,p,p,j,j)
+	Prints: a is alice; 1234abcd or 1234ABCD or 0x1234abcd; \-1 or 18446744073709551615\\n
+printf("2 bytes of kernel buffer at address %p: %2m", p, p)
+	Prints: 2 byte of kernel buffer at address 0x1234abcd: <binary data>
+printf("%4b", p)
+	Prints (these values as binary data): 0x1234abcd
+printf("%#o %#x %#X\\n", 1, 2, 3)
+	Prints: 01 0x2 0X3
+printf("%#c %#c %#c\\n", 0, 9, 42)
+	Prints: \\000 \\t *
 .ESAMPLE
 
 .SS STATISTICS
@@ -1265,8 +1378,8 @@ meaning is intuitive: add the given number to the pile of numbers to
 compute statistics of.  (The specific list of statistics to gather
 is given separately, by the extraction functions.)
 .SAMPLE
-    foo <<< 1
-    stats[pid()] <<< memsize
+foo <<< 1
+stats[pid()] <<< memsize
 .ESAMPLE
 .PP
 The extraction functions are also special.  For each appearance of a
@@ -1318,11 +1431,12 @@ probe end {
 .ESAMPLE
 
 .SS TYPECASTING
-Once a pointer has been saved into a script integer variable, the
-translator loses the type information necessary to access members from
-that pointer.  Using the
+Once a pointer (see the CONTEXT VARIABLES section of 
+.IR stapprobes (3stap))
+has been saved into a script integer variable, the translator loses the type
+information necessary to access members from that pointer.  Using the
 .I @cast()
-operator tells the translator how to read a pointer.
+operator tells the translator how to interpret the number as a typed pointer.
 .SAMPLE
 @cast(p, "type_name"[, "module"])\->member
 .ESAMPLE
@@ -1364,8 +1478,7 @@ Multiple headers may be specified in sequence to resolve a codependency.
 Values acquired by 
 .BR @cast
 may be pretty-printed by the 
-.BR
-$ " and " $$
+.BR $ " and " $$
 suffix operators, the same way as described in the CONTEXT VARIABLES
 section of the
 .IR stapprobes (3stap) 
@@ -1417,18 +1530,29 @@ are made available to it using macros
 .IR STAP_ARG_*
 and
 .IR STAP_RETVALUE .
-Here are some examples:
+Errors may be signalled with STAP_ERROR.  The function may return
+early with STAP_RETURN.  Here are some examples:
 .SAMPLE
-function add_one (val) %{
+function integer_ops (val) %{
   STAP_RETVALUE = STAP_ARG_val + 1;
+  if (STAP_RETVALUE == 4)
+      STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);
+  if (STAP_RETVALUE == 3)
+      STAP_RETURN(0);
+  STAP_RETVALUE ++;
 %}
-function add_one_str (val) %{
+function string_ops (val) %{
   strlcpy (STAP_RETVALUE, STAP_ARG_val, MAXSTRINGLEN);
   strlcat (STAP_RETVALUE, "one", MAXSTRINGLEN);
+  if (strcmp (STAP_RETVALUE, "three-two-one"))
+      STAP_RETURN("parameter should be three-two-");
+%}
+function no_ops () %{
+    STAP_RETURN(); /* function inferred with no return value */
 %}
 .ESAMPLE
 The function argument and return value types have to be inferred by
-the translator from the call sites in order for this to work.  The
+the translator from the call sites in order for this to work. The
 user should examine C code generated for ordinary script-language
 functions in order to write compatible embedded-C ones.
 .PP
@@ -1543,7 +1667,7 @@ functions are assumed to have side-effects unless they include the
 magic string
 .BR /*\ pure\ */ .
 Since this optimization can hide latent code errors such as type
-mismatches or invalid $target variables, it sometimes may be useful
+mismatches or invalid $context variables, it sometimes may be useful
 to disable the optimizations with the
 .BR \-u
 option.
@@ -1600,7 +1724,11 @@ processes, then use rmmod to unload the systemtap module.
 .SH EXAMPLES
 See the
 .IR stapex (3stap)
-manual page for a collection of samples.
+manual page for a brief collection of samples, or a large set of
+installed samples under the systemtap documentation/testsuite
+directories.  See
+.IR stappaths (7stap)
+for the likely location of these on the system.
 
 .SH CACHING
 The systemtap translator caches the pass 3 output (the generated C
@@ -1622,7 +1750,7 @@ file
 .I cache_clean_interval_s
 placed in the cache directory (shown above) containing only an ASCII integer
 representing the interval in seconds. In the absence of this file, a default
-will be created with the interval set to 30 s.
+will be created with the interval set to 300 s.
 
 .SH SAFETY AND SECURITY
 Systemtap is an administrative tool.  It exposes kernel internal data
@@ -1704,6 +1832,19 @@ or
 .I stapusr
 groups.
 .PP
+If the current system has SecureBoot turned on in the UEFI firmware,
+all kernel modules must be signed.  (Some kernels may allow disabling
+SecureBoot long after booting with a key sequence such as SysRq-X,
+making it unnecessary to sign modules.)  The systemtap compile server
+can sign modules with a MOK (Machine Owner Key) that it has in common
+with a client system. See the following wiki page for more details:
+.PP
+.RS
+.nh
+.BR https://sourceware.org/systemtap/wiki/SecureBoot
+.hy
+.RE
+.PP
 The translator asserts certain safety constraints.  It aims to ensure
 that no handler routine can run for very long, allocate memory,
 perform unsafe operations, or in unintentionally interfere with the
@@ -1736,6 +1877,8 @@ MAXACTION
 Maximum number of statements to execute during any single probe hit
 (with interrupts disabled),
 default 1000.
+Note that for straight-through probe handlers lacking loops or recursion,
+due to optimization, this parameter may be interpreted too conservatively.
 .TP
 MAXACTION_INTERRUPTIBLE
 Maximum number of statements to execute during any single probe hit
@@ -1903,7 +2046,7 @@ timer.{jiffies,s,sec,ms,msec,us,usec,ns,nsec}(n)*
 timer.hz(n)
 .RE
 
-.SS SCRIPTING LANGUAGE RESTRICTIONS
+.SS SCRIPT LANGUAGE RESTRICTIONS
 The following scripting language features are unavailable to all unprivileged users:
 
 .RS
@@ -1945,7 +2088,6 @@ The following options may not be used by the compile-server client:
 .SS ENVIRONMENT RESTRICTIONS
 The following environment variables must not be set for all unprivileged users:
 .SAMPLE
-
 SYSTEMTAP_RUNTIME
 SYSTEMTAP_TAPSET
 SYSTEMTAP_DEBUGINFO_PATH
@@ -1999,7 +2141,6 @@ script may use.
 
 The \fIdyninst\fR runtime operates in target-attach mode, so it does require
 a \fI\-c COMMAND\fR or \fI\-x PID\fR process.  For example:
-
 .SAMPLE
 stap \-\-runtime=dyninst \-c 'stap \-V' \\
      \-e 'probe process.function("main")
@@ -2050,14 +2191,16 @@ Important files and their corresponding paths can be located in the
 stappaths (7) manual page.
 
 .SH SEE ALSO
+.nh
+.nf
 .IR stapprobes (3stap),
 .IR function::* (3stap),
 .IR probe::* (3stap),
 .IR tapset::* (3stap),
-.IR error::reporting (7stap),
 .IR stappaths (7),
 .IR staprun (8),
 .IR stapdyn (8),
+.IR systemtap (8),
 .IR stapvars (3stap),
 .IR stapex (3stap),
 .IR stap\-server (8),
@@ -2068,5 +2211,10 @@ stappaths (7) manual page.
 .SH BUGS
 Use the Bugzilla link of the project web page or our mailing list.
 .nh
-.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
+.BR http://sourceware.org/systemtap/ ", " <systemtap@sourceware.org> .
+.hy
+.PP
+.IR error::reporting (7stap),
+.nh
+.BR https://sourceware.org/systemtap/wiki/HowToReportBugs
 .hy

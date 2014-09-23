@@ -53,6 +53,18 @@ stap_SOURCES += stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
 noinst_HEADERS = sdt_types.h
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
+
+if HAVE_LIBVIRT
+if HAVE_LIBXML2
+bin_PROGRAMS += stapvirt
+stapvirt_SOURCES = stapvirt.c
+stapvirt_CFLAGS = $(AM_CFLAGS)
+stapvirt_CFLAGS += $(libvirt_CFLAGS) $(libxml2_CFLAGS)
+stapvirt_LDFLAGS = $(AM_LDFLAGS)
+stapvirt_LDADD = $(libvirt_LIBS) $(libxml2_LIBS)
+endif
+endif
+
 endif
 
 install: all
@@ -309,7 +321,7 @@ if BUILD_SERVER
 	rm -f $(DESTDIR)$(localstatedir)/log/stap-server/log
 endif
 
-SUBDIRS = . java stapdyn staprun re2c-migrate doc man po
+SUBDIRS = . java stapdyn staprun doc man po
 # NB: the gcov target above uses this to enumarate linked binaries' build directories
 DIST_SUBDIRS = testsuite $(SUBDIRS)
 EXTRA_DIST = m4/ChangeLog
@@ -355,6 +367,24 @@ update-po:
 	| grep -v staprun/config.h \
 	| sort > $(srcdir)/po/POTFILES.in
 	$(MAKE) -C po update-po
+	@echo
+	@echo if systemtam.pot is shown as modified ...
+	@echo
+	(cd $(srcdir)/po; git status *.pot)
+	@echo
+	@echo ... then check in with zanata ...
+	@echo
+	@echo % cd $(srcdir)
+	@echo % zanata-cli -B push -s po -t po
+	@echo % zanata-cli -B pull -s po -t po
+	@echo
+	@echo if the .po files are shown as modified ...
+	@echo
+	(cd $(srcdir)/po; git status *.po)
+	@echo
+	@echo ... regenerate just once ...
+	@echo
+	@echo % $(MAKE) -C `pwd` update-po
 
 
 # Any extra flags, such as:
@@ -378,6 +408,11 @@ dist-gzip:
 
 rpm: dist-gzip
 	if [ `id -u` = 0 ]; then echo NOTE: do not run this as root; exit 1; fi
+	if [ ! -w `rpm --eval %_topdir` ]; then \
+	  echo WARNING: you do not have access to `rpm --eval %_topdir`; \
+	  echo WARNING: you may receive a permission denied error; \
+	  echo WARNING: consider adding \'%_topdir $(HOME)/rpmbuild\' to $(HOME)/.rpmmacros; \
+	fi
 	mkdir -p `rpm --eval %_specdir`
 	mkdir -p `rpm --eval %_srcrpmdir`
 	mkdir -p `rpm --eval %_rpmdir`

@@ -1,4 +1,4 @@
-# Copyright (C) 2008, 2010 Red Hat Inc.
+# Copyright (C) 2008, 2010, 2014 Red Hat Inc.
 # 
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -22,22 +22,22 @@ config_opts = dict()
 config_opts['probes_all'] = 'probes.all'
 
 # PROBES_UNREGISTERED is a file that contains the list of kernel
-# functions where a kprobe couldn't be registered.
+# functions where a probe couldn't be registered.
 config_opts['probes_unregistered'] = 'probes.unregistered'
 
 # PROBES_UNTRIGGERED is a file that contains the list of kernel
-# functions where a kprobe could be registered, but the kernel
+# functions where a probe could be registered, but the kernel
 # function wasn't actually called.  So, we don't really know whether
 # these functions passed or failed.
 config_opts['probes_untriggered'] = 'probes.untriggered'
 
 # PROBES_PASSED is a file that contains the list of kernel functions
-# where a kprobe was registered and the kerenel function was called
+# where a probe was registered and the kerenel function was called
 # with no crash.
 config_opts['probes_passed'] = 'probes.passed'
 
 # PROBES_FAILED is a file that contains the list of kernel functions
-# where a kprobe was registered and the kerenel function was called
+# where a probe was registered and the kernel function was called
 # that caused a crash.
 config_opts['probes_failed'] = 'probes.failed'
 

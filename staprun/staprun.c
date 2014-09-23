@@ -2,7 +2,7 @@
  *
  * staprun.c - SystemTap module loader
  *
- * Copyright (C) 2005-2013 Red Hat, Inc.
+ * Copyright (C) 2005-2014 Red Hat, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #define _XOPEN_SOURCE
 #define _BSD_SOURCE
+#define _DEFAULT_SOURCE
 #include "staprun.h"
 #include "../privilege.h"
 #include "../runtime/k_syms.h"
@@ -182,18 +183,38 @@ static int enable_uprobes(void)
 static int insert_stap_module(privilege_t *user_credentials)
 {
 	char special_options[128];
+        int rc, fips_mode_fd;
+        char fips_mode = '0';
+        char *misc = "";
 
 	/* Add the _stp_bufsize option.  */
 	if (snprintf_chk(special_options, sizeof (special_options),
 			 "_stp_bufsize=%d", buffer_size))
 		return -1;
 
-	stap_module_inserted = insert_module(modpath, special_options,
-					     modoptions,
-					     assert_stap_module_permissions,
-					     user_credentials);
+        fips_mode_fd = open("/proc/sys/crypto/fips_enabled", O_RDONLY);
+        if (fips_mode_fd >= 0) {
+                char c;
+                rc = read(fips_mode_fd, &c, 1);
+                if (rc == 1) fips_mode = c;
+                close (fips_mode_fd);
+        }
+
+        /* In FIPS mode, a kernel may panic if given an improperly-signed module.
+           Right now, we have no way of signing them with the kernel build-time keys,
+           so we punt.  See also SecureBoot. */
+        if ((fips_mode != '0') && !getenv("STAP_FIPS_OVERRIDE")) {
+                errno = EPERM;
+                stap_module_inserted = -1;
+                misc = "in FIPS mode ";
+        } else {
+        	stap_module_inserted = insert_module(modpath, special_options,
+                                                     modoptions,
+                                                     assert_stap_module_permissions,
+                                                     user_credentials);
+        }
         if (stap_module_inserted != 0)
-                err("Couldn't insert module '%s': %s\n", modpath, moderror(errno));
+                err("Couldn't insert module %s'%s': %s\n", misc, modpath, moderror(errno));
 	return stap_module_inserted;
 }
 
@@ -333,12 +354,8 @@ int init_staprun(void)
                 disable_kprobes_optimization();
 
 		if (insert_stap_module(& user_credentials) < 0) {
-#ifdef HAVE_ELF_GETSHDRSTRNDX
 			if(!rename_mod && errno == EEXIST)
 				err("Rerun with staprun option '-R' to rename this module.\n");
-#endif
-                        /* Without a working rename_module(), we shan't
-                           advise people to use -R. */
 			return -1;
 		}
 		rc = init_ctl_channel (modname, 0);
@@ -437,6 +454,14 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
+	char verbose_level[33];
+	sprintf(verbose_level, "%d", verbose);
+	rc = setenv("SYSTEMTAP_VERBOSE", verbose_level, 0);
+	if (rc) {
+		_perr("SYSTEMTAP_VERBOSE setenv failed");
+		exit(-1);
+	}
+
 	if (init_staprun())
 		exit(1);
 
@@ -450,14 +475,14 @@ int main(int argc, char **argv)
            us to extend argv[], with all the C fun that entails. */
 #ifdef HAVE_OPENAT
         if (relay_basedir_fd >= 0) {
-                char ** new_argv = calloc(sizeof(char *),argc+1);
+                char ** new_argv = calloc(sizeof(char *),argc+2);
                 const int new_Foption_size = 10; /* -FNNNNN */
                 char * new_Foption = malloc(new_Foption_size);
                 int i;
 
                 if (new_argv && new_Foption) {
                         snprintf (new_Foption, new_Foption_size, "-F%d", relay_basedir_fd);
-                        for (i=0; argv[i] != NULL; i++)
+                        for (i=0; i < argc && argv[i] != NULL; i++)
                                 new_argv[i] = argv[i];
                         new_argv[i++] = new_Foption; /* overwrite the NULL */
                         new_argv[i++] = NULL; /* ensconce a new NULL */

@@ -18,8 +18,14 @@ int main()
   fsync(fd);
   //staptest// fsync (NNNN) = 0
 
+  fsync(-1);
+  //staptest// fsync (-1) = -NNNN
+
   fdatasync(fd);
   //staptest// fdatasync (NNNN) = 0
+
+  fdatasync(-1);
+  //staptest// fdatasync (-1) = -NNNN
 
   close(fd);
 

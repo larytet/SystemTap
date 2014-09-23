@@ -1,0 +1,91 @@
+set test "stmt_inlines"
+if {![utrace_p]} { untested "$test"; return }
+
+# This test verifies that probing a statement in a function inlined multiple
+# times will place a probe at all instances.
+
+# Earlier GCC versions do not output the required debuginfo for this test
+# (there is no DIE for access to the context variable $i in the inlined foo
+# DIEs). Not sure exactly which GCC version fixes this, but this should work
+# starting from at least GCC 4.4.0.
+if {[strverscmp $GCC_Version 4.4] < 0} {
+   verbose -log "skipping $test.exp: GCC too old ($GCC_Version vs. 4.4)"
+   untested $test
+   return
+}
+
+proc cleanup_test {} {
+   global test
+   if {[file exists "$test"]} {
+      file delete "$test"
+   }
+}
+
+catch {exec gcc -g -o $test $srcdir/$subdir/$test.c} err
+if {$err == "" && [file exists $test]} {
+   pass "$test (compiled)"
+} else {
+   fail "$test (compilation error)"
+   cleanup_test
+   return
+}
+
+# Check that the statement and var show up in -L
+
+eval spawn stap -L process("./$test").statement("foo@$test.c:6")
+set failed 1
+expect {
+   -timeout 30
+   -re {^process\("[^\"]+"\)\.statement\("foo@[^\:]+\:6"\) \$i:int\r\n$} {
+      set failed 0
+   }
+   timeout { kill -INT -[exp_pid] 2 }
+   eof {}
+}
+catch {close}; catch {wait}
+
+if {!$failed} {
+   pass "$test (listing)"
+} else {
+   fail "$test (listing error)"
+   cleanup_test
+   return
+}
+
+# Now check that probing actually triggers the inlined statement twice
+
+if {![installtest_p]} {
+   untested "$test (runtime)"
+   cleanup_test
+   return
+}
+
+set script " \
+   probe process(\"./$test\").statement(\"foo@$test.c:6\") { \
+      printf(\"before printf with i=%d\\n\", \$i) \
+   } \
+"
+
+eval spawn stap -e {$script} -c "./$test"
+set n 0
+expect {
+   -timeout 60
+   "printf 1" { incr n; exp_continue }
+   "printf 2" { incr n; exp_continue }
+   "before printf with i=1" { incr n; exp_continue }
+   "before printf with i=2" { incr n; exp_continue }
+   timeout { kill -INT -[exp_pid] 2 }
+   eof {}
+}
+catch {close}; catch {wait}
+
+if {$n == 4} {
+   pass "$test (probing)"
+} else {
+   fail "$test (probing error, expected 4, got $n)"
+   cleanup_test
+   return
+}
+
+cleanup_test
+

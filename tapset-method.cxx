@@ -1,5 +1,5 @@
 // Tapset for per-method based probes
-// Copyright (C) 2013 Red Hat Inc.
+// Copyright (C) 2014 Red Hat Inc.
 
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -11,6 +11,7 @@
 #include "translate.h"
 #include "util.h"
 #include "config.h"
+#include "staptree.h"
 
 #include "unistd.h"
 #include "sys/wait.h"
@@ -40,23 +41,31 @@ static const string TOK_BEGIN ("begin");
 static const string TOK_END ("end");
 static const string TOK_ERROR ("error");
 
-/* Escape all double quotes with a backslash in the string s: */
-string bmoption_escape (string s) {
-  size_t n = 0;
-  for (;;) {
-    n = s.find('"', n);
-    if (n == string::npos) break;
-    s.insert(n, 1, '\\'); n++;
-  }
-  return s;
-}
-
 // --------------------------------------------------------------------------
+
+struct java_details_inspection: public functioncall_traversing_visitor
+{
+
+  bool java_backtrace;
+  java_details_inspection(): java_backtrace(false) {}
+
+  void visit_functioncall(functioncall* e);
+};
+
+void
+java_details_inspection::visit_functioncall(functioncall* e)
+{
+  assert(!e->referent); // we haven't elborated yet, so there should never be referents, bail if here is
+  if (e->function == "sprint_java_backtrace" || e->function == "print_java_backtrace" ){
+    java_backtrace = true;
+    return; // no need to search anymore we know we'll need the extra information
+  }
+  traversing_visitor::visit_functioncall(e);
+}
 
 struct java_builder: public derived_probe_builder
 {
 private:
-  bool cache_initialized;
   typedef multimap<string, string> java_cache_t;
   typedef multimap<string, string>::const_iterator java_cache_const_iterator_t;
   typedef pair<java_cache_const_iterator_t, java_cache_const_iterator_t>
@@ -64,7 +73,7 @@ private:
   java_cache_t java_cache;
 
 public:
-  java_builder (): cache_initialized (false) {}
+  java_builder () {}
 
   void build (systemtap_session & sess,
 	      probe * base,
@@ -147,7 +156,6 @@ java_builder::mark_param(int i)
       return "*";
     }
 }
-
 void
 java_builder::build (systemtap_session & sess,
 		     probe * base,
@@ -178,6 +186,10 @@ java_builder::build (systemtap_session & sess,
   bool has_return = has_null_param (parameters, TOK_RETURN);
   bool has_line_number = false;
 
+  // wildcards in Java probes are not allowed, so the location is already
+  // well-formed
+  loc->well_formed = true;
+
   //find if we're probing at a specific line number
   size_t line_position = 0;
 
@@ -192,9 +204,9 @@ java_builder::build (systemtap_session & sess,
       method_str_val = method_str_val.substr(0, line_position);
       line_position = method_line_val.find_first_of(":");
       if (line_position != string::npos)
-        throw semantic_error (_("maximum of one line number (:NNN)"));
+        throw SEMANTIC_ERROR (_("maximum of one line number (:NNN)"));
       if (has_line_number && has_return)
-        throw semantic_error (_("conflict :NNN and .return probe"));
+        throw SEMANTIC_ERROR (_("conflict :NNN and .return probe"));
     }
 
   //need to count the number of parameters, exit if more than 10
@@ -204,7 +216,7 @@ java_builder::build (systemtap_session & sess,
     method_params_count++; // in this case we know there was at least a var, but no ','
 
   if (method_params_count > 10)
-    throw semantic_error (_("maximum of 10 java method parameters may be specified"));
+    throw SEMANTIC_ERROR (_("maximum of 10 java method parameters may be specified"));
 
   assert (has_method_str);
   (void) has_method_str;
@@ -214,18 +226,83 @@ java_builder::build (systemtap_session & sess,
   string java_pid_str = "";
   if(has_pid_int)
     java_pid_str = lex_cast(_java_pid);
-  else 
+  else
     java_pid_str = _java_proc_class;
 
   if (! (has_pid_int || has_pid_str) )
-    throw semantic_error (_("missing JVMID"));
+    throw SEMANTIC_ERROR (_("missing JVMID"));
+
+  /* Java native backtrace probe point
+
+     In the event a java backtrace is requested (signaled by a '1' returned by the
+     _bt() stap function and appended to the stapbm call),  we need to place a
+     probe point on the method__bt marker in the libHelperSDT_*.so .  We've created
+     this new marker as we don't want it interfering with the method__X markers of
+     the same rulename.  The overall flow of backtraces are the same as 'regular'
+     method probes, however run through STAP_BACKTRACE helper method, and
+     METHOD_STAP_BT native method in turn.
+
+     STAP_BACKTRACE also converts the throwable object to a string for us to pass/report
+
+     The end result is we need to place another probe point automatically for the user;
+     process("$pkglibdir/libHelperSDT_*.so").provider("HelperSDT").mark("method__bt")
+     and pass the backtrace string to the java_backtrace_string variable, which then gets
+     immediately passed to the subsequent mark("method_XX") probe through the java_backtrace()
+     function's return value.
+   */
+
+  struct java_details_inspection jdi;
+  base->body->visit(&jdi);
+
+  // the wildcard is deliberate to catch all architectures
+  string libhelper = string(PKGLIBDIR) + "/libHelperSDT_*.so";
+  string rule_name = "module_name() . " + lex_cast_qstring(base->name);
+  const token* tok = base->body->tok;
+
+  if (jdi.java_backtrace)
+    {
+      stringstream bt_code;
+      bt_code << "probe process(" << literal_string(libhelper) << ")"
+              << ".provider(\"HelperSDT\").mark(\"method__bt\") {" << endl;
+
+      // Make sure the rule name in the last arg matches this probe
+      bt_code << "if (user_string($arg3) != " << rule_name << ") next;" << endl;
+
+      // $arg1 is the backtrace string, $arg2 is the stack depth
+      bt_code << "__assign_stacktrace($arg1, $arg2);" << endl;
+
+      bt_code << "}" << endl; // End of probe
+
+      probe* new_mark_bt_probe = parse_synthetic_probe (sess, bt_code, tok);
+      if (!new_mark_bt_probe)
+        throw SEMANTIC_ERROR (_("can't create java backtrace probe"), tok);
+      derive_probes(sess, new_mark_bt_probe, finished_results);
+
+
+      // Now to delete the backtrace string
+      stringstream btd_code;
+      btd_code << "probe process(" << literal_string(libhelper) << ")"
+               << ".provider(\"HelperSDT\").mark(\"method__bt__delete\") {" << endl;
+
+      // make sure the rule name in the last arg matches this probe
+      btd_code << "if (user_string($arg1) != " << rule_name << ") next;" << endl;
+
+      btd_code << "__delete_backtrace();" << endl;
+
+      btd_code << "}" << endl; // End of probe
+
+      probe* new_mark_btd_probe = parse_synthetic_probe (sess, btd_code, tok);
+      if (!new_mark_btd_probe)
+        throw SEMANTIC_ERROR (_("can't create java backtrace delete probe"), tok);
+      derive_probes(sess, new_mark_btd_probe, finished_results);
+    }
 
   /* The overall flow of control during a probed java method is something like this:
 
-     (java) java-method -> 
-     (java) byteman -> 
+     (java) java-method ->
+     (java) byteman ->
      (java) HelperSDT::METHOD_STAP_PROBENN ->
-     (JNI) HelperSDT_arch.so -> 
+     (JNI) HelperSDT_arch.so ->
      (C) sys/sdt.h marker STAP_PROBEN(hotspot,method__N,...,rulename)
 
      To catch the java-method hit that belongs to this very systemtap
@@ -237,79 +314,38 @@ java_builder::build (systemtap_session & sess,
      - be computable from systemtap at run-time (since compile-time can't be unique enough)
      - be passable to stapbm, back through a .btm (byteman rule) file, back through sdt.h parameters
 
-     The rulename is thusly synthesized as the string-concatenation expression 
+     The rulename is thusly synthesized as the string-concatenation expression
             (module_name() . "probe_NNN")
   */
 
-  string helper_location = PKGLIBDIR;  // probe process("$pkglibdir/libHelperSDT_*.so").provider("HelperSDT").mark("method_NNN")
-  helper_location.append("/libHelperSDT_*.so"); // wildcard deliberate: want to catch all arches
-  // probe_point* new_loc = new probe_point(*loc);
-  vector<probe_point::component*> java_marker;
-  java_marker.push_back(new probe_point::component 
-                        (TOK_PROCESS, new literal_string (helper_location)));
-  java_marker.push_back(new probe_point::component 
-                        (TOK_PROVIDER, new literal_string ("HelperSDT")));
-  java_marker.push_back(new probe_point::component 
-                        (TOK_MARK, new literal_string (mark_param(method_params_count))));
-  probe_point * derived_loc = new probe_point (java_marker);
-  block *b = new block;
-  b->tok = base->body->tok;
+  stringstream code;
+  code << "probe process(" << literal_string(libhelper) << ")" << ".provider(\"HelperSDT\")"
+       << ".mark(" << literal_string (mark_param(method_params_count)) << ") {" << endl;
 
-  functioncall* rulename_fcall = new functioncall; // module_name()
-  rulename_fcall->tok = b->tok;
-  rulename_fcall->function = "module_name";
-  
-  literal_string* rulename_suffix = new literal_string(base->name); // "probeNNNN"
-  rulename_suffix->tok = b->tok;
 
-  concatenation* rulename_expr = new concatenation; // module_name()."probeNN"
-  rulename_expr->tok = b->tok;
-  rulename_expr->left = rulename_fcall;
-  rulename_expr->op = ".";
-  rulename_expr->right = rulename_suffix;
-  
-  // the rulename arrives as sys/sdt.h $argN (for last arg)
-  target_symbol *cc = new target_symbol; // $argN
-  cc->tok = b->tok;
-  cc->name = "$arg" + lex_cast(method_params_count+1);
+  // Make sure the rule name in the last arg matches this probe
+  code << "if (user_string($arg" << (method_params_count+1)
+       << ") != " << rule_name << ") next;" << endl;
 
-  functioncall *ccus = new functioncall; // user_string($argN)
-  ccus->function = "user_string";
-  ccus->type = pe_string;
-  ccus->tok = b->tok;
-  ccus->args.push_back(cc);
+  code << "}" << endl; // End of probe
 
-  // rulename comparison:  (user_string($argN) != module_name()."probeNN")
-  comparison *ce = new comparison;
-  ce->op = "!=";
-  ce->tok = b->tok;
-  ce->left = ccus;
-  ce->right = rulename_expr;
-  ce->right->tok = b->tok;
+  probe* new_mark_probe = parse_synthetic_probe (sess, code, tok);
+  if (!new_mark_probe)
+    throw SEMANTIC_ERROR (_("can't create java method probe"), tok);
 
-  // build if statement: if (user_string($argN) != module_name()."probeNN") next;
-  if_statement *ifs = new if_statement;
-  ifs->thenblock = new next_statement;
-  ifs->elseblock = NULL;
-  ifs->tok = b->tok;
-  ifs->thenblock->tok = b->tok;
-  ifs->condition = ce;
+  // Link this main probe back to the original base, with an
+  // additional probe intermediate to catch probe listing.
+  new_mark_probe->base = new probe(base, loc);
 
-  b->statements.push_back(ifs);
-  b->statements.push_back(base->body);
-
-  derived_loc->components = java_marker;
-  probe* new_mark_probe = new probe (base, derived_loc);
-  new_mark_probe->body = b;
+  // Splice base->body in after the parsed body
+  new_mark_probe->body = new block (new_mark_probe->body, base->body);
 
   derive_probes (sess, new_mark_probe, finished_results);
 
+
   // the begin portion of the probe to install byteman rules in the target jvm
-
-  vector<probe_point::component*> java_begin_marker;
-  java_begin_marker.push_back( new probe_point::component (TOK_BEGIN));
-
-  probe_point * der_begin_loc = new probe_point(java_begin_marker);
+  stringstream begin_code;
+  begin_code << "probe begin {" << endl;
 
   /* stapbm takes the following arguments:
      $1 - install/uninstall
@@ -319,107 +355,47 @@ java_builder::build (systemtap_session & sess,
      $5 - method
      $6 - number of args
      $7 - entry/exit/line
+     $8 - backtrace
   */
 
-  literal_string* leftbits =
-    new literal_string(string(PKGLIBDIR)+string("/stapbm ") +
-                       string("install ") + 
-                       (has_pid_int ? 
-                        lex_cast_qstring(java_pid_str) : 
-                        lex_cast_qstring(_java_proc_class)) +
-                       string(" "));
-  // RULENAME_EXPR goes here
-  literal_string* rightbits = 
-    new literal_string(" " +
-                       lex_cast_qstring(class_str_val) +
-                       " " +
-                       lex_cast_qstring(method_str_val) + 
-                       " " +
-                       lex_cast(method_params_count) +
-                       " " +
-                       ((!has_return && !has_line_number) ? string("entry") :
-                        ((has_return && !has_line_number) ? string("exit") :
-                         method_line_val)));
+  string leftbits = string(PKGLIBDIR) + "/stapbm install " +
+    lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
 
-  concatenation* leftmid = new concatenation;
-  leftmid->left = leftbits;
-  leftmid->right = rulename_expr; // NB: we're reusing the same tree; 's ok due to copying
-  leftmid->op = ".";
-  leftmid->tok = base->body->tok;
+  string rightbits = " " + lex_cast_qstring(class_str_val) +
+    " " + lex_cast_qstring(method_str_val) +
+    " " + lex_cast(method_params_count) +
+    " " + ((!has_return && !has_line_number) ? string("entry") :
+           ((has_return && !has_line_number) ? string("exit") :
+            method_line_val)) +
+    " " + (jdi.java_backtrace ? string("1") : string("0"));
 
-  concatenation* midright = new concatenation;
-  midright->left = leftmid;
-  midright->right = rightbits;
-  midright->op = ".";
-  midright->tok = base->body->tok;
+  begin_code << "system(" << literal_string(leftbits) << " . " << rule_name
+             << " . " << literal_string(rightbits) << ");" << endl;
 
-  block *bb = new block;
-  bb->tok = base->body->tok;
-  functioncall *fc = new functioncall;
-  fc->function = "system";
-  fc->tok = bb->tok;
-  fc->args.push_back(midright);
+  begin_code << "}" << endl; // End of probe
 
-  expr_statement* bs = new expr_statement;
-  bs->tok = bb->tok;
-  bs->value = fc;
-  bb->statements.push_back(bs);
-
-  der_begin_loc->components = java_begin_marker;
-  probe* new_begin_probe = new probe(base, der_begin_loc);
-  new_begin_probe->body = bb; // overwrite
+  probe* new_begin_probe = parse_synthetic_probe (sess, begin_code, tok);
+  if (!new_begin_probe)
+    throw SEMANTIC_ERROR (_("can't create java begin probe"), tok);
   derive_probes (sess, new_begin_probe, finished_results);
 
+
   // the end/error portion of the probe to uninstall byteman rules from the target jvm
+  stringstream end_code;
+  end_code << "probe end, error {" << endl;
 
-  vector<probe_point::component*> java_end_marker;
-  java_end_marker.push_back(new probe_point::component (TOK_END));
-  probe_point *der_end_loc = new probe_point (java_end_marker);
+  leftbits = string(PKGLIBDIR) + "/stapbm uninstall " +
+    lex_cast_qstring(has_pid_int ? java_pid_str : _java_proc_class) + " ";
+  // rightbits are the same as the begin probe
 
-  vector<probe_point::component*> java_error_marker;
-  java_error_marker.push_back(new probe_point::component (TOK_ERROR));
-  probe_point *der_error_loc = new probe_point (java_error_marker);
+  end_code << "system(" << literal_string(leftbits) << " . " << rule_name
+             << " . " << literal_string(rightbits) << ");" << endl;
 
-  bb = new block;
-  bb->tok = base->body->tok;
+  end_code << "}" << endl; // End of probe
 
-  leftbits =
-    new literal_string(string(PKGLIBDIR)+string("/stapbm ") +
-                       string("uninstall ") + 
-                       (has_pid_int ? 
-                        lex_cast_qstring(java_pid_str) : 
-                        lex_cast_qstring(_java_proc_class)) +
-                       string(" "));
-  // RULENAME_EXPR goes here
-  (void) rightbits; // same as before
-
-  leftmid = new concatenation;
-  leftmid->left = leftbits;
-  leftmid->right = rulename_expr; // NB: we're reusing the same tree; 's ok due to copying
-  leftmid->op = ".";
-  leftmid->tok = bb->tok;
-
-  midright = new concatenation;
-  midright->left = leftmid;
-  midright->right = rightbits;
-  midright->op = ".";
-  midright->tok = bb->tok;
-
-  fc = new functioncall;
-  fc->function = "system";
-  fc->tok = bb->tok;
-  fc->args.push_back(midright);
-
-  bs = new expr_statement;
-  bs->tok = bb->tok;
-  bs->value = fc;
-
-  bb->statements.push_back(bs);
-
-  probe* new_end_probe = new probe(base, der_end_loc);
-  new_end_probe->body = bb; // overwrite
-  (void) der_error_loc;
-  // new_end_probe->locations.push_back (der_error_loc);
+  probe* new_end_probe = parse_synthetic_probe (sess, end_code, tok);
+  if (!new_end_probe)
+    throw SEMANTIC_ERROR (_("can't create java end probe"), tok);
   derive_probes (sess, new_end_probe, finished_results);
 }
 
@@ -456,3 +432,4 @@ register_tapset_java (systemtap_session& s)
 #endif
 }
 
+/* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

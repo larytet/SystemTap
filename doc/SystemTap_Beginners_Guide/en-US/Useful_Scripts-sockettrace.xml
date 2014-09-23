@@ -86,7 +86,7 @@
 <para><xref linkend="sockettraceoutput"/> contains a 3-second excerpt of the output for <xref linkend="sockettrace"/>. Each line contains the following information, on the order that they appear:</para>
 
 <itemizedlist>
-	<listitem><para>The time delta (in microseconds) since the previous entry; i.e. the number of microseconds since the last traced function call.</para></listitem>
+	<listitem><para>The time delta (in microseconds) since the previous entry; that is, the number of microseconds since the last traced function call.</para></listitem>
 
 	<listitem><para>The process name (and its corresponding ID) that made the function call.</para></listitem>
 

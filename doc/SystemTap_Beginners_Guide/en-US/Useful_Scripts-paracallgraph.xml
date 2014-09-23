@@ -119,7 +119,7 @@
 <secondary>examples of SystemTap scripts</secondary>
 </indexterm>
 
-<para><xref linkend="scriptcallgraph"/> uses <command>thread_indent()</command>; as such, its output contains the timestamp, process name, and thread ID of <command>$1</command> (i.e. the probe function you are tracing). For more information about <command>thread_indent()</command>, refer to its entry in <xref linkend="systemtapscript-functions"/>.</para>
+<para><xref linkend="scriptcallgraph"/> uses <command>thread_indent()</command>; as such, its output contains the timestamp, process name, and thread ID of <command>$1</command> (that is, the probe function you are tracing). For more information about <command>thread_indent()</command>, refer to its entry in <xref linkend="systemtapscript-functions"/>.</para>
 
 		<para>The following example contains an excerpt from the output
 for <command>stap para-callgraph.stp 'kernel.function("*@fs/*.c")' 'kernel.function("sys_read")'</command>:</para>

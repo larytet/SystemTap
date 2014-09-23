@@ -1,7 +1,7 @@
 /* -*- linux-c -*- 
  * VMA tracking and lookup functions.
  *
- * Copyright (C) 2005-2013 Red Hat Inc.
+ * Copyright (C) 2005-2014 Red Hat Inc.
  * Copyright (C) 2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -39,11 +39,29 @@ static void _stp_vma_match_vdso(struct task_struct *tsk)
       for (i = 0; i < _stp_num_modules && found == NULL; i++) {
 	struct _stp_module *m = _stp_modules[i];
 	if (m->path[0] == '/'
-	    && m->num_sections == 1
-	    && strncmp(m->name, "vdso", 4) == 0)
+	    && m->num_sections == 1)
 	  {
 	    unsigned long notes_addr;
 	    int all_ok = 1;
+
+	    /* Assume that if the path's basename starts with 'vdso'
+	     * and ends with '.so', it is the vdso.
+	     *
+	     * Note that this logic should match up with the logic in
+	     * the find_vdso() function in translate.cxx. */
+	    const char *name = strrchr(m->path, '/');
+	    if (name)
+	      {
+		const char *ext;
+
+		name++;
+		ext = strrchr(name, '.');
+		if (!ext
+		    || strncmp("vdso", name, 4) != 0
+		    || strcmp(".so", ext) != 0)
+		  continue;
+	      }
+
 	    notes_addr = vdso_addr + m->build_id_offset;
 	    dbug_task_vma(1,"notes_addr %s: 0x%lx + 0x%lx = 0x%lx (len: %x)\n", m->path,
 		  vdso_addr, m->build_id_offset, notes_addr, m->build_id_len);
@@ -130,7 +148,8 @@ static int _stp_vma_mmap_cb(struct stap_task_finder_target *tgt,
 {
 	int i, res;
 	struct _stp_module *module = NULL;
-	const char *name = (dentry != NULL) ? dentry->d_name.name : NULL;
+	const char *name = ((dentry != NULL) ? (char *)dentry->d_name.name
+			    : NULL);
         
         if (path == NULL || *path == '\0') /* unknown? */
                 path = (char *)name; /* we'll copy this soon, in ..._add_vma_... */

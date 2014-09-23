@@ -1,0 +1,11 @@
+#! stap -p2
+
+probe begin
+{
+    // Test DWARF through a ternary expression, with mismatched types.
+    // (These are actually the same, but coming from different cast modules.)
+    println( (randint(2)
+                ? & @cast(0, "sockaddr_un", "<sys/un.h>")
+                : & @cast(0, "sockaddr_un", "<sys/socket.h><sys/un.h>")
+                ) -> sun_family )
+}

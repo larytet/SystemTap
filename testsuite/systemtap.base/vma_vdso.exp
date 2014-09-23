@@ -8,42 +8,33 @@ set ::result_string {clock_gettime
 getuid
 getuid}
 
-# Force 64-bit (when necessary) to be sure of what we're testing.
-switch -regexp $::tcl_platform(machine) {
-    {^(x86_64|ppc64|s390x)$} { set arches [list "-m64"] }
-    default { set arches [list "default"] }
-}
-
-# Test 32-on-64 when available
-switch -regexp $::tcl_platform(machine) {
-    {^(x86_64|ppc64)$} { lappend arches "-m32" }
-    {^s390x$} { lappend arches "-m31" }
-}
-
-foreach arch $arches {
-    verbose "testing $test $arch"
+for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+    set arch_flag [arch_compile_flag $i]
+    set arch_name [arch_compile_flag_name $i]
+    verbose "testing $test -${arch_name}"
+    set test_arch "${test}-${arch_name}"
 
     set test_flags "additional_flags=-g"
     set test_flags "$test_flags additional_flags=-lrt"
 
-    if {$arch != "default"} {
-        set test_flags "$test_flags additional_flags=$arch"
+    if {$arch_flag != ""} {
+        set test_flags "$test_flags $arch_flag"
     }
 
-    set res [target_compile $srcdir/$subdir/$test.c ${test}${arch}.exe executable "$test_flags"]
+    set res [target_compile $srcdir/$subdir/$test.c ${test_arch}.exe executable "$test_flags"]
     if { $res != "" } {
-        verbose "target_compile ${test}${arch} failed: $res" 2
-        fail "${test}.c compile ${arch}"
-        untested "${test}${arch}"
+        verbose "target_compile ${test_arch} failed: $res" 2
+        fail "${test}.c compile -${arch_name}"
+        untested "${test_arch}"
         return
     } else {
-        pass "${test}.c compile ${arch}"
+        pass "${test}.c compile -${arch_name}"
     }
 
     # Test only when we are running an install test (can execute)
     if {[installtest_p]} {
-        stap_run3 ${test}${arch} $srcdir/$subdir/$test.stp ./${test}${arch}.exe -c ./${test}${arch}.exe
+        stap_run3 ${test_arch} $srcdir/$subdir/$test.stp ./${test_arch}.exe -c ./${test_arch}.exe
     } else {
-        untested "${test}${arch}"
+        untested "${test_arch}"
     }
 }

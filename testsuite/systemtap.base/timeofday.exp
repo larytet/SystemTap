@@ -5,7 +5,7 @@
 # See bug #2525 for more details.
 
 proc sleep_one_sec {} {
-    after 1000;
+    wait_n_secs 1;
     return 0;
 }
 

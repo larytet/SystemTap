@@ -1,0 +1,7 @@
+#! stap -p1
+
+probe begin {
+  // An array_in has lower precedence than autocast, but the RHS of array_in
+  // can only be an indexable, which doesn't consume the "-> baz".
+  ( foo in bar -> baz )
+}

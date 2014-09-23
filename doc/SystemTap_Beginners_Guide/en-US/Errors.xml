@@ -25,13 +25,13 @@
 <primary>parse/semantics error</primary>
 <secondary>understanding SystemTap errors</secondary>
 </indexterm>
-<para>These types of errors occur while SystemTap attempts to parse and
-      translate the script into C, prior to being converted into a kernel
-      module. For example type errors result from operations that assign invalid
+<para>Parse and semantic errors occur while SystemTap attempts to parse and
+      translate the script into C, before converting it into a kernel
+      module. For example, type errors result from operations that assign invalid
       values to variables or arrays.
 </para>
 
-<formalpara><title>parse error: expected <replaceable>foo</replaceable>, saw <replaceable>bar</replaceable></title>
+<bridgehead renderas="sect2">parse error: expected <replaceable>foo</replaceable>, saw <replaceable>bar</replaceable></bridgehead>
 <!-- next 3 indexterms for invalid values to variables/arrays -->
 <indexterm>
 <primary>understanding SystemTap errors</primary>
@@ -93,15 +93,14 @@
 </indexterm>
 
 
-<para>The script contains a grammatical/typographical error. SystemTap detected type of construct that is incorrect, given the context of the probe.
+<para>The script contains a grammatical or typographical error. SystemTap detected the type of the construct that is incorrect, given the context of the probe.
 </para>
-</formalpara>
 
 <remark>need more clarification (example) on this; could not replicate. how to
       replicate?</remark>
 
 <para>
-      The following invalid SystemTap script is missing its probe
+      For example, the following invalid SystemTap script is missing its probe
       handlers:
 </para>
 
@@ -110,8 +109,9 @@
 </para>
 
 <para>
-      It results in the following error message showing that the parser was
-      expecting something other than the <command>probe</command> keyword in
+      An attempt to run this SystemTap script fails with the following error
+      message showing that the parser expects
+      something other than the <command>probe</command> keyword in
       column 1 of line 2:
 </para>
 <para>
@@ -120,7 +120,7 @@
 1 parse error(s).</programlisting>
 </para>
 
-<formalpara><title>parse error: embedded code in unprivileged script</title>
+<bridgehead renderas="sect2">parse error: embedded code in unprivileged script</bridgehead>
 <!-- next 2 indexterms for embedded code in unprivileged script -->
 
 <indexterm>
@@ -160,14 +160,13 @@
 </indexterm>
 
 <para>
-	The script contains unsafe embedded C code (blocks of code
-	surrounded by <command>%{</command> <command>%}</command>. SystemTap
+	The script contains unsafe embedded C code, that is, blocks of code
+	surrounded by <command>%{</command> and <command>%}</command>. SystemTap
 	allows you to embed C code in a script, which is useful if there are no
 	tapsets to suit your purposes. However, embedded C constructs are not
-	safe; as such, SystemTap warns you with this error if such constructs
+	safe and SystemTap reports this error to warn you if such constructs
 	appear in the script.
 </para>
-</formalpara>
 
 
 <!-- next 2 indexterms for guru mode -->
@@ -197,15 +196,16 @@
 </indexterm>
 
 <para>
-      If you are sure of the safety of any similar constructs in the script
-      <emphasis>and</emphasis>
-      are member of <command>stapdev</command> group (or have root privileges),
-      run the script in "guru" mode by using the option <command>-g</command>
-      (i.e. <command>stap -g <replaceable>script</replaceable></command>).
+      If you are sure that any similar constructs in the script are safe
+      <emphasis>and</emphasis> you
+      are a member of the <systemitem class="groupname">stapdev</systemitem>
+      group (or have root privileges),
+      run the script in "guru" mode by using the <option>-g</option> option:
 </para>
 
-<formalpara>
-	<title>semantic error: type mismatch for identifier '<replaceable>foo</replaceable>' ... string vs. long</title>
+<screen><command>stap -g <replaceable>script</replaceable></command></screen>
+
+<bridgehead renderas="sect2">semantic error: type mismatch for identifier '<replaceable>foo</replaceable>' ... string vs. long</bridgehead>
 <!-- next 2 indexterms for type mismatch for identifier -->
 
 <indexterm>
@@ -238,25 +238,20 @@
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
 <para>
-	The function <command><replaceable>foo</replaceable></command> in the
+	The function <replaceable>foo</replaceable> in the
 	script used the wrong type
-	(i.e. <command>%s</command> or <command>%d</command>). This error will
-	present itself in <xref linkend="errorvariable"/>, because the function
-	<command>execname()</command> returns a string the format specifier
-	should be a <command>%s</command>, not <command>%d</command>.
+	(such as <literal>%s</literal> or <literal>%d</literal>).
+	In the following example, the format specifier should be
+	<literal>%s</literal> and not <literal>%d</literal>, because the
+	<function>execname()</function> function returns a string:
 </para>
-</formalpara>
 
-<example id="errorvariable">
-	<title>error-variable.stp</title>
 <programlisting>probe syscall.open
 {
   printf ("%d(%d) open\n", execname(), pid())
 }</programlisting>
-</example>
 
-<formalpara>
-	<title>semantic error: unresolved type for identifier '<replaceable>foo</replaceable>'</title>
+<bridgehead renderas="sect2">semantic error: unresolved type for identifier '<replaceable>foo</replaceable>'</bridgehead>
 <!-- next 2 indexterms for unresolved type for identifier -->
 
 <indexterm>
@@ -282,14 +277,12 @@
 <secondary>parse/semantics error</secondary>
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
-<para>The identifier (e.g. a variable) was used, but no type (integer or
+<para>The identifier (variable) was used, but no type (integer or
 	string) could be determined. This occurs, for instance, if you use a
 	variable in a <command>printf</command> statement while
 	the script never assigns a value to the variable.</para>
-</formalpara>
 
-<formalpara>
-	<title>semantic error: Expecting symbol or array index expression</title>
+<bridgehead renderas="sect2">semantic error: Expecting symbol or array index expression</bridgehead>
 <!-- next 2 indexterms for expected symbol/array index expression -->
 
 <indexterm>
@@ -321,13 +314,9 @@
 	array. The destination for the assignment is not a valid destination.
 	The following example code would generate this error:
 </para>
-</formalpara>
-<para>
 <programlisting><xi:include parse="text" href="extras/werror.stp" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
-</para>
 
-<formalpara>
-	<title>while searching for arity <replaceable>N</replaceable> function, semantic error: unresolved function call</title>
+<bridgehead renderas="sect2">while searching for arity <replaceable>N</replaceable> function, semantic error: unresolved function call</bridgehead>
 <!-- next 2 indexterms for unresolved function call -->
 
 <indexterm>
@@ -360,13 +349,11 @@
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
 <para>A function call or array index expression in the script used an invalid
-	number of arguments/parameters. In SystemTap
+	number of arguments or parameters. In SystemTap,
 	<firstterm>arity</firstterm> can either refer to the number of indices
 	for an array, or the number of parameters to a function.</para>
-</formalpara>
 
-<formalpara>
-	<title>semantic error: array locals not supported, missing global declaration?</title>
+<bridgehead renderas="sect2">semantic error: array locals not supported, missing global declaration?</bridgehead>
 
 <!-- next 2 indexterms for non-global arrays -->
 <indexterm>
@@ -400,10 +387,8 @@
 	<para>The script used an array operation without declaring the array as
 	a global variable (global variables can be declared after their use in
 	SystemTap scripts). Similar messages appear if an array is used, but with inconsistent arities.</para>
-</formalpara>
 
-<formalpara>
-	<title>semantic error: variable ’<replaceable>foo</replaceable>’ modiﬁed during ’foreach’ iteration</title>
+<bridgehead renderas="sect2">semantic error: variable '<replaceable>foo</replaceable>' modified during 'foreach' iteration</bridgehead>
 <!-- next 2 indexterms for variable modified during 'foreach' -->
 
 <indexterm>
@@ -429,11 +414,9 @@
 <secondary>parse/semantics error</secondary>
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
-	<para>The array <literal>foo</literal> is being modifed (being assigned to or deleted from) within an active <command>foreach</command> loop. This error also displays if an operation within the script performs a function call within the <command>foreach</command> loop.</para>
-</formalpara>
+	<para>The array <replaceable>foo</replaceable> is being modified (being assigned to or deleted from) within an active <command>foreach</command> loop. This error also displays if an operation within the script performs a function call within the <command>foreach</command> loop.</para>
 
-<formalpara>
-	<title>semantic error: probe point mismatch at position <replaceable>N</replaceable>, while resolving probe point <replaceable>foo</replaceable></title>
+<bridgehead renderas="sect2">semantic error: probe point mismatch at position <replaceable>N</replaceable>, while resolving probe point <replaceable>foo</replaceable></bridgehead>
 
 
 <!-- next 2 indexterms for probe mismatch -->
@@ -462,18 +445,16 @@
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
 	<para>SystemTap did not understand what the event or SystemTap function
-	<computeroutput><replaceable>foo</replaceable></computeroutput> refers
+        <replaceable>foo</replaceable> refers
 	to. This usually means that SystemTap could not find a match for
-	<computeroutput><replaceable>foo</replaceable></computeroutput> in the
-	tapset library. The <replaceable>N</replaceable> refers to the
+        <replaceable>foo</replaceable> in the
+        tapset library. <replaceable>N</replaceable> refers to the
 	line and column of
 	the error.</para>
-</formalpara>
 
 <remark>how to explain N in previous? "The divergence from the “tree” of probe point namespace is at position N (starting with zero at left)." (from tutorial) </remark>
 
-<formalpara>
-	<title>semantic error: no match for probe point, while resolving probe point <replaceable>foo</replaceable></title>
+<bridgehead renderas="sect2">semantic error: no match for probe point, while resolving probe point <replaceable>foo</replaceable></bridgehead>
 
 
 <!-- next 2 indexterms for no match for probe point -->
@@ -507,11 +488,9 @@
 <secondary>parse/semantics error</secondary>
 <tertiary>understanding SystemTap errors</tertiary>
 </indexterm>
-	<para>The events/handler function <computeroutput><replaceable>foo</replaceable></computeroutput> could not be resolved altogether, for a variety of reasons. This error occurs when the script contains the event <command>kernel.function("<replaceable>blah</replaceable>")</command>, and <command><replaceable>blah</replaceable></command> does not exist. In some cases, the error could also mean the script contains an invalid kernel file name or source line number.</para>
-</formalpara>
+	<para>SystemTap could not resolve the events or handler function <replaceable>foo</replaceable> for a variety of reasons. This error occurs when the script contains the event <command>kernel.function("<replaceable>something</replaceable>")</command>, and <replaceable>something</replaceable> does not exist. In some cases, the error could also mean the script contains an invalid kernel file name or source line number.</para>
 
-<formalpara>
-	<title>semantic error: unresolved target-symbol expression</title>
+<bridgehead renderas="sect2">semantic error: unresolved target-symbol expression</bridgehead>
 <!-- next 2 indexterms for unresolved target-symbol expression -->
 
 <indexterm>
@@ -548,10 +527,8 @@
 	that a handler is referencing a target variable that is not valid
 	in the context when it was referenced. This may be a result of compiler
         optimization of the generated code.</para>
-</formalpara>
 
-<formalpara>
-	<title>semantic error: libdwﬂ failure </title>
+<bridgehead renderas="sect2">semantic error: libdwfl failure </bridgehead>
 
 <!-- next 2 indexterms for libdwfl failure -->
 
@@ -580,14 +557,11 @@
 </indexterm>
 	<para>There was a problem processing the debugging information. In most
 	cases, this error results from the installation of a
-	<filename>kernel-debuginfo</filename> RPM whose version does not match
-	the probed kernel exactly. The installed <filename>kernel-debuginfo</filename> RPM itself may have some consistency/correctness problems.</para>
-</formalpara>
+	<package>kernel-debuginfo</package> package whose version does not match
+	the probed kernel exactly. The installed <package>kernel-debuginfo</package> package itself may have some consistency or correctness problems.</para>
 
-<formalpara>
-	<title>semantic error: cannot find <replaceable>foo</replaceable> debuginfo</title>
-	<para>SystemTap could not find a suitable <filename>kernel-debuginfo</filename> at all. </para>
-</formalpara>
+<bridgehead renderas="sect2">semantic error: cannot find <replaceable>foo</replaceable> debuginfo</bridgehead>
+	<para>SystemTap could not find a suitable <package>kernel-debuginfo</package> package.</para>
 <!--
 <formalpara>
 	<title></title>
@@ -598,7 +572,7 @@
 </section>
 
 <section id="runtimeerror">
-	<title>Run Time Errors and Warnings</title>
+	<title>Runtime Errors and Warnings</title>
 <indexterm>
 <primary>understainding SystemTap errors</primary>
 <secondary>runtime errors/warnings</secondary>
@@ -621,7 +595,7 @@
 		the system.
 	</para>
 
-<formalpara><title>WARNING: Number of errors: <replaceable>N</replaceable>, skipped probes: <replaceable>M</replaceable></title>
+<bridgehead renderas="sect2">WARNING: Number of errors: <replaceable>N</replaceable>, skipped probes: <replaceable>M</replaceable></bridgehead>
 <!-- next 2 indexterms for number of errors: N, skipped probes: M -->
 
 <indexterm>
@@ -654,9 +628,8 @@
 	conditions such as too much time required to execute event handlers over
 	an interval of time.
 </para>
-</formalpara>
 
-<formalpara><title>division by 0</title>
+<bridgehead renderas="sect2">division by 0</bridgehead>
 <!-- next 2 indexterms for division by 0 -->
 
 <indexterm>
@@ -692,9 +665,8 @@
 <para>
 	The script code performed an invalid division.
 </para>
-</formalpara>
 
-<formalpara><title>aggregate element not found</title>
+<bridgehead renderas="sect2">aggregate element not found</bridgehead>
 <!-- next 2 indexterms for aggregate element not found -->
 
 <indexterm>
@@ -725,9 +697,8 @@
 	was invoked on an aggregate that has not had any values accumulated yet.
 	This is similar to a division by zero.
 </para>
-</formalpara>
 
-<formalpara><title>aggregation overflow</title>
+<bridgehead renderas="sect2">aggregation overflow</bridgehead>
 <!-- next 3 indexterms for aggregation overflow -->
 <indexterm>
 <primary>understainding SystemTap errors</primary>
@@ -764,10 +735,9 @@ An array containing aggregate values contains too many distinct key pairs at thi
 <!--<para>
     An array containing aggregate values contains too many distinct key tuples at this time.
 </para>-->
-</formalpara>
 
 
-<formalpara><title>MAXNESTING exceeded</title>
+<bridgehead renderas="sect2">MAXNESTING exceeded</bridgehead>
 <indexterm>
 <primary>understainding SystemTap errors</primary>
 <secondary>runtime errors/warnings</secondary>
@@ -802,9 +772,8 @@ An array containing aggregate values contains too many distinct key pairs at thi
 	Too many levels of function call nesting were attempted.
 	The default nesting of function calls allowed is 10.
 </para>
-</formalpara>
 
-<formalpara><title>MAXACTION exceeded</title>
+<bridgehead renderas="sect2">MAXACTION exceeded</bridgehead>
 <!-- next 2 indexterms for MAXACTION exceeded -->
 
 <indexterm>
@@ -841,10 +810,8 @@ An array containing aggregate values contains too many distinct key pairs at thi
 	probe handler. The default number of actions allowed in a probe handler
 	is 1000.
 </para>
-</formalpara>
 
-<formalpara><title>kernel/user string copy fault at
-      <replaceable>ADDR</replaceable></title>
+<bridgehead renderas="sect2">kernel/user string copy fault at <replaceable>ADDR</replaceable></bridgehead>
 <!-- next 2 indexterms for copy fault -->
 
 <indexterm>
@@ -872,11 +839,10 @@ An array containing aggregate values contains too many distinct key pairs at thi
 </indexterm>
 <para>
 	The probe handler attempted to copy a string from kernel or
-	user-space at an invalid address (<replaceable>ADDR</replaceable>).
+	user space at an invalid address (<replaceable>ADDR</replaceable>).
 </para>
-</formalpara>
 
-<formalpara><title>pointer dereference fault</title>
+<bridgehead renderas="sect2">pointer dereference fault</bridgehead>
 
 
 <!-- next 2 indexterms for pointer dereference fault -->
@@ -908,7 +874,6 @@ An array containing aggregate values contains too many distinct key pairs at thi
 	There was a fault encountered during a pointer
 	dereference operation such as a target variable evaluation.
 </para>
-</formalpara>
 
 </section>
 

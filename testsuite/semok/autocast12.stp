@@ -1,0 +1,12 @@
+#! stap -p2
+
+function sockaddr_un(ptr)
+{
+    return & @cast(ptr, "sockaddr_un", "<sys/un.h>")
+}
+
+probe begin
+{
+    // Test DWARF types returned from function calls
+    println( sockaddr_un(0) -> sun_family )
+}

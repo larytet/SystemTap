@@ -18,3 +18,6 @@
 # Start these scripts by default. If omitted, all scripts are started.
 # DEFAULT_START=
 
+# Log boot-time staprun stderr to /var/run/systemtap/$script.log
+# LOG_BOOT_ERR=no
+

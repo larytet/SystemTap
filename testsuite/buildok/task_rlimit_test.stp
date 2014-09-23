@@ -1,0 +1,22 @@
+#! stap -p4
+
+probe begin
+{
+    print (task_rlimit_cpu(0) +
+            task_rlimit_fsize(0) +
+            task_rlimit_data(0) +
+            task_rlimit_stack(0) +
+            task_rlimit_core(0) +
+            task_rlimit_rss(0) +
+            task_rlimit_nproc(0) +
+            task_rlimit_nofile(0) +
+            task_rlimit_memlock(0) +
+            task_rlimit_as(0) +
+            task_rlimit_locks(0) +
+            task_rlimit_sigpending(0) +
+            task_rlimit_msgqueue(0) +
+            task_rlimit_nice(0) +
+            task_rlimit_rtprio(0) +
+            task_rlimit_rttime(0) +
+            rlimit_from_str(""));
+}

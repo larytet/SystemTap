@@ -102,7 +102,7 @@ file as arguments on the command line:</para>
 </indexterm>
 <para>To get this information, use <command>stat -c '%D %i' <replaceable>filename</replaceable></command>, where <command><replaceable>filename</replaceable></command> is an absolute path.</para>
 
-<para>For instance: if you wish to monitor <filename>/etc/crontab</filename>, run <command>stat -c '%D %i' /etc/crontab</command> first. This gives the following output:</para>
+<para>For instance: to monitor <filename>/etc/crontab</filename>, run <command>stat -c '%D %i' /etc/crontab</command> first. This gives the following output:</para>
 
 <screen>805 1078319</screen>
 <indexterm>
@@ -122,7 +122,7 @@ file as arguments on the command line:</para>
 
 <para><computeroutput>805</computeroutput> is the base-16 (hexadecimal) device number. The lower two digits are the minor device number and the upper digits are the major number. <computeroutput>1078319</computeroutput> is the <command>inode</command> number. To start monitoring <filename>/etc/crontab</filename>, run <command>stap inodewatch.stp 0x8 0x05 1078319</command> (The <command>0x</command> prefixes indicate base-16 values.</para>
 
-<para>The output of this command contains the name and ID of any process performing a read/write, the function it is performing (i.e. <command>vfs_read</command> or <command>vfs_write</command>), the device number (in hex format), and the <command>inode</command> number. <xref linkend="inodewatchoutput"/> contains the output of <command>stap inodewatch.stp 0x8 0x05 1078319</command> (when <command>cat /etc/crontab</command> is executed while the script is running) :</para>
+<para>The output of this command contains the name and ID of any process performing a read/write, the function it is performing (that is, <command>vfs_read</command> or <command>vfs_write</command>), the device number (in hex format), and the <command>inode</command> number. <xref linkend="inodewatchoutput"/> contains the output of <command>stap inodewatch.stp 0x8 0x05 1078319</command> (when <command>cat /etc/crontab</command> is executed while the script is running) :</para>
 
 
 <example id="inodewatchoutput">

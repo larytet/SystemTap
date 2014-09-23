@@ -1,0 +1,1455 @@
+set test "listing_mode"
+set testpath "$srcdir/$subdir"
+
+# This test verifies the output of stap -l for (hopefully) all possible probe
+# point syntax. It's less about the exact string match of the probe point (this
+# should be tested in the section for that probe point) and more about comparing
+# the general form of the listed probe with what we expected regardless of the
+# way the user inputs the data.
+
+# There are some probe points that cannot reliably be tested, such as a few in
+# the kernel.* family and all of the module.* probe points. However, note that
+# the same probe builder is used for those and for the process.* probe points,
+# which we extensively test.
+
+# Specify a globby pattern in the LISTING_MODE_SUBTEST env var to match against
+# pps to exclusively test. Leave undefined/blank to test all.
+if {[info exists ::env(LISTING_MODE_SUBTEST)]} {
+   set TARGET_SUBTEST $::env(LISTING_MODE_SUBTEST)
+} else {
+   set TARGET_SUBTEST ""
+}
+
+# Runs stap -l $pp and checks that every line output matches $exp. If $exp is
+# missing, checks that lines match $pp. If $exp starts with 're:' then the rest
+# of it is treated as a regular expression.  If $nlines_exp is not -1, then
+# exactly $nlines_exp lines are expected.
+proc stap_list {pp {exp ""} {nlines_exp 1} {arguments ""}} {
+   global test TARGET_SUBTEST
+
+   set subtest "$test ($pp $arguments)"
+
+   if {$TARGET_SUBTEST != ""} {
+      if {![string match $TARGET_SUBTEST $pp]} {
+         untested $subtest
+         return
+      }
+   }
+
+   if {$exp == ""} {
+      set exp $pp
+   }
+
+   set is_regex 0
+   if {[string match re:* $exp]} {
+      set is_regex 1
+      set exp "^[string range $exp 3 [string length $exp]]$"
+   }
+
+   verbose -log "executing: stap -l $pp $arguments"
+   catch {eval exec stap -l $pp $arguments} out
+   set n 0
+   foreach line [split $out "\n"] {
+      if {$is_regex} {
+         set r [regexp $exp $line]
+      } else {
+         set r [string equal $exp $line]
+      }
+      # Always print line & exp regardless of fail/pass
+      verbose -log "received: \"$line\""
+      verbose -log "expected: \"$exp\""
+      if {!$r} {
+         fail $subtest
+         return
+      }
+      incr n
+   }
+   if {$nlines_exp >= 0} {
+      if {$n != $nlines_exp} {
+         verbose -log "expected $nlines_exp lines, got $n"
+         fail $subtest
+         return
+      }
+   }
+   pass $subtest
+}
+
+# Returns the address to vfs_read using stap. NB: we can't use kallsyms because
+# the addresses might show up as all 0s for non-root.
+proc get_kernel_function_number {} {
+   if {[catch {exec stap -vvl {kernel.function("vfs_read")} 2>@1} out]} {
+      return 0
+   }
+   if {![regexp -line "^probe vfs_read@.* pc=0x(\[0-9a-f\]+)" $out dummy addr]} {
+      return 0
+   }
+   set addr [string trimleft $addr 0]
+   if {$addr == ""} {
+      return 0
+   }
+   return $addr
+}
+
+set kernel_addr [get_kernel_function_number]
+if {$kernel_addr == 0} {
+   fail "$test (no kernel addr to play with)"
+}
+
+set sopath "lib$test.so"
+set exepath "$test"
+
+
+proc test_cleanup {} {
+   global sopath exepath
+   if {[file exists "$sopath"]}  { file delete "$sopath" }
+   if {[file exists "$exepath"]}   { file delete "$exepath" }
+   set sopath ""
+   set exepath ""
+}
+
+# Compile the shared lib
+set libflags [sdt_includes]
+set libflags "$libflags additional_flags=-g"
+set libflags "$libflags additional_flags=-O"
+set libflags "$libflags additional_flags=-fPIC"
+set libflags "$libflags additional_flags=-shared"
+set libflags "$libflags additional_flags=-DLISTING_MODE_LIB"
+set res [target_compile $testpath/$test.c $sopath executable $libflags]
+if { $res == "" } {
+    pass "$test library compile"
+} else {
+    fail "$test library compile: $res"
+    test_cleanup
+}
+
+# Compile the executable
+set exeflags [sdt_includes]
+set exeflags "$exeflags additional_flags=-g"
+set exeflags "$exeflags additional_flags=-O"
+set exeflags "$exeflags additional_flags=-l$test"
+set exeflags "$exeflags additional_flags=-Wl,-rpath,[pwd]"
+set exeflags "$exeflags additional_flags=-L."
+set exeflags "$exeflags additional_flags=-DLISTING_MODE_MAIN"
+set res [target_compile $testpath/$test.c $exepath executable $exeflags]
+if { $res == "" } {
+    pass "$test exe compile"
+} else {
+    fail "$test exe compile: $res"
+    test_cleanup
+}
+
+# PR6897: need a valid pid when trying to list probes in the form process(PID).*
+spawn ./$exepath
+set valid_pid [exp_pid -i $spawn_id]
+
+proc test_cleanup2 {} {
+    global valid_pid
+    kill -INT -$valid_pid 2
+}
+
+# Returns the address to main in compiled executable using stap
+proc get_process_function_number {} {
+   global exepath
+
+   if {[catch {exec stap -vvl "process(\"$exepath\").function(\"main\")" 2>@1} out]} {
+      return 0
+   }
+   if {![regexp -line "^probe main@.* pc=0x(\[0-9a-f\]+)" $out dummy addr]} {
+      return 0
+   }
+   set addr [string trimleft $addr 0]
+   if {$addr == ""} {
+      return 0
+   }
+   return $addr
+}
+
+set process_addr [get_process_function_number]
+if {$process_addr == 0} {
+   fail "$test (no process addr to play with)"
+}
+
+# Returns the address to libfoo in compiled library using stap
+proc get_library_function_number {} {
+   global exepath sopath
+
+   if {[catch {exec stap -vvl "process(\"$exepath\").library(\"$sopath\").function(\"libfoo\")" 2>@1} out]} {
+      return 0
+   }
+   if {![regexp -line "^probe libfoo@.* pc=0x(\[0-9a-f\]+)" $out dummy addr]} {
+      return 0
+   }
+   set addr [string trimleft $addr 0]
+   if {$addr == ""} {
+      return 0
+   }
+   return $addr
+}
+
+set library_addr [get_library_function_number]
+if {$library_addr == 0} {
+   fail "$test (no library addr to play with)"
+}
+
+set exefullpath [exec readlink -f $exepath]
+set sofullpath [exec readlink -f $sopath]
+
+# Runs stap_list with variations in the way the executable is specified.
+# Varies the -c command as well as the process("path").
+proc stap_list_cmd {pp {exp ""} {nlines_exp 1} {arguments ""}} {
+   global exepath exefullpath
+
+   # Vary -c
+   stap_list $pp $exp $nlines_exp "$arguments -c $exepath"
+   stap_list $pp $exp $nlines_exp "$arguments -c ./$exepath"
+   stap_list $pp $exp $nlines_exp "$arguments -c $exefullpath"
+
+   # Vary process(path)
+   set pp_simple [string map "process process(\"$exepath\")" $pp]
+   stap_list $pp_simple $exp $nlines_exp $arguments
+   set pp_rel [string map "process process(\"./$exepath\")" $pp]
+   stap_list $pp_rel $exp $nlines_exp $arguments
+   set pp_abs [string map "process process(\"$exefullpath\")" $pp]
+   stap_list $pp_abs $exp $nlines_exp $arguments
+   set pp_wild [string map "process process(\"*$exepath\")" $pp]
+   stap_list $pp_wild $exp $nlines_exp $arguments
+}
+
+# Runs stap_list_cmd with variations in the way the library is specified
+proc stap_list_cmd_lib {pp {exp ""} {nlines_exp 1} {arguments ""}} {
+   global sopath sofullpath
+
+   set pp_simple [string map "sopath $sopath" $pp]
+   stap_list_cmd $pp_simple $exp $nlines_exp $arguments
+   set pp_rel [string map "sopath ./$sopath" $pp]
+   stap_list_cmd $pp_rel $exp $nlines_exp $arguments
+   set pp_abs [string map "sopath $sofullpath" $pp]
+   stap_list_cmd $pp_abs $exp $nlines_exp $arguments
+   set pp_wild [string map "sopath *$sopath" $pp]
+   stap_list_cmd $pp_wild $exp $nlines_exp $arguments
+}
+
+# Initialize the list of probe types to test, using --dump-probe-types
+if {[catch {exec stap --dump-probe-types} out]} {
+   verbose -log "stap --dump-probe-types output: $out"
+   fail "$test (can't get probe list)"
+   return
+}
+
+set all_probe_types [split $out "\n"]
+
+# Removes the given probe type from the list
+proc testing_probe {probe_type} {
+   global test all_probe_types
+
+   # Find it
+   set idx [lsearch $all_probe_types $probe_type]
+   if {$idx < 0} {
+      fail "$test (probe type $probe_type not in list)"
+      return
+   }
+
+   # Remove from list
+   set all_probe_types [lreplace $all_probe_types $idx $idx]
+
+   # If it's a process. probe, also remove the process(string) version:
+   if {[string match process\.* $probe_type]} {
+      set probe_type [string map "process. process(string)." $probe_type]
+      testing_probe $probe_type
+   }
+}
+
+# Reports all probe types in the list that haven't been tested
+proc report_untested_probes {} {
+   global test all_probe_types
+
+   foreach probe_type $all_probe_types {
+      switch $probe_type {
+
+         java(number).class(string).method(string) -
+         java(number).class(string).method(string).return -
+         java(string).class(string).method(string) -
+         java(string).class(string).method(string).return
+         {
+            if {![java_p]} {
+               setup_kfail JAVA *-*-*
+            }
+         }
+
+         kernel.data(number).length(number).rw -
+         kernel.data(number).length(number).write -
+         kernel.data(number).rw -
+         kernel.data(number).write -
+         kernel.data(string).rw -
+         kernel.data(string).write
+         {
+            if {![hwbkpt_probes_p]} {
+               setup_kfail HW_BKPT *-*-*
+            }
+         }
+
+         kernel.function(string).callee(string) -
+         kernel.function(string).callees -
+         kernel.function(string).callees(number)
+         {
+            if {![callee_probes_p]} {
+               setup_kfail CALLEE *-*-*
+            }
+         }
+
+         kernel.function(string).inline
+         {
+            # Not easy to reliably test on all kernels
+            setup_kfail KERNEL_INLINE *-*-*
+         }
+
+         kernel.function(string).label(string)
+         {
+            # Not easy to reliably test on all kernels
+            setup_kfail KERNEL_LABEL *-*-*
+         }
+
+         kernel.mark(string) -
+         kernel.mark(string).format(string)
+         {
+            # Can only be tested on older kernels
+            # XXX: detect older kernel and test there, otherwise skip
+            setup_kfail KERNEL_MARK *-*-*
+         }
+
+         kprobe.module(string).function(string) -
+         kprobe.module(string).function(string).call -
+         kprobe.module(string).function(string).return -
+         kprobe.module(string).function(string).return.maxactive(number)
+         {
+            # Not easy to reliably test on all kernels
+            setup_kfail KPROBE_MODULE *-*-*
+         }
+
+         module(string).function(number) -
+         module(string).function(number).call -
+         module(string).function(number).exported -
+         module(string).function(number).return -
+         module(string).function(number).return.maxactive(number) -
+         module(string).function(string) -
+         module(string).function(string).call -
+         module(string).function(string).callee(string) -
+         module(string).function(string).callees -
+         module(string).function(string).callees(number) -
+         module(string).function(string).exported -
+         module(string).function(string).inline -
+         module(string).function(string).label(string) -
+         module(string).function(string).return -
+         module(string).function(string).return.maxactive(number) -
+         module(string).statement(number) -
+         module(string).statement(number).nearest -
+         module(string).statement(string) -
+         module(string).statement(string).nearest
+         {
+            # Not easy to reliably test on all kernels
+            setup_kfail MODULE *-*-*
+         }
+
+         process.function(string).callee(string) -
+         process.function(string).callees -
+         process.function(string).callees(number) -
+         process(string).function(string).callee(string) -
+         process(string).function(string).callees -
+         process(string).function(string).callees(number)
+         {
+            if {![callee_probes_p]} {
+               setup_kfail CALLEE *-*-*
+            }
+         }
+
+         process.library(string).function(string).callee(string) -
+         process.library(string).function(string).callees -
+         process.library(string).function(string).callees(number) -
+         process(string).library(string).function(string).callee(string) -
+         process(string).library(string).function(string).callees -
+         process(string).library(string).function(string).callees(number)
+         {
+            if {![callee_probes_p]} {
+               setup_kfail CALLEE *-*-*
+            }
+         }
+
+         process.library(string).plt -
+         process.library(string).plt.return -
+         process.library(string).plt(string) -
+         process.library(string).plt(string).return -
+         process(string).library(string).plt -
+         process(string).library(string).plt.return -
+         process(string).library(string).plt(string) -
+         process(string).library(string).plt(string).return -
+         process.plt -
+         process.plt.return -
+         process.plt(string) -
+         process.plt(string).return -
+         process(string).plt -
+         process(string).plt.return -
+         process(string).plt(string) -
+         process(string).plt(string).return
+         {
+            if {![plt_probes_p]} {
+               setup_kfail PLT *-*-*
+            }
+         }
+
+         process(string).insn -
+         process(number).insn -
+         process(string).insn.block -
+         process(number).insn.block
+         {
+            setup_kfail ITRACE *-*-*
+         }
+
+         process(number).statement(number).absolute -
+         process(number).statement(number).absolute.return
+         {
+            setup_kfail INODE_UPROBES *-*-*
+         }
+
+         timer.profile.tick
+         {
+            setup_kfail TIMER_HOOK *-*-*
+         }
+      }
+
+      fail "$test (untested probe type: $probe_type)"
+   }
+}
+
+###############################################
+# List retrieved from stap --dump-probe-types #
+###############################################
+
+testing_probe {begin}
+
+stap_list {begin}
+
+testing_probe {begin(number)}
+
+stap_list {begin(-1)}
+stap_list {begin(0)}
+stap_list {begin(1)}
+
+testing_probe {end}
+
+stap_list {end}
+
+testing_probe {end(number)}
+
+stap_list {end(-1)}
+stap_list {end(0)}
+stap_list {end(1)}
+
+testing_probe {error}
+
+stap_list {error}
+
+testing_probe {error(number)}
+
+stap_list {error(-1)}
+stap_list {error(0)}
+stap_list {error(1)}
+
+if {[java_p]} {
+
+   testing_probe {java(number).class(string).method(string)}
+
+   stap_list {java(123).class("MyClass").method("MyMethod")}
+
+   testing_probe {java(number).class(string).method(string).return}
+
+   stap_list {java(123).class("MyClass").method("MyMethod").return}
+
+   testing_probe {java(string).class(string).method(string)}
+
+   stap_list {java("JavaProc").class("MyClass").method("MyMethod")}
+
+   testing_probe {java(string).class(string).method(string).return}
+
+   stap_list {java("JavaProc").class("MyClass").method("MyMethod").return}
+}
+
+if {[hwbkpt_probes_p]} {
+
+   testing_probe {kernel.data(number).length(number).rw}
+
+   stap_list {kernel.data(0x123).length(456).rw}
+
+   testing_probe {kernel.data(number).length(number).write}
+
+   stap_list {kernel.data(0x123).length(456).write}
+
+   testing_probe {kernel.data(number).rw}
+
+   stap_list {kernel.data(0x123).rw}
+
+   testing_probe {kernel.data(number).write}
+
+   stap_list {kernel.data(0x123).write}
+
+   testing_probe {kernel.data(string).rw}
+
+   stap_list {kernel.data("abcd").rw}
+
+   testing_probe {kernel.data(string).write}
+
+   stap_list {kernel.data("abcd").write}
+}
+
+if {$kernel_addr != 0} {
+
+   testing_probe {kernel.function(number)}
+
+   stap_list "kernel.function(0x$kernel_addr)"
+
+   testing_probe {kernel.function(number).call}
+
+   stap_list "kernel.function(0x$kernel_addr).call"
+
+   testing_probe {kernel.function(number).exported}
+
+   stap_list "kernel.function(0x$kernel_addr).exported"
+
+   testing_probe {kernel.function(number).return}
+
+   stap_list "kernel.function(0x$kernel_addr).return"
+
+   testing_probe {kernel.function(number).return.maxactive(number)}
+
+   stap_list "kernel.function(0x$kernel_addr).return.maxactive(0)"
+
+   stap_list "kernel.function(0x$kernel_addr).return.maxactive(1)"
+
+   stap_list "kernel.function(0x$kernel_addr).return.maxactive(100)"
+}
+
+testing_probe {kernel.function(string)}
+
+# Simple function
+stap_list {kernel.function("vfs_read")} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\)}
+
+# Globby function
+stap_list {kernel.function("vfs_rea\[d\]")} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\)}
+
+# With filename wildcard
+stap_list {kernel.function("vfs_read@*")} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\)}
+
+testing_probe {kernel.function(string).call}
+
+stap_list {kernel.function("vfs_read").call} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).call}
+
+if {[callee_probes_p]} {
+
+   testing_probe {kernel.function(string).callee(string)}
+
+   stap_list {kernel.function("vfs_read").callee("*")} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+
+   testing_probe {kernel.function(string).callees}
+
+   stap_list {kernel.function("vfs_read").callees} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+
+   testing_probe {kernel.function(string).callees(number)}
+
+   stap_list {kernel.function("vfs_read").callees(1)} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+
+   stap_list {kernel.function("vfs_read").callees(2)} \
+      {re:kernel.function\("[^@]+@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
+}
+
+testing_probe {kernel.function(string).exported}
+
+stap_list {kernel.function("vfs_read").exported} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).exported}
+
+testing_probe {kernel.function(string).return}
+
+stap_list {kernel.function("vfs_read").return} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).return}
+
+testing_probe {kernel.function(string).return.maxactive(number)}
+
+stap_list {kernel.function("vfs_read").return.maxactive(0)} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).return.maxactive\(0\)}
+
+stap_list {kernel.function("vfs_read").return.maxactive(1)} \
+   {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).return.maxactive\(1\)}
+
+if {$kernel_addr != 0} {
+
+   testing_probe {kernel.statement(number)}
+
+   stap_list "kernel.statement(0x$kernel_addr)"
+
+   testing_probe {kernel.statement(number).nearest}
+
+   stap_list "kernel.statement(0x$kernel_addr).nearest"
+
+   testing_probe {kernel.statement(number).absolute}
+
+   stap_list "kernel.statement(0x$kernel_addr).absolute" \
+      "kernel.statement(0x$kernel_addr).absolute" {1} {-g}
+}
+
+testing_probe {kernel.statement(string)}
+
+stap_list {kernel.statement("vfs_read")} \
+   {re:kernel.statement\("vfs_read@[^:]+:[0-9]+"\)}
+
+testing_probe {kernel.statement(string).nearest}
+
+stap_list {kernel.statement("vfs_read").nearest} \
+   {re:kernel.statement\("vfs_read@[^:]+:[0-9]+"\).nearest}
+
+testing_probe {kernel.trace(string)}
+
+stap_list {kernel.trace("sched_switch")}
+
+stap_list {kernel.trace("s*")} \
+   {re:kernel.trace\("s[a-zA-Z0-9_]*"\)} {-1}
+
+testing_probe {kprobe.function(string)}
+
+stap_list {kprobe.function("vfs_read")}
+
+testing_probe {kprobe.function(string).call}
+
+stap_list {kprobe.function("vfs_read").call}
+
+testing_probe {kprobe.function(string).return}
+
+stap_list {kprobe.function("vfs_read").return}
+
+testing_probe {kprobe.function(string).return.maxactive(number)}
+
+stap_list {kprobe.function("vfs_read").return.maxactive(0)}
+stap_list {kprobe.function("vfs_read").return.maxactive(1)}
+
+if {$kernel_addr != 0} {
+
+   testing_probe {kprobe.statement(number).absolute}
+
+   stap_list "kprobe.statement(0x$kernel_addr).absolute" \
+      "kprobe.statement(0x$kernel_addr).absolute" {1} {-g}
+}
+
+testing_probe {netfilter.hook(string).pf(string)}
+
+stap_list {netfilter.hook("NF_INET_PRE_ROUTING").pf("NFPROTO_IPV4")}
+stap_list {netfilter.hook("STRING1").pf("STRING2")} "" {1} {-g}
+
+testing_probe {netfilter.hook(string).pf(string).priority(string)}
+
+stap_list {netfilter.hook("NF_INET_PRE_ROUTING").pf("NFPROTO_IPV4").priority("255")}
+stap_list {netfilter.hook("STRING1").pf("STRING2").priority("STRING3")} "" {1} {-g}
+
+testing_probe {netfilter.pf(string).hook(string)}
+
+stap_list {netfilter.pf("NFPROTO_IPV4").hook("NF_INET_PRE_ROUTING")}
+stap_list {netfilter.pf("STRING1").hook("STRING2")} "" {1} {-g}
+
+testing_probe {netfilter.pf(string).hook(string).priority(string)}
+
+stap_list {netfilter.pf("NFPROTO_IPV4").hook("NF_INET_PRE_ROUTING").priority("255")}
+stap_list {netfilter.pf("STRING1").hook("STRING2").priority("STRING3")} "" {1} {-g}
+
+testing_probe {never}
+
+stap_list {never}
+
+testing_probe {perf.type(number).config(number)}
+
+stap_list {perf.type(1).config(1)}
+
+testing_probe {perf.type(number).config(number).counter(string)}
+
+stap_list {perf.type(1).config(1).counter("string")}
+
+testing_probe {perf.type(number).config(number).process}
+
+stap_list {perf.type(1).config(1).process} \
+   {perf.type(1).config(1).process} {1} {-c ls}
+
+testing_probe {perf.type(number).config(number).process(string)}
+
+stap_list {perf.type(1).config(1).process("string")}
+
+testing_probe {perf.type(number).config(number).process(string).counter(string)}
+
+stap_list {perf.type(1).config(1).process("string").counter("string")}
+
+testing_probe {perf.type(number).config(number).sample(number)}
+
+stap_list {perf.type(1).config(1).sample(1000)}
+
+testing_probe {process.begin}
+
+stap_list {process.begin}
+
+testing_probe {process.end}
+
+stap_list {process.end}
+
+if {$exepath != ""} {
+
+   if {$process_addr != 0} {
+
+      testing_probe {process.function(number)}
+
+      stap_list_cmd "process.function(0x$process_addr)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)"
+
+      testing_probe {process.function(number).call}
+
+      stap_list_cmd "process.function(0x$process_addr).call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.call"
+
+      testing_probe {process.function(number).exported}
+
+      stap_list_cmd "process.function(0x$process_addr).exported" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.exported"
+
+      testing_probe {process.function(number).return}
+
+      stap_list_cmd "process.function(0x$process_addr).return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.return"
+   }
+
+   testing_probe {process.function(string)}
+
+   stap_list_cmd "process.function(\"foo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   testing_probe {process.function(string).call}
+
+   stap_list_cmd "process.function(\"foo\").call" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.call"
+
+   if {[callee_probes_p]} {
+
+      testing_probe {process.function(string).callee(string)}
+
+      stap_list_cmd "process.function(\"foo\").callee(\"bar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process.function(string).callees}
+
+      stap_list_cmd "process.function(\"foo\").callees" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process.function(string).callees(number)}
+
+      stap_list_cmd "process.function(\"foo\").callees(1)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      stap_list_cmd "process.function(\"foo\").callees(2)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2} 
+   }
+
+   testing_probe {process.function(string).exported}
+
+   stap_list_cmd "process.function(\"main\").exported" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.exported"
+
+   testing_probe {process.function(string).inline}
+
+   stap_list_cmd "process.function(\"inln\").inline" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"inln@\[^:\]+:11\"\\\)\\\.inline"
+
+   testing_probe {process.function(string).label(string)}
+
+   stap_list_cmd "process.function(\"main\").label(\"main_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list_cmd "process.function(\"main\").label(\"main_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list_cmd "process.function(\"main@$test.c:33\").label(\"main_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list_cmd "process.function(\"main@$test.c:33\").label(\"main_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   testing_probe {process.function(string).return}
+
+   stap_list_cmd "process.function(\"main\").return" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.return"
+
+   if {$library_addr != 0} {
+
+      testing_probe {process.library(string).function(number)}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)"
+
+      testing_probe {process.library(string).function(number).call}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr).call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)\\\.call"
+
+      testing_probe {process.library(string).function(number).exported}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr).exported" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)\\\.exported"
+
+      testing_probe {process.library(string).function(number).return}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(0x$library_addr).return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(0x\[0-9a-f\]+\\\)\\\.return"
+   }
+
+   testing_probe {process.library(string).function(string)}
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)"
+
+   testing_probe {process.library(string).function(string).call}
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").call" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)\\\.call"
+
+   if {[callee_probes_p]} {
+
+      testing_probe {process.library(string).function(string).callee(string)}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:47\"\\\)"
+
+      testing_probe {process.library(string).function(string).callees}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:47\"\\\)"
+
+      testing_probe {process.library(string).function(string).callees(number)}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(1)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:47\"\\\)"
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callees(2)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"lib(foo|bar)@\[^:\]+:(54|47)\"\\\)\\\.callee\\\(\"(libbar|libinln)@\[^:\]+:(47|42)\"\\\)" {2}
+   }
+
+   testing_probe {process.library(string).function(string).exported}
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").exported" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)\\\.exported"
+
+   testing_probe {process.library(string).function(string).inline}
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libinln\").inline" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libinln@\[^:\]+:42\"\\\)\\\.inline"
+
+   testing_probe {process.library(string).function(string).label(string)}
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").label(\"lib_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:57\"\\\)\\\.label\\\(\"lib_label\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").label(\"lib_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:57\"\\\)\\\.label\\\(\"lib_label\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo@$test.c:57\").label(\"lib_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:57\"\\\)\\\.label\\\(\"lib_label\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo@$test.c:57\").label(\"lib_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:57\"\\\)\\\.label\\\(\"lib_label\"\\\)"
+
+   testing_probe {process.library(string).function(string).return}
+
+   stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").return" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:54\"\\\)\\\.return"
+
+   testing_probe {process.library(string).mark(string)}
+
+   stap_list_cmd_lib "process.library(\"sopath\").mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {[plt_probes_p]} {
+
+      testing_probe {process.library(string).plt}
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
+
+      testing_probe {process.library(string).plt.return}
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt.return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\).return" {-1}
+
+      testing_probe {process.library(string).plt(string)}
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libbar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\)"
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libba?\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\)"
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"\\\[lp\\\]*\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"(libbar|printf)\"\\\)" {-1}
+
+      testing_probe {process.library(string).plt(string).return}
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libbar\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\).return"
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"libba?\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"libbar\"\\\).return"
+
+      stap_list_cmd_lib "process.library(\"sopath\").plt(\"\\\[lp\\\]*\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.plt\\\(\"(libbar|printf)\"\\\).return" {-1}
+   }
+
+   testing_probe {process.library(string).provider(string).mark(string)}
+
+   stap_list_cmd_lib "process.library(\"sopath\").provider(\"lib\").mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.provider\\\(\"lib\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {$library_addr != 0} {
+
+      testing_probe {process.library(string).statement(number)}
+
+      stap_list_cmd_lib "process.library(\"sopath\").statement(0x$library_addr)" \
+         "process(\"$exefullpath\").library(\"$sofullpath\").statement(0x$library_addr)"
+
+      testing_probe {process.library(string).statement(number).nearest}
+
+      stap_list_cmd_lib "process.library(\"sopath\").statement(0x$library_addr).nearest" \
+         "process(\"$exefullpath\").library(\"$sofullpath\").statement(0x$library_addr).nearest"
+   }
+
+   testing_probe {process.library(string).statement(string)}
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libinln\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libinln@\[^:\]+:42\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:54\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:54\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:55\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:55\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfo?@$test.c:55\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:55\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c+1\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:55\"\\\)"
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54-55\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54,55-56\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:*\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   testing_probe {process.library(string).statement(string).nearest}
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:58\").nearest" \
+       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\).nearest"
+
+   testing_probe {process.mark(string)}
+
+   stap_list_cmd "process.mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {[plt_probes_p]} {
+
+      testing_probe {process.plt}
+
+      stap_list_cmd "process.plt" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
+
+
+      testing_probe {process.plt.return}
+
+      stap_list_cmd "process.plt.return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\).return" {-1}
+
+      testing_probe {process.plt(string)}
+
+      stap_list_cmd "process.plt(\"libfoo\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+
+      stap_list_cmd "process.plt(\"libfo?\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+
+      testing_probe {process.plt(string).return}
+
+      stap_list_cmd "process.plt(\"libfoo\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\).return"
+
+      stap_list_cmd "process.plt(\"libfo?\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\).return"
+
+      stap_list_cmd "process.plt(\"\\\[lp\\\]*\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\).return" {-1}
+   }
+
+   testing_probe {process.provider(string).mark(string)}
+
+   stap_list_cmd "process.provider(\"main\").mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.provider\\\(\"main\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {$process_addr != 0} {
+
+      testing_probe {process.statement(number)}
+
+      stap_list_cmd "process.statement(0x$process_addr)" \
+         "process(\"$exefullpath\").statement(0x$process_addr)"
+
+      testing_probe {process.statement(number).nearest}
+
+      stap_list_cmd "process.statement(0x$process_addr).nearest" \
+         "process(\"$exefullpath\").statement(0x$process_addr).nearest"
+   }
+
+   testing_probe {process.statement(string)}
+
+   stap_list_cmd "process.statement(\"inln\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"inln@\[^:\]+:11\"\\\)"
+
+   stap_list_cmd "process.statement(\"foo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   stap_list_cmd "process.statement(\"foo@$test.c\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   stap_list_cmd "process.statement(\"foo@$test.c:24\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+
+   stap_list_cmd "process.statement(\"fo?@$test.c:24\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+
+   stap_list_cmd "process.statement(\"foo@$test.c+1\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+
+   stap_list_cmd "process.statement(\"foo@$test.c:24-25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list_cmd "process.statement(\"foo@$test.c:24,25-26\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list_cmd "process.statement(\"foo@$test.c:*\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   testing_probe {process.statement(string).nearest}
+
+   stap_list_cmd "process.statement(\"foo@$test.c:24,25-26\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
+}
+
+testing_probe {process.syscall}
+
+stap_list {process.syscall}
+
+testing_probe {process.syscall.return}
+
+stap_list {process.syscall.return}
+
+testing_probe {process.thread.begin}
+
+stap_list {process.thread.begin}
+
+testing_probe {process.thread.end}
+
+stap_list {process.thread.end}
+
+# All the process(number).* probes. for number, need to use a valid pid 
+# instead of just 1, so that errors about permissions dont arise.
+testing_probe {process(number).begin}
+
+stap_list "process($valid_pid).begin"
+
+testing_probe {process(number).end}
+
+stap_list "process($valid_pid).end"
+
+if {$exepath != ""} {
+
+   if {$process_addr != 0} {
+
+      testing_probe {process(number).function(number)}
+
+      stap_list "process($valid_pid).function(0x$process_addr)" \
+          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)"
+
+      testing_probe {process(number).function(number).call}
+
+      stap_list "process($valid_pid).function(0x$process_addr).call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.call"
+
+      testing_probe {process(number).function(number).exported}
+
+      stap_list "process($valid_pid).function(0x$process_addr).exported" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.exported"
+
+      testing_probe {process(number).function(number).return}
+
+      stap_list "process($valid_pid).function(0x$process_addr).return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(0x\[a-f0-9\]+\\\)\\\.return"
+   }
+
+   testing_probe {process(number).function(string)}
+
+   stap_list "process($valid_pid).function(\"foo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   testing_probe {process(number).function(string).call}
+
+   stap_list "process($valid_pid).function(\"foo\").call" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.call"
+
+   if {[callee_probes_p]} {
+
+      testing_probe {process(number).function(string).callee(string)}
+
+      stap_list "process($valid_pid).function(\"foo\").callee(\"bar\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process(number).function(string).callees}
+
+      stap_list "process($valid_pid).function(\"foo\").callees" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process(number).function(string).callees(number)}
+
+      stap_list "process($valid_pid).function(\"foo\").callees(1)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      stap_list "process($valid_pid).function(\"foo\").callees(2)" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"(foo|bar)@\[^:\]+:\[0-9\]+\"\\\)\\\.callee\\\(\"(bar|inln)@\[^:\]+:\[0-9\]+\"\\\)" {2}
+   }
+
+   testing_probe {process(number).function(string).exported}
+
+   stap_list "process($valid_pid).function(\"main\").exported" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.exported"
+
+   testing_probe {process(number).function(string).inline}
+
+   stap_list "process($valid_pid).function(\"inln\").inline" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"inln@\[^:\]+:11\"\\\)\\\.inline"
+
+   testing_probe {process(number).function(string).label(string)}
+
+   stap_list "process($valid_pid).function(\"main\").label(\"main_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list "process($valid_pid).function(\"main\").label(\"main_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list "process($valid_pid).function(\"main@$test.c:33\").label(\"main_label\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   stap_list "process($valid_pid).function(\"main@$test.c:33\").label(\"main_labe?\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:33\"\\\)\\\.label\\\(\"main_label\"\\\)"
+
+   testing_probe {process(number).function(string).return}
+
+   stap_list "process($valid_pid).function(\"main\").return" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"main@\[^:\]+:29\"\\\)\\\.return"
+
+   testing_probe {process(number).mark(string)}
+
+   stap_list "process($valid_pid).mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {[plt_probes_p]} {
+
+      testing_probe {process(number).plt}
+
+      stap_list "process($valid_pid).plt" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\)" {-1}
+
+      testing_probe {process(number).plt.return}
+
+      stap_list "process($valid_pid).plt.return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"\[^\"\]+\"\\\).return" {-1}
+
+      testing_probe {process(number).plt(string)}
+
+      stap_list "process($valid_pid).plt(\"libfoo\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+
+      stap_list "process($valid_pid).plt(\"libfo?\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\)"
+
+      stap_list "process($valid_pid).plt(\"\\\[lp\\\]*\")" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\)" {-1}
+
+      testing_probe {process(number).plt(string).return}
+
+      stap_list "process($valid_pid).plt(\"libfoo\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\).return"
+
+      stap_list "process($valid_pid).plt(\"libfo?\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"libfoo\"\\\).return"
+
+      stap_list "process($valid_pid).plt(\"\\\[lp\\\]*\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.plt\\\(\"(libfoo|printf)\"\\\).return" {-1}
+   }
+
+   testing_probe {process(number).provider(string).mark(string)}
+
+   stap_list "process($valid_pid).provider(\"main\").mark(\"mark\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.provider\\\(\"main\"\\\)\\\.mark\\\(\"mark\"\\\)"
+
+   if {$process_addr != 0} {
+
+      testing_probe {process(number).statement(number)}
+
+      stap_list "process($valid_pid).statement(0x$process_addr)" \
+         "process(\"$exefullpath\").statement(0x$process_addr)"
+
+      testing_probe {process(number).statement(number).nearest}
+
+      stap_list "process($valid_pid).statement(0x$process_addr).nearest" \
+         "process(\"$exefullpath\").statement(0x$process_addr).nearest"
+   }
+
+   testing_probe {process(number).statement(string)}
+
+   stap_list "process($valid_pid).statement(\"inln\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"inln@\[^:\]+:11\"\\\)"
+
+   stap_list "process($valid_pid).statement(\"foo\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:23\"\\\)"
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:24\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+
+   stap_list "process($valid_pid).statement(\"fo?@$test.c:24\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c+1\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:24-25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:24,25-26\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:*\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
+
+   testing_probe {process(number).statement(string).nearest}
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:29\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
+}
+
+testing_probe {process(number).syscall}
+
+stap_list "process($valid_pid).syscall"
+
+testing_probe {process(number).syscall.return}
+
+stap_list "process($valid_pid).syscall.return"
+
+testing_probe {process(number).thread.begin}
+
+stap_list "process($valid_pid).thread.begin"
+
+testing_probe {process(number).thread.end}
+
+stap_list "process($valid_pid).thread.end"
+
+# All of the process(string).* are already tested through stap_list_cmd
+
+   #process(string).begin
+   #process(string).end
+   #process(string).function(number)
+   #process(string).function(number).call
+   #process(string).function(number).exported
+   #process(string).function(number).return
+   #process(string).function(string)
+   #process(string).function(string).call
+   #process(string).function(string).callee(string)
+   #process(string).function(string).callees
+   #process(string).function(string).callees(number)
+   #process(string).function(string).exported
+   #process(string).function(string).inline
+   #process(string).function(string).label(string)
+   #process(string).function(string).return
+   #process(string).insn
+   #process(string).insn.block
+   #process(string).library(string).function(number)
+   #process(string).library(string).function(number).call
+   #process(string).library(string).function(number).exported
+   #process(string).library(string).function(number).return
+   #process(string).library(string).function(string)
+   #process(string).library(string).function(string).call
+   #process(string).library(string).function(string).callee(string)
+   #process(string).library(string).function(string).callees
+   #process(string).library(string).function(string).callees(number)
+   #process(string).library(string).function(string).exported
+   #process(string).library(string).function(string).inline
+   #process(string).library(string).function(string).label(string)
+   #process(string).library(string).function(string).return
+   #process(string).library(string).mark(string)
+   #process(string).library(string).plt
+   #process(string).library(string).plt(string)
+   #process(string).library(string).provider(string).mark(string)
+   #process(string).library(string).statement(number)
+   #process(string).library(string).statement(string)
+   #process(string).mark(string)
+   #process(string).plt
+   #process(string).plt(string)
+   #process(string).provider(string).mark(string)
+   #process(string).statement(number)
+   #process(string).statement(string)
+   #process(string).syscall
+   #process(string).syscall.return
+   #process(string).thread.begin
+   #process(string).thread.end
+
+testing_probe {procfs.read}
+
+stap_list {procfs.read}
+
+testing_probe {procfs.read.maxsize(number)}
+
+stap_list {procfs.read.maxsize(100)}
+
+testing_probe {procfs.umask(number).read}
+
+stap_list {procfs.umask(0400).read} \
+   {procfs.umask(256).read}
+
+testing_probe {procfs.umask(number).read.maxsize(number)}
+
+stap_list {procfs.umask(0400).read.maxsize(100)} \
+   {procfs.umask(256).read.maxsize(100)}
+
+testing_probe {procfs.umask(number).write}
+
+stap_list {procfs.umask(0400).write} \
+   {procfs.umask(256).write}
+
+testing_probe {procfs.write}
+
+stap_list {procfs.write}
+
+testing_probe {procfs(string).read}
+
+stap_list {procfs("string").read}
+
+testing_probe {procfs(string).read.maxsize(number)}
+
+stap_list {procfs("string").read.maxsize(100)}
+
+testing_probe {procfs(string).umask(number).read}
+
+stap_list {procfs("string").umask(0400).read} \
+   {procfs("string").umask(256).read}
+
+testing_probe {procfs(string).umask(number).read.maxsize(number)}
+
+stap_list {procfs("string").umask(0400).read.maxsize(100)} \
+   {procfs("string").umask(256).read.maxsize(100)}
+
+testing_probe {procfs(string).umask(number).write}
+
+stap_list {procfs("string").umask(0400).write} \
+   {procfs("string").umask(256).write}
+
+testing_probe {procfs(string).write}
+
+stap_list {procfs("string").write}
+
+testing_probe {timer.hz(number)}
+
+stap_list {timer.hz(1)}
+
+testing_probe {timer.jiffies(number)}
+
+stap_list {timer.jiffies(10)}
+
+testing_probe {timer.jiffies(number).randomize(number)}
+
+stap_list {timer.jiffies(10).randomize(2)}
+
+testing_probe {timer.ms(number)}
+
+stap_list {timer.ms(10)}
+
+testing_probe {timer.ms(number).randomize(number)}
+
+stap_list {timer.ms(10).randomize(2)}
+
+testing_probe {timer.msec(number)}
+
+stap_list {timer.msec(10)}
+
+testing_probe {timer.msec(number).randomize(number)}
+
+stap_list {timer.msec(10).randomize(2)}
+
+testing_probe {timer.ns(number)}
+
+stap_list {timer.ns(100000)}
+
+testing_probe {timer.ns(number).randomize(number)}
+
+stap_list {timer.ns(100000).randomize(2)}
+
+testing_probe {timer.nsec(number)}
+
+stap_list {timer.nsec(100000)}
+
+testing_probe {timer.nsec(number).randomize(number)}
+
+stap_list {timer.nsec(100000).randomize(2)}
+
+testing_probe {timer.s(number)}
+
+stap_list {timer.s(100)}
+
+testing_probe {timer.s(number).randomize(number)}
+
+stap_list {timer.s(100).randomize(2)}
+
+testing_probe {timer.sec(number)}
+
+stap_list {timer.sec(100)}
+
+testing_probe {timer.sec(number).randomize(number)}
+
+stap_list {timer.sec(100).randomize(2)}
+
+testing_probe {timer.us(number)}
+
+stap_list {timer.us(100)}
+
+testing_probe {timer.us(number).randomize(number)}
+
+stap_list {timer.us(100).randomize(2)}
+
+testing_probe {timer.usec(number)}
+
+stap_list {timer.usec(100000)}
+
+testing_probe {timer.usec(number).randomize(number)}
+
+stap_list {timer.usec(100000).randomize(2)}
+
+test_cleanup
+test_cleanup2
+report_untested_probes

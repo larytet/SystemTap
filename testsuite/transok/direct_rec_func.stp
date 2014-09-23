@@ -1,0 +1,12 @@
+#! stap -p3
+
+probe begin {
+  f1(1);
+  exit();
+}
+
+function f1 (a) {
+  printf ("asdf\n");
+  if (a < 4)
+    f1(a+1);
+}

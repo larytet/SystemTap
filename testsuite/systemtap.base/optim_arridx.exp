@@ -56,10 +56,10 @@ exit()
 }
 end /* <- end */
   # locals
-  idx0:long
-  val:long
+  __idx0:long
+  __val:long
 {
-foreach (val = [idx0] in arr3-) printf("arr3[%#d]=%#x\\n", idx0, val)
+foreach (__val = [__idx0] in arr3-) printf("arr3[%#d]=%#x\\n", __idx0, __val)
 }
 end /* <- end */
 {
@@ -75,4 +75,9 @@ printf("elide_global_b=%#x\\n", elide_global_b)
 }
 }
 
+# avoid propagating PR17301
+set origdir $env(SYSTEMTAP_DIR)
+set env(SYSTEMTAP_DIR) /dev/null
 stap_run_exact $test $srcdir/$subdir/$test.stp -p2 -v 2>/dev/null
+set env(SYSTEMTAP_DIR) $origdir
+

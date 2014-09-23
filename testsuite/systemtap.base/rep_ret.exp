@@ -32,11 +32,14 @@ foreach arch $arches {
 
   if {[installtest_p] && [uprobes_p]} {
     set ok 0
-    set bad 0
     set warn 0
 
     spawn stap -e {probe process(@1).function("*") { println(probefunc()) }} ./$exe -c ./$exe
+    # We have two cases for main below to handle the possibility of main not being the first
+    # line being printed out (but only one of the two will ever fire, so the count is still 3)
+    # The test however does still ensure that main is followed by rep_ret then by repnz_ret.
     expect {
+      -re {\r\nmain\r\n} { incr ok; exp_continue }
       -re {^main\r\n} { incr ok; exp_continue }
       -re {^rep_ret\r\n} { incr ok; exp_continue }
       -re {^repnz_ret\r\n} { incr ok; exp_continue }
@@ -46,10 +49,10 @@ foreach arch $arches {
     }
     wait
 
-    if {$ok == 3 && $bad == 0 && $warn == 0} {
+    if {$ok == 3 && $warn == 0} {
       pass "$exe"
     } else {
-      fail "$exe ($ok, $bad, $warn)"
+      fail "$exe ($ok, $warn)"
     }
   } else {
     untested "$exe"

@@ -7,10 +7,7 @@
 
 # scheduler.cpu_off test moved to scheduler-cpu_off.stp
 
-probe scheduler.cpu_on ?
-{
-	printf("%s: %p %d\n", name, task_prev, idle)
-}
+# scheduler.cpu_on test moved to scheduler-cpu_on.stp
 
 probe scheduler.tick
 {

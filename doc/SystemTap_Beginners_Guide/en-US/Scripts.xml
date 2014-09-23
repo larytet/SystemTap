@@ -185,7 +185,7 @@
 <tertiary>introduction</tertiary>
 </indexterm>
   <para>
-    Systemtap allows you to write functions to factor out code to be used by a
+    SystemTap allows you to write functions to factor out code to be used by a
     number of probes. Thus, rather than repeatedly writing the same
     series of statements in multiple probes, you can just place the instructions
     in a <firstterm>function</firstterm>, as in:
@@ -331,7 +331,7 @@ probe <replaceable>event</replaceable> {<replaceable>function_name</replaceable>
 	    <emphasis>return</emphasis> of the kernel function
 	    <command>sys_open</command>, append the <command>return</command>
 	    string to the event statement;
-	    i.e. <command>kernel.function("sys_open").return</command>.
+	    that is, <command>kernel.function("sys_open").return</command>.
 	  </para>
 <indexterm>
 <primary>Events</primary>
@@ -356,7 +356,7 @@ probe <replaceable>event</replaceable> {<replaceable>function_name</replaceable>
 probe kernel.function("*@net/socket.c").return { }</programlisting>
 </example>
 
-	  <remark>Wild cards also work for other types of events, e.g. syscall.*</remark>
+	  <remark>Wild cards also work for other types of events, for example syscall.*</remark>
 
 	  <para>
 	    In the previous example, the first probe's event specifies the entry
@@ -472,7 +472,7 @@ probe module("ext3").function("*").return { }</programlisting>
 <secondary>Events</secondary>
 </indexterm>
 	  <para>
-	    The startup of a SystemTap session; i.e. as soon as the SystemTap
+	    The startup of a SystemTap session; that is, as soon as the SystemTap
 	    script is run.
 	  </para>
 	</listitem>
@@ -520,8 +520,8 @@ probe module("ext3").function("*").return { }</programlisting>
 
 	  <para>
 	    <xref linkend="timer"/> is an example of a probe that prints
-	    <command>hello world</command> every 4 seconds. Note that you can
-	    also use the following timer events:
+	    <command>hello world</command> every 4 seconds. It is also possible
+            to use the following timer events:
 	  </para>
 
 <itemizedlist>
@@ -564,7 +564,7 @@ probe module("ext3").function("*").return { }</programlisting>
   </section>
 <!-- stophere -->
 <section id="systemtapscript-handler">
-	<title>Systemtap Handler/Body</title>
+	<title>SystemTap Handler/Body</title>
 	<indexterm>
 		<primary>handlers</primary>
 		<secondary>introduction</secondary>
@@ -581,7 +581,7 @@ probe module("ext3").function("*").return { }</programlisting>
 
 	<para>
 		In <xref linkend="helloworld"/>, the event <command>begin</command>
-		(i.e. the start of the session) triggers the handler enclosed in
+		(that is, the start of the session) triggers the handler enclosed in
 		<command>{ }</command>, which simply prints <command>hello
 			world</command> followed by a new-line, then exits.
 	</para>
@@ -635,7 +635,7 @@ probe module("ext3").function("*").return { }</programlisting>
 	<para>
 		The <replaceable>format string</replaceable> specifies how
 		<replaceable>arguments</replaceable> should be printed. The format string
-		of <xref linkend="helloworld"/> simply instructs SystemTap to print
+		of <xref linkend="helloworld"/> instructs SystemTap to print
 		<command>hello world</command>, and contains no format specifiers.
 	</para>
 	<indexterm>
@@ -922,7 +922,7 @@ hald(2360) open</screen>
 <!-- 						 <tertiary>handler functions</tertiary> -->
 					 </indexterm>
 					 <para>
-						 This particular function is quite useful, providing you with a way
+						 This particular function is quite useful in providing you with a way
 						 to better organize your print results. The function takes one
 						 argument, an indentation delta, which indicates how many
 						 spaces to add or remove from a thread's "indentation counter".
@@ -1099,8 +1099,8 @@ probe kernel.function("*@net/socket.c").return
 							 <replaceable>process ID</replaceable>)</command> each time you wish
 						 to target a specific process. However, using
 						 <command>target()</command> makes it easier for you to re-use the
-						 script, giving you the ability to simply pass a process ID as an
-						 argument each time you wish to run the script (e.g. <command>stap
+						 script, giving you the ability to pass a process ID as an
+						 argument each time you wish to run the script (that is, <command>stap
 							 targetexample.stp -x <replaceable>process ID</replaceable></command>).
 					 </para>
 					 <!--

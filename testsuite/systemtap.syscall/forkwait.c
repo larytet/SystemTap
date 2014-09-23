@@ -12,7 +12,14 @@ int main ()
 	int status;
 	
 	child = fork();
-	//staptest// fork () = NNNN
+#if !defined(__ia64__)
+	// Sometimes glibc substitutes a clone() call for a fork()
+	// call (verified with strace).
+	//staptest// [[[[fork ()!!!!clone (.+, XXXX, XXXX, XXXX)]]]] = NNNN
+#else
+	// On RHEL5 ia64, fork() gets turned into clone2().
+	//staptest// [[[[fork ()!!!!clone2 (.+, XXXX, XXXX, XXXX, XXXX)]]]] = NNNN
+#endif
 	if (!child) {
 		int i = 0xfffff;
 		while (i > 0) i--;

@@ -1,5 +1,5 @@
 // stapdyn mutatee functions
-// Copyright (C) 2012-2013 Red Hat Inc.
+// Copyright (C) 2012-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -194,32 +194,10 @@ mutatee::update_semaphores(unsigned short delta, size_t start)
 
 
 void
-mutatee::call_utrace_dynprobe(const dynprobe_location& probe,
-                              BPatch_thread* thread)
+mutatee::call_utrace_dynprobes(const vector<dynprobe_location>& probes,
+			       BPatch_thread* thread)
 {
-  if (utrace_enter_function != NULL)
-    {
-      vector<BPatch_snippet *> args;
-      args.push_back(new BPatch_constExpr((int64_t)probe.index));
-      args.push_back(new BPatch_constExpr((void*)NULL)); // pt_regs
-      staplog(1) << "calling function with " << args.size() << " args" << endl;
-      BPatch_funcCallExpr call(*utrace_enter_function, args);
-      if (thread)
-	thread->oneTimeCode(call);
-      else
-	process->oneTimeCode(call);
-    }
-  else
-    staplog(1) << "no utrace enter function!" << endl;
-}
-
-
-// Remember utrace probes. They get handled when the associated
-// callback hits.
-void
-mutatee::instrument_utrace_dynprobe(const dynprobe_location& probe)
-{
-  if (!stap_dso)
+  if (!stap_dso || probes.empty())
     return;
 
   if (utrace_enter_function == NULL)
@@ -229,9 +207,36 @@ mutatee::instrument_utrace_dynprobe(const dynprobe_location& probe)
 			     functions);
       if (!functions.empty())
 	utrace_enter_function = functions[0];
+      else
+	{
+	  staplog(1) << "no utrace enter function in pid " << pid << "!" << endl;
+	  return;
+	}
     }
 
-  // Remember this probe. It will get called from a callback function.
+  for (size_t i = 0; i < probes.size(); ++i)
+    {
+      const dynprobe_location& probe = probes[i];
+      vector<BPatch_snippet *> args;
+      args.push_back(new BPatch_constExpr((int64_t)probe.index));
+      args.push_back(new BPatch_constExpr((void*)NULL)); // pt_regs
+      BPatch_funcCallExpr call(*utrace_enter_function, args);
+      staplog(3) << "calling utrace function in pid " << pid
+		 << " for probe index " << probe.index << endl;
+      if (thread)
+	thread->oneTimeCode(call);
+      else
+	process->oneTimeCode(call);
+    }
+}
+
+
+// Remember utrace probes. They get handled when the associated
+// callback hits.
+void
+mutatee::instrument_utrace_dynprobe(const dynprobe_location& probe)
+{
+  // Just remember this probe. It will get called from a callback function.
   attached_probes.push_back(probe);
 }
 
@@ -243,7 +248,7 @@ mutatee::instrument_utrace_dynprobe(const dynprobe_location& probe)
 void
 mutatee::instrument_global_dynprobe_target(const dynprobe_target& target)
 {
-  staplog(1) << "found global target, inserting "
+  staplog(1) << "found global target in pid " << pid << ", inserting "
              << target.probes.size() << " probes" << endl;
 
   for (size_t j = 0; j < target.probes.size(); ++j)
@@ -277,9 +282,10 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
   BPatch_function* enter_function = NULL;
   bool use_pt_regs = false;
 
-  staplog(1) << "found target \"" << target.path << "\", inserting "
-             << target.probes.size() << " probes" << endl;
+  staplog(1) << "found target \"" << target.path << "\" in pid " << pid
+	     << ", inserting " << target.probes.size() << " probes" << endl;
 
+  process->beginInsertionSet();
   for (size_t j = 0; j < target.probes.size(); ++j)
     {
       const dynprobe_location& probe = target.probes[j];
@@ -344,7 +350,19 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
           continue;
         }
 
-      // TODO check each point->getFunction()->isInstrumentable()
+      // Check that the functions containing each point are actually
+      // instrumentable.  Unfortunately, findPoints doesn't make any
+      // distinction, and insertSnippet doesn't tell us either, so this
+      // is the best way we have to let the user know.
+      vector<BPatch_point*> instrumentable_points;
+      for (size_t i = 0; i < points.size(); ++i)
+        if (points[i]->getFunction()->isInstrumentable())
+          instrumentable_points.push_back(points[i]);
+        else
+          stapwarn() << "Couldn't instrument the function containing "
+                     << lex_cast_hex(address) << ", " << target.path
+                     << "+" << lex_cast_hex(probe.offset) << endl;
+      points.swap(instrumentable_points);
 
       if (probe.return_p)
         {
@@ -366,6 +384,9 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
             }
           points.swap(return_points);
         }
+
+      if (points.empty())
+        continue;
 
       // The entry function needs the index of this particular probe, then
       // the registers in whatever form we chose above.
@@ -402,6 +423,7 @@ mutatee::instrument_dynprobe_target(BPatch_object* object,
             }
         }
     }
+  process->finalizeInsertionSet(false);
 }
 
 
@@ -436,12 +458,11 @@ mutatee::instrument_object_dynprobes(BPatch_object* object,
   // We want to map objects by their full path, but the pathName from
   // Dyninst might be relative, so fill it out.
   string path = resolve_path(object->pathName());
-  staplog(2) << "found object " << path << endl;
+  staplog(2) << "found object \"" << path << "\" in pid " << pid << endl;
 
   size_t semaphore_start = semaphores.size();
 
   // Match the object to our targets, and instrument matches.
-  process->beginInsertionSet();
   for (size_t i = 0; i < targets.size(); ++i)
     {
       const dynprobe_target& target = targets[i];
@@ -450,7 +471,6 @@ mutatee::instrument_object_dynprobes(BPatch_object* object,
       if (path == target.path)
         instrument_dynprobe_target(object, target);
     }
-  process->finalizeInsertionSet(false);
 
   // Increment new semaphores
   update_semaphores(1, semaphore_start);
@@ -458,54 +478,65 @@ mutatee::instrument_object_dynprobes(BPatch_object* object,
 
 
 void
-mutatee::begin_callback()
+mutatee::begin_callback(BPatch_thread *thread)
 {
+  const vector<dynprobe_location>& proc_begin_probes =
+    find_attached_probes(STAPDYN_PROBE_FLAG_PROC_BEGIN);
+
+  // Shortcut out if there aren't any relevant probes
+  if (proc_begin_probes.empty())
+    return;
+
   // process->oneTimeCode() requires that the process be stopped
   mutatee_freezer mf(*this);
   if (!is_stopped())
     return;
 
-  for (size_t i = 0; i < attached_probes.size(); ++i)
-    {
-      const dynprobe_location& probe = attached_probes[i];
-      if (probe.flags & STAPDYN_PROBE_FLAG_PROC_BEGIN)
-	{
-	  staplog(1) << "found begin proc probe, index = " << probe.index << endl;
-	  call_utrace_dynprobe(probe);
-	}
-    }
+  staplog(2) << "firing " << proc_begin_probes.size()
+	     << " process.begin probes in pid " << pid << endl;
+  call_utrace_dynprobes(proc_begin_probes, thread);
 }
 
 
-// FIXME: We have a problem with STAPDYN_PROBE_FLAG_PROC_END
-// (i.e. 'process.end' probes).
-//
-// If we use dyninst's registerExitCallback(), when that callback
-// hits, we can't stop the process before it exits. So, we can't call
-// oneTimeCode() as we've done for the thread callbacks. So, that
-// doesn't work.
-//
-// When registerExitCallback() hits, we could just run the probe
-// locally, but then the probe context wouldn't be correct.
-
+// FIXME: When dyninst's registerExitCallback() hits, it's too late
+// to stop the process and inject oneTimeCode() for process.end.
+// So while the code here works for post-exec "end", for now the
+// mutator::exit_callback() will run its probes locally in stapdyn.
 void
-mutatee::exit_callback(BPatch_thread *thread)
+mutatee::exit_callback(BPatch_thread *thread, bool exec_p)
 {
-  for (size_t i = 0; i < attached_probes.size(); ++i)
-    {
-      const dynprobe_location& probe = attached_probes[i];
-      if (probe.flags & STAPDYN_PROBE_FLAG_PROC_END)
-	{
-	  staplog(1) << "found end proc probe, index = " << probe.index << endl;
-	  call_utrace_dynprobe(probe, thread);
-	}
-    }
+  const vector<dynprobe_location>& proc_end_probes =
+    exec_p ? exec_proc_end_probes
+    : find_attached_probes(STAPDYN_PROBE_FLAG_PROC_END);
+
+  // Shortcut out if there aren't any relevant probes
+  if (proc_end_probes.empty())
+    return;
+
+  // thread->oneTimeCode() requires that the process (not just the
+  // thread) be stopped. So, stop the process if needed.
+  mutatee_freezer mf(*this);
+  if (!is_stopped())
+    return;
+
+  staplog(2) << "firing " << proc_end_probes.size()
+	     << " process.end probes in pid " << pid << endl;
+  call_utrace_dynprobes(proc_end_probes, thread);
 }
 
 
 void
 mutatee::thread_callback(BPatch_thread *thread, bool create_p)
 {
+  const vector<dynprobe_location>& probes =
+    find_attached_probes(create_p
+			 ? STAPDYN_PROBE_FLAG_THREAD_BEGIN
+			 : STAPDYN_PROBE_FLAG_THREAD_END);
+
+  // Shortcut out if there aren't any relevant probes
+  if (probes.empty())
+    return;
+
   // If 'thread' is the main process, just return. We can't stop the
   // process before it terminates.
   if (thread->getLWP() == process->getPid())
@@ -517,35 +548,30 @@ mutatee::thread_callback(BPatch_thread *thread, bool create_p)
   if (!is_stopped())
     return;
 
-  for (size_t i = 0; i < attached_probes.size(); ++i)
-    {
-      const dynprobe_location& probe = attached_probes[i];
-      if ((create_p && probe.flags & STAPDYN_PROBE_FLAG_THREAD_BEGIN)
-	  || (!create_p && probe.flags & STAPDYN_PROBE_FLAG_THREAD_END))
-        {
-	  staplog(1) << "found " << (create_p ? "begin" : "end")
-		     << " thread probe, index = " << probe.index << endl;
-	  call_utrace_dynprobe(probe, thread);
-	}
-    }
+  staplog(2) << "firing " << probes.size()
+	     << " process.thread." << (create_p ? "begin" : "end")
+	     << " probes in pid " << pid << endl;
+  call_utrace_dynprobes(probes, thread);
 }
 
-void
-mutatee::find_attached_probes(uint64_t flag,
-			      vector<const dynprobe_location *>&probes)
+
+vector<dynprobe_location>
+mutatee::find_attached_probes(uint64_t flag)
 {
+  vector<dynprobe_location> probes;
   for (size_t i = 0; i < attached_probes.size(); ++i)
     {
       const dynprobe_location& probe = attached_probes[i];
       if (probe.flags & flag)
-	probes.push_back(&probe);
+       probes.push_back(probe);
     }
+  return probes;
 }
+
 
 // Look for probe matches in all objects.
 void
-mutatee::instrument_dynprobes(const vector<dynprobe_target>& targets,
-                              bool after_exec_p)
+mutatee::instrument_dynprobes(const vector<dynprobe_target>& targets)
 {
   if (!process || !stap_dso || targets.empty())
     return;
@@ -553,13 +579,6 @@ mutatee::instrument_dynprobes(const vector<dynprobe_target>& targets,
   BPatch_image* image = process->getImage();
   if (!image)
     return;
-
-  // If this is post-exec, run any process.end from the pre-exec process
-  if (after_exec_p && !attached_probes.empty())
-    {
-      exit_callback(NULL);
-      attached_probes.clear();
-    }
 
   // Match non object/path specific probes.
   instrument_global_dynprobes(targets);
@@ -619,9 +638,14 @@ mutatee::copy_forked_instrumentation(mutatee& other)
         semaphores.push_back(semaphore);
     }
 
-  // Update utrace probes to match
+  // Update utrace probes to match, except PID-based probes.
+  // (A forked PID will never be the same as the parent.)
   for (size_t i = 0; i < other.attached_probes.size(); ++i)
-    instrument_utrace_dynprobe(other.attached_probes[i]);
+    {
+      const dynprobe_location& probe = other.attached_probes[i];
+      if (probe.offset == 0)
+	instrument_utrace_dynprobe(probe);
+    }
 }
 
 
@@ -634,8 +658,11 @@ mutatee::exec_reset_instrumentation()
   snippets.clear();
   semaphores.clear();
 
-  // NB: the utrace attached_probes are saved, so process.end can run as the
-  // new process is instrumented.  Thus, no attached_probes.clear() yet.
+  // NB: the utrace process.end probes are saved, so they can run right
+  // before the new process does its process.begin.
+  exec_proc_end_probes = find_attached_probes(STAPDYN_PROBE_FLAG_PROC_END);
+
+  attached_probes.clear();
   utrace_enter_function = NULL;
 }
 
@@ -677,6 +704,11 @@ mutatee::call_function(const string& name,
   if (!stap_dso)
     return;
 
+  // process->oneTimeCode() requires that the process be stopped
+  mutatee_freezer mf(*this);
+  if (!is_stopped())
+    return;
+
   vector<BPatch_function *> functions;
   stap_dso->findFunction(name.c_str(), functions);
 
@@ -685,6 +717,7 @@ mutatee::call_function(const string& name,
   for (size_t i = 0; i < functions.size(); ++i)
     {
       BPatch_funcCallExpr call(*functions[i], args);
+      staplog(3) << "calling function '" << name << "' in pid " << pid << endl;
       process->oneTimeCode(call);
     }
 }
@@ -702,7 +735,10 @@ void
 mutatee::continue_execution()
 {
   if (is_stopped())
-    process->continueExecution();
+    {
+      staplog(2) << "continuing execution of pid " << pid << endl;
+      process->continueExecution();
+    }
 }
 
 
@@ -715,15 +751,15 @@ mutatee::stop_execution()
       return true;
     }
 
-  staplog(1) << "stopping process" << endl;
+  staplog(2) << "stopping execution of pid " << pid << endl;
   if (! process->stopExecution())
     {
-      staplog(1) << "stopExecution failed!" << endl;
+      staplog(1) << "stopExecution on pid " << pid << " failed!" << endl;
       return false;
     }
   if (! process->isStopped() || process->isTerminated())
     {
-      staplog(1) << "couldn't stop proc!" << endl;
+      staplog(1) << "couldn't stop pid " << pid << "!" << endl;
       return false;
     }
   return true;

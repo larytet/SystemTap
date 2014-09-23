@@ -11,7 +11,7 @@ global times
 
 function check(t)   # t: elapsed time
 {
-   pf=probefunc()
+   pf=ppfunc()
    if (@count(times[pf]) >= mincount
        && t >= @max(times[pf]) * note_percent / 100) {   # also consider @avg()
      printf("function %s well over %s time (%d vs %d)\n",

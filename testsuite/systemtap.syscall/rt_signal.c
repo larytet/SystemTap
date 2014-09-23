@@ -1,4 +1,4 @@
-/* COVERAGE:  rt_sigprocmask rt_sigaction */
+/* COVERAGE:  rt_sigprocmask rt_sigaction rt_sigpending */
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
@@ -46,6 +46,12 @@ int main()
 #else
   //staptest// rt_sigaction (SIGUSR1, {XXXX, [^,]+, XXXX, \[SIGALRM\]}, 0x[0]+, 8) = 0
 #endif
+
+  sigpending(&mask);
+  //staptest// rt_sigpending (XXXX, 8) = 0
+
+  sigpending((sigset_t *) 0);
+  //staptest// rt_sigpending (0x0, 8) = -NNNN (EFAULT)
 
   return 0;
 }

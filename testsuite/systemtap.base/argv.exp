@@ -1,0 +1,28 @@
+set test "argv"
+if {![installtest_p]} { untested $test; return }
+
+set result_string {argc=0}
+stap_run3 "$test naked"  $srcdir/$subdir/argv.stp
+set result_string {argc=1
+argv[1]=hello}
+stap_run3 "$test one"  $srcdir/$subdir/argv.stp hello
+set result_string {argc=2
+argv[1]=hello
+argv[2]=world}
+stap_run3 "$test two"  $srcdir/$subdir/argv.stp hello world
+set result_string {argc=1
+argv[1]=hello}
+stap_run3 "$test one other"  $srcdir/$subdir/argv.stp -G argc=1 -G argv_1=hello
+set result_string {argc=2
+argv[1]=hello
+argv[2]=world}
+stap_run3 "$test two other"  $srcdir/$subdir/argv.stp -G argc=2 -G argv_1=hello -G argv_2=world
+set result_string {argc=2
+argv[1]=hello
+argv[2]=world}
+stap_run3 "$test two mixed"  $srcdir/$subdir/argv.stp smelly panda -G argv_1=hello -G argv_2=world
+set result_string {argc=3
+argv[1]=hello
+argv[2]=world
+argv[3]=mom}
+stap_run3 "$test three mixed"  $srcdir/$subdir/argv.stp hello world -G argc=3 -G argv_3=mom

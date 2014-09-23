@@ -17,7 +17,7 @@
  * Print the warning message to the stdout and send it
  * to the syslog via logger.
  */
-function warn(fsname:string, dev:long) {
+function warnlog(fsname:string, dev:long) {
 	message = sprintf("%s (%d, %d) - no space left on the file system (uid: %d, %s:%d)\n",
 			   fsname, MAJOR(dev), MINOR(dev), uid(), execname(), pid());
 	/* Print the message to the output */
@@ -32,7 +32,7 @@ probe kernel.function("ext4_should_retry_alloc").return ? ,
       module("ext4").function("ext4_should_retry_alloc").return ?
 {
 	if (0 == $return)
-		warn("ext4", $sb->s_dev);
+		warnlog("ext4", $sb->s_dev);
 }
 
 /* Catch ENOSPC in ext3 file system */
@@ -40,7 +40,7 @@ probe kernel.function("ext3_should_retry_alloc").return ? ,
       module("ext3").function("ext3_should_retry_alloc").return ?
 {
 	if (0 == $return)
-		warn("ext3", $sb->s_dev);
+		warnlog("ext3", $sb->s_dev);
 }
 
 /* Catch ENOSPC in xfs file system on write */
@@ -48,7 +48,7 @@ probe kernel.function("xfs_file_aio_write").return ? ,
       module("xfs").function("xfs_file_aio_write").return ?
 {
 	if (-28 == $return)
-		warn("xfs", $iocb->ki_filp->f_mapping->host->i_sb->s_dev);
+		warnlog("xfs", $iocb->ki_filp->f_mapping->host->i_sb->s_dev);
 }
 
 /* Catch ENOSPC in xfs file system on inode creation */
@@ -56,7 +56,7 @@ probe kernel.function("xfs_vn_mknod").return ? ,
       module("xfs").function("xfs_vn_mknod").return ?
 {
 	if (-28 == $return)
-		warn("xfs", $dir->i_sb->s_dev);
+		warnlog("xfs", $dir->i_sb->s_dev);
 }
 
 /* Catch ENOSPC in xfs file system on fallocate */
@@ -64,7 +64,7 @@ probe kernel.function("xfs_vn_fallocate").return ? ,
       module("xfs").function("xfs_vn_fallocate").return ?
 {
 	if (-28 == $return)
-		warn("xfs", $inode->i_sb->s_dev);
+		warnlog("xfs", $inode->i_sb->s_dev);
 }
 
 /* Catch ENOSPC in btrfs file system */
@@ -72,6 +72,6 @@ probe kernel.function("btrfs_check_data_free_space").return ? ,
       module("btrfs").function("btrfs_check_data_free_space").return ?
 {
 	if (-28 == $return)
-		warn("btrfs", $inode->i_sb->s_dev);
+		warnlog("btrfs", $inode->i_sb->s_dev);
 }
 

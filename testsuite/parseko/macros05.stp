@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 # parsing fails due to no code being left after preprocessing
 @define foo %( cheese %)

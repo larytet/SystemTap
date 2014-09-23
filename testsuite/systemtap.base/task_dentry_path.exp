@@ -1,0 +1,20 @@
+# This testcase tests the fix for PR16991 - infinite loop in
+# task_dentry_path. When task_dentry_path hit a dentry from an
+# unmounted synthentic filesystem, it would go into an infinite loop
+# (until killed by MAXACTION).
+
+set test "task_dentry_path"
+
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
+spawn stap $srcdir/$subdir/$test.stp -c "sh $srcdir/$subdir/$test.sh"
+set ok 0
+expect {
+    -timeout 150
+    -re {ERROR.*MAXACTION} { incr ok; exp_continue }
+    timeout { fail "$test (timeout)" }
+    eof { }
+}
+catch {close}; catch {wait}
+if {$ok == 1} { fail "$test ($ok)" } { pass "$test ($ok)" }

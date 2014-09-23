@@ -1,0 +1,5 @@
+#!/bin/bash
+# Make sure that all of the tapsets can be parsed with out warnings or errors,
+# even with a really old --compatible setting.
+
+stap "$@" -W -p1 --compatible=1.0 -e 'probe begin {}'

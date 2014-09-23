@@ -1,5 +1,5 @@
 /* main header file for Linux
- * Copyright (C) 2005-2013 Red Hat Inc.
+ * Copyright (C) 2005-2014 Red Hat Inc.
  * Copyright (C) 2005-2006 Intel Corporation.
  *
  * This file is part of systemtap, and is free software.  You can
@@ -37,6 +37,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/profile.h>
+#include <linux/rcupdate.h>
 //#include <linux/utsrelease.h> // newer kernels only
 //#include <linux/compile.h>
 #ifdef STAPCONF_GENERATED_COMPILE
@@ -81,13 +82,35 @@ static void _stp_exit(void);
 #define stap_hlist_for_each_entry_safe(a,b,c,d,e) (void) b; hlist_for_each_entry_safe(a,c,d,e)
 #endif
 
+#ifndef preempt_enable_no_resched
+#ifdef CONFIG_PREEMPT_COUNT
+#define preempt_enable_no_resched() do { \
+	barrier();           \
+	preempt_count_dec(); \
+	} while (0)
+#else
+#define preempt_enable_no_resched() barrier()
+#endif
+#endif
+
+#ifndef rcu_dereference_sched
+#define rcu_dereference_sched(p) rcu_dereference(p)
+#endif
 
 /* unprivileged user support */
 
 #ifdef STAPCONF_TASK_UID
 #define STP_CURRENT_EUID (current->euid)
 #else
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+#ifndef STAPCONF_FROM_KUID_MUNGED
+#define from_kuid_munged(user_ns, uid) ((uid))
+#define from_kgid_munged(user_ns, gid) ((gid))
+#endif /* !STAPCONF_FROM_KUID_MUNGED */
+#define STP_CURRENT_EUID (from_kuid_munged(current_user_ns(), task_euid(current)))
+#else
 #define STP_CURRENT_EUID (task_euid(current))
+#endif
 #endif
 
 #define is_myproc() (STP_CURRENT_EUID == _stp_uid)
@@ -162,6 +185,9 @@ static void *kallsyms_task_work_add;
 static void *kallsyms_task_work_cancel;
 #endif
 
+#if !defined(STAPCONF_TRY_TO_WAKE_UP_EXPORTED) && !defined(STAPCONF_WAKE_UP_STATE_EXPORTED)
+static void *kallsyms_wake_up_state;
+#endif
 #if !defined(STAPCONF_SIGNAL_WAKE_UP_STATE_EXPORTED)
 static void *kallsyms_signal_wake_up_state;
 #endif
@@ -206,7 +232,9 @@ static void *kallsyms___lock_task_sighand;
 #ifdef STP_USE_DWARF_UNWINDER
 #include "unwind.c"
 #else
-struct unwind_context { };
+/* We still need unwind.h for a few structures (unwind_context and
+ * unwind_cache). */
+#include "unwind/unwind.h"
 #endif
 
 #ifdef module_param_cb			/* kernels >= 2.6.36 */
@@ -252,6 +280,21 @@ static struct kernel_param_ops param_ops_int64_t = {
 #endif
 #undef _STP_KERNEL_PARAM_ARG
 
+
+static inline void stp_synchronize_sched(void)
+{
+  flush_scheduled_work();
+#if defined(STAPCONF_SYNCHRONIZE_SCHED)
+  synchronize_sched();
+#elif defined(STAPCONF_SYNCHRONIZE_RCU)
+  synchronize_rcu();
+#elif defined(STAPCONF_SYNCHRONIZE_KERNEL)
+  synchronize_kernel();
+#else
+#error "No implementation for stp_synchronize_sched!"
+#endif
+}
+
 /************* Module Stuff ********************/
 
 
@@ -268,7 +311,10 @@ int init_module (void)
   rc = _stp_transport_init();
   if (rc)
     return rc;
-  return systemtap_kernel_module_init();
+  rc = systemtap_kernel_module_init();
+  if (rc)
+    _stp_transport_close();
+  return rc;
 }
 
 static void systemtap_kernel_module_exit (void);

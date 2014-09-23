@@ -17,7 +17,7 @@ probe begin {
   print ("Collecting data... Type Ctrl-C to exit and display results\n")
 }
 
-probe syscall.* {
+probe nd_syscall.* {
   syscalls[pid()]++
 }
 

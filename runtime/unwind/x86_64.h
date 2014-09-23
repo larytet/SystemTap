@@ -1,7 +1,7 @@
 /* -*- linux-c -*-
  *
  * x86_64 dwarf unwinder header file
- * Copyright (C) 2008, 2010, 2011, 2013 Red Hat Inc.
+ * Copyright (C) 2008, 2010, 2011, 2014 Red Hat Inc.
  * Copyright (C) 2002-2006 Novell, Inc.
  * 
  * This file is part of systemtap, and is free software.  You can
@@ -105,6 +105,44 @@ static inline void arch_unw_init_frame_info(struct unwind_frame_info *info,
                                             /*const*/ struct pt_regs *regs,
 					    int sanitize)
 {
+        if(regs == NULL){
+		/* NB: This uses an "=m" output constraint to indicate we're
+		 * writing all of info->regs, but then uses an "r" input
+		 * pointer for the actual writes.  This is to be sure we have
+		 * something we can offset properly.  */
+		asm("lea (%%rip), %1 \n\t"
+		    "mov %%r15,   0(%2) \n\t"
+		    "mov %%r14,   8(%2) \n\t"
+		    "mov %%r13,  16(%2) \n\t"
+		    "mov %%r12,  24(%2) \n\t"
+		    "mov %%rbp,  32(%2) \n\t"
+		    "mov %%rbx,  40(%2) \n\t"
+		    "mov %%r11,  48(%2) \n\t"
+		    "mov %%r10,  56(%2) \n\t"
+		    "mov %%r9,   64(%2) \n\t"
+		    "mov %%r8,   72(%2) \n\t"
+		    "mov %%rax,  80(%2) \n\t"
+		    "mov %%rcx,  88(%2) \n\t"
+		    "mov %%rdx,  96(%2) \n\t"
+		    "mov %%rsi, 104(%2) \n\t"
+		    "mov %%rdi, 112(%2) \n\t"
+		    /* "mov %%orig_rax, 120(%2) \n\t" */
+		    /* "mov %%rip, 128(%2) \n\t" */
+		    "mov %%cs, 136(%2) \n\t"
+		    /* "mov %%eflags, 144(%2) \n\t" */
+		    "mov %%rsp, 152(%2) \n\t"
+		    "mov %%ss, 160(%2) \n\t"
+		    : "=m" (info->regs),
+#ifdef STAPCONF_X86_UNIREGS
+		      "=r" (info->regs.ip)
+#else
+		      "=r" (info->regs.rip)
+#endif /* STAPCONF_X86_UNIREGS */
+		    : "r" (&info->regs)
+		    );
+	        return;
+        }
+
 	if (&info->regs == regs) { /* happens when unwinding kernel->user */
 		info->call_frame = 1;
 		return;

@@ -5,6 +5,8 @@ warning::process-tracking \- process-tracking facilities are not available
 
 .\" macros
 .de SAMPLE
+
+.nr oldin \\n(.i
 .br
 .RS
 .nf
@@ -14,6 +16,8 @@ warning::process-tracking \- process-tracking facilities are not available
 .hy
 .fi
 .RE
+.in \\n[oldin]u
+
 ..
 
 .SH DESCRIPTION
@@ -52,5 +56,7 @@ kernel version newer than 3.5 is needed, or an older version must be
 compiled with appropriate utrace patches.
 
 .SH SEE ALSO
+.nh
+.nf
 .IR stap (1),
 .IR error::reporting (7stap)

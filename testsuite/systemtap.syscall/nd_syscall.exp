@@ -1,8 +1,12 @@
 set test_script "nd_sys.stp"
+set test_module_name "nd_syscall"
+set wd [pwd]
+set test_module "${wd}/${test_module_name}.ko"
+
 source $srcdir/$subdir/test.tcl
 
 proc test_procedure {} {
-    global srcdir subdir
+    global srcdir subdir test_script test_module test_module_name
     set wd [pwd]
     set flags ""
     if {$srcdir == ""} {
@@ -11,53 +15,60 @@ proc test_procedure {} {
 	set pattern "$srcdir/$subdir/*.c"
     }
 
-    # for first pass, force 64-bit compilation for 64-bit systems
-    # Add any other 64-bit arcvhitecture you want tested below.
-    # To find tcl's platform name for your machine, run the following:
-    # echo "puts $::tcl_platform(machine)" | tclsh
+    # To speed things up, go ahead and compile the test module once
+    # here, then just use it down in run_one_test(). The test script
+    # uses wildcards to cover every syscall and takes time to parse.
+    set script "$srcdir/$subdir/${test_script}"
+    set cmd "stap -p4 -m ${test_module_name} --skip-badvars ${script}"
+    exec /bin/rm -f ${test_module}
 
-    switch -regexp $::tcl_platform(machine) {
-	^ia64$ {
-	    set do_64_bit_pass 1
-	    set flags "" 
-	}
-	^(x86_64|ppc64|s390x)$ { 
-	    set do_64_bit_pass 1
-	    set flags "additional_flags=-m64"
-	}
-	default {
-	    set do_64_bit_pass 0
-	}
+    # Remember any set value of SYSTEMTAP_DEBUGINFO_PATH
+    if {[info exists env(SYSTEMTAP_DEBUGINFO_PATH)]} {
+        set old_path $env(SYSTEMTAP_DEBUGINFO_PATH)
+        set restore_old_path 1
+    } else {
+        set restore_old_path 0
     }
 
-    if {$do_64_bit_pass} {
+    # Override SYSTEMTAP_DEBUGINFO_PATH to ensure no debuginfo could be used
+    set env(SYSTEMTAP_DEBUGINFO_PATH) ""
+    catch {eval exec $cmd} output
+
+    # Restore any previous value, otherwise unset it
+    if {$restore_old_path} {
+        set env(SYSTEMTAP_DEBUGINFO_PATH) $old_path
+    } else {
+        unset env(SYSTEMTAP_DEBUGINFO_PATH)
+    }
+
+    send_log $output
+    if {[file exists ${test_module}]} {
+	pass "${script} compilation"
+    } else {
+	# If compiling the test module failed, there isn't much point
+	# in trying to run any of the real tests.
+	fail "${script} compilation"
+	return
+    }
+
+    for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+	set flags [arch_compile_flag $i]
+	set arch [arch_compile_flag_name $i]
+	set arch_size [arch_compile_flag_bits $i]
+	verbose -log "i: $i flags: $flags arch: $arch size: $arch_size"
+
 	foreach filename [lsort [glob $pattern]] {
 	    set testname [file tail [string range $filename 0 end-2]]
-	    if {![installtest_p]} { untested "64-bit $testname"; continue }
-	    # ia64 systems don't have kprobe.function() support (PR6971)
-	    if {[istarget ia64-*-*]} {
-		setup_kfail 6971 *-*-*
+	    if {![installtest_p]} {
+		untested "${arch_size}-bit $testname"; continue
 	    }
-	    send_log "Testing 64-bit ${testname} nd_syscall\n"
-	    run_one_test $filename $flags 64 "nd_syscall"
+	    send_log "Testing ${arch_size}-bit ${testname} nd_syscall\n"
+	    run_one_test $filename $flags ${arch_size} "nd_syscall"
 	}
     }
 
-    set do_32_bit_pass 1    
-    switch -regexp $::tcl_platform(machine) {
-	{^(x86_64|ppc64)$} { set flags "additional_flags=-m32" }
-	{^s390x$} { set flags "additional_flags=-m31" }
-	{^ia64$} { set do_32_bit_pass 0	}
-    }
-
-    if {$do_32_bit_pass} {
-	foreach filename [lsort [glob $pattern]] {
-	    set testname [file tail [string range $filename 0 end-2]]
-	    if {![installtest_p]} { untested "32-bit $testname"; continue }
-	    send_log "Testing 32-bit ${testname} nd_syscall\n"
-	    run_one_test $filename $flags 32 "nd_syscall"
-	}
-    }
+    # Cleeanup
+    exec /bin/rm -f ${test_module}
 }
 
 test_procedure

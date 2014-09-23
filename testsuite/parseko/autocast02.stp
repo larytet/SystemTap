@@ -1,0 +1,11 @@
+#!/bin/bash
+//bin/true && exec stap -p1 --compatible=2.5 $0 "$@"
+
+probe begin {
+  // See parseok/autocast02.stp where this succeeds as an autocast.
+  // Prior to autocast, this would implicitly be parsed as separate statements,
+  // like "(foo); [1] in bar", which fails in this case because only a single
+  // expression can be inside parentheses.
+  ( (foo)[1] in bar )
+}
+

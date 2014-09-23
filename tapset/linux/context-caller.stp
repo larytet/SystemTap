@@ -35,7 +35,7 @@ function callers:string (n:long) {
                  @__context_unwind_error(n)
              }
              // ensure string cuts off cleanly at MAXSTRINGLEN:
-             l += strlen(foo); if (l > %{ MAXSTRINGLEN %}) break    
+             l += strlen(foo); if (l > @MAXSTRINGLEN) break    
              str .= foo
          }
          return str
@@ -58,3 +58,28 @@ function caller:string() {
  *  Description: This function returns the address of the calling function. 
  */
 function caller_addr:long () { return stack(1) }
+
+/* Undocumented function - used in support of .callee[s] probes.
+ * Verifies that the current function's caller matches the given addr,
+ * accounting for relocation. Used in the constructor of
+ * dwarf_derived_probe constructor in tapsets.cxx.
+ */
+function _caller_match:long (user_mode:long, level:long,
+                             module:string, section:string, addr:long) %{
+   /* pure */ /* myproc-unprivileged */
+   /* pragma:unwind */ /* pragma:uprobes */ /* pragma:vma */
+   #ifdef STAP_CALLEE_MATCHALL /* Set using -D to have .callee probes fire
+                                  regardless of caller */
+      STAP_RETVALUE = 1;
+   #else
+      STAP_RETVALUE = STAP_ARG_user_mode
+       ? _stp_stack_user_get(CONTEXT, STAP_ARG_level) ==
+            _stp_umodule_relocate(STAP_ARG_module,
+                                  STAP_ARG_addr,
+                                  current)
+       : _stp_stack_kernel_get(CONTEXT, STAP_ARG_level) ==
+            _stp_kmodule_relocate(STAP_ARG_module,
+                                  STAP_ARG_section,
+                                  STAP_ARG_addr);
+   #endif
+%}

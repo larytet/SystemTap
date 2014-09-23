@@ -1,5 +1,5 @@
 // Copyright (C) Andrew Tridgell 2002 (original file)
-// Copyright (C) 2006-2011 Red Hat Inc. (systemtap changes)
+// Copyright (C) 2006-2014 Red Hat Inc. (systemtap changes)
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -138,6 +138,9 @@ get_base_hash (systemtap_session& s)
 
   s.base_hash = new stap_hash();
   stap_hash& h = *s.base_hash;
+
+  // Hash systemtap version
+  h.add("Systemtap version: ", s.version_string());
 
   // Hash kernel release and arch.
   h.add("Kernel Release: ", s.kernel_release);

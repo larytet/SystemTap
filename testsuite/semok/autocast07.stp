@@ -1,0 +1,9 @@
+#! stap -p2
+
+probe begin
+{
+    // Test that autocast can pretty-print.  (note especially that this will
+    // add a kernel_string function reference that must be resolved.)
+    sun = & @cast(0, "sockaddr_un", "<sys/un.h>");
+    println(sun->sun_path$)
+}

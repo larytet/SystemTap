@@ -1,5 +1,5 @@
 // systemtap translator/driver
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
 //
@@ -65,7 +65,8 @@ uniq_list(list<string>& l)
 static void
 printscript(systemtap_session& s, ostream& o)
 {
-  if (s.listing_mode)
+  if (s.dump_mode == systemtap_session::dump_matched_probes ||
+      s.dump_mode == systemtap_session::dump_matched_probes_vars)
     {
       // We go through some heroic measures to produce clean output.
       // Record the alias and probe pointer as <name, set<derived_probe *> >
@@ -77,9 +78,10 @@ printscript(systemtap_session& s, ostream& o)
           assert_no_interrupts();
 
           derived_probe* p = s.probes[i];
+          vector<probe*> chain;
+          p->collect_derivation_chain (chain);
+
           if (s.verbose > 2) {
-            vector<probe*> chain;
-            p->collect_derivation_chain (chain);
             p->printsig(cerr); cerr << endl;
             cerr << "chain[" << chain.size() << "]:" << endl;
             for (unsigned j=0; j<chain.size(); j++)
@@ -105,11 +107,15 @@ printscript(systemtap_session& s, ostream& o)
                   }
               }
           }
-          
-          stringstream tmps;
-          const probe_point *a = p->script_location();
-          a->print(tmps);
-          string pp = tmps.str();
+
+          const string& pp = lex_cast(*p->script_location());
+
+          // PR16730: We should only list probes that can be traced back to the
+          // user's spec, not any auxiliary probes in the tapsets.
+          // Also, do not want to the probes that are from the additional
+          // scripts (-E SCRIPT) to be listed.
+          if (!s.is_primary_probe(p))
+            continue;
 
           // Now duplicate-eliminate.  An alias may have expanded to
           // several actual derived probe points, but we only want to
@@ -123,7 +129,7 @@ printscript(systemtap_session& s, ostream& o)
           o << it->first; // probe name or alias
 
           // Print the locals and arguments for -L mode only
-          if (s.listing_mode_vars)
+          if (s.dump_mode == systemtap_session::dump_matched_probes_vars)
             {
               map<string,unsigned> var_count; // format <"name:type",count>
               map<string,unsigned> arg_count;
@@ -336,9 +342,9 @@ run_sdt_benchmark(systemtap_session& s)
   gettimeofday (&tv_after, NULL);
   if (s.verbose > 0)
     clog << _F("Completed SDT benchmark in %ldusr/%ldsys/%ldreal ms.",
-               (tms_after.tms_utime - tms_before.tms_utime) * 1000 / _sc_clk_tck,
-               (tms_after.tms_stime - tms_before.tms_stime) * 1000 / _sc_clk_tck,
-               ((tv_after.tv_sec - tv_before.tv_sec) * 1000 +
+               (long)(tms_after.tms_utime - tms_before.tms_utime) * 1000 / _sc_clk_tck,
+               (long)(tms_after.tms_stime - tms_before.tms_stime) * 1000 / _sc_clk_tck,
+               (long)((tv_after.tv_sec - tv_before.tv_sec) * 1000 +
                 ((long)tv_after.tv_usec - (long)tv_before.tv_usec) / 1000))
          << endl;
 
@@ -368,19 +374,15 @@ passes_0_4 (systemtap_session &s)
     {
 #if HAVE_NSS
       compile_server_client client (s);
-      int rc = client.passes_0_4 ();
-      // Need to give a user a better diagnostic, if she didn't
-      // even ask for a server
-      if (rc && s.automatic_server_mode) {
-        cerr << _("Note: --use-server --unprivileged was selected because of stapusr membership.") << endl;
-      }
-      return rc;
+      return client.passes_0_4 ();
 #else
-      s.print_warning("Without NSS, using a compile-server is not supported by this version of systemtap");
+      s.print_warning(_("Without NSS, using a compile-server is not supported by this version of systemtap"));
+
       // This cannot be an attempt to use a server after a local compile failed
       // since --use-server-on-error is locked to 'no' if we don't have
       // NSS.
       assert (! s.try_server ());
+      s.print_warning(_("Ignoring --use-server"));
 #endif
     }
 
@@ -405,14 +407,16 @@ passes_0_4 (systemtap_session &s)
     }
 
   // Now that no further changes to s.kernel_build_tree can occur, let's use it.
-  if ((rc = s.parse_kernel_config ()) != 0
-      || (rc = s.parse_kernel_exports ()) != 0
-      || (rc = s.parse_kernel_functions ()) != 0)
-    {
-      // Try again with a server
-      s.set_try_server ();
-      return rc;
-    }
+  if (s.runtime_mode == systemtap_session::kernel_runtime) {
+    if ((rc = s.parse_kernel_config ()) != 0
+        || (rc = s.parse_kernel_exports ()) != 0
+        || (rc = s.parse_kernel_functions ()) != 0)
+      {
+        // Try again with a server
+        s.set_try_server ();
+        return rc;
+      }
+  }
 
   // Create the name of the C source file within the temporary
   // directory.  Note the _src prefix, explained in
@@ -562,8 +566,7 @@ passes_0_4 (systemtap_session &s)
 
               stapfile* f = parse_library_macros (s, globbuf.gl_pathv[j]);
               if (f == 0)
-                s.print_warning("macro tapset '" + string(globbuf.gl_pathv[j])
-                                + "' has errors, and will be skipped."); // TODOXXX internationalization?
+                s.print_warning(_F("macro tapset \"%s\" has errors, and will be skipped.", string(globbuf.gl_pathv[j]).c_str()));
               else
                 s.library_files.push_back (f);
             }
@@ -585,6 +588,13 @@ passes_0_4 (systemtap_session &s)
 
   for (unsigned i=0; i<s.include_path.size(); i++)
     {
+      unsigned tapset_flags = pf_guru | pf_squash_errors;
+
+      // The first path is special, as it's the builtin tapset.
+      // Allow all features no matter what s.compatible says.
+      if (i == 0)
+        tapset_flags |= pf_no_compatible;
+
       // now iterate upon it
       for (unsigned k=0; k<version_suffixes.size(); k++)
         {
@@ -647,10 +657,9 @@ passes_0_4 (systemtap_session &s)
               // root-equivalent privileges anyway; stapsys and stapusr use a remote compilation
               // with a trusted environment, where client-side $XDG_DATA_DIRS are not passed.
 
-              stapfile* f = parse (s, globbuf.gl_pathv[j], true /* privileged */);
+              stapfile* f = parse (s, globbuf.gl_pathv[j], tapset_flags);
               if (f == 0)
-                s.print_warning("tapset '" + string(globbuf.gl_pathv[j])
-                                + "' has errors, and will be skipped."); // TODOXXX internationalization?
+                s.print_warning(_F("tapset \"%s\" has errors, and will be skipped", string(globbuf.gl_pathv[j]).c_str()));
               else
                 s.library_files.push_back (f);
             }
@@ -671,29 +680,91 @@ passes_0_4 (systemtap_session &s)
   // PASS 1b: PARSING USER SCRIPT
   PROBE1(stap, pass1b__start, &s);
 
-  if (s.script_file == "-")
+  // Only try to parse a user script if the user provided one, or if we have to
+  // make one (as is the case for listing mode). Otherwise, s.user_script
+  // remains NULL.
+  if (!s.script_file.empty() ||
+      !s.cmdline_script.empty() ||
+      s.dump_mode == systemtap_session::dump_matched_probes ||
+      s.dump_mode == systemtap_session::dump_matched_probes_vars)
     {
-      s.user_file = parse (s, cin, s.guru_mode);
-    }
-  else if (s.script_file != "")
-    {
-      s.user_file = parse (s, s.script_file, s.guru_mode);
-    }
-  else
-    {
-      istringstream ii (s.cmdline_script);
-      s.user_file = parse (s, ii, s.guru_mode);
-    }
-  if (s.user_file == 0)
-    {
-      // Syntax errors already printed.
-      rc ++;
+      unsigned user_flags = s.guru_mode ? pf_guru : 0;
+      if (s.script_file == "-")
+        {
+          s.user_files.push_back (parse (s, "<input>", cin, user_flags));
+        }
+      else if (s.script_file != "")
+        {
+          s.user_files.push_back (parse (s, s.script_file, user_flags));
+        }
+      else if (s.cmdline_script != "")
+        {
+          istringstream ii (s.cmdline_script);
+          s.user_files.push_back(parse (s, "<input>", ii, user_flags));
+        }
+      else // listing mode
+        {
+          istringstream ii ("probe " + s.dump_matched_pattern + " {}");
+          s.user_files.push_back (parse (s, "<input>", ii, user_flags));
+        }
+
+      // parses the additional script(s) (-E script). does so even if in listing
+      // mode, incase there is something special in the additional script(s),
+      // like a macro or alias. give them a unique name to differentiate the
+      // scripts that were inputted.
+      unsigned count = 1;
+      for (vector<string>::iterator script = s.additional_scripts.begin(); script != s.additional_scripts.end(); script++)
+        {
+          string input_name = "<input" + lex_cast(count) + ">";
+          istringstream ii (*script);
+          s.user_files.push_back(parse (s, input_name, ii, user_flags));
+          count ++;
+        }
+
+      for(vector<stapfile*>::iterator it = s.user_files.begin(); it != s.user_files.end(); it++)
+        {
+          if (!(*it))
+            {
+              // Syntax errors already printed.
+              rc ++;
+            }
+        }
     }
 
-  if (rc == 0 && s.last_pass == 1)
+  // Dump a list of probe aliases picked up, if requested
+  if (s.dump_mode == systemtap_session::dump_probe_aliases)
+    {
+      set<string> aliases;
+      vector<stapfile*>::const_iterator file;
+      for (file  = s.library_files.begin();
+           file != s.library_files.end(); ++file)
+        {
+          vector<probe_alias*>::const_iterator alias;
+          for (alias  = (*file)->aliases.begin();
+               alias != (*file)->aliases.end(); ++alias)
+            {
+              stringstream ss;
+              (*alias)->printsig(ss);
+              string str = ss.str();
+              if (!s.verbose && startswith(str, "_"))
+                continue;
+              aliases.insert(str);
+            }
+        }
+
+      set<string>::iterator alias;
+      for (alias  = aliases.begin();
+           alias != aliases.end(); ++alias)
+        {
+          cout << *alias << endl;
+        }
+    }
+  // Dump the parse tree if this is the last pass
+  else if (rc == 0 && s.last_pass == 1)
     {
       cout << _("# parse tree dump") << endl;
-      s.user_file->print (cout);
+      for (vector<stapfile*>::iterator it = s.user_files.begin(); it != s.user_files.end(); it++)
+        (*it)->print (cout);
       cout << endl;
       if (s.verbose)
         for (unsigned i=0; i<s.library_files.size(); i++)
@@ -729,13 +800,15 @@ passes_0_4 (systemtap_session &s)
            << endl;
     }
 
-  if (rc && !s.listing_mode)
+  if (rc && !s.dump_mode)
     cerr << _("Pass 1: parse failed.  [man error::pass1]") << endl;
 
   PROBE1(stap, pass1__end, &s);
 
   assert_no_interrupts();
-  if (rc || s.last_pass == 1) return rc;
+  if (rc || s.last_pass == 1 ||
+      s.dump_mode == systemtap_session::dump_probe_aliases)
+    return rc;
 
   times (& tms_before);
   gettimeofday (&tv_before, NULL);
@@ -746,10 +819,28 @@ passes_0_4 (systemtap_session &s)
   rc = semantic_pass (s);
 
   // Dump a list of known probe point types, if requested.
-  if (s.dump_probe_types)
+  if (s.dump_mode == systemtap_session::dump_probe_types)
     s.pattern_root->dump (s);
-
-  if (s.listing_mode || (rc == 0 && s.last_pass == 2))
+  // Dump a list of functions we picked up, if requested.
+  else if (s.dump_mode == systemtap_session::dump_functions)
+    {
+      map<string,functiondecl*>::const_iterator func;
+      for (func  = s.functions.begin();
+           func != s.functions.end(); ++func)
+        {
+          functiondecl& curfunc = *func->second;
+          if (curfunc.synthetic)
+            continue;
+          if (!s.verbose && startswith(curfunc.name, "_"))
+            continue;
+          curfunc.printsigtags(cout, s.verbose>0 /* all_tags */ );
+          cout << endl;
+        }
+    }
+  // Dump the whole script if requested, or if we stop at 2
+  else if (s.dump_mode == systemtap_session::dump_matched_probes ||
+           s.dump_mode == systemtap_session::dump_matched_probes_vars ||
+           (rc == 0 && s.last_pass == 2))
     printscript(s, cout);
 
   times (& tms_after);
@@ -764,13 +855,16 @@ passes_0_4 (systemtap_session &s)
                       << TIMESPRINT
                       << endl;
 
-  if (rc && !s.listing_mode && !s.try_server ())
+  if (rc && !s.dump_mode && !s.try_server ())
     cerr << _("Pass 2: analysis failed.  [man error::pass2]") << endl;
 
   PROBE1(stap, pass2__end, &s);
 
   assert_no_interrupts();
-  if (rc || s.listing_mode || s.last_pass == 2) return rc;
+  // NB: none of the dump modes need to go beyond pass-2. If this changes, break
+  // into individual modes here.
+  if (rc || s.last_pass == 2 || s.dump_mode)
+    return rc;
 
   rc = prepare_translate_pass (s);
   assert_no_interrupts();
@@ -894,6 +988,14 @@ passes_0_4 (systemtap_session &s)
 	  string module_dest_path = s.module_filename();
 	  copy_file(module_src_path, module_dest_path, s.verbose > 1);
 	}
+
+      // Copy uprobes module to the current directory.
+      if (s.save_uprobes && !s.uprobes_path.empty() && !pending_interrupts)
+        {
+          rc = create_dir("uprobes");
+          if (! rc)
+            copy_file(s.uprobes_path, "uprobes/uprobes.ko", s.verbose > 1);
+        }
     }
 
   PROBE1(stap, pass4__end, &s);
@@ -954,6 +1056,8 @@ cleanup (systemtap_session &s, int rc)
     cerr << _("Coverage database not available without libsqlite3") << endl;
 #endif
   }
+
+  s.report_suppression();
 
   PROBE1(stap, pass6__end, &s);
 }
@@ -1092,10 +1196,10 @@ main (int argc, char * const argv [])
         manage_server_trust (ss);
 #endif
 
-        // Run the passes only if a script has been specified. The requirement for
-        // a script has already been checked in systemtap_session::check_options.
-        // Run the passes also if a dump of supported probe types has been requested via a server.
-        if (ss.have_script || (ss.dump_probe_types && ! s.specified_servers.empty ()))
+        // Run the passes only if a script has been specified or if we're
+        // dumping something. The requirement for a script has already been
+        // checked in systemtap_session::check_options.
+        if (ss.have_script || ss.dump_mode)
           {
             // Run passes 0-4 for each unique session,
             // either locally or using a compile-server.
@@ -1107,12 +1211,8 @@ main (int argc, char * const argv [])
                 if (ss.try_server ())
                   rc = passes_0_4_again_with_server (ss);
               }
-          }
-        else if (ss.dump_probe_types)
-          {
-            // Dump a list of known probe point types, if requested.
-            register_standard_tapsets(ss);
-            ss.pattern_root->dump (ss);
+	    if (rc || s.perpass_verbose[0] >= 1)
+	      s.explain_auto_options ();
           }
       }
 
@@ -1136,8 +1236,8 @@ main (int argc, char * const argv [])
       // Exiting for any quiet reason.
       return e.rc;
   }
-  catch (const runtime_error &e) {
-      // Some other uncaught runtime_error exception.
+  catch (const exception &e) {
+      // Some other uncaught exception.
       cerr << e.what() << endl;
       return EXIT_FAILURE;
   }

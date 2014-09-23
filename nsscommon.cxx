@@ -1,7 +1,7 @@
 /*
   Common functions used by the NSS-aware code in systemtap.
 
-  Copyright (C) 2009-2013 Red Hat Inc.
+  Copyright (C) 2009-2014 Red Hat Inc.
 
   This file is part of systemtap, and is free software.  You can
   redistribute it and/or modify it under the terms of the GNU General Public
@@ -43,6 +43,7 @@ extern "C" {
 #include <cryptohi.h>
 #include <keyhi.h>
 #include <secder.h>
+#include <cert.h>
 }
 
 #include "nsscommon.h"
@@ -55,6 +56,17 @@ const char *
 server_cert_nickname ()
 {
   return (const char *)"stap-server";
+}
+
+string
+add_cert_db_prefix (const string &db_path) {
+#if (NSS_VMAJOR > 3) || (NSS_VMAJOR == 3 && NSS_VMINOR >= 12)
+  // Use the dbm prefix, if a prefix is not already specified,
+  // since we're using the old database format.
+  if (db_path.find (':') == string::npos)
+    return string("dbm:") + db_path;
+#endif
+  return db_path;
 }
 
 string
@@ -165,6 +177,8 @@ SECStatus
 nssInit (const char *db_path, int readWrite, int issueMessage)
 {
   SECStatus secStatus;
+  string full_db_path = add_cert_db_prefix (db_path);
+  db_path = full_db_path.c_str();
   if (readWrite)
     secStatus = NSS_InitReadWrite (db_path);
   else
@@ -193,6 +207,8 @@ nssCleanup (const char *db_path)
     {
       if (db_path)
 	{
+	  string full_db_path = add_cert_db_prefix (db_path);
+	  db_path = full_db_path.c_str();
 	  nsscommon_error (_F("WARNING: Attempt to shutdown NSS for database %s, which was never initialized", db_path));
 	}
       return;
@@ -203,7 +219,11 @@ nssCleanup (const char *db_path)
   if (NSS_Shutdown () != SECSuccess)
     {
       if (db_path)
-	nsscommon_error (_F("Unable to shutdown NSS for database %s", db_path));
+	{
+	  string full_db_path = add_cert_db_prefix (db_path);
+	  db_path = full_db_path.c_str();
+	  nsscommon_error (_F("Unable to shutdown NSS for database %s", db_path));
+	}
       else
 	nsscommon_error (_("Unable to shutdown NSS"));
       nssError ();
@@ -933,6 +953,7 @@ gen_cert_db (const string &db_path, const string &extraDnsNames, bool use_passwo
   CERTCertificate *cert = 0;
   SECItem *certDER = 0;
   string dnsNames;
+  string hostname;
   int rc;
   string outFileName;
   FILE *outFile = 0;
@@ -979,12 +1000,20 @@ gen_cert_db (const string &db_path, const string &extraDnsNames, bool use_passwo
       goto error;
     }
 
-  // Now, generate the cert. We need our host name and the supplied additional dns names (if any).
+  // For the cert, we need our host name.
   struct utsname utsname;
   uname (& utsname);
   dnsNames = utsname.nodename;
+
+  // Because avahi identifies hosts using a ".local" domain, add one to the list of names.
+  hostname = dnsNames.substr (0, dnsNames.find ('.'));
+  dnsNames += string(",") + hostname + ".local";
+
+  // Add any extra names that were supplied.
   if (! extraDnsNames.empty ())
     dnsNames += "," + extraDnsNames;
+
+  // Now, generate the cert.
   cert = create_cert (cr, dnsNames);
   CERT_DestroyCertificateRequest (cr);
   if (! cert)
@@ -1363,6 +1392,134 @@ PRInt32 PR_Read_Complete (PRFileDesc *fd, void *buf, PRInt32 requestedBytes)
 
   // Return the number of bytes we managed to read.
   return totalBytes;
+}
+
+SECStatus
+read_cert_info_from_file (const string &certPath, string &fingerprint)
+{
+  FILE *certFile = fopen (certPath.c_str (), "rb");
+  SECStatus secStatus = SECFailure;
+
+  if (! certFile)
+    {
+      nsscommon_error (_F("Could not open certificate file %s for reading\n%s",
+			  certPath.c_str (), strerror (errno)));
+      return SECFailure;
+    }
+
+  int fd = fileno (certFile);
+  struct stat info;
+  int rc = fstat (fd, &info);
+  if (rc != 0)
+    {
+      nsscommon_error (_F("Could not obtain information about certificate file %s\n%s",
+			  certPath.c_str (), strerror (errno)));
+      fclose (certFile);
+      return SECFailure;
+    }
+
+  PLArenaPool *arena = PORT_NewArena(DER_DEFAULT_CHUNKSIZE);
+  if (!arena)
+    {
+      nsscommon_error (_F("Could not create arena while decoding certificate from file %s",
+			  certPath.c_str ()));
+      fclose (certFile);
+      goto done;
+    }
+      
+  SECItem derCert;
+  if (!SECITEM_AllocItem(arena, &derCert, info.st_size))
+    {
+      nsscommon_error (_F("Could not allocate DER cert\n%s",
+			  strerror (errno)));
+      fclose (certFile);
+      goto done;
+    }
+
+  size_t read;
+  read = fread (derCert.data, 1, derCert.len, certFile);
+  fclose (certFile);
+  if (read != derCert.len)
+    {
+      nsscommon_error (_F("Error reading from certificate file %s\n%s",
+			  certPath.c_str (), strerror (errno)));
+      goto done;
+    }
+  derCert.type = siDERCertBuffer;
+
+  // Sigh. We'd like to use CERT_DecodeDERCertificate() here, but
+  // although /usr/include/nss3/cert.h declares them, the shared
+  // library doesn't export them.
+
+  CERTCertificate *cert;
+  int rv;
+  char *str;
+
+  // Strip off the signature.
+  CERTSignedData *sd;
+  sd = PORT_ArenaZNew(arena, CERTSignedData);
+  if (!sd)
+    {
+      nsscommon_error (_F("Could not allocate signed data while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+  rv = SEC_ASN1DecodeItem(arena, sd, SEC_ASN1_GET(CERT_SignedDataTemplate), 
+			  &derCert);
+  if (rv)
+    {
+      nsscommon_error (_F("Could not decode signature while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+
+  // Decode the certificate.
+  cert = PORT_ArenaZNew(arena, CERTCertificate);
+  if (!cert)
+    {
+      nsscommon_error (_F("Could not allocate cert while decoding certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+  cert->arena = arena;
+  rv = SEC_ASN1DecodeItem(arena, cert,
+			  SEC_ASN1_GET(CERT_CertificateTemplate), &sd->data);
+  if (rv)
+    {
+      nsscommon_error (_F("Could not decode certificate from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+
+  // Get the fingerprint from the signature.
+  unsigned char fingerprint_buf[SHA1_LENGTH];
+  SECItem fpItem;
+  rv = PK11_HashBuf(SEC_OID_SHA1, fingerprint_buf, derCert.data, derCert.len);
+  if (rv)
+    {
+      nsscommon_error (_F("Could not decode SHA1 fingerprint from file %s",
+			  certPath.c_str ()));
+      goto done;
+    }
+  fpItem.data = fingerprint_buf;
+  fpItem.len = sizeof(fingerprint_buf);
+  str = CERT_Hexify(&fpItem, 1);
+  if (! str)
+  {
+      nsscommon_error (_F("Could not hexify SHA1 fingerprint from file %s",
+			  certPath.c_str ()));
+      goto done;
+  }
+  fingerprint = str;
+  transform(fingerprint.begin(), fingerprint.end(), fingerprint.begin(), 
+	    ::tolower);
+  PORT_Free(str);
+  secStatus = SECSuccess;
+
+done:
+  if (arena)
+    PORT_FreeArena(arena, PR_FALSE);
+  return secStatus;
 }
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

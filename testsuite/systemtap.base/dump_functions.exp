@@ -1,0 +1,67 @@
+set test "dump_functions"
+
+# This test verifies that --dump-functions works properly. We also check more
+# specific behaviour, such as:
+# 1. --dump-functions should list normal tapset functions such as user_string
+#    but not internal functions such as _caller_match
+# 2. -v --dump-functions should list internal functions such as _caller_match
+# 3. --dump-functions should list embedded C tags including guru, unprivileged,
+#    and myproc-unprivileged but not pure, and unmangled tags
+# 4. -v --dump-functions should list pure, unmangled tags
+
+proc has_function { output wanted func } {
+   global test subtest
+
+   set inlist [lsearch $output $func]
+   if {[expr  $wanted && $inlist > 0] \
+    || [expr !$wanted && $inlist < 0]} {
+      pass "$test ($subtest)"
+   } else {
+      fail "$test ($subtest)"
+   }
+}
+
+# Get output for --dump-functions
+if {[catch {exec stap --dump-functions 2>/dev/null} output]} {
+   fail "$test (can't get output of stap --dump-functions)"
+   return
+} else {
+   pass "$test (got output of stap --dump-functions)"
+}
+
+# Get output for -v --dump-functions
+if {[catch {exec stap -v --dump-functions 2>/dev/null} outputv]} {
+   fail "$test (can't get output of stap -v --dump-functions)"
+   return
+} else {
+   pass "$test (got output of stap -v --dump-functions)"
+}
+
+# Split outputs into lines
+set output  [split $output  "\n"]
+set outputv [split $outputv "\n"]
+
+set subtest "user_string in output"
+has_function $output 1 "user_string:string *"
+
+set subtest "_caller_match not in output"
+has_function $output 0 "_caller_match:long *"
+
+set subtest "user_string in -v output"
+has_function $outputv 1 "user_string:string *"
+
+set subtest "_caller_match in -v output"
+has_function $outputv 1 "_caller_match:long *"
+
+set subtest "mdelay has guru in output"
+has_function $output 1 "mdelay:unknown * /\* guru \*/"
+
+set subtest "mdelay has guru in -v output"
+has_function $outputv 1 "mdelay:unknown * /\* guru \*/"
+
+set subtest "uid has unpriv but not pure in output"
+has_function $output 1 "uid:long () /\* unprivileged \*/"
+
+set subtest "uid has unpriv and pure in -v output"
+has_function $outputv 1 "uid:long () /\* pure \*/ /\* unprivileged \*/"
+

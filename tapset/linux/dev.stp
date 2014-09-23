@@ -55,20 +55,20 @@ function usrdev2kerndev:long(dev:long)
 
 function bdevname:string(bdev:long)
 {
+	bdev = & @cast(bdev, "block_device")
 	if (bdev == 0)
 		return "N/A"
 
-	hd = @cast(bdev, "block_device")->bd_disk
+	hd = bdev->bd_disk
 
-	if (@cast(bdev, "block_device")->bd_part)
-		partno = @cast(bdev, "block_device")->bd_part->partno
+	if (bdev->bd_part)
+		partno = bdev->bd_part->partno
 	else
-		partno = MINOR(@cast(bdev, "block_device")->bd_dev)
-			- @cast(bdev, "block_device")->bd_disk->first_minor;
+		partno = MINOR(bdev->bd_dev) - hd->first_minor;
 
 	if (!partno)
-		return kernel_string(@cast(hd, "gendisk")->disk_name)
-	disk_name = kernel_string(@cast(hd, "gendisk")->disk_name)
+		return kernel_string(hd->disk_name)
+	disk_name = kernel_string(hd->disk_name)
 	if (isdigit(substr(disk_name, strlen(disk_name) - 1, 1)))
 		return sprintf("%sp%d", disk_name, partno)
 	else

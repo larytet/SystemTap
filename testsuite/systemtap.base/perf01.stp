@@ -1,0 +1,12 @@
+global towers_n
+global XXX_n
+
+probe perf.sw.task_clock.process(@1)
+{
+    towers_n += 1
+}
+
+probe perf.sw.task_clock.process("XXX") 
+{ 
+    XXX_n += 1
+}

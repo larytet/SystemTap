@@ -21,7 +21,7 @@ probe signal.checkperm
 	printf("%s(%d(%s), %d(%s))\n", name, sig, sig_name, sig_pid, pid_name)
 	printf("%s %p %p\n", si_code, task, sinfo)
 }
-probe signal.checkperm.return
+probe signal.checkperm.return ?
 {
 	printf("%s() = %s\n", name, retstr)
 }

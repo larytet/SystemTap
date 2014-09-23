@@ -1,5 +1,5 @@
 // stapdyn mutator functions
-// Copyright (C) 2012-2013 Red Hat Inc.
+// Copyright (C) 2012-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -553,6 +553,8 @@ mutator::update_mutatees()
 bool
 mutator::run ()
 {
+  if (!targets.empty() && !target_mutatee)
+    stapwarn() << "process probes require a target (-c or -x)" << endl;
 
   // Get the stap module ready...
   run_module_init();
@@ -689,7 +691,7 @@ mutator::post_fork_callback(BPatch_thread *parent, BPatch_thread *child)
       m->copy_forked_instrumentation(*mut);
 
       // Trigger any process.begin probes.
-      m->begin_callback();
+      m->begin_callback(child);
     }
 }
 
@@ -712,12 +714,29 @@ mutator::exec_callback(BPatch_thread *thread)
       // Clear previous instrumentation
       mut->exec_reset_instrumentation();
 
-      // FIXME the loadLibrary is hanging in Dyninst waiting for IRPC.
-      // I've tried deferring this until update_mutatees() too - same hang.
-#if 0
+      // NB: Until Dyninst commit 2b6c10ac15dc (in 8.2), loadLibrary in a
+      // fork-execed would hang waiting for a stopped process to continue.
+#ifdef DYNINST_8_2
       // Load our module again in the new process
       if (mut->load_stap_dso(module_name))
-        mut->instrument_dynprobes(targets, true);
+        {
+          if (!targets.empty())
+            mut->instrument_dynprobes(targets);
+
+          // Now we map the shared-memory into the target
+          if (!module_shmem.empty())
+            {
+              vector<BPatch_snippet *> args;
+              args.push_back(new BPatch_constExpr(module_shmem.c_str()));
+              mut->call_function("stp_dyninst_shm_connect", args);
+            }
+
+          // Trigger any process.end probes for the pre-exec process.
+          mut->exit_callback(thread, true);
+
+          // Trigger any process.begin probes.
+          mut->begin_callback(thread);
+        }
 #endif
     }
 }
@@ -733,21 +752,8 @@ mutator::exit_callback(BPatch_thread *thread,
   // 'thread' is the thread that requested the exit, not necessarily the
   // main thread.
   BPatch_process* process = thread->getProcess();
-
-  if (utrace_enter_fn == NULL)
-    {
-      try
-        {
-	  set_dlsym(utrace_enter_fn, module, "enter_dyninst_utrace_probe");
-	}
-      catch (runtime_error& e)
-        {
-	  staperror() << e.what() << endl;
-	  return;
-	}
-    }
-
-  staplog(1) << "exit callback, pid = " << process->getPid() << endl;
+  int pid = process->getPid();
+  staplog(1) << "exit callback, pid = " << pid << endl;
 
   boost::shared_ptr<mutatee> mut = find_mutatee(process);
   if (mut)
@@ -758,14 +764,31 @@ mutator::exit_callback(BPatch_thread *thread,
       // exiting before we can). So, we'll call the probe(s) locally
       // here. This works, but the context is wrong (the mutator, not
       // the mutatee).
-      vector<const dynprobe_location *> exit_probes;
-      mut->find_attached_probes(STAPDYN_PROBE_FLAG_PROC_END, exit_probes);
-      for (size_t p = 0; p < exit_probes.size(); ++p)
+      const vector<dynprobe_location>& proc_end_probes =
+	mut->find_attached_probes(STAPDYN_PROBE_FLAG_PROC_END);
+      if (proc_end_probes.empty())
+	return;
+
+      if (utrace_enter_fn == NULL)
+	try
+	  {
+	    set_dlsym(utrace_enter_fn, module, "enter_dyninst_utrace_probe");
+	  }
+	catch (runtime_error& e)
+	  {
+	    staperror() << e.what() << endl;
+	    return;
+	  }
+
+      staplog(2) << "firing " << proc_end_probes.size()
+		 << " process.end probes in the mutator for pid "
+		 << pid << endl;
+      for (size_t p = 0; p < proc_end_probes.size(); ++p)
         {
-	  const dynprobe_location *probe = exit_probes[p];
-	  staplog(1) << "found end proc probe, index = " << probe->index
-		     << endl;
-	  int rc = utrace_enter_fn(probe->index, NULL);
+	  const dynprobe_location& probe = proc_end_probes[p];
+	  staplog(3) << "calling utrace function in the mutator for pid "
+		     << pid << ", probe index " << probe.index << endl;
+	  int rc = utrace_enter_fn(probe.index, NULL);
 	  if (rc)
 	    stapwarn() << "enter_dyninst_utrace_probe returned "
 		       << rc << endl;

@@ -1,4 +1,4 @@
-/* COVERAGE: signal kill tgkill sigprocmask sigaction getpid */
+/* COVERAGE: signal tgkill sigprocmask sigaction */
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>

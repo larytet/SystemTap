@@ -1,7 +1,7 @@
 // memory/vm related tapset
 // Copyright (C) 2005, 2006 IBM Corp.
 // Copyright (C) 2006 Intel Corporation.
-// Copyright (C) 2010 Red Hat Inc.
+// Copyright (C) 2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -30,7 +30,7 @@ function vm_fault_contains:long (value:long, test:long)
 	switch (STAP_ARG_test){
 	case 0: res = STAP_ARG_value & VM_FAULT_OOM; break;
 	case 1: res = STAP_ARG_value & VM_FAULT_SIGBUS; break;
-#if defined(VM_FAULT_MINOR) && VM_FAULT_MINOR != 0
+#if defined(VM_FAULT_MINOR) && VM_FAULT_MINOR == 0
 	case 2: /* VM_FAULT_MINOR infered by that flags off */
 		res = !((VM_FAULT_OOM | VM_FAULT_SIGBUS | VM_FAULT_MAJOR) & 
 				 STAP_ARG_value);
@@ -64,8 +64,8 @@ function vm_fault_contains:long (value:long, test:long)
  *
  * Context: The process which triggered the fault
  */
-probe vm.pagefault = kernel.function("__handle_mm_fault@mm/memory.c") ?,
-                     kernel.function("handle_mm_fault@mm/memory.c") ?
+probe vm.pagefault = kernel.function("handle_mm_fault@mm/memory.c").call !,
+		     kernel.function("__handle_mm_fault@mm/memory.c").call
 {
 	name = "pagefault"
 	write_access = (@defined($flags)
@@ -84,8 +84,8 @@ probe vm.pagefault = kernel.function("__handle_mm_fault@mm/memory.c") ?,
  * nor major fault.
  */
 probe vm.pagefault.return =
-		kernel.function("__handle_mm_fault@mm/memory.c").return ?,
-		kernel.function("handle_mm_fault@mm/memory.c").return ?
+		kernel.function("handle_mm_fault@mm/memory.c").return !,
+		kernel.function("__handle_mm_fault@mm/memory.c").return
 {
 	name = "pagefault"
 	fault_type = $return
@@ -100,8 +100,15 @@ probe vm.pagefault.return =
  * node that the given address belongs to in a NUMA system.
  */
 function addr_to_node:long(addr:long) %{ /* pure */ 
-	int pfn = __pa(STAP_ARG_addr) >> PAGE_SHIFT;
 	int nid;
+	int pfn;
+        if (! virt_addr_valid((void*) (uintptr_t) STAP_ARG_addr)) {
+            snprintf (CONTEXT->error_buffer, sizeof(CONTEXT->error_buffer),
+                      "invalid kernel virtual address 0x%p", (void *) (uintptr_t) STAP_ARG_addr);
+            CONTEXT->last_error = CONTEXT->error_buffer;
+            goto out;
+        }
+        pfn = __pa(STAP_ARG_addr) >> PAGE_SHIFT;
 #ifdef for_each_online_node
 	for_each_online_node(nid)
 #else
@@ -179,7 +186,9 @@ probe vm.write_shared_copy =  kernel.function("cow_user_page") ?,
  * Context:
  *  The process calling mmap.
  */
-probe vm.mmap = kernel.function("vm_mmap")?, kernel.function("do_mmap")?, kernel.function("do_mmap2")?
+probe vm.mmap = kernel.function("vm_mmap") !,
+		kernel.function("do_mmap_pgoff") !,
+		kernel.function("do_mmap") ?, kernel.function("do_mmap2") ?
 {
     name = "mmap"
     address = $addr

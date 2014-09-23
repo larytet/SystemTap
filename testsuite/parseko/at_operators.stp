@@ -1,4 +1,4 @@
-#! stap -p2
+#! stap -p1
 
 # this used to be allowed, but really shouldn't have been:
 probe @hellosailor = begin { }

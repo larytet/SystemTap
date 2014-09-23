@@ -203,22 +203,30 @@ stapiu_retprobe_prehandler (struct uprobe_consumer *inst,
 static int
 stapiu_register (struct inode* inode, struct stapiu_consumer* c)
 {
+	int ret = 0;
+
 	if (!c->return_p) {
 		c->consumer.handler = stapiu_probe_prehandler;
 	} else {
 #if defined(STAPCONF_INODE_URETPROBES)
 		c->consumer.ret_handler = stapiu_retprobe_prehandler;
 #else
-		return EINVAL;
+		ret = EINVAL;
 #endif
 	}
-	return uprobe_register (inode, c->offset, &c->consumer);
+
+	if (ret == 0)
+		ret = uprobe_register (inode, c->offset, &c->consumer);
+
+	c->registered = (ret ? 0 : 1);
+	return ret;
 }
 
 static void
 stapiu_unregister (struct inode* inode, struct stapiu_consumer* c)
 {
 	uprobe_unregister (inode, c->offset, &c->consumer);
+	c->registered = 0;
 }
 
 
@@ -354,10 +362,8 @@ stapiu_target_unreg(struct stapiu_target *target)
 	if (! target->inode)
 		return;
 	list_for_each_entry(c, &target->consumers, target_consumer) {
-		if (c->registered) {
-			c->registered = 0;
+		if (c->registered)
 			stapiu_unregister(target->inode, c);
-		}
 	}
 }
 
@@ -375,20 +381,50 @@ stapiu_target_reg(struct stapiu_target *target, struct task_struct* task)
 			for (i=0; i < c->perf_counters_dim; i++) {
                             if ((c->perf_counters)[i] > -1)
 			    _stp_perf_read_init ((c->perf_counters)[i], task);
-		        }
-			ret = stapiu_register(target->inode, c);
-			if (ret) {
-				c->registered = 0;
-				_stp_warn("probe %s inode-offset %p registration error (rc %d)",
-                                          c->probe->pp, (void*) (uintptr_t) c->offset, ret);
-                                ret = 0; /* Don't abort entire stap script just for this. */
 			}
-			c->registered = 1;
+			if (!c->probe->cond_enabled) {
+				dbug_otf("not registering (u%sprobe) pidx %zu\n",
+					 c->return_p ? "ret" : "", c->probe->index);
+				continue;
+			}
+			if (stapiu_register(target->inode, c) != 0)
+				_stp_warn("probe %s inode-offset %p registration error (rc %d)",
+					  c->probe->pp, (void*) (uintptr_t) c->offset, ret);
 		}
 	}
 	if (ret)
 		stapiu_target_unreg(target);
 	return ret;
+}
+
+
+/* Register/unregister a target's uprobe consumers if their associated probe
+ * handlers have their conditions enabled/disabled. */
+static void
+stapiu_target_refresh(struct stapiu_target *target)
+{
+	struct stapiu_consumer *c;
+
+	// go through every consumer
+	list_for_each_entry(c, &target->consumers, target_consumer) {
+
+		// should we unregister it?
+		if (c->registered && !c->probe->cond_enabled) {
+
+			dbug_otf("unregistering (u%sprobe) pidx %zu\n",
+				 c->return_p ? "ret" : "", c->probe->index);
+			stapiu_unregister(target->inode, c);
+
+		// should we register it?
+		} else if (!c->registered && c->probe->cond_enabled) {
+
+			dbug_otf("registering (u%sprobe) pidx %zu\n",
+				 c->return_p ? "ret" : "", c->probe->index);
+			if (stapiu_register(target->inode, c) != 0)
+				dbug_otf("couldn't register (u%sprobe) pidx %zu\n",
+					 c->return_p ? "ret" : "", c->probe->index);
+		}
+	}
 }
 
 
@@ -453,6 +489,25 @@ stapiu_init(struct stapiu_target *targets, size_t ntargets,
 	return ret;
 }
 
+/* Refresh the entire inode-uprobes subsystem.  */
+static void
+stapiu_refresh(struct stapiu_target *targets, size_t ntargets)
+{
+	size_t i;
+
+	for (i = 0; i < ntargets; ++i) {
+		struct stapiu_target *target = &targets[i];
+
+		// we need to lock it to ensure probes don't get
+		// registered under our feet
+		stapiu_target_lock(target);
+
+		if (target->inode)
+			stapiu_target_refresh(target);
+
+		stapiu_target_unlock(target);
+	}
+}
 
 /* Shutdown the entire inode-uprobes subsystem.  */
 static void

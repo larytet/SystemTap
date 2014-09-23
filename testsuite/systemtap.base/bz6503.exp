@@ -5,6 +5,11 @@
 # Not BZ6503:
 #   ypserve does not work
 #   <https://bugzilla.redhat.com/show_bug.cgi?id=6503>
+#
+# Unfortunately, PR17249 indicates that module-init probes
+# have subsequently broken (due to kernel notification timing
+# changes).
+#
 
 set test bz6503
 
@@ -42,14 +47,8 @@ expect {
 }
 catch { close} ; catch { wait }
 
-# Mark kernels < 2.6.29 as xfail
-set kv [exec uname -r | grep -o -G  {^[0-9]\+.[0-9]\+.[0-9]\+}]
-set kvbits [split $kv .]
-set k1 [lindex $kvbits 0]
-set k2 [lindex $kvbits 1]
-set k3 [lindex $kvbits 2]
-verbose -log "xfailing if $k1.$k2.$k3 < 2.6.29"
-if {($k1*256*256 + $k2*256 + $k3) < (2*256*256 + 6*256 + 29)} then { setup_xfail *-*-* }
+# Mark kernels without module refresh support as xfail
+if {![module_refresh_p]} { setup_xfail *-*-* }
 
 if {$ok > 0 && $ko == 0} then { pass "$test $ok" } else { fail "$test $ok $ko"}
 

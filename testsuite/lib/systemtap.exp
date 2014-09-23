@@ -9,89 +9,108 @@ proc installtest_p {} {
 }
 
 
-# only original rhel5/6-era utrace need apply
-proc utrace_orig_p {} {
-    set path "/proc/kallsyms"
-    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
+proc grep_kallsyms { pattern } {
+    if {! [catch {exec grep -q "$pattern" "/proc/kallsyms"} dummy]} {
 	return 1
     }
     return 0
 }
 
 
+# Test for kernel built-in utrace (CONFIG_UTRACE).
+# Only original rhel5/6-era utrace need apply.
+proc utrace_orig_p {} {
+    # We want utrace_attach (rhel5) or utrace_attach_task (rhel6), but don't
+    # get confused by the private module version of any active stap module.
+    return [grep_kallsyms "T utrace_attach"]
+}
+
+
+# Test for tracepoint-based utrace, or rather the in-kernel
+# facilities which enable our emulation of utrace.
+proc utrace_emu_p {} {
+    # Check for the set of 5 tracepoints we need and task_work_add()
+    # (see runtime/autoconf-utrace-via-tracepoints.c for details).
+    return [expr [grep_kallsyms task_work_add]                  \
+              && [grep_kallsyms tracepoint_sched_process_fork]  \
+              && [grep_kallsyms tracepoint_sched_process_exec]  \
+              && [grep_kallsyms tracepoint_sched_process_exit]  \
+              && [grep_kallsyms tracepoint_sys_enter]           \
+              && [grep_kallsyms tracepoint_sys_exit]            \
+           ]
+}
+
+
+# Test for utrace - any flavor will do...
 proc utrace_p {} {
-    set path "/proc/kallsyms"
-    # We've got 2 ways to provide utrace support:
+    return [expr [utrace_orig_p] || [utrace_emu_p] ]
+}
+
+
+proc classic_uprobes_p {} {
+    # If this is a utrace kernel, then we can use our version of uprobes.
+    # No need to build it now, stap will handle that itself.
     #
-    # (1) Kernel built-in utrace (CONFIG_UTRACE).  Look for
-    # 'utrace_attach'.
-    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
-	return 1
+    # Although ia64 has classical utrace, uprobes hasn't been
+    # ported there (PR7081).
+    return [expr [utrace_orig_p] && ! [istarget ia64-*-*] ]
+}
 
-    # (2) Tracepoint-based utrace.  Check for the set of 5 tracepoints
-    # we need and task_work_add() (see
-    # runtime/autoconf-utrace-via-tracepoints.c for details).
-    } elseif {! [catch {exec grep -q tracepoint_sched_process_fork $path} dummy]
-	      && ! [catch {exec grep -q tracepoint_sched_process_exit $path} dummy]
-	      && ! [catch {exec grep -q tracepoint_sys_enter $path} dummy]
-	      && ! [catch {exec grep -q tracepoint_sys_exit $path} dummy]
-
-	      && ! [catch {exec grep -q tracepoint_sched_process_exec $path} dummy]
-	      && ! [catch {exec grep -q task_work_add $path} dummy]} {
-        return 1
-    }
-    return 0
+proc inode_uprobes_p {} {
+    # inode-uprobes (or unlikely compiled-in classical uprobes?)
+    #
+    # Note we're looking for " uprobe_register" to avoid finding
+    # 'kallsyms_uprobe_register' from a loaded systemtap module.
+    return [expr ([grep_kallsyms register_uprobe]        \
+                  || [grep_kallsyms " uprobe_register"]) \
+              && ! [classic_uprobes_p]                   \
+           ]
 }
 
 
 proc uprobes_p {} {
-    set path "/proc/kallsyms"
-    # If this is a utrace kernel, then we can use our version of uprobes.
-    # No need to build it now, stap will handle that itself.
-    #
-    # classical utrace?
-    if {! [catch {exec grep -q utrace_attach $path} dummy]} {
-	# Although ia64 has classical utrace, uprobes hasn't been
-	# ported there (PR7081).
-	if {[istarget ia64-*-*]} {
- 	    return 0
-	}
-	return 1
-    }
-
-    # inode-uprobes or (unlikely compiled-in classical uprobes?)
-    #
-    # Note we're looking for " uprobe_register" to avoid finding
-    # 'kallsyms_uprobe_register' from a loaded systemtap module.
-    if {! [catch {exec grep -q register_uprobe $path} dummy]
-	|| ! [catch {exec grep -q " uprobe_register" $path} dummy]} {
-	return 1
-    }
-    return 0
+    return [expr [classic_uprobes_p] || [inode_uprobes_p] ]
 }
 
 
-proc inode_uprobes_p {} {
-    set path "/proc/kallsyms"
-
-    # Note we're looking for " uprobe_register" to avoid finding
-    # 'kallsyms_uprobe_register' from a loaded systemtap module.
-    if {! [catch {exec grep -q " uprobe_register" $path} dummy]} {
-	return 1
-    }
-    return 0
+proc classic_uretprobes_p {} {
+    # Classic uprobes always has uretprobes
+    return [classic_uprobes_p]
 }
 
+proc inode_uretprobes_p {} {
+    # inode-uprobes, now with return probes!  Looking for any mention of
+    # uretprobe, notably arch_uretprobe_hijack_return_addr
+    return [expr [inode_uprobes_p] && [grep_kallsyms uretprobe] ]
+}
 
 proc uretprobes_p {} {
-    set path "/proc/kallsyms"
-    if {! [uprobes_p]} { return 0 }
-    if {! [catch {exec grep -q uretprobe $path} dummy]} { return 1 }
-    if {! [catch {exec grep -q utrace_attach $path} dummy]} { return 1 }
-    return 0
+    return [expr [classic_uretprobes_p] || [inode_uretprobes_p] ]
 }
 
+proc plt_probes_p {} {
+    # .plt probes need uprobes and a supported arch (x86 and arm)
+    return [expr [uprobes_p] \
+	    && [regexp "^(x86_64|i.86|arm.*)$" $::tcl_platform(machine)] ]
+}
 
+proc perf_probes_p {} {
+    # perf probes need and exported perf_event_create_kernel_counter
+    return [grep_kallsyms perf_event_create_kernel_counter]
+}
+
+proc hwbkpt_probes_p {} {
+   global have_hw_breakpoint_p
+   return $have_hw_breakpoint_p
+}
+
+# Callee probes require GCC v4.7 and stap compiled
+# with elfutils 0.153
+proc callee_probes_p {} {
+   global GCC_Version ELF_Version
+   return [expr [strverscmp $GCC_Version 4.7] >= 0 && \
+                [strverscmp $ELF_Version 0.153] >= 0]
+}
 
 proc dyninst_p {} {
     global systemtap_dyninst_p
@@ -108,6 +127,41 @@ proc java_p {} {
     return $systemtap_java_p
 }
 
+proc bootprobing_p {} {
+    global Dracut_Version
+    return [expr [strverscmp $Dracut_Version 025] >= 0 && \
+                 [file exists "/usr/sbin/new-kernel-pkg"]]
+}
+
+proc module_refresh_p {} {
+    return [min_kernel_vers_p 2.6.29]
+}
+
+proc hrtimer_p {} {
+    return [min_kernel_vers_p 2.6.17]
+}
+
+proc kprobes_disabling_p {} {
+    return [min_kernel_vers_p 2.6.30]
+}
+
+# Returns 1 if kernel vers >= @min, 0 otherwise. The @min parameter must be in
+# the format x.y.z (e.g. 2.6.18).
+proc min_kernel_vers_p {min} {
+
+    # Check proper format
+    if {![regexp {^[0-9]+(\.[0-9]+)*$} $min]} {
+        error "$min is not a valid version number"
+    }
+
+    set uname [exec uname -r]
+
+    if {![regexp {^([0-9]+\.[0-9]+\.[0-9]+).*} $uname dummy cur]} {
+        error "can't parse version number from uname -r"
+    }
+
+    return [expr [strverscmp $cur $min] >= 0]
+}
 
 proc get_runtime_list {} {
     # Always return the default runtime.
@@ -149,6 +203,8 @@ proc print_systemtap_version {} {
 proc setup_systemtap_environment {} {
     global srcdir env server_pid logfile systemtap_dyninst_p
     global systemtap_nss_p systemtap_java_p
+    global have_hw_breakpoint_p
+    global kill_needs_doubledash
 
     # need an absolute SRCDIR for the top-level src/ tree
     # XXX: or, we could change nearby uses of ${SRCDIR}/testsuite to ${SRCDIR}
@@ -160,7 +216,7 @@ proc setup_systemtap_environment {} {
 
     # Use a local systemtap directory and cache.  Add user name so
     # make check and sudo make check don't clobber each other.
-    set env(SYSTEMTAP_DIR) [exec pwd]/.systemtap-[exec whoami]
+    set env(SYSTEMTAP_DIR) [pwd]/.systemtap-[exec whoami]
     exec mkdir -p $env(SYSTEMTAP_DIR)
 
     # Start with fresh server certificates
@@ -172,10 +228,11 @@ proc setup_systemtap_environment {} {
     # All hail the prophet lockdep
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
     puts $chan "--rlimit-cpu=300"
+    puts $chan "-E 'probe timer.s(900){error(\"probe timeout after 15 minutes\")}'"
     close $chan
 
     # Erase the old server log file.
-    set logfile "[exec pwd]/server.log"
+    set logfile "[pwd]/server.log"
     if {[file exists $logfile]} then {
 	exec rm -f $logfile;
     }
@@ -188,6 +245,14 @@ proc setup_systemtap_environment {} {
 
     # No compile-server started yet.
     set server_pid 0
+
+    # If the environment variable ARCH exists, this can throw off our
+    # custom module building (when set to the wrong value). To be
+    # safe, remove it.
+    if [info exists env(ARCH)] {
+	verbose -log "clearing env ARCH (was $env(ARCH))"
+	unset env(ARCH)
+    }
 
     # PATH, SYSTEMTAP_TAPSET, SYSTEMTAP_RUNTIME, LD_LIBRARY_PATH are already set.
     foreach var {PATH STAP SRCDIR SYSTEMTAP_TAPSET SYSTEMTAP_RUNTIME SYSTEMTAP_DIR LD_LIBRARY_PATH} {
@@ -216,13 +281,39 @@ proc setup_systemtap_environment {} {
     } else {
         set systemtap_java_p 0
     }
+
+    # Remember if this selfsame version of systemtap supports HW breakpoints
+    if {! [catch {exec stap -l {kernel.data(0x123).rw}}]} {
+        set have_hw_breakpoint_p 1
+    } else {
+        set have_hw_breakpoint_p 0
+    }
+
+    # There are some kill executables that had issues with -SIG -PID, thinking
+    # that the -PID was an option (procps-ng v3.3.2 and v3.3.3) and thus require
+    # a -- before -PID. So check for those, otherwise, just assume that no -- is
+    # needed.
+    if {![catch {exec kill --version 2>@1} killver]} {
+      if {[string match "*procps-ng 3.3.\[23\]" $killver]} {
+         set kill_needs_doubledash 1
+      } else {
+         # any other procps versions support the standard convention
+         # and anything not procps (e.g. util-linux) supports both
+         set kill_needs_doubledash 0
+      }
+    } else {
+      # kill doesn't support --version (e.g. busybox), just assume standard
+      # convention
+      set kill_needs_doubledash 0
+    }
+
     return 1
 }
 
 # Set up the environment so that tests will be performed using the systemtap
 # client and server.
 proc setup_server { args } {
-    global srcdir env installed_stap logfile use_server avahi_ok_p
+    global srcdir env installed_stap logfile use_server server_spec avahi_ok_p
 
     # Start the server
     if {! [start_server $args]} then {
@@ -230,27 +321,38 @@ proc setup_server { args } {
     }
 
     # Make sure that stap can find the server.
+    exec sleep 1
     set use_server --use-server
     set res [catch { exec stap --list-servers=online,trusted,compatible >& stap-list-servers.out } looksee]
     verbose -log "stap --list-servers returned: res==$res"
     verbose -log $looksee[exec cat stap-list-servers.out]
-    set res [catch { exec grep "^ host" stap-list-servers.out } looksee]
+    set listRes [catch { exec grep "^ host" stap-list-servers.out } looksee]
     verbose -log "grep for servers returned: res==$res\n$looksee"
 
-    set avahi_ok_p 1
+    # Try to discover the port the server is listening on from the server log.
+    # We're matching a line of the form:
+    # "Thu Jul 25 11:58:11 2013: Using network address <addr>:37804"
+    set res [catch { exec /bin/cat $logfile | awk "/Using network address/ {print \$9}" } server_address]
+    send_log "server_address=='$server_address'\n"
     if {$res != 0} then {
+	verbose -log "Unable to discover the address used by the systemtap server"
+	shutdown_server
+	return 0
+    }
+    set res [regsub ".*:(\[0-9\]\[0-9\]*)\$" $server_address {\1} server_port]
+    send_log "server_port=='$server_port'\n"
+    if {$res != 1} then {
+	verbose -log "Unable to discover the port used by the systemtap server"
+	shutdown_server
+	return 0
+    }
+    set server_spec [info hostname]:$server_port
+    send_log "server_spec=='$server_spec'\n"
+
+    set avahi_ok_p 1
+    if {$listRes != 0} then {
 	verbose -log "Unable to automatically find the systemtap server -- check firewall settings for mDNS"
 	set avahi_ok_p 0
-
-	# Try to discover the port the server is listening on from the server
-	# log.
-	set res [catch { exec /bin/cat $logfile | awk "/^Systemtap Compile Server on port .* ready/ {print \$6}" } server_port]
-	if {$res != 0} then {
-	    verbose -log "Unable to discover the port used by the systemtap server"
-	    shutdown_server
-	    return 0
-	}
-	set server_spec [info hostname]:$server_port
 	verbose -log "Client/Server tests will be run by contacting the server directly as $server_spec"
 
 	# Make sure stap can contact the server directly
@@ -275,8 +377,8 @@ proc start_server { options } {
     # install test, otherwise there is some setup to do.
     # Make sure the server management scripts and tools are on the $PATH.
     if {! [installtest_p]} then {
-	set env(PATH) "$srcdir/..:[exec pwd]/..:$env(PATH)"
-        set installed_stap "[exec pwd]/../stap"
+	set env(PATH) "$srcdir/..:[pwd]/..:$env(PATH)"
+        set installed_stap "[pwd]/../stap"
 	set env(SYSTEMTAP_SERVER_SCRIPTS) "$srcdir/.."
     } else {
 	set env(PATH) "$env(PKGLIBDIR):$env(PATH)"
@@ -309,14 +411,14 @@ proc shutdown_server {} {
     global server_pid
     if { $server_pid != 0 } then {
 	verbose -log "Stopping the systemtap server with PID==$server_pid"
-	exec stap-stop-server $server_pid
+	catch {exec stap-stop-server $server_pid}
 	set server_pid 0
     }
 
-    foreach module [glob -nocomplain [exec pwd]/stap_*.ko] {
+    foreach module [glob -nocomplain [pwd]/stap_*.ko] {
 	exec /bin/rm -f $module
     }
-    foreach sig [glob -nocomplain [exec pwd]/stap_*.ko.sgn] {
+    foreach sig [glob -nocomplain [pwd]/stap_*.ko.sgn] {
 	exec /bin/rm -f $sig
     }
 }
@@ -329,6 +431,7 @@ proc normalize_arch { arch } {
     if {$arch == "armv5tel"} then {return "arm"}
     if {$arch == "armv7l"} then {return "arm"}
     if {$arch == "armv7lh"} then {return "arm"}
+    if {$arch == "aarch64"} then {return "arm64"}
     return $arch
 }
 
@@ -342,7 +445,7 @@ proc fullpath { path } {
 }
 
 proc get_system_info {} {
-    global Host Snapshot Distro GCC_Version env SElinux
+    global Host Snapshot Distro GCC_Version GCC_FullVersion ELF_Version env SElinux Dracut_Version
 
     set Host [exec /bin/uname -a]
     if [file exists ../SNAPSHOT] {
@@ -367,15 +470,20 @@ proc get_system_info {} {
     set n [exec echo "__GNUC__ __GNUC_MINOR__ __GNUC_PATCHLEVEL__" | cpp -P]
     set n [string map {" " "."} $n]
     set n [string map {"\n" ""} $n]
-    # Plus full version between square brackets.
+    set GCC_Version "$n"
+    # Plus full version between square brackets for GCC_FullVersion
     set full [exec gcc --version | head -1]
-    set GCC_Version "$n \[$full\]"
+    set GCC_FullVersion "$n \[$full\]"
+    # Parse elfutils version stap was compiled with
+    regexp {version [^/]*/([^,]*)} [exec stap -V 2>@ stdout] all ELF_Version
     # selinux status
     if [file exists /usr/sbin/getenforce] {
         set SElinux [exec /usr/sbin/getenforce]
     } else {
         set SElinux "unknown"
     }
+    # Parse dracut version
+    regexp {\d[^\-]*} [exec sh -c "dracut --help 2>&1 | grep Version || echo 0"] Dracut_Version
 }
 
 if {! [setup_systemtap_environment]} then {
@@ -415,7 +523,7 @@ if {[catch {exec stap --skip-badvars -w -p2 -e {probe syscall.open {println (arg
     exit 1
 }
 
-# Make sure all development packages for the supported ABIs (-m64 -m32/-m31)
+# Make more likely that all development packages for the supported ABIs (-m64 -m32/-m31)
 # are installed by building a quick hello.c and hello.cxx program with both.
 set source "hello.c"
 set hello_file [open $source "w"]
@@ -430,9 +538,6 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     puts "\n\n\n**** failed gcc [arch_compile_flag_name $i] smoke test:\n"
     puts $result
     puts "Please install libgcc and glibc development packages for [arch_compile_flag_name $i]\n"
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
   }
 }
 set source "hello.cxx"
@@ -449,9 +554,6 @@ for {set i 0} {$i < [arch_compile_flags]} {incr i} {
     puts "\n\n\n**** failed g++ [arch_compile_flag_name $i] smoke test:\n"
     puts $result
     puts "Please install libstdc++-devel package for [arch_compile_flag_name $i]\n"
-    puts "\n**** aborting testing.\n"
-    cleanup
-    exit 1
   }
 }
 catch { eval [list exec rm -f] [glob "hello.c*" "hello-*"] }
@@ -500,7 +602,7 @@ proc stap_run_batch {filename args} {
 
     expect {
 	-timeout -1
-        -re {[^\r]*\r} { verbose -log $expect_out(0,string); exp_continue }
+        -re {[^\r\n]*\r\n} { exp_continue }
         eof { }
     }
     set results [wait]
@@ -541,10 +643,24 @@ proc as_non_root { command } {
 	if {[catch {exec /usr/bin/logname} logname] || $logname == "root"} {
 	    set logname "nobody"
 	}
-	set command "su -s /bin/sh $logname -c \"$command\""
+
+	# User 'nobody' doesn't have a home directory, which means we
+	# can't create ~nobody/.systemtap. So, temporarily override
+	# SYSTEMTAP_DIR.
+	if {$logname == "nobody"} {
+	    set stap_dir "/tmp/.systemtap-nobody"
+	    set command "su -s /bin/sh $logname -c \"SYSTEMTAP_DIR=$stap_dir $command\""
+	} else {
+	    set command "su -s /bin/sh $logname -c \"$command\""
+	}
     }
     verbose -log "as_non_root $command"
     set res [catch {eval exec $command} value]
+    if {$effective_uid == 0 && $logname == "nobody"} {
+	# If we created a SYSTEMTAP_DIR for user 'nobody' above, we
+	# can now remove it.
+	catch {exec rm -rf $stap_dir}
+    }
     verbose -log "OUT $value"
     verbose -log "RC $res"
     return  $res
@@ -579,4 +695,119 @@ proc stripped_p { EXE } {
 	return 1
     }
     return 0
+}
+
+proc prelink_p {} {
+  global prelink_bin
+  set prelink_bin "/usr/sbin/prelink"
+  return [file exists "$prelink_bin"]
+}
+
+# Run prelink via a temp file, so it can succeed even when running from an nfs
+# $HOME, for instance.  Otherwise, prelink complains that it can't restore context.
+proc prelink { FILE ADDR } {
+  global prelink_bin
+  if {![prelink_p]} {
+    verbose -log "Prelink is not found on this system"
+    return 0
+  }
+  if {[catch {exec mktemp -t staptestXXXXXX} tmpfile]} {
+    verbose -log "Failed to create prelink temporary file: $tmpfile"
+    return 0
+  }
+  if {[catch {exec cp -a "$FILE" "$tmpfile"} result]} {
+    verbose -log "Failed to copy file for prelink: $result"
+    catch {exec rm -rf "$tmpfile"}
+    return 0
+  }
+  set prelink_cmd [concat "$prelink_bin" -vfNR -r "$ADDR" "$tmpfile"]
+  send_log "Executing: $prelink_cmd\n"
+  if {[catch {eval exec $prelink_cmd} result]} {
+    verbose -log "Prelink failed: $result"
+    catch {exec rm -rf "$tmpfile"}
+    return 0
+  }
+  if {[catch {exec mv "$tmpfile" "$FILE"} result]} {
+    verbose -log "Failed to move prelinked file back: $result"
+    catch {exec rm -rf "$tmpfile"}
+    return 0
+  }
+  return 1
+}
+
+# Send signal SIG to PID. If KILL_TIMEOUT > 0, waits KILL_TIMEOUT seconds before
+# also sending a SIGKILL signal to PID. SIG can be with or without leading '-'.
+proc kill { SIG PID {KILL_TIMEOUT 0} } {
+   global kill_needs_doubledash
+
+   if {$kill_needs_doubledash} {
+      set PID "-- $PID"
+   }
+   if {![string match -* $SIG]} {
+      set SIG "-$SIG"
+   }
+
+   verbose -log "Executing: kill $SIG $PID"
+   if {[catch {eval exec kill $SIG $PID} killout]} {
+      verbose -log "kill: $killout"
+   }
+
+   if {$KILL_TIMEOUT > 0} {
+      while {$KILL_TIMEOUT > 0} {
+         if {![file isdirectory /proc/$PID]} {
+            return
+         }
+         sleep 1
+         incr KILL_TIMEOUT -1
+      }
+      verbose -log "Executing: kill -KILL $PID"
+      if {[catch {eval exec kill -KILL $PID} killout]} {
+         verbose -log "kill: $killout"
+      }
+   }
+}
+
+# Compares vers1 to vers2. Returns an integer less than, equal to, or greater
+# than zero if vers1 is before, equal, or after vers2. Similar to the GNU
+# extension strverscmp(3), but restricted to simple M.N... version numbers.
+proc strverscmp { vers1 vers2 } {
+
+   # Check that both versions are valid M.N... format
+   if {![regexp {^[0-9]+(\.[0-9]+)*$} $vers1]} {
+      error "$vers1 is not a valid version number"
+   }
+   if {![regexp {^[0-9]+(\.[0-9]+)*$} $vers2]} {
+      error "$vers2 is not a valid version number"
+   }
+
+   while {1} {
+
+      # Get the next M for each as well as following N...
+      regexp {^([0-9]+)(\.(.*))?} $vers1 dummy subvers1 dummy nextvers1
+      regexp {^([0-9]+)(\.(.*))?} $vers2 dummy subvers2 dummy nextvers2
+
+      # Compare M
+      if {$subvers1 < $subvers2} { return -1 }
+      if {$subvers1 > $subvers2} { return  1 }
+      # The M parts are equal
+
+      # Check if one (or both) of them don't have a next subversion
+      if {![string length $nextvers1] \
+       && ![string length $nextvers2]} { return  0 }
+      if {![string length $nextvers1] \
+       && [string length $nextvers2]}  { return -1 }
+      if {[string length $nextvers1] \
+       && ![string length $nextvers2]} { return  1 }
+
+      # They both have a subversion following, let's re-iterate
+
+      # Sanity check that we're making progress and not looping forever
+      if {[string length $nextvers1] >= [string length $vers1]} \
+         { error "$vers1 not converging" }
+      if {[string length $nextvers2] >= [string length $vers2]} \
+         { error "$vers2 not converging" }
+
+      set vers1 $nextvers1
+      set vers2 $nextvers2
+   }
 }

@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -29,11 +29,11 @@ struct recursive_expansion_error : public semantic_error
 {
   ~recursive_expansion_error () throw () {}
   recursive_expansion_error (const std::string& msg, const token* t1=0):
-    semantic_error (msg, t1) {}
+    SEMANTIC_ERROR (msg, t1) {}
 
   recursive_expansion_error (const std::string& msg, const token* t1,
                              const token* t2):
-    semantic_error (msg, t1, t2) {}
+    SEMANTIC_ERROR (msg, t1, t2) {}
 };
 
 // ------------------------------------------------------------------------
@@ -52,14 +52,17 @@ public:
   symresolution_info (systemtap_session& s);
 
   vardecl* find_var (const std::string& name, int arity, const token *tok);
-  functiondecl* find_function (const std::string& name, unsigned arity);
+  functiondecl* find_function (const std::string& name, unsigned arity, const token *tok);
+  std::set<std::string> collect_functions(void);
 
   void visit_block (block *s);
   void visit_symbol (symbol* e);
   void visit_foreach_loop (foreach_loop* e);
   void visit_arrayindex (arrayindex* e);
+  void visit_arrayindex (arrayindex *e, bool wildcard_ok);
   void visit_functioncall (functioncall* e);
   void visit_delete_statement (delete_statement* s);
+  void visit_array_in (array_in *e);
 };
 
 
@@ -69,24 +72,51 @@ struct typeresolution_info: public visitor
   systemtap_session& session;
   unsigned num_newly_resolved;
   unsigned num_still_unresolved;
+  unsigned num_available_autocasts;
   bool assert_resolvability;
+  int mismatch_complexity;
   functiondecl* current_function;
   derived_probe* current_probe;
-  std::vector <const token*> resolved_toks; // account for type mis-
-  std::vector <const token*> printed_toks;  // matches (BZ 9719)
+
+  // Holds information about a type we resolved (see PR16097)
+  struct resolved_type
+  {
+    const token *tok;
+    const symboldecl *decl;
+    int index;
+    resolved_type(const token *ct, const symboldecl *cdecl, int cindex):
+      tok(ct), decl(cdecl), index(cindex) {}
+  };
+
+  // Holds an element each time we resolve a decl. Unique by decl & index.
+  // Possible values:
+  //  - resolved function type     -> decl = functiondecl, index = -1
+  //  - resolved function arg type -> decl = vardecl,      index = index of arg
+  //  - resolved array/var type    -> decl = vardecl,      index = -1
+  //  - resolved array index type  -> decl = vardecl,      index = index of type
+  std::vector<resolved_type> resolved_types; // see PR16097
 
   void check_arg_type (exp_type wanted, expression* arg);
   void check_local (vardecl* v);
-  void mismatch (const token* tok, exp_type t1, exp_type t2);
   void unresolved (const token* tok);
-  void resolved (const token* tok, exp_type t);
   void invalid (const token* tok, exp_type t);
+  void mismatch (const binary_expression* e);
+  void mismatch (const token* tok, exp_type t1, exp_type t2);
+  void mismatch (const token* tok, exp_type type,
+                 const symboldecl* decl, int index = -1);
+  void resolved (const token* tok, exp_type type,
+                 const symboldecl* decl = NULL, int index = -1);
+  void resolved_details (const exp_type_ptr& src, exp_type_ptr& dest);
 
   exp_type t; // implicit parameter for nested visit call; may clobber
               // Upon entry to one of the visit_* calls, the incoming
               // `t' value is the type inferred for that node from 
               // context.  It may match or conflict with the node's 
               // preexisting type, or it may be unknown.
+
+  // Expressions with NULL type_details may be as-yet-unknown.
+  // If they have this null_type, they're explicitly *not* a rich type.
+  const exp_type_ptr null_type;
 
   void visit_block (block* s);
   void visit_try_block (try_block* s);
@@ -124,6 +154,7 @@ struct typeresolution_info: public visitor
   void visit_stat_op (stat_op* e);
   void visit_hist_op (hist_op* e);
   void visit_cast_op (cast_op* e);
+  void visit_autocast_op (autocast_op* e);
   void visit_atvar_op (atvar_op* e);
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
@@ -132,7 +163,6 @@ struct typeresolution_info: public visitor
 
 
 // ------------------------------------------------------------------------
-
 
 // A derived_probe is a probe that has been elaborated by
 // binding to a matching provider.  The locations std::vector
@@ -147,6 +177,7 @@ struct derived_probe: public probe
   derived_probe (probe* b, probe_point* l, bool rewrite_loc=false);
   probe* base; // the original parsed probe
   probe_point* base_pp; // the probe_point that led to this derivation
+  derived_probe_group* group; // the group we belong to
   virtual ~derived_probe () {}
   virtual void join_group (systemtap_session& s) = 0;
   virtual probe_point* sole_location () const;
@@ -195,10 +226,14 @@ public:
   Dwarf_Addr sdt_semaphore_addr;
 
   // perf.counter probes that this probe references
-  std::set<derived_probe*> perf_counter_refs;
+  std::set<std::string> perf_counter_refs;
 
   // index into session.probes[], set and used during translation
   unsigned session_index;
+
+  // List of other derived probes whose conditions may be affected by
+  // this probe.
+  std::set<derived_probe*> probes_with_affected_conditions;
 };
 
 // ------------------------------------------------------------------------
@@ -262,6 +297,20 @@ struct derived_probe_group
   // itself may be called a few times, to generate the code in a few
   // different places in the probe module.)
   // The generated code may use pre-declared "int i, j;".
+
+  // Support for on-the-fly operations is implemented in the runtime using a
+  // workqueue which calls module_refresh(). Depending on the probe type, it may
+  // not be safe to manipulate the workqueue in the context of the probe handler
+  // (otf_safe_context() = false). In this case, we rely on a background timer
+  // to schedule the work. Otherwise, if the probe context is safe
+  // (otf_safe_context() = true), we can directly schedule the work.
+
+  virtual bool otf_supported (systemtap_session& s) { return false; }
+  // Support for on-the-fly arming/disarming depends on probe type
+
+  virtual bool otf_safe_context (systemtap_session& s) { return false; }
+  // Whether this probe type occurs in a safe context. To be safe, we default to
+  // no, which means we'll rely on a background timer.
 };
 
 
@@ -295,6 +344,8 @@ struct derived_probe_builder
                          const std::string& key, std::string& value);
   static bool get_param (literal_map_t const & parameters,
                          const std::string& key, int64_t& value);
+  static bool has_param (literal_map_t const & parameters,
+                          const std::string& key);
 };
 
 
@@ -330,6 +381,7 @@ match_node
   void find_and_build (systemtap_session& s,
                        probe* p, probe_point *loc, unsigned pos,
                        std::vector<derived_probe *>& results);
+  std::string suggest_functors(std::string functor);
   void try_suffix_expansion (systemtap_session& s,
                              probe *p, probe_point *loc, unsigned pos,
                              std::vector<derived_probe *>& results);

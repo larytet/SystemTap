@@ -68,7 +68,7 @@ expressions:</para>
 n_recv ? @sum(ifrecv[pid, dev, exec, uid])/1024 : 0</screen>
 
 <para>These expressions are if/else conditionals.
-The first statement is simply a more concise way of writing the following
+The first statement is a more concise way of writing the following
 psuedo code:</para>
 
 <screen>if n_recv != 0 then
@@ -83,7 +83,7 @@ else
 
 	<listitem><para><computeroutput>UID</computeroutput> &mdash; user ID. A user ID of <computeroutput>0</computeroutput> refers to the root user.</para></listitem>
 
-	<listitem><para><computeroutput>DEV</computeroutput> &mdash; which ethernet device the process used to send / receive data (e.g. eth0, eth1)</para></listitem>
+	<listitem><para><computeroutput>DEV</computeroutput> &mdash; which ethernet device the process used to send / receive data (for example, eth0, eth1)</para></listitem>
 	<listitem><para><computeroutput>XMIT_PK</computeroutput> &mdash; number of packets transmitted by the process</para></listitem>
 	<listitem><para><computeroutput>RECV_PK</computeroutput> &mdash; number of packets received by the process</para></listitem>
 	<listitem><para><computeroutput>XMIT_KB</computeroutput> &mdash; amount of data sent by the process, in kilobytes</para></listitem>

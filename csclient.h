@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2010-2011 Red Hat Inc.
+// Copyright (C) 2010-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -35,7 +35,7 @@ private:
   );
   int add_package_args ();
   int add_package_arg (const std::string &arg);
-  int compile_using_server (const std::vector<compile_server_info> &servers);
+  int compile_using_server (std::vector<compile_server_info> &servers);
   int add_localization_variables();
 
   int read_from_file (const std::string &fname, int &data);

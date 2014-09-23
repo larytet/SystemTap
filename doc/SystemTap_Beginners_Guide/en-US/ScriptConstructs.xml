@@ -107,7 +107,7 @@ probe timer.ms(12345)
 
 <note>
 	<title>Note</title>
-	<para>The <command>++</command> notation in <xref linkend="timerjiffies"/> (i.e. <command>count_jiffies ++</command> and <command>count_ms ++</command>) is used to increment the value of a variable by 1. In the following probe, <command>count_jiffies</command> is incremented by 1 every 100 jiffies:</para>
+	<para>The <command>++</command> notation in <xref linkend="timerjiffies"/> (that is, <command>count_jiffies ++</command> and <command>count_ms ++</command>) is used to increment the value of a variable by 1. In the following probe, <command>count_jiffies</command> is incremented by 1 every 100 jiffies:</para>
 <screen>probe timer.jiffies(100) { count_jiffies ++ }</screen>
 	<para>In this instance, SystemTap understands that <command>count_jiffies</command> is an integer. Because no initial value was assigned to <command>count_jiffies</command>, its initial value is zero by default.</para>
 </note>
@@ -355,9 +355,8 @@ and limits the string to <replaceable>n</replaceable> bytes.
 
 <para>
 	Having the address a pointer points to may not be useful.
-	You might be more interested in the fields of the data structure the
-	pointer points to.
-	You can use the <quote><command>$</command></quote> suffix to pretty print
+	Instead the fields of the data structure the pointer points to may be of more use.
+	Use the <quote><command>$</command></quote> suffix to pretty print
 	the data structure.
 	The following command-line example uses the pretty printing suffix to
 	print more details about the data structures passed into the function
@@ -386,7 +385,7 @@ and limits the string to <replaceable>n</replaceable> bytes.
 <para>
 	The <quote><command>$$</command></quote> suffix, like all strings,
 	is limited to the maximum string size.
-	Below is a represenative output from the previous command-line script,
+	Below is a representative output from the previous command-line script,
 	which is truncated because of the string size limit:
 </para>
 
@@ -425,7 +424,7 @@ and limits the string to <replaceable>n</replaceable> bytes.
 	<command>task</command>, is the pointer to the object.
 	The second argument is the type to cast the object to,
 	<command>task_struct</command>.
-	The third arument lists what file that the type definition
+	The third argument lists what file that the type definition
 	information comes from and is optional.
 	With the <command>@cast</command> operator the various fields of
 	this particular  <command>task_struct</command> <command>task</command>
@@ -441,7 +440,7 @@ and limits the string to <replaceable>n</replaceable> bytes.
 </section>
 
 <section id="targetavailable">
-	<title>Checking Target Variable Availablility</title>
+	<title>Checking Target Variable Availability</title>
 <indexterm>
 <primary>target variables</primary>
 <secondary>variable availability</secondary>
@@ -490,11 +489,11 @@ and limits the string to <replaceable>n</replaceable> bytes.
 <secondary>conditional statements</secondary>
 </indexterm>
 <para>
-In some cases, the output of a SystemTap script may be too big. To address this, you need to further refine the script's logic in order to delimit the output into something more relevant or useful to your probe.
+In some cases, the output of a SystemTap script may be too large. To address this, you need to further refine the script's logic in order to delimit the output into something more relevant or useful to your probe.
 </para>
 <!-- </formalpara> -->
 <para>
-You can do this by using <emphasis>conditionals</emphasis> in handlers. SystemTap accepts the following types of conditional statements:
+Do this by using <emphasis>conditionals</emphasis> in handlers. SystemTap accepts the following types of conditional statements:
 </para>
 
 <variablelist>
@@ -633,7 +632,7 @@ printf("goodbye world\n")</programlisting>
 		<para>Format:</para>
 <programlisting>for (<replaceable>initialization</replaceable>; <replaceable>conditional</replaceable>; <replaceable>increment</replaceable>) <replaceable>statement</replaceable></programlisting>
 <para>
-The <command>for</command> loop is simply shorthand for a while loop. The
+The <command>for</command> loop is shorthand for a while loop. The
 following is the equivalent <command>while</command> loop:
 </para>
 <programlisting><replaceable>initialization</replaceable>
@@ -682,7 +681,7 @@ while (<replaceable>conditional</replaceable>) {
 <tertiary>handlers</tertiary>
 </indexterm>
 
-<para>Aside from <command>==</command> ("is equal to"), you can also use the following operators in your conditional statements:</para>
+<para>Aside from <command>==</command> ("is equal to"), following operators can also be used in conditional statements:</para>
 </formalpara>
 
 <variablelist>
@@ -729,7 +728,7 @@ while (<replaceable>conditional</replaceable>) {
 <secondary>SystemTap handler constructs</secondary>
 <tertiary>handlers</tertiary>
 </indexterm>
-	<para>You can also allow a SystemTap script to accept simple command-line arguments using a  <command>$</command> or <command>@</command> immediately
+	<para>A SystemTap script can also accept simple command-line arguments using a  <command>$</command> or <command>@</command> immediately
 followed by the number of the argument on the command line. Use <command>$</command> if you are expecting the user to enter an integer as a command-line argument, and <command>@</command> if you are expecting a string.
 </para>
 <!-- </formalpara> -->

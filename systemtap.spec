@@ -1,7 +1,7 @@
 %{!?with_sqlite: %global with_sqlite 1}
 %{!?with_docs: %global with_docs 1}
 # crash is not available
-%ifarch ppc ppc64 %{sparc}
+%ifarch ppc ppc64 %{sparc} aarch64 ppc64le
 %{!?with_crash: %global with_crash 0}
 %else
 %{!?with_crash: %global with_crash 1}
@@ -11,7 +11,7 @@
 %{!?elfutils_version: %global elfutils_version 0.142}
 %{!?pie_supported: %global pie_supported 1}
 %{!?with_boost: %global with_boost 0}
-%ifarch ppc ppc64 %{sparc}
+%ifarch ppc ppc64 %{sparc} aarch64 ppc64le
 %{!?with_publican: %global with_publican 0}
 %else
 %{!?with_publican: %global with_publican 1}
@@ -21,17 +21,53 @@
 %else
 %{!?publican_brand: %global publican_brand fedora}
 %endif
-%ifnarch s390 s390x %{arm}
+%ifarch %{ix86} x86_64 ppc ppc64
 %{!?with_dyninst: %global with_dyninst 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 %else
 %{!?with_dyninst: %global with_dyninst 0}
 %endif
-%{!?with_systemd: %global with_systemd 0%{?fedora} >= 19}
-%{!?with_emacsvim: %global with_emacsvim 1}
-%{!?with_java: %global with_java 1}
+%{!?with_systemd: %global with_systemd 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
+%{!?with_emacsvim: %global with_emacsvim 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
+%{!?with_java: %global with_java 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
+%{!?with_virthost: %global with_virthost 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
+%{!?with_virtguest: %global with_virtguest 1}
+%{!?with_dracut: %global with_dracut 0%{?fedora} >= 19 || 0%{?rhel} >= 7}
+%ifarch x86_64
+%{!?with_mokutil: %global with_mokutil 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
+%{!?with_openssl: %global with_openssl 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
+%else
+%{!?with_mokutil: %global with_mokutil 0}
+%{!?with_openssl: %global with_openssl 0}
+%endif
+%{!?with_pyparsing: %global with_pyparsing 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
+
+%ifarch ppc64le
+%global with_virthost 0
+%endif
+
+%if 0%{?fedora} >= 18 || 0%{?rhel} >= 6
+   %define initdir %{_initddir}
+%else # RHEL5 doesn't know _initddir
+   %define initdir %{_initrddir}
+%endif
+
+%if %{with_virtguest}
+   %if 0%{?fedora} >= 18 || 0%{?rhel} >= 7
+      %define udevrulesdir /usr/lib/udev/rules.d
+   %else
+      %if 0%{?rhel} >= 6
+         %define udevrulesdir /lib/udev/rules.d
+      %else # RHEL5
+         %define udevrulesdir /etc/udev/rules.d
+      %endif
+   %endif
+%endif
+
+%define dracutlibdir %{_prefix}/lib/dracut
+%define dracutstap %{dracutlibdir}/modules.d/99stap
 
 Name: systemtap
-Version: 2.3
+Version: 2.6
 Release: 1%{?dist}
 # for version, see also configure.ac
 
@@ -43,10 +79,12 @@ Release: 1%{?dist}
 # systemtap-devel        /usr/bin/stap, runtime, tapset, req:kernel-devel
 # systemtap-runtime      /usr/bin/staprun, /usr/bin/stapsh, /usr/bin/stapdyn
 # systemtap-client       /usr/bin/stap, samples, docs, tapset(bonus), req:-runtime
-# systemtap-initscript   /etc/init.d/systemtap, req:systemtap
+# systemtap-initscript   /etc/init.d/systemtap, dracut module, req:systemtap
 # systemtap-sdt-devel    /usr/include/sys/sdt.h /usr/bin/dtrace
 # systemtap-testsuite    /usr/share/systemtap/testsuite*, req:systemtap, req:sdt-devel
 # systemtap-runtime-java libHelperSDT.so, HelperSDT.jar, stapbm, req:-runtime
+# systemtap-runtime-virthost  /usr/bin/stapvirt, req:libvirt req:libxml2
+# systemtap-runtime-virtguest udev rules, init scripts/systemd service, req:-runtime
 #
 # Typical scenarios:
 #
@@ -55,7 +93,7 @@ Release: 1%{?dist}
 # local user:            systemtap
 #
 # Unusual scenarios:
-# 
+#
 # intermediary stap-client for --remote:       systemtap-client (-runtime unused)
 # intermediary stap-server for --use-server:   systemtap-server (-devel unused)
 
@@ -107,6 +145,10 @@ BuildRequires: xmlto /usr/share/xmlto/format/fo/pdf
 %if %{with_publican}
 BuildRequires: publican
 BuildRequires: /usr/share/publican/Common_Content/%{publican_brand}/defaults.cfg
+
+# A workaround for BZ920216 which requires an X server to build docs
+# with publican.
+BuildRequires: /usr/bin/xvfb-run
 %endif
 %endif
 %if %{with_emacsvim}
@@ -115,8 +157,10 @@ BuildRequires: emacs
 %if %{with_java}
 BuildRequires: jpackage-utils java-devel
 %endif
-# A workaround for BZ920216 which requires an X server to build docs
-BuildRequires: /usr/bin/xvfb-run
+%if %{with_virthost}
+BuildRequires: libvirt-devel >= 1.0.2
+BuildRequires: libxml2-devel
+%endif
 
 # Install requirements
 Requires: systemtap-client = %{version}-%{release}
@@ -147,6 +191,9 @@ Requires(preun): chkconfig
 Requires(preun): initscripts
 Requires(postun): initscripts
 BuildRequires: nss-devel avahi-devel
+%if %{with_openssl}
+Requires: openssl
+%endif
 
 %description server
 This is the remote script compilation server component of systemtap.
@@ -159,7 +206,6 @@ Summary: Programmable system-wide instrumentation system - development headers, 
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: kernel >= 2.6.9-11
 # Alternate kernel packages kernel-PAE-devel et al. have a virtual
 # provide for kernel-devel, so this requirement does the right thing,
 # at least past RHEL4.
@@ -181,7 +227,6 @@ Summary: Programmable system-wide instrumentation system - runtime
 Group: Development/System
 License: GPLv2+
 URL: http://sourceware.org/systemtap/
-Requires: kernel >= 2.6.9-11
 Requires(pre): shadow-utils
 
 %description runtime
@@ -199,10 +244,13 @@ Requires: zip unzip
 Requires: systemtap-runtime = %{version}-%{release}
 Requires: coreutils grep sed unzip zip
 Requires: openssh-clients
+%if %{with_mokutil}
+Requires: mokutil
+%endif
 
 %description client
-This package contains/requires the components needed to develop 
-systemtap scripts, and compile them using a local systemtap-devel 
+This package contains/requires the components needed to develop
+systemtap scripts, and compile them using a local systemtap-devel
 or a remote systemtap-server installation, then run them using a
 local or remote systemtap-runtime.  It includes script samples and
 documentation, and a copy of the tapset library for reference.
@@ -220,7 +268,9 @@ Requires(preun): initscripts
 Requires(postun): initscripts
 
 %description initscript
-Sysvinit scripts to launch selected systemtap scripts at system startup.
+This package includes a SysVinit script to launch selected systemtap
+scripts at system startup, along with a dracut module for early
+boot-time probing if supported.
 
 
 %package sdt-devel
@@ -228,6 +278,9 @@ Summary: Static probe support tools
 Group: Development/System
 License: GPLv2+ and Public Domain
 URL: http://sourceware.org/systemtap/
+%if %{with_pyparsing}
+Requires: pyparsing
+%endif
 
 %description sdt-devel
 This package includes the <sys/sdt.h> header file used for static
@@ -246,7 +299,13 @@ Requires: systemtap-sdt-devel = %{version}-%{release}
 Requires: systemtap-server = %{version}-%{release}
 Requires: dejagnu which elfutils grep nc
 Requires: gcc gcc-c++ make glibc-devel
-%ifnarch ia64
+# testsuite/systemtap.base/ptrace.exp needs strace
+Requires: strace
+# testsuite/systemtap.base/ipaddr.exp needs nc. Unfortunately, the rpm
+# that provides nc has changed over time (from 'nc' to
+# 'nmap-ncat'). So, we'll do a file-based require.
+Requires: /usr/bin/nc
+%ifnarch ia64 ppc64le aarch64
 Requires: prelink
 %endif
 # testsuite/systemtap.server/client.exp needs avahi
@@ -263,6 +322,9 @@ Requires: /usr/lib/libc.so
 # ... and /usr/lib/libgcc_s.so.*
 # ... and /usr/lib/libstdc++.so.*
 %endif
+%if 0%{?fedora} >= 18
+Requires: stress
+%endif
 
 %description testsuite
 This package includes the dejagnu-based systemtap stress self-testing
@@ -278,6 +340,7 @@ License: GPLv2+
 URL: http://sourceware.org/systemtap/
 Requires: systemtap-runtime = %{version}-%{release}
 Requires: byteman > 2.0
+Requires: net-tools
 
 %description runtime-java
 This package includes support files needed to run systemtap scripts
@@ -285,6 +348,42 @@ that probe Java processes running on the OpenJDK 1.6 and OpenJDK 1.7
 runtimes using Byteman.
 %endif
 
+%if %{with_virthost}
+%package runtime-virthost
+Summary: Systemtap Cross-VM Instrumentation - host
+Group: Development/System
+License: GPLv2+
+URL: http://sourceware.org/systemtap/
+Requires: libvirt >= 1.0.2
+Requires: libxml2
+
+%description runtime-virthost
+This package includes the components required to run systemtap scripts
+inside a libvirt-managed domain from the host without using a network
+connection.
+%endif
+
+%if %{with_virtguest}
+%package runtime-virtguest
+Summary: Systemtap Cross-VM Instrumentation - guest
+Group: Development/System
+License: GPLv2+
+URL: http://sourceware.org/systemtap/
+Requires: systemtap-runtime = %{version}-%{release}
+%if %{with_systemd}
+Requires(post): findutils coreutils
+Requires(preun): grep coreutils
+Requires(postun): grep coreutils
+%else
+Requires(post): chkconfig initscripts
+Requires(preun): chkconfig initscripts
+Requires(postun): initscripts
+%endif
+
+%description runtime-virtguest
+This package installs the services necessary on a virtual machine for a
+systemtap-runtime-virthost machine to execute systemtap scripts.
+%endif
 
 # ------------------------------------------------------------------------
 
@@ -429,8 +528,8 @@ mkdir -p $RPM_BUILD_ROOT%{_localstatedir}/cache/systemtap
 mkdir -p $RPM_BUILD_ROOT%{_localstatedir}/run/systemtap
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d
 install -m 644 initscript/logrotate.stap-server $RPM_BUILD_ROOT%{_sysconfdir}/logrotate.d/stap-server
-mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
-install -m 755 initscript/systemtap $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
+mkdir -p $RPM_BUILD_ROOT%{initdir}
+install -m 755 initscript/systemtap $RPM_BUILD_ROOT%{initdir}
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemtap
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemtap/conf.d
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/systemtap/script.d
@@ -442,7 +541,7 @@ install -m 644 stap-server.service $RPM_BUILD_ROOT%{_unitdir}/stap-server.servic
 mkdir -p $RPM_BUILD_ROOT%{_tmpfilesdir}
 install -m 644 stap-server.conf $RPM_BUILD_ROOT%{_tmpfilesdir}/stap-server.conf
 %else
-install -m 755 initscript/stap-server $RPM_BUILD_ROOT%{_sysconfdir}/rc.d/init.d/
+install -m 755 initscript/stap-server $RPM_BUILD_ROOT%{initdir}
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/stap-server/conf.d
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig
 install -m 644 initscript/config.stap-server $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/stap-server
@@ -460,6 +559,30 @@ do
 done
 %endif
 
+%if %{with_virtguest}
+   mkdir -p $RPM_BUILD_ROOT%{udevrulesdir}
+   %if %{with_systemd}
+      install -p -m 644 staprun/guest/99-stapsh.rules $RPM_BUILD_ROOT%{udevrulesdir}
+      mkdir -p $RPM_BUILD_ROOT%{_unitdir}
+      install -p -m 644 staprun/guest/stapsh@.service $RPM_BUILD_ROOT%{_unitdir}
+   %else
+      install -p -m 644 staprun/guest/99-stapsh-init.rules $RPM_BUILD_ROOT%{udevrulesdir}
+      install -p -m 755 staprun/guest/stapshd $RPM_BUILD_ROOT%{initdir}
+      mkdir -p $RPM_BUILD_ROOT%{_libexecdir}/systemtap
+      install -p -m 755 staprun/guest/stapsh-daemon $RPM_BUILD_ROOT%{_libexecdir}/systemtap
+      mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/modules
+      # Technically, this is only needed for RHEL5, in which the MODULE_ALIAS is missing, but
+      # it does no harm in RHEL6 as well
+      install -p -m 755 staprun/guest/virtio_console.modules $RPM_BUILD_ROOT%{_sysconfdir}/sysconfig/modules
+   %endif
+%endif
+
+%if %{with_dracut}
+   mkdir -p $RPM_BUILD_ROOT%{dracutstap}
+   install -p -m 755 initscript/99stap/module-setup.sh $RPM_BUILD_ROOT%{dracutstap}
+   install -p -m 755 initscript/99stap/start-staprun.sh $RPM_BUILD_ROOT%{dracutstap}
+   touch $RPM_BUILD_ROOT%{dracutstap}/params.conf
+%endif
 
 %clean
 rm -rf ${RPM_BUILD_ROOT}
@@ -478,18 +601,29 @@ getent passwd stap-server >/dev/null || \
 
 %post server
 
-test -e ~stap-server && chmod 755 ~stap-server
+# We have some duplication between the %files listings for the
+# ~stap-server directories and the explicit mkdir/chown/chmod bits
+# here.  Part of the reason may be that a preexisting stap-server
+# account may well be placed somewhere other than
+# %{_localstatedir}/lib/stap-server, but we'd like their permissions
+# set similarly.
+
+test -e ~stap-server && chmod 750 ~stap-server
 
 if [ ! -f ~stap-server/.systemtap/rc ]; then
   mkdir -p ~stap-server/.systemtap
   chown stap-server:stap-server ~stap-server/.systemtap
-  echo "--rlimit-as=614400000 --rlimit-cpu=60 --rlimit-nproc=20 --rlimit-stack=1024000 --rlimit-fsize=51200000" > ~stap-server/.systemtap/rc
+  # PR16276: guess at a reasonable number for a default --rlimit-nproc
+  numcpu=`/usr/bin/getconf _NPROCESSORS_ONLN`
+  if [ -z "$numcpu" -o "$numcpu" -lt 1 ]; then numcpu=1; fi
+  nproc=`expr $numcpu \* 30`
+  echo "--rlimit-as=614400000 --rlimit-cpu=60 --rlimit-nproc=$nproc --rlimit-stack=1024000 --rlimit-fsize=51200000" > ~stap-server/.systemtap/rc
   chown stap-server:stap-server ~stap-server/.systemtap/rc
 fi
 
 test -e %{_localstatedir}/log/stap-server/log || {
      touch %{_localstatedir}/log/stap-server/log
-     chmod 664 %{_localstatedir}/log/stap-server/log
+     chmod 644 %{_localstatedir}/log/stap-server/log
      chown stap-server:stap-server %{_localstatedir}/log/stap-server/log
 }
 # If it does not already exist, as stap-server, generate the certificate
@@ -497,10 +631,11 @@ test -e %{_localstatedir}/log/stap-server/log || {
 if test ! -e ~stap-server/.systemtap/ssl/server/stap.cert; then
    runuser -s /bin/sh - stap-server -c %{_libexecdir}/systemtap/stap-gen-cert >/dev/null
 fi
-# Activate the service
+# Prepare the service
 %if %{with_systemd}
-     /bin/systemctl enable stap-server.service >/dev/null 2>&1 || :
-     /bin/systemd-tmpfiles --create >/dev/null 2>&1 || :
+     # Note, Fedora policy doesn't allow network services enabled by default
+     # /bin/systemctl enable stap-server.service >/dev/null 2>&1 || :
+     /bin/systemd-tmpfiles --create %{_tmpfilesdir}/stap-server.conf >/dev/null 2>&1 || :
 %else
     /sbin/chkconfig --add stap-server
 %endif
@@ -524,7 +659,7 @@ if [ $1 = 0 ] ; then
        /bin/systemctl stop stap-server.service >/dev/null 2>&1 || :
     %else
         /sbin/service stap-server stop >/dev/null 2>&1
-    	/sbin/chkconfig --del stap-server
+        /sbin/chkconfig --del stap-server
     %endif
 fi
 exit 0
@@ -534,7 +669,7 @@ exit 0
 # If so, restart the service if it's running
 if [ "$1" -ge "1" ] ; then
     %if %{with_systemd}
-    	/bin/systemctl restart stap-server.service >/dev/null 2>&1 || :
+        /bin/systemctl condrestart stap-server.service >/dev/null 2>&1 || :
     %else
         /sbin/service stap-server condrestart >/dev/null 2>&1 || :
     %endif
@@ -543,8 +678,7 @@ exit 0
 
 %post initscript
 %if %{with_systemd}
-    /bin/systemctl enable stap-server.service >/dev/null 2>&1 || :
-     /bin/systemd-tmpfiles --create >/dev/null 2>&1 || :
+    /bin/systemctl enable systemtap.service >/dev/null 2>&1 || :
 %else
     /sbin/chkconfig --add systemtap
 %endif
@@ -555,11 +689,11 @@ exit 0
 # just removing the old package on upgrade.
 if [ $1 = 0 ] ; then
     %if %{with_systemd}
-    	/bin/systemctl --no-reload disable stap-server.service >/dev/null 2>&1 || :
-	/bin/systemctl stop stap-server.service >/dev/null 2>&1 || :
+        /bin/systemctl --no-reload disable systemtap.service >/dev/null 2>&1 || :
+        /bin/systemctl stop systemtap.service >/dev/null 2>&1 || :
     %else
         /sbin/service systemtap stop >/dev/null 2>&1
-    	/sbin/chkconfig --del systemtap
+        /sbin/chkconfig --del systemtap
     %endif
 fi
 exit 0
@@ -569,10 +703,58 @@ exit 0
 # If so, restart the service if it's running
 if [ "$1" -ge "1" ] ; then
     %if %{with_systemd}
-        /bin/systemctl restart stap-server.service >/dev/null 2>&1 || :
+        /bin/systemctl condrestart systemtap.service >/dev/null 2>&1 || :
     %else
         /sbin/service systemtap condrestart >/dev/null 2>&1 || :
     %endif
+fi
+exit 0
+
+%post runtime-virtguest
+%if %{with_systemd}
+   # Start services if there are ports present
+   if [ -d /dev/virtio-ports ]; then
+      (find /dev/virtio-ports -iname 'org.systemtap.stapsh.[0-9]*' -type l \
+         | xargs -n 1 basename \
+         | xargs -n 1 -I {} /bin/systemctl start stapsh@{}.service) >/dev/null 2>&1 || :
+   fi
+%else
+   /sbin/chkconfig --add stapshd
+   /sbin/chkconfig stapshd on
+   /sbin/service stapshd start >/dev/null 2>&1 || :
+%endif
+exit 0
+
+%preun runtime-virtguest
+# Stop service if this is an uninstall rather than an upgrade
+if [ $1 = 0 ]; then
+   %if %{with_systemd}
+      # We need to stop all stapsh services. Because they are instantiated from
+      # a template service file, we can't simply call disable. We need to find
+      # all the running ones and stop them all individually
+      for service in `/bin/systemctl --full | grep stapsh@ | cut -d ' ' -f 1`; do
+         /bin/systemctl stop $service >/dev/null 2>&1 || :
+      done
+   %else
+      /sbin/service stapshd stop >/dev/null 2>&1
+      /sbin/chkconfig --del stapshd
+   %endif
+fi
+exit 0
+
+%postun runtime-virtguest
+# Restart service if this is an upgrade rather than an uninstall
+if [ "$1" -ge "1" ]; then
+   %if %{with_systemd}
+      # We need to restart all stapsh services. Because they are instantiated from
+      # a template service file, we can't simply call restart. We need to find
+      # all the running ones and restart them all individually
+      for service in `/bin/systemctl --full | grep stapsh@ | cut -d ' ' -f 1`; do
+         /bin/systemctl condrestart $service >/dev/null 2>&1 || :
+      done
+   %else
+      /sbin/service stapshd condrestart >/dev/null 2>&1
+   %endif
 fi
 exit 0
 
@@ -592,16 +774,34 @@ exit 0
 
 %triggerin runtime-java -- java-1.7.0-openjdk, java-1.6.0-openjdk
 for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
-    arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
+    %ifarch %{ix86} ppc64 ppc64le
+        %ifarch ppc64 ppc64le
+            arch=ppc64
+	%else
+	    arch=i386
+	%endif
+    %else
+        arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
+    %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
-        ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+	 if [ -d ${archdir} ]; then
+            ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
+            ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+	 fi
     done
 done
 
 %triggerun runtime-java -- java-1.7.0-openjdk, java-1.6.0-openjdk
 for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
-    arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
+    %ifarch %{ix86} ppc64 ppc64le
+        %ifarch ppc64 ppc64le
+            arch=ppc64
+	%else
+	    arch=i386
+	%endif
+    %else
+        arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
+    %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
         rm -f ${archdir}/libHelperSDT_${arch}.so
         rm -f ${archdir}/../ext/HelperSDT.jar
@@ -611,10 +811,20 @@ done
 %triggerpostun runtime-java -- java-1.7.0-openjdk, java-1.6.0-openjdk
 # Restore links for any JDKs remaining after a package removal:
 for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
-    arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
+    %ifarch %{ix86} ppc64 ppc64le
+        %ifarch ppc64 ppc64le
+            arch=ppc64
+	%else
+	    arch=i386
+	%endif
+    %else
+        arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
+    %endif
     for archdir in %{_jvmdir}/*openjdk*/jre/lib/${arch}; do
-        ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
-        ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+	 if [ -d ${archdir} ]; then
+            ln -sf %{_libexecdir}/systemtap/libHelperSDT_${arch}.so ${archdir}/libHelperSDT_${arch}.so
+            ln -sf %{_libexecdir}/systemtap/HelperSDT.jar ${archdir}/../ext/HelperSDT.jar
+	 fi
     done
 done
 
@@ -646,7 +856,7 @@ done
 %{_unitdir}/stap-server.service
 %{_tmpfilesdir}/stap-server.conf
 %else
-%{_sysconfdir}/rc.d/init.d/stap-server
+%{initdir}/stap-server
 %dir %{_sysconfdir}/stap-server/conf.d
 %config(noreplace) %{_sysconfdir}/sysconfig/stap-server
 %endif
@@ -657,8 +867,9 @@ done
 %dir %attr(0755,stap-server,stap-server) %{_localstatedir}/log/stap-server
 %ghost %config(noreplace) %attr(0644,stap-server,stap-server) %{_localstatedir}/log/stap-server/log
 %ghost %attr(0755,stap-server,stap-server) %{_localstatedir}/run/stap-server
-%doc initscript/README.stap-server
-%doc README README.unprivileged AUTHORS NEWS COPYING
+%doc README README.unprivileged AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
+%license COPYING
 
 
 %files devel -f systemtap.lang
@@ -674,7 +885,9 @@ done
 %{_mandir}/man7/error*
 %{_mandir}/man7/stappaths.7*
 %{_mandir}/man7/warning*
-%doc README README.unprivileged AUTHORS NEWS COPYING
+%doc README README.unprivileged AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
+%license COPYING
 %if %{with_java}
 %dir %{_libexecdir}/systemtap
 %{_libexecdir}/systemtap/libHelperSDT_*.so
@@ -715,12 +928,16 @@ done
 %if %{with_dyninst}
 %{_mandir}/man8/stapdyn.8*
 %endif
-%doc README README.security AUTHORS NEWS COPYING
+%doc README README.security AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
+%license COPYING
 
 
 %files client -f systemtap.lang
 %defattr(-,root,root)
-%doc README README.unprivileged AUTHORS NEWS COPYING examples
+%doc README README.unprivileged AUTHORS NEWS examples
+%{!?_licensedir:%global license %%doc}
+%license COPYING
 %if %{with_docs}
 %doc docs.installed/*.pdf
 %doc docs.installed/tapsets/*.html
@@ -746,14 +963,18 @@ done
 
 %files initscript
 %defattr(-,root,root)
-%{_sysconfdir}/rc.d/init.d/systemtap
+%{initdir}/systemtap
 %dir %{_sysconfdir}/systemtap
 %dir %{_sysconfdir}/systemtap/conf.d
 %dir %{_sysconfdir}/systemtap/script.d
 %config(noreplace) %{_sysconfdir}/systemtap/config
 %dir %{_localstatedir}/cache/systemtap
 %ghost %{_localstatedir}/run/systemtap
-%doc initscript/README.systemtap
+%{_mandir}/man8/systemtap.8*
+%if %{with_dracut}
+   %dir %{dracutstap}
+   %{dracutstap}/*
+%endif
 
 
 %files sdt-devel
@@ -762,7 +983,9 @@ done
 %{_includedir}/sys/sdt.h
 %{_includedir}/sys/sdt-config.h
 %{_mandir}/man1/dtrace.1*
-%doc README AUTHORS NEWS COPYING
+%doc README AUTHORS NEWS 
+%{!?_licensedir:%global license %%doc}
+%license COPYING
 
 
 %files testsuite
@@ -779,10 +1002,58 @@ done
 %{_libexecdir}/systemtap/stapbm
 %endif
 
+%if %{with_virthost}
+%files runtime-virthost
+%{_mandir}/man1/stapvirt.1*
+%{_bindir}/stapvirt
+%endif
+
+%if %{with_virtguest}
+%files runtime-virtguest
+%if %{with_systemd}
+   %{udevrulesdir}/99-stapsh.rules
+   %{_unitdir}/stapsh@.service
+%else
+   %{udevrulesdir}/99-stapsh-init.rules
+   %dir %{_libexecdir}/systemtap
+   %{_libexecdir}/systemtap/stapsh-daemon
+   %{initdir}/stapshd
+   %{_sysconfdir}/sysconfig/modules/virtio_console.modules
+%endif
+%endif
 
 # ------------------------------------------------------------------------
 
+# Future new-release entries should be of the form
+# * DDD MMM DD YYYY YOURNAME <YOUREMAIL> - V-R
+# - Upstream release, see wiki page below for detailed notes.
+#   http://sourceware.org/systemtap/wiki/SystemTapReleases
+
 %changelog
+* Fri Sep 05 2014 Josh Stone <jistone@redhat.com> - 2.6-1
+- Upstream release.
+
+* Mon Jul 07 2014 Josh Stone <jistone@redhat.com>
+- Flip with_dyninst to an %ifarch whitelist.
+
+* Wed Apr 30 2014 Jonathan Lebon <jlebon@redhat.com> - 2.5-1
+- Upstream release.
+
+* Thu Feb 13 2014 Lukas Berk <lberk@redhat.com>
+- Add directory checks for runtime-java sym links
+
+* Mon Jan 06 2014 Jonathan Lebon <jlebon@redhat.com>
+- Added dracut module to initscript package
+
+* Wed Nov 06 2013 Frank Ch. Eigler <fche@redhat.com> - 2.4-1
+- Upstream release.
+
+* Wed Oct 09 2013 Jonathan Lebon <jlebon@redhat.com>
+- Added runtime-virthost and runtime-virtguest packages.
+
+* Thu Jul 25 2013 Frank Ch. Eigler <fche@redhat.com> - 2.3-1
+- Upstream release.
+
 * Thu May 16 2013 Frank Ch. Eigler <fche@redhat.com> - 2.2.1-1
 - Upstream release.
 

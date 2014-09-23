@@ -22,3 +22,10 @@ do
     fi
     echo 'probe kernel.statement("'$fn':'$ilineno'") {$'$var'}' '#' OK
 done
+
+errors=`stap $@ -u -p4 -e 'probe kernel.statement("'$fn':'$lineno'").nearest {$'$var'}' 2>&1 >/dev/null ||true `
+if echo "$errors" | grep -q unable.to.find.local
+then
+    echo "Unexpected error $errors"; exit 1
+fi
+echo 'probe kernel.statement("'$fn':'$lineno'").nearest {$'$var'}' '#' OK

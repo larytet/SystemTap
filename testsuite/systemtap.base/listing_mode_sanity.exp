@@ -1,0 +1,123 @@
+set test "listing_mode_sanity"
+
+# This test is a sanity-check that listing mode (-l and -L) works
+# properly.
+
+# Things to check:
+# - no 'semantic error' messages, unless -vv is supplied
+# - no probes found = bad exit code, probes found = good exit code
+# - check verbatim the output of -l/-L for e.g. kernel.function("vfs_read")
+# - arguments to -l are allowed, not treated as a script (but still no -e)
+# - check that -l ** doesn't crash anything (BZ1065757)
+
+proc has_line { output wanted probe } {
+   global test subtest
+
+   set inlist [lsearch $output $probe]
+   if {[expr  $wanted && $inlist > 0] \
+    || [expr !$wanted && $inlist < 0]} {
+      pass "$test ($subtest)"
+   } else {
+      fail "$test ($subtest)"
+   }
+}
+
+# Checks that 'semantic error' is only output at -vv
+# Also checks that no probes found = bad exit code
+if {![catch {exec stap -l junk 2>@1} output]} {
+  fail "$test (stap -l junk exited successfully)"
+  return
+} else {
+  pass "$test (stap -l junk exited badly)"
+}
+
+if {![catch {exec stap -v -l junk 2>@1} outputv]} {
+  fail "$test (stap -v -l junk exited successfully)"
+  return
+} else {
+  pass "$test (stap -v -l junk exited badly)"
+}
+
+if {![catch {exec stap -vv -l junk 2>@1} outputvv]} {
+  fail "$test (stap -vv -l junk exited successfully)"
+  return
+} else {
+  pass "$test (stap -vv -l junk exited badly)"
+}
+
+# Split outputs into lines
+set output   [split $output   "\n"]
+set outputv  [split $outputv  "\n"]
+set outputvv [split $outputvv "\n"]
+
+set subtest "no error in output"
+has_line $output 0 "semantic error: *"
+
+set subtest "no error in -v output"
+has_line $outputv 0 "semantic error: *"
+
+set subtest "error in -vv output"
+has_line $outputvv 1 "semantic error: *"
+
+# Checks verbatim output of some probes
+# Also checks that probes found = good exit code
+if {[catch {exec stap -l kernel.function("vfs_read") 2>@1} output]} {
+   fail "$test (stap -l vfs_read exited badly)"
+   return
+} else {
+   pass "$test (stap -l vfs_read exited ok)"
+}
+
+if {[catch {exec stap -L kernel.function("vfs_read") 2>@1} outputL]} {
+   fail "$test (stap -L vfs_read exited badly)"
+   return
+} else {
+   pass "$test (stap -L vfs_read exited ok)"
+}
+
+set subtest "verbatim stap -l vfs_read"
+if {[regexp "^kernel\\.function\\(\"vfs_read@\[^\"\]*\"\\)$" $output]} {
+   pass "$test ($subtest)"
+} else {
+   fail "$test ($subtest)"
+   return
+}
+
+set subtest "verbatim stap -L vfs_read"
+verbose -log "output is $outputL"
+if {[regexp "^kernel\\.function\\(\"vfs_read@\[^\"\]*\"\\) \\\$file:struct file\\* \\\$buf:char\\* \\\$count:size_t \\\$pos:loff_t\\*$" $outputL]} {
+   pass "$test ($subtest)"
+} else {
+   fail "$test ($subtest)"
+   return
+}
+
+# Check that arguments to -l work, and aren't treated as have_script
+if {[catch {exec stap -l \$1.function(@2) kernel vfs_read 2>@1}]} {
+   fail "$test (using arguments exited badly)"
+   return
+} else {
+   pass "$test (using arguments exited ok)"
+}
+# but a -e script still conflicts with listing
+if {[catch {exec stap -l \$1.function(@2) kernel vfs_read -e {probe begin {}} 2>@1}]} {
+   pass "$test (using arguments and script exited badly)"
+} else {
+   fail "$test (using arguments and script exited ok)"
+   return
+}
+
+# Checks that -vvv -l/-L ** doesn't crash anything (RHBZ1065757)
+if {[catch {exec stap -vvv -l \*\* 2>/dev/null}]} {
+   fail "$test (stap -l ** exited badly)"
+   return
+} else {
+   pass "$test (stap -l ** exited ok)"
+}
+if {[catch {exec stap -vvv -L \*\* 2>/dev/null}]} {
+   fail "$test (stap -L ** exited badly)"
+   return
+} else {
+   pass "$test (stap -L ** exited ok)"
+}
+

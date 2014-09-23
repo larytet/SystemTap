@@ -1,0 +1,13 @@
+global funcs
+global marks
+
+probe begin { printf("systemtap starting probe\n") }
+probe process.function("first_function"), 
+      process.function("second_function") { funcs++ } 
+# Exit, since scripts with -x flag do not auto-stop when PID exits
+probe process.function("exit_probe_function") { funcs++; exit (); }
+probe process.mark("*") { marks++ }
+probe end { 
+    printf("systemtap ending probe\n"); 
+    printf("Encountered %d functions, and %d marks\n", funcs, marks);
+}

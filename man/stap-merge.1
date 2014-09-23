@@ -4,8 +4,11 @@
 stap\-merge \- systemtap per-cpu binary merger
 
 .\" macros
+.\" do not nest SAMPLEs
 .de SAMPLE
 .br
+
+.nr oldin \\n(.i
 .RS
 .nf
 .nh
@@ -14,6 +17,8 @@ stap\-merge \- systemtap per-cpu binary merger
 .hy
 .fi
 .RE
+.in \\n[oldin]u
+
 ..
 
 .SH SYNOPSIS
@@ -83,6 +88,8 @@ Important files and their corresponding paths can be located in the
 stappaths (7) manual page.
 
 .SH SEE ALSO
+.nh
+.nf
 .IR stapprobes (3stap),
 .IR stappaths (7),
 .IR staprun (8),

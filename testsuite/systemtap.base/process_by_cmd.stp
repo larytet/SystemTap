@@ -1,3 +1,6 @@
 probe process.function("main") { printf("func end\n") }
-probe process.function("*").return { printf("func return end\n") }
+probe process.function("main").return,
+      process.function("first").return,
+      process.function("second").return,
+      process.function("third") { printf("func return end\n") }
 probe process.mark("*") { printf("mark end\n") }

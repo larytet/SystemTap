@@ -1,5 +1,5 @@
 // stapdyn main program
-// Copyright (C) 2012-2013 Red Hat Inc.
+// Copyright (C) 2012-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -43,7 +43,7 @@ static void __attribute__ ((noreturn))
 usage (int rc)
 {
   clog << "Usage: " << program_invocation_short_name
-       << " MODULE [-v] [-c CMD | -x PID] [-o FILE] [-C WHEN] [globalname=value ...]" << endl
+       << " MODULE [-v] [-c CMD | -x PID] [-o FILE] [-C WHEN] [globalname=value ...] [-V]" << endl
        << "-v              Increase verbosity." << endl
        << "-c cmd          Command \'cmd\' will be run and " << program_invocation_short_name << " will" << endl
        << "                exit when it does.  The '_stp_target' variable" << endl
@@ -52,7 +52,8 @@ usage (int rc)
        << "-o FILE         Send output to FILE. This supports strftime(3)" << endl
        << "                formats for FILE." << endl
        << "-C WHEN         Enable colored errors. WHEN must be either 'auto'," << endl
-       << "                'never', or 'always'. Set to 'auto' by default." << endl;
+       << "                'never', or 'always'. Set to 'auto' by default." << endl
+       << "-V              Show version." << endl;
 
   exit (rc);
 }
@@ -98,7 +99,7 @@ main(int argc, char * const argv[])
 
         case 'V':
           fprintf(stderr, "Systemtap Dyninst loader/runner (version %s/%s, %s)\n"
-                          "Copyright (C) 2012-2013 Red Hat, Inc. and others\n"
+                          "Copyright (C) 2012-2014 Red Hat, Inc. and others\n"
                           "This is free software; see the source for copying conditions.\n",
                   VERSION, DYNINST_FULL_VERSION, STAP_EXTENDED_VERSION);
           return 0;

@@ -1,0 +1,215 @@
+source $srcdir/$subdir/onthefly_common.tcl
+
+set test "hrtimer_onthefly"
+if {![installtest_p] || ![hrtimer_p]} {
+   untested "$test"
+   return
+}
+
+# Goal: Ensure that hrtimer probes properly support on-the-fly arming/disarming.
+# The script consists of two timer probes where one toggles the condition of the
+# other. We then analyze the actual debug statements printed out to ensure the
+# toggled probe is armed and disarmed as expected.
+
+# Runs stap on a script with the given arguments
+proc run_stap {subtest args script} {
+
+   # We always need the DEBUG and -g flags
+   set args "$args -D DEBUG_STP_ON_THE_FLY -g"
+
+   # If this is a stress-test, also start a background echo
+   set echo_pid 0
+   if {[string match *stress* $subtest]} {
+      set echo_loop "while \[ true \]; do /bin/echo 1>/dev/null; done"
+      set echo_pid [exec sh -c $echo_loop &]
+   }
+
+   # Run stap and catch any errors (we will rethrow it later)
+   set err [catch {eval exec stap -e {$script} $args} out]
+
+   # Kill echo
+   if {$echo_pid} {
+      kill -INT $echo_pid 1
+   }
+
+   if {$err} {error $out}
+   return $out
+}
+
+# Returns a script with some variables replaced.
+#     SUBTEST    name of subtest
+#     ENABLED    set to 1 to start the target probe as enabled, 0 as disabled
+#     MAXTOGGLES number of times we toggle the target probe condition
+#     TIMER      if a number, then it's the period of the target probe and also
+#                a fifth of the period which toggles the target probes, if set
+#                to 'profile' then instead a timer.profile probe is used to
+#                toggle the target probe, if set to 'hardcore' then both a
+#                timer.profile probe and a kernel.trace("*") probe is used for
+#                toggling, if set to 'max' then a lot of various probe points
+#                are used for toggling
+proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
+   global test
+
+   set script {
+
+      global enabled = ENABLED
+      global toggles = 0
+
+      # Simplification to ensure 'hit' is only printed once. This makes it
+      # easier later on to verify the output.
+      global hit = 0
+
+      probe timer.us(TIMER) if (enabled) {
+         if (hit)
+            next
+         hit = 1
+         println("hit")
+      }
+
+      probe timer.us(TIMER5) {
+         toggles++
+         hit = 0
+         if (toggles > MAXTOGGLES)
+            exit()
+         else {
+            println("toggling")
+            # ensure we also use non-boolean (1 or 0) values
+            enabled = enabled ? 0 : (randint(2) == 0 ? -1-randint(10000) : 1+randint(10000))
+         }
+      }
+
+      probe timer.s(360) {
+         println("timed out")
+         exit()
+      }
+   }
+
+   # Set in values
+   set script [string map "TEST $test \
+                           SUBTEST $SUBTEST \
+                           ENABLED $ENABLED \
+                           MAXTOGGLES $MAXTOGGLES" $script]
+   if {[string match $TIMER "profile"]} {
+      set script [string map "timer.us(TIMER5) timer.profile \
+                              TIMER 1500" $script]
+   } elseif {[string match $TIMER "hardcore"]} {
+      set script [string map "timer.us(TIMER5) \
+         {timer.profile, kernel.trace(\"*\")} \
+         TIMER 1500" $script]
+   } elseif {[string match $TIMER "max"]} {
+      set max_pps "begin, end, error, kernel.function(\"*@workqueue.c\"), \
+                   process.begin, process.end, kernel.trace(\"*\")"
+      if {[uprobes_p]} {
+         set max_pps "$max_pps, process(\"echo\").function(\"*\")"
+      }
+      set max_pps "$max_pps, \
+          netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
+          netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
+          perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?"
+      set script [string map "timer.us(TIMER5) {$max_pps} \
+                              TIMER 1500" $script]
+   } else {
+      set script [string map "TIMER5 [expr $TIMER * 5] \
+                              TIMER $TIMER" $script]
+   }
+
+   return $script
+}
+
+# Creates the pattern which will be used by the is_valid_output proc to
+# determine if the output is valid. In other words, given the initial value of
+# enabled, the maximum number of toggles, and whether on-the-fly is turned on or
+# not, this proc determines what will be the output of stap.
+proc make_pattern {subtest start_enabled maxtoggles} {
+   set pattern ""
+
+   if {![is_dyninst_subtest $subtest] && !$start_enabled} {
+      lappend pattern "* not starting (hrtimer) pidx ?"
+   }
+
+   # For each toggle:
+   #  - if we were enabled, then we would had a 'hit' line
+   #  - if i == maxtoggles, then we'll exit so nothing more will be printed
+   #  - if i < maxtoggles, then the timer probe will output 'toggling' followed
+   #    by a 'disabling' or 'enabling' line if on-the-fly is turned on
+   for {set i 0} {$i <= $maxtoggles} {incr i} {
+      if {$start_enabled} {
+         lappend pattern "hit"
+      }
+      if {$i < $maxtoggles} {
+         lappend pattern "toggling"
+         if {$start_enabled} {
+            set start_enabled 0
+            if {![is_dyninst_subtest $subtest]} {
+               lappend pattern "* disabling (hrtimer) pidx ?"
+            }
+         } else {
+            set start_enabled 1
+            if {![is_dyninst_subtest $subtest] && $i < $maxtoggles} {
+               lappend pattern "* enabling (hrtimer) pidx ?"
+            }
+         }
+      }
+   }
+
+   return $pattern
+}
+
+# NB: dyninst-targeted subtests must have name starting with 'dyninst_'
+
+# Check that dyninst timer probes still work well (starting enabled)
+run_subtest_valid "dyninst_start_enabled" 100 5 100000 \
+   --runtime=dyninst
+
+# Check that dyninst timer probes still work well (starting disabled)
+run_subtest_valid "dyninst_start_disabled" 0 5 100000 \
+   --runtime=dyninst
+
+# Various on-the-fly tests
+
+# Toggle 0, 1, 2, 3, 4, and 5 times. This is important since we test if the
+# probes finish well when disabled/enabled. NB: We try on various values for
+# ENABLED just to ensure not just 0/1 works as a condition
+
+run_subtest_valid "otf_finish_at_start_disabled" 0         0 100000
+run_subtest_valid "otf_finish_at_start_enabled"  100       0 100000
+run_subtest_valid "otf_start_disabled_iter_1"    0         1 100000
+run_subtest_valid "otf_start_enabled_iter_1"     0x7f      1 100000
+run_subtest_valid "otf_start_disabled_iter_2"    0         2 100000
+run_subtest_valid "otf_start_enabled_iter_2"     -1000     2 100000
+run_subtest_valid "otf_start_disabled_iter_3"    0         3 100000
+run_subtest_valid "otf_start_enabled_iter_3"     658       3 100000
+run_subtest_valid "otf_start_disabled_iter_4"    0         4 100000
+run_subtest_valid "otf_start_enabled_iter_4"     -1        4 100000
+run_subtest_valid "otf_start_disabled_iter_5"    0         5 100000
+run_subtest_valid "otf_start_enabled_iter_5"     123456789 5 100000
+
+# Small interval tests
+
+run_subtest_valid "otf_timer_10ms"    1 5 10000
+run_subtest_valid "otf_timer_5ms"    -1 5 5000
+
+# NB: if we go any shorter, the kernel might not have a chance to run
+# systemtap_module_refresh() before the next toggling occurs, throwing off the
+# expected output.
+
+# Stress tests
+
+# These tests are not validated, i.e. their outputs are not checked against a
+# pattern (see NB above why). Instead, they're just meant to stress the
+# on-the-fly mechanism to ensure stap/the kernel doesn't die. So if stap is
+# successfully run and terminated, we just default to a pass.
+
+run_subtest_stress "otf_stress_2ms_iter_50"   1 50 2000
+run_subtest_stress "otf_stress_1ms_iter_50"   1 50 1000
+run_subtest_stress "otf_stress_500us_iter_50" 1 50 500
+run_subtest_stress "otf_stress_100us_iter_50" 1 50 100
+
+run_subtest_stress "otf_stress_prof_iter_2000" 1 2000 profile
+
+# Use 100 us for interval
+run_subtest_stress "otf_stress_hard_iter_2000" 1 2000 hardcore \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+
+run_subtest_stress "otf_stress_max_iter_5000" 1 5000 max \
+   -D STP_ON_THE_FLY_INTERVAL=100000

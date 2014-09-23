@@ -7,7 +7,7 @@
  * Public License (GPL); either version 2, or (at your option) any
  * later version.
  *
- * Copyright (C) 2007-2013 Red Hat Inc.
+ * Copyright (C) 2007-2014 Red Hat Inc.
  */
 
 #include "staprun.h"
@@ -64,22 +64,6 @@ static char *get_abspath(char *path)
 	 * the length earlier to make sure the string would fit. */
 	strcpy(&path_buf[len + 1], path);
 	return path_buf;
-}
-
-int stap_strfloctime(char *buf, size_t max, const char *fmt, time_t t)
-{
-	struct tm tm;
-	size_t ret;
-	if (buf == NULL || fmt == NULL || max <= 1)
-		return -EINVAL;
-	localtime_r(&t, &tm);
-        /* NB: this following invocation is the reason for staprun's being built
-           with -Wno-format-nonliteral.  strftime parsing does not have security
-           implications AFAIK, but gcc still wants to check them.  */
-	ret = strftime(buf, max, fmt, &tm);
-	if (ret == 0)
-		return -EINVAL;
-	return (int)ret;
 }
 
 int make_outfile_name(char *buf, int max, int fnum, int cpu, time_t t, int bulk)
@@ -198,6 +182,7 @@ void parse_args(int argc, char **argv)
 			}
 			break;
 		case 'S':
+			assert(optarg != 0); // optarg can't be NULL (or getopt would choke)
 			fsize_max = strtoul(optarg, &s, 10);
 			fsize_max <<= 20;
 			if (s[0] == ',')
@@ -208,6 +193,7 @@ void parse_args(int argc, char **argv)
 			}
 			break;
 		case 'r':
+			assert(optarg != 0); // optarg can't be NULL (or getopt would choke)
 			/* parse ID:URL */
 			remote_id = strtoul(optarg, &s, 10);
 			if (s[0] == ':')
@@ -220,7 +206,7 @@ void parse_args(int argc, char **argv)
 			break;
 		case 'V':
                         eprintf(_("Systemtap module loader/runner (version %s, %s)\n"
-                              "Copyright (C) 2005-2013 Red Hat, Inc. and others\n"
+                              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
                               "This is free software; see the source for copying conditions.\n"),
                             VERSION, STAP_EXTENDED_VERSION);
                         _exit(1);
@@ -233,6 +219,7 @@ void parse_args(int argc, char **argv)
                         }
                         break;
 		case 'C':
+			assert(optarg != 0); // optarg can't be NULL (or getopt would choke)
 			if (!strcmp(optarg, "never"))
 				color_mode = color_never;
 			else if (!strcmp(optarg, "auto"))
@@ -343,13 +330,9 @@ void usage(char *prog)
 	"-d              Delete a module.  Only detached or unused modules\n"
 	"                the user has permission to access will be deleted. Use \"*\"\n"
 	"                (quoted) to delete all unused modules.\n"
-#ifdef HAVE_ELF_GETSHDRSTRNDX
         "-R              Have staprun create a new name for the module before\n"
         "                inserting it. This allows the same module to be inserted\n"
         "                more than once.\n"
-#else
-        "-R              (Module renaming is not available in this configuration.)\n"
-#endif
         "-r N:URI        Pass N:URI data to tapset functions remote_id()/remote_uri().\n"
 	"-D              Run in background. This requires '-o' option.\n"
 	"-S size[,N]     Switches output file to next file when the size\n"
@@ -637,8 +620,10 @@ char *parse_stap_color(const char *type)
 	int done = 0;
 
 	key = getenv("SYSTEMTAP_COLORS");
-	if (key == NULL || *key == '\0')
+	if (key == NULL)
 		key = "error=01;31:warning=00;33:source=00;34:caret=01:token=01";
+	else if (*key == '\0')
+		return NULL; // disable colors if set but empty
 
 	while (!done) {
 		if (!(col = strchr(key, ':'))) {

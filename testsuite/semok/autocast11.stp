@@ -1,0 +1,14 @@
+#! stap -p2
+
+probe kernel.function("schedule_tail").return ?
+{
+    // Test the type propagated from a value saved at entry
+    mm = $prev->mm
+    println(mm->mmap)
+}
+
+probe process("stap").function("main").return ?
+{
+    a = $argv
+    println((a)[0])
+}

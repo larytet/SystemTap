@@ -1,11 +1,11 @@
 # PR14297-related testing
+set stap_path [file normalize $env(SYSTEMTAP_PATH)/stap]
 
 proc test_list { test input output_re } {
     spawn stap -l $input
     expect {
 	-timeout 180
         -re $output_re { pass $test }
-        -re {^[^\r\n]*\r\n} { exp_continue }
         timeout { fail $test }
         eof { fail $test }
     }
@@ -20,33 +20,43 @@ proc test_uprobes_list { test input output_re } {
     }
 }
 
+proc test_plt_list { test input output_re } {
+    if {[plt_probes_p]} {
+        test_list $test $input $output_re
+    } else {
+        unsupported $test
+    }
+}
 
-test_uprobes_list plt-glob {process("stap").plt("re??")} \
-    {process."stap"..plt."read".\r\n}
+test_plt_list plt-glob {process("stap").plt("re??")} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\)\r\n$"
 
-test_uprobes_list plt-glob2 {process("stap").plt("re*")} \
-    {process."stap"..plt."read".\r\n}
+test_plt_list plt-glob2 {process("stap").plt("re*")} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"re\[a-zA-Z0-9_\]*\"\\\)\r\n"
 
-# NB: this would be nice to probe, but we don't have the
-# autoconf $prefix available here in the dejagnu scripts.
-# spawn stap -l "process(\"${prefix}/bin/stap*\").plt(\"re*\""
-# NB: we expect the extra "?" suffix due to filename globbing
-#    -re {process."[^\r\n]*stap"..plt."read"..\r\n} { pass $test }
+test_plt_list plt-non-glob {process("stap").plt("read")} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\)\r\n$"
 
-test_uprobes_list plt-non-glob {process("stap").plt("read")} \
-    {process."stap"..plt."read".\r\n}
+test_plt_list plt-glob-ret {process("stap").plt("re??").return} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\).return\r\n$"
+
+test_plt_list plt-glob2-ret {process("stap").plt("re*").return} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"re\[a-zA-Z0-9_\]*\"\\\).return\r\n"
+
+test_plt_list plt-non-glob-ret {process("stap").plt("read").return} \
+    "^process\\\(\"$stap_path\"\\\)\\\.plt\\\(\"read\"\\\).return\r\n$"
 
 test_uprobes_list mark-non-glob {process("stap").mark("pass5__end")} \
-    {process."stap"..mark."pass5__end".\r\n}
+    "^process\\\(\"$stap_path\"\\\)\\\.mark\\\(\"pass5__end\"\\\)\r\n$"
 
 test_uprobes_list mark-non-glob2 {process("stap").mark("pass5-end")} \
-    {process."stap"..mark."pass5__end".\r\n}
+    "^process\\\(\"$stap_path\"\\\)\\\.mark\\\(\"pass5__end\"\\\)\r\n$"
 
-test_uprobes_list mark-glob {process("stap").mark("pass[12345678]__end")} \
-    {process."stap"..mark."pass5__end".\r\n}
+test_uprobes_list mark-glob {process("stap").mark("pass[123456]__end")} \
+    "^process\\\(\"$stap_path\"\\\)\\\.mark\\\(\"pass\[123456\]__end\"\\\)\r\n"
 
 test_uprobes_list mark-glob2 {process("stap").mark("pass*__end")} \
-    {process."stap"..mark."pass5__end".\r\n}
+    "^process\\\(\"$stap_path\"\\\)\\\.mark\\\(\"pass\[0123456\]__end\"\\\)\r\n"
 
 test_list syscall-glob {syscall.rea*} \
     {syscall.read\r\n}
@@ -68,9 +78,13 @@ test_list begin-noglob {begin} \
 
 # This one is not so interesting, but we want to make sure the following test
 # statements are actually within an inline.
-test_list copy_flags-inline {kernel.function("copy_flags@kernel/fork.c").inline} \
-    {kernel.function."copy_flags@kernel/fork.c:\d+"..inline\r\n}
+test_list copy_signal-inline {kernel.function("copy_signal@kernel/fork.c").inline} \
+    {kernel.function."copy_signal@kernel/fork.c:\d+"..inline\r\n}
 
 # PR15587: make sure we have line numbers on statements of an inline function
-test_list copy_flags-statement {kernel.statement("copy_flags@kernel/fork.c:*")} \
-    {kernel.statement."copy_flags@kernel/fork.c:\d+".\r\n}
+test_list copy_signal-statement {kernel.statement("copy_signal@kernel/fork.c:*")} \
+    {kernel.statement."copy_signal@kernel/fork.c:\d+".\r\n}
+
+# PR10208: ensure we can probe weak symbols
+test_uprobes_list function-weak {process("/lib*/libc.so.*").function("chmod")} \
+    {process.*.function."chmod".\r\n}

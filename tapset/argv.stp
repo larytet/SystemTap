@@ -1,5 +1,5 @@
 // argument vector tapset
-// Copyright (C) 2008 Red Hat Inc.
+// Copyright (C) 2008-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -8,41 +8,77 @@
 
 
 global argc = $#
-global argv %( $# >= 1 %? [$#] %: [1] %)
+global argv[32]
 
-probe begin(-1) {
-      %( $# == 0 %? argv[0] = "nothing"; delete argv[0] %)  # ensure argv is set sometime
-      %( $# >= 1 %? argv[1]=@1 %)
-      %( $# >= 2 %? argv[2]=@2 %)
-      %( $# >= 3 %? argv[3]=@3 %)
-      %( $# >= 4 %? argv[4]=@4 %)
-      %( $# >= 5 %? argv[5]=@5 %)
-      %( $# >= 6 %? argv[6]=@6 %)
-      %( $# >= 7 %? argv[7]=@7 %)
-      %( $# >= 8 %? argv[8]=@8 %)
-      %( $# >= 9 %? argv[9]=@9 %)
-      %( $# >= 10 %? argv[10]=@10 %)
-      %( $# >= 11 %? argv[11]=@11 %)
-      %( $# >= 12 %? argv[12]=@12 %)
-      %( $# >= 13 %? argv[13]=@13 %)
-      %( $# >= 14 %? argv[14]=@14 %)
-      %( $# >= 15 %? argv[15]=@15 %)
-      %( $# >= 16 %? argv[16]=@16 %)
-      %( $# >= 17 %? argv[17]=@17 %)
-      %( $# >= 18 %? argv[18]=@18 %)
-      %( $# >= 19 %? argv[19]=@19 %)
-      %( $# >= 20 %? argv[20]=@20 %)
-      %( $# >= 21 %? argv[21]=@21 %)
-      %( $# >= 22 %? argv[22]=@22 %)
-      %( $# >= 23 %? argv[23]=@23 %)
-      %( $# >= 24 %? argv[24]=@24 %)
-      %( $# >= 25 %? argv[25]=@25 %)
-      %( $# >= 26 %? argv[26]=@26 %)
-      %( $# >= 27 %? argv[27]=@27 %)
-      %( $# >= 28 %? argv[28]=@28 %)
-      %( $# >= 29 %? argv[29]=@29 %)
-      %( $# >= 30 %? argv[30]=@30 %)
-      %( $# >= 31 %? argv[31]=@31 %)
-      %( $# >= 32 %? argv[32]=@32 %)
-      %( $# >= 33 %? warn(sprintf("argv is limited to 32 arguments")) %)
+// individual argv[N] slots may be overridden at run time:
+// stap FOO.stp -G argc=2 -G argv_1="hello" -G argv_2="world"
+
+global argv_1 = %( $# >= 1 %? @1 %: "" %)
+global argv_2 = %( $# >= 2 %? @2 %: "" %)
+global argv_3 = %( $# >= 3 %? @3 %: "" %)
+global argv_4 = %( $# >= 4 %? @4 %: "" %)
+global argv_5 = %( $# >= 5 %? @5 %: "" %)
+global argv_6 = %( $# >= 6 %? @6 %: "" %)
+global argv_7 = %( $# >= 7 %? @7 %: "" %)
+global argv_8 = %( $# >= 8 %? @8 %: "" %)
+global argv_9 = %( $# >= 9 %? @9 %: "" %)
+global argv_10 = %( $# >= 10 %? @10 %: "" %)
+global argv_11 = %( $# >= 11 %? @11 %: "" %)
+global argv_12 = %( $# >= 12 %? @12 %: "" %)
+global argv_13 = %( $# >= 13 %? @13 %: "" %)
+global argv_14 = %( $# >= 14 %? @14 %: "" %)
+global argv_15 = %( $# >= 15 %? @15 %: "" %)
+global argv_16 = %( $# >= 16 %? @16 %: "" %)
+global argv_17 = %( $# >= 17 %? @17 %: "" %)
+global argv_18 = %( $# >= 18 %? @18 %: "" %)
+global argv_19 = %( $# >= 19 %? @19 %: "" %)
+global argv_20 = %( $# >= 20 %? @20 %: "" %)
+global argv_21 = %( $# >= 21 %? @21 %: "" %)
+global argv_22 = %( $# >= 22 %? @22 %: "" %)
+global argv_23 = %( $# >= 23 %? @23 %: "" %)
+global argv_24 = %( $# >= 24 %? @24 %: "" %)
+global argv_25 = %( $# >= 25 %? @25 %: "" %)
+global argv_26 = %( $# >= 26 %? @26 %: "" %)
+global argv_27 = %( $# >= 27 %? @27 %: "" %)
+global argv_28 = %( $# >= 28 %? @28 %: "" %)
+global argv_29 = %( $# >= 29 %? @29 %: "" %)
+global argv_30 = %( $# >= 30 %? @30 %: "" %)
+global argv_31 = %( $# >= 31 %? @31 %: "" %)
+global argv_32 = %( $# >= 32 %? @32 %: "" %)
+
+probe init {
+  argv[1] = argv_1
+  argv[2] = argv_2
+  argv[3] = argv_3
+  argv[4] = argv_4
+  argv[5] = argv_5
+  argv[6] = argv_6
+  argv[7] = argv_7
+  argv[8] = argv_8
+  argv[9] = argv_9
+  argv[10] = argv_10
+  argv[11] = argv_11
+  argv[12] = argv_12
+  argv[13] = argv_13
+  argv[14] = argv_14
+  argv[15] = argv_15
+  argv[16] = argv_16
+  argv[17] = argv_17
+  argv[18] = argv_18
+  argv[19] = argv_19
+  argv[20] = argv_20
+  argv[21] = argv_21
+  argv[22] = argv_22
+  argv[23] = argv_23
+  argv[24] = argv_24
+  argv[25] = argv_25
+  argv[26] = argv_26
+  argv[27] = argv_27
+  argv[28] = argv_28
+  argv[29] = argv_29
+  argv[30] = argv_30
+  argv[31] = argv_31
+  argv[32] = argv_32
+
+  %( $# >= 33 %? warn("argv is limited to 32 arguments") %)
 }

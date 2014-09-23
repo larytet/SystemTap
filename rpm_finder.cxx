@@ -1,5 +1,5 @@
 // systemtap debuginfo rpm finder
-// Copyright (C) 2009-2011 Red Hat Inc.
+// Copyright (C) 2009-2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -74,6 +74,10 @@ missing_rpm_enlist (systemtap_session& sess, const char *filename, const char *r
 
       rpm_init_done = 1;
     }
+
+  /* If we've seen this combo before, don't check again... */
+  if (!sess.rpms_checked.insert(string(filename) + rpm_type).second)
+    return 0;
 
   ts = rpmtsCreate(); 
 

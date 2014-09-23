@@ -18,15 +18,21 @@
 #
 # Optionally, specify cumulative mode for periodic updates
 # stap eventcount.stp -G period=NNN -G cumulative=1 [...probe points...]
+# stap eventcount.stp -G period=NNN -G cumulative=1 [...probe points...]
 #
-# Optionally, specify sorting by event-count rather than task-id
+# Optionally, specify sorting other than by =tid
 # stap eventcount.stp -G sort=count [...probe points...]
+# stap eventcount.stp -G sort=event [...probe points...]
+# stap eventcount.stp -G sort=unsorted [...probe points...]
+#
+# Optionally, specify a limit for sorted event count reports
+# stap eventcount.stp -G lines=10 [...probe points...]
 
 global period=10
 global cumulative=0
 global comm=""
 global sort="tid"
-
+global lines=9223372036854775807 # LONGLONG_MAX
 
 probe %($# == 0 || $# > 32 %? begin %: never %)
 {
@@ -88,12 +94,14 @@ probe begin {
       else msg = "unfiltered";
       printf("Starting event counting at %s, %s\n",
              tz_ctime(gettimeofday_s()), msg)
+      format = sprintf("%d lines, sorted by %s", lines, sort);
       if (period)
-        printf("%s reporting every %d s\n",
+        printf("%s reporting (%s) every %d s\n",
                cumulative ? "Cumulative" : "Incremental",
-               period)
+               format, period)
       else
-        printf("One-time cumulative reporting at script termination (^C)\n")
+        printf("One-time cumulative reporting (%s) at script termination (^C)\n",
+               format)
 }
 global start_ms
 
@@ -107,19 +115,25 @@ function report () {
   printf("%-24s %-38s %s\n", "TID", "EVENT", "COUNT (RATE Hz)")
   printf("%-24s %-38s %s\n", "---", "-----", "---------------")
   if (sort == "count")
-    foreach([tid, name] in c-)
+    foreach([tid, name] in c- limit lines)
       printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
            @count(c[tid, name]),
            (@count(c[tid,name])*100000/elapsed_ms)/100,
            (@count(c[tid,name])*100000/elapsed_ms)%100)
   else if (sort == "tid")
-    foreach([tid+, name] in c)
+    foreach([tid+, name] in c limit lines)
+      printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
+           @count(c[tid, name]),
+           (@count(c[tid,name])*100000/elapsed_ms)/100,
+           (@count(c[tid,name])*100000/elapsed_ms)%100)
+  else if (sort == "event")
+    foreach([tid, name+] in c limit lines)
       printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
            @count(c[tid, name]),
            (@count(c[tid,name])*100000/elapsed_ms)/100,
            (@count(c[tid,name])*100000/elapsed_ms)%100)
   else # unsorted
-    foreach([tid, name] in c)
+    foreach([tid, name] in c limit lines)
       printf("%-24s %-38s %d (%d.%02d)\n", tid, name,
            @count(c[tid, name]),
            (@count(c[tid,name])*100000/elapsed_ms)/100,

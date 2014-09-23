@@ -1,5 +1,5 @@
 // stapdyn utility functions
-// Copyright (C) 2012 Red Hat Inc.
+// Copyright (C) 2014 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -265,8 +265,10 @@ parse_stap_color(std::string type)
   int done = 0;
 
   key = getenv("SYSTEMTAP_COLORS");
-  if (key == NULL || *key == '\0')
+  if (key == NULL)
     key = "error=01;31:warning=00;33:source=00;34:caret=01:token=01";
+  else if (*key == '\0')
+    return ""; // disable colors if set but empty
 
   while (!done) {
     if (!(col = strchr(key, ':'))) {

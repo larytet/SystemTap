@@ -1,0 +1,8 @@
+#! stap -p2
+
+probe begin
+{
+    // Test DWARF assigned to a local
+    sun = & @cast(0, "sockaddr_un", "<sys/un.h>");
+    println(sun->sun_family)
+}

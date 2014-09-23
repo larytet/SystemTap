@@ -22,7 +22,8 @@ void common_probe_entryfn_prologue (systemtap_session& s, std::string statestr,
 				    std::string probe, std::string probe_type,
 				    bool overload_processing = true);
 void common_probe_entryfn_epilogue (systemtap_session& s,
-				    bool overload_processing);
+				    bool overload_processing,
+				    bool schedule_work_safe);
 
 void register_tapset_been(systemtap_session& sess);
 void register_tapset_itrace(systemtap_session& sess);
@@ -57,7 +58,6 @@ public:
 struct var_expanding_visitor: public update_visitor
 {
   static unsigned tick;
-  std::stack<functioncall**> target_symbol_setter_functioncalls;
   std::stack<defined_op*> defined_ops;
   std::set<std::string> valid_ops;
   const std::string *op;
@@ -69,7 +69,10 @@ struct var_expanding_visitor: public update_visitor
   void visit_delete_statement (delete_statement* s);
   void visit_defined_op (defined_op* e);
 
+  void provide_lvalue_call(functioncall* fcall);
+
 private:
+  std::stack<functioncall**> target_symbol_setter_functioncalls;
   bool rewrite_lvalue(const token *tok, const std::string& eop,
                       expression*& lvalue, expression*& rvalue);
 };

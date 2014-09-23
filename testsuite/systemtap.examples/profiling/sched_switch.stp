@@ -41,7 +41,7 @@ probe scheduler.wakeup
 	    && execname() != target_name)
 			next
 
-	printf("%-16s%5d%5d%d:%d:%s + %d:%d:%s %16s\n",
+	printf("%-16s%5d %5d %5d:%5d:%s +   %5d:%5d:%s %-16s\n",
                 execname(), task_cpu(task), gettimeofday_ns(),
                 pid(), task_prio(task_current()), state_calc(task_state(task_current())),
                 task_pid(task), task_prio(task), state_calc(task_state(task)),
@@ -59,7 +59,7 @@ probe scheduler.ctxswitch
 	    && next_task_name != target_name)
 			next
 
-	printf("%-16s%5d%5d%d:%d:%s ==> %d:%d:%s %16s\n",prev_task_name,
+	printf("%-16s%5d %5d %5d:%5d:%s ==> %5d:%5d:%s %-16s\n",prev_task_name,
 		task_cpu(prev_task),gettimeofday_ns(),prev_pid,prev_priority,state_calc(prevtsk_state),next_pid,
 		next_priority,state_calc(nexttsk_state),next_task_name)
 }

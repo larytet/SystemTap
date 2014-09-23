@@ -1,0 +1,8 @@
+global hit
+
+probe perf.sw.task_clock
+{
+    hit = 1
+    exit()
+}
+

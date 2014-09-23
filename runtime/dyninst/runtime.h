@@ -12,6 +12,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <sched.h>
 #include <stdarg.h>
@@ -269,6 +270,8 @@ err_attr:
 	(void)pthread_rwlockattr_destroy(&attr);
 	return rc;
 }
+
+static inline void stp_synchronize_sched(void) { }
 
 /*
  * For stapdyn to work in a multiprocess environment, the module must be

@@ -1,0 +1,4 @@
+#! stap -p2
+
+# probing pid 1 is ok
+probe process(1).begin { }

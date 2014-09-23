@@ -1,0 +1,13 @@
+#! stap -p2
+
+function sockaddr_un(ptr)
+{
+    return & @cast(ptr, "sockaddr_un", "<sys/un.h>")
+}
+
+probe begin
+{
+    // Test DWARF types returned from function calls,
+    // even failing properly when the field doesn't exist.
+    println( sockaddr_un(0) -> no_such_field )
+}

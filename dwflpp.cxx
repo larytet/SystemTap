@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2013 Red Hat Inc.
+// Copyright (C) 2005-2014 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -10,6 +10,7 @@
 
 #include "dwflpp.h"
 #include "config.h"
+#include <cxxabi.h>
 #include "staptree.h"
 #include "elaborate.h"
 #include "tapsets.h"
@@ -75,7 +76,7 @@ static string TOK_KERNEL("kernel");
 
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
-  module_start(0), module_end(0), cu(NULL),
+  module_start(0), module_end(0), cu(NULL), dwfl(NULL),
   module_dwarf(NULL), function(NULL), blacklist_func(), blacklist_func_ret(),
   blacklist_file(),  blacklist_enabled(false)
 {
@@ -92,7 +93,7 @@ dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
 dwflpp::dwflpp(systemtap_session & session, const vector<string>& names,
 	       bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
-  module_start(0), module_end(0), cu(NULL),
+  module_start(0), module_end(0), cu(NULL), dwfl(NULL),
   module_dwarf(NULL), function(NULL), blacklist_enabled(false)
 {
   if (kernel_p)
@@ -110,7 +111,13 @@ dwflpp::~dwflpp()
   delete_map(global_alias_cache);
   delete_map(cu_die_parent_cache);
 
-  dwfl_ptr.reset();
+  cu_lines_cache_t::iterator i;
+  for (i = cu_lines_cache.begin(); i != cu_lines_cache.end(); ++i)
+    delete_map(*i->second);
+  delete_map(cu_lines_cache);
+
+  if (dwfl)
+    dwfl_end(dwfl);
   // NB: don't "delete mod_info;", as that may be shared
   // between dwflpp instances, and are stored in
   // session.module_cache[] anyway.
@@ -147,7 +154,7 @@ dwflpp::get_module_dwarf(bool required, bool report)
       find_debug_rpms(sess, module_name.c_str());
 
       if (required)
-        throw semantic_error (msg);
+        throw SEMANTIC_ERROR (msg);
       else
         sess.print_warning(msg);
     }
@@ -225,7 +232,7 @@ Dwarf_Die *
 dwflpp::query_cu_containing_address(Dwarf_Addr a)
 {
   Dwarf_Addr bias;
-  assert(dwfl_ptr.get()->dwfl);
+  assert(dwfl);
   assert(module);
   get_module_dwarf();
 
@@ -321,7 +328,7 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
     sess.module_cache = new module_cache ();
 
   unsigned offline_search_matches = 0;
-  dwfl_ptr = setup_dwfl_kernel(name, &offline_search_matches, sess);
+  dwfl = setup_dwfl_kernel(name, &offline_search_matches, sess);
 
   if (offline_search_matches < 1)
     {
@@ -330,10 +337,10 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
         string dir = string(sess.sysroot + "/lib/modules/" + sess.kernel_release );
         find_debug_rpms(sess, dir.c_str());
       }
-      throw semantic_error (_F("missing %s kernel/module debuginfo [man warning::debuginfo] under '%s'",
+      throw SEMANTIC_ERROR (_F("missing %s kernel/module debuginfo [man warning::debuginfo] under '%s'",
                                 sess.architecture.c_str(), sess.kernel_build_tree.c_str()));
     }
-  Dwfl *dwfl = dwfl_ptr.get()->dwfl;
+
   if (dwfl != NULL)
     {
       ptrdiff_t off = 0;
@@ -343,10 +350,10 @@ dwflpp::setup_kernel(const string& name, systemtap_session & s, bool debuginfo_n
           off = dwfl_getmodules (dwfl, &add_module_build_id_to_hash, &s, off);
         }
       while (off > 0);
-      dwfl_assert("dwfl_getmodules", off == 0);
+      DWFL_ASSERT("dwfl_getmodules", off == 0);
     }
 
-  build_blacklist();
+  build_kernel_blacklist();
 }
 
 void
@@ -357,9 +364,9 @@ dwflpp::setup_kernel(const vector<string> &names, bool debuginfo_needed)
 
   unsigned offline_search_matches = 0;
   set<string> offline_search_names(names.begin(), names.end());
-  dwfl_ptr = setup_dwfl_kernel(offline_search_names,
-			       &offline_search_matches,
-			       sess);
+  dwfl = setup_dwfl_kernel(offline_search_names,
+			   &offline_search_matches,
+			   sess);
 
   if (offline_search_matches < offline_search_names.size())
     {
@@ -368,11 +375,11 @@ dwflpp::setup_kernel(const vector<string> &names, bool debuginfo_needed)
         string dir = string(sess.sysroot + "/lib/modules/" + sess.kernel_release );
         find_debug_rpms(sess, dir.c_str());
       }
-      throw semantic_error (_F("missing %s kernel/module debuginfo [man warning::debuginfo] under '%s'",
+      throw SEMANTIC_ERROR (_F("missing %s kernel/module debuginfo [man warning::debuginfo] under '%s'",
                                sess.architecture.c_str(), sess.kernel_build_tree.c_str()));
     }
 
-  build_blacklist();
+  build_kernel_blacklist();
 }
 
 
@@ -383,25 +390,29 @@ dwflpp::setup_user(const vector<string>& modules, bool debuginfo_needed)
     sess.module_cache = new module_cache ();
 
   vector<string>::const_iterator it = modules.begin();
-  dwfl_ptr = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
+  dwfl = setup_dwfl_user(it, modules.end(), debuginfo_needed, sess);
   if (debuginfo_needed && it != modules.end())
-    dwfl_assert (string(_F("missing process %s %s debuginfo",
+    DWFL_ASSERT (string(_F("missing process %s %s debuginfo",
                            (*it).c_str(), sess.architecture.c_str())),
-                           dwfl_ptr.get()->dwfl);
+                           dwfl);
+
+  build_user_blacklist();
 }
 
-void
-dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
-                                              const char *, Dwarf_Addr,
-                                              void *),
-                             void *data)
+template<> void
+dwflpp::iterate_over_modules<void>(int (*callback)(Dwfl_Module*,
+                                                   void**,
+                                                   const char*,
+                                                   Dwarf_Addr,
+                                                   void*),
+                                   void *data)
 {
-  dwfl_getmodules (dwfl_ptr.get()->dwfl, callback, data, 0);
+  dwfl_getmodules (dwfl, callback, data, 0);
 
   // Don't complain if we exited dwfl_getmodules early.
   // This could be a $target variable error that will be
   // reported soon anyway.
-  // dwfl_assert("dwfl_getmodules", off == 0);
+  // DWFL_ASSERT("dwfl_getmodules", off == 0);
 
   // PR6864 XXX: For dwarfless case (if .../vmlinux is missing), then the
   // "kernel" module is not reported in the loop above.  However, we
@@ -409,9 +420,10 @@ dwflpp::iterate_over_modules(int (* callback)(Dwfl_Module *, void **,
 }
 
 
-void
-dwflpp::iterate_over_cus (int (*callback)(Dwarf_Die * die, void * arg),
-                          void * data, bool want_types)
+template<> void
+dwflpp::iterate_over_cus<void>(int (*callback)(Dwarf_Die*, void*),
+                               void *data,
+                               bool want_types)
 {
   get_module_dwarf(false);
   Dwarf *dw = module_dwarf;
@@ -487,7 +499,7 @@ dwflpp::func_is_exported()
   assert (function);
 
   int syms = dwfl_module_getsymtab (module);
-  dwfl_assert (_("Getting symbols"), syms >= 0);
+  DWFL_ASSERT (_("Getting symbols"), syms >= 0);
 
   for (int i = 0; i < syms; i++)
     {
@@ -558,9 +570,9 @@ dwflpp::cache_inline_instances (Dwarf_Die* die)
 }
 
 
-void
-dwflpp::iterate_over_inline_instances (int (* callback)(Dwarf_Die * die, void * arg),
-                                       void * data)
+template<> void
+dwflpp::iterate_over_inline_instances<void>(int (*callback)(Dwarf_Die*, void*),
+                                            void *data)
 {
   assert (function);
   assert (func_is_inline ());
@@ -836,9 +848,8 @@ has_only_decl_members (Dwarf_Die *die)
 
 int
 dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
-                                      const string& prefix, void *arg)
+                                      const string& prefix, cu_type_cache_t *cache)
 {
-  cu_type_cache_t *cache = static_cast<cu_type_cache_t*>(arg);
   const char *name = dwarf_diename(die);
 
   if (!name || dwarf_hasattr(die, DW_AT_declaration)
@@ -850,7 +861,7 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
                           || tag == DW_TAG_structure_type
                           || tag == DW_TAG_class_type))
     iterate_over_types(die, has_inner_types, prefix + name + "::",
-                       global_alias_caching_callback, arg);
+                       global_alias_caching_callback, cache);
 
   if (tag != DW_TAG_namespace)
     {
@@ -863,10 +874,10 @@ dwflpp::global_alias_caching_callback(Dwarf_Die *die, bool has_inner_types,
 }
 
 int
-dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, void *arg)
+dwflpp::global_alias_caching_callback_cus(Dwarf_Die *die, dwflpp *dw)
 {
   mod_cu_type_cache_t *global_alias_cache;
-  global_alias_cache = &static_cast<dwflpp *>(arg)->global_alias_cache;
+  global_alias_cache = &dw->global_alias_cache;
 
   cu_type_cache_t *v = (*global_alias_cache)[die->addr];
   if (v != 0)
@@ -932,9 +943,8 @@ dwflpp::declaration_resolve(Dwarf_Die *type)
 
 
 int
-dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
+dwflpp::cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v)
 {
-  cu_function_cache_t* v = static_cast<cu_function_cache_t*>(arg);
   const char *name = dwarf_diename(func);
   if (!name)
     return DWARF_CB_OK;
@@ -945,16 +955,18 @@ dwflpp::cu_function_caching_callback (Dwarf_Die* func, void *arg)
 
 
 int
-dwflpp::mod_function_caching_callback (Dwarf_Die* cu, void *arg)
+dwflpp::mod_function_caching_callback (Dwarf_Die* cu, cu_function_cache_t *v)
 {
-  dwarf_getfuncs (cu, cu_function_caching_callback, arg, 0);
+  // need to cast callback to func which accepts void*
+  dwarf_getfuncs (cu, (int (*)(Dwarf_Die*, void*))cu_function_caching_callback,
+                  v, 0);
   return DWARF_CB_OK;
 }
 
 
-int
-dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * q),
-                                base_query * q, const string& function)
+template<> int
+dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
+                                     void *data, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -965,7 +977,9 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
     {
       v = new cu_function_cache_t;
       cu_function_cache[cu->addr] = v;
-      dwarf_getfuncs (cu, cu_function_caching_callback, v, 0);
+      // need to cast callback to func which accepts void*
+      dwarf_getfuncs (cu, (int (*)(Dwarf_Die*, void*))cu_function_caching_callback,
+                      v, 0);
       if (sess.verbose > 4)
         clog << _F("function cache %s:%s size %zu", module_name.c_str(),
                    cu_name().c_str(), v->size()) << endl;
@@ -982,7 +996,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
           if (sess.verbose > 4)
             clog << _F("function cache %s:%s hit %s", module_name.c_str(),
                        cu_name().c_str(), function.c_str()) << endl;  
-          rc = (*callback)(& die, q);
+          rc = (*callback)(& die, data);
           if (rc != DWARF_CB_OK) break;
         }
     }
@@ -1005,7 +1019,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
                 clog << _F("function cache %s:%s match %s vs %s", module_name.c_str(),
                            cu_name().c_str(), linkage_name, function.c_str()) << endl;
 
-              rc = (*callback)(& die, q);
+              rc = (*callback)(& die, data);
               if (rc != DWARF_CB_OK) break;
             }
         }
@@ -1023,7 +1037,7 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
                 clog << _F("function cache %s:%s match %s vs %s", module_name.c_str(),
                            cu_name().c_str(), func_name.c_str(), function.c_str()) << endl;
 
-              rc = (*callback)(& die, q);
+              rc = (*callback)(& die, data);
               if (rc != DWARF_CB_OK) break;
             }
         }
@@ -1036,9 +1050,9 @@ dwflpp::iterate_over_functions (int (* callback)(Dwarf_Die * func, base_query * 
 }
 
 
-int
-dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query * q),
-                                 base_query * q, const string& function)
+template<> int
+dwflpp::iterate_single_function<void>(int (*callback)(Dwarf_Die*, void*),
+                                      void *data, const string& function)
 {
   int rc = DWARF_CB_OK;
   assert (module);
@@ -1074,7 +1088,7 @@ dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query *
           // since we're iterating out of cu-context, we need each focus
           focus_on_cu(dwarf_diecu(&die, &cu_mem, NULL, NULL));
 
-          rc = (*callback)(& die, q);
+          rc = (*callback)(& die, data);
           if (rc != DWARF_CB_OK) break;
         }
     }
@@ -1090,11 +1104,13 @@ dwflpp::iterate_single_function (int (* callback)(Dwarf_Die * func, base_query *
 
 /* This basically only goes one level down from the compile unit so it
  * only picks up top level stuff (i.e. nothing in a lower scope) */
-int
-dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
-                              int (* callback)(Dwarf_Die *, bool,
-                                               const string&, void *),
-                              void * data)
+template<> int
+dwflpp::iterate_over_globals<void>(Dwarf_Die *cu_die,
+                                   int (*callback)(Dwarf_Die*,
+                                                   bool,
+                                                   const string&,
+                                                   void*),
+                                   void *data)
 {
   assert (cu_die);
   assert (dwarf_tag(cu_die) == DW_TAG_compile_unit
@@ -1112,14 +1128,15 @@ dwflpp::iterate_over_globals (Dwarf_Die *cu_die,
   return iterate_over_types(cu_die, has_inner_types, "", callback, data);
 }
 
-
-int
-dwflpp::iterate_over_types (Dwarf_Die *top_die,
-                            bool has_inner_types,
-                            const string& prefix,
-                            int (* callback)(Dwarf_Die *, bool,
-                                             const string&, void *),
-                            void * data)
+template<> int
+dwflpp::iterate_over_types<void>(Dwarf_Die *top_die,
+                                 bool has_inner_types,
+                                 const string& prefix,
+                                 int (* callback)(Dwarf_Die*,
+                                                  bool,
+                                                  const string&,
+                                                  void*),
+                                 void *data)
 {
   int rc = DWARF_CB_OK;
   Dwarf_Die die, import;
@@ -1163,8 +1180,13 @@ dwflpp::iterate_over_types (Dwarf_Die *top_die,
  * 'data' for the notes buffer and pass 'object' back in case
  * 'callback' is a method */
 
-int
-dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int type, const char *data, size_t len))
+template<> int
+dwflpp::iterate_over_notes<void>(void *object, void (*callback)(void*,
+                                                                const string&,
+                                                                const string&,
+                                                                int,
+                                                                const char*,
+                                                                size_t))
 {
   Dwarf_Addr bias;
   // Note we really want the actual elf file, not the dwarf .debug file.
@@ -1189,6 +1211,7 @@ dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int typ
 	case SHT_NOTE:
 	  if (!(shdr.sh_flags & SHF_ALLOC))
 	    {
+	      string scn_name = elf_strptr(elf, shstrndx, shdr.sh_name);
 	      Elf_Data *data = elf_getdata (scn, NULL);
 	      size_t next;
 	      GElf_Nhdr nhdr;
@@ -1197,7 +1220,14 @@ dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int typ
 	      for (size_t offset = 0;
 		   (next = gelf_getnote (data, offset, &nhdr, &name_off, &desc_off)) > 0;
 		   offset = next)
-		(*callback) (object, nhdr.n_type, (const char*)((long)(data->d_buf) + (long)desc_off), nhdr.n_descsz);
+		{
+		  const char *note_name_addr = (const char *)data->d_buf + name_off;
+		  const char *note_desc_addr = (const char *)data->d_buf + desc_off;
+		  string note_name = nhdr.n_namesz > 1 // n_namesz includes NULL
+		                     ? string(note_name_addr, nhdr.n_namesz-1) : "";
+		  (*callback) (object, scn_name, note_name, nhdr.n_type,
+		               note_desc_addr, nhdr.n_descsz);
+		}
 	    }
 	  break;
 	}
@@ -1209,8 +1239,9 @@ dwflpp::iterate_over_notes (void *object, void (*callback)(void *object, int typ
 /* For each entry in the .dynamic section in the current module call 'callback'
  * returning 'object' in case 'callback' is a method */
 
-void
-dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg), void *q)
+template<> void
+dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
+                                     void *data)
 {
   std::set<std::string> added;
   string interpreter;
@@ -1330,7 +1361,7 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
       it++)
     {
       string modname = *it;
-      (callback) (q, modname.c_str());
+      (callback) (data, modname.c_str());
     }
 }
 
@@ -1338,8 +1369,10 @@ dwflpp::iterate_over_libraries (void (*callback)(void *object, const char *arg),
 /* For each plt section in the current module call 'callback', pass the plt entry
  * 'address' and 'name' back, and pass 'object' back in case 'callback' is a method */
 
-int
-dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const char *name, size_t addr))
+template<> int
+dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
+                                                              const char*,
+                                                              size_t))
 {
   Dwarf_Addr load_addr;
   // Note we really want the actual elf file, not the dwarf .debug file.
@@ -1368,12 +1401,17 @@ dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const cha
   GElf_Shdr plt_shdr_mem;
   while ((scn = elf_nextscn (elf, scn)))
     {
-      plt_shdr = gelf_getshdr (scn, &plt_shdr_mem);
-      assert (plt_shdr != NULL);
-      if (strcmp (elf_strptr (elf, shstrndx, plt_shdr->sh_name), ".plt") == 0)
-	break;
+      GElf_Shdr *shdr = gelf_getshdr (scn, &plt_shdr_mem);
+      assert (shdr != NULL);
+      if (strcmp (elf_strptr (elf, shstrndx, shdr->sh_name), ".plt") == 0)
+	{
+	  plt_shdr = shdr;
+	  break;
+	}
     }
-	
+  if (plt_shdr == NULL)
+    return 0;
+
   // Layout of the plt section
   int plt0_entry_size;
   int plt_entry_size;
@@ -1388,7 +1426,7 @@ dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const cha
   case EM_S390:
   case EM_PPC:
   default:
-    throw semantic_error(".plt is not supported on this architecture");
+    throw SEMANTIC_ERROR(".plt is not supported on this architecture");
   }
 
   scn = NULL;
@@ -1423,7 +1461,7 @@ dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const cha
 	    {
 	      GElf_Ehdr ehdr_mem;
 	      GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
-	      if (em == 0) { dwfl_assert ("dwfl_getehdr", dwfl_errno()); }
+	      if (em == 0) { DWFL_ASSERT ("dwfl_getehdr", dwfl_errno()); }
 
 	      GElf_Rela relamem;
 	      GElf_Rela *rela = NULL;
@@ -1459,258 +1497,454 @@ dwflpp::iterate_over_plt (void *object, void (*callback)(void *object, const cha
 }
 
 
-// This little test routine represents an unfortunate breakdown in
-// abstraction between dwflpp (putatively, a layer right on top of
-// elfutils), and dwarf_query (interpreting a systemtap probe point).
-// It arises because we sometimes try to fix up slightly-off
-// .statement() probes (something we find out in fairly low-level).
-//
-// An alternative would be to put some more intelligence into query_cu(),
-// and have it print additional suggestions after finding that
-// q->dw.iterate_over_srcfile_lines resulted in no new finished_results.
-
-bool
-dwflpp::has_single_line_record (dwarf_query * q, char const * srcfile, int lineno)
+// Comparator function for sorting
+static bool
+compare_lines(Dwarf_Line* a, Dwarf_Line* b)
 {
-  if (lineno < 0)
+  if (a == b)
     return false;
 
-  Dwarf_Line **srcsp = NULL;
-  size_t nsrcs = 0;
+  int lineno_a = DWARF_LINENO(a);
+  int lineno_b = DWARF_LINENO(b);
+  if (lineno_a == lineno_b)
+    return DWARF_LINEADDR(a) < DWARF_LINEADDR(b);
+  return lineno_a < lineno_b;
+}
 
-  dwarf_assert ("dwarf_getsrc_file",
-		dwarf_getsrc_file (module_dwarf,
-				   srcfile, lineno, 0,
-				   &srcsp, &nsrcs));
-
-  if (nsrcs != 1)
+// Comparator object for searching Dwarf_Lines with a specific lineno when we
+// don't have a Dwarf_Line of our own to search for (hence why a or b is always
+// NULL).
+struct lineno_comparator {
+  int lineno;
+  lineno_comparator(int lineno): lineno(lineno) {}
+  bool operator() (Dwarf_Line* a, Dwarf_Line* b)
     {
-      if (sess.verbose>4)
-	clog << _F("alternative line %d rejected: nsrcs=%zu", lineno, nsrcs) << endl;
-      return false;
+      assert(a || b);
+      if (a)
+        return DWARF_LINENO(a) < lineno;
+      else
+        return lineno < DWARF_LINENO(b);
+    }
+};
+
+// Returns a range of lines in between begin and end with wanted lineno. If
+// none exist, points to where it would have been.
+static lines_range_t
+lineno_equal_range(lines_t* v, int lineno)
+{
+  lineno_comparator lc(lineno);
+  return equal_range(v->begin(), v->end(), (Dwarf_Line*)NULL, lc);
+}
+
+// Interface to CU lines cache sorted by lineno
+lines_t*
+dwflpp::get_cu_lines_sorted_by_lineno(const char *srcfile)
+{
+  assert(cu);
+
+  srcfile_lines_cache_t *srcfile_lines = cu_lines_cache[cu];
+  if (!srcfile_lines)
+    {
+      srcfile_lines = new srcfile_lines_cache_t();
+      cu_lines_cache[cu] = srcfile_lines;
     }
 
-  // We also try to filter out lines that leave the selected
-  // functions (if any).
-
-  dwarf_line_t line(srcsp[0]);
-  Dwarf_Addr addr = line.addr();
-
-  func_info_map_t *filtered_functions = get_filtered_functions(q);
-  for (func_info_map_t::iterator i = filtered_functions->begin();
-       i != filtered_functions->end(); ++i)
+  lines_t *lines = (*srcfile_lines)[srcfile];
+  if (!lines)
     {
-      if (die_has_pc (i->die, addr))
-	{
-	  if (sess.verbose>4)
-	    clog << _F("alternative line %d accepted: fn=%s", lineno, i->name.c_str()) << endl;
-	  return true;
-	}
-    }
+      size_t nlines_cu = 0;
+      Dwarf_Lines *lines_cu = NULL;
+      DWARF_ASSERT("dwarf_getsrclines",
+                   dwarf_getsrclines(cu, &lines_cu, &nlines_cu));
 
-  inline_instance_map_t *filtered_inlines = get_filtered_inlines(q);
-  for (inline_instance_map_t::iterator i = filtered_inlines->begin();
-       i != filtered_inlines->end(); ++i)
+      lines = new lines_t();
+      (*srcfile_lines)[srcfile] = lines;
+
+      for (size_t i = 0; i < nlines_cu; i++)
+        {
+          Dwarf_Line *line = dwarf_onesrcline(lines_cu, i);
+          const char *linesrc = DWARF_LINESRC(line);
+          if (strcmp(srcfile, linesrc))
+            continue;
+          lines->push_back(line);
+        }
+
+      if (lines->size() > 1)
+        sort(lines->begin(), lines->end(), compare_lines);
+
+      if (sess.verbose > 3)
+        {
+          clog << _F("found the following lines for %s:", srcfile) << endl;
+          lines_t::iterator i;
+          for (i  = lines->begin(); i != lines->end(); ++i)
+            cout << DWARF_LINENO(*i) << " = " << hex
+                 << DWARF_LINEADDR(*i) << dec << endl;
+        }
+    }
+  return lines;
+}
+
+static Dwarf_Line*
+get_func_first_line(Dwarf_Die *cu, base_func_info& func)
+{
+  // dwarf_getsrc_die() uses binary search to find the Dwarf_Line, but will
+  // return the wrong line if not found.
+  Dwarf_Line *line = dwarf_getsrc_die(cu, func.entrypc);
+  if (line && DWARF_LINEADDR(line) == func.entrypc)
+    return line;
+
+  // Line not found (or line at wrong addr). We have to resort to a slower
+  // linear method. We won't find an exact match (probably this is an inlined
+  // instance), so just settle on the first Dwarf_Line with lowest addr which
+  // falls in the die.
+  size_t nlines = 0;
+  Dwarf_Lines *lines = NULL;
+  DWARF_ASSERT("dwarf_getsrclines",
+               dwarf_getsrclines(cu, &lines, &nlines));
+
+  for (size_t i = 0; i < nlines; i++)
     {
-      if (die_has_pc (i->die, addr))
-	{
-	  if (sess.verbose>4)
-	    clog << _F("alternative line %d accepted: ifn=%s", lineno, i->name.c_str()) << endl;
-	  return true;
-	}
+      line = dwarf_onesrcline(lines, i);
+      if (dwarf_haspc(&func.die, DWARF_LINEADDR(line)))
+        return line;
     }
+  return NULL;
+}
 
-  if (sess.verbose>4)
-    //TRANSLATORS:  given line number leaves (is beyond) given function.
-    clog << _F("alternative line %d rejected: leaves selected fns", lineno) << endl;
+static lines_t
+collect_lines_in_die(lines_range_t range, Dwarf_Die *die)
+{
+  lines_t lines_in_die;
+  for (lines_t::iterator line  = range.first;
+                         line != range.second; ++line)
+    if (dwarf_haspc(die, DWARF_LINEADDR(*line)))
+      lines_in_die.push_back(*line);
+  return lines_in_die;
+}
+
+static void
+add_matching_lines_in_func(Dwarf_Die *cu,
+                           lines_t *cu_lines,
+                           base_func_info& func,
+                           lines_t& matching_lines)
+{
+  Dwarf_Line *start_line = get_func_first_line(cu, func);
+  if (!start_line)
+    return;
+
+  for (int lineno = DWARF_LINENO(start_line);;)
+    {
+      lines_range_t range = lineno_equal_range(cu_lines, lineno);
+
+      // We consider the lineno still part of the die if at least one of them
+      // falls in the die.
+      lines_t lines_in_die = collect_lines_in_die(range, &func.die);
+      if (lines_in_die.empty())
+        break;
+
+      // Just pick the first LR even if there are more than one. Since the lines
+      // are sorted by lineno and then addr, the first one is the one with the
+      // lowest addr.
+      matching_lines.push_back(lines_in_die[0]);
+
+      // break out if there are no more lines, otherwise, go to the next lineno
+      if (range.second == cu_lines->end())
+        break;
+      lineno = DWARF_LINENO(*range.second);
+    }
+}
+
+void
+dwflpp::collect_all_lines(char const * srcfile,
+                          base_func_info_map_t& funcs,
+                          lines_t& matching_lines)
+{
+  // This is where we handle WILDCARD lineno types.
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    add_matching_lines_in_func(cu, cu_lines, *func, matching_lines);
+}
+
+
+static void
+add_matching_line_in_die(lines_t *cu_lines,
+                         lines_t& matching_lines,
+                         Dwarf_Die *die, int lineno)
+{
+  lines_range_t lineno_range = lineno_equal_range(cu_lines, lineno);
+  lines_t lines_in_die = collect_lines_in_die(lineno_range, die);
+  if (lines_in_die.empty())
+    return;
+
+  // Even if there are more than 1 LRs, just pick the first one. Since the lines
+  // are sorted by lineno and then addr, the first one is the one with the
+  // lowest addr. This is similar to what GDB does.
+  matching_lines.push_back(lines_in_die[0]);
+}
+
+void
+dwflpp::collect_lines_for_single_lineno(char const * srcfile,
+                                        int lineno,
+                                        bool is_relative,
+                                        base_func_info_map_t& funcs,
+                                        lines_t& matching_lines)
+{
+  /* Here, we handle ABSOLUTE and RELATIVE lineno types. Relative line numbers
+   * are a bit special. The issue is that functions (esp. inlined ones) may not
+   * even have a LR corresponding to the first valid line of code. So, applying
+   * an offset to the 'first' LR found in the DIE can be quite imprecise.
+   *     Instead, we use decl_line, which although does not necessarily have a
+   * LR associated with it (it can sometimes still happen esp. if the code is
+   * written in OTB-style), it serves as an anchor on which we can apply the
+   * offset to yield a lineno that will not change with compiler optimization.
+   *     It also has the added benefit of being consistent with the lineno
+   * printed by e.g. stap -l kernel.function("vfs_read"), so users can be
+   * confident from what lineno we adjust.
+   */
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    add_matching_line_in_die(cu_lines, matching_lines, &func->die,
+                             is_relative ? lineno + func->decl_line
+                                         : lineno);
+}
+
+static bool
+functions_have_lineno(base_func_info_map_t& funcs,
+                      lines_t *lines, int lineno)
+{
+  lines_range_t lineno_range = lineno_equal_range(lines, lineno);
+  if (lineno_range.first == lineno_range.second)
+    return false; // no LRs at this lineno
+
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    if (!collect_lines_in_die(lineno_range, &func->die).empty())
+      return true;
+
   return false;
 }
 
+void
+dwflpp::suggest_alternative_linenos(char const * srcfile,
+                                    int lineno,
+                                    base_func_info_map_t& funcs)
+{
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+
+  // Look around lineno for linenos with LRs.
+  int lo_try = -1;
+  int hi_try = -1;
+  for (size_t i = 1; i < 6; ++i)
+    {
+      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        lo_try = lineno - i;
+      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        hi_try = lineno + i;
+    }
+
+  stringstream advice;
+  advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
+
+  if (lo_try > 0 || hi_try > 0)
+    {
+      //TRANSLATORS: Here we are trying to advise what source file
+      //TRANSLATORS: to attempt.
+      advice << _(" (try ");
+      if (lo_try > 0)
+        advice << ":" << lo_try;
+      if (lo_try > 0 && hi_try > 0)
+        advice << _(" or ");
+      if (hi_try > 0)
+        advice << ":" << hi_try;
+      advice << ")";
+    }
+  throw SEMANTIC_ERROR (advice.str());
+}
+
+static base_func_info_map_t
+get_funcs_in_srcfile(base_func_info_map_t& funcs,
+                     const char * srcfile)
+{
+  base_func_info_map_t matching_funcs;
+  for (base_func_info_map_t::iterator func  = funcs.begin();
+                                      func != funcs.end(); ++func)
+    if (strcmp(srcfile, func->decl_file) == 0)
+      matching_funcs.push_back(*func);
+  return matching_funcs;
+}
 
 void
-dwflpp::iterate_over_srcfile_lines (char const * srcfile,
-                                    int lines[2],
-                                    bool need_single_match,
-                                    enum line_t line_type,
-                                    void (* callback) (const dwarf_line_t& line,
-                                                       void * arg),
-                                    const std::string& func_pattern,
+dwflpp::insert_alternative_linenos(char const * srcfile,
+                                    int lineno,
+                                    base_func_info_map_t& funcs,
+                                    void (* callback) (Dwarf_Addr,
+                                                       int, void*),
                                     void *data)
 {
-  Dwarf_Line **srcsp = NULL;
-  size_t nsrcs = 0;
-  dwarf_query * q = static_cast<dwarf_query *>(data);
-  int lineno = lines[0];
-  auto_free_ref<Dwarf_Line**> free_srcsp(srcsp);
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
 
-  get_module_dwarf();
-  if (!this->function)
+  // Look around lineno for linenos with LRs.
+  int lo_try = -1;
+  int hi_try = -1;
+  for (size_t i = 1; i < 6; ++i) // XXX: parametrize this 6 .. maybe .nearest(6) ?
+    {
+      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        lo_try = lineno - i;
+      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        hi_try = lineno + i;
+    }
+
+  int new_lineno;
+  if (lo_try > 0 && hi_try > 0)
+    {
+      // pick the nearest line number
+      if (lineno - lo_try < lineno - hi_try)
+        new_lineno = lo_try;
+      else
+        new_lineno = hi_try;
+    }
+  else if (lo_try > 0)
+    {
+      new_lineno = lo_try;
+    }
+  else if (hi_try > 0)
+    {
+      new_lineno = hi_try;
+    }
+  else
+    {
+      stringstream advice;
+      advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
+      throw SEMANTIC_ERROR (advice.str());
+    }
+  // clog << _F("insert a kprobe at %s:%d (no line record at %s:%d)\n",
+  // srcfile, new_lineno, srcfile, lineno);
+
+  // collect lines
+  lines_t matching_lines;
+  collect_lines_for_single_lineno(srcfile, new_lineno, false, /* is_relative */
+                                  funcs, matching_lines);
+  // call back with matching lines
+  assert (!matching_lines.empty());
+  set<Dwarf_Addr> probed_addrs;
+  for (lines_t::iterator line  = matching_lines.begin();
+                         line != matching_lines.end(); ++line)
+    {
+      int near_lineno = DWARF_LINENO(*line);
+      Dwarf_Addr addr = DWARF_LINEADDR(*line);
+      bool is_new_addr = probed_addrs.insert(addr).second;
+      if (is_new_addr)
+        callback(addr, near_lineno, data);
+    }
+
+  // XXX: the derivation chain of the new derived probe messes up the
+  // original statement's :LINENO, replacing instead of preserving it
+}
+
+template<> void
+dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
+                                         const vector<int>& linenos,
+                                         enum lineno_t lineno_type,
+                                         base_func_info_map_t& funcs,
+                                         void (* callback) (Dwarf_Addr,
+                                                            int, void*),
+                                         bool has_nearest,
+                                         void *data)
+{
+  /* Matching line records (LRs) to user-provided linenos is trickier than it
+   * seems. The fate of all functions is one of three possibilities:
+   *  1. it's a normal function, with a subprogram DIE and a bona fide lowpc
+   *     and highpc attribute.
+   *  2. it's an inlined function (one/multiple inlined_subroutine DIE, with one
+   *     abstract_origin DIE)
+   *  3. it's both a normal function and an inlined function. For example, if
+   *     the funtion has been inlined only in some places, we'll have a DIE for
+   *     the normal subprogram DIE as well as inlined_subroutine DIEs.
+   *
+   * Multiple LRs for the same lineno but different addresses can simply happen
+   * due to the function appearing in multiple forms. E.g. a function inlined
+   * in two spots can yield two sets of LRs for its linenos at the different
+   * addresses where it is inlined.
+   *     This is why the collect_* functions used here try to match up LRs back
+   * to their originating DIEs. For example, in the function
+   * collect_lines_for_single_lineno(), we filter first by DIE so that a lineno
+   * corresponding to multiple addrs in multiple inlined_subroutine DIEs yields
+   * a probe for each of them.
+   */
+  assert(cu);
+
+  // only work on the functions found in the current srcfile
+  base_func_info_map_t current_funcs = get_funcs_in_srcfile(funcs, srcfile);
+  if (current_funcs.empty())
     return;
 
-  if (line_type == RELATIVE)
+  // collect lines
+  lines_t matching_lines;
+  if (lineno_type == ABSOLUTE)
+    collect_lines_for_single_lineno(srcfile, linenos[0], false, /* is_relative */
+                                    current_funcs, matching_lines);
+  else if (lineno_type == RELATIVE)
+    collect_lines_for_single_lineno(srcfile, linenos[0], true, /* is_relative */
+                                    current_funcs, matching_lines);
+  else if (lineno_type == WILDCARD)
+    collect_all_lines(srcfile, current_funcs, matching_lines);
+  else if (lineno_type == ENUMERATED)
+    for (vector<int>::const_iterator it = linenos.begin(); it != linenos.end(); it++)
+      collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
+                                      current_funcs, matching_lines);
+
+  // call back with matching lines
+  if (!matching_lines.empty())
     {
-      Dwarf_Addr addr;
-      Dwarf_Line *line;
-      int line_number;
-
-      die_entrypc(this->function, &addr);
-
-      if (addr != 0)
+      set<Dwarf_Addr> probed_addrs;
+      for (lines_t::iterator line  = matching_lines.begin();
+                             line != matching_lines.end(); ++line)
         {
-          line = dwarf_getsrc_die (this->cu, addr);
-          dwarf_assert ("dwarf_getsrc_die", line == NULL);
-          dwarf_assert ("dwarf_lineno", dwarf_lineno (line, &line_number));
+          int lineno = DWARF_LINENO(*line);
+          Dwarf_Addr addr = DWARF_LINEADDR(*line);
+          bool is_new_addr = probed_addrs.insert(addr).second;
+          if (is_new_addr)
+            callback(addr, lineno, data);
         }
-      else if (dwarf_decl_line (this->function, &line_number) != 0)
-        {
-          // use DW_AT_decl_line as a fallback method
-          Dwarf_Attribute type_attr;
-          Dwarf_Word constant;
-          if (dwarf_attr_integrate (this->function, DW_AT_decl_line, &type_attr))
-            {
-              dwarf_formudata (&type_attr, &constant);
-              line_number = constant;
-            }
-          else
-            return;
-        }
-      lineno += line_number;
     }
-  else if (line_type == WILDCARD) {
-    if (name_has_wildcard(func_pattern)) /* PR14774: look at whole file if function name is wildcard */
-      lineno = 0;
-    else
-      function_line (&lineno);
-  }
-  else if (line_type == RANGE) { /* correct lineno */
-      int start_lineno;
-
-      if (name_has_wildcard(func_pattern)) /* PR10294: wider range like statement("*@foo.c") */
-         start_lineno = lineno;
-      else
-         function_line (&start_lineno);
-      lineno = lineno < start_lineno ? start_lineno : lineno;
-      if (lineno > lines[1]) { /* invalid line range */
-        stringstream advice;
-        advice << _("Invalid line range (") << lines[0] << "-" << lines[1] << ")";
-        if (start_lineno > lines[1])
-          advice << _(", the end line number ") << lines[1] << " < " << start_lineno;
-        throw semantic_error (advice.str());
-       }
-  }
-
-
-  for (int l = lineno; ; l = l + 1)
+  // No LRs found at the wanted lineno. So let's suggest other ones if user was
+  // targeting a specific lineno (ABSOLUTE or RELATIVE).
+  else if (lineno_type == ABSOLUTE ||
+           lineno_type == RELATIVE)
     {
-      set<int> lines_probed;
-      pair<set<int>::iterator,bool> line_probed;
-      int ret = 0;
+      int lineno = linenos[0];
+      if (lineno_type == RELATIVE)
+        // just pick the first function and make it relative to that
+        lineno += current_funcs[0].decl_line;
 
-      assert_no_interrupts();
-
-      nsrcs = 0;
-      ret = dwarf_getsrc_file (module_dwarf, srcfile, l, 0,
-					 &srcsp, &nsrcs);
-      if (ret != 0) /* tolerate invalid line number */
-        break;
-
-      if (line_type == WILDCARD || line_type == RANGE)
-        {
-          Dwarf_Addr line_addr;
-
-          dwarf_lineno (srcsp [0], &lineno);
-	  /* Maybe lineno will exceed the input end */
-	  if (line_type == RANGE && lineno > lines[1])
- 	     break;
-          line_probed = lines_probed.insert(lineno);
-          if (lineno != l || line_probed.second == false || nsrcs > 1)
-            continue;
-          dwarf_lineaddr (srcsp [0], &line_addr);
-          if (!function_name_matches(func_pattern) && dwarf_haspc (function, line_addr) != 1)
-            break;
-        }
-
-      // NB: Formerly, we used to filter, because:
-
-      // dwarf_getsrc_file gets one *near hits* for line numbers, not
-      // exact matches.  For example, an existing file but a nonexistent
-      // line number will be rounded up to the next definition in that
-      // file.  This may be similar to the GDB breakpoint algorithm, but
-      // we don't want to be so fuzzy in systemtap land.  So we filter.
-
-      // But we now see the error of our ways, and skip this filtering.
-
-      // XXX: the code also fails to match e.g.  inline function
-      // definitions when the srcfile is a header file rather than the
-      // CU name.
-
-      size_t remaining_nsrcs = nsrcs;
-
-      if (need_single_match && remaining_nsrcs > 1)
-        {
-          // We wanted a single line record (a unique address for the
-          // line) and we got a bunch of line records. We're going to
-          // skip this probe (throw an exception) but before we throw
-          // we're going to look around a bit to see if there's a low or
-          // high line number nearby which *doesn't* have this problem,
-          // so we can give the user some advice.
-
-          int lo_try = -1;
-          int hi_try = -1;
-          for (size_t i = 1; i < 6; ++i)
-            {
-              if (lo_try == -1 && has_single_line_record(q, srcfile, lineno - i))
-                lo_try = lineno - i;
-
-              if (hi_try == -1 && has_single_line_record(q, srcfile, lineno + i))
-                hi_try = lineno + i;
-            }
-
-          stringstream advice;
-          advice << _F("multiple addresses for %s:%d [man error::dwarf]", srcfile, lineno);
-          if (lo_try > 0 || hi_try > 0)
-            {
-              //TRANSLATORS: Here we are trying to advise what source file 
-              //TRANSLATORS: to attempt.
-              advice << _(" (try ");
-              if (lo_try > 0)
-                advice << srcfile << ":" << lo_try;
-              if (lo_try > 0 && hi_try > 0)
-                advice << _(" or ");
-              if (hi_try > 0)
-                advice << srcfile << ":" << hi_try;
-              advice << ")";
-            }
-          throw semantic_error (advice.str());
-        }
-
-      for (size_t i = 0; i < nsrcs; ++i)
-        {
-          assert_no_interrupts();
-          if (srcsp [i]) // skip over mismatched lines
-            callback (dwarf_line_t(srcsp[i]), data);
-        }
-
-      if (line_type == ABSOLUTE || line_type == RELATIVE)
-        break;
-      else if (line_type == RANGE && l == lines[1])
-        break;
+      if (has_nearest) {
+        // This function inserts a kprobe into the nearest line number
+        // rather than suggesting near line numbers and exiting.
+        insert_alternative_linenos(srcfile, lineno, current_funcs, callback, data);
+      } else
+        suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
 }
 
 
-void
-dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
-                             const string& sym,
-                             const string& function,
-                             dwarf_query *q,
-                             void (* callback)(const string &,
-                                               const char *,
-                                               const char *,
-                                               int,
-                                               Dwarf_Die *,
-                                               Dwarf_Addr,
-                                               dwarf_query *))
+template<> void
+dwflpp::iterate_over_labels<void>(Dwarf_Die *begin_die,
+                                  const string& sym,
+                                  const base_func_info& function,
+                                  const vector<int>& linenos,
+                                  enum lineno_t lineno_type,
+                                  void *data,
+                                  void (* callback)(const base_func_info&,
+                                                    const char*,
+                                                    const char*,
+                                                    int,
+                                                    Dwarf_Die*,
+                                                    Dwarf_Addr,
+                                                    void*))
 {
   get_module_dwarf();
 
@@ -1737,7 +1971,7 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
                 {
                   // Get the file/line number for this label
                   int dline;
-                  const char *file = dwarf_decl_file (&die);
+                  const char *file = dwarf_decl_file (&die) ?: "<unknown source>";
                   dwarf_decl_line (&die, &dline);
 
                   vector<Dwarf_Die> scopes = getscopes_die(&die);
@@ -1753,8 +1987,20 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
                                                 (dwarf_diename(&scope) ?: "<unknown>"),
                                                 lex_cast_hex(dwarf_dieoffset(&scope)).c_str()));
                         }
-                      callback(function, name, file, dline,
-                               &scope, stmt_addr, q);
+
+                      bool matches_lineno;
+                      if (lineno_type == ABSOLUTE)
+                        matches_lineno = dline == linenos[0];
+                      else if (lineno_type == RELATIVE)
+                        matches_lineno = dline == linenos[0] + function.decl_line;
+                      else if (lineno_type == ENUMERATED)
+                        matches_lineno = (binary_search(linenos.begin(), linenos.end(), dline));
+                      else // WILDCARD
+                        matches_lineno = true;
+
+                      if (matches_lineno)
+                        callback(function, name, file, dline,
+                                 &scope, stmt_addr, data);
                     }
                 }
             }
@@ -1769,16 +2015,226 @@ dwflpp::iterate_over_labels (Dwarf_Die *begin_die,
 	  // Iterate over the children of the imported unit as if they
 	  // were inserted in place.
 	  if (dwarf_attr_die(&die, DW_AT_import, &import))
-	    iterate_over_labels (&import, sym, function, q, callback);
+	    iterate_over_labels (&import, sym, function, linenos,
+	                         lineno_type, data, callback);
 	  break;
 
         default:
           if (dwarf_haschildren (&die))
-            iterate_over_labels (&die, sym, function, q, callback);
+            iterate_over_labels (&die, sym, function, linenos,
+                                 lineno_type, data, callback);
           break;
         }
     }
   while (dwarf_siblingof (&die, &die) == 0);
+}
+
+// Mini 'query-like' struct to help us navigate callbacks during
+// external function resolution
+struct external_function_query {
+  dwflpp* dw;
+  const string name;
+  Dwarf_Die die;
+  Dwarf_Addr addr;
+  bool resolved;
+  external_function_query(dwflpp* dw, const string& name):
+    dw(dw), name(name), addr(0), resolved(false) {}
+};
+
+int
+dwflpp::external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq)
+{
+  efq->dw->focus_on_cu(cu);
+  return efq->dw->iterate_over_functions(external_function_func_callback,
+                                         efq, efq->name);
+}
+
+int
+dwflpp::external_function_func_callback (Dwarf_Die* func, external_function_query *efq)
+{
+  Dwarf_Attribute external;
+  Dwarf_Addr func_addr;
+  if (dwarf_attr_integrate(func, DW_AT_external, &external) != NULL &&
+      dwarf_lowpc(func, &func_addr) == 0)
+    {
+      efq->die = *func;
+      efq->addr = func_addr;
+      efq->resolved = true;
+      return DWARF_CB_ABORT; // we found it so stop here
+    }
+  return DWARF_CB_OK;
+}
+
+template<> void
+dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
+                                   const string& sym,
+                                   long recursion_depth,
+                                   void *data,
+                                   void (* callback)(base_func_info&,
+                                                     base_func_info&,
+                                                     stack<Dwarf_Addr>*,
+                                                     void*),
+                                   base_func_info& caller,
+                                   stack<Dwarf_Addr> *callers)
+{
+  get_module_dwarf();
+
+  Dwarf_Die die, import;
+
+  // DIE of abstract_origin found in die
+  Dwarf_Die origin;
+
+  // callee's entry pc (= where we'll probe)
+  Dwarf_Addr func_addr;
+
+  // caller's unwind pc during call (to match against bt for filtering)
+  Dwarf_Addr caller_uw_addr;
+
+  Dwarf_Attribute attr;
+
+  base_func_info callee;
+  if (dwarf_child(begin_die, &die) != 0)
+    return;  // die without children, bail out.
+
+  bool free_callers = false;
+  if (callers == NULL) /* first call */
+    {
+      callers = new stack<Dwarf_Addr>();
+      free_callers = true;
+    }
+
+  do
+    {
+      bool inlined = false;
+      switch (dwarf_tag(&die))
+        {
+        case DW_TAG_inlined_subroutine:
+          inlined = true;
+        case DW_TAG_GNU_call_site:
+          callee.name = dwarf_diename(&die) ?: "";
+          if (callee.name.empty())
+            continue;
+          if (callee.name != sym)
+            {
+              if (!name_has_wildcard(sym))
+                continue;
+              if (!function_name_matches_pattern(callee.name, sym))
+                continue;
+            }
+
+          /* In both cases (call sites and inlines), we want the
+           * abstract_origin. The difference is that in inlines, the addr is
+           * in the die itself, whereas for call sites, the addr is in the
+           * abstract_origin's die.
+           *     Note that in the case of inlines, we're only calling back
+           * for that inline instance, not all. This is what we want, since
+           * it will only be triggered when 'called' from the target func,
+           * which is something we have to emulate for non-inlined funcs
+           * (which is the purpose of the caller_uw_addr below) */
+          if (dwarf_attr_die(&die, DW_AT_abstract_origin, &origin) == NULL)
+            continue;
+
+          // the low_pc of the die in either cases is the pc that would
+          // show up in a backtrace (inlines are a special case in which
+          // the die's low_pc is also the abstract_origin's low_pc = the
+          // 'start' of the inline instance)
+          if (dwarf_lowpc(&die, &caller_uw_addr) != 0)
+            continue;
+
+          if (inlined)
+            func_addr = caller_uw_addr;
+          else if (dwarf_lowpc(&origin, &func_addr) != 0)
+            {
+              // function doesn't have a low_pc, is it external?
+              if (dwarf_attr_integrate(&origin, DW_AT_external,
+                                       &attr) != NULL)
+                {
+                  // let's iterate over the CUs and find it. NB: it's
+                  // possible we could have also done this by creating a
+                  // probe point with .exported tacked on and rerunning it
+                  // through derive_probe(). But since we're already on the
+                  // dwflpp side of things, and we already have access to
+                  // everything we need, let's try to be self-sufficient.
+
+                  // remember old focus
+                  Dwarf_Die *old_cu = cu;
+
+                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: callee.name);
+                  iterate_over_cus(external_function_cu_callback, &efq, false);
+
+                  // restore focus
+                  cu = old_cu;
+
+                  if (!efq.resolved) // did we resolve it?
+                    continue;
+
+                  func_addr = efq.addr;
+                  origin = efq.die;
+                }
+              // non-external function without low_pc, jump ship
+              else continue;
+            }
+
+          // We now have the addr to probe in func_addr, and the DIE
+          // from which to obtain file/line info in origin
+
+          // Get the file/line number for this callee
+          callee.decl_file = dwarf_decl_file (&origin) ?: "<unknown source>";
+          dwarf_decl_line (&origin, &callee.decl_line);
+
+          // add as a caller to match against
+          if (!inlined)
+            callers->push(caller_uw_addr);
+
+          callee.die = inlined ? die : origin;
+          callee.entrypc = func_addr;
+          callback(callee, caller, callers, data);
+
+          // If it's a tail call, print a warning that it may not be caught
+          if (!inlined
+              && dwarf_attr_integrate(&die, DW_AT_GNU_tail_call, &attr) != NULL)
+            sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
+                                   ".callee probe may not fire. Try placing the probe "
+                                   "directly on the callee function instead.",
+                                   callee.name.c_str(), caller.name.c_str()));
+
+          // For .callees(N) probes, we recurse on this callee. Note that we
+          // pass the callee we just found as the caller arg for this recursion,
+          // since it (the callee we just found) will be the caller of whatever
+          // callees found inside this recursion.
+          if (recursion_depth > 1)
+            iterate_over_callees(inlined ? &die : &origin,
+                                 sym, recursion_depth-1, data,
+                                 callback, callee, callers);
+
+          if (!inlined)
+            callers->pop();
+          break;
+
+        case DW_TAG_subprogram:
+          break; // don't leave our filtered func
+
+        case DW_TAG_imported_unit:
+          // Iterate over the children of the imported unit as if they
+          // were inserted in place.
+          if (dwarf_attr_die(&die, DW_AT_import, &import))
+            // NB: we pass the same caller arg into it
+            iterate_over_callees (&import, sym, recursion_depth, data,
+                                  callback, caller, callers);
+          break;
+
+        default:
+          if (dwarf_haschildren (&die))
+            // NB: we pass the same caller arg into it
+            iterate_over_callees (&die, sym, recursion_depth, data,
+                                  callback, caller, callers);
+          break;
+        }
+    }
+  while (dwarf_siblingof (&die, &die) == 0);
+
+  if (free_callers && callers != NULL)
+    delete callers;
 }
 
 
@@ -1796,7 +2252,7 @@ dwflpp::collect_srcfiles_matching (string const & pattern,
   // NB: fnmatch() is used without FNM_PATHNAME.
   string prefixed_pattern = string("*/") + pattern;
 
-  dwarf_assert ("dwarf_getsrcfiles",
+  DWARF_ASSERT ("dwarf_getsrcfiles",
                 dwarf_getsrcfiles (cu, &srcfiles, &nfiles));
   {
   for (size_t i = 0; i < nfiles; ++i)
@@ -1817,10 +2273,12 @@ dwflpp::collect_srcfiles_matching (string const & pattern,
 void
 dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 {
-  // This heuristic attempts to pick the first address that has a
-  // source line distinct from the function declaration's.  In a
-  // perfect world, this would be the first statement *past* the
-  // prologue.
+  // When a program is compiled with no optimization, GCC does no variable
+  // tracking, which means that location info is actually only really valid
+  // after the prologue, even though GCC reports it as valid during. So we need
+  // to find the prologue ends to get accurate info. This may or may not be the
+  // first address that has a source line distinct from the function
+  // declaration's.
 
   assert(module);
   assert(cu);
@@ -1836,10 +2294,40 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
      cpu_to_logical_apicid                     NULL-decl_file
    */
 
-  // Fetch all srcline records, sorted by address.
-  dwarf_assert ("dwarf_getsrclines",
+  // Fetch all srcline records, sorted by address. No need to free lines, it's a
+  // direct pointer to the CU's cached lines.
+  DWARF_ASSERT ("dwarf_getsrclines",
                 dwarf_getsrclines(cu, &lines, &nlines));
-  // XXX: free lines[] later, but how?
+
+  // Dump them into our own array for easier searching. They should already be
+  // sorted by addr, but we doublecheck that here. We want to keep the indices
+  // between lines and addrs the same.
+  vector<Dwarf_Addr> addrs;
+  for (size_t i = 0; i < nlines; i++)
+    {
+      Dwarf_Line* line = dwarf_onesrcline(lines, i);
+      Dwarf_Addr addr = DWARF_LINEADDR(line);
+      if (!addrs.empty() && addr < addrs.back())
+        throw SEMANTIC_ERROR(_("lines from dwarf_getsrclines() not sorted"));
+      addrs.push_back(addr);
+    }
+  // We normally ignore a function's decl_line, since it is associated with the
+  // line at which the identifier appears in the declaration, and has no
+  // meaningful relation to the lineno associated with the entrypc (which is
+  // normally the lineno of '{', which could occur at the same line as the
+  // declaration, or lower down).
+  //     However, if the CU was compiled using GCC < 4.4, then the decl_line
+  // actually represents the lineno of '{' as well, in which case if the lineno
+  // associated with the entrypc is != to the decl_line, it means the compiler
+  // scraped/optimized off some of the beginning of the function and the safest
+  // thing we can do is consider it naked.
+  bool consider_decl_line = false;
+  {
+    string prod, vers;
+    if (is_gcc_producer(cu, prod, vers)
+     && strverscmp(vers.c_str(), "4.4.0") < 0)
+      consider_decl_line = true;
+  }
 
   for(func_info_map_t::iterator it = funcs.begin(); it != funcs.end(); it++)
     {
@@ -1852,28 +2340,23 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       Dwarf_Addr entrypc = it->entrypc;
       Dwarf_Addr highpc; // NB: highpc is exclusive: [entrypc,highpc)
-      dwfl_assert ("dwarf_highpc", dwarf_highpc (& it->die,
+      DWFL_ASSERT ("dwarf_highpc", dwarf_highpc (& it->die,
                                                  & highpc));
 
       if (it->decl_file == 0) it->decl_file = "";
 
       unsigned entrypc_srcline_idx = 0;
-      dwarf_line_t entrypc_srcline;
-      // open-code binary search for exact match
+      Dwarf_Line *entrypc_srcline = NULL;
       {
-        unsigned l = 0, h = nlines;
-        while (l < h)
+        vector<Dwarf_Addr>::const_iterator it_addr =
+          lower_bound(addrs.begin(), addrs.end(), entrypc);
+        if (it_addr != addrs.end() && *it_addr == entrypc)
           {
-            entrypc_srcline_idx = (l + h) / 2;
-            const dwarf_line_t lr(dwarf_onesrcline(lines,
-                                                   entrypc_srcline_idx));
-            Dwarf_Addr addr = lr.addr();
-            if (addr == entrypc) { entrypc_srcline = lr; break; }
-            else if (l + 1 == h) { break; } // ran off bottom of tree
-            else if (addr < entrypc) { l = entrypc_srcline_idx; }
-            else { h = entrypc_srcline_idx; }
+            entrypc_srcline_idx = it_addr - addrs.begin();
+            entrypc_srcline = dwarf_onesrcline(lines, entrypc_srcline_idx);
           }
       }
+
       if (!entrypc_srcline)
         {
           if (sess.verbose > 2)
@@ -1885,7 +2368,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         }
 
       if (entrypc == 0)
-        { 
+        {
           if (sess.verbose > 2)
             clog << _F("null entrypc dwarf line record for function '%s'\n",
                        it->name.c_str());
@@ -1899,10 +2382,11 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
                    "@%s:%d\n", it->name.c_str(), entrypc, highpc, it->decl_file,
                    it->decl_line);
 
-      // Now we go searching for the first line record that has a
-      // file/line different from the one in the declaration.
-      // Normally, this will be the next one.  BUT:
-      //
+      // For each function, we look for the prologue-end marker (e.g. clang
+      // outputs one). If there is no explicit marker (e.g. GCC does not), we
+      // accept a bigger or equal lineno as a prologue end (this catches GCC's
+      // 0-line advances).
+
       // We may have to skip a few because some old compilers plop
       // in dummy line records for longer prologues.  If we go too
       // far (addr >= highpc), we take the previous one.  Or, it may
@@ -1910,54 +2394,77 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       // the entrypc maps to a statement in the body rather than the
       // declaration.
 
+      int entrypc_srcline_lineno = DWARF_LINENO(entrypc_srcline);
       unsigned postprologue_srcline_idx = entrypc_srcline_idx;
-      bool ranoff_end = false;
+      Dwarf_Line *postprologue_srcline = entrypc_srcline;
+
       while (postprologue_srcline_idx < nlines)
         {
-          dwarf_line_t lr(dwarf_onesrcline(lines, postprologue_srcline_idx));
-          Dwarf_Addr postprologue_addr = lr.addr();
-          const char* postprologue_file = lr.linesrc();
-          int postprologue_lineno = lr.lineno();
+          postprologue_srcline = dwarf_onesrcline(lines,
+                                                  postprologue_srcline_idx);
+          Dwarf_Addr lineaddr   = DWARF_LINEADDR(postprologue_srcline);
+          const char* linesrc   = DWARF_LINESRC(postprologue_srcline);
+          int lineno            = DWARF_LINENO(postprologue_srcline);
+          bool lineprologue_end = DWARF_LINEPROLOGUEEND(postprologue_srcline);
 
           if (sess.verbose>2)
-            clog << _F("checking line record %#" PRIx64 "@%s:%d\n", postprologue_addr,
-                       postprologue_file, postprologue_lineno);
+            clog << _F("checking line record %#" PRIx64 "@%s:%d%s\n", lineaddr,
+                       linesrc, lineno, lineprologue_end ? " (marked)" : "");
 
-          if (postprologue_addr >= highpc)
-            {
-              ranoff_end = true;
-              postprologue_srcline_idx --;
-              continue;
-            }
-          if (ranoff_end ||
-              (strcmp (postprologue_file, it->decl_file) || // We have a winner!
-               (postprologue_lineno != it->decl_line)))
-            {
-              it->prologue_end = postprologue_addr;
-
-              if (sess.verbose>2)
-                {
-                  clog << _F("prologue found function '%s'", it->name.c_str());
-                  // Add a little classification datum
-                  //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
-                  if (postprologue_srcline_idx == entrypc_srcline_idx) clog << _(" (naked)");
-                  //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
-                  if (ranoff_end) clog << _(" (tail-call?)");
-                  clog << " = 0x" << hex << postprologue_addr << dec << "\n";
-                }
-
-              break;
-            }
+          // have we passed the function?
+          if (lineaddr >= highpc)
+            break;
+          // is there an explicit prologue_end marker?
+          if (lineprologue_end)
+            break;
+          // is it a different file?
+          if (strcmp(linesrc, it->decl_file))
+            break;
+          // OK, it's the same file, but is it a different line?
+          if (lineno != entrypc_srcline_lineno)
+            break;
+          // Same file and line, is this a second line record (e.g. 0-line advance)?
+          if (postprologue_srcline_idx != entrypc_srcline_idx)
+            break;
+          // This is the first iteration. Is decl_line meaningful and is the
+          // lineno past the decl_line?
+          if (consider_decl_line && lineno != it->decl_line)
+            break;
 
           // Let's try the next srcline.
           postprologue_srcline_idx ++;
+
         } // loop over srclines
 
-      // if (strlen(it->decl_file) == 0) it->decl_file = NULL;
+
+      Dwarf_Addr postprologue_addr = DWARF_LINEADDR(postprologue_srcline);
+      if (postprologue_addr >= highpc)
+        {
+          // pick addr of previous line record
+          Dwarf_Line *lr = dwarf_onesrcline(lines, postprologue_srcline_idx-1);
+          postprologue_addr = DWARF_LINEADDR(lr);
+        }
+
+      it->prologue_end = postprologue_addr;
+
+      if (sess.verbose>2)
+        {
+          clog << _F("prologue found function '%s'", it->name.c_str());
+          // Add a little classification datum
+          //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
+          if (postprologue_addr == entrypc)
+            clog << _(" (naked)");
+          //TRANSLATORS: Here we're adding some classification datum (ie we went over)
+          if (DWARF_LINEADDR(postprologue_srcline) >= highpc)
+            clog << _(" (tail-call?)");
+          //TRANSLATORS: Here we're adding some classification datum (ie it was marked)
+          if (DWARF_LINEPROLOGUEEND(postprologue_srcline))
+            clog << _(" (marked)");
+
+          clog << " = 0x" << hex << postprologue_addr << dec << "\n";
+        }
 
     } // loop over functions
-
-  // XXX: how to free lines?
 }
 
 
@@ -1965,7 +2472,8 @@ bool
 dwflpp::function_entrypc (Dwarf_Addr * addr)
 {
   assert (function);
-  return (dwarf_entrypc (function, addr) == 0);
+  // PR10574: reject 0, which tends to be eliminated COMDAT
+  return (dwarf_entrypc (function, addr) == 0 && *addr != 0);
 }
 
 
@@ -2040,7 +2548,7 @@ dwflpp::function_file (char const ** c)
 {
   assert (function);
   assert (c);
-  *c = dwarf_decl_file (function);
+  *c = dwarf_decl_file (function) ?: "<unknown source>";
 }
 
 
@@ -2058,7 +2566,7 @@ dwflpp::die_has_pc (Dwarf_Die & die, Dwarf_Addr pc)
   int res = dwarf_haspc (&die, pc);
   // dwarf_ranges will return -1 if a function die has no DW_AT_ranges
   // if (res == -1)
-  //    dwarf_assert ("dwarf_haspc", res);
+  //    DWARF_ASSERT ("dwarf_haspc", res);
   return res == 1;
 }
 
@@ -2131,7 +2639,7 @@ dwflpp::loc2c_error (void *, const char *fmt, ...)
   else
     msg = tmp;
   va_end (ap);
-  throw semantic_error (msg);
+  throw SEMANTIC_ERROR (msg);
 }
 
 
@@ -2141,13 +2649,13 @@ void
 dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 {
   int n = dwfl_module_relocations (module);
-  dwfl_assert ("dwfl_module_relocations", n >= 0);
+  DWFL_ASSERT ("dwfl_module_relocations", n >= 0);
   Dwarf_Addr reloc_address = address;
   const char *secname = "";
   if (n > 1)
     {
       int i = dwfl_module_relocate_address (module, &reloc_address);
-      dwfl_assert ("dwfl_module_relocate_address", i >= 0);
+      DWFL_ASSERT ("dwfl_module_relocate_address", i >= 0);
       secname = dwfl_module_relocation_info (module, i, NULL);
     }
 
@@ -2160,7 +2668,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
 
   if (n > 0 && !(n == 1 && secname == NULL))
    {
-      dwfl_assert ("dwfl_module_relocation_info", secname);
+      DWFL_ASSERT ("dwfl_module_relocation_info", secname);
       if (n > 1 || secname[0] != '\0')
         {
           // This gives us the module name, and section name within the
@@ -2189,7 +2697,7 @@ dwflpp::emit_address (struct obstack *pool, Dwarf_Addr address)
           obstack_printf (pool, "/* pragma:vma */");
           obstack_printf (pool, "({ unsigned long addr = 0; ");
           obstack_printf (pool, "addr = _stp_umodule_relocate (\"%s\",%#" PRIx64 ", current); ",
-                          canonicalize_file_name(module_name.c_str()), address);
+                          resolve_path(module_name.c_str()).c_str(), address);
           obstack_printf (pool, "addr; })");
         }
     }
@@ -2207,15 +2715,15 @@ dwflpp::loc2c_emit_address (void *arg, struct obstack *pool,
 
 
 void
-dwflpp::print_locals(vector<Dwarf_Die>& scopes, ostream &o)
+dwflpp::get_locals(vector<Dwarf_Die>& scopes, set<string>& locals)
 {
   // XXX Shouldn't this be walking up to outer scopes too?
 
-  print_locals_die(scopes[0], o);
+  get_locals_die(scopes[0], locals);
 }
 
 void
-dwflpp::print_locals_die(Dwarf_Die& die, ostream &o)
+dwflpp::get_locals_die(Dwarf_Die& die, set<string>& locals)
 {
   // Try to get the first child of die.
   Dwarf_Die child, import;
@@ -2232,13 +2740,13 @@ dwflpp::print_locals_die(Dwarf_Die& die, ostream &o)
             case DW_TAG_formal_parameter:
               name = dwarf_diename (&child);
               if (name)
-                o << " $" << name;
+                locals.insert(string("$") + name);
               break;
 	    case DW_TAG_imported_unit:
 	      // Treat the imported unit children as if they are
 	      // children of the given DIE.
 	      if (dwarf_attr_die(&child, DW_AT_import, &import))
-		print_locals_die (import, o);
+		get_locals_die (import, locals);
 	      break;
             default:
               break;
@@ -2268,10 +2776,11 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
                                            vardie);
   if (declaring_scope < 0)
     {
-      stringstream alternatives;
-      print_locals (scopes, alternatives);
+      set<string> locals;
+      get_locals(scopes, locals);
+      string sugs = levenshtein_suggest(local, locals); // probably not that many, so no limit
       if (pc)
-        throw semantic_error (_F("unable to find local '%s', [man error::dwarf] dieoffset %s in %s, near pc %s %s %s %s (%s)",
+        throw SEMANTIC_ERROR (_F("unable to find local '%s', [man error::dwarf] dieoffset %s in %s, near pc %s %s %s %s (%s)",
                                  local.c_str(),
                                  lex_cast_hex(dwarf_dieoffset(scope_die)).c_str(),
                                  module_name.c_str(),
@@ -2279,23 +2788,21 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
                                  (scope_die == NULL) ? "" : _("in"),
                                  (dwarf_diename(scope_die) ?: "<unknown>"),
                                  (dwarf_diename(cu) ?: "<unknown>"),
-                                 (alternatives.str() == ""
+                                 (sugs.empty()
                                   ? (_("<no alternatives>"))
-				  : (_("alternatives:")
-                                       + alternatives.str())).c_str()),
+				  : (_("alternatives: ") + sugs + ")")).c_str()),
                               e->tok);
       else
-        throw semantic_error (_F("unable to find global '%s', [man error::dwarf] dieoffset %s in %s, %s %s %s (%s)",
+        throw SEMANTIC_ERROR (_F("unable to find global '%s', [man error::dwarf] dieoffset %s in %s, %s %s %s (%s)",
                                  local.c_str(),
                                  lex_cast_hex(dwarf_dieoffset(scope_die)).c_str(),
                                  module_name.c_str(),
                                  (scope_die == NULL) ? "" : _("in"),
                                  (dwarf_diename(scope_die) ?: "<unknown>"),
                                  cu_name().c_str(),
-                                 (alternatives.str() == ""
+                                 (sugs.empty()
                                   ? (_("<no alternatives>"))
-				  : (_("alternatives:")
-                                       + alternatives.str())).c_str()),
+				  : (_("alternatives: ") + sugs + ")")).c_str()),
                               e->tok);
     }
 
@@ -2364,7 +2871,7 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
              {
                physcopes = getscopes_die(&scope);
                if (physcopes.empty())
-                 throw semantic_error (_F("unable to get die scopes for '%s' in an inlined subroutine",
+                 throw SEMANTIC_ERROR (_F("unable to get die scopes for '%s' in an inlined subroutine",
                                           local.c_str()), e->tok);
                fbscopes = &physcopes;
                inner = 0; // zero is current scope, for look will increase.
@@ -2377,6 +2884,251 @@ dwflpp::find_variable_and_frame_base (vector<Dwarf_Die>& scopes,
   return fb_attr;
 }
 
+/* Returns a human readable string with suggested locations where a
+   DIE attribute is valid.  */
+static string
+suggested_locations_string(Dwarf_Attribute *attr)
+{
+  string locsstr;
+  if (attr == NULL)
+    locsstr = "<no alternatives for NULL attribute>";
+  else
+    {
+#if _ELFUTILS_PREREQ (0, 158)
+      Dwarf_Op *expr;
+      size_t exprlen;
+      Dwarf_Addr base, start, end;
+      ptrdiff_t off = 0;
+
+      off = dwarf_getlocations (attr, off, &base,
+				&start, &end,
+				&expr, &exprlen);
+      if (off > 0)
+	{
+	  locsstr = _("alternative locations: ");
+
+	  while (off > 0)
+            {
+	      locsstr += "[";
+	      locsstr += lex_cast_hex(start);
+	      locsstr += ",";
+	      locsstr += lex_cast_hex(end);
+	      locsstr += "]";
+
+	      off = dwarf_getlocations (attr, off, &base,
+					&start, &end,
+					&expr, &exprlen);
+	      if (off > 0)
+		locsstr += ", ";
+	    }
+	}
+      else if (off == 0)
+	locsstr = _("<no alternative locations>");
+      else
+	locsstr = _F("<error getting alternative locations: %s>",
+		     dwarf_errmsg(-1));
+#else
+      locsstr = "<cannot suggest any alternative locations, elfutils too old>";
+#endif /* _ELFUTILS_PREREQ (0, 158) */
+    }
+
+  return locsstr;
+}
+
+/* Produce a human readable name for a DIE. */
+static string
+die_name_string (Dwarf_Die *die)
+{
+  string res;
+  const char *name = dwarf_linkage_name(die);
+  if (name == NULL)
+    name = dwarf_diename (die);
+
+  size_t demangle_buffer_len = 0;
+  char *demangle_buffer = NULL;
+  if (name != NULL && name[0] == '_' && name[1] == 'Z')
+    {
+      int status = -1;
+      char *dsymname = abi::__cxa_demangle (name, demangle_buffer,
+					    &demangle_buffer_len, &status);
+      if (status == 0)
+	name = demangle_buffer = dsymname;
+    }
+  if (name != NULL)
+    res = name;
+  else
+    res = _("<unknown");
+  free (demangle_buffer);
+
+  return res;
+}
+
+/* Returns a source line and column string based on the inlined DIE
+   or based on the pc if DIE is NULL. */
+string
+dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
+{
+  string linestr;
+
+  int lineno, col;
+  const char *src = NULL;
+  lineno = col = -1;
+
+  if (die == NULL)
+    {
+      Dwarf_Line *line = dwarf_getsrc_die (cu, pc);
+      if (line != NULL)
+	{
+	  src = dwarf_linesrc (line, NULL, NULL);
+	  dwarf_lineno (line, &lineno);
+	  dwarf_linecol (line, &col);
+	}
+    }
+  else
+    {
+      Dwarf_Files *files;
+      if (dwarf_getsrcfiles (cu, &files, NULL) == 0)
+	{
+	  Dwarf_Attribute attr;
+	  Dwarf_Word val;
+	  if (dwarf_formudata (dwarf_attr (die, DW_AT_call_file, &attr),
+			       &val) == 0)
+	    {
+	      src = dwarf_filesrc (files, val, NULL, NULL);
+	      if (dwarf_formudata (dwarf_attr (die, DW_AT_call_line,
+					       &attr), &val) == 0)
+		{
+		  lineno = val;
+		  if (dwarf_formudata (dwarf_attr (die, DW_AT_call_column,
+						   &attr), &val) == 0)
+		    col = val;
+		}
+	    }
+	}
+    }
+
+  if (src != NULL)
+    {
+      linestr += src;
+      if (lineno > 0)
+	{
+	  linestr += ":" + lex_cast(lineno);
+	  if (col > 0)
+	    linestr += ":" + lex_cast(col);
+	}
+    }
+  else
+    linestr += _("unknown source");
+
+  return linestr;
+}
+
+/* Returns a human readable DIE offset for use in error messages.
+   Includes DIE offset and DWARF file used. */
+string
+dwflpp::die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
+{
+  string locstr;
+
+  /* DIE offset */
+  locstr += _("dieoffset: ");
+  locstr += lex_cast_hex(dwarf_dieoffset(die));
+
+  /* DWARF file */
+  const char *debugfile;
+  locstr += _(" from ");
+  if (dwfl_module_info (module, NULL, NULL, NULL, NULL, NULL, NULL,
+			&debugfile) == NULL || debugfile == NULL)
+    {
+      locstr += _("unknown debug file for ");
+      locstr += module_name;
+    }
+  else
+    locstr += debugfile;
+
+  return locstr;
+}
+
+/* Returns a human readable (inlined) function and source file/line location
+   for a DIE and pc location.  */
+string
+dwflpp::die_location_as_function_string(Dwarf_Addr pc, Dwarf_Die *die)
+{
+  string locstr;
+  locstr = _("function: ");
+
+  /* Find the first function-like DIE with a name in scope.  */
+  Dwarf_Die funcdie_mem;
+  Dwarf_Die *funcdie = NULL;
+  string funcname = "";
+  Dwarf_Die *scopes = NULL;
+  int nscopes = dwarf_getscopes (cu, pc, &scopes);
+  for (int i = 0; funcname == "" && i < nscopes; i++)
+    {
+      Dwarf_Die *scope = &scopes[i];
+      int tag = dwarf_tag (scope);
+      if (tag == DW_TAG_subprogram
+	  || tag == DW_TAG_inlined_subroutine
+	  || tag == DW_TAG_entry_point)
+	funcname = die_name_string (scope);
+      if (funcname != "")
+	{
+	  funcdie_mem = *scope;
+	  funcdie = &funcdie_mem;
+	}
+    }
+  free (scopes);
+
+  /* source location */
+  if (funcname == "")
+    locstr += _("<unknown> at ") + pc_die_line_string (pc, NULL);
+  else
+    {
+      int nscopes = dwarf_getscopes_die (funcdie, &scopes);
+      if (nscopes > 0)
+	{
+	  /* scopes[0] == funcdie, the lowest level, for which we already have
+	     the name.  This is the actual source location where it
+	     happened.  */
+	  locstr += funcname;
+	  locstr +=  _(" at ");
+	  locstr += pc_die_line_string (pc, NULL);
+
+	  /* last_scope is the source location where the next inlined frame/function
+	     call was done. */
+	  Dwarf_Die *last_scope = &scopes[0];
+	  for (int i = 1; i < nscopes; i++)
+	    {
+	      Dwarf_Die *scope = &scopes[i];
+	      int tag = dwarf_tag (scope);
+	      if (tag != DW_TAG_inlined_subroutine
+		  && tag != DW_TAG_entry_point
+		  && tag != DW_TAG_subprogram)
+		continue;
+
+	      locstr += _(" inlined by ");
+	      locstr += die_name_string (scope);
+	      locstr += _(" at ");
+	      locstr += pc_die_line_string (pc, last_scope);
+
+	      /* Found the "top-level" in which everything was inlined.  */
+	      if (tag == DW_TAG_subprogram)
+		break;
+
+	      last_scope = scope;
+	    }
+	}
+      else
+	{
+	  locstr += funcname;
+	  locstr += _(" at ");
+	  locstr += pc_die_line_string (pc, NULL);
+	}
+      free (scopes);
+    }
+
+  return locstr;
+}
 
 struct location *
 dwflpp::translate_location(struct obstack *pool,
@@ -2425,13 +3177,27 @@ dwflpp::translate_location(struct obstack *pool,
       }
 
       /* FALLTHROUGH */
-      throw semantic_error (_F("not accessible at this address [man error::dwarf] (%s, dieoffset: %s)",
-                               lex_cast_hex(pc).c_str(), lex_cast_hex(dwarf_dieoffset(die)).c_str()),
-                               e->tok);
+      {
+	string msg = _F("not accessible at this address (pc: %s) [man error::dwarf]", lex_cast_hex(pc).c_str());
+	semantic_error err(ERR_SRC, msg, e->tok);
+	err.details.push_back(die_location_as_string(pc, die));
+	err.details.push_back(die_location_as_function_string(pc, die));
+	err.details.push_back(suggested_locations_string(attr));
+	throw err;
+      }
 
     default:			/* Shouldn't happen.  */
     case -1:
-      throw semantic_error (_F("dwarf_getlocation_addr failed [man error::dwarf] , %s", dwarf_errmsg(-1)), e->tok);
+      {
+	string msg = _F("dwarf_getlocation_addr failed at this address (pc: %s) [man error::dwarf]", lex_cast_hex(pc).c_str());
+	semantic_error err(ERR_SRC, msg, e->tok);
+	string dwarf_err = _F("dwarf_error: %s", dwarf_errmsg(-1));
+	err.details.push_back(dwarf_err);
+	err.details.push_back(die_location_as_string(pc, die));
+	err.details.push_back(die_location_as_function_string(pc, die));
+	err.details.push_back(suggested_locations_string(attr));
+	throw err;
+      }
     }
 
   Dwarf_Op *cfa_ops;
@@ -2454,7 +3220,7 @@ dwflpp::translate_location(struct obstack *pool,
 
 
 void
-dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
+dwflpp::get_members(Dwarf_Die *typedie, set<string>& members, set<string> &dupes)
 {
   const int typetag = dwarf_tag (typedie);
 
@@ -2466,9 +3232,8 @@ dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
       typetag != DW_TAG_compile_unit &&
       typetag != DW_TAG_partial_unit)
     {
-      o << _F(" Error: %s isn't a struct/class/union",
-	      dwarf_type_name(typedie).c_str());
-      return;
+      throw SEMANTIC_ERROR(_F("Type %s isn't a struct/class/union",
+                              dwarf_type_name(typedie).c_str()));
     }
 
   // Try to get the first child of vardie.
@@ -2477,20 +3242,18 @@ dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
   switch (dwarf_child (typedie, die))
     {
     case 1:				// No children.
-      o << _F("%s is empty", dwarf_type_name(typedie).c_str());
-      return;
+      throw SEMANTIC_ERROR(_F("Type %s is empty", dwarf_type_name(typedie).c_str()));
 
     case -1:				// Error.
     default:				// Shouldn't happen.
-      o << dwarf_type_name(typedie)
-        << ": " << dwarf_errmsg (-1);
-      return;
+      throw SEMANTIC_ERROR(_F("Type %s: %s", dwarf_type_name(typedie).c_str(),
+                                             dwarf_errmsg(-1)));
 
     case 0:				// Success.
       break;
     }
 
-  // Output each sibling's name to 'o'.
+  // Add each sibling's name to members set
   do
     {
       int tag = dwarf_tag(die);
@@ -2498,7 +3261,7 @@ dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
       /* The children of an imported_unit should be treated as members too. */
       if (tag == DW_TAG_imported_unit
           && dwarf_attr_die(die, DW_AT_import, &import))
-        print_members(&import, o, dupes);
+        get_members(&import, members, dupes);
 
       if (tag != DW_TAG_member && tag != DW_TAG_inheritance)
         continue;
@@ -2509,7 +3272,7 @@ dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
         {
           // Only output if this is new, to avoid inheritance dupes.
           if (dupes.insert(member).second)
-            o << " " << member;
+            members.insert(member);
         }
       else
         {
@@ -2519,12 +3282,11 @@ dwflpp::print_members(Dwarf_Die *typedie, ostream &o, set<string> &dupes)
               string source = dwarf_decl_file(die) ?: "<unknown source>";
               int line = -1;
               dwarf_decl_line(die, &line);
-              clog << _F("\n Error in obtaining type attribute for anonymous "
-                         "member at %s:%d", source.c_str(), line);
-              return;
+              throw SEMANTIC_ERROR(_F("Couldn't obtain type attribute for anonymous "
+                                      "member at %s:%d", source.c_str(), line));
             }
 
-          print_members(&temp_die, o, dupes);
+          get_members(&temp_die, members, dupes);
         }
 
     }
@@ -2556,7 +3318,7 @@ dwflpp::find_struct_member(const target_symbol::component& c,
           continue;
         case -1:	/* Error.  */
         default:	/* Shouldn't happen */
-          throw semantic_error (dwarf_type_name(&inheritees.front()) + ": "
+          throw SEMANTIC_ERROR (dwarf_type_name(&inheritees.front()) + ": "
                                 + string (dwarf_errmsg (-1)),
                                 c.tok);
         }
@@ -2613,7 +3375,7 @@ success:
   /* Union members don't usually have a location,
    * but just use the containing union's location.  */
   else if (dwarf_tag(parentdie) != DW_TAG_union_type)
-    throw semantic_error (_F("no location for field '%s':%s",
+    throw SEMANTIC_ERROR (_F("no location for field '%s':%s",
                              c.member.c_str(), dwarf_errmsg(-1)), c.tok);
 
   return true;
@@ -2624,7 +3386,7 @@ static inline void
 dwarf_die_type (Dwarf_Die *die, Dwarf_Die *typedie_mem, const token *tok=NULL)
 {
   if (!dwarf_attr_die (die, DW_AT_type, typedie_mem))
-    throw semantic_error (_F("cannot get type of field: %s", dwarf_errmsg(-1)), tok);
+    throw SEMANTIC_ERROR (_F("cannot get type of field: %s", dwarf_errmsg(-1)), tok);
 }
 
 
@@ -2656,6 +3418,7 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_typedef:
         case DW_TAG_const_type:
         case DW_TAG_volatile_type:
+        case DW_TAG_restrict_type:
           /* Just iterate on the referent type.  */
           dwarf_die_type (typedie, typedie, c.tok);
           break;
@@ -2670,7 +3433,7 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_pointer_type:
           /* A pointer with no type is a void* -- can't dereference it. */
           if (!dwarf_hasattr_integrate (typedie, DW_AT_type))
-            throw semantic_error (_F("invalid access '%s' vs '%s'", lex_cast(c).c_str(),
+            throw SEMANTIC_ERROR (_F("invalid access '%s' vs '%s'", lex_cast(c).c_str(),
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
           if (pool)
@@ -2698,7 +3461,7 @@ dwflpp::translate_components(struct obstack *pool,
                                    index.c_str(), 0);
             }
           else
-            throw semantic_error (_F("invalid access '%s' for array type",
+            throw SEMANTIC_ERROR (_F("invalid access '%s' for array type",
                                      lex_cast(c).c_str()), c.tok);
 
           dwarf_die_type (typedie, typedie, c.tok);
@@ -2710,14 +3473,14 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_union_type:
         case DW_TAG_class_type:
           if (c.type != target_symbol::comp_struct_member)
-            throw semantic_error (_F("invalid access '%s' for %s",
+            throw SEMANTIC_ERROR (_F("invalid access '%s' for %s",
                                      lex_cast(c).c_str(), dwarf_type_name(typedie).c_str()));
 
           if (dwarf_hasattr(typedie, DW_AT_declaration))
             {
               Dwarf_Die *tmpdie = declaration_resolve(typedie);
               if (tmpdie == NULL)
-                throw semantic_error (_F("unresolved %s", dwarf_type_name(typedie).c_str()), c.tok);
+                throw SEMANTIC_ERROR (_F("unresolved %s", dwarf_type_name(typedie).c_str()), c.tok);
               *typedie = *tmpdie;
             }
 
@@ -2737,15 +3500,14 @@ dwflpp::translate_components(struct obstack *pool,
                                  + lex_cast(line) + ")";
                     }
 
-                  string alternatives;
-                  stringstream members;
-                  set<string> member_dupes;
-                  print_members(typedie, members, member_dupes);
-                  if (members.str().size() != 0)
-                    alternatives = " (alternatives:" + members.str() + ")";
-                  throw semantic_error(_F("unable to find member '%s' for %s%s%s", c.member.c_str(),
+                  set<string> members, member_dupes;
+                  get_members(typedie, members, member_dupes);
+                  string sugs = levenshtein_suggest(c.member, members);
+                  if (!sugs.empty())
+                    sugs = " (alternatives: " + sugs + ")";
+                  throw SEMANTIC_ERROR(_F("unable to find member '%s' for %s%s%s", c.member.c_str(),
                                           dwarf_type_name(typedie).c_str(), source.c_str(),
-                                          alternatives.c_str()), c.tok);
+                                          sugs.c_str()), c.tok);
                 }
 
               for (unsigned j = 0; j < locs.size(); ++j)
@@ -2760,16 +3522,16 @@ dwflpp::translate_components(struct obstack *pool,
 
         case DW_TAG_enumeration_type:
         case DW_TAG_base_type:
-          throw semantic_error (_F("invalid access '%s' vs. %s", lex_cast(c).c_str(),
+          throw SEMANTIC_ERROR (_F("invalid access '%s' vs. %s", lex_cast(c).c_str(),
                                    dwarf_type_name(typedie).c_str()), c.tok);
           break;
 
         case -1:
-          throw semantic_error (_F("cannot find type: %s", dwarf_errmsg(-1)), c.tok);
+          throw SEMANTIC_ERROR (_F("cannot find type: %s", dwarf_errmsg(-1)), c.tok);
           break;
 
         default:
-          throw semantic_error (_F("%s: unexpected type tag %s", dwarf_type_name(typedie).c_str(),
+          throw SEMANTIC_ERROR (_F("%s: unexpected type tag %s", dwarf_type_name(typedie).c_str(),
                                    lex_cast(dwarf_tag(typedie)).c_str()), c.tok);
           break;
         }
@@ -2786,10 +3548,11 @@ dwflpp::resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
   *innerdie = *typedie;
   while (typetag == DW_TAG_typedef ||
          typetag == DW_TAG_const_type ||
-         typetag == DW_TAG_volatile_type)
+         typetag == DW_TAG_volatile_type ||
+         typetag == DW_TAG_restrict_type)
     {
       if (!dwarf_attr_die (innerdie, DW_AT_type, innerdie))
-        throw semantic_error (_F("cannot get type of pointee: %s", dwarf_errmsg(-1)), e->tok);
+        throw SEMANTIC_ERROR (_F("cannot get type of pointee: %s", dwarf_errmsg(-1)), e->tok);
       typetag = dwarf_tag (innerdie);
     }
 }
@@ -2804,13 +3567,12 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                                         bool lvalue,
                                         const target_symbol *e,
                                         string &,
-                                        string &,
-                                        exp_type & ty)
+                                        string & postlude,
+                                        Dwarf_Die *typedie)
 {
   /* First boil away any qualifiers associated with the type DIE of
      the final location to be accessed.  */
 
-  Dwarf_Die typedie_mem, *typedie = &typedie_mem;
   resolve_unqualified_inner_typedie (start_typedie, typedie, e);
 
   /* If we're looking for an address, then we can just provide what
@@ -2818,13 +3580,12 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
   if (e->addressof)
     {
       if (lvalue)
-        throw semantic_error (_("cannot write to member address"), e->tok);
+        throw SEMANTIC_ERROR (_("cannot write to member address"), e->tok);
 
       if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
-        throw semantic_error (_("cannot take address of bit-field"), e->tok);
+        throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
 
       c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "STAP_RETVALUE");
-      ty = pe_long;
       return;
     }
 
@@ -2835,14 +3596,14 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
   switch (typetag)
     {
     default:
-      throw semantic_error (_F("unsupported type tag %s for %s", lex_cast(typetag).c_str(),
+      throw SEMANTIC_ERROR (_F("unsupported type tag %s for %s", lex_cast(typetag).c_str(),
                                dwarf_type_name(typedie).c_str()), e->tok);
       break;
 
     case DW_TAG_structure_type:
     case DW_TAG_class_type:
     case DW_TAG_union_type:
-      throw semantic_error (_F("'%s' is being accessed instead of a member",
+      throw SEMANTIC_ERROR (_F("'%s' is being accessed instead of a member",
                                dwarf_type_name(typedie).c_str()), e->tok);
       break;
 
@@ -2857,7 +3618,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
         if (encoding == (Dwarf_Word) -1)
           {
             // clog << "bad type1 " << encoding << " diestr" << endl;
-            throw semantic_error (_F("unsupported type (mystery encoding %s for %s", lex_cast(encoding).c_str(),
+            throw SEMANTIC_ERROR (_F("unsupported type (mystery encoding %s for %s", lex_cast(encoding).c_str(),
                                      dwarf_type_name(typedie).c_str()), e->tok);
           }
 
@@ -2866,14 +3627,13 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
             /* XXX || many others? */)
           {
             // clog << "bad type " << encoding << " diestr" << endl;
-            throw semantic_error (_F("unsupported type (encoding %s) for %s", lex_cast(encoding).c_str(),
+            throw SEMANTIC_ERROR (_F("unsupported type (encoding %s) for %s", lex_cast(encoding).c_str(),
                                      dwarf_type_name(typedie).c_str()), e->tok);
           }
       }
       // Fallthrough. enumeration_types are always scalar.
     case DW_TAG_enumeration_type:
 
-      ty = pe_long;
       if (lvalue)
         c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
                            "STAP_ARG_value");
@@ -2889,12 +3649,11 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
 
         if (lvalue)
           {
-            ty = pe_long;
             if (typetag == DW_TAG_array_type)
-              throw semantic_error (_("cannot write to array address"), e->tok);
+              throw SEMANTIC_ERROR (_("cannot write to array address"), e->tok);
             if (typetag == DW_TAG_reference_type ||
                 typetag == DW_TAG_rvalue_reference_type)
-              throw semantic_error (_("cannot write to reference"), e->tok);
+              throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
             assert (typetag == DW_TAG_pointer_type);
             c_translate_pointer_store (pool, 1, 0 /* PR9768 */, typedie, tail,
                                        "STAP_ARG_value");
@@ -2908,7 +3667,6 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
             // For several reasons, this was taken back out, leaving
             // pointer-to-string "conversion" (copying) to tapset functions.
 
-            ty = pe_long;
             if (typetag == DW_TAG_array_type)
               c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
             else
@@ -2918,6 +3676,9 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
           }
       break;
     }
+
+  if (lvalue)
+    postlude += "  STAP_RETVALUE = STAP_ARG_value;\n";
 }
 
 
@@ -2940,7 +3701,7 @@ dwflpp::express_as_string (string prelude,
   // Ensure that DWARF keeps loc2c to a "reasonable" stack size
   // 32 intptr_t leads to max 256 bytes on the stack
   if (stack_depth > 32)
-    throw semantic_error("oversized DWARF stack");
+    throw SEMANTIC_ERROR("oversized DWARF stack");
 
   fprintf(memstream, "%s", postlude.c_str());
   fprintf(memstream, "  goto out;\n");
@@ -2971,7 +3732,7 @@ dwflpp::vardie_from_symtable (Dwarf_Die *vardie, Dwarf_Addr *addr)
 
   *addr = 0;
   int syms = dwfl_module_getsymtab (module);
-  dwfl_assert (_("Getting symbols"), syms >= 0);
+  DWFL_ASSERT (_("Getting symbols"), syms >= 0);
 
   for (int i = 0; *addr == 0 && i < syms; i++)
     {
@@ -3003,7 +3764,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
                                 string const & local,
                                 const target_symbol *e,
                                 bool lvalue,
-                                exp_type & ty)
+                                Dwarf_Die *die_mem)
 {
   Dwarf_Die vardie;
   Dwarf_Attribute fb_attr_mem, *fb_attr = NULL;
@@ -3051,8 +3812,13 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 				       NULL, &addr_loc, 1, &tail, NULL, NULL);
 	}
       else
-        throw semantic_error (_F("failed to retrieve location attribute for '%s' [man error::dwarf] (dieoffset: %s)",
-                                 local.c_str(), lex_cast_hex(dwarf_dieoffset(&vardie)).c_str()), e->tok);
+	{
+	  string msg = _F("failed to retrieve location attribute for '%s' [man error::dwarf]", local.c_str());
+	  semantic_error err(ERR_SRC, msg, e->tok);
+	  err.details.push_back(die_location_as_string(pc, &vardie));
+	  err.details.push_back(die_location_as_function_string(pc, &vardie));
+	  throw err;
+	}
     }
   else
     head = translate_location (&pool, &attr_mem, &vardie, pc, fb_attr, &tail, e);
@@ -3061,7 +3827,13 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 
   Dwarf_Die typedie;
   if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
-    throw semantic_error(_F("failed to retrieve type attribute for '%s' [man error::dwarf] (dieoffset: %s)", local.c_str(), lex_cast_hex(dwarf_dieoffset(&vardie)).c_str()), e->tok);
+    {
+      string msg = _F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str());
+      semantic_error err(ERR_SRC, msg, e->tok);
+      err.details.push_back(die_location_as_string(pc, &vardie));
+      err.details.push_back(die_location_as_function_string(pc, &vardie));
+      throw err;
+    }
 
   translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
@@ -3074,7 +3846,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
                                   &vardie, &typedie, lvalue, e,
-                                  prelude, postlude, ty);
+                                  prelude, postlude, die_mem);
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
@@ -3095,7 +3867,7 @@ dwflpp::type_die_for_local (vector<Dwarf_Die>& scopes,
   find_variable_and_frame_base (scopes, pc, local, e, &vardie, &attr_mem);
 
   if (dwarf_attr_die (&vardie, DW_AT_type, typedie) == NULL)
-    throw semantic_error(_F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str()), e->tok);
+    throw SEMANTIC_ERROR(_F("failed to retrieve type attribute for '%s' [man error::dwarf]", local.c_str()), e->tok);
 
   translate_components (NULL, NULL, pc, e, &vardie, typedie);
   return typedie;
@@ -3107,7 +3879,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                                  Dwarf_Addr pc,
                                  const target_symbol *e,
                                  bool lvalue,
-                                 exp_type & ty)
+                                 Dwarf_Die *die_mem)
 {
   if (sess.verbose>2)
       clog << _F("literal_stmt_for_return: finding return value for %s (%s)\n",
@@ -3123,14 +3895,14 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                                                    &locops);
   if (nlocops < 0)
     {
-      throw semantic_error(_F("failed to retrieve return value location for %s [man error::dwarf] (%s)",
+      throw SEMANTIC_ERROR(_F("failed to retrieve return value location for %s [man error::dwarf] (%s)",
                           (dwarf_diename(scope_die) ?: "<unknown>"),
                           (dwarf_diename(cu) ?: "<unknown>")), e->tok);
     }
   // the function has no return value (e.g. "void" in C)
   else if (nlocops == 0)
     {
-      throw semantic_error(_F("function %s (%s) has no return value",
+      throw SEMANTIC_ERROR(_F("function %s (%s) has no return value",
                              (dwarf_diename(scope_die) ?: "<unknown>"),
                              (dwarf_diename(cu) ?: "<unknown>")), e->tok);
     }
@@ -3145,7 +3917,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
 
   Dwarf_Die vardie = *scope_die, typedie;
   if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
-    throw semantic_error(_F("failed to retrieve return value type attribute for %s [man error::dwarf] (%s)",
+    throw SEMANTIC_ERROR(_F("failed to retrieve return value type attribute for %s [man error::dwarf] (%s)",
                            (dwarf_diename(&vardie) ?: "<unknown>"),
                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
@@ -3160,7 +3932,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
                                   &vardie, &typedie, lvalue, e,
-                                  prelude, postlude, ty);
+                                  prelude, postlude, die_mem);
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
@@ -3176,7 +3948,7 @@ dwflpp::type_die_for_return (Dwarf_Die *scope_die,
 {
   Dwarf_Die vardie = *scope_die;
   if (dwarf_attr_die (&vardie, DW_AT_type, typedie) == NULL)
-    throw semantic_error(_F("failed to retrieve return value type attribute for %s [man error::dwarf] (%s)",
+    throw SEMANTIC_ERROR(_F("failed to retrieve return value type attribute for %s [man error::dwarf] (%s)",
                            (dwarf_diename(&vardie) ?: "<unknown>"),
                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
@@ -3189,7 +3961,7 @@ string
 dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
                                   const target_symbol *e,
                                   bool lvalue,
-                                  exp_type & ty)
+                                  Dwarf_Die *die_mem)
 {
   if (sess.verbose>2)
       clog << _F("literal_stmt_for_pointer: finding value for %s (%s)\n",
@@ -3241,7 +4013,7 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
   string prelude, postlude;
   translate_final_fetch_or_store (&pool, &tail, module_bias,
                                   &vardie, &typedie, lvalue, e,
-                                  prelude, postlude, ty);
+                                  prelude, postlude, die_mem);
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
@@ -3290,7 +4062,7 @@ in_kprobes_function(systemtap_session& sess, Dwarf_Addr addr)
 }
 
 
-bool
+enum dwflpp::blacklisted_type
 dwflpp::blacklisted_p(const string& funcname,
                       const string& filename,
                       int,
@@ -3299,50 +4071,44 @@ dwflpp::blacklisted_p(const string& funcname,
                       bool has_return)
 {
   if (!blacklist_enabled)
-    return false; // no blacklist for userspace
+    return dwflpp::blacklisted_none;
 
-  bool blacklisted = false;
+  enum dwflpp::blacklisted_type blacklisted = dwflpp::blacklisted_none;
 
   // check against section blacklist
   string section = get_blacklist_section(addr);
+
   // PR6503: modules don't need special init/exit treatment
   if (module == TOK_KERNEL && !regexec (&blacklist_section, section.c_str(), 0, NULL, 0))
-    {
-      blacklisted = true;
-      if (sess.verbose>1)
-        clog << _(" init/exit");
-    }
+    blacklisted = dwflpp::blacklisted_section;
 
   // Check for function marked '__kprobes'.
-  if (module == TOK_KERNEL && in_kprobes_function(sess, addr))
+  else if (module == TOK_KERNEL && in_kprobes_function(sess, addr))
+    blacklisted = dwflpp::blacklisted_kprobes;
+
+  // Check probe point against function blacklist
+  else if (!regexec(&blacklist_func, funcname.c_str(), 0, NULL, 0))
+    blacklisted = dwflpp::blacklisted_function;
+
+  // Check probe point against function return blacklist
+  else if (has_return && !regexec(&blacklist_func_ret, funcname.c_str(), 0, NULL, 0))
+    blacklisted = dwflpp::blacklisted_function_return;
+
+  // Check probe point against file blacklist
+  else if (!regexec(&blacklist_file, filename.c_str(), 0, NULL, 0))
+    blacklisted = dwflpp::blacklisted_file;
+
+  if (blacklisted)
     {
-      blacklisted = true;
       if (sess.verbose>1)
-        clog << _(" __kprobes");
+        clog << _(" - blacklisted");
+      if (sess.guru_mode)
+        {
+          blacklisted = dwflpp::blacklisted_none;
+          if (sess.verbose>1)
+            clog << _(" but not skipped (guru mode enabled)");
+        }
     }
-
-  // Check probe point against file/function blacklists.
-  int goodfn = regexec (&blacklist_func, funcname.c_str(), 0, NULL, 0);
-  if (has_return)
-    goodfn = goodfn && regexec (&blacklist_func_ret, funcname.c_str(), 0, NULL, 0);
-  int goodfile = regexec (&blacklist_file, filename.c_str(), 0, NULL, 0);
-
-  if (! (goodfn && goodfile))
-    {
-      blacklisted = true;
-      if (sess.verbose>1)
-        clog << _(" file/function blacklist");
-    }
-
-  if (sess.guru_mode && blacklisted)
-    {
-      blacklisted = false;
-      if (sess.verbose>1)
-        clog << _(" - not skipped (guru mode enabled)");
-    }
-
-  if (blacklisted && sess.verbose>1)
-    clog << _(" - skipped");
 
   // This probe point is not blacklisted.
   return blacklisted;
@@ -3350,7 +4116,7 @@ dwflpp::blacklisted_p(const string& funcname,
 
 
 void
-dwflpp::build_blacklist()
+dwflpp::build_kernel_blacklist()
 {
   // We build up the regexps in these strings
 
@@ -3512,13 +4278,60 @@ dwflpp::build_blacklist()
     }
 
   int rc = regcomp (& blacklist_func, blfn.c_str(), REG_NOSUB|REG_EXTENDED);
-  if (rc) throw semantic_error (_("blacklist_func regcomp failed"));
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_func regcomp failed"));
   rc = regcomp (& blacklist_func_ret, blfn_ret.c_str(), REG_NOSUB|REG_EXTENDED);
-  if (rc) throw semantic_error (_("blacklist_func_ret regcomp failed"));
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_func_ret regcomp failed"));
   rc = regcomp (& blacklist_file, blfile.c_str(), REG_NOSUB|REG_EXTENDED);
-  if (rc) throw semantic_error (_("blacklist_file regcomp failed"));
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_file regcomp failed"));
   rc = regcomp (& blacklist_section, blsection.c_str(), REG_NOSUB|REG_EXTENDED);
-  if (rc) throw semantic_error (_("blacklist_section regcomp failed"));
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_section regcomp failed"));
+
+  blacklist_enabled = true;
+}
+
+
+void
+dwflpp::build_user_blacklist()
+{
+  // We build up the regexps in these strings
+
+  // Add ^ anchors at the front; $ will be added just before regcomp.
+
+  string blfn = "^(";
+  string blfn_ret = "^(";
+  string blfile = "^(";
+  string blsection = "^(";
+
+  // Non-matching placeholders until we have real things to match
+  blfn += ".^";
+  blfile += ".^";
+  blsection += ".^";
+
+  // These functions don't use the normal function-entry ABI, so can't be .return probed safely
+  blfn_ret += "_start";
+
+  blfn += ")$";
+  blfn_ret += ")$";
+  blfile += ")$";
+  blsection += ")"; // NB: no $, sections match just the beginning
+
+  if (sess.verbose > 2)
+    {
+      clog << _("blacklist regexps:") << endl;
+      clog << "blfn: " << blfn << endl;
+      clog << "blfn_ret: " << blfn_ret << endl;
+      clog << "blfile: " << blfile << endl;
+      clog << "blsection: " << blsection << endl;
+    }
+
+  int rc = regcomp (& blacklist_func, blfn.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_func regcomp failed"));
+  rc = regcomp (& blacklist_func_ret, blfn_ret.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_func_ret regcomp failed"));
+  rc = regcomp (& blacklist_file, blfile.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_file regcomp failed"));
+  rc = regcomp (& blacklist_section, blsection.c_str(), REG_NOSUB|REG_EXTENDED);
+  if (rc) throw SEMANTIC_ERROR (_("blacklist_section regcomp failed"));
 
   blacklist_enabled = true;
 }
@@ -3540,7 +4353,7 @@ dwflpp::get_blacklist_section(Dwarf_Addr addr)
     {
       Elf_Scn* scn = 0;
       size_t shstrndx;
-      dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+      DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
       while ((scn = elf_nextscn (elf, scn)) != NULL)
         {
           GElf_Shdr shdr_mem;
@@ -3579,7 +4392,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
   elf = dwfl_module_getelf (module, &bias);
   Elf_Scn *probe_scn = NULL;
 
-  dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+  DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
 
   bool have_section = false;
 
@@ -3602,7 +4415,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
       elf = dwarf_getelf (dwfl_module_getdwarf (module, &bias));
       if (! elf)
 	return NULL;
-      dwfl_assert ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
+      DWFL_ASSERT ("getshdrstrndx", elf_getshdrstrndx (elf, &shstrndx));
       probe_scn = NULL;
       while ((probe_scn = elf_nextscn (elf, probe_scn)))
 	{
@@ -3768,22 +4581,25 @@ dwflpp::pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* die)
   // - if the architecture is familiar enough that we can have a
   // hard-coded constant to skip over the prologue.
   //
-  // Otherwise, we could give a false-positive - return corrupted data.
+  // Otherwise, we could give a false-positive - return corrupted
+  // data.
+  //
+  // Use of -mfentry is detectable only if CFLAGS=-grecord-gcc-switches
+  // was used.  Without it, set the PR15123_ASSUME_MFENTRY environment
+  // variable to override the -mfentry test.
 
   if (getenv ("PR15123_DISABLE"))
     return 0;
 
-  Dwarf_Die cudie;
-  Dwarf_Attribute cudie_producer;
-  dwarf_diecu (die, &cudie, NULL, NULL);
-  if (! dwarf_attr_integrate(&cudie, DW_AT_producer, &cudie_producer))
-    return 0;
-
-  const char* producer = dwarf_formstring(&cudie_producer);
-  if (!producer)
-    return 0;
-  if (! strstr(producer, "-mfentry"))
-    return 0;
+  if (!getenv ("PR15123_ASSUME_MFENTRY")) {
+    Dwarf_Die cudie;
+    string producer, version;
+    dwarf_diecu (die, &cudie, NULL, NULL);
+    if (!is_gcc_producer(&cudie, producer, version))
+      return 0;
+    if (producer.find("-mfentry") == string::npos)
+      return 0;
+  }
 
   // Determine if this pc maps to the beginning of a
   // real function (not some inlined doppelganger.  This
@@ -3796,9 +4612,8 @@ dwflpp::pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* die)
 
   Dwarf_Die outer_function_die = scopes[0];
   Dwarf_Addr entrypc;
-  die_entrypc(& outer_function_die, &entrypc);
-  if (entrypc != pc) // (will fail on retry, so we won't loop more than once)
-    return 0;
+  if (!die_entrypc(& outer_function_die, &entrypc) || entrypc != pc)
+    return 0; // (will fail on retry, so we won't loop more than once)
 
   if (sess.architecture == "i386" ||
       sess.architecture == "x86_64") {
@@ -3811,5 +4626,119 @@ dwflpp::pr15123_retry_addr (Dwarf_Addr pc, Dwarf_Die* die)
   return 0;
 }
 
+bool
+dwflpp::has_gnu_debugdata ()
+{
+  Dwarf_Addr load_addr;
+  // Note we really want the actual elf file, not the dwarf .debug file.
+  Elf* elf = dwfl_module_getelf (module, &load_addr);
+  size_t shstrndx;
+  assert (elf_getshdrstrndx (elf, &shstrndx) >= 0);
+
+  // Get the gnu_debugdata section header
+  Elf_Scn *scn = NULL;
+  GElf_Shdr *gnu_debugdata_shdr = NULL;
+  GElf_Shdr gnu_debugdata_shdr_mem;
+  while ((scn = elf_nextscn (elf, scn)))
+    {
+      gnu_debugdata_shdr = gelf_getshdr (scn, &gnu_debugdata_shdr_mem);
+      assert (gnu_debugdata_shdr != NULL);
+      if (strcmp (elf_strptr (elf, shstrndx, gnu_debugdata_shdr->sh_name), ".gnu_debugdata") == 0)
+	return true;
+    }
+  return false;
+}
+
+// If not GCC, return false. Otherwise, return true and set vers.
+bool
+dwflpp::is_gcc_producer(Dwarf_Die *cudie, string& producer, string& version)
+{
+  Dwarf_Attribute producer_attr;
+  if (!dwarf_attr_integrate(cudie, DW_AT_producer, &producer_attr))
+    return false;
+
+  // GNU {C|C++|...} x.x.x YYYYMMDD ...
+  const char *cproducer = dwarf_formstring(&producer_attr);
+  if (!cproducer)
+    return false;
+  producer = cproducer;
+
+  vector<string> tokens;
+  tokenize(producer, tokens);
+
+  if (tokens.size() < 3
+      || tokens[0] != "GNU"
+      || tokens[2].find_first_not_of(".0123456789") != string::npos)
+    return false;
+
+  version = tokens[2];
+  return true;
+}
+
+static bool
+die_has_loclist(Dwarf_Die *begin_die)
+{
+  Dwarf_Die die;
+  Dwarf_Attribute loc;
+
+  if (dwarf_child(begin_die, &die) != 0)
+    return false;
+
+  do
+    {
+      switch (dwarf_tag(&die))
+        {
+        case DW_TAG_formal_parameter:
+        case DW_TAG_variable:
+          if (dwarf_attr_integrate(&die, DW_AT_location, &loc)
+           && dwarf_whatform(&loc) == DW_FORM_sec_offset)
+            return true;
+          break;
+        default:
+          if (dwarf_haschildren (&die))
+            if (die_has_loclist(&die))
+              return true;
+          break;
+        }
+    }
+  while (dwarf_siblingof (&die, &die) == 0);
+
+  return false;
+}
+
+bool
+dwflpp::has_valid_locs ()
+{
+  assert(cu);
+
+  // The current CU has valid location info (implying we do not need to skip the
+  // prologue) if
+  //   - it was compiled with -O2 -g (in which case, GCC outputs proper location
+  //     info for the prologue), and
+  //   - it was compiled by GCC >= 4.5 (previous versions could have had invalid
+  //     debug info in the prologue, see GDB's PR13777)
+  // Note that clang behaves similarly to GCC here: non-optimized code does not
+  // have location lists, while optimized code does. In the check below, even if
+  // the producer is not GCC, we assume that it is valid to do the loclist check
+  // afterwards (which it is for clang).
+
+  string prod, vers;
+  if (is_gcc_producer(cu, prod, vers)
+   && strverscmp(vers.c_str(), "4.5") < 0)
+    return false;
+
+  // We determine if the current CU has been optimized with -O2 -g by looking
+  // for any data objects whose DW_AT_location is a location list. This is also
+  // how GDB determines whether to skip the prologue or not. See GDB's PR12573
+  // and also RHBZ612253#c6.
+  if (!die_has_loclist(cu))
+    return false;
+
+  if (sess.verbose > 2)
+    clog << _F("CU '%s' in module '%s' has valid locs",
+               cu_name().c_str(), module_name.c_str()) << endl;
+
+  return true;
+}
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

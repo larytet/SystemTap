@@ -129,7 +129,7 @@
 
 <screen><replaceable>array_name</replaceable>[<replaceable>index_expression</replaceable>]</screen>
 
-<para>Here, the <command><replaceable>array_name</replaceable></command> is any arbitrary name the array uses. The <command><replaceable>index_expression</replaceable></command> is used to refer to a specific unique key in the array. To illustrate, let us try to build an array named <command>foo</command> that specifies the ages of three people (i.e. the unique keys): <command>tom</command>, <command>dick</command>, and <command>harry</command>. To assign them the ages (i.e. associated values) of 23, 24, and 25 respectively, we'd use the following array statements:</para>
+<para>Here, the <command><replaceable>array_name</replaceable></command> is any arbitrary name the array uses. The <command><replaceable>index_expression</replaceable></command> is used to refer to a specific unique key in the array. To illustrate, let us try to build an array named <command>foo</command> that specifies the ages of three people <command>tom</command>, <command>dick</command>, and <command>harry</command> (which are unique keys). To assign them the ages (associated values) of 23, 24, and 25 respectively, we'd use the following array statements:</para>
 
 <!-- next 2 indexterms for example
 
@@ -220,6 +220,6 @@ foo["harry"] = 25</screen>
 </para>
 </formalpara>
 
-<para>In <xref linkend="aaexamplesimplevfsreads"/>, the first time that the probe returns the process name <command>gnome-terminal</command> (i.e. the first time <command>gnome-terminal</command> performs a VFS read), that process name is set as a unique key. The next time that the probe returns the process name <command>gnome-terminal</command>, SystemTap increments the associated value of <command>gnome-terminal</command> by 1. SystemTap performs this operation for <emphasis>all</emphasis> process names as the probe returns them.</para>
+<para>In <xref linkend="aaexamplesimplevfsreads"/>, the first time that the probe returns the process name <command>gnome-terminal</command> (that is, the first time <command>gnome-terminal</command> performs a VFS read), that process name is set as a unique key. The next time that the probe returns the process name <command>gnome-terminal</command>, SystemTap increments the associated value of <command>gnome-terminal</command> by 1. SystemTap performs this operation for <emphasis>all</emphasis> process names as the probe returns them.</para>
 -->
 </section>

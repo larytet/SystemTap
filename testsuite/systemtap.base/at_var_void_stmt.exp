@@ -15,7 +15,7 @@ if { $res != "" } {
     fail "unable to compile ${test}.c"
 }
 
-spawn stap -vvv $srcdir/$subdir/$test.stp -c ./$test $test
+spawn stap --vp 03 $srcdir/$subdir/$test.stp -c ./$test $test
 set ok 0
 set logs 0
 

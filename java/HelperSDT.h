@@ -95,6 +95,22 @@ JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_
 JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_METHOD_1STAP_1PROBE10
   (JNIEnv *, jobject, jstring, jobject, jobject, jobject, jobject, jobject, jobject, jobject, jobject, jobject, jobject);
 
+/*
+ * Class:     HelperSDT
+ * Method:    METHOD_STAP_BT
+ * Signature: (Ljava/lange/String;Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_Method_1STAP_1BT
+  (JNIEnv *, jobject, jstring, jstring, jint);
+
+/*
+ * Class:     HelperSDT
+ * Method:    METHOD_BT_DELETE
+ * Signature: (Ljava/lang/String;)V
+ */
+JNIEXPORT void JNICALL Java_org_systemtap_byteman_helper_HelperSDT_STAP_1BT_1DELETE
+(JNIEnv *, jobject, jstring);
+
 #ifdef __cplusplus
 }
 #endif
