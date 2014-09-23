@@ -142,6 +142,7 @@ struct visitable
   virtual ~visitable ();
 };
 
+struct symbol;
 struct expression : public visitable
 {
   exp_type type;
@@ -151,6 +152,7 @@ struct expression : public visitable
   virtual ~expression ();
   virtual void print (std::ostream& o) const = 0;
   virtual void visit (visitor* u) = 0;
+  virtual bool is_symbol(symbol *& sym_out);
 };
 
 std::ostream& operator << (std::ostream& o, const expression& k);
@@ -276,7 +278,6 @@ struct assignment: public binary_expression
   void visit (visitor* u);
 };
 
-struct symbol;
 struct hist_op;
 struct indexable : public expression
 {
@@ -604,6 +605,7 @@ struct vardecl: public symboldecl
   literal *init; // for global scalars only
   bool synthetic; // for probe locals only, don't init on entry
   bool wrap;
+  bool char_ptr_arg; // set in ::emit_common_header(), only used if a formal_arg
 };
 
 
@@ -617,6 +619,7 @@ struct functiondecl: public symboldecl
   std::vector<vardecl*> formal_args;
   std::vector<vardecl*> locals;
   std::vector<vardecl*> unused_locals;
+  std::vector<vardecl*> unmodified_args; // not modified after assignment
   statement* body;
   bool synthetic;
   bool mangle_oldstyle;

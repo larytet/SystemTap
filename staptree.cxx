@@ -154,7 +154,8 @@ probe_point::component::component (std::string const & f, literal * a):
 
 
 vardecl::vardecl ():
-  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false)
+  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false),
+  char_ptr_arg(false)
 {
 }
 
@@ -1699,6 +1700,13 @@ hist_op::visit (visitor *u)
   u->visit_hist_op (this);
 }
 
+
+bool
+expression::is_symbol(symbol *& sym_out)
+{
+  sym_out = NULL;
+  return false;
+}
 
 bool
 indexable::is_symbol(symbol *& sym_out)

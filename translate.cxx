@@ -1042,19 +1042,22 @@ c_unparser::emit_common_header ()
           vardecl* v = fd->formal_args[j];
 	  try
 	    {
+              v->char_ptr_arg = (v->type == pe_string
+                                 && find(fd->unmodified_args.begin(), fd->unmodified_args.end(), v)
+                                   != fd->unmodified_args.end());
               if (fd->mangle_oldstyle)
                 {
                   // PR14524: retain old way of referring to the locals
                   o->newline() << "union { "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name) << "; "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name, true) << "; };";
+                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name) << "; "
+                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name, true) << "; };";
                 }
               else
                 {
-                  o->newline() << c_typename (v->type) << " "
-                               << c_localname (v->name) << ";";
+                  o->newline() << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name) << ";";
                 }
 	    } catch (const semantic_error& e) {
 	      semantic_error e2 (e);
@@ -5571,9 +5574,14 @@ c_unparser::visit_functioncall (functioncall* e)
 	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
+      symbol *sym_out;
       if (e->args[i]->tok->type == tok_number
 	  || e->args[i]->tok->type == tok_string)
 	t.override(c_expression(e->args[i]));
+      else if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
+               && find(session->globals.begin(), session->globals.end(), sym_out->referent)
+                  == session->globals.end())
+        t.override(getvar(sym_out->referent, e->args[i]->tok).value());
       else
         {
 	  // o->newline() << "c->last_stmt = "
@@ -5591,13 +5599,18 @@ c_unparser::visit_functioncall (functioncall* e)
 	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
-      c_assign ("c->locals[c->nesting+1]." +
-		c_funcname (r->name) + "." +
-                c_localname (r->formal_args[i]->name),
-                tmp[i].value(),
-                e->args[i]->type,
-                "function actual argument copy",
-                e->args[i]->tok);
+      if (r->formal_args[i]->char_ptr_arg)
+        o->newline() << "c->locals[c->nesting+1]." + c_funcname (r->name) + "."
+                        + c_localname (r->formal_args[i]->name) << " = "
+                     << tmp[i].value() << ";";
+      else
+        c_assign ("c->locals[c->nesting+1]." +
+                  c_funcname (r->name) + "." +
+                  c_localname (r->formal_args[i]->name),
+                  tmp[i].value(),
+                  e->args[i]->type,
+                  "function actual argument copy",
+                  e->args[i]->tok);
     }
 
   // call function
