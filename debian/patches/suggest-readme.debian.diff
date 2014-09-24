@@ -3,7 +3,7 @@ Author: Timo Juhani Lindfors <timo.lindfors@iki.fi>
 Forwarded: not-needed
 --- a/main.cxx
 +++ b/main.cxx
-@@ -1126,6 +1126,8 @@
+@@ -1226,6 +1226,8 @@
      cleanup (s, rc);
  
      assert_no_interrupts();
