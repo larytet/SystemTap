@@ -1330,7 +1330,7 @@ probe syscall.flistxattr.return = kernel.function("sys_flistxattr").return
 probe syscall.flock = kernel.function("sys_flock").call
 {
 	name = "flock"
-	fd = $fd
+	fd = __int32($fd)
 	operation = $cmd
 	argstr = sprintf("%d, %s", fd, _flock_cmd_str(operation))
 }
