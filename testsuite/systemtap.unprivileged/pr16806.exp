@@ -84,7 +84,7 @@ if {$rc == 0 && [file exists "$modpath.ko"]} {
 # to a pass (otherwise we would have crashed).
 set max [expr [exec date +%s] + 60]
 while {[expr [exec date +%s] < $max]} {
-   catch {exec staprun $modpath.ko -c "timeout 1 ./$exepath"} out
+   catch {exec staprun $modpath.ko -c "timeout -s KILL 1 ./$exepath"} out
    if {![regexp "entered ibar" "$out"]} {
       fail "$test staprun"
       verbose -log "staprun output: $out"
