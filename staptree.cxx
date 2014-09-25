@@ -77,7 +77,7 @@ arrayindex::arrayindex ():
 
 
 functioncall::functioncall ():
-  referent (0)
+  referent (0), return_value_used(false)
 {
 }
 
@@ -1700,6 +1700,21 @@ hist_op::visit (visitor *u)
   u->visit_hist_op (this);
 }
 
+
+bool
+functioncall::is_functioncall(functioncall *& fncall_out)
+{
+  fncall_out = this;
+  return true;
+}
+
+bool
+
+expression::is_functioncall(functioncall *& fncall_out)
+{
+  fncall_out = NULL;
+  return false;
+}
 
 bool
 expression::is_symbol(symbol *& sym_out)

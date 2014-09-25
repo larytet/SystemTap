@@ -1071,7 +1071,8 @@ c_unparser::emit_common_header ()
 	o->newline() << "/* no return value */";
       else
 	{
-	  o->newline() << c_typename (fd->type) << " __retvalue;";
+	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
+                       << " __retvalue;";
 	}
       o->newline(-1) << "} " << c_funcname (fd->name) << ";";
     }
@@ -3037,7 +3038,24 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else if (rvalue->type == pe_string)
     {
-      c_strcpy (lvalue, rvalue);
+      functioncall *fncall;
+      if (!session->unoptimized && rvalue->is_functioncall(fncall))
+        {
+          // set the return value
+          o->newline() << "c->locals[c->nesting+1]."
+                       << c_funcname(fncall->referent->name)
+                       << ".__retvalue = &" << lvalue << "[0];";
+          // let the functioncall know that the return value is being saved/used
+          fncall->return_value_used = true;
+          // visit the functioncall, because this is what is done in c_strcpy()
+          fncall->visit (this);
+          o->line() << ";";
+        }
+      else
+        {
+          // will call rvalue->visit()
+          c_strcpy (lvalue, rvalue);
+        }
     }
   else
     {
@@ -5536,6 +5554,11 @@ c_tmpcounter::visit_functioncall (functioncall *e)
 {
   assert (e->referent != 0);
   functiondecl* r = e->referent;
+
+  tmpvar t = parent->gensym (e->type);
+  if (!parent->session->unoptimized && e->type == pe_string && !e->return_value_used)
+    t.declare(*parent);
+
   // one temporary per argument, unless literal numbers or strings
   for (unsigned i=0; i<r->formal_args.size(); i++)
     {
@@ -5562,6 +5585,12 @@ c_unparser::visit_functioncall (functioncall* e)
   // NB: we store all actual arguments in temporary variables,
   // to avoid colliding sharing of context variables with
   // nested function calls: f(f(f(1)))
+
+  tmpvar tmp_ret = gensym (e->type);
+  // store the return value into a tmpvar in case the return is never used/assigned
+  if (!session->unoptimized && e->type == pe_string && !e->return_value_used)
+      o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                   << ".__retvalue = &" << tmp_ret.value() << "[0];";
 
   // compute actual arguments
   vector<tmpvar> tmp;
@@ -5634,10 +5663,12 @@ c_unparser::visit_functioncall (functioncall* e)
   if (r->type == pe_unknown)
     // If we passed typechecking, then nothing will use this return value
     o->newline() << "(void) 0;";
-  else
+  else if (session->unoptimized || r->type != pe_string)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
+  else if (!e->return_value_used)
+    o->newline() << tmp_ret.value() << ";";
 
 }
 
