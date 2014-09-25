@@ -8,6 +8,8 @@ if {[installtest_p]} {
     set dtrace ../dtrace
 }
 
+# Create the test .d files
+
 exec mkdir -p /tmp/dtrace
 
 set dpath "/tmp/dtrace/test.d"
@@ -47,6 +49,29 @@ provider tstsyscall
 }
 "
 close $fp
+
+set pypath "/tmp/pypath.d"
+set $fp [open $pypath "w"]
+puts $fp "
+#include <sys/types.h>
+
+provider alpha {
+	probe request__start(string, uint8_t, uint16_t, int, void *);
+	probe request__one(string, uint8_t, uint32_t, int, int);
+	probe client__two(int, int);
+	probe client__three(int, string, pid_t, zoneid_t);
+	probe input__stop(int, int, uint32_t, uint32_t, int8_t, uint8_t*, double*);
+};
+
+#ifdef DCL_AFTER_PROVIDER
+typedef unsigned short int __u_short;
+typedef const static unsigned short __u_c_short;
+#endif
+
+#pragma D attributes Unknown provider alpha provider
+"
+close $fp
+
 
 set incpath "/tmp/dtrace_inc"
 
@@ -156,6 +181,9 @@ if { $ok != 0} {
     fail "dtrace CFLAGS= CC="
 }
 
+# -----------------------------------------------------------------
+# test -h header file creation
+
 set ok 0
 verbose -log "$dtrace -C -h -s $dpath -o XXX.h"
 catch {exec $dtrace -C -h -s $dpath -o XXX.h}
@@ -189,6 +217,9 @@ if { $ok == 4} {
 }
 exec rm -f XXX.h
 
+# -----------------------------------------------------------------
+# test --no-pyparsing
+
 set ok 0
 verbose -log "$dtrace -C --no-pyparsing -I$incpath -h -s $idpath -o XXX.h"
 catch {exec $dtrace -C --no-pyparsing -I$incpath -h -s $idpath -o XXX.h}
@@ -207,28 +238,10 @@ if { $ok == 4} {
 }
 exec rm -f XXX.h
 
+# -----------------------------------------------------------------
+# test fallback to --no-pyparsing
+
 set ok 0
-set pypath "/tmp/pypath.d"
-set $fp [open $pypath "w"]
-puts $fp "
-#include <sys/types.h>
-
-provider alpha {
-	probe request__start(string, uint8_t, uint16_t, int, void *);
-	probe request__one(string, uint8_t, uint32_t, int, int);
-	probe client__two(int, int);
-	probe client__three(int, string, pid_t, zoneid_t);
-	probe input__stop(int, int, uint32_t, uint32_t, int8_t, uint8_t*, double*);
-};
-
-#ifdef DCL_AFTER_PROVIDER
-typedef unsigned short int __u_short;
-typedef const static unsigned short __u_c_short;
-#endif
-
-#pragma D attributes Unknown provider alpha provider
-"
-close $fp
 verbose -log "$dtrace -C -h -s $pypath -o XXX.h"
 spawn $dtrace -C -DDCL_AFTER_PROVIDER -h -s $pypath -o XXX.h
 expect {
@@ -247,6 +260,9 @@ if { $ok == 3} {
 }
 exec rm -f XXX.h
 
+# -----------------------------------------------------------------
+# test -G object file creation
+
 verbose -log "$dtrace -I$incpath -G -s $idpath"
 catch {exec $dtrace -G -s $dpath}
 if {[file exists test.o]} then {
@@ -255,6 +271,41 @@ if {[file exists test.o]} then {
     fail "dtrace -Iincpath -G"
 }
 exec rm -f test.o
+
+# -----------------------------------------------------------------
+# test dtrace for pyparsing / --no-pyparsing compatibility
+
+set ok 0
+set dfiles {dtrace}
+foreach i $dfiles {
+    verbose -log "$dtrace $srcdir/$subdir/$i.d"
+    catch {exec $dtrace -C -h -s $srcdir/$subdir/$i.d -o $i-1.h}
+    catch {exec $dtrace -C -h --no-pyparsing -s $srcdir/$subdir/$i.d -o $i-2.h}
+    spawn diff -wqs $i-1.h $i-2.h
+    expect {
+	-re {Files.*identical} {incr ok; exp_continue}
+	eof { }
+    }
+    catch {exec $dtrace -C -G -s $srcdir/$subdir/$i.d -o $i-1.o}
+    catch {exec $dtrace -C -G --no-pyparsing -s $srcdir/$subdir/$i.d -o $i-2.o}
+    verbose -log "exec nm $i-1.o > $i-1.od"
+    catch {exec nm $i-1.o > $i-1.od}
+    catch {exec nm $i-2.o > $i-2.od}
+    spawn diff -qs $i-1.od $i-2.od
+    expect {
+	-re {Files.*identical} {incr ok; exp_continue}
+	eof { }
+    }
+    catch {exec /bin/rm $i-1.h $i-2.h $i-1.o $i-2.o}
+}
+if { $ok == 2} {
+    pass "dtrace known uses"
+} else {
+    fail "dtrace known uses ${ok}"
+}
+
+# -----------------------------------------------------------------
+# cleanup
 
 exec /bin/rm -r /tmp/dtrace /tmp/dtrace_inc
 # -----------------------------------------------------------------
