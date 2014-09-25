@@ -1,3 +1,16 @@
+systemtap (2.6-0.1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * New upstream release
+    - No longer fails to compile with recent Debian kernels
+      (Closes: #747090)
+    - No longer fails to compile procfs probes (Closes: #761168)
+  * Rebased patches
+  * Changed dh-autoreconf build-dependency to autotools-dev as noticed by
+    Lintian
+
+ -- Hilko Bengen <bengen@debian.org>  Thu, 25 Sep 2014 22:44:45 +0200
+
 systemtap (2.3-2.3) unstable; urgency=medium
 
   * Non-maintainer upload.
