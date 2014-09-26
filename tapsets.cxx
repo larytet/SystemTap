@@ -11075,6 +11075,13 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
              << "#undef TRACE_INCLUDE_PATH\n"
              << short_decls[z] << "\n";
 
+      // create a section that will hold the TRACE_SYSTEM for this header
+      osrc << "#ifdef TRACE_SYSTEM" << endl;
+      osrc << "const char stap_trace_system[]" << endl;
+      osrc << "  __attribute__((section(\".stap_trace_system\")))" << endl;
+      osrc << "    = __stringify(TRACE_SYSTEM);" << endl;
+      osrc << "#endif" << endl;
+
       // finish up the module source
       osrc << "#endif /* CONFIG_TRACEPOINTS */" << endl;
 
