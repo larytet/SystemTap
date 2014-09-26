@@ -10843,14 +10843,8 @@ tracepoint_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 struct tracepoint_query : public base_query
 {
-  tracepoint_query(dwflpp & dw, const string & tracepoint,
-                   probe * base_probe, probe_point * base_loc,
-                   vector<derived_probe *> & results):
-    base_query(dw, "*"), tracepoint(tracepoint),
-    base_probe(base_probe), base_loc(base_loc),
-    results(results) {}
-
-  const string& tracepoint;
+  string system;
+  string tracepoint;
 
   probe * base_probe;
   probe_point * base_loc;
@@ -10865,6 +10859,34 @@ struct tracepoint_query : public base_query
 
   static int tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q);
   static int tracepoint_query_func (Dwarf_Die * func, tracepoint_query * q);
+
+  tracepoint_query(dwflpp & dw, const string & tracepoint,
+                   probe * base_probe, probe_point * base_loc,
+                   vector<derived_probe *> & results):
+    base_query(dw, "*"), base_probe(base_probe),
+    base_loc(base_loc), results(results)
+  {
+    // The user may have specified the system to probe, e.g. all of the
+    // following are possible:
+    //
+    //   sched_switch --> tracepoint named sched_switch
+    //   sched:sched_switch --> tracepoint named sched_switch in the sched system
+    //   sch*:sched_* --> system starts with sch and tracepoint starts with sched_
+    //   sched:* --> all tracepoints in system sched
+    //   *:sched_switch --> same as just sched_switch
+
+    size_t sys_pos = tracepoint.find(':');
+    if (sys_pos == string::npos)
+      {
+        this->system = "";
+        this->tracepoint = tracepoint;
+      }
+    else
+      {
+        this->system = tracepoint.substr(0, sys_pos);
+        this->tracepoint = tracepoint.substr(sys_pos+1);
+      }
+  }
 };
 
 
