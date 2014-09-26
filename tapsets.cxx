@@ -10132,6 +10132,7 @@ struct tracepoint_derived_probe: public derived_probe
 {
   tracepoint_derived_probe (systemtap_session& s,
                             dwflpp& dw, Dwarf_Die& func_die,
+                            const string& tracepoint_system,
                             const string& tracepoint_name,
                             probe* base_probe, probe_point* location);
 
@@ -10353,6 +10354,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 
 tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
                                                     dwflpp& dw, Dwarf_Die& func_die,
+                                                    const string& tracepoint_system,
                                                     const string& tracepoint_name,
                                                     probe* base, probe_point* loc):
   derived_probe (base, loc, true /* .components soon rewritten */),
@@ -10361,7 +10363,11 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
   // create synthetic probe point name; preserve condition
   vector<probe_point::component*> comps;
   comps.push_back (new probe_point::component (TOK_KERNEL));
-  comps.push_back (new probe_point::component (TOK_TRACE, new literal_string (tracepoint_name)));
+  string final_name = tracepoint_name;
+  if (!tracepoint_system.empty())
+    final_name = tracepoint_system + ":" + final_name;
+  comps.push_back (new probe_point::component (TOK_TRACE,
+                                               new literal_string(final_name)));
   this->sole_location()->components = comps;
 
   // fill out the available arguments in this tracepoint
@@ -10845,12 +10851,14 @@ struct tracepoint_query : public base_query
 {
   string system;
   string tracepoint;
+  string current_system;
 
   probe * base_probe;
   probe_point * base_loc;
   vector<derived_probe *> & results;
   set<string> probed_names;
 
+  string retrieve_trace_system();
   void handle_query_module();
   int handle_query_cu(Dwarf_Die * cudie);
   int handle_query_func(Dwarf_Die * func);
@@ -10890,9 +10898,63 @@ struct tracepoint_query : public base_query
 };
 
 
+string
+tracepoint_query::retrieve_trace_system()
+{
+  Dwarf_Addr bias;
+  Elf* elf = dwfl_module_getelf(dw.module, &bias);
+  if (!elf)
+    return "";
+
+  size_t shstrndx;
+  if (elf_getshdrstrndx(elf, &shstrndx))
+    return "";
+
+  Elf_Scn *scn = NULL;
+  GElf_Shdr shdr_mem;
+
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      if (gelf_getshdr(scn, &shdr_mem) == NULL)
+        return "";
+
+      const char *name = elf_strptr(elf, shstrndx, shdr_mem.sh_name);
+      if (name == NULL)
+        return "";
+
+      if (strcmp(name, ".stap_trace_system") == 0)
+        break;
+    }
+
+  if (scn == NULL)
+    return "";
+
+  // Extract saved TRACE_SYSTEM in section
+  Elf_Data *data = elf_getdata(scn, NULL);
+  if (!data)
+    return "";
+
+  return string((char*)data->d_buf);
+}
+
+
 void
 tracepoint_query::handle_query_module()
 {
+  // Get the TRACE_SYSTEM for this CU, if any. It will be found in the
+  // .stap_trace_system section if it exists.
+  current_system = retrieve_trace_system();
+
+  // check if user wants a specific system
+  if (!system.empty())
+    {
+      // don't need to go further if module has no system or doesn't
+      // match the one we want
+      if (current_system.empty()
+          || !dw.function_name_matches_pattern(current_system, system))
+        return;
+    }
+
   // look for the tracepoints in each CU
   dw.iterate_over_cus(tracepoint_query_cu, this, false);
 }
@@ -10938,6 +11000,7 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
   }
 
   derived_probe *dp = new tracepoint_derived_probe (dw.sess, dw, *func,
+                                                    current_system,
                                                     tracepoint_instance,
                                                     base_probe, base_loc);
   results.push_back (dp);
