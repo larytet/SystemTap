@@ -587,6 +587,7 @@ probe nd_syscall.compat_pselect6.return = kprobe.function("compat_sys_pselect6")
 #
 probe nd_syscall.pselect7 = kprobe.function("sys_pselect7") ?
 {
+	@__syscall_gate(%{ __NR_pselect7 %})
 	name = "pselect7"
 	asmlinkage()
 	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", int_arg(1),
@@ -596,6 +597,7 @@ probe nd_syscall.pselect7 = kprobe.function("sys_pselect7") ?
 }
 probe nd_syscall.pselect7.return = kprobe.function("sys_pselect7").return ?
 {
+	@__syscall_gate(%{ __NR_pselect7 %})
 	name = "pselect7"
 	retstr = returnstr(1)
 }
@@ -609,6 +611,7 @@ probe
 %) =
 		kprobe.function("compat_sys_pselect7") ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_pselect7 %})
 	name = "pselect7"
 	asmlinkage()
 	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", int_arg(1),
@@ -618,6 +621,7 @@ probe
 }
 probe nd_syscall.compat_pselect7.return = kprobe.function("compat_sys_pselect7").return ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_pselect7 %})
 	name = "pselect7"
 	retstr = returnstr(1)
 }
@@ -1613,17 +1617,24 @@ probe nd_syscall.rt_sigtimedwait.return = kprobe.function("compat_sys_rt_sigtime
 # sys_sched_getaffinity(pid_t pid,
 #			     unsigned int len,
 #			     unsigned long __user *user_mask_ptr)
+# COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid,
+#			 unsigned int, len,
+#			 compat_ulong_t __user *, user_mask_ptr)
 #
-probe nd_syscall.sched_getaffinity = kprobe.function("sys_sched_getaffinity") ?
+probe nd_syscall.sched_getaffinity =
+	kprobe.function("sys_sched_getaffinity"),
+	kprobe.function("compat_sys_sched_getaffinity") ?
 {
 	name = "sched_getaffinity"
 	asmlinkage()
 	pid = int_arg(1)
 	len = uint_arg(2)
 	mask_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %p, %p", pid, len, mask_uaddr)
+	argstr = sprintf("%d, 0x%x, %p", pid, len, mask_uaddr)
 }
-probe nd_syscall.sched_getaffinity.return = kprobe.function("sys_sched_getaffinity").return ?
+probe nd_syscall.sched_getaffinity.return =
+	kprobe.function("sys_sched_getaffinity").return,
+	kprobe.function("compat_sys_sched_getaffinity").return ?
 {
 	name = "sched_getaffinity"
 	retstr = returnstr(1)

@@ -37,6 +37,9 @@
 #ifndef __NR_open
 #define __NR_open (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_pselect7
+#define __NR_pselect7 (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_recv
 #define __NR_recv (__NR_syscall_max + 1)
 #endif
@@ -111,6 +114,11 @@
 #ifndef __NR_ia32_pipe2
 #define __NR_ia32_pipe2 331
 #endif
+#ifndef __NR_ia32_pselect7
+// Since a kernel that had a pselect7 syscall can't be found, just use
+// __NR_syscall_max for __NR_ia32_pselect7.
+#define __NR_ia32_pselect7 (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_ia32_readlinkat
 #define __NR_ia32_readlinkat 305
 #endif
@@ -145,6 +153,7 @@
 #define __NR_compat_mkdirat		__NR_ia32_mkdirat
 #define __NR_compat_open		__NR_ia32_open
 #define __NR_compat_pipe2		__NR_ia32_pipe2
+#define __NR_compat_pselect7		__NR_ia32_pselect7
 #define __NR_compat_readlinkat		__NR_ia32_readlinkat
 #define __NR_compat_renameat		__NR_ia32_renameat
 #define __NR_compat_rt_sigprocmask	__NR_ia32_rt_sigprocmask
@@ -178,6 +187,7 @@
 #define __NR_compat_mkdirat		__NR_mkdirat
 #define __NR_compat_open		__NR_open
 #define __NR_compat_pipe2		__NR_pipe2
+#define __NR_compat_pselect7		__NR_pselect7
 #define __NR_compat_readlinkat		__NR_readlinkat
 #define __NR_compat_renameat		__NR_renameat
 #define __NR_compat_rt_sigprocmask	__NR_rt_sigprocmask

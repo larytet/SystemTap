@@ -315,7 +315,7 @@ probe __syscall.pipe2 = kernel.function("sys_pipe2").call
 {
 	@__syscall_compat_gate(%{ __NR_pipe2 %}, %{ __NR_compat_pipe2 %})
 	name = "pipe2"
-	flags = $flags
+	flags = __int32($flags)
 	flag_str = _sys_pipe2_flag_str(flags);
 	fildes_uaddr = $fildes
 	if (fildes_uaddr == 0) {
@@ -595,8 +595,8 @@ probe syscall.preadv.return = kernel.function("sys_preadv").return ?,
 probe syscall.pselect6 = kernel.function("sys_pselect6").call ?
 {
 	name = "pselect6"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p", $n, $inp, $outp, $exp,
-		_struct_timespec_u($tsp, 1), $sig)
+	argstr = sprintf("%d, %p, %p, %p, %s, %p", __int32($n), $inp, $outp,
+			 $exp, _struct_timespec_u($tsp, 1), $sig)
 }
 probe syscall.pselect6.return = kernel.function("sys_pselect6").return ?
 {
@@ -606,8 +606,8 @@ probe syscall.pselect6.return = kernel.function("sys_pselect6").return ?
 probe syscall.compat_pselect6 = kernel.function("compat_sys_pselect6").call ?
 {
 	name = "pselect6"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p", $n, $inp, $outp, $exp,
-		_struct_compat_timespec_u($tsp, 1), $sig)
+	argstr = sprintf("%d, %p, %p, %p, %s, %p", __int32($n), $inp, $outp,
+			 $exp, _struct_compat_timespec_u($tsp, 1), $sig)
 }
 probe syscall.compat_pselect6.return = kernel.function("compat_sys_pselect6").return ?
 {
@@ -623,12 +623,15 @@ probe syscall.compat_pselect6.return = kernel.function("compat_sys_pselect6").re
 #
 probe syscall.pselect7 = kernel.function("sys_pselect7").call ?
 {
+	@__syscall_gate(%{ __NR_pselect7 %})
 	name = "pselect7"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", $n, $inp, $outp, $exp,
-		_struct_timespec_u($tsp, 1), $sigmask, $sigsetsize)
+	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", __int32($n), $inp,
+			 $outp, $exp, _struct_timespec_u($tsp, 1),
+			 $sigmask, $sigsetsize)
 }
 probe syscall.pselect7.return = kernel.function("sys_pselect7").return ?
 {
+	@__syscall_gate(%{ __NR_pselect7 %})
 	name = "pselect7"
 	retstr = return_str(1, $return)
 }
@@ -643,12 +646,15 @@ probe
 %) =
 		kernel.function("compat_sys_pselect7").call ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_pselect7 %})
 	name = "pselect7"
-	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", $n, $inp, $outp, $exp,
-		_struct_compat_timespec_u($tsp, 1), $sigmask, $sigsetsize)
+	argstr = sprintf("%d, %p, %p, %p, %s, %p, %d", __int32($n), $inp,
+			 $outp, $exp, _struct_compat_timespec_u($tsp, 1),
+			 $sigmask, $sigsetsize)
 }
 probe syscall.compat_pselect7.return = kernel.function("compat_sys_pselect7").return ?
 {
+	@__compat_syscall_gate(%{ __NR_compat_pselect7 %})
 	name = "pselect7"
 	retstr = return_str(1, $return)
 }
@@ -1601,16 +1607,23 @@ probe syscall.rt_sigtimedwait.return = kernel.function("compat_sys_rt_sigtimedwa
 # sys_sched_getaffinity(pid_t pid,
 #			     unsigned int len,
 #			     unsigned long __user *user_mask_ptr)
+# COMPAT_SYSCALL_DEFINE3(sched_getaffinity, compat_pid_t,  pid,
+#			 unsigned int, len,
+#			 compat_ulong_t __user *, user_mask_ptr)
 #
-probe syscall.sched_getaffinity = kernel.function("sys_sched_getaffinity").call
+probe syscall.sched_getaffinity =
+	kernel.function("sys_sched_getaffinity").call,
+	kernel.function("compat_sys_sched_getaffinity").call ?
 {
 	name = "sched_getaffinity"
-	pid = $pid
-	len = $len
+	pid = __int32($pid)
+	len = __uint32($len)
 	mask_uaddr = $user_mask_ptr
-	argstr = sprintf("%d, %p, %p", pid, len, mask_uaddr)
+	argstr = sprintf("%d, 0x%x, %p", pid, len, mask_uaddr)
 }
-probe syscall.sched_getaffinity.return = kernel.function("sys_sched_getaffinity").return
+probe syscall.sched_getaffinity.return =
+	kernel.function("sys_sched_getaffinity").return,
+	kernel.function("compat_sys_sched_getaffinity").return ?
 {
 	name = "sched_getaffinity"
 	retstr = return_str(1, $return)

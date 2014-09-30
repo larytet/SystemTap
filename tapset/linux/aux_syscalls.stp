@@ -1032,30 +1032,27 @@ function _flock_cmd_str(c) {
    return substr(bs,0,strlen(bs)-1)
 }
 
+%{
+#include <linux/fcntl.h>
+
+static const _stp_val_array const _stp_pipe2_flags_list[] = {
+#ifdef O_NONBLOCK
+	V(O_NONBLOCK),
+#endif
+#ifdef O_CLOEXEC
+	V(O_CLOEXEC),
+#endif
+	{0, NULL}
+};
+%}
+
 /* `man 2 pipe2` for more information */
 function _sys_pipe2_flag_str:string (f:long)
 %{ /* pure */ /* unprivileged */
-  long flags = STAP_ARG_f;
-  char *str = STAP_RETVALUE;
-  int len;
+	unsigned int flags = STAP_ARG_f;
 
-  str[0] = '\0';
-#if defined(O_NONBLOCK)
-  if (flags & O_NONBLOCK)
-    strlcat(str, "O_NONBLOCK|", MAXSTRINGLEN);
-#endif
-#if defined(O_CLOEXEC)
-  if (flags & O_CLOEXEC)
-    strlcat(str, "O_CLOEXEC|", MAXSTRINGLEN);
-#endif
-  if (flags == 0) {
-    strlcpy(str, "0", MAXSTRINGLEN);
-    return;
-  }
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = '\0';
+	_stp_lookup_or_str(_stp_pipe2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
