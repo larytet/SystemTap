@@ -1356,12 +1356,12 @@ probe syscall.rmdir.return = kernel.function("sys_rmdir").return
 probe syscall.rt_sigaction = kernel.function("sys_rt_sigaction").call ?
 {
 	name = "rt_sigaction"
-	sig = $sig
+	sig = __int32($sig)
 	act_uaddr = $act
 	oact_uaddr = $oact
 	sigsetsize = $sigsetsize
-	argstr = sprintf("%s, {%s}, %p, %d", _signal_name($sig),
-		_struct_sigaction_u($act), $oact, $sigsetsize)
+	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
+			 _struct_sigaction_u($act), $oact, $sigsetsize)
 }
 probe syscall.rt_sigaction.return = kernel.function("sys_rt_sigaction").return ?
 {
@@ -1384,11 +1384,11 @@ probe syscall.rt_sigaction32 = kernel.function("sys32_rt_sigaction").call ?,
                                kernel.function("compat_sys_rt_sigaction").call ?
 {
 	name = "rt_sigaction"
-	sig = $sig
+	sig = __int32($sig)
 	act_uaddr = $act
 	oact_uaddr = $oact
 	sigsetsize = $sigsetsize
-	argstr = sprintf("%s, {%s}, %p, %d", _signal_name($sig),
+	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
 		_struct_sigaction32_u($act), $oact, $sigsetsize)
 }
 probe syscall.rt_sigaction32.return = kernel.function("sys32_rt_sigaction").return ?,
@@ -1457,8 +1457,8 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 	@__syscall_gate(%{ __NR_rt_sigprocmask %})
 %)
 	name = "rt_sigprocmask"
-	how = $how
-	how_str = _sigprocmask_how_str($how)
+	how = __int32($how)
+	how_str = _sigprocmask_how_str(how)
 	set_uaddr = @choose_defined($set, $nset)
 
 	// In kernels 3.4+, the following kernel commit changed the
@@ -1502,8 +1502,8 @@ probe syscall.compat_rt_sigprocmask =
 	kernel.function("sys32_rt_sigprocmask").call ?
 {
 	name = "rt_sigprocmask"
-	how = $how
-	how_str = _sigprocmask_how_str($how)
+	how = __int32($how)
+	how_str = _sigprocmask_how_str(how)
 	set_uaddr = @choose_defined($set, $nset)
 	oldset_uaddr = __uint32($oset)
 	argstr = sprintf("%s, [%s], %p, %d", how_str,
