@@ -622,7 +622,6 @@ struct functiondecl: public symboldecl
   std::vector<vardecl*> formal_args;
   std::vector<vardecl*> locals;
   std::vector<vardecl*> unused_locals;
-  std::vector<vardecl*> unmodified_args; // not modified after assignment
   statement* body;
   bool synthetic;
   bool mangle_oldstyle;

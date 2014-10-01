@@ -934,6 +934,44 @@ ostream & operator<<(ostream & o, itervar const & v)
 
 // ------------------------------------------------------------------------
 
+struct embedded_code_visitor : public traversing_visitor
+{
+  bool embedded_seen; // excludes code with pure and unmodified-args
+
+  embedded_code_visitor (): embedded_seen(false) {}
+
+  void visit_embedded_expr (embedded_expr *e)
+    {
+      embedded_seen = true;
+    }
+  void visit_embeddedcode (embeddedcode *e)
+    {
+      // set embedded_seen to true if it does not contain
+      // /* unmodified-fnargs */ or /* pure */
+      embedded_seen = (embedded_seen || ((e->code.find("/* pure */") == string::npos) &&
+                       (e->code.find("/* unmodified-fnargs */") == string::npos)));
+    }
+};
+
+bool
+is_unmodified_string_fnarg (systemtap_session* sess, functiondecl* fd, vardecl* v)
+{
+  if (!sess->unoptimized && v->type == pe_string)
+    {
+      // check that there is no embedded code that might modify the fn args
+      embedded_code_visitor ecv;
+      fd->body->visit(& ecv);
+      if (!ecv.embedded_seen)
+        {
+          varuse_collecting_visitor vut (*sess);
+          vut.current_function = fd;
+          fd->body->visit(& vut);
+          return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
+        }
+    }
+  return false;
+}
+
 void
 c_unparser::emit_common_header ()
 {
@@ -1042,9 +1080,7 @@ c_unparser::emit_common_header ()
           vardecl* v = fd->formal_args[j];
 	  try
 	    {
-              v->char_ptr_arg = (v->type == pe_string
-                                 && find(fd->unmodified_args.begin(), fd->unmodified_args.end(), v)
-                                   != fd->unmodified_args.end());
+              v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
               if (fd->mangle_oldstyle)
                 {
                   // PR14524: retain old way of referring to the locals
@@ -5608,8 +5644,7 @@ c_unparser::visit_functioncall (functioncall* e)
 	  || e->args[i]->tok->type == tok_string)
 	t.override(c_expression(e->args[i]));
       else if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
-               && find(session->globals.begin(), session->globals.end(), sym_out->referent)
-                  == session->globals.end())
+               && is_local(sym_out->referent, sym_out->tok))
         t.override(getvar(sym_out->referent, e->args[i]->tok).value());
       else
         {

@@ -584,6 +584,7 @@ struct embedded_tags_visitor: public traversing_visitor
         {
           tags["/* pure */"] = false;
           tags["/* unmangled */"] = false;
+          tags["/* unmodified-fnargs */"] = false;
         }
     }
 

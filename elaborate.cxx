@@ -2539,15 +2539,6 @@ void semantic_pass_opt2 (systemtap_session& s, bool& relaxed_p, unsigned iterati
               j++;
             }
         }
-      if (!vut.embedded_seen && !s.unoptimized) // being conservative
-      {
-        for (unsigned k=0; k<fd->formal_args.size(); k++)
-          {
-            vardecl* l = fd->formal_args[k];
-            if (vut.written.find(l) == vut.written.end())
-              fd->unmodified_args.push_back(l);
-          }
-      }
     }
   for (unsigned i=0; i<s.globals.size(); /* see below */)
     {
