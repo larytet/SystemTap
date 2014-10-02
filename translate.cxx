@@ -946,10 +946,9 @@ struct embedded_code_visitor : public traversing_visitor
     }
   void visit_embeddedcode (embeddedcode *e)
     {
-      // set embedded_seen to true if it does not contain
-      // /* unmodified-fnargs */ or /* pure */
-      embedded_seen = (embedded_seen || ((e->code.find("/* pure */") == string::npos) &&
-                       (e->code.find("/* unmodified-fnargs */") == string::npos)));
+      // set embedded_seen to true if it does not contain /* unmodified-fnargs */
+      embedded_seen = (embedded_seen ||
+                       (e->code.find("/* unmodified-fnargs */") == string::npos));
     }
 };
 
