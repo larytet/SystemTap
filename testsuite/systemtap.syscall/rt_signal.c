@@ -37,7 +37,7 @@ int main()
   //staptest// rt_sigprocmask (SIG_BLOCK, \[SIGUSR1\], 0x[7]?[f]+, 8) = -NNNN (EFAULT)
 #else
   //staptest// rt_sigprocmask (SIG_BLOCK, \[SIGUSR1\], 0x[f]+, 8) = -NNNN (EFAULT)
-endif
+#endif
 
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = SIG_IGN;
