@@ -10897,6 +10897,9 @@ struct tracepoint_query : public base_query
   }
 };
 
+// name of section where TRACE_SYSTEM is stored
+// (see tracepoint_builder::get_tracequery_modules())
+#define STAP_TRACE_SYSTEM ".stap_trace_system"
 
 string
 tracepoint_query::retrieve_trace_system()
@@ -10922,7 +10925,7 @@ tracepoint_query::retrieve_trace_system()
       if (name == NULL)
         return "";
 
-      if (strcmp(name, ".stap_trace_system") == 0)
+      if (strcmp(name, STAP_TRACE_SYSTEM) == 0)
         break;
     }
 
@@ -10942,7 +10945,7 @@ void
 tracepoint_query::handle_query_module()
 {
   // Get the TRACE_SYSTEM for this CU, if any. It will be found in the
-  // .stap_trace_system section if it exists.
+  // STAP_TRACE_SYSTEM section if it exists.
   current_system = retrieve_trace_system();
 
   // check if user wants a specific system
@@ -11163,7 +11166,7 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
       // create a section that will hold the TRACE_SYSTEM for this header
       osrc << "#ifdef TRACE_SYSTEM" << endl;
       osrc << "const char stap_trace_system[]" << endl;
-      osrc << "  __attribute__((section(\".stap_trace_system\")))" << endl;
+      osrc << "  __attribute__((section(\"" STAP_TRACE_SYSTEM "\")))" << endl;
       osrc << "    = __stringify(TRACE_SYSTEM);" << endl;
       osrc << "#endif" << endl;
 
