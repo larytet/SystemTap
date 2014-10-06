@@ -1236,6 +1236,15 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_perf_op (perf_op* e);
 };
 
+struct embedded_tags_visitor: public traversing_visitor
+{
+  std::map<std::string, bool> tags;
+  embedded_tags_visitor(bool all_tags);
+  void find_tags_in_code (const std::string& s);
+  void visit_embeddedcode (embeddedcode *s);
+  void visit_embedded_expr (embedded_expr *e);
+};
+
 #endif // STAPTREE_H
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

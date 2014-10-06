@@ -934,41 +934,35 @@ ostream & operator<<(ostream & o, itervar const & v)
 
 // ------------------------------------------------------------------------
 
-struct embedded_code_visitor : public traversing_visitor
+struct unmodified_fnargs_checker : public embedded_tags_visitor
 {
   bool embedded_seen; // excludes code with pure and unmodified-args
+  unmodified_fnargs_checker (): embedded_tags_visitor(true), embedded_seen(false) {}
 
-  embedded_code_visitor (): embedded_seen(false) {}
-
-  void visit_embedded_expr (embedded_expr *e)
-    {
-      embedded_seen = true;
-    }
   void visit_embeddedcode (embeddedcode *e)
     {
+      embedded_tags_visitor::visit_embeddedcode(e);
       // set embedded_seen to true if it does not contain /* unmodified-fnargs */
-      embedded_seen = (embedded_seen ||
-                       (e->code.find("/* unmodified-fnargs */") == string::npos));
+      embedded_seen = (embedded_seen || !tags.find("/* unmodified-fnargs */")->second);
     }
 };
 
 bool
 is_unmodified_string_fnarg (systemtap_session* sess, functiondecl* fd, vardecl* v)
 {
-  if (!sess->unoptimized && v->type == pe_string)
-    {
-      // check that there is no embedded code that might modify the fn args
-      embedded_code_visitor ecv;
-      fd->body->visit(& ecv);
-      if (!ecv.embedded_seen)
-        {
-          varuse_collecting_visitor vut (*sess);
-          vut.current_function = fd;
-          fd->body->visit(& vut);
-          return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
-        }
-    }
-  return false;
+  if (sess->unoptimized || v->type != pe_string)
+    return false;
+
+  // check that there is no embedded code that might modify the fn args
+  unmodified_fnargs_checker ecv;
+  fd->body->visit(& ecv);
+  if (ecv.embedded_seen)
+    return false;
+
+  varuse_collecting_visitor vut (*sess);
+  vut.current_function = fd;
+  fd->body->visit(& vut);
+  return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
 }
 
 void
