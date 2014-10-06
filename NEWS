@@ -9,6 +9,10 @@
   the function arguments.  Remember to use MAXSTRINGLEN for string length,
   rather than sizeof(string_arg) (which might now be a pointer).
 
+- SystemTap now allows .function probes to be specified by their full function
+  name, file, and declaration line number. Use the .statement probe to probe a
+  specific line number.
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:
