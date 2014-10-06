@@ -153,7 +153,6 @@ struct expression : public visitable
   virtual void print (std::ostream& o) const = 0;
   virtual void visit (visitor* u) = 0;
   virtual bool is_symbol(symbol *& sym_out);
-  virtual bool is_functioncall(functioncall *& fn_out);
 };
 
 std::ostream& operator << (std::ostream& o, const expression& k);
@@ -431,7 +430,6 @@ struct functioncall: public expression
   void print (std::ostream& o) const;
   void visit (visitor* u);
   bool return_value_used;
-  virtual bool is_functioncall(functioncall *& fn_out);
 };
 
 

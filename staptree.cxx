@@ -1703,21 +1703,6 @@ hist_op::visit (visitor *u)
 
 
 bool
-functioncall::is_functioncall(functioncall *& fncall_out)
-{
-  fncall_out = this;
-  return true;
-}
-
-bool
-
-expression::is_functioncall(functioncall *& fncall_out)
-{
-  fncall_out = NULL;
-  return false;
-}
-
-bool
 expression::is_symbol(symbol *& sym_out)
 {
   sym_out = NULL;

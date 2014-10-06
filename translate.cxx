@@ -3061,6 +3061,26 @@ c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
     }
 }
 
+
+struct expression_is_functioncall : public expression_visitor
+{
+  c_unparser* parent;
+  functioncall* fncall;
+  expression_is_functioncall (c_unparser* p)
+    : parent(p), fncall(NULL) {}
+
+  void visit_expression (expression* e)
+    {
+      // works on the basis that every expression will, by default, call this
+      // function, except for functioncall, as the visitor is overwritten
+      fncall = NULL;
+    }
+  void visit_functioncall (functioncall* e)
+    {
+      fncall = e;
+    }
+};
+
 void
 c_unparser::c_assign (const string& lvalue, expression* rvalue,
 		      const string& msg)
@@ -3073,17 +3093,18 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else if (rvalue->type == pe_string)
     {
-      functioncall *fncall;
-      if (!session->unoptimized && rvalue->is_functioncall(fncall))
+      expression_is_functioncall eif (this);
+      rvalue->visit(& eif);
+      if (!session->unoptimized && eif.fncall)
         {
           // set the return value
           o->newline() << "c->locals[c->nesting+1]."
-                       << c_funcname(fncall->referent->name)
+                       << c_funcname(eif.fncall->referent->name)
                        << ".__retvalue = &" << lvalue << "[0];";
           // let the functioncall know that the return value is being saved/used
-          fncall->return_value_used = true;
+          eif.fncall->return_value_used = true;
           // visit the functioncall, because this is what is done in c_strcpy()
-          fncall->visit (this);
+          eif.fncall->visit (this);
           o->line() << ";";
         }
       else
