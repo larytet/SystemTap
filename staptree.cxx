@@ -573,23 +573,29 @@ void functiondecl::printsig (ostream& o) const
 
 embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
 {
-  tags["/* guru */"] = false;
-  tags["/* unprivileged */"] = false;
-  tags["/* myproc-unprivileged */"] = false;
+  // populate the set of tags that could appear in embedded code/expressions
+  available_tags.insert("/* guru */");
+  available_tags.insert("/* unprivileged */");
+  available_tags.insert("/* myproc-unprivileged */");
   if (all_tags)
     {
-      tags["/* pure */"] = false;
-      tags["/* unmangled */"] = false;
-      tags["/* unmodified-fnargs */"] = false;
+      available_tags.insert("/* pure */");
+      available_tags.insert("/* unmangled */");
+      available_tags.insert("/* unmodified-fnargs */");
     }
+}
+
+bool embedded_tags_visitor::tagged_p (const std::string& tag)
+{
+  return tags.count(tag);
 }
 
 void embedded_tags_visitor::find_tags_in_code (const string& s)
 {
-  map<string, bool>::iterator tag;
-  for (tag = tags.begin(); tag != tags.end(); ++tag)
-    if (!tag->second)
-      tag->second = s.find(tag->first) != string::npos;
+  set<string>::iterator tag;
+  for (tag = available_tags.begin(); tag != available_tags.end(); ++tag)
+      if(s.find(*tag) != string::npos)
+        tags.insert(*tag);
 }
 
 void embedded_tags_visitor::visit_embeddedcode (embeddedcode *s)
@@ -611,10 +617,10 @@ void functiondecl::printsigtags (ostream& o, bool all_tags) const
   embedded_tags_visitor etv(all_tags);
   this->body->visit(&etv);
 
-  map<string, bool>::const_iterator tag;
-  for (tag = etv.tags.begin(); tag != etv.tags.end(); ++tag)
-    if (tag->second)
-      o << " " << tag->first;
+  set<string, bool>::const_iterator tag;
+  for (tag = etv.available_tags.begin(); tag != etv.available_tags.end(); ++tag)
+    if (etv.tagged_p(*tag))
+      o << " " << *tag;
 }
 
 void arrayindex::print (ostream& o) const

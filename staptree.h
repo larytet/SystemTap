@@ -1238,8 +1238,10 @@ struct deep_copy_visitor: public update_visitor
 
 struct embedded_tags_visitor: public traversing_visitor
 {
-  std::map<std::string, bool> tags;
+  std::set<std::string> available_tags;
+  std::set<std::string> tags; // set of the tags that appear in the code
   embedded_tags_visitor(bool all_tags);
+  bool tagged_p (const std::string &tag);
   void find_tags_in_code (const std::string& s);
   void visit_embeddedcode (embeddedcode *s);
   void visit_embedded_expr (embedded_expr *e);

@@ -943,7 +943,7 @@ struct unmodified_fnargs_checker : public embedded_tags_visitor
     {
       embedded_tags_visitor::visit_embeddedcode(e);
       // set embedded_seen to true if it does not contain /* unmodified-fnargs */
-      embedded_seen = (embedded_seen || !tags.find("/* unmodified-fnargs */")->second);
+      embedded_seen = (embedded_seen || !tagged_p("/* unmodified-fnargs */"));
     }
 };
 
