@@ -1612,6 +1612,10 @@ and
 .I THIS->__retvalue
 respectively inside the function. This is useful for quickly migrating code written for SystemTap version 1.7 and earlier.
 .TP
+.I /* unmodified-fnargs */
+in an embedded-C function, means that the function arguments are not modified
+inside the function body.
+.TP
 .I /* string */
 in embedded-C expressions only, means that the expression has
 .I const char *
