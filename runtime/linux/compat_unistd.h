@@ -61,6 +61,9 @@
 #ifndef __NR_sigprocmask
 #define __NR_sigprocmask (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_epoll_wait
+#define __NR_epoll_wait (__NR_syscall_max + 1)
+#endif
 
 #if defined(__x86_64__)
 
