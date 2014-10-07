@@ -34,5 +34,5 @@ fi
 if [ -z "$DEBUG_STAP" ]; then
     exec "${builddir}/stap" ${1+"$@"}
 else
-    exec gdb --args "${builddir}/stap" ${1+"$@"}
+    exec ${GDB:-gdb} --args "${builddir}/stap" ${1+"$@"}
 fi
