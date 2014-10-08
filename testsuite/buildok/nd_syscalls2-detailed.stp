@@ -539,6 +539,16 @@ probe nd_syscall.sched_setscheduler.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.seccomp
+{
+	printf("%s %s\n", name, argstr)
+	printf("%d %d %s\n", op, flags, uargs)
+}
+probe nd_syscall.seccomp.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.sched_yield
 {
 	printf("%s(%s)\n", name, argstr)

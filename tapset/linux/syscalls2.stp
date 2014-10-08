@@ -1795,6 +1795,23 @@ probe syscall.sched_yield.return = kernel.function("sys_sched_yield").return
 	retstr = return_str(1, $return)
 }
 
+# seccomp ____________________________________________________
+# long sys_seccomp(unsigned int op, unsigned int flags, const char __user* uargs)
+probe syscall.seccomp = kernel.function("sys_seccomp").call ?
+{
+	name = "seccomp"
+	op = $op
+	flags = $flags
+	flags_str = _seccomp_flags_str($flags)
+	uargs = user_string_quoted($uargs)
+	argstr = sprintf("%u, %s, %s", $op, flags_str, user_string_quoted($uargs))
+}
+probe syscall.seccomp.return = kernel.function("sys_seccomp").return ?
+{
+	name = "seccomp"
+	retstr = return_str(1, $return)
+}
+
 # select _____________________________________________________
 # long sys_select(int n,
 #		fd_set __user *inp,

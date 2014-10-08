@@ -869,6 +869,25 @@ function _adjtx_mode_str(f) {
 }
 
 %{
+#include <linux/random.h>
+
+static const _stp_val_array const _stp_getrandom_list[] = {
+#ifdef GRND_NONBLOCK
+  V(GRND_NONBLOCK),
+#endif
+#ifdef GRND_RANDOM
+  V(GRND_RANDOM),
+#endif
+  {0, NULL}
+};
+%}
+
+function _getrandom_flags_str:string(flag:long)
+%{ /* pure */
+	unsigned int grflag = (unsigned int)STAP_ARG_flag;  
+	_stp_lookup_or_str(_stp_getrandom_list, grflag, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+%{
 #if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
 #include <linux/inotify.h>
 #endif
@@ -1372,6 +1391,21 @@ function _wait_status_str(f) {
 }
 
 %{
+#include <linux/seccomp.h>
+static const _stp_val_array const _stp_seccomp_flags_list[] = {
+#ifdef SECCOMP_FILTER_FLAG_TSYNC
+        V(SECCOMP_FILTER_FLAG_TSYNC),
+#endif
+        {0, NULL}
+};
+%}
+function _seccomp_flags_str:string(flags:long)
+%{ /* pure */
+        unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_str(_stp_seccomp_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
 static const _stp_val_array const _stp_msg_flags_list[] = {
 	V(MSG_OOB),
 	V(MSG_PEEK),
@@ -1425,6 +1459,27 @@ function _recvflags_str:string(flags:long)
 	return _msg_flags_str(flags)
 }
 %)
+
+%{
+#ifdef __NR_memfd_create
+#include <uapi/linux/memfd.h>
+#endif
+static const _stp_val_array const _stp_mfd_flags_list[] = {
+#ifdef MFD_CLOEXEC
+        V(MFD_CLOEXEC),
+#endif
+#ifdef MFD_ALLOW_SEALING
+        V(MFD_ALLOW_SEALING),
+#endif
+        {0, NULL}
+};
+%}
+
+function _mfd_flags_str:string(flags:long)
+%{ /* pure */
+          unsigned int flags = (unsigned int)STAP_ARG_flags;
+	  _stp_lookup_or_str(_stp_mfd_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 #include <linux/mman.h>

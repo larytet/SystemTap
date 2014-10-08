@@ -1976,6 +1976,23 @@ probe syscall.getpriority.return = kernel.function("sys_getpriority").return
 	retstr = return_str(1, $return)
 }
 
+# getrandom __________________________________________________
+# long sys_getrandom(char __user *buf, size_t count, unsigned int flags)
+probe syscall.getrandom = kernel.function("sys_getrandom").call ?
+{
+	name = "getrandom"
+	buf = user_string_quoted($buf)
+	count = $count
+	flags = $flags
+	flags_str = _getrandom_flags_str($flags)
+	argstr = sprintf("%s, %u, %s", user_string_quoted($buf), $count, flags_str)
+}
+probe syscall.getrandom.return = kernel.function("sys_getrandom").return ?
+{
+	name = "getrandom"
+	retstr = return_str(1, $return)
+}
+
 # getresgid __________________________________________________
 # long sys_getresgid(gid_t __user *rgid,
 #                    gid_t __user *egid,
@@ -3004,6 +3021,22 @@ probe syscall.mbind.return = kernel.function("compat_sys_mbind").return ?,
                              kernel.function("sys_mbind").return ?
 {
 	name = "mbind"
+	retstr = return_str(1, $return)
+}
+
+# memfd_create _____________________________________________________
+# long sys_memfd_create (const char __user* uname, unsigned int flags)
+probe syscall.memfd_create = kernel.function("sys_memfd_create").call ?
+{
+	name = "memfd_create"
+	uname = user_string_quoted($uname)
+	flags = $flags
+	flags_str = _mfd_flags_str($flags)
+	argstr = sprintf("%s, %s", user_string_quoted($uname), flags_str)
+}
+probe syscall.memfd_create.return = kernel.function("sys_memfd_create").return ?
+{
+	name = "memfd_create"
 	retstr = return_str(1, $return)
 }
 

@@ -1818,6 +1818,24 @@ probe nd_syscall.sched_yield.return = kprobe.function("sys_sched_yield").return
 	retstr = returnstr(1)
 }
 
+# seccomp ____________________________________________________
+# long sys_seccomp(unsigned int op, unsigned int flags, const char __user* uargs)
+probe nd_syscall.seccomp = kprobe.function("sys_seccomp") ?
+{
+	name = "seccomp"
+	asmlinkage()
+	op = uint_arg(1)
+	flags = uint_arg(2)
+	flags_str = _seccomp_flags_str(uint_arg(2))
+	uargs = user_string_quoted(pointer_arg(3))
+	argstr = sprintf("%u, %s, %s", uint_arg(1), flags_str, user_string_quoted(pointer_arg(3)))
+}
+probe nd_syscall.seccomp.return = kprobe.function("sys_seccomp").return ?
+{
+	name = "seccomp"
+	retstr = returnstr(1)
+}
+
 # select _____________________________________________________
 # long sys_select(int n,
 #		fd_set __user *inp,

@@ -2094,6 +2094,24 @@ probe nd_syscall.getpriority.return = kprobe.function("sys_getpriority").return 
 	retstr = returnstr(1)
 }
 
+# getrandom __________________________________________________
+# long sys_getrandom(char __user *buf, size_t count, unsigned int flags)
+probe nd_syscall.getrandom = kprobe.function("sys_getrandom") ?
+{
+	name = "getrandom"
+	asmlinkage()
+	buf = user_string_quoted(pointer_arg(1))
+	count = ulong_arg(2)
+	flags = uint_arg(3)
+	flags_str = _getrandom_flags_str(uint_arg(3))
+	argstr = sprintf("%s, %u, %s", user_string_quoted(pointer_arg(1)), ulong_arg(2), flags_str)
+}
+probe nd_syscall.getrandom.return = kprobe.function("sys_getrandom").return ?
+{
+	name = "getrandom"
+	retstr = returnstr(1)
+}
+
 # getresgid __________________________________________________
 # long sys_getresgid(gid_t __user *rgid,
 #                    gid_t __user *egid,
@@ -3158,6 +3176,23 @@ probe nd_syscall.mbind.return = kprobe.function("compat_sys_mbind").return ?,
                                 kprobe.function("sys_mbind").return ?
 {
 	name = "mbind"
+	retstr = returnstr(1)
+}
+
+# memfd_create _____________________________________________________
+# long sys_memfd_create (const char __user* uname, unsigned int flags)
+probe nd_syscall.memfd_create = kprobe.function("sys_memfd_create") ?
+{
+	name = "memfd_create"
+	asmlinkage()
+	uname = user_string_quoted(pointer_arg(1))
+	flags = uint_arg(2)
+	flags_str = _mfd_flags_str(uint_arg(2))
+	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)), flags_str)
+}
+probe nd_syscall.memfd_create.return = kprobe.function("sys_memfd_create").return ?
+{
+	name = "memfd_create"
 	retstr = returnstr(1)
 }
 

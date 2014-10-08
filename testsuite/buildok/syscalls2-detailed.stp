@@ -544,6 +544,16 @@ probe syscall.sched_yield.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe syscall.seccomp
+{
+	printf("%s %s\n", name, argstr)
+	printf("%d %d %s\n", op, flags, uargs)
+}
+probe syscall.seccomp.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.select, syscall.compat_select ?
 {
 	printf("%s(%s)\n", name, argstr)
