@@ -1074,6 +1074,11 @@ c_unparser::emit_common_header ()
 	  try
 	    {
               v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
+
+              if (v->char_ptr_arg && session->verbose > 2)
+                clog << _F("variable %s for function %s will be passed by referece (char *)",
+                           v->name.c_str(), fd->name.c_str()) << endl;
+
               if (fd->mangle_oldstyle)
                 {
                   // PR14524: retain old way of referring to the locals
@@ -1100,6 +1105,9 @@ c_unparser::emit_common_header ()
 	o->newline() << "/* no return value */";
       else
 	{
+          if (!session->unoptimized && fd->type == pe_string&& session->verbose > 2)
+            clog << _F("return value for function %s will be passed by referece (char *)",
+                       fd->name.c_str()) << endl;
 	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
                        << " __retvalue;";
 	}
