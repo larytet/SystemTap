@@ -30,6 +30,8 @@ struct unwind_frame_info
 #include "s390x.h"
 #elif defined (__arm__)
 #include "arm.h"
+#elif defined (__aarch64__)
+#include "arm64.h"
 #else
 #error "Unsupported dwarf unwind architecture"
 #endif
