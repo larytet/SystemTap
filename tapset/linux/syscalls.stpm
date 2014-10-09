@@ -59,6 +59,13 @@
     %)
 %)
 
+@define __syscall_gate_compat_simple
+%(
+    %( CONFIG_COMPAT == "y" %?
+        if (%{ _stp_is_compat_task() %}) next
+    %)
+%)
+
 @define __pointer(val)
 %(
     %( CONFIG_COMPAT == "y" %?

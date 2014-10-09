@@ -2044,21 +2044,30 @@ probe syscall.getresuid.return = kernel.function("sys_getresuid16").return ?,
 # long sys_getrlimit(unsigned int resource, struct rlimit __user *rlim)
 # long sys_old_getrlimit(unsigned int resource, struct rlimit __user *rlim)
 # long compat_sys_getrlimit (unsigned int resource, struct compat_rlimit __user *rlim)
-probe syscall.getrlimit = kernel.function("sys_getrlimit").call ?,
-                          kernel.function("sys_old_getrlimit").call ?,
-                          kernel.function("compat_sys_getrlimit").call ?
+probe syscall.getrlimit = __syscall.getrlimit ?,
+	kernel.function("compat_sys_getrlimit").call ?,
+	kernel.function("sys_old_getrlimit").call ?
 {
 	name = "getrlimit"
-	resource = $resource
+	resource = __int32($resource)
 	rlim_uaddr = $rlim
-	argstr = sprintf("%s, %p", _rlimit_resource_str($resource), $rlim)
+	argstr = sprintf("%s, %p", _rlimit_resource_str(resource), $rlim)
 }
-probe syscall.getrlimit.return = kernel.function("sys_getrlimit").return ?,
-                                 kernel.function("sys_old_getrlimit").return ?,
-                                 kernel.function("compat_sys_getrlimit").return ?
+probe __syscall.getrlimit = kernel.function("sys_getrlimit").call
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.getrlimit.return =
+	kernel.function("sys_old_getrlimit").return ?,
+	kernel.function("compat_sys_getrlimit").return ?,
+	__syscall.getrlimit.return ?
 {
 	name = "getrlimit"
 	retstr = return_str(1, $return)
+}
+probe __syscall.getrlimit.return = kernel.function("sys_getrlimit").return
+{
+	@__syscall_gate_compat_simple
 }
 
 # getrusage __________________________________________________
@@ -2393,20 +2402,29 @@ probe syscall.io_cancel.return = kernel.function("sys_io_cancel").return
 # long sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 # long compat_sys_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 #
-probe syscall.ioctl = kernel.function("compat_sys_ioctl").call ?,
-                      kernel.function("sys_ioctl").call ?
+probe syscall.ioctl = __syscall.ioctl ?,
+	kernel.function("compat_sys_ioctl").call ?
 {
 	name = "ioctl"
-	fd = $fd
-	request = $cmd
+	fd = __int32($fd)
+	request = __int32($cmd)
 	argp = @choose_defined($arg, $arg32)
-	argstr = sprintf("%d, %d, %p", $fd, $cmd, argp)
+	argstr = sprintf("%d, %d, %p", fd, request, argp)
 }
-probe syscall.ioctl.return = kernel.function("compat_sys_ioctl").return ?,
-                             kernel.function("sys_ioctl").return ?
+probe __syscall.ioctl = kernel.function("sys_ioctl").call
+{
+	@__syscall_gate(%{ __NR_ioctl %})
+}
+probe syscall.ioctl.return = 
+	__syscall.ioctl.return ?,
+	kernel.function("compat_sys_ioctl").return ?
 {
 	name = "ioctl"
 	retstr = return_str(1, $return)
+}
+probe __syscall.ioctl.return = kernel.function("sys_ioctl").return
+{
+	@__syscall_gate(%{ __NR_ioctl %})
 }
 
 # io_destroy _________________________________________________
