@@ -3091,13 +3091,10 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
       rvalue->visit(& eif);
       if (!session->unoptimized && eif.fncall)
         {
-          // set the return value
-          o->newline() << "c->locals[c->nesting+1]."
-                       << c_funcname(eif.fncall->referent->name)
-                       << ".__retvalue = &" << lvalue << "[0];";
           // let the functioncall know that the return value is being saved/used
-          eif.fncall->return_value_used = true;
-          // visit the functioncall, because this is what is done in c_strcpy()
+          // and keep track of the lvalue, so that the retval assignment can
+          // happen in ::visit_functioncall, to avoid complications with nesting.
+          eif.fncall->var_assigned_to_retval = lvalue;
           eif.fncall->visit (this);
           o->line() << ";";
         }
@@ -5605,10 +5602,6 @@ c_tmpcounter::visit_functioncall (functioncall *e)
   assert (e->referent != 0);
   functiondecl* r = e->referent;
 
-  tmpvar t = parent->gensym (e->type);
-  if (!parent->session->unoptimized && e->type == pe_string && !e->return_value_used)
-    t.declare(*parent);
-
   // one temporary per argument, unless literal numbers or strings
   for (unsigned i=0; i<r->formal_args.size(); i++)
     {
@@ -5618,6 +5611,10 @@ c_tmpcounter::visit_functioncall (functioncall *e)
 	t.declare (*parent);
       e->args[i]->visit (this);
     }
+
+  tmpvar t = parent->gensym (e->type);
+  if (!parent->session->unoptimized && e->type == pe_string && e->var_assigned_to_retval.empty())
+    t.declare(*parent);
 }
 
 
@@ -5635,12 +5632,6 @@ c_unparser::visit_functioncall (functioncall* e)
   // NB: we store all actual arguments in temporary variables,
   // to avoid colliding sharing of context variables with
   // nested function calls: f(f(f(1)))
-
-  tmpvar tmp_ret = gensym (e->type);
-  // store the return value into a tmpvar in case the return is never used/assigned
-  if (!session->unoptimized && e->type == pe_string && !e->return_value_used)
-      o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
-                   << ".__retvalue = &" << tmp_ret.value() << "[0];";
 
   // compute actual arguments
   vector<tmpvar> tmp;
@@ -5691,6 +5682,17 @@ c_unparser::visit_functioncall (functioncall* e)
                   e->args[i]->tok);
     }
 
+  tmpvar tmp_ret = gensym (e->type);
+  // store the return value after the function arguments have been worked out
+  // to avoid problems that may occure with nesting.
+  if (!e->var_assigned_to_retval.empty())
+    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                 << ".__retvalue = &" << e->var_assigned_to_retval << "[0];";
+  // store the return value into a tmpvar in case the return is never used/assigned
+  else if (!session->unoptimized && e->type == pe_string)
+    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                 << ".__retvalue = &" << tmp_ret.value() << "[0];";
+
   // call function
   o->newline() << c_funcname (r->name) << " (c);";
   o->newline() << "if (unlikely(c->last_error)) goto out;";
@@ -5716,7 +5718,7 @@ c_unparser::visit_functioncall (functioncall* e)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
-  else if (!e->return_value_used)
+  else if (e->var_assigned_to_retval.empty())
     o->newline() << tmp_ret.value() << ";";
 
 }

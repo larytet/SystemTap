@@ -429,7 +429,7 @@ struct functioncall: public expression
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
-  bool return_value_used;
+  std::string var_assigned_to_retval;
 };
 
 

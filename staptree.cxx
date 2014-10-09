@@ -77,7 +77,7 @@ arrayindex::arrayindex ():
 
 
 functioncall::functioncall ():
-  referent (0), return_value_used(false)
+  referent (0)
 {
 }
 
