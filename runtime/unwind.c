@@ -1586,7 +1586,8 @@ static int unwind_frame(struct unwind_context *context,
 			break;
 		}
 	}
-	dbug_unwind(1, "returning 0 (%lx)\n", UNW_PC(frame));
+	dbug_unwind(1, "returning 0 (%llx)\n",
+		    (unsigned long long) UNW_PC(frame));
 	return 0;
 
 copy_failed:
@@ -1617,7 +1618,8 @@ static int unwind(struct unwind_context *context, int user)
 	   values on 64-bit registers. */
 	int compat_task = _stp_is_compat_task();
 
-	dbug_unwind(1, "pc=%lx, %lx", pc, UNW_PC(frame));
+	dbug_unwind(1, "pc=%lx, %llx", pc,
+		    (unsigned long long) UNW_PC(frame));
 
 	if (UNW_PC(frame) == 0)
 		return -EINVAL;

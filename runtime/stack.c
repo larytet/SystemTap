@@ -203,8 +203,8 @@ static struct pt_regs *_stp_get_uregs(struct context *c)
 		 probe location. */
 	      levels = MAXBACKTRACE;
 	      arch_unw_init_frame_info(info, c->kregs, 0);
-	      dbug_unwind(1, "Trying to recover... searching for 0x%lx\n",
-			  REG_IP(c->uregs));
+	      dbug_unwind(1, "Trying to recover... searching for 0x%llx\n",
+			  (unsigned long long) REG_IP(c->uregs));
 
 	      /* Mark the kernel unwind cache as invalid
 		 (uwcache_kernel.depth is no longer consistent with
@@ -230,8 +230,8 @@ static struct pt_regs *_stp_get_uregs(struct context *c)
 	    {
 	      levels--;
 	      ret = unwind(&c->uwcontext_kernel, 0);
-	      dbug_unwind(1, "unwind levels: %d, ret: %d, pc=0x%lx\n",
-			  levels, ret, UNW_PC(info));
+	      dbug_unwind(1, "unwind levels: %d, ret: %d, pc=0x%llx\n",
+			  levels, ret, (unsigned long long) UNW_PC(info));
 	    }
 
 	  /* Have we arrived where we think user space currently is? */
@@ -242,8 +242,9 @@ static struct pt_regs *_stp_get_uregs(struct context *c)
 	      UNW_SP(info) = REG_SP(c->uregs); /* Fix up user stack */
 	      c->uregs = &info->regs;
 	      c->full_uregs_p = 1;
-	      dbug_unwind(1, "recovered with pc=0x%lx sp=0x%lx\n",
-			  UNW_PC(info), UNW_SP(info));
+	      dbug_unwind(1, "recovered with pc=0x%llx sp=0x%llx\n",
+			  (unsigned long long) UNW_PC(info),
+			  (unsigned long long) UNW_SP(info));
 	    }
 	  else
 	    dbug_unwind(1, "failed to recover user reg state\n");
@@ -312,7 +313,9 @@ static unsigned long _stp_stack_unwind_one_kernel(struct context *c, unsigned de
 	}
 
 	ret = unwind(&c->uwcontext_kernel, 0);
-	dbug_unwind(1, "ret=%d PC=%lx SP=%lx\n", ret, UNW_PC(info), UNW_SP(info));
+	dbug_unwind(1, "ret=%d PC=%llx SP=%llx\n", ret,
+		    (unsigned long long) UNW_PC(info),
+		    (unsigned long long) UNW_SP(info));
 
 	/* check if unwind hit an error */
 	if (ret || ! _stp_valid_pc_addr(UNW_PC(info), NULL)) {
@@ -496,7 +499,8 @@ static unsigned long _stp_stack_unwind_one_user(struct context *c, unsigned dept
 			UNW_PC(info) = maybe_pc;
 	}
 #endif
-	dbug_unwind(1, "ret=%d PC=%lx SP=%lx\n", ret, UNW_PC(info), UNW_SP(info));
+	dbug_unwind(1, "ret=%d PC=%llx SP=%llx\n", ret,
+		    (unsigned long long) UNW_PC(info), (unsigned long long) UNW_SP(info));
 
 	/* check if unwind hit an error */
 	if (ret || ! _stp_valid_pc_addr(UNW_PC(info), current)) {
