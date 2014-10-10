@@ -1076,7 +1076,7 @@ c_unparser::emit_common_header ()
               v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
 
               if (v->char_ptr_arg && session->verbose > 2)
-                clog << _F("variable %s for function %s will be passed by referece (char *)",
+                clog << _F("variable %s for function %s will be passed by reference (char *)",
                            v->name.c_str(), fd->name.c_str()) << endl;
 
               if (fd->mangle_oldstyle)
@@ -1106,7 +1106,7 @@ c_unparser::emit_common_header ()
       else
 	{
           if (!session->unoptimized && fd->type == pe_string&& session->verbose > 2)
-            clog << _F("return value for function %s will be passed by referece (char *)",
+            clog << _F("return value for function %s will be passed by reference (char *)",
                        fd->name.c_str()) << endl;
 	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
                        << " __retvalue;";
