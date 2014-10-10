@@ -450,7 +450,7 @@ will probe both callees of the target function, as well as callees of
 those callees. And \fB.callees(3)\fR goes one level deeper, etc...
 A callee probe at depth N is only triggered when the N callers in the
 callstack match those that were statically determined during analysis
-(this also may be overriden using -DSTAP_CALLEE_MATCHALL).
+(this also may be overridden using -DSTAP_CALLEE_MATCHALL).
 .RE
 .PP
 In the above list of probe points, MPATTERN stands for a string literal
