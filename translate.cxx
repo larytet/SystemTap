@@ -934,6 +934,37 @@ ostream & operator<<(ostream & o, itervar const & v)
 
 // ------------------------------------------------------------------------
 
+struct unmodified_fnargs_checker : public embedded_tags_visitor
+{
+  bool embedded_seen; // excludes code with pure and unmodified-args
+  unmodified_fnargs_checker (): embedded_tags_visitor(true), embedded_seen(false) {}
+
+  void visit_embeddedcode (embeddedcode *e)
+    {
+      embedded_tags_visitor::visit_embeddedcode(e);
+      // set embedded_seen to true if it does not contain /* unmodified-fnargs */
+      embedded_seen = (embedded_seen || !tagged_p("/* unmodified-fnargs */"));
+    }
+};
+
+bool
+is_unmodified_string_fnarg (systemtap_session* sess, functiondecl* fd, vardecl* v)
+{
+  if (sess->unoptimized || v->type != pe_string)
+    return false;
+
+  // check that there is no embedded code that might modify the fn args
+  unmodified_fnargs_checker ecv;
+  fd->body->visit(& ecv);
+  if (ecv.embedded_seen)
+    return false;
+
+  varuse_collecting_visitor vut (*sess);
+  vut.current_function = fd;
+  fd->body->visit(& vut);
+  return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
+}
+
 void
 c_unparser::emit_common_header ()
 {
@@ -1042,19 +1073,25 @@ c_unparser::emit_common_header ()
           vardecl* v = fd->formal_args[j];
 	  try
 	    {
+              v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
+
+              if (v->char_ptr_arg && session->verbose > 2)
+                clog << _F("variable %s for function %s will be passed by reference (char *)",
+                           v->name.c_str(), fd->name.c_str()) << endl;
+
               if (fd->mangle_oldstyle)
                 {
                   // PR14524: retain old way of referring to the locals
                   o->newline() << "union { "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name) << "; "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name, true) << "; };";
+                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name) << "; "
+                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name, true) << "; };";
                 }
               else
                 {
-                  o->newline() << c_typename (v->type) << " "
-                               << c_localname (v->name) << ";";
+                  o->newline() << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name) << ";";
                 }
 	    } catch (const semantic_error& e) {
 	      semantic_error e2 (e);
@@ -1068,7 +1105,11 @@ c_unparser::emit_common_header ()
 	o->newline() << "/* no return value */";
       else
 	{
-	  o->newline() << c_typename (fd->type) << " __retvalue;";
+          if (!session->unoptimized && fd->type == pe_string&& session->verbose > 2)
+            clog << _F("return value for function %s will be passed by reference (char *)",
+                       fd->name.c_str()) << endl;
+	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
+                       << " __retvalue;";
 	}
       o->newline(-1) << "} " << c_funcname (fd->name) << ";";
     }
@@ -3022,6 +3063,26 @@ c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
     }
 }
 
+
+struct expression_is_functioncall : public expression_visitor
+{
+  c_unparser* parent;
+  functioncall* fncall;
+  expression_is_functioncall (c_unparser* p)
+    : parent(p), fncall(NULL) {}
+
+  void visit_expression (expression* e)
+    {
+      // works on the basis that every expression will, by default, call this
+      // function, except for functioncall, as the visitor is overwritten
+      fncall = NULL;
+    }
+  void visit_functioncall (functioncall* e)
+    {
+      fncall = e;
+    }
+};
+
 void
 c_unparser::c_assign (const string& lvalue, expression* rvalue,
 		      const string& msg)
@@ -3034,7 +3095,22 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else if (rvalue->type == pe_string)
     {
-      c_strcpy (lvalue, rvalue);
+      expression_is_functioncall eif (this);
+      rvalue->visit(& eif);
+      if (!session->unoptimized && eif.fncall)
+        {
+          // let the functioncall know that the return value is being saved/used
+          // and keep track of the lvalue, so that the retval assignment can
+          // happen in ::visit_functioncall, to avoid complications with nesting.
+          eif.fncall->var_assigned_to_retval = lvalue;
+          eif.fncall->visit (this);
+          o->line() << ";";
+        }
+      else
+        {
+          // will call rvalue->visit()
+          c_strcpy (lvalue, rvalue);
+        }
     }
   else
     {
@@ -5533,6 +5609,7 @@ c_tmpcounter::visit_functioncall (functioncall *e)
 {
   assert (e->referent != 0);
   functiondecl* r = e->referent;
+
   // one temporary per argument, unless literal numbers or strings
   for (unsigned i=0; i<r->formal_args.size(); i++)
     {
@@ -5542,6 +5619,10 @@ c_tmpcounter::visit_functioncall (functioncall *e)
 	t.declare (*parent);
       e->args[i]->visit (this);
     }
+
+  tmpvar t = parent->gensym (e->type);
+  if (!parent->session->unoptimized && e->type == pe_string && e->var_assigned_to_retval.empty())
+    t.declare(*parent);
 }
 
 
@@ -5571,9 +5652,13 @@ c_unparser::visit_functioncall (functioncall* e)
 	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
+      symbol *sym_out;
       if (e->args[i]->tok->type == tok_number
 	  || e->args[i]->tok->type == tok_string)
 	t.override(c_expression(e->args[i]));
+      else if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
+               && is_local(sym_out->referent, sym_out->tok))
+        t.override(getvar(sym_out->referent, e->args[i]->tok).value());
       else
         {
 	  // o->newline() << "c->last_stmt = "
@@ -5591,14 +5676,30 @@ c_unparser::visit_functioncall (functioncall* e)
 	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
-      c_assign ("c->locals[c->nesting+1]." +
-		c_funcname (r->name) + "." +
-                c_localname (r->formal_args[i]->name),
-                tmp[i].value(),
-                e->args[i]->type,
-                "function actual argument copy",
-                e->args[i]->tok);
+      if (r->formal_args[i]->char_ptr_arg)
+        o->newline() << "c->locals[c->nesting+1]." + c_funcname (r->name) + "."
+                        + c_localname (r->formal_args[i]->name) << " = "
+                     << tmp[i].value() << ";";
+      else
+        c_assign ("c->locals[c->nesting+1]." +
+                  c_funcname (r->name) + "." +
+                  c_localname (r->formal_args[i]->name),
+                  tmp[i].value(),
+                  e->args[i]->type,
+                  "function actual argument copy",
+                  e->args[i]->tok);
     }
+
+  tmpvar tmp_ret = gensym (e->type);
+  // store the return value after the function arguments have been worked out
+  // to avoid problems that may occure with nesting.
+  if (!e->var_assigned_to_retval.empty())
+    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                 << ".__retvalue = &" << e->var_assigned_to_retval << "[0];";
+  // store the return value into a tmpvar in case the return is never used/assigned
+  else if (!session->unoptimized && e->type == pe_string)
+    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                 << ".__retvalue = &" << tmp_ret.value() << "[0];";
 
   // call function
   o->newline() << c_funcname (r->name) << " (c);";
@@ -5621,10 +5722,12 @@ c_unparser::visit_functioncall (functioncall* e)
   if (r->type == pe_unknown)
     // If we passed typechecking, then nothing will use this return value
     o->newline() << "(void) 0;";
-  else
+  else if (session->unoptimized || r->type != pe_string)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
+  else if (e->var_assigned_to_retval.empty())
+    o->newline() << tmp_ret.value() << ";";
 
 }
 

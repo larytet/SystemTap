@@ -154,7 +154,8 @@ probe_point::component::component (std::string const & f, literal * a):
 
 
 vardecl::vardecl ():
-  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false)
+  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false),
+  char_ptr_arg(false)
 {
 }
 
@@ -570,40 +571,42 @@ void functiondecl::printsig (ostream& o) const
   o << ")";
 }
 
-struct embedded_tags_visitor: public traversing_visitor
+embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
 {
-  map<string, bool> tags;
-
-  embedded_tags_visitor(bool all_tags)
+  // populate the set of tags that could appear in embedded code/expressions
+  available_tags.insert("/* guru */");
+  available_tags.insert("/* unprivileged */");
+  available_tags.insert("/* myproc-unprivileged */");
+  if (all_tags)
     {
-      tags["/* guru */"] = false;
-      tags["/* unprivileged */"] = false;
-      tags["/* myproc-unprivileged */"] = false;
-      if (all_tags)
-        {
-          tags["/* pure */"] = false;
-          tags["/* unmangled */"] = false;
-        }
+      available_tags.insert("/* pure */");
+      available_tags.insert("/* unmangled */");
+      available_tags.insert("/* unmodified-fnargs */");
     }
+}
 
-  void find_tags_in_code (const string& s)
-    {
-      map<string, bool>::iterator tag;
-      for (tag = tags.begin(); tag != tags.end(); ++tag)
-        if (!tag->second)
-          tag->second = s.find(tag->first) != string::npos;
-    }
+bool embedded_tags_visitor::tagged_p (const std::string& tag)
+{
+  return tags.count(tag);
+}
 
-  void visit_embeddedcode (embeddedcode *s)
-    {
-      find_tags_in_code(s->code);
-    }
+void embedded_tags_visitor::find_tags_in_code (const string& s)
+{
+  set<string>::iterator tag;
+  for (tag = available_tags.begin(); tag != available_tags.end(); ++tag)
+      if(s.find(*tag) != string::npos)
+        tags.insert(*tag);
+}
 
-  void visit_embedded_expr (embedded_expr *e)
-    {
-      find_tags_in_code(e->code);
-    }
-};
+void embedded_tags_visitor::visit_embeddedcode (embeddedcode *s)
+{
+  find_tags_in_code(s->code);
+}
+
+void embedded_tags_visitor::visit_embedded_expr (embedded_expr *e)
+{
+  find_tags_in_code(e->code);
+}
 
 void functiondecl::printsigtags (ostream& o, bool all_tags) const
 {
@@ -614,10 +617,10 @@ void functiondecl::printsigtags (ostream& o, bool all_tags) const
   embedded_tags_visitor etv(all_tags);
   this->body->visit(&etv);
 
-  map<string, bool>::const_iterator tag;
-  for (tag = etv.tags.begin(); tag != etv.tags.end(); ++tag)
-    if (tag->second)
-      o << " " << tag->first;
+  set<string, bool>::const_iterator tag;
+  for (tag = etv.available_tags.begin(); tag != etv.available_tags.end(); ++tag)
+    if (etv.tagged_p(*tag))
+      o << " " << *tag;
 }
 
 void arrayindex::print (ostream& o) const
@@ -1699,6 +1702,13 @@ hist_op::visit (visitor *u)
   u->visit_hist_op (this);
 }
 
+
+bool
+expression::is_symbol(symbol *& sym_out)
+{
+  sym_out = NULL;
+  return false;
+}
 
 bool
 indexable::is_symbol(symbol *& sym_out)

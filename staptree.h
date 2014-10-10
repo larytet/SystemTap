@@ -142,6 +142,7 @@ struct visitable
   virtual ~visitable ();
 };
 
+struct symbol;
 struct expression : public visitable
 {
   exp_type type;
@@ -151,6 +152,7 @@ struct expression : public visitable
   virtual ~expression ();
   virtual void print (std::ostream& o) const = 0;
   virtual void visit (visitor* u) = 0;
+  virtual bool is_symbol(symbol *& sym_out);
 };
 
 std::ostream& operator << (std::ostream& o, const expression& k);
@@ -276,7 +278,6 @@ struct assignment: public binary_expression
   void visit (visitor* u);
 };
 
-struct symbol;
 struct hist_op;
 struct indexable : public expression
 {
@@ -428,6 +429,7 @@ struct functioncall: public expression
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
+  std::string var_assigned_to_retval;
 };
 
 
@@ -604,6 +606,7 @@ struct vardecl: public symboldecl
   literal *init; // for global scalars only
   bool synthetic; // for probe locals only, don't init on entry
   bool wrap;
+  bool char_ptr_arg; // set in ::emit_common_header(), only used if a formal_arg
 };
 
 
@@ -1231,6 +1234,17 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_defined_op (defined_op* e);
   virtual void visit_entry_op (entry_op* e);
   virtual void visit_perf_op (perf_op* e);
+};
+
+struct embedded_tags_visitor: public traversing_visitor
+{
+  std::set<std::string> available_tags;
+  std::set<std::string> tags; // set of the tags that appear in the code
+  embedded_tags_visitor(bool all_tags);
+  bool tagged_p (const std::string &tag);
+  void find_tags_in_code (const std::string& s);
+  void visit_embeddedcode (embeddedcode *s);
+  void visit_embedded_expr (embedded_expr *e);
 };
 
 #endif // STAPTREE_H
