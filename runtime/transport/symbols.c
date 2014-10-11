@@ -299,7 +299,8 @@ static int _stp_module_panic_notifier (struct notifier_block *nb, unsigned long 
 
                                 if(first_iteration)
                                 {
-                                        printk(KERN_CONT "Stap trace buffer for processor %d sub-buffer %d:\n", i, j);
+                                        printk(KERN_CONT "%s trace buffer for processor %d sub-buffer %d:\n",
+                                               THIS_MODULE->name, i, j);
                                 }
 
                                 /* Once we reach the number of bytes consumed on the last
