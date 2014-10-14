@@ -1721,10 +1721,10 @@ probe syscall.getdents = kernel.function("sys_getdents").call ?,
                          kernel.function("compat_sys_getdents64").call ?
 {
 	name = "getdents"
-	fd = $fd
+	fd = __int32($fd)
 	dirp_uaddr = $dirent
-	count = $count
-	argstr = sprintf("%d, %p, %d", $fd, $dirent, $count)
+	count = __uint32($count)
+	argstr = sprintf("%d, %p, %u", fd, $dirent, count)
 }
 probe syscall.getdents.return = kernel.function("sys_getdents").return ?,
                                 kernel.function("sys_getdents64").return ?,
@@ -2108,7 +2108,7 @@ probe __syscall.getrusage.return = kernel.function("sys_getrusage").return
 probe syscall.getsid = kernel.function("sys_getsid").call
 {
 	name = "getsid"
-	pid = $pid
+	pid = __int32($pid)
 	argstr = sprint(pid)
 }
 probe syscall.getsid.return = kernel.function("sys_getsid").return
