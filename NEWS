@@ -1,14 +1,13 @@
 * What's new in version 2.7
 
-- Passing strings to and from functions has become faster due to optimization.
-  To help with the optimization, SystemTap supports a new pragma
-  /* unmodified-fnargs */ for embedded-c functions to indicate that the
-  function body will not modify the function arguments.
+- Passing strings to and from functions has become faster due to optimization
+  (passing some strings by reference instead of by value/copy).  It may
+  be disabled by using the unoptimize flag (-u).
 
-  This optimization can be disabled by using the unoptimize flag (-u).
-
-  As usual, it is highly recommeneded that MAXSTRINGLEN is used, rather than
-  sizeof(string_arg), when a string length is needed.
+  To make embedded-C functions eligible for the same optimization, use the pragma
+  /* unmodified-fnargs */ to indicate that the function body will not modify
+  the function arguments.  Remember to use MAXSTRINGLEN for string length,
+  rather than sizeof(string_arg) (which might now be a pointer).
 
 * What's new in version 2.6, 2014-09-05
 
