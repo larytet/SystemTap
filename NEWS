@@ -1,5 +1,15 @@
 * What's new in version 2.7
 
+- Passing strings to and from functions has become faster due to optimization.
+  To help with the optimization, SystemTap supports a new pragma
+  /* unmodified-fnargs */ for embedded-c functions to indicate that the
+  function body will not modify the function arguments.
+
+  This optimization can be disabled by using the unoptimize flag (-u).
+
+  As usual, it is highly recommeneded that MAXSTRINGLEN is used, rather than
+  sizeof(string_arg), when a string length is needed.
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:
