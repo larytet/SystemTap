@@ -633,7 +633,7 @@ start () {
 
   if [ -z "$start_scripts" ]; then
     do_warning $"No scripts exist."
-    return 5 # program is not installed
+    return 0 # only a warning
   fi
 
   prepare_stat_dir
