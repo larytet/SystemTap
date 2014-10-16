@@ -4041,6 +4041,8 @@ struct dead_control_remover: public traversing_visitor
 void dead_control_remover::visit_block (block* b)
 {
   vector<statement*>& vs = b->statements;
+  if (vs.size() == 0) /* else (size_t) size()-1 => very big */
+    return;
   for (size_t i = 0; i < vs.size() - 1; ++i)
     {
       vs[i]->visit (this);
