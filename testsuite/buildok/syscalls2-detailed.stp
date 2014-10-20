@@ -544,12 +544,12 @@ probe syscall.sched_yield.return
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.seccomp
+probe syscall.seccomp ?
 {
 	printf("%s %s\n", name, argstr)
 	printf("%d %d %s\n", op, flags, uargs)
 }
-probe syscall.seccomp.return
+probe syscall.seccomp.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -902,7 +902,7 @@ probe syscall.compat_sys_shmat.return ?
 probe syscall.shmctl ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
+	printf("%d, %d, %s, %p\n", shmid, cmd, cmd_str, buf_uaddr)
 }
 probe syscall.shmctl.return ?
 {
@@ -915,7 +915,7 @@ probe syscall.compat_sys_shmctl ?
 %( systemtap_v <= "2.5" %?
 	printf("%d, %d, %p\n", first, second, uptr_uaddr)
 %)
-	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
+	printf("%d, %d, %s, %p\n", shmid, cmd, cmd_str, buf_uaddr)
 }
 probe syscall.compat_sys_shmctl.return ?
 {
@@ -935,7 +935,7 @@ probe syscall.shmdt.return
 probe syscall.shmget ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", key, size, shmflg)
+	printf("%d, %d, %d, %s\n", key, size, shmflg, shmflg_str)
 }
 probe syscall.shmget.return ?
 {

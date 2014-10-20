@@ -87,6 +87,7 @@ probe syscall.iopl.return
 	printf("%s, %s\n", name, retstr)
 }
 
+%( systemtap_v <= "2.7" %?
 probe syscall.ipc ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -97,6 +98,7 @@ probe syscall.ipc.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 # syscall.mmap2 is above
 

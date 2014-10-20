@@ -118,6 +118,12 @@ probe nd_syscall.sys32_sysinfo.return = kprobe.function("sys32_sysinfo").return 
 	retstr = returnstr(1)
 }
 
+%( systemtap_v <= "2.7" %?
+# sys32_ipc() is just a syscall multiplexer (similar to
+# sys_socketcall()). So, we don't really need to probe it, since we'll
+# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
+# shmat, etc.).
+
 # ipc ________________________________________
 #
 # long sys32_ipc(u32 call, u32 first, u32 second, u32 third,
@@ -137,6 +143,7 @@ probe nd_syscall.ipc.return = kprobe.function("sys32_ipc").return ?
 	name = "sys_ipc"
 	retstr = returnstr(1)
 }
+%)
 
 # sys32_sigreturn ________________________________________
 #

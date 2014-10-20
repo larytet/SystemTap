@@ -2932,7 +2932,7 @@ probe nd_syscall.shmat.return = kprobe.function("sys_shmat").return ?
 #
 probe nd_syscall.compat_sys_shmat = kprobe.function("compat_sys_shmat") ?
 {
-	name = "compat_sys_shmat"
+	name = "shmat"
 
 %( systemtap_v < "2.3" %?
 	first = int_arg(1)
@@ -2953,7 +2953,7 @@ probe nd_syscall.compat_sys_shmat = kprobe.function("compat_sys_shmat") ?
 }
 probe nd_syscall.compat_sys_shmat.return = kprobe.function("compat_sys_shmat").return ?
 {
-	name = "compat_sys_shmat"
+	name = "shmat"
 	retstr = returnstr(1)
 }
 
@@ -2965,15 +2965,22 @@ probe nd_syscall.compat_sys_shmat.return = kprobe.function("compat_sys_shmat").r
 #
 probe nd_syscall.shmctl = kprobe.function("sys_shmctl") ?
 {
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
 	name = "shmctl"
 	asmlinkage()
 	shmid = int_arg(1)
 	cmd = int_arg(2)
+	cmd_str = _semctl_cmd(cmd)
 	buf_uaddr = pointer_arg(3)
 	argstr = sprintf("%d, %s, %p", shmid, _semctl_cmd(cmd), buf_uaddr)
 }
 probe nd_syscall.shmctl.return = kprobe.function("sys_shmctl").return ?
 {
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
 	name = "shmctl"
 	retstr = returnstr(1)
 }
@@ -2981,10 +2988,19 @@ probe nd_syscall.shmctl.return = kprobe.function("sys_shmctl").return ?
 # compat_sys_shmctl ________________________________________
 #
 # long compat_sys_shmctl(int first, int second, void __user *uptr)
+# COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+#	u32, third, compat_uptr_t, ptr, u32, fifth)
 #
-probe nd_syscall.compat_sys_shmctl = kprobe.function("compat_sys_shmctl") ?
+probe nd_syscall.compat_sys_shmctl = __nd_syscall.compat_shmctl ?,
+	__nd_syscall.compat_ipc.shmctl ?
 {
-	name = "compat_sys_shmctl"
+	name = "shmctl"
+	cmd_str = _semctl_cmd(cmd)
+	argstr = sprintf("%d, %s, %p", shmid, cmd_str, buf_uaddr)
+}
+probe __nd_syscall.compat_shmctl = kprobe.function("compat_sys_shmctl") ?
+{
+	@__compat_syscall_gate(%{ __NR_compat_shmctl %})
 %( systemtap_v <= "2.5" %?
 	first = int_arg(1)
 	second = int_arg(2)
@@ -2993,12 +3009,32 @@ probe nd_syscall.compat_sys_shmctl = kprobe.function("compat_sys_shmctl") ?
 	shmid = int_arg(1)
 	cmd = int_arg(2)
 	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", shmid, cmd, buf_uaddr)
 }
-probe nd_syscall.compat_sys_shmctl.return = kprobe.function("compat_sys_shmctl").return ?
+probe __nd_syscall.compat_ipc.shmctl = kprobe.function("compat_sys_ipc") ?,
+	kprobe.function("sys32_ipc") ?
+{
+	if (int_arg(1) != %{ SHMCTL %}) next;
+%( systemtap_v <= "2.5" %?
+	first = int_arg(2)
+	second = int_arg(3)
+	uptr_uaddr = pointer_arg(5)
+%)
+	shmid = int_arg(2)
+	cmd = int_arg(3)
+	buf_uaddr = pointer_arg(5)
+}
+probe nd_syscall.compat_sys_shmctl.return =
+	kprobe.function("compat_sys_shmctl").return ?,
+	__nd_syscall.compat_ipc.shmctl.return ?
 {
 	name = "compat_sys_shmctl"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_ipc.shmctl.return =
+	kprobe.function("compat_sys_ipc").return ?,
+	kprobe.function("sys32_ipc").return ?
+{
+	if (@entry(int_arg(1)) != %{ SHMCTL %}) next;
 }
 
 # shmdt ______________________________________________________
@@ -3031,7 +3067,8 @@ probe nd_syscall.shmget = kprobe.function("sys_shmget") ?
 	key = int_arg(1)
 	size = ulong_arg(2)
 	shmflg = int_arg(3)
-	argstr = sprintf("%d, %d, %d", key, size, shmflg)
+	shmflg_str = _stp_shmget_flags_str(shmflg)
+	argstr = sprintf("%d, %u, %s", key, size, shmflg_str)
 }
 probe nd_syscall.shmget.return = kprobe.function("sys_shmget").return ?
 {

@@ -64,6 +64,9 @@
 #ifndef __NR_epoll_wait
 #define __NR_epoll_wait (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_shmctl
+#define __NR_shmctl (__NR_syscall_max + 1)
+#endif
 
 #if defined(__x86_64__)
 
@@ -134,6 +137,11 @@
 #ifndef __NR_ia32_sendmmsg
 #define __NR_ia32_sendmmsg 345
 #endif
+// Since a kernel that had a 32-biy shmctl syscall can't be found
+// (they all used __NR_ipc), just use __NR_syscall_max.
+#ifndef __NR_ia32_shmctl
+#define __NR_ia32_shmctl (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_ia32_symlinkat
 #define __NR_ia32_symlinkat 304
 #endif
@@ -161,6 +169,7 @@
 #define __NR_compat_renameat		__NR_ia32_renameat
 #define __NR_compat_rt_sigprocmask	__NR_ia32_rt_sigprocmask
 #define __NR_compat_sendmmsg		__NR_ia32_sendmmsg
+#define __NR_compat_shmctl		__NR_ia32_shmctl
 #define __NR_compat_symlinkat		__NR_ia32_symlinkat
 #define __NR_compat_umount2		__NR_ia32_umount2
 
@@ -195,6 +204,7 @@
 #define __NR_compat_renameat		__NR_renameat
 #define __NR_compat_rt_sigprocmask	__NR_rt_sigprocmask
 #define __NR_compat_sendmmsg		__NR_sendmmsg
+#define __NR_compat_shmctl		__NR_shmctl
 #define __NR_compat_symlinkat		__NR_symlinkat
 #define __NR_compat_umount2		__NR_umount2
 

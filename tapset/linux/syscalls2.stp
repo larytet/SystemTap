@@ -2846,7 +2846,7 @@ probe syscall.shmat.return = kernel.function("sys_shmat").return ?
 #
 probe syscall.compat_sys_shmat = kernel.function("compat_sys_shmat").call ?
 {
-	name = "compat_sys_shmat"
+	name = "shmat"
 %( systemtap_v < "2.3" %?
 	first = @choose_defined($shmid, $first)
 	second = @choose_defined($shmflg, $second)
@@ -2861,7 +2861,7 @@ probe syscall.compat_sys_shmat = kernel.function("compat_sys_shmat").call ?
 }
 probe syscall.compat_sys_shmat.return =	kernel.function("compat_sys_shmat").return ?
 {
-	name = "compat_sys_shmat"
+	name = "shmat"
 	retstr = return_str(1, $return)
 }
 
@@ -2873,38 +2873,67 @@ probe syscall.compat_sys_shmat.return =	kernel.function("compat_sys_shmat").retu
 #
 probe syscall.shmctl = kernel.function("sys_shmctl").call ?
 {
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
 	name = "shmctl"
-	shmid = $shmid
-	cmd = $cmd
+	shmid = __int32($shmid)
+	cmd = __int32($cmd)
+	cmd_str = _semctl_cmd(__int32($cmd))
 	buf_uaddr = $buf
-	argstr = sprintf("%d, %s, %p", $shmid, _semctl_cmd($cmd), $buf)
+	argstr = sprintf("%d, %s, %p", __int32($shmid),
+			 _semctl_cmd(__int32($cmd)), $buf)
 }
 probe syscall.shmctl.return = kernel.function("sys_shmctl").return ?
 {
+#%( arch == "powerpc" || arch == "s390" %?
+	@__syscall_gate_compat_simple
+#%)
 	name = "shmctl"
 	retstr = return_str(1, $return)
 }
+
 # compat_sys_shmctl ________________________________________
 #
 # long compat_sys_shmctl(int first, int second, void __user *uptr)
 #
-probe syscall.compat_sys_shmctl = kernel.function("compat_sys_shmctl").call ?
+probe syscall.compat_sys_shmctl = __syscall.compat_shmctl ?,
+	__syscall.compat_ipc.shmctl ?
 {
-	name = "compat_sys_shmctl"
+	name = "shmctl"
 %( systemtap_v <= "2.5" %?
 	first = $first
 	second = $second
-	uptr_uaddr = $uptr
+	uptr_uaddr = @choose_defined($uptr, $ptr)
 %)
-	shmid = $first
-	cmd = $second
-	buf_uaddr = $uptr
-	argstr = sprintf("%d, %d, %p", $first, $second, $uptr)
+	shmid = __int32($first)
+	cmd = __int32($second)
+	cmd_str = _semctl_cmd(__int32($second))
+	buf_uaddr = @choose_defined($uptr, $ptr)
+	argstr = sprintf("%d, %s, %p", __int32($first), cmd_str, buf_uaddr)
 }
-probe syscall.compat_sys_shmctl.return = kernel.function("compat_sys_shmctl").return ?
+probe __syscall.compat_shmctl = kernel.function("compat_sys_shmctl").call ?
 {
-	name = "compat_sys_shmctl"
+	@__compat_syscall_gate(%{ __NR_compat_shmctl %})
+}
+probe __syscall.compat_ipc.shmctl = kernel.function("compat_sys_ipc").call ?,
+	kernel.function("sys32_ipc").call ?
+{
+	if ($call != %{ SHMCTL %}) next;
+}
+
+probe syscall.compat_sys_shmctl.return =
+	kernel.function("compat_sys_shmctl").return ?,
+	__syscall.compat_ipc.shmctl.return ?
+{
+	name = "shmctl"
 	retstr = return_str(1, $return)
+}
+probe __syscall.compat_ipc.shmctl.return =
+	kernel.function("compat_sys_ipc").return ?,
+	kernel.function("sys32_ipc").return ?
+{
+	if ($call != %{ SHMCTL %}) next;
 }
 
 # shmdt ______________________________________________________
@@ -2932,10 +2961,11 @@ probe syscall.shmdt.return = kernel.function("sys_shmdt").return ?
 probe syscall.shmget = kernel.function("sys_shmget").call ?
 {
 	name = "shmget"
-	key = $key
+	key = __int32($key)
 	size = $size
-	shmflg = $shmflg
-	argstr = sprintf("%d, %d, %d", $key, $size, $shmflg)
+	shmflg = __int32($shmflg)
+	shmflg_str = _stp_shmget_flags_str(__int32($shmflg))
+	argstr = sprintf("%d, %u, %s", __int32($key), $size, shmflg_str)
 }
 probe syscall.shmget.return = kernel.function("sys_shmget").return ?
 {
@@ -2968,10 +2998,11 @@ probe syscall.shutdown.return = kernel.function("sys_shutdown").return ?
 probe syscall.sigaction = kernel.function("sys_sigaction").call ?
 {
 	name = "sigaction"
-	sig = $sig
+	sig = __int32($sig)
 	act_uaddr = $act
 	oact_uaddr = $oact
-	argstr = sprintf("%s, {%s}, %p", _signal_name($sig), _struct_sigaction_u($act), $oact)
+	argstr = sprintf("%s, {%s}, %p", _signal_name(sig),
+			 _struct_sigaction_u($act), $oact)
 }
 probe syscall.sigaction.return = kernel.function("sys_sigaction").return ?
 {
@@ -2982,10 +3013,11 @@ probe syscall.sigaction32 = kernel.function("sys32_sigaction").call ?,
 			    kernel.function("compat_sys_sigaction").call ?
 {
 	name = "sigaction"
-	sig = $sig
+	sig = __int32($sig)
 	act_uaddr = $act
 	oact_uaddr = $oact
-	argstr = sprintf("%s, {%s}, %p", _signal_name($sig), _struct_old_sigaction32_u($act), $oact)
+	argstr = sprintf("%s, {%s}, %p", _signal_name(sig),
+			 _struct_old_sigaction32_u($act), $oact)
 }
 probe syscall.sigaction32.return = kernel.function("sys32_sigaction").return ?,
 				   kernel.function("compat_sys_sigaction").return ?
@@ -3028,9 +3060,10 @@ probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 probe syscall.signal = kernel.function("sys_signal").call ?
 {
 	name = "signal"
-	sig = $sig
+	sig = __int32($sig)
 	handler = $handler
-	argstr = sprintf("%s, %s", _signal_name($sig), _sighandler_str($handler))
+	argstr = sprintf("%s, %s", _signal_name(sig),
+			 _sighandler_str($handler))
 }
 probe syscall.signal.return = kernel.function("sys_signal").return ?
 {
@@ -3050,14 +3083,15 @@ probe syscall.signal.return = kernel.function("sys_signal").return ?
 #
 probe syscall.signalfd = __syscall.signalfd4 !, __syscall.signalfd ?
 {
-	flags = @choose_defined($flags, 0);
+	flags = __int32(@choose_defined($flags, 0))
 	if (flags == 0) {
 		name = "signalfd"
-		argstr = sprintf("%d, %p, %d", $ufd, $user_mask, $sizemask)
+		argstr = sprintf("%d, %p, %d", __int32($ufd), $user_mask,
+				 $sizemask)
 	} else {
 		name = "signalfd4"
-		argstr = sprintf("%d, %p, %d, %s", $ufd, $user_mask,
-		       	 	 $sizemask, _signalfd4_flags_str($flags))
+		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), $user_mask,
+		       	 	 $sizemask, _signalfd4_flags_str(flags))
 	}
 }
 probe __syscall.signalfd4 = kernel.function("sys_signalfd4").call
@@ -3076,7 +3110,7 @@ probe syscall.signalfd.return = __syscall.signalfd4.return !,
 probe __syscall.signalfd4.return = kernel.function("sys_signalfd4").return
 {
 	@__syscall_gate(%{ __NR_signalfd4 %})
-	flags = $flags
+	flags = __int32($flags)
 	name = (flags == 0) ? "signalfd" : "signalfd4"
 }
 probe __syscall.signalfd.return = kernel.function("sys_signalfd").return
@@ -3096,7 +3130,7 @@ probe syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
 	} else {
 		name = "signalfd4"
 		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), $sigmask,
-				 $sigsetsize, _signalfd4_flags_str($flags))
+				 $sigsetsize, _signalfd4_flags_str(flags))
 	}
 }
 probe syscall.compat_signalfd.return =
@@ -3132,8 +3166,8 @@ probe syscall.sigprocmask = __syscall.sigprocmask ?,
 			    __syscall.compat_sigprocmask ?
 {
 	name = "sigprocmask"
-	how = $how
-	how_str = _sigprocmask_how_str($how)
+	how = __int32($how)
+	how_str = _sigprocmask_how_str(how)
 	set_uaddr = @choose_defined($set, $nset)
 	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, oldset_uaddr)
 }

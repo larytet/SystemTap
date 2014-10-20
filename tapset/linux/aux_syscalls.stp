@@ -8,6 +8,14 @@
 #include <linux/net.h>
 #include "linux/compat_net.h"
 
+#ifdef CONFIG_COMPAT
+// Be sure we have 'SHMCTL' defined.
+#include <linux/ipc.h>
+#ifndef SHMCTL
+#define SHMCTL 24
+#endif
+#endif
+
 /*
 * Simple lookup functions for mapping values to names
 * using embedded C. Use these functions to create safe,
@@ -2478,7 +2486,18 @@ static const _stp_val_array const _stp_semctl_list[] = {
 
 function _semctl_cmd:string(cmd:long)
 %{ /* pure */
-	_stp_lookup_str(_stp_semctl_list, STAP_ARG_cmd, STAP_RETVALUE, MAXSTRINGLEN);
+	unsigned int cmd = STAP_ARG_cmd;
+	int len;
+
+#ifdef IPC_64
+	if (cmd & IPC_64) {
+		strlcpy(STAP_RETVALUE, "IPC_64|", MAXSTRINGLEN);
+		cmd &= ~IPC_64;
+	}
+#endif
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_semctl_list, cmd, STAP_RETVALUE + len,
+			MAXSTRINGLEN - len);
 %}
 
 function _stp_sigset_u:string(setptr:long)
@@ -2639,24 +2658,22 @@ function _eventfd2_flag_str:string(flags:long)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
 #include <linux/signalfd.h>
 #endif
+
+static const _stp_val_array const _stp_signalfd4_flags_list[] = {
+#ifdef SFD_NONBLOCK
+	V(SFD_NONBLOCK),
+#endif
+#ifdef SFD_CLOEXEC
+	V(SFD_CLOEXEC),
+#endif
+	{0, NULL}
+};
 %}
 function _signalfd4_flags_str:string(f:long)
 %{ /* pure */
-  long flags = STAP_ARG_f;
-  char *str = STAP_RETVALUE;
-  int len;
-
-  str[0] = '\0';
-#if defined(SFD_CLOEXEC) && defined(SFD_NONBLOCK)
-  if (flags & SFD_NONBLOCK)
-    strlcat(str, "SFD_NONBLOCK|", MAXSTRINGLEN);
-  if (flags & SFD_CLOEXEC)
-    strlcat(str, "SFD_CLOEXEC|", MAXSTRINGLEN);
-#endif
-
-  len = strlen(str);
-  if (len)
-    str[strlen(str)-1] = '\0';
+	uint32_t flags = (uint32_t)STAP_ARG_f;
+	_stp_lookup_or_str(_stp_signalfd4_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
 %}
 
 %{
@@ -3171,4 +3188,38 @@ function __is_user_regs:long (regs:long)
 #error "Unimplemented architecture"
 #endif
 CATCH_DEREF_FAULT();
+%}
+
+%{
+#include <linux/ipc.h>
+#include <linux/shm.h>
+static const _stp_val_array const _stp_shmget_flags_list[] = {
+	V(IPC_CREAT),
+	V(IPC_EXCL),
+	V(SHM_HUGETLB),
+	V(SHM_NORESERVE),
+	{0, NULL}
+};
+%}
+
+function _stp_shmget_flags_str:string(shmflg:long)
+%{ /* pure */
+	unsigned int shmflg = (unsigned int)STAP_ARG_shmflg;  
+	unsigned int modebits;
+
+	/* Lowest 9 bits are mode bits. */
+	modebits = shmflg & 0777;
+	shmflg &= ~0777;
+	_stp_lookup_or_str(_stp_shmget_flags_list, shmflg, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+	if (modebits) {
+		int slen;
+		slen = strlen(STAP_RETVALUE);
+		if (slen)
+			_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen,
+				      "|%#o", modebits);
+		else		
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%#o",
+				      modebits);
+	}
 %}

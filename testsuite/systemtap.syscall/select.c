@@ -76,23 +76,23 @@ int main()
 
   pselect(1, (fd_set *)-1, NULL, NULL, &tim, &sigs);
 #ifdef __s390__
-  //staptest//pselect[67] (1, 0x[7]?[f]+, 0x[0]+, 0x[0]+, \[0.200000000\], XXXX) = -NNNN
+  //staptest//pselect[67] (1, 0x[7]?[f]+, 0x[0]+, 0x[0]+, \[0.200000000\], XXXX) = NNNN
 #else
-  //staptest//pselect[67] (1, 0x[f]+, 0x[0]+, 0x[0]+, \[0.200000000\], XXXX) = -NNNN
+  //staptest//pselect[67] (1, 0x[f]+, 0x[0]+, 0x[0]+, \[0.200000000\], XXXX) = NNNN
 #endif
 
   pselect(1, &rfds, (fd_set *)-1, NULL, &tim, &sigs);
 #ifdef __s390__
-  //staptest//pselect[67] (1, XXXX, 0x[7]?[f]+, 0x[0]+, \[0.200000000\], XXXX) = -NNNN
+  //staptest//pselect[67] (1, XXXX, 0x[7]?[f]+, 0x[0]+, \[0.200000000\], XXXX) = NNNN
 #else
-  //staptest//pselect[67] (1, XXXX, 0x[f]+, 0x[0]+, \[0.200000000\], XXXX) = -NNNN
+  //staptest//pselect[67] (1, XXXX, 0x[f]+, 0x[0]+, \[0.200000000\], XXXX) = NNNN
 #endif
 
   pselect(1, &rfds, NULL, (fd_set *)-1, &tim, &sigs);
 #ifdef __s390__
-  //staptest//pselect[67] (1, XXXX, 0x[0]+, 0x[7]?[f]+, \[0.200000000\], XXXX) = -NNNN
+  //staptest//pselect[67] (1, XXXX, 0x[0]+, 0x[7]?[f]+, \[0.200000000\], XXXX) = NNNN
 #else
-  //staptest//pselect[67] (1, XXXX, 0x[0]+, 0x[f]+, \[0.200000000\], XXXX) = -NNNN
+  //staptest//pselect[67] (1, XXXX, 0x[0]+, 0x[f]+, \[0.200000000\], XXXX) = NNNN
 #endif
 
   // This causes the exe to get a SIGSEGV...

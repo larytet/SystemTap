@@ -743,12 +743,12 @@ probe nd_syscall.getpriority.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.getrandom
+probe nd_syscall.getrandom ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%s, %d, %d\n", buf, count, flags)
 }
-probe nd_syscall.getrandom.return
+probe nd_syscall.getrandom.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -1166,12 +1166,12 @@ probe nd_syscall.mbind.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.memfd_create
+probe nd_syscall.memfd_create ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%s, %d\n", uname, flags)
 }
-probe nd_syscall.memfd_create.return
+probe nd_syscall.memfd_create.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

@@ -743,12 +743,12 @@ probe syscall.getpriority.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.getrandom
+probe syscall.getrandom ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d %d\n", count, flags)
 }
-probe syscall.getrandom.return
+probe syscall.getrandom.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -1166,12 +1166,12 @@ probe syscall.mbind.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.memfd_create
+probe syscall.memfd_create ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%s, %d\n", uname, flags)
 }
-probe syscall.memfd_create.return
+probe syscall.memfd_create.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

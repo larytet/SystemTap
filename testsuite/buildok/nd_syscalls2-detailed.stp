@@ -539,12 +539,12 @@ probe nd_syscall.sched_setscheduler.return ?
 	printf("%s %s\n", name, retstr)
 }
 
-probe nd_syscall.seccomp
+probe nd_syscall.seccomp ?
 {
 	printf("%s %s\n", name, argstr)
 	printf("%d %d %s\n", op, flags, uargs)
 }
-probe nd_syscall.seccomp.return
+probe nd_syscall.seccomp.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -906,7 +906,7 @@ probe nd_syscall.compat_sys_shmat.return ?
 probe nd_syscall.shmctl ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
+	printf("%d, %d, %s, %p\n", shmid, cmd, cmd_str, buf_uaddr)
 }
 probe nd_syscall.shmctl.return ?
 {
@@ -919,7 +919,7 @@ probe nd_syscall.compat_sys_shmctl ?
 %( systemtap_v <= "2.5" %?
 	printf("%d, %d, %p\n", first, second, uptr_uaddr)
 %)
-	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
+	printf("%d, %d, %s, %p\n", shmid, cmd, cmd_str, buf_uaddr)
 }
 probe nd_syscall.compat_sys_shmctl.return ?
 {
@@ -939,7 +939,7 @@ probe nd_syscall.shmdt.return
 probe nd_syscall.shmget ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", key, size, shmflg)
+	printf("%d, %d, %d, %s\n", key, size, shmflg, shmflg_str)
 }
 probe nd_syscall.shmget.return ?
 {
