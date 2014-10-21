@@ -30,7 +30,6 @@
 # define _SDT_DEPAREN_11(a,b,c,d,e,f,g,h,i,j,k)		a b c d e f g h i j k
 # define _SDT_DEPAREN_12(a,b,c,d,e,f,g,h,i,j,k,l)	a b c d e f g h i j k l
 #else
-# include <stdint.h>
 # define _SDT_PROBE(provider, name, n, arglist) \
   do {									    \
     __asm__ __volatile__ (_SDT_ASM_BODY(provider, name, _SDT_ASM_ARGS, (n)) \
