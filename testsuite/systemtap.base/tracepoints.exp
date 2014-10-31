@@ -31,9 +31,103 @@ foreach tp $tracepoints {
 }
 send_log "Trying stap -w -p4 -e $script\n"
 if {[catch {exec stap -w -p4 -e "$script"} res]} {
-	fail "$test $res"
+	fail "$test - can't compile"
+	verbose -log "stap error: $res"
 } else {
-    pass "$test"
+	pass "$test - compiled"
+}
+
+proc test_tp {tp {filter ""} {num -1}} {
+   global test
+
+   # Use the tp itself as the filter if no filter given
+   if {![string length $filter]} {
+      set filter $tp
+   }
+
+   set tp "kernel.trace(\"$tp\")"
+   set err [catch {exec stap -l $tp} out options]
+   if {$err} {
+      set exit_reason [dict get $options -errorcode]
+      # Check if stap died with nonzero error and we were expecting it (i.e. num == 0)
+      if {[lindex $exit_reason 0] eq "CHILDSTATUS" && $num == 0} {
+         pass "$test - $tp"
+      } else { # stap wasn't supposed to die
+         fail "$test - $tp"
+         verbose -log "error: $out"
+      }
+      return
+   }
+
+   # Make into a list
+   set lines [split $out "\n"]
+
+   # Check that number expected matches if we care
+   if {$num != -1 && $num != [llength $lines]} {
+      fail "$test - $tp"
+      verbose -log "expected $num results, but got [llength $lines]"
+      return
+   }
+
+   # Check if every listed line matches the filter
+   set filter "kernel.trace(\"$filter\")"
+   foreach line $lines {
+      if {![string match $filter $line]} {
+         fail "$test - $tp"
+         verbose -log "requested: $tp with filter $filter"
+         verbose -log "received: $line"
+         return
+      }
+   }
+
+   pass "$test - $tp"
+}
+
+# Do some syntax checking if we actually found tracepoints
+if {[string length $tracepoints]} {
+
+   # Check if this listing displays system:tracepoint syntax
+   if {![string match *:* [lindex $tracepoints 0]]} {
+
+      # Consider this an error if kernel_v >= 2.6.32, which has
+      # TRACE_SYSTEM support
+      if {[min_kernel_vers_p 2.6.32]} {
+         fail "$test - TRACE_SYSTEM not printed"
+      } else {
+         untested "$test - no TRACE_SYSTEM support"
+      }
+   } else {
+
+      # The following tests assume there is a sched system with multiple
+      # tracepoints, including sched_switch.
+
+      # Wildcarded tp
+      test_tp "sched:*"
+
+      # Wildcarded system (this assumes only the sched system has a tp
+      # called sched_switch)
+      test_tp "*:sched_switch" "sched:sched_switch" 1
+
+      # Check that specifying just the tracepoint gives only that
+      # tracepoint, and is listed with its system
+      test_tp "sched_switch" "sched:sched_switch" 1
+
+      # Check that specifying the tracepoint and system uniquely still
+      # works
+      test_tp "sched:sched_switch" "sched:sched_switch" 1
+
+      # Test ?
+      test_tp "sche?:sched_switc?" "sched:sched_switch" 1
+
+      # Boundary colons
+      test_tp ":sched_switch" "sched:sched_switch" 1
+
+      # Corner error cases (0 indicates we expect stap to fail)
+      test_tp "" "" 0
+      test_tp ":" "" 0
+      test_tp "bla:" "" 0
+      test_tp "sched:" "" 0
+   }
 }
 
 if {![installtest_p]} { untested $test; return }
