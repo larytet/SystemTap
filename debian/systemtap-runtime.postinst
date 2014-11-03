@@ -18,8 +18,7 @@ configure)
 	fi
 
 	# Fixup staprun binary for new group 'stapusr'.
-	if [ -x /usr/sbin/dpkg-statoverride ] &&
-		! dpkg-statoverride --list /usr/bin/staprun > /dev/null ; then
+	if ! dpkg-statoverride --list /usr/bin/staprun > /dev/null ; then
 		dpkg-statoverride --update --add root stapusr 4754 /usr/bin/staprun
 	fi
 	;;
