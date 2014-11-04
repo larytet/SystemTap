@@ -495,20 +495,48 @@ probe nd_syscall.prctl.return = kprobe.function("sys_prctl").return ?
 #		 size_t count,
 #		 loff_t pos)
 #
-probe nd_syscall.pread = kprobe.function("sys_pread64") ?
+probe nd_syscall.pread =
+%( arch == "s390" %?
+	__nd_syscall.pread, __nd_syscall.compat_pread ?
+%:
+	__nd_syscall.pread
+%)
 {
 	name = "pread"
 	asmlinkage()
-	fd = uint_arg(1)
+	fd = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	count = ulong_arg(3)
-	offset = longlong_arg(4)
-	argstr = sprintf("%d, %p, %d, %d", fd, buf_uaddr, count, offset)
+	argstr = sprintf("%d, %p, %u, %d", fd, buf_uaddr, count, offset)
 }
-probe nd_syscall.pread.return = kprobe.function("sys_pread64").return ?
+probe __nd_syscall.pread = kprobe.function("sys_pread64")
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pread64 %})
+%)
+	offset = longlong_arg(4)
+}
+%( arch == "s390" %?
+probe __nd_syscall.compat_pread = kprobe.function("sys32_pread64").call ?
+{
+	offset = (u32_arg(4) << 32) + u32_arg(5)
+}
+%)
+probe nd_syscall.pread.return =
+%( arch == "s390" %?
+	__nd_syscall.pread.return, kprobe.function("sys32_pread64").return ?
+%:
+	__nd_syscall.pread.return
+%)
 {
 	name = "pread"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.pread.return = kprobe.function("sys_pread64").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pread64 %})
+%)
 }
 
 # preadv ____________________________________________________
@@ -661,18 +689,24 @@ probe nd_syscall.ptrace.return = kprobe.function("sys_ptrace").return ?
 #
 probe nd_syscall.pwrite = kprobe.function("sys_pwrite64") ?
 {
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pwrite64 %})
+%)
 	name = "pwrite"
 	asmlinkage()
-	fd = uint_arg(1)
+	fd = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	count = ulong_arg(3)
 	offset = longlong_arg(4)
-	argstr = sprintf("%d, %s, %d, %d", fd,
-			user_string_n2_quoted(buf_uaddr, count, syscall_string_trunc),
+	argstr = sprintf("%d, %s, %u, %d", fd,
+			 user_string_n2_quoted(buf_uaddr, count, syscall_string_trunc),
 				count, offset)
 }
 probe nd_syscall.pwrite.return = kprobe.function("sys_pwrite64").return ?
 {
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pwrite64 %})
+%)
 	name = "pwrite"
 	retstr = returnstr(1)
 }
@@ -682,13 +716,14 @@ probe nd_syscall.pwrite32 = kprobe.function("sys32_pwrite64") ?
 {
 	name = "pwrite"
 	asmlinkage()
-	fd = uint_arg(1)
+	fd = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	count = ulong_arg(3)
 	offset = (u32_arg(4) << 32) + u32_arg(5)
-	argstr = sprintf("%d, %s, %d, %d", fd,
-			user_string_n2_quoted(buf_uaddr, count, syscall_string_trunc),
-				count, offset)
+	argstr = sprintf("%d, %s, %u, %d", fd,
+			 user_string_n2_quoted(buf_uaddr, count,
+					       syscall_string_trunc),
+			 count, offset)
 }
 probe nd_syscall.pwrite32.return = kprobe.function("sys32_pwrite64").return ?
 {
@@ -761,19 +796,41 @@ probe nd_syscall.quotactl.return = kprobe.function("sys_quotactl").return ?
 
 # read _______________________________________________________
 # ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
-probe nd_syscall.read = kprobe.function("sys_read") ?
+probe nd_syscall.read =
+%( arch == "s390" %?
+	__nd_syscall.read, kprobe.function("sys32_read").call ?
+%:
+	__nd_syscall.read
+%)
 {
 	name = "read"
 	asmlinkage()
-	fd = uint_arg(1)
+	fd = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	count = ulong_arg(3)
-	argstr = sprintf("%d, %p, %d", fd, buf_uaddr, count)
+	argstr = sprintf("%d, %p, %u", fd, buf_uaddr, count)
 }
-probe nd_syscall.read.return = kprobe.function("sys_read").return ?
+probe __nd_syscall.read = kprobe.function("sys_read")
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_read %})
+%)
+}
+probe nd_syscall.read.return =
+%( arch == "s390" %?
+	__nd_syscall.read.return, kprobe.function("sys32_read").return ?
+%:
+	__nd_syscall.read.return
+%)
 {
 	name = "read"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.read.return = kprobe.function("sys_read").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_read %})
+%)
 }
 
 # readahead __________________________________________________
@@ -4613,22 +4670,47 @@ probe nd_syscall.waitpid.return = kprobe.function("sys_wait4").return ?
 #	     const char __user * buf,
 #	     size_t count)
 #
-probe nd_syscall.write = kprobe.function("sys_write") ?
+# s390x needs special compat handling, since its wrapper function
+# rejects some calls.
+#
+probe nd_syscall.write =
+%( arch == "s390" %?
+	__nd_syscall.write, kprobe.function("sys32_write").call ?
+%:
+	__nd_syscall.write
+%)
 {
 	name = "write"
 	asmlinkage()
-	fd = uint_arg(1)
+	fd = int_arg(1)
 	buf_uaddr = pointer_arg(2)
 	count = ulong_arg(3)
-	argstr = sprintf("%d, %s, %d", fd,
-		user_string_n2_quoted(buf_uaddr, count, syscall_string_trunc),
-		count)
-
+	argstr = sprintf("%d, %s, %u", fd,
+			 user_string_n2_quoted(buf_uaddr, count,
+					       syscall_string_trunc),
+			 count)
 }
-probe nd_syscall.write.return = kprobe.function("sys_write").return ?
+probe __nd_syscall.write = kprobe.function("sys_write")
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_write %})
+%)
+}
+probe nd_syscall.write.return =
+%( arch == "s390" %?
+	__nd_syscall.write.return, kprobe.function("sys32_write").return ?
+%:
+	__nd_syscall.write.return
+%)
 {
 	name = "write"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.write.return = kprobe.function("sys_write").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_write %})
+%)
 }
 
 # writev _____________________________________________________

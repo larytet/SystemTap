@@ -1,4 +1,4 @@
-/* COVERAGE: read write lseek llseek */
+/* COVERAGE: read write */
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
 #include <sys/types.h>
@@ -19,70 +19,37 @@ int main()
   loff_t res;
   char buf[64], buf1[32], buf2[32], buf3[32];
 
-  fd = open("foobar1",O_WRONLY|O_CREAT, 0666);
+  fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
   //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
-  write(fd,"Hello world", 11);
+  write(fd, "Hello world", 11);
   //staptest// write (NNNN, "Hello world", 11) = 11
 
-  write(fd,"Hello world abcdefghijklmnopqrstuvwxyz 01234567890123456789", 59);
+  write(fd, "Hello world abcdefghijklmnopqrstuvwxyz 01234567890123456789", 59);
   //staptest// write (NNNN, "Hello world abcdefghijklmnopqrstuvwxyz 012345"..., 59) = 59
 
-  pwrite(fd,"Hello Again",11,12);
-  //staptest// pwrite (NNNN, "Hello Again", 11, 12) = 11
+  write(-1, "Hello world", 11);
+  //staptest// write (-1, "Hello world", 11) = NNNN
 
-  lseek(fd, 0, SEEK_SET);
-  //staptest// lseek (NNNN, 0, SEEK_SET) = 0
-
-  lseek(fd, 1, SEEK_CUR);
-  //staptest// lseek (NNNN, 1, SEEK_CUR) = 1
-
-  lseek(-1, 0, SEEK_SET);
-  //staptest// lseek (-1, 0, SEEK_SET) = -NNNN (EBADF)
-
-  lseek(fd, -1, SEEK_END);
-  //staptest// lseek (NNNN, -1, SEEK_END) = NNNN
-
-  lseek(fd, 0, -1);
-  //staptest// lseek (NNNN, 0, 0x[f]+) = -NNNN (EINVAL)
-
-#ifdef SYS__llseek
-  syscall(SYS__llseek, fd, 1, 0, &res, SEEK_SET);
-  //staptest// llseek (NNNN, 0x1, 0x0, XXXX, SEEK_SET) = 0
-
-  syscall(SYS__llseek, fd, 0, 0, &res, SEEK_SET);
-  //staptest// llseek (NNNN, 0x0, 0x0, XXXX, SEEK_SET) = 0
-
-  syscall(SYS__llseek, fd, 0, 12, &res, SEEK_CUR);
-  //staptest// llseek (NNNN, 0x0, 0xc, XXXX, SEEK_CUR) = 0
-
-  syscall(SYS__llseek, fd, 8, 1, &res, SEEK_END);
-  //staptest// llseek (NNNN, 0x8, 0x1, XXXX, SEEK_END) = 0
-
-  syscall(SYS__llseek, -1, 1, 0, &res, SEEK_SET);
-  //staptest// llseek (-1, 0x1, 0x0, XXXX, SEEK_SET) = -NNNN (EBADF)
-
-  syscall(SYS__llseek, fd, -1, 0, &res, SEEK_SET);
-  //staptest// llseek (NNNN, 0x[f]+, 0x0, XXXX, SEEK_SET) = -NNNN (EINVAL)
-
-  syscall(SYS__llseek, fd, 0, -1, &res, SEEK_SET);
-  //staptest// llseek (NNNN, 0x0, 0x[f]+, XXXX, SEEK_SET) = NNNN
-
-  syscall(SYS__llseek, fd, 0, 0, (loff_t *)-1, SEEK_SET);
+  write(fd, (void *)-1, 11);
 #ifdef __s390__
-  //staptest// llseek (NNNN, 0x0, 0x0, 0x[7]?[f]+, SEEK_SET) = -NNNN (EFAULT)
+  //staptest// write (NNNN, [7]?[f]+, 11) = NNNN
 #else
-  //staptest// llseek (NNNN, 0x0, 0x0, 0x[f]+, SEEK_SET) = -NNNN (EFAULT)
+  //staptest// write (NNNN, [f]+, 11) = NNNN
 #endif
 
-  syscall(SYS__llseek, fd, 0, 0, &res, -1);
-  //staptest// llseek (NNNN, 0x0, 0x0, XXXX, 0x[f]+) = -NNNN (EINVAL)
+  /* We need to be careful when writing -1 bytes. */
+  write(-1, NULL, -1);
+#if __WORDSIZE == 64
+  //staptest// write (-1, *(null), 18446744073709551615) = -NNNN
+#else
+  //staptest// write (-1, *(null), 4294967295) = -NNNN
 #endif
 
   close (fd);
   //staptest// close (NNNN) = 0
 
-  fd = open("foobar1",O_RDONLY);
+  fd = open("foobar1", O_RDONLY);
   //staptest// open ("foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
   read(fd, buf, 11);
@@ -91,8 +58,23 @@ int main()
   read(fd, buf, 50);
   //staptest// read (NNNN, XXXX, 50) = 50
 
-  pread(fd, buf, 11, 10);
-  //staptest// pread (NNNN, XXXX, 11, 10) = 11
+  read(-1, buf, 50);
+  //staptest// read (-1, XXXX, 50) = NNNN
+
+  read(fd, (void *)-1, 50);
+#ifdef __s390__
+  //staptest// read (NNNN, 0x[7]?[f]+, 50) = NNNN
+#else
+  //staptest// read (NNNN, 0x[f]+, 50) = NNNN
+#endif
+
+  /* We need to be careful when reading -1 bytes. */
+  read(-1, NULL, -1);
+#if __WORDSIZE == 64
+  //staptest// read (-1, 0x0, 18446744073709551615) = -NNNN
+#else
+  //staptest// read (-1, 0x0, 4294967295) = -NNNN
+#endif
 
   close (fd);
   //staptest// close (NNNN) = 0

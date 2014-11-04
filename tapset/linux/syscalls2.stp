@@ -532,19 +532,48 @@ probe syscall.prctl.return = kernel.function("sys_prctl").return
 #		 size_t count,
 #		 loff_t pos)
 #
-probe syscall.pread = kernel.function("sys_pread64").call
+probe syscall.pread =
+%( arch == "s390" %?
+	__syscall.pread, __syscall.compat_pread ?
+%:
+	__syscall.pread
+%)
 {
 	name = "pread"
-	fd = $fd
-	buf_uaddr = $buf
-	count = $count
-	offset = $pos
-	argstr = sprintf("%d, %p, %d, %d", $fd, $buf, $count, $pos)
+	fd = __int32($fd)
+	buf_uaddr = @choose_defined($buf, $ubuf)
+	count = __ulong($count)
+	argstr = sprintf("%d, %p, %u, %d", __int32($fd), buf_uaddr,
+			 __ulong($count), offset)
 }
-probe syscall.pread.return = kernel.function("sys_pread64").return
+probe __syscall.pread = kernel.function("sys_pread64").call
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pread64 %})
+%)
+	offset = $pos
+}
+%( arch == "s390" %?
+probe __syscall.compat_pread = kernel.function("sys32_pread64").call ?
+{
+	offset = ($poshi << 32) + $poslo
+}
+%)
+probe syscall.pread.return =
+%( arch == "s390" %?
+	__syscall.pread.return, kernel.function("sys32_pread64").return ?
+%:
+	__syscall.pread.return
+%)
 {
 	name = "pread"
 	retstr = return_str(1, $return)
+}
+probe __syscall.pread.return = kernel.function("sys_pread64").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pread64 %})
+%)
 }
 
 # preadv ____________________________________________________
@@ -694,17 +723,23 @@ probe syscall.ptrace.return = kernel.function("sys_ptrace").return ?
 #
 probe syscall.pwrite = kernel.function("sys_pwrite64").call
 {
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pwrite64 %})
+%)
 	name = "pwrite"
-	fd = $fd
+	fd = __int32($fd)
 	buf_uaddr = $buf
-	count = $count
+	count = __ulong($count)
 	offset = $pos
-	argstr = sprintf("%d, %s, %d, %d", $fd,
+	argstr = sprintf("%d, %s, %u, %d", __int32($fd),
 		user_string_n2_quoted($buf, $count, syscall_string_trunc),
-		$count, $pos)
+		__ulong($count), $pos)
 }
 probe syscall.pwrite.return = kernel.function("sys_pwrite64").return
 {
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_pwrite64 %})
+%)
 	name = "pwrite"
 	retstr = return_str(1, $return)
 }
@@ -713,20 +748,14 @@ probe syscall.pwrite.return = kernel.function("sys_pwrite64").return
 probe syscall.pwrite32 = kernel.function("sys32_pwrite64").call ?
 {
 	name = "pwrite"
-	fd = $fd
+	fd = __int32($fd)
 	count = $count
 	offset = ($poshi << 32) + $poslo
-%( arch == "s390" %?
-	buf_uaddr = $ubuf
-	argstr = sprintf("%d, %s, %d, %d", $fd,
-		user_string_n2_quoted($ubuf, $count, syscall_string_trunc),
-		$count, ($poshi << 32) + $poslo)
-%:
-	buf_uaddr = $buf
-	argstr = sprintf("%d, %s, %d, %d", $fd,
-		user_string_n2_quoted($buf, $count, syscall_string_trunc),
-		$count, ($poshi << 32) + $poslo)
-%)
+	buf_uaddr = @choose_defined($buf, $ubuf)
+	argstr = sprintf("%d, %s, %u, %d", __int32($fd),
+			 user_string_n2_quoted(buf_uaddr, $count,
+					       syscall_string_trunc),
+			 $count, ($poshi << 32) + $poslo)
 }
 probe syscall.pwrite32.return = kernel.function("sys32_pwrite64").return ?
 {
@@ -799,18 +828,40 @@ probe syscall.quotactl.return = kernel.function("sys_quotactl").return ?
 
 # read _______________________________________________________
 # ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
-probe syscall.read = kernel.function("sys_read").call
+probe syscall.read =
+%( arch == "s390" %?
+	__syscall.read, kernel.function("sys32_read").call ?
+%:
+	__syscall.read
+%)
 {
 	name = "read"
-	fd = $fd
+	fd = __int32($fd)
 	buf_uaddr = $buf
-	count = $count
-	argstr = sprintf("%d, %p, %d", $fd, $buf, $count)
+	count = __ulong($count)
+	argstr = sprintf("%d, %p, %u", __int32($fd), $buf, __ulong($count))
 }
-probe syscall.read.return = kernel.function("sys_read").return
+probe __syscall.read = kernel.function("sys_read").call
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_read %})
+%)
+}
+probe syscall.read.return =
+%( arch == "s390" %?
+	__syscall.read.return, kernel.function("sys32_read").return ?
+%:
+	__syscall.read.return
+%)
 {
 	name = "read"
 	retstr = return_str(1, $return)
+}
+probe __syscall.read.return = kernel.function("sys_read").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_read %})
+%)
 }
 
 # readahead __________________________________________________
@@ -4427,20 +4478,42 @@ probe syscall.waitpid.return = kernel.function("sys_wait4").return
 #	     const char __user * buf,
 #	     size_t count)
 #
-probe syscall.write = kernel.function("sys_write").call
+probe syscall.write =
+%( arch == "s390" %?
+	__syscall.write, kernel.function("sys32_write").call ?
+%:
+	__syscall.write
+%)
 {
 	name = "write"
-	fd = $fd
+	fd = __int32($fd)
 	buf_uaddr = $buf
-	count = $count
-	argstr = sprintf("%d, %s, %d", $fd,
+	count = __ulong($count)
+	argstr = sprintf("%d, %s, %u", __int32($fd),
 		user_string_n2_quoted($buf, $count, syscall_string_trunc),
-		$count)
+		__ulong($count))
 }
-probe syscall.write.return = kernel.function("sys_write").return
+probe __syscall.write = kernel.function("sys_write").call
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_write %})
+%)
+}
+probe syscall.write.return =
+%( arch == "s390" %?
+	__syscall.write.return, kernel.function("sys32_write").return ?
+%:
+	__syscall.write.return
+%)
 {
 	name = "write"
 	retstr = return_str(1, $return)
+}
+probe __syscall.write.return = kernel.function("sys_write").return
+{
+%( arch == "s390" %?
+	@__syscall_gate(%{ __NR_write %})
+%)
 }
 
 # writev _____________________________________________________
