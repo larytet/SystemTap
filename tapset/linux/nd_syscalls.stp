@@ -3501,8 +3501,9 @@ probe nd_syscall.mprotect.return = kprobe.function("sys_mprotect").return ?
 #			const struct compat_mq_attr __user *u_mqstat,
 #			struct compat_mq_attr __user *u_omqstat)
 #
-probe nd_syscall.mq_getsetattr = kprobe.function("compat_sys_mq_getsetattr") ?,
-                                 kprobe.function("sys_mq_getsetattr") ?
+probe nd_syscall.mq_getsetattr =
+        __nd_syscall.mq_getsetattr ?,
+        kprobe.function("compat_sys_mq_getsetattr") ?
 {
 	name = "mq_getsetattr"
 	asmlinkage()
@@ -3511,19 +3512,29 @@ probe nd_syscall.mq_getsetattr = kprobe.function("compat_sys_mq_getsetattr") ?,
 	u_omqstat_uaddr = pointer_arg(3)
 	argstr = sprintf("%d, %p, %p", mqdes, u_mqstat_uaddr, u_omqstat_uaddr)
 }
-probe nd_syscall.mq_getsetattr.return = kprobe.function("compat_sys_mq_getsetattr").return ?,
-                                        kprobe.function("sys_mq_getsetattr").return ?
+probe __nd_syscall.mq_getsetattr = kprobe.function("sys_mq_getsetattr")
+{
+        @__syscall_gate(%{ __NR_mq_getsetattr %})
+}
+probe nd_syscall.mq_getsetattr.return =
+        __nd_syscall.mq_getsetattr.return ?,
+        kprobe.function("compat_sys_mq_getsetattr").return ?
 {
 	name = "mq_getsetattr"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.mq_getsetattr.return = kprobe.function("sys_mq_getsetattr").return
+{
+        @__syscall_gate(%{ __NR_mq_getsetattr %})
 }
 
 # mq_notify __________________________________________________
 # long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
 # long compat_sys_mq_notify(mqd_t mqdes, const struct compat_sigevent __user *u_notification)
 #
-probe nd_syscall.mq_notify = kprobe.function("compat_sys_mq_notify") ?,
-                             kprobe.function("sys_mq_notify") ?
+probe nd_syscall.mq_notify =
+        __nd_syscall.mq_notify ?,
+        kprobe.function("compat_sys_mq_notify") ?
 {
 	name = "mq_notify"
 	asmlinkage()
@@ -3531,11 +3542,20 @@ probe nd_syscall.mq_notify = kprobe.function("compat_sys_mq_notify") ?,
 	notification_uaddr = pointer_arg(2)
 	argstr = sprintf("%d, %p", mqdes, notification_uaddr)
 }
-probe nd_syscall.mq_notify.return = kprobe.function("compat_sys_mq_notify").return ?,
-                                    kprobe.function("sys_mq_notify").return ?
+probe __nd_syscall.mq_notify = kprobe.function("sys_mq_notify")
+{
+        @__syscall_gate(%{ __NR_mq_notify %})
+}
+probe nd_syscall.mq_notify.return =
+        __nd_syscall.mq_notify.return ?,
+        kprobe.function("compat_sys_mq_notify").return ?
 {
 	name = "mq_notify"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.mq_notify.return = kprobe.function("sys_mq_notify").return
+{
+        @__syscall_gate(%{ __NR_mq_notify %})
 }
 
 # mq_open ____________________________________________________
@@ -3547,14 +3567,13 @@ probe nd_syscall.mq_notify.return = kprobe.function("compat_sys_mq_notify").retu
 #			int oflag, compat_mode_t mode,
 #			struct compat_mq_attr __user *u_attr)
 #
-probe nd_syscall.mq_open = kprobe.function("compat_sys_mq_open") ?,
-                           kprobe.function("sys_mq_open") ?
+probe nd_syscall.mq_open = __nd_syscall.mq_open,
+                           __nd_syscall.compat_mq_open ?
 {
-	name = "mq_open"
 	asmlinkage()
+	name = "mq_open"
 	name_uaddr = pointer_arg(1)
 	filename = user_string_quoted(name_uaddr)
-	mode = uint_arg(3)
 	u_attr_uaddr = pointer_arg(4)
 	oflag = int_arg(2)
 	if (oflag & 64)
@@ -3564,11 +3583,31 @@ probe nd_syscall.mq_open = kprobe.function("compat_sys_mq_open") ?,
 	else
 		argstr = sprintf("%s, %s", user_string_quoted(name_uaddr), _sys_open_flag_str(oflag))
 }
-probe nd_syscall.mq_open.return = kprobe.function("compat_sys_mq_open").return ?,
-                                  kprobe.function("sys_mq_open").return ?
+probe __nd_syscall.mq_open = kprobe.function("sys_mq_open")
+{
+	asmlinkage()
+        @__syscall_gate(%{ __NR_mq_open %})
+%( CONFIG_64BIT == "y" %?
+        mode = uint_arg(3)
+%:
+        mode = (uint_arg(3) & 0xffff)
+%)
+}
+probe __nd_syscall.compat_mq_open = kprobe.function("compat_sys_mq_open")
+{
+	asmlinkage()
+	mode = (uint_arg(3) & 0xffff)
+}
+probe nd_syscall.mq_open.return =
+        __nd_syscall.mq_open.return ?,
+        kprobe.function("compat_sys_mq_open").return ?
 {
 	name = "mq_open"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.mq_open.return = kprobe.function("sys_mq_open").return
+{
+        @__syscall_gate(%{ __NR_mq_open %})
 }
 
 # mq_timedreceive ____________________________________________
@@ -3582,24 +3621,44 @@ probe nd_syscall.mq_open.return = kprobe.function("compat_sys_mq_open").return ?
 #			size_t msg_len, unsigned int __user *u_msg_prio,
 #			const struct compat_timespec __user *u_abs_timeout)
 #
-probe nd_syscall.mq_timedreceive = kprobe.function("compat_sys_mq_timedreceive") ?,
-                                   kprobe.function("sys_mq_timedreceive") ?
+probe nd_syscall.mq_timedreceive =
+        __nd_syscall.mq_timedreceive ?,
+	__nd_syscall.compat_mq_timedreceive ?
 {
 	name = "mq_timedreceive"
 	asmlinkage()
 	mqdes = int_arg(1)
 	msg_ptr_uaddr = pointer_arg(2)
-	msg_len = ulong_arg(3)
 	msg_prio_uaddr = pointer_arg(4)
 	abs_timeout_uaddr = pointer_arg(5)
-	argstr = sprintf("%d, %p, %d, %p, %p", mqdes, msg_ptr_uaddr, msg_len,
+	argstr = sprintf("%d, %p, %u, %p, %p", mqdes, msg_ptr_uaddr, msg_len,
 		msg_prio_uaddr, abs_timeout_uaddr)
 }
-probe nd_syscall.mq_timedreceive.return = kprobe.function("compat_sys_mq_timedreceive").return ?,
-                                          kprobe.function("sys_mq_timedreceive").return ?
+probe __nd_syscall.compat_mq_timedreceive = kprobe.function("compat_sys_mq_timedreceive")
+{
+	asmlinkage()
+	msg_len = uint_arg(3)
+}
+probe __nd_syscall.mq_timedreceive = kprobe.function("sys_mq_timedreceive")
+{
+	asmlinkage()
+        @__syscall_gate(%{ __NR_mq_timedreceive %})
+%( CONFIG_64BIT == "y" %?
+	msg_len = ulong_arg(3)
+%:
+	msg_len = uint_arg(3)
+%)
+}
+probe nd_syscall.mq_timedreceive.return =
+        __nd_syscall.mq_timedreceive.return ?,
+        kprobe.function("compat_sys_mq_timedreceive").return ?
 {
 	name = "mq_timedreceive"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.mq_timedreceive.return = kprobe.function("sys_mq_timedreceive").return
+{
+        @__syscall_gate(%{ __NR_mq_timedreceive %})
 }
 
 # mq_timedsend _______________________________________________
@@ -3613,24 +3672,44 @@ probe nd_syscall.mq_timedreceive.return = kprobe.function("compat_sys_mq_timedre
 #			size_t msg_len, unsigned int msg_prio,
 #			const struct compat_timespec __user *u_abs_timeout)
 #
-probe nd_syscall.mq_timedsend = kprobe.function("compat_sys_mq_timedsend") ?,
-                                kprobe.function("sys_mq_timedsend") ?
+probe nd_syscall.mq_timedsend =
+        __nd_syscall.mq_timedsend ?,
+        __nd_syscall.compat_mq_timedsend ?
 {
 	name = "mq_timedsend"
 	asmlinkage()
 	mqdes = int_arg(1)
 	msg_ptr_uaddr = pointer_arg(2)
-	msg_len = ulong_arg(3)
 	msg_prio = uint_arg(4)
 	abs_timeout_uaddr = pointer_arg(5)
-	argstr = sprintf("%d, %p, %d, %d, %p", mqdes, msg_ptr_uaddr, msg_len,
+	argstr = sprintf("%d, %p, %u, %d, %p", mqdes, msg_ptr_uaddr, msg_len,
 		msg_prio, abs_timeout_uaddr)
 }
-probe nd_syscall.mq_timedsend.return = kprobe.function("compat_sys_mq_timedsend").return ?,
-                                       kprobe.function("sys_mq_timedsend").return ?
+probe __nd_syscall.compat_mq_timedsend = kprobe.function("compat_sys_mq_timedsend")
+{
+	asmlinkage()
+	msg_len = uint_arg(3)
+}
+probe __nd_syscall.mq_timedsend = kprobe.function("sys_mq_timedsend")
+{
+	asmlinkage()
+        @__syscall_gate(%{ __NR_mq_timedsend %})
+%( CONFIG_64BIT == "y" %?
+	msg_len = ulong_arg(3)
+%:
+	msg_len = uint_arg(3)
+%)
+}
+probe nd_syscall.mq_timedsend.return =
+        __nd_syscall.mq_timedsend.return ?,
+        kprobe.function("compat_sys_mq_timedsend").return ?
 {
 	name = "mq_timedsend"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.mq_timedsend.return = kprobe.function("sys_mq_timedsend").return
+{
+        @__syscall_gate(%{ __NR_mq_timedsend %})
 }
 
 # mq_unlink __________________________________________________

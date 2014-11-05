@@ -3333,39 +3333,59 @@ probe syscall.mprotect.return = kernel.function("sys_mprotect").return ?
 #			const struct compat_mq_attr __user *u_mqstat,
 #			struct compat_mq_attr __user *u_omqstat)
 #
-probe syscall.mq_getsetattr = kernel.function("compat_sys_mq_getsetattr").call ?,
-                              kernel.function("sys_mq_getsetattr").call ?
+probe syscall.mq_getsetattr =
+        __syscall.mq_getsetattr,
+        kernel.function("compat_sys_mq_getsetattr").call ?
 {
 	name = "mq_getsetattr"
-	mqdes = $mqdes
+	mqdes = __int32($mqdes)
 	u_mqstat_uaddr = $u_mqstat
 	u_omqstat_uaddr = $u_omqstat
-	argstr = sprintf("%d, %p, %p", $mqdes, $u_mqstat, $u_omqstat)
+	argstr = sprintf("%d, %p, %p", mqdes, u_mqstat_uaddr, u_omqstat_uaddr)
 }
-probe syscall.mq_getsetattr.return = kernel.function("compat_sys_mq_getsetattr").return ?,
-                                     kernel.function("sys_mq_getsetattr").return ?
+probe __syscall.mq_getsetattr = kernel.function("sys_mq_getsetattr").call
+{
+        @__syscall_gate(%{ __NR_mq_getsetattr %})
+}
+probe syscall.mq_getsetattr.return =
+        __syscall.mq_getsetattr.return,
+        kernel.function("compat_sys_mq_getsetattr").return ?
 {
 	name = "mq_getsetattr"
 	retstr = return_str(1, $return)
+}
+probe __syscall.mq_getsetattr.return = kernel.function("sys_mq_getsetattr").return
+{
+        @__syscall_gate(%{ __NR_mq_getsetattr %})
 }
 
 # mq_notify __________________________________________________
 # long sys_mq_notify(mqd_t mqdes, const struct sigevent __user *u_notification)
 # long compat_sys_mq_notify(mqd_t mqdes, const struct compat_sigevent __user *u_notification)
 #
-probe syscall.mq_notify = kernel.function("compat_sys_mq_notify").call ?,
-                          kernel.function("sys_mq_notify").call ?
+probe syscall.mq_notify =
+        __syscall.mq_notify,
+        kernel.function("compat_sys_mq_notify").call ?
 {
 	name = "mq_notify"
-	mqdes = $mqdes
+	mqdes = __int32($mqdes)
 	notification_uaddr = $u_notification
-	argstr = sprintf("%d, %p", $mqdes, $u_notification)
+	argstr = sprintf("%d, %p", mqdes, $u_notification)
 }
-probe syscall.mq_notify.return = kernel.function("compat_sys_mq_notify").return ?,
-                                 kernel.function("sys_mq_notify").return ?
+probe __syscall.mq_notify = kernel.function("sys_mq_notify").call
+{
+        @__syscall_gate(%{ __NR_mq_notify %})
+}
+probe syscall.mq_notify.return =
+        __syscall.mq_notify.return,
+        kernel.function("compat_sys_mq_notify").return ?
 {
 	name = "mq_notify"
 	retstr = return_str(1, $return)
+}
+probe __syscall.mq_notify.return = kernel.function("sys_mq_notify").return
+{
+        @__syscall_gate(%{ __NR_mq_notify %})
 }
 
 # mq_open ____________________________________________________
@@ -3377,26 +3397,40 @@ probe syscall.mq_notify.return = kernel.function("compat_sys_mq_notify").return 
 #			int oflag, compat_mode_t mode,
 #			struct compat_mq_attr __user *u_attr)
 #
-probe syscall.mq_open = kernel.function("compat_sys_mq_open").call ?,
-                        kernel.function("sys_mq_open").call ?
+probe syscall.mq_open = __syscall.mq_open,
+                        __syscall.compat_mq_open ?
 {
 	name = "mq_open"
 	name_uaddr = $u_name
 	filename = user_string_quoted($u_name)
-	mode = $mode
 	u_attr_uaddr = $u_attr
-	oflag = $oflag
+	oflag = __int32($oflag)
 	if (oflag & 64)
 		argstr = sprintf("%s, %s, %#o, %p", user_string_quoted($u_name),
-			_sys_open_flag_str($oflag), $mode, $u_attr)
+			_sys_open_flag_str(oflag), mode, $u_attr)
 	else
-		argstr = sprintf("%s, %s", user_string_quoted($u_name), _sys_open_flag_str($oflag))
+		argstr = sprintf("%s, %s", user_string_quoted($u_name), _sys_open_flag_str(oflag))
 }
-probe syscall.mq_open.return = kernel.function("compat_sys_mq_open").return ?,
-                               kernel.function("sys_mq_open").return ?
+
+probe __syscall.mq_open = kernel.function("sys_mq_open").call
+{
+        @__syscall_gate(%{ __NR_mq_open %})
+	mode = __uint32($mode)
+}
+probe __syscall.compat_mq_open = kernel.function("compat_sys_mq_open").call
+{
+	mode = __ushort($mode)
+}
+probe syscall.mq_open.return =
+        __syscall.mq_open.return,
+        kernel.function("compat_sys_mq_open").return ?
 {
 	name = "mq_open"
 	retstr = return_str(1, $return)
+}
+probe __syscall.mq_open.return = kernel.function("sys_mq_open").return
+{
+        @__syscall_gate(%{ __NR_mq_open %})
 }
 
 # mq_timedreceive ____________________________________________
@@ -3410,23 +3444,41 @@ probe syscall.mq_open.return = kernel.function("compat_sys_mq_open").return ?,
 #			size_t msg_len, unsigned int __user *u_msg_prio,
 #			const struct compat_timespec __user *u_abs_timeout)
 #
-probe syscall.mq_timedreceive = kernel.function("compat_sys_mq_timedreceive").call ?,
-                                kernel.function("sys_mq_timedreceive").call ?
+probe syscall.mq_timedreceive =
+        __syscall.mq_timedreceive ?,
+        __syscall.compat_mq_timedreceive ?
 {
 	name = "mq_timedreceive"
-	mqdes = $mqdes
+	mqdes = __int32($mqdes)
 	msg_ptr_uaddr = $u_msg_ptr
-	msg_len = $msg_len
 	msg_prio_uaddr = $u_msg_prio
 	abs_timeout_uaddr = $u_abs_timeout
-	argstr = sprintf("%d, %p, %d, %p, %p", $mqdes, $u_msg_ptr, $msg_len,
+	argstr = sprintf("%d, %p, %u, %p, %p", mqdes, $u_msg_ptr, msg_len,
 		$u_msg_prio, $u_abs_timeout)
 }
-probe syscall.mq_timedreceive.return = kernel.function("compat_sys_mq_timedreceive").return ?,
-                                       kernel.function("sys_mq_timedreceive").return ?
+probe __syscall.compat_mq_timedreceive = kernel.function("compat_sys_mq_timedreceive").call
+{
+	msg_len = __uint32($msg_len)
+}
+probe __syscall.mq_timedreceive = kernel.function("sys_mq_timedreceive").call
+{
+        @__syscall_gate(%{ __NR_mq_timedreceive %})
+%( CONFIG_64BIT == "y" %?
+	msg_len = __ulong($msg_len)
+%:
+	msg_len = __uint32($msg_len)
+%)
+}
+probe syscall.mq_timedreceive.return =
+        __syscall.mq_timedreceive.return,
+        kernel.function("compat_sys_mq_timedreceive").return ?
 {
 	name = "mq_timedreceive"
 	retstr = return_str(1, $return)
+}
+probe __syscall.mq_timedreceive.return = kernel.function("sys_mq_timedreceive").return
+{
+        @__syscall_gate(%{ __NR_mq_timedreceive %})
 }
 
 # mq_timedsend _______________________________________________
@@ -3440,23 +3492,41 @@ probe syscall.mq_timedreceive.return = kernel.function("compat_sys_mq_timedrecei
 #			size_t msg_len, unsigned int msg_prio,
 #			const struct compat_timespec __user *u_abs_timeout)
 #
-probe syscall.mq_timedsend = kernel.function("compat_sys_mq_timedsend").call ?,
-                             kernel.function("sys_mq_timedsend").call ?
+probe syscall.mq_timedsend =
+        __syscall.mq_timedsend,
+	__syscall.compat_mq_timedsend ?
 {
 	name = "mq_timedsend"
-	mqdes = $mqdes
+	mqdes = __int32($mqdes)
 	msg_ptr_uaddr = $u_msg_ptr
-	msg_len = $msg_len
 	msg_prio = $msg_prio
 	abs_timeout_uaddr = $u_abs_timeout
-	argstr = sprintf("%d, %p, %d, %d, %p", $mqdes, $u_msg_ptr, $msg_len,
+	argstr = sprintf("%d, %p, %u, %d, %p", mqdes, $u_msg_ptr, msg_len,
 		$msg_prio, $u_abs_timeout)
 }
-probe syscall.mq_timedsend.return = kernel.function("compat_sys_mq_timedsend").return ?,
-                                    kernel.function("sys_mq_timedsend").return ?
+probe __syscall.compat_mq_timedsend = kernel.function("compat_sys_mq_timedsend").call
+{
+	msg_len = __uint32($msg_len)
+}
+probe __syscall.mq_timedsend = kernel.function("sys_mq_timedsend").call
+{
+        @__syscall_gate(%{ __NR_mq_timedsend %})
+%( CONFIG_64BIT == "y" %?
+	msg_len = __ulong($msg_len)
+%:
+	msg_len = __uint32($msg_len)
+%)
+}
+probe syscall.mq_timedsend.return =
+        __syscall.mq_timedsend.return,
+        kernel.function("compat_sys_mq_timedsend").return ?
 {
 	name = "mq_timedsend"
 	retstr = return_str(1, $return)
+}
+probe __syscall.mq_timedsend.return = kernel.function("sys_mq_timedsend").return
+{
+        @__syscall_gate(%{ __NR_mq_timedsend %})
 }
 
 # mq_unlink __________________________________________________

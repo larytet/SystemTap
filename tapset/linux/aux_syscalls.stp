@@ -2365,6 +2365,10 @@ function __short:long(val:long) %{ /* pure */
 	STAP_RETVALUE = (short)STAP_ARG_val;
 %}
 
+function __ushort:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (unsigned short)STAP_ARG_val;
+%}
+
 /* uid_t is unsigned, but calling functions take "-1" as a parameter */
 /* so this hack is necessary to correct that mismatch. */
 function __int32:long(val:long) %{ /* pure */
