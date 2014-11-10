@@ -1,3 +1,4 @@
 debversion.diff
 suggest-readme.debian.diff
 dtrace-no-std-include-path.diff
+fix-emacs24.diff
