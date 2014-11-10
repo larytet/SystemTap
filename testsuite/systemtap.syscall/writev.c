@@ -17,7 +17,7 @@ int main()
   char buf[64];
 
   fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
   memset(buf, (int)'B', sizeof(buf));
   wr_iovec[0].iov_base = buf;

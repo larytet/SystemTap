@@ -28,7 +28,7 @@ int main()
     //staptest// bind (NNNN, {AF_INET, 0.0.0.0, 0}, 16) = 0
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     getsockname(-1, (struct sockaddr *)&sin1, &sinlen);
     //staptest// getsockname (-1, XXXX, XXXX) = -NNNN (EBADF)

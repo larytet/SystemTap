@@ -182,7 +182,7 @@ int main()
     msgdat.msg_flags = 0;
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     recvmsg(-1, &msgdat, 0);
     //staptest// recvmsg (-1, XXXX, 0x0) = -NNNN (EBADF)

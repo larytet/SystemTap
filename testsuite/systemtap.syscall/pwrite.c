@@ -20,7 +20,7 @@ int main()
   char buf[64], buf1[32], buf2[32], buf3[32];
 
   fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
   pwrite(fd, "Hello Again", 11, 12);
   //staptest// pwrite (NNNN, "Hello Again", 11, 12) = 11

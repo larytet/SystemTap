@@ -184,7 +184,7 @@ int main()
     msgs[1].msg_hdr.msg_iovlen = 1;
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     recvmmsg(-1, msgs, 2, 0, NULL);
     //staptest// recvmmsg (-1, XXXX, 2, 0x0, NULL) = -NNNN (EBADF)

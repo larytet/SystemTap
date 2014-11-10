@@ -37,7 +37,7 @@ int main()
 #endif
 
   fd = open("foobar", O_RDONLY);
-  //staptest// open ("foobar", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
   fchdir(fd);
   //staptest// fchdir (NNNN) = 0
@@ -62,7 +62,7 @@ int main()
 #endif
 
   fd = open(".", O_RDONLY);
-  //staptest// open (".", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]".", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
 #ifdef SYS_mkdirat
   mkdirat(fd, "xyzzy", 0765);

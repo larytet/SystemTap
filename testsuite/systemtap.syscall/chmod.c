@@ -23,7 +23,7 @@ int main()
   int fd;
 
   fd = open("foobar",O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
   chmod("foobar", 0644);
   //staptest// chmod ("foobar", 0644) = 0

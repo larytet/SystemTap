@@ -14,7 +14,7 @@ int main()
 
 	/* create a file with something in it */
 	fd = open("foobar",O_WRONLY|O_CREAT|O_TRUNC, 0600);
-	//staptest// open ("foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC, 0600) = NNNN
+	//staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC, 0600) = NNNN
 
 	// Why 64k? ppc64 has 64K pages. ia64 has 16k
 	// pages. x86_64/i686 has 4k pages. When we specify an offset
@@ -26,7 +26,7 @@ int main()
 	//staptest// close (NNNN) = 0
 
 	fd = open("foobar", O_RDONLY);
-	//staptest// open ("foobar", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+	//staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
 	/* stat for file size */
 	ret = fstat(fd, &fs);

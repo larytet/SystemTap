@@ -42,7 +42,7 @@ int main()
   //staptest// socket (PF_LOCAL, SOCK_STREAM, 0) = NNNN
 
   fd_null = open("/dev/null", O_WRONLY);
-  //staptest// open ("/dev/null", O_WRONLY) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
   bind(-1, (struct sockaddr *)&sin1, sizeof(sin1));
   //staptest// bind (-1, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EBADF)

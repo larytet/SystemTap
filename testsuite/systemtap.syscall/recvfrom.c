@@ -115,7 +115,7 @@ int main()
     fromlen = sizeof(from);
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     recvfrom(-1, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
     //staptest// recvfrom (-1, XXXX, 1024, 0x0, XXXX, XXXX) = -NNNN (EBADF)

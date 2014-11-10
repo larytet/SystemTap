@@ -20,7 +20,7 @@ int main()
   char buf[64], buf1[32], buf2[32], buf3[32];
 
   fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
   write(fd, "Hello world", 11);
   //staptest// write (NNNN, "Hello world", 11) = 11
@@ -50,7 +50,7 @@ int main()
   //staptest// close (NNNN) = 0
 
   fd = open("foobar1", O_RDONLY);
-  //staptest// open ("foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
   read(fd, buf, 11);
   //staptest// read (NNNN, XXXX, 11) = 11
