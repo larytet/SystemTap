@@ -1,3 +1,11 @@
+systemtap (2.6-0.2) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * Added patch so systemtap-mode can still be compiled with Emacs 24.4
+    (Closes: #766994)
+
+ -- Hilko Bengen <bengen@debian.org>  Mon, 10 Nov 2014 23:20:54 +0100
+
 systemtap (2.6-0.1) unstable; urgency=medium
 
   * Non-maintainer upload.
