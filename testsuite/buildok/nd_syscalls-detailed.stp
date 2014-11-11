@@ -1387,7 +1387,7 @@ probe nd_syscall.mremap.return
 probe nd_syscall.msgctl, nd_syscall.compat_sys_msgctl ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p\n", msqid, cmd, buf_uaddr)
+	printf("%d, %d(%s), %p\n", msqid, cmd, cmd_str, buf_uaddr)
 }
 probe nd_syscall.msgctl.return, nd_syscall.compat_sys_msgctl.return ?
 {
@@ -1397,7 +1397,7 @@ probe nd_syscall.msgctl.return, nd_syscall.compat_sys_msgctl.return ?
 probe nd_syscall.msgget
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d(%s)\n", key, msgflg, msgflg_str)
+	printf("%d(%s), %d(%s)\n", key, key_str, msgflg, msgflg_str)
 }
 probe nd_syscall.msgget.return
 {
@@ -1407,8 +1407,8 @@ probe nd_syscall.msgget.return
 probe nd_syscall.msgrcv, nd_syscall.compat_sys_msgrcv ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p, %d, %d, %d\n", msqid, msgp_uaddr, msgsz, msgtyp,
-	       msgflg)
+	printf("%d, %p, %d, %d, %d(%s)\n", msqid, msgp_uaddr, msgsz, msgtyp,
+	       msgflg, msgflg_str)
 }
 probe nd_syscall.msgrcv.return, nd_syscall.compat_sys_msgrcv.return ?
 {
@@ -1418,7 +1418,8 @@ probe nd_syscall.msgrcv.return, nd_syscall.compat_sys_msgrcv.return ?
 probe nd_syscall.msgsnd, nd_syscall.compat_sys_msgsnd ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p, %d, %d\n", msqid, msgp_uaddr, msgsz, msgflg)
+	printf("%d, %p, %d, %d(%s)\n", msqid, msgp_uaddr, msgsz, msgflg,
+	       msgflg_str)
 }
 probe nd_syscall.msgsnd.return, nd_syscall.compat_sys_msgsnd.return ?
 {

@@ -791,20 +791,39 @@ function __sem_flags:string(semflg:long)
 %{ /* pure */
 	long semflg = STAP_ARG_semflg;
 	char *str = STAP_RETVALUE;
-	int mode = semflg & S_IRWXUGO;
+	int mode;
 	int len;
+	int flag = 0;
+
+	mode = semflg & S_IRWXUGO;
+	semflg &= ~S_IRWXUGO;
 
 	str[0] = '\0';
-	if (mode)
-		snprintf(str, MAXSTRINGLEN, "%#o|", mode); 
-	if (semflg & IPC_CREAT)
-		strlcat(str, "IPC_CREAT|", MAXSTRINGLEN);
-	if (semflg & IPC_EXCL)
-		strlcat(str, "IPC_EXCL|", MAXSTRINGLEN);
-
-	len = strlen(str);
-	if (len)
-		str[len-1] = 0;
+	if (semflg & IPC_CREAT) {
+		strlcat(str, "IPC_CREAT", MAXSTRINGLEN);
+		semflg &= ~IPC_CREAT;
+		flag = 1;
+	}
+	if (semflg & IPC_EXCL) {
+		if (flag)
+			strlcat(str, "|", MAXSTRINGLEN);
+		strlcat(str, "IPC_EXCL", MAXSTRINGLEN);
+		semflg &= ~IPC_EXCL;
+		flag = 1;
+	}
+	if (semflg) {
+		if (flag)
+			strlcat(str, "|", MAXSTRINGLEN);
+		len = strlen(str);
+		_stp_snprintf(str + len, MAXSTRINGLEN - len, "0x%lx", semflg); 
+		flag = 1;
+	}
+	if (mode) {
+		if (flag)
+			strlcat(str, "|", MAXSTRINGLEN);
+		len = strlen(str);
+		_stp_snprintf(str + len, MAXSTRINGLEN - len, "%#o", mode); 
+	}
 %}
 
 
@@ -3226,4 +3245,100 @@ function _stp_shmget_flags_str:string(shmflg:long)
 			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "%#o",
 				      modebits);
 	}
+%}
+
+function _stp_msgget_key_str:string(key:long)
+{
+	if (key == %{ IPC_PRIVATE %}) return "IPC_PRIVATE"
+	return sprintf("%d", key)
+}
+
+%{
+#include <linux/msg.h>
+
+static const _stp_val_array const _stp_msgctl_list[] = {
+	V(IPC_INFO),
+	V(IPC_STAT),
+	V(IPC_RMID),
+	V(IPC_SET),
+	V(MSG_INFO),
+	V(MSG_STAT),
+	{0, NULL}
+};
+%}
+
+function _stp_msgctl_cmd_str:string(cmd:long)
+%{ /* pure */
+	unsigned int cmd = STAP_ARG_cmd;
+
+	if (cmd & IPC_64) {
+		strlcpy (STAP_RETVALUE, "IPC_64|", MAXSTRINGLEN);
+		cmd &= ~IPC_64;
+	}
+	_stp_lookup_str(_stp_msgctl_list, cmd, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+static const _stp_val_array const _stp_msgflg_list[] = {
+	V(MSG_NOERROR),
+	V(MSG_EXCEPT),
+	V(IPC_NOWAIT),
+	{0, NULL}
+};
+%}
+
+function _stp_msgflg_str:string(msgflg:long)
+%{ /* pure */
+	unsigned int msgflg = STAP_ARG_msgflg;
+
+	_stp_lookup_or_str(_stp_msgflg_list, msgflg, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+// Copied from ipc/compat.c.
+
+#ifdef CONFIG_COMPAT
+struct compat_ipc_kludge {
+	compat_uptr_t msgp;
+	compat_long_t msgtyp;
+};
+#endif
+%}
+
+function _stp_compat_msgrcv_msgbuf:long(uaddr:long, version:long)
+%{ /* pure */
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int version = (int)(unsigned long)STAP_ARG_version;
+	void *msgbuf = ptr;
+
+	if (!version) {
+		struct compat_ipc_kludge ipck;
+
+		msgbuf = NULL;
+		if (ptr != NULL
+		    && _stp_copy_from_user((char*)&ipck, ptr,
+					   sizeof(ipck)) == 0) {
+			msgbuf = compat_ptr(ipck.msgp);
+		}
+	}
+	STAP_RETVALUE = (unsigned long)msgbuf;
+%}
+
+function _stp_compat_msgrcv_msgtyp:long(uaddr:long, version:long, msgtyp:long)
+%{ /* pure */
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int version = (int)(unsigned long)STAP_ARG_version;
+	long msgtyp = (long)STAP_ARG_msgtyp;
+
+	if (!version) {
+		struct compat_ipc_kludge ipck;
+
+		if (ptr != NULL
+		    && _stp_copy_from_user((char*)&ipck, ptr,
+					   sizeof(ipck)) == 0) {
+			msgtyp = ipck.msgtyp;
+		}
+	}
+	STAP_RETVALUE = msgtyp;
 %}

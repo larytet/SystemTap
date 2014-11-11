@@ -31,8 +31,14 @@
 #ifndef __NR_futimesat
 #define __NR_futimesat (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_ipc
+#define __NR_ipc (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_mmap2
 #define __NR_mmap2 (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_msgctl
+#define __NR_msgctl (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_open
 #define __NR_open (__NR_syscall_max + 1)

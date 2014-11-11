@@ -2176,14 +2176,14 @@ probe __nd_syscall.getrlimit = kprobe.function("sys_getrlimit")
 	@__syscall_gate_compat_simple
 }
 probe nd_syscall.getrlimit.return = __nd_syscall.getrlimit.return ?,
-	kernel.function("sys_old_getrlimit").return ?,
-	kernel.function("compat_sys_getrlimit").return ?,
+	kprobe.function("sys_old_getrlimit").return ?,
+	kprobe.function("compat_sys_getrlimit").return ?,
 	__nd_syscall.old_getrlimit.return ?
 {
 	name = "getrlimit"
 	retstr = returnstr(1)
 }
-probe __nd_syscall.getrlimit.return = kernel.function("sys_getrlimit").return
+probe __nd_syscall.getrlimit.return = kprobe.function("sys_getrlimit").return
 {
 	@__syscall_gate_compat_simple
 }
@@ -3761,35 +3761,63 @@ probe nd_syscall.mremap.return = kprobe.function("ia64_mremap").return ?,
 #
 probe nd_syscall.msgctl = kprobe.function("sys_msgctl") ?
 {
+	@__syscall_gate2(%{ __NR_msgctl %}, %{ __NR_ipc %})
 	name = "msgctl"
 	asmlinkage()
 	msqid = int_arg(1)
 	cmd = int_arg(2)
+	cmd_str = _stp_msgctl_cmd_str(cmd)
 	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", msqid, cmd, buf_uaddr)
+	argstr = sprintf("%d, %s, %p", msqid, cmd_str, buf_uaddr)
 }
 probe nd_syscall.msgctl.return = kprobe.function("sys_msgctl").return ?
 {
+	@__syscall_gate2(%{ __NR_msgctl %}, %{ __NR_ipc %})
 	name = "msgctl"
 	retstr = returnstr(1)
 }
 # compat_sys_msgctl ________________________________________
 #
 # long compat_sys_msgctl(int first, int second, void __user *uptr)
+# ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
+#  COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+#	u32, third, compat_uptr_t, ptr, u32, fifth)
+# endif
 #
-probe nd_syscall.compat_sys_msgctl = kprobe.function("compat_sys_msgctl") ?
+probe nd_syscall.compat_sys_msgctl = __nd_syscall.compat_msgctl ?,
+      __nd_syscall.compat_ipc.msgctl ?
 {
-	name = "compat_sys_msgctl"
+	name = "msgctl"
+	asmlinkage()
+	cmd_str = _stp_msgctl_cmd_str(cmd)
+	argstr = sprintf("%d, %s, %p", msqid, cmd_str, buf_uaddr)
+}
+probe __nd_syscall.compat_msgctl = kprobe.function("compat_sys_msgctl") ?
+{
 	asmlinkage()
 	msqid = int_arg(1)
 	cmd = int_arg(2)
 	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", int_arg(1), int_arg(2), pointer_arg(3))
 }
-probe nd_syscall.compat_sys_msgctl.return = kprobe.function("compat_sys_msgctl").return ?
+probe __nd_syscall.compat_ipc.msgctl = kprobe.function("compat_sys_ipc") ?
 {
-	name = "compat_sys_msgctl"
+	asmlinkage()
+	if ((uint_arg(1) & 0xffff) != %{ MSGCTL %}) next;
+	msqid = int_arg(2)
+	cmd = int_arg(3)
+	buf_uaddr = pointer_arg(5)
+}
+probe nd_syscall.compat_sys_msgctl.return =
+	kprobe.function("compat_sys_msgctl").return ?,
+	__nd_syscall.compat_ipc.msgctl.return ?
+{
+	name = "msgctl"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_ipc.msgctl.return =
+	kprobe.function("compat_sys_ipc").return ?
+{
+	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != %{ MSGCTL %}) next;
 }
 
 # msgget _____________________________________________________
@@ -3800,9 +3828,10 @@ probe nd_syscall.msgget = kprobe.function("sys_msgget") ?
 	name = "msgget"
 	asmlinkage()
 	key = int_arg(1)
+	key_str = _stp_msgget_key_str(key)
 	msgflg = int_arg(2)
-	msgflg_str = _sys_open_flag_str(msgflg)
-	argstr = sprintf("%d, %s", key, _sys_open_flag_str(msgflg))
+	msgflg_str = __sem_flags(msgflg)
+	argstr = sprintf("%s, %s", key_str, msgflg_str)
 }
 probe nd_syscall.msgget.return = kprobe.function("sys_msgget").return ?
 {
@@ -3826,7 +3855,9 @@ probe nd_syscall.msgrcv = kprobe.function("sys_msgrcv") ?
 	msgsz = ulong_arg(3)
 	msgtyp = long_arg(4)
 	msgflg = int_arg(5)
-	argstr = sprintf("%d, %p, %d, %d, %d", msqid, msgp_uaddr, msgsz, msgtyp, msgflg)
+	msgflg_str = _stp_msgflg_str(msgflg)
+	argstr = sprintf("%d, %p, %u, %d, %s", msqid, msgp_uaddr, msgsz,
+			 msgtyp, msgflg_str)
 }
 probe nd_syscall.msgrcv.return = kprobe.function("sys_msgrcv").return ?
 {
@@ -3835,24 +3866,70 @@ probe nd_syscall.msgrcv.return = kprobe.function("sys_msgrcv").return ?
 }
 # compat_sys_msgrcv ________________________________________
 #
+# kernels < 3.15:
 # long compat_sys_msgrcv(int first, int second, int msgtyp, int third,
 #			int version, void __user *uptr)
 #
-probe nd_syscall.compat_sys_msgrcv = kprobe.function("compat_sys_msgrcv") ?
+# kernels >= 3.15:
+# COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
+#		       compat_ssize_t, msgsz, compat_long_t, msgtyp, int, msgflg)
+# ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
+#  COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+#	u32, third, compat_uptr_t, ptr, u32, fifth)
+# endif
+#
+probe nd_syscall.compat_sys_msgrcv = __nd_syscall.compat_msgrcv ?,
+	__nd_syscall.compat_ipc.msgrcv ?
 {
-	name = "compat_sys_msgrcv"
+	name = "msgrcv"
+	msgflg_str = _stp_msgflg_str(msgflg)
+	argstr = sprintf("%d, %p, %u, %d, %s", msqid, msgp_uaddr, msgsz,
+			 msgtyp, msgflg_str)
+}
+probe __nd_syscall.compat_msgrcv = kprobe.function("compat_sys_msgrcv") ?
+{
 	asmlinkage()
 	msqid = int_arg(1)
-	msgp_uaddr = pointer_arg(5)
-	msgsz = int_arg(2)
-	msgtyp = int_arg(3)
+%(kernel_v >= "3.15.0" %?
+	msgp_uaddr = pointer_arg(2)
+	msgsz = uint_arg(3)
+	msgtyp = long_arg(4)
+	msgflg = int_arg(5)
+%:
+	__version = int_arg(5)
+	__uptr = pointer_arg(6)
+	msgp_uaddr = _stp_compat_msgrcv_msgbuf(__uptr, __version)
+	msgtyp = _stp_compat_msgrcv_msgtyp(__uptr, __version, int_arg(3))
+	msgsz = uint_arg(2)
 	msgflg = int_arg(4)
-	argstr = sprintf("%d, %p, %d, %d", msqid, msgp_uaddr, msgsz, msgflg)
+%)
 }
-probe nd_syscall.compat_sys_msgrcv.return = kprobe.function("compat_sys_msgrcv").return ?
+probe __nd_syscall.compat_ipc.msgrcv = kprobe.function("compat_sys_ipc") ?
 {
-	name = "compat_sys_msgrcv"
+	asmlinkage()
+	if ((uint_arg(1) & 0xffff) != %{ MSGRCV %}) next;
+	msqid = int_arg(2)
+	msgsz = uint_arg(3)
+	msgflg = int_arg(4)
+
+	# __version isn't quite correct (it should be shifted down 16
+	# bits), but all we really need is zero/non-zero.
+	__version = uint_arg(1) & 0xffff0000
+	__uptr = pointer_arg(5)
+	msgp_uaddr = _stp_compat_msgrcv_msgbuf(__uptr, __version)
+	msgtyp = _stp_compat_msgrcv_msgtyp(__uptr, __version, int_arg(6))
+}
+probe nd_syscall.compat_sys_msgrcv.return =
+	kprobe.function("compat_sys_msgrcv").return ?,
+	__nd_syscall.compat_ipc.msgrcv.return ?
+{
+	name = "msgrcv"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_ipc.msgrcv.return =
+	kprobe.function("compat_sys_ipc").return ?
+{
+	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != %{ MSGRCV %}) next;
 }
 
 # msgsnd _____________________________________________________
@@ -3869,7 +3946,8 @@ probe nd_syscall.msgsnd = kprobe.function("sys_msgsnd") ?
 	msgp_uaddr = pointer_arg(2)
 	msgsz = ulong_arg(3)
 	msgflg = int_arg(4)
-	argstr = sprintf("%d, %p, %d, %d", msqid, msgp_uaddr, msgsz, msgflg)
+	msgflg_str = _stp_msgflg_str(msgflg)
+	argstr = sprintf("%d, %p, %u, %s", msqid, msgp_uaddr, msgsz, msgflg_str)
 }
 probe nd_syscall.msgsnd.return = kprobe.function("sys_msgsnd").return ?
 {
@@ -3880,20 +3958,41 @@ probe nd_syscall.msgsnd.return = kprobe.function("sys_msgsnd").return ?
 #
 # long compat_sys_msgsnd(int first, int second, int third, void __user *uptr)
 #
-probe nd_syscall.compat_sys_msgsnd = kprobe.function("compat_sys_msgsnd") ?
+probe nd_syscall.compat_sys_msgsnd = __nd_syscall.compat_msgsnd ?,
+	__nd_syscall.compat_ipc.msgsnd ?
 {
-	name = "compat_sys_msgsnd"
+	name = "msgsnd"
+	msgflg_str = _stp_msgflg_str(msgflg)
+	argstr = sprintf("%d, %p, %u, %s", msqid, msgp_uaddr, msgsz, msgflg_str)
+}
+probe __nd_syscall.compat_msgsnd = kprobe.function("compat_sys_msgsnd") ?
+{
 	asmlinkage()
 	msqid = int_arg(1)
-	msgp_uaddr = pointer_arg(4)
-	msgsz = int_arg(2)
+	msgsz = uint_arg(2)
 	msgflg = int_arg(3)
-	argstr = sprintf("%d, %p, %d, %d", msqid, msgp_uaddr, msgsz, msgflg)
+	msgp_uaddr = pointer_arg(4)
 }
-probe nd_syscall.compat_sys_msgsnd.return = kprobe.function("compat_sys_msgsnd").return ?
+probe __nd_syscall.compat_ipc.msgsnd = kprobe.function("compat_sys_ipc") ?
 {
-	name = "compat_sys_msgsnd"
+	asmlinkage()
+	if ((uint_arg(1) & 0xffff) != %{ MSGSND %}) next;
+	msqid = int_arg(2)
+	msgsz = uint_arg(3)
+	msgflg = int_arg(4)
+	msgp_uaddr = pointer_arg(5)
+}
+probe nd_syscall.compat_sys_msgsnd.return =
+	kprobe.function("compat_sys_msgsnd").return ?,
+	__nd_syscall.compat_ipc.msgsnd.return ?
+{
+	name = "msgsnd"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_ipc.msgsnd.return =
+	kprobe.function("compat_sys_ipc").return ?
+{
+	if ((@entry(__asmlinkage_int_arg(1)) & 0xffff) != %{ MSGSND %}) next;
 }
 
 # msync ______________________________________________________
