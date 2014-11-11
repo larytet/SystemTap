@@ -54,7 +54,7 @@
 (eval-when-compile
   (require 'cc-langs)
   (require 'cc-fonts)
-  (require 'cl-lib))
+  (require 'cl))
 
 (eval-and-compile
   (c-add-language 'systemtap-mode 'awk-mode))
