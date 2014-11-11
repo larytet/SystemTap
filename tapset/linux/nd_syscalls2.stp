@@ -511,6 +511,7 @@ probe nd_syscall.pread =
 }
 probe __nd_syscall.pread = kprobe.function("sys_pread64")
 {
+	asmlinkage()
 %( arch == "s390" %?
 	@__syscall_gate(%{ __NR_pread64 %})
 %)
@@ -519,6 +520,7 @@ probe __nd_syscall.pread = kprobe.function("sys_pread64")
 %( arch == "s390" %?
 probe __nd_syscall.compat_pread = kprobe.function("sys32_pread64").call ?
 {
+	asmlinkage()
 	offset = (u32_arg(4) << 32) + u32_arg(5)
 }
 %)
