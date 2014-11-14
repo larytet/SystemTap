@@ -3277,7 +3277,7 @@ probe nd_syscall.mkdirat = kprobe.function("sys_mkdirat") ?
 	dirfd_str = _dfd_str(dirfd)
 	pathname = user_string_quoted(pointer_arg(2))
 	mode = uint_arg(3)
-	argstr = sprintf("%d, %s, %#o", dirfd,
+	argstr = sprintf("%s, %s, %#o", dirfd_str,
 			 user_string_quoted(pointer_arg(2)), mode)
 }
 probe nd_syscall.mkdirat.return = kprobe.function("sys_mkdirat").return ?
