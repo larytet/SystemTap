@@ -69,7 +69,7 @@ int main()
   //staptest// close (NNNN) = 0
 
   mkdir("dir1", S_IREAD|S_IWRITE|S_IEXEC);
-  //staptest// mkdir ("dir1", 0700) = 0
+  //staptest// [[[[mkdir (!!!!mkdirat (AT_FDCWD, ]]]]"dir1", 0700) = 0
 
   fd = open("dir1", O_RDONLY);
   //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"dir1", O_RDONLY) = NNNN

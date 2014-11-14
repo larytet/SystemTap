@@ -30,7 +30,7 @@ int main()
 #endif
 
   unlink("foobar1");
-  //staptest// unlink ("foobar1") = 0
+  //staptest// [[[[unlink ("foobar1"!!!!unlinkat (AT_FDCWD, "foobar1", 0x0]]]]) = 0
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "foobar2", 0);
@@ -38,7 +38,7 @@ int main()
 #endif
 
   unlink("foobar1");
-  //staptest// unlink ("foobar1") = -NNNN (ENOENT)
+  //staptest// [[[[unlink ("foobar1"!!!!unlinkat (AT_FDCWD, "foobar1", 0x0]]]]) = -NNNN (ENOENT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "foobar1", 0);
@@ -46,7 +46,7 @@ int main()
 #endif
 
   unlink("foobar2");
-  //staptest// unlink ("foobar2") = -NNNN (ENOENT)
+  //staptest// [[[[unlink ("foobar2"!!!!unlinkat (AT_FDCWD, "foobar2", 0x0]]]]) = -NNNN (ENOENT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "foobar2", 0);
@@ -54,7 +54,7 @@ int main()
 #endif
 
   unlink(0);
-  //staptest// unlink ( *(null)) = -NNNN (EFAULT)
+  //staptest// [[[[unlink ( *(null)!!!!unlinkat (AT_FDCWD,  *(null), 0x0]]]]) = -NNNN (EFAULT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, 0, 0);
@@ -62,7 +62,7 @@ int main()
 #endif
 
   unlink("..");
-  //staptest// unlink ("..") = -NNNN (EISDIR)
+  //staptest// [[[[unlink (".."!!!!unlinkat (AT_FDCWD, "..", 0x0]]]]) = -NNNN (EISDIR)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "..", 0);
@@ -70,7 +70,7 @@ int main()
 #endif
 
   unlink("");
-  //staptest// unlink ("") = -NNNN (ENOENT)
+  //staptest// [[[[unlink (""!!!!unlinkat (AT_FDCWD, "", 0x0]]]]) = -NNNN (ENOENT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "", 0);

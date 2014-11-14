@@ -19,28 +19,28 @@ int main()
   sigaction(SIGALRM, &sigrt_act, NULL);
 
   alarm(1);
-#if defined(__ia64__) || defined(__arm__)
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
   //staptest// setitimer (ITIMER_REAL, \[0.000000,1.000000\], XXXX) = 0
 #else
   //staptest// alarm (1) = 0
 #endif
 
   pause();
-#if defined(__ia64__)
+#if defined(__ia64__) || defined(__aarch64__)
   //staptest// rt_sigsuspend () =
 #else
   //staptest// pause () =
 #endif
 
   alarm(0);
-#if defined(__ia64__) || defined(__arm__)
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
   //staptest// setitimer (ITIMER_REAL, \[0.000000,0.000000\], XXXX) = 0
 #else
   //staptest// alarm (0) = 0
 #endif
 
   alarm(-1);
-#if defined(__ia64__) || defined(__arm__)
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
   //staptest// setitimer (ITIMER_REAL, \[0.000000,-1.000000\], XXXX) = 0
 #else
 #if __WORDSIZE == 64
@@ -52,7 +52,7 @@ int main()
 #endif
 
   alarm(0);
-#if defined(__ia64__) || defined(__arm__)
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
   //staptest// setitimer (ITIMER_REAL, \[0.000000,0.000000\], XXXX) = NNNN
 #else
   //staptest// alarm (0) = NNNN
