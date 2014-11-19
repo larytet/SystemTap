@@ -2387,10 +2387,10 @@ probe syscall.inotify_rm_watch.return = kernel.function("sys_inotify_rm_watch").
 probe syscall.io_cancel = kernel.function("sys_io_cancel").call
 {
 	name = "io_cancel"
-	ctx_id = $ctx_id
+	ctx_id = __ulong($ctx_id)
 	iocb_uaddr = $iocb
 	result_uaddr = $result
-	argstr = sprintf("%d, %p, %p", ctx_id, iocb_uaddr, result_uaddr)
+	argstr = sprintf("%u, %p, %p", ctx_id, iocb_uaddr, result_uaddr)
 }
 probe syscall.io_cancel.return = kernel.function("sys_io_cancel").return
 {
@@ -2432,8 +2432,8 @@ probe __syscall.ioctl.return = kernel.function("sys_ioctl").return
 probe syscall.io_destroy = kernel.function("sys_io_destroy").call
 {
 	name = "io_destroy"
-	ctx = $ctx
-	argstr = sprintf("%d", ctx)
+	ctx = __ulong($ctx)
+	argstr = sprintf("%u", ctx)
 }
 probe syscall.io_destroy.return = kernel.function("sys_io_destroy").return
 {
@@ -2448,46 +2448,44 @@ probe syscall.io_destroy.return = kernel.function("sys_io_destroy").return
 #		struct io_event __user *events,
 #		struct timespec __user *timeout)
 # long compat_sys_io_getevents(aio_context_t ctx_id,
-#		 unsigned long min_nr,
-#		 unsigned long nr,
+#		 long min_nr,
+#		 long nr,
 #		 struct io_event __user *events,
 #		 struct compat_timespec __user *timeout)
 #
-probe syscall.io_getevents = kernel.function("sys_io_getevents").call ?
+probe syscall.io_getevents = __syscall.io_getevents,
+	__syscall.compat_io_getevents ?
 {
 	name = "io_getevents"
-	ctx_id = $ctx_id
-	min_nr = $min_nr
-	nr = $nr
+        ctx_id = __ulong($ctx_id)
 	events_uaddr = $events
 	timeout_uaddr = $timeout
-	timestr = _struct_timespec_u($timeout, 1)
-	argstr = sprintf("%d, %d, %d, %p, %p, %s", $ctx_id, $min_nr,
-		$nr, $events, $timeout, timestr)
+	argstr = sprintf("%u, %d, %d, %p, %s", ctx_id, min_nr,
+		nr, events_uaddr, timestr)
 }
-probe syscall.io_getevents.return = kernel.function("sys_io_getevents").return ?
+probe __syscall.io_getevents = kernel.function("sys_io_getevents").call ?
 {
-	name = "io_getevents"
-	retstr = return_str(1, $return)
+	@__syscall_gate(%{ __NR_io_getevents %})
+	nr = $nr
+	min_nr = $min_nr
+	timestr = _struct_timespec_u($timeout, 1)
 }
-probe syscall.compat_io_getevents =
+probe __syscall.compat_io_getevents =
 	kernel.function("compat_sys_io_getevents").call ?
 {
-	name = "io_getevents"
-	ctx_id = $ctx_id
-	min_nr = $min_nr
-	nr = $nr
-	events_uaddr = $events
-	timeout_uaddr = $timeout
+	nr = __int32($nr)
+	min_nr = __int32($min_nr)
 	timestr = _struct_compat_timespec_u($timeout, 1)
-	argstr = sprintf("%d, %d, %d, %p, %p, %s", $ctx_id, $min_nr,
-		$nr, $events, $timeout, timestr)
 }
-probe syscall.compat_io_getevents.return =
+probe syscall.io_getevents.return = __syscall.io_getevents.return,
 	kernel.function("compat_sys_io_getevents").return ?
 {
 	name = "io_getevents"
 	retstr = return_str(1, $return)
+}
+probe __syscall.io_getevents.return = kernel.function("sys_io_getevents").return ?
+{
+	@__syscall_gate(%{ __NR_io_getevents %})
 }
 
 # ioperm _____________________________________________________
@@ -2509,66 +2507,70 @@ probe syscall.ioperm.return = kernel.function("sys_ioperm").return ?
 
 # io_setup ___________________________________________________
 # long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
-#
-probe syscall.io_setup = kernel.function("sys_io_setup").call
-{
-	name = "io_setup"
-	maxevents = $nr_events
-	ctxp_uaddr = $ctxp
-	argstr = sprintf("%d, %p", $nr_events, $ctxp)
-}
-
-probe syscall.io_setup.return = kernel.function("sys_io_setup").return
-{
-	name = "io_setup"
-	retstr = return_str(1, $return)
-}
 # long compat_sys_io_setup(unsigned nr_reqs, u32 __user *ctx32p)
 #
-probe syscall.compat_io_setup = kernel.function("compat_sys_io_setup").call ?
+probe syscall.io_setup = __syscall.io_setup,
+	__syscall.compat_io_setup ?
 {
 	name = "io_setup"
-	maxevents = $nr_reqs
-	ctxp_uaddr = $ctx32p
-	argstr = sprintf("%d, %p", $nr_reqs, $ctx32p)
-}
 
-probe syscall.compat_io_setup.return = kernel.function("compat_sys_io_setup").return ?
+}
+probe __syscall.io_setup = kernel.function("sys_io_setup").call
+{
+	@__syscall_gate(%{ __NR_io_setup %})
+	maxevents = __uint32($nr_events)
+	ctxp_uaddr = $ctxp
+	argstr = sprintf("%u, %p", maxevents, ctxp_uaddr)
+}
+probe __syscall.compat_io_setup = kernel.function("compat_sys_io_setup").call
+{
+	maxevents = __uint32($nr_reqs)
+	ctxp_uaddr = $ctx32p
+	argstr = sprintf("%u, %p", maxevents, ctxp_uaddr)
+}
+probe syscall.io_setup.return = __syscall.io_setup.return,
+	kernel.function("compat_sys_io_setup").return ?
 {
 	name = "io_setup"
 	retstr = return_str(1, $return)
+}
+
+probe __syscall.io_setup.return = kernel.function("sys_io_setup").return
+{
+	@__syscall_gate(%{ __NR_io_setup %})
 }
 
 # io_submit __________________________________________________
+# long compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
 # long sys_io_submit(aio_context_t ctx_id, long nr, struct iocb __user * __user *iocbpp)
 #
-probe syscall.io_submit = kernel.function("sys_io_submit").call
+probe syscall.io_submit = __syscall.io_submit,
+	__syscall.compat_io_submit ?
 {
 	name = "io_submit"
-	ctx_id = $ctx_id
+	ctx_id = __ulong($ctx_id)
+	argstr = sprintf("%u, %d, %p", ctx_id, nr, iocbpp_uaddr)
+}
+probe __syscall.io_submit = kernel.function("sys_io_submit").call
+{
+	@__syscall_gate(%{ __NR_io_submit%})
 	nr = $nr
 	iocbpp_uaddr = $iocbpp
-	argstr = sprintf("%d, %d, %p", $ctx_id, $nr, $iocbpp)
 }
-probe syscall.io_submit.return = kernel.function("sys_io_submit").return
+probe __syscall.compat_io_submit = kernel.function("compat_sys_io_submit").call
 {
-	name = "io_submit"
-	retstr = return_str(1, $return)
-}
-# long compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
-#
-probe syscall.compat_io_submit = kernel.function("compat_sys_io_submit").call ?
-{
-	name = "io_submit"
-	ctx_id = $ctx_id
-	nr = $nr
+	nr = __int32($nr)
 	iocbpp_uaddr = $iocb
-	argstr = sprintf("%d, %d, %p", $ctx_id, $nr, $iocb)
 }
-probe syscall.compat_io_submit.return = kernel.function("compat_sys_io_submit").return ?
+probe syscall.io_submit.return = __syscall.io_submit.return,
+	kernel.function("compat_sys_io_submit").return ?
 {
 	name = "io_submit"
 	retstr = return_str(1, $return)
+}
+probe __syscall.io_submit.return = kernel.function("sys_io_submit").return
+{
+	@__syscall_gate(%{ __NR_io_submit%})
 }
 
 # ioprio_get _________________________________________________

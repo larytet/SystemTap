@@ -2523,7 +2523,7 @@ probe nd_syscall.io_cancel = kprobe.function("sys_io_cancel") ?
 	ctx_id = ulong_arg(1)
 	iocb_uaddr = pointer_arg(2)
 	result_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %p, %p", ctx_id, iocb_uaddr, result_uaddr)
+	argstr = sprintf("%u, %p, %p", ctx_id, iocb_uaddr, result_uaddr)
 }
 probe nd_syscall.io_cancel.return = kprobe.function("sys_io_cancel").return ?
 {
@@ -2568,7 +2568,7 @@ probe nd_syscall.io_destroy = kprobe.function("sys_io_destroy") ?
 	name = "io_destroy"
 	asmlinkage()
 	ctx = ulong_arg(1)
-	argstr = sprintf("%d", ctx)
+	argstr = sprintf("%u", ctx)
 }
 probe nd_syscall.io_destroy.return = kprobe.function("sys_io_destroy").return ?
 {
@@ -2583,49 +2583,49 @@ probe nd_syscall.io_destroy.return = kprobe.function("sys_io_destroy").return ?
 #		struct io_event __user *events,
 #		struct timespec __user *timeout)
 # long compat_sys_io_getevents(aio_context_t ctx_id,
-#		 unsigned long min_nr,
-#		 unsigned long nr,
+#		 long min_nr,
+#		 long nr,
 #		 struct io_event __user *events,
 #		 struct compat_timespec __user *timeout)
 #
-probe nd_syscall.io_getevents = kprobe.function("sys_io_getevents") ?
+probe nd_syscall.io_getevents = __nd_syscall.io_getevents,
+	__nd_syscall.compat_io_getevents ?
 {
 	name = "io_getevents"
 	asmlinkage()
 	ctx_id = ulong_arg(1)
-	min_nr = long_arg(2)
-	nr = long_arg(3)
 	events_uaddr = pointer_arg(4)
+	argstr = sprintf("%u, %d, %d, %p, %s", ctx_id, min_nr,
+		nr, events_uaddr, timestr)
+}
+probe __nd_syscall.io_getevents = kprobe.function("sys_io_getevents") ?
+{
+	@__syscall_gate(%{ __NR_io_getevents %})
+	asmlinkage()
+	nr = long_arg(3)
+	min_nr = long_arg(2)
 	timeout_uaddr = pointer_arg(5)
 	timestr = _struct_timespec_u(timeout_uaddr, 1)
-	argstr = sprintf("%d, %d, %d, %p, %p, %s", ctx_id, min_nr,
-		nr, events_uaddr, timeout_uaddr, timestr)
 }
-probe nd_syscall.io_getevents.return =
-	kprobe.function("sys_io_getevents").return ?
-{
-	name = "io_getevents"
-	retstr = returnstr(1)
-}
-probe nd_syscall.compat_io_getevents =
+probe __nd_syscall.compat_io_getevents =
 	kprobe.function("compat_sys_io_getevents") ?
 {
-	name = "io_getevents"
 	asmlinkage()
-	ctx_id = ulong_arg(1)
-	min_nr = long_arg(2)
-	nr = long_arg(3)
-	events_uaddr = pointer_arg(4)
+	nr = int_arg(3)
+	min_nr = int_arg(2)
 	timeout_uaddr = pointer_arg(5)
 	timestr = _struct_compat_timespec_u(timeout_uaddr, 1)
-	argstr = sprintf("%d, %d, %d, %p, %p, %s", ctx_id, min_nr,
-		nr, events_uaddr, timeout_uaddr, timestr)
 }
-probe nd_syscall.compat_io_getevents.return =
+probe nd_syscall.io_getevents.return = __nd_syscall.io_getevents.return,
 	kprobe.function("compat_sys_io_getevents").return ?
 {
 	name = "io_getevents"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.io_getevents.return =
+	kprobe.function("sys_io_getevents").return ?
+{
+	@__syscall_gate(%{ __NR_io_getevents %})
 }
 
 # ioperm _____________________________________________________
@@ -2648,70 +2648,65 @@ probe nd_syscall.ioperm.return = kprobe.function("sys_ioperm").return ?
 
 # io_setup ___________________________________________________
 # long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
-#
-probe nd_syscall.io_setup = kprobe.function("sys_io_setup") ?
-{
-	name = "io_setup"
-	asmlinkage()
-	maxevents = uint_arg(1)
-	ctxp_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", maxevents, ctxp_uaddr)
-}
-
-probe nd_syscall.io_setup.return = kprobe.function("sys_io_setup").return ?
-{
-	name = "io_setup"
-	retstr = returnstr(1)
-}
 # long compat_sys_io_setup(unsigned nr_reqs, u32 __user *ctx32p)
 #
-probe nd_syscall.compat_io_setup = kprobe.function("compat_sys_io_setup") ?
+probe nd_syscall.io_setup = __nd_syscall.io_setup,
+	kprobe.function("compat_sys_io_setup") ?
 {
-	name = "io_setup"
 	asmlinkage()
+	name = "io_setup"
 	maxevents = uint_arg(1)
 	ctxp_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", maxevents, ctxp_uaddr)
+	argstr = sprintf("%u, %p", maxevents, ctxp_uaddr)
 }
-
-probe nd_syscall.compat_io_setup.return = kprobe.function("compat_sys_io_setup").return ?
+probe __nd_syscall.io_setup = kprobe.function("sys_io_setup") ?
+{
+	@__syscall_gate(%{ __NR_io_setup %})
+}
+probe nd_syscall.io_setup.return = __nd_syscall.io_setup.return,
+	kprobe.function("compat_sys_io_setup").return ?
 {
 	name = "io_setup"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.io_setup.return = kprobe.function("sys_io_setup").return ?
+{
+	@__syscall_gate(%{ __NR_io_setup %})
 }
 
 # io_submit __________________________________________________
 # long sys_io_submit(aio_context_t ctx_id, long nr, struct iocb __user * __user *iocbpp)
-#
-probe nd_syscall.io_submit = kprobe.function("sys_io_submit") ?
-{
-	name = "io_submit"
-	asmlinkage()
-	ctx_id = ulong_arg(1)
-	nr = long_arg(2)
-	iocbpp_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", ctx_id, nr, iocbpp_uaddr)
-}
-probe nd_syscall.io_submit.return = kprobe.function("sys_io_submit").return ?
-{
-	name = "io_submit"
-	retstr = returnstr(1)
-}
 # long compat_sys_io_submit(aio_context_t ctx_id, int nr, u32 __user *iocb)
 #
-probe nd_syscall.compat_io_submit = kprobe.function("compat_sys_io_submit") ?
+probe nd_syscall.io_submit = __nd_syscall.io_submit,
+	__nd_syscall.compat_io_submit ?
 {
 	name = "io_submit"
 	asmlinkage()
 	ctx_id = ulong_arg(1)
-	nr = int_arg(2)
 	iocbpp_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", ctx_id, nr, iocbpp_uaddr)
+	argstr = sprintf("%u, %d, %p", ctx_id, nr, iocbpp_uaddr)
 }
-probe nd_syscall.compat_io_submit.return = kprobe.function("compat_sys_io_submit").return ?
+probe __nd_syscall.io_submit = kprobe.function("sys_io_submit") ?
+{
+	@__syscall_gate(%{ __NR_io_submit %})
+	asmlinkage()
+	nr = long_arg(2)
+}
+probe __nd_syscall.compat_io_submit = kprobe.function("compat_sys_io_submit") ?
+{
+	asmlinkage()
+	nr = int_arg(2)
+}
+probe nd_syscall.io_submit.return = __nd_syscall.io_submit.return,
+	kprobe.function("compat_sys_io_submit").return ?
 {
 	name = "io_submit"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.io_submit.return = kprobe.function("sys_io_submit").return ?
+{
+	@__syscall_gate(%{ __NR_io_submit %})
 }
 
 # ioprio_get _________________________________________________
