@@ -1,4 +1,4 @@
-/* COVERAGE: fstatfs statfs ustat statfs64 */
+/* COVERAGE: fstatfs statfs ustat fstatfs64 statfs64 */
 #include <sys/types.h>
 #include <unistd.h>
 #include <ustat.h>

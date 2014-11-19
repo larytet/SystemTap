@@ -1,4 +1,4 @@
-/* COVERAGE: mmap2 munmap msync mlock mlockall munlock munlockall mprotect mremap fstat open close */
+/* COVERAGE: mmap mmap2 munmap msync mlock mlockall munlock munlockall mprotect mremap fstat open close */
 #include <sys/types.h>
 #include <sys/stat.h>
 #define __USE_GNU

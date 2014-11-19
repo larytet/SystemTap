@@ -1,4 +1,4 @@
-/* COVERAGE: signalfd */
+/* COVERAGE: signalfd signalfd4 */
 #include <sys/signalfd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
