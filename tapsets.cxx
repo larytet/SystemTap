@@ -10900,6 +10900,20 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
   if (!probed_names.insert(tracepoint_instance).second)
     return DWARF_CB_OK;
 
+  // PR17126: blacklist
+  if (!sess.guru_mode)
+    {
+      if ((sess.architecture.substr(0,3) == "ppc" ||
+           sess.architecture.substr(0,7) == "powerpc") &&
+          (tracepoint_instance == "hcall_entry" ||
+           tracepoint_instance == "hcall_exit"))
+        {
+          sess.print_warning(_F("tracepoint %s is blacklisted on architecture %s",
+                                tracepoint_instance.c_str(), sess.architecture.c_str()));
+          return DWARF_CB_OK;
+        }
+  }
+
   derived_probe *dp = new tracepoint_derived_probe (dw.sess, dw, *func,
                                                     tracepoint_instance,
                                                     base_probe, base_loc);
