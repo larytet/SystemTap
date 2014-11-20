@@ -355,7 +355,10 @@ proc report_untested_probes {} {
          process.function(string).callees(number) -
          process(string).function(string).callee(string) -
          process(string).function(string).callees -
-         process(string).function(string).callees(number)
+         process(string).function(string).callees(number) -
+         process(number).function(string).callee(string) -
+         process(number).function(string).callees -
+         process(number).function(string).callees(number)
          {
             if {![callee_probes_p]} {
                setup_kfail CALLEE *-*-*
@@ -389,7 +392,11 @@ proc report_untested_probes {} {
          process(string).plt -
          process(string).plt.return -
          process(string).plt(string) -
-         process(string).plt(string).return
+         process(string).plt(string).return -
+         process(number).plt -
+         process(number).plt.return -
+         process(number).plt(string) -
+         process(number).plt(string).return
          {
             if {![plt_probes_p]} {
                setup_kfail PLT *-*-*
