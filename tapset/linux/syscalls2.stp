@@ -1917,18 +1917,19 @@ probe syscall.compat_select.return = kernel.function("compat_sys_select").return
 #
 probe syscall.semctl = kernel.function("sys_semctl").call ?
 {
+	@__syscall_gate_compat_simple
 	name = "semctl"
-	semid = $semid
-	semnum = $semnum
-	cmd = $cmd
-	/*
-	 * unsupported type tag identifier '$arg'
-	 * arg = $arg
-	 */
-	argstr = sprintf("%d, %d, %s", $semid, $semnum, _semctl_cmd($cmd))
+	semid = __int32($semid)
+	semnum = __int32($semnum)
+	cmd = __int32($cmd)
+	cmdstr = _semctl_cmd($cmd)
+	arg = @choose_defined($arg->buf, $arg)
+	argstr = sprintf("%d, %d, %s, %p", __int32($semid), __int32($semnum),
+			 _semctl_cmd($cmd), arg)
 }
 probe syscall.semctl.return = kernel.function("sys_semctl").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "semctl"
 	retstr = return_str(1, $return)
 }
@@ -1936,19 +1937,50 @@ probe syscall.semctl.return = kernel.function("sys_semctl").return ?
 #
 # long compat_sys_semctl(int first, int second, int third, void __user *uptr)
 # COMPAT_SYSCALL_DEFINE4(semctl, int, semid, int, semnum, int, cmd, int, arg)
+# COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+#	u32, third, compat_uptr_t, ptr, u32, fifth)
 #
-probe syscall.compat_sys_semctl = kernel.function("compat_sys_semctl").call ?
+probe syscall.compat_sys_semctl = __syscall.compat_semctl ?,
+	__syscall.compat_ipc.semctl ?
 {
-	name = "compat_sys_semctl"
-	semid = @choose_defined($semid, $first)
-	semnum = @choose_defined($semnum, $second)
-	cmd = @choose_defined($cmd, $third)
-	argstr = sprintf("%d, %d, %s", semid, semnum, _semctl_cmd(cmd))
+	name = "semctl"
+	cmdstr = _semctl_cmd(cmd)
+	argstr = sprintf("%d, %d, %s, %p", semid, semnum, _semctl_cmd(cmd),
+			 arg)
 }
-probe syscall.compat_sys_semctl.return = kernel.function("compat_sys_semctl").return ?
+probe __syscall.compat_semctl = kernel.function("compat_sys_semctl").call ?
 {
-	name = "compat_sys_semctl"
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+	semid = __int32(@choose_defined($semid, $first))
+	semnum = __int32(@choose_defined($semnum, $second))
+	cmd = __int32(@choose_defined($cmd, $third))
+	arg = @choose_defined($uptr, $arg)
+}
+probe __syscall.compat_ipc.semctl = kernel.function("compat_sys_ipc").call ?,
+	kernel.function("sys32_ipc").call ?
+{
+	if ($call != %{ SEMCTL %}) next;
+	semid = __int32($first)
+	semnum = __int32($second)
+	cmd = __int32($third)
+	arg = $ptr
+}
+probe syscall.compat_sys_semctl.return = __syscall.compat_semctl.return ?,
+	__syscall.compat_ipc.semctl.return ?
+{
+	name = "semctl"
 	retstr = return_str(1, $return)
+}
+probe __syscall.compat_semctl.return =
+	kernel.function("compat_sys_semctl").return ?
+{
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+}
+probe __syscall.compat_ipc.semctl.return =
+	kernel.function("compat_sys_ipc").return ?,
+	kernel.function("sys32_ipc").return ?
+{
+	if ($call != %{ SEMCTL %}) next;
 }
 
 # semget _____________________________________________________
@@ -1957,10 +1989,13 @@ probe syscall.compat_sys_semctl.return = kernel.function("compat_sys_semctl").re
 probe syscall.semget = kernel.function("sys_semget").call ?
 {
 	name = "semget"
-	key = $key
-	nsems = $nsems
-	semflg = $semflg
-	argstr = sprintf("%d, %d, %s", $key, $nsems, __sem_flags($semflg))
+	key = __int32($key)
+	key_str = _stp_msgget_key_str(__int32($key))
+	nsems = __int32($nsems)
+	semflg = __int32($semflg)
+	semflg_str = __sem_flags(__int32($semflg))
+	argstr = sprintf("%s, %d, %s", _stp_msgget_key_str(__int32($key)),
+			 __int32($nsems), __sem_flags(__int32($semflg)))
 }
 probe syscall.semget.return = kernel.function("sys_semget").return ?
 {
@@ -1974,22 +2009,42 @@ probe syscall.semget.return = kernel.function("sys_semget").return ?
 #		struct sembuf __user *tsops,
 #		unsigned nsops)
 #
-probe syscall.semop = kernel.function("sys_semtimedop").call ?
+probe syscall.semop = __syscall.semop ?, __syscall.compat_semop ?
 {
 	name = "semop"
-	semid = $semid
+	argstr = sprintf("%d, %p, %u", semid, sops_uaddr, nsops)
+}
+probe __syscall.semop = kernel.function("sys_semop").call ?
+{
+	semid = __int32($semid)
 %( systemtap_v < "2.3" %?
 	tsops_uaddr = $tsops
-%:
-	sops_uaddr = $tsops
 %)
-	nsops = $nsops
-	argstr = sprintf("%d, %p, %d", $semid, $tsops, $nsops)
+	sops_uaddr = $tsops
+	nsops = __uint32($nsops)
 }
-probe syscall.semop.return = kernel.function("sys_semtimedop").return ?
+probe __syscall.compat_semop = kernel.function("compat_sys_ipc").call ?,
+        kernel.function("sys32_ipc").call ?
+{
+        if ($call != %{ SEMOP %}) next;
+        semid = __int32($first)
+%( systemtap_v < "2.3" %?
+	tsops_uaddr = $ptr
+%)
+        sops_uaddr = $ptr
+        nsops = __uint32($second)
+}
+probe syscall.semop.return = kernel.function("sys_semop").return ?,
+	__syscall.compat_semop.return ?
 {
 	name = "semop"
 	retstr = return_str(1, $return)
+}
+probe __syscall.compat_semop.return =
+	kernel.function("compat_sys_ipc").return ?,
+	kernel.function("sys32_ipc").return ?
+{
+	if ($call != %{ SEMOP %}) next;
 }
 
 # semtimedop _________________________________________________
@@ -2001,16 +2056,18 @@ probe syscall.semop.return = kernel.function("sys_semtimedop").return ?
 #
 probe syscall.semtimedop = kernel.function("sys_semtimedop").call ?
 {
+	@__syscall_gate_compat_simple
 	name = "semtimedop"
-	semid = $semid
+	semid = __int32($semid)
 	sops_uaddr = $tsops
-	nsops = $nsops
+	nsops = __uint32($nsops)
 	timeout_uaddr = $timeout
-	argstr = sprintf("%d, %p, %d, %s", $semid, $tsops, $nsops,
-		_struct_timespec_u($timeout, 1))
+	argstr = sprintf("%d, %p, %u, %s", __int32($semid), $tsops,
+			 __uint32($nsops), _struct_timespec_u($timeout, 1))
 }
 probe syscall.semtimedop.return = kernel.function("sys_semtimedop").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "semtimedop"
 	retstr = return_str(1, $return)
 }
@@ -2019,20 +2076,49 @@ probe syscall.semtimedop.return = kernel.function("sys_semtimedop").return ?
 # long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
 #		unsigned nsops, const struct compat_timespec __user *timeout)
 #
-probe syscall.compat_sys_semtimedop = kernel.function("compat_sys_semtimedop").call ?
+probe syscall.compat_sys_semtimedop = __syscall.compat_semtimedop ?,
+	__syscall.compat_ipc.semtimedop ?
 {
-	name = "compat_sys_semtimedop"
-	semid = $semid
-	sops_uaddr = $tsems
-	nsops = $nsops
-	timeout_uaddr = $timeout
-	argstr = sprintf("%d, %p, %d, %s", $semid, $tsems, $nsops,
-		_struct_compat_timespec_u($timeout, 1))
+	name = "semtimedop"
+	argstr = sprintf("%d, %p, %u, %s", semid, sops_uaddr, nsops,
+			 _struct_compat_timespec_u(timeout_uaddr, 1))
 }
-probe syscall.compat_sys_semtimedop.return = kernel.function("compat_sys_semtimedop").return ?
+probe __syscall.compat_semtimedop =
+	kernel.function("compat_sys_semtimedop").call ?
 {
-	name = "compat_sys_semtimedop"
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+	semid = __int32($semid)
+	sops_uaddr = $tsems
+	nsops = __uint32($nsops)
+	timeout_uaddr = $timeout
+}
+probe __syscall.compat_ipc.semtimedop =
+	kernel.function("compat_sys_ipc").call ?,
+        kernel.function("sys32_ipc").call ?
+{
+        if ($call != %{ SEMTIMEDOP %}) next;
+        semid = __int32($first)
+        sops_uaddr = $ptr
+        nsops = __uint32($second)
+        timeout_uaddr = @choose_defined($fifth, $third)
+}
+probe syscall.compat_sys_semtimedop.return =
+	__syscall.compat_sys_semtimedop.return ?,
+	__syscall.compat_ipc.semtimedop.return ?
+{
+	name = "semtimedop"
 	retstr = return_str(1, $return)
+}
+probe __syscall.compat_sys_semtimedop.return =
+	kernel.function("compat_sys_semtimedop").return ?
+{
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+}
+probe __syscall.compat_ipc.semtimedop.return =
+	kernel.function("compat_sys_ipc").return ?,
+	kernel.function("sys32_ipc").return ?
+{
+	if ($call != %{ SEMTIMEDOP %}) next;
 }
 
 # send _______________________________________________________

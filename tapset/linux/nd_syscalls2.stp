@@ -1952,34 +1952,72 @@ probe nd_syscall.compat_select.return = kprobe.function("compat_sys_select").ret
 #
 probe nd_syscall.semctl = kprobe.function("sys_semctl") ?
 {
+	@__syscall_gate_compat_simple
 	name = "semctl"
 	asmlinkage()
 	semid = int_arg(1)
 	semnum = int_arg(2)
 	cmd = int_arg(3)
-	argstr = sprintf("%d, %d, %s", semid, semnum, _semctl_cmd(cmd))
+	cmdstr = _semctl_cmd(cmd)
+	arg = pointer_arg(4)
+	argstr = sprintf("%d, %d, %s, %p", semid, semnum, _semctl_cmd(cmd),
+			 arg)
 }
 probe nd_syscall.semctl.return = kprobe.function("sys_semctl").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "semctl"
 	retstr = returnstr(1)
 }
 # compat_sys_semctl ________________________________________
 #
 # long compat_sys_semctl(int first, int second, int third, void __user *uptr)
+# COMPAT_SYSCALL_DEFINE4(semctl, int, semid, int, semnum, int, cmd, int, arg)
+# COMPAT_SYSCALL_DEFINE6(ipc, u32, call, int, first, int, second,
+#	u32, third, compat_uptr_t, ptr, u32, fifth)
 #
-probe nd_syscall.compat_sys_semctl = kprobe.function("compat_sys_semctl") ?
+probe nd_syscall.compat_sys_semctl = __nd_syscall.compat_semctl ?,
+	__nd_syscall.compat_ipc.semctl ?
 {
-	name = "compat_sys_semctl"
+	name = "semctl"
+	cmdstr = _semctl_cmd(cmd)
+	argstr = sprintf("%d, %d, %s, %p", semid, semnum, _semctl_cmd(cmd),
+			 arg)
+}
+probe __nd_syscall.compat_semctl = kprobe.function("compat_sys_semctl") ?
+{
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
 	semid = int_arg(1)
 	semnum = int_arg(2)
 	cmd =  int_arg(3)
-	argstr = sprintf("%d, %d, %s", semid, semnum, _semctl_cmd(cmd))
+	arg = pointer_arg(4)
 }
-probe nd_syscall.compat_sys_semctl.return = kprobe.function("compat_sys_semctl").return ?
+probe __nd_syscall.compat_ipc.semctl = kprobe.function("compat_sys_ipc") ?,
+	kprobe.function("sys32_ipc") ?
 {
-	name = "compat_sys_semctl"
+	if (int_arg(1) != %{ SEMCTL %}) next;
+	semid = int_arg(2)
+	semnum = int_arg(3)
+	cmd = int_arg(4)
+	arg = pointer_arg(5)
+}
+probe nd_syscall.compat_sys_semctl.return =
+	__nd_syscall.compat_semctl.return ?,
+	__nd_syscall.compat_ipc.semctl.return ?
+{
+	name = "semctl"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_semctl.return =
+	kprobe.function("compat_sys_semctl").return ?
+{
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+}
+probe __nd_syscall.compat_ipc.semctl.return =
+	kprobe.function("compat_sys_ipc").return ?,
+	kprobe.function("sys32_ipc").return ?
+{
+	if (@entry(int_arg(1)) != %{ SEMCTL %}) next;
 }
 
 # semget _____________________________________________________
@@ -1990,9 +2028,12 @@ probe nd_syscall.semget = kprobe.function("sys_semget") ?
 	name = "semget"
 	asmlinkage()
 	key = int_arg(1)
+	key_str = _stp_msgget_key_str(key)
 	nsems = int_arg(2)
 	semflg = int_arg(3)
-	argstr = sprintf("%d, %d, %s", key, nsems, __sem_flags(semflg))
+	semflg_str = __sem_flags(semflg)
+	argstr = sprintf("%s, %d, %s", _stp_msgget_key_str(key), nsems,
+			 __sem_flags(semflg))
 }
 probe nd_syscall.semget.return = kprobe.function("sys_semget").return ?
 {
@@ -2006,23 +2047,43 @@ probe nd_syscall.semget.return = kprobe.function("sys_semget").return ?
 #		struct sembuf __user *tsops,
 #		unsigned nsops)
 #
-probe nd_syscall.semop = kprobe.function("sys_semtimedop") ?
+probe nd_syscall.semop = __nd_syscall.semop ?, __nd_syscall.compat_semop ?
 {
 	name = "semop"
+	argstr = sprintf("%d, %p, %u", semid, sops_uaddr, nsops)
+}
+probe __nd_syscall.semop = kprobe.function("sys_semop") ?
+{
 	asmlinkage()
 	semid = int_arg(1)
 %( systemtap_v < "2.3" %?
 	tsops_uaddr = pointer_arg(2)
-%:
-	sops_uaddr = pointer_arg(2)
 %)
+	sops_uaddr = pointer_arg(2)
 	nsops = uint_arg(3)
-	argstr = sprintf("%d, %p, %d", semid, pointer_arg(2), nsops)
 }
-probe nd_syscall.semop.return = kprobe.function("sys_semtimedop").return ?
+probe __nd_syscall.compat_semop = kprobe.function("compat_sys_ipc") ?,
+        kprobe.function("sys32_ipc") ?
+{
+	if (int_arg(1) != %{ SEMOP %}) next;
+	semid = int_arg(2)
+%( systemtap_v < "2.3" %?
+	tsops_uaddr = pointer_arg(5)
+%)
+        sops_uaddr = pointer_arg(5)
+        nsops = uint_arg(3)
+}
+probe nd_syscall.semop.return = kprobe.function("sys_semop").return ?,
+	__nd_syscall.compat_semop.return ?
 {
 	name = "semop"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_semop.return =
+	kprobe.function("compat_sys_ipc").return ?,
+	kprobe.function("sys32_ipc").return ?
+{
+	if (@entry(int_arg(1)) != %{ SEMOP %}) next;
 }
 
 # semtimedop _________________________________________________
@@ -2034,17 +2095,19 @@ probe nd_syscall.semop.return = kprobe.function("sys_semtimedop").return ?
 #
 probe nd_syscall.semtimedop = kprobe.function("sys_semtimedop") ?
 {
+	@__syscall_gate_compat_simple
 	name = "semtimedop"
 	asmlinkage()
 	semid = int_arg(1)
 	sops_uaddr = pointer_arg(2)
 	nsops = uint_arg(3)
 	timeout_uaddr = pointer_arg(4)
-	argstr = sprintf("%d, %p, %d, %s", semid, sops_uaddr, nsops,
-				_struct_timespec_u(timeout_uaddr, 1))
+	argstr = sprintf("%d, %p, %u, %s", semid, sops_uaddr, nsops,
+			 _struct_timespec_u(timeout_uaddr, 1))
 }
 probe nd_syscall.semtimedop.return = kprobe.function("sys_semtimedop").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "semtimedop"
 	retstr = returnstr(1)
 }
@@ -2054,20 +2117,58 @@ probe nd_syscall.semtimedop.return = kprobe.function("sys_semtimedop").return ?
 # long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
 #		unsigned nsops, const struct compat_timespec __user *timeout)
 #
-probe nd_syscall.compat_sys_semtimedop = kprobe.function("compat_sys_semtimedop") ?
+probe nd_syscall.compat_sys_semtimedop = __nd_syscall.compat_semtimedop ?,
+	__nd_syscall.compat_ipc.semtimedop ?
 {
-	name = "compat_sys_semtimedop"
+	name = "semtimedop"
+	argstr = sprintf("%d, %p, %u, %s", semid, sops_uaddr, nsops,
+			 _struct_compat_timespec_u(timeout_uaddr, 1))
+}
+probe __nd_syscall.compat_semtimedop =
+	kprobe.function("compat_sys_semtimedop") ?
+{
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
 	semid = int_arg(1)
 	sops_uaddr = pointer_arg(2)
 	nsops = uint_arg(3)
 	timeout_uaddr = pointer_arg(4)
-	argstr = sprintf("%d, %p, %d, %s", semid, sops_uaddr, nsops,
-			_struct_compat_timespec_u(timeout_uaddr, 1))
 }
-probe nd_syscall.compat_sys_semtimedop.return = kprobe.function("compat_sys_semtimedop").return ?
+probe __nd_syscall.compat_ipc.semtimedop =
+	__nd_syscall.compat_ipc.semtimedop.sys_ipc ?,
+	__nd_syscall.compat_ipc.semtimedop.sys32_ipc ?
 {
-	name = "compat_sys_semtimedop"
+	if (int_arg(1) != %{ SEMTIMEDOP %}) next;
+	semid = int_arg(2)
+        sops_uaddr = pointer_arg(5)
+        nsops = uint_arg(3)
+}
+probe __nd_syscall.compat_ipc.semtimedop.sys_ipc =
+	kprobe.function("compat_sys_ipc") ?
+{
+	timeout_uaddr = pointer_arg(6)
+}
+probe __nd_syscall.compat_ipc.semtimedop.sys32_ipc =
+        kprobe.function("sys32_ipc") ?
+{
+	timeout_uaddr = pointer_arg(4)
+}
+probe nd_syscall.compat_sys_semtimedop.return =
+	__nd_syscall.compat_sys_semtimedop.return ?,
+	__nd_syscall.compat_ipc.semtimedop.return ?
+{
+	name = "semtimedop"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.compat_sys_semtimedop.return =
+	kprobe.function("compat_sys_semtimedop").return ?
+{
+	@__compat_syscall_gate_negative(%{ __NR_ipc %})
+}
+probe __nd_syscall.compat_ipc.semtimedop.return =
+	kprobe.function("compat_sys_ipc").return ?,
+	kprobe.function("sys32_ipc").return ?
+{
+	if (@entry(int_arg(1)) != %{ SEMTIMEDOP %}) next;
 }
 
 # send _______________________________________________________

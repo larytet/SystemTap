@@ -568,7 +568,7 @@ probe syscall.select.return, syscall.compat_select.return ?
 probe syscall.semctl ?, syscall.compat_sys_semctl ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %d\n", semid, semnum, cmd)
+	printf("%d %d %d(%s)\n", semid, semnum, cmd, cmdstr)
 }
 probe syscall.semctl.return ?, syscall.compat_sys_semctl.return ?
 {
@@ -578,7 +578,7 @@ probe syscall.semctl.return ?, syscall.compat_sys_semctl.return ?
 probe syscall.semget ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %d\n", key, nsems, semflg)
+	printf("%d(%s) %d %d(%s)\n", key, keystr, nsems, semflg, semflg_str)
 }
 probe syscall.semget.return ?
 {

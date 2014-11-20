@@ -9,8 +9,17 @@
 #include "linux/compat_net.h"
 
 #ifdef CONFIG_COMPAT
-// Be sure we have 'SHMCTL' defined.
+// Be sure we have 'SHMCTL', etc. defined.
 #include <linux/ipc.h>
+#ifndef SEMOP
+#define SEMOP 1
+#endif
+#ifndef SEMCTL
+#define SEMCTL 3
+#endif
+#ifndef SEMTIMEDOP
+#define SEMTIMEDOP 4
+#endif
 #ifndef SHMCTL
 #define SHMCTL 24
 #endif

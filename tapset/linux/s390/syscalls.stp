@@ -42,7 +42,7 @@ probe syscall.getresuid16.return = kernel.function("sys32_getresuid16").return ?
 	retstr = return_str(1, $return)
 }
 
-%( systemtap_v <= "2.7" %?
+%( systemtap_v < "2.7" %?
 # sys32_ipc() is just a syscall multiplexer (similar to
 # sys_socketcall()). So, we don't really need to probe it, since we'll
 # be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
