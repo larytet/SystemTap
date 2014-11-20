@@ -1,10 +1,9 @@
 set test "callee"
 set testpath "$srcdir/$subdir"
 
-if {![callee_probes_p]} {
-   untested $test
-   return
-}
+if {! [installtest_p]} { untested "$test"; return }
+if {! [uprobes_p]} { untested "$test"; return }
+if {! [callee_probes_p]} { untested "$test"; return }
 
 # The purpose of this testcase is to verify that .callee[s] probes function
 # properly in a variety of situations.

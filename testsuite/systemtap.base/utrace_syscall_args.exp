@@ -1,5 +1,9 @@
 # Utrace system call argument tests.
 
+set test "utrace_syscall_args"
+if {![installtest_p]} { untested "$test"; return }
+if {![utrace_p]} { untested "$test"; return }
+
 set flags ""
 set srcpath "$srcdir/$subdir/utrace_syscall_args.c"
 set exepath "[pwd]/utrace_syscall_args"

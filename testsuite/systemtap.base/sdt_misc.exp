@@ -525,37 +525,41 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
     # 6. Test .mark probe wildcard matching
     
     set ok 0
-    verbose -log "spawn $stap_path -L \"process(\"./sdt_types.x\").mark(\"*\")"
-    spawn $stap_path -L "process(\"./sdt_types.x\").mark(\"*\")"
-    expect {
-	-timeout 180
-	-re {mark\(\"[a-z_]+\"\) .arg1:long .arg2:long .arg3:long .arg4:long .arg5:long .arg6:long .arg7:long .arg8:long\n} { incr ok; exp_continue }
-	-re {mark\(\"[a-z_]+\"\) .arg1:long .arg2:long\n} {
-	    incr ok; exp_continue }
-	-re {mark\(\"[a-z_]+\"\) .arg1:long\n} { incr ok; exp_continue }
-	-re {mark\(\"[a-z_]+\"\)} { incr ok; exp_continue }
-	timeout { fail "$test (timeout)" }
-	eof { }
-    }
-    catch {close}; catch {wait}
-    
-    # PR10245: match the __ one here
-    spawn $stap_path -l "process(\"./sdt_types.x\").mark(\"*-*-*\")"
-    expect {
-	-timeout 180
-	-re {mark\(\"[a-z_]+\"\)} { incr ok; exp_continue }
-	timeout { fail "$test (timeout)" }
-	eof { }
-    }
-    catch {close}; catch {wait}
-    
-    if { $ok == 53 || $ok == 50 \
-	     || (($ok == 44 || $ok == 41 ) && ([istarget "i*86-*-*"] \
-						   || [istarget "arm-*-*"]))} {
-	pass "$test wildcard $pbtype_mssg"
+    if {[uprobes_p]} {
+	verbose -log "spawn $stap_path -L \"process(\"./sdt_types.x\").mark(\"*\")"
+	spawn $stap_path -L "process(\"./sdt_types.x\").mark(\"*\")"
+	expect {
+	    -timeout 180
+	    -re {mark\(\"[a-z_]+\"\) .arg1:long .arg2:long .arg3:long .arg4:long .arg5:long .arg6:long .arg7:long .arg8:long\n} { incr ok; exp_continue }
+	    -re {mark\(\"[a-z_]+\"\) .arg1:long .arg2:long\n} {
+		incr ok; exp_continue }
+	    -re {mark\(\"[a-z_]+\"\) .arg1:long\n} { incr ok; exp_continue }
+	    -re {mark\(\"[a-z_]+\"\)} { incr ok; exp_continue }
+	    timeout { fail "$test (timeout)" }
+	    eof { }
+	}
+	catch {close}; catch {wait}
+
+	# PR10245: match the __ one here
+	spawn $stap_path -l "process(\"./sdt_types.x\").mark(\"*-*-*\")"
+	expect {
+	    -timeout 180
+	    -re {mark\(\"[a-z_]+\"\)} { incr ok; exp_continue }
+	    timeout { fail "$test (timeout)" }
+	    eof { }
+	}
+	catch {close}; catch {wait}
+	
+	if { $ok == 53 || $ok == 50 \
+		 || (($ok == 44 || $ok == 41 ) && ([istarget "i*86-*-*"] \
+						       || [istarget "arm-*-*"]))} {
+	    pass "$test wildcard $pbtype_mssg"
+	} else {
+	    incr fail_count
+	    fail "$test wildcard ($ok) $pbtype_mssg"
+	}
     } else {
-	incr fail_count
-	fail "$test wildcard ($ok) $pbtype_mssg"
+	untested "$test wildcard $pbtype_mssg"
     }
     
 } ; # end pbtype_flags
