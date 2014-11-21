@@ -204,7 +204,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmmsg(s, (struct mmsghdr *)-1, 2, 0, NULL);
 #ifdef __s390__
@@ -228,7 +228,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     // Note that the exact failure return value can differ here, so
     // we'll just ignore it.
@@ -274,7 +274,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmmsg(s, msgs, 2, MSG_DONTWAIT, NULL);
     //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, NULL) = NNNN
@@ -297,7 +297,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmmsg(s, msgs, 2, MSG_DONTWAIT, &tim);
     //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, \[0.000020000\]) = NNNN

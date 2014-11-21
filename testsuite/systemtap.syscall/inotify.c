@@ -5,7 +5,7 @@
 int main()
 {
   int fd = inotify_init();
-  //staptest// inotify_init () = NNNN
+  //staptest// [[[[inotify_init (!!!!inotify_init1 (0x0]]]]) = NNNN
 
   int wd = inotify_add_watch(fd, "/tmp", IN_ALL_EVENTS);
   //staptest// inotify_add_watch (NNNN, "/tmp", IN_ACCESS|IN_MODIFY|IN_ATTRIB|IN_CLOSE_WRITE|IN_CLOSE_NOWRITE|IN_OPEN|IN_MOVED_FROM|IN_MOVED_TO|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_MOVE_SELF) = NNNN

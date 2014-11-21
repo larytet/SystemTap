@@ -13,7 +13,7 @@ int main()
   pipefd[1] = 0;
 
   pipe (pipefd);
-  //staptest// pipe (\[0, 0\]) = 0
+  //staptest// [[[[pipe (\[0, 0\]!!!!pipe2 (\[0, 0\], 0x0]]]]) = 0
 
 #ifdef O_CLOEXEC
   /* Test calling pipe2() with 0, to make sure we don't confuse it
