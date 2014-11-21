@@ -156,12 +156,41 @@
 
 #elif defined (__aarch64__)
 
-#undef pt_regs_fetch_register
-#undef pt_regs_store_register
-#define pt_regs_fetch_register(pt_regs,regno) \
-  ((long) pt_regs->regs[regno])
-#define pt_regs_store_register(pt_regs,regno,value) \
-  (pt_regs->regs[regno] = (value))
+#define pt_dwarf_register_0(pt_regs)	pt_regs->regs[0]
+#define pt_dwarf_register_1(pt_regs)	pt_regs->regs[1]
+#define pt_dwarf_register_2(pt_regs)	pt_regs->regs[2]
+#define pt_dwarf_register_3(pt_regs)	pt_regs->regs[3]
+#define pt_dwarf_register_4(pt_regs)	pt_regs->regs[4]
+#define pt_dwarf_register_5(pt_regs)	pt_regs->regs[5]
+#define pt_dwarf_register_6(pt_regs)	pt_regs->regs[6]
+#define pt_dwarf_register_7(pt_regs)	pt_regs->regs[7]
+#define pt_dwarf_register_8(pt_regs)	pt_regs->regs[8]
+#define pt_dwarf_register_9(pt_regs)	pt_regs->regs[9]
+
+#define pt_dwarf_register_10(pt_regs)	pt_regs->regs[10]
+#define pt_dwarf_register_11(pt_regs)	pt_regs->regs[11]
+#define pt_dwarf_register_12(pt_regs)	pt_regs->regs[12]
+#define pt_dwarf_register_13(pt_regs)	pt_regs->regs[13]
+#define pt_dwarf_register_14(pt_regs)	pt_regs->regs[14]
+#define pt_dwarf_register_15(pt_regs)	pt_regs->regs[15]
+#define pt_dwarf_register_16(pt_regs)	pt_regs->regs[16]
+#define pt_dwarf_register_17(pt_regs)	pt_regs->regs[17]
+#define pt_dwarf_register_18(pt_regs)	pt_regs->regs[18]
+#define pt_dwarf_register_19(pt_regs)	pt_regs->regs[19]
+
+#define pt_dwarf_register_20(pt_regs)	pt_regs->regs[20]
+#define pt_dwarf_register_21(pt_regs)	pt_regs->regs[21]
+#define pt_dwarf_register_22(pt_regs)	pt_regs->regs[22]
+#define pt_dwarf_register_23(pt_regs)	pt_regs->regs[23]
+#define pt_dwarf_register_24(pt_regs)	pt_regs->regs[24]
+#define pt_dwarf_register_25(pt_regs)	pt_regs->regs[25]
+#define pt_dwarf_register_26(pt_regs)	pt_regs->regs[26]
+#define pt_dwarf_register_27(pt_regs)	pt_regs->regs[27]
+#define pt_dwarf_register_28(pt_regs)	pt_regs->regs[28]
+#define pt_dwarf_register_29(pt_regs)	pt_regs->regs[29]
+
+#define pt_dwarf_register_30(pt_regs)	pt_regs->regs[30]
+#define pt_dwarf_register_31(pt_regs)	pt_regs->sp
 
 #elif defined (__arm__)
 
