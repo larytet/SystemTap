@@ -6234,7 +6234,8 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
   // test for REGISTER
   // NB: Because PR11821, we must use percent_regnames here.
   string regexp;
-  if (elf_machine == EM_PPC || elf_machine == EM_PPC64 || elf_machine == EM_ARM)
+  if (elf_machine == EM_PPC || elf_machine == EM_PPC64
+     || elf_machine == EM_ARM || elf_machine == EM_AARCH64)
     regexp = "^(" + regnames + ")$";
   else
     regexp = "^(" + percent_regnames + ")$";
@@ -6319,7 +6320,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *
 
   string regexp;
   int reg, offset1;
-  if (elf_machine == EM_ARM)
+  if (elf_machine == EM_ARM || elf_machine == EM_AARCH64)
     {
       regexp = "^\\[(" + regnames + ")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
       reg = 1;
