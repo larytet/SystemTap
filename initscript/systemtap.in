@@ -906,8 +906,13 @@ onboot () {
     do_failure "Failed to make temporary file in $dir"
     return 1
   fi
-  # Create the initramfs image with stap module enabled.
-  out=$($DRACUT --add stap --force $TMPINITRAMFS $KRELEASE 2>&1)
+  if [ ! "$ss" ]; then
+    # Create the initramfs image without stap module enabled.
+    out=$($DRACUT --force $TMPINITRAMFS $KRELEASE 2>&1)
+  else
+    # Create the initramfs image with stap module enabled.
+    out=$($DRACUT --add stap --force $TMPINITRAMFS $KRELEASE 2>&1)
+  fi
   # dracut will report success even if some modules (e.g. stap) failed
   # to install some files, so we need to be a bit more involved in
   # checking for errors
