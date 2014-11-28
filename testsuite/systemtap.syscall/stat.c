@@ -42,7 +42,7 @@ int main()
 
   // Here we specify -1 to both arguments, to avoid a SIGSEGV.
   fstat(-1, (struct stat *)-1);
-#if __WORDSIZE__ != 64
+#if __WORDSIZE != 64
   // Notice we're not checking for 0x[f]+ here for the 2nd
   // argument. On RHEL[67] {x86_64,s390x}, for a 32-bit exe, glibc
   // substituted a real structure address (verified with strace).
@@ -54,45 +54,45 @@ int main()
   close(fd);
 
   stat("foobar", &sbuf);
-  //staptest// stat ("foobar", XXXX) = 0
+  //staptest// [[[[stat ("foobar", XXXX!!!!fstatat (AT_FDCWD, "foobar", XXXX, 0x0]]]]) = 0
 
   stat((char *)-1, &sbuf);
 #if defined(__s390__)
   //staptest// stat ([7]?[f]+, XXXX) = -NNNN
 #else
-  //staptest// stat ([f]+, XXXX) = -NNNN
+  //staptest// [[[[stat ([f]+, XXXX!!!!fstatat (AT_FDCWD, [f]+, XXXX, 0x0]]]]) = -NNNN
 #endif
 
   // Here we specify -1 to both arguments, to avoid a SIGSEGV.
   stat((char *)-1, (struct stat *)-1);
-#if __WORDSIZE__ != 64
+#if __WORDSIZE != 64
   // Notice we're not checking for 0x[f]+ here for the 2nd
   // argument. On RHEL[67] {x86_64,s390x}, for a 32-bit exe, glibc
   // substituted a real structure address (verified with strace).
   //staptest// stat ([7]?[f]+, XXXX) = -NNNN
 #else
-  //staptest// stat ([f]+, 0x[f]+) = -NNNN
+  //staptest// [[[[stat ([f]+, 0x[f]+!!!!fstatat (AT_FDCWD, [f]+, 0x[f]+, 0x0]]]]) = -NNNN
 #endif
 
   lstat("foobar", &sbuf);
-  //staptest// lstat ("foobar", XXXX) = 0
+  //staptest// [[[[lstat ("foobar", XXXX!!!!fstatat (AT_FDCWD, "foobar", XXXX, AT_SYMLINK_NOFOLLOW]]]]) = 0
 
   lstat((char *)-1, &sbuf);
 #if defined(__s390__)
   //staptest// lstat ([7]?[f]+, XXXX) = -NNNN (EFAULT)
 #else
-  //staptest// lstat ([f]+, XXXX) = -NNNN (EFAULT)
+  //staptest// [[[[lstat ([f]+, XXXX!!!!fstatat (AT_FDCWD, [f]+, XXXX, AT_SYMLINK_NOFOLLOW]]]]) = -NNNN (EFAULT)
 #endif
 
   // Here we specify -1 to both arguments, to avoid a SIGSEGV.
   lstat((char *)-1, (struct stat *)-1);
-#if __WORDSIZE__ != 64
+#if __WORDSIZE != 64
   // Notice we're not checking for 0x[f]+ here for the 2nd
   // argument. On RHEL[67] {x86_64,s390x}, for a 32-bit exe, glibc
   // substituted a real structure address (verified with strace).
   //staptest// lstat ([7]?[f]+, XXXX) = -NNNN
 #else
-  //staptest// lstat ([f]+, 0x[f]+) = -NNNN
+  //staptest// [[[[lstat ([f]+, 0x[f]+!!!!fstatat (AT_FDCWD, [f]+, 0x[f]+, AT_SYMLINK_NOFOLLOW]]]]) = -NNNN
 #endif
 
 #if GLIBC_SUPPORT
@@ -111,7 +111,7 @@ int main()
 
   // Try to avoid a SIGSEGV.
   fstatat(-1, "foobar", (struct stat *)-1, AT_SYMLINK_NOFOLLOW);
-#if __WORDSIZE__ != 64
+#if __WORDSIZE != 64
   // Notice we're not checking for 0x[f]+ here for the 3rd
   // argument. On RHEL[67] {x86_64,s390x}, for a 32-bit exe, glibc
   // substituted a real structure address (verified with strace).
@@ -127,7 +127,9 @@ int main()
   ubuf.actime = 1;
   ubuf.modtime = 1135641600;
   utime("foobar", &ubuf);
-#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
+  //staptest// utimensat (AT_FDCWD, "foobar", \[1.[0]+\]\[1135641600.[0]+\], 0x0) =
+#elif defined(__ia64__) || defined(__arm__)
   //staptest// utimes ("foobar", \[1.000000\]\[1135641600.000000\]) =
 #else
   //staptest// utime ("foobar", \[Thu Jan  1 00:00:01 1970, Tue Dec 27 00:00:00 2005\]) = 0
@@ -136,7 +138,9 @@ int main()
   ubuf.actime =  1135690000;
   ubuf.modtime = 1135700000;
   utime("foobar", &ubuf);
-#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
+  //staptest// utimensat (AT_FDCWD, "foobar", \[1135690000.[0]+\]\[1135700000.[0]+\], 0x0) =
+#elif defined(__ia64__) || defined(__arm__)
   //staptest// utimes ("foobar", \[1135690000.000000\]\[1135700000.000000\]) =
 #else
   //staptest// utime ("foobar", \[Tue Dec 27 13:26:40 2005, Tue Dec 27 16:13:20 2005\]) = 0
@@ -145,7 +149,9 @@ int main()
   ubuf.actime = 1;
   ubuf.modtime = 1135641600;
   utime((char *)-1, &ubuf);
-#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
+  //staptest// utimensat (AT_FDCWD, [f]+, \[1.[0]+\]\[1135641600.[0]+\], 0x0) = -NNNN
+#elif defined(__ia64__) || defined(__arm__)
   //staptest// utimes ([f]+, \[1.000000\]\[1135641600.000000\]) = -NNNN
 #elif defined(__s390__)
   //staptest// utime ([7]?[f]+, \[Thu Jan  1 00:00:01 1970, Tue Dec 27 00:00:00 2005\]) = -NNNN
@@ -156,7 +162,7 @@ int main()
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
   // Avoid a SIGSEGV by specifying NULL, not -1.
   utime("foobar", (struct utimbuf *)NULL);
-  //staptest// utimes ("foobar", NULL) = NNNN
+  //staptest// [[[[utimes ("foobar", NULL!!!!utimensat (AT_FDCWD, "foobar", NULL, 0x0]]]]) = NNNN
 #else
   utime("foobar", (struct utimbuf *)-1);
   //staptest// utime ("foobar", \[Thu Jan  1 00:00:00 1970, Thu Jan  1 00:00:00 1970\]) = -NNNN
