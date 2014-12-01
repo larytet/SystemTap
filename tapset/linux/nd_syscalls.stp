@@ -1386,7 +1386,8 @@ probe nd_syscall.fgetxattr = kprobe.function("sys_fgetxattr") ?
 	name_str = user_string_quoted(pointer_arg(2))
 	value_uaddr = pointer_arg(3)
 	size  = ulong_arg(4)
-	argstr = sprintf("%d, %s, %p, %d", filedes, user_string_quoted(pointer_arg(2)), value_uaddr, size)
+	argstr = sprintf("%d, %s, %p, %u", filedes,
+			 user_string_quoted(pointer_arg(2)), value_uaddr, size)
 }
 probe nd_syscall.fgetxattr.return = kprobe.function("sys_fgetxattr").return ?
 {
@@ -1402,7 +1403,7 @@ probe nd_syscall.flistxattr = kprobe.function("sys_flistxattr") ?
 	filedes = int_arg(1)
 	list_uaddr = pointer_arg(2)
 	size = ulong_arg(3)
-	argstr = sprintf("%d, %p, %d", filedes, list_uaddr, size)
+	argstr = sprintf("%d, %p, %u", filedes, list_uaddr, size)
 }
 probe nd_syscall.flistxattr.return = kprobe.function("sys_flistxattr").return ?
 {
@@ -1495,8 +1496,13 @@ probe nd_syscall.fsetxattr = kprobe.function("sys_fsetxattr") ?
 	name_str = user_string_quoted(pointer_arg(2))
 	value_uaddr = pointer_arg(3)
 	size = ulong_arg(4)
+	value_str = _stp_xattr_val_str(value_uaddr, size)
 	flags = int_arg(5)
-	argstr = sprintf("%d, %s, %p, %d, %p", filedes, user_string_quoted(pointer_arg(2)), value_uaddr, size, flags)
+	flags_str = _stp_xattr_flags_str(flags)
+	argstr = sprintf("%d, %s, %s, %u, %s", filedes,
+			 user_string_quoted(pointer_arg(2)),
+			 _stp_xattr_val_str(value_uaddr, size),
+			 size, _stp_xattr_flags_str(flags))
 }
 probe nd_syscall.fsetxattr.return = kprobe.function("sys_fsetxattr").return ?
 {
@@ -2399,7 +2405,7 @@ probe nd_syscall.getxattr = kprobe.function("sys_getxattr") ?
 	name_str = user_string_quoted(pointer_arg(2))
 	value_uaddr = pointer_arg(3)
 	size = ulong_arg(4)
-	argstr = sprintf("%s, %s, %p, %d",
+	argstr = sprintf("%s, %s, %p, %u",
 		user_string_quoted(pointer_arg(1)),
 		user_string_quoted(pointer_arg(2)),
 		value_uaddr, size)
@@ -2865,7 +2871,7 @@ probe nd_syscall.lgetxattr = kprobe.function("sys_lgetxattr") ?
 	name_str = user_string_quoted(pointer_arg(2))
 	value_uaddr = pointer_arg(3)
 	size = ulong_arg(4)
-	argstr = sprintf("%s, %s, %p, %d",
+	argstr = sprintf("%s, %s, %p, %u",
 		user_string_quoted(pointer_arg(1)),
 		user_string_quoted(pointer_arg(2)),
 		value_uaddr, size)
@@ -2950,7 +2956,8 @@ probe nd_syscall.listxattr = kprobe.function("sys_listxattr") ?
 	path = user_string_quoted(path_uaddr)
 	list_uaddr = pointer_arg(2)
 	size = ulong_arg(3)
-	argstr = sprintf("%s, %p, %d", user_string_quoted(path_uaddr), list_uaddr, size)
+	argstr = sprintf("%s, %p, %u", user_string_quoted(path_uaddr),
+			 list_uaddr, size)
 }
 probe nd_syscall.listxattr.return = kprobe.function("sys_listxattr").return ?
 {
@@ -2969,7 +2976,8 @@ probe nd_syscall.llistxattr = kprobe.function("sys_llistxattr") ?
 	path = user_string_quoted(path_uaddr)
 	list_uaddr = pointer_arg(2)
 	size = ulong_arg(3)
-	argstr = sprintf("%s, %p, %d", user_string_quoted(path_uaddr), list_uaddr, size)
+	argstr = sprintf("%s, %p, %u", user_string_quoted(path_uaddr),
+			 list_uaddr, size)
 }
 probe nd_syscall.llistxattr.return = kprobe.function("sys_llistxattr").return ?
 {
@@ -3091,11 +3099,14 @@ probe nd_syscall.lsetxattr = kprobe.function("sys_lsetxattr") ?
 	name_str = user_string_quoted(name_uaddr)
 	value_uaddr = pointer_arg(3)
 	size = ulong_arg(4)
+	value_str = _stp_xattr_val_str(value_uaddr, size)
 	flags = int_arg(5)
-	argstr = sprintf("%s, %s, %p, %d, %d",
-		user_string_quoted(path_uaddr),
-		user_string_quoted(name_uaddr),
-		value_uaddr, size, flags)
+	flags_str = _stp_xattr_flags_str(flags)
+	argstr = sprintf("%s, %s, %s, %u, %s",
+			 user_string_quoted(path_uaddr),
+			 user_string_quoted(name_uaddr),
+			 _stp_xattr_val_str(value_uaddr, size),
+			 size, _stp_xattr_flags_str(flags))
 }
 probe nd_syscall.lsetxattr.return = kprobe.function("sys_lsetxattr").return ?
 {

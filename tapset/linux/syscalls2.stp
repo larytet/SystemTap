@@ -2930,12 +2930,15 @@ probe syscall.setxattr = kernel.function("sys_setxattr").call
 	name_uaddr = $name
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
+	value_str = _stp_xattr_val_str($value, $size)
 	size = $size
-	flags = $flags
-	argstr = sprintf("%s, %s, %p, %d, %d",
+	flags = __int32($flags)
+	flags_str = _stp_xattr_flags_str(__int32($flags))
+	argstr = sprintf("%s, %s, %s, %u, %s",
 			user_string_quoted(@choose_defined($pathname, $path)),
 			user_string_quoted($name),
-			value_uaddr, $size, $flags)
+			_stp_xattr_val_str($value, $size), $size,
+			_stp_xattr_flags_str(__int32($flags)))
 }
 probe syscall.setxattr.return = kernel.function("sys_setxattr").return
 {

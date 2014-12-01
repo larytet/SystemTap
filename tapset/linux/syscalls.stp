@@ -1294,15 +1294,16 @@ probe syscall.fdatasync.return = kernel.function("sys_fdatasync").return
 probe syscall.fgetxattr = kernel.function("sys_fgetxattr").call
 {
 	name = "fgetxattr"
-	filedes = $fd
+	filedes = __int32($fd)
 # 'name2' should have been 'name_str'.  Deprecate the old name.
 %(systemtap_v <= "1.4" %?
 	name2 = user_string_quoted($name)
 %)
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
-	size  = $size
-	argstr = sprintf("%d, %s, %p, %d", filedes, user_string_quoted($name), value_uaddr, size)
+	size = $size
+	argstr = sprintf("%d, %s, %p, %u", filedes, user_string_quoted($name),
+			 value_uaddr, size)
 }
 probe syscall.fgetxattr.return = kernel.function("sys_fgetxattr").return
 {
@@ -1314,10 +1315,10 @@ probe syscall.fgetxattr.return = kernel.function("sys_fgetxattr").return
 probe syscall.flistxattr = kernel.function("sys_flistxattr").call
 {
 	name = "flistxattr"
-	filedes = $fd
+	filedes = __int32($fd)
 	list_uaddr = $list
 	size = $size
-	argstr = sprintf("%d, %p, %d", filedes, list_uaddr, size)
+	argstr = sprintf("%d, %p, %u", filedes, list_uaddr, size)
 }
 probe syscall.flistxattr.return = kernel.function("sys_flistxattr").return
 {
@@ -1370,10 +1371,10 @@ probe syscall.fork.return = kernel.function("sys_fork").return ?
 probe syscall.fremovexattr = kernel.function("sys_fremovexattr").call
 {
 	name = "fremovexattr"
-	filedes = $fd
+	filedes = __int32($fd)
 	name_uaddr = $name
 	name_str = user_string_quoted($name)
-	argstr = sprintf("%d, %s", $fd, user_string_quoted($name))
+	argstr = sprintf("%d, %s", __int32($fd), user_string_quoted($name))
 }
 probe syscall.fremovexattr.return = kernel.function("sys_fremovexattr").return
 {
@@ -1393,7 +1394,7 @@ probe syscall.fremovexattr.return = kernel.function("sys_fremovexattr").return
 probe syscall.fsetxattr = kernel.function("sys_fsetxattr").call
 {
 	name = "fsetxattr"
-	filedes = $fd
+	filedes = __int32($fd)
 # 'name2' should have been 'name_str'.  Deprecate the old name.
 %(systemtap_v <= "1.4" %?
 	name2 = user_string_quoted($name)
@@ -1401,9 +1402,14 @@ probe syscall.fsetxattr = kernel.function("sys_fsetxattr").call
 	name_uaddr = $name
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
+	value_str = _stp_xattr_val_str($value, $size)
 	size = $size
-	flags = $flags
-	argstr = sprintf("%d, %s, %p, %d, %p", $fd, user_string_quoted($name), $value, $size, $flags)
+	flags = __int32($flags)
+	flags_str = _stp_xattr_flags_str(__int32($flags))
+	argstr = sprintf("%d, %s, %s, %u, %s", __int32($fd),
+			 user_string_quoted($name),
+			 _stp_xattr_val_str($value, $size), $size,
+			 _stp_xattr_flags_str(__int32($flags)))
 }
 probe syscall.fsetxattr.return = kernel.function("sys_fsetxattr").return
 {
@@ -2269,7 +2275,7 @@ probe syscall.getxattr = kernel.function("sys_getxattr").call
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
 	size = $size
-	argstr = sprintf("%s, %s, %p, %d",
+	argstr = sprintf("%s, %s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		user_string_quoted($name),
 		$value, $size)
@@ -2722,7 +2728,7 @@ probe syscall.lgetxattr = kernel.function("sys_lgetxattr").call
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
 	size = $size
-	argstr = sprintf("%s, %s, %p, %d",
+	argstr = sprintf("%s, %s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		user_string_quoted($name),
 		value_uaddr, size)
@@ -2804,7 +2810,7 @@ probe syscall.listxattr = kernel.function("sys_listxattr").call
 	size = $size
 	path_uaddr = @choose_defined($pathname, $path)
 	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %p, %d",
+	argstr = sprintf("%s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		$list, $size)
 }
@@ -2824,7 +2830,7 @@ probe syscall.llistxattr = kernel.function("sys_llistxattr").call
 	size = $size
 	path_uaddr = @choose_defined($pathname, $path)
 	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %p, %d",
+	argstr = sprintf("%s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		$list, $size)
 }
@@ -2945,12 +2951,15 @@ probe syscall.lsetxattr = kernel.function("sys_lsetxattr").call
 	name_uaddr = $name
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
+	value_str = _stp_xattr_val_str($value, $size)
 	size = $size
-	flags = $flags
-	argstr = sprintf("%s, %s, %p, %d, %d",
+	flags = __int32($flags)
+	flags_str = _stp_xattr_flags_str(__int32($flags))
+	argstr = sprintf("%s, %s, %s, %u, %s",
 			user_string_quoted(@choose_defined($pathname, $path)),
 			user_string_quoted($name),
-			value_uaddr, $size, $flags)
+			_stp_xattr_val_str($value, $size), $size,
+			_stp_xattr_flags_str(__int32($flags)))
 }
 probe syscall.lsetxattr.return = kernel.function("sys_lsetxattr").return
 {

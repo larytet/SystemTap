@@ -1,6 +1,7 @@
 #! stap -p4
 
 probe begin {
+	print (_stp_syscall_nr())
 	print (_struct_timeval_u(0,0))
 	print (_struct_compat_timeval_u(0,0))
 	print (_struct_timezone_u(0))
@@ -31,6 +32,7 @@ probe begin {
 	print (__get_compat_argv(0,0))
 
 	print (_adjtx_mode_str(0))
+	print (_getrandom_flags_str(0))
 	print (_inotify_watch_mask_str(0))
 
 	print (_sigprocmask_how_str(0))
@@ -55,12 +57,26 @@ probe begin {
 	print (_wait4_opt_str(0))
 	print (_waitid_opt_str(0))
 
+	print (WIFEXITED(0))
+	print (WEXITSTATUS(0))
+	print (WIFSIGNALED(0))
+	print (WCOREDUMP(0))
+	print (WTERMSIG(0))
+	print (WIFSTOPPED(0))
+	print (WSTOPSIG(0))
+	print (WIFCONTINUED(0))
+
+	print (_ptrace_event_name(0))
+	print (_wait_status_str(0))
+
+	print (_seccomp_flags_str(0))
 	print (_msg_flags_str(0))
 %(systemtap_v <= "2.5" %?
 	print (_sendflags_str(0))
 	print (_recvflags_str(0))
 %)
 
+	print (_mfd_flags_str(0))
 	print (_mlockall_flags_str(0))
 	print (_module_flags_str(0))
 	print (_sched_policy_str(0))
@@ -89,6 +105,7 @@ probe begin {
 	print (_sock_family_str(0))
 	print (_sock_type_str(0))
 	print (_sock_flags_str(0))
+	print (_sock_protocol_str(0,0))
 
 	print (_opoll_op_str(0))
 	print (_epoll_events_str(0))
@@ -97,7 +114,9 @@ probe begin {
 	print (_rusage_who_str(0))
 
 	print (__short(0))
+	print (__ushort(0))
 	print (__int32(0))
+	print (__uint32(0))
 	print (__ulong(0))
 
 	print (_dfd_str(0))
@@ -106,6 +125,7 @@ probe begin {
 	print (_signal_name(0))
 	print (_semctl_cmd(0))
 	print (_stp_sigset_u(0))
+	print (_stp_compat_sigset_u(0))
 	print (__fork_flags(0))
 	print (_at_flag_str(0))
 
@@ -131,4 +151,16 @@ probe begin {
 	print (_ptrace_return_geteventmsg_data(0,0))
 	# Implementation is in arch specific files but with compatible API.
 	print (_ptrace_return_arch_prctl_addr(0,0,0))
+
+	print (_ptrace_return_geteventmsg_data(0,0))
+	print (_swapon_flags_str(0))
+	print (__is_user_regs(0))
+	print (_stp_shmget_flags_str(0))
+	print (_stp_msgget_key_str(0))
+	print (_stp_msgctl_cmd_str(0))
+	print (_stp_msgflg_str(0))
+	print (_stp_compat_msgrcv_msgbuf(0,0))
+	print (_stp_compat_msgrcv_msgtyp(0,0,0))
+	print (_stp_xattr_flags_str(0))
+	print (_stp_xattr_val_str(0,0))
 }

@@ -20,6 +20,15 @@
 #ifndef SEMTIMEDOP
 #define SEMTIMEDOP 4
 #endif
+#ifndef MSGSND
+#define MSGSND 11 
+#endif
+#ifndef MSGRCV
+#define MSGRCV 12
+#endif
+#ifndef MSGCTL
+#define MSGCTL 14
+#endif
 #ifndef SHMCTL
 #define SHMCTL 24
 #endif
@@ -3317,6 +3326,7 @@ struct compat_ipc_kludge {
 
 function _stp_compat_msgrcv_msgbuf:long(uaddr:long, version:long)
 %{ /* pure */
+#ifdef CONFIG_COMPAT
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	int version = (int)(unsigned long)STAP_ARG_version;
 	void *msgbuf = ptr;
@@ -3332,10 +3342,12 @@ function _stp_compat_msgrcv_msgbuf:long(uaddr:long, version:long)
 		}
 	}
 	STAP_RETVALUE = (unsigned long)msgbuf;
+#endif
 %}
 
 function _stp_compat_msgrcv_msgtyp:long(uaddr:long, version:long, msgtyp:long)
 %{ /* pure */
+#ifdef CONFIG_COMPAT
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	int version = (int)(unsigned long)STAP_ARG_version;
 	long msgtyp = (long)STAP_ARG_msgtyp;
@@ -3350,4 +3362,74 @@ function _stp_compat_msgrcv_msgtyp:long(uaddr:long, version:long, msgtyp:long)
 		}
 	}
 	STAP_RETVALUE = msgtyp;
+#endif
+%}
+
+%{
+#include <linux/xattr.h>
+
+static const _stp_val_array const _stp_xattr_flags_list[] = {
+	V(XATTR_CREATE),
+	V(XATTR_REPLACE),
+	{0, NULL}
+};
+%}
+
+function _stp_xattr_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = STAP_ARG_flags;
+
+	_stp_lookup_or_str(_stp_xattr_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _stp_xattr_val_str:string(uaddr:long, size:long)
+%{ /* pure */
+	void *uaddr = (void *)(unsigned long)STAP_ARG_uaddr;
+	unsigned long size = STAP_ARG_size;
+	unsigned char buffer[50];
+	size_t copy_size = clamp_t(size_t, size, 0, sizeof(buffer));
+
+	if (uaddr != NULL && copy_size > 0
+	    && _stp_copy_from_user(buffer, uaddr, copy_size) == 0) {
+		size_t i;
+		unsigned char *out = STAP_RETVALUE;
+		// Save 3 chars: 2 for the leading and trailing
+		// double-quote chars, one for the trailing NUL.
+		size_t out_size = MAXSTRINGLEN - 3;
+
+		*out++ = '"';
+		for (i = 0; i < copy_size; ++i) {
+#define _stp_is_printable_ascii(c) ((c) >= ' ' && (c) <= 0x7e)
+#define _stp_tohex(n) "0123456789abcdef"[n]
+
+			if (_stp_is_printable_ascii(buffer[i])) {
+				if (--out_size >= 0)
+					*out++ = buffer[i];
+			}
+			else {
+				if (out_size < 4)
+					break;
+				out_size -= 4;
+				if (out_size >= 0) {	
+					*out++ = '\\';
+					*out++ = 'x';
+					*out++ = _stp_tohex(buffer[i] / 16);
+					*out++ = _stp_tohex(buffer[i] % 16);
+				}
+			}
+			if (out_size == 0)
+				break;
+		}
+		// Don't print terminating NUL from the input data if
+		// there is one.
+		if (i > 1 && buffer[i - 1] == '\0'
+		    && _stp_is_printable_ascii(buffer[i - 2]))
+			out -= 4;
+		*out++ = '"';
+		*out = '\0';
+	}
+	else
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)uaddr);
 %}

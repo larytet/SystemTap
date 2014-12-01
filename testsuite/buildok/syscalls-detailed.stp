@@ -507,8 +507,8 @@ probe syscall.fremovexattr.return
 probe syscall.fsetxattr
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %p(%s), %p, %d, %d\n", filedes, name_uaddr,
-	       name_str, value_uaddr, size, flags)
+	printf("%d, %p(%s), %p(%s), %d, %d(%s)\n", filedes, name_uaddr,
+	       name_str, value_uaddr, value_str, size, flags, flags_str)
 }
 probe syscall.fsetxattr.return
 {
@@ -1127,8 +1127,9 @@ probe syscall.lseek.return
 probe syscall.lsetxattr
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p(%s), %p(%s), %p, %d, %d\n", path_uaddr, path, name_uaddr,
-	       name_str, value_uaddr, size, flags)
+	printf("%p(%s), %p(%s), %p(%s), %d, %d(%s)\n", path_uaddr, path,
+	       name_uaddr, name_str, value_uaddr, value_str, size, flags,
+	       flags_str)
 }
 probe syscall.lsetxattr.return
 {
