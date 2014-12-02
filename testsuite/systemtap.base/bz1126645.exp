@@ -1,0 +1,19 @@
+set test bz1126645
+
+if {! [installtest_p]} { return }
+if {[expr 0 != [exec id -u]]} {
+    untested "${test} (non-root)"
+    return
+}
+
+spawn stap -c {/bin/true} -e {probe kprocess.exec_complete {println("return")}}
+set ok 0
+expect {
+	-timeout 60
+	-re {^return\r\n} { incr ok; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+}
+wait
+if {$ok == 1} then { pass "$test -p5" } else { fail "$test -p5 ($ok)" }
+
