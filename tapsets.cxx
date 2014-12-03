@@ -737,11 +737,15 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
       // Library probe? Let's target that instead if it is fully resolved (such
       // as what query_one_library() would have done for us). Otherwise, we
       // resort to iterate_over_libraries().
-      if (has_library && is_fully_resolved(library_name, sess.sysroot, sess.sysenv,
-                                           "LD_LIBRARY_PATH"))
-        {
-          path = path_remove_sysroot(sess, module_val);
-          module_val = library_name;
+      if (has_library)
+	{
+	  string library = find_executable (library_name, sess.sysroot,
+					    sess.sysenv, "LD_LIBRARY_PATH");
+	  if (is_fully_resolved(library, "", sess.sysenv, "LD_LIBRARY_PATH"))
+	    {
+	      path = path_remove_sysroot(sess, module_val);
+	      module_val = library;
+	    }
         }
     }
 
@@ -8162,9 +8166,15 @@ dwarf_builder::build(systemtap_session & sess,
       // do this only if the library path is already fully resolved (such as
       // what query_one_library() would have done for us). Otherwise, we resort
       // to iterate_over_libraries.
-      if (get_param (parameters, TOK_LIBRARY, user_lib) && !user_lib.empty()
-          && is_fully_resolved(user_lib, sess.sysroot, sess.sysenv, "LD_LIBRARY_PATH"))
-        module_name = user_lib;
+      if (get_param (parameters, TOK_LIBRARY, user_lib) && !user_lib.empty())
+	{
+	  string library = find_executable (user_lib, sess.sysroot,
+					    sess.sysenv, "LD_LIBRARY_PATH");
+	  if (is_fully_resolved(library, "", sess.sysenv, "LD_LIBRARY_PATH"))
+	    {
+	      module_name = library;
+	    }
+	}
       else
         module_name = user_path; // canonicalize it
 
