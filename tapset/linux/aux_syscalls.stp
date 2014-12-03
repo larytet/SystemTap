@@ -1243,40 +1243,42 @@ function _access_mode_str:string(mode:long)
 
 /* `man 2 open` for more information */
 function _sys_open_mode_str(f) {
-   if((f & 448) == 448) bs="S_IRWXU|".bs
+   if((f & %{ S_IRWXU %}) == %{ S_IRWXU %}) bs="S_IRWXU|".bs
    else {
-        if(f & 256) bs="S_IRUSR|".bs
-        if(f & 128) bs="S_IWUSR|".bs
-        if(f & 64) bs="S_IXUSR|".bs
+        if(f & %{ S_IRUSR %}) bs="S_IRUSR|" . bs
+        if(f & %{ S_IWUSR %}) bs="S_IWUSR|" . bs
+        if(f & %{ S_IXUSR %}) bs="S_IXUSR|" . bs
    }
-   if((f & 56) == 56) bs="S_IRWXG|".bs
+   if((f & %{ S_IRWXG %}) == %{ S_IRWXG %}) bs="S_IRWXG|" . bs
    else {
-        if(f & 32) bs="S_IRGRP|".bs
-        if(f & 16) bs="S_IWGRP|".bs
-        if(f & 8) bs="S_IXGRP|".bs
+        if(f & %{ S_IRGRP %}) bs="S_IRGRP|" . bs
+        if(f & %{ S_IWGRP %}) bs="S_IWGRP|" . bs
+        if(f & %{ S_IXGRP %}) bs="S_IXGRP|" . bs
    }
-   if((f & 7) == 7) bs="S_IRWXO|".bs
+   if((f & %{ S_IRWXO %}) == %{ S_IRWXO %}) bs="S_IRWXO|" . bs
    else {
-        if(f & 4) bs="S_IROTH|".bs
-        if(f & 2) bs="S_IWOTH|".bs
-        if(f & 1) bs="S_IXOTH|".bs
+        if(f & %{ S_IROTH %}) bs="S_IROTH|" . bs
+        if(f & %{ S_IWOTH %}) bs="S_IWOTH|" . bs
+        if(f & %{ S_IXOTH %}) bs="S_IXOTH|" . bs
    }
-   return substr(bs,0,strlen(bs)-1)
+   return (strlen(bs) > 0) ? substr(bs, 0, strlen(bs) - 1) : sprintf("%#o", f)
 }
 
 /* `man 2 mknod` for more information */
 function _mknod_mode_str(mode) {
-   if((mode & 0xF000)==0x8000)
-        return "S_IFREG|"._sys_open_mode_str(mode)
-   if((mode & 0xF000)==0x2000)
-        return "S_IFCHR|"._sys_open_mode_str(mode)
-   if((mode & 0xF000)==0x6000)
-        return "S_IFBLK|"._sys_open_mode_str(mode)
-   if((mode & 0xF000)==0x1000)
-        return "S_IFIFO|"._sys_open_mode_str(mode)
-   if((mode & 0xF000)==0xC000)
-        return "S_IFSOCK|"._sys_open_mode_str(mode)
-   return ""
+   type = mode & %{ S_IFMT %}
+   mode &= %{ ~S_IFMT %}
+   if (type == %{ S_IFREG %})
+        return "S_IFREG|" . _sys_open_mode_str(mode)
+   if (type == %{ S_IFCHR %})
+        return "S_IFCHR|" . _sys_open_mode_str(mode)
+   if (type == %{ S_IFBLK %})
+        return "S_IFBLK|" . _sys_open_mode_str(mode)
+   if (type == %{ S_IFIFO %})
+        return "S_IFIFO|" . _sys_open_mode_str(mode)
+   if (type == %{ S_IFSOCK %})
+        return "S_IFSOCK|" . _sys_open_mode_str(mode)
+   return sprintf("%#o", type | mode)
 }
 
 %{

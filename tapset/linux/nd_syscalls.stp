@@ -3293,16 +3293,16 @@ probe nd_syscall.mkdirat.return = kprobe.function("sys_mkdirat").return ?
 	retstr = returnstr(1)
 }
 
-# mknod
+# mknod ______________________________________________________
 # long sys_mknod(const char __user * filename, int mode, unsigned dev)
 probe nd_syscall.mknod = kprobe.function("sys_mknod") ?
 {
 	name = "mknod"
 	asmlinkage()
 	pathname = user_string_quoted(pointer_arg(1))
-	mode = int_arg(2)
+	mode = uint_arg(2)
 	dev = uint_arg(3)
-	argstr = sprintf("%s, %s, %p", user_string_quoted(pointer_arg(1)), _mknod_mode_str(mode), dev)
+	argstr = sprintf("%s, %s, %u", pathname, _mknod_mode_str(mode), dev)
 }
 
 probe nd_syscall.mknod.return = kprobe.function("sys_mknod").return ?
@@ -3317,19 +3317,21 @@ probe nd_syscall.mknod.return = kprobe.function("sys_mknod").return ?
 #	int mode, unsigned dev)
 probe nd_syscall.mknodat = kprobe.function("sys_mknodat") ?
 {
+	@__syscall_compat_gate(%{ __NR_mknodat %}, %{ __NR_compat_mknodat %})
 	name = "mknodat"
 	asmlinkage()
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
 	pathname = user_string_quoted(pointer_arg(2))
-	mode = int_arg(3)
+	mode = uint_arg(3)
 	mode_str = _mknod_mode_str(mode)
 	dev = uint_arg(4)
-	argstr = sprintf("%s, %s, %s, %p",
-		dirfd_str, user_string_quoted(pointer_arg(2)), mode_str, dev)
+	argstr = sprintf("%s, %s, %s, %u",
+		dirfd_str, pathname, mode_str, dev)
 }
 probe nd_syscall.mknodat.return = kprobe.function("sys_mknodat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_mknodat %}, %{ __NR_compat_mknodat %})
 	name = "mknodat"
 	retstr = returnstr(1)
 }

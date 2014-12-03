@@ -117,6 +117,9 @@
 #ifndef __NR_ia32_mkdirat
 #define __NR_ia32_mkdirat 296
 #endif
+#ifndef __NR_ia32_mknodat
+#define __NR_ia32_mknodat 297
+#endif
 #ifndef __NR_ia32_mmap2
 #define __NR_ia32_mmap2 192
 #endif
@@ -168,6 +171,7 @@
 #define __NR_compat_inotify_init1	__NR_ia32_inotify_init1
 #define __NR_compat_linkat		__NR_ia32_linkat
 #define __NR_compat_mkdirat		__NR_ia32_mkdirat
+#define __NR_compat_mknodat		__NR_ia32_mknodat
 #define __NR_compat_open		__NR_ia32_open
 #define __NR_compat_pipe2		__NR_ia32_pipe2
 #define __NR_compat_pselect7		__NR_ia32_pselect7
@@ -203,6 +207,7 @@
 #define __NR_compat_inotify_init1	__NR_inotify_init1
 #define __NR_compat_linkat		__NR_linkat
 #define __NR_compat_mkdirat		__NR_mkdirat
+#define __NR_compat_mknodat		__NR_mknodat
 #define __NR_compat_open		__NR_open
 #define __NR_compat_pipe2		__NR_pipe2
 #define __NR_compat_pselect7		__NR_pselect7

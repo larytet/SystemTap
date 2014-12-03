@@ -3139,15 +3139,15 @@ probe syscall.mkdirat.return = kernel.function("sys_mkdirat").return ?
 	retstr = return_str(1, $return)
 }
 
-# mknod
+# mknod ______________________________________________________
 # long sys_mknod(const char __user * filename, int mode, unsigned dev)
 probe syscall.mknod = kernel.function("sys_mknod").call
 {
 	name = "mknod"
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	dev = $dev
-	argstr = sprintf("%s, %s, %p", user_string_quoted($filename), _mknod_mode_str($mode), dev)
+	mode = __uint32($mode)
+	dev = __uint32($dev)
+	argstr = sprintf("%s, %s, %u", pathname, _mknod_mode_str(mode), dev)
 }
 
 probe syscall.mknod.return = kernel.function("sys_mknod").return
@@ -3162,18 +3162,20 @@ probe syscall.mknod.return = kernel.function("sys_mknod").return
 #	int mode, unsigned dev)
 probe syscall.mknodat = kernel.function("sys_mknodat").call ?
 {
+	@__syscall_compat_gate(%{ __NR_mknodat %}, %{ __NR_compat_mknodat %})
 	name = "mknodat"
-	dirfd = $dfd
-	dirfd_str = _dfd_str($dfd)
+	dirfd = __int32($dfd)
+	dirfd_str = _dfd_str(dirfd)
 	pathname = user_string_quoted($filename)
-	mode = $mode
-	mode_str = _mknod_mode_str($mode)
-	dev = $dev
-	argstr = sprintf("%s, %s, %s, %p",
-		dirfd_str, user_string_quoted($filename), mode_str, $dev)
+	mode = __uint32($mode)
+	mode_str = _mknod_mode_str(mode)
+	dev = __uint32($dev)
+	argstr = sprintf("%s, %s, %s, %u",
+		dirfd_str, pathname, mode_str, dev)
 }
 probe syscall.mknodat.return = kernel.function("sys_mknodat").return ?
 {
+	@__syscall_compat_gate(%{ __NR_mknodat %}, %{ __NR_compat_mknodat %})
 	name = "mknodat"
 	retstr = return_str(1, $return)
 }
