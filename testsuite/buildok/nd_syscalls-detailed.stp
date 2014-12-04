@@ -976,7 +976,7 @@ probe nd_syscall.io_submit.return, nd_syscall.compat_io_submit.return ?
 probe nd_syscall.ioprio_get ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", which, who)
+	printf("%d(%s), %d\n", which, which_str, who)
 }
 probe nd_syscall.ioprio_get.return ?
 {
@@ -986,7 +986,8 @@ probe nd_syscall.ioprio_get.return ?
 probe nd_syscall.ioprio_set ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", which, who, ioprio)
+	printf("%d(%s), %d, %d(%s)\n", which, which_str, who, ioprio,
+	       ioprio_str)
 }
 probe nd_syscall.ioprio_set.return ?
 {

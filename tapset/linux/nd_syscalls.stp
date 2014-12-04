@@ -2723,8 +2723,9 @@ probe nd_syscall.ioprio_get = kprobe.function("sys_ioprio_get") ?
 	name = "ioprio_get"
 	asmlinkage()
 	which = int_arg(1)
+	which_str = _stp_ioprio_which_str(which)
 	who = int_arg(2)
-	argstr = sprintf("%d, %d", which, who)
+	argstr = sprintf("%s, %d", _stp_ioprio_which_str(which), who)
 }
 probe nd_syscall.ioprio_get.return = kprobe.function("sys_ioprio_get").return ?
 {
@@ -2740,9 +2741,11 @@ probe nd_syscall.ioprio_set = kprobe.function("sys_ioprio_set") ?
 	name = "ioprio_set"
 	asmlinkage()
 	which = int_arg(1)
+	which_str = _stp_ioprio_which_str(which)
 	who = int_arg(2)
 	ioprio = int_arg(3)
-	argstr = sprintf("%d, %d, %d", which, who, ioprio)
+	ioprio_str = _stp_ioprio_value_str(ioprio)
+	argstr = sprintf("%s, %d, %s", which_str, who, ioprio_str)
 }
 probe nd_syscall.ioprio_set.return = kprobe.function("sys_ioprio_set").return ?
 {

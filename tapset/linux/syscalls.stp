@@ -2585,9 +2585,11 @@ probe __syscall.io_submit.return = kernel.function("sys_io_submit").return
 probe syscall.ioprio_get = kernel.function("sys_ioprio_get").call ?
 {
 	name = "ioprio_get"
-	which = $which
-	who = $who
-	argstr = sprintf("%d, %d", $which, $who)
+	which = __int32($which)
+	which_str = _stp_ioprio_which_str(__int32($which))
+	who = __int32($who)
+	argstr = sprintf("%s, %d", _stp_ioprio_which_str(__int32($which)),
+			 __int32($who))
 }
 probe syscall.ioprio_get.return = kernel.function("sys_ioprio_get").return ?
 {
@@ -2601,10 +2603,14 @@ probe syscall.ioprio_get.return = kernel.function("sys_ioprio_get").return ?
 probe syscall.ioprio_set = kernel.function("sys_ioprio_set").call ?
 {
 	name = "ioprio_set"
-	which = $which
-	who = $who
-	ioprio = $ioprio
-	argstr = sprintf("%d, %d, %d", $which, $who, $ioprio)
+	which = __int32($which)
+	which_str = _stp_ioprio_which_str(__int32($which))
+	who = __int32($who)
+	ioprio = __int32($ioprio)
+	ioprio_str = _stp_ioprio_value_str(__int32($ioprio))
+	argstr = sprintf("%s, %d, %s", _stp_ioprio_which_str(__int32($which)),
+			 __int32($who),
+			 _stp_ioprio_value_str(__int32($ioprio)))
 }
 probe syscall.ioprio_set.return = kernel.function("sys_ioprio_set").return ?
 {

@@ -49,8 +49,8 @@ typedef struct {
 } _stp_val_array;
 
 static void
-_stp_lookup_str(const _stp_val_array * const array, long val, char *ptr,
-		int len)
+_stp_lookup_str2(const _stp_val_array * const array, long val, char *ptr,
+		 int len, int base)
 {
 	int i = 0, slen;
 	while (array[i].name) {
@@ -61,17 +61,29 @@ _stp_lookup_str(const _stp_val_array * const array, long val, char *ptr,
 		i++;
 	}
 	slen = strlen(ptr);
-	_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+	if (base == 10)
+		_stp_snprintf(ptr + slen, len - slen, "%ld", val);
+	else if (base == 8)
+		_stp_snprintf(ptr + slen, len - slen, "%#lo", val);
+	else
+		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+}
+
+static inline void
+_stp_lookup_str(const _stp_val_array * const array, long val, char *ptr,
+		int len)
+{
+	_stp_lookup_str2(array, val, ptr, len, 16);
 }
 
 static void
-_stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr,
-		   int len)
+_stp_lookup_or_str2(const _stp_val_array * const array, long val, char *ptr,
+		    int len, int base)
 {
 	int i = 0, flag = 0, slen;
 
 	if (val == 0) {
-		_stp_lookup_str(array, val, ptr, len);
+		_stp_lookup_str2(array, val, ptr, len, base);
 		return;
 	}
 
@@ -89,8 +101,20 @@ _stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr,
 		if (flag)
 			strlcat(ptr, "|", len);
 		slen = strlen(ptr);
-		_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
+		if (base == 10)
+			_stp_snprintf(ptr + slen, len - slen, "%ld", val);
+		else if (base == 8)
+			_stp_snprintf(ptr + slen, len - slen, "%#lo", val);
+		else
+			_stp_snprintf(ptr + slen, len - slen, "0x%lx", val);
 	}
+}
+
+static inline void
+_stp_lookup_or_str(const _stp_val_array * const array, long val, char *ptr,
+		   int len)
+{
+	_stp_lookup_or_str2(array, val, ptr, len, 16);
 }
 %}
 
@@ -1265,19 +1289,20 @@ function _sys_open_mode_str(f) {
 }
 
 /* `man 2 mknod` for more information */
-function _mknod_mode_str(mode) {
+function _mknod_mode_str:string(mode:long)
+{
    type = mode & %{ S_IFMT %}
    mode &= %{ ~S_IFMT %}
    if (type == %{ S_IFREG %})
-        return "S_IFREG|" . _sys_open_mode_str(mode)
+        return sprintf("S_IFREG|%#o", mode)
    if (type == %{ S_IFCHR %})
-        return "S_IFCHR|" . _sys_open_mode_str(mode)
+        return sprintf("S_IFCHR|%#o", mode)
    if (type == %{ S_IFBLK %})
-        return "S_IFBLK|" . _sys_open_mode_str(mode)
+        return sprintf("S_IFBLK|%#o", mode)
    if (type == %{ S_IFIFO %})
-        return "S_IFIFO|" . _sys_open_mode_str(mode)
+        return sprintf("S_IFIFO|%#o", mode)
    if (type == %{ S_IFSOCK %})
-        return "S_IFSOCK|" . _sys_open_mode_str(mode)
+        return sprintf("S_IFSOCK|%#o", mode)
    return sprintf("%#o", type | mode)
 }
 
@@ -3434,4 +3459,40 @@ function _stp_xattr_val_str:string(uaddr:long, size:long)
 	else
 		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
 			 (unsigned long)uaddr);
+%}
+
+%{
+#include <linux/ioprio.h>
+
+static const _stp_val_array const _stp_ioprio_who_list[] = {
+	V(IOPRIO_WHO_PROCESS),
+	V(IOPRIO_WHO_PGRP),
+	V(IOPRIO_WHO_USER),
+	{0, NULL}
+};
+static const _stp_val_array const _stp_ioprio_class_list[] = {
+	V(IOPRIO_CLASS_NONE),
+	V(IOPRIO_CLASS_RT),
+	V(IOPRIO_CLASS_BE),
+	V(IOPRIO_CLASS_IDLE),
+	{0, NULL}
+};
+%}
+
+function _stp_ioprio_which_str:string(who:long)
+%{ /* pure */
+	_stp_lookup_str2(_stp_ioprio_who_list, (int)STAP_ARG_who,
+			 STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+function _stp_ioprio_value_str:string(value:long)
+%{ /* pure */
+	unsigned int class = IOPRIO_PRIO_CLASS(((unsigned int)STAP_ARG_value));
+	int slen;
+
+	_stp_lookup_str(_stp_ioprio_class_list, class, STAP_RETVALUE,
+			MAXSTRINGLEN);
+	slen = strlen(STAP_RETVALUE);
+	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, "|%d",
+		      IOPRIO_PRIO_DATA(((int)STAP_ARG_value)));
 %}

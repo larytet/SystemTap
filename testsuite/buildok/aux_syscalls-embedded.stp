@@ -163,4 +163,6 @@ probe begin {
 	print (_stp_compat_msgrcv_msgtyp(0,0,0))
 	print (_stp_xattr_flags_str(0))
 	print (_stp_xattr_val_str(0,0))
+	print (_stp_ioprio_which_str(0))
+	print (_stp_ioprio_value_str(0))
 }
