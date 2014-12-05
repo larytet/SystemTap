@@ -145,6 +145,7 @@ systemtap_session::systemtap_session ():
   need_uprobes = false;
   need_unwind = false;
   need_symbols = false;
+  need_lines = false;
   uprobes_path = "";
   load_only = false;
   skip_badvars = false;
@@ -326,6 +327,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   need_uprobes = false;
   need_unwind = false;
   need_symbols = false;
+  need_lines = false;
   uprobes_path = "";
   load_only = other.load_only;
   skip_badvars = other.skip_badvars;

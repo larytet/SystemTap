@@ -35,6 +35,10 @@
 #define _STP_SYM_NEWLINE    256
 /* Adds only module " [`basename name`]" if found, use with _STP_SYM_MODULE. */
 #define _STP_SYM_MODULE_BASENAME 512
+/* Adds the line number */
+#define _STP_SYM_LINENUMBER 1024
+/* Adds the filename the symbol is from when  _STP_SYM_LINENUMBER is used. */
+#define _STP_SYM_FILENAME 2048
 
 /* Used for backtraces in hex string form. */
 #define _STP_SYM_NONE	(_STP_SYM_HEXSTR | _STP_SYM_POST_SPACE)
@@ -82,9 +86,11 @@ struct _stp_module {
 	void *debug_frame;
 	void *eh_frame;
 	void *unwind_hdr;	
+  void *debug_line;
 	uint32_t debug_frame_len;
 	uint32_t eh_frame_len;
 	uint32_t unwind_hdr_len;
+  uint32_t debug_line_len;
 	unsigned long eh_frame_addr; /* Orig load address (offset) .eh_frame */
 	unsigned long unwind_hdr_addr; /* same for .eh_frame_hdr */
 
