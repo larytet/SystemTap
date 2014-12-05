@@ -1729,7 +1729,7 @@ probe nd_syscall.sched_get_priority_max = kprobe.function("sys_sched_get_priorit
 	name = "sched_get_priority_max"
 	asmlinkage()
 	policy = int_arg(1)
-	argstr = sprint(policy)
+	argstr = sprint(_sched_policy_str(policy))
 }
 probe nd_syscall.sched_get_priority_max.return = kprobe.function("sys_sched_get_priority_max").return ?
 {
@@ -1747,7 +1747,7 @@ probe nd_syscall.sched_get_priority_min = kprobe.function("sys_sched_get_priorit
 	name = "sched_get_priority_min"
 	asmlinkage()
 	policy = int_arg(1)
-	argstr = sprint(policy)
+	argstr = sprint(_sched_policy_str(policy))
 }
 probe nd_syscall.sched_get_priority_min.return = kprobe.function("sys_sched_get_priority_min").return ?
 {

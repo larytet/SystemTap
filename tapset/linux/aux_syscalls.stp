@@ -1609,12 +1609,13 @@ function _sched_policy_str:string(policy:long)
 	unsigned int policy = (unsigned int)STAP_ARG_policy;
 #ifdef SCHED_RESET_ON_FORK
 	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
-	policy &= ~SCHED_RESET_ON_FORK;
+	if ((int)STAP_ARG_policy > 0)
+	    policy &= ~SCHED_RESET_ON_FORK;
 #endif
 	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE,
 			MAXSTRINGLEN);
 #ifdef SCHED_RESET_ON_FORK
-	if (reset_on_fork)
+	if (reset_on_fork && ((int)STAP_ARG_policy > 0))
 		strlcat(STAP_RETVALUE, "|SCHED_RESET_ON_FORK", MAXSTRINGLEN);
 #endif			
 %}
