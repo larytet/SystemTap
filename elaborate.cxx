@@ -1557,7 +1557,7 @@ public:
         if (session.verbose > 2)
 	  clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
 		    current_function->name.c_str()) << endl;
-	session.need_symbols = true;
+	session.need_lines = true;
       }
   }
 };
