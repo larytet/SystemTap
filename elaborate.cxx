@@ -1550,6 +1550,15 @@ public:
 		    current_function->name.c_str()) << endl;
 	session.need_symbols = true;
       }
+
+    if (! session.need_lines
+        && c->code.find("/* pragma:lines */") != string::npos)
+      {
+        if (session.verbose > 2)
+	  clog << _F("Turning on debug line data collecting, pragma:lines found in %s",
+		    current_function->name.c_str()) << endl;
+	session.need_symbols = true;
+      }
   }
 };
 

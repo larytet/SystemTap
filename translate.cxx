@@ -6218,6 +6218,8 @@ struct unwindsym_dump_context
   size_t eh_frame_hdr_len;
   Dwarf_Addr eh_addr;
   Dwarf_Addr eh_frame_hdr_addr;
+  void *debug_line;
+  size_t debug_line_len;
 
   set<string> undone_unwindsym_modules;
 };
@@ -6551,6 +6553,41 @@ dump_section_list (Dwfl_Module *m,
   return DWARF_CB_ABORT;
 }
 
+static void
+dump_line_tables (Dwfl_Module *m, unwindsym_dump_context *c,
+                  const char *modname, Dwarf_Addr base)
+{
+  Elf* elf;
+  Elf_Scn* scn = NULL;
+  Elf_Data* data;
+  GElf_Ehdr *ehdr, ehdr_mem;
+  GElf_Shdr* shdr, shdr_mem;
+  Dwarf_Addr bias, start;
+
+  dwfl_module_info (m, NULL, &start, NULL, NULL, NULL, NULL, NULL);
+
+  elf = dwfl_module_getelf (m, &bias);
+  if (elf == NULL)
+    return;
+
+  // we do not have the index for debug_line, so we can't use elf_getscn()
+  // instead, we need to seach through the sections for the correct one as in
+  // get_unwind_data()
+  ehdr = gelf_getehdr(elf, &ehdr_mem);
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      shdr = gelf_getshdr(scn, &shdr_mem);
+      if (strcmp(elf_strptr(elf, ehdr->e_shstrndx, shdr->sh_name),
+                 ".debug_line") == 0)
+        {
+          data = elf_rawdata(scn, NULL);
+          c->debug_line = data->d_buf;
+          c->debug_line_len = data->d_size;
+          break;
+        }
+    }
+}
+
 /* Some architectures create special local symbols that are not
    interesting. */
 static int
@@ -6830,7 +6867,11 @@ dump_unwindsym_cxt_table(systemtap_session& session, ostream& output,
       return;
     }
 
-  output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
+  // if it is the debug_line data, do not need the unwind flags to be defined
+  if(table == "debug_line")
+    output << "#if defined(STP_NEED_LINE_DATA)\n";
+  else
+    output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
   output << "static uint8_t _stp_module_" << modindex << "_" << table;
   if (!secname.empty())
     output << "_" << secindex;
@@ -6844,7 +6885,10 @@ dump_unwindsym_cxt_table(systemtap_session& session, ostream& output,
 	output << "\n" << "   ";
     }
   output << "};\n";
-  output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
+  if (table == "debug_line")
+    output << "#endif /* STP_NEED_LINE_DATA */\n";
+  else
+    output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
 }
 
 static int
@@ -6865,6 +6909,8 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   size_t eh_frame_hdr_len = c->eh_frame_hdr_len;
   Dwarf_Addr eh_addr = c->eh_addr;
   Dwarf_Addr eh_frame_hdr_addr = c->eh_frame_hdr_addr;
+  void *debug_line = c->debug_line;
+  size_t debug_line_len = c->debug_line_len;
 
   dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
 			   "debug_frame", debug_frame, debug_len);
@@ -6875,6 +6921,9 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
 			   "eh_frame_hdr", eh_frame_hdr, eh_frame_hdr_len);
 
+  dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
+			   "debug_line", debug_line, debug_line_len);
+
   if (c->session.need_unwind && debug_frame == NULL && eh_frame == NULL)
     {
       // There would be only a small benefit to warning.  A user
@@ -6884,6 +6933,13 @@ dump_unwindsym_cxt (Dwfl_Module *m,
       if (c->session.verbose > 2)
 	c->session.print_warning ("No unwind data for " + modname
 				  + ", " + dwfl_errmsg (-1));
+    }
+
+  if (c->session.need_lines && debug_line == NULL)
+    {
+      if (c->session.verbose > 2)
+        c->session.print_warning ("No debug line data for " + modname + ", " +
+                                  dwfl_errmsg (-1));
     }
 
   for (unsigned secidx = 0; secidx < c->seclist.size(); secidx++)
@@ -7048,6 +7104,19 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   c->output << ".unwind_hdr_len = 0,\n";
   if (eh_frame != NULL)
     c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA*/\n";
+
+  if (debug_line != NULL)
+    {
+      c->output << ".debug_line = "
+		<< "_stp_module_" << stpmod_idx << "_debug_line, \n";
+      c->output << ".debug_line_len = " << debug_line_len << ", \n";
+    }
+  else
+    {
+      c->output << ".debug_line = NULL,\n";
+      c->output << ".debug_line_len = 0,\n";
+    }
+
   c->output << ".sections = _stp_module_" << stpmod_idx << "_sections" << ",\n";
   c->output << ".num_sections = sizeof(_stp_module_" << stpmod_idx << "_sections)/"
             << "sizeof(struct _stp_section),\n";
@@ -7163,6 +7232,13 @@ dump_unwindsyms (Dwfl_Module *m,
   c->eh_frame_hdr_addr = 0;
   if (res == DWARF_CB_OK && c->session.need_unwind)
     res = dump_unwind_tables (m, c, name, base);
+
+  c->debug_line = NULL;
+  c->debug_line_len = 0;
+  if (res == DWARF_CB_OK && c->session.need_lines)
+    // we dont set res = dump_line_tables() because unwindsym stuff should still
+    // get dumped to the output even if gathering debug_line data fails
+    (void) dump_line_tables (m, c, name, base);
 
   /* And finally dump everything collected in the output. */
   if (res == DWARF_CB_OK)
@@ -7319,6 +7395,8 @@ emit_symbol_data (systemtap_session& s)
 				 0, /* eh_frame_hdr_len */
 				 0, /* eh_addr */
 				 0, /* eh_frame_hdr_addr */
+				 NULL, /* debug_line */
+				 0, /* debug_line_len */
 				 s.unwindsym_modules };
 
   // Micro optimization, mainly to speed up tiny regression tests
@@ -7408,6 +7486,8 @@ self_unwind_declarations(unwindsym_dump_context *ctx)
   ctx->output << ".unwind_hdr_len = 0,\n";
   ctx->output << ".debug_frame = NULL,\n";
   ctx->output << ".debug_frame_len = 0,\n";
+  ctx->output << ".debug_line = NULL,\n";
+  ctx->output << ".debug_line_len = 0,\n";
   ctx->output << "};\n";
 }
 
@@ -7617,6 +7697,9 @@ translate_pass (systemtap_session& s)
 
       if (s.need_unwind)
 	s.op->newline() << "#define STP_NEED_UNWIND_DATA 1";
+
+      if (s.need_lines)
+        s.op->newline() << "#define STP_NEED_LINE_DATA 1";
 
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
