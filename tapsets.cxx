@@ -6322,7 +6322,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *
   int reg, offset1;
   if (elf_machine == EM_ARM || elf_machine == EM_AARCH64)
     {
-      regexp = "^\\[(" + regnames + ")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
+      regexp = "^\\[(" + regnames + ")(,[ ]*[#]?([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
       reg = 1;
       offset1 = 3;
     }
