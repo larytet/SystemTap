@@ -38,22 +38,14 @@
  *15 :nfsd.proc3.rename.tfh
  */
 
-@define __svc_fh_cast(fhp)
-%(
-	@cast(@fhp, "svc_fh", "kernel:nfsd")->fh_handle
-%)
-
-/* Get file handler data from struct svc_fh */
+/* Get file handle data from struct svc_fh. */
 function __svc_fh:string(fhp:long)
 {
-	return sprintf("%d: %08x %08x %08x %08x %08x %08x",
-			@__svc_fh_cast(fhp)->fh_size,
-			@__svc_fh_cast(fhp)->fh_base->fh_pad[0],
-			@__svc_fh_cast(fhp)->fh_base->fh_pad[1],
-			@__svc_fh_cast(fhp)->fh_base->fh_pad[2],
-			@__svc_fh_cast(fhp)->fh_base->fh_pad[3],
-			@__svc_fh_cast(fhp)->fh_base->fh_pad[4],
-			@__svc_fh_cast(fhp)->fh_base->fh_pad[5])
+	svc_fh = &@cast(fhp, "svc_fh", "kernel:nfsd")->fh_handle
+	return sprintf("%d: %08x %08x %08x %08x %08x %08x", svc_fh->fh_size,
+		       svc_fh->fh_base->fh_pad[0], svc_fh->fh_base->fh_pad[1],
+		       svc_fh->fh_base->fh_pad[2], svc_fh->fh_base->fh_pad[3],
+		       svc_fh->fh_base->fh_pad[4], svc_fh->fh_base->fh_pad[5])
 }
 
 function nfs3_cmode:string(cmode:long) %{ /* pure */
