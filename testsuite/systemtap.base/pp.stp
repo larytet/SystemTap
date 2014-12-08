@@ -8,7 +8,7 @@ global hits
 
 probe begin { println("systemtap starting probe") }
 
-probe syscall.open { hits[$1()] <<< 1 }
+probe syscall.open, syscall.openat { hits[$1()] <<< 1 }
 
 probe end
 {
