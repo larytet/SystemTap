@@ -463,7 +463,8 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
 {
   const char *modname = NULL;
   const char *name = NULL;
-  unsigned long offset = 0, size = 0;
+  char *filename = NULL;
+  unsigned long offset = 0, size = 0, linenumber = 0;
   char *exstr, *poststr, *prestr;
 
   prestr = (flags & _STP_SYM_PRE_SPACE) ? " " : "";
@@ -593,6 +594,18 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
       return _stp_snprintf(str, len, "%s%p%s%s", prestr,
 			   (int64_t) address, exstr, poststr);
 #endif
+    } else if ((flags & _STP_SYM_LINENUMBER) && linenumber) {
+        if (flags & _STP_SYM_FILENAME) {
+          if (filename)
+            return _stp_snprintf(str, len, "%s%s:%u%s%s", prestr,
+                 filename, (int64_t) linenumber, exstr, poststr);
+          else
+            return _stp_snprintf(str, len, "%s??:%u%s%s", prestr,
+                 (int64_t) linenumber, exstr, poststr);
+        } else {
+            return _stp_snprintf(str, len, "%s%u%s%s", prestr,
+                 (int64_t) linenumber, exstr, poststr);
+        }
     } else {
       /* no names, hex only */
       return _stp_snprintf(str, len, "%s%p%s%s", prestr,
