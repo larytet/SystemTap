@@ -56,6 +56,31 @@
 #define _STP_SYM_DATA   (_STP_SYM_SYMBOL | _STP_SYM_MODULE \
 			 | _STP_SYM_OFFSET | _STP_SYM_SIZE)
 
+#ifdef STP_NEED_LINE_DATA
+/* DWARF standard opcode encodings.  */
+#define DW_LNS_copy             1
+#define DW_LNS_advance_pc       2
+#define DW_LNS_advance_line     3
+#define DW_LNS_set_file         4
+#define DW_LNS_set_column       5
+#define DW_LNS_negate_stmt      6
+#define DW_LNS_set_basic_block  7
+#define DW_LNS_const_add_pc     8
+#define DW_LNS_fixed_advance_pc 9
+#define DW_LNS_set_prologue_end 10
+#define DW_LNS_set_epilogue_begin 11
+#define DW_LNS_set_isa          12
+
+/* DWARF extended opcode encodings.  */
+#define DW_LNE_end_sequence   1
+#define DW_LNE_set_address    2
+#define DW_LNE_define_file    3
+#define DW_LNE_set_discriminator  4
+#define DW_LNE_lo_user        128
+#define DW_LNE_hi_user        255
+
+#endif /* STP_NEED_LINE_DATA */
+
 struct _stp_symbol {
 	unsigned long addr;
 	const char *symbol;
