@@ -300,3 +300,17 @@ function sprint_syms (callers:string) {
          }
          return __foo
 }
+
+/**
+ * sfunction symfileline - Return the file name and line number of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the file name and the (approximate) line number of the
+ * given address, if known. If the file name or the line number cannot be
+ * found, the hex string representation of the address will be returned.
+ */
+function symfileline:string (addr:long) %{
+/* pure */ /* myproc-unpriveleged */ /* pragma:symbols */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_LINENUMBER + _STP_SYM_FILENAME, NULL);
+%}
