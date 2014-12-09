@@ -15,6 +15,9 @@
 #include "sym.h"
 #include "vma.c"
 #include "stp_string.c"
+#ifdef STP_NEED_LINE_DATA
+#include "unwind/unwind.h"
+#endif
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
 #include <linux/list.h>
