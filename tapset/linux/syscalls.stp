@@ -2500,10 +2500,10 @@ probe __syscall.io_getevents.return = kernel.function("sys_io_getevents").return
 probe syscall.ioperm = kernel.function("sys_ioperm").call ?
 {
 	name = "ioperm"
-	from = $from
-	num = $num
-	turn_on = $turn_on
-	argstr = sprintf("%d, %d, %d", $from, $num, $turn_on)
+	from = __ulong($from)
+	num = __ulong($num)
+	turn_on = __uint32($turn_on)
+	argstr = sprintf("%#x, %#x, %#x", from, num, turn_on)
 }
 probe syscall.ioperm.return = kernel.function("sys_ioperm").return ?
 {

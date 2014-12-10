@@ -2643,8 +2643,8 @@ probe nd_syscall.ioperm = kprobe.function("sys_ioperm") ?
 	asmlinkage()
 	from = ulong_arg(1)
 	num = ulong_arg(2)
-	turn_on = int_arg(3)
-	argstr = sprintf("%d, %d, %d", from, num, turn_on)
+	turn_on = uint_arg(3)
+	argstr = sprintf("%#x, %#x, %#x", from, num, turn_on)
 }
 probe nd_syscall.ioperm.return = kprobe.function("sys_ioperm").return ?
 {

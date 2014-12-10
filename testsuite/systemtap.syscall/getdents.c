@@ -1,4 +1,4 @@
-/* COVERAGE: getdents */
+/* COVERAGE: getdents getdents64 */
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
