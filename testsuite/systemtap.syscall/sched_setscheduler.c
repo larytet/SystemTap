@@ -16,8 +16,8 @@ int main()
     //staptest// sched_setscheduler (-1, SCHED_FIFO, XXXX) = -NNNN (EINVAL)
 
 #ifdef SCHED_RESET_ON_FORK
-    sched_setscheduler(0, SCHED_FIFO|SCHED_RESET_ON_FORK, &param);
-    //staptest// sched_setscheduler (0, SCHED_FIFO|SCHED_RESET_ON_FORK, XXXX) = NNNN
+    sched_setscheduler(0, SCHED_RESET_ON_FORK|SCHED_FIFO, &param);
+    //staptest// sched_setscheduler (0, SCHED_RESET_ON_FORK|SCHED_FIFO, XXXX) = NNNN
 #endif
 
     sched_setscheduler(0, -1, &param);

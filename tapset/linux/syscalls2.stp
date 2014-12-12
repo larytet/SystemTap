@@ -3520,23 +3520,21 @@ probe syscall.statfs.return = kernel.function("compat_sys_statfs").return ?,
 # long sys_statfs64(const char __user *path, size_t sz, struct statfs64 __user *buf)
 # long compat_sys_statfs64(const char __user *path, compat_size_t sz, struct compat_statfs64 __user *buf)
 #
-probe syscall.statfs64 = kernel.function("compat_sys_statfs64").call ?,
-                         kernel.function("sys_statfs64").call ?
+probe syscall.statfs64 = kernel.function("sys_statfs64").call ?,
+	kernel.function("compat_sys_statfs64").call ?
 {
-	name = "statfs"
+	name = "statfs64"
+	path = user_string_quoted(@choose_defined($pathname, $path))
 	sz = $sz
 	buf_uaddr = $buf
-
-	path = user_string_quoted(@choose_defined($pathname, $path))
-	argstr = sprintf("%s, %d, %p",
-		user_string_quoted(@choose_defined($pathname, $path)),
-		$sz, $buf)
+	argstr = sprintf("%s, %u, %p",
+			 user_string_quoted(@choose_defined($pathname, $path)),
+			 $sz, $buf)
 }
-
-probe syscall.statfs64.return = kernel.function("compat_sys_statfs64").return ?,
-                                kernel.function("sys_statfs64").return ?
+probe syscall.statfs64.return = kernel.function("sys_statfs64").return ?,
+	kernel.function("compat_sys_statfs64").return ?
 {
-	name = "statfs"
+	name = "statfs64"
 	retstr = return_str(1, $return)
 }
 
@@ -4023,7 +4021,8 @@ probe syscall.tkill.return = kernel.function("sys_tkill").return
 # COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path,
 #			 compat_off_t, length)
 #
-probe syscall.truncate = __syscall.truncate ?, __syscall.compat_truncate ?
+probe syscall.truncate = __syscall.truncate ?, __syscall.truncate64 ?,
+			 __syscall.compat_truncate ?
 {
 	name = "truncate"
 %( arch == "s390" %?
@@ -4036,44 +4035,54 @@ probe syscall.truncate = __syscall.truncate ?, __syscall.compat_truncate ?
 	path_uaddr = $path
 %)
 	path = user_string_quoted(path_uaddr)
-	argstr = sprintf("%s, %u", user_string_quoted(path_uaddr), length)
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
 }
-probe __syscall.truncate = kernel.function("sys_truncate").call ?,
-			   kernel.function("sys_truncate64").call ?
+probe __syscall.truncate = kernel.function("sys_truncate").call ?
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	# Avoid probe hits from compat_sys_truncate() calling
-	# compat_sys_truncate().  The following kernel commit
-	# switched to a generic compat_sys_truncate() which doesn't
-	# go through sys_truncate():
-	#
-	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
-	#   Author: Al Viro <viro@zeniv.linux.org.uk>
-	#   Date:   Sun Feb 24 13:49:08 2013 -0500
-	#
-	#       fix compat truncate/ftruncate
-	#
-	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
-	#
-	# We could call one of the syscall_gate macros here, but the
-	# syscall number is the same number on ppc64 for the 64-bit
-	# and 32-bit syscall. So, just check that we're not in a
-	# compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
-%( arch == "s390" %?
-	# Sigh. The syscall wrappers on s390x do odd things.
+#%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+#	# Avoid probe hits from compat_sys_truncate() calling
+#	# compat_sys_truncate().  The following kernel commit
+#	# switched to a generic compat_sys_truncate() which doesn't
+#	# go through sys_truncate():
+#	#
+#	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
+#	#   Author: Al Viro <viro@zeniv.linux.org.uk>
+#	#   Date:   Sun Feb 24 13:49:08 2013 -0500
+#	#
+#	#       fix compat truncate/ftruncate
+#	#
+#	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
+#	#
+#	# We could call one of the syscall_gate macros here, but the
+#	# syscall number is the same number on ppc64 for the 64-bit
+#	# and 32-bit syscall. So, just check that we're not in a
+#	# compat task.
+#	if (%{ _stp_is_compat_task() %}) next
+#%)
+#%( arch == "s390" %?
+#	# Sigh. The syscall wrappers on s390x do odd things.
+#	if (%{ _stp_is_compat_task() %})
+#		length = __int32($length)
+#	else
+#		length = __long($length)
+#%:
+#	length = __long($length)
+#%)
+	@__syscall_compat_gate(%{ __NR_truncate %}, 
+			       %{ __NR_compat_truncate %})
+#	length = __long($length)
 	if (%{ _stp_is_compat_task() %})
-		length = __uint32($length)
+		length = __int32($length)
 	else
-		length = __ulong($length)
-%:
-	length = __ulong($length)
-%)
+		length = __long($length)
+}
+probe __syscall.truncate64 = kernel.function("sys_truncate64").call ?
+{
+	length = $length
 }
 probe __syscall.compat_truncate = kernel.function("compat_sys_truncate").call ?
 {
-	length = __uint32($length)
+	length = __int32($length)
 }
 probe syscall.truncate.return = __syscall.truncate.return,
                                 kernel.function("sys_truncate64").return ?,
@@ -4084,9 +4093,11 @@ probe syscall.truncate.return = __syscall.truncate.return,
 }
 probe __syscall.truncate.return = kernel.function("sys_truncate").return
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	if (%{ _stp_is_compat_task() %}) next
-%)
+#%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
+#	if (%{ _stp_is_compat_task() %}) next
+#%)
+	@__syscall_compat_gate(%{ __NR_truncate %}, 
+			       %{ __NR_compat_truncate %})
 }
 
 # tux ________________________________________________________
@@ -4111,8 +4122,8 @@ probe syscall.tux.return = kernel.function("sys_tux").return ?
 probe syscall.umask = kernel.function("sys_umask").call
 {
 	name = "umask"
-	mask = $mask
-	argstr = sprintf("%#o", $mask)
+	mask = __uint32($mask)
+	argstr = sprintf("%#o", __uint32($mask))
 }
 probe syscall.umask.return = kernel.function("sys_umask").return
 {
@@ -4140,8 +4151,8 @@ probe __syscall.oldumount = kernel.function("sys_oldumount").call ?
 {
 	target = user_string_quoted($name)
 	flags = 0
-	flags_str = "0"
-	argstr = sprintf("%s, 0", user_string_quoted($name))
+	flags_str = _umountflags_str(0)
+	argstr = sprintf("%s, %s", user_string_quoted($name), flags_str)
 }
 probe syscall.umount.return = __syscall.umount.return,
 			      kernel.function("sys_oldumount").return ?
@@ -4258,9 +4269,9 @@ probe syscall.uselib.return = kernel.function("sys_uselib").return ?
 probe syscall.ustat = kernel.function("sys_ustat").call
 {
 	name = "ustat"
-	dev = $dev
+	dev = __uint32($dev)
 	ubuf_uaddr = $ubuf
-	argstr = sprintf("%d, %p", $dev, $ubuf)
+	argstr = sprintf("%u, %p", __uint32($dev), $ubuf)
 }
 
 # long sys32_ustat(unsigned dev, struct ustat32 __user *u32p)
@@ -4270,9 +4281,9 @@ probe syscall.ustat32 = kernel.function("compat_sys_ustat").call ?,
       		        kernel.function("sys32_ustat").call ?
 {
 	name = "ustat"
-	dev = $dev
+	dev = __uint32($dev)
 	ubuf_uaddr = @choose_defined($u, $u32p)
-	argstr = sprintf("%d, %p", $dev, @choose_defined($u, $u32p))
+	argstr = sprintf("%u, %p", __uint32($dev), @choose_defined($u, $u32p))
 }
 
 probe syscall.ustat.return = kernel.function("sys_ustat").return ?

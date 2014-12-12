@@ -192,6 +192,7 @@ probe syscall.vm86_warning.return = kernel.function("sys32_vm86_warning").return
 	name = "wm86_warning"
 	retstr = return_str(1, $return)
 }
+
 # pipe _______________________________________________________
 #
 # long sys32_pipe(int __user *fd)
@@ -237,5 +238,45 @@ probe syscall.pipe32.return = kernel.function("sys32_pipe").return?
 		pipe0 = 0;
 		pipe1 = 0;
 	}
+	retstr = return_str(1, $return)
+}
+
+# ftruncate _______________________________________________________
+#
+# asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
+#				    unsigned long offset_high)
+#
+probe syscall.compat_ftruncate64 = kernel.function("sys32_ftruncate64").call ?
+{
+        name = "ftruncate"
+        fd = __int32($fd)
+        length = (($offset_high << 32) | $offset_low)
+        argstr = sprintf("%d, %d", fd, length)
+}
+probe syscall.compat_ftruncate64.return =
+	kernel.function("sys32_ftruncate64").return ?
+{
+	name = "ftruncate"
+	retstr = return_str(1, $return)
+}
+
+# truncate _______________________________________________________
+#
+# asmlinkage long sys32_truncate64(const char __user *filename,
+#				   unsigned long offset_low,
+#				   unsigned long offset_high)
+#
+probe syscall.compat_truncate64 = kernel.function("sys32_truncate64").call ?
+{
+        name = "truncate"
+	path_uaddr = $filename
+	path = user_string_quoted(path_uaddr)
+        length = (($offset_high << 32) | $offset_low)
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+}
+probe syscall.compat_truncate64.return =
+	kernel.function("sys32_truncate64").return ?
+{
+	name = "truncate"
 	retstr = return_str(1, $return)
 }

@@ -13,7 +13,7 @@ int main() {
 #if defined(__powerpc__) || defined(__s390__)
     //staptest// ni_syscall () = -38 (ENOSYS)
 #else
-    //staptest// ioperm (0x424, 0x1, 0x1) = 0
+    //staptest// ioperm (0x424, 0x1, 0x1) = NNNN
 #endif
 
     syscall(__NR_ioperm, (unsigned long)-1, 1, 1);

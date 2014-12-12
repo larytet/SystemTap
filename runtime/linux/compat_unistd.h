@@ -28,6 +28,9 @@
 #ifndef __NR_accept4
 #define __NR_accept4 (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_ftruncate
+#define __NR_ftruncate (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_futimesat
 #define __NR_futimesat (__NR_syscall_max + 1)
 #endif
@@ -73,6 +76,9 @@
 #ifndef __NR_shmctl
 #define __NR_shmctl (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_truncate
+#define __NR_truncate (__NR_syscall_max + 1)
+#endif
 
 #if defined(__x86_64__)
 
@@ -101,6 +107,9 @@
 #endif
 #ifndef __NR_ia32_fchownat
 #define __NR_ia32_fchownat 298
+#endif
+#ifndef __NR_ia32_ftruncate
+#define __NR_ia32_ftruncate 93
 #endif
 #ifndef __NR_ia32_futimesat
 #define __NR_ia32_futimesat 299
@@ -154,6 +163,9 @@
 #ifndef __NR_ia32_symlinkat
 #define __NR_ia32_symlinkat 304
 #endif
+#ifndef __NR_ia32_truncate
+#define __NR_ia32_truncate 92
+#endif
 #ifndef __NR_ia32_umount2
 #define __NR_ia32_umount2 52
 #endif
@@ -166,6 +178,7 @@
 #define __NR_compat_faccessat		__NR_ia32_faccessat
 #define __NR_compat_fchmodat		__NR_ia32_fchmodat
 #define __NR_compat_fchownat		__NR_ia32_fchownat
+#define __NR_compat_ftruncate		__NR_ia32_ftruncate
 #define __NR_compat_futimesat		__NR_ia32_futimesat
 #define __NR_compat_getpgid		__NR_ia32_getpgid
 #define __NR_compat_inotify_init1	__NR_ia32_inotify_init1
@@ -181,6 +194,7 @@
 #define __NR_compat_sendmmsg		__NR_ia32_sendmmsg
 #define __NR_compat_shmctl		__NR_ia32_shmctl
 #define __NR_compat_symlinkat		__NR_ia32_symlinkat
+#define __NR_compat_truncate		__NR_ia32_truncate
 #define __NR_compat_umount2		__NR_ia32_umount2
 
 #endif	/* __x86_64__ */
@@ -202,6 +216,7 @@
 #define __NR_compat_faccessat		__NR_faccessat
 #define __NR_compat_fchmodat		__NR_fchmodat
 #define __NR_compat_fchownat		__NR_fchownat
+#define __NR_compat_ftruncate		__NR_ftruncate
 #define __NR_compat_futimesat		__NR_futimesat
 #define __NR_compat_getpgid		__NR_getpgid
 #define __NR_compat_inotify_init1	__NR_inotify_init1
@@ -217,6 +232,7 @@
 #define __NR_compat_sendmmsg		__NR_sendmmsg
 #define __NR_compat_shmctl		__NR_shmctl
 #define __NR_compat_symlinkat		__NR_symlinkat
+#define __NR_compat_truncate		__NR_truncate
 #define __NR_compat_umount2		__NR_umount2
 
 #endif	/* __powerpc64__ || __s390x__ || __aarch64__ */

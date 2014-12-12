@@ -3678,20 +3678,21 @@ probe nd_syscall.statfs.return = kprobe.function("compat_sys_statfs").return ?,
 # long sys_statfs64(const char __user *path, size_t sz, struct statfs64 __user *buf)
 # long compat_sys_statfs64(const char __user *path, compat_size_t sz, struct compat_statfs64 __user *buf)
 #
-probe nd_syscall.statfs64 = kprobe.function("compat_sys_statfs64") ?,
-                            kprobe.function("sys_statfs64") ?
+probe nd_syscall.statfs64 = kprobe.function("sys_statfs64") ?,
+	kprobe.function("compat_sys_statfs64") ?
 {
-	name = "statfs"
+	name = "statfs64"
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
 	sz = ulong_arg(2)
 	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %d, %p", user_string_quoted(pointer_arg(1)), sz, buf_uaddr)
+	argstr = sprintf("%s, %u, %p", path, sz, buf_uaddr)
 }
-probe nd_syscall.statfs64.return = kprobe.function("compat_sys_statfs64").return ?,
-                                   kprobe.function("sys_statfs64").return ?
+probe nd_syscall.statfs64.return =
+	kprobe.function("sys_statfs64").return ?,
+	kprobe.function("compat_sys_statfs64").return ?
 {
-	name = "statfs"
+	name = "statfs64"
 	retstr = returnstr(1)
 }
 
@@ -4210,42 +4211,27 @@ probe nd_syscall.truncate = __nd_syscall.truncate ?,
 	asmlinkage()
 	path_uaddr = pointer_arg(1)
 	path = user_string_quoted(path_uaddr)
-	argstr = sprintf("%s, %u", user_string_quoted(path_uaddr), length)
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
 }
 probe __nd_syscall.truncate = kprobe.function("sys_truncate")
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	# Avoid probe hits from compat_sys_truncate() calling
-	# compat_sys_truncate().  The following kernel commit
-	# switched to a generic compat_sys_truncate() which doesn't
-	# go through sys_truncate():
-	#
-	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
-	#   Author: Al Viro <viro@zeniv.linux.org.uk>
-	#   Date:   Sun Feb 24 13:49:08 2013 -0500
-	#
-	#       fix compat truncate/ftruncate
-	#
-	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
-	#
-	# We could call one of the syscall_gate macros here, but the
-	# syscall number is the same number on ppc64 for the 64-bit
-	# and 32-bit syscall. So, just check that we're not in a
-	# compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_compat_gate(%{ __NR_truncate %}, 
+			       %{ __NR_compat_truncate %})
 	asmlinkage()
-	length = ulong_arg(2)
+	if (%{ _stp_is_compat_task() %})
+		length = int_arg(2)
+	else
+		length = long_arg(2)
 }
 probe __nd_syscall.truncate64 = kprobe.function("sys_truncate64")
 {
 	asmlinkage()
-	length = ulonglong_arg(2)
+	length = longlong_arg(2)
 }
 probe __nd_syscall.compat_truncate = kprobe.function("compat_sys_truncate")
 {
 	asmlinkage()
-	length = uint_arg(2)
+	length = int_arg(2)
 }
 probe nd_syscall.truncate.return = __nd_syscall.truncate.return,
 	kprobe.function("sys_truncate64").return ?,
@@ -4256,9 +4242,8 @@ probe nd_syscall.truncate.return = __nd_syscall.truncate.return,
 }
 probe __nd_syscall.truncate.return = kprobe.function("sys_truncate").return
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_compat_gate(%{ __NR_truncate %}, 
+			       %{ __NR_compat_truncate %})
 }
 
 # tux ________________________________________________________
@@ -4285,7 +4270,7 @@ probe nd_syscall.umask = kprobe.function("sys_umask") ?
 {
 	name = "umask"
 	asmlinkage()
-	mask = int_arg(1)
+	mask = uint_arg(1)
 	argstr = sprintf("%#o", mask)
 }
 probe nd_syscall.umask.return = kprobe.function("sys_umask").return ?
@@ -4309,15 +4294,17 @@ probe __nd_syscall.umount = kprobe.function("sys_umount")
 	target = user_string_quoted(pointer_arg(1))
 	flags = int_arg(2)
 	flags_str = _umountflags_str(flags)
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)), flags_str)
+	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
+			 flags_str)
 }
 probe __nd_syscall.oldumount = kprobe.function("sys_oldumount") ?
 {
 	asmlinkage()
 	target = user_string_quoted(pointer_arg(1))
 	flags = 0
-	flags_str = "0"
-	argstr = sprintf("%s, 0", user_string_quoted(pointer_arg(1)))
+	flags_str = _umountflags_str(0)
+	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)),
+			 flags_str)
 }
 probe nd_syscall.umount.return = __nd_syscall.umount.return,
 				 kprobe.function("sys_oldumount").return ?
@@ -4448,7 +4435,7 @@ probe nd_syscall.ustat = kprobe.function("sys_ustat") ?
 	asmlinkage()
 	dev = uint_arg(1)
 	ubuf_uaddr = pointer_arg(2)
-	argstr = sprintf("%d, %p", dev, ubuf_uaddr)
+	argstr = sprintf("%u, %p", dev, ubuf_uaddr)
 }
 probe nd_syscall.ustat.return = kprobe.function("sys_ustat").return ?
 {
@@ -4465,7 +4452,7 @@ probe nd_syscall.ustat.return = kprobe.function("sys_ustat").return ?
 probe nd_syscall.ustat32 = __nd_syscall.ustat32 ?, __nd_syscall.compat_ustat ?
 {
 	name = "ustat"
-	argstr = sprintf("%d, %p", dev, ubuf_uaddr)
+	argstr = sprintf("%u, %p", dev, ubuf_uaddr)
 }
 probe __nd_syscall.ustat32 = kprobe.function("sys32_ustat") ?
 {

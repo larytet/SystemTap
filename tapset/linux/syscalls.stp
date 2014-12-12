@@ -1488,9 +1488,9 @@ probe syscall.fstatfs = kernel.function("compat_sys_fstatfs").call ?,
                         kernel.function("sys_fstatfs").call
 {
 	name = "fstatfs"
-	fd = $fd
+	fd = __int32($fd)
 	buf_uaddr = $buf
-	argstr = sprintf("%d, %p", $fd, $buf)
+	argstr = sprintf("%d, %p", __int32($fd), $buf)
 }
 probe syscall.fstatfs.return = kernel.function("compat_sys_fstatfs").return ?,
                                kernel.function("sys_fstatfs").return
@@ -1503,19 +1503,19 @@ probe syscall.fstatfs.return = kernel.function("compat_sys_fstatfs").return ?,
 # long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user *buf)
 # long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct compat_statfs64 __user *buf)
 #
-probe syscall.fstatfs64 = kernel.function("compat_sys_fstatfs64").call ?,
-                          kernel.function("sys_fstatfs64").call ?
+probe syscall.fstatfs64 = kernel.function("sys_fstatfs64").call ?,
+	kernel.function("compat_sys_fstatfs64").call ?
 {
-	name = "fstatfs"
-	fd = $fd
+	name = "fstatfs64"
+	fd = __int32($fd)
 	sz = $sz
 	buf_uaddr = $buf
-	argstr = sprintf("%d, %d, %p", $fd, $sz, $buf)
+	argstr = sprintf("%d, %u, %p", __int32($fd), $sz, $buf)
 }
-probe syscall.fstatfs64.return = kernel.function("compat_sys_fstatfs64").return ?,
-                                 kernel.function("sys_fstatfs64").return ?
+probe syscall.fstatfs64.return = kernel.function("sys_fstatfs64").return ?,
+	kernel.function("compat_sys_fstatfs64").return ?
 {
-	name = "fstatfs"
+	name = "fstatfs64"
 	retstr = return_str(1, $return)
 }
 
@@ -1540,36 +1540,21 @@ probe syscall.ftruncate = __syscall.ftruncate, __syscall.compat_ftruncate ?
 {
 	name = "ftruncate"
 	fd = __int32($fd)
-	argstr = sprintf("%d, %u", fd, length)
+	argstr = sprintf("%d, %d", fd, length)
 }
 probe __syscall.ftruncate = kernel.function("sys_ftruncate").call
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	# Avoid probe hits from compat_sys_ftruncate() calling
-	# compat_sys_ftruncate().  The following kernel commit
-	# switched to a generic compat_sys_ftruncate() which doesn't
-	# go through sys_ftruncate():
-	#
-	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
-	#   Author: Al Viro <viro@zeniv.linux.org.uk>
-	#   Date:   Sun Feb 24 13:49:08 2013 -0500
-	#
-	#       fix compat truncate/ftruncate
-	#
-	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
-	#
-	# We could call one of the syscall_gate macros here, but the
-	# syscall number is the same number on ppc64 for the 64-bit
-	# and 32-bit syscall. So, just check that we're not in a
-	# compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
-	length = __ulong($length)
+	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
+			       %{ __NR_compat_ftruncate %})
+	if (%{ _stp_is_compat_task() %})
+		length = __int32($length)
+	else
+		length = __long($length)
 }
 probe __syscall.compat_ftruncate =
 	kernel.function("compat_sys_ftruncate").call ?
 {
-	length = __uint32($length)
+	length = __int32($length)
 }
 probe syscall.ftruncate.return = __syscall.ftruncate.return,
 	kernel.function("compat_sys_ftruncate").return ?
@@ -1579,11 +1564,9 @@ probe syscall.ftruncate.return = __syscall.ftruncate.return,
 }
 probe __syscall.ftruncate.return = kernel.function("sys_ftruncate").return
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
+			       %{ __NR_compat_ftruncate %})
 }
-
 
 # ftruncate64 ________________________________________________
 # long sys_ftruncate64(unsigned int fd, loff_t length)

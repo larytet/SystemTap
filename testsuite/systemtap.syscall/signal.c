@@ -27,7 +27,7 @@ int main()
   //staptest// signal (SIGUSR1, XXXX) = 0
 
   syscall (SYS_signal, -1, sig_act_handler);
-  //staptest// signal (0x[f]+, XXXX) = -NNNN
+  //staptest// signal (0x[f]+, XXXX) = NNNN
 
   syscall (SYS_signal, SIGUSR1, -1);
 #ifdef __s390__

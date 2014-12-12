@@ -1607,17 +1607,17 @@ static const _stp_val_array const _stp_sched_policy_list[] = {
 function _sched_policy_str:string(policy:long)
 %{ /* pure */
 	unsigned int policy = (unsigned int)STAP_ARG_policy;
+	int len;
+
 #ifdef SCHED_RESET_ON_FORK
-	int reset_on_fork = (policy & SCHED_RESET_ON_FORK);
-	if ((int)STAP_ARG_policy > 0)
-	    policy &= ~SCHED_RESET_ON_FORK;
+	if (((int)STAP_ARG_policy > 0) && (policy & SCHED_RESET_ON_FORK)) {
+		strlcpy(STAP_RETVALUE, "SCHED_RESET_ON_FORK|", MAXSTRINGLEN);
+		policy &= ~SCHED_RESET_ON_FORK;
+	}
 #endif
-	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE,
-			MAXSTRINGLEN);
-#ifdef SCHED_RESET_ON_FORK
-	if (reset_on_fork && ((int)STAP_ARG_policy > 0))
-		strlcat(STAP_RETVALUE, "|SCHED_RESET_ON_FORK", MAXSTRINGLEN);
-#endif			
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_sched_policy_list, policy, STAP_RETVALUE + len,
+			MAXSTRINGLEN - len);
 %}
 
 %{
@@ -1723,62 +1723,68 @@ function _futex_op_str(op) {
    return sprintf("UNKNOWN VALUE: %d", op)
 }
 
+%{
+static const _stp_val_array const _stp_mountflags_list[] = {
+	V(MS_RDONLY),
+	V(MS_NOSUID),
+	V(MS_NODEV),
+	V(MS_NOEXEC),
+	V(MS_SYNCHRONOUS),
+	V(MS_REMOUNT),
+	V(MS_MANDLOCK),
+	V(MS_DIRSYNC),
+	V(MS_NOATIME),
+	V(MS_NODIRATIME),
+	V(MS_BIND),
+	V(MS_MOVE),
+	V(MS_REC),
+	/* MS_SILENT replaced MS_VERBOSE */
+#ifdef MS_SILENT
+	V(MS_SILENT),
+#else
+	V(MS_VERBOSE),
+#endif
+	V(MS_POSIXACL),
+	V(MS_UNBINDABLE),
+	V(MS_PRIVATE),
+	V(MS_SLAVE),
+	V(MS_SHARED),
+#ifdef MS_RELATIME
+	V(MS_RELATIME),
+#endif
+#ifdef MS_KERNMOUNT
+	V(MS_KERNMOUNT),
+#endif
+#ifdef MS_I_VERSION
+	V(MS_I_VERSION),
+#endif
+#ifdef MS_STRICTATIME
+	V(MS_STRICTATIME),
+#endif
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_umountflags_list[] = {
+	V(MNT_FORCE),
+	V(MNT_DETACH),
+	V(MNT_EXPIRE),
+#ifdef UMOUNT_NOFOLLOW
+	V(UMOUNT_NOFOLLOW),
+#endif
+	{0, NULL}
+};
+%}
+
 function _mountflags_str:string(op:long) 
 %{ /* pure */
-	int len, op = STAP_ARG_op;
-	char *str = STAP_RETVALUE;
-	str[0] = '\0';
-	if (op & MS_BIND)
-		strlcat(str,"MS_BIND|",MAXSTRINGLEN);
-	if (op & MS_DIRSYNC)
-		strlcat(str,"MS_DIRSYNC|",MAXSTRINGLEN);
-	if (op & MS_MANDLOCK)
-		strlcat(str,"MS_MANDLOCK|",MAXSTRINGLEN);
-	if (op & MS_MOVE)
-		strlcat(str,"MS_MOVE|",MAXSTRINGLEN);
-	if (op & MS_NOATIME)
-		strlcat(str,"MS_NOATIME|",MAXSTRINGLEN);
-	if (op & MS_NODEV)
-		strlcat(str,"MS_NODEV|",MAXSTRINGLEN);
-	if (op & MS_NODIRATIME)
-		strlcat(str,"MS_NODIRATIME|",MAXSTRINGLEN);
-	if (op & MS_NOEXEC)
-		strlcat(str,"MS_NOEXEC|",MAXSTRINGLEN);
-	if (op & MS_NOSUID)
-		strlcat(str,"MS_NOSUID|",MAXSTRINGLEN);
-	if (op & MS_RDONLY)
-		strlcat(str,"MS_RDONLY|",MAXSTRINGLEN);
-	if (op & MS_REC)
-		strlcat(str,"MS_REC|",MAXSTRINGLEN);
-	if (op & MS_REMOUNT)
-		strlcat(str,"MS_REMOUNT|",MAXSTRINGLEN);
-	if (op & MS_SYNCHRONOUS)
-		strlcat(str,"MS_SYNCHRONOUS|",MAXSTRINGLEN);
-	if (op & MS_VERBOSE)
-		strlcat(str,"MS_VERBOSE|",MAXSTRINGLEN);
-	len = strlen(str);
-	if (len)
-		str[strlen(str)-1] = '\0';
+	_stp_lookup_or_str(_stp_mountflags_list, (unsigned long)STAP_ARG_op,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _umountflags_str:string(op:long) 
 %{ /* pure */
-	int len, op = STAP_ARG_op;
-	char *str = STAP_RETVALUE;
-	if (op == 0)
-		strlcpy(str,"0",MAXSTRINGLEN);
-	else {
-		str[0] = '\0';
-		if (op & MNT_FORCE)
-			strlcat(str,"MNT_FORCE|",MAXSTRINGLEN);
-		if (op & MNT_DETACH)
-			strlcat(str,"MNT_DETACH|",MAXSTRINGLEN);
-		if (op & MNT_EXPIRE)
-			strlcat(str,"MNT_EXPIRE|",MAXSTRINGLEN);
-		len = strlen(str);
-		if (len)
-			str[strlen(str)-1] = '\0';
-	}
+	_stp_lookup_or_str(_stp_umountflags_list, (unsigned int)STAP_ARG_op,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _statfs_f_type_str(f) {
@@ -2447,6 +2453,10 @@ function __uint32:long(val:long) %{ /* pure */
 /* Unsigned values can get get sign-extended and become negative. */
 function __ulong:long(val:long) %{ /* pure */
 	STAP_RETVALUE = (unsigned long)STAP_ARG_val;
+%}
+
+function __long:long(val:long) %{ /* pure */
+	STAP_RETVALUE = (long)STAP_ARG_val;
 %}
 
 # For utimensat and futimesat, the directory fd can have a special value

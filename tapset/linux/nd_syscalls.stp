@@ -1599,20 +1599,21 @@ probe nd_syscall.fstatfs.return = kprobe.function("compat_sys_fstatfs").return ?
 # long sys_fstatfs64(unsigned int fd, size_t sz, struct statfs64 __user *buf)
 # long compat_sys_fstatfs64(unsigned int fd, compat_size_t sz, struct compat_statfs64 __user *buf)
 #
-probe nd_syscall.fstatfs64 = kprobe.function("compat_sys_fstatfs64") ?,
-                             kprobe.function("sys_fstatfs64") ?
+probe nd_syscall.fstatfs64 = kprobe.function("sys_fstatfs64") ?,
+	kprobe.function("compat_sys_fstatfs64") ?
 {
-	name = "fstatfs"
+	name = "fstatfs64"
 	asmlinkage()
 	fd = int_arg(1)
 	sz = ulong_arg(2)
 	buf_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %d, %p", fd, sz, buf_uaddr)
+	argstr = sprintf("%d, %u, %p", fd, sz, buf_uaddr)
 }
-probe nd_syscall.fstatfs64.return = kprobe.function("compat_sys_fstatfs64").return ?,
-                                    kprobe.function("sys_fstatfs64").return ?
+probe nd_syscall.fstatfs64.return =
+	kprobe.function("sys_fstatfs64").return ?,
+	kprobe.function("compat_sys_fstatfs64").return ?
 {
-	name = "fstatfs"
+	name = "fstatfs64"
 	retstr = returnstr(1)
 }
 
@@ -1640,39 +1641,23 @@ probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
 	name = "ftruncate"
 	asmlinkage()
 	fd = int_arg(1)
-	argstr = sprintf("%d, %u", fd, length)
+	argstr = sprintf("%d, %d", fd, length)
 }
 probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	# Avoid probe hits from compat_sys_ftruncate() calling
-	# compat_sys_ftruncate().  The following kernel commit
-	# switched to a generic compat_sys_ftruncate() which doesn't
-	# go through sys_ftruncate():
-	#
-	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
-	#   Author: Al Viro <viro@zeniv.linux.org.uk>
-	#   Date:   Sun Feb 24 13:49:08 2013 -0500
-	#
-	#       fix compat truncate/ftruncate
-	#
-	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
-	#
-	# We could call one of the syscall_gate macros here, but the
-	# syscall number is the same number on ppc64 for the 64-bit
-	# and 32-bit syscall. So, just check that we're not in a
-	# compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
-
+	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
+			       %{ __NR_compat_ftruncate %})
 	asmlinkage()
-	length = ulong_arg(2)
+	if (%{ _stp_is_compat_task() %})
+		length = int_arg(2)
+	else
+		length = long_arg(2)
 }
 probe __nd_syscall.compat_ftruncate =
 	kprobe.function("compat_sys_ftruncate").call
 {
 	asmlinkage()
-	length = uint_arg(2)
+	length = int_arg(2)
 }
 probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 	kprobe.function("compat_sys_ftruncate").return ?
@@ -1682,9 +1667,8 @@ probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 }
 probe __nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return
 {
-%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
+			       %{ __NR_compat_ftruncate %})
 }
 
 # ftruncate64 ________________________________________________
@@ -1697,7 +1681,8 @@ probe nd_syscall.ftruncate64 = kprobe.function("sys_ftruncate64") ?
 	length = longlong_arg(2)
 	argstr = sprintf("%d, %d", fd, length)
 }
-probe nd_syscall.ftruncate64.return = kprobe.function("sys_ftruncate64").return ?
+probe nd_syscall.ftruncate64.return =
+	kprobe.function("sys_ftruncate64").return ?
 {
 	name = "ftruncate"
 	retstr = returnstr(1)
