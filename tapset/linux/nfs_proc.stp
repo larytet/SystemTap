@@ -108,8 +108,9 @@ function __nfsv4_bitmask:long(dir:long, i:long)
 {
 %( CONFIG_NFS_V4 == "[ym]" %?
 	return @cast(NFS_SERVER(dir), "nfs_server", "kernel:nfs")->attr_bitmask[i]
-%)
+%:
 	return 0
+%)
 }
 
 %( systemtap_v < "2.3" %?
@@ -127,9 +128,11 @@ probe nfs.proc.entries = nfs.proc.lookup,
 			 nfs.proc.read_setup,
 			 nfs.proc.write_setup,
 			 nfs.proc.commit_setup,
+			 nfs.proc.rename_setup,
 			 nfs.proc.read_done,
 			 nfs.proc.write_done,
 			 nfs.proc.commit_done,
+			 nfs.proc.rename_done,
 			 nfs.proc.open,
 			 nfs.proc.create,
 			 nfs.proc.rename,
@@ -146,9 +149,11 @@ probe nfs.proc.return = nfs.proc.lookup.return,
 			nfs.proc.read_setup.return,
 			nfs.proc.write_setup.return,
 			nfs.proc.commit_setup.return,
+			nfs.proc.rename_setup.return,
 			nfs.proc.read_done.return,
 			nfs.proc.write_done.return,
 			nfs.proc.commit_done.return,
+			nfs.proc.rename_done.return,
 			nfs.proc.open.return,
 			nfs.proc.create.return,
 			nfs.proc.rename.return,
@@ -744,22 +749,24 @@ probe nfs.proc2.read_setup.return =
 {
 	version = 2
 	name = "nfs.proc2.read_setup.return"
-	retvalue = 0;
+	retvalue = 0
 }
 
 probe nfs.proc3.read_setup = kernel.function("nfs3_proc_read_setup") !,
 			     module("nfs").function("nfs3_proc_read_setup") ?,
 			     module("nfsv3").function("nfs3_proc_read_setup") ?
 {
-	inode = @defined($data->header) ? $data->header->inode : $data->inode
+	inode = @choose_defined($hdr->inode,
+				@choose_defined($data->header->inode,
+						$data->inode))
 	client = NFS_CLIENT(inode)
 	server_ip = get_ip_from_client(client)
 	prot = get_prot_from_client(client)
 	version = 3
-	fh = 
+	fh = 0
 
-	count = @_nfs_data_args_count($data)
-	offset = $data->args->offset
+	count = @_nfs_data_args_count(@choose_defined($hdr, $data))
+	offset = @choose_defined($hdr->args->offset, $data->args->offset)
 
 	name = "nfs.proc3.read_setup"
 	argstr = sprintf("%d,%d", count, offset)
@@ -775,21 +782,23 @@ probe nfs.proc3.read_setup.return =
 {
 	version = 3
 	name = "nfs.proc3.read_setup.return"
-	retvalue = 0;
+	retvalue = 0
 }
 
 probe nfs.proc4.read_setup = kernel.function("nfs4_proc_read_setup") !,
 			     module("nfs").function("nfs4_proc_read_setup") ?,
 			     module("nfsv4").function("nfs4_proc_read_setup") ?
 {
-	inode = @defined($data->header) ? $data->header->inode : $data->inode
+	inode = @choose_defined($hdr->inode,
+				@choose_defined($data->header->inode,
+						$data->inode))
 	client = NFS_CLIENT(inode)
 	server_ip = get_ip_from_client(client)
 	prot = get_prot_from_client(client)
 	version = 4
 
-	count = @_nfs_data_args_count($data)
-	offset = $data->args->offset
+	count = @_nfs_data_args_count(@choose_defined($hdr, $data))
+	offset = @choose_defined($hdr->args->offset, $data->args->offset)
 	//timestamp = $jiffies
 
 	name = "nfs.proc4.read_setup"
@@ -805,7 +814,7 @@ probe nfs.proc4.read_setup.return =
 {
 	version = 4
 	name = "nfs.proc4.read_setup.return"
-	retvalue = 0;
+	retvalue = 0
 }
 
 /**
@@ -880,10 +889,10 @@ probe nfs.proc3.read_done = kernel.function("nfs3_read_done") !,
 			    module("nfs").function("nfs3_read_done") ?,
 			    module("nfsv3").function("nfs3_read_done") ?
 {
-	if (@defined($data)) {		# kernels >= 2.6.10
-		server_ip = @_nfs_data_server_ip($data)
-		prot = @_nfs_data_prot($data)
-		count = @_nfs_data_res_count($data)
+	if (@defined($hdr) || @defined($data)) {	# kernels >= 2.6.10
+		server_ip = @_nfs_data_server_ip(@choose_defined($hdr, $data))
+		prot = @_nfs_data_prot(@choose_defined($hdr, $data))
+		count = @_nfs_data_res_count(@choose_defined($hdr, $data))
 	}
 	else {
 		server_ip = @_nfs_data_server_ip($task->tk_calldata)
@@ -914,11 +923,11 @@ probe nfs.proc4.read_done = kernel.function("nfs4_read_done") !,
 			    module("nfs").function("nfs4_read_done") ?,
 			    module("nfsv4").function("nfs4_read_done") ?
 {
-	if (@defined($data)) {		# kernels >= 2.6.10
-		server_ip = @_nfs_data_server_ip($data)
-		prot = @_nfs_data_prot($data)
-		count = @_nfs_data_res_count($data)
-		timestamp = @_nfs_data_timestamp($data)
+	if (@defined($hdr) || @defined($data)) {	# kernels >= 2.6.10
+		server_ip = @_nfs_data_server_ip(@choose_defined($hdr, $data))
+		prot = @_nfs_data_prot(@choose_defined($hdr, $data))
+		count = @_nfs_data_res_count(@choose_defined($hdr, $data))
+		timestamp = @_nfs_data_timestamp(@choose_defined($hdr, $data))
 	}
 	else {
 		server_ip = @_nfs_data_server_ip($task->tk_calldata)
@@ -1031,15 +1040,18 @@ probe nfs.proc3.write_setup =
 	module("nfs").function("nfs3_proc_write_setup") ?,
 	module("nfsv3").function("nfs3_proc_write_setup") ?
 {
-	inode = @defined($data->header) ? $data->header->inode : $data->inode
+	inode = @choose_defined($hdr->inode,
+				@choose_defined($data->header->inode,
+						$data->inode))
 	client = NFS_CLIENT(inode)
 	server_ip = get_ip_from_client(client)
 	prot = get_prot_from_client(client)
 	version = 3
 
-	count = @_nfs_data_args_count($data)
-	offset = $data->args->offset
-	how = @choose_defined($how, $data->args->stable)
+	count = @_nfs_data_args_count(@choose_defined($hdr, $data))
+	offset = @choose_defined($hdr->args->offset, $data->args->offset)
+	how = @choose_defined($hdr->args->stable,
+			      @choose_defined($how, $data->args->stable))
 	bitmask0 = 0
 	bitmask1 = 0
 
@@ -1064,15 +1076,18 @@ probe nfs.proc4.write_setup =
 	module("nfs").function("nfs4_proc_write_setup") ?,
 	module("nfsv4").function("nfs4_proc_write_setup") ?
 {
-	inode = @defined($data->header) ? $data->header->inode : $data->inode
+	inode = @choose_defined($hdr->inode,
+				@choose_defined($data->header->inode,
+						$data->inode))
 	client = NFS_CLIENT(inode)
 	server_ip = get_ip_from_client(client)
 	prot = get_prot_from_client(client)
 	version = 4
 
-	count = @_nfs_data_args_count($data)
-	offset = $data->args->offset
-	how = @choose_defined($how, $data->args->stable)
+	count = @_nfs_data_args_count(@choose_defined($hdr, $data))
+	offset = @choose_defined($hdr->args->offset, $data->args->offset)
+	how = @choose_defined($hdr->args->stable,
+			      @choose_defined($how, $data->args->stable))
 	bitmask0 = __nfsv4_bitmask(inode, 0)
 	bitmask1 = __nfsv4_bitmask(inode, 1)
 	//timestamp = $jiffies
@@ -1169,11 +1184,11 @@ probe nfs.proc3.write_done = kernel.function("nfs3_write_done") !,
 			     module("nfs").function("nfs3_write_done") ?,
 			     module("nfsv3").function("nfs3_write_done") ?
 {
-	if (@defined($data)) {		# kernels >= 2.6.10
-		server_ip = @_nfs_data_server_ip($data)
-		prot = @_nfs_data_prot($data)
-		count = @_nfs_data_res_count($data)
-		valid = @_nfs_data_valid($data)
+	if (@defined($hdr) || @defined($data)) {	# kernels >= 2.6.10
+		server_ip = @_nfs_data_server_ip(@choose_defined($hdr, $data))
+		prot = @_nfs_data_prot(@choose_defined($hdr, $data))
+		count = @_nfs_data_res_count(@choose_defined($hdr, $data))
+		valid = @_nfs_data_valid(@choose_defined($hdr, $data))
 	}
 	else {
 		server_ip = @_nfs_data_server_ip($task->tk_calldata)
@@ -1203,12 +1218,12 @@ probe nfs.proc4.write_done = kernel.function("nfs4_write_done") !,
 			     module("nfs").function("nfs4_write_done") ?,
 			     module("nfsv4").function("nfs4_write_done") ?
 {
-	if (@defined($data)) {		# kernels >= 2.6.10
-		server_ip = @_nfs_data_server_ip($data)
-		prot = @_nfs_data_prot($data)
-		count = @_nfs_data_res_count($data)
-		valid = @_nfs_data_valid($data)
-		timestamp = @_nfs_data_timestamp($data)
+	if (@defined($hdr) || @defined($data)) {	# kernels >= 2.6.10
+		server_ip = @_nfs_data_server_ip(@choose_defined($hdr, $data))
+		prot = @_nfs_data_prot(@choose_defined($hdr, $data))
+		count = @_nfs_data_res_count(@choose_defined($hdr, $data))
+		valid = @_nfs_data_valid(@choose_defined($hdr, $data))
+		timestamp = @_nfs_data_timestamp(@choose_defined($hdr, $data))
 	}
 	else {
 		server_ip = @_nfs_data_server_ip($task->tk_calldata)
@@ -1251,7 +1266,7 @@ probe nfs.proc4.write_done.return =
  *
  * The commit_setup function is used to setup a commit RPC task.
  * Is is not doing the actual commit operation.
- * It is does not exist in NFSv2.
+ * It does not exist in NFSv2.
  */
 
 probe nfs.proc.commit_setup = nfs.proc3.commit_setup,
@@ -1423,6 +1438,207 @@ probe nfs.proc4.commit_done.return =
 }
 
 /**
+ * probe nfs.proc.rename_setup - NFS client setting up a rename RPC task
+ *
+ * @server_ip: IP address of server
+ * @prot: transfer protocol
+ * @version: NFS version
+ * @fh: file handle of parent dir
+ *
+ * The rename_setup function is used to setup a rename RPC task.
+ * Is is not doing the actual rename operation.
+ */
+
+probe nfs.proc.rename_setup = nfs.proc2.rename_setup ?,
+			      nfs.proc3.rename_setup,
+			      nfs.proc4.rename_setup
+{}
+probe nfs.proc.rename_setup.return = nfs.proc2.rename_setup.return ?,
+				     nfs.proc3.rename_setup.return,
+				     nfs.proc4.rename_setup.return
+{}
+
+probe nfs.proc2.rename_setup =
+	kernel.function("nfs_proc_rename_setup") !,
+	module("nfs").function("nfs_proc_rename_setup") ?,
+	module("nfsv2").function("nfs_proc_rename_setup") ?
+{
+	client = NFS_CLIENT($dir)
+	server_ip = get_ip_from_client(client)
+	prot = get_prot_from_client(client)
+	version = 2
+	fh = NFS_FH($dir)
+
+	name = "nfs.proc2.rename_setup"
+
+	argstr = sprintf("%d", fh)
+}
+probe nfs.proc2.rename_setup.return =
+	kernel.function("nfs2_proc_rename_setup").return !,
+	module("nfs").function("nfs_proc_rename_setup").return ?,
+	module("nfsv2").function("nfs_proc_rename_setup").return ?
+{
+	version = 2
+	name = "nfs.proc2.rename_setup.return"
+	retvalue = 0
+}
+
+probe nfs.proc3.rename_setup =
+	kernel.function("nfs3_proc_rename_setup") !,
+	module("nfs").function("nfs3_proc_rename_setup") ?,
+	module("nfsv3").function("nfs3_proc_rename_setup") ?
+{
+	client = NFS_CLIENT($dir)
+	server_ip = get_ip_from_client(client)
+	prot = get_prot_from_client(client)
+	version = 3
+	fh = NFS_FH($dir)
+
+	name = "nfs.proc3.rename_setup"
+	argstr = sprintf("%d", fh)
+}
+probe nfs.proc3.rename_setup.return =
+	kernel.function("nfs3_proc_rename_setup").return !,
+	module("nfs").function("nfs3_proc_rename_setup").return ?,
+	module("nfsv3").function("nfs3_proc_rename_setup").return ?
+{
+	version = 3
+	name = "nfs.proc3.rename_setup.return"
+	retvalue = 0
+}
+
+probe nfs.proc4.rename_setup =
+	kernel.function("nfs4_proc_rename_setup") !,
+	module("nfs").function("nfs4_proc_rename_setup") ?,
+	module("nfsv4").function("nfs4_proc_rename_setup") ?
+{
+	client = NFS_CLIENT($dir)
+	server_ip = get_ip_from_client(client)
+	prot = get_prot_from_client(client)
+	version = 4
+	fh = NFS_FH($dir)
+
+	name = "nfs.proc4.rename_setup"
+	argstr = sprintf("%d", fh)
+}
+probe nfs.proc4.rename_setup.return =
+	kernel.function("nfs4_proc_rename_setup").return !,
+	module("nfs").function("nfs4_proc_rename_setup").return ?,
+	module("nfsv4").function("nfs4_proc_rename_setup").return ?
+{
+	version = 4
+	name = "nfs.proc4.rename_setup.return"
+	retvalue = 0
+}
+
+/**
+ * probe nfs.proc.rename_done - NFS client response to a rename RPC task
+ *
+ * @server_ip: IP address of server
+ * @prot: transfer protocol
+ * @version: NFS version
+ * @status: result of last operation
+ * @timestamp : V4 timestamp, which is used for lease renewal
+ * @old_fh: file handle of old parent dir
+ * @new_fh: file handle of new parent dir
+ *
+ * Fires when a reply to a rename RPC task is received or some rename
+ * error occurs (timeout or socket shutdown).
+ */
+probe nfs.proc.rename_done = nfs.proc2.rename_done ?,
+			     nfs.proc3.rename_done,
+			     nfs.proc4.rename_done
+{}
+
+probe nfs.proc.rename_done.return = nfs.proc2.rename_done.return ?,
+				    nfs.proc3.rename_done.return,
+				    nfs.proc4.rename_done.return
+{}
+
+probe nfs.proc2.rename_done = kernel.function("nfs_proc_rename_done") !,
+			     module("nfs").function("nfs_proc_rename_done") ?,
+			     module("nfsv2").function("nfs_proc_rename_done") ?
+{
+	client = NFS_CLIENT($old_dir)
+	server_ip = get_ip_from_client(client)
+	prot = get_prot_from_client(client)
+	version = 2
+	status = $task->tk_status
+	timestamp = 0
+
+	old_fh = NFS_FH($old_dir)
+	new_fh = NFS_FH($new_dir)
+
+	name = "nfs.proc2.rename_done"
+	argstr = sprintf("%d", status)
+}
+probe nfs.proc2.rename_done.return =
+	kernel.function("nfs_rename_done").return !,
+	module("nfs").function("nfs_rename_done").return !,
+	module("nfsv2").function("nfs_rename_done").return !
+{
+	version = 2
+	name = "nfs.proc2.rename_done.return"
+	retstr = sprintf("%d", $return)
+}
+
+probe nfs.proc3.rename_done =
+	kernel.function("nfs3_proc_rename_done") !,
+	module("nfs").function("nfs3_proc_rename_done") ?,
+	module("nfsv3").function("nfs3_proc_rename_done") ?
+{
+	client = NFS_CLIENT($old_dir)
+	server_ip = get_ip_from_client(client)
+	prot = get_prot_from_client(client)
+	version = 3
+	status = $task->tk_status
+	timestamp = 0
+
+	old_fh = NFS_FH($old_dir)
+	new_fh = NFS_FH($new_dir)
+
+	name = "nfs.proc3.rename_done"
+	argstr = sprintf("%d", status)
+}
+probe nfs.proc3.rename_done.return =
+	kernel.function("nfs3_proc_rename_done").return !,
+	module("nfs").function("nfs3_proc_rename_done").return ?,
+	module("nfsv3").function("nfs3_proc_rename_done").return ?
+{
+	version = 3
+	name = "nfs.proc3.rename_done.return"
+	retstr = sprintf("%d", $return)
+}
+
+probe nfs.proc4.rename_done =
+	kernel.function("nfs4_proc_rename_done") !,
+	module("nfs").function("nfs4_proc_rename_done") ?,
+	module("nfsv4").function("nfs4_proc_rename_done") ?
+{
+	client = NFS_CLIENT($old_dir)
+	server_ip = get_ip_from_client(client)
+	prot = get_prot_from_client(client)
+	version = 4
+	timestamp = @_nfs_data_timestamp(@choose_defined($hdr, $data))
+	status = $task->tk_status
+
+	old_fh = NFS_FH($old_dir)
+	new_fh = NFS_FH($new_dir)
+
+	name = "nfs.proc4.rename_done"
+	argstr = sprintf("%d", status)
+}
+probe nfs.proc4.rename_done.return =
+	kernel.function("nfs4_proc_rename_done").return !,
+	module("nfs").function("nfs4_proc_rename_done").return ?,
+	module("nfsv4").function("nfs4_proc_rename_done").return ?
+{
+	version = 4
+	name = "nfs.proc4.rename_done.return"
+	retstr = sprintf("%d", $return)
+}
+
+/**
  * probe nfs.proc.open - NFS client allocates file read/write context information
  *
  * @server_ip: IP address of server
@@ -1533,7 +1749,7 @@ probe nfs.proc4.handle_exception.return =
  * @server_ip: IP address of server
  * @prot: transfer protocol
  * @version: NFS version (the function is used for all NFS version)
- * @fh: file handler of parent dir
+ * @fh: file handle of parent dir
  * @filename: file name
  * @filelen: length of file name
  * @flag: indicates create mode (only for NFSv3 and NFSv4)
@@ -1655,7 +1871,7 @@ probe nfs.proc4.create.return =
  * @server_ip: IP address of server
  * @prot: transfer protocol
  * @version: NFS version (the function is used for all NFS version)
- * @fh: file handler of parent dir
+ * @fh: file handle of parent dir
  * @filename: file name
  * @filelen: length of file name
  */
@@ -1770,8 +1986,8 @@ probe nfs.proc4.remove.return =
  * @server_ip: IP address of server
  * @prot: transfer protocol
  * @version: NFS version (the function is used for all NFS version)
- * @old_fh: file handler of old parent dir
- * @new_fh: file handler of new parent dir
+ * @old_fh: file handle of old parent dir
+ * @new_fh: file handle of new parent dir
  * @old_name: old file name
  * @old_filelen: length of old file name
  * @new_name: new file name
@@ -1834,14 +2050,20 @@ probe nfs.proc2.rename.return =
 	retstr = (@defined($return) ? sprintf("%d", $return) : "N/A")
 }
 
-probe nfs.proc3.rename = kernel.function("nfs3_proc_rename") !,
+probe nfs.proc3.rename = _nfs.proc3.rename !, _nfs.proc3.missing_rename
+{
+	version = 3
+
+	name = "nfs.proc3.rename"
+	argstr = sprintf("%s,%s", old_name, new_name)
+}
+probe _nfs.proc3.rename = kernel.function("nfs3_proc_rename") !,
 			 module("nfs").function("nfs3_proc_rename") ?,
 			 module("nfsv3").function("nfs3_proc_rename") ?
 {
 	client = NFS_CLIENT($old_dir)
 	server_ip = get_ip_from_client(client)
 	prot = get_prot_from_client(client)
-	version = 3
 
 	old_fh = NFS_FH($old_dir)
 	old_filelen = $old_name->len
@@ -1849,29 +2071,46 @@ probe nfs.proc3.rename = kernel.function("nfs3_proc_rename") !,
 	new_fh = NFS_FH($new_dir)
 	new_filelen = $new_name->len
 	new_name = kernel_string_n($new_name->name, new_filelen)
+}
+probe _nfs.proc3.missing_rename = never
+{
+	client = 0
+	server_ip = 0
+	prot = 0
 
-	name = "nfs.proc3.rename"
-	argstr = sprintf("%s,%s", old_name, new_name)
+	old_fh = 0
+	old_filelen = 0
+	old_name = ""
+	new_fh = 0
+	new_filelen = 0
+	new_name = ""
 }
 
 probe nfs.proc3.rename.return =
 	kernel.function("nfs3_proc_rename").return !,
 	module("nfs").function("nfs3_proc_rename").return ?,
-	module("nfsv3").function("nfs3_proc_rename").return ?
+	module("nfsv3").function("nfs3_proc_rename").return !,
+	never
 {
 	name = "nfs.proc3.rename.return"
 	version = 3
-	retstr = sprintf("%d", $return)
+	retstr = (@defined($return) ? sprintf("%d", $return) : "N/A")
 }
 
-probe nfs.proc4.rename = kernel.function("nfs4_proc_rename") !,
-			 module("nfs").function("nfs4_proc_rename") ?,
-			 module("nfsv4").function("nfs4_proc_rename") ?
+probe nfs.proc4.rename = _nfs.proc4.rename !, _nfs.proc4.missing_rename
+{
+	version = 4
+
+	name = "nfs.proc4.rename"
+	argstr = sprintf("%s,%s", old_name, new_name)
+}
+probe _nfs.proc4.rename = kernel.function("nfs4_proc_rename") !,
+			  module("nfs").function("nfs4_proc_rename") ?,
+			  module("nfsv4").function("nfs4_proc_rename") ?
 {
 	client = NFS_CLIENT($old_dir)
 	server_ip = get_ip_from_client(client)
 	prot = get_prot_from_client(client)
-	version = 4
 
 	old_fh = NFS_FH($old_dir)
 	old_filelen = $old_name->len
@@ -1879,17 +2118,28 @@ probe nfs.proc4.rename = kernel.function("nfs4_proc_rename") !,
 	new_fh = NFS_FH($new_dir)
 	new_filelen = $new_name->len
 	new_name = kernel_string_n($new_name->name, new_filelen)
+}
+probe _nfs.proc4.missing_rename = never
+{
+	client = 0
+	server_ip = 0
+	prot = 0
 
-	name = "nfs.proc4.rename"
-	argstr = sprintf("%s,%s", old_name, new_name)
+	old_fh = 0
+	old_filelen = 0
+	old_name = ""
+	new_fh = 0
+	new_filelen = 0
+	new_name = ""
 }
 
 probe nfs.proc4.rename.return =
 	kernel.function("nfs4_proc_rename").return !,
 	module("nfs").function("nfs4_proc_rename").return ?,
-	module("nfsv4").function("nfs4_proc_rename").return ?
+	module("nfsv4").function("nfs4_proc_rename").return !,
+	never
 {
 	name = "nfs.proc4.rename.return"
 	version = 4
-	retstr = sprintf("%d", $return)
+	retstr = (@defined($return) ? sprintf("%d", $return) : "N/A")
 }
