@@ -264,11 +264,15 @@ The name of the system call.
 .IR retstr
 For return probes, a pretty-printed form of the system-call result.
 .PP
-As usual for probe aliases, these variables are all simply initialized
-once from the underlying $context variables, so that later changes to
+As usual for probe aliases, these variables are all initialized once
+from the underlying $context variables, so that later changes to
 $context variables are not automatically reflected.  Not all probe
 aliases obey all of these general guidelines.  Please report any
-bothersome ones you encounter as a bug.
+bothersome ones you encounter as a bug.  Note that on some
+kernel/userspace architecture combinations (e.g., 32-bit userspace on
+64-bit kernel), the underlying $context variables may need explicit
+sign extension / masking.  When this is an issue, consider using the
+tapset-provided variables instead of raw $context variables.
 .PP
 If debuginfo availability is a problem, you may try using the
 non-DWARF syscall probe aliases instead.  Use the
