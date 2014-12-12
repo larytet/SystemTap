@@ -23,17 +23,17 @@ int main()
   int fd1, fd2;
 
   fd2 = creat("foobar1",S_IREAD|S_IWRITE);
-  //staptest// [[[[open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ("foobar1"]]]], 0600) = NNNN
+  //staptest// [[[[[[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ("foobar1"]]]], 0600) = NNNN
 
   creat((char *)-1, S_IREAD|S_IWRITE);
 #ifdef __s390__
   //staptest// [[[[open ([7]?[f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ([7]?[f]+]]]], 0600) = NNNN
 #else
-  //staptest// [[[[open ([f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ([f]+]]]], 0600) = NNNN
+  //staptest// [[[[[[[[open (!!!!openat (AT_FDCWD, ]]]][f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ([f]+]]]], 0600) = NNNN
 #endif
 
   creat("foobarX", -1);
-  //staptest// [[[[open ("foobarX", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ("foobarX"]]]], 037777777777) =
+  //staptest// [[[[[[[[open (!!!!openat (AT_FDCWD, ]]]]"foobarX", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ("foobarX"]]]], 037777777777) =
 
   fd1 = open("foobar2",O_WRONLY|O_CREAT, S_IRWXU);
   //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar2", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0700) = NNNN

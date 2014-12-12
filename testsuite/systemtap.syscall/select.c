@@ -57,7 +57,11 @@ int main()
   //staptest// [[[[select (1, XXXX, 0x[0]+, 0x[f]+, \[0.000123\]!!!!pselect6 (1, XXXX, 0x[0]+, 0x[f]+, \[0.000123[0]+\], 0x0]]]]) = [[[[0!!!!-NNNN (EFAULT)]]]]
 #endif
 
+#if defined(__arm__) || defined(__aarch64__)
+  syscall(SYS_pselect6, 1, &rfds, NULL, NULL, (struct timeval *)-1);
+#else
   select(1, &rfds, NULL, NULL, (struct timeval *)-1);
+#endif
 #ifdef __s390__
   //staptest// select (1, XXXX, 0x[0]+, 0x[0]+, 0x[7]?[f]+) = -NNNN (EFAULT)
 #else

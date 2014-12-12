@@ -21,11 +21,7 @@ int main()
 #endif
 
     sched_setscheduler(0, -1, &param);
-#ifdef SCHED_RESET_ON_FORK
-    //staptest// sched_setscheduler (0, 0xbfffffff|SCHED_RESET_ON_FORK, XXXX) = -NNNN (EINVAL)
-#else
     //staptest// sched_setscheduler (0, 0xffffffff, XXXX) = -NNNN (EINVAL)
-#endif
 
     sched_setscheduler(0, SCHED_OTHER, (struct sched_param *)-1);
 #ifdef __s390__
