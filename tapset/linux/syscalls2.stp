@@ -164,16 +164,16 @@ probe syscall.openat = kernel.function("compat_sys_openat").call ?,
 	name = "openat"
 	dfd = __int32($dfd)
 	dfd_str = _dfd_str(__int32($dfd))
-	filename = user_string_quoted($filename)
+	filename = user_string_quoted(@__pointer($filename))
 	flags = $flags
 	mode = __uint32($mode)
 	if ($flags & %{ O_CREAT %})
 		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(__int32($dfd)),
-				 user_string_quoted($filename),
+				 filename,
 				 _sys_open_flag_str($flags), __uint32($mode))
 	else
 		argstr = sprintf("%s, %s, %s", _dfd_str(__int32($dfd)),
-				 user_string_quoted($filename),
+				 filename,
 				 _sys_open_flag_str(__int32($flags)))
 }
 probe syscall.openat.return = kernel.function("compat_sys_openat").return ?,
