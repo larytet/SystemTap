@@ -47,6 +47,29 @@ probe nfs.fop.aio_write.return {
 	printf("%d %s\n", size, units)
 }
 
+probe nfs.fop.read_iter ? {
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %d %d %s\n", dev, ino, s_id, devname)
+	printf("%s %s %d %d %d\n", parent_name, file_name, cache_valid,
+		cache_time, attr_time)
+	printf("%d %s\n", size, units)
+}
+probe nfs.fop.read_iter.return ? {
+	printf("%s(%s)\n", name, retstr)
+	printf("%d %s\n", size, units)
+}
+
+probe nfs.fop.write_iter ? {
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %d %d %s\n", dev, ino, s_id, devname)
+	printf("%s %s\n", parent_name, file_name)
+	printf("%d %s\n", size, units)
+}
+probe nfs.fop.write_iter.return ? {
+	printf("%s(%s)\n", name, retstr)
+	printf("%d %s\n", size, units)
+}
+
 probe nfs.fop.mmap {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %d %d %s\n", dev, ino, s_id, devname)
