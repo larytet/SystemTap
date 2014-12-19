@@ -10903,6 +10903,10 @@ struct tracepoint_query : public base_query
         this->system = tracepoint.substr(0, sys_pos);
         this->tracepoint = tracepoint.substr(sys_pos+1);
       }
+
+    // make sure we have something to query (filters out e.g. "" and ":")
+    if (this->tracepoint.empty())
+      throw SEMANTIC_ERROR (_("invalid tracepoint string provided"));
   }
 };
 
