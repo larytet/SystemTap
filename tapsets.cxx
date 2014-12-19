@@ -10137,7 +10137,7 @@ struct tracepoint_derived_probe: public derived_probe
                             probe* base_probe, probe_point* location);
 
   systemtap_session& sess;
-  string tracepoint_name, header;
+  string tracepoint_system, tracepoint_name, header;
   vector <struct tracepoint_arg> args;
 
   void build_args(dwflpp& dw, Dwarf_Die& func_die);
@@ -10275,15 +10275,18 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   if (is_active_lvalue (e))
     throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted", e->name.c_str()), e->tok);
 
-  if (e->name == "$$name")
+  if (e->name == "$$name" || e->name == "$$system")
     {
       e->assert_no_components("tracepoint");
+
+      string member = (e->name == "$$name") ? "c->ips.tp.tracepoint_name"
+                                            : "c->ips.tp.tracepoint_system";
 
       // Synthesize an embedded expression.
       embedded_expr *expr = new embedded_expr;
       expr->tok = e->tok;
-      expr->code = string("/* string */ /* pure */ ")
-	+ string("c->ips.tracepoint_name ? c->ips.tracepoint_name : \"\"");
+      expr->code = string("/* string */ /* pure */ " +
+                          member + " ? " + member + " : \"\"");
       provide (expr);
     }
   else if (e->name == "$$vars" || e->name == "$$parms")
@@ -10338,9 +10341,9 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     {
       assert(e->name.size() > 0 && e->name[0] == '$');
 
-      if (e->name == "$$name" || e->name == "$$parms" || e->name == "$$vars")
+      if (e->name == "$$name" || e->name == "$$system"
+          || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
-
       else
         visit_target_symbol_arg (e);
     }
@@ -10357,8 +10360,8 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
                                                     const string& tracepoint_system,
                                                     const string& tracepoint_name,
                                                     probe* base, probe_point* loc):
-  derived_probe (base, loc, true /* .components soon rewritten */),
-  sess (s), tracepoint_name (tracepoint_name)
+  derived_probe (base, loc, true /* .components soon rewritten */), sess (s),
+  tracepoint_system (tracepoint_system), tracepoint_name (tracepoint_name)
 {
   // create synthetic probe point name; preserve condition
   vector<probe_point::component*> comps;
@@ -10724,7 +10727,10 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
                        << common_probe_init (p) << ";";
       common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "probe",
 				     "stp_probe_type_tracepoint");
-      s.op->newline() << "c->ips.tracepoint_name = "
+      s.op->newline() << "c->ips.tp.tracepoint_system = "
+                      << lex_cast_qstring (p->tracepoint_system)
+                      << ";";
+      s.op->newline() << "c->ips.tp.tracepoint_name = "
                       << lex_cast_qstring (p->tracepoint_name)
                       << ";";
       for (unsigned j = 0; j < used_args.size(); ++j)
