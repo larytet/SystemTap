@@ -1181,22 +1181,27 @@ Tracepoint probes look like:
 .BR kernel.trace("name") .
 The tracepoint name string, which may contain the usual wildcard
 characters, is matched against the names defined by the kernel
-developers in the tracepoint header files.
+developers in the tracepoint header files. To restrict the search to
+specific subsystems (e.g. sched, ext3, etc...), the following syntax
+can be used:
+.BR kernel.trace("system:name") .
+The tracepoint system string may also contain the usual wildcard
+characters.
 
 The handler associated with a tracepoint-based probe may read the
 optional parameters specified at the macro call site.  These are
 named according to the declaration by the tracepoint author.  For
 example, the tracepoint probe
-.BR kernel.trace("sched_switch")
+.BR kernel.trace("sched:sched_switch")
 provides the parameters
-.BR $rq ", " $prev ", and " $next .
+.BR $prev " and " $next .
 If the parameter is a complex type, as in a struct pointer, then a
 script can access fields with the same syntax as DWARF $target
 variables.  Also, tracepoint parameters cannot be modified, but in
 guru-mode a script may modify fields of parameters.
 
-The name of the tracepoint is available in
-.BR $$name ,
+The subsystem and name of the tracepoint are available in
+.BR $$system " and " $$name
 and a string of name=value pairs for all parameters of the tracepoint
 is available in
 .BR $$vars " or " $$parms .
