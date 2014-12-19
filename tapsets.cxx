@@ -10363,9 +10363,14 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
   // create synthetic probe point name; preserve condition
   vector<probe_point::component*> comps;
   comps.push_back (new probe_point::component (TOK_KERNEL));
+
+  // tag on system to the final name unless we're in compatibility mode so that
+  // e.g. pn() returns just the name as before
   string final_name = tracepoint_name;
-  if (!tracepoint_system.empty())
+  if (!tracepoint_system.empty()
+      && strverscmp(s.compatible.c_str(), "2.6") > 0)
     final_name = tracepoint_system + ":" + final_name;
+
   comps.push_back (new probe_point::component (TOK_TRACE,
                                                new literal_string(final_name)));
   this->sole_location()->components = comps;
@@ -10891,6 +10896,10 @@ struct tracepoint_query : public base_query
       }
     else
       {
+        if (strverscmp(sess.compatible.c_str(), "2.6") <= 0)
+          throw SEMANTIC_ERROR (_("SYSTEM:TRACEPOINT syntax not supported "
+                                  "with --compatible <= 2.6"));
+
         this->system = tracepoint.substr(0, sys_pos);
         this->tracepoint = tracepoint.substr(sys_pos+1);
       }
