@@ -181,7 +181,35 @@ function sprint_usyms (callers:string) {
  * found, the hex string representation of the address will be returned.
  */
 function usymfileline:string (addr:long) %{
-/* pure */ /* myproc-unpriveleged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
+/* pure */ /* myproc-unprivileged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
   _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
                     _STP_SYM_LINENUMBER + _STP_SYM_FILENAME, current);
+%}
+
+/**
+ * sfunction usymfile - Return the file name of a given address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the file name of the  given address, if known. If the
+ * file name cannot be found, the hex string representation of the address
+ * will be returned.
+ */
+function usymfile:string (addr:long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_FILENAME, current);
+%}
+
+/**
+ * sfunction usymline - Return the line number of an address.
+ * @addr: The address to translate.
+ *
+ * Description: Returns the (approximate) line number of the given address, if
+ * known. If the line number cannot be found, the hex string representation of
+ * the address will be returned.
+ */
+function usymline:string (addr:long) %{
+/* pure */ /* myproc-unprivileged */ /* pragma:symbols */ /* pragma:vma */ /* pragma:lines */
+  _stp_snprint_addr(STAP_RETVALUE, MAXSTRINGLEN, STAP_ARG_addr,
+                    _STP_SYM_LINENUMBER, current);
 %}

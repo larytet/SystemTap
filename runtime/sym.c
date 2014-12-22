@@ -761,7 +761,7 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
         modname = slash+1;
   }
 
-  if (flags & _STP_SYM_LINENUMBER) {
+  if ((flags & _STP_SYM_LINENUMBER) || (flags & _STP_SYM_FILENAME)) {
       linenumber = _stp_linenumber_lookup (address, task, &filename,
                                            (int) (flags & _STP_SYM_FILENAME));
   }
@@ -873,17 +873,25 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
 #endif
     } else if ((flags & _STP_SYM_LINENUMBER) && linenumber) {
         if (flags & _STP_SYM_FILENAME) {
-          if (filename)
+          if (filename) {
+            /* filename, linenumber */
             return _stp_snprintf(str, len, "%s%s:%u%s%s", prestr,
                  filename, (int64_t) linenumber, exstr, poststr);
-          else
+          } else {
+            /* filename=??, linenumber */
             return _stp_snprintf(str, len, "%s??:%u%s%s", prestr,
                  (int64_t) linenumber, exstr, poststr);
+          }
         } else {
-            return _stp_snprintf(str, len, "%s%u%s%s", prestr,
-                 (int64_t) linenumber, exstr, poststr);
+          /* linenumber */
+          return _stp_snprintf(str, len, "%s%u%s%s", prestr,
+               (int64_t) linenumber, exstr, poststr);
         }
-    } else {
+    } else if ((flags & _STP_SYM_FILENAME) && filename) {
+      /* filename */
+      return _stp_snprintf(str, len, "%s%s%s%s", prestr,
+           filename, exstr, poststr);
+    }else {
       /* no names, hex only */
       return _stp_snprintf(str, len, "%s%p%s%s", prestr,
 			   (int64_t) address, exstr, poststr);
