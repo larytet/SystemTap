@@ -137,7 +137,6 @@ if { $res == "" } {
     fail "$test exe compile: $res"
     test_cleanup
 }
-
 # PR6897: need a valid pid when trying to list probes in the form process(PID).*
 spawn ./$exepath
 set valid_pid [exp_pid -i $spawn_id]
@@ -348,6 +347,18 @@ proc report_untested_probes {} {
          {
             # Not easy to reliably test on all kernels
             setup_kfail MODULE *-*-*
+         }
+
+         perf.type(number).config(number) -
+         perf.type(number).config(number).counter(string) -
+         perf.type(number).config(number).process -
+         perf.type(number).config(number).process(string) -
+         perf.type(number).config(number).process(string).counter(string) -
+         perf.type(number).config(number).sample(number)
+         {
+            if {![perf_probes_p]} {
+               setup_kfail PERF *-*-*
+            }
          }
 
          process.function(string).callee(string) -
@@ -674,30 +685,33 @@ testing_probe {never}
 
 stap_list {never}
 
-testing_probe {perf.type(number).config(number)}
+if {[perf_probes_p]} {
 
-stap_list {perf.type(1).config(1)}
+   testing_probe {perf.type(number).config(number)}
 
-testing_probe {perf.type(number).config(number).counter(string)}
+   stap_list {perf.type(1).config(1)}
 
-stap_list {perf.type(1).config(1).counter("string")}
+   testing_probe {perf.type(number).config(number).counter(string)}
 
-testing_probe {perf.type(number).config(number).process}
+   stap_list {perf.type(1).config(1).counter("string")}
 
-stap_list {perf.type(1).config(1).process} \
-   {perf.type(1).config(1).process} {1} {-c ls}
+   testing_probe {perf.type(number).config(number).process}
 
-testing_probe {perf.type(number).config(number).process(string)}
+   stap_list {perf.type(1).config(1).process} \
+      {perf.type(1).config(1).process} {1} {-c ls}
 
-stap_list {perf.type(1).config(1).process("string")}
+   testing_probe {perf.type(number).config(number).process(string)}
 
-testing_probe {perf.type(number).config(number).process(string).counter(string)}
+   stap_list {perf.type(1).config(1).process("string")}
 
-stap_list {perf.type(1).config(1).process("string").counter("string")}
+   testing_probe {perf.type(number).config(number).process(string).counter(string)}
 
-testing_probe {perf.type(number).config(number).sample(number)}
+   stap_list {perf.type(1).config(1).process("string").counter("string")}
 
-stap_list {perf.type(1).config(1).sample(1000)}
+   testing_probe {perf.type(number).config(number).sample(number)}
+
+   stap_list {perf.type(1).config(1).sample(1000)}
+}
 
 testing_probe {process.begin}
 
@@ -944,16 +958,16 @@ if {$exepath != ""} {
    stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:54\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:55\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:55\"\\\)"
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:56\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:56\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfo?@$test.c:55\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:55\"\\\)"
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfo?@$test.c:56\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:56\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c+1\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:55\"\\\)"
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c+2\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:56\"\\\)"
 
-   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54-55\")" \
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54-56\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
    stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:54,55-56\")" \
@@ -1037,19 +1051,19 @@ if {$exepath != ""} {
    stap_list_cmd "process.statement(\"foo@$test.c\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:23\"\\\)"
 
-   stap_list_cmd "process.statement(\"foo@$test.c:24\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+   stap_list_cmd "process.statement(\"foo@$test.c:25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:25\"\\\)"
 
-   stap_list_cmd "process.statement(\"fo?@$test.c:24\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+   stap_list_cmd "process.statement(\"fo?@$test.c:25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:25\"\\\)"
 
-   stap_list_cmd "process.statement(\"foo@$test.c+1\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+   stap_list_cmd "process.statement(\"foo@$test.c+2\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:25\"\\\)"
 
-   stap_list_cmd "process.statement(\"foo@$test.c:24-25\")" \
+   stap_list_cmd "process.statement(\"foo@$test.c:23-25\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
-   stap_list_cmd "process.statement(\"foo@$test.c:24,25-26\")" \
+   stap_list_cmd "process.statement(\"foo@$test.c:23,25-26\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
    stap_list_cmd "process.statement(\"foo@$test.c:*\")" \
@@ -1244,19 +1258,19 @@ if {$exepath != ""} {
    stap_list "process($valid_pid).statement(\"foo@$test.c\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:23\"\\\)"
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c:24\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+   stap_list "process($valid_pid).statement(\"foo@$test.c:25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:25\"\\\)"
 
-   stap_list "process($valid_pid).statement(\"fo?@$test.c:24\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+   stap_list "process($valid_pid).statement(\"fo?@$test.c:25\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:25\"\\\)"
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c+1\")" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:24\"\\\)"
+   stap_list "process($valid_pid).statement(\"foo@$test.c+2\")" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:25\"\\\)"
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c:24-25\")" \
+   stap_list "process($valid_pid).statement(\"foo@$test.c:23-25\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c:24,25-26\")" \
+   stap_list "process($valid_pid).statement(\"foo@$test.c:23,25-26\")" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\)" {-1}
 
    stap_list "process($valid_pid).statement(\"foo@$test.c:*\")" \
