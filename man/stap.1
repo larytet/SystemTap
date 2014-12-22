@@ -156,10 +156,11 @@ embedded C.
 .TP
 .B \-P
 Prologue-searching mode.  Activate heuristics to work around incorrect
-debugging information for $context variables.
+debugging information for function parameter $context variables.
 .TP
 .B \-u
-Unoptimized mode.  Disable unused code elision during elaboration.
+Unoptimized mode.  Disable unused code elision and many other optimizations
+during elaboration / translation.
 .TP
 .B \-w
 Suppressed warnings mode.  Disables all warning messages.
@@ -168,7 +169,9 @@ Suppressed warnings mode.  Disables all warning messages.
 Treat all warnings as errors.
 .TP
 .BI \-b
-Use bulk mode (percpu files) for kernel-to-user data transfer.
+Use bulk mode (percpu files) for kernel-to-user data transfer.  Use the
+.IR stap\-merge
+program to multplex them back together later.
 .TP
 .B \-t
 Collect timing information on the number of times probe executes
