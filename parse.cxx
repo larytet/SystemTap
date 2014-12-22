@@ -3615,10 +3615,8 @@ expression* parser::parse_symbol ()
 		  // Consume and convert a format string. Agreement between the
 		  // format string and the arguments is postponed to the
 		  // typechecking phase.
-		  string tmp;
-		  expect_unknown (tok_string, tmp);
-		  fmt->raw_components = tmp;
-		  fmt->components = print_format::string_to_components (tmp);
+		  fmt->raw_components = parse_literal_string()->value;
+		  fmt->components = print_format::string_to_components (fmt->raw_components);
 		  consumed_arg = true;
 		}
 	      else if (fmt->print_with_delim)
@@ -3626,7 +3624,7 @@ expression* parser::parse_symbol ()
 		  // Consume a delimiter to separate arguments.
 		  fmt->delimiter.clear();
 		  fmt->delimiter.type = print_format::conv_literal;
-		  expect_unknown (tok_string, fmt->delimiter.literal_string);
+		  fmt->delimiter.literal_string = parse_literal_string()->value;
 		  consumed_arg = true;
 		  min_args = 2; // so that the delim is used at least once
 		}

@@ -1,0 +1,10 @@
+#! stap -p1
+
+probe begin {
+    s = "foo " "bar" "\n"
+    printf("%s", s)
+    printf("foo " "bar" "\n")
+    printf("foo "
+           "bar"
+           "\n")
+}
