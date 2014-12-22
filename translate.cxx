@@ -6549,6 +6549,71 @@ dump_section_list (Dwfl_Module *m,
   return DWARF_CB_ABORT;
 }
 
+static void find_debug_frame_offset (Dwfl_Module *m,
+                                     unwindsym_dump_context *c)
+{
+  Dwarf_Addr start, bias = 0;
+  GElf_Ehdr *ehdr, ehdr_mem;
+  GElf_Shdr *shdr, shdr_mem;
+  Elf_Scn *scn = NULL;
+  Elf_Data *data = NULL;
+  Elf *elf;
+
+  dwfl_module_info (m, NULL, &start, NULL, NULL, NULL, NULL, NULL);
+
+  // fetch .debug_frame info preferably from dwarf debuginfo file.
+  elf = (dwarf_getelf (dwfl_module_getdwarf (m, &bias))
+	 ?: dwfl_module_getelf (m, &bias));
+  ehdr = gelf_getehdr(elf, &ehdr_mem);
+
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      shdr = gelf_getshdr(scn, &shdr_mem);
+      if (strcmp(elf_strptr(elf, ehdr->e_shstrndx, shdr->sh_name),
+		 ".debug_frame") == 0)
+	{
+	  data = elf_rawdata(scn, NULL);
+	  break;
+	}
+    }
+
+  if (!data) // need this check since dwarf_next_cfi() doesn't do it
+    return;
+
+  // In the .debug_frame the FDE encoding is always DW_EH_PE_absptr.
+  // So there is no need to read the CIEs.  And the size is either 4
+  // or 8, depending on the elf class from e_ident.
+  int size = (ehdr->e_ident[EI_CLASS] == ELFCLASS32) ? 4 : 8;
+  int res = 0;
+  Dwarf_Off off = 0;
+  Dwarf_CFI_Entry entry;
+
+  while (res != 1)
+    {
+      Dwarf_Off next_off;
+      res = dwarf_next_cfi (ehdr->e_ident, data, false, off, &next_off, &entry);
+      if (res == 0)
+	{
+	  if (entry.CIE_id != DW_CIE_ID_64) // ignore CIEs
+	    {
+	      Dwarf_Addr addr;
+	      if (size == 4)
+		addr = (*((uint32_t *) entry.fde.start));
+	      else
+		addr = (*((uint64_t *) entry.fde.start));
+              Dwarf_Addr first_addr = addr;
+              int res = dwfl_module_relocate_address (m, &first_addr);
+              DWFL_ASSERT ("find_debug_frame_offset, dwfl_module_relocate_address",
+                           res >= 0);
+              c->debug_frame_off = addr - first_addr;
+	    }
+	}
+      else if (res < 1)
+        return;
+      off = next_off;
+    }
+}
+
 static void
 dump_line_tables (Dwfl_Module *m, unwindsym_dump_context *c,
                   const char *modname, Dwarf_Addr base)
@@ -6582,6 +6647,11 @@ dump_line_tables (Dwfl_Module *m, unwindsym_dump_context *c,
           break;
         }
     }
+
+  // still need to get some kind of information about the sec_load_offset for
+  // kernel addresses if there is no unwind data
+  if (c->debug_line_len > 0 && !c->session.need_unwind)
+    find_debug_frame_offset (m, c);
 }
 
 /* Some architectures create special local symbols that are not
@@ -7021,7 +7091,18 @@ dump_unwindsym_cxt (Dwfl_Module *m,
 	{
 	  c->output << ".debug_hdr = NULL,\n";
 	  c->output << ".debug_hdr_len = 0,\n";
+          if (c->session.need_lines && secname == ".text")
+            {
+              c->output << "#if defined(STP_NEED_LINE_DATA)\n";
+              Dwarf_Addr dwbias = 0;
+              dwfl_module_getdwarf (m, &dwbias);
+              c->output << ".sec_load_offset = 0x"
+                        << hex << debug_frame_off - dwbias << dec << "\n";
+              c->output << "#else\n";
+            }
 	  c->output << ".sec_load_offset = 0\n";
+          if (c->session.need_lines && secname == ".text")
+            c->output << "#endif /* STP_NEED_LINE_DATA */\n";
 	}
 
 	c->output << "},\n";

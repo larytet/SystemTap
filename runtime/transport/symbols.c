@@ -182,8 +182,10 @@ static int _stp_module_notifier (struct notifier_block * nb,
 static int _stp_module_update_self (void)
 {
 	/* Only bother if we need unwinding and have module_sect_attrs.  */
-#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)
-#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
+  /* Or if we need to figure out the addr->file:line mapping */
+#if (defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)) \
+    || defined(STP_NEED_LINE_DATA)
+#if defined(CONFIG_KALLSYMS)  && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
 
 	bool found_eh_frame = false;
 	struct module *mod = THIS_MODULE;
@@ -246,7 +248,8 @@ static int _stp_module_update_self (void)
 	}
 
 #endif /* defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11) */
-#endif /* defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA) */
+#endif /* (defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA))
+          || defined(STP_NEED_LINE_DATA) */
 
 	return 0;
 }
