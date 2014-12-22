@@ -267,6 +267,11 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
     {
 	    unsigned long vm_start = 0;
 	    unsigned long vm_end = 0;
+#ifdef CONFIG_COMPAT
+      /* Handle 32bit signed values in 64bit longs, chop off top bits. */
+      if (test_tsk_thread_flag(task, TIF_32BIT))
+        addr &= ((compat_ulong_t) ~0);
+#endif
 	    m = _stp_umod_lookup(addr, task, &modname, &vm_start, &vm_end);
     }
   else
@@ -274,6 +279,25 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
 
   if (m == NULL || m->debug_line == NULL)
     return 0;
+
+  // if addr is a kernel address, it will need to be adjusted
+  if (!task)
+    {
+      int i;
+      unsigned long offset = 0;
+      // have to factor in the load_offset of (specifically) the .text section
+      for (i=0; i<m->num_sections; i++)
+        if (!strcmp(m->sections[i].name, ".text"))
+          {
+            offset = (m->sections[i].static_addr - m->sections[i].sec_load_offset);
+            break;
+          }
+
+      if (addr < offset)
+        return 0;
+      addr = addr - offset;
+    }
+
 
   linep = m->debug_line;
   enddatap = m->debug_line + m->debug_line_len;
@@ -418,8 +442,6 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
           else
             {
               int i;
-              if (opcode >= opcode_base)
-                return 0; // encountered a bad opcode
               for (i=stdopcode_lens_secp[opcode]; i>0; --i)
                 read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
             }
