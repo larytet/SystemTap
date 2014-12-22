@@ -27,7 +27,7 @@ pass "$test list [llength $tracepoints]"
 # This tests all tracepoints all at once (much faster than the above)
 set script "probe begin {}"
 foreach tp $tracepoints {
-	set script "$script probe $tp { println($\$name, $\$vars) }"
+	set script "$script probe $tp { println($\$system, $\$name, $\$vars) }"
 }
 send_log "Trying stap -w -p4 -e $script\n"
 if {[catch {exec stap -w -p4 -e "$script"} res]} {
@@ -131,5 +131,12 @@ if {[string length $tracepoints]} {
 }
 
 if {![installtest_p]} { untested $test; return }
+
 set ::result_string {tracepoints OK}
 stap_run2 $srcdir/$subdir/$test.stp -w
+
+# Now test tracepoints2.stp
+append test 2
+
+set ::result_string {sched:sched_switch}
+stap_run2 $srcdir/$subdir/$test.stp
