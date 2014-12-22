@@ -4,6 +4,16 @@
 #TODO perhaps wget, untar, and automatically use, then remove if we want?
 # http://dcssrv1.oit.uci.edu/indiv/ehood/tar/man2html3.0.1.tar.gz
 
+echo This script regenerates the 'sourceware.org/systemtap/{tapset,man,...}' docs
+echo from a NEW checkout of git master systemtap and a partial build.
+echo
+echo Consider running this script under ssh-agent, with an ssh-add-ed identity,
+echo in order to prevent interactive blockage at the many ssh/cvs operations.
+echo
+echo Count to ten ... slowly ...
+sleep 10
+
+
 if which man2html &>/dev/null; then
  :
 else
