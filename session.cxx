@@ -444,12 +444,12 @@ systemtap_session::version_string ()
 void
 systemtap_session::version ()
 {
-  clog << _F("Systemtap translator/driver (version %s)\n"
+  cout << _F("Systemtap translator/driver (version %s)\n"
              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.\n",
              version_string().c_str());
 
-  clog << _("enabled features:")
+  cout << _("enabled features:")
 #ifdef HAVE_AVAHI
        << " AVAHI"
 #endif
@@ -501,7 +501,7 @@ systemtap_session::usage (int exitcode)
     }
 
   version ();
-  clog
+  cout
     << endl
     << _F(
      "Usage: stap [options] FILE                    Run script in file.\n"
@@ -521,10 +521,10 @@ systemtap_session::usage (int exitcode)
      "   -v         add verbosity to all passes\n"
      "   --vp {N}+  add per-pass verbosity [", data_path.c_str(), last_pass);
   for (unsigned i=0; i<5; i++)
-    clog << (perpass_verbose[i] <= 9 ? perpass_verbose[i] : 9);
-  clog 
+    cout << (perpass_verbose[i] <= 9 ? perpass_verbose[i] : 9);
+  cout 
     << "]" << endl;
-    clog << _F("   -k         keep temporary directory\n"
+    cout << _F("   -k         keep temporary directory\n"
      "   -u         unoptimized translation %s\n"
      "   -w         suppress warnings %s\n"
      "   -W         turn warnings into errors %s\n"
@@ -537,12 +537,12 @@ systemtap_session::usage (int exitcode)
          (guru_mode ? _(" [set]") : ""), (prologue_searching ? _(" [set]") : ""),
          (bulk_mode ? _(" [set]") : ""), buffer_size);
   if (include_path.size() == 0)
-    clog << endl;
+    cout << endl;
   else
-    clog << _(", in addition to") << endl;
+    cout << _(", in addition to") << endl;
   for (unsigned i=0; i<include_path.size(); i++)
-    clog << "              " << include_path[i].c_str() << endl;
-  clog
+    cout << "              " << include_path[i].c_str() << endl;
+  cout
     << _F("   -D NM=VAL  emit macro definition into generated C code\n"
     "   -B NM=VAL  pass option to kbuild make\n"
     "   --modinfo NM=VAL\n"
@@ -568,15 +568,15 @@ systemtap_session::usage (int exitcode)
     "   -S size[,n] set maximum of the size and the number of files.\n"
     "   -d OBJECT  add unwind/symbol data for OBJECT file", runtime_path.c_str(), kernel_build_tree.c_str(), architecture.c_str(), module_name.c_str());
   if (unwindsym_modules.size() == 0)
-    clog << endl;
+    cout << endl;
   else
-    clog << _(", in addition to") << endl;
+    cout << _(", in addition to") << endl;
   {
     vector<string> syms (unwindsym_modules.begin(), unwindsym_modules.end());
     for (unsigned i=0; i<syms.size(); i++)
-      clog << "              " << syms[i].c_str() << endl;
+      cout << "              " << syms[i].c_str() << endl;
   }
-  clog
+  cout
     << _F("   --ldd      add unwind/symbol data for all referenced object files.\n"
     "   --all-modules\n"
     "              add unwind/symbol data for all loaded kernel objects.\n"
@@ -646,7 +646,7 @@ systemtap_session::usage (int exitcode)
   time (& now);
   struct tm* t = localtime (& now);
   if (t && t->tm_mon*3 + t->tm_mday*173 == 0xb6)
-    clog << morehelp << endl;
+    cout << morehelp << endl;
 
   throw exit_exception (exitcode);
 }

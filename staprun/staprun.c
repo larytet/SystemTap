@@ -434,7 +434,7 @@ int main(int argc, char **argv)
 	if (optind < argc) {
 		if (attach_mod) {
 			err("Cannot have module options with attach (-A).\n");
-			usage(argv[0]);
+			usage(argv[0],1);
 		} else {
 			unsigned start_idx = 0;
 			while (optind < argc && start_idx + 1 < MAXMODOPTIONS)
@@ -445,7 +445,7 @@ int main(int argc, char **argv)
 
 	if (modpath == NULL || *modpath == '\0') {
 		err("Need a module name or path to load.\n");
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (geteuid() != 0) {
