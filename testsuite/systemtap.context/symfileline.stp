@@ -1,0 +1,10 @@
+probe begin {
+  print("READY\n")
+}
+
+probe module("systemtap_test_module2").function("yyy_int") {
+  printf("fileline %s ", symfileline(addr()))
+  printf("file %s ", symfile(addr()))
+  printf("line %s ", symline(addr()))
+  exit()
+}
