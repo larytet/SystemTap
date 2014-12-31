@@ -8,4 +8,7 @@ probe begin {
 	log(modname(0))
 	log(symname(0))
 	log(symdata(0))
+  log(symfileline(0))
+  log(symfile(0))
+  log(symline(0))
 }

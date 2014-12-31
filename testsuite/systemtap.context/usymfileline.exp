@@ -1,0 +1,60 @@
+set testname usymfileline
+
+# tests functions usymfileline(), usymline(), and usymfile()
+# it also tests that the functions fail gracefully when there is no debug_line
+# info for the user program.
+
+if {![installtest_p]} { untested $test; return }
+
+# compile the c program
+set compile_result [target_compile $srcdir/$subdir/$testname.c  ./$testname executable "additional_flags=-g [sdt_includes]"]
+if {$compile_result != ""} {
+    verbose -log "target_compile failed: $compile_result" 2
+    fail "$testname - unable to compile, $compile_result"
+    untested "$testname"
+    return
+} else {
+    pass "$testname - compiled successfully"
+}
+
+# check that it can use uprobes
+if {![uprobes_p]} {
+  untested "$testname (uprobes)"
+}
+
+set script {\
+probe process("usymfileline").function("test_method") {\
+  print("systemtap starting probe\nsystemtap ending probe\n")\
+  printf("%s\n", TAPSETFUNCTION($1))\
+  exit()}\
+}
+
+set tests {usymfileline usymline usymfile}
+set expectedoutput {"usymfileline.c:\[2-4]" "\[2-4]" "usymfileline.c"}
+
+foreach test $tests eoutput $expectedoutput {
+  set testscript [string map "TAPSETFUNCTION $test" $script]
+  # test with an invalid address. the expected output is the same for all cases
+  stap_run "$test ()" no_load "0x0" -e $testscript 0 -c ./usymfileline
+  # test with uaddr()
+  stap_run "$test ()" no_load $eoutput -e $testscript uaddr() -c ./usymfileline
+}
+
+eval exec objcopy -R .debug_line $testname
+
+# cannot use the same script as before because process.function("*") will fail
+# (during pass 2) without debug_line info. since we are just testing that
+# the function fails gracefully, can just use process.begin instead
+set script {\
+probe process("usymfileline").begin {\
+  print("systemtap starting probe\nsystemtap ending probe\n")\
+  printf("%s\n", TAPSETFUNCTION($1))\
+  exit()}\
+}
+foreach test $tests {
+  set testscript [string map "TAPSETFUNCTION $test" $script]
+  # test with uaddr(). check that it can still fail gracefully.
+  stap_run "$test (no debug_line)" no_load "0x\[0-9,a-f]*" -e $testscript uaddr() -c ./usymfileline 
+}
+
+exec rm -f ./$testname
