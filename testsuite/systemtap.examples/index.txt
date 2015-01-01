@@ -46,7 +46,7 @@ keywords: filesystem guru
 
 
 general/eventcount.stp - Count Specified Events
-keywords: statistics thread process
+keywords: _best statistics thread process
 
   The script periodically prints a count of specified events and their
   related tid's over the course of execution.  Numerous configuration
@@ -80,7 +80,7 @@ keywords: disk cpu utilization
 
 
 general/helloworld.stp - SystemTap "Hello World" Program
-keywords: simple
+keywords: _best simple
 
   A basic "Hello World" program implemented in SystemTap script. It
   prints out "hello world" message and then immediately exits.
@@ -103,7 +103,7 @@ keywords: trace callgraph
 
 
 general/para-callgraph.stp - Callgraph Tracing with Arguments
-keywords: trace callgraph
+keywords: _best trace callgraph
 
   Print a timed per-thread microsecond-timed callgraph, complete with
   function parameters and return values.  The first parameter names the
@@ -169,7 +169,7 @@ keywords: time
 
 
 general/varwatch.stp - Watch a Variable Changing Value in a Thread
-keywords: monitoring
+keywords: _best monitoring
 
   This script places a set of probes (specified by $1), each of which
   monitors the state of some context $variable expression (specified by
@@ -641,7 +641,7 @@ keywords: network packets guru
 
 
 network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
-keywords: network traffic
+keywords: _best network traffic
 
   The script watches all IPv4 network traffic on the system. On exit
   the script prints a list showing the number of packets sent along
@@ -807,7 +807,7 @@ keywords: scheduler
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 
   The cycle_thief.stp script instruments the scheduler and IRQ handler
   to determine which processes and interrupts are competing with the
@@ -1062,8 +1062,23 @@ keywords: syscall nanosleep
   # stap sleeptime.stp -c "sleep 1"
 
 
+process/spawn_seeker.stp - Track Creation of Processes by process and execname
+keywords: process scheduler
+
+  The spawn_seeker.stp script every minute (and on exit) prints out the
+  local time and sorted lists of which processes and executables
+  spawned tasks during the previous minute. This can be useful to
+  determine what process is creating a flurry of short-lived processes.
+   When a process exits its count of tasks created is added to its
+  parent's count to better account for the indirect task creation by
+  children processes.  For more detailed examination of task creation
+  consider using forktracker.stp.
+
+  # stap spawn_seeker.stp -c "sleep 1"
+
+
 process/strace.stp - Trace system calls
-keywords: process syscall
+keywords: _best process syscall
 
   The script loosely emulates strace, when applied to individual
   processes or hierarchies (via -c/-x), or the entire system (without
@@ -1102,7 +1117,7 @@ keywords: syscall
 
 
 process/thread-business.stp - monitor syscall history
-keywords: process syscall
+keywords: _best process syscall
 
   Prints a periodic tabular report about the counts of syscall activity
   of all threads on the system, along with a textual
@@ -1144,7 +1159,7 @@ keywords: profiling
 
 
 profiling/fntimes.stp - Show Functions Taking Longer Than Usual
-keywords: profiling
+keywords: _best profiling
 
   The fntimes.stp script monitors the execution time history of a given
   function family (assumed non-recursive).  Each time (beyond a warmup
@@ -1167,7 +1182,7 @@ keywords: profiling function
 
 
 profiling/latencytap.stp - Show Reasons and Durations for Processes Sleeping
-keywords: profiling
+keywords: _best profiling
 
   The latencytap.stp script collects data on the intervals processes
   are deactivated (sleeping).  The script categorizes the reasons for
@@ -1240,7 +1255,7 @@ keywords: profiling
 
 
 profiling/pf4.stp - Profile Kernel/User Backtraces
-keywords: profiling
+keywords: _best profiling
 
   The pf4.stp script sets up time-based sampling. Every five seconds it
   prints out a sorted list with the top twenty kernel and/or user stack
@@ -1300,7 +1315,7 @@ keywords: profiling
 
 
 stapgames/2048.stp - 2048
-keywords: stapgames
+keywords: _best stapgames
 
   The modern classic 2048 sliding-tiles game, using local keyboard and
   ansi animation.
@@ -1342,7 +1357,7 @@ keywords: stapgames
 
 
 virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons
-keywords: virtualization kvm
+keywords: _best virtualization kvm
 
   The kvm_service_time.stp script tracks the statistics about the
   amount of time that the processor left the guest virtual machine for

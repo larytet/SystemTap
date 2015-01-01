@@ -39,7 +39,51 @@
          	</ul>
 
 <h2>Examples by Keyword</h2>
-<p><tt><a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(7)</a> <a href="#CALLGRAPH">CALLGRAPH(2)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(2)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(3)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(7)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(18)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(13)</a> <a href="#MONITORING">MONITORING(5)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NETWORK">NETWORK(15)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(20)</a> <a href="#PROFILING">PROFILING(19)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(6)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(2)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(4)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(6)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(8)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(3)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(4)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
+<p><tt><a href="#_BEST">_BEST(13)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(7)</a> <a href="#CALLGRAPH">CALLGRAPH(2)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(2)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(3)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(7)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(18)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(13)</a> <a href="#MONITORING">MONITORING(5)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NETWORK">NETWORK(15)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(21)</a> <a href="#PROFILING">PROFILING(19)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(7)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(2)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(4)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(6)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(8)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(3)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(4)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
+<h3><a name="_BEST"><a href="#_BEST">&para;</a> _BEST</a></h3>
+<ul>
+<li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
+<p>The script periodically prints a count of specified events and their related tid&#39;s over the course of execution.  Numerous configuration options exist to control filtering / reporting, see the script source.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 1&#39;</pre></font></p>
+</li><li><a href="general/helloworld.stp">general/helloworld.stp</a> - SystemTap "Hello World" Program<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+<p>A basic &quot;Hello World&quot; program implemented in SystemTap script. It prints out &quot;hello world&quot; message and then immediately exits.<p><font size="-2"><pre># stap helloworld.stp</pre></font></p>
+</li><li><a href="general/para-callgraph.stp">general/para-callgraph.stp</a> - Callgraph Tracing with Arguments<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
+<p>Print a timed per-thread microsecond-timed callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
+&#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p>
+</li><li><a href="general/varwatch.stp">general/varwatch.stp</a> - Watch a Variable Changing Value in a Thread<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <br>
+<p>This script places a set of probes (specified by $1), each of which monitors the state of some context $variable expression (specified by $2).  Whenever the value changes, with respect to the active thread, the event is traced.<p><font size="-2"><pre># stap -w varwatch.stp &#39;kernel.statement(&quot;do_sys_open@fs/open.c:*&quot;)&#39; \
+&#39;$$vars&#39; -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="network/netfilter_summary.stp">network/netfilter_summary.stp</a> - System-Wide Count of Network Packets by IPs<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+<p>The script watches all IPv4 network traffic on the system. On exit the script prints a list showing the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair. The list is ordered from greatest to least number of packets seen among the source/destination pairs.<p><font size="-2"><pre># stap netfilter_summary.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQ's and Other Processes Stealing Cycles from a Task<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+<p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.<p><font size="-2"><pre># stap cycle_thief.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="process/strace.stp">process/strace.stp</a> - Trace system calls<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+<p>The script loosely emulates strace, when applied to individual processes or hierarchies (via -c/-x), or the entire system (without -c/-x).  A few output configuration parameters may be set with -G.<p><font size="-2"><pre># stap strace.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="process/thread-business.stp">process/thread-business.stp</a> - monitor syscall history<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+<p>Prints a periodic tabular report about the counts of syscall activity of all threads on the system, along with a textual recent-syscall-history for each<p><font size="-2"><pre># stap thread-business.stp -c &quot;sleep 10&quot;</pre></font></p>
+</li><li><a href="profiling/fntimes.stp">profiling/fntimes.stp</a> - Show Functions Taking Longer Than Usual<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+<p>The fntimes.stp script monitors the execution time history of a given function family (assumed non-recursive).  Each time (beyond a warmup interval) is then compared to the historical maximum.  If it exceeds a certain threshold (250%), a message is printed.<p><font size="-2"><pre># stap fntimes.stp &#39;kernel.function(&quot;sys_*&quot;)&#39; -c &quot;sleep 7&quot;</pre></font></p>
+</li><li><a href="profiling/latencytap.stp">profiling/latencytap.stp</a> - Show Reasons and Durations for Processes Sleeping<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+<p>The latencytap.stp script collects data on the intervals processes are deactivated (sleeping).  The script categorizes the reasons for the sleeps by analyzing the backtraces and displays a sorted list of the top 20 causes from largest total sum time sleeping to smallest. The output is updated every 30 seconds. The script needs to be compiled with the &#39;--all-modules&#39; option to produce reasons for sleeps caused by modules.  Optionally, this script can be used with the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific PID.<p><font size="-2"><pre># stap latencytap.stp --all-modules -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="profiling/pf4.stp">profiling/pf4.stp</a> - Profile Kernel/User Backtraces<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+<p>The pf4.stp script sets up time-based sampling. Every five seconds it prints out a sorted list with the top twenty kernel and/or user stack backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d MODULE, -d /PATH/TO/EXEC to add more symbolic info.<p><font size="-2"><pre># stap pf4.stp -c &quot;sleep 6&quot; --all-modules --ldd</pre></font></p>
+</li><li><a href="stapgames/2048.stp">stapgames/2048.stp</a> - 2048<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
+<p>The modern classic 2048 sliding-tiles game, using local keyboard and ansi animation.<p><font size="-2"><pre># stap -p4 2048.stp</pre></font></p>
+</li><li><a href="virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp</a> - Time Statistics on KVM Exit Reasons<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#KVM">KVM</a> <br>
+<p>The kvm_service_time.stp script tracks the statistics about the amount of time that the processor left the guest virtual machine for each exit reason (for example fixing up a page table or handling an IO operation).  When the script exits it prints out the number of times each exit reason was encountered, the total duration of time it left the guest VM, the minimum time, the average time, and the maximum time in microseconds for that exit reason. On Linux 2.6.38 and newer kernel the script can automatically determine whether it is running on Intel or AMD processors. For older kernels with a kernel.trace(&quot;kvm_exit&quot;) tracepoint that does not have the $isa parameter you can explicitly state the kvm type with a &quot;-G kvm=intel&quot; or &quot;-G kvm=amd&quot; on the command line.<p><font size="-2"><pre># stap kvm_service_time.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li></ul>
 <h3><a name="AUDIT"><a href="#AUDIT">&para;</a> AUDIT</a></h3>
 <ul>
 <li><a href="process/auditbt.stp">process/auditbt.stp</a> - Generate backtraces for kernel audit events<br>
@@ -84,7 +128,7 @@ keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.ht
 <p>Print a timed per-thread microsecond-timed callgraph, complete with pretty-printed function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph-verbose.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
 &#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p>
 </li><li><a href="general/para-callgraph.stp">general/para-callgraph.stp</a> - Callgraph Tracing with Arguments<br>
-keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread microsecond-timed callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
 &#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p>
 </li></ul>
@@ -211,7 +255,7 @@ keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>The Linux kernel function smp_call_function causes expensive inter-processor interrupts (IPIs). The scf.stp script tallies the processes and backtraces causing the interprocessor interrupts to identify the cause of the expensive IPI. On exit the script prints the tallies in descending frequency.<p><font size="-2"><pre># stap scf.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQ's and Other Processes Stealing Cycles from a Task<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.<p><font size="-2"><pre># stap cycle_thief.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li></ul>
 <h3><a name="IO"><a href="#IO">&para;</a> IO</a></h3>
@@ -275,7 +319,7 @@ keywords: <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href
 <h3><a name="KVM"><a href="#KVM">&para;</a> KVM</a></h3>
 <ul>
 <li><a href="virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp</a> - Time Statistics on KVM Exit Reasons<br>
-keywords: <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#KVM">KVM</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#KVM">KVM</a> <br>
 <p>The kvm_service_time.stp script tracks the statistics about the amount of time that the processor left the guest virtual machine for each exit reason (for example fixing up a page table or handling an IO operation).  When the script exits it prints out the number of times each exit reason was encountered, the total duration of time it left the guest VM, the minimum time, the average time, and the maximum time in microseconds for that exit reason. On Linux 2.6.38 and newer kernel the script can automatically determine whether it is running on Intel or AMD processors. For older kernels with a kernel.trace(&quot;kvm_exit&quot;) tracepoint that does not have the $isa parameter you can explicitly state the kvm type with a &quot;-G kvm=intel&quot; or &quot;-G kvm=amd&quot; on the command line.<p><font size="-2"><pre># stap kvm_service_time.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="virtualization/qemu_count.stp">virtualization/qemu_count.stp</a> - Tally the Number of User-Space QEMU Events<br>
 keywords: <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#QEMU">QEMU</a> <a href="keyword-index.html#KVM">KVM</a> <br>
@@ -360,7 +404,7 @@ keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.
 <h3><a name="MONITORING"><a href="#MONITORING">&para;</a> MONITORING</a></h3>
 <ul>
 <li><a href="general/varwatch.stp">general/varwatch.stp</a> - Watch a Variable Changing Value in a Thread<br>
-keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <br>
 <p>This script places a set of probes (specified by $1), each of which monitors the state of some context $variable expression (specified by $2).  Whenever the value changes, with respect to the active thread, the event is traced.<p><font size="-2"><pre># stap -w varwatch.stp &#39;kernel.statement(&quot;do_sys_open@fs/open.c:*&quot;)&#39; \
 &#39;$$vars&#39; -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="io/mbrwatch.stp">io/mbrwatch.stp</a> - Monitor Read/Write of the Boot Sector Area of Block Devices<br>
@@ -401,7 +445,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#PACKETS">PACKETS</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>The script drops the specified number of packets of the specified protocol. Valid protocols are TCP, UDP, or ALL. If ALL is specified, all incoming packets are dropped. The number of packets to drop can be specified with a positive integer. A value of 0 indicates that packets should be dropped until the user manually exits.<p><font size="-2"><pre># stap -g netfilter_drop.stp TCP 1 -c &quot;sleep 2&quot;</pre></font></p>
 </li><li><a href="network/netfilter_summary.stp">network/netfilter_summary.stp</a> - System-Wide Count of Network Packets by IPs<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The script watches all IPv4 network traffic on the system. On exit the script prints a list showing the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair. The list is ordered from greatest to least number of packets seen among the source/destination pairs.<p><font size="-2"><pre># stap netfilter_summary.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/nettop.stp">network/nettop.stp</a> - Periodic Listing of Processes Using Network Interfaces<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
@@ -461,7 +505,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <h3><a name="PROCESS"><a href="#PROCESS">&para;</a> PROCESS</a></h3>
 <ul>
 <li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
-keywords: <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The script periodically prints a count of specified events and their related tid&#39;s over the course of execution.  Numerous configuration options exist to control filtering / reporting, see the script source.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 1&#39;</pre></font></p>
 </li><li><a href="memory/last_100_frees.stp">memory/last_100_frees.stp</a> - Log recent free(3) calls.<br>
 keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
@@ -473,7 +517,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The sk_stream-wait_memory.stp prints a time stamp, executable, and pid each time a process blocks due to the send buffer being full. A similar entry is printed each time a process continues because there is room in the buffer.<p><font size="-2"><pre># stap sk_stream_wait_memory.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQ's and Other Processes Stealing Cycles from a Task<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.<p><font size="-2"><pre># stap cycle_thief.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/errsnoop.stp">process/errsnoop.stp</a> - Tabulate System Call Errors<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
@@ -511,11 +555,14 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 </li><li><a href="process/semop-watch.stp">process/semop-watch.stp</a> - Watch semop(2)/semtimedop(2) operations<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#LOCKING">LOCKING</a> <br>
 <p>Prints a timed trace of semop(2)/semtimedop(2) syscalls<p><font size="-2"><pre># stap semop-watch.stp -c &#39;sleep 2&#39;</pre></font></p>
+</li><li><a href="process/spawn_seeker.stp">process/spawn_seeker.stp</a> - Track Creation of Processes by process and execname<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <br>
+<p>The spawn_seeker.stp script every minute (and on exit) prints out the local time and sorted lists of which processes and executables spawned tasks during the previous minute. This can be useful to determine what process is creating a flurry of short-lived processes.  When a process exits its count of tasks created is added to its parent&#39;s count to better account for the indirect task creation by children processes.  For more detailed examination of task creation consider using forktracker.stp.<p><font size="-2"><pre># stap spawn_seeker.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/strace.stp">process/strace.stp</a> - Trace system calls<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>The script loosely emulates strace, when applied to individual processes or hierarchies (via -c/-x), or the entire system (without -c/-x).  A few output configuration parameters may be set with -G.<p><font size="-2"><pre># stap strace.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/thread-business.stp">process/thread-business.stp</a> - monitor syscall history<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>Prints a periodic tabular report about the counts of syscall activity of all threads on the system, along with a textual recent-syscall-history for each<p><font size="-2"><pre># stap thread-business.stp -c &quot;sleep 10&quot;</pre></font></p>
 </li><li><a href="process/wait4time.stp">process/wait4time.stp</a> - Trace Time Spent in wait4 Syscalls<br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
@@ -542,13 +589,13 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#PRO
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>On exit the errno.stp script provides a sorted list showing which combination of PID, system call, and error occur most frequently.<p><font size="-2"><pre># stap errno.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="profiling/fntimes.stp">profiling/fntimes.stp</a> - Show Functions Taking Longer Than Usual<br>
-keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The fntimes.stp script monitors the execution time history of a given function family (assumed non-recursive).  Each time (beyond a warmup interval) is then compared to the historical maximum.  If it exceeds a certain threshold (250%), a message is printed.<p><font size="-2"><pre># stap fntimes.stp &#39;kernel.function(&quot;sys_*&quot;)&#39; -c &quot;sleep 7&quot;</pre></font></p>
 </li><li><a href="profiling/functioncallcount.stp">profiling/functioncallcount.stp</a> - Count Times Functions Are Called<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-index.html#FUNCTION">FUNCTION</a> <br>
 <p>The functioncallcount.stp script takes one argument, a list of functions to probe. The script will run and count the number of times that each of the functions on the list is called. On exit the script will print a sorted list from most frequently to least frequently called function.<p><font size="-2"><pre># stap -w functioncallcount.stp &quot;*@mm/*.c&quot; -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="profiling/latencytap.stp">profiling/latencytap.stp</a> - Show Reasons and Durations for Processes Sleeping<br>
-keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The latencytap.stp script collects data on the intervals processes are deactivated (sleeping).  The script categorizes the reasons for the sleeps by analyzing the backtraces and displays a sorted list of the top 20 causes from largest total sum time sleeping to smallest. The output is updated every 30 seconds. The script needs to be compiled with the &#39;--all-modules&#39; option to produce reasons for sleeps caused by modules.  Optionally, this script can be used with the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific PID.<p><font size="-2"><pre># stap latencytap.stp --all-modules -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="profiling/linetimes.stp">profiling/linetimes.stp</a> - Show Time Spent on Each Line of a Function<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
@@ -567,7 +614,7 @@ keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The pf3.stp script sets up time-based sampling. Every five seconds it prints out a sorted list with the top twenty kernel and/or user functions with samples.  Use any of --ldd, --all-modules, -d MODULE, -d /PATH/TO/EXEC to add more symbolic info.<p><font size="-2"><pre># stap pf3.stp -c &quot;sleep 6&quot; --all-modules --ldd</pre></font></p>
 </li><li><a href="profiling/pf4.stp">profiling/pf4.stp</a> - Profile Kernel/User Backtraces<br>
-keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The pf4.stp script sets up time-based sampling. Every five seconds it prints out a sorted list with the top twenty kernel and/or user stack backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d MODULE, -d /PATH/TO/EXEC to add more symbolic info.<p><font size="-2"><pre># stap pf4.stp -c &quot;sleep 6&quot; --all-modules --ldd</pre></font></p>
 </li><li><a href="profiling/sched_switch.stp">profiling/sched_switch.stp</a> - Display the Task Switches Happening in the Scheduler<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-index.html#FUNCTION">FUNCTION</a> <br>
@@ -603,7 +650,7 @@ keywords: <a href="keyword-index.html#REGEX">REGEX</a> <br>
 keywords: <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <br>
 <p>The chng_cpu.stp script takes an argument which is the executable name of the task it should monitor. Each time a task with that executable name is found running on a different processor, the script prints out the thread id (tid), the executable name, the processor now running the task, the thread state, and a backtrace showing the kernel functions that triggered the running of the task on the processor.<p><font size="-2"><pre># stap chng_cpu.stp -c &quot;sleep 1&quot; bash</pre></font></p>
 </li><li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQ's and Other Processes Stealing Cycles from a Task<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.<p><font size="-2"><pre># stap cycle_thief.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/forktracker.stp">process/forktracker.stp</a> - Trace Creation of Processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <br>
@@ -617,6 +664,9 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 </li><li><a href="process/sleepingBeauties.stp">process/sleepingBeauties.stp</a> - Generate Backtraces of Threads Waiting for IO Operations<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>The script monitors the time that threads spend in waiting for IO operations (in &quot;D&quot; state) in the wait_for_completion function.  If a thread spends over 10ms, its name and backtrace is printed, and later so is the total delay.<p><font size="-2"><pre># stap sleepingBeauties.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a href="process/spawn_seeker.stp">process/spawn_seeker.stp</a> - Track Creation of Processes by process and execname<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <br>
+<p>The spawn_seeker.stp script every minute (and on exit) prints out the local time and sorted lists of which processes and executables spawned tasks during the previous minute. This can be useful to determine what process is creating a flurry of short-lived processes.  When a process exits its count of tasks created is added to its parent&#39;s count to better account for the indirect task creation by children processes.  For more detailed examination of task creation consider using forktracker.stp.<p><font size="-2"><pre># stap spawn_seeker.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li></ul>
 <h3><a name="SCSI"><a href="#SCSI">&para;</a> SCSI</a></h3>
 <ul>
@@ -654,7 +704,7 @@ keywords: <a href="keyword-index.html#SIGNALS">SIGNALS</a> <br>
 <h3><a name="SIMPLE"><a href="#SIMPLE">&para;</a> SIMPLE</a></h3>
 <ul>
 <li><a href="general/helloworld.stp">general/helloworld.stp</a> - SystemTap "Hello World" Program<br>
-keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 <p>A basic &quot;Hello World&quot; program implemented in SystemTap script. It prints out &quot;hello world&quot; message and then immediately exits.<p><font size="-2"><pre># stap helloworld.stp</pre></font></p>
 </li><li><a href="general/py2example.stp">general/py2example.stp</a> - SystemTap python 2 support tapset<br>
 keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
@@ -697,7 +747,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <h3><a name="STAPGAMES"><a href="#STAPGAMES">&para;</a> STAPGAMES</a></h3>
 <ul>
 <li><a href="stapgames/2048.stp">stapgames/2048.stp</a> - 2048<br>
-keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
 <p>The modern classic 2048 sliding-tiles game, using local keyboard and ansi animation.<p><font size="-2"><pre># stap -p4 2048.stp</pre></font></p>
 </li><li><a href="stapgames/block.stp">stapgames/block.stp</a> - block breaker game<br>
 keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
@@ -718,7 +768,7 @@ keywords: <a href="keyword-index.html#STAPGAMES">STAPGAMES</a> <br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>alias_suffixes.stp is a demonstration of how alias suffixes in the systemtap language might be used. The script tracks the wall clock time for each invocation of the system calls open, close, read, and write. When the script exists it prints out the minimum, average, and maximum times in microseconds for each system call, followed by a count of times that each syscall was invoked and a histogram showing the distributions of times.<p><font size="-2"><pre># stap alias_suffixes.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
-keywords: <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The script periodically prints a count of specified events and their related tid&#39;s over the course of execution.  Numerous configuration options exist to control filtering / reporting, see the script source.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 1&#39;</pre></font></p>
 </li><li><a href="general/func_time_stats.stp">general/func_time_stats.stp</a> - Function Time Statistics<br>
 keywords: <a href="keyword-index.html#FUNCTION">FUNCTION</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -760,7 +810,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#NANOSLEEP">NANOSLEEP</a> <br>
 <p>The script watches each nanosleep syscall on the system. At the end of each nanosleep syscall the script prints out a line with a timestamp in microseconds, the pid, the executable name in parentheses, the &quot;nanosleep:&quot; key, and the duration of the sleep in microseconds.<p><font size="-2"><pre># stap sleeptime.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/strace.stp">process/strace.stp</a> - Trace system calls<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>The script loosely emulates strace, when applied to individual processes or hierarchies (via -c/-x), or the entire system (without -c/-x).  A few output configuration parameters may be set with -G.<p><font size="-2"><pre># stap strace.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/syscalls_by_pid.stp">process/syscalls_by_pid.stp</a> - System-Wide Count of Syscalls by PID<br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
@@ -772,7 +822,7 @@ keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>Combination shell/systemtap script to measure system call counts and times.  Can be filtered by process IDs, process names and users.<p><font size="-2"><pre># ./syscalltimes -c &#39;sleep 1&#39;</pre></font></p>
 </li><li><a href="process/thread-business.stp">process/thread-business.stp</a> - monitor syscall history<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <br>
 <p>Prints a periodic tabular report about the counts of syscall activity of all threads on the system, along with a textual recent-syscall-history for each<p><font size="-2"><pre># stap thread-business.stp -c &quot;sleep 10&quot;</pre></font></p>
 </li><li><a href="process/wait4time.stp">process/wait4time.stp</a> - Trace Time Spent in wait4 Syscalls<br>
 keywords: <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
@@ -793,7 +843,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <h3><a name="THREAD"><a href="#THREAD">&para;</a> THREAD</a></h3>
 <ul>
 <li><a href="general/eventcount.stp">general/eventcount.stp</a> - Count Specified Events<br>
-keywords: <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The script periodically prints a count of specified events and their related tid&#39;s over the course of execution.  Numerous configuration options exist to control filtering / reporting, see the script source.<p><font size="-2"><pre># stap eventcount.stp syscall.* -c &#39;sleep 1&#39;</pre></font></p>
 </li><li><a href="process/threadstacks.stp">process/threadstacks.stp</a> - Override default new-pthread stack sizes<br>
 keywords: <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#GURU">GURU</a> <br>
@@ -805,7 +855,7 @@ keywords: <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.
 keywords: <a href="keyword-index.html#TIME">TIME</a> <br>
 <p>The stopwatch.stp script illustrates how to use multiple stopwatches record how much wallclock time a process spends in kernel- and user-space.  On exit the script prints out the time in seconds, milliseconds, microseconds, and nanoseconds. Note that this output of this script is not directly comparable to the time command because time records the time that the process is actually active in kernel- and user-space.<p><font size="-2"><pre># stap stopwatches.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQ's and Other Processes Stealing Cycles from a Task<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.<p><font size="-2"><pre># stap cycle_thief.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/schedtimes.stp">process/schedtimes.stp</a> - Track Time Processes Spend in Various States Using Tracepoints<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <br>
@@ -818,7 +868,7 @@ keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.ht
 <p>Print a timed per-thread microsecond-timed callgraph, complete with pretty-printed function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph-verbose.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
 &#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p>
 </li><li><a href="general/para-callgraph.stp">general/para-callgraph.stp</a> - Callgraph Tracing with Arguments<br>
-keywords: <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#CALLGRAPH">CALLGRAPH</a> <br>
 <p>Print a timed per-thread microsecond-timed callgraph, complete with function parameters and return values.  The first parameter names the function probe points to trace.  The optional second parameter names the probe points for trigger functions, which acts to enable tracing for only those functions that occur while the current thread is nested within the trigger.<p><font size="-2"><pre># stap para-callgraph.stp &#39;kernel.function(&quot;*@fs/proc*.c&quot;)&#39; \
 &#39;kernel.function(&quot;vfs_read&quot;)&#39; -c &quot;cat /proc/sys/vm/* || true&quot;</pre></font></p>
 </li><li><a href="network/tcp_trace.stp">network/tcp_trace.stp</a> - TCP Connection Tracing Utility<br>
@@ -831,7 +881,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>Every five seconds the dropwatch.stp script lists the number of socket buffers freed at locations in the kernel.<p><font size="-2"><pre># stap dropwatch.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/cycle_thief.stp">process/cycle_thief.stp</a> - Track IRQ's and Other Processes Stealing Cycles from a Task<br>
-keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#TIME">TIME</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <p>The cycle_thief.stp script instruments the scheduler and IRQ handler to determine which processes and interrupts are competing with the specified task for the cpu cycles. This script uses the &#39;-c&#39; or &#39;-x&#39; options to focus on a specific task. The script output the number of times the task migrates between processors, histograms showing the length of time on and off processor, lists of processes running while the task is off the processor, and the interrupts that occurred while the task was running.<p><font size="-2"><pre># stap cycle_thief.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/procmod_watcher.stp">process/procmod_watcher.stp</a> - Monitor process creation/termination and module [un]loading<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <br>
@@ -846,7 +896,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-inde
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#DEVICE">DEVICE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The netdev.stp script traces configuration and transmit/receive activity on network devices.<p><font size="-2"><pre># stap netdev.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/netfilter_summary.stp">network/netfilter_summary.stp</a> - System-Wide Count of Network Packets by IPs<br>
-keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The script watches all IPv4 network traffic on the system. On exit the script prints a list showing the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair. The list is ordered from greatest to least number of packets seen among the source/destination pairs.<p><font size="-2"><pre># stap netfilter_summary.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/nettop.stp">network/nettop.stp</a> - Periodic Listing of Processes Using Network Interfaces<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
@@ -870,7 +920,7 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html
 <h3><a name="VIRTUALIZATION"><a href="#VIRTUALIZATION">&para;</a> VIRTUALIZATION</a></h3>
 <ul>
 <li><a href="virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp</a> - Time Statistics on KVM Exit Reasons<br>
-keywords: <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#KVM">KVM</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#KVM">KVM</a> <br>
 <p>The kvm_service_time.stp script tracks the statistics about the amount of time that the processor left the guest virtual machine for each exit reason (for example fixing up a page table or handling an IO operation).  When the script exits it prints out the number of times each exit reason was encountered, the total duration of time it left the guest VM, the minimum time, the average time, and the maximum time in microseconds for that exit reason. On Linux 2.6.38 and newer kernel the script can automatically determine whether it is running on Intel or AMD processors. For older kernels with a kernel.trace(&quot;kvm_exit&quot;) tracepoint that does not have the $isa parameter you can explicitly state the kvm type with a &quot;-G kvm=intel&quot; or &quot;-G kvm=amd&quot; on the command line.<p><font size="-2"><pre># stap kvm_service_time.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="virtualization/qemu_count.stp">virtualization/qemu_count.stp</a> - Tally the Number of User-Space QEMU Events<br>
 keywords: <a href="keyword-index.html#VIRTUALIZATION">VIRTUALIZATION</a> <a href="keyword-index.html#QEMU">QEMU</a> <a href="keyword-index.html#KVM">KVM</a> <br>

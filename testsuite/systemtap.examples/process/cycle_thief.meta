@@ -2,7 +2,7 @@ title: Track IRQ's and Other Processes Stealing Cycles from a Task
 name: cycle_thief.stp
 version: 1.0
 author: William Cohen
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 subsystem: scheduler
 status: experimental
 exit: user-controlled
