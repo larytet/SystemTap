@@ -1280,7 +1280,7 @@ keywords: profiling function
 
 
 profiling/thread-times.stp - Profile Kernel Functions
-keywords: profiling
+keywords: _best profiling
 
   The thread-times.stp script sets up time-based sampling.  Every five
   seconds it prints out a sorted list with the top twenty threads

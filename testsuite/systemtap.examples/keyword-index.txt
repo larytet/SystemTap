@@ -134,6 +134,17 @@ keywords: _best profiling
   # stap pf4.stp -c "sleep 6" --all-modules --ldd
 
 
+profiling/thread-times.stp - Profile Kernel Functions
+keywords: _best profiling
+
+  The thread-times.stp script sets up time-based sampling.  Every five
+  seconds it prints out a sorted list with the top twenty threads
+  occupying the CPUs, broken down as a percentage of user and kernel
+  time.
+
+  # stap thread-times.stp -c "sleep 1"
+
+
 stapgames/2048.stp - 2048
 keywords: _best stapgames
 
@@ -1879,7 +1890,7 @@ keywords: profiling function
 
 
 profiling/thread-times.stp - Profile Kernel Functions
-keywords: profiling
+keywords: _best profiling
 
   The thread-times.stp script sets up time-based sampling.  Every five
   seconds it prints out a sorted list with the top twenty threads

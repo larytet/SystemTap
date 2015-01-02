@@ -51,6 +51,7 @@
 <li><a href="#profiling/fntimes.stp">profiling/fntimes.stp - Show Functions Taking Longer Than Usual</a></li>
 <li><a href="#profiling/latencytap.stp">profiling/latencytap.stp - Show Reasons and Durations for Processes Sleeping</a></li>
 <li><a href="#profiling/pf4.stp">profiling/pf4.stp - Profile Kernel/User Backtraces</a></li>
+<li><a href="#profiling/thread-times.stp">profiling/thread-times.stp - Profile Kernel Functions</a></li>
 <li><a href="#stapgames/2048.stp">stapgames/2048.stp - 2048</a></li>
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
@@ -409,7 +410,7 @@ keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.ht
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <a href="keyword-index.html#FUNCTION">FUNCTION</a> <br>
 <p>The sched_switch.stp script takes two arguments, first argument can be &quot;pid&quot; or &quot;name&quot; to indicate what is being passed as second argument. The script will trace the process based on pid/name and print the scheduler switches happening with the process. If no arguments are passed, it displays all the scheduler switches. This can be used to understand which tasks schedule out the current process being traced, and when it gets scheduled in again.<p><font size="-2"><pre># stap  sched_switch.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="profiling/thread-times.stp"></a><a href="#profiling/thread-times.stp">&para;</a> <a href="profiling/thread-times.stp">profiling/thread-times.stp</a> - Profile Kernel Functions<br>
-keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
 <p>The thread-times.stp script sets up time-based sampling.  Every five seconds it prints out a sorted list with the top twenty threads occupying the CPUs, broken down as a percentage of user and kernel time.<p><font size="-2"><pre># stap thread-times.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="profiling/timeout.stp"></a><a href="#profiling/timeout.stp">&para;</a> <a href="profiling/timeout.stp">profiling/timeout.stp</a> - Show Processes Doing Polling Operations<br>
 keywords: <a href="keyword-index.html#PROFILING">PROFILING</a> <br>
