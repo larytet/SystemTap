@@ -28,6 +28,9 @@
 #ifndef __NR_accept4
 #define __NR_accept4 (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_fadvise64_64
+#define __NR_fadvise64_64 (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_ftruncate
 #define __NR_ftruncate (__NR_syscall_max + 1)
 #endif

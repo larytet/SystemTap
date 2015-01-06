@@ -1090,11 +1090,18 @@ probe syscall.faccessat.return = kernel.function("sys_faccessat").return ?
 probe syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
 {
 	name = "fadvise64"
-	fd = @choose_defined($fd, 0)
-	offset = @choose_defined($offset, 0)
-	len = @choose_defined($len, 0)
-	advice = @choose_defined($advice, 0)
-	argstr = sprintf("%d, %d, %d, %s", $fd, $offset, $len, _fadvice_advice_str($advice))
+	fd = @choose_defined(__int32($fd), 0)
+	if (%{ _stp_is_compat_task() %}) {
+		offset = __int32(@choose_defined($offset, 0))
+		len = __int32(@choose_defined($len, 0))
+	}
+	else {
+		offset = @choose_defined($offset, 0)
+		len = __long(@choose_defined($len, 0))
+	}
+	advice = @choose_defined(__int32($advice), 0)
+	argstr = sprintf("%d, %d, %d, %s", __int32($fd), offset, len,
+			 _fadvice_advice_str(__int32($advice)))
 }
 probe syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
 {
@@ -1107,16 +1114,32 @@ probe syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
 #
 probe syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 {
-	name = "fadvise64_64"
-	fd = @choose_defined($fd, 0)
-	offset = @choose_defined($offset, 0)
-	len = @choose_defined($len, 0)
-	advice = @choose_defined($advice, 0)
-	argstr = sprintf("%d, %d, %d, %s", $fd, $offset, $len, _fadvice_advice_str($advice))
+%( arch != "s390" && arch != "ia64" %?
+	# s390x/ia64 has sys_fadvise64_64() mapped to __NR_fadvise64
+	# (instead of __NR_fadvise64_64)
+	@__syscall_gate(%{ __NR_fadvise64_64 %})
+%)
+	name = "fadvise64"
+	fd = @choose_defined(__int32($fd), 0)
+	if (%{ _stp_is_compat_task() %}) {
+		offset = __int32(@choose_defined($offset, 0))
+		len = __int32(@choose_defined($len, 0))
+	}
+	else {
+		offset = @choose_defined($offset, 0)
+		len = @choose_defined($len, 0)
+	}
+	advice = @choose_defined(__int32($advice), 0)
+	argstr = sprintf("%d, %d, %d, %s", __int32($fd), offset, len,
+			 _fadvice_advice_str(__int32($advice)))
 }
-probe syscall.fadvise64_64.return = kernel.function("sys_fadvise64_64").return ?
+probe syscall.fadvise64_64.return =
+	kernel.function("sys_fadvise64_64").return ?
 {
-	name = "fadvise64_64"
+%( arch != "s390" && arch != "ia64" %?
+	@__syscall_gate(%{ __NR_fadvise64_64 %})
+%)
+	name = "fadvise64"
 	retstr = return_str(1, $return)
 }
 
@@ -1598,17 +1621,13 @@ probe syscall.futex = kernel.function("sys_futex").call ?
 {
 	name = "futex"
 	futex_uaddr = $uaddr
-	op = $op
-	val = $val
+	op = __int32($op)
+	val = __int32($val)
 	utime_uaddr = $utime
 	uaddr2_uaddr = $uaddr2
-	val3 = $val3
-	if ($op == 0)
-		argstr = sprintf("%p, %s, %d, %s", $uaddr, _futex_op_str($op),
-			$val, _struct_timespec_u($utime, 1))
-	else
-		argstr = sprintf("%p, %s, %d", $uaddr, _futex_op_str($op),
-			$val)
+	val3 = __int32($val3)
+	@__futex_argstr($uaddr, __int32($op), __int32($val), __ulong($utime),
+			__ulong($uaddr2), __int32($val3))
 }
 probe syscall.futex.return = kernel.function("sys_futex").return ?
 {
@@ -1618,20 +1637,17 @@ probe syscall.futex.return = kernel.function("sys_futex").return ?
 probe syscall.compat_futex = kernel.function("compat_sys_futex").call ?
 {
 	name = "futex"
-	futex_uaddr = $uaddr
-	op = $op
-	val = $val
+	futex_uaddr = @__pointer($uaddr)
+	op = __int32($op)
+	val = __int32($val)
 	utime_uaddr = $utime
 	uaddr2_uaddr = $uaddr2
-	val3 = $val3
-	if ($op == 0)
-		argstr = sprintf("%p, %s, %d, %s", $uaddr, _futex_op_str($op),
-			$val, _struct_compat_timespec_u($utime, 1))
-	else
-		argstr = sprintf("%p, %s, %d", $uaddr, _futex_op_str($op),
-			$val)
+	val3 = __int32($val3)
+	@__futex_argstr(futex_uaddr, __int32($op), __int32($val),
+			__uint32($utime), __uint32($uaddr2), __int32($val3))
 }
-probe syscall.compat_futex.return = kernel.function("compat_sys_futex").return ?
+probe syscall.compat_futex.return =
+	kernel.function("compat_sys_futex").return ?
 {
 	name = "futex"
 	retstr = return_str(1, $return)
@@ -1859,8 +1875,8 @@ probe syscall.compat_getitimer.return = kernel.function("compat_sys_getitimer").
 #		     compat_ulong_t maxnode,
 #		     compat_ulong_t addr, compat_ulong_t flags)
 #
-probe syscall.get_mempolicy = kernel.function("compat_sys_get_mempolicy").call ?,
-                              kernel.function("sys_get_mempolicy").call ?
+probe syscall.get_mempolicy = __syscall.get_mempolicy ?,
+	kernel.function("compat_sys_get_mempolicy").call ?
 {
 	name = "get_mempolicy"
 	policy_uaddr = $policy
@@ -1868,14 +1884,24 @@ probe syscall.get_mempolicy = kernel.function("compat_sys_get_mempolicy").call ?
 	maxnode = $maxnode
 	addr = $addr
 	flags = $flags
-	argstr = sprintf("%p, %p, %d, %p, 0x%x", $policy,
-		$nmask, $maxnode, $addr, $flags)
+	flags_str = _mempolicy_flags_str($flags)
+	argstr = sprintf("%p, %p, %u, %p, %s", $policy, $nmask, $maxnode,
+			 $addr, _mempolicy_flags_str($flags))
 }
-probe syscall.get_mempolicy.return = kernel.function("compat_sys_get_mempolicy").return ?,
-                                     kernel.function("sys_get_mempolicy").return ?
+probe __syscall.get_mempolicy = kernel.function("sys_get_mempolicy").call ?
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.get_mempolicy.return = __syscall.get_mempolicy.return ?,
+	kernel.function("compat_sys_get_mempolicy").return ?
 {
 	name = "get_mempolicy"
 	retstr = return_str(1, $return)
+}
+probe __syscall.get_mempolicy.return =
+	kernel.function("sys_get_mempolicy").return ?
+{
+	@__syscall_gate_compat_simple
 }
 
 # getpeername ________________________________________________

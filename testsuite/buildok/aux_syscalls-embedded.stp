@@ -88,6 +88,7 @@ probe begin {
 
 	print (_waitid_which_str(0))
 	print (_futex_op_str(0))
+	print (_futex_wake_op_str(0))
 
 	print (_mountflags_str(0))
 	print (_umountflags_str(0))
@@ -166,4 +167,7 @@ probe begin {
 	print (_stp_xattr_val_str(0,0))
 	print (_stp_ioprio_which_str(0))
 	print (_stp_ioprio_value_str(0))
+
+	print (_mempolicy_flags_str(0))
+	print (_mempolicy_mode_str(0))
 }

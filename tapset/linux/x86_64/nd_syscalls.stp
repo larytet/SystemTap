@@ -240,3 +240,28 @@ probe nd_syscall.compat_truncate64.return =
 	name = "truncate"
 	retstr = returnstr(1)
 }
+
+# fadvise64 _______________________________________________________
+#
+# asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo,
+#				  unsigned offset_hi,
+#				  size_t len, int advice)
+#
+probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?
+{
+	asmlinkage()
+        name = "fadvise64"
+	fd = int_arg(1)
+
+        offset = ((uint_arg(3) << 32) | uint_arg(2))
+	len = int_arg(4)
+	advice = int_arg(5)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64.return =
+	kprobe.function("sys32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}

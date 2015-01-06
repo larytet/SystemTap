@@ -2636,21 +2636,38 @@ probe nd_syscall.compat_setitimer.return = kprobe.function("compat_sys_setitimer
 #	unsigned long __user *nmask,
 #	unsigned long maxnode)
 #
-probe nd_syscall.set_mempolicy = kprobe.function("compat_sys_set_mempolicy") ?,
-                                 kprobe.function("sys_set_mempolicy") ?
+probe nd_syscall.set_mempolicy = __nd_syscall.set_mempolicy ?,
+	kprobe.function("compat_sys_set_mempolicy") ?
 {
 	name = "set_mempolicy"
 	asmlinkage()
 	mode = int_arg(1)
+	mode_str = _mempolicy_mode_str(mode)
 	nmask_uaddr = pointer_arg(2)
 	maxnode = ulong_arg(3)
-	argstr = sprintf("%d, %p, %d", mode, nmask_uaddr, maxnode)
+	argstr = sprintf("%s, %p, %u", _mempolicy_mode_str(mode), nmask_uaddr,
+			 maxnode)
 }
-probe nd_syscall.set_mempolicy.return = kprobe.function("compat_sys_set_mempolicy").return ?,
-                                        kprobe.function("sys_set_mempolicy").return ?
+probe __nd_syscall.set_mempolicy = kprobe.function("sys_set_mempolicy") ?
+{
+%( arch == "powerpc" %?
+	asmlinkage()
+	@__syscall_gate_compat_simple
+%)
+}
+probe nd_syscall.set_mempolicy.return = __nd_syscall.set_mempolicy.return ?,
+	kprobe.function("compat_sys_set_mempolicy").return ?
 {
 	name = "set_mempolicy"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.set_mempolicy.return =
+	kprobe.function("sys_set_mempolicy").return ?
+{
+%( arch == "powerpc" %?
+	asmlinkage()
+	@__syscall_gate_compat_simple
+%)
 }
 
 # setpgid ____________________________________________________

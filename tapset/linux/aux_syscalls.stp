@@ -1702,26 +1702,128 @@ function _waitid_which_str(flag) {
    return sprintf("UNKNOWN VALUE: %d", flag)
 }
 
-function _futex_op_str(op) {
-   if(op==0) return "FUTEX_WAIT"
-   if(op==1) return "FUTEX_WAKE"
-   if(op==2) return "FUTEX_FD"
-   if(op==3) return "FUTEX_REQUEUE"
-   if(op==4) return "FUTEX_CMP_REQUEUE"
-   if(op==5) return "FUTEX_WAKE_OP"
-   if(op==6) return "FUTEX_LOCK_PI"
-   if(op==7) return "FUTEX_UNLOCK_PI"
-   if(op==8) return "FUTEX_TRYLOCK_PI"
-   if(op==128) return "FUTEX_WAIT_PRIVATE"
-   if(op==129) return "FUTEX_WAKE_PRIVATE"
-   if(op==131) return "FUTEX_REQUEUE_PRIVATE"
-   if(op==132) return "FUTEX_CMP_REQUEUE_PRIVATE"
-   if(op==133) return "FUTEX_WAKE_OP_PRIVATE"
-   if(op==134) return "FUTEX_LOCK_PI_PRIVATE"
-   if(op==135) return "FUTEX_UNLOCK_PI_PRIVATE"
-   if(op==136) return "FUTEX_TRYLOCK_PI_PRIVATE"
-   return sprintf("UNKNOWN VALUE: %d", op)
-}
+%{
+#include <linux/futex.h>
+
+// We need the following defines to have a value for the
+// @__futex_argstr() macro.
+#ifndef FUTEX_WAIT_BITSET
+#define FUTEX_WAIT_BITSET	9
+#endif
+#ifndef FUTEX_WAKE_BITSET
+#define FUTEX_WAKE_BITSET	10
+#endif
+#ifndef FUTEX_WAIT_REQUEUE_PI
+#define FUTEX_WAIT_REQUEUE_PI	11
+#endif
+#ifndef FUTEX_CMP_REQUEUE_PI
+#define FUTEX_CMP_REQUEUE_PI	12
+#endif
+#ifndef FUTEX_PRIVATE_FLAG
+#define FUTEX_PRIVATE_FLAG 128
+#endif
+#ifndef FUTEX_WAIT_BITSET_PRIVATE
+#define FUTEX_WAIT_BITSET_PRIVATE (FUTEX_WAIT_BITSET | FUTEX_PRIVATE_FLAG)
+#endif
+#ifndef FUTEX_WAKE_BITSET_PRIVATE
+#define FUTEX_WAKE_BITSET_PRIVATE (FUTEX_WAKE_BITSET | FUTEX_PRIVATE_FLAG)
+#endif
+#ifndef FUTEX_WAIT_REQUEUE_PI_PRIVATE
+#define FUTEX_WAIT_REQUEUE_PI_PRIVATE	(FUTEX_WAIT_REQUEUE_PI | \
+					 FUTEX_PRIVATE_FLAG)
+#endif
+#ifndef FUTEX_CMP_REQUEUE_PI_PRIVATE
+#define FUTEX_CMP_REQUEUE_PI_PRIVATE	(FUTEX_CMP_REQUEUE_PI | \
+					 FUTEX_PRIVATE_FLAG)
+#endif
+
+static const _stp_val_array const _stp_futex_op_list[] = {
+	V(FUTEX_WAIT),
+	V(FUTEX_WAKE),
+	V(FUTEX_FD),
+	V(FUTEX_REQUEUE),
+	V(FUTEX_CMP_REQUEUE),
+	V(FUTEX_WAKE_OP),
+	V(FUTEX_LOCK_PI),
+	V(FUTEX_UNLOCK_PI),
+	V(FUTEX_TRYLOCK_PI),
+	V(FUTEX_WAIT_BITSET),
+	V(FUTEX_WAKE_BITSET),
+	V(FUTEX_WAIT_REQUEUE_PI),
+	V(FUTEX_CMP_REQUEUE_PI),
+	V(FUTEX_WAIT_PRIVATE),
+	V(FUTEX_WAKE_PRIVATE),
+	V(FUTEX_REQUEUE_PRIVATE),
+	V(FUTEX_CMP_REQUEUE_PRIVATE),
+	V(FUTEX_WAKE_OP_PRIVATE),
+	V(FUTEX_LOCK_PI_PRIVATE),
+	V(FUTEX_UNLOCK_PI_PRIVATE),
+	V(FUTEX_TRYLOCK_PI_PRIVATE),
+	V(FUTEX_WAIT_BITSET_PRIVATE),
+	V(FUTEX_WAKE_BITSET_PRIVATE),
+	V(FUTEX_WAIT_REQUEUE_PI_PRIVATE),
+	V(FUTEX_CMP_REQUEUE_PI_PRIVATE),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_futex_wake_ops_list[] = {
+	V(FUTEX_OP_SET),
+	V(FUTEX_OP_ADD),
+	V(FUTEX_OP_OR),
+	V(FUTEX_OP_ANDN),
+	V(FUTEX_OP_XOR),
+	{0, NULL}
+};
+static const _stp_val_array const _stp_futex_wake_cmps_list[] = {
+	V(FUTEX_OP_CMP_EQ),
+	V(FUTEX_OP_CMP_NE),
+	V(FUTEX_OP_CMP_LT),
+	V(FUTEX_OP_CMP_LE),
+	V(FUTEX_OP_CMP_GT),
+	V(FUTEX_OP_CMP_GE),
+	{0, NULL}
+};
+%}
+
+function _futex_op_str:string(op:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_futex_op_list, (unsigned int)STAP_ARG_op,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _futex_wake_op_str:string(encoded_op:long)
+%{ /* pure */
+	int encoded_op = (int)STAP_ARG_encoded_op;
+	int op = (encoded_op >> 28) & 7;
+	int cmp = (encoded_op >> 24) & 15;
+	int oparg = (encoded_op << 8) >> 20;
+	int cmparg = (encoded_op << 20) >> 20;
+	int slen;
+
+	strlcpy(STAP_RETVALUE, "{", MAXSTRINGLEN);
+	slen = strlen(STAP_RETVALUE);
+
+	if (encoded_op & (FUTEX_OP_OPARG_SHIFT << 28)) {
+		strlcat(STAP_RETVALUE + slen, "FUTEX_OP_OPARG_SHIFT|",
+			MAXSTRINGLEN - slen);
+		slen = strlen(STAP_RETVALUE);
+	}
+
+	_stp_lookup_str(_stp_futex_wake_ops_list, op,
+			STAP_RETVALUE + slen, MAXSTRINGLEN - slen);
+	slen = strlen(STAP_RETVALUE);
+
+	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, ", %d, ",
+		      oparg);
+	slen = strlen(STAP_RETVALUE);
+
+	_stp_lookup_str(_stp_futex_wake_cmps_list, cmp,
+			STAP_RETVALUE + slen, MAXSTRINGLEN - slen);
+	slen = strlen(STAP_RETVALUE);
+
+	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, ", %d}",
+		      cmparg);
+%}
 
 %{
 static const _stp_val_array const _stp_mountflags_list[] = {
@@ -1898,14 +2000,26 @@ function _madvice_advice_str:string(behavior)
 			MAXSTRINGLEN);
 %}
 
-function _fadvice_advice_str(behavior) {
-   if(behavior==0x00000000) return "FADV_NORMAL"
-   if(behavior==0x00000001) return "FADV_RANDOM"
-   if(behavior==0x00000002) return "FADV_SEQUENTIAL"
-   if(behavior==0x00000003) return "FADV_WILLNEED"
-   if(behavior==0x00000004) return "FADV_DONTNEED"
-   return sprintf("UNKNOWN VALUE: %d", behavior)
-}
+%{
+#include <linux/fadvise.h>
+
+static const _stp_val_array const _stp_fadvice_advice_list[] = {
+	V(POSIX_FADV_NORMAL),
+	V(POSIX_FADV_RANDOM),
+	V(POSIX_FADV_SEQUENTIAL),
+	V(POSIX_FADV_WILLNEED),
+	V(POSIX_FADV_DONTNEED),
+	V(POSIX_FADV_NOREUSE),
+	{0, NULL}
+};
+%}
+
+function _fadvice_advice_str:string(behavior:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_fadvice_advice_list,
+			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
 
 %{
 #include <linux/fcntl.h>
@@ -3509,4 +3623,65 @@ function _stp_ioprio_value_str:string(value:long)
 	slen = strlen(STAP_RETVALUE);
 	_stp_snprintf(STAP_RETVALUE + slen, MAXSTRINGLEN - slen, "|%d",
 		      IOPRIO_PRIO_DATA(((int)STAP_ARG_value)));
+%}
+
+%{
+#include <linux/mempolicy.h>
+static const _stp_val_array const _stp_mempolicy_flags_list[] = {
+	V(MPOL_F_NODE),
+	V(MPOL_F_ADDR),
+#ifdef MPOL_F_MEMS_ALLOWED
+	V(MPOL_F_MEMS_ALLOWED),
+#endif
+	{0, NULL}
+};
+
+#ifndef MPOL_MODE_FLAGS
+#define MPOL_MODE_FLAGS 0
+#endif
+
+static const _stp_val_array const _stp_mempolicy_mode_flags_list[] = {
+#ifdef MPOL_F_STATIC_NODES
+	V(MPOL_F_STATIC_NODES),
+#endif
+#ifdef MPOL_F_RELATIVE_NODES
+	V(MPOL_F_RELATIVE_NODES),
+#endif
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_mempolicy_mode_list[] = {
+	V(MPOL_DEFAULT),
+	V(MPOL_PREFERRED),
+	V(MPOL_BIND),
+	V(MPOL_INTERLEAVE),
+#ifdef MPOL_LOCAL
+	V(MPOL_LOCAL),
+#endif
+	{0, NULL}
+};
+%}
+
+function _mempolicy_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_mempolicy_flags_list,
+			   (unsigned long)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _mempolicy_mode_str:string(mode:long)
+%{ /* pure */
+	unsigned int mode = (unsigned int)STAP_ARG_mode;
+	int len = 0;
+
+	if (mode != 0xffffffff && mode & MPOL_MODE_FLAGS) {
+		_stp_lookup_str(_stp_mempolicy_mode_flags_list,
+				mode & MPOL_MODE_FLAGS, STAP_RETVALUE,
+				MAXSTRINGLEN);
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		mode &= ~MPOL_MODE_FLAGS;
+	}
+	_stp_lookup_str(_stp_mempolicy_mode_list, mode, STAP_RETVALUE + len,
+			MAXSTRINGLEN - len);
 %}

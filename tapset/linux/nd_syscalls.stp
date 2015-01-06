@@ -1178,13 +1178,29 @@ probe nd_syscall.faccessat.return = kprobe.function("sys_faccessat").return ?
 #
 probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
 {
-	name = "fadvise64"
 	asmlinkage()
+	name = "fadvise64"
 	fd = int_arg(1)
-	offset = longlong_arg(2)
-	len = ulong_arg(3)
+%( CONFIG_64BIT == "y" %?
+	if (%{ _stp_is_compat_task() %}) {
+		offset = int_arg(2)
+		len = int_arg(3)
+	}
+	else {
+		offset = longlong_arg(2)
+		len = long_arg(3)
+	}
 	advice = int_arg(4)
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len, _fadvice_advice_str(advice))
+%:
+	# On a 32-bit kernel, 'long long' arguments take the space of
+	# 2 arguments, so we have to adjust the following argument
+	# numbers.
+	offset = longlong_arg(2)
+	len = long_arg(4)
+	advice = int_arg(5)
+%)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
 }
 probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
 {
@@ -1197,17 +1213,42 @@ probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
 #
 probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 {
-	name = "fadvise64_64"
 	asmlinkage()
+%( arch != "s390" && arch != "ia64" %?
+	# s390x/ia64 has sys_fadvise64_64() mapped to __NR_fadvise64
+	# (instead of __NR_fadvise64_64)
+	@__syscall_gate(%{ __NR_fadvise64_64 %})
+%)
+	name = "fadvise64"
 	fd = int_arg(1)
-	offset = longlong_arg(2)
-	len = ulong_arg(3)
+%( CONFIG_64BIT == "y" %?
+	if (%{ _stp_is_compat_task() %}) {
+		offset = int_arg(2)
+		len = int_arg(3)
+	}
+	else {
+		offset = longlong_arg(2)
+		len = longlong_arg(3)
+	}
 	advice = int_arg(4)
-	argstr = sprintf("%d, %d, %d, %s", fd, offset, len, _fadvice_advice_str(advice))
+%:
+	# On a 32-bit kernel, 'long long' arguments take the space of
+	# 2 arguments, so we have to adjust the following argument
+	# numbers.
+	offset = longlong_arg(2)
+	len = longlong_arg(4)
+	advice = int_arg(6)
+%)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
 }
-probe nd_syscall.fadvise64_64.return = kprobe.function("sys_fadvise64_64").return ?
+probe nd_syscall.fadvise64_64.return =
+	kprobe.function("sys_fadvise64_64").return ?
 {
-	name = "fadvise64_64"
+%( arch != "s390" && arch != "ia64" %?
+	@__syscall_gate(%{ __NR_fadvise64_64 %})
+%)
+	name = "fadvise64"
 	retstr = returnstr(1)
 }
 
@@ -1705,17 +1746,11 @@ probe nd_syscall.futex = kprobe.function("sys_futex") ?
 	asmlinkage()
 	futex_uaddr = pointer_arg(1)
 	op = int_arg(2)
-	val = u32_arg(3)
+	val = int_arg(3)
 	utime_uaddr = pointer_arg(4)
 	uaddr2_uaddr = pointer_arg(5)
-	val3 = u32_arg(6)
-	if (op == 0)
-		argstr = sprintf("%p, %s, %d, %s", futex_uaddr,
-			_futex_op_str(op), val,
-			_struct_timespec_u(utime_uaddr, 1))
-	else
-		argstr = sprintf("%p, %s, %d", futex_uaddr,
-			_futex_op_str(op), val)
+	val3 = int_arg(6)
+	@__futex_argstr(futex_uaddr, op, val, utime_uaddr, uaddr2_uaddr, val3)
 }
 probe nd_syscall.futex.return = kprobe.function("sys_futex").return ?
 {
@@ -1728,19 +1763,14 @@ probe nd_syscall.compat_futex = kprobe.function("compat_sys_futex") ?
 	asmlinkage()
 	futex_uaddr = pointer_arg(1)
 	op = int_arg(2)
-	val = u32_arg(3)
+	val = int_arg(3)
 	utime_uaddr = pointer_arg(4)
 	uaddr2_uaddr = pointer_arg(5)
-	val3 = u32_arg(6)
-	if (op == 0)
-		argstr = sprintf("%p, %s, %d, %s", futex_uaddr,
-			_futex_op_str(op), val,
-			_struct_compat_timespec_u(utime_uaddr, 1))
-	else
-		argstr = sprintf("%p, %s, %d", futex_uaddr,
-			_futex_op_str(op), val)
+	val3 = int_arg(6)
+	@__futex_argstr(futex_uaddr, op, val, utime_uaddr, uaddr2_uaddr, val3)
 }
-probe nd_syscall.compat_futex.return = kprobe.function("compat_sys_futex").return ?
+probe nd_syscall.compat_futex.return =
+	kprobe.function("compat_sys_futex").return ?
 {
 	name = "futex"
 	retstr = returnstr(1)
@@ -1975,8 +2005,8 @@ probe nd_syscall.compat_getitimer.return = kprobe.function("compat_sys_getitimer
 #		     compat_ulong_t maxnode,
 #		     compat_ulong_t addr, compat_ulong_t flags)
 #
-probe nd_syscall.get_mempolicy = kprobe.function("compat_sys_get_mempolicy") ?,
-                                 kprobe.function("sys_get_mempolicy") ?
+probe nd_syscall.get_mempolicy = __nd_syscall.get_mempolicy ?,
+	kprobe.function("compat_sys_get_mempolicy") ?
 {
 	name = "get_mempolicy"
 	asmlinkage()
@@ -1985,14 +2015,26 @@ probe nd_syscall.get_mempolicy = kprobe.function("compat_sys_get_mempolicy") ?,
 	maxnode = ulong_arg(3)
 	addr = ulong_arg(4)
 	flags = ulong_arg(5)
-	argstr = sprintf("%p, %p, %d, %p, 0x%x", policy_uaddr,
-		nmask_uaddr, maxnode, addr, flags)
+	flags_str = _mempolicy_flags_str(flags)
+	argstr = sprintf("%p, %p, %u, %p, %s", policy_uaddr,
+		nmask_uaddr, maxnode, addr, _mempolicy_flags_str(flags))
 }
-probe nd_syscall.get_mempolicy.return = kprobe.function("compat_sys_get_mempolicy").return ?,
-                                        kprobe.function("sys_get_mempolicy").return ?
+probe __nd_syscall.get_mempolicy = kprobe.function("sys_get_mempolicy") ?
+{
+	asmlinkage()
+	@__syscall_gate_compat_simple
+}
+probe nd_syscall.get_mempolicy.return = __nd_syscall.get_mempolicy.return ?,
+	kprobe.function("compat_sys_get_mempolicy").return ?
 {
 	name = "get_mempolicy"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.get_mempolicy.return =
+	kprobe.function("sys_get_mempolicy").return ?
+{
+	asmlinkage()
+	@__syscall_gate_compat_simple
 }
 
 # getpeername ________________________________________________

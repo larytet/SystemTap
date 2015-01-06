@@ -101,3 +101,58 @@
      }
   %)
 %)
+
+# The following argstr processing is modeled on strace's handling of
+# futex. Because it is so complicated and is used in 4 places
+# (syscall.futex, syscall.compat_futex, nd_syscall.futex, and
+# nd_syscall.compat_futex), a macro is used to handle all the
+# details.
+@define __futex_argstr(uaddr, op, val, utime, uaddr2, val3)
+%(
+	if (@op == %{ FUTEX_WAKE_BITSET %}) {
+		argstr = sprintf("%p, %s, %d, %#x", @uaddr, _futex_op_str(@op),
+				 @val, @val3)
+	}
+	else if (@op == %{ FUTEX_WAIT %}) {
+		argstr = sprintf("%p, %s, %d, %s", @uaddr, _futex_op_str(@op),
+				 @val,
+				 (%{ _stp_is_compat_task() %}
+				  ? _struct_compat_timespec_u(@utime, 1)
+				  : _struct_timespec_u(@utime, 1)))
+	}
+	else if (@op == %{ FUTEX_WAIT_BITSET %}) {
+		argstr = sprintf("%p, %s, %d, %s, %#x", @uaddr,
+				 _futex_op_str(@op), @val,
+				 (%{ _stp_is_compat_task() %}
+				  ? _struct_compat_timespec_u(@utime, 1)
+				  : _struct_timespec_u(@utime, 1)), @val3)
+	}
+	else if (@op == %{ FUTEX_REQUEUE %}) {
+		argstr = sprintf("%p, %s, %d, %d, %p", @uaddr,
+				 _futex_op_str(@op), @val, @utime,
+				 @uaddr2)
+	}
+	else if (@op == %{ FUTEX_CMP_REQUEUE %}
+		 || @op == %{ FUTEX_CMP_REQUEUE_PI %}) {
+		argstr = sprintf("%p, %s, %d, %u, %p, %d", @uaddr,
+				 _futex_op_str(@op), @val, @utime,
+				 @uaddr2, @val3)
+	}
+	else if (@op == %{ FUTEX_WAKE_OP %}) {
+		argstr = sprintf("%p, %s, %d, %u, %p, %s", @uaddr,
+				 _futex_op_str(@op), @val, @utime,
+				 @uaddr2, _futex_wake_op_str(@val3))
+	}
+	else if (@op == %{ FUTEX_WAIT_REQUEUE_PI %}) {
+		argstr = sprintf("%p, %s, %d, %s, %p", @uaddr,
+				 _futex_op_str(@op), @val,
+				 (%{ _stp_is_compat_task() %}
+				  ? _struct_compat_timespec_u(@utime, 1)
+				  : _struct_timespec_u(@utime, 1)),
+				 @uaddr2)
+	}
+	else {
+		argstr = sprintf("%p, %s, %d", @uaddr, _futex_op_str(@op),
+				 @val)
+	}
+%)
