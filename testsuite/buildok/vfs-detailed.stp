@@ -16,14 +16,14 @@ probe generic.fop.llseek.return
 	printf("%d(%s)\n", error, error_str)
 }
 
-probe generic.fop.aio_read
+probe generic.fop.aio_read ?, generic.fop.read_iter ?
 {
 	printf("%s %s\n", name, argstr)
 	printf("%p %s %d %p\n", dev, devname, ino, file)
 	printf("%d %p %d\n", pos, buf, count)
 	printf("%d %s\n", size, units)
 }
-probe generic.fop.aio_read.return
+probe generic.fop.aio_read.return ?, generic.fop.read_iter.return ?
 {
 	printf("%s %s\n", name, retstr)
 	printf("%d(%s)\n", error, error_str)
@@ -31,14 +31,14 @@ probe generic.fop.aio_read.return
 	printf("%d %s\n", size, units)
 }
 
-probe generic.fop.aio_write
+probe generic.fop.aio_write ?, generic.fop.write_iter ?
 {
 	printf("%s %s\n", name, argstr)
 	printf("%p %s %d %p\n", dev, devname, ino, file)
 	printf("%d %p %d\n", pos, buf, count)
 	printf("%d %s\n", size, units)
 }
-probe generic.fop.aio_write.return
+probe generic.fop.aio_write.return ?, generic.fop.write_iter.return ?
 {
 	printf("%s %s\n", name, retstr)
 	printf("%d %s\n", size, units)
