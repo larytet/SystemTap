@@ -54,7 +54,12 @@ function __inode_first_dentry:long(inode:long)
                         @cast(inode, "struct inode")->i_dentry->first,
                         @cast(inode, "struct inode")->i_dentry->next)
 
-        return & @container_of(d_alias, "struct dentry", d_alias)
+	if (@type_member_defined("struct dentry", d_alias)) {
+        	return & @container_of(d_alias, "struct dentry", d_alias)
+	}
+	else {
+        	return & @container_of(d_alias, "struct dentry", d_u->d_alias)
+	}
 }
 
 
@@ -188,11 +193,19 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 	    && (!__dentry_IS_ROOT(dentry) || dentry != vfsmnt->mnt_root))
 	  return sprintf("UNKNOWN:[%p]", dentry)
 
-	root = & @cast(task, "task_struct")->fs->root
+	# Handle old-school vs. new-school fs_structs.
+	if (@type_member_defined("fs_struct", rootmnt)) {
+		root_dentry = & @cast(task, "task_struct")->fs->root
+		root_vfsmnt = & @cast(task, "task_struct")->fs->rootmnt
+	}
+	else {
+		root_dentry = & @cast(task, "task_struct")->fs->root->dentry
+		root_vfsmnt = & @cast(task, "task_struct")->fs->root->mnt
+	}
 
 	while (1) {
 		# If we've found the right dentry/vfsmnt, we're done.
-		if (dentry == root->dentry && vfsmnt == root->mnt)
+		if (dentry == root_dentry && vfsmnt == root_vfsmnt)
 			break;
 
 		if (dentry == vfsmnt->mnt_root || __dentry_IS_ROOT(dentry)) {
