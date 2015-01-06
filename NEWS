@@ -1,5 +1,9 @@
 * What's new in version 2.7
 
+- Some systemtap sample scripts are now identified with the "_best" keyword,
+  because they are generally useful or educational.  They are now promoted
+  within the generated index files.
+
 - Passing strings to and from functions has become faster due to optimization
   (passing some strings by reference instead of by value/copy).  It may
   be disabled by using the unoptimize flag (-u).
