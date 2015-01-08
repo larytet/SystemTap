@@ -11116,7 +11116,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
 
   glob_t trace_glob;
 
-  // find kernel_source_tree
+  // find kernel_source_tree from DW_AT_comp_dir
   if (s.kernel_source_tree == "")
     {
       unsigned found;
@@ -11150,6 +11150,20 @@ tracepoint_builder::init_dw(systemtap_session& s)
             }
         }
       dwfl_end (dwfl);
+    }
+
+  // find kernel_source_tree from a source link, when different from build
+  if (s.kernel_source_tree == "" && endswith(s.kernel_build_tree, "/build"))
+    {
+      string source_tree = s.kernel_build_tree;
+      source_tree.replace(source_tree.length() - 5, 5, "source");
+      if (file_exists(source_tree) &&
+          resolve_path(source_tree) != resolve_path(s.kernel_build_tree))
+        {
+          if (s.verbose > 2)
+            clog << _F("Located kernel source tree at '%s'", source_tree.c_str()) << endl;
+          s.kernel_source_tree = source_tree;
+        }
     }
 
   // prefixes
