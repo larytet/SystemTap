@@ -4,7 +4,7 @@ srcdir='@abs_top_srcdir@'
 builddir='@abs_top_builddir@'
 
 rundir="${0%/*}"
-[ "$rundir" == "$0" ] || builddir="$rundir"
+[ "$rundir" = "$0" ] || builddir="$rundir"
 
 # Absolutify the paths.
 case "$srcdir" in
