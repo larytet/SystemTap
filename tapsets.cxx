@@ -10860,16 +10860,11 @@ tracepoint_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 struct tracepoint_query : public base_query
 {
-  string system;
-  string tracepoint;
-  string current_system;
-
   probe * base_probe;
   probe_point * base_loc;
   vector<derived_probe *> & results;
   set<string> probed_names;
 
-  string retrieve_trace_system();
   void handle_query_module();
   int handle_query_cu(Dwarf_Die * cudie);
   int handle_query_func(Dwarf_Die * func);
@@ -10914,6 +10909,13 @@ struct tracepoint_query : public base_query
     if (this->tracepoint.empty())
       throw SEMANTIC_ERROR (_("invalid tracepoint string provided"));
   }
+
+private:
+  string system; // target subsystem(s) to query
+  string tracepoint; // target tracepoint(s) to query
+  string current_system; // subsystem of module currently being visited
+
+  string retrieve_trace_system();
 };
 
 // name of section where TRACE_SYSTEM is stored
@@ -10963,7 +10965,7 @@ tracepoint_query::retrieve_trace_system()
 void
 tracepoint_query::handle_query_module()
 {
-  // Get the TRACE_SYSTEM for this CU, if any. It will be found in the
+  // Get the TRACE_SYSTEM for this module, if any. It will be found in the
   // STAP_TRACE_SYSTEM section if it exists.
   current_system = retrieve_trace_system();
 
