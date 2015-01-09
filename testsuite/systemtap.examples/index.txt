@@ -1255,7 +1255,7 @@ keywords: profiling
 
 
 profiling/pf4.stp - Profile Kernel/User Backtraces
-keywords: _best profiling
+keywords: _best profiling backtrace
 
   The pf4.stp script sets up time-based sampling. Every five seconds it
   prints out a sorted list with the top twenty kernel and/or user stack
