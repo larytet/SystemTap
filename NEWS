@@ -17,6 +17,16 @@
   name, file, and declaration line number. Use the .statement probe to probe a
   specific line number.
 
+- Tracepoint probes can now also be specified by the target subsystem. For
+  example, the following are all supported:
+
+  probe kernel.trace("sched:sched_switch") --> probe sched_switch found in the
+                                               sched subsystem
+  probe kernel.trace("sched:*") --> probe all tracepoints in sched subsystem
+
+  As a result, tapset functions such as pn() will now return a different string
+  than before. To retain the previous behaviour, use '--compatible=2.6'.
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:

@@ -10132,11 +10132,12 @@ struct tracepoint_derived_probe: public derived_probe
 {
   tracepoint_derived_probe (systemtap_session& s,
                             dwflpp& dw, Dwarf_Die& func_die,
+                            const string& tracepoint_system,
                             const string& tracepoint_name,
                             probe* base_probe, probe_point* location);
 
   systemtap_session& sess;
-  string tracepoint_name, header;
+  string tracepoint_system, tracepoint_name, header;
   vector <struct tracepoint_arg> args;
 
   void build_args(dwflpp& dw, Dwarf_Die& func_die);
@@ -10274,15 +10275,18 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   if (is_active_lvalue (e))
     throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted", e->name.c_str()), e->tok);
 
-  if (e->name == "$$name")
+  if (e->name == "$$name" || e->name == "$$system")
     {
       e->assert_no_components("tracepoint");
+
+      string member = (e->name == "$$name") ? "c->ips.tp.tracepoint_name"
+                                            : "c->ips.tp.tracepoint_system";
 
       // Synthesize an embedded expression.
       embedded_expr *expr = new embedded_expr;
       expr->tok = e->tok;
-      expr->code = string("/* string */ /* pure */ ")
-	+ string("c->ips.tracepoint_name ? c->ips.tracepoint_name : \"\"");
+      expr->code = string("/* string */ /* pure */ " +
+                          member + " ? " + member + " : \"\"");
       provide (expr);
     }
   else if (e->name == "$$vars" || e->name == "$$parms")
@@ -10337,9 +10341,9 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     {
       assert(e->name.size() > 0 && e->name[0] == '$');
 
-      if (e->name == "$$name" || e->name == "$$parms" || e->name == "$$vars")
+      if (e->name == "$$name" || e->name == "$$system"
+          || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
-
       else
         visit_target_symbol_arg (e);
     }
@@ -10353,15 +10357,25 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 
 tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
                                                     dwflpp& dw, Dwarf_Die& func_die,
+                                                    const string& tracepoint_system,
                                                     const string& tracepoint_name,
                                                     probe* base, probe_point* loc):
-  derived_probe (base, loc, true /* .components soon rewritten */),
-  sess (s), tracepoint_name (tracepoint_name)
+  derived_probe (base, loc, true /* .components soon rewritten */), sess (s),
+  tracepoint_system (tracepoint_system), tracepoint_name (tracepoint_name)
 {
   // create synthetic probe point name; preserve condition
   vector<probe_point::component*> comps;
   comps.push_back (new probe_point::component (TOK_KERNEL));
-  comps.push_back (new probe_point::component (TOK_TRACE, new literal_string (tracepoint_name)));
+
+  // tag on system to the final name unless we're in compatibility mode so that
+  // e.g. pn() returns just the name as before
+  string final_name = tracepoint_name;
+  if (!tracepoint_system.empty()
+      && strverscmp(s.compatible.c_str(), "2.6") > 0)
+    final_name = tracepoint_system + ":" + final_name;
+
+  comps.push_back (new probe_point::component (TOK_TRACE,
+                                               new literal_string(final_name)));
   this->sole_location()->components = comps;
 
   // fill out the available arguments in this tracepoint
@@ -10713,7 +10727,10 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
                        << common_probe_init (p) << ";";
       common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "probe",
 				     "stp_probe_type_tracepoint");
-      s.op->newline() << "c->ips.tracepoint_name = "
+      s.op->newline() << "c->ips.tp.tracepoint_system = "
+                      << lex_cast_qstring (p->tracepoint_system)
+                      << ";";
+      s.op->newline() << "c->ips.tp.tracepoint_name = "
                       << lex_cast_qstring (p->tracepoint_name)
                       << ";";
       for (unsigned j = 0; j < used_args.size(); ++j)
@@ -10843,15 +10860,6 @@ tracepoint_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 struct tracepoint_query : public base_query
 {
-  tracepoint_query(dwflpp & dw, const string & tracepoint,
-                   probe * base_probe, probe_point * base_loc,
-                   vector<derived_probe *> & results):
-    base_query(dw, "*"), tracepoint(tracepoint),
-    base_probe(base_probe), base_loc(base_loc),
-    results(results) {}
-
-  const string& tracepoint;
-
   probe * base_probe;
   probe_point * base_loc;
   vector<derived_probe *> & results;
@@ -10865,12 +10873,112 @@ struct tracepoint_query : public base_query
 
   static int tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q);
   static int tracepoint_query_func (Dwarf_Die * func, tracepoint_query * q);
+
+  tracepoint_query(dwflpp & dw, const string & tracepoint,
+                   probe * base_probe, probe_point * base_loc,
+                   vector<derived_probe *> & results):
+    base_query(dw, "*"), base_probe(base_probe),
+    base_loc(base_loc), results(results)
+  {
+    // The user may have specified the system to probe, e.g. all of the
+    // following are possible:
+    //
+    //   sched_switch --> tracepoint named sched_switch
+    //   sched:sched_switch --> tracepoint named sched_switch in the sched system
+    //   sch*:sched_* --> system starts with sch and tracepoint starts with sched_
+    //   sched:* --> all tracepoints in system sched
+    //   *:sched_switch --> same as just sched_switch
+
+    size_t sys_pos = tracepoint.find(':');
+    if (sys_pos == string::npos)
+      {
+        this->system = "";
+        this->tracepoint = tracepoint;
+      }
+    else
+      {
+        if (strverscmp(sess.compatible.c_str(), "2.6") <= 0)
+          throw SEMANTIC_ERROR (_("SYSTEM:TRACEPOINT syntax not supported "
+                                  "with --compatible <= 2.6"));
+
+        this->system = tracepoint.substr(0, sys_pos);
+        this->tracepoint = tracepoint.substr(sys_pos+1);
+      }
+
+    // make sure we have something to query (filters out e.g. "" and ":")
+    if (this->tracepoint.empty())
+      throw SEMANTIC_ERROR (_("invalid tracepoint string provided"));
+  }
+
+private:
+  string system; // target subsystem(s) to query
+  string tracepoint; // target tracepoint(s) to query
+  string current_system; // subsystem of module currently being visited
+
+  string retrieve_trace_system();
 };
+
+// name of section where TRACE_SYSTEM is stored
+// (see tracepoint_builder::get_tracequery_modules())
+#define STAP_TRACE_SYSTEM ".stap_trace_system"
+
+string
+tracepoint_query::retrieve_trace_system()
+{
+  Dwarf_Addr bias;
+  Elf* elf = dwfl_module_getelf(dw.module, &bias);
+  if (!elf)
+    return "";
+
+  size_t shstrndx;
+  if (elf_getshdrstrndx(elf, &shstrndx))
+    return "";
+
+  Elf_Scn *scn = NULL;
+  GElf_Shdr shdr_mem;
+
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      if (gelf_getshdr(scn, &shdr_mem) == NULL)
+        return "";
+
+      const char *name = elf_strptr(elf, shstrndx, shdr_mem.sh_name);
+      if (name == NULL)
+        return "";
+
+      if (strcmp(name, STAP_TRACE_SYSTEM) == 0)
+        break;
+    }
+
+  if (scn == NULL)
+    return "";
+
+  // Extract saved TRACE_SYSTEM in section
+  Elf_Data *data = elf_getdata(scn, NULL);
+  if (!data)
+    return "";
+
+  return string((char*)data->d_buf);
+}
 
 
 void
 tracepoint_query::handle_query_module()
 {
+  // Get the TRACE_SYSTEM for this module, if any. It will be found in the
+  // STAP_TRACE_SYSTEM section if it exists.
+  current_system = retrieve_trace_system();
+
+  // check if user wants a specific system
+  if (!system.empty())
+    {
+      // don't need to go further if module has no system or doesn't
+      // match the one we want
+      if (current_system.empty()
+          || !dw.function_name_matches_pattern(current_system, system))
+        return;
+    }
+
   // look for the tracepoints in each CU
   dw.iterate_over_cus(tracepoint_query_cu, this, false);
 }
@@ -10916,6 +11024,7 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
   }
 
   derived_probe *dp = new tracepoint_derived_probe (dw.sess, dw, *func,
+                                                    current_system,
                                                     tracepoint_instance,
                                                     base_probe, base_loc);
   results.push_back (dp);
@@ -11074,6 +11183,13 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
         osrc << "#undef TRACE_INCLUDE_FILE\n"
              << "#undef TRACE_INCLUDE_PATH\n"
              << short_decls[z] << "\n";
+
+      // create a section that will hold the TRACE_SYSTEM for this header
+      osrc << "#ifdef TRACE_SYSTEM" << endl;
+      osrc << "const char stap_trace_system[]" << endl;
+      osrc << "  __attribute__((section(\"" STAP_TRACE_SYSTEM "\")))" << endl;
+      osrc << "    = __stringify(TRACE_SYSTEM);" << endl;
+      osrc << "#endif" << endl;
 
       // finish up the module source
       osrc << "#endif /* CONFIG_TRACEPOINTS */" << endl;

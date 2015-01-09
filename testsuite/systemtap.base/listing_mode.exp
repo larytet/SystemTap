@@ -631,10 +631,23 @@ stap_list {kernel.statement("vfs_read").nearest} \
 
 testing_probe {kernel.trace(string)}
 
-stap_list {kernel.trace("sched_switch")}
+# Check for TRACE_SYSTEM support
+if {[min_kernel_vers_p 2.6.32]} {
 
-stap_list {kernel.trace("s*")} \
-   {re:kernel.trace\("s[a-zA-Z0-9_]*"\)} {-1}
+   stap_list {kernel.trace("sched:sched_switch")}
+
+   stap_list {kernel.trace("sched_switch")} \
+      {kernel.trace("sched:sched_switch")}
+
+   stap_list {kernel.trace("s*")} \
+      {re:kernel.trace\("[^:]*:s[a-zA-Z0-9_]*"\)} {-1}
+
+} else {
+
+   stap_list {kernel.trace("sched_switch")}
+   stap_list {kernel.trace("s*")} \
+      {re:kernel.trace\("s[a-zA-Z0-9_]*"\)} {-1}
+}
 
 testing_probe {kprobe.function(string)}
 
