@@ -995,6 +995,7 @@ struct functioncall_traversing_visitor: public traversing_visitor
   functiondecl* current_function;
   functioncall_traversing_visitor(): current_function(0) {}
   void visit_functioncall (functioncall* e);
+  void enter_functioncall (functioncall* e);
   virtual void note_recursive_functioncall (functioncall* e);
 };
 
@@ -1019,12 +1020,17 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
     current_lvalue_read (false),
     current_lvalue(0),
     current_lrvalue(0) {}
+  void visit_if_statement (if_statement* s);
+  void visit_for_loop (for_loop* s);
   void visit_embeddedcode (embeddedcode *s);
   void visit_embedded_expr (embedded_expr *e);
   void visit_try_block (try_block *s);
+  void visit_functioncall (functioncall* e);
+  void visit_return_statement (return_statement *s);
   void visit_delete_statement (delete_statement *s);
   void visit_print_format (print_format *e);
   void visit_assignment (assignment *e);
+  void visit_ternary_expression (ternary_expression* e);
   void visit_arrayindex (arrayindex *e);
   void visit_target_symbol (target_symbol *e);
   void visit_symbol (symbol *e);
