@@ -857,14 +857,14 @@ probe syscall.epoll_pwait = kernel.function("compat_sys_epoll_pwait").call ?,
 {
 	name = "epoll_pwait"
 	epfd = __int32($epfd)
-	events_uaddr = $events
+	events_uaddr = @__pointer($events)
 	maxevents = __int32($maxevents)
 	timeout = __int32($timeout)
-	sigmask_uaddr = $sigmask
+	sigmask_uaddr = @__pointer($sigmask)
 	sigsetsize = $sigsetsize
 	argstr = sprintf("%d, %p, %d, %d, %p, %d",
-			 __int32($epfd), $events, __int32($maxevents),
-			 __int32($timeout), $sigmask, $sigsetsize)
+			 __int32($epfd), events_uaddr, __int32($maxevents),
+			 __int32($timeout), sigmask_uaddr, $sigsetsize)
 }
 probe syscall.epoll_pwait.return = kernel.function("compat_sys_epoll_pwait").return ?,
                                    kernel.function("sys_epoll_pwait").return ?

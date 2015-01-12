@@ -6,6 +6,17 @@
 #include <signal.h>
 #include <sys/syscall.h>
 
+
+#ifdef SYS_epoll_pwait
+int __epoll_pwait(int epfd, struct epoll_event *events,
+                  int maxevents, int timeout,
+                  const sigset_t *set)
+{
+    return syscall(__NR_epoll_pwait, epfd, events, maxevents, timeout,
+                   set, _NSIG / 8);
+}
+#endif
+
 int main()
 {
   struct epoll_event ev, events[17];
@@ -87,34 +98,35 @@ int main()
   //staptest// epoll_wait (-1, XXXX, 17, -1) = -NNNN (EBADF)
 #endif
 
+// RHEL5 x86_64 defines SYS_epoll_pwait, but doesn't have epoll_pwait()
 #ifdef SYS_epoll_pwait
-  epoll_pwait(fd, events, 17, 0, NULL);
-  //staptest// epoll_pwait (NNNN, XXXX, 17, 0, 0x0, NNNN) = 0
+  __epoll_pwait(fd, events, 17, 0, NULL);
+  //staptest// [[[[epoll_pwait (NNNN, XXXX, 17, 0, 0x0, NNNN) = 0!!!!ni_syscall () = -38 (ENOSYS)]]]]
 
-  epoll_pwait(fd, events, 17, 0, &sigs);
-  //staptest// epoll_pwait (NNNN, XXXX, 17, 0, XXXX, NNNN) = 0
+  __epoll_pwait(fd, events, 17, 0, &sigs);
+  //staptest// [[[[epoll_pwait (NNNN, XXXX, 17, 0, XXXX, NNNN) = 0!!!!ni_syscall () = -38 (ENOSYS)]]]]
 
-  epoll_pwait(-1, events, 17, 0, &sigs);
-  //staptest// epoll_pwait (-1, XXXX, 17, 0, XXXX, NNNN) = -NNNN (EBADF)
+  __epoll_pwait(-1, events, 17, 0, &sigs);
+  //staptest// [[[[epoll_pwait (-1, XXXX, 17, 0, XXXX, NNNN) = -NNNN (EBADF)!!!!ni_syscall () = -38 (ENOSYS)]]]]
 
-  epoll_pwait(fd, (struct epoll_event *)-1, 17, 0, &sigs);
+  __epoll_pwait(fd, (struct epoll_event *)-1, 17, 0, &sigs);
 #ifdef __s390__
   //staptest// epoll_pwait (NNNN, 0x[7]?[f]+, 17, 0, XXXX, NNNN) =
 #else
-  //staptest// epoll_pwait (NNNN, 0x[f]+, 17, 0, XXXX, NNNN) =
+  //staptest// [[[[epoll_pwait (NNNN, 0x[f]+, 17, 0, XXXX, NNNN) =!!!!ni_syscall () = -38 (ENOSYS)]]]]
 #endif
 
-  epoll_pwait(fd, events, -1, 0, &sigs);
-  //staptest// epoll_pwait (NNNN, XXXX, -1, 0, XXXX, NNNN) = -NNNN (EINVAL)
+  __epoll_pwait(fd, events, -1, 0, &sigs);
+  //staptest// [[[[epoll_pwait (NNNN, XXXX, -1, 0, XXXX, NNNN) = -NNNN (EINVAL)!!!!ni_syscall () = -38 (ENOSYS)]]]]
 
-  epoll_pwait(-1, events, 17, -1, &sigs);
-  //staptest// epoll_pwait (-1, XXXX, 17, -1, XXXX, NNNN) = -NNNN (EBADF)
+  __epoll_pwait(-1, events, 17, -1, &sigs);
+  //staptest// [[[[epoll_pwait (-1, XXXX, 17, -1, XXXX, NNNN) = -NNNN (EBADF)!!!!ni_syscall () = -38 (ENOSYS)]]]]
 
-  epoll_pwait(fd, events, 17, 0, (sigset_t *)-1);
+  __epoll_pwait(fd, events, 17, 0, (sigset_t *)-1);
 #ifdef __s390__
   //staptest// epoll_pwait (NNNN, XXXX, 17, 0, 0x[7]?[f]+, NNNN) = -NNNN (EFAULT)
 #else
-  //staptest// epoll_pwait (NNNN, XXXX, 17, 0, 0x[f]+, NNNN) = -NNNN (EFAULT)
+  //staptest// [[[[epoll_pwait (NNNN, XXXX, 17, 0, 0x[f]+, NNNN) = -NNNN (EFAULT)!!!!ni_syscall () = -38 (ENOSYS)]]]]
 #endif
 #endif
 
