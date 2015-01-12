@@ -11248,17 +11248,23 @@ tracepoint_builder::init_dw(systemtap_session& s)
               const char* name = dwarf_formstring (dwarf_attr (cudie, DW_AT_comp_dir, &attr));
               if (name)
                 {
-                  // check that the path actually exists locally before we try to use it
-                  if (file_exists(name))
+                  // Before we try to use it, check that the path actually
+                  // exists locally and is distinct from the build tree.
+                  if (!file_exists(name))
                     {
                       if (s.verbose > 2)
-                        clog << _F("Located kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
-                      s.kernel_source_tree = name;
+                        clog << _F("Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                    }
+                  else if (resolve_path(name) == resolve_path(s.kernel_build_tree))
+                    {
+                      if (s.verbose > 2)
+                        clog << _F("Ignoring duplicate kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
                     }
                   else
                     {
                       if (s.verbose > 2)
-                        clog << _F("Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                        clog << _F("Located kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                      s.kernel_source_tree = name;
                     }
 
                   break; // skip others; modern Kbuild uses same comp_dir for them all
