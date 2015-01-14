@@ -7264,15 +7264,18 @@ dump_unwindsym_cxt (Dwfl_Module *m,
 
   if (debug_line != NULL)
     {
+      c->output << "#if defined(STP_NEED_LINE_DATA)\n";
       c->output << ".debug_line = "
 		<< "_stp_module_" << stpmod_idx << "_debug_line, \n";
       c->output << ".debug_line_len = " << debug_line_len << ", \n";
+      c->output << "#else\n";
     }
-  else
-    {
-      c->output << ".debug_line = NULL,\n";
-      c->output << ".debug_line_len = 0,\n";
-    }
+
+  c->output << ".debug_line = NULL,\n";
+  c->output << ".debug_line_len = 0,\n";
+
+  if (debug_line != NULL)
+    c->output << "#endif /* STP_NEED_LINE_DATA */\n";
 
   c->output << ".sections = _stp_module_" << stpmod_idx << "_sections" << ",\n";
   c->output << ".num_sections = sizeof(_stp_module_" << stpmod_idx << "_sections)/"
