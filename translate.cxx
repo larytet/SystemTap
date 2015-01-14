@@ -6619,66 +6619,72 @@ dump_line_tables_check (void *data, size_t data_len)
 {
   uint64_t unit_length = 0,  header_length = 0;
   uint16_t version = 0;
-  uint8_t *ptr = (uint8_t *)data, opcode_base = 0;
+  uint8_t *ptr = (uint8_t *)data, *endunitptr, opcode_base = 0;
   unsigned length = 4;
 
-  if (data_len <= 4)
-    return DWARF_CB_ABORT;
-
-  unit_length = *((uint32_t *) ptr);
-  ptr += 4;
-  if (unit_length == 0xffffffff)
-    {
-      if (data_len <= (4 + 8))
+  while (ptr < ((uint8_t *)data + data_len))
+   {
+      if (data_len <= 4)
         return DWARF_CB_ABORT;
-      length = 8;
-      unit_length = *((uint64_t *) ptr);
-      ptr += 8;
-    }
 
-  if (((data_len - (length == 4 ? 4 : 12)) < unit_length) || unit_length <= 2)
-    return DWARF_CB_ABORT;
-
-  version  = *((uint16_t *)ptr);
-  ptr += 2;
-
-  if (unit_length <= (2 + length))
-    return DWARF_CB_ABORT;
-
-  if (length == 4)
-    {
-      header_length = *((uint32_t *) ptr);
+      unit_length = *((uint32_t *) ptr);
+      endunitptr = ptr + unit_length;
       ptr += 4;
+      if (unit_length == 0xffffffff)
+        {
+          if (data_len <= (4 + 8))
+            return DWARF_CB_ABORT;
+          length = 8;
+          unit_length = *((uint64_t *) ptr);
+          ptr += 8;
+        }
+
+      if (((data_len - (length == 4 ? 4 : 12)) < unit_length) || unit_length <= 2)
+        return DWARF_CB_ABORT;
+
+      endunitptr = ptr + unit_length;
+
+      version  = *((uint16_t *)ptr);
+      ptr += 2;
+
+      if (unit_length <= (2 + length))
+        return DWARF_CB_ABORT;
+
+      if (length == 4)
+        {
+          header_length = *((uint32_t *) ptr);
+          ptr += 4;
+        }
+      else
+        {
+          header_length = *((uint64_t *) ptr);
+          ptr += 8;
+        }
+
+      // safety check for the next few jumps
+      if (header_length <= ((version >= 4 ? 5 : 4) + 2)
+          || (unit_length - (2 + length) < header_length))
+        return DWARF_CB_ABORT;
+
+      // skip past min instr length, max ops per instr, and line base
+      if (version >= 4)
+        ptr += 3;
+      else
+        ptr += 2;
+
+      // check that the line range is not 0
+      if (*ptr == 0)
+        return DWARF_CB_ABORT;
+      ptr++;
+
+      // check that the header accomodates the std opcode lens section
+      opcode_base = *((uint8_t *) ptr);
+      if (header_length <= (uint64_t) (opcode_base + (version >= 4 ? 7 : 6)))
+        return DWARF_CB_ABORT;
+
+      // the initial checks stop here, before the directory table
+      ptr = endunitptr;
     }
-  else
-    {
-      header_length = *((uint64_t *) ptr);
-      ptr += 8;
-    }
-
-  // safety check for the next few jumps
-  if (header_length <= ((version >= 4 ? 5 : 4) + 2)
-      || (unit_length - (2 + length) < header_length))
-    return DWARF_CB_ABORT;
-
-  // skip past min instr length, max ops per instr, and line base
-  if (version >= 4)
-    ptr += 3;
-  else
-    ptr += 2;
-
-  // check that the line range is not 0
-  if (*ptr == 0)
-    return DWARF_CB_ABORT;
-  ptr++;
-
-  // check that the header accomodates the std opcode lens section
-  opcode_base = *((uint8_t *) ptr);
-  if (header_length <= (uint64_t) (opcode_base + (version >= 4 ? 7 : 6)))
-    return DWARF_CB_ABORT;
-
-  // the initial checks stop here, before the directory table
-
   return DWARF_CB_OK;
 }
 
