@@ -3751,6 +3751,19 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
   hist_op *hist;
   classify_indexable (s->base, array, hist);
 
+  // Create a temporary for the loop limit counter and the limit
+  // expression result.
+  if (s->limit)
+    {
+      tmpvar res_limit = parent->gensym (pe_long);
+      res_limit.declare(*parent);
+
+      s->limit->visit (this);
+
+      tmpvar limitv = parent->gensym (pe_long);
+      limitv.declare(*parent);
+    }
+
   if (array)
     {
       itervar iv = parent->getiter (array);
@@ -3788,19 +3801,6 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
       load_aggregate (hist->stat);
     }
 
-  // Create a temporary for the loop limit counter and the limit
-  // expression result.
-  if (s->limit)
-    {
-      tmpvar res_limit = parent->gensym (pe_long);
-      res_limit.declare(*parent);
-
-      s->limit->visit (this);
-
-      tmpvar limitv = parent->gensym (pe_long);
-      limitv.declare(*parent);
-    }
-
   parent->visit_foreach_loop_value(this, s);
 }
 
@@ -3819,7 +3819,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
   if (array)
     {
       mapvar mv = getmap (array->referent, s->tok);
-      itervar iv = getiter (array);
       vector<var> keys;
 
       // NB: structure parallels for_loop
@@ -3905,10 +3904,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 
       // NB: sort direction sense is opposite in runtime, thus the negation
 
-      if (mv.is_parallel())
-	aggregations_active.insert(mv.value());
-      o->newline() << iv << " = " << iv.start (mv) << ";";
-
       tmpvar *limitv = NULL;
       if (s->limit)
       {
@@ -3916,6 +3911,12 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  limitv = new tmpvar(gensym (pe_long));
 	  o->newline() << *limitv << " = 0LL;";
       }
+
+      if (mv.is_parallel())
+	aggregations_active.insert(mv.value());
+
+      itervar iv = getiter (array);
+      o->newline() << iv << " = " << iv.start (mv) << ";";
 
       vector<tmpvar *> array_slice_vars;
       // store the the variables corresponding to the index of the array slice
@@ -4035,12 +4036,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       // Iterating over buckets in a histogram.
       assert(s->indexes.size() == 1);
       assert(s->indexes[0]->referent->type == pe_long);
-      var bucketvar = getvar (s->indexes[0]->referent);
-
-      aggvar agg = gensym_aggregate ();
-
-      var *v = load_aggregate(hist->stat, agg);
-      v->assert_hist_compatible(*hist);
 
       tmpvar *res_limit = NULL;
       tmpvar *limitv = NULL;
@@ -4054,6 +4049,13 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  limitv = new tmpvar(gensym (pe_long));
 	  o->newline() << *limitv << " = 0LL;";
 	}
+
+      var bucketvar = getvar (s->indexes[0]->referent);
+
+      aggvar agg = gensym_aggregate ();
+
+      var *v = load_aggregate(hist->stat, agg);
+      v->assert_hist_compatible(*hist);
 
       record_actions(1, s->tok, true);
       o->newline() << "for (" << bucketvar << " = 0; "
