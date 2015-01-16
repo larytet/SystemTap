@@ -305,6 +305,17 @@ if { $ok == 2} {
 }
 
 # -----------------------------------------------------------------
+verbose -log "$dtrace -x IGNORED -h -s $dpath"
+catch {exec $dtrace -x IGNORED -h -s $dpath}
+if {[file exists test.h]} then {
+    pass "dtrace -x IGNORED"
+} else {
+    fail "dtrace -x IGNORED"
+}
+exec rm -f test.o
+
+
+# -----------------------------------------------------------------
 # cleanup
 
 exec /bin/rm -r /tmp/dtrace /tmp/dtrace_inc
