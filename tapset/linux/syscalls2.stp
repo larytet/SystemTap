@@ -3469,8 +3469,9 @@ probe syscall.splice.return = kernel.function("sys_splice").return ?
 probe syscall.ssetmask = kernel.function("sys_ssetmask").call ?
 {
 	name = "ssetmask"
-	newmask = $newmask
-	argstr = sprint($newmask)
+	newmask = __int32($newmask)
+	newmask_str = _stp_sigmask_str(__int32($newmask))
+	argstr = _stp_sigmask_str(__int32($newmask))
 }
 probe syscall.ssetmask.return = kernel.function("sys_ssetmask").return ?
 {
@@ -4019,9 +4020,9 @@ probe syscall.times.return = kernel.function("compat_sys_times").return ?,
 probe syscall.tkill = kernel.function("sys_tkill").call
 {
 	name = "tkill"
-	pid = $pid
-	sig = $sig
-	argstr = sprintf("%d, %s", $pid, _signal_name($sig))
+	pid = __int32($pid)
+	sig = __int32($sig)
+	argstr = sprintf("%d, %s", __int32($pid), _signal_name(__int32($sig)))
 }
 probe syscall.tkill.return = kernel.function("sys_tkill").return
 {

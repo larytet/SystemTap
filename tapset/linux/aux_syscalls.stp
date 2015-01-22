@@ -3047,6 +3047,14 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
 }
 %}
 
+function _stp_sigmask_str:string(sigmask:long)
+%{ /* pure */
+  long mask = (long)STAP_ARG_sigmask;      
+  strlcpy (STAP_RETVALUE, "[", MAXSTRINGLEN);
+  _stp_sigset_str((sigset_t *)&mask, STAP_RETVALUE, MAXSTRINGLEN);
+  strlcat (STAP_RETVALUE, "]", MAXSTRINGLEN);
+%}
+
 function _struct_sigaction_u:string(uaddr:long)
 %{ /* pure */
   struct sigaction act;

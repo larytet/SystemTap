@@ -1067,7 +1067,7 @@ probe nd_syscall.splice.return ?
 probe nd_syscall.ssetmask ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", newmask)
+	printf("%d, %s\n", newmask, newmask_str)
 }
 probe nd_syscall.ssetmask.return ?
 {

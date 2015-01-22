@@ -3631,7 +3631,8 @@ probe nd_syscall.ssetmask = kprobe.function("sys_ssetmask") ?
 	name = "ssetmask"
 	asmlinkage()
 	newmask = int_arg(1)
-	argstr = sprint(newmask)
+	newmask_str = _stp_sigmask_str(newmask)
+	argstr = _stp_sigmask_str(newmask)
 }
 probe nd_syscall.ssetmask.return = kprobe.function("sys_ssetmask").return ?
 {

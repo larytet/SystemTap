@@ -1063,7 +1063,7 @@ probe syscall.splice.return ?
 probe syscall.ssetmask ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", newmask)
+	printf("%d, %s\n", newmask, newmask_str)
 }
 probe syscall.ssetmask.return ?
 {

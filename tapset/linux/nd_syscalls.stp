@@ -692,7 +692,7 @@ probe nd_syscall.clone = kprobe.function("do_fork").call
 	}	
 %)
 
-	clone_flags = int_arg(1)
+	clone_flags = long_arg(1)
 	stack_start = pointer_arg(2)
 %(kernel_v >= "3.8.0" %?
 	parent_tid_uaddr = pointer_arg(4)
