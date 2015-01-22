@@ -6624,22 +6624,21 @@ dump_line_tables_check (void *data, size_t data_len)
 
   while (ptr < ((uint8_t *)data + data_len))
    {
-      if (data_len <= 4)
+      if (ptr + 4 < (uint8_t *)data + data_len)
         return DWARF_CB_ABORT;
 
       unit_length = *((uint32_t *) ptr);
-      endunitptr = ptr + unit_length;
       ptr += 4;
       if (unit_length == 0xffffffff)
         {
-          if (data_len <= (4 + 8))
+          if (ptr + 8 > (uint8_t *)data + data_len)
             return DWARF_CB_ABORT;
           length = 8;
           unit_length = *((uint64_t *) ptr);
           ptr += 8;
         }
 
-      if (((data_len - (length == 4 ? 4 : 12)) < unit_length) || unit_length <= 2)
+      if ((ptr + unit_length > (uint8_t *)data + data_len) || unit_length <= 2)
         return DWARF_CB_ABORT;
 
       endunitptr = ptr + unit_length;
