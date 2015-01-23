@@ -31,47 +31,38 @@ static int stp_session_attribute_setter(const char *name, const char *value)
 {
 	// Note that We start all internal variables with '@', since
 	// that can't start a "real" variable.
-	if (strcmp(name, "@log_level") == 0) {
-		_stp_init_session_attributes.log_level = strtoul(value, NULL,
-								 10);
-		return 0;
+
+	struct _stp_session_attributes *init = &_stp_init_session_attributes;
+
+#define set_num(field, type)					\
+	if (strcmp(name, "@" #field) == 0) {			\
+		char *endp = NULL;				\
+		errno = 0;					\
+		init->field = strto##type(value, &endp, 0);	\
+		return (endp == value || *endp != '\0') ?	\
+			-EINVAL : -errno;			\
 	}
-	else if (strcmp(name, "@suppress_warnings") == 0) {
-		_stp_init_session_attributes.suppress_warnings
-		    = strtoul(value, NULL, 10);
-		return 0;
+
+#define set_string(field)					\
+	if (strcmp(name, "@" #field) == 0) {			\
+		size_t size = sizeof(init->field);		\
+		size_t len = strlcpy(init->field, value, size);	\
+		return (len < size) ? 0 : -EOVERFLOW;		\
 	}
-	else if (strcmp(name, "@stp_pid") == 0) {
-		_stp_init_session_attributes.stp_pid
-		    = strtoul(value, NULL, 10);
-		return 0;
-	}
-	else if (strcmp(name, "@tz_gmtoff") == 0) {
-		_stp_init_session_attributes.tz_gmtoff
-		    = strtol(value, NULL, 10);
-		return 0;
-	}
-	else if (strcmp(name, "@tz_name") == 0) {
-		strlcpy(_stp_init_session_attributes.tz_name,
-				value, MAXSTRINGLEN);
-		return 0;
-	}
-	else if (strcmp(name, "@target") == 0) {
-		_stp_init_session_attributes.target
-		    = strtoul(value, NULL, 10);
-		return 0;
-	}
-	else if (strcmp(name, "@module_name") == 0) {
-		strlcpy(_stp_init_session_attributes.module_name,
-				value, MAXSTRINGLEN);
-		return 0;
-	}
-	else if (strcmp(name, "@outfile_name") == 0) {
-		strlcpy(_stp_init_session_attributes.outfile_name,
-			value, PATH_MAX);
-		return 0;
-	}
-	return -EINVAL;
+
+	set_num(log_level, ul);
+	set_num(suppress_warnings, ul);
+	set_num(stp_pid, ul);
+	set_num(target, ul);
+	set_num(tz_gmtoff, l);
+	set_string(tz_name);
+	set_string(module_name);
+	set_string(outfile_name);
+
+#undef set_num
+#undef set_string
+
+	return -ENOENT;
 }
 
 #endif // SESSION_ATTRIBUTES_C

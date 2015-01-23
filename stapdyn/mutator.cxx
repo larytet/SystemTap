@@ -314,7 +314,7 @@ mutator::init_modoptions()
     {
       // Hypothetical backwards compatibility with older stapdyn:
       stapwarn() << "Compiled module does not support -G globals" << endl;
-      return false;
+      return true; // soft warning; let it go on anyway
     }
 
   for (vector<string>::iterator it = modoptions.begin();
@@ -327,17 +327,23 @@ mutator::init_modoptions()
       string::size_type separator = modoption.find('=');
       if (separator == string::npos)
         {
-          stapwarn() << "Could not parse module option '" << modoption << "'" << endl;
+          staperror() << "Could not parse module option '" << modoption << "'" << endl;
           return false; // XXX: perhaps ignore the option instead?
         }
       string name = modoption.substr(0, separator);
       string value = modoption.substr(separator+1);
 
       int rc = global_setter(name.c_str(), value.c_str());
-      if (rc != 0)
+      if (rc == -ENOENT)
         {
-          stapwarn() << "Incorrect module option '" << modoption << "'" << endl;
-          return false; // XXX: perhaps ignore the option instead?
+          stapwarn() << "Ignoring unknown module option '" << name << "'" << endl;
+          continue; // soft warning; let it go on anyway
+        }
+      else if (rc != 0)
+        {
+          staperror() << "module option '" << modoption << "': "
+                      << strerror(abs(rc)) << endl;
+          return false;
         }
     }
 
@@ -557,7 +563,14 @@ mutator::run ()
     stapwarn() << "process probes require a target (-c or -x)" << endl;
 
   // Get the stap module ready...
-  run_module_init();
+  if (!run_module_init())
+    {
+      // Detach from everything
+      target_mutatee.reset();
+      mutatees.clear();
+
+      return false;
+    }
 
   // And away we go!
   if (target_mutatee)
