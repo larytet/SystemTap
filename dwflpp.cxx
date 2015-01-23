@@ -2274,8 +2274,14 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
   // Fetch all srcline records, sorted by address. No need to free lines, it's a
   // direct pointer to the CU's cached lines.
-  DWARF_ASSERT ("dwarf_getsrclines",
-                dwarf_getsrclines(cu, &lines, &nlines));
+  if (dwarf_getsrclines(cu, &lines, &nlines) != 0
+      || lines == NULL || nlines == 0)
+    {
+      if (sess.verbose > 2)
+        clog << _F("aborting prologue search: no source lines found for cu '%s'\n",
+                   cu_name().c_str());
+      return;
+    }
 
   // Dump them into our own array for easier searching. They should already be
   // sorted by addr, but we doublecheck that here. We want to keep the indices
