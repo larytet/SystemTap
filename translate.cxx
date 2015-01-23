@@ -6628,7 +6628,7 @@ dump_line_tables_check (void *data, size_t data_len)
 
   while (ptr < ((uint8_t *)data + data_len))
    {
-      if (ptr + 4 < (uint8_t *)data + data_len)
+      if (ptr + 4 > (uint8_t *)data + data_len)
         return DWARF_CB_ABORT;
 
       unit_length = *((uint32_t *) ptr);
