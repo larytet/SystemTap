@@ -107,9 +107,9 @@ set __subtest "no script"
 check_exitcode "service $__servicename stop" 0
 check_exitcode "service $__servicename cleanup -y" 0
 sleep 5
-check_exitcode "service $__servicename start" 5
+check_exitcode "service $__servicename start" 0
 check_exitcode "service $__servicename status" 3
-check_exitcode "service $__servicename restart" 5
+check_exitcode "service $__servicename restart" 0
 check_exitcode "service $__servicename status" 3
 check_exitcode "service $__servicename cleanup -y" 0
 check_exitcode "service $__servicename compile" 0
@@ -291,7 +291,7 @@ puts $file "LOG_FILE=$__tmp_log"
 close $file
 
 sleep 5
-check_exitcode "service $__servicename start" 5
+check_exitcode "service $__servicename start" 0
 sleep 5
 check_exitcode "grep \"not a valid script name\" $__tmp_log" 0
 catch {exec rm -f $__tmp_log}
