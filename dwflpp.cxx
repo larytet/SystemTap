@@ -1423,6 +1423,7 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
   case EM_386:    plt0_entry_size = 16; plt_entry_size = 16; break;
   case EM_X86_64: plt0_entry_size = 16; plt_entry_size = 16; break;
   case EM_ARM:    plt0_entry_size = 20; plt_entry_size = 12; break;
+  case EM_AARCH64:plt0_entry_size = 32; plt_entry_size = 16; break;
   case EM_PPC64:
   case EM_S390:
   case EM_PPC:

@@ -91,7 +91,7 @@ proc uretprobes_p {} {
 proc plt_probes_p {} {
     # .plt probes need uprobes and a supported arch (x86 and arm)
     return [expr [uprobes_p] \
-	    && [regexp "^(x86_64|i.86|arm.*)$" $::tcl_platform(machine)] ]
+	    && [regexp "^(x86_64|i.86|arm.*|aarch64)$" $::tcl_platform(machine)] ]
 }
 
 proc perf_probes_p {} {
