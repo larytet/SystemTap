@@ -1,0 +1,47 @@
+// None of these global vars should be
+// autoprinted because they are all used
+
+global a // if condition
+global b // function arg
+
+global arr // used in foreach
+global c // foreach array slice
+global d // foreach limit
+
+global e // return value
+global f // ternary cond
+global g // while condition
+global h // arrayindex index
+
+function foo(b) {
+   if (b)
+      printf("e")
+}
+
+function bar() {
+   return ++e;
+}
+
+probe oneshot {
+
+   if (++a)
+      printf("h")
+
+   foo(++b)
+
+   arr[1,1] = 1
+   foreach ([i,j] in arr[*,++c] limit ++d) {
+      printf("l")
+   }
+
+   if (bar()) {
+      printf("l")
+   }
+
+   ++f ? printf("o") : printf("");
+
+   while (!g++)
+      printf("!")
+
+   arr[++h, 1]++
+}
