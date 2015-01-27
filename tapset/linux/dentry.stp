@@ -199,8 +199,8 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 		root_vfsmnt = & @cast(task, "task_struct")->fs->rootmnt
 	}
 	else {
-		root_dentry = & @cast(task, "task_struct")->fs->root->dentry
-		root_vfsmnt = & @cast(task, "task_struct")->fs->root->mnt
+		root_dentry = @cast(task, "task_struct")->fs->root->dentry
+		root_vfsmnt = @cast(task, "task_struct")->fs->root->mnt
 	}
 
 	while (1) {
