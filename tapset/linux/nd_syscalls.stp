@@ -210,7 +210,7 @@ probe nd_syscall.add_key = kprobe.function("sys_add_key") ?
 	payload_uaddr = pointer_arg(3)
 	plen = ulong_arg(4)
 	ringid = int_arg(5)
-	argstr = sprintf("%s, %s, %s, %d, %d",
+	argstr = sprintf("%s, %s, %s, %u, %d",
 		user_string_quoted(type_uaddr),
 		user_string_quoted(description_uaddr),
 		user_string_n2_quoted(payload_uaddr, plen, syscall_string_trunc),
@@ -2821,7 +2821,19 @@ probe nd_syscall.keyctl = kprobe.function("compat_sys_keyctl") ?,
 {
 	name = "keyctl"
 	asmlinkage()
-	argstr = sprintf("%d, ...", uint_arg(1))
+	option = int_arg(1)
+	if (%{ _stp_is_compat_task() %}) {
+		arg2 = uint_arg(2)
+		arg3 = uint_arg(3)
+		arg4 = uint_arg(4)
+		arg5 = uint_arg(5)
+	} else {
+		arg2 = ulong_arg(2)
+		arg3 = ulong_arg(3)
+		arg4 = ulong_arg(4)
+		arg5 = ulong_arg(5)
+	}
+	@__keyctl_argstr(option, arg2, arg3, arg4, arg5)
 
 }
 probe nd_syscall.keyctl.return = kprobe.function("compat_sys_keyctl").return ?,

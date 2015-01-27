@@ -1011,6 +1011,7 @@ probe nd_syscall.kexec_load.return ?
 probe nd_syscall.keyctl
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %d, %d, %d\n", option, arg2, arg3, arg4, arg5)
 }
 probe nd_syscall.keyctl.return
 {

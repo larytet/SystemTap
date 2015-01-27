@@ -190,12 +190,12 @@ probe syscall.add_key = kernel.function("sys_add_key").call ?
 	description_uaddr = $_description
 	payload_uaddr = $_payload
 	plen = $plen
-	ringid = $ringid
-	argstr = sprintf("%s, %s, %s, %d, %d",
+	ringid = __int32($ringid)
+	argstr = sprintf("%s, %s, %s, %u, %d",
 		user_string_quoted($_type),
 		user_string_quoted($_description),
 		user_string_n2_quoted($_payload, $plen, syscall_string_trunc),
-		$plen, $ringid)
+		$plen, __int32($ringid))
 }
 probe syscall.add_key.return = kernel.function("sys_add_key").return ?
 {
@@ -2666,8 +2666,19 @@ probe syscall.keyctl = kernel.function("compat_sys_keyctl").call ?,
                        kernel.function("sys_keyctl").call ?
 {
 	name = "keyctl"
-	argstr = sprintf("%d, ...", $option)
-
+	option = __int32($option)
+	if (%{ _stp_is_compat_task() %}) {
+		arg2 = __uint32($arg2)
+		arg3 = __uint32($arg3)
+		arg4 = __uint32($arg4)
+		arg5 = __uint32($arg5)
+	} else {
+		arg2 = __ulong($arg2)
+		arg3 = __ulong($arg3)
+		arg4 = __ulong($arg4)
+		arg5 = __ulong($arg5)
+	}
+	@__keyctl_argstr(option, arg2, arg3, arg4, arg5)
 }
 probe syscall.keyctl.return = kernel.function("compat_sys_keyctl").return ?,
                               kernel.function("sys_keyctl").return ?

@@ -1356,8 +1356,10 @@ probe syscall.request_key = kernel.function("sys_request_key").call ?
 	type_uaddr = $_type
 	description_uaddr = $_description
 	callout_info_uaddr = $_callout_info
-	destringid = $destringid
-	argstr = sprintf("%p, %p, %p, %p", $_type, $_description, $_callout_info, $destringid)
+	destringid = __int32($destringid)
+	argstr = sprintf("%s, %s, %p, %d", user_string_quoted($_type),
+                         user_string_quoted($_description), $_callout_info,
+                         __int32($destringid))
 }
 probe syscall.request_key.return = kernel.function("sys_request_key").return ?
 {

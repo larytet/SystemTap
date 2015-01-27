@@ -1352,8 +1352,10 @@ probe nd_syscall.request_key = kprobe.function("sys_request_key") ?
 	type_uaddr = pointer_arg(1)
 	description_uaddr = pointer_arg(2)
 	callout_info_uaddr = pointer_arg(3)
-	destringid = u32_arg(4)
-	argstr = sprintf("%p, %p, %p, %p", type_uaddr, description_uaddr, callout_info_uaddr, destringid)
+	destringid = int_arg(4)
+	argstr = sprintf("%s, %s, %p, %d", user_string_quoted(type_uaddr),
+                         user_string_quoted(description_uaddr),
+                         callout_info_uaddr, destringid)
 }
 probe nd_syscall.request_key.return = kprobe.function("sys_request_key").return ?
 {

@@ -3693,3 +3693,161 @@ function _mempolicy_mode_str:string(mode:long)
 	_stp_lookup_str(_stp_mempolicy_mode_list, mode, STAP_RETVALUE + len,
 			MAXSTRINGLEN - len);
 %}
+
+%{
+#include <linux/keyctl.h>
+
+static const _stp_val_array const _stp_keyctl_cmd_list[] = {
+	V(KEYCTL_GET_KEYRING_ID),
+	V(KEYCTL_JOIN_SESSION_KEYRING),
+	V(KEYCTL_UPDATE),
+	V(KEYCTL_REVOKE),
+	V(KEYCTL_CHOWN),
+	V(KEYCTL_SETPERM),
+	V(KEYCTL_DESCRIBE),
+	V(KEYCTL_CLEAR),
+	V(KEYCTL_LINK),
+	V(KEYCTL_UNLINK),
+	V(KEYCTL_SEARCH),
+	V(KEYCTL_READ),
+	V(KEYCTL_INSTANTIATE),
+	V(KEYCTL_NEGATE),
+	V(KEYCTL_SET_REQKEY_KEYRING),
+	V(KEYCTL_SET_TIMEOUT),
+	V(KEYCTL_ASSUME_AUTHORITY),
+#ifdef KEYCTL_GET_SECURITY
+	V(KEYCTL_GET_SECURITY),
+#endif
+#ifdef KEYCTL_SESSION_TO_PARENT
+	V(KEYCTL_SESSION_TO_PARENT),
+#endif
+#ifdef KEYCTL_REJECT
+	V(KEYCTL_REJECT),
+#endif
+#ifdef KEYCTL_INSTANTIATE_IOV
+	V(KEYCTL_INSTANTIATE_IOV),
+#endif
+#ifdef KEYCTL_INVALIDATE
+	V(KEYCTL_INVALIDATE),
+#endif
+#ifdef KEYCTL_GET_PERSISTENT
+	V(KEYCTL_GET_PERSISTENT),
+#endif
+        {0, NULL}
+};
+
+// For older kernels, we need to define new constants for the
+// @__keyctl_argstr() macro
+#ifndef KEYCTL_GET_SECURITY
+#define KEYCTL_GET_SECURITY 17
+#endif
+#ifndef KEYCTL_SESSION_TO_PARENT
+#define KEYCTL_SESSION_TO_PARENT 18
+#endif
+#ifndef KEYCTL_REJECT
+#define KEYCTL_REJECT 19
+#endif
+#ifndef KEYCTL_INSTANTIATE_IOV
+#define KEYCTL_INSTANTIATE_IOV 20
+#endif
+#ifndef KEYCTL_INVALIDATE
+#define KEYCTL_INVALIDATE 21
+#endif
+#ifndef KEYCTL_GET_PERSISTENT
+#define KEYCTL_GET_PERSISTENT 22
+#endif
+%}
+
+function _stp_keyctl_cmd_str:string(cmd:long)
+%{ /* pure */
+        _stp_lookup_str2(_stp_keyctl_cmd_list, (int)STAP_ARG_cmd,
+                        STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+%{
+static const _stp_val_array const _stp_keyctl_keyring_shortcut_list[] = {
+        V(KEY_SPEC_THREAD_KEYRING),
+        V(KEY_SPEC_PROCESS_KEYRING),
+        V(KEY_SPEC_SESSION_KEYRING),
+        V(KEY_SPEC_USER_KEYRING),
+        V(KEY_SPEC_USER_SESSION_KEYRING),
+        V(KEY_SPEC_GROUP_KEYRING),
+        V(KEY_SPEC_REQKEY_AUTH_KEY),
+#ifdef KEY_SPEC_REQUESTOR_KEYRING
+        V(KEY_SPEC_REQUESTOR_KEYRING),
+#endif
+        {0, NULL}
+};
+%}
+
+function _stp_keyctl_keyring_shortcut_str:string(id:long)
+%{ /* pure */
+        _stp_lookup_str2(_stp_keyctl_keyring_shortcut_list, (int)STAP_ARG_id,
+                        STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+%{
+static const _stp_val_array const _stp_keyctl_default_keyrings_list[] = {
+	V(KEY_REQKEY_DEFL_NO_CHANGE),
+	V(KEY_REQKEY_DEFL_DEFAULT),
+	V(KEY_REQKEY_DEFL_THREAD_KEYRING),
+	V(KEY_REQKEY_DEFL_PROCESS_KEYRING),
+	V(KEY_REQKEY_DEFL_SESSION_KEYRING),
+	V(KEY_REQKEY_DEFL_USER_KEYRING),
+	V(KEY_REQKEY_DEFL_USER_SESSION_KEYRING),
+	V(KEY_REQKEY_DEFL_GROUP_KEYRING),
+        {0, NULL}
+};
+%}
+
+function _stp_keyctl_default_keyrings_str:string(id:long)
+%{ /* pure */
+        _stp_lookup_str2(_stp_keyctl_default_keyrings_list, (int)STAP_ARG_id,
+                        STAP_RETVALUE, MAXSTRINGLEN, 10);
+%}
+
+
+
+%{
+#include <linux/key.h>
+
+static const _stp_val_array const _stp_keyctl_perm_list[] = {
+	V(KEY_POS_VIEW),
+	V(KEY_POS_READ),
+	V(KEY_POS_WRITE),
+	V(KEY_POS_SEARCH),
+	V(KEY_POS_LINK),
+	V(KEY_POS_SETATTR),
+	V(KEY_POS_ALL),
+	V(KEY_USR_VIEW),
+	V(KEY_USR_READ),
+	V(KEY_USR_WRITE),
+	V(KEY_USR_SEARCH),
+	V(KEY_USR_LINK),
+	V(KEY_USR_SETATTR),
+	V(KEY_USR_ALL),
+	V(KEY_GRP_VIEW),
+	V(KEY_GRP_READ),
+	V(KEY_GRP_WRITE),
+	V(KEY_GRP_SEARCH),
+	V(KEY_GRP_LINK),
+	V(KEY_GRP_SETATTR),
+	V(KEY_GRP_ALL),
+	V(KEY_OTH_VIEW),
+	V(KEY_OTH_READ),
+	V(KEY_OTH_WRITE),
+	V(KEY_OTH_SEARCH),
+	V(KEY_OTH_LINK),
+	V(KEY_OTH_SETATTR),
+	V(KEY_OTH_ALL),
+	{0, NULL}
+};
+%}
+
+function _stp_keyctl_perm_str:string(mask:long)
+%{ /* pure */
+	uint32_t mask = (uint32_t)STAP_ARG_mask;
+	_stp_lookup_or_str2(_stp_keyctl_perm_list, mask, STAP_RETVALUE,
+			   MAXSTRINGLEN, 10);
+%}
+
