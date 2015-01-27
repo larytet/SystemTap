@@ -25,6 +25,12 @@
 #include <string>
 #include <vector>
 
+// Old elf.h doesn't know about this machine type.
+#ifndef EM_AARCH64
+#define EM_AARCH64 183
+#endif
+
+
 extern "C" {
 #include <elfutils/libdwfl.h>
 #include <regex.h>
