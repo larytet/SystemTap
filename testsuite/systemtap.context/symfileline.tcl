@@ -5,15 +5,13 @@ set testname symfileline
 
 # tests functions symfileline, symfile and symline
 
-set expectedoutput {"systemtap_test_module2.c:\[1-9]\[0-9]*" "\[1-9]\[0-9]*" "systemtap_test_module2.c"}
-
 spawn stap -d kernel -d systemtap_test_module2  $srcdir/$subdir/$testname.stp
 expect {
   -timeout 120
   "READY" { exec echo 1 > /proc/stap_test_cmd
     expect {
-      -re {fileline systemtap_test_module2.c:[1-9][0-9]*} { incr correct_fileline; exp_continue }
-      -re {file systemtap_test_module2.c} { incr correct_file; exp_continue }
+      -re {fileline .*systemtap_test_module2.c:[1-9][0-9]*} { incr correct_fileline; exp_continue }
+      -re {file .*systemtap_test_module2.c} { incr correct_file; exp_continue }
       -re {line [1-9][0-9]*} { incr correct_line; exp_continue }
     }
   }
