@@ -30,7 +30,7 @@ probe process("usymfileline").function("test_method") {\
 }
 
 set tests {usymfileline usymline usymfile}
-set expectedoutput {"usymfileline.c:\[2-4]" "\[2-4]" "usymfileline.c"}
+set expectedoutput {".*usymfileline.c:\[2-4]" "\[2-4]" ".*usymfileline.c"}
 
 foreach test $tests eoutput $expectedoutput {
   set testscript [string map "TAPSETFUNCTION $test" $script]
