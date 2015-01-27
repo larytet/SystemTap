@@ -248,6 +248,110 @@ static const char *_stp_kallsyms_lookup(unsigned long addr,
 	return NULL;
 }
 
+#ifdef STP_NEED_LINE_DATA
+static void _stp_filename_lookup(struct _stp_module *mod, char ** filename,
+                                 uint8_t *dirsecp, uint8_t *enddirsecp,
+                                 unsigned fileidx, int user, int compat_task)
+{
+  uint8_t *linep = dirsecp;
+  static char fullpath [MAXSTRINGLEN];
+  char *dirname_entry = NULL, *filename_entry = NULL;
+  unsigned diridx = 0, i, j;
+
+  // skip past the directory table in the debug_line info
+  while (*linep != 0 && linep < enddirsecp)
+    {
+      char *entry = (char *) linep;
+      uint8_t *endnamep = (uint8_t *) memchr (entry, '\0', (size_t) (enddirsecp-linep));
+      if (endnamep == NULL || (endnamep + 1) > enddirsecp)
+        return;
+      linep = endnamep + 1;
+    }
+
+  if ((char) linep[0] != '\0')
+    return;
+  ++linep;
+
+  // at the filename table
+  for (i = 1; *linep != 0 && linep < enddirsecp; ++i)
+    {
+      uint8_t *endnamep = NULL;
+      filename_entry = (char *) linep;
+      endnamep = (uint8_t *) memchr (filename_entry, '\0', (size_t) (enddirsecp-linep));
+      if (endnamep == NULL || (endnamep + 1) > enddirsecp)
+        return;
+
+      // move the line pointer past the file name. account for the null byte
+      linep = endnamep + 1;
+
+      // save the directory index
+      diridx = read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
+
+      if (i == fileidx)
+        break;
+
+      filename_entry = NULL;
+
+      // modification time
+      read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
+      // length of a file
+      read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
+      // check that nothing went wrong with reading the ulebs
+      if (linep > enddirsecp)
+        return;
+    }
+
+  if (filename_entry == NULL)
+    return; // return just the linenumber
+
+  // if  dirid == 0, it's the compilation directory. otherwise retrieve the
+  // directory path if the file path was relative
+  if (diridx != 0 && filename_entry[0] != '/')
+    {
+      linep = dirsecp;
+      for (j = 1; *linep != 0 && linep < enddirsecp; j++)
+        {
+          uint8_t *endnamep = NULL;
+          dirname_entry = (char *) linep;
+          endnamep = (uint8_t *) memchr (dirname_entry, '\0', (size_t) (enddirsecp-linep));
+          if (endnamep == NULL || (endnamep + 1) > enddirsecp)
+            return;
+
+          if (j == diridx)
+            break;
+
+          dirname_entry = NULL;
+          linep = endnamep + 1;
+        }
+
+      if (dirname_entry == NULL)
+        return;
+    }
+
+  // bring it all together
+  // the filename was the full path
+  if (filename_entry[0] == '/')
+    *filename = filename_entry;
+  // relative filename, and the dir corresponds to the compilation dir
+  else if (diridx == 0)
+    {
+      char *slash = strrchr (mod->path, '/');
+      strlcpy(fullpath, mod->path, (size_t) (2 + slash - mod->path));
+      strlcat(fullpath, filename_entry, MAXSTRINGLEN);
+      *filename = fullpath;
+    }
+  // relative filename and a directory from the table in the debug line data
+  else
+    {
+      strlcpy(fullpath, dirname_entry, MAXSTRINGLEN);
+      strlcat(fullpath, "/", MAXSTRINGLEN);
+      strlcat(fullpath, filename_entry, MAXSTRINGLEN);
+      *filename = fullpath;
+    }
+}
+
+#endif /* STP_NEED_LINE_DATA */
+
 unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *task, char ** filename, int need_filename)
 {
   struct _stp_module *m;
@@ -452,7 +556,6 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
           // (not curr_linenum+line_adv) and find the file name.
           if (addr < (curr_addr + addr_adv) || (addr == curr_addr && addr_adv != 0))
             {
-              int i;
               // false alarm, the given addr is before any available addresses
               if (curr_addr == 0 || addr < curr_addr)
                 return 0;
@@ -460,50 +563,8 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
               // else, we have found the linenumber we want. now to calculate
               // the filename that it corresponds to.
               if (need_filename)
-                {
-                  linep = dirsecp;
-
-                  // skip past the directory table
-                  while (*linep != 0 && linep < endhdrp)
-                    {
-                      char *dirname_entry = (char *) linep;
-                      uint8_t *endnamep = (uint8_t *) memchr (dirname_entry, '\0', (size_t) (endhdrp-linep));
-                      if (endnamep == NULL || (endnamep + 1) > endhdrp)
-                        return 0;
-                      linep = endnamep + 1;
-                    }
-
-                  if ((char) linep[0] != '\0')
-                    return 0;
-                  ++linep;
-
-                  // at the filename table
-                  for (i = 1; *linep != 0 && linep < endhdrp; ++i)
-                    {
-                      char *filename_entry = (char *) linep;
-                      uint8_t *endnamep = (uint8_t *) memchr (filename_entry, '\0', (size_t) (endhdrp-linep));
-                      if (endnamep == NULL || (endnamep + 1) > endhdrp)
-                        return 0;
-                      if (i == curr_file_idx)
-                        {
-                          *filename = filename_entry;
-                          break;
-                        }
-
-                      // move the line pointer past the file name. account for the null byte
-                      linep = endnamep + 1;
-
-                      // directory index
-                      read_pointer ((const uint8_t **) &linep, endhdrp, DW_EH_PE_leb128, user, compat_task);
-                      // modification time
-                      read_pointer ((const uint8_t **) &linep, endhdrp, DW_EH_PE_leb128, user, compat_task);
-                      // length of a file
-                      read_pointer ((const uint8_t **) &linep, endhdrp, DW_EH_PE_leb128, user, compat_task);
-                      // check that nothing went wrong with reading the ulebs
-                      if (linep > endhdrp)
-                        return 0;
-                    }
-                }
+                _stp_filename_lookup(m, filename, dirsecp, endhdrp,
+                                     curr_file_idx, user, compat_task);
               return curr_linenum;
             }
 
