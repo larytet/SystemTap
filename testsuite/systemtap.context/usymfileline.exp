@@ -40,6 +40,23 @@ foreach test $tests eoutput $expectedoutput {
   stap_run "$test ()" no_load $eoutput -e $testscript uaddr() -c ./usymfileline
 }
 
+# test that the runtime linenumber and filename info  match up with translation
+# time info. (look for @PATH: within probe point)
+set script {\
+global failed=0\
+probe begin {print("systemtap starting probe\nsystemtap ending probe\n")}\
+probe process("usymfileline").statement("*@*:*"){\
+  ppstring = pp()\
+  symstring = "@".usymfileline(uaddr())\
+  if (isinstr(ppstring, symstring) != 1) {\
+    failed++;\
+    printf ("failed. pp(): %s  usymfileline(): %s\n", ppstring, symstring)\
+  }\
+}\
+probe end { if (failed == 0) println("passed") }\
+}
+stap_run "pp == usymfileline" no_load "passed" -e $script -c ./usymfileline
+
 eval exec objcopy -R .debug_line $testname
 
 # cannot use the same script as before because process.function("*") will fail
