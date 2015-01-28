@@ -2,7 +2,7 @@
 
 # List of systemcalls that the systemtap.syscall tests do not cover.
 
-set badlist { add_key tux }
+set badlist { tux }
 
 foreach f $badlist {
     set funcname($f) -1

@@ -1047,18 +1047,33 @@ function _itimer_which_str(which) {
  * nfsservctl was removed in kernel 3.0/2.6.40.
  */
 %( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
-function _nfsctl_cmd_str(cmd) {
-	if(cmd == 0) return "NFSCTL_SVC"
-	if(cmd == 1) return "NFSCTL_ADDCLIENT"
-	if(cmd == 2) return "NFSCTL_DELCLIENT"
-	if(cmd == 3) return "NFSCTL_EXPORT"
-	if(cmd == 4) return "NFSCTL_UNEXPORT"
-	if(cmd == 5) return "NFSCTL_UGIDUPDATE"
-	if(cmd == 6) return "NFSCTL_GETFH" 
-	if(cmd == 7) return "NFSCTL_GETFD"
-	if(cmd == 8) return "NFSCTL_GETFS"
-	return sprintf("UNRECOGNIZED VALUE: %d", cmd)
-}
+%{
+#include <linux/sunrpc/svc.h>
+#include <linux/nfsd/nfsfh.h>
+#include <linux/nfsd/syscall.h>
+static const _stp_val_array const _stp_nfsctl_cmd_list[] = {
+	V(NFSCTL_SVC),
+	V(NFSCTL_ADDCLIENT),
+	V(NFSCTL_DELCLIENT),
+	V(NFSCTL_EXPORT),
+	V(NFSCTL_UNEXPORT),
+#ifdef NFSCTL_UGIDUPDATE
+	V(NFSCTL_UGIDUPDATE),
+#endif
+#ifdef NFSCTL_GETFH
+	V(NFSCTL_GETFH),
+#endif
+	V(NFSCTL_GETFD),
+	V(NFSCTL_GETFS),
+	{0, NULL}
+};
+%}
+
+function _nfsctl_cmd_str:string(cmd:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_nfsctl_cmd_list, (unsigned int)STAP_ARG_cmd,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 %)
 
 /*
@@ -1570,20 +1585,19 @@ function _mlockall_flags_str:string(flags:long)
 			   MAXSTRINGLEN);
 %}
 
+%{
+static const _stp_val_array const _stp_module_flags_list[] = {
+	V(O_TRUNC),
+	V(O_NONBLOCK),
+	{0, NULL}
+};
+%}
+
 /* used by sys_delete_module */
 function _module_flags_str:string(flags:long)
 %{ /* pure */
-	int len;
-	long flags = STAP_ARG_flags;
-	char *str = STAP_RETVALUE;
-	str[0] = '\0';
-	if (flags & O_TRUNC)
-		strlcat(str,"O_TRUNC|", MAXSTRINGLEN);
-	if (flags & O_NONBLOCK)
-		strlcat(str,"O_NONBLOCK|", MAXSTRINGLEN);
-	len = strlen(str);
-	if (len)
-		str[strlen(str)-1] = '\0';
+ 	_stp_lookup_or_str(_stp_module_flags_list, (unsigned int)STAP_ARG_flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 %{
@@ -3851,3 +3865,26 @@ function _stp_keyctl_perm_str:string(mask:long)
 			   MAXSTRINGLEN, 10);
 %}
 
+%{
+#include <linux/module.h>
+
+#ifndef MODULE_INIT_IGNORE_MODVERSIONS
+#define MODULE_INIT_IGNORE_MODVERSIONS	1
+#endif
+#ifndef MODULE_INIT_IGNORE_VERMAGIC
+#define MODULE_INIT_IGNORE_VERMAGIC	2
+#endif
+
+static const _stp_val_array const _stp_finit_module_flags_list[] = {
+	V(MODULE_INIT_IGNORE_MODVERSIONS),
+	V(MODULE_INIT_IGNORE_VERMAGIC),
+	{0, NULL}
+};
+%}
+
+function _finit_module_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_finit_module_flags_list,
+			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}

@@ -139,7 +139,7 @@ main()
     pid = __clone((unsigned long)-1, (void *)1, NULL, NULL, 0);
     // On a 32-bit kernel, the full clone flags will overflow
     // MAXSTRINGLEN.
-    //staptest// clone (CLONE_[^ ]+[[[[|XXXX, 0x1, 0x0, 0x0]]]]?) = -NNNN
+    //staptest// clone (CLONE_[^ ]+[[[[ ?!!!!|XXXX, 0x1, 0x0, 0x0]]]]?) = -NNNN
 
     // Keep sending an invalid flag value so all calls will fail. But,
     // sending a -1 will cause all the flags to be set, overflowing

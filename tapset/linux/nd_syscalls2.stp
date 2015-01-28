@@ -63,18 +63,29 @@ probe nd_syscall.compat_nanosleep.return = kprobe.function("compat_sys_nanosleep
 #
 # nfsservctl was removed in kernel 3.0/2.6.40.
 %( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
-probe nd_syscall.nfsservctl = kprobe.function("sys_nfsservctl") ?,
-                              kprobe.function("compat_sys_nfsservctl") ?
+probe nd_syscall.nfsservctl =
+%( CONFIG_NFSD_DEPRECATED == "y" %?
+	kprobe.function("sys_nfsservctl") ?
+%:
+	kprobe.function("sys_nfsservctl") ?,
+	kprobe.function("compat_sys_nfsservctl") ?
+%)
 {
 	name = "nfsservctl"
 	asmlinkage()
 	cmd = int_arg(1)
 	argp_uaddr = pointer_arg(2)
 	resp_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str(cmd), argp_uaddr, resp_uaddr)
+	argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str(cmd), argp_uaddr,
+			 resp_uaddr)
 }
-probe nd_syscall.nfsservctl.return = kprobe.function("sys_nfsservctl").return ?,
-                                     kprobe.function("compat_sys_nfsservctl").return ?
+probe nd_syscall.nfsservctl.return =
+%( CONFIG_NFSD_DEPRECATED == "y" %?
+	kprobe.function("sys_nfsservctl").return ?
+%:
+	kprobe.function("sys_nfsservctl").return ?,
+	kprobe.function("compat_sys_nfsservctl").return ?
+%)
 {
 	name = "nfsservctl"
 	retstr = returnstr(1)

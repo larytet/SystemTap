@@ -254,7 +254,7 @@ probe nd_syscall.creat.return
 probe nd_syscall.delete_module
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %d\n", name_user, flags)
+	printf("%s, %d(%s)\n", name_user, flags, flags_str)
 }
 probe nd_syscall.delete_module.return
 {
@@ -458,6 +458,16 @@ probe nd_syscall.fgetxattr
 	printf("%d, %s, %p, %d\n", filedes, name_str, value_uaddr, size)
 }
 probe nd_syscall.fgetxattr.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.finit_module ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %s, %d(%s)\n", fd, uargs, flags, flags_str)
+}
+probe nd_syscall.finit_module.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

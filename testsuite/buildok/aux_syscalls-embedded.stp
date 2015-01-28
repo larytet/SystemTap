@@ -170,4 +170,5 @@ probe begin {
 
 	print (_mempolicy_flags_str(0))
 	print (_mempolicy_mode_str(0))
+	print (_finit_module_flags_str(0))
 }

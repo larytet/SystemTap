@@ -1,3 +1,5 @@
+/* COVERAGE: memfd_create */
+
 /*
  * Glibc doesn't support memfd_create yet, so we have to use syscall(2)
  */

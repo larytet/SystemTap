@@ -1,3 +1,5 @@
+/* COVERAGE: getrandom */
+
 /*
  * Glibc doesn't support getrandom yet, so we have to use syscall(2)
  */

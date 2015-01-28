@@ -732,10 +732,13 @@ probe syscall.delete_module = kernel.function("sys_delete_module").call ?
 {
 	name = "delete_module"
 	name_user = user_string_quoted($name_user)
-	flags = $flags
-	argstr = sprintf("%s, %s", user_string_quoted($name_user), _module_flags_str($flags))
+	flags = __uint32($flags)
+	flags_str = _module_flags_str(__uint32($flags))
+	argstr = sprintf("%s, %s", user_string_quoted($name_user),
+			 _module_flags_str(__uint32($flags)))
 }
-probe syscall.delete_module.return = kernel.function("sys_delete_module").return ?
+probe syscall.delete_module.return =
+	kernel.function("sys_delete_module").return ?
 {
 	name = "delete_module"
 	retstr = return_str(1, $return)
@@ -1039,11 +1042,11 @@ probe syscall.compat_execve.return =
 
 # exit _______________________________________________________
 # long sys_exit(int error_code)
-probe syscall.exit = kernel.function("do_exit").call
+probe syscall.exit = kernel.function("sys_exit").call
 {
 	name = "exit"
-	status = $code
-	argstr = sprint($code)
+	status = __int32($error_code)
+	argstr = sprint(__int32($error_code))
 }
 # sys_exit() never returns, and is blacklisted for return probes,
 # so no alias here.  See bz6588.
@@ -1054,8 +1057,8 @@ probe syscall.exit = kernel.function("do_exit").call
 probe syscall.exit_group = kernel.function("sys_exit_group").call
 {
 	name = "exit_group"
-	status = $error_code
-	argstr = sprint($error_code)
+	status = __int32($error_code)
+	argstr = sprint(__int32($error_code))
 }
 # sys_exit_group() never returns, and is blacklisted for return probes,
 # so no alias here.  See bz6588.
@@ -1333,6 +1336,28 @@ probe syscall.fgetxattr.return = kernel.function("sys_fgetxattr").return
 	name = "fgetxattr"
 	retstr = return_str(1, $return)
 }
+
+# finit_module ________________________________________________
+# SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs,
+#		  int, flags)
+#
+probe syscall.finit_module = kernel.function("sys_finit_module").call ?
+{
+	name = "finit_module"
+	fd = __int32($fd)
+	uargs = user_string_quoted($uargs)
+	flags = __int32($flags)
+	flags_str = _finit_module_flags_str(__int32($flags))
+	argstr = sprintf("%d, %s, %s", __int32($fd),
+			 user_string_quoted($uargs),
+			 _finit_module_flags_str(__int32($flags)))
+}
+probe syscall.finit_module.return = kernel.function("sys_finit_module").return ?
+{
+	name = "finit_module"
+	retstr = return_str(1, $return)
+}
+
 # flistxattr _________________________________________________
 # ssize_t sys_flistxattr(int fd, char __user *list, size_t size)
 probe syscall.flistxattr = kernel.function("sys_flistxattr").call
@@ -2306,7 +2331,7 @@ probe syscall.init_module = kernel.function("sys_init_module").call ?
 	umod_uaddr = $umod
 	len = $len
 	uargs = user_string_quoted($uargs)
-	argstr = sprintf("%p, %d, %s", $umod, $len, user_string_quoted($uargs))
+	argstr = sprintf("%p, %u, %s", $umod, $len, user_string_quoted($uargs))
 }
 probe syscall.init_module.return = kernel.function("sys_init_module").return ?
 {

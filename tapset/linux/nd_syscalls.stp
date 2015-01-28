@@ -791,9 +791,11 @@ probe nd_syscall.delete_module = kprobe.function("sys_delete_module") ?
 	asmlinkage()
 	name_user = user_string_quoted(pointer_arg(1))
 	flags = uint_arg(2)
-	argstr = sprintf("%s, %s", user_string_quoted(pointer_arg(1)), _module_flags_str(uint_arg(2)))
+	flags_str = _module_flags_str(flags)
+	argstr = sprintf("%s, %s", name_user, _module_flags_str(flags))
 }
-probe nd_syscall.delete_module.return = kprobe.function("sys_delete_module").return ?
+probe nd_syscall.delete_module.return =
+	kprobe.function("sys_delete_module").return ?
 {
 	name = "delete_module"
 	retstr = returnstr(1)
@@ -1124,7 +1126,7 @@ probe nd_syscall.compat_execve.return =
 
 # exit _______________________________________________________
 # long sys_exit(int error_code)
-probe nd_syscall.exit = kprobe.function("do_exit").call
+probe nd_syscall.exit = kprobe.function("sys_exit").call
 {
 	name = "exit"
 	asmlinkage()
@@ -1435,6 +1437,29 @@ probe nd_syscall.fgetxattr.return = kprobe.function("sys_fgetxattr").return ?
 	name = "fgetxattr"
 	retstr = returnstr(1)
 }
+
+# finit_module ________________________________________________
+# SYSCALL_DEFINE3(finit_module, int, fd, const char __user *, uargs,
+#		  int, flags)
+#
+probe nd_syscall.finit_module = kprobe.function("sys_finit_module").call ?
+{
+	name = "finit_module"
+	fd = int_arg(1)
+	uargs = user_string_quoted(pointer_arg(2))
+	flags = int_arg(3)
+	flags_str = _finit_module_flags_str(flags)
+	argstr = sprintf("%d, %s, %s", fd, uargs,
+			 _finit_module_flags_str(flags))
+}
+probe nd_syscall.finit_module.return =
+	kprobe.function("sys_finit_module").return ?
+{
+	name = "finit_module"
+	retstr = returnstr(1)
+}
+
+
 # flistxattr _________________________________________________
 # ssize_t sys_flistxattr(int fd, char __user *list, size_t size)
 probe nd_syscall.flistxattr = kprobe.function("sys_flistxattr") ?
@@ -2455,9 +2480,10 @@ probe nd_syscall.init_module = kprobe.function("sys_init_module") ?
 	umod_uaddr = pointer_arg(1)
 	len = ulong_arg(2)
 	uargs = user_string_quoted(pointer_arg(3))
-	argstr = sprintf("%p, %d, %s", umod_uaddr, len, user_string_quoted(pointer_arg(4)))
+	argstr = sprintf("%p, %u, %s", umod_uaddr, len, uargs)
 }
-probe nd_syscall.init_module.return = kprobe.function("sys_init_module").return ?
+probe nd_syscall.init_module.return =
+	kprobe.function("sys_init_module").return ?
 {
 	name = "init_module"
 	retstr = returnstr(1)

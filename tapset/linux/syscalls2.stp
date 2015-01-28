@@ -60,26 +60,33 @@ probe syscall.compat_nanosleep.return = kernel.function("compat_sys_nanosleep").
 #					union compat_nfsctl_res __user *res)
 #
 # nfsservctl was removed in kernel 3.0/2.6.40.
+#
+# When CONFIG_NFSD_DEPRECATED is defined, compat_sys_nfsservctl() is
+# just a wrapper around sys_ni_syscall(), so don't bother handling
+# compat_sys_nfsservctl(). 
 %( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
-probe syscall.nfsservctl = kernel.function("sys_nfsservctl").call ?,
-                           kernel.function("compat_sys_nfsservctl").call ?
+probe syscall.nfsservctl =
+%( CONFIG_NFSD_DEPRECATED == "y" %?
+	kernel.function("sys_nfsservctl").call ?
+%:
+	kernel.function("sys_nfsservctl").call ?,
+	kernel.function("compat_sys_nfsservctl").call ?
+%)
 {
 	name = "nfsservctl"
-	cmd = $cmd
-	if (@defined($arg) && @defined($res)) {
-		argp_uaddr = $arg
-		resp_uaddr = $res
-		argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str($cmd),
-				 $arg, $res)
-	} else {
-		argp_uaddr = $notused
-		resp_uaddr = $notused2
-		argstr = sprintf("/* NI_SYSCALL */ %s, %p, %p",
-				 _nfsctl_cmd_str($cmd), $notused, $notused2)
-	}
+	cmd = __int32($cmd)
+	argp_uaddr = $arg
+	resp_uaddr = $res
+	argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str(__int32($cmd)),
+			 $arg, $res)
 }
-probe syscall.nfsservctl.return = kernel.function("sys_nfsservctl").return ?,
-                                  kernel.function("compat_sys_nfsservctl").return ?
+probe syscall.nfsservctl.return =
+%( CONFIG_NFSD_DEPRECATED == "y" %?
+	kernel.function("sys_nfsservctl").return ?
+%:
+	kernel.function("sys_nfsservctl").return ?,
+	kernel.function("compat_sys_nfsservctl").return ?
+%)
 {
 	name = "nfsservctl"
 	retstr = return_str(1, $return)
