@@ -13,6 +13,10 @@ foreach runtime [get_runtime_list] {
     if {$runtime != ""} {
 	set test "${test}_${runtime}"
 	spawn stap -G var2=29 -e $script --runtime=$runtime
+    } elseif {![min_kernel_vers_p 3.11]} {
+	# kernel started ignoring in commit 54041d8a7333 (v3.11-rc1~44^2~2)
+	unsupported "$test - kernel won't ignore unknown options"
+	continue
     } else {
 	spawn stap -G var2=29 -e $script
     }
