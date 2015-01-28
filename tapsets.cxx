@@ -6188,9 +6188,16 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
   // communicated to us the presence of that option, but alas it
   // doesn't.  http://gcc.gnu.org/PR44995.
   vector<string> matches;
-  if (!regexp_match (asmarg, "^[i\\$#][-]?[0-9][0-9]*$", matches))
-    {
-      string sn = matches[0].substr(1);
+  string regexp;
+
+  if (elf_machine == EM_AARCH64) {
+    regexp = "^([-]?[0-9][0-9]*)$";
+  } else {
+    regexp = "^[i\\$#]([-]?[0-9][0-9]*)$";
+  }
+
+  if (!regexp_match (asmarg, regexp, matches)) {
+      string sn =matches[1];
       int64_t n;
 
       // We have to pay attention to the size & sign, as gcc sometimes
@@ -6573,6 +6580,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // ia64   N       rR  [r16]
       // s390   N       %rR 0(rR)    N(r15)
       // arm    #N      rR  [rR]     [rR, #N]
+      // arm64  N       rR  [rR]     [rR, N]
 
       expression* argexpr = 0; // filled in in case of successful parse
 
