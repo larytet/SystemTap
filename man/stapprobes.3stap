@@ -684,7 +684,7 @@ kprobe.function(FUNCTION).return
 kprobe.module(NAME).function(FUNCTION)
 kprobe.module(NAME).function(FUNCTION).call
 kprobe.module(NAME).function(FUNCTION).return
-kprobe.statement.(ADDRESS).absolute
+kprobe.statement(ADDRESS).absolute
 .ESAMPLE
 .PP
 Probes of type
