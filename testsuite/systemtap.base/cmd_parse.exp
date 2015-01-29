@@ -143,7 +143,7 @@ spawn sh -c "stap -m do_not_cache_me -B kernelrelease -p4 -e 'probe begin {exit(
 # any possible auxiliary make verbosity.
 expect {
     -timeout 60
-    -re "$uname\r" { pass "cmd_parse15" }
+    -gl "$uname\r" { pass "cmd_parse15" }
     timeout { fail "cmd_parse15: timeout" }
     eof { fail "cmd_parse15: eof" }
 }
