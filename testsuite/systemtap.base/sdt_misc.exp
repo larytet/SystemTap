@@ -272,7 +272,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    set type_flags "[sdt_includes] additional_flags=-Wall additional_flags=-Werror"
 	    set type_flags "$type_flags additional_flags=-I. $pbtype_flag"
 	    set type_flags "$type_flags [lindex $extra_type_flags $j] [lindex $type_pedantics $p] [lindex $has_long_long $j]"
-	    if {![istarget "i*86-*-*"] && ![istarget "arm-*-*"]} {
+	    if {![istarget "i*86-*-*"] && ![istarget "arm-*-*"] && ![istarget "aarch64-*-*"]} {
 		set type_flags "$type_flags additional_flags=-m64"
 	    }
 	    set test_suffix "$pbtype_mssg $extra_type_mssg $type_pedantic_mssg"
