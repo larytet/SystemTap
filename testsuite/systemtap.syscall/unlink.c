@@ -77,5 +77,32 @@ int main()
   //staptest// unlinkat (AT_FDCWD, "", 0x0) = -NNNN (ENOENT)
 #endif
 
+  /* Limits testing. */
+
+  unlink((char *)-1);
+#ifdef __s390__
+  //staptest// [[[[unlink ([7]?[f]+!!!!unlinkat (AT_FDCWD, [7]?[f]+, 0x0]]]]) = -NNNN
+#else
+  //staptest// [[[[unlink ([f]+!!!!unlinkat (AT_FDCWD, [f]+, 0x0]]]]) = -NNNN
+#endif
+
+#if GLIBC_SUPPORT
+  unlinkat(-1, "foobar2", 0);
+  //staptest// unlinkat (-1, "foobar2", 0x0) = -NNNN
+
+  unlinkat(AT_FDCWD, (char *)-1, 0);
+#ifdef __s390__
+  //staptest// unlinkat (AT_FDCWD, [7]?[f]+, 0x0) = -NNNN
+#else
+  //staptest// unlinkat (AT_FDCWD, [f]+, 0x0) = -NNNN
+#endif
+
+  unlinkat(AT_FDCWD, "foobar2", -1);
+  //staptest// unlinkat (AT_FDCWD, "foobar2", AT_[^ ]+|XXXX) = -NNNN
+
+  unlinkat(AT_FDCWD, "foobar2", AT_REMOVEDIR);
+  //staptest// unlinkat (AT_FDCWD, "foobar2", AT_REMOVEDIR) = -NNNN
+#endif
+
   return 0;
 }

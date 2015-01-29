@@ -17,7 +17,7 @@ int main() {
     //staptest// getrlimit (RLIM_INFINITY, XXXX) = NNNN (EINVAL)
 
     getrlimit(-15, &rlim);
-    //staptest// getrlimit (UNKNOWN VALUE: -15, XXXX) = NNNN (EINVAL)
+    //staptest// getrlimit (0xfffffff1, XXXX) = NNNN (EINVAL)
 
     getrlimit(RLIMIT_CPU, (struct rlimit *)-1);
 #ifdef __s390__

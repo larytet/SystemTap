@@ -451,7 +451,8 @@ function _struct_itimerval_u:string(uaddr:long)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
 		if(_stp_copy_from_user((char *)&itv,ptr,sizeof(struct itimerval)))
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 		else
 			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]", 
 				(int)itv.it_interval.tv_sec, (int)itv.it_interval.tv_usec,
@@ -469,7 +470,8 @@ function _struct_compat_itimerval_u:string(uaddr:long)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
 		if(_stp_copy_from_user((char *)&itv,ptr,sizeof(struct compat_itimerval)))
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 		else
 			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%d.%06d,%d.%06d]", 
 				(int)itv.it_interval.tv_sec, (int)itv.it_interval.tv_usec,
@@ -1035,12 +1037,20 @@ function _sigprocmask_how_str:string(how:long)
  *    syscall.setitimer
  * INCLUDE: <linux/time.h>
  */
-function _itimer_which_str(which) {
-   if(which==0) return "ITIMER_REAL"
-   if(which==1) return "ITIMER_VIRTUAL"
-   if(which==2) return "ITIMER_PROF"
-   return sprintf("BAD VALUE: %d", which)
-}
+%{
+#include <linux/time.h>
+static const _stp_val_array const _stp_itimer_which_list[] = {
+	V(ITIMER_REAL),
+	V(ITIMER_VIRTUAL),
+	V(ITIMER_PROF),
+	{0, NULL}
+};
+%}
+function _itimer_which_str:string(which:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_itimer_which_list, (unsigned int)STAP_ARG_which,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 /*
  * Return the command name for nfsservctl()
@@ -2310,39 +2320,80 @@ function _sockopt_level_str:string(level:long)
 			MAXSTRINGLEN);
 %}
 
-function _sock_family_str(f) {
-   if(f==0) return "PF_UNSPEC"
-   if(f==1) return "PF_LOCAL"
-   if(f==2) return "PF_INET"
-   if(f==3) return "PF_AX25"
-   if(f==4) return "PF_IPX"
-   if(f==5) return "PF_APPLETALK"
-   if(f==6) return "PF_NETROM"
-   if(f==7) return "PF_BRIDGE"
-   if(f==8) return "PF_ATMPVC"
-   if(f==9) return "PF_X25"
-   if(f==10) return "PF_INET6"
-   if(f==11) return "PF_ROSE"
-   if(f==12) return "PF_DECnet"
-   if(f==13) return "PF_NETBEUI"
-   if(f==14) return "PF_SECURITY"
-   if(f==15) return "PF_KEY"
-   if(f==16) return "PF_NETLINK"
-   if(f==17) return "PF_PACKET"
-   if(f==18) return "PF_ASH"
-   if(f==19) return "PF_ECONET"
-   if(f==20) return "PF_ATMSVC"
-   if(f==22) return "PF_SNA"
-   if(f==23) return "PF_IRDA"
-   if(f==24) return "PF_PPPOX"
-   if(f==25) return "PF_WANPIPE"
-   if(f==26) return "PF_LLC"
-   if(f==30) return "PF_TIPC"
-   if(f==31) return "PF_BLUETOOTH"
-   if(f==32) return "PF_IUCV"
-   if(f==33) return "PF_RXRPC"
-   return sprintf("UNKNOWN VALUE: %d", f)
-}
+%{
+static const _stp_val_array const _stp_sock_family_list[] = {
+	V(PF_UNSPEC),
+	V(PF_LOCAL),			/* same thing as PF_UNIX */
+	V(PF_INET),
+	V(PF_AX25),
+	V(PF_IPX),
+	V(PF_APPLETALK),
+	V(PF_NETROM),
+	V(PF_BRIDGE),
+	V(PF_ATMPVC),
+	V(PF_X25),
+	V(PF_INET6),
+	V(PF_ROSE),
+	V(PF_DECnet),
+	V(PF_NETBEUI),
+	V(PF_SECURITY),
+	V(PF_KEY),
+	V(PF_NETLINK),
+	V(PF_ROUTE),
+	V(PF_PACKET),
+	V(PF_ASH),
+	V(PF_ECONET),
+	V(PF_ATMSVC),
+#ifdef PF_RDS
+	V(PF_RDS),
+#endif
+	V(PF_SNA),
+	V(PF_IRDA),
+	V(PF_PPPOX),
+	V(PF_WANPIPE),
+	V(PF_LLC),
+#ifdef PF_IB
+	V(PF_IB),
+#endif
+#ifdef PF_CAN
+	V(PF_CAN),
+#endif
+	V(PF_TIPC),
+	V(PF_BLUETOOTH),
+	V(PF_IUCV),
+#ifdef PF_RXRPC
+	V(PF_RXRPC),
+#endif
+#ifdef PF_ISDN
+	V(PF_ISDN),
+#endif
+#ifdef PF_PHONET
+	V(PF_PHONET),
+#endif
+#ifdef PF_IEEE802154
+	V(PF_IEEE802154),
+#endif
+#ifdef PF_CAIF
+	V(PF_CAIF),
+#endif
+#ifdef PF_ALG
+	V(PF_ALG),
+#endif
+#ifdef PF_NFC
+	V(PF_NFC),
+#endif
+#ifdef PF_VSOCK
+	V(PF_VSOCK),
+#endif
+	{0, NULL}
+};
+%}
+
+function _sock_family_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_sock_family_list, (unsigned int)STAP_ARG_f,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function _sock_type_str:string(type:long)
 %{ /* pure */
@@ -2527,37 +2578,53 @@ function _epoll_events_str(e) {
    return sprintf("UNKNOWN VALUE: %d", e)
 }
 
-function _rlimit_resource_str(r) {
-   if(r==-1) return "RLIM_INFINITY"
-   if(r==9) return "RLIMIT_AS"
-   if(r==4) return "RLIMIT_CORE"
-   if(r==0) return "RLIMIT_CPU"
-   if(r==2) return "RLIMIT_DATA"
-   if(r==1) return "RLIMIT_FSIZE"
-   if(r==10) return "RLIMIT_LOCKS"
-   if(r==8) return "RLIMIT_MEMLOCK"
-   if(r==7) return "RLIMIT_NOFILE"
-   if(r==6) return "RLIMIT_NPROC"
-   if(r==5) return "RLIMIT_RSS"
-   if(r==3) return "RLIMIT_STACK"
-%( kernel_v >= "2.6.8" %?
-   if(r==11) return "RLIMIT_SIGPENDING"
-   if(r==12) return "RLIMIT_MSGQUEUE"
-%)
-%( kernel_v >= "2.6.12" %?
-   if(r==13) return "RLIMIT_NICE"
-   if(r==14) return "RLIMIT_RTPRIO"
-%)
-   return sprintf("UNKNOWN VALUE: %d", r)
-}
+%{
+#include <linux/resource.h>
 
-function _rusage_who_str(w) {
-   if(w==0) return "RUSAGE_SELF"
-   if(w==-1) return "RUSAGE_CHILDREN"
-   if(w==-2) return "RUSAGE_BOTH"
-   if(w==1) return "RUSAGE_THREAD"
-   return sprintf("UNKNOWN VALUE: %d", w)
-}
+static const _stp_val_array const _stp_rlimit_resource_list[] = {
+	{ (unsigned int)RLIM_INFINITY, "RLIM_INFINITY"},
+	V(RLIMIT_CPU),
+	V(RLIMIT_FSIZE),
+	V(RLIMIT_DATA),
+	V(RLIMIT_STACK),
+	V(RLIMIT_CORE),
+	V(RLIMIT_RSS),
+	V(RLIMIT_NPROC),
+	V(RLIMIT_NOFILE),
+	V(RLIMIT_MEMLOCK),
+	V(RLIMIT_AS),
+	V(RLIMIT_LOCKS),
+	V(RLIMIT_SIGPENDING),
+	V(RLIMIT_MSGQUEUE),
+	V(RLIMIT_NICE),
+	V(RLIMIT_RTPRIO),
+#ifdef RLIMIT_RTTIME
+	V(RLIMIT_RTTIME),
+#endif
+	V(RLIM_NLIMITS),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_rusage_who_list[] = {
+	V(RUSAGE_SELF),
+	{(unsigned int)RUSAGE_CHILDREN, "RUSAGE_CHILDREN"},
+	{(unsigned int)RUSAGE_BOTH, "RUSAGE_BOTH"},
+	V(RUSAGE_THREAD),
+	{0, NULL}
+};
+%}
+
+function _rlimit_resource_str:string(r:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_rlimit_resource_list, (unsigned int)STAP_ARG_r,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _rusage_who_str:string(w:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_rusage_who_list, (unsigned int)STAP_ARG_w,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 /* for accessing 16-bit values encoded in a long */
 function __short:long(val:long) %{ /* pure */

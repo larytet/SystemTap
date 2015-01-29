@@ -65,7 +65,7 @@ int main()
 #endif
 
     socketpair(-1, SOCK_STREAM, 0, fds);
-    //staptest// socketpair (UNKNOWN VALUE: -1, SOCK_STREAM, 0, XXXX) = -NNNN (EAFNOSUPPORT)
+    //staptest// socketpair (0xffffffff, SOCK_STREAM, 0, XXXX) = -NNNN (EAFNOSUPPORT)
 
     socketpair(PF_UNIX, -1, 0, fds);
 #if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)

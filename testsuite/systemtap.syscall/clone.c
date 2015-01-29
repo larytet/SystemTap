@@ -147,7 +147,11 @@ main()
     // can't specify CLONE_NEWNS (new mount namespace group) and CLONE_FS
     // (share filesystem info between processes) together.
     pid = __clone(CLONE_FS|CLONE_NEWNS, (void *)-1, NULL, NULL, 0);
+#ifdef __s390__
+    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x[7]?[f]+, 0x0, 0x0) = -NNNN
+#else
     //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x[f]+, 0x0, 0x0) = -NNNN
+#endif
 
     pid = __clone(CLONE_FS|CLONE_NEWNS, (void *)1, (void *)-1, NULL, 0);
 #ifdef __s390__

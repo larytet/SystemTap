@@ -2257,11 +2257,7 @@ probe nd_syscall.getrusage = __nd_syscall.getrusage,
 	name = "getrusage"
 	asmlinkage()
 	who = int_arg(1)
-	if (who == -2) {
-		# RUSAGE_BOTH is not valid argument for sys_getrusage
-		who_str = sprintf("UNKNOWN VALUE: %d", who)
-	} else
-		who_str = _rusage_who_str(who)
+	who_str = _rusage_who_str(who)
 	usage_uaddr = pointer_arg(2)
 	argstr = sprintf("%s, %p", who_str, usage_uaddr)
 }

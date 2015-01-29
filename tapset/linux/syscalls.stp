@@ -2120,11 +2120,7 @@ probe syscall.getrusage = __syscall.getrusage,
 {
 	name = "getrusage"
 	who = __int32($who)
-	if (who == -2) {
-		# RUSAGE_BOTH is not valid argument for sys_getrusage
-		who_str = sprintf("UNKNOWN VALUE: %d", who)
-	} else
-		who_str = _rusage_who_str(who)
+	who_str = _rusage_who_str(who)
 	usage_uaddr = $ru
 	argstr = sprintf("%s, %p", who_str, usage_uaddr)
 }
