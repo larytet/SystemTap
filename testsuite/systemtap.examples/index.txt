@@ -445,6 +445,15 @@ keywords: locking
   # stap bkl_stats.stp -c "sleep 1"
 
 
+memory/glibc-malloc.stp - Overview glibc malloc internal operations
+keywords: memory process
+
+  This script reports on internal statistics of the glibc malloc
+  implementation, as used by a process restricted by stap -x/-c
+
+  # stap glibc-malloc.stp -c 'stap --dump-functions'
+
+
 memory/hw_watch_addr.stp - Watch a Kernel Address Using Breakpoint Hardware
 keywords: memory watchpoint
 

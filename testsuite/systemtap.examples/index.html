@@ -56,7 +56,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 125 Examples</h2>
+<h2>All 126 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -182,6 +182,9 @@ keywords: <a href="keyword-index.html#LOCKING">LOCKING</a> <br>
 </li><li><a name="locks/bkl_stats.stp"></a><a href="#locks/bkl_stats.stp">&para;</a> <a href="locks/bkl_stats.stp">locks/bkl_stats.stp</a> - Per Process Statistics on Big Kernel Lock Use<br>
 keywords: <a href="keyword-index.html#LOCKING">LOCKING</a> <br>
 <p>The bkl_stats.stp script can indicate which processes have excessive waits for the Big Kernel Lock (BKL) and which processes are taking the BKL for long periods of time. The bkl_stats.stp script prints lists of all the processes that require the BKL. Every five seconds two tables are printed out. The first table lists the processes that waited for the BKL followed by the number of times that the process waited, the minimum time of the wait, the average and the maximum time waited. The second table lists has similar information for the time spent in holding the lock for each of the processes.<p><font size="-2"><pre># stap bkl_stats.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a name="memory/glibc-malloc.stp"></a><a href="#memory/glibc-malloc.stp">&para;</a> <a href="memory/glibc-malloc.stp">memory/glibc-malloc.stp</a> - Overview glibc malloc internal operations<br>
+keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
+<p>This script reports on internal statistics of the glibc malloc implementation, as used by a process restricted by stap -x/-c<p><font size="-2"><pre># stap glibc-malloc.stp -c &#39;stap --dump-functions&#39;</pre></font></p>
 </li><li><a name="memory/hw_watch_addr.stp"></a><a href="#memory/hw_watch_addr.stp">&para;</a> <a href="memory/hw_watch_addr.stp">memory/hw_watch_addr.stp</a> - Watch a Kernel Address Using Breakpoint Hardware<br>
 keywords: <a href="keyword-index.html#MEMORY">MEMORY</a> <a href="keyword-index.html#WATCHPOINT">WATCHPOINT</a> <br>
 <p>The script will watch accesses to a single kernel address and prints a traceback each time the address is accessed. This script needs to be run as root to allow access to the breakpoint hardware.<p><font size="-2"><pre># stap --all-modules hw_watch_addr.stp 0x`grep &quot;vm_dirty_ratio&quot; \
