@@ -81,6 +81,7 @@ proc check_exitcode {command expecode} {
 }
 
 proc check_file_content {file content timeoutsec} {
+    global test
     verbose -log "checking for $content in $file"
     if {! [file exists "$file"]} {
         fail "$test (file $file not found)"
