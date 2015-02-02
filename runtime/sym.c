@@ -409,13 +409,15 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
   while (linep < enddatap)
     {
       // similar to print_debug_line_section() in elfutils
-      unsigned int length = 4, curr_file_idx = 1;
+      unsigned int length = 4, curr_file_idx = 1, prev_file_idx = 1;
+      unsigned int skip_to_seq_end = 0, op_index = 0;
       uint64_t unit_length, hdr_length, curr_addr = 0;
       uint8_t *endunitp, *endhdrp, *dirsecp, *stdopcode_lens_secp;
       uint16_t version;
       uint8_t opcode_base, line_range;
       unsigned long curr_linenum = 1;
       int8_t line_base;
+      long cumm_line_adv = 0;
 
       unit_length = (uint64_t) read_pointer ((const uint8_t **) &linep, enddatap, DW_EH_PE_data4, user, compat_task);
       if (unit_length == 0xffffffff)
@@ -481,35 +483,47 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
       while (linep < endunitp)
         {
           uint8_t opcode = *linep++;
-          long line_adv = 0;
           long addr_adv = 0;
 
           if (opcode >= opcode_base) // special opcode
             {
               // line range was checked before this point. this variable is not altered after it is initialized.
-              line_adv = (line_base + (opcode - opcode_base) % line_range);
+              cumm_line_adv += (line_base + ((opcode - opcode_base) % line_range));
               addr_adv = ((opcode - opcode_base) / line_range);
             }
 
           else if (opcode == 0) // extended opcode
             {
-              int len = *linep++;
-              if (linep + len > endunitp)
+              int len;
+              uint8_t subopcode;
+
+              if (linep + 1 > endunitp)
                 return 0;
 
-              opcode = *linep++; // the sub opcode
-              switch (opcode)
+              len = *linep++;
+              if (linep + len > endunitp || len < 1)
+                return 0;
+
+              subopcode = *linep++; // the sub opcode
+              switch (subopcode)
                 {
                   case DW_LNE_end_sequence:
                     // reset the line and address.
-                    line_adv = 1 - curr_linenum;
+                    cumm_line_adv = 1 - curr_linenum;
                     addr_adv = 0 - curr_addr;
+                    skip_to_seq_end = 0;
                     break;
                   case DW_LNE_set_address:
                     if ((len - 1) == 4) // account for the opcode (the -1)
                       curr_addr = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data4, user, compat_task);
                     else if ((len - 1) == 8)
                       curr_addr = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data8, user, compat_task);
+
+                    // if the set address is past the address we want, iterate
+                    // to the end of the sequence without doing more address
+                    // and linenumber calcs than necessary
+                    if (curr_addr > addr)
+                      skip_to_seq_end = 1;
                     break;
                   default: // advance the ptr by the specified amount
                     linep += len-1;
@@ -527,7 +541,7 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                     addr_adv = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data2, user, compat_task);
                     break;
                   case DW_LNS_advance_line:
-                    line_adv = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128+DW_EH_PE_signed, user, compat_task);
+                    cumm_line_adv += read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128+DW_EH_PE_signed, user, compat_task);
                     break;
                   case DW_LNS_set_file:
                     curr_file_idx = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
@@ -550,26 +564,38 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                 read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
             }
 
-          // go through the body of the if statement if we would be
-          // overshooting the desired address if we do the address advancement.
-          // within the body, return the current line number
-          // (not curr_linenum+line_adv) and find the file name.
-          if (addr < (curr_addr + addr_adv) || (addr == curr_addr && addr_adv != 0))
-            {
-              // false alarm, the given addr is before any available addresses
-              if (curr_addr == 0 || addr < curr_addr)
-                return 0;
+          // don't worry about doing line/address advances since we are waiting
+          // till we hit the end of the sequence or the end of the unit at which
+          // point the address and linenumber will be reset
+          if (skip_to_seq_end == 1)
+            continue;
 
-              // else, we have found the linenumber we want. now to calculate
-              // the filename that it corresponds to.
+          // found an address that at least sort of matches the address we
+          // were looking for
+          if ((curr_addr <= addr && addr <= (curr_addr + addr_adv))
+              || (curr_addr == addr && addr_adv != 0))
+            {
+              if (curr_addr + addr_adv == addr)
+                {
+                  curr_linenum += cumm_line_adv;
+                  prev_file_idx = curr_file_idx;
+                }
+
               if (need_filename)
                 _stp_filename_lookup(m, filename, dirsecp, endhdrp,
-                                     curr_file_idx, user, compat_task);
+                                     prev_file_idx, user, compat_task);
               return curr_linenum;
             }
 
+          // update the linenumber and file index if the curr_addr is to be updated
+          if (addr_adv != 0)
+            {
+              prev_file_idx = curr_file_idx;
+              curr_linenum += cumm_line_adv;
+              cumm_line_adv = 0;
+            }
+
           curr_addr += addr_adv;
-          curr_linenum += line_adv;
         }
     }
 #endif /* STP_NEED_LINE_DATA */
