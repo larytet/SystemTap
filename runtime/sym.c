@@ -414,7 +414,7 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
       uint64_t unit_length, hdr_length, curr_addr = 0;
       uint8_t *endunitp, *endhdrp, *dirsecp, *stdopcode_lens_secp;
       uint16_t version;
-      uint8_t opcode_base, line_range;
+      uint8_t opcode_base, line_range, min_instr_len = 0, max_ops = 1;
       unsigned long curr_linenum = 1;
       int8_t line_base;
       long cumm_line_adv = 0;
@@ -445,11 +445,12 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
       endhdrp = linep + hdr_length;
 
       // minimum instruction length
-      ++linep;
+      min_instr_len = *linep++;
       // max operations per instruction
       if (version >= 4)
         {
-          if (*linep++ == 0)
+          max_ops = *linep++;
+          if (max_ops == 0)
               return 0; // max operations per instruction is supposed to > 0;
         }
       // default value of the is_stmt register
@@ -512,6 +513,7 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                     cumm_line_adv = 1 - curr_linenum;
                     addr_adv = 0 - curr_addr;
                     skip_to_seq_end = 0;
+                    op_index = 0;
                     break;
                   case DW_LNE_set_address:
                     if ((len - 1) == 4) // account for the opcode (the -1)
@@ -524,6 +526,7 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                     // and linenumber calcs than necessary
                     if (curr_addr > addr)
                       skip_to_seq_end = 1;
+                    op_index = 0;
                     break;
                   default: // advance the ptr by the specified amount
                     linep += len-1;
@@ -539,6 +542,7 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                     break;
                   case DW_LNS_fixed_advance_pc:
                     addr_adv = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data2, user, compat_task);
+                    op_index = 0;
                     break;
                   case DW_LNS_advance_line:
                     cumm_line_adv += read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128+DW_EH_PE_signed, user, compat_task);
@@ -569,6 +573,13 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
           // point the address and linenumber will be reset
           if (skip_to_seq_end == 1)
             continue;
+
+          // calculate actual address advance
+          if (opcode != 0 && opcode != DW_LNS_fixed_advance_pc)
+            {
+              addr_adv = min_instr_len * (op_index + addr_adv) / max_ops;
+              op_index =  (op_index + addr_adv) % max_ops;
+            }
 
           // found an address that at least sort of matches the address we
           // were looking for
