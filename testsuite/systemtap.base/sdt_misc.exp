@@ -132,7 +132,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 6} {
 	    pass "$test ${pbtype_mssg}${test_xtra}"
 	} else {
-	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
+	    if {[istarget "arm*-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra}"
 	    } else {
 		incr fail_count
@@ -209,7 +209,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 6} {
 	    pass "$test ${pbtype_mssg}${test_xtra} attach"
 	} else {
-	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
+	    if {[istarget "arm*-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} attach"
 	    } else {
 		incr fail_count
@@ -272,14 +272,14 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	    set type_flags "[sdt_includes] additional_flags=-Wall additional_flags=-Werror"
 	    set type_flags "$type_flags additional_flags=-I. $pbtype_flag"
 	    set type_flags "$type_flags [lindex $extra_type_flags $j] [lindex $type_pedantics $p] [lindex $has_long_long $j]"
-	    if {![istarget "i*86-*-*"] && ![istarget "arm-*-*"] && ![istarget "aarch64-*-*"]} {
+	    if {![istarget "i*86-*-*"] && ![istarget "arm*-*-*"] && ![istarget "aarch64-*-*"]} {
 		set type_flags "$type_flags additional_flags=-m64"
 	    }
 	    set test_suffix "$pbtype_mssg $extra_type_mssg $type_pedantic_mssg"
 	    
 	    # On ARM these tests are known to fail with timeout for V1
 	    # and V2 probes.  Skip them altogether to speed execution.
-	    if {[istarget "arm-*-*"] \
+	    if {[istarget "arm*-*-*"] \
 		    && ($pbtype_mssg == "V1_uprobe" \
 			    || $pbtype_mssg == "V2_kprobe" \
 			    || $pbtype_mssg == "V2_uprobe")} {
@@ -408,7 +408,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 6} {
 	    pass "$test shared ${pbtype_mssg}${test_xtra}"
 	} else {
-	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
+	    if {[istarget "arm*-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) shared ${pbtype_mssg}${test_xtra}"
 	    } else {
 		incr fail_count
@@ -495,7 +495,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	if {$ok == 6} {
 	    pass "$test ${pbtype_mssg}${test_xtra} shared attach"
 	} else {
-	    if {[istarget "arm-*-*"] && $pbtype_mssg == "V2_uprobe"} {
+	    if {[istarget "arm*-*-*"] && $pbtype_mssg == "V2_uprobe"} {
 		xfail "$test ($ok) ${pbtype_mssg}${test_xtra} shared attach"
 	    } else {
 		incr fail_count
@@ -552,7 +552,7 @@ for {set i 0} {$i < [llength $pbtype_flags]} {incr i} {
 	
 	if { $ok == 53 || $ok == 50 \
 		 || (($ok == 44 || $ok == 41 ) && ([istarget "i*86-*-*"] \
-						       || [istarget "arm-*-*"]))} {
+						       || [istarget "arm*-*-*"]))} {
 	    pass "$test wildcard $pbtype_mssg"
 	} else {
 	    incr fail_count
