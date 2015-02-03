@@ -43,14 +43,15 @@ static sleb128_t get_sleb128(const u8 **pcur, const u8 *end)
 	unsigned shift;
 
 	for (shift = 0; cur < end; shift += 7) {
+    const u8 cur_val = *cur++;
 		if (shift + 7 > 8 * sizeof(value)
-		    && (*cur & 0x7fU) >= (1U << (8 * sizeof(value) - shift))) {
+		    && (cur_val & 0x7fU) >= (1U << (8 * sizeof(value) - shift))) {
 			cur = end + 1;
 			break;
 		}
-		value |= (sleb128_t)(*cur & 0x7f) << shift;
-		if (!(*cur & 0x80)) {
-			value |= -(*cur++ & 0x40) << shift;
+		value |= (sleb128_t)(cur_val & 0x7f) << shift;
+		if (!(cur_val & 0x80)) {
+			value |= -(cur_val & 0x40) << shift;
 			break;
 		}
 	}
