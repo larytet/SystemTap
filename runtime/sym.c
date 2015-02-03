@@ -287,6 +287,8 @@ static void _stp_filename_lookup(struct _stp_module *mod, char ** filename,
       // save the directory index
       diridx = read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
 
+      if (linep > enddirsecp)
+        return;
       if (i == fileidx)
         break;
 
@@ -535,6 +537,7 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
             }
           else if (opcode <= DW_LNS_set_isa) // known standard opcode
             {
+              uint8_t *linep_before = linep;
               switch (opcode)
                 {
                   case DW_LNS_advance_pc:
@@ -542,6 +545,8 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                     break;
                   case DW_LNS_fixed_advance_pc:
                     addr_adv = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data2, user, compat_task);
+                    if (linep_before == linep) // the read failed
+                      return 0;
                     op_index = 0;
                     break;
                   case DW_LNS_advance_line:
@@ -560,12 +565,18 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                     read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
                     break;
                 }
+                if (linep > endunitp) // reading in the leb128 failed
+                  return 0;
             }
           else
             {
               int i;
               for (i=stdopcode_lens_secp[opcode]; i>0; --i)
-                read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                {
+                  read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                  if (linep > endunitp)
+                    return 0;
+                }
             }
 
           // don't worry about doing line/address advances since we are waiting
