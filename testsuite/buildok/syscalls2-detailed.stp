@@ -1468,6 +1468,16 @@ probe syscall.waitid.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.waitpid ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %d(%s)\n", pid, status_uaddr, options, options_str)
+}
+probe syscall.waitpid.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.write
 {
 	printf("%s, %s\n", name, argstr)

@@ -172,6 +172,9 @@
 #ifndef __NR_ia32_umount2
 #define __NR_ia32_umount2 52
 #endif
+#ifndef __NR_ia32_wait4
+#define __NR_ia32_wait4 114
+#endif
 
 #define __NR_compat_clone		__NR_ia32_clone
 #define __NR_compat_close		__NR_ia32_close
@@ -199,6 +202,7 @@
 #define __NR_compat_symlinkat		__NR_ia32_symlinkat
 #define __NR_compat_truncate		__NR_ia32_truncate
 #define __NR_compat_umount2		__NR_ia32_umount2
+#define __NR_compat_wait4		__NR_ia32_wait4
 
 #endif	/* __x86_64__ */
 
@@ -237,6 +241,7 @@
 #define __NR_compat_symlinkat		__NR_symlinkat
 #define __NR_compat_truncate		__NR_truncate
 #define __NR_compat_umount2		__NR_umount2
+#define __NR_compat_wait4		__NR_wait4
 
 #endif	/* __powerpc64__ || __s390x__ || __aarch64__ */
 

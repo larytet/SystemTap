@@ -27,6 +27,10 @@
   As a result, tapset functions such as pn() will now return a different string
   than before. To retain the previous behaviour, use '--compatible=2.6'.
 
+- The following functions are deprecated in release 2.7:
+  - _adjtx_mode_str(), _statfs_f_type_str(), _waitid_opt_str(),
+    _internal_wait_opt_str(), and _epoll_events_str().
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:

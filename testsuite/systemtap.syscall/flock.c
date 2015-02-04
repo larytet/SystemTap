@@ -37,7 +37,7 @@ int main() {
     //staptest// flock (-1, LOCK_SH) = NNNN (EBADF)
 
     flock(fd, -1);
-    //staptest// flock (NNNN, LOCK_NB|LOCK_UN|LOCK_EX|LOCK_SH) = NNNN
+    //staptest// flock (NNNN, LOCK_[^ ]+|XXXX) = NNNN
 
     // The above should do LOCK_SH in fact.
     // So let's go ahead and call LOCK_UN at the end:

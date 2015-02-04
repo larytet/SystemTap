@@ -96,7 +96,7 @@ main()
     //staptest// clone (0x0|SIGCHLD, XXXX, XXXX, XXXX) = NNNN
 #endif
     wait4(pid, NULL, 0, NULL);		/* Wait for child */
-    //staptest// wait4 (NNNN, 0x0, 0, 0x0) = NNNN
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x0) = NNNN
 
 #define FLAG_ALL (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|SIGCHLD)
 #if defined(__ia64__)
@@ -107,7 +107,7 @@ main()
     //staptest// clone (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|SIGCHLD, XXXX, XXXX, XXXX) = NNNN
 #endif
     wait4(pid, NULL, 0, NULL);		/* Wait for child */
-    //staptest// wait4 (NNNN, 0x0, 0, 0x0) = NNNN
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x0) = NNNN
 
     /* Limit testing. BTW, we want all these calls to fail, since we
      * aren't cleaning up the child processes. */

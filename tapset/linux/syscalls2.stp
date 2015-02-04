@@ -814,24 +814,40 @@ probe syscall.pwritev.return = kernel.function("sys_pwritev").return ?,
 #		  const char __user *special,
 #		  qid_t id,
 #		  void __user *addr)
+# asmlinkage long sys32_quotactl(unsigned int cmd, const char __user *special,
+#						qid_t id, void __user *addr)
 #
-probe syscall.quotactl = kernel.function("sys_quotactl").call ?
+probe syscall.quotactl = __syscall.quotactl ?,
+	kernel.function("sys32_quotactl").call ?
 {
 	name = "quotactl"
-	cmd = $cmd
-	cmd_str = _quotactl_cmd_str($cmd)
+	cmd = __uint32($cmd)
+	cmd_str = _quotactl_cmd_str(__uint32($cmd))
 	special = $special
 	special_str = user_string_quoted($special)
-	id = $id
+	id = __int32($id)
 	addr_uaddr = $addr
-	argstr = sprintf("%s, %s, %d, %p", cmd_str, special_str, $id, $addr)
+	argstr = sprintf("%s, %s, %d, %p", cmd_str, special_str,
+			 __int32($id), $addr)
 }
-probe syscall.quotactl.return = kernel.function("sys_quotactl").return ?
+probe __syscall.quotactl = kernel.function("sys_quotactl").call ?
+{
+%( arch != "powerpc" && arch != "s390" %?
+	@__syscall_gate_compat_simple
+%)
+}
+probe syscall.quotactl.return = __syscall.quotactl.return ?,
+	kernel.function("sys32_quotactl").return ?
 {
 	name = "quotactl"
 	retstr = return_str(1, $return)
 }
-
+probe __syscall.quotactl.return = kernel.function("sys_quotactl").return ?
+{
+%( arch != "powerpc" && arch != "s390" %?
+	@__syscall_gate_compat_simple
+%)
+}
 
 # read _______________________________________________________
 # ssize_t sys_read(unsigned int fd, char __user * buf, size_t count)
@@ -4513,13 +4529,12 @@ probe syscall.compat_vmsplice.return = kernel.function("compat_sys_vmsplice").re
 #	int, options,
 #	struct compat_rusage __user *, ru)
 #
-probe syscall.wait4 = __syscall.wait4,
-	kernel.function("compat_sys_wait4").call ?
+probe syscall.wait4 = __syscall.wait4, __syscall.compat_wait4 ?
 {
 	name = "wait4"
 	pid = __int32(@choose_defined($upid, $pid))
 	status_uaddr = @__pointer($stat_addr)
-	options = $options & 0xffffffff
+	options = __int32($options)
 	options_str = _wait4_opt_str(options)
 	rusage_uaddr = @__pointer($ru)
 	argstr = sprintf("%d, %p, %s, %p", pid, status_uaddr, options_str,
@@ -4529,8 +4544,12 @@ probe __syscall.wait4 = kernel.function("sys_wait4").call
 {
 	@__syscall_gate(%{ __NR_wait4 %})
 }
+probe __syscall.compat_wait4 = kernel.function("compat_sys_wait4").call ?
+{
+	@__compat_syscall_gate(%{ __NR_compat_wait4 %})
+}
 probe syscall.wait4.return = __syscall.wait4.return,
-	kernel.function("compat_sys_wait4").return ?
+	__syscall.compat_wait4.return ?
 {
 	name = "wait4"
 
@@ -4547,6 +4566,11 @@ probe __syscall.wait4.return = kernel.function("sys_wait4").return
 {
 	@__syscall_gate(%{ __NR_wait4 %})
 }
+probe __syscall.compat_wait4.return =
+	kernel.function("compat_sys_wait4").return ?
+{
+	@__compat_syscall_gate(%{ __NR_compat_wait4 %})
+}
 
 # waitid _____________________________________________________
 #
@@ -4555,51 +4579,64 @@ probe __syscall.wait4.return = kernel.function("sys_wait4").return
 #		struct siginfo __user *infop,
 #		int options,
 #		struct rusage __user *ru)
+# COMPAT_SYSCALL_DEFINE5(waitid,
+#		int, which, compat_pid_t, pid,
+#		struct compat_siginfo __user *, uinfo, int, options,
+#		struct compat_rusage __user *, uru)
 #
-probe syscall.waitid = kernel.function("sys_waitid").call
+probe syscall.waitid = __syscall.waitid,
+	kernel.function("compat_sys_waitid").call ?
 {
 	name = "waitid"
-	pid = @choose_defined($upid, $pid)
-	which = $which
-	which_str = _waitid_which_str($which)
-	infop_uaddr = $infop
+	which = __int32($which)
+	which_str = _waitid_which_str(__int32($which))
+	pid = __int32(@choose_defined($upid, $pid))
+	infop_uaddr = @__pointer(@choose_defined($infop, $uinfo))
 	options = $options
-	options_str = _waitid_opt_str($options)
-	rusage_uaddr = $ru
-	argstr = sprintf("%d, %d, %p, %s, %p", $which,
-		@choose_defined($upid, $pid), $infop,
-		_waitid_opt_str($options), $ru)
+	options_str = _wait4_opt_str($options)
+	rusage_uaddr = @choose_defined($ru, $uru)
+	argstr = sprintf("%s, %d, %p, %s, %p",
+			 _waitid_which_str(__int32($which)),
+			 __int32(@choose_defined($upid, $pid)),
+			 infop_uaddr, _wait4_opt_str($options),
+			 @choose_defined($ru, $uru))
 }
-probe syscall.waitid.return = kernel.function("sys_waitid").return
+probe __syscall.waitid = kernel.function("sys_waitid").call
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.waitid.return = __syscall.waitid.return,
+	kernel.function("compat_sys_waitid").return ?
 {
 	name = "waitid"
 	retstr = return_str(1, $return)
 }
-/* FIXME:
+probe __syscall.waitid.return = kernel.function("sys_waitid").return
+{
+	@__syscall_gate_compat_simple
+}
+
 # waitpid ____________________________________________________
 #
-# long sys_wait4(pid_t pid,
-#	     int __user *stat_addr,
-#	     int options,
-#	     struct rusage __user *ru)
+# (waitpid is usually implemented via wait4 but not always)
+# SYSCALL_DEFINE3(waitpid, pid_t, pid, int __user *, stat_addr, int, options)
 #
-probe syscall.waitpid = kernel.function("sys_wait4").call
+probe syscall.waitpid = kernel.function("sys_waitpid").call ?,
+	kernel.function("sys32_waitpid").call ?
 {
 	name = "waitpid"
-	pid = $pid
+	pid = __int32($pid)
 	status_uaddr = $stat_addr
-	options = $options & 0xffffffff
+	options = __int32($options)
 	options_str = _wait4_opt_str(options)
-	rusage_uaddr = $ru
-	argstr = sprintf("%d, %p, %s, %p", $pid, $stat_addr,
-		options_str, $ru)
+	argstr = sprintf("%d, %p, %s", __int32($pid), $stat_addr, options_str)
 }
-probe syscall.waitpid.return = kernel.function("sys_wait4").return
+probe syscall.waitpid.return = kernel.function("sys_waitpid").return ?,
+	kernel.function("sys32_waitpid").return ?
 {
 	name = "waitpid"
 	retstr = return_str(1, $return)
 }
-*/
 
 # write ______________________________________________________
 #

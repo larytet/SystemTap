@@ -920,7 +920,10 @@ function __get_compat_argv:string(argv:long, first:long)
 	return str
 }
 
+%(systemtap_v <= "2.7" %?
 /*
+ * This function isn't actually used anywhere, so let's deprecate it.
+ *
  * Return the  symbolic string  representation
  * of the struct timex.mode member of adjtimex
  * consult `man adjtimex` for more information
@@ -938,6 +941,7 @@ function _adjtx_mode_str(f) {
    if(f & 1 && ((f & 32769) != 32769)) bs="ADJ_OFFSET|".bs
    return substr(bs,0,strlen(bs)-1)
 }
+%)
 
 %{
 #include <linux/random.h>
@@ -958,6 +962,7 @@ function _getrandom_flags_str:string(flag:long)
 	unsigned int grflag = (unsigned int)STAP_ARG_flag;  
 	_stp_lookup_or_str(_stp_getrandom_list, grflag, STAP_RETVALUE, MAXSTRINGLEN);
 %}
+
 %{
 #if (defined(CONFIG_INOTIFY) || defined(CONFIG_INOTIFY_USER))
 #include <linux/inotify.h>
@@ -1137,16 +1142,20 @@ function _get_wc_str:string(wc:long)
 	_stp_lookup_str(_stp_wc_str_list, clkid, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
-function _flock_cmd_str(c) {
-   if(c & 1) bs="LOCK_SH|".bs
-   if(c & 2) bs="LOCK_EX|".bs
-   if(c & 8) bs="LOCK_UN|".bs
-   if(c & 4) bs="LOCK_NB|".bs
-   return substr(bs,0,strlen(bs)-1)
-}
-
 %{
 #include <linux/fcntl.h>
+
+static const _stp_val_array const _stp_flock_cmd_list[] = {
+	V(LOCK_SH),
+	V(LOCK_EX),
+	V(LOCK_NB),
+	V(LOCK_UN),
+	V(LOCK_MAND),
+	V(LOCK_READ),
+	V(LOCK_WRITE),
+	V(LOCK_RW),
+	{0, NULL}
+};
 
 static const _stp_val_array const _stp_pipe2_flags_list[] = {
 #ifdef O_NONBLOCK
@@ -1157,6 +1166,12 @@ static const _stp_val_array const _stp_pipe2_flags_list[] = {
 #endif
 	{0, NULL}
 };
+%}
+
+function _flock_cmd_str:string(c:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_flock_cmd_list, (unsigned int)STAP_ARG_c,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 /* `man 2 pipe2` for more information */
@@ -1350,64 +1365,50 @@ function _msync_flag_str:string(f:long)
 			   MAXSTRINGLEN);
 %}
 
-function _internal_wait_opt_str(f,bit_num,bit_str) {
-  retval=""
-  if (f & %{ WNOHANG %})
-    {
-      f&=%{ ~WNOHANG %}
-      retval=retval."|WNOHANG"
-    }
-  if (f & bit_num)
-    {
-      f&=~bit_num
-      retval=retval."|".bit_str
-    }
-  if (f & %{ WEXITED %})
-    {
-      f&=%{ ~WEXITED %}
-      retval=retval."|WEXITED"
-    }
-  if (f & %{ WCONTINUED %})
-    {
-      f&=%{ ~WCONTINUED %}
-      retval=retval."|WCONTINUED"
-    }
-  if (f & %{ WNOWAIT %})
-    {
-      f&=%{ ~WNOWAIT %}
-      retval=retval."|WNOWAIT"
-    }
-  if (f & %{ __WNOTHREAD %})
-    {
-      f&=%{ ~__WNOTHREAD %}
-      retval=retval."|__WNOTHREAD"
-    }
-  if (f & %{ __WALL %})
-    {
-      f&=%{ ~__WALL %}
-      retval=retval."|__WALL"
-    }
-  if (f & %{ __WCLONE %})
-    {
-      f&=%{ ~__WCLONE %}
-      retval=retval."|__WCLONE"
-    }
-  if (f != 0)
-    retval=retval.sprintf ("|0x%x", f)
-  else if (retval == "")
-    return "0"
-  return substr(retval,1,strlen(retval)-1)
-}
+%{
+#include <linux/wait.h>
 
-/* `man wait4` for more information */
-function _wait4_opt_str(f) {
-   return _internal_wait_opt_str(f,%{ WUNTRACED %},"WUNTRACED")
-}
+static const _stp_val_array const _stp_wait4_op_list[] = {
+	V(WNOHANG),
+#if !defined(WSTOPPED) && defined(WUNTRACED)
+	V(WUNTRACED),
+#endif
+	V(WEXITED),
+#ifdef WSTOPPED
+	V(WSTOPPED),
+#endif
+	V(WCONTINUED),
+	V(WNOWAIT),
+	V(__WNOTHREAD),
+	V(__WALL),
+	V(__WCLONE),
+	{0, NULL}
+};
+
+%}
+
+%(systemtap_v <= "2.7" %?
+function _internal_wait_opt_str:string(f:long, bit_num:long, bit_str:string)
+%{ /* pure */
+	/* ignore bit_num and bit_str */
+	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 /* `man waitid` for more information */
-function _waitid_opt_str(f) {
-   return _internal_wait_opt_str(f,%{ WSTOPPED %},"WSTOPPED")
-}
+function _waitid_opt_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
+%)
+
+/* `man wait4` for more information */
+function _wait4_opt_str:string(f:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_wait4_op_list, (unsigned int)STAP_ARG_f,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 function WIFEXITED(f) {
   return (f & 0x7f) == 0
@@ -1495,7 +1496,21 @@ static const _stp_val_array const _stp_seccomp_flags_list[] = {
 #endif
         {0, NULL}
 };
+
+static const _stp_val_array const _stp_seccomp_mode_list[] = {
+#ifdef SECCOMP_MODE_DISABLED
+	V(SECCOMP_MODE_DISABLED),
+#endif
+#ifdef SECCOMP_MODE_STRICT
+	V(SECCOMP_MODE_STRICT),
+#endif
+#ifdef SECCOMP_MODE_FILTER
+	V(SECCOMP_MODE_FILTER),
+#endif
+        {0, NULL}
+};
 %}
+
 function _seccomp_flags_str:string(flags:long)
 %{ /* pure */
         unsigned int flags = (unsigned int)STAP_ARG_flags;
@@ -1719,12 +1734,21 @@ function _reboot_flag_str:string(flag:long)
 			MAXSTRINGLEN);
 %}
 
-function _waitid_which_str(flag) {
-   if(flag==0) return "P_ALL"
-   if(flag==1) return "P_PID"
-   if(flag==2) return "P_PGID"
-   return sprintf("UNKNOWN VALUE: %d", flag)
-}
+%{
+#include <linux/wait.h>
+static const _stp_val_array const _stp_waitid_which_list[] = {
+	V(P_ALL),
+	V(P_PID),
+	V(P_PGID),
+	{0, NULL}
+};
+%}
+
+function _waitid_which_str:string(flag:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_waitid_which_list, (unsigned int)STAP_ARG_flag,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
 
 %{
 #include <linux/futex.h>
@@ -1913,6 +1937,8 @@ function _umountflags_str:string(op:long)
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
+%(systemtap_v <= "2.7" %?
+// This function is unused, so deprecate it.
 function _statfs_f_type_str(f) {
    if(f==0xadf5)     return "ADFS_SUPER_MAGIC"
    if(f==0xADFF)     return "AFFS_SUPER_MAGIC"
@@ -1960,6 +1986,7 @@ function _statfs_f_type_str(f) {
    if(f==0x012FD16D) return "_XIAFS_SUPER_MAGIC"
    return sprintf("UNKNOWN VALUE: %d", f)
 }
+%)
 
 %{
 #include <linux/mman.h>
@@ -2140,25 +2167,50 @@ function _seek_whence_str:string(w:long)
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
-function _quotactl_cmd_str(cmd) {
-   if(cmd==0x800002) return "Q_QUOTAON"
-   if(cmd==0x800003) return "Q_QUOTAOFF"
-   if(cmd==0x800007) return "Q_GETQUOTA"
-   if(cmd==0x800008) return "Q_SETQUOTA"
-   if(cmd==0x800005) return "Q_GETINFO"
-   if(cmd==0x800006) return "Q_SETINFO"
-   if(cmd==0x800004) return "Q_GETFMT"
-   if(cmd==0x800001) return "Q_SYNC"
-   /* XFS Quota Manager (XQM) Codes */
-   if(cmd==0x5801) return "Q_XQUOTAON"
-   if(cmd==0x5802) return "Q_XQUOTAOFF"
-   if(cmd==0x5803) return "Q_XGETQUOTA"
-   if(cmd==0x5804) return "Q_XSETQLIM"
-   if(cmd==0x5805) return "Q_XGETQSTAT"
-   if(cmd==0x5806) return "Q_XQUOTARM"
-   if(cmd==0x5807) return "Q_XQUOTASYNC"
-   return sprintf("UNKNOWN VALUE: %d", cmd)
-}
+%{
+#include <linux/quota.h>
+
+static const _stp_val_array const _stp_quotactl_cmd_list[] = {
+	V(Q_SYNC),
+	V(Q_QUOTAON),
+	V(Q_QUOTAOFF),
+	V(Q_GETFMT),
+	V(Q_GETINFO),
+	V(Q_SETINFO),
+	V(Q_GETQUOTA),
+	V(Q_SETQUOTA),
+	/* XFS Quota Manager (XQM) Codes */
+	V(Q_XQUOTAON),
+	V(Q_XQUOTAOFF),
+	V(Q_XGETQUOTA),
+	V(Q_XSETQLIM),
+	V(Q_XGETQSTAT),
+	V(Q_XQUOTARM),
+	V(Q_XQUOTASYNC),
+#ifdef Q_XGETQSTATV
+	V(Q_XGETQSTATV),
+#endif
+	{0, NULL}
+};
+%}
+
+function _quotactl_cmd_str:string(cmd:long)
+%{
+	unsigned int cmd = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
+	unsigned int type = (unsigned int)STAP_ARG_cmd & SUBCMDMASK;
+
+	_stp_lookup_str(_stp_quotactl_cmd_list, cmd, STAP_RETVALUE,
+			MAXSTRINGLEN);
+	if (type == USRQUOTA)
+		strlcat(STAP_RETVALUE, "|USRQUOTA", MAXSTRINGLEN);
+	else if (type == GRPQUOTA)
+		strlcat(STAP_RETVALUE, "|GRPQUOTA", MAXSTRINGLEN);
+	else {
+		int len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      "|0x%x", type);
+	}
+%}
 
 %{
 #include <linux/socket.h>
@@ -2567,6 +2619,8 @@ function _opoll_op_str:string(o:long)
 			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
+%(systemtap_v <= "2.7" %?
+// This function isn't actually used anywhere, so let's deprecate it.
 function _epoll_events_str(e) {
    if(e==1) return "EPOLLIN"
    if(e==4) return "EPOLLOUT"
@@ -2577,6 +2631,7 @@ function _epoll_events_str(e) {
    if(e==1073741824) return "EPOLLONESHOT"
    return sprintf("UNKNOWN VALUE: %d", e)
 }
+%)
 
 %{
 #include <linux/resource.h>
@@ -2736,7 +2791,8 @@ static void _stp_sigset_str(sigset_t *mask, char *ptr, int len)
 
 function _signal_name:string(sig:long)
 %{ /* pure */
-	_stp_lookup_str(_stp_signal_list, STAP_ARG_sig, STAP_RETVALUE, MAXSTRINGLEN);
+	_stp_lookup_str(_stp_signal_list, (unsigned int)STAP_ARG_sig,
+			STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 %{

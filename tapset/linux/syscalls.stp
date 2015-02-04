@@ -2713,9 +2713,9 @@ probe syscall.keyctl.return = kernel.function("compat_sys_keyctl").return ?,
 probe syscall.kill = kernel.function("sys_kill").call
 {
 	name = "kill"
-	pid = $pid
-	sig = $sig
-	argstr = sprintf("%d, %s", $pid, _signal_name($sig))
+	pid = __int32($pid)
+	sig = __int32($sig)
+	argstr = sprintf("%d, %s", __int32($pid), _signal_name(__int32($sig)))
 }
 probe syscall.kill.return = kernel.function("sys_kill").return
 {

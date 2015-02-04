@@ -31,7 +31,9 @@ probe begin {
 	print (__get_argv(0,0))
 	print (__get_compat_argv(0,0))
 
+%(systemtap_v <= "2.7" %?
 	print (_adjtx_mode_str(0))
+%)
 	print (_getrandom_flags_str(0))
 	print (_inotify_watch_mask_str(0))
 
@@ -54,8 +56,10 @@ probe begin {
 	print (_mknod_mode_str(0))
 	print (_msync_flag_str(0))
 
-	print (_wait4_opt_str(0))
+%(systemtap_v <= "2.7" %?
 	print (_waitid_opt_str(0))
+%)
+	print (_wait4_opt_str(0))
 
 	print (WIFEXITED(0))
 	print (WEXITSTATUS(0))
@@ -93,7 +97,9 @@ probe begin {
 	print (_mountflags_str(0))
 	print (_umountflags_str(0))
 
+%(systemtap_v <= "2.7" %?
 	print (_statfs_f_type_str(0))
+%)
 	print (_mremap_flags(0))
 	print (_madvice_advice_str(0))
 	print (_fadvice_advice_str(0))
@@ -109,7 +115,9 @@ probe begin {
 	print (_sock_protocol_str(0,0))
 
 	print (_opoll_op_str(0))
+%(systemtap_v <= "2.7" %?
 	print (_epoll_events_str(0))
+%)
 
 	print (_rlimit_resource_str(0))
 	print (_rusage_who_str(0))

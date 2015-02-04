@@ -90,7 +90,11 @@ int main()
     __finit_module(-1, "foo=bar", MODULE_INIT_IGNORE_MODVERSIONS);
     //staptest// finit_module (-1, "foo=bar", MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
     __finit_module(fd_null, (char *)-1, MODULE_INIT_IGNORE_MODVERSIONS);
+#ifdef __s390__
+    //staptest// finit_module (NNNN, [7]?[f]+, MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
+#else
     //staptest// finit_module (NNNN, [f]+, MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
+#endif
     __finit_module(fd_null, "foo=bar", -1);
     //staptest// finit_module (NNNN, "foo=bar", MODULE_INIT_[^ ]+|XXXX) = -NNNN
 #endif
