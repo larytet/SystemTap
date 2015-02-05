@@ -522,6 +522,8 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
                       curr_addr = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data4, user, compat_task);
                     else if ((len - 1) == 8)
                       curr_addr = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data8, user, compat_task);
+                    else
+                      return 0;
 
                     // if the set address is past the address we want, iterate
                     // to the end of the sequence without doing more address
