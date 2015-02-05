@@ -40,7 +40,11 @@ function output()
       fname = sprintf("%s", symname(faddr))
       type="work_q"
     } else {
-      fname = sprintf("%s", symdata(funct[timer]))
+      fileline = symfileline(funct[timer])
+      if (strtol(fileline, 16)) // fileline is just the address
+        fname = sprintf("%s", symdata(funct[timer]))
+      else
+        fname = sprintf("%s@%s", symname(funct[timer]), fileline)
       type="kernel"
     }
     printf("%-7s %-50.50s %11d %9d\n", type, fname,
