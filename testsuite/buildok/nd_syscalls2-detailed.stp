@@ -582,7 +582,7 @@ probe nd_syscall.semctl.return ?, nd_syscall.compat_sys_semctl.return ?
 probe nd_syscall.semget ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d(%s) %d %d(%s)\n", key, keystr, nsems, semflg, semflg_str)
+	printf("%d(%s) %d %d(%s)\n", key, key_str, nsems, semflg, semflg_str)
 }
 probe nd_syscall.semget.return ?
 {

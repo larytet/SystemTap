@@ -4,8 +4,10 @@
 #include <netinet/in.h>
 #include <linux/nfs.h>
 #include <linux/nfsd/nfsfh.h>
-#include <linux/nfsd/syscall.h>
 #include <sys/syscall.h>
+#ifdef SYS_nfsservctl
+#include <linux/nfsd/syscall.h>
+#endif
 
 // Note that since linux 3.1, the nfsservctl() syscall no longer exists.
 

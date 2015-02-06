@@ -1,5 +1,7 @@
 /* COVERAGE: shutdown */
 
+#define _BSD_SOURCE
+#define _ DEFAULT_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>

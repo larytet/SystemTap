@@ -303,20 +303,39 @@ probe nd_syscall.bdflush.return = kprobe.function("sys_bdflush").return ?
 
 # bind _______________________________________________________
 # long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
-probe nd_syscall.bind = kprobe.function("sys_bind") ?
+probe nd_syscall.bind = __nd_syscall.bind ?, __nd_syscall.socketcall.bind ?
 {
 	name = "bind"
+	@_af_inet_info_u(my_addr_uaddr, addrlen)
+	argstr = sprintf("%d, %s, %d", sockfd,
+			 _struct_sockaddr_u(my_addr_uaddr, addrlen), addrlen)
+}
+probe __nd_syscall.bind = kprobe.function("sys_bind") ?
+{
 	asmlinkage()
 	sockfd = int_arg(1)
 	my_addr_uaddr = pointer_arg(2)
 	addrlen = int_arg(3)
-	@_af_inet_info_u(my_addr_uaddr, addrlen)
-	argstr = sprintf("%d, %s, %d", sockfd, _struct_sockaddr_u(my_addr_uaddr, addrlen), addrlen)
 }
-probe nd_syscall.bind.return = kprobe.function("sys_bind").return ?
+probe __nd_syscall.socketcall.bind = kprobe.function("sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_BIND %}) next;
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	sockfd = __int32(user_ulong(&(__args)[0]))
+	my_addr_uaddr = user_ulong(&(__args)[1])
+	addrlen = __int32(user_ulong(&(__args)[2]))
+}
+probe nd_syscall.bind.return = kprobe.function("sys_bind").return ?,
+	__nd_syscall.socketcall.bind.return
 {
 	name = "bind"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.bind.return =
+	kprobe.function("sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_BIND %}) next;
 }
 
 # brk ________________________________________________________
@@ -751,20 +770,40 @@ probe nd_syscall.close.return = kprobe.function("sys_close").return ?
 }
 # connect ____________________________________________________
 # long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
-probe nd_syscall.connect = kprobe.function("sys_connect") ?
+probe nd_syscall.connect = __nd_syscall.connect ?,
+	__nd_syscall.socketcall.connect ?
 {
 	name = "connect"
+	@_af_inet_info_u(serv_addr_uaddr, addrlen)
+	argstr = sprintf("%d, %s, %u", sockfd,
+			 _struct_sockaddr_u(serv_addr_uaddr, addrlen), addrlen)
+}
+probe __nd_syscall.connect = kprobe.function("sys_connect") ?
+{
 	asmlinkage()
 	sockfd = int_arg(1)
 	serv_addr_uaddr = pointer_arg(2)
 	addrlen = uint_arg(3)
-	@_af_inet_info_u(serv_addr_uaddr, addrlen)
-	argstr = sprintf("%d, %s, %u", sockfd, _struct_sockaddr_u(serv_addr_uaddr, addrlen), addrlen)
 }
-probe nd_syscall.connect.return = kprobe.function("sys_connect").return ?
+probe __nd_syscall.socketcall.connect = kprobe.function("sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_CONNECT %}) next;
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	sockfd = __int32(user_ulong(&(__args)[0]))
+	serv_addr_uaddr = user_ulong(&(__args)[1])
+	addrlen = __uint32(user_ulong(&(__args)[2]))
+}
+probe nd_syscall.connect.return = kprobe.function("sys_connect").return ?,
+	__nd_syscall.socketcall.connect.return ?
 {
 	name = "connect"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.connect.return =
+	kprobe.function("sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_CONNECT %}) next;
 }
 
 # creat
@@ -1445,6 +1484,7 @@ probe nd_syscall.fgetxattr.return = kprobe.function("sys_fgetxattr").return ?
 probe nd_syscall.finit_module = kprobe.function("sys_finit_module").call ?
 {
 	name = "finit_module"
+	asmlinkage()
 	fd = int_arg(1)
 	uargs = user_string_quoted(pointer_arg(2))
 	flags = int_arg(3)
@@ -2063,21 +2103,43 @@ probe __nd_syscall.get_mempolicy.return =
 }
 
 # getpeername ________________________________________________
-# long sys_getpeername(int fd, struct sockaddr __user *usockaddr, int __user *usockaddr_len)
+# long sys_getpeername(int fd, struct sockaddr __user *usockaddr,
+#		       int __user *usockaddr_len)
 #
-probe nd_syscall.getpeername = kprobe.function("sys_getpeername") ?
+probe nd_syscall.getpeername = __nd_syscall.getpeername ?,
+	__nd_syscall.socketcall.getpeername ?
 {
 	name = "getpeername"
+	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
+}
+probe __nd_syscall.getpeername = kprobe.function("sys_getpeername") ?
+{
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
 	namelen_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 }
-probe nd_syscall.getpeername.return = kprobe.function("sys_getpeername").return ?
+probe __nd_syscall.socketcall.getpeername =
+	kprobe.function("sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_GETPEERNAME %}) next;
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	s = __int32(user_ulong(&(__args)[0]))
+	name_uaddr = user_ulong(&(__args)[1])
+	namelen_uaddr = user_ulong(&(__args)[2])
+}
+probe nd_syscall.getpeername.return =
+	kprobe.function("sys_getpeername").return ?,
+	__nd_syscall.socketcall.getpeername.return ?
 {
 	name = "getpeername"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.getpeername.return =
+	kprobe.function("sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETPEERNAME %}) next;
 }
 
 # getpgid ____________________________________________________
@@ -2162,7 +2224,7 @@ probe nd_syscall.getrandom = kprobe.function("sys_getrandom") ?
 	count = ulong_arg(2)
 	flags = uint_arg(3)
 	flags_str = _getrandom_flags_str(uint_arg(3))
-	argstr = sprintf("%s, %u, %s", user_string_quoted(pointer_arg(1)), ulong_arg(2), flags_str)
+	argstr = sprintf("%s, %u, %s", buf, count, flags_str)
 }
 probe nd_syscall.getrandom.return = kprobe.function("sys_getrandom").return ?
 {
@@ -2295,19 +2357,40 @@ probe nd_syscall.getsid.return = kprobe.function("sys_getsid").return ?
 # long sys_getsockname(int fd,
 #		struct sockaddr __user *usockaddr,
 #		int __user *usockaddr_len)
-probe nd_syscall.getsockname = kprobe.function("sys_getsockname") ?
+probe nd_syscall.getsockname = __nd_syscall.getsockname ?,
+	__nd_syscall.socketcall.getsockname ?
 {
 	name = "getsockname"
+	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
+}
+probe __nd_syscall.getsockname = kprobe.function("sys_getsockname") ?
+{
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
 	namelen_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 }
-probe nd_syscall.getsockname.return = kprobe.function("sys_getsockname").return ?
+probe __nd_syscall.socketcall.getsockname =
+	kprobe.function("sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_GETSOCKNAME %}) next;
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	s = __int32(user_ulong(&(__args)[0]))
+	name_uaddr = user_ulong(&(__args)[1])
+	namelen_uaddr = user_ulong(&(__args)[2])
+}
+probe nd_syscall.getsockname.return =
+	kprobe.function("sys_getsockname").return ?,
+	__nd_syscall.socketcall.getsockname.return ?
 {
 	name = "getsockname"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.getsockname.return =
+	kprobe.function("sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETSOCKNAME %}) next;
 }
 
 # getsockopt _________________________________________________
@@ -2995,18 +3078,35 @@ probe nd_syscall.linkat.return = kprobe.function("sys_linkat").return ?
 
 # listen _____________________________________________________
 # long sys_listen(int fd, int backlog)
-probe nd_syscall.listen = kprobe.function("sys_listen") ?
+probe nd_syscall.listen = __nd_syscall.listen ?, __nd_syscall.socketcall.listen ?
 {
 	name = "listen"
+	argstr = sprintf("%d, %d", sockfd, backlog)
+}
+probe __nd_syscall.listen = kprobe.function("sys_listen") ?
+{
 	asmlinkage()
 	sockfd = int_arg(1)
 	backlog = int_arg(2)
-	argstr = sprintf("%d, %d", sockfd, backlog)
 }
-probe nd_syscall.listen.return = kprobe.function("sys_listen").return ?
+probe __nd_syscall.socketcall.listen = kprobe.function("sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_LISTEN %}) next;
+	__args = &@cast(pointer_arg(2), "ulong", "kernel<linux/types.h>")
+	sockfd = __int32(user_ulong(&(__args)[0]))
+	backlog = __int32(user_ulong(&(__args)[1]))
+}
+probe nd_syscall.listen.return = kprobe.function("sys_listen").return ?,
+	__nd_syscall.socketcall.listen.return ?
 {
 	name = "listen"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.socketcall.listen.return =
+	kprobe.function("sys_socketcall").return ?
+{
+	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_LISTEN %}) next;
 }
 
 # listxattr __________________________________________________
@@ -3417,6 +3517,7 @@ probe nd_syscall.mlock.return = kprobe.function("sys_mlock").return ?
 	name = "mlock"
 	retstr = returnstr(1)
 }
+
 # mlockall ___________________________________________________
 #
 # long sys_mlockall(int flags)
@@ -3444,7 +3545,7 @@ probe nd_syscall.modify_ldt = kprobe.function("sys_modify_ldt") ?
 	func = int_arg(1)
 	ptr_uaddr = pointer_arg(2)
 	bytecount = ulong_arg(3)
-	argstr = sprintf("%d, %p, %d", func, ptr_uaddr, bytecount)
+	argstr = sprintf("%d, %p, %u", func, ptr_uaddr, bytecount)
 }
 probe nd_syscall.modify_ldt.return = kprobe.function("sys_modify_ldt").return ?
 {
@@ -3754,7 +3855,7 @@ probe nd_syscall.mq_timedsend =
 	msg_ptr_uaddr = pointer_arg(2)
 	msg_prio = uint_arg(4)
 	abs_timeout_uaddr = pointer_arg(5)
-	argstr = sprintf("%d, %p, %u, %d, %p", mqdes, msg_ptr_uaddr, msg_len,
+	argstr = sprintf("%d, %p, %u, %u, %p", mqdes, msg_ptr_uaddr, msg_len,
 		msg_prio, abs_timeout_uaddr)
 }
 probe __nd_syscall.compat_mq_timedsend = kprobe.function("compat_sys_mq_timedsend")

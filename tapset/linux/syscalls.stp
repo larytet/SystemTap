@@ -189,13 +189,13 @@ probe syscall.add_key = kernel.function("sys_add_key").call ?
 %)
 	description_uaddr = $_description
 	payload_uaddr = $_payload
-	plen = $plen
+	plen = __ulong($plen)
 	ringid = __int32($ringid)
 	argstr = sprintf("%s, %s, %s, %u, %d",
 		user_string_quoted($_type),
 		user_string_quoted($_description),
 		user_string_n2_quoted($_payload, $plen, syscall_string_trunc),
-		$plen, __int32($ringid))
+		__ulong($plen), __int32($ringid))
 }
 probe syscall.add_key.return = kernel.function("sys_add_key").return ?
 {
@@ -249,8 +249,8 @@ probe syscall.alarm = kernel.function("sys32_alarm").call ?,
                       kernel.function("sys_alarm").call ?
 {
 	name = "alarm"
-	seconds = $seconds
-	argstr = sprint($seconds)
+	seconds = __uint32($seconds)
+	argstr = sprint(seconds)
 }
 probe syscall.alarm.return = kernel.function("sys32_alarm").return ?,
                              kernel.function("sys_alarm").return ?
@@ -280,19 +280,36 @@ probe syscall.bdflush.return = kernel.function("sys_bdflush").return ?
 
 # bind _______________________________________________________
 # long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
-probe syscall.bind = kernel.function("sys_bind").call ?
+probe syscall.bind = __syscall.bind ?, __syscall.socketcall.bind ?
 {
 	name = "bind"
+	@_af_inet_info_u(my_addr_uaddr, addrlen)
+	argstr = sprintf("%d, %s, %d", sockfd,
+			 _struct_sockaddr_u(my_addr_uaddr, addrlen), addrlen)
+}
+probe __syscall.bind = kernel.function("sys_bind").call ?
+{
 	sockfd = __int32($fd)
 	my_addr_uaddr = $umyaddr
 	addrlen = __int32($addrlen)
-	@_af_inet_info_u(my_addr_uaddr, addrlen)
-	argstr = sprintf("%d, %s, %d", __int32($fd), _struct_sockaddr_u($umyaddr, addrlen), addrlen)
 }
-probe syscall.bind.return = kernel.function("sys_bind").return ?
+probe __syscall.socketcall.bind = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_BIND %}) next;
+	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	my_addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	addrlen = __int32(user_ulong(&@cast($args, "ulong")[2]))
+}
+probe syscall.bind.return = kernel.function("sys_bind").return ?,
+	__syscall.socketcall.bind.return ?
 {
 	name = "bind"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.bind.return =
+	kernel.function("sys_socketcall").return ?
+{
+	if ($call != %{ SYS_BIND %}) next;
 }
 
 # brk ________________________________________________________
@@ -695,19 +712,36 @@ probe syscall.close.return = kernel.function("sys_close").return
 
 # connect ____________________________________________________
 # long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
-probe syscall.connect = kernel.function("sys_connect").call ?
+probe syscall.connect = __syscall.connect ?, __syscall.socketcall.connect ?
 {
 	name = "connect"
+	@_af_inet_info_u(serv_addr_uaddr, addrlen)
+	argstr = sprintf("%d, %s, %u", sockfd,
+			 _struct_sockaddr_u(serv_addr_uaddr, addrlen), addrlen)
+}
+probe __syscall.connect = kernel.function("sys_connect").call ?
+{
 	sockfd = __int32($fd)
 	serv_addr_uaddr = $uservaddr
 	addrlen = __uint32($addrlen)
-	@_af_inet_info_u(serv_addr_uaddr, addrlen)
-	argstr = sprintf("%d, %s, %u", sockfd, _struct_sockaddr_u($uservaddr, addrlen), addrlen)
 }
-probe syscall.connect.return = kernel.function("sys_connect").return ?
+probe __syscall.socketcall.connect = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_CONNECT %}) next;
+	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	serv_addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	addrlen = __uint32(user_ulong(&@cast($args, "ulong")[2]))
+}
+probe syscall.connect.return = kernel.function("sys_connect").return ?,
+	__syscall.socketcall.connect.return
 {
 	name = "connect"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.connect.return =
+	kernel.function("sys_socketcall").return ?
+{
+	if ($call != %{ SYS_CONNECT %}) next;
 }
 
 # creat
@@ -1327,7 +1361,7 @@ probe syscall.fgetxattr = kernel.function("sys_fgetxattr").call
 %)
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
-	size = $size
+	size = __ulong($size)
 	argstr = sprintf("%d, %s, %p, %u", filedes, user_string_quoted($name),
 			 value_uaddr, size)
 }
@@ -1365,7 +1399,7 @@ probe syscall.flistxattr = kernel.function("sys_flistxattr").call
 	name = "flistxattr"
 	filedes = __int32($fd)
 	list_uaddr = $list
-	size = $size
+	size = __ulong($size)
 	argstr = sprintf("%d, %p, %u", filedes, list_uaddr, size)
 }
 probe syscall.flistxattr.return = kernel.function("sys_flistxattr").return
@@ -1450,13 +1484,13 @@ probe syscall.fsetxattr = kernel.function("sys_fsetxattr").call
 	name_uaddr = $name
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
-	value_str = _stp_xattr_val_str($value, $size)
-	size = $size
+	size = __ulong($size)
+	value_str = _stp_xattr_val_str($value, size)
 	flags = __int32($flags)
 	flags_str = _stp_xattr_flags_str(__int32($flags))
 	argstr = sprintf("%d, %s, %s, %u, %s", __int32($fd),
 			 user_string_quoted($name),
-			 _stp_xattr_val_str($value, $size), $size,
+			 _stp_xattr_val_str($value, size), size,
 			 _stp_xattr_flags_str(__int32($flags)))
 }
 probe syscall.fsetxattr.return = kernel.function("sys_fsetxattr").return
@@ -1556,9 +1590,9 @@ probe syscall.fstatfs64 = kernel.function("sys_fstatfs64").call ?,
 {
 	name = "fstatfs64"
 	fd = __int32($fd)
-	sz = $sz
+	sz = __ulong($sz)
 	buf_uaddr = $buf
-	argstr = sprintf("%d, %u, %p", __int32($fd), $sz, $buf)
+	argstr = sprintf("%d, %u, %p", __int32($fd), __ulong($sz), $buf)
 }
 probe syscall.fstatfs64.return = kernel.function("sys_fstatfs64").return ?,
 	kernel.function("compat_sys_fstatfs64").return ?
@@ -1930,20 +1964,38 @@ probe __syscall.get_mempolicy.return =
 }
 
 # getpeername ________________________________________________
-# long sys_getpeername(int fd, struct sockaddr __user *usockaddr, int __user *usockaddr_len)
+# long sys_getpeername(int fd, struct sockaddr __user *usockaddr,
+#		       int __user *usockaddr_len)
 #
-probe syscall.getpeername = kernel.function("sys_getpeername").call ?
+probe syscall.getpeername = __syscall.getpeername ?,
+	__syscall.socketcall.getpeername ?
 {
 	name = "getpeername"
+	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
+}
+probe __syscall.getpeername = kernel.function("sys_getpeername").call ?
+{
 	s = __int32($fd)
 	name_uaddr = $usockaddr
 	namelen_uaddr = $usockaddr_len
-	argstr = sprintf("%d, %p, %p", s, $usockaddr, $usockaddr_len)
 }
-probe syscall.getpeername.return = kernel.function("sys_getpeername").return ?
+probe __syscall.socketcall.getpeername = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_GETPEERNAME %}) next;
+	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	name_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	namelen_uaddr = user_ulong(&@cast($args, "ulong")[2])
+}
+probe syscall.getpeername.return = kernel.function("sys_getpeername").return ?,
+	__syscall.socketcall.getpeername.return ?
 {
 	name = "getpeername"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.getpeername.return =
+	kernel.function("sys_socketcall").return ?
+{
+	if ($call != %{ SYS_GETPEERNAME %}) next;
 }
 
 # getpgid ____________________________________________________
@@ -2022,10 +2074,11 @@ probe syscall.getrandom = kernel.function("sys_getrandom").call ?
 {
 	name = "getrandom"
 	buf = user_string_quoted($buf)
-	count = $count
-	flags = $flags
-	flags_str = _getrandom_flags_str($flags)
-	argstr = sprintf("%s, %u, %s", user_string_quoted($buf), $count, flags_str)
+	count = __ulong($count)
+	flags = __uint32($flags)
+	flags_str = _getrandom_flags_str(__uint32($flags))
+	argstr = sprintf("%s, %u, %s", user_string_quoted($buf), count,
+			 flags_str)
 }
 probe syscall.getrandom.return = kernel.function("sys_getrandom").return ?
 {
@@ -2157,18 +2210,35 @@ probe syscall.getsid.return = kernel.function("sys_getsid").return
 # long sys_getsockname(int fd,
 #		struct sockaddr __user *usockaddr,
 #		int __user *usockaddr_len)
-probe syscall.getsockname = kernel.function("sys_getsockname").call ?
+probe syscall.getsockname = __syscall.getsockname ?,
+	__syscall.socketcall.getsockname ?
 {
 	name = "getsockname"
+	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
+}
+probe __syscall.getsockname = kernel.function("sys_getsockname").call ?
+{
 	s = __int32($fd)
 	name_uaddr = $usockaddr
 	namelen_uaddr = $usockaddr_len
-	argstr = sprintf("%d, %p, %p", s, $usockaddr, $usockaddr_len)
 }
-probe syscall.getsockname.return = kernel.function("sys_getsockname").return ?
+probe __syscall.socketcall.getsockname = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_GETSOCKNAME %}) next;
+	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	name_uaddr = user_ulong(&@cast($args, "ulong")[1])
+	namelen_uaddr = user_ulong(&@cast($args, "ulong")[2])
+}
+probe syscall.getsockname.return = kernel.function("sys_getsockname").return ?,
+	__syscall.socketcall.getsockname.return ?
 {
 	name = "getsockname"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.getsockname.return =
+	kernel.function("sys_socketcall").return ?
+{
+	if ($call != %{ SYS_GETSOCKNAME %}) next;
 }
 
 # getsockopt _________________________________________________
@@ -2304,11 +2374,11 @@ probe syscall.getxattr = kernel.function("sys_getxattr").call
 %)
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
-	size = $size
+	size = __ulong($size)
 	argstr = sprintf("%s, %s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		user_string_quoted($name),
-		$value, $size)
+		$value, __ulong($size))
 }
 probe syscall.getxattr.return = kernel.function("sys_getxattr").return
 {
@@ -2325,9 +2395,9 @@ probe syscall.init_module = kernel.function("sys_init_module").call ?
 {
 	name = "init_module"
 	umod_uaddr = $umod
-	len = $len
+	len = __ulong($len)
 	uargs = user_string_quoted($uargs)
-	argstr = sprintf("%p, %u, %s", $umod, $len, user_string_quoted($uargs))
+	argstr = sprintf("%p, %u, %s", $umod, len, user_string_quoted($uargs))
 }
 probe syscall.init_module.return = kernel.function("sys_init_module").return ?
 {
@@ -2774,7 +2844,7 @@ probe syscall.lgetxattr = kernel.function("sys_lgetxattr").call
 %)
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
-	size = $size
+	size = __ulong($size)
 	argstr = sprintf("%s, %s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
 		user_string_quoted($name),
@@ -2834,17 +2904,32 @@ probe syscall.linkat.return = kernel.function("sys_linkat").return ?
 
 # listen _____________________________________________________
 # long sys_listen(int fd, int backlog)
-probe syscall.listen = kernel.function("sys_listen").call ?
+probe syscall.listen = __syscall.listen ?, __syscall.socketcall.listen ?
 {
 	name = "listen"
+	argstr = sprintf("%d, %d", sockfd, backlog)
+}
+probe __syscall.listen = kernel.function("sys_listen").call ?
+{
 	sockfd = __int32($fd)
 	backlog = __int32($backlog)
-	argstr = sprintf("%d, %d", __int32($fd), __int32($backlog))
 }
-probe syscall.listen.return = kernel.function("sys_listen").return ?
+probe __syscall.socketcall.listen = kernel.function("sys_socketcall").call ?
+{
+	if ($call != %{ SYS_LISTEN %}) next;
+	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
+	backlog = __int32(user_ulong(&@cast($args, "ulong")[1]))
+}
+probe syscall.listen.return = kernel.function("sys_listen").return ?,
+	__syscall.socketcall.listen.return
 {
 	name = "listen"
 	retstr = return_str(1, $return)
+}
+probe __syscall.socketcall.listen.return =
+	kernel.function("sys_socketcall").return ?
+{
+	if ($call != %{ SYS_LISTEN %}) next;
 }
 
 # listxattr __________________________________________________
@@ -2854,12 +2939,12 @@ probe syscall.listxattr = kernel.function("sys_listxattr").call
 {
 	name = "listxattr"
 	list_uaddr = $list
-	size = $size
+	size = __ulong($size)
 	path_uaddr = @choose_defined($pathname, $path)
 	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
-		$list, $size)
+		$list, __ulong($size))
 }
 probe syscall.listxattr.return = kernel.function("sys_listxattr").return
 {
@@ -2874,12 +2959,12 @@ probe syscall.llistxattr = kernel.function("sys_llistxattr").call
 {
 	name = "llistxattr"
 	list_uaddr = $list
-	size = $size
+	size = __ulong($size)
 	path_uaddr = @choose_defined($pathname, $path)
 	path = user_string_quoted(@choose_defined($pathname, $path))
 	argstr = sprintf("%s, %p, %u",
 		user_string_quoted(@choose_defined($pathname, $path)),
-		$list, $size)
+		$list, __ulong($size))
 }
 probe syscall.llistxattr.return = kernel.function("sys_llistxattr").return
 {
@@ -2998,14 +3083,14 @@ probe syscall.lsetxattr = kernel.function("sys_lsetxattr").call
 	name_uaddr = $name
 	name_str = user_string_quoted($name)
 	value_uaddr = $value
-	value_str = _stp_xattr_val_str($value, $size)
-	size = $size
+	size = __ulong($size)
+	value_str = _stp_xattr_val_str($value, size)
 	flags = __int32($flags)
 	flags_str = _stp_xattr_flags_str(__int32($flags))
 	argstr = sprintf("%s, %s, %s, %u, %s",
 			user_string_quoted(@choose_defined($pathname, $path)),
 			user_string_quoted($name),
-			_stp_xattr_val_str($value, $size), $size,
+			_stp_xattr_val_str($value, $size), __ulong($size),
 			_stp_xattr_flags_str(__int32($flags)))
 }
 probe syscall.lsetxattr.return = kernel.function("sys_lsetxattr").return
@@ -3052,11 +3137,11 @@ probe syscall.lstat.return = kernel.function("sys_lstat").return ?,
 probe syscall.madvise = kernel.function("sys_madvise").call ?
 {
 	name = "madvise"
-	start = $start
-	length = $len_in
+	start = __ulong($start)
+	length = __ulong($len_in)
 	advice = __int32($behavior)
 	advice_str = _madvice_advice_str(advice)
-	argstr = sprintf("%p, %u, %s", $start, $len_in,
+	argstr = sprintf("%p, %u, %s", start, length,
 			 _madvice_advice_str(advice))
 }
 probe syscall.madvise.return = kernel.function("sys_madvise").return ?
@@ -3234,15 +3319,16 @@ probe syscall.mknodat.return = kernel.function("sys_mknodat").return ?
 probe syscall.mlock = kernel.function("sys_mlock").call ?
 {
 	name = "mlock"
-	addr = $start
-	len = $len
-	argstr = sprintf("%p, %u", $start, $len)
+	addr = __ulong($start)
+	len = __ulong($len)
+	argstr = sprintf("%p, %u", addr, len)
 }
 probe syscall.mlock.return = kernel.function("sys_mlock").return ?
 {
 	name = "mlock"
 	retstr = return_str(1, $return)
 }
+
 # mlockall ___________________________________________________
 #
 # long sys_mlockall(int flags)
@@ -3265,10 +3351,10 @@ probe syscall.mlockall.return = kernel.function("sys_mlockall").return ?
 probe syscall.modify_ldt = kernel.function("sys_modify_ldt").call ?
 {
 	name = "modify_ldt"
-	func = $func
+	func = __int32($func)
 	ptr_uaddr = $ptr
-	bytecount = $bytecount
-	argstr = sprintf("%d, %p, %d", $func, $ptr, $bytecount)
+	bytecount = __ulong($bytecount)
+	argstr = sprintf("%d, %p, %u", $func, $ptr, __ulong($bytecount))
 }
 probe syscall.modify_ldt.return = kernel.function("sys_modify_ldt").return ?
 {
@@ -3347,7 +3433,7 @@ probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?
 {
 	name = "mmap2"
 	start = $addr
-	length = $len
+	length = __ulong($len)
 	prot = $prot
 	flags = $flags
 	# Although the kernel gets an unsigned long fd, on the
@@ -3356,7 +3442,7 @@ probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?
 	# $pgoff is the number of pages. Convert this back into a
 	# number of bytes.
 	pgoffset = $pgoff * %{ PAGE_SIZE %}
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, __ulong($len),
 		_mprotect_prot_str($prot), _mmap_flags($flags),
 		__int32($fd), pgoffset)
 }
@@ -3559,10 +3645,10 @@ probe syscall.mq_timedsend =
 	name = "mq_timedsend"
 	mqdes = __int32($mqdes)
 	msg_ptr_uaddr = $u_msg_ptr
-	msg_prio = $msg_prio
+	msg_prio = __uint32($msg_prio)
 	abs_timeout_uaddr = $u_abs_timeout
-	argstr = sprintf("%d, %p, %u, %d, %p", mqdes, $u_msg_ptr, msg_len,
-		$msg_prio, $u_abs_timeout)
+	argstr = sprintf("%d, %p, %u, %u, %p", mqdes, $u_msg_ptr, msg_len,
+		__uint32($msg_prio), $u_abs_timeout)
 }
 probe __syscall.compat_mq_timedsend = kernel.function("compat_sys_mq_timedsend").call
 {
@@ -3724,12 +3810,13 @@ probe syscall.msgrcv = kernel.function("sys_msgrcv").call ?
 	name = "msgrcv"
 	msqid = __int32($msqid)
 	msgp_uaddr = $msgp
-	msgsz = $msgsz
+	msgsz = __ulong($msgsz)
 	msgtyp = $msgtyp
 	msgflg = __int32($msgflg)
 	msgflg_str = _stp_msgflg_str(__int32($msgflg))
 	argstr = sprintf("%d, %p, %u, %d, %s", __int32($msqid), $msgp,
-			 $msgsz, $msgtyp, _stp_msgflg_str(__int32($msgflg)))
+			 __ulong($msgsz), $msgtyp,
+			 _stp_msgflg_str(__int32($msgflg)))
 }
 probe syscall.msgrcv.return = kernel.function("sys_msgrcv").return ?
 {
@@ -3806,10 +3893,10 @@ probe syscall.msgsnd = kernel.function("sys_msgsnd").call ?
 	name = "msgsnd"
 	msqid = __int32($msqid)
 	msgp_uaddr = $msgp
-	msgsz = $msgsz
+	msgsz = __ulong($msgsz)
 	msgflg = __int32($msgflg)
 	msgflg_str = _stp_msgflg_str(__int32($msgflg))
-	argstr = sprintf("%d, %p, %u, %s", __int32($msqid), $msgp, $msgsz,
+	argstr = sprintf("%d, %p, %u, %s", __int32($msqid), $msgp, msgsz,
 			 _stp_msgflg_str(__int32($msgflg)))
 }
 probe syscall.msgsnd.return = kernel.function("sys_msgsnd").return ?
@@ -3869,7 +3956,7 @@ probe syscall.msync = kernel.function("sys_msync").call ?
 {
 	name = "msync"
 	start = $start
-	length = $len
+	length = __ulong($len)
 	flags = __int32($flags)
 	argstr = sprintf("%p, %u, %s", start, length, _msync_flag_str(flags))
 }
@@ -3913,7 +4000,7 @@ probe syscall.munmap = kernel.function("sys_munmap").call
 {
 	name = "munmap"
 	start = $addr
-	length = $len
+	length = __ulong($len)
 	argstr = sprintf("%p, %u", start, length)
 }
 probe syscall.munmap.return = kernel.function("sys_munmap").return

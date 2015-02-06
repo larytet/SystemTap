@@ -225,9 +225,12 @@ int main()
     //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     // Note that the exact failure return value can differ here, so
-    // we'll just ignore it.
+    // we'll just ignore it. Also note that on a 32-bit kernel (i686
+    // for instance), MAXSTRINGLEN is only 256. Passing a -1 as the
+    // flags value can produce a string that will cause argstr to get
+    // too big. So, we'll make the end of the argument optional.
     recvmsg(s, &msgdat, -1);
-    //staptest// recvmsg (NNNN, XXXX, MSG_[^ ]+|XXXX) = -NNNN
+    //staptest// recvmsg (NNNN, XXXX, MSG_[^ ]+[[[[|XXXX]]]]?) = -NNNN
 
     close(s);
     //staptest// close (NNNN) = 0

@@ -151,9 +151,13 @@ int main()
     sendto(s, buf, sizeof(buf), 0, (struct sockaddr *)-1, sizeof(sin1));
     //staptest// sendto (NNNN, XXXX, 1024, 0x0, {\.\.\.}, 16) = -NNNN (EFAULT)
 
-    // Ignore the return value on this sendto() call.
+    // Ignore the return value on this sendto() call.  Note that on a
+    // 32-bit kernel (i686 for instance), MAXSTRINGLEN is only
+    // 256. Passing a -1 as the flags value can produce a string that
+    // will cause argstr to get too big. So, we'll make the end of the
+    // arguments optional.
     sendto(s, buf, sizeof(buf), -1, (struct sockaddr *)&sin1, sizeof(sin1));
-    //staptest// sendto (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX, {AF_INET, 0.0.0.0, NNNN}, 16)
+    //staptest// sendto (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, {AF_INET, 0.0.0.0, NNNN}, 16]]]]?) = NNNN
 
     close(s);
     //staptest// close (NNNN) = 0

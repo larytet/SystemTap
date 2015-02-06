@@ -80,7 +80,7 @@ int main() {
     //staptest// mq_open ("test_queue", O_RDONLY|O_CREAT, 037777777777, XXXX) = NNNN
 #else
     // 32-on-64 gets the mode value passed in 16-bit 'compat_mode_t',
-    //staptest// mq_open ("test_queue", O_RDONLY|O_CREAT, 0177777, XXXX) = NNNN
+    //staptest// mq_open ("test_queue", O_RDONLY|O_CREAT, [[[[0177777!!!!037777777777]]]], XXXX) = NNNN
 #endif
 
     mq_open(QUEUE_NAME, O_CREAT | O_RDONLY, 0644, -1);

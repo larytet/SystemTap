@@ -37,11 +37,15 @@ int main()
   //staptest// inotify_add_watch (NNNN, [f]+, IN_MODIFY) = -NNNN (EFAULT)
 #endif
 
+  // We've got a problem here. On a 32-bit kernel (i686 for instance),
+  // MAXSTRINGLEN is only 256. Passing a -1 as the mount flags value
+  // can produce a string that will cause argstr to get too big. So,
+  // we'll make the end of the arguments optional.
   wd = inotify_add_watch(fd, "/tmp", -1);
-  //staptest// inotify_add_watch (NNNN, "/tmp", IN_[^ ]+|XXXX) =
+  //staptest// inotify_add_watch (NNNN, "/tmp", IN_[^ ]+[[[[|XXXX]]]]?) = NNNN
 
   inotify_rm_watch(fd, wd);
-  //staptest// inotify_rm_watch (NNNN, NNNN) =
+  //staptest// inotify_rm_watch (NNNN, NNNN) = NNNN
 
   inotify_rm_watch(-1, wd);
   //staptest// inotify_rm_watch (-1, NNNN) = -NNNN (EBADF)
