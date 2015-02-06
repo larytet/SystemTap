@@ -1,14 +1,20 @@
 #!/usr/bin/env tclsh
 
-# List of systemcalls that the systemtap.syscall tests do not cover.
-
-set badlist { tux }
+# List of systemcalls that the systemtap.syscall tests will not cover.
+#
+# - bdflush: obsolete since 2.6
+# - dmi_field_show: Non-syscall picked up by the "sys_*" wildcard below.
+# - dmi_modalias_show: Ditto.
+# - ni_syscall: non-implemented syscall
+# - socketcall: common entry point for other socket syscalls
+# - tux: obsolete
+set badlist { bdflush dmi_field_show dmi_modalias_show ni_syscall socketcall tux }
 
 foreach f $badlist {
     set funcname($f) -1
 }
 
-set cmd {stap -w -p2 -e "probe kernel.function(\"sys_*\"), kernel.function(\"sys32_*\") ? \{\}"}
+set cmd {stap -w -p2 -e "probe kernel.function(\"sys_*\").call, kernel.function(\"sys32_*\").call ? \{\}"}
 if {[catch {eval exec $cmd} output]} {
     puts "ERROR running stap: $output"
     exit

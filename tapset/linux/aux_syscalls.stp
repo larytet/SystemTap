@@ -4011,3 +4011,531 @@ function _finit_module_flags_str:string(flags:long)
 			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %}
+
+%{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include <linux/prctl.h>
+#else
+#include <uapi/linux/prctl.h>
+#endif
+
+static const _stp_val_array const _stp_prctl_option_list[] = {
+	V(PR_SET_PDEATHSIG),
+	V(PR_GET_PDEATHSIG),
+	V(PR_GET_DUMPABLE),
+	V(PR_SET_DUMPABLE),
+	V(PR_GET_UNALIGN),
+	V(PR_SET_UNALIGN),
+	V(PR_GET_KEEPCAPS),
+	V(PR_SET_KEEPCAPS),
+	V(PR_GET_FPEMU),
+	V(PR_SET_FPEMU),
+	V(PR_GET_FPEXC),
+	V(PR_SET_FPEXC),
+	V(PR_GET_TIMING),
+	V(PR_SET_TIMING),
+	V(PR_SET_NAME),
+	V(PR_GET_NAME),
+	V(PR_GET_ENDIAN),
+	V(PR_SET_ENDIAN),
+#ifdef PR_GET_SECCOMP
+	V(PR_GET_SECCOMP),
+#endif
+#ifdef PR_SET_SECCOMP
+	V(PR_SET_SECCOMP),
+#endif
+#ifdef PR_CAPBSET_READ
+	V(PR_CAPBSET_READ),
+#endif
+#ifdef PR_CAPBSET_DROP
+	V(PR_CAPBSET_DROP),
+#endif
+#ifdef PR_GET_TSC
+	V(PR_GET_TSC),
+#endif
+#ifdef PR_SET_TSC
+	V(PR_SET_TSC),
+#endif
+#ifdef PR_GET_SECUREBITS
+	V(PR_GET_SECUREBITS),
+#endif
+#ifdef PR_SET_SECUREBITS
+	V(PR_SET_SECUREBITS),
+#endif
+#ifdef PR_SET_TIMERSLACK
+	V(PR_SET_TIMERSLACK),
+#endif
+#ifdef PR_GET_TIMERSLACK
+	V(PR_GET_TIMERSLACK),
+#endif
+#ifdef PR_TASK_PERF_EVENTS_DISABLE
+	V(PR_TASK_PERF_EVENTS_DISABLE),
+#endif
+#ifdef PR_TASK_PERF_EVENTS_ENABLE
+	V(PR_TASK_PERF_EVENTS_ENABLE),
+#endif
+#ifdef PR_MCE_KILL
+	V(PR_MCE_KILL),
+#endif
+#ifdef PR_MCE_KILL_GET
+	V(PR_MCE_KILL_GET),
+#endif
+#ifdef PR_SET_MM
+	V(PR_SET_MM),
+#endif
+#ifdef PR_SET_PTRACER
+	V(PR_SET_PTRACER),
+#endif
+#ifdef PR_SET_CHILD_SUBREAPER
+	V(PR_SET_CHILD_SUBREAPER),
+#endif
+#ifdef PR_GET_CHILD_SUBREAPER
+	V(PR_GET_CHILD_SUBREAPER),
+#endif
+#ifdef PR_SET_NO_NEW_PRIVS
+	V(PR_SET_NO_NEW_PRIVS),
+#endif
+#ifdef PR_GET_NO_NEW_PRIVS
+	V(PR_GET_NO_NEW_PRIVS),
+#endif
+#ifdef PR_GET_TID_ADDRESS
+	V(PR_GET_TID_ADDRESS),
+#endif
+#ifdef PR_SET_THP_DISABLE
+	V(PR_SET_THP_DISABLE),
+#endif
+#ifdef PR_GET_THP_DISABLE
+	V(PR_GET_THP_DISABLE),
+#endif
+#ifdef PR_MPX_ENABLE_MANAGEMENT
+	V(PR_MPX_ENABLE_MANAGEMENT),
+#endif
+#ifdef PR_MPX_DISABLE_MANAGEMENT
+	V(PR_MPX_DISABLE_MANAGEMENT),
+#endif
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_UNALIGN and returned by PR_GET_UNALIGN.
+static const _stp_val_array const _stp_prctl_unalign_option_list[] = {
+	V(PR_UNALIGN_NOPRINT),
+	V(PR_UNALIGN_SIGBUS),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_FPEMU and returned by PR_GET_FPEMU.
+static const _stp_val_array const _stp_prctl_fpemu_option_list[] = {
+	V(PR_FPEMU_NOPRINT),
+	V(PR_FPEMU_SIGFPE),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_FPEXC and returned by PR_GET_FPEXC.
+static const _stp_val_array const _stp_prctl_fpexc_option_list[] = {
+	V(PR_FP_EXC_SW_ENABLE),
+	V(PR_FP_EXC_DIV),
+	V(PR_FP_EXC_OVF),
+	V(PR_FP_EXC_UND),
+	V(PR_FP_EXC_RES),
+	V(PR_FP_EXC_INV),
+	V(PR_FP_EXC_DISABLED),
+	V(PR_FP_EXC_NONRECOV),
+	V(PR_FP_EXC_ASYNC),
+	V(PR_FP_EXC_PRECISE),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_TIMING and returned by PR_GET_TIMING.
+static const _stp_val_array const _stp_prctl_timing_option_list[] = {
+	V(PR_TIMING_STATISTICAL),
+	V(PR_TIMING_TIMESTAMP),
+	{0, NULL}
+};
+
+// Options that get passed to PR_SET_ENDIAN and returned by PR_GET_ENDIAN.
+static const _stp_val_array const _stp_prctl_endian_option_list[] = {
+	V(PR_ENDIAN_BIG),
+	V(PR_ENDIAN_LITTLE),
+	V(PR_ENDIAN_PPC_LITTLE),
+	{0, NULL}
+};
+
+#ifdef PR_SET_TSC
+// Options that get passed to PR_SET_TSC and returned by PR_GET_TSC.
+static const _stp_val_array const _stp_prctl_tsc_option_list[] = {
+	V(PR_TSC_ENABLE),
+	V(PR_TSC_SIGSEGV),
+	{0, NULL}
+};
+#endif
+
+#ifdef PR_MCE_KILL
+// Options that get passed to PR_MCE_KILL and returned by PR_MCE_KILL_GET.
+static const _stp_val_array const _stp_prctl_mce_kill_option_list[] = {
+	V(PR_MCE_KILL_CLEAR),
+	V(PR_MCE_KILL_SET),
+	{0, NULL}
+};
+// Options for PR_MCE_KILL with PR_MCE_KILL_SET.
+static const _stp_val_array const _stp_prctl_mce_kill_option2_list[] = {
+	V(PR_MCE_KILL_LATE),
+	V(PR_MCE_KILL_EARLY),
+	V(PR_MCE_KILL_DEFAULT),
+	{0, NULL}
+};
+#endif
+
+#ifdef PR_SET_MM
+// Options that get passed to PR_SET_MM.
+static const _stp_val_array const _stp_prctl_mm_option_list[] = {
+	V(PR_SET_MM_START_CODE),
+	V(PR_SET_MM_END_CODE),
+	V(PR_SET_MM_START_DATA),
+	V(PR_SET_MM_END_DATA),
+	V(PR_SET_MM_START_STACK),
+	V(PR_SET_MM_START_BRK),
+	V(PR_SET_MM_BRK),
+	V(PR_SET_MM_ARG_START),
+	V(PR_SET_MM_ARG_END),
+	V(PR_SET_MM_ENV_START),
+	V(PR_SET_MM_ENV_END),
+	V(PR_SET_MM_AUXV),
+	V(PR_SET_MM_EXE_FILE),
+#ifdef PR_SET_MM_MAP
+	V(PR_SET_MM_MAP),
+#endif
+#ifdef PR_SET_MM_MAP_SIZE
+	V(PR_SET_MM_MAP_SIZE),
+#endif
+	{0, NULL}
+};
+#endif
+
+#ifdef PR_SET_PTRACER
+// Options that get passed to PR_SET_PTRACER.
+static const _stp_val_array const _stp_prctl_ptracer_option_list[] = {
+	V(PR_SET_PTRACER_ANY),
+	{0, NULL}
+};
+#endif
+
+#include <linux/capability.h>
+
+static const _stp_val_array const _stp_linux_capability_list[] = {
+	V(CAP_CHOWN),
+	V(CAP_DAC_OVERRIDE),
+	V(CAP_DAC_READ_SEARCH),
+	V(CAP_FOWNER),
+	V(CAP_FSETID),
+	V(CAP_KILL),
+	V(CAP_SETGID),
+	V(CAP_SETUID),
+	V(CAP_SETPCAP),
+	V(CAP_LINUX_IMMUTABLE),
+	V(CAP_NET_BIND_SERVICE),
+	V(CAP_NET_BROADCAST),
+	V(CAP_NET_ADMIN),
+	V(CAP_NET_RAW),
+	V(CAP_IPC_LOCK),
+	V(CAP_IPC_OWNER),
+	V(CAP_SYS_MODULE),
+	V(CAP_SYS_RAWIO),
+	V(CAP_SYS_CHROOT),
+	V(CAP_SYS_PTRACE),
+	V(CAP_SYS_PACCT),
+	V(CAP_SYS_ADMIN),
+	V(CAP_SYS_BOOT),
+	V(CAP_SYS_NICE),
+	V(CAP_SYS_RESOURCE),
+	V(CAP_SYS_TIME),
+	V(CAP_SYS_TTY_CONFIG),
+	V(CAP_MKNOD),
+	V(CAP_LEASE),
+	V(CAP_AUDIT_WRITE),
+	V(CAP_AUDIT_CONTROL),
+#ifdef CAP_SETFCAP
+	V(CAP_SETFCAP),
+#endif
+#ifdef CAP_MAC_OVERRIDE
+	V(CAP_MAC_OVERRIDE),
+#endif
+#ifdef CAP_MAC_ADMIN
+	V(CAP_MAC_ADMIN),
+#endif
+#ifdef CAP_SYSLOG
+	V(CAP_SYSLOG),
+#endif
+#ifdef CAP_WAKE_ALARM
+	V(CAP_WAKE_ALARM),
+#endif
+#ifdef CAP_BLOCK_SUSPEND
+	V(CAP_BLOCK_SUSPEND),
+#endif
+#ifdef CAP_AUDIT_READ
+	V(CAP_AUDIT_READ),
+#endif
+	{0, NULL}
+};
+
+#ifdef PR_SET_SECUREBITS
+#include <linux/securebits.h>
+
+#ifndef SECBIT_NOROOT
+#define SECBIT_NOROOT		(issecure_mask(SECURE_NOROOT))
+#endif
+#ifndef SECBIT_NOROOT_LOCKED
+#define SECBIT_NOROOT_LOCKED	(issecure_mask(SECURE_NOROOT_LOCKED))
+#endif
+#ifndef SECBIT_NO_SETUID_FIXUP
+#define SECBIT_NO_SETUID_FIXUP	(issecure_mask(SECURE_NO_SETUID_FIXUP))
+#endif
+#ifndef SECBIT_NO_SETUID_FIXUP_LOCKED
+#define SECBIT_NO_SETUID_FIXUP_LOCKED \
+			(issecure_mask(SECURE_NO_SETUID_FIXUP_LOCKED))
+#endif
+#ifndef SECBIT_KEEP_CAPS
+#define SECBIT_KEEP_CAPS	(issecure_mask(SECURE_KEEP_CAPS))
+#endif
+#ifndef SECBIT_KEEP_CAPS_LOCKED
+#define SECBIT_KEEP_CAPS_LOCKED (issecure_mask(SECURE_KEEP_CAPS_LOCKED))
+#endif
+
+static const _stp_val_array const _stp_linux_securebits_list[] = {
+	V(SECBIT_NOROOT),
+	V(SECBIT_NOROOT_LOCKED),
+	V(SECBIT_NO_SETUID_FIXUP),
+	V(SECBIT_NO_SETUID_FIXUP_LOCKED),
+	V(SECBIT_KEEP_CAPS),
+	V(SECBIT_KEEP_CAPS_LOCKED),
+	{0, NULL}
+};
+#endif
+%}
+
+function _prctl_argstr:string(option:long, arg2:long, arg3:long, arg4:long,
+			      arg5:long)
+%{ /* pure */
+	int len;
+
+	_stp_lookup_str(_stp_prctl_option_list, (unsigned int)STAP_ARG_option,
+			STAP_RETVALUE, MAXSTRINGLEN);
+	switch ((unsigned int)STAP_ARG_option) {
+	// Options that take no arguments:
+	case PR_GET_DUMPABLE:
+	case PR_GET_TIMING:
+	case PR_GET_KEEPCAPS:
+#ifdef PR_GET_SECCOMP
+	case PR_GET_SECCOMP:
+#endif
+#ifdef PR_TASK_PERF_EVENTS_DISABLE
+	case PR_TASK_PERF_EVENTS_DISABLE:
+#endif
+#ifdef PR_TASK_PERF_EVENTS_ENABLE
+	case PR_TASK_PERF_EVENTS_ENABLE:
+#endif
+#ifdef PR_GET_TIMERSLACK
+	case PR_GET_TIMERSLACK:
+#endif
+#ifdef PR_MCE_KILL_GET
+	case PR_MCE_KILL_GET:
+#endif
+#ifdef PR_GET_NO_NEW_PRIVS
+	case PR_GET_NO_NEW_PRIVS:
+#endif
+#ifdef PR_GET_THP_DISABLE
+	case PR_GET_THP_DISABLE:
+#endif
+#ifdef PR_MPX_ENABLE_MANAGEMENT
+	case PR_MPX_ENABLE_MANAGEMENT:
+#endif
+#ifdef PR_MPX_DISABLE_MANAGEMENT
+	case PR_MPX_DISABLE_MANAGEMENT:
+#endif
+#ifdef PR_GET_SECUREBITS
+	case PR_GET_SECUREBITS:
+#endif
+		// We're done.
+		break;
+
+	// Options that use arg2:
+	case PR_SET_UNALIGN:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_unalign_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_FPEMU:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_fpemu_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_FPEXC:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_fpexc_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_TIMING:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_timing_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+	case PR_SET_ENDIAN:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_endian_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#ifdef PR_SET_TSC
+	case PR_SET_TSC:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_tsc_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#endif
+#ifdef PR_SET_PTRACER
+	case PR_SET_PTRACER:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		// Notice we passing arg2 as a signed long
+		// here. PR_SET_PTRACER_ANY is -1.
+		_stp_lookup_str2(_stp_prctl_ptracer_option_list,
+				 (_stp_is_compat_task()
+				  ? (long)(int)STAP_ARG_arg2
+				  : (long)STAP_ARG_arg2),
+				 STAP_RETVALUE + len,
+				 MAXSTRINGLEN - len, 10);
+		break;
+#endif
+#if defined(PR_CAPBSET_READ) && defined(PR_CAPBSET_DROP)
+	case PR_CAPBSET_READ:
+	case PR_CAPBSET_DROP:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_linux_capability_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#endif
+#ifdef PR_SET_SECUREBITS
+	case PR_SET_SECUREBITS:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_or_str(_stp_linux_securebits_list,
+				   (unsigned long)STAP_ARG_arg2,
+				   STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		break;
+#endif
+	case PR_SET_PDEATHSIG:
+	case PR_GET_PDEATHSIG:
+	case PR_GET_UNALIGN:
+	case PR_GET_FPEMU:
+	case PR_GET_FPEXC:
+	case PR_SET_NAME:
+	case PR_GET_NAME:
+	case PR_GET_ENDIAN:
+#ifdef PR_GET_TSC
+	case PR_GET_TSC:
+#endif
+#ifdef PR_GET_TID_ADDRESS
+	case PR_GET_TID_ADDRESS:
+#endif
+#ifdef PR_GET_CHILD_SUBREAPER
+	case PR_GET_CHILD_SUBREAPER:
+#endif
+#ifdef PR_SET_THP_DISABLE
+	case PR_SET_THP_DISABLE:
+#endif
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg2);
+		break;
+	case PR_SET_DUMPABLE:
+	case PR_SET_KEEPCAPS:
+#ifdef PR_SET_CHILD_SUBREAPER
+	case PR_SET_CHILD_SUBREAPER:
+#endif
+#ifdef PR_SET_NO_NEW_PRIVS
+	case PR_SET_NO_NEW_PRIVS:
+#endif
+#ifdef PR_SET_TIMERSLACK
+	case PR_SET_TIMERSLACK:
+#endif
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", %lu", (unsigned long)STAP_ARG_arg2);
+		break;
+
+	// Options that use arg[23]:
+#ifdef PR_MCE_KILL
+	case PR_MCE_KILL:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_mce_kill_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		switch ((unsigned long)STAP_ARG_arg2) {
+		case PR_MCE_KILL_SET:
+			strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+			len = strlen(STAP_RETVALUE);
+			_stp_lookup_str(_stp_prctl_mce_kill_option2_list,
+					(unsigned long)STAP_ARG_arg3,
+					STAP_RETVALUE + len,
+					MAXSTRINGLEN - len);
+			break;
+		case PR_MCE_KILL_CLEAR:
+			break;
+		default:
+			len = strlen(STAP_RETVALUE);
+			_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg3);
+			break;
+		}
+		break;
+#endif
+#ifdef PR_SET_SECCOMP
+	case PR_SET_SECCOMP:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_seccomp_mode_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg3);
+		break;
+#endif
+#ifdef PR_SET_MM
+	case PR_SET_MM:
+		strlcat(STAP_RETVALUE, ", ", MAXSTRINGLEN);
+		len = strlen(STAP_RETVALUE);
+		_stp_lookup_str(_stp_prctl_mm_option_list,
+				(unsigned long)STAP_ARG_arg2,
+				STAP_RETVALUE + len, MAXSTRINGLEN - len);
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx", (unsigned long)STAP_ARG_arg3);
+		break;
+#endif
+
+	// Options that use arg[2-5]
+	default:
+		len = strlen(STAP_RETVALUE);
+		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+			      ", 0x%lx, 0x%lx, 0x%lx, 0x%lx",
+			      (unsigned long)STAP_ARG_arg2,
+			      (unsigned long)STAP_ARG_arg3,
+			      (unsigned long)STAP_ARG_arg4,
+			      (unsigned long)STAP_ARG_arg5);
+		break;
+	}
+%}
