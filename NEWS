@@ -31,6 +31,13 @@
   - _adjtx_mode_str(), _statfs_f_type_str(), _waitid_opt_str(),
     _internal_wait_opt_str(), and _epoll_events_str().
 
+- New tapset functions [u]symfileline(), [u]symfile() and [u]symline() will
+  return a string containing the specified portion of the filename:linenumber
+  match from a given address.
+
+  Using these functions may result in large generated modules from stored
+  address->file:line information.
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:
