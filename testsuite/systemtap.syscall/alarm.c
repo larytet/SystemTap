@@ -41,7 +41,7 @@ int main()
 
   alarm(-1);
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
-  //staptest// setitimer (ITIMER_REAL, \[0.000000,-1.000000\], XXXX) = 0
+  //staptest// setitimer (ITIMER_REAL, \[0.000000,-1.000000\], XXXX) = NNNN
 #else
 #if __WORDSIZE == 64
   // Sigh. On s390x and ppc64, the kernel gets a 32-bit value.
