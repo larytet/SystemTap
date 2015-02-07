@@ -62,14 +62,14 @@ int main()
 #endif
 
   epoll_wait(fd, events, 17, 0);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// epoll_pwait (NNNN, XXXX, 17, 0, XXXX, NNNN) = 0
 #else
   //staptest// epoll_wait (NNNN, XXXX, 17, 0) = 0
 #endif
 
   epoll_wait(-1, events, 17, 0);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// epoll_pwait (-1, XXXX, 17, 0, XXXX, NNNN) = -NNNN (EBADF)
 #else
   //staptest// epoll_wait (-1, XXXX, 17, 0) = -NNNN (EBADF)
@@ -78,21 +78,21 @@ int main()
   epoll_wait(fd, (struct epoll_event *)-1, 17, 0);
 #ifdef __s390__
   //staptest// epoll_wait (NNNN, 0x[7]?[f]+, 17, 0) =
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__aarch64__)
   //staptest// epoll_pwait (NNNN, 0x[f]+, 17, 0, XXXX, NNNN) = NNNN
 #else
   //staptest// epoll_wait (NNNN, 0x[f]+, 17, 0) =
 #endif
 
   epoll_wait(fd, events, -1, 0);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// epoll_pwait (NNNN, XXXX, -1, 0, XXXX, NNNN) = NNNN (EINVAL)
 #else
   //staptest// epoll_wait (NNNN, XXXX, -1, 0) = -NNNN (EINVAL)
 #endif
 
   epoll_wait(-1, events, 17, -1);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// epoll_pwait (-1, XXXX, 17, -1, XXXX, NNNN) = NNNN (EBADF)
 #else
   //staptest// epoll_wait (-1, XXXX, 17, -1) = -NNNN (EBADF)
@@ -134,7 +134,7 @@ int main()
   //staptest// close (NNNN) = 0
 
   poll(&pfd, 1, 0);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// ppoll (XXXX, 1, \[0.000000000\], XXXX, NNNN) = NNNN
 #else
   //staptest// poll (XXXX, 1, 0) = NNNN
@@ -143,14 +143,14 @@ int main()
   poll((struct pollfd *)-1, 1, 0);
 #ifdef __s390__
   //staptest// poll (0x[7]?[f]+, 1, 0) = -NNNN (EFAULT)
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__aarch64__)
   //staptest// ppoll (0x[f]+, 1, \[0.000000000\], XXXX, NNNN) = -NNNN (EFAULT)
 #else
   //staptest// poll (0x[f]+, 1, 0) = -NNNN (EFAULT)
 #endif
 
   poll(&pfd, -1, 0);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// ppoll (XXXX, 4294967295, \[0.000000000\], XXXX, NNNN) = -NNNN (EINVAL)
 #else
   //staptest// poll (XXXX, 4294967295, 0) = -NNNN (EINVAL)
@@ -159,7 +159,7 @@ int main()
   // A timetout value of -1 means an infinite timeout. So, we'll also
   // send a NULL pollfd structure pointer.
   poll(NULL, 1, -1);
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__aarch64__)
   //staptest// ppoll (0x0, 1, NULL, XXXX, NNNN) = -NNNN (EFAULT)
 #else
   //staptest// poll (0x0, 1, -1) = -NNNN (EFAULT)
