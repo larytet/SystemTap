@@ -144,7 +144,7 @@ int main()
     // Note that the exact return value can differ here, so we'll just
     // ignore it.
     sendmsg(s, &msgdat, -1);
-    //staptest// sendmsg (NNNN, XXXX, MSG_[^ ]+|XXXX)
+    //staptest// sendmsg (NNNN, XXXX, MSG_[^ ]+[[[[|XXXX]]]]?)
 
     close(s);
     //staptest// close (NNNN) = 0

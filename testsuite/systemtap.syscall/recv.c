@@ -162,7 +162,7 @@ int main()
     //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2.\[0]+], 0x0]]]]) = 1
 
     recv(s, buf, sizeof(buf), -1);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX[[[[, 0x0, 0x0]]]]?) = -NNNN
+    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, 0x0, 0x0]]]]?) = -NNNN
 
     recv(s, buf, (size_t)-1, MSG_DONTWAIT);
 #if __WORDSIZE == 64

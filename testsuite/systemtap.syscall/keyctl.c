@@ -47,7 +47,7 @@ int main() {
 
     // (*) Update a key
     syscall(__NR_keyctl, KEYCTL_UPDATE, key_id, "blah", 4);
-    //staptest// keyctl (KEYCTL_UPDATE, NNNN, "blah", 4) = 0
+    //staptest// keyctl (KEYCTL_UPDATE, NNNN, "blah", 4) = NNNN
 
     // (*) Revoke a key
     key_id_2 = __add_key("user", "testkey2", "somedata2", strlen("somedata2"), ring_id);

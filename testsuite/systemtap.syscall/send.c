@@ -150,7 +150,7 @@ int main()
 
     // Ignore the return value on this send() call.
     send(s, buf, sizeof(buf), -1);
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX[[[[, NULL, 0]]]]?)
+    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, NULL, 0]]]]?)
 
     close(s);
     //staptest// close (NNNN) = 0

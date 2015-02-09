@@ -1067,7 +1067,7 @@ probe __syscall.recv = kernel.function("sys_recv").call ?
 	@__syscall_gate(%{ __NR_recv %})
 	s = __int32($fd)
 	buf_uaddr = $ubuf
-	len = $size
+	len = __ulong($size)
 	flags = __uint32($flags)
 }
 probe syscall.recv.return = __syscall.socketcall.recv.return ?,
@@ -1134,7 +1134,7 @@ probe __syscall.recvfrom = kernel.function("sys_recvfrom").call ?
 	@__syscall_gate(%{ __NR_recvfrom %})
 	s = __int32($fd)
 	buf_uaddr = $ubuf
-	len = $size
+	len = __ulong($size)
 	flags = __uint32($flags)
 	addr_uaddr = $addr
 	addrlen_uaddr = $addr_len
