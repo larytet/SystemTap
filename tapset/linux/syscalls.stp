@@ -405,7 +405,7 @@ probe syscall.chmod = kernel.function("sys_chmod").call
 	# unsigned short (16-bits).
 	mode = @cast(&$mode, "unsigned int")
 %:
-	mode = $mode
+	mode = __uint32($mode)
 %)
 	argstr = sprintf("%s, %#o", user_string_quoted($filename), mode)
 }
@@ -1206,7 +1206,7 @@ probe syscall.fchmod = kernel.function("sys_fchmod").call
 	# unsigned short (16-bits).
 	mode = @cast(&$mode, "unsigned int")
 %:
-	mode = $mode
+	mode = __uint32($mode)
 %)
 	argstr = sprintf("%d, %#o", __int32($fd), mode)
 }
@@ -1234,7 +1234,7 @@ probe syscall.fchmodat = kernel.function("sys_fchmodat").call ?
 	# unsigned short (16-bits).
 	mode = @cast(&$mode, "unsigned int")
 %:
-	mode = $mode
+	mode = __uint32($mode)
 %)
 	argstr = sprintf("%s, %s, %#o", dirfd_str,
 			 user_string_quoted($filename), mode)
