@@ -303,7 +303,8 @@ probe nd_syscall.bdflush.return = kprobe.function("sys_bdflush").return ?
 
 # bind _______________________________________________________
 # long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
-probe nd_syscall.bind = __nd_syscall.bind ?, __nd_syscall.socketcall.bind ?
+probe nd_syscall.bind = __nd_syscall.bind ?, __nd_syscall.socketcall.bind ?,
+	__nd_syscall.compat_socketcall.bind ?
 {
 	name = "bind"
 	@_af_inet_info_u(my_addr_uaddr, addrlen)
@@ -312,6 +313,7 @@ probe nd_syscall.bind = __nd_syscall.bind ?, __nd_syscall.socketcall.bind ?
 }
 probe __nd_syscall.bind = kprobe.function("sys_bind") ?
 {
+	@__syscall_gate(%{ __NR_bind %})
 	asmlinkage()
 	sockfd = int_arg(1)
 	my_addr_uaddr = pointer_arg(2)
@@ -326,14 +328,29 @@ probe __nd_syscall.socketcall.bind = kprobe.function("sys_socketcall").call ?
 	my_addr_uaddr = user_ulong(&(__args)[1])
 	addrlen = __int32(user_ulong(&(__args)[2]))
 }
-probe nd_syscall.bind.return = kprobe.function("sys_bind").return ?,
-	__nd_syscall.socketcall.bind.return
+probe __nd_syscall.compat_socketcall.bind =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_BIND %}) next;
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	sockfd = user_int(&(__args)[0])
+	my_addr_uaddr = user_uint32(&(__args)[1])
+	addrlen = user_int(&(__args)[2])
+}
+probe nd_syscall.bind.return = __nd_syscall.bind.return ?,
+	__nd_syscall.socketcall.bind.return ?
 {
 	name = "bind"
 	retstr = returnstr(1)
 }
+probe __nd_syscall.bind.return = kprobe.function("sys_bind").return ?
+{
+	@__syscall_gate(%{ __NR_bind %})
+}
 probe __nd_syscall.socketcall.bind.return =
-	kprobe.function("sys_socketcall").return ?
+	kprobe.function("sys_socketcall").return ?,
+	kprobe.function("compat_sys_socketcall").return ?
 {
 	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_BIND %}) next;
 }
@@ -784,7 +801,8 @@ probe nd_syscall.close.return = kprobe.function("sys_close").return ?
 # connect ____________________________________________________
 # long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
 probe nd_syscall.connect = __nd_syscall.connect ?,
-	__nd_syscall.socketcall.connect ?
+	__nd_syscall.socketcall.connect ?,
+	__nd_syscall.compat_socketcall.connect ?
 {
 	name = "connect"
 	@_af_inet_info_u(serv_addr_uaddr, addrlen)
@@ -793,6 +811,7 @@ probe nd_syscall.connect = __nd_syscall.connect ?,
 }
 probe __nd_syscall.connect = kprobe.function("sys_connect") ?
 {
+	@__syscall_gate(%{ __NR_connect %})
 	asmlinkage()
 	sockfd = int_arg(1)
 	serv_addr_uaddr = pointer_arg(2)
@@ -807,14 +826,29 @@ probe __nd_syscall.socketcall.connect = kprobe.function("sys_socketcall").call ?
 	serv_addr_uaddr = user_ulong(&(__args)[1])
 	addrlen = __uint32(user_ulong(&(__args)[2]))
 }
-probe nd_syscall.connect.return = kprobe.function("sys_connect").return ?,
+probe __nd_syscall.compat_socketcall.connect =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_CONNECT %}) next;
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	sockfd = user_int(&(__args)[0])
+	serv_addr_uaddr = user_uint32(&(__args)[1])
+	addrlen = user_uint32(&(__args)[2])
+}
+probe nd_syscall.connect.return = __nd_syscall.connect.return ?,
 	__nd_syscall.socketcall.connect.return ?
 {
 	name = "connect"
 	retstr = returnstr(1)
 }
+probe __nd_syscall.connect.return = kprobe.function("sys_connect").return ?
+{
+	@__syscall_gate(%{ __NR_connect %})
+}
 probe __nd_syscall.socketcall.connect.return =
-	kprobe.function("sys_socketcall").return ?
+	kprobe.function("sys_socketcall").return ?,
+	kprobe.function("compat_sys_socketcall").return ?
 {
 	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_CONNECT %}) next;
 }
@@ -2133,13 +2167,15 @@ probe __nd_syscall.get_mempolicy.return =
 #		       int __user *usockaddr_len)
 #
 probe nd_syscall.getpeername = __nd_syscall.getpeername ?,
-	__nd_syscall.socketcall.getpeername ?
+	__nd_syscall.socketcall.getpeername ?,
+	__nd_syscall.compat_socketcall.getpeername ?
 {
 	name = "getpeername"
 	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 }
 probe __nd_syscall.getpeername = kprobe.function("sys_getpeername") ?
 {
+	@__syscall_gate(%{ __NR_getpeername %})
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
@@ -2155,15 +2191,31 @@ probe __nd_syscall.socketcall.getpeername =
 	name_uaddr = user_ulong(&(__args)[1])
 	namelen_uaddr = user_ulong(&(__args)[2])
 }
+probe __nd_syscall.compat_socketcall.getpeername =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_GETPEERNAME %}) next;
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	name_uaddr = user_uint32(&(__args)[1])
+	namelen_uaddr = user_uint32(&(__args)[2])
+}
 probe nd_syscall.getpeername.return =
-	kprobe.function("sys_getpeername").return ?,
+	__nd_syscall.getpeername.return ?,
 	__nd_syscall.socketcall.getpeername.return ?
 {
 	name = "getpeername"
 	retstr = returnstr(1)
 }
+probe __nd_syscall.getpeername.return =
+	kprobe.function("sys_getpeername").return ?
+{
+	@__syscall_gate(%{ __NR_getpeername %})
+}
 probe __nd_syscall.socketcall.getpeername.return =
-	kprobe.function("sys_socketcall").return ?
+	kprobe.function("sys_socketcall").return ?,
+	kprobe.function("compat_sys_socketcall").return ?
 {
 	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETPEERNAME %}) next;
 }
@@ -2384,13 +2436,15 @@ probe nd_syscall.getsid.return = kprobe.function("sys_getsid").return ?
 #		struct sockaddr __user *usockaddr,
 #		int __user *usockaddr_len)
 probe nd_syscall.getsockname = __nd_syscall.getsockname ?,
-	__nd_syscall.socketcall.getsockname ?
+	__nd_syscall.socketcall.getsockname ?,
+	__nd_syscall.compat_socketcall.getsockname ?
 {
 	name = "getsockname"
 	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 }
 probe __nd_syscall.getsockname = kprobe.function("sys_getsockname") ?
 {
+	@__syscall_gate(%{ __NR_getsockname %})
 	asmlinkage()
 	s = int_arg(1)
 	name_uaddr = pointer_arg(2)
@@ -2406,15 +2460,31 @@ probe __nd_syscall.socketcall.getsockname =
 	name_uaddr = user_ulong(&(__args)[1])
 	namelen_uaddr = user_ulong(&(__args)[2])
 }
+probe __nd_syscall.compat_socketcall.getsockname =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_GETSOCKNAME %}) next;
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	s = user_int(&(__args)[0])
+	name_uaddr = user_uint32(&(__args)[1])
+	namelen_uaddr = user_uint32(&(__args)[2])
+}
 probe nd_syscall.getsockname.return =
-	kprobe.function("sys_getsockname").return ?,
+	__nd_syscall.getsockname.return ?,
 	__nd_syscall.socketcall.getsockname.return ?
 {
 	name = "getsockname"
 	retstr = returnstr(1)
 }
+probe __nd_syscall.getsockname.return =
+	kprobe.function("sys_getsockname").return ?
+{
+	@__syscall_gate(%{ __NR_getsockname %})
+}
 probe __nd_syscall.socketcall.getsockname.return =
-	kprobe.function("sys_socketcall").return ?
+	kprobe.function("sys_socketcall").return ?,
+	kprobe.function("compat_sys_socketcall").return ?
 {
 	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_GETSOCKNAME %}) next;
 }
@@ -3117,13 +3187,16 @@ probe nd_syscall.linkat.return = kprobe.function("sys_linkat").return ?
 
 # listen _____________________________________________________
 # long sys_listen(int fd, int backlog)
-probe nd_syscall.listen = __nd_syscall.listen ?, __nd_syscall.socketcall.listen ?
+probe nd_syscall.listen = __nd_syscall.listen ?,
+	__nd_syscall.socketcall.listen ?,
+	__nd_syscall.compat_socketcall.listen ?
 {
 	name = "listen"
 	argstr = sprintf("%d, %d", sockfd, backlog)
 }
 probe __nd_syscall.listen = kprobe.function("sys_listen") ?
 {
+	@__syscall_gate(%{ __NR_listen %})
 	asmlinkage()
 	sockfd = int_arg(1)
 	backlog = int_arg(2)
@@ -3136,14 +3209,28 @@ probe __nd_syscall.socketcall.listen = kprobe.function("sys_socketcall").call ?
 	sockfd = __int32(user_ulong(&(__args)[0]))
 	backlog = __int32(user_ulong(&(__args)[1]))
 }
-probe nd_syscall.listen.return = kprobe.function("sys_listen").return ?,
+probe __nd_syscall.compat_socketcall.listen =
+	kprobe.function("compat_sys_socketcall").call ?
+{
+	asmlinkage()
+	if (int_arg(1) != %{ SYS_LISTEN %}) next;
+	__args = &@cast(pointer_arg(2), "unsigned int", "kernel<linux/types.h>")
+	sockfd = user_int(&(__args)[0])
+	backlog = user_int(&(__args)[1])
+}
+probe nd_syscall.listen.return = __nd_syscall.listen.return ?,
 	__nd_syscall.socketcall.listen.return ?
 {
 	name = "listen"
 	retstr = returnstr(1)
 }
+probe __nd_syscall.listen.return = kprobe.function("sys_listen").return ?
+{
+	@__syscall_gate(%{ __NR_listen %})
+}
 probe __nd_syscall.socketcall.listen.return =
-	kprobe.function("sys_socketcall").return ?
+	kprobe.function("sys_socketcall").return ?,
+	kprobe.function("compat_sys_socketcall").return ?
 {
 	if (@entry(__asmlinkage_int_arg(1)) != %{ SYS_LISTEN %}) next;
 }

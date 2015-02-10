@@ -1228,6 +1228,7 @@ probe syscall.recvmsg = __syscall.recvmsg ?, __syscall.socketcall.recvmsg ?
 }
 probe __syscall.recvmsg = kernel.function("sys_recvmsg").call ?
 {
+	@__syscall_gate(%{ __NR_recvmsg %})
 	s = __int32($fd)
 	msg_uaddr = $msg
 	flags = __uint32($flags)
@@ -1239,7 +1240,7 @@ probe __syscall.socketcall.recvmsg = kernel.function("sys_socketcall").call ?
 	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
 }
-probe syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?,
+probe syscall.recvmsg.return = __syscall.recvmsg.return ?,
 	__syscall.socketcall.recvmsg.return ?
 {
 %( CONFIG_COMPAT == "y" %?
@@ -1247,6 +1248,10 @@ probe syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?,
 %)
 	name = "recvmsg"
 	retstr = return_str(1, $return)
+}
+probe __syscall.recvmsg.return = kernel.function("sys_recvmsg").return ?
+{
+	@__syscall_gate(%{ __NR_recvmsg %})
 }
 probe __syscall.socketcall.recvmsg.return = 
 	kernel.function("sys_socketcall").return ?
@@ -2173,7 +2178,8 @@ probe __syscall.compat_ipc.semtimedop.return =
 #		size_t len,
 #		unsigned flags)
 #
-probe syscall.send = __syscall.send ?, __syscall.socketcall.send ?
+probe syscall.send = __syscall.send ?, __syscall.socketcall.send ?,
+	__syscall.compat_socketcall.send ?
 {
 	name = "send"
 	flags_str = _msg_flags_str(flags)
@@ -2181,6 +2187,7 @@ probe syscall.send = __syscall.send ?, __syscall.socketcall.send ?
 }
 probe __syscall.send = kernel.function("sys_send").call ?
 {
+	@__syscall_gate(%{ __NR_send %})
 	s = __int32($fd)
 	buf_uaddr = $buff
 	len = __ulong($len)
@@ -2194,14 +2201,28 @@ probe __syscall.socketcall.send = kernel.function("sys_socketcall").call ?
 	len = user_ulong(&@cast($args, "ulong")[2])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[3]))
 }
-probe syscall.send.return = kernel.function("sys_send").return ?,
+probe __syscall.compat_socketcall.send =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_SEND %}) next;
+	s = user_int(&@cast($args, "unsigned int")[0])
+	buf_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	len = user_uint32(&@cast($args, "unsigned int")[2])
+	flags = user_uint32(&@cast($args, "unsigned int")[3])
+}
+probe syscall.send.return = __syscall.send.return ?,
 	__syscall.socketcall.send.return ?
 {
 	name = "send"
 	retstr = return_str(1, $return)
 }
+probe __syscall.send.return = kernel.function("sys_send").return ?
+{
+	@__syscall_gate(%{ __NR_send %})
+}
 probe __syscall.socketcall.send.return = 
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_SEND %}) next;
 }
@@ -2274,6 +2295,7 @@ probe syscall.sendmsg = __syscall.sendmsg ?, __syscall.socketcall.sendmsg ?
 }
 probe __syscall.sendmsg = kernel.function("sys_sendmsg").call ?
 {
+	@__syscall_gate(%{ __NR_sendmsg %})
 	s = __int32($fd)
 	msg_uaddr = $msg
 	flags = __uint32($flags)
@@ -2285,7 +2307,7 @@ probe __syscall.socketcall.sendmsg = kernel.function("sys_socketcall").call ?
 	msg_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	flags = __uint32(user_ulong(&@cast($args, "ulong")[2]))
 }
-probe syscall.sendmsg.return = kernel.function("sys_sendmsg").return ?,
+probe syscall.sendmsg.return = __syscall.sendmsg.return ?,
 	__syscall.socketcall.sendmsg.return ?
 {
 %( CONFIG_COMPAT == "y" %?
@@ -2298,6 +2320,10 @@ probe syscall.sendmsg.return = kernel.function("sys_sendmsg").return ?,
 %)
 	name = "sendmsg"
 	retstr = return_str(1, $return)
+}
+probe __syscall.sendmsg.return = kernel.function("sys_sendmsg").return ?
+{
+	@__syscall_gate(%{ __NR_sendmsg %})
 }
 probe __syscall.socketcall.sendmsg.return = 
 	kernel.function("sys_socketcall").return ?
@@ -3212,7 +3238,8 @@ probe syscall.shmget.return = kernel.function("sys_shmget").return ?
 #
 # long sys_shutdown(int fd, int how)
 #
-probe syscall.shutdown = __syscall.shutdown ?, __syscall.socketcall.shutdown ?
+probe syscall.shutdown = __syscall.shutdown ?, __syscall.socketcall.shutdown ?,
+	__syscall.compat_socketcall.shutdown ?
 {
 	name = "shutdown"
 	how_str = _shutdown_how_str(how)
@@ -3220,6 +3247,7 @@ probe syscall.shutdown = __syscall.shutdown ?, __syscall.socketcall.shutdown ?
 }
 probe __syscall.shutdown = kernel.function("sys_shutdown").call ?
 {
+	@__syscall_gate(%{ __NR_shutdown %})
 	s = __int32($fd)
 	how = __int32($how)
 }
@@ -3229,14 +3257,26 @@ probe __syscall.socketcall.shutdown = kernel.function("sys_socketcall").call ?
 	s = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	how = __int32(user_ulong(&@cast($args, "ulong")[1]))
 }
-probe syscall.shutdown.return = kernel.function("sys_shutdown").return ?,
+probe __syscall.compat_socketcall.shutdown =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_SHUTDOWN %}) next;
+	s = user_int(&@cast($args, "unsigned int")[0])
+	how = user_int(&@cast($args, "unsigned int")[1])
+}
+probe syscall.shutdown.return = __syscall.shutdown.return ?,
 	__syscall.socketcall.shutdown.return ?
 {
 	name = "shutdown"
 	retstr = return_str(1, $return)
 }
+probe __syscall.shutdown.return = kernel.function("sys_shutdown").return ?
+{
+	@__syscall_gate(%{ __NR_shutdown %})
+}
 probe __syscall.socketcall.shutdown.return = 
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_SHUTDOWN %}) next;
 }
@@ -3477,7 +3517,8 @@ probe syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
 # socket _____________________________________________________
 # long sys_socket(int family, int type, int protocol)
 #
-probe syscall.socket = __syscall.socket ?, __syscall.socketcall.socket ?
+probe syscall.socket = __syscall.socket ?, __syscall.socketcall.socket ?,
+	__syscall.compat_socketcall.socket ?
 {
 	name = "socket"
 	argstr = sprintf("%s, %s, %s", _sock_family_str(family),
@@ -3486,6 +3527,7 @@ probe syscall.socket = __syscall.socket ?, __syscall.socketcall.socket ?
 }
 probe __syscall.socket = kernel.function("sys_socket").call ?
 {
+	@__syscall_gate(%{ __NR_socket %})
 	family = __int32($family)
 	type = __int32($type)
 	protocol = __int32($protocol)
@@ -3497,14 +3539,27 @@ probe __syscall.socketcall.socket = kernel.function("sys_socketcall").call ?
 	type = __int32(user_ulong(&@cast($args, "ulong")[1]))
 	protocol = __int32(user_ulong(&@cast($args, "ulong")[2]))
 }
-probe syscall.socket.return = kernel.function("sys_socket").return ?,
+probe __syscall.compat_socketcall.socket =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_SOCKET %}) next;
+	family = user_int(&@cast($args, "unsigned int")[0])
+	type = user_int(&@cast($args, "unsigned int")[1])
+	protocol = user_int(&@cast($args, "unsigned int")[2])
+}
+probe syscall.socket.return = __syscall.return ?,
 	__syscall.socketcall.socket.return ?
 {
 	name = "socket"
 	retstr = return_str(1, $return)
 }
+probe __syscall.return = kernel.function("sys_socket").return ?
+{
+	@__syscall_gate(%{ __NR_socket %})
+}
 probe __syscall.socketcall.socket.return = 
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_SOCKET %}) next;
 }
@@ -3523,7 +3578,8 @@ probe __syscall.socketcall.socket.return =
 #		    int __user *usockvec)
 #
 probe syscall.socketpair = __syscall.socketpair ?,
-	__syscall.socketcall.socketpair ?
+	__syscall.socketcall.socketpair ?,
+	__syscall.compat_socketcall.socketpair ?
 {
 	name = "socketpair"
 	argstr = sprintf("%s, %s, %s, %p", _sock_family_str(family),
@@ -3532,6 +3588,7 @@ probe syscall.socketpair = __syscall.socketpair ?,
 }
 probe __syscall.socketpair = kernel.function("sys_socketpair").call ?
 {
+	@__syscall_gate(%{ __NR_socketpair %})
 	family = __int32($family)
 	type = __int32($type)
 	protocol = __int32($protocol)
@@ -3543,16 +3600,30 @@ probe __syscall.socketcall.socketpair = kernel.function("sys_socketcall").call ?
 	family = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	type = __int32(user_ulong(&@cast($args, "ulong")[1]))
 	protocol = __int32(user_ulong(&@cast($args, "ulong")[2]))
-	sv_uaddr = __int32(user_ulong(&@cast($args, "ulong")[3]))
+	sv_uaddr = __uint32(user_ulong(&@cast($args, "ulong")[3]))
 }
-probe syscall.socketpair.return = kernel.function("sys_socketpair").return ?,
+probe __syscall.compat_socketcall.socketpair =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_SOCKETPAIR %}) next;
+	family = user_int(&@cast($args, "unsigned int")[0])
+	type = user_int(&@cast($args, "unsigned int")[1])
+	protocol = user_int(&@cast($args, "unsigned int")[2])
+	sv_uaddr = user_uint32(&@cast($args, "unsigned int")[3])
+}
+probe syscall.socketpair.return = __syscall.socketpair.return ?,
 	__syscall.socketcall.socketpair.return ?
 {
 	name = "socketpair"
 	retstr = return_str(1, $return)
 }
+probe __syscall.socketpair.return = kernel.function("sys_socketpair").return ?
+{
+	@__syscall_gate(%{ __NR_socketpair %})
+}
 probe __syscall.socketcall.socketpair.return = 
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_SOCKETPAIR %}) next;
 }

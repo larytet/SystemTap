@@ -280,7 +280,8 @@ probe syscall.bdflush.return = kernel.function("sys_bdflush").return ?
 
 # bind _______________________________________________________
 # long sys_bind(int fd, struct sockaddr __user *umyaddr, int addrlen)
-probe syscall.bind = __syscall.bind ?, __syscall.socketcall.bind ?
+probe syscall.bind = __syscall.bind ?, __syscall.socketcall.bind ?,
+	__syscall.compat_socketcall.bind ?
 {
 	name = "bind"
 	@_af_inet_info_u(my_addr_uaddr, addrlen)
@@ -289,6 +290,7 @@ probe syscall.bind = __syscall.bind ?, __syscall.socketcall.bind ?
 }
 probe __syscall.bind = kernel.function("sys_bind").call ?
 {
+	@__syscall_gate(%{ __NR_bind %})
 	sockfd = __int32($fd)
 	my_addr_uaddr = $umyaddr
 	addrlen = __int32($addrlen)
@@ -300,14 +302,27 @@ probe __syscall.socketcall.bind = kernel.function("sys_socketcall").call ?
 	my_addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	addrlen = __int32(user_ulong(&@cast($args, "ulong")[2]))
 }
-probe syscall.bind.return = kernel.function("sys_bind").return ?,
+probe __syscall.compat_socketcall.bind =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_BIND %}) next;
+	sockfd = user_int(&@cast($args, "unsigned int")[0])
+	my_addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	addrlen = user_int(&@cast($args, "unsigned int")[2])
+}
+probe syscall.bind.return = __syscall.bind.return ?,
 	__syscall.socketcall.bind.return ?
 {
 	name = "bind"
 	retstr = return_str(1, $return)
 }
+probe __syscall.bind.return = kernel.function("sys_bind").return ?
+{
+	@__syscall_gate(%{ __NR_bind %})
+}
 probe __syscall.socketcall.bind.return =
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_BIND %}) next;
 }
@@ -725,7 +740,8 @@ probe syscall.close.return = kernel.function("sys_close").return
 
 # connect ____________________________________________________
 # long sys_connect(int fd, struct sockaddr __user *uservaddr, int addrlen)
-probe syscall.connect = __syscall.connect ?, __syscall.socketcall.connect ?
+probe syscall.connect = __syscall.connect ?, __syscall.socketcall.connect ?,
+	__syscall.compat_socketcall.connect ?
 {
 	name = "connect"
 	@_af_inet_info_u(serv_addr_uaddr, addrlen)
@@ -734,6 +750,7 @@ probe syscall.connect = __syscall.connect ?, __syscall.socketcall.connect ?
 }
 probe __syscall.connect = kernel.function("sys_connect").call ?
 {
+	@__syscall_gate(%{ __NR_connect %})
 	sockfd = __int32($fd)
 	serv_addr_uaddr = $uservaddr
 	addrlen = __uint32($addrlen)
@@ -745,14 +762,27 @@ probe __syscall.socketcall.connect = kernel.function("sys_socketcall").call ?
 	serv_addr_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	addrlen = __uint32(user_ulong(&@cast($args, "ulong")[2]))
 }
-probe syscall.connect.return = kernel.function("sys_connect").return ?,
+probe __syscall.compat_socketcall.connect =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_CONNECT %}) next;
+	sockfd = user_int(&@cast($args, "unsigned int")[0])
+	serv_addr_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	addrlen = user_uint32(&@cast($args, "unsigned int")[2])
+}
+probe syscall.connect.return = __syscall.connect.return ?,
 	__syscall.socketcall.connect.return ?
 {
 	name = "connect"
 	retstr = return_str(1, $return)
 }
+probe __syscall.connect.return = kernel.function("sys_connect").return ?
+{
+	@__syscall_gate(%{ __NR_connect %})
+}
 probe __syscall.socketcall.connect.return =
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_CONNECT %}) next;
 }
@@ -1994,13 +2024,15 @@ probe __syscall.get_mempolicy.return =
 #		       int __user *usockaddr_len)
 #
 probe syscall.getpeername = __syscall.getpeername ?,
-	__syscall.socketcall.getpeername ?
+	__syscall.socketcall.getpeername ?,
+	__syscall.compat_socketcall.getpeername ?
 {
 	name = "getpeername"
 	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 }
 probe __syscall.getpeername = kernel.function("sys_getpeername").call ?
 {
+	@__syscall_gate(%{ __NR_getpeername %})
 	s = __int32($fd)
 	name_uaddr = $usockaddr
 	namelen_uaddr = $usockaddr_len
@@ -2012,14 +2044,27 @@ probe __syscall.socketcall.getpeername = kernel.function("sys_socketcall").call 
 	name_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	namelen_uaddr = user_ulong(&@cast($args, "ulong")[2])
 }
-probe syscall.getpeername.return = kernel.function("sys_getpeername").return ?,
+probe __syscall.compat_socketcall.getpeername =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_GETPEERNAME %}) next;
+	s = user_int(&@cast($args, "unsigned int")[0])
+	name_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	namelen_uaddr = user_uint32(&@cast($args, "unsigned int")[2])
+}
+probe syscall.getpeername.return = __syscall.getpeername.return ?,
 	__syscall.socketcall.getpeername.return ?
 {
 	name = "getpeername"
 	retstr = return_str(1, $return)
 }
+probe __syscall.getpeername.return = kernel.function("sys_getpeername").return ?
+{
+	@__syscall_gate(%{ __NR_getpeername %})
+}
 probe __syscall.socketcall.getpeername.return =
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_GETPEERNAME %}) next;
 }
@@ -2237,13 +2282,15 @@ probe syscall.getsid.return = kernel.function("sys_getsid").return
 #		struct sockaddr __user *usockaddr,
 #		int __user *usockaddr_len)
 probe syscall.getsockname = __syscall.getsockname ?,
-	__syscall.socketcall.getsockname ?
+	__syscall.socketcall.getsockname ?,
+	__syscall.compat_socketcall.getsockname ?
 {
 	name = "getsockname"
 	argstr = sprintf("%d, %p, %p", s, name_uaddr, namelen_uaddr)
 }
 probe __syscall.getsockname = kernel.function("sys_getsockname").call ?
 {
+	@__syscall_gate(%{ __NR_getsockname %})
 	s = __int32($fd)
 	name_uaddr = $usockaddr
 	namelen_uaddr = $usockaddr_len
@@ -2255,14 +2302,27 @@ probe __syscall.socketcall.getsockname = kernel.function("sys_socketcall").call 
 	name_uaddr = user_ulong(&@cast($args, "ulong")[1])
 	namelen_uaddr = user_ulong(&@cast($args, "ulong")[2])
 }
-probe syscall.getsockname.return = kernel.function("sys_getsockname").return ?,
+probe __syscall.compat_socketcall.getsockname =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_GETSOCKNAME %}) next;
+	s = user_int(&@cast($args, "unsigned int")[0])
+	name_uaddr = user_uint32(&@cast($args, "unsigned int")[1])
+	namelen_uaddr = user_uint32(&@cast($args, "unsigned int")[2])
+}
+probe syscall.getsockname.return = __syscall.getsockname.return ?,
 	__syscall.socketcall.getsockname.return ?
 {
 	name = "getsockname"
 	retstr = return_str(1, $return)
 }
+probe __syscall.getsockname.return = kernel.function("sys_getsockname").return ?
+{
+	@__syscall_gate(%{ __NR_getsockname %})
+}
 probe __syscall.socketcall.getsockname.return =
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_GETSOCKNAME %}) next;
 }
@@ -2943,13 +3003,15 @@ probe syscall.linkat.return = kernel.function("sys_linkat").return ?
 
 # listen _____________________________________________________
 # long sys_listen(int fd, int backlog)
-probe syscall.listen = __syscall.listen ?, __syscall.socketcall.listen ?
+probe syscall.listen = __syscall.listen ?, __syscall.socketcall.listen ?,
+	__syscall.compat_socketcall.listen ?
 {
 	name = "listen"
 	argstr = sprintf("%d, %d", sockfd, backlog)
 }
 probe __syscall.listen = kernel.function("sys_listen").call ?
 {
+	@__syscall_gate(%{ __NR_listen %})
 	sockfd = __int32($fd)
 	backlog = __int32($backlog)
 }
@@ -2959,14 +3021,26 @@ probe __syscall.socketcall.listen = kernel.function("sys_socketcall").call ?
 	sockfd = __int32(user_ulong(&@cast($args, "ulong")[0]))
 	backlog = __int32(user_ulong(&@cast($args, "ulong")[1]))
 }
-probe syscall.listen.return = kernel.function("sys_listen").return ?,
+probe __syscall.compat_socketcall.listen =
+	kernel.function("compat_sys_socketcall").call ?
+{
+	if ($call != %{ SYS_LISTEN %}) next;
+	sockfd = user_int(&@cast($args, "unsigned int")[0])
+	backlog = user_int(&@cast($args, "unsigned int")[1])
+}
+probe syscall.listen.return = __syscall.listen.return ?,
 	__syscall.socketcall.listen.return ?
 {
 	name = "listen"
 	retstr = return_str(1, $return)
 }
+probe __syscall.listen.return = kernel.function("sys_listen").return ?
+{
+	@__syscall_gate(%{ __NR_listen %})
+}
 probe __syscall.socketcall.listen.return =
-	kernel.function("sys_socketcall").return ?
+	kernel.function("sys_socketcall").return ?,
+	kernel.function("compat_sys_socketcall").return ?
 {
 	if ($call != %{ SYS_LISTEN %}) next;
 }

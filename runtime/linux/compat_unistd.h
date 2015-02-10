@@ -28,6 +28,12 @@
 #ifndef __NR_accept4
 #define __NR_accept4 (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_bind
+#define __NR_bind (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_connect
+#define __NR_connect (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_fadvise64_64
 #define __NR_fadvise64_64 (__NR_syscall_max + 1)
 #endif
@@ -37,8 +43,17 @@
 #ifndef __NR_futimesat
 #define __NR_futimesat (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_getpeername
+#define __NR_getpeername (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_getsockname
+#define __NR_getsockname (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_ipc
 #define __NR_ipc (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_listen
+#define __NR_listen (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_mmap2
 #define __NR_mmap2 (__NR_syscall_max + 1)
@@ -58,8 +73,17 @@
 #ifndef __NR_recvfrom
 #define __NR_recvfrom (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_recvmsg
+#define __NR_recvmsg (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_send
+#define __NR_send (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_sendmmsg
 #define __NR_sendmmsg (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_sendmsg
+#define __NR_sendmsg (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_sendto
 #define __NR_sendto (__NR_syscall_max + 1)
@@ -70,6 +94,9 @@
 #ifndef __NR_setsockopt
 #define __NR_setsockopt (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_shutdown
+#define __NR_shutdown (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_sigprocmask
 #define __NR_sigprocmask (__NR_syscall_max + 1)
 #endif
@@ -78,6 +105,12 @@
 #endif
 #ifndef __NR_shmctl
 #define __NR_shmctl (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_socket
+#define __NR_socket (__NR_syscall_max + 1)
+#endif
+#ifndef __NR_socketpair
+#define __NR_socketpair (__NR_syscall_max + 1)
 #endif
 #ifndef __NR_truncate
 #define __NR_truncate (__NR_syscall_max + 1)
@@ -112,7 +145,7 @@
 #define __NR_ia32_fchmodat 306
 #endif
 #ifndef __NR_ia32_fchown32
-#define __NR_ia32_fchown32 212 
+#define __NR_ia32_fchown32 207
 #endif
 #ifndef __NR_ia32_fchownat
 #define __NR_ia32_fchownat 298
