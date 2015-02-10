@@ -733,7 +733,7 @@ probe __syscall.socketcall.connect = kernel.function("sys_socketcall").call ?
 	addrlen = __uint32(user_ulong(&@cast($args, "ulong")[2]))
 }
 probe syscall.connect.return = kernel.function("sys_connect").return ?,
-	__syscall.socketcall.connect.return
+	__syscall.socketcall.connect.return ?
 {
 	name = "connect"
 	retstr = return_str(1, $return)
@@ -2921,7 +2921,7 @@ probe __syscall.socketcall.listen = kernel.function("sys_socketcall").call ?
 	backlog = __int32(user_ulong(&@cast($args, "ulong")[1]))
 }
 probe syscall.listen.return = kernel.function("sys_listen").return ?,
-	__syscall.socketcall.listen.return
+	__syscall.socketcall.listen.return ?
 {
 	name = "listen"
 	retstr = return_str(1, $return)
