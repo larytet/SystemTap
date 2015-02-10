@@ -189,7 +189,7 @@ static int insert_stap_module(privilege_t *user_credentials)
 
 	/* Add the _stp_bufsize option.  */
 	if (snprintf_chk(special_options, sizeof (special_options),
-			 "_stp_bufsize=%d", buffer_size))
+			 "_stp_bufsize=%d", (int)buffer_size))
 		return -1;
 
         fips_mode_fd = open("/proc/sys/crypto/fips_enabled", O_RDONLY);

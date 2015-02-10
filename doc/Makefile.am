@@ -1,6 +1,7 @@
 # Makefile.am --- automake input file for systemtap docs
 ## process this file with automake to produce Makefile.in
 
+AUTOMAKE_OPTIONS = subdir-objects
 PDF_FILES = tutorial.pdf langref.pdf
 DOC_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap
 SUBDIRS = SystemTap_Tapset_Reference beginners

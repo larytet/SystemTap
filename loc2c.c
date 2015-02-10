@@ -237,7 +237,7 @@ translate_constant (struct location_context *ctx, int indent,
 	  }
 	loc->type = loc_value;
 	obstack_printf (ctx->pool, "%*saddr = (" UTYPE ")%#" PRIx64 "ULL;\n",
-			indent * 2, "", value);
+			indent * 2, "", (unsigned long long) value);
 	obstack_1grow (ctx->pool, '\0');
 	loc->address.program = obstack_finish (ctx->pool);
 	break;
@@ -310,9 +310,9 @@ lose (struct location *loc, const Dwarf_Op *lexpr, size_t len,
     FAIL (loc, "%s", failure);
   else if (i < len)
     FAIL (loc, N_("%s in DWARF expression [%Zu] at %" PRIu64
-		  " (%#x: %" PRId64 ", %" PRId64 ")"),
+		  " (%#x: %" PRIu64 ", %" PRIu64 ")"),
 	  failure, i, lexpr[i].offset,
-	  lexpr[i].atom, lexpr[i].number, lexpr[i].number2);
+	  (unsigned) lexpr[i].atom, lexpr[i].number, lexpr[i].number2);
   return NULL;
 }
 
@@ -528,7 +528,7 @@ translate (struct location_context *ctx, int indent,
 	case DW_OP_drop:
 	  {
 	    POP (ignore);
-	    emit ("%*s/* drop " STACKFMT "*/\n", indent * 2, "", ignore);
+	    emit ("%*s/* drop " STACKFMT "*/\n", indent * 2, "", (unsigned)ignore);
 	    break;
 	  }
 
@@ -538,7 +538,7 @@ translate (struct location_context *ctx, int indent,
 	  if (sp >= stack_depth)
 	    goto underflow;
 	  sp = STACK (sp);
-	  push (STACKFMT, sp);
+	  push (STACKFMT, (unsigned)sp);
 	  break;
 
 	case DW_OP_over:
@@ -554,9 +554,9 @@ translate (struct location_context *ctx, int indent,
 		STACKFMT " = " STACKFMT ", "
 		STACKFMT " = " STACKFMT ";\n",
 		indent * 2, "",
-		STACK (-1), STACK (0),
-		STACK (0), STACK (1),
-		STACK (1), STACK (-1));
+		(unsigned)STACK (-1), (unsigned)STACK (0),
+		(unsigned)STACK (0), (unsigned)STACK (1),
+		(unsigned)STACK (1), (unsigned)STACK (-1));
 	  break;
 
 	case DW_OP_rot:
@@ -569,10 +569,10 @@ translate (struct location_context *ctx, int indent,
 		STACKFMT " = " STACKFMT ", "
 		STACKFMT " = " STACKFMT ";\n",
 		indent * 2, "",
-		STACK (-1), STACK (0),
-		STACK (0), STACK (1),
-		STACK (1), STACK (2),
-		STACK (2), STACK (-1));
+		(unsigned)STACK (-1), (unsigned)STACK (0),
+		(unsigned)STACK (0), (unsigned)STACK (1),
+		(unsigned)STACK (1), (unsigned)STACK (2),
+		(unsigned)STACK (2), (unsigned)STACK (-1));
 	  break;
 
 
@@ -596,7 +596,7 @@ translate (struct location_context *ctx, int indent,
 	case DW_OP_deref:
 	  {
 	    POP (addr);
-	    push ("deref (sizeof (void *), " STACKFMT ")", addr);
+	    push ("deref (sizeof (void *), " STACKFMT ")", (unsigned)addr);
 	    used_deref = true;
 	  }
 	  break;
@@ -605,7 +605,7 @@ translate (struct location_context *ctx, int indent,
 	  {
 	    POP (addr);
 	    push ("deref (" UFORMAT ", " STACKFMT ")",
-		  expr[i].number, addr);
+		  expr[i].number, (unsigned)addr);
 	    used_deref = true;
 	  }
 	  break;
@@ -615,7 +615,7 @@ translate (struct location_context *ctx, int indent,
 	    POP (addr);
 	    POP (as);
 	    push ("xderef (sizeof (void *), " STACKFMT ", " STACKFMT ")",
-		  addr, as);
+		  (unsigned)addr, (unsigned)as);
 	    used_deref = true;
 	  }
 	  break;
@@ -625,7 +625,7 @@ translate (struct location_context *ctx, int indent,
 	    POP (addr);
 	    POP (as);
 	    push ("xderef (" UFORMAT ", " STACKFMT ", " STACKFMT ")",
-		  expr[i].number, addr, as);
+		  expr[i].number, (unsigned)addr, (unsigned)as);
 	    used_deref = true;
 	  }
 	  break;
@@ -655,7 +655,7 @@ translate (struct location_context *ctx, int indent,
 	case DW_OP_consts:
 	  value = expr[i].number;
 	op_const:
-	  push (SFORMAT, value);
+	  push (SFORMAT, (long long)value);
 	  break;
 
 	  /* Arithmetic operations.  */
@@ -663,7 +663,7 @@ translate (struct location_context *ctx, int indent,
 	case DW_OP_##dw_op:						      \
 	  {								      \
 	    POP (tos);							      \
-	    push ("%s (" STACKFMT ")", #c_op, tos);			      \
+	    push ("%s (" STACKFMT ")", #c_op, (unsigned)tos);                 \
 	  }								      \
 	  break
 #define BINOP(dw_op, c_op)						      \
@@ -671,7 +671,7 @@ translate (struct location_context *ctx, int indent,
 	  {								      \
 	    POP (b);							      \
 	    POP (a);							      \
-	    push (STACKFMT " %s " STACKFMT, a, #c_op, b);		      \
+	    push (STACKFMT " %s " STACKFMT, (unsigned)a, #c_op, (unsigned)b); \
 	  }								      \
 	  break
 
@@ -703,8 +703,8 @@ translate (struct location_context *ctx, int indent,
 	    POP (b);
 	    POP (a);
 	    push ("(%s) " STACKFMT " >> (%s)" STACKFMT,
-		  stack_slot_type (loc, true), a,
-		  stack_slot_type (loc, true), b);
+		  stack_slot_type (loc, true), (unsigned)a,
+		  stack_slot_type (loc, true), (unsigned)b);
 	    break;
 	  }
 
@@ -713,8 +713,8 @@ translate (struct location_context *ctx, int indent,
 	    POP (b);
 	    POP (a);
 	    push ("dwarf_div_op((%s) " STACKFMT ", (%s) " STACKFMT ")",
-		  stack_slot_type (loc, true), a,
-		  stack_slot_type (loc, true), b);
+		  stack_slot_type (loc, true), (unsigned)a,
+		  stack_slot_type (loc, true), (unsigned)b);
 	    used_deref = true;
 	    break;
 	  }
@@ -724,8 +724,8 @@ translate (struct location_context *ctx, int indent,
 	    POP (b);
 	    POP (a);
 	    push ("dwarf_mod_op((%s) " STACKFMT ", (%s) " STACKFMT ")",
-		  stack_slot_type (loc, false), a,
-		  stack_slot_type (loc, false), b);
+		  stack_slot_type (loc, false), (unsigned)a,
+		  stack_slot_type (loc, false), (unsigned)b);
 	    used_deref = true;
 	    break;
 	  }
@@ -733,7 +733,7 @@ translate (struct location_context *ctx, int indent,
 	case DW_OP_plus_uconst:
 	  {
 	    POP (x);
-	    push (STACKFMT " + " UFORMAT, x, expr[i].number);
+	    push (STACKFMT " + " UFORMAT, (unsigned)x, expr[i].number);
 	  }
 	  break;
 
@@ -748,14 +748,14 @@ translate (struct location_context *ctx, int indent,
 	  reg = expr[i].number;
 	  value = expr[i].number2;
 	op_breg:
-	  push ("fetch_register (%u) + " SFORMAT, reg, value);
+	  push ("fetch_register (%u) + " SFORMAT, reg, (long long)value);
 	  break;
 
 	case DW_OP_fbreg:
 	  if (need_fb == NULL)
 	    DIE ("DW_OP_fbreg from DW_AT_frame_base");
 	  *need_fb = true;
-	  push ("frame_base + " SFORMAT, expr[i].number);
+	  push ("frame_base + " SFORMAT, (long long)expr[i].number);
 	  break;
 
 	  /* Direct register contents.  */
@@ -1053,7 +1053,7 @@ translate_offset (int indent, const Dwarf_Op *expr, size_t len, size_t i,
 	  {
 	    /* Add a second fragment to offset the piece address.  */
 	    obstack_printf (ctx->pool, "%*saddr += " SFORMAT "\n",
-			    indent * 2, "", offset);
+			    indent * 2, "", (long long)offset);
 	    *input = loc->next = new_synthetic_loc (*input, false);
 	  }
 
@@ -1880,7 +1880,7 @@ translate_base_fetch (struct obstack *pool, int indent,
 
       for (i = 0; i < byte_size; ++i)
 	obstack_printf (pool, "%*su_pieces%d.bytes[%zu] = %#x;\n", indent * 2,
-			"", depth, i, constant_block[i]);
+			"", depth, i, (unsigned)constant_block[i]);
 
       obstack_printf (pool, "%*s%s = u_pieces%d.whole;\n", indent * 2,
 		      "", target, depth);
@@ -2422,7 +2422,7 @@ c_translate_array_pointer (struct obstack *pool, int indent,
 
 /* Open a block with a comment giving the original DWARF expression.  */
 static void
-emit_header (FILE *out, struct location *loc, unsigned int hindent)
+emit_header (FILE *out, struct location *loc, int hindent)
 {
   if (loc->ops == NULL)
     emit ("%*s{ // synthesized\n", hindent * 2, "");
@@ -2432,15 +2432,15 @@ emit_header (FILE *out, struct location *loc, unsigned int hindent)
       size_t i;
       for (i = 0; i < loc->nops; ++i)
 	{
-	  emit (" %#x", loc->ops[i].atom);
+	  emit (" %#x", (unsigned)loc->ops[i].atom);
 	  if (loc->ops[i].number2 == 0)
 	    {
 	      if (loc->ops[i].number != 0)
-		emit ("(%" PRId64 ")", loc->ops[i].number);
+		emit ("(%" PRId64 ")", (long long)loc->ops[i].number);
 	    }
 	  else
 	    emit ("(%" PRId64 ",%" PRId64 ")",
-		  loc->ops[i].number, loc->ops[i].number2);
+		  (long long)loc->ops[i].number, (long long)loc->ops[i].number2);
 	}
       emit ("\n");
     }
@@ -2448,7 +2448,7 @@ emit_header (FILE *out, struct location *loc, unsigned int hindent)
 
 /* Emit a code fragment to assign the target variable to a register value.  */
 static void
-emit_loc_register (FILE *out, struct location *loc, unsigned int indent,
+emit_loc_register (FILE *out, struct location *loc, int indent,
 		   const char *target)
 {
   assert (loc->type == loc_register);
@@ -2462,7 +2462,7 @@ emit_loc_register (FILE *out, struct location *loc, unsigned int indent,
 
 /* Emit a code fragment to assign the target variable to an address.  */
 static void
-emit_loc_address (FILE *out, struct location *loc, unsigned int indent,
+emit_loc_address (FILE *out, struct location *loc, int indent,
 		  const char *target)
 {
   assert (loc->type == loc_address || loc->type == loc_value);
@@ -2474,14 +2474,14 @@ emit_loc_address (FILE *out, struct location *loc, unsigned int indent,
     {
       emit ("%*s{\n", indent * 2, "");
       emit ("%*s%s " STACKFMT, (indent + 1) * 2, "",
-	    stack_slot_type (loc, false), 0);
+	    stack_slot_type (loc, false), (unsigned)0);
       unsigned i;
       for (i = 1; i < loc->address.stack_depth; ++i)
 	emit (", " STACKFMT, i);
       emit (";\n");
 
       emit ("%s%*s%s = " STACKFMT ";\n", loc->address.program,
-	    (indent + 1) * 2, "", target, 0);
+	    (indent + 1) * 2, "", target, (unsigned)0);
       emit ("%*s}\n", indent * 2, "");
     }
 }
@@ -2489,7 +2489,7 @@ emit_loc_address (FILE *out, struct location *loc, unsigned int indent,
 /* Emit a code fragment to declare the target variable and
    assign it to an address-sized value.  */
 static void
-emit_loc_value (FILE *out, struct location *loc, unsigned int indent,
+emit_loc_value (FILE *out, struct location *loc, int indent,
 		const char *target, bool declare,
 		bool *used_deref, unsigned int *max_stack)
 {
