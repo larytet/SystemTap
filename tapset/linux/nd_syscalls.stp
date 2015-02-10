@@ -443,6 +443,13 @@ probe nd_syscall.chmod.return = kprobe.function("sys_chmod").return ?
 # long sys_chown(const char __user * filename, uid_t user, gid_t group)
 probe nd_syscall.chown = kprobe.function("sys_chown") ?
 {
+	// Avoid chown16() calling chown().
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_chown %}, %{ __NR_ia32_chown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_chown32 %})
+%)
 	name = "chown"
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
@@ -452,6 +459,12 @@ probe nd_syscall.chown = kprobe.function("sys_chown") ?
 }
 probe nd_syscall.chown.return = kprobe.function("sys_chown").return ?
 {
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_chown %}, %{ __NR_ia32_chown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_chown32 %})
+%)
 	name = "chown"
 	retstr = returnstr(1)
 }
@@ -1352,6 +1365,13 @@ probe nd_syscall.fchmodat.return = kprobe.function("sys_fchmodat").return ?
 # long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 probe nd_syscall.fchown = kprobe.function("sys_fchown") ?
 {
+	// Avoid fchown16() calling fchown().
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_fchown %}, %{ __NR_ia32_fchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_fchown32 %})
+%)
 	name = "fchown"
 	asmlinkage()
 	fd = int_arg(1)
@@ -1361,6 +1381,12 @@ probe nd_syscall.fchown = kprobe.function("sys_fchown") ?
 }
 probe nd_syscall.fchown.return = kprobe.function("sys_fchown").return ?
 {
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_fchown %}, %{ __NR_ia32_fchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_fchown32 %})
+%)
 	name = "fchown"
 	retstr = returnstr(1)
 }
@@ -2969,6 +2995,13 @@ probe nd_syscall.kill.return = kprobe.function("sys_kill").return ?
 #
 probe nd_syscall.lchown = kprobe.function("sys_lchown") ?
 {
+	// Avoid lchown16() calling lchown().
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_lchown %}, %{ __NR_ia32_lchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_lchown32 %})
+%)
 	name = "lchown"
 	asmlinkage()
 	path = user_string_quoted(pointer_arg(1))
@@ -2978,6 +3011,12 @@ probe nd_syscall.lchown = kprobe.function("sys_lchown") ?
 }
 probe nd_syscall.lchown.return = kprobe.function("sys_lchown").return ?
 {
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_lchown %}, %{ __NR_ia32_lchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_lchown32 %})
+%)
 	name = "lchown"
 	retstr = returnstr(1)
 }

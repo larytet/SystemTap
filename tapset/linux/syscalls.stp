@@ -419,6 +419,13 @@ probe syscall.chmod.return = kernel.function("sys_chmod").return
 # long sys_chown(const char __user * filename, uid_t user, gid_t group)
 probe syscall.chown = kernel.function("sys_chown").call
 {
+	// Avoid chown16() calling chown().
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_chown %}, %{ __NR_ia32_chown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_chown32 %})
+%)
 	name = "chown"
 	path = user_string_quoted($filename)
 	owner = __int32($user)
@@ -427,6 +434,12 @@ probe syscall.chown = kernel.function("sys_chown").call
 }
 probe syscall.chown.return = kernel.function("sys_chown").return
 {
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_chown %}, %{ __NR_ia32_chown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_chown32 %})
+%)
 	name = "chown"
 	retstr = return_str(1, $return)
 }
@@ -1251,6 +1264,13 @@ probe syscall.fchmodat.return = kernel.function("sys_fchmodat").return ?
 # long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 probe syscall.fchown = kernel.function("sys_fchown").call
 {
+	// Avoid fchown16() calling fchown().
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_fchown %}, %{ __NR_ia32_fchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_fchown32 %})
+%)
 	name = "fchown"
 	fd = __int32($fd)
 	owner = __int32($user)
@@ -1259,6 +1279,12 @@ probe syscall.fchown = kernel.function("sys_fchown").call
 }
 probe syscall.fchown.return = kernel.function("sys_fchown").return
 {
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_fchown %}, %{ __NR_ia32_fchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_fchown32 %})
+%)
 	name = "fchown"
 	retstr = return_str(1, $return)
 }
@@ -2798,6 +2824,13 @@ probe syscall.kill.return = kernel.function("sys_kill").return
 #
 probe syscall.lchown = kernel.function("sys_lchown").call
 {
+	// Avoid lchown16() calling lchown().
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_lchown %}, %{ __NR_ia32_lchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_lchown32 %})
+%)
 	name = "lchown"
 	path = user_string_quoted($filename)
 	owner = __int32($user)
@@ -2806,6 +2839,12 @@ probe syscall.lchown = kernel.function("sys_lchown").call
 }
 probe syscall.lchown.return = kernel.function("sys_lchown").return
 {
+%( arch == "x86_64" %?
+	@__syscall_compat_gate(%{ __NR_lchown %}, %{ __NR_ia32_lchown32 %})
+%)
+%( arch == "i386" %?
+	@__syscall_gate(%{ __NR_lchown32 %})
+%)
 	name = "lchown"
 	retstr = return_str(1, $return)
 }

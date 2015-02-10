@@ -87,6 +87,9 @@
 
 // On older kernels (like RHEL5), we have to define our own 32-bit
 // syscall numbers.
+#ifndef __NR_ia32_chown32
+#define __NR_ia32_chown32 212
+#endif
 #ifndef __NR_ia32_clone
 #define __NR_ia32_clone 120
 #endif
@@ -108,6 +111,9 @@
 #ifndef __NR_ia32_fchmodat
 #define __NR_ia32_fchmodat 306
 #endif
+#ifndef __NR_ia32_fchown32
+#define __NR_ia32_fchown32 212 
+#endif
 #ifndef __NR_ia32_fchownat
 #define __NR_ia32_fchownat 298
 #endif
@@ -125,6 +131,9 @@
 #endif
 #ifndef __NR_ia32_linkat
 #define __NR_ia32_linkat 303
+#endif
+#ifndef __NR_ia32_lchown32
+#define __NR_ia32_lchown32 198
 #endif
 #ifndef __NR_ia32_mkdirat
 #define __NR_ia32_mkdirat 296
