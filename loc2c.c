@@ -237,7 +237,7 @@ translate_constant (struct location_context *ctx, int indent,
 	  }
 	loc->type = loc_value;
 	obstack_printf (ctx->pool, "%*saddr = (" UTYPE ")%#" PRIx64 "ULL;\n",
-			indent * 2, "", (unsigned long long) value);
+			indent * 2, "", (uint64_t) value);
 	obstack_1grow (ctx->pool, '\0');
 	loc->address.program = obstack_finish (ctx->pool);
 	break;
@@ -655,7 +655,7 @@ translate (struct location_context *ctx, int indent,
 	case DW_OP_consts:
 	  value = expr[i].number;
 	op_const:
-	  push (SFORMAT, (long long)value);
+	  push (SFORMAT, (int64_t)value);
 	  break;
 
 	  /* Arithmetic operations.  */
@@ -748,14 +748,14 @@ translate (struct location_context *ctx, int indent,
 	  reg = expr[i].number;
 	  value = expr[i].number2;
 	op_breg:
-	  push ("fetch_register (%u) + " SFORMAT, reg, (long long)value);
+	  push ("fetch_register (%u) + " SFORMAT, reg, (int64_t)value);
 	  break;
 
 	case DW_OP_fbreg:
 	  if (need_fb == NULL)
 	    DIE ("DW_OP_fbreg from DW_AT_frame_base");
 	  *need_fb = true;
-	  push ("frame_base + " SFORMAT, (long long)expr[i].number);
+	  push ("frame_base + " SFORMAT, (int64_t)expr[i].number);
 	  break;
 
 	  /* Direct register contents.  */
@@ -1053,7 +1053,7 @@ translate_offset (int indent, const Dwarf_Op *expr, size_t len, size_t i,
 	  {
 	    /* Add a second fragment to offset the piece address.  */
 	    obstack_printf (ctx->pool, "%*saddr += " SFORMAT "\n",
-			    indent * 2, "", (long long)offset);
+			    indent * 2, "", (int64_t)offset);
 	    *input = loc->next = new_synthetic_loc (*input, false);
 	  }
 
