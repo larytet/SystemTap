@@ -25,13 +25,13 @@ key_serial_t __request_key(const char *type, const char *description,
 }
 
 int main() {
-    key_serial_t ring_id, ring_id_2, key_id, key_id_2;
+    key_serial_t ring_id, ring_id_2, ring_id_3, key_id, key_id_2;
 
     // --- test normal operation for keyctl manpage scenarios
 
     // (*) Get a keyring to work with
-    syscall(__NR_keyctl, KEYCTL_READ, KEY_SPEC_USER_SESSION_KEYRING, &ring_id, sizeof(key_serial_t));
-    //staptest// keyctl (KEYCTL_READ, KEY_SPEC_USER_SESSION_KEYRING, XXXX, NNNN) = NNNN
+    ring_id = syscall(__NR_keyctl, KEYCTL_GET_KEYRING_ID, KEY_SPEC_SESSION_KEYRING, 0);
+    //staptest// keyctl (KEYCTL_GET_KEYRING_ID, KEY_SPEC_SESSION_KEYRING, 0) = NNNN
 
     // (*) Add a key to a keyring
     key_id = __add_key("user", "testkey", "somedata", strlen("somedata"), ring_id);
@@ -40,6 +40,15 @@ int main() {
     // (*) Create a keyring
     ring_id_2 = __add_key("keyring", "newring2", NULL, 0, ring_id);
     //staptest// add_key ("keyring", "newring2",\ +(null), 0, NNNN) = NNNN
+
+    // (*) Get persistent keyring
+#ifdef KEYCTL_GET_PERSISTENT
+    ring_id_3 = syscall(__NR_keyctl, KEYCTL_GET_PERSISTENT, (unsigned long)-1, ring_id_2);
+    //staptest// keyctl (KEYCTL_GET_PERSISTENT, NNNN, NNNN) = NNNN
+
+    syscall(__NR_keyctl, KEYCTL_UNLINK, ring_id_3, ring_id_2);
+    //staptest// keyctl (KEYCTL_UNLINK, NNNN, NNNN) = 0
+#endif
 
     // (*) Request a key
     __request_key("user", "testkey", 0, ring_id);
@@ -163,15 +172,6 @@ int main() {
 
     // (*) Remove matching keys from the session keyring tree
     // see "Unlink a key from a keyring or the session keyring tree"
-
-    // (*) Get persistent keyring
-#ifdef KEYCTL_GET_PERSISTENT
-    ring_id_2 = syscall(__NR_keyctl, KEYCTL_GET_PERSISTENT, (unsigned long)-1, ring_id);
-    //staptest// keyctl (KEYCTL_GET_PERSISTENT, -1, NNNN) = NNNN
-
-    syscall(__NR_keyctl, KEYCTL_UNLINK, ring_id_2, ring_id);
-    //staptest// keyctl (KEYCTL_UNLINK, NNNN, NNNN) = 0
-#endif
 
     // --- test normal operation on commands that weren't covered by named `man keyctl` scenarios
 
