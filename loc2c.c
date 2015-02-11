@@ -2436,11 +2436,11 @@ emit_header (FILE *out, struct location *loc, int hindent)
 	  if (loc->ops[i].number2 == 0)
 	    {
 	      if (loc->ops[i].number != 0)
-		emit ("(%" PRId64 ")", (long long)loc->ops[i].number);
+		emit ("(%" PRId64 ")", (int64_t)loc->ops[i].number);
 	    }
 	  else
 	    emit ("(%" PRId64 ",%" PRId64 ")",
-		  (long long)loc->ops[i].number, (long long)loc->ops[i].number2);
+		  (int64_t)loc->ops[i].number, (int64_t)loc->ops[i].number2);
 	}
       emit ("\n");
     }

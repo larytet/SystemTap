@@ -773,7 +773,7 @@ printPortNum(virDomainPtr dom, const char *basename)
     if (getDomainPorts(dom, 0, basename, &domXMLdoc, &ports) != 0)
         return; // proper error msg already emitted
 
-    printf("%u", ports->nodeNr);
+    printf("%u", (unsigned)ports->nodeNr);
     xmlXPathFreeNodeSet(ports);
     xmlFreeDoc(domXMLdoc);
 }
