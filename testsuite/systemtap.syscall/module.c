@@ -72,11 +72,14 @@ int main()
     //staptest// init_module (0x[f]+, 0, "foo=bar") = -NNNN
 #endif
 
+    // On RHEL 7 ppc64, this one can cause an OOM error.
+#if 0
     __init_module(NULL, -1, "foo=bar");
 #if __WORDSIZE == 64
     //staptest// init_module (0x0, 18446744073709551615, "foo=bar") = -NNNN
 #else
     //staptest// init_module (0x0, 4294967295, "foo=bar") = -NNNN
+#endif
 #endif
 
     __init_module(NULL, 0, (char *)-1);
