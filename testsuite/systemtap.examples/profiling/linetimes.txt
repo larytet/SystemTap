@@ -1,3 +1,4 @@
+# stap linetimes.stp kernel tcp_sendmsg -c 'sleep 30'
 
 kernel tcp_sendmsg call count: 4023
 
