@@ -1,6 +1,6 @@
 #! /usr/bin/env stap
 #
-# Copyright (C) 2010 Red Hat, Inc.
+# Copyright (C) 2010-2015 Red Hat, Inc.
 # Written by William Cohen <wcohen@redhat.com>
 #
 # The linetimes.stp script takes two arguments: where to find the function
@@ -43,34 +43,18 @@ probe $1.statement(@2 "@*:*") {
 }
 
 probe end {
-  printf("\n%s called %d", @2, @count(calls));
+  printf("\n%s %s call count: %d\n", @1, @2, @count(calls));
   printf("\n%-58s %10s %10s\n", "region", "avg(us)", "max(us)");
   foreach (p+ in region) {
     printf("%-58s %10d %10d\n", p, @avg(region[p]), @max(region[p]));
   }
 
-  printf("\ncontrol flow graph information\n")
+  printf("\n\ncontrol flow graph information\n")
   printf("from\n\tto\n=======================\n")
-  foreach ([src+, dest] in cfg) {
-    /* print elements */
-    if (old_src != src) {
-      if (count == 1) printf (" %d\n", old_count);
-      printf ("%-s", src)
-      count = 1
-    } else {
-      if (count == 1) {
-        if (old_dest == src)
-          printf ("\n\t%-s %d\n", old_dest, old_count);
-        else
-        printf ("\n\t%-s %d\n", old_dest, old_count);
-      }
-      ++count;
-      printf ("\t%-s %d\n", dest, @count(cfg[src,dest]));
-    }
-    old_src = src
-    old_dest = dest
-    old_count = @count(cfg[src,dest])
+  foreach ([src+] in region) {
+     printf("%-s\n", src)
+     foreach ([s,dest+] in cfg[src,*]) { # slice for all dest's
+        printf("\t%-s %d\n", dest, @count(cfg[src,dest]));
+     }
   }
-  /* print last element */
-  if (old_src != "" && count == 1) printf (" %d\n", old_count)
 }
