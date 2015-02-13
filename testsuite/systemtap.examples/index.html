@@ -128,7 +128,7 @@ keywords: <a href="keyword-index.html#DISK">DISK</a> <br>
 <p>Get the status of reading/writing disk every 5 seconds, output top ten entries during that period.</p><p><font size="-2"><pre># stap disktop.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="io/eatmydata.stp"></a><a href="#io/eatmydata.stp">&para;</a> <a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
-<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
+<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on some dummy or other file descriptor</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
 </li><li><a name="io/enospc.stp"></a><a href="#io/enospc.stp">&para;</a> <a href="io/enospc.stp">io/enospc.stp</a> - Report an disk out-of-space condition.<br>
 keywords: <a href="keyword-index.html#DISK">DISK</a> <a href="keyword-index.html#FILESYSTEM">FILESYSTEM</a> <br>
 <p>This script monitors a filesystem implementations for early internal indications of ENOSPC, and reports these to the system logger and the systemtap console.</p><p><font size="-2"><pre># stap enospc.stp -c &quot;sleep 1&quot;</pre></font></p>

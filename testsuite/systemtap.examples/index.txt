@@ -239,8 +239,8 @@ io/eatmydata.stp - disable fsync
 keywords: io guru simple
 
   Suppresses fsync() syscalls from processes identified by stap -c/-x
-  by turning them into presumed-faster fsync() on file descriptor 1
-  (stdout).
+  by turning them into presumed-faster fsync() on some dummy or other
+  file descriptor
 
   # stap -g eatmydata.stp -c 'strace ls || true'
 
