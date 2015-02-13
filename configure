@@ -642,6 +642,8 @@ HAVE_SELINUX_TRUE
 selinux_LIBS
 selinux_CFLAGS
 support_section_question
+BUILD_VIRT_FALSE
+BUILD_VIRT_TRUE
 HAVE_LIBXML2_FALSE
 HAVE_LIBXML2_TRUE
 libxml2_LIBS
@@ -860,6 +862,7 @@ with_avahi
 with_rpm
 with_elfutils
 with_dyninst
+enable_virt
 with_selinux
 with_java
 with_extra_version
@@ -1541,6 +1544,8 @@ Optional Features:
                           if xmlto etc. found and other documentation built).
   --enable-server         enable building of stap-server (default on if nss
                           etc. found).
+  --enable-virt           enable building of stapvirt support (default on if
+                          libvirt etc. found).
 
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
@@ -2693,7 +2698,7 @@ test -n "$target_alias" &&
   program_prefix=${target_alias}-
 
 
-am__api_version='1.15'
+am__api_version='1.14'
 
 # Find a good install program.  We prefer a C program (faster),
 # so one script is as good as another.  But avoid the broken or
@@ -2865,8 +2870,8 @@ test "$program_suffix" != NONE &&
 ac_script='s/[\\$]/&&/g;s/;s,x,x,$//'
 program_transform_name=`$as_echo "$program_transform_name" | sed "$ac_script"`
 
-# Expand $ac_aux_dir to an absolute path.
-am_aux_dir=`cd "$ac_aux_dir" && pwd`
+# expand $ac_aux_dir to an absolute path
+am_aux_dir=`cd $ac_aux_dir && pwd`
 
 if test x"${MISSING+set}" != xset; then
   case $am_aux_dir in
@@ -2885,7 +2890,7 @@ else
 $as_echo "$as_me: WARNING: 'missing' script is too old or missing" >&2;}
 fi
 
-if test x"${install_sh+set}" != xset; then
+if test x"${install_sh}" != xset; then
   case $am_aux_dir in
   *\ * | *\	*)
     install_sh="\${SHELL} '$am_aux_dir/install-sh'" ;;
@@ -3213,8 +3218,8 @@ MAKEINFO=${MAKEINFO-"${am_missing_run}makeinfo"}
 # <http://lists.gnu.org/archive/html/automake/2012-07/msg00014.html>
 mkdir_p='$(MKDIR_P)'
 
-# We need awk for the "check" target (and possibly the TAP driver).  The
-# system "awk" is bad on some platforms.
+# We need awk for the "check" target.  The system "awk" is bad on
+# some platforms.
 # Always define AMTAR for backward compatibility.  Yes, it's still used
 # in the wild :-(  We should find a proper way to deprecate it ...
 AMTAR='$${TAR-tar}'
@@ -3271,7 +3276,6 @@ END
     as_fn_error $? "Your 'rm' program is bad, sorry." "$LINENO" 5
   fi
 fi
-
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether to enable maintainer-specific portions of Makefiles" >&5
 $as_echo_n "checking whether to enable maintainer-specific portions of Makefiles... " >&6; }
@@ -10983,6 +10987,15 @@ fi
 
 
 
+# Check whether --enable-virt was given.
+if test "${enable_virt+set}" = set; then :
+  enableval=$enable_virt; enable_virt=$enableval
+else
+  enable_virt="check"
+fi
+
+
+
 pkg_failed=no
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libvirt" >&5
 $as_echo_n "checking for libvirt... " >&6; }
@@ -11149,6 +11162,26 @@ else
   HAVE_LIBXML2_TRUE='#'
   HAVE_LIBXML2_FALSE=
 fi
+
+
+if test "$enable_virt" != "no"; then
+  if test "x${have_libvirt}" != "xyes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: will not build systemtap virt support, cannot find libvirt headers" >&5
+$as_echo "$as_me: WARNING: will not build systemtap virt support, cannot find libvirt headers" >&2;}
+  fi
+  if test "x${have_libxml2}" != "xyes"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: will not build systemtap virt support, cannot find xml2 headers" >&5
+$as_echo "$as_me: WARNING: will not build systemtap virt support, cannot find xml2 headers" >&2;}
+  fi
+fi
+ if test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"; then
+  BUILD_VIRT_TRUE=
+  BUILD_VIRT_FALSE='#'
+else
+  BUILD_VIRT_TRUE='#'
+  BUILD_VIRT_FALSE=
+fi
+
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for assembler .section \"?\" flags support" >&5
@@ -11770,6 +11803,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_LIBXML2_TRUE}" && test -z "${HAVE_LIBXML2_FALSE}"; then
   as_fn_error $? "conditional \"HAVE_LIBXML2\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${BUILD_VIRT_TRUE}" && test -z "${BUILD_VIRT_FALSE}"; then
+  as_fn_error $? "conditional \"BUILD_VIRT\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${HAVE_SELINUX_TRUE}" && test -z "${HAVE_SELINUX_FALSE}"; then

@@ -526,7 +526,14 @@ if test "$with_dyninst" != "no"; then
 fi
 AM_CONDITIONAL([HAVE_DYNINST], [test "${have_dyninst}" = "yes"])
 
+
 dnl Check for the libvirt and libxml2 devel packages
+
+AC_ARG_ENABLE([virt],
+  AS_HELP_STRING([--enable-virt],
+    [enable building of stapvirt support (default on if libvirt etc. found).]),
+  [enable_virt=$enableval],
+  [enable_virt="check"])
 
 dnl We require libvirt >= 1.0.2 because stapvirt relies on the
 dnl virDomainOpenChannel function, which was implemented in 1.0.2.
@@ -540,6 +547,18 @@ PKG_CHECK_MODULES([libxml2], [libxml-2.0], [
    AC_DEFINE([HAVE_LIBXML2],[1],[Define to 1 if libxml2 development libraries are installed])
    ], [have_libxml2=no])
 AM_CONDITIONAL([HAVE_LIBXML2], [test "${have_libxml2}" = "yes"])
+
+if test "$enable_virt" != "no"; then
+dnl See if we have enough libraries and tools to build the virt server
+  if test "x${have_libvirt}" != "xyes"; then
+    AC_MSG_WARN([will not build systemtap virt support, cannot find libvirt headers])
+  fi		       
+  if test "x${have_libxml2}" != "xyes"; then
+    AC_MSG_WARN([will not build systemtap virt support, cannot find xml2 headers])
+  fi		       
+fi
+AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
+
 
 AC_CACHE_CHECK([for assembler .section "?" flags support], stap_cv_sectionq, [
 old_CFLAGS="$CFLAGS"

@@ -470,7 +470,13 @@ cd ..
 %global java_config --without-java
 %endif
 
-%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{publican_config} %{rpm_config} %{java_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
+%if %{with_virthost}
+%global virt_config --enable-virt
+%else
+%global virt_config --disable-virt
+%endif
+
+%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{publican_config} %{rpm_config} %{java_config} %{virt_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
 
 %if %{with_emacsvim}
