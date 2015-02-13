@@ -1766,11 +1766,48 @@ representing the interval in seconds. In the absence of this file, a default
 will be created with the interval set to 300 s.
 
 .SH SAFETY AND SECURITY
-Systemtap is an administrative tool.  It exposes kernel internal data
-structures and potentially private user information.
 
-To actually run the kernel objects it builds, a user must be one of
-the following:
+.PP
+Systemtap is may be used as a poweful administrative tool.  It can
+expose kernel internal data structures and potentially private user
+information.  (In
+.BR dyninst
+runtime mode, this is not the case, see the
+.I ALTERNATE RUNTIMES
+section below.)
+
+The translator asserts many safety constraints during compilation and
+more during run-time.  It aims to ensure that no handler routine can
+run for very long, allocate boundless memory, perform unsafe
+operations, or in unintentionally interfere with the system.  Uses of
+script global variables are automatically read/write locked as
+appropriate, to protect against manipulation by concurrent probe
+handlers.  (Deadlocks are detected with timeouts.  Use the
+.BR \-t
+flag to receive reports of excessive lock contention.)  Experimenting
+with scripts is therefore generally
+.BR safe .
+The guru-mode
+.B \-g
+option allows administrators to bypass most safety measures, which
+permits invasive or state-changing operations, embedded-C code, and
+increases the risk of upset.  By default, overload prevention is
+turned on for all modules.  If you would like to disable overload
+processing, use the
+.BR \-\-suppress\-time\-limits
+option.
+
+Errors that are caught at run time normally result in a clean script
+shutdown and a pass-5 error message.
+The
+.BR \-\-suppress\-handler\-errors
+option lets scripts tolerate soft errors without shutting down. 
+
+
+.SS PERMISSIONS
+
+For the normal linux-kernel-module runtime, to run the kernel objects systemtap
+builds, a user must be one of the following:
 .IP \(bu 4
 the root user;
 .IP \(bu 4
@@ -1844,7 +1881,9 @@ untrusted users to the
 or
 .I stapusr
 groups.
-.PP
+
+.SS SECUREBOOT
+
 If the current system has SecureBoot turned on in the UEFI firmware,
 all kernel modules must be signed.  (Some kernels may allow disabling
 SecureBoot long after booting with a key sequence such as SysRq-X,
@@ -1857,22 +1896,12 @@ with a client system. See the following wiki page for more details:
 .BR https://sourceware.org/systemtap/wiki/SecureBoot
 .hy
 .RE
-.PP
-The translator asserts certain safety constraints.  It aims to ensure
-that no handler routine can run for very long, allocate memory,
-perform unsafe operations, or in unintentionally interfere with the
-kernel.  Uses of script global variables are automatically read/write 
-locked as appropriate, to protect against manipulation by concurrent probe
-handlers.  (Deadlocks are detected with timeouts.  Use the 
-.BR \-t
-flag to receive reports of excessive lock contention.)  Use of guru mode
-constructs such as embedded C can violate these constraints, leading
-to kernel crash or data corruption.
-.PP
-The resource use limits are set by macros in the generated C code.
-These may be overridden with the
+
+.SS RESOURCE LIMITS
+Many resource use limits are set by macros in the generated C code.
+These may be overridden with 
 .BR \-D
-flag.  A selection of these is as follows:
+flags.  A selection of these is as follows:
 .TP
 MAXNESTING
 Maximum number of nested function calls.  Default determined by
@@ -1943,7 +1972,13 @@ Maximum amount of memory (in kilobytes) that the systemtap module
 should use, default unlimited.  The memory size includes the size of
 the module itself, plus any additional allocations.  This only tracks
 direct allocations by the systemtap runtime.  This does not track
-indirect allocations (as done by kprobes/uprobes/etc. internals). 
+indirect allocations (as done by kprobes/uprobes/etc. internals).
+.TP
+STP_OVEROAD_THRESHOLD, STP_OVERLOAD_INTERVAL
+Maximum number of machine cycles spent in probes on any cpu per given
+interval, before an overload condition is declared and the script shut
+down.  The defaults are 500 million and 1 billion, so as to limit stap
+script cpu consumption at around 50%.
 .TP
 STP_PROCFS_BUFSIZE
 Size of procfs probe read buffers (in bytes).  Defaults to
@@ -1986,20 +2021,9 @@ user processes, and remove the active probe kernel module with
 .IR rmmod .
 Any pending trace messages may be lost.
 
-.PP
-In addition to the methods outlined above, the generated kernel module
-also uses overload processing to make sure that probes can't run for
-too long.  If more than STP_OVERLOAD_THRESHOLD cycles (default
-500000000) have been spent in all the probes on a single cpu during
-the last STP_OVERLOAD_INTERVAL cycles (default 1000000000), the probes
-have overloaded the system and an exit is triggered.
-.PP
-By default, overload processing is turned on for all modules.  If you
-would like to disable overload processing, define STP_NO_OVERLOAD (or
-its alias STAP_NO_OVERLOAD).
-
 .SH UNPRIVILEGED USERS
 
+.PP
 Systemtap exposes kernel internal data
 structures and potentially private user information. Because of this, use of
 systemtap's full capabilities are restricted to root and to users who are
@@ -2144,6 +2168,7 @@ group stapusr.
 
 .SH ALTERNATE RUNTIMES
 
+.PP
 As described above, systemtap's default runtime mode involves building and
 loading kernel modules, with various security tradeoffs presented.  Systemtap
 now includes a new prototype backend, selected with \fI\-\-runtime=dyninst\fR,
