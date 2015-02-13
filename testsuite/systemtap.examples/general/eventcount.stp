@@ -20,19 +20,20 @@
 # stap eventcount.stp -G period=NNN -G cumulative=1 [...probe points...]
 # stap eventcount.stp -G period=NNN -G cumulative=1 [...probe points...]
 #
-# Optionally, specify sorting other than by =tid
+# Optionally, specify sorting other than by =count
+# stap eventcount.stp -G sort=tid [...probe points...]
 # stap eventcount.stp -G sort=count [...probe points...]
 # stap eventcount.stp -G sort=event [...probe points...]
 # stap eventcount.stp -G sort=unsorted [...probe points...]
 #
 # Optionally, specify a limit for sorted event count reports
-# stap eventcount.stp -G lines=10 [...probe points...]
+# stap eventcount.stp -G lines=100 [...probe points...]
 
 global period=10
 global cumulative=0
 global comm=""
-global sort="tid"
-global lines=9223372036854775807 # LONGLONG_MAX
+global sort="count"
+global lines=20
 
 probe %($# == 0 || $# > 32 %? begin %: never %)
 {
@@ -94,7 +95,7 @@ probe begin {
       else msg = "unfiltered";
       printf("Starting event counting at %s, %s\n",
              tz_ctime(gettimeofday_s()), msg)
-      format = sprintf("%d lines, sorted by %s", lines, sort);
+      format = sprintf("max %d lines, sorted by %s", lines, sort);
       if (period)
         printf("%s reporting (%s) every %d s\n",
                cumulative ? "Cumulative" : "Incremental",
