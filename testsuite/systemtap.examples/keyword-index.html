@@ -235,7 +235,7 @@ keywords: <a href="keyword-index.html#FILESYSTEM">FILESYSTEM</a> <a href="keywor
 denied&quot;</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
-<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><font size="-2"><pre># stap -g eatmydata.stp -c &#39;strace ls || true&#39;</pre></font></p>
+<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
 </li><li><a href="io/ttyspy.stp">io/ttyspy.stp</a> - Monitor TTY Typing<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#TTY">TTY</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>The ttyspy.stp script uses tty_audit hooks to monitor recent typing activity on the system, printing a scrolling record of recent keystrokes, on a per-tty basis.</p><p><font size="-2"><pre># stap --skip-badvars -g ttyspy.stp -c &quot;sleep 1&quot;</pre></font></p>
@@ -271,7 +271,7 @@ keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STA
 <p>alias_suffixes.stp is a demonstration of how alias suffixes in the systemtap language might be used. The script tracks the wall clock time for each invocation of the system calls open, close, read, and write. When the script exists it prints out the minimum, average, and maximum times in microseconds for each system call, followed by a count of times that each syscall was invoked and a histogram showing the distributions of times.</p><p><font size="-2"><pre># stap alias_suffixes.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
-<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><font size="-2"><pre># stap -g eatmydata.stp -c &#39;strace ls || true&#39;</pre></font></p>
+<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
 </li><li><a href="io/inodewatch.stp">io/inodewatch.stp</a> - Monitoring Reads and Writes to a File<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <br>
 <p> The inodewatch.stp outputs the executable name and process id each time a read or write occurs to the specified inode on the specified major/minor device.</p><p><font size="-2"><pre># stap inodewatch.stp 0x08 0x01 100 -c &quot;sleep 1&quot;</pre></font></p>
@@ -729,7 +729,7 @@ keywords: <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
 pyexample.py 35&#39; py3example.stp</pre></font></p>
 </li><li><a href="io/eatmydata.stp">io/eatmydata.stp</a> - disable fsync<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#GURU">GURU</a> <a href="keyword-index.html#SIMPLE">SIMPLE</a> <br>
-<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><font size="-2"><pre># stap -g eatmydata.stp -c &#39;strace ls || true&#39;</pre></font></p>
+<p>Suppresses fsync() syscalls from processes identified by stap -c/-x by turning them into presumed-faster fsync() on file descriptor 1 (stdout).</p><p><i><a href="io/eatmydata.txt">sample usage in io/eatmydata.txt</i></font></p>
 </li></ul>
 <h3><a name="SLAB"><a href="#SLAB">&para;</a> SLAB</a></h3>
 <ul>
