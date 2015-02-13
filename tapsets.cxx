@@ -3619,8 +3619,11 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   expression *repl = e;
   replace (repl);
   q.has_return = saved_has_return;
-  target_symbol* n = dynamic_cast<target_symbol*>(repl);
-  if (n && n->saved_conversion_error)
+
+  // If it's still a target_symbol, then it couldn't be resolved.  It may
+  // not have a saved_conversion_error yet, e.g. for null_die(scope_die),
+  // but we know it's not worth making that bogus entry anyway.
+  if (dynamic_cast<target_symbol*>(repl))
     {
       provide (repl);
       return;
