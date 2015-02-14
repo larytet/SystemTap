@@ -178,5 +178,7 @@ the <systemtap@sourceware.org> mailing list.
   # last minute rebuild; retest
   git rebase origin/master # clean git commit of merge history
   git diff origin/master # final visual check
-  git push # to the central one
-
+  
+    git push # to the central one, if you have access
+OR  git format-patch -s origin/master..
+        then email the resulting files to the mailing list
