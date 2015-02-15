@@ -1,11 +1,12 @@
 #include "sys/sdt.h"
-#include "stdio.h"
+#include <stdio.h>
+#include <unistd.h>
 
 #ifdef LISTING_MODE_MAIN
 
 int globalvar = 1;
 
-extern libfoo(int lf);
+extern int libfoo(int lf);
 
 __attribute__((always_inline))
 inline int inln(int i) {
@@ -34,6 +35,7 @@ main_label:
    STAP_PROBE1(main, mark, globalvar);
    while (1) {sleep(5000);}
    return 0;
+   if (0) goto main_label;
 }
 
 #elif LISTING_MODE_LIB
