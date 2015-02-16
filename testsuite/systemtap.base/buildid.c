@@ -1,5 +1,5 @@
 #ifndef ONLY_MAIN
-foo ()
+void foo ()
 {
   int x = 1;
  label: 
