@@ -20,16 +20,11 @@
   # ... currently we use a hideous copypasta hack which defines them as
   # locals in each probe alias. Blegh
 
-function __read_char:long(addr:long) %{ /* pure */
-         STAP_RETVALUE = kderef(sizeof(char), STAP_ARG_addr);
-         CATCH_DEREF_FAULT ();
-%}
-
 function __mac_addr_to_string:string(addr:long) {
          return sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-                        __read_char(addr), __read_char(addr+1),
-                        __read_char(addr+2), __read_char(addr+3),
-                        __read_char(addr+4), __read_char(addr+5))         
+                        kernel_char(addr), kernel_char(addr+1),
+                        kernel_char(addr+2), kernel_char(addr+3),
+                        kernel_char(addr+4), kernel_char(addr+5))         
 }
 
 function __get_mac_addr:string(addr:long) {
@@ -406,12 +401,6 @@ probe netfilter.ipv6.post_routing
         @netfilter_ip6_setup
 }
 
-function __read4:long (x:long) %{ /* pure */
-         long a = kderef(sizeof(u32),STAP_ARG_x);
-         STAP_RETVALUE = a;
-         CATCH_DEREF_FAULT();
-%}
-
 @define netfilter_arp_setup %(
 # XXX: include functionality to parse ARP packet contents
         arphdr = & @cast(__get_skb_arphdr($skb), "struct arphdr")
@@ -426,9 +415,9 @@ function __read4:long (x:long) %{ /* pure */
         if (ar_hrd == 0x001 && ar_pro == 0x800) {
            /* additional info available for most common (Ethernet+IP) case: */
            ar_sha = __mac_addr_to_string(ar_data)
-           ar_sip = format_ipaddr(__read4(ar_data + 6), %{ /* pure */ AF_INET %})
+           ar_sip = format_ipaddr(kernel_int(ar_data + 6), %{ /* pure */ AF_INET %})
            ar_tha = __mac_addr_to_string(ar_data + 10)
-           ar_tip =  format_ipaddr(__read4(ar_data + 16), %{ /* pure */ AF_INET %})
+           ar_tip =  format_ipaddr(kernel_int(ar_data + 16), %{ /* pure */ AF_INET %})
         }
         /* XXX support for additional cases? */
 
