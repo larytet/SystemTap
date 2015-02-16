@@ -259,7 +259,7 @@ keywords: <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.
 <ul>
 <li><a href="interrupt/interrupts-by-dev.stp">interrupt/interrupts-by-dev.stp</a> - Record Interrupts on a Per-Device Basis<br>
 keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
-<p>The interrupts-by-dev.stp script profiles interrupts received by each device per 100 ms.</p><p><font size="-2"><pre># stap interrupts-by-dev.stp -c &quot;sleep 1&quot;</pre></font></p>
+<p>The interrupts-by-dev.stp script profiles interrupts received by each device per 100 ms.</p><p><i><a href="interrupt/interrupts-by-dev.txt">sample usage in interrupt/interrupts-by-dev.txt</i></font></p>
 </li><li><a href="interrupt/scf.stp">interrupt/scf.stp</a> - Tally Backtraces for Inter-Processor Interrupt<br>
 keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>The Linux kernel function smp_call_function causes expensive inter-processor interrupts (IPIs). The scf.stp script tallies the processes and backtraces causing the interprocessor interrupts to identify the cause of the expensive IPI. On exit the script prints the tallies in descending frequency.</p><p><font size="-2"><pre># stap scf.stp -c &quot;sleep 1&quot;</pre></font></p>
