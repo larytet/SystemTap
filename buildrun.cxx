@@ -457,6 +457,9 @@ compile_pass (systemtap_session& s)
   // XXX this doesn't validate varargs, per gcc bug #41633
   o << "EXTRA_CFLAGS += $(call cc-option,-Wframe-larger-than=512)" << endl;
 
+  // gcc 5.0.0-0.13.fc23 ipa-icf seems to consume gigacpu on stap-generated code
+  o << "EXTRA_CFLAGS += $(call cc-option,-fno-ipa-icf)" << endl;
+
   // Assumes linux 2.6 kbuild
   o << "EXTRA_CFLAGS += -Wno-unused" << (s.omit_werror ? "" : " -Werror") << endl;
   #if CHECK_POINTER_ARITH_PR5947
