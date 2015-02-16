@@ -1,9 +1,8 @@
 #include "sys/sdt.h"
 #include <stdio.h>
 #include <unistd.h>
-
 #ifdef LISTING_MODE_MAIN
-
+/* NB: line numbers in this file are carefully calibrated to .exp test-case contents.  */
 int globalvar = 1;
 
 extern int libfoo(int lf);
