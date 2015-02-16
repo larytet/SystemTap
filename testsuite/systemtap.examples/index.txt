@@ -445,6 +445,110 @@ keywords: locking
   # stap bkl_stats.stp -c "sleep 1"
 
 
+lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
+keywords: net socket
+
+  This traces socket duration from the accept() syscall to close(), and
+  provides details on the lifespan of these passive connections,
+  showing the distribution as a histogram.
+
+  # stap accept2close-nd.stp -c "sleep 1"
+
+
+lwtools/biolatency-nd.stp - Measure block I/O latency distribution (non-debuginfo)
+keywords: io
+
+  This measures block I/O latency (storage I/O, ie, disk I/O), and
+  shows the distribution as a histogram. This can be useful to identify
+  the characteristics of I/O latency, beyond the averages shown by
+  iostat(1). For example, to study I/O latency outliers, or multi-modal
+  distributions.
+
+  # stap biolatency-nd.stp 1 1
+
+
+lwtools/bitesize-nd.stp - Measure block I/O size distribution (non-debuginfo)
+keywords: io
+
+  This uses the kernel tracepoint block_rq_insert to read the size of
+  I/O. The output includes the name of the process or thread that was
+  on-CPU when the I/O request was inserted on the issue queue.
+
+  # stap bitesize-nd.stp -c "sleep 1"
+
+
+lwtools/execsnoop-nd.stp - Trace process exec() with command line argument details (non-debuginfo)
+keywords: io
+
+  This can identify if CPU is consumed by short-lived processes, by
+  tracing new process execution. It works by tracing exec() from the
+  fork()->exec() sequence, which means it will not catch new processes
+  that only fork(). It will also show every exec(), including those if
+  a process re-execs.
+
+  # stap execsnoop-nd.stp -c "sleep 1"
+
+
+lwtools/fslatency-nd.stp - Measure the distribution of file system synchronous read and write latency (non-debuginfo)
+keywords: io filesystem
+
+  This dynamically traces two common file system functions:
+  do_sync_read() and do_sync_write(), and reports a histogram
+  distribution of latency. Many, but not all, file systems and
+  workloads use these functions. Tracing their time provides one view
+  of suffered file system latency.
+
+  # stap fslatency-nd.stp 1 1
+
+
+lwtools/fsslower-nd.stp - Trace slow file system synchronous reads and writes (non-debuginfo)
+keywords: io filesystem
+
+  This dynamically traces two common file system functions:
+  do_sync_read() and do_sync_write(), and shows details of each call
+  that is slower than a threshold. Many, but not all, file systems and
+  workloads use these functions. Tracing their time provides one view
+  of suffered file system latency.
+
+  # stap fsslower-nd.stp -c "sleep 1"
+
+
+lwtools/killsnoop-nd.stp - Trace kill() signals showing process and signal details (non-debuginfo)
+keywords: io
+
+  This traces signals system-wide, including those sent by the kill(1)
+  command, and shows various details.
+
+  # stap killsnoop-nd.stp -c "sleep 1"
+
+
+lwtools/opensnoop-nd.stp - Trace open() syscalls showing filenames (non-debuginfo)
+keywords: io
+
+  This traces the open() syscall system-wide, to show which files are
+  being opened, and by who.
+
+  # stap opensnoop-nd.stp -c "sleep 1"
+
+
+lwtools/rwtime-nd.stp - Summarize read() and write() syscall latency (non-debuginfo)
+keywords: io
+
+  This traces read() and write() syscalls, producing a histogram
+  summary of their durations (aka latencies).
+
+  # stap rwtime-nd.stp -c "sleep 1"
+
+
+lwtools/syscallbypid-nd.stp - Count syscalls with process details (non-debuginfo)
+keywords: io
+
+  This traces syscalls system-wide, and produces a summary report
+  showing their counts by process ID, process name, and syscall types.
+
+  # stap syscallbypid-nd.stp -c "sleep 1"
+
+
 memory/glibc-malloc.stp - Overview glibc malloc internal operations
 keywords: memory process
 
