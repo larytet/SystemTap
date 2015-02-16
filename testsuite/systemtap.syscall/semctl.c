@@ -15,7 +15,7 @@ union semun
     struct seminfo  *__buf;	    /* Buffer for IPC_INFO (Linux-specific) */
 };
 
-main()
+int main()
 {
     char *curdir;
     struct timeval tv;

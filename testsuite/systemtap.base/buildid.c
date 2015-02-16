@@ -7,7 +7,7 @@ foo ()
 }
 #endif
 #ifndef NO_MAIN
-main ()
+int main ()
 {
   foo();
 }

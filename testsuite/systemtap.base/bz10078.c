@@ -16,7 +16,7 @@ struct point mkpoint1(void)
 	return mkpoint2();
 }
 
-main()
+int main()
 {
 	struct point p = mkpoint1();
 	printf("%d,%d\n", p.x, p.y);

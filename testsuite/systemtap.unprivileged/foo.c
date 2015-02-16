@@ -21,7 +21,7 @@ inline void __attribute__ ((always_inline)) ibar (void) {
   pthread_join (thread, & x);
 }
 
-main () {
+int main () {
   ibar ();
   libfoofunc ();
   return 0;

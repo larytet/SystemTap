@@ -7,7 +7,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-main()
+int main()
 {
     char *curdir;
     struct timeval tv;
