@@ -58,6 +58,9 @@
 #ifndef __NR_mmap2
 #define __NR_mmap2 (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_move_pages
+#define __NR_move_pages (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_msgctl
 #define __NR_msgctl (__NR_syscall_max + 1)
 #endif

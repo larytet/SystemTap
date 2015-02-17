@@ -3278,24 +3278,43 @@ probe syscall.madvise.return = kernel.function("sys_madvise").return ?
 #	compat_ulong_t maxnode,
 #	compat_ulong_t flags)
 #
-probe syscall.mbind = kernel.function("compat_sys_mbind").call ?,
-                      kernel.function("sys_mbind").call ?
+probe syscall.mbind = __syscall.mbind ?,
+                      kernel.function("compat_sys_mbind").call ?
 {
 	name = "mbind"
 	start = $start
-	len = $len
-	mode = $mode
+	mode = __int32($mode)
+	mode_str = _mempolicy_mode_str(mode)
 	nmask_uaddr = $nmask
-	maxnode = $maxnode
-	flags = $flags
-	argstr = sprintf("%d, %d, %d, %p, %d, 0x%x", $start, $len, $mode,
-		$nmask, $maxnode, $flags)
+	flags = __uint32($flags)
+	flags_str = _mempolicy_flags_str(flags)
+	if (%{ _stp_is_compat_task() %}) {
+		len = __uint32($len)
+		maxnode = __uint32($maxnode)
+	} else {
+		len = $len
+		maxnode = $maxnode
+	}
+	argstr = sprintf("%p, %u, %s, %p, %u, %s", start, len,
+	                 mode_str, nmask_uaddr, maxnode, flags_str)
 }
-probe syscall.mbind.return = kernel.function("compat_sys_mbind").return ?,
-                             kernel.function("sys_mbind").return ?
+probe __syscall.mbind = kernel.function("sys_mbind").call
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
+}
+probe syscall.mbind.return = __syscall.mbind.return ?,
+                             kernel.function("compat_sys_mbind").return ?
 {
 	name = "mbind"
 	retstr = return_str(1, $return)
+}
+probe __syscall.mbind.return = kernel.function("sys_mbind").return
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
 }
 
 # memfd_create _____________________________________________________
@@ -3318,15 +3337,37 @@ probe syscall.memfd_create.return = kernel.function("sys_memfd_create").return ?
 # long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 #		const unsigned long __user *old_nodes,
 #		const unsigned long __user *new_nodes)
-probe syscall.migrate_pages = kernel.function("sys_migrate_pages").call ?
+probe syscall.migrate_pages = __syscall.migrate_pages ?,
+                              kernel.function("compat_sys_migrate_pages").call ?
 {
 	name = "migrate_pages"
-	argstr = sprintf("%d, %d, %p, %p", $pid, $maxnode, $old_nodes, $new_nodes)
+	pid = __int32($pid)
+	old_nodes = $old_nodes
+	new_nodes = $new_nodes
+	if (%{ _stp_is_compat_task() %}) {
+		maxnode = __uint32($maxnode)
+	} else {
+		maxnode = $maxnode
+	}
+	argstr = sprintf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
 }
-probe syscall.migrate_pages.return = kernel.function("sys_migrate_pages").return ?
+probe __syscall.migrate_pages = kernel.function("sys_migrate_pages").call
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
+}
+probe syscall.migrate_pages.return = __syscall.migrate_pages.return ?,
+                                     kernel.function("compat_sys_migrate_pages").return ?
 {
 	name = "migrate_pages"
 	retstr = return_str(1, $return)
+}
+probe __syscall.migrate_pages.return = kernel.function("sys_migrate_pages").return
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
 }
 
 # mincore ____________________________________________________
@@ -3488,17 +3529,41 @@ probe syscall.modify_ldt.return = kernel.function("sys_modify_ldt").return ?
 #                int __user *status,
 #                int flags)
 #
-probe syscall.move_pages = kernel.function("compat_sys_move_pages").call ?,
-                           kernel.function("sys_move_pages").call ?
+probe syscall.move_pages = __syscall.move_pages ?,
+                           __syscall.compat_move_pages ?
 {
 	name = "move_pages"
-	argstr = sprintf("%d, %d, %p, %p, 0x%x", $pid, $nr_pages, $nodes, $status, $flags)
+	pid = __int32($pid)
+	nodes = $nodes
+	status = $status
+	flags = __int32($flags)
+	flags_str = _mempolicy_flags_str(flags)
+	if (%{ _stp_is_compat_task() %}) {
+		nr_pages = __uint32($nr_pages)
+	} else {
+		nr_pages = $nr_pages
+	}
+	argstr = sprintf("%d, %u, %p, %p, %p, %s", pid, nr_pages, pages,
+	                 nodes, status, flags_str)
 }
-probe syscall.move_pages.return = kernel.function("compat_sys_move_pages").return ?,
-                                  kernel.function("sys_move_pages").return ?
+probe __syscall.move_pages = kernel.function("sys_move_pages").call
+{
+	@__syscall_gate(%{ __NR_move_pages %})
+	pages = $pages
+}
+probe __syscall.compat_move_pages = kernel.function("compat_sys_move_pages").call
+{
+	pages = $pages32
+}
+probe syscall.move_pages.return = __syscall.move_pages.return ?,
+                                  kernel.function("compat_sys_move_pages").return ?
 {
 	name = "move_pages"
 	retstr = return_str(1, $return)
+}
+probe __syscall.move_pages.return = kernel.function("sys_move_pages").return
+{
+	@__syscall_gate(%{ __NR_move_pages %})
 }
 
 # mount ______________________________________________________

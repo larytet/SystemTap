@@ -1174,8 +1174,8 @@ probe syscall.madvise.return
 probe syscall.mbind ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %p, %d, %d\n", start, len, mode, nmask_uaddr,
-	       maxnode, flags)
+    printf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,    
+	       mode_str, nmask_uaddr, maxnode, flags, flags_str)
 }
 probe syscall.mbind.return ?
 {
@@ -1195,6 +1195,7 @@ probe syscall.memfd_create.return ?
 probe syscall.migrate_pages ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
 }
 probe syscall.migrate_pages.return ?
 {
@@ -1285,6 +1286,8 @@ probe syscall.modify_ldt.return ?
 probe syscall.move_pages ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %u, %p, %p, %p, %u, %s", pid, nr_pages, pages, nodes,
+	       status, flags, flags_str)
 }
 probe syscall.move_pages.return ?
 {

@@ -1175,8 +1175,8 @@ probe nd_syscall.madvise.return
 probe nd_syscall.mbind ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d, %p, %d, %d\n", start, len, mode, nmask_uaddr,
-	       maxnode, flags)
+	argstr = sprintf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,
+	                 mode_str, nmask_uaddr, maxnode, flags, flags_str)
 }
 probe nd_syscall.mbind.return ?
 {
@@ -1196,6 +1196,7 @@ probe nd_syscall.memfd_create.return ?
 probe nd_syscall.migrate_pages ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
 }
 probe nd_syscall.migrate_pages.return ?
 {
@@ -1286,6 +1287,8 @@ probe nd_syscall.modify_ldt.return ?
 probe nd_syscall.move_pages ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %u, %p, %p, %p, %u, %s", pid, nr_pages, pages, nodes,
+	       status, flags, flags_str)
 }
 probe nd_syscall.move_pages.return ?
 {

@@ -3472,25 +3472,39 @@ probe nd_syscall.madvise.return = kprobe.function("sys_madvise").return ?
 #	compat_ulong_t maxnode,
 #	compat_ulong_t flags)
 #
-probe nd_syscall.mbind = kprobe.function("compat_sys_mbind") ?,
-                         kprobe.function("sys_mbind") ?
+probe nd_syscall.mbind = __nd_syscall.mbind ?,
+                         kprobe.function("compat_sys_mbind") ?
 {
 	name = "mbind"
 	asmlinkage()
-	start = ulong_arg(1)
-	len = long_arg(2)
-	mode = ulong_arg(3)
+	start = pointer_arg(1)
+	len = ulong_arg(2)
+	mode = int_arg(3)
+	mode_str = _mempolicy_mode_str(mode)
 	nmask_uaddr = pointer_arg(4)
 	maxnode = ulong_arg(5)
 	flags = uint_arg(6)
-	argstr = sprintf("%d, %d, %d, %p, %d, 0x%x", start, len, mode,
-		nmask_uaddr, maxnode, flags)
+	flags_str = _mempolicy_flags_str(flags)
+	argstr = sprintf("%p, %u, %s, %p, %u, %s", start, len,
+	                 mode_str, nmask_uaddr, maxnode, flags_str)
 }
-probe nd_syscall.mbind.return = kprobe.function("compat_sys_mbind").return ?,
-                                kprobe.function("sys_mbind").return ?
+probe __nd_syscall.mbind = kprobe.function("sys_mbind")
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
+}
+probe nd_syscall.mbind.return = __nd_syscall.mbind.return ?,
+                                kprobe.function("compat_sys_mbind").return ?
 {
 	name = "mbind"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.mbind.return = kprobe.function("sys_mbind").return
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
 }
 
 # memfd_create _____________________________________________________
@@ -3514,16 +3528,34 @@ probe nd_syscall.memfd_create.return = kprobe.function("sys_memfd_create").retur
 # long sys_migrate_pages(pid_t pid, unsigned long maxnode,
 #		const unsigned long __user *old_nodes,
 #		const unsigned long __user *new_nodes)
-probe nd_syscall.migrate_pages = kprobe.function("sys_migrate_pages") ?
+probe nd_syscall.migrate_pages = __nd_syscall.migrate_pages ?,
+                                 kprobe.function("compat_sys_migrate_pages") ?
 {
 	name = "migrate_pages"
 	asmlinkage()
-	argstr = sprintf("%d, %d, %p, %p", int_arg(1), ulong_arg(2), pointer_arg(3), pointer_arg(4))
+	pid = int_arg(1)
+	maxnode = ulong_arg(2)
+	old_nodes = pointer_arg(3)
+	new_nodes = pointer_arg(4)
+	argstr = sprintf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
 }
-probe nd_syscall.migrate_pages.return = kprobe.function("sys_migrate_pages").return ?
+probe __nd_syscall.migrate_pages = kprobe.function("sys_migrate_pages")
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
+}
+probe nd_syscall.migrate_pages.return = __nd_syscall.migrate_pages.return ?,
+                                        kprobe.function("compat_sys_migrate_pages").return ?
 {
 	name = "migrate_pages"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.migrate_pages.return = kprobe.function("sys_migrate_pages").return
+{
+%( arch == "powerpc" %?
+	@__syscall_gate_compat_simple
+%)
 }
 
 # mincore ____________________________________________________
@@ -3692,18 +3724,34 @@ probe nd_syscall.modify_ldt.return = kprobe.function("sys_modify_ldt").return ?
 #                int __user *status,
 #                int flags)
 #
-probe nd_syscall.move_pages = kprobe.function("compat_sys_move_pages") ?,
-                              kprobe.function("sys_move_pages") ?
+probe nd_syscall.move_pages = __nd_syscall.move_pages ?,
+                              kprobe.function("compat_sys_move_pages") ?
 {
 	name = "move_pages"
 	asmlinkage()
-	argstr = sprintf("%d, %d, %p, %p, 0x%x", int_arg(1), ulong_arg(2), pointer_arg(4), pointer_arg(5), int_arg(6))
+	pid = int_arg(1)
+	nr_pages = ulong_arg(2)
+	pages = pointer_arg(3)
+	nodes = pointer_arg(4)
+	status = pointer_arg(5)
+	flags = int_arg(6)
+	flags_str = _mempolicy_flags_str(flags)
+	argstr = sprintf("%d, %u, %p, %p, %p, %s", pid, nr_pages, pages,
+                         nodes, status, flags_str)
 }
-probe nd_syscall.move_pages.return = kprobe.function("compat_sys_move_pages").return ?,
-                                     kprobe.function("sys_move_pages").return ?
+probe __nd_syscall.move_pages = kprobe.function("sys_move_pages")
+{
+	@__syscall_gate(%{ __NR_move_pages %})
+}
+probe nd_syscall.move_pages.return = __nd_syscall.move_pages.return ?,
+                                     kprobe.function("compat_sys_move_pages").return ?
 {
 	name = "move_pages"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.move_pages.return = kprobe.function("sys_move_pages").return
+{
+	@__syscall_gate(%{ __NR_move_pages %})
 }
 
 # mount ______________________________________________________
