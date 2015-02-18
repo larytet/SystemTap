@@ -1036,6 +1036,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Wed Feb 18 2015 Frank Ch. Eigler <fche@redhat.com> - 2.7-1
+- Upstream release.
+
 * Fri Sep 05 2014 Josh Stone <jistone@redhat.com> - 2.6-1
 - Upstream release.
 
