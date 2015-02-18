@@ -986,17 +986,17 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
         if (flags & _STP_SYM_FILENAME) {
           if (filename) {
             /* filename, linenumber */
-            return _stp_snprintf(str, len, "%s%s:%u%s%s", prestr,
-                 filename, (int64_t) linenumber, exstr, poststr);
+            return _stp_snprintf(str, len, "%s%s:%#lu%s%s", prestr,
+                 filename,  linenumber, exstr, poststr);
           } else {
             /* filename=??, linenumber */
-            return _stp_snprintf(str, len, "%s??:%u%s%s", prestr,
-                 (int64_t) linenumber, exstr, poststr);
+            return _stp_snprintf(str, len, "%s??:%#lu%s%s", prestr,
+                 linenumber, exstr, poststr);
           }
         } else {
           /* linenumber */
-          return _stp_snprintf(str, len, "%s%u%s%s", prestr,
-               (int64_t) linenumber, exstr, poststr);
+          return _stp_snprintf(str, len, "%s%#lu%s%s", prestr,
+               linenumber, exstr, poststr);
         }
     } else if ((flags & _STP_SYM_FILENAME) && filename) {
       /* filename */
