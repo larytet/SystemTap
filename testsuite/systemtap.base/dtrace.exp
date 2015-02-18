@@ -241,25 +241,28 @@ exec rm -f XXX.h
 # -----------------------------------------------------------------
 # test fallback to --no-pyparsing
 
-set ok 0
-verbose -log "$dtrace -C -h -s $pypath -o XXX.h"
-spawn $dtrace -C -DDCL_AFTER_PROVIDER -h -s $pypath -o XXX.h
-expect {
-    -re {Warning.*syntax error} {incr ok; exp_continue}
-    -re {Warning.*--no-pyparsing} {incr ok; exp_continue}
-    eof { }
-}
-catch {close}; catch {wait}
-if {[file exists XXX.h]} then {
-    incr ok;
-}
-if { $ok == 3} {
-    pass "dtrace parser check"
+if {[catch {exec python -c "import pyparsing"} res]} then {
+    untested "dtrace parser check"
 } else {
-    fail "dtrace parser check $ok"
+    set ok 0
+    verbose -log "$dtrace -C -h -s $pypath -o XXX.h"
+    spawn $dtrace -C -DDCL_AFTER_PROVIDER -h -s $pypath -o XXX.h
+    expect {
+        -re {Warning.*syntax error} {incr ok; exp_continue}
+        -re {Warning.*--no-pyparsing} {incr ok; exp_continue}
+        eof { }
+    }
+    catch {close}; catch {wait}
+    if {[file exists XXX.h]} then {
+        incr ok;
+    }
+    if { $ok == 3} {
+        pass "dtrace parser check"
+    } else {
+        fail "dtrace parser check $ok"
+    }
+    exec rm -f XXX.h
 }
-exec rm -f XXX.h
-
 # -----------------------------------------------------------------
 # test -G object file creation
 
