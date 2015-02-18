@@ -596,14 +596,9 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
 
           // found an address that at least sort of matches the address we
           // were looking for
-          if ((curr_addr <= addr && addr <= (curr_addr + addr_adv))
+          if ((curr_addr <= addr && addr < (curr_addr + addr_adv))
               || (curr_addr == addr && addr_adv != 0))
             {
-              if (curr_addr + addr_adv == addr)
-                {
-                  curr_linenum += cumm_line_adv;
-                  prev_file_idx = curr_file_idx;
-                }
 
               if (need_filename)
                 _stp_filename_lookup(m, filename, dirsecp, endhdrp,
@@ -615,6 +610,9 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
           if (addr_adv != 0)
             {
               prev_file_idx = curr_file_idx;
+            }
+          if (prev_file_idx == curr_file_idx)
+          {
               curr_linenum += cumm_line_adv;
               cumm_line_adv = 0;
             }
