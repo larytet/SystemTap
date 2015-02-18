@@ -1069,6 +1069,32 @@ probe syscall.execve.return = kernel.function("do_execve").return
 }
 %)
 
+# execveat ______________________________________________
+# SYSCALL_DEFINE5(execveat,
+#		int, fd, const char __user *, filename,
+#		const char __user *const __user *, argv,
+#		const char __user *const __user *, envp,
+#		int, flags)
+#
+probe syscall.execveat = kernel.function("sys_execveat").call ?
+{
+        name = "execveat"
+        fd = __int32($fd)
+        fd_str = _dfd_str(__int32($fd))
+        filename = user_string_quoted(@__pointer($filename))
+        flags = int_arg($flags)
+	 flags_str = _at_flag_str(__int32($flags))
+        __argv = @choose_defined($__argv, $argv)
+        args = __get_argv(__argv, 0)
+        argstr = sprintf("%s %s %s %s", fd_str, filename, __get_argv(__argv, 1), flags_str)
+}
+
+probe syscall.execveat.return = kernel.function("sys_execveat").return ?
+{
+        name = "execveat"
+        retstr = return_str(1, $return)
+}
+
 %( kernel_v >= "3.7" %?
 # In kernels >= 3.7, compat_sys_execve() has been moved to generic
 # code, so we can use it with confidence.
@@ -1116,6 +1142,24 @@ probe syscall.compat_execve.return =
 	retstr = return_str(1, $return)
 }
 %)
+probe syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
+{
+        name = "compat_execveat"
+        fd = __int32($fd)
+        fd_str = _dfd_str(__int32($fd))
+        filename = user_string_quoted(@__pointer($filename))
+        flags = int_arg($flags)
+	 flags_str = _at_flag_str(__int32($flags))
+        __argv = @choose_defined($__argv, $argv)
+        args = __get_argv(__argv, 0)
+        argstr = sprintf("%s %s %s %s", fd_str, filename, __get_argv(__argv, 1), flags_str)
+}
+
+probe syscall.compat_execveat.return = kernel.function("compat_sys_execveat").return ?
+{
+        name = "compat_execveat"
+        retstr = return_str(1, $return)
+}
 
 # exit _______________________________________________________
 # long sys_exit(int error_code)

@@ -342,6 +342,16 @@ probe syscall.execve.return, syscall.compat_execve.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.execveat, syscall.compat_execveat ?
+{
+        printf("%s, %s\n", name, argstr)
+	 printf("%d, %s, %s, %d(%s), %s\n", fd, fd_str, filename, flags, flags_str, args)
+}
+
+probe syscall.execveat.return, syscall.compat_execveat.return ?
+{
+        printf("%s, %s\n", name, retstr)
+}
 probe syscall.exit
 {
 	printf("%s, %s\n", name, argstr)
