@@ -1175,8 +1175,8 @@ probe nd_syscall.madvise.return
 probe nd_syscall.mbind ?
 {
 	printf("%s, %s\n", name, argstr)
-	argstr = sprintf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,
-	                 mode_str, nmask_uaddr, maxnode, flags, flags_str)
+    printf("%p, %u, %d, %s, %p, %u, %u, %s", start, len, mode,    
+	       mode_str, nmask_uaddr, maxnode, flags, flags_str)
 }
 probe nd_syscall.mbind.return ?
 {
