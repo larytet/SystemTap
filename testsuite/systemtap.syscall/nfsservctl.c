@@ -31,10 +31,18 @@ int main()
     //staptest// [[[[nfsservctl (0xffffffff, XXXX, XXXX)!!!!ni_syscall ()]]]] = -NNNN
 
     nfsservctl(NFSCTL_EXPORT, (struct nfsctl_arg *)-1, &res);
+#ifdef __s390__
+    //staptest// [[[[nfsservctl (NFSCTL_EXPORT, 0x[7]?[f]+, XXXX)!!!!ni_syscall ()]]]] = -NNNN
+#else
     //staptest// [[[[nfsservctl (NFSCTL_EXPORT, 0x[f]+, XXXX)!!!!ni_syscall ()]]]] = -NNNN
+#endif
 
     nfsservctl(NFSCTL_EXPORT, &arg, (union nfsctl_res *)-1);
+#ifdef __s390__
+    //staptest// [[[[nfsservctl (NFSCTL_EXPORT, XXXX, 0x[7]?[f]+)!!!!ni_syscall ()]]]] = -NNNN
+#else
     //staptest// [[[[nfsservctl (NFSCTL_EXPORT, XXXX, 0x[f]+)!!!!ni_syscall ()]]]] = -NNNN
+#endif
 #endif
     return 0;
 }

@@ -65,13 +65,8 @@ probe syscall.compat_nanosleep.return = kernel.function("compat_sys_nanosleep").
 # just a wrapper around sys_ni_syscall(), so don't bother handling
 # compat_sys_nfsservctl(). 
 %( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
-probe syscall.nfsservctl =
-%( CONFIG_NFSD_DEPRECATED == "y" %?
-	kernel.function("sys_nfsservctl").call ?
-%:
-	kernel.function("sys_nfsservctl").call ?,
+probe syscall.nfsservctl = __syscall.nfsservctl ?,
 	kernel.function("compat_sys_nfsservctl").call ?
-%)
 {
 	name = "nfsservctl"
 	cmd = __int32($cmd)
@@ -80,16 +75,19 @@ probe syscall.nfsservctl =
 	argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str(__int32($cmd)),
 			 $arg, $res)
 }
-probe syscall.nfsservctl.return =
-%( CONFIG_NFSD_DEPRECATED == "y" %?
-	kernel.function("sys_nfsservctl").return ?
-%:
-	kernel.function("sys_nfsservctl").return ?,
+probe __syscall.nfsservctl = kernel.function("sys_nfsservctl").call ?
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.nfsservctl.return = __syscall.nfsservctl.return ?,
 	kernel.function("compat_sys_nfsservctl").return ?
-%)
 {
 	name = "nfsservctl"
 	retstr = return_str(1, $return)
+}
+probe __syscall.nfsservctl.return = kernel.function("sys_nfsservctl").return ?
+{
+	@__syscall_gate_compat_simple
 }
 %)
 
