@@ -20,7 +20,7 @@ endif
 
 if XMLTO_STRINGPARAM
 XMLTOMANPARAMS=--stringparam man.authors.section.enabled=0 --stringparam man.copyright.section.enabled=0
-XMLTOHTMLPARAMS=--stringparam use.id.as.filename=1 --stringparam generate.toc='book\ toc,title'
+XMLTOHTMLPARAMS=--stringparam use.id.as.filename=1 --stringparam generate.toc='book,toc,title'
 XMLTOPDFPARAMS=--stringparam refentry.generate.name=0 --stringparam refentry.generate.title=1
 endif
 
