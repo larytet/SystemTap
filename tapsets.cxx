@@ -11206,22 +11206,22 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
   // now build them all together
   map<string,string> tracequery_objs = make_tracequeries(s, headers_tracequery_src);
 
-  // now plop them into the cache
-  if (s.use_cache)
-    for (size_t i=0; i<uncached_headers.size(); i++)
-      {
-        const string& header = uncached_headers[i];
-        const string& tracequery_obj = tracequery_objs[header];
-        const string& tracequery_path = headers_cache_obj[header];
-        if (tracequery_obj !="" && file_exists(tracequery_obj))
-          {
+  // now extend the modules list, and maybe plop them into the cache
+  for (size_t i=0; i<uncached_headers.size(); i++)
+    {
+      const string& header = uncached_headers[i];
+      const string& tracequery_obj = tracequery_objs[header];
+      const string& tracequery_path = headers_cache_obj[header];
+      if (tracequery_obj !="" && file_exists(tracequery_obj))
+        {
+          modules.push_back (tracequery_obj);
+          if (s.use_cache)
             copy_file(tracequery_obj, tracequery_path, s.verbose > 2);
-            modules.push_back (tracequery_path);
-          }
-        else
-          // cache an empty file for failures
-          copy_file("/dev/null", tracequery_path, s.verbose > 2);
-      }
+        }
+      else if (s.use_cache)
+        // cache an empty file for failures
+        copy_file("/dev/null", tracequery_path, s.verbose > 2);
+    }
 }
 
 
