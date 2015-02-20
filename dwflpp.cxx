@@ -1863,12 +1863,46 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
   else if (lineno_type == WILDCARD)
     collect_all_lines(srcfile, current_funcs, matching_lines);
   else if (lineno_type == ENUMERATED)
-    for (vector<int>::const_iterator it = linenos.begin(); it != linenos.end(); it++)
-      collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
-                                      current_funcs, matching_lines);
+    {
+      set<int> collected_linenos;
+      for (vector<int>::const_iterator it  = linenos.begin();
+                                       it != linenos.end(); it++)
+        {
+          // have we already collected this lineno?
+          if (collected_linenos.find(*it) != collected_linenos.end())
+            continue;
 
-  // should we try to collect the nearest line if we didn't collect everything on first try?
-  if (matching_lines.empty() && has_nearest)
+          // remember end iterator so we can tell if things were found later
+          lines_t::const_iterator itend = matching_lines.end();
+
+          collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
+                                          current_funcs, matching_lines);
+          // add to set if we found LRs
+          if (itend != matching_lines.end())
+            collected_linenos.insert(*it);
+
+          // if we didn't find anything and .nearest is given, then try nearest
+          if (itend == matching_lines.end() && has_nearest)
+            {
+              int nearest_lineno = get_nearest_lineno(srcfile, *it,
+                                                      current_funcs);
+              if (nearest_lineno <= 0) // no valid nearest linenos
+                continue;
+
+              bool new_lineno = collected_linenos.insert(nearest_lineno).second;
+              if (new_lineno)
+                collect_lines_for_single_lineno(srcfile, nearest_lineno,
+                                                false, /* is_relative */
+                                                current_funcs, matching_lines);
+            }
+        }
+    }
+
+  // should we try to collect the nearest lines if we didn't collect everything
+  // on first try? (ABSOLUTE and RELATIVE only: ENUMERATED handles it already
+  // and WILDCARD doesn't need it)
+  if (matching_lines.empty() && has_nearest && (lineno_type == ABSOLUTE ||
+                                                lineno_type == RELATIVE))
     {
       int lineno = linenos[0];
       if (lineno_type == RELATIVE)
@@ -1877,7 +1911,8 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
 
       int nearest_lineno = get_nearest_lineno(srcfile, lineno, current_funcs);
       if (nearest_lineno > 0)
-        collect_lines_for_single_lineno(srcfile, nearest_lineno, false, /* is_relative */
+        collect_lines_for_single_lineno(srcfile, nearest_lineno,
+                                        false, /* is_relative */
                                         current_funcs, matching_lines);
     }
 

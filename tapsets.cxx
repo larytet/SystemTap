@@ -1231,11 +1231,6 @@ dwarf_query::parse_function_spec(const string & spec)
               {
                 goto bad;
               }
-
-            // only allow .nearest with ABSOLUTE and RELATIVE linenos
-            if (has_nearest && lineno_type != ABSOLUTE
-                            && lineno_type != RELATIVE)
-              throw SEMANTIC_ERROR(_(".nearest is only valid with absolute or relative line numbers"));
         }
     }
 
@@ -1960,7 +1955,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
           string canon_func = q->final_function_name(i->name, i->decl_file,
                                                      lineno /* NB: not i->decl_line */ );
 
-          if (q->has_nearest)
+          if (q->has_nearest && (q->lineno_type == ABSOLUTE ||
+                                 q->lineno_type == RELATIVE))
             {
               int lineno_nearest = q->linenos[0];
               if (q->lineno_type == RELATIVE)
@@ -1980,7 +1976,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
                            &scope, addr, q);
 
           q->unmount_well_formed_probe_point();
-          if (q->has_nearest)
+          if (q->has_nearest && (q->lineno_type == ABSOLUTE ||
+                                 q->lineno_type == RELATIVE))
             q->unmount_well_formed_probe_point();
         }
     }
