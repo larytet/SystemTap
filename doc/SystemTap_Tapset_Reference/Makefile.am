@@ -51,15 +51,15 @@ tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 	fi
 
 stamp-htmldocs: tapsets.xml
-	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml >/dev/null 2>&1
+	xmlto $(XMLTOHTMLPARAMS) html -o tapsets tapsets.xml
 	touch stamp-htmldocs
 
 # bump up the allocated space so "xmlto pdf" works
 tapsets.pdf: tapsets.xml
-	env pool_size=6000000 hash_extra=6000000 xmlto $(XMLTOPDF_FOP) $(XMLTOPDFPARAMS) pdf tapsets.xml >/dev/null 2>&1
+	env pool_size=6000000 hash_extra=6000000 xmlto $(XMLTOPDF_FOP) $(XMLTOPDFPARAMS) pdf tapsets.xml
 
 stamp-mandocs: tapsets.xml
-	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml >/dev/null 2>&1
+	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml
 	SRCTREE=$(SRCTREE) $(MANPAGER) # generate tapset::* pages
 	touch stamp-mandocs
 
