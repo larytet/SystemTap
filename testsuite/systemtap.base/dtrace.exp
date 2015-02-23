@@ -190,8 +190,8 @@ exec rm -f dtrace-XXX.h
 # -----------------------------------------------------------------
 # test fallback to --no-pyparsing
 
-if {[catch {exec /usr/bin/$py -c "import pyparsing"} res]} then {
-    untested "dtrace parser check"
+if {[catch {exec $python -c "import pyparsing"} res]} then {
+    untested "$test parser check"
 } else {
     set ok 0
     verbose -log "$dtrace -C -DDCL_AFTER_PROVIDER -h -s $pypath -o dtrace-XXX.h"

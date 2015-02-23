@@ -187,12 +187,13 @@ class _PypProvider(_HeaderCreator):
             except TypeError:
                 # pyparsing-1.5.0 does not support parseAll
                 self.ast = self.bnf.parseFile(provider).asList()
-        except ParseException, err:
+        except ParseException:
+            err = sys.exc_info()[1]
             if len(self.current_probe):
                 print("Warning: %s:%s:%d: syntax error near:\nprobe %s\n" % (sys.argv[0], provider, self.current_lineno, self.current_probe))
             else:
                 print("Warning: %s:%s:%d syntax error near:\n%s\n" % (sys.argv[0], provider, err.lineno, err.line))
-            raise ParseException, err
+            raise err
   
         probes_def = ""
         for asti in self.ast:
@@ -386,7 +387,8 @@ def main():
             # complex C declarations can fool the pyparsing grammar.  
             # we could increase the complexity of the grammar
             # instead we fall back to string pattern matching
-            except ParseException, err:
+            except ParseException:
+                err = sys.exc_info()[1]
                 print("Warning: Proceeding as if --no-pyparsing was given.\n")
                 providers = _ReProvider()
     elif build_source:
@@ -399,7 +401,8 @@ def main():
             try:
                 providers.probe_write(s_filename, fname)
                 break;
-            except ParseException, err:
+            except ParseException:
+                err = sys.exc_info()[1]
                 print("Warning: Proceeding as if --no-pyparsing was given.\n")
                 providers = _ReProvider()
         if not keep_temps:
