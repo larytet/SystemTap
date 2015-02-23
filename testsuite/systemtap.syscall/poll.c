@@ -1,4 +1,5 @@
-/* COVERAGE: epoll_create epoll_ctl epoll_wait epoll_pwait poll ppoll */
+/* COVERAGE: epoll_create epoll_create1 epoll_ctl epoll_wait epoll_pwait */
+/* COVERAGE: poll ppoll */
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <sys/epoll.h>
