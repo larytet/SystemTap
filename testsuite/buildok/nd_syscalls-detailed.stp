@@ -342,13 +342,13 @@ probe nd_syscall.execve.return, nd_syscall.compat_execve.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.execveat, nd_syscall.compat_execveat ?
+probe nd_syscall.execveat ?, nd_syscall.compat_execveat ?
 {
         printf("%s, %s\n", name, argstr)
         printf("%d, %s, %s, %d(%s), %s\n", fd, fd_str, filename, flags, flags_str, args)
 }
 
-probe nd_syscall.execveat.return, nd_syscall.compat_execveat.return ?
+probe nd_syscall.execveat.return ?, nd_syscall.compat_execveat.return ?
 {
         printf("%s, %s\n", name, retstr)
 }
