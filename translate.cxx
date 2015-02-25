@@ -250,6 +250,13 @@ struct c_tmpcounter:
   void visit_functioncall (functioncall* e);
   void visit_print_format (print_format* e);
   void visit_stat_op (stat_op* e);
+
+  void wrap_visit_in_struct (expression *e);
+  void wrap_visit_in_struct (statement *s);
+  void start_struct_def (std::ostream::pos_type &before,
+                         std::ostream::pos_type &after, const token* tok);
+  void close_struct_def (std::ostream::pos_type before,
+                         std::ostream::pos_type after);
 };
 
 struct c_unparser_assignment:
@@ -3534,6 +3541,56 @@ c_unparser::visit_expr_statement (expr_statement *s)
 
 
 void
+c_tmpcounter::wrap_visit_in_struct (statement *s)
+{
+  std::ostream::pos_type before_struct_pos;
+  std::ostream::pos_type after_struct_pos;
+
+  start_struct_def(before_struct_pos, after_struct_pos, s->tok);
+  s->visit (this);
+  close_struct_def(before_struct_pos, after_struct_pos);
+}
+
+void
+c_tmpcounter::wrap_visit_in_struct (expression *e)
+{
+  std::ostream::pos_type before_struct_pos;
+  std::ostream::pos_type after_struct_pos;
+
+  start_struct_def(before_struct_pos, after_struct_pos, e->tok);
+  e->visit (this);
+  close_struct_def(before_struct_pos, after_struct_pos);
+}
+
+void
+c_tmpcounter::start_struct_def (std::ostream::pos_type &before,
+                                std::ostream::pos_type &after, const token* tok)
+{
+  // To avoid lots of empty structs, remember  where we are now.  Then,
+  // output the struct start and remember that positon.  If when we get
+  // done with the statement we haven't moved, then we don't really need
+  // the struct.  To get rid of the struct start we output, we'll seek back
+  // to where we were before we output the struct (done in ::close_struct_def).
+  before = parent->o->tellp();
+  parent->o->newline() << "struct { /* source: " << tok->location.file->name
+                         << ":" << lex_cast(tok->location.line) << " */";
+  parent->o->indent(1);
+  after = parent->o->tellp();
+}
+
+void
+c_tmpcounter::close_struct_def (std::ostream::pos_type before,
+                                std::ostream::pos_type after)
+{
+  // meant to be used with ::start_struct_def. remove the struct if empty.
+  parent->o->indent(-1);
+  if (after == parent->o->tellp())
+    parent->o->seekp(before);
+  else
+    parent->o->newline() << "};";
+}
+
+void
 c_unparser::visit_if_statement (if_statement *s)
 {
   record_actions(1, s->tok, true);
@@ -3564,27 +3621,12 @@ c_tmpcounter::visit_block (block *s)
   // temporary variable slots, since temporaries don't survive
   // statement boundaries.  So we use gcc's anonymous union/struct
   // facility to explicitly overlay the temporaries.
-  parent->o->newline() << "union {";
+  parent->o->newline() << "union { /* block_statement: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
   parent->o->indent(1);
   for (unsigned i=0; i<s->statements.size(); i++)
-    {
-      // To avoid lots of empty structs inside the union, remember
-      // where we are now.  Then, output the struct start and remember
-      // that positon.  If when we get done with the statement we
-      // haven't moved, then we don't really need the struct.  To get
-      // rid of the struct start we output, we'll seek back to where
-      // we were before we output the struct.
-      std::ostream::pos_type before_struct_pos = parent->o->tellp();
-      parent->o->newline() << "struct {";
-      parent->o->indent(1);
-      std::ostream::pos_type after_struct_pos = parent->o->tellp();
-      s->statements[i]->visit (this);
-      parent->o->indent(-1);
-      if (after_struct_pos == parent->o->tellp())
-	parent->o->seekp(before_struct_pos);
-      else
-	parent->o->newline() << "};";
-    }
+    wrap_visit_in_struct(s->statements[i]);
   parent->o->newline(-1) << "};";
 }
 
