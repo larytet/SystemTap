@@ -229,6 +229,8 @@ struct c_tmpcounter:
   void load_aggregate (expression *e);
 
   void visit_block (block *s);
+  void visit_try_block (try_block* s);
+  void visit_if_statement (if_statement* s);
   void visit_for_loop (for_loop* s);
   void visit_foreach_loop (foreach_loop* s);
   // void visit_return_statement (return_statement* s);
@@ -3459,6 +3461,22 @@ c_unparser::visit_block (block *s)
 }
 
 
+void c_tmpcounter::visit_try_block (try_block *s)
+{
+  parent->o->newline() << "union { /* try_block: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
+  parent->o->indent(1);
+
+  if (s->try_block)
+    wrap_visit_in_struct(s->try_block);
+  if (s->catch_error_var)
+    wrap_visit_in_struct(s->catch_error_var);
+  if (s->catch_block)
+    wrap_visit_in_struct(s->catch_block);
+
+  parent->o->newline(-1) << "};";
+}
 void c_unparser::visit_try_block (try_block *s)
 {
   record_actions(0, s->tok, true); // flush prior actions
@@ -3591,6 +3609,23 @@ c_tmpcounter::close_struct_def (std::ostream::pos_type before,
 }
 
 void
+c_tmpcounter::visit_if_statement (if_statement *s)
+{
+  parent->o->newline() << "union { /* if_statement: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
+  parent->o->indent(1);
+
+  wrap_visit_in_struct(s->condition);
+  wrap_visit_in_struct(s->thenblock);
+
+  if (s->elseblock)
+    wrap_visit_in_struct(s->elseblock);
+
+  parent->o->newline(-1) << "};";
+}
+
+void
 c_unparser::visit_if_statement (if_statement *s)
 {
   record_actions(1, s->tok, true);
@@ -3633,10 +3668,17 @@ c_tmpcounter::visit_block (block *s)
 void
 c_tmpcounter::visit_for_loop (for_loop *s)
 {
-  if (s->init) s->init->visit (this);
-  s->cond->visit (this);
-  s->block->visit (this);
-  if (s->incr) s->incr->visit (this);
+  parent->o->newline() << "union { /* for_loop: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
+  parent->o->indent(1);
+
+  if (s->init) wrap_visit_in_struct(s->init);
+  wrap_visit_in_struct(s->cond);
+  wrap_visit_in_struct(s->block);
+  if (s->incr) wrap_visit_in_struct(s->incr);
+
+  parent->o->newline(-1) << "};";
 }
 
 
@@ -3792,6 +3834,13 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
   symbol *array;
   hist_op *hist;
   classify_indexable (s->base, array, hist);
+
+  // tmpvar mem usage can't be optimized by wrapping the tmp declarations
+  // in a union like in ::visit_for_loop. this is because the tmps for
+  // the limit, and the mapvar+indexes (or aggvar) are used in multiple
+  // areas, such that they would need to be declared outside of the
+  // union. that leaves the body, which would need to be encased in a
+  // struct decl rendering the union useless.
 
   // Create a temporary for the loop limit counter and the limit
   // expression result.
