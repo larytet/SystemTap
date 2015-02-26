@@ -60,20 +60,16 @@ probe syscall.compat_nanosleep.return = kernel.function("compat_sys_nanosleep").
 #					union compat_nfsctl_res __user *res)
 #
 # nfsservctl was removed in kernel 3.0/2.6.40.
-#
-# When CONFIG_NFSD_DEPRECATED is defined, compat_sys_nfsservctl() is
-# just a wrapper around sys_ni_syscall(), so don't bother handling
-# compat_sys_nfsservctl(). 
 %( kernel_v < "2.6.40" && CONFIG_NFSD == "[ym]" %?
 probe syscall.nfsservctl = __syscall.nfsservctl ?,
 	kernel.function("compat_sys_nfsservctl").call ?
 {
 	name = "nfsservctl"
 	cmd = __int32($cmd)
-	argp_uaddr = $arg
-	resp_uaddr = $res
+	argp_uaddr = @choose_defined($arg, $notused)
+	resp_uaddr = @choose_defined($res, $notused2)
 	argstr = sprintf("%s, %p, %p", _nfsctl_cmd_str(__int32($cmd)),
-			 $arg, $res)
+			 argp_uaddr, resp_uaddr)
 }
 probe __syscall.nfsservctl = kernel.function("sys_nfsservctl").call ?
 {
