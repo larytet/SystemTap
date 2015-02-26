@@ -422,6 +422,7 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
   output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
+  output_autoconf(s, o, "autoconf-timerfd.c", "STAPCONF_TIMERFD_H", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 

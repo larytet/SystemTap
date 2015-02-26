@@ -1282,6 +1282,37 @@ probe nd_syscall.timerfd.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.timerfd_create ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d(%s), %d(%s)", clockid, clockid_str, flags, flags_str)
+}
+probe nd_syscall.timerfd_create.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.timerfd_gettime ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p", fd, value_uaddr)
+}
+probe nd_syscall.timerfd_gettime.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.timerfd_settime ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d(%s), %p, %p", fd, flags, flags_str, value_uaddr,
+	       ovalue_uaddr)
+}
+probe nd_syscall.timerfd_settime.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.times
 {
 	printf("%s, %s\n", name, argstr)

@@ -180,4 +180,5 @@ probe begin {
 	print (_mempolicy_mode_str(0))
 	print (_finit_module_flags_str(0))
 	print (_prctl_argstr(0, 0, 0, 0, 0))
+	print (_stp_timerfd_flags_str(0))
 }

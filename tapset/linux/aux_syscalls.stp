@@ -4539,3 +4539,34 @@ function _prctl_argstr:string(option:long, arg2:long, arg3:long, arg4:long,
 		break;
 	}
 %}
+
+%{
+// RHEL5 x86_64 (2.6.18-398.el5) has __NR_timerfd_create but no
+// timerfd.h.
+#ifdef STAPCONF_TIMERFD_H
+#include <linux/timerfd.h>
+#endif
+
+static const _stp_val_array const _stp_timerfd_flags_list[] = {
+#ifdef TFD_TIMER_ABSTIME
+	V(TFD_TIMER_ABSTIME),
+#endif
+#ifdef TFD_TIMER_CANCEL_ON_SET
+	V(TFD_TIMER_CANCEL_ON_SET),
+#endif
+#ifdef TFD_CLOEXEC
+	V(TFD_CLOEXEC),
+#endif
+#ifdef TFD_NONBLOCK
+	V(TFD_NONBLOCK),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_timerfd_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_timerfd_flags_list,
+			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%} 

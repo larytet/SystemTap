@@ -4154,6 +4154,10 @@ probe __syscall.timer_settime.return =
 
 # timerfd ______________________________________________
 #
+# Note that timerfd() only existed between kernels 2.6.22 and 2.6.25
+# and was replaced by timerfd_create(), timerfd_gettime(),
+# and timerfd_settime().
+#
 # long sys_timerfd(int ufd, int clockid, int flags,
 #	    const struct itimerspec __user *utmr)
 # long compat_sys_timerfd(int ufd, int clockid, int flags,
@@ -4170,6 +4174,102 @@ probe syscall.timerfd.return = kernel.function("sys_timerfd").return ?,
 {
 	name = "timerfd"
 	retstr = return_str(1, $return)
+}
+
+# timerfd_create _____________________________________________
+#
+# SYSCALL_DEFINE2(timerfd_create, int, clockid, int, flags)
+probe syscall.timerfd_create = kernel.function("sys_timerfd_create").call ?
+{
+	name = "timerfd_create"
+	clockid = __int32($clockid)
+	clockid_str = _get_wc_str(clockid)
+	flags = __int32($flags)
+	flags_str = _stp_timerfd_flags_str(flags)
+	argstr = sprintf("%s, %s", clockid_str, flags_str)
+}
+probe syscall.timerfd_create.return =
+	kernel.function("sys_timerfd_create").return ?
+{
+	name = "timerfd_create"
+	retstr = return_str(1, $return)
+}
+
+# timerfd_gettime_____________________________________________
+#
+# SYSCALL_DEFINE2(timerfd_gettime, int, ufd, struct itimerspec __user *, otmr)
+# COMPAT_SYSCALL_DEFINE2(timerfd_gettime, int, ufd,
+#		struct compat_itimerspec __user *, otmr)
+probe syscall.timerfd_gettime = __syscall.timerfd_gettime ?,
+	kernel.function("compat_sys_timerfd_gettime").call ?
+{
+	name = "timerfd_gettime"
+	fd = __int32($ufd)
+	value_uaddr = $otmr
+	argstr = sprintf("%d, %p", fd, $otmr)
+}
+probe __syscall.timerfd_gettime = kernel.function("sys_timerfd_gettime").call ?
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.timerfd_gettime.return = __syscall.timerfd_gettime.return ?,
+	kernel.function("compat_sys_timerfd_gettime").return ?
+{
+	name = "timerfd_gettime"
+	retstr = return_str(1, $return)
+}
+probe __syscall.timerfd_gettime.return =
+	kernel.function("sys_timerfd_gettime").return ?
+{
+	@__syscall_gate_compat_simple
+}
+
+# timerfd_settime ____________________________________________
+#
+# SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
+#		const struct itimerspec __user *, utmr,
+#		struct itimerspec __user *, otmr)
+# COMPAT_SYSCALL_DEFINE4(timerfd_settime, int, ufd, int, flags,
+#		const struct compat_itimerspec __user *, utmr,
+#		struct compat_itimerspec __user *, otmr)
+probe syscall.timerfd_settime = __syscall.timerfd_settime ?,
+	__syscall.compat_timerfd_settime ?
+{
+	name = "timerfd_settime"
+}
+probe __syscall.timerfd_settime = kernel.function("sys_timerfd_settime").call ?
+{
+	@__syscall_gate_compat_simple
+	fd = __int32($ufd)
+	flags = __int32($flags)
+	flags_str = _stp_timerfd_flags_str(flags)
+	value_uaddr = $utmr
+	ovalue_uaddr = $otmr
+	argstr = sprintf("%d, %s, %s, %p", fd, flags_str,
+			 _struct_itimerspec_u($utmr), $otmr)
+}
+probe __syscall.compat_timerfd_settime =
+	kernel.function("compat_sys_timerfd_settime").call ?
+{
+	fd = __int32($ufd)
+	flags = __int32($flags)
+	flags_str = _stp_timerfd_flags_str(flags)
+	value_uaddr = @__pointer($utmr)
+	ovalue_uaddr = @__pointer($otmr)
+	argstr = sprintf("%d, %s, %s, %p", fd, flags_str,
+			 _struct_compat_itimerspec_u(value_uaddr),
+			 ovalue_uaddr)
+}
+probe syscall.timerfd_settime.return = __syscall.timerfd_settime.return ?,
+	kernel.function("compat_sys_timerfd_settime").return ?
+{
+	name = "timerfd_settime"
+	retstr = return_str(1, $return)
+}
+probe __syscall.timerfd_settime.return =
+	kernel.function("sys_timerfd_settime").return ?
+{
+	@__syscall_gate_compat_simple
 }
 
 # times ______________________________________________________
