@@ -999,6 +999,12 @@ if {$exepath != ""} {
    stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c+3\").nearest" \
        "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:58\"\\\).nearest"
 
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:55,56\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:5\[57\]\"\\\).nearest" {2}
+
+   stap_list_cmd_lib "process.library(\"sopath\").statement(\"libfoo@$test.c:*\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.statement\\\(\"libfoo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
+
    testing_probe {process.mark(string)}
 
    stap_list_cmd "process.mark(\"mark\")" \
@@ -1091,6 +1097,12 @@ if {$exepath != ""} {
 
    stap_list_cmd "process.statement(\"foo@$test.c+5\").nearest" \
       "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:28\"\\\).nearest"
+
+   stap_list_cmd "process.statement(\"foo@$test.c:23,24\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:2\[35\]\"\\\).nearest" {2}
+
+   stap_list_cmd "process.statement(\"foo@$test.c:*\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
 }
 
 testing_probe {process.syscall}
@@ -1293,11 +1305,17 @@ if {$exepath != ""} {
 
    testing_probe {process(number).statement(string).nearest}
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c:29\").nearest" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:29\"\\\).nearest"
+   stap_list "process($valid_pid).statement(\"foo@$test.c:28\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:28\"\\\).nearest"
 
-   stap_list "process($valid_pid).statement(\"foo@$test.c+6\").nearest" \
-      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:29\"\\\).nearest"
+   stap_list "process($valid_pid).statement(\"foo@$test.c+5\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:28\"\\\).nearest"
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:23,24\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:2\[35\]\"\\\).nearest" {2}
+
+   stap_list "process($valid_pid).statement(\"foo@$test.c:*\").nearest" \
+      "re:process\\\(\"$exefullpath\"\\\)\\\.statement\\\(\"foo@\[^:\]+:\[0-9\]+\"\\\).nearest" {-1}
 }
 
 testing_probe {process(number).syscall}
