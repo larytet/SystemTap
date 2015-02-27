@@ -427,7 +427,8 @@ Places a probe at the exact spot, exposing those local variables that
 are visible there.
 .TP
 \fB.statement.nearest\fR
-Places a probe at the nearest available spot to the given statement.
+Places a probe at the nearest available line number for each line number
+given in the statement.
 .TP
 \fB.callee\fR
 Places a probe on the callee function given in the \fB.callee\fR
