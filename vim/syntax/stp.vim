@@ -53,7 +53,8 @@ syn region stapPreProc fold start="%(" end="%)" contains=stapNumber,stapString c
 syn keyword stapPreProcCond contained kernel_v kernel_vr arch containedin=stapPreProc
 
 syn include @C syntax/c.vim
-syn keyword stapCMacro  contained THIS CONTEXT containedin=@C,stapCBlock
+syn keyword stapCMacro  contained THIS CONTEXT STAP_RETVALUE STAP_RETURN STAP_ERROR containedin=@C,stapCBlock
+syn match stapCMacro  contained "\<STAP_ARG_\w*\>" containedin=@C,stapCBlock
 syn region  stapCBlock fold matchgroup=stapCBlockDelims start="%{"rs=e end="%}"re=s contains=@C containedin=stapBlock
 
 syn region stapBlock fold matchgroup=stapBlockEnds start="{"rs=e end="}"re=s containedin=stapBlock
