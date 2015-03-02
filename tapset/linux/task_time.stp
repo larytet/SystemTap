@@ -67,7 +67,7 @@ function task_utime_tid:long(tid:long)
 {
   task = pid2task(tid);
   if (task != 0)
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->utime;
+    return task->utime;
   else
     return 0;
 }
@@ -98,7 +98,7 @@ function task_stime_tid:long(tid:long)
 {
   task = pid2task(tid);
   if (task != 0)
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->stime;
+    return task->stime;
   else
     return 0;
 }
@@ -114,11 +114,14 @@ function task_stime_tid:long(tid:long)
 function task_start_time:long (tid:long) {
   task = pid2task(tid);
   if (task != 0) {
-    time_sec = @cast(task, "task_struct", "kernel<linux/sched.h>")
-                  ->real_start_time->tv_sec
-    time_nsec = @cast(task, "task_struct", "kernel<linux/sched.h>")
-                  ->real_start_time->tv_nsec
-    return time_sec * 1000000000 + time_nsec
+    if (@defined(task->real_start_time->tv_sec)) {
+      time_sec = task->real_start_time->tv_sec
+      time_nsec = task->real_start_time->tv_nsec
+      return time_sec * 1000000000 + time_nsec
+    } else {
+      // simple u64 in ns since kernel commit 57e0be041d9e2
+      return task->real_start_time
+    }
   } else return 0
 }
 

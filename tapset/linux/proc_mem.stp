@@ -126,9 +126,9 @@ function proc_mem_size:long ()
 {
    task = task_current()
    if (_stp_valid_task(task)) {
-     mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+     mm = task->mm
      if (mm != 0)
-       return @cast(mm, "mm_struct", "kernel<linux/sched.h>")->total_vm
+       return mm->total_vm
    }
    return 0
 }
@@ -146,9 +146,9 @@ function proc_mem_size_pid:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0)
-      return @cast(mm, "mm_struct", "kernel<linux/sched.h>")->total_vm
+      return mm->total_vm
   }
   return 0
 }
@@ -164,7 +164,7 @@ function proc_mem_rss:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0)
       return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
 	      + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
@@ -185,7 +185,7 @@ function proc_mem_rss_pid:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0)
         return (_stp_get_mm_counter(mm, _MM_FILEPAGES())
                 + _stp_get_mm_counter(mm, _MM_ANONPAGES()))
@@ -204,7 +204,7 @@ function proc_mem_shr:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0)
       return _stp_get_mm_counter(mm, _MM_FILEPAGES())
   }
@@ -224,7 +224,7 @@ function proc_mem_shr_pid:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0)
       return _stp_get_mm_counter(mm, _MM_FILEPAGES())
   }
@@ -250,10 +250,10 @@ function proc_mem_txt:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0) {
-      s = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->start_code
-      e = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->end_code
+      s = mm->start_code
+      e = mm->end_code
       return _stp_mem_txt_adjust(s, e)
     }
   }
@@ -273,10 +273,10 @@ function proc_mem_txt_pid:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0) {
-      s = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->start_code
-      e = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->end_code
+      s = mm->start_code
+      e = mm->end_code
       return _stp_mem_txt_adjust (s, e)
     }
   }
@@ -294,10 +294,10 @@ function proc_mem_data:long ()
 {
   task = task_current()
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0) {
-      t = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->total_vm
-      s = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->shared_vm
+      t = mm->total_vm
+      s = mm->shared_vm
       return (t - s)
     }
   }
@@ -317,10 +317,10 @@ function proc_mem_data_pid:long (pid:long)
 {
   task = pid2task(pid)
   if (_stp_valid_task(task)) {
-    mm = @cast(task, "task_struct", "kernel<linux/sched.h>")->mm
+    mm = task->mm
     if (mm != 0) {
-      t = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->total_vm
-      s = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->shared_vm
+      t = mm->total_vm
+      s = mm->shared_vm
       return t - s
     }
   }

@@ -28,16 +28,16 @@
  * This address can be passed to the various task_*() functions to extract
  * more task-specific data.
  */
-function task_current:long () %{ /* pure */
-    STAP_RETVALUE = (unsigned long)current;
-%}
+function task_current:long () {
+    return & @task(%{ /* pure */ (unsigned long)current %})
+}
 
 function _task_rlimit_cur:long (task:long, nd_limit:long)
 {
     if (nd_limit < 0 || nd_limit >= %{ RLIM_NLIMITS %}) {
         return -1;
     }
-    sig = @cast(task, "task_struct", "kernel<linux/sched.h>")->signal;
+    sig = @task(task)->signal;
     return sig->rlim[nd_limit]->rlim_cur;
 }
 
@@ -170,9 +170,7 @@ function task_rlimit_rttime:long(task:long)
  */
 function task_parent:long(task:long)
 {
-    return @choose_defined(
-	    @cast(task, "task_struct", "kernel<linux/sched.h>")->real_parent,
-	    @cast(task, "task_struct", "kernel<linux/sched.h>")->parent)
+    return @choose_defined(@task(task)->real_parent, @task(task)->parent)
 }
 
 /**
@@ -186,7 +184,7 @@ function task_parent:long(task:long)
  */
 function task_state:long (task:long)
 {
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->state
+    return @task(task)->state
 }
 
 /**
@@ -198,7 +196,7 @@ function task_state:long (task:long)
  */
 function task_execname:string (task:long)
 {
-    return kernel_string(@cast(task, "task_struct", "kernel<linux/sched.h>")->comm)
+    return kernel_string(@task(task)->comm)
 }
 
 /**
@@ -210,7 +208,7 @@ function task_execname:string (task:long)
  */
 function task_pid:long (task:long)
 {
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->tgid
+    return @task(task)->tgid
 }
 
 /**
@@ -220,25 +218,27 @@ function task_pid:long (task:long)
  *
  * Description: Return the task struct of the given process id.
  */
-function pid2task:long (pid:long) %{ /* pure */
-    struct task_struct *t = NULL;
-    pid_t t_pid  = (pid_t)(long)STAP_ARG_pid;
+function pid2task:long (pid:long) {
+    return & @task(%{ /* pure */ ({
+        struct task_struct *t = NULL;
+        pid_t t_pid  = (pid_t)(long)STAP_ARG_pid;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-    struct pid *p_pid = find_get_pid(t_pid);
-    rcu_read_lock();
-    t = pid_task(p_pid, PIDTYPE_PID);
-    put_pid(p_pid);
+        struct pid *p_pid = find_get_pid(t_pid);
+        rcu_read_lock();
+        t = pid_task(p_pid, PIDTYPE_PID);
+        put_pid(p_pid);
 #else
-    rcu_read_lock();
+        rcu_read_lock();
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
-    t = find_task_by_vpid (t_pid);
+        t = find_task_by_vpid (t_pid);
 #else
-    t = find_task_by_pid (t_pid);
+        t = find_task_by_pid (t_pid);
 #endif /* 2.6.24 */
 #endif /* 2.6.31 */
-    rcu_read_unlock();
-    STAP_RETVALUE = (unsigned long)t;
-%}
+        rcu_read_unlock();
+        (unsigned long)t;
+    }) %})
+}
 
 /**
  * sfunction pid2execname - The name of the given process identifier
@@ -263,7 +263,7 @@ function pid2execname:string (pid:long) {
  */
 function task_tid:long (task:long)
 {
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->pid
+    return @task(task)->pid
 }
 
 
@@ -401,8 +401,7 @@ function task_nice:long (task:long) %{ /* pure */
  */
 function task_cpu:long (task:long)
 {
-    ti = @choose_defined(@cast(task, "task_struct", "kernel<linux/sched.h>")->stack,
-	  @cast(task, "task_struct", "kernel<linux/sched.h>")->thread_info);
+    ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
     return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
 }
 

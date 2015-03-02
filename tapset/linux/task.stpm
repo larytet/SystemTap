@@ -1,0 +1,3 @@
+@define task(ptr) %(
+    @cast(@ptr, "task_struct", "kernel<linux/sched.h>")
+%)

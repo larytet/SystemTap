@@ -418,7 +418,7 @@ function uaddr:long ()
 function cmdline_args:string(n:long, m:long, delim:string)
 {
   __args = "";
-  __mm = @cast(task_current(), "task_struct", "kernel<linux/sched.h>")->mm;
+  __mm = task_current()->mm;
   if (__mm == 0)
     return "";
 
