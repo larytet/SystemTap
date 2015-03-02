@@ -46,6 +46,7 @@
 <li><a href="#general/varwatch.stp">general/varwatch.stp - Watch a Variable Changing Value in a Thread</a></li>
 <li><a href="#network/netfilter_summary.stp">network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs</a></li>
 <li><a href="#process/cycle_thief.stp">process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task</a></li>
+<li><a href="#process/proctop.stp">process/proctop.stp - Periodically Print Process Information With History</a></li>
 <li><a href="#process/strace.stp">process/strace.stp - Trace system calls</a></li>
 <li><a href="#process/thread-business.stp">process/thread-business.stp - monitor syscall history</a></li>
 <li><a href="#profiling/fntimes.stp">profiling/fntimes.stp - Show Functions Taking Longer Than Usual</a></li>
@@ -57,7 +58,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 137 Examples</h2>
+<h2>All 138 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -345,6 +346,9 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 </li><li><a name="process/procmod_watcher.stp"></a><a href="#process/procmod_watcher.stp">&para;</a> <a href="process/procmod_watcher.stp">process/procmod_watcher.stp</a> - Monitor process creation/termination and module [un]loading<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#SYSCALL">SYSCALL</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <br>
 <p>The procmod_watcher.stp script monitors calls to fork(), exec(), exit(), init_module(), and delete_module(). Event-specific details are also printed out (e.g. for exec(), the file being exec&#39;ed). This script does not require debuginfo.</p><p><font size="-2"><pre># stap procmod_watcher.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a name="process/proctop.stp"></a><a href="#process/proctop.stp">&para;</a> <a href="process/proctop.stp">process/proctop.stp</a> - Periodically Print Process Information With History<br>
+keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SCHEDULER">SCHEDULER</a> <a href="keyword-index.html#_BEST">_BEST</a> <br>
+<p>Every 5 seconds, print out a list of 25 processes that took the most system time with information about the processes. Includes information on processes that may have exited while the script was running. The script contains configuration options listed in the script source.</p><p><i><a href="process/proctop.txt">sample usage in process/proctop.txt</i></font></p>
 </li><li><a name="process/psig.stp"></a><a href="#process/psig.stp">&para;</a> <a href="process/psig.stp">process/psig.stp</a> - Print Process File Descriptors<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SIGNALS">SIGNALS</a> <br>
 <p>Run psig.stp to produce a human-readable summary of the signal handling configuration of a given process.  Specify the process-id as -x PID for fastest performance.</p><p><font size="-2"><pre># stap -DMAXACTION=10000 -g psig.stp -x $$</pre></font></p>
