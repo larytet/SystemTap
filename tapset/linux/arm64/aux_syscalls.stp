@@ -2,28 +2,28 @@
 #
 function _arch_ptrace_argstr(request, pid, addr, data)
 {
-	if (request == %{ COMPAT_PTRACE_GETREGS %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_GETREGS %})
 		// TODO: Retrieve *data in .return
 		return sprintf ("COMPAT_PTRACE_GETREGS, %d, data=%p", pid, data)
-	if (request == %{ COMPAT_PTRACE_SETREGS %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_SETREGS %})
 		// TODO: Retrieve *data here
 		return sprintf ("COMPAT_PTRACE_SETREGS, %d, data=%p", pid, data)
-	if (request == %{ COMPAT_PTRACE_GET_THREAD_AREA %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_GET_THREAD_AREA %})
 		// TODO: Retrieve *data in .return
 		return sprintf ("COMPAT_PTRACE_GET_THREAD_AREA, %d, index=%d, data=%p", pid, addr, data)
-	if (request == %{ COMPAT_PTRACE_SET_SYSCALL %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_SET_SYSCALL %})
 		// TODO: Retrieve *data here
 		return sprintf ("COMPAT_PTRACE_SET_SYSCALL, %d, index=%p, data=%p", pid, addr, data)
-	if (request == %{ COMPAT_PTRACE_GETVFPREGS %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_GETVFPREGS %})
 		// TODO: Retrieve *data in .return
 		return sprintf ("COMPAT_PTRACE_GETVFPREGS, %d, data=%p", pid, data)
-	if (request == %{ COMPAT_PTRACE_SETVFPREGS %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_SETVFPREGS %})
 		// TODO: Retrieve *data here
 		return sprintf ("COMPAT_PTRACE_SETVFPREGS, %d, data=%p", pid, data)
-	if (request == %{ COMPAT_PTRACE_GETHBPREGS %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_GETHBPREGS %})
 		// TODO: Retrieve *data in .return
 		return sprintf ("COMPAT_PTRACE_GETHBPREGS, %d, data=%p", pid, data)
-	if (request == %{ COMPAT_PTRACE_SETHBPREGS %})
+	if (request == %{ /* pure */ COMPAT_PTRACE_SETHBPREGS %})
 		// TODO: Retrieve *data here
 		return sprintf ("COMPAT_PTRACE_SETHBPREGS, %d, data=%p", pid, data)
 }

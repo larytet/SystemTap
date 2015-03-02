@@ -729,7 +729,7 @@ probe nd_syscall.clone = kprobe.function("do_fork").call
 	// This is a bit gross. We're depending on @__syscall_gate2()
 	// to set '__nr' for us. If its implementation changes, this will
 	// need to change.
-	if (__nr == %{ __NR_clone %})
+	if (__nr == %{ /* pure */ __NR_clone %})
 		name = "clone"
 	else {
 		name = "clone2"
@@ -755,7 +755,7 @@ probe nd_syscall.clone = kprobe.function("do_fork").call
 	argstr = sprintf("%s, %p, %p, %p", __fork_flags(clone_flags),
 			 stack_start, parent_tid_uaddr, child_tid_uaddr)
 %:
-	if (__nr == %{ __NR_clone %})
+	if (__nr == %{ /* pure */ __NR_clone %})
 		argstr = sprintf("%s, %p, %p, %p", __fork_flags(clone_flags),
 				 stack_start, parent_tid_uaddr, child_tid_uaddr)
 	else			 
@@ -774,7 +774,7 @@ probe nd_syscall.clone.return = kprobe.function("do_fork").return
 	// This is a bit gross. We're depending on @__syscall_gate2()
 	// to set '__nr' for us. If its implementation changes, this will
 	// need to change.
-	if (__nr == %{ __NR_clone %})
+	if (__nr == %{ /* pure */ __NR_clone %})
 		name = "clone"
 	else
 		name = "clone2"
@@ -1312,7 +1312,7 @@ probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
 	name = "fadvise64"
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		offset = int_arg(2)
 		len = int_arg(3)
 	}
@@ -1352,7 +1352,7 @@ probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 	name = "fadvise64"
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		offset = int_arg(2)
 		len = int_arg(3)
 	}
@@ -1856,7 +1856,7 @@ probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
 			       %{ __NR_compat_ftruncate %})
 	asmlinkage()
-	if (%{ _stp_is_compat_task() %})
+	if (%{ /* pure */ _stp_is_compat_task() %})
 		length = int_arg(2)
 	else
 		length = long_arg(2)
@@ -3065,7 +3065,7 @@ probe nd_syscall.keyctl = kprobe.function("compat_sys_keyctl") ?,
 	name = "keyctl"
 	asmlinkage()
 	option = int_arg(1)
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		arg2 = uint_arg(2)
 		arg3 = uint_arg(3)
 		arg4 = uint_arg(4)
@@ -3851,7 +3851,7 @@ probe nd_syscall.mmap2 = kprobe.function("sys_mmap_pgoff") ?
 	fd = int_arg(5)
 	# $pgoff is the number of pages. Convert this back into a
 	# number of bytes.
-	pgoffset = ulong_arg(6) * %{ PAGE_SIZE %}
+	pgoffset = ulong_arg(6) * %{ /* pure */ PAGE_SIZE %}
 	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
 		_mprotect_prot_str(prot), _mmap_flags(flags),
 		fd, pgoffset)

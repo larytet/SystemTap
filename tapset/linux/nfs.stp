@@ -355,7 +355,7 @@ probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
 
 	if (@defined($iov)) {
 		buf = $iov->iov_base
-	        count = __iov_length($iov, $nr_segs, 0, %{ VERIFY_WRITE %})
+	        count = __iov_length($iov, $nr_segs, 0, %{ /* pure */ VERIFY_WRITE %})
 	}
 	else {
 	        buf = $buf
@@ -449,7 +449,7 @@ probe nfs.fop.read_iter = kernel.function ("nfs_file_read") !,
 	devname = kernel_string(s_id)
 
 	pos = $to->iov_offset
-	count = __iov_length($to->iov, $to->nr_segs, 0, %{ VERIFY_READ %})
+	count = __iov_length($to->iov, $to->nr_segs, 0, %{ /* pure */ VERIFY_READ %})
 
         parent_name = __file_parentname($iocb->ki_filp)
         file_name = __file_filename($iocb->ki_filp)
@@ -501,7 +501,7 @@ probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
         pos = $pos
 	if (@defined($iov)) {
 		buf = $iov->iov_base
-	        count = __iov_length($iov, $nr_segs, 0, %{ VERIFY_WRITE %})
+	        count = __iov_length($iov, $nr_segs, 0, %{ /* pure */ VERIFY_WRITE %})
 	}
 	else {
 	        buf = $buf
@@ -581,7 +581,7 @@ probe nfs.fop.write_iter = kernel.function("nfs_file_write") !,
 	devname = kernel_string(s_id)
 
         pos = $from->iov_offset
-	count = __iov_length($from->iov, $from->nr_segs, 0, %{ VERIFY_READ %})
+	count = __iov_length($from->iov, $from->nr_segs, 0, %{ /* pure */ VERIFY_READ %})
                
         parent_name = __file_parentname($iocb->ki_filp)
         file_name = __file_filename($iocb->ki_filp)

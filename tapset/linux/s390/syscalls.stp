@@ -158,7 +158,7 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 	uss_uaddr = $uss
 	uoss_uaddr = $uoss
 %(systemtap_v < "2.3" %?
-	regs = %{ _stp_current_pt_regs() %}
+	regs = %{ /* pure */ _stp_current_pt_regs() %}
 %)
 	argstr = sprintf("%p, %p", $uss, $uoss)
 }

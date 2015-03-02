@@ -126,7 +126,7 @@ probe syscall.open = __syscall.compat_open ?, __syscall.open
 	@__syscall_compat_gate(%{ __NR_open %}, %{ __NR_compat_open %})
 	name = "open"
 	flags = __int32($flags)
-	if ($flags & %{ O_CREAT %})
+	if ($flags & %{ /* pure */ O_CREAT %})
 		argstr = sprintf("%s, %s, %#o", filename,
 				 _sys_open_flag_str(__int32($flags)), mode)
 	else
@@ -168,7 +168,7 @@ probe syscall.openat = kernel.function("compat_sys_openat").call ?,
 	filename = user_string_quoted(@__pointer($filename))
 	flags = $flags
 	mode = __uint32($mode)
-	if ($flags & %{ O_CREAT %})
+	if ($flags & %{ /* pure */ O_CREAT %})
 		argstr = sprintf("%s, %s, %s, %#o", _dfd_str(__int32($dfd)),
 				 filename,
 				 _sys_open_flag_str($flags), __uint32($mode))
@@ -595,10 +595,10 @@ probe __syscall.preadv = kernel.function("sys_preadv")
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
+	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
+			 ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l)
 }
 probe __syscall.compat_preadv = kernel.function("compat_sys_preadv")
 {
@@ -779,10 +779,10 @@ probe __syscall.pwritev = kernel.function("sys_pwritev").call
 	fd = __int32($fd)
 	vector_uaddr = $vec
 	count = __int32($vlen)
-	offset = ($pos_h << %{ BITS_PER_LONG %}) + $pos_l
+	offset = ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l
 	argstr = sprintf("%d, %p, %d, 0x%x", __int32($fd), $vec,
 			 __int32($vlen),
-			 ($pos_h << %{ BITS_PER_LONG %}) + $pos_l)
+			 ($pos_h << %{ /* pure */ BITS_PER_LONG %}) + $pos_l)
 }
 probe __syscall.compat_pwritev = kernel.function("compat_sys_pwritev").call
 {
@@ -1564,8 +1564,8 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 	// On those kernels, a call to the 32-bit rt_sigprocmask goes
 	// straight to the 64-bit rt_sigprocmask function.
 %( arch == "x86_64" && kernel_v >= "3.4" && CONFIG_COMPAT == "y" %?
-	if (%{ _stp_is_compat_task() %}
-	    && _stp_syscall_nr() == %{ __NR_compat_rt_sigprocmask %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}
+	    && _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
 		oldset_uaddr = __uint32($oset)
 		argstr = sprintf("%s, [%s], %p, %d", how_str,
 				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
@@ -4321,7 +4321,7 @@ probe syscall.truncate = __syscall.truncate ?, __syscall.truncate64 ?,
 	name = "truncate"
 %( arch == "s390" %?
 	# Sigh. The syscall wrappers on s390x do odd things.
-	if (%{ _stp_is_compat_task() %})
+	if (%{ /* pure */ _stp_is_compat_task() %})
 		path_uaddr = __uint32($path)
 	else
 		path_uaddr = $path
@@ -4355,7 +4355,7 @@ probe __syscall.truncate = kernel.function("sys_truncate").call ?
 #%)
 #%( arch == "s390" %?
 #	# Sigh. The syscall wrappers on s390x do odd things.
-#	if (%{ _stp_is_compat_task() %})
+#	if (%{ /* pure */ _stp_is_compat_task() %})
 #		length = __int32($length)
 #	else
 #		length = __long($length)
@@ -4365,7 +4365,7 @@ probe __syscall.truncate = kernel.function("sys_truncate").call ?
 	@__syscall_compat_gate(%{ __NR_truncate %}, 
 			       %{ __NR_compat_truncate %})
 #	length = __long($length)
-	if (%{ _stp_is_compat_task() %})
+	if (%{ /* pure */ _stp_is_compat_task() %})
 		length = __int32($length)
 	else
 		length = __long($length)

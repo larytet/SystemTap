@@ -81,7 +81,7 @@
     %( CONFIG_COMPAT == "y" %?
 	# If this is a compat task, the high bits of a pointer may be
 	# garbage.
-	(%{ _stp_is_compat_task() %} ? (@val & 0xffffffff) : @val)
+	(%{ /* pure */ _stp_is_compat_task() %} ? (@val & 0xffffffff) : @val)
     %:
 	@val
     %)
@@ -109,44 +109,44 @@
 # details.
 @define __futex_argstr(uaddr, op, val, utime, uaddr2, val3)
 %(
-	if (@op == %{ FUTEX_WAKE_BITSET %}) {
+	if (@op == %{ /* pure */ FUTEX_WAKE_BITSET %}) {
 		argstr = sprintf("%p, %s, %d, %#x", @uaddr, _futex_op_str(@op),
 				 @val, @val3)
 	}
-	else if (@op == %{ FUTEX_WAIT %}) {
+	else if (@op == %{ /* pure */ FUTEX_WAIT %}) {
 		argstr = sprintf("%p, %s, %d, %s", @uaddr, _futex_op_str(@op),
 				 @val,
-				 (%{ _stp_is_compat_task() %}
+				 (%{ /* pure */ _stp_is_compat_task() %}
 				  ? _struct_compat_timespec_u(@utime, 1)
 				  : _struct_timespec_u(@utime, 1)))
 	}
-	else if (@op == %{ FUTEX_WAIT_BITSET %}) {
+	else if (@op == %{ /* pure */ FUTEX_WAIT_BITSET %}) {
 		argstr = sprintf("%p, %s, %d, %s, %#x", @uaddr,
 				 _futex_op_str(@op), @val,
-				 (%{ _stp_is_compat_task() %}
+				 (%{ /* pure */ _stp_is_compat_task() %}
 				  ? _struct_compat_timespec_u(@utime, 1)
 				  : _struct_timespec_u(@utime, 1)), @val3)
 	}
-	else if (@op == %{ FUTEX_REQUEUE %}) {
+	else if (@op == %{ /* pure */ FUTEX_REQUEUE %}) {
 		argstr = sprintf("%p, %s, %d, %d, %p", @uaddr,
 				 _futex_op_str(@op), @val, @utime,
 				 @uaddr2)
 	}
-	else if (@op == %{ FUTEX_CMP_REQUEUE %}
-		 || @op == %{ FUTEX_CMP_REQUEUE_PI %}) {
+	else if (@op == %{ /* pure */ FUTEX_CMP_REQUEUE %}
+		 || @op == %{ /* pure */ FUTEX_CMP_REQUEUE_PI %}) {
 		argstr = sprintf("%p, %s, %d, %u, %p, %d", @uaddr,
 				 _futex_op_str(@op), @val, @utime,
 				 @uaddr2, @val3)
 	}
-	else if (@op == %{ FUTEX_WAKE_OP %}) {
+	else if (@op == %{ /* pure */ FUTEX_WAKE_OP %}) {
 		argstr = sprintf("%p, %s, %d, %u, %p, %s", @uaddr,
 				 _futex_op_str(@op), @val, @utime,
 				 @uaddr2, _futex_wake_op_str(@val3))
 	}
-	else if (@op == %{ FUTEX_WAIT_REQUEUE_PI %}) {
+	else if (@op == %{ /* pure */ FUTEX_WAIT_REQUEUE_PI %}) {
 		argstr = sprintf("%p, %s, %d, %s, %p", @uaddr,
 				 _futex_op_str(@op), @val,
-				 (%{ _stp_is_compat_task() %}
+				 (%{ /* pure */ _stp_is_compat_task() %}
 				  ? _struct_compat_timespec_u(@utime, 1)
 				  : _struct_timespec_u(@utime, 1)),
 				 @uaddr2)
@@ -160,7 +160,7 @@
 @define __int32_compat(arg)
 %(
     %( CONFIG_64BIT == "y" %?
-        (%{ _stp_is_compat_task() %} ? __int32(@arg) : @arg)
+        (%{ /* pure */ _stp_is_compat_task() %} ? __int32(@arg) : @arg)
     %:
         (__int32(@arg))
     %)
@@ -168,80 +168,80 @@
 
 @define __keyctl_argstr(option, arg2, arg3, arg4, arg5)
 %(
-        if ((@option == %{ KEYCTL_READ %}) ||
-                        (@option == %{ KEYCTL_DESCRIBE %}) ||
-                        (@option == %{ KEYCTL_GET_SECURITY %})) {
+        if ((@option == %{ /* pure */ KEYCTL_READ %}) ||
+                        (@option == %{ /* pure */ KEYCTL_DESCRIBE %}) ||
+                        (@option == %{ /* pure */ KEYCTL_GET_SECURITY %})) {
                 argstr = sprintf("%s, %s, %p, %d", _stp_keyctl_cmd_str(@option),
 				 _stp_keyctl_keyring_shortcut_str(@arg2),
 				 @arg3, @__int32_compat(@arg4))
         }
-        else if (@option == %{ KEYCTL_UPDATE %}) {
+        else if (@option == %{ /* pure */ KEYCTL_UPDATE %}) {
                 argstr = sprintf("%s, %d, %s, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), user_string_quoted(@arg3),
 				 @__int32_compat(@arg4))
         }
-        else if ((@option == %{ KEYCTL_REVOKE %}) ||
-                        (@option == %{ KEYCTL_CLEAR %}) ||
-                        (@option == %{ KEYCTL_INVALIDATE %}) ||
-                        (@option == %{ KEYCTL_ASSUME_AUTHORITY %})) {
+        else if ((@option == %{ /* pure */ KEYCTL_REVOKE %}) ||
+                        (@option == %{ /* pure */ KEYCTL_CLEAR %}) ||
+                        (@option == %{ /* pure */ KEYCTL_INVALIDATE %}) ||
+                        (@option == %{ /* pure */ KEYCTL_ASSUME_AUTHORITY %})) {
                 argstr = sprintf("%s, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2))
         }
-        else if ((@option == %{ KEYCTL_LINK %}) ||
-                        (@option == %{ KEYCTL_UNLINK %})) {
+        else if ((@option == %{ /* pure */ KEYCTL_LINK %}) ||
+                        (@option == %{ /* pure */ KEYCTL_UNLINK %})) {
                 argstr = sprintf("%s, %d, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @__int32_compat(@arg3))
         }
-        else if (@option == %{ KEYCTL_SEARCH %}) {
+        else if (@option == %{ /* pure */ KEYCTL_SEARCH %}) {
                 argstr = sprintf("%s, %d, %s, %s, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), user_string_quoted(@arg3),
 				 user_string_quoted(@arg4), @__int32_compat(@arg5))
         }
-        else if (@option == %{ KEYCTL_CHOWN %}) {
+        else if (@option == %{ /* pure */ KEYCTL_CHOWN %}) {
                 argstr = sprintf("%s, %d, %d, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @__int32_compat(@arg3),
 				 @__int32_compat(@arg4))
         }
-        else if (@option == %{ KEYCTL_SETPERM %}) {
+        else if (@option == %{ /* pure */ KEYCTL_SETPERM %}) {
                 argstr = sprintf("%s, %d, %s", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), _stp_keyctl_perm_str(@arg3))
         }
-        else if ((@option == %{ KEYCTL_INSTANTIATE %})) {
+        else if ((@option == %{ /* pure */ KEYCTL_INSTANTIATE %})) {
                 argstr = sprintf("%s, %d, %s, %d, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), user_string_quoted(@arg3),
 				 @__int32_compat(@arg4), @__int32_compat(@arg5))
         }
-        else if ((@option == %{ KEYCTL_INSTANTIATE_IOV %})) {
+        else if ((@option == %{ /* pure */ KEYCTL_INSTANTIATE_IOV %})) {
                 argstr = sprintf("%s, %d, %p, %d, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @arg3, @__int32_compat(@arg4),
 				 @__int32_compat(@arg5))
         }
-        else if (@option == %{ KEYCTL_NEGATE %}) {
+        else if (@option == %{ /* pure */ KEYCTL_NEGATE %}) {
                 argstr = sprintf("%s, %d, %u, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @arg3, @__int32_compat(@arg4))
         }
-        else if (@option == %{ KEYCTL_REJECT %}) {
+        else if (@option == %{ /* pure */ KEYCTL_REJECT %}) {
                 argstr = sprintf("%s, %d, %u, %u, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @arg3, @arg4,
 				 @__int32_compat(@arg5))
         }
-        else if (@option == %{ KEYCTL_SET_TIMEOUT %}) {
+        else if (@option == %{ /* pure */ KEYCTL_SET_TIMEOUT %}) {
                 argstr = sprintf("%s, %d, %u", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @arg3)
         }
-        else if (@option == %{ KEYCTL_GET_KEYRING_ID %}) {
+        else if (@option == %{ /* pure */ KEYCTL_GET_KEYRING_ID %}) {
                 argstr = sprintf("%s, %s, %d", _stp_keyctl_cmd_str(@option),
 				 _stp_keyctl_keyring_shortcut_str(@arg2),
 				 @__int32_compat(@arg3))
         }
-        else if (@option == %{ KEYCTL_SET_REQKEY_KEYRING %}) {
+        else if (@option == %{ /* pure */ KEYCTL_SET_REQKEY_KEYRING %}) {
                 argstr = sprintf("%s, %s", _stp_keyctl_cmd_str(@option),
 				 _stp_keyctl_default_keyrings_str(@arg2))
         }
-        else if (@option == %{ KEYCTL_JOIN_SESSION_KEYRING %}) {
+        else if (@option == %{ /* pure */ KEYCTL_JOIN_SESSION_KEYRING %}) {
                 argstr = sprintf("%s, %p", _stp_keyctl_cmd_str(@option), @arg2)
         }
-        else if (@option == %{ KEYCTL_GET_PERSISTENT %}) {
+        else if (@option == %{ /* pure */ KEYCTL_GET_PERSISTENT %}) {
                 argstr = sprintf("%s, %d, %d", _stp_keyctl_cmd_str(@option),
 				 @__int32_compat(@arg2), @__int32_compat(@arg3))
         }

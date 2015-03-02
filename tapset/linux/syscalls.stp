@@ -679,7 +679,7 @@ probe syscall.clone = kernel.function("do_fork").call
 	// This is a bit gross. We're depending on @__syscall_gate2()
 	// to set '__nr' for us. If its implementation changes, this will
 	// need to change.
-	if (__nr == %{ __NR_clone %})
+	if (__nr == %{ /* pure */ __NR_clone %})
 		name = "clone"
 	else {
 		name = "clone2"
@@ -695,7 +695,7 @@ probe syscall.clone = kernel.function("do_fork").call
 	argstr = sprintf("%s, %p, %p, %p", __fork_flags($clone_flags),
 			 $stack_start, $parent_tidptr, $child_tidptr)
 %:
-	if (__nr == %{ __NR_clone %})
+	if (__nr == %{ /* pure */ __NR_clone %})
 		argstr = sprintf("%s, %p, %p, %p", __fork_flags($clone_flags),
 				 $stack_start, $parent_tidptr, $child_tidptr)
 	else			 
@@ -714,7 +714,7 @@ probe syscall.clone.return = kernel.function("do_fork").return
 	// This is a bit gross. We're depending on @__syscall_gate2()
 	// to set '__nr' for us. If its implementation changes, this will
 	// need to change.
-	if (__nr == %{ __NR_clone %})
+	if (__nr == %{ /* pure */ __NR_clone %})
 		name = "clone"
 	else
 		name = "clone2"
@@ -1215,7 +1215,7 @@ probe syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
 {
 	name = "fadvise64"
 	fd = @choose_defined(__int32($fd), 0)
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		offset = __int32(@choose_defined($offset, 0))
 		len = __int32(@choose_defined($len, 0))
 	}
@@ -1245,7 +1245,7 @@ probe syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 %)
 	name = "fadvise64"
 	fd = @choose_defined(__int32($fd), 0)
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		offset = __int32(@choose_defined($offset, 0))
 		len = __int32(@choose_defined($len, 0))
 	}
@@ -1728,7 +1728,7 @@ probe __syscall.ftruncate = kernel.function("sys_ftruncate").call
 {
 	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
 			       %{ __NR_compat_ftruncate %})
-	if (%{ _stp_is_compat_task() %})
+	if (%{ /* pure */ _stp_is_compat_task() %})
 		length = __int32($length)
 	else
 		length = __long($length)
@@ -2888,7 +2888,7 @@ probe syscall.keyctl = kernel.function("compat_sys_keyctl").call ?,
 {
 	name = "keyctl"
 	option = __int32($option)
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		arg2 = __uint32($arg2)
 		arg3 = __uint32($arg3)
 		arg4 = __uint32($arg4)
@@ -3332,7 +3332,7 @@ probe syscall.mbind = __syscall.mbind ?,
 	nmask_uaddr = $nmask
 	flags = __uint32($flags)
 	flags_str = _mempolicy_flags_str(flags)
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		len = __uint32($len)
 		maxnode = __uint32($maxnode)
 	} else {
@@ -3388,7 +3388,7 @@ probe syscall.migrate_pages = __syscall.migrate_pages ?,
 	pid = __int32($pid)
 	old_nodes = $old_nodes
 	new_nodes = $new_nodes
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		maxnode = __uint32($maxnode)
 	} else {
 		maxnode = $maxnode
@@ -3582,7 +3582,7 @@ probe syscall.move_pages = __syscall.move_pages ?,
 	status = $status
 	flags = __int32($flags)
 	flags_str = _mempolicy_flags_str(flags)
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		nr_pages = __uint32($nr_pages)
 	} else {
 		nr_pages = $nr_pages
@@ -3663,7 +3663,7 @@ probe syscall.mmap2 = kernel.function("sys_mmap_pgoff") ?
 	fd = __int32($fd)
 	# $pgoff is the number of pages. Convert this back into a
 	# number of bytes.
-	pgoffset = $pgoff * %{ PAGE_SIZE %}
+	pgoffset = $pgoff * %{ /* pure */ PAGE_SIZE %}
 	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, __ulong($len),
 		_mprotect_prot_str($prot), _mmap_flags($flags),
 		__int32($fd), pgoffset)

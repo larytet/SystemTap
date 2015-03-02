@@ -503,37 +503,37 @@ typedef enum {
 
 function _struct_sockaddr_u_ip_addr:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IP_ADDR %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR %});
 }
 
 function _struct_sockaddr_u_tcp_port:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_TCP_PORT %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_TCP_PORT %});
 }
 
 function _struct_sockaddr_u_ip_addr_tcp_port:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IP_ADDR | SA_TCP_PORT %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IP_ADDR | SA_TCP_PORT %});
 }
 
 function _struct_sockaddr_u_sa_family:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_FAMILY %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_FAMILY %});
 }
 
 function _struct_sockaddr_u_ipv6_flowinfo:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IPV6_FLOWINFO %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IPV6_FLOWINFO %});
 }
 
 function _struct_sockaddr_u_ipv6_scope_id:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_IPV6_SCOPE_ID %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_IPV6_SCOPE_ID %});
 }
 
 function _struct_sockaddr_u:string(uaddr:long, len:long)
 {
-    return _struct_sockaddr_u_impl(uaddr, len, %{ SA_PRETTY %});
+    return _struct_sockaddr_u_impl(uaddr, len, %{ /* pure */ SA_PRETTY %});
 }
 
 %{
@@ -1307,23 +1307,23 @@ function _access_mode_str:string(mode:long)
 
 /* `man 2 open` for more information */
 function _sys_open_mode_str(f) {
-   if((f & %{ S_IRWXU %}) == %{ S_IRWXU %}) bs="S_IRWXU|".bs
+   if((f & %{ /* pure */ S_IRWXU %}) == %{ /* pure */ S_IRWXU %}) bs="S_IRWXU|".bs
    else {
-        if(f & %{ S_IRUSR %}) bs="S_IRUSR|" . bs
-        if(f & %{ S_IWUSR %}) bs="S_IWUSR|" . bs
-        if(f & %{ S_IXUSR %}) bs="S_IXUSR|" . bs
+        if(f & %{ /* pure */ S_IRUSR %}) bs="S_IRUSR|" . bs
+        if(f & %{ /* pure */ S_IWUSR %}) bs="S_IWUSR|" . bs
+        if(f & %{ /* pure */ S_IXUSR %}) bs="S_IXUSR|" . bs
    }
-   if((f & %{ S_IRWXG %}) == %{ S_IRWXG %}) bs="S_IRWXG|" . bs
+   if((f & %{ /* pure */ S_IRWXG %}) == %{ /* pure */ S_IRWXG %}) bs="S_IRWXG|" . bs
    else {
-        if(f & %{ S_IRGRP %}) bs="S_IRGRP|" . bs
-        if(f & %{ S_IWGRP %}) bs="S_IWGRP|" . bs
-        if(f & %{ S_IXGRP %}) bs="S_IXGRP|" . bs
+        if(f & %{ /* pure */ S_IRGRP %}) bs="S_IRGRP|" . bs
+        if(f & %{ /* pure */ S_IWGRP %}) bs="S_IWGRP|" . bs
+        if(f & %{ /* pure */ S_IXGRP %}) bs="S_IXGRP|" . bs
    }
-   if((f & %{ S_IRWXO %}) == %{ S_IRWXO %}) bs="S_IRWXO|" . bs
+   if((f & %{ /* pure */ S_IRWXO %}) == %{ /* pure */ S_IRWXO %}) bs="S_IRWXO|" . bs
    else {
-        if(f & %{ S_IROTH %}) bs="S_IROTH|" . bs
-        if(f & %{ S_IWOTH %}) bs="S_IWOTH|" . bs
-        if(f & %{ S_IXOTH %}) bs="S_IXOTH|" . bs
+        if(f & %{ /* pure */ S_IROTH %}) bs="S_IROTH|" . bs
+        if(f & %{ /* pure */ S_IWOTH %}) bs="S_IWOTH|" . bs
+        if(f & %{ /* pure */ S_IXOTH %}) bs="S_IXOTH|" . bs
    }
    return (strlen(bs) > 0) ? substr(bs, 0, strlen(bs) - 1) : sprintf("%#o", f)
 }
@@ -1331,17 +1331,17 @@ function _sys_open_mode_str(f) {
 /* `man 2 mknod` for more information */
 function _mknod_mode_str:string(mode:long)
 {
-   type = mode & %{ S_IFMT %}
-   mode &= %{ ~S_IFMT %}
-   if (type == %{ S_IFREG %})
+   type = mode & %{ /* pure */ S_IFMT %}
+   mode &= %{ /* pure */ ~S_IFMT %}
+   if (type == %{ /* pure */ S_IFREG %})
         return sprintf("S_IFREG|%#o", mode)
-   if (type == %{ S_IFCHR %})
+   if (type == %{ /* pure */ S_IFCHR %})
         return sprintf("S_IFCHR|%#o", mode)
-   if (type == %{ S_IFBLK %})
+   if (type == %{ /* pure */ S_IFBLK %})
         return sprintf("S_IFBLK|%#o", mode)
-   if (type == %{ S_IFIFO %})
+   if (type == %{ /* pure */ S_IFIFO %})
         return sprintf("S_IFIFO|%#o", mode)
-   if (type == %{ S_IFSOCK %})
+   if (type == %{ /* pure */ S_IFSOCK %})
         return sprintf("S_IFSOCK|%#o", mode)
    return sprintf("%#o", type | mode)
 }
@@ -1444,17 +1444,17 @@ function WIFCONTINUED(f) {
 
 function _ptrace_event_name(f)
 {
-  if (f == %{ PTRACE_EVENT_FORK %})
+  if (f == %{ /* pure */ PTRACE_EVENT_FORK %})
     return "PTRACE_EVENT_FORK"
-  if (f == %{ PTRACE_EVENT_VFORK %})
+  if (f == %{ /* pure */ PTRACE_EVENT_VFORK %})
     return "PTRACE_EVENT_VFORK"
-  if (f == %{ PTRACE_EVENT_CLONE %})
+  if (f == %{ /* pure */ PTRACE_EVENT_CLONE %})
     return "PTRACE_EVENT_CLONE"
-  if (f == %{ PTRACE_EVENT_EXEC %})
+  if (f == %{ /* pure */ PTRACE_EVENT_EXEC %})
     return "PTRACE_EVENT_EXEC"
-  if (f == %{ PTRACE_EVENT_VFORK_DONE %})
+  if (f == %{ /* pure */ PTRACE_EVENT_VFORK_DONE %})
     return "PTRACE_EVENT_VFORK_DONE"
-  if (f == %{ PTRACE_EVENT_EXIT %})
+  if (f == %{ /* pure */ PTRACE_EVENT_EXIT %})
     return "PTRACE_EVENT_EXIT"
   return ""
 }
@@ -1475,7 +1475,7 @@ function _wait_status_str(f) {
     }
   if (WIFSTOPPED(f))
     {
-      if (WSTOPSIG(f) == %{ SIGTRAP %})
+      if (WSTOPSIG(f) == %{ /* pure */ SIGTRAP %})
 	{
 	  event = _ptrace_event_name (f >> 16)
 	  if (event != "")
@@ -2579,30 +2579,30 @@ function _sock_flags_str:string(f:long)
 %}
 
 function _sock_protocol_str:string(family:long, protocol:long) {
-    if (family == %{ PF_INET %} || family == %{ PF_INET6 %}) {
-	if (protocol == %{ IPPROTO_IP %}) return "IPPROTO_IP"
-	if (protocol == %{ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
-	if (protocol == %{ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
-	if (protocol == %{ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
-	if (protocol == %{ IPPROTO_TCP %}) return "IPPROTO_TCP"
-	if (protocol == %{ IPPROTO_EGP %}) return "IPPROTO_EGP"
-	if (protocol == %{ IPPROTO_PUP %}) return "IPPROTO_PUP"
-	if (protocol == %{ IPPROTO_UDP %}) return "IPPROTO_UDP"
-	if (protocol == %{ IPPROTO_IDP %}) return "IPPROTO_IDP"
-	if (protocol == %{ IPPROTO_TP %}) return "IPPROTO_TP"
-	if (protocol == %{ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
-	if (protocol == %{ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
-	if (protocol == %{ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
-	if (protocol == %{ IPPROTO_GRE %}) return "IPPROTO_GRE"
-	if (protocol == %{ IPPROTO_ESP %}) return "IPPROTO_ESP"
-	if (protocol == %{ IPPROTO_AH %}) return "IPPROTO_AH"
-	if (protocol == %{ IPPROTO_MTP %}) return "IPPROTO_MTP"
-	if (protocol == %{ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
-	if (protocol == %{ IPPROTO_PIM %}) return "IPPROTO_PIM"
-	if (protocol == %{ IPPROTO_COMP %}) return "IPPROTO_COMP"
-	if (protocol == %{ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
-	if (protocol == %{ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
-	if (protocol == %{ IPPROTO_RAW %}) return "IPPROTO_RAW"
+    if (family == %{ /* pure */ PF_INET %} || family == %{ /* pure */ PF_INET6 %}) {
+	if (protocol == %{ /* pure */ IPPROTO_IP %}) return "IPPROTO_IP"
+	if (protocol == %{ /* pure */ IPPROTO_ICMP %}) return "IPPROTO_ICMP"
+	if (protocol == %{ /* pure */ IPPROTO_IGMP %}) return "IPPROTO_IGMP"
+	if (protocol == %{ /* pure */ IPPROTO_IPIP %}) return "IPPROTO_IPIP"
+	if (protocol == %{ /* pure */ IPPROTO_TCP %}) return "IPPROTO_TCP"
+	if (protocol == %{ /* pure */ IPPROTO_EGP %}) return "IPPROTO_EGP"
+	if (protocol == %{ /* pure */ IPPROTO_PUP %}) return "IPPROTO_PUP"
+	if (protocol == %{ /* pure */ IPPROTO_UDP %}) return "IPPROTO_UDP"
+	if (protocol == %{ /* pure */ IPPROTO_IDP %}) return "IPPROTO_IDP"
+	if (protocol == %{ /* pure */ IPPROTO_TP %}) return "IPPROTO_TP"
+	if (protocol == %{ /* pure */ IPPROTO_DCCP %}) return "IPPROTO_DCCP"
+	if (protocol == %{ /* pure */ IPPROTO_IPV6 %}) return "IPPROTO_IPV6"
+	if (protocol == %{ /* pure */ IPPROTO_RSVP %}) return "IPPROTO_RSVP"
+	if (protocol == %{ /* pure */ IPPROTO_GRE %}) return "IPPROTO_GRE"
+	if (protocol == %{ /* pure */ IPPROTO_ESP %}) return "IPPROTO_ESP"
+	if (protocol == %{ /* pure */ IPPROTO_AH %}) return "IPPROTO_AH"
+	if (protocol == %{ /* pure */ IPPROTO_MTP %}) return "IPPROTO_MTP"
+	if (protocol == %{ /* pure */ IPPROTO_ENCAP %}) return "IPPROTO_ENCAP"
+	if (protocol == %{ /* pure */ IPPROTO_PIM %}) return "IPPROTO_PIM"
+	if (protocol == %{ /* pure */ IPPROTO_COMP %}) return "IPPROTO_COMP"
+	if (protocol == %{ /* pure */ IPPROTO_SCTP %}) return "IPPROTO_SCTP"
+	if (protocol == %{ /* pure */ IPPROTO_UDPLITE %}) return "IPPROTO_UDPLITE"
+	if (protocol == %{ /* pure */ IPPROTO_RAW %}) return "IPPROTO_RAW"
     }
     return sprintf("%d", protocol)
 }
@@ -2712,7 +2712,7 @@ function __long:long(val:long) %{ /* pure */
 # For utimensat and futimesat, the directory fd can have a special value
 function _dfd_str:string(d:long)
 {
-	if (d == %{ AT_FDCWD %}) return "AT_FDCWD"
+	if (d == %{ /* pure */ AT_FDCWD %}) return "AT_FDCWD"
 	return sprint(d)
 }
 
@@ -3358,32 +3358,32 @@ function irqflags_str:string(f:long)
 function _ptrace_options_str(f)
 {
 	retval=""
-	if (f & %{ PTRACE_O_TRACESYSGOOD %}) {
-		f&=%{ ~PTRACE_O_TRACESYSGOOD %}
+	if (f & %{ /* pure */ PTRACE_O_TRACESYSGOOD %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACESYSGOOD %}
 		retval=retval."|PTRACE_O_TRACESYSGOOD"
 	}
-	if (f & %{ PTRACE_O_TRACEFORK %}) {
-		f&=%{ ~PTRACE_O_TRACEFORK %}
+	if (f & %{ /* pure */ PTRACE_O_TRACEFORK %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACEFORK %}
 		retval=retval."|PTRACE_O_TRACEFORK"
 	}
-	if (f & %{ PTRACE_O_TRACEVFORK %}) {
-		f&=%{ ~PTRACE_O_TRACEVFORK %}
+	if (f & %{ /* pure */ PTRACE_O_TRACEVFORK %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACEVFORK %}
 		retval=retval."|PTRACE_O_TRACEVFORK"
 	}
-	if (f & %{ PTRACE_O_TRACECLONE %}) {
-		f&=%{ ~PTRACE_O_TRACECLONE %}
+	if (f & %{ /* pure */ PTRACE_O_TRACECLONE %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACECLONE %}
 		retval=retval."|PTRACE_O_TRACECLONE"
 	}
-	if (f & %{ PTRACE_O_TRACEEXEC %}) {
-		f&=%{ ~PTRACE_O_TRACEEXEC %}
+	if (f & %{ /* pure */ PTRACE_O_TRACEEXEC %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACEEXEC %}
 		retval=retval."|PTRACE_O_TRACEEXEC"
 	}
-	if (f & %{ PTRACE_O_TRACEVFORKDONE %}) {
-		f&=%{ ~PTRACE_O_TRACEVFORKDONE %}
+	if (f & %{ /* pure */ PTRACE_O_TRACEVFORKDONE %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACEVFORKDONE %}
 		retval=retval."|PTRACE_O_TRACEVFORKDONE"
 	}
-	if (f & %{ PTRACE_O_TRACEEXIT %}) {
-		f&=%{ ~PTRACE_O_TRACEEXIT %}
+	if (f & %{ /* pure */ PTRACE_O_TRACEEXIT %}) {
+		f&=%{ /* pure */ ~PTRACE_O_TRACEEXIT %}
 		retval=retval."|PTRACE_O_TRACEEXIT"
 	}
 	if (f != 0)
@@ -3407,46 +3407,46 @@ function _ptrace_argstr(request, pid, addr, data)
 	retval=_arch_ptrace_argstr(request, pid, addr, data)
 	if (retval != "")
 		return retval
-	if (request == %{ PTRACE_TRACEME %})
+	if (request == %{ /* pure */ PTRACE_TRACEME %})
 		return "PTRACE_TRACEME"
-	if (request == %{ PTRACE_PEEKTEXT %})
+	if (request == %{ /* pure */ PTRACE_PEEKTEXT %})
 		return sprintf ("PTRACE_PEEKTEXT, %d, addr=%p", pid, addr)
-	if (request == %{ PTRACE_PEEKDATA %})
+	if (request == %{ /* pure */ PTRACE_PEEKDATA %})
 		return sprintf ("PTRACE_PEEKDATA, %d, addr=%p", pid, addr)
-	if (request == %{ PTRACE_PEEKUSR %})
+	if (request == %{ /* pure */ PTRACE_PEEKUSR %})
 		return sprintf ("PTRACE_PEEKUSR, %d, addr=%p", pid, addr)
-	if (request == %{ PTRACE_POKETEXT %})
+	if (request == %{ /* pure */ PTRACE_POKETEXT %})
 		return sprintf ("PTRACE_POKETEXT, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ PTRACE_POKEDATA %})
+	if (request == %{ /* pure */ PTRACE_POKEDATA %})
 		return sprintf ("PTRACE_POKEDATA, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ PTRACE_POKEUSR %})
+	if (request == %{ /* pure */ PTRACE_POKEUSR %})
 		return sprintf ("PTRACE_POKEUSR, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ PTRACE_CONT %})
+	if (request == %{ /* pure */ PTRACE_CONT %})
 		return sprintf ("PTRACE_CONT, %d, %s", pid, _signal_name (data))
-	if (request == %{ PTRACE_KILL %})
+	if (request == %{ /* pure */ PTRACE_KILL %})
 		return sprintf ("PTRACE_KILL, %d", pid)
-	if (request == %{ PTRACE_SINGLESTEP %})
+	if (request == %{ /* pure */ PTRACE_SINGLESTEP %})
 		return sprintf ("PTRACE_SINGLESTEP, %d, %s", pid, _signal_name (data))
-	if (request == %{ PTRACE_ATTACH %})
+	if (request == %{ /* pure */ PTRACE_ATTACH %})
 		return sprintf ("PTRACE_ATTACH, %d", pid)
-	if (request == %{ PTRACE_DETACH %})
+	if (request == %{ /* pure */ PTRACE_DETACH %})
 		return sprintf ("PTRACE_DETACH, %d, %s", pid, _signal_name (data))
-	if (request == %{ PTRACE_SYSCALL %})
+	if (request == %{ /* pure */ PTRACE_SYSCALL %})
 		return sprintf ("PTRACE_SYSCALL, %d, %s", pid, _signal_name (data))
-	if (request == %{ PTRACE_SETOPTIONS %})
+	if (request == %{ /* pure */ PTRACE_SETOPTIONS %})
 		return sprintf ("PTRACE_SETOPTIONS, %d, %s", pid, _ptrace_options_str (data))
-	if (request == %{ PTRACE_GETEVENTMSG %})
+	if (request == %{ /* pure */ PTRACE_GETEVENTMSG %})
 		return sprintf ("PTRACE_GETEVENTMSG, %d, data=%p", pid, data)
-	if (request == %{ PTRACE_GETSIGINFO %})
+	if (request == %{ /* pure */ PTRACE_GETSIGINFO %})
 		// TODO: Retrieve *data in .return
 		return sprintf ("PTRACE_GETSIGINFO, %d, data=%p", pid, data)
-	if (request == %{ PTRACE_SETSIGINFO %})
+	if (request == %{ /* pure */ PTRACE_SETSIGINFO %})
 		// TODO: Retrieve *data here
 		return sprintf ("PTRACE_SETSIGINFO, %d, data=%p", pid, data)
-	if (request == %{ PTRACE_GETREGSET %})
+	if (request == %{ /* pure */ PTRACE_GETREGSET %})
 		// TODO
 		return sprintf ("PTRACE_GETREGSET, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ PTRACE_SETREGSET %})
+	if (request == %{ /* pure */ PTRACE_SETREGSET %})
 		// TODO
 		return sprintf ("PTRACE_SETREGSET, %d, addr=%p, data=%p", pid, addr, data)
 	return sprintf("?=%d, %d, %p, %p", request, pid, addr, data)
@@ -3455,7 +3455,7 @@ function _ptrace_argstr(request, pid, addr, data)
 /* ptrace.return syscall decoder for PTRACE_GETEVENTMSG. */
 function _ptrace_return_geteventmsg_data(request,data)
 {
-	if (request == %{ PTRACE_GETEVENTMSG %})
+	if (request == %{ /* pure */ PTRACE_GETEVENTMSG %})
 		return user_long(data)
 }
 
@@ -3567,7 +3567,7 @@ function _stp_shmget_flags_str:string(shmflg:long)
 
 function _stp_msgget_key_str:string(key:long)
 {
-	if (key == %{ IPC_PRIVATE %}) return "IPC_PRIVATE"
+	if (key == %{ /* pure */ IPC_PRIVATE %}) return "IPC_PRIVATE"
 	return sprintf("%d", key)
 }
 
