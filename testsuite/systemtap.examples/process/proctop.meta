@@ -2,7 +2,7 @@ title: Periodically Print Process Information With History
 name: proctop.stp
 version: 1.0
 author: Abegail Jakop
-keywords: process scheduler
+keywords: process scheduler _best
 subsystem: process
 status: production
 exit: user-controlled
