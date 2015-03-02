@@ -1,4 +1,4 @@
-#! stap -p4
+#! stap -Wp4
 
 probe nd_syscall.nanosleep, nd_syscall.compat_nanosleep ?
 {
