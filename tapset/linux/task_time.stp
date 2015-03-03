@@ -114,7 +114,7 @@ function task_stime_tid:long(tid:long)
 function task_start_time:long (tid:long) {
   task = pid2task(tid);
   if (task != 0) {
-    if (@defined(task->real_start_time->tv_sec)) {
+    if (@defined(@task(0)->real_start_time->tv_sec)) {
       time_sec = task->real_start_time->tv_sec
       time_nsec = task->real_start_time->tv_nsec
       return time_sec * 1000000000 + time_nsec
