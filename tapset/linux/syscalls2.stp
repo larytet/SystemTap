@@ -93,8 +93,8 @@ probe __syscall.nfsservctl.return = kernel.function("sys_nfsservctl").return ?
 probe syscall.nice = kernel.function("sys_nice").call ?
 {
 	name = "nice"
-	inc = $increment
-	argstr = sprintf("%d", $increment)
+	inc = __int32($increment)
+	argstr = sprintf("%d", inc)
 }
 probe syscall.nice.return = kernel.function("sys_nice").return ?
 {
@@ -905,15 +905,23 @@ probe syscall.readahead.return = kernel.function("sys_readahead").return
 #
 # long compat_sys_old_readdir(unsigned int fd, struct compat_old_linux_dirent __user *dirent, unsigned int count)
 # int old32_readdir(unsigned int fd, struct old_linux_dirent32 *dirent, unsigned int count)
+# long sys_old_readdir(unsigned int fd, struct old_linux_dirent __user *dirent, unsigned int count);
 #
 probe syscall.readdir = kernel.function("compat_sys_old_readdir").call ?,
-                        kernel.function("old32_readdir").call ?
+                        kernel.function("old32_readdir").call ?,
+                        kernel.function("old_readdir").call ?,
+                        kernel.function("sys_old_readdir").call ?
 {
 	name = "readdir"
-	argstr = sprintf("%d, %p, %d", $fd, $dirent, $count)
+	fd = __uint32($fd)
+	dirent = $dirent
+	count = __uint32($count)
+	argstr = sprintf("%u, %p, %u", fd, dirent, count)
 }
 probe syscall.readdir.return = kernel.function("compat_sys_old_readdir").return ?,
-                               kernel.function("old32_readdir").return ?
+                               kernel.function("old32_readdir").return ?,
+                               kernel.function("old_readdir").return ?,
+                               kernel.function("sys_old_readdir").return ?
 {
 	name = "readdir"
 	retstr = return_str(1, $return)
