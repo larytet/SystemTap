@@ -71,46 +71,42 @@ function _MM_ANONPAGES:long()
   STAP_RETVALUE = MM_ANONPAGES;
 %}
 
-function _stp_get_mm_counter:long(mm:long, member:long)
+function _stp_get_mm_counter:long(mm_ptr:long, member:long)
 {
+    mm = & @mm(mm_ptr)
     /* kernels >= 2.6.34, 3.0 (2.6.40 fedora) and later always use atomics */
-    if (@defined(&@cast(mm, "mm_struct", "kernel<linux/sched.h>")->rss_stat)) {
+    if (@defined(&@mm(0)->rss_stat)) {
 %( kernel_v >= "2.6.40" || CONFIG_NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS %?
-	val = atomic_long_read(&@cast(mm, "mm_struct",
-			"kernel<linux/sched.h>")->rss_stat->count[member])
+	val = atomic_long_read(&mm->rss_stat->count[member])
 %:
-	val = @cast(mm, "mm_struct",
-		    "kernel<linux/sched.h>")->rss_stat->count[member]
+	val = mm->rss_stat->count[member]
 %)
 	if (val < 0)
 	    return 0
     }
     /* kernels < 2.6.34 && kernels >= 2.6.12 */
-    else if (@defined(&@cast(mm, "mm_struct",
-			     "kernel<linux/sched.h>")->_file_rss)) {
+    else if (@defined(&@mm(0)->_file_rss)) {
 	if (member == _MM_FILEPAGES()) {
 %( CONFIG_NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS %?
-	    val = atomic_long_read(&@cast(mm, "mm_struct",
-				   "kernel<linux/sched.h>")->_file_rss)
+	    val = atomic_long_read(&mm->_file_rss)
 %:
-	    val = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->_file_rss
+	    val = mm->_file_rss
 %)
 	}
 	else if (member == _MM_ANONPAGES()) {
 %( CONFIG_NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS %?
-	    val = atomic_long_read(&@cast(mm, "mm_struct",
-				   "kernel<linux/sched.h>")->_anon_rss)
+	    val = atomic_long_read(&mm->_anon_rss)
 %:
-	    val = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->_anon_rss
+	    val = mm->_anon_rss
 %)
 	}
     }
     /* kernels < 2.6.12 */
     else {
 	if (member == _MM_FILEPAGES())
-	    val = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->rss
+	    val = mm->rss
 	else if (member == _MM_ANONPAGES())
-	    val = @cast(mm, "mm_struct", "kernel<linux/sched.h>")->anon_rss
+	    val = mm->anon_rss
     }
     return val
 }
