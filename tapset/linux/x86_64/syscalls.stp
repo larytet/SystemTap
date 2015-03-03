@@ -304,3 +304,22 @@ probe syscall.compat_fadvise64.return =
 	name = "fadvise64"
 	retstr = return_str(1, $return)
 }
+
+# readahead __________________________________________________
+#
+# asmlinkage ssize_t
+# ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi, size_t count)
+#
+probe syscall.compat_readahead = kernel.function("sys32_readahead") ?
+{
+	name = "readahead"
+	fd = __int32($fd)
+	offset = (($off_hi << 32) | $off_lo)
+	count = __uint32($count)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
+}
+probe syscall.compat_readahead.return = kernel.function("sys32_readahead").return ?
+{
+	name = "readahead"
+	retstr = returnstr(1)
+}

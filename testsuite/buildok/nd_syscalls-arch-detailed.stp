@@ -555,22 +555,32 @@ probe nd_syscall.pipe32.return ?
 }
 %)
 
-probe syscall.compat_ftruncate64 ?
+probe nd_syscall.compat_ftruncate64 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %d\n", fd, length)
 }
-probe syscall.compat_ftruncate64.return ?
+probe nd_syscall.compat_ftruncate64.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.compat_truncate64 ?
+probe nd_syscall.compat_truncate64 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%p (%s), %d\n", path_uaddr, path, length)
 }
-probe syscall.compat_truncate64.return ?
+probe nd_syscall.compat_truncate64.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.compat_readahead ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %u", fd, offset, count)
+}
+probe nd_syscall.compat_readahead.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

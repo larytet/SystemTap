@@ -574,3 +574,13 @@ probe syscall.compat_truncate64.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
+
+probe syscall.compat_readahead ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %u", fd, offset, count)
+}
+probe syscall.compat_readahead.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}

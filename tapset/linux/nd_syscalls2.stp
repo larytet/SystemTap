@@ -870,15 +870,25 @@ probe __nd_syscall.read.return = kprobe.function("sys_read").return
 #
 probe nd_syscall.readahead = kprobe.function("sys_readahead") ?
 {
+	@__syscall_gate_compat_simple
 	name = "readahead"
 	asmlinkage()
 	fd = int_arg(1)
+%( CONFIG_64BIT == "y" %?
+		offset = longlong_arg(2)
+		count = ulong_arg(3)
+%:
+	# On a 32-bit kernel, 'long long' arguments take the space of
+	# 2 arguments, so we have to adjust the following argument
+	# numbers.
 	offset = longlong_arg(2)
-	count = ulong_arg(3)
-	argstr = sprintf("%d, %p, %p", fd, offset, count)
+	count = ulong_arg(4)
+%)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
 }
 probe nd_syscall.readahead.return = kprobe.function("sys_readahead").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "readahead"
 	retstr = returnstr(1)
 }

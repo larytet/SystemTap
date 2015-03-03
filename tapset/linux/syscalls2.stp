@@ -889,14 +889,20 @@ probe __syscall.read.return = kernel.function("sys_read").return
 #
 probe syscall.readahead = kernel.function("sys_readahead").call
 {
+	@__syscall_gate_compat_simple
 	name = "readahead"
-	fd = $fd
+	fd = __int32($fd)
 	offset = $offset
+%( CONFIG_64BIT == "y" %?
 	count = $count
-	argstr = sprintf("%d, %p, %p", fd, offset, count)
+%:
+	count = __uint32($count)
+%)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
 }
 probe syscall.readahead.return = kernel.function("sys_readahead").return
 {
+	@__syscall_gate_compat_simple
 	name = "readahead"
 	retstr = return_str(1, $return)
 }
