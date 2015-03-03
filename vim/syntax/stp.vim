@@ -17,6 +17,7 @@ syn keyword stapStatement contained break continue return next delete try catch 
 syn keyword stapRepeat contained while for foreach in limit containedin=stapBlock
 syn keyword stapConditional contained if else containedin=stapBlock
 syn keyword stapDeclaration global probe function
+syn match stapDeclaration "@define\>"
 syn keyword stapType string long
 
 syn region stapProbeDec start="\<probe\>"lc=5 end="{"me=s-1 contains=stapString,stapNumber
@@ -25,6 +26,9 @@ syn match stapProbe contained "\<\w\+\>" containedin=stapProbeDec
 syn region stapFuncDec start="\<function\>"lc=8 end=":\|("me=s-1 contains=stapString,stapNumber
 syn match stapFuncCall contained "\<\w\+\ze\(\s\|\n\)*(" containedin=stapBlock
 syn match stapFunc contained "\<\w\+\>" containedin=stapFuncDec,stapFuncCall
+
+syn region stapMacroDec start="@define\>"lc=7 end="%("me=s-2
+syn match stapMacro contained "\<\w\+\>" containedin=stapMacroDec
 
 syn match stapStat contained "@\<\w\+\ze\(\s\|\n\)*(" containedin=stapBlock
 
@@ -97,6 +101,7 @@ if version >= 508 || !exists("did_stap_syn_inits")
   HiLink stapType Type
   HiLink stapProbe Function
   HiLink stapFunc Function
+  HiLink stapMacro Function
   HiLink stapStat Function
   HiLink stapPreProc PreProc
   HiLink stapPreProcCond Special
