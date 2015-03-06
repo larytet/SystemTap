@@ -1534,7 +1534,7 @@ probe nd_syscall.rt_sigpending = __nd_syscall.rt_sigpending ?,
 	asmlinkage()
 	set_uaddr = pointer_arg(1)
 	sigsetsize = ulong_arg(2)
-	argstr = sprintf("%p, %d", set_uaddr, sigsetsize)
+	argstr = sprintf("%p, %u", set_uaddr, sigsetsize)
 }
 probe __nd_syscall.rt_sigpending = kprobe.function("sys_rt_sigpending") ?
 {

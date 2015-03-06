@@ -1490,11 +1490,11 @@ probe syscall.rt_sigaction32 = kernel.function("sys32_rt_sigaction").call ?,
 {
 	name = "rt_sigaction"
 	sig = __int32($sig)
-	act_uaddr = $act
+	act_uaddr = @__pointer($act)
 	oact_uaddr = $oact
 	sigsetsize = $sigsetsize
 	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
-		_struct_sigaction32_u($act), $oact, $sigsetsize)
+		_struct_sigaction32_u(act_uaddr), $oact, $sigsetsize)
 }
 probe syscall.rt_sigaction32.return = kernel.function("sys32_rt_sigaction").return ?,
                                       kernel.function("compat_sys_rt_sigaction").return ?
@@ -1516,17 +1516,18 @@ probe syscall.rt_sigpending = __syscall.rt_sigpending ?,
 {
 	name = "rt_sigpending"
 	set_uaddr = @choose_defined($uset, $set)
-	sigsetsize = $sigsetsize
-	argstr = sprintf("%p, %d", set_uaddr, $sigsetsize)
+	argstr = sprintf("%p, %u", set_uaddr, sigsetsize)
 }
 probe __syscall.rt_sigpending = kernel.function("sys_rt_sigpending").call ?
 {
 	@__syscall_gate(%{ __NR_rt_sigpending %})
+	sigsetsize = $sigsetsize
 }
 probe __syscall.compat_rt_sigpending =
 	kernel.function("compat_sys_rt_sigpending").call !,
 	kernel.function("sys32_rt_sigpending").call ?
 {
+	sigsetsize = __uint32($sigsetsize)
 }
 probe syscall.rt_sigpending.return = __syscall.rt_sigpending.return ?,
 				     __syscall.compat_rt_sigpending.return ?
@@ -1609,7 +1610,7 @@ probe syscall.compat_rt_sigprocmask =
 	name = "rt_sigprocmask"
 	how = __int32($how)
 	how_str = _sigprocmask_how_str(how)
-	set_uaddr = @choose_defined($set, $nset)
+	set_uaddr = @__pointer(@choose_defined($set, $nset))
 	oldset_uaddr = __uint32($oset)
 	argstr = sprintf("%s, [%s], %p, %d", how_str,
 			 _stp_compat_sigset_u(set_uaddr), __uint32($oset),
