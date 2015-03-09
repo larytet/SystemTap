@@ -41,7 +41,7 @@
 %endif
 %{!?with_pyparsing: %global with_pyparsing 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 
-%ifarch ppc64le
+%ifarch ppc64le aarch64
 %global with_virthost 0
 %endif
 
