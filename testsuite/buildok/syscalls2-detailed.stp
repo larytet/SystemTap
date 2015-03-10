@@ -659,7 +659,7 @@ probe syscall.sendto.return ?
 probe syscall.setdomainname
 {
 	printf("%s(%s)\n", name, argstr)
-%( systemtap_v <= "1.8" %?
+%( systemtap_v <= "2.8" %?
 	printf("%p, %p, %s, %d", domainname_uaddr, hostname_uaddr, domainname_str, len)
 %:
 	printf("%p, %s, %d", domainname_uaddr, domainname_str, len)

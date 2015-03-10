@@ -2532,7 +2532,7 @@ probe syscall.setdomainname = kernel.function("sys_setdomainname").call
 {
 	name = "setdomainname"
 	domainname_uaddr = $name
-%( systemtap_v <= "1.8" %?
+%( systemtap_v <= "2.8" %?
 	hostname_uaddr = domainname_uaddr
 %)
         domainname_str = user_string_quoted(domainname_uaddr)

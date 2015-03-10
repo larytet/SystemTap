@@ -2620,7 +2620,7 @@ probe nd_syscall.setdomainname = kprobe.function("sys_setdomainname") ?
 	name = "setdomainname"
 	asmlinkage()
 	domainname_uaddr = pointer_arg(1)
-%( systemtap_v <= "1.8" %?
+%( systemtap_v <= "2.8" %?
         hostname_uaddr = domainname_uaddr
 %)
 	domainname_str = user_string_quoted(domainname_uaddr)
