@@ -1628,18 +1628,30 @@ probe syscall.compat_rt_sigprocmask.return =
 #
 # long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
 #
-probe syscall.rt_sigqueueinfo = kernel.function("sys_rt_sigqueueinfo").call
+probe syscall.rt_sigqueueinfo = __syscall.rt_sigqueueinfo ?,
+                                kernel.function("sys32_rt_sigqueueinfo").call ?,
+                                kernel.function("compat_sys_rt_sigqueueinfo").call ?
 {
 	name = "rt_sigqueueinfo"
-	pid = $pid
-	sig = $sig
+	pid = __int32($pid)
+	sig = __int32($sig)
 	uinfo_uaddr = $uinfo
-	argstr = sprintf("%d, %s, %p", $pid, _signal_name($sig), $uinfo)
+	argstr = sprintf("%d, %s, %p", pid, _signal_name(sig), $uinfo)
 }
-probe syscall.rt_sigqueueinfo.return = kernel.function("sys_rt_sigqueueinfo").return
+probe __syscall.rt_sigqueueinfo = kernel.function("sys_rt_sigqueueinfo").call
+{
+	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
+}
+probe syscall.rt_sigqueueinfo.return = __syscall.rt_sigqueueinfo.return ?,
+                                       kernel.function("sys32_rt_sigqueueinfo").return ?,
+                                       kernel.function("compat_sys_rt_sigqueueinfo").return ?
 {
 	name = "rt_sigqueueinfo"
 	retstr = return_str(1, $return)
+}
+probe __syscall.rt_sigqueueinfo.return = kernel.function("sys_rt_sigqueueinfo").return
+{
+	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
 }
 
 # rt_sigreturn _______________________________________________
@@ -2519,9 +2531,13 @@ probe syscall.sendto.return = kernel.function("sys_sendto").return ?,
 probe syscall.setdomainname = kernel.function("sys_setdomainname").call
 {
 	name = "setdomainname"
-	hostname_uaddr = $name
-	len = $len
-	argstr = sprintf("%p, %d", $name, $len)
+	domainname_uaddr = $name
+%( systemtap_v <= "1.8" %?
+	hostname_uaddr = domainname_uaddr
+%)
+        domainname_str = user_string_quoted(domainname_uaddr)
+	len = __int32($len)
+	argstr = sprintf("%s, %d", domainname_str, len)
 }
 probe syscall.setdomainname.return = kernel.function("sys_setdomainname").return
 {
@@ -2879,9 +2895,13 @@ probe syscall.setreuid16.return = kernel.function("sys_setreuid16").return ?
 #
 # asmlinkage long
 # sys_setrlimit(unsigned int resource,
-#		   struct rlimit __user *rlim)
+#               struct rlimit __user *rlim)
+# asmlinkage long
+# compat_sys_setrlimit(unsigned int resource,
+#                      struct compat_rlimit __user *rlim)
 #
-probe syscall.setrlimit = kernel.function("sys_setrlimit").call
+probe syscall.setrlimit = __syscall.setrlimit ?,
+                          kernel.function("compat_sys_setrlimit").call
 {
 	name = "setrlimit"
 	resource = $resource
@@ -2889,10 +2909,19 @@ probe syscall.setrlimit = kernel.function("sys_setrlimit").call
 	argstr = sprintf("%s, %s", _rlimit_resource_str($resource),
 		_struct_rlimit_u($rlim))
 }
-probe syscall.setrlimit.return = kernel.function("sys_setrlimit").return
+probe __syscall.setrlimit = kernel.function("sys_setrlimit").call
+{
+	@__syscall_gate(%{ __NR_setrlimit %})
+}
+probe syscall.setrlimit.return = __syscall.setrlimit.return ?,
+                                 kernel.function("compat_sys_setrlimit").return
 {
 	name = "setrlimit"
 	retstr = return_str(1, $return)
+}
+probe __syscall.setrlimit.return = kernel.function("sys_setrlimit").return
+{
+	@__syscall_gate(%{ __NR_setrlimit %})
 }
 # setsid _____________________________________________________
 #
@@ -3646,8 +3675,15 @@ probe __syscall.socketcall.socketpair.return =
 probe syscall.splice = kernel.function("sys_splice").call ?
 {
 	name = "splice"
-	argstr = sprintf("%d, %p, %d, %p, %d, 0x%x",
-		$fd_in, $off_in, $fd_out, $off_out, $len, $flags)
+	fd_in = __int32($fd_in)
+	off_in = $off_in
+	fd_out = __int32($fd_out)
+	off_out = $off_out
+	len = __ulong($len)
+	flags = $flags
+	flags_str = (_stp_splice_flags_str(flags))
+	argstr = sprintf("%d, %p, %d, %p, %u, %s", fd_in, off_in, fd_out,
+	                 off_out, len, flags_str);
 }
 probe syscall.splice.return = kernel.function("sys_splice").return ?
 {
@@ -3952,7 +3988,15 @@ probe syscall.syslog.return = kernel.function("sys_syslog").return
 probe syscall.tee = kernel.function("sys_tee").call ?
 {
 	name = "tee"
-	argstr = sprintf("%d, %d, %d, 0x%x", $fdin, $fdout, $len, $flags)
+	fdin = __int32($fdin)
+	fdout = __int32($fdout)
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
+		len = __uint32($len)
+	} else {
+		len = __ulong($len)
+	}
+	flags = __uint32($flags)
+	argstr = sprintf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
 }
 probe syscall.tee.return = kernel.function("sys_tee").return ?
 {
@@ -4766,16 +4810,28 @@ probe syscall.vhangup.return = kernel.function("sys_vhangup").return
 #
 probe syscall.vmsplice = kernel.function("sys_vmsplice").call ?
 {
+	@__syscall_gate_compat_simple
 	name = "vmsplice"
-	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $iov, $nr_segs, $flags)
+	fd = __int32($fd)
+	iov = $iov
+	nr_segs = __ulong($nr_segs)
+	flags = $flags
+	flags_str = _stp_splice_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
 }
 probe syscall.compat_vmsplice = kernel.function("compat_sys_vmsplice").call ?
 {
 	name = "vmsplice"
-	argstr = sprintf("%d, %p, %d, 0x%x", $fd, $iov32, $nr_segs, $flags)
+	fd = __int32($fd)
+	iov = @__pointer($iov32)
+	nr_segs = __uint32($nr_segs)
+	flags = $flags
+	flags_str = _stp_splice_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
 }
 probe syscall.vmsplice.return = kernel.function("sys_vmsplice").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "vmsplice"
 	retstr = return_str(1, $return)
 }

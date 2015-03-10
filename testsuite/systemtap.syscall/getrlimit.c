@@ -1,4 +1,4 @@
-/* COVERAGE: getrlimit */
+/* COVERAGE: getrlimit setrlimit */
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -10,6 +10,9 @@ int main() {
 
     getrlimit(RLIMIT_CPU, &rlim);
     //staptest// getrlimit (RLIMIT_CPU, XXXX) = 0
+
+    setrlimit(RLIMIT_CPU, &rlim);
+    //staptest// setrlimit (RLIMIT_CPU, \[NNNN,NNNN\]) = 0
 
     // --- then check nasty calls ---
 
@@ -25,6 +28,12 @@ int main() {
 #else
     //staptest// getrlimit (RLIMIT_CPU, 0x[f]+) = NNNN (EFAULT)
 #endif
+
+    setrlimit(-1, &rlim);
+    //staptest// setrlimit (RLIM_INFINITY, \[NNNN,NNNN\]) = NNNN (EINVAL)
+
+    setrlimit(RLIMIT_CPU, (const struct rlimit *)-1);
+    //staptest// setrlimit (RLIMIT_CPU, UNKNOWN) = NNNN (EFAULT)
 
     return 0;
 }

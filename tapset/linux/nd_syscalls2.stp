@@ -1649,7 +1649,9 @@ probe nd_syscall.compat_rt_sigprocmask.return =
 #
 # long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
 #
-probe nd_syscall.rt_sigqueueinfo = kprobe.function("sys_rt_sigqueueinfo") ?
+probe nd_syscall.rt_sigqueueinfo = __nd_syscall.rt_sigqueueinfo ?,
+                                   kprobe.function("sys32_rt_sigqueueinfo") ?,
+                                   kprobe.function("compat_sys_rt_sigqueueinfo") ?
 {
 	name = "rt_sigqueueinfo"
 	asmlinkage()
@@ -1658,10 +1660,20 @@ probe nd_syscall.rt_sigqueueinfo = kprobe.function("sys_rt_sigqueueinfo") ?
 	uinfo_uaddr = pointer_arg(3)
 	argstr = sprintf("%d, %s, %p", pid, _signal_name(sig), uinfo_uaddr)
 }
-probe nd_syscall.rt_sigqueueinfo.return = kprobe.function("sys_rt_sigqueueinfo").return ?
+probe __nd_syscall.rt_sigqueueinfo = kprobe.function("sys_rt_sigqueueinfo")
+{
+	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
+}
+probe nd_syscall.rt_sigqueueinfo.return = __nd_syscall.rt_sigqueueinfo.return,
+                                   kprobe.function("sys32_rt_sigqueueinfo").return ?,
+                                   kprobe.function("compat_sys_rt_sigqueueinfo").return ?
 {
 	name = "rt_sigqueueinfo"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.rt_sigqueueinfo.return = kprobe.function("sys_rt_sigqueueinfo").return
+{
+	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
 }
 
 # rt_sigreturn _______________________________________________
@@ -2607,9 +2619,13 @@ probe nd_syscall.setdomainname = kprobe.function("sys_setdomainname") ?
 {
 	name = "setdomainname"
 	asmlinkage()
-	hostname_uaddr = pointer_arg(1)
+	domainname_uaddr = pointer_arg(1)
+%( systemtap_v <= "1.8" %?
+        hostname_uaddr = domainname_uaddr
+%)
+	domainname_str = user_string_quoted(domainname_uaddr)
 	len = int_arg(2)
-	argstr = sprintf("%p, %d", hostname_uaddr, len)
+	argstr = sprintf("%s, %d", domainname_str, len)
 }
 probe nd_syscall.setdomainname.return = kprobe.function("sys_setdomainname").return ?
 {
@@ -2993,9 +3009,13 @@ probe nd_syscall.setreuid16.return = kprobe.function("sys_setreuid16").return ?
 #
 # asmlinkage long
 # sys_setrlimit(unsigned int resource,
-#		   struct rlimit __user *rlim)
+#               struct rlimit __user *rlim)
+# asmlinkage long
+# compat_sys_setrlimit(unsigned int resource,
+#                      struct compat_rlimit __user *rlim)
 #
-probe nd_syscall.setrlimit = kprobe.function("sys_setrlimit") ?
+probe nd_syscall.setrlimit = __nd_syscall.setrlimit ?,
+                             kprobe.function("compat_sys_setrlimit") ?
 {
 	name = "setrlimit"
 	asmlinkage()
@@ -3004,10 +3024,19 @@ probe nd_syscall.setrlimit = kprobe.function("sys_setrlimit") ?
 	argstr = sprintf("%s, %s", _rlimit_resource_str(resource),
 				_struct_rlimit_u(rlim_uaddr))
 }
-probe nd_syscall.setrlimit.return = kprobe.function("sys_setrlimit").return ?
+probe __nd_syscall.setrlimit = kprobe.function("sys_setrlimit")
+{
+	@__syscall_gate(%{ __NR_setrlimit %})
+}
+probe nd_syscall.setrlimit.return = __nd_syscall.setrlimit.return ?,
+                                    kprobe.function("compat_sys_setrlimit").return ?
 {
 	name = "setrlimit"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.setrlimit.return = kprobe.function("sys_setrlimit").return
+{
+	@__syscall_gate(%{ __NR_setrlimit %})
 }
 
 # setsid _____________________________________________________
@@ -3853,8 +3882,15 @@ probe nd_syscall.splice = kprobe.function("sys_splice") ?
 {
 	name = "splice"
 	asmlinkage()
-	argstr = sprintf("%d, %p, %d, %p, %d, 0x%x",
-		int_arg(1), pointer_arg(2), int_arg(3), pointer_arg(4), ulong_arg(5), uint_arg(6))
+	fd_in = int_arg(1)
+	off_in = pointer_arg(2)
+	fd_out = int_arg(3)
+	off_out = pointer_arg(4)
+	len = ulong_arg(5)
+	flags = uint_arg(6)
+	flags_str = (_stp_splice_flags_str(flags))
+	argstr = sprintf("%d, %p, %d, %p, %u, %s", fd_in, off_in, fd_out,
+	                 off_out, len, flags_str);
 }
 probe nd_syscall.splice.return = kprobe.function("sys_splice").return ?
 {
@@ -4168,7 +4204,11 @@ probe nd_syscall.tee = kprobe.function("sys_tee") ?
 {
 	name = "tee"
 	asmlinkage()
-	argstr = sprintf("%d, %d, %d, 0x%x", int_arg(1), int_arg(2), ulong_arg(3), uint_arg(4))
+	fdin = int_arg(1)
+	fdout = int_arg(2)
+	len = ulong_arg(3)
+	flags = uint_arg(4)
+	argstr = sprintf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
 }
 probe nd_syscall.tee.return = kprobe.function("sys_tee").return ?
 {
@@ -5000,18 +5040,30 @@ probe nd_syscall.vhangup.return = kprobe.function("sys_vhangup").return
 #
 probe nd_syscall.vmsplice = kprobe.function("sys_vmsplice") ?
 {
+	@__syscall_gate_compat_simple
 	name = "vmsplice"
 	asmlinkage()
-	argstr = sprintf("%d, %p, %d, 0x%x", int_arg(1), pointer_arg(2), ulong_arg(3), uint_arg(4))
+	fd = int_arg(1)
+	iov = pointer_arg(2)
+	nr_segs = ulong_arg(3)
+	flags = uint_arg(4)
+	flags_str = _stp_splice_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
 }
 probe nd_syscall.compat_vmsplice = kprobe.function("compat_sys_vmsplice") ?
 {
 	name = "vmsplice"
 	asmlinkage()
-	argstr = sprintf("%d, %p, %d, 0x%x", int_arg(1), pointer_arg(2), uint_arg(3), uint_arg(4))
+	fd = int_arg(1)
+	iov = pointer_arg(2)
+	nr_segs = ulong_arg(3)
+	flags = uint_arg(4)
+	flags_str = _stp_splice_flags_str(flags)
+	argstr = sprintf("%d, %p, %u, %s", fd, iov, nr_segs, flags_str)
 }
 probe nd_syscall.vmsplice.return = kprobe.function("sys_vmsplice").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "vmsplice"
 	retstr = returnstr(1)
 }

@@ -659,8 +659,13 @@ probe syscall.sendto.return ?
 probe syscall.setdomainname
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%p %d\n", hostname_uaddr, len)
+%( systemtap_v <= "1.8" %?
+	printf("%p, %p, %s, %d", domainname_uaddr, hostname_uaddr, domainname_str, len)
+%:
+	printf("%p, %s, %d", domainname_uaddr, domainname_str, len)
+%)
 }
+
 probe syscall.setdomainname.return
 {
 	printf("%s %s\n", name, retstr)
@@ -1054,6 +1059,8 @@ probe syscall.socketpair.return
 probe syscall.splice ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %d, %p, %u, %u, %s", fd_in, off_in, fd_out,
+	       off_out, len, flags, flags_str);
 }
 probe syscall.splice.return ?
 {
@@ -1202,6 +1209,7 @@ probe syscall.syslog.return
 probe syscall.tee ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
 }
 probe syscall.tee.return ?
 {
@@ -1471,6 +1479,8 @@ probe syscall.vhangup.return
 probe syscall.vmsplice ?, syscall.compat_vmsplice ?
 {
 	printf("%s, %s\n", name, argstr)
+	argstr = sprintf("%d, %p, %u, %u, %s", fd, iov, nr_segs,
+	                 flags, flags_str)
 }
 probe syscall.vmsplice.return ?, syscall.compat_vmsplice.return ?
 {

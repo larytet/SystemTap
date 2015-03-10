@@ -1,19 +1,26 @@
-/* COVERAGE:  rt_sigprocmask rt_sigaction rt_sigpending */
+/* COVERAGE:  rt_sigprocmask rt_sigaction rt_sigpending rt_sigqueueinfo */
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/syscall.h>
 #include <string.h>
+#include <signal.h>
 
 static void 
 sig_act_handler(int signo)
 {
 }
 
+int
+__rt_sigqueueinfo(pid_t tgid, int sig, siginfo_t *siginfo)
+{
+  return syscall(__NR_rt_sigqueueinfo, tgid, sig, siginfo);
+}
 
 int main()
 {
   sigset_t mask;
+  siginfo_t siginfo;
   struct sigaction sa;
 
   sigemptyset(&mask);
@@ -80,6 +87,23 @@ int main()
 #else
   //staptest// rt_sigpending (0x[f]+, 8) = -NNNN (EFAULT)
 #endif
+
+  siginfo.si_code = SI_USER;
+  siginfo.si_pid = getpid();
+  siginfo.si_uid = getuid();
+  siginfo.si_value = 1;
+
+  __rt_sigqueueinfo(getpid(), SIGUSR1, &siginfo);
+  //staptest// rt_sigqueueinfo (NNNN, SIGUSR1, XXXX) = 0
+
+  __rt_sigqueueinfo(-1, SIGUSR1, &siginfo);
+  //staptest// rt_sigqueueinfo (-1, SIGUSR1, XXXX) = NNNN
+
+  __rt_sigqueueinfo(getpid(), -1, &siginfo);
+  //staptest// rt_sigqueueinfo (NNNN, 0x[f]+, XXXX) = NNNN
+
+  __rt_sigqueueinfo(getpid(), SIGUSR1, (siginfo_t *)-1);
+  //staptest// rt_sigqueueinfo (NNNN, SIGUSR1, 0x[f]+) = NNNN
 
   return 0;
 }

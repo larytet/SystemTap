@@ -4570,3 +4570,36 @@ function _stp_timerfd_flags_str:string(flags:long)
 			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
 			   MAXSTRINGLEN);
 %} 
+
+%{
+// RHEL5 linux/pipe_fs_i.h has SPLICE* defs. RHEL6+ has it in
+// separate linux/splice.h, which does not exist on RHEL5.
+#include <linux/pipe_fs_i.h>
+#ifndef SPLICE_F_MOVE
+#include <linux/splice.h>
+#endif
+
+static const _stp_val_array const _stp_splice_flags_list[] = {
+#ifdef SPLICE_F_MOVE
+	V(SPLICE_F_MOVE),
+#endif
+#ifdef SPLICE_F_NONBLOCK
+	V(SPLICE_F_NONBLOCK),
+#endif
+#ifdef SPLICE_F_MORE
+	V(SPLICE_F_MORE),
+#endif
+#ifdef SPLICE_F_GIFT
+	V(SPLICE_F_GIFT),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_splice_flags_str:string(flags:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_splice_flags_list,
+			   (unsigned int)STAP_ARG_flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
