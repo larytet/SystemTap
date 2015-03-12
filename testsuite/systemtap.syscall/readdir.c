@@ -27,23 +27,23 @@ int main() {
     // test normal operation
 
     __readdir(fd, buf, 0);
-    //staptest// [[[[readdir (NNNN, XXXX, 0) = 1!!!!ni_syscall () = -38 (ENOSYS)]]]]
+    //staptest// [[[[readdir (NNNN, XXXX, 0)!!!!ni_syscall ()]]]] = NNNN
 
 
     // test nasty calls
 
     __readdir(-1, buf, 0);
-    //staptest// [[[[readdir (4294967295, XXXX, 0)!!!!ni_syscall () = -38 (ENOSYS)]]]]
+    //staptest// [[[[readdir (4294967295, XXXX, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __readdir(fd, (void *)-1, 0);
 #ifdef __s390__
-    //staptest// [[[[readdir (NNNN, 0x7[f]+, 0)!!!!ni_syscall () = -38 (ENOSYS)]]]]
+    //staptest// [[[[readdir (NNNN, 0x7[f]+, 0)!!!!ni_syscall ()]]]] = -NNNN
 #else
-    //staptest// [[[[readdir (NNNN, 0x[f]+, 0)!!!!ni_syscall () = -38 (ENOSYS)]]]]
+    //staptest// [[[[readdir (NNNN, 0x[f]+, 0)!!!!ni_syscall ()]]]] = -NNNN
 #endif
 
     __readdir(fd, buf, -1);
-    //staptest// [[[[readdir (NNNN, XXXX, 4294967295)!!!!ni_syscall () = -38 (ENOSYS)]]]]
+    //staptest// [[[[readdir (NNNN, XXXX, 4294967295)!!!!ni_syscall ()]]]] = NNNN
 
     free(buf);
     close(fd);

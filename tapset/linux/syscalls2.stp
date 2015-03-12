@@ -2891,6 +2891,7 @@ probe syscall.setreuid16.return = kernel.function("sys_setreuid16").return ?
 	name = "setreuid"
 	retstr = return_str(1, $return)
 }
+
 # setrlimit __________________________________________________
 #
 # asmlinkage long
@@ -2901,7 +2902,7 @@ probe syscall.setreuid16.return = kernel.function("sys_setreuid16").return ?
 #                      struct compat_rlimit __user *rlim)
 #
 probe syscall.setrlimit = __syscall.setrlimit ?,
-                          kernel.function("compat_sys_setrlimit").call
+	kernel.function("compat_sys_setrlimit").call ?
 {
 	name = "setrlimit"
 	resource = $resource
@@ -2914,7 +2915,7 @@ probe __syscall.setrlimit = kernel.function("sys_setrlimit").call
 	@__syscall_gate(%{ __NR_setrlimit %})
 }
 probe syscall.setrlimit.return = __syscall.setrlimit.return ?,
-                                 kernel.function("compat_sys_setrlimit").return
+	kernel.function("compat_sys_setrlimit").return ?
 {
 	name = "setrlimit"
 	retstr = return_str(1, $return)
@@ -2923,6 +2924,7 @@ probe __syscall.setrlimit.return = kernel.function("sys_setrlimit").return
 {
 	@__syscall_gate(%{ __NR_setrlimit %})
 }
+
 # setsid _____________________________________________________
 #
 # long sys_setsid(void)

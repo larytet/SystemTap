@@ -1309,17 +1309,12 @@ probe nd_syscall.faccessat.return = kprobe.function("sys_faccessat").return ?
 probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
 {
 	asmlinkage()
+	@__syscall_gate_compat_simple
 	name = "fadvise64"
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		offset = int_arg(2)
-		len = int_arg(3)
-	}
-	else {
-		offset = longlong_arg(2)
-		len = long_arg(3)
-	}
+	offset = longlong_arg(2)
+	len = long_arg(3)
 	advice = int_arg(4)
 %:
 	# On a 32-bit kernel, 'long long' arguments take the space of
@@ -1334,6 +1329,7 @@ probe nd_syscall.fadvise64 = kprobe.function("sys_fadvise64") ?
 }
 probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "fadvise64"
 	retstr = returnstr(1)
 }
@@ -1344,6 +1340,7 @@ probe nd_syscall.fadvise64.return = kprobe.function("sys_fadvise64").return ?
 probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 {
 	asmlinkage()
+	@__syscall_gate_compat_simple
 %( arch != "s390" && arch != "ia64" %?
 	# s390x/ia64 has sys_fadvise64_64() mapped to __NR_fadvise64
 	# (instead of __NR_fadvise64_64)
@@ -1352,14 +1349,8 @@ probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 	name = "fadvise64"
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		offset = int_arg(2)
-		len = int_arg(3)
-	}
-	else {
-		offset = longlong_arg(2)
-		len = longlong_arg(3)
-	}
+	offset = longlong_arg(2)
+	len = longlong_arg(3)
 	advice = int_arg(4)
 %:
 	# On a 32-bit kernel, 'long long' arguments take the space of
@@ -1375,6 +1366,7 @@ probe nd_syscall.fadvise64_64 = kprobe.function("sys_fadvise64_64") ?
 probe nd_syscall.fadvise64_64.return =
 	kprobe.function("sys_fadvise64_64").return ?
 {
+	@__syscall_gate_compat_simple
 %( arch != "s390" && arch != "ia64" %?
 	@__syscall_gate(%{ __NR_fadvise64_64 %})
 %)

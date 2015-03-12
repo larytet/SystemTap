@@ -2061,6 +2061,12 @@ static const _stp_val_array const _stp_fadvice_advice_list[] = {
 	V(POSIX_FADV_WILLNEED),
 	V(POSIX_FADV_DONTNEED),
 	V(POSIX_FADV_NOREUSE),
+#if defined(__s390x__)
+	/* On s390x, 64-bit exes and 32-bit exes have different
+	 * versions of the following values. */
+	{4, "POSIX_FADV_DONTNEED"},
+	{5, "POSIX_FADV_NOREUSE"},
+#endif
 	{0, NULL}
 };
 %}

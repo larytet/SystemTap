@@ -1,5 +1,8 @@
 /* COVERAGE: inotify_init inotify_init1 inotify_add_watch inotify_rm_watch */
 
+#define _GNU_SOURCE
+#include <unistd.h>
+#include <sys/syscall.h>
 #include <sys/inotify.h>
 
 int main()
@@ -24,8 +27,10 @@ int main()
   //staptest// inotify_init1 (IN_NONBLOCK|IN_CLOEXEC) = NNNN
 #endif
 
+#ifdef __NR_inotify_init1
   inotify_init1(-1);
   //staptest// inotify_init1 (IN_[^ ]+|XXXX) = -NNNN
+#endif
 
   inotify_add_watch(-1, "/tmp", IN_MODIFY);
   //staptest// inotify_add_watch (-1, "/tmp", IN_MODIFY) = -NNNN

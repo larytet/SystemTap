@@ -704,8 +704,51 @@ probe syscall.compat_readahead = kernel.function("compat_sys_readahead") ?
 	count = __uint32($count)
 	argstr = sprintf("%d, %d, %u", fd, offset, count)
 }
-probe syscall.compat_readahead.return = kernel.function("compat_sys_readahead").return ?
+probe syscall.compat_readahead.return =
+	kernel.function("compat_sys_readahead").return ?
 {
 	name = "readahead"
-	retstr = returnstr(1)
+	retstr = return_str(1, $return)
+}
+
+# fadvise64 _______________________________________________________
+#
+# long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
+# 		     size_t len, int advice)
+probe syscall.compat_fadvise64 = kernel.function("ppc32_fadvise64").call ?
+{
+	name = "fadvise64"
+	fd = __int32($fd)
+	offset = (($offset_high << 32) | $offset_low)
+	len = __int32($len)
+	advice = __int32($advice)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe syscall.compat_fadvise64.return =
+	kernel.function("ppc32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = return_str(1, $return)
+}
+
+# fadvise64 _______________________________________________________
+#
+# long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+#		      u32 len_high, u32 len_low)
+probe syscall.compat_fadvise64_64 = kernel.function("ppc_fadvise64_64").call ?
+{
+	name = "fadvise64"
+	fd = __int32($fd)
+	advice = __int32($advice)
+	offset = (($offset_high << 32) | $offset_low)
+	len = (($len_high << 32) | $len_low)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe syscall.compat_fadvise64_64.return =
+	kernel.function("ppc_fadvise64_64").return ?
+{
+	name = "fadvise64"
+	retstr = return_str(1, $return)
 }

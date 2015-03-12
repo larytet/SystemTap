@@ -378,16 +378,17 @@ probe nd_syscall.faccessat.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-# nd_syscall.compat_fadvise64 is actually arch-specfic, but testing it
-# here makes more sense.
+# nd_syscall.compat_fadvise64 and nd_syscall.compat_fadvise64_64 are
+# actually arch-specfic, but testing them here makes more sense.
 probe nd_syscall.fadvise64 ?, nd_syscall.fadvise64_64 ?,
-	nd_syscall.compat_fadvise64 ?
+	nd_syscall.compat_fadvise64 ?, nd_syscall.compat_fadvise64_64 ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %d, %d, %d\n", fd, offset, len, advice)
 }
 probe nd_syscall.fadvise64.return ?, nd_syscall.fadvise64_64.return ?,
-	nd_syscall.compat_fadvise64.return ?
+	nd_syscall.compat_fadvise64.return ?,
+	nd_syscall.compat_fadvise64_64.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

@@ -13,9 +13,11 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/syscall.h>
 
 int main()
 {
+#ifdef __NR_accept4
     int s, fd_null;
     struct sockaddr_in sin1;
     socklen_t sinlen;
@@ -60,5 +62,6 @@ int main()
     close(fd_null);
     //staptest// close (NNNN) = 0
 
+#endif
     return 0;
 }

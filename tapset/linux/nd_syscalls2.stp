@@ -3015,7 +3015,7 @@ probe nd_syscall.setreuid16.return = kprobe.function("sys_setreuid16").return ?
 #                      struct compat_rlimit __user *rlim)
 #
 probe nd_syscall.setrlimit = __nd_syscall.setrlimit ?,
-                             kprobe.function("compat_sys_setrlimit") ?
+	kprobe.function("compat_sys_setrlimit") ?
 {
 	name = "setrlimit"
 	asmlinkage()
@@ -3029,7 +3029,7 @@ probe __nd_syscall.setrlimit = kprobe.function("sys_setrlimit")
 	@__syscall_gate(%{ __NR_setrlimit %})
 }
 probe nd_syscall.setrlimit.return = __nd_syscall.setrlimit.return ?,
-                                    kprobe.function("compat_sys_setrlimit").return ?
+	kprobe.function("compat_sys_setrlimit").return ?
 {
 	name = "setrlimit"
 	retstr = returnstr(1)

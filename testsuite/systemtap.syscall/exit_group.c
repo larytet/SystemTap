@@ -1,5 +1,7 @@
 /* COVERAGE: exit_group */
 
+#define _GNU_SOURCE
+#include <unistd.h>
 #include <linux/unistd.h>
 #include <sys/syscall.h>
 

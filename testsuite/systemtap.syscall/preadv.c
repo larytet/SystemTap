@@ -1,4 +1,5 @@
 /* COVERAGE: preadv */
+#define _GNU_SOURCE
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
 #include <sys/types.h>
@@ -9,9 +10,11 @@
 #include <linux/unistd.h>
 #include <sys/uio.h>
 #include <string.h>
+#include <sys/syscall.h>
 
 int main()
 {
+#ifdef __NR_preadv
   int fd;
   struct iovec rd_iovec[3];
   char buf[64];
@@ -79,6 +82,7 @@ int main()
 
   close (fd);
   //staptest// close (NNNN) = 0
+#endif
 
   return 0;
 }

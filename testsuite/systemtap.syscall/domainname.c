@@ -21,13 +21,13 @@ int main() {
 
     setdomainname((const char *)-1, sizeof(domain_name));
 #ifdef __s390__
-    //staptest// setdomainname ([7]?[f]+, NNNN) = NNNN (EFAULT)
+    //staptest// setdomainname ([7]?[f]+, NNNN) = -NNNN
 #else
-    //staptest// setdomainname ([f]+, NNNN) = NNNN (EFAULT)
+    //staptest// setdomainname ([f]+, NNNN) = -NNNN
 #endif
 
     setdomainname(domain_name, -1);
-    //staptest// setdomainname ("[[[[[a-zA-Z0-9\.-]+!!!!(none)]]]]", -1) = NNNN (EINVAL)
+    //staptest// setdomainname ("[[[[[a-zA-Z0-9\.-]+!!!!(none)]]]]", -1) = -NNNN
 
     return 0;
 }

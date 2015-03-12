@@ -1214,21 +1214,17 @@ probe syscall.faccessat.return = kernel.function("sys_faccessat").return ?
 probe syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
 {
 	name = "fadvise64"
+	@__syscall_gate_compat_simple
 	fd = @choose_defined(__int32($fd), 0)
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		offset = __int32(@choose_defined($offset, 0))
-		len = __int32(@choose_defined($len, 0))
-	}
-	else {
-		offset = @choose_defined($offset, 0)
-		len = __long(@choose_defined($len, 0))
-	}
+	offset = @choose_defined($offset, 0)
+	len = __long(@choose_defined($len, 0))
 	advice = @choose_defined(__int32($advice), 0)
-	argstr = sprintf("%d, %d, %d, %s", __int32($fd), offset, len,
-			 _fadvice_advice_str(__int32($advice)))
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
 }
 probe syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "fadvise64"
 	retstr = return_str(1, $return)
 }
@@ -1238,6 +1234,7 @@ probe syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
 #
 probe syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 {
+	@__syscall_gate_compat_simple
 %( arch != "s390" && arch != "ia64" %?
 	# s390x/ia64 has sys_fadvise64_64() mapped to __NR_fadvise64
 	# (instead of __NR_fadvise64_64)
@@ -1245,21 +1242,16 @@ probe syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 %)
 	name = "fadvise64"
 	fd = @choose_defined(__int32($fd), 0)
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		offset = __int32(@choose_defined($offset, 0))
-		len = __int32(@choose_defined($len, 0))
-	}
-	else {
-		offset = @choose_defined($offset, 0)
-		len = @choose_defined($len, 0)
-	}
+	offset = @choose_defined($offset, 0)
+	len = @choose_defined($len, 0)
 	advice = @choose_defined(__int32($advice), 0)
-	argstr = sprintf("%d, %d, %d, %s", __int32($fd), offset, len,
-			 _fadvice_advice_str(__int32($advice)))
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
 }
 probe syscall.fadvise64_64.return =
 	kernel.function("sys_fadvise64_64").return ?
 {
+	@__syscall_gate_compat_simple
 %( arch != "s390" && arch != "ia64" %?
 	@__syscall_gate(%{ __NR_fadvise64_64 %})
 %)

@@ -45,7 +45,7 @@ int main()
 #ifdef __NR_mbind
     p = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
     __mbind(p, len, MPOL_DEFAULT, NULL, 0, 0);
-    //staptest// [[[[mbind (XXXX, 100, MPOL_DEFAULT, 0x0, 0, 0x0) = 0!!!!ni_syscall () = NNNN (ENOSYS)]]]]
+    //staptest// [[[[mbind (XXXX, 100, MPOL_DEFAULT, 0x0, 0, 0x0)!!!!ni_syscall ()]]]] = NNNN
 #endif
 
 #ifdef __NR_move_pages
