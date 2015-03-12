@@ -877,3 +877,25 @@ probe nd_syscall.compat_fadvise64_64.return =
 	name = "fadvise64"
 	retstr = returnstr(1)
 }
+
+# fallocate __________________________________________________
+#
+# asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
+#				     u32 lenhi, u32 lenlo)
+probe nd_syscall.compat_fallocate = kprobe.function("compat_sys_fallocate") ?
+{
+	asmlinkage()
+	name = "fallocate"
+	fd = int_arg(1)
+	mode = int_arg(2)
+	offset = ((uint_arg(3) << 32) | uint_arg(4))
+	len = ((uint_arg(5) << 32) | uint_arg(6))
+	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
+			 offset, len)
+}
+probe nd_syscall.compat_fallocate.return =
+	kprobe.function("compat_sys_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = returnstr(1)
+}

@@ -391,6 +391,16 @@ probe syscall.fadvise64.return ?, syscall.fadvise64_64.return ?,
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.fallocate ?, syscall.compat_fallocate ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %#x, %u", fd, mode, offset, len)
+}
+probe syscall.fallocate.return ?, syscall.compat_fallocate.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.fchdir
 {
 	printf("%s, %s\n", name, argstr)

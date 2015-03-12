@@ -328,3 +328,35 @@ probe syscall.compat_fadvise64_64.return =
 	name = "fadvise64"
 	retstr = return_str(1, $return)
 }
+
+# fallocate __________________________________________________
+#
+# SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+# asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
+#				unsigned offset_hi, unsigned len_lo,
+#				unsigned len_hi)
+#
+# We've got a problem here on RHEL6 (2.6.32-504.el6.s390x) and RHEL7
+# (3.10.0-229.el7.s390x).  Normally we'd probe the "compat" version of
+# the function here.  However, on those kernels, the compat wrapper
+# for fallocate (sys_fallocate_wrapper) is in assembly language, which
+# stap can't find.
+#
+# So, we'll probe the "real" syscall here.
+probe syscall.compat_fallocate = kernel.function("sys_fallocate").call ?
+{
+	name = "fallocate"
+	fd = __int32($fd)
+	mode = __uint32($mode)
+	mode_str = _stp_fallocate_mode_str(mode)
+	offset = $offset
+	len = $len
+	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
+			 offset, len)
+}
+probe syscall.compat_fallocate.return =
+	kernel.function("sys_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = returnstr(1)
+}

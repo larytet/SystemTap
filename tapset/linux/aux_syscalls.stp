@@ -4609,3 +4609,30 @@ function _stp_splice_flags_str:string(flags:long)
 			   MAXSTRINGLEN);
 %}
 
+%{
+#include <linux/falloc.h>
+
+static const _stp_val_array const _stp_fallocate_mode_list[] = {
+	V(FALLOC_FL_KEEP_SIZE),
+#ifdef FALLOC_FL_PUNCH_HOLE
+	V(FALLOC_FL_PUNCH_HOLE),
+#endif
+#ifdef FALLOC_FL_NO_HIDE_STALE
+	V(FALLOC_FL_NO_HIDE_STALE),
+#endif
+#ifdef FALLOC_FL_COLLAPSE_RANGE
+	V(FALLOC_FL_COLLAPSE_RANGE),
+#endif
+#ifdef FALLOC_FL_ZERO_RANGE
+	V(FALLOC_FL_ZERO_RANGE),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_fallocate_mode_str:string(mode:long)
+%{ /* pure */
+	_stp_lookup_or_str(_stp_fallocate_mode_list,
+			   (unsigned int)STAP_ARG_mode, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%} 
