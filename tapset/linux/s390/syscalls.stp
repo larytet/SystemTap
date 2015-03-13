@@ -360,3 +360,5 @@ probe syscall.compat_fallocate.return =
 	name = "fallocate"
 	retstr = returnstr(1)
 }
+
+%)
