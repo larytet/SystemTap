@@ -103,7 +103,6 @@ struct c_unparser: public unparser, public visitor
   void emit_lock_decls (const varuse_collecting_visitor& v);
   void emit_locks ();
   void emit_probe (derived_probe* v);
-  void emit_probe_condition_initialize(derived_probe* v);
   void emit_probe_condition_update(derived_probe* v);
   void emit_unlocks ();
 
@@ -1196,7 +1195,7 @@ c_unparser::emit_common_header ()
       o->newline( 0)  <<   "            ktime_set(0, STP_ON_THE_FLY_INTERVAL))); ";
       o->newline( 0)  <<   "return HRTIMER_RESTART;";
       o->newline(-1)  << "}";
-      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_ENABLE */";
+      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
     }
 
   o->newline();
@@ -1944,10 +1943,6 @@ c_unparser::emit_module_init ()
       o->newline() << "INIT_WORK(&module_refresher_work, module_refresher);";
       o->newline() << "#endif";
     }
-
-  // Initialize probe conditions
-  for (unsigned i=0; i<session->probes.size(); i++)
-    emit_probe_condition_initialize(session->probes[i]);
 
   // Run all probe registrations.  This actually runs begin probes.
 
@@ -2710,26 +2705,6 @@ c_unparser::emit_probe (derived_probe* v)
 
   this->current_probe = 0;
   this->already_checked_action_count = false;
-}
-
-// Initializes the cond_enabled field by evaluating condition predicate.
-void
-c_unparser::emit_probe_condition_initialize(derived_probe* v)
-{
-  unsigned i = v->session_index;
-  assert(i < session->probes.size());
-
-  expression *cond = v->sole_location()->condition;
-  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
-
-  // no condition --> always enabled (initialized via STAP_PROBE_INIT)
-  if (!cond)
-    return;
-
-  // turn general integer into boolean 0/1
-  o->newline() << cond_enabled << " = !!";
-  cond->visit(this);
-  o->line() << ";";
 }
 
 // Updates the cond_enabled field and sets need_module_refresh if it was

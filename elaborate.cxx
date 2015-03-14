@@ -1489,6 +1489,43 @@ semantic_pass_conditions (systemtap_session & sess)
         }
     }
 
+  // PR18115: We create a begin probe which is artificially registered as
+  // affecting every other probe. This will serve as the initializer so that
+  // other probe types with false conditions can be skipped (or registered as
+  // disabled) during module initialization.
+
+  set<derived_probe*> targets;
+  for (unsigned i = 0; i < sess.probes.size(); ++i)
+    if (!vars_read_in_cond[sess.probes[i]].empty())
+      targets.insert(sess.probes[i]);
+
+  if (!targets.empty())
+    {
+      stringstream ss("probe begin {}");
+
+      // no good token to choose here... let's just use the condition expression
+      // of one of the probes as the token
+      const token *tok = (*targets.begin())->sole_location()->condition->tok;
+
+      probe *p = parse_synthetic_probe(sess, ss, tok);
+      if (!p)
+        throw SEMANTIC_ERROR (_("can't create cond initializer probe"), tok);
+
+      vector<derived_probe*> dps;
+      derive_probes(sess, p, dps);
+
+      // there should only be one
+      assert(dps.size() == 1);
+
+      derived_probe* dp = dps[0];
+      dp->probes_with_affected_conditions.insert(targets.begin(),
+                                                 targets.end());
+      sess.probes.push_back (dp);
+      dp->join_group (sess);
+
+      // no need to manually do symresolution since body is empty
+    }
+
   return sess.num_errors();
 }
 
@@ -3003,7 +3040,8 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
       duv.replace (p->body, true);
       if (p->body == 0)
         {
-          if (! s.timing) // PR10070
+          if (! s.timing && // PR10070
+              !(p->base->tok->location.file->synthetic)) // don't warn for synthetic probes
             s.print_warning (_F("side-effect-free probe '%s'", p->name.c_str()), p->tok);
 
           p->body = new null_statement(p->tok);
