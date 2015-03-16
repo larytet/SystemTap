@@ -1037,6 +1037,16 @@ c_unparser::emit_common_header ()
           c_tmpcounter ct (this);
           dp->body->visit (& ct);
 
+          // finish by visiting conditions of affected probes to match
+          // c_unparser::emit_probe()
+          if (!dp->probes_with_affected_conditions.empty())
+            {
+              for (set<derived_probe*>::const_iterator
+                    it  = dp->probes_with_affected_conditions.begin();
+                    it != dp->probes_with_affected_conditions.end(); ++it)
+                (*it)->sole_location()->condition->visit(& ct);
+            }
+
           o->newline(-1) << "} " << dp->name << ";";
         }
     }
