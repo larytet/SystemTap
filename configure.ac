@@ -219,34 +219,6 @@ if test "x${have_latex}${have_dvips}${have_ps2pdf}${have_latex2html}" == "xyesye
 fi
 AM_CONDITIONAL([BUILD_DOCS], [test "$building_docs" == "yes"])
 
-dnl Handle the options to build the publican options
-building_publican="no"
-AC_ARG_ENABLE([publican],
-  AS_HELP_STRING([--enable-publican],
-    [enable building publican documentation guides (default on if publican found and other documentation built).]),
-  [enable_publican=$enableval],
-  [enable_publican="check"])
-if test "$building_docs" == "no" -a "$enable_publican" == "yes" ; then
-   AC_MSG_ERROR([must use --enable-docs with --enable-publican])
-fi
-AC_CHECK_PROG(have_publican, publican, yes, no)
-if test "$enable_publican" == "yes"; then
-   if test "x${have_publican}" != "xyes"; then
-      AC_MSG_ERROR([cannot find publican for building publican guides])
-   fi
-fi
-if test "x${have_publican}" == "xyes" -a "$enable_publican" != "no" -a "${building_docs}" == "yes"; then
-   building_publican="yes"
-fi
-AM_CONDITIONAL([BUILD_PUBLICAN], [test "$building_publican" == "yes"])
-publican_brand="common"
-AC_ARG_WITH([publican-brand],
-  AS_HELP_STRING([--with-publican-brand=BRAND],
-    [building publican documentation guides using given brand (defaults to "common").]),
-  [publican_brand=$withval],
-  [publican_brand="common"])
-PUBLICAN_BRAND=$publican_brand
-AC_SUBST(PUBLICAN_BRAND)
 
 dnl Handle the option to build the reference documentation
 building_refdocs="no"
@@ -283,6 +255,7 @@ if test "x${have_fop}" == "xyes"; then
    rm -f dummy-tapsets.pdf
 fi
 AM_CONDITIONAL([HAVE_FOP], [test "$have_fop" == "yes"])
+AM_CONDITIONAL([HAVE_XMLTO], [test "$have_xmlto" == "yes"])
 
 dnl There is a strange bug in older versions of xmlto when generating pdf.
 dnl https://bugzilla.redhat.com/show_bug.cgi?id=526273
@@ -727,11 +700,10 @@ AC_CONFIG_FILES([staprun/guest/stapshd], [chmod +x staprun/guest/stapshd])
 AC_CONFIG_FILES([staprun/guest/stapsh-daemon], [chmod +x staprun/guest/stapsh-daemon])
 AC_CONFIG_FILES([staprun/guest/stapsh@.service])
 
-# Setup "shadow" directory doc/beginners that has everything setup for
-# publican in one directory (through directory links if necessary).
+# Setup "shadow" directory doc/beginners that has the basic directories  setup for
+# xmlto in one directory (through directory links if necessary).
 # It would be nice to use AC_CONFIG_LINKS, but automake complains when
 # the src is a directory and not a file.
-AC_CONFIG_FILES([doc/beginners/publican.cfg:doc/SystemTap_Beginners_Guide/publican.cfg.in])
 AC_CONFIG_COMMANDS([doc/beginners],
                    [rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US && ln -s $ac_abs_top_srcdir/testsuite $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite])
 

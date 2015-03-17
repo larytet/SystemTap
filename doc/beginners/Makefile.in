@@ -15,11 +15,6 @@
 @SET_MAKE@
 
 # Makefile.am --- automake input file for systemtap tapset reference manual
-
-# publican will create a pdf file and a directory with *.html files,
-# a directory called images that contain *.png and *.svg files, a
-# Common_Content/images with more *.png and *.svg files and a
-# Common_Content/css directory with *.css files.
 VPATH = @srcdir@
 am__is_gnu_make = test -n '$(MAKEFILE_LIST)' && test -n '$(MAKELEVEL)'
 am__make_running_with_option = \
@@ -86,8 +81,7 @@ build_triplet = @build@
 host_triplet = @host@
 target_triplet = @target@
 subdir = doc/beginners
-DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
-	$(top_srcdir)/doc/SystemTap_Beginners_Guide/publican.cfg.in
+DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
 	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
@@ -98,7 +92,7 @@ am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = $(top_builddir)/config.h
-CONFIG_CLEAN_FILES = publican.cfg
+CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -191,7 +185,6 @@ PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
-PUBLICAN_BRAND = @PUBLICAN_BRAND@
 RANLIB = @RANLIB@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -236,7 +229,6 @@ have_javac = @have_javac@
 have_latex = @have_latex@
 have_latex2html = @have_latex2html@
 have_ps2pdf = @have_ps2pdf@
-have_publican = @have_publican@
 have_xmlto = @have_xmlto@
 have_xvfb = @have_xvfb@
 host = @host@
@@ -288,10 +280,6 @@ top_srcdir = @top_srcdir@
 DOC_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap
 SBG = SystemTap_Beginners_Guide
 BEGIN_INSTALL_DIR = $(DOC_INSTALL_DIR)/$(SBG)
-@BUILD_PUBLICAN_TRUE@@HAVE_FOP_FALSE@PDFTOOL = 
-# We're force to have this workaround due to BZ920216
-# which requires a connection to an X server
-@BUILD_PUBLICAN_TRUE@@HAVE_FOP_TRUE@PDFTOOL = --pdftool=fop
 all: all-am
 
 .SUFFIXES:
@@ -325,8 +313,6 @@ $(top_srcdir)/configure: @MAINTAINER_MODE_TRUE@ $(am__configure_deps)
 $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 	cd $(top_builddir) && $(MAKE) $(AM_MAKEFLAGS) am--refresh
 $(am__aclocal_m4_deps):
-publican.cfg: $(top_builddir)/config.status $(top_srcdir)/doc/SystemTap_Beginners_Guide/publican.cfg.in
-	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@
 tags TAGS:
 
 ctags CTAGS:
@@ -367,9 +353,9 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@BUILD_PUBLICAN_FALSE@clean-local:
-@BUILD_PUBLICAN_FALSE@uninstall-local:
-@BUILD_PUBLICAN_FALSE@install-data-hook:
+@HAVE_XMLTO_FALSE@clean-local:
+@HAVE_XMLTO_FALSE@uninstall-local:
+@HAVE_XMLTO_FALSE@install-data-hook:
 clean: clean-am
 
 clean-am: clean-generic clean-local mostlyclean-am
@@ -451,42 +437,66 @@ uninstall-am: uninstall-local
 	pdf-am ps ps-am tags-am uninstall uninstall-am uninstall-local
 
 
-@BUILD_PUBLICAN_TRUE@all: $(SBG).pdf $(SBG)/index.html
+@HAVE_XMLTO_TRUE@all: $(SBG).pdf $(SBG)/index.html
 
-# publican isn't make -j safe. So cheat a little, always create pdf and html
-# at the same time, then make html depend on pdf build for copying.
-@BUILD_PUBLICAN_TRUE@$(SBG).pdf:
-@BUILD_PUBLICAN_TRUE@@HAVE_XVFB_TRUE@	-xvfb-run -a publican build --formats=pdf,html --langs=en-US $(PDFTOOL) || xvfb-run -a publican build --formats=pdf,html --langs=en-US
-@BUILD_PUBLICAN_TRUE@@HAVE_XVFB_FALSE@	publican build --formats=pdf,html --langs=en-US $(PDFTOOL) || publican build --formats=pdf,html --langs=en-US
-@BUILD_PUBLICAN_TRUE@	mv build/en-US/pdf/*$(SBG)*.pdf $(SBG).pdf
+# move all the relevant files into the build directory
+@HAVE_XMLTO_TRUE@$(SBG).pdf:
+# since we're not using publican, we'll have copy over the necessary folders
+@HAVE_XMLTO_TRUE@	mkdir -p build/en-US/xml
+@HAVE_XMLTO_TRUE@	cp en-US/*.xml build/en-US/xml/
+@HAVE_XMLTO_TRUE@	cp en-US/*.ent build/en-US/xml/
+@HAVE_XMLTO_TRUE@	cp -R en-US/xsl build/en-US/
+@HAVE_XMLTO_TRUE@	cp -R en-US/extras build/en-US/xml/
+@HAVE_XMLTO_TRUE@	cp -R en-US/images build/en-US/xml/
+@HAVE_XMLTO_TRUE@	cp -R en-US/Common_Content build/en-US/xml
 
-@BUILD_PUBLICAN_TRUE@$(SBG)/index.html: $(SBG).pdf
-@BUILD_PUBLICAN_TRUE@	mv build/en-US/html $(SBG)
+# We're force to have this workaround due to BZ920216
+# which requires a connection to an X server
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@	-xvfb-run -a xmlto --with-fop \
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@	xmlto --with-fop \
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
 
-@BUILD_PUBLICAN_TRUE@clean-local:
-@BUILD_PUBLICAN_TRUE@	publican clean
-@BUILD_PUBLICAN_TRUE@	rm -f $(SBG).pdf
-@BUILD_PUBLICAN_TRUE@	rm -rf $(SBG)
+# rely on the pdf generation to move all the necessary files into the right dirs
+@HAVE_XMLTO_TRUE@$(SBG)/index.html: $(SBG).pdf
 
-@BUILD_PUBLICAN_TRUE@install-data-hook:
-@BUILD_PUBLICAN_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)
-@BUILD_PUBLICAN_TRUE@	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
-@BUILD_PUBLICAN_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
-@BUILD_PUBLICAN_TRUE@	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
-@BUILD_PUBLICAN_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
-@BUILD_PUBLICAN_TRUE@	$(INSTALL_DATA) $(SBG)/images/*.png $(SBG)/images/*.svg \
-@BUILD_PUBLICAN_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/images
-@BUILD_PUBLICAN_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
-@BUILD_PUBLICAN_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
-@BUILD_PUBLICAN_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/css/*.css \
-@BUILD_PUBLICAN_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
-@BUILD_PUBLICAN_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/images/*.png \
-@BUILD_PUBLICAN_TRUE@			$(SBG)/Common_Content/images/*.svg \
-@BUILD_PUBLICAN_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
+@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@	-xvfb-run -a xmlto \
+@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@	xmlto \
+@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+@HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/images $(SBG)
+@HAVE_XMLTO_TRUE@	mkdir $(SBG)/Common_Content
+@HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
+@HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
 
-@BUILD_PUBLICAN_TRUE@uninstall-local:
-@BUILD_PUBLICAN_TRUE@	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf
-@BUILD_PUBLICAN_TRUE@	rm -rf $(DOC_INSTALL_DIR)/$(SBG)
+@HAVE_XMLTO_TRUE@clean-local:
+@HAVE_XMLTO_TRUE@	rm -rf build/en-US/xml
+@HAVE_XMLTO_TRUE@	rm -rf build/en-US/xsl
+@HAVE_XMLTO_TRUE@	rm -f $(SBG).pdf
+@HAVE_XMLTO_TRUE@	rm -rf $(SBG)
+
+@HAVE_XMLTO_TRUE@install-data-hook:
+@HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)
+@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
+@HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
+@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
+@HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
+@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG)/images/*.png $(SBG)/images/*.svg \
+@HAVE_XMLTO_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/images
+@HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
+@HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
+@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/css/*.css \
+@HAVE_XMLTO_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/css
+@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG)/Common_Content/images/*.png \
+@HAVE_XMLTO_TRUE@			$(SBG)/Common_Content/images/*.svg \
+@HAVE_XMLTO_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
+@HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/xsl
+@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) en-US/xsl/*.xsl \
+@HAVE_XMLTO_TRUE@			$(DOC_INSTALL_DIR)/$(SBG)/xsl
+
+@HAVE_XMLTO_TRUE@uninstall-local:
+@HAVE_XMLTO_TRUE@	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf
+@HAVE_XMLTO_TRUE@	rm -rf $(DOC_INSTALL_DIR)/$(SBG)
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

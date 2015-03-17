@@ -1,40 +1,55 @@
 # Makefile.am --- automake input file for systemtap tapset reference manual
 ## process this file with automake to produce Makefile.in
 
-# publican will create a pdf file and a directory with *.html files,
-# a directory called images that contain *.png and *.svg files, a
-# Common_Content/images with more *.png and *.svg files and a
-# Common_Content/css directory with *.css files.
 
 DOC_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap
 SBG = SystemTap_Beginners_Guide
 BEGIN_INSTALL_DIR = $(DOC_INSTALL_DIR)/$(SBG)
 
-if BUILD_PUBLICAN
+if HAVE_XMLTO
 all: $(SBG).pdf $(SBG)/index.html
 
-# publican isn't make -j safe. So cheat a little, always create pdf and html
-# at the same time, then make html depend on pdf build for copying.
+# move all the relevant files into the build directory
 $(SBG).pdf:
+# since we're not using publican, we'll have copy over the necessary folders
+	mkdir -p build/en-US/xml
+	cp en-US/*.xml build/en-US/xml/
+	cp en-US/*.ent build/en-US/xml/
+	cp -R en-US/xsl build/en-US/
+	cp -R en-US/extras build/en-US/xml/
+	cp -R en-US/images build/en-US/xml/
+	cp -R en-US/Common_Content build/en-US/xml
+
 # We're force to have this workaround due to BZ920216
 # which requires a connection to an X server
 if HAVE_FOP
-PDFTOOL=--pdftool=fop
-else
-PDFTOOL=
-endif
 if HAVE_XVFB
-	-xvfb-run -a publican build --formats=pdf,html --langs=en-US $(PDFTOOL) || xvfb-run -a publican build --formats=pdf,html --langs=en-US
+	-xvfb-run -a xmlto --with-fop \
+		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
 else
-	publican build --formats=pdf,html --langs=en-US $(PDFTOOL) || publican build --formats=pdf,html --langs=en-US
+	xmlto --with-fop \
+		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
 endif
-	mv build/en-US/pdf/*$(SBG)*.pdf $(SBG).pdf
+endif
 
+# rely on the pdf generation to move all the necessary files into the right dirs
 $(SBG)/index.html: $(SBG).pdf
-	mv build/en-US/html $(SBG)
+
+if HAVE_XVFB
+	-xvfb-run -a xmlto \
+		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+else
+	xmlto \
+		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+endif
+	cp -R build/en-US/xml/images $(SBG)
+	mkdir $(SBG)/Common_Content
+	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
+	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
 
 clean-local:
-	publican clean
+	rm -rf build/en-US/xml
+	rm -rf build/en-US/xsl
 	rm -f $(SBG).pdf
 	rm -rf $(SBG)
 
@@ -53,6 +68,9 @@ install-data-hook:
 	$(INSTALL_DATA) $(SBG)/Common_Content/images/*.png \
 			$(SBG)/Common_Content/images/*.svg \
 			$(DOC_INSTALL_DIR)/$(SBG)/Common_Content/images
+	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/xsl
+	$(INSTALL_DATA) en-US/xsl/*.xsl \
+			$(DOC_INSTALL_DIR)/$(SBG)/xsl
 
 uninstall-local:
 	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf

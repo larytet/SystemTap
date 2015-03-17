@@ -274,7 +274,6 @@ PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
-PUBLICAN_BRAND = @PUBLICAN_BRAND@
 RANLIB = @RANLIB@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
@@ -319,7 +318,6 @@ have_javac = @have_javac@
 have_latex = @have_latex@
 have_latex2html = @have_latex2html@
 have_ps2pdf = @have_ps2pdf@
-have_publican = @have_publican@
 have_xmlto = @have_xmlto@
 have_xvfb = @have_xvfb@
 host = @host@
@@ -626,8 +624,8 @@ maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-@HAVE_JAVA_FALSE@install-exec-local:
 @HAVE_JAVA_FALSE@install-data-local:
+@HAVE_JAVA_FALSE@install-exec-local:
 @HAVE_JAVA_FALSE@uninstall-local:
 clean: clean-am
 
