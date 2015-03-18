@@ -11,9 +11,7 @@
 	<para>
 		If you find a typographical error in this manual, or if you have thought of a way to make this manual better, we would love to hear from you!
 Please submit a report in Bugzilla:
-<ulink condition="common" url="http://sourceware.org/bugzilla/">http://sourceware.org/bugzilla/</ulink>
-<ulink condition="fedora" url="http://bugzilla.redhat.com/bugzilla/">http://bugzilla.redhat.com/bugzilla/</ulink>
-<ulink condition="RedHat" url="http://bugzilla.redhat.com/bugzilla/">http://bugzilla.redhat.com/bugzilla/</ulink>
+<ulink url="http://sourceware.org/bugzilla/">http://sourceware.org/bugzilla/</ulink>
 against the product <application>systemtap</application>.
 	</para>
 	<para>

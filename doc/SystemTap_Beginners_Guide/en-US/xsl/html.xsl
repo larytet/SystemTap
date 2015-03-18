@@ -114,9 +114,6 @@ Version:
 							</xsl:attribute>
 						</img>
           </a> -->
-          <a class="left">
-						<xsl:attribute name="href">SystemTap</xsl:attribute>
-          </a>
 				</p>
 			</xsl:if>
 			<xsl:if test="$row2">
@@ -137,7 +134,7 @@ Version:
 							</a>
 						</xsl:if>
 					</li>
-          <!--- <li class="home"><xsl:value-of select="$clean_title"/></li> -->
+          <li class="home">SystemTap Beginners Guide</li>
 						<li class="next">
 						<xsl:if test="count($next)&gt;0">
 							<a accesskey="n">
