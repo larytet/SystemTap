@@ -22,11 +22,11 @@ probe init
 }
 
 
-# ia64 systems and pre-2.6.18 systems don't support dwarfless probes,
+# pre-2.6.18 systems don't support dwarfless probes,
 # so we'll use 'syscall' probes instead of 'nd_syscall' probes.
 
 probe process.begin!,
-%( arch != "ia64" && kernel_v >= "2.6.18" %?
+%( kernel_v >= "2.6.18" %?
       nd_syscall.fork.return!,
 %)
       syscall.fork.return
@@ -49,7 +49,7 @@ probe process.begin!,
 }
 
 probe process.end!,
-%( arch != "ia64" && kernel_v >= "2.6.18" %?
+%( kernel_v >= "2.6.18" %?
       nd_syscall.exit!,
 %)
       syscall.exit
