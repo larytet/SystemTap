@@ -1,4 +1,6 @@
-/* COVERAGE: readdir */
+/* COVERAGE: readdir old_readdir */
+/* 'old_readdir' isn't a separate syscall from 'readdir'. On some
+ * platforms (like i386), readdir is implemented via old_readdir. */
 
 #define _GNU_SOURCE
 #include <fcntl.h>
