@@ -20,28 +20,18 @@ $(SBG).pdf:
 	cp -R en-US/images build/en-US/xml/
 	cp -R en-US/Common_Content build/en-US/xml
 
-# We're force to have this workaround due to BZ920216
-# which requires a connection to an X server
+
+# Since we're no longer using publican, workaround due to BZ920216
+# is no longer needed (no longer need xvfb)
 if HAVE_FOP
-if HAVE_XVFB
-	-xvfb-run -a xmlto --with-fop \
-		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
-else
 	xmlto --with-fop \
 		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
-endif
 endif
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 $(SBG)/index.html: $(SBG).pdf
-
-if HAVE_XVFB
-	-xvfb-run -a xmlto \
-		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
-else
 	xmlto \
 		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
-endif
 	cp -R build/en-US/xml/images $(SBG)
 	mkdir $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content

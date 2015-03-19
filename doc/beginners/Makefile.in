@@ -230,7 +230,6 @@ have_latex = @have_latex@
 have_latex2html = @have_latex2html@
 have_ps2pdf = @have_ps2pdf@
 have_xmlto = @have_xmlto@
-have_xvfb = @have_xvfb@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
@@ -450,20 +449,15 @@ uninstall-am: uninstall-local
 @HAVE_XMLTO_TRUE@	cp -R en-US/images build/en-US/xml/
 @HAVE_XMLTO_TRUE@	cp -R en-US/Common_Content build/en-US/xml
 
-# We're force to have this workaround due to BZ920216
-# which requires a connection to an X server
-@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@	-xvfb-run -a xmlto --with-fop \
-@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
-@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@	xmlto --with-fop \
-@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
+# Since we're no longer using publican, workaround due to BZ920216
+# is no longer needed (no longer need xvfb)
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@	xmlto --with-fop \
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 @HAVE_XMLTO_TRUE@$(SBG)/index.html: $(SBG).pdf
-
-@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@	-xvfb-run -a xmlto \
-@HAVE_XMLTO_TRUE@@HAVE_XVFB_TRUE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
-@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@	xmlto \
-@HAVE_XMLTO_TRUE@@HAVE_XVFB_FALSE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
+@HAVE_XMLTO_TRUE@	xmlto \
+@HAVE_XMLTO_TRUE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 @HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/images $(SBG)
 @HAVE_XMLTO_TRUE@	mkdir $(SBG)/Common_Content
 @HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
