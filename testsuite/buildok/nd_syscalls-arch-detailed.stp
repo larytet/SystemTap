@@ -495,7 +495,7 @@ probe nd_syscall.ipc.return ?
 probe nd_syscall.arch_prctl
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", code, addr)
+	printf("%d, %s, %d\n", code, code_str, addr)
 }
 probe nd_syscall.arch_prctl.return
 {

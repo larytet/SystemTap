@@ -13,8 +13,9 @@ probe nd_syscall.arch_prctl = kprobe.function("sys_arch_prctl")
 	// argstr = sprintf("%d, %p", $code, $addr)
 	// NB: no asmlinkage()
 	code = int_arg(1)
+	code_str = _stp_arch_prctl_func_str(code)
 	addr = ulong_arg(2)
-	argstr = sprintf("%d, %p", code, addr)
+	argstr = sprintf("%s, %u", code_str, addr)
 }
 probe nd_syscall.arch_prctl.return = kprobe.function("sys_arch_prctl").return
 {

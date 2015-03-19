@@ -57,7 +57,7 @@ probe syscall.add_key.return
 
 probe syscall.adjtimex, syscall.compat_adjtimex ?
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%s, %s, %p, %s\n", name, argstr, buf_uaddr, buf_str)
 }
 probe syscall.adjtimex.return, syscall.compat_adjtimex.return ?
 {

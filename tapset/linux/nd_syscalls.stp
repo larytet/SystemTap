@@ -227,22 +227,10 @@ probe nd_syscall.add_key.return = kprobe.function("sys_add_key").return ?
 probe nd_syscall.adjtimex = kprobe.function("sys_adjtimex") ?
 {
 	name = "adjtimex"
-
-	/*
-	* buf_offset       = __uget_timex_m($txc_p, 1)
-	* buf_freq         = __uget_timex_m($txc_p, 2)
-	* buf_maxerror     = __uget_timex_m($txc_p, 3)
-	* buf_esterror     = __uget_timex_m($txc_p, 4)
-	* buf_status       = __uget_timex_m($txc_p, 5)
-	* buf_constant     = __uget_timex_m($txc_p, 6)
-	* buf_precision    = __uget_timex_m($txc_p, 7)
-	* buf_tolerance    = __uget_timex_m($txc_p, 8)
-	* buf_time_tv_sec  = __uget_timex_m($txc_p, 9)
-	* buf_time_tv_usec = __uget_timex_m($txc_p, 10)
-	* buf_tick         = __uget_timex_m($txc_p, 11)
-	*/
 	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
+	buf_uaddr = pointer_arg(1)
+	buf_str = _struct_timex_u(buf_uaddr)
+	argstr = sprintf("%s", buf_str)
 }
 probe nd_syscall.adjtimex.return = kprobe.function("sys_adjtimex").return ?
 {
@@ -252,14 +240,16 @@ probe nd_syscall.adjtimex.return = kprobe.function("sys_adjtimex").return ?
 # long compat_sys_adjtimex(struct compat_timex __user *utp)
 probe nd_syscall.compat_adjtimex = kprobe.function("compat_sys_adjtimex") ?
 {
-	name = "compat_adjtimex"
+	name = "adjtimex"
 	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
+	buf_uaddr = pointer_arg(1)
+	buf_str = _struct_compat_timex_u(buf_uaddr)
+	argstr = sprintf("%s", buf_str)
 }
 probe nd_syscall.compat_adjtimex.return = kprobe.function("compat_sys_adjtimex").return ?
 {
 	name = "compat_adjtimex"
-	retstr = returnstr(1)
+	retstr = _adjtimex_return_str(returnval())
 }
 
 # alarm ______________________________________________________

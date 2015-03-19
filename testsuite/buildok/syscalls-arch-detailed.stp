@@ -495,7 +495,7 @@ probe syscall.ipc.return ?
 probe syscall.arch_prctl
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", code, addr)
+	printf("%d, %s, %d\n", code, code_str, addr)
 }
 probe syscall.arch_prctl.return
 {

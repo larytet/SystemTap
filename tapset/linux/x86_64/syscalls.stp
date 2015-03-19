@@ -8,9 +8,10 @@
 probe syscall.arch_prctl = kernel.function("sys_arch_prctl")
 {
 	name = "arch_prctl"
-	code = $code
-	addr = $addr
-	argstr = sprintf("%d, %p", $code, $addr)
+	code = __int32($code)
+	code_str = _stp_arch_prctl_func_str(code)
+	addr = __ulong($addr)
+	argstr = sprintf("%s, %u", code_str, addr)
 }
 probe syscall.arch_prctl.return = kernel.function("sys_arch_prctl").return
 {

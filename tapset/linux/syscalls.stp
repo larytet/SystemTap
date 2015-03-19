@@ -208,21 +208,9 @@ probe syscall.add_key.return = kernel.function("sys_add_key").return ?
 probe syscall.adjtimex = kernel.function("sys_adjtimex").call
 {
 	name = "adjtimex"
-
-	/*
-	* buf_offset       = __uget_timex_m($txc_p, 1)
-	* buf_freq         = __uget_timex_m($txc_p, 2)
-	* buf_maxerror     = __uget_timex_m($txc_p, 3)
-	* buf_esterror     = __uget_timex_m($txc_p, 4)
-	* buf_status       = __uget_timex_m($txc_p, 5)
-	* buf_constant     = __uget_timex_m($txc_p, 6)
-	* buf_precision    = __uget_timex_m($txc_p, 7)
-	* buf_tolerance    = __uget_timex_m($txc_p, 8)
-	* buf_time_tv_sec  = __uget_timex_m($txc_p, 9)
-	* buf_time_tv_usec = __uget_timex_m($txc_p, 10)
-	* buf_tick         = __uget_timex_m($txc_p, 11)
-	*/
-	argstr = sprintf("%p", $txc_p)
+	buf_uaddr = $txc_p
+	buf_str = _struct_timex_u(buf_uaddr)
+	argstr = sprintf("%s", buf_str)
 }
 probe syscall.adjtimex.return = kernel.function("sys_adjtimex").return
 {
@@ -232,13 +220,15 @@ probe syscall.adjtimex.return = kernel.function("sys_adjtimex").return
 # long compat_sys_adjtimex(struct compat_timex __user *utp)
 probe syscall.compat_adjtimex = kernel.function("compat_sys_adjtimex").call ?
 {
-	name = "compat_adjtimex"
-	argstr = sprintf("%p", $utp)
+	name = "adjtimex"
+	buf_uaddr = $utp
+	buf_str = _struct_compat_timex_u(buf_uaddr)
+	argstr = sprintf("%s", buf_str)
 }
 probe syscall.compat_adjtimex.return = kernel.function("compat_sys_adjtimex").return ?
 {
 	name = "compat_adjtimex"
-	retstr = return_str(1, $return)
+	retstr = _adjtimex_return_str($return)
 }
 
 # alarm ______________________________________________________
@@ -333,7 +323,7 @@ probe syscall.brk = kernel.function("ia64_brk").call ?,
                     kernel.function("sys_brk").call
 {
 	name = "brk"
-	brk = $brk
+	brk = __ulong($brk)
 	argstr = sprintf("%p", brk)
 }
 probe syscall.brk.return = kernel.function("ia64_brk").return ?,
