@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sched.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #include <sys/syscall.h>
 
 static int child_fn(void *arg)
@@ -15,8 +16,9 @@ static int child_fn(void *arg)
 
 /* For limit testing, we need the raw syscalls. */
 #if defined(__ia64__) && defined(SYS_clone2)
-inline int __sys_clone2(int flags, void *ustack_base, size_t ustack_size,
-			void *parent_tidptr, void *child_tidptr, void *tls)
+static inline int
+__sys_clone2(int flags, void *ustack_base, size_t ustack_size,
+	     void *parent_tidptr, void *child_tidptr, void *tls)
 {
     return syscall(SYS_clone2, flags, ustack_base, ustack_size, parent_tidptr,
 		   child_tidptr, tls);
@@ -63,8 +65,9 @@ inline int __sys_clone2(int flags, void *ustack_base, size_t ustack_size,
 #define CLONE_BACKWARDS
 #endif
 
-inline long  __clone(unsigned long flags, void *child_stack,
-		     void *ptid, void *ctid, int tls_val)
+static inline long
+__clone(unsigned long flags, void *child_stack, void *ptid, void *ctid,
+	int tls_val)
 {
 #ifdef CLONE_BACKWARDS
     return syscall(SYS_clone, flags, child_stack, ptid, tls_val, ctid);
@@ -98,13 +101,12 @@ main()
     wait4(pid, NULL, 0, NULL);		/* Wait for child */
     //staptest// wait4 (NNNN, 0x0, 0x0, 0x0) = NNNN
 
-#define FLAG_ALL (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|SIGCHLD)
 #if defined(__ia64__)
-    pid = __clone2(child_fn, stack, STACK_SIZE, FLAG_ALL);
-    //staptest// clone2 (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|SIGCHLD, XXXX, 0x100000, XXXX, XXXX) = NNNN
+    pid = __clone2(child_fn, stack, STACK_SIZE, SIGCHLD);
+    //staptest// clone2 (0x0|SIGCHLD, XXXX, 0x100000, XXXX, XXXX) = NNNN
 #else
-    pid = clone(child_fn, stackTop, FLAG_ALL, NULL);
-    //staptest// clone (CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|SIGCHLD, XXXX, XXXX, XXXX) = NNNN
+    pid = clone(child_fn, stackTop, SIGCHLD, NULL);
+    //staptest// clone (0x0|SIGCHLD, XXXX, XXXX, XXXX) = NNNN
 #endif
     wait4(pid, NULL, 0, NULL);		/* Wait for child */
     //staptest// wait4 (NNNN, 0x0, 0x0, 0x0) = NNNN
@@ -134,37 +136,39 @@ main()
     // We've got a bit of a problem here. On RHEL6, if you don't
     // pass a stack pointer, the kernel uses a register value as a
     // stack pointer. So, we'll pass an invalid value (1) for a stack
-    // pointer.
+    // pointer. Sigh, except that rawhide
+    // (4.0.0-0.rc3.git0.1.fc23.x86_64) needs a real stack pointer or
+    // this test program will crash.
 
-    pid = __clone((unsigned long)-1, (void *)1, NULL, NULL, 0);
+    pid = __clone((unsigned long)-1, stackTop, NULL, NULL, 0);
     // On a 32-bit kernel, the full clone flags will overflow
     // MAXSTRINGLEN.
-    //staptest// clone (CLONE_[^ ]+[[[[ ?!!!!|XXXX, 0x1, 0x0, 0x0]]]]?) = -NNNN
+    //staptest// clone (CLONE_[^ ]+[[[[ ?!!!!|XXXX, XXXX, 0x0, 0x0]]]]?) = -NNNN
 
     // Keep sending an invalid flag value so all calls will fail. But,
     // sending a -1 will cause all the flags to be set, overflowing
     // MAXSTRINGLEN. So, we'll use a different invalid flag value. You
     // can't specify CLONE_NEWNS (new mount namespace group) and CLONE_FS
     // (share filesystem info between processes) together.
-    pid = __clone(CLONE_FS|CLONE_NEWNS, (void *)-1, NULL, NULL, 0);
+
+    // Unfortunately, on 4.0.0-0.rc3.git0.1.fc23.x86_64 passing -1 for
+    // a stack pointer causes the test executable to get a
+    // segmentation fault. So, we'll skip this one.
+    //
+    //   pid = __clone(CLONE_FS|CLONE_NEWNS, (void *)-1, NULL, NULL, 0);
+
+    pid = __clone(CLONE_FS|CLONE_NEWNS, stackTop, (void *)-1, NULL, 0);
 #ifdef __s390__
-    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x[7]?[f]+, 0x0, 0x0) = -NNNN
+    //staptest// clone (CLONE_FS|CLONE_NEWNS, XXXX, 0x[7]?[f]+, 0x0) = -NNNN
 #else
-    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x[f]+, 0x0, 0x0) = -NNNN
+    //staptest// clone (CLONE_FS|CLONE_NEWNS, XXXX, 0x[f]+, 0x0) = -NNNN
 #endif
 
-    pid = __clone(CLONE_FS|CLONE_NEWNS, (void *)1, (void *)-1, NULL, 0);
+    pid = __clone(CLONE_FS|CLONE_NEWNS, stackTop, NULL, (void *)-1, 0);
 #ifdef __s390__
-    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x1, 0x[7]?[f]+, 0x0) = -NNNN
+    //staptest// clone (CLONE_FS|CLONE_NEWNS, XXXX, 0x0, 0x[7]?[f]+) = -NNNN
 #else
-    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x1, 0x[f]+, 0x0) = -NNNN
-#endif
-
-    pid = __clone(CLONE_FS|CLONE_NEWNS, (void *)1, NULL, (void *)-1, 0);
-#ifdef __s390__
-    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x1, 0x0, 0x[7]?[f]+) = -NNNN
-#else
-    //staptest// clone (CLONE_FS|CLONE_NEWNS, 0x1, 0x0, 0x[f]+) = -NNNN
+    //staptest// clone (CLONE_FS|CLONE_NEWNS, XXXX, 0x0, 0x[f]+) = -NNNN
 #endif
 #endif
 
