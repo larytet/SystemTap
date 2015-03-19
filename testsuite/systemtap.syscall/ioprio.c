@@ -11,12 +11,12 @@
 // There aren't any glibc wrappers for these syscalls, so create our
 // own.
 
-inline int __ioprio_set(int which, int who, int ioprio)
+static inline int __ioprio_set(int which, int who, int ioprio)
 {
     return syscall(__NR_ioprio_set, which, who, ioprio);
 }
 
-inline int __ioprio_get(int which, int who)
+static inline int __ioprio_get(int which, int who)
 {
     return syscall(__NR_ioprio_get, which, who);
 }

@@ -1,5 +1,6 @@
 /* COVERAGE: ioctl */
 
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <stdio.h>

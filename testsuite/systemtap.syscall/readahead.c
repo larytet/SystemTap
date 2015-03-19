@@ -1,6 +1,7 @@
 /* COVERAGE: readahead */
 
 #define _GNU_SOURCE
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -9,7 +10,7 @@ int main() {
     int fd;
     char tempname[17] = "readahead_XXXXXX";
 
-    fd = mkstemp(tempname, O_RDWR);
+    fd = mkstemp(tempname);
 
     readahead(fd, 0, 0);
     //staptest// readahead (NNNN, 0, 0) = 0

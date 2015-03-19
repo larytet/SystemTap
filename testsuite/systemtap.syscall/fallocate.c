@@ -13,7 +13,7 @@
 // glibc 2.10+. When it does exist, we want to be sure to use the
 // 64-bit version.
 #ifdef __NR_fallocate
-inline int __fallocate(int fd, int mode, off64_t offset, off64_t len)
+static inline int __fallocate(int fd, int mode, off64_t offset, off64_t len)
 {
 #if __GLIBC_PREREQ(2, 10)
 #ifdef __USE_LARGEFILE64

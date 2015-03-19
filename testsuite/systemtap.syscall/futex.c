@@ -12,7 +12,7 @@
 
 static int *futex_addr;
 
-inline int
+static inline int
 __futex(int *uaddr, int op, int val, const struct timespec *timeout,
 	int *uaddr2, int val3)
 {

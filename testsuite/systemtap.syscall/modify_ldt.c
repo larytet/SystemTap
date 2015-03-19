@@ -8,7 +8,8 @@
 #if defined(__NR_modify_ldt)
 #include <asm/ldt.h>
 
-inline int __modify_ldt(int func, void *ptr, unsigned long bytecount)
+static inline int
+__modify_ldt(int func, void *ptr, unsigned long bytecount)
 {
     return syscall(__NR_modify_ldt, func, ptr, bytecount);
 }

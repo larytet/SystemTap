@@ -12,15 +12,15 @@
 // Since we don't want to require the libnuma development and library
 // packages, we'll define our own routines.
 
-inline int get_mempolicy(int *mode, unsigned long *nodemask,
-                         unsigned long maxnode, unsigned long addr,
-                         unsigned long flags)
+static inline int
+get_mempolicy(int *mode, unsigned long *nodemask, unsigned long maxnode,
+	      unsigned long addr, unsigned long flags)
 {
     return syscall(__NR_get_mempolicy, mode, nodemask, maxnode, addr, flags);
 }
 
-inline int set_mempolicy(int mode, unsigned long *nodemask,
-                         unsigned long maxnode)
+static inline int
+set_mempolicy(int mode, unsigned long *nodemask, unsigned long maxnode)
 {
     return syscall(__NR_set_mempolicy, mode, nodemask, maxnode);
 }

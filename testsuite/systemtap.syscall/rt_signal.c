@@ -91,10 +91,10 @@ int main()
   siginfo.si_code = SI_USER;
   siginfo.si_pid = getpid();
   siginfo.si_uid = getuid();
-  siginfo.si_value = 1;
+  siginfo.si_value.sival_int = 1;
 
   __rt_sigqueueinfo(getpid(), SIGUSR1, &siginfo);
-  //staptest// rt_sigqueueinfo (NNNN, SIGUSR1, XXXX) = 0
+  //staptest// rt_sigqueueinfo (NNNN, SIGUSR1, XXXX) = NNNN
 
   __rt_sigqueueinfo(-1, SIGUSR1, &siginfo);
   //staptest// rt_sigqueueinfo (-1, SIGUSR1, XXXX) = NNNN
@@ -103,7 +103,11 @@ int main()
   //staptest// rt_sigqueueinfo (NNNN, 0x[f]+, XXXX) = NNNN
 
   __rt_sigqueueinfo(getpid(), SIGUSR1, (siginfo_t *)-1);
+#ifdef __s390__
+  //staptest// rt_sigqueueinfo (NNNN, SIGUSR1, 0x[7]?[f]+) = NNNN
+#else
   //staptest// rt_sigqueueinfo (NNNN, SIGUSR1, 0x[f]+) = NNNN
+#endif
 
   return 0;
 }

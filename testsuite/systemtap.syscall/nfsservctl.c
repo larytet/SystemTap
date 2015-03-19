@@ -1,5 +1,7 @@
 /* COVERAGE: nfsservctl */
 
+#define _GNU_SOURCE
+#include <unistd.h>
 #include <string.h>
 #include <netinet/in.h>
 #include <linux/nfs.h>

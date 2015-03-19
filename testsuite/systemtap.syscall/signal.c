@@ -1,4 +1,6 @@
 /* COVERAGE: signal tgkill tkill sigprocmask sigaction */
+
+#define _GNU_SOURCE
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
@@ -13,36 +15,36 @@
 typedef void (*sighandler_t)(int);
 
 #ifdef SYS_signal
-inline sighandler_t __signal(int signum, sighandler_t handler)
+static inline sighandler_t __signal(int signum, sighandler_t handler)
 {
     return (sighandler_t)syscall(SYS_signal, signum, handler);
 }
 #endif
 
 #ifdef SYS_sigprocmask
-inline int __sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
+static inline int __sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
 {
     return syscall(SYS_sigprocmask, how, set, oldset);
 }
 #endif
 
 #ifdef SYS_sigaction
-inline int __sigaction(int signum, const struct sigaction *act,
-		       struct sigaction *oldact)
+static inline int
+__sigaction(int signum, const struct sigaction *act, struct sigaction *oldact)
 {
     return syscall(SYS_sigaction, signum, act, oldact);
 }
 #endif
 
 #ifdef SYS_tgkill
-inline int __tgkill(int tgid, int tid, int sig)
+static inline int __tgkill(int tgid, int tid, int sig)
 {
     return syscall(SYS_tgkill, tgid, tid, sig);
 }
 #endif
 
 #ifdef SYS_tkill
-inline int __tkill(int tid, int sig)
+static inline int __tkill(int tid, int sig)
 {
     return syscall(SYS_tkill, tid, sig);
 }

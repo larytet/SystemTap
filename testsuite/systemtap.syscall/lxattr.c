@@ -1,6 +1,7 @@
 /* COVERAGE: lsetxattr lgetxattr llistxattr lremovexattr */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/xattr.h>
 #include <endian.h>
 

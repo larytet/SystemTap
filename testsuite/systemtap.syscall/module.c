@@ -1,6 +1,8 @@
 /* COVERAGE: init_module finit_module delete_module */
 
+#define _GNU_SOURCE
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -15,20 +17,20 @@
 
 // There aren't any glibc wrappers for these calls, so make our own.
 
-inline int __init_module(void *module_image, unsigned long len,
-			 const char *param_values)
+static inline int
+__init_module(void *module_image, unsigned long len, const char *param_values)
 {
     return syscall(SYS_init_module, module_image, len, param_values);
 }
 
 #ifdef SYS_finit_module
-inline int __finit_module(int fd, const char *param_values, int flags)
+static inline int __finit_module(int fd, const char *param_values, int flags)
 {
     return syscall(SYS_finit_module, fd, param_values, flags);
 }
 #endif
 
-inline int __delete_module(const char *name, int flags)
+static inline int __delete_module(const char *name, int flags)
 {
     return syscall(SYS_delete_module, name, flags);
 }

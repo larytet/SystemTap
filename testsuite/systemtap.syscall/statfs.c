@@ -1,5 +1,6 @@
 /* COVERAGE: fstatfs statfs ustat fstatfs64 statfs64 */
 
+#define _GNU_SOURCE
 #define _LARGEFILE64_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -12,7 +13,7 @@
 
 // glibc mangles some ustat calls, so define our own using syscall().
 #if defined(__NR_ustat)
-inline int __ustat(dev_t dev, struct ustat *ubuf)
+static inline int __ustat(dev_t dev, struct ustat *ubuf)
 {
     return syscall(__NR_ustat, dev, ubuf);
 }
@@ -37,14 +38,14 @@ inline int __ustat(dev_t dev, struct ustat *ubuf)
 // don't.
 
 #ifdef __NR_statfs64
-inline int __statfs64(const char *path, size_t sz, struct statfs64 *buf)
+static inline int __statfs64(const char *path, size_t sz, struct statfs64 *buf)
 {
     return syscall(__NR_statfs64, path, sz, buf);
 }
 #endif
 
 #ifdef __NR_fstatfs64
-inline int __fstatfs64(int fd, size_t sz, struct statfs64 *buf)
+static inline int __fstatfs64(int fd, size_t sz, struct statfs64 *buf)
 {
     return syscall(__NR_fstatfs64, fd, sz, buf);
 }

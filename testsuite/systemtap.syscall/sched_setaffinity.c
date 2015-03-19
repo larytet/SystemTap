@@ -9,7 +9,8 @@
 // glibc mangles some calls, so define our own sched_setaffinity()
 // using syscall().
 #if defined(__NR_sched_setaffinity)
-inline int __sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
+static inline int
+__sched_setaffinity(pid_t pid, size_t cpusetsize, cpu_set_t *mask)
 {
 	return syscall(__NR_sched_setaffinity, pid, cpusetsize, mask);
 }

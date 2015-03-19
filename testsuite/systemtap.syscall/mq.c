@@ -1,5 +1,7 @@
 /* COVERAGE: mq_close mq_getattr mq_getsetattr mq_notify mq_open mq_receive mq_send mq_setattr mq_timedreceive mq_timedsend mq_unlink */
 
+#define _GNU_SOURCE
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdio.h>
