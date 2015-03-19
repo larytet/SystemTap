@@ -368,3 +368,49 @@ probe syscall.compat_fallocate.return =
 	name = "fallocate"
 	retstr = return_str(1, $return)
 }
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+# long sys_execve(char __user *name, char __user * __user *argv,
+#		char __user * __user *envp, struct pt_regs regs)
+probe syscall.execve = kernel.function("sys_execve").call
+{
+	name = "execve"
+	filename = user_string_quoted($name)
+	args = __get_argv($argv, 0)
+	env_str = __get_argv($envp, 0)
+	argstr = sprintf("%s, %s, %s", filename, __get_argv($argv, 0),
+			 __get_argv($envp, 0))
+}
+probe syscall.execve.return = kernel.function("sys_execve").return
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+
+# execve _____________________________________________________
+#
+#   asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+#			     compat_uptr_t __user *envp, struct pt_regs *regs)
+probe syscall.compat_execve = kernel.function("sys32_execve").call ?
+{
+	name = "execve"
+	filename = user_string_quoted($name)
+	args = __get_compat_argv($argv, 0)
+	env_str = __get_compat_argv($envp, 0)
+	argstr = sprintf("%s, %s, %s", filename, __get_compat_argv($argv, 0),
+			 __get_compat_argv($envp, 0))
+}
+probe syscall.compat_execve.return = kernel.function("sys32_execve").return ?
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+%)

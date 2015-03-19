@@ -93,3 +93,29 @@ probe syscall.sysctl32.return = kernel.function("sys32_sysctl").return ?
 	name = "sysctl"
 	retstr = return_str(1, $return)
 }
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). But, it was just a wrapper around generic
+# do_execve(). But, the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  long sys_execve (char __user *filename, char __user * __user *argv,
+#		    char __user * __user *envp, struct pt_regs *regs)
+probe syscall.execve = kernel.function("sys_execve").call ?
+{
+	name = "execve"
+	filename = user_string_quoted($filename)
+	args = __get_argv($argv, 0)
+	env_str = __get_argv($envp, 0)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe syscall.execve.return = kernel.function("sys_execve").return ?
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+%)

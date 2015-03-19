@@ -870,53 +870,99 @@ function __sem_flags:string(semflg:long)
 	}
 %}
 
+function __user_pointer:long (addr:long)
+ %{ /* pure */ /* myproc-unprivileged */
+#ifdef CONFIG_COMPAT
+	if (_stp_is_compat_task()) {
+		compat_ulong_t *compat_ptr = (void *)(intptr_t)STAP_ARG_addr;
+		STAP_RETVALUE = uread (compat_ptr);
+	}
+	else {
+		unsigned long *ptr = (void *)(intptr_t)STAP_ARG_addr;
+		STAP_RETVALUE = uread (ptr);
+	}	
+#else
+	unsigned long *ptr = (void *)(intptr_t)STAP_ARG_addr;
+	STAP_RETVALUE = uread (ptr);
+#endif
+	CATCH_DEREF_FAULT();
+%}
 
 /* This function copies an argv from userspace. */
 function __get_argv:string(argv:long, first:long)
 {
 %( CONFIG_64BIT == "y" %?
+	str = "["
 	if (first && argv)
-		argv += 8
+		# 8 == sizeof(long) on a 64-bit OS
+		argv += (8 * first)
 	while (argv) {
-		vstr = user_long(argv)
-		if (!vstr)
+		# We'd like to just call 'user_long(argv)' here, but
+		# we need to know the difference between a bad address
+		# and just getting a 0. 
+		try {
+			vstr = __user_pointer(argv)
+		} catch {
+			if (len)
+				str .= ", "
+			str .= sprintf("0x%x", argv)
 			break
+		}
+		if (vstr == 0)
+			break
+
 		if (len)
-			str .= " "
+			str .= ", "
 		str .= user_string_quoted(vstr)
 
 		newlen = strlen(str)
 		if (newlen == len)
 			break
 		len = newlen
+		# 8 == sizeof(long) on a 64-bit OS
 		argv += 8
 	}
-
+	str .= "]"
 	return str
 %:
 	return __get_compat_argv(argv, first)
 %)
 }
+
 /* This function copies an argv from userspace. */
 function __get_compat_argv:string(argv:long, first:long)
 {
+	str = "["
 	if (first && argv)
-		argv += 4
+		# 4 == sizeof(long) on a 32-bit OS
+		argv += (4 * first)
 	while (argv) {
-		vstr = user_int(argv) & 0xffffffff
-		if (!vstr)
+		# We'd like to just call 'user_long(argv)' here, but
+		# we need to know the difference between a bad address
+		# and just getting a 0. 
+		try {
+			vstr = __user_pointer(argv) & 0xffffffff
+		} catch {
+			if (len)
+				str .= ", "
+			str .= sprintf("0x%x", argv)
 			break
+		}
+		if (vstr == 0)
+			break
+
 		if (len)
-			str .= " "
+			str .= ", "
 		str .= user_string_quoted(vstr)
 
 		newlen = strlen(str)
 		if (newlen == len)
 			break
 		len = newlen
+		# 4 == sizeof(long) on a 32-bit OS
 		argv += 4
 	}
-
+	str .= "]"
 	return str
 }
 
@@ -2735,16 +2781,14 @@ static const _stp_val_array const _stp_adjtimex_return_str_list[] = {
 };
 %}
 
-function _adjtimex_return_str(ret:long)
+function _adjtimex_return_str:string(ret:long)
 %{ /* pure */
 	int len;
-	memset(STAP_RETVALUE, 0, MAXSTRINGLEN);
 	snprintf (STAP_RETVALUE, MAXSTRINGLEN, "%d (", (int)STAP_ARG_ret);
 	len = strlen(STAP_RETVALUE);
 	_stp_lookup_str2(_stp_adjtimex_return_str_list, (int)STAP_ARG_ret,
 	                 STAP_RETVALUE + len, MAXSTRINGLEN - len, 10);
-	len = strlen(STAP_RETVALUE);
-	STAP_RETVALUE[len] = ')';
+	strlcat (STAP_RETVALUE, ")", MAXSTRINGLEN);
 %}
 
 %{

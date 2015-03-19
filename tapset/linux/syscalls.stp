@@ -1014,7 +1014,8 @@ probe __syscall.eventfd.return = kernel.function("sys_eventfd").return
 # NB: kprocess.exec[_complete] is aliased to syscall.execve[.return]
 %( kernel_v >= "3.7" %?
 # In kernels >= 3.7, sys_execve() has been moved to generic code, so we
-# can use it with confidence.
+# can use it with confidence. For kernels < 3.7, execve support is in
+# arch-specific tapset code.
 #
 # SYSCALL_DEFINE3(execve,
 #		const char __user *, filename,
@@ -1027,32 +1028,37 @@ probe syscall.execve = kernel.function("sys_execve").call
 	# kernel 3.0 changed the pointer's name to __argv
 	__argv = @choose_defined($__argv, $argv)
 	args = __get_argv(__argv, 0)
-	argstr = sprintf("%s %s", filename, __get_argv(__argv, 1))
+	__envp = @choose_defined($__envp, $envp)
+	env_str = __get_argv(__envp, 0)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe syscall.execve.return = kernel.function("sys_execve").return
 {
 	name = "execve"
 	retstr = return_str(1, $return)
 }
-%:
-# In kernels < 3.7, sys_execve() was in arch-specific code (and had
-# varying arguments). But, it was just a wrapper around generic
-# do_execve().
+
+# In kernels >= 3.7, compat_sys_execve() has been moved to generic
+# code, so we can use it with confidence. For kernels < 3.7,
+# compat_execve support is in arch-specific tapset code.
 #
-# int do_execve(char * filename,
-#	char __user *__user *argv,
-#	char __user *__user *envp,
-#	struct pt_regs * regs)
-probe syscall.execve = kernel.function("do_execve").call
+# asmlinkage long compat_sys_execve(const char __user * filename,
+#	const compat_uptr_t __user * argv,
+#	const compat_uptr_t __user * envp)
+probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 {
 	name = "execve"
-	filename = kernel_string_quoted(@choose_defined($filename, $name))
+	filename = user_string_quoted($filename)
 	# kernel 3.0 changed the pointer's name to __argv
 	__argv = @choose_defined($__argv, $argv)
-	args = __get_argv(__argv, 0)
-	argstr = sprintf("%s %s", filename, __get_argv(__argv, 1))
+	args = __get_compat_argv(__argv, 0)
+	__envp = @choose_defined($__envp, $envp)
+	env_str = __get_compat_argv(__envp, 0)
+	argstr = sprintf("%s, %s, %s", filename, __get_compat_argv(__argv, 0),
+			 __get_compat_argv(__envp, 0))
 }
-probe syscall.execve.return = kernel.function("do_execve").return
+probe syscall.compat_execve.return =
+	kernel.function("compat_sys_execve").return ?
 {
 	name = "execve"
 	retstr = return_str(1, $return)
@@ -1069,85 +1075,59 @@ probe syscall.execve.return = kernel.function("do_execve").return
 probe syscall.execveat = kernel.function("sys_execveat").call ?
 {
         name = "execveat"
-        fd = __int32($fd)
-        fd_str = _dfd_str(__int32($fd))
+        dirfd = __int32($fd)
+        dirfd_str = _dfd_str(__int32($fd))
+%(systemtap_v <= "2.8" %?
+	# All other "at" syscalls (faccessat, fchmodat, fchownat,
+	# etc.) name their file descriptor argument 'dirfd', so let's
+	# do the same.
+        fd = dirfd
+        fd_str = dirfd_str
+%)
         filename = user_string_quoted(@__pointer($filename))
         flags = int_arg($flags)
 	 flags_str = _at_flag_str(__int32($flags))
         __argv = @choose_defined($__argv, $argv)
         args = __get_argv(__argv, 0)
-        argstr = sprintf("%s %s %s %s", fd_str, filename, __get_argv(__argv, 1), flags_str)
+	__envp = @choose_defined($__envp, $envp)
+	env_str = __get_argv(__envp, 0)
+        argstr = sprintf("%s, %s, %s, %s, %s", dirfd_str, filename,
+			 __get_argv(__argv, 0), __get_argv(__envp, 0),
+			 flags_str)
 }
-
 probe syscall.execveat.return = kernel.function("sys_execveat").return ?
 {
         name = "execveat"
         retstr = return_str(1, $return)
 }
 
-%( kernel_v >= "3.7" %?
-# In kernels >= 3.7, compat_sys_execve() has been moved to generic
-# code, so we can use it with confidence.
-#
-# asmlinkage long compat_sys_execve(const char __user * filename,
-#	const compat_uptr_t __user * argv,
-#	const compat_uptr_t __user * envp)
-probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
-{
-	name = "compat_execve"
-	filename = user_string_quoted($filename)
-	# kernel 3.0 changed the pointer's name to __argv
-	__argv = @choose_defined($__argv, $argv)
-	args = __get_compat_argv(__argv, 0)
-	argstr = sprintf("%s %s", filename, __get_compat_argv(__argv, 1))
-}
-probe syscall.compat_execve.return =
-	kernel.function("compat_sys_execve").return ?
-{
-	name = "compat_execve"
-	retstr = return_str(1, $return)
-}
-%:
-# In kernels < 3.7, compat_sys_execve() was in arch-specific code (and
-# had varying arguments). But, it was just a wrapper around generic
-# compat_do_execve().
-#
-# static int compat_do_execve(const char *filename,
-#	const compat_uptr_t __user *__argv,
-#	const compat_uptr_t __user *__envp)
-
-probe syscall.compat_execve = kernel.function("compat_do_execve").call ?
-{
-	name = "compat_execve"
-	filename = kernel_string_quoted($filename)
-	# kernel 3.0 changed the pointer's name to __argv
-	__argv = @choose_defined($__argv, $argv)
-	args = __get_compat_argv(__argv, 0)
-	argstr = sprintf("%s %s", filename, __get_compat_argv(__argv, 1))
-}
-probe syscall.compat_execve.return =
-	kernel.function("compat_do_execve").return ?
-{
-	name = "compat_execve"
-	retstr = return_str(1, $return)
-}
-%)
 probe syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
 {
-        name = "compat_execveat"
-        fd = __int32($fd)
-        fd_str = _dfd_str(__int32($fd))
+        name = "execveat"
+        dirfd = __int32($fd)
+        dirfd_str = _dfd_str(__int32($fd))
+%(systemtap_v <= "2.8" %?
+	# All other "at" syscalls (faccessat, fchmodat, fchownat,
+	# etc.) name their file descriptor argument 'dirfd', so let's
+	# do the same.
+        fd = dirfd
+        fd_str = dirfd_str
+%)
         filename = user_string_quoted(@__pointer($filename))
         flags = int_arg($flags)
 	 flags_str = _at_flag_str(__int32($flags))
         __argv = @choose_defined($__argv, $argv)
-        args = __get_argv(__argv, 0)
-        argstr = sprintf("%s %s %s %s", fd_str, filename, __get_argv(__argv, 1), flags_str)
+        args = __get_compat_argv(__argv, 0)
+	__envp = @choose_defined($__envp, $envp)
+	env_str = __get_compat_argv(__envp, 0)
+        argstr = sprintf("%s, %s, %s, %s, %s", dirfd_str, filename,
+			 __get_compat_argv(__argv, 0),
+			 __get_compat_argv(__envp, 0), flags_str)
 }
-
-probe syscall.compat_execveat.return = kernel.function("compat_sys_execveat").return ?
+probe syscall.compat_execveat.return =
+	kernel.function("compat_sys_execveat").return ?
 {
-        name = "compat_execveat"
+        name = "execveat"
         retstr = return_str(1, $return)
 }
 

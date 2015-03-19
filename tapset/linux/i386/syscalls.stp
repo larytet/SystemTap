@@ -221,3 +221,27 @@ probe syscall.vm86old.return = kernel.function("sys_vm86old").return ?
 	retstr = return_str(1, $return)
 }
 
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#   asmlinkage int sys_execve(struct pt_regs regs)
+probe syscall.execve = kernel.function("sys_execve").call
+{
+	name = "execve"
+	filename = user_string_quoted(@choose_defined($regs->bx, $regs->ebx))
+	args = __get_argv(@choose_defined($regs->cx, $regs->ecx), 0)
+	env_str = __get_argv(@choose_defined($regs->dx, $regs->edx), 0)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe syscall.execve.return = kernel.function("sys_execve").return
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+%)

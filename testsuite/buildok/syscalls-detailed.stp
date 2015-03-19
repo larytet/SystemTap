@@ -335,7 +335,7 @@ probe syscall.eventfd.return ?
 probe syscall.execve, syscall.compat_execve ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%s, %s\n", filename, args)
+	printf("%s, %s, %s\n", filename, args, env_str)
 }
 probe syscall.execve.return, syscall.compat_execve.return ?
 {
@@ -344,14 +344,18 @@ probe syscall.execve.return, syscall.compat_execve.return ?
 
 probe syscall.execveat ?, syscall.compat_execveat ?
 {
-        printf("%s, %s\n", name, argstr)
-	 printf("%d, %s, %s, %d(%s), %s\n", fd, fd_str, filename, flags, flags_str, args)
+	printf("%s, %s\n", name, argstr)
+%(systemtap_v <= "2.8" %?
+	printf("%d, %s\n", fd, fd_str)
+%)
+	printf("%d, %s, %s, %d(%s), %s, %s\n", dirfd, dirfd_str, filename,
+	       flags, flags_str, args, env_str)
 }
-
 probe syscall.execveat.return ?, syscall.compat_execveat.return ?
 {
         printf("%s, %s\n", name, retstr)
 }
+
 probe syscall.exit
 {
 	printf("%s, %s\n", name, argstr)
