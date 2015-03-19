@@ -236,7 +236,7 @@ probe syscall.execve = kernel.function("sys_execve").call
 	name = "execve"
 	filename = user_string_quoted(@choose_defined($regs->bx, $regs->ebx))
 	args = __get_argv(@choose_defined($regs->cx, $regs->ecx), 0)
-	env_str = __get_argv(@choose_defined($regs->dx, $regs->edx), 0)
+	env_str = __count_envp(@choose_defined($regs->dx, $regs->edx))
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe syscall.execve.return = kernel.function("sys_execve").return

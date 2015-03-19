@@ -1125,7 +1125,7 @@ probe nd_syscall.execve = kprobe.function("sys_execve")
 	asmlinkage()
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_argv(pointer_arg(2), 0)
-	env_str = __get_argv(pointer_arg(3), 0)
+	env_str = __count_envp(pointer_arg(3))
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe nd_syscall.execve.return = kprobe.function("sys_execve").return
@@ -1147,7 +1147,7 @@ probe nd_syscall.compat_execve = kprobe.function("compat_sys_execve").call ?
 	asmlinkage()
 	filename = user_string_quoted(pointer_arg(1))
 	args = __get_compat_argv(pointer_arg(2), 0)
-	env_str = __get_compat_argv(pointer_arg(3), 0)
+	env_str = __count_compat_envp(pointer_arg(3))
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe nd_syscall.compat_execve.return =
@@ -1179,7 +1179,7 @@ probe nd_syscall.execveat = kprobe.function("sys_execveat").call ?
 %)
 	filename = user_string_quoted(pointer_arg(2))
 	args = __get_argv(pointer_arg(3), 0)
-	env_str = __get_argv(pointer_arg(4), 0)
+	env_str = __count_envp(pointer_arg(4))
 	flags = int_arg(5)
 	flags_str = _at_flag_str(flags)
 	argstr = sprintf("%s, %s, %s, %s, %s", dirfd_str, filename, args,
@@ -1205,7 +1205,7 @@ probe nd_syscall.compat_execveat = kprobe.function("compat_sys_execveat").call ?
 %)
 	filename = user_string_quoted(pointer_arg(2))
 	args = __get_compat_argv(pointer_arg(3), 0)
-	env_str = __get_compat_argv(pointer_arg(4), 0)
+	env_str = __count_compat_envp(pointer_arg(4))
 	flags = int_arg(5)
 	flags_str = _at_flag_str(flags)
 	argstr = sprintf("%s, %s, %s, %s, %s", dirfd_str, filename, args,

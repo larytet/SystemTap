@@ -966,6 +966,47 @@ function __get_compat_argv:string(argv:long, first:long)
 	return str
 }
 
+/* Count the number of environment variables. */
+function __count_envp:string(envp:long)
+{
+%( CONFIG_64BIT == "y" %?
+	argc = 0
+	while (envp) {
+		# We can call 'user_long(envp)' here because we don't
+		# need to know the difference between a bad address
+		# and just getting a 0.
+		vstr = user_long(envp)
+		if (vstr == 0)
+			break
+
+		argc++
+		# 8 == sizeof(long) on a 64-bit OS
+		envp += 8
+	}
+	return sprintf("[/* %d var%s */]", argc, argc != 1 ? "s" : "")
+%:
+	return __count_compat_envp(envp)
+%)
+}
+
+function __count_compat_envp:string(envp:long)
+{
+	argc = 0
+	while (envp) {
+		# We can call 'user_long(envp)' here because we don't
+		# need to know the difference between a bad address
+		# and just getting a 0.
+		vstr = user_long(envp)
+		if (vstr == 0)
+			break
+
+		argc++
+		# 4 == sizeof(long) on a 32-bit OS
+		envp += 4
+	}
+	return sprintf("[/* %d var%s */]", argc, argc != 1 ? "s" : "")
+}
+
 %(systemtap_v <= "2.7" %?
 /*
  * This function isn't actually used anywhere, so let's deprecate it.

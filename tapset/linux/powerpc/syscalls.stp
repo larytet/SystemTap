@@ -791,7 +791,7 @@ probe syscall.execve = kernel.function("sys_execve").call
 	name = "execve"
 	filename = user_string_quoted($a0)
 	args = __get_argv($a1, 0)
-	env_str = __get_argv($a2, 0)
+	env_str = __count_envp($a2)
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe syscall.execve.return = kernel.function("sys_execve").return
@@ -810,7 +810,7 @@ probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 	name = "execve"
 	filename = user_string_quoted($a0)
 	args = __get_compat_argv($a1, 0)
-	env_str = __get_compat_argv($a2, 0)
+	env_str = __count_compat_envp($a2)
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe syscall.compat_execve.return =

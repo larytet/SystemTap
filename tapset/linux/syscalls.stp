@@ -1029,7 +1029,7 @@ probe syscall.execve = kernel.function("sys_execve").call
 	__argv = @choose_defined($__argv, $argv)
 	args = __get_argv(__argv, 0)
 	__envp = @choose_defined($__envp, $envp)
-	env_str = __get_argv(__envp, 0)
+	env_str = __count_envp(__envp)
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
 probe syscall.execve.return = kernel.function("sys_execve").return
@@ -1053,9 +1053,9 @@ probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
 	__argv = @choose_defined($__argv, $argv)
 	args = __get_compat_argv(__argv, 0)
 	__envp = @choose_defined($__envp, $envp)
-	env_str = __get_compat_argv(__envp, 0)
+	env_str = __count_compat_envp(__envp)
 	argstr = sprintf("%s, %s, %s", filename, __get_compat_argv(__argv, 0),
-			 __get_compat_argv(__envp, 0))
+			 __count_compat_envp(__envp))
 }
 probe syscall.compat_execve.return =
 	kernel.function("compat_sys_execve").return ?
@@ -1090,9 +1090,9 @@ probe syscall.execveat = kernel.function("sys_execveat").call ?
         __argv = @choose_defined($__argv, $argv)
         args = __get_argv(__argv, 0)
 	__envp = @choose_defined($__envp, $envp)
-	env_str = __get_argv(__envp, 0)
+	env_str = __count_envp(__envp)
         argstr = sprintf("%s, %s, %s, %s, %s", dirfd_str, filename,
-			 __get_argv(__argv, 0), __get_argv(__envp, 0),
+			 __get_argv(__argv, 0), __count_envp(__envp),
 			 flags_str)
 }
 probe syscall.execveat.return = kernel.function("sys_execveat").return ?
@@ -1119,10 +1119,10 @@ probe syscall.compat_execveat = kernel.function("compat_sys_execveat").call ?
         __argv = @choose_defined($__argv, $argv)
         args = __get_compat_argv(__argv, 0)
 	__envp = @choose_defined($__envp, $envp)
-	env_str = __get_compat_argv(__envp, 0)
+	env_str = __count_compat_envp(__envp)
         argstr = sprintf("%s, %s, %s, %s, %s", dirfd_str, filename,
 			 __get_compat_argv(__argv, 0),
-			 __get_compat_argv(__envp, 0), flags_str)
+			 __count_compat_envp(__envp), flags_str)
 }
 probe syscall.compat_execveat.return =
 	kernel.function("compat_sys_execveat").return ?
