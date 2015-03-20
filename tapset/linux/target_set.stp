@@ -25,11 +25,12 @@ probe init
 # pre-2.6.18 systems don't support dwarfless probes,
 # so we'll use 'syscall' probes instead of 'nd_syscall' probes.
 
-probe process.begin!,
+probe process.begin !,
 %( kernel_v >= "2.6.18" %?
-      nd_syscall.fork.return!,
+      nd_syscall.fork.return ?, nd_syscall.vfork.return ?,
+      nd_syscall.clone.return !,
 %)
-      syscall.fork.return
+      syscall.fork.return, syscall.vfork.return, syscall.clone.return
 {
 	if (is_return()) {
 		# fork.return runs in parent context
@@ -48,9 +49,9 @@ probe process.begin!,
 		_target_set[pid] = ppid
 }
 
-probe process.end!,
+probe process.end !,
 %( kernel_v >= "2.6.18" %?
-      nd_syscall.exit!,
+      nd_syscall.exit !,
 %)
       syscall.exit
 {
