@@ -38,7 +38,7 @@ cd systemtap
 
 mkdir build && mkdir local && cd build
 
-../configure --enable-docs --enable-publican --prefix=$BASEDIR/systemtap/local
+../configure --enable-docs --prefix=$BASEDIR/systemtap/local
 
 #Not sure if we're really allowed to make assumptions about the machine we're running this on
 #Probably safer not using the -jX option
