@@ -1167,6 +1167,7 @@ probe nd_syscall.compat_execve.return =
 #
 probe nd_syscall.execveat = kprobe.function("sys_execveat").call ?
 {
+	asmlinkage()
 	name = "execveat"
 	dirfd = int_arg(1)
 	dirfd_str = _dfd_str(dirfd)
