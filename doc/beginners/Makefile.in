@@ -436,7 +436,7 @@ uninstall-am: uninstall-local
 	pdf-am ps ps-am tags-am uninstall uninstall-am uninstall-local
 
 
-@HAVE_XMLTO_TRUE@all: $(SBG).pdf $(SBG)/index.html
+@HAVE_XMLTO_TRUE@all: $(SBG)/index.html
 
 # move all the relevant files into the build directory
 @HAVE_XMLTO_TRUE@$(SBG).pdf:
@@ -448,15 +448,17 @@ uninstall-am: uninstall-local
 @HAVE_XMLTO_TRUE@	cp -R en-US/extras build/en-US/xml/
 @HAVE_XMLTO_TRUE@	cp -R en-US/images build/en-US/xml/
 @HAVE_XMLTO_TRUE@	cp -R en-US/Common_Content build/en-US/xml
-
 # Since we're no longer using publican, workaround due to BZ920216
 # is no longer needed (no longer need xvfb)
-@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@	xmlto --with-fop \
+# skip xml validation since testing on rhel5 generated io errors with loading
+# dtd files from a URL. might have something to do with the issue mentioned
+# in BZ428168.
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@	xmlto --with-fop --skip-validation \
 @HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 @HAVE_XMLTO_TRUE@$(SBG)/index.html: $(SBG).pdf
-@HAVE_XMLTO_TRUE@	xmlto \
+@HAVE_XMLTO_TRUE@	xmlto --skip-validation \
 @HAVE_XMLTO_TRUE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 @HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/images $(SBG)
 @HAVE_XMLTO_TRUE@	mkdir $(SBG)/Common_Content

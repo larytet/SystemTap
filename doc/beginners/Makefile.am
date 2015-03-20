@@ -7,7 +7,7 @@ SBG = SystemTap_Beginners_Guide
 BEGIN_INSTALL_DIR = $(DOC_INSTALL_DIR)/$(SBG)
 
 if HAVE_XMLTO
-all: $(SBG).pdf $(SBG)/index.html
+all: $(SBG)/index.html
 
 # move all the relevant files into the build directory
 $(SBG).pdf:
@@ -19,18 +19,19 @@ $(SBG).pdf:
 	cp -R en-US/extras build/en-US/xml/
 	cp -R en-US/images build/en-US/xml/
 	cp -R en-US/Common_Content build/en-US/xml
-
-
 # Since we're no longer using publican, workaround due to BZ920216
 # is no longer needed (no longer need xvfb)
 if HAVE_FOP
-	xmlto --with-fop \
+# skip xml validation since testing on rhel5 generated io errors with loading
+# dtd files from a URL. might have something to do with the issue mentioned
+# in BZ428168.
+	xmlto --with-fop --skip-validation \
 		-x build/en-US/xsl/pdf.xsl pdf build/en-US/xml/$(SBG).xml
 endif
 
 # rely on the pdf generation to move all the necessary files into the right dirs
 $(SBG)/index.html: $(SBG).pdf
-	xmlto \
+	xmlto --skip-validation \
 		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 	cp -R build/en-US/xml/images $(SBG)
 	mkdir $(SBG)/Common_Content
