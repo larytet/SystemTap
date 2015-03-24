@@ -34,7 +34,7 @@ $(SBG)/index.html: $(SBG).pdf
 	xmlto --skip-validation \
 		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 	cp -R build/en-US/xml/images $(SBG)
-	mkdir $(SBG)/Common_Content
+	mkdir -p $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
 	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
 

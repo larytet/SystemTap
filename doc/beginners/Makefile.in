@@ -461,7 +461,7 @@ uninstall-am: uninstall-local
 @HAVE_XMLTO_TRUE@	xmlto --skip-validation \
 @HAVE_XMLTO_TRUE@		-x build/en-US/xsl/html.xsl -o $(SBG) html build/en-US/xml/$(SBG).xml
 @HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/images $(SBG)
-@HAVE_XMLTO_TRUE@	mkdir $(SBG)/Common_Content
+@HAVE_XMLTO_TRUE@	mkdir -p $(SBG)/Common_Content
 @HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/Common_Content/images $(SBG)/Common_Content
 @HAVE_XMLTO_TRUE@	cp -R build/en-US/xml/Common_Content/css $(SBG)/Common_Content
 
