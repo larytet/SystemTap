@@ -352,8 +352,8 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@HAVE_XMLTO_FALSE@clean-local:
 @HAVE_XMLTO_FALSE@uninstall-local:
+@HAVE_XMLTO_FALSE@clean-local:
 @HAVE_XMLTO_FALSE@install-data-hook:
 clean: clean-am
 
@@ -473,7 +473,7 @@ uninstall-am: uninstall-local
 
 @HAVE_XMLTO_TRUE@install-data-hook:
 @HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)
-@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
+@HAVE_FOP_TRUE@@HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
 @HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
 @HAVE_XMLTO_TRUE@	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
 @HAVE_XMLTO_TRUE@	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images

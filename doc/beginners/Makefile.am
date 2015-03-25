@@ -46,7 +46,9 @@ clean-local:
 
 install-data-hook:
 	$(MKDIR_P) $(DOC_INSTALL_DIR)
+if HAVE_FOP
 	$(INSTALL_DATA) $(SBG).pdf $(DOC_INSTALL_DIR)
+endif
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)
 	$(INSTALL_DATA) $(SBG)/*.html $(DOC_INSTALL_DIR)/$(SBG)
 	$(MKDIR_P) $(DOC_INSTALL_DIR)/$(SBG)/images
