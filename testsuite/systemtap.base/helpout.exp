@@ -6,9 +6,9 @@ if [installtest_p] {
         lappend cmds stapdyn
     }
 } else {
-    set cmds [list $env(SYSTEMTAP_PATH)/stap $env(SYSTEMTAP_PATH)/staprun/staprun $env(SYSTEMTAP_PATH)/staprun/stapio]
+    set cmds [list ../stap ../staprun/staprun ../staprun/stapio]
     if [dyninst_p] {
-        lappend cmds $env(SYSTEMTAP_PATH)/stapdyn/stapdyn
+        lappend cmds ../stapdyn/stapdyn
     }
 }
 foreach cmd $cmds {
