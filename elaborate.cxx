@@ -4528,6 +4528,7 @@ struct exp_type_null : public exp_type_details
 
 typeresolution_info::typeresolution_info (systemtap_session& s):
   session(s), num_newly_resolved(0), num_still_unresolved(0),
+  num_available_autocasts(0),
   assert_resolvability(false), mismatch_complexity(0),
   current_function(0), current_probe(0), t(pe_unknown),
   null_type(new exp_type_null())

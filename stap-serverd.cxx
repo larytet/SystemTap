@@ -1475,7 +1475,7 @@ filter_response_file (const string &file_name, const string &responseDirName)
   cmd.push_back ("-i");
   cmd.push_back (string ("s,") + get_home_directory () + ",<server>,g");
   cmd.push_back (file_name);
-  stap_system (0, cmd);
+  (void) stap_system (0, cmd);
 
   // Filter the server's response directory name
   cmd.clear();
@@ -1483,7 +1483,7 @@ filter_response_file (const string &file_name, const string &responseDirName)
   cmd.push_back ("-i");
   cmd.push_back (string ("s,") + responseDirName + ",<server>,g");
   cmd.push_back (file_name);
-  stap_system (0, cmd);
+  (void) stap_system (0, cmd);
 }
 
 static privilege_t

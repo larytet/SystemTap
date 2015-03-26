@@ -252,6 +252,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   pattern_root(new match_node),
   user_files (other.user_files),
   dfa_counter(0),
+  dfa_maxstate (0),
   dfa_maxtag (0),
   need_tagged_dfa(other.need_tagged_dfa),
   be_derived_probes(0),
@@ -684,6 +685,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case 'G':
           // Make sure the global option is only composed of the
           // following chars: [_=a-zA-Z0-9]
+          assert(optarg);
           assert_regexp_match("-G parameter", optarg, "^[a-z_][a-z0-9_]*=[a-z0-9_-]+$");
           globalopts.push_back (string(optarg));
           break;
@@ -704,6 +706,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
         case 'p':
+          assert(optarg);
           last_pass = (int)strtoul(optarg, &num_endptr, 10);
           if (*num_endptr != '\0' || last_pass < 1 || last_pass > 5)
             {
@@ -714,6 +717,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'I':
+          assert(optarg);
 	  if (client_options)
 	    client_options_disallowed_for_unprivileged += client_options_disallowed_for_unprivileged.empty () ? "-I" : ", -I";
 	  if (include_arg_start == -1)
@@ -722,6 +726,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'd':
+          assert(optarg);
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           {
             // Make sure an empty data object wasn't specified (-d "")
@@ -739,6 +744,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           }
 
         case 'e':
+          assert(optarg);
 	  if (have_script)
            {
              cerr << _("Only one script can be given on the command line.")
@@ -751,6 +757,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'E':
+          assert(optarg);
           server_args.push_back (string("-") + (char)grc + optarg);
           additional_scripts.push_back(string (optarg));
           // don't set have_script to true, since this script is meant to be
@@ -758,18 +765,21 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'o':
+          assert(optarg);
           // NB: client_options not a problem, since pass 1-4 does not use output_file.
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           output_file = string (optarg);
           break;
 
         case 'R':
+          assert(optarg);
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-R", "--client-options") << endl; return 1; }
 	  runtime_specified = true;
           runtime_path = string (optarg);
           break;
 
         case 'm':
+          assert(optarg);
 	  if (client_options)
 	    client_options_disallowed_for_unprivileged += client_options_disallowed_for_unprivileged.empty () ? "-m" : ", -m";
           module_name = string (optarg);
@@ -808,6 +818,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'r':
+          assert(optarg);
           if (client_options) // NB: no paths!
             assert_regexp_match("-r parameter from client", optarg, "^[a-z0-9_.-]+$");
 	  server_args.push_back (string ("-") + (char)grc + optarg);
@@ -815,6 +826,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'a':
+          assert(optarg);
           assert_regexp_match("-a parameter", optarg, "^[a-z0-9_-]+$");
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           architecture = string(optarg);
@@ -847,6 +859,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
         case 's':
+          assert(optarg);
           buffer_size = (int) strtoul (optarg, &num_endptr, 10);
           if (*num_endptr != '\0' || buffer_size < 1 || buffer_size > 4095)
             {
@@ -857,6 +870,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
 	case 'c':
+          assert(optarg);
 	  cmd = string (optarg);
           if (cmd == "")
             {
@@ -869,6 +883,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case 'x':
+          assert(optarg);
 	  target_pid = (int) strtoul(optarg, &num_endptr, 10);
 	  if (*num_endptr != '\0')
 	    {
@@ -879,6 +894,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case 'D':
+          assert(optarg);
           assert_regexp_match ("-D parameter", optarg, "^[a-z_][a-z_0-9]*(=-?[a-z_0-9]+)?$");
 	  if (client_options)
 	    client_options_disallowed_for_unprivileged += client_options_disallowed_for_unprivileged.empty () ? "-D" : ", -D";
@@ -888,6 +904,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case 'S':
           assert_regexp_match ("-S parameter", optarg, "^[0-9]+(,[0-9]+)?$");
+          assert(optarg);
 	  server_args.push_back (string ("-") + (char)grc + optarg);
 	  size_option = string (optarg);
 	  break;
@@ -909,6 +926,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
                         "switches may be specified") << endl;
               return 1;
             }
+          assert(optarg);
           server_args.push_back (string ("-") + (char)grc + optarg);
           dump_mode = systemtap_session::dump_matched_probes_vars;
           dump_matched_pattern = optarg;
@@ -923,6 +941,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
                         "switches may be specified") << endl;
               return 1;
             }
+          assert(optarg);
           server_args.push_back (string ("-") + (char)grc + optarg);
           dump_mode = systemtap_session::dump_matched_probes;
           dump_matched_pattern = optarg;
@@ -936,6 +955,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case 'B':
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-B", "--client-options") << endl; return 1; } 
+          assert(optarg);
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           kbuildflags.push_back (string (optarg));
 	  break;
@@ -946,6 +966,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_VERBOSE_PASS:
 	  {
+            assert(optarg);
 	    bool ok = true;
 	    if (strlen(optarg) < 1 || strlen(optarg) > 5)
 	      ok = false;
@@ -1427,7 +1448,7 @@ systemtap_session::parse_cmdline_runtime (const string& opt_runtime)
       cerr << _("ERROR: --runtime=dyninst unavailable; this build lacks DYNINST feature") << endl;
       version();
       return false;
-#endif
+#else
       if (privilege_set && pr_unprivileged != privilege)
         {
           cerr << _("ERROR: --runtime=dyninst implies unprivileged mode only") << endl;
@@ -1436,6 +1457,7 @@ systemtap_session::parse_cmdline_runtime (const string& opt_runtime)
       privilege = pr_unprivileged;
       privilege_set = true;
       runtime_mode = dyninst_runtime;
+#endif
     }
   else
     {

@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -2124,6 +2124,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
         {
         case DW_TAG_inlined_subroutine:
           inlined = true;
+          /* FALLTHROUGH */ /* thanks mjw */
         case DW_TAG_GNU_call_site:
           callee.name = dwarf_diename(&die) ?: "";
           if (callee.name.empty())
