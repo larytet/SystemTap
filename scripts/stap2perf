@@ -47,9 +47,9 @@ while read pp; do
             fn=`param2 "$pp"`
             nr=`expr "$pp" : '.*\.return.*'`
             if [ $nr -eq 0 ]; then
-                echo perf probe -a "${procbn}_${fn}=$fn" -x "$proc"
+                echo perf probe -x "$proc"-a "${procbn}_${fn}=$fn"
             else
-                echo perf probe -a "${procbn}_${fn}_return=${fn}%return" -x "$proc"
+                echo perf probe -x "$proc"-a "${procbn}_${fn}_return=${fn}%return"
             fi
             ;;
     esac
