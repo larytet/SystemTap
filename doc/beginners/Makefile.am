@@ -6,6 +6,7 @@ DOC_INSTALL_DIR = $(DESTDIR)$(datadir)/doc/systemtap
 SBG = SystemTap_Beginners_Guide
 BEGIN_INSTALL_DIR = $(DOC_INSTALL_DIR)/$(SBG)
 
+if BUILD_DOCS
 if HAVE_XMLTO
 all: $(SBG)/index.html
 
@@ -68,4 +69,5 @@ endif
 uninstall-local:
 	rm -f $(DOC_INSTALL_DIR)/$(SBG).pdf
 	rm -rf $(DOC_INSTALL_DIR)/$(SBG)
+endif
 endif
