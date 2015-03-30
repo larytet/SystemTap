@@ -32,12 +32,15 @@ cd systemtap-git
 # already existing git repo)
 APPLY_DIFF=1
 DATE=`date +"%a %b %d %Y"`
+TAG_DATE=`date +"%Y%m%d"`
 NAME=`git config --get-all user.name`
 EMAIL=`git config --get-all user.email`
+TAG_DATE=`date +"%Y%m%d"`
 STAP_MAJOR_VERSION=`grep "^Version:" systemtap.spec`
 CHANGELOG_VERSION=`echo $STAP_MAJOR_VERSION | cut -f2 -d" "`
-GIT_VERSION_TAG=`echo 0.$(git describe --abbrev=12 | rev | cut -f1,2 -d- --output-delimiter=. | rev)`
-
+#GIT_VERSION_TAG=`echo 0.$(git describe --abbrev=12 | rev | cut -f1,2 -d- --output-delimiter=. | rev)`
+GIT_DESCRIBE=`git describe | rev | cut -f1 -d"g" | rev`
+GIT_VERSION_TAG=`echo 0.${TAG_DATE}git${GIT_DESCRIBE}`
 ### lets do a sanity check first
 if which fedpkg &>/dev/null; then
  :

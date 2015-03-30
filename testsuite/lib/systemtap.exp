@@ -229,6 +229,7 @@ proc setup_systemtap_environment {} {
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
     puts $chan "--rlimit-cpu=300"
     puts $chan "-E 'probe timer.s(900){error(\"probe timeout after 15 minutes\")}'"
+    if {[regexp "^ppc64le$" $::tcl_platform(machine)]} {puts $chan "-P"}
     close $chan
 
     # Erase the old server log file.

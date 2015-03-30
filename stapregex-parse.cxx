@@ -145,7 +145,7 @@ void print_escaped(std::ostream& o, char c)
 
 // ------------------------------------------------------------------------
 
-cursor::cursor() : input(NULL), pos(~0),
+cursor::cursor() : input(NULL), do_unescape(false), pos(~0),
                    last_pos(~0), finished(false), next_c(0), last_c(0) {}
 
 cursor::cursor(const std::string *input, bool do_unescape)
@@ -559,7 +559,6 @@ regex_parser::parse_char_range ()
     {
       inv = true;
       cur.next ();
-      c = cur.peek ();
     }
 
   for (;;)

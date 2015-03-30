@@ -501,7 +501,9 @@ struct print_format: public expression
     }
     void clear()
     {
+      base = 0;
       flags = 0;
+      width = 0;
       widthtype = width_unspecified;
       precision = 0;
       prectype = prec_unspecified;

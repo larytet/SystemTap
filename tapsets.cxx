@@ -1,5 +1,5 @@
 // tapset resolution
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -1214,8 +1214,12 @@ dwarf_query::parse_function_spec(const string & spec)
                         vector<string> ranges;
                         tokenize(*line_spec, ranges, "-");
                         if (ranges.size() > 1)
-                            for (int i = lex_cast<int>(ranges.front()); i <= lex_cast<int>(ranges.back()); i++)
+                          {
+                            int low = lex_cast<int>(ranges.front());
+                            int high = lex_cast<int>(ranges.back());
+                            for (int i = low; i <= high; i++)
                                 linenos.push_back(i);
+                          }
                         else
                             linenos.push_back(lex_cast<int>(ranges.at(0)));
                       }
@@ -4966,14 +4970,16 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 	       it != q.sess.perf_counters.end();
 	       it++)
 	    if ((*it).first == (*pcii))
-	      break;
-	  vardecl* vd = new vardecl;
-	  vd->name = "__perf_read_" + (*it).first;
-	  vd->tok = this->tok;
-	  vd->set_arity(0, this->tok);
-	  vd->type = pe_long;
-	  vd->synthetic = true;
-	  this->locals.push_back (vd);
+              {
+                vardecl* vd = new vardecl;
+                vd->name = "__perf_read_" + (*it).first;
+                vd->tok = this->tok;
+                vd->set_arity(0, this->tok);
+                vd->type = pe_long;
+                vd->synthetic = true;
+                this->locals.push_back (vd);
+                break;
+              }
 	}
 
 
@@ -5486,11 +5492,13 @@ dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_outp
 	   it != s.perf_counters.end();
 	   it++, i++)
 	if ((*it).first == (*pcii))
-	  break;
-      // place the perf counter read so it precedes stp_lock_probe
-      o->newline() << "l->l___perf_read_" + (*it).first
-	+ " = (((int64_t) (_stp_perf_read(smp_processor_id(),"
-	+ lex_cast(i) + "))));";
+          {
+            // place the perf counter read so it precedes stp_lock_probe
+            o->newline() << "l->l___perf_read_" + (*it).first
+              + " = (((int64_t) (_stp_perf_read(smp_processor_id(),"
+              + lex_cast(i) + "))));";
+            break;
+          }
     }
 
   if (access_vars)
@@ -7897,7 +7905,7 @@ dwarf_builder::build(systemtap_session & sess,
       if (results_pre == finished_results.size() && !location->from_glob)
         {
           string provider;
-          get_param(filled_parameters, TOK_PROVIDER, provider);
+          (void) get_param(filled_parameters, TOK_PROVIDER, provider);
 
           string sugs = suggest_marks(sess, modules_seen, dummy_mark_name, provider);
           modules_seen.clear();
