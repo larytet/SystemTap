@@ -159,6 +159,11 @@ probe begin {
 
 	print (irqflags_str(0))
 
+	print (_stp_struct_iovec_u(0))
+	print (_stp_struct_compat_iovec_u(0))
+	print (_stp_elf_notes_str(0))
+
+	print (__ptrace_request_str(0))
 	print (_ptrace_argstr(0,0,0,0))
 	print (_ptrace_return_geteventmsg_data(0,0))
 	# Implementation is in arch specific files but with compatible API.

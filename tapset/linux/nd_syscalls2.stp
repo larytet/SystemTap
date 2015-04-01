@@ -672,17 +672,19 @@ probe nd_syscall.compat_pselect7.return = kprobe.function("compat_sys_pselect7")
 #		long addr,
 #		long data)
 #
-probe nd_syscall.ptrace = kprobe.function("sys_ptrace") ?
+probe nd_syscall.ptrace = kprobe.function("sys_ptrace") ?,
+	kprobe.function("compat_sys_ptrace") ?
 {
 	name = "ptrace"
 	asmlinkage()
 	request = long_arg(1)
-	pid = long_arg(2)
-	addr = long_arg(3)
-	data = long_arg(4)
+	pid = int_arg(2)
+	addr = ulong_arg(3)
+	data = ulong_arg(4)
 	argstr = _ptrace_argstr(request, pid, addr, data)
 }
-probe nd_syscall.ptrace.return = kprobe.function("sys_ptrace").return ?
+probe nd_syscall.ptrace.return = kprobe.function("sys_ptrace").return ?,
+	kprobe.function("compat_sys_ptrace").return ?
 {
 	name = "ptrace"
 	retstr = returnstr(1)

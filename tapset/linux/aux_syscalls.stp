@@ -3450,102 +3450,299 @@ function irqflags_str:string(f:long)
 	_stp_lookup_or_str(_stp_irq_list, STAP_ARG_f, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
+function _stp_struct_iovec_u:string(iov_uaddr:long)
+%{ /* pure */
+	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
+	struct iovec iov;
+	if (iov_uaddr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&iov, iov_uaddr,
+					sizeof(struct iovec)) == 0) {
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				      "[{%#lx, %lu}]", iov.iov_base,
+				      iov.iov_len);
+	   	}
+		else
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				      (unsigned long)iov_uaddr);
+	}
+%}
+
+function _stp_struct_compat_iovec_u:string(iov_uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	char *iov_uaddr = (void *)(intptr_t)STAP_ARG_iov_uaddr;
+	struct compat_iovec iov;
+	if (iov_uaddr == NULL)
+		strlcpy(STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else {
+		if (_stp_copy_from_user((char*)&iov, iov_uaddr,
+					sizeof(struct compat_iovec)) == 0) {
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+				      "[{%#lx, %lu}]", iov.iov_base,
+				      iov.iov_len);
+	   	}
+		else
+			_stp_snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				      (unsigned long)iov_uaddr);
+	}
+#endif
+%}
+
+%{
+#include <linux/ptrace.h>
+static const _stp_val_array const _stp_ptrace_options_list[] = {
+#ifdef PTRACE_O_EXITKILL
+	V(PTRACE_O_EXITKILL),
+#endif
+	V(PTRACE_O_TRACECLONE),
+	V(PTRACE_O_TRACEEXEC),
+	V(PTRACE_O_TRACEEXIT),
+	V(PTRACE_O_TRACEFORK),
+	V(PTRACE_O_TRACESYSGOOD),
+	V(PTRACE_O_TRACEVFORK),
+	V(PTRACE_O_TRACEVFORKDONE),
+#ifdef PTRACE_O_TRACESECCOMP
+	V(PTRACE_O_TRACESECCOMP),
+#endif
+	{0, NULL}
+};
+%}
+
 /* PTRACE_SETOPTIONS parser of the DATA parameter. */
-function _ptrace_options_str(f)
-{
-	retval=""
-	if (f & %{ /* pure */ PTRACE_O_TRACESYSGOOD %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACESYSGOOD %}
-		retval=retval."|PTRACE_O_TRACESYSGOOD"
-	}
-	if (f & %{ /* pure */ PTRACE_O_TRACEFORK %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACEFORK %}
-		retval=retval."|PTRACE_O_TRACEFORK"
-	}
-	if (f & %{ /* pure */ PTRACE_O_TRACEVFORK %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACEVFORK %}
-		retval=retval."|PTRACE_O_TRACEVFORK"
-	}
-	if (f & %{ /* pure */ PTRACE_O_TRACECLONE %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACECLONE %}
-		retval=retval."|PTRACE_O_TRACECLONE"
-	}
-	if (f & %{ /* pure */ PTRACE_O_TRACEEXEC %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACEEXEC %}
-		retval=retval."|PTRACE_O_TRACEEXEC"
-	}
-	if (f & %{ /* pure */ PTRACE_O_TRACEVFORKDONE %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACEVFORKDONE %}
-		retval=retval."|PTRACE_O_TRACEVFORKDONE"
-	}
-	if (f & %{ /* pure */ PTRACE_O_TRACEEXIT %}) {
-		f&=%{ /* pure */ ~PTRACE_O_TRACEEXIT %}
-		retval=retval."|PTRACE_O_TRACEEXIT"
-	}
-	if (f != 0)
-		retval=retval.sprintf("|0x%x",f)
-	else if (retval == "")
-		return "0"
-	return substr(retval,1,strlen(retval)-1)
-}
+function _ptrace_options_str:string(f:long)
+%{ /* pure */
+	unsigned long f = (unsigned long)STAP_ARG_f;  
+	_stp_lookup_or_str(_stp_ptrace_options_list, f, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
 
 /* ptrace syscall provisioning of argstr. */
 %{
+#include <linux/elf.h>
+static const _stp_val_array const _stp_elf_notes_list[] = {
+	V(NT_PRSTATUS),
+	V(NT_PRFPREG),
+	V(NT_PRPSINFO),
+	V(NT_TASKSTRUCT),
+	V(NT_AUXV),
+#ifdef NT_SIGINFO
+	V(NT_SIGINFO),
+#endif
+#ifdef NT_FILE
+	V(NT_FILE),
+#endif
+	V(NT_PRXFPREG),
+#ifdef NT_PPC_VMX
+	V(NT_PPC_VMX),
+#endif
+#ifdef NT_PPC_SPE
+	V(NT_PPC_SPE),
+#endif
+#ifdef NT_PPC_VSX
+	V(NT_PPC_VSX),
+#endif
+#ifdef NT_386_TLS
+	V(NT_386_TLS),
+#endif
+#ifdef NT_386_IOPERM
+	V(NT_386_IOPERM),
+#endif
+#ifdef NT_X86_XSTATE
+	V(NT_X86_XSTATE),
+#endif
+#ifdef NT_S390_HIGH_GPRS
+	V(NT_S390_HIGH_GPRS),
+#endif
+#ifdef NT_S390_TIMER
+	V(NT_S390_TIMER),
+#endif
+#ifdef NT_S390_TODCMP
+	V(NT_S390_TODCMP),
+#endif
+#ifdef NT_S390_TODPREG
+	V(NT_S390_TODPREG),
+#endif
+#ifdef NT_S390_CTRS
+	V(NT_S390_CTRS),
+#endif
+#ifdef NT_S390_PREFIX
+	V(NT_S390_PREFIX),
+#endif
+#ifdef NT_S390_LAST_BREAK
+	V(NT_S390_LAST_BREAK),
+#endif
+#ifdef NT_S390_SYSTEM_CALL
+	V(NT_S390_SYSTEM_CALL),
+#endif
+#ifdef NT_S390_TDB
+	V(NT_S390_TDB),
+#endif
+#ifdef NT_S390_VXRS_LOW
+	V(NT_S390_VXRS_LOW),
+#endif
+#ifdef NT_S390_VXRS_HIGH
+	V(NT_S390_VXRS_HIGH),
+#endif
+#ifdef NT_ARM_VFP
+	V(NT_ARM_VFP),
+#endif
+#ifdef NT_ARM_TLS
+	V(NT_ARM_TLS),
+#endif
+#ifdef NT_ARM_HW_BREAK
+	V(NT_ARM_HW_BREAK),
+#endif
+#ifdef NT_ARM_HW_WATCH
+	V(NT_ARM_HW_WATCH),
+#endif
+#ifdef NT_ARM_SYSTEM_CALL
+	V(NT_ARM_SYSTEM_CALL),
+#endif
+#ifdef NT_METAG_CBUF
+	V(NT_METAG_CBUF),
+#endif
+#ifdef NT_METAG_RPIPE
+	V(NT_METAG_RPIPE),
+#endif
+#ifdef NT_METAG_TLS
+	V(NT_METAG_TLS),
+#endif
+	{0, NULL}
+};
+%}
+
+function _stp_elf_notes_str:string(value:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_elf_notes_list, (unsigned long)STAP_ARG_value,
+			STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
 #ifndef PTRACE_GETREGSET
-# define PTRACE_GETREGSET 0x4204
+# define PTRACE_GETREGSET	0x4204
 #endif
 #ifndef PTRACE_SETREGSET
-# define PTRACE_SETREGSET 0x4205
+# define PTRACE_SETREGSET	0x4205
 #endif
+#ifndef PTRACE_SEIZE
+# define PTRACE_SEIZE		0x4206
+#endif
+#ifndef PTRACE_INTERRUPT
+# define PTRACE_INTERRUPT	0x4207
+#endif
+#ifndef PTRACE_LISTEN
+# define PTRACE_LISTEN		0x4208
+#endif
+#ifndef PTRACE_PEEKSIGINFO
+# define PTRACE_PEEKSIGINFO	0x4209
+#endif
+#ifndef PTRACE_GETSIGMASK
+# define PTRACE_GETSIGMASK	0x420a
+#endif
+#ifndef PTRACE_SETSIGMASK
+# define PTRACE_SETSIGMASK	0x420b
+#endif
+
+/* These are the architecture-independent ptrace requests (although
+ * some return architecture-dependent register buffers). */
+
+static const _stp_val_array const _stp_ptrace_request_list[] = {
+	V(PTRACE_TRACEME),
+	V(PTRACE_PEEKTEXT),
+	V(PTRACE_PEEKDATA),
+	V(PTRACE_PEEKUSR),
+	V(PTRACE_POKETEXT),
+	V(PTRACE_POKEDATA),
+	V(PTRACE_POKEUSR),
+	V(PTRACE_CONT),
+	V(PTRACE_KILL),
+	V(PTRACE_SINGLESTEP),
+	V(PTRACE_ATTACH),
+	V(PTRACE_DETACH),
+	V(PTRACE_SYSCALL),
+	V(PTRACE_SETOPTIONS),
+	V(PTRACE_GETEVENTMSG),
+	V(PTRACE_GETSIGINFO),
+	V(PTRACE_SETSIGINFO),
+	V(PTRACE_GETREGSET),
+	V(PTRACE_SETREGSET),
+	V(PTRACE_SEIZE),
+	V(PTRACE_INTERRUPT),
+	V(PTRACE_LISTEN),
+	V(PTRACE_PEEKSIGINFO),
+	V(PTRACE_GETSIGMASK),
+	V(PTRACE_SETSIGMASK),
+	{0, NULL}
+};
 %}
+
+function __ptrace_request_str:string(request:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_ptrace_request_list,
+			(unsigned long)STAP_ARG_request, STAP_RETVALUE,
+			MAXSTRINGLEN);
+%}
+
 function _ptrace_argstr(request, pid, addr, data)
 {
+	// Handle arch-specific ptrace requests first.
 	retval=_arch_ptrace_argstr(request, pid, addr, data)
 	if (retval != "")
 		return retval
-	if (request == %{ /* pure */ PTRACE_TRACEME %})
-		return "PTRACE_TRACEME"
-	if (request == %{ /* pure */ PTRACE_PEEKTEXT %})
-		return sprintf ("PTRACE_PEEKTEXT, %d, addr=%p", pid, addr)
-	if (request == %{ /* pure */ PTRACE_PEEKDATA %})
-		return sprintf ("PTRACE_PEEKDATA, %d, addr=%p", pid, addr)
-	if (request == %{ /* pure */ PTRACE_PEEKUSR %})
-		return sprintf ("PTRACE_PEEKUSR, %d, addr=%p", pid, addr)
-	if (request == %{ /* pure */ PTRACE_POKETEXT %})
-		return sprintf ("PTRACE_POKETEXT, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_POKEDATA %})
-		return sprintf ("PTRACE_POKEDATA, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_POKEUSR %})
-		return sprintf ("PTRACE_POKEUSR, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_CONT %})
-		return sprintf ("PTRACE_CONT, %d, %s", pid, _signal_name (data))
-	if (request == %{ /* pure */ PTRACE_KILL %})
-		return sprintf ("PTRACE_KILL, %d", pid)
-	if (request == %{ /* pure */ PTRACE_SINGLESTEP %})
-		return sprintf ("PTRACE_SINGLESTEP, %d, %s", pid, _signal_name (data))
-	if (request == %{ /* pure */ PTRACE_ATTACH %})
-		return sprintf ("PTRACE_ATTACH, %d", pid)
-	if (request == %{ /* pure */ PTRACE_DETACH %})
-		return sprintf ("PTRACE_DETACH, %d, %s", pid, _signal_name (data))
-	if (request == %{ /* pure */ PTRACE_SYSCALL %})
-		return sprintf ("PTRACE_SYSCALL, %d, %s", pid, _signal_name (data))
+
+	// Handle generic ptrace requests.
+	if (request == %{ /* pure */ PTRACE_PEEKTEXT %}
+	    || request == %{ /* pure */ PTRACE_PEEKDATA %}
+	    || request == %{ /* pure */ PTRACE_PEEKUSR %})
+		/* For PTRACE_PEEK{TEXT,DATA,USR}, 'data' is ignored
+		 * from the user's point of view, but glibc stores the
+		 * result at the 'data' address. */
+		return sprintf("%s, %d, %p, [%p]",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_POKETEXT %}
+	    || request == %{ /* pure */ PTRACE_POKEDATA %}
+	    || request == %{ /* pure */ PTRACE_POKEUSR %}
+	    || request == %{ /* pure */ PTRACE_PEEKSIGINFO %})
+		return sprintf("%s, %d, %p, %p",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_CONT %}
+	    || request == %{ /* pure */ PTRACE_SYSCALL %}
+	    || request == %{ /* pure */ PTRACE_SINGLESTEP %}
+	    || request == %{ /* pure */ PTRACE_DETACH %})
+		return sprintf("%s, %d, %#x, %s",
+			       __ptrace_request_str(request), pid, addr,
+			       _signal_name (data))
+	if (request == %{ /* pure */ PTRACE_GETSIGINFO %}
+	    || request == %{ /* pure */ PTRACE_SETSIGINFO %}
+	    || request == %{ /* pure */ PTRACE_GETEVENTMSG %}
+	    || request == %{ /* pure */ PTRACE_GETSIGMASK %}
+	    || request == %{ /* pure */ PTRACE_SETSIGMASK %})
+		return sprintf("%s, %d, %#x, %p",
+			       __ptrace_request_str(request), pid, addr, data)
+	if (request == %{ /* pure */ PTRACE_GETREGSET %}
+	    || request == %{ /* pure */ PTRACE_SETREGSET %})
+		return sprintf("%s, %d, %s, %s",
+			       __ptrace_request_str(request), pid,
+			       _stp_elf_notes_str(addr),
+			       (%{ /* pure */ _stp_is_compat_task() %}
+			        ? _stp_struct_compat_iovec_u(data)
+				: _stp_struct_iovec_u(data)))
+	if (request == %{ /* pure */ PTRACE_TRACEME %}
+	    || request == %{ /* pure */ PTRACE_KILL %}
+	    || request == %{ /* pure */ PTRACE_ATTACH %}
+	    || request == %{ /* pure */ PTRACE_SEIZE %}
+	    || request == %{ /* pure */ PTRACE_INTERRUPT %}
+	    || request == %{ /* pure */ PTRACE_LISTEN %})
+		return sprintf("%s, %d, %#x, %#x",
+			       __ptrace_request_str(request), pid, addr, data)
 	if (request == %{ /* pure */ PTRACE_SETOPTIONS %})
-		return sprintf ("PTRACE_SETOPTIONS, %d, %s", pid, _ptrace_options_str (data))
-	if (request == %{ /* pure */ PTRACE_GETEVENTMSG %})
-		return sprintf ("PTRACE_GETEVENTMSG, %d, data=%p", pid, data)
-	if (request == %{ /* pure */ PTRACE_GETSIGINFO %})
-		// TODO: Retrieve *data in .return
-		return sprintf ("PTRACE_GETSIGINFO, %d, data=%p", pid, data)
-	if (request == %{ /* pure */ PTRACE_SETSIGINFO %})
-		// TODO: Retrieve *data here
-		return sprintf ("PTRACE_SETSIGINFO, %d, data=%p", pid, data)
-	if (request == %{ /* pure */ PTRACE_GETREGSET %})
-		// TODO
-		return sprintf ("PTRACE_GETREGSET, %d, addr=%p, data=%p", pid, addr, data)
-	if (request == %{ /* pure */ PTRACE_SETREGSET %})
-		// TODO
-		return sprintf ("PTRACE_SETREGSET, %d, addr=%p, data=%p", pid, addr, data)
-	return sprintf("?=%d, %d, %p, %p", request, pid, addr, data)
+		return sprintf("PTRACE_SETOPTIONS, %d, %#x, %s", pid,
+			       addr, _ptrace_options_str(data))
+
+	return sprintf("%s, %d, %p, %p", __ptrace_request_str(request),
+		       pid, addr, data)
 }
 
 /* ptrace.return syscall decoder for PTRACE_GETEVENTMSG. */
