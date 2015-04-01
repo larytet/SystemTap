@@ -3341,13 +3341,24 @@ probe nd_syscall.lookup_dcookie = kprobe.function("sys_lookup_dcookie") ?
 {
 	name = "lookup_dcookie"
 	asmlinkage()
+%( CONFIG_64BIT == "y" %?
+	@__syscall_gate_compat_simple
 	cookie = ulonglong_arg(1)
 	buffer_uaddr = pointer_arg(2)
 	len = ulong_arg(3)
-	argstr = sprintf("%d, %p, %d", cookie, buffer_uaddr, len)
+%:
+	# On a 32-bit kernel, 'long long' arguments take the space of
+	# 2 arguments, so we have to adjust the following argument
+	# numbers.
+	cookie = ulonglong_arg(1)
+	buffer_uaddr = pointer_arg(3)
+	len = ulong_arg(4)
+%)
+	argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
 }
 probe nd_syscall.lookup_dcookie.return = kprobe.function("sys_lookup_dcookie").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "lookup_dcookie"
 	retstr = returnstr(1)
 }
@@ -3599,10 +3610,10 @@ probe nd_syscall.mincore = kprobe.function("sys_mincore") ?
 {
 	name = "mincore"
 	asmlinkage()
-	start = ulong_arg(1)
+	start = pointer_arg(1)
 	length = ulong_arg(2)
 	vec_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %d, %p", start, length, vec_uaddr)
+	argstr = sprintf("%p, %u, %p", start, length, vec_uaddr)
 }
 probe nd_syscall.mincore.return = kprobe.function("sys_mincore").return ?
 {

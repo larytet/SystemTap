@@ -33,7 +33,7 @@ probe nd_syscall.iopl = kprobe.function("sys_iopl")
 	name = "iopl"
 //	level = (@defined($level) ? $level : $new_iopl)
 	asmlinkage()
-	level = int_arg(1)
+	level = uint_arg(1)
 	argstr = sprint(level)
 }
 probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
@@ -375,3 +375,29 @@ probe nd_syscall.compat_execve.return = kprobe.function("sys32_execve").return ?
 	retstr = returnstr(1)
 }
 %)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *,
+#                        buf, compat_size_t, len)
+# long sys32_lookup_dcookie(u32 addr_low, u32 addr_high, char __user *buf,
+#                           size_t len)
+#
+probe nd_syscall.compat_lookup_dcookie =
+		kprobe.function("compat_sys_lookup_dcookie") ?,
+		kprobe.function("sys32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        asmlinkage()
+        cookie = ((uint_arg(2) << 32) | uint_arg(1))
+        buffer_uaddr = pointer_arg(3)
+        len = ulong_arg(4)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe nd_syscall.compat_lookup_dcookie.return =
+		kprobe.function("compat_sys_lookup_dcookie").return ?,
+		kprobe.function("sys32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = returnstr(1)
+}
+

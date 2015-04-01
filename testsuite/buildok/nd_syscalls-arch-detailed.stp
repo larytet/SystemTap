@@ -81,6 +81,7 @@ probe nd_syscall.get_thread_area.return
 probe nd_syscall.iopl
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d\n", level)
 }
 probe nd_syscall.iopl.return
 {

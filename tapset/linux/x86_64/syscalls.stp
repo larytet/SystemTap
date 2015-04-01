@@ -27,7 +27,7 @@ probe syscall.arch_prctl.return = kernel.function("sys_arch_prctl").return
 probe syscall.iopl = kernel.function("sys_iopl")
 {
 	name = "iopl"
-	level = @choose_defined($level, $new_iopl)
+	level = __uint32(@choose_defined($level, $new_iopl))
 	argstr = sprint(level)
 }
 probe syscall.iopl.return = kernel.function("sys_iopl").return
@@ -414,3 +414,28 @@ probe syscall.compat_execve.return = kernel.function("sys32_execve").return ?
 	retstr = return_str(1, $return)
 }
 %)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *,
+#                        buf, compat_size_t, len)
+# long sys32_lookup_dcookie(u32 addr_low, u32 addr_high, char __user *buf,
+#                           size_t len)
+#
+probe syscall.compat_lookup_dcookie =
+		kernel.function("compat_sys_lookup_dcookie") ?,
+		kernel.function("sys32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        cookie = (@choose_defined($w1, $addr_high) << 32 | @choose_defined($w0, $addr_low))
+        buffer_uaddr = $buf
+        len = __ulong($len)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe syscall.compat_lookup_dcookie.return =
+		kernel.function("compat_sys_lookup_dcookie").return ?,
+		kernel.function("sys32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = return_str(1, $return)
+}
+

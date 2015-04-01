@@ -1136,12 +1136,12 @@ probe nd_syscall.llseek.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.lookup_dcookie
+probe nd_syscall.lookup_dcookie, nd_syscall.compat_lookup_dcookie ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %p, %d\n", cookie, buffer_uaddr, len)
 }
-probe nd_syscall.lookup_dcookie.return
+probe nd_syscall.lookup_dcookie.return, nd_syscall.compat_lookup_dcookie.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

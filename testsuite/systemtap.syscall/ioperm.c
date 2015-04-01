@@ -46,5 +46,17 @@ int main() {
 #endif
 #endif /* __NR_ioperm */
 
+#if defined(__i386__) || defined(__x86_64__)
+    // NOTE. This function is only in i386 and x86_64 and 
+    // its args vary between those two archs. Not all are
+    // being addressed in the tapset.
+
+    iopl(3);
+    //staptest// iopl (3) = 0
+
+    iopl(-1);
+    //staptest// iopl (4294967295) = NNNN
+#endif
+
     return 0;
 }

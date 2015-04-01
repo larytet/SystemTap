@@ -440,4 +440,23 @@ probe syscall.compat_execve.return = kernel.function("sys32_execve").return ?
 	retstr = return_str(1, $return)
 }
 %)
+
+# lookup_dcookie _____________________________________________
+# long sys_lookup_dcookie(u64 cookie64, char __user * buf, size_t len)
+# there is compat_SyS_lookup_dcookie on thel7, but not on older distros,
+# in this case probing for sys_lookup_dcookie seems safe
+probe syscall.compat_lookup_dcookie = kernel.function("sys_lookup_dcookie").call ?
+{
+	name = "lookup_dcookie"
+	cookie = $cookie64
+	buffer_uaddr = $buf
+	len = __ulong($len)
+	argstr = sprintf("%#lx, %p, %#x", $cookie64, $buf, $len)
+}
+probe syscall.compat_lookup_dcookie.return = kernel.function("sys_lookup_dcookie").return ?
+{
+	name = "lookup_dcookie"
+	retstr = return_str(1, $return)
+}
+
 %)

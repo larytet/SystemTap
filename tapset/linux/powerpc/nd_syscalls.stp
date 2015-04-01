@@ -946,3 +946,28 @@ probe nd_syscall.compat_execve.return =
 	retstr = returnstr(1)
 }
 %)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *, buf,
+#                        compat_size_t, len)
+# long ppc32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
+#                           size_t len)
+#
+probe nd_syscall.compat_lookup_dcookie =
+		kprobe.function("compat_sys_lookup_dcookie") ?,
+		kprobe.function("ppc32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        asmlinkage()
+        cookie = ((uint_arg(1) << 32) | uint_arg(2))
+        buffer_uaddr = pointer_arg(3)
+        len = ulong_arg(4)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe nd_syscall.compat_lookup_dcookie.return =
+		kprobe.function("compat_sys_lookup_dcookie").return ?,
+		kprobe.function("ppc32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = returnstr(1)
+}

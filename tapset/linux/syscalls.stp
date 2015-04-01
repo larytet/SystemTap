@@ -3142,14 +3142,16 @@ probe syscall.llseek.return = kernel.function("sys_llseek").return ?
 #
 probe syscall.lookup_dcookie = kernel.function("sys_lookup_dcookie").call ?
 {
+	@__syscall_gate_compat_simple
 	name = "lookup_dcookie"
 	cookie = $cookie64
 	buffer_uaddr = $buf
-	len = $len
-	argstr = sprintf("%d, %p, %d", $cookie64, $buf, $len)
+	len = __ulong($len)
+	argstr = sprintf("%#lx, %p, %#x", $cookie64, $buf, $len)
 }
 probe syscall.lookup_dcookie.return = kernel.function("sys_lookup_dcookie").return ?
 {
+	@__syscall_gate_compat_simple
 	name = "lookup_dcookie"
 	retstr = return_str(1, $return)
 }
@@ -3405,9 +3407,9 @@ probe syscall.mincore = kernel.function("sys_mincore").call ?
 {
 	name = "mincore"
 	start = $start
-	length = $len
+	length = __ulong($len)
 	vec_uaddr = $vec
-	argstr = sprintf("%p, %d, %p", $start, $len, $vec)
+	argstr = sprintf("%p, %u, %p", start, length, vec_uaddr)
 }
 probe syscall.mincore.return = kernel.function("sys_mincore").return ?
 {
