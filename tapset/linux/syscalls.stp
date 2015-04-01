@@ -1085,8 +1085,8 @@ probe syscall.execveat = kernel.function("sys_execveat").call ?
         fd_str = dirfd_str
 %)
         filename = user_string_quoted(@__pointer($filename))
-        flags = int_arg($flags)
-	 flags_str = _at_flag_str(__int32($flags))
+        flags = __int32($flags)
+	flags_str = _at_flag_str(__int32($flags))
         __argv = @choose_defined($__argv, $argv)
         args = __get_argv(__argv, 0)
 	__envp = @choose_defined($__envp, $envp)
@@ -1205,9 +1205,9 @@ probe syscall.fadvise64.return = kernel.function("sys_fadvise64").return ?
 probe syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 {
 	@__syscall_gate_compat_simple
-%( arch != "s390" && arch != "ia64" %?
-	# s390x/ia64 has sys_fadvise64_64() mapped to __NR_fadvise64
-	# (instead of __NR_fadvise64_64)
+%( arch != "s390" && arch != "ia64" && arch != "arm64" %?
+	# s390x/ia64/arm64 has sys_fadvise64_64() mapped to
+        # __NR_fadvise64 (instead of __NR_fadvise64_64)
 	@__syscall_gate(%{ __NR_fadvise64_64 %})
 %)
 	name = "fadvise64"
@@ -1222,7 +1222,7 @@ probe syscall.fadvise64_64.return =
 	kernel.function("sys_fadvise64_64").return ?
 {
 	@__syscall_gate_compat_simple
-%( arch != "s390" && arch != "ia64" %?
+%( arch != "s390" && arch != "ia64" && arch != "arm64" %?
 	@__syscall_gate(%{ __NR_fadvise64_64 %})
 %)
 	name = "fadvise64"

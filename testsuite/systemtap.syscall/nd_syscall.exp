@@ -45,7 +45,7 @@ proc test_procedure {} {
         unset env(SYSTEMTAP_DEBUGINFO_PATH)
     }
 
-    send_log $output
+    send_log "${output}\n"
     if {[file exists ${test_module}]} {
 	pass "${script} compilation"
     } else {

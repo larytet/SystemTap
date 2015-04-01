@@ -1,10 +1,15 @@
-/* COVERAGE: getrlimit setrlimit */
+/* COVERAGE: getrlimit old_getrlimit setrlimit */
+/* 'old_getrlimit' isn't a separate syscall from 'getrlimit'. On some
+ * platforms (like i386), getrlimit is implemented via
+ * old_getrlimit. */
+
 #include <sys/time.h>
 #include <sys/resource.h>
 
 struct rlimit rlim;
 
-int main() {
+int main()
+{
 
     // --- first try out normal operation ---
 

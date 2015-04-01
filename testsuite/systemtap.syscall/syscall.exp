@@ -25,7 +25,7 @@ proc test_procedure {} {
     set cmd "stap -p4 -m ${test_module_name} ${script}"
     exec /bin/rm -f ${test_module}
     catch {eval exec $cmd} output
-    send_log $output
+    send_log "${output}\n"
     if {[file exists ${test_module}]} {
 	pass "${script} compilation"
     } else {
