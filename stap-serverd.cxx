@@ -473,7 +473,19 @@ get_server_mok_fingerprints(vector<string> &mok_fingerprints, bool verbose,
     {
       // We're only interested in directories (of key files).
       if (direntp->d_type != DT_DIR)
-	continue;
+        {
+          if (direntp->d_type == DT_UNKNOWN)
+            {
+              // If the filesystem doesn't support d_type, we'll have to
+              // call stat().
+              struct stat tmpstat;
+              stat((mok_path + "/" + direntp->d_name).c_str (), &tmpstat);
+              if (!S_ISDIR(tmpstat.st_mode))
+                continue;
+            }
+          else
+            continue;
+        }
 
       // We've got a directory. If the directory name isn't in the right
       // format for a MOK fingerprint, skip it.
