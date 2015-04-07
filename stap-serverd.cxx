@@ -370,13 +370,28 @@ mok_dir_valid_p (string mok_fingerprint, bool verbose)
   struct dirent *direntp;
   while ((direntp = readdir (dirp)) != NULL)
     {
-      if (! priv_found && direntp->d_type == DT_REG
+      bool reg_file = false;
+
+      if (direntp->d_type == DT_REG)
+	reg_file = true;
+      else if (direntp->d_type == DT_UNKNOWN)
+        {
+	  struct stat tmpstat;
+
+	  // If the filesystem doesn't support d_type, we'll have to
+	  // call stat().
+	  stat((mok_dir + "/" + direntp->d_name).c_str (), &tmpstat);
+	  if (S_ISREG(tmpstat.st_mode))
+	      reg_file = true;
+        }
+      
+      if (! priv_found && reg_file
 	  && strcmp (direntp->d_name, MOK_PRIVATE_CERT_NAME) == 0)
         {
 	  priv_found = true;
 	  continue;
 	}
-      if (! cert_found && direntp->d_type == DT_REG
+      if (! cert_found && reg_file
 	  && strcmp (direntp->d_name, MOK_PUBLIC_CERT_NAME) == 0)
         {
 	  cert_found = true;
