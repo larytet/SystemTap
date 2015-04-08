@@ -126,7 +126,7 @@ function _stp_syscall_nr:long ()
 				       " (no registers available)");
 		return;
 	}
-	STAP_RETVALUE = syscall_get_nr(current, regs);
+	STAP_RETVALUE = _stp_syscall_get_nr(current, regs);
 %}
 
 %{

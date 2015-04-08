@@ -1411,7 +1411,7 @@ __stp_utrace_task_finder_target_syscall_entry(u32 action,
 	// results.
 	//
 	// FIXME: do we need to handle mremap()?
-	syscall_no = syscall_get_nr(tsk, regs);
+	syscall_no = _stp_syscall_get_nr(tsk, regs);
 	is_mmap_or_mmap2 = (syscall_no == MMAP_SYSCALL_NO(tsk)
 			    || syscall_no == MMAP2_SYSCALL_NO(tsk) ? 1 : 0);
 	if (!is_mmap_or_mmap2) {
