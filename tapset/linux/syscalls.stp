@@ -1185,10 +1185,10 @@ probe syscall.fadvise64 = kernel.function("sys_fadvise64").call ?
 {
 	name = "fadvise64"
 	@__syscall_gate_compat_simple
-	fd = @choose_defined(__int32($fd), 0)
+	fd = __int32(@choose_defined($fd, 0))
 	offset = @choose_defined($offset, 0)
 	len = __long(@choose_defined($len, 0))
-	advice = @choose_defined(__int32($advice), 0)
+	advice = __int32(@choose_defined($advice, 0))
 	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
 			 _fadvice_advice_str(advice))
 }
@@ -1211,10 +1211,10 @@ probe syscall.fadvise64_64 = kernel.function("sys_fadvise64_64").call ?
 	@__syscall_gate(%{ __NR_fadvise64_64 %})
 %)
 	name = "fadvise64"
-	fd = @choose_defined(__int32($fd), 0)
+	fd = __int32(@choose_defined($fd, 0))
 	offset = @choose_defined($offset, 0)
 	len = @choose_defined($len, 0)
-	advice = @choose_defined(__int32($advice), 0)
+	advice = __int32(@choose_defined($advice, 0))
 	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
 			 _fadvice_advice_str(advice))
 }

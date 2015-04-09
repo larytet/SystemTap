@@ -1863,7 +1863,7 @@ probe syscall.sched_setaffinity =
 {
 	name = "sched_setaffinity"
 	pid = __int32($pid)
-	len = @choose_defined(__uint32($len), 0)
+	len = __uint32(@choose_defined($len, 0))
 	mask_uaddr = $user_mask_ptr
 	argstr = sprintf("%d, %u, %p", __int32($pid), len, $user_mask_ptr)
 }
