@@ -1,5 +1,5 @@
 // dwarf location-list-to-c translator
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -857,7 +857,13 @@ translate (struct location_context *ctx, int indent,
 	  if (need_fb == NULL)
 	    DIE ("DW_OP_call_frame_cfa while processing frame base");
 	  else
-	    DIE ("DW_OP_call_frame_cfa not expected outside DW_AT_frame_base");
+	    {
+	      // This is slightly weird/inefficient, but golang is known
+	      // to produce DW_OP_call_frame_cfa; DW_OP_consts: 8; DW_OP_plus
+	      // instead of a simple DW_OP_fbreg 8.
+	      *need_fb = true;
+	      push ("frame_base");
+	    }
 	  break;
 
 	case DW_OP_push_object_address:
@@ -922,30 +928,41 @@ location_from_address (struct location_context *ctx, int indent,
     {
       /* The main expression uses DW_OP_fbreg, so we need to compute
 	 the DW_AT_frame_base attribute expression's value first.  */
-
-      if (ctx->fb_attr == NULL)
-	FAIL (loc, N_("required DW_AT_frame_base attribute not supplied"));
+      static Dwarf_Op dummy_cfa_op = { .atom = DW_OP_call_frame_cfa };
 
       Dwarf_Op *fb_expr;
       size_t fb_len;
-      switch (dwarf_getlocation_addr (ctx->fb_attr, ctx->pc,
-				      &fb_expr, &fb_len, 1))
+
+      if (ctx->fb_attr == NULL)
 	{
-	case 1:			/* Should always happen.  */
-	  if (fb_len == 0)
-	    goto fb_inaccessible;
-	  break;
+	  // Lets just assume we want DW_OP_call_frame_cfa.
+	  // Some (buggy golang) DWARF producers use that directly in
+	  // location descriptions. And at least we should have a chance
+	  // to get an actual call frame address that way.
+	  fb_len = 1;
+	  fb_expr = &dummy_cfa_op;
+	}
+      else
+	{
+	  switch (dwarf_getlocation_addr (ctx->fb_attr, ctx->pc,
+					  &fb_expr, &fb_len, 1))
+	    {
+	    case 1:			/* Should always happen.  */
+	      if (fb_len == 0)
+		goto fb_inaccessible;
+	      break;
 
-	default:		/* Shouldn't happen.  */
-	case -1:
-	  FAIL (loc, N_("dwarf_getlocation_addr (form %#x): %s"),
-		dwarf_whatform (ctx->fb_attr), dwarf_errmsg (-1));
-	  return NULL;
+	    default:		/* Shouldn't happen.  */
+	    case -1:
+	      FAIL (loc, N_("dwarf_getlocation_addr (form %#x): %s"),
+		    dwarf_whatform (ctx->fb_attr), dwarf_errmsg (-1));
+	      return NULL;
 
-	case 0:			/* Shouldn't happen.  */
-	fb_inaccessible:
-	  FAIL (loc, N_("DW_AT_frame_base not accessible at this address"));
-	  return NULL;
+	    case 0:			/* Shouldn't happen.  */
+	    fb_inaccessible:
+	      FAIL (loc, N_("DW_AT_frame_base not accessible at this address"));
+	      return NULL;
+	    }
 	}
 
       // If it is DW_OP_call_frame_cfa then get cfi cfa ops.
@@ -2132,7 +2149,7 @@ c_translate_pointer (struct obstack *pool, int indent,
   Dwarf_Attribute attr_mem;
   Dwarf_Word byte_size;
   if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &attr_mem) == NULL)
-    byte_size = 0;
+    byte_size = max_fetch_size (*input, typedie); /* Use CU address size.  */
   else if (dwarf_formudata (&attr_mem, &byte_size) != 0)
     FAIL (*input,
 	  N_("cannot get byte_size attribute for type %s: %s"),
@@ -2221,7 +2238,7 @@ c_translate_pointer_store (struct obstack *pool, int indent,
   Dwarf_Attribute attr_mem;
   Dwarf_Word byte_size;
   if (dwarf_attr_integrate (typedie, DW_AT_byte_size, &attr_mem) == NULL)
-    byte_size = 0;
+    byte_size = max_fetch_size (*input, typedie); /* Use CU address size.  */
   else if (dwarf_formudata (&attr_mem, &byte_size) != 0)
     FAIL (*input,
 	  N_("cannot get byte_size attribute for type %s: %s"),
