@@ -1,4 +1,4 @@
-/* COVERAGE: uname olduname oldolduname */
+/* COVERAGE: uname olduname oldolduname newuname */
 
 /* Sigh. In the i386 syscall table you'll see this:
  *

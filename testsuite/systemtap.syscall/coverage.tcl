@@ -21,7 +21,7 @@ if {[catch {eval exec $cmd} output]} {
     exit
 }
 foreach line [split $output "\n"] {
-    if {[regexp {^kernel.function\(\"[Ss]y[Ss]_([^@]+)} $line match fn]} {
+    if {[regexp {^kernel.function\(\"[Ss]y[Ss]_([^@\"]+)} $line match fn]} {
 	if {![info exists funcname($fn)]} {
 	    set funcname($fn) 0
 	}
@@ -65,6 +65,10 @@ set handled 0
 set unhandled 0
 set unhandled_list {}
 foreach {func val} [array get funcname] {
+    if {$val < 0} {
+	continue
+    }
+
     if {$val > 0} {
 	incr covered
     } elseif {$val == 0} {
@@ -102,7 +106,7 @@ if {$i != 0} { puts "\n" }
 # Display list of handled/unhandled syscalls. A syscall is "handled"
 # if syscall/nd_syscall probes exists for the syscall.
 set total [expr $handled + $unhandled]
-puts "Handled $covered out of $total. [format "%2.1f" [expr ($handled * 100.0)/$total]]%"
+puts "Handled $handled out of $total. [format "%2.1f" [expr ($handled * 100.0)/$total]]%"
 if {$unhandled > 0} {
     puts "\nUNHANDLED FUNCTIONS"
     

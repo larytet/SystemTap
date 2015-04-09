@@ -1,5 +1,6 @@
 /* COVERAGE: getcwd fstat stat lstat fstatat utime */
 /* COVERAGE: fstat64 stat64 lstat64 */
+/* COVERAGE: newfstat newfstatat newlstat newstat */
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/types.h>
