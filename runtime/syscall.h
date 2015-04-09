@@ -176,6 +176,14 @@ _stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 }
 #endif
 
+#if defined(__aarch64__)
+static inline long
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+{
+	return regs->syscallno;
+}
+#endif
+
 #if defined(__arm__)
 static inline long
 _stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
