@@ -1000,7 +1000,39 @@ string unescape_glob_chars (const string& str)
   return op;
 }
 
+bool identifier_string_needs_escape (const string& str)
+{
+  for (unsigned i = 0; i < str.size (); i++)
+    {
+      char this_char = str[i];
+      if (! isalnum (this_char) && this_char != '_')
+	return true;
+    }
 
+  return false;
+}
+
+string escaped_indentifier_string (const string &str)
+{
+  if (! identifier_string_needs_escape (str))
+    return str;
+
+  string op;
+  for (unsigned i = 0; i < str.size (); i++)
+    {
+      char this_char = str[i];
+      if (! isalnum (this_char) && this_char != '_')
+	{
+	  char b[32];
+	  sprintf (b, "_%x_", (unsigned int) this_char);
+	  op += b;
+        }
+      else
+	op += this_char;
+    }
+
+  return op;
+}
 
 string
 normalize_machine(const string& machine)

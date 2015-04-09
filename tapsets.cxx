@@ -4200,7 +4200,7 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 
       bool userspace_p = q.has_process;
       string fname = (string(lvalue ? "_dwarf_tvar_set" : "_dwarf_tvar_get")
-                      + "_" + e->sym_name()
+                      + "_" + escaped_indentifier_string (e->sym_name())
                       + "_" + lex_cast(tick++));
 
 

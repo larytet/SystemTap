@@ -96,6 +96,8 @@ int regexp_match (const std::string& value, const std::string& re, std::vector<s
 bool contains_glob_chars (const std::string &str);
 std::string escape_glob_chars (const std::string& str);
 std::string unescape_glob_chars (const std::string& str);
+bool identifier_string_needs_escape (const std::string& str);
+std::string escaped_indentifier_string (const std::string& str);
 std::string kernel_release_from_build_tree (const std::string &kernel_build_tree, int verbose = 0);
 std::string normalize_machine(const std::string& machine);
 int elf_class_from_normalized_machine(const std::string& machine);
