@@ -12,6 +12,12 @@ typedef int32_t key_serial_t;
 
 #define __KEYCTL_ARG_TYPE unsigned long
 
+// On arm (3.11.10-301.fc20.armv7hl), the KEYCTL_GET_PERSISTENT code
+// causes a SIGSEGV.
+#if defined(__arm__) && defined(KEYCTL_GET_PERSISTENT)
+#undef KEYCTL_GET_PERSISTENT
+#endif
+
 key_serial_t __add_key(const char *type, const char *description,
                        const void *payload, size_t plen, key_serial_t ringid)
 {

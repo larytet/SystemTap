@@ -29,7 +29,7 @@ int main()
     //staptest// shmget (NNNN, 65535, IPC_CREAT|IPC_EXCL|0600) = NNNN
 
     addr = shmat(shmid, NULL, SHM_RDONLY);
-    //staptst// shmat (NNNN, 0, SHM_RDONLY) = NNNN
+    //staptst// shmat (NNNN, 0x0, SHM_RDONLY) = NNNN
     
     addr = shmat(shmid, addr, SHM_REMAP);
     //staptst// shmat (NNNN, XXXX, SHM_REMAP) = NNNN
