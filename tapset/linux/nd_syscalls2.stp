@@ -877,14 +877,20 @@ probe nd_syscall.readahead = kprobe.function("sys_readahead") ?
 	asmlinkage()
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-		offset = longlong_arg(2)
-		count = ulong_arg(3)
+	offset = longlong_arg(2)
+	count = ulong_arg(3)
+%:
+%( arch == "arm" %?
+	# arm has some odd rules regarding long long arguments.
+	offset = longlong_arg(3)
+	count = ulong_arg(5)
 %:
 	# On a 32-bit kernel, 'long long' arguments take the space of
 	# 2 arguments, so we have to adjust the following argument
 	# numbers.
 	offset = longlong_arg(2)
 	count = ulong_arg(4)
+%)
 %)
 	argstr = sprintf("%d, %d, %u", fd, offset, count)
 }
