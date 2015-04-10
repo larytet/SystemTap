@@ -173,6 +173,15 @@ struct inline_instance_info : base_func_info
   bool operator<(const inline_instance_info& other) const;
 };
 
+/* We'll need some context when dwflpp::loc2c_error is called.
+   So we can attach some detailed information about (the location of)
+   the DWARF that failed to be translated. Needs updating before each
+   loc2c c_translate call. */
+struct loc2c_context
+{
+  Dwarf_Die *die;
+  Dwarf_Addr pc;
+};
 
 struct dwflpp
 {
@@ -191,6 +200,10 @@ struct dwflpp
 
   std::string module_name;
   std::string function_name;
+
+  // Some context for dwflpp::loc2c_error callback.
+  // Needs updating before each loc2c c_translate call.
+  struct loc2c_context l2c_ctx;
 
   dwflpp(systemtap_session & session, const std::string& user_module, bool kernel_p);
   dwflpp(systemtap_session & session, const std::vector<std::string>& user_modules, bool kernel_p);

@@ -2647,7 +2647,7 @@ dwflpp::inner_die_containing_pc(Dwarf_Die& scope, Dwarf_Addr addr,
 
 
 void
-dwflpp::loc2c_error (void *, const char *fmt, ...)
+dwflpp::loc2c_error (void *arg, const char *fmt, ...)
 {
   const char *msg = "?";
   char *tmp = NULL;
@@ -2660,7 +2660,15 @@ dwflpp::loc2c_error (void *, const char *fmt, ...)
   else
     msg = tmp;
   va_end (ap);
-  throw SEMANTIC_ERROR (msg);
+
+  dwflpp *pp = (dwflpp *) arg;
+  semantic_error err(ERR_SRC, msg);
+  string what = pp->die_location_as_string(pp->l2c_ctx.pc, pp->l2c_ctx.die);
+  string where = pp->die_location_as_function_string (pp->l2c_ctx.pc,
+						      pp->l2c_ctx.die);
+  err.details.push_back(what);
+  err.details.push_back(where);
+  throw err;
 }
 
 
@@ -3166,6 +3174,8 @@ dwflpp::translate_location(struct obstack *pool,
   /* There is no location expression, but a constant value instead.  */
   if (dwarf_whatattr (attr) == DW_AT_const_value)
     {
+      l2c_ctx.pc = pc;
+      l2c_ctx.die = die;
       *tail = c_translate_constant (pool, &loc2c_error, this,
 				    &loc2c_emit_address, 0, pc, attr);
       return *tail;
@@ -3233,6 +3243,8 @@ dwflpp::translate_location(struct obstack *pool,
   else
     cfa_ops = NULL;
 
+  l2c_ctx.pc = pc;
+  l2c_ctx.die = die;
   return c_translate_location (pool, &loc2c_error, this,
                                &loc2c_emit_address,
                                1, 0 /* PR9768 */,
@@ -3447,7 +3459,10 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
           if (pool)
-            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    {
+	      l2c_ctx.die = typedie;
+	      c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    }
           dwarf_die_type (typedie, typedie, c.tok);
           break;
 
@@ -3458,7 +3473,10 @@ dwflpp::translate_components(struct obstack *pool,
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
           if (pool)
-            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    {
+	      l2c_ctx.die = typedie;
+	      c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    }
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -3471,15 +3489,21 @@ dwflpp::translate_components(struct obstack *pool,
           if (c.type == target_symbol::comp_literal_array_index)
             {
               if (pool)
-                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
-                                   NULL, c.num_index);
+		{
+		  l2c_ctx.die = typedie;
+                  c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+				     NULL, c.num_index);
+		}
             }
           else if (c.type == target_symbol::comp_expression_array_index)
             {
               string index = "STAP_ARG_index" + lex_cast(i);
               if (pool)
-                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
-                                   index.c_str(), 0);
+		{
+		  l2c_ctx.die = typedie;
+                  c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                                     index.c_str(), 0);
+		}
             }
           else
             throw SEMANTIC_ERROR (_F("invalid access '%s' for array type",
@@ -3606,6 +3630,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
         throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
 
+      l2c_ctx.die = vardie;
       c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "STAP_RETVALUE");
       return;
     }
@@ -3655,6 +3680,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       // Fallthrough. enumeration_types are always scalar.
     case DW_TAG_enumeration_type:
 
+      l2c_ctx.die = vardie;
       if (lvalue)
         c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
                            "STAP_ARG_value");
@@ -3676,6 +3702,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                 typetag == DW_TAG_rvalue_reference_type)
               throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
             assert (typetag == DW_TAG_pointer_type);
+	    l2c_ctx.die = typedie;
             c_translate_pointer_store (pool, 1, 0 /* PR9768 */, typedie, tail,
                                        "STAP_ARG_value");
           }
@@ -3688,6 +3715,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
             // For several reasons, this was taken back out, leaving
             // pointer-to-string "conversion" (copying) to tapset functions.
 
+	    l2c_ctx.die = typedie;
             if (typetag == DW_TAG_array_type)
               c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
             else
@@ -3827,6 +3855,8 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
       if (dwarf_attr_integrate (&vardie, DW_AT_external, &attr_mem) != NULL
 	  && vardie_from_symtable (&vardie, &addr_loc.number) != 0)
 	{
+	  l2c_ctx.pc = pc;
+	  l2c_ctx.die = &vardie;
 	  head = c_translate_location (&pool, &loc2c_error, this,
 				       &loc2c_emit_address,
 				       1, 0, pc,
@@ -3928,6 +3958,8 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                              (dwarf_diename(cu) ?: "<unknown>")), e->tok);
     }
 
+  l2c_ctx.pc = pc;
+  l2c_ctx.die = scope_die;
   struct location  *head = c_translate_location (&pool, &loc2c_error, this,
                                                  &loc2c_emit_address,
                                                  1, 0 /* PR9768 */,
@@ -3990,6 +4022,8 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
 
   struct obstack pool;
   obstack_init (&pool);
+  l2c_ctx.pc = 1;
+  l2c_ctx.die = start_typedie;
   struct location *head = c_translate_argument (&pool, &loc2c_error, this,
                                                 &loc2c_emit_address,
                                                 1, "STAP_ARG_pointer");
@@ -4013,6 +4047,7 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
       if (typetag != DW_TAG_pointer_type &&
           typetag != DW_TAG_array_type)
         {
+	  l2c_ctx.die = &typedie;
           if (c->type == target_symbol::comp_literal_array_index)
             c_translate_array_pointer (&pool, 1, &typedie, &tail, NULL, c->num_index);
           else
