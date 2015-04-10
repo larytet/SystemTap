@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -613,6 +613,9 @@ private:
   std::string die_location_as_string(Dwarf_Addr, Dwarf_Die*);
   std::string die_location_as_function_string(Dwarf_Addr, Dwarf_Die*);
   std::string pc_die_line_string(Dwarf_Addr, Dwarf_Die*);
+
+  /* source file name, line and column info for pc in current cu. */
+  const char *pc_line (Dwarf_Addr, int *, int *);
 
   struct location *translate_location(struct obstack *pool,
                                       Dwarf_Attribute *attr,

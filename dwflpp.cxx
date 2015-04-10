@@ -2569,7 +2569,17 @@ dwflpp::function_file (char const ** c)
 {
   assert (function);
   assert (c);
-  *c = dwarf_decl_file (function) ?: "<unknown source>";
+  *c = dwarf_decl_file (function);
+  if (*c == NULL)
+    {
+      // The line table might know.
+      Dwarf_Addr pc;
+      if (dwarf_lowpc(function, &pc) == 0)
+	*c = pc_line (pc, NULL, NULL);
+
+      if (*c == NULL)
+	*c = "<unknown source>";
+    }
 }
 
 
@@ -2577,7 +2587,13 @@ void
 dwflpp::function_line (int *linep)
 {
   assert (function);
-  dwarf_decl_line (function, linep);
+  if (dwarf_decl_line (function, linep) != 0)
+    {
+      // The line table might know.
+      Dwarf_Addr pc;
+      if (dwarf_lowpc(function, &pc) == 0)
+	pc_line (pc, linep, NULL);
+    }
 }
 
 
@@ -2992,6 +3008,27 @@ die_name_string (Dwarf_Die *die)
   return res;
 }
 
+/* Returns a source file name, line and column information based on the
+   pc and the current cu.  */
+const char *
+dwflpp::pc_line (Dwarf_Addr pc, int *lineno, int *colno)
+{
+  if (pc != 0)
+    {
+      Dwarf_Line *line = dwarf_getsrc_die (cu, pc);
+      if (line != NULL)
+	{
+	  if (lineno != NULL)
+	    dwarf_lineno (line, lineno);
+	  if (colno != NULL)
+	    dwarf_linecol (line, colno);
+	  return dwarf_linesrc (line, NULL, NULL);
+	}
+    }
+
+  return NULL;
+}
+
 /* Returns a source line and column string based on the inlined DIE
    or based on the pc if DIE is NULL. */
 string
@@ -3004,15 +3041,7 @@ dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
   lineno = col = -1;
 
   if (die == NULL)
-    {
-      Dwarf_Line *line = dwarf_getsrc_die (cu, pc);
-      if (line != NULL)
-	{
-	  src = dwarf_linesrc (line, NULL, NULL);
-	  dwarf_lineno (line, &lineno);
-	  dwarf_linecol (line, &col);
-	}
-    }
+    src = pc_line (pc, &lineno, &col);
   else
     {
       Dwarf_Files *files;
@@ -3034,6 +3063,8 @@ dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
 		}
 	    }
 	}
+      else
+	src = pc_line (pc, &lineno, &col);
     }
 
   if (src != NULL)
