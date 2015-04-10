@@ -1754,6 +1754,9 @@ declare_noncontig_union (struct obstack *pool, int indent,
   if (depth > 9)
     FAIL (loc, N_("declaring noncontig union for depth > 9, too many pieces"));
 
+  if (loc->byte_size > 8)
+    FAIL (loc, N_("cannot create noncontig union type larger than 64 bits"));
+
   obstack_printf (pool, "%*sunion {\n", indent++ * 2, "");
 
   obstack_printf (pool, "%*schar bytes[%" PRIu64 "];\n",
