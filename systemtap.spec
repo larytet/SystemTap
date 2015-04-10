@@ -53,8 +53,7 @@
    %endif
 %endif
 
-%define dracutlibdir %{_prefix}/lib/dracut
-%define dracutstap %{dracutlibdir}/modules.d/99stap
+%define dracutstap %{_prefix}/lib/dracut/modules.d/99stap
 
 Name: systemtap
 Version: 2.8
@@ -453,7 +452,13 @@ cd ..
 %global virt_config --disable-virt
 %endif
 
-%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
+%if %{with_dracut}
+%global dracut_config --with-dracutstap=%{dracutstap}
+%else
+%global dracut_config
+%endif
+
+%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
 
 %if %{with_emacsvim}

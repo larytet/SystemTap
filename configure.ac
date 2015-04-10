@@ -324,6 +324,17 @@ AS_IF([test "x$with_nss" != "xno"], [
 
 AM_CONDITIONAL([HAVE_NSS], [test "${have_nss}" = "yes"])
 
+dnl Handle dracut directory configuration.  Note we hard-code /usr by default,
+dnl instead of $prefix, because dracut is a system service that doesn't listen
+dnl at relocatable directories.
+AC_ARG_WITH([dracutstap],
+  AS_HELP_STRING([--with-dracutstap=DIR],
+    [Install dracut module files in DIR]))
+AS_IF([test "x$with_dracutstap" != "x"],[dracutstap="$with_dracutstap"],
+            [dracutstap=/usr/lib/dracut/modules.d/99stap])
+AC_MSG_NOTICE([using dracut module directory $dracutstap])
+AC_SUBST(dracutstap)
+
 dnl Handle the option to build the compile server.
 AC_ARG_ENABLE([server],
   AS_HELP_STRING([--enable-server],

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # NB: $moddir only works in install()
-. @prefix@/lib/dracut/modules.d/99stap/params.conf
+. @dracutstap@/params.conf
 
 # Return 0 --> install stap module
 # Return 1 --> skip stap module

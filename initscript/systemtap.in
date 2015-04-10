@@ -59,7 +59,7 @@ TEMP_PATH=/tmp
 LOG_FILE=@localstatedir@/log/systemtap.log
 
 # NB: this path is also used in 99stap/module-setup.sh
-DRACUT_SRC=@prefix@/lib/dracut/modules.d/99stap/params.conf
+DRACUT_SRC=@dracutstap@/params.conf
 
 # FAIL unless all scripts succeeded to run
 PASSALL=yes

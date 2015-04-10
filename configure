@@ -669,6 +669,7 @@ avahi_LIBS
 avahi_CFLAGS
 BUILD_SERVER_FALSE
 BUILD_SERVER_TRUE
+dracutstap
 HAVE_NSS_FALSE
 HAVE_NSS_TRUE
 nss_LIBS
@@ -850,6 +851,7 @@ enable_crash
 enable_docs
 enable_refdocs
 with_nss
+with_dracutstap
 enable_server
 with_avahi
 with_rpm
@@ -1546,6 +1548,7 @@ Optional Packages:
   --with-libintl-prefix[=DIR]  search for libintl in DIR/include and DIR/lib
   --without-libintl-prefix     don't search for libintl in includedir and libdir
   --without-nss           Do not use NSS even if present
+  --with-dracutstap=DIR   Install dracut module files in DIR
   --without-avahi         Do not use Avahi even if present
   --with-rpm              query rpm database for missing debuginfos
   --with-elfutils=DIRECTORY
@@ -10091,6 +10094,21 @@ else
   HAVE_NSS_TRUE='#'
   HAVE_NSS_FALSE=
 fi
+
+
+
+# Check whether --with-dracutstap was given.
+if test "${with_dracutstap+set}" = set; then :
+  withval=$with_dracutstap;
+fi
+
+if test "x$with_dracutstap" != "x"; then :
+  dracutstap="$with_dracutstap"
+else
+  dracutstap=/usr/lib/dracut/modules.d/99stap
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: using dracut module directory $dracutstap" >&5
+$as_echo "$as_me: using dracut module directory $dracutstap" >&6;}
 
 
 # Check whether --enable-server was given.
