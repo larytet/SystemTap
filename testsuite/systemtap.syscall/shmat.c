@@ -35,7 +35,7 @@ int main()
     //staptst// shmat (NNNN, XXXX, SHM_REMAP) = NNNN
 
     shmdt(addr);
-    //staptest// shmdt (XXXX) = 0
+    //staptest// shmdt (XXXX) = NNNN
 
     shmat(-1, NULL, SHM_RND);
     //staptst// shmat (NNNN, 0x0, SHM_RND) = -NNNN
