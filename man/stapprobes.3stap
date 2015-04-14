@@ -121,7 +121,7 @@ all of which are probed.
 .SH DWARF DEBUGINFO
 
 Resolving some probe points requires DWARF debuginfo or "debug
-symbols" for the specific part being instrumented.  For some others,
+symbols" for the \fIspecific program\fR being instrumented.  For some others,
 DWARF is automatically synthesized on the fly from source code header
 files.  For others, it is not needed at all.  Since a systemtap script
 may use any mixture of probe points together, the union of their DWARF
@@ -131,7 +131,8 @@ occurs.  (See the \fI\-\-use\-server\fR option and the \fBstap-server\
 which allows these requirements to be met on a different machine.)
 .PP
 The following point lists many of the available probe point families,
-to classify them with respect to their need for DWARF debuginfo.
+to classify them with respect to their need for DWARF debuginfo for
+the specific program for that probe point.
 
 .TS
 l l l.
