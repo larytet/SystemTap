@@ -1171,6 +1171,26 @@ probe nd_syscall.sync.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.sync_file_range ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %d, %d(%s)", fd, offset, nbytes, flags, flags_str)
+}
+probe syscall.sync_file_range.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.syncfs ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d\n", fd)
+}
+probe syscall.syncfs.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.sysctl
 {
 	printf("%s, %s\n", name, argstr)

@@ -189,4 +189,5 @@ probe begin {
 	print (_prctl_argstr(0, 0, 0, 0, 0))
 	print (_stp_timerfd_flags_str(0))
 	print (_stp_fallocate_mode_str(0))
+	print (_sync_file_range_flags_str(0))
 }

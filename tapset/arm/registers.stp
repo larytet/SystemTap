@@ -167,7 +167,7 @@ deref_fault: /* branched to from kread() */
  */
 function _stp_arg:long (argnum:long) {
 	val = 0
-	if (argnum < 1 || argnum > 6) {
+	if (argnum < 1 || argnum > 7) {
 		error(sprintf("Cannot access arg(%d)", argnum))
 		return 0
 	}

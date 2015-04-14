@@ -5028,3 +5028,26 @@ function _struct_compat_timex_u:string(uaddr:long)
 		}
 	}
 %}
+
+%{
+#include <linux/fs.h>
+static const _stp_val_array const _stp_sync_file_range_list[] = {
+#ifdef SYNC_FILE_RANGE_WAIT_BEFORE
+  V(SYNC_FILE_RANGE_WAIT_BEFORE),
+#endif
+#ifdef SYNC_FILE_RANGE_WRITE
+  V(SYNC_FILE_RANGE_WRITE),
+#endif
+#ifdef SYNC_FILE_RANGE_WAIT_AFTER
+  V(SYNC_FILE_RANGE_WAIT_AFTER),
+#endif
+  {0, NULL}
+};
+%}
+
+function _sync_file_range_flags_str:string(flags:long)
+%{
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_sync_file_range_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+%}
