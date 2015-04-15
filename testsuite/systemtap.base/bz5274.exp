@@ -24,7 +24,7 @@ if {$err == "" && [file exists $test]} then {
     fail "$test compile"
 }
 
-if {[catch {exec stap $tpath.stp -c "$srcdir/$subdir/$test.sh"} res]} {
+if {[catch {exec stap -w $tpath.stp -c "$srcdir/$subdir/$test.sh"} res]} {
     untested "$test longjmp to a uretprobed function"
     verbose -log "$res"
     catch {exec rm -f $test.out}
