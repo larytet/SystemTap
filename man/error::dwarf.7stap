@@ -78,6 +78,12 @@ way to tell if this is the problem.  If you're building your own copy
 of elfutils, ensure all decompression library headers/libraries are
 available at build time.
 
+.TP
+debuginfo configuration
+Some tools may generate debuginfo that is unsupported by systemtap, such
+as the linux kernel CONFIG_DEBUG_INFO_SPLIT (\f2.dwo\f1 files) option.
+Stick with plain ELF/DWARF (optinally split, Fedora-style), if possible.
+
 .SH ALTERNATIVES
 
 In order to reduce reliance on ELF/DWARF debuginfo, consider the use of
