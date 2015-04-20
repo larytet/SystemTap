@@ -1,0 +1,1 @@
+probe process("./multisym").function("foo") { printf ("hit") }
