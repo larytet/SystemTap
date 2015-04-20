@@ -5063,3 +5063,403 @@ function _sync_file_range_flags_str:string(flags:long)
 	_stp_lookup_or_str(_stp_sync_file_range_list, flags,
 			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
+
+%{
+#include <asm/siginfo.h>
+static const _stp_val_array const _stp_siginfo_si_code_list[] = {
+  V(SI_USER),
+  V(SI_KERNEL),
+  V(SI_QUEUE),
+  V(SI_TIMER),
+  V(SI_MESGQ),
+  V(SI_ASYNCIO),
+  V(SI_SIGIO),
+  V(SI_TKILL),
+  V(SI_DETHREAD),
+  {0, NULL}
+};
+
+/* SIGILL si_codes */
+static const _stp_val_array const _stp_sigill_si_code_list[] = {
+  V(ILL_ILLOPC),
+  V(ILL_ILLOPN),
+  V(ILL_ILLADR),
+  V(ILL_ILLTRP),
+  V(ILL_PRVOPC),
+  V(ILL_PRVREG),
+  V(ILL_COPROC),
+  V(ILL_BADSTK),
+  {0, NULL}
+};
+
+/* SIGFPE si_codes */
+static const _stp_val_array const _stp_sigfpe_si_code_list[] = {
+  V(FPE_INTDIV),
+  V(FPE_INTOVF),
+  V(FPE_FLTDIV),
+  V(FPE_FLTOVF),
+  V(FPE_FLTUND),
+  V(FPE_FLTRES),
+  V(FPE_FLTINV),
+  V(FPE_FLTSUB),
+  {0, NULL}
+};
+
+/* SIGSEGV si_codes */
+static const _stp_val_array const _stp_sigsegv_si_code_list[] = {
+  V(SEGV_MAPERR),
+  V(SEGV_ACCERR),
+#ifdef SEGV_BNDERR
+  V(SEGV_BNDERR),
+#endif
+  {0, NULL}
+};
+
+/* SIGBUS si_codes */
+static const _stp_val_array const _stp_sigbus_si_code_list[] = {
+  V(BUS_ADRALN),
+  V(BUS_ADRERR),
+  V(BUS_OBJERR),
+#ifdef BUS_MCEERR_AR
+  V(BUS_MCEERR_AR),
+#endif
+#ifdef BUS_MCEERR_AO
+  V(BUS_MCEERR_AO),
+#endif
+  {0, NULL}
+};
+
+/* SIGTRAP si_codes */
+static const _stp_val_array const _stp_sigtrap_si_code_list[] = {
+  V(TRAP_BRKPT),
+  V(TRAP_TRACE),
+#ifdef TRAP_BRANCH
+  V(TRAP_BRANCH),
+#endif
+#ifdef TRAP_HWBKPT
+  V(TRAP_HWBKPT),
+#endif
+  {0, NULL}
+};
+
+/* SIGCHLD si_codes */
+static const _stp_val_array const _stp_sigchld_si_code_list[] = {
+  V(CLD_EXITED),
+  V(CLD_KILLED),
+  V(CLD_DUMPED),
+  V(CLD_TRAPPED),
+  V(CLD_STOPPED),
+  V(CLD_CONTINUED),
+  {0, NULL}
+};
+
+/* SIGPOLL si_codes */
+static const _stp_val_array const _stp_sigpoll_si_code_list[] = {
+  V(POLL_IN),
+  V(POLL_OUT),
+  V(POLL_MSG),
+  V(POLL_ERR),
+  V(POLL_PRI),
+  V(POLL_HUP),
+  {0, NULL}
+};
+
+/* SIGSYS si_codes */
+static const _stp_val_array const _stp_sigsys_si_code_list[] = {
+#ifdef SYS_SECCOMP
+  V(SYS_SECCOMP),
+#endif
+  {0, NULL}
+};
+%}
+
+function _stp_siginfo_u:string(uaddr:long)
+%{ /* pure */
+	siginfo_t sinfo;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL) {
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		return;
+	}
+	if (_stp_copy_from_user((void *)&sinfo, ptr,
+				sizeof(sinfo)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+
+	strlcpy(STAP_RETVALUE, "{si_signo=", MAXSTRINGLEN);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_signal_list, sinfo.si_signo,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	strlcpy(STAP_RETVALUE + len, ", si_code=", MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_siginfo_si_code_list, sinfo.si_code,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+
+	// OK, this is odd. If si_code didn't match anything in
+	// _stp_siginfo_si_code_list, we need to decode si_code based
+	// on the si_signo value.
+	if (*(STAP_RETVALUE + len) == '0') {
+		const _stp_val_array *array = NULL;
+		switch (sinfo.si_signo) {
+		case SIGILL:
+			array = _stp_sigill_si_code_list;
+			break;
+		case SIGFPE:
+			array = _stp_sigfpe_si_code_list;
+			break;
+		case SIGSEGV:
+			array = _stp_sigsegv_si_code_list;
+			break;
+		case SIGBUS:
+			array = _stp_sigbus_si_code_list;
+			break;
+		case SIGTRAP:
+			array = _stp_sigtrap_si_code_list;
+			break;
+		case SIGCHLD:
+			array = _stp_sigchld_si_code_list;
+			break;
+		case SIGPOLL:
+			array = _stp_sigpoll_si_code_list;
+			break;
+		case SIGSYS:
+			array = _stp_sigsys_si_code_list;
+			break;
+		default:
+			// Do nothing. The original si_code lookup
+			// added a hex version.
+			break;
+		}
+		if (array)
+			_stp_lookup_str(array, sinfo.si_code,
+					STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	}
+	len = strlen(STAP_RETVALUE);
+#ifdef SI_FROMUSER
+	if (SI_FROMUSER(&sinfo)) {
+		switch (sinfo.si_code) {
+		case SI_TIMER:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_tid=%#x, si_overrun=%d",
+				 sinfo.si_tid, sinfo.si_overrun);
+			break;
+		default:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	else
+#endif /* SI_FROMUSER */
+	{
+		switch (sinfo.si_signo) {
+		case SIGCHLD:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu, si_status=",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			len = strlen(STAP_RETVALUE);
+			if (sinfo.si_code == CLD_EXITED)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 "%d", sinfo.si_status);
+			else
+				_stp_lookup_str(_stp_signal_list,
+						sinfo.si_status,
+						STAP_RETVALUE + len,
+						MAXSTRINGLEN - len);
+			break;
+		case SIGILL:
+		case SIGFPE:
+		case SIGSEGV:
+		case SIGBUS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_addr=%#lx", (unsigned long)sinfo.si_addr);
+			break;
+		case SIGPOLL:
+			if (sinfo.si_code == POLL_IN
+			    || sinfo.si_code == POLL_OUT
+			    || sinfo.si_code == POLL_MSG)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_band=%ld", (long)sinfo.si_band);
+				break;
+			break;
+#if defined(SIGSYS) && defined(__ARCH_SIGSYS)
+		case SIGSYS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_call_addr=%#lx, si_syscall=%d, si_arch=%u",
+				 (unsigned long)(sinfo.si_call_addr),
+				 sinfo.si_syscall, sinfo.si_arch);
+			break;
+#endif
+		default:
+			if (sinfo.si_pid || sinfo.si_uid)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_pid=%lu, si_uid=%lu",
+					 (unsigned long)sinfo.si_pid,
+					 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	len = strlen(STAP_RETVALUE);
+	strlcat(STAP_RETVALUE, "}", MAXSTRINGLEN);
+%}
+
+%{
+#ifdef CONFIG_COMPAT
+#include <linux/compat.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
+#include "linux/compat_siginfo.h"
+#endif
+#endif
+%}
+
+function _stp_compat_siginfo_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+	compat_siginfo_t sinfo;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL) {
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+		return;
+	}
+	if (_stp_copy_from_user((void *)&sinfo, ptr,
+				sizeof(sinfo)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+
+	strlcpy(STAP_RETVALUE, "{si_signo=", MAXSTRINGLEN);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_signal_list, sinfo.si_signo,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	strlcpy(STAP_RETVALUE + len, ", si_code=", MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_siginfo_si_code_list, sinfo.si_code,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+
+	// OK, this is odd. If si_code didn't match anything in
+	// _stp_siginfo_si_code_list, we need to decode si_code based
+	// on the si_signo value.
+	if (*(STAP_RETVALUE + len) == '0') {
+		const _stp_val_array *array = NULL;
+		switch (sinfo.si_signo) {
+		case SIGILL:
+			array = _stp_sigill_si_code_list;
+			break;
+		case SIGFPE:
+			array = _stp_sigfpe_si_code_list;
+			break;
+		case SIGSEGV:
+			array = _stp_sigsegv_si_code_list;
+			break;
+		case SIGBUS:
+			array = _stp_sigbus_si_code_list;
+			break;
+		case SIGTRAP:
+			array = _stp_sigtrap_si_code_list;
+			break;
+		case SIGCHLD:
+			array = _stp_sigchld_si_code_list;
+			break;
+		case SIGPOLL:
+			array = _stp_sigpoll_si_code_list;
+			break;
+		case SIGSYS:
+			array = _stp_sigsys_si_code_list;
+			break;
+		default:
+			// Do nothing. The original si_code lookup
+			// added a hex version.
+			break;
+		}
+		if (array)
+			_stp_lookup_str(array, sinfo.si_code,
+					STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	}
+	len = strlen(STAP_RETVALUE);
+#ifdef SI_FROMUSER
+	if (SI_FROMUSER(&sinfo)) {
+		switch (sinfo.si_code) {
+		case SI_TIMER:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_tid=%#x, si_overrun=%d",
+				 sinfo.si_tid, sinfo.si_overrun);
+			break;
+		default:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	else
+#endif /* SI_FROMUSER */
+	{
+		switch (sinfo.si_signo) {
+		case SIGCHLD:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_pid=%lu, si_uid=%lu, si_status=",
+				 (unsigned long)sinfo.si_pid,
+				 (unsigned long)sinfo.si_uid);
+			len = strlen(STAP_RETVALUE);
+			if (sinfo.si_code == CLD_EXITED)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 "%d", sinfo.si_status);
+			else
+				_stp_lookup_str(_stp_signal_list,
+						sinfo.si_status,
+						STAP_RETVALUE + len,
+						MAXSTRINGLEN - len);
+			break;
+		case SIGILL:
+		case SIGFPE:
+		case SIGSEGV:
+		case SIGBUS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_addr=%#lx", (unsigned long)sinfo.si_addr);
+			break;
+		case SIGPOLL:
+			if (sinfo.si_code == POLL_IN
+			    || sinfo.si_code == POLL_OUT
+			    || sinfo.si_code == POLL_MSG)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_band=%ld", (long)sinfo.si_band);
+				break;
+			break;
+// Checking for SIGSYS/__ARCH_SIGSYS is fine for the "real" siginfo_t,
+// but the compat version can be without the SIGSYS fields, so we'll
+// have to add an arch test.
+#if defined(SIGSYS) && defined(__ARCH_SIGSYS) \
+    && !defined(__s390x__) && !defined(__powerpc64__)
+		case SIGSYS:
+			snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+				 ", si_call_addr=%#lx, si_syscall=%d, si_arch=%u",
+				 (unsigned long)sinfo.si_call_addr,
+				 sinfo.si_syscall, sinfo.si_arch);
+			break;
+#endif
+		default:
+			if (sinfo.si_pid || sinfo.si_uid)
+				snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
+					 ", si_pid=%lu, si_uid=%lu",
+					 (unsigned long)sinfo.si_pid,
+					 (unsigned long)sinfo.si_uid);
+			break;
+		}
+	}
+	len = strlen(STAP_RETVALUE);
+	strlcat(STAP_RETVALUE, "}", MAXSTRINGLEN);
+#endif /* CONFIG_COMPAT */
+%}

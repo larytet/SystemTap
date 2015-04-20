@@ -1504,8 +1504,9 @@ probe syscall.rt_sigaction32 = kernel.function("sys32_rt_sigaction").call ?,
 	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
 		_struct_sigaction32_u(act_uaddr), $oact, $sigsetsize)
 }
-probe syscall.rt_sigaction32.return = kernel.function("sys32_rt_sigaction").return ?,
-                                      kernel.function("compat_sys_rt_sigaction").return ?
+probe syscall.rt_sigaction32.return =
+	kernel.function("sys32_rt_sigaction").return ?,
+	kernel.function("compat_sys_rt_sigaction").return ?
 {
 	name = "rt_sigaction"
 	retstr = return_str(1, $return)
@@ -1636,28 +1637,34 @@ probe syscall.compat_rt_sigprocmask.return =
 #
 # long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
 #
-probe syscall.rt_sigqueueinfo = __syscall.rt_sigqueueinfo ?,
-                                kernel.function("sys32_rt_sigqueueinfo").call ?,
-                                kernel.function("compat_sys_rt_sigqueueinfo").call ?
+probe syscall.rt_sigqueueinfo =
+	__syscall.rt_sigqueueinfo ?,
+	kernel.function("sys32_rt_sigqueueinfo").call ?,
+	kernel.function("compat_sys_rt_sigqueueinfo").call ?
 {
 	name = "rt_sigqueueinfo"
 	pid = __int32($pid)
 	sig = __int32($sig)
 	uinfo_uaddr = $uinfo
-	argstr = sprintf("%d, %s, %p", pid, _signal_name(sig), $uinfo)
+	argstr = sprintf("%d, %s, %s", pid, _signal_name(sig),
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_siginfo_u($uinfo)
+			  : _stp_siginfo_u($uinfo)))
 }
 probe __syscall.rt_sigqueueinfo = kernel.function("sys_rt_sigqueueinfo").call
 {
 	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
 }
-probe syscall.rt_sigqueueinfo.return = __syscall.rt_sigqueueinfo.return ?,
-                                       kernel.function("sys32_rt_sigqueueinfo").return ?,
-                                       kernel.function("compat_sys_rt_sigqueueinfo").return ?
+probe syscall.rt_sigqueueinfo.return =
+	__syscall.rt_sigqueueinfo.return ?,
+	kernel.function("sys32_rt_sigqueueinfo").return ?,
+	kernel.function("compat_sys_rt_sigqueueinfo").return ?
 {
 	name = "rt_sigqueueinfo"
 	retstr = return_str(1, $return)
 }
-probe __syscall.rt_sigqueueinfo.return = kernel.function("sys_rt_sigqueueinfo").return
+probe __syscall.rt_sigqueueinfo.return =
+	kernel.function("sys_rt_sigqueueinfo").return
 {
 	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
 }
@@ -1683,18 +1690,24 @@ probe syscall.rt_sigreturn.return =
 
 # rt_sigsuspend ______________________________________________
 #
-# sys_rt_sigsuspend(struct pt_regs regs)
+# SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 #
 probe syscall.rt_sigsuspend = kernel.function("compat_sys_rt_sigsuspend").call ?,
                               kernel.function("ia64_rt_sigsuspend").call ?,
                               kernel.function("sys_rt_sigsuspend").call ?
 {
 	name = "rt_sigsuspend"
-	argstr = ""
+	set_uaddr = $unewset
+	sigsetsize = $sigsetsize
+	argstr = sprintf("%s, %u",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigset_u(set_uaddr)
+			  : _stp_sigset_u(set_uaddr)), sigsetsize)
 }
-probe syscall.rt_sigsuspend.return = kernel.function("compat_sys_rt_sigsuspend").return ?,
-                                     kernel.function("ia64_rt_sigsuspend").return ?,
-                                     kernel.function("sys_rt_sigsuspend").return ?
+probe syscall.rt_sigsuspend.return =
+	kernel.function("compat_sys_rt_sigsuspend").return ?,
+	kernel.function("ia64_rt_sigsuspend").return ?,
+	kernel.function("sys_rt_sigsuspend").return ?
 {
 	name = "rt_sigsuspend"
 	retstr = return_str(1, $return)
@@ -1710,20 +1723,64 @@ probe syscall.rt_sigsuspend.return = kernel.function("compat_sys_rt_sigsuspend")
 #		struct compat_siginfo __user *uinfo,
 #		struct compat_timespec __user *uts, compat_size_t sigsetsize)
 #
-probe syscall.rt_sigtimedwait = kernel.function("compat_sys_rt_sigtimedwait").call ?,
-                                kernel.function("sys_rt_sigtimedwait").call
+probe syscall.rt_sigtimedwait =
+	kernel.function("compat_sys_rt_sigtimedwait").call ?,
+	kernel.function("sys_rt_sigtimedwait").call
 {
 	name = "rt_sigtimedwait"
-	uthese_uaddr = $uthese
-	uinfo_uaddr = $uinfo
-	uts_uaddr = $uts
+	uthese_uaddr = @__pointer($uthese)
+	uinfo_uaddr = @__pointer($uinfo)
+	uts_uaddr = @__pointer($uts)
 	sigsetsize = $sigsetsize
-	argstr = sprintf("%p, %p, %p, %d", $uthese, $uinfo, $uts, $sigsetsize)
+	if (%{ /* pure */ _stp_is_compat_task() %})
+		argstr = sprintf("%s, %s, %s, %d",
+				 _stp_compat_sigset_u(uthese_uaddr),
+			 	 _stp_compat_siginfo_u(uinfo_uaddr),
+				 _struct_compat_timespec_u(uts_uaddr, 1),
+				 sigsetsize)
+	else
+		argstr = sprintf("%s, %s, %s, %d",
+				 _stp_sigset_u(uthese_uaddr),
+				 _stp_siginfo_u(uinfo_uaddr),
+				 _struct_timespec_u(uts_uaddr, 1), sigsetsize)
 }
-probe syscall.rt_sigtimedwait.return = kernel.function("compat_sys_rt_sigtimedwait").return ?,
-                                       kernel.function("sys_rt_sigtimedwait").return
+probe syscall.rt_sigtimedwait.return =
+	kernel.function("compat_sys_rt_sigtimedwait").return ?,
+	kernel.function("sys_rt_sigtimedwait").return
 {
 	name = "rt_sigtimedwait"
+	retstr = return_str(1, $return)
+}
+
+# rt_tgsigqueueinfo ____________________________________________
+#
+# SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
+#		siginfo_t __user *, uinfo)
+# COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
+#			compat_pid_t, tgid,
+#			compat_pid_t, pid,
+#			int, sig,
+#			struct compat_siginfo __user *, uinfo)
+#
+probe syscall.rt_tgsigqueueinfo =
+	kernel.function("sys_rt_tgsigqueueinfo").call ?,
+	kernel.function("compat_sys_rt_tgsigqueueinfo").call ?
+{
+	name = "rt_tgsigqueueinfo"
+	tgid = __int32($tgid)
+	tid = __int32($pid)
+	sig = __int32($sig)
+	uinfo_uaddr = $uinfo
+	argstr = sprintf("%d, %d, %s, %s", tgid, tid, _signal_name(sig),
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_siginfo_u(uinfo_uaddr)
+			  : _stp_siginfo_u(uinfo_uaddr)))
+}
+probe syscall.rt_tgsigqueueinfo.return =
+	kernel.function("sys_rt_tgsigqueueinfo").return ?,
+	kernel.function("compat_sys_rt_tgsigqueueinfo").return ?
+{
+	name = "rt_tgsigqueueinfo"
 	retstr = return_str(1, $return)
 }
 

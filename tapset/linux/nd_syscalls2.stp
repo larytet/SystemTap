@@ -1491,7 +1491,8 @@ probe nd_syscall.rt_sigaction = kprobe.function("sys_rt_sigaction") ?
 	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
 			_struct_sigaction_u(act_uaddr), oact_uaddr, sigsetsize)
 }
-probe nd_syscall.rt_sigaction.return = kprobe.function("sys_rt_sigaction").return ?
+probe nd_syscall.rt_sigaction.return =
+	kprobe.function("sys_rt_sigaction").return ?
 {
 	name = "rt_sigaction"
 	retstr = returnstr(1)
@@ -1520,8 +1521,9 @@ probe nd_syscall.rt_sigaction32 = kprobe.function("sys32_rt_sigaction") ?,
 	argstr = sprintf("%s, {%s}, %p, %d", _signal_name(sig),
 	        _struct_sigaction32_u(act_uaddr), oact_uaddr, sigsetsize)
 }
-probe nd_syscall.rt_sigaction32.return = kprobe.function("sys32_rt_sigaction").return ?,
-                                         kprobe.function("compat_sys_rt_sigaction").return ?
+probe nd_syscall.rt_sigaction32.return =
+	kprobe.function("sys32_rt_sigaction").return ?,
+	kprobe.function("compat_sys_rt_sigaction").return ?
 {
 	name = "rt_sigaction"
 	retstr = returnstr(1)
@@ -1657,29 +1659,35 @@ probe nd_syscall.compat_rt_sigprocmask.return =
 #
 # long sys_rt_sigqueueinfo(int pid, int sig, siginfo_t __user *uinfo)
 #
-probe nd_syscall.rt_sigqueueinfo = __nd_syscall.rt_sigqueueinfo ?,
-                                   kprobe.function("sys32_rt_sigqueueinfo") ?,
-                                   kprobe.function("compat_sys_rt_sigqueueinfo") ?
+probe nd_syscall.rt_sigqueueinfo =
+	__nd_syscall.rt_sigqueueinfo ?,
+	kprobe.function("sys32_rt_sigqueueinfo") ?,
+	kprobe.function("compat_sys_rt_sigqueueinfo") ?
 {
 	name = "rt_sigqueueinfo"
 	asmlinkage()
 	pid = int_arg(1)
 	sig = int_arg(2)
 	uinfo_uaddr = pointer_arg(3)
-	argstr = sprintf("%d, %s, %p", pid, _signal_name(sig), uinfo_uaddr)
+	argstr = sprintf("%d, %s, %s", pid, _signal_name(sig),
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_siginfo_u(uinfo_uaddr)
+			  : _stp_siginfo_u(uinfo_uaddr)))
 }
 probe __nd_syscall.rt_sigqueueinfo = kprobe.function("sys_rt_sigqueueinfo")
 {
 	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
 }
-probe nd_syscall.rt_sigqueueinfo.return = __nd_syscall.rt_sigqueueinfo.return,
-                                   kprobe.function("sys32_rt_sigqueueinfo").return ?,
-                                   kprobe.function("compat_sys_rt_sigqueueinfo").return ?
+probe nd_syscall.rt_sigqueueinfo.return =
+	__nd_syscall.rt_sigqueueinfo.return ?,
+	kprobe.function("sys32_rt_sigqueueinfo").return ?,
+	kprobe.function("compat_sys_rt_sigqueueinfo").return ?
 {
 	name = "rt_sigqueueinfo"
 	retstr = returnstr(1)
 }
-probe __nd_syscall.rt_sigqueueinfo.return = kprobe.function("sys_rt_sigqueueinfo").return
+probe __nd_syscall.rt_sigqueueinfo.return =
+	kprobe.function("sys_rt_sigqueueinfo").return
 {
 	@__syscall_gate(%{ __NR_rt_sigqueueinfo %})
 }
@@ -1705,18 +1713,25 @@ probe nd_syscall.rt_sigreturn.return =
 
 # rt_sigsuspend ______________________________________________
 #
-# sys_rt_sigsuspend(struct pt_regs regs)
+# SYSCALL_DEFINE2(rt_sigsuspend, sigset_t __user *, unewset, size_t, sigsetsize)
 #
-probe nd_syscall.rt_sigsuspend = kprobe.function("compat_sys_rt_sigsuspend") ?,
-                                 kprobe.function("ia64_rt_sigsuspend") ?,
-                                 kprobe.function("sys_rt_sigsuspend") ?
+probe nd_syscall.rt_sigsuspend = kprobe.function("sys_rt_sigsuspend") ?,
+	kprobe.function("ia64_rt_sigsuspend") ?,
+	kprobe.function("compat_sys_rt_sigsuspend") ?
 {
+	asmlinkage()
 	name = "rt_sigsuspend"
-	argstr = ""
+	set_uaddr = pointer_arg(1)
+	sigsetsize = ulong_arg(2)
+	argstr = sprintf("%s, %u",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigset_u(set_uaddr)
+			  : _stp_sigset_u(set_uaddr)), sigsetsize)
 }
-probe nd_syscall.rt_sigsuspend.return = kprobe.function("compat_sys_rt_sigsuspend").return ?,
-                                        kprobe.function("ia64_rt_sigsuspend").return ?,
-                                        kprobe.function("sys_rt_sigsuspend").return ?
+probe nd_syscall.rt_sigsuspend.return =
+	kprobe.function("sys_rt_sigsuspend").return ?,
+	kprobe.function("ia64_rt_sigsuspend").return ?,
+	kprobe.function("compat_sys_rt_sigsuspend").return ?
 {
 	name = "rt_sigsuspend"
 	retstr = returnstr(1)
@@ -1740,7 +1755,17 @@ probe nd_syscall.rt_sigtimedwait = __nd_syscall.rt_sigtimedwait ?,
 	uthese_uaddr = pointer_arg(1)
 	uinfo_uaddr = pointer_arg(2)
 	uts_uaddr = pointer_arg(3)
-	argstr = sprintf("%p, %p, %p, %d", uthese_uaddr, uinfo_uaddr, uts_uaddr, sigsetsize)
+	if (%{ /* pure */ _stp_is_compat_task() %})
+		argstr = sprintf("%s, %s, %s, %d",
+				 _stp_compat_sigset_u(uthese_uaddr),
+			 	 _stp_compat_siginfo_u(uinfo_uaddr),
+				 _struct_compat_timespec_u(uts_uaddr, 1),
+				 sigsetsize)
+	else
+		argstr = sprintf("%s, %s, %s, %d",
+				 _stp_sigset_u(uthese_uaddr),
+				 _stp_siginfo_u(uinfo_uaddr),
+				 _struct_timespec_u(uts_uaddr, 1), sigsetsize)
 }
 probe __nd_syscall.rt_sigtimedwait = kprobe.function("sys_rt_sigtimedwait")
 {
@@ -1753,10 +1778,44 @@ probe __nd_syscall.compat_rt_sigtimedwait =
 	asmlinkage()
 	sigsetsize = u32_arg(4)
 }
-probe nd_syscall.rt_sigtimedwait.return = kprobe.function("compat_sys_rt_sigtimedwait").return ?,
-                                          kprobe.function("sys_rt_sigtimedwait").return ?
+probe nd_syscall.rt_sigtimedwait.return =
+	kprobe.function("compat_sys_rt_sigtimedwait").return ?,
+	kprobe.function("sys_rt_sigtimedwait").return ?
 {
 	name = "rt_sigtimedwait"
+	retstr = returnstr(1)
+}
+
+# rt_tgsigqueueinfo ____________________________________________
+#
+# SYSCALL_DEFINE4(rt_tgsigqueueinfo, pid_t, tgid, pid_t, pid, int, sig,
+#		siginfo_t __user *, uinfo)
+# COMPAT_SYSCALL_DEFINE4(rt_tgsigqueueinfo,
+#			compat_pid_t, tgid,
+#			compat_pid_t, pid,
+#			int, sig,
+#			struct compat_siginfo __user *, uinfo)
+#
+probe nd_syscall.rt_tgsigqueueinfo =
+	kprobe.function("sys_rt_tgsigqueueinfo") ?,
+	kprobe.function("compat_sys_rt_tgsigqueueinfo") ?
+{
+	name = "rt_tgsigqueueinfo"
+	asmlinkage()
+	tgid = int_arg(1)
+	tid = int_arg(2)
+	sig = int_arg(3)
+	uinfo_uaddr = pointer_arg(4)
+	argstr = sprintf("%d, %d, %s, %s", tgid, tid, _signal_name(sig),
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_siginfo_u(uinfo_uaddr)
+			  : _stp_siginfo_u(uinfo_uaddr)))
+}
+probe nd_syscall.rt_tgsigqueueinfo.return =
+	kprobe.function("sys_rt_tgsigqueueinfo").return ?,
+	kprobe.function("compat_sys_rt_tgsigqueueinfo").return ?
+{
+	name = "rt_tgsigqueueinfo"
 	retstr = returnstr(1)
 }
 

@@ -1,5 +1,16 @@
 #! stap -Wp4
 
+probe nd_syscall.name_to_handle_at ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s), %s, %p, %p, %d(%s)", dfd, dfd_str, pathname,
+			 handle_uaddr, mnt_id_uaddr, flags, flags_str)
+}
+probe nd_syscall.name_to_handle_at.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.nanosleep, nd_syscall.compat_nanosleep ?
 {
 	printf("%s(%s)\n", name, argstr)
@@ -38,6 +49,17 @@ probe nd_syscall.ni_syscall
 	printf("%s(%s)\n", name, argstr)
 }
 probe nd_syscall.ni_syscall.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.open_by_handle_at ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s), %p, %d(%s)", mount_dfd, mount_dfd_str, handle_uaddr,
+	       flags, flags_str)
+}
+probe nd_syscall.open_by_handle_at.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -438,11 +460,21 @@ probe nd_syscall.rt_sigqueueinfo.return
 	printf("%s %s\n", name, retstr)
 }
 
-probe nd_syscall.rt_sigreturn ?, nd_syscall.rt_sigsuspend ?
+probe nd_syscall.rt_sigreturn ?
 {
 	printf("%s(%s)\n", name, argstr)
 }
-probe nd_syscall.rt_sigreturn.return ?, nd_syscall.rt_sigsuspend.return ?
+probe nd_syscall.rt_sigreturn.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.rt_sigsuspend ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %u", set_uaddr, sigsetsize)
+}
+probe nd_syscall.rt_sigsuspend.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -454,6 +486,16 @@ probe nd_syscall.rt_sigtimedwait
 	       sigsetsize)
 }
 probe nd_syscall.rt_sigtimedwait.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.rt_tgsigqueueinfo ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d, %d, %p", tgid, tid, sig, uinfo_uaddr)
+}
+probe nd_syscall.rt_tgsigqueueinfo.return ?
 {
 	printf("%s %s\n", name, retstr)
 }

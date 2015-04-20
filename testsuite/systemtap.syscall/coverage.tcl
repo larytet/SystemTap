@@ -6,9 +6,15 @@
 # - dmi_field_show: Non-syscall picked up by the "sys_*" wildcard below.
 # - dmi_modalias_show: Ditto.
 # - ni_syscall: non-implemented syscall
+# - rt_sigreturn: rt_sigreturn is a syscall that you don't call
+#		  directly, so we can't really test it. glibc calls it
+#		  in signal handlers. 
 # - socketcall: common entry point for other socket syscalls
 # - tux: obsolete
-set badlist { bdflush dmi_field_show dmi_modalias_show ni_syscall socketcall tux }
+set badlist {
+    bdflush dmi_field_show dmi_modalias_show ni_syscall rt_sigreturn
+    socketcall tux
+}
 
 foreach f $badlist {
     set funcname($f) -1

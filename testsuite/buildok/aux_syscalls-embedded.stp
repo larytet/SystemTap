@@ -190,4 +190,6 @@ probe begin {
 	print (_stp_timerfd_flags_str(0))
 	print (_stp_fallocate_mode_str(0))
 	print (_sync_file_range_flags_str(0))
+	print (_stp_siginfo_u(0))
+	print (_stp_compat_siginfo_u(0))
 }

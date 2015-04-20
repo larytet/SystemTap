@@ -434,11 +434,21 @@ probe syscall.rt_sigqueueinfo.return
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.rt_sigreturn ?, syscall.rt_sigsuspend ?
+probe syscall.rt_sigreturn ?
 {
 	printf("%s(%s)\n", name, argstr)
 }
-probe syscall.rt_sigreturn.return ?, syscall.rt_sigsuspend.return ?
+probe syscall.rt_sigreturn.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.rt_sigsuspend ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %u", set_uaddr, sigsetsize)
+}
+probe syscall.rt_sigsuspend.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -450,6 +460,16 @@ probe syscall.rt_sigtimedwait
 	       sigsetsize)
 }
 probe syscall.rt_sigtimedwait.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.rt_tgsigqueueinfo ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d, %d, %p", tgid, tid, sig, uinfo_uaddr)
+}
+probe syscall.rt_tgsigqueueinfo.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
