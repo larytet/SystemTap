@@ -811,7 +811,8 @@ function _struct_rlimit_u:string(uaddr:long)
 			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "[%ld,%ld]",
 				rl.rlim_cur, rl.rlim_max);
 		else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %}
 
@@ -2857,11 +2858,20 @@ static const _stp_val_array const _stp_signal_list[] = {
 	V(SIGTTIN),
 	V(SIGTTOU),
 	V(SIGURG),
+#ifdef SIGXCPU
+	V(SIGXCPU),
+#endif
+#ifdef SIGXFSZ
+	V(SIGXFSZ),
+#endif
+	V(SIGVTALRM),
 	V(SIGPROF),
 	V(SIGWINCH),
-	V(SIGVTALRM),
 	{SIGIO,"SIGIO/SIGPOLL"},
 	V(SIGPWR),
+#ifdef SIGSYS
+	V(SIGSYS),
+#endif
 	{SIGTRAP|0x80,"TRACESYSGOOD"},
 	{0, NULL}
 };
@@ -2875,13 +2885,17 @@ static void _stp_sigset_str(sigset_t *mask, char *ptr, int len)
 		    && sigismember(mask, array[i].val)) {
 			if (flag)
 				strlcat(ptr, "|", len);
+			else
+				strlcat(ptr, "[",  len);
 			strlcat(ptr, array[i].name, len);
 			flag = 1;
 		}
 		i++;
 	}
 	if (flag == 0)
-		strlcat(ptr, "EMPTY", len);
+		strlcat(ptr, "[EMPTY]", len);
+	else
+		strlcat(ptr, "]", len);
 }
 %}
 
@@ -2934,10 +2948,11 @@ function _stp_sigset_u:string(setptr:long)
 	if (ptr == NULL)
 		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
 	else {
-		if(_stp_copy_from_user((char*)&set,ptr,sizeof(sigset_t)) == 0)
-			_stp_sigset_str(&set, STAP_RETVALUE, MAXSTRINGLEN);			
+		if (_stp_copy_from_user((char*)&set,ptr,sizeof(sigset_t)) == 0)
+			_stp_sigset_str(&set, STAP_RETVALUE, MAXSTRINGLEN);
 		else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 %}
 
@@ -2958,7 +2973,8 @@ function _stp_compat_sigset_u:string(setptr:long)
 			_stp_sigset_str(&new_set, STAP_RETVALUE, MAXSTRINGLEN);
 		}
 		else
-			strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+				 (unsigned long)ptr);
 	}
 #endif
 %}
@@ -3224,7 +3240,8 @@ function get_mmap_args:string (args:long)
 		len = strlen(STAP_RETVALUE);
 		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, "%ld, %ld", (long)a.fd, (long)a.offset);
 	} else
-		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)STAP_ARG_args);
 %}
 
 
@@ -3270,12 +3287,9 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
 #if !defined (__ia64__)
       slen = strlen(ptr);
       _stp_snprintf(ptr + slen, len - slen,
-		    "0x%lx, [", (long)act->sa_restorer);
-#else
-      strlcat (ptr, "[", len);
+		    "0x%lx, ", (long)act->sa_restorer);
 #endif
       _stp_sigset_str(&act->sa_mask, ptr, len);
-      strlcat (ptr, "]", len);
     }
 }
 %}
@@ -3283,9 +3297,7 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
 function _stp_sigmask_str:string(sigmask:long)
 %{ /* pure */
   long mask = (long)STAP_ARG_sigmask;      
-  strlcpy (STAP_RETVALUE, "[", MAXSTRINGLEN);
   _stp_sigset_str((sigset_t *)&mask, STAP_RETVALUE, MAXSTRINGLEN);
-  strlcat (STAP_RETVALUE, "]", MAXSTRINGLEN);
 %}
 
 function _struct_sigaction_u:string(uaddr:long)
@@ -3301,7 +3313,7 @@ function _struct_sigaction_u:string(uaddr:long)
 			     sizeof(struct sigaction)) == 0)
 	_stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);
       else
-	strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", (unsigned long)ptr);
     }
 %}
 
@@ -3357,7 +3369,7 @@ function _struct_sigaction32_u:string(uaddr:long)
 	  _stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);	  
 	}
       else
-	strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", (unsigned long)ptr);
     }
 #endif
 %}
@@ -3399,7 +3411,7 @@ function _struct_old_sigaction32_u:string(uaddr:long)
 	  _stp_sigaction_str(&act, STAP_RETVALUE, MAXSTRINGLEN);	  
 	}
       else
-	strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx", (unsigned long)ptr);
     }
 #endif
 %}
@@ -5046,7 +5058,7 @@ static const _stp_val_array const _stp_sync_file_range_list[] = {
 %}
 
 function _sync_file_range_flags_str:string(flags:long)
-%{
+%{ /* pure */
 	unsigned int flags = (unsigned int)STAP_ARG_flags;
 	_stp_lookup_or_str(_stp_sync_file_range_list, flags,
 			   STAP_RETVALUE, MAXSTRINGLEN);

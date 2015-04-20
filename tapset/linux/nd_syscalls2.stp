@@ -1608,7 +1608,7 @@ probe nd_syscall.rt_sigprocmask = kprobe.function("sys_rt_sigprocmask") ?
 	if (%{ /* pure */ _stp_is_compat_task() %}
 	    && _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
 		oldset_uaddr = uint_arg(3)
-		argstr = sprintf("%s, [%s], %p, %d", how_str,
+		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
 				 int_arg(4))
 	}
@@ -1616,7 +1616,7 @@ probe nd_syscall.rt_sigprocmask = kprobe.function("sys_rt_sigprocmask") ?
 %)
 	{
 		oldset_uaddr = pointer_arg(3)
-		argstr = sprintf("%s, [%s], %p, %d", how_str,
+		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_sigset_u(set_uaddr), oldset_uaddr,
 				 uint_arg(4))
 	}
@@ -1641,7 +1641,7 @@ probe nd_syscall.compat_rt_sigprocmask =
 	how_str = _sigprocmask_how_str(how)
 	set_uaddr = pointer_arg(2)
 	oldset_uaddr = pointer_arg(3)
-	argstr = sprintf("%s, [%s], %p, %d", how_str,
+	argstr = sprintf("%s, %s, %p, %d", how_str,
 			 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
 			 uint_arg(4))
 }
@@ -4138,11 +4138,29 @@ probe nd_syscall.sync.return = kprobe.function("sys_sync").return
 # we can just probe that.
 probe nd_syscall.sync_file_range = kprobe.function("sys_sync_file_range") ?
 {
+	asmlinkage()
 	name = "sync_file_range"
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-	offset = longlong_arg(2)
-	nbytes = longlong_arg(3)
+%( arch == "s390" %?
+	# On s390x RHEL7 (3.10.0-229.el7.s390x), when longlong_arg()
+	# gets called On a 32-bit executable it tries to grab the
+	# 64-bit value out of 2 different registers. However, at this
+	# point the value has been put into a single
+	# register. Normally we'd fix this by probing the the compat
+	# function. But, on this kernel the compat function is in
+	# assembly language, which we can't probe. So, we'll grab the
+	# registers directly.
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
+		offset = u_register("r3")
+		nbytes = u_register("r4")
+	}
+	else
+%)
+	{
+		offset = longlong_arg(2)
+		nbytes = longlong_arg(3)
+	}
 	flags = uint_arg(4)
 %:
 %( arch == "arm" %?
@@ -4172,6 +4190,7 @@ probe nd_syscall.sync_file_range.return =
 # SYSCALL_DEFINE1(syncfs, int, fd)
 probe nd_syscall.syncfs = kprobe.function("sys_syncfs") ?
 {
+	asmlinkage()
 	name = "syncfs"
 	fd = int_arg(1)
 	argstr = sprintf("%d", fd)

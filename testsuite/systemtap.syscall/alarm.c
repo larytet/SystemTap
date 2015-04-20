@@ -27,9 +27,9 @@ int main()
 
   pause();
 #if defined(__ia64__) || defined(__aarch64__)
-  //staptest// rt_sigsuspend () =
+  //staptest// rt_sigsuspend (\[EMPTY\], 8) = NNNN
 #else
-  //staptest// pause () =
+  //staptest// pause () = NNNN
 #endif
 
   alarm(0);

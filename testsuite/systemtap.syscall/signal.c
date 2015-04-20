@@ -163,9 +163,9 @@ int main()
   //staptest// ni_syscall () = -38 (ENOSYS)
 #else
 #ifdef __s390__
-  //staptest// sigaction (SIGUSR1, {UNKNOWN}, 0x0+) = -NNNN (EFAULT)
+  //staptest// sigaction (SIGUSR1, \{0x[7]?[f]+\}, 0x0+) = -NNNN (EFAULT)
 #else
-  //staptest// sigaction (SIGUSR1, {UNKNOWN}, 0x0+) = -NNNN (EFAULT)
+  //staptest// sigaction (SIGUSR1, \{0x[f]+\}, 0x0+) = -NNNN (EFAULT)
 #endif
 #endif
 

@@ -1590,7 +1590,7 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 	if (%{ /* pure */ _stp_is_compat_task() %}
 	    && _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
 		oldset_uaddr = __uint32($oset)
-		argstr = sprintf("%s, [%s], %p, %d", how_str,
+		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
 				 __int32($sigsetsize))
 	}
@@ -1598,7 +1598,7 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 %)
 	{
 		oldset_uaddr = $oset
-		argstr = sprintf("%s, [%s], %p, %d", how_str,
+		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_sigset_u(set_uaddr), $oset, $sigsetsize)
 	}
 }
@@ -1620,7 +1620,7 @@ probe syscall.compat_rt_sigprocmask =
 	how_str = _sigprocmask_how_str(how)
 	set_uaddr = @__pointer(@choose_defined($set, $nset))
 	oldset_uaddr = __uint32($oset)
-	argstr = sprintf("%s, [%s], %p, %d", how_str,
+	argstr = sprintf("%s, %s, %p, %d", how_str,
 			 _stp_compat_sigset_u(set_uaddr), __uint32($oset),
 			 __uint32($sigsetsize))
 }

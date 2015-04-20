@@ -38,7 +38,11 @@ int main()
     //staptest// setrlimit (RLIM_INFINITY, \[NNNN,NNNN\]) = NNNN (EINVAL)
 
     setrlimit(RLIMIT_CPU, (const struct rlimit *)-1);
-    //staptest// setrlimit (RLIMIT_CPU, UNKNOWN) = NNNN (EFAULT)
+#ifdef __s390__
+    //staptest// setrlimit (RLIMIT_CPU, 0x[7]?[f]+) = NNNN (EFAULT)
+#else
+    //staptest// setrlimit (RLIMIT_CPU, 0x[f]+) = NNNN (EFAULT)
+#endif
 
     return 0;
 }

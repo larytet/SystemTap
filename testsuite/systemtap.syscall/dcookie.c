@@ -48,20 +48,20 @@ int main()
     cookie_t c = 0;
 
     lookup_dcookie(0x12345678abcdefabLL, (char *)0x11223344, LENGTH);
-    //staptest// lookup_dcookie (0x12345678abcdefab, 0x11223344, 0xff) = NNNN (EINVAL)
+    //staptest// lookup_dcookie (0x12345678abcdefab, 0x11223344, 0xff) = -NNNN
 
     lookup_dcookie(-1, (char *)0, 0);
-    //staptest// lookup_dcookie (0xffffffffffffffff, 0x0, 0x0) = NNNN (EINVAL)
+    //staptest// lookup_dcookie (0xffffffffffffffff, 0x0, 0x0) = -NNNN
 
     lookup_dcookie(0, (char *)-1, 0);
 #ifdef __s390__
-    //staptest// lookup_dcookie (0x0, 0x[7]?[f]+, 0x0) = NNNN (EINVAL)
+    //staptest// lookup_dcookie (0x0, 0x[7]?[f]+, 0x0) = -NNNN
 #else
-    //staptest// lookup_dcookie (0x0, 0x[f]+, 0x0) = NNNN (EINVAL)
+    //staptest// lookup_dcookie (0x0, 0x[f]+, 0x0) = -NNNN
 #endif
 
     lookup_dcookie(0, (char *)0, -1);
-    //staptest// lookup_dcookie (0x0, 0x0, 0x[f]+) = NNNN (EINVAL)
+    //staptest// lookup_dcookie (0x0, 0x0, 0x[f]+) = -NNNN
 
 
     return 0;

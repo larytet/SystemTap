@@ -52,7 +52,7 @@ int main() {
     // being addressed in the tapset.
 
     iopl(3);
-    //staptest// iopl (3) = 0
+    //staptest// iopl (3) = NNNN
 
     iopl(-1);
     //staptest// iopl (4294967295) = NNNN
