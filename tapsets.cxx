@@ -66,7 +66,17 @@ extern "C" {
 using namespace std;
 using namespace __gnu_cxx;
 
-
+// for elf.h where PPC64_LOCAL_ENTRY_OFFSET isn't defined
+#ifndef PPC64_LOCAL_ENTRY_OFFSET
+#define STO_PPC64_LOCAL_BIT    5
+#define STO_PPC64_LOCAL_MASK   (7 << STO_PPC64_LOCAL_BIT)
+#define PPC64_LOCAL_ENTRY_OFFSET(other)					\
+ (((1 << (((other) & STO_PPC64_LOCAL_MASK) >> STO_PPC64_LOCAL_BIT)) >> 2) << 2)
+#endif
+// for elf.h where EF_PPC64_ABI isn't defined
+#ifndef EF_PPC64_ABI
+#define EF_PPC64_ABI 3
+#endif
 
 // ------------------------------------------------------------------------
 
@@ -2050,6 +2060,18 @@ query_dwarf_inline_instance (Dwarf_Die * die, dwarf_query * q)
     }
 }
 
+static bool
+is_filtered_func_exists (func_info_map_t filtered, func_info *fi)
+{
+  for (unsigned i = 0; i < filtered.size(); i++)
+    {
+      if ((filtered[i].entrypc == fi->entrypc) && (filtered[i].name == fi->name))
+        return true;
+    }
+
+  return false;
+}
+
 static int
 query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
 {
@@ -2100,7 +2122,35 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
           q->dw.function_line (&func.decl_line);
 
           Dwarf_Addr entrypc;
-          if (q->dw.function_entrypc (&entrypc))
+
+          func.entrypc = 0;
+          Dwarf_Addr bias;
+          Dwfl_Module *mod = q->dw.module;
+          Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+                     ?: dwfl_module_getelf (mod, &bias));
+
+          GElf_Ehdr ehdr_mem;
+          GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+          if (em == NULL) throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
+          /* Giving priority to sym_table for ppc64*/
+          if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
+              && (q->dw.mod_info->sym_table))
+            {
+              set<func_info *> *fis;
+              fis = q->dw.mod_info->sym_table->lookup_symbol(func.name);
+              if (fis && !fis->empty())
+                {
+                  for (set<func_info*>::iterator it=fis->begin(); it!=fis->end() ; ++it)
+                    {
+                      func.entrypc = (*it)->addr;
+                      if (is_filtered_func_exists(q->filtered_functions, &func))
+                        continue;
+                      q->filtered_functions.push_back(func);
+                    }
+                }
+            }
+          else if (!func.entrypc && q->dw.function_entrypc (&entrypc))
             {
               func.entrypc = entrypc;
               q->filtered_functions.push_back (func);
@@ -8140,6 +8190,14 @@ symbol_table::get_from_elf()
   int syments = dwfl_module_getsymtab(mod);
   assert(syments);
   prepare_section_rejection(mod);
+  Dwarf_Addr bias;
+  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+              ?: dwfl_module_getelf (mod, &bias));
+
+  GElf_Ehdr ehdr_mem;
+  GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+  if (em == NULL) throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
   for (int i = 1; i < syments; ++i)
     {
       GElf_Sym sym;
@@ -8168,6 +8226,16 @@ symbol_table::get_from_elf()
       addr = sym.st_value;
       reject = reject_section(section);
 #endif
+     /*
+      * For ELF ABI v2 on PPC64 LE, we need to adjust sym.st_value corresponding
+      * to the bits of sym.st_other. These bits will tell us what's the offset
+      * of the local entry point from the global entry point.
+      *
+      * st_other field is currently only used with ABIv2 on ppc64
+      */
+      if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
+          && (GELF_ST_TYPE(sym.st_info) == STT_FUNC) && sym.st_other)
+        addr += PPC64_LOCAL_ENTRY_OFFSET(sym.st_other);
 
       if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
