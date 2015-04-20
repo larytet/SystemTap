@@ -395,7 +395,7 @@ struct
 symbol_table
 {
   module_info *mod_info;	// associated module
-  map<string, func_info*> map_by_name;
+  multimap<string, func_info*> map_by_name;
   multimap<Dwarf_Addr, func_info*> map_by_addr;
   map<string, Dwarf_Addr> globals;
   map<string, Dwarf_Addr> locals;
@@ -410,8 +410,8 @@ symbol_table
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
   void purge_syscall_stubs();
-  func_info *lookup_symbol(const string& name);
-  Dwarf_Addr lookup_symbol_address(const string& name);
+  set <func_info*> *lookup_symbol(const string& name);
+  list <Dwarf_Addr> *lookup_symbol_address(const string& name);
   func_info *get_func_containing_address(Dwarf_Addr addr);
   func_info *get_first_func();
 
@@ -1113,9 +1113,15 @@ dwarf_query::query_module_symtab()
         }
       else
         {
-          fi = sym_table->lookup_symbol(function_str_val);
-          if (fi && !fi->descriptor && null_die(&fi->die))
-	     query_symtab_func_info(*fi, this);
+          set<func_info*> *fis = sym_table->lookup_symbol(function_str_val);
+          if (!fis || fis->empty())
+            return;
+          for (set<func_info*>::iterator it=fis->begin(); it!=fis->end(); ++it)
+            {
+              fi = *it;
+              if (fi && !fi->descriptor && null_die(&fi->die))
+                query_symtab_func_info(*fi, this);
+            }
         }
     }
 }
@@ -7484,8 +7490,8 @@ suggest_dwarf_functions(systemtap_session& sess,
       // add all function symbols in cache
       if (module->symtab_status != info_present || module->sym_table == NULL)
         continue;
-      map<string, func_info*>& modfuncs = module->sym_table->map_by_name;
-      for (map<string, func_info*>::const_iterator itfuncs = modfuncs.begin();
+      multimap<string, func_info*>& modfuncs = module->sym_table->map_by_name;
+      for (multimap<string, func_info*>::const_iterator itfuncs = modfuncs.begin();
            itfuncs != modfuncs.end(); ++itfuncs)
         funcs.insert(itfuncs->first);
     }
@@ -8072,9 +8078,8 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
   fi->name = name;
   fi->weak = weak;
   fi->descriptor = descriptor;
-  map_by_name[fi->name] = fi;
-  // TODO: Use a multimap in case there are multiple static
-  // functions with the same name?
+
+  map_by_name.insert(make_pair(fi->name, fi));
   map_by_addr.insert(make_pair(addr, fi));
 }
 
@@ -8194,22 +8199,32 @@ symbol_table::get_first_func()
   return (iter)->second;
 }
 
-func_info *
+set <func_info*> *
 symbol_table::lookup_symbol(const string& name)
 {
-  map<string, func_info*>::iterator i = map_by_name.find(name);
-  if (i == map_by_name.end())
-    return NULL;
-  return i->second;
+  set<func_info*> *fis = new set<func_info*>;
+  pair <multimap<string, func_info*>::iterator, multimap<string, func_info*>::iterator> ret;
+  ret = map_by_name.equal_range(name);
+
+  for (multimap<string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
+    fis->insert(it->second);
+
+  return fis;
 }
 
-Dwarf_Addr
+list <Dwarf_Addr> *
 symbol_table::lookup_symbol_address(const string& name)
 {
-  func_info *fi = lookup_symbol(name);
-  if (fi)
-    return fi->addr;
-  return 0;
+  list <Dwarf_Addr> *addrs = new list<Dwarf_Addr>;
+  set <func_info*> *fis = lookup_symbol(name);
+
+  if (!fis || fis->empty())
+    return NULL;
+
+  for (set<func_info*>::iterator it=fis->begin(); it!=fis->end(); ++it)
+    addrs->push_back((*it)->addr);
+
+  return addrs;
 }
 
 // This is the kernel symbol table.  The kernel macro cond_syscall creates
@@ -8223,9 +8238,14 @@ symbol_table::lookup_symbol_address(const string& name)
 void
 symbol_table::purge_syscall_stubs()
 {
-  Dwarf_Addr stub_addr = lookup_symbol_address("sys_ni_syscall");
-  if (stub_addr == 0)
+  list<Dwarf_Addr> *addrs = lookup_symbol_address("sys_ni_syscall");
+  if (!addrs || addrs->empty())
     return;
+  /* Highly unlikely that multiple symbols named "sys_ni_syscall" may exist */
+  if (addrs->size() > 1)
+    cerr << _("Multiple 'sys_ni_syscall' symbols found.");
+  Dwarf_Addr stub_addr = addrs->front();
+
   range_t purge_range = map_by_addr.equal_range(stub_addr);
   for (iterator_t iter = purge_range.first;
        iter != purge_range.second;
@@ -8299,21 +8319,25 @@ module_info::update_symtab(cu_function_cache_t *funcs)
       // missing, so we may also need to try matching by address.  See also the
       // notes about _Z in dwflpp::iterate_over_functions().
 
-      func_info *fi = sym_table->lookup_symbol(func->first);
-      if (!fi)
+      set<func_info*> *fis = sym_table->lookup_symbol(func->first);
+      if (!fis || fis->empty())
         continue;
 
-      // iterate over all functions at the same address
-      symbol_table::range_t er = sym_table->map_by_addr.equal_range(fi->addr);
-      for (symbol_table::iterator_t it = er.first; it != er.second; ++it)
+      for (set<func_info*>::iterator fi = fis->begin(); fi!=fis->end(); ++fi)
         {
-          // update this function with the dwarf die
-          it->second->die = func->second;
+          // iterate over all functions at the same address
+          symbol_table::range_t er = sym_table->map_by_addr.equal_range((*fi)->addr);
 
-          // if this function is a new alias, then
-          // save it to merge into the function cache
-          if (it->second != fi)
-            new_funcs.insert(make_pair(it->second->name, it->second->die));
+          for (symbol_table::iterator_t it = er.first; it != er.second; ++it)
+            {
+              // update this function with the dwarf die
+              it->second->die = func->second;
+
+              // if this function is a new alias, then
+              // save it to merge into the function cache
+              if (it->second != *fi)
+                new_funcs.insert(make_pair(it->second->name, it->second->die));
+            }
         }
     }
 
