@@ -1,5 +1,16 @@
 #! stap -Wp4
 
+probe syscall.name_to_handle_at ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s), %s, %p, %p, %d(%s)", dfd, dfd_str, pathname,
+			 handle_uaddr, mnt_id_uaddr, flags, flags_str)
+}
+probe syscall.name_to_handle_at.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.nanosleep, syscall.compat_nanosleep ?
 {
 	printf("%s(%s)\n", name, argstr)
@@ -38,6 +49,17 @@ probe syscall.ni_syscall
 	printf("%s(%s)\n", name, argstr)
 }
 probe syscall.ni_syscall.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.open_by_handle_at ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s), %p, %d(%s)", mount_dfd, mount_dfd_str, handle_uaddr,
+	       flags, flags_str)
+}
+probe syscall.open_by_handle_at.return ?
 {
 	printf("%s %s\n", name, retstr)
 }

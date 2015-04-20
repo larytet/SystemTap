@@ -21,6 +21,32 @@
 *          Set in return probes only.
 */
 
+# name_to_handle_at __________________________________________
+#
+# SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
+#		struct file_handle __user *, handle, int __user *, mnt_id,
+#		int, flag)
+probe syscall.name_to_handle_at =
+	kernel.function("sys_name_to_handle_at").call ?
+{
+	name = "name_to_handle_at"
+	dfd = __int32($dfd)
+	dfd_str = _dfd_str(dfd)
+	pathname = user_string_quoted($name)
+	handle_uaddr = $handle
+	mnt_id_uaddr = $mnt_id
+	flags = $flag
+	flags_str = _at_flag_str(flags)
+	argstr = sprintf("%s, %s, %p, %p, %s", dfd_str, pathname,
+			 handle_uaddr, mnt_id_uaddr, flags_str)
+}
+probe syscall.name_to_handle_at.return =
+	kernel.function("sys_name_to_handle_at").return ?
+{
+	name = "name_to_handle_at"
+	retstr = return_str(1, $return)
+}
+
 # nanosleep __________________________________________________
 #
 # long sys_nanosleep(struct timespec __user *rqtp,
@@ -114,6 +140,33 @@ probe syscall.ni_syscall = kernel.function("sys_ni_syscall").call
 probe syscall.ni_syscall.return = kernel.function("sys_ni_syscall").return
 {
 	name = "ni_syscall"
+	retstr = return_str(1, $return)
+}
+
+# open_by_handle_at ___________________________________________
+#
+# SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+#		struct file_handle __user *, handle,
+#		int, flags)
+# COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+#			     struct file_handle __user *, handle, int, flags)
+probe syscall.open_by_handle_at =
+	kernel.function("sys_open_by_handle_at").call ?,
+	kernel.function("compat_sys_open_by_handle_at").call ?
+{
+	name = "open_by_handle_at"
+	mount_dfd = __int32($mountdirfd)
+	mount_dfd_str = _dfd_str(mount_dfd)
+	handle_uaddr = $handle
+	flags = __int32($flags)
+	flags_str = _sys_open_flag_str(flags)
+	argstr = sprintf("%s, %p, %s", mount_dfd_str, handle_uaddr, flags_str)
+}
+probe syscall.open_by_handle_at.return =
+	kernel.function("sys_open_by_handle_at").return ?,
+	kernel.function("compat_sys_open_by_handle_at").return ?
+{
+	name = "open_by_handle_at"
 	retstr = return_str(1, $return)
 }
 

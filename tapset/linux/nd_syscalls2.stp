@@ -21,6 +21,33 @@
 *          Set in return probes only.
 */
 
+# name_to_handle_at __________________________________________
+#
+# SYSCALL_DEFINE5(name_to_handle_at, int, dfd, const char __user *, name,
+#		struct file_handle __user *, handle, int __user *, mnt_id,
+#		int, flag)
+probe nd_syscall.name_to_handle_at =
+	kprobe.function("sys_name_to_handle_at").call ?
+{
+	name = "name_to_handle_at"
+	asmlinkage()
+	dfd = int_arg(1)
+	dfd_str = _dfd_str(dfd)
+	pathname = user_string_quoted(pointer_arg(2))
+	handle_uaddr = pointer_arg(3)
+	mnt_id_uaddr = pointer_arg(4)
+	flags = int_arg(5)
+	flags_str = _at_flag_str(flags)
+	argstr = sprintf("%s, %s, %p, %p, %s", dfd_str, pathname,
+			 handle_uaddr, mnt_id_uaddr, flags_str)
+}
+probe nd_syscall.name_to_handle_at.return =
+	kprobe.function("sys_name_to_handle_at").return ?
+{
+	name = "name_to_handle_at"
+	retstr = returnstr(1)
+}
+
 # nanosleep __________________________________________________
 #
 # long sys_nanosleep(struct timespec __user *rqtp,
@@ -119,6 +146,33 @@ probe nd_syscall.ni_syscall = kprobe.function("sys_ni_syscall")
 probe nd_syscall.ni_syscall.return = kprobe.function("sys_ni_syscall").return
 {
 	name = "ni_syscall"
+	retstr = returnstr(1)
+}
+
+# open_by_handle_at ___________________________________________
+#
+# SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+#		struct file_handle __user *, handle,
+#		int, flags)
+# COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+#			     struct file_handle __user *, handle, int, flags)
+probe nd_syscall.open_by_handle_at = kprobe.function("sys_open_by_handle_at") ?,
+	kprobe.function("compat_sys_open_by_handle_at") ?
+{
+	name = "open_by_handle_at"
+	asmlinkage()
+	mount_dfd = int_arg(1)
+	mount_dfd_str = _dfd_str(mount_dfd)
+	handle_uaddr = pointer_arg(2)
+	flags = int_arg(3)
+	flags_str = _sys_open_flag_str(flags)
+	argstr = sprintf("%s, %p, %s", mount_dfd_str, handle_uaddr, flags_str)
+}
+probe nd_syscall.open_by_handle_at.return =
+	kprobe.function("sys_open_by_handle_at").return ?,
+	kprobe.function("compat_sys_open_by_handle_at").return ?
+{
+	name = "open_by_handle_at"
 	retstr = returnstr(1)
 }
 
