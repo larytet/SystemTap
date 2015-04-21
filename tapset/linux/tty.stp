@@ -75,7 +75,7 @@ probe tty.release = kernel.function("tty_release")
 */
 probe tty.resize = kernel.function("tiocswinsz")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	name = kernel_string($tty->name)
 %:
 	name = kernel_string_quoted($tty->name)
@@ -107,7 +107,7 @@ probe tty.resize = kernel.function("tiocswinsz")
  */
 probe tty.ioctl = kernel.function("tty_ioctl")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	name = kernel_string(@choose_defined($file->f_path->dentry->d_iname,
 					     $file->f_dentry->d_iname))
 %:
@@ -127,7 +127,7 @@ probe tty.ioctl = kernel.function("tty_ioctl")
 probe tty.init = kernel.function("tty_init_dev") !,
 		 kernel.function("init_dev")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	driver_name = kernel_string($driver->driver_name)
 	name = kernel_string($driver->name)
 	module = kernel_string($driver->owner->name)
@@ -147,7 +147,7 @@ probe tty.init = kernel.function("tty_init_dev") !,
  */
 probe tty.register = kernel.function("tty_register_device")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	driver_name = kernel_string($driver->driver_name)
 	name = kernel_string($driver->name)
 	module = kernel_string($driver->owner->name)
@@ -168,7 +168,7 @@ probe tty.register = kernel.function("tty_register_device")
  */
 probe tty.unregister = kernel.function("tty_unregister_device")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	driver_name = kernel_string($driver->driver_name)
 	name = kernel_string($driver->name)
 	module = kernel_string($driver->owner->name)
@@ -205,7 +205,7 @@ probe tty.poll = kernel.function("tty_poll")
  */
 probe tty.receive = kernel.function("n_tty_receive_buf")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	cp = kernel_string($cp)
 	fp = kernel_string($fp)
 %:
@@ -214,7 +214,7 @@ probe tty.receive = kernel.function("n_tty_receive_buf")
 %)
 	count = $count
 
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	driver_name = kernel_string($tty->driver->driver_name)
 	name = kernel_string($tty->driver->name)
 %:
@@ -235,7 +235,7 @@ probe tty.receive = kernel.function("n_tty_receive_buf")
 probe tty.write = kernel.function("n_tty_write") !,
 		  kernel.function("write_chan")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	buffer = kernel_string($buf)
 %:
 	buffer = kernel_string_quoted($buf)
@@ -244,7 +244,7 @@ probe tty.write = kernel.function("n_tty_write") !,
 
 	file_name = d_name(@choose_defined($file->f_path->dentry,
 					   $file->f_dentry))
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	driver_name = kernel_string($tty->driver->driver_name)
 %:
 	driver_name = kernel_string_quoted($tty->driver->driver_name)
@@ -261,7 +261,7 @@ probe tty.write = kernel.function("n_tty_write") !,
 probe tty.read = kernel.function("n_tty_read") !,
 		 kernel.function("read_chan")
 {
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	buffer = kernel_string($buf)
 %:
 	buffer = kernel_string_quoted($buf)
@@ -269,7 +269,7 @@ probe tty.read = kernel.function("n_tty_read") !,
 	nr = $nr
 	file_name = d_name(@choose_defined($file->f_path->dentry,
 					   $file->f_dentry))
-%(systemtap_v < "2.8" %:
+%(systemtap_v < "2.8" %?
 	driver_name = kernel_string($tty->driver->driver_name)
 %:
 	driver_name = kernel_string_quoted($tty->driver->driver_name)
