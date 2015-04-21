@@ -1,3 +1,5 @@
+/* COVERAGE:  name_to_handle_at open_by_handle_at */
+
 #define _GNU_SOURCE
 #include <sys/types.h>
 #include <sys/stat.h>
