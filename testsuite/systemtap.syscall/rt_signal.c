@@ -1,5 +1,5 @@
 /* COVERAGE:  rt_sigprocmask rt_sigaction rt_sigpending rt_sigqueueinfo */
-/* COVERAGE:  rt_sigsuspend rt_tgsigqueueinfo */
+/* COVERAGE:  rt_sigsuspend rt_tgsigqueueinfo rt_sigtimedwait */
 
 #define _GNU_SOURCE
 #include <sys/types.h>
