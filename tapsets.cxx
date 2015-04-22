@@ -420,8 +420,8 @@ symbol_table
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
   void purge_syscall_stubs();
-  set <func_info*> *lookup_symbol(const string& name);
-  list <Dwarf_Addr> *lookup_symbol_address(const string& name);
+  set <func_info*> lookup_symbol(const string& name);
+  set <Dwarf_Addr> lookup_symbol_address(const string& name);
   func_info *get_func_containing_address(Dwarf_Addr addr);
   func_info *get_first_func();
 
@@ -1123,10 +1123,8 @@ dwarf_query::query_module_symtab()
         }
       else
         {
-          set<func_info*> *fis = sym_table->lookup_symbol(function_str_val);
-          if (!fis || fis->empty())
-            return;
-          for (set<func_info*>::iterator it=fis->begin(); it!=fis->end(); ++it)
+          set<func_info*> fis = sym_table->lookup_symbol(function_str_val);
+          for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
             {
               fi = *it;
               if (fi && !fi->descriptor && null_die(&fi->die))
@@ -2137,17 +2135,13 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
           if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
               && (q->dw.mod_info->sym_table))
             {
-              set<func_info *> *fis;
-              fis = q->dw.mod_info->sym_table->lookup_symbol(func.name);
-              if (fis && !fis->empty())
+              set<func_info *> fis = q->dw.mod_info->sym_table->lookup_symbol(func.name);
+              for (set<func_info*>::iterator it=fis.begin(); it!=fis.end() ; ++it)
                 {
-                  for (set<func_info*>::iterator it=fis->begin(); it!=fis->end() ; ++it)
-                    {
-                      func.entrypc = (*it)->addr;
-                      if (is_filtered_func_exists(q->filtered_functions, &func))
-                        continue;
-                      q->filtered_functions.push_back(func);
-                    }
+                  func.entrypc = (*it)->addr;
+                  if (is_filtered_func_exists(q->filtered_functions, &func))
+                    continue;
+                  q->filtered_functions.push_back(func);
                 }
             }
           else if (!func.entrypc && q->dw.function_entrypc (&entrypc))
@@ -8267,30 +8261,25 @@ symbol_table::get_first_func()
   return (iter)->second;
 }
 
-set <func_info*> *
+set <func_info*>
 symbol_table::lookup_symbol(const string& name)
 {
-  set<func_info*> *fis = new set<func_info*>;
+  set<func_info*> fis;
   pair <multimap<string, func_info*>::iterator, multimap<string, func_info*>::iterator> ret;
   ret = map_by_name.equal_range(name);
-
   for (multimap<string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
-    fis->insert(it->second);
-
+    fis.insert(it->second);
   return fis;
 }
 
-list <Dwarf_Addr> *
+set <Dwarf_Addr>
 symbol_table::lookup_symbol_address(const string& name)
 {
-  list <Dwarf_Addr> *addrs = new list<Dwarf_Addr>;
-  set <func_info*> *fis = lookup_symbol(name);
+  set <Dwarf_Addr> addrs;
+  set <func_info*> fis = lookup_symbol(name);
 
-  if (!fis || fis->empty())
-    return NULL;
-
-  for (set<func_info*>::iterator it=fis->begin(); it!=fis->end(); ++it)
-    addrs->push_back((*it)->addr);
+  for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
+    addrs.insert((*it)->addr);
 
   return addrs;
 }
@@ -8306,13 +8295,14 @@ symbol_table::lookup_symbol_address(const string& name)
 void
 symbol_table::purge_syscall_stubs()
 {
-  list<Dwarf_Addr> *addrs = lookup_symbol_address("sys_ni_syscall");
-  if (!addrs || addrs->empty())
+  set<Dwarf_Addr> addrs = lookup_symbol_address("sys_ni_syscall");
+  if (addrs.empty())
     return;
+
   /* Highly unlikely that multiple symbols named "sys_ni_syscall" may exist */
-  if (addrs->size() > 1)
+  if (addrs.size() > 1)
     cerr << _("Multiple 'sys_ni_syscall' symbols found.");
-  Dwarf_Addr stub_addr = addrs->front();
+  Dwarf_Addr stub_addr = * addrs.begin();
 
   range_t purge_range = map_by_addr.equal_range(stub_addr);
   for (iterator_t iter = purge_range.first;
@@ -8387,11 +8377,11 @@ module_info::update_symtab(cu_function_cache_t *funcs)
       // missing, so we may also need to try matching by address.  See also the
       // notes about _Z in dwflpp::iterate_over_functions().
 
-      set<func_info*> *fis = sym_table->lookup_symbol(func->first);
-      if (!fis || fis->empty())
+      set<func_info*> fis = sym_table->lookup_symbol(func->first);
+      if (fis.empty())
         continue;
 
-      for (set<func_info*>::iterator fi = fis->begin(); fi!=fis->end(); ++fi)
+      for (set<func_info*>::iterator fi = fis.begin(); fi!=fis.end(); ++fi)
         {
           // iterate over all functions at the same address
           symbol_table::range_t er = sym_table->map_by_addr.equal_range((*fi)->addr);
