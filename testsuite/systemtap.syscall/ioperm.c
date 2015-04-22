@@ -1,4 +1,4 @@
-/* COVERAGE: ioperm */
+/* COVERAGE: ioperm iopl */
 
 #define _GNU_SOURCE
 #include <unistd.h>
