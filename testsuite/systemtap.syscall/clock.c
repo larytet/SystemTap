@@ -1,4 +1,4 @@
-/* COVERAGE: gettimeofday settimeofday clock_gettime clock_settime clock_getres clock_nanosleep time */
+/* COVERAGE: gettimeofday settimeofday clock_gettime clock_settime clock_getres clock_nanosleep time stime */
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -29,6 +29,19 @@ int main()
 
   t = syscall(SYS_gettimeofday, &tv, NULL);
   //staptest// gettimeofday (XXXX, 0x[0]+) = 0
+
+#ifdef __NR_stime
+  tt = tv.tv_sec;
+  stime(&tt);
+  //staptest// stime (XXXX) = NNNN
+
+  stime((time_t *)-1);
+#ifdef __s390__
+  //staptest// stime (0x[7]?[f]+) = -NNNN
+#else
+  //staptest// stime (0x[f]+) = -NNNN
+#endif
+#endif
 
   settimeofday(&tv, NULL);
   //staptest// settimeofday (\[NNNN.NNNN\], NULL) =

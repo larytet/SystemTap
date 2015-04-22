@@ -4125,7 +4125,7 @@ probe syscall.sysinfo = kernel.function("compat_sys_sysinfo").call ?,
 {
 	name = "sysinfo"
 	info_uaddr = $info
-	argstr = sprintf("%p", $info)
+	argstr = sprintf("%s", _struct_sysinfo_u(info_uaddr))
 }
 probe syscall.sysinfo.return = kernel.function("compat_sys_sysinfo").return ?,
                                kernel.function("sys_sysinfo").return
@@ -4510,7 +4510,8 @@ probe syscall.times = kernel.function("compat_sys_times").call ?,
                       kernel.function("sys_times").call ?
 {
 	name = "times"
-	argstr = sprintf("%p", $tbuf)
+	buf_uaddr = $tbuf
+	argstr = sprintf("%s", _struct_tms_u(buf_uaddr))
 }
 probe syscall.times.return = kernel.function("compat_sys_times").return ?,
                              kernel.function("sys_times").return ?

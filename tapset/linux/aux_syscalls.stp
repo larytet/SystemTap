@@ -5539,3 +5539,59 @@ function _stp_compat_siginfo_u:string(uaddr:long)
 	strlcat(STAP_RETVALUE, "}", MAXSTRINGLEN);
 #endif /* CONFIG_COMPAT */
 %}
+
+%{
+#include <linux/times.h>
+%}
+
+function _struct_tms_u:string(uaddr:long)
+%{ /* pure */
+	struct tms tm;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&tm, ptr,
+		    sizeof(struct tms)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{tms_utime=%lu, tms_stime=%lu, tms_cutime=%lu, tms_cstime=%lu}",
+			         tm.tms_utime, tm.tms_stime, tm.tms_cutime, tm.tms_cstime);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+%{
+#include <linux/kernel.h>
+%}
+
+function _struct_sysinfo_u:string(uaddr:long)
+%{ /* pure */
+	struct sysinfo si;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&si, ptr,
+		    sizeof(struct sysinfo)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{uptime=%ld, loads=[%lu, %lu, %lu], totalram=%lu, freeram=%lu, "
+			         "sharedram=%lu, bufferram=%lu, totalswap=%lu, freeswap=%lu, procs=%u}",
+			         si.uptime, si.loads[0], si.loads[1], si.loads[2], si.totalram, si.freeram,
+			         si.sharedram, si.bufferram, si.totalswap, si.freeswap, si.procs);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}

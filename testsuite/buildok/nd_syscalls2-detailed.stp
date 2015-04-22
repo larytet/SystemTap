@@ -1385,7 +1385,7 @@ probe nd_syscall.timerfd_settime.return ?
 
 probe nd_syscall.times
 {
-	printf("%s, %s\n", name, argstr)
+	printf("%s, %p, %s\n", name, buf_uaddr, argstr)
 }
 probe nd_syscall.times.return
 {

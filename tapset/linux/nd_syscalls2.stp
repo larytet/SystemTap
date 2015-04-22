@@ -4372,7 +4372,7 @@ probe nd_syscall.sysinfo = kprobe.function("compat_sys_sysinfo") ?,
 	name = "sysinfo"
 	asmlinkage()
 	info_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", info_uaddr)
+	argstr = sprintf("%s", _struct_sysinfo_u(info_uaddr))
 }
 probe nd_syscall.sysinfo.return = kprobe.function("compat_sys_sysinfo").return ?,
                                   kprobe.function("sys_sysinfo").return ?
@@ -4775,7 +4775,8 @@ probe nd_syscall.times = kprobe.function("compat_sys_times") ?,
 {
 	name = "times"
 	asmlinkage()
-	argstr = sprintf("%p", pointer_arg(1))
+	buf_uaddr = pointer_arg(1) 
+	argstr = sprintf("%s", _struct_tms_u(buf_uaddr))
 }
 probe nd_syscall.times.return = kprobe.function("compat_sys_times").return ?,
                                 kprobe.function("sys_times").return ?
