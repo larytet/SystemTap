@@ -2289,7 +2289,7 @@ static const _stp_val_array const _stp_quotactl_cmd_list[] = {
 %}
 
 function _quotactl_cmd_str:string(cmd:long)
-%{
+%{ /* pure */
 	unsigned int cmd = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
 	unsigned int type = (unsigned int)STAP_ARG_cmd & SUBCMDMASK;
 
@@ -2303,6 +2303,82 @@ function _quotactl_cmd_str:string(cmd:long)
 		int len = strlen(STAP_RETVALUE);
 		_stp_snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len,
 			      "|0x%x", type);
+	}
+%}
+
+function _quotactl_subcmd:long(cmd:long)
+%{ /* pure */
+	STAP_RETVALUE = (unsigned int)STAP_ARG_cmd >> SUBCMDSHIFT;
+%}
+
+
+%{
+static const _stp_val_array const _stp_quotactl_format_list[] = {
+	V(QFMT_VFS_OLD),
+#ifdef QFMT_VFS_V0
+	V(QFMT_VFS_V0),
+#endif
+#ifdef QFMT_OCFS2
+	V(QFMT_OCFS2),
+#endif
+#ifdef QFMT_VFS_V1
+	V(QFMT_VFS_V1),
+#endif
+	{0, NULL}
+};
+%}
+
+function _quotactl_quota_type_str:string(fmt:long)
+%{ /* pure */
+	_stp_lookup_str(_stp_quotactl_format_list,
+	                (int)STAP_ARG_fmt, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+function _struct_dqblk_u:string(uaddr:long)
+%{ /* pure */
+	struct if_dqblk dqb;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&dqb, ptr,
+		    sizeof(struct if_dqblk)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{dqb_bhardlimit=%llu, dqb_bsoftlimit=%llu, dqb_curspace=%llu, dqb_ihardlimit=%llu, dqb_isoftlimit=%llu, ...}",
+			         (unsigned long long)dqb.dqb_bhardlimit, (unsigned long long)dqb.dqb_bsoftlimit, (unsigned long long)dqb.dqb_curspace,
+			         (unsigned long long)dqb.dqb_ihardlimit, (unsigned long long)dqb.dqb_isoftlimit);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+
+function _struct_dqinfo_u:string(uaddr:long)
+%{ /* pure */
+	struct if_dqinfo dqi;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&dqi, ptr,
+		    sizeof(struct if_dqinfo)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{dqi_bgrace=%llu, dqi_igrace=%llu, dqi_flags=%d, dqi_valid=%d}",
+			         (unsigned long long)dqi.dqi_bgrace, (unsigned long long)dqi.dqi_igrace,
+			         dqi.dqi_flags, dqi.dqi_valid);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
 	}
 %}
 

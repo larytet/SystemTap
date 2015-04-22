@@ -336,14 +336,16 @@ probe nd_syscall.pause.return = kprobe.function("sys_pause").return ?,
 # personality ________________________________________________
 #
 # asmlinkage long
-# sys_personality(u_long personality)
+# sys_personality(unsigned int personality)
+# personality type changed from ulong to uint32 in upstream commit 485d5276
+# (v2.6.35-rc2~25). But rhel6 distribution kernel has the backport in 2.6.32.
 #
 probe nd_syscall.personality = kprobe.function("sys_personality") ?
 {
 	name = "personality"
 	asmlinkage()
-	persona = ulong_arg(1)
-	argstr = sprintf("%p", persona);
+	persona = uint_arg(1)
+	argstr = sprintf("%#x", persona);
 }
 probe nd_syscall.personality.return = kprobe.function("sys_personality").return ?
 {
@@ -856,8 +858,7 @@ probe nd_syscall.quotactl = __nd_syscall.quotactl ?,
 	special_str = user_string_quoted(special)
 	id = int_arg(3)
 	addr_uaddr = pointer_arg(4)
-	argstr = sprintf("%s, %s, %d, %p", cmd_str, special_str, id,
-			 addr_uaddr)
+	@__quotactl_argstr(_quotactl_subcmd(cmd), cmd, special, id, addr_uaddr)
 }
 probe __nd_syscall.quotactl = kprobe.function("sys_quotactl") ?
 {

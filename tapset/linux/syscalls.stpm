@@ -252,5 +252,41 @@
         }
 %)
 
+@define __quotactl_argstr(subcmd, arg1, arg2, arg3, arg4)
+%(
+	if (@subcmd == %{ /* pure */ Q_QUOTAON %}) {
+		argstr = sprintf("%s, %s, %s, %s",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 _quotactl_quota_type_str(@arg3),
+		                 user_string_quoted(@arg4))
+	}
+	else if ((@subcmd == %{ /* pure */ Q_GETQUOTA %}) ||
+	         (@subcmd == %{ /* pure */ Q_SETQUOTA %})) {
+		argstr = sprintf("%s, %s, %d, %s",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, _struct_dqblk_u(@arg4))
+	}
+	else if ((@subcmd == %{ /* pure */ Q_GETINFO %}) ||
+	         (@subcmd == %{ /* pure */ Q_SETINFO %})) {
+		argstr = sprintf("%s, %s, %d, %s",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, _struct_dqinfo_u(@arg4))
+	}
+	else if (@subcmd == %{ /* pure */ Q_GETFMT %}) {
+		argstr = sprintf("%s, %s, %d, %x",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, @arg4)
+	}
+	else if ((@subcmd == %{ /* pure */ Q_SYNC %}) ||
+	         (@subcmd == %{ /* pure */ Q_QUOTAOFF %})) {
+		argstr = sprintf("%s, %s, %d, %p",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, @arg4)
+	}
+	else {
+		argstr = sprintf("%s, %p, %d, %p", _quotactl_cmd_str(@arg1),
+		                 @arg2, @arg3, @arg4)
+	}
+%)
 
 
