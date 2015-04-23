@@ -8128,7 +8128,7 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
       // Make sure we don't create duplicate func_info's
       range_t er = map_by_addr.equal_range(addr);
       for (iterator_t it = er.first; it != er.second; ++it)
-        if (it->second->->name == name)
+        if (it->second->name == name)
 	  return;
     }
 
