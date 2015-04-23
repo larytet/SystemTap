@@ -411,9 +411,9 @@ symbol_table
   map<string, Dwarf_Addr> locals;
   typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
   typedef pair<iterator_t, iterator_t> range_t;
-#ifdef __powerpc__
+  // Section describing function descriptors.
+  // Set to SHN_UNDEF if there is no such section.
   GElf_Word opd_section;
-#endif
   void add_symbol(const char *name, bool weak, bool descriptor,
                   Dwarf_Addr addr, Dwarf_Addr *high_addr);
   enum info_status get_from_elf();
@@ -8112,11 +8112,26 @@ void
 symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
                          Dwarf_Addr addr, Dwarf_Addr* /*high_addr*/)
 {
-#ifdef __powerpc__
-  // Map ".sys_foo" to "sys_foo".
-  if (name[0] == '.')
-    name++;
-#endif
+  /* Does the target architecture have function descriptors?
+     Then we want to filter them out. When seeing a symbol with a name
+     starting with '.' we assume it is a regular function pointer and
+     not a pointer to a function descriptor. Note that this might create
+     duplicates if we also found the function descriptor symbol itself.
+     dwfl_module_getsym_info () will have resolved the actual function
+     address for us. But we won't know if we see either or both.  */
+  if (opd_section != SHN_UNDEF)
+    {
+      // Map ".sys_foo" to "sys_foo".
+      if (name[0] == '.')
+	name++;
+
+      // Make sure we don't create duplicate func_info's
+      range_t er = map_by_addr.equal_range(addr);
+      for (iterator_t it = er.first; it != er.second; ++it)
+        if (it->second->->name == name)
+	  return;
+    }
+
   func_info *fi = new func_info();
   fi->addr = addr;
   fi->name = name;
@@ -8130,17 +8145,25 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
 void
 symbol_table::prepare_section_rejection(Dwfl_Module *mod __attribute__ ((unused)))
 {
-#ifdef __powerpc__
+  Dwarf_Addr bias;
+  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+              ?: dwfl_module_getelf (mod, &bias));
+
+  GElf_Ehdr ehdr_mem;
+  GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+  if (em == NULL) throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
+  /* Only old ELFv1 PPC64 ABI have function descriptors.  */
+  opd_section = SHN_UNDEF;
+  if (em->e_machine != EM_PPC64 || (em->e_flags & EF_PPC64_ABI) == 2)
+    return;
+
   /*
    * The .opd section contains function descriptors that can look
    * just like function entry points.  For example, there's a function
    * descriptor called "do_exit" that links to the entry point ".do_exit".
    * Reject all symbols in .opd.
    */
-  opd_section = SHN_UNDEF;
-  Dwarf_Addr bias;
-  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
-                                    ?: dwfl_module_getelf (mod, &bias));
   Elf_Scn* scn = 0;
   size_t shstrndx;
 
@@ -8161,18 +8184,13 @@ symbol_table::prepare_section_rejection(Dwfl_Module *mod __attribute__ ((unused)
           return;
         }
     }
-#endif
 }
 
 bool
 symbol_table::reject_section(GElf_Word section)
 {
-  if (section == SHN_UNDEF)
+  if (section == SHN_UNDEF || section == opd_section)
     return true;
-#ifdef __powerpc__
-  if (section == opd_section)
-    return true;
-#endif
   return false;
 }
 
@@ -8301,7 +8319,7 @@ symbol_table::purge_syscall_stubs()
 
   /* Highly unlikely that multiple symbols named "sys_ni_syscall" may exist */
   if (addrs.size() > 1)
-    cerr << _("Multiple 'sys_ni_syscall' symbols found.");
+    cerr << _("Multiple 'sys_ni_syscall' symbols found.\n");
   Dwarf_Addr stub_addr = * addrs.begin();
 
   range_t purge_range = map_by_addr.equal_range(stub_addr);
