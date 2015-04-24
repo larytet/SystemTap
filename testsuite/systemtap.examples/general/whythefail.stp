@@ -15,7 +15,7 @@
  CONDITION:        expression to evaluate at function return, e.g.:
                            '$return != 0' or '1' or 'randint(100)<20'
  VARIABLE:         optional context-variable string to print at each statement, e.g.:
-                           '$return$' or '@var("global")$' or (default) '$$vars'
+                           '$a_var$' or '@var("global")$' or (default) '$$vars'
 
  If the script is invoked with -c CMD or -x PID, probes are filtered
  for that process target-set (it and its descendants).
