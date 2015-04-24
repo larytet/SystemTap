@@ -2117,18 +2117,29 @@ systemtap_session::print_error_source (std::ostream& message,
   //TRANSLATORS: Here we are printing the source string of the error
   message << align << _("source: ");
   string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
-  if (color_errors &&
-      // Only colorize tokens whose content is known to match the source
-      // content.  e.g. tok_string doesn't qualify because of the double-quotes.
-      // tok_embedded lacks the %{ %}. tok_junk is just junky.
-      (tok->type == tok_number ||
-       tok->type == tok_identifier || 
-       tok->type == tok_operator)) {
-    // Split into before token, token, and after token
-    string tok_content = tok->content;
-    message << srcline.substr(0, col-1);
-    message << colorize(tok_content, "token");
-    message << srcline.substr(col+tok_content.size()-1) << endl;
+  if (color_errors) {
+      // before token:
+      message << srcline.substr(0, col-1);
+      // token:
+      // after token:
+      // ... hold it - the token might have been synthetic,
+      // or expanded from a $@ command line argument, or ...
+      // so tok->content may have nothing in common with the
+      // contents of srcline at the same point.
+      string srcline_rest = srcline.substr(col-1);
+      string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
+      if (srcline_tokenish == tok->content) { // oh good
+        message << colorize(tok->content, "token");
+        message << srcline_rest.substr(tok->content.size());
+        message << endl;
+      }
+      else { // oh bad
+        message << " ... ";
+        col += 5; // line up with the caret
+        message << colorize(tok->content, "token");
+        message << " ... " << srcline_rest;
+        message << endl;
+      }
   } else
     message << srcline << endl;
   message << align << "        ";
