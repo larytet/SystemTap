@@ -1374,13 +1374,13 @@ probe syscall.compat_sys_recvmsg.return =
 probe syscall.remap_file_pages = kernel.function("sys_remap_file_pages").call ?
 {
 	name = "remap_file_pages"
-	start = $start
-	size = $size
-	prot = @choose_defined($prot, $__prot)
-	pgoff = $pgoff
-	flags = $flags
-	argstr = sprintf("%p, %p, %p, %p, %p", start, size, prot,
-		pgoff, flags)
+	start = __ulong($start)
+	size = __ulong($size)
+	prot = __ulong(@choose_defined($prot, $__prot))
+	pgoff = __ulong($pgoff)
+	flags = __ulong($flags)
+	argstr = sprintf("%p, %p, %s, %p, %s", start, size,
+	                 _mprotect_prot_str(prot), pgoff, _mmap_flags(flags))
 }
 probe syscall.remap_file_pages.return = kernel.function("sys_remap_file_pages").return ?
 {

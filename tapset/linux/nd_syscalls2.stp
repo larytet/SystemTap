@@ -1389,8 +1389,8 @@ probe nd_syscall.remap_file_pages = kprobe.function("sys_remap_file_pages") ?
 	prot = ulong_arg(3)
 	pgoff = ulong_arg(4)
 	flags = ulong_arg(5)
-	argstr = sprintf("%p, %p, %p, %p, %p", start, size, prot,
-				pgoff, flags)
+	argstr = sprintf("%p, %p, %s, %p, %s", start, size,
+	                 _mprotect_prot_str(prot), pgoff, _mmap_flags(flags))
 }
 probe nd_syscall.remap_file_pages.return = kprobe.function("sys_remap_file_pages").return ?
 {
