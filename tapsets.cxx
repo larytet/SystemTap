@@ -1127,7 +1127,7 @@ dwarf_query::query_module_symtab()
           for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
             {
               fi = *it;
-              if (fi && !fi->descriptor && null_die(&fi->die))
+              if (fi && null_die(&fi->die))
                 query_symtab_func_info(*fi, this);
             }
         }
@@ -8284,6 +8284,8 @@ symbol_table::get_first_func()
   return (iter)->second;
 }
 
+/* Note this function filters out any symbols that are "rejected" because
+   they are "descriptor" function symbols or SHN_UNDEF symbols. */
 set <func_info*>
 symbol_table::lookup_symbol(const string& name)
 {
@@ -8291,10 +8293,13 @@ symbol_table::lookup_symbol(const string& name)
   pair <multimap<string, func_info*>::iterator, multimap<string, func_info*>::iterator> ret;
   ret = map_by_name.equal_range(name);
   for (multimap<string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
-    fis.insert(it->second);
+    if (! it->second->descriptor)
+      fis.insert(it->second);
   return fis;
 }
 
+/* Filters out the same "descriptor" or SHN_UNDEF symbols as
+   symbol_table::lookup_symbol.  */
 set <Dwarf_Addr>
 symbol_table::lookup_symbol_address(const string& name)
 {
