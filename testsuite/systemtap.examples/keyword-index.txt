@@ -49,6 +49,17 @@ keywords: _best monitoring
   '$$vars' -c "sleep 1"
 
 
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
+
+
 network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
 keywords: _best network traffic
 
@@ -548,6 +559,17 @@ keywords: function statistics
   times.
 
   # stap func_time_stats.stp 'syscall.nanosleep' -c "sleep 1"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
 
 
 profiling/functioncallcount.stp - Count Times Functions Are Called
@@ -1333,6 +1355,17 @@ keywords: _best monitoring
 
   # stap -w varwatch.stp 'kernel.statement("do_sys_open@fs/open.c:*")' \
   '$$vars' -c "sleep 1"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
@@ -2490,6 +2523,19 @@ keywords: network tcp socket guru
   # stap -g tcp_init_cwnd.stp -c "sleep 1"
 
 
+= SPECULATION =
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
+
+
 = STAPGAMES =
 
 stapgames/2048.stp - 2048
@@ -2896,6 +2942,17 @@ keywords: _best trace callgraph
 
   # stap para-callgraph.stp 'kernel.function("*@fs/proc*.c")' \
   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
 
 
 network/tcp_trace.stp - TCP Connection Tracing Utility

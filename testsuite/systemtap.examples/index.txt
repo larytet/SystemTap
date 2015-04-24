@@ -196,6 +196,17 @@ keywords: watchdog backtrace
   -c "sleep 1"
 
 
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
+
+
 interrupt/interrupts-by-dev.stp - Record Interrupts on a Per-Device Basis
 keywords: interrupt
 

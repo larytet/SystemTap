@@ -44,6 +44,7 @@
 <li><a href="#general/helloworld.stp">general/helloworld.stp - SystemTap "Hello World" Program</a></li>
 <li><a href="#general/para-callgraph.stp">general/para-callgraph.stp - Callgraph Tracing with Arguments</a></li>
 <li><a href="#general/varwatch.stp">general/varwatch.stp - Watch a Variable Changing Value in a Thread</a></li>
+<li><a href="#general/whythefail.stp">general/whythefail.stp - Why did the function fail?</a></li>
 <li><a href="#network/netfilter_summary.stp">network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs</a></li>
 <li><a href="#process/cycle_thief.stp">process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task</a></li>
 <li><a href="#process/proctop.stp">process/proctop.stp - Periodically Print Process Information With History</a></li>
@@ -58,7 +59,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 138 Examples</h2>
+<h2>All 139 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -114,6 +115,9 @@ keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.ht
 keywords: <a href="keyword-index.html#WATCHDOG">WATCHDOG</a> <a href="keyword-index.html#BACKTRACE">BACKTRACE</a> <br>
 <p>The watchdog.stp script provides a watchdog timer mechanism for arbitrary events. The script takes three arguments: the events to start watchdog timer, the event to stop the watchdog timer, and the time in millseconds for the watchdog. If the watchdog timer is exceed, the script will trigger a stack backtrace of the user-process that timed out using pstack. This script can be used to diagnose what the userspace application is doing when a slower than expected operation occurs.</p><p><font size="-2"><pre># stap watchdog.stp &#39;syscall.nanosleep&#39; &#39;syscall.nanosleep.return&#39; 1000 \
 -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a name="general/whythefail.stp"></a><a href="#general/whythefail.stp">&para;</a> <a href="general/whythefail.stp">general/whythefail.stp</a> - Why did the function fail?<br>
+keywords: <a href="keyword-index.html#SPECULATION">SPECULATION</a> <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keyword-index.html#FUNCTION">FUNCTION</a> <a href="keyword-index.html#TRACE">TRACE</a> <a href="keyword-index.html#_BEST">_BEST</a> <br>
+<p>The whythefail.stp script prints a statement-execution trace for a given function, but only for those runs of the function that ended up with a (configurable) post-return condition.</p><p><i><a href="general/whythefail.txt">sample usage in general/whythefail.txt</i></font></p>
 </li><li><a name="interrupt/interrupts-by-dev.stp"></a><a href="#interrupt/interrupts-by-dev.stp">&para;</a> <a href="interrupt/interrupts-by-dev.stp">interrupt/interrupts-by-dev.stp</a> - Record Interrupts on a Per-Device Basis<br>
 keywords: <a href="keyword-index.html#INTERRUPT">INTERRUPT</a> <br>
 <p>The interrupts-by-dev.stp script profiles interrupts received by each device per 100 ms.</p><p><i><a href="interrupt/interrupts-by-dev.txt">sample usage in interrupt/interrupts-by-dev.txt</i></font></p>
