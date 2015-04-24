@@ -4031,6 +4031,11 @@ dwarf_var_expanding_visitor::gen_kretprobe_saved_return(expression* e)
 void
 dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
+  if (pending_interrupts) {
+    provide(e);
+    return;
+  }
+
   if (null_die(scope_die)) {
     literal_string *empty = new literal_string("");
     empty->tok = e->tok;
