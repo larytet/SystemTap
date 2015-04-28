@@ -1,15 +1,18 @@
-/* COVERAGE: gettimeofday settimeofday clock_gettime clock_settime clock_getres clock_nanosleep time stime */
+/* COVERAGE: gettimeofday settimeofday clock_gettime clock_settime clock_adjtime clock_getres clock_nanosleep time stime */
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <time.h>
 #include <sys/syscall.h>
+#include <sys/timex.h>
+#include <string.h>
 
 int main()
 {
   int t;
   struct timeval tv;
   struct timespec ts;
+  struct timex tx;
   time_t tt;
 
 #ifdef SYS_time
@@ -165,6 +168,33 @@ int main()
   //staptest// clock_nanosleep (CLOCK_REALTIME, 0x0, 0x[7]?[f]+, XXXX) = -NNNN (EFAULT)
 #else
   //staptest// clock_nanosleep (CLOCK_REALTIME, 0x0, 0x[f]+, XXXX) = -NNNN (EFAULT)
+#endif
+
+  adjtimex((struct timex *)-1);
+#ifdef __s390__
+  //staptest// adjtimex (0x[7]?[f]+) = NNNN
+#else
+  //staptest// adjtimex (0x[f]+) = NNNN
+#endif
+
+#ifdef __NR_clock_adjtime
+  memset(&tx, 0, sizeof(tx));
+  tx.modes = ADJ_STATUS;
+  adjtimex(&tx);
+  tx.modes = ADJ_FREQUENCY;
+
+  syscall(__NR_clock_adjtime, CLOCK_REALTIME, &tx);
+  //staptest// clock_adjtime (CLOCK_REALTIME, \{ADJ_FREQUENCY, constant=NNNN, esterror=NNNN, freq=NNNN, maxerror=NNNN, offset=NNNN, precision=NNNN, status=NNNN, tick=NNNN, tolerance=NNNN\}) = 0
+
+  syscall(__NR_clock_adjtime, (int)-1, &tx);
+  //staptest// clock_adjtime (0xffffffff, \{[^\}]*\}) = -NNNN
+
+  syscall(__NR_clock_adjtime, CLOCK_REALTIME, (struct timex *)-1);
+#ifdef __s390__
+  //staptest// clock_adjtime (CLOCK_REALTIME, 0x[7]?[f]+) = -NNNN
+#else
+  //staptest// clock_adjtime (CLOCK_REALTIME, 0x[f]+) = -NNNN
+#endif
 #endif
 
   return 0;

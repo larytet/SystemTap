@@ -159,6 +159,16 @@ probe syscall.chroot.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.clock_adjtime
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %s, %p\n", clk_id, clk_id_str, tx_uaddr)
+}
+probe syscall.clock_adjtime.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.clock_getres
 {
 	printf("%s, %s\n", name, argstr)
