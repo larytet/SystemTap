@@ -3372,8 +3372,11 @@ static void _stp_sigaction_str(struct sigaction *act, char *ptr, int len)
 
 function _stp_sigmask_str:string(sigmask:long)
 %{ /* pure */
-  long mask = (long)STAP_ARG_sigmask;      
-  _stp_sigset_str((sigset_t *)&mask, STAP_RETVALUE, MAXSTRINGLEN);
+  unsigned long mask = (unsigned long)STAP_ARG_sigmask;
+  sigset_t set;
+
+  siginitset(&set, mask);
+  _stp_sigset_str(&set, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 function _struct_sigaction_u:string(uaddr:long)
@@ -5391,7 +5394,7 @@ function _stp_siginfo_u:string(uaddr:long)
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #if LINUX_VERSION_CODE < KERNEL_VERSION(3,7,0)
-#include "linux/compat_siginfo.h"
+#include "linux/compat_structs.h"
 #endif
 #endif
 %}
@@ -5630,3 +5633,70 @@ function _kexec_flags_str:string(flags:long)
 	_stp_lookup_or_str(_stp_kexec_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
+%{
+#include <linux/signal.h>
+
+static const _stp_val_array const _stp_sigaltstack_flags_list[] = {
+  V(SS_ONSTACK),
+  V(SS_DISABLE),
+  {0, NULL}
+};
+
+%}
+
+function _stp_sigaltstack_u:string(uaddr:long)
+%{ /* pure */
+	stack_t stk;
+
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL || _stp_copy_from_user((void *)&stk, ptr,
+					       sizeof(stk)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{ss_sp=0x%lx, ss_flags=",
+		 (unsigned long)stk.ss_sp);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_sigaltstack_flags_list, stk.ss_flags,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, ", ss_size=%lu}",
+		 (unsigned long)stk.ss_size);
+%}
+
+function _stp_compat_sigaltstack_u:string(uaddr:long)
+%{ /* pure */
+#ifdef CONFIG_COMPAT
+#if defined(CONFIG_GENERIC_SIGALTSTACK) \
+    || LINUX_VERSION_CODE >= KERNEL_VERSION(3,9,0)
+	compat_stack_t stk;
+#elif defined(__x86_64__)
+	stack_ia32_t stk;
+#elif defined(__s390x__)
+	stack_t32 stk;
+#elif defined(__powerpc64__)
+	stack_32_t stk;
+#endif
+
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	int len;
+
+	if (ptr == NULL || _stp_copy_from_user((void *)&stk, ptr,
+					       sizeof(stk)) != 0) {
+		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			 (unsigned long)ptr);
+		return;
+	}
+	snprintf(STAP_RETVALUE, MAXSTRINGLEN, "{ss_sp=0x%lx, ss_flags=",
+		 (unsigned long)stk.ss_sp);
+	len = strlen(STAP_RETVALUE);
+	_stp_lookup_str(_stp_sigaltstack_flags_list, stk.ss_flags,
+			STAP_RETVALUE + len, MAXSTRINGLEN - len);
+	len = strlen(STAP_RETVALUE);
+	snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, ", ss_size=%lu}",
+		 (unsigned long)stk.ss_size);
+#endif
+%}

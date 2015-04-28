@@ -30,21 +30,6 @@ probe nd_syscall.mmap2.return ?
 }
 %)
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" %?
-probe nd_syscall.sigaltstack ?
-{
-	printf("%s, %s\n", name, argstr)
-	printf("%p, %p\n", uss_uaddr, uoss_uaddr)
-%(systemtap_v < "2.3" %?
-	printf("%p\n", regs)
-%)
-}
-probe nd_syscall.sigaltstack.return ?
-{
-	printf("%s, %s\n", name, retstr)
-}
-%)
-
 probe nd_syscall.sys32_sigaltstack ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -123,8 +108,6 @@ probe nd_syscall.set_zone_reclaim.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-# nd_syscall.sigaltstack is above
-
 probe nd_syscall.vm86, nd_syscall.vm86old ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -143,8 +126,6 @@ probe nd_syscall.vm86.return, nd_syscall.vm86old.return ?
 # nd_syscall.mmap is above
 
 # nd_syscall.mmap2 is above
-
-# nd_syscall.sigaltstack is above
 
 # nd_syscall.sysctl32 is above
 %)
@@ -313,8 +294,6 @@ probe nd_syscall.sys32_rt_sigqueueinfo.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
-
-# nd_syscall.sigaltstack is above
 
 probe nd_syscall.sys32_sendfile64 ?
 {
@@ -512,8 +491,6 @@ probe nd_syscall.iopl.return
 {
 	printf("%s, %s\n", name, retstr)
 }
-
-# nd_syscall.sigaltstack is above
 
 # nd_syscall.sysctl32 is above
 

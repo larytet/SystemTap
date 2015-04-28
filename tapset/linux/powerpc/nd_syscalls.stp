@@ -364,40 +364,46 @@ probe nd_syscall.sys32_rt_sigqueueinfo.return = kprobe.function("sys32_rt_sigque
 probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
 {
 	name = "sigaltstack"
-	// uss_uaddr = $uss
-	// uoss_uaddr = $uoss
-	// regs = $regs
-	// argstr = sprintf("%p, %p", $uss, $uoss)
 	asmlinkage()
 	uss_uaddr = pointer_arg(1)
 	uoss_uaddr = pointer_arg(2)
 %(systemtap_v < "2.3" %?
 	regs = pointer_arg(7)
 %)
-	argstr = sprintf("%p, %p", uss_uaddr, uoss_uaddr)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
 }
-probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+probe nd_syscall.sigaltstack.return =
+	kprobe.function("sys_sigaltstack").return
+{
+	name = "sigaltstack"
+	retstr = returnstr(1)
+}
+
+# sys32_sigaltstack ________________________________________
+#
+# int compat_sys_sigaltstack(u32 __new, u32 __old, int r5,
+#		             int r6, int r7, int r8, struct pt_regs *regs)
+# int sys32_sigaltstack(u32 __new, u32 __old, int r5,
+#			int r6, int r7, int r8, struct pt_regs *regs)
+#
+probe nd_syscall.sys32_sigaltstack =
+	kprobe.function("compat_sys_sigaltstack") !,
+	kprobe.function("sys32_sigaltstack") ?
+{
+	name = "sigaltstack"
+	uss_uaddr = pointer_arg(1)
+	uoss_uaddr = pointer_arg(2)
+	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u(uss_uaddr),
+			 uoss_uaddr)
+}
+probe nd_syscall.sys32_sigaltstack.return =
+	kprobe.function("compat_sys_sigaltstack").return !,
+	kprobe.function("sys32_sigaltstack").return ?
 {
 	name = "sigaltstack"
 	retstr = returnstr(1)
 }
 %)
-
-# sys32_sigaltstack ________________________________________
-#
-# int sys32_sigaltstack(u32 __new, u32 __old, int r5,
-#			int r6, int r7, int r8, struct pt_regs *regs)
-#
-probe nd_syscall.sys32_sigaltstack = kprobe.function("sys32_sigaltstack") ?
-{
-	name = "sys32_sigaltstack"
-	argstr = ""
-}
-probe nd_syscall.sys32_sigaltstack.return = kprobe.function("sys32_sigaltstack").return ?
-{
-	name = "sys32_sigaltstack"
-	retstr = returnstr(1)
-}
 
 # sys32_sendfile64 ________________________________________
 #

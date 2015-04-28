@@ -1,4 +1,5 @@
 /* COVERAGE: signal tgkill tkill sigprocmask sigaction */
+/* COVERAGE: sigpending sigsuspend */
 
 #define _GNU_SOURCE
 #include <sys/types.h>
@@ -7,10 +8,11 @@
 #include <string.h>
 #include <sys/syscall.h>
 
-// For signal() and sigprocmask(), glibc substitutes rt_signal() and
-// rt_sigprocmask(). To ensure we're calling the right syscalls, we
-// have to create our own syscall wrappers. For other syscalls tested
-// here (like tgkill), there are no glibc syscall wrappers.
+// For signal()/sigprocmask()/sigpending()/sigsuspend(), glibc
+// substitutes the 'rt_*' versions.  To ensure we're calling the right
+// syscalls, we have to create our own syscall wrappers. For other
+// syscalls tested here (like tgkill), there are no glibc syscall
+// wrappers.
 
 typedef void (*sighandler_t)(int);
 
@@ -50,6 +52,42 @@ static inline int __tkill(int tid, int sig)
 }
 #endif
 
+#ifdef SYS_sigpending
+static inline int __sigpending(sigset_t *set)
+{
+    return syscall(SYS_sigpending, set);
+}
+#endif
+
+#ifdef SYS_sigsuspend
+// Notice that the sigsuspend() syscall takes an unsigned long, not a
+// pointer to a sigset_t. The rt_sigsuspend() syscall (which glibc
+// uses) takes a pointer to a sigset_t.
+
+// This gets more complicated by the fact that there are
+// architecture-specific versions of sys_sigsuspend:
+//
+// #ifdef CONFIG_OLD_SIGSUSPEND
+// asmlinkage long sys_sigsuspend(old_sigset_t mask);
+// #endif
+// #ifdef CONFIG_OLD_SIGSUSPEND3
+// asmlinkage long sys_sigsuspend(int unused1, int unused2, old_sigset_t mask);
+// #endif
+#if defined(__arm__) || defined(__s390__) || defined(__i386__) \
+    || defined(__aarch64__)
+#define CONFIG_OLD_SIGSUSPEND3
+#endif
+
+static inline int __sigsuspend(unsigned long mask)
+{
+#if defined(CONFIG_OLD_SIGSUSPEND3)
+    return syscall(SYS_sigsuspend, 0, 0, mask);
+#else
+    return syscall(SYS_sigsuspend, mask);
+#endif
+}
+#endif
+
 static void 
 sig_act_handler(int signo)
 {
@@ -57,9 +95,10 @@ sig_act_handler(int signo)
 
 int main()
 {
-  sigset_t mask;
+  sigset_t mask, mask2;
   struct sigaction sa;
   pid_t pid;
+  unsigned long old_mask;
 
 #ifdef SYS_signal
   __signal(SIGUSR1, SIG_IGN);
@@ -207,6 +246,67 @@ int main()
 
   __tkill(-1, -1);
   //staptest// tkill (-1, 0x[f]+) = NNNN
+#endif
+
+#ifdef SYS_sigpending
+  sigemptyset(&mask);
+  __sigpending(&mask);
+  //staptest// [[[[sigpending (XXXX)!!!!ni_syscall ()]]]] = NNNN
+
+  __sigpending((sigset_t *) 0);
+  //staptest// [[[[sigpending (0x0)!!!!ni_syscall ()]]]] = NNNN
+
+  __sigpending((sigset_t *)-1);
+#ifdef __s390__
+  //staptest// sigpending (0x[7]?[f]+) = -NNNN (EFAULT)
+#else
+  //staptest// [[[[sigpending (0x[f]+)!!!!ni_syscall ()]]]] = NNNN
+#endif
+#endif
+
+  /* If we have SYS_sigaction (but not on powerpc where it isn't
+   * implemented) and SYS_sigprocmask, we can do SYS_sigsuspend
+   * tests. We set up a signal handler for SIGALRM, then send a
+   * SIGALRM using alarm(). */
+#if defined(SYS_sigsuspend) && defined(SYS_sigaction) \
+    && !defined(__powerpc64__) && defined(SYS_sigprocmask)
+  sigemptyset(&mask2);
+
+  memset(&sa, 0, sizeof(sa));
+  sa.sa_handler = sig_act_handler;
+  __sigaction(SIGALRM, &sa, NULL);
+  //staptest// sigaction (SIGALRM, {XXXX, 0x0, 0x0, \[EMPTY\]}, 0x0+) = 0
+
+  __sigprocmask(SIG_UNBLOCK, &mask2, NULL);
+  //staptest// sigprocmask (SIG_UNBLOCK, XXXX, 0x0) = 0
+
+  // Create a sigsset_t with SIGUSR1 in it (just so we have something
+  // to display), then convert it to an unsigned long, which is what
+  // sigsuspend() wants.
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGUSR1);
+  memcpy(&old_mask, &mask, sizeof(old_mask));
+
+  alarm(5);
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
+  //staptest// setitimer (ITIMER_REAL, \[0.000000,5.000000\], XXXX) = NNNN
+#else
+  //staptest// alarm (5) = NNNN
+#endif
+
+  __sigsuspend(old_mask);
+  //staptest// sigsuspend (\[SIGUSR1\]) = NNNN
+
+  alarm(0);
+#if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)
+  //staptest// setitimer (ITIMER_REAL, \[0.000000,0.000000\], XXXX) = NNNN
+#else
+  //staptest// alarm (0) = NNNN
+#endif
+
+  // Calling sigsuspend() with -1 waits forever, since that blocks all
+  // signals. 
+  //__sigsuspend((unsigned long)-1);
 #endif
 
   return 0;

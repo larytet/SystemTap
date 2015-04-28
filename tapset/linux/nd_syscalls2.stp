@@ -3643,15 +3643,20 @@ probe nd_syscall.sigaction32.return = kprobe.function("sys32_sigaction").return 
 # sigaltstack ________________________________________________
 # SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
 #
-probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack"),
+	kprobe.function("compat_sys_sigaltstack") ?
 {
 	name = "sigaltstack"
 	asmlinkage()
 	uss_uaddr = pointer_arg(1)
 	uoss_uaddr = pointer_arg(2)
-	argstr = sprintf("%p, %p", uss_uaddr, uoss_uaddr)
+	argstr = sprintf("%s, %p",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
-probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return,
+	kprobe.function("compat_sys_sigaltstack").return ?
 {
 	name = "sigaltstack"
 	retstr = returnstr(1)
@@ -3778,18 +3783,30 @@ probe __nd_syscall.compat_signalfd.return =
 }
 
 # sigpending _________________________________________________
-# long sys_sigpending(old_sigset_t __user *set)
+# SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
+# COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
 #
-probe nd_syscall.sigpending = kprobe.function("sys_sigpending") ?
+probe nd_syscall.sigpending = __nd_syscall.sigpending ?,
+	kprobe.function("compat_sys_sigpending") ?
 {
 	name = "sigpending"
 	asmlinkage()
 	argstr = sprintf("%p", pointer_arg(1))
 }
-probe nd_syscall.sigpending.return = kprobe.function("sys_sigpending").return ?
+probe __nd_syscall.sigpending = kprobe.function("sys_sigpending") ?
+{
+	@__syscall_gate_compat_simple
+}
+probe nd_syscall.sigpending.return = __nd_syscall.sigpending.return ?,
+	kprobe.function("compat_sys_sigpending").return ?
 {
 	name = "sigpending"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.sigpending.return =
+	kprobe.function("sys_sigpending").return ?
+{
+	@__syscall_gate_compat_simple
 }
 
 # sigprocmask ________________________________________________
@@ -3843,15 +3860,43 @@ probe nd_syscall.sigreturn.return = kprobe.function("sys_sigreturn").return ?,
 }
 
 # sigsuspend _________________________________________________
-#
-probe nd_syscall.sigsuspend = kprobe.function("sys_sigsuspend") ?,
-                              kprobe.function("sys32_sigsuspend") ?
+# #ifdef CONFIG_OLD_SIGSUSPEND
+# SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
+# #endif
+# #ifdef CONFIG_OLD_SIGSUSPEND3
+# SYSCALL_DEFINE3(sigsuspend, int, unused1, int, unused2, old_sigset_t, mask)
+# #endif
+# asmlinkage long
+# sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
+# long compat_sys_sigsuspend(old_sigset_t mask)
+probe nd_syscall.sigsuspend = __nd_syscall.sisguspend ?,
+	__nd_syscall.compat_sys_sigsuspsend ?
 {
 	name = "sigsuspend"
-	argstr = ""
+	argstr = sprintf("%s", _stp_sigmask_str(mask))
 }
-probe nd_syscall.sigsuspend.return = kprobe.function("sys_sigsuspend").return ?,
-                                     kprobe.function("sys32_sigsuspend").return ?
+probe __nd_syscall.sisguspend = kprobe.function("sys_sigsuspend") ?,
+	kprobe.function("sys32_sigsuspend") ?
+{
+	asmlinkage()
+%( CONFIG_OLD_SIGSUSPEND == "y" %?
+	mask = ulong_arg(1)
+%:
+	# Both CONFIG_OLD_SIGSUSPEND3 and sys32_sigsuspend have mask
+	# as the 3rd argument.
+	mask = ulong_arg(3)
+%)
+}
+probe __nd_syscall.compat_sys_sigsuspsend = 
+	kprobe.function("compat_sys_sigsuspend") ?
+{
+	asmlinkage()
+	mask = ulong_arg(1)
+}
+probe nd_syscall.sigsuspend.return =
+	kprobe.function("sys_sigsuspend").return ?,
+	kprobe.function("sys32_sigsuspend").return ?,
+	kprobe.function("compat_sys_sigsuspend").return ?
 {
 	name = "sigsuspend"
 	retstr = returnstr(1)

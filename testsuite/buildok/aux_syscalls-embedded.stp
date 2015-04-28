@@ -156,6 +156,7 @@ probe begin {
 	print (_struct_sigaction_u(0))
 	print (_struct_sigaction32_u(0))
 	print (_struct_old_sigaction32_u(0))
+	print (_stp_sigmask_str(0))
 
 	print (irqflags_str(0))
 
@@ -192,4 +193,6 @@ probe begin {
 	print (_sync_file_range_flags_str(0))
 	print (_stp_siginfo_u(0))
 	print (_stp_compat_siginfo_u(0))
+	print (_stp_sigaltstack_u(0))
+	print (_stp_compat_sigaltstack_u(0))
 }

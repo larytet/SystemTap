@@ -49,13 +49,10 @@ probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
 #
 # NOTE: args vary between archs.
 #
-probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack"),
+	kprobe.function("sys32_sigaltstack").call ?
 {
 	name = "sigaltstack"
-	// uss_uaddr = $uss
-	// uoss_uaddr = $uoss
-	// regs = $regs
-	// argstr = sprintf("%p, %p", $uss, $uoss)
 	asmlinkage()
 	uss_uaddr = pointer_arg(1)
 	uoss_uaddr = pointer_arg(2)
@@ -63,9 +60,13 @@ probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
 	regs_uaddr = pointer_arg(3)
 	regs = pointer_arg(3)
 %)
-	argstr = sprintf("%p, %p", uss_uaddr, uoss_uaddr)
+	argstr = sprintf("%s, %p",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
-probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return,
+	kprobe.function("sys32_sigaltstack").return ?
 {
 	name = "sigaltstack"
 	retstr = returnstr(1)

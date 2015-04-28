@@ -40,14 +40,19 @@ probe syscall.iopl.return = kernel.function("sys_iopl").return
 # sigaltstack ________________________________________________
 # long sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 #		struct pt_regs *regs)
+# asmlinkage long
+# sys32_sigaltstack(const stack_ia32_t __user *uss_ptr,
+#		  stack_ia32_t __user *uoss_ptr, 
+#		  struct pt_regs *regs)
 #
 # NOTE: args vary between archs.
 #
-probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
+probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call,
+	kernel.function("sys32_sigaltstack").call ?
 {
 	name = "sigaltstack"
-	uss_uaddr = $uss
-	uoss_uaddr = $uoss
+	uss_uaddr = @choose_defined($uss, $uss_ptr)
+	uoss_uaddr = @choose_defined($uoss, $uoss_ptr)
 # 'regs_uaddr' should have been 'regs'.  Deprecate the old name.
 %(systemtap_v <= "1.4" %?
 	regs_uaddr = $regs
@@ -55,9 +60,13 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 %(systemtap_v < "2.3" %?
 	regs = $regs
 %)
-	argstr = sprintf("%p, %p", $uss, $uoss)
+	argstr = sprintf("%s, %p",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
-probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
+probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return,
+	kernel.function("sys32_sigaltstack").return ?
 {
 	name = "sigaltstack"
 	retstr = return_str(1, $return)

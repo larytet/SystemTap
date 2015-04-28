@@ -1014,7 +1014,8 @@ probe nd_syscall.sigaction.return ?, nd_syscall.sigaction32.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-%( CONFIG_GENERIC_SIGALTSTACK == "y" %?
+# Before kernel 3.8, sigaltstack() was actually in arch-specific code,
+# but we want to make sure all versions support the same variables.
 probe nd_syscall.sigaltstack
 {
 	printf("%s, %s\n", name, argstr)
@@ -1024,7 +1025,6 @@ probe nd_syscall.sigaltstack.return
 {
 	printf("%s, %s\n", name, retstr)
 }
-%)
 
 probe nd_syscall.signal ?
 {

@@ -319,14 +319,13 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 %(systemtap_v < "2.3" %?
 	regs = $regs
 %)
-	argstr = sprintf("%p, %p", $uss, $uoss)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u($uss), $uoss)
 }
 probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 {
 	name = "sigaltstack"
 	retstr = return_str(1, $return)
 }
-%)
 
 # sys32_sigaltstack ________________________________________
 #
@@ -335,18 +334,25 @@ probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 # int sys32_sigaltstack(u32 __new, u32 __old, int r5,
 #			int r6, int r7, int r8, struct pt_regs *regs)
 #
-# Args are too different to match 'syscall.sigaltstack'.
-probe syscall.sys32_sigaltstack = kernel.function("compat_sys_sigaltstack") !,
-				  kernel.function("sys32_sigaltstack") ?
+probe syscall.sys32_sigaltstack =
+	kernel.function("compat_sys_sigaltstack").call !,
+	kernel.function("sys32_sigaltstack").call ?
 {
-	name = "sys32_sigaltstack"
-	argstr = ""
+	name = "sigaltstack"
+	uss_uaddr = @__pointer($__new)
+	uoss_uaddr = @__pointer($__old)
+	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u(uss_uaddr),
+			 uoss_uaddr)
 }
-probe syscall.sys32_sigaltstack.return = kernel.function("sys32_sigaltstack").return ?
+probe syscall.sys32_sigaltstack.return =
+	kernel.function("compat_sys_sigaltstack").return !,
+	kernel.function("sys32_sigaltstack").return ?
 {
-	name = "sys32_sigaltstack"
+	name = "sigaltstack"
 	retstr = return_str(1, $return)
 }
+%)
+
 # sys32_sendfile64 ________________________________________
 #
 # asmlinkage int sys32_sendfile64(int out_fd, int in_fd,

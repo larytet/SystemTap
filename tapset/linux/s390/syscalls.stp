@@ -160,14 +160,13 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 %(systemtap_v < "2.3" %?
 	regs = %{ /* pure */ _stp_current_pt_regs() %}
 %)
-	argstr = sprintf("%p, %p", $uss, $uoss)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u($uss), $uoss)
 }
 probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 {
 	name = "sigaltstack"
 	retstr = return_str(1, $return)
 }
-%)
 
 # sys32_sigaltstack ________________________________________________
 # asmlinkage long
@@ -176,14 +175,17 @@ probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 # NOTE: args vary between archs.
 probe syscall.sys32_sigaltstack = kernel.function("sys32_sigaltstack") ?
 {
-	name = "sys32_sigaltstack"
-	argstr = ""
+	name = "sigaltstack"
+	uss_uaddr = $uss
+	uoss_uaddr = $uoss
+	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u($uss), $uoss)
 }
 probe syscall.sys32_sigaltstack.return = kernel.function("sys32_sigaltstack").return ?
 {
-	name = "sys32_sigaltstack"
+	name = "sigaltstack"
 	retstr = return_str(1, $return)
 }
+%)
 
 # sysctl _____________________________________________________
 #

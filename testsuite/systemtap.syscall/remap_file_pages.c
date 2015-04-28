@@ -21,7 +21,7 @@ int main()
     pgsz = sysconf(_SC_PAGESIZE);
 
     remap_file_pages(data, pgsz, PROT_NONE, 0, MAP_SHARED);
-    //staptest// remap_file_pages (XXXX, XXXX, PROT_NONE, XXXX, MAP_SHARED) = 0
+    //staptest// remap_file_pages (XXXX, XXXX, PROT_NONE, XXXX, MAP_SHARED) = NNNN
 
     close(fd);
     unlink(f);

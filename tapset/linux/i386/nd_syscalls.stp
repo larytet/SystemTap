@@ -175,11 +175,18 @@ probe nd_syscall.set_zone_reclaim.return = kprobe.function("sys_set_zone_reclaim
 probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
 {
 	name = "sigaltstack"
-	// ussp = %( kernel_vr < "2.6.25" %? $ebx %: %( kernel_vr < "2.6.30" %? $bx %: $regs->bx %) %)
-	// NB: no asmlinkage()
-	ussp = %( kernel_vr < "2.6.30" %? ulong_arg(1) %:
-		  @cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")->bx %)
-	argstr = sprintf("%p", ussp)
+	asmlinkage()
+	// Sigh, it doesn't seem possible to get the address of regs
+	// here without dipping down into deep mojo.
+	__regs = __ulong(register("esp")) + 4
+	uss_uaddr = __ulong(@choose_defined(@cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->bx,
+					    @cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->ebx))
+%(systemtap_v <= "1.4" %?
+	ussp = uss_uaddr
+%)
+	uoss_uaddr = __ulong(@choose_defined(@cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->cx,
+					     @cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->ecx))
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
 }
 probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
 {

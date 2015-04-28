@@ -3488,15 +3488,23 @@ probe syscall.sigaction32.return = kernel.function("sys32_sigaction").return ?,
 
 # sigaltstack ________________________________________________
 # SYSCALL_DEFINE2(sigaltstack,const stack_t __user *,uss, stack_t __user *,uoss)
+# COMPAT_SYSCALL_DEFINE2(sigaltstack,
+#			const compat_stack_t __user *, uss_ptr,
+#			compat_stack_t __user *, uoss_ptr)
 #
-probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call
+probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call,
+	kernel.function("compat_sys_sigaltstack").call ?
 {
 	name = "sigaltstack"
-	uss_uaddr = $uss
-	uoss_uaddr = $uoss
-	argstr = sprintf("%p, %p", $uss, $uoss)
+	uss_uaddr = @__pointer(@choose_defined($uss, $uss_ptr))
+	uoss_uaddr = @__pointer(@choose_defined($uoss, $uoss_ptr))
+	argstr = sprintf("%s, %p",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
-probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
+probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return,
+	kernel.function("compat_sys_sigaltstack").return ?
 {
 	name = "sigaltstack"
 	retstr = return_str(1, $return)
@@ -3592,17 +3600,28 @@ probe syscall.compat_signalfd.return =
 }
 
 # sigpending _________________________________________________
-# long sys_sigpending(old_sigset_t __user *set)
+# SYSCALL_DEFINE1(sigpending, old_sigset_t __user *, set)
+# COMPAT_SYSCALL_DEFINE1(sigpending, compat_old_sigset_t __user *, set)
 #
-probe syscall.sigpending = kernel.function("sys_sigpending").call ?
+probe syscall.sigpending = __syscall.sigpending ?,
+	kernel.function("compat_sys_sigpending").call ?
 {
 	name = "sigpending"
 	argstr = sprintf("%p", $set)
 }
-probe syscall.sigpending.return = kernel.function("sys_sigpending").return ?
+probe __syscall.sigpending = kernel.function("sys_sigpending").call ?
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.sigpending.return = __syscall.sigpending.return ?,
+	kernel.function("compat_sys_sigpending").return ?
 {
 	name = "sigpending"
 	retstr = return_str(1, $return)
+}
+probe __syscall.sigpending.return = kernel.function("sys_sigpending").return ?
+{
+	@__syscall_gate_compat_simple
 }
 
 # sigprocmask ________________________________________________
@@ -3659,15 +3678,26 @@ probe syscall.sigreturn.return = kernel.function("sys_sigreturn").return ?,
 }
 
 # sigsuspend _________________________________________________
-#
+# #ifdef CONFIG_OLD_SIGSUSPEND
+# SYSCALL_DEFINE1(sigsuspend, old_sigset_t, mask)
+# #endif
+# #ifdef CONFIG_OLD_SIGSUSPEND3
+# SYSCALL_DEFINE3(sigsuspend, int, unused1, int, unused2, old_sigset_t, mask)
+# #endif
+# asmlinkage long
+# sys32_sigsuspend(int history0, int history1, old_sigset_t mask)
+# long sys_sigsuspend(old_sigset_t mask)
 probe syscall.sigsuspend = kernel.function("sys_sigsuspend").call ?,
-                           kernel.function("sys32_sigsuspend").call ?
+	kernel.function("sys32_sigsuspend").call ?,
+	kernel.function("compat_sys_sigsuspend").call ?
 {
 	name = "sigsuspend"
-	argstr = ""
+	mask = __ulong($mask)
+	argstr = sprintf("%s", _stp_sigmask_str(mask))
 }
 probe syscall.sigsuspend.return = kernel.function("sys_sigsuspend").return ?,
-                                  kernel.function("sys32_sigsuspend").return ?
+	kernel.function("sys32_sigsuspend").return ?,
+	kernel.function("compat_sys_sigsuspend").return ?
 {
 	name = "sigsuspend"
 	retstr = return_str(1, $return)
