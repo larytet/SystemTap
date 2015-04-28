@@ -1037,7 +1037,8 @@ probe nd_syscall.ioprio_set.return ?
 probe nd_syscall.kexec_load ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p, %d\n", entry, nr_segments, segments_uaddr, flags)
+	printf("%d, %u, %p, %d, %s\n", entry, nr_segments, segments_uaddr,
+               flags, flags_str)
 }
 probe nd_syscall.kexec_load.return ?
 {

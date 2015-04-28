@@ -3032,8 +3032,8 @@ probe nd_syscall.ioprio_set.return = kprobe.function("sys_ioprio_set").return ?
 #		struct compat_kexec_segment __user *segments,
 #		unsigned long flags)
 #
-probe nd_syscall.kexec_load = kprobe.function("compat_sys_kexec_load") ?,
-                              kprobe.function("sys_kexec_load") ?
+probe nd_syscall.kexec_load = __nd_syscall.kexec_load ?,
+                              kprobe.function("compat_sys_kexec_load") ?
 {
 	name = "kexec_load"
 	asmlinkage()
@@ -3041,13 +3041,22 @@ probe nd_syscall.kexec_load = kprobe.function("compat_sys_kexec_load") ?,
 	nr_segments = ulong_arg(2)
 	segments_uaddr = pointer_arg(3)
 	flags = ulong_arg(4)
-	argstr = sprintf("%p, %d, %p, %d", entry, nr_segments, segments_uaddr, flags)
+	flags_str = _kexec_flags_str(flags)
+	argstr = sprintf("%p, %u, %p, %s", entry, nr_segments, segments_uaddr, flags_str)
 }
-probe nd_syscall.kexec_load.return = kprobe.function("compat_sys_kexec_load").return ?,
-                                     kprobe.function("sys_kexec_load").return ?
+probe __nd_syscall.kexec_load = kprobe.function("sys_kexec_load")
+{
+	@__syscall_gate_compat_simple
+}
+probe nd_syscall.kexec_load.return = __nd_syscall.kexec_load.return ?,
+                                     kprobe.function("compat_sys_kexec_load").return ?
 {
 	name = "kexec_load"
 	retstr = returnstr(1)
+}
+probe __nd_syscall.kexec_load.return = kprobe.function("sys_kexec_load").return
+{
+	@__syscall_gate_compat_simple
 }
 
 # keyctl _____________________________________________________

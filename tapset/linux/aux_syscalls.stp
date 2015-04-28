@@ -5595,3 +5595,38 @@ function _struct_sysinfo_u:string(uaddr:long)
 		}
 	}
 %}
+
+%{
+#include <linux/kexec.h>
+static const _stp_val_array const _stp_kexec_flags_list[] = {
+	V(KEXEC_ON_CRASH),
+#ifdef KEXEC_PRESERVE_CONTEXT
+	V(KEXEC_PRESERVE_CONTEXT),
+#endif
+	V(KEXEC_ARCH_DEFAULT),
+	V(KEXEC_ARCH_386),
+	V(KEXEC_ARCH_X86_64),
+	V(KEXEC_ARCH_PPC),
+	V(KEXEC_ARCH_PPC64),
+	V(KEXEC_ARCH_IA_64),
+#ifdef KEXEC_ARCH_ARM
+	V(KEXEC_ARCH_ARM),
+#endif
+	V(KEXEC_ARCH_S390),
+	V(KEXEC_ARCH_SH),
+#ifdef KEXEC_ARCH_MIPS_LE
+	V(KEXEC_ARCH_MIPS_LE),
+#endif
+#ifdef KEXEC_ARCH_MIPS
+	V(KEXEC_ARCH_MIPS),
+#endif
+	{0, NULL}
+};
+%}
+
+function _kexec_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned long flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_kexec_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
+%}
+

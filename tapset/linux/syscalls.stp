@@ -2842,21 +2842,30 @@ probe syscall.ioprio_set.return = kernel.function("sys_ioprio_set").return ?
 #		struct compat_kexec_segment __user *segments,
 #		unsigned long flags)
 #
-probe syscall.kexec_load = kernel.function("compat_sys_kexec_load").call ?,
-                           kernel.function("sys_kexec_load").call ?
+probe syscall.kexec_load = __syscall.kexec_load.call,
+                           kernel.function("compat_sys_kexec_load").call ?
 {
 	name = "kexec_load"
-	entry = $entry
-	nr_segments = $nr_segments
+	entry = __ulong($entry)
+	nr_segments = __ulong($nr_segments)
 	segments_uaddr = $segments
-	flags = $flags
-	argstr = sprintf("%p, %d, %p, %d", $entry, $nr_segments, $segments, $flags)
+	flags = __ulong($flags)
+	flags_str = _kexec_flags_str(flags)
+	argstr = sprintf("%p, %u, %p, %s", entry, nr_segments, segments_uaddr, flags_str)
 }
-probe syscall.kexec_load.return = kernel.function("compat_sys_kexec_load").return ?,
-                                  kernel.function("sys_kexec_load").return ?
+probe __syscall.kexec_load.call = kernel.function("sys_kexec_load").call
+{
+	@__syscall_gate_compat_simple
+}
+probe syscall.kexec_load.return = __syscall.syscall.kexec_load.return,
+                                  kernel.function("compat_sys_kexec_load").return ?
 {
 	name = "kexec_load"
 	retstr = return_str(1, $return)
+}
+probe __syscall.syscall.kexec_load.return = kernel.function("sys_kexec_load").return
+{
+	@__syscall_gate_compat_simple
 }
 
 # keyctl _____________________________________________________
