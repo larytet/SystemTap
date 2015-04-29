@@ -176,6 +176,7 @@
 - Embedded-C functions may use STAP_RETURN(value) instead of the
   more wordy STAP_RETVALUE assignment followed by a "goto out".
   The macro supports numeric or string values as appropriate.
+  STAP_ERROR(...) is available to return with a (catchable) error.
 
 - Some struct-sockaddr fields are now individually decoded for
   socket-related syscalls:
