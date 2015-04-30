@@ -2441,15 +2441,23 @@ systemtap_session::parse_stap_color(const std::string& type)
  * This routine parses /sys/module/module/parameters/sig_enforce to
  * figure out if signatures are enforced on modules. Note that if the
  * file doesn't exist, we don't really care and return false.
+ *
+ * On certain kernels (RHEL7), we also have to check
+ * /sys/kernel/security/securelevel.
  */
 bool
 systemtap_session::modules_must_be_signed()
 {
   ifstream statm("/sys/module/module/parameters/sig_enforce");
+  ifstream securelevel("/sys/kernel/security/securelevel");
   char status = 'N';
 
   statm >> status;
   if (status == 'Y')
+    return true;
+
+  securelevel >> status;
+  if (status == '1')
     return true;
   return false;
 }
