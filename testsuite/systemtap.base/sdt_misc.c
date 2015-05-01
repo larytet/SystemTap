@@ -7,6 +7,11 @@
 static struct timespec req = {0, 200000000};
 #endif
 
+void sem_display ();
+void bar (int i);
+void baz (int i, char* s);
+void buz (int parm);
+
 #ifndef ONLY_MAIN
 #include "sdt_misc_.h"
 
