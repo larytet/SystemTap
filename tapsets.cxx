@@ -7560,6 +7560,123 @@ suggest_dwarf_functions(systemtap_session& sess,
   return levenshtein_suggest(func, funcs, 5); // print top 5 funcs only
 }
 
+
+// Use a glob pattern to find executables or shared libraries
+static set<string>
+glob_executable(const string& pattern)
+{
+  glob_t the_blob;
+  set<string> globs;
+
+  int rc = glob (pattern.c_str(), 0, NULL, & the_blob);
+  if (rc)
+    throw SEMANTIC_ERROR (_F("glob %s error (%d)", pattern.c_str(), rc));
+
+  for (unsigned i = 0; i < the_blob.gl_pathc; ++i)
+    {
+      const char* globbed = the_blob.gl_pathv[i];
+      struct stat st;
+
+      if (access (globbed, X_OK) == 0
+          && stat (globbed, &st) == 0
+          && S_ISREG (st.st_mode)) // see find_executable()
+        {
+          // Need to call resolve_path here, in order to path-expand
+          // patterns like process("stap*").  Otherwise it may go through
+          // to the next round of expansion as ("stap"), leading to a $PATH
+          // search that's not consistent with the glob search already done.
+          string canononicalized = resolve_path (globbed);
+
+          // The canonical names can result in duplication, for example
+          // having followed symlinks that are common with shared libraries,
+          // so we use a set for unique results.
+          globs.insert(canononicalized);
+        }
+    }
+
+  globfree (& the_blob);
+  return globs;
+}
+
+static bool
+resolve_library_by_path(base_query & q,
+                        set<string> const & visited_libraries,
+                        probe * base,
+                        probe_point * location,
+                        literal_map_t const & parameters,
+                        vector<derived_probe *> & finished_results)
+{
+  size_t results_pre = finished_results.size();
+  systemtap_session & sess = q.sess;
+  dwflpp & dw = q.dw;
+
+  string lib;
+  if (!location->from_glob && q.has_library && !visited_libraries.empty()
+      && q.get_string_param(parameters, TOK_LIBRARY, lib))
+    {
+      // The library didn't fit any DT_NEEDED libraries. As a last effort,
+      // let's try to look for the library directly.
+
+      if (contains_glob_chars (lib))
+        {
+          // Evaluate glob here, and call derive_probes recursively with each match.
+          set<string> globs = glob_executable (lib);
+          for (set<string>::const_iterator it = globs.begin();
+               it != globs.end(); ++it)
+            {
+              assert_no_interrupts();
+
+              const string& globbed = *it;
+              if (sess.verbose > 1)
+                clog << _F("Expanded library(\"%s\") to library(\"%s\")",
+                           lib.c_str(), globbed.c_str()) << endl;
+
+              probe *new_base = build_library_probe(dw, globbed,
+                                                    base, location);
+
+              // We override "optional = true" here, as if the
+              // wildcarded probe point was given a "?" suffix.
+
+              // This is because wildcard probes will be expected
+              // by users to apply only to some subset of the
+              // matching binaries, in the sense of "any", rather
+              // than "all", sort of similarly how
+              // module("*").function("...") patterns work.
+
+              derive_probes (sess, new_base, finished_results,
+                             true /* NB: not location->optional */ );
+            }
+        }
+      else
+        {
+          string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
+                                                "LD_LIBRARY_PATH");
+          if (resolved_lib.find('/') != string::npos)
+            {
+              probe *new_base = build_library_probe(dw, resolved_lib,
+                                                    base, location);
+              derive_probes(sess, new_base, finished_results);
+              if (lib.find('/') == string::npos)
+                sess.print_warning(_F("'%s' is not a needed library of '%s'. "
+                                      "Specify the full path to squelch this warning.",
+                                      resolved_lib.c_str(), dw.module_name.c_str()));
+            }
+          else
+            {
+              // Otherwise, let's suggest from the DT_NEEDED libraries
+              string sugs = levenshtein_suggest(lib, visited_libraries, 5);
+              if (!sugs.empty())
+                throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
+                                          "no match (similar libraries: %s)",
+                                          sugs.find(',') == string::npos,
+                                          sugs.c_str()));
+            }
+        }
+    }
+
+  return results_pre != finished_results.size();
+}
+
 void
 dwarf_builder::build(systemtap_session & sess,
 		     probe * base,
@@ -7669,70 +7786,46 @@ dwarf_builder::build(systemtap_session & sess,
           assert (lit);
 
           // Evaluate glob here, and call derive_probes recursively with each match.
-          glob_t the_blob;
-          set<string> dupes;
-          int rc = glob (module_name.c_str(), 0, NULL, & the_blob);
-          if (rc)
-            throw SEMANTIC_ERROR (_F("glob %s error (%s)", module_name.c_str(), lex_cast(rc).c_str() ));
+          set<string> globs = glob_executable (module_name);
           unsigned results_pre = finished_results.size();
-          for (unsigned i = 0; i < the_blob.gl_pathc; ++i)
+          for (set<string>::const_iterator it = globs.begin();
+               it != globs.end(); ++it)
             {
               assert_no_interrupts();
 
-              const char* globbed = the_blob.gl_pathv[i];
-              struct stat st;
+              const string& globbed = *it;
 
-              if (access (globbed, X_OK) == 0
-                  && stat (globbed, &st) == 0
-                  && S_ISREG (st.st_mode)) // see find_executable()
-                {
-                  // Need to call canonicalize here, in order to path-expand
-                  // patterns like process("stap*").  Otherwise it may go through
-                  // to the next round of expansion as ("stap"), leading to a $PATH
-                  // search that's not consistent with the glob search already done.
-                  string canononicalized = resolve_path (globbed);
-                  globbed = canononicalized.c_str();
+              // synthesize a new probe_point, with the glob-expanded string
+              probe_point *pp = new probe_point (*location);
+              pp->from_glob = true;
 
-                  // The canonical names can result in duplication, for example
-                  // having followed symlinks that are common with shared
-                  // libraries.  Filter those out.
-                  if (!dupes.insert(canononicalized).second)
-                    continue;
+              // PR13338: quote results to prevent recursion
+              string eglobbed = escape_glob_chars (globbed);
 
-                  // synthesize a new probe_point, with the glob-expanded string
-                  probe_point *pp = new probe_point (*location);
-                  pp->from_glob = true;
+              if (sess.verbose > 1)
+                clog << _F("Expanded process(\"%s\") to process(\"%s\")",
+                           module_name.c_str(), eglobbed.c_str()) << endl;
+              string eglobbed_tgt = path_remove_sysroot(sess, eglobbed);
 
-                  // PR13338: quote results to prevent recursion
-                  string eglobbed = escape_glob_chars (globbed);
+              probe_point::component* ppc = new probe_point::component (TOK_PROCESS,
+                                                new literal_string (eglobbed_tgt));
+              ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
+              pp->components[0] = ppc;
 
-                  if (sess.verbose > 1)
-                    clog << _F("Expanded process(\"%s\") to process(\"%s\")",
-                               module_name.c_str(), eglobbed.c_str()) << endl;
-                  string eglobbed_tgt = path_remove_sysroot(sess, eglobbed);
+              probe* new_probe = new probe (base, pp);
 
-                  probe_point::component* ppc = new probe_point::component (TOK_PROCESS,
-                                                    new literal_string (eglobbed_tgt));
-                  ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
-                  pp->components[0] = ppc;
+              // We override "optional = true" here, as if the
+              // wildcarded probe point was given a "?" suffix.
 
-                  probe* new_probe = new probe (base, pp);
+              // This is because wildcard probes will be expected
+              // by users to apply only to some subset of the
+              // matching binaries, in the sense of "any", rather
+              // than "all", sort of similarly how
+              // module("*").function("...") patterns work.
 
-                  // We override "optional = true" here, as if the
-                  // wildcarded probe point was given a "?" suffix.
-
-                  // This is because wildcard probes will be expected
-                  // by users to apply only to some subset of the
-                  // matching binaries, in the sense of "any", rather
-                  // than "all", sort of similarly how
-                  // module("*").function("...") patterns work.
-
-                  derive_probes (sess, new_probe, finished_results,
-                                 true /* NB: not location->optional */ );
-                }
+              derive_probes (sess, new_probe, finished_results,
+                             true /* NB: not location->optional */ );
             }
-
-          globfree (& the_blob);
 
           unsigned results_post = finished_results.size();
 
@@ -7927,34 +8020,12 @@ dwarf_builder::build(systemtap_session & sess,
       modules_seen.insert(sdtq.visited_modules.begin(),
                           sdtq.visited_modules.end());
 
-      string lib;
-      if (results_pre == finished_results.size() && !sdtq.resolved_library
-          && get_param(filled_parameters, TOK_LIBRARY, lib)
-          && !lib.empty() && !sdtq.visited_libraries.empty())
-        {
-          // The library didn't fit any DT_NEEDED libraries. As a last effort,
-          // let's try to look for the library directly.
-          string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
-                                                "LD_LIBRARY_PATH");
-          if (resolved_lib.find('/') != string::npos)
-            {
-              probe *new_base = build_library_probe(*dw, resolved_lib,
-                                                    base, location);
-              derive_probes(sess, new_base, finished_results);
-              sess.print_warning(_F("'%s' is not a needed library of '%s'. "
-                                    "Specify the full path to squelch this warning.",
-                                    resolved_lib.c_str(), dw->module_name.c_str()));
-              return;
-            }
-
-          // Otherwise, let's suggest from the DT_NEEDED libraries
-          string sugs = levenshtein_suggest(lib, sdtq.visited_libraries, 5);
-          if (!sugs.empty())
-            throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
-                                      "no match (similar libraries: %s)",
-                                      sugs.find(',') == string::npos,
-                                      sugs.c_str()));
-        }
+      if (results_pre == finished_results.size()
+          && sdtq.has_library && !sdtq.resolved_library
+          && resolve_library_by_path (sdtq, sdtq.visited_libraries,
+                                      base, location, filled_parameters,
+                                      finished_results))
+        return;
 
       // Did we fail to find a mark?
       if (results_pre == finished_results.size() && !location->from_glob)
@@ -8044,34 +8115,12 @@ dwarf_builder::build(systemtap_session & sess,
         }
     } // i_n_r > 0
 
-  string lib;
-  if (results_pre == results_post && !q.resolved_library
-      && get_param(filled_parameters, TOK_LIBRARY, lib)
-      && !lib.empty() && !q.visited_libraries.empty())
-    {
-      // The library didn't fit any DT_NEEDED libraries. As a last effort,
-      // let's try to look for the library directly.
-      string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
-                                            "LD_LIBRARY_PATH");
-      if (resolved_lib.find('/') != string::npos)
-        {
-          probe *new_base = build_library_probe(*dw, resolved_lib,
-                                                base, location);
-          derive_probes(sess, new_base, finished_results);
-          sess.print_warning(_F("'%s' is not a needed library of '%s'. "
-                                "Specify the full path to squelch this warning.",
-                                resolved_lib.c_str(), dw->module_name.c_str()));
-          return;
-        }
-
-      // Otherwise, let's suggest from the DT_NEEDED libraries
-      string sugs = levenshtein_suggest(lib, q.visited_libraries, 5);
-      if (!sugs.empty())
-        throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
-                                  "no match (similar libraries: %s)",
-                                  sugs.find(',') == string::npos,
-                                  sugs.c_str()));
-    }
+  if (results_pre == finished_results.size()
+      && q.has_library && !q.resolved_library
+      && resolve_library_by_path (q, q.visited_libraries,
+                                  base, location, filled_parameters,
+                                  finished_results))
+    return;
 
   // If we just failed to resolve a function/plt by name, we can suggest
   // something. We only suggest things for probe points that were not
