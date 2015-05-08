@@ -853,6 +853,9 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
   // RHBZ 655231: later rhel6 kernels' module-signing kbuild logic breaks out-of-tree modules
   omf << "CONFIG_MODULE_SIG := n" << endl;
 
+  // PR18389: disable GCC's Identical Code Folding, since the stubs may look identical
+  omf << "EXTRA_CFLAGS += $(call cc-option,-fno-ipa-icf)" << endl;
+
   if (s.kernel_source_tree != "")
     omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;
 
