@@ -777,7 +777,17 @@ probe nd_syscall.setitimer.return, nd_syscall.compat_setitimer.return ?
 	printf("%s %s\n", name, retstr)
 }
 
-probe nd_syscall.set_mempolicy ?
+probe nd_syscall.setns ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d\n", fd, nstype)
+}
+probe nd_syscall.setns.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.set_mempolicy ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d(%s) %p %d\n", mode, mode_str, nmask_uaddr, maxnode)

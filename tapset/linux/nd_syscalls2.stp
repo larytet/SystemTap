@@ -2900,6 +2900,22 @@ probe nd_syscall.compat_setitimer.return = kprobe.function("compat_sys_setitimer
 	retstr = returnstr(1)
 }
 
+# setns ______________________________________________________
+# SYSCALL_DEFINE2(setns, int, fd, int, nstype)
+probe nd_syscall.setns = kprobe.function("sys_setns") ?
+{
+	name = "setns"
+	asmlinkage()
+	fd = int_arg(1)
+	nstype = int_arg(2)
+        argstr = sprintf("%d, %s", fd, __fork_flags(nstype));
+}
+probe nd_syscall.setns.return = kprobe.function("sys_setns").return ?
+{
+	name = "setns"
+	retstr = returnstr(1)
+}
+
 # set_mempolicy ______________________________________________
 # long sys_set_mempolicy(int mode,
 #	unsigned long __user *nmask,

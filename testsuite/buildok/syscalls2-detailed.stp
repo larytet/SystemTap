@@ -773,6 +773,16 @@ probe syscall.setitimer.return, syscall.compat_setitimer.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe syscall.setns ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d\n", fd, nstype)
+}
+probe syscall.setns.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.set_mempolicy ?
 {
 	printf("%s(%s)\n", name, argstr)
