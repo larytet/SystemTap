@@ -863,6 +863,16 @@ probe syscall.setrlimit.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe syscall.set_robust_list
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %u", list_head_uaddr, len)
+}
+probe syscall.set_robust_list.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.setsid
 {
 	printf("%s(%s)\n", name, argstr)

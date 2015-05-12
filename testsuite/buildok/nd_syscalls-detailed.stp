@@ -833,6 +833,16 @@ probe nd_syscall.getrlimit.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.get_robust_list
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %p", pid, list_head_uaddr, len_uaddr)
+}
+probe nd_syscall.get_robust_list.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.getrusage
 {
 	printf("%s, %s\n", name, argstr)

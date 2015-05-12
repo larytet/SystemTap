@@ -867,6 +867,16 @@ probe nd_syscall.setrlimit.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.set_robust_list
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %u", list_head_uaddr, len)
+}
+probe nd_syscall.set_robust_list.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.setsid
 {
 	printf("%s(%s)\n", name, argstr)

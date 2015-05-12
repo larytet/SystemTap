@@ -831,6 +831,16 @@ probe syscall.getrlimit.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe syscall.get_robust_list
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %p", pid, list_head_uaddr, len_uaddr)
+}
+probe syscall.get_robust_list.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe syscall.getrusage
 {
 	printf("%s, %s\n", name, argstr)
