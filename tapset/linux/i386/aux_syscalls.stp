@@ -68,3 +68,33 @@ function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
 {
 	return 0
 }
+
+%{
+#include <asm/ldt.h>
+%}
+
+function _struct_user_desc_u:string(uaddr:long)
+%{ /* pure */
+	struct user_desc ud;
+	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
+	if (ptr == NULL)
+		strlcpy (STAP_RETVALUE, "NULL", MAXSTRINGLEN);
+	else
+	{
+		if (_stp_copy_from_user((char*)&ud, ptr,
+		    sizeof(struct user_desc)) == 0)
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
+			         "{entry_number=%u, base_addr=%lu, limit=%u, seg_32bit=%u, contents=%u, "
+			         "read_exec_only=%u, limit_in_pages=%u, seg_not_present=%u, useable=%u}",
+			         ud.entry_number, (unsigned long)ud.base_addr, ud.limit, ud.seg_32bit, ud.contents,
+			         ud.read_exec_only, ud.limit_in_pages, ud.seg_not_present, ud.useable);
+		}
+		else
+		{
+			snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
+			         (unsigned long)ptr);
+		}
+	}
+%}
+

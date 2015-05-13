@@ -562,3 +562,23 @@ probe syscall.compat_readahead.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
+
+probe syscall.get_thread_area ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p\n", u_info_uaddr)
+}
+probe syscall.get_thread_area.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.set_thread_area ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p\n", u_info_uaddr)
+}
+probe syscall.set_thread_area.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
