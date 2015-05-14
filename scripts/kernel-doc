@@ -271,7 +271,8 @@ my $state;
 my $in_doc_sect;
 
 #declaration types: can be
-# 'function', 'struct', 'union', 'enum', 'typedef', 'probe', 'sfunction'
+# 'function', 'struct', 'union', 'enum', 'typedef', 'probe', 'sfunction',
+# 'smacro'
 my $decl_type;
 
 my $doc_special = "\@\%\$\&";
@@ -614,6 +615,14 @@ sub output_probe_html(%) {
 
 # output sfunction in html
 sub output_sfunction_html(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+    my $count;
+
+}
+
+# output smacro in html
+sub output_smacro_html(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $count;
@@ -1094,6 +1103,79 @@ sub output_sfunction_xml(%) {
 }
 
 # output in XML DocBook
+sub output_smacro_xml(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+    my $count;
+    my $id;
+
+    $id = "API-".$args{'smacro'};
+    $id =~ s/[^A-Za-z0-9]/-/g;
+
+    print "<refentry id=\"$id\">\n";
+    print "<refentryinfo>\n";
+    print " <title>LINUX</title>\n";
+    print " <productname>SystemTap Tapset Reference</productname>\n";
+    print " <date>$man_date</date>\n";
+    print "</refentryinfo>\n";
+    print "<refmeta>\n";
+    print " <refentrytitle><phrase>macro::".$args{'smacro'}."</phrase></refentrytitle>\n";
+    print " <manvolnum>3stap</manvolnum>\n";
+#    print " <refmiscinfo class=\"version\">" . $kernelversion . "</refmiscinfo>\n";
+    print "</refmeta>\n";
+    print "<refnamediv>\n";
+    print " <refname>macro::".$args{'smacro'}."</refname>\n";
+    print " <refpurpose>\n";
+    print "  ";
+    output_highlight ($args{'purpose'});
+    print " </refpurpose>\n";
+    print "</refnamediv>\n";
+
+    print "<refsynopsisdiv>\n";
+    print " <title>Synopsis</title>\n";
+    print "  <programlisting>\n";
+    print "    @".$args{'smacro'};
+#    if ($args{'functiontype'}) { print ":".$args{'functiontype'} }
+    print "(";
+
+    $count = $#{$args{'parameterlist'}};
+    if ($count >= 0) {
+	foreach $parameter (@{$args{'parameterlist'}}) {
+#	    $type = $args{'parametertypes'}{$parameter};
+#	    print $parameter.":".$type;
+	    print $parameter;
+	    $count -= 1;
+	    if ($count >= 0) { print ","; } 
+	}
+    }
+    print ")\n</programlisting>\n";
+    print "</refsynopsisdiv>\n";
+
+    # print parameters
+    print "<refsect1>\n <title>Arguments</title>\n";
+    if ($#{$args{'parameterlist'}} >= 0) {
+	print " <variablelist>\n";
+	foreach $parameter (@{$args{'parameterlist'}}) {
+	    my $parameter_name = $parameter;
+	    $parameter_name =~ s/\[.*//;
+
+	    print "  <varlistentry>\n   <term><parameter>$parameter</parameter></term>\n";
+	    print "   <listitem>\n    <para>\n";
+	    $lineprefix="     ";
+	    output_highlight($args{'parameterdescs'}{$parameter_name});
+	    print "    </para>\n   </listitem>\n  </varlistentry>\n";
+	}
+	print " </variablelist>\n";
+    } else {
+	print " <para>\n  None\n </para>\n";
+    }
+    print "</refsect1>\n";
+
+    output_section_xml(@_);
+    print "</refentry>\n\n";
+}
+
+# output in XML DocBook
 sub output_function_gnome {
     my %args = %{$_[0]};
     my ($parameter, $section);
@@ -1364,6 +1446,14 @@ sub output_sfunction_man(%) {
 }
 
 ##
+# output smacro in man
+sub output_smacro_man(%) {
+    my %args = %{$_[0]};
+    my ($parameter, $section);
+
+}
+
+##
 # output in text
 sub output_function_text(%) {
     my %args = %{$_[0]};
@@ -1527,6 +1617,13 @@ sub output_probe_text(%) {
 
 # output sfunction as text
 sub output_sfunction_text(%) {
+    my %args = %{$_[0]};
+    my ($parameter);
+
+}
+
+# output smacro as text
+sub output_smacro_text(%) {
     my %args = %{$_[0]};
     my ($parameter);
 
@@ -1957,6 +2054,43 @@ sub dump_sfunction($$) {
 		       });
 }
 
+##
+# takes a stap macro prototype and the name of the current file being
+# processed and spits out all the details stored in the global
+# arrays/hashes.
+sub dump_smacro($$) {
+    my $prototype = shift;
+    my $file = shift;
+
+    if ($prototype =~ m/^\@define\s+([\w]+)\s*\(([^\{]*)\)/) {
+	$declaration_name = $1;
+	my $args = $2;
+	
+	create_sparameterlist($args, ',', $file);
+    } elsif ($prototype =~ m/^\@define\s+([\w]+)\s*/) {
+	$declaration_name = $1;
+	my $args = "";
+	
+	create_sparameterlist($args, ',', $file);
+    } else {
+	print STDERR "Error(${file}:$.): cannot understand macro prototype: '$prototype'\n";
+	++$errors;
+	return;
+    }
+
+    output_declaration($declaration_name,
+		       'smacro',
+		       {'smacro' => $declaration_name,
+			'module' => $modulename,
+			'parameterlist' => \@parameterlist,
+			'parameterdescs' => \%parameterdescs,
+			'parametertypes' => \%parametertypes,
+			'sectionlist' => \@sectionlist,
+			'sections' => \%sections,
+			'purpose' => $declaration_purpose
+		       });
+}
+
 sub process_file($);
 
 # Read the file that maps relative names to absolute names for
@@ -2079,6 +2213,26 @@ sub process_state3_sfunction($$) {
     reset_state();
 }
 
+sub process_state3_smacro($$) {
+    my $x = shift;
+    my $file = shift;
+
+    $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
+
+    if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#\s*define/)) {
+	# do nothing
+    }
+    elsif ($x =~ /([^\{]*)/) {
+	$prototype .= $1;
+    }
+
+    $prototype =~ s@/\*.*?\*/@@gos;	# strip comments.
+    $prototype =~ s@[\r\n]+@ @gos; # strip newlines/cr's.
+    $prototype =~ s@^\s+@@gos; # strip leading spaces
+    dump_smacro($prototype,$file);
+    reset_state();
+}
+
 sub process_state3_probe($$) {
     my $prototype = shift;
     my $file = shift;
@@ -2195,6 +2349,8 @@ sub process_file($) {
 		    $decl_type = 'probe';
 		} elsif ($identifier =~ m/^sfunction/) {
 		    $decl_type = 'sfunction';
+		} elsif ($identifier =~ m/^smacro/) {
+		    $decl_type = 'smacro';
 		} else {
 		    $decl_type = 'function';
 		}
@@ -2272,6 +2428,8 @@ sub process_file($) {
 		process_state3_probe($identifier, $file);
 	    } elsif ($decl_type eq 'sfunction') {
 		process_state3_sfunction($_, $file);
+	    } elsif ($decl_type eq 'smacro') {
+		process_state3_smacro($_, $file);
 	    } else {
 		process_state3_type($_, $file);
 	    }
