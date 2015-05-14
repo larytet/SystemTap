@@ -2552,7 +2552,6 @@ build_library_probe(dwflpp& dw,
                     probe_point *base_loc)
 {
   probe_point* specific_loc = new probe_point(*base_loc);
-  specific_loc->from_glob = true;
   vector<probe_point::component*> derived_comps;
 
   // Create new probe point for the matching library. This is what will be
@@ -2566,7 +2565,8 @@ build_library_probe(dwflpp& dw,
           new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
     else if ((*it)->functor == TOK_LIBRARY)
       derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
-          new literal_string(path_remove_sysroot(dw.sess, library))));
+          new literal_string(path_remove_sysroot(dw.sess, library)),
+          true /* from_glob */ ));
     else
       derived_comps.push_back(*it);
   probe_point* derived_loc = new probe_point(*specific_loc);
@@ -7611,7 +7611,8 @@ resolve_library_by_path(base_query & q,
   dwflpp & dw = q.dw;
 
   string lib;
-  if (!location->from_glob && q.has_library && !visited_libraries.empty()
+  if (!location->from_globby_comp(TOK_LIBRARY) && q.has_library
+      && !visited_libraries.empty()
       && q.get_string_param(parameters, TOK_LIBRARY, lib))
     {
       // The library didn't fit any DT_NEEDED libraries. As a last effort,
@@ -7797,7 +7798,6 @@ dwarf_builder::build(systemtap_session & sess,
 
               // synthesize a new probe_point, with the glob-expanded string
               probe_point *pp = new probe_point (*location);
-              pp->from_glob = true;
 
               // PR13338: quote results to prevent recursion
               string eglobbed = escape_glob_chars (globbed);
@@ -7807,8 +7807,10 @@ dwarf_builder::build(systemtap_session & sess,
                            module_name.c_str(), eglobbed.c_str()) << endl;
               string eglobbed_tgt = path_remove_sysroot(sess, eglobbed);
 
-              probe_point::component* ppc = new probe_point::component (TOK_PROCESS,
-                                                new literal_string (eglobbed_tgt));
+              probe_point::component* ppc
+                = new probe_point::component (TOK_PROCESS,
+                                              new literal_string (eglobbed_tgt),
+                                              true /* from_glob */ );
               ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
               pp->components[0] = ppc;
 
@@ -8028,7 +8030,8 @@ dwarf_builder::build(systemtap_session & sess,
         return;
 
       // Did we fail to find a mark?
-      if (results_pre == finished_results.size() && !location->from_glob)
+      if (results_pre == finished_results.size()
+          && !location->from_globby_comp(TOK_MARK))
         {
           string provider;
           (void) get_param(filled_parameters, TOK_PROVIDER, provider);
@@ -8128,7 +8131,7 @@ dwarf_builder::build(systemtap_session & sess,
   // required because modules_seen needs to accumulate across recursive
   // calls for process(glob)[.library(glob)] probes.
   string func;
-  if (results_pre == results_post && !location->from_glob
+  if (results_pre == results_post && !location->from_globby_comp(TOK_FUNCTION)
       && get_param(filled_parameters, TOK_FUNCTION, func)
       && !func.empty())
     {
@@ -8140,7 +8143,7 @@ dwarf_builder::build(systemtap_session & sess,
                                   sugs.find(',') == string::npos,
                                   sugs.c_str()));
     }
-  else if (results_pre == results_post && !location->from_glob
+  else if (results_pre == results_post && !location->from_globby_comp(TOK_PLT)
            && get_param(filled_parameters, TOK_PLT, func)
            && !func.empty())
     {

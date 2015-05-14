@@ -95,25 +95,32 @@ symboldecl::~symboldecl ()
 
 probe_point::probe_point (std::vector<component*> const & comps):
   components(comps), optional (false), sufficient (false),
-  from_glob (false), well_formed (false), condition (0)
+  well_formed (false), condition (0)
 {
 }
 
 // NB: shallow-copy of compoonents & condition!
 probe_point::probe_point (const probe_point& pp):
   components(pp.components), optional (pp.optional), sufficient (pp.sufficient),
-  from_glob (pp.from_glob), well_formed (pp.well_formed),
-  condition (pp.condition)
+  well_formed (pp.well_formed), condition (pp.condition)
 {
 }
 
 
 probe_point::probe_point ():
-  optional (false), sufficient (false), from_glob (false),
-  well_formed (false), condition (0)
+  optional (false), sufficient (false), well_formed (false), condition (0)
 {
 }
 
+bool
+probe_point::from_globby_comp(const std::string& comp)
+{
+  vector<component*>::const_iterator it;
+  for (it = components.begin(); it != components.end(); it++)
+    if ((*it)->functor == comp)
+      return (*it)->from_glob;
+  return false;
+}
 
 unsigned probe::last_probeidx = 0;
 
@@ -142,13 +149,14 @@ probe::probe(probe* p, probe_point* l)
 
 
 probe_point::component::component ():
-  arg (0), tok(0)
+  arg (0), from_glob(false), tok(0)
 {
 }
 
 
-probe_point::component::component (std::string const & f, literal * a):
-  functor(f), arg(a), tok(0)
+probe_point::component::component (std::string const & f,
+  literal * a, bool from_glob):
+    functor(f), arg(a), from_glob(from_glob), tok(0)
 {
 }
 

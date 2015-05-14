@@ -796,14 +796,14 @@ struct probe_point
   {
     std::string functor;
     literal* arg; // optional
+    bool from_glob;
     component ();
     const token* tok; // points to component's functor
-    component(std::string const & f, literal * a = NULL);
+    component(std::string const & f, literal *a=NULL, bool from_glob=false);
   };
   std::vector<component*> components;
   bool optional;
   bool sufficient;
-  bool from_glob;
   bool well_formed; // used in derived_probe::script_location()
   expression* condition;
   void print (std::ostream& o, bool print_extras=true) const;
@@ -811,6 +811,7 @@ struct probe_point
   probe_point(const probe_point& pp);
   probe_point(std::vector<component*> const & comps);
   std::string str(bool print_extras=true) const;
+  bool from_globby_comp(const std::string& comp);
 };
 
 std::ostream& operator << (std::ostream& o, const probe_point& k);
