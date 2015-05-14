@@ -5,6 +5,15 @@
 // redistribute it and/or modify it under the terms of the GNU General
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
+//
+// <tapsetdescription>
+// The JSON tapset provides probes, functions, and macros to generate
+// a JSON metadata and data file. The JSON metadata file is located in
+// /proc/systemtap/MODULE/metadata.json. The JSON data file is located
+// in /proc/systemtap/MODULE/data.json. The JSON data file is updated
+// with current data every time the file is read.
+// </tapsetdescription>
+
 
 global __json_prefix
 global __json_metric_type, __json_metric_desc
@@ -38,7 +47,7 @@ probe init
 }
 
 /**
- * sfunction json_set_prefix: Set the metric prefix.
+ * sfunction json_set_prefix - Set the metric prefix.
  *
  * @prefix: The prefix name to be used.
  *
@@ -61,8 +70,7 @@ function json_set_prefix:long(prefix:string)
  * Description: This function adds a numeric metric, setting up
  * everything needed.
  */
-function json_add_numeric_metric:long(name:string, description:string,
-				      units:string)
+function json_add_numeric_metric:long(name:string, description:string, units:string)
 {
   if (name in __json_metric_type)
     error(sprintf("Metric '%s' already exists", name))
@@ -129,10 +137,7 @@ function json_add_array:long(name:string, description:string)
  * Description: This function adds a numeric metric to an array,
  * setting up everything needed.
  */
-function json_add_array_numeric_metric:long(array_name:string,
-					    metric_name:string,
-					    metric_description:string,
-					    metric_units:string)
+function json_add_array_numeric_metric:long(array_name:string, metric_name:string, metric_description:string, metric_units:string)
 {
   if ([array_name, metric_name] in __json_array_metric_type)
     error(sprintf("Array metric '%s' already exists in array %s", metric_name,
@@ -156,9 +161,7 @@ function json_add_array_numeric_metric:long(array_name:string,
  * Description: This function adds a string metric to an array,
  * setting up everything needed.
  */
-function json_add_array_string_metric:long(array_name:string,
-					   metric_name:string,
-					   metric_description:string)
+function json_add_array_string_metric:long(array_name:string, metric_name:string, metric_description:string)
 {
   if ([array_name, metric_name] in __json_array_metric_type)
     error(sprintf("Array metric '%s' already exists in array %s", metric_name,
@@ -249,6 +252,20 @@ probe procfs("metadata.json").read.maxsize(8192)
     "}\n"
 }
 
+/**
+ * probe json_data - Fires whenever JSON data is wanted by a reader.
+ *
+ * Context:
+ *  This probe fires when the JSON data is about to be read. This
+ *  probe must gather up data and then call the following macros to
+ *  output the data in JSON format. First, @json_output_data_start()
+ *  must be called. That call is followed by one or more of the
+ *  following (one call for each data item):
+ *  @json_output_string_value(), @json_output_numeric_value(),
+ *  @json_output_array_string_value(), and
+ *  @json_output_array_numeric_value(). Finally @json_output_data_end()
+ *  must be called. 
+ */
 probe json_data = procfs("data.json").read.maxsize(8192)
 {
 }
