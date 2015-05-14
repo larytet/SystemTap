@@ -1,0 +1,21 @@
+#! stap -p4
+
+probe json_data
+{
+	@json_output_data_start
+	@json_output_numeric_value("numeric", 1)
+	@json_output_string_value("string", "foo")
+	@json_output_array_numeric_value("array", "0", "numeric", 2)
+	@json_output_array_string_value("array", "0", "string", "bar")
+	@json_output_data_end
+}
+
+probe begin
+{
+	json_set_prefix("prefix")
+	json_add_numeric_metric("numeric", "desc", "count")
+	json_add_string_metric("string", "desc")
+	json_add_array("array", "array desc")
+	json_add_array_numeric_metric("array", "numeric", "desc", "count")
+	json_add_array_string_metric("array", "string", "desc")
+}
