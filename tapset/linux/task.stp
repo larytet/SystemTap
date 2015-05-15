@@ -212,6 +212,33 @@ function task_pid:long (task:long)
 }
 
 /**
+ * sfunction task_ns_pid - The process identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This fucntion returns the process id of the given task based on
+ * the specified pid namespace..
+ */
+function task_ns_pid:long (task:long) %{ /* pure */
+#if defined(CONFIG_PID_NS)
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+      if(target_ns_task && task_active_pid_ns(t) == task_active_pid_ns(target_ns_task))
+          STAP_RETVALUE = task_tgid_nr_ns(t, task_active_pid_ns(target_ns_task));
+  }
+#else
+    STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction pid2task - The task_struct of the given process identifier
  *
  * @pid: process identifier
@@ -266,6 +293,32 @@ function task_tid:long (task:long)
     return @task(task)->pid
 }
 
+/**
+ * sfunction task_ns_tid - The thread identifier of the task as seen in a namespace
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the thread id of the given task as seen 
+ * in the pid namespace.
+ */
+function task_ns_tid:long (task:long)%{ /* pure */
+#if defined(CONFIG_PID_NS)
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+      if(target_ns_task && task_active_pid_ns(t) == task_active_pid_ns(target_ns_task))
+          STAP_RETVALUE = task_pid_nr_ns(t, task_active_pid_ns(target_ns_task));
+  }
+#else
+    STAP_RETVALUE = -1;
+#endif
+%}
 
 /**
  * sfunction task_gid - The group identifier of the task
@@ -293,6 +346,37 @@ function task_gid:long (task:long) %{ /* pure */
 #endif
 %}
 
+/**
+ * sfunction task_ns_gid - The group identifier of the task as seen in a namespace
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the group id of the given task as seen in
+ * in the given user namespace.
+ */
+function task_ns_gid:long (task:long) %{ /* pure */
+#if defined(CONFIG_USER_NS)
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+      if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(t, user_ns)){
+          /* If task_gid() isn't defined, make our own. */
+#if !defined(task_gid) && defined(task_cred_xxx)
+#define task_gid(task)		(task_cred_xxx((task), gid))
+#endif
+          STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_gid(t));
+      }
+  }
+#else
+    STAP_RETVALUE = -1;
+#endif
+%}
 
 /**
  * sfunction task_egid - The effective group identifier of the task
@@ -321,6 +405,37 @@ function task_egid:long (task:long) %{ /* pure */
 %}
 
 /**
+ * sfunction task_ns_egid - The effective group identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective group id of the given task.
+ */
+function task_ns_egid:long (task:long) %{ /* pure */
+#if defined(CONFIG_USER_NS)
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+      if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(t, user_ns)){
+          /* If task_egid() isn't defined, make our own. */
+#if !defined(task_egid) && defined(task_cred_xxx)
+#define task_egid(task)		(task_cred_xxx((task), egid))
+#endif
+          STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_egid(t));
+      }
+  }
+#else
+    STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction task_uid - The user identifier of the task
  *
  * @task: task_struct pointer
@@ -343,6 +458,32 @@ function task_uid:long (task:long) %{ /* pure */
 %}
 
 /**
+ * sfunction task_ns_uid - The user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the user id of the given task.
+ */
+function task_ns_uid:long (task:long) %{ /* pure */
+#if defined(CONFIG_USER_NS)
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+      if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(t, user_ns))
+          STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_uid(t));
+  }
+#else
+    STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction task_euid - The effective user identifier of the task
  *
  * @task: task_struct pointer
@@ -361,6 +502,32 @@ function task_euid:long (task:long) %{ /* pure */
 #else
     STAP_RETVALUE = task_euid (t);
 #endif
+#endif
+%}
+
+/**
+ * sfunction task_ns_euid - The effective user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective user id of the given task.
+ */
+function task_ns_euid:long (task:long) %{ /* pure */
+#if defined(CONFIG_USER_NS)
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+      if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(t, user_ns))
+          STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_euid(t));
+  }
+#else
+    STAP_RETVALUE = -1;
 #endif
 %}
 

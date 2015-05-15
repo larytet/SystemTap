@@ -30,6 +30,32 @@ function pid:long ()
 %}
 
 /**
+ * sfunction ns_pid - Returns the ID of a target process as seen in a pid namespace
+ *
+ * Description: This function returns the ID of a target process as seen in
+ * the target pid namespace.
+ */
+function ns_pid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_PID_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    // use get_pid_task instead of pid_task since it'll handle locking.
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
+      STAP_RETVALUE = task_tgid_nr_ns(current, task_active_pid_ns(current));
+  }
+#else
+  STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction tid - Returns the thread ID of a target process
  * 
  * Description: This function returns the thread ID of the target process.
@@ -37,6 +63,31 @@ function pid:long ()
 function tid:long ()
 %{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = current->pid;
+%}
+
+/**
+ * sfunction ns_tid - Returns the thread ID of a target process as seen in a pid namespace
+ *
+ * Description: This function returns the thread ID of a target process as seen
+ * in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_tid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_PID_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
+      STAP_RETVALUE = task_pid_nr_ns(current, task_active_pid_ns(current));
+  }
+#else
+  STAP_RETVALUE = -1;
+#endif
 %}
 
 /**
@@ -50,6 +101,30 @@ function ppid:long()
 	STAP_RETVALUE = current->real_parent->tgid;
 #else
 	STAP_RETVALUE = current->parent->tgid;
+#endif
+%}
+
+/**
+ * sfunction ns_ppid - Returns the process ID of a target process's parent process as seen in a pid namespace
+ *
+ * Description: This function return the process ID of the target proccess's parent process as seen in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_ppid:long()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_PID_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
+      STAP_RETVALUE = task_tgid_nr_ns(current->parent, task_active_pid_ns(current));
+  }
+#else
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -71,6 +146,31 @@ function pgrp:long ()
 %}
 
 /**
+ * sfunction ns_pgrp - Returns the process group ID of the current process as seen in a pid namespace
+ *
+ * Description: This function returns the process group ID of the
+ * current process as seen in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_pgrp:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_PID_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
+      STAP_RETVALUE = task_pgrp_nr_ns(current, task_active_pid_ns(current));
+  }
+#else
+  STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction sid - Returns the session ID of the current process
  *
  * Description: The session ID of a process is the process group ID
@@ -85,6 +185,32 @@ function sid:long ()
 	CATCH_DEREF_FAULT();
 #else
 	STAP_RETVALUE = task_session_nr_ns(current, &init_pid_ns);
+#endif
+%}
+
+/**
+ * sfunction ns_sid - Returns the session ID of the current process as seen in a pid namespace
+ *
+ * Description: The namespace-aware session ID of a process is the process group ID
+ * of the session leader as seen in  the target pid namespace if provided, or the stap process namespace. Session ID is stored in the signal_struct
+ *  since Kernel 2.6.0.
+ */
+function ns_sid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_PID_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
+      STAP_RETVALUE = task_session_nr_ns(current, task_active_pid_ns(current));
+  }
+#else
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -122,8 +248,32 @@ function gid:long ()
 %}
 
 /**
+ * sfunction ns_gid - Returns the group ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the group ID of a target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_gid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_USER_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
+    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), current_gid());
+  }
+#else
+	STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction egid - Returns the effective gid of a target process
- * 
+ *
  * Description: This function returns the effective gid of a target process
  */
 function egid:long ()
@@ -140,8 +290,32 @@ function egid:long ()
 %}
 
 /**
+ * sfunction ns_egid - Returns the effective gid of a target process as seen in a user namespace
+ *
+ * Description: This function returns the effective gid of a target process as seen in the target user namespace if provided, or the stap process namespace
+ */
+function ns_egid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_USER_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
+    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), current_egid());
+  }
+#else
+	STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction uid - Returns the user ID of a target process
- * 
+ *
  * Description: This function returns the user ID of the target process.
  */
 function uid:long ()
@@ -158,6 +332,30 @@ function uid:long ()
 %}
 
 /**
+ * sfunction ns_uid - Returns the user ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the user ID of the target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_uid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_USER_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
+    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), current_uid());
+  }
+#else
+	STAP_RETVALUE = -1;
+#endif
+%}
+
+/**
  * sfunction euid - Return the effective uid of a target process
  *
  * Description: Returns the effective user ID of the target process.
@@ -168,13 +366,36 @@ function euid:long ()
 	STAP_RETVALUE = current->euid;
 #else
 #if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-        STAP_RETVALUE = from_kuid_munged(current_user_ns(), current_euid());
+  STAP_RETVALUE = from_kuid_munged(&init_user_ns, current_euid());
 #else
 	STAP_RETVALUE = current_euid();
 #endif
 #endif
 %}
 
+/**
+ * sfunction ns_euid - Returns the effective user ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the effective user ID of the target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_euid:long ()
+%{ /* pure */ /* unprivileged */
+#if defined(CONFIG_USER_NS)
+#ifdef  STP_TARGET_NS_PID
+  struct pid *target_ns_pid = find_get_pid(STP_TARGET_NS_PID);
+#else
+  struct pid *target_ns_pid = find_get_pid(_stp_pid);
+#endif
+  STAP_RETVALUE = -1; // set it to a valid pid if available
+  if (target_ns_pid){
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
+    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
+    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), current_euid());
+  }
+#else
+	STAP_RETVALUE = -1;
+#endif
+%}
 
 /**
  * sfunction is_myproc - Determines if the current probe point has occurred in the user's own process
