@@ -60,7 +60,8 @@ it was built with the
 option.  Some Linux distributions may include several kernel variants,
 including a confusingly named \fIkernel-debug\fR (an alternative kernel,
 with its own \fIkernel-debug-debuginfo\fR package), which is not the same
-thing as the \fIkernel-debuginfo\fR (DWARF data for the base kernel).  The
+thing as the \fIkernel-debuginfo\fR (DWARF data for the base \fIkernel\fR).
+The
 .IR stap\-prep
 program can help install the right set.
 
