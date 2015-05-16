@@ -57,7 +57,12 @@ boot-loader's compressed/stripped
 file, and much larger.  If you have a hand-built kernel, make sure
 it was built with the
 .IR CONFIG_DEBUG_INFO=y
-option.
+option.  Some Linux distributions may include several kernel variants,
+including a confusingly named \fIkernel-debug\fR (an alternative kernel,
+with its own \fIkernel-debug-debuginfo\fR package), which is not the same
+thing as the \fIkernel-debuginfo\fR (DWARF data for the base kernel).  The
+.IR stap\-prep
+program can help install the right set.
 
 .TP
 process debuginfo
@@ -107,7 +112,7 @@ with the
 .IR \-\-download\-debuginfo
 flag.
 The
-.IR stap-prep
+.IR stap\-prep
 script included with systemtap may be able to download the
 appropriate kernel debuginfo.  Another possibility is to install and
 use a
