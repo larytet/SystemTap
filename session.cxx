@@ -168,6 +168,7 @@ systemtap_session::systemtap_session ():
   sysroot = "";
   update_release_sysroot = false;
   suppress_time_limits = false;
+  target_namespaces_pid = 0;
   color_mode = color_auto;
   color_errors = isatty(STDERR_FILENO) // conditions for coloring when
     && strcmp(getenv("TERM") ?: "notdumb", "dumb"); // on auto
@@ -642,6 +643,8 @@ systemtap_session::usage (int exitcode)
     "              disable -DSTP_OVERLOAD, -DMAXACTION, and -DMAXTRYACTION limits\n"
     "   --save-uprobes\n"
     "              save uprobes.ko to current directory if it is built from source\n"
+    "   --target-namesapce=PID\n"
+    "              sets the target namespaces pid to PID\n"
     , compatible.c_str()) << endl
   ;
 
@@ -1417,6 +1420,16 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
         case LONG_OPT_SAVE_UPROBES:
           save_uprobes = true;
+          break;
+
+        case LONG_OPT_TARGET_NAMESPACES:
+          assert(optarg);
+          target_namespaces_pid = (int) strtoul(optarg, &num_endptr, 10);
+          if (*num_endptr != '\0')
+            {
+              cerr << _("Invalid process ID number for target namespaces.") << endl;
+              return 1;
+            }
           break;
 
 	case '?':

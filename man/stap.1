@@ -697,6 +697,13 @@ On machines that require SystemTap to build its own uprobes module (kernels
 prior to version 3.5), this option instructs SystemTap to also save a copy of
 the module in the current directory (creating a new "uprobes" directory first).
 
+.TP
+.BI \-\-target-namespaces "=PID"
+Allow for a set of target namespaces to be set based on the namespaces the
+given PID is in. This is for namespace\-aware tapset functions. If the target
+namespaces was not set, the target defaults to the stap process'
+namespaces.
+
 .SH ARGUMENTS
 
 Any additional arguments on the command line are passed to the script

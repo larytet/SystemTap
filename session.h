@@ -444,6 +444,8 @@ public:
 
   bool is_user_file (const std::string& name);
   bool is_primary_probe (derived_probe *dp);
+
+  int target_namespaces_pid;
 };
 
 struct exit_exception: public std::runtime_error
