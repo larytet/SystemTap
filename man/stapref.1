@@ -1,0 +1,216 @@
+.\" -*- nroff -*-
+.TH STAPREF 1
+.SH NAME
+stapref \- systemtap language reference
+
+.\" macros
+.\" do not nest SAMPLEs
+.de SAMPLE
+.br
+.nr oldin \\n(.i
+.RS
+.nf
+.nh
+..
+.de ESAMPLE
+.hy
+.fi
+.RE
+.in \\n[oldin]u
+
+..
+
+.SH SYNOPSIS
+
+.br
+.B stapref
+
+.SH DESCRIPTION
+
+The reference for the systemtap scripting language.
+
+.SH LANGUAGE
+Keywords
+.SAMPLE
+\[bu] break control statement
+\[bu] continue control statement
+\[bu] delete array statement
+\[bu] else selection statement
+\[bu] exit control statement
+\[bu] foreach iteration statement
+\[bu] for iteration statement
+\[bu] function declaration statement
+\[bu] global storage class
+\[bu] if selection statement
+\[bu] in array statement
+\[bu] next control statement
+\[bu] probe declaration statement
+\[bu] return control statement
+\[bu] try/catch control statement
+\[bu] while iteration statement
+.ESAMPLE
+
+Operators
+.SAMPLE
+\[bu] () [] ++ – .
+\[bu] ++ – + - *
+\[bu] */%
+\[bu] +• << >>
+\[bu] < <= > >=
+\[bu] == != =~ !~
+\[bu] &
+\[bu] |
+\[bu] &&
+\[bu] ||
+\[bu] ?:
+\[bu] = += -= *= /= %= >>= <<= &= ~= |= .=
+\[bu] <<<
+\[bu] $
+.ESAMPLE
+
+Statements
+.SAMPLE
+Jump Statements
+\[bu] continue
+\[bu] break
+\[bu] next
+\[bu] return expression
+\[bu] try statement catch (message)
+.ESAMPLE
+.SAMPLE
+Selection Statements
+\[bu] if (expression) statement 
+\[bu] else statement
+.ESAMPLE
+.SAMPLE
+Iteration Statements
+\[bu] foreach (variable in array) statement
+\[bu] for (expression; expression; expression) statement
+\[bu] while (expression) statement
+.ESAMPLE
+.SAMPLE
+Declaration Statements
+\[bu] function name : type (variable : type, ...) { statement }
+\[bu] function name : type (variable : type, ...) %{ c_statement %}
+\[bu] probe probepoint { statement }
+\[bu] probe label = probepoint { statement }
+.ESAMPLE
+
+Preprocessor
+.SAMPLE
+\[bu] %( expression %? true_tokens %: false_tokens %)
+\[bu] @define label (variable, ...) %{ statement %}
+.ESAMPLE
+
+Builtin Functions
+.SAMPLE
+Aggregation Builtin Functions
+\[bu] @avg (variable)
+\[bu] @count (variable)
+\[bu] @hist_linear (variable, N, N, N)
+\[bu] @hist_log (variable)
+\[bu] @max (variable)
+\[bu] @min (variable)
+\[bu] @sum (variable)
+.ESAMPLE
+.SAMPLE
+Output Builtin Functions
+\[bu] print (variable)
+\[bu] printf (format:string, variable, ...) 
+  where format is of the form: %[flags][width][.precision][length]specifier
+\[bu] printd (delimiter:string, variable, ...)
+\[bu] printdln (delimiter:string, variable, ...)
+\[bu] println ()
+\[bu] sprint:string (variable)
+\[bu] sprintf:string (format:string, variable, ...)
+.ESAMPLE
+.SAMPLE
+Variable Access Builtin Functions
+\[bu] @cast (variable, "type_name"[, "module"])
+\[bu] @defined (variable)
+.ESAMPLE
+
+Probepoints
+.SAMPLE
+Some of the more commonly used probepoints
+kernel.function(PATTERN ) kernel.function(PATTERN ).call
+kernel.function(PATTERN ).return
+kernel.FUNCTION (PATTERN ).return.maxactive(VALUE )
+kernel.FUNCTION (PATTERN ).inline
+kernel.FUNCTION (PATTERN ).label(LPATTERN )
+module(MPATTERN ).FUNCTION (PATTERN )
+module(MPATTERN ).FUNCTION (PATTERN ).call
+module(MPATTERN ).FUNCTION (PATTERN ).return.maxactive(VALUE )
+module(MPATTERN ).FUNCTION (PATTERN ).inline
+kernel.statement(PATTERN )
+kernel.statement(ADDRESS ).absolute
+module(MPATTERN ).statement(PATTERN )
+kprobe.FUNCTION (FUNCTION )
+kprobe.FUNCTION (FUNCTION ).return
+kprobe.module(NAME).FUNCTION (FUNCTION )
+kprobe.module(NAME).FUNCTION (FUNCTION ).return
+kprobe.statement(ADDRESS ).absolute
+process.begin process("PATH ").begin
+process(PID).begin process.thread.begin
+process("PATH ").thread.begin
+process(PID).thread.begin
+process.end
+process("PATH ").end
+process(PID).end
+process.thread.end
+process("PATH ").thread.end
+process(PID).thread.end
+process("PATH ").syscall
+process(PID).syscall
+process.syscall.return
+process("PATH ").syscall.return
+process(PID).syscall.return
+process("PATH ").FUNCTION ("NAME")
+process("PATH ").statement("*@FILE.c:123")
+process("PATH ").FUNCTION ("*").return
+process("PATH ").FUNCTION ("myfun").label("foo")
+process("PATH ").mark("LABEL")
+java("PNAME ").class("CLASSNAME ").method("PATTERN )
+java("PNAME").class("CLASSNAME").method("PATTERN ").return
+java(PID).class("CLASSNAME ").method("PATTERN ")
+java(PID).class("CLASSNAME ").method("PATTERN ").return
+.ESAMPLE
+
+Tapset Functions
+.SAMPLE
+Some of the more commonly used tapset functions
+addr:long ()
+backtrace:string ()
+caller:string ()
+caller_addr:long ()
+cmdline_arg:string (N:long)
+cmdline_args:string (N:long,m:long,delim:string)
+cmdline_str:string ()
+env_var:string (name:string)
+execname:string ()
+int_arg:long (N:long)
+isinstr:long(s1:string,s2:string)
+long_arg:long (N:long)
+modname:string ()
+module_name:string ()
+pid:long ()
+pn:string ()
+pointer_arg:string (N:long)
+pp:string ()
+print_backtrace ()
+probefunc:string ()
+register:long(name:string)
+str_replace:string(prnt_str:string,srch_str:string,rplc_str:string)
+stringat:long(str:string,pos:long)
+strlen:long(str:string)
+strtol:long(str:string,base:long)
+substr:string(str:string,start:long,length:long)
+user_long:long(addr:long)
+user_string:string(addr:long)
+.ESAMPLE
+
+.SH BUGS
+Use the Bugzilla link of the project web page or our mailing list.
+.nh
+.BR http://sourceware.org/systemtap/ , <systemtap@sourceware.org> .
+.hy

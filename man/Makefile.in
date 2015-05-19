@@ -87,11 +87,7 @@ subdir = man
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/stappaths.7.in $(srcdir)/systemtap.8.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
-	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
-	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
-	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
-	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -225,6 +221,7 @@ PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 POSUB = @POSUB@
 RANLIB = @RANLIB@
+SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STAP_EXTRA_VERSION = @STAP_EXTRA_VERSION@
@@ -258,6 +255,7 @@ builddir = @builddir@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
+dracutstap = @dracutstap@
 dvidir = @dvidir@
 elfutils_abs_srcdir = @elfutils_abs_srcdir@
 exec_prefix = @exec_prefix@
@@ -318,7 +316,8 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = no-dist foreign subdir-objects
 man_MANS = stapprobes.3stap stapfuncs.3stap stapvars.3stap \
 	stapex.3stap dtrace.1 stap-merge.1 stappaths.7 stapsh.8 \
-	systemtap.8 $(am__append_1) $(am__append_2) $(am__append_3)
+	systemtap.8 stapref.1 $(am__append_1) $(am__append_2) \
+	$(am__append_3)
 all: all-am
 
 .SUFFIXES:
