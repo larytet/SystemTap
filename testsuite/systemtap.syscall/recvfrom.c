@@ -226,9 +226,9 @@ int main()
     recvfrom(s, buf, (size_t)-1, MSG_DONTWAIT, (struct sockaddr *)&from,
 	     &fromlen);
 #if __WORDSIZE == 64
-    //staptest// recvfrom (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT, XXXX, XXXX) = 6
+    //staptest// recvfrom (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT, XXXX, XXXX) = NNNN
 #else
-    //staptest// recvfrom (NNNN, XXXX, 4294967295, MSG_DONTWAIT, XXXX, XXXX) = 6
+    //staptest// recvfrom (NNNN, XXXX, 4294967295, MSG_DONTWAIT, XXXX, XXXX) = NNNN
 #endif
 
     close(s);

@@ -1,10 +1,13 @@
 /* COVERAGE: signalfd signalfd4 */
-#include <sys/signalfd.h>
+
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+
+#if defined __NR_signalfd && defined __NR_signalfd4
+#include <sys/signalfd.h>
 
 int main()
 {
@@ -43,3 +46,9 @@ int main()
 
   return 0;
 }
+#else
+int main()
+{
+  return 0;
+}
+#endif

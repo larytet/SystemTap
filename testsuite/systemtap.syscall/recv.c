@@ -166,9 +166,9 @@ int main()
 
     recv(s, buf, (size_t)-1, MSG_DONTWAIT);
 #if __WORDSIZE == 64
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = 6
+    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = NNNN
 #else
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 4294967295, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = 6
+    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 4294967295, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = NNNN
 #endif
 
     close(s);

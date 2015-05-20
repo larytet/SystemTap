@@ -2038,8 +2038,8 @@ probe syscall.compat_getitimer = kernel.function("compat_sys_getitimer").call ?
 {
 	name = "getitimer"
 	which = __int32($which)
-	value_uaddr = $it
-	argstr = sprintf("%s, %p", _itimer_which_str(which), $it)
+	value_uaddr = @__pointer($it)
+	argstr = sprintf("%s, %p", _itimer_which_str(which), value_uaddr)
 }
 probe syscall.compat_getitimer.return = kernel.function("compat_sys_getitimer").return ?
 {
@@ -2345,7 +2345,7 @@ probe syscall.getrusage = __syscall.getrusage,
 	name = "getrusage"
 	who = __int32($who)
 	who_str = _rusage_who_str(who)
-	usage_uaddr = $ru
+	usage_uaddr = @__pointer($ru)
 	argstr = sprintf("%s, %p", who_str, usage_uaddr)
 }
 probe __syscall.getrusage = kernel.function("sys_getrusage").call

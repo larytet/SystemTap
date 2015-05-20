@@ -157,7 +157,7 @@ probe syscall.open_by_handle_at =
 	name = "open_by_handle_at"
 	mount_dfd = __int32($mountdirfd)
 	mount_dfd_str = _dfd_str(mount_dfd)
-	handle_uaddr = $handle
+	handle_uaddr = @__pointer($handle)
 	flags = __int32($flags)
 	flags_str = _sys_open_flag_str(flags)
 	argstr = sprintf("%s, %p, %s", mount_dfd_str, handle_uaddr, flags_str)
@@ -1751,8 +1751,11 @@ probe syscall.rt_sigsuspend = kernel.function("compat_sys_rt_sigsuspend").call ?
                               kernel.function("sys_rt_sigsuspend").call ?
 {
 	name = "rt_sigsuspend"
-	set_uaddr = $unewset
-	sigsetsize = $sigsetsize
+	set_uaddr = @__pointer($unewset)
+	if (%{ /* pure */ _stp_is_compat_task() %})
+		sigsetsize = __uint32($sigsetsize)
+	else
+		sigsetsize = __ulong($sigsetsize)
 	argstr = sprintf("%s, %u",
 			 (%{ /* pure */ _stp_is_compat_task() %}
 			  ? _stp_compat_sigset_u(set_uaddr)
@@ -1941,8 +1944,8 @@ probe syscall.sched_rr_get_interval = __syscall.sched_rr_get_interval,
 {
 	name = "sched_rr_get_interval"
 	pid = __int32($pid)
-	tp_uaddr = $interval
-	argstr = sprintf("%d, %p", pid, $interval)
+	tp_uaddr = @__pointer($interval)
+	argstr = sprintf("%d, %p", pid, tp_uaddr)
 }
 probe __syscall.sched_rr_get_interval =
 	kernel.function("sys_sched_rr_get_interval").call
@@ -2790,10 +2793,10 @@ probe syscall.compat_setitimer = kernel.function("compat_sys_setitimer").call ?
 {
 	name = "setitimer"
 	which = __int32($which)
-	value_uaddr = $in
+	value_uaddr = @__pointer($in)
 	ovalue_uaddr = @__pointer($out)
 	argstr = sprintf("%s, %s, %p", _itimer_which_str(which),
-			 _struct_compat_itimerval_u($in), @__pointer($out))
+			 _struct_compat_itimerval_u(value_uaddr), ovalue_uaddr)
 }
 probe syscall.compat_setitimer.return = kernel.function("compat_sys_setitimer").return ?
 {
@@ -3498,10 +3501,10 @@ probe syscall.sigaction = kernel.function("sys_sigaction").call ?
 {
 	name = "sigaction"
 	sig = __int32($sig)
-	act_uaddr = $act
+	act_uaddr = @__pointer($act)
 	oact_uaddr = $oact
 	argstr = sprintf("%s, {%s}, %p", _signal_name(sig),
-			 _struct_sigaction_u($act), $oact)
+			 _struct_sigaction_u(act_uaddr), oact_uaddr)
 }
 probe syscall.sigaction.return = kernel.function("sys_sigaction").return ?
 {
@@ -3513,10 +3516,10 @@ probe syscall.sigaction32 = kernel.function("sys32_sigaction").call ?,
 {
 	name = "sigaction"
 	sig = __int32($sig)
-	act_uaddr = $act
+	act_uaddr = @__pointer($act)
 	oact_uaddr = $oact
 	argstr = sprintf("%s, {%s}, %p", _signal_name(sig),
-			 _struct_old_sigaction32_u($act), $oact)
+			 _struct_old_sigaction32_u(act_uaddr), oact_uaddr)
 }
 probe syscall.sigaction32.return = kernel.function("sys32_sigaction").return ?,
 				   kernel.function("compat_sys_sigaction").return ?
@@ -3593,11 +3596,11 @@ probe syscall.signalfd = __syscall.signalfd4 !, __syscall.signalfd ?
 	flags = __int32(@choose_defined($flags, 0))
 	if (flags == 0) {
 		name = "signalfd"
-		argstr = sprintf("%d, %p, %d", __int32($ufd), $user_mask,
+		argstr = sprintf("%d, %p, %d", __int32($ufd), @__pointer($user_mask),
 				 $sizemask)
 	} else {
 		name = "signalfd4"
-		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), $user_mask,
+		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), @__pointer($user_mask),
 		       	 	 $sizemask, _signalfd4_flags_str(flags))
 	}
 }
@@ -3632,11 +3635,11 @@ probe syscall.compat_signalfd = kernel.function("compat_sys_signalfd4").call !,
 	flags = __int32(@choose_defined($flags, 0))
 	if (flags == 0) {
 		name = "signalfd"
-		argstr = sprintf("%d, %p, %d", __int32($ufd), $sigmask,
+		argstr = sprintf("%d, %p, %d", __int32($ufd), @__pointer($sigmask),
 				 $sigsetsize)
 	} else {
 		name = "signalfd4"
-		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), $sigmask,
+		argstr = sprintf("%d, %p, %d, %s", __int32($ufd), @__pointer($sigmask),
 				 $sigsetsize, _signalfd4_flags_str(flags))
 	}
 }
@@ -3686,7 +3689,7 @@ probe syscall.sigprocmask = __syscall.sigprocmask ?,
 	name = "sigprocmask"
 	how = __int32($how)
 	how_str = _sigprocmask_how_str(how)
-	set_uaddr = @choose_defined($set, $nset)
+	set_uaddr = @__pointer(@choose_defined($set, $nset))
 	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, oldset_uaddr)
 }
 probe __syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?
@@ -4477,7 +4480,7 @@ probe syscall.timerfd = kernel.function("sys_timerfd").call ?,
                         kernel.function("compat_sys_timerfd").call ?
 {
 	name = "timerfd"
-	argstr = sprintf("%d, %d, 0x%x", $ufd, $clockid, $flags)
+	argstr = sprintf("%d, %d, 0x%x", $ufd, @__pointer($clockid), $flags)
 }
 probe syscall.timerfd.return = kernel.function("sys_timerfd").return ?,
                                kernel.function("compat_sys_timerfd").return ?
@@ -4515,8 +4518,8 @@ probe syscall.timerfd_gettime = __syscall.timerfd_gettime ?,
 {
 	name = "timerfd_gettime"
 	fd = __int32($ufd)
-	value_uaddr = $otmr
-	argstr = sprintf("%d, %p", fd, $otmr)
+	value_uaddr = @__pointer($otmr)
+	argstr = sprintf("%d, %p", fd, value_uaddr)
 }
 probe __syscall.timerfd_gettime = kernel.function("sys_timerfd_gettime").call ?
 {
@@ -5175,7 +5178,7 @@ probe syscall.waitid = __syscall.waitid,
 			 _waitid_which_str(__int32($which)),
 			 __int32(@choose_defined($upid, $pid)),
 			 infop_uaddr, _wait4_opt_str($options),
-			 @choose_defined($ru, $uru))
+			 @__pointer(@choose_defined($ru, $uru)))
 }
 probe __syscall.waitid = kernel.function("sys_waitid").call
 {

@@ -131,9 +131,9 @@ int main()
 
     send(s, (void *)buf, -1, 0);
 #if __WORDSIZE == 64
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 18446744073709551615, 0x0[[[[, NULL, 0]]]]?) = -NNNN (EMSGSIZE)
+    //staptest// send[[[[to]]]]? (NNNN, XXXX, 18446744073709551615, 0x0[[[[, NULL, 0]]]]?) = -NNNN
 #else
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 4294967295, 0x0[[[[, NULL, 0]]]]?) = -NNNN (EMSGSIZE)
+    //staptest// send[[[[to]]]]? (NNNN, XXXX, 4294967295, 0x0[[[[, NULL, 0]]]]?) = -NNNN
 #endif
 
     close(s);

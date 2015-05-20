@@ -7,15 +7,23 @@
 #include <linux/nfs.h>
 #include <linux/nfsd/nfsfh.h>
 #include <sys/syscall.h>
-#ifdef SYS_nfsservctl
+#include <linux/version.h>
+
+// Note that since linux 3.1, the nfsservctl() syscall no longer exists.
+// RHEL7 systems with kernel-headers-3.10.0-229.el7 define __NR_nfsservctl
+// but do not have linux/nfsd/syscall.h.
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,1,0)
+#undef __NR_nfsservctl
+#endif
+
+#ifdef __NR_nfsservctl
 #include <linux/nfsd/syscall.h>
 #endif
 
-// Note that since linux 3.1, the nfsservctl() syscall no longer exists.
-
 int main()
 {
-#ifdef SYS_nfsservctl
+#ifdef __NR_nfsservctl
     struct nfsctl_arg arg;
     union nfsctl_res res;
 

@@ -128,9 +128,9 @@ int main()
 
     sendto(s, (void *)buf, -1, 0, (struct sockaddr *)&sin1, sizeof(sin1));
 #if __WORDSIZE == 64
-    //staptest// sendto (NNNN, XXXX, 18446744073709551615, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EMSGSIZE)
+    //staptest// sendto (NNNN, XXXX, 18446744073709551615, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN
 #else
-    //staptest// sendto (NNNN, XXXX, 4294967295, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN (EMSGSIZE)
+    //staptest// sendto (NNNN, XXXX, 4294967295, 0x0, {AF_INET, 0.0.0.0, NNNN}, 16) = -NNNN
 #endif
 
     close(s);
