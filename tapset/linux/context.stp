@@ -52,8 +52,8 @@ function ns_pid:long ()
   if (target_ns_pid){
     // use get_pid_task instead of pid_task since it'll handle locking.
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
-      STAP_RETVALUE = task_tgid_nr_ns(current, task_active_pid_ns(current));
+    if(target_ns_task)
+      STAP_RETVALUE = task_tgid_nr_ns(current, task_active_pid_ns(target_ns_task));
   }
 #else
   STAP_RETVALUE = -1;
@@ -91,9 +91,9 @@ function ns_tid:long ()
   rcu_read_unlock();
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
-    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
-      STAP_RETVALUE = task_pid_nr_ns(current, task_active_pid_ns(current));
+    struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID); // ABE does this call need any locks?
+    if(target_ns_task)
+      STAP_RETVALUE = task_pid_nr_ns(current, task_active_pid_ns(target_ns_task));
   }
 #else
   STAP_RETVALUE = -1;
@@ -135,8 +135,8 @@ function ns_ppid:long()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
-      STAP_RETVALUE = task_tgid_nr_ns(current->parent, task_active_pid_ns(current));
+    if(target_ns_task)
+      STAP_RETVALUE = task_tgid_nr_ns(current->parent, task_active_pid_ns(target_ns_task));
   }
 #else
   STAP_RETVALUE = -1;
@@ -182,8 +182,8 @@ function ns_pgrp:long ()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
-      STAP_RETVALUE = task_pgrp_nr_ns(current, task_active_pid_ns(current));
+    if(target_ns_task)
+      STAP_RETVALUE = task_pgrp_nr_ns(current, task_active_pid_ns(target_ns_task));
   }
 #else
   STAP_RETVALUE = -1;
@@ -231,8 +231,8 @@ function ns_sid:long ()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_active_pid_ns(current) == task_active_pid_ns(target_ns_task))
-      STAP_RETVALUE = task_session_nr_ns(current, task_active_pid_ns(current));
+    if(target_ns_task)
+      STAP_RETVALUE = task_session_nr_ns(current, task_active_pid_ns(target_ns_task));
   }
 #else
   STAP_RETVALUE = -1;
@@ -293,8 +293,8 @@ function ns_gid:long ()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
-    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), current_gid());
+    if(target_ns_task)
+      STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), current_gid());
   }
 #else
 	STAP_RETVALUE = -1;
@@ -340,8 +340,8 @@ function ns_egid:long ()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
-    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), current_egid());
+    if(target_ns_task)
+      STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), current_egid());
   }
 #else
 	STAP_RETVALUE = -1;
@@ -387,8 +387,8 @@ function ns_uid:long ()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
-    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), current_uid());
+    if(target_ns_task)
+      STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), current_uid());
   }
 #else
 	STAP_RETVALUE = -1;
@@ -434,8 +434,8 @@ function ns_euid:long ()
   STAP_RETVALUE = -1; // set it to a valid pid if available
   if (target_ns_pid){
     struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-    if(target_ns_task && task_cred_xxx(target_ns_task, user_ns) == task_cred_xxx(current, user_ns))
-    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), current_euid());
+    if(target_ns_task)
+      STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), current_euid());
   }
 #else
 	STAP_RETVALUE = -1;
