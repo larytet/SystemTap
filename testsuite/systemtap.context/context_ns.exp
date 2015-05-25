@@ -1,0 +1,37 @@
+set test_name "context namespaces"
+if {! [installtest_p]} {
+    untested $test_name
+    return
+}
+
+# can't really test user_ns right now since, well, you're not going to have
+# different users. I think making a different user would be a really bad idea ...
+set ns_tests { pid_ns }
+set test_prog userns_child_exec
+set output_string "END"
+# check if we have the right configurations
+
+# Build the test program
+# using the program found on the  man page for user namespaces
+set compile_result [target_compile $srcdir/$subdir/$test_prog.c  ./$test_prog executable ""]
+
+
+# try with the target process in a child ns and the stap proc in the root ns
+# dont bother testing with different runtimes
+spawn ./$test_prog -p "/usr/bin/sleep" 160
+set exe_id $spawn_id
+
+# need to get the child process too since that will be used for --target-namespaces
+set parent_proc [exp_pid -i $exe_id]
+set child_sleep_proc [exec /usr/bin/pgrep -P $parent_proc]
+verbose -log  "$child_sleep_proc"
+
+foreach ns_test $ns_tests {
+    stap_run $ns_test no_load $output_string $srcdir/$subdir/$ns_test.stp -g --target-namespaces=$child_sleep_proc --disable-cache
+}
+
+# kill the parent
+kill -INT -[exp_pid -i $exe_id] 2
+catch {close -i $exe_id}
+catch {wait -i $exe_id}
+exec rm -f ./$test_prog
