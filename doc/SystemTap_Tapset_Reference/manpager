@@ -107,6 +107,22 @@ for i in `cat ../manpageus` ; do
   echo ".IR \\%stapprobes (3stap)" >> $i.footer
 done
 
+# add cross reference to enclosed functions and probes
+for i in `cat ../manpageus` ; do
+  for j in `cat $i.funcnames` ; do
+    echo ".SH SEE ALSO\n " >> ../man3/function::$j.3stap
+    echo ".IR tapset::$i (3stap)" >> ../man3/function::$j.3stap
+  done
+  for j in `cat $i.probenames` ; do
+    echo ".SH SEE ALSO\n " >> ../man3/probe::$j.3stap
+    echo ".IR tapset::$i (3stap)" >> ../man3/probe::$j.3stap
+  done
+  for j in `cat $i.macros` ; do
+    echo ".SH SEE ALSO\n " >> ../man3/macro::$j.3stap
+    echo ".IR tapset::$i (3stap)" >> ../man3/macro::$j.3stap
+  done
+done
+
 # assemble parts
 for i in `cat ../manpageus`; do
   cat $i.template >> tapset\:\:$i.3stap ;
