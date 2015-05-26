@@ -28,7 +28,7 @@ function __mac_addr_to_string:string(addr:long) {
 }
 
 function __get_mac_addr:string(addr:long) {
-         return __mac_addr_to_string(@cast(addr, "struct net_device")->dev_addr)
+         return __mac_addr_to_string(@cast(addr, "struct net_device", "kernel<linux/netdevice.h>")->dev_addr)
 }
 
 function __get_skb_arphdr:long(addr:long)
@@ -79,8 +79,8 @@ function __ip6_skb_proto:long(addr:long)
         nf_repeat = 4
         nf_stop = 5
 
-        indev = & @cast($in, "struct net_device")
-        outdev = & @cast($out, "struct net_device")
+        indev = & @cast($in, "struct net_device", "kernel<linux/netdevice.h>")
+        outdev = & @cast($out, "struct net_device", "kernel<linux/netdevice.h>")
         indev_name = kernel_string2(indev->name, "")
         outdev_name = kernel_string2(outdev->name, "")
 
@@ -101,7 +101,7 @@ function __ip6_skb_proto:long(addr:long)
         daddr = format_ipaddr(__ip_skb_daddr(iphdr), %{ /* pure */ AF_INET %})
         protocol = __ip_skb_proto(iphdr)
 
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 
         tcphdr = __get_skb_tcphdr($skb)
         if (protocol == ipproto_tcp) {
@@ -116,7 +116,7 @@ function __ip6_skb_proto:long(addr:long)
         }
 
         /* udphdr is in the same place where tcphdr would have been */
-        udphdr = & @cast(tcphdr, "udphdr")
+        udphdr = & @cast(tcphdr, "udphdr", "kernel<linux/udp.h>")
         if (protocol == ipproto_udp) {
            dport = ntohs(udphdr->dest)
            sport = ntohs(udphdr->source)
@@ -124,13 +124,13 @@ function __ip6_skb_proto:long(addr:long)
 %)
 
 @define netfilter_ip6_setup %(
-        iphdr = &@cast(__get_skb_iphdr($skb), "ipv6hdr")
+        iphdr = &@cast(__get_skb_iphdr($skb), "ipv6hdr", "kernel<linux/ipv6.h>")
         family = %{ /* pure */ AF_INET6 %}
         saddr = format_ipaddr(&iphdr->saddr, %{ /* pure */ AF_INET6 %})
         daddr = format_ipaddr(&iphdr->daddr, %{ /* pure */ AF_INET6 %})
         protocol = __ip6_skb_proto($skb)
 
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 
         tcphdr = __get_skb_tcphdr($skb)
         if (protocol == ipproto_tcp) {
@@ -145,7 +145,7 @@ function __ip6_skb_proto:long(addr:long)
         }
 
         /* udphdr is in the same place where tcphdr would have been */
-        udphdr = & @cast(tcphdr, "udphdr")
+        udphdr = & @cast(tcphdr, "udphdr", "kernel<linux/udp.h>")
         if (protocol == ipproto_udp) {
            dport = ntohs(udphdr->dest)
            sport = ntohs(udphdr->source)
@@ -403,7 +403,7 @@ probe netfilter.ipv6.post_routing
 
 @define netfilter_arp_setup %(
 # XXX: include functionality to parse ARP packet contents
-        arphdr = & @cast(__get_skb_arphdr($skb), "struct arphdr")
+        arphdr = & @cast(__get_skb_arphdr($skb), "struct arphdr", "kernel<linux/if_arp.h>")
         family = %{ /* pure */ NF_ARP %} // from linux/netfilter_arp.h
         ar_hrd = ntohs(arphdr->ar_hrd)
         ar_pro = ntohs(arphdr->ar_pro)
@@ -421,7 +421,7 @@ probe netfilter.ipv6.post_routing
         }
         /* XXX support for additional cases? */
 
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 %)
 
 /**
@@ -542,7 +542,7 @@ probe netfilter.bridge.pre_routing
         = netfilter.hook("NF_BR_PRE_ROUTING").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 }
 
 /**
@@ -564,7 +564,7 @@ probe netfilter.bridge.local_in
         = netfilter.hook("NF_BR_LOCAL_IN").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 }
 
 /**
@@ -586,7 +586,7 @@ probe netfilter.bridge.forward
         = netfilter.hook("NF_BR_FORWARD").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 }
 
 /**
@@ -608,7 +608,7 @@ probe netfilter.bridge.local_out
         = netfilter.hook("NF_BR_LOCAL_OUT").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 }
 
 /**
@@ -630,5 +630,5 @@ probe netfilter.bridge.post_routing
         = netfilter.hook("NF_BR_POST_ROUTING").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff")->len
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
 }
