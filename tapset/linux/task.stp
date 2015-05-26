@@ -221,25 +221,14 @@ function task_pid:long (task:long)
  */
 function task_ns_pid:long (task:long) %{ /* pure */
 #if defined(CONFIG_PID_NS)
-  struct pid *target_ns_pid;
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  rcu_read_lock();
-  // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
-  // in the current process' ns, when the PID is what's seen in the init ns (I think)
 #ifdef  STP_TARGET_NS_PID
-  target_ns_pid = find_pid_ns(STP_TARGET_NS_PID, &init_pid_ns);
-#else
-  target_ns_pid = find_pid_ns(_stp_pid, &init_pid_ns);
+  STAP_RETVALUE = task_tgid_nr_ns(t, get_pid_namespace(STP_TARGET_NS_PID));
+#else // use stap process's namespaces
+  STAP_RETVALUE = task_tgid_nr_ns(t, get_pid_namespace(_stp_pid));
 #endif
-  rcu_read_unlock();
-  STAP_RETVALUE = -1; // set it to a valid pid if available
-  if (target_ns_pid){
-      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-      if(target_ns_task)
-          STAP_RETVALUE = task_tgid_nr_ns(t, task_active_pid_ns(target_ns_task));
-  }
-#else
-    STAP_RETVALUE = -1;
+#else /* !defined(CONFIG_PID_NS) */
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -308,25 +297,14 @@ function task_tid:long (task:long)
  */
 function task_ns_tid:long (task:long)%{ /* pure */
 #if defined(CONFIG_PID_NS)
-  struct pid *target_ns_pid;
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  rcu_read_lock();
-  // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
-  // in the current process' ns, when the PID is what's seen in the init ns (I think)
 #ifdef  STP_TARGET_NS_PID
-  target_ns_pid = find_pid_ns(STP_TARGET_NS_PID, &init_pid_ns);
-#else
-  target_ns_pid = find_pid_ns(_stp_pid, &init_pid_ns);
+  STAP_RETVALUE = task_pid_nr_ns(t, get_pid_namespace(STP_TARGET_NS_PID));
+#else // use stap process's namespaces
+  STAP_RETVALUE = task_pid_nr_ns(t, get_pid_namespace(_stp_pid));
 #endif
-  rcu_read_unlock();
-  STAP_RETVALUE = -1; // set it to a valid pid if available
-  if (target_ns_pid){
-      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-      if(target_ns_task)
-          STAP_RETVALUE = task_pid_nr_ns(t, task_active_pid_ns(target_ns_task));
-  }
-#else
-    STAP_RETVALUE = -1;
+#else /* !defined(CONFIG_PID_NS) */
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -363,33 +341,22 @@ function task_gid:long (task:long) %{ /* pure */
  *
  * Description: This function returns the group id of the given task as seen in
  * in the given user namespace.
- */
+*/
 function task_ns_gid:long (task:long) %{ /* pure */
 #if defined(CONFIG_USER_NS)
-  struct pid *target_ns_pid;
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  rcu_read_lock();
-  // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
-  // in the current process' ns, when the PID is what's seen in the init ns (I think)
-#ifdef  STP_TARGET_NS_PID
-  target_ns_pid = find_pid_ns(STP_TARGET_NS_PID, &init_pid_ns);
-#else
-  target_ns_pid = find_pid_ns(_stp_pid, &init_pid_ns);
-#endif
-  rcu_read_unlock();
-  STAP_RETVALUE = -1; // set it to a valid pid if available
-  if (target_ns_pid){
-      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-      if(target_ns_task){
-          /* If task_gid() isn't defined, make our own. */
+
+  /* If task_gid() isn't defined, make our own. */
 #if !defined(task_gid) && defined(task_cred_xxx)
 #define task_gid(task)		(task_cred_xxx((task), gid))
 #endif
-          STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), task_gid(t));
-      }
-  }
+#ifdef  STP_TARGET_NS_PID
+  STAP_RETVALUE = from_kgid_munged(get_user_namespace(STP_TARGET_NS_PID), task_gid(t));
 #else
-    STAP_RETVALUE = -1;
+  STAP_RETVALUE = from_kgid_munged(get_user_namespace(_stp_pid), task_gid(t));
+#endif
+#else
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -428,30 +395,20 @@ function task_egid:long (task:long) %{ /* pure */
  */
 function task_ns_egid:long (task:long) %{ /* pure */
 #if defined(CONFIG_USER_NS)
-  struct pid *target_ns_pid;
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  rcu_read_lock();
-  // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
-  // in the current process' ns, when the PID is what's seen in the init ns (I think)
-#ifdef  STP_TARGET_NS_PID
-  target_ns_pid = find_pid_ns(STP_TARGET_NS_PID, &init_pid_ns);
-#else
-  target_ns_pid = find_pid_ns(_stp_pid, &init_pid_ns);
-#endif
-  rcu_read_unlock();
-  STAP_RETVALUE = -1; // set it to a valid pid if available
-  if (target_ns_pid){
-      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-      if(target_ns_task){
-          /* If task_egid() isn't defined, make our own. */
+
+  /* If task_egid() isn't defined, make our own. */
 #if !defined(task_egid) && defined(task_cred_xxx)
 #define task_egid(task)		(task_cred_xxx((task), egid))
 #endif
-          STAP_RETVALUE = from_kgid_munged(task_cred_xxx(target_ns_task, user_ns), task_egid(t));
-      }
-  }
+
+#ifdef  STP_TARGET_NS_PID
+  STAP_RETVALUE = from_kgid_munged(get_user_namespace(STP_TARGET_NS_PID), task_egid(t));
 #else
-    STAP_RETVALUE = -1;
+  STAP_RETVALUE = from_kgid_munged(get_user_namespace(_stp_pid), task_egid(t));
+#endif
+#else
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -486,25 +443,14 @@ function task_uid:long (task:long) %{ /* pure */
  */
 function task_ns_uid:long (task:long) %{ /* pure */
 #if defined(CONFIG_USER_NS)
-  struct pid *target_ns_pid;
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  rcu_read_lock();
-  // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
-  // in the current process' ns, when the PID is what's seen in the init ns (I think)
 #ifdef  STP_TARGET_NS_PID
-  target_ns_pid = find_pid_ns(STP_TARGET_NS_PID, &init_pid_ns);
+  STAP_RETVALUE = from_kuid_munged(get_user_namespace(STP_TARGET_NS_PID), task_uid(t));
 #else
-  target_ns_pid = find_pid_ns(_stp_pid, &init_pid_ns);
+  STAP_RETVALUE = from_kuid_munged(get_user_namespace(_stp_pid), task_uid(t));
 #endif
-  rcu_read_unlock();
-  STAP_RETVALUE = -1; // set it to a valid pid if available
-  if (target_ns_pid){
-      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-      if(target_ns_task)
-          STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), task_uid(t));
-  }
 #else
-    STAP_RETVALUE = -1;
+  STAP_RETVALUE = -1;
 #endif
 %}
 
@@ -539,25 +485,14 @@ function task_euid:long (task:long) %{ /* pure */
  */
 function task_ns_euid:long (task:long) %{ /* pure */
 #if defined(CONFIG_USER_NS)
-  struct pid *target_ns_pid;
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  rcu_read_lock();
-  // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
-  // in the current process' ns, when the PID is what's seen in the init ns (I think)
 #ifdef  STP_TARGET_NS_PID
-  target_ns_pid = find_pid_ns(STP_TARGET_NS_PID, &init_pid_ns);
+  STAP_RETVALUE = from_kuid_munged(get_user_namespace(STP_TARGET_NS_PID), task_euid(t));
 #else
-  target_ns_pid = find_pid_ns(_stp_pid, &init_pid_ns);
+  STAP_RETVALUE = from_kuid_munged(get_user_namespace(_stp_pid), task_euid(t));
 #endif
-  rcu_read_unlock();
-  STAP_RETVALUE = -1; // set it to a valid pid if available
-  if (target_ns_pid){
-      struct task_struct *target_ns_task = get_pid_task(target_ns_pid, PIDTYPE_PID);
-      if(target_ns_task)
-          STAP_RETVALUE = from_kuid_munged(task_cred_xxx(target_ns_task, user_ns), task_euid(t));
-  }
 #else
-    STAP_RETVALUE = -1;
+  STAP_RETVALUE = -1;
 #endif
 %}
 

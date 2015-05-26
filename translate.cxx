@@ -1197,9 +1197,14 @@ c_unparser::emit_common_header ()
       o->newline(-1)  << "}";
       o->newline( 0)  << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
     }
-  // ABE possibly a better condition
-  if (session->target_namespaces_pid > 0)
-    o->newline(0) << "#define STP_TARGET_NS_PID " << session->target_namespaces_pid;
+
+  // namespace stuff. only implemented for runtime=kernel, so far
+  if (!session->runtime_usermode_p())
+    {
+      o->newline(0) << "#include \"namespaces.h\"";
+      if (session->target_namespaces_pid > 0)
+        o->newline(0) << "#define STP_TARGET_NS_PID " << session->target_namespaces_pid;
+    }
 
   o->newline();
 }
