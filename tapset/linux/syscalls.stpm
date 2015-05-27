@@ -14,7 +14,7 @@
 	# syscalls use the same syscall number as the 64-bit
 	# syscall. So, we have to check to see if this is a
 	# 32-on-64-bit user task.
-	if (%{ _stp_is_compat_task() %}) next
+	if (%{ /* pure */ _stp_is_compat_task() %}) next
     %)
 	# If _stp_syscall_nr() fails, that means we aren't in user
 	# context. So, skip this call.
@@ -28,7 +28,7 @@
 	# syscalls use the same syscall number as the 64-bit
 	# syscall. So, we have to check to see if this is a
 	# 32-on-64-bit user task.
-	if (%{ _stp_is_compat_task() %}) next
+	if (%{ /* pure */ _stp_is_compat_task() %}) next
     %)
 	try { __nr = _stp_syscall_nr() } catch { next }
 	if ((__nr != @syscall_nr1) && (__nr != @syscall_nr2)) next
@@ -38,7 +38,7 @@
 %(
     %( CONFIG_COMPAT == "y" %?
 	try { __nr = _stp_syscall_nr() } catch { next }
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		if (__nr != @compat_syscall_nr)
 			next
 	}
@@ -53,7 +53,7 @@
 %(
     %( CONFIG_COMPAT == "y" %?
 	try { __nr = _stp_syscall_nr() } catch { next }
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		if (__nr != @compat_syscall_nr) next
 	}
     %)
@@ -63,7 +63,7 @@
 %(
     %( CONFIG_COMPAT == "y" %?
 	try { __nr = _stp_syscall_nr() } catch { next }
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		if (__nr == @compat_syscall_nr) next
 	}
     %)
@@ -72,7 +72,7 @@
 @define __syscall_gate_compat_simple
 %(
     %( CONFIG_COMPAT == "y" %?
-        if (%{ _stp_is_compat_task() %}) next
+        if (%{ /* pure */ _stp_is_compat_task() %}) next
     %)
 %)
 
@@ -289,4 +289,30 @@
 	}
 %)
 
+# @__compat_ulong() macro adds the ability to distinguish between compat and non-compat
+# task to the __ulong() function making it full-featured couterpart to ulong_arg().
+@define __compat_ulong(arg)
+%(
+	%( CONFIG_COMPAT == "y" %?
+		(%{ /* pure */ _stp_is_compat_task() %} ? __uint32(@arg) : __ulong(@arg))
+	%:
+		__ulong(@arg)
+	%)
+%)
+
+# @__compat_long() macro adds the ability to distinguish between compat and non-compat
+# task to the __long() function making it full-featured couterpart to long_arg().
+@define __compat_long(arg)
+%(
+	%( CONFIG_COMPAT == "y" %?
+		(%{ /* pure */ _stp_is_compat_task() %} ? __int32(@arg) : __long(@arg))
+	%:
+		__long(@arg)
+	%)
+%)
+
+@define __compat_task
+%(
+	%{ /* pure */ _stp_is_compat_task() %}
+%)
 

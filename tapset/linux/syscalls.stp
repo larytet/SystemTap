@@ -1742,25 +1742,18 @@ probe syscall.fsync.return = kernel.function("sys_fsync").return
 # long sys_ftruncate(unsigned int fd, unsigned long length)
 # COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
 #
-probe syscall.ftruncate = __syscall.ftruncate, __syscall.compat_ftruncate ?
+probe syscall.ftruncate = __syscall.ftruncate,
+	kernel.function("compat_sys_ftruncate").call ?
 {
 	name = "ftruncate"
 	fd = __int32($fd)
+	length = @__compat_long($length)
 	argstr = sprintf("%d, %d", fd, length)
 }
 probe __syscall.ftruncate = kernel.function("sys_ftruncate").call
 {
 	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
 			       %{ __NR_compat_ftruncate %})
-	if (%{ /* pure */ _stp_is_compat_task() %})
-		length = __int32($length)
-	else
-		length = __long($length)
-}
-probe __syscall.compat_ftruncate =
-	kernel.function("compat_sys_ftruncate").call ?
-{
-	length = __int32($length)
 }
 probe syscall.ftruncate.return = __syscall.ftruncate.return,
 	kernel.function("compat_sys_ftruncate").return ?
@@ -2745,29 +2738,24 @@ probe syscall.io_destroy.return = kernel.function("sys_io_destroy").return
 #		 struct io_event __user *events,
 #		 struct compat_timespec __user *timeout)
 #
-probe syscall.io_getevents = __syscall.io_getevents,
-	__syscall.compat_io_getevents ?
+probe syscall.io_getevents = __syscall.io_getevents ?,
+	kernel.function("compat_sys_io_getevents").call ?
 {
 	name = "io_getevents"
         ctx_id = __ulong($ctx_id)
 	events_uaddr = $events
 	timeout_uaddr = $timeout
+	nr = @__compat_long($nr)
+	min_nr = @__compat_long($min_nr)
+	timestr = (@__compat_task ?
+	           _struct_compat_timespec_u($timeout, 1) :
+	           _struct_timespec_u($timeout, 1))
 	argstr = sprintf("%u, %d, %d, %p, %s", ctx_id, min_nr,
 		nr, events_uaddr, timestr)
 }
-probe __syscall.io_getevents = kernel.function("sys_io_getevents").call ?
+probe __syscall.io_getevents = kernel.function("sys_io_getevents").call
 {
 	@__syscall_gate(%{ __NR_io_getevents %})
-	nr = $nr
-	min_nr = $min_nr
-	timestr = _struct_timespec_u($timeout, 1)
-}
-probe __syscall.compat_io_getevents =
-	kernel.function("compat_sys_io_getevents").call ?
-{
-	nr = __int32($nr)
-	min_nr = __int32($min_nr)
-	timestr = _struct_compat_timespec_u($timeout, 1)
 }
 probe syscall.io_getevents.return = __syscall.io_getevents.return,
 	kernel.function("compat_sys_io_getevents").return ?
@@ -2837,22 +2825,17 @@ probe __syscall.io_setup.return = kernel.function("sys_io_setup").return
 # long sys_io_submit(aio_context_t ctx_id, long nr, struct iocb __user * __user *iocbpp)
 #
 probe syscall.io_submit = __syscall.io_submit,
-	__syscall.compat_io_submit ?
+	kernel.function("compat_sys_io_submit").call ?
 {
 	name = "io_submit"
 	ctx_id = __ulong($ctx_id)
+	nr = @__compat_long($nr)
+	iocbpp_uaddr = @choose_defined($iocbpp, $iocb)
 	argstr = sprintf("%u, %d, %p", ctx_id, nr, iocbpp_uaddr)
 }
 probe __syscall.io_submit = kernel.function("sys_io_submit").call
 {
 	@__syscall_gate(%{ __NR_io_submit%})
-	nr = $nr
-	iocbpp_uaddr = $iocbpp
-}
-probe __syscall.compat_io_submit = kernel.function("compat_sys_io_submit").call
-{
-	nr = __int32($nr)
-	iocbpp_uaddr = $iocb
 }
 probe syscall.io_submit.return = __syscall.io_submit.return,
 	kernel.function("compat_sys_io_submit").return ?
@@ -2953,17 +2936,10 @@ probe syscall.keyctl = kernel.function("compat_sys_keyctl").call ?,
 {
 	name = "keyctl"
 	option = __int32($option)
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		arg2 = __uint32($arg2)
-		arg3 = __uint32($arg3)
-		arg4 = __uint32($arg4)
-		arg5 = __uint32($arg5)
-	} else {
-		arg2 = __ulong($arg2)
-		arg3 = __ulong($arg3)
-		arg4 = __ulong($arg4)
-		arg5 = __ulong($arg5)
-	}
+	arg2 = @__compat_ulong($arg2)
+	arg3 = @__compat_ulong($arg3)
+	arg4 = @__compat_ulong($arg4)
+	arg5 = @__compat_ulong($arg5)
 	@__keyctl_argstr(option, arg2, arg3, arg4, arg5)
 }
 probe syscall.keyctl.return = kernel.function("compat_sys_keyctl").return ?,
@@ -3266,24 +3242,15 @@ probe syscall.lremovexattr.return = kernel.function("sys_lremovexattr").return
 # COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
 #			 unsigned int, whence)
 #
-probe syscall.lseek = __syscall.lseek, __syscall.compat_lseek ?
+probe syscall.lseek = kernel.function("sys_lseek").call ?,
+                      kernel.function("compat_sys_lseek").call ?
 {
 	name = "lseek"
-	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
-}
-probe __syscall.lseek = kernel.function("sys_lseek").call
-{
 	fildes = __int32($fd)
-	offset = $offset
-	whence = @choose_defined($whence, $origin)
-	whence_str = _seek_whence_str(@choose_defined($whence, $origin))
-}
-probe __syscall.compat_lseek = kernel.function("compat_sys_lseek").call
-{
-	fildes = __int32($fd)
-	offset = __int32($offset)
-	whence = __uint32(@choose_defined($whence, $origin))
+	offset = @__compat_long($offset)
+	whence = @__compat_ulong(@choose_defined($whence, $origin))
 	whence_str = _seek_whence_str(whence)
+	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
 }
 probe syscall.lseek.return = kernel.function("sys_lseek").return,
 			     kernel.function("compat_sys_lseek").return ?
@@ -3399,13 +3366,8 @@ probe syscall.mbind = __syscall.mbind ?,
 	nmask_uaddr = $nmask
 	flags = __uint32($flags)
 	flags_str = _mempolicy_flags_str(flags)
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		len = __uint32($len)
-		maxnode = __uint32($maxnode)
-	} else {
-		len = $len
-		maxnode = $maxnode
-	}
+	len = @__compat_ulong($len)
+	maxnode = @__compat_ulong($maxnode)
 	argstr = sprintf("%p, %u, %s, %p, %u, %s", start, len,
 	                 mode_str, nmask_uaddr, maxnode, flags_str)
 }
@@ -3455,7 +3417,7 @@ probe syscall.migrate_pages = __syscall.migrate_pages ?,
 	pid = __int32($pid)
 	old_nodes = $old_nodes
 	new_nodes = $new_nodes
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
+	if (@__compat_task) {
 		maxnode = __uint32($maxnode)
 	} else {
 		maxnode = $maxnode
@@ -3641,30 +3603,22 @@ probe syscall.modify_ldt.return = kernel.function("sys_modify_ldt").return ?
 #                int flags)
 #
 probe syscall.move_pages = __syscall.move_pages ?,
-                           __syscall.compat_move_pages ?
+                           kernel.function("compat_sys_move_pages").call ?
 {
 	name = "move_pages"
+	pages = @choose_defined($pages32, $pages)
 	pid = __int32($pid)
 	nodes = $nodes
 	status = $status
 	flags = __int32($flags)
 	flags_str = _mempolicy_flags_str(flags)
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		nr_pages = __uint32($nr_pages)
-	} else {
-		nr_pages = $nr_pages
-	}
+	nr_pages = @__compat_ulong($nr_pages)
 	argstr = sprintf("%d, %u, %p, %p, %p, %s", pid, nr_pages, pages,
 	                 nodes, status, flags_str)
 }
 probe __syscall.move_pages = kernel.function("sys_move_pages").call
 {
 	@__syscall_gate(%{ __NR_move_pages %})
-	pages = $pages
-}
-probe __syscall.compat_move_pages = kernel.function("compat_sys_move_pages").call
-{
-	pages = $pages32
 }
 probe syscall.move_pages.return = __syscall.move_pages.return ?,
                                   kernel.function("compat_sys_move_pages").return ?
@@ -3833,13 +3787,14 @@ probe __syscall.mq_notify.return = kernel.function("sys_mq_notify").return
 #			struct compat_mq_attr __user *u_attr)
 #
 probe syscall.mq_open = __syscall.mq_open,
-                        __syscall.compat_mq_open ?
+                        kernel.function("compat_sys_mq_open").call ?
 {
 	name = "mq_open"
 	name_uaddr = $u_name
 	filename = user_string_quoted($u_name)
 	u_attr_uaddr = $u_attr
 	oflag = __int32($oflag)
+	mode = (@__compat_task ? __ushort($mode) : __uint32($mode))
 	if (oflag & 64)
 		argstr = sprintf("%s, %s, %#o, %p", user_string_quoted($u_name),
 			_sys_open_flag_str(oflag), mode, $u_attr)
@@ -3849,12 +3804,7 @@ probe syscall.mq_open = __syscall.mq_open,
 
 probe __syscall.mq_open = kernel.function("sys_mq_open").call
 {
-        @__syscall_gate(%{ __NR_mq_open %})
-	mode = __uint32($mode)
-}
-probe __syscall.compat_mq_open = kernel.function("compat_sys_mq_open").call
-{
-	mode = __ushort($mode)
+	@__syscall_gate_compat_simple
 }
 probe syscall.mq_open.return =
         __syscall.mq_open.return,
@@ -3880,29 +3830,25 @@ probe __syscall.mq_open.return = kernel.function("sys_mq_open").return
 #			const struct compat_timespec __user *u_abs_timeout)
 #
 probe syscall.mq_timedreceive =
-        __syscall.mq_timedreceive ?,
-        __syscall.compat_mq_timedreceive ?
+	__syscall.mq_timedreceive ?,
+	kernel.function("compat_sys_mq_timedreceive").call ?
 {
 	name = "mq_timedreceive"
 	mqdes = __int32($mqdes)
 	msg_ptr_uaddr = $u_msg_ptr
 	msg_prio_uaddr = $u_msg_prio
 	abs_timeout_uaddr = $u_abs_timeout
+%( CONFIG_64BIT == "y" %?
+	msg_len = @__compat_ulong($msg_len)
+%:
+	msg_len = __uint32($msg_len)
+%)
 	argstr = sprintf("%d, %p, %u, %p, %p", mqdes, $u_msg_ptr, msg_len,
 		$u_msg_prio, $u_abs_timeout)
-}
-probe __syscall.compat_mq_timedreceive = kernel.function("compat_sys_mq_timedreceive").call
-{
-	msg_len = __uint32($msg_len)
 }
 probe __syscall.mq_timedreceive = kernel.function("sys_mq_timedreceive").call
 {
         @__syscall_gate(%{ __NR_mq_timedreceive %})
-%( CONFIG_64BIT == "y" %?
-	msg_len = __ulong($msg_len)
-%:
-	msg_len = __uint32($msg_len)
-%)
 }
 probe syscall.mq_timedreceive.return =
         __syscall.mq_timedreceive.return,
@@ -3913,7 +3859,7 @@ probe syscall.mq_timedreceive.return =
 }
 probe __syscall.mq_timedreceive.return = kernel.function("sys_mq_timedreceive").return
 {
-        @__syscall_gate(%{ __NR_mq_timedreceive %})
+	@__syscall_gate_compat_simple
 }
 
 # mq_timedsend _______________________________________________
@@ -3928,29 +3874,25 @@ probe __syscall.mq_timedreceive.return = kernel.function("sys_mq_timedreceive").
 #			const struct compat_timespec __user *u_abs_timeout)
 #
 probe syscall.mq_timedsend =
-        __syscall.mq_timedsend,
-	__syscall.compat_mq_timedsend ?
+	__syscall.mq_timedsend,
+	kernel.function("compat_sys_mq_timedsend").return ?
 {
 	name = "mq_timedsend"
 	mqdes = __int32($mqdes)
 	msg_ptr_uaddr = $u_msg_ptr
 	msg_prio = __uint32($msg_prio)
 	abs_timeout_uaddr = $u_abs_timeout
+%( CONFIG_64BIT == "y" %?
+	msg_len = @__compat_ulong($msg_len)
+%:
+	msg_len = __uint32($msg_len)
+%)
 	argstr = sprintf("%d, %p, %u, %u, %p", mqdes, $u_msg_ptr, msg_len,
 		__uint32($msg_prio), $u_abs_timeout)
-}
-probe __syscall.compat_mq_timedsend = kernel.function("compat_sys_mq_timedsend").call
-{
-	msg_len = __uint32($msg_len)
 }
 probe __syscall.mq_timedsend = kernel.function("sys_mq_timedsend").call
 {
         @__syscall_gate(%{ __NR_mq_timedsend %})
-%( CONFIG_64BIT == "y" %?
-	msg_len = __ulong($msg_len)
-%:
-	msg_len = __uint32($msg_len)
-%)
 }
 probe syscall.mq_timedsend.return =
         __syscall.mq_timedsend.return,
@@ -3961,7 +3903,7 @@ probe syscall.mq_timedsend.return =
 }
 probe __syscall.mq_timedsend.return = kernel.function("sys_mq_timedsend").return
 {
-        @__syscall_gate(%{ __NR_mq_timedsend %})
+	@__syscall_gate_compat_simple
 }
 
 # mq_unlink __________________________________________________

@@ -750,22 +750,15 @@ probe syscall.compat_pselect7.return = kernel.function("compat_sys_pselect7").re
 #		long addr,
 #		long data)
 #
-probe syscall.ptrace = __syscall.ptrace ?, __syscall.compat_ptrace ?
+probe syscall.ptrace = kernel.function("sys_ptrace").call ?,
+		kernel.function("compat_sys_ptrace").call ? 
 {
 	name = "ptrace"
 	request = $request
 	pid = __int32($pid)
+	addr = @__compat_ulong($addr)
+	data = @__compat_ulong(@choose_defined($data, $cdata))
 	argstr = _ptrace_argstr($request, pid, addr, data)
-}
-probe __syscall.ptrace = kernel.function("sys_ptrace").call ?
-{
-	addr = __ulong($addr)
-	data = __ulong($data)
-}
-probe __syscall.compat_ptrace = kernel.function("compat_sys_ptrace").call ?
-{
-	addr = __uint32($addr)
-	data = __uint32(@choose_defined($data, $cdata))
 }
 probe syscall.ptrace.return = kernel.function("sys_ptrace").return ?,
 	kernel.function("compat_sys_ptrace").return ?
@@ -1284,14 +1277,12 @@ probe syscall.compat_recvmmsg.return =
 #
 probe syscall.recvmsg = __syscall.recvmsg ?, __syscall.socketcall.recvmsg ?
 {
-%( CONFIG_COMPAT == "y" %?
 	# Avoid probe hits from compat_sys_socketcall() calling
 	# compat_sys_recvmsg(), which sometimes calls
 	# sys_recvmsg(). We could call __syscall_gate2() here with
 	# NR_recvmsg and NR_socketcall, but all we really need to
 	# check is that we're not in a compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_gate_compat_simple
 	name = "recvmsg"
 	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
@@ -1313,9 +1304,7 @@ probe __syscall.socketcall.recvmsg = kernel.function("sys_socketcall").call ?
 probe syscall.recvmsg.return = __syscall.recvmsg.return ?,
 	__syscall.socketcall.recvmsg.return ?
 {
-%( CONFIG_COMPAT == "y" %?
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_gate_compat_simple
 	name = "recvmsg"
 	retstr = return_str(1, $return)
 }
@@ -1575,25 +1564,21 @@ probe syscall.rt_sigaction32.return =
 #				    compat_size_t sigsetsize)
 #
 probe syscall.rt_sigpending = __syscall.rt_sigpending ?,
-			      __syscall.compat_rt_sigpending ?
+                              kernel.function("compat_sys_rt_sigpending").call !,
+                              kernel.function("sys32_rt_sigpending").call ?
 {
 	name = "rt_sigpending"
 	set_uaddr = @choose_defined($uset, $set)
+	sigsetsize = @__compat_ulong($sigsetsize)
 	argstr = sprintf("%p, %u", set_uaddr, sigsetsize)
 }
 probe __syscall.rt_sigpending = kernel.function("sys_rt_sigpending").call ?
 {
 	@__syscall_gate(%{ __NR_rt_sigpending %})
-	sigsetsize = $sigsetsize
-}
-probe __syscall.compat_rt_sigpending =
-	kernel.function("compat_sys_rt_sigpending").call !,
-	kernel.function("sys32_rt_sigpending").call ?
-{
-	sigsetsize = __uint32($sigsetsize)
 }
 probe syscall.rt_sigpending.return = __syscall.rt_sigpending.return ?,
-				     __syscall.compat_rt_sigpending.return ?
+                                     kernel.function("compat_sys_rt_sigpending").return !,
+                                     kernel.function("sys32_rt_sigpending").return ?
 {
 	name = "rt_sigpending"
 	retstr = return_str(1, $return)
@@ -1602,11 +1587,6 @@ probe __syscall.rt_sigpending.return =
 	kernel.function("sys_rt_sigpending").return ?
 {
 	@__syscall_gate(%{ __NR_rt_sigpending %})
-}
-probe __syscall.compat_rt_sigpending.return =
-	kernel.function("compat_sys_rt_sigpending").return !,
-	kernel.function("sys32_rt_sigpending").return ?
-{
 }
 
 # rt_sigprocmask _____________________________________________
@@ -1642,8 +1622,7 @@ probe syscall.rt_sigprocmask = kernel.function("sys_rt_sigprocmask").call ?
 	// On those kernels, a call to the 32-bit rt_sigprocmask goes
 	// straight to the 64-bit rt_sigprocmask function.
 %( arch == "x86_64" && kernel_v >= "3.4" && CONFIG_COMPAT == "y" %?
-	if (%{ /* pure */ _stp_is_compat_task() %}
-	    && _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
+	if (@__compat_task && _stp_syscall_nr() == %{ /* pure */ __NR_compat_rt_sigprocmask %}) {
 		oldset_uaddr = __uint32($oset)
 		argstr = sprintf("%s, %s, %p, %d", how_str,
 				 _stp_compat_sigset_u(set_uaddr), oldset_uaddr,
@@ -1701,7 +1680,7 @@ probe syscall.rt_sigqueueinfo =
 	sig = __int32($sig)
 	uinfo_uaddr = $uinfo
 	argstr = sprintf("%d, %s, %s", pid, _signal_name(sig),
-			 (%{ /* pure */ _stp_is_compat_task() %}
+			 (@__compat_task
 			  ? _stp_compat_siginfo_u($uinfo)
 			  : _stp_siginfo_u($uinfo)))
 }
@@ -1752,12 +1731,9 @@ probe syscall.rt_sigsuspend = kernel.function("compat_sys_rt_sigsuspend").call ?
 {
 	name = "rt_sigsuspend"
 	set_uaddr = @__pointer($unewset)
-	if (%{ /* pure */ _stp_is_compat_task() %})
-		sigsetsize = __uint32($sigsetsize)
-	else
-		sigsetsize = __ulong($sigsetsize)
+	sigsetsize = @__compat_ulong($sigsetsize)
 	argstr = sprintf("%s, %u",
-			 (%{ /* pure */ _stp_is_compat_task() %}
+			 (@__compat_task
 			  ? _stp_compat_sigset_u(set_uaddr)
 			  : _stp_sigset_u(set_uaddr)), sigsetsize)
 }
@@ -1789,7 +1765,7 @@ probe syscall.rt_sigtimedwait =
 	uinfo_uaddr = @__pointer($uinfo)
 	uts_uaddr = @__pointer($uts)
 	sigsetsize = $sigsetsize
-	if (%{ /* pure */ _stp_is_compat_task() %})
+	if (@__compat_task)
 		argstr = sprintf("%s, %s, %s, %d",
 				 _stp_compat_sigset_u(uthese_uaddr),
 			 	 _stp_compat_siginfo_u(uinfo_uaddr),
@@ -1829,7 +1805,7 @@ probe syscall.rt_tgsigqueueinfo =
 	sig = __int32($sig)
 	uinfo_uaddr = $uinfo
 	argstr = sprintf("%d, %d, %s, %s", tgid, tid, _signal_name(sig),
-			 (%{ /* pure */ _stp_is_compat_task() %}
+			 (@__compat_task
 			  ? _stp_compat_siginfo_u(uinfo_uaddr)
 			  : _stp_siginfo_u(uinfo_uaddr)))
 }
@@ -2383,26 +2359,22 @@ probe __syscall.socketcall.send.return =
 # COMPAT_SYSCALL_DEFINE4(sendfile64, int, out_fd, int, in_fd,
 #		compat_loff_t __user *, offset, compat_size_t, count)
 #
-probe syscall.sendfile = __syscall.sendfile ?, __syscall.compat_sendfile ?
+probe syscall.sendfile = __syscall.sendfile ?,
+	kernel.function("compat_sys_sendfile").call ?,
+	kernel.function("compat_sys_sendfile64").call ?,
+	kernel.function("sys32_sendfile").call ?
 {
 	name = "sendfile"
 	out_fd = __int32($out_fd)
 	in_fd = __int32($in_fd)
 	offset_uaddr = $offset
+	count = @__compat_ulong($count)
 	argstr = sprintf("%d, %d, %p, %u", out_fd, in_fd, $offset, count)
 }
 probe __syscall.sendfile = kernel.function("sys_sendfile").call ?,
 	kernel.function("sys_sendfile64").call ?
 {
 	@__syscall_gate2(%{ __NR_sendfile %}, %{ __NR_sendfile64 %})
-	count = __ulong($count)
-}
-probe __syscall.compat_sendfile =
-	kernel.function("compat_sys_sendfile").call ?,
-	kernel.function("compat_sys_sendfile64").call ?,
-	kernel.function("sys32_sendfile").call ?
-{
-	count = __uint32($count)
 }
 probe syscall.sendfile.return = __syscall.sendfile.return ?,
 	kernel.function("compat_sys_sendfile").return ?,
@@ -2424,14 +2396,12 @@ probe __syscall.sendfile.return = kernel.function("sys_sendfile").return ?,
 #
 probe syscall.sendmsg = __syscall.sendmsg ?, __syscall.socketcall.sendmsg ?
 {
-%( CONFIG_COMPAT == "y" %?
 	# Avoid probe hits from compat_sys_socketcall() calling
 	# compat_sys_sendmsg(), which sometimes calls
 	# sys_sendmsg(). We could call __syscall_gate2() here with
 	# NR_sendmsg and NR_socketcall, but all we really need to
 	# check is that we're not in a compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_gate_compat_simple
 	name = "sendmsg"
 	flags_str = _msg_flags_str(flags)
 	argstr = sprintf("%d, %p, %s", s, msg_uaddr, _msg_flags_str(flags))
@@ -2453,14 +2423,12 @@ probe __syscall.socketcall.sendmsg = kernel.function("sys_socketcall").call ?
 probe syscall.sendmsg.return = __syscall.sendmsg.return ?,
 	__syscall.socketcall.sendmsg.return ?
 {
-%( CONFIG_COMPAT == "y" %?
 	# Avoid probe hits from compat_sys_socketcall() calling
 	# compat_sys_sendmsg(), which sometimes calls
 	# sys_sendmsg(). We could call __syscall_gate2() here with
 	# NR_sendmsg and NR_socketcall, but all we really need to
 	# check is that we're not in a compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_gate_compat_simple
 	name = "sendmsg"
 	retstr = return_str(1, $return)
 }
@@ -2521,14 +2489,12 @@ probe syscall.sendmmsg = __syscall.sendmmsg ?,
 }
 probe __syscall.sendmmsg = kernel.function("sys_sendmmsg").call ?
 {
-%( CONFIG_COMPAT == "y" %?
 	# Avoid probe hits from compat_sys_socketcall() calling
 	# compat_sys_sendmmsg(), which sometimes calls
 	# sys_sendmmsg(). We could call __syscall_gate2() here with
 	# NR_sendmmsg and NR_socketcall, but all we really need to
 	# check is that we're not in a compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_gate_compat_simple
 	s = __int32($fd)
 	mmsg_uaddr = $mmsg
 	vlen = __uint32($vlen)
@@ -2561,14 +2527,12 @@ probe syscall.sendmmsg.return = __syscall.sendmmsg.return ?,
 }
 probe __syscall.sendmmsg.return = kernel.function("sys_sendmmsg").return ?
 {
-%( CONFIG_COMPAT == "y" %?
 	# Avoid probe hits from compat_sys_socketcall() calling
 	# compat_sys_sendmmsg(), which sometimes calls
 	# sys_sendmmsg(). We could call __syscall_gate2() here with
 	# NR_sendmmsg and NR_socketcall, but all we really need to
 	# check is that we're not in a compat task.
-	if (%{ _stp_is_compat_task() %}) next
-%)
+	@__syscall_gate_compat_simple
 }
 probe __syscall.compat_socketcall.sendmmsg.return =
 	kernel.function("compat_sys_socketcall").return ?
@@ -3069,21 +3033,16 @@ probe __syscall.setrlimit.return = kernel.function("sys_setrlimit").return
 #                        struct compat_robust_list_head __user *, head,
 #                        compat_size_t, len)
 probe syscall.set_robust_list = __syscall.set_robust_list ?,
-                                __syscall.compat_set_robust_list ?
+                                kernel.function("compat_sys_set_robust_list") ?
 {
 	name = "set_robust_list"
 	list_head_uaddr = @__pointer($head)
+	len = @__compat_ulong($len)
 	argstr = sprintf("%p, %u", list_head_uaddr, len)
 }
 probe __syscall.set_robust_list = kernel.function("sys_set_robust_list")
 {
 	@__syscall_gate_compat_simple
-	len = __ulong($len)
-}
-probe __syscall.compat_set_robust_list =
-		kernel.function("compat_sys_set_robust_list")
-{
-	len = __uint32($len)
 }
 probe syscall.set_robust_list.return = __syscall.set_robust_list.return ?,
 		kernel.function("compat_sys_set_robust_list").return ?
@@ -3552,7 +3511,7 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call,
 	uss_uaddr = @__pointer(@choose_defined($uss, $uss_ptr))
 	uoss_uaddr = @__pointer(@choose_defined($uoss, $uoss_ptr))
 	argstr = sprintf("%s, %p",
-			 (%{ /* pure */ _stp_is_compat_task() %}
+			 (@__compat_task
 			  ? _stp_compat_sigaltstack_u(uss_uaddr)
 			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
@@ -3684,23 +3643,18 @@ probe __syscall.sigpending.return = kernel.function("sys_sigpending").return ?
 #				         compat_old_sigset_t __user *oset)
 #
 probe syscall.sigprocmask = __syscall.sigprocmask ?,
-			    __syscall.compat_sigprocmask ?
+                            kernel.function("compat_sys_sigprocmask").call ?
 {
 	name = "sigprocmask"
 	how = __int32($how)
 	how_str = _sigprocmask_how_str(how)
 	set_uaddr = @__pointer(@choose_defined($set, $nset))
+	oldset_uaddr = @__compat_ulong($oset)
 	argstr = sprintf("%s, %p, %p", how_str, set_uaddr, oldset_uaddr)
 }
 probe __syscall.sigprocmask = kernel.function("sys_sigprocmask").call ?
 {
 	@__syscall_gate(%{ __NR_sigprocmask %})
-	oldset_uaddr = $oset
-}
-probe __syscall.compat_sigprocmask =
-	kernel.function("compat_sys_sigprocmask").call ?
-{
-	oldset_uaddr = __uint32($oset)
 }
 probe syscall.sigprocmask.return = __syscall.sigprocmask.return ?,
 	kernel.function("compat_sys_sigprocmask").return ?
@@ -4244,11 +4198,7 @@ probe syscall.tee = kernel.function("sys_tee").call ?
 	name = "tee"
 	fdin = __int32($fdin)
 	fdout = __int32($fdout)
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		len = __uint32($len)
-	} else {
-		len = __ulong($len)
-	}
+	len = @__compat_ulong($len)
 	flags = __uint32($flags)
 	argstr = sprintf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
 }
@@ -4314,26 +4264,18 @@ probe syscall.time.return = kernel.function("sys32_time").return ?,
 #			timer_t __user * created_timer_id)
 #
 probe syscall.timer_create = __syscall.timer_create,
-                             __syscall.compat_timer_create ?
+                             kernel.function("compat_sys_timer_create").call ?
 {
 	name = "timer_create"
+	clockid = __int32($which_clock)
+	clockid_str = _get_wc_str(__int32($which_clock))
+	evp_uaddr = $timer_event_spec
+	timerid_uaddr = $created_timer_id
+	argstr = sprintf("%s, %p, %p", clockid_str, $timer_event_spec, $created_timer_id)
 }
 probe __syscall.timer_create = kernel.function("sys_timer_create").call
 {
 	@__syscall_gate(%{ __NR_timer_create %})
-	clockid = __int32($which_clock)
-	clockid_str = _get_wc_str(__int32($which_clock))
-	evp_uaddr = $timer_event_spec
-	timerid_uaddr = $created_timer_id
-	argstr = sprintf("%s, %p, %p", clockid_str, $timer_event_spec, $created_timer_id)
-}
-probe __syscall.compat_timer_create = kernel.function("compat_sys_timer_create").call ?
-{
-	clockid = __int32($which_clock)
-	clockid_str = _get_wc_str(__int32($which_clock))
-	evp_uaddr = $timer_event_spec
-	timerid_uaddr = $created_timer_id
-	argstr = sprintf("%s, %p, %p", clockid_str, $timer_event_spec, $created_timer_id)
 }
 probe syscall.timer_create.return =
 	__syscall.timer_create.return,
@@ -4387,23 +4329,16 @@ probe syscall.timer_getoverrun.return = kernel.function("sys_timer_getoverrun").
 #			 struct itimerspec __user *setting)
 #
 probe syscall.timer_gettime = __syscall.timer_gettime,
-                              __syscall.compat_timer_gettime ?
+                              kernel.function("compat_sys_timer_gettime").call ?
 {
 	name = "timer_gettime"
+	timerid = __int32($timer_id)
+	value_uaddr = $setting
+	argstr = sprintf("%d, %p", __int32($timer_id), $setting)
 }
 probe __syscall.timer_gettime = kernel.function("sys_timer_gettime").call
 {
 	@__syscall_gate(%{ __NR_timer_gettime %})
-	timerid = __int32($timer_id)
-	value_uaddr = $setting
-	argstr = sprintf("%d, %p", __int32($timer_id), $setting)
-}
-probe __syscall.compat_timer_gettime =
-	kernel.function("compat_sys_timer_gettime").call ?
-{
-	timerid = __int32($timer_id)
-	value_uaddr = $setting
-	argstr = sprintf("%d, %p", __int32($timer_id), $setting)
 }
 probe syscall.timer_gettime.return =
         __syscall.timer_gettime.return,
@@ -4428,29 +4363,26 @@ probe __syscall.timer_gettime.return = kernel.function("sys_timer_gettime").retu
 #			  struct compat_itimerspec __user *old)
 #
 probe syscall.timer_settime = __syscall.timer_settime,
-			      __syscall.compat_timer_settime ?
+                              kernel.function("compat_sys_timer_settime").call ?
 {
 	name = "timer_settime"
+	timerid = __int32($timer_id)
+	flags = __int32($flags)
+	value_uaddr  = @choose_defined($new, $new_setting)
+	ovalue_uaddr = @choose_defined($old, $old_setting)
+	argstr = sprintf("%d, %d, %s, %p", __int32($timer_id), __int32($flags),
+%( CONFIG_COMPAT == "y" %?
+			 (@__compat_task ?
+	                  _struct_compat_itimerspec_u(value_uaddr) :
+	                  _struct_itimerspec_u(value_uaddr)),
+%:
+	                 _struct_itimerspec_u(value_uaddr),
+%)
+	                 ovalue_uaddr)
 }
 probe __syscall.timer_settime = kernel.function("sys_timer_settime").call
 {
 	@__syscall_gate(%{ __NR_timer_settime %})
-	timerid = __int32($timer_id)
-	flags = __int32($flags)
-	value_uaddr  = $new_setting
-	ovalue_uaddr = $old_setting
-	argstr = sprintf("%d, %d, %s, %p", __int32($timer_id), __int32($flags),
-			 _struct_itimerspec_u($new_setting), $old_setting)
-}
-probe __syscall.compat_timer_settime =
-	kernel.function("compat_sys_timer_settime").call ?
-{
-	timerid = __int32($timer_id)
-	flags = __int32($flags)
-	value_uaddr  = $new
-	ovalue_uaddr = $old
-	argstr = sprintf("%d, %d, %s, %p", __int32($timer_id), __int32($flags),
-			 _struct_compat_itimerspec_u($new), $old)
 }
 probe syscall.timer_settime.return =
 	__syscall.timer_settime.return,
@@ -4546,32 +4478,27 @@ probe __syscall.timerfd_gettime.return =
 #		const struct compat_itimerspec __user *, utmr,
 #		struct compat_itimerspec __user *, otmr)
 probe syscall.timerfd_settime = __syscall.timerfd_settime ?,
-	__syscall.compat_timerfd_settime ?
-{
-	name = "timerfd_settime"
-}
-probe __syscall.timerfd_settime = kernel.function("sys_timerfd_settime").call ?
-{
-	@__syscall_gate_compat_simple
-	fd = __int32($ufd)
-	flags = __int32($flags)
-	flags_str = _stp_timerfd_flags_str(flags)
-	value_uaddr = $utmr
-	ovalue_uaddr = $otmr
-	argstr = sprintf("%d, %s, %s, %p", fd, flags_str,
-			 _struct_itimerspec_u($utmr), $otmr)
-}
-probe __syscall.compat_timerfd_settime =
 	kernel.function("compat_sys_timerfd_settime").call ?
 {
+	name = "timerfd_settime"
 	fd = __int32($ufd)
 	flags = __int32($flags)
 	flags_str = _stp_timerfd_flags_str(flags)
 	value_uaddr = @__pointer($utmr)
 	ovalue_uaddr = @__pointer($otmr)
 	argstr = sprintf("%d, %s, %s, %p", fd, flags_str,
-			 _struct_compat_itimerspec_u(value_uaddr),
-			 ovalue_uaddr)
+%( CONFIG_COMPAT == "y" %?
+	                 (@__compat_task ?
+	                  _struct_compat_itimerspec_u(value_uaddr) :
+	                  _struct_itimerspec_u(value_uaddr)),
+%:
+	                  _struct_itimerspec_u(value_uaddr),
+%)
+	                 ovalue_uaddr)
+}
+probe __syscall.timerfd_settime = kernel.function("sys_timerfd_settime").call ?
+{
+	@__syscall_gate_compat_simple
 }
 probe syscall.timerfd_settime.return = __syscall.timerfd_settime.return ?,
 	kernel.function("compat_sys_timerfd_settime").return ?
@@ -4629,68 +4556,23 @@ probe syscall.tkill.return = kernel.function("sys_tkill").return
 # COMPAT_SYSCALL_DEFINE2(truncate, const char __user *, path,
 #			 compat_off_t, length)
 #
-probe syscall.truncate = __syscall.truncate ?, __syscall.truncate64 ?,
-			 __syscall.compat_truncate ?
+probe syscall.truncate = __syscall.truncate ?,
+                         kernel.function("sys_truncate64").call ?,
+                         kernel.function("compat_sys_truncate").call ?
 {
 	name = "truncate"
-%( arch == "s390" %?
-	# Sigh. The syscall wrappers on s390x do odd things.
-	if (%{ /* pure */ _stp_is_compat_task() %})
-		path_uaddr = __uint32($path)
-	else
-		path_uaddr = $path
+	path_uaddr = @__pointer($path)
+%( CONFIG_64BIT == "y" %?
+	length = @__compat_long($length)
 %:
-	path_uaddr = $path
+	length = $length
 %)
 	path = user_string_quoted(path_uaddr)
 	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
 }
 probe __syscall.truncate = kernel.function("sys_truncate").call ?
 {
-#%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-#	# Avoid probe hits from compat_sys_truncate() calling
-#	# compat_sys_truncate().  The following kernel commit
-#	# switched to a generic compat_sys_truncate() which doesn't
-#	# go through sys_truncate():
-#	#
-#	#   commit 3f6d078d4accfff8b114f968259a060bfdc7c682
-#	#   Author: Al Viro <viro@zeniv.linux.org.uk>
-#	#   Date:   Sun Feb 24 13:49:08 2013 -0500
-#	#
-#	#       fix compat truncate/ftruncate
-#	#
-#	#       Signed-off-by: Al Viro <viro@zeniv.linux.org.uk>
-#	#
-#	# We could call one of the syscall_gate macros here, but the
-#	# syscall number is the same number on ppc64 for the 64-bit
-#	# and 32-bit syscall. So, just check that we're not in a
-#	# compat task.
-#	if (%{ _stp_is_compat_task() %}) next
-#%)
-#%( arch == "s390" %?
-#	# Sigh. The syscall wrappers on s390x do odd things.
-#	if (%{ /* pure */ _stp_is_compat_task() %})
-#		length = __int32($length)
-#	else
-#		length = __long($length)
-#%:
-#	length = __long($length)
-#%)
-	@__syscall_compat_gate(%{ __NR_truncate %}, 
-			       %{ __NR_compat_truncate %})
-#	length = __long($length)
-	if (%{ /* pure */ _stp_is_compat_task() %})
-		length = __int32($length)
-	else
-		length = __long($length)
-}
-probe __syscall.truncate64 = kernel.function("sys_truncate64").call ?
-{
-	length = $length
-}
-probe __syscall.compat_truncate = kernel.function("compat_sys_truncate").call ?
-{
-	length = __int32($length)
+	@__syscall_compat_gate(%{ __NR_truncate %}, %{ __NR_compat_truncate %})
 }
 probe syscall.truncate.return = __syscall.truncate.return,
                                 kernel.function("sys_truncate64").return ?,
@@ -4701,11 +4583,7 @@ probe syscall.truncate.return = __syscall.truncate.return,
 }
 probe __syscall.truncate.return = kernel.function("sys_truncate").return
 {
-#%( arch == "powerpc" && CONFIG_COMPAT == "y" && kernel_v < "3.9.0" %?
-#	if (%{ _stp_is_compat_task() %}) next
-#%)
-	@__syscall_compat_gate(%{ __NR_truncate %}, 
-			       %{ __NR_compat_truncate %})
+	@__syscall_compat_gate(%{ __NR_truncate %}, %{ __NR_compat_truncate %})
 }
 
 # tux ________________________________________________________
