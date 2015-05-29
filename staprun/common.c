@@ -23,6 +23,7 @@
 int verbose;
 int suppress_warnings;
 int target_pid;
+int target_namespaces_pid;
 unsigned int buffer_size;
 unsigned int reader_timeout_ms;
 char *target_cmd;
@@ -105,6 +106,7 @@ void parse_args(int argc, char **argv)
 	verbose = 0;
 	suppress_warnings = 0;
 	target_pid = 0;
+	target_namespaces_pid = 0;
 	buffer_size = 0;
         reader_timeout_ms = 0;
 	target_cmd = NULL;
@@ -124,7 +126,7 @@ void parse_args(int argc, char **argv)
         color_errors = isatty(STDERR_FILENO)
                 && strcmp(getenv("TERM") ?: "notdumb", "dumb");
 
-	while ((c = getopt(argc, argv, "ALu::vhb:t:dc:o:x:S:DwRr:VT:C:"
+	while ((c = getopt(argc, argv, "ALu::vhb:t:dc:o:x:N:S:DwRr:VT:C:"
 #ifdef HAVE_OPENAT
                            "F:"
 #endif
@@ -152,6 +154,14 @@ void parse_args(int argc, char **argv)
 		case 'x':
 			target_pid = atoi(optarg);
 			break;
+    case 'N':
+      target_namespaces_pid = atoi(optarg);
+      // error out if it's obviously and invalid pid
+      if (target_namespaces_pid < 1) {
+        err(_("Invalid target namespaces pid %d (should be > 0).\n"), target_namespaces_pid);
+				usage(argv[0],1);
+      }
+      break;
 		case 'd':
 			/* delete module */
 			delete_mod = 1;
@@ -320,6 +330,7 @@ void usage(char *prog, int rc)
 	"                exit when it does.  The '_stp_target' variable\n"
 	"                will contain the pid for the command.\n"
 	"-x pid          Sets the '_stp_target' variable to pid.\n"
+  "-N pid          Sets the '_stp_namespaces_pid' variable to pid.\n"
 	"-o FILE         Send output to FILE. This supports strftime(3)\n"
 	"                formats for FILE.\n"
 	"-b buffer size  The systemtap module specifies a buffer size.\n"

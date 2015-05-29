@@ -1425,7 +1425,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case LONG_OPT_TARGET_NAMESPACES:
           assert(optarg);
           target_namespaces_pid = (int) strtoul(optarg, &num_endptr, 10);
-          if (*num_endptr != '\0')
+          if (*num_endptr != '\0' || target_namespaces_pid < 1)
             {
               cerr << _("Invalid process ID number for target namespaces.") << endl;
               return 1;

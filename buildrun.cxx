@@ -771,6 +771,12 @@ make_run_command (systemtap_session& s, const string& remotedir,
       staprun_cmd.push_back(lex_cast(s.target_pid));
     }
 
+  if (s.target_namespaces_pid)
+    {
+      staprun_cmd.push_back("-N");
+      staprun_cmd.push_back(lex_cast(s.target_namespaces_pid));
+    }
+
   if (s.buffer_size)
     {
       staprun_cmd.push_back("-b");

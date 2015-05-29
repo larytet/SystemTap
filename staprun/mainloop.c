@@ -397,6 +397,9 @@ int init_stapio(void)
   if (target_cmd)
     start_cmd();
 
+  if (target_namespaces_pid > 0)
+    dbug(2, "target_namespaces_pid=%d\n", target_namespaces_pid);
+
   /* Run in background */
   if (daemon_mode) {
     pid_t pid;
