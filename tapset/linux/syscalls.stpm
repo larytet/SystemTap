@@ -173,66 +173,66 @@
                         (@option == %{ /* pure */ KEYCTL_GET_SECURITY %})) {
                 argstr = sprintf("%s, %s, %p, %d", _stp_keyctl_cmd_str(@option),
 				 _stp_keyctl_keyring_shortcut_str(@arg2),
-				 @arg3, @__int32_compat(@arg4))
+				 @arg3, @__compat_long(@arg4))
         }
         else if (@option == %{ /* pure */ KEYCTL_UPDATE %}) {
                 argstr = sprintf("%s, %d, %s, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), user_string_quoted(@arg3),
-				 @__int32_compat(@arg4))
+				 @__compat_long(@arg2), user_string_quoted(@arg3),
+				 @__compat_long(@arg4))
         }
         else if ((@option == %{ /* pure */ KEYCTL_REVOKE %}) ||
                         (@option == %{ /* pure */ KEYCTL_CLEAR %}) ||
                         (@option == %{ /* pure */ KEYCTL_INVALIDATE %}) ||
                         (@option == %{ /* pure */ KEYCTL_ASSUME_AUTHORITY %})) {
                 argstr = sprintf("%s, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2))
+				 @__compat_long(@arg2))
         }
         else if ((@option == %{ /* pure */ KEYCTL_LINK %}) ||
                         (@option == %{ /* pure */ KEYCTL_UNLINK %})) {
                 argstr = sprintf("%s, %d, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @__int32_compat(@arg3))
+				 @__compat_long(@arg2), @__compat_long(@arg3))
         }
         else if (@option == %{ /* pure */ KEYCTL_SEARCH %}) {
                 argstr = sprintf("%s, %d, %s, %s, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), user_string_quoted(@arg3),
-				 user_string_quoted(@arg4), @__int32_compat(@arg5))
+				 @__compat_long(@arg2), user_string_quoted(@arg3),
+				 user_string_quoted(@arg4), @__compat_long(@arg5))
         }
         else if (@option == %{ /* pure */ KEYCTL_CHOWN %}) {
                 argstr = sprintf("%s, %d, %d, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @__int32_compat(@arg3),
-				 @__int32_compat(@arg4))
+				 @__compat_long(@arg2), @__compat_long(@arg3),
+				 @__compat_long(@arg4))
         }
         else if (@option == %{ /* pure */ KEYCTL_SETPERM %}) {
                 argstr = sprintf("%s, %d, %s", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), _stp_keyctl_perm_str(@arg3))
+				 @__compat_long(@arg2), _stp_keyctl_perm_str(@arg3))
         }
         else if ((@option == %{ /* pure */ KEYCTL_INSTANTIATE %})) {
                 argstr = sprintf("%s, %d, %s, %d, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), user_string_quoted(@arg3),
-				 @__int32_compat(@arg4), @__int32_compat(@arg5))
+				 @__compat_long(@arg2), user_string_quoted(@arg3),
+				 @__compat_long(@arg4), @__compat_long(@arg5))
         }
         else if ((@option == %{ /* pure */ KEYCTL_INSTANTIATE_IOV %})) {
                 argstr = sprintf("%s, %d, %p, %d, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @arg3, @__int32_compat(@arg4),
-				 @__int32_compat(@arg5))
+				 @__compat_long(@arg2), @arg3, @__compat_long(@arg4),
+				 @__compat_long(@arg5))
         }
         else if (@option == %{ /* pure */ KEYCTL_NEGATE %}) {
                 argstr = sprintf("%s, %d, %u, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @arg3, @__int32_compat(@arg4))
+				 @__compat_long(@arg2), @arg3, @__compat_long(@arg4))
         }
         else if (@option == %{ /* pure */ KEYCTL_REJECT %}) {
                 argstr = sprintf("%s, %d, %u, %u, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @arg3, @arg4,
-				 @__int32_compat(@arg5))
+				 @__compat_long(@arg2), @arg3, @arg4,
+				 @__compat_long(@arg5))
         }
         else if (@option == %{ /* pure */ KEYCTL_SET_TIMEOUT %}) {
                 argstr = sprintf("%s, %d, %u", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @arg3)
+				 @__compat_long(@arg2), @arg3)
         }
         else if (@option == %{ /* pure */ KEYCTL_GET_KEYRING_ID %}) {
                 argstr = sprintf("%s, %s, %d", _stp_keyctl_cmd_str(@option),
 				 _stp_keyctl_keyring_shortcut_str(@arg2),
-				 @__int32_compat(@arg3))
+				 @__compat_long(@arg3))
         }
         else if (@option == %{ /* pure */ KEYCTL_SET_REQKEY_KEYRING %}) {
                 argstr = sprintf("%s, %s", _stp_keyctl_cmd_str(@option),
@@ -243,12 +243,12 @@
         }
         else if (@option == %{ /* pure */ KEYCTL_GET_PERSISTENT %}) {
                 argstr = sprintf("%s, %d, %d", _stp_keyctl_cmd_str(@option),
-				 @__int32_compat(@arg2), @__int32_compat(@arg3))
+				 @__compat_long(@arg2), @__compat_long(@arg3))
         }
         else {
                 argstr = sprintf("%d, %d, %d, %d, %d", @option,
-				 @__int32_compat(@arg2), @__int32_compat(@arg3),
-				 @__int32_compat(@arg4), @__int32_compat(@arg5))
+				 @__compat_long(@arg2), @__compat_long(@arg3),
+				 @__compat_long(@arg4), @__compat_long(@arg5))
         }
 %)
 

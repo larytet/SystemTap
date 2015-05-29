@@ -3417,11 +3417,7 @@ probe syscall.migrate_pages = __syscall.migrate_pages ?,
 	pid = __int32($pid)
 	old_nodes = $old_nodes
 	new_nodes = $new_nodes
-	if (@__compat_task) {
-		maxnode = __uint32($maxnode)
-	} else {
-		maxnode = $maxnode
-	}
+	maxnode = @__compat_ulong($maxnode)
 	argstr = sprintf("%d, %u, %p, %p", pid, maxnode, old_nodes, new_nodes)
 }
 probe __syscall.migrate_pages = kernel.function("sys_migrate_pages").call
