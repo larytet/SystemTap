@@ -1,4 +1,4 @@
-#! stap -p4
+#! stap -gp4
 
 probe begin {
   c = task_current()

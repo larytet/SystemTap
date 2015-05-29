@@ -219,7 +219,7 @@ function task_pid:long (task:long)
  * Description: This fucntion returns the process id of the given task based on
  * the specified pid namespace..
  */
-function task_ns_pid:long (task:long) %{ /* pure */
+function task_ns_pid:long (task:long) %{ /* pure */ /* guru */
 #if defined(CONFIG_PID_NS)
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef  STP_TARGET_NS_PID
@@ -295,7 +295,7 @@ function task_tid:long (task:long)
  * Description: This function returns the thread id of the given task as seen 
  * in the pid namespace.
  */
-function task_ns_tid:long (task:long)%{ /* pure */
+function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
 #if defined(CONFIG_PID_NS)
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef  STP_TARGET_NS_PID
@@ -342,7 +342,7 @@ function task_gid:long (task:long) %{ /* pure */
  * Description: This function returns the group id of the given task as seen in
  * in the given user namespace.
 */
-function task_ns_gid:long (task:long) %{ /* pure */
+function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
 #if defined(CONFIG_USER_NS)
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 
@@ -393,7 +393,7 @@ function task_egid:long (task:long) %{ /* pure */
  *
  * Description: This function returns the effective group id of the given task.
  */
-function task_ns_egid:long (task:long) %{ /* pure */
+function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
 #if defined(CONFIG_USER_NS)
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 
@@ -441,7 +441,7 @@ function task_uid:long (task:long) %{ /* pure */
  *
  * Description: This function returns the user id of the given task.
  */
-function task_ns_uid:long (task:long) %{ /* pure */
+function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
 #if defined(CONFIG_USER_NS)
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef  STP_TARGET_NS_PID
@@ -483,7 +483,7 @@ function task_euid:long (task:long) %{ /* pure */
  *
  * Description: This function returns the effective user id of the given task.
  */
-function task_ns_euid:long (task:long) %{ /* pure */
+function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
 #if defined(CONFIG_USER_NS)
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef  STP_TARGET_NS_PID
