@@ -47,7 +47,7 @@ int main()
 		      (unsigned long)0xe38e38e3);
 #endif
 #if (__LONG_MAX__ > __INT_MAX__)
-	rc = syscall ((unsigned long)-1,
+	rc = syscall ((unsigned long)0xffff,
 		      (unsigned long)0x1c71c71c71c71c71,
 		      (unsigned long)0x0f0f0f0f0f0f0f0f,
 		      (unsigned long)0xdb6db6db6db6db6d,
@@ -55,7 +55,7 @@ int main()
 		      (unsigned long)0xad6b5ad6b5ad6b5a,
 		      (unsigned long)0xdef7ddef7ddef7dd);
 #else
-	rc = syscall ((unsigned long)-1,
+	rc = syscall ((unsigned long)0xffff,
 		      (unsigned long)0x1c71c71c,
 		      (unsigned long)0x0f0f0f0f,
 		      (unsigned long)0xdb6db6db,
