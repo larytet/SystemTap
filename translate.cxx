@@ -1202,8 +1202,6 @@ c_unparser::emit_common_header ()
   if (!session->runtime_usermode_p())
     {
       o->newline(0) << "#include \"namespaces.h\"";
-      if (session->target_namespaces_pid > 0)
-        o->newline(0) << "#define STP_TARGET_NS_PID " << session->target_namespaces_pid;
     }
 
   o->newline();
