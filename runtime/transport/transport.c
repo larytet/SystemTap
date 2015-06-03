@@ -283,7 +283,7 @@ static void _stp_attach(void)
 {
 	dbug_trans(1, "attach\n");
 	_stp_pid = current->pid;
-  if (_stp_namespaces_pid < 1) // ABE: do I need this check?
+  if (_stp_namespaces_pid < 1)
     _stp_namespaces_pid = _stp_pid;
 	_stp_transport_data_fs_overwrite(0);
 	init_timer(&_stp_ctl_work_timer);
@@ -712,6 +712,12 @@ static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem)
 {
   _stp_remote_id = (int64_t) rem->remote_id;
   strlcpy(_stp_remote_uri, rem->remote_uri, min(STP_REMOTE_URI_LEN,MAXSTRINGLEN));
+}
+
+static void _stp_handle_namespaces_pid (struct _stp_msg_ns_pid *nspid)
+{
+  if (nspid->target > 0)
+    _stp_namespaces_pid = (int) nspid->target;
 }
 
 
