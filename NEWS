@@ -1,5 +1,8 @@
 * What's new in version 2.8
 
+- Colorization of error string tokens is made more robust, especially
+  in presence of $N/@N substitution.
+
 - The following tapset variables and functions are deprecated in
   version 2.8:
   - The 'hostname_uaddr' variable in the syscall.setdomainname and
