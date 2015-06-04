@@ -256,6 +256,31 @@ probe nd_syscall.pause.return = kprobe.function("sys_pause").return ?,
 	retstr = returnstr(1)
 }
 
+# perf_event_open ____________________________________________
+#
+# SYSCALL_DEFINE5(perf_event_open,
+#		struct perf_event_attr __user *, attr_uptr,
+#		pid_t, pid, int, cpu, int, group_fd, unsigned long, flags)
+probe nd_syscall.perf_event_open = kprobe.function("sys_perf_event_open") ?
+{
+	name = "perf_event_open"
+	asmlinkage()
+	attr_uaddr = pointer_arg(1)
+	pid = int_arg(2)
+	cpu = int_arg(3)
+	group_fd = int_arg(4)
+	flags = ulong_arg(5)
+	flags_str = _perf_event_open_flags_str(flags)
+	argstr = sprintf("%p, %d, %d, %d, %s", attr_uaddr, pid, cpu, group_fd,
+			 _perf_event_open_flags_str(flags))
+}
+probe nd_syscall.perf_event_open.return =
+	kprobe.function("sys_perf_event_open").return ?
+{
+	name = "perf_event_open"
+	retstr = returnstr(1)
+}
+
 # pciconfig_iobase ___________________________________________
 #
 # asmlinkage long
@@ -641,6 +666,99 @@ probe nd_syscall.preadv.return = kprobe.function("sys_preadv").return ?,
 				 kprobe.function("compat_sys_preadv").return ?
 {
 	name = "preadv"
+	retstr = returnstr(1)
+}
+
+# prlimit64 ____________________________________________________
+#
+# SYSCALL_DEFINE4(prlimit64, pid_t, pid, unsigned int, resource,
+#		const struct rlimit64 __user *, new_rlim,
+#		struct rlimit64 __user *, old_rlim)
+probe nd_syscall.prlimit64 = kprobe.function("sys_prlimit64") ?
+{
+	name = "prlimit64"
+	asmlinkage()
+	pid = int_arg(1)
+	resource = int_arg(2)
+	new_rlim_uaddr = pointer_arg(3)
+	old_rlim_uaddr = pointer_arg(4)
+	argstr = sprintf("%d, %s, %s, %p", pid, _rlimit_resource_str(resource),
+			 _struct_rlimit_u(new_rlim_uaddr), old_rlim_uaddr)
+}
+probe nd_syscall.prlimit64.return = kprobe.function("sys_prlimit64").return ?
+{
+	name = "prlimit64"
+	retstr = returnstr(1)
+}
+
+# process_vm_readv _____________________________________________
+# process_vm_readv was added in linux 3.2.
+#
+# SYSCALL_DEFINE6(process_vm_readv, pid_t, pid,
+#		const struct iovec __user *, lvec,
+#		unsigned long, liovcnt, const struct iovec __user *, rvec,
+#		unsigned long, riovcnt,	unsigned long, flags)
+# COMPAT_SYSCALL_DEFINE6(process_vm_readv, compat_pid_t, pid,
+#		       const struct compat_iovec __user *, lvec,
+#		       compat_ulong_t, liovcnt,
+#		       const struct compat_iovec __user *, rvec,
+#		       compat_ulong_t, riovcnt,
+#		       compat_ulong_t, flags)
+probe nd_syscall.process_vm_readv = kprobe.function("sys_process_vm_readv") ?,
+	kprobe.function("compat_sys_process_vm_readv") ?
+{
+	name = "process_vm_readv"
+	asmlinkage()
+	pid = int_arg(1)
+	local_iov_uaddr = pointer_arg(2)
+	liovcnt = ulong_arg(3)
+	remote_iov_uaddr = pointer_arg(4)
+	riovcnt = ulong_arg(5)
+	flags = ulong_arg(6)
+	argstr = sprintf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
+			 liovcnt, remote_iov_uaddr, riovcnt, flags)
+}
+probe nd_syscall.process_vm_readv.return =
+	kprobe.function("sys_process_vm_readv").return ?,
+	kprobe.function("compat_sys_process_vm_readv").return ?
+{
+	name = "process_vm_readv"
+	retstr = returnstr(1)
+}
+
+# process_vm_writev ____________________________________________
+# process_vm_writev was added in linux 3.2.
+#
+# SYSCALL_DEFINE6(process_vm_writev, pid_t, pid,
+#		const struct iovec __user *, lvec,
+#		unsigned long, liovcnt, const struct iovec __user *, rvec,
+#		unsigned long, riovcnt,	unsigned long, flags)
+# COMPAT_SYSCALL_DEFINE6(process_vm_writev, compat_pid_t, pid,
+#		       const struct compat_iovec __user *, lvec,
+#		       compat_ulong_t, liovcnt,
+#		       const struct compat_iovec __user *, rvec,
+#		       compat_ulong_t, riovcnt,
+#		       compat_ulong_t, flags)
+probe nd_syscall.process_vm_writev =
+	kprobe.function("sys_process_vm_writev") ?,
+	kprobe.function("compat_sys_process_vm_writev") ?
+{
+	name = "process_vm_writev"
+	asmlinkage()
+	pid = int_arg(1)
+	local_iov_uaddr = pointer_arg(2)
+	liovcnt = ulong_arg(3)
+	remote_iov_uaddr = pointer_arg(4)
+	riovcnt = ulong_arg(5)
+	flags = ulong_arg(6)
+	argstr = sprintf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
+			 liovcnt, remote_iov_uaddr, riovcnt, flags)
+}
+probe nd_syscall.process_vm_writev.return =
+	kprobe.function("sys_process_vm_writev").return ?,
+	kprobe.function("compat_sys_process_vm_writev").return ?
+{
+	name = "process_vm_writev"
 	retstr = returnstr(1)
 }
 
@@ -1465,6 +1583,40 @@ probe nd_syscall.renameat.return = kprobe.function("sys_renameat").return ?
 {
 	@__syscall_compat_gate(%{ __NR_renameat %}, %{ __NR_compat_renameat %})
 	name = "renameat"
+	retstr = returnstr(1)
+}
+
+# renameat2 ___________________________________________________
+# renameat2() was added to Linux in kernel 3.15.
+#
+# SYSCALL_DEFINE5(renameat2, int, olddfd, const char __user *, oldname,
+#		int, newdfd, const char __user *, newname, unsigned int, flags)
+probe nd_syscall.renameat2 = kprobe.function("sys_renameat2") ?
+{
+	@__syscall_compat_gate(%{ __NR_renameat2 %},
+			       %{ __NR_compat_renameat2 %})
+	name = "renameat2"
+	asmlinkage()
+	olddfd = int_arg(1)
+	olddfd_str = _dfd_str(olddfd)
+	oldname = pointer_arg(2)
+	oldname_str = user_string_quoted(oldname)
+	newdfd = int_arg(3)
+	newdfd_str = _dfd_str(newdfd)
+	newname = pointer_arg(4)
+	newname_str = user_string_quoted(newname)
+	flags = uint_arg(5)
+	flags_str = _renameat2_flags_str(flags)
+	argstr = sprintf("%s, %s, %s, %s, %s", olddfd_str,
+			 user_string_quoted(oldname),
+			 newdfd_str, user_string_quoted(newname),
+			 _renameat2_flags_str(flags))
+}
+probe nd_syscall.renameat2.return = kprobe.function("sys_renameat2").return ?
+{
+	@__syscall_compat_gate(%{ __NR_renameat2 %},
+			       %{ __NR_compat_renameat2 %})
+	name = "renameat2"
 	retstr = returnstr(1)
 }
 

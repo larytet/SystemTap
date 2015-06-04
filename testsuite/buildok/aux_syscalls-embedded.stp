@@ -193,6 +193,18 @@ probe begin {
 	print (_sync_file_range_flags_str(0))
 	print (_stp_siginfo_u(0))
 	print (_stp_compat_siginfo_u(0))
+
+	print (_struct_tms_u(0))
+	print (_struct_sysinfo_u(0))
+	print (_kexec_flags_str(0))
+	print (_kexec_file_load_flags_str(0))
+
 	print (_stp_sigaltstack_u(0))
 	print (_stp_compat_sigaltstack_u(0))
+
+	print (_renameat2_flags_str(0))
+	print (_fanotify_init_flags_str(0))
+	print (_fanotify_mark_flags_str(0))
+	print (_fanotify_mark_mask_str(0))
+	print (_perf_event_open_flags_str(0))
 }

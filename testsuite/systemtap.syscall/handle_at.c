@@ -9,9 +9,13 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <sys/syscall.h>
 
 int main()
 {
+// glibc added support for name_to_handle_at() and open_by_handle_at()
+// in glibc 2.14.
+#if __GLIBC_PREREQ(2, 14)
     struct file_handle *fhp;
     int fd;
     int mount_id;
@@ -79,5 +83,6 @@ int main()
     fd = open_by_handle_at(AT_FDCWD, fhp, -1);
     //staptest// open_by_handle_at (AT_FDCWD, XXXX, O_[^ ]+|XXXX) = NNNN
 
+#endif
     return 0;
 }

@@ -90,10 +90,8 @@ start_server(struct sockaddr_in *sin0)
 
 int main()
 {
-    /* Only try this test if we have sendmmsg(). Unfortunately,
-     * on RHEL6 we have SYS_sendmmsg(), but no glibc support for
-     * sendmmsg(). */
-#if defined(SYS_sendmmsg) || defined (SYS_SENDMMSG)
+// glibc support for sendmmsg() was added in glibc 2.14.
+#if __GLIBC_PREREQ(2, 14)
     int s, fd_null;
     struct sockaddr_in sin1, from;
     pid_t pid = 0;

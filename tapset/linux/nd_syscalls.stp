@@ -1423,6 +1423,90 @@ probe nd_syscall.fallocate.return = kprobe.function("sys_fallocate").return ?
 	retstr = returnstr(1)
 }
 
+# fanotify_init ______________________________________________
+# fanotify_init() was enabled in kernel version 2.6.37.
+# SYSCALL_DEFINE2(fanotify_init, unsigned int, flags,
+#		  unsigned int, event_f_flags)
+probe nd_syscall.fanotify_init = kprobe.function("sys_fanotify_init") ?
+{
+	name = "fanotify_init"
+	asmlinkage()
+	flags = uint_arg(1)
+	flags_str = _fanotify_init_flags_str(flags)
+	event_f_flags = uint_arg(2)
+	event_f_flags_str = _sys_open_flag_str(event_f_flags)
+	argstr = sprintf("%s, %s", _fanotify_init_flags_str(flags),
+			 _sys_open_flag_str(event_f_flags))
+}
+probe nd_syscall.fanotify_init.return =
+	kprobe.function("sys_fanotify_init").return ?
+{
+	name = "fanotify_init"
+	retstr = returnstr(1)
+}
+
+
+# fanotify_mark ______________________________________________
+# fanotify_mark() was enabled in kernel version 2.6.37.
+#
+# SYSCALL_DEFINE5(fanotify_mark, int, fanotify_fd, unsigned int, flags,
+#		  __u64, mask, int, dfd,
+#		  const char  __user *, pathname)
+# COMPAT_SYSCALL_DEFINE6(fanotify_mark,
+#				int, fanotify_fd, unsigned int, flags,
+#				__u32, mask0, __u32, mask1, int, dfd,
+#				const char  __user *, pathname)
+probe nd_syscall.fanotify_mark = __nd_syscall.fanotify_mark ?, 
+	__nd_syscall.compat_fanotify_mark ?
+{
+	name = "fanotify_mark"
+	flags_str = _fanotify_mark_flags_str(flags)
+	mask_str = _fanotify_mark_mask_str(mask)
+        dirfd_str = _dfd_str(dirfd)
+	argstr = sprintf("%d, %s, %s, %s, %s", fanotify_fd,
+			 _fanotify_mark_flags_str(flags),
+			 _fanotify_mark_mask_str(mask),
+			 _dfd_str(dirfd), pathname)
+}
+probe __nd_syscall.fanotify_mark = kprobe.function("sys_fanotify_mark") ?
+{
+	asmlinkage()
+	fanotify_fd = int_arg(1)
+	flags = uint_arg(2)
+%( CONFIG_64BIT == "y" %?
+	mask = ulonglong_arg(3)
+	dirfd = int_arg(4)
+	pathname = user_string_quoted(pointer_arg(5))
+%:
+	# On a 32-bit kernel, 'long long' arguments take the space of
+	# 2 arguments, so we have to adjust the following argument
+	# numbers.
+	mask = ulonglong_arg(3)
+	dirfd = int_arg(5)
+	pathname = user_string_quoted(pointer_arg(6))
+%)
+}
+probe __nd_syscall.compat_fanotify_mark =
+	kprobe.function("compat_sys_fanotify_mark") ?
+{
+	asmlinkage()
+	fanotify_fd = int_arg(1)
+	flags = uint_arg(2)
+	if (@__BIG_ENDIAN)
+		mask = ((ulong_arg(3) << 32) | ulong_arg(4))
+	else
+		mask = ((ulong_arg(4) << 32) | ulong_arg(3))
+	dirfd = int_arg(5)
+	pathname = user_string_quoted(pointer_arg(6))
+}
+probe nd_syscall.fanotify_mark.return =
+	kprobe.function("sys_fanotify_mark").return ?,
+	kprobe.function("compat_sys_fanotify_mark").return ?
+{
+	name = "fanotify_mark"
+	retstr = returnstr(1)
+}
+
 # fchdir _____________________________________________________
 # long sys_fchdir(unsigned int fd)
 probe nd_syscall.fchdir = kprobe.function("sys_fchdir") ?
@@ -2028,6 +2112,27 @@ probe nd_syscall.compat_futimesat.return = kprobe.function("compat_sys_futimesat
 {
 	@__compat_syscall_gate(%{ __NR_compat_futimesat %})
 	name = "futimesat"
+	retstr = returnstr(1)
+}
+
+# getcpu _____________________________________________________
+# getcpu() was added in kernel 2.6.19 for x86_64 and i386.
+# Note that the 'tcache' argument is unused since Linux 2.6.24.
+#
+# SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
+#		  struct getcpu_cache __user *, unused)
+probe nd_syscall.getcpu = kprobe.function("sys_getcpu") ?
+{
+	name = "getcpu"
+	asmlinkage()
+	cpu_uaddr = pointer_arg(1)
+	node_uaddr = pointer_arg(2)
+	tcache_uaddr = pointer_arg(3)
+	argstr = sprintf("%p, %p, %p", cpu_uaddr, node_uaddr, tcache_uaddr)
+}
+probe nd_syscall.getcpu.return = kprobe.function("sys_getcpu").return ?
+{
+	name = "getcpu"
 	retstr = returnstr(1)
 }
 
@@ -3094,6 +3199,30 @@ probe nd_syscall.ioprio_set = kprobe.function("sys_ioprio_set") ?
 probe nd_syscall.ioprio_set.return = kprobe.function("sys_ioprio_set").return ?
 {
 	name = "ioprio_set"
+	retstr = returnstr(1)
+}
+
+# kexec_file_load ____________________________________________
+# The kexec_file_load() system call first appeared in Linux 3.17
+# SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
+#		  unsigned long, cmdline_len, const char __user *, cmdline_ptr,
+#		  unsigned long, flags)
+probe nd_syscall.kexec_file_load = kprobe.function("sys_kexec_file_load") ?
+{
+	name = "kexec_file_load"
+	kernel_fd = int_arg(1)
+	initrd_fd = int_arg(2)
+	cmdline_len = ulong_arg(3)
+	cmdline = user_string_quoted(pointer_arg(4))
+	flags = ulong_arg(5)
+	flags_str = _kexec_file_load_flags_str(flags)
+	argstr = sprintf("%d, %d, %u, %s, %s", kernel_fd, initrd_fd, cmdline_len,
+			 cmdline, _kexec_file_load_flags_str(flags))
+}
+probe nd_syscall.kexec_file_load.return = 
+	kprobe.function("sys_kexec_file_load").return ?
+{
+	name = "kexec_file_load"
 	retstr = returnstr(1)
 }
 

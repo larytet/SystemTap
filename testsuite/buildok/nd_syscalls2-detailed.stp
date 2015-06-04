@@ -93,6 +93,17 @@ probe nd_syscall.pause.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.perf_event_open ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %d, %d, %d, %d(%s)", attr_uaddr, pid, cpu, group_fd,
+	       flags, flags_str)
+}
+probe nd_syscall.perf_event_open.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.personality
 {
 	printf("%s(%s)\n", name, argstr)
@@ -178,6 +189,38 @@ probe nd_syscall.preadv.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.prlimit64 ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d, %p, %p", pid, resource, new_rlim_uaddr, old_rlim_uaddr)
+}
+probe nd_syscall.prlimit64.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.process_vm_readv ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
+	       liovcnt, remote_iov_uaddr, riovcnt, flags)
+}
+probe nd_syscall.process_vm_readv.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.process_vm_writev ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
+	       liovcnt, remote_iov_uaddr, riovcnt, flags)
+}
+probe nd_syscall.process_vm_writev.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.pselect6 ?, nd_syscall.compat_pselect6 ?,
       nd_syscall.pselect7 ?,
 %( systemtap_v <= "1.3" %?
@@ -214,12 +257,12 @@ probe nd_syscall.pwrite.return, nd_syscall.pwrite32.return ?
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.pwritev ?
+probe nd_syscall.pwritev ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %p %d %d\n", fd, vector_uaddr, count, offset)
 }
-probe syscall.pwritev.return ?
+probe nd_syscall.pwritev.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -385,6 +428,18 @@ probe nd_syscall.renameat ?
 	       newname_str)
 }
 probe nd_syscall.renameat.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.renameat2 ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p(%s) %p(%s) %p(%s) %p(%s), %d(%s)\n", olddfd, olddfd_str,
+	       oldname, oldname_str, newdfd, newdfd_str, newname,
+	       newname_str, flags, flags_str)
+}
+probe nd_syscall.renameat2.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -712,7 +767,7 @@ probe nd_syscall.setdomainname
 %)
 }
 
-probe syscall.setdomainname.return
+probe nd_syscall.setdomainname.return
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -787,7 +842,7 @@ probe nd_syscall.setns.return ?
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.set_mempolicy ?
+probe nd_syscall.set_mempolicy ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d(%s) %p %d\n", mode, mode_str, nmask_uaddr, maxnode)
@@ -1233,22 +1288,22 @@ probe nd_syscall.sync.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.sync_file_range ?
+probe nd_syscall.sync_file_range ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %d, %d, %d(%s)", fd, offset, nbytes, flags, flags_str)
 }
-probe syscall.sync_file_range.return ?
+probe nd_syscall.sync_file_range.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
 
-probe syscall.syncfs ?
+probe nd_syscall.syncfs ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d\n", fd)
 }
-probe syscall.syncfs.return ?
+probe nd_syscall.syncfs.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

@@ -17,10 +17,12 @@
 
 // Note we can't test for __NR_accept4 here and avoid compilation if
 // it isn't set, since on some platforms accept4() gets implemented
-// via socketcall().
+// via socketcall(). But, accept4 support was added to glibc in
+// version 2.10.
 
 int main()
 {
+#if __GLIBC_PREREQ(2, 10)
     int s, fd_null;
     struct sockaddr_in sin1;
     socklen_t sinlen;
@@ -64,6 +66,7 @@ int main()
 
     close(fd_null);
     //staptest// close (NNNN) = 0
+#endif
 
     return 0;
 }

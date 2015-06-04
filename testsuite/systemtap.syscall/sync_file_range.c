@@ -28,13 +28,13 @@ int main()
     sync_file_range(fd, -1, 4096, SYNC_FILE_RANGE_WAIT_BEFORE);
     //staptest// sync_file_range (NNNN, -1, 4096, SYNC_FILE_RANGE_WAIT_BEFORE) = NNNN
 
-    sync_file_range(fd, 0x12345678deadbeef, 4096, SYNC_FILE_RANGE_WRITE);
+    sync_file_range(fd, 0x12345678deadbeefLL, 4096, SYNC_FILE_RANGE_WRITE);
     //staptest// sync_file_range (NNNN, 1311768468603649775, 4096, SYNC_FILE_RANGE_WRITE) = NNNN
 
     sync_file_range(fd, 4096, -1, SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER);
     //staptest// sync_file_range (NNNN, 4096, -1, SYNC_FILE_RANGE_WRITE|SYNC_FILE_RANGE_WAIT_AFTER) = NNNN
 
-    sync_file_range(fd, 4096, 0x12345678deadbeef, SYNC_FILE_RANGE_WRITE);
+    sync_file_range(fd, 4096, 0x12345678deadbeefLL, SYNC_FILE_RANGE_WRITE);
     //staptest// sync_file_range (NNNN, 4096, 1311768468603649775, SYNC_FILE_RANGE_WRITE) = NNNN
 
     sync_file_range(fd, 4096, 4096, -1);

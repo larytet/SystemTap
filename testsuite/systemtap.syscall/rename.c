@@ -1,10 +1,13 @@
-/* COVERAGE: rename renameat */
+/* COVERAGE: rename renameat renameat2 */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/syscall.h>
+#include <linux/fs.h>
 
 // To test for glibc support for renameat():
 //
@@ -17,15 +20,29 @@
   (_XOPEN_SOURCE >= 700 || _POSIX_C_SOURCE >= 200809L \
    || defined(_ATFILE_SOURCE))
 
+// renameat2() was added in kernel 3.15. Since glibc support hasn't
+// been added yet, we'll have to add our own.
+#if defined(SYS_renameat2)
+static inline int __renameat2(int olddirfd, const char *oldpath,
+			      int newdirfd, const char *newpath,
+			      unsigned int flags)
+{
+  return syscall(SYS_renameat2, olddirfd, oldpath, newdirfd, newpath, flags);
+}
+#endif
+
 int main()
 {
   int fd1;
 
   fd1 = creat("file1", S_IREAD|S_IWRITE);
   close (fd1);
+  fd1 = creat("file3", S_IREAD|S_IWRITE);
+  close (fd1);
   
   mkdir("dir1", S_IREAD|S_IWRITE|S_IEXEC);
   mkdir("dir3", S_IREAD|S_IWRITE|S_IEXEC);
+  mkdir("dir5", S_IREAD|S_IWRITE|S_IEXEC);
 
   fd1 = creat("dir3/file", S_IREAD|S_IWRITE);
   close (fd1);
@@ -109,5 +126,68 @@ int main()
   //staptest// renameat (AT_FDCWD, "file1", AT_FDCWD, [f]+) = -NNNN (EFAULT)
 #endif
 #endif
+
+#if defined(SYS_renameat2)
+  __renameat2(AT_FDCWD, "file3", AT_FDCWD, "file4", 0);
+  //staptest// renameat2 (AT_FDCWD, "file3", AT_FDCWD, "file4", 0x0) = 0
+
+  __renameat2(AT_FDCWD, "dir5", AT_FDCWD, "dir6", 0);
+  //staptest// renameat2 (AT_FDCWD, "dir5", AT_FDCWD, "dir6", 0x0) = 0
+
+  // This should fail since the target exists (when using RENAME_NOREPLACE).
+#ifdef RENAME_NOREPLACE
+  __renameat2(AT_FDCWD, "file4", AT_FDCWD, "file2", RENAME_NOREPLACE);
+  //staptest// renameat2 (AT_FDCWD, "file4", AT_FDCWD, "file2", RENAME_NOREPLACE) = -NNNN
+#endif
+
+  // This will fail since the target isn't empty.
+  __renameat2(AT_FDCWD, "dir6", AT_FDCWD, "dir3", 0);
+  //staptest// renameat2 (AT_FDCWD, "dir6", AT_FDCWD, "dir3", 0x0) = -NNNN (ENOTEMPTY!!!!EEXIST)
+
+  // This will fail since you can't rename a file to a directory.
+  __renameat2(AT_FDCWD, "file4", AT_FDCWD, "dir6", 0);
+  //staptest// renameat2 (AT_FDCWD, "file4", AT_FDCWD, "dir6", 0x0) = -NNNN (EISDIR)
+
+  // Normally, this would fail since you can't rename a file to a
+  // directory. But with RENAME_EXCHANGE, the kernel will atomically
+  // exchange them. Note that since NFS filesystem's don't support
+  // RENAME_EXCHANGE, this call can fail.
+#ifdef RENAME_EXCHANGE
+  __renameat2(AT_FDCWD, "file2", AT_FDCWD, "dir1", RENAME_EXCHANGE);
+  //staptest// renameat2 (AT_FDCWD, "file2", AT_FDCWD, "dir1", RENAME_EXCHANGE) = NNNN
+#endif
+
+  // You can't rename a directory to a subdirectory of itself.
+  __renameat2(AT_FDCWD, "dir6", AT_FDCWD, "dir6/dir4", 0);
+  //staptest// renameat2 (AT_FDCWD, "dir6", AT_FDCWD, "dir6/dir4", 0x0) = -NNNN (EINVAL)
+
+  // You can't rename a directory to a file.
+  __renameat2(AT_FDCWD, "dir6", AT_FDCWD, "file4", 0);
+  //staptest// renameat2 (AT_FDCWD, "dir6", AT_FDCWD, "file4", 0x0) = -NNNN (ENOTDIR)
+
+  __renameat2(-1, "dir6", AT_FDCWD, "file4", 0);
+  //staptest// renameat2 (-1, "dir6", AT_FDCWD, "file4", 0x0) = -NNNN
+
+  __renameat2(AT_FDCWD, (char *)-1, AT_FDCWD, "file4", 0);
+#ifdef __s390__
+  //staptest// renameat2 (AT_FDCWD, [7]?[f]+, AT_FDCWD, "file4", 0x0) = -NNNN
+#else
+  //staptest// renameat2 (AT_FDCWD, [f]+, AT_FDCWD, "file4", 0x0) = -NNNN
+#endif
+
+  __renameat2(AT_FDCWD, "dir6", -1, "file4", 0);
+  //staptest// renameat2 (AT_FDCWD, "dir6", -1, "file4", 0x0) = -NNNN
+
+  __renameat2(AT_FDCWD, "file4", AT_FDCWD, (char *)-1, 0);
+#ifdef __s390__
+  //staptest// renameat2 (AT_FDCWD, "file4", AT_FDCWD, [7]?[f]+, 0x0) = -NNNN (EFAULT)
+#else
+  //staptest// renameat2 (AT_FDCWD, "file4", AT_FDCWD, [f]+, 0x0) = -NNNN (EFAULT)
+#endif
+
+  __renameat2(AT_FDCWD, "dir6", AT_FDCWD, "file4", -1);
+  //staptest// renameat2 (AT_FDCWD, "dir6", AT_FDCWD, "file4", RENAME_[^ ]+|XXXX) = -NNNN
+#endif
+
   return 0;
 }

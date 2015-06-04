@@ -12,9 +12,7 @@
 // don't get along well. Work around this.
 #define ia64_fpreg XXX_ia64_fpreg
 #define pt_all_user_regs XXX_pt_all_user_regs
-#define ptrace_peeksiginfo_args XXX_ptrace_peeksiginfo_args
 #include <linux/ptrace.h>
-#undef ptrace_peeksiginfo_args
 #undef pt_all_user_regs
 #undef ia64_fpreg
 

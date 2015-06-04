@@ -159,12 +159,12 @@ probe nd_syscall.chroot.return
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.clock_adjtime
+probe nd_syscall.clock_adjtime ?
 {
 	printf("%s, %s\n", name, argstr)
 	printf("%d, %s, %p\n", clk_id, clk_id_str, tx_uaddr)
 }
-probe nd_syscall.clock_adjtime.return
+probe nd_syscall.clock_adjtime.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -417,6 +417,28 @@ probe nd_syscall.fallocate.return ?, nd_syscall.compat_fallocate.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.fanotify_init ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d(%s), %d(%s)", flags, flags_str, event_f_flags,
+	       event_f_flags_str)
+}
+probe nd_syscall.fanotify_init.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.fanotify_mark ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d(%s), %d(%s), %d(%s), %s", fanotify_fd, flags, flags_str,
+	       mask, mask_str, dirfd, dirfd_str, pathname)
+}
+probe nd_syscall.fanotify_mark.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.fchdir
 {
 	printf("%s, %s\n", name, argstr)
@@ -644,6 +666,16 @@ probe nd_syscall.futimesat ?, nd_syscall.compat_futimesat ?
 	       filename, tvp_uaddr)
 }
 probe nd_syscall.futimesat.return ?, nd_syscall.compat_futimesat.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.getcpu ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p, %p, %p", cpu_uaddr, node_uaddr, tcache_uaddr)
+}
+probe nd_syscall.getcpu.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -1050,6 +1082,17 @@ probe nd_syscall.ioprio_set ?
 	       ioprio_str)
 }
 probe nd_syscall.ioprio_set.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.kexec_file_load ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %u, %s, %d(%s)", kernel_fd, initrd_fd, cmdline_len,
+	       cmdline, flags, flags_str)
+}
+probe nd_syscall.kexec_file_load.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

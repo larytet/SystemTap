@@ -5620,12 +5620,33 @@ static const _stp_val_array const _stp_kexec_flags_list[] = {
 #endif
 	{0, NULL}
 };
+
+static const _stp_val_array const _stp_kexec_file_load_flags_list[] = {
+#ifdef KEXEC_FILE_UNLOAD
+	V(KEXEC_FILE_UNLOAD),
+#endif
+#ifdef KEXEC_FILE_ON_CRASH
+	V(KEXEC_FILE_ON_CRASH),
+#endif
+#ifdef KEXEC_FILE_NO_INITRAMFS
+	V(KEXEC_FILE_NO_INITRAMFS),
+#endif
+	{0, NULL}
+};
 %}
 
 function _kexec_flags_str:string(flags:long)
 %{ /* pure */
-	unsigned long flags = (unsigned int)STAP_ARG_flags;
-	_stp_lookup_or_str(_stp_kexec_flags_list, flags, STAP_RETVALUE, MAXSTRINGLEN);
+	unsigned long flags = (unsigned long)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_kexec_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+function _kexec_file_load_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned long flags = (unsigned long)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_kexec_file_load_flags_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
 %{
@@ -5693,5 +5714,147 @@ function _stp_compat_sigaltstack_u:string(uaddr:long)
 	len = strlen(STAP_RETVALUE);
 	snprintf(STAP_RETVALUE + len, MAXSTRINGLEN - len, ", ss_size=%lu}",
 		 (unsigned long)stk.ss_size);
+#endif
+%}
+
+%{
+#include <linux/fs.h>
+static const _stp_val_array const _stp_renameat2_flags_list[] = {
+#ifdef RENAME_NOREPLACE
+	V(RENAME_NOREPLACE),
+#endif
+#ifdef RENAME_EXCHANGE
+	V(RENAME_EXCHANGE),
+#endif
+#ifdef RENAME_WHITEOUT
+	V(RENAME_WHITEOUT),
+#endif
+	{0, NULL}
+};
+%}
+
+function _renameat2_flags_str:string(flags:long)
+%{ /* pure */
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	_stp_lookup_or_str(_stp_renameat2_flags_list, flags, STAP_RETVALUE,
+			   MAXSTRINGLEN);
+%}
+
+%{
+// fanotify_init() and fanotify_mark() were enabled in kernel version
+// 2.6.37 (but present in some earlier kernels).
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+#include <linux/fanotify.h>
+static const _stp_val_array const _stp_fanotify_init_class_flags_list[] = {
+	V(FAN_CLASS_NOTIF),
+	V(FAN_CLASS_CONTENT),
+	V(FAN_CLASS_PRE_CONTENT),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_fanotify_init_extra_flags_list[] = {
+	V(FAN_CLOEXEC),
+	V(FAN_NONBLOCK),
+	V(FAN_UNLIMITED_QUEUE),
+	V(FAN_UNLIMITED_MARKS),
+	{0, NULL}
+};
+
+static const _stp_val_array const _stp_fanotify_mark_flags_list[] = {
+	V(FAN_MARK_ADD),
+	V(FAN_MARK_REMOVE),
+	V(FAN_MARK_FLUSH),
+	V(FAN_MARK_DONT_FOLLOW),
+	V(FAN_MARK_ONLYDIR),
+	V(FAN_MARK_MOUNT),
+	V(FAN_MARK_IGNORED_MASK),
+	V(FAN_MARK_IGNORED_SURV_MODIFY),
+	{0, NULL}
+};
+
+/* Note that FAN_CLOSE is (FAN_CLOSE_WRITE | FAN_CLOSE_NOWRITE). So,
+ * we really can't use it. */
+static const _stp_val_array const _stp_fanotify_mark_mask_list[] = {
+	V(FAN_ACCESS),
+	V(FAN_MODIFY),
+	V(FAN_CLOSE_WRITE),
+	V(FAN_CLOSE_NOWRITE),
+	V(FAN_OPEN),
+	V(FAN_Q_OVERFLOW),
+	V(FAN_OPEN_PERM),
+	V(FAN_ACCESS_PERM),
+	V(FAN_ONDIR),
+	V(FAN_EVENT_ON_CHILD),
+	{0, NULL}
+};
+#endif
+%}
+
+function _fanotify_init_flags_str:string(flags:long)
+%{ /* pure */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+	unsigned int flags_part1 = flags & FAN_ALL_CLASS_BITS;
+	unsigned int flags_part2 = flags & ~FAN_ALL_CLASS_BITS;
+
+	_stp_lookup_str(_stp_fanotify_init_class_flags_list, flags_part1,
+			STAP_RETVALUE, MAXSTRINGLEN);
+	if (flags_part2) {
+		strlcat(STAP_RETVALUE, "|", MAXSTRINGLEN);
+		_stp_lookup_or_str(_stp_fanotify_init_extra_flags_list,
+				   flags_part2, STAP_RETVALUE, MAXSTRINGLEN);
+	}
+#endif
+%}
+
+function _fanotify_mark_flags_str:string(flags:long)
+%{ /* pure */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+	unsigned int flags = (unsigned int)STAP_ARG_flags;
+
+	_stp_lookup_or_str(_stp_fanotify_mark_flags_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+#endif
+%}
+
+function _fanotify_mark_mask_str:string(mask:long)
+%{ /* pure */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,37) \
+    && defined(__NR_fanotify_init) && defined(__NR_fanotify_mark)
+	__u64 mask = (__u64)STAP_ARG_mask;
+
+	_stp_lookup_or_str(_stp_fanotify_mark_mask_list, mask,
+			   STAP_RETVALUE, MAXSTRINGLEN);
+#endif
+%}
+
+%{
+#if defined(__NR_perf_event_open) && defined(CONFIG_PERF_EVENTS)
+#include <linux/perf_event.h>
+
+static const _stp_val_array const _stp_perf_event_open_flags_list[] = {
+	V(PERF_FLAG_FD_NO_GROUP),
+	V(PERF_FLAG_FD_OUTPUT),
+#ifdef PERF_FLAG_PID_CGROUP
+	V(PERF_FLAG_PID_CGROUP),
+#endif
+#ifdef PERF_FLAG_FD_CLOEXEC
+	V(PERF_FLAG_FD_CLOEXEC),
+#endif
+	{0, NULL}
+};
+#endif
+%}
+
+function _perf_event_open_flags_str:string(flags:long)
+%{
+#if defined(__NR_perf_event_open) && defined(CONFIG_PERF_EVENTS)
+	unsigned long flags = (unsigned long)STAP_ARG_flags;
+
+	_stp_lookup_or_str(_stp_perf_event_open_flags_list, flags,
+			   STAP_RETVALUE, MAXSTRINGLEN);
 #endif
 %}

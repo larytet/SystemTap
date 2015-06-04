@@ -316,3 +316,13 @@
 	%{ /* pure */ _stp_is_compat_task() %}
 %)
 
+@define __BIG_ENDIAN
+%(
+%{ /* pure */
+#ifdef __BIG_ENDIAN
+  1
+#else
+  0
+#endif
+%}
+%)

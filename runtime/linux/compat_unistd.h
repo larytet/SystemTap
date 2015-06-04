@@ -94,6 +94,9 @@
 #ifndef __NR_getsockopt
 #define __NR_getsockopt (__NR_syscall_max + 1)
 #endif
+#ifndef __NR_renameat2
+#define __NR_renameat2 (__NR_syscall_max + 1)
+#endif
 #ifndef __NR_setsockopt
 #define __NR_setsockopt (__NR_syscall_max + 1)
 #endif
@@ -197,6 +200,9 @@
 #ifndef __NR_ia32_renameat
 #define __NR_ia32_renameat 302
 #endif
+#ifndef __NR_ia32_renameat2
+#define __NR_ia32_renameat2 353
+#endif
 #ifndef __NR_ia32_rt_sigprocmask
 #define __NR_ia32_rt_sigprocmask 175
 #endif
@@ -241,6 +247,7 @@
 #define __NR_compat_pselect7		__NR_ia32_pselect7
 #define __NR_compat_readlinkat		__NR_ia32_readlinkat
 #define __NR_compat_renameat		__NR_ia32_renameat
+#define __NR_compat_renameat2		__NR_ia32_renameat2
 #define __NR_compat_rt_sigprocmask	__NR_ia32_rt_sigprocmask
 #define __NR_compat_sendmmsg		__NR_ia32_sendmmsg
 #define __NR_compat_shmctl		__NR_ia32_shmctl
@@ -280,6 +287,7 @@
 #define __NR_compat_pselect7		__NR_pselect7
 #define __NR_compat_readlinkat		__NR_readlinkat
 #define __NR_compat_renameat		__NR_renameat
+#define __NR_compat_renameat2		__NR_renameat2
 #define __NR_compat_rt_sigprocmask	__NR_rt_sigprocmask
 #define __NR_compat_sendmmsg		__NR_sendmmsg
 #define __NR_compat_shmctl		__NR_shmctl
