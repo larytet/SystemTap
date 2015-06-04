@@ -14,6 +14,8 @@
 #include <linux/netfilter_arp.h>
 #include <linux/if_arp.h>
 #include <net/ipv6.h>
+#include <net/llc_pdu.h>
+#include <linux/llc.h>
 %}
 
 # XXX: IPPROTO_* and NF_* constants should be secure globals -- needs PR10607
@@ -22,9 +24,9 @@
 
 function __mac_addr_to_string:string(addr:long) {
          return sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-                        kernel_char(addr), kernel_char(addr+1),
-                        kernel_char(addr+2), kernel_char(addr+3),
-                        kernel_char(addr+4), kernel_char(addr+5))         
+                        kernel_char(addr)&255, kernel_char(addr+1)&255,
+                        kernel_char(addr+2)&255, kernel_char(addr+3)&255,
+                        kernel_char(addr+4)&255, kernel_char(addr+5)&255)
 }
 
 function __get_mac_addr:string(addr:long) {
@@ -36,6 +38,45 @@ function __get_skb_arphdr:long(addr:long)
         // The method is exactly the same as for an IP header:
         return __get_skb_iphdr(addr)
 }
+
+/* returns the bridge header for kernel >= 2.6.21 */
+function __get_skb_brhdr_new:long(skb:long)
+%{ /* pure */
+    struct sk_buff *skb;
+    skb = (struct sk_buff *)(long)STAP_ARG_skb;
+    /* as done by skb_network_header() */
+    #ifdef NET_SKBUFF_DATA_USES_OFFSET
+        STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)) + sizeof(struct llc_pdu_un));
+    #else
+        STAP_RETVALUE = (long)(kread(&(skb->network_header)) + sizeof(struct llc_pdu_un));
+    #endif
+    CATCH_DEREF_FAULT();
+%}
+
+/* returns the bridge header for a given sk_buff structure */
+function __get_skb_brhdr:long(skb:long)
+{
+%( kernel_v < "2.6.21" %?
+	brhdr = @cast(skb, "sk_buff")->mac->raw + %{ /* pure */ sizeof(struct llc_pdu_un) %}
+	return brhdr
+%:
+	return __get_skb_brhdr_new(skb)
+%)
+}
+
+/* returns llc_pdu_un for a given sk_buff structure */
+function __get_skb_llc:long(skb:long)
+%{ /* pure */
+    struct sk_buff *skb;
+    skb = (struct sk_buff *)(long)STAP_ARG_skb;
+    /* as done by skb_network_header() */
+    #ifdef NET_SKBUFF_DATA_USES_OFFSET
+        STAP_RETVALUE = (long)(kread(&(skb->head)) + kread(&(skb->network_header)));
+    #else
+        STAP_RETVALUE = (long)kread(&(skb->network_header));
+    #endif
+    CATCH_DEREF_FAULT();
+%}
 
 function __ip6_skb_proto:long(addr:long)
 %{ /* pure */
@@ -521,7 +562,31 @@ probe netfilter.arp.forward = netfilter.hook("NF_ARP_FORWARD").pf("NFPROTO_ARP")
         @netfilter_arp_setup
 }
 
-# XXX: think of some way to comprehensively study bridged packets?
+@define netfilter_bridge_setup %(
+        llcpdu = &@cast(__get_skb_llc($skb), "struct llc_pdu_un", "kernel<net/llc_pdu.h>")
+        brhdr = __get_skb_brhdr($skb)
+        llcproto_stp = %{ /* pure */ LLC_SAP_BSPAN %} // from linux/llc.h
+
+        if (llcpdu->dsap == llcproto_stp && llcpdu->ssap == llcproto_stp) {
+            protocol = llcproto_stp
+            br_prid = ntohs(kernel_short(brhdr))
+            br_vid = kernel_char(brhdr + 2)
+            br_type = kernel_char(brhdr + 3)
+            br_flags = kernel_char(brhdr + 4)
+            br_rid = kernel_long(brhdr + 5)
+            br_rmac = __mac_addr_to_string(brhdr + 7)
+            br_cost = ntohl(kernel_int(brhdr + 13))
+            br_bid = kernel_long(brhdr + 17)
+            br_mac = __mac_addr_to_string(brhdr + 19)
+            br_poid = ntohs(kernel_short(brhdr + 25))
+            br_msg = ntohs(kernel_short(brhdr + 27))
+            br_max = ntohs(kernel_short(brhdr + 29))
+            br_htime = ntohs(kernel_short(brhdr + 31))
+            br_fd = ntohs(kernel_short(brhdr + 33))
+        }
+
+        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+%)
 
 /**
  * probe netfilter.bridge.pre_routing -- Called before a bridging packet is routed
@@ -530,6 +595,24 @@ probe netfilter.arp.forward = netfilter.hook("NF_ARP_FORWARD").pf("NFPROTO_ARP")
  * @outdev: Address of net_device representing output device, 0 if unknown
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
@@ -542,7 +625,7 @@ probe netfilter.bridge.pre_routing
         = netfilter.hook("NF_BR_PRE_ROUTING").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+        @netfilter_bridge_setup
 }
 
 /**
@@ -552,6 +635,24 @@ probe netfilter.bridge.pre_routing
  * @outdev: Address of net_device representing output device, 0 if unknown
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
@@ -564,7 +665,7 @@ probe netfilter.bridge.local_in
         = netfilter.hook("NF_BR_LOCAL_IN").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+        @netfilter_bridge_setup
 }
 
 /**
@@ -574,6 +675,24 @@ probe netfilter.bridge.local_in
  * @outdev: Address of net_device representing output device, 0 if unknown
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
@@ -586,7 +705,7 @@ probe netfilter.bridge.forward
         = netfilter.hook("NF_BR_FORWARD").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+        @netfilter_bridge_setup
 }
 
 /**
@@ -596,6 +715,24 @@ probe netfilter.bridge.forward
  * @outdev: Address of net_device representing output device, 0 if unknown
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
@@ -608,7 +745,7 @@ probe netfilter.bridge.local_out
         = netfilter.hook("NF_BR_LOCAL_OUT").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+        @netfilter_bridge_setup
 }
 
 /**
@@ -618,6 +755,24 @@ probe netfilter.bridge.local_out
  * @outdev: Address of net_device representing output device, 0 if unknown
  * @indev_name: Name of network device packet was received on (if known)
  * @outdev_name: Name of network device packet will be routed to (if known)
+ * @llcpdu: Address of LLC Protocol Data Unit
+ * @brhdr: Address of bridge header
+ * @llcproto_stp: Constant used to signify Bridge Spanning Tree Protocol packet
+ * @protocol: Packet protocol
+ * @br_prid: Protocol identifier
+ * @br_vid: Protocol version identifier
+ * @br_type: BPDU type
+ * @br_flags: BPDU flags
+ * @br_rid: Identity of root bridge
+ * @br_rmac: Root bridge MAC address
+ * @br_cost: Total cost from transmitting bridge to root
+ * @br_bid: Identity of bridge
+ * @br_mac: Bridge MAC address
+ * @br_poid: Port identifier
+ * @br_msg: Message age in 1/256 secs
+ * @br_max: Max age in 1/256 secs
+ * @br_htime: Hello time in 1/256 secs
+ * @br_fd: Forward delay in 1/256 secs
  * @length: The length of the packet buffer contents, in bytes
  * @nf_drop: Constant used to signify a 'drop' verdict
  * @nf_accept: Constant used to signify an 'accept' verdict
@@ -630,5 +785,5 @@ probe netfilter.bridge.post_routing
         = netfilter.hook("NF_BR_POST_ROUTING").pf("NFPROTO_BRIDGE")
 {
         @netfilter_common_setup("bridge")
-        length = @cast($skb, "struct sk_buff", "kernel<linux/skbuff.h>")->len
+        @netfilter_bridge_setup
 }

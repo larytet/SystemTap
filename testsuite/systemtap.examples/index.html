@@ -46,6 +46,7 @@
 <li><a href="#general/varwatch.stp">general/varwatch.stp - Watch a Variable Changing Value in a Thread</a></li>
 <li><a href="#general/whythefail.stp">general/whythefail.stp - Why did the function fail?</a></li>
 <li><a href="#network/netfilter_summary.stp">network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs</a></li>
+<li><a href="#network/netfilter_summary_json.stp">network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs</a></li>
 <li><a href="#process/cycle_thief.stp">process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task</a></li>
 <li><a href="#process/proctop.stp">process/proctop.stp - Periodically Print Process Information With History</a></li>
 <li><a href="#process/strace.stp">process/strace.stp - Trace system calls</a></li>
@@ -59,7 +60,7 @@
 <li><a href="#virtualization/kvm_service_time.stp">virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons</a></li>
 </ul>
 
-<h2>All 139 Examples</h2>
+<h2>All 142 Examples</h2>
 <ul>
 <li><a name="general/alias_suffixes.stp"></a><a href="#general/alias_suffixes.stp">&para;</a> <a href="general/alias_suffixes.stp">general/alias_suffixes.stp</a> - Count I/O Syscalls using Alias Suffixes<br>
 keywords: <a href="keyword-index.html#IO">IO</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
@@ -263,6 +264,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/dropwatch.stp"></a><a href="#network/dropwatch.stp">&para;</a> <a href="network/dropwatch.stp">network/dropwatch.stp</a> - Watch Where Socket Buffers Are Freed in the Kernel<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRACEPOINT">TRACEPOINT</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>Every five seconds the dropwatch.stp script lists the number of socket buffers freed at locations in the kernel.</p><p><font size="-2"><pre># stap dropwatch.stp -c &quot;sleep 1&quot;</pre></font></p>
+</li><li><a name="network/net_xmit_json.stp"></a><a href="#network/net_xmit_json.stp">&para;</a> <a href="network/net_xmit_json.stp">network/net_xmit_json.stp</a> - Tracks time between packet queue and transmit.<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <a href="keyword-index.html#JSON">JSON</a> <br>
+<p>This script tracks time between packet queue and transmit. The information is provided to userspace via procfs in JSON format.</p><p><font size="-2"><pre># stap net_xmit_json.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="network/netdev.stp"></a><a href="#network/netdev.stp">&para;</a> <a href="network/netdev.stp">network/netdev.stp</a> - Trace Activity on Network Devices<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#DEVICE">DEVICE</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The netdev.stp script traces configuration and transmit/receive activity on network devices.</p><p><font size="-2"><pre># stap netdev.stp -c &quot;sleep 1&quot;</pre></font></p>
@@ -272,6 +276,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/netfilter_summary.stp"></a><a href="#network/netfilter_summary.stp">&para;</a> <a href="network/netfilter_summary.stp">network/netfilter_summary.stp</a> - System-Wide Count of Network Packets by IPs<br>
 keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>The script watches all IPv4 network traffic on the system. On exit the script prints a list showing the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair. The list is ordered from greatest to least number of packets seen among the source/destination pairs.</p><p><i><a href="network/netfilter_summary.txt">sample usage in network/netfilter_summary.txt</i></font></p>
+</li><li><a name="network/netfilter_summary_json.stp"></a><a href="#network/netfilter_summary_json.stp">&para;</a> <a href="network/netfilter_summary_json.stp">network/netfilter_summary_json.stp</a> - System-Wide Count of Network Packets by IPs<br>
+keywords: <a href="keyword-index.html#_BEST">_BEST</a> <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <a href="keyword-index.html#JSON">JSON</a> <br>
+<p>The script watches all IPv4 network traffic on the system. The data is output in JSON format and includes the number of packets sent along source IP address / destination IP address pair encountered, and the total number of bytes sent among the pair.</p><p><font size="-2"><pre># stap netfilter_summary_json.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a name="network/nettop.stp"></a><a href="#network/nettop.stp">&para;</a> <a href="network/nettop.stp">network/nettop.stp</a> - Periodic Listing of Processes Using Network Interfaces<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
 <p>Every five seconds the nettop.stp script prints out a list of processed (PID and command) with the number of packets sent/received and the amount of data sent/received by the process during that interval.</p><p><i><a href="network/nettop.txt">sample usage in network/nettop.txt</i></font></p>
@@ -293,6 +300,9 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 </li><li><a name="network/socktop"></a><a href="#network/socktop">&para;</a> <a href="network/socktop">network/socktop</a> - Periodically Summarize Socket Activity on the System<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The socktop script periodically prints out a list of the processes with the highest socket activity.  Command line options for the script allow filtering to focus on particular types of sockets. The &quot;-h&quot; option lists socktop script&#39;s filtering options.</p><p><i><a href="network/socktop">sample usage in network/socktop</i></font></p>
+</li><li><a name="network/stp_dump.stp"></a><a href="#network/stp_dump.stp">&para;</a> <a href="network/stp_dump.stp">network/stp_dump.stp</a> - Dump of STP packets<br>
+keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TRAFFIC">TRAFFIC</a> <br>
+<p>The stp_dump.stp prints out the packet contents. Each block contains the STP protocol ID, version ID, flags, root and bridge MAC addresses, and various times.</p><p><i><a href="network/stp_dump.txt">sample usage in network/stp_dump.txt</i></font></p>
 </li><li><a name="network/tcp_connections.stp"></a><a href="#network/tcp_connections.stp">&para;</a> <a href="network/tcp_connections.stp">network/tcp_connections.stp</a> - Track Creation of Incoming TCP Connections<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#TCP">TCP</a> <a href="keyword-index.html#SOCKET">SOCKET</a> <br>
 <p>The tcp_connections.stp script prints information for each new incoming TCP connection accepted by the computer. The information includes the UID, the command accepting the connection, the PID of the command, the port the connection is on, and the IP address of the originator of the request.</p><p><font size="-2"><pre># stap tcp_connections.stp -c &quot;sleep 1&quot;</pre></font></p>

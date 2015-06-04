@@ -73,6 +73,17 @@ keywords: _best network traffic
   # stap netfilter_summary.stp -c "sleep 1"
 
 
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
+
+
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
 keywords: _best process scheduler time tracepoint interrupt
 
@@ -1037,6 +1048,28 @@ keywords: virtualization qemu kvm io
   # stap qemu_io.stp -c "sleep 1"
 
 
+= JSON =
+
+network/net_xmit_json.stp - Tracks time between packet queue and transmit.
+keywords: network statistics json
+
+  This script tracks time between packet queue and transmit. The
+  information is provided to userspace via procfs in JSON format.
+
+  # stap net_xmit_json.stp -c "sleep 1"
+
+
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
+
+
 = KVM =
 
 virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons
@@ -1465,6 +1498,15 @@ keywords: network tracepoint socket
   # stap dropwatch.stp -c "sleep 1"
 
 
+network/net_xmit_json.stp - Tracks time between packet queue and transmit.
+keywords: network statistics json
+
+  This script tracks time between packet queue and transmit. The
+  information is provided to userspace via procfs in JSON format.
+
+  # stap net_xmit_json.stp -c "sleep 1"
+
+
 network/netdev.stp - Trace Activity on Network Devices
 keywords: network device traffic
 
@@ -1497,6 +1539,17 @@ keywords: _best network traffic
   pairs.
 
   # stap netfilter_summary.stp -c "sleep 1"
+
+
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
 
 
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces
@@ -1543,6 +1596,16 @@ keywords: network socket
   "-h" option lists socktop script's filtering options.
 
   # ./socktop -c 1
+
+
+network/stp_dump.stp - Dump of STP packets
+keywords: network traffic
+
+  The stp_dump.stp prints out the packet contents. Each block contains
+  the STP protocol ID, version ID, flags, root and bridge MAC
+  addresses, and various times.
+
+  # stap stp_dump.stp -c "sleep 1"
 
 
 network/tcp_connections.stp - Track Creation of Incoming TCP Connections
@@ -2642,6 +2705,15 @@ keywords: memory slab statistics
   # stap vm.tracepoints.stp -c "sleep 10"
 
 
+network/net_xmit_json.stp - Tracks time between packet queue and transmit.
+keywords: network statistics json
+
+  This script tracks time between packet queue and transmit. The
+  information is provided to userspace via procfs in JSON format.
+
+  # stap net_xmit_json.stp -c "sleep 1"
+
+
 network/nfsd-recent.stp - Keep track of NFS server statistics
 keywords: nfs statistics
 
@@ -3039,6 +3111,17 @@ keywords: _best network traffic
   # stap netfilter_summary.stp -c "sleep 1"
 
 
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
+
+
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces
 keywords: network traffic
 
@@ -3048,6 +3131,16 @@ keywords: network traffic
   interval.
 
   # stap nettop.stp -c "sleep 1"
+
+
+network/stp_dump.stp - Dump of STP packets
+keywords: network traffic
+
+  The stp_dump.stp prints out the packet contents. Each block contains
+  the STP protocol ID, version ID, flags, root and bridge MAC
+  addresses, and various times.
+
+  # stap stp_dump.stp -c "sleep 1"
 
 
 network/tcpdumplike.stp - Dump of Received UDP/TCP Packets
