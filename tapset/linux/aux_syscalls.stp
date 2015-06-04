@@ -40,13 +40,8 @@
 * consistent lookups.
 */
 
-/* Convenient macro to add defines to an array */
-#define V(a) {a,#a}
-
-typedef struct {
-	long val;
-	char *name;
-} _stp_val_array;
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
 
 static void
 _stp_lookup_str2(const _stp_val_array * const array, long val, char *ptr,

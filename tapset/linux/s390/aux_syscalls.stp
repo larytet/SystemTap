@@ -53,6 +53,9 @@ function _stp_compat_ptrace_area_u:string(compat_ptrace_area_uaddr:long)
 %}
 
 %{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
 #ifndef PTRACE_SINGLEBLOCK
 #define PTRACE_SINGLEBLOCK	      12
 #endif

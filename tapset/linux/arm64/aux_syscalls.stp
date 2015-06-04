@@ -2,6 +2,9 @@
 #
 
 %{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
 static const _stp_val_array const _stp_arch_ptrace_request_list[] = {
 	V(COMPAT_PTRACE_GETREGS),
 	V(COMPAT_PTRACE_SETREGS),

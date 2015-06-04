@@ -1,6 +1,10 @@
 # Helper for _arch_ptrace_argstr below.
 %{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
 #include <asm/prctl.h>
+
 static const _stp_val_array const _stp_arch_prctl_list[] = {
 	V(ARCH_SET_GS),
 	V(ARCH_SET_FS),

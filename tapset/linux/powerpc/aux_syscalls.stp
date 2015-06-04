@@ -1,6 +1,9 @@
 # arch-specific requests of ptrace ___________________________
 #
 %{
+// Get _stp_val_array and _stp_lookup_* definitions.
+#include "linux/syscalls-common.h"
+
 #ifndef PTRACE_GETVSRREGS
 # define PTRACE_GETVSRREGS 27
 #endif
