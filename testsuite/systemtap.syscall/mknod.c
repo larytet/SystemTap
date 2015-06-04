@@ -20,7 +20,7 @@ int main()
     // ------- test normal operation
 
     mknod("testfile1", S_IFREG | 0644, 0);
-    //staptest// mknod ("testfile1", S_IFREG|0644, 0) = 0
+    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]]"testfile1", S_IFREG|0644, 0) = 0
 
 #ifdef __NR_mknodat
     __mknodat(AT_FDCWD, "testfile2", S_IFREG | 0644, 0);
@@ -31,16 +31,18 @@ int main()
 
     mknod((const char *)-1, S_IFREG | 0644, 0);
 #ifdef __s390__
-    //staptest// mknod ([7]?[f]+, S_IFREG|0644, 0) = NNNN
+    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]][7]?[f]+, S_IFREG|0644, 0) = NNNN
 #else
-    //staptest// mknod ([f]+, S_IFREG|0644, 0) = NNNN
+    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]][f]+, S_IFREG|0644, 0) = NNNN
 #endif
 
     mknod("testfile1", -1, 0);
-    //staptest// mknod ("testfile1", 037777777777, 0) = NNNN
+    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]]"testfile1", 037777777777, 0) = NNNN
 
+#ifdef __NR_mknod
     syscall(__NR_mknod, "testfile1", 1, -1);
     //staptest// mknod ("testfile1", 01, 4294967295) = NNNN
+#endif
 
 #ifdef __NR_mknodat
     __mknodat(-1, "testfile2", S_IFREG | 0644, 0);
