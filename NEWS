@@ -1,8 +1,8 @@
 * What's new in version 2.8
 
-- Probe points for decoding Spanning Tree Protocol packets
-
-      probe netfilter.bridge.*
+- Netfilter probes now attempt to decode Spanning Tree Protocol packets
+  into local variables: probe netfilter.bridge.*, br_* variables,
+  stp_dump.stp sample script.
 
 - Colorization of error string tokens is made more robust, especially
   in presence of $N/@N substitution.
