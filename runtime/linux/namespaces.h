@@ -37,8 +37,8 @@ typedef enum {
 // assuming rcu_read_lock is held
 static struct task_struct *get_task_from_pid (int target_pid) {
   struct pid *target_ns_pid;
-  struct task_struct *target_ns_task;
-
+  struct task_struct *target_ns_task = NULL;
+#if defined(CONFIG_PID_NS) || defined(CONFIG_USER_NS)
   // can't use find_get_pid() since it ends up looking for the STP_TARGET_NS_PID
   // in the current process' ns, when the PID is what's seen in the init ns (I think)
   target_ns_pid = find_pid_ns(target_pid, &init_pid_ns);
@@ -52,6 +52,7 @@ static struct task_struct *get_task_from_pid (int target_pid) {
     return NULL;
 
   get_task_struct(target_ns_task);
+#endif
   return target_ns_task;
 }
 
