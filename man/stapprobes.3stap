@@ -136,13 +136,13 @@ the specific program for that probe point.
 
 .TS
 l l l.
-\fBDWARF	NON-DWARF\fP
+\fBDWARF	NON-DWARF	SYMBOL-TABLE\fP
 
-kernel.function, .statement	kernel.mark
-module.function, .statement	process.mark, process.plt
-process.function, .statement	begin, end, error, never
-process.mark \fI(backup)\fP	timer
-	perf
+kernel.function, .statement	kernel.mark	kernel.function\fI*\fP
+module.function, .statement	process.mark, process.plt	module.function\fI*\fP
+process.function, .statement	begin, end, error, never	process.function\fI*\fP
+process.mark\fI*\fP	timer
+\.function.callee	perf
 	procfs
 \fBAUTO-GENERATED-DWARF\fP	kernel.statement.absolute
 	kernel.data
@@ -152,6 +152,13 @@ kernel.trace	kprobe.function
 	netfilter
 	java
 .TE
+
+.PP
+The probe types marked with \fI*\fP asterisks mark fallbacks, where
+systemtap can sometimes infer subset or substitute information.  In
+general, the more symbolic / debugging information available, the
+higher quality probing will be available.
+
 
 .SH ON-THE-FLY ARMING
 
