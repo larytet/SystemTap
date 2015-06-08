@@ -795,12 +795,15 @@ int stp_main_loop(void)
             cleanup_and_exit(0, 1);
         }
 
-        nspid.target = target_namespaces_pid;
-        rc = send_request(STP_NAMESPACES_PID, &nspid, sizeof(nspid));
-	if (rc != 0) {
-	  perror ("Unable to send STP_NAMESPACES_PID");
-	  cleanup_and_exit (1, rc);
-	}
+        if (target_namespaces_pid > 0) {
+          nspid.target = target_namespaces_pid;
+          rc = send_request(STP_NAMESPACES_PID, &nspid, sizeof(nspid));
+          if (rc != 0) {
+	          perror ("Unable to send STP_NAMESPACES_PID");
+	          cleanup_and_exit (1, rc);
+	        }
+        }
+
         ts.target = target_pid;
         rc = send_request(STP_START, &ts, sizeof(ts));
 	if (rc != 0) {
