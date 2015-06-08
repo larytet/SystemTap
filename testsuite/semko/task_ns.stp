@@ -1,0 +1,6 @@
+#! stap -p2
+
+global x
+probe begin {
+  x = task_ns_pid(0xdeadbeef)
+}
