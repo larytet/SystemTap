@@ -1198,11 +1198,7 @@ c_unparser::emit_common_header ()
       o->newline( 0)  << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
     }
 
-  // namespace stuff. only implemented for runtime=kernel, so far
-  if (!session->runtime_usermode_p())
-    {
-      o->newline(0) << "#include \"namespaces.h\"";
-    }
+  o->newline(0) << "#include \"namespaces.h\"";
 
   o->newline();
 }

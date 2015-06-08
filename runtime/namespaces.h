@@ -18,7 +18,7 @@
 
 #elif defined(__DYNINST__)
 
-#error "no dyninst/namespaces.h"
+#include "dyninst/namespaces.h"
 
 #endif
 #endif
