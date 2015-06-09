@@ -561,6 +561,16 @@ probe syscall.sched_getaffinity.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe syscall.sched_getattr ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %s, %u, %u", pid, sched_attr_str, size, flags)
+}
+probe syscall.sched_getattr.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe syscall.sched_getparam
 {
 	printf("%s(%s)\n", name, argstr)
@@ -598,6 +608,16 @@ probe syscall.sched_rr_get_interval
 	printf("%d %p\n", pid, tp_uaddr)
 }
 probe syscall.sched_rr_get_interval.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe syscall.sched_setattr ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %s, %u", pid, sched_attr_str, flags)
+}
+probe syscall.sched_setattr.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
