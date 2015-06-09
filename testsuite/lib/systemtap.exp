@@ -227,7 +227,14 @@ proc setup_systemtap_environment {} {
 
     # All hail the prophet lockdep
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
-    puts $chan "--rlimit-cpu=300"
+    # 32-bit arm machines are quite slow. Let them run for longer than
+    # bigger machines, otherwise systemtap.syscall/syscall.exp (among
+    # other tests) will fail.
+    if {[string match arm* $::tcl_platform(machine)]} {
+	puts $chan "--rlimit-cpu=600"
+    } else {
+	puts $chan "--rlimit-cpu=300"
+    }
     puts $chan "-E 'probe timer.s(900){error(\"probe timeout after 15 minutes\")}'"
     close $chan
 
