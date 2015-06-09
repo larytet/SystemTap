@@ -1086,6 +1086,16 @@ probe nd_syscall.ioprio_set.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.kcmp ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %s, %u, %u", pid1, pid2, type_str, idx1, idx2)
+}
+probe nd_syscall.kcmp.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.kexec_file_load ?
 {
 	printf("%s, %s\n", name, argstr)

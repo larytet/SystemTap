@@ -2979,6 +2979,26 @@ probe syscall.ioprio_set.return = kernel.function("sys_ioprio_set").return ?
 	retstr = return_str(1, $return)
 }
 
+# kcmp _______________________________________________________
+# SYSCALL_DEFINE5(kcmp, pid_t, pid1, pid_t, pid2, int, type,
+#                 unsigned long, idx1, unsigned long, idx2)
+probe syscall.kcmp = kernel.function("sys_kcmp") ?
+{
+	name = "kcmp"
+	pid1 = __int32($pid1)
+	pid2 = __int32($pid2)
+	type = __int32($type)
+	type_str = _kcmp_type_str(type)
+	idx1 = @__compat_ulong($idx1)
+	idx2 = @__compat_ulong($idx2)
+	argstr = sprintf("%d, %d, %s, %u, %u", pid1, pid2, type_str, idx1, idx2)
+}
+probe syscall.kcmp.return = kernel.function("sys_kcmp").return ?
+{
+	name = "kcmp"
+	retstr = return_str(1, $return)
+}
+
 # kexec_file_load ____________________________________________
 # The kexec_file_load() system call first appeared in Linux 3.17
 # SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,

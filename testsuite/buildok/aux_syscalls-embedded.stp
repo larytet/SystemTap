@@ -207,4 +207,5 @@ probe begin {
 	print (_fanotify_mark_flags_str(0))
 	print (_fanotify_mark_mask_str(0))
 	print (_perf_event_open_flags_str(0))
+	print (_kcmp_type_str(0))
 }

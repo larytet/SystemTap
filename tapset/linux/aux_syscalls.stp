@@ -5858,3 +5858,31 @@ function _perf_event_open_flags_str:string(flags:long)
 			   STAP_RETVALUE, MAXSTRINGLEN);
 #endif
 %}
+
+%{
+#ifdef CONFIG_CHECKPOINT_RESTORE
+#include <linux/kcmp.h>
+#endif
+
+static const _stp_val_array const _stp_kcmp_type_list[] = {
+#ifdef CONFIG_CHECKPOINT_RESTORE
+	V(KCMP_FILE),
+	V(KCMP_VM),
+	V(KCMP_FILES),
+	V(KCMP_FS),
+	V(KCMP_SIGHAND),
+	V(KCMP_IO),
+	V(KCMP_SYSVSEM),
+	V(KCMP_TYPES),
+#endif
+	{0, NULL}
+};
+%}
+
+function _kcmp_type_str:string(type:long)
+%{
+	unsigned long type = (unsigned long)STAP_ARG_type;
+        _stp_lookup_str(_stp_kcmp_type_list, (unsigned int)STAP_ARG_type,
+                        STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
