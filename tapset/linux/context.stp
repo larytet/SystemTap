@@ -37,7 +37,9 @@ function pid:long ()
  */
 function ns_pid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_pid_ns(current, PID);
+  int64_t rc = from_target_pid_ns(current, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -58,7 +60,9 @@ function tid:long ()
  */
 function ns_tid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_pid_ns(current, TID);
+  int64_t rc = from_target_pid_ns(current, TID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -82,7 +86,9 @@ function ppid:long()
  */
 function ns_ppid:long()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_pid_ns(current->parent, PID);
+  int64_t rc = from_target_pid_ns(current->parent, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -110,7 +116,9 @@ function pgrp:long ()
  */
 function ns_pgrp:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_pid_ns(current, PGRP);
+  int64_t rc = from_target_pid_ns(current, PGRP);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -140,7 +148,9 @@ function sid:long ()
  */
 function ns_sid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_pid_ns(current, SID);
+  int64_t rc = from_target_pid_ns(current, SID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -183,7 +193,9 @@ function gid:long ()
  */
 function ns_gid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_user_ns(current, GID);
+  int64_t rc = from_target_user_ns(current, GID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -211,7 +223,9 @@ function egid:long ()
  */
 function ns_egid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_user_ns(current, EGID);
+  int64_t rc = from_target_user_ns(current, EGID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -239,7 +253,9 @@ function uid:long ()
  */
 function ns_uid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_user_ns(current, UID);
+  int64_t rc = from_target_user_ns(current, UID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -267,7 +283,9 @@ function euid:long ()
  */
 function ns_euid:long ()
 %{ /* pure */ /* unprivileged */
-  STAP_RETVALUE = from_target_user_ns(current, EUID);
+  int64_t rc = from_target_user_ns(current, EUID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**

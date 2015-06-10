@@ -221,7 +221,9 @@ function task_pid:long (task:long)
  */
 function task_ns_pid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  STAP_RETVALUE = from_target_pid_ns(t, PID);
+  int64_t rc = from_target_pid_ns(t, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -289,7 +291,9 @@ function task_tid:long (task:long)
  */
 function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  STAP_RETVALUE = from_target_pid_ns(t, TID);
+  int64_t rc = from_target_pid_ns(t, TID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -328,7 +332,9 @@ function task_gid:long (task:long) %{ /* pure */
 */
 function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  STAP_RETVALUE = from_target_user_ns(t, GID);
+  int64_t rc = from_target_user_ns(t, GID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -366,7 +372,9 @@ function task_egid:long (task:long) %{ /* pure */
  */
 function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  STAP_RETVALUE = from_target_user_ns(t, EGID);
+  int64_t rc = from_target_user_ns(current, EGID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -400,7 +408,9 @@ function task_uid:long (task:long) %{ /* pure */
  */
 function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  STAP_RETVALUE = from_target_user_ns(t, UID);
+  int64_t rc = from_target_user_ns(current, UID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -434,7 +444,9 @@ function task_euid:long (task:long) %{ /* pure */
  */
 function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  STAP_RETVALUE = from_target_user_ns(t, EUID);
+  int64_t rc = from_target_user_ns(current, EUID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 
