@@ -228,12 +228,13 @@ probe syscall.mmap2.return = kernel.function("sys_mmap2").return ?,
 #
 # long sys32_vm86_warning(void)
 #
-probe syscall.vm86_warning = kernel.function("sys32_vm86_warning")
+probe syscall.vm86_warning = kernel.function("sys32_vm86_warning") ?
 {
 	name = "vm86_warning"
 	argstr = ""
 }
-probe syscall.vm86_warning.return = kernel.function("sys32_vm86_warning").return
+probe syscall.vm86_warning.return =
+	kernel.function("sys32_vm86_warning").return ?
 {
 	name = "wm86_warning"
 	retstr = return_str(1, $return)

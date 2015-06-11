@@ -213,12 +213,13 @@ probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?,
 #
 # long sys32_vm86_warning(void)
 #
-probe nd_syscall.vm86_warning = kprobe.function("sys32_vm86_warning")
+probe nd_syscall.vm86_warning = kprobe.function("sys32_vm86_warning") ?
 {
 	name = "vm86_warning"
 	argstr = ""
 }
-probe nd_syscall.vm86_warning.return = kprobe.function("sys32_vm86_warning").return
+probe nd_syscall.vm86_warning.return =
+	kprobe.function("sys32_vm86_warning").return ?
 {
 	name = "wm86_warning"
 	retstr = returnstr(1)

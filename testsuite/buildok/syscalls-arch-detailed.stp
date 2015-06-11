@@ -512,11 +512,11 @@ probe syscall.mmap.return, syscall.mmap32.return
 
 # syscall.mmap2 is above
 
-probe syscall.vm86_warning
+probe syscall.vm86_warning ?
 {
 	printf("%s, %s\n", name, argstr)
 }
-probe syscall.vm86_warning.return
+probe syscall.vm86_warning.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
