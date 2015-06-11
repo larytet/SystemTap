@@ -15,6 +15,13 @@ if {[catch {exec which unshare}]} {
   return
 }
 
+# weed out the kernels that don't have free_pid_ns available to us
+if {![min_kernel_vers_p 3.7]} {
+  untested "$test_name (kernel version is too low)"
+  return
+}
+
+
 # use unshare to generate new namespaces to use
 # the returned pid is not the new proc's pid (as seen in the root ns)
 spawn unshare -pf "sleep" 160

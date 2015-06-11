@@ -82,7 +82,7 @@ static struct pid_namespace *get_pid_namespace (int target_ns) {
 
 
 static int from_target_pid_ns (struct task_struct *ts, PIDINFOTYPE type) {
-#if defined(CONFIG_PID_NS)
+#if defined(CONFIG_PID_NS) &&  LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
   struct pid_namespace *target_pid_ns;
   int ret = -1;
 
