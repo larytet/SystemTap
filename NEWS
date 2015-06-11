@@ -1,5 +1,10 @@
 * What's new in version 2.8
 
+- New namespace-aware tapset functions [task_]ns_*() and ia new option
+  --target-namespaces=PID to denote a target set of namespaces corresponding to
+  the PID's namespaces. The namespace-aware tapsets will return values
+  relative to the target namespaces if specified, or the stap process' namespaces.
+
 - Netfilter probes now attempt to decode Spanning Tree Protocol packets
   into local variables: probe netfilter.bridge.*, br_* variables,
   stp_dump.stp sample script.
