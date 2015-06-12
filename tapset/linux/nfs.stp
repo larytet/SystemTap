@@ -295,7 +295,7 @@ probe nfs.fop.llseek.return = kernel.function ("nfs_file_llseek").return !,
  */
 probe nfs.fop.read = vfs.do_sync_read
 {
-	s_id = __file_id($filp)
+	s_id = __file_id(file)
 	devname = kernel_string(s_id)
         name = "nfs.fop.read"
 }
@@ -316,7 +316,7 @@ probe nfs.fop.read.return = vfs.do_sync_read.return
  */
 probe nfs.fop.write = vfs.do_sync_write
 {
-	s_id = __file_id($filp)
+	s_id = __file_id(file)
 	devname = kernel_string(s_id)
         name = "nfs.fop.write"
 }

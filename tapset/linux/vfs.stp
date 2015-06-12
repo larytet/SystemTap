@@ -616,30 +616,41 @@ probe generic.aop.writepages.return = kernel.function("mpage_writepages").return
 	retstr = sprintf("%d", $return)
 }
 
-probe vfs.do_sync_read = kernel.function("do_sync_read")
+probe vfs.do_sync_read = kernel.function("do_sync_read") !,
+      __vfs.__vfs_read
 {
-	dev = __file_dev($filp)
-	devname = __find_bdevname(dev, __file_bdev($filp))
-	ino = __file_ino($filp)
-	file = $filp
+	dev = __file_dev(@choose_defined($filp, $file))
+	devname = __find_bdevname(dev,
+				  __file_bdev(@choose_defined($filp, $file)))
+	ino = __file_ino(@choose_defined($filp, $file))
+	file = @choose_defined($filp, $file)
 
-	len = $len
-	pos = kernel_pointer($ppos)
+	len = @choose_defined($len, $count)
+	pos = kernel_pointer(@choose_defined($ppos, $pos))
         buf = $buf
 
 	name = "do_sync_read"
-	argstr = sprintf("%d, %d, %p", $len, pos, $buf)
+	argstr = sprintf("%d, %d, %p", @choose_defined($len, $count),
+			 pos, $buf)
 
-	size = $len
+	size = @choose_defined($len, $count)
 	units = "bytes"
-	bytes_to_read = $len
+	bytes_to_read = @choose_defined($len, $count)
 }
-probe vfs.do_sync_read.return = kernel.function("do_sync_read").return
+# We'd really like to probe new_sync_read() here, but it is typically
+# inlined. So, we'll probe its caller, __vfs_read().
+probe __vfs.__vfs_read = kernel.function("__vfs_read")
+{
+	# Skip the call if new_sync_read() wouldn't be called.
+	if ($file->f_op->read || !$file->f_op->read_iter) next
+}
+probe vfs.do_sync_read.return = kernel.function("do_sync_read").return !,
+	__vfs.__vfs_read.return
 {
 	name = "do_sync_read"
 	retstr = sprintf("%d", $return)
 
-	bytes_to_read = $len
+	bytes_to_read = @choose_defined($len, $count)
 	ret = $return
 	bytes_read = $return > 0 ? $return : 0
 	error = $return < 0 ? $return : 0
@@ -650,32 +661,48 @@ probe vfs.do_sync_read.return = kernel.function("do_sync_read").return
 		units = "bytes"
 	}
 }
-
-probe vfs.do_sync_write = kernel.function("do_sync_write")
+probe __vfs.__vfs_read.return = kernel.function("__vfs_read").return
 {
-	dev = __file_dev($filp)
-	devname = __find_bdevname(dev, __file_bdev($filp))
-	ino = __file_ino($filp)
-	file = $filp
+	# Skip the call if new_sync_read() wouldn't be called.
+	if ($file->f_op->read || !$file->f_op->read_iter) next
+}
 
-	len = $len
-	pos = kernel_pointer($ppos)
-	buf = $buf
-	bytes_to_write = $len
+probe vfs.do_sync_write = kernel.function("do_sync_write") !,
+	__vfs.__vfs_write
+{
+	dev = __file_dev(@choose_defined($filp, $file))
+	devname = __find_bdevname(dev,
+				  __file_bdev(@choose_defined($filp, $file)))
+	ino = __file_ino(@choose_defined($filp, $file))
+	file = @choose_defined($filp, $file)
+
+	len = @choose_defined($len, $count)
+	pos = kernel_pointer(@choose_defined($ppos, $pos))
+	buf = @choose_defined($buf, $p)
+	bytes_to_write = @choose_defined($len, $count)
 
 	name = "do_sync_write"
-	argstr = sprintf("%d, %d , %p", $len, pos, $buf)
+	argstr = sprintf("%d, %d , %p", @choose_defined($len, $count),
+			 pos, @choose_defined($buf, $p))
 
-	size = $len
+	size = @choose_defined($len, $count)
 	units = "bytes"
 }
-probe vfs.do_sync_write.return = kernel.function("do_sync_write").return
+# We'd really like to probe new_sync_read() here, but it is typically
+# inlined. So, we'll probe its caller, __vfs_write().
+probe __vfs.__vfs_write = kernel.function("__vfs_write")
+{
+	# Skip the call if new_sync_write() wouldn't be called.
+	if ($file->f_op->write || !$file->f_op->write_iter) next
+}
+probe vfs.do_sync_write.return = kernel.function("do_sync_write").return !,
+	__vfs.__vfs_write.return
 {
 	name = "do_sync_write"
 	retstr = sprintf("%d", $return)
 
-	bytes_to_write = $len
-	pos = kernel_pointer($ppos)
+	bytes_to_write = @choose_defined($len, $count)
+	pos = kernel_pointer(@choose_defined($ppos, $pos))
 	ret = $return
 	bytes_written = $return > 0 ? $return : 0
 	error = $return < 0 ? $return : 0
@@ -685,6 +712,11 @@ probe vfs.do_sync_write.return = kernel.function("do_sync_write").return
 		size = $return
 		units = "bytes"
 	}
+}
+probe __vfs.__vfs_write.return = kernel.function("__vfs_write").return
+{
+	# Skip the call if new_sync_write() wouldn't be called.
+	if ($file->f_op->write || !$file->f_op->write_iter) next
 }
 
 probe vfs.block_sync_page = kernel.function("block_sync_page") ?
