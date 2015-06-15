@@ -81,6 +81,14 @@ proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
    }
 
    # Set in values
+   #
+   # On ppc64, you can't probe the hcall_* tracepoints (PR17126:
+   # tracepoints.exp testcase causing stalls/hang on ppc64). This was
+   # worked around by making a tracepoint blacklist. However, this
+   # test is using the '-g' (guru) argument to systemtap, which causes
+   # systemtap to ignore the tracepoint blacklist. So, on ppc64, we'll
+   # probe all the kernel tracepoints *except* for the ones starting
+   # with 'h'.
    set script [string map "TEST $test \
                            SUBTEST $SUBTEST \
                            ENABLED $ENABLED \
@@ -88,16 +96,31 @@ proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
    if {[string match $TIMER "profile"]} {
       set script [string map "timer.us(TIMER) timer.profile" $script]
    } elseif {[string match $TIMER "hardcore"]} {
-      set script [string map "timer.us(TIMER) \
-         {timer.profile, kernel.trace(\"*\")}" $script]
+      if {[string match ppc* $::tcl_platform(machine)]} {
+	 set script [string map "timer.us(TIMER) \
+               {timer.profile, kernel.trace(\"\[a-gi-z\]*\")}" $script]
+      } else {
+	 set script [string map "timer.us(TIMER) \
+               {timer.profile, kernel.trace(\"*\")}" $script]
+      }
    } elseif {[string match $TIMER "max"]} {
-      set script [string map "timer.us(TIMER) \
-         {begin, end, error, kernel.function(\"*@workqueue.c\"), \
-          process.begin, process.end, kernel.trace(\"*\"), \
-          process(\"echo\").function(\"*\"), \
-          netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
-          netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
-          perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?}" $script]
+      if {[string match ppc* $::tcl_platform(machine)]} {
+	 set script [string map "timer.us(TIMER) \
+            {begin, end, error, kernel.function(\"*@workqueue.c\"), \
+             process.begin, process.end, kernel.trace(\"\[a-gi-z\]*\"), \
+             process(\"echo\").function(\"*\"), \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
+             perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?}" $script]
+      } else {
+	 set script [string map "timer.us(TIMER) \
+            {begin, end, error, kernel.function(\"*@workqueue.c\"), \
+             process.begin, process.end, kernel.trace(\"*\"), \
+             process(\"echo\").function(\"*\"), \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
+             perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?}" $script]
+      }
    } else {
       set script [string map "TIMER $TIMER" $script]
    }
