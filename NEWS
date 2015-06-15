@@ -1,5 +1,28 @@
 * What's new in version 2.8
 
+- SystemTap has improved support for probing golang programs. Work has been
+  done to be able to handle DWARF information, reporting file names, line
+  numbers, and column numbers, and tolerance of odd characters in symbol names.
+
+- The function::*, probe::* and new macro::* man pages cross-references the
+  enclosing tapset::* man page. For example:
+
+  function::pn(3stap) mentions tapset::pn(3stap) in the SEE ALSO section
+
+- New stapref(1) man page provides a reference for the scripting language. The
+  stapref page contains an overview of the features available in the language,
+  such as keywords, data types, operators and more.
+
+- The @task macro performs the very common @cast to a task_struct.
+
+  The embedded-C bodies of task_current() and pid2task() are now wrapped
+  by @task, which gives them a debuginfo type on the return value.  With
+  autocast type propagation, this removes the need for any explicit @cast
+  in many places.
+
+  Other places which take untyped task pointers as parameters, for
+  instance, now use @task as well to simplify their code.
+
 - New namespace-aware tapset functions [task_]ns_*() and ia new option
   --target-namespaces=PID to denote a target set of namespaces corresponding to
   the PID's namespaces. The namespace-aware tapsets will return values
