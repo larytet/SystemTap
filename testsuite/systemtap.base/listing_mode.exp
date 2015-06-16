@@ -146,6 +146,7 @@ set valid_pid [exp_pid -i $spawn_id]
 proc test_cleanup2 {} {
     global valid_pid
     kill -INT -$valid_pid 2
+    catch { close }; catch { wait }
 }
 
 # Returns the address to main in compiled executable using stap

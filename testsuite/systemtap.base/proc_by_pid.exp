@@ -36,7 +36,6 @@ foreach runtime [get_runtime_list] {
         stap_run $test_name no_load $output_string $srcdir/$subdir/$test_name.stp -x [exp_pid -i $exe_id]
     } else {
         untested "$test_name (uprobes)"
-        continue
     }
     kill -INT -[exp_pid -i $exe_id] 2
     catch {close -i $exe_id}

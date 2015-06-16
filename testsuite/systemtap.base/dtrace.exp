@@ -238,6 +238,7 @@ foreach i $dfiles {
 	-re {Files.*identical} {incr ok; exp_continue}
 	eof { }
     }
+    catch {close}; catch {wait}
     catch {exec $python $dtrace -C -G -s $srcdir/$subdir/$i.d -o $i-1.o}
     catch {exec $python $dtrace -C -G --no-pyparsing -s $srcdir/$subdir/$i.d -o $i-2.o}
     verbose -log "exec nm $i-1.o > $i-1.od"
@@ -248,6 +249,7 @@ foreach i $dfiles {
 	-re {Files.*identical} {incr ok; exp_continue}
 	eof { }
     }
+    catch {close}; catch {wait}
     catch {exec /bin/rm $i-1.h $i-2.h $i-1.o $i-2.o}
 }
 if { $ok == 2} {

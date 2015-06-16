@@ -18,6 +18,7 @@ expect {
   -re {A script must be specified} { pass "$test_name (no script)" }
   eof { fail "$test_name (no script)" }
 }
+catch { close }; catch { wait }
 
 # -E BAD_SCRIPT, where BAD_SCRIPT causes a semantic error
 eval spawn stap -p4 -v -e $script1 -E $bad_script
@@ -27,7 +28,7 @@ expect {
   -re {semantic error[ A-Za-z:]+'pppppppp'} { set success 1 }
 }
 if { $success == 1 } { pass "$test_name (-E BAD_SCRIPT) " }  { fail "$test_name (-E BAD_SCRIPT)" }
-
+catch { close }; catch { wait }
 
 # -E, with probe point listing
 eval spawn stap -l "pb" -E $script_alias
@@ -39,6 +40,7 @@ expect {
   -re {process.end} { set success 4 }
 }
 if { $success == 1 } { pass "$test_name (-E listing probes) " }  { fail "$test_name (-E listing probes)" }
+catch { close }; catch { wait }
 
 # -E BAD_SCRIPT when listing probes. should still list the proper probe pts
 eval spawn stap -l "pb" -E $script_alias -E $bad_script
@@ -50,8 +52,7 @@ expect {
   -re {process.end} { set success 4 }
 }
 if { $success == 1 } { pass "$test_name (-E BAD_SCRIPT listing probes) " }  { fail "$test_name (-E BAD_SCRIPT listing probes)" }
-
-
+catch { close }; catch { wait }
 
 # part 2: actually running stap with -e/-E
 if {! [installtest_p]} then { return }
@@ -76,6 +77,7 @@ expect {
   }
 }
 if { $success == 2 } { pass "$test_name (-e and -E ) " }  { fail "$test_name (-e and -E)" }
+catch { close }; catch { wait }
 
 # script file  and -E
 eval spawn stap -v  $script_file -E $timeout_script
@@ -98,6 +100,7 @@ expect {
   }
 }
 if { $success == 2 } { pass "$test_name (file and -E ) " }  { fail "$test_name (file and -E)" }
+catch { close }; catch { wait }
 
 # multiple -E, with an argument mixed in there
 eval spawn stap -v -e $script2 -E $script1 -E $timeout_script $arg1
@@ -125,4 +128,4 @@ expect {
   }
 }
 if { $success == 3 } { pass "$test_name (multiple -E ) " }  { fail "$test_name (multiple -E)" }
-
+catch { close }; catch { wait }
