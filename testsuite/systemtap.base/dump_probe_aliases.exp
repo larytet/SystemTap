@@ -42,8 +42,8 @@ has_alias $output 1 "oneshot += begin"
 set subtest "vfs.read in output"
 has_alias $output 1 "vfs.read = kernel.function(\"vfs_read\")"
 
-set subtest "__syscall.lseek not in output"
-has_alias $output 0 "__syscall.lseek = kernel.function(\"sys_lseek\").call"
+set subtest "__syscall.accept not in output"
+has_alias $output 0 "__syscall.accept = kernel.function(\"sys_accept\").call"
 
 set subtest "oneshot in -v output"
 has_alias $outputv 1 "oneshot += begin"
@@ -51,6 +51,6 @@ has_alias $outputv 1 "oneshot += begin"
 set subtest "vfs.read in -v output"
 has_alias $outputv 1 "vfs.read = kernel.function(\"vfs_read\")"
 
-set subtest "__syscall.lseek in -v output"
-has_alias $outputv 1 "__syscall.lseek = kernel.function(\"sys_lseek\").call"
+set subtest "__syscall.accept in -v output"
+has_alias $outputv 1 "__syscall.accept = kernel.function(\"sys_accept\").call"
 
