@@ -23,7 +23,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/alias_suffixes06.stp -
 	buildok/atomic.stp -
 	buildok/aux_syscalls-embedded.stp -
-  buildok/context-embedded-ns.stp -
+	buildok/context-embedded-ns.stp -
 	buildok/context-embedded.stp -
 	buildok/context-symbols-embedded.stp -
 	buildok/context-unwind-embedded.stp -
@@ -56,6 +56,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/ipmib-detailed.stp -
 	buildok/ipmib-embedded.stp -
 	buildok/iterate_histogram_buckets.stp -
+	buildok/json-detailed.stp -
 	buildok/kprocess-all-probes.stp -
 	buildok/kprocess-detailed.stp -
 	buildok/kprocess-embedded.stp -
@@ -131,7 +132,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	buildok/syscalls2-detailed.stp -
 	buildok/systemtap_privilege.stp -
 	buildok/task-embedded.stp -
-  buildok/task_ns.stp -
+	buildok/task_ns.stp -
 	buildok/task_rlimit_test.stp -
 	buildok/task_test.stp -
 	buildok/task_time-embedded.stp -
