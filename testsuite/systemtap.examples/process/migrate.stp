@@ -14,14 +14,16 @@
  * GNU General Public License for more details.
  *
  * Copyright (C) IBM Corp. 2009.  All Rights Reserved.
+ * Copyright (C) 2015 Red Hat Inc.
  *
 */
 
-probe kernel.function("__migrate_task")
+probe kernel.trace("sched_migrate_task") !, kernel.function("__migrate_task")
 {
-  comm = kernel_string($p->comm);
+  comm = task_execname($p)
   if (comm == @1) {
     printf ("thread %d (%s) is migrating from %d to %d \n",
-            $p->pid, comm, $src_cpu, $dest_cpu);
+	    task_tid($p), comm, task_cpu($p),
+	    @choose_defined($new_cpu, $dest_cpu))
   }
 }
