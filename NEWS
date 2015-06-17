@@ -1,4 +1,4 @@
-* What's new in version 2.8
+* What's new in version 2.8, 2015-06-17
 
 - SystemTap has improved support for probing golang programs. Work has been
   done to be able to handle DWARF information, reporting file names, line
