@@ -1605,7 +1605,7 @@ keywords: network traffic
   the STP protocol ID, version ID, flags, root and bridge MAC
   addresses, and various times.
 
-  # stap stp_dump.stp -c "sleep 1"
+  # stap stp_dump.stp -c "sleep 5"
 
 
 network/tcp_connections.stp - Track Creation of Incoming TCP Connections
@@ -3140,7 +3140,7 @@ keywords: network traffic
   the STP protocol ID, version ID, flags, root and bridge MAC
   addresses, and various times.
 
-  # stap stp_dump.stp -c "sleep 1"
+  # stap stp_dump.stp -c "sleep 5"
 
 
 network/tcpdumplike.stp - Dump of Received UDP/TCP Packets
