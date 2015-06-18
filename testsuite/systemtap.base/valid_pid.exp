@@ -41,6 +41,7 @@ foreach test_script $test_scripts {
                 spawn stap -p2 -e $test_script -x $pid
             }
         }
+        set exe_id2 $spawn_id
         expect {
             -re {semantic error: [ A-Za-z]*pid[ A-Za-z]*} { if {$pid != $valid_pid } { pass "$test_script $pid" } else { fail "$test_script $pid" } }
             -re {semantic error: [ A-Za-z]*cannot find executable[ A-Za-z]*} { if {(([regexp {function} $test_script] || [regexp {plt} $test_script]) || [regexp {mark} $test_script]) && $pid != $valid_pid} { pass "$test_script $pid" } }
@@ -49,8 +50,9 @@ foreach test_script $test_scripts {
             # thrown
             eof  { if {$pid == $valid_pid } { pass "$test_script $pid" } else { fail "$test_script $pid" } }
         }
+        catch { close -i $exe_id2 }; catch { wait -i $exe_id2 }
     }
 }
 
 kill -INT -[exp_pid -i $exe_id] 2
-catch { close }; catch { wait }
+catch { close -i $exe_id }; catch { wait -i $exe_id }

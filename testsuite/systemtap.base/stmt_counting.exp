@@ -24,6 +24,7 @@ foreach test_name $test_names {
                     expect {
                         -re {ERROR.*MAXACTION} { pass $test_name }
                     }
+		    catch { close }; catch { wait }
                 } elseif {$stap_flag == ""}  {
                     stap_run $cur_test_name no_load $output_string --runtime=$runtime $srcdir/$subdir/$test_name.stp $test_val
                 } else {
@@ -36,6 +37,7 @@ foreach test_name $test_names {
                     expect {
                         -re {ERROR.*MAXACTION} { pass $test_name }
                     }
+		    catch { close }; catch { wait }
                 } elseif {$stap_flag == ""} {
                     stap_run $test_name no_load $output_string $srcdir/$subdir/$test_name.stp $test_val
 
