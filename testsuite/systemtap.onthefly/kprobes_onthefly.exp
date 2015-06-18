@@ -6,12 +6,21 @@ if {![installtest_p] || ![kprobes_disabling_p]} {
    return
 }
 
-# Goal: Ensure that kprobes properly support on-the-fly arming/disarming. The
-# script consists of a vfs.read and a vfs.read.return whose conditions are
-# toggled by a timer probe. We ensure that the kprobes will always be triggered
-# by running 'echo' in the background. We then analyze the actual debug
-# statements printed out to ensure the toggled probes are armed and disarmed as
-# expected.
+# Goal: Ensure that kprobes properly support on-the-fly
+# arming/disarming. The script consists of a vfs_read() probe and a
+# vfs_read() return probe whose conditions are toggled by a timer
+# probe. We ensure that the kprobes will always be triggered by
+# running 'echo' in the background. We then analyze the actual debug
+# statements printed out to ensure the toggled probes are armed and
+# disarmed as expected.
+#
+# PR17831: Note that originally this script probed 'vfs.read' and
+# 'vfs.read.return', but this picked up inlined versions of vfs_read()
+# on some kernels (like 3.10.0-229.el7.ppc64), which made the output
+# different than we expected. So, we've switched to probing
+# 'kernel.function("vfs_read").call' and
+# 'kernel.function("vfs_read").return' which should return consistent
+# results.
 
 # Runs stap on a script with the given arguments
 proc run_stap {subtest args script} {
@@ -80,7 +89,7 @@ proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
       global state = ENABLED
       global toggles = 0
 
-      probe vfs.read if (state > 0) {
+      probe kernel.function("vfs_read").call if (state > 0) {
          if (state == 3) {
             println("hit")
             state++;
@@ -89,7 +98,7 @@ proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
          }
       }
 
-      probe vfs.read.return if (state > 0) {
+      probe kernel.function("vfs_read").return if (state > 0) {
          # ensure that nothing changed during the vfs_read body
          if (state != @entry(state))
             next
@@ -171,6 +180,7 @@ proc make_pattern {subtest start_enabled maxtoggles} {
    # disabled.
    if {!$start_enabled} {
       lappend pattern "* registering as disabled (kprobe) pidx ?"
+      lappend pattern "* registering as disabled (kprobe) pidx ?"
       lappend pattern "* registering as disabled (kretprobe) pidx ?"
    }
 
@@ -188,10 +198,12 @@ proc make_pattern {subtest start_enabled maxtoggles} {
          if {$start_enabled} {
             set start_enabled 0
             lappend pattern "* disabling (kprobe) pidx ?"
+            lappend pattern "* disabling (kprobe) pidx ?"
             lappend pattern "* disabling (kretprobe) pidx ?"
          } else {
             set start_enabled 1
             if {$i < $maxtoggles} {
+               lappend pattern "* enabling (kprobe) pidx ?"
                lappend pattern "* enabling (kprobe) pidx ?"
                lappend pattern "* enabling (kretprobe) pidx ?"
             }
