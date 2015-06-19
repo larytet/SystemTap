@@ -1,0 +1,22 @@
+<?xml version='1.0'?>
+<xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform" version="1.0">
+<xsl:param name="generate.toc">
+appendix  toc,title
+article/appendix  nop
+article   nop,title
+book      toc,title,figure,table,example,equation
+chapter   nop,title
+part      nop,title   <!-- nop to suppress toc -->
+preface   toc,title
+qandadiv  toc
+qandaset  toc
+reference nop,title
+sect1     toc
+sect2     toc
+sect3     toc
+sect4     toc
+sect5     toc
+section   toc
+set       toc,title
+</xsl:param> 
+</xsl:stylesheet>
