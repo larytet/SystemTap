@@ -27,7 +27,7 @@ DIR=`mktemp -d stapdocsXXX -p /tmp/`; cd $DIR
 
 # We'll need to build the latest stap with docs, ensure a check that everything built properly or bail
 
-git clone git://sourceware.org/git/systemtap.git
+git clone --depth 1 git://sourceware.org/git/systemtap.git
 
 # Checkout the htdocs CVS
 
@@ -40,10 +40,8 @@ mkdir build && mkdir local && cd build
 
 ../configure --enable-docs --prefix=$BASEDIR/systemtap/local
 
-#Not sure if we're really allowed to make assumptions about the machine we're running this on
-#Probably safer not using the -jX option
-make
-make install
+make -C doc
+make install-data
 if [ $? -eq 0 ]; then
  : 
 else
