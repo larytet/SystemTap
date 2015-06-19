@@ -10,4 +10,4 @@ output: trace
 scope: system-wide
 description:  The mbrwatch.stp script reports any attempted reads/writes of the first few sectors of a raw block device.
 test_check: stap -p4 mbrwatch.stp
-test_installcheck: stap mbrwatch.stp -c "dd of=/dev/null count=1 if=/dev/`grep -v major /proc/partitions | grep . | awk '{print $4}' | head -1`"
+test_installcheck: stap mbrwatch.stp -c "dd of=/dev/null count=1 if=/dev/`grep -v major /proc/partitions | grep . | grep -v 'sr[0-9]' | awk '{print $4}' | head -1`"
