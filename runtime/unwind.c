@@ -426,7 +426,8 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 						    value, DWARF_REG_MAP(value));
 					value = DWARF_REG_MAP(value);
 				}
-				memcpy(&REG_STATE.regs[value], &state->cie_regs[value], sizeof(struct unwind_item));
+				if (value < ARRAY_SIZE(REG_STATE.regs))
+					memcpy(&REG_STATE.regs[value], &state->cie_regs[value], sizeof(struct unwind_item));
 				break;
 			case DW_CFA_undefined:
 				value = get_uleb128(&ptr.p8, end);
@@ -641,7 +642,8 @@ static int processCFI(const u8 *start, const u8 *end, unsigned long targetLoc,
 					    value, DWARF_REG_MAP(value));
 				value = DWARF_REG_MAP(value);
 			}
-			memcpy(&REG_STATE.regs[value], &state->cie_regs[value], sizeof(struct unwind_item));
+			if (value < ARRAY_SIZE(REG_STATE.regs))
+				memcpy(&REG_STATE.regs[value], &state->cie_regs[value], sizeof(struct unwind_item));
 			break;
 		}
 		dbug_unwind(1, "targetLoc=%lx state->loc=%lx\n", targetLoc, state->loc);
