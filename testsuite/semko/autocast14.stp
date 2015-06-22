@@ -1,0 +1,10 @@
+#! stap -p2
+
+global suns
+probe begin
+{
+    // Test DWARF assigned to an array index shouldn't propagate types
+    suns[& @cast(0, "sockaddr_un", "<sys/un.h>")] = 1;
+    foreach ([sun] in suns)
+        println(sun->sun_family)
+}
