@@ -1,5 +1,10 @@
 * What's new in version 2.9
 
+- The following tapset variables and functions are deprecated in
+  version 2.9:
+  - The '__int32_compat' library macro got deprecated in favor of
+    new '__compat_long' library macro.
+
 * What's new in version 2.8, 2015-06-17
 
 - SystemTap has improved support for probing golang programs. Work has been

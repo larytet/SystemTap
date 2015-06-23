@@ -1,0 +1,127 @@
+#! /bin/sh
+
+# Test macro deprecation PR18462.
+
+# Testcase wrapper (parseok.exp) checks for exitcode, so we need to terminate right after an error occurs.
+set -e
+
+# let's play in temporary directory writable by any user potentially involved
+MYTMPD=$( mktemp -d )
+MYSTPM=$MYTMPD/PR18462.stpm
+
+export SYSTEMTAP_TAPSET=$MYTMPD
+
+# basic tests
+# ______________________________________________________________________________
+
+cat > $MYSTPM <<EOF01
+@define __testmacro %( 7 %)
+EOF01
+
+stap -p1 - <<EOF02
+probe begin { println(@__testmacro) }
+EOF02
+
+cat > $MYSTPM <<EOF03
+%( 1 == 1 %?
+@define __testmacroA %( 7 %)
+%:
+@define __testmacroB %( 7 %)
+%)
+EOF03
+
+stap -p1 - <<EOF04
+probe begin { println(@__testmacroA) }
+EOF04
+
+! stap -p1 - <<EOF05
+probe begin { println(@__testmacroB) }
+EOF05
+
+cat > $MYSTPM <<EOF06
+%( "a" == "b" %?
+@define __testmacroC %( 7 %)
+%:
+@define __testmacroD %( 7 %)
+%)
+EOF06
+
+! stap -p1 - <<EOF07
+probe begin { println(@__testmacroC) }
+EOF07
+
+stap -p1 - <<EOF08
+probe begin { println(@__testmacroD) }
+EOF08
+
+# both the true and false side of a conditional are defining the same macro name
+# ______________________________________________________________________________
+
+cat > $MYSTPM <<EOF09
+%( 1 == 1 %?
+@define __testmacroE %( 7 %)
+%:
+@define __testmacroE %( 9 %)
+%)
+EOF09
+
+stap -p1 - <<EOF10
+probe begin { println(@__testmacroE) }
+EOF10
+
+cat > $MYSTPM <<EOF11
+%( 1 != 1 %?
+@define __testmacroF %( 7 %)
+%:
+@define __testmacroF %( 9 %)
+%)
+EOF11
+
+stap -p1 - <<EOF12
+probe begin { println(@__testmacroF) }
+EOF12
+
+# test nested conditionals
+# ______________________________________________________________________________
+
+cat > $MYSTPM <<EOF13
+%( 1 == 1 %?
+  %( 1 == 1 %?
+    @define __testmacroG %( 7 %)
+  %:
+    @define __testmacroH %( 7 %)
+  %)
+%:
+@define __testmacroI %( 7 %)
+%)
+EOF13
+
+stap -p1 - <<EOF14
+probe begin { println(@__testmacroG) }
+EOF14
+
+! stap -p1 - <<EOF15
+probe begin { println(@__testmacroH) }
+EOF15
+
+! stap -p1 - <<EOF16
+probe begin { println(@__testmacroI) }
+EOF16
+
+# test some expected errors
+# ______________________________________________________________________________
+
+# incomplete conditional at end of file
+cat > $MYSTPM <<EOF17
+%( 1 == 1 %?
+@define __testmacroJ %( 7 %)
+EOF17
+
+! stap -p1 - <<EOF18
+probe begin { println(@__testmacroJ) }
+EOF18
+
+rm -rf $MYTMPD
+
+set +e
+

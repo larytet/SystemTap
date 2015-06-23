@@ -120,7 +120,7 @@ private:
   map<string, macrodecl*> pp1_namespace;
   vector<pp1_activation*> pp1_state;
   const token* next_pp1 ();
-  const token* scan_pp1 ();
+  const token* scan_pp1 (bool ignore_macros);
   const token* slurp_pp1_param (vector<const token*>& param);
   const token* slurp_pp1_body (vector<const token*>& body);
 
@@ -425,7 +425,7 @@ parser::next_pp1 ()
 }
 
 const token*
-parser::scan_pp1 ()
+parser::scan_pp1 (bool ignore_macros = false)
 {
   while (true)
     {
@@ -442,7 +442,8 @@ parser::scan_pp1 ()
         }
 
       // macro definition
-      if (t->type == tok_operator && t->content == "@define")
+      // PR18462 don't catalog preprocessor-disabled macros
+      if (t->type == tok_operator && t->content == "@define" && !ignore_macros)
         {
           if (!pp1_state.empty())
             throw PARSE_ERROR (_("'@define' forbidden inside macro body"), t);
@@ -718,7 +719,7 @@ parser::parse_library_macros ()
 
   try
     {
-      const token* t = scan_pp1 ();
+      const token* t = scan_pp ();
 
       // Currently we only take objection to macro invocations if they
       // produce a non-whitespace token after being expanded.
@@ -726,7 +727,7 @@ parser::parse_library_macros ()
       // XXX should we prevent macro invocations even if they expand to empty??
 
       if (t != 0)
-        throw PARSE_ERROR (_F("library macro file '%s' contains non-@define construct", input_name.c_str()), t);
+        throw PARSE_ERROR (_F("unexpected token in library macro file '%s'", input_name.c_str()), t);
 
       // We need to first check whether *any* of the macros are duplicates,
       // then commit to including the entire file in the global namespace
@@ -1149,7 +1150,7 @@ parser::skip_pp ()
     {
       try
         {
-          t = scan_pp1 ();
+          t = scan_pp1 (true);
         }
       catch (const parse_error &e)
         {

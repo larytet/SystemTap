@@ -157,6 +157,7 @@
 	}
 %)
 
+%( systemtap_v <= "2.9" %?
 @define __int32_compat(arg)
 %(
     %( CONFIG_64BIT == "y" %?
@@ -164,6 +165,7 @@
     %:
         (__int32(@arg))
     %)
+%)
 %)
 
 @define __keyctl_argstr(option, arg2, arg3, arg4, arg5)
