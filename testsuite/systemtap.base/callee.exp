@@ -48,8 +48,10 @@ proc compile_subtest { {n 1} } {
 
 # Builds a callee probe point for the given func and callee. If callee is a
 # number greater than 0, then callees(N) is used instead. If callee is 0, then
-# callees is used. Returns 0 on success, nonzero on failure.
-proc build_probe { func callee } {
+# callees is used. Returns 0 on success, nonzero on failure. The 'return_p'
+# arg should be 1 if it is a .return probe, otherwise (defaults to 0).
+# The 'call_p' arg should be 1 if it is a .call probe, otherwise (defaults to 0).
+proc build_probe { func callee {return_p 0} {call_p 0} } {
    global test
 
    set func "function(\"${func}\")"
@@ -63,17 +65,29 @@ proc build_probe { func callee } {
       set callee "callee(\"${callee}\")"
    }
 
+   if {$return_p} { return "process(\"./${test}\").${func}.${callee}.return" }
+
+   if {$call_p} { return "process(\"./${test}\").${func}.${callee}.call" }
+
    return "process(\"./${test}\").${func}.${callee}"
 }
 
 # Runs stap -L against given func and callee and expects probes for functions in
 # expout list. The 'expout' param is a list of caller/callee pairs expected to
-# be printed out together.
-proc expect_list { func callee expout } {
+# be printed out together. The 'return_p' arg should be 1 if it is a .return
+# probe, otherwise (defaults to 0). The 'call_p' arg should be 1 if it is a
+# .call probe, otherwise (defaults to 0).
+proc expect_list { func callee expout {return_p 0} {call_p 0} } {
    global test testpath subtest
 
    # Build the stap command
-   set cmd "stap -L [build_probe $func $callee]"
+   if {$return_p} {
+       set cmd "stap -L [build_probe $func $callee 1]"
+   } elseif {$call_p} {
+       set cmd "stap -L [build_probe $func $callee 0 1]"
+   } else {
+       set cmd "stap -L [build_probe $func $callee]"
+   }
 
    # Build the expect regex: pp1|pp2|pp3|...
    set n 0
@@ -88,7 +102,16 @@ proc expect_list { func callee expout } {
       # .callee(expfunc@/path/callee.subtest
       append cregexp "\\\.callee\\\(\"$expcallee@\[^\"\]*${test}\\\.${subtest}"
       # fileno:lineno") __stuff__ \r\n
-      append cregexp "\(\\\.\[0-9\]\)?\\\.c:\[0-9\]+\"\\\)\[^\\r\\n\]*\\r\\n"
+      append cregexp "\(\\\.\[0-9\]\)?\\\.c:\[0-9\]+\"\\\)"
+      # .return
+      if {$return_p} {
+          append cregexp "\\\.return" 
+      }
+      if {$call_p} {
+          append cregexp "\\\.call" 
+      }
+      # __stuff__ \r\n
+      append cregexp "\[^\\r\\n\]*\\r\\n"
       if {[string length $regexp]} {
          append regexp |
       }
@@ -117,12 +140,14 @@ proc expect_list { func callee expout } {
 # Runs stap against given func and callee and verifies that probes are
 # triggered. The 'expout' param is a list of caller/callee pairs expected to be
 # printed out together. The 'inlined' arg should be 1 if callee is inlined, 0
-# otherwise (defaults to 0).
-proc expect_probe { func callee expout {inlined 0} } {
+# otherwise (defaults to 0). The 'return_p' arg should be 1 if it is a .return
+# probe, otherwise (defaults to 0). The 'call_p' arg should be 1 if it is a
+# .call probe, otherwise (defaults to 0).
+proc expect_probe { func callee expout {inlined 0} {return_p 0} {call_p 0} } {
    global test testpath subtest
 
-   # If it's inlined, we use ustack(0) instead to get the 'caller'
-   if {$inlined} {
+   # If it's inlined or return, we use ustack(0) instead to get the 'caller'
+   if {$inlined || $return_p || $call_p} {
       set caller usymname(ustack(0))
    } else {
       set caller usymname(ustack(1))
@@ -130,7 +155,7 @@ proc expect_probe { func callee expout {inlined 0} } {
 
    # Build the stap command
    set script " \
-      probe [build_probe $func $callee] { \
+      probe [build_probe $func $callee $return_p $call_p] { \
          printf(\"caller %s callee %s\\n\", $caller, ppfunc()) \
       } \
    "
@@ -169,6 +194,7 @@ proc expect_probe { func callee expout {inlined 0} } {
 # allows testing of:
 # - basic probing of non-inlined callee
 # - recursive (.callees(N)) probing of non-inlined callees
+# - return callees
 set subtest "simple"
 set failed 0
 
@@ -187,6 +213,12 @@ set subsubtest "listing .callee(*)"
 if {!$failed} {
    set expout [list main level1]
    passfail [expect_list main * $expout]
+}
+
+set subsubtest "listing .callee(foo).return"
+if {!$failed} {
+   set expout [list main level1]
+   passfail [expect_list main level1 $expout 1]
 }
 
 set subsubtest "listing .callees"
@@ -219,6 +251,14 @@ if {![installtest_p]} {
 } elseif {!$failed} {
    set expout [list main level1]
    passfail [expect_probe main level1 $expout]
+}
+
+set subsubtest "probing .callee(foo).return"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list main level1]
+   passfail [expect_probe main level1 $expout 0 1]
 }
 
 set subsubtest "probing .callees"
@@ -315,6 +355,7 @@ if {[file exists "$test"]} { file delete "$test" }
 # testcase callee.inlined.c
 # allows testing of:
 # - probing inlined callees
+# - probing .call callees
 # - probing nested inlined callees
 # - recursive (.callees(N)) probing of inlined callees
 # - probing of the same (inlined) callee from different callers is only
@@ -339,6 +380,20 @@ set subsubtest "listing bar .callees"
 if {!$failed} {
    set expout [list bar foo]
    passfail [expect_list bar 0 $expout]
+}
+
+set subsubtest "listing .callee(foo).call"
+if {!$failed} {
+   set expout [list main foo]
+   passfail [expect_list main foo $expout 0 1]
+}
+
+set subsubtest "probing .callee(foo).call"
+if {![installtest_p]} {
+   untested "$test ($subtest - $subsubtest)"
+} elseif {!$failed} {
+   set expout [list main foo main foo]
+   passfail [expect_probe main foo $expout 0 0 1]
 }
 
 set subsubtest "probing main .callees"

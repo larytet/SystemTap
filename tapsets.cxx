@@ -5195,7 +5195,12 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           check->function = "_caller_match";
           check->args.push_back(new literal_number(q.has_process));
           check->args[0]->tok = this->tok;
-          check->args.push_back(new literal_number(level));
+          // For callee .return probes, the callee is popped off stack
+          // so we don't want to match the frame below the caller
+          if (q.has_return)
+            check->args.push_back(new literal_number(level-1));
+          else
+            check->args.push_back(new literal_number(level));
           check->args[1]->tok = this->tok;
           check->args.push_back(new literal_string(this->module));
           check->args[2]->tok = this->tok;
@@ -5442,6 +5447,14 @@ dwarf_derived_probe::register_function_and_statement_variants(
     ->bind_privilege(privilege)
     ->bind(dw);
   fv_root->bind_str(TOK_CALLEE)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind_str(TOK_CALLEE)
+    ->bind(TOK_RETURN)
+    ->bind_privilege(privilege)
+    ->bind(dw);
+  fv_root->bind_str(TOK_CALLEE)
+    ->bind(TOK_CALL)
     ->bind_privilege(privilege)
     ->bind(dw);
   fv_root->bind(TOK_CALLEES)
