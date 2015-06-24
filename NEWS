@@ -1,5 +1,16 @@
 * What's new in version 2.9
 
+- Callee probe points now support '.return' and '.call' suffix.
+  For example,
+
+    process("proc").function("foo").callee("bar").return
+
+  will fire upon returning from bar when called by foo.
+
+    process("proc").function("foo").callee("bar").call
+
+  will only fire for non-inlined callees.
+
 - The following tapset variables and functions are deprecated in
   version 2.9:
   - The '__int32_compat' library macro got deprecated in favor of

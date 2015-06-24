@@ -370,6 +370,8 @@ Here is a list of DWARF probe points currently supported:
 kernel.function(PATTERN)
 kernel.function(PATTERN).call
 kernel.function(PATTERN).callee(PATTERN)
+kernel.function(PATTERN).callee(PATTERN).return
+kernel.function(PATTERN).callee(PATTERN).call
 kernel.function(PATTERN).callees(DEPTH)
 kernel.function(PATTERN).return
 kernel.function(PATTERN).inline
@@ -377,6 +379,8 @@ kernel.function(PATTERN).label(LPATTERN)
 module(MPATTERN).function(PATTERN)
 module(MPATTERN).function(PATTERN).call
 module(MPATTERN).function(PATTERN).callee(PATTERN)
+module(MPATTERN).function(PATTERN).callee(PATTERN).return
+module(MPATTERN).function(PATTERN).callee(PATTERN).call
 module(MPATTERN).function(PATTERN).callees(DEPTH)
 module(MPATTERN).function(PATTERN).return
 module(MPATTERN).function(PATTERN).inline
@@ -393,6 +397,8 @@ process("PATH").library("PATH").statement("*@FILE.c:123").nearest
 process("PATH").function("*").return
 process("PATH").function("myfun").label("foo")
 process("PATH").function("foo").callee("bar")
+process("PATH").function("foo").callee("bar").return
+process("PATH").function("foo").callee("bar").call
 process("PATH").function("foo").callees(DEPTH)
 process(PID).function("NAME")
 process(PID).function("myfun").label("foo")
