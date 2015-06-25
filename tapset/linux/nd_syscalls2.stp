@@ -389,7 +389,7 @@ probe nd_syscall.pipe = __nd_syscall.pipe2 ?, __nd_syscall.ia64_pipe ?,
 	__nd_syscall.pipe
 {
 }
-probe __nd_syscall.pipe2 = kprobe.function("sys_pipe2")
+probe __nd_syscall.pipe2 = kprobe.function("sys_pipe2") ?
 {
 	@__syscall_compat_gate(%{ __NR_pipe2 %}, %{ __NR_compat_pipe2 %})
 	%( arch != "powerpc" %? asmlinkage() %)
@@ -407,7 +407,7 @@ probe __nd_syscall.pipe2 = kprobe.function("sys_pipe2")
 		argstr = sprintf("[%d, %d], %s", pipe0, pipe1, flag_str);
 	}
 }
-probe __nd_syscall.ia64_pipe = kprobe.function("sys_ia64_pipe").call
+probe __nd_syscall.ia64_pipe = kprobe.function("sys_ia64_pipe").call ?
 {
 	name = "pipe"
 	flags = 0
@@ -439,7 +439,7 @@ probe nd_syscall.pipe.return = __nd_syscall.pipe2.return ?,
                                __nd_syscall.pipe.return
 {
 }
-probe __nd_syscall.pipe2.return = kprobe.function("sys_pipe2").return
+probe __nd_syscall.pipe2.return = kprobe.function("sys_pipe2").return ?
 {
 	@__syscall_compat_gate(%{ __NR_pipe2 %}, %{ __NR_compat_pipe2 %})
 	name = "pipe2";
@@ -453,7 +453,7 @@ probe __nd_syscall.pipe2.return = kprobe.function("sys_pipe2").return
 	}
 	retstr = returnstr(1)
 }
-probe __nd_syscall.ia64_pipe.return = kprobe.function("sys_ia64_pipe").return
+probe __nd_syscall.ia64_pipe.return = kprobe.function("sys_ia64_pipe").return ?
 {
 	name = "pipe"
 	fildes_uaddr = 0;
@@ -5113,7 +5113,7 @@ probe nd_syscall.truncate = __nd_syscall.truncate ?,
 	path = user_string_quoted(path_uaddr)
 	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
 }
-probe __nd_syscall.truncate = kprobe.function("sys_truncate")
+probe __nd_syscall.truncate = kprobe.function("sys_truncate") ?
 {
 	@__syscall_compat_gate(%{ __NR_truncate %}, 
 			       %{ __NR_compat_truncate %})
@@ -5123,24 +5123,24 @@ probe __nd_syscall.truncate = kprobe.function("sys_truncate")
 	else
 		length = long_arg(2)
 }
-probe __nd_syscall.truncate64 = kprobe.function("sys_truncate64")
+probe __nd_syscall.truncate64 = kprobe.function("sys_truncate64") ?
 {
 	asmlinkage()
 	length = longlong_arg(2)
 }
-probe __nd_syscall.compat_truncate = kprobe.function("compat_sys_truncate")
+probe __nd_syscall.compat_truncate = kprobe.function("compat_sys_truncate") ?
 {
 	asmlinkage()
 	length = int_arg(2)
 }
-probe nd_syscall.truncate.return = __nd_syscall.truncate.return,
+probe nd_syscall.truncate.return = __nd_syscall.truncate.return ?,
 	kprobe.function("sys_truncate64").return ?,
 	kprobe.function("compat_sys_truncate").return ?
 {
 	name = "truncate"
 	retstr = returnstr(1)
 }
-probe __nd_syscall.truncate.return = kprobe.function("sys_truncate").return
+probe __nd_syscall.truncate.return = kprobe.function("sys_truncate").return ?
 {
 	@__syscall_compat_gate(%{ __NR_truncate %}, 
 			       %{ __NR_compat_truncate %})

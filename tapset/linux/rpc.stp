@@ -196,7 +196,7 @@ probe _sunrpc.clnt.create_client.rpc_new_client_inline =
 
 probe _sunrpc.clnt.create_client.rpc_new_client =
 	kernel.function("rpc_new_client").call !,
-	module("sunrpc").function("rpc_new_client").call
+	module("sunrpc").function("rpc_new_client").call ?
 {
 	if (@defined($args)) {
 		# kernel > 2.6.18
@@ -222,7 +222,7 @@ probe _sunrpc.clnt.create_client.rpc_new_client =
 
 probe _sunrpc.clnt.create_client.rpc_create_client =
 	kernel.function("rpc_create_client") !,
-	module("sunrpc").function("rpc_create_client")
+	module("sunrpc").function("rpc_create_client") ?
 {
 	servername = __rpc_format_servername($servname, &$xprt->addr)
 	if (@defined($info)) {
@@ -266,13 +266,13 @@ probe _sunrpc.clnt.create_client.return.rpc_create =
 
 probe _sunrpc.clnt.create_client.return.rpc_new_client =
 	kernel.function("rpc_new_client").return !,
-	module("sunrpc").function("rpc_new_client").return
+	module("sunrpc").function("rpc_new_client").return ?
 {
 }
 
 probe _sunrpc.clnt.create_client.return.rpc_create_client = 
 	kernel.function("rpc_create_client").return !,
-	module("sunrpc").function("rpc_create_client").return
+	module("sunrpc").function("rpc_create_client").return ?
 {
 }
 

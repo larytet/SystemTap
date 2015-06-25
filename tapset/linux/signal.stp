@@ -116,7 +116,7 @@ probe __signal.send.group_send_sig_info =
 }
 
 probe __signal.send.send_group_sigqueue =
-		kernel.function("send_group_sigqueue")
+		kernel.function("send_group_sigqueue") ?
 {
     name = "send_group_sigqueue"
     sig = $sig
@@ -129,7 +129,7 @@ probe __signal.send.send_group_sigqueue =
 }
 
 probe __signal.send.specific_send_sig_info =
-		kernel.function("specific_send_sig_info").call
+		kernel.function("specific_send_sig_info").call ?
 {
     name = "specific_send_sig_info"
     sig = $sig
@@ -243,7 +243,7 @@ probe __signal.send.group_send_sig_info.return =
 }
 
 probe __signal.send.specific_send_sig_info.return =
-		kernel.function("specific_send_sig_info").return
+		kernel.function("specific_send_sig_info").return ?
 {
     name = "specific_send_sig_info"
     shared = 0
@@ -257,7 +257,7 @@ probe __signal.send.specific_send_sig_info.return =
 // - return 1 if this signal is ignored by receiving process
 
 probe __signal.send.send_group_siggueue.return =
-		kernel.function("send_group_sigqueue").return
+		kernel.function("send_group_sigqueue").return ?
 {
     name = "send_group_sigqueue"
     shared = 1

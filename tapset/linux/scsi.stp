@@ -56,11 +56,11 @@ function describe_device_state:string(state:long)
   * @req_addr: The current struct request pointer, as a number
   */
 probe scsi.ioentry.scsilib =
-      module("scsi_mod").function("scsi_prep_fn")!, kernel.function("scsi_prep_fn") { }
+      module("scsi_mod").function("scsi_prep_fn")!, kernel.function("scsi_prep_fn")? { }
 probe scsi.ioentry.sd =
-      module("sd_mod").function("sd_prep_fn")!, kernel.function("sd_prep_fn") { }
+      module("sd_mod").function("sd_prep_fn")!, kernel.function("sd_prep_fn")? { }
 probe scsi.ioentry.sr =
-      module("sr_mod").function("sr_prep_fn")!, kernel.function("sr_prep_fn") { }
+      module("sr_mod").function("sr_prep_fn")!, kernel.function("sr_prep_fn")? { }
 
 probe scsi.ioentry = scsi.ioentry.* ?
 {

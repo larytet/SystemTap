@@ -7430,6 +7430,13 @@ suggest_marks(systemtap_session& sess,
   if (mark.empty() || modules.empty() || sess.module_cache == NULL)
     return "";
 
+  // PR18577: There isn't any point in generating a suggestion list if
+  // we're not going to display it.
+  if ((sess.dump_mode == systemtap_session::dump_matched_probes
+       || sess.dump_mode == systemtap_session::dump_matched_probes_vars)
+      && sess.verbose < 2)
+    return "";
+
   set<string> marks;
   const map<string, module_info*> &cache = sess.module_cache->cache;
   bool dash_suggestions = (mark.find("-") != string::npos);
@@ -7489,6 +7496,13 @@ suggest_plt_functions(systemtap_session& sess,
   if (func.empty() || modules.empty() || sess.module_cache == NULL)
     return "";
 
+  // PR18577: There isn't any point in generating a suggestion list if
+  // we're not going to display it.
+  if ((sess.dump_mode == systemtap_session::dump_matched_probes
+       || sess.dump_mode == systemtap_session::dump_matched_probes_vars)
+      && sess.verbose < 2)
+    return "";
+
   set<string> funcs;
   const map<string, module_info*> &cache = sess.module_cache->cache;
 
@@ -7527,6 +7541,13 @@ suggest_dwarf_functions(systemtap_session& sess,
     func.erase(pos);
 
   if (func.empty() || modules.empty() || sess.module_cache == NULL)
+    return "";
+
+  // PR18577: There isn't any point in generating a suggestion list if
+  // we're not going to display it.
+  if ((sess.dump_mode == systemtap_session::dump_matched_probes
+       || sess.dump_mode == systemtap_session::dump_matched_probes_vars)
+      && sess.verbose < 2)
     return "";
 
   // We must first aggregate all the functions from the cache

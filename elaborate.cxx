@@ -541,7 +541,7 @@ match_node::find_and_build (systemtap_session& s,
         {
           // We didn't find any wildcard matches (since the size of
           // the result vector didn't change).  Throw an error.
-          string sugs = suggest_functors(functor);
+          string sugs = suggest_functors(s, functor);
           throw SEMANTIC_ERROR (_F("probe point mismatch: didn't find any wildcard matches%s",
                                    sugs.empty() ? "" : (" (similar: " + sugs + ")").c_str()),
                                 comp->tok);
@@ -615,7 +615,7 @@ match_node::find_and_build (systemtap_session& s,
         {
 	  // We didn't find any wildcard matches (since the size of
 	  // the result vector didn't change).  Throw an error.
-          string sugs = suggest_functors(loc->components[pos]->functor);
+          string sugs = suggest_functors(s, loc->components[pos]->functor);
           throw SEMANTIC_ERROR (_F("probe point mismatch: didn't find any wildcard matches%s",
                                    sugs.empty() ? "" : (" (similar: " + sugs + ")").c_str()),
                                 loc->components[pos]->tok);
@@ -643,7 +643,7 @@ match_node::find_and_build (systemtap_session& s,
         {
           // We didn't find any alias suffixes (since the size of the
           // result vector didn't change).  Throw an error.
-          string sugs = suggest_functors(loc->components[pos]->functor);
+          string sugs = suggest_functors(s, loc->components[pos]->functor);
           throw SEMANTIC_ERROR (_F("probe point mismatch%s",
                                    sugs.empty() ? "" : (" (similar: " + sugs + ")").c_str()),
                                 loc->components[pos]->tok);
@@ -652,13 +652,20 @@ match_node::find_and_build (systemtap_session& s,
 }
 
 string
-match_node::suggest_functors(string functor)
+match_node::suggest_functors(systemtap_session& s, string functor)
 {
   // only use prefix if globby (and prefix is non-empty)
   size_t glob = functor.find('*');
   if (glob != string::npos && glob != 0)
     functor.erase(glob);
   if (functor.empty())
+    return "";
+
+  // PR18577: There isn't any point in generating a suggestion list if
+  // we're not going to display it.
+  if ((s.dump_mode == systemtap_session::dump_matched_probes
+       || s.dump_mode == systemtap_session::dump_matched_probes_vars)
+      && s.verbose < 2)
     return "";
 
   set<string> functors;
