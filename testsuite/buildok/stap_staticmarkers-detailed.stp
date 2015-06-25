@@ -1,0 +1,54 @@
+#! stap -p4
+
+probe stap.pass0, stap.pass0.end, stap.pass1a, stap.pass1b,
+	stap.pass1.end, stap.pass2, stap.pass2.end, stap.pass3,
+	stap.pass3.end, stap.pass4, stap.pass4.end, stap.pass5,
+	stap.pass5.end, stap.pass6, stap.pass6.end
+{
+	printf("%p\n", session)
+}
+
+probe stap.cache_clean
+{
+	printf("%s\n", path)
+}
+
+probe stap.cache_add_mod, stap.cache_add_src, stap.cache_add_nss ?
+{
+	printf("%s, %s\n", source_path, dest_path)
+}
+
+probe stap.cache_get
+{
+	printf("%s, %s\n", source_path, module_path)
+}
+
+probe stap.system
+{
+	printf("%s\n", command)
+}
+
+probe stap.system.spawn
+{
+	printf("%d, %d\n", ret, pid)
+}
+
+probe stap.system.return
+{
+	printf("%d\n", ret)
+}
+
+probe staprun.insert_module
+{
+	printf("%s\n", path)
+}
+
+probe staprun.remove_module
+{
+	printf("%s\n", name)
+}
+
+probe staprun.send_control_message
+{
+	printf("%d, %p, %d\n", type, data, len)
+}
