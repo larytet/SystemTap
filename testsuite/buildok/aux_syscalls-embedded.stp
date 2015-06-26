@@ -75,6 +75,8 @@ probe begin {
 	print (_ptrace_event_name(0))
 	print (_wait_status_str(0))
 
+	print (_seccomp_op_str(0))
+	print (_bpf_cmd_str(0))
 	print (_seccomp_flags_str(0))
 	print (_msg_flags_str(0))
 %(systemtap_v <= "2.5" %?

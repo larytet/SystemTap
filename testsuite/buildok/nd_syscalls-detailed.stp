@@ -99,6 +99,16 @@ probe nd_syscall.bind.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.bpf ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%s, %p, %u\n", cmd_str, attr_uaddr, size)
+}
+probe nd_syscall.bpf.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.brk
 {
 	printf("%s, %s\n", name, argstr)

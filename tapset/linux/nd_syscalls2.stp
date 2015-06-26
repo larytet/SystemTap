@@ -2288,10 +2288,14 @@ probe nd_syscall.seccomp = kprobe.function("sys_seccomp") ?
 	name = "seccomp"
 	asmlinkage()
 	op = uint_arg(1)
+	op_str = _seccomp_op_str(op)
 	flags = uint_arg(2)
-	flags_str = _seccomp_flags_str(uint_arg(2))
+	flags_str = _seccomp_flags_str(flags)
+%( systemtap_v <= "2.9" %?
 	uargs = user_string_quoted(pointer_arg(3))
-	argstr = sprintf("%u, %s, %s", uint_arg(1), flags_str, user_string_quoted(pointer_arg(3)))
+%)
+	uargs_uaddr = pointer_arg(3)
+	argstr = sprintf("%s, %s, %p", op_str, flags_str, uargs_uaddr)
 }
 probe nd_syscall.seccomp.return = kprobe.function("sys_seccomp").return ?
 {

@@ -664,7 +664,10 @@ probe syscall.sched_yield.return
 probe syscall.seccomp ?
 {
 	printf("%s %s\n", name, argstr)
-	printf("%d %d %s\n", op, flags, uargs)
+%( systemtap_v <= "2.9" %?
+	printf("%d %s %d %s %s %p\n", op, op_str, flags, flags_str, uargs, uargs_uaddr)
+%)
+	printf("%d %s %d %s %p\n", op, op_str, flags, flags_str, uargs_uaddr)
 }
 probe syscall.seccomp.return ?
 {

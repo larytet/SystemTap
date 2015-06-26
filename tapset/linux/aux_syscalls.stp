@@ -5913,3 +5913,49 @@ function _struct_sched_attr_u:string(uaddr:long)
 	}
 %}
 
+%{
+#ifdef CONFIG_SECCOMP
+#include <linux/seccomp.h>
+#endif
+
+static const _stp_val_array const _stp_seccomp_op_list[] = {
+#ifdef SECCOMP_SET_MODE_STRICT
+	V(SECCOMP_SET_MODE_STRICT),
+#endif
+#ifdef SECCOMP_SET_MODE_FILTER
+	V(SECCOMP_SET_MODE_FILTER),
+#endif
+	{0, NULL}
+};
+%}
+
+function _seccomp_op_str:string(op:long)
+%{
+	_stp_lookup_str(_stp_seccomp_op_list, (unsigned int)STAP_ARG_op,
+	                STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
+%{
+#ifdef CONFIG_BPF_SYSCALL
+#include <uapi/linux/bpf.h>
+#endif
+
+static const _stp_val_array const _stp_bpf_cmd_list[] = {
+#ifdef CONFIG_BPF_SYSCALL
+	V(BPF_MAP_CREATE),
+	V(BPF_MAP_LOOKUP_ELEM),
+	V(BPF_MAP_UPDATE_ELEM),
+	V(BPF_MAP_DELETE_ELEM),
+	V(BPF_MAP_GET_NEXT_KEY),
+	V(BPF_PROG_LOAD),
+#endif
+	{0, NULL}
+};
+%}
+
+function _bpf_cmd_str:string(cmd:long)
+%{
+	_stp_lookup_str(_stp_bpf_cmd_list, (int)STAP_ARG_cmd,
+	                STAP_RETVALUE, MAXSTRINGLEN);
+%}
+
