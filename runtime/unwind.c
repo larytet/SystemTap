@@ -1036,6 +1036,7 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 			if (b == 0)
 				goto divzero;
 			PUSH (a % b);
+			break;
 		}
 
 		case DW_OP_div: {
@@ -1044,12 +1045,14 @@ static int compute_expr(const u8 *expr, struct unwind_frame_info *frame,
 			if (b == 0)
 				goto divzero;
 			PUSH (a / b);
+			break;
 		}
 
 		case DW_OP_shr: {
 			unsigned long b = POP;
 			unsigned long a = POP;
 			PUSH (a >> b);
+			break;
 		}
 
 		case DW_OP_not:
