@@ -1,3 +1,5 @@
+#include <stdlib.h>
+
 static int
 func2 (int x, int y)
 {
