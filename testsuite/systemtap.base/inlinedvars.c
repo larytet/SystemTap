@@ -21,16 +21,16 @@ m(char *name, int i, long j)
 static inline int
 call(int pi, long pj)
 {
-  volatile ic = pi - 42;
-  volatile jc = pj + 42;
+  volatile int ic = pi - 42;
+  volatile long jc = pj + 42;
   return m("call", ic, jc);
 }
 
 static inline int
 call2(int pi2, long pj2)
 {
-  volatile ic2 = pi2 + 64;
-  volatile jc2 = pj2 - 64;
+  volatile int ic2 = pi2 + 64;
+  volatile long jc2 = pj2 - 64;
   return m("call2", ic2, jc2);
 }
 

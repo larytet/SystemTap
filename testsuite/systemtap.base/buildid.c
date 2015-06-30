@@ -1,3 +1,4 @@
+void foo ();
 #ifndef ONLY_MAIN
 void foo ()
 {

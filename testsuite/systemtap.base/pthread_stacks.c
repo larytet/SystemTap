@@ -1,9 +1,10 @@
+#define _GNU_SOURCE             /* For pthread_getattr_np */
 #include <pthread.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <assert.h>
 #include <errno.h>
-
+#include <stdlib.h>
 
 static pthread_once_t printed_p = PTHREAD_ONCE_INIT;
 void print_it () 

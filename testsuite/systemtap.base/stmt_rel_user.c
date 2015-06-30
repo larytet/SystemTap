@@ -22,7 +22,7 @@ Error (char *emsg)
 }
 
 static inline void  
-Makenull (s)
+Makenull (int s)
 {
   stack[s] = 0;
 }

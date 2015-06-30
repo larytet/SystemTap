@@ -1,3 +1,5 @@
+int bar (int i);
+
 int foo (int v)
 {
 	return bar (v - 1);
