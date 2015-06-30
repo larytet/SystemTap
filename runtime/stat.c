@@ -71,8 +71,10 @@ static Stat _stp_stat_init (int type, ...)
 			interval = va_arg(ap, int);
 
 			buckets = _stp_stat_calc_buckets(stop, start, interval);
-			if (!buckets)
+			if (!buckets) {
+				va_end (ap);
 				return NULL;
+			}
 		}
 		va_end (ap);
 	}

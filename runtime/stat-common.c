@@ -261,10 +261,10 @@ static void _stp_stat_print_histogram_buf(char *buf, size_t size, Hist st,
 				val_prefix = "<";
 			} else if (i == st->buckets-1) {
 				/* overflow */
-				val = st->start + (i - 2) * st->interval;
+				val = st->start + (int64_t)(i - 2) * st->interval;
 				val_prefix = ">";
 			} else
-				val = st->start + (i - 1) * st->interval;
+				val = st->start + (int64_t)(i - 1) * st->interval;
 		} else
 			val = _stp_bucket_to_val(i);
 
