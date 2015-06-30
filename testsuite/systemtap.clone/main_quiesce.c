@@ -1,5 +1,6 @@
 #include <pthread.h>
 #include <stdio.h>
+#include <unistd.h>
 
 void spool_write_script(int jobid) __attribute__ ((noinline));
 
