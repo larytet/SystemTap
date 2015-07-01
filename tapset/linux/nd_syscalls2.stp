@@ -584,7 +584,11 @@ probe nd_syscall.prctl.return = kprobe.function("sys_prctl").return ?
 #		 char __user *buf,
 #		 size_t count,
 #		 loff_t pos)
+# asmlinkage long sys32_pread64(unsigned int fd, char __user *ubuf,
+#                                size_t count, u32 poshi, u32 poslo)
 #
+# Note we need to probe s390's sys32_pread64 since it isn't a simple
+# wrapper.
 probe nd_syscall.pread =
 %( arch == "s390" %?
 	__nd_syscall.pread, __nd_syscall.compat_pread ?
@@ -4551,25 +4555,8 @@ probe nd_syscall.sync_file_range = kprobe.function("sys_sync_file_range") ?
 	name = "sync_file_range"
 	fd = int_arg(1)
 %( CONFIG_64BIT == "y" %?
-%( arch == "s390" %?
-	# On s390x RHEL7 (3.10.0-229.el7.s390x), when longlong_arg()
-	# gets called On a 32-bit executable it tries to grab the
-	# 64-bit value out of 2 different registers. However, at this
-	# point the value has been put into a single
-	# register. Normally we'd fix this by probing the the compat
-	# function. But, on this kernel the compat function is in
-	# assembly language, which we can't probe. So, we'll grab the
-	# registers directly.
-	if (%{ /* pure */ _stp_is_compat_task() %}) {
-		offset = u_register("r3")
-		nbytes = u_register("r4")
-	}
-	else
-%)
-	{
-		offset = longlong_arg(2)
-		nbytes = longlong_arg(3)
-	}
+	offset = longlong_arg(2)
+	nbytes = longlong_arg(3)
 	flags = uint_arg(4)
 %:
 %( arch == "arm" %?

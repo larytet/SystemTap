@@ -1,11 +1,16 @@
 /* COVERAGE: pread pread64 */
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
+#define _LARGEFILE64_SOURCE
+#define _ISOC99_SOURCE		   /* Needed for LLONG_MAX on RHEL5 */
+#define _FILE_OFFSET_BITS 64
+#define _XOPEN_SOURCE 500
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <limits.h>
 #include <linux/unistd.h>
 #include <sys/uio.h>
 #include <sys/syscall.h>
@@ -54,6 +59,12 @@ int main()
 
   pread(fd, buf, 11, -1);
   //staptest// pread (NNNN, XXXX, 11, -1) = NNNN
+
+  pread(fd, buf, 11, 0x12345678deadbeefLL);
+  //staptest// pread (NNNN, XXXX, 11, 1311768468603649775) = NNNN
+
+  pread(fd, buf, 11, LLONG_MAX);
+  //staptest// pread (NNNN, XXXX, 11, 9223372036854775807) = NNNN
 
   close (fd);
   //staptest// close (NNNN) = 0
