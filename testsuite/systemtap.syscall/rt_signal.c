@@ -141,22 +141,22 @@ int main()
   siginfo.si_uid = getuid();
   siginfo.si_value.sival_int = 1;
   __rt_tgsigqueueinfo(getpid(), getpid(), SIGUSR1, &siginfo);
-  //staptest// rt_tgsigqueueinfo (NNNN, NNNN, SIGUSR1, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN}) = NNNN
+  //staptest// [[[[rt_tgsigqueueinfo (NNNN, NNNN, SIGUSR1, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN})!!!!ni_syscall ()]]]] = NNNN
 
   __rt_tgsigqueueinfo(-1, getpid(), SIGUSR1, &siginfo);
-  //staptest// rt_tgsigqueueinfo (-1, NNNN, SIGUSR1, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN}) = NNNN
+  //staptest// [[[[rt_tgsigqueueinfo (-1, NNNN, SIGUSR1, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN})!!!!ni_syscall ()]]]] = NNNN
 
   __rt_tgsigqueueinfo(getpid(), -1, SIGUSR1, &siginfo);
-  //staptest// rt_tgsigqueueinfo (NNNN, -1, SIGUSR1, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN}) = NNNN
+  //staptest// [[[[rt_tgsigqueueinfo (NNNN, -1, SIGUSR1, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN})!!!!ni_syscall ()]]]] = NNNN
 
   __rt_tgsigqueueinfo(getpid(), getpid(), -1, &siginfo);
-  //staptest// rt_tgsigqueueinfo (NNNN, NNNN, 0x[f]+, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN}) = NNNN
+  //staptest// [[[[rt_tgsigqueueinfo (NNNN, NNNN, 0x[f]+, {si_signo=SIGUSR1, si_code=SI_USER, si_pid=NNNN, si_uid=NNNN})!!!!ni_syscall ()]]]] = NNNN
 
   __rt_tgsigqueueinfo(getpid(), getpid(), SIGUSR1, (siginfo_t *)-1);
 #ifdef __s390__
-  //staptest// rt_tgsigqueueinfo (NNNN, NNNN, SIGUSR1, 0x[7]?[f]+) = NNNN
+  //staptest// [[[[rt_tgsigqueueinfo (NNNN, NNNN, SIGUSR1, 0x[7]?[f]+)!!!!ni_syscall ()]]]] = NNNN
 #else
-  //staptest// rt_tgsigqueueinfo (NNNN, NNNN, SIGUSR1, 0x[f]+) = NNNN
+  //staptest// [[[[rt_tgsigqueueinfo (NNNN, NNNN, SIGUSR1, 0x[f]+)!!!!ni_syscall ()]]]] = NNNN
 #endif
 #endif
 

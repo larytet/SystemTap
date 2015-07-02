@@ -22,7 +22,14 @@ static inline int __fallocate(int fd, int mode, off64_t offset, off64_t len)
     return fallocate(fd, mode, offset, len);
 #endif
 #else
+#if defined(__powerpc__) && !defined(__powerpc64__)
+    /* ppc (not ppc64) has the 64-bit arguments broken up. */
+    return syscall(__NR_fallocate, fd, mode,
+		   (unsigned int)(offset >> 32), (unsigned int)offset,
+		   (unsigned int)(len >> 32), (unsigned int)len);
+#else
     return syscall(__NR_fallocate, fd, mode, offset, len);
+#endif
 #endif
 }
 #endif

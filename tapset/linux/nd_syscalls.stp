@@ -2001,10 +2001,7 @@ probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
 			       %{ __NR_compat_ftruncate %})
 	asmlinkage()
-	if (@__compat_task)
-		length = int_arg(2)
-	else
-		length = long_arg(2)
+	length = long_arg(2)
 }
 probe __nd_syscall.compat_ftruncate =
 	kprobe.function("compat_sys_ftruncate").call
@@ -3311,17 +3308,10 @@ probe nd_syscall.keyctl = kprobe.function("compat_sys_keyctl") ?,
 	name = "keyctl"
 	asmlinkage()
 	option = int_arg(1)
-	if (@__compat_task) {
-		arg2 = uint_arg(2)
-		arg3 = uint_arg(3)
-		arg4 = uint_arg(4)
-		arg5 = uint_arg(5)
-	} else {
-		arg2 = ulong_arg(2)
-		arg3 = ulong_arg(3)
-		arg4 = ulong_arg(4)
-		arg5 = ulong_arg(5)
-	}
+	arg2 = ulong_arg(2)
+	arg3 = ulong_arg(3)
+	arg4 = ulong_arg(4)
+	arg5 = ulong_arg(5)
 	@__keyctl_argstr(option, arg2, arg3, arg4, arg5)
 
 }

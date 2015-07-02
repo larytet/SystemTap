@@ -27,17 +27,19 @@ probe nd_syscall.arch_prctl.return = kprobe.function("sys_arch_prctl").return
 /*
  * asmlinkage int
  * sys_get_thread_area(struct user_desc __user *u_info)
+ * asmlinkage long sys32_get_thread_area(struct user_desc __user *u_info)
  */
-probe nd_syscall.get_thread_area = kprobe.function("sys_get_thread_area") ?
+probe nd_syscall.get_thread_area = kprobe.function("sys_get_thread_area") ?,
+	kprobe.function("sys32_get_thread_area") ?
 {
 	name = "get_thread_area"
-	// u_info_uaddr = $u_info
 	asmlinkage()
 	u_info_uaddr = pointer_arg(1)
 	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
 }
 probe nd_syscall.get_thread_area.return =
-	kprobe.function("sys_get_thread_area").return ?
+	kprobe.function("sys_get_thread_area").return ?,
+	kprobe.function("sys32_get_thread_area").return ?
 {
 	name = "get_thread_area"
 	retstr = returnstr(1)
@@ -66,17 +68,19 @@ probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
 /*
  * asmlinkage int
  * sys_set_thread_area(struct user_desc __user *u_info)
+ * asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
  */
-probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area") ?
+probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area") ?,
+	kprobe.function("sys32_set_thread_area") ?
 {
 	name = "set_thread_area"
-	// u_info_uaddr = $u_info
 	asmlinkage()
 	u_info_uaddr = pointer_arg(1)
 	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
 }
 probe nd_syscall.set_thread_area.return =
-	kprobe.function("sys_set_thread_area").return ?
+	kprobe.function("sys_set_thread_area").return ?,
+	kprobe.function("sys32_set_thread_area").return ?
 {
 	name = "set_thread_area"
 	retstr = returnstr(1)

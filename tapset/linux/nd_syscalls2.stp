@@ -984,7 +984,8 @@ probe nd_syscall.quotactl = __nd_syscall.quotactl ?,
 }
 probe __nd_syscall.quotactl = kprobe.function("sys_quotactl") ?
 {
-%( arch != "powerpc" && arch != "s390" %?
+# sys32_quotactl() was introduced in 2.6.23.
+%( arch != "powerpc" && arch != "s390" && kernel_v >= "2.6.23" %?
 	@__syscall_gate_compat_simple
 %)
 }
@@ -996,7 +997,7 @@ probe nd_syscall.quotactl.return = __nd_syscall.quotactl.return ?,
 }
 probe __nd_syscall.quotactl.return = kprobe.function("sys_quotactl").return ?
 {
-%( arch != "powerpc" && arch != "s390" %?
+%( arch != "powerpc" && arch != "s390" && kernel_v >= "2.6.23" %?
 	@__syscall_gate_compat_simple
 %)
 }
@@ -5097,10 +5098,7 @@ probe __nd_syscall.truncate = kprobe.function("sys_truncate") ?
 	@__syscall_compat_gate(%{ __NR_truncate %}, 
 			       %{ __NR_compat_truncate %})
 	asmlinkage()
-	if (@__compat_task)
-		length = int_arg(2)
-	else
-		length = long_arg(2)
+	length = long_arg(2)
 }
 probe __nd_syscall.truncate64 = kprobe.function("sys_truncate64") ?
 {

@@ -23,15 +23,18 @@ probe syscall.arch_prctl.return = kernel.function("sys_arch_prctl").return
 /*
  * asmlinkage int
  * sys_get_thread_area(struct user_desc __user *u_info)
+ * asmlinkage long sys32_get_thread_area(struct user_desc __user *u_info)
  */
-probe syscall.get_thread_area = kernel.function("sys_get_thread_area") ?
+probe syscall.get_thread_area = kernel.function("sys_get_thread_area") ?,
+	kernel.function("sys32_get_thread_area") ?
 {
 	name = "get_thread_area"
 	u_info_uaddr = $u_info
 	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
 }
 probe syscall.get_thread_area.return =
-	kernel.function("sys_get_thread_area").return ?
+	kernel.function("sys_get_thread_area").return ?,
+	kernel.function("sys32_get_thread_area").return ?
 {
 	name = "get_thread_area"
 	retstr = return_str(1, $return)
@@ -58,15 +61,18 @@ probe syscall.iopl.return = kernel.function("sys_iopl").return
 /*
  * asmlinkage int
  * sys_set_thread_area(struct user_desc __user *u_info)
+ * asmlinkage long sys32_set_thread_area(struct user_desc __user *u_info)
  */
-probe syscall.set_thread_area = kernel.function("sys_set_thread_area") ?
+probe syscall.set_thread_area = kernel.function("sys_set_thread_area") ?,
+	kernel.function("sys32_set_thread_area") ?
 {
 	name = "set_thread_area"
 	u_info_uaddr = $u_info
 	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
 }
 probe syscall.set_thread_area.return =
-	kernel.function("sys_set_thread_area").return ?
+	kernel.function("sys_set_thread_area").return ?,
+	kernel.function("sys32_set_thread_area").return ?
 {
 	name = "set_thread_area"
 	retstr = return_str(1, $return)
