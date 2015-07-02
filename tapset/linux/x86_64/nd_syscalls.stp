@@ -101,8 +101,7 @@ probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack"),
 	regs = pointer_arg(3)
 %)
 	argstr = sprintf("%s, %p",
-			 (%{ /* pure */ _stp_is_compat_task() %}
-			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			 (@__compat_task ? _stp_compat_sigaltstack_u(uss_uaddr)
 			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
 probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return,

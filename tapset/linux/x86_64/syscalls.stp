@@ -97,7 +97,7 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack").call,
 	regs = $regs
 %)
 	argstr = sprintf("%s, %p",
-			 (%{ /* pure */ _stp_is_compat_task() %}
+			 (@__compat_task
 			  ? _stp_compat_sigaltstack_u(uss_uaddr)
 			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }

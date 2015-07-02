@@ -117,7 +117,7 @@ function _arch_ptrace_argstr(request, pid, addr, data)
 	    || request == %{ /* pure */ PTRACE_POKEDATA_AREA %})
 		return sprintf("%s, %d, %s, %#x",
 			       __arch_ptrace_request_str(request), pid,
-			       (%{ /* pure */ _stp_is_compat_task() %}
+			       (@__compat_task
 			        ? _stp_compat_ptrace_area_u(addr)
 			        : _stp_ptrace_area_u(addr)), data)
 	if (request == %{ /* pure */ PTRACE_GET_LAST_BREAK %}

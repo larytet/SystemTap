@@ -3812,7 +3812,7 @@ function _ptrace_argstr(request, pid, addr, data)
 		return sprintf("%s, %d, %s, %s",
 			       __ptrace_request_str(request), pid,
 			       _stp_elf_notes_str(addr),
-			       (%{ /* pure */ _stp_is_compat_task() %}
+			       (@__compat_task
 			        ? _stp_struct_compat_iovec_u(data)
 				: _stp_struct_iovec_u(data)))
 	if (request == %{ /* pure */ PTRACE_TRACEME %}
