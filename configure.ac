@@ -35,7 +35,7 @@ AC_SYS_LARGEFILE
 AC_CHECK_FUNCS(ppoll)
 AC_CHECK_FUNCS(openat)
 AM_GNU_GETTEXT(external)
-AM_GNU_GETTEXT_VERSION([0.18.2])
+AM_GNU_GETTEXT_VERSION([0.19.4])
 
 if test "x$GMSGFMT" = "x:"; then
    AC_MSG_ERROR([missing gnu /usr/bin/msgfmt])
