@@ -7,7 +7,7 @@ exec touch trace1
 spawn stap $srcdir/$subdir/$test.stp
 set ok 0
 expect {
-	-timeout 60
+	-timeout 120
 	-re {^hi\r\n} { incr ok; exp_continue }
 	timeout { fail "$test (timeout)" }
 	eof { }
