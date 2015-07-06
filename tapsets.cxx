@@ -415,7 +415,7 @@ symbol_table
   // Set to SHN_UNDEF if there is no such section.
   GElf_Word opd_section;
   void add_symbol(const char *name, bool weak, bool descriptor,
-                  Dwarf_Addr addr, Dwarf_Addr *high_addr);
+                  Dwarf_Addr addr, Dwarf_Addr entrypc);
   enum info_status get_from_elf();
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
@@ -1068,19 +1068,19 @@ query_symtab_func_info (func_info & fi, dwarf_query * q)
 {
   assert(null_die(&fi.die));
 
-  Dwarf_Addr addr = fi.addr;
+  Dwarf_Addr entrypc = fi.entrypc;
 
   // Now compensate for the dw bias because the addresses come
-  // from dwfl_module_symtab, so fi->addr is NOT a normal dw address.
+  // from dwfl_module_symtab, so fi->entrypc is NOT a normal dw address.
   q->dw.get_module_dwarf(false, false);
-  addr -= q->dw.module_bias;
+  entrypc -= q->dw.module_bias;
 
   // If there are already probes in this module, lets not duplicate.
   // This can come from other weak symbols/aliases or existing
-  // matches from Dwarf DIE functions.  Try to add this addr to the
+  // matches from Dwarf DIE functions.  Try to add this entrypc to the
   // collection, and only continue if it was new.
-  if (q->alias_dupes.insert(addr).second)
-    query_func_info(addr, fi, q);
+  if (q->alias_dupes.insert(entrypc).second)
+    query_func_info(entrypc, fi, q);
 }
 
 void
@@ -2059,7 +2059,7 @@ query_dwarf_inline_instance (Dwarf_Die * die, dwarf_query * q)
 }
 
 static bool
-is_filtered_func_exists (func_info_map_t filtered, func_info *fi)
+is_filtered_func_exists (func_info_map_t const& filtered, func_info *fi)
 {
   for (unsigned i = 0; i < filtered.size(); i++)
     {
@@ -2135,16 +2135,22 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
           if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
               && (q->dw.mod_info->sym_table))
             {
-              set<func_info *> fis = q->dw.mod_info->sym_table->lookup_symbol(func.name);
+              /* The linkage name is the best match for the symbol table. */
+              const string& linkage_name = dwarf_linkage_name(&func.die)
+                ?: dwarf_diename(&func.die) ?: func.name;
+
+              set<func_info *> fis = q->dw.mod_info->sym_table->lookup_symbol(linkage_name);
               for (set<func_info*>::iterator it=fis.begin(); it!=fis.end() ; ++it)
                 {
-                  func.entrypc = (*it)->addr;
+                  func.entrypc = (*it)->entrypc;
                   if (is_filtered_func_exists(q->filtered_functions, &func))
                     continue;
                   q->filtered_functions.push_back(func);
                 }
             }
-          else if (!func.entrypc && q->dw.function_entrypc (&entrypc))
+
+          /* If not ppc64 or not found in sym_table, try it directly. */
+          if (!func.entrypc && q->dw.function_entrypc (&entrypc))
             {
               func.entrypc = entrypc;
               q->filtered_functions.push_back (func);
@@ -8201,7 +8207,7 @@ symbol_table::~symbol_table()
 
 void
 symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
-                         Dwarf_Addr addr, Dwarf_Addr* /*high_addr*/)
+                         Dwarf_Addr addr, Dwarf_Addr entrypc)
 {
   /* Does the target architecture have function descriptors?
      Then we want to filter them out. When seeing a symbol with a name
@@ -8224,6 +8230,7 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
     }
 
   func_info *fi = new func_info();
+  fi->entrypc = entrypc;
   fi->addr = addr;
   fi->name = name;
   fi->weak = weak;
@@ -8288,7 +8295,6 @@ symbol_table::reject_section(GElf_Word section)
 enum info_status
 symbol_table::get_from_elf()
 {
-  Dwarf_Addr high_addr = 0;
   Dwfl_Module *mod = mod_info->mod;
   int syments = dwfl_module_getsymtab(mod);
   assert(syments);
@@ -8336,13 +8342,14 @@ symbol_table::get_from_elf()
       *
       * st_other field is currently only used with ABIv2 on ppc64
       */
+      Dwarf_Addr entrypc = addr;
       if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
           && (GELF_ST_TYPE(sym.st_info) == STT_FUNC) && sym.st_other)
-        addr += PPC64_LOCAL_ENTRY_OFFSET(sym.st_other);
+        entrypc += PPC64_LOCAL_ENTRY_OFFSET(sym.st_other);
 
       if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
-                   reject, addr, &high_addr);
+                   reject, addr, entrypc);
       if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
                && GELF_ST_BIND(sym.st_info) == STB_GLOBAL)
         globals[name] = addr;
@@ -8486,12 +8493,13 @@ module_info::update_symtab(cu_function_cache_t *funcs)
           continue;
         }
 
-      // XXX We may want to make additional efforts to match mangled elf names
-      // to dwarf too.  MIPS_linkage_name can help, but that's sometimes
+      // We need to make additional efforts to match mangled elf names to dwarf
+      // too.  DW_AT_linkage_name (or w/ MIPS) can help, but that's sometimes
       // missing, so we may also need to try matching by address.  See also the
       // notes about _Z in dwflpp::iterate_over_functions().
+      const string& name = dwarf_linkage_name(&func->second) ?: func->first;
 
-      set<func_info*> fis = sym_table->lookup_symbol(func->first);
+      set<func_info*> fis = sym_table->lookup_symbol(name);
       if (fis.empty())
         continue;
 
