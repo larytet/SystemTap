@@ -1177,7 +1177,6 @@ c_unparser::emit_common_header ()
       o->newline(-1)  << "}";
 
       o->newline( 0)  << "#ifdef STP_ON_THE_FLY_TIMER_ENABLE";
-      o->newline( 0)  << "#include <linux/hrtimer.h>";
       o->newline( 0)  << "#include \"timer.h\"";
       o->newline( 0)  << "static struct hrtimer module_refresh_timer;";
 

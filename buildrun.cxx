@@ -310,6 +310,7 @@ compile_pass (systemtap_session& s)
   o << "$(STAPCONF_HEADER):" << endl;
   o << "\t@echo -n > $@" << endl;
   output_autoconf(s, o, "autoconf-hrtimer-rel.c", "STAPCONF_HRTIMER_REL", NULL);
+  output_exportconf(s, o, "hrtimer_get_res", "STAPCONF_HRTIMER_GET_RES");
   output_autoconf(s, o, "autoconf-generated-compile.c", "STAPCONF_GENERATED_COMPILE", NULL);
   output_autoconf(s, o, "autoconf-hrtimer-getset-expires.c", "STAPCONF_HRTIMER_GETSET_EXPIRES", NULL);
   output_autoconf(s, o, "autoconf-inode-private.c", "STAPCONF_INODE_PRIVATE", NULL);

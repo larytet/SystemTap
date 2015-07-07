@@ -15,6 +15,7 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17)
 #error "hrtimers not implemented"
 #else /* kernel version >= 2.6.17 */
+#include <linux/hrtimer.h>
 
 static unsigned long stap_hrtimer_resolution = 0;
 

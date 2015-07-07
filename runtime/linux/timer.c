@@ -15,9 +15,13 @@
 
 static void _stp_hrtimer_init(void)
 {
+#if defined(STAPCONF_HRTIMER_GET_RES)
 	struct timespec res;
 	hrtimer_get_res (CLOCK_MONOTONIC, &res);
 	stap_hrtimer_resolution = timespec_to_ns(&res);
+#else
+	stap_hrtimer_resolution = hrtimer_resolution;
+#endif
 }
 
 
