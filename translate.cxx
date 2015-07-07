@@ -7944,6 +7944,9 @@ translate_pass (systemtap_session& s)
       // Emit systemtap_module_refresh() prototype so we can reference it
       s.op->newline() << "static void systemtap_module_refresh (const char* modname);";
 
+      // Be sure to include runtime.h before any real code.
+      s.op->newline() << "#include \"runtime.h\"";
+
       if (!s.runtime_usermode_p())
         {
           // When on-the-fly [dis]arming is used, module_refresh can be called from
@@ -7961,8 +7964,6 @@ translate_pass (systemtap_session& s)
           s.op->newline() << "#define STP_ON_THE_FLY_TIMER_ENABLE";
           s.op->newline() << "#endif";
         }
-
-      s.op->newline() << "#include \"runtime.h\"";
 
       // Emit embeds ahead of time, in case they affect context layout
       for (unsigned i=0; i<s.embeds.size(); i++)
