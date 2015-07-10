@@ -76,6 +76,13 @@ function _stp_probing_kernel:long () {
 /*
  * esp and ss aren't saved on a breakpoint in kernel mode, so
  * the pre-trap stack pointer is &regs->sp.
+ * 
+ * Note that the idea of i386 trap regs is that pt_regs is the very
+ * first thing saved on the stack. Neither sp nor ss are saved, but
+ * pt_regs is aligned on the stack such that the place where sp would
+ * be saved happens to be the top where the sp was when the trap
+ * started. So &regs->sp is that original sp value. See
+ * arch/x86/entry/entry_32.S in the kernel source for more details.
  */
 function _stp_kernel_sp:long (sp_offset:long) %{ /* pure */
 	STAP_RETVALUE = ((long) CONTEXT->kregs) + STAP_ARG_sp_offset;
