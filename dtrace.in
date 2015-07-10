@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/@python@
 # vim: et sta sts=4 sw=4 ts=8
 
 # This handles the systemtap equivalent of

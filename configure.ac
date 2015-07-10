@@ -395,6 +395,13 @@ if test "$with_rpm" != "no"; then
 fi
 
 
+dnl Allow user to choose python3 for /usr/bin/dtrace
+AC_ARG_WITH([python3],
+  AS_HELP_STRING([--with-python3],[prefer /usr/bin/python3]))
+AS_IF([test "x$with_python3" = "xyes"],
+      [AC_SUBST(python,[python3])],
+      [AC_SUBST(python,[python])])
+      
 dnl Handle elfutils.  If '--with-elfutils=DIR' wasn't specified, used
 dnl the system's elfutils.
 build_elfutils=no

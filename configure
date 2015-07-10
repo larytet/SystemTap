@@ -663,6 +663,7 @@ stap_LIBS
 elfutils_abs_srcdir
 BUILD_ELFUTILS_FALSE
 BUILD_ELFUTILS_TRUE
+python
 HAVE_AVAHI_FALSE
 HAVE_AVAHI_TRUE
 avahi_LIBS
@@ -856,6 +857,7 @@ with_dracutstap
 enable_server
 with_avahi
 with_rpm
+with_python3
 with_elfutils
 with_dyninst
 enable_virt
@@ -1552,6 +1554,7 @@ Optional Packages:
   --with-dracutstap=DIR   Install dracut module files in DIR
   --without-avahi         Do not use Avahi even if present
   --with-rpm              query rpm database for missing debuginfos
+  --with-python3          prefer /usr/bin/python3
   --with-elfutils=DIRECTORY
                           find elfutils source code in DIRECTORY
   --with-dyninst=DIRECTORY
@@ -10434,6 +10437,20 @@ $as_echo "$as_me: WARNING: cannot find librpmio" >&2;}
   fi
 fi
 
+
+
+# Check whether --with-python3 was given.
+if test "${with_python3+set}" = set; then :
+  withval=$with_python3;
+fi
+
+if test "x$with_python3" = "xyes"; then :
+  python=python3
+
+else
+  python=python
+
+fi
 
 build_elfutils=no
 

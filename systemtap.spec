@@ -30,6 +30,7 @@
 %{!?with_openssl: %global with_openssl 0}
 %endif
 %{!?with_pyparsing: %global with_pyparsing 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
+%{!?with_python3: %global with_python3 0%{?fedora} >= 23}
 
 %ifarch ppc64le aarch64
 %global with_virthost 0
@@ -260,7 +261,11 @@ Group: Development/System
 License: GPLv2+ and Public Domain
 URL: http://sourceware.org/systemtap/
 %if %{with_pyparsing}
+%if %{with_python3}
+Requires: python3-pyparsing
+%else
 Requires: pyparsing
+%endif
 %endif
 
 %description sdt-devel
@@ -458,7 +463,13 @@ cd ..
 %global dracut_config
 %endif
 
-%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
+%if %{with_python3}
+%global python3_config --with-python3
+%else
+%global python3_config --without-python3
+%endif
+
+%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} %{python3_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
 
 %if %{with_emacsvim}
