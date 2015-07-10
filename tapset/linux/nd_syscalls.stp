@@ -1989,26 +1989,20 @@ probe nd_syscall.fsync.return = kprobe.function("sys_fsync").return ?
 # COMPAT_SYSCALL_DEFINE2(ftruncate, unsigned int, fd, compat_ulong_t, length)
 #
 probe nd_syscall.ftruncate = __nd_syscall.ftruncate,
-			     __nd_syscall.compat_ftruncate ?
+	kprobe.function("compat_sys_ftruncate").call?
 {
 	name = "ftruncate"
 	asmlinkage()
 	fd = int_arg(1)
+	length = long_arg(2)
 	argstr = sprintf("%d, %d", fd, length)
 }
 probe __nd_syscall.ftruncate = kprobe.function("sys_ftruncate").call
 {
-	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
-			       %{ __NR_compat_ftruncate %})
-	asmlinkage()
-	length = long_arg(2)
+	@__syscall_compat_gate(%{ __NR_ftruncate %},
+	                       %{ __NR_compat_ftruncate %})
 }
-probe __nd_syscall.compat_ftruncate =
-	kprobe.function("compat_sys_ftruncate").call
-{
-	asmlinkage()
-	length = int_arg(2)
-}
+
 probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 	kprobe.function("compat_sys_ftruncate").return ?
 {
@@ -2017,8 +2011,8 @@ probe nd_syscall.ftruncate.return = __nd_syscall.ftruncate.return,
 }
 probe __nd_syscall.ftruncate.return = kprobe.function("sys_ftruncate").return
 {
-	@__syscall_compat_gate(%{ __NR_ftruncate %}, 
-			       %{ __NR_compat_ftruncate %})
+	@__syscall_compat_gate(%{ __NR_ftruncate %},
+	                       %{ __NR_compat_ftruncate %})
 }
 
 # ftruncate64 ________________________________________________
@@ -3060,33 +3054,25 @@ probe nd_syscall.io_destroy.return = kprobe.function("sys_io_destroy").return ?
 #		 struct io_event __user *events,
 #		 struct compat_timespec __user *timeout)
 #
-probe nd_syscall.io_getevents = __nd_syscall.io_getevents,
-	__nd_syscall.compat_io_getevents ?
+probe nd_syscall.io_getevents = __nd_syscall.io_getevents ?,
+	kprobe.function("compat_sys_io_getevents") ?
 {
 	name = "io_getevents"
 	asmlinkage()
 	ctx_id = ulong_arg(1)
-	events_uaddr = pointer_arg(4)
-	argstr = sprintf("%u, %d, %d, %p, %s", ctx_id, min_nr,
-		nr, events_uaddr, timestr)
-}
-probe __nd_syscall.io_getevents = kprobe.function("sys_io_getevents") ?
-{
-	@__syscall_gate(%{ __NR_io_getevents %})
-	asmlinkage()
-	nr = long_arg(3)
 	min_nr = long_arg(2)
+	nr = long_arg(3)
+	events_uaddr = pointer_arg(4)
 	timeout_uaddr = pointer_arg(5)
-	timestr = _struct_timespec_u(timeout_uaddr, 1)
+        timestr = (@__compat_task
+	           ? _struct_compat_timespec_u(timeout_uaddr, 1)
+	           : _struct_timespec_u(timeout_uaddr, 1))
+	argstr = sprintf("%u, %d, %d, %p, %s", ctx_id, min_nr,
+	                 nr, events_uaddr, timestr)
 }
-probe __nd_syscall.compat_io_getevents =
-	kprobe.function("compat_sys_io_getevents") ?
+probe __nd_syscall.io_getevents = kprobe.function("sys_io_getevents")
 {
-	asmlinkage()
-	nr = int_arg(3)
-	min_nr = int_arg(2)
-	timeout_uaddr = pointer_arg(5)
-	timestr = _struct_compat_timespec_u(timeout_uaddr, 1)
+	@__syscall_gate_compat_simple
 }
 probe nd_syscall.io_getevents.return = __nd_syscall.io_getevents.return,
 	kprobe.function("compat_sys_io_getevents").return ?
@@ -3097,7 +3083,7 @@ probe nd_syscall.io_getevents.return = __nd_syscall.io_getevents.return,
 probe __nd_syscall.io_getevents.return =
 	kprobe.function("sys_io_getevents").return ?
 {
-	@__syscall_gate(%{ __NR_io_getevents %})
+	@__syscall_gate_compat_simple
 }
 
 # ioperm _____________________________________________________
@@ -3635,24 +3621,16 @@ probe nd_syscall.lremovexattr.return = kprobe.function("sys_lremovexattr").retur
 # COMPAT_SYSCALL_DEFINE3(lseek, unsigned int, fd, compat_off_t, offset,
 #			 unsigned int, whence)
 #
-probe nd_syscall.lseek = __nd_syscall.lseek, __nd_syscall.compat_lseek ?
+probe nd_syscall.lseek = kprobe.function("sys_lseek"),
+                         kprobe.function("compat_sys_lseek") ?
 {
 	name = "lseek"
 	asmlinkage()
 	fildes = int_arg(1)
+	offset = long_arg(2)
 	whence = uint_arg(3)
 	whence_str = _seek_whence_str(whence)
 	argstr = sprintf("%d, %d, %s", fildes, offset, whence_str)
-}
-probe __nd_syscall.lseek = kprobe.function("sys_lseek")
-{
-	asmlinkage()
-	offset = long_arg(2)
-}
-probe __nd_syscall.compat_lseek = kprobe.function("compat_sys_lseek")
-{
-	asmlinkage()
-	offset = s32_arg(2)
 }
 probe nd_syscall.lseek.return = kprobe.function("sys_lseek").return,
 				kprobe.function("compat_sys_lseek").return ?
