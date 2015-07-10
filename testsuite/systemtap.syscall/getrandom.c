@@ -22,20 +22,20 @@ int main()
   char k[5] = {0};
 
   syscall(__NR_getrandom, i, sizeof(i), GRND_RANDOM);
-  //staptest// getrandom ("", 5, GRND_RANDOM) = 5
+  //staptest// [[[[getrandom ("", 5, GRND_RANDOM) = 5!!!!ni_syscall () = NNNN]]]]
 
   syscall(__NR_getrandom, (size_t)-1, 5, GRND_RANDOM);
 #if __WORDSIZE == 64
-  //staptest// getrandom ([16]?[f]+, 5, GRND_RANDOM) = -NNNN (EFAULT)
+  //staptest// [[[[getrandom ([16]?[f]+, 5, GRND_RANDOM)!!!!ni_syscall ()]]]] = -NNNN
 #else
-  //staptest// getrandom ([8]?[f]+, 5, GRND_RANDOM) = -NNNN (EFAULT)
+  //staptest// [[[[getrandom ([8]?[f]+, 5, GRND_RANDOM)!!!!ni_syscall ()]]]] = -NNNN
 #endif
 
   syscall(__NR_getrandom, j, -1, GRND_RANDOM);
-  //staptest// getrandom ("", 4294967295, GRND_RANDOM) = NNNN
+  //staptest// [[[[getrandom ("", 4294967295, GRND_RANDOM)!!!!ni_syscall ()]]]] = NNNN
 
   syscall(__NR_getrandom, k, sizeof(k), -1);
-  //staptest// getrandom ("", 5, GRND_[^ ]+|XXXX) = -NNNN (EINVAL)
+  //staptest// [[[[getrandom ("", 5, GRND_[^ ]+|XXXX)!!!!ni_syscall ()]]]] = -NNNN
 #endif
   return 0;
 }

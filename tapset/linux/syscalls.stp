@@ -98,10 +98,9 @@ probe syscall.accept4 = __syscall.accept4 ?, __syscall.socketcall.accept4 ?,
 }
 probe __syscall.accept4 = kernel.function("sys_accept4").call
 {
-	// Why isn't the compat syscall number '__NR_compat_accept4'?
 	// On all tested platforms, there wasn't a different syscall
-	// number for accept4().
-	@__syscall_compat_gate(%{ __NR_accept4 %}, %{ __NR_accept4 %})
+	// number for the compat version of accept4().
+	@__syscall_nr_gate(%{ __NR_accept4 %})
 	sockfd = __int32($fd)
 	addr_uaddr = $upeer_sockaddr
 	addrlen_uaddr = $upeer_addrlen
@@ -132,7 +131,7 @@ probe syscall.accept4.return = __syscall.accept4.return ?,
 }
 probe __syscall.accept4.return = kernel.function("sys_accept4").return ?
 {
-	@__syscall_compat_gate(%{ __NR_accept4 %}, %{ __NR_accept4 %})
+	@__syscall_nr_gate(%{ __NR_accept4 %})
 }
 probe __syscall.socketcall.accept4.return =
 	kernel.function("sys_socketcall").return ?,

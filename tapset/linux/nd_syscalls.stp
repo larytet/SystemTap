@@ -114,11 +114,10 @@ probe nd_syscall.accept4 = __nd_syscall.accept4 ?,
 }
 probe __nd_syscall.accept4 = kprobe.function("sys_accept4").call
 {
-	// Why isn't the compat syscall number '__NR_compat_accept4'?
-	// On all tested platforms, there wasn't a different syscall
-	// number for accept4().
 	asmlinkage()
-	@__syscall_compat_gate(%{ __NR_accept4 %}, %{ __NR_accept4 %})
+	// On all tested platforms, there wasn't a different syscall
+	// number for the compat version of accept4().
+	@__syscall_nr_gate(%{ __NR_accept4 %})
 	sockfd = int_arg(1)
 	addr_uaddr = pointer_arg(2)
 	addrlen_uaddr = pointer_arg(3)
@@ -153,7 +152,7 @@ probe nd_syscall.accept4.return = __nd_syscall.accept4.return ?,
 }
 probe __nd_syscall.accept4.return = kprobe.function("sys_accept4").return ?
 {
-	@__syscall_compat_gate(%{ __NR_accept4 %}, %{ __NR_accept4 %})
+	@__syscall_nr_gate(%{ __NR_accept4 %})
 }
 probe __nd_syscall.socketcall.accept4.return =
 	kprobe.function("sys_socketcall").return ?,

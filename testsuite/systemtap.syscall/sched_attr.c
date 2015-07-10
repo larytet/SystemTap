@@ -33,33 +33,33 @@ int main()
     void *sa = memalign(sal, sas);
 
     __sched_getattr(mypid, sa, sas, 0);
-    //staptest// sched_getattr (NNNN, {size=NNNN, sched_policy=NNNN, sched_flags=NNNN, sched_nice=NNNN, sched_priority=NNNN, sched_runtime=NNNN, sched_deadline=NNNN, sched_period=NNNN}, NNNN, NNNN) = 0
+    //staptest// [[[[sched_getattr (NNNN, {size=NNNN, sched_policy=NNNN, sched_flags=NNNN, sched_nice=NNNN, sched_priority=NNNN, sched_runtime=NNNN, sched_deadline=NNNN, sched_period=NNNN}, NNNN, NNNN)!!!!ni_syscall ()]]]] = NNNN
 
     __sched_setattr(mypid, sa, 0);
-    //staptest// sched_setattr (NNNN, {size=NNNN, sched_policy=NNNN, sched_flags=NNNN, sched_nice=NNNN, sched_priority=NNNN, sched_runtime=NNNN, sched_deadline=NNNN, sched_period=NNNN}, NNNN) = 0
+    //staptest// [[[[sched_setattr (NNNN, {size=NNNN, sched_policy=NNNN, sched_flags=NNNN, sched_nice=NNNN, sched_priority=NNNN, sched_runtime=NNNN, sched_deadline=NNNN, sched_period=NNNN}, 0)!!!!ni_syscall ()]]]] = NNNN
 
     // Limit testing
 
     __sched_getattr(-1, 0, 0, 0);
-    //staptest// sched_getattr (-1, NULL, 0, 0) = -NNNN
+    //staptest// [[[[sched_getattr (-1, NULL, 0, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_getattr(0, (void *)-1, 0, 0);
-    //staptest// sched_getattr (0, 0x[f]+, 0, 0) = -NNNN
+    //staptest// [[[[sched_getattr (0, 0x[f]+, 0, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_getattr(0, 0, -1, 0);
-    //staptest// sched_getattr (0, NULL, 4294967295, 0) = -NNNN
+    //staptest// [[[[sched_getattr (0, NULL, 4294967295, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_getattr(0, 0, 0, -1);
-    //staptest// sched_getattr (0, NULL, 0, 4294967295) = -NNNN
+    //staptest// [[[[sched_getattr (0, NULL, 0, 4294967295)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_setattr(-1, NULL, 0);
-    //staptest// sched_setattr (-1, NULL, 0) = -NNNN
+    //staptest// [[[[sched_setattr (-1, NULL, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_setattr(0, (void *)-1, 0);
-    //staptest// sched_setattr (0, 0x[f]+, 0) = -NNNN
+    //staptest// [[[[sched_setattr (0, 0x[f]+, 0)!!!!ni_syscall ()]]]] = -NNNN
 
     __sched_setattr(0, NULL, -1);
-    //staptest// sched_setattr (0, NULL, 4294967295) = -NNNN
+    //staptest// [[[[sched_setattr (0, NULL, 4294967295)!!!!ni_syscall ()]]]] = -NNNN
 
     free(sa);
 

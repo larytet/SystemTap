@@ -24,23 +24,23 @@ int main()
 
     /* Limit testing */
     __execveat(-1, (char *)-1, NULL, NULL, 0);
-    //staptest// execveat (-1, [f]+, \[\], \[/\* 0 vars \*/\], 0x0) = -NNNN (EFAULT)
+    //staptest// [[[[execveat (-1, [f]+, \[\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN
 
     __execveat(-1, "/bin/true", (char **)-1, NULL, 0);
-    //staptest// execveat (-1, "/bin/true", \[0x[f]+\], \[/\* 0 vars \*/\], 0x0) = -NNNN (EFAULT)
+    //staptest// [[[[execveat (-1, "/bin/true", \[0x[f]+\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN
 
     __execveat(-1, "/bin/true", NULL, (char **)-1, 0);
-    //staptest// execveat (-1, "/bin/true", \[\], \[/\* 0 vars \*/\], 0x0) = -NNNN (EFAULT)
+    //staptest// [[[[execveat (-1, "/bin/true", \[\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN
 
     __execveat(-1, "/bin/true", NULL, NULL, -1);
-    //staptest// execveat (-1, "/bin/true", \[\], \[/\* 0 vars \*/\], AT_[^ ]+|XXXX) = -NNNN
+    //staptest// [[[[execveat (-1, "/bin/true", \[\], \[/\* 0 vars \*/\], AT_[^ ]+|XXXX)!!!!ni_syscall ()]]]] = -NNNN
 
     __execveat(AT_FDCWD, "", NULL, NULL, 0);
-    //staptest// execveat (AT_FDCWD, "", \[\], \[/\* 0 vars \*/\], 0x0) = -NNNN (ENOENT)
+    //staptest// [[[[execveat (AT_FDCWD, "", \[\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN
 
     /* Regular testing. */
     __execveat(-1, newargv[0], newargv, newenv, 0);
-    //staptest// execveat (-1, "/bin/true", \["/bin/true", "a", "b", "cde"\], \[/\* 2 vars \*/\], 0x0) = NNNN
+    //staptest// [[[[execveat (-1, "/bin/true", \["/bin/true", "a", "b", "cde"\], \[/\* 2 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = NNNN
 #endif
 
     return 0;

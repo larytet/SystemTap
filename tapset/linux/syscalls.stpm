@@ -1,11 +1,21 @@
 // syscalls tapset macros
-// Copyright (C) 2013-2014 Red Hat Inc.
+// Copyright (C) 2013-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
 // Public License (GPL); either version 2, or (at your option) any
 // later version.
 
+
+@define __syscall_nr_gate(syscall_nr)
+%(
+	# Here we don't care if we're in a compat task or not, we just
+	# want to make sure we've got the correct syscall number.
+	#
+	# If _stp_syscall_nr() fails, that means we aren't in user
+	# context. So, skip this call.
+	try { if (_stp_syscall_nr() != @syscall_nr) next } catch { next }
+%)
 
 @define __syscall_gate(syscall_nr)
 %(
