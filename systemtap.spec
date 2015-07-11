@@ -292,7 +292,11 @@ Requires: strace
 # 'nmap-ncat'). So, we'll do a file-based require.
 Requires: /usr/bin/nc
 %ifnarch ia64 ppc64le aarch64
+%if 0%{?fedora} >= 21 || 0%{?rhel} >= 8
+# no prelink
+%else
 Requires: prelink
+%endif
 %endif
 # testsuite/systemtap.server/client.exp needs avahi
 Requires: avahi
