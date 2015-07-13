@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -339,7 +339,6 @@ public:
   std::vector<vardecl*> unused_globals;
   std::vector<derived_probe*> unused_probes; // see also *_probes groups below
   std::vector<functiondecl*> unused_functions;
-  // XXX: vector<*> instead please?
 
   // resolved/compiled regular expressions for the run
   std::map<std::string, stapdfa*> dfas;
@@ -414,6 +413,8 @@ public:
 
   translator_output* op_create_auxiliary(bool trailer_p = false);
 
+  int target_namespaces_pid;
+
   const token* last_token;
   void print_token (std::ostream& o, const token* tok);
   void print_error (const semantic_error& e);
@@ -445,7 +446,8 @@ public:
   bool is_user_file (const std::string& name);
   bool is_primary_probe (derived_probe *dp);
 
-  int target_namespaces_pid;
+  // NB: It is very important for all of the above (and below) fields
+  // to be cleared in the systemtap_session ctor (session.cxx).
 };
 
 struct exit_exception: public std::runtime_error

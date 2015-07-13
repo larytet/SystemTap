@@ -96,6 +96,7 @@ systemtap_session::systemtap_session ():
   suppressed_warnings(0),
   suppressed_errors(0),
   warningerr_count(0),
+  target_namespaces_pid(0),
   last_token (0)
 {
   struct utsname buf;
@@ -283,6 +284,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   suppressed_warnings(0),
   suppressed_errors(0),
   warningerr_count(0),
+  target_namespaces_pid(0),
   last_token (0)
 {
   release = kernel_release = kern;

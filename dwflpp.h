@@ -181,6 +181,8 @@ struct loc2c_context
 {
   Dwarf_Die *die;
   Dwarf_Addr pc;
+public:
+  loc2c_context(): die(0), pc(0) {}
 };
 
 struct dwflpp

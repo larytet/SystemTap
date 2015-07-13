@@ -425,7 +425,7 @@ symbol_table
   func_info *get_func_containing_address(Dwarf_Addr addr);
   func_info *get_first_func();
 
-  symbol_table(module_info *mi) : mod_info(mi) {}
+  symbol_table(module_info *mi) : mod_info(mi), opd_section(SHN_UNDEF) {}
   ~symbol_table();
 };
 
