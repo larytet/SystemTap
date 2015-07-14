@@ -186,8 +186,8 @@ function ulong_arg:long (argnum:long) {
 
 function longlong_arg:long (argnum:long) {
 	if (probing_32bit_app()) {
-		lowbits = _stp_arg2(argnum, 0, 1, 0)
-		highbits = _stp_arg2(argnum+1, 0, 1, 0)
+		highbits = _stp_arg2(argnum, 0, 1, 0)
+		lowbits = _stp_arg2(argnum+1, 0, 1, 0)
 		return ((highbits << 32) | lowbits)
 	} else
 		return _stp_arg2(argnum, 0, 0, 1)
