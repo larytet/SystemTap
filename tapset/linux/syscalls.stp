@@ -711,12 +711,14 @@ probe __syscall.compat_clock_settime.return =
 # we'll just probe do_fork(). The fork()/vfork()/clone() syscalls are
 # just wrappers around do_fork().  We'll reject all probe hits that
 # aren't really clone syscalls (such as calls to sys_fork(),
-# sys_vfork(), and the kernel's internal use of do_fork()).
+# sys_vfork(), and the kernel's internal use of do_fork()). Kernel
+# commit 3033f14ab78c32 renamed 'do_fork' to '_do_fork'.
 #
 # For ia64, this is complicated by the fact that it has a clone2
 # syscall.
 #
-probe syscall.clone = kernel.function("do_fork").call
+probe syscall.clone = kernel.function("_do_fork").call !,
+	kernel.function("do_fork").call
 {
 %( arch != "ia64" %?
 	@__syscall_compat_gate(%{ __NR_clone %}, %{ __NR_compat_clone %})
@@ -751,7 +753,8 @@ probe syscall.clone = kernel.function("do_fork").call
 				 $stack_size, $parent_tidptr, $child_tidptr)
 %)
 }
-probe syscall.clone.return = kernel.function("do_fork").return
+probe syscall.clone.return = kernel.function("_do_fork").return !,
+	kernel.function("do_fork").return
 {
 %( arch != "ia64" %?
 	@__syscall_compat_gate(%{ __NR_clone %}, %{ __NR_compat_clone %})
