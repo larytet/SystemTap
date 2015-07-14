@@ -212,10 +212,6 @@ function _stp_arg2:long (argnum:long, sign_extend:long, truncate:long,
 		error(sprintf("Cannot acces arg(%d)", argnum))
 		return 0
 	}
-	if (%{ CONTEXT->user_mode_p %}) {
-		error("Cannot access function args in user context");
-		return 0;
-	}
 
 	/*
 	 * Why not use syscall_get_arguments() here? On the s390x,
@@ -272,7 +268,6 @@ function ulong_arg:long (argnum:long) {
 
 function longlong_arg:long (argnum:long) {
 	if (probing_32bit_app()) {
-		/* TODO verify if this is correct for 31bit apps */
 		highbits = _stp_arg2(argnum, 0, 1, 0)
 		lowbits = _stp_arg2(argnum+1, 0, 1, 0)
 		return ((highbits << 32) | lowbits)

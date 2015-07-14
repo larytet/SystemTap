@@ -1,0 +1,100 @@
+set test "uprobe_nd_params"
+
+if {! [uprobes_p]} {
+    untested "$test (no uprobes support)"
+    return
+}
+
+set test_srcpath "[pwd]/test.c"
+set test_exepath "[pwd]/test"
+set test_stppath "[pwd]/test.stp"
+
+set test_fp [open $test_srcpath "w"]
+puts $test_fp "
+#include <limits.h>
+
+int fc1(int arg1, int arg2) { return 0; }
+int fc2(unsigned int arg1, unsigned int arg2) { return 0; }
+int fc3(long arg1, long arg2) { return 0; }
+int fc4(unsigned long arg1, unsigned long arg2) { return 0; }
+int fc5(long long arg1, long long arg2) { return 0; }
+int fc6(int *arg1, int *arg2) { return 0; }
+
+int main()
+{
+    int i = 7;
+    fc1(INT_MAX, -1);
+    fc2(UINT_MAX, -1);
+    fc3(LONG_MAX, -1);
+    fc4(ULONG_MAX, -1);
+    fc5(0x12345678deadbeefLL, (long long)-1);
+    fc6(&i, (int *)-1);
+    return 0;
+}
+"
+close $test_fp
+
+set script_fp [open $test_stppath "w"]
+puts $script_fp "
+probe process(\"$test_exepath\").function(\"fc1\") {
+    printf(\"%s;%d;%d;\\n\", ppfunc(), int_arg(1), s32_arg(1))
+}
+probe process(\"$test_exepath\").function(\"fc2\") {
+    printf(\"%s;%u;%u;\\n\", ppfunc(), uint_arg(1), u32_arg(1))
+}
+probe process(\"$test_exepath\").function(\"fc3\") {
+    printf(\"%s;%d;%d\\n\", ppfunc(), long_arg(1), long_arg(2))
+}
+probe process(\"$test_exepath\").function(\"fc4\") {
+    printf(\"%s;%u;%u;\\n\", ppfunc(), ulong_arg(1), ulong_arg(2))
+}
+probe process(\"$test_exepath\").function(\"fc5\") {
+%( CONFIG_64BIT == \"y\" %?
+    if(probing_32bit_app()) {
+        printf(\"%s;%x;%x;%x;%x;\\n\", ppfunc(), longlong_arg(1), ulonglong_arg(1),
+               s64_arg(1), u64_arg(1))
+    } else {
+        printf(\"%s;%x;%x;%x;%x;\\n\", ppfunc(), longlong_arg(1), ulonglong_arg(1),
+               s64_arg(1), u64_arg(1))
+    }
+%:
+    printf(\"%s;%x;%x;%x;%x;\\n\", ppfunc(), longlong_arg(1), ulonglong_arg(1),
+           s64_arg(1), u64_arg(1))
+%)
+}
+probe process(\"$test_exepath\").function(\"fc6\") {
+    printf(\"%s;%p;%p\\n\", ppfunc(), pointer_arg(1), pointer_arg(2))
+}
+"
+close $script_fp
+
+for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+    set test_flags "compiler=gcc [arch_compile_flag $i]"
+    set res [target_compile $test_srcpath $test_exepath executable $test_flags]
+    if { $res != "" } {
+        fail "compiling test.c $test_flags"
+        catch {exec rm -f $test_srcpath}
+	return
+    } else {
+        pass "compiling test.c $test_flags"
+    }
+
+    set ok 0
+    spawn stap $test_stppath -c $test_exepath
+    expect {
+        -timeout 120
+        -re {fc1;(2147483647;){2}} { incr ok; exp_continue }
+        -re {fc2;(4294967295;){2}} { incr ok; exp_continue }
+        -re {fc3;(2147483647|9223372036854775807);-1} { incr ok; exp_continue }
+        -re {fc4;(4294967295;|18446744073709551615;){2}} { incr ok; exp_continue }
+        -re {fc5;(12345678deadbeef;){4}} { incr ok; exp_continue }
+        -re {fc6;0x[a-f0-9]+;0x[7]?[f]+} { incr ok; exp_continue }
+        timeout { fail "$test (timeout)" }
+        eof { }
+    }
+    catch { close }; catch { wait }
+    if {$ok == 6} { pass "$test" } { fail "$test" }
+}
+
+catch {exec rm -f $test_srcpath $test_exepath $test_stppath}
+
