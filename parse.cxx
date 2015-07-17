@@ -54,7 +54,7 @@ public:
 private:
   inline int input_get ();
   inline int input_peek (unsigned n=0);
-  void input_put (const string&, const token*);
+  void input_put (const string&);
   string input_name;
   string input_contents;
   const char *input_pointer; // index into input_contents
@@ -1479,7 +1479,7 @@ lexer::input_get ()
 
 
 void
-lexer::input_put (const string& chars, const token* t)
+lexer::input_put (const string& chars)
 {
   suspend_pointer = chars.data();
   suspend_end = chars.data() + chars.length();
@@ -1537,7 +1537,7 @@ skip:
           n->make_junk(_("invalid nested substitution of command line arguments"));
           return n;
         }
-      input_put ((c == '$') ? session.num_args : session.qstring_num_args, n);
+      input_put ((c == '$') ? session.num_args : session.qstring_num_args);
       n->content.clear();
       goto skip;
     }
@@ -1566,7 +1566,7 @@ skip:
                           (unsigned long) idx, (unsigned long) session.args.size()));
           return n;
         }
-      input_put ((c == '$') ? session.args[idx-1]  : session.qstring_args[idx-1], n);
+      input_put ((c == '$') ? session.args[idx-1]  : session.qstring_args[idx-1]);
       n->content.clear();
       goto skip;
     }
