@@ -59,9 +59,8 @@ private:
   string input_contents;
   const char *input_pointer; // index into input_contents
   const char *input_end;
-  unsigned cursor_suspend_count;
-  unsigned cursor_suspend_line;
-  unsigned cursor_suspend_column;
+  const char *suspend_pointer;
+  const char *suspend_end;
   unsigned cursor_line;
   unsigned cursor_column;
   systemtap_session& session;
@@ -1348,9 +1347,9 @@ parser::peek_kw (std::string const & kw)
 
 lexer::lexer (istream& input, const string& in, systemtap_session& s):
   ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(true),
-  input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
-  cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
-  cursor_column (1), session(s), current_file (0), current_token_chain (0)
+  input_name (in), input_pointer (0), input_end (0), suspend_pointer(0),
+  suspend_end(0), cursor_line (1), cursor_column (1), session(s),
+  current_file (0), current_token_chain (0)
 {
   getline(input, input_contents, '\0');
 
@@ -1428,9 +1427,18 @@ lexer::set_current_token_chain (const token* tok)
 int
 lexer::input_peek (unsigned n)
 {
-  if (input_pointer + n >= input_end)
-    return -1; // EOF
-  return (unsigned char)*(input_pointer + n);
+  if (suspend_pointer != suspend_end) // use suspend contents instead
+    {
+      if (suspend_end - suspend_pointer < n) // past the suspended part
+        return input_peek(n-(suspend_end - suspend_pointer));
+      return (unsigned char)*(suspend_pointer + n);
+    }
+  else
+    {
+      if (input_pointer + n >= input_end)
+        return -1; // EOF
+      return (unsigned char)*(input_pointer + n);
+    }
 }
 
 
@@ -1449,20 +1457,12 @@ lexer::input_get ()
   int c = input_peek();
   if (c < 0) return c; // EOF
 
-  ++input_pointer;
 
-  if (cursor_suspend_count)
-    {
-      // Track effect of input_put: preserve previous cursor/line_column
-      // until all of its characters are consumed.
-      if (--cursor_suspend_count == 0)
-        {
-          cursor_line = cursor_suspend_line;
-          cursor_column = cursor_suspend_column;
-        }
-    }
+  if (suspend_pointer != suspend_end)
+    ++suspend_pointer;
   else
     {
+      ++input_pointer;
       // update source cursor
       if (c == '\n')
         {
@@ -1481,16 +1481,8 @@ lexer::input_get ()
 void
 lexer::input_put (const string& chars, const token* t)
 {
-  size_t pos = input_pointer - input_contents.data();
-  // clog << "[put:" << chars << " @" << pos << "]";
-  input_contents.insert (pos, chars);
-  cursor_suspend_count += chars.size();
-  cursor_suspend_line = cursor_line;
-  cursor_suspend_column = cursor_column;
-  cursor_line = t->location.line;
-  cursor_column = t->location.column;
-  input_pointer = input_contents.data() + pos;
-  input_end = input_contents.data() + input_contents.size();
+  suspend_pointer = chars.data();
+  suspend_end = chars.data() + chars.length();
 }
 
 
@@ -1509,7 +1501,7 @@ lexer::scan ()
   n->chain = current_token_chain;
 
 skip:
-  bool suspended = (cursor_suspend_count > 0);
+  bool suspended = (suspend_end != suspend_pointer);
   n->location.line = cursor_line;
   n->location.column = cursor_column;
 
