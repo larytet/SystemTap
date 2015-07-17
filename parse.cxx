@@ -1537,8 +1537,7 @@ skip:
           n->make_junk(_("invalid nested substitution of command line arguments"));
           return n;
         }
-      size_t num_args = session.args.size ();
-      input_put ((c == '$') ? lex_cast (num_args) : lex_cast_qstring (num_args), n);
+      input_put ((c == '$') ? session.num_args : session.qstring_num_args, n);
       n->content.clear();
       goto skip;
     }
@@ -1567,8 +1566,7 @@ skip:
                           (unsigned long) idx, (unsigned long) session.args.size()));
           return n;
         }
-      const string& arg = session.args[idx-1];
-      input_put ((c == '$') ? arg : lex_cast_qstring (arg), n);
+      input_put ((c == '$') ? session.args[idx-1]  : session.qstring_args[idx-1], n);
       n->content.clear();
       goto skip;
     }

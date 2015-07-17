@@ -372,6 +372,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   additional_scripts = other.additional_scripts;
   c_macros = other.c_macros;
   args = other.args;
+  qstring_args = other.qstring_args;
   kbuildflags = other.kbuildflags;
 
   globalopts = other.globalopts;
@@ -1494,8 +1495,13 @@ systemtap_session::check_options (int argc, char * const argv [])
           have_script = true;
         }
       else
-        args.push_back (string (argv[i]));
+        {
+          args.push_back (string (argv[i]));
+          qstring_args.push_back(lex_cast_qstring(argv[i]));
+        }
     }
+  num_args = lex_cast(args.size ());
+  qstring_num_args = lex_cast_qstring(args.size());
 
   // We don't need a script with --list-servers, --trust-servers, or any dump mode
   bool need_script = server_status_strings.empty () &&
