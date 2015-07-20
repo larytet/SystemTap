@@ -163,11 +163,9 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
         {
 	  // Try creating a new systemtap session object so that we
 	  // don't get leftovers from the last script we compiled.
+	  s.clear_script_data();
 	  systemtap_session* ss = s.clone(s.architecture, s.kernel_release);
-	  clog << "orig tmpdir: " << s.tmpdir
-	       << ", new tmpdir: " << ss->tmpdir << endl;
 
-	  ss->clear_script_data();
 	  ss->cmdline_script = line;
 	  ss->have_script = true;
 	  rc = passes_0_4(*ss);

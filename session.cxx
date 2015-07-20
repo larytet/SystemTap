@@ -22,6 +22,7 @@
 #include "cmdline.h"
 #include "git_version.h"
 #include "version.h"
+#include "tapsets.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -2638,6 +2639,30 @@ systemtap_session::clear_script_data()
     unused_functions.clear();
     delete_map(subsessions);
     auxiliary_outputs.clear();
+
+    // Delete all the derived probe groups.
+    vector<derived_probe_group*> g = all_session_groups (*this);
+    for (unsigned i=0; i<g.size(); i++)
+    {
+	delete g[i];
+    }
+    be_derived_probes = NULL;
+    dwarf_derived_probes = NULL;
+    kprobe_derived_probes = NULL;
+    hwbkpt_derived_probes = NULL;
+    perf_derived_probes = NULL;
+    uprobe_derived_probes = NULL;
+    utrace_derived_probes = NULL;
+    itrace_derived_probes = NULL;
+    task_finder_derived_probes = NULL;
+    timer_derived_probes = NULL;
+    netfilter_derived_probes = NULL;
+    profile_derived_probes = NULL;
+    mark_derived_probes = NULL;
+    tracepoint_derived_probes = NULL;
+    hrtimer_derived_probes = NULL;
+    procfs_derived_probes = NULL;
+    dynprobe_derived_probes = NULL;
 
     // We need to be sure to reset all our error counts, so that an
     // error on one script won't be counted against the next script.
