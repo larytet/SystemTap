@@ -235,6 +235,8 @@ public:
   bool suppress_handler_errors;
   bool suppress_time_limits;
   bool color_errors;
+  bool interactive_mode;
+  bool pass_1a_complete;
 
   enum { color_never, color_auto, color_always } color_mode;
 
@@ -445,6 +447,8 @@ public:
 
   bool is_user_file (const std::string& name);
   bool is_primary_probe (derived_probe *dp);
+
+  void clear_script_data();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).

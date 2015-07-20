@@ -212,6 +212,7 @@ loc2c_test_LINK = $(CCLD) $(loc2c_test_CFLAGS) $(CFLAGS) \
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-tree.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-parse.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-dfa.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@	stap-interactive.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	$(am__objects_1)
 stap_OBJECTS = $(am_stap_OBJECTS)
 stap_LINK = $(CXXLD) $(stap_CXXFLAGS) $(CXXFLAGS) $(stap_LDFLAGS) \
@@ -525,6 +526,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+python = @python@
 sbindir = @sbindir@
 selinux_CFLAGS = @selinux_CFLAGS@
 selinux_LIBS = @selinux_LIBS@
@@ -575,10 +577,13 @@ oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 @BUILD_TRANSLATOR_TRUE@	tapset-dynprobe.cxx tapset-method.cxx \
 @BUILD_TRANSLATOR_TRUE@	translator-output.cxx stapregex.cxx \
 @BUILD_TRANSLATOR_TRUE@	stapregex-tree.cxx stapregex-parse.cxx \
-@BUILD_TRANSLATOR_TRUE@	stapregex-dfa.cxx $(am__append_11)
+@BUILD_TRANSLATOR_TRUE@	stapregex-dfa.cxx interactive.cxx \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_11)
 @BUILD_TRANSLATOR_TRUE@noinst_HEADERS = sdt_types.h
+# FIXME: We'll need some configure changes to check for readline/ncurses.
 @BUILD_TRANSLATOR_TRUE@stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ \
-@BUILD_TRANSLATOR_TRUE@	@LIBINTL@ -lpthread $(am__append_10) \
+@BUILD_TRANSLATOR_TRUE@	@LIBINTL@ -lpthread -lreadline \
+@BUILD_TRANSLATOR_TRUE@	-lncurses $(am__append_10) \
 @BUILD_TRANSLATOR_TRUE@	$(am__append_15)
 @BUILD_TRANSLATOR_TRUE@stap_DEPENDENCIES = $(am__append_21)
 @BUILD_TRANSLATOR_TRUE@@BUILD_VIRT_TRUE@stapvirt_SOURCES = stapvirt.c
@@ -945,6 +950,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-dwflpp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-elaborate.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-hash.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-interactive.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-loc2c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-main.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-mdfour.Po@am__quote@
@@ -1579,6 +1585,20 @@ stap-stapregex-dfa.obj: stapregex-dfa.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stapregex-dfa.cxx' object='stap-stapregex-dfa.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-stapregex-dfa.obj `if test -f 'stapregex-dfa.cxx'; then $(CYGPATH_W) 'stapregex-dfa.cxx'; else $(CYGPATH_W) '$(srcdir)/stapregex-dfa.cxx'; fi`
+
+stap-interactive.o: interactive.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.o -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-interactive.Tpo $(DEPDIR)/stap-interactive.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='interactive.cxx' object='stap-interactive.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx
+
+stap-interactive.obj: interactive.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.obj -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.obj `if test -f 'interactive.cxx'; then $(CYGPATH_W) 'interactive.cxx'; else $(CYGPATH_W) '$(srcdir)/interactive.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-interactive.Tpo $(DEPDIR)/stap-interactive.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='interactive.cxx' object='stap-interactive.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-interactive.obj `if test -f 'interactive.cxx'; then $(CYGPATH_W) 'interactive.cxx'; else $(CYGPATH_W) '$(srcdir)/interactive.cxx'; fi`
 
 stap-nsscommon.o: nsscommon.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-nsscommon.o -MD -MP -MF $(DEPDIR)/stap-nsscommon.Tpo -c -o stap-nsscommon.o `test -f 'nsscommon.cxx' || echo '$(srcdir)/'`nsscommon.cxx

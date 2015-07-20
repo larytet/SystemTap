@@ -2015,6 +2015,10 @@ semantic_pass (systemtap_session& s)
 
   try
     {
+      // FIXME: interactive mode, register_library_aliases handles
+      // both aliases from library files *and* user scripts. It would
+      // be nice to have them in separate lists and register them
+      // separately.
       s.register_library_aliases();
       register_standard_tapsets(s);
 

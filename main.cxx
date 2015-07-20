@@ -25,6 +25,7 @@
 #include "remote.h"
 #include "tapsets.h"
 #include "setupdwfl.h"
+#include "interactive.h"
 
 #if ENABLE_NLS
 #include <libintl.h>
@@ -353,7 +354,7 @@ run_sdt_benchmark(systemtap_session& s)
 
 
 // Compilation passes 0 through 4
-static int
+int
 passes_0_4 (systemtap_session &s)
 {
   int rc = 0;
@@ -432,6 +433,9 @@ passes_0_4 (systemtap_session &s)
 
   // PASS 1a: PARSING LIBRARY SCRIPTS
   PROBE1(stap, pass1a__start, &s);
+
+if (! s.pass_1a_complete)
+{
 
   // We need to handle the library scripts first because this pass
   // gathers information on .stpm files that might be needed to
@@ -676,6 +680,11 @@ passes_0_4 (systemtap_session &s)
     }
   if (s.num_errors())
     rc ++;
+
+  // FIXME: Unfortunately, we can't set this yet - doing so somehow
+  // avoids generated begin probes that initialize globals.
+  //s.pass_1a_complete = true;
+}
 
   // PASS 1b: PARSING USER SCRIPT
   PROBE1(stap, pass1b__start, &s);
@@ -1003,7 +1012,7 @@ passes_0_4 (systemtap_session &s)
   return rc;
 }
 
-static int
+int
 pass_5 (systemtap_session &s, vector<remote*> targets)
 {
   // PASS 5: RUN
@@ -1180,45 +1189,58 @@ main (int argc, char * const argv [])
     set<systemtap_session*> sessions;
     for (unsigned i = 0; i < targets.size(); ++i)
       sessions.insert(targets[i]->get_session());
-    for (set<systemtap_session*>::iterator it = sessions.begin();
-         rc == 0 && !pending_interrupts && it != sessions.end(); ++it)
+
+    // FIXME: For now, only attempt local interactive use.
+    if (s.interactive_mode && fake_remote)
       {
-        systemtap_session& ss = **it;
-        if (ss.verbose > 1)
-          clog << _F("Session arch: %s release: %s",
-                     ss.architecture.c_str(), ss.kernel_release.c_str()) << endl;
+	rc = interactive_mode (s, targets);
+      }
+    else
+      {
+	for (set<systemtap_session*>::iterator it = sessions.begin();
+	     rc == 0 && !pending_interrupts && it != sessions.end(); ++it)
+	  {
+	    systemtap_session& ss = **it;
+            if (ss.verbose > 1)
+	      clog << _F("Session arch: %s release: %s",
+			 ss.architecture.c_str(), ss.kernel_release.c_str())
+		   << endl;
 
 #if HAVE_NSS
-        // If requested, query server status. This is independent of other tasks.
-        query_server_status (ss);
+	    // If requested, query server status. This is independent
+	    // of other tasks.
+	    query_server_status (ss);
 
-        // If requested, manage trust of servers. This is independent of other tasks.
-        manage_server_trust (ss);
+	    // If requested, manage trust of servers. This is
+	    // independent of other tasks.
+	    manage_server_trust (ss);
 #endif
 
-        // Run the passes only if a script has been specified or if we're
-        // dumping something. The requirement for a script has already been
-        // checked in systemtap_session::check_options.
-        if (ss.have_script || ss.dump_mode)
-          {
-            // Run passes 0-4 for each unique session,
-            // either locally or using a compile-server.
-            ss.init_try_server ();
-            if ((rc = passes_0_4 (ss)))
-              {
-                // Compilation failed.
-                // Try again using a server if appropriate.
-                if (ss.try_server ())
-                  rc = passes_0_4_again_with_server (ss);
-              }
-	    if (rc || s.perpass_verbose[0] >= 1)
-	      s.explain_auto_options ();
-          }
-      }
+	    // Run the passes only if a script has been specified or
+	    // if we're dumping something. The requirement for a
+	    // script has already been checked in
+	    // systemtap_session::check_options.
+	    if (ss.have_script || ss.dump_mode)
+	      {
+		// Run passes 0-4 for each unique session, either
+		// locally or using a compile-server.
+		ss.init_try_server ();
+		if ((rc = passes_0_4 (ss)))
+		  {
+		    // Compilation failed.
+		    // Try again using a server if appropriate.
+		    if (ss.try_server ())
+		      rc = passes_0_4_again_with_server (ss);
+		  }
+		if (rc || s.perpass_verbose[0] >= 1)
+		  s.explain_auto_options ();
+	      }
+	  }
 
-    // Run pass 5, if requested
-    if (rc == 0 && s.have_script && s.last_pass >= 5 && ! pending_interrupts)
-      rc = pass_5 (s, targets);
+	// Run pass 5, if requested
+	if (rc == 0 && s.have_script && s.last_pass >= 5 && ! pending_interrupts)
+	  rc = pass_5 (s, targets);
+      }
 
     // Pass 6. Cleanup
     for (unsigned i = 0; i < targets.size(); ++i)
