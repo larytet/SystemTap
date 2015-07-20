@@ -590,6 +590,7 @@ embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
       available_tags.insert("/* pure */");
       available_tags.insert("/* unmangled */");
       available_tags.insert("/* unmodified-fnargs */");
+      available_tags.insert("/* stable */");
     }
 }
 

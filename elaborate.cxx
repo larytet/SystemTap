@@ -4221,6 +4221,136 @@ void semantic_pass_opt6 (systemtap_session& s, bool& relaxed_p)
     }
 }
 
+struct stable_tag_checker: public embedded_tags_visitor
+{
+  bool stable;
+  embeddedcode* code;
+  stable_tag_checker (): embedded_tags_visitor(true), stable(false) {}
+  void visit_embeddedcode (embeddedcode* e);
+};
+
+void stable_tag_checker::visit_embeddedcode (embeddedcode* e)
+{
+  code = e;
+  embedded_tags_visitor::visit_embeddedcode(e);
+  if (tagged_p("/* stable */"))
+    stable = true;
+}
+
+struct test_visitor: public update_visitor
+{
+  systemtap_session& session;
+  functiondecl* current_function;
+  derived_probe* current_probe;
+  map<string,vardecl*> replaced;
+  vector<expr_statement*> new_stmts;
+  test_visitor(systemtap_session& s):
+    session(s), current_function(0), current_probe(0) {};
+
+  void visit_functioncall (functioncall* e);
+};
+
+void test_visitor::visit_functioncall (functioncall* e)
+{
+  if (!e->args.size())
+    {
+      varuse_collecting_visitor vut(session);
+      vut.current_function = e->referent;
+      e->referent->body->visit(&vut);
+
+      stable_tag_checker stc;
+      e->referent->body->visit(&stc);
+
+      if (stc.stable)
+        {
+          assert(stc.code);
+          if (!vut.side_effect_free())
+            throw SEMANTIC_ERROR(_("stable function must also be /* pure */"),
+                stc.code->tok);
+
+          string name("__stable_");
+          name.append(e->function).append("_value");
+
+          if (replaced.find(e->function) == replaced.end())
+            {
+              // New variable declaration to store result of function call
+              vardecl* v = new vardecl;
+              v->name = name;
+              v->tok = e->tok;
+              v->set_arity(0, e->tok);
+              v->type = e->type;
+              if (current_function)
+                current_function->locals.push_back(v);
+              else
+                current_probe->locals.push_back(v);
+
+              symbol* sym = new symbol;
+              sym->name = name;
+              sym->tok = e->tok;
+              sym->referent = v;
+              sym->type = e->type;
+
+              functioncall* fc = new functioncall;
+              fc->tok = e->tok;
+              fc->function = e->function;
+              fc->referent = e->referent;
+              fc->type = e->type;
+
+              assignment* a = new assignment;
+              a->tok = e->tok;
+              a->op = "=";
+              a->left = sym;
+              a->right = fc;
+              a->type = e->type;
+
+              expr_statement* es = new expr_statement;
+              es->tok = e->tok;
+              es->value = a;
+              new_stmts.push_back(es);
+
+              replaced[e->function] = v;
+              provide(sym);
+            }
+          else
+            {
+              // Function call value already stored
+              symbol* sym = new symbol;
+              sym->name = name;
+              sym->tok = e->tok;
+              sym->referent = replaced[e->function];
+              sym->type = e->type;
+              provide(sym);
+            }
+          return;
+        }
+    }
+
+  provide(e);
+}
+
+void optimize_test(systemtap_session& s)
+{
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+       it != s.probes.end(); ++it)
+    {
+      test_visitor t(s);
+      t.current_probe = *it;
+      t.replace((*it)->body);
+      block* b = static_cast<block*>((*it)->body);
+      b->statements.insert(b->statements.begin(), t.new_stmts.begin(),
+                           t.new_stmts.end());
+    }
+  for (map<string,functiondecl*>::const_iterator fn = s.functions.begin();
+       fn != s.functions.end(); ++fn)
+    {
+      test_visitor t(s);
+      t.current_function = (*fn).second;
+      t.replace((*fn).second->body);
+      block* b = static_cast<block*>((*fn).second->body);
+      b->statements.insert(b->statements.begin(), t.new_stmts.begin(),
+                           t.new_stmts.end());
+    }
+}
 
 static int
 semantic_pass_optimize1 (systemtap_session& s)
@@ -4309,6 +4439,9 @@ semantic_pass_optimize2 (systemtap_session& s)
 
       iterations++;
     }
+
+  if (!s.unoptimized)
+    optimize_test(s);
 
   return rc;
 }
