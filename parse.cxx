@@ -55,6 +55,8 @@ private:
   inline int input_get ();
   inline int input_peek (unsigned n=0);
   void input_put (const string&);
+  void append_to_content(boost::string_ref& content, std::string& mangled_string, bool& suspended);
+  boost::string_ref& set_token_content(boost::string_ref& content, std::string& mangled_string);
   string input_name;
   string input_contents;
   const char *input_pointer; // index into input_contents
@@ -1485,6 +1487,46 @@ lexer::input_put (const string& chars)
   suspend_end = chars.data() + chars.length();
 }
 
+void
+lexer::append_to_content(boost::string_ref& content, std::string& mangled_string, bool& suspended)
+{
+  if (mangled_string.empty() && !suspended)
+    {
+      // easy peasy; the token->content is coming directly rom input_contents
+      if (!content.empty())
+        content = boost::basic_string_ref<char>(content.data(), content.size()+1);
+      else
+        content = boost::basic_string_ref<char>(input_pointer-1, 1);
+    }
+  else
+    {
+      // using mangled_string to store what will be put into token->content
+      if (suspended)
+        {
+          // we're going to get the content to get appended from the suspended content
+          if (mangled_string.empty())
+            mangled_string.append(content.to_string());
+          mangled_string.append(suspend_pointer-1, 1);
+
+          // update suspended?
+          if (suspend_pointer == suspend_end)
+              suspended = false;
+        }
+      else
+          mangled_string.append(input_pointer-1, 1);
+    }
+}
+
+boost::string_ref&
+lexer::set_token_content (boost::string_ref& content, std::string& mangled_string)
+{
+  if (mangled_string.empty())
+    return content; // assuming this is set
+  // add it to the vector of strings
+  current_file->string_portions.push_back(mangled_string);
+  content = boost::basic_string_ref<char>(current_file->string_portions.back());
+  return content;
+}
 
 token*
 lexer::scan ()
@@ -1499,6 +1541,8 @@ lexer::scan ()
   token* n = new token;
   n->location.file = current_file;
   n->chain = current_token_chain;
+  boost::string_ref content; // what's going to get assigned to  n->content
+  std::string mangled_string; // will be added to stapfile->string_portions if used
 
 skip:
   bool suspended = (suspend_end != suspend_pointer);
@@ -1529,60 +1573,67 @@ skip:
   // raw or quoted.
   if ((c == '$' || c == '@') && (c2 == '#'))
     {
-      n->content.push_back (c);
-      n->content.push_back (c2);
+      append_to_content(content, mangled_string, suspended);
       input_get(); // swallow '#'
+      append_to_content(content, mangled_string, suspended);
+
       if (suspended)
         {
+          n->content = set_token_content (content, mangled_string);
           n->make_junk(_("invalid nested substitution of command line arguments"));
           return n;
         }
       input_put ((c == '$') ? session.num_args : session.qstring_num_args);
-      n->content.clear();
+      content.clear();
+      mangled_string.clear();
       goto skip;
     }
   else if ((c == '$' || c == '@') && (isdigit (c2)))
     {
-      n->content.push_back (c);
       unsigned idx = 0;
+      append_to_content(content, mangled_string, suspended);
       do
         {
           input_get ();
+          append_to_content(content, mangled_string, suspended);
           idx = (idx * 10) + (c2 - '0');
-          n->content.push_back (c2);
           c2 = input_peek ();
         } while (c2 > 0 &&
                  isdigit (c2) &&
                  idx <= session.args.size()); // prevent overflow
       if (suspended) 
         {
+          n->content = set_token_content (content, mangled_string);
           n->make_junk(_("invalid nested substitution of command line arguments"));
           return n;
         }
       if (idx == 0 ||
           idx-1 >= session.args.size())
         {
+          n->content = set_token_content (content, mangled_string);
           n->make_junk(_F("command line argument index %lu out of range [1-%lu]",
                           (unsigned long) idx, (unsigned long) session.args.size()));
           return n;
         }
       input_put ((c == '$') ? session.args[idx-1]  : session.qstring_args[idx-1]);
-      n->content.clear();
+      content.clear();
+      mangled_string.clear();
       goto skip;
     }
 
   else if (isalpha (c) || c == '$' || c == '@' || c == '_')
     {
       n->type = tok_identifier;
-      n->content = (char) c;
+      append_to_content(content, mangled_string, suspended);
       while (isalnum (c2) || c2 == '_' || c2 == '$')
 	{
           input_get ();
-          n->content.push_back (c2);
+          append_to_content(content, mangled_string, suspended);
           c2 = input_peek ();
         }
 
-      if (keywords.count(n->content))
+      n->content = set_token_content (content, mangled_string);
+      if (keywords.count(n->content.to_string()))
         n->type = tok_keyword;
       else if (n->content[0] == '@')
         // makes it easier to detect illegal use of @words:
@@ -1594,7 +1645,7 @@ skip:
   else if (isdigit (c)) // positive literal
     {
       n->type = tok_number;
-      n->content = (char) c;
+      append_to_content(content, mangled_string, suspended);
 
       while (isalnum (c2))
 	{
@@ -1603,9 +1654,10 @@ skip:
           // is correctly formatted and in range.
 
           input_get ();
-          n->content.push_back (c2);
+          append_to_content(content, mangled_string, suspended);
           c2 = input_peek ();
 	}
+      n->content = set_token_content (content, mangled_string);
       return n;
     }
 
@@ -1618,6 +1670,7 @@ skip:
 
 	  if (c < 0 || c == '\n')
 	    {
+              n->content = set_token_content (content, mangled_string);
               n->make_junk(_("Could not find matching closing quote"));
               return n;
 	    }
@@ -1625,8 +1678,8 @@ skip:
 	    break;
 	  else if (c == '\\') // see also input_put
 	    {
-	      c = input_get ();
-	      switch (c)
+	      c2 = input_peek();
+	      switch (c2)
 		{
                 case 'x':
                   if (!has_version("2.3"))
@@ -1645,17 +1698,19 @@ skip:
 		  // being parsed; it will be emitted into a C literal.
                   // XXX: PR13371: perhaps we should evaluate them here
                   // (and re-quote them during translate.cxx emission).
-		  n->content.push_back('\\');
+                  append_to_content(content, mangled_string, suspended);
 
                   // fall through
 		default: the_default:
-                    n->content.push_back(c);
+                    input_get();
+                    append_to_content(content, mangled_string, suspended);
                     break;
 		}
 	    }
 	  else
-	    n->content.push_back(c);
+            append_to_content(content, mangled_string, suspended);
 	}
+      n->content = set_token_content (content, mangled_string);
       return n;
     }
 
@@ -1707,35 +1762,41 @@ skip:
           n->type = tok_embedded;
           (void) input_get (); // swallow '{' already in c2
           c = input_get ();
-          c2 = input_get ();
+          c2 = input_peek ();
           while (c2 >= 0)
             {
               if (c == '%' && c2 == '}')
-                return n;
+                {
+                  input_get();
+                  n->content = set_token_content (content, mangled_string);
+                  return n;
+                }
               if (c == '}' && c2 == '%') // possible typo
                 session.print_warning (_("possible erroneous closing '}%', use '%}'?"), n);
-              n->content += c;
-              c = c2;
-              c2 = input_get ();
+              append_to_content(content, mangled_string, suspended);
+              c = input_get();
+              c2 = input_peek ();
             }
 
-          n->make_junk(_("Could not find matching '%}' to close embedded function block"));
-          return n;
+            n->content = set_token_content (content, mangled_string);
+            n->make_junk(_("Could not find matching '%}' to close embedded function block"));
+            return n;
         }
 
       // We're committed to recognizing at least the first character
       // as an operator.
       n->type = tok_operator;
-      n->content = c;
+      append_to_content(content, mangled_string, suspended);
 
       // match all valid operators, in decreasing size order
       if ((c == '<' && c2 == '<' && c3 == '<') ||
           (c == '<' && c2 == '<' && c3 == '=') ||
           (c == '>' && c2 == '>' && c3 == '='))
         {
-          n->content += c2;
-          n->content += c3;
-          input_get (); input_get (); // swallow other two characters
+          input_get (); // c2
+          append_to_content(content, mangled_string, suspended);
+          input_get (); // c3
+          append_to_content(content, mangled_string, suspended);
         }
       else if ((c == '=' && c2 == '=') ||
                (c == '!' && c2 == '=') ||
@@ -1765,10 +1826,11 @@ skip:
                (c == '%' && c2 == ':') ||
                (c == '%' && c2 == ')'))
         {
-          n->content += c2;
           input_get (); // swallow other character
+          append_to_content(content, mangled_string, suspended);
         }
 
+      n->content = set_token_content (content, mangled_string);
       return n;
     }
 
@@ -1777,7 +1839,8 @@ skip:
       n->type = tok_junk;
       ostringstream s;
       s << "\\x" << hex << setw(2) << setfill('0') << c;
-      n->content = s.str();
+      current_file->string_portions.push_back(s.str());
+      n->content = current_file->string_portions.back();
       n->msg = ""; // signal parser to emit "expected X, found junk" type error
       return n;
     }
