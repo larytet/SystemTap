@@ -30,6 +30,7 @@ extern "C" {
 #include <cassert>
 #include <set>
 #include <vector>
+#include <stack>
 #include <algorithm>
 #include <iterator>
 #include <climits>
@@ -4221,57 +4222,205 @@ void semantic_pass_opt6 (systemtap_session& s, bool& relaxed_p)
     }
 }
 
-struct stable_tag_checker: public embedded_tags_visitor
+// Search entire tree to find and classify occurrences of
+// stable functioncalls.
+struct stable_analysis: public embedded_tags_visitor
 {
   bool stable;
   embeddedcode* code;
-  stable_tag_checker (): embedded_tags_visitor(true), stable(false) {}
+  systemtap_session& session;
+  set<string> used_once;
+  set<string> used_more;
+  stable_analysis(systemtap_session&s):
+    embedded_tags_visitor(true), stable(false), session(s) {};
+
   void visit_embeddedcode (embeddedcode* e);
+  void visit_functioncall (functioncall* e);
 };
 
-void stable_tag_checker::visit_embeddedcode (embeddedcode* e)
+void stable_analysis::visit_embeddedcode (embeddedcode* e)
 {
+  tags.clear();
+  stable = false;
   code = e;
   embedded_tags_visitor::visit_embeddedcode(e);
   if (tagged_p("/* stable */"))
     stable = true;
 }
 
-struct test_visitor: public update_visitor
+void stable_analysis::visit_functioncall (functioncall* e)
+{
+  if (!e->args.empty()) // Applies to only arity-0 functions
+    return;
+
+  varuse_collecting_visitor vut(session);
+  vut.current_function = e->referent;
+  e->referent->body->visit(&vut);
+  e->referent->body->visit(this);
+
+  if (!stable)
+    return;
+
+  assert(code);
+  if (vut.embedded_seen)
+    throw SEMANTIC_ERROR(_("stable function must also be /* pure */"),
+        code->tok);
+
+  if (used_once.find(e->function) == used_once.end() &&
+      used_more.find(e->function) == used_more.end())
+    {
+      used_once.insert(e->function);
+    }
+  else if (used_once.find(e->function) != used_once.end())
+    {
+      used_more.insert(e->function);
+      used_once.erase(e->function);
+    }
+}
+
+// Examines current level of block for stable functioncalls.
+// Does not descend into sublevels.
+struct level_check: public traversing_visitor
+{
+  bool contains_call;
+  set<string>& stable_fcs;
+  level_check(set<string>& s): contains_call(false), stable_fcs(s) {};
+  void visit_block (block* s);
+  void visit_try_block (try_block *s);
+  void visit_if_statement (if_statement* s);
+  void visit_for_loop (for_loop* s);
+  void visit_foreach_loop (foreach_loop* s);
+  void visit_functioncall (functioncall* s);
+};
+
+void level_check::visit_block (block* s)
+{
+}
+
+void level_check::visit_try_block (try_block* s)
+{
+}
+
+void level_check::visit_if_statement (if_statement* s)
+{
+  s->condition->visit (this);
+}
+
+void level_check::visit_for_loop (for_loop* s)
+{
+  if (s->init) s->init->visit (this);
+  s->cond->visit (this);
+  if (s->incr) s->incr->visit (this);
+}
+
+void level_check::visit_foreach_loop (foreach_loop* s)
+{
+  for (unsigned i=0; i<s->indexes.size(); i++)
+    s->indexes[i]->visit (this);
+
+  if (s->value)
+    s->value->visit (this);
+
+  if (s->limit)
+    s->limit->visit (this);
+}
+
+void level_check::visit_functioncall (functioncall* e)
+{
+  if (stable_fcs.find(e->function) != stable_fcs.end())
+    contains_call = true;
+}
+
+struct stable_functioncall_visitor: public update_visitor
 {
   systemtap_session& session;
   functiondecl* current_function;
   derived_probe* current_probe;
-  map<string,vardecl*> replaced;
-  vector<expr_statement*> new_stmts;
-  test_visitor(systemtap_session& s):
-    session(s), current_function(0), current_probe(0) {};
+  set<string>& stable_fcs;
+  set<string> scope_vars;
+  map<string,vardecl*> new_vars;
+  vector<pair<expr_statement*,block*> > new_stmts;
+  stack<block*> block_scopes;
+  stable_functioncall_visitor(systemtap_session& s, set<string>& sfc):
+    session(s), current_function(0), current_probe(0), stable_fcs(sfc) {};
 
+  statement* convert_stmt(statement* s);
+  void visit_block (block* s);
+  void visit_try_block (try_block* s);
+  void visit_if_statement (if_statement* s);
+  void visit_for_loop (for_loop* s);
+  void visit_foreach_loop (foreach_loop* s);
   void visit_functioncall (functioncall* e);
 };
 
-void test_visitor::visit_functioncall (functioncall* e)
+statement* stable_functioncall_visitor::convert_stmt (statement* s)
 {
-  if (!e->args.size())
+  level_check l(stable_fcs);
+  s->visit(&l);
+
+  if (!l.contains_call)
+    return s;
+
+  if (!dynamic_cast<block*>(s))
     {
-      varuse_collecting_visitor vut(session);
-      vut.current_function = e->referent;
-      e->referent->body->visit(&vut);
+      block* b = new block;
+      b->tok = s->tok;
+      b->statements.push_back(s);
+      return b;
+    }
 
-      stable_tag_checker stc;
-      e->referent->body->visit(&stc);
+  return s;
+}
 
-      if (stc.stable)
+void stable_functioncall_visitor::visit_block (block* s)
+{
+  block_scopes.push(s);
+  set<string> current_vars = scope_vars;
+  update_visitor::visit_block(s);
+  scope_vars = current_vars;
+  block_scopes.pop();
+}
+
+void stable_functioncall_visitor::visit_try_block (try_block* s)
+{
+  if (s->try_block)
+    s->try_block = convert_stmt(s->try_block);
+  if (s->catch_block)
+    s->catch_block = convert_stmt(s->catch_block);
+  update_visitor::visit_try_block(s);
+}
+
+void stable_functioncall_visitor::visit_if_statement (if_statement* s)
+{
+  s->thenblock = convert_stmt(s->thenblock);
+  if (s->elseblock)
+    s->elseblock = convert_stmt(s->elseblock);
+  update_visitor::visit_if_statement(s);
+}
+
+void stable_functioncall_visitor::visit_for_loop (for_loop* s)
+{
+  s->block = convert_stmt(s->block);
+  update_visitor::visit_for_loop(s);
+}
+
+void stable_functioncall_visitor::visit_foreach_loop (foreach_loop* s)
+{
+  s->block = convert_stmt(s->block);
+  update_visitor::visit_foreach_loop(s);
+}
+
+void stable_functioncall_visitor::visit_functioncall (functioncall* e)
+{
+  if (stable_fcs.find(e->function) != stable_fcs.end())
+    {
+      string name("__stable_");
+      name.append(e->function).append("_value");
+
+      // Variable potentially not in scope since it is in a sibling block
+      if (scope_vars.find(e->function) == scope_vars.end())
         {
-          assert(stc.code);
-          if (!vut.side_effect_free())
-            throw SEMANTIC_ERROR(_("stable function must also be /* pure */"),
-                stc.code->tok);
-
-          string name("__stable_");
-          name.append(e->function).append("_value");
-
-          if (replaced.find(e->function) == replaced.end())
+          if (new_vars.find(e->function) == new_vars.end())
             {
               // New variable declaration to store result of function call
               vardecl* v = new vardecl;
@@ -4283,72 +4432,89 @@ void test_visitor::visit_functioncall (functioncall* e)
                 current_function->locals.push_back(v);
               else
                 current_probe->locals.push_back(v);
-
-              symbol* sym = new symbol;
-              sym->name = name;
-              sym->tok = e->tok;
-              sym->referent = v;
-              sym->type = e->type;
-
-              functioncall* fc = new functioncall;
-              fc->tok = e->tok;
-              fc->function = e->function;
-              fc->referent = e->referent;
-              fc->type = e->type;
-
-              assignment* a = new assignment;
-              a->tok = e->tok;
-              a->op = "=";
-              a->left = sym;
-              a->right = fc;
-              a->type = e->type;
-
-              expr_statement* es = new expr_statement;
-              es->tok = e->tok;
-              es->value = a;
-              new_stmts.push_back(es);
-
-              replaced[e->function] = v;
-              provide(sym);
+              new_vars[e->function] = v;
             }
-          else
-            {
-              // Function call value already stored
-              symbol* sym = new symbol;
-              sym->name = name;
-              sym->tok = e->tok;
-              sym->referent = replaced[e->function];
-              sym->type = e->type;
-              provide(sym);
-            }
-          return;
+
+          symbol* sym = new symbol;
+          sym->name = name;
+          sym->tok = e->tok;
+          sym->referent = new_vars[e->function];
+          sym->type = e->type;
+
+          functioncall* fc = new functioncall;
+          fc->tok = e->tok;
+          fc->function = e->function;
+          fc->referent = e->referent;
+          fc->type = e->type;
+
+          assignment* a = new assignment;
+          a->tok = e->tok;
+          a->op = "=";
+          a->left = sym;
+          a->right = fc;
+          a->type = e->type;
+
+          expr_statement* es = new expr_statement;
+          es->tok = e->tok;
+          es->value = a;
+
+          // Store location of the block to put new declaration
+          assert(!block_scopes.empty());
+          new_stmts.push_back(make_pair(es,block_scopes.top()));
+
+          scope_vars.insert(e->function);
+
+          provide(sym);
         }
+      else
+        {
+          symbol* sym = new symbol;
+          sym->name = name;
+          sym->tok = e->tok;
+          sym->referent = new_vars[e->function];
+          sym->type = e->type;
+          provide(sym);
+        }
+      return;
     }
 
   provide(e);
 }
 
-void optimize_test(systemtap_session& s)
+// Cache stable embedded-c functioncall results and replace
+// all calls with same name using that value to reduce duplicate
+// functioncall overhead.
+void semantic_pass_opt7(systemtap_session& s)
 {
-  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+  for (vector<derived_probe*>::iterator it = s.probes.begin();
        it != s.probes.end(); ++it)
     {
-      test_visitor t(s);
+      stable_analysis sa(s);
+      (*it)->body->visit(&sa);
+      stable_functioncall_visitor t(s, sa.used_more);
       t.current_probe = *it;
+      (*it)->body = t.convert_stmt((*it)->body);
       t.replace((*it)->body);
-      block* b = static_cast<block*>((*it)->body);
-      b->statements.insert(b->statements.begin(), t.new_stmts.begin(),
-                           t.new_stmts.end());
+
+      for (vector<pair<expr_statement*,block*> >::iterator st = t.new_stmts.begin();
+           st != t.new_stmts.end(); ++st)
+        st->second->statements.insert(st->second->statements.begin(), st->first);
     }
-  for (map<string,functiondecl*>::const_iterator fn = s.functions.begin();
-       fn != s.functions.end(); ++fn)
+
+  for (map<string,functiondecl*>::iterator it = s.functions.begin();
+       it != s.functions.end(); ++it)
     {
-      test_visitor t(s);
-      t.current_function = (*fn).second;
-      t.replace((*fn).second->body);
-      block* b = static_cast<block*>((*fn).second->body);
-      b->statements.insert(b->statements.begin(), t.new_stmts.begin(),
-                           t.new_stmts.end());
+      functiondecl* fn = (*it).second;
+      stable_analysis sa(s);
+      fn->body->visit(&sa);
+      stable_functioncall_visitor t(s, sa.used_more);
+      t.current_function = fn;
+      fn->body = t.convert_stmt(fn->body);
+      t.replace(fn->body);
+
+      for (vector<pair<expr_statement*,block*> >::iterator st = t.new_stmts.begin();
+           st != t.new_stmts.end(); ++st)
+        st->second->statements.insert(st->second->statements.begin(), st->first);
     }
 }
 
@@ -4420,6 +4586,9 @@ semantic_pass_optimize2 (systemtap_session& s)
   // it below.
   save_and_restore<bool> suppress_warnings(& s.suppress_warnings);
 
+  if (!s.unoptimized)
+    semantic_pass_opt7(s);
+
   bool relaxed_p = false;
   unsigned iterations = 0;
   while (! relaxed_p)
@@ -4439,9 +4608,6 @@ semantic_pass_optimize2 (systemtap_session& s)
 
       iterations++;
     }
-
-  if (!s.unoptimized)
-    optimize_test(s);
 
   return rc;
 }
