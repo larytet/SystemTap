@@ -936,7 +936,7 @@ bool eval_pp_conditional (systemtap_session& s,
 
       return result;
     }
-  else if (l->type == tok_identifier && startswith(l->content, "CONFIG_"))
+  else if (l->type == tok_identifier && l->content.starts_with("CONFIG_"))
     {
       if (r->type == tok_string)
 	{
@@ -968,7 +968,7 @@ bool eval_pp_conditional (systemtap_session& s,
 	  return eval_comparison (lhs, op, rhs);
 	}
       else if (r->type == tok_identifier
-	       && startswith(r->content, "CONFIG_"))
+	       && r->content.starts_with( "CONFIG_"))
 	{
 	  // First try to convert both to numbers,
 	  // otherwise threat both as strings.
