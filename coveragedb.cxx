@@ -218,7 +218,7 @@ sql_update_used_probes(sqlite3 *db, systemtap_session &s)
 	    coverage_element x(place);
 
 	    x.type = db_type_local;
-	    x.name = s.probes[i]->locals[j]->tok->content;
+	    x.name = s.probes[i]->locals[j]->tok->content.to_string();
 	    x.compiled = 1;
 	    increment_element(db, x);
     }
@@ -227,7 +227,7 @@ sql_update_used_probes(sqlite3 *db, systemtap_session &s)
 	    coverage_element x(place);
 
 	    x.type = db_type_local;
-	    x.name = s.probes[i]->unused_locals[j]->tok->content;
+	    x.name = s.probes[i]->unused_locals[j]->tok->content.to_string();
 	    x.compiled = 0;
 	    increment_element(db, x);
     }

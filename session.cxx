@@ -2150,14 +2150,15 @@ systemtap_session::print_error_source (std::ostream& message,
       string srcline_rest = srcline.substr(col-1);
       string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
       if (srcline_tokenish == tok->content) { // oh good
-        message << colorize(tok->content, "token");
+        message << colorize(tok->content.to_string(), "token");
         message << srcline_rest.substr(tok->content.size());
         message << endl;
       }
       else { // oh bad
         message << " ... ";
         col += 5; // line up with the caret
-        message << colorize(tok->content, "token");
+        message << colorize(tok->content.to_string(), "token");
+
         message << " ... " << srcline_rest;
         message << endl;
       }
