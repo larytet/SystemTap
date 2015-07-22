@@ -2408,7 +2408,12 @@ parser::parse_probe_point ()
         }
       // get around const-ness of t:
       token* new_t = new token(*t);
-      new_t->content = content;
+
+      // since we can't access the stapfile, from the token, we need to store
+      // content n the probe point
+      pl->mangled_strings.push_back(content);
+      new_t->content = pl->mangled_strings.back();
+
       delete t; t = new_t;
 
       probe_point::component* c = new probe_point::component;
