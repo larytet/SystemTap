@@ -325,6 +325,10 @@ public:
   std::vector<stapfile*> user_files;
   std::vector<stapfile*> library_files;
 
+  // the input_contents of the files that get parsed. the lexer and stapfile
+  // will have elements that point to the strings contained in the vector
+  std::vector<std::string> file_contents;
+
   // filters to run over all code before symbol resolution
   //   e.g. @cast expansion
   std::vector<update_visitor*> code_filters;

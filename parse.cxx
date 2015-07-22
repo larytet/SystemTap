@@ -58,7 +58,7 @@ private:
   void append_to_content(boost::string_ref& content, std::string& mangled_string, bool& suspended);
   boost::string_ref& set_token_content(boost::string_ref& content, std::string& mangled_string);
   string input_name;
-  string input_contents;
+  string* input_contents;
   const char *input_pointer; // index into input_contents
   const char *input_end;
   const char *suspend_pointer;
@@ -1353,10 +1353,15 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
   suspend_end(0), cursor_line (1), cursor_column (1), session(s),
   current_file (0), current_token_chain (0)
 {
-  getline(input, input_contents, '\0');
+  std::string file_contents;
+  getline(input, file_contents, '\0');
+  
+  // store the file_contents in the systemtap session
+  s.file_contents.push_back(file_contents);
+  input_contents = &(s.file_contents.back());
 
-  input_pointer = input_contents.data();
-  input_end = input_contents.data() + input_contents.size();
+  input_pointer = input_contents->data();
+  input_end = input_contents->data() + input_contents->size();
 
   if (keywords.empty())
     {

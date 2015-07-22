@@ -781,11 +781,11 @@ struct stapfile
   std::vector<functiondecl*> functions;
   std::vector<vardecl*> globals;
   std::vector<embeddedcode*> embeds;
-  std::string file_contents;
+  std::string* file_contents;
   std::vector<std::string> string_portions;
   bool privileged;
   bool synthetic; // via parse_synthetic_*
-  stapfile (): file_contents (""),
+  stapfile (): file_contents (0),
     privileged (false), synthetic (false) {}
   void print (std::ostream& o) const;
 };

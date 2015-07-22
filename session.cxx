@@ -2125,7 +2125,7 @@ systemtap_session::print_error_source (std::ostream& message,
 
   unsigned line = tok->location.line;
   unsigned col = tok->location.column;
-  const string &file_contents = tok->location.file->file_contents;
+  const string &file_contents = *(tok->location.file->file_contents);
 
   size_t start_pos = 0, end_pos = 0;
   //Navigate to the appropriate line
