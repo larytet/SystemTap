@@ -20,6 +20,7 @@ using namespace std;
 extern "C" {
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 }
@@ -37,17 +38,27 @@ class cmdopt
 protected:
   string _help_text;
 public:
-  string name;
-  string usage;
+  string name;				// command/option name 
+  string usage;				// command usage (includes options)
+
+  // help_text() returns the help text for a command/option
   virtual string help_text(size_t indent) const { return _help_text; }
+
+  // handler() is the code associated with a command/option
   virtual bool handler(systemtap_session &s, vector<string> &tokens) = 0;
 };
 
 typedef vector<cmdopt*> cmdopt_vector;
 typedef vector<cmdopt*>::const_iterator cmdopt_vector_const_iterator;
 typedef vector<cmdopt*>::iterator cmdopt_vector_iterator;
+
+// A vector of all commands.
 static cmdopt_vector commands;
+// A vector of all commands that take options.
+static cmdopt_vector option_commands;
+// A vector of all options;
 static cmdopt_vector options;
+
 static void interactive_usage();
 
 //
@@ -311,6 +322,118 @@ interactive_usage ()
     }
 }
 
+// Generator function for command completion.  STATE lets us know
+// whether to start from scratch; without any state (i.e. STATE == 0),
+// then we start at the top of the list.
+static char *
+command_generator(const char *text, int state)
+{
+  static size_t list_index, len;
+  static bool interactive_cmd = false;
+
+  // If this is a new word to complete, initialize now.  This includes
+  // saving the length of TEXT for efficiency, and initializing the
+  // index variable to 0.
+  if (!state)
+  {
+    list_index = 0;
+    len = strlen(text);
+    interactive_cmd = (len > 0 && text[0] == '!');
+  }
+
+  // For now, *only* complete interactive mode commands themselves.
+  if (interactive_cmd)
+  {
+    // Return the next name which partially matches from the command list.
+    while (list_index < commands.size())
+    {
+      cmdopt *cmd = commands[list_index];
+      list_index++;
+      if (strncmp(cmd->name.c_str(), text, len) == 0)
+	return strdup(cmd->name.c_str());
+    }
+  }
+
+  // If no names matched, then return NULL.
+  return NULL;
+}
+
+// Generator function for option completion.  STATE lets us know
+// whether to start from scratch; without any state (i.e. STATE == 0),
+// then we start at the top of the list.
+static char *
+option_generator(const char *text, int state)
+{
+  static size_t list_index, len;
+
+  // If this is a new word to complete, initialize now.  This includes
+  // saving the length of TEXT for efficiency, and initializing the
+  // index variable to 0.
+  if (!state)
+  {
+    list_index = 0;
+    len = strlen(text);
+  }
+
+  // Return the next name which partially matches from the option list.
+  while (list_index < options.size())
+  {
+    cmdopt *opt = options[list_index];
+    list_index++;
+    if (strncmp(opt->name.c_str(), text, len) == 0)
+      return strdup(opt->name.c_str());
+  }
+
+  // If no names matched, then return NULL.
+  return NULL;
+}
+
+// Attempt to complete on the contents of TEXT.  START and END bound
+// the region of rl_line_buffer that contains the word to complete.
+// TEXT is the word to complete.  We can use the entire contents of
+// rl_line_buffer in case we want to do some simple parsing.  Return
+// the array of matches, or NULL if there aren't any.
+static char **
+interactive_completion(const char *text, int start, int end)
+{
+  char **matches = (char **)NULL;
+
+  // Setting 'rl_attempted_completion_over' to non-zero means to
+  // suppress normal filename completion after the user-specified
+  // completion function has been called.
+  rl_attempted_completion_over = 1;
+
+  // If this word is at the start of the line, then it is a command to
+  // complete.
+  if (start == 0)
+    matches = rl_completion_matches(text, command_generator);
+  else
+  {
+    const string delimiters = " \t";
+    vector<string> tokens;
+
+    tokenize(rl_line_buffer, tokens, delimiters);
+    if (! tokens.size())
+      return matches;
+
+    // If we're in a command that takes options, then we've got an
+    // option to complete, if we're on the 2nd token.
+    if (tokens.size() <= 2)
+    {
+      for (cmdopt_vector_const_iterator it = option_commands.begin();
+	   it != option_commands.end(); ++it)
+      {
+	if ((*it)->name == tokens[0])
+	{
+	  matches = rl_completion_matches(text, option_generator);
+	  break;
+	}
+      }
+    }
+  }
+  return matches;
+}
+
 //
 // Interactive mode, passes 0 through 5 and back again.
 //
@@ -322,11 +445,17 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   string delimiters = " \t";
   bool input_handled;
 
-  // Set up command list.
+  // Tell readline's completer we want a crack at the input first.
+  rl_attempted_completion_function = interactive_completion;
+
+  // Set up command list, along with a list of commands that take
+  // options.
   commands.push_back(new help_cmd);
   commands.push_back(new list_cmd);
   commands.push_back(new set_cmd);
+  option_commands.push_back(commands.back());
   commands.push_back(new show_cmd);
+  option_commands.push_back(commands.back());
   commands.push_back(new quit_cmd);
 
   // Set up !set/!show option list.
