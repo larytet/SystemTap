@@ -34,6 +34,7 @@ using boost::shared_ptr;
 #else
 #error "No shared_ptr implementation found; get boost or modern g++"
 #endif
+#include <boost/utility/string_ref.hpp>
 
 struct token; // parse.h
 struct systemtap_session; // session.h
@@ -781,11 +782,11 @@ struct stapfile
   std::vector<functiondecl*> functions;
   std::vector<vardecl*> globals;
   std::vector<embeddedcode*> embeds;
-  std::string* file_contents;
+  boost::string_ref file_contents;
   std::vector<std::string> string_portions;
   bool privileged;
   bool synthetic; // via parse_synthetic_*
-  stapfile (): file_contents (0),
+  stapfile ():
     privileged (false), synthetic (false) {}
   void print (std::ostream& o) const;
 };
