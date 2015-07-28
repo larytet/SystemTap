@@ -382,7 +382,8 @@ keywords: io monitoring disk
   first few sectors of a raw block device.
 
   # stap mbrwatch.stp -c "dd of=/dev/null count=1 if=/dev/`grep -v major \
-  /proc/partitions | grep . | awk '{print $4}' | head -1`"
+  /proc/partitions | grep . | grep -v 'sr[0-9]' | awk '{print $4}' | \
+  head -1`"
 
 
 io/nfs_func_users.stp - Tally the Number of NFS Functions Used by Each Process
