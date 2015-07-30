@@ -3,6 +3,7 @@ systemtap (2.8-1) UNRELEASED; urgency=medium
   * New upstream release. Closes: #789303.
     - No longer fails to compile with recent Debian kernels
     - Rebase some patches.
+  * Add myself as an uploader.
 
  -- Vincent Bernat <bernat@debian.org>  Wed, 29 Jul 2015 21:41:16 +0200
 
