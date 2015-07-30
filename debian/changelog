@@ -5,6 +5,7 @@ systemtap (2.8-1) UNRELEASED; urgency=medium
     - Rebase some patches.
   * Add myself as an uploader.
   * Update Vcs-* fields in debian/control.
+  * Bump Standards-Version to 3.9.6, no changes necessary.
 
  -- Vincent Bernat <bernat@debian.org>  Wed, 29 Jul 2015 21:41:16 +0200
 
