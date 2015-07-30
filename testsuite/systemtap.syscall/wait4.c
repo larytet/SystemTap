@@ -27,10 +27,10 @@ main()
     pid_t child;
 
     wait4(epid, NULL, 0, NULL);
-    //staptest// wait4 (NNNN, 0x0, 0, 0x0) = -NNNN (ECHILD)
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x0) = -NNNN (ECHILD)
 
     wait4(-1, NULL, 0, NULL);
-    //staptest// wait4 (-1, 0x0, 0, 0x0) = -NNNN (ECHILD)
+    //staptest// wait4 (-1, 0x0, 0x0, 0x0) = -NNNN (ECHILD)
 
     child = fork();
 #if !defined(__ia64__)
@@ -48,14 +48,14 @@ main()
     }
     wait4(child, (int *)-1, 0, NULL);
 #ifdef __s390__
-    //staptest// wait4 (NNNN, 0x[7]?[f]+, 0, 0x0) = -NNNN (EFAULT)
+    //staptest// wait4 (NNNN, 0x[7]?[f]+, 0x0, 0x0) = -NNNN (EFAULT)
 #else
-    //staptest// wait4 (NNNN, 0x[f]+, 0, 0x0) = -NNNN (EFAULT)
+    //staptest// wait4 (NNNN, 0x[f]+, 0x0, 0x0) = -NNNN (EFAULT)
 #endif
 
     // Just in case the failing wait4() call above didn't clean up...
     wait4(child, 0, 0, NULL);
-    //staptest// wait4 (NNNN, 0x0, 0, 0x0)
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x0)
 
     child = fork();
 #if !defined(__ia64__)
@@ -79,7 +79,7 @@ main()
 
     // Just in case the failing wait4() call above didn't clean up...
     wait4(child, 0, 0, NULL);
-    //staptest// wait4 (NNNN, 0x0, 0, 0x0)
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x0)
 
     child = fork();
 #if !defined(__ia64__)
@@ -98,14 +98,14 @@ main()
 
     wait4(child, NULL, 0, (struct rusage *)-1);
 #ifdef __s390__
-    //staptest// wait4 (NNNN, 0x0, 0, 0x[7]?[f]+) = -NNNN (EFAULT)
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x[7]?[f]+) = -NNNN (EFAULT)
 #else
-    //staptest// wait4 (NNNN, 0x0, 0, 0x[f]+) = -NNNN (EFAULT)
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x[f]+) = -NNNN (EFAULT)
 #endif
 
     // Just in case the failing wait4() call above didn't clean up...
     wait4(child, 0, 0, NULL);
-    //staptest// wait4 (NNNN, 0x0, 0, 0x0)
+    //staptest// wait4 (NNNN, 0x0, 0x0, 0x0)
 
     exit(0);
 }

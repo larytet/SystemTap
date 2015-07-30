@@ -13,7 +13,7 @@ probe nd_syscall.get_thread_area = kprobe.function("sys_get_thread_area")
 	// u_info_uaddr = $u_info
 	asmlinkage()
 	u_info_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", u_info_uaddr)
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
 }
 probe nd_syscall.get_thread_area.return = kprobe.function("sys_get_thread_area").return
 {
@@ -22,20 +22,31 @@ probe nd_syscall.get_thread_area.return = kprobe.function("sys_get_thread_area")
 }
 
 # iopl _______________________________________________________
-# long sys_iopl(unsigned long unused)
 # NOTE. This function is only in i386 and x86_64 and its args vary
-# between those two archs.
+# between those two archs:
+# el5: asmlinkage long sys_iopl(unsigned long unused)
+# el6: long sys_iopl(struct pt_regs *regs)
+#      [ ... ] unsigned int level = regs->bx;
+# f20: SYSCALL_DEFINE1(iopl, unsigned int, level)
 #
 probe nd_syscall.iopl = kprobe.function("sys_iopl")
 {
 	name = "iopl"
-	argstr = ""
+	asmlinkage()
+	level = uint_arg(1)
+	argstr = sprint(level)
 }
 probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
 {
 	name = "iopl"
 	retstr = returnstr(1)
 }
+
+%( systemtap_v <= "2.7" %?
+# sys32_ipc() is just a syscall multiplexer (similar to
+# sys_socketcall()). So, we don't really need to probe it, since we'll
+# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
+# shmat, etc.).
 
 # ipc ________________________________________________________
 #  int sys_ipc (uint call, int first, int second, int third, void __user *ptr, long fifth)
@@ -66,6 +77,7 @@ probe nd_syscall.ipc.return = kprobe.function("sys_ipc").return ?
 	name = "ipc"
 	retstr = returnstr(1)
 }
+%)
 
 # In kernels < 2.6.33, mmap()/mmap2() was handled by arch-specific
 # code.  In kernels >= 2.6.33, the arch-specific code just calls
@@ -99,7 +111,7 @@ probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
 probe __nd_syscall.mmap_pgoff = kprobe.function("sys_mmap_pgoff")
 {
 	asmlinkage()
-	pgoffset = ulong_arg(6) * %{ PAGE_SIZE %}
+	pgoffset = ulong_arg(6) * %{ /* pure */ PAGE_SIZE %}
 }
 probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?,
 	kprobe.function("sys_mmap_pgoff").return ?
@@ -120,7 +132,7 @@ probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area")
 	// u_info_uaddr = $u_info
 	asmlinkage()
 	u_info_uaddr = pointer_arg(1)
-	argstr = sprintf("%p", u_info_uaddr)
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
 }
 probe nd_syscall.set_thread_area.return = kprobe.function("sys_set_thread_area").return
 {
@@ -163,11 +175,18 @@ probe nd_syscall.set_zone_reclaim.return = kprobe.function("sys_set_zone_reclaim
 probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
 {
 	name = "sigaltstack"
-	// ussp = %( kernel_vr < "2.6.25" %? $ebx %: %( kernel_vr < "2.6.30" %? $bx %: $regs->bx %) %)
-	// NB: no asmlinkage()
-	ussp = %( kernel_vr < "2.6.30" %? ulong_arg(1) %:
-		  @cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")->bx %)
-	argstr = sprintf("%p", ussp)
+	asmlinkage()
+	// Sigh, it doesn't seem possible to get the address of regs
+	// here without dipping down into deep mojo.
+	__regs = __ulong(register("esp")) + 4
+	uss_uaddr = __ulong(@choose_defined(@cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->bx,
+					    @cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->ebx))
+%(systemtap_v <= "1.4" %?
+	ussp = uss_uaddr
+%)
+	uoss_uaddr = __ulong(@choose_defined(@cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->cx,
+					     @cast(__regs, "pt_regs", "kernel<asm/ptrace.h>")->ecx))
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
 }
 probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
 {
@@ -214,3 +233,39 @@ probe nd_syscall.vm86old.return = kprobe.function("sys_vm86old").return ?
 	retstr = returnstr(1)
 }
 
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#   asmlinkage int sys_execve(struct pt_regs regs)
+#   int sys_execve(struct pt_regs *regs)
+
+probe nd_syscall.execve = kprobe.function("sys_execve")
+{
+	name = "execve"
+%( kernel_v < "2.6.30" %?
+	asmlinkage()
+	# Notice here that a pointer to a pt_regs struct isn't passed,
+	# a pt_regs struct itself is passed.
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+%:
+	__regs = &@cast(ulong_arg(1), "pt_regs", "kernel<asm/ptrace.h>")
+	filename = user_string_quoted(__regs->bx)
+	args = __get_argv(__regs->cx, 0)
+	env_str = __count_envp(__regs->dx)
+%)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%)

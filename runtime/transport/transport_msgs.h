@@ -84,7 +84,10 @@ enum
             Only send once at startup.  */
         STP_REMOTE_ID,
 	/** Max number of message types, sanity check only.  */
-	STP_MAX_CMD
+	STP_MAX_CMD,
+  /** Sent by stapio after having recevied STP_TRANSPORT. Notifies
+      the module of the target namespaces pid.*/
+  STP_NAMESPACES_PID
 };
 
 #ifdef DEBUG_TRANS
@@ -106,6 +109,7 @@ static const char *_stp_command_name[] = {
 	"STP_TZINFO",
 	"STP_PRIVILEGE_CREDENTIALS",
 	"STP_REMOTE_ID",
+  "STP_NAMESPACES_PID",
 };
 #endif /* DEBUG_TRANS */
 
@@ -133,6 +137,12 @@ struct _stp_msg_start
 {
 	pid_t target;
         int32_t res;    // for reply: result of systemtap_module_init
+};
+
+/* target namespaces pid */
+struct _stp_msg_ns_pid
+{
+  pid_t target;
 };
 
 #if STP_TRANSPORT_VERSION == 1

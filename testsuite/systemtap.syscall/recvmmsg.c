@@ -184,7 +184,7 @@ int main()
     msgs[1].msg_hdr.msg_iovlen = 1;
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     recvmmsg(-1, msgs, 2, 0, NULL);
     //staptest// recvmmsg (-1, XXXX, 2, 0x0, NULL) = -NNNN (EBADF)
@@ -204,7 +204,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmmsg(s, (struct mmsghdr *)-1, 2, 0, NULL);
 #ifdef __s390__
@@ -228,12 +228,15 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     // Note that the exact failure return value can differ here, so
-    // we'll just ignore it.
+    // we'll just ignore it. Also note that on a 32-bit kernel (i686
+    // for instance), MAXSTRINGLEN is only 256. Passing a -1 as the
+    // flags value can produce a string that will cause argstr to get
+    // too big. So, we'll make the end of the argument optional.
     recvmmsg(s, msgs, 2, -1, NULL);
-    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_[^ ]+|XXXX, NULL) = -NNNN
+    //staptest// recvmmsg (NNNN, XXXX, 2, MSG_[^ ]+[[[[|XXXX, NULL]]]]?) = -NNNN
 
     close(s);
     //staptest// close (NNNN) = 0
@@ -274,7 +277,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmmsg(s, msgs, 2, MSG_DONTWAIT, NULL);
     //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, NULL) = NNNN
@@ -297,7 +300,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmmsg(s, msgs, 2, MSG_DONTWAIT, &tim);
     //staptest// recvmmsg (NNNN, XXXX, 2, MSG_DONTWAIT, \[0.000020000\]) = NNNN

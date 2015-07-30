@@ -647,7 +647,7 @@ stap_waitpid(int verbose, pid_t pid)
       spawned_pids.erase(pid);
       ret = WIFEXITED(status) ? WEXITSTATUS(status) : 128 + WTERMSIG(status);
       if (verbose > 1)
-        clog << _F("Spawn waitpid result (0x%x): %d", status, ret) << endl;
+        clog << _F("Spawn waitpid result (0x%x): %d", (unsigned)status, ret) << endl;
     }
   else
     {
@@ -1000,7 +1000,39 @@ string unescape_glob_chars (const string& str)
   return op;
 }
 
+bool identifier_string_needs_escape (const string& str)
+{
+  for (unsigned i = 0; i < str.size (); i++)
+    {
+      char this_char = str[i];
+      if (! isalnum (this_char) && this_char != '_')
+	return true;
+    }
 
+  return false;
+}
+
+string escaped_indentifier_string (const string &str)
+{
+  if (! identifier_string_needs_escape (str))
+    return str;
+
+  string op;
+  for (unsigned i = 0; i < str.size (); i++)
+    {
+      char this_char = str[i];
+      if (! isalnum (this_char) && this_char != '_')
+	{
+	  char b[32];
+	  sprintf (b, "_%x_", (unsigned int) this_char);
+	  op += b;
+        }
+      else
+	op += this_char;
+    }
+
+  return op;
+}
 
 string
 normalize_machine(const string& machine)
@@ -1015,7 +1047,8 @@ normalize_machine(const string& machine)
   // But: RHBZ669082 reminds us that this renaming post-dates some
   // of the kernel versions we know and love.  So in buildrun.cxx
   // we undo this renaming for ancient powerpc.
-
+  //
+  // NB repeated: see also stap-env (stap_get_arch)
   if (machine == "i486") return "i386";
   else if (machine == "i586") return "i386";
   else if (machine == "i686") return "i386";
@@ -1029,6 +1062,7 @@ normalize_machine(const string& machine)
   else if (machine.substr(0,3) == "sh2") return "sh";
   else if (machine.substr(0,3) == "sh3") return "sh";
   else if (machine.substr(0,3) == "sh4") return "sh";
+  // NB repeated: see also stap-env (stap_get_arch)
   return machine;
 }
 
@@ -1112,17 +1146,14 @@ bool
 is_valid_pid (pid_t pid, string& err_msg)
 {
   err_msg = "";
-  if (pid <= 0 || kill(pid, 0) == -1)
+  if (pid <= 0)
     {
-      switch (errno) // ignore EINVAL: invalid signal
-      {
-        case ESRCH:
-          err_msg = "pid given does not correspond to a running process";
-        case EPERM:
-          err_msg = "invalid permissions for signalling given pid";
-        default:
-          err_msg = "invalid pid";
-      }
+      err_msg = _F("cannot probe pid %d: Invalid pid", pid);
+      return false;
+    }
+  else if (kill(pid, 0) == -1)
+    {
+      err_msg = _F("cannot probe pid %d: %s", pid, strerror(errno));
       return false;
     }
   return true;

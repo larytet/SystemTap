@@ -1,5 +1,5 @@
 set test "stmt_inlines"
-if {![utrace_p]} { untested "$test"; return }
+if {![uprobes_p]} { untested "$test"; return }
 
 # This test verifies that probing a statement in a function inlined multiple
 # times will place a probe at all instances.

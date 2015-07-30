@@ -300,8 +300,9 @@ te_closure (state_kernel *start, int ntags, bool is_initial = false)
       next.parents = point.parents;
       if (point.parents.find(next.i) != point.parents.end())
         {
-          target = NULL;
-          tag = -1;
+          // target = NULL;
+          // tag = -1;
+          // ^^^ these are overwritten from other_target / other_tag immediately
           goto next_target;
         }
       next.parents.insert(next.i);

@@ -1,0 +1,46 @@
+#!/usr/bin/expect
+
+set test "multisym"
+set testpath "$srcdir/$subdir"
+set script "$testpath/multisym.stp"
+
+# Test that two functions with the same name in the symbol table are
+# both found even when no DWARF information is available
+# As the resolution of the probes occur during pass 2, we don't need to go
+# all the way to pass 5
+# We need the number of resolutions during pass 2.
+
+set cmd [concat stap {-p 2 } $script]
+
+set res [target_compile ${testpath}/${test}_baz.c ${test}_baz.o object ""]
+if { $res != "" } {
+    verbose "target_compile failed: $res" 2
+    fail "unable to compile ${test}_baz.c"
+}
+
+set res [target_compile ${testpath}/${test}_main.c ${test}_main.o object ""]
+if { $res != "" } {
+    verbose "target_compile failed: $res" 2
+    fail "unable to compile ${test}_main.c"
+}
+
+set res [target_compile "${test}_baz.o ${test}_main.o" ${test} executable ""]
+if { $res != "" } {
+    verbose "target_compile failed: $res" 2
+    fail "unable to compile ${test}"
+}
+
+eval spawn $cmd
+set results 0
+expect {
+    -re {process\([a-z\/\"]+\)*} { incr results 1; exp_continue}
+}
+set res [wait -i $spawn_id]
+catch close
+set res [lindex $res 3]
+
+if {$res == 0 && $results == 4} {
+	pass "$test succeeded"
+    } else {
+	fail "$test failed"
+    }

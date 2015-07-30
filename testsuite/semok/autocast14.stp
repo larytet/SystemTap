@@ -1,0 +1,20 @@
+#! stap -p2
+
+probe oneshot
+{
+    // precheck, it should work with @cast
+    if (!@defined(@task(0)->mm)) {
+        println($cast_failed_mm)
+    }
+    if (@defined(@task(0)->systemtap)) {
+        println($cast_succeeded_systemtap)
+    }
+
+    // Test that autocast values can be checked by @defined
+    if (!@defined(task_current()->mm)) {
+        println($autocast_failed_mm)
+    }
+    if (@defined(task_current()->systemtap)) {
+        println($autocast_succeeded_systemtap)
+    }
+}

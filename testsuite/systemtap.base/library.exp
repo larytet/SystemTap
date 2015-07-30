@@ -72,18 +72,19 @@ if { [error_handler [expr {$res == ""}] "target_compile sdt_misc.x"] } {
 
 # Test globbing
 
-proc globbing_test { mssg script } {
+proc globbing_test { mssg script builddir } {
     global sopath exepath srcdir subdir stap_path
-    eval set globs "{{*} {*libsdt*} $sopath}"
+    eval set globs "{{*} {*libsdt*} $sopath {PATH/*libsdt*} PATH/$sopath}"
     foreach glob $globs {
+	eval set test_glob [string map {PATH "$builddir"} "$glob"]
 	foreach runtime [get_runtime_list] {
 	    set test_name "sdt_misc"
 	    if {$runtime != ""} {
 		lappend test_name "($runtime)"
 		spawn $stap_path --runtime=$runtime -c $exepath \
-		    $script $exepath "$glob"
+		    $script $exepath "$test_glob"
 	    } elseif {[uretprobes_p]} {
-		spawn $stap_path -c $exepath $script $exepath "$glob"
+		spawn $stap_path -c $exepath $script $exepath "$test_glob"
 	    } else {
 		untested "library $test_name $glob $mssg"
 		continue
@@ -122,10 +123,10 @@ proc globbing_test { mssg script } {
 } ; # proc globbing_test
 
 set script_path [fullpath $srcdir/$subdir/library.stp]
-globbing_test "" $script_path
+globbing_test "" $script_path "."
 set savedir [pwd]
 cd /tmp
-globbing_test "rpath" $script_path
+globbing_test "rpath" $script_path $savedir
 cd $savedir
 
 # Test --ldd

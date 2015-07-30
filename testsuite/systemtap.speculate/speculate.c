@@ -13,7 +13,7 @@
 static char buf1[MAXSIZE];
 static char buf2[MAXSIZE];
 
-main (int argc, char ** argv)
+int main (int argc, char ** argv)
 {
 	int fbad = open("/tmp/junky_bad", O_CREAT|O_RDWR, 0660);
 	int fokay = open("/tmp/junky_good", O_CREAT|O_RDWR, 0660);

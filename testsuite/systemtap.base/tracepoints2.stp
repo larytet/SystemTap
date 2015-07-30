@@ -1,0 +1,11 @@
+probe my_probe = kernel.trace("sched:sched_switch") {
+   printf("%s:%s\n", $$system, $$name)
+}
+
+probe no_support = begin {
+   println("sched:sched_switch")
+}
+
+probe my_probe!, no_support {
+   exit()
+}

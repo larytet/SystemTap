@@ -62,5 +62,6 @@ struct option stap_long_options[] = {
   { "color",                       optional_argument, NULL, LONG_OPT_COLOR_ERRS },
   { "colour",                      optional_argument, NULL, LONG_OPT_COLOR_ERRS },
   { "save-uprobes",                no_argument,       NULL, LONG_OPT_SAVE_UPROBES },
+  { "target-namespaces",           required_argument, NULL, LONG_OPT_TARGET_NAMESPACES },
   { NULL, 0, NULL, 0 }
 };

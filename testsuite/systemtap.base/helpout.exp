@@ -1,0 +1,20 @@
+set test "helpout"
+
+if [installtest_p] {
+    set cmds [list stap staprun $env(PKGLIBDIR)/stapio]
+    if [dyninst_p] {
+        lappend cmds stapdyn
+    }
+} else {
+    set cmds [list ../stap ../staprun/staprun ../staprun/stapio]
+    if [dyninst_p] {
+        lappend cmds ../stapdyn/stapdyn
+    }
+}
+foreach cmd $cmds {
+    foreach opt {-V -h} {
+        set subtest "$test $cmd $opt"
+        set rc [catch {exec $cmd $opt >/dev/null} out]
+        if { $rc == "0" && $out == ""} then { pass $subtest } else { fail "$subtest ($rc $out)" }
+    }
+}

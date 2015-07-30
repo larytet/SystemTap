@@ -1,4 +1,6 @@
-/* COVERAGE: mmap2 munmap msync mlock mlockall munlock munlockall mprotect mremap fstat open close */
+/* COVERAGE: mmap mmap2 mmap_pgoff munmap msync */
+/* COVERAGE: mlock mlockall munlock munlockall */
+/* COVERAGE: mprotect mremap */
 #include <sys/types.h>
 #include <sys/stat.h>
 #define __USE_GNU
@@ -14,7 +16,7 @@ int main()
 
 	/* create a file with something in it */
 	fd = open("foobar",O_WRONLY|O_CREAT|O_TRUNC, 0600);
-	//staptest// open ("foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC, 0600) = NNNN
+	//staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC, 0600) = NNNN
 
 	// Why 64k? ppc64 has 64K pages. ia64 has 16k
 	// pages. x86_64/i686 has 4k pages. When we specify an offset
@@ -26,7 +28,7 @@ int main()
 	//staptest// close (NNNN) = 0
 
 	fd = open("foobar", O_RDONLY);
-	//staptest// open ("foobar", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+	//staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
 	/* stat for file size */
 	ret = fstat(fd, &fs);
@@ -38,14 +40,40 @@ int main()
 	mlock(r, 4096);
 	//staptest// mlock (XXXX, 4096) = 0
 
+	mlock((void *)-1, 4096);
+	//staptest// mlock (0x[f]+, 4096) = NNNN
+
+	mlock(0, -1);
+#if __WORDSIZE == 64
+	//staptest// mlock (0x[0]+, 18446744073709551615) = NNNN
+#else
+	//staptest// mlock (0x[0]+, 4294967295) = NNNN
+#endif
+
 	msync(r, 4096, MS_SYNC);	
 	//staptest// msync (XXXX, 4096, MS_SYNC) = 0
+
+	msync((void *)-1, 4096, MS_SYNC);	
+	//staptest// msync (0x[f]+, 4096, MS_SYNC) = NNNN
+
+	msync(r, -1, MS_SYNC);	
+#if __WORDSIZE == 64
+	//staptest// msync (XXXX, 18446744073709551615, MS_SYNC) = NNNN
+#else
+	//staptest// msync (XXXX, 4294967295, MS_SYNC) = NNNN
+#endif
+
+	msync(r, 4096, -1);	
+	//staptest// msync (XXXX, 4096, MS_[^ ]+|XXXX) = NNNN
 
 	munlock(r, 4096);
 	//staptest// munlock (XXXX, 4096) = 0
 
 	mlockall(MCL_CURRENT);
 	//staptest// mlockall (MCL_CURRENT) = 
+
+	mlockall(-1);
+	//staptest// mlockall (MCL_[^ ]+|XXXX) = NNNN
 
 	munlockall();
 	//staptest// munlockall () = 0
@@ -115,6 +143,16 @@ int main()
 	// OS. So, we can't really test this one.
 	//
 	// r = mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, -1);
+
+	munmap((void *)-1, 8192);
+	//staptest// munmap (0x[f]+, 8192) = NNNN
+
+	munmap(r, -1);
+#if __WORDSIZE == 64
+	//staptest// munmap (XXXX, 18446744073709551615) = NNNN
+#else
+	//staptest// munmap (XXXX, 4294967295) = NNNN
+#endif
 
 	return 0;
 }

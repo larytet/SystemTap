@@ -1,7 +1,7 @@
 .\" -*- nroff -*-
 .TH DTRACE 1 
 .SH NAME
-dtrace \- Dtrace compatibile user application static probe generation tool.
+dtrace \- Dtrace compatible user application static probe generation tool.
 
 .\" macros
 .\" do not nest SAMPLEs
@@ -102,7 +102,7 @@ the \fI"test.o"\fR object file, which must therefore be linked into an
 application.
 .PP
 Sometimes, semaphore variables are not necessary nor helpful.  Skipping
-them can simplfy the build process, by omitting the extra \fI"test.o"\fR
+them can simplify the build process, by omitting the extra \fI"test.o"\fR
 file.  To skip dependence upon semaphore variables, include \fI"<sys/sdt.h>"\fR
 within the application before \fI"test.h"\fR:
 .SAMPLE

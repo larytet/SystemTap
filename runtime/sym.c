@@ -15,6 +15,9 @@
 #include "sym.h"
 #include "vma.c"
 #include "stp_string.c"
+#ifdef STP_NEED_LINE_DATA
+#include "unwind/unwind.h"
+#endif
 #include <asm/unaligned.h>
 #include <asm/uaccess.h>
 #include <linux/list.h>
@@ -245,6 +248,384 @@ static const char *_stp_kallsyms_lookup(unsigned long addr,
 	return NULL;
 }
 
+#ifdef STP_NEED_LINE_DATA
+static void _stp_filename_lookup(struct _stp_module *mod, char ** filename,
+                                 uint8_t *dirsecp, uint8_t *enddirsecp,
+                                 unsigned fileidx, int user, int compat_task)
+{
+  uint8_t *linep = dirsecp;
+  static char fullpath [MAXSTRINGLEN];
+  char *dirname_entry = NULL, *filename_entry = NULL;
+  unsigned diridx = 0, i, j;
+
+  // skip past the directory table in the debug_line info
+  while (*linep != 0 && linep < enddirsecp)
+    {
+      char *entry = (char *) linep;
+      uint8_t *endnamep = (uint8_t *) memchr (entry, '\0', (size_t) (enddirsecp-linep));
+      if (endnamep == NULL || (endnamep + 1) > enddirsecp)
+        return;
+      linep = endnamep + 1;
+    }
+
+  if ((char) linep[0] != '\0')
+    return;
+  ++linep;
+
+  // at the filename table
+  for (i = 1; *linep != 0 && linep < enddirsecp; ++i)
+    {
+      uint8_t *endnamep = NULL;
+      filename_entry = (char *) linep;
+      endnamep = (uint8_t *) memchr (filename_entry, '\0', (size_t) (enddirsecp-linep));
+      if (endnamep == NULL || (endnamep + 1) > enddirsecp)
+        return;
+
+      // move the line pointer past the file name. account for the null byte
+      linep = endnamep + 1;
+
+      // save the directory index
+      diridx = read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
+
+      if (linep > enddirsecp)
+        return;
+      if (i == fileidx)
+        break;
+
+      filename_entry = NULL;
+
+      // modification time
+      read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
+      // length of a file
+      read_pointer ((const uint8_t **) &linep, enddirsecp, DW_EH_PE_leb128, user, compat_task);
+      // check that nothing went wrong with reading the ulebs
+      if (linep > enddirsecp)
+        return;
+    }
+
+  if (filename_entry == NULL)
+    return; // return just the linenumber
+
+  // if  dirid == 0, it's the compilation directory. otherwise retrieve the
+  // directory path if the file path was relative
+  if (diridx != 0 && filename_entry[0] != '/')
+    {
+      linep = dirsecp;
+      for (j = 1; *linep != 0 && linep < enddirsecp; j++)
+        {
+          uint8_t *endnamep = NULL;
+          dirname_entry = (char *) linep;
+          endnamep = (uint8_t *) memchr (dirname_entry, '\0', (size_t) (enddirsecp-linep));
+          if (endnamep == NULL || (endnamep + 1) > enddirsecp)
+            return;
+
+          if (j == diridx)
+            break;
+
+          dirname_entry = NULL;
+          linep = endnamep + 1;
+        }
+
+      if (dirname_entry == NULL)
+        return;
+    }
+
+  // bring it all together
+  // the filename was the full path
+  if (filename_entry[0] == '/')
+    *filename = filename_entry;
+  // relative filename, and the dir corresponds to the compilation dir
+  else if (diridx == 0)
+    {
+      char *slash = strrchr (mod->path, '/');
+      strlcpy(fullpath, mod->path, (size_t) (2 + slash - mod->path));
+      strlcat(fullpath, filename_entry, MAXSTRINGLEN);
+      *filename = fullpath;
+    }
+  // relative filename and a directory from the table in the debug line data
+  else
+    {
+      strlcpy(fullpath, dirname_entry, MAXSTRINGLEN);
+      strlcat(fullpath, "/", MAXSTRINGLEN);
+      strlcat(fullpath, filename_entry, MAXSTRINGLEN);
+      *filename = fullpath;
+    }
+}
+
+#endif /* STP_NEED_LINE_DATA */
+
+unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *task, char ** filename, int need_filename)
+{
+  struct _stp_module *m;
+  struct _stp_section *sec;
+  const char *modname = NULL;
+  uint8_t *linep, *enddatap;
+  int compat_task = _stp_is_compat_task();
+  int user = (task ? 1 : 0);
+
+// the portion below is encased in this conditional because some of the functions
+// and constants needed are encased in a similar condition
+#ifdef STP_NEED_LINE_DATA
+  if (addr == 0)
+      return 0;
+
+  if (task)
+    {
+	    unsigned long vm_start = 0;
+	    unsigned long vm_end = 0;
+#ifdef CONFIG_COMPAT
+      /* Handle 32bit signed values in 64bit longs, chop off top bits. */
+      if (test_tsk_thread_flag(task, TIF_32BIT))
+        addr &= ((compat_ulong_t) ~0);
+#endif
+	    m = _stp_umod_lookup(addr, task, &modname, &vm_start, &vm_end);
+    }
+  else
+    m = _stp_kmod_sec_lookup(addr, &sec);
+
+  if (m == NULL || m->debug_line == NULL)
+    return 0;
+
+  // if addr is a kernel address, it will need to be adjusted
+  if (!task)
+    {
+      int i;
+      unsigned long offset = 0;
+      // have to factor in the load_offset of (specifically) the .text section
+      for (i=0; i<m->num_sections; i++)
+        if (!strcmp(m->sections[i].name, ".text"))
+          {
+            offset = (m->sections[i].static_addr - m->sections[i].sec_load_offset);
+            break;
+          }
+
+      if (addr < offset)
+        return 0;
+      addr = addr - offset;
+    }
+
+
+  linep = m->debug_line;
+  enddatap = m->debug_line + m->debug_line_len;
+
+  while (linep < enddatap)
+    {
+      // similar to print_debug_line_section() in elfutils
+      unsigned int length = 4, curr_file_idx = 1, prev_file_idx = 1;
+      unsigned int skip_to_seq_end = 0, op_index = 0;
+      uint64_t unit_length, hdr_length, curr_addr = 0;
+      uint8_t *endunitp, *endhdrp, *dirsecp, *stdopcode_lens_secp;
+      uint16_t version;
+      uint8_t opcode_base, line_range, min_instr_len = 0, max_ops = 1;
+      unsigned long curr_linenum = 1;
+      int8_t line_base;
+      long cumm_line_adv = 0;
+
+      unit_length = (uint64_t) read_pointer ((const uint8_t **) &linep, enddatap, DW_EH_PE_data4, user, compat_task);
+      if (unit_length == 0xffffffff)
+        {
+          if (unlikely (linep + 8 > enddatap))
+            return 0;
+          unit_length = (uint64_t) read_pointer ((const uint8_t **) &linep, enddatap, DW_EH_PE_data8, user, compat_task);
+          length = 8;
+        }
+      if (unit_length < (length + 2) || (linep + unit_length) > enddatap)
+        return 0;
+
+      endunitp = linep + unit_length;
+
+      version = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data2, user, compat_task);
+
+      if (length == 4)
+        hdr_length = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data4, user, compat_task);
+      else
+        hdr_length = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data8, user, compat_task);
+
+      if ((linep + hdr_length) > endunitp || hdr_length < (version >= 4 ? 6 : 5))
+        return 0;
+
+      endhdrp = linep + hdr_length;
+
+      // minimum instruction length
+      min_instr_len = *linep++;
+      // max operations per instruction
+      if (version >= 4)
+        {
+          max_ops = *linep++;
+          if (max_ops == 0)
+              return 0; // max operations per instruction is supposed to > 0;
+        }
+      // default value of the is_stmt register
+      ++linep;
+      // line base. this is a signed value.
+      line_base = *linep++;
+      // line range
+      line_range = *linep++;
+      if (line_range == 0)
+        return 0;
+      // opcode base
+      opcode_base = *linep++;
+      // opcodes
+      stdopcode_lens_secp = linep - 1;
+      // need this check if the header length check covers this region?
+      if ((linep + opcode_base - 1) >= endhdrp)
+        return 0;
+      linep += opcode_base - 1;
+
+      // at the directory table. don't need an other information from the header
+      // in order to find the desired line number, so we will save a pointer to
+      // this point and skip ahead to the end of the header. this portion of the
+      // header will be visited again after a line number has been found if a
+      // filename is needed.
+      dirsecp = linep;
+      linep = endhdrp;
+
+      // iterating through the opcodes. will deal with three defined types of
+      // opcode: special, extended and standard. there is also a portion at
+      // the end of this loop that will deal with unknown (standard) opcodes.
+      while (linep < endunitp)
+        {
+          uint8_t opcode = *linep++;
+          long addr_adv = 0;
+
+          if (opcode >= opcode_base) // special opcode
+            {
+              // line range was checked before this point. this variable is not altered after it is initialized.
+              cumm_line_adv += (line_base + ((opcode - opcode_base) % line_range));
+              addr_adv = ((opcode - opcode_base) / line_range);
+            }
+
+          else if (opcode == 0) // extended opcode
+            {
+              int len;
+              uint8_t subopcode;
+
+              if (linep + 1 > endunitp)
+                return 0;
+
+              len = *linep++;
+              if (linep + len > endunitp || len < 1)
+                return 0;
+
+              subopcode = *linep++; // the sub opcode
+              switch (subopcode)
+                {
+                  case DW_LNE_end_sequence:
+                    // reset the line and address.
+                    cumm_line_adv = 1 - curr_linenum;
+                    addr_adv = 0 - curr_addr;
+                    skip_to_seq_end = 0;
+                    op_index = 0;
+                    break;
+                  case DW_LNE_set_address:
+                    if ((len - 1) == 4) // account for the opcode (the -1)
+                      curr_addr = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data4, user, compat_task);
+                    else if ((len - 1) == 8)
+                      curr_addr = (uint64_t) read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data8, user, compat_task);
+                    else
+                      return 0;
+
+                    // if the set address is past the address we want, iterate
+                    // to the end of the sequence without doing more address
+                    // and linenumber calcs than necessary
+                    if (curr_addr > addr)
+                      skip_to_seq_end = 1;
+                    op_index = 0;
+                    break;
+                  default: // advance the ptr by the specified amount
+                    linep += len-1;
+                    break;
+                }
+            }
+          else if (opcode <= DW_LNS_set_isa) // known standard opcode
+            {
+              uint8_t *linep_before = linep;
+              switch (opcode)
+                {
+                  case DW_LNS_advance_pc:
+                    addr_adv = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                    break;
+                  case DW_LNS_fixed_advance_pc:
+                    addr_adv = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_data2, user, compat_task);
+                    if (linep_before == linep) // the read failed
+                      return 0;
+                    op_index = 0;
+                    break;
+                  case DW_LNS_advance_line:
+                    cumm_line_adv += read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128+DW_EH_PE_signed, user, compat_task);
+                    break;
+                  case DW_LNS_set_file:
+                    curr_file_idx = read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                    break;
+                  case DW_LNS_set_column:
+                    read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                    break;
+                  case DW_LNS_const_add_pc:
+                    addr_adv = ((255 - opcode_base) / line_range);
+                    break;
+                  case DW_LNS_set_isa:
+                    read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                    break;
+                }
+                if (linep > endunitp) // reading in the leb128 failed
+                  return 0;
+            }
+          else
+            {
+              int i;
+              for (i=stdopcode_lens_secp[opcode]; i>0; --i)
+                {
+                  read_pointer ((const uint8_t **) &linep, endunitp, DW_EH_PE_leb128, user, compat_task);
+                  if (linep > endunitp)
+                    return 0;
+                }
+            }
+
+          // don't worry about doing line/address advances since we are waiting
+          // till we hit the end of the sequence or the end of the unit at which
+          // point the address and linenumber will be reset
+          if (skip_to_seq_end == 1)
+            continue;
+
+          // calculate actual address advance
+          if (opcode != 0 && opcode != DW_LNS_fixed_advance_pc)
+            {
+              addr_adv = min_instr_len * (op_index + addr_adv) / max_ops;
+              op_index =  (op_index + addr_adv) % max_ops;
+            }
+
+          // found an address that at least sort of matches the address we
+          // were looking for
+          if ((curr_addr <= addr && addr < (curr_addr + addr_adv))
+              || (curr_addr == addr && addr_adv != 0))
+            {
+
+              if (need_filename)
+                _stp_filename_lookup(m, filename, dirsecp, endhdrp,
+                                     prev_file_idx, user, compat_task);
+              return curr_linenum;
+            }
+
+          // update the linenumber and file index if the curr_addr is to be updated
+          if (addr_adv != 0)
+            {
+              prev_file_idx = curr_file_idx;
+            }
+          if (prev_file_idx == curr_file_idx)
+          {
+              curr_linenum += cumm_line_adv;
+              cumm_line_adv = 0;
+            }
+
+          curr_addr += addr_adv;
+        }
+    }
+#endif /* STP_NEED_LINE_DATA */
+
+  // no linenumber was found otherwise this function would have returned before this point
+  return 0;
+}
+
 static int _stp_build_id_check (struct _stp_module *m,
 				unsigned long notes_addr,
 				struct task_struct *tsk)
@@ -463,7 +844,8 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
 {
   const char *modname = NULL;
   const char *name = NULL;
-  unsigned long offset = 0, size = 0;
+  char *filename = NULL;
+  unsigned long offset = 0, size = 0, linenumber = 0;
   char *exstr, *poststr, *prestr;
 
   prestr = (flags & _STP_SYM_PRE_SPACE) ? " " : "";
@@ -486,6 +868,11 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
      char *slash = strrchr (modname, '/');
      if (slash)
         modname = slash+1;
+  }
+
+  if ((flags & _STP_SYM_LINENUMBER) || (flags & _STP_SYM_FILENAME)) {
+      linenumber = _stp_linenumber_lookup (address, task, &filename,
+                                           (int) (flags & _STP_SYM_FILENAME));
   }
 
   if (name && (flags & _STP_SYM_SYMBOL)) {
@@ -593,7 +980,27 @@ static int _stp_snprint_addr(char *str, size_t len, unsigned long address,
       return _stp_snprintf(str, len, "%s%p%s%s", prestr,
 			   (int64_t) address, exstr, poststr);
 #endif
-    } else {
+    } else if ((flags & _STP_SYM_LINENUMBER) && linenumber) {
+        if (flags & _STP_SYM_FILENAME) {
+          if (filename) {
+            /* filename, linenumber */
+            return _stp_snprintf(str, len, "%s%s:%#lu%s%s", prestr,
+                 filename,  linenumber, exstr, poststr);
+          } else {
+            /* filename=??, linenumber */
+            return _stp_snprintf(str, len, "%s??:%#lu%s%s", prestr,
+                 linenumber, exstr, poststr);
+          }
+        } else {
+          /* linenumber */
+          return _stp_snprintf(str, len, "%s%#lu%s%s", prestr,
+               linenumber, exstr, poststr);
+        }
+    } else if ((flags & _STP_SYM_FILENAME) && filename) {
+      /* filename */
+      return _stp_snprintf(str, len, "%s%s%s%s", prestr,
+           filename, exstr, poststr);
+    }else {
       /* no names, hex only */
       return _stp_snprintf(str, len, "%s%p%s%s", prestr,
 			   (int64_t) address, exstr, poststr);

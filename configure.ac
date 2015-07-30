@@ -1,7 +1,7 @@
 dnl configure.ac --- autoconf input file for systemtap
 dnl Process this file with autoconf to produce a configure script.
 
-AC_INIT([systemtap], 2.6, systemtap@sourceware.org, systemtap)
+AC_INIT([systemtap], 2.8, systemtap@sourceware.org, systemtap)
 dnl                  ^^^ see also NEWS, systemtap.spec, testsuite/configure.ac
 dnl                      doc/SystemTap_Beginners_Guide/en-US/Book_Info.xml
 
@@ -200,8 +200,6 @@ AC_ARG_ENABLE([docs],
     [enable building documentation (default on if latex etc. found).]),
   [enable_docs=$enableval],
   [enable_docs="check"])
-AC_CHECK_PROG(have_xvfb, xvfb-run, yes, no)
-AM_CONDITIONAL([HAVE_XVFB], [test "$have_xvfb" == "yes"])
 AC_CHECK_PROG(have_latex, latex, yes, no)
 AC_CHECK_PROG(have_dvips, dvips, yes, no)
 AC_CHECK_PROG(have_ps2pdf, ps2pdf, yes, no)
@@ -219,34 +217,6 @@ if test "x${have_latex}${have_dvips}${have_ps2pdf}${have_latex2html}" == "xyesye
 fi
 AM_CONDITIONAL([BUILD_DOCS], [test "$building_docs" == "yes"])
 
-dnl Handle the options to build the publican options
-building_publican="no"
-AC_ARG_ENABLE([publican],
-  AS_HELP_STRING([--enable-publican],
-    [enable building publican documentation guides (default on if publican found and other documentation built).]),
-  [enable_publican=$enableval],
-  [enable_publican="check"])
-if test "$building_docs" == "no" -a "$enable_publican" == "yes" ; then
-   AC_MSG_ERROR([must use --enable-docs with --enable-publican])
-fi
-AC_CHECK_PROG(have_publican, publican, yes, no)
-if test "$enable_publican" == "yes"; then
-   if test "x${have_publican}" != "xyes"; then
-      AC_MSG_ERROR([cannot find publican for building publican guides])
-   fi
-fi
-if test "x${have_publican}" == "xyes" -a "$enable_publican" != "no" -a "${building_docs}" == "yes"; then
-   building_publican="yes"
-fi
-AM_CONDITIONAL([BUILD_PUBLICAN], [test "$building_publican" == "yes"])
-publican_brand="common"
-AC_ARG_WITH([publican-brand],
-  AS_HELP_STRING([--with-publican-brand=BRAND],
-    [building publican documentation guides using given brand (defaults to "common").]),
-  [publican_brand=$withval],
-  [publican_brand="common"])
-PUBLICAN_BRAND=$publican_brand
-AC_SUBST(PUBLICAN_BRAND)
 
 dnl Handle the option to build the reference documentation
 building_refdocs="no"
@@ -283,6 +253,7 @@ if test "x${have_fop}" == "xyes"; then
    rm -f dummy-tapsets.pdf
 fi
 AM_CONDITIONAL([HAVE_FOP], [test "$have_fop" == "yes"])
+AM_CONDITIONAL([HAVE_XMLTO], [test "$have_xmlto" == "yes"])
 
 dnl There is a strange bug in older versions of xmlto when generating pdf.
 dnl https://bugzilla.redhat.com/show_bug.cgi?id=526273
@@ -352,6 +323,17 @@ AS_IF([test "x$with_nss" != "xno"], [
 ], [have_nss=no])
 
 AM_CONDITIONAL([HAVE_NSS], [test "${have_nss}" = "yes"])
+
+dnl Handle dracut directory configuration.  Note we hard-code /usr by default,
+dnl instead of $prefix, because dracut is a system service that doesn't listen
+dnl at relocatable directories.
+AC_ARG_WITH([dracutstap],
+  AS_HELP_STRING([--with-dracutstap=DIR],
+    [Install dracut module files in DIR]))
+AS_IF([test "x$with_dracutstap" != "x"],[dracutstap="$with_dracutstap"],
+            [dracutstap=/usr/lib/dracut/modules.d/99stap])
+AC_MSG_NOTICE([using dracut module directory $dracutstap])
+AC_SUBST(dracutstap)
 
 dnl Handle the option to build the compile server.
 AC_ARG_ENABLE([server],
@@ -526,7 +508,14 @@ if test "$with_dyninst" != "no"; then
 fi
 AM_CONDITIONAL([HAVE_DYNINST], [test "${have_dyninst}" = "yes"])
 
+
 dnl Check for the libvirt and libxml2 devel packages
+
+AC_ARG_ENABLE([virt],
+  AS_HELP_STRING([--enable-virt],
+    [enable building of stapvirt support (default on if libvirt etc. found).]),
+  [enable_virt=$enableval],
+  [enable_virt="check"])
 
 dnl We require libvirt >= 1.0.2 because stapvirt relies on the
 dnl virDomainOpenChannel function, which was implemented in 1.0.2.
@@ -540,6 +529,18 @@ PKG_CHECK_MODULES([libxml2], [libxml-2.0], [
    AC_DEFINE([HAVE_LIBXML2],[1],[Define to 1 if libxml2 development libraries are installed])
    ], [have_libxml2=no])
 AM_CONDITIONAL([HAVE_LIBXML2], [test "${have_libxml2}" = "yes"])
+
+if test "$enable_virt" != "no"; then
+dnl See if we have enough libraries and tools to build the virt server
+  if test "x${have_libvirt}" != "xyes"; then
+    AC_MSG_WARN([will not build systemtap virt support, cannot find libvirt headers])
+  fi		       
+  if test "x${have_libxml2}" != "xyes"; then
+    AC_MSG_WARN([will not build systemtap virt support, cannot find xml2 headers])
+  fi		       
+fi
+AM_CONDITIONAL([BUILD_VIRT], [test "${have_libvirt}" == "yes" -a "${have_libxml2}" == "yes" -a "$enable_virt" != "no"])
+
 
 AC_CACHE_CHECK([for assembler .section "?" flags support], stap_cv_sectionq, [
 old_CFLAGS="$CFLAGS"
@@ -708,11 +709,10 @@ AC_CONFIG_FILES([staprun/guest/stapshd], [chmod +x staprun/guest/stapshd])
 AC_CONFIG_FILES([staprun/guest/stapsh-daemon], [chmod +x staprun/guest/stapsh-daemon])
 AC_CONFIG_FILES([staprun/guest/stapsh@.service])
 
-# Setup "shadow" directory doc/beginners that has everything setup for
-# publican in one directory (through directory links if necessary).
+# Setup "shadow" directory doc/beginners that has the basic directories  setup for
+# xmlto in one directory (through directory links if necessary).
 # It would be nice to use AC_CONFIG_LINKS, but automake complains when
 # the src is a directory and not a file.
-AC_CONFIG_FILES([doc/beginners/publican.cfg:doc/SystemTap_Beginners_Guide/publican.cfg.in])
 AC_CONFIG_COMMANDS([doc/beginners],
                    [rm -f $ac_abs_top_builddir/doc/beginners/en-US $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite && mkdir -p $ac_abs_top_builddir/doc/beginners/build/en-US && ln -s $ac_abs_top_srcdir/doc/SystemTap_Beginners_Guide/en-US $ac_abs_top_builddir/doc/beginners/en-US && ln -s $ac_abs_top_srcdir/testsuite $ac_abs_top_builddir/doc/beginners/build/en-US/testsuite])
 

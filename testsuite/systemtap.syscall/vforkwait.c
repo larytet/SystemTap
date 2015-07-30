@@ -12,7 +12,7 @@ int main ()
 	int status;
 	
 	child = vfork();
-#if !defined(__ia64__)
+#if !(defined(__ia64__) || defined(__aarch64__))
 	//staptest// vfork () = NNNN
 #else
 	// On RHEL5 ia64, vfork() gets turned into clone() (not

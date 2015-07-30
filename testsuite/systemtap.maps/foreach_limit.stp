@@ -98,6 +98,17 @@ probe begin
     printf("loop had %d iterations\n", i);
     printf("x ended up as %d\n", x);
 
+    # Use array index (PR17860)
+    printf("\nsorted (by values) with key specified limit x++:\n");
+    i = 0
+    foreach (key in array[++x]+ limit x)
+    {
+	printf("key %d, value %d\n", key, array[key])
+	i++;
+    }
+    printf("loop had %d iterations\n", i);
+    printf("x ended up as %d\n", x);
+
     #
     # Aggregate section
     #

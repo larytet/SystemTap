@@ -17,11 +17,15 @@ proc test_procedure {} {
     # To speed things up, go ahead and compile the test module once
     # here, then just use it down in run_one_test(). The test script
     # uses wildcards to cover every syscall and takes time to parse.
+    #
+    # Note that at one point we were passing '--skip-badvars' when
+    # compiling the syscall module. This tends to hide errors and not
+    # give errors when we expect them.
     set script "$srcdir/$subdir/${test_script}"
-    set cmd "stap -p4 -m ${test_module_name} --skip-badvars ${script}"
+    set cmd "stap -p4 -m ${test_module_name} ${script}"
     exec /bin/rm -f ${test_module}
     catch {eval exec $cmd} output
-    send_log $output
+    send_log "${output}\n"
     if {[file exists ${test_module}]} {
 	pass "${script} compilation"
     } else {

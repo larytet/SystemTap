@@ -38,22 +38,15 @@
  *15 :nfsd.proc3.rename.tfh
  */
 
-/*Get file handler from struct svc_fh */
-function __svc_fh:string(fh :long) %{  /* pure */
-	struct svc_fh * fhp = (struct svc_fh *) (unsigned long)(STAP_ARG_fh);
-	struct knfsd_fh *fh = &fhp->fh_handle;
-
-	snprintf(STAP_RETVALUE, MAXSTRINGLEN,
-			"%d: %08x %08x %08x %08x %08x %08x",
-			kread(&(fh->fh_size)),
-			kread(&(fh->fh_base.fh_pad[0])),
-			kread(&(fh->fh_base.fh_pad[1])),
-			kread(&(fh->fh_base.fh_pad[2])),
-			kread(&(fh->fh_base.fh_pad[3])),
-			kread(&(fh->fh_base.fh_pad[4])),
-			kread(&(fh->fh_base.fh_pad[5])));
-	CATCH_DEREF_FAULT();
-%}
+/* Get file handle data from struct svc_fh. */
+function __svc_fh:string(fhp:long)
+{
+	svc_fh = &@cast(fhp, "svc_fh", "kernel:nfsd")->fh_handle
+	return sprintf("%d: %08x %08x %08x %08x %08x %08x", svc_fh->fh_size,
+		       svc_fh->fh_base->fh_pad[0], svc_fh->fh_base->fh_pad[1],
+		       svc_fh->fh_base->fh_pad[2], svc_fh->fh_base->fh_pad[3],
+		       svc_fh->fh_base->fh_pad[4], svc_fh->fh_base->fh_pad[5])
+}
 
 function nfs3_cmode:string(cmode:long) %{ /* pure */
 	int cmode = (int)(long)STAP_ARG_cmode;

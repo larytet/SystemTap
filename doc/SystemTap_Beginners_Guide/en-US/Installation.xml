@@ -194,60 +194,9 @@
 	    kernel.
    </para>
 
-   <para  condition="RedHat">
-     Note that Red Hat provides several software update services. Red Hat
-     Enterprise Linux 6 uses RHN by default, whereas the default for Red Hat
-     Enterprise Linux 7 is CDN.
-   </para>
-
-   <para  condition="RedHat">
-     For <emphasis role="strong">Red Hat Enterprise Linux 6 registered with RHN</emphasis>,
-     appropriate channels must be enabled for
-     <command>yum</command> to download and install the relevant packages.
-     Configure the channels with either the
-     <command>rhn-channel</command> command or the Red Hat Network
-     web interface.
-     To obtain a list of the channels SystemTap needs on the system, use
-     the following script:
-   </para>
 
 <!-- next 2 indexterms for rhelchannels.sh -->
 
-<indexterm condition="RedHat">
-<primary>Installation</primary>
-<secondary>rhelchannels.sh</secondary>
-</indexterm>
-
-<indexterm condition="RedHat">
-<primary>rhelchannels.sh</primary>
-</indexterm>
-<formalpara condition="RedHat">
-<title>rhelchannels.sh</title>
-<para>
-<programlisting><xi:include parse="text" href="extras/rhelchannels.sh" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
-</para>
-</formalpara>
-
-   <para condition="RedHat">
-     On a system with Red Hat Enterprise Linux 6 for Workstation, running the
-     above script returns the following list:
-   </para>
-<screen condition="RedHat">rhel-x86_64-workstation-6
-rhel-x86_64-workstation-6-debuginfo
-rhel-x86_64-workstation-optional-6-debuginfo
-rhel-x86_64-workstation-optional-6</screen>
-   <para condition="RedHat">
-     The <command>rhn-channel --list</command> command provides a list of
-     channels the machine is currently subscribed to.
-     If the machine is only subscribed to
-     <systemitem>rhel-x86_64-workstation-6</systemitem>, use the following command
-     with root and Red Hat Network administrator privileges for the machine
-     to add the other channels:
-   </para>
-<screen condition="RedHat"><command>rhn-channel --add \</command>
-<command>--channel=rhel-x86_64-workstation-6-debuginfo \</command>
-<command>--channel=rhel-x86_64-workstation-optional-6-debuginfo \</command>
-<command>--channel=rhel-x86_64-workstation-optional-6</command></screen>
    <para>
      When the appropriate software repositories are enabled,
      install the corresponding packages for a specific kernel
@@ -267,66 +216,6 @@ rhel-x86_64-workstation-optional-6</screen>
 <screen><command>yum install kernel-PAE-devel-2.6.18-53.1.13.el5</command>
 <command>debuginfo-install kernel-PAE-2.6.18-53.1.13.el5</command></screen>
 
-   <para  condition="RedHat">
-   With <emphasis role="strong">Red Hat Enterprise Linux 7 system registered with
-   CDN</emphasis>, all needed channels, or repositories in the CDN
-   terminology, are available by default. Running the <command>stap-prep</command>
-   command is sufficient to install all needed kernel information packages. During it operation, the
-   <command>stap-prep</command> command temporarily enables any repositories that are
-   needed and available, but disabled by default.
-   </para>
-
-<para condition="fedora">
-	If you do not have <package>yum</package> and
-	<package>yum-utils</package> installed and you are unable to install
-	these packages, download and install the required
-	kernel information packages manually.
-	To generate the URL from which to download the required packages,
-	use the following script:
-</para>
-<indexterm condition="fedora">
-<primary>Installation</primary>
-<secondary>fedoradebugurl.sh</secondary>
-</indexterm>
-
-<indexterm condition="fedora">
-<primary>fedoradebugurl.sh</primary>
-</indexterm>
-
-
-<para condition="RedHat">
-	If you do not have <command>yum</command>
-	and <command>yum-utils</command> installed and you are unable to
-	install them on Red Hat Enterprise Linux 4 or 5,
-	download and
-	install the required kernel information packages manually.
-	To generate the URL from which to download the required packages,
-	use the following script:
-</para>
-<!-- next 2 indexterms for rheldebugurl.sh -->
-
-<indexterm condition="RedHat">
-<primary>Installation</primary>
-<secondary>rheldebugurl.sh</secondary>
-</indexterm>
-
-<indexterm condition="RedHat">
-<primary>rheldebugurl.sh</primary>
-</indexterm>
-<formalpara condition="RedHat">
-<title>rheldebugurl.sh</title>
-<para>
-<programlisting><xi:include parse="text" href="extras/rheldebugurl.sh" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
-</para>
-</formalpara>
-
-
-<formalpara condition="fedora">
-<title>fedoradebugurl.sh</title>
-<para>
-<programlisting><xi:include parse="text" href="extras/fedoradebugurl.sh" xmlns:xi="http://www.w3.org/2001/XInclude" /></programlisting>
-</para>
-</formalpara>
     <para>
 Once you have manually downloaded the required packages to the machine, run the following command as root to install them:
     </para>

@@ -37,7 +37,7 @@ function stap_get_arch {
   # to squash uname -m -> $(SUBARCH).
   #
   # This logic needs to match the logic in the systemtap_session
-  # constructor in session.cxx.
+  # constructor in util.cxx (normalize_machine)
 
   local machine=`uname -m`
   case $machine in
@@ -46,11 +46,13 @@ function stap_get_arch {
       arm*) machine="arm" ;;
       sa1*) machine="arm" ;;
       s390*) machine="s390" ;;
+      aarch64) machine="arm64" ;;
       ppc*) machine="powerpc" ;;
       mips*) machine="mips" ;;
       sh?) machine="sh" ;;
       # the default is to just use the output of 'uname -m'
   esac
-
+  # NB: see also util.cxx (normalize_machine)
+  
   echo $machine
 }

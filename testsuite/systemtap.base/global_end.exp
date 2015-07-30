@@ -74,4 +74,24 @@ foreach runtime [get_runtime_list] {
     catch {close}; catch {wait}
     
     if {$ok == 6} { pass "$test ($ok)" } { fail "$test ($ok)" }
+
+    # test PR17749
+    set test "global_end_var_used"
+    if {$runtime != ""} {
+	set test "${test}_${runtime}"
+	spawn stap $srcdir/$subdir/global_end_var_used.stp --runtime=$runtime
+    } else {
+	spawn stap $srcdir/$subdir/global_end_var_used.stp
+    }
+    set ok 0
+    # strictly look for "hello". if anything else is printed it's a fail.
+    expect {
+	-timeout 180
+        -re {^hello!$} { incr ok; exp_continue }
+	timeout { fail "$test (timeout)" }
+	eof { }
+    }
+    catch {close}; catch {wait}
+
+    if {$ok == 1} { pass "$test ($ok)" } { fail "$test ($ok)" }
 }

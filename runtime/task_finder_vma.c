@@ -3,10 +3,11 @@
 
 #include <linux/list.h>
 #include <linux/jhash.h>
-#include <linux/spinlock.h>
 
 #include <linux/fs.h>
 #include <linux/dcache.h>
+
+#include "stp_helper_lock.h"
 
 // __stp_tf_vma_lock protects the hash table.
 // Documentation/spinlocks.txt suggest we can be a bit more clever
@@ -15,7 +16,7 @@
 // contents in interrupt context (which should only ever call 
 // stap_find_vma_map_info for getting stored vma info). So we might
 // want to look into that if this seems a bottleneck.
-static DEFINE_RWLOCK(__stp_tf_vma_lock);
+static STP_DEFINE_RWLOCK(__stp_tf_vma_lock);
 
 #define __STP_TF_HASH_BITS 4
 #define __STP_TF_TABLE_SIZE (1 << __STP_TF_HASH_BITS)
@@ -180,17 +181,17 @@ stap_add_vma_map_info(struct task_struct *tsk,
 	// Take a write lock, since we are most likely going to write
 	// after reading. But reserve a new entry first outside the lock.
 	new_entry = __stp_tf_vma_new_entry();
-	write_lock_irqsave(&__stp_tf_vma_lock, flags);
+	stp_write_lock_irqsave(&__stp_tf_vma_lock, flags);
 	entry = __stp_tf_get_vma_map_entry_internal(tsk, vm_start);
 	if (entry != NULL) {
-		write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+		stp_write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 		if (new_entry)
 			__stp_tf_vma_release_entry(new_entry);
 		return -EBUSY;	/* Already there */
 	}
 
 	if (!new_entry) {
-		write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+		stp_write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 		return -ENOMEM;
 	}
 
@@ -213,7 +214,7 @@ stap_add_vma_map_info(struct task_struct *tsk,
 
 	head = &__stp_tf_vma_map[__stp_tf_vma_map_hash(tsk)];
 	hlist_add_head(&entry->hlist, head);
-	write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+	stp_write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return 0;
 }
 
@@ -234,13 +235,13 @@ stap_extend_vma_map_info(struct task_struct *tsk,
 
 	// Take a write lock, since we are most likely going to write
 	// to the entry after reading, if its vm_end matches our vm_start.
-	write_lock_irqsave(&__stp_tf_vma_lock, flags);
+	stp_write_lock_irqsave(&__stp_tf_vma_lock, flags);
 	entry = __stp_tf_get_vma_map_entry_end_internal(tsk, vm_start);
 	if (entry != NULL) {
 		entry->vm_end = vm_end;
 		res = 0;
 	}
-	write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+	stp_write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return res;
 }
 
@@ -258,14 +259,14 @@ stap_remove_vma_map_info(struct task_struct *tsk, unsigned long vm_start)
 	// Take a write lock since we are most likely going to delete
 	// after reading.
 	unsigned long flags;
-	write_lock_irqsave(&__stp_tf_vma_lock, flags);
+	stp_write_lock_irqsave(&__stp_tf_vma_lock, flags);
 	entry = __stp_tf_get_vma_map_entry_internal(tsk, vm_start);
 	if (entry != NULL) {
 		hlist_del(&entry->hlist);
 		__stp_tf_vma_release_entry(entry);
                 rc = 0;
 	}
-	write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+	stp_write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return rc;
 }
 
@@ -288,7 +289,7 @@ stap_find_vma_map_info(struct task_struct *tsk, unsigned long addr,
 	if (__stp_tf_vma_map == NULL)
 		return rc;
 
-	read_lock_irqsave(&__stp_tf_vma_lock, flags);
+	stp_read_lock_irqsave(&__stp_tf_vma_lock, flags);
 	head = &__stp_tf_vma_map[__stp_tf_vma_map_hash(tsk)];
 	stap_hlist_for_each_entry(entry, node, head, hlist) {
 		if (tsk->pid == entry->pid
@@ -309,7 +310,7 @@ stap_find_vma_map_info(struct task_struct *tsk, unsigned long addr,
 			*user = found_entry->user;
 		rc = 0;
 	}
-	read_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+	stp_read_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return rc;
 }
 
@@ -332,7 +333,7 @@ stap_find_vma_map_info_user(struct task_struct *tsk, void *user,
 	if (__stp_tf_vma_map == NULL)
 		return rc;
 
-	read_lock_irqsave(&__stp_tf_vma_lock, flags);
+	stp_read_lock_irqsave(&__stp_tf_vma_lock, flags);
 	head = &__stp_tf_vma_map[__stp_tf_vma_map_hash(tsk)];
 	stap_hlist_for_each_entry(entry, node, head, hlist) {
 		if (tsk->pid == entry->pid
@@ -350,7 +351,7 @@ stap_find_vma_map_info_user(struct task_struct *tsk, void *user,
 			*path = found_entry->path;
 		rc = 0;
 	}
-	read_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+	stp_read_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return rc;
 }
 
@@ -363,7 +364,7 @@ stap_drop_vma_maps(struct task_struct *tsk)
 	struct __stp_tf_vma_entry *entry;
 
 	unsigned long flags;
-	write_lock_irqsave(&__stp_tf_vma_lock, flags);
+	stp_write_lock_irqsave(&__stp_tf_vma_lock, flags);
 	head = &__stp_tf_vma_map[__stp_tf_vma_map_hash(tsk)];
         stap_hlist_for_each_entry_safe(entry, node, n, head, hlist) {
             if (tsk->pid == entry->pid) {
@@ -371,7 +372,7 @@ stap_drop_vma_maps(struct task_struct *tsk)
 		    __stp_tf_vma_release_entry(entry);
             }
         }
-	write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
+	stp_write_unlock_irqrestore(&__stp_tf_vma_lock, flags);
 	return 0;
 }
 

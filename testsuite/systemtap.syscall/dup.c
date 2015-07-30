@@ -18,20 +18,20 @@ int main()
   //staptest// dup (-1) = -NNNN (EBADF)
 
   dup2(3, 4);
-  //staptest// dup2 (3, 4) = 4
+  //staptest// [[[[dup2 (3, 4!!!!dup3 (3, 4, 0x0]]]]) = 4
 
   dup2(255, 256);
-  //staptest// dup2 (255, 256) = -NNNN (EBADF)
+  //staptest// [[[[dup2 (255, 256!!!!dup3 (255, 256, 0x0]]]]) = -NNNN (EBADF)
 
   /* weird corner case oldfd == newfd */
   dup2(1, 1);
-  //staptest// dup2 (1, 1) = 1
+  //staptest// [[[[dup2 (1, 1!!!!fcntl (1, F_GETFL, 0x0]]]]) = 1
 
   dup2(-1, 4);
-  //staptest// dup2 (-1, 4) = -NNNN (EBADF)
+  //staptest// [[[[dup2 (-1, 4!!!!dup3 (-1, 4, 0x0]]]]) = -NNNN (EBADF)
 
   dup2(3, -1);
-  //staptest// dup2 (3, -1) = -NNNN (EBADF)
+  //staptest// [[[[dup2 (3, -1!!!!dup3 (3, -1, 0x0]]]]) = -NNNN (EBADF)
 
 #ifdef O_CLOEXEC
   dup3 (4, 5, O_CLOEXEC);

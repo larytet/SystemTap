@@ -85,12 +85,20 @@
 #define MREMAP_SYSCALL_NO(tsk)		163
 #endif
 
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__arm__)
 #define MMAP_SYSCALL_NO(tsk)		90
 #define MMAP2_SYSCALL_NO(tsk)		192
 #define MPROTECT_SYSCALL_NO(tsk)	125
 #define MUNMAP_SYSCALL_NO(tsk)		91
 #define MREMAP_SYSCALL_NO(tsk)		163
+#endif
+
+#if defined(__aarch64__)
+#define MMAP_SYSCALL_NO(tsk)		222
+#define MMAP2_SYSCALL_NO(tsk)		222
+#define MPROTECT_SYSCALL_NO(tsk)	226
+#define MUNMAP_SYSCALL_NO(tsk)		215
+#define MREMAP_SYSCALL_NO(tsk)		216
 #endif
 
 #if !defined(MMAP_SYSCALL_NO) || !defined(MMAP2_SYSCALL_NO)		\
@@ -104,12 +112,26 @@
 /* If the system has asm/syscall.h, use defines from it. */
 #include <asm/syscall.h>
 
+#if defined(__arm__)
+/* The syscall_get_nr() function on 3.17.1-302.fc21.armv7hl always
+ * returns 0 (since it was designed to be used with ftrace syscall
+ * tracing, not called from any context). So, let's use our function
+ * instead. */
+static inline long
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+{
+	return regs->ARM_r7;
+}
+#else
+#define _stp_syscall_get_nr syscall_get_nr
+#endif
+
 #else  /* !STAPCONF_ASM_SYSCALL_H */
 
 /* If the system doesn't have asm/syscall.h, use our defines. */
 #if defined(__i386__) || defined(__x86_64__)
 static inline long
-syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 #if defined(STAPCONF_X86_UNIREGS)
 	return regs->orig_ax;
@@ -123,7 +145,7 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 
 #if defined(__powerpc__)
 static inline long
-syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	return regs->gpr[0];
 }
@@ -131,7 +153,7 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 
 #if defined(__ia64__)
 static inline long
-syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	if ((long)regs->cr_ifs < 0) /* Not a syscall */
 		return -1;
@@ -147,16 +169,24 @@ syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 
 #if defined(__s390__) || defined(__s390x__)
 static inline long
-syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	// might need to be 'orig_gpr2'
 	return regs->gprs[2];
 }
 #endif
 
+#if defined(__aarch64__)
+static inline long
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+{
+	return regs->syscallno;
+}
+#endif
+
 #if defined(__arm__)
 static inline long
-syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
+_stp_syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
 	return regs->ARM_r7;
 }

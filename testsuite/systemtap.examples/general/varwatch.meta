@@ -1,10 +1,6 @@
 title: Watch a Variable Changing Value in a Thread
 name: varwatch.stp
-version: 1.0
-author: anonymous
-keywords: monitoring
-subsystem: any
-status: proposed
+keywords: _best monitoring
 exit: user-controlled
 output: trace
 scope: system-wide

@@ -62,7 +62,8 @@ Build steps:
   Or, with build it with a bundled internal copy of elfutils:
   % .../configure --with-elfutils=ELFUTILS-SOURCE-DIR [other autoconf options]
   (Note that elfutils > 0.139 requires gcc > 4.0 or else the
-  appropriate elfutils-portability.patch.)
+  appropriate elfutils-portability.patch.  Ensure decompression
+  library headers/libraries are installed for elfutils' use.)
 
   Consider configuring with "--enable-dejazilla" to automatically
   contribute to our public test result database.

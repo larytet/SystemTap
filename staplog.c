@@ -22,6 +22,10 @@
 
 /* crash/defs.h defines NR_CPUS based upon architecture macros
    X86, X86_64, etc.  See crash/configure.c (!). */
+#if !defined(X86) && !defined(X86_64) && !defined(ALPHA) && !defined(PPC) && \
+    !defined(IA64) && !defined(PPC64) && !defined(S390) && !defined(S390X) && \
+    !defined(ARM) && !defined(ARM64)
+
 #if defined(__alpha__)
 #define ALPHA
 #elif defined(__x86_64__)
@@ -38,10 +42,14 @@
 #define S390X
 #elif defined(__s390__)
 #define S390
+#elif defined(__aarch64__)
+#define ARM64
 #elif defined(__arm__)
 #define ARM
 #else
 #warn "unknown architecture for crash/staplog support"
+#endif
+
 #endif
 
 #include <crash/defs.h>

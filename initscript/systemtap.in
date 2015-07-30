@@ -59,7 +59,7 @@ TEMP_PATH=/tmp
 LOG_FILE=@localstatedir@/log/systemtap.log
 
 # NB: this path is also used in 99stap/module-setup.sh
-DRACUT_SRC=@prefix@/lib/dracut/modules.d/99stap/params.conf
+DRACUT_SRC=@dracutstap@/params.conf
 
 # FAIL unless all scripts succeeded to run
 PASSALL=yes
@@ -495,13 +495,16 @@ compile_script () { # script checkcache
     return 1
   fi
   pushd "$tmpdir" &> /dev/null
-  logex $STAP -m "$1" -p4 -r $KRELEASE $opts "$f"
+  logex $STAP -m "$1" -p4 -r $KRELEASE --save-uprobes $opts "$f"
   ret=$?
   if [ $ret -eq 0 ]; then
     if [ -f "uprobes/uprobes.ko" ]; then
+      logex touch "$CACHE_PATH/$1.uprobes"
       logex mkdir -p "$CACHE_PATH/uprobes"
       logex mv "uprobes/uprobes.ko" "$CACHE_PATH/uprobes/"
       ret=$?
+    elif [ -f "$CACHE_PATH/$1.uprobes" ]; then
+      rm "$CACHE_PATH/$1.uprobes"
     fi
   fi
   if [ $ret -eq 0 ]; then
@@ -575,6 +578,10 @@ start_script () { # script
   mode=$?
   [ $mode -eq 0 ] && return 2
 
+  if [ -f "$CACHE_PATH/$s.uprobes" ]; then
+    opts="$opts -u$CACHE_PATH/uprobes/uprobes.ko"
+  fi
+
   clog " Starting $1 ... " -n
   tmpdir=`mktemp -d -p "$TEMP_PATH" cache.XXXXXXXX`  # bz7097
   if [ $? -ne 0 ]; then
@@ -626,7 +633,7 @@ start () {
 
   if [ -z "$start_scripts" ]; then
     do_warning $"No scripts exist."
-    return 5 # program is not installed
+    return 0 # only a warning
   fi
 
   prepare_stat_dir
@@ -767,7 +774,7 @@ compile () {
     return 1
   fi
   for s in $SCRIPTS; do
-    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" 2> /dev/null`
+    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes" 2> /dev/null`
   done
   ss=`echo -n $ss`
   if [ "$ss" ]; then
@@ -899,8 +906,13 @@ onboot () {
     do_failure "Failed to make temporary file in $dir"
     return 1
   fi
-  # Create the initramfs image with stap module enabled.
-  out=$($DRACUT --add stap --force $TMPINITRAMFS $KRELEASE 2>&1)
+  if [ ! "$ss" ]; then
+    # Create the initramfs image without stap module enabled.
+    out=$($DRACUT --force $TMPINITRAMFS $KRELEASE 2>&1)
+  else
+    # Create the initramfs image with stap module enabled.
+    out=$($DRACUT --add stap --force $TMPINITRAMFS $KRELEASE 2>&1)
+  fi
   # dracut will report success even if some modules (e.g. stap) failed
   # to install some files, so we need to be a bit more involved in
   # checking for errors
@@ -960,7 +972,7 @@ cleanup () {
   fi
 
   for s in $SCRIPTS; do
-    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" 2> /dev/null`
+    ss="$ss "`ls "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes" 2> /dev/null`
   done
   ss=`echo -n $ss`
   if [ "$ss" ]; then
@@ -968,12 +980,18 @@ cleanup () {
     ask_yesno "Do you really want to remove above caches"
     [ $? -eq 0 ] && return 0
     for s in $SCRIPTS; do
-      logex rm -f "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts"
+      logex rm -f "$CACHE_PATH/$s.ko" "$CACHE_PATH/$s.opts" "$CACHE_PATH/$s.uprobes"
       [ $? -ne 0 ] && might_fail $"failed to clean cache $s.ko"
     done
-    might_success "done"
-    return 0
   fi
+  # If none of the remaining scripts require uprobes.ko, then delete it as well
+  if [ -d "$CACHE_PATH/uprobes" ]; then
+    if ! ls "$CACHE_PATH/*.uprobes" &>/dev/null; then
+      logex rm -rf "$CACHE_PATH/uprobes"
+    fi
+  fi
+  might_success "done"
+  return 0
 }
 
 # Restart scripts

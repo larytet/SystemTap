@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -24,6 +24,12 @@
 #include <set>
 #include <string>
 #include <vector>
+
+// Old elf.h doesn't know about this machine type.
+#ifndef EM_AARCH64
+#define EM_AARCH64 183
+#endif
+
 
 extern "C" {
 #include <elfutils/libdwfl.h>
@@ -167,6 +173,15 @@ struct inline_instance_info : base_func_info
   bool operator<(const inline_instance_info& other) const;
 };
 
+/* We'll need some context when dwflpp::loc2c_error is called.
+   So we can attach some detailed information about (the location of)
+   the DWARF that failed to be translated. Needs updating before each
+   loc2c c_translate call. */
+struct loc2c_context
+{
+  Dwarf_Die *die;
+  Dwarf_Addr pc;
+};
 
 struct dwflpp
 {
@@ -185,6 +200,10 @@ struct dwflpp
 
   std::string module_name;
   std::string function_name;
+
+  // Some context for dwflpp::loc2c_error callback.
+  // Needs updating before each loc2c c_translate call.
+  struct loc2c_context l2c_ctx;
 
   dwflpp(systemtap_session & session, const std::string& user_module, bool kernel_p);
   dwflpp(systemtap_session & session, const std::vector<std::string>& user_modules, bool kernel_p);
@@ -558,15 +577,15 @@ private:
   void collect_all_lines(char const * srcfile,
                          base_func_info_map_t& funcs,
                          lines_t& matching_lines);
+  std::pair<int,int> get_nearest_linenos(char const * srcfile,
+                                         int lineno,
+                                         base_func_info_map_t& funcs);
+  int get_nearest_lineno(char const * srcfile,
+                         int lineno,
+                         base_func_info_map_t& funcs);
   void suggest_alternative_linenos(char const * srcfile,
                                    int lineno,
                                    base_func_info_map_t& funcs);
-  void insert_alternative_linenos(char const * srcfile,
-                                   int lineno,
-                                   base_func_info_map_t& funcs,
-                                   void (* callback) (Dwarf_Addr,
-                                                      int, void*),
-                                   void *data);
 
   static int external_function_cu_callback (Dwarf_Die* cu, external_function_query *efq);
   static int external_function_func_callback (Dwarf_Die* func, external_function_query *efq);
@@ -594,6 +613,9 @@ private:
   std::string die_location_as_string(Dwarf_Addr, Dwarf_Die*);
   std::string die_location_as_function_string(Dwarf_Addr, Dwarf_Die*);
   std::string pc_die_line_string(Dwarf_Addr, Dwarf_Die*);
+
+  /* source file name, line and column info for pc in current cu. */
+  const char *pc_line (Dwarf_Addr, int *, int *);
 
   struct location *translate_location(struct obstack *pool,
                                       Dwarf_Attribute *attr,

@@ -90,10 +90,8 @@ start_server(struct sockaddr_in *sin0)
 
 int main()
 {
-    /* Only try this test if we have sendmmsg(). Unfortunately,
-     * on RHEL6 we have SYS_sendmmsg(), but no glibc support for
-     * sendmmsg(). */
-#if defined(SYS_sendmmsg) || defined (SYS_SENDMMSG)
+// glibc support for sendmmsg() was added in glibc 2.14.
+#if __GLIBC_PREREQ(2, 14)
     int s, fd_null;
     struct sockaddr_in sin1, from;
     pid_t pid = 0;
@@ -149,9 +147,12 @@ int main()
     //staptest// connect (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
 
     // Note that the exact failure return value can differ here, so
-    // we'll just ignore it.
+    // we'll just ignore it. Also note that on a 32-bit kernel (i686
+    // for instance), MAXSTRINGLEN is only 256. Passing a -1 as the
+    // flags value can produce a string that will cause argstr to get
+    // too big. So, we'll make the end of the argument optional.
     sendmmsg(s, msgs, 2, -1);
-    //staptest// sendmmsg (NNNN, XXXX, 2, MSG_[^ ]+|XXXX) = -NNNN
+    //staptest// sendmmsg (NNNN, XXXX, 2, MSG_[^ ]+[[[[|XXXX]]]]?) = -NNNN
 
     close(s);
     //staptest// close (NNNN) = 0

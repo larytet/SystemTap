@@ -216,7 +216,7 @@ void stop_symbol_thread(void);
 /* common.c functions */
 int stap_strfloctime(char *buf, size_t max, const char *fmt, time_t t);
 void parse_args(int argc, char **argv);
-void usage(char *prog);
+void usage(char *prog, int rc);
 void parse_modpath(const char *);
 void setup_signals(void);
 int set_clexec(int fd);
@@ -240,6 +240,7 @@ extern char *modpath;
 extern char *modoptions[MAXMODOPTIONS];
 extern int target_pid;
 extern char *target_cmd;
+extern int target_namespaces_pid;
 extern char *outfile_name;
 extern int rename_mod;
 extern int attach_mod;

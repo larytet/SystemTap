@@ -1,0 +1,31 @@
+global pp_no_match=0
+global matched=0
+global failedmatch=""
+
+probe begin {
+  print("READY\n")
+}
+
+probe module("systemtap_test_module2").function("yyy_func4") {
+  printf("fileline %s \n", symfileline(addr()))
+  printf("file %s \n", symfile(addr()))
+  printf("line %s \n", symline(addr()))
+  exit()
+}
+
+probe module("systemtap_test_module2").statement("*@*:*") {
+  fileline = "@"
+  fileline .= symfileline(addr())
+  if (isinstr(pp(), fileline) != 1){
+    pp_no_match++;
+    failedmatch =  pp()." ".fileline
+  } else {
+    matched++
+  }
+}
+probe end {
+  if (pp_no_match)
+    println("no match: ", pp_no_match, ". last failed  match: ", failedmatch)
+  else
+    println("matched: ", matched)
+}

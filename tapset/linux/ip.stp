@@ -125,7 +125,7 @@ function __ip_sock_family:long (sock:long)
 function __get_skb_iphdr:long(skb:long)
 %( kernel_v < "2.6.21" %?
 {
-	iphdr = @cast(skb, "sk_buff")->nh->raw
+  iphdr = @cast(skb, "sk_buff", "kernel<linux/skbuff.h>")->nh->raw
 	return iphdr
 }
 %:
@@ -145,17 +145,17 @@ function __get_skb_iphdr:long(skb:long)
 /* return the source next layer protocol for a given sk_buff structure */
 function __ip_skb_proto:long (iphdr)
 {
-	return @cast(iphdr, "iphdr")->protocol
+  return @cast(iphdr, "iphdr", "kernel<linux/ip.h>")->protocol
 }
 
 /* return the source IP address for a given sk_buff structure */
 function __ip_skb_saddr:long (iphdr)
 {
-	return @cast(iphdr, "iphdr")->saddr
+  return @cast(iphdr, "iphdr", "kernel<linux/ip.h>")->saddr
 }
 
 /* return the destination IP address for a given skb */
 function __ip_skb_daddr:long (iphdr)
 {
-	return @cast(iphdr, "iphdr")->daddr
+  return @cast(iphdr, "iphdr", "kernel<linux/ip.h>")->daddr
 }

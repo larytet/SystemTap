@@ -155,7 +155,7 @@ dwarf_attr_die (Dwarf_Die *die, unsigned int attr, Dwarf_Die *result)
 	  /* A DW_AT_signature might point to a type_unit, then
 	     the actual type DIE we want is the first child.  */
 	  if (result != NULL && dwarf_tag (result) == DW_TAG_type_unit)
-	    dwarf_child (result, result);
+	    DWFL_ASSERT("type_unit child", dwarf_child (result, result));
 	}
       return result;
     }

@@ -40,7 +40,7 @@ int main()
     //staptest// socket (PF_INET, SOCK_STREAM, IPPROTO_IP) = NNNN
 
     bind(s, (struct sockaddr *)&sin1, sizeof(sin1));
-    //staptest// bind (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = 0
+    //staptest// bind (NNNN, {AF_INET, 0.0.0.0, NNNN}, 16) = NNNN
 
     accept(s, (struct sockaddr *)-1, &sinlen);
     //staptest// accept[4]? (NNNN, 0x[f]+, XXXX[[[[, 0x0]]]]?) = -NNNN (EINVAL)

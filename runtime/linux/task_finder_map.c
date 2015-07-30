@@ -1,6 +1,7 @@
 #include <linux/list.h>
 #include <linux/jhash.h>
-#include <linux/spinlock.h>
+
+#include "stp_helper_lock.h"
 
 // When handling mmap()/munmap()/mprotect() syscall tracing to notice
 // memory map changes, we need to cache syscall entry parameter values
@@ -13,7 +14,7 @@
 // contents in interrupt context (which should only ever call 
 // stap_find_map_map_info for getting stored info). So we might
 // want to look into that if this seems a bottleneck.
-static DEFINE_RWLOCK(__stp_tf_map_lock);
+static STP_DEFINE_RWLOCK(__stp_tf_map_lock);
 
 #define __STP_TF_HASH_BITS 4
 #define __STP_TF_TABLE_SIZE (1 << __STP_TF_HASH_BITS)
@@ -51,11 +52,11 @@ __stp_tf_map_initialize(void)
 	struct hlist_head *head = &__stp_tf_map_free_list[0];
 
 	unsigned long flags;
-	write_lock_irqsave(&__stp_tf_map_lock, flags);
+	stp_write_lock_irqsave(&__stp_tf_map_lock, flags);
 	for (i = 0; i < TASK_FINDER_MAP_ENTRY_ITEMS; i++) {
 		hlist_add_head(&__stp_tf_map_free_list_items[i].hlist, head);
 	}
-	write_unlock_irqrestore(&__stp_tf_map_lock, flags);
+	stp_write_unlock_irqrestore(&__stp_tf_map_lock, flags);
 }
 
 
@@ -109,15 +110,15 @@ __stp_tf_get_map_entry(struct task_struct *tsk)
 	struct __stp_tf_map_entry *entry;
 
 	unsigned long flags;
-	read_lock_irqsave(&__stp_tf_map_lock, flags);
+	stp_read_lock_irqsave(&__stp_tf_map_lock, flags);
 	head = &__stp_tf_map_table[__stp_tf_map_hash(tsk)];
 	stap_hlist_for_each_entry(entry, node, head, hlist) {
 		if (tsk->pid == entry->pid) {
-			read_unlock_irqrestore(&__stp_tf_map_lock, flags);
+			stp_read_unlock_irqrestore(&__stp_tf_map_lock, flags);
 			return entry;
 		}
 	}
-	read_unlock_irqrestore(&__stp_tf_map_lock, flags);
+	stp_read_unlock_irqrestore(&__stp_tf_map_lock, flags);
 	return NULL;
 }
 
@@ -133,14 +134,14 @@ __stp_tf_add_map(struct task_struct *tsk, long syscall_no, unsigned long arg0,
 	struct __stp_tf_map_entry *entry;
 	unsigned long flags;
 
-	write_lock_irqsave(&__stp_tf_map_lock, flags);
+	stp_write_lock_irqsave(&__stp_tf_map_lock, flags);
 	head = &__stp_tf_map_table[__stp_tf_map_hash(tsk)];
 	stap_hlist_for_each_entry(entry, node, head, hlist) {
 		// If we find an existing entry, just increment the
 		// usage count.
 		if (tsk->pid == entry->pid) {
 			entry->usage++;
-			write_unlock_irqrestore(&__stp_tf_map_lock, flags);
+			stp_write_unlock_irqrestore(&__stp_tf_map_lock, flags);
 			return 0;
 		}
 	}
@@ -148,7 +149,7 @@ __stp_tf_add_map(struct task_struct *tsk, long syscall_no, unsigned long arg0,
 	// Get an element from the free list.
 	entry = __stp_tf_map_get_free_entry();
 	if (!entry) {
-		write_unlock_irqrestore(&__stp_tf_map_lock, flags);
+		stp_write_unlock_irqrestore(&__stp_tf_map_lock, flags);
 		return -ENOMEM;
 	}
 	entry->usage = 1;
@@ -158,7 +159,7 @@ __stp_tf_add_map(struct task_struct *tsk, long syscall_no, unsigned long arg0,
 	entry->arg1 = arg1;
 	entry->arg2 = arg2;
 	hlist_add_head(&entry->hlist, head);
-	write_unlock_irqrestore(&__stp_tf_map_lock, flags);
+	stp_write_unlock_irqrestore(&__stp_tf_map_lock, flags);
 	return 0;
 }
 
@@ -174,7 +175,7 @@ __stp_tf_remove_map_entry(struct __stp_tf_map_entry *entry)
 
 	if (entry != NULL) {
 		unsigned long flags;
-		write_lock_irqsave(&__stp_tf_map_lock, flags);
+		stp_write_lock_irqsave(&__stp_tf_map_lock, flags);
 
 		// Decrement the usage count.
 		entry->usage--;
@@ -185,7 +186,7 @@ __stp_tf_remove_map_entry(struct __stp_tf_map_entry *entry)
 			hlist_del(&entry->hlist);
 			__stp_tf_map_put_free_entry(entry);
 		}
-		write_unlock_irqrestore(&__stp_tf_map_lock, flags);
+		stp_write_unlock_irqrestore(&__stp_tf_map_lock, flags);
 	}
 	return 0;
 }

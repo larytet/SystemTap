@@ -71,6 +71,11 @@ key 6, value 12
 loop had 4 iterations
 x ended up as 5
 
+sorted (by values) with key specified limit x++:
+key 6, value 12
+loop had 1 iterations
+x ended up as 6
+
 Aggregates:
 count=150 sum=21360
 min=4 max=600

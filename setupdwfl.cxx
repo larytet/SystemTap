@@ -114,11 +114,20 @@ static const string abrt_path =
 string
 modname_from_path(const string &path)
 {
-  size_t dot = path.rfind('.');
   size_t slash = path.rfind('/');
-  if (dot == string::npos || slash == string::npos || dot < slash)
+  if (slash == string::npos)
     return "";
-  string name = path.substr(slash + 1, dot - slash - 1);
+  string name = path.substr(slash + 1);
+
+  // First look for .ko extension variants like ".ko" or ".ko.xz"
+  // If that fails, look for any ".*" extension at all.
+  size_t extension = name.rfind(".ko");
+  if (extension == string::npos)
+    extension = name.rfind('.');
+  if (extension == string::npos)
+    return "";
+
+  name.erase(extension);
   replace_if(name.begin(), name.end(), is_comma_dash, '_');
   return name;
 }

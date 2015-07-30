@@ -5,7 +5,7 @@
 
 global file_desc
 
-probe syscall.open.return
+probe syscall.open.return,  syscall.openat.return
 {
   if (pid() != target()) next
   file_desc[$return] = speculation()

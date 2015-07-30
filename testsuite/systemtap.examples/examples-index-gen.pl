@@ -1,6 +1,6 @@
 #! /usr/bin/perl
 # Generates index files from examples .meta file info.
-# Copyright (C) 2008-2011 Red Hat Inc.
+# Copyright (C) 2008-2015 Red Hat Inc.
 #
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -86,14 +86,19 @@ sub add_meta_html(*;$) {
     }
     print $file "<br>\n";
 
-    print $file "<p>".encode_entities($scripts{$meta}{description});
+    print $file "<p>".encode_entities($scripts{$meta}{description})."</p>";
 
-    $Text::Wrap::separator = " \\\n";
-    my $usage = wrap('', '', $scripts{$meta}{test_installcheck});
-    $Text::Wrap::separator = "\n";
-    my $usage = encode_entities($usage);
-
-    print $file "<p><font size=\"-2\"><pre># $usage</pre></font>";
+    my $txt = $name;
+    $txt =~ s/.stp$/.txt/;
+    if (-e $txt) { # prefer .txt file link
+        print $file "<p><i><a href=\"$txt\">sample usage in $txt</i></font>";
+    } else {
+        $Text::Wrap::separator = " \\\n";
+        my $usage = wrap('', '', $scripts{$meta}{test_installcheck});
+        $Text::Wrap::separator = "\n";
+        my $usage = encode_entities($usage);
+        print $file "<p><font size=\"-2\"><pre># $usage</pre></font>";
+    }
 
     print $file "</p>\n";
 }
@@ -124,6 +129,21 @@ open (FULLHTML, ">$fullhtml")
     || die "couldn't open $fullhtml: $!";
 print "Creating $fullhtml...\n";
 print FULLHTML $HTMLHEADER;
+
+print FULLHTML "<h2>Best Examples</h2>\n";
+print FULLHTML "<ul>\n"; 
+foreach $meta (sort keys %scripts) {
+    my $isbest = 0;
+    foreach $keyword (split(/ /, $scripts{$meta}{keywords})) {
+	if ($keyword eq "_best") { $isbest = 1; }
+    }
+    if ($isbest) {
+        print FULLHTML "<li><a href=\"#".$scripts{$meta}{name}."\">";
+        print FULLHTML $scripts{$meta}{name}." - ".$scripts{$meta}{title};
+        print FULLHTML "</a></li>\n";
+    }
+}
+print FULLHTML "</ul>\n\n";
 print FULLHTML "<h2>All " . scalar (keys %scripts) . " Examples</h2>\n";
 print FULLHTML "<ul>\n";
 

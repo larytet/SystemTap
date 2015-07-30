@@ -279,6 +279,16 @@ Part of the privilege enforcement mechanism may require using a
 stap-server and administrative trust in its cryptographic signer; see the
 .IR stap\-server (8)
 manual page for a for more information.
+
+.PP
+On a kernel with FIPS mode enabled, staprun normally refuses to attempt to
+load systemtap-generated kernel modules.  This is because on some kernels,
+this results in a panic.  If your kernel includes corrections such as
+linux commit #002c77a48b47, then you can force staprun to attempt module
+loads anyway, by setting the
+.BR STAP\_FIPS\_OVERRIDE
+environment variable to any value.
+
 .SH FILES
 .TP
 /lib/modules/VERSION/systemtap
@@ -288,6 +298,7 @@ Users who are only in the
 group can install modules
 located in this directory.  This directory must be owned by the root
 user and not be world writable.
+
 .SH SEE ALSO
 .IR stap (1),
 .IR stapprobes (3stap),

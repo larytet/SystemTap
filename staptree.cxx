@@ -95,25 +95,32 @@ symboldecl::~symboldecl ()
 
 probe_point::probe_point (std::vector<component*> const & comps):
   components(comps), optional (false), sufficient (false),
-  from_glob (false), well_formed (false), condition (0)
+  well_formed (false), condition (0)
 {
 }
 
 // NB: shallow-copy of compoonents & condition!
 probe_point::probe_point (const probe_point& pp):
   components(pp.components), optional (pp.optional), sufficient (pp.sufficient),
-  from_glob (pp.from_glob), well_formed (pp.well_formed),
-  condition (pp.condition)
+  well_formed (pp.well_formed), condition (pp.condition)
 {
 }
 
 
 probe_point::probe_point ():
-  optional (false), sufficient (false), from_glob (false),
-  well_formed (false), condition (0)
+  optional (false), sufficient (false), well_formed (false), condition (0)
 {
 }
 
+bool
+probe_point::from_globby_comp(const std::string& comp)
+{
+  vector<component*>::const_iterator it;
+  for (it = components.begin(); it != components.end(); it++)
+    if ((*it)->functor == comp)
+      return (*it)->from_glob;
+  return false;
+}
 
 unsigned probe::last_probeidx = 0;
 
@@ -142,19 +149,21 @@ probe::probe(probe* p, probe_point* l)
 
 
 probe_point::component::component ():
-  arg (0), tok(0)
+  arg (0), from_glob(false), tok(0)
 {
 }
 
 
-probe_point::component::component (std::string const & f, literal * a):
-  functor(f), arg(a), tok(0)
+probe_point::component::component (std::string const & f,
+  literal * a, bool from_glob):
+    functor(f), arg(a), from_glob(from_glob), tok(0)
 {
 }
 
 
 vardecl::vardecl ():
-  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false)
+  arity_tok(0), arity (-1), maxsize(0), init(NULL), synthetic(false), wrap(false),
+  char_ptr_arg(false)
 {
 }
 
@@ -570,40 +579,42 @@ void functiondecl::printsig (ostream& o) const
   o << ")";
 }
 
-struct embedded_tags_visitor: public traversing_visitor
+embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
 {
-  map<string, bool> tags;
-
-  embedded_tags_visitor(bool all_tags)
+  // populate the set of tags that could appear in embedded code/expressions
+  available_tags.insert("/* guru */");
+  available_tags.insert("/* unprivileged */");
+  available_tags.insert("/* myproc-unprivileged */");
+  if (all_tags)
     {
-      tags["/* guru */"] = false;
-      tags["/* unprivileged */"] = false;
-      tags["/* myproc-unprivileged */"] = false;
-      if (all_tags)
-        {
-          tags["/* pure */"] = false;
-          tags["/* unmangled */"] = false;
-        }
+      available_tags.insert("/* pure */");
+      available_tags.insert("/* unmangled */");
+      available_tags.insert("/* unmodified-fnargs */");
     }
+}
 
-  void find_tags_in_code (const string& s)
-    {
-      map<string, bool>::iterator tag;
-      for (tag = tags.begin(); tag != tags.end(); ++tag)
-        if (!tag->second)
-          tag->second = s.find(tag->first) != string::npos;
-    }
+bool embedded_tags_visitor::tagged_p (const std::string& tag)
+{
+  return tags.count(tag);
+}
 
-  void visit_embeddedcode (embeddedcode *s)
-    {
-      find_tags_in_code(s->code);
-    }
+void embedded_tags_visitor::find_tags_in_code (const string& s)
+{
+  set<string>::iterator tag;
+  for (tag = available_tags.begin(); tag != available_tags.end(); ++tag)
+      if(s.find(*tag) != string::npos)
+        tags.insert(*tag);
+}
 
-  void visit_embedded_expr (embedded_expr *e)
-    {
-      find_tags_in_code(e->code);
-    }
-};
+void embedded_tags_visitor::visit_embeddedcode (embeddedcode *s)
+{
+  find_tags_in_code(s->code);
+}
+
+void embedded_tags_visitor::visit_embedded_expr (embedded_expr *e)
+{
+  find_tags_in_code(e->code);
+}
 
 void functiondecl::printsigtags (ostream& o, bool all_tags) const
 {
@@ -614,10 +625,10 @@ void functiondecl::printsigtags (ostream& o, bool all_tags) const
   embedded_tags_visitor etv(all_tags);
   this->body->visit(&etv);
 
-  map<string, bool>::const_iterator tag;
-  for (tag = etv.tags.begin(); tag != etv.tags.end(); ++tag)
-    if (tag->second)
-      o << " " << tag->first;
+  set<string, bool>::const_iterator tag;
+  for (tag = etv.available_tags.begin(); tag != etv.available_tags.end(); ++tag)
+    if (etv.tagged_p(*tag))
+      o << " " << *tag;
 }
 
 void arrayindex::print (ostream& o) const
@@ -1701,6 +1712,13 @@ hist_op::visit (visitor *u)
 
 
 bool
+expression::is_symbol(symbol *& sym_out)
+{
+  sym_out = NULL;
+  return false;
+}
+
+bool
 indexable::is_symbol(symbol *& sym_out)
 {
   sym_out = NULL;
@@ -2257,7 +2275,12 @@ void
 functioncall_traversing_visitor::visit_functioncall (functioncall* e)
 {
   traversing_visitor::visit_functioncall (e);
+  this->enter_functioncall(e);
+}
 
+void
+functioncall_traversing_visitor::enter_functioncall (functioncall* e)
+{
   // prevent infinite recursion
   if (nested.find (e->referent) == nested.end ())
     {
@@ -2280,6 +2303,34 @@ functioncall_traversing_visitor::note_recursive_functioncall (functioncall* e)
 }
 
 void
+varuse_collecting_visitor::visit_if_statement (if_statement *s)
+{
+  assert(!current_lvalue_read);
+  current_lvalue_read = true;
+  s->condition->visit (this);
+  current_lvalue_read = false;
+
+  s->thenblock->visit (this);
+  if (s->elseblock)
+    s->elseblock->visit (this);
+}
+
+
+void
+varuse_collecting_visitor::visit_for_loop (for_loop *s)
+{
+  if (s->init) s->init->visit (this);
+
+  assert(!current_lvalue_read);
+  current_lvalue_read = true;
+  s->cond->visit (this);
+  current_lvalue_read = false;
+
+  if (s->incr) s->incr->visit (this);
+  s->block->visit (this);
+}
+
+void
 varuse_collecting_visitor::visit_try_block (try_block *s)
 {
   if (s->try_block)
@@ -2291,6 +2342,35 @@ varuse_collecting_visitor::visit_try_block (try_block *s)
 
   // NB: don't functioncall_traversing_visitor::visit_try_block (s);
   // since that would count s->catch_error_var as a read also.
+}
+
+void
+varuse_collecting_visitor::visit_functioncall (functioncall* e)
+{
+  // NB: don't call functioncall_traversing_visitor::visit_functioncall(). We
+  // replicate functionality here but split argument visiting from actual
+  // function visiting.
+
+  bool last_lvalue_read = current_lvalue_read;
+
+  // arguments are used
+  current_lvalue_read = true;
+  traversing_visitor::visit_functioncall(e);
+
+  // but function body shouldn't all be marked used
+  current_lvalue_read = false;
+  functioncall_traversing_visitor::enter_functioncall(e);
+
+  current_lvalue_read = last_lvalue_read;
+}
+
+void
+varuse_collecting_visitor::visit_return_statement (return_statement *s)
+{
+  assert(!current_lvalue_read);
+  current_lvalue_read = true;
+  functioncall_traversing_visitor::visit_return_statement(s);
+  current_lvalue_read = false;
 }
 
 
@@ -2489,6 +2569,20 @@ varuse_collecting_visitor::visit_assignment (assignment *e)
 }
 
 void
+varuse_collecting_visitor::visit_ternary_expression (ternary_expression* e)
+{
+  // NB: don't call base class's implementation. We do the work here already.
+
+  bool last_lvalue_read = current_lvalue_read;
+  current_lvalue_read = true;
+  e->cond->visit (this);
+  current_lvalue_read = last_lvalue_read;
+
+  e->truevalue->visit (this);
+  e->falsevalue->visit (this);
+}
+
+void
 varuse_collecting_visitor::visit_symbol (symbol *e)
 {
   if (e->referent == 0)
@@ -2528,6 +2622,16 @@ varuse_collecting_visitor::visit_symbol (symbol *e)
 void
 varuse_collecting_visitor::visit_arrayindex (arrayindex *e)
 {
+  // NB: don't call parent implementation, we do the work here.
+
+  // First let's visit the indexes separately
+  bool old_lvalue_read = current_lvalue_read;
+  current_lvalue_read = true;
+  for (unsigned i=0; i<e->indexes.size(); i++)
+    if (e->indexes[i])
+      e->indexes[i]->visit (this);
+  current_lvalue_read = old_lvalue_read;
+
   // Hooking this callback is necessary because of the hacky
   // statistics representation.  For the expression "i[4] = 5", the
   // incoming lvalue will point to this arrayindex.  However, the
@@ -2548,7 +2652,8 @@ varuse_collecting_visitor::visit_arrayindex (arrayindex *e)
 
   if (current_lrvalue == e) current_lrvalue = value;
   if (current_lvalue == e) current_lvalue = value;
-  functioncall_traversing_visitor::visit_arrayindex (e);
+
+  e->base->visit(this);
 
   current_lrvalue = last_lrvalue;
   current_lvalue = last_lvalue;
@@ -2576,6 +2681,8 @@ varuse_collecting_visitor::visit_post_crement (post_crement *e)
 void
 varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
 {
+  assert(!current_lvalue_read);
+
   // NB: we duplicate so don't bother call
   // functioncall_traversing_visitor::visit_foreach_loop (s);
 
@@ -2602,11 +2709,13 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
     }
 
   // visit the additional specified array slice
+  current_lvalue_read = true;
   for (unsigned i=0; i<s->array_slice.size(); i++)
     {
       if (s->array_slice[i])
         s->array_slice[i]->visit (this);
     }
+  current_lvalue_read = false;
 
   // The value is an lvalue too
   if (s->value)
@@ -2618,7 +2727,11 @@ varuse_collecting_visitor::visit_foreach_loop (foreach_loop* s)
     }
 
   if (s->limit)
-    s->limit->visit (this);
+    {
+      current_lvalue_read = true;
+      s->limit->visit (this);
+      current_lvalue_read = false;
+    }
 
   s->block->visit (this);
 }
@@ -2632,13 +2745,13 @@ varuse_collecting_visitor::visit_delete_statement (delete_statement* s)
   // optimization pass is not smart enough to remove an unneeded
   // "delete" yet, so we pose more like a *crement ("lrvalue").  This
   // should protect the underlying value from optimizional mischief.
+  assert(!current_lvalue_read);
   expression* last_lrvalue = current_lrvalue;
-  bool last_lvalue_read = current_lvalue_read;
   current_lrvalue = s->value; // leave a mark for ::visit_symbol
   current_lvalue_read = true;
   functioncall_traversing_visitor::visit_delete_statement (s);
   current_lrvalue = last_lrvalue;
-  current_lvalue_read = last_lvalue_read;
+  current_lvalue_read = false;
 }
 
 bool

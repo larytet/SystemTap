@@ -1,0 +1,13 @@
+#! stap -p4
+
+probe begin {
+	printf("ns_pid is %d\n", ns_pid())
+	printf("ns_tid is %d\n", ns_tid())
+	printf("ns_ppid is %d\n", ns_ppid())
+	printf("ns_pgrp is %d\n", ns_pgrp())
+	printf("ns_sid is %d\n", ns_sid())
+	printf("ns_gid is %d\n", ns_gid())
+	printf("ns_egid is %d\n", ns_egid())
+	printf("ns_uid is %d\n", ns_uid())
+	printf("ns_euid is %d\n", ns_euid())
+}

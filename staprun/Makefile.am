@@ -1,5 +1,7 @@
 # Makefile.am --- automake input file for systemtap runtime tools
 
+AUTOMAKE_OPTIONS = subdir-objects
+
 AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2
 AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2
 AM_CPPFLAGS = -D_GNU_SOURCE

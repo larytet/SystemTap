@@ -1,0 +1,34 @@
+# Check stap global variable option (-G) for unknown names
+
+set test "global_opt_unknown"
+if {![installtest_p]} {
+    untested $test
+    return
+}
+
+set script "global var1=9 ; probe begin { if (var1 == 9) println(\"systemtap test success\") else println(\"systemtap test failure\") ; exit() }"
+
+foreach runtime [get_runtime_list] {
+    set test "global_opt_unknown"
+    if {$runtime != ""} {
+	set test "${test}_${runtime}"
+	spawn stap -G var2=29 -e $script --runtime=$runtime
+    } elseif {![min_kernel_vers_p 3.11]} {
+	# kernel started ignoring in commit 54041d8a7333 (v3.11-rc1~44^2~2)
+	unsupported "$test - kernel won't ignore unknown options"
+	continue
+    } else {
+	spawn stap -G var2=29 -e $script
+    }
+    # stapdyn prints a warning on stderr, but staprun modules print into dmesg.
+    # Either is fine as long as we still get the expected output from probe begin.
+    expect {
+	-timeout 60
+	"systemtap test success" { pass $test }
+	"systemtap test failure" { fail $test }
+	timeout {fail "$test: unexpected timeout"}
+	eof {fail "$test: unexpected EOF"}
+    }
+    catch {close}; catch {wait}
+}
+

@@ -121,7 +121,7 @@ all of which are probed.
 .SH DWARF DEBUGINFO
 
 Resolving some probe points requires DWARF debuginfo or "debug
-symbols" for the specific part being instrumented.  For some others,
+symbols" for the \fIspecific program\fR being instrumented.  For some others,
 DWARF is automatically synthesized on the fly from source code header
 files.  For others, it is not needed at all.  Since a systemtap script
 may use any mixture of probe points together, the union of their DWARF
@@ -131,17 +131,18 @@ occurs.  (See the \fI\-\-use\-server\fR option and the \fBstap-server\
 which allows these requirements to be met on a different machine.)
 .PP
 The following point lists many of the available probe point families,
-to classify them with respect to their need for DWARF debuginfo.
+to classify them with respect to their need for DWARF debuginfo for
+the specific program for that probe point.
 
 .TS
 l l l.
-\fBDWARF	NON-DWARF\fP
+\fBDWARF	NON-DWARF	SYMBOL-TABLE\fP
 
-kernel.function, .statement	kernel.mark
-module.function, .statement	process.mark, process.plt
-process.function, .statement	begin, end, error, never
-process.mark \fI(backup)\fP	timer
-	perf
+kernel.function, .statement	kernel.mark	kernel.function\fI*\fP
+module.function, .statement	process.mark, process.plt	module.function\fI*\fP
+process.function, .statement	begin, end, error, never	process.function\fI*\fP
+process.mark\fI*\fP	timer
+\.function.callee	perf
 	procfs
 \fBAUTO-GENERATED-DWARF\fP	kernel.statement.absolute
 	kernel.data
@@ -151,6 +152,13 @@ kernel.trace	kprobe.function
 	netfilter
 	java
 .TE
+
+.PP
+The probe types marked with \fI*\fP asterisks mark fallbacks, where
+systemtap can sometimes infer subset or substitute information.  In
+general, the more symbolic / debugging information available, the
+higher quality probing will be available.
+
 
 .SH ON-THE-FLY ARMING
 
@@ -264,11 +272,15 @@ The name of the system call.
 .IR retstr
 For return probes, a pretty-printed form of the system-call result.
 .PP
-As usual for probe aliases, these variables are all simply initialized
-once from the underlying $context variables, so that later changes to
+As usual for probe aliases, these variables are all initialized once
+from the underlying $context variables, so that later changes to
 $context variables are not automatically reflected.  Not all probe
 aliases obey all of these general guidelines.  Please report any
-bothersome ones you encounter as a bug.
+bothersome ones you encounter as a bug.  Note that on some
+kernel/userspace architecture combinations (e.g., 32-bit userspace on
+64-bit kernel), the underlying $context variables may need explicit
+sign extension / masking.  When this is an issue, consider using the
+tapset-provided variables instead of raw $context variables.
 .PP
 If debuginfo availability is a problem, you may try using the
 non-DWARF syscall probe aliases instead.  Use the
@@ -423,7 +435,8 @@ Places a probe at the exact spot, exposing those local variables that
 are visible there.
 .TP
 \fB.statement.nearest\fR
-Places a probe at the nearest available spot to the given statement.
+Places a probe at the nearest available line number for each line number
+given in the statement.
 .TP
 \fB.callee\fR
 Places a probe on the callee function given in the \fB.callee\fR
@@ -450,7 +463,7 @@ will probe both callees of the target function, as well as callees of
 those callees. And \fB.callees(3)\fR goes one level deeper, etc...
 A callee probe at depth N is only triggered when the N callers in the
 callstack match those that were statically determined during analysis
-(this also may be overriden using -DSTAP_CALLEE_MATCHALL).
+(this also may be overridden using -DSTAP_CALLEE_MATCHALL).
 .RE
 .PP
 In the above list of probe points, MPATTERN stands for a string literal
@@ -680,7 +693,7 @@ kprobe.function(FUNCTION).return
 kprobe.module(NAME).function(FUNCTION)
 kprobe.module(NAME).function(FUNCTION).call
 kprobe.module(NAME).function(FUNCTION).return
-kprobe.statement.(ADDRESS).absolute
+kprobe.statement(ADDRESS).absolute
 .ESAMPLE
 .PP
 Probes of type
@@ -1177,22 +1190,27 @@ Tracepoint probes look like:
 .BR kernel.trace("name") .
 The tracepoint name string, which may contain the usual wildcard
 characters, is matched against the names defined by the kernel
-developers in the tracepoint header files.
+developers in the tracepoint header files. To restrict the search to
+specific subsystems (e.g. sched, ext3, etc...), the following syntax
+can be used:
+.BR kernel.trace("system:name") .
+The tracepoint system string may also contain the usual wildcard
+characters.
 
 The handler associated with a tracepoint-based probe may read the
 optional parameters specified at the macro call site.  These are
 named according to the declaration by the tracepoint author.  For
 example, the tracepoint probe
-.BR kernel.trace("sched_switch")
+.BR kernel.trace("sched:sched_switch")
 provides the parameters
-.BR $rq ", " $prev ", and " $next .
+.BR $prev " and " $next .
 If the parameter is a complex type, as in a struct pointer, then a
 script can access fields with the same syntax as DWARF $target
 variables.  Also, tracepoint parameters cannot be modified, but in
 guru-mode a script may modify fields of parameters.
 
-The name of the tracepoint is available in
-.BR $$name ,
+The subsystem and name of the tracepoint are available in
+.BR $$system " and " $$name
 and a string of name=value pairs for all parameters of the tracepoint
 is available in
 .BR $$vars " or " $$parms .

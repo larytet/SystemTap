@@ -1,0 +1,239 @@
+source $srcdir/$subdir/onthefly_common.tcl
+
+set test "tracepoint_onthefly"
+if {![installtest_p]} {
+   untested "$test"
+   return
+}
+
+# Goal: Ensure that tracepoints properly support on-the-fly arming/disarming.
+# The script consists of a sched_process_fork tracepoint whose condition is
+# toggled by a timer probe. We ensure that the tracepoint will always be
+# triggered by running 'echo' in a loop in the background. We then analyze the
+# actual debug statements printed out to ensure the toggled probe is armed and
+# disarmed as expected.
+
+# Runs stap on a script with the given arguments
+proc run_stap {subtest args script} {
+   global test
+
+   # Start the background echos
+   set echo_loop "while \[ true \]; do /bin/echo 1>/dev/null; done"
+   set echo_pid [exec sh -c $echo_loop &]
+
+   # We always need the DEBUG and -g flags
+   set args "$args -D DEBUG_STP_ON_THE_FLY -g"
+
+   # Run stap and catch any errors (we will rethrow it later)
+   set err [catch {eval exec stap -e {$script} $args} out]
+
+   # Kill echo
+   kill -INT $echo_pid 1
+
+   if {$err} {error $out}
+   return $out
+}
+
+# Returns a script with some variables replaced.
+#     SUBTEST    name of subtest
+#     ENABLED    set to 1 to start the target probe as enabled, 0 as disabled
+#     MAXTOGGLES number of times we toggle the target probe condition
+#     TIMER      if a number, then it's the period of the timer probe which
+#                toggles the target probes, if set to 'profile' then instead a
+#                timer.profile probe is used to toggle the target probe, if set
+#                to 'hardcore' then both a timer.profile probe and a
+#                kernel.trace("*") probe is used for toggling, if set to 'max'
+#                then a lot of various probe points are used for toggling
+proc make_script {SUBTEST ENABLED MAXTOGGLES TIMER} {
+   global test
+
+   set script {
+
+      global enabled = ENABLED
+      global toggles = 0
+
+      # Simplification to ensure 'hit' is only printed once. This makes it
+      # easier later on to verify the output.
+      global hit = 0
+
+      probe kernel.trace("sched_process_fork") if (enabled) {
+         if (hit)
+            next
+         hit = 1
+         println("hit")
+      }
+
+      probe timer.us(TIMER) {
+         toggles++
+         hit = 0
+         if (toggles > MAXTOGGLES)
+            exit()
+         else {
+            println("toggling")
+            enabled = !enabled
+         }
+      }
+
+      probe timer.s(360) {
+         println("timed out")
+         exit()
+      }
+   }
+
+   # Set in values
+   #
+   # On ppc64, you can't probe the hcall_* tracepoints (PR17126:
+   # tracepoints.exp testcase causing stalls/hang on ppc64). This was
+   # worked around by making a tracepoint blacklist. However, this
+   # test is using the '-g' (guru) argument to systemtap, which causes
+   # systemtap to ignore the tracepoint blacklist. So, on ppc64, we'll
+   # probe all the kernel tracepoints *except* for the ones starting
+   # with 'h'.
+   set script [string map "TEST $test \
+                           SUBTEST $SUBTEST \
+                           ENABLED $ENABLED \
+                           MAXTOGGLES $MAXTOGGLES" $script]
+   if {[string match $TIMER "profile"]} {
+      set script [string map "timer.us(TIMER) timer.profile" $script]
+   } elseif {[string match $TIMER "hardcore"]} {
+      if {[string match ppc* $::tcl_platform(machine)]} {
+	 set script [string map "timer.us(TIMER) \
+               {timer.profile, kernel.trace(\"\[a-gi-z\]*\")}" $script]
+      } else {
+	 set script [string map "timer.us(TIMER) \
+               {timer.profile, kernel.trace(\"*\")}" $script]
+      }
+   } elseif {[string match $TIMER "max"]} {
+      if {[string match ppc* $::tcl_platform(machine)]} {
+	 set script [string map "timer.us(TIMER) \
+            {begin, end, error, kernel.function(\"*@workqueue.c\"), \
+             process.begin, process.end, kernel.trace(\"\[a-gi-z\]*\"), \
+             process(\"echo\").function(\"*\"), \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
+             perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?}" $script]
+      } else {
+	 set script [string map "timer.us(TIMER) \
+            {begin, end, error, kernel.function(\"*@workqueue.c\"), \
+             process.begin, process.end, kernel.trace(\"*\"), \
+             process(\"echo\").function(\"*\"), \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_IN\")?, \
+             netfilter.pf(\"NFPROTO_IPV4\").hook(\"NF_INET_LOCAL_OUT\")?, \
+             perf.sw.cpu_clock.sample(1000000)?, timer.profile.tick?}" $script]
+      }
+   } else {
+      set script [string map "TIMER $TIMER" $script]
+   }
+
+   return $script
+}
+
+# Creates the pattern which will be used by the is_valid_output proc to
+# determine if the output is valid. In other words, given the initial value of
+# enabled, the maximum number of toggles, and whether on-the-fly is turned on or
+# not, this proc determines what the output of stap will be.
+proc make_pattern {subtest start_enabled maxtoggles} {
+   set pattern ""
+
+   # If we're not starting as enabled, then the kprobes will be registered as
+   # disabled.
+   if {!$start_enabled} {
+      lappend pattern "* not registering (tracepoint) pidx ?"
+   }
+
+   # For each toggle:
+   #  - if we were enabled, then we would have had a 'hit' line
+   #  - if i == maxtoggles, then we'll exit so nothing more will be printed
+   #  - if i < maxtoggles, then the timer probe will output 'toggling' followed
+   #    by 'registering' or 'unregistering' lines
+   for {set i 0} {$i <= $maxtoggles} {incr i} {
+      if {$start_enabled} {
+         lappend pattern "hit"
+      }
+      if {$i < $maxtoggles} {
+         lappend pattern "toggling"
+         if {$start_enabled} {
+            set start_enabled 0
+            lappend pattern "* unregistering (tracepoint) pidx ?"
+         } else {
+            set start_enabled 1
+            if {$i < $maxtoggles} {
+               lappend pattern "* registering (tracepoint) pidx ?"
+            }
+         }
+      }
+   }
+
+   return $pattern
+}
+
+# Various on-the-fly tests
+
+# Toggle 0, 1, 2, 3, 4, and 5 times. This is important since we test if the
+# probes finish well when disabled/enabled.
+
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_finish_at_start_disabled" 0 0 500000
+run_subtest_valid "otf_finish_at_start_enabled"  1 0 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_disabled_iter_1"    0 1 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_enabled_iter_1"     1 1 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_disabled_iter_2"    0 2 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_enabled_iter_2"     1 2 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_disabled_iter_3"    0 3 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_enabled_iter_3"     1 3 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_disabled_iter_4"    0 4 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_enabled_iter_4"     1 4 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_disabled_iter_5"    0 5 500000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_start_enabled_iter_5"     1 5 500000
+
+# Small interval tests
+
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_timer_100ms" 1 5 100000 \
+   -D STP_ON_THE_FLY_INTERVAL=1000000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_timer_50ms"  1 5 50000 \
+   -D STP_ON_THE_FLY_INTERVAL=1000000
+setup_kfail 17256 *-*-*
+run_subtest_valid "otf_timer_10ms"  1 5 10000 \
+   -D STP_ON_THE_FLY_INTERVAL=1000000
+
+# NB: if we go any shorter, the kernel might not have a chance to run
+# systemtap_module_refresh() before the next toggling occurs, throwing off the
+# expected output.
+
+# Stress tests
+
+# These tests are not validated, i.e. their outputs are not checked against a
+# pattern (see NB above why). Instead, they're just meant to stress the
+# on-the-fly mechanism to ensure stap/the kernel doesn't die. So if stap is
+# successfully run and terminated, we just default to a pass.
+
+run_subtest_stress "otf_stress_5ms_iter_50"   1 50 5000 \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+run_subtest_stress "otf_stress_1ms_iter_50"   1 50 1000 \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+run_subtest_stress "otf_stress_500us_iter_50" 1 50 500 \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+run_subtest_stress "otf_stress_100us_iter_50" 1 50 100 \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+
+run_subtest_stress "otf_stress_prof_iter_2000" 1 2000 profile \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+
+run_subtest_stress "otf_stress_hard_iter_2000" 1 2000 hardcore \
+   -D STP_ON_THE_FLY_INTERVAL=100000
+
+# Don't test this until PR17461 is solved.
+#run_subtest_stress "otf_stress_max_iter_5000" 1 5000 max \
+#   -D STP_ON_THE_FLY_INTERVAL=100000

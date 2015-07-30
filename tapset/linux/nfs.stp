@@ -12,6 +12,7 @@
 %{
 #include <linux/kernel.h>
 #include <linux/nfs_fs.h>
+#include <linux/uaccess.h>		/* For VERIFY_READ/VERIFY_WRITE */
 %}
 
 /* Get cache_validity flag from struct inode */
@@ -218,6 +219,8 @@ probe nfs.fop.entries = nfs.fop.llseek,
                         nfs.fop.write,
                         nfs.fop.aio_read,
                         nfs.fop.aio_write,
+			nfs.fop.read_iter ?,
+			nfs.fop.write_iter ?,
                         nfs.fop.mmap,
                         nfs.fop.open,
                         nfs.fop.flush,
@@ -233,6 +236,8 @@ probe nfs.fop.return = nfs.fop.llseek.return,
                         nfs.fop.write.return,
                         nfs.fop.aio_read.return,
                         nfs.fop.aio_write.return,
+			nfs.fop.read_iter.return ?,
+			nfs.fop.write_iter.return ?,
                         nfs.fop.mmap.return,
                         nfs.fop.open.return,
                         nfs.fop.flush.return,
@@ -290,7 +295,7 @@ probe nfs.fop.llseek.return = kernel.function ("nfs_file_llseek").return !,
  */
 probe nfs.fop.read = vfs.do_sync_read
 {
-	s_id = __file_id($filp)
+	s_id = __file_id(file)
 	devname = kernel_string(s_id)
         name = "nfs.fop.read"
 }
@@ -311,7 +316,7 @@ probe nfs.fop.read.return = vfs.do_sync_read.return
  */
 probe nfs.fop.write = vfs.do_sync_write
 {
-	s_id = __file_id($filp)
+	s_id = __file_id(file)
 	devname = kernel_string(s_id)
         name = "nfs.fop.write"
 }
@@ -337,6 +342,7 @@ probe nfs.fop.write.return = vfs.do_sync_write.return
  * 	       We need to revalidate the cached attrs for this inode
  *	       if jiffies - read_cache_jiffies > attrtimeo.
  */
+%( kernel_v < "3.16" %?
 probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
                          module("nfs").function("nfs_file_read")
 {
@@ -349,7 +355,7 @@ probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
 
 	if (@defined($iov)) {
 		buf = $iov->iov_base
-	        count = __iov_length($iov, $nr_segs, 0, -1)
+	        count = __iov_length($iov, $nr_segs, 0, %{ /* pure */ VERIFY_WRITE %})
 	}
 	else {
 	        buf = $buf
@@ -370,7 +376,6 @@ probe nfs.fop.aio_read = kernel.function ("nfs_file_read") !,
         units = "bytes"
 }
 
-
 probe nfs.fop.aio_read.return = kernel.function ("nfs_file_read").return !,
                                 module("nfs").function("nfs_file_read").return
 {
@@ -382,6 +387,96 @@ probe nfs.fop.aio_read.return = kernel.function ("nfs_file_read").return !,
         }
 	units = "bytes"
 }
+%:
+probe nfs.fop.aio_read = never
+{
+        dev = 0
+        ino = 0
+	s_id = 0
+	devname = ""
+
+        pos = 0
+
+	buf = 0
+        count = 0
+
+        parent_name = ""
+        file_name = ""
+
+        cache_valid = 0
+        cache_time  = 0
+        attr_time   = 0
+
+        name = "nfs.fop.aio_read"
+        argstr = sprintf("%p, %d, %d", buf, count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.aio_read.return = never
+{
+        name = "nfs.fop.aio_read.return"
+        retstr = sprintf("%d", 0)
+
+	size = 0
+	units = "bytes"
+}
+%)
+
+/**
+ * probe nfs.fop.read_iter - NFS client read_iter file operation
+ *
+ * @dev: device identifier
+ * @ino: inode number        
+ * @count: read bytes
+ * @pos: current position of file   
+ * @parent_name: parent dir name
+ * @file_name: file name
+ * @cache_valid: cache related bit mask flag
+ * @cache_time: when we started read-caching this inode
+ * @attrtimeo: how long the cached information is assumed to be valid.
+ * 	       We need to revalidate the cached attrs for this inode
+ *	       if jiffies - read_cache_jiffies > attrtimeo.
+ */
+%( kernel_v >= "3.16" %?
+probe nfs.fop.read_iter = kernel.function ("nfs_file_read") !,
+			  module("nfs").function("nfs_file_read")
+{
+        dev = __file_dev($iocb->ki_filp)
+        ino = __file_ino($iocb->ki_filp)
+	s_id = __file_id($iocb->ki_filp)
+	devname = kernel_string(s_id)
+
+	pos = $to->iov_offset
+	count = __iov_length($to->iov, $to->nr_segs, 0, %{ /* pure */ VERIFY_READ %})
+
+        parent_name = __file_parentname($iocb->ki_filp)
+        file_name = __file_filename($iocb->ki_filp)
+
+        cache_valid = __nfsi_cache_valid(__file_inode($iocb->ki_filp))
+        cache_time  = __nfsi_rcache_time(__file_inode($iocb->ki_filp))
+        attr_time   = __nfsi_attr_time(__file_inode($iocb->ki_filp))
+
+        name = "nfs.fop.read_iter"
+        argstr = sprintf("%d, %d", count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.read_iter.return = kernel.function ("nfs_file_read").return !,
+				 module("nfs").function("nfs_file_read").return
+{
+        name = "nfs.fop.read_iter.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+	units = "bytes"
+}
+%)
 
 /**
  * probe nfs.fop.aio_write - NFS client aio_write file operation
@@ -394,6 +489,7 @@ probe nfs.fop.aio_read.return = kernel.function ("nfs_file_read").return !,
  * @parent_name: parent dir name
  * @file_name: file name
  */
+%( kernel_v < "3.16" %?
 probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
                           module("nfs").function("nfs_file_write")
 {
@@ -405,7 +501,7 @@ probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
         pos = $pos
 	if (@defined($iov)) {
 		buf = $iov->iov_base
-	        count = __iov_length($iov, $nr_segs, 0, -1)
+	        count = __iov_length($iov, $nr_segs, 0, %{ /* pure */ VERIFY_WRITE %})
 	}
 	else {
 	        buf = $buf
@@ -423,7 +519,7 @@ probe nfs.fop.aio_write = kernel.function("nfs_file_write") !,
 }
 
 probe nfs.fop.aio_write.return = kernel.function("nfs_file_write").return !,
-                                 module("nfs").function("nfs_file_write").return
+	module("nfs").function("nfs_file_write").return
 {
         name = "nfs.fop.aio_write.return"
         retstr = sprintf("%d", $return)
@@ -433,6 +529,82 @@ probe nfs.fop.aio_write.return = kernel.function("nfs_file_write").return !,
         }
         units = "bytes"
 }
+%:
+probe nfs.fop.aio_write = never
+{
+        dev = 0
+        ino = 0
+	s_id = 0
+	devname = ""
+
+        pos = 0
+	buf = 0
+        count = 0
+               
+        parent_name = ""
+        file_name = ""
+
+        name = "nfs.fop.aio_write"
+        argstr = sprintf("%p, %d, %d", buf, count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.aio_write.return = never
+{
+        name = "nfs.fop.aio_write.return"
+        retstr = sprintf("%d", 0)
+
+	size = 0
+        units = "bytes"
+}
+%)
+
+/**
+ * probe nfs.fop.write_iter - NFS client write_iter file operation
+ *
+ * @dev: device identifier
+ * @ino: inode number        
+ * @count: read bytes
+ * @pos: offset of the file 
+ * @parent_name: parent dir name
+ * @file_name: file name
+ */
+%( kernel_v >= "3.16" %?
+probe nfs.fop.write_iter = kernel.function("nfs_file_write") !,
+			   module("nfs").function("nfs_file_write")
+{
+        dev = __file_dev($iocb->ki_filp)
+        ino = __file_ino($iocb->ki_filp)
+	s_id = __file_id($iocb->ki_filp)
+	devname = kernel_string(s_id)
+
+        pos = $from->iov_offset
+	count = __iov_length($from->iov, $from->nr_segs, 0, %{ /* pure */ VERIFY_READ %})
+               
+        parent_name = __file_parentname($iocb->ki_filp)
+        file_name = __file_filename($iocb->ki_filp)
+
+        name = "nfs.fop.write_iter"
+        argstr = sprintf("%d, %d", count, pos)
+
+        size = count
+        units = "bytes"
+}
+
+probe nfs.fop.write_iter.return = kernel.function("nfs_file_write").return !,
+	module("nfs").function("nfs_file_write").return
+{
+        name = "nfs.fop.write_iter.return"
+        retstr = sprintf("%d", $return)
+
+        if ($return > 0) {
+                size = $return
+        }
+        units = "bytes"
+}
+%)
 
 /**
  * probe nfs.fop.mmap - NFS client mmap operation

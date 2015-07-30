@@ -12,9 +12,9 @@ probe perf.sw.cpu_clock!, timer.profile {
   tids[e,tid] <<< 1
 }
 
-global uticks, kticks, ticks
+global uticks%, kticks%, ticks
 
-global tids
+global tids%
 
 probe timer.s(5), end {
   allticks = @count(ticks)

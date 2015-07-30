@@ -317,23 +317,11 @@ probe scheduler.migrate =
 
 function container_of_task_rcu:long(rcu_ptr:long)
 {
-	if (@defined(&@cast(0, "task_struct", "kernel<linux/sched.h>")->rcu)) {
-		/*
-		 * The following is the script language equivalent of:
-		 *
-		 *    return container_of(rcu_ptr, struct task_struct, rcu);
-		 *
-		 * More spelled out, that would look like:
-		 *
-		 *    return (rcu_ptr - offsetof(struct task_struct, rcu));
-		 * 
-		 * Notice we're casting 0 here on purpose to find the
-		 * offset of the 'rcu' member of 'struct task_struct'.
-		 */
-		offset = &@cast(0, "task_struct",
-				"kernel<linux/sched.h>")->rcu
+	if (@defined(&@task(0)->rcu)) {
+		/* Like @container_of, but taking care not to wrap */
+		offset = & @task(0)->rcu
 		if (rcu_ptr > offset)
-			return (rcu_ptr - offset)
+			return &@task(rcu_ptr - offset)
 	}
 	return 0
 }
@@ -350,10 +338,8 @@ probe __scheduler.process_free.kp =
 {
 	if (@defined($rhp)) {
 		__tsk = container_of_task_rcu($rhp)
-		pid = @cast(__tsk, "task_struct",
-			    "kernel<linux/sched.h>")->tgid
-		priority = @cast(__tsk, "task_struct",
-				 "kernel<linux/sched.h>")->prio
+		pid = __tsk->tgid
+		priority = __tsk->prio
 	}
 	else {
 		pid = $tsk->tgid
@@ -387,10 +373,8 @@ probe __scheduler.process_exit.kp = kernel.function("do_exit")
 	}
 	else {
 		__tsk = task_current()
-		pid = @cast(__tsk, "task_struct",
-			    "kernel<linux/sched.h>")->tgid
-		priority = @cast(__tsk, "task_struct",
-				 "kernel<linux/sched.h>")->prio
+		pid = __tsk->tgid
+		priority = __tsk->prio
 	}
 }
 probe __scheduler.process_exit.tp = kernel.trace("sched_process_exit")
@@ -439,8 +423,7 @@ probe scheduler.process_wait =
  */
 probe __scheduler.process_fork.kp = kernel.function("do_fork").return
 {
-	parent_pid = @cast(task_current(), "task_struct",
-			   "kernel<linux/sched.h>")->tgid
+	parent_pid = task_current()->tgid
 	child_pid = $return
 }
 probe __scheduler.process_fork.tp = kernel.trace("sched_process_fork")

@@ -30,6 +30,19 @@ function pid:long ()
 %}
 
 /**
+ * sfunction ns_pid - Returns the ID of a target process as seen in a pid namespace
+ *
+ * Description: This function returns the ID of a target process as seen in
+ * the target pid namespace.
+ */
+function ns_pid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_pid_ns(current, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction tid - Returns the thread ID of a target process
  * 
  * Description: This function returns the thread ID of the target process.
@@ -37,6 +50,19 @@ function pid:long ()
 function tid:long ()
 %{ /* pure */ /* unprivileged */
 	STAP_RETVALUE = current->pid;
+%}
+
+/**
+ * sfunction ns_tid - Returns the thread ID of a target process as seen in a pid namespace
+ *
+ * Description: This function returns the thread ID of a target process as seen
+ * in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_tid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_pid_ns(current, TID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -51,6 +77,18 @@ function ppid:long()
 #else
 	STAP_RETVALUE = current->parent->tgid;
 #endif
+%}
+
+/**
+ * sfunction ns_ppid - Returns the process ID of a target process's parent process as seen in a pid namespace
+ *
+ * Description: This function return the process ID of the target proccess's parent process as seen in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_ppid:long()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_pid_ns(current->parent, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -71,6 +109,19 @@ function pgrp:long ()
 %}
 
 /**
+ * sfunction ns_pgrp - Returns the process group ID of the current process as seen in a pid namespace
+ *
+ * Description: This function returns the process group ID of the
+ * current process as seen in  the target pid namespace if provided, or the stap process namespace.
+ */
+function ns_pgrp:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_pid_ns(current, PGRP);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction sid - Returns the session ID of the current process
  *
  * Description: The session ID of a process is the process group ID
@@ -86,6 +137,20 @@ function sid:long ()
 #else
 	STAP_RETVALUE = task_session_nr_ns(current, &init_pid_ns);
 #endif
+%}
+
+/**
+ * sfunction ns_sid - Returns the session ID of the current process as seen in a pid namespace
+ *
+ * Description: The namespace-aware session ID of a process is the process group ID
+ * of the session leader as seen in  the target pid namespace if provided, or the stap process namespace. Session ID is stored in the signal_struct
+ *  since Kernel 2.6.0.
+ */
+function ns_sid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_pid_ns(current, SID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 /**
@@ -122,8 +187,20 @@ function gid:long ()
 %}
 
 /**
+ * sfunction ns_gid - Returns the group ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the group ID of a target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_gid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_user_ns(current, GID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction egid - Returns the effective gid of a target process
- * 
+ *
  * Description: This function returns the effective gid of a target process
  */
 function egid:long ()
@@ -140,8 +217,20 @@ function egid:long ()
 %}
 
 /**
+ * sfunction ns_egid - Returns the effective gid of a target process as seen in a user namespace
+ *
+ * Description: This function returns the effective gid of a target process as seen in the target user namespace if provided, or the stap process namespace
+ */
+function ns_egid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_user_ns(current, EGID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction uid - Returns the user ID of a target process
- * 
+ *
  * Description: This function returns the user ID of the target process.
  */
 function uid:long ()
@@ -158,6 +247,18 @@ function uid:long ()
 %}
 
 /**
+ * sfunction ns_uid - Returns the user ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the user ID of the target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_uid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_user_ns(current, UID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction euid - Return the effective uid of a target process
  *
  * Description: Returns the effective user ID of the target process.
@@ -168,13 +269,24 @@ function euid:long ()
 	STAP_RETVALUE = current->euid;
 #else
 #if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-        STAP_RETVALUE = from_kuid_munged(current_user_ns(), current_euid());
+  STAP_RETVALUE = from_kuid_munged(&init_user_ns, current_euid());
 #else
 	STAP_RETVALUE = current_euid();
 #endif
 #endif
 %}
 
+/**
+ * sfunction ns_euid - Returns the effective user ID of a target process as seen in a user namespace
+ *
+ * Description: This function returns the effective user ID of the target process as seen in the target user namespace if provided, or the stap process namespace.
+ */
+function ns_euid:long ()
+%{ /* pure */ /* unprivileged */
+  int64_t rc = from_target_user_ns(current, EUID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
 
 /**
  * sfunction is_myproc - Determines if the current probe point has occurred in the user's own process
@@ -418,7 +530,7 @@ function uaddr:long ()
 function cmdline_args:string(n:long, m:long, delim:string)
 {
   __args = "";
-  __mm = @cast(task_current(), "task_struct", "kernel<linux/sched.h>")->mm;
+  __mm = task_current()->mm;
   if (__mm == 0)
     return "";
 

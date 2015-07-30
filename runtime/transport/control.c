@@ -25,6 +25,7 @@ static void _stp_cleanup_and_exit(int send_exit);
 static void _stp_handle_tzinfo (struct _stp_msg_tzinfo* tzi);
 static void _stp_handle_privilege_credentials (struct _stp_msg_privilege_credentials* pc);
 static void _stp_handle_remote_id (struct _stp_msg_remote_id* rem);
+static void _stp_handle_namespaces_pid (struct _stp_msg_ns_pid *nspid);
 
 
 static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
@@ -172,6 +173,21 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 
 	case STP_READY:
 		break;
+  case STP_NAMESPACES_PID:
+    {
+    static struct _stp_msg_ns_pid nspid;
+                if (count < sizeof(nspid)) {
+                        rc = 0;
+                        goto out;
+                }
+                if (copy_from_user(&nspid, buf, sizeof(nspid))) {
+                        rc = -EFAULT;
+                        goto out;
+                }
+
+    _stp_handle_namespaces_pid(&nspid);
+    }
+    break;
 
 	default:
 #ifdef DEBUG_TRANS
@@ -418,6 +434,8 @@ static struct _stp_buffer *_stp_ctl_get_buffer(int type, void *data,
 		case STP_EXIT:
 			bptr = _stp_ctl_exit_msg;
 			break;
+    case STP_NAMESPACES_PID:
+      break;
 		case STP_TRANSPORT:
 			bptr = _stp_ctl_transport_msg;
 			break;

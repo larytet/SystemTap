@@ -1,4 +1,15 @@
-#! stap -p4
+#! stap -Wp4
+
+probe nd_syscall.name_to_handle_at ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s), %s, %p, %p, %d(%s)", dfd, dfd_str, pathname,
+			 handle_uaddr, mnt_id_uaddr, flags, flags_str)
+}
+probe nd_syscall.name_to_handle_at.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
 
 probe nd_syscall.nanosleep, nd_syscall.compat_nanosleep ?
 {
@@ -42,6 +53,17 @@ probe nd_syscall.ni_syscall.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.open_by_handle_at ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d(%s), %p, %d(%s)", mount_dfd, mount_dfd_str, handle_uaddr,
+	       flags, flags_str)
+}
+probe nd_syscall.open_by_handle_at.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.open
 {
 	printf("%s(%s)\n", name, argstr)
@@ -67,6 +89,17 @@ probe nd_syscall.pause ?
 	printf("%s(%s)\n", name, argstr)
 }
 probe nd_syscall.pause.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.perf_event_open ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %d, %d, %d, %d(%s)", attr_uaddr, pid, cpu, group_fd,
+	       flags, flags_str)
+}
+probe nd_syscall.perf_event_open.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -156,6 +189,38 @@ probe nd_syscall.preadv.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.prlimit64 ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d, %p, %p", pid, resource, new_rlim_uaddr, old_rlim_uaddr)
+}
+probe nd_syscall.prlimit64.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.process_vm_readv ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
+	       liovcnt, remote_iov_uaddr, riovcnt, flags)
+}
+probe nd_syscall.process_vm_readv.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.process_vm_writev ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %p, %u, %p, %u, %u", pid, local_iov_uaddr,
+	       liovcnt, remote_iov_uaddr, riovcnt, flags)
+}
+probe nd_syscall.process_vm_writev.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.pselect6 ?, nd_syscall.compat_pselect6 ?,
       nd_syscall.pselect7 ?,
 %( systemtap_v <= "1.3" %?
@@ -192,12 +257,12 @@ probe nd_syscall.pwrite.return, nd_syscall.pwrite32.return ?
 	printf("%s %s\n", name, retstr)
 }
 
-probe syscall.pwritev ?
+probe nd_syscall.pwritev ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %p %d %d\n", fd, vector_uaddr, count, offset)
 }
-probe syscall.pwritev.return ?
+probe nd_syscall.pwritev.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -367,6 +432,18 @@ probe nd_syscall.renameat.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.renameat2 ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p(%s) %p(%s) %p(%s) %p(%s), %d(%s)\n", olddfd, olddfd_str,
+	       oldname, oldname_str, newdfd, newdfd_str, newname,
+	       newname_str, flags, flags_str)
+}
+probe nd_syscall.renameat2.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.request_key ?
 {
 	printf("%s(%s)\n", name, argstr)
@@ -438,11 +515,21 @@ probe nd_syscall.rt_sigqueueinfo.return
 	printf("%s %s\n", name, retstr)
 }
 
-probe nd_syscall.rt_sigreturn ?, nd_syscall.rt_sigsuspend ?
+probe nd_syscall.rt_sigreturn ?
 {
 	printf("%s(%s)\n", name, argstr)
 }
-probe nd_syscall.rt_sigreturn.return ?, nd_syscall.rt_sigsuspend.return ?
+probe nd_syscall.rt_sigreturn.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.rt_sigsuspend ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %u", set_uaddr, sigsetsize)
+}
+probe nd_syscall.rt_sigsuspend.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -458,12 +545,32 @@ probe nd_syscall.rt_sigtimedwait.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.rt_tgsigqueueinfo ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d, %d, %p", tgid, tid, sig, uinfo_uaddr)
+}
+probe nd_syscall.rt_tgsigqueueinfo.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.sched_getaffinity
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %d %p\n", pid, len, mask_uaddr)
 }
 probe nd_syscall.sched_getaffinity.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
+probe nd_syscall.sched_getattr ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %s, %u, %u", pid, sched_attr_str, size, flags)
+}
+probe nd_syscall.sched_getattr.return ?
 {
 	printf("%s %s\n", name, retstr)
 }
@@ -509,6 +616,16 @@ probe nd_syscall.sched_rr_get_interval.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.sched_setattr ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %s, %u", pid, sched_attr_str, flags)
+}
+probe nd_syscall.sched_setattr.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.sched_setaffinity
 {
 	printf("%s(%s)\n", name, argstr)
@@ -539,6 +656,16 @@ probe nd_syscall.sched_setscheduler.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.seccomp ?
+{
+	printf("%s %s\n", name, argstr)
+	printf("%d %d %s\n", op, flags, uargs)
+}
+probe nd_syscall.seccomp.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.sched_yield
 {
 	printf("%s(%s)\n", name, argstr)
@@ -562,7 +689,7 @@ probe nd_syscall.select.return, nd_syscall.compat_select.return ?
 probe nd_syscall.semctl ?, nd_syscall.compat_sys_semctl ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %d\n", semid, semnum, cmd)
+	printf("%d %d %d(%s)\n", semid, semnum, cmd, cmdstr)
 }
 probe nd_syscall.semctl.return ?, nd_syscall.compat_sys_semctl.return ?
 {
@@ -572,7 +699,7 @@ probe nd_syscall.semctl.return ?, nd_syscall.compat_sys_semctl.return ?
 probe nd_syscall.semget ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %d\n", key, nsems, semflg)
+	printf("%d(%s) %d %d(%s)\n", key, key_str, nsems, semflg, semflg_str)
 }
 probe nd_syscall.semget.return ?
 {
@@ -653,8 +780,13 @@ probe nd_syscall.sendto.return ?
 probe nd_syscall.setdomainname
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%p %d\n", hostname_uaddr, len)
+%( systemtap_v <= "2.8" %?
+	printf("%p, %p, %s, %d", domainname_uaddr, hostname_uaddr, domainname_str, len)
+%:
+	printf("%p, %s, %d", domainname_uaddr, domainname_str, len)
+%)
 }
+
 probe nd_syscall.setdomainname.return
 {
 	printf("%s %s\n", name, retstr)
@@ -720,10 +852,20 @@ probe nd_syscall.setitimer.return, nd_syscall.compat_setitimer.return ?
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.setns ?
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%d, %d\n", fd, nstype)
+}
+probe nd_syscall.setns.return ?
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.set_mempolicy ?
 {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %p %d\n", mode, nmask_uaddr, maxnode)
+	printf("%d(%s) %p %d\n", mode, mode_str, nmask_uaddr, maxnode)
 }
 probe nd_syscall.set_mempolicy.return ?
 {
@@ -800,6 +942,16 @@ probe nd_syscall.setrlimit.return
 	printf("%s %s\n", name, retstr)
 }
 
+probe nd_syscall.set_robust_list
+{
+	printf("%s(%s)\n", name, argstr)
+	printf("%p, %u", list_head_uaddr, len)
+}
+probe nd_syscall.set_robust_list.return
+{
+	printf("%s %s\n", name, retstr)
+}
+
 probe nd_syscall.setsid
 {
 	printf("%s(%s)\n", name, argstr)
@@ -853,8 +1005,9 @@ probe nd_syscall.setuid.return
 probe nd_syscall.setxattr
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%p(%s), %p(%s), %p, %d, %d\n", path_uaddr, path, name_uaddr,
-	       name_str, value_uaddr, size, flags)
+	printf("%p(%s), %p(%s), %p(%s), %d, %d(%s)\n", path_uaddr, path,
+	       name_uaddr, name_str, value_uaddr, value_str, size, flags,
+	       flags_str)
 }
 probe nd_syscall.setxattr.return
 {
@@ -896,7 +1049,7 @@ probe nd_syscall.compat_sys_shmat.return ?
 probe nd_syscall.shmctl ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
+	printf("%d, %d, %s, %p\n", shmid, cmd, cmd_str, buf_uaddr)
 }
 probe nd_syscall.shmctl.return ?
 {
@@ -909,7 +1062,7 @@ probe nd_syscall.compat_sys_shmctl ?
 %( systemtap_v <= "2.5" %?
 	printf("%d, %d, %p\n", first, second, uptr_uaddr)
 %)
-	printf("%d, %d, %p\n", shmid, cmd, buf_uaddr)
+	printf("%d, %d, %s, %p\n", shmid, cmd, cmd_str, buf_uaddr)
 }
 probe nd_syscall.compat_sys_shmctl.return ?
 {
@@ -929,7 +1082,7 @@ probe nd_syscall.shmdt.return
 probe nd_syscall.shmget ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d, %d\n", key, size, shmflg)
+	printf("%d, %d, %d, %s\n", key, size, shmflg, shmflg_str)
 }
 probe nd_syscall.shmget.return ?
 {
@@ -956,7 +1109,8 @@ probe nd_syscall.sigaction.return ?, nd_syscall.sigaction32.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-%( CONFIG_GENERIC_SIGALTSTACK == "y" %?
+# Before kernel 3.8, sigaltstack() was actually in arch-specific code,
+# but we want to make sure all versions support the same variables.
 probe nd_syscall.sigaltstack
 {
 	printf("%s, %s\n", name, argstr)
@@ -966,7 +1120,6 @@ probe nd_syscall.sigaltstack.return
 {
 	printf("%s, %s\n", name, retstr)
 }
-%)
 
 probe nd_syscall.signal ?
 {
@@ -1047,6 +1200,8 @@ probe nd_syscall.socketpair.return
 probe nd_syscall.splice ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %d, %p, %u, %u, %s", fd_in, off_in, fd_out,
+	       off_out, len, flags, flags_str);
 }
 probe nd_syscall.splice.return ?
 {
@@ -1056,7 +1211,7 @@ probe nd_syscall.splice.return ?
 probe nd_syscall.ssetmask ?
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d\n", newmask)
+	printf("%d, %s\n", newmask, newmask_str)
 }
 probe nd_syscall.ssetmask.return ?
 {
@@ -1153,6 +1308,26 @@ probe nd_syscall.sync.return
 	printf("%s, %s\n", name, retstr)
 }
 
+probe nd_syscall.sync_file_range ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %d, %d(%s)", fd, offset, nbytes, flags, flags_str)
+}
+probe nd_syscall.sync_file_range.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.syncfs ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d\n", fd)
+}
+probe nd_syscall.syncfs.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
 probe nd_syscall.sysctl
 {
 	printf("%s, %s\n", name, argstr)
@@ -1195,6 +1370,7 @@ probe nd_syscall.syslog.return
 probe nd_syscall.tee ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %u, 0x%x", fdin, fdout, len, flags)
 }
 probe nd_syscall.tee.return ?
 {
@@ -1271,9 +1447,40 @@ probe nd_syscall.timerfd.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-probe nd_syscall.times
+probe nd_syscall.timerfd_create ?
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d(%s), %d(%s)", clockid, clockid_str, flags, flags_str)
+}
+probe nd_syscall.timerfd_create.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.timerfd_gettime ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p", fd, value_uaddr)
+}
+probe nd_syscall.timerfd_gettime.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.timerfd_settime ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d(%s), %p, %p", fd, flags, flags_str, value_uaddr,
+	       ovalue_uaddr)
+}
+probe nd_syscall.timerfd_settime.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.times
+{
+	printf("%s, %p, %s\n", name, buf_uaddr, argstr)
 }
 probe nd_syscall.times.return
 {
@@ -1433,6 +1640,8 @@ probe nd_syscall.vhangup.return
 probe nd_syscall.vmsplice ?, nd_syscall.compat_vmsplice ?
 {
 	printf("%s, %s\n", name, argstr)
+	argstr = sprintf("%d, %p, %u, %u, %s", fd, iov, nr_segs,
+	                 flags, flags_str)
 }
 probe nd_syscall.vmsplice.return ?, nd_syscall.compat_vmsplice.return ?
 {
@@ -1457,6 +1666,16 @@ probe nd_syscall.waitid
 	       infop_uaddr, options, options_str, rusage_uaddr)
 }
 probe nd_syscall.waitid.return
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe nd_syscall.waitpid ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %p, %d(%s)\n", pid, status_uaddr, options, options_str)
+}
+probe nd_syscall.waitpid.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }

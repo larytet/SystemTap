@@ -1,5 +1,5 @@
 // C++ interface to dwfl
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -1286,6 +1286,8 @@ dwflpp::iterate_over_libraries<void>(void (*callback)(void*, const char*),
       && interpreter != "/lib/ld-linux.so.2"            // x86
       && interpreter != "/lib/ld-linux.so.3"            // arm
       && interpreter != "/lib/ld-linux-armhf.so.3"      // arm
+      && interpreter != "/lib/ld-linux-aarch64.so.1"    // arm64
+      && interpreter != "/lib64/ld64.so.2"              // ppc64le
       )
     {
       sess.print_warning (_F("module %s --ldd skipped: unsupported interpreter: %s",
@@ -1422,6 +1424,7 @@ dwflpp::iterate_over_plt<void>(void *object, void (*callback)(void*,
   case EM_386:    plt0_entry_size = 16; plt_entry_size = 16; break;
   case EM_X86_64: plt0_entry_size = 16; plt_entry_size = 16; break;
   case EM_ARM:    plt0_entry_size = 20; plt_entry_size = 12; break;
+  case EM_AARCH64:plt0_entry_size = 32; plt_entry_size = 16; break;
   case EM_PPC64:
   case EM_S390:
   case EM_PPC:
@@ -1726,39 +1729,76 @@ functions_have_lineno(base_func_info_map_t& funcs,
   return false;
 }
 
+// returns pair of valid linenos surrounding target lineno
+pair<int,int>
+dwflpp::get_nearest_linenos(char const * srcfile,
+                            int lineno,
+                            base_func_info_map_t& funcs)
+{
+  assert(cu);
+  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
+
+  // Look around lineno for linenos with LRs.
+  pair<int,int> nearest_linenos = make_pair(-1, -1);
+  for (size_t i = 1; i < 6; ++i)
+    {
+      if (nearest_linenos.first == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
+        nearest_linenos.first = lineno - i;
+      if (nearest_linenos.second == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
+        nearest_linenos.second = lineno + i;
+    }
+
+  return nearest_linenos;
+}
+
+// returns nearest valid lineno to target lineno
+int
+dwflpp::get_nearest_lineno(char const * srcfile,
+                           int lineno,
+                           base_func_info_map_t& funcs)
+{
+  assert(cu);
+  pair<int,int> nearest_linenos = get_nearest_linenos(srcfile, lineno, funcs);
+
+  if (nearest_linenos.first > 0
+      && nearest_linenos.second > 0)
+    {
+      // pick the nearest line number (break tie to upper)
+      if (lineno - nearest_linenos.first < nearest_linenos.second - lineno)
+        return nearest_linenos.first;
+      else
+        return nearest_linenos.second;
+    }
+  else if (nearest_linenos.first > 0)
+    return nearest_linenos.first;
+  else if (nearest_linenos.second > 0)
+    return nearest_linenos.second;
+  else
+    return -1;
+}
+
 void
 dwflpp::suggest_alternative_linenos(char const * srcfile,
                                     int lineno,
                                     base_func_info_map_t& funcs)
 {
   assert(cu);
-  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
-
-  // Look around lineno for linenos with LRs.
-  int lo_try = -1;
-  int hi_try = -1;
-  for (size_t i = 1; i < 6; ++i)
-    {
-      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
-        lo_try = lineno - i;
-      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
-        hi_try = lineno + i;
-    }
+  pair<int,int> nearest_linenos = get_nearest_linenos(srcfile, lineno, funcs);
 
   stringstream advice;
   advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
 
-  if (lo_try > 0 || hi_try > 0)
+  if (nearest_linenos.first > 0 || nearest_linenos.second > 0)
     {
       //TRANSLATORS: Here we are trying to advise what source file
       //TRANSLATORS: to attempt.
       advice << _(" (try ");
-      if (lo_try > 0)
-        advice << ":" << lo_try;
-      if (lo_try > 0 && hi_try > 0)
+      if (nearest_linenos.first > 0)
+        advice << ":" << nearest_linenos.first;
+      if (nearest_linenos.first > 0 && nearest_linenos.second > 0)
         advice << _(" or ");
-      if (hi_try > 0)
-        advice << ":" << hi_try;
+      if (nearest_linenos.second > 0)
+        advice << ":" << nearest_linenos.second;
       advice << ")";
     }
   throw SEMANTIC_ERROR (advice.str());
@@ -1774,75 +1814,6 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
     if (strcmp(srcfile, func->decl_file) == 0)
       matching_funcs.push_back(*func);
   return matching_funcs;
-}
-
-void
-dwflpp::insert_alternative_linenos(char const * srcfile,
-                                    int lineno,
-                                    base_func_info_map_t& funcs,
-                                    void (* callback) (Dwarf_Addr,
-                                                       int, void*),
-                                    void *data)
-{
-  assert(cu);
-  lines_t *cu_lines = get_cu_lines_sorted_by_lineno(srcfile);
-
-  // Look around lineno for linenos with LRs.
-  int lo_try = -1;
-  int hi_try = -1;
-  for (size_t i = 1; i < 6; ++i) // XXX: parametrize this 6 .. maybe .nearest(6) ?
-    {
-      if (lo_try == -1 && functions_have_lineno(funcs, cu_lines, lineno-i))
-        lo_try = lineno - i;
-      if (hi_try == -1 && functions_have_lineno(funcs, cu_lines, lineno+i))
-        hi_try = lineno + i;
-    }
-
-  int new_lineno;
-  if (lo_try > 0 && hi_try > 0)
-    {
-      // pick the nearest line number
-      if (lineno - lo_try < lineno - hi_try)
-        new_lineno = lo_try;
-      else
-        new_lineno = hi_try;
-    }
-  else if (lo_try > 0)
-    {
-      new_lineno = lo_try;
-    }
-  else if (hi_try > 0)
-    {
-      new_lineno = hi_try;
-    }
-  else
-    {
-      stringstream advice;
-      advice << _F("no line records for %s:%d [man error::dwarf]", srcfile, lineno);
-      throw SEMANTIC_ERROR (advice.str());
-    }
-  // clog << _F("insert a kprobe at %s:%d (no line record at %s:%d)\n",
-  // srcfile, new_lineno, srcfile, lineno);
-
-  // collect lines
-  lines_t matching_lines;
-  collect_lines_for_single_lineno(srcfile, new_lineno, false, /* is_relative */
-                                  funcs, matching_lines);
-  // call back with matching lines
-  assert (!matching_lines.empty());
-  set<Dwarf_Addr> probed_addrs;
-  for (lines_t::iterator line  = matching_lines.begin();
-                         line != matching_lines.end(); ++line)
-    {
-      int near_lineno = DWARF_LINENO(*line);
-      Dwarf_Addr addr = DWARF_LINEADDR(*line);
-      bool is_new_addr = probed_addrs.insert(addr).second;
-      if (is_new_addr)
-        callback(addr, near_lineno, data);
-    }
-
-  // XXX: the derivation chain of the new derived probe messes up the
-  // original statement's :LINENO, replacing instead of preserving it
 }
 
 template<> void
@@ -1893,9 +1864,58 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
   else if (lineno_type == WILDCARD)
     collect_all_lines(srcfile, current_funcs, matching_lines);
   else if (lineno_type == ENUMERATED)
-    for (vector<int>::const_iterator it = linenos.begin(); it != linenos.end(); it++)
-      collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
-                                      current_funcs, matching_lines);
+    {
+      set<int> collected_linenos;
+      for (vector<int>::const_iterator it  = linenos.begin();
+                                       it != linenos.end(); it++)
+        {
+          // have we already collected this lineno?
+          if (collected_linenos.find(*it) != collected_linenos.end())
+            continue;
+
+          // remember end iterator so we can tell if things were found later
+          lines_t::const_iterator itend = matching_lines.end();
+
+          collect_lines_for_single_lineno(srcfile, *it, false, /* is_relative */
+                                          current_funcs, matching_lines);
+          // add to set if we found LRs
+          if (itend != matching_lines.end())
+            collected_linenos.insert(*it);
+
+          // if we didn't find anything and .nearest is given, then try nearest
+          if (itend == matching_lines.end() && has_nearest)
+            {
+              int nearest_lineno = get_nearest_lineno(srcfile, *it,
+                                                      current_funcs);
+              if (nearest_lineno <= 0) // no valid nearest linenos
+                continue;
+
+              bool new_lineno = collected_linenos.insert(nearest_lineno).second;
+              if (new_lineno)
+                collect_lines_for_single_lineno(srcfile, nearest_lineno,
+                                                false, /* is_relative */
+                                                current_funcs, matching_lines);
+            }
+        }
+    }
+
+  // should we try to collect the nearest lines if we didn't collect everything
+  // on first try? (ABSOLUTE and RELATIVE only: ENUMERATED handles it already
+  // and WILDCARD doesn't need it)
+  if (matching_lines.empty() && has_nearest && (lineno_type == ABSOLUTE ||
+                                                lineno_type == RELATIVE))
+    {
+      int lineno = linenos[0];
+      if (lineno_type == RELATIVE)
+        // just pick the first function and make it relative to that
+        lineno += current_funcs[0].decl_line;
+
+      int nearest_lineno = get_nearest_lineno(srcfile, lineno, current_funcs);
+      if (nearest_lineno > 0)
+        collect_lines_for_single_lineno(srcfile, nearest_lineno,
+                                        false, /* is_relative */
+                                        current_funcs, matching_lines);
+    }
 
   // call back with matching lines
   if (!matching_lines.empty())
@@ -1921,12 +1941,7 @@ dwflpp::iterate_over_srcfile_lines<void>(char const * srcfile,
         // just pick the first function and make it relative to that
         lineno += current_funcs[0].decl_line;
 
-      if (has_nearest) {
-        // This function inserts a kprobe into the nearest line number
-        // rather than suggesting near line numbers and exiting.
-        insert_alternative_linenos(srcfile, lineno, current_funcs, callback, data);
-      } else
-        suggest_alternative_linenos(srcfile, lineno, current_funcs);
+      suggest_alternative_linenos(srcfile, lineno, current_funcs);
     }
 }
 
@@ -2110,6 +2125,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
         {
         case DW_TAG_inlined_subroutine:
           inlined = true;
+          /* FALLTHROUGH */ /* thanks mjw */
         case DW_TAG_GNU_call_site:
           callee.name = dwarf_diename(&die) ?: "";
           if (callee.name.empty())
@@ -2296,8 +2312,14 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
   // Fetch all srcline records, sorted by address. No need to free lines, it's a
   // direct pointer to the CU's cached lines.
-  DWARF_ASSERT ("dwarf_getsrclines",
-                dwarf_getsrclines(cu, &lines, &nlines));
+  if (dwarf_getsrclines(cu, &lines, &nlines) != 0
+      || lines == NULL || nlines == 0)
+    {
+      if (sess.verbose > 2)
+        clog << _F("aborting prologue search: no source lines found for cu '%s'\n",
+                   cu_name().c_str());
+      return;
+    }
 
   // Dump them into our own array for easier searching. They should already be
   // sorted by addr, but we doublecheck that here. We want to keep the indices
@@ -2548,7 +2570,17 @@ dwflpp::function_file (char const ** c)
 {
   assert (function);
   assert (c);
-  *c = dwarf_decl_file (function) ?: "<unknown source>";
+  *c = dwarf_decl_file (function);
+  if (*c == NULL)
+    {
+      // The line table might know.
+      Dwarf_Addr pc;
+      if (dwarf_lowpc(function, &pc) == 0)
+	*c = pc_line (pc, NULL, NULL);
+
+      if (*c == NULL)
+	*c = "<unknown source>";
+    }
 }
 
 
@@ -2556,7 +2588,13 @@ void
 dwflpp::function_line (int *linep)
 {
   assert (function);
-  dwarf_decl_line (function, linep);
+  if (dwarf_decl_line (function, linep) != 0)
+    {
+      // The line table might know.
+      Dwarf_Addr pc;
+      if (dwarf_lowpc(function, &pc) == 0)
+	pc_line (pc, linep, NULL);
+    }
 }
 
 
@@ -2626,7 +2664,7 @@ dwflpp::inner_die_containing_pc(Dwarf_Die& scope, Dwarf_Addr addr,
 
 
 void
-dwflpp::loc2c_error (void *, const char *fmt, ...)
+dwflpp::loc2c_error (void *arg, const char *fmt, ...)
 {
   const char *msg = "?";
   char *tmp = NULL;
@@ -2639,7 +2677,15 @@ dwflpp::loc2c_error (void *, const char *fmt, ...)
   else
     msg = tmp;
   va_end (ap);
-  throw SEMANTIC_ERROR (msg);
+
+  dwflpp *pp = (dwflpp *) arg;
+  semantic_error err(ERR_SRC, msg);
+  string what = pp->die_location_as_string(pp->l2c_ctx.pc, pp->l2c_ctx.die);
+  string where = pp->die_location_as_function_string (pp->l2c_ctx.pc,
+						      pp->l2c_ctx.die);
+  err.details.push_back(what);
+  err.details.push_back(where);
+  throw err;
 }
 
 
@@ -2963,6 +3009,27 @@ die_name_string (Dwarf_Die *die)
   return res;
 }
 
+/* Returns a source file name, line and column information based on the
+   pc and the current cu.  */
+const char *
+dwflpp::pc_line (Dwarf_Addr pc, int *lineno, int *colno)
+{
+  if (pc != 0)
+    {
+      Dwarf_Line *line = dwarf_getsrc_die (cu, pc);
+      if (line != NULL)
+	{
+	  if (lineno != NULL)
+	    dwarf_lineno (line, lineno);
+	  if (colno != NULL)
+	    dwarf_linecol (line, colno);
+	  return dwarf_linesrc (line, NULL, NULL);
+	}
+    }
+
+  return NULL;
+}
+
 /* Returns a source line and column string based on the inlined DIE
    or based on the pc if DIE is NULL. */
 string
@@ -2975,15 +3042,7 @@ dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
   lineno = col = -1;
 
   if (die == NULL)
-    {
-      Dwarf_Line *line = dwarf_getsrc_die (cu, pc);
-      if (line != NULL)
-	{
-	  src = dwarf_linesrc (line, NULL, NULL);
-	  dwarf_lineno (line, &lineno);
-	  dwarf_linecol (line, &col);
-	}
-    }
+    src = pc_line (pc, &lineno, &col);
   else
     {
       Dwarf_Files *files;
@@ -3005,6 +3064,8 @@ dwflpp::pc_die_line_string (Dwarf_Addr pc, Dwarf_Die *die)
 		}
 	    }
 	}
+      else
+	src = pc_line (pc, &lineno, &col);
     }
 
   if (src != NULL)
@@ -3145,6 +3206,8 @@ dwflpp::translate_location(struct obstack *pool,
   /* There is no location expression, but a constant value instead.  */
   if (dwarf_whatattr (attr) == DW_AT_const_value)
     {
+      l2c_ctx.pc = pc;
+      l2c_ctx.die = die;
       *tail = c_translate_constant (pool, &loc2c_error, this,
 				    &loc2c_emit_address, 0, pc, attr);
       return *tail;
@@ -3212,6 +3275,8 @@ dwflpp::translate_location(struct obstack *pool,
   else
     cfa_ops = NULL;
 
+  l2c_ctx.pc = pc;
+  l2c_ctx.die = die;
   return c_translate_location (pool, &loc2c_error, this,
                                &loc2c_emit_address,
                                1, 0 /* PR9768 */,
@@ -3426,7 +3491,10 @@ dwflpp::translate_components(struct obstack *pool,
         case DW_TAG_reference_type:
         case DW_TAG_rvalue_reference_type:
           if (pool)
-            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    {
+	      l2c_ctx.die = typedie;
+	      c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    }
           dwarf_die_type (typedie, typedie, c.tok);
           break;
 
@@ -3437,7 +3505,10 @@ dwflpp::translate_components(struct obstack *pool,
                                      dwarf_type_name(typedie).c_str()), c.tok);
 
           if (pool)
-            c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    {
+	      l2c_ctx.die = typedie;
+	      c_translate_pointer (pool, 1, 0 /* PR9768*/, typedie, tail);
+	    }
           if (c.type != target_symbol::comp_literal_array_index &&
               c.type != target_symbol::comp_expression_array_index)
             {
@@ -3450,15 +3521,21 @@ dwflpp::translate_components(struct obstack *pool,
           if (c.type == target_symbol::comp_literal_array_index)
             {
               if (pool)
-                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
-                                   NULL, c.num_index);
+		{
+		  l2c_ctx.die = typedie;
+                  c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+				     NULL, c.num_index);
+		}
             }
           else if (c.type == target_symbol::comp_expression_array_index)
             {
               string index = "STAP_ARG_index" + lex_cast(i);
               if (pool)
-                c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
-                                   index.c_str(), 0);
+		{
+		  l2c_ctx.die = typedie;
+                  c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail,
+                                     index.c_str(), 0);
+		}
             }
           else
             throw SEMANTIC_ERROR (_F("invalid access '%s' for array type",
@@ -3585,6 +3662,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       if (dwarf_hasattr_integrate (vardie, DW_AT_bit_offset))
         throw SEMANTIC_ERROR (_("cannot take address of bit-field"), e->tok);
 
+      l2c_ctx.die = vardie;
       c_translate_addressof (pool, 1, 0, vardie, typedie, tail, "STAP_RETVALUE");
       return;
     }
@@ -3634,6 +3712,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
       // Fallthrough. enumeration_types are always scalar.
     case DW_TAG_enumeration_type:
 
+      l2c_ctx.die = vardie;
       if (lvalue)
         c_translate_store (pool, 1, 0 /* PR9768 */, vardie, typedie, tail,
                            "STAP_ARG_value");
@@ -3655,6 +3734,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
                 typetag == DW_TAG_rvalue_reference_type)
               throw SEMANTIC_ERROR (_("cannot write to reference"), e->tok);
             assert (typetag == DW_TAG_pointer_type);
+	    l2c_ctx.die = typedie;
             c_translate_pointer_store (pool, 1, 0 /* PR9768 */, typedie, tail,
                                        "STAP_ARG_value");
           }
@@ -3667,6 +3747,7 @@ dwflpp::translate_final_fetch_or_store (struct obstack *pool,
             // For several reasons, this was taken back out, leaving
             // pointer-to-string "conversion" (copying) to tapset functions.
 
+	    l2c_ctx.die = typedie;
             if (typetag == DW_TAG_array_type)
               c_translate_array (pool, 1, 0 /* PR9768 */, typedie, tail, NULL, 0);
             else
@@ -3806,6 +3887,8 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
       if (dwarf_attr_integrate (&vardie, DW_AT_external, &attr_mem) != NULL
 	  && vardie_from_symtable (&vardie, &addr_loc.number) != 0)
 	{
+	  l2c_ctx.pc = pc;
+	  l2c_ctx.die = &vardie;
 	  head = c_translate_location (&pool, &loc2c_error, this,
 				       &loc2c_emit_address,
 				       1, 0, pc,
@@ -3907,6 +3990,8 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                              (dwarf_diename(cu) ?: "<unknown>")), e->tok);
     }
 
+  l2c_ctx.pc = pc;
+  l2c_ctx.die = scope_die;
   struct location  *head = c_translate_location (&pool, &loc2c_error, this,
                                                  &loc2c_emit_address,
                                                  1, 0 /* PR9768 */,
@@ -3969,6 +4054,8 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
 
   struct obstack pool;
   obstack_init (&pool);
+  l2c_ctx.pc = 1;
+  l2c_ctx.die = start_typedie;
   struct location *head = c_translate_argument (&pool, &loc2c_error, this,
                                                 &loc2c_emit_address,
                                                 1, "STAP_ARG_pointer");
@@ -3992,6 +4079,7 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
       if (typetag != DW_TAG_pointer_type &&
           typetag != DW_TAG_array_type)
         {
+	  l2c_ctx.die = &typedie;
           if (c->type == target_symbol::comp_literal_array_index)
             c_translate_array_pointer (&pool, 1, &typedie, &tail, NULL, c->num_index);
           else

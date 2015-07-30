@@ -13,12 +13,33 @@ probe nd_syscall.arch_prctl = kprobe.function("sys_arch_prctl")
 	// argstr = sprintf("%d, %p", $code, $addr)
 	// NB: no asmlinkage()
 	code = int_arg(1)
+	code_str = _stp_arch_prctl_func_str(code)
 	addr = ulong_arg(2)
-	argstr = sprintf("%d, %p", code, addr)
+	argstr = sprintf("%s, %u", code_str, addr)
 }
 probe nd_syscall.arch_prctl.return = kprobe.function("sys_arch_prctl").return
 {
 	name = "arch_prctl"
+	retstr = returnstr(1)
+}
+
+# get_thread_area ____________________________________________
+/*
+ * asmlinkage int
+ * sys_get_thread_area(struct user_desc __user *u_info)
+ */
+probe nd_syscall.get_thread_area = kprobe.function("sys_get_thread_area") ?
+{
+	name = "get_thread_area"
+	// u_info_uaddr = $u_info
+	asmlinkage()
+	u_info_uaddr = pointer_arg(1)
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
+}
+probe nd_syscall.get_thread_area.return =
+	kprobe.function("sys_get_thread_area").return ?
+{
+	name = "get_thread_area"
 	retstr = returnstr(1)
 }
 
@@ -32,12 +53,32 @@ probe nd_syscall.iopl = kprobe.function("sys_iopl")
 	name = "iopl"
 //	level = (@defined($level) ? $level : $new_iopl)
 	asmlinkage()
-	level = int_arg(1)
+	level = uint_arg(1)
 	argstr = sprint(level)
 }
 probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
 {
 	name = "iopl"
+	retstr = returnstr(1)
+}
+
+# set_thread_area ____________________________________________
+/*
+ * asmlinkage int
+ * sys_set_thread_area(struct user_desc __user *u_info)
+ */
+probe nd_syscall.set_thread_area = kprobe.function("sys_set_thread_area") ?
+{
+	name = "set_thread_area"
+	// u_info_uaddr = $u_info
+	asmlinkage()
+	u_info_uaddr = pointer_arg(1)
+	argstr = sprintf("%s", _struct_user_desc_u(u_info_uaddr))
+}
+probe nd_syscall.set_thread_area.return =
+	kprobe.function("sys_set_thread_area").return ?
+{
+	name = "set_thread_area"
 	retstr = returnstr(1)
 }
 
@@ -48,13 +89,10 @@ probe nd_syscall.iopl.return = kprobe.function("sys_iopl").return
 #
 # NOTE: args vary between archs.
 #
-probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
+probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack"),
+	kprobe.function("sys32_sigaltstack").call ?
 {
 	name = "sigaltstack"
-	// uss_uaddr = $uss
-	// uoss_uaddr = $uoss
-	// regs = $regs
-	// argstr = sprintf("%p, %p", $uss, $uoss)
 	asmlinkage()
 	uss_uaddr = pointer_arg(1)
 	uoss_uaddr = pointer_arg(2)
@@ -62,9 +100,13 @@ probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
 	regs_uaddr = pointer_arg(3)
 	regs = pointer_arg(3)
 %)
-	argstr = sprintf("%p, %p", uss_uaddr, uoss_uaddr)
+	argstr = sprintf("%s, %p",
+			 (%{ /* pure */ _stp_is_compat_task() %}
+			  ? _stp_compat_sigaltstack_u(uss_uaddr)
+			  : _stp_sigaltstack_u(uss_uaddr)), uoss_uaddr)
 }
-probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
+probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return,
+	kprobe.function("sys32_sigaltstack").return ?
 {
 	name = "sigaltstack"
 	retstr = returnstr(1)
@@ -156,7 +198,7 @@ probe __nd_syscall.mmap_pgoff = kprobe.function("sys_mmap_pgoff")
 	# number of bytes.
 	argstr = sprintf("%p, %u, %s, %s, %d, %d", ulong_arg(1), ulong_arg(2),
 		_mprotect_prot_str(ulong_arg(3)), _mmap_flags(ulong_arg(4)),
-		int_arg(5), ulong_arg(6) * %{ PAGE_SIZE %})
+		int_arg(5), ulong_arg(6) * %{ /* pure */ PAGE_SIZE %})
 }
 probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?,
 	kprobe.function("sys_mmap_pgoff").return ?
@@ -171,12 +213,13 @@ probe nd_syscall.mmap2.return = kprobe.function("sys32_mmap2").return ?,
 #
 # long sys32_vm86_warning(void)
 #
-probe nd_syscall.vm86_warning = kprobe.function("sys32_vm86_warning")
+probe nd_syscall.vm86_warning = kprobe.function("sys32_vm86_warning") ?
 {
 	name = "vm86_warning"
 	argstr = ""
 }
-probe nd_syscall.vm86_warning.return = kprobe.function("sys32_vm86_warning").return
+probe nd_syscall.vm86_warning.return =
+	kprobe.function("sys32_vm86_warning").return ?
 {
 	name = "wm86_warning"
 	retstr = returnstr(1)
@@ -198,3 +241,205 @@ probe nd_syscall.pipe32.return = kprobe.function("sys32_pipe").return?
 	name = "pipe"
 	retstr = returnstr(1)
 }
+
+# ftruncate _______________________________________________________
+#
+# asmlinkage long sys32_ftruncate64(unsigned int fd, unsigned long offset_low,
+#				    unsigned long offset_high)
+#
+probe nd_syscall.compat_ftruncate64 = kprobe.function("sys32_ftruncate64") ?
+{
+	asmlinkage()
+        name = "ftruncate"
+        fd = int_arg(1)
+        length = ((uint_arg(3) << 32) | uint_arg(2))
+        argstr = sprintf("%d, %d", fd, length)
+}
+probe nd_syscall.compat_ftruncate64.return =
+	kprobe.function("sys32_ftruncate64").return ?
+{
+	name = "ftruncate"
+	retstr = returnstr(1)
+}
+
+# truncate _______________________________________________________
+#
+# asmlinkage long sys32_truncate64(const char __user *filename,
+#				   unsigned long offset_low,
+#				   unsigned long offset_high)
+#
+probe nd_syscall.compat_truncate64 = kprobe.function("sys32_truncate64") ?
+{
+	asmlinkage()
+        name = "truncate"
+	path_uaddr = pointer_arg(1)
+	path = user_string_quoted(path_uaddr)
+        length = ((uint_arg(3) << 32) | uint_arg(2))
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+}
+probe nd_syscall.compat_truncate64.return =
+	kprobe.function("sys32_truncate64").return ?
+{
+	name = "truncate"
+	retstr = returnstr(1)
+}
+
+# fadvise64 _______________________________________________________
+#
+# asmlinkage long sys32_fadvise64(int fd, unsigned offset_lo,
+#				  unsigned offset_hi,
+#				  size_t len, int advice)
+#
+probe nd_syscall.compat_fadvise64 = kprobe.function("sys32_fadvise64") ?
+{
+	asmlinkage()
+	name = "fadvise64"
+	fd = int_arg(1)
+	offset = ((uint_arg(3) << 32) | uint_arg(2))
+	len = int_arg(4)
+	advice = int_arg(5)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64.return =
+	kprobe.function("sys32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}
+
+# fadvise64_64 __________________________________________________
+#
+# long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
+#			__u32 len_low, __u32 len_high, int advice)
+probe nd_syscall.compat_fadvise64_64 = kprobe.function("sys32_fadvise64_64") ?
+{
+	name = "fadvise64"
+	fd = int_arg(1)
+	offset = ((uint_arg(3) << 32) | uint_arg(2))
+	len = ((uint_arg(5) << 32) | uint_arg(4))
+	advice = int_arg(6)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe nd_syscall.compat_fadvise64_64.return =
+	kprobe.function("sys32_fadvise64_64").return ?
+{
+	name = "fadvise64"
+	retstr = returnstr(1)
+}
+
+# readahead __________________________________________________
+#
+# asmlinkage ssize_t
+# ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi, size_t count)
+#
+probe nd_syscall.compat_readahead = kprobe.function("sys32_readahead") ?
+{
+	name = "readahead"
+	asmlinkage()
+	fd = int_arg(1)
+	offset = ((uint_arg(3) << 32) | uint_arg(2))
+	count = ulong_arg(4)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
+}
+probe nd_syscall.compat_readahead.return =
+	kprobe.function("sys32_readahead").return ?
+{
+	name = "readahead"
+	retstr = returnstr(1)
+}
+
+# fallocate __________________________________________________
+#
+# asmlinkage long sys32_fallocate(int fd, int mode, unsigned offset_lo,
+#				unsigned offset_hi, unsigned len_lo,
+#				unsigned len_hi)
+probe nd_syscall.compat_fallocate = kprobe.function("sys32_fallocate") ?
+{
+	asmlinkage()
+	name = "fallocate"
+	fd = int_arg(1)
+	mode = int_arg(2)
+	offset = ((uint_arg(4) << 32) | uint_arg(3))
+	len = ((uint_arg(6) << 32) | uint_arg(5))
+	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
+			 offset, len)
+}
+probe nd_syscall.compat_fallocate.return =
+	kprobe.function("sys32_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = returnstr(1)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+# long sys_execve(char __user *name, char __user * __user *argv,
+#		char __user * __user *envp, struct pt_regs regs)
+probe nd_syscall.execve = kprobe.function("sys_execve")
+{
+	name = "execve"
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+
+# execve _____________________________________________________
+#
+#   asmlinkage long sys32_execve(char __user *name, compat_uptr_t __user *argv,
+#			     compat_uptr_t __user *envp, struct pt_regs *regs)
+probe nd_syscall.compat_execve = kprobe.function("sys32_execve") ?
+{
+	asmlinkage()
+	name = "execve"
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_compat_argv(pointer_arg(2), 0)
+	env_str = __count_compat_envp(pointer_arg(3))
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.compat_execve.return = kprobe.function("sys32_execve").return ?
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *,
+#                        buf, compat_size_t, len)
+# long sys32_lookup_dcookie(u32 addr_low, u32 addr_high, char __user *buf,
+#                           size_t len)
+#
+probe nd_syscall.compat_lookup_dcookie =
+		kprobe.function("compat_sys_lookup_dcookie") ?,
+		kprobe.function("sys32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        asmlinkage()
+        cookie = ((uint_arg(2) << 32) | uint_arg(1))
+        buffer_uaddr = pointer_arg(3)
+        len = ulong_arg(4)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe nd_syscall.compat_lookup_dcookie.return =
+		kprobe.function("compat_sys_lookup_dcookie").return ?,
+		kprobe.function("sys32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = returnstr(1)
+}
+

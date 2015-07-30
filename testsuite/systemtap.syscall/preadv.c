@@ -1,4 +1,5 @@
 /* COVERAGE: preadv */
+#define _GNU_SOURCE
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
 #include <sys/types.h>
@@ -9,15 +10,17 @@
 #include <linux/unistd.h>
 #include <sys/uio.h>
 #include <string.h>
+#include <sys/syscall.h>
 
 int main()
 {
+#ifdef __NR_preadv
   int fd;
   struct iovec rd_iovec[3];
   char buf[64];
 
   fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
   memset(buf, (int)'B', sizeof(buf));
   write(fd, buf, sizeof(buf));
   //staptest// write (NNNN, "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"..., 64) = 64
@@ -26,7 +29,7 @@ int main()
   //staptest// close (NNNN) = 0
 
   fd = open("foobar1", O_RDONLY);
-  //staptest// open ("foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_RDONLY[[[[.O_LARGEFILE]]]]?) = NNNN
 
   rd_iovec[0].iov_base = buf;
   rd_iovec[0].iov_len = sizeof(buf);
@@ -69,16 +72,17 @@ int main()
   //staptest// close (NNNN) = 0
 
   mkdir("dir1", S_IREAD|S_IWRITE|S_IEXEC);
-  //staptest// mkdir ("dir1", 0700) = 0
+  //staptest// [[[[mkdir (!!!!mkdirat (AT_FDCWD, ]]]]"dir1", 0700) = 0
 
   fd = open("dir1", O_RDONLY);
-  //staptest// open ("dir1", O_RDONLY) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"dir1", O_RDONLY) = NNNN
   
   preadv(fd, rd_iovec, 1, 0);
   //staptest// preadv (NNNN, XXXX, 1, 0x0) = -NNNN (EISDIR)
 
   close (fd);
   //staptest// close (NNNN) = 0
+#endif
 
   return 0;
 }

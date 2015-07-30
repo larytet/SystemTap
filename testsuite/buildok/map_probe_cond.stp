@@ -1,0 +1,10 @@
+#! stap -p4
+
+# PR18115
+global foo
+probe begin if (foo[0] > 1) {
+   foo[0]++
+}
+probe process("stap").function("main") if (foo[0] > 2) {
+   foo[0]--
+}

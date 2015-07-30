@@ -3,8 +3,10 @@
 probe socket.send, socket.receive,
       socket.sendmsg, socket.sendmsg.return,
       socket.recvmsg, socket.recvmsg.return,
-      socket.aio_write, socket.aio_write.return,
-      socket.aio_read, socket.aio_read.return,
+      socket.aio_write ?, socket.aio_write.return ?,
+      socket.aio_read ?, socket.aio_read.return ?,
+      socket.write_iter ?, socket.write_iter.return ?,
+      socket.read_iter ?, socket.read_iter.return ?,
       socket.writev ?, socket.writev.return ?,
       socket.readv ?, socket.readv.return ?
 {

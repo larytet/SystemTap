@@ -21,9 +21,13 @@ int main()
     getrusage(RUSAGE_THREAD, &usage);
     //staptest// getrusage (RUSAGE_THREAD, XXXX) = 0
 
-    // RUSAGE_BOTH isn't valid for getrusage()
+    // RUSAGE_BOTH isn't valid for getrusage(), but we don't care. If
+    // we pass it in, we should get it back.
     getrusage(RUSAGE_BOTH, &usage);
-    //staptest// getrusage (UNKNOWN VALUE: -2, XXXX) = -NNNN (EINVAL)
+    //staptest// getrusage (RUSAGE_BOTH, XXXX) = -NNNN (EINVAL)
+
+    getrusage(-15, &usage);
+    //staptest// getrusage (0xfffffff1, XXXX) = -NNNN
 
     getrusage(RUSAGE_SELF, (struct rusage *)-1);
 #ifdef __s390__

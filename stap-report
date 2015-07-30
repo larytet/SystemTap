@@ -32,41 +32,41 @@ nss_db_status () {
     key4_found=0
     cert9_found=0
     if [ -e "$db_path/secmod.db" ]; then
-	let $((++dbm_files_found))
+	dbm_files_found=$((dbm_files_found + 1))
 	secmod_found=1
     fi
     if [ -e "$db_path/key3.db" ]; then
-	let $((++dbm_files_found))
+	dbm_files_found=$((dbm_files_found + 1))
 	key3_found=1
     fi
     if [ -e "$db_path/cert8.db" ]; then
-	let $((++dbm_files_found))
+	dbm_files_found=$((dbm_files_found + 1))
 	cert8_found=1
     fi
     if [ -e "$db_path/pkcs11.txt" ]; then
-	let $((++sql_files_found))
+	sql_files_found=$((sql_files_found + 1))
 	pkcs11_found=1
     fi
     if [ -e "$db_path/key4.db" ]; then
-	let $((++sql_files_found))
+	sql_files_found=$((sql_files_found + 1))
 	key4_found=1
     fi
     if [ -e "$db_path/cert9.db" ]; then
-	let $((++sql_files_found))
+	sql_files_found=$((sql_files_found + 1))
 	cert9_found=1
     fi
 
     if [ $dbm_files_found = 0 -a $sql_files_found = 0 ]; then
 	echo "No NSS database found at '$db_path'"
     else
-	if [ $dbm_files_found == 3 ]; then
+	if [ $dbm_files_found = 3 ]; then
 	    echo "dbm format NSS database found at '$db_path'"
 	elif [ $dbm_files_found != 0 ]; then
 	    [ $secmod_found = 0 ] && echo "secmod.db is missing from dbm format NSS database at '$db_path'"
 	    [ $key3_found = 0 ] && echo "key3.db is missing from dbm format NSS database at '$db_path'"
 	    [ $cert8_found = 0 ] && echo "cert8.db is missing from dbm format NSS database at '$db_path'"
 	fi
-	if [ $sql_files_found == 3 ]; then
+	if [ $sql_files_found = 3 ]; then
 	    echo "sql format NSS database found at '$db_path'"
 	elif [ $sql_files_found != 0 ]; then
 	    [ $pkcs11_found = 0 ] && echo "pkcs11.txt is missing from sql format NSS database at '$db_path'"

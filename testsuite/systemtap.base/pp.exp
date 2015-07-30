@@ -11,5 +11,5 @@ set output_string "(kernel\\.function\[^\r\n]*\r\n)+systemtap test success\r\n"
 stap_run $test opener $output_string $file $test
 
 set test "pn"
-set output_string "syscall\\.open\r\nsystemtap test success\r\n"
+set output_string "syscall\\.open(at)?\r\nsystemtap test success\r\n"
 stap_run $test opener $output_string $file $test

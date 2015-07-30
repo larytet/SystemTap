@@ -99,6 +99,12 @@ probe syscall.sys32_sysinfo.return = kernel.function("sys32_sysinfo").return ?
 	retstr = return_str(1, $return)
 }
 
+%( systemtap_v <= "2.7" %?
+# sys32_ipc() is just a syscall multiplexer (similar to
+# sys_socketcall()). So, we don't really need to probe it, since we'll
+# be probing what sys32_ipc() will call (semget, msgsnd, msgrcv,
+# shmat, etc.).
+
 # ipc ________________________________________
 #
 # long sys32_ipc(u32 call, u32 first, u32 second, u32 third,
@@ -115,6 +121,7 @@ probe syscall.ipc.return = kernel.function("sys32_ipc").return ?
 	name = "sys_ipc"
 	retstr = return_str(1, $return)
 }
+%)
 
 # sys32_sigreturn ________________________________________
 #
@@ -312,14 +319,13 @@ probe syscall.sigaltstack = kernel.function("sys_sigaltstack")
 %(systemtap_v < "2.3" %?
 	regs = $regs
 %)
-	argstr = sprintf("%p, %p", $uss, $uoss)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u($uss), $uoss)
 }
 probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 {
 	name = "sigaltstack"
 	retstr = return_str(1, $return)
 }
-%)
 
 # sys32_sigaltstack ________________________________________
 #
@@ -328,18 +334,25 @@ probe syscall.sigaltstack.return = kernel.function("sys_sigaltstack").return
 # int sys32_sigaltstack(u32 __new, u32 __old, int r5,
 #			int r6, int r7, int r8, struct pt_regs *regs)
 #
-# Args are too different to match 'syscall.sigaltstack'.
-probe syscall.sys32_sigaltstack = kernel.function("compat_sys_sigaltstack") !,
-				  kernel.function("sys32_sigaltstack") ?
+probe syscall.sys32_sigaltstack =
+	kernel.function("compat_sys_sigaltstack").call !,
+	kernel.function("sys32_sigaltstack").call ?
 {
-	name = "sys32_sigaltstack"
-	argstr = ""
+	name = "sigaltstack"
+	uss_uaddr = @__pointer($__new)
+	uoss_uaddr = @__pointer($__old)
+	argstr = sprintf("%s, %p", _stp_compat_sigaltstack_u(uss_uaddr),
+			 uoss_uaddr)
 }
-probe syscall.sys32_sigaltstack.return = kernel.function("sys32_sigaltstack").return ?
+probe syscall.sys32_sigaltstack.return =
+	kernel.function("compat_sys_sigaltstack").return !,
+	kernel.function("sys32_sigaltstack").return ?
 {
-	name = "sys32_sigaltstack"
+	name = "sigaltstack"
 	retstr = return_str(1, $return)
 }
+%)
+
 # sys32_sendfile64 ________________________________________
 #
 # asmlinkage int sys32_sendfile64(int out_fd, int in_fd,
@@ -622,22 +635,218 @@ probe syscall.ppc64_sys_stime.return = kernel.function("ppc64_sys_stime").return
 	name = "ppc64_sys_stime"
 	retstr = return_str(1, $return)
 }
-# ppc64_newuname ________________________________________
+
+# ppc[64]_newuname ________________________________________
 #
 # asmlinkage int ppc64_newuname(struct new_utsname __user * name)
+# long ppc_newuname(struct new_utsname __user * name)
 #
-probe syscall.ppc64_newuname = kernel.function("ppc64_newuname") ?
+probe syscall.ppc64_newuname = kernel.function("ppc64_newuname") ?,
+	kernel.function("ppc_newuname") ?
 {
-	name = "ppc64_newuname"
+	name = "uname"
 	name_uaddr = $name
 	argstr = sprintf("%p", name_uaddr)
 }
-probe syscall.ppc64_newuname.return = kernel.function("ppc64_newuname").return ?
+probe syscall.ppc64_newuname.return =
+	kernel.function("ppc64_newuname").return ?,
+	kernel.function("ppc_newuname").return ?
 {
-	name = "ppc64_newuname"
+	name = "uname"
 	retstr = return_str(1, $return)
 }
 
+# compat_ftruncate64 ________________________________________
 #
+# asmlinkage int compat_sys_ftruncate64(unsigned int fd, u32 reg4,
+#					unsigned long high, unsigned long low)
 #
+probe syscall.compat_ftruncate64 =
+	kernel.function("compat_sys_ftruncate64").call ?
+{
+	name = "ftruncate"
+	fd = __int32($fd)
+	length = ($high << 32 | $low)
+	argstr = sprintf("%d, %d", fd, length)
+}
+probe syscall.compat_ftruncate64.return =
+	kernel.function("compat_sys_ftruncate64").return ?
+{
+	name = "ftruncate"
+	retstr = return_str(1, $return)
+}
 
+# compat_truncate64 ________________________________________
+#
+# asmlinkage int compat_sys_truncate64(const char __user * path, u32 reg4,
+#				       unsigned long high, unsigned long low)
+#
+probe syscall.compat_truncate64 =
+	kernel.function("compat_sys_truncate64").call ?
+{
+	name = "truncate"
+	path_uaddr = $path
+	path = user_string_quoted(path_uaddr)
+	length = ($high << 32 | $low)
+	argstr = sprintf("%s, %d", user_string_quoted(path_uaddr), length)
+}
+probe syscall.compat_truncate64.return =
+	kernel.function("compat_sys_truncate64").return ?
+{
+	name = "truncate"
+	retstr = return_str(1, $return)
+}
+
+# readahead __________________________________________________
+#
+# compat_ssize_t compat_sys_readahead(int fd, u32 r4, u32 offhi, u32 offlo,
+#                                     u32 count)
+#
+probe syscall.compat_readahead = kernel.function("compat_sys_readahead") ?
+{
+	name = "readahead"
+	fd = __int32($fd)
+	offset = (($offhi << 32) | $offlo)
+	count = __uint32($count)
+	argstr = sprintf("%d, %d, %u", fd, offset, count)
+}
+probe syscall.compat_readahead.return =
+	kernel.function("compat_sys_readahead").return ?
+{
+	name = "readahead"
+	retstr = return_str(1, $return)
+}
+
+# fadvise64 _______________________________________________________
+#
+# long ppc32_fadvise64(int fd, u32 unused, u32 offset_high, u32 offset_low,
+# 		     size_t len, int advice)
+probe syscall.compat_fadvise64 = kernel.function("ppc32_fadvise64").call ?
+{
+	name = "fadvise64"
+	fd = __int32($fd)
+	offset = (($offset_high << 32) | $offset_low)
+	len = __int32($len)
+	advice = __int32($advice)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe syscall.compat_fadvise64.return =
+	kernel.function("ppc32_fadvise64").return ?
+{
+	name = "fadvise64"
+	retstr = return_str(1, $return)
+}
+
+# fadvise64 _______________________________________________________
+#
+# long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
+#		      u32 len_high, u32 len_low)
+probe syscall.compat_fadvise64_64 = kernel.function("ppc_fadvise64_64").call ?
+{
+	name = "fadvise64"
+	fd = __int32($fd)
+	advice = __int32($advice)
+	offset = (($offset_high << 32) | $offset_low)
+	len = (($len_high << 32) | $len_low)
+	argstr = sprintf("%d, %d, %d, %s", fd, offset, len,
+			 _fadvice_advice_str(advice))
+}
+probe syscall.compat_fadvise64_64.return =
+	kernel.function("ppc_fadvise64_64").return ?
+{
+	name = "fadvise64"
+	retstr = return_str(1, $return)
+}
+
+# fallocate __________________________________________________
+#
+# asmlinkage long compat_sys_fallocate(int fd, int mode, u32 offhi, u32 offlo,
+#				     u32 lenhi, u32 lenlo)
+probe syscall.compat_fallocate = kernel.function("compat_sys_fallocate") ?
+{
+	name = "fallocate"
+	fd = __int32($fd)
+	mode = __int32($mode)
+	offset = (($offhi << 32) | $offlo)
+	len = (($lenhi << 32) | $lenlo)
+	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
+			 offset, len)
+}
+probe syscall.compat_fallocate.return =
+	kernel.function("compat_sys_fallocate").return ?
+{
+	name = "fallocate"
+	retstr = return_str(1, $return)
+}
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  int sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
+#	       unsigned long a3, unsigned long a4, unsigned long a5,
+#	       struct pt_regs *regs)
+probe syscall.execve = kernel.function("sys_execve").call
+{
+	name = "execve"
+	filename = user_string_quoted($a0)
+	args = __get_argv($a1, 0)
+	env_str = __count_envp($a2)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe syscall.execve.return = kernel.function("sys_execve").return
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+
+# execve _____________________________________________________
+#
+#  long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
+#		  unsigned long a3, unsigned long a4, unsigned long a5,
+#		  struct pt_regs *regs)
+probe syscall.compat_execve = kernel.function("compat_sys_execve").call ?
+{
+	name = "execve"
+	filename = user_string_quoted($a0)
+	args = __get_compat_argv($a1, 0)
+	env_str = __count_compat_envp($a2)
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe syscall.compat_execve.return =
+	kernel.function("compat_sys_execve").return ?
+{
+	name = "execve"
+	retstr = return_str(1, $return)
+}
+%)
+
+# lookup_dcookie _____________________________________________
+# COMPAT_SYSCALL_DEFINE4(lookup_dcookie, u32, w0, u32, w1, char __user *, buf,
+#                        compat_size_t, len)
+# long ppc32_lookup_dcookie(u32 cookie_high, u32 cookie_low, char __user *buf,
+#                           size_t len)
+#
+probe syscall.compat_lookup_dcookie =
+		kernel.function("compat_sys_lookup_dcookie") ?,
+		kernel.function("ppc32_lookup_dcookie") ?
+{
+        name = "lookup_dcookie"
+        cookie = (@choose_defined($w0, $cookie_high) << 32 | @choose_defined($w1, $cookie_low))
+        buffer_uaddr = $buf
+        len = __ulong($len)
+        argstr = sprintf("%#lx, %p, %#x", cookie, buffer_uaddr, len)
+}
+probe syscall.compat_lookup_dcookie.return =
+		kernel.function("compat_sys_lookup_dcookie").return ?,
+		kernel.function("ppc32_lookup_dcookie").return ?
+{
+        name = "lookup_dcookie"
+        retstr = return_str(1, $return)
+}

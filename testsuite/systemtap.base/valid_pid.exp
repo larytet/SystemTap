@@ -53,3 +53,4 @@ foreach test_script $test_scripts {
 }
 
 kill -INT -[exp_pid -i $exe_id] 2
+catch { close }; catch { wait }

@@ -20,7 +20,8 @@ proc get_listings { probe_point } {
 }
 
 proc parse_lineno { function line } {
-   if {[regexp "$function:(\[0-9\]+)\"" $line dummy submatch]} {
+   if {[regexp "\[^:\]+:(\[0-9\]+)\"" $line dummy submatch]} {
+      verbose -log "parsed lineno $submatch in line $line"
       return $submatch
    } else {
       verbose -log "can't parse lineno in $line"
@@ -108,5 +109,5 @@ proc test_function { function } {
 }
 
 # Test a few different functions
-test_function {bio_copy_user@fs/bio.c}
+test_function {bio_copy_user@*/bio.c}
 test_function {vfs_read@fs/read_write.c}

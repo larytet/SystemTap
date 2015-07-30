@@ -397,6 +397,9 @@ int init_stapio(void)
   if (target_cmd)
     start_cmd();
 
+  if (target_namespaces_pid > 0)
+    dbug(2, "target_namespaces_pid=%d\n", target_namespaces_pid);
+
   /* Run in background */
   if (daemon_mode) {
     pid_t pid;
@@ -552,6 +555,7 @@ int stp_main_loop(void)
       char data[8192];
       struct _stp_msg_start start;
       struct _stp_msg_cmd cmd;
+      struct _stp_msg_ns_pid nspid;
     } payload;
   } recvbuf;
   int error_detected = 0;
@@ -773,9 +777,16 @@ int stp_main_loop(void)
         system_cmd(c->cmd);
         break;
       }
+    case STP_NAMESPACES_PID:
+      {
+        struct _stp_msg_ns_pid *nspid = &recvbuf.payload.nspid;
+        dbug(2, "STP_NAMESPACES_PID: %d\n", nspid->target);
+        break;
+      }
     case STP_TRANSPORT:
       {
         struct _stp_msg_start ts;
+        struct _stp_msg_ns_pid nspid;
         if (use_old_transport) {
           if (init_oldrelayfs() < 0)
             cleanup_and_exit(0, 1);
@@ -783,6 +794,16 @@ int stp_main_loop(void)
           if (init_relayfs() < 0)
             cleanup_and_exit(0, 1);
         }
+
+        if (target_namespaces_pid > 0) {
+          nspid.target = target_namespaces_pid;
+          rc = send_request(STP_NAMESPACES_PID, &nspid, sizeof(nspid));
+          if (rc != 0) {
+	          perror ("Unable to send STP_NAMESPACES_PID");
+	          cleanup_and_exit (1, rc);
+	        }
+        }
+
         ts.target = target_pid;
         rc = send_request(STP_START, &ts, sizeof(ts));
 	if (rc != 0) {

@@ -30,21 +30,6 @@ probe syscall.mmap2.return ?
 }
 %)
 
-%( CONFIG_GENERIC_SIGALTSTACK == "n" %?
-probe syscall.sigaltstack
-{
-	printf("%s, %s\n", name, argstr)
-	printf("%p, %p\n", uss_uaddr, uoss_uaddr)
-%(systemtap_v < "2.3" %?
-	printf("%p\n", regs)
-%)
-}
-probe syscall.sigaltstack.return
-{
-	printf("%s, %s\n", name, retstr)
-}
-%)
-
 probe syscall.sys32_sigaltstack ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -81,12 +66,14 @@ probe syscall.get_thread_area.return
 probe syscall.iopl
 {
 	printf("%s, %s\n", name, argstr)
+	printf("%d\n", level)
 }
 probe syscall.iopl.return
 {
 	printf("%s, %s\n", name, retstr)
 }
 
+%( systemtap_v <= "2.7" %?
 probe syscall.ipc ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -97,6 +84,7 @@ probe syscall.ipc.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 # syscall.mmap2 is above
 
@@ -120,8 +108,6 @@ probe syscall.set_zone_reclaim.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-# syscall.sigaltstack is above
-
 probe syscall.vm86, syscall.vm86old ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -140,8 +126,6 @@ probe syscall.vm86.return, syscall.vm86old.return ?
 # syscall.mmap is above
 
 # syscall.mmap2 is above
-
-# syscall.sigaltstack is above
 
 # syscall.sysctl32 is above
 %)
@@ -311,8 +295,6 @@ probe syscall.sys32_rt_sigqueueinfo.return ?
 	printf("%s, %s\n", name, retstr)
 }
 
-# syscall.sigaltstack is above
-
 probe syscall.sys32_sendfile64 ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -467,6 +449,7 @@ probe syscall.getresuid16.return
 	printf("%s, %s\n", name, retstr)
 }
 
+%( systemtap_v < "2.7" %?
 probe syscall.ipc ?
 {
 	printf("%s, %s\n", name, argstr)
@@ -475,6 +458,7 @@ probe syscall.ipc.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
+%)
 
 # syscall.mmap is above
 
@@ -491,7 +475,7 @@ probe syscall.ipc.return ?
 probe syscall.arch_prctl
 {
 	printf("%s, %s\n", name, argstr)
-	printf("%d, %d\n", code, addr)
+	printf("%d, %s, %d\n", code, code_str, addr)
 }
 probe syscall.arch_prctl.return
 {
@@ -507,8 +491,6 @@ probe syscall.iopl.return
 {
 	printf("%s, %s\n", name, retstr)
 }
-
-# syscall.sigaltstack is above
 
 # syscall.sysctl32 is above
 
@@ -530,11 +512,11 @@ probe syscall.mmap.return, syscall.mmap32.return
 
 # syscall.mmap2 is above
 
-probe syscall.vm86_warning
+probe syscall.vm86_warning ?
 {
 	printf("%s, %s\n", name, argstr)
 }
-probe syscall.vm86_warning.return
+probe syscall.vm86_warning.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
@@ -549,5 +531,54 @@ probe syscall.pipe32.return ?
 {
 	printf("%s, %s\n", name, retstr)
 }
-
 %)
+
+probe syscall.compat_ftruncate64 ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d\n", fd, length)
+}
+probe syscall.compat_ftruncate64.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.compat_truncate64 ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p (%s), %d\n", path_uaddr, path, length)
+}
+probe syscall.compat_truncate64.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.compat_readahead ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%d, %d, %u", fd, offset, count)
+}
+probe syscall.compat_readahead.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.get_thread_area ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p\n", u_info_uaddr)
+}
+probe syscall.get_thread_area.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}
+
+probe syscall.set_thread_area ?
+{
+	printf("%s, %s\n", name, argstr)
+	printf("%p\n", u_info_uaddr)
+}
+probe syscall.set_thread_area.return ?
+{
+	printf("%s, %s\n", name, retstr)
+}

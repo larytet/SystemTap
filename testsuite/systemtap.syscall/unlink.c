@@ -30,7 +30,7 @@ int main()
 #endif
 
   unlink("foobar1");
-  //staptest// unlink ("foobar1") = 0
+  //staptest// [[[[unlink ("foobar1"!!!!unlinkat (AT_FDCWD, "foobar1", 0x0]]]]) = 0
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "foobar2", 0);
@@ -38,7 +38,7 @@ int main()
 #endif
 
   unlink("foobar1");
-  //staptest// unlink ("foobar1") = -NNNN (ENOENT)
+  //staptest// [[[[unlink ("foobar1"!!!!unlinkat (AT_FDCWD, "foobar1", 0x0]]]]) = -NNNN (ENOENT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "foobar1", 0);
@@ -46,7 +46,7 @@ int main()
 #endif
 
   unlink("foobar2");
-  //staptest// unlink ("foobar2") = -NNNN (ENOENT)
+  //staptest// [[[[unlink ("foobar2"!!!!unlinkat (AT_FDCWD, "foobar2", 0x0]]]]) = -NNNN (ENOENT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "foobar2", 0);
@@ -54,7 +54,7 @@ int main()
 #endif
 
   unlink(0);
-  //staptest// unlink ( *(null)) = -NNNN (EFAULT)
+  //staptest// [[[[unlink ( *(null)!!!!unlinkat (AT_FDCWD,  *(null), 0x0]]]]) = -NNNN (EFAULT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, 0, 0);
@@ -62,7 +62,7 @@ int main()
 #endif
 
   unlink("..");
-  //staptest// unlink ("..") = -NNNN (EISDIR)
+  //staptest// [[[[unlink (".."!!!!unlinkat (AT_FDCWD, "..", 0x0]]]]) = -NNNN (EISDIR)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "..", 0);
@@ -70,11 +70,38 @@ int main()
 #endif
 
   unlink("");
-  //staptest// unlink ("") = -NNNN (ENOENT)
+  //staptest// [[[[unlink (""!!!!unlinkat (AT_FDCWD, "", 0x0]]]]) = -NNNN (ENOENT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, "", 0);
   //staptest// unlinkat (AT_FDCWD, "", 0x0) = -NNNN (ENOENT)
+#endif
+
+  /* Limits testing. */
+
+  unlink((char *)-1);
+#ifdef __s390__
+  //staptest// [[[[unlink ([7]?[f]+!!!!unlinkat (AT_FDCWD, [7]?[f]+, 0x0]]]]) = -NNNN
+#else
+  //staptest// [[[[unlink ([f]+!!!!unlinkat (AT_FDCWD, [f]+, 0x0]]]]) = -NNNN
+#endif
+
+#if GLIBC_SUPPORT
+  unlinkat(-1, "foobar2", 0);
+  //staptest// unlinkat (-1, "foobar2", 0x0) = -NNNN
+
+  unlinkat(AT_FDCWD, (char *)-1, 0);
+#ifdef __s390__
+  //staptest// unlinkat (AT_FDCWD, [7]?[f]+, 0x0) = -NNNN
+#else
+  //staptest// unlinkat (AT_FDCWD, [f]+, 0x0) = -NNNN
+#endif
+
+  unlinkat(AT_FDCWD, "foobar2", -1);
+  //staptest// unlinkat (AT_FDCWD, "foobar2", AT_[^ ]+|XXXX) = -NNNN
+
+  unlinkat(AT_FDCWD, "foobar2", AT_REMOVEDIR);
+  //staptest// unlinkat (AT_FDCWD, "foobar2", AT_REMOVEDIR) = -NNNN
 #endif
 
   return 0;

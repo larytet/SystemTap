@@ -7,7 +7,7 @@
  * Public License (GPL); either version 2, or (at your option) any
  * later version.
  *
- * Copyright (C) 2007-2014 Red Hat Inc.
+ * Copyright (C) 2007-2015 Red Hat Inc.
  */
 
 #include "staprun.h"
@@ -23,6 +23,7 @@
 int verbose;
 int suppress_warnings;
 int target_pid;
+int target_namespaces_pid;
 unsigned int buffer_size;
 unsigned int reader_timeout_ms;
 char *target_cmd;
@@ -105,6 +106,7 @@ void parse_args(int argc, char **argv)
 	verbose = 0;
 	suppress_warnings = 0;
 	target_pid = 0;
+	target_namespaces_pid = 0;
 	buffer_size = 0;
         reader_timeout_ms = 0;
 	target_cmd = NULL;
@@ -124,7 +126,7 @@ void parse_args(int argc, char **argv)
         color_errors = isatty(STDERR_FILENO)
                 && strcmp(getenv("TERM") ?: "notdumb", "dumb");
 
-	while ((c = getopt(argc, argv, "ALu::vb:t:dc:o:x:S:DwRr:VT:C:"
+	while ((c = getopt(argc, argv, "ALu::vhb:t:dc:o:x:N:S:DwRr:VT:C:"
 #ifdef HAVE_OPENAT
                            "F:"
 #endif
@@ -145,13 +147,21 @@ void parse_args(int argc, char **argv)
 			buffer_size = (unsigned)atoi(optarg);
 			if (buffer_size < 1 || buffer_size > 4095) {
 				err(_("Invalid buffer size '%d' (should be 1-4095).\n"), buffer_size);
-				usage(argv[0]);
+				usage(argv[0],1);
 			}
 			break;
 		case 't':
 		case 'x':
 			target_pid = atoi(optarg);
 			break;
+    case 'N':
+      target_namespaces_pid = atoi(optarg);
+      // error out if it's obviously and invalid pid
+      if (target_namespaces_pid < 1) {
+        err(_("Invalid target namespaces pid %d (should be > 0).\n"), target_namespaces_pid);
+				usage(argv[0],1);
+      }
+      break;
 		case 'd':
 			/* delete module */
 			delete_mod = 1;
@@ -178,7 +188,7 @@ void parse_args(int argc, char **argv)
 			relay_basedir_fd = atoi(optarg);
 			if (relay_basedir_fd < 0) {
 				err(_("Invalid file descriptor option '%s'.\n"), optarg);
-				usage(argv[0]);
+				usage(argv[0],1);
 			}
 			break;
 		case 'S':
@@ -189,7 +199,7 @@ void parse_args(int argc, char **argv)
 				fnum_max = (int)strtoul(&s[1], &s, 10);
 			if (s[0] != '\0') {
 				err(_("Invalid file size option '%s'.\n"), optarg);
-				usage(argv[0]);
+				usage(argv[0],1);
 			}
 			break;
 		case 'r':
@@ -201,21 +211,24 @@ void parse_args(int argc, char **argv)
                         
                         if (remote_id < 0 || remote_uri == 0 || remote_uri[0] == '\0') {
                                 err(_("Cannot process remote id option '%s'.\n"), optarg);
-				usage(argv[0]);
+				usage(argv[0],1);
                         }
 			break;
 		case 'V':
-                        eprintf(_("Systemtap module loader/runner (version %s, %s)\n"
-                              "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
+                        printf(_("Systemtap module loader/runner (version %s, %s)\n"
+                              "Copyright (C) 2005-2015 Red Hat, Inc. and others\n"
                               "This is free software; see the source for copying conditions.\n"),
                             VERSION, STAP_EXTENDED_VERSION);
-                        _exit(1);
+                        _exit(0);
+                        break;
+                case 'h':
+                        usage(argv[0],0);
                         break;
                 case 'T':
                         reader_timeout_ms = (unsigned)atoi(optarg);
                         if (reader_timeout_ms < 1) {
                                 err(_("Invalid reader timeout value '%d' (should be >= 1).\n"), reader_timeout_ms);
-                                usage(argv[0]);
+                                usage(argv[0],1);
                         }
                         break;
 		case 'C':
@@ -228,14 +241,14 @@ void parse_args(int argc, char **argv)
 				color_mode = color_always;
 			else {
 				err(_("Invalid option '%s' for -C."), optarg);
-				usage(argv[0]);
+				usage(argv[0],1);
 			}
 			color_errors = color_mode == color_always
 				|| (color_mode == color_auto && isatty(STDERR_FILENO)
 						&& strcmp(getenv("TERM") ?: "notdumb", "dumb"));
 			break;
 		default:
-			usage(argv[0]);
+			usage(argv[0],1);
 		}
 	}
 	if (outfile_name) {
@@ -244,78 +257,80 @@ void parse_args(int argc, char **argv)
 		outfile_name = get_abspath(outfile_name);
 		if (outfile_name == NULL) {
 			err(_("File name is too long.\n"));
-			usage(argv[0]);
+			usage(argv[0],1);
 		}
 		ret = stap_strfloctime(tmp, PATH_MAX - 18, /* = _cpuNNN.SSSSSSSSSS */
 				       outfile_name, time(NULL));
 		if (ret < 0) {
 			err(_("Filename format is invalid or too long.\n"));
-			usage(argv[0]);
+			usage(argv[0],1);
 		}
 	}
 	if (attach_mod && load_only) {
 		err(_("You can't specify the '-A' and '-L' options together.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (attach_mod && buffer_size) {
 		err(_("You can't specify the '-A' and '-b' options together.  The '-b'\n"
 		    "buffer size option only has an effect when the module is inserted.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (attach_mod && target_cmd) {
 		err(_("You can't specify the '-A' and '-c' options together.  The '-c cmd'\n"
 		    "option used to start a command only has an effect when the module\n"
 		    "is inserted.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (attach_mod && target_pid) {
 		err(_("You can't specify the '-A' and '-x' options together.  The '-x pid'\n"
 		    "option only has an effect when the module is inserted.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (target_cmd && target_pid) {
 		err(_("You can't specify the '-c' and '-x' options together.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (daemon_mode && load_only) {
 		err(_("You can't specify the '-D' and '-L' options together.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 	if (daemon_mode && delete_mod) {
 		err(_("You can't specify the '-D' and '-d' options together.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 	if (daemon_mode && target_cmd) {
 		err(_("You can't specify the '-D' and '-c' options together.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 	if (daemon_mode && outfile_name == NULL) {
 		err(_("You have to specify output FILE with '-D' option.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 	if (outfile_name == NULL && fsize_max != 0) {
 		err(_("You have to specify output FILE with '-S' option.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 }
 
-void usage(char *prog)
+void usage(char *prog, int rc)
 {
-	eprintf(_("\n%s [-v] [-w] [-V] [-u] [-c cmd ] [-x pid] [-u user] [-A|-L|-d] [-C WHEN]\n"
+	printf(_("\n%s [-v] [-w] [-V] [-h] [-u] [-c cmd ] [-x pid] [-u user] [-A|-L|-d] [-C WHEN]\n"
                 "\t[-b bufsize] [-R] [-r N:URI] [-o FILE [-D] [-S size[,N]]] MODULE [module-options]\n"), prog);
-	eprintf(_("-v              Increase verbosity.\n"
+	printf(_("-v              Increase verbosity.\n"
 	"-V              Print version number and exit.\n"
+	"-h              Print this help text and exit.\n"
 	"-w              Suppress warnings.\n"
 	"-u              Load uprobes.ko\n"
 	"-c cmd          Command \'cmd\' will be run and staprun will\n"
 	"                exit when it does.  The '_stp_target' variable\n"
 	"                will contain the pid for the command.\n"
 	"-x pid          Sets the '_stp_target' variable to pid.\n"
+  "-N pid          Sets the '_stp_namespaces_pid' variable to pid.\n"
 	"-o FILE         Send output to FILE. This supports strftime(3)\n"
 	"                formats for FILE.\n"
 	"-b buffer size  The systemtap module specifies a buffer size.\n"
@@ -355,11 +370,11 @@ void usage(char *prog)
                 struct utsname utsbuf;
                 int rc = uname (& utsbuf);
                 if (! rc)
-                        eprintf("/lib/modules/%s/systemtap\n", utsbuf.release);
+                        printf("/lib/modules/%s/systemtap\n", utsbuf.release);
                 else
-                        eprintf("/lib/modules/`uname -r`/systemtap\n");
+                        printf("/lib/modules/`uname -r`/systemtap\n");
         }
-	exit(1);
+	exit(rc);
 }
 
 /*

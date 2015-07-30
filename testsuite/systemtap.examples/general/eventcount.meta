@@ -2,7 +2,7 @@ title: Count Specified Events
 name: eventcount.stp
 version: 1.0
 author: Lukas Berk
-keywords: statistics thread process
+keywords: _best statistics thread process
 subsystem: none
 status: production
 exit: user-controlled

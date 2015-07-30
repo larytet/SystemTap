@@ -24,6 +24,8 @@ struct source_loc
   stapfile* file;
   unsigned line;
   unsigned column;
+public:
+  source_loc(): file(0), line(0), column(0) {}
 };
 
 std::ostream& operator << (std::ostream& o, const source_loc& loc);
@@ -52,7 +54,7 @@ struct token
   friend class parser;
   friend class lexer;
 private:
-  token(): chain(0) {}
+  token(): type(tok_junk), chain(0) {}
   token(const token& other):
     location(other.location), type(other.type), content(other.content),
     msg(other.msg), chain(other.chain) {}

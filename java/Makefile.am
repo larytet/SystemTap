@@ -1,5 +1,7 @@
 # Makefile.am --- automake input file for systemtap per-method probing
 
+AUTOMAKE_OPTIONS = subdir-objects
+
 JAVA_ARCH:=$(target_cpu)
 # XXX: the following arch names are based generally off the rpmspec
 # for java-1.7.0-openjdk, there might be omissions in some weird cases

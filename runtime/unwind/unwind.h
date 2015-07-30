@@ -13,7 +13,9 @@
 #ifndef _STP_UNWIND_H_
 #define _STP_UNWIND_H_
 
-#ifdef STP_USE_DWARF_UNWINDER
+// portions of code needed by the debug_line decoder
+#if defined(STP_USE_DWARF_UNWINDER) || defined(STP_NEED_LINE_DATA)
+
 struct unwind_frame_info
 {
     struct pt_regs regs;
@@ -30,9 +32,187 @@ struct unwind_frame_info
 #include "s390x.h"
 #elif defined (__arm__)
 #include "arm.h"
+#elif defined (__aarch64__)
+#include "arm64.h"
 #else
 #error "Unsupported dwarf unwind architecture"
 #endif
+
+#define DW_EH_PE_absptr   0x00
+#define DW_EH_PE_leb128   0x01
+#define DW_EH_PE_data2    0x02
+#define DW_EH_PE_data4    0x03
+#define DW_EH_PE_data8    0x04
+#define DW_EH_PE_FORM     0x07 /* mask */
+#define DW_EH_PE_signed   0x08 /* signed versions of above have this bit set */
+
+#define DW_EH_PE_pcrel    0x10
+#define DW_EH_PE_textrel  0x20
+#define DW_EH_PE_datarel  0x30
+#define DW_EH_PE_funcrel  0x40
+#define DW_EH_PE_aligned  0x50
+#define DW_EH_PE_ADJUST   0x70 /* mask */
+#define DW_EH_PE_indirect 0x80
+#define DW_EH_PE_omit     0xff
+
+typedef unsigned long uleb128_t;
+typedef   signed long sleb128_t;
+
+
+static uleb128_t get_uleb128(const u8 **pcur, const u8 *end)
+{
+	const u8 *cur = *pcur;
+	uleb128_t value = 0;
+	unsigned shift;
+
+	for (shift = 0; cur < end; shift += 7) {
+		if (shift + 7 > 8 * sizeof(value)
+		    && (*cur & 0x7fU) >= (1U << (8 * sizeof(value) - shift))) {
+			cur = end + 1;
+			break;
+		}
+		value |= (uleb128_t)(*cur & 0x7f) << shift;
+		if (!(*cur++ & 0x80))
+			break;
+	}
+	*pcur = cur;
+
+	return value;
+}
+
+static sleb128_t get_sleb128(const u8 **pcur, const u8 *end)
+{
+	const u8 *cur = *pcur;
+	sleb128_t value = 0;
+	unsigned shift;
+
+	for (shift = 0; cur < end; shift += 7) {
+    const u8 cur_val = *cur++;
+		if (shift + 7 > 8 * sizeof(value)
+		    && (cur_val & 0x7fU) >= (1U << (8 * sizeof(value) - shift))) {
+			cur = end + 1;
+			break;
+		}
+		value |= (sleb128_t)(cur_val & 0x7f) << shift;
+		if (!(cur_val & 0x80)) {
+			value |= -(cur_val & 0x40) << shift;
+			break;
+		}
+	}
+	*pcur = cur;
+
+	return value;
+}
+
+/* read an encoded pointer and increment *pLoc past the end of the
+ * data read. */
+static unsigned long read_ptr_sect(const u8 **pLoc, const void *end,
+				   signed ptrType, unsigned long textAddr,
+				   unsigned long dataAddr, int user, int compat_task, int tableSize)
+{
+	unsigned long value = 0;
+	union {
+		const u8 *p8;
+		const u16 *p16u;
+		const s16 *p16s;
+		const u32 *p32u;
+		const s32 *p32s;
+		const unsigned long *pul;
+		const unsigned int *pui;
+	} ptr;
+
+	if (ptrType < 0 || ptrType == DW_EH_PE_omit)
+		return 0;
+
+	ptr.p8 = *pLoc;
+	switch (ptrType & DW_EH_PE_FORM) {
+	case DW_EH_PE_data2:
+		if (end < (const void *)(ptr.p16u + 1))
+			return 0;
+		if (ptrType & DW_EH_PE_signed)
+			value = _stp_get_unaligned(ptr.p16s++);
+		else
+			value = _stp_get_unaligned(ptr.p16u++);
+		break;
+	case DW_EH_PE_data4:
+#ifdef CONFIG_64BIT
+
+		/* If the tableSize matches the length of data we're trying to return
+		 * or if specifically set to 0 in the call it means we actually want a
+		 * DW_EH_PE_data4 and not a DW_EH_PE_absptr.  If this is not the case
+		 * then we want to fall through to DW_EH_PE_absptr */
+		if (!compat_task || (compat_task && (tableSize == 4 || tableSize == 0)))
+		{
+			if (end < (const void *)(ptr.p32u + 1))
+				return 0;
+
+			if (ptrType & DW_EH_PE_signed)
+				value = _stp_get_unaligned(ptr.p32s++);
+			else
+				value = _stp_get_unaligned(ptr.p32u++);
+			break;
+		}
+	case DW_EH_PE_data8:
+		BUILD_BUG_ON(sizeof(u64) != sizeof(value));
+#else
+		BUILD_BUG_ON(sizeof(u32) != sizeof(value));
+#endif
+	case DW_EH_PE_absptr:
+		if (compat_task)
+		{
+			if (end < (const void *)(ptr.pui + 1))
+				return 0;
+			value = _stp_get_unaligned(ptr.pui++);
+		} else {
+			if (end < (const void *)(ptr.pul + 1))
+				return 0;
+			value = _stp_get_unaligned(ptr.pul++);
+		}
+
+		break;
+	case DW_EH_PE_leb128:
+		BUILD_BUG_ON(sizeof(uleb128_t) > sizeof(value));
+		value = ptrType & DW_EH_PE_signed ? get_sleb128(&ptr.p8, end)
+		    : get_uleb128(&ptr.p8, end);
+		if ((const void *)ptr.p8 > end)
+			return 0;
+		break;
+	default:
+		return 0;
+	}
+	switch (ptrType & DW_EH_PE_ADJUST) {
+	case DW_EH_PE_absptr:
+		break;
+	case DW_EH_PE_pcrel:
+		value += (unsigned long)*pLoc;
+		break;
+	case DW_EH_PE_textrel:
+		value += textAddr;
+		break;
+	case DW_EH_PE_datarel:
+		value += dataAddr;
+		break;
+	default:
+		return 0;
+	}
+	if ((ptrType & DW_EH_PE_indirect)
+	    && _stp_read_address(value, (unsigned long *)value,
+				 (user ? USER_DS : KERNEL_DS)))
+		return 0;
+	*pLoc = ptr.p8;
+
+	return value;
+}
+
+static unsigned long read_pointer(const u8 **pLoc, const void *end, signed ptrType,
+				  int user, int compat_task)
+{
+	return read_ptr_sect(pLoc, end, ptrType, 0, 0, user, compat_task, 0);
+}
+
+#endif /* defined(STP_USE_DWARF_UNWINDER) || defined(STP_NEED_LINE_DATA) */
+
+#ifdef STP_USE_DWARF_UNWINDER
 
 /* Used for DW_CFA_remember_state and DW_CFA_restore_state. */
 #define STP_MAX_STACK_DEPTH 4
@@ -278,26 +458,6 @@ static const struct {
 #define	DW_OP_deref_size	0x94
 #define	DW_OP_xderef_size	0x95
 #define	DW_OP_nop		0x96
-
-#define DW_EH_PE_absptr   0x00
-#define DW_EH_PE_leb128   0x01
-#define DW_EH_PE_data2    0x02
-#define DW_EH_PE_data4    0x03
-#define DW_EH_PE_data8    0x04
-#define DW_EH_PE_FORM     0x07 /* mask */
-#define DW_EH_PE_signed   0x08 /* signed versions of above have this bit set */
-
-#define DW_EH_PE_pcrel    0x10
-#define DW_EH_PE_textrel  0x20
-#define DW_EH_PE_datarel  0x30
-#define DW_EH_PE_funcrel  0x40
-#define DW_EH_PE_aligned  0x50
-#define DW_EH_PE_ADJUST   0x70 /* mask */
-#define DW_EH_PE_indirect 0x80
-#define DW_EH_PE_omit     0xff
-
-typedef unsigned long uleb128_t;
-typedef   signed long sleb128_t;
 
 struct unwind_item {
 	enum item_location {

@@ -20,7 +20,7 @@ int main()
   //staptest// socket (PF_INET, SOCK_DGRAM, IPPROTO_IP) = NNNN
 
   fd_null = open("/dev/null", O_WRONLY);
-  //staptest// open ("/dev/null", O_WRONLY) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
   listen(-1, 0);
   //staptest// listen (-1, 0) = -NNNN (EBADF)

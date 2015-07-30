@@ -1,0 +1,51 @@
+set test_name "context namespaces"
+if {! [installtest_p]} {
+  untested $test_name
+  return
+}
+
+# can't really test user_ns right now since we don't know other uids
+set ns_tests { pid_ns }
+set output_string "END"
+
+# before we can even run the test, check that unshare is available
+# probably only available in kernels >= 2.6.16
+if {[catch {exec which unshare}]} {
+  untested "$test_name (no unshare)"
+  return
+}
+
+# weed out the kernels that don't have free_pid_ns available to us
+if {![min_kernel_vers_p 3.7]} {
+  untested "$test_name (kernel version is too low)"
+  return
+}
+
+
+# use unshare to generate new namespaces to use
+# the returned pid is not the new proc's pid (as seen in the root ns)
+spawn unshare -pf "sleep" 160
+set exe_id $spawn_id
+
+# instead, we'll use pgrep to find the sleep process. let's hope we only find one
+# we'll narrow it down by specifying a parent proc id
+set parent_proc [exp_pid -i $exe_id]
+set child_proc [exec pgrep -P $parent_proc]
+
+# make sure that we did find the child proc; if not, abort
+if {!$child_proc || $child_proc < 0} {
+  untested "$test_name (cant make child_proc)"
+  return
+}
+verbose -log  "child (global) pid:$child_proc"
+
+foreach ns_test $ns_tests {
+    stap_run $ns_test no_load $output_string $srcdir/$subdir/$ns_test.stp -g --target-namespaces=$child_proc --disable-cache
+}
+
+# kill the parent
+kill -INT -$parent_proc 2
+catch {close -i $exe_id}
+catch {wait -i $exe_id}
+
+kill -INT -$child_proc 2

@@ -1,0 +1,30 @@
+# Check stap global variable option (-G) with an invalid number
+
+set test "global_opt_invalid"
+if {![installtest_p]} {
+    untested $test
+    return
+}
+
+set script "global var1=9 ; probe begin { if (var1 == 9) println(\"systemtap test success\") else println(\"systemtap test failure\") ; exit() }"
+
+foreach runtime [get_runtime_list] {
+    set test "global_opt_invalid"
+    if {$runtime != ""} {
+	set test "${test}_${runtime}"
+	spawn stap -G var1=z29 -e $script --runtime=$runtime
+    } else {
+	spawn stap -G var1=z29 -e $script
+    }
+    # staprun says "Invalid parameters"; stapdyn says "Invalid argument"
+    expect {
+	-timeout 60
+	-re {ERROR.*Invalid} { pass $test }
+	"systemtap test success" { fail $test }
+	"systemtap test failure" { fail $test }
+	timeout {fail "$test: unexpected timeout"}
+	eof {fail "$test: unexpected EOF"}
+    }
+    catch {close}; catch {wait}
+}
+

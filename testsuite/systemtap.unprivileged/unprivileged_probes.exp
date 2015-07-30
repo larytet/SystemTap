@@ -3,8 +3,8 @@ set test "unprivileged probes"
 if {![installtest_p]} { untested $test; return }
 if {![uprobes_p]} { untested $test; return }
 
-set exepath "foo"
-set sopath "libfoo.so"
+set exepath "loop"
+set sopath "libloop.so"
 
 # These probe types should be acceptable for unprivileged users
 set unrestricted_probe_types [list \
@@ -269,9 +269,9 @@ set restricted_probe_types [list \
 ]
 
 # Add arguments to a probe type template.
-proc add_args { probe_type } {
+proc add_args { probe_type pid } {
     global exepath sopath
-    global addr_of_bar addr_of_libfoofunc
+    global addr_of_bar addr_of_libloopfunc
 
     set probe "$probe_type"
 
@@ -285,23 +285,25 @@ proc add_args { probe_type } {
     regsub -all "us\\(number\\)" $probe "us(100)" probe
     # Replace "usec(number)" with "usec(100)"
     regsub -all "usec\\(number\\)" $probe "usec(100)" probe
+    # Replace "process(number)" with "process($pid)"
+    regsub -all "process\\(number\\)" $probe "process($pid)" probe
 
-    # Replace "library(string).function(string).inline" with "library(string).function("ilibfoofunc").inline"
-    regsub -all "library\\(string\\).function\\(string\\).inline" $probe "library(string).function(\"ilibfoofunc\").inline" probe
+    # Replace "library(string).function(string).inline" with "library(string).function("ilibloopfunc").inline"
+    regsub -all "library\\(string\\).function\\(string\\).inline" $probe "library(string).function(\"ilibloopfunc\").inline" probe
 
     # Replace "function(string).inline" with "function("ibar").inline"
     regsub -all "function\\(string\\).inline" $probe "function(\"ibar\").inline" probe
 
     # Replace 'library(string).function(string).callee(string)' with
-    # 'library(string).function("libloopfun").callee("ilibloopfunc")'
+    # 'library(string).function("libloopfunc").callee("ilibloopfunc")'
     regsub -all "library\\(string\\).function\\(string\\).callee\\(string\\)" \
 	$probe \
-	"library(string).function(\"libfoofunc\").callee(\"ilibfoofunc\")" \
+	"library(string).function(\"libloopfunc\").callee(\"ilibloopfunc\")" \
 	probe
     # Replace 'library(string).function(string).callees' with
     # 'library(string).function("libloopfunc").callees'
     regsub -all "library\\(string\\).function\\(string\\).callees" $probe \
-	"library(string).function(\"libfoofunc\").callees" probe
+	"library(string).function(\"libloopfunc\").callees" probe
 
     # Replace 'function(string).callee(string)' with
     # 'function("main").callee("ibar")'
@@ -314,10 +316,10 @@ proc add_args { probe_type } {
     # Replace 'callees(number)' with 'callees(1)'
     regsub -all "callees\\(number\\)" $probe "callees(1)" probe
 
-    # Replace "library(string).function(string)" with "library(string.function("libfoofunc")"
-    regsub -all "library\\(string\\).function\\(string\\)" $probe "library(string).function(\"libfoofunc\")" probe
-    # Replace "library(string).function(number)" with "library(string).function($addr_of_libfoofunc)"
-    regsub -all "library\\(string\\).function\\(number\\)" $probe "library(string).function($addr_of_libfoofunc)" probe
+    # Replace "library(string).function(string)" with "library(string.function("libloopfunc")"
+    regsub -all "library\\(string\\).function\\(string\\)" $probe "library(string).function(\"libloopfunc\")" probe
+    # Replace "library(string).function(number)" with "library(string).function($addr_of_libloopfunc)"
+    regsub -all "library\\(string\\).function\\(number\\)" $probe "library(string).function($addr_of_libloopfunc)" probe
 
     # Replace "function(string)" with "function("bar")"
     regsub -all "function\\(string\\)" $probe "function(\"bar\")" probe
@@ -327,22 +329,22 @@ proc add_args { probe_type } {
     # Replace "label(string)" with "label("a")"
     regsub -all "label\\(string\\)" $probe "label(\"a\")" probe
 
-    # Replace "library(string).mark(string)" with "library(string).mark("libfoofunc_enter")"
-    regsub -all "library\\(string\\).mark\\(string\\)" $probe "library(string).mark(\"libfoofunc_enter\")" probe
-    # Replace "library(string).provider(string).mark(string)" with "library(string).provider(string).mark("libfoofunc_enter")"
-    regsub -all "library\\(string\\).provider\\(string\\).mark\\(string\\)" $probe "library(string).provider(string).mark(\"libfoofunc_enter\")" probe
+    # Replace "library(string).mark(string)" with "library(string).mark("libloopfunc_enter")"
+    regsub -all "library\\(string\\).mark\\(string\\)" $probe "library(string).mark(\"libloopfunc_enter\")" probe
+    # Replace "library(string).provider(string).mark(string)" with "library(string).provider(string).mark("libloopfunc_enter")"
+    regsub -all "library\\(string\\).provider\\(string\\).mark\\(string\\)" $probe "library(string).provider(string).mark(\"libloopfunc_enter\")" probe
     # Replace "mark(string)" with "mark("main_enter")"
     regsub -all "mark\\(string\\)" $probe "mark(\"main_enter\")" probe
 
-    # Replace "library(string).statement(number)" with "library(string).statement($addr_of_libfoofunc)"
-    regsub -all "library\\(string\\).statement\\(number\\)" $probe "library(string).statement($addr_of_libfoofunc)" probe
-    # Replace "library(string).statement(string)" with "library(string).statement("libfoofunc@libfoo.c:*")"
-    regsub -all "library\\(string\\).statement\\(string\\)" $probe "library(string).statement(\"libfoofunc@libfoo.c:*\")" probe
+    # Replace "library(string).statement(number)" with "library(string).statement($addr_of_libloopfunc)"
+    regsub -all "library\\(string\\).statement\\(number\\)" $probe "library(string).statement($addr_of_libloopfunc)" probe
+    # Replace "library(string).statement(string)" with "library(string).statement("libloopfunc@libloop.c:*")"
+    regsub -all "library\\(string\\).statement\\(string\\)" $probe "library(string).statement(\"libloopfunc@libloop.c:*\")" probe
 
     # Replace "statement(number)" with "statement($addr_of_bar)"
     regsub -all "statement\\(number\\)" $probe "statement($addr_of_bar)" probe
-    # Replace "statement(string)" with "statement("bar@foo.c:*")"
-    regsub -all "statement\\(string\\)" $probe "statement(\"bar@foo.c:*\")" probe
+    # Replace "statement(string)" with "statement("bar@loop.c:*")"
+    regsub -all "statement\\(string\\)" $probe "statement(\"bar@loop.c:*\")" probe
 
     # Replace "library(string)" with "library("$sopath")"
     regsub -all "library\\(string\\)" $probe "library(\"$sopath\")" probe
@@ -380,6 +382,7 @@ proc extra_options { probe_type } {
 
 # Test unrestricted probe types
 proc test_unrestricted_probes { privilege } {
+    global exepath
     global unrestricted_probe_types tested allowed test
 
     # Test using --unprivileged and --privilege=stapusr. They should be equivalent
@@ -388,6 +391,10 @@ proc test_unrestricted_probes { privilege } {
     set stapdev_options [list "" --privilege=stapdev ]
     # Alternate use of additional settings (e.g. use_alias)
     set no_yes [list 0 1]
+
+    # Start the test executable in the background
+    set our_pid [exec ./$exepath &]
+    verbose -log "our ./$exepath pid is $our_pid"
 
     set selector 0
     foreach probe_type $unrestricted_probe_types {
@@ -450,7 +457,7 @@ proc test_unrestricted_probes { privilege } {
 	}
 
 	# Test the probe type. If successful, the stap rc will be 0.
-	set probe [add_args $probe_type]
+	set probe [add_args $probe_type $our_pid]
 
 	if { $use_alias } {
 	    set with_alias " with alias"
@@ -474,10 +481,14 @@ proc test_unrestricted_probes { privilege } {
 
 	set selector [expr ($selector + 1) % 2]
     }
+
+    # Kill the the test executable
+    catch { exec kill $our_pid }
 }
 
 # Test restricted probe types
 proc test_restricted_probes { privilege } {
+    global exepath
     global restricted_probe_types tested allowed test
 
     set error_regexp1 ".*semantic error: probe point is not allowed for --privilege=.*"
@@ -488,6 +499,10 @@ proc test_restricted_probes { privilege } {
     set stapdev_options [list "" --privilege=stapdev ]
     # Alternate use of additional settings (e.g. use_alias)
     set no_yes [list 0 1]
+
+    # Start the test executable in the background
+    set our_pid [exec ./$exepath &]
+    verbose -log "our ./$exepath pid is $our_pid"
 
     set selector 0
     foreach probe_type $restricted_probe_types {
@@ -505,7 +520,7 @@ proc test_restricted_probes { privilege } {
 	set use_alias [lindex $no_yes $selector]
 
 	# Test the probe type. Each should fail with the expected message.
-	set probe [add_args $probe_type]
+	set probe [add_args $probe_type $our_pid]
 	if { $use_alias } {
 	    set with_alias " with alias"
 	    set cmd [list stap $option -p2 -e "probe myalias = $probe {} probe myalias {}" ]
@@ -527,6 +542,9 @@ proc test_restricted_probes { privilege } {
 
 	set selector [expr ($selector + 1) % 2]
     }
+
+    # Kill the the test executable
+    catch { exec kill $our_pid }
 }
 
 # Need to build a user shared library.
@@ -538,7 +556,7 @@ set libflags "$libflags additional_flags=-Werror"
 set libflags "$libflags additional_flags=-I."
 set libflags "$libflags additional_flags=-shared"
 set libflags "$libflags additional_flags=-fPIC"
-set res [target_compile $srcdir/$subdir/libfoo.c $sopath executable $libflags ]
+set res [target_compile $srcdir/$subdir/libloop.c $sopath executable $libflags ]
 if { $res == "" } {
     pass "$test library compile"
 } else {
@@ -553,13 +571,13 @@ set exeflags "$exeflags additional_flags=-O"
 set exeflags "$exeflags additional_flags=-lpthread"
 set exeflags "$exeflags [sdt_includes]"
 set exeflags "$exeflags additional_flags=-Wl,-rpath,[pwd]"
-set exeflags "$exeflags additional_flags=-L[pwd] additional_flags=-lfoo"
+set exeflags "$exeflags additional_flags=-L[pwd] additional_flags=-lloop"
 set exeflags "$exeflags compiler=gcc"
 # ppc64 needs a more restrictive constraint for the probe args
 if {[regexp "^(x86_64|i.86)$" $::tcl_platform(machine)] == 0} {
 set exeflags "$exeflags additional_flags=-DSTAP_SDT_ARG_CONSTRAINT=nr"
 }
-set res [target_compile $srcdir/$subdir/foo.c $exepath executable "$exeflags"]
+set res [target_compile $srcdir/$subdir/loop.c $exepath executable "$exeflags"]
 if { $res == "" } {
     pass "$test exe compile"
 } else {
@@ -572,8 +590,8 @@ if { $res == "" } {
 # function name, so match that optionally.
 set addr_of_bar [exec objdump -d $exepath | awk {/<\.?bar>:/ { printf "0x%s\n",$1 }}]
 verbose -log "addr_of_bar: $addr_of_bar"
-set addr_of_libfoofunc [exec objdump -d $sopath | awk {/<\.?libfoofunc>:/ { printf "0x%s\n",$1 }}]
-verbose -log "addr_of_libfoofunc: $addr_of_libfoofunc"
+set addr_of_libloopfunc [exec objdump -d $sopath | awk {/<\.?libloopfunc>:/ { printf "0x%s\n",$1 }}]
+verbose -log "addr_of_libloopfunc: $addr_of_libloopfunc"
 
 # Obtain a list of all supported probe types from stap
 verbose -log "eval exec stap --dump-probe-types"
@@ -624,5 +642,5 @@ foreach probe_type $all_probe_types {
 }
 
 # Cleanup
-catch {exec rm -f foo}
-catch {exec rm -f libfoo.so}
+catch {exec rm -f loop}
+catch {exec rm -f libloop.so}

@@ -7,6 +7,7 @@ prep_rpm_based() {
 # 2.6.32-30.el6.x86_64 (no variant, but including ".arch")
 # 2.6.18-194.3.1.el5debug ("variant", without dot, no arch)
 # 2.6.33.4-95.fc13.i686.PAE (".arch.variant", two dots)
+# 3.18.6-100.fc20.i686+PAE (".arch+variant", dot, plus)
 if [ "$#" -lt 1 ]; then
     UNAME=`uname -r` # determine the kernel running on the machine
 else
@@ -15,8 +16,8 @@ fi
 UNAME=`echo $UNAME | sed "s/ //"` #strip out any whitespace
 KERNEL="kernel"
 for VARIANT in debug kdump PAE xen; do
-  # strip out ".variant" or else "variant" at end.
-  TMP=`echo $UNAME | sed s/\\\\.$VARIANT\$// | sed s/$VARIANT\$//`
+  # strip out ".variant" or else "+variant" or else "variant" at end.
+  TMP=`echo $UNAME | sed "s/[\.\+]\?$VARIANT\$//"`
   if [ "$TMP" != "$UNAME" ]; then
       UNAME=$TMP; KERNEL="kernel-$VARIANT"
   fi
