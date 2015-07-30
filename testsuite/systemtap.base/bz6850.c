@@ -61,7 +61,7 @@ static forker call_chain[] = {
 	NULL
 };
 
-main()
+int main()
 {
 	pid_t child, wait_child;
 	int status = 0;

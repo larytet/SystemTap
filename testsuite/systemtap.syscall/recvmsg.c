@@ -182,7 +182,7 @@ int main()
     msgdat.msg_flags = 0;
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     recvmsg(-1, &msgdat, 0);
     //staptest// recvmsg (-1, XXXX, 0x0) = -NNNN (EBADF)
@@ -202,7 +202,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmsg(s, (struct msghdr *)-1, 0);
     //staptest// recvmsg (NNNN, 0x[f]+, 0x0) = -NNNN (EFAULT)
@@ -222,12 +222,15 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     // Note that the exact failure return value can differ here, so
-    // we'll just ignore it.
+    // we'll just ignore it. Also note that on a 32-bit kernel (i686
+    // for instance), MAXSTRINGLEN is only 256. Passing a -1 as the
+    // flags value can produce a string that will cause argstr to get
+    // too big. So, we'll make the end of the argument optional.
     recvmsg(s, &msgdat, -1);
-    //staptest// recvmsg (NNNN, XXXX, MSG_[^ ]+|XXXX) = -NNNN
+    //staptest// recvmsg (NNNN, XXXX, MSG_[^ ]+[[[[|XXXX]]]]?) = -NNNN
 
     close(s);
     //staptest// close (NNNN) = 0
@@ -247,7 +250,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvmsg(s, &msgdat, MSG_DONTWAIT);
     //staptest// recvmsg (NNNN, XXXX, MSG_DONTWAIT) = 11

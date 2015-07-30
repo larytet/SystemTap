@@ -7,7 +7,7 @@ set never_found 0
 set kernel_function_found 0
 set timer_found 0
 
-set cmd "stap -p2 -I $srcdir/$subdir/${test} $srcdir/$subdir/${test}.stp"
+set cmd "bash -c {stap -p2 -I $srcdir/$subdir/${test} $srcdir/$subdir/${test}.stp | egrep '^kernel|^never|^timer'}"
 verbose -log "running $cmd"
 eval spawn $cmd
 expect {
@@ -25,7 +25,7 @@ catch { close }
 # get the return code of the process
 set rc [lindex [wait -i $spawn_id] 3]
 
-if { $rc == 0 && $never_found == 1 && $kernel_function_found == 1
+if { $rc == 0 && $never_found == 1 && $kernel_function_found >= 1
      && $timer_found == 1 } {
     pass $test
 } else {

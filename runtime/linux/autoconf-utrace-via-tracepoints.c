@@ -5,6 +5,13 @@
 // The utrace-less task_finder needs 5 specific tracepoints and
 // <linux/task_work.h>.
 
+// NB: in kernels which do have the requisite pieces, just unconfigured, then
+// everything below will compile just fine, only returning ENOSYS at runtime.
+// To get the compile-time error that autoconf needs, check it directly:
+#ifndef CONFIG_TRACEPOINTS
+#error "CONFIG_TRACEPOINTS is not enabled"
+#endif
+
 void __sched_process_fork(void *cb_data __attribute__((unused)),
 			  struct task_struct *parent __attribute__((unused)),
 			  struct task_struct *child __attribute__((unused)))

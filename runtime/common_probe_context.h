@@ -135,7 +135,10 @@ union {
   } kmark;
 
   /* State for tracepoint probes. */
-  const char *tracepoint_name;
+  struct {
+     const char *tracepoint_system;
+     const char *tracepoint_name;
+  } tp;
 
   /* uretprobe state */
   struct uretprobe_instance *ri;

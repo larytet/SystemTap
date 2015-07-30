@@ -725,7 +725,8 @@ mark_builder::build(systemtap_session & sess,
 	}
     }
 
-  if (results_pre == finished_results.size() && !loc->from_glob)
+  if (results_pre == finished_results.size()
+      && !loc->from_globby_comp(TOK_MARK))
     {
       string sugs = suggest_marks(sess, mark_str_val);
       if (!sugs.empty())

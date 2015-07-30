@@ -16,5 +16,11 @@ int main()
   //staptest// umask (0777) = 0666
   umask (01777);
   //staptest// umask (01777) = 0777
+
+  /* Limits testing */
+
+  umask (-1);
+  //staptest// umask (037777777777) = NNNN
+
   return 0;
 }

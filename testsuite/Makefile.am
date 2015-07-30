@@ -1,7 +1,7 @@
 # Makefile.am --- automake input file for systemtap testsuite
 ## process this file with automake to produce Makefile.in
 
-AUTOMAKE_OPTIONS = dejagnu no-dist
+AUTOMAKE_OPTIONS = dejagnu no-dist subdir-objects
 
 all-local:
 	@echo Run \"make check\" or \"make installcheck\".

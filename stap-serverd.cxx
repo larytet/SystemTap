@@ -370,13 +370,28 @@ mok_dir_valid_p (string mok_fingerprint, bool verbose)
   struct dirent *direntp;
   while ((direntp = readdir (dirp)) != NULL)
     {
-      if (! priv_found && direntp->d_type == DT_REG
+      bool reg_file = false;
+
+      if (direntp->d_type == DT_REG)
+	reg_file = true;
+      else if (direntp->d_type == DT_UNKNOWN)
+        {
+	  struct stat tmpstat;
+
+	  // If the filesystem doesn't support d_type, we'll have to
+	  // call stat().
+	  stat((mok_dir + "/" + direntp->d_name).c_str (), &tmpstat);
+	  if (S_ISREG(tmpstat.st_mode))
+	      reg_file = true;
+        }
+      
+      if (! priv_found && reg_file
 	  && strcmp (direntp->d_name, MOK_PRIVATE_CERT_NAME) == 0)
         {
 	  priv_found = true;
 	  continue;
 	}
-      if (! cert_found && direntp->d_type == DT_REG
+      if (! cert_found && reg_file
 	  && strcmp (direntp->d_name, MOK_PUBLIC_CERT_NAME) == 0)
         {
 	  cert_found = true;
@@ -458,7 +473,19 @@ get_server_mok_fingerprints(vector<string> &mok_fingerprints, bool verbose,
     {
       // We're only interested in directories (of key files).
       if (direntp->d_type != DT_DIR)
-	continue;
+        {
+          if (direntp->d_type == DT_UNKNOWN)
+            {
+              // If the filesystem doesn't support d_type, we'll have to
+              // call stat().
+              struct stat tmpstat;
+              stat((mok_path + "/" + direntp->d_name).c_str (), &tmpstat);
+              if (!S_ISDIR(tmpstat.st_mode))
+                continue;
+            }
+          else
+            continue;
+        }
 
       // We've got a directory. If the directory name isn't in the right
       // format for a MOK fingerprint, skip it.
@@ -1475,7 +1502,7 @@ filter_response_file (const string &file_name, const string &responseDirName)
   cmd.push_back ("-i");
   cmd.push_back (string ("s,") + get_home_directory () + ",<server>,g");
   cmd.push_back (file_name);
-  stap_system (0, cmd);
+  (void) stap_system (0, cmd);
 
   // Filter the server's response directory name
   cmd.clear();
@@ -1483,7 +1510,7 @@ filter_response_file (const string &file_name, const string &responseDirName)
   cmd.push_back ("-i");
   cmd.push_back (string ("s,") + responseDirName + ",<server>,g");
   cmd.push_back (file_name);
-  stap_system (0, cmd);
+  (void) stap_system (0, cmd);
 }
 
 static privilege_t

@@ -11,16 +11,6 @@
 %{!?elfutils_version: %global elfutils_version 0.142}
 %{!?pie_supported: %global pie_supported 1}
 %{!?with_boost: %global with_boost 0}
-%ifarch ppc ppc64 %{sparc} aarch64 ppc64le
-%{!?with_publican: %global with_publican 0}
-%else
-%{!?with_publican: %global with_publican 1}
-%endif
-%if 0%{?rhel}
-%{!?publican_brand: %global publican_brand RedHat}
-%else
-%{!?publican_brand: %global publican_brand fedora}
-%endif
 %ifarch %{ix86} x86_64 ppc ppc64
 %{!?with_dyninst: %global with_dyninst 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 %else
@@ -41,7 +31,7 @@
 %endif
 %{!?with_pyparsing: %global with_pyparsing 0%{?fedora} >= 18 || 0%{?rhel} >= 7}
 
-%ifarch ppc64le
+%ifarch ppc64le aarch64
 %global with_virthost 0
 %endif
 
@@ -63,11 +53,10 @@
    %endif
 %endif
 
-%define dracutlibdir %{_prefix}/lib/dracut
-%define dracutstap %{dracutlibdir}/modules.d/99stap
+%define dracutstap %{_prefix}/lib/dracut/modules.d/99stap
 
 Name: systemtap
-Version: 2.6
+Version: 2.8
 Release: 1%{?dist}
 # for version, see also configure.ac
 
@@ -142,14 +131,6 @@ BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm)
 # called 'xmlto-tex'.  To avoid a specific F10 BuildReq, we'll do a
 # file-based buildreq on '/usr/share/xmlto/format/fo/pdf'.
 BuildRequires: xmlto /usr/share/xmlto/format/fo/pdf
-%if %{with_publican}
-BuildRequires: publican
-BuildRequires: /usr/share/publican/Common_Content/%{publican_brand}/defaults.cfg
-
-# A workaround for BZ920216 which requires an X server to build docs
-# with publican.
-BuildRequires: /usr/bin/xvfb-run
-%endif
 %endif
 %if %{with_emacsvim}
 BuildRequires: emacs
@@ -458,11 +439,6 @@ cd ..
 %global pie_config --disable-pie
 %endif
 
-%if %{with_publican}
-%global publican_config --enable-publican --with-publican-brand=%{publican_brand}
-%else
-%global publican_config --disable-publican
-%endif
 
 %if %{with_java}
 %global java_config --with-java=%{_jvmdir}/java
@@ -470,7 +446,19 @@ cd ..
 %global java_config --without-java
 %endif
 
-%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{publican_config} %{rpm_config} %{java_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
+%if %{with_virthost}
+%global virt_config --enable-virt
+%else
+%global virt_config --disable-virt
+%endif
+
+%if %{with_dracut}
+%global dracut_config --with-dracutstap=%{dracutstap}
+%else
+%global dracut_config
+%endif
+
+%configure %{?elfutils_config} %{dyninst_config} %{sqlite_config} %{crash_config} %{docs_config} %{pie_config} %{rpm_config} %{java_config} %{virt_config} %{dracut_config} --disable-silent-rules --with-extra-version="rpm %{version}-%{release}"
 make %{?_smp_mflags}
 
 %if %{with_emacsvim}
@@ -514,9 +502,7 @@ cp -rp testsuite $RPM_BUILD_ROOT%{_datadir}/systemtap
 mkdir docs.installed
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/*.pdf docs.installed/
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/tapsets docs.installed/
-%if %{with_publican}
 mv $RPM_BUILD_ROOT%{_datadir}/doc/systemtap/SystemTap_Beginners_Guide docs.installed/
-%endif
 %endif
 
 mkdir -p $RPM_BUILD_ROOT%{_sysconfdir}/stap-server
@@ -941,9 +927,7 @@ done
 %if %{with_docs}
 %doc docs.installed/*.pdf
 %doc docs.installed/tapsets/*.html
-%if %{with_publican}
 %doc docs.installed/SystemTap_Beginners_Guide
-%endif
 %endif
 %{_bindir}/stap
 %{_bindir}/stap-prep
@@ -952,6 +936,7 @@ done
 %{_mandir}/man1/stap-prep.1*
 %{_mandir}/man1/stap-merge.1*
 %{_mandir}/man1/stap-report.1*
+%{_mandir}/man1/stapref.1*
 %{_mandir}/man3/*
 %{_mandir}/man7/error*
 %{_mandir}/man7/stappaths.7*
@@ -1030,6 +1015,12 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Wed Jun 17 2015 Abegail Jakop <ajakop@redhat.com> - 2.8-1
+- Upstream release.
+
+* Wed Feb 18 2015 Frank Ch. Eigler <fche@redhat.com> - 2.7-1
+- Upstream release.
+
 * Fri Sep 05 2014 Josh Stone <jistone@redhat.com> - 2.6-1
 - Upstream release.
 

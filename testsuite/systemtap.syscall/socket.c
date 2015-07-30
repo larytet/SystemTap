@@ -73,7 +73,7 @@ int main()
 #endif
 
   socket(-1, SOCK_STREAM, IPPROTO_IP);
-  //staptest// socket (UNKNOWN VALUE: -1, SOCK_STREAM, 0) = -NNNN (EAFNOSUPPORT)
+  //staptest// socket (0xffffffff, SOCK_STREAM, 0) = -NNNN (EAFNOSUPPORT)
 
   socket(PF_INET, -1, IPPROTO_IP);
 #if defined(SOCK_CLOEXEC) && defined(SOCK_NONBLOCK)

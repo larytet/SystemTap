@@ -35,7 +35,7 @@ probe begin
 	printf("systemtap starting probe\n")
 }
 
-probe syscall.open {
+probe syscall.open, syscall.openat {
       if (pid() == target() && filename == "\"foobar\"") {
       	 syscalls_seen += 1
       }

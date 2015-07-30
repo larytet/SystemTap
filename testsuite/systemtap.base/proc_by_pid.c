@@ -1,5 +1,6 @@
 #include "stdio.h"
 #include "sys/sdt.h"
+#include <unistd.h>
 
 void first_function() {}
 void second_function() {first_function();}

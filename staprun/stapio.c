@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 	if (optind < argc) {
 		if (attach_mod) {
 			err(_("Cannot have module options with attach (-A).\n"));
-			usage(argv[0]);
+			usage(argv[0],1);
 		} else {
 			unsigned start_idx = 3;	/* reserve three slots in modoptions[] */
 			while (optind < argc && start_idx + 1 < MAXMODOPTIONS)
@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 
 	if (modpath == NULL || *modpath == '\0') {
 		err(_("Need a module name or path to load.\n"));
-		usage(argv[0]);
+		usage(argv[0],1);
 	}
 
 	if (init_stapio())

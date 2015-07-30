@@ -6,7 +6,7 @@
 # $(DTRACE) $(DTRACEFLAGS) -h -s $^ -o $@
 # which is a step that builds DTrace provider and probe definitions
 
-# Copyright (C) 2009-2014 Red Hat Inc.
+# Copyright (C) 2009-2015 Red Hat Inc.
 #
 # This file is part of systemtap, and is free software.  You can
 # redistribute it and/or modify it under the terms of the GNU General
@@ -29,13 +29,13 @@ try:
     from pyparsing import alphas, cStyleComment, delimitedList, Group, \
         Keyword, lineno, Literal, nestedExpr, nums, oneOf, OneOrMore, \
         Optional, ParseException, ParserElement, restOfLine, restOfLine, \
-        Suppress, Word, ZeroOrMore
+        Suppress, SkipTo, Word, ZeroOrMore
     HAVE_PYP = True
 except ImportError:
     HAVE_PYP = False
 
 
-# Common file creation methods for pyparsing and regexparsing
+# Common file creation methods for pyparsing and string pattern matching
 
 class _HeaderCreator(object):
     def init_semaphores(self, fdesc):
@@ -149,7 +149,7 @@ class _PypProvider(_HeaderCreator):
 
         provider_decl = (PROVIDER + Optional(ident)
                          + lbrace + Group(probe_decls) + rbrace + Optional(semi))
-        dtrace_statement = Group(decls | provider_decl)
+        dtrace_statement = Group (SkipTo("provider", include=False) + provider_decl)
         self.dtrace_statements = ZeroOrMore(dtrace_statement)
 
         cplusplus_linecomment = Literal("//") + restOfLine
@@ -167,7 +167,10 @@ class _PypProvider(_HeaderCreator):
         for asti in self.ast:
             if len(asti) == 0:
                 continue
-            elif asti[0] == "provider":
+            # ignore SkipTo token
+            if asti[0] != "provider":
+                del asti[0]
+            if asti[0] == "provider":
                 # list of probes
                 for prb in asti[2]:
                     semaphores_def += self.add_semaphore(asti[1], prb[1])
@@ -184,17 +187,21 @@ class _PypProvider(_HeaderCreator):
             except TypeError:
                 # pyparsing-1.5.0 does not support parseAll
                 self.ast = self.bnf.parseFile(provider).asList()
-        except ParseException, err:
+        except ParseException:
+            err = sys.exc_info()[1]
             if len(self.current_probe):
-                print "%s:%s:%d: syntax error near:\nprobe %s\n" % (sys.argv[0],provider, self.current_lineno, self.current_probe)
+                print("Warning: %s:%s:%d: syntax error near:\nprobe %s\n" % (sys.argv[0], provider, self.current_lineno, self.current_probe))
             else:
-                print "%s:%s:%d syntax error near:\n%s\n" % (sys.argv[0],provider,err.lineno, err.line)
-            sys.exit(1)
+                print("Warning: %s:%s:%d syntax error near:\n%s\n" % (sys.argv[0], provider, err.lineno, err.line))
+            raise err
   
         probes_def = ""
         for asti in self.ast:
             if len(asti) == 0:
                 continue
+            # ignore SkipTo token
+            if asti[0] != "provider":
+                del asti[0]
             if asti[0] == "provider":
                 # list of probes
                 for prb in asti[2]:
@@ -269,19 +276,19 @@ class _ReProvider(_HeaderCreator):
 
 
 def usage():
-    print "Usage " + sys.argv[0] + " [--help] [-h | -G] [-C [-I<Path>]] -s File.d [-o <File>]"
+    print("Usage " + sys.argv[0] + " [--help] [-h | -G] [-C [-I<Path>]] -s File.d [-o <File>]")
 
 
 def dtrace_help():
     usage()
-    print "Where -h builds a systemtap header file from the .d file"
-    print "      -C when used with -h, also run cpp preprocessor"
-    print "      -o specifies an explicit output file name,"
-    print "         the default for -G is file.o and -h is file.h"
-    print "      -I when running cpp pass through this -I include Path"
-    print "      -s specifies the name of the .d input file"
-    print "      -G builds a stub file.o from file.d,"
-    print "         which is required by some packages that use dtrace."
+    print("Where -h builds a systemtap header file from the .d file")
+    print("      -C when used with -h, also run cpp preprocessor")
+    print("      -o specifies an explicit output file name,")
+    print("         the default for -G is file.o and -h is file.h")
+    print("      -I when running cpp pass through this -I include Path")
+    print("      -s specifies the name of the .d input file")
+    print("      -G builds a stub file.o from file.d,")
+    print("         which is required by some packages that use dtrace.")
     sys.exit(1)
 
 
@@ -305,6 +312,9 @@ def main():
     s_filename = ""
     includes = []
     defines = []
+    ignore_options = ["-64", "-32", "-fpic", "-fPIC"]
+    ignore_options2 = ["-x"] # with parameter
+
     while i < len(sys.argv):
         if sys.argv[i] == "-o":
             i += 1
@@ -329,13 +339,16 @@ def main():
         elif sys.argv[i] == "--no-pyparsing":
             HAVE_PYP = False
         elif sys.argv[i] == "--types":
-            print sys.argv[0] + ": note: obsolete option --types used"
-        elif sys.argv[i] == "-64" or sys.argv[i] == "-32":
+            print(sys.argv[0] + ": note: obsolete option --types used")
+        elif sys.argv[i] in ignore_options:
+            pass                # dtrace users sometimes pass these flags
+        elif sys.argv[i] in ignore_options2:
+            i += 1
             pass                # dtrace users sometimes pass these flags
         elif sys.argv[i] == "--help":
             dtrace_help()
         elif sys.argv[i][0] == "-":
-            print sys.argv[0], "invalid option", sys.argv[i]
+            print(sys.argv[0], "invalid option", sys.argv[i])
             usage()
             return 1
         i += 1
@@ -348,7 +361,7 @@ def main():
         cpp = os.environ.get("CPP", "cpp")
         retcode = call(split(cpp) + includes + defines + [s_filename, fname])
         if retcode != 0:
-            print "\"cpp includes s_filename\" failed"
+            print("\"cpp includes s_filename\" failed")
             usage()
             return 1
         s_filename = fname
@@ -367,18 +380,35 @@ def main():
             providers = _PypProvider()
         else:
             providers = _ReProvider()
-        providers.probe_write(s_filename, filename + suffix)
+        while True:
+            try:
+                providers.probe_write(s_filename, filename + suffix)
+                break;
+            # complex C declarations can fool the pyparsing grammar.  
+            # we could increase the complexity of the grammar
+            # instead we fall back to string pattern matching
+            except ParseException:
+                err = sys.exc_info()[1]
+                print("Warning: Proceeding as if --no-pyparsing was given.\n")
+                providers = _ReProvider()
     elif build_source:
         if HAVE_PYP:
             providers = _PypProvider()
         else:
             providers = _ReProvider()
         (ignore, fname) = mkstemp(suffix=".h")
-        providers.probe_write(s_filename, fname)
+        while True:
+            try:
+                providers.probe_write(s_filename, fname)
+                break;
+            except ParseException:
+                err = sys.exc_info()[1]
+                print("Warning: Proceeding as if --no-pyparsing was given.\n")
+                providers = _ReProvider()
         if not keep_temps:
             os.remove(fname)
         else:
-            print "header: " + fname
+            print("header: " + fname)
 
         (ignore, fname) = mkstemp(suffix=".c")
         fdesc = open(fname, mode='w')
@@ -390,19 +420,19 @@ def main():
              ["-fPIC", "-I.", "-I@prefix@/include", "-c", fname, "-o",
               filename + suffix], shell=False)
         if retcode != 0:
-            print "\"gcc " + fname + "\" failed"
+            print("\"gcc " + fname + "\" failed")
             usage()
             return 1
         if not keep_temps:
             os.remove(fname)
         else:
-            print "source: " + fname
+            print("source: " + fname)
 
     if use_cpp:
         if not keep_temps:
             os.remove(s_filename)
         else:
-            print "cpp: " + s_filename
+            print("cpp: " + s_filename)
 
     return 0
 

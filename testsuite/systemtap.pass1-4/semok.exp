@@ -6,6 +6,7 @@ proc dyninst_kfails {test} {
     # (Note that tcl doesn't like comments directly inside the switch
     # statement, but comments can go in sub-blocks.)
     switch $test {
+	semok/autocast14.stp -
 	semok/badvar.stp -
 	semok/badvar_undefined.stp -
 	semok/bz10475.stp -
@@ -96,6 +97,9 @@ foreach runtime [get_runtime_list] {
 		semok/plt1.stp -
 		semok/plt2.stp {
 		    if {!$plt_probes_p} { untested $test; continue } }
+
+		semok/autocast14.stp {
+		    setup_kfail 18079 *-*-* }
 	    }
 	    verbose -log "Running $file"
 	    set rc [stap_run_batch $file]

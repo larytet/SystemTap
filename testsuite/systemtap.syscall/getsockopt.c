@@ -31,7 +31,7 @@ int main()
     //staptest// bind (NNNN, {AF_INET, 0.0.0.0, 0}, 16) = 0
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     getsockopt(-1, SOL_SOCKET, SO_OOBINLINE, &optval, &optlen);
     //staptest// getsockopt (-1, SOL_SOCKET, SO_OOBINLINE, XXXX, XXXX) = -NNNN (EBADF)

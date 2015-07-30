@@ -16,7 +16,7 @@
 global last_cpu = -1
 global pid_on, pid_off, migrated
 global time_on, time_off, irq_entry
-global cycle_thief, irq_thief
+global cycle_thief, irq_thief, cycle_thief_name
 
 
 probe kernel.trace("sched_switch") {
@@ -34,6 +34,7 @@ probe kernel.trace("sched_switch") {
   /* watch what other processes scheduled while pid off */
   if (pid_off > pid_on && c == last_cpu) {
     cycle_thief[$next->pid] <<< 1;
+    cycle_thief_name[$next->pid] = kernel_string($next->comm)
   }
 }
 
@@ -79,8 +80,9 @@ probe end {
 
   printf("\n")
   printf("other pids taking processor from task %d\n", target())
+  printf("%6s %10s %s\n", "PID", "count", "command");
   foreach (p in cycle_thief-)
-    printf("%6d %10d\n", p, @count(cycle_thief[p]))
+    printf("%6d %10d %s\n", p, @count(cycle_thief[p]), cycle_thief_name[p])
 
   printf("\n")
   printf("irq taking processor from task %d\n", target())

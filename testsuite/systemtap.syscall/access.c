@@ -24,7 +24,7 @@ int main()
   fd1 = creat("foobar1",S_IREAD|S_IWRITE);
 
   access("foobar1", F_OK);
-  //staptest// access ("foobar1", F_OK) = 0
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", F_OK) = 0
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", F_OK, 0);
@@ -32,7 +32,7 @@ int main()
 #endif
 
   access("foobar1", R_OK);
-  //staptest// access ("foobar1", R_OK) = 0
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", R_OK) = 0
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", R_OK, 0);
@@ -40,7 +40,7 @@ int main()
 #endif
 
   access("foobar1", W_OK);
-  //staptest// access ("foobar1", W_OK) = 0
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", W_OK) = 0
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", W_OK, 0);
@@ -48,7 +48,7 @@ int main()
 #endif
 
   access("foobar1", X_OK);
-  //staptest// access ("foobar1", X_OK) = -NNNN (EACCES)
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", X_OK) = -NNNN (EACCES)
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", X_OK, 0);
@@ -56,7 +56,7 @@ int main()
 #endif
 
   access("foobar1", R_OK|W_OK);
-  //staptest// access ("foobar1", R_OK|W_OK) = 0
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", R_OK|W_OK) = 0
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", R_OK|W_OK, 0);
@@ -64,7 +64,7 @@ int main()
 #endif
 
   access("foobar1", R_OK|W_OK|X_OK);
-  //staptest// access ("foobar1", R_OK|W_OK|X_OK) = -NNNN (EACCES)
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", R_OK|W_OK|X_OK) = -NNNN (EACCES)
 
 #if GLIBC_SUPPORT
   faccessat(AT_FDCWD, "foobar1", R_OK|W_OK|X_OK, 0);
@@ -75,11 +75,11 @@ int main()
 #ifdef __s390__
   //staptest// access ([7]?[f]+, F_OK) = -NNNN (EFAULT)
 #else
-  //staptest// access ([f]+, F_OK) = -NNNN (EFAULT)
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]][f]+, F_OK) = -NNNN (EFAULT)
 #endif
 
   access("foobar1", -1);
-  //staptest// access ("foobar1", R_OK|W_OK|X_OK|0x[f]+8) = -NNNN (EINVAL)
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]"foobar1", R_OK|W_OK|X_OK|0x[f]+8) = -NNNN (EINVAL)
 
 #if GLIBC_SUPPORT
   faccessat(-1, "foobar1", F_OK, 0);

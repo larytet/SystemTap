@@ -209,6 +209,7 @@ public:
   bool need_uprobes;
   bool need_unwind;
   bool need_symbols;
+  bool need_lines;
   std::string uprobes_path;
   std::string uprobes_hash;
   bool load_only; // flight recorder mode
@@ -443,6 +444,8 @@ public:
 
   bool is_user_file (const std::string& name);
   bool is_primary_probe (derived_probe *dp);
+
+  int target_namespaces_pid;
 };
 
 struct exit_exception: public std::runtime_error

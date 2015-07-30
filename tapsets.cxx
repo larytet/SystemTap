@@ -1,5 +1,5 @@
 // tapset resolution
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2005-2007 Intel Corporation.
 // Copyright (C) 2008 James.Bottomley@HansenPartnership.com
 //
@@ -63,16 +63,20 @@ extern "C" {
 #include <inttypes.h>
 }
 
-// Old elf.h doesn't know about this machine type.
-#ifndef EM_AARCH64
-#define EM_AARCH64 183
-#endif
-
-
 using namespace std;
 using namespace __gnu_cxx;
 
-
+// for elf.h where PPC64_LOCAL_ENTRY_OFFSET isn't defined
+#ifndef PPC64_LOCAL_ENTRY_OFFSET
+#define STO_PPC64_LOCAL_BIT    5
+#define STO_PPC64_LOCAL_MASK   (7 << STO_PPC64_LOCAL_BIT)
+#define PPC64_LOCAL_ENTRY_OFFSET(other)					\
+ (((1 << (((other) & STO_PPC64_LOCAL_MASK) >> STO_PPC64_LOCAL_BIT)) >> 2) << 2)
+#endif
+// for elf.h where EF_PPC64_ABI isn't defined
+#ifndef EF_PPC64_ABI
+#define EF_PPC64_ABI 3
+#endif
 
 // ------------------------------------------------------------------------
 
@@ -401,23 +405,23 @@ struct
 symbol_table
 {
   module_info *mod_info;	// associated module
-  map<string, func_info*> map_by_name;
+  multimap<string, func_info*> map_by_name;
   multimap<Dwarf_Addr, func_info*> map_by_addr;
   map<string, Dwarf_Addr> globals;
   map<string, Dwarf_Addr> locals;
   typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
   typedef pair<iterator_t, iterator_t> range_t;
-#ifdef __powerpc__
+  // Section describing function descriptors.
+  // Set to SHN_UNDEF if there is no such section.
   GElf_Word opd_section;
-#endif
   void add_symbol(const char *name, bool weak, bool descriptor,
                   Dwarf_Addr addr, Dwarf_Addr *high_addr);
   enum info_status get_from_elf();
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
   void purge_syscall_stubs();
-  func_info *lookup_symbol(const string& name);
-  Dwarf_Addr lookup_symbol_address(const string& name);
+  set <func_info*> lookup_symbol(const string& name);
+  set <Dwarf_Addr> lookup_symbol_address(const string& name);
   func_info *get_func_containing_address(Dwarf_Addr addr);
   func_info *get_first_func();
 
@@ -890,6 +894,8 @@ struct dwarf_query : public base_query
   string final_function_name(const string& final_func,
                              const char* final_file,
                              int final_line);
+
+  bool is_fully_specified_function();
 };
 
 
@@ -1108,17 +1114,22 @@ dwarf_query::query_module_symtab()
                ++iter)
             {
               fi = iter->second;
-              if (!null_die(&fi->die))
-                continue;       // already handled in query_module_dwarf()
+              if (!null_die(&fi->die) // already handled in query_module_dwarf()
+                  || fi->descriptor) // ppc opd (and also undefined symbols)
+                continue;
               if (dw.function_name_matches_pattern(fi->name, function_str_val))
                 query_symtab_func_info(*fi, this);
             }
         }
       else
         {
-          fi = sym_table->lookup_symbol(function_str_val);
-          if (fi && !fi->descriptor && null_die(&fi->die))
-	     query_symtab_func_info(*fi, this);
+          set<func_info*> fis = sym_table->lookup_symbol(function_str_val);
+          for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
+            {
+              fi = *it;
+              if (fi && null_die(&fi->die))
+                query_symtab_func_info(*fi, this);
+            }
         }
     }
 }
@@ -1217,8 +1228,12 @@ dwarf_query::parse_function_spec(const string & spec)
                         vector<string> ranges;
                         tokenize(*line_spec, ranges, "-");
                         if (ranges.size() > 1)
-                            for (int i = lex_cast<int>(ranges.front()); i <= lex_cast<int>(ranges.back()); i++)
+                          {
+                            int low = lex_cast<int>(ranges.front());
+                            int high = lex_cast<int>(ranges.back());
+                            for (int i = low; i <= high; i++)
                                 linenos.push_back(i);
+                          }
                         else
                             linenos.push_back(lex_cast<int>(ranges.at(0)));
                       }
@@ -1568,10 +1583,24 @@ dwarf_query::final_function_name(const string& final_func,
   return final_name;
 }
 
+bool
+dwarf_query::is_fully_specified_function()
+{
+  // A fully specified function is one that was given using a .function() probe
+  // by full name (no wildcards), and specific srcfile and decl_line.
+  return (has_function_str
+          && spec_type == function_file_and_line
+          && !dw.name_has_wildcard(function)
+          && filtered_srcfiles.size() == 1
+          && !filtered_functions.empty()
+          && lineno_type == ABSOLUTE
+          && filtered_functions[0].decl_line == linenos[0]);
+}
+
 base_func_info_map_t
 dwarf_query::filtered_all(void)
 {
-  vector<base_func_info> r;
+  base_func_info_map_t r;
   func_info_map_t::const_iterator f;
   for (f  = filtered_functions.begin();
        f != filtered_functions.end(); ++f)
@@ -1944,6 +1973,18 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
           string canon_func = q->final_function_name(i->name, i->decl_file,
                                                      lineno /* NB: not i->decl_line */ );
 
+          if (q->has_nearest && (q->lineno_type == ABSOLUTE ||
+                                 q->lineno_type == RELATIVE))
+            {
+              int lineno_nearest = q->linenos[0];
+              if (q->lineno_type == RELATIVE)
+                lineno_nearest += i->decl_line;
+              string canon_func_nearest = q->final_function_name(i->name, i->decl_file,
+                                                                 lineno_nearest);
+              q->mount_well_formed_probe_point();
+              q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func_nearest);
+            }
+
           q->mount_well_formed_probe_point();
           q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
           q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
@@ -1953,6 +1994,9 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
                            &scope, addr, q);
 
           q->unmount_well_formed_probe_point();
+          if (q->has_nearest && (q->lineno_type == ABSOLUTE ||
+                                 q->lineno_type == RELATIVE))
+            q->unmount_well_formed_probe_point();
         }
     }
 }
@@ -2014,6 +2058,18 @@ query_dwarf_inline_instance (Dwarf_Die * die, dwarf_query * q)
     }
 }
 
+static bool
+is_filtered_func_exists (func_info_map_t filtered, func_info *fi)
+{
+  for (unsigned i = 0; i < filtered.size(); i++)
+    {
+      if ((filtered[i].entrypc == fi->entrypc) && (filtered[i].name == fi->name))
+        return true;
+    }
+
+  return false;
+}
+
 static int
 query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
 {
@@ -2064,7 +2120,31 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
           q->dw.function_line (&func.decl_line);
 
           Dwarf_Addr entrypc;
-          if (q->dw.function_entrypc (&entrypc))
+
+          func.entrypc = 0;
+          Dwarf_Addr bias;
+          Dwfl_Module *mod = q->dw.module;
+          Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+                     ?: dwfl_module_getelf (mod, &bias));
+
+          GElf_Ehdr ehdr_mem;
+          GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+          if (em == NULL) throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
+          /* Giving priority to sym_table for ppc64*/
+          if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
+              && (q->dw.mod_info->sym_table))
+            {
+              set<func_info *> fis = q->dw.mod_info->sym_table->lookup_symbol(func.name);
+              for (set<func_info*>::iterator it=fis.begin(); it!=fis.end() ; ++it)
+                {
+                  func.entrypc = (*it)->addr;
+                  if (is_filtered_func_exists(q->filtered_functions, &func))
+                    continue;
+                  q->filtered_functions.push_back(func);
+                }
+            }
+          else if (!func.entrypc && q->dw.function_entrypc (&entrypc))
             {
               func.entrypc = entrypc;
               q->filtered_functions.push_back (func);
@@ -2163,7 +2243,13 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
                                           q, query_callee, *i);
             }
         }
-      else if (q->spec_type == function_file_and_line)
+      else if (q->spec_type == function_file_and_line
+              // User specified function, file and lineno, but if they match
+              // exactly a specific function in a specific line at a specific
+              // decl_line, the user doesn't actually want to probe a lineno,
+              // but rather the function itself. So let fall through to
+              // query_func_info/query_inline_instance_info in final else.
+               && !q->is_fully_specified_function())
         {
           // .statement(...:NN) often gets mixed up with .function(...:NN)
           if (q->has_function_str)
@@ -2466,7 +2552,6 @@ build_library_probe(dwflpp& dw,
                     probe_point *base_loc)
 {
   probe_point* specific_loc = new probe_point(*base_loc);
-  specific_loc->from_glob = true;
   vector<probe_point::component*> derived_comps;
 
   // Create new probe point for the matching library. This is what will be
@@ -2480,7 +2565,8 @@ build_library_probe(dwflpp& dw,
           new literal_string(path_remove_sysroot(dw.sess, dw.module_name))));
     else if ((*it)->functor == TOK_LIBRARY)
       derived_comps.push_back(new probe_point::component(TOK_LIBRARY,
-          new literal_string(path_remove_sysroot(dw.sess, library))));
+          new literal_string(path_remove_sysroot(dw.sess, library)),
+          true /* from_glob */ ));
     else
       derived_comps.push_back(*it);
   probe_point* derived_loc = new probe_point(*specific_loc);
@@ -3584,8 +3670,11 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   expression *repl = e;
   replace (repl);
   q.has_return = saved_has_return;
-  target_symbol* n = dynamic_cast<target_symbol*>(repl);
-  if (n && n->saved_conversion_error)
+
+  // If it's still a target_symbol, then it couldn't be resolved.  It may
+  // not have a saved_conversion_error yet, e.g. for null_die(scope_die),
+  // but we know it's not worth making that bogus entry anyway.
+  if (dynamic_cast<target_symbol*>(repl))
     {
       provide (repl);
       return;
@@ -3942,6 +4031,11 @@ dwarf_var_expanding_visitor::gen_kretprobe_saved_return(expression* e)
 void
 dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
+  if (pending_interrupts) {
+    provide(e);
+    return;
+  }
+
   if (null_die(scope_die)) {
     literal_string *empty = new literal_string("");
     empty->tok = e->tok;
@@ -4161,7 +4255,7 @@ dwarf_var_expanding_visitor::visit_target_symbol (target_symbol *e)
 
       bool userspace_p = q.has_process;
       string fname = (string(lvalue ? "_dwarf_tvar_set" : "_dwarf_tvar_get")
-                      + "_" + e->sym_name()
+                      + "_" + escaped_indentifier_string (e->sym_name())
                       + "_" + lex_cast(tick++));
 
 
@@ -4931,14 +5025,16 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 	       it != q.sess.perf_counters.end();
 	       it++)
 	    if ((*it).first == (*pcii))
-	      break;
-	  vardecl* vd = new vardecl;
-	  vd->name = "__perf_read_" + (*it).first;
-	  vd->tok = this->tok;
-	  vd->set_arity(0, this->tok);
-	  vd->type = pe_long;
-	  vd->synthetic = true;
-	  this->locals.push_back (vd);
+              {
+                vardecl* vd = new vardecl;
+                vd->name = "__perf_read_" + (*it).first;
+                vd->tok = this->tok;
+                vd->set_arity(0, this->tok);
+                vd->type = pe_long;
+                vd->synthetic = true;
+                this->locals.push_back (vd);
+                break;
+              }
 	}
 
 
@@ -5451,11 +5547,13 @@ dwarf_derived_probe::emit_probe_local_init(systemtap_session& s, translator_outp
 	   it != s.perf_counters.end();
 	   it++, i++)
 	if ((*it).first == (*pcii))
-	  break;
-      // place the perf counter read so it precedes stp_lock_probe
-      o->newline() << "l->l___perf_read_" + (*it).first
-	+ " = (((int64_t) (_stp_perf_read(smp_processor_id(),"
-	+ lex_cast(i) + "))));";
+          {
+            // place the perf counter read so it precedes stp_lock_probe
+            o->newline() << "l->l___perf_read_" + (*it).first
+              + " = (((int64_t) (_stp_perf_read(smp_processor_id(),"
+              + lex_cast(i) + "))));";
+            break;
+          }
     }
 
   if (access_vars)
@@ -6153,9 +6251,16 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_literal (target_symbol *e,
   // communicated to us the presence of that option, but alas it
   // doesn't.  http://gcc.gnu.org/PR44995.
   vector<string> matches;
-  if (!regexp_match (asmarg, "^[i\\$#][-]?[0-9][0-9]*$", matches))
-    {
-      string sn = matches[0].substr(1);
+  string regexp;
+
+  if (elf_machine == EM_AARCH64) {
+    regexp = "^([-]?[0-9][0-9]*)$";
+  } else {
+    regexp = "^[i\\$#]([-]?[0-9][0-9]*)$";
+  }
+
+  if (!regexp_match (asmarg, regexp, matches)) {
+      string sn =matches[1];
       int64_t n;
 
       // We have to pay attention to the size & sign, as gcc sometimes
@@ -6193,7 +6298,8 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_register (target_symbol *e,
   // test for REGISTER
   // NB: Because PR11821, we must use percent_regnames here.
   string regexp;
-  if (elf_machine == EM_PPC || elf_machine == EM_PPC64 || elf_machine == EM_ARM)
+  if (elf_machine == EM_PPC || elf_machine == EM_PPC64
+     || elf_machine == EM_ARM || elf_machine == EM_AARCH64)
     regexp = "^(" + regnames + ")$";
   else
     regexp = "^(" + percent_regnames + ")$";
@@ -6278,9 +6384,9 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_offset_register (target_symbol *
 
   string regexp;
   int reg, offset1;
-  if (elf_machine == EM_ARM)
+  if (elf_machine == EM_ARM || elf_machine == EM_AARCH64)
     {
-      regexp = "^\\[(" + regnames + ")(, #([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
+      regexp = "^\\[(" + regnames + ")(,[ ]*[#]?([+-]?[0-9]+)([+-][0-9]*)?([+-][0-9]*)?)?\\]$";
       reg = 1;
       offset1 = 3;
     }
@@ -6537,6 +6643,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
       // ia64   N       rR  [r16]
       // s390   N       %rR 0(rR)    N(r15)
       // arm    #N      rR  [rR]     [rR, #N]
+      // arm64  N       rR  [rR]     [rR, N]
 
       expression* argexpr = 0; // filled in in case of successful parse
 
@@ -7432,8 +7539,8 @@ suggest_dwarf_functions(systemtap_session& sess,
       // add all function symbols in cache
       if (module->symtab_status != info_present || module->sym_table == NULL)
         continue;
-      map<string, func_info*>& modfuncs = module->sym_table->map_by_name;
-      for (map<string, func_info*>::const_iterator itfuncs = modfuncs.begin();
+      multimap<string, func_info*>& modfuncs = module->sym_table->map_by_name;
+      for (multimap<string, func_info*>::const_iterator itfuncs = modfuncs.begin();
            itfuncs != modfuncs.end(); ++itfuncs)
         funcs.insert(itfuncs->first);
     }
@@ -7451,6 +7558,124 @@ suggest_dwarf_functions(systemtap_session& sess,
     return "";
 
   return levenshtein_suggest(func, funcs, 5); // print top 5 funcs only
+}
+
+
+// Use a glob pattern to find executables or shared libraries
+static set<string>
+glob_executable(const string& pattern)
+{
+  glob_t the_blob;
+  set<string> globs;
+
+  int rc = glob (pattern.c_str(), 0, NULL, & the_blob);
+  if (rc)
+    throw SEMANTIC_ERROR (_F("glob %s error (%d)", pattern.c_str(), rc));
+
+  for (unsigned i = 0; i < the_blob.gl_pathc; ++i)
+    {
+      const char* globbed = the_blob.gl_pathv[i];
+      struct stat st;
+
+      if (access (globbed, X_OK) == 0
+          && stat (globbed, &st) == 0
+          && S_ISREG (st.st_mode)) // see find_executable()
+        {
+          // Need to call resolve_path here, in order to path-expand
+          // patterns like process("stap*").  Otherwise it may go through
+          // to the next round of expansion as ("stap"), leading to a $PATH
+          // search that's not consistent with the glob search already done.
+          string canononicalized = resolve_path (globbed);
+
+          // The canonical names can result in duplication, for example
+          // having followed symlinks that are common with shared libraries,
+          // so we use a set for unique results.
+          globs.insert(canononicalized);
+        }
+    }
+
+  globfree (& the_blob);
+  return globs;
+}
+
+static bool
+resolve_library_by_path(base_query & q,
+                        set<string> const & visited_libraries,
+                        probe * base,
+                        probe_point * location,
+                        literal_map_t const & parameters,
+                        vector<derived_probe *> & finished_results)
+{
+  size_t results_pre = finished_results.size();
+  systemtap_session & sess = q.sess;
+  dwflpp & dw = q.dw;
+
+  string lib;
+  if (!location->from_globby_comp(TOK_LIBRARY) && q.has_library
+      && !visited_libraries.empty()
+      && q.get_string_param(parameters, TOK_LIBRARY, lib))
+    {
+      // The library didn't fit any DT_NEEDED libraries. As a last effort,
+      // let's try to look for the library directly.
+
+      if (contains_glob_chars (lib))
+        {
+          // Evaluate glob here, and call derive_probes recursively with each match.
+          set<string> globs = glob_executable (lib);
+          for (set<string>::const_iterator it = globs.begin();
+               it != globs.end(); ++it)
+            {
+              assert_no_interrupts();
+
+              const string& globbed = *it;
+              if (sess.verbose > 1)
+                clog << _F("Expanded library(\"%s\") to library(\"%s\")",
+                           lib.c_str(), globbed.c_str()) << endl;
+
+              probe *new_base = build_library_probe(dw, globbed,
+                                                    base, location);
+
+              // We override "optional = true" here, as if the
+              // wildcarded probe point was given a "?" suffix.
+
+              // This is because wildcard probes will be expected
+              // by users to apply only to some subset of the
+              // matching binaries, in the sense of "any", rather
+              // than "all", sort of similarly how
+              // module("*").function("...") patterns work.
+
+              derive_probes (sess, new_base, finished_results,
+                             true /* NB: not location->optional */ );
+            }
+        }
+      else
+        {
+          string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
+                                                "LD_LIBRARY_PATH");
+          if (resolved_lib.find('/') != string::npos)
+            {
+              probe *new_base = build_library_probe(dw, resolved_lib,
+                                                    base, location);
+              derive_probes(sess, new_base, finished_results);
+              if (lib.find('/') == string::npos)
+                sess.print_warning(_F("'%s' is not a needed library of '%s'. "
+                                      "Specify the full path to squelch this warning.",
+                                      resolved_lib.c_str(), dw.module_name.c_str()));
+            }
+          else
+            {
+              // Otherwise, let's suggest from the DT_NEEDED libraries
+              string sugs = levenshtein_suggest(lib, visited_libraries, 5);
+              if (!sugs.empty())
+                throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
+                                          "no match (similar libraries: %s)",
+                                          sugs.find(',') == string::npos,
+                                          sugs.c_str()));
+            }
+        }
+    }
+
+  return results_pre != finished_results.size();
 }
 
 void
@@ -7562,70 +7787,47 @@ dwarf_builder::build(systemtap_session & sess,
           assert (lit);
 
           // Evaluate glob here, and call derive_probes recursively with each match.
-          glob_t the_blob;
-          set<string> dupes;
-          int rc = glob (module_name.c_str(), 0, NULL, & the_blob);
-          if (rc)
-            throw SEMANTIC_ERROR (_F("glob %s error (%s)", module_name.c_str(), lex_cast(rc).c_str() ));
+          set<string> globs = glob_executable (module_name);
           unsigned results_pre = finished_results.size();
-          for (unsigned i = 0; i < the_blob.gl_pathc; ++i)
+          for (set<string>::const_iterator it = globs.begin();
+               it != globs.end(); ++it)
             {
               assert_no_interrupts();
 
-              const char* globbed = the_blob.gl_pathv[i];
-              struct stat st;
+              const string& globbed = *it;
 
-              if (access (globbed, X_OK) == 0
-                  && stat (globbed, &st) == 0
-                  && S_ISREG (st.st_mode)) // see find_executable()
-                {
-                  // Need to call canonicalize here, in order to path-expand
-                  // patterns like process("stap*").  Otherwise it may go through
-                  // to the next round of expansion as ("stap"), leading to a $PATH
-                  // search that's not consistent with the glob search already done.
-                  string canononicalized = resolve_path (globbed);
-                  globbed = canononicalized.c_str();
+              // synthesize a new probe_point, with the glob-expanded string
+              probe_point *pp = new probe_point (*location);
 
-                  // The canonical names can result in duplication, for example
-                  // having followed symlinks that are common with shared
-                  // libraries.  Filter those out.
-                  if (!dupes.insert(canononicalized).second)
-                    continue;
+              // PR13338: quote results to prevent recursion
+              string eglobbed = escape_glob_chars (globbed);
 
-                  // synthesize a new probe_point, with the glob-expanded string
-                  probe_point *pp = new probe_point (*location);
-                  pp->from_glob = true;
+              if (sess.verbose > 1)
+                clog << _F("Expanded process(\"%s\") to process(\"%s\")",
+                           module_name.c_str(), eglobbed.c_str()) << endl;
+              string eglobbed_tgt = path_remove_sysroot(sess, eglobbed);
 
-                  // PR13338: quote results to prevent recursion
-                  string eglobbed = escape_glob_chars (globbed);
+              probe_point::component* ppc
+                = new probe_point::component (TOK_PROCESS,
+                                              new literal_string (eglobbed_tgt),
+                                              true /* from_glob */ );
+              ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
+              pp->components[0] = ppc;
 
-                  if (sess.verbose > 1)
-                    clog << _F("Expanded process(\"%s\") to process(\"%s\")",
-                               module_name.c_str(), eglobbed.c_str()) << endl;
-                  string eglobbed_tgt = path_remove_sysroot(sess, eglobbed);
+              probe* new_probe = new probe (base, pp);
 
-                  probe_point::component* ppc = new probe_point::component (TOK_PROCESS,
-                                                    new literal_string (eglobbed_tgt));
-                  ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
-                  pp->components[0] = ppc;
+              // We override "optional = true" here, as if the
+              // wildcarded probe point was given a "?" suffix.
 
-                  probe* new_probe = new probe (base, pp);
+              // This is because wildcard probes will be expected
+              // by users to apply only to some subset of the
+              // matching binaries, in the sense of "any", rather
+              // than "all", sort of similarly how
+              // module("*").function("...") patterns work.
 
-                  // We override "optional = true" here, as if the
-                  // wildcarded probe point was given a "?" suffix.
-
-                  // This is because wildcard probes will be expected
-                  // by users to apply only to some subset of the
-                  // matching binaries, in the sense of "any", rather
-                  // than "all", sort of similarly how
-                  // module("*").function("...") patterns work.
-
-                  derive_probes (sess, new_probe, finished_results,
-                                 true /* NB: not location->optional */ );
-                }
+              derive_probes (sess, new_probe, finished_results,
+                             true /* NB: not location->optional */ );
             }
-
-          globfree (& the_blob);
 
           unsigned results_post = finished_results.size();
 
@@ -7820,40 +8022,19 @@ dwarf_builder::build(systemtap_session & sess,
       modules_seen.insert(sdtq.visited_modules.begin(),
                           sdtq.visited_modules.end());
 
-      string lib;
-      if (results_pre == finished_results.size() && !sdtq.resolved_library
-          && get_param(filled_parameters, TOK_LIBRARY, lib)
-          && !lib.empty() && !sdtq.visited_libraries.empty())
-        {
-          // The library didn't fit any DT_NEEDED libraries. As a last effort,
-          // let's try to look for the library directly.
-          string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
-                                                "LD_LIBRARY_PATH");
-          if (resolved_lib.find('/') != string::npos)
-            {
-              probe *new_base = build_library_probe(*dw, resolved_lib,
-                                                    base, location);
-              derive_probes(sess, new_base, finished_results);
-              sess.print_warning(_F("'%s' is not a needed library of '%s'. "
-                                    "Specify the full path to squelch this warning.",
-                                    resolved_lib.c_str(), dw->module_name.c_str()));
-              return;
-            }
-
-          // Otherwise, let's suggest from the DT_NEEDED libraries
-          string sugs = levenshtein_suggest(lib, sdtq.visited_libraries, 5);
-          if (!sugs.empty())
-            throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
-                                      "no match (similar libraries: %s)",
-                                      sugs.find(',') == string::npos,
-                                      sugs.c_str()));
-        }
+      if (results_pre == finished_results.size()
+          && sdtq.has_library && !sdtq.resolved_library
+          && resolve_library_by_path (sdtq, sdtq.visited_libraries,
+                                      base, location, filled_parameters,
+                                      finished_results))
+        return;
 
       // Did we fail to find a mark?
-      if (results_pre == finished_results.size() && !location->from_glob)
+      if (results_pre == finished_results.size()
+          && !location->from_globby_comp(TOK_MARK))
         {
           string provider;
-          get_param(filled_parameters, TOK_PROVIDER, provider);
+          (void) get_param(filled_parameters, TOK_PROVIDER, provider);
 
           string sugs = suggest_marks(sess, modules_seen, dummy_mark_name, provider);
           modules_seen.clear();
@@ -7937,34 +8118,12 @@ dwarf_builder::build(systemtap_session & sess,
         }
     } // i_n_r > 0
 
-  string lib;
-  if (results_pre == results_post && !q.resolved_library
-      && get_param(filled_parameters, TOK_LIBRARY, lib)
-      && !lib.empty() && !q.visited_libraries.empty())
-    {
-      // The library didn't fit any DT_NEEDED libraries. As a last effort,
-      // let's try to look for the library directly.
-      string resolved_lib = find_executable(lib, sess.sysroot, sess.sysenv,
-                                            "LD_LIBRARY_PATH");
-      if (resolved_lib.find('/') != string::npos)
-        {
-          probe *new_base = build_library_probe(*dw, resolved_lib,
-                                                base, location);
-          derive_probes(sess, new_base, finished_results);
-          sess.print_warning(_F("'%s' is not a needed library of '%s'. "
-                                "Specify the full path to squelch this warning.",
-                                resolved_lib.c_str(), dw->module_name.c_str()));
-          return;
-        }
-
-      // Otherwise, let's suggest from the DT_NEEDED libraries
-      string sugs = levenshtein_suggest(lib, q.visited_libraries, 5);
-      if (!sugs.empty())
-        throw SEMANTIC_ERROR (_NF("no match (similar library: %s)",
-                                  "no match (similar libraries: %s)",
-                                  sugs.find(',') == string::npos,
-                                  sugs.c_str()));
-    }
+  if (results_pre == finished_results.size()
+      && q.has_library && !q.resolved_library
+      && resolve_library_by_path (q, q.visited_libraries,
+                                  base, location, filled_parameters,
+                                  finished_results))
+    return;
 
   // If we just failed to resolve a function/plt by name, we can suggest
   // something. We only suggest things for probe points that were not
@@ -7972,7 +8131,7 @@ dwarf_builder::build(systemtap_session & sess,
   // required because modules_seen needs to accumulate across recursive
   // calls for process(glob)[.library(glob)] probes.
   string func;
-  if (results_pre == results_post && !location->from_glob
+  if (results_pre == results_post && !location->from_globby_comp(TOK_FUNCTION)
       && get_param(filled_parameters, TOK_FUNCTION, func)
       && !func.empty())
     {
@@ -7984,7 +8143,7 @@ dwarf_builder::build(systemtap_session & sess,
                                   sugs.find(',') == string::npos,
                                   sugs.c_str()));
     }
-  else if (results_pre == results_post && !location->from_glob
+  else if (results_pre == results_post && !location->from_globby_comp(TOK_PLT)
            && get_param(filled_parameters, TOK_PLT, func)
            && !func.empty())
     {
@@ -8010,36 +8169,58 @@ void
 symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
                          Dwarf_Addr addr, Dwarf_Addr* /*high_addr*/)
 {
-#ifdef __powerpc__
-  // Map ".sys_foo" to "sys_foo".
-  if (name[0] == '.')
-    name++;
-#endif
+  /* Does the target architecture have function descriptors?
+     Then we want to filter them out. When seeing a symbol with a name
+     starting with '.' we assume it is a regular function pointer and
+     not a pointer to a function descriptor. Note that this might create
+     duplicates if we also found the function descriptor symbol itself.
+     dwfl_module_getsym_info () will have resolved the actual function
+     address for us. But we won't know if we see either or both.  */
+  if (opd_section != SHN_UNDEF)
+    {
+      // Map ".sys_foo" to "sys_foo".
+      if (name[0] == '.')
+	name++;
+
+      // Make sure we don't create duplicate func_info's
+      range_t er = map_by_addr.equal_range(addr);
+      for (iterator_t it = er.first; it != er.second; ++it)
+        if (it->second->name == name)
+	  return;
+    }
+
   func_info *fi = new func_info();
   fi->addr = addr;
   fi->name = name;
   fi->weak = weak;
   fi->descriptor = descriptor;
-  map_by_name[fi->name] = fi;
-  // TODO: Use a multimap in case there are multiple static
-  // functions with the same name?
+
+  map_by_name.insert(make_pair(fi->name, fi));
   map_by_addr.insert(make_pair(addr, fi));
 }
 
 void
 symbol_table::prepare_section_rejection(Dwfl_Module *mod __attribute__ ((unused)))
 {
-#ifdef __powerpc__
+  Dwarf_Addr bias;
+  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+              ?: dwfl_module_getelf (mod, &bias));
+
+  GElf_Ehdr ehdr_mem;
+  GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+  if (em == NULL) throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
+  /* Only old ELFv1 PPC64 ABI have function descriptors.  */
+  opd_section = SHN_UNDEF;
+  if (em->e_machine != EM_PPC64 || (em->e_flags & EF_PPC64_ABI) == 2)
+    return;
+
   /*
    * The .opd section contains function descriptors that can look
    * just like function entry points.  For example, there's a function
    * descriptor called "do_exit" that links to the entry point ".do_exit".
    * Reject all symbols in .opd.
    */
-  opd_section = SHN_UNDEF;
-  Dwarf_Addr bias;
-  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
-                                    ?: dwfl_module_getelf (mod, &bias));
   Elf_Scn* scn = 0;
   size_t shstrndx;
 
@@ -8060,18 +8241,13 @@ symbol_table::prepare_section_rejection(Dwfl_Module *mod __attribute__ ((unused)
           return;
         }
     }
-#endif
 }
 
 bool
 symbol_table::reject_section(GElf_Word section)
 {
-  if (section == SHN_UNDEF)
+  if (section == SHN_UNDEF || section == opd_section)
     return true;
-#ifdef __powerpc__
-  if (section == opd_section)
-    return true;
-#endif
   return false;
 }
 
@@ -8083,6 +8259,14 @@ symbol_table::get_from_elf()
   int syments = dwfl_module_getsymtab(mod);
   assert(syments);
   prepare_section_rejection(mod);
+  Dwarf_Addr bias;
+  Elf* elf = (dwarf_getelf (dwfl_module_getdwarf (mod, &bias))
+              ?: dwfl_module_getelf (mod, &bias));
+
+  GElf_Ehdr ehdr_mem;
+  GElf_Ehdr* em = gelf_getehdr (elf, &ehdr_mem);
+  if (em == NULL) throw SEMANTIC_ERROR (_("Couldn't get elf header"));
+
   for (int i = 1; i < syments; ++i)
     {
       GElf_Sym sym;
@@ -8111,6 +8295,16 @@ symbol_table::get_from_elf()
       addr = sym.st_value;
       reject = reject_section(section);
 #endif
+     /*
+      * For ELF ABI v2 on PPC64 LE, we need to adjust sym.st_value corresponding
+      * to the bits of sym.st_other. These bits will tell us what's the offset
+      * of the local entry point from the global entry point.
+      *
+      * st_other field is currently only used with ABIv2 on ppc64
+      */
+      if ((em->e_machine == EM_PPC64) && ((em->e_flags & EF_PPC64_ABI) == 2)
+          && (GELF_ST_TYPE(sym.st_info) == STT_FUNC) && sym.st_other)
+        addr += PPC64_LOCAL_ENTRY_OFFSET(sym.st_other);
 
       if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
@@ -8142,22 +8336,32 @@ symbol_table::get_first_func()
   return (iter)->second;
 }
 
-func_info *
+/* Note this function filters out any symbols that are "rejected" because
+   they are "descriptor" function symbols or SHN_UNDEF symbols. */
+set <func_info*>
 symbol_table::lookup_symbol(const string& name)
 {
-  map<string, func_info*>::iterator i = map_by_name.find(name);
-  if (i == map_by_name.end())
-    return NULL;
-  return i->second;
+  set<func_info*> fis;
+  pair <multimap<string, func_info*>::iterator, multimap<string, func_info*>::iterator> ret;
+  ret = map_by_name.equal_range(name);
+  for (multimap<string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
+    if (! it->second->descriptor)
+      fis.insert(it->second);
+  return fis;
 }
 
-Dwarf_Addr
+/* Filters out the same "descriptor" or SHN_UNDEF symbols as
+   symbol_table::lookup_symbol.  */
+set <Dwarf_Addr>
 symbol_table::lookup_symbol_address(const string& name)
 {
-  func_info *fi = lookup_symbol(name);
-  if (fi)
-    return fi->addr;
-  return 0;
+  set <Dwarf_Addr> addrs;
+  set <func_info*> fis = lookup_symbol(name);
+
+  for (set<func_info*>::iterator it=fis.begin(); it!=fis.end(); ++it)
+    addrs.insert((*it)->addr);
+
+  return addrs;
 }
 
 // This is the kernel symbol table.  The kernel macro cond_syscall creates
@@ -8171,9 +8375,15 @@ symbol_table::lookup_symbol_address(const string& name)
 void
 symbol_table::purge_syscall_stubs()
 {
-  Dwarf_Addr stub_addr = lookup_symbol_address("sys_ni_syscall");
-  if (stub_addr == 0)
+  set<Dwarf_Addr> addrs = lookup_symbol_address("sys_ni_syscall");
+  if (addrs.empty())
     return;
+
+  /* Highly unlikely that multiple symbols named "sys_ni_syscall" may exist */
+  if (addrs.size() > 1)
+    cerr << _("Multiple 'sys_ni_syscall' symbols found.\n");
+  Dwarf_Addr stub_addr = * addrs.begin();
+
   range_t purge_range = map_by_addr.equal_range(stub_addr);
   for (iterator_t iter = purge_range.first;
        iter != purge_range.second;
@@ -8247,21 +8457,25 @@ module_info::update_symtab(cu_function_cache_t *funcs)
       // missing, so we may also need to try matching by address.  See also the
       // notes about _Z in dwflpp::iterate_over_functions().
 
-      func_info *fi = sym_table->lookup_symbol(func->first);
-      if (!fi)
+      set<func_info*> fis = sym_table->lookup_symbol(func->first);
+      if (fis.empty())
         continue;
 
-      // iterate over all functions at the same address
-      symbol_table::range_t er = sym_table->map_by_addr.equal_range(fi->addr);
-      for (symbol_table::iterator_t it = er.first; it != er.second; ++it)
+      for (set<func_info*>::iterator fi = fis.begin(); fi!=fis.end(); ++fi)
         {
-          // update this function with the dwarf die
-          it->second->die = func->second;
+          // iterate over all functions at the same address
+          symbol_table::range_t er = sym_table->map_by_addr.equal_range((*fi)->addr);
 
-          // if this function is a new alias, then
-          // save it to merge into the function cache
-          if (it->second != fi)
-            new_funcs.insert(make_pair(it->second->name, it->second->die));
+          for (symbol_table::iterator_t it = er.first; it != er.second; ++it)
+            {
+              // update this function with the dwarf die
+              it->second->die = func->second;
+
+              // if this function is a new alias, then
+              // save it to merge into the function cache
+              if (it->second != *fi)
+                new_funcs.insert(make_pair(it->second->name, it->second->die));
+            }
         }
     }
 
@@ -10090,11 +10304,12 @@ struct tracepoint_derived_probe: public derived_probe
 {
   tracepoint_derived_probe (systemtap_session& s,
                             dwflpp& dw, Dwarf_Die& func_die,
+                            const string& tracepoint_system,
                             const string& tracepoint_name,
                             probe* base_probe, probe_point* location);
 
   systemtap_session& sess;
-  string tracepoint_name, header;
+  string tracepoint_system, tracepoint_name, header;
   vector <struct tracepoint_arg> args;
 
   void build_args(dwflpp& dw, Dwarf_Die& func_die);
@@ -10232,15 +10447,18 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   if (is_active_lvalue (e))
     throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted", e->name.c_str()), e->tok);
 
-  if (e->name == "$$name")
+  if (e->name == "$$name" || e->name == "$$system")
     {
       e->assert_no_components("tracepoint");
+
+      string member = (e->name == "$$name") ? "c->ips.tp.tracepoint_name"
+                                            : "c->ips.tp.tracepoint_system";
 
       // Synthesize an embedded expression.
       embedded_expr *expr = new embedded_expr;
       expr->tok = e->tok;
-      expr->code = string("/* string */ /* pure */ ")
-	+ string("c->ips.tracepoint_name ? c->ips.tracepoint_name : \"\"");
+      expr->code = string("/* string */ /* pure */ " +
+                          member + " ? " + member + " : \"\"");
       provide (expr);
     }
   else if (e->name == "$$vars" || e->name == "$$parms")
@@ -10295,9 +10513,9 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
     {
       assert(e->name.size() > 0 && e->name[0] == '$');
 
-      if (e->name == "$$name" || e->name == "$$parms" || e->name == "$$vars")
+      if (e->name == "$$name" || e->name == "$$system"
+          || e->name == "$$parms" || e->name == "$$vars")
         visit_target_symbol_context (e);
-
       else
         visit_target_symbol_arg (e);
     }
@@ -10311,15 +10529,25 @@ tracepoint_var_expanding_visitor::visit_target_symbol (target_symbol* e)
 
 tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
                                                     dwflpp& dw, Dwarf_Die& func_die,
+                                                    const string& tracepoint_system,
                                                     const string& tracepoint_name,
                                                     probe* base, probe_point* loc):
-  derived_probe (base, loc, true /* .components soon rewritten */),
-  sess (s), tracepoint_name (tracepoint_name)
+  derived_probe (base, loc, true /* .components soon rewritten */), sess (s),
+  tracepoint_system (tracepoint_system), tracepoint_name (tracepoint_name)
 {
   // create synthetic probe point name; preserve condition
   vector<probe_point::component*> comps;
   comps.push_back (new probe_point::component (TOK_KERNEL));
-  comps.push_back (new probe_point::component (TOK_TRACE, new literal_string (tracepoint_name)));
+
+  // tag on system to the final name unless we're in compatibility mode so that
+  // e.g. pn() returns just the name as before
+  string final_name = tracepoint_name;
+  if (!tracepoint_system.empty()
+      && strverscmp(s.compatible.c_str(), "2.6") > 0)
+    final_name = tracepoint_system + ":" + final_name;
+
+  comps.push_back (new probe_point::component (TOK_TRACE,
+                                               new literal_string(final_name)));
   this->sole_location()->components = comps;
 
   // fill out the available arguments in this tracepoint
@@ -10671,7 +10899,10 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
                        << common_probe_init (p) << ";";
       common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "probe",
 				     "stp_probe_type_tracepoint");
-      s.op->newline() << "c->ips.tracepoint_name = "
+      s.op->newline() << "c->ips.tp.tracepoint_system = "
+                      << lex_cast_qstring (p->tracepoint_system)
+                      << ";";
+      s.op->newline() << "c->ips.tp.tracepoint_name = "
                       << lex_cast_qstring (p->tracepoint_name)
                       << ";";
       for (unsigned j = 0; j < used_args.size(); ++j)
@@ -10801,15 +11032,6 @@ tracepoint_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 struct tracepoint_query : public base_query
 {
-  tracepoint_query(dwflpp & dw, const string & tracepoint,
-                   probe * base_probe, probe_point * base_loc,
-                   vector<derived_probe *> & results):
-    base_query(dw, "*"), tracepoint(tracepoint),
-    base_probe(base_probe), base_loc(base_loc),
-    results(results) {}
-
-  const string& tracepoint;
-
   probe * base_probe;
   probe_point * base_loc;
   vector<derived_probe *> & results;
@@ -10823,12 +11045,112 @@ struct tracepoint_query : public base_query
 
   static int tracepoint_query_cu (Dwarf_Die * cudie, tracepoint_query * q);
   static int tracepoint_query_func (Dwarf_Die * func, tracepoint_query * q);
+
+  tracepoint_query(dwflpp & dw, const string & tracepoint,
+                   probe * base_probe, probe_point * base_loc,
+                   vector<derived_probe *> & results):
+    base_query(dw, "*"), base_probe(base_probe),
+    base_loc(base_loc), results(results)
+  {
+    // The user may have specified the system to probe, e.g. all of the
+    // following are possible:
+    //
+    //   sched_switch --> tracepoint named sched_switch
+    //   sched:sched_switch --> tracepoint named sched_switch in the sched system
+    //   sch*:sched_* --> system starts with sch and tracepoint starts with sched_
+    //   sched:* --> all tracepoints in system sched
+    //   *:sched_switch --> same as just sched_switch
+
+    size_t sys_pos = tracepoint.find(':');
+    if (sys_pos == string::npos)
+      {
+        this->system = "";
+        this->tracepoint = tracepoint;
+      }
+    else
+      {
+        if (strverscmp(sess.compatible.c_str(), "2.6") <= 0)
+          throw SEMANTIC_ERROR (_("SYSTEM:TRACEPOINT syntax not supported "
+                                  "with --compatible <= 2.6"));
+
+        this->system = tracepoint.substr(0, sys_pos);
+        this->tracepoint = tracepoint.substr(sys_pos+1);
+      }
+
+    // make sure we have something to query (filters out e.g. "" and ":")
+    if (this->tracepoint.empty())
+      throw SEMANTIC_ERROR (_("invalid tracepoint string provided"));
+  }
+
+private:
+  string system; // target subsystem(s) to query
+  string tracepoint; // target tracepoint(s) to query
+  string current_system; // subsystem of module currently being visited
+
+  string retrieve_trace_system();
 };
+
+// name of section where TRACE_SYSTEM is stored
+// (see tracepoint_builder::get_tracequery_modules())
+#define STAP_TRACE_SYSTEM ".stap_trace_system"
+
+string
+tracepoint_query::retrieve_trace_system()
+{
+  Dwarf_Addr bias;
+  Elf* elf = dwfl_module_getelf(dw.module, &bias);
+  if (!elf)
+    return "";
+
+  size_t shstrndx;
+  if (elf_getshdrstrndx(elf, &shstrndx))
+    return "";
+
+  Elf_Scn *scn = NULL;
+  GElf_Shdr shdr_mem;
+
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      if (gelf_getshdr(scn, &shdr_mem) == NULL)
+        return "";
+
+      const char *name = elf_strptr(elf, shstrndx, shdr_mem.sh_name);
+      if (name == NULL)
+        return "";
+
+      if (strcmp(name, STAP_TRACE_SYSTEM) == 0)
+        break;
+    }
+
+  if (scn == NULL)
+    return "";
+
+  // Extract saved TRACE_SYSTEM in section
+  Elf_Data *data = elf_getdata(scn, NULL);
+  if (!data)
+    return "";
+
+  return string((char*)data->d_buf);
+}
 
 
 void
 tracepoint_query::handle_query_module()
 {
+  // Get the TRACE_SYSTEM for this module, if any. It will be found in the
+  // STAP_TRACE_SYSTEM section if it exists.
+  current_system = retrieve_trace_system();
+
+  // check if user wants a specific system
+  if (!system.empty())
+    {
+      // don't need to go further if module has no system or doesn't
+      // match the one we want
+      if (current_system.empty()
+          || !dw.function_name_matches_pattern(current_system, system))
+        return;
+    }
+
   // look for the tracepoints in each CU
   dw.iterate_over_cus(tracepoint_query_cu, this, false);
 }
@@ -10859,7 +11181,22 @@ tracepoint_query::handle_query_func(Dwarf_Die * func)
   if (!probed_names.insert(tracepoint_instance).second)
     return DWARF_CB_OK;
 
+  // PR17126: blacklist
+  if (!sess.guru_mode)
+    {
+      if ((sess.architecture.substr(0,3) == "ppc" ||
+           sess.architecture.substr(0,7) == "powerpc") &&
+          (tracepoint_instance == "hcall_entry" ||
+           tracepoint_instance == "hcall_exit"))
+        {
+          sess.print_warning(_F("tracepoint %s is blacklisted on architecture %s",
+                                tracepoint_instance.c_str(), sess.architecture.c_str()));
+          return DWARF_CB_OK;
+        }
+  }
+
   derived_probe *dp = new tracepoint_derived_probe (dw.sess, dw, *func,
+                                                    current_system,
                                                     tracepoint_instance,
                                                     base_probe, base_loc);
   results.push_back (dp);
@@ -11019,6 +11356,13 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
              << "#undef TRACE_INCLUDE_PATH\n"
              << short_decls[z] << "\n";
 
+      // create a section that will hold the TRACE_SYSTEM for this header
+      osrc << "#ifdef TRACE_SYSTEM" << endl;
+      osrc << "const char stap_trace_system[]" << endl;
+      osrc << "  __attribute__((section(\"" STAP_TRACE_SYSTEM "\")))" << endl;
+      osrc << "    = __stringify(TRACE_SYSTEM);" << endl;
+      osrc << "#endif" << endl;
+
       // finish up the module source
       osrc << "#endif /* CONFIG_TRACEPOINTS */" << endl;
 
@@ -11029,22 +11373,22 @@ tracepoint_builder::get_tracequery_modules(systemtap_session& s,
   // now build them all together
   map<string,string> tracequery_objs = make_tracequeries(s, headers_tracequery_src);
 
-  // now plop them into the cache
-  if (s.use_cache)
-    for (size_t i=0; i<uncached_headers.size(); i++)
-      {
-        const string& header = uncached_headers[i];
-        const string& tracequery_obj = tracequery_objs[header];
-        const string& tracequery_path = headers_cache_obj[header];
-        if (tracequery_obj !="" && file_exists(tracequery_obj))
-          {
+  // now extend the modules list, and maybe plop them into the cache
+  for (size_t i=0; i<uncached_headers.size(); i++)
+    {
+      const string& header = uncached_headers[i];
+      const string& tracequery_obj = tracequery_objs[header];
+      const string& tracequery_path = headers_cache_obj[header];
+      if (tracequery_obj !="" && file_exists(tracequery_obj))
+        {
+          modules.push_back (tracequery_obj);
+          if (s.use_cache)
             copy_file(tracequery_obj, tracequery_path, s.verbose > 2);
-            modules.push_back (tracequery_path);
-          }
-        else
-          // cache an empty file for failures
-          copy_file("/dev/null", tracequery_path, s.verbose > 2);
-      }
+        }
+      else if (s.use_cache)
+        // cache an empty file for failures
+        copy_file("/dev/null", tracequery_path, s.verbose > 2);
+    }
 }
 
 
@@ -11060,7 +11404,7 @@ tracepoint_builder::init_dw(systemtap_session& s)
 
   glob_t trace_glob;
 
-  // find kernel_source_tree
+  // find kernel_source_tree from DW_AT_comp_dir
   if (s.kernel_source_tree == "")
     {
       unsigned found;
@@ -11076,17 +11420,23 @@ tracepoint_builder::init_dw(systemtap_session& s)
               const char* name = dwarf_formstring (dwarf_attr (cudie, DW_AT_comp_dir, &attr));
               if (name)
                 {
-                  // check that the path actually exists locally before we try to use it
-                  if (file_exists(name))
+                  // Before we try to use it, check that the path actually
+                  // exists locally and is distinct from the build tree.
+                  if (!file_exists(name))
                     {
                       if (s.verbose > 2)
-                        clog << _F("Located kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
-                      s.kernel_source_tree = name;
+                        clog << _F("Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                    }
+                  else if (resolve_path(name) == resolve_path(s.kernel_build_tree))
+                    {
+                      if (s.verbose > 2)
+                        clog << _F("Ignoring duplicate kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
                     }
                   else
                     {
                       if (s.verbose > 2)
-                        clog << _F("Ignoring inaccessible kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                        clog << _F("Located kernel source tree (DW_AT_comp_dir) at '%s'", name) << endl;
+                      s.kernel_source_tree = name;
                     }
 
                   break; // skip others; modern Kbuild uses same comp_dir for them all
@@ -11094,6 +11444,20 @@ tracepoint_builder::init_dw(systemtap_session& s)
             }
         }
       dwfl_end (dwfl);
+    }
+
+  // find kernel_source_tree from a source link, when different from build
+  if (s.kernel_source_tree == "" && endswith(s.kernel_build_tree, "/build"))
+    {
+      string source_tree = s.kernel_build_tree;
+      source_tree.replace(source_tree.length() - 5, 5, "source");
+      if (file_exists(source_tree) &&
+          resolve_path(source_tree) != resolve_path(s.kernel_build_tree))
+        {
+          if (s.verbose > 2)
+            clog << _F("Located kernel source tree at '%s'", source_tree.c_str()) << endl;
+          s.kernel_source_tree = source_tree;
+        }
     }
 
   // prefixes

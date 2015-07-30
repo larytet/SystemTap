@@ -103,7 +103,6 @@ struct c_unparser: public unparser, public visitor
   void emit_lock_decls (const varuse_collecting_visitor& v);
   void emit_locks ();
   void emit_probe (derived_probe* v);
-  void emit_probe_condition_initialize(derived_probe* v);
   void emit_probe_condition_update(derived_probe* v);
   void emit_unlocks ();
 
@@ -229,6 +228,8 @@ struct c_tmpcounter:
   void load_aggregate (expression *e);
 
   void visit_block (block *s);
+  void visit_try_block (try_block* s);
+  void visit_if_statement (if_statement* s);
   void visit_for_loop (for_loop* s);
   void visit_foreach_loop (foreach_loop* s);
   // void visit_return_statement (return_statement* s);
@@ -250,6 +251,13 @@ struct c_tmpcounter:
   void visit_functioncall (functioncall* e);
   void visit_print_format (print_format* e);
   void visit_stat_op (stat_op* e);
+
+  void wrap_visit_in_struct (expression *e);
+  void wrap_visit_in_struct (statement *s);
+  void start_struct_def (std::ostream::pos_type &before,
+                         std::ostream::pos_type &after, const token* tok);
+  void close_struct_def (std::ostream::pos_type before,
+                         std::ostream::pos_type after);
 };
 
 struct c_unparser_assignment:
@@ -934,6 +942,37 @@ ostream & operator<<(ostream & o, itervar const & v)
 
 // ------------------------------------------------------------------------
 
+struct unmodified_fnargs_checker : public embedded_tags_visitor
+{
+  bool embedded_seen; // excludes code with pure and unmodified-args
+  unmodified_fnargs_checker (): embedded_tags_visitor(true), embedded_seen(false) {}
+
+  void visit_embeddedcode (embeddedcode *e)
+    {
+      embedded_tags_visitor::visit_embeddedcode(e);
+      // set embedded_seen to true if it does not contain /* unmodified-fnargs */
+      embedded_seen = (embedded_seen || !tagged_p("/* unmodified-fnargs */"));
+    }
+};
+
+bool
+is_unmodified_string_fnarg (systemtap_session* sess, functiondecl* fd, vardecl* v)
+{
+  if (sess->unoptimized || v->type != pe_string)
+    return false;
+
+  // check that there is no embedded code that might modify the fn args
+  unmodified_fnargs_checker ecv;
+  fd->body->visit(& ecv);
+  if (ecv.embedded_seen)
+    return false;
+
+  varuse_collecting_visitor vut (*sess);
+  vut.current_function = fd;
+  fd->body->visit(& vut);
+  return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
+}
+
 void
 c_unparser::emit_common_header ()
 {
@@ -997,6 +1036,16 @@ c_unparser::emit_common_header ()
           c_tmpcounter ct (this);
           dp->body->visit (& ct);
 
+          // finish by visiting conditions of affected probes to match
+          // c_unparser::emit_probe()
+          if (!dp->probes_with_affected_conditions.empty())
+            {
+              for (set<derived_probe*>::const_iterator
+                    it  = dp->probes_with_affected_conditions.begin();
+                    it != dp->probes_with_affected_conditions.end(); ++it)
+                (*it)->sole_location()->condition->visit(& ct);
+            }
+
           o->newline(-1) << "} " << dp->name << ";";
         }
     }
@@ -1042,19 +1091,25 @@ c_unparser::emit_common_header ()
           vardecl* v = fd->formal_args[j];
 	  try
 	    {
+              v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
+
+              if (v->char_ptr_arg && session->verbose > 2)
+                clog << _F("variable %s for function %s will be passed by reference (char *)",
+                           v->name.c_str(), fd->name.c_str()) << endl;
+
               if (fd->mangle_oldstyle)
                 {
                   // PR14524: retain old way of referring to the locals
                   o->newline() << "union { "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name) << "; "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name, true) << "; };";
+                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name) << "; "
+                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name, true) << "; };";
                 }
               else
                 {
-                  o->newline() << c_typename (v->type) << " "
-                               << c_localname (v->name) << ";";
+                  o->newline() << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+                               << " " << c_localname (v->name) << ";";
                 }
 	    } catch (const semantic_error& e) {
 	      semantic_error e2 (e);
@@ -1068,7 +1123,11 @@ c_unparser::emit_common_header ()
 	o->newline() << "/* no return value */";
       else
 	{
-	  o->newline() << c_typename (fd->type) << " __retvalue;";
+          if (!session->unoptimized && fd->type == pe_string&& session->verbose > 2)
+            clog << _F("return value for function %s will be passed by reference (char *)",
+                       fd->name.c_str()) << endl;
+	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
+                       << " __retvalue;";
 	}
       o->newline(-1) << "} " << c_funcname (fd->name) << ";";
     }
@@ -1136,8 +1195,10 @@ c_unparser::emit_common_header ()
       o->newline( 0)  <<   "            ktime_set(0, STP_ON_THE_FLY_INTERVAL))); ";
       o->newline( 0)  <<   "return HRTIMER_RESTART;";
       o->newline(-1)  << "}";
-      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_ENABLE */";
+      o->newline( 0)  << "#endif /* STP_ON_THE_FLY_TIMER_ENABLE */";
     }
+
+  o->newline(0) << "#include \"namespaces.h\"";
 
   o->newline();
 }
@@ -1885,10 +1946,6 @@ c_unparser::emit_module_init ()
       o->newline() << "#endif";
     }
 
-  // Initialize probe conditions
-  for (unsigned i=0; i<session->probes.size(); i++)
-    emit_probe_condition_initialize(session->probes[i]);
-
   // Run all probe registrations.  This actually runs begin probes.
 
   for (unsigned i=0; i<g.size(); i++)
@@ -2038,7 +2095,9 @@ c_unparser::emit_module_refresh ()
   o->newline() << "if (state != STAP_SESSION_RUNNING && state != STAP_SESSION_STARTING && state != STAP_SESSION_ERROR) {";
   // cannot _stp_warn etc. since we're not in probe context
   o->newline(1) << "#if defined(__KERNEL__)";
-  o->newline() << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\\n\", state);";
+  o->newline() << "if (state != STAP_SESSION_STOPPING)";
+  o->newline(1) << "printk (KERN_ERR \"stap module notifier triggered in unexpected state %d\\n\", state);";
+  o->indent(-1);
   o->newline() << "#endif";
 
   if (!session->runtime_usermode_p())
@@ -2650,26 +2709,6 @@ c_unparser::emit_probe (derived_probe* v)
   this->already_checked_action_count = false;
 }
 
-// Initializes the cond_enabled field by evaluating condition predicate.
-void
-c_unparser::emit_probe_condition_initialize(derived_probe* v)
-{
-  unsigned i = v->session_index;
-  assert(i < session->probes.size());
-
-  expression *cond = v->sole_location()->condition;
-  string cond_enabled = "stap_probes[" + lex_cast(i) + "].cond_enabled";
-
-  // no condition --> always enabled (initialized via STAP_PROBE_INIT)
-  if (!cond)
-    return;
-
-  // turn general integer into boolean 0/1
-  o->newline() << cond_enabled << " = !!";
-  cond->visit(this);
-  o->line() << ";";
-}
-
 // Updates the cond_enabled field and sets need_module_refresh if it was
 // changed.
 void
@@ -3022,6 +3061,26 @@ c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
     }
 }
 
+
+struct expression_is_functioncall : public expression_visitor
+{
+  c_unparser* parent;
+  functioncall* fncall;
+  expression_is_functioncall (c_unparser* p)
+    : parent(p), fncall(NULL) {}
+
+  void visit_expression (expression* e)
+    {
+      // works on the basis that every expression will, by default, call this
+      // function, except for functioncall, as the visitor is overwritten
+      fncall = NULL;
+    }
+  void visit_functioncall (functioncall* e)
+    {
+      fncall = e;
+    }
+};
+
 void
 c_unparser::c_assign (const string& lvalue, expression* rvalue,
 		      const string& msg)
@@ -3034,7 +3093,22 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else if (rvalue->type == pe_string)
     {
-      c_strcpy (lvalue, rvalue);
+      expression_is_functioncall eif (this);
+      rvalue->visit(& eif);
+      if (!session->unoptimized && eif.fncall)
+        {
+          // let the functioncall know that the return value is being saved/used
+          // and keep track of the lvalue, so that the retval assignment can
+          // happen in ::visit_functioncall, to avoid complications with nesting.
+          eif.fncall->var_assigned_to_retval = lvalue;
+          eif.fncall->visit (this);
+          o->line() << ";";
+        }
+      else
+        {
+          // will call rvalue->visit()
+          c_strcpy (lvalue, rvalue);
+        }
     }
   else
     {
@@ -3374,6 +3448,22 @@ c_unparser::visit_block (block *s)
 }
 
 
+void c_tmpcounter::visit_try_block (try_block *s)
+{
+  parent->o->newline() << "union { /* try_block: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
+  parent->o->indent(1);
+
+  if (s->try_block)
+    wrap_visit_in_struct(s->try_block);
+  if (s->catch_error_var)
+    wrap_visit_in_struct(s->catch_error_var);
+  if (s->catch_block)
+    wrap_visit_in_struct(s->catch_block);
+
+  parent->o->newline(-1) << "};";
+}
 void c_unparser::visit_try_block (try_block *s)
 {
   record_actions(0, s->tok, true); // flush prior actions
@@ -3456,6 +3546,73 @@ c_unparser::visit_expr_statement (expr_statement *s)
 
 
 void
+c_tmpcounter::wrap_visit_in_struct (statement *s)
+{
+  std::ostream::pos_type before_struct_pos;
+  std::ostream::pos_type after_struct_pos;
+
+  start_struct_def(before_struct_pos, after_struct_pos, s->tok);
+  s->visit (this);
+  close_struct_def(before_struct_pos, after_struct_pos);
+}
+
+void
+c_tmpcounter::wrap_visit_in_struct (expression *e)
+{
+  std::ostream::pos_type before_struct_pos;
+  std::ostream::pos_type after_struct_pos;
+
+  start_struct_def(before_struct_pos, after_struct_pos, e->tok);
+  e->visit (this);
+  close_struct_def(before_struct_pos, after_struct_pos);
+}
+
+void
+c_tmpcounter::start_struct_def (std::ostream::pos_type &before,
+                                std::ostream::pos_type &after, const token* tok)
+{
+  // To avoid lots of empty structs, remember  where we are now.  Then,
+  // output the struct start and remember that positon.  If when we get
+  // done with the statement we haven't moved, then we don't really need
+  // the struct.  To get rid of the struct start we output, we'll seek back
+  // to where we were before we output the struct (done in ::close_struct_def).
+  before = parent->o->tellp();
+  parent->o->newline() << "struct { /* source: " << tok->location.file->name
+                         << ":" << lex_cast(tok->location.line) << " */";
+  parent->o->indent(1);
+  after = parent->o->tellp();
+}
+
+void
+c_tmpcounter::close_struct_def (std::ostream::pos_type before,
+                                std::ostream::pos_type after)
+{
+  // meant to be used with ::start_struct_def. remove the struct if empty.
+  parent->o->indent(-1);
+  if (after == parent->o->tellp())
+    parent->o->seekp(before);
+  else
+    parent->o->newline() << "};";
+}
+
+void
+c_tmpcounter::visit_if_statement (if_statement *s)
+{
+  parent->o->newline() << "union { /* if_statement: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
+  parent->o->indent(1);
+
+  wrap_visit_in_struct(s->condition);
+  wrap_visit_in_struct(s->thenblock);
+
+  if (s->elseblock)
+    wrap_visit_in_struct(s->elseblock);
+
+  parent->o->newline(-1) << "};";
+}
+
+void
 c_unparser::visit_if_statement (if_statement *s)
 {
   record_actions(1, s->tok, true);
@@ -3486,37 +3643,29 @@ c_tmpcounter::visit_block (block *s)
   // temporary variable slots, since temporaries don't survive
   // statement boundaries.  So we use gcc's anonymous union/struct
   // facility to explicitly overlay the temporaries.
-  parent->o->newline() << "union {";
+  parent->o->newline() << "union { /* block_statement: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
   parent->o->indent(1);
   for (unsigned i=0; i<s->statements.size(); i++)
-    {
-      // To avoid lots of empty structs inside the union, remember
-      // where we are now.  Then, output the struct start and remember
-      // that positon.  If when we get done with the statement we
-      // haven't moved, then we don't really need the struct.  To get
-      // rid of the struct start we output, we'll seek back to where
-      // we were before we output the struct.
-      std::ostream::pos_type before_struct_pos = parent->o->tellp();
-      parent->o->newline() << "struct {";
-      parent->o->indent(1);
-      std::ostream::pos_type after_struct_pos = parent->o->tellp();
-      s->statements[i]->visit (this);
-      parent->o->indent(-1);
-      if (after_struct_pos == parent->o->tellp())
-	parent->o->seekp(before_struct_pos);
-      else
-	parent->o->newline() << "};";
-    }
+    wrap_visit_in_struct(s->statements[i]);
   parent->o->newline(-1) << "};";
 }
 
 void
 c_tmpcounter::visit_for_loop (for_loop *s)
 {
-  if (s->init) s->init->visit (this);
-  s->cond->visit (this);
-  s->block->visit (this);
-  if (s->incr) s->incr->visit (this);
+  parent->o->newline() << "union { /* for_loop: "
+                       << s->tok->location.file->name << ":"
+                       << lex_cast(s->tok->location.line) << " */";
+  parent->o->indent(1);
+
+  if (s->init) wrap_visit_in_struct(s->init);
+  wrap_visit_in_struct(s->cond);
+  wrap_visit_in_struct(s->block);
+  if (s->incr) wrap_visit_in_struct(s->incr);
+
+  parent->o->newline(-1) << "};";
 }
 
 
@@ -3673,6 +3822,26 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
   hist_op *hist;
   classify_indexable (s->base, array, hist);
 
+  // tmpvar mem usage can't be optimized by wrapping the tmp declarations
+  // in a union like in ::visit_for_loop. this is because the tmps for
+  // the limit, and the mapvar+indexes (or aggvar) are used in multiple
+  // areas, such that they would need to be declared outside of the
+  // union. that leaves the body, which would need to be encased in a
+  // struct decl rendering the union useless.
+
+  // Create a temporary for the loop limit counter and the limit
+  // expression result.
+  if (s->limit)
+    {
+      tmpvar res_limit = parent->gensym (pe_long);
+      res_limit.declare(*parent);
+
+      s->limit->visit (this);
+
+      tmpvar limitv = parent->gensym (pe_long);
+      limitv.declare(*parent);
+    }
+
   if (array)
     {
       itervar iv = parent->getiter (array);
@@ -3710,19 +3879,6 @@ c_tmpcounter::visit_foreach_loop (foreach_loop *s)
       load_aggregate (hist->stat);
     }
 
-  // Create a temporary for the loop limit counter and the limit
-  // expression result.
-  if (s->limit)
-    {
-      tmpvar res_limit = parent->gensym (pe_long);
-      res_limit.declare(*parent);
-
-      s->limit->visit (this);
-
-      tmpvar limitv = parent->gensym (pe_long);
-      limitv.declare(*parent);
-    }
-
   parent->visit_foreach_loop_value(this, s);
 }
 
@@ -3741,7 +3897,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
   if (array)
     {
       mapvar mv = getmap (array->referent, s->tok);
-      itervar iv = getiter (array);
       vector<var> keys;
 
       // NB: structure parallels for_loop
@@ -3827,10 +3982,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 
       // NB: sort direction sense is opposite in runtime, thus the negation
 
-      if (mv.is_parallel())
-	aggregations_active.insert(mv.value());
-      o->newline() << iv << " = " << iv.start (mv) << ";";
-
       tmpvar *limitv = NULL;
       if (s->limit)
       {
@@ -3838,6 +3989,12 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  limitv = new tmpvar(gensym (pe_long));
 	  o->newline() << *limitv << " = 0LL;";
       }
+
+      if (mv.is_parallel())
+	aggregations_active.insert(mv.value());
+
+      itervar iv = getiter (array);
+      o->newline() << iv << " = " << iv.start (mv) << ";";
 
       vector<tmpvar *> array_slice_vars;
       // store the the variables corresponding to the index of the array slice
@@ -3957,12 +4114,6 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
       // Iterating over buckets in a histogram.
       assert(s->indexes.size() == 1);
       assert(s->indexes[0]->referent->type == pe_long);
-      var bucketvar = getvar (s->indexes[0]->referent);
-
-      aggvar agg = gensym_aggregate ();
-
-      var *v = load_aggregate(hist->stat, agg);
-      v->assert_hist_compatible(*hist);
 
       tmpvar *res_limit = NULL;
       tmpvar *limitv = NULL;
@@ -3976,6 +4127,13 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  limitv = new tmpvar(gensym (pe_long));
 	  o->newline() << *limitv << " = 0LL;";
 	}
+
+      var bucketvar = getvar (s->indexes[0]->referent);
+
+      aggvar agg = gensym_aggregate ();
+
+      var *v = load_aggregate(hist->stat, agg);
+      v->assert_hist_compatible(*hist);
 
       record_actions(1, s->tok, true);
       o->newline() << "for (" << bucketvar << " = 0; "
@@ -5533,6 +5691,7 @@ c_tmpcounter::visit_functioncall (functioncall *e)
 {
   assert (e->referent != 0);
   functiondecl* r = e->referent;
+
   // one temporary per argument, unless literal numbers or strings
   for (unsigned i=0; i<r->formal_args.size(); i++)
     {
@@ -5542,6 +5701,10 @@ c_tmpcounter::visit_functioncall (functioncall *e)
 	t.declare (*parent);
       e->args[i]->visit (this);
     }
+
+  tmpvar t = parent->gensym (e->type);
+  if (!parent->session->unoptimized && e->type == pe_string && e->var_assigned_to_retval.empty())
+    t.declare(*parent);
 }
 
 
@@ -5571,9 +5734,13 @@ c_unparser::visit_functioncall (functioncall* e)
 	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
+      symbol *sym_out;
       if (e->args[i]->tok->type == tok_number
 	  || e->args[i]->tok->type == tok_string)
 	t.override(c_expression(e->args[i]));
+      else if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
+               && is_local(sym_out->referent, sym_out->tok))
+        t.override(getvar(sym_out->referent, e->args[i]->tok).value());
       else
         {
 	  // o->newline() << "c->last_stmt = "
@@ -5591,14 +5758,30 @@ c_unparser::visit_functioncall (functioncall* e)
 	throw SEMANTIC_ERROR (_("function argument type mismatch"),
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
-      c_assign ("c->locals[c->nesting+1]." +
-		c_funcname (r->name) + "." +
-                c_localname (r->formal_args[i]->name),
-                tmp[i].value(),
-                e->args[i]->type,
-                "function actual argument copy",
-                e->args[i]->tok);
+      if (r->formal_args[i]->char_ptr_arg)
+        o->newline() << "c->locals[c->nesting+1]." + c_funcname (r->name) + "."
+                        + c_localname (r->formal_args[i]->name) << " = "
+                     << tmp[i].value() << ";";
+      else
+        c_assign ("c->locals[c->nesting+1]." +
+                  c_funcname (r->name) + "." +
+                  c_localname (r->formal_args[i]->name),
+                  tmp[i].value(),
+                  e->args[i]->type,
+                  "function actual argument copy",
+                  e->args[i]->tok);
     }
+
+  tmpvar tmp_ret = gensym (e->type);
+  // store the return value after the function arguments have been worked out
+  // to avoid problems that may occure with nesting.
+  if (!e->var_assigned_to_retval.empty())
+    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                 << ".__retvalue = &" << e->var_assigned_to_retval << "[0];";
+  // store the return value into a tmpvar in case the return is never used/assigned
+  else if (!session->unoptimized && e->type == pe_string)
+    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+                 << ".__retvalue = &" << tmp_ret.value() << "[0];";
 
   // call function
   o->newline() << c_funcname (r->name) << " (c);";
@@ -5621,10 +5804,12 @@ c_unparser::visit_functioncall (functioncall* e)
   if (r->type == pe_unknown)
     // If we passed typechecking, then nothing will use this return value
     o->newline() << "(void) 0;";
-  else
+  else if (session->unoptimized || r->type != pe_string)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
+  else if (e->var_assigned_to_retval.empty())
+    o->newline() << tmp_ret.value() << ";";
 
 }
 
@@ -6111,6 +6296,8 @@ struct unwindsym_dump_context
   size_t eh_frame_hdr_len;
   Dwarf_Addr eh_addr;
   Dwarf_Addr eh_frame_hdr_addr;
+  void *debug_line;
+  size_t debug_line_len;
 
   set<string> undone_unwindsym_modules;
 };
@@ -6444,6 +6631,186 @@ dump_section_list (Dwfl_Module *m,
   return DWARF_CB_ABORT;
 }
 
+static void find_debug_frame_offset (Dwfl_Module *m,
+                                     unwindsym_dump_context *c)
+{
+  Dwarf_Addr start, bias = 0;
+  GElf_Ehdr *ehdr, ehdr_mem;
+  GElf_Shdr *shdr, shdr_mem;
+  Elf_Scn *scn = NULL;
+  Elf_Data *data = NULL;
+  Elf *elf;
+
+  dwfl_module_info (m, NULL, &start, NULL, NULL, NULL, NULL, NULL);
+
+  // fetch .debug_frame info preferably from dwarf debuginfo file.
+  elf = (dwarf_getelf (dwfl_module_getdwarf (m, &bias))
+	 ?: dwfl_module_getelf (m, &bias));
+  ehdr = gelf_getehdr(elf, &ehdr_mem);
+
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      shdr = gelf_getshdr(scn, &shdr_mem);
+      if (strcmp(elf_strptr(elf, ehdr->e_shstrndx, shdr->sh_name),
+		 ".debug_frame") == 0)
+	{
+	  data = elf_rawdata(scn, NULL);
+	  break;
+	}
+    }
+
+  if (!data) // need this check since dwarf_next_cfi() doesn't do it
+    return;
+
+  // In the .debug_frame the FDE encoding is always DW_EH_PE_absptr.
+  // So there is no need to read the CIEs.  And the size is either 4
+  // or 8, depending on the elf class from e_ident.
+  int size = (ehdr->e_ident[EI_CLASS] == ELFCLASS32) ? 4 : 8;
+  int res = 0;
+  Dwarf_Off off = 0;
+  Dwarf_CFI_Entry entry;
+
+  while (res != 1)
+    {
+      Dwarf_Off next_off;
+      res = dwarf_next_cfi (ehdr->e_ident, data, false, off, &next_off, &entry);
+      if (res == 0)
+	{
+	  if (entry.CIE_id != DW_CIE_ID_64) // ignore CIEs
+	    {
+	      Dwarf_Addr addr;
+	      if (size == 4)
+		addr = (*((uint32_t *) entry.fde.start));
+	      else
+		addr = (*((uint64_t *) entry.fde.start));
+              Dwarf_Addr first_addr = addr;
+              int res = dwfl_module_relocate_address (m, &first_addr);
+              DWFL_ASSERT ("find_debug_frame_offset, dwfl_module_relocate_address",
+                           res >= 0);
+              c->debug_frame_off = addr - first_addr;
+	    }
+	}
+      else if (res < 1)
+        return;
+      off = next_off;
+    }
+}
+
+static int
+dump_line_tables_check (void *data, size_t data_len)
+{
+  uint64_t unit_length = 0,  header_length = 0;
+  uint16_t version = 0;
+  uint8_t *ptr = (uint8_t *)data, *endunitptr, opcode_base = 0;
+  unsigned length = 4;
+
+  while (ptr < ((uint8_t *)data + data_len))
+   {
+      if (ptr + 4 > (uint8_t *)data + data_len)
+        return DWARF_CB_ABORT;
+
+      unit_length = *((uint32_t *) ptr);
+      ptr += 4;
+      if (unit_length == 0xffffffff)
+        {
+          if (ptr + 8 > (uint8_t *)data + data_len)
+            return DWARF_CB_ABORT;
+          length = 8;
+          unit_length = *((uint64_t *) ptr);
+          ptr += 8;
+        }
+
+      if ((ptr + unit_length > (uint8_t *)data + data_len) || unit_length <= 2)
+        return DWARF_CB_ABORT;
+
+      endunitptr = ptr + unit_length;
+
+      version  = *((uint16_t *)ptr);
+      ptr += 2;
+
+      if (unit_length <= (2 + length))
+        return DWARF_CB_ABORT;
+
+      if (length == 4)
+        {
+          header_length = *((uint32_t *) ptr);
+          ptr += 4;
+        }
+      else
+        {
+          header_length = *((uint64_t *) ptr);
+          ptr += 8;
+        }
+
+      // safety check for the next few jumps
+      if (header_length <= ((version >= 4 ? 5 : 4) + 2)
+          || (unit_length - (2 + length) < header_length))
+        return DWARF_CB_ABORT;
+
+      // skip past min instr length, max ops per instr, and line base
+      if (version >= 4)
+        ptr += 3;
+      else
+        ptr += 2;
+
+      // check that the line range is not 0
+      if (*ptr == 0)
+        return DWARF_CB_ABORT;
+      ptr++;
+
+      // check that the header accomodates the std opcode lens section
+      opcode_base = *((uint8_t *) ptr);
+      if (header_length <= (uint64_t) (opcode_base + (version >= 4 ? 7 : 6)))
+        return DWARF_CB_ABORT;
+
+      // the initial checks stop here, before the directory table
+      ptr = endunitptr;
+    }
+  return DWARF_CB_OK;
+}
+
+static void
+dump_line_tables (Dwfl_Module *m, unwindsym_dump_context *c,
+                  const char *modname, Dwarf_Addr base)
+{
+  Elf* elf;
+  Elf_Scn* scn = NULL;
+  Elf_Data* data;
+  GElf_Ehdr *ehdr, ehdr_mem;
+  GElf_Shdr* shdr, shdr_mem;
+  Dwarf_Addr bias, start;
+
+  dwfl_module_info (m, NULL, &start, NULL, NULL, NULL, NULL, NULL);
+
+  elf = dwfl_module_getelf (m, &bias);
+  if (elf == NULL)
+    return;
+
+  // we do not have the index for debug_line, so we can't use elf_getscn()
+  // instead, we need to seach through the sections for the correct one as in
+  // get_unwind_data()
+  ehdr = gelf_getehdr(elf, &ehdr_mem);
+  while ((scn = elf_nextscn(elf, scn)))
+    {
+      shdr = gelf_getshdr(scn, &shdr_mem);
+      if (strcmp(elf_strptr(elf, ehdr->e_shstrndx, shdr->sh_name),
+                 ".debug_line") == 0)
+        {
+          data = elf_rawdata(scn, NULL);
+          if (dump_line_tables_check(data->d_buf, data->d_size) == DWARF_CB_ABORT)
+            return;
+          c->debug_line = data->d_buf;
+          c->debug_line_len = data->d_size;
+          break;
+        }
+    }
+
+  // still need to get some kind of information about the sec_load_offset for
+  // kernel addresses if there is no unwind data
+  if (c->debug_line_len > 0 && !c->session.need_unwind)
+    find_debug_frame_offset (m, c);
+}
+
 /* Some architectures create special local symbols that are not
    interesting. */
 static int
@@ -6723,7 +7090,11 @@ dump_unwindsym_cxt_table(systemtap_session& session, ostream& output,
       return;
     }
 
-  output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
+  // if it is the debug_line data, do not need the unwind flags to be defined
+  if(table == "debug_line")
+    output << "#if defined(STP_NEED_LINE_DATA)\n";
+  else
+    output << "#if defined(STP_USE_DWARF_UNWINDER) && defined(STP_NEED_UNWIND_DATA)\n";
   output << "static uint8_t _stp_module_" << modindex << "_" << table;
   if (!secname.empty())
     output << "_" << secindex;
@@ -6737,7 +7108,10 @@ dump_unwindsym_cxt_table(systemtap_session& session, ostream& output,
 	output << "\n" << "   ";
     }
   output << "};\n";
-  output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
+  if (table == "debug_line")
+    output << "#endif /* STP_NEED_LINE_DATA */\n";
+  else
+    output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA */\n";
 }
 
 static int
@@ -6758,6 +7132,8 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   size_t eh_frame_hdr_len = c->eh_frame_hdr_len;
   Dwarf_Addr eh_addr = c->eh_addr;
   Dwarf_Addr eh_frame_hdr_addr = c->eh_frame_hdr_addr;
+  void *debug_line = c->debug_line;
+  size_t debug_line_len = c->debug_line_len;
 
   dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
 			   "debug_frame", debug_frame, debug_len);
@@ -6768,6 +7144,9 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
 			   "eh_frame_hdr", eh_frame_hdr, eh_frame_hdr_len);
 
+  dump_unwindsym_cxt_table(c->session, c->output, modname, stpmod_idx, "", 0,
+			   "debug_line", debug_line, debug_line_len);
+
   if (c->session.need_unwind && debug_frame == NULL && eh_frame == NULL)
     {
       // There would be only a small benefit to warning.  A user
@@ -6777,6 +7156,13 @@ dump_unwindsym_cxt (Dwfl_Module *m,
       if (c->session.verbose > 2)
 	c->session.print_warning ("No unwind data for " + modname
 				  + ", " + dwfl_errmsg (-1));
+    }
+
+  if (c->session.need_lines && debug_line == NULL)
+    {
+      if (c->session.verbose > 2)
+        c->session.print_warning ("No debug line data for " + modname + ", " +
+                                  dwfl_errmsg (-1));
     }
 
   for (unsigned secidx = 0; secidx < c->seclist.size(); secidx++)
@@ -6862,7 +7248,18 @@ dump_unwindsym_cxt (Dwfl_Module *m,
 	{
 	  c->output << ".debug_hdr = NULL,\n";
 	  c->output << ".debug_hdr_len = 0,\n";
+          if (c->session.need_lines && secname == ".text")
+            {
+              c->output << "#if defined(STP_NEED_LINE_DATA)\n";
+              Dwarf_Addr dwbias = 0;
+              dwfl_module_getdwarf (m, &dwbias);
+              c->output << ".sec_load_offset = 0x"
+                        << hex << debug_frame_off - dwbias << dec << "\n";
+              c->output << "#else\n";
+            }
 	  c->output << ".sec_load_offset = 0\n";
+          if (c->session.need_lines && secname == ".text")
+            c->output << "#endif /* STP_NEED_LINE_DATA */\n";
 	}
 
 	c->output << "},\n";
@@ -6941,6 +7338,22 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   c->output << ".unwind_hdr_len = 0,\n";
   if (eh_frame != NULL)
     c->output << "#endif /* STP_USE_DWARF_UNWINDER && STP_NEED_UNWIND_DATA*/\n";
+
+  if (debug_line != NULL)
+    {
+      c->output << "#if defined(STP_NEED_LINE_DATA)\n";
+      c->output << ".debug_line = "
+		<< "_stp_module_" << stpmod_idx << "_debug_line, \n";
+      c->output << ".debug_line_len = " << debug_line_len << ", \n";
+      c->output << "#else\n";
+    }
+
+  c->output << ".debug_line = NULL,\n";
+  c->output << ".debug_line_len = 0,\n";
+
+  if (debug_line != NULL)
+    c->output << "#endif /* STP_NEED_LINE_DATA */\n";
+
   c->output << ".sections = _stp_module_" << stpmod_idx << "_sections" << ",\n";
   c->output << ".num_sections = sizeof(_stp_module_" << stpmod_idx << "_sections)/"
             << "sizeof(struct _stp_section),\n";
@@ -7056,6 +7469,13 @@ dump_unwindsyms (Dwfl_Module *m,
   c->eh_frame_hdr_addr = 0;
   if (res == DWARF_CB_OK && c->session.need_unwind)
     res = dump_unwind_tables (m, c, name, base);
+
+  c->debug_line = NULL;
+  c->debug_line_len = 0;
+  if (res == DWARF_CB_OK && c->session.need_lines)
+    // we dont set res = dump_line_tables() because unwindsym stuff should still
+    // get dumped to the output even if gathering debug_line data fails
+    (void) dump_line_tables (m, c, name, base);
 
   /* And finally dump everything collected in the output. */
   if (res == DWARF_CB_OK)
@@ -7212,6 +7632,8 @@ emit_symbol_data (systemtap_session& s)
 				 0, /* eh_frame_hdr_len */
 				 0, /* eh_addr */
 				 0, /* eh_frame_hdr_addr */
+				 NULL, /* debug_line */
+				 0, /* debug_line_len */
 				 s.unwindsym_modules };
 
   // Micro optimization, mainly to speed up tiny regression tests
@@ -7301,6 +7723,8 @@ self_unwind_declarations(unwindsym_dump_context *ctx)
   ctx->output << ".unwind_hdr_len = 0,\n";
   ctx->output << ".debug_frame = NULL,\n";
   ctx->output << ".debug_frame_len = 0,\n";
+  ctx->output << ".debug_line = NULL,\n";
+  ctx->output << ".debug_line_len = 0,\n";
   ctx->output << "};\n";
 }
 
@@ -7510,6 +7934,9 @@ translate_pass (systemtap_session& s)
 
       if (s.need_unwind)
 	s.op->newline() << "#define STP_NEED_UNWIND_DATA 1";
+
+      if (s.need_lines)
+        s.op->newline() << "#define STP_NEED_LINE_DATA 1";
 
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();

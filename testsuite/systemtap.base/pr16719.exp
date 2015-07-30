@@ -110,4 +110,5 @@ run_stap {kernel.trace("sched_switch")!,never} {*/vmlinux}
 # User check
 # Bad stap would have open /bin/ls or /usr/lib/debug/bin/ls.debug
 set subtest "user"
+if {! [uprobes_p]} { untested "$test ($subtest)"; return }
 run_stap {process("/bin/ls").function("main")} {*/bin/ls}

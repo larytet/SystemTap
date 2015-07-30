@@ -131,9 +131,9 @@ int main()
 
     send(s, (void *)buf, -1, 0);
 #if __WORDSIZE == 64
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 18446744073709551615, 0x0[[[[, NULL, 0]]]]?) = -NNNN (EMSGSIZE)
+    //staptest// send[[[[to]]]]? (NNNN, XXXX, 18446744073709551615, 0x0[[[[, NULL, 0]]]]?) = -NNNN
 #else
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 4294967295, 0x0[[[[, NULL, 0]]]]?) = -NNNN (EMSGSIZE)
+    //staptest// send[[[[to]]]]? (NNNN, XXXX, 4294967295, 0x0[[[[, NULL, 0]]]]?) = -NNNN
 #endif
 
     close(s);
@@ -150,7 +150,7 @@ int main()
 
     // Ignore the return value on this send() call.
     send(s, buf, sizeof(buf), -1);
-    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX[[[[, NULL, 0]]]]?)
+    //staptest// send[[[[to]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, NULL, 0]]]]?)
 
     close(s);
     //staptest// close (NNNN) = 0

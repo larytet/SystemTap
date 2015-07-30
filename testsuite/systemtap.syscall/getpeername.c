@@ -1,5 +1,6 @@
 /* COVERAGE: getpeername */
 
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -26,7 +27,7 @@ int main()
     //staptest// bind (NNNN, {AF_INET, 0.0.0.0, 0}, 16) = 0
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     socketpair(PF_UNIX, SOCK_STREAM, 0, sv);
     //staptest// socketpair (PF_LOCAL, SOCK_STREAM, 0, XXXX) = 0

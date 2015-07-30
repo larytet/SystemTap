@@ -28,16 +28,16 @@
  * This address can be passed to the various task_*() functions to extract
  * more task-specific data.
  */
-function task_current:long () %{ /* pure */
-    STAP_RETVALUE = (unsigned long)current;
-%}
+function task_current:long () {
+    return & @task(%{ /* pure */ (unsigned long)current %})
+}
 
 function _task_rlimit_cur:long (task:long, nd_limit:long)
 {
-    if (nd_limit < 0 || nd_limit >= %{ RLIM_NLIMITS %}) {
+    if (nd_limit < 0 || nd_limit >= %{ /* pure */ RLIM_NLIMITS %}) {
         return -1;
     }
-    sig = @cast(task, "task_struct", "kernel<linux/sched.h>")->signal;
+    sig = @task(task)->signal;
     return sig->rlim[nd_limit]->rlim_cur;
 }
 
@@ -61,63 +61,63 @@ function task_rlimit:long (task:long, lim_str:string)
 
 function task_rlimit_cpu:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_CPU %} );
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_CPU %} );
 }
 
 function task_rlimit_fsize:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_FSIZE %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_FSIZE %});
 }
 
 function task_rlimit_data:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_DATA %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_DATA %});
 }
 
 function task_rlimit_stack:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_STACK %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_STACK %});
 }
 
 function task_rlimit_core:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_CORE %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_CORE %});
 }
 
 function task_rlimit_rss:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_RSS %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RSS %});
 }
 
 function task_rlimit_nproc:long (task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_NPROC %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NPROC %});
 }
 
 function task_rlimit_nofile:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_NOFILE %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NOFILE %});
 }
 
 function task_rlimit_memlock:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_MEMLOCK %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_MEMLOCK %});
 }
 
 function task_rlimit_as:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_AS %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_AS %});
 }
 
 function task_rlimit_locks:long(task:long)
 {
-    return _task_rlimit_cur(task, %{ RLIMIT_LOCKS %});
+    return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_LOCKS %});
 }
 
 function task_rlimit_sigpending:long(task:long)
 {
     %( kernel_v >= "2.6.8" %?
-        return _task_rlimit_cur(task, %{ RLIMIT_SIGPENDING %});
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_SIGPENDING %});
     %:
         return -1
     %)
@@ -126,7 +126,7 @@ function task_rlimit_sigpending:long(task:long)
 function task_rlimit_msgqueue:long(task:long)
 {
     %( kernel_v >= "2.6.8" %?
-        return _task_rlimit_cur(task, %{ RLIMIT_MSGQUEUE %});
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_MSGQUEUE %});
     %:
         return -1
     %)
@@ -135,7 +135,7 @@ function task_rlimit_msgqueue:long(task:long)
 function task_rlimit_nice:long(task:long)
 {
     %( kernel_v >= "2.6.12" %?
-        return _task_rlimit_cur(task, %{ RLIMIT_NICE %});
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_NICE %});
     %:
         return -1
     %)
@@ -144,7 +144,7 @@ function task_rlimit_nice:long(task:long)
 function task_rlimit_rtprio:long(task:long)
 {
     %( kernel_v >= "2.6.12" %?
-        return _task_rlimit_cur(task, %{ RLIMIT_RTPRIO %});
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RTPRIO %});
     %:
         return -1
     %)
@@ -153,7 +153,7 @@ function task_rlimit_rtprio:long(task:long)
 function task_rlimit_rttime:long(task:long)
 {
     %( kernel_v >= "2.6.25" %?
-        return _task_rlimit_cur(task, %{ RLIMIT_RTTIME %});
+        return _task_rlimit_cur(task, %{ /* pure */ RLIMIT_RTTIME %});
     %:
         return -1
     %)
@@ -170,9 +170,7 @@ function task_rlimit_rttime:long(task:long)
  */
 function task_parent:long(task:long)
 {
-    return @choose_defined(
-	    @cast(task, "task_struct", "kernel<linux/sched.h>")->real_parent,
-	    @cast(task, "task_struct", "kernel<linux/sched.h>")->parent)
+    return @choose_defined(@task(task)->real_parent, @task(task)->parent)
 }
 
 /**
@@ -186,7 +184,7 @@ function task_parent:long(task:long)
  */
 function task_state:long (task:long)
 {
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->state
+    return @task(task)->state
 }
 
 /**
@@ -198,7 +196,7 @@ function task_state:long (task:long)
  */
 function task_execname:string (task:long)
 {
-    return kernel_string(@cast(task, "task_struct", "kernel<linux/sched.h>")->comm)
+    return kernel_string(@task(task)->comm)
 }
 
 /**
@@ -210,8 +208,23 @@ function task_execname:string (task:long)
  */
 function task_pid:long (task:long)
 {
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->tgid
+    return @task(task)->tgid
 }
+
+/**
+ * sfunction task_ns_pid - The process identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This fucntion returns the process id of the given task based on
+ * the specified pid namespace..
+ */
+function task_ns_pid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc = from_target_pid_ns(t, PID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
 
 /**
  * sfunction pid2task - The task_struct of the given process identifier
@@ -220,25 +233,27 @@ function task_pid:long (task:long)
  *
  * Description: Return the task struct of the given process id.
  */
-function pid2task:long (pid:long) %{ /* pure */
-    struct task_struct *t = NULL;
-    pid_t t_pid  = (pid_t)(long)STAP_ARG_pid;
+function pid2task:long (pid:long) {
+    return & @task(%{ /* pure */ ({
+        struct task_struct *t = NULL;
+        pid_t t_pid  = (pid_t)(long)STAP_ARG_pid;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31)
-    struct pid *p_pid = find_get_pid(t_pid);
-    rcu_read_lock();
-    t = pid_task(p_pid, PIDTYPE_PID);
-    put_pid(p_pid);
+        struct pid *p_pid = find_get_pid(t_pid);
+        rcu_read_lock();
+        t = pid_task(p_pid, PIDTYPE_PID);
+        put_pid(p_pid);
 #else
-    rcu_read_lock();
+        rcu_read_lock();
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24)
-    t = find_task_by_vpid (t_pid);
+        t = find_task_by_vpid (t_pid);
 #else
-    t = find_task_by_pid (t_pid);
+        t = find_task_by_pid (t_pid);
 #endif /* 2.6.24 */
 #endif /* 2.6.31 */
-    rcu_read_unlock();
-    STAP_RETVALUE = (unsigned long)t;
-%}
+        rcu_read_unlock();
+        (unsigned long)t;
+    }) %})
+}
 
 /**
  * sfunction pid2execname - The name of the given process identifier
@@ -263,9 +278,23 @@ function pid2execname:string (pid:long) {
  */
 function task_tid:long (task:long)
 {
-    return @cast(task, "task_struct", "kernel<linux/sched.h>")->pid
+    return @task(task)->pid
 }
 
+/**
+ * sfunction task_ns_tid - The thread identifier of the task as seen in a namespace
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the thread id of the given task as seen 
+ * in the pid namespace.
+ */
+function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc = from_target_pid_ns(t, TID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
 
 /**
  * sfunction task_gid - The group identifier of the task
@@ -293,6 +322,20 @@ function task_gid:long (task:long) %{ /* pure */
 #endif
 %}
 
+/**
+ * sfunction task_ns_gid - The group identifier of the task as seen in a namespace
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the group id of the given task as seen in
+ * in the given user namespace.
+*/
+function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc = from_target_user_ns(t, GID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
 
 /**
  * sfunction task_egid - The effective group identifier of the task
@@ -321,6 +364,20 @@ function task_egid:long (task:long) %{ /* pure */
 %}
 
 /**
+ * sfunction task_ns_egid - The effective group identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective group id of the given task.
+ */
+function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc = from_target_user_ns(current, EGID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction task_uid - The user identifier of the task
  *
  * @task: task_struct pointer
@@ -343,6 +400,20 @@ function task_uid:long (task:long) %{ /* pure */
 %}
 
 /**
+ * sfunction task_ns_uid - The user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the user id of the given task.
+ */
+function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc = from_target_user_ns(current, UID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
+%}
+
+/**
  * sfunction task_euid - The effective user identifier of the task
  *
  * @task: task_struct pointer
@@ -362,6 +433,20 @@ function task_euid:long (task:long) %{ /* pure */
     STAP_RETVALUE = task_euid (t);
 #endif
 #endif
+%}
+
+/**
+ * sfunction task_ns_euid - The effective user identifier of the task
+ *
+ * @task: task_struct pointer
+ *
+ * Description: This function returns the effective user id of the given task.
+ */
+function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
+  struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+  int64_t rc = from_target_user_ns(current, EUID);
+  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
+  else STAP_RETURN (rc);
 %}
 
 
@@ -401,8 +486,7 @@ function task_nice:long (task:long) %{ /* pure */
  */
 function task_cpu:long (task:long)
 {
-    ti = @choose_defined(@cast(task, "task_struct", "kernel<linux/sched.h>")->stack,
-	  @cast(task, "task_struct", "kernel<linux/sched.h>")->thread_info);
+    ti = @choose_defined(@task(task)->stack, @task(task)->thread_info);
     return @cast(ti, "thread_info", "kernel<linux/sched.h>")->cpu
 }
 

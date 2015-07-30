@@ -28,7 +28,7 @@ struct addr_map
   struct addr_map_entry entries[0];
 };
 
-static DEFINE_RWLOCK(addr_map_lock);
+static STP_DEFINE_RWLOCK(addr_map_lock);
 static struct addr_map* blackmap;
 
 /* Find address of entry where we can insert a new one. */
@@ -111,6 +111,7 @@ lookup_bad_addr(unsigned long addr, size_t size)
   struct addr_map_entry* result = 0;
   unsigned long flags;
 
+
   /* Is this a valid memory access?  */
   if (size == 0 || ULONG_MAX - addr < size - 1)
     return 1;
@@ -127,9 +128,9 @@ lookup_bad_addr(unsigned long addr, size_t size)
 #endif
 
   /* Search for the given range in the black-listed map.  */
-  read_lock_irqsave(&addr_map_lock, flags);
+  stp_read_lock_irqsave(&addr_map_lock, flags);
   result = lookup_addr_aux(addr, size, blackmap);
-  read_unlock_irqrestore(&addr_map_lock, flags);
+  stp_read_unlock_irqrestore(&addr_map_lock, flags);
   if (result)
     return 1;
   else
@@ -154,7 +155,7 @@ add_bad_addr_entry(unsigned long min_addr, unsigned long max_addr,
   while (1)
     {
       size_t old_size = 0;
-      write_lock_irqsave(&addr_map_lock, flags);
+      stp_write_lock_irqsave(&addr_map_lock, flags);
       old_map = blackmap;
       if (old_map)
         old_size = old_map->size;
@@ -163,7 +164,7 @@ add_bad_addr_entry(unsigned long min_addr, unsigned long max_addr,
          added an entry while we were sleeping. */
       if (!new_map || (new_map && new_map->size < old_size + 1))
         {
-          write_unlock_irqrestore(&addr_map_lock, flags);
+          stp_write_unlock_irqrestore(&addr_map_lock, flags);
           if (new_map)
             {
 	      _stp_kfree(new_map);
@@ -192,7 +193,7 @@ add_bad_addr_entry(unsigned long min_addr, unsigned long max_addr,
             *existing_min = min_entry;
           if (existing_max)
             *existing_max = max_entry;
-          write_unlock_irqrestore(&addr_map_lock, flags);
+          stp_write_unlock_irqrestore(&addr_map_lock, flags);
           _stp_kfree(new_map);
           return 1;
         }
@@ -210,7 +211,7 @@ add_bad_addr_entry(unsigned long min_addr, unsigned long max_addr,
                (old_map->size - existing) * sizeof(*new_entry));
     }
   blackmap = new_map;
-  write_unlock_irqrestore(&addr_map_lock, flags);
+  stp_write_unlock_irqrestore(&addr_map_lock, flags);
   if (old_map)
     _stp_kfree(old_map);
   return 0;

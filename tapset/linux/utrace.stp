@@ -8,7 +8,7 @@ function _utrace_syscall_nr:long () %{		/* pure */ /* myproc-unprivileged */
     if (! CONTEXT->uregs || ! CONTEXT->user_mode_p) {
        CONTEXT->last_error = "invalid call without context registers";
     } else {
-       STAP_RETVALUE = syscall_get_nr(current, CONTEXT->uregs);
+       STAP_RETVALUE = _stp_syscall_get_nr(current, CONTEXT->uregs);
     }
 %}
 

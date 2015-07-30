@@ -1,5 +1,6 @@
 #! stap -p4
 
+
 probe nfs.proc.lookup {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %d %d %d\n", server_ip, prot, version, name_len)
@@ -96,6 +97,26 @@ probe nfs.proc.commit_done.return {
 	printf("%d: %s(%s)\n", version, name, retstr)
 }
 
+probe nfs.proc.rename_setup {
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %d %d %d\n", client, server_ip, prot,
+		version)
+	printf("%d\n", fh)
+}
+probe nfs.proc.rename_setup.return {
+	printf("%d: %s(%d)\n", version, name, retvalue)
+}
+
+probe nfs.proc.rename_done {
+	printf("%s(%s)\n", name, argstr)
+	printf("%d %d %d\n", server_ip, prot, version)
+	printf("%d %d\n", timestamp, status)
+	printf("%d %d\n", old_fh, new_fh)
+}
+probe nfs.proc.rename_done.return {
+	printf("%d: %s(%s)\n", version, name, retstr)
+}
+
 probe nfs.proc.open {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %d %d\n", server_ip, prot, version)
@@ -140,8 +161,9 @@ probe nfs.proc.remove.return {
 
 probe nfs.proc.rename {
 	printf("%s(%s)\n", name, argstr)
-	printf("%d %d %d %d %d %d %d\n", server_ip, prot, version, old_fh,
-		old_filelen, new_fh, new_filelen)
+	printf("%d %d %d\n", server_ip, prot, version)
+	printf("%d %d %s\n", old_fh, old_filelen, old_name)
+	printf("%d %d %s\n", new_fh, new_filelen, new_name)
 }
 probe nfs.proc.rename.return {
 	printf("%d: %s(%s)\n", version, name, retstr)

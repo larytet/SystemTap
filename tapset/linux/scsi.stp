@@ -93,8 +93,8 @@ probe scsi.ioentry = scsi.ioentry.* ?
  * @req_addr: The current struct request pointer, as a number
  */
 probe scsi.iodispatching
-	= module("scsi_mod").function("scsi_dispatch_cmd@drivers/scsi/scsi.c")!,
-	  kernel.function("scsi_dispatch_cmd@drivers/scsi/scsi.c")?
+	= module("scsi_mod").function("scsi_dispatch_cmd")!,
+	  kernel.function("scsi_dispatch_cmd")?
 {
 	host_no = $cmd->device->host->host_no
 	channel = $cmd->device->channel
@@ -127,8 +127,8 @@ probe scsi.iodispatching
  */
 probe scsi.iodone
 	= kernel.trace("scsi_dispatch_cmd_done")!,
-	  module("scsi_mod").function("scsi_done@drivers/scsi/scsi.c")!,
-	  kernel.function("scsi_done@drivers/scsi/scsi.c")?
+	  module("scsi_mod").function("scsi_done")!,
+	  kernel.function("scsi_done")?
 
 {
 	# Why is the @cast() needed here? When the probe alias uses
@@ -162,8 +162,8 @@ probe scsi.iodone
  */
 // mid-layer processes the completed IO
 probe scsi.iocompleted
-	= module("scsi_mod").function("scsi_io_completion@drivers/scsi/scsi_lib.c")!,
-	  kernel.function("scsi_io_completion@drivers/scsi/scsi_lib.c")?
+	= module("scsi_mod").function("scsi_io_completion")!,
+	  kernel.function("scsi_io_completion")?
 {
 	host_no = $cmd->device->host->host_no
 	channel = $cmd->device->channel
@@ -215,8 +215,8 @@ function get_devstate_from_req:long(var:long)
  * @retries: Number of times to retry request
  */
 probe scsi.ioexecute
-	= module("scsi_mod").function("scsi_execute@drivers/scsi/scsi_lib.c")!,
-	  kernel.function("scsi_execute@drivers/scsi/scsi_lib.c")?
+	= module("scsi_mod").function("scsi_execute")!,
+	  kernel.function("scsi_execute")?
 {
 	host_no = $sdev->host->host_no
 	channel = $sdev->channel
@@ -244,8 +244,8 @@ probe scsi.ioexecute
  * @state_str: The new state of the device, as a string
  */
 probe scsi.set_state
-	= module("scsi_mod").function("scsi_device_set_state@drivers/scsi/scsi_lib.c")!,
-	  kernel.function("scsi_device_set_state@drivers/scsi/scsi_lib.c")?
+	= module("scsi_mod").function("scsi_device_set_state")!,
+	  kernel.function("scsi_device_set_state")?
 {
 	state = $state
 	state_str = describe_device_state(state)

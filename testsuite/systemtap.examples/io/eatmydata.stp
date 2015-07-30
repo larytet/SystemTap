@@ -5,7 +5,7 @@
 
 # see also http://www.flamingspork.com/projects/libeatmydata/
 
-global dummy_fd = 1 # stdout assumed harmless; override with stap -G dummy_fd=XXX
+global dummy_fd = -1 # invalid filehandle; to try stdout, run with -G dummy_fd=1
 global guilt, agony, piety
 
 probe syscall.fsync, syscall.fdatasync { 

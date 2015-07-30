@@ -23,10 +23,10 @@ int main()
   int fd;
 
   fd = open("foobar",O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
   chmod("foobar", 0644);
-  //staptest// chmod ("foobar", 0644) = 0
+  //staptest// [[[[chmod (!!!!fchmodat (AT_FDCWD, ]]]]"foobar", 0644) = 0
 
   fchmod(fd, 0444);
   //staptest// fchmod (NNNN, 0444) = 0
@@ -40,11 +40,11 @@ int main()
 #ifdef __s390__
   //staptest// chmod ([7]?[f]+, 0644) = -NNNN (EFAULT)
 #else
-  //staptest// chmod ([f]+, 0644) = -NNNN (EFAULT)
+  //staptest// [[[[chmod (!!!!fchmodat (AT_FDCWD, ]]]][f]+, 0644[[[[, 0x0]]]]?) = -NNNN (EFAULT)
 #endif
 
   fchmod(-1, 0644);
-  //staptest// fchmod (-1, 0644) = -NNNN (EBADF)
+  //staptest// [[[[fchmod (!!!!fchmodat (AT_FDCWD, ]]]]-1, 0644[[[[, 0x0]]]]?) = -NNNN (EBADF)
 
 #if GLIBC_SUPPORT
   fchmodat(AT_FDCWD, (char *)-1, 0644, 0);
@@ -56,14 +56,14 @@ int main()
 #endif
 
   chmod("foobar", -1);
-  //staptest// chmod ("foobar", 037777777777) =
+  //staptest// [[[[chmod (!!!!fchmodat (AT_FDCWD, ]]]]"foobar", 037777777777) = NNNN
 
   fchmod(fd, -1);
-  //staptest// fchmod (NNNN, 037777777777) =
+  //staptest// fchmod (NNNN, 037777777777) = NNNN
 
 #if GLIBC_SUPPORT
   fchmodat(AT_FDCWD, "foobar", -1, 0);
-  //staptest// fchmodat (AT_FDCWD, "foobar", 037777777777) =
+  //staptest// fchmodat (AT_FDCWD, "foobar", 037777777777) = NNNN
 
   fchmodat(-1, "foobar", 0644, 0);
   //staptest// fchmodat (-1, "foobar", 0644) = -NNNN (EBADF)
@@ -74,20 +74,20 @@ int main()
 #ifdef __s390__
   //staptest// chown ([7]?[f]+, 5000, 5001) = -NNNN (EFAULT)
 #else
-  //staptest// chown ([f]+, 5000, 5001) = -NNNN (EFAULT)
+  //staptest// [[[[chown (!!!!fchownat (AT_FDCWD, ]]]][f]+, 5000, 5001[[[[, 0x0]]]]?) = -NNNN (EFAULT)
 #endif
 
   chown("foobar", 5000, -1);
-  //staptest// chown ("foobar", 5000, -1) =
+  //staptest// [[[[chown (!!!!fchownat (AT_FDCWD, ]]]]"foobar", 5000, -1[[[[, 0x0]]]]?) = NNNN
 
   chown("foobar", -1, 5001);
-  //staptest// chown ("foobar", -1, 5001) =
+  //staptest// [[[[chown (!!!!fchownat (AT_FDCWD, ]]]]"foobar", -1, 5001[[[[, 0x0]]]]?) = NNNN
 
   fchown(-1, 5002, 5003);
-  //staptest// fchown (-1, 5002, 5003) = -NNNN (EBADF)
+  //staptest// [[[[fchown (!!!!fchownat (AT_FDCWD, ]]]]-1, 5002, 5003[[[[, 0x0]]]]?) = -NNNN (EBADF)
 
   fchown(fd, 5002, -1);
-  //staptest// fchown (NNNN, 5002, -1) =
+  //staptest// fchown (NNNN, 5002, -1) = NNNN
 
 #if GLIBC_SUPPORT
   fchownat(-1, "foobar", 5002, -1, 0);
@@ -101,41 +101,49 @@ int main()
 #endif
 
   fchownat(AT_FDCWD, "foobar", -1, 5000, 0);
-  //staptest// fchownat (AT_FDCWD, "foobar", -1, 5000, 0x0) =
+  //staptest// fchownat (AT_FDCWD, "foobar", -1, 5000, 0x0) = NNNN
 
   fchownat(AT_FDCWD, "foobar", 5002, -1, 0);
-  //staptest// fchownat (AT_FDCWD, "foobar", 5002, -1, 0x0) =
+  //staptest// fchownat (AT_FDCWD, "foobar", 5002, -1, 0x0) = NNNN
 #endif
 
   fchown(fd, -1, 5003);
-  //staptest// fchown (NNNN, -1, 5003) =
+  //staptest// fchown (NNNN, -1, 5003) = NNNN
 
   lchown("foobar", 5004, -1);
-  //staptest// lchown ("foobar", 5004, -1) =
+  //staptest// [[[[lchown (!!!!fchownat (AT_FDCWD, ]]]]"foobar", 5004, -1[[[[, AT_SYMLINK_NOFOLLOW]]]]?) = NNNN
 
   lchown("foobar", -1, 5005);
-  //staptest// lchown ("foobar", -1, 5005) =
+  //staptest// [[[[lchown (!!!!fchownat (AT_FDCWD, ]]]]"foobar", -1, 5005[[[[, AT_SYMLINK_NOFOLLOW]]]]?) = NNNN
 
   lchown((char *)-1, 5005, 5006);
 #ifdef __s390__
   //staptest// lchown ([7]?[f]+, 5005, 5006) = -NNNN (EFAULT)
 #else
-  //staptest// lchown ([f]+, 5005, 5006) = -NNNN (EFAULT)
+  //staptest// [[[[lchown (!!!!fchownat (AT_FDCWD, ]]]][f]+, 5005, 5006[[[[, AT_SYMLINK_NOFOLLOW]]]]?) = -NNNN (EFAULT)
 #endif
 
-#ifdef __i386__
+#if __WORDSIZE != 64
+#ifdef SYS_chown
   syscall(SYS_chown, "foobar", 5000, -1);
-  //staptest// chown16 ("foobar", 5000, -1) =
+  //staptest// chown[[[[16]]]]? ("foobar", 5000, -1) = NNNN
   syscall(SYS_chown, "foobar", -1, 5001);
-  //staptest// chown16 ("foobar", -1, 5001) =
+  //staptest// chown[[[[16]]]]? ("foobar", -1, 5001) = NNNN
+#endif
+
+#ifdef SYS_fchown
   syscall(SYS_fchown, fd, 5002, -1);
-  //staptest// fchown16 (NNNN, 5002, -1) =
+  //staptest// fchown[[[[16]]]]? (NNNN, 5002, -1) = NNNN
   syscall(SYS_fchown, fd, -1, 5003);
-  //staptest// fchown16 (NNNN, -1, 5003) =
+  //staptest// fchown[[[[16]]]]? (NNNN, -1, 5003) = NNNN
+#endif
+
+#ifdef SYS_lchown
   syscall(SYS_lchown, "foobar", 5004, -1);
-  //staptest// lchown16 ("foobar", 5004, -1) =
+  //staptest// lchown[[[[16]]]]? ("foobar", 5004, -1) = NNNN
   syscall(SYS_lchown, "foobar", -1, 5005);
-  //staptest// lchown16 ("foobar", -1, 5005) =
+  //staptest// lchown[[[[16]]]]? ("foobar", -1, 5005) = NNNN
+#endif
 #endif
 
   close(fd);

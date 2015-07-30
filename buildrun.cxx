@@ -384,6 +384,7 @@ compile_pass (systemtap_session& s)
   output_autoconf(s, o, "autoconf-fs_supers-hlist.c", "STAPCONF_FS_SUPERS_HLIST", NULL);
   output_autoconf(s, o, "autoconf-compat_sigaction.c", "STAPCONF_COMPAT_SIGACTION", NULL);
   output_autoconf(s, o, "autoconf-netfilter.c", "STAPCONF_NETFILTER_V313", NULL);
+  output_autoconf(s, o, "autoconf-netfilter-4_1.c", "STAPCONF_NETFILTER_V41", NULL);
   output_autoconf(s, o, "autoconf-smpcall-5args.c", "STAPCONF_SMPCALL_5ARGS", NULL);
   output_autoconf(s, o, "autoconf-smpcall-4args.c", "STAPCONF_SMPCALL_4ARGS", NULL);
 
@@ -422,6 +423,7 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "vmalloc_node", "STAPCONF_VMALLOC_NODE");
 
   output_autoconf(s, o, "autoconf-tracepoint-strings.c", "STAPCONF_TRACEPOINT_STRINGS", NULL);
+  output_autoconf(s, o, "autoconf-timerfd.c", "STAPCONF_TIMERFD_H", NULL);
 
   o << module_cflags << " += -include $(STAPCONF_HEADER)" << endl;
 
@@ -456,6 +458,9 @@ compile_pass (systemtap_session& s)
   // 256^W512 bytes should be enough for anybody
   // XXX this doesn't validate varargs, per gcc bug #41633
   o << "EXTRA_CFLAGS += $(call cc-option,-Wframe-larger-than=512)" << endl;
+
+  // gcc 5.0.0-0.13.fc23 ipa-icf seems to consume gigacpu on stap-generated code
+  o << "EXTRA_CFLAGS += $(call cc-option,-fno-ipa-icf)" << endl;
 
   // Assumes linux 2.6 kbuild
   o << "EXTRA_CFLAGS += -Wno-unused" << (s.omit_werror ? "" : " -Werror") << endl;
@@ -766,6 +771,12 @@ make_run_command (systemtap_session& s, const string& remotedir,
       staprun_cmd.push_back(lex_cast(s.target_pid));
     }
 
+  if (s.target_namespaces_pid)
+    {
+      staprun_cmd.push_back("-N");
+      staprun_cmd.push_back(lex_cast(s.target_namespaces_pid));
+    }
+
   if (s.buffer_size)
     {
       staprun_cmd.push_back("-b");
@@ -848,6 +859,9 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
   omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration" << (s.omit_werror ? "" : " -Werror") << endl;
   // RHBZ 655231: later rhel6 kernels' module-signing kbuild logic breaks out-of-tree modules
   omf << "CONFIG_MODULE_SIG := n" << endl;
+
+  // PR18389: disable GCC's Identical Code Folding, since the stubs may look identical
+  omf << "EXTRA_CFLAGS += $(call cc-option,-fno-ipa-icf)" << endl;
 
   if (s.kernel_source_tree != "")
     omf << "EXTRA_CFLAGS += -I" + s.kernel_source_tree << endl;

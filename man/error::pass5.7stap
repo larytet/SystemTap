@@ -31,9 +31,11 @@ exceeded by the script, including system overload, too many tuples
 to be stored in an array, etc.  Some of the error messages identify
 the constraint by macro name, which may be individually raised.
 Consider using the 
-.IR "stap --suppress-handler-errors" 
-option.  Extend or disable resource limits using the
-.IR "stap -DLIMIT=NNNN"
+.IR "stap --suppress-handler-errors"
+and/or
+.IR "stap -g --suppress-time-limits"
+options.  Extend or disable individual resource limits using the
+.IR "stap -DSOME_LIMIT=NNNN"
 option.
 .\" the systemtap/wiki/TipExhaustedResourceErrors should be transcribed here
 

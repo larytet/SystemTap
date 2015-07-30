@@ -4,7 +4,7 @@ srcdir='@abs_top_srcdir@'
 builddir='@abs_top_builddir@'
 
 rundir="${0%/*}"
-[ "$rundir" == "$0" ] || builddir="$rundir"
+[ "$rundir" = "$0" ] || builddir="$rundir"
 
 # Absolutify the paths.
 case "$srcdir" in
@@ -34,5 +34,5 @@ fi
 if [ -z "$DEBUG_STAP" ]; then
     exec "${builddir}/stap" ${1+"$@"}
 else
-    exec gdb --args "${builddir}/stap" ${1+"$@"}
+    exec ${GDB:-gdb} --args "${builddir}/stap" ${1+"$@"}
 fi

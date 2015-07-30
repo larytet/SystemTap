@@ -2,7 +2,7 @@ title: Show Time Spent on Each Line of a Function
 name: linetimes.stp
 version: 1.0
 author: William Cohen
-keywords: profiling
+keywords: profiling _best
 subsystem: any
 status: production
 exit: user-controlled

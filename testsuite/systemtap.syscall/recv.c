@@ -136,7 +136,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x0, 0x0, \[2.[0]+\], 0x0]]]]) = 1
 
     recv(s, (void *)-1, sizeof(buf), 0);
     //staptest// recv[[[[from]]]]? (NNNN, 0x[f]+, 1024, 0x0[[[[, 0x0, 0x0]]]]?) = -NNNN (EFAULT)
@@ -159,16 +159,16 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2.\[0]+], 0x0]]]]) = 1
 
     recv(s, buf, sizeof(buf), -1);
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX[[[[, 0x0, 0x0]]]]?) = -NNNN
+    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, 0x0, 0x0]]]]?) = -NNNN
 
     recv(s, buf, (size_t)-1, MSG_DONTWAIT);
 #if __WORDSIZE == 64
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = 6
+    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = NNNN
 #else
-    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 4294967295, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = 6
+    //staptest// recv[[[[from]]]]? (NNNN, XXXX, 4294967295, MSG_DONTWAIT[[[[, 0x0, 0x0]]]]?) = NNNN
 #endif
 
     close(s);

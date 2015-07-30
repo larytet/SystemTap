@@ -304,13 +304,7 @@ static void stp_dyninst_ctor(void)
 {
     int rc = 0;
 
-    _stp_mem_fd = open("/proc/self/mem", O_RDWR /*| O_LARGEFILE*/);
-    if (_stp_mem_fd != -1) {
-        fcntl(_stp_mem_fd, F_SETFD, FD_CLOEXEC);
-    }
-    else {
-        rc = -errno;
-    }
+    rc = _stp_copy_init();
 
     if (rc == 0)
         rc = _stp_runtime_contexts_init();
@@ -386,10 +380,7 @@ static void stp_dyninst_dtor(void)
 {
     _stp_print_cleanup();
     _stp_shm_destroy();
-
-    if (_stp_mem_fd != -1) {
-	close (_stp_mem_fd);
-    }
+    _stp_copy_destroy();
 }
 
 #endif /* _STAPDYN_RUNTIME_H_ */

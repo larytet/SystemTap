@@ -209,7 +209,7 @@ handle_fields (struct obstack *pool,
 	default:
 	  error (2, 0, _("%s: unexpected type tag %#x"),
 		 dwarf_diename (die) ?: "<anonymous type>",
-		 dwarf_tag (die));
+		 (unsigned)dwarf_tag (die));
 	  break;
 	}
 
@@ -425,7 +425,7 @@ print_type (Dwarf_Die *typedie, char space)
 	    printf (" restrict");
 	    break;
 	  default:
-	    printf ("%c<unknown %#x>", space, tag);
+	    printf ("%c<unknown %#x>", space, (unsigned)tag);
 	    break;
 	  }
 	}
@@ -433,7 +433,7 @@ print_type (Dwarf_Die *typedie, char space)
 }
 
 static void
-print_vars (unsigned int indent, Dwarf_Die *die)
+print_vars (int indent, Dwarf_Die *die)
 {
   Dwarf_Die child;
   Dwarf_Attribute attr_mem;
@@ -617,7 +617,7 @@ In the fifth form, the access is a store rather than a fetch."
 
   if (++argi == argc)
     {
-      unsigned int indent = 0;
+      int indent = 0;
       while (n-- > 0)
 	{
 	  Dwarf_Die *const die = &scopes[n];
@@ -626,7 +626,7 @@ In the fifth form, the access is a store rather than a fetch."
 	  printf ("%*s[%6" PRIx64 "] %s (%#x)", indent, "",
 		  dwarf_dieoffset (die),
 		  dwarf_diename (die) ?: "<unnamed>",
-		  dwarf_tag (die));
+		  (unsigned)dwarf_tag (die));
 
 	  Dwarf_Addr lowpc, highpc;
 	  if (dwarf_lowpc (die, &lowpc) == 0

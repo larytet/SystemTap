@@ -34,7 +34,7 @@ int tbar (void) {
   return j;
 }
 
-main (int argc, char *argv[]) {
+int main (int argc, char *argv[]) {
   int j = 0;
   /* Don't loop if an argument was passed */
   /* We split into two cases rather than check in a single loop because

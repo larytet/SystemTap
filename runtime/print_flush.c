@@ -16,7 +16,7 @@
  * @note Preemption must be disabled to use this.
  */
 
-static DEFINE_SPINLOCK(_stp_print_lock);
+static STP_DEFINE_SPINLOCK(_stp_print_lock);
 
 void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 {
@@ -130,7 +130,7 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 		c = _stp_runtime_entryfn_get_context();
 
 		dbug_trans(1, "calling _stp_data_write...\n");
-		spin_lock_irqsave(&_stp_print_lock, flags);
+		stp_spin_lock_irqsave(&_stp_print_lock, flags);
 		while (len > 0) {
 			size_t bytes_reserved;
 
@@ -147,7 +147,7 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 			    break;
 			}
 		}
-		spin_unlock_irqrestore(&_stp_print_lock, flags);
+		stp_spin_unlock_irqrestore(&_stp_print_lock, flags);
 		_stp_runtime_entryfn_put_context(c);
 	}
 #endif /* STP_TRANSPORT_VERSION != 1 */

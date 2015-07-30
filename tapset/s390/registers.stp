@@ -237,7 +237,7 @@ function _stp_arg:long (argnum:long, sign_extend:long, truncate:long)
 	else if (argnum >= 6)
 		val = _stp_get_kernel_stack_param(argnum - 6)
 
-	if (truncate || %{ _stp_is_compat_task() %}) {
+	if (truncate || %{ /* pure */ _stp_is_compat_task() %}) {
 		/* High bits may be garbage. */
 		val = (val & 0xffffffff)
 		if (sign_extend)

@@ -3,6 +3,9 @@
 probe begin {
 	log(usymname(0))
 	log(usymdata(0))
+  log(usymfileline(0))
+  log(usymfile(0))
+  log(usymline(0))
 
 	# This is really nonsense.  In real use you'd do something
 	# like:

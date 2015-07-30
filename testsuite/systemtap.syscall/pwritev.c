@@ -1,4 +1,5 @@
 /* COVERAGE: pwritev */
+#define _GNU_SOURCE
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
 #include <sys/types.h>
@@ -9,15 +10,17 @@
 #include <linux/unistd.h>
 #include <sys/uio.h>
 #include <string.h>
+#include <sys/syscall.h>
 
 int main()
 {
+#ifdef __NR_pwritev
   int fd;
   struct iovec wr_iovec[3];
   char buf[64];
 
   fd = open("foobar1", O_WRONLY|O_CREAT, 0666);
-  //staptest// open ("foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"foobar1", O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?, 0666) = NNNN
 
   memset(buf, (int)'B', sizeof(buf));
   wr_iovec[0].iov_base = buf;
@@ -52,6 +55,7 @@ int main()
 
   close (fd);
   //staptest// close (NNNN) = 0
+#endif
 
   return 0;
 }

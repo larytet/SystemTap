@@ -1,6 +1,224 @@
 SYSTEMTAP EXAMPLES INDEX BY KEYWORD
 (see also index.txt)
 
+= _BEST =
+
+general/eventcount.stp - Count Specified Events
+keywords: _best statistics thread process
+
+  The script periodically prints a count of specified events and their
+  related tid's over the course of execution.  Numerous configuration
+  options exist to control filtering / reporting, see the script
+  source.
+
+  # stap eventcount.stp syscall.* -c 'sleep 1'
+
+
+general/helloworld.stp - SystemTap "Hello World" Program
+keywords: _best simple
+
+  A basic "Hello World" program implemented in SystemTap script. It
+  prints out "hello world" message and then immediately exits.
+
+  # stap helloworld.stp
+
+
+general/para-callgraph.stp - Callgraph Tracing with Arguments
+keywords: _best trace callgraph
+
+  Print a timed per-thread microsecond-timed callgraph, complete with
+  function parameters and return values.  The first parameter names the
+  function probe points to trace.  The optional second parameter names
+  the probe points for trigger functions, which acts to enable tracing
+  for only those functions that occur while the current thread is
+  nested within the trigger.
+
+  # stap para-callgraph.stp 'kernel.function("*@fs/proc*.c")' \
+  'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
+
+
+general/varwatch.stp - Watch a Variable Changing Value in a Thread
+keywords: _best monitoring
+
+  This script places a set of probes (specified by $1), each of which
+  monitors the state of some context $variable expression (specified by
+  $2).	Whenever the value changes, with respect to the active thread,
+  the event is traced.
+
+  # stap -w varwatch.stp 'kernel.statement("do_sys_open@fs/open.c:*")' \
+  '$$vars' -c "sleep 1"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
+
+
+network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic
+
+  The script watches all IPv4 network traffic on the system. On exit
+  the script prints a list showing the number of packets sent along
+  source IP address / destination IP address pair encountered, and the
+  total number of bytes sent among the pair. The list is ordered from
+  greatest to least number of packets seen among the source/destination
+  pairs.
+
+  # stap netfilter_summary.stp -c "sleep 1"
+
+
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
+
+
+process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
+keywords: _best process scheduler time tracepoint interrupt
+
+  The cycle_thief.stp script instruments the scheduler and IRQ handler
+  to determine which processes and interrupts are competing with the
+  specified task for the cpu cycles. This script uses the '-c' or '-x'
+  options to focus on a specific task. The script output the number of
+  times the task migrates between processors, histograms showing the
+  length of time on and off processor, lists of processes running while
+  the task is off the processor, and the interrupts that occurred while
+  the task was running.
+
+  # stap cycle_thief.stp -c "sleep 1"
+
+
+process/proctop.stp - Periodically Print Process Information With History
+keywords: process scheduler _best
+
+  Every 5 seconds, print out a list of 25 processes that took the most
+  system time with information about the processes. Includes
+  information on processes that may have exited while the script was
+  running. The script contains configuration options listed in the
+  script source.
+
+  # stap proctop.stp -c "sleep 1"
+
+
+process/strace.stp - Trace system calls
+keywords: _best process syscall
+
+  The script loosely emulates strace, when applied to individual
+  processes or hierarchies (via -c/-x), or the entire system (without
+  -c/-x).  A few output configuration parameters may be set with -G.
+
+  # stap strace.stp -c "sleep 1"
+
+
+process/thread-business.stp - monitor syscall history
+keywords: _best process syscall
+
+  Prints a periodic tabular report about the counts of syscall activity
+  of all threads on the system, along with a textual
+  recent-syscall-history for each
+
+  # stap thread-business.stp -c "sleep 10"
+
+
+profiling/fntimes.stp - Show Functions Taking Longer Than Usual
+keywords: _best profiling
+
+  The fntimes.stp script monitors the execution time history of a given
+  function family (assumed non-recursive).  Each time (beyond a warmup
+  interval) is then compared to the historical maximum.  If it exceeds
+  a certain threshold (250%), a message is printed.
+
+  # stap fntimes.stp 'kernel.function("sys_*")' -c "sleep 7"
+
+
+profiling/latencytap.stp - Show Reasons and Durations for Processes Sleeping
+keywords: _best profiling
+
+  The latencytap.stp script collects data on the intervals processes
+  are deactivated (sleeping).  The script categorizes the reasons for
+  the sleeps by analyzing the backtraces and displays a sorted list of
+  the top 20 causes from largest total sum time sleeping to smallest.
+  The output is updated every 30 seconds. The script needs to be
+  compiled with the '--all-modules' option to produce reasons for
+  sleeps caused by modules.  Optionally, this script can be used with
+  the '-c' or '-x' options to focus on a specific PID.
+
+  # stap latencytap.stp --all-modules -c "sleep 1"
+
+
+profiling/linetimes.stp - Show Time Spent on Each Line of a Function
+keywords: profiling _best
+
+  The linetimes.stp script takes two arguments: where to find the
+  function and the function name. linetimes.stp will instrument each
+  line in the function. It will print out the number of times that the
+  function is called, a table with the average and maximum time each
+  line takes, and control flow information when the script exits.
+
+  # stap linetimes.stp kernel sys_nanosleep -c "sleep 1"
+
+
+profiling/pf4.stp - Profile Kernel/User Backtraces
+keywords: _best profiling backtrace
+
+  The pf4.stp script sets up time-based sampling. Every five seconds it
+  prints out a sorted list with the top twenty kernel and/or user stack
+  backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d
+  MODULE, -d /PATH/TO/EXEC to add more symbolic info.
+
+  # stap pf4.stp -c "sleep 6" --all-modules --ldd
+
+
+profiling/thread-times.stp - Profile Kernel Functions
+keywords: _best profiling
+
+  The thread-times.stp script sets up time-based sampling.  Every five
+  seconds it prints out a sorted list with the top twenty threads
+  occupying the CPUs, broken down as a percentage of user and kernel
+  time.
+
+  # stap thread-times.stp -c "sleep 1"
+
+
+stapgames/2048.stp - 2048
+keywords: _best stapgames
+
+  The modern classic 2048 sliding-tiles game, using local keyboard and
+  ansi animation.
+
+  # stap -p4 2048.stp
+
+
+virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons
+keywords: _best virtualization kvm
+
+  The kvm_service_time.stp script tracks the statistics about the
+  amount of time that the processor left the guest virtual machine for
+  each exit reason (for example fixing up a page table or handling an
+  IO operation).  When the script exits it prints out the number of
+  times each exit reason was encountered, the total duration of time it
+  left the guest VM, the minimum time, the average time, and the
+  maximum time in microseconds for that exit reason. On Linux 2.6.38
+  and newer kernel the script can automatically determine whether it is
+  running on Intel or AMD processors. For older kernels with a
+  kernel.trace("kvm_exit") tracepoint that does not have the $isa
+  parameter you can explicitly state the kvm type with a "-G kvm=intel"
+  or "-G kvm=amd" on the command line.
+
+  # stap kvm_service_time.stp -c "sleep 1"
+
+
 = AUDIT =
 
 process/auditbt.stp - Generate backtraces for kernel audit events
@@ -105,6 +323,17 @@ keywords: io scheduler backtrace
   # stap sleepingBeauties.stp -c "sleep 1"
 
 
+profiling/pf4.stp - Profile Kernel/User Backtraces
+keywords: _best profiling backtrace
+
+  The pf4.stp script sets up time-based sampling. Every five seconds it
+  prints out a sorted list with the top twenty kernel and/or user stack
+  backtraces (on a per-cpu basis).  Use any of --ldd, --all-modules, -d
+  MODULE, -d /PATH/TO/EXEC to add more symbolic info.
+
+  # stap pf4.stp -c "sleep 6" --all-modules --ldd
+
+
 = CALLGRAPH =
 
 general/para-callgraph-verbose.stp - Callgraph Tracing with Verbose Arguments
@@ -122,7 +351,7 @@ keywords: trace callgraph
 
 
 general/para-callgraph.stp - Callgraph Tracing with Arguments
-keywords: trace callgraph
+keywords: _best trace callgraph
 
   Print a timed per-thread microsecond-timed callgraph, complete with
   function parameters and return values.  The first parameter names the
@@ -282,6 +511,30 @@ keywords: disk filesystem
   # stap enospc.stp -c "sleep 1"
 
 
+lwtools/fslatency-nd.stp - Measure the distribution of file system synchronous read and write latency (non-debuginfo)
+keywords: io filesystem
+
+  This dynamically traces two common file system functions:
+  do_sync_read() and do_sync_write(), and reports a histogram
+  distribution of latency. Many, but not all, file systems and
+  workloads use these functions. Tracing their time provides one view
+  of suffered file system latency.
+
+  # stap fslatency-nd.stp 1 1
+
+
+lwtools/fsslower-nd.stp - Trace slow file system synchronous reads and writes (non-debuginfo)
+keywords: io filesystem
+
+  This dynamically traces two common file system functions:
+  do_sync_read() and do_sync_write(), and shows details of each call
+  that is slower than a threshold. Many, but not all, file systems and
+  workloads use these functions. Tracing their time provides one view
+  of suffered file system latency.
+
+  # stap fsslower-nd.stp -c "sleep 1"
+
+
 = FORMAT =
 
 general/ansi_colors.stp - Color Table for ansi_set_color2() and ansi_set_color3()
@@ -317,6 +570,17 @@ keywords: function statistics
   times.
 
   # stap func_time_stats.stp 'syscall.nanosleep' -c "sleep 1"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
 
 
 profiling/functioncallcount.stp - Count Times Functions Are Called
@@ -385,8 +649,8 @@ io/eatmydata.stp - disable fsync
 keywords: io guru simple
 
   Suppresses fsync() syscalls from processes identified by stap -c/-x
-  by turning them into presumed-faster fsync() on file descriptor 1
-  (stdout).
+  by turning them into presumed-faster fsync() on some dummy or other
+  file descriptor
 
   # stap -g eatmydata.stp -c 'strace ls || true'
 
@@ -469,7 +733,7 @@ keywords: interrupt backtrace
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 
   The cycle_thief.stp script instruments the scheduler and IRQ handler
   to determine which processes and interrupts are competing with the
@@ -503,8 +767,8 @@ io/eatmydata.stp - disable fsync
 keywords: io guru simple
 
   Suppresses fsync() syscalls from processes identified by stap -c/-x
-  by turning them into presumed-faster fsync() on file descriptor 1
-  (stdout).
+  by turning them into presumed-faster fsync() on some dummy or other
+  file descriptor
 
   # stap -g eatmydata.stp -c 'strace ls || true'
 
@@ -668,6 +932,100 @@ keywords: io tty monitoring guru
   # stap --skip-badvars -g ttyspy.stp -c "sleep 1"
 
 
+lwtools/biolatency-nd.stp - Measure block I/O latency distribution (non-debuginfo)
+keywords: io
+
+  This measures block I/O latency (storage I/O, ie, disk I/O), and
+  shows the distribution as a histogram. This can be useful to identify
+  the characteristics of I/O latency, beyond the averages shown by
+  iostat(1). For example, to study I/O latency outliers, or multi-modal
+  distributions.
+
+  # stap biolatency-nd.stp 1 1
+
+
+lwtools/bitesize-nd.stp - Measure block I/O size distribution (non-debuginfo)
+keywords: io
+
+  This uses the kernel tracepoint block_rq_insert to read the size of
+  I/O. The output includes the name of the process or thread that was
+  on-CPU when the I/O request was inserted on the issue queue.
+
+  # stap bitesize-nd.stp -c "sleep 1"
+
+
+lwtools/execsnoop-nd.stp - Trace process exec() with command line argument details (non-debuginfo)
+keywords: io
+
+  This can identify if CPU is consumed by short-lived processes, by
+  tracing new process execution. It works by tracing exec() from the
+  fork()->exec() sequence, which means it will not catch new processes
+  that only fork(). It will also show every exec(), including those if
+  a process re-execs.
+
+  # stap execsnoop-nd.stp -c "sleep 1"
+
+
+lwtools/fslatency-nd.stp - Measure the distribution of file system synchronous read and write latency (non-debuginfo)
+keywords: io filesystem
+
+  This dynamically traces two common file system functions:
+  do_sync_read() and do_sync_write(), and reports a histogram
+  distribution of latency. Many, but not all, file systems and
+  workloads use these functions. Tracing their time provides one view
+  of suffered file system latency.
+
+  # stap fslatency-nd.stp 1 1
+
+
+lwtools/fsslower-nd.stp - Trace slow file system synchronous reads and writes (non-debuginfo)
+keywords: io filesystem
+
+  This dynamically traces two common file system functions:
+  do_sync_read() and do_sync_write(), and shows details of each call
+  that is slower than a threshold. Many, but not all, file systems and
+  workloads use these functions. Tracing their time provides one view
+  of suffered file system latency.
+
+  # stap fsslower-nd.stp -c "sleep 1"
+
+
+lwtools/killsnoop-nd.stp - Trace kill() signals showing process and signal details (non-debuginfo)
+keywords: io
+
+  This traces signals system-wide, including those sent by the kill(1)
+  command, and shows various details.
+
+  # stap killsnoop-nd.stp -c "sleep 1"
+
+
+lwtools/opensnoop-nd.stp - Trace open() syscalls showing filenames (non-debuginfo)
+keywords: io
+
+  This traces the open() syscall system-wide, to show which files are
+  being opened, and by who.
+
+  # stap opensnoop-nd.stp -c "sleep 1"
+
+
+lwtools/rwtime-nd.stp - Summarize read() and write() syscall latency (non-debuginfo)
+keywords: io
+
+  This traces read() and write() syscalls, producing a histogram
+  summary of their durations (aka latencies).
+
+  # stap rwtime-nd.stp -c "sleep 1"
+
+
+lwtools/syscallbypid-nd.stp - Count syscalls with process details (non-debuginfo)
+keywords: io
+
+  This traces syscalls system-wide, and produces a summary report
+  showing their counts by process ID, process name, and syscall types.
+
+  # stap syscallbypid-nd.stp -c "sleep 1"
+
+
 process/sleepingBeauties.stp - Generate Backtraces of Threads Waiting for IO Operations
 keywords: io scheduler backtrace
 
@@ -690,10 +1048,32 @@ keywords: virtualization qemu kvm io
   # stap qemu_io.stp -c "sleep 1"
 
 
+= JSON =
+
+network/net_xmit_json.stp - Tracks time between packet queue and transmit.
+keywords: network statistics json
+
+  This script tracks time between packet queue and transmit. The
+  information is provided to userspace via procfs in JSON format.
+
+  # stap net_xmit_json.stp -c "sleep 1"
+
+
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
+
+
 = KVM =
 
 virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons
-keywords: virtualization kvm
+keywords: _best virtualization kvm
 
   The kvm_service_time.stp script tracks the statistics about the
   amount of time that the processor left the guest virtual machine for
@@ -841,6 +1221,15 @@ keywords: statistics memory
   # stap sizeof.stp FILE '</usr/include/stdio.h>'
 
 
+memory/glibc-malloc.stp - Overview glibc malloc internal operations
+keywords: memory process
+
+  This script reports on internal statistics of the glibc malloc
+  implementation, as used by a process restricted by stap -x/-c
+
+  # stap glibc-malloc.stp -c 'stap --dump-functions'
+
+
 memory/hw_watch_addr.stp - Watch a Kernel Address Using Breakpoint Hardware
 keywords: memory watchpoint
 
@@ -849,7 +1238,7 @@ keywords: memory watchpoint
   be run as root to allow access to the breakpoint hardware.
 
   # stap --all-modules hw_watch_addr.stp 0x`grep "vm_dirty_ratio" \
-  /proc/kallsyms` -c "sleep 5"
+  /proc/kallsyms | awk '{print $1}'` -c "sleep 5"
 
 
 memory/hw_watch_sym.stp - Watch a Kernel Symbol Using Breakpoint Hardware
@@ -990,7 +1379,7 @@ keywords: memory slab statistics
 = MONITORING =
 
 general/varwatch.stp - Watch a Variable Changing Value in a Thread
-keywords: monitoring
+keywords: _best monitoring
 
   This script places a set of probes (specified by $1), each of which
   monitors the state of some context $variable expression (specified by
@@ -999,6 +1388,17 @@ keywords: monitoring
 
   # stap -w varwatch.stp 'kernel.statement("do_sys_open@fs/open.c:*")' \
   '$$vars' -c "sleep 1"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
 
 
 io/mbrwatch.stp - Monitor Read/Write of the Boot Sector Area of Block Devices
@@ -1056,6 +1456,18 @@ keywords: syscall nanosleep
   # stap sleeptime.stp -c "sleep 1"
 
 
+= NET =
+
+lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
+keywords: net socket
+
+  This traces socket duration from the accept() syscall to close(), and
+  provides details on the lifespan of these passive connections,
+  showing the distribution as a histogram.
+
+  # stap accept2close-nd.stp -c "sleep 1"
+
+
 = NETWORK =
 
 network/autofs4.stp - Watch autofs4 Operations
@@ -1086,6 +1498,15 @@ keywords: network tracepoint socket
   # stap dropwatch.stp -c "sleep 1"
 
 
+network/net_xmit_json.stp - Tracks time between packet queue and transmit.
+keywords: network statistics json
+
+  This script tracks time between packet queue and transmit. The
+  information is provided to userspace via procfs in JSON format.
+
+  # stap net_xmit_json.stp -c "sleep 1"
+
+
 network/netdev.stp - Trace Activity on Network Devices
 keywords: network device traffic
 
@@ -1108,7 +1529,7 @@ keywords: network packets guru
 
 
 network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
-keywords: network traffic
+keywords: _best network traffic
 
   The script watches all IPv4 network traffic on the system. On exit
   the script prints a list showing the number of packets sent along
@@ -1118,6 +1539,17 @@ keywords: network traffic
   pairs.
 
   # stap netfilter_summary.stp -c "sleep 1"
+
+
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
 
 
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces
@@ -1164,6 +1596,16 @@ keywords: network socket
   "-h" option lists socktop script's filtering options.
 
   # ./socktop -c 1
+
+
+network/stp_dump.stp - Dump of STP packets
+keywords: network traffic
+
+  The stp_dump.stp prints out the packet contents. Each block contains
+  the STP protocol ID, version ID, flags, root and bridge MAC
+  addresses, and various times.
+
+  # stap stp_dump.stp -c "sleep 5"
 
 
 network/tcp_connections.stp - Track Creation of Incoming TCP Connections
@@ -1292,7 +1734,7 @@ keywords: network packets guru
 = PROCESS =
 
 general/eventcount.stp - Count Specified Events
-keywords: statistics thread process
+keywords: _best statistics thread process
 
   The script periodically prints a count of specified events and their
   related tid's over the course of execution.  Numerous configuration
@@ -1300,6 +1742,15 @@ keywords: statistics thread process
   source.
 
   # stap eventcount.stp syscall.* -c 'sleep 1'
+
+
+memory/glibc-malloc.stp - Overview glibc malloc internal operations
+keywords: memory process
+
+  This script reports on internal statistics of the glibc malloc
+  implementation, as used by a process restricted by stap -x/-c
+
+  # stap glibc-malloc.stp -c 'stap --dump-functions'
 
 
 memory/last_100_frees.stp - Log recent free(3) calls.
@@ -1334,7 +1785,7 @@ keywords: network tcp process
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 
   The cycle_thief.stp script instruments the scheduler and IRQ handler
   to determine which processes and interrupts are competing with the
@@ -1420,6 +1871,18 @@ keywords: process monitoring syscall tracepoint
   # stap procmod_watcher.stp -c "sleep 1"
 
 
+process/proctop.stp - Periodically Print Process Information With History
+keywords: process scheduler _best
+
+  Every 5 seconds, print out a list of 25 processes that took the most
+  system time with information about the processes. Includes
+  information on processes that may have exited while the script was
+  running. The script contains configuration options listed in the
+  script source.
+
+  # stap proctop.stp -c "sleep 1"
+
+
 process/psig.stp - Print Process File Descriptors
 keywords: process signals
 
@@ -1471,8 +1934,23 @@ keywords: process locking
   # stap semop-watch.stp -c 'sleep 2'
 
 
+process/spawn_seeker.stp - Track Creation of Processes by process and execname
+keywords: process scheduler
+
+  The spawn_seeker.stp script every minute (and on exit) prints out the
+  local time and sorted lists of which processes and executables
+  spawned tasks during the previous minute. This can be useful to
+  determine what process is creating a flurry of short-lived processes.
+   When a process exits its count of tasks created is added to its
+  parent's count to better account for the indirect task creation by
+  children processes.  For more detailed examination of task creation
+  consider using forktracker.stp.
+
+  # stap spawn_seeker.stp -c "sleep 1"
+
+
 process/strace.stp - Trace system calls
-keywords: process syscall
+keywords: _best process syscall
 
   The script loosely emulates strace, when applied to individual
   processes or hierarchies (via -c/-x), or the entire system (without
@@ -1482,7 +1960,7 @@ keywords: process syscall
 
 
 process/thread-business.stp - monitor syscall history
-keywords: process syscall
+keywords: _best process syscall
 
   Prints a periodic tabular report about the counts of syscall activity
   of all threads on the system, along with a textual
@@ -1581,8 +2059,22 @@ keywords: profiling
   # stap errno.stp -c "sleep 1"
 
 
-profiling/fntimes.stp - Show Functions Taking Longer Than Usual
+profiling/fileline-profile.stp - Profile Kernel/User Functions
 keywords: profiling
+
+  The fileline-profile.stp script ends by printing out a sorted list of
+  the top twenty kernel and/or user processes providing file:line
+  information, if available, from the samples addresses gathered over
+  the time period the script is run. Use any of --ldd, --all-modules,
+  -d MODULE, -d /PATH/TO/EXEC to add more symbolic info. To include the
+  symbol name in the output, specify guru mode (-g) and add
+  symbolname="yes" to the stap command.
+
+  # stap fileline-profile.stp -c "sleep 6" --all-modules --ldd
+
+
+profiling/fntimes.stp - Show Functions Taking Longer Than Usual
+keywords: _best profiling
 
   The fntimes.stp script monitors the execution time history of a given
   function family (assumed non-recursive).  Each time (beyond a warmup
@@ -1605,7 +2097,7 @@ keywords: profiling function
 
 
 profiling/latencytap.stp - Show Reasons and Durations for Processes Sleeping
-keywords: profiling
+keywords: _best profiling
 
   The latencytap.stp script collects data on the intervals processes
   are deactivated (sleeping).  The script categorizes the reasons for
@@ -1620,7 +2112,7 @@ keywords: profiling
 
 
 profiling/linetimes.stp - Show Time Spent on Each Line of a Function
-keywords: profiling
+keywords: profiling _best
 
   The linetimes.stp script takes two arguments: where to find the
   function and the function name. linetimes.stp will instrument each
@@ -1678,7 +2170,7 @@ keywords: profiling
 
 
 profiling/pf4.stp - Profile Kernel/User Backtraces
-keywords: profiling
+keywords: _best profiling backtrace
 
   The pf4.stp script sets up time-based sampling. Every five seconds it
   prints out a sorted list with the top twenty kernel and/or user stack
@@ -1703,7 +2195,7 @@ keywords: profiling function
 
 
 profiling/thread-times.stp - Profile Kernel Functions
-keywords: profiling
+keywords: _best profiling
 
   The thread-times.stp script sets up time-based sampling.  Every five
   seconds it prints out a sorted list with the top twenty threads
@@ -1791,7 +2283,7 @@ keywords: scheduler
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 
   The cycle_thief.stp script instruments the scheduler and IRQ handler
   to determine which processes and interrupts are competing with the
@@ -1828,6 +2320,18 @@ keywords: scheduler
   # stap migrate.stp -c "sleep 1" bash
 
 
+process/proctop.stp - Periodically Print Process Information With History
+keywords: process scheduler _best
+
+  Every 5 seconds, print out a list of 25 processes that took the most
+  system time with information about the processes. Includes
+  information on processes that may have exited while the script was
+  running. The script contains configuration options listed in the
+  script source.
+
+  # stap proctop.stp -c "sleep 1"
+
+
 process/schedtimes.stp - Track Time Processes Spend in Various States Using Tracepoints
 keywords: process scheduler time tracepoint
 
@@ -1850,6 +2354,21 @@ keywords: io scheduler backtrace
   so is the total delay.
 
   # stap sleepingBeauties.stp -c "sleep 1"
+
+
+process/spawn_seeker.stp - Track Creation of Processes by process and execname
+keywords: process scheduler
+
+  The spawn_seeker.stp script every minute (and on exit) prints out the
+  local time and sorted lists of which processes and executables
+  spawned tasks during the previous minute. This can be useful to
+  determine what process is creating a flurry of short-lived processes.
+   When a process exits its count of tasks created is added to its
+  parent's count to better account for the indirect task creation by
+  children processes.  For more detailed examination of task creation
+  consider using forktracker.stp.
+
+  # stap spawn_seeker.stp -c "sleep 1"
 
 
 = SCSI =
@@ -1940,7 +2459,7 @@ keywords: signals
 = SIMPLE =
 
 general/helloworld.stp - SystemTap "Hello World" Program
-keywords: simple
+keywords: _best simple
 
   A basic "Hello World" program implemented in SystemTap script. It
   prints out "hello world" message and then immediately exits.
@@ -1969,8 +2488,8 @@ io/eatmydata.stp - disable fsync
 keywords: io guru simple
 
   Suppresses fsync() syscalls from processes identified by stap -c/-x
-  by turning them into presumed-faster fsync() on file descriptor 1
-  (stdout).
+  by turning them into presumed-faster fsync() on some dummy or other
+  file descriptor
 
   # stap -g eatmydata.stp -c 'strace ls || true'
 
@@ -1990,6 +2509,16 @@ keywords: memory slab statistics
 
 
 = SOCKET =
+
+lwtools/accept2close-nd.stp - Show socket lifespan, from accept() to close() (non-debuginfo)
+keywords: net socket
+
+  This traces socket duration from the accept() syscall to close(), and
+  provides details on the lifespan of these passive connections,
+  showing the distribution as a histogram.
+
+  # stap accept2close-nd.stp -c "sleep 1"
+
 
 network/connect_stat.stp - Show Process Ancestry for IP Connections
 keywords: network socket process
@@ -2057,10 +2586,23 @@ keywords: network tcp socket guru
   # stap -g tcp_init_cwnd.stp -c "sleep 1"
 
 
+= SPECULATION =
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
+
+
 = STAPGAMES =
 
 stapgames/2048.stp - 2048
-keywords: stapgames
+keywords: _best stapgames
 
   The modern classic 2048 sliding-tiles game, using local keyboard and
   ansi animation.
@@ -2118,7 +2660,7 @@ keywords: io statistics
 
 
 general/eventcount.stp - Count Specified Events
-keywords: statistics thread process
+keywords: _best statistics thread process
 
   The script periodically prints a count of specified events and their
   related tid's over the course of execution.  Numerous configuration
@@ -2161,6 +2703,15 @@ keywords: memory slab statistics
   user-space processes.
 
   # stap vm.tracepoints.stp -c "sleep 10"
+
+
+network/net_xmit_json.stp - Tracks time between packet queue and transmit.
+keywords: network statistics json
+
+  This script tracks time between packet queue and transmit. The
+  information is provided to userspace via procfs in JSON format.
+
+  # stap net_xmit_json.stp -c "sleep 1"
 
 
 network/nfsd-recent.stp - Keep track of NFS server statistics
@@ -2271,7 +2822,7 @@ keywords: syscall nanosleep
 
 
 process/strace.stp - Trace system calls
-keywords: process syscall
+keywords: _best process syscall
 
   The script loosely emulates strace, when applied to individual
   processes or hierarchies (via -c/-x), or the entire system (without
@@ -2310,7 +2861,7 @@ keywords: syscall
 
 
 process/thread-business.stp - monitor syscall history
-keywords: process syscall
+keywords: _best process syscall
 
   Prints a periodic tabular report about the counts of syscall activity
   of all threads on the system, along with a textual
@@ -2370,7 +2921,7 @@ keywords: network tcp socket guru
 = THREAD =
 
 general/eventcount.stp - Count Specified Events
-keywords: statistics thread process
+keywords: _best statistics thread process
 
   The script periodically prints a count of specified events and their
   related tid's over the course of execution.  Numerous configuration
@@ -2408,7 +2959,7 @@ keywords: time
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 
   The cycle_thief.stp script instruments the scheduler and IRQ handler
   to determine which processes and interrupts are competing with the
@@ -2452,7 +3003,7 @@ keywords: trace callgraph
 
 
 general/para-callgraph.stp - Callgraph Tracing with Arguments
-keywords: trace callgraph
+keywords: _best trace callgraph
 
   Print a timed per-thread microsecond-timed callgraph, complete with
   function parameters and return values.  The first parameter names the
@@ -2463,6 +3014,17 @@ keywords: trace callgraph
 
   # stap para-callgraph.stp 'kernel.function("*@fs/proc*.c")' \
   'kernel.function("vfs_read")' -c "cat /proc/sys/vm/* || true"
+
+
+general/whythefail.stp - Why did the function fail?
+keywords: speculation monitoring function trace _best
+
+  The whythefail.stp script prints a statement-execution trace for a
+  given function, but only for those runs of the function that ended up
+  with a (configurable) post-return condition.
+
+  # stap whythefail.stp kernel sys_open '$return < 0' -c 'cat \
+  /root/no-such-file || true'
 
 
 network/tcp_trace.stp - TCP Connection Tracing Utility
@@ -2487,7 +3049,7 @@ keywords: network tracepoint socket
 
 
 process/cycle_thief.stp - Track IRQ's and Other Processes Stealing Cycles from a Task
-keywords: process scheduler time tracepoint interrupt
+keywords: _best process scheduler time tracepoint interrupt
 
   The cycle_thief.stp script instruments the scheduler and IRQ handler
   to determine which processes and interrupts are competing with the
@@ -2537,7 +3099,7 @@ keywords: network device traffic
 
 
 network/netfilter_summary.stp - System-Wide Count of Network Packets by IPs
-keywords: network traffic
+keywords: _best network traffic
 
   The script watches all IPv4 network traffic on the system. On exit
   the script prints a list showing the number of packets sent along
@@ -2549,6 +3111,17 @@ keywords: network traffic
   # stap netfilter_summary.stp -c "sleep 1"
 
 
+network/netfilter_summary_json.stp - System-Wide Count of Network Packets by IPs
+keywords: _best network traffic json
+
+  The script watches all IPv4 network traffic on the system. The data
+  is output in JSON format and includes the number of packets sent
+  along source IP address / destination IP address pair encountered,
+  and the total number of bytes sent among the pair.
+
+  # stap netfilter_summary_json.stp -c "sleep 1"
+
+
 network/nettop.stp - Periodic Listing of Processes Using Network Interfaces
 keywords: network traffic
 
@@ -2558,6 +3131,16 @@ keywords: network traffic
   interval.
 
   # stap nettop.stp -c "sleep 1"
+
+
+network/stp_dump.stp - Dump of STP packets
+keywords: network traffic
+
+  The stp_dump.stp prints out the packet contents. Each block contains
+  the STP protocol ID, version ID, flags, root and bridge MAC
+  addresses, and various times.
+
+  # stap stp_dump.stp -c "sleep 5"
 
 
 network/tcpdumplike.stp - Dump of Received UDP/TCP Packets
@@ -2597,7 +3180,7 @@ keywords: disk cpu utilization
 = VIRTUALIZATION =
 
 virtualization/kvm_service_time.stp - Time Statistics on KVM Exit Reasons
-keywords: virtualization kvm
+keywords: _best virtualization kvm
 
   The kvm_service_time.stp script tracks the statistics about the
   amount of time that the processor left the guest virtual machine for
@@ -2665,7 +3248,7 @@ keywords: memory watchpoint
   be run as root to allow access to the breakpoint hardware.
 
   # stap --all-modules hw_watch_addr.stp 0x`grep "vm_dirty_ratio" \
-  /proc/kallsyms` -c "sleep 5"
+  /proc/kallsyms | awk '{print $1}'` -c "sleep 5"
 
 
 memory/hw_watch_sym.stp - Watch a Kernel Symbol Using Breakpoint Hardware

@@ -1,5 +1,5 @@
 // session functions
-// Copyright (C) 2010-2014 Red Hat Inc.
+// Copyright (C) 2010-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -145,6 +145,7 @@ systemtap_session::systemtap_session ():
   need_uprobes = false;
   need_unwind = false;
   need_symbols = false;
+  need_lines = false;
   uprobes_path = "";
   load_only = false;
   skip_badvars = false;
@@ -167,6 +168,7 @@ systemtap_session::systemtap_session ():
   sysroot = "";
   update_release_sysroot = false;
   suppress_time_limits = false;
+  target_namespaces_pid = 0;
   color_mode = color_auto;
   color_errors = isatty(STDERR_FILENO) // conditions for coloring when
     && strcmp(getenv("TERM") ?: "notdumb", "dumb"); // on auto
@@ -251,6 +253,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   pattern_root(new match_node),
   user_files (other.user_files),
   dfa_counter(0),
+  dfa_maxstate (0),
   dfa_maxtag (0),
   need_tagged_dfa(other.need_tagged_dfa),
   be_derived_probes(0),
@@ -326,6 +329,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   need_uprobes = false;
   need_unwind = false;
   need_symbols = false;
+  need_lines = false;
   uprobes_path = "";
   load_only = other.load_only;
   skip_badvars = other.skip_badvars;
@@ -444,12 +448,12 @@ systemtap_session::version_string ()
 void
 systemtap_session::version ()
 {
-  clog << _F("Systemtap translator/driver (version %s)\n"
-             "Copyright (C) 2005-2014 Red Hat, Inc. and others\n"
+  cout << _F("Systemtap translator/driver (version %s)\n"
+             "Copyright (C) 2005-2015 Red Hat, Inc. and others\n"
              "This is free software; see the source for copying conditions.\n",
              version_string().c_str());
 
-  clog << _("enabled features:")
+  cout << _("enabled features:")
 #ifdef HAVE_AVAHI
        << " AVAHI"
 #endif
@@ -501,7 +505,7 @@ systemtap_session::usage (int exitcode)
     }
 
   version ();
-  clog
+  cout
     << endl
     << _F(
      "Usage: stap [options] FILE                    Run script in file.\n"
@@ -521,10 +525,10 @@ systemtap_session::usage (int exitcode)
      "   -v         add verbosity to all passes\n"
      "   --vp {N}+  add per-pass verbosity [", data_path.c_str(), last_pass);
   for (unsigned i=0; i<5; i++)
-    clog << (perpass_verbose[i] <= 9 ? perpass_verbose[i] : 9);
-  clog 
+    cout << (perpass_verbose[i] <= 9 ? perpass_verbose[i] : 9);
+  cout 
     << "]" << endl;
-    clog << _F("   -k         keep temporary directory\n"
+    cout << _F("   -k         keep temporary directory\n"
      "   -u         unoptimized translation %s\n"
      "   -w         suppress warnings %s\n"
      "   -W         turn warnings into errors %s\n"
@@ -537,12 +541,12 @@ systemtap_session::usage (int exitcode)
          (guru_mode ? _(" [set]") : ""), (prologue_searching ? _(" [set]") : ""),
          (bulk_mode ? _(" [set]") : ""), buffer_size);
   if (include_path.size() == 0)
-    clog << endl;
+    cout << endl;
   else
-    clog << _(", in addition to") << endl;
+    cout << _(", in addition to") << endl;
   for (unsigned i=0; i<include_path.size(); i++)
-    clog << "              " << include_path[i].c_str() << endl;
-  clog
+    cout << "              " << include_path[i].c_str() << endl;
+  cout
     << _F("   -D NM=VAL  emit macro definition into generated C code\n"
     "   -B NM=VAL  pass option to kbuild make\n"
     "   --modinfo NM=VAL\n"
@@ -568,15 +572,15 @@ systemtap_session::usage (int exitcode)
     "   -S size[,n] set maximum of the size and the number of files.\n"
     "   -d OBJECT  add unwind/symbol data for OBJECT file", runtime_path.c_str(), kernel_build_tree.c_str(), architecture.c_str(), module_name.c_str());
   if (unwindsym_modules.size() == 0)
-    clog << endl;
+    cout << endl;
   else
-    clog << _(", in addition to") << endl;
+    cout << _(", in addition to") << endl;
   {
     vector<string> syms (unwindsym_modules.begin(), unwindsym_modules.end());
     for (unsigned i=0; i<syms.size(); i++)
-      clog << "              " << syms[i].c_str() << endl;
+      cout << "              " << syms[i].c_str() << endl;
   }
-  clog
+  cout
     << _F("   --ldd      add unwind/symbol data for all referenced object files.\n"
     "   --all-modules\n"
     "              add unwind/symbol data for all loaded kernel objects.\n"
@@ -639,6 +643,8 @@ systemtap_session::usage (int exitcode)
     "              disable -DSTP_OVERLOAD, -DMAXACTION, and -DMAXTRYACTION limits\n"
     "   --save-uprobes\n"
     "              save uprobes.ko to current directory if it is built from source\n"
+    "   --target-namesapce=PID\n"
+    "              sets the target namespaces pid to PID\n"
     , compatible.c_str()) << endl
   ;
 
@@ -646,7 +652,7 @@ systemtap_session::usage (int exitcode)
   time (& now);
   struct tm* t = localtime (& now);
   if (t && t->tm_mon*3 + t->tm_mday*173 == 0xb6)
-    clog << morehelp << endl;
+    cout << morehelp << endl;
 
   throw exit_exception (exitcode);
 }
@@ -682,6 +688,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
         case 'G':
           // Make sure the global option is only composed of the
           // following chars: [_=a-zA-Z0-9]
+          assert(optarg);
           assert_regexp_match("-G parameter", optarg, "^[a-z_][a-z0-9_]*=[a-z0-9_-]+$");
           globalopts.push_back (string(optarg));
           break;
@@ -702,6 +709,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
         case 'p':
+          assert(optarg);
           last_pass = (int)strtoul(optarg, &num_endptr, 10);
           if (*num_endptr != '\0' || last_pass < 1 || last_pass > 5)
             {
@@ -712,6 +720,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'I':
+          assert(optarg);
 	  if (client_options)
 	    client_options_disallowed_for_unprivileged += client_options_disallowed_for_unprivileged.empty () ? "-I" : ", -I";
 	  if (include_arg_start == -1)
@@ -720,6 +729,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'd':
+          assert(optarg);
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           {
             // Make sure an empty data object wasn't specified (-d "")
@@ -737,6 +747,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           }
 
         case 'e':
+          assert(optarg);
 	  if (have_script)
            {
              cerr << _("Only one script can be given on the command line.")
@@ -749,6 +760,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'E':
+          assert(optarg);
           server_args.push_back (string("-") + (char)grc + optarg);
           additional_scripts.push_back(string (optarg));
           // don't set have_script to true, since this script is meant to be
@@ -756,18 +768,21 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'o':
+          assert(optarg);
           // NB: client_options not a problem, since pass 1-4 does not use output_file.
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           output_file = string (optarg);
           break;
 
         case 'R':
+          assert(optarg);
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-R", "--client-options") << endl; return 1; }
 	  runtime_specified = true;
           runtime_path = string (optarg);
           break;
 
         case 'm':
+          assert(optarg);
 	  if (client_options)
 	    client_options_disallowed_for_unprivileged += client_options_disallowed_for_unprivileged.empty () ? "-m" : ", -m";
           module_name = string (optarg);
@@ -806,6 +821,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'r':
+          assert(optarg);
           if (client_options) // NB: no paths!
             assert_regexp_match("-r parameter from client", optarg, "^[a-z0-9_.-]+$");
 	  server_args.push_back (string ("-") + (char)grc + optarg);
@@ -813,6 +829,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
         case 'a':
+          assert(optarg);
           assert_regexp_match("-a parameter", optarg, "^[a-z0-9_-]+$");
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           architecture = string(optarg);
@@ -845,6 +862,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
         case 's':
+          assert(optarg);
           buffer_size = (int) strtoul (optarg, &num_endptr, 10);
           if (*num_endptr != '\0' || buffer_size < 1 || buffer_size > 4095)
             {
@@ -855,6 +873,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
 	case 'c':
+          assert(optarg);
 	  cmd = string (optarg);
           if (cmd == "")
             {
@@ -867,6 +886,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case 'x':
+          assert(optarg);
 	  target_pid = (int) strtoul(optarg, &num_endptr, 10);
 	  if (*num_endptr != '\0')
 	    {
@@ -877,6 +897,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  break;
 
 	case 'D':
+          assert(optarg);
           assert_regexp_match ("-D parameter", optarg, "^[a-z_][a-z_0-9]*(=-?[a-z_0-9]+)?$");
 	  if (client_options)
 	    client_options_disallowed_for_unprivileged += client_options_disallowed_for_unprivileged.empty () ? "-D" : ", -D";
@@ -886,6 +907,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case 'S':
           assert_regexp_match ("-S parameter", optarg, "^[0-9]+(,[0-9]+)?$");
+          assert(optarg);
 	  server_args.push_back (string ("-") + (char)grc + optarg);
 	  size_option = string (optarg);
 	  break;
@@ -907,6 +929,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
                         "switches may be specified") << endl;
               return 1;
             }
+          assert(optarg);
           server_args.push_back (string ("-") + (char)grc + optarg);
           dump_mode = systemtap_session::dump_matched_probes_vars;
           dump_matched_pattern = optarg;
@@ -921,6 +944,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
                         "switches may be specified") << endl;
               return 1;
             }
+          assert(optarg);
           server_args.push_back (string ("-") + (char)grc + optarg);
           dump_mode = systemtap_session::dump_matched_probes;
           dump_matched_pattern = optarg;
@@ -934,6 +958,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case 'B':
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-B", "--client-options") << endl; return 1; } 
+          assert(optarg);
 	  server_args.push_back (string ("-") + (char)grc + optarg);
           kbuildflags.push_back (string (optarg));
 	  break;
@@ -944,6 +969,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
 	case LONG_OPT_VERBOSE_PASS:
 	  {
+            assert(optarg);
 	    bool ok = true;
 	    if (strlen(optarg) < 1 || strlen(optarg) > 5)
 	      ok = false;
@@ -1396,6 +1422,16 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           save_uprobes = true;
           break;
 
+        case LONG_OPT_TARGET_NAMESPACES:
+          assert(optarg);
+          target_namespaces_pid = (int) strtoul(optarg, &num_endptr, 10);
+          if (*num_endptr != '\0' || target_namespaces_pid < 1)
+            {
+              cerr << _("Invalid process ID number for target namespaces.") << endl;
+              return 1;
+            }
+          break;
+
 	case '?':
 	  // Invalid/unrecognized option given or argument required, but
 	  // not given. In both cases getopt_long() will have printed the
@@ -1425,7 +1461,7 @@ systemtap_session::parse_cmdline_runtime (const string& opt_runtime)
       cerr << _("ERROR: --runtime=dyninst unavailable; this build lacks DYNINST feature") << endl;
       version();
       return false;
-#endif
+#else
       if (privilege_set && pr_unprivileged != privilege)
         {
           cerr << _("ERROR: --runtime=dyninst implies unprivileged mode only") << endl;
@@ -1434,6 +1470,7 @@ systemtap_session::parse_cmdline_runtime (const string& opt_runtime)
       privilege = pr_unprivileged;
       privilege_set = true;
       runtime_mode = dyninst_runtime;
+#endif
     }
   else
     {
@@ -2093,18 +2130,29 @@ systemtap_session::print_error_source (std::ostream& message,
   //TRANSLATORS: Here we are printing the source string of the error
   message << align << _("source: ");
   string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
-  if (color_errors &&
-      // Only colorize tokens whose content is known to match the source
-      // content.  e.g. tok_string doesn't qualify because of the double-quotes.
-      // tok_embedded lacks the %{ %}. tok_junk is just junky.
-      (tok->type == tok_number ||
-       tok->type == tok_identifier || 
-       tok->type == tok_operator)) {
-    // Split into before token, token, and after token
-    string tok_content = tok->content;
-    message << srcline.substr(0, col-1);
-    message << colorize(tok_content, "token");
-    message << srcline.substr(col+tok_content.size()-1) << endl;
+  if (color_errors) {
+      // before token:
+      message << srcline.substr(0, col-1);
+      // token:
+      // after token:
+      // ... hold it - the token might have been synthetic,
+      // or expanded from a $@ command line argument, or ...
+      // so tok->content may have nothing in common with the
+      // contents of srcline at the same point.
+      string srcline_rest = srcline.substr(col-1);
+      string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
+      if (srcline_tokenish == tok->content) { // oh good
+        message << colorize(tok->content, "token");
+        message << srcline_rest.substr(tok->content.size());
+        message << endl;
+      }
+      else { // oh bad
+        message << " ... ";
+        col += 5; // line up with the caret
+        message << colorize(tok->content, "token");
+        message << " ... " << srcline_rest;
+        message << endl;
+      }
   } else
     message << srcline << endl;
   message << align << "        ";
@@ -2406,15 +2454,23 @@ systemtap_session::parse_stap_color(const std::string& type)
  * This routine parses /sys/module/module/parameters/sig_enforce to
  * figure out if signatures are enforced on modules. Note that if the
  * file doesn't exist, we don't really care and return false.
+ *
+ * On certain kernels (RHEL7), we also have to check
+ * /sys/kernel/security/securelevel.
  */
 bool
 systemtap_session::modules_must_be_signed()
 {
   ifstream statm("/sys/module/module/parameters/sig_enforce");
+  ifstream securelevel("/sys/kernel/security/securelevel");
   char status = 'N';
 
   statm >> status;
   if (status == 'Y')
+    return true;
+
+  securelevel >> status;
+  if (status == '1')
     return true;
   return false;
 }

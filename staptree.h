@@ -142,6 +142,7 @@ struct visitable
   virtual ~visitable ();
 };
 
+struct symbol;
 struct expression : public visitable
 {
   exp_type type;
@@ -151,6 +152,7 @@ struct expression : public visitable
   virtual ~expression ();
   virtual void print (std::ostream& o) const = 0;
   virtual void visit (visitor* u) = 0;
+  virtual bool is_symbol(symbol *& sym_out);
 };
 
 std::ostream& operator << (std::ostream& o, const expression& k);
@@ -276,7 +278,6 @@ struct assignment: public binary_expression
   void visit (visitor* u);
 };
 
-struct symbol;
 struct hist_op;
 struct indexable : public expression
 {
@@ -428,6 +429,7 @@ struct functioncall: public expression
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
+  std::string var_assigned_to_retval;
 };
 
 
@@ -499,7 +501,9 @@ struct print_format: public expression
     }
     void clear()
     {
+      base = 0;
       flags = 0;
+      width = 0;
       widthtype = width_unspecified;
       precision = 0;
       prectype = prec_unspecified;
@@ -604,6 +608,7 @@ struct vardecl: public symboldecl
   literal *init; // for global scalars only
   bool synthetic; // for probe locals only, don't init on entry
   bool wrap;
+  bool char_ptr_arg; // set in ::emit_common_header(), only used if a formal_arg
 };
 
 
@@ -791,14 +796,14 @@ struct probe_point
   {
     std::string functor;
     literal* arg; // optional
+    bool from_glob;
     component ();
     const token* tok; // points to component's functor
-    component(std::string const & f, literal * a = NULL);
+    component(std::string const & f, literal *a=NULL, bool from_glob=false);
   };
   std::vector<component*> components;
   bool optional;
   bool sufficient;
-  bool from_glob;
   bool well_formed; // used in derived_probe::script_location()
   expression* condition;
   void print (std::ostream& o, bool print_extras=true) const;
@@ -806,6 +811,7 @@ struct probe_point
   probe_point(const probe_point& pp);
   probe_point(std::vector<component*> const & comps);
   std::string str(bool print_extras=true) const;
+  bool from_globby_comp(const std::string& comp);
 };
 
 std::ostream& operator << (std::ostream& o, const probe_point& k);
@@ -992,6 +998,7 @@ struct functioncall_traversing_visitor: public traversing_visitor
   functiondecl* current_function;
   functioncall_traversing_visitor(): current_function(0) {}
   void visit_functioncall (functioncall* e);
+  void enter_functioncall (functioncall* e);
   virtual void note_recursive_functioncall (functioncall* e);
 };
 
@@ -1016,12 +1023,17 @@ struct varuse_collecting_visitor: public functioncall_traversing_visitor
     current_lvalue_read (false),
     current_lvalue(0),
     current_lrvalue(0) {}
+  void visit_if_statement (if_statement* s);
+  void visit_for_loop (for_loop* s);
   void visit_embeddedcode (embeddedcode *s);
   void visit_embedded_expr (embedded_expr *e);
   void visit_try_block (try_block *s);
+  void visit_functioncall (functioncall* e);
+  void visit_return_statement (return_statement *s);
   void visit_delete_statement (delete_statement *s);
   void visit_print_format (print_format *e);
   void visit_assignment (assignment *e);
+  void visit_ternary_expression (ternary_expression* e);
   void visit_arrayindex (arrayindex *e);
   void visit_target_symbol (target_symbol *e);
   void visit_symbol (symbol *e);
@@ -1231,6 +1243,17 @@ struct deep_copy_visitor: public update_visitor
   virtual void visit_defined_op (defined_op* e);
   virtual void visit_entry_op (entry_op* e);
   virtual void visit_perf_op (perf_op* e);
+};
+
+struct embedded_tags_visitor: public traversing_visitor
+{
+  std::set<std::string> available_tags;
+  std::set<std::string> tags; // set of the tags that appear in the code
+  embedded_tags_visitor(bool all_tags);
+  bool tagged_p (const std::string &tag);
+  void find_tags_in_code (const std::string& s);
+  void visit_embeddedcode (embeddedcode *s);
+  void visit_embedded_expr (embedded_expr *e);
 };
 
 #endif // STAPTREE_H

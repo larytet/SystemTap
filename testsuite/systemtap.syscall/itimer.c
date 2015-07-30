@@ -49,6 +49,40 @@ int main()
 
   getitimer(ITIMER_PROF, &itv);
   //staptest// getitimer (ITIMER_PROF, XXXX) = 0
+
+  /* Limit testing. */
+
+  itv.it_interval.tv_sec = 0;
+  itv.it_interval.tv_usec = 500000;
+  itv.it_value.tv_sec = 1;
+  itv.it_value.tv_usec = 0;
+  setitimer(-1, &itv, &old_itv);
+  //staptest// setitimer (0xffffffff, \[0.500000,1.000000\], XXXX) = -NNNN
+
+  setitimer(ITIMER_REAL, (struct itimerval *)-1, &old_itv);
+#ifdef __s390__
+  //staptest// setitimer (ITIMER_REAL, 0x[7]?[f]+, XXXX) = -NNNN
+#else
+  //staptest// setitimer (ITIMER_REAL, 0x[f]+, XXXX) = -NNNN
+#endif
+
+  setitimer(ITIMER_REAL, &itv, (struct itimerval *)-1);
+#ifdef __s390__
+  //staptest// setitimer (ITIMER_REAL, \[0.500000,1.000000\], 0x[7]?[f]+) = -NNNN
+#else
+  //staptest// setitimer (ITIMER_REAL, \[0.500000,1.000000\], 0x[f]+) = -NNNN
+#endif
+
+  getitimer(-1, &itv);
+  //staptest// getitimer (0xffffffff, XXXX) = -NNNN
+
+  getitimer(ITIMER_REAL, (struct itimerval *)-1);
+#ifdef __s390__
+  //staptest// getitimer (ITIMER_REAL, 0x[7]?[f]+) = -NNNN
+#else
+  //staptest// getitimer (ITIMER_REAL, 0x[f]+) = -NNNN
+#endif
+
   return 0;
 }
  

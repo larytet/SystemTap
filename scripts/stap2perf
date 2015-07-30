@@ -1,0 +1,60 @@
+#! /bin/sh
+
+
+# This little script tries to formulate a series of "perf probe"
+# commands that touch the same probe locations as the stap script
+# would.  This can be used to check stap's "alibi" against
+# kprobes/uprobes malfunctions.
+#
+# This is an imperfect mapping, requiring manual checking.
+#
+# Usage:
+
+#  (stap -l PATTERN [-c COMMAND]; ...) | stap2perf | sh
+#  (stap -p2 -e SCRIPT [-c COMMAND]; ...) | stap2perf | sh
+#  perf list | grep probe
+#  perf record -e 'probe*:*' COMMAND
+#  perf report
+#  perf probe -d 'probe*:*'
+
+
+function param1() {
+    # fish out the first literal-string parameter
+    echo "$1" | cut -f2 -d'"' | cut -f1 -d@ | cut -f1 -d'<'
+}
+
+function param2() {
+    # fish out the second literal-string parameter
+    echo "$1" | cut -f4 -d'"' | cut -f1 -d@ | cut -f1 -d'<'
+}
+
+
+while read pp; do
+    case "$pp" in
+        kernel.function*)
+            fn=`param1 "$pp"`
+            nr=`expr "$pp" : '.*\.return.*'`
+            if [ $nr -eq 0 ]; then
+                echo perf probe -a "kernel_$fn"
+            else
+                echo perf probe -a "kernel_${fn}_return=${fn}%return"
+            fi
+            ;;
+
+        process*function*)
+            proc=`param1 "$pp"`
+            procbn=`basename $proc`
+            fn=`param2 "$pp"`
+            nr=`expr "$pp" : '.*\.return.*'`
+            if [ $nr -eq 0 ]; then
+                echo perf probe -x "$proc"-a "${procbn}_${fn}=$fn"
+            else
+                echo perf probe -x "$proc"-a "${procbn}_${fn}_return=${fn}%return"
+            fi
+            ;;
+    esac
+done | sort | uniq
+
+echo
+echo
+echo perf list "|" grep probe

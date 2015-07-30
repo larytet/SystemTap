@@ -115,7 +115,7 @@ int main()
     fromlen = sizeof(from);
 
     fd_null = open("/dev/null", O_WRONLY);
-    //staptest// open ("/dev/null", O_WRONLY) = NNNN
+    //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]"/dev/null", O_WRONLY) = NNNN
 
     recvfrom(-1, buf, sizeof(buf), 0, (struct sockaddr *)&from, &fromlen);
     //staptest// recvfrom (-1, XXXX, 1024, 0x0, XXXX, XXXX) = -NNNN (EBADF)
@@ -136,7 +136,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)-1, &fromlen);
 #ifdef __s390__
@@ -160,7 +160,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvfrom(s, buf, sizeof(buf), 0, (struct sockaddr *)&from,
 	     (socklen_t *)-1);
@@ -185,7 +185,7 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     recvfrom(s, (void *)-1, sizeof(buf), 0, (struct sockaddr *)&from,
 	     &fromlen);
@@ -213,19 +213,22 @@ int main()
     timeout.tv_sec = 2;
     timeout.tv_usec = 0;
     select(s + 1, &rdfds, 0, 0, &timeout);
-    //staptest// select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]) = 1
+    //staptest// [[[[select (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+]!!!!pselect6 (NNNN, XXXX, 0x[0]+, 0x[0]+, [2\.[0]+], 0x0]]]]) = 1
 
     // Note that the exact failure return value can differ here, so
-    // we'll just ignore it.
+    // we'll just ignore it. Also note that on a 32-bit kernel (i686
+    // for instance), MAXSTRINGLEN is only 256. Passing a -1 as the
+    // flags value can produce a string that will cause argstr to get
+    // too big. So, we'll make the end of the arguments optional.
     recvfrom(s, buf, sizeof(buf), -1, (struct sockaddr *)&from, &fromlen);
-    //staptest// recvfrom (NNNN, XXXX, 1024, MSG_[^ ]+|XXXX, XXXX, XXXX) = -NNNN
+    //staptest// recvfrom (NNNN, XXXX, 1024, MSG_[^ ]+[[[[|XXXX, XXXX, XXXX]]]]?) = -NNNN
 
     recvfrom(s, buf, (size_t)-1, MSG_DONTWAIT, (struct sockaddr *)&from,
 	     &fromlen);
 #if __WORDSIZE == 64
-    //staptest// recvfrom (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT, XXXX, XXXX) = 6
+    //staptest// recvfrom (NNNN, XXXX, 18446744073709551615, MSG_DONTWAIT, XXXX, XXXX) = NNNN
 #else
-    //staptest// recvfrom (NNNN, XXXX, 4294967295, MSG_DONTWAIT, XXXX, XXXX) = 6
+    //staptest// recvfrom (NNNN, XXXX, 4294967295, MSG_DONTWAIT, XXXX, XXXX) = NNNN
 #endif
 
     close(s);

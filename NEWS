@@ -1,3 +1,89 @@
+* What's new in version 2.8, 2015-06-17
+
+- SystemTap has improved support for probing golang programs. Work has been
+  done to be able to handle DWARF information, reporting file names, line
+  numbers, and column numbers, and tolerance of odd characters in symbol names.
+
+- The function::*, probe::* and new macro::* man pages cross-references the
+  enclosing tapset::* man page. For example:
+
+  function::pn(3stap) mentions tapset::pn(3stap) in the SEE ALSO section
+
+- New stapref(1) man page provides a reference for the scripting language. The
+  stapref page contains an overview of the features available in the language,
+  such as keywords, data types, operators and more.
+
+- The @task macro performs the very common @cast to a task_struct.
+
+  The embedded-C bodies of task_current() and pid2task() are now wrapped
+  by @task, which gives them a debuginfo type on the return value.  With
+  autocast type propagation, this removes the need for any explicit @cast
+  in many places.
+
+  Other places which take untyped task pointers as parameters, for
+  instance, now use @task as well to simplify their code.
+
+- New namespace-aware tapset functions [task_]ns_*() and ia new option
+  --target-namespaces=PID to denote a target set of namespaces corresponding to
+  the PID's namespaces. The namespace-aware tapsets will return values
+  relative to the target namespaces if specified, or the stap process' namespaces.
+
+- Netfilter probes now attempt to decode Spanning Tree Protocol packets
+  into local variables: probe netfilter.bridge.*, br_* variables,
+  stp_dump.stp sample script.
+
+- Colorization of error string tokens is made more robust, especially
+  in presence of $N/@N substitution.
+
+- The following tapset variables and functions are deprecated in
+  version 2.8:
+  - The 'hostname_uaddr' variable in the syscall.setdomainname and
+    nd_syscall.setdomainname probe aliases have been deprecated in
+    favor of the new 'domainname_uaddr' variable.
+  - The 'fd' and 'fd_str' variables in the syscall.execveat and
+    nd_syscall.execveat probe aliases have been deprecated in favor of
+    the new 'dirfd' and 'dirfd_str' variables.
+
+* What's new in version 2.7, 2015-02-18
+
+- Some systemtap sample scripts are now identified with the "_best" keyword,
+  because they are generally useful or educational.  They are now promoted
+  within the generated index files.
+
+- Passing strings to and from functions has become faster due to optimization
+  (passing some strings by reference instead of by value/copy).  It may
+  be disabled by using the unoptimize flag (-u).
+
+  To make embedded-C functions eligible for the same optimization, use the pragma
+  /* unmodified-fnargs */ to indicate that the function body will not modify
+  the function arguments.  Remember to use MAXSTRINGLEN for string length,
+  rather than sizeof(string_arg) (which might now be a pointer).
+
+- SystemTap now allows .function probes to be specified by their full function
+  name, file, and declaration line number. Use the .statement probe to probe a
+  specific line number.
+
+- Tracepoint probes can now also be specified by the target subsystem. For
+  example, the following are all supported:
+
+  probe kernel.trace("sched:sched_switch") --> probe sched_switch found in the
+                                               sched subsystem
+  probe kernel.trace("sched:*") --> probe all tracepoints in sched subsystem
+
+  As a result, tapset functions such as pn() will now return a different string
+  than before. To retain the previous behaviour, use '--compatible=2.6'.
+
+- The following functions are deprecated in release 2.7:
+  - _adjtx_mode_str(), _statfs_f_type_str(), _waitid_opt_str(),
+    _internal_wait_opt_str(), and _epoll_events_str().
+
+- New tapset functions [u]symfileline(), [u]symfile() and [u]symline() will
+  return a string containing the specified portion of the filename:linenumber
+  match from a given address.
+
+  Using these functions may result in large generated modules from stored
+  address->file:line information.
+
 * What's new in version 2.6, 2014-09-05
 
 - SystemTap now supports on-the-fly arming/disarming of certain probe types:
@@ -33,7 +119,7 @@
   unoptimize mode (-u).
 
 - SystemTap now asserts that the PID provided for a process probe corresponds
-  to a runnning process.
+  to a running process.
 
 - DWARF process probes can be bound to a specific process using the form:
 
@@ -125,6 +211,7 @@
 - Embedded-C functions may use STAP_RETURN(value) instead of the
   more wordy STAP_RETVALUE assignment followed by a "goto out".
   The macro supports numeric or string values as appropriate.
+  STAP_ERROR(...) is available to return with a (catchable) error.
 
 - Some struct-sockaddr fields are now individually decoded for
   socket-related syscalls:

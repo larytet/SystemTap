@@ -85,7 +85,8 @@
  */
 probe socket.send = socket.sendmsg.return,
                     socket.writev.return ?,
-                    socket.aio_write.return
+                    socket.aio_write.return ?,
+                    socket.write_iter.return ?
 {
 	name = "socket.send"
 }
@@ -106,7 +107,8 @@ probe socket.send = socket.sendmsg.return,
  */
 probe socket.receive = socket.recvmsg.return,
                        socket.readv.return ?,
-                       socket.aio_read.return
+                       socket.aio_read.return ?,
+                       socket.read_iter.return ?
 {
 	name = "socket.receive"
 }
@@ -129,10 +131,19 @@ probe socket.receive = socket.recvmsg.return,
  * Fires at the beginning of sending a message on a socket
  * via the sock_sendmsg() function
  */
+//
+// 4.1-rc1:
+//     int sock_sendmsg(struct socket *sock, struct msghdr *msg);
+// before 4.1-rc1:
+//     int sock_sendmsg(struct socket *sock, struct msghdr *msg, size_t size);
+// 
 probe socket.sendmsg = kernel.function ("sock_sendmsg")
 {
 	name = "socket.sendmsg"
-	size = $size
+	if (@defined($size))
+		size = $size
+	else
+		size = $msg->msg_iter->count
 	protocol = @_sock_prot_num($sock)
 	family = @_sock_fam_num($sock)
 	state = @_sock_state_num($sock)
@@ -254,8 +265,11 @@ probe socket.recvmsg.return = kernel.function("sock_recvmsg").return
 // 2.6.19~2.6.26:
 //     static ssize_t sock_aio_write(struct kiocb *iocb,
 //		const struct iovec *iov, unsigned long nr_segs, loff_t pos);
+// 4.0:
+//	sock_aio_write() was removed in kernel 4.0 in favor of
+//	sock_write_iter().
 
-probe socket.aio_write = kernel.function("sock_aio_write")
+probe socket.aio_write = kernel.function("sock_aio_write") ?
 {
 	name = "socket.aio_write"
 	_sock = _get_sock_addr($iocb->ki_filp)
@@ -285,7 +299,7 @@ probe socket.aio_write = kernel.function("sock_aio_write")
  * Fires at the conclusion of sending a message on a socket
  * via the sock_aio_write() function
  */
-probe socket.aio_write.return = kernel.function("sock_aio_write").return
+probe socket.aio_write.return = kernel.function("sock_aio_write").return ?
 {
 	name = "socket.aio_write.return"
 	size = $return
@@ -324,8 +338,11 @@ probe socket.aio_write.return = kernel.function("sock_aio_write").return
 // 2.6.19~2.6.26:
 //     static ssize_t sock_aio_read(struct kiocb *iocb,
 //		const struct iovec *iov, unsigned long nr_segs, loff_t pos);
+// 4.0:
+//	sock_aio_read() was removed in kernel 4.0 in favor of
+//	sock_read_iter().
 
-probe socket.aio_read = kernel.function("sock_aio_read")
+probe socket.aio_read = kernel.function("sock_aio_read") ?
 {
 	name = "socket.aio_read"
 	_sock = _get_sock_addr($iocb->ki_filp)
@@ -355,9 +372,142 @@ probe socket.aio_read = kernel.function("sock_aio_read")
  * Fires at the conclusion of receiving a message on a socket
  * via the sock_aio_read() function
  */
-probe socket.aio_read.return = kernel.function("sock_aio_read").return
+probe socket.aio_read.return = kernel.function("sock_aio_read").return ?
 {
 	name = "socket.aio_read.return"
+	size = $return
+	_sock = _get_sock_addr($iocb->ki_filp)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.write_iter - Message send via sock_write_iter()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of sending a message on a socket
+ * via the sock_write_iter() function
+ */
+//
+// 4.0:
+//     static ssize_t sock_write_iter(struct kiocb *iocb,
+//		struct iov_iter *from);
+
+probe socket.write_iter = kernel.function("sock_write_iter") ?
+{
+	name = "socket.write_iter"
+	_sock = _get_sock_addr($iocb->ki_filp)
+	if ($from->type & %{ /* pure */ ITER_IOVEC %})	
+		size = __iov_length($from->iov, $from->nr_segs, 1,
+				    %{ /* pure */ VERIFY_READ %})
+	else
+		size = 0
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.write_iter.return - Conclusion of message send via sock_write_iter()
+ * @name: Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ * 
+ * Fires at the conclusion of sending a message on a socket
+ * via the sock_write_iter() function
+ */
+probe socket.write_iter.return = kernel.function("sock_write_iter").return ?
+{
+	name = "socket.write_iter.return"
+	size = $return
+	_sock = _get_sock_addr($iocb->ki_filp)
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+	success = @_sock_success_check($return)
+}
+
+/**
+ * probe socket.read_iter - Receiving message via sock_read_iter()
+ * @name:     Name of this probe
+ * @size:     Message size in bytes
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ *
+ * Context:
+ *  The message sender
+ *
+ * Fires at the beginning of receiving a message on a socket
+ * via the sock_read_iter() function
+ */
+//
+// 4.0:
+//     static ssize_t sock_read_iter(struct kiocb *iocb, struct iov_iter *to);
+
+probe socket.read_iter = kernel.function("sock_read_iter") ?
+{
+	name = "socket.read_iter"
+	_sock = _get_sock_addr($iocb->ki_filp)
+	if ($to->type & %{ /* pure */ ITER_IOVEC %})
+		size = __iov_length($to->iov, $to->nr_segs, 1,
+				    %{ /* pure */ VERIFY_WRITE %})
+ 	else
+		size = 0
+	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
+	family = @_sock_fam_num(@cast(_sock, "socket", "kernel"))
+	state = @_sock_state_num(@cast(_sock, "socket", "kernel"))
+	flags = @_sock_flags_num(@cast(_sock, "socket", "kernel"))
+	type = @_sock_type_num(@cast(_sock, "socket", "kernel"))
+}
+
+/**
+ * probe socket.read_iter.return - Conclusion of message received via sock_read_iter()
+ * @name:     Name of this probe
+ * @size:     Size of message received (in bytes) or error code if success = 0
+ * @protocol: Protocol value
+ * @family:   Protocol family value
+ * @state:    Socket state value
+ * @flags:    Socket flags value
+ * @type:     Socket type value
+ * @success:  Was receive successful? (1 = yes, 0 = no)
+ *
+ * Context:
+ *  The message receiver.
+ * 
+ * Fires at the conclusion of receiving a message on a socket
+ * via the sock_read_iter() function
+ */
+probe socket.read_iter.return = kernel.function("sock_read_iter").return ?
+{
+	name = "socket.read_iter.return"
 	size = $return
 	_sock = _get_sock_addr($iocb->ki_filp)
 	protocol = @_sock_prot_num(@cast(_sock, "socket", "kernel"))
@@ -941,7 +1091,11 @@ function _get_sock_addr:long(file:long)
 	struct file *filep = (struct file *)(long)(STAP_ARG_file);
 	struct socket *sockp;
 	if (filep) {
+#ifdef STAPCONF_DPATH_PATH
+		struct dentry *dentry = kread(&(filep->f_path.dentry));
+#else
 		struct dentry *dentry = kread(&(filep->f_dentry));
+#endif
 		struct inode *inode = kread(&(dentry->d_inode));
 		sockp = &container_of(inode, struct socket_alloc,
 				      vfs_inode)->socket;

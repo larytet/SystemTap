@@ -1,5 +1,5 @@
 // Speculative tapset
-// Copyright (C) 2011 Red Hat Inc.
+// Copyright (C) 2011-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -7,9 +7,9 @@
 // later version.
 
 global _spec_id
-global _spec_counter
-global _spec_buff
-global _spec_discard
+global _spec_counter%
+global _spec_buff%
+
 
 /**
  * sfunction speculation - Allocate a new id for speculative output
@@ -41,13 +41,6 @@ function speculate (id:long, output:string)
 }
 
 
-function _spec_erase (id:long) {
-	foreach([i, counter] in _spec_discard)
-		delete _spec_buff[i, counter]
-	delete _spec_discard
-}
-
-
 /**
  * sfunction discard - Discard all output related to a speculation buffer
  * @id: of the buffer to store the information in
@@ -55,9 +48,7 @@ function _spec_erase (id:long) {
  */
 function discard (id:long)
 {
-	foreach([i, counter] in _spec_buff)
-		if (i==id) _spec_discard[i, counter] = 1
-	_spec_erase (id)
+  delete _spec_buff[id,*]
 }
 
 
@@ -70,11 +61,8 @@ function discard (id:long)
  */
 function commit (id:long)
 {
-	foreach([i, counter+] in _spec_buff) {
-		if (i==id) {
-			printf("%s", _spec_buff[i, counter])
-			_spec_discard[i, counter] = 1
-		}
-	}
-	_spec_erase (id)
+  foreach([i, counter+] in _spec_buff [id,*]) {
+    printf("%s", _spec_buff[i, counter])
+  }
+  delete _spec_buff[id,*]
 }

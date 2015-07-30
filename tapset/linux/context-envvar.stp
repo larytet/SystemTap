@@ -25,7 +25,7 @@ function env_var:string(name:string)
     return ""
 
   env_value = "";
-  mm = @cast(task_current(), "task_struct", "kernel<linux/sched.h>")->mm;
+  mm = task_current()->mm;
   if (mm)
     {
       env_start = mm->env_start;

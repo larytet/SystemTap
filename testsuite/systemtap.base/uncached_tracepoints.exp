@@ -1,0 +1,28 @@
+# uncached_tracepoints.exp
+# PR18000 - traceponts should still work with disabled cache
+set test "uncached_tracepoints"
+if {![installtest_p]} { untested $test; return }
+
+# Set up the tracepoint we're checking for
+set tracepoint {kernel.trace("sched_switch")}
+set cmd [concat {stap -l} $tracepoint]
+
+# Pre-check that the tracepoint exists
+verbose -log "$test exec: $cmd"
+set res [catch {eval exec $cmd} output]
+verbose -log "$output"
+if {$res} {
+  untested "$test (not found)"
+  return
+}
+
+# Check that the tracepoint can be found without cache
+set cmd [concat $cmd --disable-cache]
+verbose -log "$test exec: $cmd"
+set res [catch {eval exec $cmd} output]
+verbose -log "$output"
+if {$res} {
+  fail "$test"
+} else {
+  pass "$test"
+}

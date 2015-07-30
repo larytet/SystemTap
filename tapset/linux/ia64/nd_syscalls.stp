@@ -59,13 +59,14 @@ probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?
 probe nd_syscall.sigaltstack = kprobe.function("sys_sigaltstack")
 {
 	name = "sigaltstack";
-	// ss_uaddr = $uss
-	// oss_uaddr = $uoss
-	// argstr = sprintf("%p, %p", $uss, $uoss)
 	asmlinkage()
-	ss_uaddr = pointer_arg(1)
-	oss_uaddr = pointer_arg(2)
-	argstr = sprintf("%p, %p", ss_uaddr, oss_uaddr)
+	uss_uaddr = pointer_arg(1)
+	uoss_uaddr = pointer_arg(2)
+%(systemtap_v <= "2.8" %?
+	ss_uaddr = uss_uaddr
+	oss_uaddr = uoss_uaddr
+%)
+	argstr = sprintf("%s, %p", _stp_sigaltstack_u(uss_uaddr), uoss_uaddr)
 }
 probe nd_syscall.sigaltstack.return = kprobe.function("sys_sigaltstack").return
 {
@@ -90,3 +91,29 @@ probe nd_syscall.sysctl32.return = kprobe.function("sys32_sysctl").return ?
 	name = "sysctl"
 	retstr = returnstr(1)
 }
+
+%( kernel_v < "3.7" %?
+# execve _____________________________________________________
+#
+# In kernels < 3.7, sys_execve() was in arch-specific code (and had
+# varying arguments). It was just a wrapper around generic
+# do_execve(), but the wrapper could error out before calling
+# do_execve(). So, we'll have to handle it in arch-specific tapset
+# code to catch all calls.
+#
+#  long sys_execve (char __user *filename, char __user * __user *argv,
+#		    char __user * __user *envp, struct pt_regs *regs)
+probe nd_syscall.execve = kprobe.function("sys_execve")
+{
+	name = "execve"
+	filename = user_string_quoted(pointer_arg(1))
+	args = __get_argv(pointer_arg(2), 0)
+	env_str = __count_envp(pointer_arg(3))
+	argstr = sprintf("%s, %s, %s", filename, args, env_str)
+}
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
+{
+	name = "execve"
+	retstr = returnstr(1)
+}
+%)

@@ -14,7 +14,7 @@
 	# syscalls use the same syscall number as the 64-bit
 	# syscall. So, we have to check to see if this is a
 	# 32-on-64-bit user task.
-	if (%{ _stp_is_compat_task() %}) next
+	if (%{ /* pure */ _stp_is_compat_task() %}) next
     %)
 	# If _stp_syscall_nr() fails, that means we aren't in user
 	# context. So, skip this call.
@@ -28,7 +28,7 @@
 	# syscalls use the same syscall number as the 64-bit
 	# syscall. So, we have to check to see if this is a
 	# 32-on-64-bit user task.
-	if (%{ _stp_is_compat_task() %}) next
+	if (%{ /* pure */ _stp_is_compat_task() %}) next
     %)
 	try { __nr = _stp_syscall_nr() } catch { next }
 	if ((__nr != @syscall_nr1) && (__nr != @syscall_nr2)) next
@@ -38,7 +38,7 @@
 %(
     %( CONFIG_COMPAT == "y" %?
 	try { __nr = _stp_syscall_nr() } catch { next }
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		if (__nr != @compat_syscall_nr)
 			next
 	}
@@ -53,9 +53,26 @@
 %(
     %( CONFIG_COMPAT == "y" %?
 	try { __nr = _stp_syscall_nr() } catch { next }
-	if (%{ _stp_is_compat_task() %}) {
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
 		if (__nr != @compat_syscall_nr) next
 	}
+    %)
+%)
+
+@define __compat_syscall_gate_negative(compat_syscall_nr)
+%(
+    %( CONFIG_COMPAT == "y" %?
+	try { __nr = _stp_syscall_nr() } catch { next }
+	if (%{ /* pure */ _stp_is_compat_task() %}) {
+		if (__nr == @compat_syscall_nr) next
+	}
+    %)
+%)
+
+@define __syscall_gate_compat_simple
+%(
+    %( CONFIG_COMPAT == "y" %?
+        if (%{ /* pure */ _stp_is_compat_task() %}) next
     %)
 %)
 
@@ -64,7 +81,7 @@
     %( CONFIG_COMPAT == "y" %?
 	# If this is a compat task, the high bits of a pointer may be
 	# garbage.
-	(%{ _stp_is_compat_task() %} ? (@val & 0xffffffff) : @val)
+	(%{ /* pure */ _stp_is_compat_task() %} ? (@val & 0xffffffff) : @val)
     %:
 	@val
     %)
@@ -83,4 +100,229 @@
        }
      }
   %)
+%)
+
+# The following argstr processing is modeled on strace's handling of
+# futex. Because it is so complicated and is used in 4 places
+# (syscall.futex, syscall.compat_futex, nd_syscall.futex, and
+# nd_syscall.compat_futex), a macro is used to handle all the
+# details.
+@define __futex_argstr(uaddr, op, val, utime, uaddr2, val3)
+%(
+	if (@op == %{ /* pure */ FUTEX_WAKE_BITSET %}) {
+		argstr = sprintf("%p, %s, %d, %#x", @uaddr, _futex_op_str(@op),
+				 @val, @val3)
+	}
+	else if (@op == %{ /* pure */ FUTEX_WAIT %}) {
+		argstr = sprintf("%p, %s, %d, %s", @uaddr, _futex_op_str(@op),
+				 @val,
+				 (%{ /* pure */ _stp_is_compat_task() %}
+				  ? _struct_compat_timespec_u(@utime, 1)
+				  : _struct_timespec_u(@utime, 1)))
+	}
+	else if (@op == %{ /* pure */ FUTEX_WAIT_BITSET %}) {
+		argstr = sprintf("%p, %s, %d, %s, %#x", @uaddr,
+				 _futex_op_str(@op), @val,
+				 (%{ /* pure */ _stp_is_compat_task() %}
+				  ? _struct_compat_timespec_u(@utime, 1)
+				  : _struct_timespec_u(@utime, 1)), @val3)
+	}
+	else if (@op == %{ /* pure */ FUTEX_REQUEUE %}) {
+		argstr = sprintf("%p, %s, %d, %d, %p", @uaddr,
+				 _futex_op_str(@op), @val, @utime,
+				 @uaddr2)
+	}
+	else if (@op == %{ /* pure */ FUTEX_CMP_REQUEUE %}
+		 || @op == %{ /* pure */ FUTEX_CMP_REQUEUE_PI %}) {
+		argstr = sprintf("%p, %s, %d, %u, %p, %d", @uaddr,
+				 _futex_op_str(@op), @val, @utime,
+				 @uaddr2, @val3)
+	}
+	else if (@op == %{ /* pure */ FUTEX_WAKE_OP %}) {
+		argstr = sprintf("%p, %s, %d, %u, %p, %s", @uaddr,
+				 _futex_op_str(@op), @val, @utime,
+				 @uaddr2, _futex_wake_op_str(@val3))
+	}
+	else if (@op == %{ /* pure */ FUTEX_WAIT_REQUEUE_PI %}) {
+		argstr = sprintf("%p, %s, %d, %s, %p", @uaddr,
+				 _futex_op_str(@op), @val,
+				 (%{ /* pure */ _stp_is_compat_task() %}
+				  ? _struct_compat_timespec_u(@utime, 1)
+				  : _struct_timespec_u(@utime, 1)),
+				 @uaddr2)
+	}
+	else {
+		argstr = sprintf("%p, %s, %d", @uaddr, _futex_op_str(@op),
+				 @val)
+	}
+%)
+
+@define __int32_compat(arg)
+%(
+    %( CONFIG_64BIT == "y" %?
+        (%{ /* pure */ _stp_is_compat_task() %} ? __int32(@arg) : @arg)
+    %:
+        (__int32(@arg))
+    %)
+%)
+
+@define __keyctl_argstr(option, arg2, arg3, arg4, arg5)
+%(
+        if ((@option == %{ /* pure */ KEYCTL_READ %}) ||
+                        (@option == %{ /* pure */ KEYCTL_DESCRIBE %}) ||
+                        (@option == %{ /* pure */ KEYCTL_GET_SECURITY %})) {
+                argstr = sprintf("%s, %s, %p, %d", _stp_keyctl_cmd_str(@option),
+				 _stp_keyctl_keyring_shortcut_str(@arg2),
+				 @arg3, @__compat_long(@arg4))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_UPDATE %}) {
+                argstr = sprintf("%s, %d, %s, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), user_string_quoted(@arg3),
+				 @__compat_long(@arg4))
+        }
+        else if ((@option == %{ /* pure */ KEYCTL_REVOKE %}) ||
+                        (@option == %{ /* pure */ KEYCTL_CLEAR %}) ||
+                        (@option == %{ /* pure */ KEYCTL_INVALIDATE %}) ||
+                        (@option == %{ /* pure */ KEYCTL_ASSUME_AUTHORITY %})) {
+                argstr = sprintf("%s, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2))
+        }
+        else if ((@option == %{ /* pure */ KEYCTL_LINK %}) ||
+                        (@option == %{ /* pure */ KEYCTL_UNLINK %})) {
+                argstr = sprintf("%s, %d, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @__compat_long(@arg3))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_SEARCH %}) {
+                argstr = sprintf("%s, %d, %s, %s, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), user_string_quoted(@arg3),
+				 user_string_quoted(@arg4), @__compat_long(@arg5))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_CHOWN %}) {
+                argstr = sprintf("%s, %d, %d, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @__compat_long(@arg3),
+				 @__compat_long(@arg4))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_SETPERM %}) {
+                argstr = sprintf("%s, %d, %s", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), _stp_keyctl_perm_str(@arg3))
+        }
+        else if ((@option == %{ /* pure */ KEYCTL_INSTANTIATE %})) {
+                argstr = sprintf("%s, %d, %s, %d, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), user_string_quoted(@arg3),
+				 @__compat_long(@arg4), @__compat_long(@arg5))
+        }
+        else if ((@option == %{ /* pure */ KEYCTL_INSTANTIATE_IOV %})) {
+                argstr = sprintf("%s, %d, %p, %d, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @arg3, @__compat_long(@arg4),
+				 @__compat_long(@arg5))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_NEGATE %}) {
+                argstr = sprintf("%s, %d, %u, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @arg3, @__compat_long(@arg4))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_REJECT %}) {
+                argstr = sprintf("%s, %d, %u, %u, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @arg3, @arg4,
+				 @__compat_long(@arg5))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_SET_TIMEOUT %}) {
+                argstr = sprintf("%s, %d, %u", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @arg3)
+        }
+        else if (@option == %{ /* pure */ KEYCTL_GET_KEYRING_ID %}) {
+                argstr = sprintf("%s, %s, %d", _stp_keyctl_cmd_str(@option),
+				 _stp_keyctl_keyring_shortcut_str(@arg2),
+				 @__compat_long(@arg3))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_SET_REQKEY_KEYRING %}) {
+                argstr = sprintf("%s, %s", _stp_keyctl_cmd_str(@option),
+				 _stp_keyctl_default_keyrings_str(@arg2))
+        }
+        else if (@option == %{ /* pure */ KEYCTL_JOIN_SESSION_KEYRING %}) {
+                argstr = sprintf("%s, %p", _stp_keyctl_cmd_str(@option), @arg2)
+        }
+        else if (@option == %{ /* pure */ KEYCTL_GET_PERSISTENT %}) {
+                argstr = sprintf("%s, %d, %d", _stp_keyctl_cmd_str(@option),
+				 @__compat_long(@arg2), @__compat_long(@arg3))
+        }
+        else {
+                argstr = sprintf("%d, %d, %d, %d, %d", @option,
+				 @__compat_long(@arg2), @__compat_long(@arg3),
+				 @__compat_long(@arg4), @__compat_long(@arg5))
+        }
+%)
+
+@define __quotactl_argstr(subcmd, arg1, arg2, arg3, arg4)
+%(
+	if (@subcmd == %{ /* pure */ Q_QUOTAON %}) {
+		argstr = sprintf("%s, %s, %s, %s",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 _quotactl_quota_type_str(@arg3),
+		                 user_string_quoted(@arg4))
+	}
+	else if ((@subcmd == %{ /* pure */ Q_GETQUOTA %}) ||
+	         (@subcmd == %{ /* pure */ Q_SETQUOTA %})) {
+		argstr = sprintf("%s, %s, %d, %s",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, _struct_dqblk_u(@arg4))
+	}
+	else if ((@subcmd == %{ /* pure */ Q_GETINFO %}) ||
+	         (@subcmd == %{ /* pure */ Q_SETINFO %})) {
+		argstr = sprintf("%s, %s, %d, %s",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, _struct_dqinfo_u(@arg4))
+	}
+	else if (@subcmd == %{ /* pure */ Q_GETFMT %}) {
+		argstr = sprintf("%s, %s, %d, %x",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, @arg4)
+	}
+	else if ((@subcmd == %{ /* pure */ Q_SYNC %}) ||
+	         (@subcmd == %{ /* pure */ Q_QUOTAOFF %})) {
+		argstr = sprintf("%s, %s, %d, %p",
+		                 _quotactl_cmd_str(@arg1), user_string_quoted(@arg2),
+		                 @arg3, @arg4)
+	}
+	else {
+		argstr = sprintf("%s, %p, %d, %p", _quotactl_cmd_str(@arg1),
+		                 @arg2, @arg3, @arg4)
+	}
+%)
+
+# @__compat_ulong() macro adds the ability to distinguish between compat and non-compat
+# task to the __ulong() function making it full-featured couterpart to ulong_arg().
+@define __compat_ulong(arg)
+%(
+	%( CONFIG_COMPAT == "y" %?
+		(%{ /* pure */ _stp_is_compat_task() %} ? __uint32(@arg) : __ulong(@arg))
+	%:
+		__ulong(@arg)
+	%)
+%)
+
+# @__compat_long() macro adds the ability to distinguish between compat and non-compat
+# task to the __long() function making it full-featured couterpart to long_arg().
+@define __compat_long(arg)
+%(
+	%( CONFIG_COMPAT == "y" %?
+		(%{ /* pure */ _stp_is_compat_task() %} ? __int32(@arg) : __long(@arg))
+	%:
+		__long(@arg)
+	%)
+%)
+
+@define __compat_task
+%(
+	%{ /* pure */ _stp_is_compat_task() %}
+%)
+
+@define __BIG_ENDIAN
+%(
+%{ /* pure */
+#ifdef __BIG_ENDIAN
+  1
+#else
+  0
+#endif
+%}
 %)

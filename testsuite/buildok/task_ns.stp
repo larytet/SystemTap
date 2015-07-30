@@ -1,0 +1,13 @@
+#! stap -gp4
+
+probe begin {
+  c = task_current()
+  log(sprint(task_ns_pid(c)))
+  log(sprint(task_ns_tid(c)))
+  log(sprint(task_ns_gid(c)))
+  log(sprint(task_ns_egid(c)))
+  log(sprint(task_ns_uid(c)))
+  log(sprint(task_ns_euid(c)))
+
+  exit()
+}
