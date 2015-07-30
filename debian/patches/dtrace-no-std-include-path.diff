@@ -1,8 +1,8 @@
-Index: b/dtrace.in
+Index: systemtap-2.8/dtrace.in
 ===================================================================
---- a/dtrace.in
-+++ b/dtrace.in
-@@ -387,7 +387,7 @@ def main():
+--- systemtap-2.8.orig/dtrace.in
++++ systemtap-2.8/dtrace.in
+@@ -417,7 +417,7 @@ def main():
          cc1 = os.environ.get("CC", "gcc")
          cflags = "-g " + os.environ.get("CFLAGS", "")
          retcode = call(split(cc1) + defines + includes + split(cflags) +
@@ -10,4 +10,4 @@ Index: b/dtrace.in
 +             ["-fPIC", "-I.", "-c", fname, "-o",
                filename + suffix], shell=False)
          if retcode != 0:
-             print "\"gcc " + fname + "\" failed"
+             print("\"gcc " + fname + "\" failed")
