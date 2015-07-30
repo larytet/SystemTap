@@ -1,0 +1,16 @@
+// stable_function_multi.stp - multiple variables
+
+%{int hits = 0; %}
+
+function fn1:long() %{
+	/* pure */ /* stable */
+  hits++;
+	STAP_RETURN(400);
+%}
+
+probe begin {
+  x = fn1()
+  y = fn1()
+  println(x, " ", y, " ", %{hits%})
+	exit()
+}

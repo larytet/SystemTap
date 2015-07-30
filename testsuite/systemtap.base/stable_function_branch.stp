@@ -1,0 +1,46 @@
+// stable_function_branch.stp - multiple branches
+
+%{int f1hits = 0; %}
+%{int f2hits = 0; %}
+%{int f3hits = 0; %}
+
+function fn1:long() %{
+	/* pure */ /* stable */
+  f1hits++;
+	STAP_RETURN(100);
+%}
+
+function fn2:long() %{
+	/* pure */ /* stable */
+  f2hits++;
+	STAP_RETURN(101);
+%}
+
+function fn3:long() %{
+	/* pure */ /* stable */
+  f3hits++;
+	STAP_RETURN(102);
+%}
+
+probe begin {
+  x = 5
+  y = 5
+
+  if (x=fn1()) {
+    y = fn2()
+
+    if (x>y) {
+      x = fn3()
+    } else {
+      x = fn3() 
+    }
+
+    for (g = 100; g < 110; g++) {
+      z = fn1()
+    }
+  }
+
+  println(x, " ", y, " ", z, " ", fn2(), " ", %{f1hits%}, " ", %{f2hits%}, " ", %{f3hits%})
+
+  exit()
+}

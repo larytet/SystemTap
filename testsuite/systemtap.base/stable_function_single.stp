@@ -1,0 +1,14 @@
+// stable_function_single.stp - single variable
+%{int hits = 0; %}
+
+function fn1:long() %{
+	/* pure */ /* stable */
+  hits++;
+	STAP_RETURN(100);
+%}
+
+probe begin {
+  x = fn1()
+  println(x, " ", %{hits%})
+	exit()
+}

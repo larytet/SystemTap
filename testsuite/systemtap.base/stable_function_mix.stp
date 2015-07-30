@@ -1,0 +1,25 @@
+// stable_function_mix.stp - normal function and embedded-c function
+
+%{int hits = 0; %}
+
+function fn1:long() %{
+	/* pure */ /* stable */
+  hits++;
+	STAP_RETURN(100);
+%}
+
+function fn2:long() {
+  x = fn1()
+  y = fn1()
+  if (x == y) {
+    z = fn1()
+  }
+  return x+y+z
+}
+
+probe begin {
+  x = fn1()
+  x = fn2()
+  println(x, " ", fn2(), " ", %{hits%})
+	exit()
+}

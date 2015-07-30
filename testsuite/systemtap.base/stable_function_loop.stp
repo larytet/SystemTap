@@ -1,0 +1,22 @@
+// stable_function_loop.stp
+
+%{int hits = 0; %}
+
+function test:long() %{
+	/* pure */ /* stable */
+  hits++;
+	STAP_RETURN(100);
+%}
+
+probe begin {
+  sum = 0
+
+  for (i = 0; i < 100; i++) {
+    sum += test()
+    sum += test()
+  }
+
+  println(sum, " ", %{hits%})
+
+	exit()
+}
