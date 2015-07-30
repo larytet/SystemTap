@@ -1,4 +1,4 @@
-systemtap (2.8-1) UNRELEASED; urgency=medium
+systemtap (2.8-1) unstable; urgency=medium
 
   * New upstream release. Closes: #789303.
     - No longer fails to compile with recent Debian kernels
@@ -7,7 +7,7 @@ systemtap (2.8-1) UNRELEASED; urgency=medium
   * Update Vcs-* fields in debian/control.
   * Bump Standards-Version to 3.9.6, no changes necessary.
 
- -- Vincent Bernat <bernat@debian.org>  Wed, 29 Jul 2015 21:41:16 +0200
+ -- Vincent Bernat <bernat@debian.org>  Thu, 30 Jul 2015 17:09:13 +0200
 
 systemtap (2.6-0.2) unstable; urgency=medium
 
