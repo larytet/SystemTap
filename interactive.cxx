@@ -37,6 +37,7 @@ class cmdopt
 {
 protected:
   string _help_text;
+
 public:
   string name;				// command/option name 
   string usage;				// command usage (includes options)
@@ -58,6 +59,50 @@ static cmdopt_vector commands;
 static cmdopt_vector option_commands;
 // A vector of all options;
 static cmdopt_vector options;
+
+struct match_item;
+typedef std::map<std::string, match_item*> match_item_map;
+
+struct match_item
+{
+    string match_text;
+    string regexp;
+    bool terminal;
+    match_item_map sub_matches;
+
+    match_item() { terminal = false; }
+    bool full_match(const string &text);
+    bool partial_match(const string &text);
+};
+
+bool
+match_item::full_match(const string &text)
+{
+    if (regexp.empty())
+	return (text == match_text);
+
+    vector<string> matches;
+    size_t len = match_text.length();
+    if (len < text.length() && text.substr(0, len) == match_text
+	&& regexp_match(text.substr(len), regexp, matches) == 0)
+	return true;
+    return false;
+}
+
+bool
+match_item::partial_match(const string &text)
+{
+    // You can't really do a partial regexp match, so we won't even
+    // try. Just match the starting static text of the match_item.
+    return (match_text.compare(0, text.length(), text) == 0);
+}
+
+typedef std::map<std::string, match_item*>::const_iterator match_item_map_const_iterator;
+typedef std::map<std::string, match_item*>::iterator match_item_map_iterator;
+
+static match_item_map probe_map;
+
+static string saved_token;
 
 static void interactive_usage();
 
@@ -388,6 +433,104 @@ option_generator(const char *text, int state)
   return NULL;
 }
 
+static void
+descend_tree(match_item_map &map, const string &prefix, vector<string> &matches)
+{
+    for (match_item_map_const_iterator it = map.begin(); it != map.end(); ++it)
+    {
+	match_item *item = it->second;
+
+	if (item->terminal)
+	    matches.push_back(prefix + "." + it->first);
+	if (!item->sub_matches.empty())
+	{
+	    string new_prefix = prefix + "." + it->first;
+	    descend_tree(item->sub_matches, new_prefix, matches);
+	}
+    }
+}
+
+static void
+partial_matches(const char *text, match_item_map &map, vector<string> &matches)
+{
+    for (match_item_map_const_iterator it = map.begin(); it != map.end(); ++it)
+    {
+	match_item *item = it->second;
+
+	if (item->partial_match(text))
+	{
+	    if (item->terminal)
+		matches.push_back(it->first);
+	    if (!item->sub_matches.empty())
+		descend_tree(item->sub_matches, it->first, matches);
+	}
+    }
+}
+
+static char *
+probe_generator(const char *text, int state)
+{
+  static vector<string> matches;
+  static size_t list_index;
+
+  // If this is a new word to complete, initialize everything we need.
+  if (!state)
+  {
+    // OK, so this is the first time we're trying to expand this
+    // word. We only get the last "word", but we need to know where we
+    // are in the probe expansion. For example, is someone trying to
+    // expand "ker", "fun" from "kernel.fun", or "re" from
+    // "kernel.function("sys_foo").re"?
+    //
+    // We're going to "cheat" here, and reuse the 2nd token of the
+    // line from where interactive_completion() saved it for us. We're
+    // going to break down the 2nd token into its components.
+    vector<string> tokens;
+    tokenize(saved_token, tokens, ".");
+	
+    match_item_map *match_map = &probe_map;
+    for (vector<string>::const_iterator it = tokens.begin();
+	 it != tokens.end(); ++it)
+    {
+	bool found = false;
+	for (match_item_map_const_iterator map_it = match_map->begin();
+	     map_it != match_map->end(); ++map_it)
+	{
+	    if (map_it->second->full_match(*it))
+	    {
+		found = true;
+#ifdef DEBUG
+		clog << "found " << (*it) << endl;
+#endif
+		match_map = &(map_it->second->sub_matches);
+		break;
+	    }
+	}
+	if (! found)
+	    break;
+    }
+
+    // Now we're at the right match_item sub_matches map. Process it.
+    matches.clear();
+    partial_matches(text, *match_map, matches);
+    list_index = 0;
+  }
+
+  // Return the next list item.
+  if (list_index < matches.size())
+  {
+      char *str = strdup(matches[list_index].c_str());
+      list_index++;
+#ifdef DEBUG
+      clog << "match: " << str << endl;
+#endif
+      return str;
+  }
+
+  // If no names matched, then return NULL.
+  return NULL;
+}
+
 // Attempt to complete on the contents of TEXT.  START and END bound
 // the region of rl_line_buffer that contains the word to complete.
 // TEXT is the word to complete.  We can use the entire contents of
@@ -416,10 +559,10 @@ interactive_completion(const char *text, int start, int end)
     if (! tokens.size())
       return matches;
 
-    // If we're in a command that takes options, then we've got an
-    // option to complete, if we're on the 2nd token.
     if (tokens.size() <= 2)
     {
+      // If we're in a command that takes options, then we've got an
+      // option to complete, if we're on the 2nd token.
       for (cmdopt_vector_const_iterator it = option_commands.begin();
 	   it != option_commands.end(); ++it)
       {
@@ -429,9 +572,75 @@ interactive_completion(const char *text, int start, int end)
 	  break;
 	}
       }
+
+      // Perhaps we're in a probe declaration.
+      if (tokens[0] == "probe")
+      {
+	  // Save 2nd token for use by probe_generator().
+	  saved_token = tokens[1];
+	  matches = rl_completion_matches(text, probe_generator);
+      }
     }
   }
   return matches;
+}
+
+static void
+process_probe_list(istream &probe_stream, bool handle_regexps)
+{
+    while (! probe_stream.eof())
+    {
+	string line;
+	match_item_map *match_map = &probe_map;
+
+	getline(probe_stream, line);
+	if (line.empty())
+	    continue;
+
+	vector<string> tokens;
+	tokenize(line, tokens, ".");
+
+#ifdef DEBUG
+	clog << "processing " << line << endl;
+#endif
+	for (vector<string>::const_iterator it = tokens.begin();
+	     it != tokens.end(); ++it)
+	{
+	    if (match_map->count(*it) == 0)
+	    {
+		match_item *mi = new match_item;
+		size_t number_pos = string::npos;
+		size_t string_pos = string::npos;
+	      
+		if (handle_regexps)
+		{
+		    number_pos = (*it).find("(number)");
+		    string_pos = (*it).find("(string)");
+		}
+		if (number_pos != string::npos)
+		{
+		    mi->match_text = (*it).substr(0, number_pos);
+		    mi->regexp = "^\\([x0-9a-fA-F]+\\)$";
+		}
+		else if (string_pos != string::npos)
+		{
+		    mi->match_text = (*it).substr(0, string_pos);
+		    mi->regexp = "^\\(\"[^\"]+\"\\)$";
+		}
+		else
+		{
+		    mi->match_text = (*it);
+		}
+		(*match_map)[*it] = mi;
+		match_map = &(mi->sub_matches);
+		mi->terminal = (*it == tokens.back());
+	    }
+	    else
+	    {
+		match_map = &((*match_map)[*it]->sub_matches);
+	    }
+	}
+    }
 }
 
 //
@@ -448,6 +657,9 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   // Tell readline's completer we want a crack at the input first.
   rl_attempted_completion_function = interactive_completion;
 
+  // FIXME: this has been massively simplified from the default.
+  rl_completer_word_break_characters = (char *)" \t\n.{";
+
   // Set up command list, along with a list of commands that take
   // options.
   commands.push_back(new help_cmd);
@@ -462,6 +674,48 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   options.push_back(new keep_tmpdir_opt);
   options.push_back(new last_pass_opt);
   options.push_back(new verbose_opt);
+
+  // Get the list of "base" probe types, the same output you'd get
+  // from doing 'stap --dump-probe-types'.
+  s.clear_script_data();
+  systemtap_session* ss = s.clone(s.architecture, s.kernel_release);
+  stringstream probes;
+
+  ss->verbose = 0;
+  for (unsigned i=0; i<5; i++)
+      ss->perpass_verbose[i] = 0;
+  ss->last_pass = 2;
+  ss->dump_mode = systemtap_session::dump_probe_types;
+
+  // We want to capture the output of pattern_root->dump(), which
+  // normally goes to 'cout'. So, redirect where 'cout' goes.
+  streambuf *former_buff = cout.rdbuf(probes.rdbuf());
+  passes_0_4(*ss);
+
+  // Restore cout.
+  cout.rdbuf(former_buff);
+
+  // Now that we have the list of "base" probe types, call
+  // process_probe_list() to turn that into our parse tree.
+  process_probe_list(probes, true);
+
+  // FIXME: Now we'll need to get all the probe aliases ("stap
+  // --dump-probe-aliases").
+
+#ifdef DEBUG
+  {
+      vector<string> matches;
+
+      // Print tree.
+      clog << "Dumping tree:" << endl;
+      partial_matches("", probe_map, matches);
+      for (vector<string>::const_iterator it = matches.begin();
+	   it != matches.end(); ++it)
+      {
+	  clog << (*it) << endl;
+      }
+  }
+#endif
 
   while (1)
     {
