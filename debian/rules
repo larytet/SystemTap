@@ -24,7 +24,7 @@ ifeq (,$(filter systemtap-runtime,$(shell dh_listpackages -s)))
 endif
 
 %:
-	dh $@ --parallel --with autotools-dev
+	dh $@ --parallel --with autoreconf
 
 override_dh_auto_test:
 	# Tests cannot be run during build, see #526957
