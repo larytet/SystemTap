@@ -277,6 +277,11 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline() << "(const struct nf_hook_ops *nf_ops, struct sk_buff *nf_skb, const struct net_device *nf_in, const struct net_device *nf_out, int (*nf_okfn)(struct sk_buff *))";
       s.op->newline() << "{";
 
+      s.op->newline() << "#elif defined(STAPCONF_NETFILTER_V313B)";
+
+      s.op->newline() << "(const struct nf_hook_ops *nf_ops, struct sk_buff *nf_skb, const struct net_device *nf_in, const struct net_device *nf_out, const struct nf_hook_state *nf_state)";
+      s.op->newline() << "{";
+
       s.op->newline() << "#elif LINUX_VERSION_CODE > KERNEL_VERSION(2,6,22)";
 
       s.op->newline() << "(unsigned int nf_hooknum, struct sk_buff *nf_skb, const struct net_device *nf_in, const struct net_device *nf_out, int (*nf_okfn)(struct sk_buff *))";
@@ -291,7 +296,7 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(-1) << "#endif";
       s.op->newline(1) << "const struct stap_probe * const stp = & stap_probes[" << np->session_index << "];";
       s.op->newline() << "int nf_verdict = NF_ACCEPT;"; // default NF_ACCEPT, to be used by $verdict context var
-      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V313) || defined(STAPCONF_NETFILTER_V41)";
+      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V313) || defined(STAPCONF_NETFILTER_V313B) || defined(STAPCONF_NETFILTER_V41)";
       s.op->newline() << "unsigned int nf_hooknum = nf_ops->hooknum;";
       s.op->newline() << "#endif";
       s.op->newline() << "#ifdef STAPCONF_NETFILTER_V41";
