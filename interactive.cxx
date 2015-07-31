@@ -62,18 +62,39 @@ static cmdopt_vector options;
 
 struct match_item;
 typedef std::map<std::string, match_item*> match_item_map;
+typedef std::map<std::string, match_item*>::const_iterator match_item_map_const_iterator;
+typedef std::map<std::string, match_item*>::iterator match_item_map_iterator;
 
 struct match_item
 {
+    match_item() { terminal = false; }
+    ~match_item();
+
     string match_text;
     string regexp;
     bool terminal;
     match_item_map sub_matches;
 
-    match_item() { terminal = false; }
     bool full_match(const string &text);
     bool partial_match(const string &text);
 };
+
+static void
+delete_match_map_items(match_item_map *map)
+{
+    match_item_map_iterator it = map->begin();
+    while (it != map->end())
+    {
+	match_item *item = it->second;
+	map->erase(it++);
+	delete item;
+    }
+}
+
+match_item::~match_item()
+{
+    delete_match_map_items(&sub_matches);
+}
 
 bool
 match_item::full_match(const string &text)
@@ -96,9 +117,6 @@ match_item::partial_match(const string &text)
     // try. Just match the starting static text of the match_item.
     return (match_text.compare(0, text.length(), text) == 0);
 }
-
-typedef std::map<std::string, match_item*>::const_iterator match_item_map_const_iterator;
-typedef std::map<std::string, match_item*>::iterator match_item_map_iterator;
 
 static match_item_map probe_map;
 
@@ -439,14 +457,12 @@ descend_tree(match_item_map &map, const string &prefix, vector<string> &matches)
     for (match_item_map_const_iterator it = map.begin(); it != map.end(); ++it)
     {
 	match_item *item = it->second;
+	string new_prefix = prefix + "." + it->first;
 
 	if (item->terminal)
-	    matches.push_back(prefix + "." + it->first);
+	    matches.push_back(new_prefix);
 	if (!item->sub_matches.empty())
-	{
-	    string new_prefix = prefix + "." + it->first;
 	    descend_tree(item->sub_matches, new_prefix, matches);
-	}
     }
 }
 
@@ -691,6 +707,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   // normally goes to 'cout'. So, redirect where 'cout' goes.
   streambuf *former_buff = cout.rdbuf(probes.rdbuf());
   passes_0_4(*ss);
+  ss->clear_script_data();
 
   // Restore cout.
   cout.rdbuf(former_buff);
@@ -772,5 +789,6 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 	  ss->reset_tmp_dir();
 	}
     }
+  delete_match_map_items(&probe_map);
   return 0;
 }
