@@ -1,4 +1,4 @@
-systemtap (2.8-2) UNRELEASED; urgency=medium
+systemtap (2.8-2) unstable; urgency=medium
 
   * Use dh-autoreconf instead of autotools-dev. Closes: #763443.
 
