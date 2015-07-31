@@ -35,5 +35,5 @@ proc run_test {test exp hits} {
 run_test stable_function_single "100" "1"
 run_test stable_function_multi "400 400" "1"
 run_test stable_function_mix "300 300" "2"
-run_test stable_function_loop "20000" "100"
+run_test stable_function_loop "18000" "1"
 run_test stable_function_branch "102 101 100 101" "1 2 1"
