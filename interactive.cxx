@@ -14,6 +14,7 @@
 #include "stap-probe.h"
 
 #include <cstdlib>
+#include <stack>
 
 using namespace std;
 
@@ -63,7 +64,9 @@ static cmdopt_vector options;
 struct match_item;
 typedef std::map<std::string, match_item*> match_item_map;
 typedef std::map<std::string, match_item*>::const_iterator match_item_map_const_iterator;
-typedef std::map<std::string, match_item*>::iterator match_item_map_iterator;
+typedef map<string, match_item*>::iterator match_item_map_iterator;
+typedef map<string, match_item*>::reverse_iterator match_item_map_rev_iterator;
+typedef map<string, match_item*>::const_reverse_iterator match_item_map_const_rev_iterator;
 
 struct match_item
 {
@@ -115,7 +118,10 @@ match_item::partial_match(const string &text)
 {
     // You can't really do a partial regexp match, so we won't even
     // try. Just match the starting static text of the match_item.
-    return (match_text.compare(0, text.length(), text) == 0);
+    size_t len = text.length();
+    if (len == 0)
+	return true;
+    return (match_text.compare(0, len, text) == 0);
 }
 
 static match_item_map probe_map;
@@ -451,43 +457,47 @@ option_generator(const char *text, int state)
   return NULL;
 }
 
-static void
-descend_tree(match_item_map &map, const string &prefix, vector<string> &matches)
-{
-    for (match_item_map_const_iterator it = map.begin(); it != map.end(); ++it)
-    {
-	match_item *item = it->second;
-	string new_prefix = prefix + "." + it->first;
-
-	if (item->terminal)
-	    matches.push_back(new_prefix);
-	if (!item->sub_matches.empty())
-	    descend_tree(item->sub_matches, new_prefix, matches);
-    }
-}
-
+#ifdef DEBUG
+// An iterative process to traverse the parse tree, looking for
+// partial matches.
 static void
 partial_matches(const char *text, match_item_map &map, vector<string> &matches)
 {
-    for (match_item_map_const_iterator it = map.begin(); it != map.end(); ++it)
+    // Create an empty stack and push items to it that paritally match.
+    std::stack< pair<string, match_item *> > stack;
+    for (match_item_map_const_rev_iterator rit = map.rbegin();
+	 rit != map.rend(); ++rit)
     {
-	match_item *item = it->second;
+	if (rit->second->partial_match(text))
+	    stack.push(make_pair(rit->first, rit->second));
+    }
 
-	if (item->partial_match(text))
+    // Handle the stack.
+    while (stack.empty() == false)
+    {
+	// Pop the top item from stack and handle it
+	match_item *item = stack.top().second;
+	string prefix = stack.top().first;
+	stack.pop();
+
+	if (item->terminal)
+	    matches.push_back(prefix);
+ 
+	// Push all children.
+	for (match_item_map_const_rev_iterator rit = item->sub_matches.rbegin();
+	     rit != item->sub_matches.rend(); ++rit)
 	{
-	    if (item->terminal)
-		matches.push_back(it->first);
-	    if (!item->sub_matches.empty())
-		descend_tree(item->sub_matches, it->first, matches);
+	    match_item *item = rit->second;
+	    stack.push(make_pair(prefix + "." + rit->first, item));
 	}
     }
 }
+#endif
 
 static char *
 probe_generator(const char *text, int state)
 {
-  static vector<string> matches;
-  static size_t list_index;
+  static std::stack< pair<string, match_item *> > stack;
 
   // If this is a new word to complete, initialize everything we need.
   if (!state)
@@ -526,21 +536,42 @@ probe_generator(const char *text, int state)
 	    break;
     }
 
-    // Now we're at the right match_item sub_matches map. Process it.
-    matches.clear();
-    partial_matches(text, *match_map, matches);
-    list_index = 0;
+    // Clean out the stack from a previous run. This shouldn't happen,
+    // but let's be sure.
+    while (stack.empty() == false)
+    {
+	stack.pop();
+    }
+
+    // Now we're at the right match_item sub_matches map. Process it by
+    // pushing items to the stack that paritally match.
+    for (match_item_map_const_rev_iterator rit = match_map->rbegin();
+	 rit != match_map->rend(); ++rit)
+    {
+	if (rit->second->partial_match(text))
+	    stack.push(make_pair(rit->first, rit->second));
+    }
   }
 
-  // Return the next list item.
-  if (list_index < matches.size())
+  // Handle the stack.
+  while (stack.empty() == false)
   {
-      char *str = strdup(matches[list_index].c_str());
-      list_index++;
-#ifdef DEBUG
-      clog << "match: " << str << endl;
-#endif
-      return str;
+      // Pop the top item from stack and handle it
+      match_item *item = stack.top().second;
+      string prefix = stack.top().first;
+      stack.pop();
+
+      // Push all children.
+      for (match_item_map_const_rev_iterator rit = item->sub_matches.rbegin();
+	   rit != item->sub_matches.rend(); ++rit)
+      {
+	  match_item *item = rit->second;
+	  stack.push(make_pair(prefix + "." + rit->first, item));
+      }
+
+      // If this item is terminal, return it.
+      if (item->terminal)
+	  return strdup(prefix.c_str());
   }
 
   // If no names matched, then return NULL.
@@ -592,9 +623,12 @@ interactive_completion(const char *text, int start, int end)
       // Perhaps we're in a probe declaration.
       if (tokens[0] == "probe")
       {
-	  // Save 2nd token for use by probe_generator().
+	// Save (possible) 2nd token for use by probe_generator().
+	if (tokens.size() == 2)
 	  saved_token = tokens[1];
-	  matches = rl_completion_matches(text, probe_generator);
+	else
+	  saved_token = "";
+	matches = rl_completion_matches(text, probe_generator);
       }
     }
   }
