@@ -525,9 +525,6 @@ probe_generator(const char *text, int state)
 	    if (map_it->second->full_match(*it))
 	    {
 		found = true;
-#ifdef DEBUG
-		clog << "found " << (*it) << endl;
-#endif
 		match_map = &(map_it->second->sub_matches);
 		break;
 	    }
@@ -642,10 +639,18 @@ process_probe_list(istream &probe_stream, bool handle_regexps)
     {
 	string line;
 	match_item_map *match_map = &probe_map;
+	size_t space_pos;
 
 	getline(probe_stream, line);
 	if (line.empty())
 	    continue;
+	
+	// Delete from a space to the end. Probe aliases look like:
+	//
+	//    syscall.write = kernel.function("sys_write)
+	space_pos = line.find(" ");
+	if (space_pos != string::npos)
+	    line.erase(space_pos);
 
 	vector<string> tokens;
 	tokenize(line, tokens, ".");
@@ -725,33 +730,60 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   options.push_back(new last_pass_opt);
   options.push_back(new verbose_opt);
 
+  // FIXME: It might be better to wait to get the list of probes and
+  // aliases until they are needed.
+
+  // Save the original state of the session object.
+  unsigned saved_verbose = s.verbose;
+  unsigned saved_perpass_verbose[5];
+  for (unsigned i=0; i<5; i++)
+      saved_perpass_verbose[i] = s.perpass_verbose[i];
+  int saved_last_pass = s.last_pass;
+
   // Get the list of "base" probe types, the same output you'd get
   // from doing 'stap --dump-probe-types'.
   s.clear_script_data();
-  systemtap_session* ss = s.clone(s.architecture, s.kernel_release);
-  stringstream probes;
-
-  ss->verbose = 0;
+  s.verbose = 0;
   for (unsigned i=0; i<5; i++)
-      ss->perpass_verbose[i] = 0;
-  ss->last_pass = 2;
-  ss->dump_mode = systemtap_session::dump_probe_types;
+      s.perpass_verbose[i] = 0;
+  s.dump_mode = systemtap_session::dump_probe_types;
+  s.last_pass = 2;
 
-  // We want to capture the output of pattern_root->dump(), which
-  // normally goes to 'cout'. So, redirect where 'cout' goes.
+  // We want to capture the probe output, which normally goes to
+  // 'cout'. So, redirect where 'cout' goes, run the command, then
+  // restore 'cout'.
+  stringstream probes;
   streambuf *former_buff = cout.rdbuf(probes.rdbuf());
-  passes_0_4(*ss);
-  ss->clear_script_data();
-
-  // Restore cout.
+  passes_0_4(s);
   cout.rdbuf(former_buff);
 
   // Now that we have the list of "base" probe types, call
   // process_probe_list() to turn that into our parse tree.
   process_probe_list(probes, true);
 
-  // FIXME: Now we'll need to get all the probe aliases ("stap
+  // Now we'll need to get all the probe aliases ("stap
   // --dump-probe-aliases").
+  s.clear_script_data();
+  s.dump_mode = systemtap_session::dump_probe_aliases;
+  
+  // We want to capture the alias output, which normally goes to
+  // 'cout'. So, redirect where 'cout' goes, run the command, then
+  // restore 'cout'.
+  stringstream aliases;
+  former_buff = cout.rdbuf(aliases.rdbuf());
+  rc = passes_0_4(s);
+  cout.rdbuf(former_buff);
+
+  // Process the list of probe aliases.
+  process_probe_list(aliases, false);
+
+  // Restore the original state of the session object.
+  s.clear_script_data();
+  s.dump_mode = systemtap_session::dump_none;
+  s.verbose = saved_verbose;
+  for (unsigned i=0; i<5; i++)
+      s.perpass_verbose[i] = saved_perpass_verbose[i];
+  s.last_pass = saved_last_pass;
 
 #ifdef DEBUG
   {
@@ -808,19 +840,19 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
       // to keep track of.
       if (!input_handled)
         {
-	  // Try creating a new systemtap session object so that we
-	  // don't get leftovers from the last script we compiled.
+	  // FIXME: there isn't any real point to calling
+	  // systemtap_session::clone() here, since it doesn't
+	  // (usually) create a new session, but returns a cached
+	  // session. So, we'll just use the current session.
 	  s.clear_script_data();
-	  systemtap_session* ss = s.clone(s.architecture, s.kernel_release);
-
-	  ss->cmdline_script = line;
-	  ss->have_script = true;
-	  rc = passes_0_4(*ss);
+	  s.cmdline_script = line;
+	  s.have_script = true;
+	  rc = passes_0_4(s);
 
 	  // Run pass 5, if passes 0-4 worked.
-	  if (rc == 0 && ss->last_pass >= 5 && !pending_interrupts)
-	    rc = pass_5 (*ss, targets);
-	  ss->reset_tmp_dir();
+	  if (rc == 0 && s.last_pass >= 5 && !pending_interrupts)
+	    rc = pass_5 (s, targets);
+	  s.reset_tmp_dir();
 	}
     }
   delete_match_map_items(&probe_map);
