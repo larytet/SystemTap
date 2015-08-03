@@ -99,6 +99,16 @@ match_item::~match_item()
     delete_match_map_items(&sub_matches);
 }
 
+// match_item::full_match() looks for a "full" match. A full match
+// completely matches an item. Examples are:
+//
+//    USER INPUT		MATCH ITEM
+//    'kernel'			'kernel'
+//    'kernel("sys_read")'	'kernel(string)'
+//    'process(123)'		'process(number)'
+//    'function("main")'	'function(string)'
+//
+// '(number)' and '(string)' matching are done via regexps.
 bool
 match_item::full_match(const string &text)
 {
@@ -113,6 +123,13 @@ match_item::full_match(const string &text)
     return false;
 }
 
+// match_item::partial_match() looks for a "partial" match. A partial
+// match looks like:
+//
+//    USER INPUT		MATCH ITEM
+//    'ke'			'kernel',
+//    'proc'			'process', 'process(number)', and
+//				'process(string)'
 bool
 match_item::partial_match(const string &text)
 {
@@ -761,6 +778,12 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   // process_probe_list() to turn that into our parse tree.
   process_probe_list(probes, true);
 
+  // FIXME: It might be nice instead of completing to:
+  //    process(number).function(string)
+  // instead we did:
+  //    process(PID).function("NAME")
+  // i.e. the '(number)' and '(string)' fields were more descriptive.
+
   // Now we'll need to get all the probe aliases ("stap
   // --dump-probe-aliases").
   s.clear_script_data();
@@ -776,6 +799,8 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 
   // Process the list of probe aliases.
   process_probe_list(aliases, false);
+
+  // FIXME: We could also complete systemtap function names.
 
   // Restore the original state of the session object.
   s.clear_script_data();
