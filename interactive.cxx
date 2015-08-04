@@ -40,6 +40,7 @@ protected:
   string _help_text;
 
 public:
+  virtual ~cmdopt() { }
   string name;				// command/option name 
   string usage;				// command usage (includes options)
 
@@ -62,8 +63,8 @@ static cmdopt_vector option_commands;
 static cmdopt_vector options;
 
 struct match_item;
-typedef std::map<std::string, match_item*> match_item_map;
-typedef std::map<std::string, match_item*>::const_iterator match_item_map_const_iterator;
+typedef map<string, match_item*> match_item_map;
+typedef map<string, match_item*>::const_iterator match_item_map_const_iterator;
 typedef map<string, match_item*>::iterator match_item_map_iterator;
 typedef map<string, match_item*>::reverse_iterator match_item_map_rev_iterator;
 typedef map<string, match_item*>::const_reverse_iterator match_item_map_const_rev_iterator;
