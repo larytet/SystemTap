@@ -552,6 +552,21 @@ cmdstr_join(const vector<string>& cmds)
 }
 
 
+const string
+join(const vector<string>& vec, const string &delim)
+{
+  if (vec.empty())
+    throw runtime_error(_("join called with an empty vector!"));
+
+  stringstream join_str;
+  join_str << vec[0];
+  for (size_t i = 1; i < vec.size(); ++i)
+    join_str << delim << vec[i];
+
+  return join_str.str();
+}
+
+
 // signal-safe set of pids
 class spawned_pids_t {
   private:

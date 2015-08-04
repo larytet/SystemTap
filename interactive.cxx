@@ -15,6 +15,8 @@
 
 #include <cstdlib>
 #include <stack>
+#include <sstream>
+#include <iterator>
 
 using namespace std;
 
@@ -56,11 +58,14 @@ typedef vector<cmdopt*>::const_iterator cmdopt_vector_const_iterator;
 typedef vector<cmdopt*>::iterator cmdopt_vector_iterator;
 
 // A vector of all commands.
-static cmdopt_vector commands;
+static cmdopt_vector command_vec;
 // A vector of all commands that take options.
-static cmdopt_vector option_commands;
+static cmdopt_vector option_command_vec;
 // A vector of all options;
-static cmdopt_vector options;
+static cmdopt_vector option_vec;
+// A vector containing the user's script, one probe/function/etc. per
+// string.
+static vector<string> script_vec;
 
 struct match_item;
 typedef map<string, match_item*> match_item_map;
@@ -145,6 +150,7 @@ match_item::partial_match(const string &text)
 static match_item_map probe_map;
 
 static string saved_token;
+static vector<remote*> *saved_targets;
 
 static void interactive_usage();
 
@@ -157,10 +163,10 @@ class help_cmd: public cmdopt
 public:
   help_cmd()
   {
-    name = usage = "!help";
-    _help_text = "Print this command list";
+    name = usage = "help";
+    _help_text = "Print this command list.";
   }
-  virtual bool handler(systemtap_session &s, vector<string> &tokens)
+  bool handler(systemtap_session &s, vector<string> &tokens)
   {
     interactive_usage();
     return false;
@@ -172,16 +178,19 @@ class list_cmd : public cmdopt
 public:
   list_cmd()
   {
-    name = usage = "!list";
-    _help_text = "Display the current script";
+    name = usage = "list";
+    _help_text = "Display the current script.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
-    // FIXME: Hmm, we might want to use 'printscript' here...
-    if (s.have_script)
-      cout << s.cmdline_script << endl;
-    else
-      cout << "(No script input.)" << endl;
+    // FIXME: We will want to use 'printscript' here, once we store
+    // parser output instead of strings.
+    size_t i = 1;
+    for (vector<string>::const_iterator it = script_vec.begin();
+	 it != script_vec.end(); ++it)
+    {
+	clog << i++ << ": " << (*it) << endl;
+    }
     return false;
   }
 };
@@ -191,8 +200,8 @@ class set_cmd: public cmdopt
 public:
   set_cmd()
   {
-    name = "!set";
-    usage = "!set OPTION VALUE";
+    name = "set";
+    usage = "set OPTION VALUE";
     _help_text = "Set option value. Supported options are:";
   }
   string help_text(size_t indent) const
@@ -201,8 +210,8 @@ public:
     size_t width = 1;
 
     // Find biggest option "name" field.
-    for (cmdopt_vector_const_iterator it = options.begin();
-	 it != options.end(); ++it)
+    for (cmdopt_vector_const_iterator it = option_vec.begin();
+	 it != option_vec.end(); ++it)
       {
 	if ((*it)->name.size() > width)
 	  width = (*it)->name.size();
@@ -210,8 +219,8 @@ public:
 
     // Add each option to the output.
     buffer << _help_text;
-    for (cmdopt_vector_iterator it = options.begin();
-	 it != options.end(); ++it)
+    for (cmdopt_vector_iterator it = option_vec.begin();
+	 it != option_vec.end(); ++it)
       {
 	buffer << endl << setw(indent + 2) << " ";
 	buffer << setw(width) << left << (*it)->name << " -- "
@@ -230,8 +239,8 @@ public:
       }
 
     // Search the option list for the option to display.
-    for (cmdopt_vector_iterator it = options.begin();
-	 it != options.end(); ++it)
+    for (cmdopt_vector_iterator it = option_vec.begin();
+	 it != option_vec.end(); ++it)
       {
 	if (tokens[1] == (*it)->name)
 	{
@@ -254,9 +263,9 @@ class show_cmd: public cmdopt
 public:
   show_cmd()
   {
-    name = "!show";
-    usage = "!show OPTION";
-    _help_text = "Show option value";
+    name = "show";
+    usage = "show OPTION";
+    _help_text = "Show option value.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
@@ -269,8 +278,8 @@ public:
       }
 
     // Search the option list for the option to display.
-    for (cmdopt_vector_iterator it = options.begin();
-	 it != options.end(); ++it)
+    for (cmdopt_vector_iterator it = option_vec.begin();
+	 it != option_vec.end(); ++it)
       {
 	if (tokens[1] == (*it)->name)
 	  {
@@ -293,8 +302,8 @@ class quit_cmd : public cmdopt
 public:
   quit_cmd()
   {
-    name = usage = "!quit";
-    _help_text = "Quit systemtap";
+    name = usage = "quit";
+    _help_text = "Quit systemtap.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
@@ -302,8 +311,128 @@ public:
   }
 };
 
+class add_cmd: public cmdopt
+{
+public:
+  add_cmd()
+  {
+    name = usage = "add";
+    _help_text = "Add a probe or function.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    // FIXME: note this isn't quite right. If someone was trying to
+    // print "    ", tokenizing the string will have messed up those
+    // embedded spaces. But, for now...
+
+    // FIXME 2: At some point, we really should store the stap's
+    // parser output instead of just a string.
+
+    // Skip past the add command itself by removing the 1st token.
+    tokens.erase(tokens.begin());
+
+    // Put the individual tokens back together as a single string,
+    // then add the resulting string to the script vector.
+    script_vec.push_back(join(tokens, " "));
+    return false;
+  }
+};
+
+class delete_cmd: public cmdopt
+{
+public:
+  delete_cmd()
+  {
+    name = "delete";
+    usage = "delete ITEM_NUM";
+    _help_text = "Delete a probe or function by its number.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    // FIXME: Should "delete" with no arguments ask to delete all
+    // probes/functions?
+
+    // FIXME 2: Unlike gdb, our numbers get rearranged after a
+    // delete. Example:
+    //
+    //   stap> list
+    //   1: probe begin { exit() }
+    //   2: probe end { printf("end\n") }
+    //   stap> delete 1
+    //   stap> list
+    //   1: probe end { printf("end\n") }
+    //
+    // We could fix this if we stored the numbers along with the
+    // probe/function. 
+
+    if (tokens.size() != 2)
+      {
+	cout << endl << "Invalid command" << endl;
+	interactive_usage();
+	return false;
+      }
+
+    // Convert the 2nd token to a number.
+    char *end;
+    long val;
+
+    errno = 0;
+    val = strtol (tokens[1].c_str(), &end, 10);
+    if (errno != 0 || *end != '\0' || val < 0)
+      {
+	cout << "Invalid probe/function value" << endl;
+	return false;
+      }
+
+    // Does this probe/function exist?
+    size_t item_num = val - 1;
+    if (item_num > script_vec.size())
+      {
+	cout << "No probe/function " << val << endl;
+	return false;
+      }
+      
+    // Delete probe/function
+    script_vec.erase(script_vec.begin() + item_num);
+    return false;
+  }
+};
+
+class run_cmd : public cmdopt
+{
+public:
+  run_cmd()
+  {
+    name = usage = "run";
+    _help_text = "Run the current script.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    if (script_vec.empty())
+      {
+	clog << "No script specified." << endl;
+	return false;
+      }
+
+    // FIXME: there isn't any real point to calling
+    // systemtap_session::clone() here, since it doesn't (usually)
+    // create a new session, but returns a cached session. So, we'll
+    // just use the current session.
+    s.clear_script_data();
+    s.cmdline_script = join(script_vec, "\n");
+    s.have_script = true;
+    int rc = passes_0_4(s);
+
+    // Run pass 5, if passes 0-4 worked.
+    if (rc == 0 && s.last_pass >= 5 && !pending_interrupts)
+      rc = pass_5 (s, *saved_targets);
+    s.reset_tmp_dir();
+    return false;
+  }
+};
+
 //
-// Supported options for the "!set" and "!show" commands.
+// Supported options for the "set" and "show" commands.
 // 
 
 class keep_tmpdir_opt: public cmdopt
@@ -312,11 +441,11 @@ public:
   keep_tmpdir_opt()
   {
     name = "keep_tmpdir";
-    _help_text = "Keep temporary directory";
+    _help_text = "Keep temporary directory.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
-    bool set = (tokens[0] == "!set");
+    bool set = (tokens[0] == "set");
     if (set)
       s.keep_tmpdir = (tokens[2] != "0");
     else
@@ -331,11 +460,11 @@ public:
   last_pass_opt()
   {
       name = "last_pass";
-      _help_text = "Stop after pass NUM 1-5";
+      _help_text = "Stop after pass NUM 1-5.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
-    bool set = (tokens[0] == "!set");
+    bool set = (tokens[0] == "set");
     if (set)
       {
 	char *end;
@@ -360,11 +489,11 @@ public:
   verbose_opt()
   {
     name = "verbose";
-    _help_text = "Add verbosity to all passes";
+    _help_text = "Add verbosity to all passes.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
-    bool set = (tokens[0] == "!set");
+    bool set = (tokens[0] == "set");
     if (set)
       {
 	char *end;
@@ -394,15 +523,15 @@ interactive_usage ()
 
   // Find biggest "usage" field.
   size_t width = 1;
-  for (cmdopt_vector_const_iterator it = commands.begin();
-       it != commands.end(); ++it)
+  for (cmdopt_vector_const_iterator it = command_vec.begin();
+       it != command_vec.end(); ++it)
     {
       if ((*it)->usage.size() > width)
 	  width = (*it)->usage.size();
     }
   // Print usage field and help text for each command.
-  for (cmdopt_vector_const_iterator it = commands.begin();
-       it != commands.end(); ++it)
+  for (cmdopt_vector_const_iterator it = command_vec.begin();
+       it != command_vec.end(); ++it)
     {
       cout << setw(width) << left << (*it)->usage << " -- "
 	   << (*it)->help_text(width + 4) << endl;
@@ -416,7 +545,6 @@ static char *
 command_generator(const char *text, int state)
 {
   static size_t list_index, len;
-  static bool interactive_cmd = false;
 
   // If this is a new word to complete, initialize now.  This includes
   // saving the length of TEXT for efficiency, and initializing the
@@ -425,20 +553,15 @@ command_generator(const char *text, int state)
   {
     list_index = 0;
     len = strlen(text);
-    interactive_cmd = (len > 0 && text[0] == '!');
   }
 
-  // For now, *only* complete interactive mode commands themselves.
-  if (interactive_cmd)
+  // Return the next name which partially matches from the command list.
+  while (list_index < command_vec.size())
   {
-    // Return the next name which partially matches from the command list.
-    while (list_index < commands.size())
-    {
-      cmdopt *cmd = commands[list_index];
-      list_index++;
-      if (strncmp(cmd->name.c_str(), text, len) == 0)
-	return strdup(cmd->name.c_str());
-    }
+    cmdopt *cmd = command_vec[list_index];
+    list_index++;
+    if (strncmp(cmd->name.c_str(), text, len) == 0)
+      return strdup(cmd->name.c_str());
   }
 
   // If no names matched, then return NULL.
@@ -463,9 +586,9 @@ option_generator(const char *text, int state)
   }
 
   // Return the next name which partially matches from the option list.
-  while (list_index < options.size())
+  while (list_index < option_vec.size())
   {
-    cmdopt *opt = options[list_index];
+    cmdopt *opt = option_vec[list_index];
     list_index++;
     if (strncmp(opt->name.c_str(), text, len) == 0)
       return strdup(opt->name.c_str());
@@ -625,22 +748,26 @@ interactive_completion(const char *text, int start, int end)
     {
       // If we're in a command that takes options, then we've got an
       // option to complete, if we're on the 2nd token.
-      for (cmdopt_vector_const_iterator it = option_commands.begin();
-	   it != option_commands.end(); ++it)
+      for (cmdopt_vector_const_iterator it = option_command_vec.begin();
+	   it != option_command_vec.end(); ++it)
       {
 	if ((*it)->name == tokens[0])
 	{
 	  matches = rl_completion_matches(text, option_generator);
-	  break;
+	  return matches;
 	}
       }
+    }
 
+    // If we're in an "add" command...
+    if (tokens.size() >= 2 && tokens[0] == "add")
+    {
       // Perhaps we're in a probe declaration.
-      if (tokens[0] == "probe")
+      if (tokens[1] == "probe")
       {
 	// Save (possible) 2nd token for use by probe_generator().
-	if (tokens.size() == 2)
-	  saved_token = tokens[1];
+	if (tokens.size() >= 3)
+	  saved_token = tokens[2];
 	else
 	  saved_token = "";
 	matches = rl_completion_matches(text, probe_generator);
@@ -723,9 +850,11 @@ process_probe_list(istream &probe_stream, bool handle_regexps)
 int
 interactive_mode (systemtap_session &s, vector<remote*> targets)
 {
-  int rc;
   string delimiters = " \t";
   bool input_handled;
+
+  // Save the target vector.
+  saved_targets = &targets;
 
   // Tell readline's completer we want a crack at the input first.
   rl_attempted_completion_function = interactive_completion;
@@ -735,18 +864,21 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 
   // Set up command list, along with a list of commands that take
   // options.
-  commands.push_back(new help_cmd);
-  commands.push_back(new list_cmd);
-  commands.push_back(new set_cmd);
-  option_commands.push_back(commands.back());
-  commands.push_back(new show_cmd);
-  option_commands.push_back(commands.back());
-  commands.push_back(new quit_cmd);
+  command_vec.push_back(new add_cmd);
+  command_vec.push_back(new delete_cmd);
+  command_vec.push_back(new list_cmd);
+  command_vec.push_back(new run_cmd);
+  command_vec.push_back(new set_cmd);
+  option_command_vec.push_back(command_vec.back());
+  command_vec.push_back(new show_cmd);
+  option_command_vec.push_back(command_vec.back());
+  command_vec.push_back(new help_cmd);
+  command_vec.push_back(new quit_cmd);
 
-  // Set up !set/!show option list.
-  options.push_back(new keep_tmpdir_opt);
-  options.push_back(new last_pass_opt);
-  options.push_back(new verbose_opt);
+  // Set up set/show option list.
+  option_vec.push_back(new keep_tmpdir_opt);
+  option_vec.push_back(new last_pass_opt);
+  option_vec.push_back(new verbose_opt);
 
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.
@@ -795,7 +927,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   // restore 'cout'.
   stringstream aliases;
   former_buff = cout.rdbuf(aliases.rdbuf());
-  rc = passes_0_4(s);
+  passes_0_4(s);
   cout.rdbuf(former_buff);
 
   // Process the list of probe aliases.
@@ -845,8 +977,8 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
         {
 	  bool quit = false;
 	  // Search list for command to execute.
-	  for (cmdopt_vector_iterator it = commands.begin();
-	       it != commands.end(); ++it)
+	  for (cmdopt_vector_iterator it = command_vec.begin();
+	       it != command_vec.end(); ++it)
 	    {
 	      if (tokens[0] == (*it)->name)
 	        {
@@ -860,26 +992,10 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 	    break;
 	}
 
-      // If it isn't a command, we assume it is a script to run.
-      //
-      // FIXME: Later this could be a line from a script that we have
-      // to keep track of.
+      // If it isn't a command, complain.
       if (!input_handled)
-        {
-	  // FIXME: there isn't any real point to calling
-	  // systemtap_session::clone() here, since it doesn't
-	  // (usually) create a new session, but returns a cached
-	  // session. So, we'll just use the current session.
-	  s.clear_script_data();
-	  s.cmdline_script = line;
-	  s.have_script = true;
-	  rc = passes_0_4(s);
-
-	  // Run pass 5, if passes 0-4 worked.
-	  if (rc == 0 && s.last_pass >= 5 && !pending_interrupts)
-	    rc = pass_5 (s, targets);
-	  s.reset_tmp_dir();
-	}
+	clog << "Undefined command: \"" << tokens[0]
+	     << "\". Try \"help\"." << endl;
     }
   delete_match_map_items(&probe_map);
   return 0;
