@@ -23,6 +23,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <boost/utility/string_ref.hpp> //header with string_ref
 
 extern "C" {
 #include <signal.h>
@@ -169,8 +170,8 @@ public:
   std::string kernel_build_tree;
   std::string kernel_source_tree;
   std::map<std::string,std::string> kernel_config;
-  std::set<std::string> kernel_exports;
-  std::set<std::string> kernel_functions;
+  std::set<boost::string_ref> kernel_exports;
+  std::set<boost::string_ref> kernel_functions;
   int parse_kernel_config ();
   int parse_kernel_exports ();
   int parse_kernel_functions ();
@@ -337,7 +338,7 @@ public:
   std::vector<std::pair<std::string,std::string> > perf_counters;
   std::vector<derived_probe*> probes; // see also *_probes groups below
   std::vector<embeddedcode*> embeds;
-  std::map<std::string, statistic_decl> stat_decls;
+  std::map<boost::string_ref, statistic_decl> stat_decls;
   // track things that are removed
   std::vector<vardecl*> unused_globals;
   std::vector<derived_probe*> unused_probes; // see also *_probes groups below

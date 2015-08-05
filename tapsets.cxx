@@ -26,6 +26,7 @@
 #include <gelf.h>
 
 #include "sdt_types.h"
+#include "stringtable.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -64,6 +65,7 @@ extern "C" {
 }
 
 using namespace std;
+using namespace boost;
 using namespace __gnu_cxx;
 
 // for elf.h where PPC64_LOCAL_ENTRY_OFFSET isn't defined
@@ -405,10 +407,10 @@ struct
 symbol_table
 {
   module_info *mod_info;	// associated module
-  multimap<string, func_info*> map_by_name;
+  multimap<string_ref, func_info*> map_by_name;
   multimap<Dwarf_Addr, func_info*> map_by_addr;
-  map<string, Dwarf_Addr> globals;
-  map<string, Dwarf_Addr> locals;
+  map<string_ref, Dwarf_Addr> globals;
+  map<string_ref, Dwarf_Addr> locals;
   typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
   typedef pair<iterator_t, iterator_t> range_t;
   // Section describing function descriptors.
@@ -792,8 +794,8 @@ struct dwarf_query : public base_query
   void query_library (const char *data);
   void query_plt (const char *entry, size_t addr);
 
-  void add_probe_point(string const & funcname,
-		       char const * filename,
+  void add_probe_point(const string & funcname,
+		       const string & filename,
 		       int line,
 		       Dwarf_Die *scope_die,
 		       Dwarf_Addr addr);
@@ -892,7 +894,7 @@ struct dwarf_query : public base_query
   void query_module_functions ();
 
   string final_function_name(const string& final_func,
-                             const char* final_file,
+                             const string& final_file,
                              int final_line);
 
   bool is_fully_specified_function();
@@ -1117,7 +1119,8 @@ dwarf_query::query_module_symtab()
               if (!null_die(&fi->die) // already handled in query_module_dwarf()
                   || fi->descriptor) // ppc opd (and also undefined symbols)
                 continue;
-              if (dw.function_name_matches_pattern(fi->name, function_str_val))
+              if (dw.function_name_matches_pattern(fi->name.to_string(),
+                                                   function_str_val))
                 query_symtab_func_info(*fi, this);
             }
         }
@@ -1331,7 +1334,7 @@ string path_remove_sysroot(const systemtap_session& sess, const string& path)
 
 void
 dwarf_query::add_probe_point(const string& dw_funcname,
-			     const char* filename,
+			     const string& filename,
 			     int line,
 			     Dwarf_Die* scope_die,
 			     Dwarf_Addr addr)
@@ -1570,11 +1573,11 @@ dwarf_query::assess_dbinfo_reqt()
 
 string
 dwarf_query::final_function_name(const string& final_func,
-                                 const char* final_file,
+                                 const string& final_file,
                                  int final_line)
 {
   string final_name = final_func;
-  if (final_file && *final_file != '\0')
+  if (final_file != "")
     {
       final_name += ("@" + string(final_file));
       if (final_line > 0)
@@ -1644,8 +1647,8 @@ dwarf_query::filtered_all(void)
 // optimization.
 
 static void
-query_statement (string const & func,
-		 char const * file,
+query_statement (const string & func,
+		 const string & file,
 		 int line,
 		 Dwarf_Die *scope_die,
 		 Dwarf_Addr stmt_addr,
@@ -1653,7 +1656,7 @@ query_statement (string const & func,
 {
   try
     {
-      q->add_probe_point(func, file ? file : "",
+      q->add_probe_point(func, file,
                          line, scope_die, stmt_addr);
     }
   catch (const semantic_error& e)
@@ -1709,7 +1712,7 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
 
   Dwarf_Die *scope = q->has_function_num ? fnscope : &scopes[0];
 
-  const char *file = dwarf_decl_file(fnscope);
+  const char *file = dwarf_decl_file(fnscope) ?: "";
   int line;
   dwarf_decl_line(fnscope, &line);
 
@@ -1725,8 +1728,8 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
         {
           func_info func;
           func.die = *fnscope;
-          func.name = dw.function_name;
-          func.decl_file = file;
+          func.name = intern(dw.function_name);
+          func.decl_file = intern(file);
           func.decl_line = line;
           func.entrypc = addr;
 
@@ -1840,13 +1843,14 @@ query_label (const base_func_info& func,
     return;
 
   // Create the final well-formed probe
-  string canon_func = q->final_function_name(func.name, file, line);
+  string canon_func = q->final_function_name(func.name.to_string(),
+                                             file ?: "", line);
 
   q->mount_well_formed_probe_point();
   q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
   q->replace_probe_point_component_arg(TOK_LABEL, label);
 
-  query_statement(func.name, file, line, scope_die, stmt_addr, q);
+  query_statement(func.name.to_string(), file, line, scope_die, stmt_addr, q);
 
   q->unmount_well_formed_probe_point();
 }
@@ -1863,9 +1867,11 @@ query_callee (base_func_info& callee,
   // OK, we found a callee for a targeted caller. To help users see the
   // derivation, we add the well-formed form .function(caller).callee(callee).
 
-  string canon_caller = q->final_function_name(caller.name, caller.decl_file,
+  string canon_caller = q->final_function_name(caller.name.to_string(),
+                                               caller.decl_file.to_string(),
                                                caller.decl_line);
-  string canon_callee = q->final_function_name(callee.name, callee.decl_file,
+  string canon_callee = q->final_function_name(callee.name.to_string(),
+                                               callee.decl_file.to_string(),
                                                callee.decl_line);
 
   q->mount_well_formed_probe_point();
@@ -1876,7 +1882,9 @@ query_callee (base_func_info& callee,
   // Pass on the callers we'll need to add checks for
   q->callers = callers;
 
-  query_statement(callee.name, callee.decl_file, callee.decl_line,
+  query_statement(callee.name.to_string(),
+                  callee.decl_file.to_string(),
+                  callee.decl_line,
                   &callee.die, callee.entrypc, q);
 
   q->unmount_well_formed_probe_point();
@@ -1890,19 +1898,23 @@ query_inline_instance_info (inline_instance_info & ii,
     {
       assert (! q->has_return); // checked by caller already
       assert (q->has_function_str || q->has_statement_str);
-
+      
+      string iin = ii.name.to_string();
       if (q->sess.verbose>2)
         clog << _F("querying entrypc %#" PRIx64 " of instance of inline '%s'\n",
-                   ii.entrypc, ii.name.c_str());
+                   ii.entrypc, iin.c_str());
 
-      string canon_func = q->final_function_name(ii.name, ii.decl_file,
+      string canon_func = q->final_function_name(iin,
+                                                 ii.decl_file.to_string(),
                                                  ii.decl_line);
 
       q->mount_well_formed_probe_point();
       q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
       q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
 
-      query_statement (ii.name, ii.decl_file, ii.decl_line,
+      query_statement (iin,
+                       ii.decl_file.to_string(),
+                       ii.decl_line,
                        &ii.die, ii.entrypc, q);
 
       q->unmount_well_formed_probe_point();
@@ -1922,7 +1934,8 @@ query_func_info (Dwarf_Addr entrypc,
 
   try
     {
-      string canon_func = q->final_function_name(fi.name, fi.decl_file,
+      string canon_func = q->final_function_name(fi.name.to_string(),
+                                                 fi.decl_file.to_string(),
                                                  fi.decl_line);
 
       q->mount_well_formed_probe_point();
@@ -1936,12 +1949,14 @@ query_func_info (Dwarf_Addr entrypc,
       if (fi.prologue_end == 0 || q->has_return)
         {
           q->prologue_end = fi.prologue_end;
-          query_statement (fi.name, fi.decl_file, fi.decl_line,
+          query_statement (fi.name.to_string(), fi.decl_file.to_string(),
+                           fi.decl_line,
                            &fi.die, entrypc, q);
         }
       else
         {
-          query_statement (fi.name, fi.decl_file, fi.decl_line,
+          query_statement (fi.name.to_string(), fi.decl_file.to_string(),
+                           fi.decl_line,
                            &fi.die, fi.prologue_end, q);
         }
 
@@ -1970,7 +1985,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
           Dwarf_Die scope;
           q->dw.inner_die_containing_pc(i->die, addr, scope);
 
-          string canon_func = q->final_function_name(i->name, i->decl_file,
+          string canon_func = q->final_function_name(i->name.to_string(),
+                                                     i->decl_file.to_string(),
                                                      lineno /* NB: not i->decl_line */ );
 
           if (q->has_nearest && (q->lineno_type == ABSOLUTE ||
@@ -1979,7 +1995,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
               int lineno_nearest = q->linenos[0];
               if (q->lineno_type == RELATIVE)
                 lineno_nearest += i->decl_line;
-              string canon_func_nearest = q->final_function_name(i->name, i->decl_file,
+              string canon_func_nearest = q->final_function_name(i->name.to_string(),
+                                                                 i->decl_file.to_string(),
                                                                  lineno_nearest);
               q->mount_well_formed_probe_point();
               q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func_nearest);
@@ -1989,7 +2006,7 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
           q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
           q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func);
 
-          query_statement (i->name, i->decl_file,
+          query_statement (i->name.to_string(), i->decl_file.to_string(),
                            lineno, // NB: not q->line !
                            &scope, addr, q);
 
@@ -2011,13 +2028,8 @@ inline_instance_info::operator<(const inline_instance_info& other) const
     return decl_line < other.decl_line;
 
   int cmp = name.compare(other.name);
-
-  if (!cmp) 
-    {
-      assert (decl_file);
-      assert (other.decl_file);
-      cmp = strcmp(decl_file, other.decl_file);
-    }
+  if (!cmp) // tiebreaker
+    cmp = decl_file.compare(other.decl_file);
 
   return cmp < 0;
 }
@@ -2039,9 +2051,11 @@ query_dwarf_inline_instance (Dwarf_Die * die, dwarf_query * q)
         {
           inline_instance_info inl;
           inl.die = *die;
-          inl.name = q->dw.function_name;
+          inl.name = intern(q->dw.function_name);
           inl.entrypc = entrypc;
-          q->dw.function_file (&inl.decl_file);
+          const char* df;
+          q->dw.function_file (&df);
+          inl.decl_file = intern(df ?: "");
           q->dw.function_line (&inl.decl_line);
 
           // make sure that this inline hasn't already
@@ -2063,7 +2077,7 @@ is_filtered_func_exists (func_info_map_t const& filtered, func_info *fi)
 {
   for (unsigned i = 0; i < filtered.size(); i++)
     {
-      if ((filtered[i].entrypc == fi->entrypc) && (filtered[i].name == fi->name))
+      if ((filtered[i].entrypc == fi->entrypc) && (filtered[i].name == fi->name.to_string()))
         return true;
     }
 
@@ -2115,8 +2129,10 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
 
           func_info func;
           q->dw.function_die (&func.die);
-          func.name = q->dw.function_name;
-          q->dw.function_file (&func.decl_file);
+          func.name = intern (q->dw.function_name);
+          const char *df;
+          q->dw.function_file (&df);
+          func.decl_file = intern (df ?: "");
           q->dw.function_line (&func.decl_line);
 
           Dwarf_Addr entrypc;
@@ -2137,7 +2153,7 @@ query_dwarf_func (Dwarf_Die * func, dwarf_query * q)
             {
               /* The linkage name is the best match for the symbol table. */
               const string& linkage_name = dwarf_linkage_name(&func.die)
-                ?: dwarf_diename(&func.die) ?: func.name;
+                ?: dwarf_diename(&func.die) ?: func.name.to_string();
 
               set<func_info *> fis = q->dw.mod_info->sym_table->lookup_symbol(linkage_name);
               for (set<func_info*>::iterator it=fis.begin(); it!=fis.end() ; ++it)
@@ -2242,7 +2258,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
           for (i = bfis.begin(); i != bfis.end(); ++i)
             {
               if (q->spec_type != function_alone &&
-                  q->filtered_srcfiles.count(i->decl_file) == 0)
+                  q->filtered_srcfiles.count(i->decl_file.to_string()) == 0)
                 continue;
               q->dw.iterate_over_callees (&i->die, callee_val,
                                           callees_num_val,
@@ -2667,7 +2683,7 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
           {
             // Replace possibly globby component
             *it = new probe_point::component(TOK_PLT,
-                                             new literal_string(entry));
+                                             new literal_string(string(entry)));
             derived_comps.push_back(*it);
             derived_comps.push_back(new probe_point::component(TOK_STATEMENT,
                                                                new literal_number(addr, true)));
@@ -2686,7 +2702,7 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
       for (unsigned i = 0; i < derived_loc->components.size(); ++i)
        {
           probe_point::component *c = derived_loc->components[i];
-          params[c->functor] = c->arg;
+          params[c->functor.to_string()] = c->arg;
        }
       dwarf_query derived_q(new_base, derived_loc, dw, params, results, "", "");
       dw.iterate_over_modules<base_query>(&query_module, &derived_q);
@@ -2777,7 +2793,7 @@ var_expanding_visitor::provide_lvalue_call(functioncall* fcall)
 
 
 bool
-var_expanding_visitor::rewrite_lvalue(const token* tok, const std::string& eop,
+var_expanding_visitor::rewrite_lvalue(const token* tok, string_ref& eop,
                                       expression*& lvalue, expression*& rvalue)
 {
   // Our job would normally be to require() the left and right sides
@@ -2795,8 +2811,8 @@ var_expanding_visitor::rewrite_lvalue(const token* tok, const std::string& eop,
   functioncall *fcall = NULL;
 
   // Let visit_target_symbol know what operator it should handle.
-  const string* old_op = op;
-  op = &eop;
+  string_ref* old_op = op;
+  op = & eop;
 
   target_symbol_setter_functioncalls.push (&fcall);
   replace (lvalue);
@@ -2813,7 +2829,7 @@ var_expanding_visitor::rewrite_lvalue(const token* tok, const std::string& eop,
       // right child spliced in as sole argument -- in place of
       // ourselves, in the var expansion we're in the middle of making.
 
-      if (valid_ops.find (eop) == valid_ops.end ())
+      if (valid_ops.find (eop.to_string()) == valid_ops.end ())
         {
 	  // Build up a list of supported operators.
 	  string ops;
@@ -2874,8 +2890,9 @@ void
 var_expanding_visitor::visit_delete_statement (delete_statement* s)
 {
   string fakeop = "delete";
+  string_ref fopr = intern(fakeop);
   expression *dummy = NULL;
-  if (!rewrite_lvalue (s->tok, fakeop, s->value, dummy))
+  if (!rewrite_lvalue (s->tok, fopr, s->value, dummy))
     provide (s);
 }
 
@@ -3104,7 +3121,7 @@ dwarf_pretty_print::expand ()
   tb->catch_error_var = 0;
   return_statement* rs2 = new return_statement;
   rs2->tok = ts->tok;
-  rs2->value = new literal_string ("ERROR");
+  rs2->value = new literal_string (string("ERROR"));
   rs2->value->tok = ts->tok;
   tb->catch_block = rs2;
   fdecl->body = tb;
@@ -3484,7 +3501,7 @@ dwarf_pretty_print::print_chars (Dwarf_Die* start_type, target_symbol* e,
       fcall->tok = e->tok;
       fcall->function = function;
       fcall->args.push_back (pf->args.back());
-      expression *err_msg = new literal_string ("<unknown>");
+      expression *err_msg = new literal_string (string("<unknown>"));
       err_msg->tok = e->tok;
       fcall->args.push_back (err_msg);
       pf->args.back() = fcall;
@@ -4046,7 +4063,7 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   }
 
   if (null_die(scope_die)) {
-    literal_string *empty = new literal_string("");
+    literal_string *empty = new literal_string(string(""));
     empty->tok = e->tok;
     provide(empty);
     return;
@@ -4136,8 +4153,7 @@ dwarf_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
                       }
                   }
 
-                tsym->name = "$";
-                tsym->name += diename;
+                tsym->name = intern(string("$") + diename);
 
                 // Ignore any variable that isn't accessible.
                 tsym->saved_conversion_error = 0;
@@ -4330,7 +4346,7 @@ dwarf_var_expanding_visitor::visit_entry_op (entry_op *e)
 void
 dwarf_var_expanding_visitor::visit_perf_op (perf_op *e)
 {
-  string e_lit_val = e->operand->value;
+  string e_lit_val = e->operand->value.to_string();
 
   add_block = new block;
   add_block->tok = e->tok;
@@ -4430,30 +4446,32 @@ dwarf_cast_query::handle_query_module()
 
   // look for the type in any CU
   Dwarf_Die* type_die = NULL;
-  if (startswith(e.type_name, "class "))
+  string tns = e.type_name.to_string();
+
+  if (startswith(tns, "class "))
     {
       // normalize to match dwflpp::global_alias_caching_callback
-      string struct_name = "struct " + e.type_name.substr(6);
+      string struct_name = "struct " + e.type_name.substr(6).to_string();
       type_die = dw.declaration_resolve_other_cus(struct_name);
     }
   else
-    type_die = dw.declaration_resolve_other_cus(e.type_name);
+    type_die = dw.declaration_resolve_other_cus(tns);
 
   // NB: We now index the types as "struct name"/"union name"/etc. instead of
   // just "name".  But since we didn't require users to be explicit before, and
   // actually sort of discouraged it, we must be flexible now.  So if a lookup
   // fails with a bare name, try augmenting it.
   if (!type_die &&
-      !startswith(e.type_name, "class ") &&
-      !startswith(e.type_name, "struct ") &&
-      !startswith(e.type_name, "union ") &&
-      !startswith(e.type_name, "enum "))
+      !startswith(tns, "class ") &&
+      !startswith(tns, "struct ") &&
+      !startswith(tns, "union ") &&
+      !startswith(tns, "enum "))
     {
-      type_die = dw.declaration_resolve_other_cus("struct " + e.type_name);
+      type_die = dw.declaration_resolve_other_cus("struct " + tns);
       if (!type_die)
-        type_die = dw.declaration_resolve_other_cus("union " + e.type_name);
+        type_die = dw.declaration_resolve_other_cus("union " + tns);
       if (!type_die)
-        type_die = dw.declaration_resolve_other_cus("enum " + e.type_name);
+        type_die = dw.declaration_resolve_other_cus("enum " + tns);
     }
 
   if (!type_die)
@@ -4556,7 +4574,7 @@ void dwarf_cast_expanding_visitor::visit_cast_op (cast_op* e)
 
   // split the module string by ':' for alternatives
   vector<string> modules;
-  tokenize(e->module, modules, ":");
+  tokenize(e->module.to_string(), modules, ":");
   bool userspace_p=false; // PR10601
   for (unsigned i = 0; !result && i < modules.size(); ++i)
     {
@@ -4699,7 +4717,7 @@ struct dwarf_atvar_query: public base_query
                     unsigned& tick):
     base_query(dw, module), e(e),
     userspace_p(userspace_p), lvalue(lvalue), result(result),
-    tick(tick), cu_name_pattern(string("*/") + e.cu_name) {}
+    tick(tick), cu_name_pattern(string("*/") + e.cu_name.to_string()) {}
 
   void handle_query_module ();
   void query_library (const char *) {}
@@ -4714,7 +4732,8 @@ dwarf_atvar_query::atvar_query_cu (Dwarf_Die * cudie, dwarf_atvar_query *q)
   if (! q->e.cu_name.empty())
     {
       const char *die_name = dwarf_diename(cudie) ?: "";
-      if (strcmp(die_name, q->e.cu_name.c_str()) != 0 // Perfect match
+      string cns = q->e.cu_name.to_string();
+      if (strcmp(die_name, cns.c_str()) != 0 // Perfect match
           && fnmatch(q->cu_name_pattern.c_str(), die_name, 0) != 0)
         {
           return DWARF_CB_OK;
@@ -4789,7 +4808,7 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
 
   // split the module string by ':' for alternatives
   vector<string> modules;
-  tokenize(e->module, modules, ":");
+  tokenize(e->module.to_string(), modules, ":");
   bool userspace_p = false;
   for (unsigned i = 0; !result && i < modules.size(); ++i)
     {
@@ -4832,10 +4851,13 @@ dwarf_atvar_expanding_visitor::visit_atvar_op (atvar_op* e)
 
       /* Unable to find the variable in the current module, so we chain
        * an error in atvar_op */
+      string esn = e->sym_name();
+      string mn = module;
+      string cun = e->cu_name.to_string();
       semantic_error  er(ERR_SRC, _F("unable to find global '%s' in %s%s%s",
-                            e->sym_name().c_str(), module.c_str(),
-                            e->cu_name.empty() ? "" : _(", in "),
-                            e->cu_name.c_str()));
+                                     esn.c_str(), mn.c_str(),
+                                     cun.empty() ? "" : _(", in "),
+                                     cun.c_str()));
       e->chain (er);
     }
 
@@ -5128,7 +5150,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   if (q.has_function_str || q.has_statement_str)
       {
-        string retro_name = q.final_function_name(funcname, filename.c_str(), line);
+        string retro_name = q.final_function_name(funcname, filename, line);
         comps.push_back
           (new probe_point::component
            (fn_or_stmt, new literal_string (retro_name)));
@@ -6183,7 +6205,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
           target_symbol *tsym = new target_symbol;
           tsym->tok = e->tok;
           tsym->name = "$arg" + lex_cast(i);
-          pf->raw_components += tsym->name;
+          pf->raw_components += tsym->name.to_string();
           tsym->components = e->components;
 
           expression *texp = require<expression> (tsym);
@@ -6206,11 +6228,11 @@ sdt_uprobe_var_expanding_visitor::get_target_symbol_argno_and_validate (target_s
 {
   // parsing
   unsigned argno = 0;
-  if (startswith(e->name, "$arg"))
+  if (startswith(e->name.to_string(), "$arg"))
     {
       try
         {
-          argno = lex_cast<unsigned>(e->name.substr(4));
+          argno = lex_cast<unsigned>(e->name.substr(4).to_string());
         }
       catch (const runtime_error& f)
         {
@@ -6555,7 +6577,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
   if (!regexp_match(asmarg, regex, matches))
     {
       assert(matches.size() >= 4);
-      string varname = matches[3];
+      string_ref varname = intern(matches[3]);
 
       // OFF can be before VARNAME (put in matches[2]) or after (put in
       // matches[4]) (or both?). Seems like in most cases it comes after,
@@ -6579,8 +6601,8 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
             throw SEMANTIC_ERROR(_("can't retrieve symbol table"));
 
           assert(dw.mod_info->sym_table);
-          map<string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
-          map<string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
+          map<string_ref, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
+          map<string_ref, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
           Dwarf_Addr addr = 0;
 
           // check symtab locals then globals
@@ -6809,8 +6831,9 @@ plt_expanding_visitor::visit_target_symbol (target_symbol *e)
       // variable not found -> throw a semantic error
       // (only to be caught right away, but this may be more complex later...)
       string alternatives = "$$name";
+      string en = e->name.to_string();
       throw SEMANTIC_ERROR(_F("unable to find plt variable '%s' (alternatives: %s)",
-                              e->name.c_str(), alternatives.c_str()), e->tok);
+                              en.c_str(), alternatives.c_str()), e->tok);
     }
   catch (const semantic_error &er)
     {
@@ -6972,7 +6995,7 @@ sdt_query::handle_probe_entry()
   for (unsigned i = 0; i < new_location->components.size(); ++i)
    {
       probe_point::component *c = new_location->components[i];
-      params[c->functor] = c->arg;
+      params[c->functor.to_string()] = c->arg;
    }
 
   unsigned prior_results_size = results.size();
@@ -7408,10 +7431,10 @@ sdt_query::convert_location ()
             // process("executable").function("*").label("_stapprobe1_MARK_NAME")
             derived_comps.push_back
               (new probe_point::component(TOK_FUNCTION,
-                                          new literal_string("*")));
+                                          new literal_string(string("*"))));
             derived_comps.push_back
               (new probe_point::component(TOK_LABEL,
-                                          new literal_string("_stapprobe1_" + pp_mark)));
+                                          new literal_string(string("_stapprobe1_" + pp_mark))));
             break;
           }
       }
@@ -7512,7 +7535,7 @@ suggest_plt_functions(systemtap_session& sess,
       && sess.verbose < 2)
     return "";
 
-  set<string> funcs;
+  set<string_ref> funcs;
   const map<string, module_info*> &cache = sess.module_cache->cache;
 
   for (set<string>::iterator itmod = modules.begin();
@@ -7560,7 +7583,7 @@ suggest_dwarf_functions(systemtap_session& sess,
     return "";
 
   // We must first aggregate all the functions from the cache
-  set<string> funcs;
+  set<string_ref> funcs;
   const map<string, module_info*> &cache = sess.module_cache->cache;
 
   for (set<string>::iterator itmod = modules.begin();
@@ -7582,8 +7605,8 @@ suggest_dwarf_functions(systemtap_session& sess,
       // add all function symbols in cache
       if (module->symtab_status != info_present || module->sym_table == NULL)
         continue;
-      multimap<string, func_info*>& modfuncs = module->sym_table->map_by_name;
-      for (multimap<string, func_info*>::const_iterator itfuncs = modfuncs.begin();
+      multimap<string_ref, func_info*>& modfuncs = module->sym_table->map_by_name;
+      for (multimap<string_ref, func_info*>::const_iterator itfuncs = modfuncs.begin();
            itfuncs != modfuncs.end(); ++itfuncs)
         funcs.insert(itfuncs->first);
     }
@@ -8000,7 +8023,7 @@ dwarf_builder::build(systemtap_session & sess,
                   probe_point *pp = new probe_point (*location);
                   string user_path_tgt = path_remove_sysroot(sess, user_path);
                   probe_point::component* ppc = new probe_point::component (TOK_PROCESS,
-                                                                            new literal_string (user_path_tgt.c_str()));
+                                                                            new literal_string (user_path_tgt));
                   ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
                   pp->components[0] = ppc;
 
@@ -8235,7 +8258,7 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
   func_info *fi = new func_info();
   fi->entrypc = entrypc;
   fi->addr = addr;
-  fi->name = name;
+  fi->name = intern(name);
   fi->weak = weak;
   fi->descriptor = descriptor;
 
@@ -8386,9 +8409,9 @@ set <func_info*>
 symbol_table::lookup_symbol(const string& name)
 {
   set<func_info*> fis;
-  pair <multimap<string, func_info*>::iterator, multimap<string, func_info*>::iterator> ret;
+  pair <multimap<string_ref, func_info*>::iterator, multimap<string_ref, func_info*>::iterator> ret;
   ret = map_by_name.equal_range(name);
-  for (multimap<string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
+  for (multimap<string_ref, func_info*>::iterator it = ret.first; it != ret.second; ++it)
     if (! it->second->descriptor)
       fis.insert(it->second);
   return fis;
@@ -8500,7 +8523,7 @@ module_info::update_symtab(cu_function_cache_t *funcs)
       // too.  DW_AT_linkage_name (or w/ MIPS) can help, but that's sometimes
       // missing, so we may also need to try matching by address.  See also the
       // notes about _Z in dwflpp::iterate_over_functions().
-      const string& name = dwarf_linkage_name(&func->second) ?: func->first;
+      const string& name = dwarf_linkage_name(&func->second) ?: func->first.to_string();
 
       set<func_info*> fis = sym_table->lookup_symbol(name);
       if (fis.empty())
@@ -9880,7 +9903,7 @@ kprobe_builder::build(systemtap_session & sess,
 	}
       else
         {
-          vector<string> matches;
+          vector<string_ref> matches;
 
           // Simple names can be found directly
           if (function_string_val.find_first_of("*?[") == string::npos)
@@ -9890,19 +9913,22 @@ kprobe_builder::build(systemtap_session & sess,
             }
           else // Search function name list for matching names
             {
-              for (set<string>::const_iterator it = sess.kernel_functions.begin();
+              for (set<string_ref>::const_iterator it = sess.kernel_functions.begin();
                    it != sess.kernel_functions.end(); it++)
-                // fnmatch returns zero for matching.
-                if (fnmatch(function_string_val.c_str(), it->c_str(), 0) == 0)
-                  matches.push_back(*it);
+                {
+                  // fnmatch returns zero for matching.
+                  string fn = it->to_string();
+                  if (fnmatch(function_string_val.c_str(), fn.c_str(), 0) == 0)
+                    matches.push_back(*it);
+                }
             }
 
-	  for (vector<string>::const_iterator it = matches.begin();
+	  for (vector<string_ref>::const_iterator it = matches.begin();
 	       it != matches.end(); it++)
 	    {
               derived_probe *dp
                 = new kprobe_derived_probe (sess, finished_results, base,
-                                            location, *it, 0, has_call,
+                                            location, it->to_string(), 0, has_call,
                                             has_return, has_statement_num,
                                             has_maxactive, has_path,
                                             has_library, maxactive_val,
@@ -10391,6 +10417,7 @@ void
 tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 {
   string argname = e->sym_name();
+  string en = e->name.to_string();
 
   // search for a tracepoint parameter matching this name
   tracepoint_arg *arg = NULL;
@@ -10410,12 +10437,12 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
       vars.insert("$$name");
       vars.insert("$$parms");
       vars.insert("$$vars");
-      string sugs = levenshtein_suggest(e->name, vars); // no need to limit, there's not that many
+      string sugs = levenshtein_suggest(en, vars); // no need to limit, there's not that many
 
       // We hope that this value ends up not being referenced after all, so it
       // can be optimized out quietly.
       throw SEMANTIC_ERROR(_F("unable to find tracepoint variable '%s'%s",
-                              e->name.c_str(), sugs.empty() ? "" :
+                              en.c_str(), sugs.empty() ? "" :
                               (_(" (alternatives: ") + sugs + ")").c_str()), e->tok);
                               // NB: we use 'alternatives' because we list all
       // NB: we can have multiple errors, since a target variable
@@ -10431,7 +10458,7 @@ tracepoint_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
   // we can only write to dereferenced fields, and only if guru mode is on
   bool lvalue = is_active_lvalue(e);
   if (lvalue && (!dw.sess.guru_mode || e->components.empty()))
-    throw SEMANTIC_ERROR(_F("write to tracepoint variable '%s' not permitted; need stap -g", e->name.c_str()), e->tok);
+    throw SEMANTIC_ERROR(_F("write to tracepoint variable '%s' not permitted; need stap -g", en.c_str()), e->tok);
 
   // XXX: if a struct/union arg is passed by value, then writing to its fields
   // is also meaningless until you dereference past a pointer member.  It's
@@ -10489,8 +10516,9 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
   if (e->addressof)
     throw SEMANTIC_ERROR(_("cannot take address of context variable"), e->tok);
 
+  string en = e->name.to_string();
   if (is_active_lvalue (e))
-    throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted", e->name.c_str()), e->tok);
+    throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted", en.c_str()), e->tok);
 
   if (e->name == "$$name" || e->name == "$$system")
     {

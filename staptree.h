@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -166,7 +166,8 @@ struct literal: public expression
 
 struct literal_string: public literal
 {
-  std::string value;
+  boost::string_ref value;
+  literal_string (boost::string_ref v);
   literal_string (const std::string& v);
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -194,7 +195,7 @@ struct embedded_expr: public expression
 struct binary_expression: public expression
 {
   expression* left;
-  std::string op;
+  boost::string_ref op;
   expression* right;
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -203,7 +204,7 @@ struct binary_expression: public expression
 
 struct unary_expression: public expression
 {
-  std::string op;
+  boost::string_ref op;
   expression* operand;
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -246,7 +247,7 @@ struct array_in: public expression
 struct regex_query: public expression
 {
   expression* left;
-  std::string op;
+  boost::string_ref op;
   literal_string* right;
   void visit (visitor* u);
   void print (std::ostream& o) const;
@@ -301,7 +302,7 @@ classify_indexable(indexable* ix,
 struct vardecl;
 struct symbol: public indexable
 {
-  std::string name;
+  boost::string_ref name;
   vardecl *referent;
   symbol ();
   void print (std::ostream& o) const;
@@ -343,7 +344,7 @@ struct target_symbol: public expression
       void print (std::ostream& o) const;
     };
 
-  std::string name;
+  boost::string_ref name;
   bool addressof;
   std::vector<component> components;
   semantic_error* saved_conversion_error; // hand-made linked list
@@ -365,7 +366,7 @@ std::ostream& operator << (std::ostream& o, const target_symbol::component& c);
 struct cast_op: public target_symbol
 {
   expression *operand;
-  std::string type_name, module;
+  boost::string_ref type_name, module;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -381,7 +382,7 @@ struct autocast_op: public target_symbol
 
 struct atvar_op: public target_symbol
 {
-  std::string target_name, cu_name, module;
+  boost::string_ref target_name, cu_name, module;
   virtual std::string sym_name ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -491,7 +492,7 @@ struct print_format: public expression
     width_type widthtype;
     precision_type prectype;
     conversion_type type;
-    std::string literal_string;
+    boost::string_ref literal_string;
     bool is_empty() const
     {
       return flags == 0
@@ -523,7 +524,7 @@ struct print_format: public expression
   hist_op *hist;
 
   static std::string components_to_string(std::vector<format_component> const & components);
-  static std::vector<format_component> string_to_components(std::string const & str);
+  static std::vector<format_component> string_to_components(boost::string_ref str);
   static print_format* create(const token *t, const char *n = NULL);
 
   void print (std::ostream& o) const;
@@ -795,12 +796,12 @@ struct probe_point
 {
   struct component // XXX: sort of a restricted functioncall
   {
-    std::string functor;
+    boost::string_ref functor;
     literal* arg; // optional
     bool from_glob;
     component ();
     const token* tok; // points to component's functor
-    component(std::string const & f, literal *a=NULL, bool from_glob=false);
+    component(boost::string_ref f, literal *a=NULL, bool from_glob=false);
   };
   std::vector<component*> components;
   bool optional;

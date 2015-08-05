@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -11,6 +11,8 @@
 
 #include "staptree.h"
 #include "parse.h"
+#include "stringtable.h"
+
 #include <string>
 #include <vector>
 //#include <iostream>
@@ -51,7 +53,7 @@ public:
   derived_probe* current_probe;
   symresolution_info (systemtap_session& s);
 
-  vardecl* find_var (const std::string& name, int arity, const token *tok);
+  vardecl* find_var (boost::string_ref name, int arity, const token *tok);
   functiondecl* find_function (const std::string& name, unsigned arity, const token *tok);
   std::set<std::string> collect_functions(void);
 
@@ -352,7 +354,7 @@ struct derived_probe_builder
 struct
 match_key
 {
-  std::string name;
+  boost::string_ref name;
   bool have_parameter;
   exp_type parameter_type;
 

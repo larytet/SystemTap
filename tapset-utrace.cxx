@@ -445,7 +445,7 @@ utrace_var_expanding_visitor::visit_target_symbol_cached (target_symbol* e)
 
 	   vardecl* vd = new vardecl;
 	   vd->tok = e->tok;
-	   vd->name = tidsym->name;
+	   vd->name = tidsym->name.to_string();
 	   vd->type = pe_long;
 	   vd->set_arity(0, e->tok);
 	   add_probe->locals.push_back(vd);
@@ -519,7 +519,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
      }
    else // $argN
      {
-        string argnum_s = e->name.substr(4,e->name.length()-4);
+        string argnum_s = e->name.substr(4,e->name.length()-4).to_string();
         int argnum = 0;
         try
           {
@@ -561,7 +561,7 @@ utrace_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 void
 utrace_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
-  const string& sname = e->name;
+  string sname = e->name.to_string();
 
   e->assert_no_components("utrace");
 
@@ -629,7 +629,7 @@ utrace_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       if (e->addressof)
         throw SEMANTIC_ERROR(_("cannot take address of utrace variable"), e->tok);
 
-      if (startswith(e->name, "$arg") || e->name == "$$parms")
+      if (startswith(e->name.to_string(), "$arg") || e->name == "$$parms")
         visit_target_symbol_arg(e);
       else if (e->name == "$syscall" || e->name == "$return")
         visit_target_symbol_context(e);

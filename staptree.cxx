@@ -11,6 +11,7 @@
 #include "parse.h"
 #include "util.h"
 #include "session.h"
+#include "stringtable.h"
 
 #include <iostream>
 #include <typeinfo>
@@ -22,7 +23,7 @@
 #include <cstring>
 
 using namespace std;
-
+using namespace boost;
 
 
 visitable::~visitable ()
@@ -154,7 +155,7 @@ probe_point::component::component ():
 }
 
 
-probe_point::component::component (std::string const & f,
+probe_point::component::component (string_ref f,
   literal * a, bool from_glob):
     functor(f), arg(a), from_glob(from_glob), tok(0)
 {
@@ -236,9 +237,15 @@ literal_number::literal_number (int64_t v, bool hex)
 }
 
 
-literal_string::literal_string (const string& v)
+literal_string::literal_string (string_ref v)
 {
   value = v;
+  type = pe_string;
+}
+
+literal_string::literal_string (const string& v)
+{
+  value = intern(v);
   type = pe_string;
 }
 
@@ -264,23 +271,24 @@ target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
   if (components.empty())
     return;
 
+  string n = name.to_string(); 
   switch (components[0].type)
     {
     case comp_literal_array_index:
     case comp_expression_array_index:
       throw SEMANTIC_ERROR(_F("%s variable '%s' may not be used as array",
-                              tapset.c_str(), name.c_str()), components[0].tok);
+                              tapset.c_str(), n.c_str()), components[0].tok);
     case comp_struct_member:
       throw SEMANTIC_ERROR(_F("%s variable '%s' may not be used as a structure",
-                              tapset.c_str(), name.c_str()), components[0].tok);
+                              tapset.c_str(), n.c_str()), components[0].tok);
     case comp_pretty_print:
       if (!pretty_ok)
         throw SEMANTIC_ERROR(_F("%s variable '%s' may not be pretty-printed",
-                                tapset.c_str(), name.c_str()), components[0].tok);
+                                tapset.c_str(), n.c_str()), components[0].tok);
       return;
     default:
       throw SEMANTIC_ERROR (_F("invalid use of %s variable '%s'",
-                            tapset.c_str(), name.c_str()), components[0].tok);
+                            tapset.c_str(), n.c_str()), components[0].tok);
     }
 }
 
@@ -328,16 +336,16 @@ void target_symbol::chain (const semantic_error &er)
 
 string target_symbol::sym_name ()
 {
-  return name.substr(1);
+  return name.substr(1).to_string();
 }
 
 
 string atvar_op::sym_name ()
 {
   if (cu_name == "")
-    return target_name;
+    return target_name.to_string();
   else
-    return target_name.substr(0, target_name.length() - cu_name.length() - 1);
+    return target_name.substr(0, target_name.length() - cu_name.length() - 1).to_string();
 }
 
 
@@ -726,7 +734,7 @@ print_format::components_to_string(vector<format_component> const & components)
       if (i->type == conv_literal)
 	{
 	  assert(!i->literal_string.empty());
-	  for (string::const_iterator j = i->literal_string.begin();
+	  for (string_ref::const_iterator j = i->literal_string.begin();
 	       j != i->literal_string.end(); ++j)
 	    {
               // See also: c_unparser::visit_literal_string and lex_cast_qstring
@@ -817,22 +825,23 @@ print_format::components_to_string(vector<format_component> const & components)
 }
 
 vector<print_format::format_component>
-print_format::string_to_components(string const & str)
+print_format::string_to_components(string_ref str)
 {
   format_component curr;
   vector<format_component> res;
 
   curr.clear();
 
-  string::const_iterator i = str.begin();
-
+  string_ref::const_iterator i = str.begin();
+  string literal_str;
+  
   while (i != str.end())
     {
       if (*i != '%')
 	{
 	  assert (curr.type == conv_unspecified || curr.type == conv_literal);
 	  curr.type = conv_literal;
-	  curr.literal_string += *i;
+          literal_str += *i;
 	  ++i;
 	  continue;
 	}
@@ -842,7 +851,7 @@ print_format::string_to_components(string const & str)
 	  // *i == '%' and *(i+1) == '%'; append only one '%' to the literal string
 	  assert (curr.type == conv_unspecified || curr.type == conv_literal);
 	  curr.type = conv_literal;
-	  curr.literal_string += '%';
+	  literal_str += '%';
           i += 2;
 	  continue;
 	}
@@ -853,7 +862,9 @@ print_format::string_to_components(string const & str)
 	    {
 	      // Flush any component we were previously accumulating
 	      assert (curr.type == conv_literal);
-	      res.push_back(curr);
+              curr.literal_string = intern(literal_str);
+              res.push_back(curr);
+              literal_str.clear();
 	      curr.clear();
 	    }
 	}
@@ -1020,7 +1031,9 @@ print_format::string_to_components(string const & str)
 	throw PARSE_ERROR(_("invalid or missing conversion specifier"));
 
       ++i;
+      curr.literal_string = intern(literal_str);
       res.push_back(curr);
+      literal_str.clear();
       curr.clear();
     }
 
@@ -1028,7 +1041,11 @@ print_format::string_to_components(string const & str)
   if (!curr.is_empty())
     {
       if (curr.type == conv_literal)
-	res.push_back(curr);
+        {
+          curr.literal_string = intern(literal_str);
+          res.push_back(curr);
+          // no need to clear curr / literal_str; we're leaving
+        }
       else
 	throw PARSE_ERROR(_("trailing incomplete print format conversion"));
     }

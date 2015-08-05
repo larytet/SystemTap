@@ -45,6 +45,7 @@ extern "C" {
 }
 
 using namespace std;
+using namespace boost;
 using namespace __gnu_cxx;
 
 
@@ -1270,6 +1271,23 @@ levenshtein_suggest(const string& target,        // string to match against
 
   return suggestions;
 }
+
+string
+levenshtein_suggest(const string& target,        // string to match against
+                    const set<string_ref>& elems,// elements to suggest from
+                    unsigned max,                // max elements to print
+                    unsigned threshold)          // max leven score to print
+{
+  set<string> elems2;
+  for (set<string_ref>::const_iterator it = elems.begin();
+       it != elems.end();
+       it++)
+    elems2.insert(it->to_string());
+  
+  return levenshtein_suggest (target, elems2, max, threshold);
+  
+}
+
 
 #ifndef HAVE_PPOLL
 // This is a poor-man's ppoll, only used carefully by readers that need to be

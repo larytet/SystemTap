@@ -22,6 +22,7 @@
 #include "cmdline.h"
 #include "git_version.h"
 #include "version.h"
+#include "stringtable.h"
 
 #include <cerrno>
 #include <cstdlib>
@@ -1767,11 +1768,11 @@ systemtap_session::parse_kernel_exports ()
       if (tokens.size() == 4 &&
           tokens[2] == "vmlinux" &&
           tokens[3].substr(0,13) == string("EXPORT_SYMBOL"))
-        kernel_exports.insert (tokens[1]);
+        kernel_exports.insert (intern(tokens[1]));
       // RHEL4 Module.symvers file only has 3 tokens.  No
       // 'EXPORT_SYMBOL' token at the end of the line.
       else if (tokens.size() == 3 && tokens[2] == "vmlinux")
-        kernel_exports.insert (tokens[1]);
+        kernel_exports.insert (intern(tokens[1]));
     }
   if (verbose > 2)
     clog << _NF("Parsed kernel \"%s\", containing one vmlinux export",
@@ -1808,11 +1809,11 @@ systemtap_session::parse_kernel_functions ()
         }
     }
 
-  string address, type, name;
   while (system_map.good())
     {
       assert_no_interrupts();
 
+      string address, type, name;
       system_map >> address >> type >> name;
 
       if (verbose > 3)
@@ -1833,7 +1834,7 @@ systemtap_session::parse_kernel_functions ()
       // remembering symbols. Also:
       // - stop remembering names at ???
       // - what about __kprobes_text_start/__kprobes_text_end?
-      kernel_functions.insert(name);
+      kernel_functions.insert(intern(name));
     }
   system_map.close();
 
@@ -2003,10 +2004,11 @@ systemtap_session::register_library_aliases()
                     {
                       probe_point::component * comp = name->components[c];
                       // XXX: alias parameters
+                      string fcs = comp->functor.to_string();
                       if (comp->arg)
                         throw SEMANTIC_ERROR(_F("alias component %s contains illegal parameter",
-                                                comp->functor.c_str()));
-                      mn = mn->bind(comp->functor);
+                                                fcs.c_str()));
+                      mn = mn->bind(fcs);
                     }
 		  // PR 12916: All probe aliases are OK for all users. The actual
 		  // referenced probe points will be checked when the alias is resolved.

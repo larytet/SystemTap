@@ -144,8 +144,10 @@ private:
 
   // expectations, these swallow the token
   void expect_known (token_type tt, string const & expected);
+  void expect_unknown (token_type tt, string_ref & target);
   void expect_unknown (token_type tt, string & target);
   void expect_unknown2 (token_type tt1, token_type tt2, string & target);
+  void expect_unknown2 (token_type tt1, token_type tt2, string_ref & target);
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
@@ -1230,6 +1232,16 @@ parser::expect_known (token_type tt, string const & expected)
 
 
 void
+parser::expect_unknown (token_type tt, string_ref & target)
+{
+  const token *t = next();
+  if (!(t && t->type == tt))
+    throw PARSE_ERROR (_("expected ") + tt2str(tt));
+  target = t->content;
+  swallow (); // We are done with it, content was copied.
+}
+
+void
 parser::expect_unknown (token_type tt, string & target)
 {
   const token *t = next();
@@ -1239,6 +1251,16 @@ parser::expect_unknown (token_type tt, string & target)
   swallow (); // We are done with it, content was copied.
 }
 
+
+void
+parser::expect_unknown2 (token_type tt1, token_type tt2, string_ref & target)
+{
+  const token *t = next();
+  if (!(t && (t->type == tt1 || t->type == tt2)))
+    throw PARSE_ERROR (_F("expected %s or %s", tt2str(tt1).c_str(), tt2str(tt2).c_str()));
+  target = t->content;
+  swallow (); // We are done with it, content was copied.
+}
 
 void
 parser::expect_unknown2 (token_type tt1, token_type tt2, string & target)
@@ -2089,7 +2111,7 @@ parser::parse_try_block ()
         throw PARSE_ERROR (_("expected identifier"));
       symbol* sym = new symbol;
       sym->tok = t;
-      sym->name = t->content.to_string();
+      sym->name = t->content;
       pb->catch_error_var = sym;
 
       expect_op (")");
@@ -2370,7 +2392,7 @@ parser::parse_probe_point ()
       delete t; t = new_t;
 
       probe_point::component* c = new probe_point::component;
-      c->functor = t->content.to_string();
+      c->functor = t->content;
       c->tok = t;
       pl->components.push_back (c);
       // NB we may add c->arg soon
@@ -2444,7 +2466,7 @@ parser::parse_probe_point ()
 literal_string*
 parser::consume_string_literals(const token *t)
 {
-  literal_string *ls = new literal_string (t->content.to_string());
+  literal_string *ls = new literal_string (string(""));
 
   // PR11208: check if the next token is also a string literal;
   // auto-concatenate it.  This is complicated to the extent that we
@@ -2452,12 +2474,14 @@ parser::consume_string_literals(const token *t)
   //
   // NB for versions prior to 2.0: but don't skip over intervening comments
   const token *n = peek();
+  string token_str = t->content.to_string();
   while (n != NULL && n->type == tok_string
          && ! (!input.has_version("2.0") && input.ate_comment))
     {
-      ls->value.append(next()->content.to_string()); // consume and append the token
+      token_str.append(next()->content.to_string()); // consume and append the token
       n = peek();
     }
+  ls->value = intern(token_str);
   return ls;
 }
 
@@ -2775,7 +2799,7 @@ parser::parse_foreach_loop ()
       next ();
       lookahead_sym = new symbol;
       lookahead_sym->tok = t;
-      lookahead_sym->name = t->content.to_string();
+      lookahead_sym->name = t->content;
 
       t = peek ();
       if (t && t->type == tok_operator &&
@@ -2826,7 +2850,7 @@ parser::parse_foreach_loop ()
         throw PARSE_ERROR (_("expected identifier"));
       symbol* sym = new symbol;
       sym->tok = t;
-      sym->name = t->content.to_string();
+      sym->name = t->content;
       s->indexes.push_back (sym);
 
       t = peek ();
@@ -3635,7 +3659,7 @@ expression* parser::parse_symbol ()
 		  // format string and the arguments is postponed to the
 		  // typechecking phase.
                   literal_string* ls = parse_literal_string();
-		  fmt->raw_components = ls->value;
+		  fmt->raw_components = ls->value.to_string();
                   delete ls;
                   fmt->components = print_format::string_to_components (fmt->raw_components);
 		  consumed_arg = true;
@@ -3778,7 +3802,7 @@ target_symbol* parser::parse_target_symbol ()
       // target_symbol time
       target_symbol *tsym = new target_symbol;
       tsym->tok = t;
-      tsym->name = t->content.to_string();
+      tsym->name = t->content;
       return tsym;
     }
 
@@ -3794,7 +3818,7 @@ cast_op* parser::parse_cast_op ()
     {
       cast_op *cop = new cast_op;
       cop->tok = t;
-      cop->name = t->content.to_string();
+      cop->name = t->content;
       expect_op("(");
       cop->operand = parse_expression ();
       expect_op(",");
@@ -3822,7 +3846,7 @@ atvar_op* parser::parse_atvar_op ()
     {
       atvar_op *aop = new atvar_op;
       aop->tok = t;
-      aop->name = t->content.to_string();
+      aop->name = t->content;
       expect_op("(");
       expect_unknown(tok_string, aop->target_name);
       size_t found_at = aop->target_name.find("@");
@@ -3899,12 +3923,13 @@ parser::parse_target_symbol_components (target_symbol* e)
   bool pprint = false;
 
   // check for pretty-print in the form $foo$
-  string &base = e->name;
+  string base = e->name.to_string();
   size_t pprint_pos = base.find_last_not_of('$');
   if (0 < pprint_pos && pprint_pos < base.length() - 1)
     {
       string pprint_val = base.substr(pprint_pos + 1);
       base.erase(pprint_pos + 1);
+      e->name = intern(base);
       e->components.push_back (target_symbol::component(e->tok, pprint_val, true));
       pprint = true;
     }

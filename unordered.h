@@ -10,6 +10,7 @@
 #define UNORDERED_H
 
 #include "config.h"
+#include <boost/utility/string_ref.hpp> //header with string_ref
 
 #if 0 // uncomment to force the old mode
 #undef HAVE_TR1_UNORDERED_MAP
@@ -25,6 +26,15 @@ using std::tr1::unordered_multimap;
 #include <tr1/unordered_set>
 using std::tr1::unordered_set;
 using std::tr1::unordered_multiset;
+
+namespace std {
+  namespace tr1 {
+    template<> struct hash<boost::string_ref> {
+      size_t operator() (boost::string_ref s) const
+      { hash<std::string> h; return h(s.to_string()); }
+    };
+  }
+}
 
 #else
 
@@ -46,6 +56,10 @@ namespace __gnu_cxx
   template<> struct hash<std::string> {
     size_t operator() (std::string const& s) const
     { hash<const char*> h; return h(s.c_str()); }
+  };
+  template<> struct hash<boost::string_ref> {
+    size_t operator() (boost::string_ref s) const
+    { hash<std::string> h; return h(s.to_string()); }
   };
 }
 

@@ -21,6 +21,7 @@
 #include "runtime/k_syms.h"
 #include "dwflpp.h"
 #include "stapregex.h"
+#include "stringtable.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -54,7 +55,9 @@ extern "C" {
 #define STAP_T_05 _("\"aggregation overflow in ")
 #define STAP_T_06 _("\"empty aggregate\";")
 #define STAP_T_07 _("\"histogram index out of range\";")
+
 using namespace std;
+using namespace boost;
 
 class var;
 struct tmpvar;
@@ -264,17 +267,17 @@ struct c_unparser_assignment:
   public throwing_visitor
 {
   c_unparser* parent;
-  string op;
+  string_ref op;
   expression* rvalue;
   bool post; // true == value saved before modify operator
-  c_unparser_assignment (c_unparser* p, const string& o, expression* e):
+  c_unparser_assignment (c_unparser* p, string_ref o, expression* e):
     throwing_visitor ("invalid lvalue type"),
     parent (p), op (o), rvalue (e), post (false) {}
-  c_unparser_assignment (c_unparser* p, const string& o, bool pp):
+  c_unparser_assignment (c_unparser* p, string_ref o, bool pp):
     throwing_visitor ("invalid lvalue type"),
     parent (p), op (o), rvalue (0), post (pp) {}
 
-  void prepare_rvalue (string const & op,
+  void prepare_rvalue (string_ref op,
 		       tmpvar & rval,
 		       token const*  tok);
 
@@ -294,10 +297,10 @@ struct c_tmpcounter_assignment:
 // leave throwing for illegal lvalues to the c_unparser_assignment instance
 {
   c_tmpcounter* parent;
-  const string& op;
+  string_ref op;
   expression* rvalue;
   bool post; // true == value saved before modify operator
-  c_tmpcounter_assignment (c_tmpcounter* p, const string& o, expression* e, bool pp = false):
+  c_tmpcounter_assignment (c_tmpcounter* p, string_ref o, expression* e, bool pp = false):
     parent (p), op (o), rvalue (e), post (pp) {}
 
   void prepare_rvalue (tmpvar & rval);
@@ -3174,7 +3177,10 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	  res = lval;
 	}
       else
-        throw SEMANTIC_ERROR (_F("string assignment operator %s unsupported", op.c_str()), tok);
+        {
+          string ops = op.to_string();
+          throw SEMANTIC_ERROR (_F("string assignment operator %s unsupported", ops.c_str()), tok);
+        }
     }
   else if (op == "<<<")
     {
@@ -3203,7 +3209,7 @@ c_unparser_assignment::c_assignop(tmpvar & res,
       else if (op == "--" || op == "-=")
 	macop = "-=";
       else if (oplen > 1 && op[oplen-1] == '=') // for *=, <<=, etc...
-	macop = op;
+	macop = op.to_string();
       else
 	// internal error
 	throw SEMANTIC_ERROR (_("unknown macop for assignment"), tok);
@@ -3363,7 +3369,7 @@ c_unparser::getvar(vardecl *v, token const *tok)
   else
     {
       statistic_decl sd;
-      std::map<std::string, statistic_decl>::const_iterator i;
+      std::map<string_ref, statistic_decl>::const_iterator i;
       i = session->stat_decls.find(v->name);
       if (i != session->stat_decls.end())
 	sd = i->second;
@@ -3378,7 +3384,7 @@ c_unparser::getmap(vardecl *v, token const *tok)
   if (v->arity < 1)
     throw SEMANTIC_ERROR(_("attempt to use scalar where map expected"), tok);
   statistic_decl sd;
-  std::map<std::string, statistic_decl>::const_iterator i;
+  std::map<string_ref, statistic_decl>::const_iterator i;
   i = session->stat_decls.find(v->name);
   if (i != session->stat_decls.end())
     sd = i->second;
@@ -4480,7 +4486,7 @@ c_unparser::visit_continue_statement (continue_statement* s)
 void
 c_unparser::visit_literal_string (literal_string* e)
 {
-  const string& v = e->value;
+  string_ref v = e->value;
   o->line() << '"';
   for (unsigned i=0; i<v.size(); i++)
     // NB: The backslash character is specifically passed through as is.
@@ -4880,7 +4886,7 @@ c_unparser::visit_regex_query (regex_query* e)
   o->indent(1);
   o->newline();
   if (e->op == "!~") o->line() << "!";
-  stapdfa *dfa = session->dfas[e->right->value];
+  stapdfa *dfa = session->dfas[e->right->value.to_string()];
   dfa->emit_matchop_start (o);
   e->left->visit(this);
   dfa->emit_matchop_end (o);
@@ -5156,7 +5162,7 @@ c_tmpcounter_assignment::visit_symbol (symbol *e)
 
 
 void
-c_unparser_assignment::prepare_rvalue (string const & op,
+c_unparser_assignment::prepare_rvalue (string_ref op,
 				       tmpvar & rval,
 				       token const * tok)
 {
@@ -5831,8 +5837,8 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
       if (e->print_with_delim)
 	{
 	  stringstream escaped_delim;
-	  const string& dstr = e->delimiter.literal_string;
-	  for (string::const_iterator i = dstr.begin();
+	  string_ref dstr = e->delimiter.literal_string;
+	  for (string_ref::const_iterator i = dstr.begin();
 	       i != dstr.end(); ++i)
 	    {
 	      if (*i == '%')

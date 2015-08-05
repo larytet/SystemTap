@@ -16,6 +16,7 @@
 #include <map>
 #include <algorithm>
 #include <limits>
+#include <boost/utility/string_ref.hpp> //header with string_ref
 
 extern "C" {
 #if ENABLE_NLS
@@ -270,7 +271,6 @@ startswith(const std::string & s, const std::string & prefix)
   return (s.compare(0, prefix.length(), prefix) == 0);
 }
 
-
 // Returns whether a string ends with the given suffix
 inline bool
 endswith(const std::string & s, const char * suffix)
@@ -341,6 +341,11 @@ unsigned levenshtein(const std::string& a, const std::string& b);
 // of 'threshold'.
 std::string levenshtein_suggest(const std::string& target,
                                 const std::set<std::string>& elems,
+                                unsigned max = std::numeric_limits<unsigned>::max(),
+                                unsigned threshold = std::numeric_limits<unsigned>::max());
+
+std::string levenshtein_suggest(const std::string& target,
+                                const std::set<boost::string_ref>& elems,
                                 unsigned max = std::numeric_limits<unsigned>::max(),
                                 unsigned threshold = std::numeric_limits<unsigned>::max());
 

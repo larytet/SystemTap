@@ -8,18 +8,11 @@
 
 #include "config.h"
 #include "stringtable.h"
+#include "unordered.h"
 
 #include <string>
 
-#if __cplusplus >= 201103L /* -std=c++11 */
-#include <unordered_set>
-typedef std::unordered_set<std::string> stringtable_t;
-typedef std::unordered_set<boost::string_ref> stringtable_cache_t;
-#else
-#include <set>
-typedef std::set<std::string> stringtable_t;
-typedef std::set<boost::string_ref> stringtable_cache_t;
-#endif
+typedef unordered_set<std::string> stringtable_t;
 
 using namespace std;
 using namespace boost;

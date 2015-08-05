@@ -60,7 +60,7 @@ struct var_expanding_visitor: public update_visitor
   static unsigned tick;
   std::stack<defined_op*> defined_ops;
   std::set<std::string> valid_ops;
-  const std::string *op;
+  boost::string_ref* op;
 
   var_expanding_visitor ();
   void visit_assignment (assignment* e);
@@ -73,7 +73,7 @@ struct var_expanding_visitor: public update_visitor
 
 private:
   std::stack<functioncall**> target_symbol_setter_functioncalls;
-  bool rewrite_lvalue(const token *tok, const std::string& eop,
+  bool rewrite_lvalue(const token *tok, boost::string_ref& eop,
                       expression*& lvalue, expression*& rvalue);
 };
 

@@ -121,7 +121,7 @@ java_builder::get_param (std::map<std::string, literal*> const & params,
   literal_string * ls = dynamic_cast<literal_string *>(i->second);
   if (!ls)
     return false;
-  value = ls->value;
+  value = ls->value.to_string();
   return true;
 }
 
