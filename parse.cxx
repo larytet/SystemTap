@@ -14,6 +14,7 @@
 #include "parse.h"
 #include "session.h"
 #include "util.h"
+#include "stringtable.h"
 
 #include <iostream>
 
@@ -33,6 +34,7 @@ extern "C" {
 }
 
 using namespace std;
+using namespace boost;
 
 
 class lexer
@@ -54,15 +56,14 @@ public:
 private:
   inline int input_get ();
   inline int input_peek (unsigned n=0);
-  void input_put (const string&);
-  void append_to_content(boost::string_ref& content_ptr, std::string& content_str, bool& suspended);
-  boost::string_ref& set_token_content(boost::string_ref& content_ptr, std::string& content_str);
+  void input_put (const string&, const token*);
   string input_name;
-  boost::string_ref input_contents;
-  const char *input_pointer; // index into input_contents
+  string input_contents; // NB: being a temporary, no need to string_ref optimize this object
+  const char *input_pointer; // index into input_contents; NB: recompute if input_contents changed!
   const char *input_end;
-  const char *suspend_pointer;
-  const char *suspend_end;
+  unsigned cursor_suspend_count;
+  unsigned cursor_suspend_line;
+  unsigned cursor_suspend_column;
   unsigned cursor_line;
   unsigned cursor_column;
   systemtap_session& session;
@@ -262,7 +263,7 @@ parse_library_macros (systemtap_session& s, const string& name)
 }
 
 probe*
-parse_synthetic_probe (systemtap_session &s, std::istream& i, const token* tok)
+parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 {
   parser p (s, "<synthetic>", i);
   return p.parse_synthetic_probe (tok);
@@ -1251,20 +1252,20 @@ parser::expect_unknown2 (token_type tt1, token_type tt2, string & target)
 
 
 void
-parser::expect_op (std::string const & expected)
+parser::expect_op (string const & expected)
 {
   expect_known (tok_operator, expected);
 }
 
 
 void
-parser::expect_kw (std::string const & expected)
+parser::expect_kw (string const & expected)
 {
   expect_known (tok_keyword, expected);
 }
 
 const token*
-parser::expect_kw_token (std::string const & expected)
+parser::expect_kw_token (string const & expected)
 {
   const token *t = next();
   if (! (t && t->type == tok_keyword && t->content == expected))
@@ -1309,7 +1310,7 @@ parser::expect_number (int64_t & value)
 
 
 const token*
-parser::expect_ident_or_atword (std::string & target)
+parser::expect_ident_or_atword (string & target)
 {
   const token *t = next();
 
@@ -1326,21 +1327,21 @@ parser::expect_ident_or_atword (std::string & target)
 
 
 void
-parser::expect_ident_or_keyword (std::string & target)
+parser::expect_ident_or_keyword (string & target)
 {
   expect_unknown2 (tok_identifier, tok_keyword, target);
 }
 
 
 bool
-parser::peek_op (std::string const & op)
+parser::peek_op (string const & op)
 {
   return tok_is (peek(), tok_operator, op);
 }
 
 
 bool
-parser::peek_kw (std::string const & kw)
+parser::peek_kw (string const & kw)
 {
   return tok_is (peek(), tok_identifier, kw);
 }
@@ -1349,16 +1350,11 @@ parser::peek_kw (std::string const & kw)
 
 lexer::lexer (istream& input, const string& in, systemtap_session& s):
   ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(true),
-  input_name (in), input_pointer (0), input_end (0), suspend_pointer(0),
-  suspend_end(0), cursor_line (1), cursor_column (1), session(s),
-  current_file (0), current_token_chain (0)
+  input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
+  cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
+  cursor_column (1), session(s), current_file (0), current_token_chain (0)
 {
-  std::string file_contents;
-  getline(input, file_contents, '\0');
-  
-  // store the file_contents in the systemtap session
-  s.file_contents.push_back(file_contents);
-  input_contents = s.file_contents.back();
+  getline(input, input_contents, '\0');
 
   input_pointer = input_contents.data();
   input_end = input_contents.data() + input_contents.size();
@@ -1420,7 +1416,7 @@ lexer::set_current_file (stapfile* f)
   current_file = f;
   if (f)
     {
-      f->file_contents = input_contents;
+      f->file_contents = intern(input_contents); // NB: plain = would dangle string_ref shortly!
       f->name = input_name;
     }
 }
@@ -1434,18 +1430,9 @@ lexer::set_current_token_chain (const token* tok)
 int
 lexer::input_peek (unsigned n)
 {
-  if (suspend_pointer != suspend_end) // use suspend contents instead
-    {
-      if (suspend_end - suspend_pointer < n) // past the suspended part
-        return input_peek(n-(suspend_end - suspend_pointer));
-      return (unsigned char)*(suspend_pointer + n);
-    }
-  else
-    {
-      if (input_pointer + n >= input_end)
-        return -1; // EOF
-      return (unsigned char)*(input_pointer + n);
-    }
+  if (input_pointer + n >= input_end)
+    return -1; // EOF
+  return (unsigned char)*(input_pointer + n);
 }
 
 
@@ -1464,12 +1451,20 @@ lexer::input_get ()
   int c = input_peek();
   if (c < 0) return c; // EOF
 
+  ++input_pointer;
 
-  if (suspend_pointer != suspend_end)
-    ++suspend_pointer;
+  if (cursor_suspend_count)
+    {
+      // Track effect of input_put: preserve previous cursor/line_column
+      // until all of its characters are consumed.
+      if (--cursor_suspend_count == 0)
+        {
+          cursor_line = cursor_suspend_line;
+          cursor_column = cursor_suspend_column;
+        }
+    }
   else
     {
-      ++input_pointer;
       // update source cursor
       if (c == '\n')
         {
@@ -1485,56 +1480,21 @@ lexer::input_get ()
 }
 
 
-//ABE rename to suspend content?
 void
-lexer::input_put (const string& chars)
+lexer::input_put (const string& chars, const token* t)
 {
-  // instead of inserting chars into input_content (and adjusting input_pointer)
-  // chars is stored as suspended content
-  suspend_pointer = chars.data();
-  suspend_end = chars.data() + chars.length();
+  size_t pos = input_pointer - input_contents.data();
+  // clog << "[put:" << chars << " @" << pos << "]";
+  input_contents.insert (pos, chars);
+  cursor_suspend_count += chars.size();
+  cursor_suspend_line = cursor_line;
+  cursor_suspend_column = cursor_column;
+  cursor_line = t->location.line;
+  cursor_column = t->location.column;
+  input_pointer = input_contents.data() + pos;
+  input_end = input_contents.data() + input_contents.size();
 }
 
-void
-lexer::append_to_content(boost::string_ref& content_ptr, std::string& content_str, bool& suspended)
-{
-  if (content_str.empty() && !suspended)
-    {
-      // easy peasy; the content is coming directly from input_contents
-      if (!content_ptr.empty())
-        content_ptr = boost::basic_string_ref<char>(content_ptr.data(), content_ptr.size()+1);
-      else
-        content_ptr = boost::basic_string_ref<char>(input_pointer-1, 1);
-    }
-  else
-    {
-      // using content_str to store what will be put into token->content
-      if (suspended)
-        {
-          // we're going to get the content to get appended from the suspended content
-          if (content_str.empty())
-            content_str.append(content_ptr.to_string());
-          content_str.append(suspend_pointer-1, 1);
-
-          // update suspended?
-          if (suspend_pointer == suspend_end)
-              suspended = false;
-        }
-      else
-          content_str.append(input_pointer-1, 1);
-    }
-}
-
-boost::string_ref&
-lexer::set_token_content (boost::string_ref& content_ptr, std::string& content_str)
-{
-  if (content_str.empty())
-    return content_ptr; // assuming this is set
-  // add it to the vector of strings
-  current_file->string_portions.push_back(content_str);
-  content_ptr = boost::basic_string_ref<char>(current_file->string_portions.back());
-  return content_ptr;
-}
 
 token*
 lexer::scan ()
@@ -1547,13 +1507,12 @@ lexer::scan ()
   saw_tokens = true;
 
   token* n = new token;
+  string token_str; // accumulate here instead of by incremental interning
   n->location.file = current_file;
   n->chain = current_token_chain;
-  boost::string_ref content_ptr; // what's going to get assigned to  n->content
-  std::string content_str; // will be added to stapfile->string_portions if used
 
 skip:
-  bool suspended = (suspend_end != suspend_pointer);
+  bool suspended = (cursor_suspend_count > 0);
   n->location.line = cursor_line;
   n->location.column = cursor_column;
 
@@ -1581,29 +1540,28 @@ skip:
   // raw or quoted.
   if ((c == '$' || c == '@') && (c2 == '#'))
     {
-      append_to_content(content_ptr, content_str, suspended);
+      token_str.push_back (c);
+      token_str.push_back (c2);
       input_get(); // swallow '#'
-      append_to_content(content_ptr, content_str, suspended);
 
       if (suspended)
         {
-          n->content = set_token_content (content_ptr, content_str);
           n->make_junk(_("invalid nested substitution of command line arguments"));
           return n;
         }
-      input_put ((c == '$') ? session.num_args : session.qstring_num_args);
-      content_ptr.clear();
-      content_str.clear();
+      size_t num_args = session.args.size ();
+      input_put ((c == '$') ? lex_cast (num_args) : lex_cast_qstring (num_args), n);
+      token_str.clear();
       goto skip;
     }
   else if ((c == '$' || c == '@') && (isdigit (c2)))
     {
       unsigned idx = 0;
-      append_to_content(content_ptr, content_str, suspended);
+      token_str.push_back (c);
       do
         {
           input_get ();
-          append_to_content(content_ptr, content_str, suspended);
+          token_str.push_back (c2);
           idx = (idx * 10) + (c2 - '0');
           c2 = input_peek ();
         } while (c2 > 0 &&
@@ -1611,49 +1569,47 @@ skip:
                  idx <= session.args.size()); // prevent overflow
       if (suspended) 
         {
-          n->content = set_token_content (content_ptr, content_str);
           n->make_junk(_("invalid nested substitution of command line arguments"));
           return n;
         }
       if (idx == 0 ||
           idx-1 >= session.args.size())
         {
-          n->content = set_token_content (content_ptr, content_str);
           n->make_junk(_F("command line argument index %lu out of range [1-%lu]",
                           (unsigned long) idx, (unsigned long) session.args.size()));
           return n;
         }
-      input_put ((c == '$') ? session.args[idx-1]  : session.qstring_args[idx-1]);
-      content_ptr.clear();
-      content_str.clear();
+      const string& arg = session.args[idx-1];
+      input_put ((c == '$') ? arg : lex_cast_qstring (arg), n);
+      token_str.clear();
       goto skip;
     }
 
   else if (isalpha (c) || c == '$' || c == '@' || c == '_')
     {
       n->type = tok_identifier;
-      append_to_content(content_ptr, content_str, suspended);
+      token_str = (char) c;
       while (isalnum (c2) || c2 == '_' || c2 == '$')
 	{
           input_get ();
-          append_to_content(content_ptr, content_str, suspended);
+          token_str.push_back (c2);
           c2 = input_peek ();
         }
 
-      n->content = set_token_content (content_ptr, content_str);
-      if (keywords.count(n->content.to_string()))
+      if (keywords.count(token_str))
         n->type = tok_keyword;
-      else if (n->content[0] == '@')
+      else if (token_str[0] == '@')
         // makes it easier to detect illegal use of @words:
         n->type = tok_operator;
 
+      n->content = intern(token_str);
       return n;
     }
 
   else if (isdigit (c)) // positive literal
     {
       n->type = tok_number;
-      append_to_content(content_ptr, content_str, suspended);
+      token_str = (char) c;
 
       while (isalnum (c2))
 	{
@@ -1662,10 +1618,11 @@ skip:
           // is correctly formatted and in range.
 
           input_get ();
-          append_to_content(content_ptr, content_str, suspended);
+          token_str.push_back (c2);
           c2 = input_peek ();
 	}
-      n->content = set_token_content (content_ptr, content_str);
+
+      n->content = intern(token_str);
       return n;
     }
 
@@ -1678,7 +1635,6 @@ skip:
 
 	  if (c < 0 || c == '\n')
 	    {
-              n->content = set_token_content (content_ptr, content_str);
               n->make_junk(_("Could not find matching closing quote"));
               return n;
 	    }
@@ -1686,8 +1642,8 @@ skip:
 	    break;
 	  else if (c == '\\') // see also input_put
 	    {
-	      c2 = input_peek();
-	      switch (c2)
+	      c = input_get();
+	      switch (c)
 		{
                 case 'x':
                   if (!has_version("2.3"))
@@ -1706,19 +1662,18 @@ skip:
 		  // being parsed; it will be emitted into a C literal.
                   // XXX: PR13371: perhaps we should evaluate them here
                   // (and re-quote them during translate.cxx emission).
-                  append_to_content(content_ptr, content_str, suspended);
+                  token_str.push_back ('\\');
 
                   // fall through
 		default: the_default:
-                    input_get();
-                    append_to_content(content_ptr, content_str, suspended);
-                    break;
+                  token_str.push_back (c);
+                  break;
 		}
 	    }
 	  else
-            append_to_content(content_ptr, content_str, suspended);
+            token_str.push_back (c);
 	}
-      n->content = set_token_content (content_ptr, content_str);
+      n->content = intern(token_str);
       return n;
     }
 
@@ -1770,23 +1725,21 @@ skip:
           n->type = tok_embedded;
           (void) input_get (); // swallow '{' already in c2
           c = input_get ();
-          c2 = input_peek ();
+          c2 = input_get ();
           while (c2 >= 0)
             {
               if (c == '%' && c2 == '}')
                 {
-                  input_get();
-                  n->content = set_token_content (content_ptr, content_str);
+                  n->content = intern (token_str);
                   return n;
                 }
               if (c == '}' && c2 == '%') // possible typo
                 session.print_warning (_("possible erroneous closing '}%', use '%}'?"), n);
-              append_to_content(content_ptr, content_str, suspended);
-              c = input_get();
-              c2 = input_peek ();
+              token_str.push_back (c);
+              c = c2;
+              c2 = input_get();
             }
 
-            n->content = set_token_content (content_ptr, content_str);
             n->make_junk(_("Could not find matching '%}' to close embedded function block"));
             return n;
         }
@@ -1794,17 +1747,17 @@ skip:
       // We're committed to recognizing at least the first character
       // as an operator.
       n->type = tok_operator;
-      append_to_content(content_ptr, content_str, suspended);
+      token_str = (char) c;
 
       // match all valid operators, in decreasing size order
       if ((c == '<' && c2 == '<' && c3 == '<') ||
           (c == '<' && c2 == '<' && c3 == '=') ||
           (c == '>' && c2 == '>' && c3 == '='))
         {
+          token_str.push_back (c2);
+          token_str.push_back (c3);
           input_get (); // c2
-          append_to_content(content_ptr, content_str, suspended);
           input_get (); // c3
-          append_to_content(content_ptr, content_str, suspended);
         }
       else if ((c == '=' && c2 == '=') ||
                (c == '!' && c2 == '=') ||
@@ -1834,11 +1787,11 @@ skip:
                (c == '%' && c2 == ':') ||
                (c == '%' && c2 == ')'))
         {
+          token_str.push_back (c2);
           input_get (); // swallow other character
-          append_to_content(content_ptr, content_str, suspended);
         }
 
-      n->content = set_token_content (content_ptr, content_str);
+      n->content = intern(token_str);
       return n;
     }
 
@@ -1847,8 +1800,7 @@ skip:
       n->type = tok_junk;
       ostringstream s;
       s << "\\x" << hex << setw(2) << setfill('0') << c;
-      current_file->string_portions.push_back(s.str());
-      n->content = current_file->string_portions.back();
+      n->content = intern(s.str());
       n->msg = ""; // signal parser to emit "expected X, found junk" type error
       return n;
     }
@@ -1992,8 +1944,8 @@ parser::parse_synthetic_probe (const token* chain)
 
 
 void
-parser::parse_probe (std::vector<probe *> & probe_ret,
-		     std::vector<probe_alias *> & alias_ret)
+parser::parse_probe (vector<probe *> & probe_ret,
+		     vector<probe_alias *> & alias_ret)
 {
   const token* t0 = next ();
   if (! (t0->type == tok_keyword && t0->content == "probe"))
@@ -2275,7 +2227,7 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
 
 
 void
-parser::parse_functiondecl (std::vector<functiondecl*>& functions)
+parser::parse_functiondecl (vector<functiondecl*>& functions)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "function"))
@@ -2412,10 +2364,7 @@ parser::parse_probe_point ()
       // get around const-ness of t:
       token* new_t = new token(*t);
 
-      // since we can't access the stapfile, from the token, we need to store
-      // content n the probe point
-      pl->mangled_strings.push_back(content);
-      new_t->content = pl->mangled_strings.back();
+      new_t->content = intern(content);
 
       delete t; t = new_t;
 

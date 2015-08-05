@@ -50,7 +50,7 @@ struct token
   token_type type;
   boost::string_ref content;
   std::string msg; // for tok_junk
-  void make_junk (std::string msg);
+  void make_junk (const std::string msg);
   const token* chain; // macro invocation that produced this token
   friend class parser;
   friend class lexer;

@@ -49,6 +49,7 @@ extern "C" {
 #include <string>
 
 using namespace std;
+using namespace boost;
 
 /* getopt variables */
 extern int optind;
@@ -2125,19 +2126,24 @@ systemtap_session::print_error_source (std::ostream& message,
 
   unsigned line = tok->location.line;
   unsigned col = tok->location.column;
-  const string &file_contents = tok->location.file->file_contents.to_string();
+  string_ref file_contents = tok->location.file->file_contents;
 
   size_t start_pos = 0, end_pos = 0;
   //Navigate to the appropriate line
+  string_ref file_contents_line = file_contents;
   while (i != line && end_pos != std::string::npos)
     {
       start_pos = end_pos;
-      end_pos = file_contents.find ('\n', start_pos) + 1;
+      end_pos = file_contents_line.find ('\n');
+      if (end_pos == string_ref::npos)
+        break;
+      file_contents_line = file_contents_line.substr(end_pos); // restart at next line
+      end_pos ++;
       i++;
     }
   //TRANSLATORS: Here we are printing the source string of the error
   message << align << _("source: ");
-  string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
+  string_ref srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
   if (color_errors) {
       // before token:
       message << srcline.substr(0, col-1);
@@ -2147,8 +2153,8 @@ systemtap_session::print_error_source (std::ostream& message,
       // or expanded from a $@ command line argument, or ...
       // so tok->content may have nothing in common with the
       // contents of srcline at the same point.
-      string srcline_rest = srcline.substr(col-1);
-      string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
+      string_ref srcline_rest = srcline.substr(col-1);
+      string_ref srcline_tokenish = srcline_rest.substr(0, tok->content.size());
       if (srcline_tokenish == tok->content) { // oh good
         message << colorize(tok->content.to_string(), "token");
         message << srcline_rest.substr(tok->content.size());

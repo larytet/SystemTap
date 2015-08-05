@@ -783,7 +783,6 @@ struct stapfile
   std::vector<vardecl*> globals;
   std::vector<embeddedcode*> embeds;
   boost::string_ref file_contents;
-  std::vector<std::string> string_portions;
   bool privileged;
   bool synthetic; // via parse_synthetic_*
   stapfile ():
@@ -804,7 +803,6 @@ struct probe_point
     component(std::string const & f, literal *a=NULL, bool from_glob=false);
   };
   std::vector<component*> components;
-  std::vector<std::string> mangled_strings;
   bool optional;
   bool sufficient;
   bool well_formed; // used in derived_probe::script_location()
