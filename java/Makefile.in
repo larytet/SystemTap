@@ -306,6 +306,7 @@ build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
 builddir = @builddir@
+cxx11 = @cxx11@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
@@ -626,8 +627,8 @@ maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-@HAVE_JAVA_FALSE@install-data-local:
 @HAVE_JAVA_FALSE@uninstall-local:
+@HAVE_JAVA_FALSE@install-data-local:
 @HAVE_JAVA_FALSE@install-exec-local:
 clean: clean-am
 

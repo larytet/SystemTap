@@ -217,6 +217,7 @@ build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
 builddir = @builddir@
+cxx11 = @cxx11@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
@@ -355,10 +356,10 @@ distclean-generic:
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-@BUILD_DOCS_FALSE@uninstall-local:
-@HAVE_XMLTO_FALSE@uninstall-local:
 @BUILD_DOCS_FALSE@clean-local:
 @HAVE_XMLTO_FALSE@clean-local:
+@BUILD_DOCS_FALSE@uninstall-local:
+@HAVE_XMLTO_FALSE@uninstall-local:
 @BUILD_DOCS_FALSE@install-data-hook:
 @HAVE_XMLTO_FALSE@install-data-hook:
 clean: clean-am

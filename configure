@@ -629,6 +629,7 @@ LTLIBOBJS
 LIBOBJS
 subdirs
 STAP_PREFIX
+cxx11
 STAP_EXTRA_VERSION
 LOCALEDIR
 ENABLE_NLS
@@ -11527,6 +11528,48 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 STAP_EXTRA_VERSION="$stap_extra_version"
+
+
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler accepts -std=c++11" >&5
+$as_echo_n "checking whether C compiler accepts -std=c++11... " >&6; }
+if ${ax_cv_check_cflags___std_cpp11+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+
+  ax_check_save_flags=$CFLAGS
+  CFLAGS="$CFLAGS  -std=c++11"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  ax_cv_check_cflags___std_cpp11=yes
+else
+  ax_cv_check_cflags___std_cpp11=no
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CFLAGS=$ax_check_save_flags
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ax_cv_check_cflags___std_cpp11" >&5
+$as_echo "$ax_cv_check_cflags___std_cpp11" >&6; }
+if test "x$ax_cv_check_cflags___std_cpp11" = xyes; then :
+  cxx11="-std=c++11"
+else
+  cxx11=""
+fi
+
+if test "x$cxx11" != "x"; then :
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: Compiling parts of systemtap with -std=c++11" >&5
+$as_echo "$as_me: Compiling parts of systemtap with -std=c++11" >&6;}
+fi
 
 
 
