@@ -661,7 +661,8 @@ print_format*
 print_format::create(const token *t, const char *n)
 {
   bool stream, format, delim, newline, _char;
-  if (n == NULL) n = t->content.to_string().c_str();
+  string tc = t->content.to_string();
+  if (n == NULL) n = tc.c_str();
   const char *o = n;
 
   stream = true;

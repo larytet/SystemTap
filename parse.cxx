@@ -1,5 +1,5 @@
 // recursive descent parser for systemtap scripts
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2006 Intel Corporation.
 // Copyright (C) 2007 Bull S.A.S
 // Copyright (C) 2014 Peter Kjellstrom <cap@nsc.liu.se>
@@ -1287,7 +1287,8 @@ parser::expect_number (int64_t & value)
   if (!(t && t->type == tok_number))
     throw PARSE_ERROR (_("expected number"));
 
-  const char* startp = t->content.to_string().c_str ();
+  string tc = t->content.to_string();
+  const char* startp = tc.c_str ();
   char* endp = (char*) startp;
 
   // NB: we allow controlled overflow from LLONG_MIN .. ULLONG_MAX
@@ -2498,7 +2499,8 @@ parser::parse_literal ()
 
       if (t->type == tok_number)
 	{
-	  const char* startp = t->content.to_string().c_str ();
+          string tc = t->content.to_string();
+	  const char* startp = tc.c_str ();
 	  char* endp = (char*) startp;
 
 	  // NB: we allow controlled overflow from LLONG_MIN .. ULLONG_MAX
