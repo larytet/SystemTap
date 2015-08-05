@@ -30,7 +30,6 @@ extern "C" {
 #include <cassert>
 #include <set>
 #include <vector>
-#include <stack>
 #include <algorithm>
 #include <iterator>
 #include <climits>
@@ -4222,59 +4221,52 @@ void semantic_pass_opt6 (systemtap_session& s, bool& relaxed_p)
     }
 }
 
-// Search entire tree to find and classify occurrences of
-// stable functioncalls.
 struct stable_analysis: public embedded_tags_visitor
 {
   bool stable;
-  embeddedcode* code;
-  systemtap_session& session;
-  set<string> stable_fcs;
-  stable_analysis(systemtap_session&s):
-    embedded_tags_visitor(true), stable(false), session(s) {};
+  stable_analysis(): embedded_tags_visitor(true), stable(false) {};
 
-  void visit_embeddedcode (embeddedcode* e);
+  void visit_embeddedcode (embeddedcode* s);
   void visit_functioncall (functioncall* e);
 };
 
-void stable_analysis::visit_embeddedcode (embeddedcode* e)
+void stable_analysis::visit_embeddedcode (embeddedcode* s)
 {
-  tags.clear();
-  stable = false;
-  code = e;
-  embedded_tags_visitor::visit_embeddedcode(e);
+  embedded_tags_visitor::visit_embeddedcode(s);
   if (tagged_p("/* stable */"))
     stable = true;
+  if (stable && !tagged_p("/* pure */"))
+    throw SEMANTIC_ERROR(_("stable function must also be /* pure */"),
+        s->tok);
 }
 
 void stable_analysis::visit_functioncall (functioncall* e)
 {
-  if (!e->args.empty()) // Applies to only arity-0 functions
-    return;
+}
 
-  varuse_collecting_visitor vut(session);
-  vut.current_function = e->referent;
-  e->referent->body->visit(&vut);
-  e->referent->body->visit(this);
+// Examines entire subtree for any stable functioncalls.
+struct stable_finder: public traversing_visitor
+{
+  bool stable;
+  set<string>& stable_fcs;
+  stable_finder(set<string>&s): stable(false), stable_fcs(s) {};
+  void visit_functioncall (functioncall* e);
+};
 
-  if (!stable)
-    return;
-
-  assert(code);
-  if (vut.embedded_seen)
-    throw SEMANTIC_ERROR(_("stable function must also be /* pure */"),
-        code->tok);
-
-  stable_fcs.insert(e->function);
+void stable_finder::visit_functioncall (functioncall* e)
+{
+  if (stable_fcs.find(e->function) != stable_fcs.end())
+    stable = true;
 }
 
 // Examines current level of block for stable functioncalls.
 // Does not descend into sublevels.
 struct level_check: public traversing_visitor
 {
-  bool contains_call;
+  bool stable;
   set<string>& stable_fcs;
-  level_check(set<string>& s): contains_call(false), stable_fcs(s) {};
+  level_check(set<string>& s): stable(false), stable_fcs(s) {};
+
   void visit_block (block* s);
   void visit_try_block (try_block *s);
   void visit_if_statement (if_statement* s);
@@ -4289,36 +4281,40 @@ void level_check::visit_block (block* s)
 
 void level_check::visit_try_block (try_block* s)
 {
+  if (s->catch_error_var)
+    s->catch_error_var->visit(this);
 }
 
 void level_check::visit_if_statement (if_statement* s)
 {
-  s->condition->visit (this);
+  s->condition->visit(this);
 }
 
 void level_check::visit_for_loop (for_loop* s)
 {
-  if (s->init) s->init->visit (this);
-  s->cond->visit (this);
-  if (s->incr) s->incr->visit (this);
+  if (s->init) s->init->visit(this);
+  s->cond->visit(this);
+  if (s->incr) s->incr->visit(this);
 }
 
 void level_check::visit_foreach_loop (foreach_loop* s)
 {
+  s->base->visit(this);
+
   for (unsigned i=0; i<s->indexes.size(); i++)
-    s->indexes[i]->visit (this);
+    s->indexes[i]->visit(this);
 
   if (s->value)
-    s->value->visit (this);
+    s->value->visit(this);
 
   if (s->limit)
-    s->limit->visit (this);
+    s->limit->visit(this);
 }
 
 void level_check::visit_functioncall (functioncall* e)
 {
   if (stable_fcs.find(e->function) != stable_fcs.end())
-    contains_call = true;
+    stable = true;
 }
 
 struct stable_functioncall_visitor: public update_visitor
@@ -4332,7 +4328,7 @@ struct stable_functioncall_visitor: public update_visitor
   vector<pair<expr_statement*,block*> > new_stmts;
   unsigned loop_depth;
   block* top_scope;
-  stack<block*> block_scopes;
+  block* curr_scope;
   stable_functioncall_visitor(systemtap_session& s, set<string>& sfc):
     session(s), current_function(0), current_probe(0), stable_fcs(sfc),
     loop_depth(0), top_scope(0) {};
@@ -4348,34 +4344,30 @@ struct stable_functioncall_visitor: public update_visitor
 
 statement* stable_functioncall_visitor::convert_stmt (statement* s)
 {
-  // May need to create space to pull out functions inside loop
-  if (loop_depth == 0 && top_scope == 0)
+  if (top_scope == 0 &&
+     (dynamic_cast<for_loop*>(s) || dynamic_cast<foreach_loop*>(s)))
     {
-      stable_analysis sa(session);
-      s->visit(&sa);
-      if (!sa.stable_fcs.empty() &&
-         (dynamic_cast<for_loop*>(s) || dynamic_cast<foreach_loop*>(s)))
+      stable_finder sf(stable_fcs);
+      s->visit(&sf);
+      if (sf.stable)
         {
           block* b = new block;
           b->tok = s->tok;
           b->statements.push_back(s);
-          top_scope = b;
           return b;
         }
     }
-
-  level_check lc(stable_fcs);
-  s->visit(&lc);
-
-  if (!lc.contains_call)
-    return s;
-
-  if (!dynamic_cast<block*>(s))
+  else if (top_scope == 0 && !dynamic_cast<block*>(s))
     {
-      block* b = new block;
-      b->tok = s->tok;
-      b->statements.push_back(s);
-      return b;
+      level_check lc(stable_fcs);
+      s->visit(&lc);
+      if (lc.stable)
+        {
+          block* b = new block;
+          b->tok = s->tok;
+          b->statements.push_back(s);
+          return b;
+        }
     }
 
   return s;
@@ -4383,54 +4375,76 @@ statement* stable_functioncall_visitor::convert_stmt (statement* s)
 
 void stable_functioncall_visitor::visit_block (block* s)
 {
+  block* prev_top_scope = top_scope;
+  block* prev_scope = curr_scope;
   if (loop_depth == 0)
     top_scope = s;
-  block_scopes.push(s);
+  curr_scope = s;
   set<string> current_vars = scope_vars;
 
   update_visitor::visit_block(s);
 
   if (loop_depth == 0)
-    top_scope = 0;
-  block_scopes.pop();
+    top_scope = prev_top_scope;
+  curr_scope = prev_scope;
   scope_vars = current_vars;
 }
 
 void stable_functioncall_visitor::visit_try_block (try_block* s)
 {
-  if (loop_depth == 0)
-    top_scope = 0;
   if (s->try_block)
     s->try_block = convert_stmt(s->try_block);
+  replace(s->try_block);
+  replace(s->catch_error_var);
   if (s->catch_block)
     s->catch_block = convert_stmt(s->catch_block);
-  update_visitor::visit_try_block(s);
+  replace(s->catch_block);
+  provide(s);
 }
 
 void stable_functioncall_visitor::visit_if_statement (if_statement* s)
 {
+  block* prev_top_scope = top_scope;
+
   if (loop_depth == 0)
     top_scope = 0;
+  replace(s->condition);
   s->thenblock = convert_stmt(s->thenblock);
+  replace(s->thenblock);
+  if (loop_depth == 0)
+    top_scope = 0;
   if (s->elseblock)
     s->elseblock = convert_stmt(s->elseblock);
-  update_visitor::visit_if_statement(s);
+  replace(s->elseblock);
+  provide(s);
+
+  top_scope = prev_top_scope;
 }
 
 void stable_functioncall_visitor::visit_for_loop (for_loop* s)
 {
+  replace(s->init);
+  replace(s->cond);
+  replace(s->incr);
   loop_depth++;
   s->block = convert_stmt(s->block);
-  update_visitor::visit_for_loop(s);
+  replace(s->block);
   loop_depth--;
+  provide(s);
 }
 
 void stable_functioncall_visitor::visit_foreach_loop (foreach_loop* s)
 {
+  for (unsigned i = 0; i < s->indexes.size(); ++i)
+    replace(s->indexes[i]);
+  replace(s->base);
+  replace(s->value);
+  replace(s->limit);
   loop_depth++;
   s->block = convert_stmt(s->block);
-  update_visitor::visit_foreach_loop(s);
+  replace(s->block);
   loop_depth--;
+  provide(s);
 }
 
 void stable_functioncall_visitor::visit_functioncall (functioncall* e)
@@ -4482,15 +4496,15 @@ void stable_functioncall_visitor::visit_functioncall (functioncall* e)
           es->value = a;
 
           // Store location of the block to put new declaration.
-          // Every functioncall in a loop is pulled to the outside scope.
           if (loop_depth != 0)
             {
+              assert(top_scope);
               new_stmts.push_back(make_pair(es,top_scope));
             }
           else 
             {
-              assert(!block_scopes.empty());
-              new_stmts.push_back(make_pair(es,block_scopes.top()));
+              assert(curr_scope);
+              new_stmts.push_back(make_pair(es,curr_scope));
             }
 
           scope_vars.insert(e->function);
@@ -4514,15 +4528,25 @@ void stable_functioncall_visitor::visit_functioncall (functioncall* e)
 
 // Cache stable embedded-c functioncall results and replace
 // all calls with same name using that value to reduce duplicate
-// functioncall overhead.
+// functioncall overhead. Functioncalls are pulled out of any
+// top-level loops and put into if/try blocks.
 void semantic_pass_opt7(systemtap_session& s)
 {
+  set<string> stable_fcs;
+  for (map<string,functiondecl*>::iterator it = s.functions.begin();
+       it != s.functions.end(); ++it)
+    {
+      functiondecl* fn = (*it).second;
+      stable_analysis sa;
+      fn->body->visit(&sa);
+      if (sa.stable)
+        stable_fcs.insert(fn->name);
+    }
+
   for (vector<derived_probe*>::iterator it = s.probes.begin();
        it != s.probes.end(); ++it)
     {
-      stable_analysis sa(s);
-      (*it)->body->visit(&sa);
-      stable_functioncall_visitor t(s, sa.stable_fcs);
+      stable_functioncall_visitor t(s, stable_fcs);
       t.current_probe = *it;
       (*it)->body = t.convert_stmt((*it)->body);
       t.replace((*it)->body);
@@ -4536,9 +4560,7 @@ void semantic_pass_opt7(systemtap_session& s)
        it != s.functions.end(); ++it)
     {
       functiondecl* fn = (*it).second;
-      stable_analysis sa(s);
-      fn->body->visit(&sa);
-      stable_functioncall_visitor t(s, sa.stable_fcs);
+      stable_functioncall_visitor t(s, stable_fcs);
       t.current_function = fn;
       fn->body = t.convert_stmt(fn->body);
       t.replace(fn->body);
@@ -4617,9 +4639,6 @@ semantic_pass_optimize2 (systemtap_session& s)
   // it below.
   save_and_restore<bool> suppress_warnings(& s.suppress_warnings);
 
-  if (!s.unoptimized)
-    semantic_pass_opt7(s);
-
   bool relaxed_p = false;
   unsigned iterations = 0;
   while (! relaxed_p)
@@ -4639,6 +4658,9 @@ semantic_pass_optimize2 (systemtap_session& s)
 
       iterations++;
     }
+
+  if (!s.unoptimized)
+    semantic_pass_opt7(s);
 
   return rc;
 }

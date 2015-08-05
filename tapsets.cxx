@@ -3597,6 +3597,9 @@ synthetic_embedded_deref_call(dwflpp& dw,
       // (see target_symbol_setter_functioncalls)
     }
 
+  if (!dw.sess.guru_mode && fdecl->formal_args.empty())
+    ec->code += "/* stable */";
+
   // Add the synthesized decl to the session, and return the call.
   fdecl->join (dw.sess);
   return fcall;

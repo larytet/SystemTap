@@ -1,14 +1,14 @@
 // stable_function_mix.stp - normal function and embedded-c function
 
-%{int hits = 0; %}
+global fn2_hits
 
 function fn1:long() %{
 	/* pure */ /* stable */
-  hits++;
 	STAP_RETURN(100);
 %}
 
 function fn2:long() {
+  fn2_hits++
   x = fn1()
   y = fn1()
   if (x == y) {
@@ -20,6 +20,6 @@ function fn2:long() {
 probe begin {
   x = fn1()
   x = fn2()
-  println(x, " ", fn2(), " ", %{hits%})
+  println(x, " ", fn2(), " ", fn2_hits)
 	exit()
 }
