@@ -62,12 +62,12 @@ function _stp_valid_task:long(tsk:long)
 %}
 
 function _MM_FILEPAGES:long()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
   STAP_RETVALUE = MM_FILEPAGES;
 %}
 
 function _MM_ANONPAGES:long()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
   STAP_RETVALUE = MM_ANONPAGES;
 %}
 
@@ -327,7 +327,7 @@ function proc_mem_data_pid:long (pid:long)
  * sfunction mem_page_size - Number of bytes in a page for this architecture
  */
 function mem_page_size:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
    STAP_RETVALUE = PAGE_SIZE;
 %}
 

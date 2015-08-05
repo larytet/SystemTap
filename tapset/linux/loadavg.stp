@@ -47,7 +47,7 @@ function get_loadavg_index:long (indx:long) %{ /* pure */
  * Description: Returns the a string with three decimal numbers
  * in the usual format for 1-, 5- and 15-minute load averages.
  */
-function sprint_loadavg:string () %{ /* pure */
+function sprint_loadavg:string () %{ /* pure */ /* stable */
 	int a, b, c;
 
 	a = avenrun[0] + (FIXED_1/200);

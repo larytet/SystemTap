@@ -246,7 +246,7 @@ probe vm.oom_kill = kernel.function("oom_kill_process") !,
 }
 
 function GFP_KERNEL:long()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = GFP_KERNEL;
 %}
 

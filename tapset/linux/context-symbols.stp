@@ -99,7 +99,7 @@ function sprint_stack:string(stk:string) { return sprint_syms(stk) }
  * Consider using ppfunc() instead.
  */
 function probefunc:string () %( systemtap_v < "2.0" %?
-%{ /* pure */ /* pragma:symbols */
+%{ /* pure */ /* stable */ /* pragma:symbols */
 	char *ptr, *start;
 
 	STAP_RETVALUE[0] = '\0';
@@ -146,7 +146,7 @@ function probefunc:string () %( systemtap_v < "2.0" %?
  * Description: This function returns the name of the kernel module
  * containing the probe point, if known.
  */
-function probemod:string () %{ /* pure */
+function probemod:string () %{ /* pure */ /* stable */
 	char *ptr, *start;
 
 	start = strstr(CONTEXT->probe_point, "module(\"");

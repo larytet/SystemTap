@@ -19,7 +19,7 @@
  * wild-card expansion effects. Context: The current probe point.
  */
 function pn:string ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* stable */
 	const char* name = CONTEXT->probe_name ?: CONTEXT->probe_point;
 	strlcpy (STAP_RETVALUE, name, MAXSTRINGLEN);
 %}
@@ -33,7 +33,7 @@ function pn:string ()
  * Context: The current probe point.
  */
 function pnlabel:string ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* stable */
 	char *ptr, *start;
 
 	if (!CONTEXT->probe_name) {
