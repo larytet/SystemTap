@@ -74,6 +74,21 @@ using namespace __gnu_cxx;
 static string TOK_KERNEL("kernel");
 
 
+// RAII style tracker for obstack pool, used because of complex exception flows
+#define obstack_chunk_alloc malloc
+#define obstack_chunk_free free
+struct obstack_tracker
+{
+  struct obstack* p;
+  obstack_tracker(struct obstack*p): p(p) {
+    obstack_init (p);
+  }
+  ~obstack_tracker() {
+    obstack_free (this->p, 0);
+  }
+};
+
+
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
   module_start(0), module_end(0), cu(NULL), dwfl(NULL),
@@ -3864,12 +3879,9 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 		   local.c_str(), cu_name().c_str());
     }
 
-
-#define obstack_chunk_alloc malloc
-#define obstack_chunk_free free
-
   struct obstack pool;
-  obstack_init (&pool);
+  obstack_tracker p (&pool);
+
   struct location *tail = NULL;
 
   /* Given $foo->bar->baz[NN], translate the location of foo. */
@@ -3900,7 +3912,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 	  semantic_error err(ERR_SRC, msg, e->tok);
 	  err.details.push_back(die_location_as_string(pc, &vardie));
 	  err.details.push_back(die_location_as_function_string(pc, &vardie));
-	  throw err;
+          throw err;
 	}
     }
   else
@@ -3933,7 +3945,6 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
-  obstack_free (&pool, 0);
   return result;
 }
 
@@ -3969,7 +3980,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                 (dwarf_diename(scope_die) ?: "<unknown>"), (dwarf_diename(cu) ?: "<unknown>"));
 
   struct obstack pool;
-  obstack_init (&pool);
+  obstack_tracker p (&pool);
   struct location *tail = NULL;
 
   /* Given $return->bar->baz[NN], translate the location of return. */
@@ -3977,18 +3988,14 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
   int nlocops = dwfl_module_return_value_location (module, scope_die,
                                                    &locops);
   if (nlocops < 0)
-    {
-      throw SEMANTIC_ERROR(_F("failed to retrieve return value location for %s [man error::dwarf] (%s)",
-                          (dwarf_diename(scope_die) ?: "<unknown>"),
-                          (dwarf_diename(cu) ?: "<unknown>")), e->tok);
-    }
+    throw SEMANTIC_ERROR(_F("failed to retrieve return value location for %s [man error::dwarf] (%s)",
+                            (dwarf_diename(scope_die) ?: "<unknown>"),
+                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
   // the function has no return value (e.g. "void" in C)
   else if (nlocops == 0)
-    {
-      throw SEMANTIC_ERROR(_F("function %s (%s) has no return value",
-                             (dwarf_diename(scope_die) ?: "<unknown>"),
-                             (dwarf_diename(cu) ?: "<unknown>")), e->tok);
-    }
+    throw SEMANTIC_ERROR(_F("function %s (%s) has no return value",
+                            (dwarf_diename(scope_die) ?: "<unknown>"),
+                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
   l2c_ctx.pc = pc;
   l2c_ctx.die = scope_die;
@@ -4003,9 +4010,9 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
   Dwarf_Die vardie = *scope_die, typedie;
   if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
     throw SEMANTIC_ERROR(_F("failed to retrieve return value type attribute for %s [man error::dwarf] (%s)",
-                           (dwarf_diename(&vardie) ?: "<unknown>"),
-                           (dwarf_diename(cu) ?: "<unknown>")), e->tok);
-
+                            (dwarf_diename(&vardie) ?: "<unknown>"),
+                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
+  
   translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
   /* Translate the assignment part, either
@@ -4021,7 +4028,6 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
-  obstack_free (&pool, 0);
   return result;
 }
 
@@ -4053,7 +4059,7 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
                   dwarf_type_name(start_typedie).c_str(), (dwarf_diename(cu) ?: "<unknown>"));
 
   struct obstack pool;
-  obstack_init (&pool);
+  obstack_tracker p (&pool);
   l2c_ctx.pc = 1;
   l2c_ctx.die = start_typedie;
   struct location *head = c_translate_argument (&pool, &loc2c_error, this,
@@ -4105,7 +4111,6 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
-  obstack_free (&pool, 0);
   return result;
 }
 
