@@ -15,7 +15,8 @@
 #include <vector>
 #include <iostream>
 #include <stdexcept>
-#include <boost/utility/string_ref.hpp> //header with string_ref
+#include "stringtable.h"
+
 
 struct stapfile;
 struct probe;
@@ -48,7 +49,7 @@ struct token
 {
   source_loc location;
   token_type type;
-  boost::string_ref content;
+  interned_string content;
   std::string msg; // for tok_junk
   void make_junk (const std::string msg);
   const token* chain; // macro invocation that produced this token

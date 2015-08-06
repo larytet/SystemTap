@@ -92,7 +92,7 @@ struct mark_var_expanding_visitor: public var_expanding_visitor
 void
 mark_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 {
-  string argnum_s = e->name.substr(4,e->name.length()-4).to_string();
+  string argnum_s = (string)e->name.substr(4,e->name.length()-4);
   int argnum = atoi (argnum_s.c_str());
 
   if (argnum < 1 || argnum > (int)mark_args.size())
@@ -116,7 +116,7 @@ mark_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 void
 mark_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
 {
-  string sname = e->name.to_string();
+  string sname = e->name;
 
   if (is_active_lvalue (e))
     throw SEMANTIC_ERROR(_F("write to marker '%s' not permitted", sname.c_str()), e->tok);
@@ -183,7 +183,7 @@ mark_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       if (e->addressof)
         throw SEMANTIC_ERROR(_("cannot take address of marker variable"), e->tok);
 
-      if (startswith(e->name.to_string(), "$arg"))
+      if (startswith(e->name, "$arg"))
         visit_target_symbol_arg (e);
       else if (e->name == "$format" || e->name == "$name"
                || e->name == "$$parms" || e->name == "$$vars")

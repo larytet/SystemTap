@@ -12,6 +12,7 @@
 #include "config.h"
 #include "staptree.h"
 #include "elaborate.h"
+#include "stringtable.h"
 
 void check_process_probe_kernel_support(systemtap_session& s);
 
@@ -60,7 +61,7 @@ struct var_expanding_visitor: public update_visitor
   static unsigned tick;
   std::stack<defined_op*> defined_ops;
   std::set<std::string> valid_ops;
-  boost::string_ref* op;
+  interned_string* op;
 
   var_expanding_visitor ();
   void visit_assignment (assignment* e);
@@ -73,7 +74,7 @@ struct var_expanding_visitor: public update_visitor
 
 private:
   std::stack<functioncall**> target_symbol_setter_functioncalls;
-  bool rewrite_lvalue(const token *tok, boost::string_ref& eop,
+  bool rewrite_lvalue(const token *tok, interned_string& eop,
                       expression*& lvalue, expression*& rvalue);
 };
 

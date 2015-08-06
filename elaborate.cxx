@@ -37,7 +37,6 @@ extern "C" {
 
 
 using namespace std;
-using namespace boost;
 
 
 // ------------------------------------------------------------------------
@@ -249,7 +248,7 @@ derived_probe_builder::get_param (std::map<std::string, literal*> const & params
   literal_string * ls = dynamic_cast<literal_string *>(i->second);
   if (!ls)
     return false;
-  value = ls->value.to_string();
+  value = ls->value;
   return true;
 }
 
@@ -291,7 +290,7 @@ derived_probe_builder::has_param (std::map<std::string, literal*> const & params
 // Members of match_key.
 
 match_key::match_key(string const & n)
-  : name(intern(n)),
+  : name(n),
     have_parameter(false),
     parameter_type(pe_unknown)
 {
@@ -323,7 +322,7 @@ match_key::with_string()
 string
 match_key::str() const
 {
-  string n = name.to_string();
+  string n = name;
   if (have_parameter)
     switch (parameter_type)
       {
@@ -355,13 +354,13 @@ match_key::operator<(match_key const & other) const
 // wildcards are permitted too. See also util.h:contains_glob_chars
 
 static bool
-isglob(string_ref str)
+isglob(interned_string str)
 {
   return(str.find('*') != str.npos);
 }
 
 static bool
-isdoubleglob(string_ref str)
+isdoubleglob(interned_string str)
 {
   return(str.find("**") != str.npos);
 }
@@ -369,10 +368,8 @@ isdoubleglob(string_ref str)
 bool
 match_key::globmatch(match_key const & other) const
 {
-  const string other_str1 = other.name.to_string();
-  const char *other_str = other_str1.c_str();
-  const string name_str1 = name.to_string();
-  const char *name_str = name_str1.c_str();
+  const char *other_str = other.name.c_str();
+  const char *name_str = name.c_str();
 
   return ((fnmatch(name_str, other_str, FNM_NOESCAPE) == 0)
 	  && have_parameter == other.have_parameter
@@ -461,7 +458,7 @@ match_node::find_and_build (systemtap_session& s,
 
       map<string, literal *> param_map;
       for (unsigned i=0; i<pos; i++)
-        param_map[loc->components[i]->functor.to_string()] = loc->components[i]->arg;
+        param_map[loc->components[i]->functor] = loc->components[i]->arg;
       // maybe 0
 
       // Iterate over all bound builders
@@ -478,7 +475,7 @@ match_node::find_and_build (systemtap_session& s,
       // When faced with "foo**bar", we try "foo*bar" and "foo*.**bar"
 
       const probe_point::component *comp = loc->components[pos];
-      string functor = comp->functor.to_string();
+      string functor = comp->functor;
       size_t glob_start = functor.find("**");
       size_t glob_end = functor.find_first_not_of('*', glob_start);
       string prefix = functor.substr(0, glob_start);
@@ -488,7 +485,7 @@ match_node::find_and_build (systemtap_session& s,
       // Synthesize "foo*bar"
       probe_point *simple_pp = new probe_point(*loc);
       probe_point::component *simple_comp = new probe_point::component(*comp);
-      simple_comp->functor = intern(prefix + "*" + suffix);
+      simple_comp->functor = prefix + "*" + suffix;
       simple_comp->from_glob = true;
       simple_pp->components[pos] = simple_comp;
       try
@@ -513,11 +510,11 @@ match_node::find_and_build (systemtap_session& s,
       // NB: any component arg should attach to the latter part only
       probe_point *expanded_pp = new probe_point(*loc);
       probe_point::component *expanded_comp_pre = new probe_point::component(*comp);
-      expanded_comp_pre->functor = intern(prefix + "*");
+      expanded_comp_pre->functor = prefix + "*";
       expanded_comp_pre->from_glob = true;
       expanded_comp_pre->arg = NULL;
       probe_point::component *expanded_comp_post = new probe_point::component(*comp);
-      expanded_comp_post->functor = intern(string("**") + suffix);
+      expanded_comp_post->functor = string("**") + suffix;
       expanded_pp->components[pos] = expanded_comp_pre;
       expanded_pp->components.insert(expanded_pp->components.begin() + pos + 1,
                                      expanded_comp_post);
@@ -569,12 +566,9 @@ match_node::find_and_build (systemtap_session& s,
 	  if (match.globmatch(subkey))
 	    {
 	      if (s.verbose > 2)
-                {
-                  string fcn = loc->components[pos]->functor.to_string();
-                  string skn = subkey.name.to_string();
-                  clog << _F("wildcard '%s' matched '%s'",
-                             fcn.c_str(), skn.c_str()) << endl;
-                }
+                clog << _F("wildcard '%s' matched '%s'",
+                           loc->components[pos]->functor.c_str(),
+                           subkey.name.c_str()) << endl;
               
 	      // When we have a wildcard, we need to create a copy of
 	      // the probe point.  Then we'll create a copy of the
@@ -623,7 +617,7 @@ match_node::find_and_build (systemtap_session& s,
         {
 	  // We didn't find any wildcard matches (since the size of
 	  // the result vector didn't change).  Throw an error.
-          string sugs = suggest_functors(s, loc->components[pos]->functor.to_string());
+          string sugs = suggest_functors(s, loc->components[pos]->functor);
           throw SEMANTIC_ERROR (_F("probe point mismatch: didn't find any wildcard matches%s",
                                    sugs.empty() ? "" : (" (similar: " + sugs + ")").c_str()),
                                 loc->components[pos]->tok);
@@ -651,7 +645,7 @@ match_node::find_and_build (systemtap_session& s,
         {
           // We didn't find any alias suffixes (since the size of the
           // result vector didn't change).  Throw an error.
-          string sugs = suggest_functors(s, loc->components[pos]->functor.to_string());
+          string sugs = suggest_functors(s, loc->components[pos]->functor);
           throw SEMANTIC_ERROR (_F("probe point mismatch%s",
                                    sugs.empty() ? "" : (" (similar: " + sugs + ")").c_str()),
                                 loc->components[pos]->tok);
@@ -1298,7 +1292,7 @@ struct stat_decl_collector
 	assert (e->params.size() == 0);
       }
 
-    map<string_ref, statistic_decl>::iterator i = session.stat_decls.find(sym->name);
+    map<interned_string, statistic_decl>::iterator i = session.stat_decls.find(sym->name);
     if (i == session.stat_decls.end())
       session.stat_decls[sym->name] = new_stat;
     else
@@ -1311,8 +1305,7 @@ struct stat_decl_collector
 	    else
 	      {
 		// FIXME: Support multiple co-declared histogram types
-                string sn = sym->name.to_string();
-		semantic_error se(ERR_SRC, _F("multiple histogram types declared on '%s'", sn.c_str()), e->tok);
+		semantic_error se(ERR_SRC, _F("multiple histogram types declared on '%s'", sym->name.c_str()), e->tok);
 		session.print_error (se);
 	      }
 	  }
@@ -1636,7 +1629,7 @@ public:
   void visit_regex_query (regex_query *q) {
     functioncall_traversing_visitor::visit_regex_query (q);
 
-    string re = q->right->value.to_string();
+    string re = q->right->value;
     regex_to_stapdfa (&session, re, q->right->tok);
   }
 };
@@ -1973,7 +1966,7 @@ void add_global_var_display (systemtap_session& s)
       code << "printf (\"" << format << "\"";
 
       // Feed indexes to the printf, and include them in the value
-      string value = !foreach_value.empty() ? foreach_value : l->name;
+      string value = !foreach_value.empty() ? foreach_value : (string)l->name;
       if (!l->index_types.empty())
 	{
 	  code << "," << indexes;
@@ -2122,9 +2115,8 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
 	  else
 	    {
 	      stringstream msg;
-              string an = array->name.to_string();
               msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                        e->indexes.size(), an.c_str());
+                        e->indexes.size(), array->name.c_str());
 	      throw SEMANTIC_ERROR (msg.str(), array->tok);
 	    }
 	}
@@ -2132,9 +2124,8 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
       if (!e->array_slice.empty() && e->array_slice.size() != e->indexes.size())
         {
           stringstream msg;
-          string an = array->name.to_string();
           msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                    e->array_slice.size(), an.c_str());
+                    e->array_slice.size(), array->name.c_str());
           throw SEMANTIC_ERROR (msg.str(), array->tok);
         }
     }
@@ -2208,7 +2199,7 @@ symresolution_info::visit_symbol (symbol* e)
     {
       // new local
       vardecl* v = new vardecl;
-      v->name = e->name.to_string();
+      v->name = e->name;
       v->tok = e->tok;
       v->set_arity(0, e->tok);
       if (current_function)
@@ -2259,9 +2250,8 @@ symresolution_info::visit_arrayindex (arrayindex* e, bool wildcard_ok)
       else
 	{
 	  stringstream msg;
-          string an = array->name.to_string();
           msg << _F("unresolved arity-%zu global array %s, missing global declaration?",
-                    e->indexes.size(), an.c_str());
+                    e->indexes.size(), array->name.c_str());
 	  throw SEMANTIC_ERROR (msg.str(), e->tok);
 	}
     }
@@ -2312,7 +2302,7 @@ symresolution_info::visit_functioncall (functioncall* e)
 /*find_var will return an argument other than zero if the name matches the var
  * name ie, if the current local name matches the name passed to find_var*/
 vardecl*
-symresolution_info::find_var (string_ref name, int arity, const token* tok)
+symresolution_info::find_var (interned_string name, int arity, const token* tok)
 {
   if (current_function || current_probe)
     {
@@ -3721,7 +3711,7 @@ const_folder::visit_binary_expression (binary_expression* e)
         value = (left->value == LLONG_MIN && right->value == -1) ? 0 :
                 left->value % right->value;
       else
-        throw SEMANTIC_ERROR (_("unsupported binary operator ") + e->op.to_string());
+        throw SEMANTIC_ERROR (_("unsupported binary operator ") + (string)e->op);
     }
 
   else if ((left && ((left->value == 0 && (e->op == "*" || e->op == "&" ||
@@ -3807,7 +3797,7 @@ const_folder::visit_unary_expression (unary_expression* e)
       else if (e->op == "~")
         n->value = ~n->value;
       else
-        throw SEMANTIC_ERROR (_("unsupported unary operator ") + e->op.to_string());
+        throw SEMANTIC_ERROR (_("unsupported unary operator ") + (string)e->op);
       n->visit (this);
     }
 }
@@ -3976,7 +3966,7 @@ const_folder::visit_comparison (comparison* e)
   else if (e->op == ">=")
     value = comp >= 0;
   else
-    throw SEMANTIC_ERROR (_("unsupported comparison operator ") + e->op.to_string());
+    throw SEMANTIC_ERROR (_("unsupported comparison operator ") + (string)e->op);
 
   literal_number* n = new literal_number(value);
   n->tok = e->tok;
@@ -3997,8 +3987,7 @@ const_folder::visit_concatenation (concatenation* e)
 
       literal_string* n = new literal_string (*left);
       n->tok = e->tok;
-      string appended = n->value.to_string() + right->value.to_string();
-      n->value = intern (appended);
+      n->value = (string)n->value + (string)right->value;
       n->visit (this);
     }
   else if ((left && left->value.empty()) ||
@@ -5119,7 +5108,7 @@ typeresolution_info::visit_assignment (assignment *e)
         }
     }
   else
-    throw SEMANTIC_ERROR (_("unsupported assignment operator ") + e->op.to_string());
+    throw SEMANTIC_ERROR (_("unsupported assignment operator ") + (string)e->op);
 }
 
 
@@ -5287,11 +5276,8 @@ void
 typeresolution_info::visit_symbol (symbol* e)
 {
   if (e->referent == 0)
-    {
-      string en = e->name.to_string();
-      throw SEMANTIC_ERROR (_F("internal error: unresolved symbol '%s'",
-                               en.c_str()), e->tok);
-    }
+    throw SEMANTIC_ERROR (_F("internal error: unresolved symbol '%s'",
+                             e->name.c_str()), e->tok);
 
   resolve_2types (e, e->referent, this, t);
 
@@ -5407,12 +5393,8 @@ typeresolution_info::visit_cast_op (cast_op* e)
   if (e->saved_conversion_error)
     throw (* (e->saved_conversion_error));
   else
-    {
-      string etn = e->type_name.to_string();
-      string mn = e->module.to_string();
-      throw SEMANTIC_ERROR(_F("type definition '%s' not found in '%s'",
-                              etn.c_str(), mn.c_str()), e->tok);
-    }
+    throw SEMANTIC_ERROR(_F("type definition '%s' not found in '%s'",
+                            e->type_name.c_str(), e->module.c_str()), e->tok);
 }
 
 

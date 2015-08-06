@@ -13,20 +13,31 @@
 #include <string>
 #include <boost/utility/string_ref.hpp> //header with string_ref
 
-boost::string_ref intern(const std::string& value);
 
-#if 0
-// some helpers for common usage
-inline boost::string_ref intern(char value) {
-  return intern(std::string(1, value));
-}
-inline boost::string_ref intern(boost::string_ref value1, char value2) {
-  return intern(value1.to_string() + std::string(1, value2));
-}
-inline boost::string_ref intern(boost::string_ref value1, char value2, char value3) {
-  return intern(value1.to_string() + std::string(1, value2) + std::string(1, value3));
-}
-#endif
+struct interned_string: public boost::string_ref
+{
+  // all these construction operations intern the incoming string
+  interned_string();
+  interned_string(const char* value);
+  interned_string(const std::string& value);
+  interned_string(const boost::string_ref& value);
+  interned_string(const interned_string& value);
+  interned_string& operator = (const std::string& value);
+  interned_string& operator = (const char* value);
+  
+  ~interned_string();
+  
+  // easy out-conversion operators
+  operator std::string () const;
+
+  const char* c_str() const;
+private:
+  mutable char *_c_str; // last value copied out
+};
+
+
+// interned_string intern(const std::string& value);
+
 
 #endif // STRINGTABLE_H
 

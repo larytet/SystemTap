@@ -964,7 +964,7 @@ dwflpp::cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v)
   if (!name)
     return DWARF_CB_OK;
 
-  v->insert(make_pair(intern(string(name)), *func));
+  v->insert(make_pair(name, *func));
   return DWARF_CB_OK;
 }
 
@@ -1044,7 +1044,7 @@ dwflpp::iterate_over_functions<void>(int (*callback)(Dwarf_Die*, void*),
       for (it = v->begin(); it != v->end(); ++it)
         {
           if (pending_interrupts) return DWARF_CB_ABORT;
-          const string& func_name = it->first.to_string();
+          const string& func_name = it->first;
           Dwarf_Die& die = it->second;
           if (function_name_matches_pattern (func_name, function))
             {
@@ -2142,14 +2142,14 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
           inlined = true;
           /* FALLTHROUGH */ /* thanks mjw */
         case DW_TAG_GNU_call_site:
-          callee.name = intern(dwarf_diename(&die) ?: "");
+          callee.name = dwarf_diename(&die) ?: "";
           if (callee.name.empty())
             continue;
           if (callee.name != sym)
             {
               if (!name_has_wildcard(sym))
                 continue;
-              if (!function_name_matches_pattern(callee.name.to_string(), sym))
+              if (!function_name_matches_pattern(callee.name, sym))
                 continue;
             }
 
@@ -2190,7 +2190,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                   // remember old focus
                   Dwarf_Die *old_cu = cu;
 
-                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: callee.name.to_string());
+                  external_function_query efq(this, dwarf_linkage_name(&origin) ?: callee.name);
                   iterate_over_cus(external_function_cu_callback, &efq, false);
 
                   // restore focus
@@ -2224,14 +2224,10 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
           // If it's a tail call, print a warning that it may not be caught
           if (!inlined
               && dwarf_attr_integrate(&die, DW_AT_GNU_tail_call, &attr) != NULL)
-            {
-              string cen = callee.name.to_string();
-              string crn = caller.name.to_string();
-              sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
-                                     ".callee probe may not fire. Try placing the probe "
-                                     "directly on the callee function instead.",
-                                     cen.c_str(), crn.c_str()));
-            }
+            sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
+                                   ".callee probe may not fire. Try placing the probe "
+                                   "directly on the callee function instead.",
+                                   callee.name.c_str(), caller.name.c_str()));
           
           // For .callees(N) probes, we recurse on this callee. Note that we
           // pass the callee we just found as the caller arg for this recursion,
@@ -2396,12 +2392,11 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           }
       }
 
-      string in = it->name.to_string();
       if (!entrypc_srcline)
         {
           if (sess.verbose > 2)
             clog << _F("missing entrypc dwarf line record for function '%s'\n",
-                       in.c_str());
+                       it->name.c_str());
           // This is probably an inlined function.  We'll end up using
           // its lowpc as a probe address.
           continue;
@@ -2411,17 +2406,16 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         {
           if (sess.verbose > 2)
             clog << _F("null entrypc dwarf line record for function '%s'\n",
-                       in.c_str());
+                       it->name.c_str());
           // This is probably an inlined function.  We'll skip this instance;
           // it is messed up. 
           continue;
         }
 
-      string ifn = it->decl_file.to_string();
       if (sess.verbose>2)
         clog << _F("searching for prologue of function '%s' %#" PRIx64 "-%#" PRIx64 
-                   "@%s:%d\n", in.c_str(), entrypc, highpc, ifn.c_str(),
-                   it->decl_line);
+                   "@%s:%d\n", it->name.c_str(), entrypc, highpc,
+                   it->decl_file.c_str(), it->decl_line);
 
       // For each function, we look for the prologue-end marker (e.g. clang
       // outputs one). If there is no explicit marker (e.g. GCC does not), we
@@ -2490,8 +2484,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       if (sess.verbose>2)
         {
-          string itn = it->name.to_string();
-          clog << _F("prologue found function '%s'", itn.c_str());
+          clog << _F("prologue found function '%s'", it->name.c_str());
           // Add a little classification datum
           //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
           if (postprologue_addr == entrypc)
@@ -3917,7 +3910,7 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 	  semantic_error err(ERR_SRC, msg, e->tok);
 	  err.details.push_back(die_location_as_string(pc, &vardie));
 	  err.details.push_back(die_location_as_function_string(pc, &vardie));
-          throw err;
+	  throw err;
 	}
     }
   else

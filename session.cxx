@@ -50,7 +50,6 @@ extern "C" {
 #include <string>
 
 using namespace std;
-using namespace boost;
 
 /* getopt variables */
 extern int optind;
@@ -1768,11 +1767,11 @@ systemtap_session::parse_kernel_exports ()
       if (tokens.size() == 4 &&
           tokens[2] == "vmlinux" &&
           tokens[3].substr(0,13) == string("EXPORT_SYMBOL"))
-        kernel_exports.insert (intern(tokens[1]));
+        kernel_exports.insert (tokens[1]);
       // RHEL4 Module.symvers file only has 3 tokens.  No
       // 'EXPORT_SYMBOL' token at the end of the line.
       else if (tokens.size() == 3 && tokens[2] == "vmlinux")
-        kernel_exports.insert (intern(tokens[1]));
+        kernel_exports.insert (tokens[1]);
     }
   if (verbose > 2)
     clog << _NF("Parsed kernel \"%s\", containing one vmlinux export",
@@ -1834,7 +1833,7 @@ systemtap_session::parse_kernel_functions ()
       // remembering symbols. Also:
       // - stop remembering names at ???
       // - what about __kprobes_text_start/__kprobes_text_end?
-      kernel_functions.insert(intern(name));
+      kernel_functions.insert(name);
     }
   system_map.close();
 
@@ -2004,11 +2003,10 @@ systemtap_session::register_library_aliases()
                     {
                       probe_point::component * comp = name->components[c];
                       // XXX: alias parameters
-                      string fcs = comp->functor.to_string();
                       if (comp->arg)
                         throw SEMANTIC_ERROR(_F("alias component %s contains illegal parameter",
-                                                fcs.c_str()));
-                      mn = mn->bind(fcs);
+                                                comp->functor.c_str()));
+                      mn = mn->bind(comp->functor);
                     }
 		  // PR 12916: All probe aliases are OK for all users. The actual
 		  // referenced probe points will be checked when the alias is resolved.
@@ -2128,16 +2126,16 @@ systemtap_session::print_error_source (std::ostream& message,
 
   unsigned line = tok->location.line;
   unsigned col = tok->location.column;
-  string_ref file_contents = tok->location.file->file_contents;
+  interned_string file_contents = tok->location.file->file_contents;
 
   size_t start_pos = 0, end_pos = 0;
   //Navigate to the appropriate line
-  string_ref file_contents_line = file_contents;
+  interned_string file_contents_line = file_contents;
   while (i != line && end_pos != std::string::npos)
     {
       start_pos = end_pos;
       end_pos = file_contents_line.find ('\n');
-      if (end_pos == string_ref::npos)
+      if (end_pos == interned_string::npos)
         break;
       file_contents_line = file_contents_line.substr(end_pos); // restart at next line
       end_pos ++;
@@ -2145,7 +2143,7 @@ systemtap_session::print_error_source (std::ostream& message,
     }
   //TRANSLATORS: Here we are printing the source string of the error
   message << align << _("source: ");
-  string_ref srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
+  interned_string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
   if (color_errors) {
       // before token:
       message << srcline.substr(0, col-1);
@@ -2155,17 +2153,17 @@ systemtap_session::print_error_source (std::ostream& message,
       // or expanded from a $@ command line argument, or ...
       // so tok->content may have nothing in common with the
       // contents of srcline at the same point.
-      string_ref srcline_rest = srcline.substr(col-1);
-      string_ref srcline_tokenish = srcline_rest.substr(0, tok->content.size());
+      interned_string srcline_rest = srcline.substr(col-1);
+      interned_string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
       if (srcline_tokenish == tok->content) { // oh good
-        message << colorize(tok->content.to_string(), "token");
+        message << colorize(tok->content, "token");
         message << srcline_rest.substr(tok->content.size());
         message << endl;
       }
       else { // oh bad
         message << " ... ";
         col += 5; // line up with the caret
-        message << colorize(tok->content.to_string(), "token");
+        message << colorize(tok->content, "token");
 
         message << " ... " << srcline_rest;
         message << endl;

@@ -45,7 +45,6 @@ extern "C" {
 }
 
 using namespace std;
-using namespace boost;
 using namespace __gnu_cxx;
 
 
@@ -1274,12 +1273,12 @@ levenshtein_suggest(const string& target,        // string to match against
 
 string
 levenshtein_suggest(const string& target,        // string to match against
-                    const set<string_ref>& elems,// elements to suggest from
+                    const set<interned_string>& elems,// elements to suggest from
                     unsigned max,                // max elements to print
                     unsigned threshold)          // max leven score to print
 {
   set<string> elems2;
-  for (set<string_ref>::const_iterator it = elems.begin();
+  for (set<interned_string>::const_iterator it = elems.begin();
        it != elems.end();
        it++)
     elems2.insert(it->to_string());

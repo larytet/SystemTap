@@ -16,7 +16,6 @@
 #include <map>
 #include <algorithm>
 #include <limits>
-#include <boost/utility/string_ref.hpp> //header with string_ref
 
 extern "C" {
 #if ENABLE_NLS
@@ -31,6 +30,7 @@ extern "C" {
 }
 
 #include "privilege.h"
+#include "stringtable.h"
 
 #if ENABLE_NLS
 #define _(string) gettext(string)
@@ -345,7 +345,7 @@ std::string levenshtein_suggest(const std::string& target,
                                 unsigned threshold = std::numeric_limits<unsigned>::max());
 
 std::string levenshtein_suggest(const std::string& target,
-                                const std::set<boost::string_ref>& elems,
+                                const std::set<interned_string>& elems,
                                 unsigned max = std::numeric_limits<unsigned>::max(),
                                 unsigned threshold = std::numeric_limits<unsigned>::max());
 

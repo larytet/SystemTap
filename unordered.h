@@ -1,5 +1,5 @@
 // backward-compatible unordered containers
-// Copyright (C) 2009 Red Hat Inc.
+// Copyright (C) 2009-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -10,7 +10,8 @@
 #define UNORDERED_H
 
 #include "config.h"
-#include <boost/utility/string_ref.hpp> //header with string_ref
+#include "stringtable.h"
+
 
 #if 0 // uncomment to force the old mode
 #undef HAVE_TR1_UNORDERED_MAP
@@ -29,9 +30,9 @@ using std::tr1::unordered_multiset;
 
 namespace std {
   namespace tr1 {
-    template<> struct hash<boost::string_ref> {
-      size_t operator() (boost::string_ref s) const
-      { hash<std::string> h; return h(s.to_string()); }
+    template<> struct hash<interned_string> {
+      size_t operator() (interned_string s) const
+      { hash<std::string> h; return h(s.to_string()); } // XXX: optimize
     };
   }
 }
@@ -57,9 +58,9 @@ namespace __gnu_cxx
     size_t operator() (std::string const& s) const
     { hash<const char*> h; return h(s.c_str()); }
   };
-  template<> struct hash<boost::string_ref> {
-    size_t operator() (boost::string_ref s) const
-    { hash<std::string> h; return h(s.to_string()); }
+  template<> struct hash<interned_string> {
+    size_t operator() (interned_string s) const
+    { hash<std::string> h; return h(s.to_string()); } // XXX: optimize
   };
 }
 

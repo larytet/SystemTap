@@ -53,7 +53,7 @@ public:
   derived_probe* current_probe;
   symresolution_info (systemtap_session& s);
 
-  vardecl* find_var (boost::string_ref name, int arity, const token *tok);
+  vardecl* find_var (interned_string name, int arity, const token *tok);
   functiondecl* find_function (const std::string& name, unsigned arity, const token *tok);
   std::set<std::string> collect_functions(void);
 
@@ -354,7 +354,7 @@ struct derived_probe_builder
 struct
 match_key
 {
-  boost::string_ref name;
+  interned_string name;
   bool have_parameter;
   exp_type parameter_type;
 

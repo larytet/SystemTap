@@ -62,7 +62,7 @@ typedef unordered_map<std::string, Dwarf_Die> cu_type_cache_t;
 typedef unordered_map<void*, cu_type_cache_t*> mod_cu_type_cache_t;
 
 // function -> die
-typedef unordered_multimap<boost::string_ref, Dwarf_Die> cu_function_cache_t;
+typedef unordered_multimap<interned_string, Dwarf_Die> cu_function_cache_t;
 typedef std::pair<cu_function_cache_t::iterator,
                   cu_function_cache_t::iterator>
         cu_function_cache_range_t;
@@ -111,8 +111,8 @@ module_info
   info_status dwarf_status;     // module has dwarf info?
   info_status symtab_status;    // symbol table cached?
 
-  std::set<boost::string_ref> inlined_funcs;
-  std::set<boost::string_ref> plt_funcs;
+  std::set<interned_string> inlined_funcs;
+  std::set<interned_string> plt_funcs;
   std::set<std::pair<std::string,std::string> > marks; /* <provider,name> */
 
   void get_symtab();
@@ -151,8 +151,8 @@ struct base_func_info
   {
     std::memset(&die, 0, sizeof(die));
   }
-  boost::string_ref name;
-  boost::string_ref decl_file;
+  interned_string name;
+  interned_string decl_file;
   int decl_line;
   Dwarf_Die die;
   Dwarf_Addr entrypc;

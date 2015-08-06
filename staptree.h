@@ -24,6 +24,7 @@ extern "C" {
 }
 
 #include "util.h"
+#include "stringtable.h"
 
 #if defined(HAVE_TR1_MEMORY)
 #include <tr1/memory>
@@ -34,7 +35,7 @@ using boost::shared_ptr;
 #else
 #error "No shared_ptr implementation found; get boost or modern g++"
 #endif
-#include <boost/utility/string_ref.hpp>
+
 
 struct token; // parse.h
 struct systemtap_session; // session.h
@@ -166,8 +167,8 @@ struct literal: public expression
 
 struct literal_string: public literal
 {
-  boost::string_ref value;
-  literal_string (boost::string_ref v);
+  interned_string value;
+  literal_string (interned_string v);
   literal_string (const std::string& v);
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -186,7 +187,7 @@ struct literal_number: public literal
 
 struct embedded_expr: public expression
 {
-  std::string code;
+  interned_string code;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -195,7 +196,7 @@ struct embedded_expr: public expression
 struct binary_expression: public expression
 {
   expression* left;
-  boost::string_ref op;
+  interned_string op;
   expression* right;
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -204,7 +205,7 @@ struct binary_expression: public expression
 
 struct unary_expression: public expression
 {
-  boost::string_ref op;
+  interned_string op;
   expression* operand;
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -247,7 +248,7 @@ struct array_in: public expression
 struct regex_query: public expression
 {
   expression* left;
-  boost::string_ref op;
+  interned_string op;
   literal_string* right;
   void visit (visitor* u);
   void print (std::ostream& o) const;
@@ -302,7 +303,7 @@ classify_indexable(indexable* ix,
 struct vardecl;
 struct symbol: public indexable
 {
-  boost::string_ref name;
+  interned_string name;
   vardecl *referent;
   symbol ();
   void print (std::ostream& o) const;
@@ -344,7 +345,7 @@ struct target_symbol: public expression
       void print (std::ostream& o) const;
     };
 
-  boost::string_ref name;
+  interned_string name;
   bool addressof;
   std::vector<component> components;
   semantic_error* saved_conversion_error; // hand-made linked list
@@ -366,7 +367,7 @@ std::ostream& operator << (std::ostream& o, const target_symbol::component& c);
 struct cast_op: public target_symbol
 {
   expression *operand;
-  boost::string_ref type_name, module;
+  interned_string type_name, module;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -382,7 +383,7 @@ struct autocast_op: public target_symbol
 
 struct atvar_op: public target_symbol
 {
-  boost::string_ref target_name, cu_name, module;
+  interned_string target_name, cu_name, module;
   virtual std::string sym_name ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
@@ -425,7 +426,7 @@ struct arrayindex: public expression
 struct functiondecl;
 struct functioncall: public expression
 {
-  std::string function;
+  interned_string function;
   std::vector<expression*> args;
   functiondecl *referent;
   functioncall ();
@@ -492,7 +493,7 @@ struct print_format: public expression
     width_type widthtype;
     precision_type prectype;
     conversion_type type;
-    boost::string_ref literal_string;
+    interned_string literal_string;
     bool is_empty() const
     {
       return flags == 0
@@ -524,7 +525,7 @@ struct print_format: public expression
   hist_op *hist;
 
   static std::string components_to_string(std::vector<format_component> const & components);
-  static std::vector<format_component> string_to_components(boost::string_ref str);
+  static std::vector<format_component> string_to_components(interned_string str);
   static print_format* create(const token *t, const char *n = NULL);
 
   void print (std::ostream& o) const;
@@ -583,7 +584,7 @@ struct symboldecl // unique object per (possibly implicit)
 {
   const token* tok;
   const token* systemtap_v_conditional; //checking systemtap compatibility
-  std::string name;
+  interned_string name;
   exp_type type;
   exp_type_ptr type_details;
   symboldecl ();
@@ -653,7 +654,7 @@ std::ostream& operator << (std::ostream& o, const statement& k);
 
 struct embeddedcode: public statement
 {
-  std::string code;
+  interned_string code;
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };
@@ -783,7 +784,7 @@ struct stapfile
   std::vector<functiondecl*> functions;
   std::vector<vardecl*> globals;
   std::vector<embeddedcode*> embeds;
-  boost::string_ref file_contents;
+  interned_string file_contents;
   bool privileged;
   bool synthetic; // via parse_synthetic_*
   stapfile ():
@@ -796,12 +797,12 @@ struct probe_point
 {
   struct component // XXX: sort of a restricted functioncall
   {
-    boost::string_ref functor;
+    interned_string functor;
     literal* arg; // optional
     bool from_glob;
     component ();
     const token* tok; // points to component's functor
-    component(boost::string_ref f, literal *a=NULL, bool from_glob=false);
+    component(interned_string f, literal *a=NULL, bool from_glob=false);
   };
   std::vector<component*> components;
   bool optional;

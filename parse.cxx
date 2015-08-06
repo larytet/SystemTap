@@ -34,7 +34,6 @@ extern "C" {
 }
 
 using namespace std;
-using namespace boost;
 
 
 class lexer
@@ -58,7 +57,7 @@ private:
   inline int input_peek (unsigned n=0);
   void input_put (const string&, const token*);
   string input_name;
-  string input_contents; // NB: being a temporary, no need to string_ref optimize this object
+  string input_contents; // NB: being a temporary, no need to interned_string optimize this object
   const char *input_pointer; // index into input_contents; NB: recompute if input_contents changed!
   const char *input_end;
   unsigned cursor_suspend_count;
@@ -144,10 +143,10 @@ private:
 
   // expectations, these swallow the token
   void expect_known (token_type tt, string const & expected);
-  void expect_unknown (token_type tt, string_ref & target);
+  void expect_unknown (token_type tt, interned_string & target);
   void expect_unknown (token_type tt, string & target);
   void expect_unknown2 (token_type tt1, token_type tt2, string & target);
-  void expect_unknown2 (token_type tt1, token_type tt2, string_ref & target);
+  void expect_unknown2 (token_type tt1, token_type tt2, interned_string & target);
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
@@ -458,7 +457,7 @@ parser::scan_pp1 (bool ignore_macros = false)
           t = input.scan();
           if (! (t && t->type == tok_identifier))
             throw PARSE_ERROR (_("expected identifier"), t);
-          string name = t->content.to_string();
+          string name = t->content;
 
           // check for redefinition of existing macro
           if (pp1_namespace.find(name) != pp1_namespace.end())
@@ -502,7 +501,7 @@ parser::scan_pp1 (bool ignore_macros = false)
                   t = input.scan ();
                   if (! (t && t->type == tok_identifier))
                     throw PARSE_ERROR(_("expected identifier"), t);
-                  decl->formal_args.push_back(t->content.to_string());
+                  decl->formal_args.push_back(t->content);
                   delete t;
                   
                   t = input.scan ();
@@ -546,7 +545,7 @@ parser::scan_pp1 (bool ignore_macros = false)
       // (potential) macro invocation
       if (t->type == tok_operator && t->content[0] == '@')
         {
-          string name = t->content.substr(1).to_string(); // strip initial '@'
+          interned_string name = t->content.substr(1); // strip initial '@'
 
           // check if name refers to a real parameter or macro
           macrodecl* decl;
@@ -816,7 +815,7 @@ bool eval_pp_conditional (systemtap_session& s,
       else if (l->content == "systemtap_v") target = s.compatible;
       else assert (0);
 
-      string query = r->content.to_string();
+      string query = r->content;
       bool rhs_wildcard = (strpbrk (query.c_str(), "*?[") != 0);
 
       // collect acceptable strverscmp results.
@@ -867,7 +866,7 @@ bool eval_pp_conditional (systemtap_session& s,
 
       if (! (r->type == tok_string))
         throw PARSE_ERROR (_("expected string literal"), r);
-      string query_privilege = r->content.to_string();
+      string query_privilege = r->content;
 
       bool nomatch = (target_privilege != query_privilege);
 
@@ -887,7 +886,7 @@ bool eval_pp_conditional (systemtap_session& s,
       if (! (r->type == tok_number))
         throw PARSE_ERROR (_("expected number"), r);
       int64_t lhs = (int64_t) s.guru_mode;
-      int64_t rhs = lex_cast<int64_t>(r->content.to_string());
+      int64_t rhs = lex_cast<int64_t>(r->content);
       if (!((rhs == 0)||(rhs == 1)))
         throw PARSE_ERROR (_("expected 0 or 1"), op);
       if (!((op->type == tok_operator && op->content == "==") ||
@@ -901,7 +900,7 @@ bool eval_pp_conditional (systemtap_session& s,
       string target_architecture = s.architecture;
       if (! (r->type == tok_string))
         throw PARSE_ERROR (_("expected string literal"), r);
-      string query_architecture = r->content.to_string();
+      string query_architecture = r->content;
 
       int nomatch = fnmatch (query_architecture.c_str(),
                              target_architecture.c_str(),
@@ -922,7 +921,7 @@ bool eval_pp_conditional (systemtap_session& s,
       if (! (r->type == tok_string))
         throw PARSE_ERROR (_("expected string literal"), r);
 
-      string query_runtime = r->content.to_string();
+      string query_runtime = r->content;
       string target_runtime;
 
       target_runtime = (s.runtime_mode == systemtap_session::dyninst_runtime
@@ -945,8 +944,8 @@ bool eval_pp_conditional (systemtap_session& s,
     {
       if (r->type == tok_string)
 	{
-	  string lhs = s.kernel_config[l->content.to_string()]; // may be empty
-	  string rhs = r->content.to_string();
+	  string lhs = s.kernel_config[l->content]; // may be empty
+	  string rhs = r->content;
 
 	  int nomatch = fnmatch (rhs.c_str(), lhs.c_str(), FNM_NOESCAPE); // still spooky
 
@@ -962,14 +961,14 @@ bool eval_pp_conditional (systemtap_session& s,
 	}
       else if (r->type == tok_number)
 	{
-          const char* startp = s.kernel_config[l->content.to_string()].c_str ();
+          const char* startp = s.kernel_config[l->content].c_str ();
           char* endp = (char*) startp;
           errno = 0;
           int64_t lhs = (int64_t) strtoll (startp, & endp, 0);
           if (errno == ERANGE || errno == EINVAL || *endp != '\0')
 	    throw PARSE_ERROR ("Config option value not a number", l);
 
-	  int64_t rhs = lex_cast<int64_t>(r->content.to_string());
+	  int64_t rhs = lex_cast<int64_t>(r->content);
 	  return eval_comparison (lhs, op, rhs);
 	}
       else if (r->type == tok_identifier
@@ -977,14 +976,14 @@ bool eval_pp_conditional (systemtap_session& s,
 	{
 	  // First try to convert both to numbers,
 	  // otherwise threat both as strings.
-          const char* startp = s.kernel_config[l->content.to_string()].c_str ();
+          const char* startp = s.kernel_config[l->content].c_str ();
           char* endp = (char*) startp;
           errno = 0;
           int64_t val = (int64_t) strtoll (startp, & endp, 0);
           if (errno != ERANGE && errno != EINVAL && *endp == '\0')
 	    {
 	      int64_t lhs = val;
-	      startp = s.kernel_config[r->content.to_string()].c_str ();
+	      startp = s.kernel_config[r->content].c_str ();
 	      endp = (char*) startp;
 	      errno = 0;
 	      int64_t rhs = (int64_t) strtoll (startp, & endp, 0);
@@ -992,8 +991,8 @@ bool eval_pp_conditional (systemtap_session& s,
 		return eval_comparison (lhs, op, rhs);
 	    }
 
-	  string lhs = s.kernel_config[l->content.to_string()];
-	  string rhs = s.kernel_config[r->content.to_string()];
+	  string lhs = s.kernel_config[l->content];
+	  string rhs = s.kernel_config[r->content];
 	  return eval_comparison (lhs, op, rhs);
 	}
       else
@@ -1001,15 +1000,15 @@ bool eval_pp_conditional (systemtap_session& s,
     }
   else if (l->type == tok_string && r->type == tok_string)
     {
-      string lhs = l->content.to_string();
-      string rhs = r->content.to_string();
+      string lhs = l->content;
+      string rhs = r->content;
       return eval_comparison (lhs, op, rhs);
       // NB: no wildcarding option here
     }
   else if (l->type == tok_number && r->type == tok_number)
     {
-      int64_t lhs = lex_cast<int64_t>(l->content.to_string());
-      int64_t rhs = lex_cast<int64_t>(r->content.to_string());
+      int64_t lhs = lex_cast<int64_t>(l->content);
+      int64_t rhs = lex_cast<int64_t>(r->content);
       return eval_comparison (lhs, op, rhs);
       // NB: no wildcarding option here
     }
@@ -1232,7 +1231,7 @@ parser::expect_known (token_type tt, string const & expected)
 
 
 void
-parser::expect_unknown (token_type tt, string_ref & target)
+parser::expect_unknown (token_type tt, interned_string & target)
 {
   const token *t = next();
   if (!(t && t->type == tt))
@@ -1247,13 +1246,13 @@ parser::expect_unknown (token_type tt, string & target)
   const token *t = next();
   if (!(t && t->type == tt))
     throw PARSE_ERROR (_("expected ") + tt2str(tt));
-  target = t->content.to_string();
+  target = t->content;
   swallow (); // We are done with it, content was copied.
 }
 
 
 void
-parser::expect_unknown2 (token_type tt1, token_type tt2, string_ref & target)
+parser::expect_unknown2 (token_type tt1, token_type tt2, interned_string & target)
 {
   const token *t = next();
   if (!(t && (t->type == tt1 || t->type == tt2)))
@@ -1268,7 +1267,7 @@ parser::expect_unknown2 (token_type tt1, token_type tt2, string & target)
   const token *t = next();
   if (!(t && (t->type == tt1 || t->type == tt2)))
     throw PARSE_ERROR (_F("expected %s or %s", tt2str(tt1).c_str(), tt2str(tt2).c_str()));
-  target = t->content.to_string();
+  target = t->content;
   swallow (); // We are done with it, content was copied.
 }
 
@@ -1309,8 +1308,7 @@ parser::expect_number (int64_t & value)
   if (!(t && t->type == tok_number))
     throw PARSE_ERROR (_("expected number"));
 
-  string tc = t->content.to_string();
-  const char* startp = tc.c_str ();
+  const char* startp = t->content.c_str ();
   char* endp = (char*) startp;
 
   // NB: we allow controlled overflow from LLONG_MIN .. ULLONG_MAX
@@ -1344,7 +1342,7 @@ parser::expect_ident_or_atword (string & target)
     // so the message is accurate, but keep an eye out in the future:
     throw PARSE_ERROR (_F("expected %s or statistical operation", tt2str(tok_identifier).c_str()));
 
-  target = t->content.to_string();
+  target = t->content;
   return t;
 }
 
@@ -1439,7 +1437,7 @@ lexer::set_current_file (stapfile* f)
   current_file = f;
   if (f)
     {
-      f->file_contents = intern(input_contents); // NB: plain = would dangle string_ref shortly!
+      f->file_contents = input_contents;
       f->name = input_name;
     }
 }
@@ -1625,7 +1623,7 @@ skip:
         // makes it easier to detect illegal use of @words:
         n->type = tok_operator;
 
-      n->content = intern(token_str);
+      n->content = token_str;
       return n;
     }
 
@@ -1645,7 +1643,7 @@ skip:
           c2 = input_peek ();
 	}
 
-      n->content = intern(token_str);
+      n->content = token_str;
       return n;
     }
 
@@ -1696,7 +1694,7 @@ skip:
 	  else
             token_str.push_back (c);
 	}
-      n->content = intern(token_str);
+      n->content = token_str;
       return n;
     }
 
@@ -1753,7 +1751,7 @@ skip:
             {
               if (c == '%' && c2 == '}')
                 {
-                  n->content = intern (token_str);
+                  n->content = token_str;
                   return n;
                 }
               if (c == '}' && c2 == '%') // possible typo
@@ -1814,7 +1812,7 @@ skip:
           input_get (); // swallow other character
         }
 
-      n->content = intern(token_str);
+      n->content = token_str;
       return n;
     }
 
@@ -1823,7 +1821,7 @@ skip:
       n->type = tok_junk;
       ostringstream s;
       s << "\\x" << hex << setw(2) << setfill('0') << c;
-      n->content = intern(s.str());
+      n->content = s.str();
       n->msg = ""; // signal parser to emit "expected X, found junk" type error
       return n;
     }
@@ -2061,7 +2059,7 @@ parser::parse_embeddedcode ()
                        false /* don't skip tokens for parse resumption */);
 
   e->tok = t;
-  e->code = t->content.to_string();
+  e->code = t->content;
   return e;
 }
 
@@ -2195,7 +2193,7 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
 	  throw PARSE_ERROR (_("duplicate global name"));
 
       vardecl* d = new vardecl;
-      d->name = t->content.to_string();
+      d->name = t->content;
       d->tok = t;
       d->systemtap_v_conditional = systemtap_v_seen;
       globals.push_back (d);
@@ -2268,7 +2266,7 @@ parser::parse_functiondecl (vector<functiondecl*>& functions)
       throw PARSE_ERROR (_("duplicate function name"));
 
   functiondecl *fd = new functiondecl ();
-  fd->name = t->content.to_string();
+  fd->name = t->content;
   fd->tok = t;
 
   t = next ();
@@ -2303,7 +2301,7 @@ parser::parse_functiondecl (vector<functiondecl*>& functions)
       else if (! (t->type == tok_identifier))
 	throw PARSE_ERROR (_("expected identifier"));
       vardecl* vd = new vardecl;
-      vd->name = t->content.to_string();
+      vd->name = t->content;
       vd->tok = t;
       fd->formal_args.push_back (vd);
       fd->systemtap_v_conditional = systemtap_v_seen;
@@ -2361,7 +2359,7 @@ parser::parse_probe_point ()
         throw PARSE_ERROR (_("expected identifier or '*'"));
 
       // loop which reconstitutes an identifier with wildcards
-      string content = t->content.to_string();
+      string content = t->content;
       while (1)
         {
           const token* u = peek();
@@ -2379,16 +2377,14 @@ parser::parse_probe_point ()
             break;
 
           // append u to t
-          content = content + u->content.to_string();
+          content = content + (string)u->content;
           
           // consume u
           swallow ();
         }
       // get around const-ness of t:
       token* new_t = new token(*t);
-
-      new_t->content = intern(content);
-
+      new_t->content = content;
       delete t; t = new_t;
 
       probe_point::component* c = new probe_point::component;
@@ -2474,14 +2470,14 @@ parser::consume_string_literals(const token *t)
   //
   // NB for versions prior to 2.0: but don't skip over intervening comments
   const token *n = peek();
-  string token_str = t->content.to_string();
+  string token_str = t->content;
   while (n != NULL && n->type == tok_string
          && ! (!input.has_version("2.0") && input.ate_comment))
     {
-      token_str.append(next()->content.to_string()); // consume and append the token
+      token_str.append(next()->content); // consume and append the token
       n = peek();
     }
-  ls->value = intern(token_str);
+  ls->value = token_str;
   return ls;
 }
 
@@ -2523,8 +2519,7 @@ parser::parse_literal ()
 
       if (t->type == tok_number)
 	{
-          string tc = t->content.to_string();
-	  const char* startp = tc.c_str ();
+	  const char* startp = t->content.c_str ();
 	  char* endp = (char*) startp;
 
 	  // NB: we allow controlled overflow from LLONG_MIN .. ULLONG_MAX
@@ -3002,7 +2997,7 @@ parser::parse_assignment ()
       // NB: lvalueness is checked during elaboration / translation
       assignment* e = new assignment;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_expression ();
@@ -3050,7 +3045,7 @@ parser::parse_logical_or ()
     {
       logical_or_expr* e = new logical_or_expr;
       e->tok = t;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->left = op1;
       next ();
       e->right = parse_logical_and ();
@@ -3072,7 +3067,7 @@ parser::parse_logical_and ()
     {
       logical_and_expr *e = new logical_and_expr;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_boolean_or ();
@@ -3094,7 +3089,7 @@ parser::parse_boolean_or ()
     {
       binary_expression* e = new binary_expression;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_boolean_xor ();
@@ -3116,7 +3111,7 @@ parser::parse_boolean_xor ()
     {
       binary_expression* e = new binary_expression;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_boolean_and ();
@@ -3138,7 +3133,7 @@ parser::parse_boolean_and ()
     {
       binary_expression* e = new binary_expression;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_array_in ();
@@ -3233,7 +3228,7 @@ parser::parse_comparison_or_regex_query ()
     {
       regex_query* r = new regex_query;
       r->left = op1;
-      r->op = t->content.to_string();
+      r->op = t->content;
       r->tok = t;
       next ();
       r->right = parse_literal_string();
@@ -3250,7 +3245,7 @@ parser::parse_comparison_or_regex_query ()
     {
       comparison* e = new comparison;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_shift ();
@@ -3273,7 +3268,7 @@ parser::parse_shift ()
     {
       binary_expression* e = new binary_expression;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_concatenation ();
@@ -3297,7 +3292,7 @@ parser::parse_concatenation ()
     {
       concatenation* e = new concatenation;
       e->left = op1;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->right = parse_additive ();
@@ -3319,7 +3314,7 @@ parser::parse_additive ()
       && (t->content == "+" || t->content == "-"))
     {
       binary_expression* e = new binary_expression;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->left = op1;
       e->tok = t;
       next ();
@@ -3342,7 +3337,7 @@ parser::parse_multiplicative ()
       && (t->content == "*" || t->content == "/" || t->content == "%"))
     {
       binary_expression* e = new binary_expression;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->left = op1;
       e->tok = t;
       next ();
@@ -3367,7 +3362,7 @@ parser::parse_unary ()
           false))
     {
       unary_expression* e = new unary_expression;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->operand = parse_unary ();
@@ -3392,7 +3387,7 @@ parser::parse_crement () // as in "increment" / "decrement"
       && (t->content == "++" || t->content == "--"))
     {
       pre_crement* e = new pre_crement;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->operand = parse_dwarf_value ();
@@ -3407,7 +3402,7 @@ parser::parse_crement () // as in "increment" / "decrement"
       && (t->content == "++" || t->content == "--"))
     {
       post_crement* e = new post_crement;
-      e->op = t->content.to_string();
+      e->op = t->content;
       e->tok = t;
       next ();
       e->operand = op1;
@@ -3479,7 +3474,7 @@ parser::parse_value ()
 
       embedded_expr *e = new embedded_expr;
       e->tok = t;
-      e->code = t->content.to_string();
+      e->code = t->content;
       next ();
       return e;
     }
@@ -3659,7 +3654,7 @@ expression* parser::parse_symbol ()
 		  // format string and the arguments is postponed to the
 		  // typechecking phase.
                   literal_string* ls = parse_literal_string();
-		  fmt->raw_components = ls->value.to_string();
+		  fmt->raw_components = ls->value;
                   delete ls;
                   fmt->components = print_format::string_to_components (fmt->raw_components);
 		  consumed_arg = true;
@@ -3923,13 +3918,13 @@ parser::parse_target_symbol_components (target_symbol* e)
   bool pprint = false;
 
   // check for pretty-print in the form $foo$
-  string base = e->name.to_string();
+  string base = e->name;
   size_t pprint_pos = base.find_last_not_of('$');
   if (0 < pprint_pos && pprint_pos < base.length() - 1)
     {
       string pprint_val = base.substr(pprint_pos + 1);
       base.erase(pprint_pos + 1);
-      e->name = intern(base);
+      e->name = base;
       e->components.push_back (target_symbol::component(e->tok, pprint_val, true));
       pprint = true;
     }
@@ -3981,7 +3976,7 @@ parser::parse_target_symbol_components (target_symbol* e)
           t->content.find_first_not_of('$') == string::npos)
         {
           t = next();
-          e->components.push_back (target_symbol::component(t, t->content.to_string(), true));
+          e->components.push_back (target_symbol::component(t, t->content, true));
           pprint = true;
         }
     }
