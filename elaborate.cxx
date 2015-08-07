@@ -223,8 +223,7 @@ void
 derived_probe_builder::build_with_suffix(systemtap_session & sess,
                                          probe * use,
                                          probe_point * location,
-                                         std::map<std::string, literal *>
-                                           const & parameters,
+                                         literal_map_t const & parameters,
                                          std::vector<derived_probe *>
                                            & finished_results,
                                          std::vector<probe_point::component *>
@@ -238,11 +237,11 @@ derived_probe_builder::build_with_suffix(systemtap_session & sess,
 }
 
 bool
-derived_probe_builder::get_param (std::map<std::string, literal*> const & params,
-                                  const std::string& key,
-                                  std::string& value)
+derived_probe_builder::get_param (literal_map_t const & params,
+                                  interned_string key,
+                                  interned_string& value)
 {
-  map<string, literal *>::const_iterator i = params.find (key);
+  literal_map_t::const_iterator i = params.find (key);
   if (i == params.end())
     return false;
   literal_string * ls = dynamic_cast<literal_string *>(i->second);
@@ -254,11 +253,11 @@ derived_probe_builder::get_param (std::map<std::string, literal*> const & params
 
 
 bool
-derived_probe_builder::get_param (std::map<std::string, literal*> const & params,
-                                  const std::string& key,
+derived_probe_builder::get_param (literal_map_t const & params,
+                                  interned_string key,
                                   int64_t& value)
 {
-  map<string, literal *>::const_iterator i = params.find (key);
+  literal_map_t::const_iterator i = params.find (key);
   if (i == params.end())
     return false;
   if (i->second == NULL)
@@ -272,16 +271,16 @@ derived_probe_builder::get_param (std::map<std::string, literal*> const & params
 
 
 bool
-derived_probe_builder::has_null_param (std::map<std::string, literal*> const & params,
-                                       const std::string& key)
+derived_probe_builder::has_null_param (literal_map_t const & params,
+                                       interned_string key)
 {
-  map<string, literal *>::const_iterator i = params.find(key);
+  literal_map_t::const_iterator i = params.find(key);
   return (i != params.end() && i->second == NULL);
 }
 
 bool
-derived_probe_builder::has_param (std::map<std::string, literal*> const & params,
-                                       const std::string& key)
+derived_probe_builder::has_param (literal_map_t const & params,
+                                  interned_string key)
 {
   return (params.find(key) != params.end());
 }
@@ -289,7 +288,7 @@ derived_probe_builder::has_param (std::map<std::string, literal*> const & params
 // ------------------------------------------------------------------------
 // Members of match_key.
 
-match_key::match_key(string const & n)
+match_key::match_key(interned_string n)
   : name(n),
     have_parameter(false),
     parameter_type(pe_unknown)
@@ -406,7 +405,7 @@ match_node::bind(derived_probe_builder * e)
 }
 
 match_node *
-match_node::bind(string const & k)
+match_node::bind(interned_string k)
 {
   return bind(match_key(k));
 }
@@ -456,7 +455,7 @@ match_node::find_and_build (systemtap_session& s,
                                 loc->components.back()->tok);
 	}
 
-      map<string, literal *> param_map;
+      literal_map_t param_map;
       for (unsigned i=0; i<pos; i++)
         param_map[loc->components[i]->functor] = loc->components[i]->arg;
       // maybe 0
@@ -701,7 +700,7 @@ match_node::try_suffix_expansion (systemtap_session& s,
       // derived_probe_builder appears that actually takes
       // suffixes *and* consults parameters (currently no such
       // builders exist).
-      map<string, literal *> param_map;
+      literal_map_t param_map;
       // for (unsigned i=0; i<pos; i++)
       //   param_map[loc->components[i]->functor] = loc->components[i]->arg;
       // maybe 0
@@ -842,8 +841,7 @@ void
 alias_expansion_builder::build(systemtap_session & sess,
 			       probe * use,
 			       probe_point * location,
-			       std::map<std::string, literal *>
-                                 const & parameters,
+			       literal_map_t const & parameters,
 			       vector<derived_probe *> & finished_results)
 {
   vector<probe_point::component *> empty_suffix;
@@ -855,8 +853,7 @@ void
 alias_expansion_builder::build_with_suffix(systemtap_session & sess,
                                            probe * use,
                                            probe_point * location,
-                                           std::map<std::string, literal *>
-                                             const &,
+                                           literal_map_t const &,
                                            vector<derived_probe *>
                                              & finished_results,
                                            vector<probe_point::component *>

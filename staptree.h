@@ -432,7 +432,7 @@ struct functioncall: public expression
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
-  std::string var_assigned_to_retval;
+  interned_string var_assigned_to_retval;
 };
 
 
@@ -532,7 +532,7 @@ struct print_format: public expression
   void visit (visitor* u);
 
 private:
-  std::string print_format_type;
+  interned_string print_format_type;
   print_format(bool stream, bool format, bool delim, bool newline, bool _char, std::string type):
     print_to_stream(stream), print_with_format(format),
     print_with_delim(delim), print_with_newline(newline),
@@ -840,7 +840,7 @@ struct probe
   virtual probe_point *get_alias_loc () const { return 0; }
   virtual ~probe() {}
   bool privileged;
-  std::string name;
+  interned_string name;
 };
 
 struct probe_alias: public probe

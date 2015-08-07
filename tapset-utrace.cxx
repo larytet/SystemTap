@@ -51,15 +51,15 @@ enum utrace_derived_probe_flags {
 struct utrace_derived_probe: public derived_probe
 {
   bool has_path;
-  string path;
+  interned_string path;
   bool has_library;
-  string library;
+  interned_string library;
   int64_t pid;
   enum utrace_derived_probe_flags flags;
   bool target_symbol_seen;
 
   utrace_derived_probe (systemtap_session &s, probe* p, probe_point* l,
-			bool hp, string &pn, int64_t pd,
+			bool hp, interned_string pn, int64_t pd,
 			enum utrace_derived_probe_flags f);
   void join_group (systemtap_session& s);
 
@@ -129,7 +129,7 @@ struct utrace_var_expanding_visitor: public var_expanding_visitor
 
 utrace_derived_probe::utrace_derived_probe (systemtap_session &s,
                                             probe* p, probe_point* l,
-					    bool hp, string &pn, int64_t pd,
+					    bool hp, interned_string pn, int64_t pd,
 					    enum utrace_derived_probe_flags f):
   derived_probe (p, l, true /* .components soon rewritten */ ),
   has_path(hp), path(pn), has_library(false), pid(pd), flags(f),
@@ -656,7 +656,7 @@ struct utrace_builder: public derived_probe_builder
 		     literal_map_t const & parameters,
 		     vector<derived_probe *> & finished_results)
   {
-    string path, path_tgt;
+    interned_string path, path_tgt;
     int64_t pid;
 
     bool has_path = get_param (parameters, TOK_PROCESS, path);

@@ -543,7 +543,7 @@ procfs_builder::build(systemtap_session & sess,
                       literal_map_t const & parameters,
                       vector<derived_probe *> & finished_results)
 {
-  string path;
+  interned_string path;
   bool has_procfs = get_param(parameters, TOK_PROCFS, path);
   bool has_read = (parameters.find(TOK_READ) != parameters.end());
   bool has_write = (parameters.find(TOK_WRITE) != parameters.end());
@@ -581,7 +581,7 @@ procfs_builder::build(systemtap_session & sess,
   else
     {
       string::size_type start_pos, end_pos;
-      string component;
+      interned_string component;
       start_pos = 0;
       while ((end_pos = path.find('/', start_pos)) != string::npos)
         {

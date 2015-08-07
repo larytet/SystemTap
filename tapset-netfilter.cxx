@@ -483,9 +483,9 @@ netfilter_builder::build(systemtap_session & sess,
     literal_map_t const & parameters,
     vector<derived_probe *> & finished_results)
 {
-  string hook;                // no default
-  string pf; // no default
-  string priority = "0";      // Default: somewhere in the middle
+  interned_string hook;                // no default
+  interned_string pf; // no default
+  interned_string priority = "0";      // Default: somewhere in the middle
 
   if(!get_param(parameters, TOK_HOOK, hook))
     throw SEMANTIC_ERROR (_("missing hooknum"));

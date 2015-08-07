@@ -32,7 +32,19 @@ namespace std {
   namespace tr1 {
     template<> struct hash<interned_string> {
       size_t operator() (interned_string s) const
-      { hash<std::string> h; return h(s.to_string()); } // XXX: optimize
+      {
+        // NB: we'd love to be able to hook up to a blob hashing
+        // function in std::tr1, but there isn't one.  We don't want
+        // to copy the interned_string into a temporary string just to
+        // hash the thing.
+        //
+        // This code is based on the g++ _Fnv_hash_base ptr/length case.
+        size_t hash = 0;
+        const char* x = s.data();
+        for (size_t i=s.length(); i>0; i--)
+          hash = (hash * 131) + *x++;
+        return hash;
+      }
     };
   }
 }
@@ -60,7 +72,14 @@ namespace __gnu_cxx
   };
   template<> struct hash<interned_string> {
     size_t operator() (interned_string s) const
-    { hash<std::string> h; return h(s.to_string()); } // XXX: optimize
+    {
+      // same as above for std::tr1:: case
+      size_t hash = 0;
+      const char* x = s.data();
+      for (size_t i=s.length(); i>0; i--)
+        hash = (hash * 131) + *x++;
+      return hash;
+    }
   };
 }
 

@@ -35,12 +35,12 @@ static const string TOK_BLOCK("block");
 struct itrace_derived_probe: public derived_probe
 {
   bool has_path;
-  string path;
+  interned_string path;
   int64_t pid;
   int single_step;
 
   itrace_derived_probe (systemtap_session &s, probe* p, probe_point* l,
-                        bool hp, string &pn, int64_t pd, int ss
+                        bool hp, interned_string pn, int64_t pd, int ss
 			);
   void join_group (systemtap_session& s);
 };
@@ -69,7 +69,7 @@ public:
 
 itrace_derived_probe::itrace_derived_probe (systemtap_session &s,
                                             probe* p, probe_point* l,
-                                            bool hp, string &pn, int64_t pd,
+                                            bool hp, interned_string pn, int64_t pd,
 					    int ss
 					    ):
   derived_probe(p, l), has_path(hp), path(pn), pid(pd), single_step(ss)
@@ -97,10 +97,10 @@ struct itrace_builder: public derived_probe_builder
   virtual void build(systemtap_session & sess,
 		     probe * base,
 		     probe_point * location,
-		     std::map<std::string, literal *> const & parameters,
+		     literal_map_t const & parameters,
 		     vector<derived_probe *> & finished_results)
   {
-    string path, path_tgt;
+    interned_string path, path_tgt;
     int64_t pid = 0;
     int single_step;
 

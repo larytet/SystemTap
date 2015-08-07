@@ -28,16 +28,10 @@ stringtable_t stringtable;
 // because std::set<> guarantees iterator validity across inserts,
 // which means that our value strings stay put.
 
-static interned_string intern(const string& value)
+interned_string interned_string::intern(const string& value)
 {
-  // check the string table for exact match
-  stringtable_t::iterator it = stringtable.find(value);
-  if (it != stringtable.end())
-    return interned_string (string_ref (it->data(), it->length()));
-
-  // alas ... no joy ... insert into set
-  it = (stringtable.insert(value)).first; // persistent iterator!
-  return interned_string (string_ref (it->data(), it->length()));
+  stringtable_t::iterator it = (stringtable.insert(value)).first; // persistent iterator!
+  return interned_string (string_ref (it->data(), it->length())); // hope for RVO/elision
 
   // XXX: for future consideration, consider searching the stringtable
   // for instances where 'value' is a substring.  We could string_ref
@@ -47,24 +41,11 @@ static interned_string intern(const string& value)
 }
 
 
-interned_string::interned_string(): string_ref(), _c_str(0)
-{
-}
-
-
 interned_string::interned_string(const char* value): string_ref(intern(value)), _c_str(0)
 {
 }
                                                                 
 interned_string::interned_string(const string& value): string_ref(intern(value)), _c_str(0)
-{
-}
-
-interned_string::interned_string(const interned_string& value): string_ref(value), _c_str(0)
-{
-}
-
-interned_string::interned_string(const boost::string_ref& value): string_ref(value), _c_str(0)
 {
 }
 
@@ -80,17 +61,10 @@ interned_string& interned_string::operator = (const char* value)
   return *this;
 }
 
-interned_string::~interned_string()
-{
-  free (_c_str);
-}
-
-// easy out-conversion operators
-interned_string::operator std::string () const
-{
-  return this->to_string();
-}
-
+// The result of c_str() is basically strdup()'d, in anticipation
+// that interning may result in string_refs that are not followed by \0,
+// so we can't just pass back ->data().  The strdup()'d memory is
+// saved in a member variable and freed in the destructor.
 const char* interned_string::c_str() const
 {
   free (_c_str);

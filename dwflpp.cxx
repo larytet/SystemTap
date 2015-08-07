@@ -4154,10 +4154,10 @@ in_kprobes_function(systemtap_session& sess, Dwarf_Addr addr)
 
 
 enum dwflpp::blacklisted_type
-dwflpp::blacklisted_p(const string& funcname,
-                      const string& filename,
+dwflpp::blacklisted_p(interned_string funcname,
+                      interned_string filename,
                       int,
-                      const string& module,
+                      interned_string module,
                       Dwarf_Addr addr,
                       bool has_return)
 {
@@ -4460,7 +4460,7 @@ dwflpp::get_blacklist_section(Dwarf_Addr addr)
           if (! (offset >= start && offset < end))
             continue;
 
-          blacklist_section =  elf_strptr (elf, shstrndx, shdr->sh_name);
+          blacklist_section = elf_strptr (elf, shstrndx, shdr->sh_name);
           break;
         }
     }
@@ -4529,7 +4529,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
 
 
 Dwarf_Addr
-dwflpp::relocate_address(Dwarf_Addr dw_addr, string& reloc_section)
+dwflpp::relocate_address(Dwarf_Addr dw_addr, interned_string& reloc_section)
 {
   // PR10273
   // libdw address, so adjust for bias gotten from dwfl_module_getdwarf

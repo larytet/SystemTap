@@ -625,9 +625,9 @@ mark_builder::build(systemtap_session & sess,
 		    literal_map_t const & parameters,
 		    vector<derived_probe *> & finished_results)
 {
-  string mark_str_val;
+  interned_string mark_str_val;
   bool has_mark_str = get_param (parameters, TOK_MARK, mark_str_val);
-  string mark_format_val;
+  interned_string mark_format_val;
   bool has_mark_format = get_param (parameters, TOK_FORMAT, mark_format_val);
   assert (has_mark_str);
   (void) has_mark_str;

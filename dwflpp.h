@@ -473,14 +473,14 @@ struct dwflpp
        blacklisted_file
     };
 
-  blacklisted_type blacklisted_p(const std::string& funcname,
-                                 const std::string& filename,
+  blacklisted_type blacklisted_p(interned_string funcname,
+                                 interned_string filename,
                                  int line,
-                                 const std::string& module,
+                                 interned_string module,
                                  Dwarf_Addr addr,
                                  bool has_return);
 
-  Dwarf_Addr relocate_address(Dwarf_Addr addr, std::string& reloc_section);
+  Dwarf_Addr relocate_address(Dwarf_Addr addr, interned_string& reloc_section);
 
   void resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
                                           Dwarf_Die *innerdie,

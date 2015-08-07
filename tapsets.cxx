@@ -406,23 +406,23 @@ struct
 symbol_table
 {
   module_info *mod_info;	// associated module
-  multimap<interned_string, func_info*> map_by_name;
+  unordered_multimap<interned_string, func_info*> map_by_name;
   multimap<Dwarf_Addr, func_info*> map_by_addr;
-  map<interned_string, Dwarf_Addr> globals;
-  map<interned_string, Dwarf_Addr> locals;
+  unordered_map<interned_string, Dwarf_Addr> globals;
+  unordered_map<interned_string, Dwarf_Addr> locals;
   typedef multimap<Dwarf_Addr, func_info*>::iterator iterator_t;
   typedef pair<iterator_t, iterator_t> range_t;
   // Section describing function descriptors.
   // Set to SHN_UNDEF if there is no such section.
   GElf_Word opd_section;
-  void add_symbol(const char *name, bool weak, bool descriptor,
+  void add_symbol(interned_string name, bool weak, bool descriptor,
                   Dwarf_Addr addr, Dwarf_Addr entrypc);
   enum info_status get_from_elf();
   void prepare_section_rejection(Dwfl_Module *mod);
   bool reject_section(GElf_Word section);
   void purge_syscall_stubs();
-  set <func_info*> lookup_symbol(const string& name);
-  set <Dwarf_Addr> lookup_symbol_address(const string& name);
+  set <func_info*> lookup_symbol(interned_string name);
+  set <Dwarf_Addr> lookup_symbol_address(interned_string name);
   func_info *get_func_containing_address(Dwarf_Addr addr);
   func_info *get_first_func();
 
@@ -471,28 +471,28 @@ struct dwarf_var_expanding_visitor;
 
 struct dwarf_derived_probe: public derived_probe
 {
-  dwarf_derived_probe (const string& function,
-                       const string& filename,
+  dwarf_derived_probe (interned_string function,
+                       interned_string filename,
                        int line,
-                       const string& module,
-                       const string& section,
+                       interned_string module,
+                       interned_string section,
 		       Dwarf_Addr dwfl_addr,
 		       Dwarf_Addr addr,
 		       dwarf_query & q,
                        Dwarf_Die* scope_die);
 
-  string module;
-  string section;
+  interned_string module;
+  interned_string section;
   Dwarf_Addr addr;
-  string path;
+  interned_string path;
   bool has_process;
   bool has_return;
   bool has_maxactive;
   bool has_library;
   long maxactive_val;
   // dwarf_derived_probe_group::emit_module_decls uses this to emit sdt kprobe definition
-  string user_path;
-  string user_lib;
+  interned_string user_path;
+  interned_string user_lib;
   bool access_vars;
 
   unsigned saved_longs, saved_strings;
@@ -546,11 +546,11 @@ struct uprobe_derived_probe: public dwarf_derived_probe
 {
   int pid; // 0 => unrestricted
 
-  uprobe_derived_probe (const string& function,
-                        const string& filename,
+  uprobe_derived_probe (interned_string function,
+                        interned_string filename,
                         int line,
-                        const string& module,
-                        const string& section,
+                        interned_string module,
+                        interned_string section,
                         Dwarf_Addr dwfl_addr,
                         Dwarf_Addr addr,
                         dwarf_query & q,
@@ -578,8 +578,8 @@ private:
 struct dwarf_derived_probe_group: public derived_probe_group
 {
 private:
-  multimap<string,dwarf_derived_probe*> probes_by_module;
-  typedef multimap<string,dwarf_derived_probe*>::iterator p_b_m_iterator;
+  unordered_multimap<interned_string,dwarf_derived_probe*> probes_by_module;
+  typedef unordered_multimap<interned_string,dwarf_derived_probe*>::iterator p_b_m_iterator;
 
 public:
   dwarf_derived_probe_group() {}
@@ -610,15 +610,15 @@ struct base_query
 
   // Parameter extractors.
   static bool has_null_param(literal_map_t const & params,
-                             string const & k);
+                             interned_string k);
   static bool get_string_param(literal_map_t const & params,
-			       string const & k, string & v);
+			       interned_string k, interned_string &v);
   static bool get_number_param(literal_map_t const & params,
-			       string const & k, long & v);
+			       interned_string k, long & v);
   static bool get_number_param(literal_map_t const & params,
-			       string const & k, long long & v);
+			       interned_string k, long long & v);
   static bool get_number_param(literal_map_t const & params,
-			       string const & k, Dwarf_Addr & v);
+			       interned_string k, Dwarf_Addr & v);
   static void query_library_callback (base_query *me, const char *data);
   static void query_plt_callback (base_query *me, const char *link, size_t addr);
   virtual void query_library (const char *data) = 0;
@@ -632,9 +632,9 @@ struct base_query
   bool has_library;
   bool has_plt;
   bool has_statement;
-  string module_val; // has_kernel => module_val = "kernel"
-  string path;	     // executable path if module is a .so
-  string plt_val;    // has_plt => plt wildcard
+  interned_string  module_val; // has_kernel => module_val = "kernel"
+  interned_string  path;	     // executable path if module is a .so
+  interned_string  plt_val;    // has_plt => plt wildcard
   int64_t pid_val;
 
   virtual void handle_query_module() = 0;
@@ -653,7 +653,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
     has_process = false;
   else
     {
-      string library_name;
+      interned_string library_name;
       long statement_num_val;
       has_process =  derived_probe_builder::has_param(params, TOK_PROCESS);
       has_library = get_string_param (params, TOK_LIBRARY, library_name);
@@ -721,7 +721,7 @@ base_query::base_query(dwflpp & dw, const string & module_val)
 
 bool
 base_query::has_null_param(literal_map_t const & params,
-			   string const & k)
+			   interned_string k)
 {
   return derived_probe_builder::has_null_param(params, k);
 }
@@ -729,7 +729,7 @@ base_query::has_null_param(literal_map_t const & params,
 
 bool
 base_query::get_string_param(literal_map_t const & params,
-			     string const & k, string & v)
+			     interned_string k, interned_string & v)
 {
   return derived_probe_builder::get_param (params, k, v);
 }
@@ -737,7 +737,7 @@ base_query::get_string_param(literal_map_t const & params,
 
 bool
 base_query::get_number_param(literal_map_t const & params,
-			     string const & k, long & v)
+			     interned_string k, long & v)
 {
   int64_t value;
   bool present = derived_probe_builder::get_param (params, k, value);
@@ -748,7 +748,7 @@ base_query::get_number_param(literal_map_t const & params,
 
 bool
 base_query::get_number_param(literal_map_t const & params,
-			     string const & k, long long & v)
+			     interned_string k, long long & v)
 {
   int64_t value;
   bool present = derived_probe_builder::get_param (params, k, value);
@@ -759,7 +759,7 @@ base_query::get_number_param(literal_map_t const & params,
 
 bool
 base_query::get_number_param(literal_map_t const & params,
-			     string const & k, Dwarf_Addr & v)
+			     interned_string k, Dwarf_Addr & v)
 {
   int64_t value;
   bool present = derived_probe_builder::get_param (params, k, value);
@@ -774,15 +774,15 @@ struct dwarf_query : public base_query
 	      dwflpp & dw,
 	      literal_map_t const & params,
 	      vector<derived_probe *> & results,
-	      const string user_path,
-	      const string user_lib);
+	      interned_string user_path,
+	      interned_string user_lib);
 
   vector<derived_probe *> & results;
-  set<string> inlined_non_returnable; // function names
+  set<interned_string> inlined_non_returnable; // function names
   probe * base_probe;
   probe_point * base_loc;
-  string user_path;
-  string user_lib;
+  interned_string user_path;
+  interned_string user_lib;
 
   set<string> visited_libraries;
   bool resolved_library;
@@ -793,8 +793,8 @@ struct dwarf_query : public base_query
   void query_library (const char *data);
   void query_plt (const char *entry, size_t addr);
 
-  void add_probe_point(const string & funcname,
-		       const string & filename,
+  void add_probe_point(interned_string funcname,
+		       interned_string filename,
 		       int line,
 		       Dwarf_Die *scope_die,
 		       Dwarf_Addr addr);
@@ -803,19 +803,19 @@ struct dwarf_query : public base_query
   void unmount_well_formed_probe_point();
   stack<pair<probe_point*, probe*> > previous_bases;
 
-  void replace_probe_point_component_arg(const string& functor,
-                                         const string& new_functor,
+  void replace_probe_point_component_arg(interned_string functor,
+                                         interned_string new_functor,
                                          int64_t new_arg,
                                          bool hex = false);
-  void replace_probe_point_component_arg(const string& functor,
+  void replace_probe_point_component_arg(interned_string functor,
                                          int64_t new_arg,
                                          bool hex = false);
-  void replace_probe_point_component_arg(const string& functor,
-                                         const string& new_functor,
-                                         const string& new_arg);
-  void replace_probe_point_component_arg(const string& functor,
-                                         const string& new_arg);
-  void remove_probe_point_component(const string& functor);
+  void replace_probe_point_component_arg(interned_string functor,
+                                         interned_string new_functor,
+                                         interned_string new_arg);
+  void replace_probe_point_component_arg(interned_string functor,
+                                         interned_string new_arg);
+  void remove_probe_point_component(interned_string functor);
 
   // Track addresses we've already seen in a given module
   set<Dwarf_Addr> alias_dupes;
@@ -835,8 +835,8 @@ struct dwarf_query : public base_query
   bool has_statement_str;
   bool has_function_num;
   bool has_statement_num;
-  string statement_str_val;
-  string function_str_val;
+  interned_string statement_str_val;
+  interned_string function_str_val;
   Dwarf_Addr statement_num_val;
   Dwarf_Addr function_num_val;
 
@@ -851,10 +851,10 @@ struct dwarf_query : public base_query
   long maxactive_val;
 
   bool has_label;
-  string label_val;
+  interned_string label_val;
 
   bool has_callee;
-  string callee_val;
+  interned_string callee_val;
 
   bool has_callees_num;
   long callees_num_val;
@@ -872,8 +872,8 @@ struct dwarf_query : public base_query
   void parse_function_spec(const string & spec);
   function_spec_type spec_type;
   vector<string> scopes;
-  string function;
-  string file;
+  interned_string function;
+  interned_string file;
   lineno_t lineno_type;
   vector<int> linenos;
   bool query_done;	// Found exact match
@@ -892,19 +892,19 @@ struct dwarf_query : public base_query
 
   void query_module_functions ();
 
-  string final_function_name(const string& final_func,
-                             const string& final_file,
-                             int final_line);
+  interned_string final_function_name(interned_string final_func,
+                                      interned_string final_file,
+                                      int final_line);
 
   bool is_fully_specified_function();
 };
 
 
-uprobe_derived_probe::uprobe_derived_probe (const string& function,
-                        const string& filename,
+uprobe_derived_probe::uprobe_derived_probe (interned_string function,
+                        interned_string filename,
                         int line,
-                        const string& module,
-                        const string& section,
+                        interned_string module,
+                        interned_string section,
                         Dwarf_Addr dwfl_addr,
                         Dwarf_Addr addr,
                         dwarf_query & q,
@@ -920,8 +920,8 @@ struct dwarf_builder: public derived_probe_builder
 {
   map <string,dwflpp*> kern_dw; /* NB: key string could be a wildcard */
   map <string,dwflpp*> user_dw;
-  string user_path;
-  string user_lib;
+  interned_string user_path;
+  interned_string user_lib;
 
   // Holds modules to suggest functions from. NB: aggregates over
   // recursive calls to build() when deriving globby probes.
@@ -974,8 +974,8 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 dwflpp & dw,
 			 literal_map_t const & params,
 			 vector<derived_probe *> & results,
-			 const string user_path,
-			 const string user_lib)
+			 interned_string user_path,
+			 interned_string user_lib)
   : base_query(dw, params), results(results), base_probe(base_probe),
     base_loc(base_loc), user_path(user_path), user_lib(user_lib),
     resolved_library(false), callers(NULL), has_relative(false),
@@ -1331,16 +1331,16 @@ string path_remove_sysroot(const systemtap_session& sess, const string& path)
 }
 
 void
-dwarf_query::add_probe_point(const string& dw_funcname,
-			     const string& filename,
+dwarf_query::add_probe_point(interned_string dw_funcname,
+			     interned_string filename,
 			     int line,
 			     Dwarf_Die* scope_die,
 			     Dwarf_Addr addr)
 {
-  string reloc_section; // base section for relocation purposes
+  interned_string reloc_section; // base section for relocation purposes
   Dwarf_Addr reloc_addr; // relocated
-  const string& module = dw.module_name; // "kernel" or other
-  string funcname = dw_funcname;
+  interned_string module = dw.module_name; // "kernel" or other
+  interned_string funcname = dw_funcname;
 
   assert (! has_absolute); // already handled in dwarf_builder::build()
 
@@ -1429,7 +1429,7 @@ dwarf_query::add_probe_point(const string& dw_funcname,
 void
 dwarf_query::mount_well_formed_probe_point()
 {
-  string module = dw.module_name;
+  interned_string module = dw.module_name;
   if (has_process)
     module = path_remove_sysroot(sess, module);
 
@@ -1467,8 +1467,8 @@ dwarf_query::unmount_well_formed_probe_point()
 }
 
 void
-dwarf_query::replace_probe_point_component_arg(const string& functor,
-                                               const string& new_functor,
+dwarf_query::replace_probe_point_component_arg(interned_string functor,
+                                               interned_string new_functor,
                                                int64_t new_arg,
                                                bool hex)
 {
@@ -1484,7 +1484,7 @@ dwarf_query::replace_probe_point_component_arg(const string& functor,
 }
 
 void
-dwarf_query::replace_probe_point_component_arg(const string& functor,
+dwarf_query::replace_probe_point_component_arg(interned_string functor,
                                                int64_t new_arg,
                                                bool hex)
 {
@@ -1492,9 +1492,9 @@ dwarf_query::replace_probe_point_component_arg(const string& functor,
 }
 
 void
-dwarf_query::replace_probe_point_component_arg(const string& functor,
-                                               const string& new_functor,
-                                               const string& new_arg)
+dwarf_query::replace_probe_point_component_arg(interned_string functor,
+                                               interned_string new_functor,
+                                               interned_string new_arg)
 {
   // only allow these operations if we're editing the well-formed loc
   assert(!previous_bases.empty());
@@ -1508,14 +1508,14 @@ dwarf_query::replace_probe_point_component_arg(const string& functor,
 }
 
 void
-dwarf_query::replace_probe_point_component_arg(const string& functor,
-                                               const string& new_arg)
+dwarf_query::replace_probe_point_component_arg(interned_string functor,
+                                               interned_string new_arg)
 {
   replace_probe_point_component_arg(functor, functor, new_arg);
 }
 
 void
-dwarf_query::remove_probe_point_component(const string& functor)
+dwarf_query::remove_probe_point_component(interned_string functor)
 {
   // only allow these operations if we're editing the well-formed loc
   assert(!previous_bases.empty());
@@ -1569,9 +1569,9 @@ dwarf_query::assess_dbinfo_reqt()
   return dbr_need_dwarf;
 }
 
-string
-dwarf_query::final_function_name(const string& final_func,
-                                 const string& final_file,
+interned_string
+dwarf_query::final_function_name(interned_string final_func,
+                                 interned_string final_file,
                                  int final_line)
 {
   string final_name = final_func;
@@ -1645,8 +1645,8 @@ dwarf_query::filtered_all(void)
 // optimization.
 
 static void
-query_statement (const string & func,
-		 const string & file,
+query_statement (interned_string func,
+		 interned_string file,
 		 int line,
 		 Dwarf_Die *scope_die,
 		 Dwarf_Addr stmt_addr,
@@ -1841,7 +1841,7 @@ query_label (const base_func_info& func,
     return;
 
   // Create the final well-formed probe
-  string canon_func = q->final_function_name(func.name, file ?: "", line);
+  interned_string canon_func = q->final_function_name(func.name, file ?: "", line);
 
   q->mount_well_formed_probe_point();
   q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
@@ -1864,10 +1864,10 @@ query_callee (base_func_info& callee,
   // OK, we found a callee for a targeted caller. To help users see the
   // derivation, we add the well-formed form .function(caller).callee(callee).
 
-  string canon_caller = q->final_function_name(caller.name, caller.decl_file,
-                                               caller.decl_line);
-  string canon_callee = q->final_function_name(callee.name, callee.decl_file,
-                                               callee.decl_line);
+  interned_string canon_caller = q->final_function_name(caller.name, caller.decl_file,
+                                                        caller.decl_line);
+  interned_string canon_callee = q->final_function_name(callee.name, callee.decl_file,
+                                                        callee.decl_line);
 
   q->mount_well_formed_probe_point();
   q->replace_probe_point_component_arg(TOK_FUNCTION, canon_caller);
@@ -1897,8 +1897,8 @@ query_inline_instance_info (inline_instance_info & ii,
         clog << _F("querying entrypc %#" PRIx64 " of instance of inline '%s'\n",
                    ii.entrypc, ii.name.c_str());
 
-      string canon_func = q->final_function_name(ii.name, ii.decl_file,
-                                                 ii.decl_line);
+      interned_string canon_func = q->final_function_name(ii.name, ii.decl_file,
+                                                          ii.decl_line);
 
       q->mount_well_formed_probe_point();
       q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
@@ -1924,8 +1924,8 @@ query_func_info (Dwarf_Addr entrypc,
 
   try
     {
-      string canon_func = q->final_function_name(fi.name, fi.decl_file,
-                                                 fi.decl_line);
+      interned_string canon_func = q->final_function_name(fi.name, fi.decl_file,
+                                                          fi.decl_line);
 
       q->mount_well_formed_probe_point();
       q->replace_probe_point_component_arg(TOK_FUNCTION, canon_func);
@@ -1972,8 +1972,8 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
           Dwarf_Die scope;
           q->dw.inner_die_containing_pc(i->die, addr, scope);
 
-          string canon_func = q->final_function_name(i->name, i->decl_file,
-                                                     lineno /* NB: not i->decl_line */ );
+          interned_string canon_func = q->final_function_name(i->name, i->decl_file,
+                                                              lineno /* NB: not i->decl_line */ );
 
           if (q->has_nearest && (q->lineno_type == ABSOLUTE ||
                                  q->lineno_type == RELATIVE))
@@ -1981,9 +1981,9 @@ query_srcfile_line (Dwarf_Addr addr, int lineno, dwarf_query * q)
               int lineno_nearest = q->linenos[0];
               if (q->lineno_type == RELATIVE)
                 lineno_nearest += i->decl_line;
-              string canon_func_nearest = q->final_function_name(i->name,
-                                                                 i->decl_file,
-                                                                 lineno_nearest);
+              interned_string canon_func_nearest = q->final_function_name(i->name,
+                                                                          i->decl_file,
+                                                                          lineno_nearest);
               q->mount_well_formed_probe_point();
               q->replace_probe_point_component_arg(TOK_STATEMENT, canon_func_nearest);
             }
@@ -2643,7 +2643,7 @@ query_one_plt (const char *entry, long addr, dwflpp & dw,
     probe * base_probe, probe_point *base_loc,
     vector<derived_probe *> & results, base_query *q)
 {
-      string module = dw.module_name;
+      interned_string module = dw.module_name;
       if (q->has_process)
         module = path_remove_sysroot(dw.sess, module);
 
@@ -2729,7 +2729,7 @@ struct dwarf_var_expanding_visitor: public var_expanding_visitor
   // *_tid bools for gen_mapped_saved_return to tell what's there.
   bool add_block_tid, add_call_probe_tid;
   unsigned saved_longs, saved_strings; // data saved within kretprobes
-  map<std::string, expression *> return_ts_map;
+  unordered_map<std::string, expression *> return_ts_map;
   vector<Dwarf_Die> scopes;
   // probe counter name -> pointer of associated probe
   std::set<std::string> perf_counter_refs;
@@ -3669,7 +3669,7 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   // Check and make sure we haven't already seen this target
   // variable in this return probe.  If we have, just return our
   // last replacement.
-  map<string, expression *>::iterator i = return_ts_map.find(ts_name);
+  unordered_map<string, expression *>::iterator i = return_ts_map.find(ts_name);
   if (i != return_ts_map.end())
     {
       provide (i->second);
@@ -4932,8 +4932,8 @@ check_process_probe_kernel_support(systemtap_session& s)
 }
 
 
-dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
-                                         const string& filename,
+dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
+                                         interned_string filename,
                                          int line,
                                          // module & section specify a relocation
                                          // base for <addr>, unless section==""
@@ -4941,8 +4941,8 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
                                          // for userspace, it's a full path, for
                                          // modules, it's either a full path, or
                                          // the basename (e.g. 'btrfs')
-                                         const string& module,
-                                         const string& section,
+                                         interned_string module,
+                                         interned_string section,
                                          // NB: dwfl_addr is the virtualized
                                          // address for this symbol.
                                          Dwarf_Addr dwfl_addr,
@@ -5138,7 +5138,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
 
   if (q.has_function_str || q.has_statement_str)
       {
-        string retro_name = q.final_function_name(funcname, filename, line);
+        interned_string retro_name = q.final_function_name(funcname, filename, line);
         comps.push_back
           (new probe_point::component
            (fn_or_stmt, new literal_string (retro_name)));
@@ -5190,7 +5190,7 @@ dwarf_derived_probe::dwarf_derived_probe(const string& funcname,
           Dwarf_Addr caller = callers.top();
 
           // We first need to make the caller addr relocatable
-          string caller_section;
+          interned_string caller_section;
           Dwarf_Addr caller_reloc;
           if (module == TOK_KERNEL)
             { // allow for relocatable kernel (see also add_probe_point())
@@ -6589,8 +6589,8 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
             throw SEMANTIC_ERROR(_("can't retrieve symbol table"));
 
           assert(dw.mod_info->sym_table);
-          map<interned_string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
-          map<interned_string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
+          unordered_map<interned_string, Dwarf_Addr>& globals = dw.mod_info->sym_table->globals;
+          unordered_map<interned_string, Dwarf_Addr>& locals = dw.mod_info->sym_table->locals;
           Dwarf_Addr addr = 0;
 
           // check symtab locals then globals
@@ -6609,7 +6609,7 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               dw.get_module_dwarf(false, false);
               addr -= dw.module_bias;
 
-              string reloc_section;
+              interned_string reloc_section;
               Dwarf_Addr reloc_addr = dw.relocate_address(addr, reloc_section);
 
               // OK, we have an address for the variable. Let's create a
@@ -6850,8 +6850,8 @@ private:
   probe_point * base_loc;
   literal_map_t const & params;
   vector<derived_probe *> & results;
-  string pp_mark;
-  string pp_provider;
+  interned_string pp_mark;
+  interned_string pp_provider;
   string user_lib;
 
   set<string> probes_handled;
@@ -6910,13 +6910,15 @@ sdt_query::sdt_query(probe * base_probe, probe_point * base_loc,
   // PR10245: permit usage of dtrace-y "-" separator in marker name;
   // map it to double-underscores.
   size_t pos = 0;
+  string pp_mark2 = pp_mark; // copy for string replacement processing
   while (1) // there may be more than one
     {
-      size_t i = pp_mark.find("-", pos);
+      size_t i = pp_mark2.find("-", pos);
       if (i == string::npos) break;
-      pp_mark.replace (i, 1, "__");
+      pp_mark2.replace (i, 1, "__");
       pos = i+1; // resume searching after the inserted __
     }
+  pp_mark = pp_mark2;
 
   // XXX: same for pp_provider?
 }
@@ -7345,7 +7347,7 @@ sdt_query::convert_probe (probe *base)
 probe*
 sdt_query::convert_location ()
 {
-  string module = dw.module_name;
+  interned_string module = dw.module_name;
   if (has_process)
     module = path_remove_sysroot(sess, module);
 
@@ -7421,7 +7423,7 @@ sdt_query::convert_location ()
                                           new literal_string(string("*"))));
             derived_comps.push_back
               (new probe_point::component(TOK_LABEL,
-                                          new literal_string(string("_stapprobe1_" + pp_mark))));
+                                          new literal_string(string("_stapprobe1_") + (string)pp_mark)));
             break;
           }
       }
@@ -7592,8 +7594,8 @@ suggest_dwarf_functions(systemtap_session& sess,
       // add all function symbols in cache
       if (module->symtab_status != info_present || module->sym_table == NULL)
         continue;
-      multimap<interned_string, func_info*>& modfuncs = module->sym_table->map_by_name;
-      for (multimap<interned_string, func_info*>::const_iterator itfuncs = modfuncs.begin();
+      unordered_multimap<interned_string, func_info*>& modfuncs = module->sym_table->map_by_name;
+      for (unordered_multimap<interned_string, func_info*>::const_iterator itfuncs = modfuncs.begin();
            itfuncs != modfuncs.end(); ++itfuncs)
         funcs.insert(itfuncs->first);
     }
@@ -7663,7 +7665,7 @@ resolve_library_by_path(base_query & q,
   systemtap_session & sess = q.sess;
   dwflpp & dw = q.dw;
 
-  string lib;
+  interned_string lib;
   if (!location->from_globby_comp(TOK_LIBRARY) && q.has_library
       && !visited_libraries.empty()
       && q.get_string_param(parameters, TOK_LIBRARY, lib))
@@ -7745,7 +7747,7 @@ dwarf_builder::build(systemtap_session & sess,
   dwflpp* dw = 0;
   literal_map_t filled_parameters = parameters;
 
-  string module_name;
+  interned_string module_name;
   int64_t proc_pid;
   if (has_null_param (parameters, TOK_KERNEL))
     {
@@ -7758,8 +7760,10 @@ dwarf_builder::build(systemtap_session & sess,
       if (!is_fully_resolved(module_name, sess.sysroot, sess.sysenv))
         {
           size_t dash_pos = 0;
-          while((dash_pos=module_name.find('-'))!=string::npos)
-            module_name.replace(int(dash_pos),1,"_");
+          string module_name2 = module_name; // copy out for replace operations
+          while((dash_pos=module_name2.find('-'))!=string::npos)
+            module_name2.replace(int(dash_pos),1,"_");
+          module_name = module_name2;
           filled_parameters[TOK_MODULE] = new literal_string(module_name);
         }
 
@@ -7807,7 +7811,7 @@ dwarf_builder::build(systemtap_session & sess,
       // we get the module_name out.
       else if (get_param (parameters, TOK_PROCESS, module_name))
         {
-          module_name = sess.sysroot + module_name;
+          module_name = (string)sess.sysroot + (string)module_name;
           filled_parameters[TOK_PROCESS] = new literal_string(module_name);
         }
 
@@ -7886,7 +7890,7 @@ dwarf_builder::build(systemtap_session & sess,
 
           // Did we fail to find a function/plt/mark by name? Let's suggest
           // something!
-          string func;
+          interned_string func;
           if (results_pre == results_post
               && get_param(filled_parameters, TOK_FUNCTION, func)
               && !func.empty())
@@ -7915,7 +7919,7 @@ dwarf_builder::build(systemtap_session & sess,
                    && get_param(filled_parameters, TOK_MARK, func)
                    && !func.empty())
             {
-              string provider;
+              interned_string provider;
               get_param(filled_parameters, TOK_PROVIDER, provider);
 
               string sugs = suggest_marks(sess, modules_seen, func, provider);
@@ -8065,7 +8069,7 @@ dwarf_builder::build(systemtap_session & sess,
   if (sess.verbose > 3)
     clog << _F("dwarf_builder::build for %s", module_name.c_str()) << endl;
 
-  string dummy_mark_name; // NB: PR10245: dummy value, need not substitute - => __
+  interned_string dummy_mark_name; // NB: PR10245: dummy value, need not substitute - => __
   if (get_param(parameters, TOK_MARK, dummy_mark_name))
     {
       sdt_query sdtq(base, location, *dw, filled_parameters, finished_results, user_lib);
@@ -8086,7 +8090,7 @@ dwarf_builder::build(systemtap_session & sess,
       if (results_pre == finished_results.size()
           && !location->from_globby_comp(TOK_MARK))
         {
-          string provider;
+          interned_string provider;
           (void) get_param(filled_parameters, TOK_PROVIDER, provider);
 
           string sugs = suggest_marks(sess, modules_seen, dummy_mark_name, provider);
@@ -8141,11 +8145,11 @@ dwarf_builder::build(systemtap_session & sess,
       if ((results_pre == results_post) && (! sess.suppress_warnings)) // no matches; issue warning
         {
           string quicklist;
-          for (set<string>::iterator it = q.inlined_non_returnable.begin();
+          for (set<interned_string>::iterator it = q.inlined_non_returnable.begin();
                it != q.inlined_non_returnable.end();
                it++)
             {
-              quicklist += " " + (*it);
+              quicklist += " " + (string)(*it);
               if (quicklist.size() > 80) // heuristic, don't make an overlong report line
                 {
                   quicklist += " ...";
@@ -8163,7 +8167,7 @@ dwarf_builder::build(systemtap_session & sess,
                             "skipped .return probe of %u inlined functions", i_n_r, i_n_r) << endl;
       if ((sess.verbose > 3) || (sess.verbose > 2 && results_pre == results_post)) // issue details with high verbosity
         {
-          for (set<string>::iterator it = q.inlined_non_returnable.begin();
+          for (set<interned_string>::iterator it = q.inlined_non_returnable.begin();
                it != q.inlined_non_returnable.end();
                it++)
             clog << (*it) << " ";
@@ -8183,7 +8187,7 @@ dwarf_builder::build(systemtap_session & sess,
   // synthesized from a glob, i.e. only for 'real' probes. This is also
   // required because modules_seen needs to accumulate across recursive
   // calls for process(glob)[.library(glob)] probes.
-  string func;
+  interned_string func;
   if (results_pre == results_post && !location->from_globby_comp(TOK_FUNCTION)
       && get_param(filled_parameters, TOK_FUNCTION, func)
       && !func.empty())
@@ -8219,7 +8223,7 @@ symbol_table::~symbol_table()
 }
 
 void
-symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
+symbol_table::add_symbol(interned_string name, bool weak, bool descriptor,
                          Dwarf_Addr addr, Dwarf_Addr entrypc)
 {
   /* Does the target architecture have function descriptors?
@@ -8233,7 +8237,7 @@ symbol_table::add_symbol(const char *name, bool weak, bool descriptor,
     {
       // Map ".sys_foo" to "sys_foo".
       if (name[0] == '.')
-	name++;
+	name.remove_prefix(1);
 
       // Make sure we don't create duplicate func_info's
       range_t er = map_by_addr.equal_range(addr);
@@ -8324,7 +8328,6 @@ symbol_table::get_from_elf()
     {
       GElf_Sym sym;
       GElf_Word section;
-      const char *name;
       GElf_Addr addr;
       bool reject;
 
@@ -8340,14 +8343,18 @@ symbol_table::get_from_elf()
    function descriptor table. So in that case we still have to call
    reject_section. */
 #if _ELFUTILS_PREREQ (0, 158)
-      name = dwfl_module_getsym_info (mod, i, &sym, &addr, &section,
+      const char* n = dwfl_module_getsym_info (mod, i, &sym, &addr, &section,
 				      NULL, NULL);
       reject = section == SHN_UNDEF;
 #else
-      name = dwfl_module_getsym (mod, i, &sym, &section);
+      const char* n = dwfl_module_getsym (mod, i, &sym, &section);
       addr = sym.st_value;
       reject = reject_section(section);
 #endif
+      if (! n)
+        continue;
+      interned_string name = n;
+
      /*
       * For ELF ABI v2 on PPC64 LE, we need to adjust sym.st_value corresponding
       * to the bits of sym.st_other. These bits will tell us what's the offset
@@ -8360,14 +8367,14 @@ symbol_table::get_from_elf()
           && (GELF_ST_TYPE(sym.st_info) == STT_FUNC) && sym.st_other)
         entrypc += PPC64_LOCAL_ENTRY_OFFSET(sym.st_other);
 
-      if (name && GELF_ST_TYPE(sym.st_info) == STT_FUNC)
+      if (GELF_ST_TYPE(sym.st_info) == STT_FUNC)
         add_symbol(name, (GELF_ST_BIND(sym.st_info) == STB_WEAK),
                    reject, addr, entrypc);
-      if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
-               && GELF_ST_BIND(sym.st_info) == STB_GLOBAL)
+      if (GELF_ST_TYPE(sym.st_info) == STT_OBJECT
+          && GELF_ST_BIND(sym.st_info) == STB_GLOBAL)
         globals[name] = addr;
-      if (name && GELF_ST_TYPE(sym.st_info) == STT_OBJECT
-               && GELF_ST_BIND(sym.st_info) == STB_LOCAL)
+      if (GELF_ST_TYPE(sym.st_info) == STT_OBJECT
+          && GELF_ST_BIND(sym.st_info) == STB_LOCAL)
         locals[name] = addr;
     }
   return info_present;
@@ -8393,12 +8400,13 @@ symbol_table::get_first_func()
 /* Note this function filters out any symbols that are "rejected" because
    they are "descriptor" function symbols or SHN_UNDEF symbols. */
 set <func_info*>
-symbol_table::lookup_symbol(const string& name)
+symbol_table::lookup_symbol(interned_string name)
 {
   set<func_info*> fis;
-  pair <multimap<interned_string, func_info*>::iterator, multimap<interned_string, func_info*>::iterator> ret;
+  pair <unordered_multimap<interned_string, func_info*>::iterator,
+        unordered_multimap<interned_string, func_info*>::iterator> ret;
   ret = map_by_name.equal_range(name);
-  for (multimap<interned_string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
+  for (unordered_multimap<interned_string, func_info*>::iterator it = ret.first; it != ret.second; ++it)
     if (! it->second->descriptor)
       fis.insert(it->second);
   return fis;
@@ -8407,7 +8415,7 @@ symbol_table::lookup_symbol(const string& name)
 /* Filters out the same "descriptor" or SHN_UNDEF symbols as
    symbol_table::lookup_symbol.  */
 set <Dwarf_Addr>
-symbol_table::lookup_symbol_address(const string& name)
+symbol_table::lookup_symbol_address(interned_string name)
 {
   set <Dwarf_Addr> addrs;
   set <func_info*> fis = lookup_symbol(name);
@@ -8510,7 +8518,7 @@ module_info::update_symtab(cu_function_cache_t *funcs)
       // too.  DW_AT_linkage_name (or w/ MIPS) can help, but that's sometimes
       // missing, so we may also need to try matching by address.  See also the
       // notes about _Z in dwflpp::iterate_over_functions().
-      const string& name = dwarf_linkage_name(&func->second) ?: func->first;
+      interned_string name = dwarf_linkage_name(&func->second) ?: func->first;
 
       set<func_info*> fis = sym_table->lookup_symbol(name);
       if (fis.empty())
@@ -8554,7 +8562,7 @@ struct uprobe_derived_probe_group: public generic_dpg<uprobe_derived_probe>
 {
 private:
   string make_pbm_key (uprobe_derived_probe* p) {
-    return p->path + "|" + p->module + "|" + p->section + "|" + lex_cast(p->pid);
+    return (string)p->path + "|" + (string)p->module + "|" + (string)p->section + "|" + (string)lex_cast(p->pid);
   }
 
   void emit_module_maxuprobes (systemtap_session& s);
@@ -9282,7 +9290,7 @@ struct kprobe_derived_probe: public derived_probe
 			vector<derived_probe *> & results,
 			probe *base,
 			probe_point *location,
-			const string& name,
+			interned_string name,
 			int64_t stmt_addr,
 			bool has_call,
 			bool has_return,
@@ -9344,7 +9352,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    vector<derived_probe *> & results,
 					    probe *base,
 					    probe_point *location,
-					    const string& name,
+					    interned_string name,
 					    int64_t stmt_addr,
 					    bool has_call,
 					    bool has_return,
@@ -9388,8 +9396,8 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
       size_t pos = name.find(':');
       if (pos != string::npos)
         {
-          string module = name.substr(0, pos);
-          string function = name.substr(pos + 1);
+          interned_string module = name.substr(0, pos);
+          interned_string function = name.substr(pos + 1);
           comps.push_back (new probe_point::component(TOK_MODULE, new literal_string(module)));
           comps.push_back (new probe_point::component(TOK_FUNCTION, new literal_string(function)));
         }
@@ -9845,8 +9853,8 @@ kprobe_builder::build(systemtap_session & sess,
 		      literal_map_t const & parameters,
 		      vector<derived_probe *> & finished_results)
 {
-  string function_string_val, module_string_val;
-  string path, library, path_tgt, library_tgt;
+  interned_string function_string_val, module_string_val;
+  interned_string path, library, path_tgt, library_tgt;
   int64_t statement_num_val = 0, maxactive_val = 0;
   bool has_function_str, has_module_str, has_statement_num;
   bool has_absolute, has_call, has_return, has_maxactive;
@@ -9878,7 +9886,7 @@ kprobe_builder::build(systemtap_session & sess,
     {
       if (has_module_str)
         {
-	  function_string_val = module_string_val + ":" + function_string_val;
+	  function_string_val = (string)module_string_val + ":" + (string)function_string_val;
 	  derived_probe *dp
 	    = new kprobe_derived_probe (sess, finished_results, base,
 					location, function_string_val,
@@ -10290,7 +10298,7 @@ hwbkpt_builder::build(systemtap_session & sess,
 		      literal_map_t const & parameters,
 		      vector<derived_probe *> & finished_results)
 {
-  string symbol_str_val;
+  interned_string symbol_str_val;
   int64_t hwbkpt_address, len;
   bool has_addr, has_symbol_str, has_write, has_rw, has_len;
 
@@ -11606,7 +11614,7 @@ tracepoint_builder::build(systemtap_session& s,
   if (!init_dw(s))
     return;
 
-  string tracepoint;
+  interned_string tracepoint;
   assert(get_param (parameters, TOK_TRACE, tracepoint));
 
   tracepoint_query q(*dw, tracepoint, base, location, finished_results);

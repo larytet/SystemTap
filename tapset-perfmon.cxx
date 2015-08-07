@@ -300,7 +300,7 @@ perf_builder::build(systemtap_session & sess,
     throw SEMANTIC_ERROR(_("invalid perf sample period ") + lex_cast(period),
                          parameters.find(TOK_SAMPLE)->second->tok);
 
-  string var;
+  interned_string var;
   bool has_counter = get_param(parameters, TOK_COUNTER, var);
   if (var.find_first_of("*?[") != string::npos)
     throw SEMANTIC_ERROR(_("wildcard not allowed with perf probe counter component"));
@@ -326,7 +326,7 @@ perf_builder::build(systemtap_session & sess,
     }
 
   bool proc_p;
-  string proc_n;
+  interned_string proc_n;
   if ((proc_p = has_null_param(parameters, TOK_PROCESS)))
     {
       try
