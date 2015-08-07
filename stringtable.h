@@ -13,6 +13,10 @@
 #include <string>
 #include <boost/utility/string_ref.hpp> //header with string_ref
 
+// XXX: experimental tunables
+#define INTERNED_STRING_FIND_MEMMEM 1 /* perf stat indicates a very slight benefit */
+#define INTERNED_STRING_CUSTOM_HASH 1 /* maybe an abbreviated hash function for long strings? */
+
 
 struct interned_string: public boost::string_ref
 {
@@ -39,7 +43,7 @@ struct interned_string: public boost::string_ref
 
   // boost oversights
   template <typename F>
-  size_t find (F f, size_t start_pos)
+  size_t find (const F& f, size_t start_pos)
   {
     size_t x = this->substr(start_pos).find(f);
     if (x == boost::string_ref::npos)
@@ -49,11 +53,16 @@ struct interned_string: public boost::string_ref
   }
   
   template <typename F>
-  size_t find (F f)
+  size_t find (const F& f) const
   {
     return boost::string_ref::find(f);
   }
-
+  
+#if INTERNED_STRING_FIND_MEMMEM
+  size_t find (const boost::string_ref& f) const;
+  size_t find (const std::string& f) const;
+  size_t find (const char *f) const;
+#endif
   
 private:
   mutable char *_c_str; // last value copied out
