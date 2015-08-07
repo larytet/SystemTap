@@ -1830,7 +1830,7 @@ skip:
 // ------------------------------------------------------------------------
 
 void
-token::make_junk (const string new_msg)
+token::make_junk (const string& new_msg)
 {
   type = tok_junk;
   msg = new_msg;
