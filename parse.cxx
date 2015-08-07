@@ -2360,6 +2360,7 @@ parser::parse_probe_point ()
 
       // loop which reconstitutes an identifier with wildcards
       string content = t->content;
+      bool changed_p = false;
       while (1)
         {
           const token* u = peek();
@@ -2378,14 +2379,19 @@ parser::parse_probe_point ()
 
           // append u to t
           content = content + (string)u->content;
+          changed_p = true;
           
           // consume u
           swallow ();
         }
-      // get around const-ness of t:
-      token* new_t = new token(*t);
-      new_t->content = content;
-      delete t; t = new_t;
+
+      if (changed_p)
+        {
+          // We've already swallowed the first token and we're not
+          // putting it back; no one else has a copy; so we can
+          // safely overwrite its content and reuse it.
+          const_cast<token*>(t)->content = content;
+        }
 
       probe_point::component* c = new probe_point::component;
       c->functor = t->content;
