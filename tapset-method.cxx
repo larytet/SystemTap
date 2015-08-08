@@ -136,7 +136,7 @@ java_builder::build (systemtap_session & sess,
     }
   int64_t _java_pid = 0;
   interned_string _java_proc_class = "";
-  interned_string short_method_str = method_str_val.substr (0, short_method_pos);
+  // interned_string short_method_str = method_str_val.substr (0, short_method_pos);
   interned_string class_str_val; // fully qualified class string
   bool has_class_str = get_param (parameters, TOK_CLASS, class_str_val);
   bool has_pid_int = get_param (parameters, TOK_JAVA, _java_pid);
