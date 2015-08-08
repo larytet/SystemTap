@@ -19,7 +19,7 @@ using namespace std;
 using namespace boost;
 
 
-#ifdef INTERNED_STRING_INSTRUMENT
+#if INTERNED_STRING_INSTRUMENT
 bool whitespace_p (char c)
 {
   return isspace(c);
@@ -58,7 +58,7 @@ struct stringtable_hash
     // the ends, especially of generated bits, are likely to be } } }
     // \n kinds of similar things
 
-#ifdef INTERNED_STRING_INSTRUMENT
+#if INTERNED_STRING_INSTRUMENT
     ofstream f ("/tmp/hash.log", ios::app);
     string s = c.substr(0,32);
     s.erase (remove_if(s.begin(), s.end(), whitespace_p), s.end());
