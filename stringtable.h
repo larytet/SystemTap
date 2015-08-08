@@ -16,7 +16,7 @@
 // XXX: experimental tunables
 #define INTERNED_STRING_FIND_MEMMEM 1 /* perf stat indicates a very slight benefit */
 #define INTERNED_STRING_CUSTOM_HASH 1 /* maybe an abbreviated hash function for long strings? */
-
+#define INTERNED_STRING_INSTRUMENT 0 /* write out hash logs ... super super slow */
 
 struct interned_string: public boost::string_ref
 {

@@ -12,10 +12,20 @@
 
 #include <string>
 #include <cstring>
+#include <fstream>
 
 
 using namespace std;
 using namespace boost;
+
+
+#ifdef INTERNED_STRING_INSTRUMENT
+bool whitespace_p (char c)
+{
+  return isspace(c);
+}
+#endif
+
 
 #if INTERNED_STRING_CUSTOM_HASH
 // A custom hash 
@@ -24,7 +34,7 @@ struct stringtable_hash
   size_t operator()(const string& c) const {
     const char* b = c.data();
     size_t real_length = c.size();
-    const size_t blocksize = 64; // a cache line or two
+    const size_t blocksize = 32; // a cache line or two
 
     // hash the length
     size_t hash = real_length;
@@ -36,11 +46,26 @@ struct stringtable_hash
     while (length-- > 0)
       hash = (hash * 131) + *b++;
 
-    // hash the last byte
-    hash = (hash * 131) + *(c.data() + real_length - 1);
-    
-    // XXX: hash the middle / end too?
-    
+    // hash the middle
+    if (real_length > blocksize * 3)
+      {
+        length = blocksize; // more likely not to span a cache line
+        b = (const char*)c.data() + (real_length/2);
+        while (length-- > 0)
+          hash = (hash * 131) + *b++;
+      }
+
+    // the ends, especially of generated bits, are likely to be } } }
+    // \n kinds of similar things
+
+#ifdef INTERNED_STRING_INSTRUMENT
+    ofstream f ("/tmp/hash.log", ios::app);
+    string s = c.substr(0,32);
+    s.erase (remove_if(s.begin(), s.end(), whitespace_p), s.end());
+    f << hash << " " << c.length() << " " << s << endl;
+    f.close();
+#endif
+      
     return hash;
   }
 };
@@ -51,6 +76,11 @@ typedef unordered_set<std::string> stringtable_t;
 
 
 stringtable_t stringtable;
+// XXX: set a larger initial size?  For reference, a
+//
+//    probe kernel.function("*") {}
+//
+// can intern some 450,000 entries.
 
 
 // Generate a long-lived string_ref for the given input string.  In
