@@ -2130,15 +2130,10 @@ systemtap_session::print_error_source (std::ostream& message,
 
   size_t start_pos = 0, end_pos = 0;
   //Navigate to the appropriate line
-  interned_string file_contents_line = file_contents;
   while (i != line && end_pos != std::string::npos)
     {
       start_pos = end_pos;
-      end_pos = file_contents_line.find ('\n');
-      if (end_pos == interned_string::npos)
-        break;
-      file_contents_line = file_contents_line.substr(end_pos); // restart at next line
-      end_pos ++;
+      end_pos = file_contents.find ('\n', start_pos) + 1;
       i++;
     }
   //TRANSLATORS: Here we are printing the source string of the error
@@ -2164,7 +2159,6 @@ systemtap_session::print_error_source (std::ostream& message,
         message << " ... ";
         col += 5; // line up with the caret
         message << colorize(tok->content, "token");
-
         message << " ... " << srcline_rest;
         message << endl;
       }
@@ -2273,17 +2267,17 @@ systemtap_session::build_error_msg (const parse_error& pe,
 
   if (pe.tok || found_junk)
     {
-      message << _("\tat: ") << colorize(tok) << endl;
+      message << align_parse_error << _("    at: ") << colorize(tok) << endl;
       print_error_source (message, align_parse_error, tok);
     }
   else if (tok) // "expected" type error
     {
-      message << _("\tsaw: ") << colorize(tok) << endl;
+      message << align_parse_error << _("   saw: ") << colorize(tok) << endl;
       print_error_source (message, align_parse_error, tok);
     }
   else
     {
-      message << _("\tsaw: ") << input_name << " EOF" << endl;
+      message << align_parse_error << _("   saw: ") << input_name << " EOF" << endl;
     }
   message << endl;
 
