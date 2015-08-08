@@ -144,6 +144,6 @@ Peculiarities
   
   OTOH, it costs CPU (for management of the interned string set, or if
   copied between std::string and interned_string unnecessarily), and
-  RAM (3 pointers when empty, vs. 1 for std::string), and its
+  RAM (2 pointers when empty, vs. 1 for std::string), and its
   instances are not modifiable, so tradeoffs must be confirmed with
   tools like memusage, massif, perf-stat, etc.

@@ -21,25 +21,20 @@
 struct interned_string: public boost::string_ref
 {
   // all these construction operations intern the incoming string
-  interned_string(): boost::string_ref(), _c_str(0) {}
+  interned_string(): boost::string_ref() {}
   interned_string(const char* value);
   interned_string(const std::string& value);
-  interned_string(const boost::string_ref& value): boost::string_ref(value), _c_str(0) {}
-  interned_string(const interned_string& value): boost::string_ref(value), _c_str(0) {}
-  interned_string& operator = (const interned_string& value) {
-    if (&value==this) return *this;
-    boost::string_ref::operator = (value);
-    // NB: don't propagate _c_str!
-    return *this;
-  }
+  interned_string(const boost::string_ref& value): boost::string_ref(value) {}
+  interned_string(const interned_string& value): boost::string_ref(value) {}
   interned_string& operator = (const std::string& value);
   interned_string& operator = (const char* value);
   
-  ~interned_string() { if (_c_str) free (_c_str); }
-  
   // easy out-conversion operators
   operator std::string () const { return this->to_string(); }
-  const char* c_str() const;
+
+  // NB: this is OK because we always use a std::string as a backing
+  // store, and as of c++0x, those always store a \0 in their data().
+  const char* c_str() const { return this->size() ? (const char*)this->data() : ""; }
 
   // boost oversights
   template <typename F>
@@ -65,7 +60,6 @@ struct interned_string: public boost::string_ref
 #endif
   
 private:
-  mutable char *_c_str; // last value copied out
   interned_string intern(const std::string& value);
 };
 

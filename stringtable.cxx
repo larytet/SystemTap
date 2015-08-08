@@ -103,11 +103,11 @@ interned_string interned_string::intern(const string& value)
 }
 
 
-interned_string::interned_string(const char* value): string_ref(intern(value)), _c_str(0)
+interned_string::interned_string(const char* value): string_ref(intern(value))
 {
 }
                                                                 
-interned_string::interned_string(const string& value): string_ref(intern(value)), _c_str(0)
+interned_string::interned_string(const string& value): string_ref(intern(value))
 {
 }
 
@@ -155,17 +155,5 @@ size_t interned_string::find (const char *f) const
 }
 #endif
 
-// The result of c_str() is basically strdup()'d, in anticipation
-// that interning may result in string_refs that are not followed by \0,
-// so we can't just pass back ->data().  The strdup()'d memory is
-// saved in a member variable and freed in the destructor.
-const char* interned_string::c_str() const
-{
-  free (_c_str);
-  _c_str = (char*) malloc(this->length()+1);
-  strncpy(_c_str, this->data(), this->length());
-  _c_str[this->length()]='\0';
-  return _c_str;
-}
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */
