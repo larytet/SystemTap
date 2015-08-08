@@ -103,7 +103,7 @@ interned_string interned_string::intern(const string& value)
 }
 
 
-interned_string::interned_string(const char* value): string_ref(intern(value))
+interned_string::interned_string(const char* value): string_ref(intern(value ?: ""))
 {
 }
                                                                 
@@ -119,7 +119,7 @@ interned_string& interned_string::operator = (const std::string& value)
 
 interned_string& interned_string::operator = (const char* value)
 {
-  *this = intern(value);
+  *this = intern(value ?: "");
   return *this;
 }
 
