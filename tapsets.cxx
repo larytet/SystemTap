@@ -598,7 +598,7 @@ public:
 struct base_query
 {
   base_query(dwflpp & dw, literal_map_t const & params);
-  base_query(dwflpp & dw, const string & module_val);
+  base_query(dwflpp & dw, interned_string module_val);
   virtual ~base_query() {}
 
   systemtap_session & sess;
@@ -700,7 +700,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
   assert (has_kernel || has_process || has_module);
 }
 
-base_query::base_query(dwflpp & dw, const string & module_val)
+base_query::base_query(dwflpp & dw, interned_string module_val)
   : sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
     module_val(module_val), pid_val(0)
 {
@@ -5874,11 +5874,11 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   sdt_uprobe_var_expanding_visitor(systemtap_session& s,
                                    dwflpp& dw,
                                    int elf_machine,
-                                   const string & process_name,
-				   const string & provider_name,
-				   const string & probe_name,
+                                   interned_string process_name,
+				   interned_string provider_name,
+				   interned_string probe_name,
 				   stap_sdt_probe_type probe_type,
-				   const string & arg_string,
+				   interned_string arg_string,
 				   int ac):
     session (s), dw (dw), elf_machine (elf_machine),
     process_name (process_name), provider_name (provider_name),
@@ -5905,9 +5905,9 @@ struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
   systemtap_session& session;
   dwflpp& dw;
   int elf_machine;
-  const string & process_name;
-  const string & provider_name;
-  const string & probe_name;
+  interned_string process_name;
+  interned_string provider_name;
+  interned_string probe_name;
   stap_sdt_probe_type probe_type;
   unsigned arg_count;
   vector<string> arg_tokens;
@@ -6745,7 +6745,7 @@ sdt_uprobe_var_expanding_visitor::visit_target_symbol_arg (target_symbol *e)
           cast->tok = e->tok;
           cast->operand = argexpr;
           cast->components = e->components;
-          cast->type_name = probe_name + "_arg" + lex_cast(argno);
+          cast->type_name = (string)probe_name + "_arg" + lex_cast(argno);
           cast->module = process_name;
           cast->visit(this);
         }
