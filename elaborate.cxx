@@ -4257,6 +4257,7 @@ void stable_finder::visit_functioncall (functioncall* e)
 {
   if (stable_fcs.find(e->function) != stable_fcs.end())
     stable = true;
+  traversing_visitor::visit_functioncall(e);
 }
 
 // Examines current level of block for stable functioncalls.
@@ -4315,6 +4316,7 @@ void level_check::visit_functioncall (functioncall* e)
 {
   if (stable_fcs.find(e->function) != stable_fcs.end())
     stable = true;
+  traversing_visitor::visit_functioncall(e);
 }
 
 struct stable_functioncall_visitor: public update_visitor
@@ -4449,6 +4451,9 @@ void stable_functioncall_visitor::visit_foreach_loop (foreach_loop* s)
 
 void stable_functioncall_visitor::visit_functioncall (functioncall* e)
 {
+  for (unsigned i = 0; i < e->args.size(); ++i)
+    replace (e->args[i]);
+
   if (stable_fcs.find(e->function) != stable_fcs.end())
     {
       string name("__stable_");
