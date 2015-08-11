@@ -3,6 +3,7 @@
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <linux/version.h>
 
 int main()
 {
@@ -15,6 +16,7 @@ int main()
     // language function that we can't probe. This was changed in
     // 2.6.22.
 #if defined(__NR_uselib) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
+#define uselib(x) syscall(__NR_uselib,x)
     uselib("blah");
     //staptest// [[[[uselib ("blah") = -NNNN!!!!ni_syscall () = -NNNN (ENOSYS)]]]]
 

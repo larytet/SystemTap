@@ -9,6 +9,9 @@
 #include <asm/prctl.h>
 #include <sys/prctl.h>
 
+// This decl is missing from glibc; it's a deprecated syscall.
+#define arch_prctl(x,y) syscall(__NR_arch_prctl,x,y)
+
 int main()
 {
     unsigned long fs;

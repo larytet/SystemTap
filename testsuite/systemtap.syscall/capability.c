@@ -9,6 +9,9 @@
 
 #include <linux/capability.h>
 
+#define capget(x,y) syscall(__NR_capget,x,y)
+#define capset(x,y) syscall(__NR_capset,x,y)
+
 static struct __user_cap_header_struct header;
 static struct __user_cap_data_struct data;
 

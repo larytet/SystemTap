@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/syscall.h>
+#include <sys/ioctl.h>
 
 #ifdef __NR_perf_event_open
 #include <linux/perf_event.h>

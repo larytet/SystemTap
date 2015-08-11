@@ -51,6 +51,8 @@ int main() {
     // its args vary between those two archs. Not all are
     // being addressed in the tapset.
 
+#define iopl(x) syscall(__NR_iopl,x)
+    
     iopl(3);
     //staptest// iopl (3) = NNNN
 
