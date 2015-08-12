@@ -156,10 +156,7 @@ public:
   std::vector<std::string> include_path;
   int include_arg_start;
   std::vector<std::string> c_macros;
-  std::string num_args;
-  std::string qstring_num_args;
   std::vector<std::string> args;
-  std::vector<std::string> qstring_args;
   std::vector<std::string> kbuildflags; // -B var=val
   std::vector<std::string> globalopts; // -G var=val
   std::vector<std::string> modinfos; // --modinfo tag=value
