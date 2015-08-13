@@ -38,10 +38,9 @@ probe kernel.function("futex_wait_setup").return {
 }
 
 probe syscall.futex.return {  
-  t = tid()
-  if (!(t in wait_keys)) next
-  key = wait_keys[t]
-  delete wait_keys[t]
+  if (!(tid() in wait_keys)) next
+  key = wait_keys[tid()]
+  delete wait_keys[tid()]
 
   cmd = $op & ~(FUTEX_PRIVATE_FLAG|FUTEX_CLOCK_REALTIME);
   if (cmd != FUTEX_WAIT) next

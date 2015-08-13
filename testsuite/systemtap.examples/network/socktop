@@ -248,48 +248,40 @@ probe socket.send
 {
 	if (!success) next
 
-	pid = pid()
-	uid = uid()
-	ename = execname()
-
 	# Check filters
 	if ('$FILTER') {
 		if ('$F_PROT' && !(protocol in f_prot)) next
 		if ('$F_FAM'  && !(family   in f_fam))  next
-		if ('$F_PID'  && !(pid      in f_pid))  next
-		if ('$F_NAME' && !(ename    in f_name)) next
-		if ('$F_UID'  && !(uid      in f_uid))  next
+    if ('$F_PID'  && !(pid()      in f_pid))  next
+    if ('$F_NAME' && !(execname()    in f_name)) next
+    if ('$F_UID'  && !(uid()      in f_uid))  next
 		if ('$F_TYPE' && !(type     in f_type)) next
 	}
 
-	execname[pid] = ename
-	user[pid] = uid
-	sk_tx[pid, protocol, family] <<< size
-	sk_pid[pid, protocol, family] += size
+  execname[pid()] = execname()
+  user[pid()] = uid()
+  sk_tx[pid(), protocol, family] <<< size
+  sk_pid[pid(), protocol, family] += size
 }
 
 probe socket.receive
 {
 	if (!success) next
 
-	pid = pid()
-	uid = uid()
-	ename = execname()
-
 	# Check filters
 	if ('$FILTER') {
 		if ('$F_PROT' && !(protocol in f_prot)) next
 		if ('$F_FAM'  && !(family   in f_fam))  next
-		if ('$F_PID'  && !(pid      in f_pid))  next
-		if ('$F_NAME' && !(ename    in f_name)) next
-		if ('$F_UID'  && !(uid      in f_uid))  next
+    if ('$F_PID'  && !(pid()      in f_pid))  next
+    if ('$F_NAME' && !(execname()    in f_name)) next
+    if ('$F_UID'  && !(uid()      in f_uid))  next
 		if ('$F_TYPE' && !(type     in f_type)) next
 	}
 
-	execname[pid] = ename
-	user[pid] = uid
-	sk_rx[pid, protocol, family] <<< size
-	sk_pid[pid, protocol, family] += size
+  execname[pid()] = execname()
+  user[pid()] = uid()
+  sk_rx[pid(), protocol, family] <<< size
+  sk_pid[pid(), protocol, family] += size
 }
 
 function print_activity()

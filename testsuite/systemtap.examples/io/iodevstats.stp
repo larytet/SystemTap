@@ -6,18 +6,16 @@ probe begin { printf("starting probe\n") }
 probe vfs.read.return {
   count = $return
   if ( count >= 0 ) {
-    e=execname();
-    reads[e,dev] <<< count # statistics array
-    totals[e,dev] += count
+    reads[execname(),dev] <<< count # statistics array
+    totals[execname(),dev] += count
   }
 }
 
 probe vfs.write.return {
   count = $return
   if (count >= 0 ) {
-    e=execname();
-    writes[e,dev] <<< count # statistics array
-    totals[e,dev] += count
+    writes[execname(),dev] <<< count # statistics array
+    totals[execname(),dev] += count
   }
 }
 

@@ -18,28 +18,26 @@ global calls, times, last_pp, region, cfg
 probe $1.function(@2).call { calls <<< 1 }
 probe $1.function(@2).return {
   t = gettimeofday_us()
-  p = tid()
-  s = times[p]
+  s = times[tid()]
   if (s) {
     e = t - s
-    region[last_pp[p]] <<< e
-    cfg[last_pp[p], pp()] <<< 1
+    region[last_pp[tid()]] <<< e
+    cfg[last_pp[tid()], pp()] <<< 1
   }
-  delete times[p]
-  delete last_pp[p]
+  delete times[tid()]
+  delete last_pp[tid()]
 }
 
 probe $1.statement(@2 "@*:*") {
   t = gettimeofday_us()
-  p = tid()
-  s = times[p]
+  s = times[tid()]
   if (s) {
     e = t - s
-    region[last_pp[p]] <<< e
-    cfg[last_pp[p], pp()] <<< 1
+    region[last_pp[tid()]] <<< e
+    cfg[last_pp[tid()], pp()] <<< 1
   }
-  times[p] = t
-  last_pp[p] = pp()
+  times[tid()] = t
+  last_pp[tid()] = pp()
 }
 
 probe end {

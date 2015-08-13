@@ -4,25 +4,22 @@ global opens, reads, writes, totals
 probe begin { printf("starting probe\n") }
 
 probe syscall.open {
-  e=execname();
-  opens[e] <<< 1 # statistics array
+  opens[execname()] <<< 1 # statistics array
 }
 
 probe syscall.read.return {
   count = $return
   if ( count >= 0 ) {
-    e=execname();
-    reads[e] <<< count # statistics array
-    totals[e] += count
+    reads[execname()] <<< count # statistics array
+    totals[execname()] += count
   }
 }
 
 probe syscall.write.return {
   count = $return
   if (count >= 0 ) {
-    e=execname();
-    writes[e] <<< count # statistics array
-    totals[e] += count
+    writes[execname()] <<< count # statistics array
+    totals[execname()] += count
   }
 }
 

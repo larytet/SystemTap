@@ -19,9 +19,8 @@ probe syscall.* {
 probe syscall.*.return {
 	errno = errno_p(returnval())
 	if (errno != 0) {
-		t = tid()
-		argstr = trace[t]
-		delete trace[t]
+		argstr = trace[tid()]
+		delete trace[tid()]
 		errstr = sprintf("%3d/%s", errno, errno_str(errno))
 		error[sprintf("%-13s %17s %15s %5d %s", errstr, name, execname(), pid(), argstr)] <<< 1
 	}

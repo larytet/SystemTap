@@ -47,9 +47,8 @@ probe kernel.trace("mm_anon_userfree") {
 
 probe begin {
   printf("Starting data collection\n")
-  traced_pid = target()
-  if (traced_pid)
-    printf("mode Specific Pid, traced pid: %d\n\n", traced_pid)
+  if (target())
+    printf("mode Specific Pid, traced pid: %d\n\n", target())
   else
     printf("mode - All Pids\n\n")
 }

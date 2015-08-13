@@ -19,12 +19,11 @@ probe begin {
 
 probe signal.send 
 {
-  snd_pid = pid()
   rcv_pid = sig_pid
 
-  sigcnt[snd_pid, rcv_pid, sig]++
+  sigcnt[pid(), rcv_pid, sig]++
 
-  if (!(snd_pid in pid2name)) pid2name[snd_pid] = execname()
+  if (!(pid() in pid2name)) pid2name[pid()] = execname()
   if (!(rcv_pid in pid2name)) pid2name[rcv_pid] = pid_name
   if (!(sig in sig2name)) sig2name[sig] = sig_name 
 }
