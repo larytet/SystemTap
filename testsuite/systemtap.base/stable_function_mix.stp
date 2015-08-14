@@ -1,14 +1,21 @@
 // stable_function_mix.stp - normal function and embedded-c function
+// including nested functioncalls
 
-global fn2_hits
+%{int f1hits = 0; %}
+global fn3_hits
 
 function fn1:long() %{
 	/* pure */ /* stable */
+  f1hits++;
 	STAP_RETURN(100);
 %}
 
-function fn2:long() {
-  fn2_hits++
+function fn2:long(x) %{
+	STAP_RETURN(STAP_ARG_x);
+%}
+
+function fn3:long() {
+  fn3_hits++
   x = fn1()
   y = fn1()
   if (x == y) {
@@ -19,7 +26,7 @@ function fn2:long() {
 
 probe begin {
   x = fn1()
-  x = fn2()
-  println(x, " ", fn2(), " ", fn2_hits)
+  x = fn3()
+  println(x, " ", fn3(), " ", fn2(fn1()), " ", %{f1hits%}, " ", fn3_hits)
 	exit()
 }
