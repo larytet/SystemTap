@@ -1,4 +1,6 @@
 * What's new in version 2.9
+- The [nd_]syscall tapset got autodocumented. Related paragraph got added to PDF
+  and HTML tapset reference. Also a new tapset::syscall 3stap man page got added.
 
 - Embedded-C functions with parameter arity-0 can now be marked
   with the /* stable */ pragma(if it has /* pure */) and functioncall
