@@ -40,7 +40,8 @@ MANPAGER=$(abs_srcdir)/manpager
 
 all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
 tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
-	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl > tapsets.xml.new
+	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl | \
+	$(abs_srcdir)/syscalls.py $(abs_srcdir)/../../stap $(abs_srcdir)/../../tapset xml > tapsets.xml.new
 	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
 	rm tapsets.xml.new
 	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
@@ -61,6 +62,8 @@ tapsets.pdf: tapsets.xml
 stamp-mandocs: tapsets.xml
 	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml
 	SRCTREE=$(SRCTREE) $(MANPAGER) # generate tapset::* pages
+	$(abs_srcdir)/syscalls.py $(abs_srcdir)/../../stap $(abs_srcdir)/../../tapset man > \
+	man_pages/tapset\:\:syscall.3stap
 	touch stamp-mandocs
 
 #FIXME need to figure out where to install things appropriately

@@ -301,6 +301,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+python = @python@
 sbindir = @sbindir@
 selinux_CFLAGS = @selinux_CFLAGS@
 selinux_LIBS = @selinux_LIBS@
@@ -583,7 +584,8 @@ uninstall-am:
 
 @BUILD_REFDOCS_TRUE@all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
 @BUILD_REFDOCS_TRUE@tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
-@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl > tapsets.xml.new
+@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl | \
+@BUILD_REFDOCS_TRUE@	$(abs_srcdir)/syscalls.py $(abs_srcdir)/../../stap $(abs_srcdir)/../../tapset xml > tapsets.xml.new
 @BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
 @BUILD_REFDOCS_TRUE@	rm tapsets.xml.new
 @BUILD_REFDOCS_TRUE@	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
@@ -604,6 +606,8 @@ uninstall-am:
 @BUILD_REFDOCS_TRUE@stamp-mandocs: tapsets.xml
 @BUILD_REFDOCS_TRUE@	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml
 @BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(MANPAGER) # generate tapset::* pages
+@BUILD_REFDOCS_TRUE@	$(abs_srcdir)/syscalls.py $(abs_srcdir)/../../stap $(abs_srcdir)/../../tapset man > \
+@BUILD_REFDOCS_TRUE@	man_pages/tapset\:\:syscall.3stap
 @BUILD_REFDOCS_TRUE@	touch stamp-mandocs
 
 #FIXME need to figure out where to install things appropriately
