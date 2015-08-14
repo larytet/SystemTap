@@ -477,6 +477,7 @@ AC_LANG_PUSH(C++)
 AC_CHECK_HEADERS([tr1/unordered_map])
 AC_CHECK_HEADERS([tr1/memory])
 AC_CHECK_HEADERS([boost/shared_ptr.hpp])
+AC_CHECK_HEADERS([boost/utility/string_ref.hpp])
 AC_LANG_POP(C++)
 
 

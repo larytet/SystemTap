@@ -11,6 +11,9 @@
 #define STRINGTABLE_H
 
 #include <string>
+#include <cstring>
+
+#if defined(HAVE_BOOST_UTILITY_STRING_REF_HPP)
 #include <boost/utility/string_ref.hpp> //header with string_ref
 
 // XXX: experimental tunables
@@ -62,8 +65,30 @@ struct interned_string: public boost::string_ref
 private:
   interned_string intern(const std::string& value);
 };
+#else /* !defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
+struct interned_string : public std::string {
+  interned_string(): std::string() {}
+  interned_string(const char* value): std::string (value ? :"") {}
+  interned_string(const std::string& value): std::string(value) {}
+  std::string to_string() const {return (std::string) *this; }
+  void remove_prefix (size_t n) {*this = this->substr(n);}
+  interned_string substr(size_t pos = 0, size_t len = npos) const
+  {
+    return (interned_string)std::string::substr(pos, len);
+  }
+  bool starts_with(const char* value) const
+  {
+    return (this->compare(0, std::strlen(value), value) == 0);
+  }
 
+  bool starts_with(const std::string& value) const
+  {
+    return (this->compare(0, value.length(), value) == 0);
+  }
+};
+
+#endif /* defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
 
 #endif // STRINGTABLE_H

@@ -16,6 +16,7 @@
 
 
 using namespace std;
+#if defined(HAVE_BOOST_UTILITY_STRING_REF_HPP)
 using namespace boost;
 
 
@@ -154,6 +155,6 @@ size_t interned_string::find (const char *f) const
     return boost::string_ref::npos;
 }
 #endif
-
+#endif /* defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

@@ -10895,6 +10895,18 @@ fi
 
 done
 
+for ac_header in boost/utility/string_ref.hpp
+do :
+  ac_fn_cxx_check_header_mongrel "$LINENO" "boost/utility/string_ref.hpp" "ac_cv_header_boost_utility_string_ref_hpp" "$ac_includes_default"
+if test "x$ac_cv_header_boost_utility_string_ref_hpp" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_BOOST_UTILITY_STRING_REF_HPP 1
+_ACEOF
+
+fi
+
+done
+
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
