@@ -1,5 +1,18 @@
 * What's new in version 2.9
 
+- Embedded-C functions with parameter arity-0 can now be marked
+  with the /* stable */ pragma(if it has /* pure */) and functioncall
+  result does not change. Functioncall result will be cached to
+  remove duplicate functioncall overhead.
+  
+  Context var get function results are also cached in non-guru
+  mode.
+
+  Selected tapset functions are now marked as /* stable */
+
+  Various systemtap example scripts modified by removing explicit
+  memoization and allowing the optimizer to perform the task.
+
 - Callee probe points now support '.return' and '.call' suffix.
   For example,
 
