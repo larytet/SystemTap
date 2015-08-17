@@ -493,6 +493,9 @@ systemtap_session::version ()
 #ifdef HAVE_LIBXML2
        << " LIBXML2"
 #endif
+#ifdef HAVE_BOOST_UTILITY_STRING_REF_HPP
+       << " BOOST_STRING_REF"
+#endif
        << endl;
 }
 
