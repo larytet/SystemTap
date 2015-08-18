@@ -460,26 +460,11 @@ systemtap_session::version ()
 #ifdef HAVE_AVAHI
        << " AVAHI"
 #endif
-#ifdef HAVE_LIBRPM
-       << " LIBRPM"
-#endif
-#ifdef HAVE_LIBSQLITE3
-       << " LIBSQLITE3"
-#endif
-#ifdef HAVE_NSS
-       << " NSS"
-#endif
 #ifdef HAVE_BOOST_SHARED_PTR_HPP
        << " BOOST_SHARED_PTR"
 #endif
-#ifdef HAVE_TR1_UNORDERED_MAP
-       << " TR1_UNORDERED_MAP"
-#endif
-#ifdef ENABLE_PROLOGUES
-       << " PROLOGUES"
-#endif
-#ifdef ENABLE_NLS
-       << " NLS"
+#ifdef HAVE_BOOST_UTILITY_STRING_REF_HPP
+       << " BOOST_STRING_REF"
 #endif
 #ifdef HAVE_DYNINST
        << " DYNINST"
@@ -487,14 +472,29 @@ systemtap_session::version ()
 #ifdef HAVE_JAVA
        << " JAVA"
 #endif
+#ifdef HAVE_LIBRPM
+       << " LIBRPM"
+#endif
+#ifdef HAVE_LIBSQLITE3
+       << " LIBSQLITE3"
+#endif
 #ifdef HAVE_LIBVIRT
        << " LIBVIRT"
 #endif
 #ifdef HAVE_LIBXML2
        << " LIBXML2"
 #endif
-#ifdef HAVE_BOOST_UTILITY_STRING_REF_HPP
-       << " BOOST_STRING_REF"
+#ifdef ENABLE_NLS
+       << " NLS"
+#endif
+#ifdef HAVE_NSS
+       << " NSS"
+#endif
+#ifdef ENABLE_PROLOGUES
+       << " PROLOGUES"
+#endif
+#ifdef HAVE_TR1_UNORDERED_MAP
+       << " TR1_UNORDERED_MAP"
 #endif
        << endl;
 }
