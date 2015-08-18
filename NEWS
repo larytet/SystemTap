@@ -33,7 +33,7 @@
   - The 'uargs' convenience variable of the 'seccomp' syscall probe
     got deprecated in favor of new 'uargs_uaddr' variable.
 
-- SystmeTap has reduced its memory consumption by using interned_strings (a
+- SystemTap has reduced its memory consumption by using interned_strings (a
   wrapper for boost::string_ref) in place of std::string instances. The change
   is to reduce the number of duplicate strings created by replacing them with
   interned_strings which act like pointers to existing strings.
