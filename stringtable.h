@@ -14,6 +14,7 @@
 #include <cstring>
 
 #if defined(HAVE_BOOST_UTILITY_STRING_REF_HPP)
+#include <boost/version.hpp>
 #include <boost/utility/string_ref.hpp> //header with string_ref
 
 // XXX: experimental tunables
@@ -31,7 +32,36 @@ struct interned_string: public boost::string_ref
   interned_string(const interned_string& value): boost::string_ref(value) {}
   interned_string& operator = (const std::string& value);
   interned_string& operator = (const char* value);
-  
+
+#if BOOST_VERSION < 105400
+  std::string to_string () const { return std::string(this->data(), this->size()); }
+
+  // some comparison operators that aren't available in boost 1.53
+  bool operator == (const char* y) { return compare(boost::string_ref(y)) == 0; }
+  bool operator == (const std::string& y) { return compare(boost::string_ref(y)) == 0; }
+  friend bool operator == (interned_string x, interned_string y) { return x.compare(y) == 0; }
+  friend  bool operator == (const char * x, interned_string y)
+  {
+    return y.compare(boost::string_ref(x)) == 0;
+  }
+  friend bool operator == (const std::string& x, interned_string y)
+  {
+    return y.compare(boost::string_ref(x)) == 0;
+  }
+
+  bool operator != (const char* y) { return compare(boost::string_ref(y)) != 0; }
+  bool operator != (const std::string& y) { return compare(boost::string_ref(y)) != 0; }
+  friend bool operator != (interned_string x, interned_string y) { return x.compare(y) != 0; }
+  friend  bool operator != (const char * x, interned_string y)
+  {
+    return y.compare(boost::string_ref(x)) != 0;
+  }
+  friend bool operator != (const std::string& x, interned_string y)
+  {
+    return y.compare(boost::string_ref(x)) != 0;
+  }
+#endif
+
   // easy out-conversion operators
   operator std::string () const { return this->to_string(); }
 
@@ -43,7 +73,8 @@ struct interned_string: public boost::string_ref
   // substrings -xor- implicit \0 terminators - not both.
   interned_string substr(size_t pos = 0, size_t len = npos) const
   {
-    return interned_string::intern (boost::string_ref::substr(pos, len).to_string());
+    boost::string_ref sub = boost::string_ref::substr(pos, len);
+    return interned_string::intern (std::string(sub.data(), sub.size()));
   }
 
   // boost oversights
