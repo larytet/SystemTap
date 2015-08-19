@@ -1,0 +1,1878 @@
+
+  <chapter id="syscalls">
+    <title>syscalls</title>
+    <para>
+Following is an overview of available syscall probes and
+convenience variables they offer. By default, each syscall probe has name and
+argstr convenience variables, which are not included in the overview in order
+to keep it short. Non dwarf-based nd_syscall probes are supposed to have the
+same convenience variables. 
+    </para>
+    <para>
+    <table frame='all'><title>Syscalls list</title>
+    <tgroup cols='2' align='left' colsep='1' rowsep='1'>
+    <colspec colname='c1' colwidth='25*' />
+    <colspec colname='c2' colwidth='75*' />
+    <thead>
+    <row>
+      <entry>syscall</entry>
+      <entry>params</entry>
+    </row>
+    </thead>
+    <tbody>
+<row><entry>
+    accept
+</entry><entry>
+    addr_uaddr, addrlen_uaddr, sockfd
+</entry></row>
+<row><entry>
+    accept4
+</entry><entry>
+    addr_uaddr, addrlen_uaddr, flags, flags_str, sockfd
+</entry></row>
+<row><entry>
+    access
+</entry><entry>
+    mode, mode_str, pathname
+</entry></row>
+<row><entry>
+    acct
+</entry><entry>
+    filename
+</entry></row>
+<row><entry>
+    add_key
+</entry><entry>
+    description_uaddr, payload_uaddr, plen, ringid, type_uaddr
+</entry></row>
+<row><entry>
+    adjtimex
+</entry><entry>
+    buf_str, buf_uaddr
+</entry></row>
+<row><entry>
+    alarm
+</entry><entry>
+    seconds
+</entry></row>
+<row><entry>
+    arch_prctl
+</entry><entry>
+    addr, code, code_str
+</entry></row>
+<row><entry>
+    bdflush
+</entry><entry>
+    data, data_str, func
+</entry></row>
+<row><entry>
+    bind
+</entry><entry>
+    addrlen, my_addr_uaddr, sockfd, uaddr_af, uaddr_ip, uaddr_ip_port, uaddr_ipv6_flowinfo, uaddr_ipv6_scope_id
+</entry></row>
+<row><entry>
+    brk
+</entry><entry>
+    brk
+</entry></row>
+<row><entry>
+    capget
+</entry><entry>
+    data_uaddr, header_uaddr
+</entry></row>
+<row><entry>
+    capset
+</entry><entry>
+    data_uaddr, header_uaddr
+</entry></row>
+<row><entry>
+    chdir
+</entry><entry>
+    path
+</entry></row>
+<row><entry>
+    chmod
+</entry><entry>
+    mode, path
+</entry></row>
+<row><entry>
+    chown
+</entry><entry>
+    group, owner, path
+</entry></row>
+<row><entry>
+    chown16
+</entry><entry>
+    group, owner, path
+</entry></row>
+<row><entry>
+    chroot
+</entry><entry>
+    path
+</entry></row>
+<row><entry>
+    clock_adjtime
+</entry><entry>
+    clk_id, clk_id_str, tx_uaddr
+</entry></row>
+<row><entry>
+    clock_getres
+</entry><entry>
+    clk_id, clk_id_str, res_uaddr
+</entry></row>
+<row><entry>
+    clock_gettime
+</entry><entry>
+    clk_id, clk_id_str, tp_uaddr
+</entry></row>
+<row><entry>
+    clock_nanosleep
+</entry><entry>
+    clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_uaddr
+</entry></row>
+<row><entry>
+    clock_settime
+</entry><entry>
+    clk_id, clk_id_str, tp_uaddr
+</entry></row>
+<row><entry>
+    clone
+</entry><entry>
+    child_tid_uaddr, clone_flags, parent_tid_uaddr, stack_start
+</entry></row>
+<row><entry>
+    close
+</entry><entry>
+    fd
+</entry></row>
+<row><entry>
+    compat_adjtimex
+</entry><entry>
+    buf_str, buf_uaddr
+</entry></row>
+<row><entry>
+    compat_clock_nanosleep
+</entry><entry>
+    clk_id, clk_id_str, flags, flags_str, rem_uaddr, req_uaddr
+</entry></row>
+<row><entry>
+    compat_execve
+</entry><entry>
+    args, env_str, filename
+</entry></row>
+<row><entry>
+    compat_execveat
+</entry><entry>
+    args, dirfd, dirfd_str, env_str, fd, fd_str, filename, flags, flags_str
+</entry></row>
+<row><entry>
+    compat_fadvise64
+</entry><entry>
+    advice, fd, len, offset
+</entry></row>
+<row><entry>
+    compat_fadvise64_64
+</entry><entry>
+    advice, fd, len, offset
+</entry></row>
+<row><entry>
+    compat_fallocate
+</entry><entry>
+    fd, len, mode, offset
+</entry></row>
+<row><entry>
+    compat_ftruncate64
+</entry><entry>
+    fd, length
+</entry></row>
+<row><entry>
+    compat_futex
+</entry><entry>
+    futex_uaddr, op, uaddr2_uaddr, utime_uaddr, val3, val
+</entry></row>
+<row><entry>
+    compat_futimesat
+</entry><entry>
+    dirfd, dirfd_str, filename, filename_uaddr, tvp_uaddr
+</entry></row>
+<row><entry>
+    compat_getitimer
+</entry><entry>
+    value_uaddr, which
+</entry></row>
+<row><entry>
+    compat_lookup_dcookie
+</entry><entry>
+    buffer_uaddr, cookie, len
+</entry></row>
+<row><entry>
+    compat_nanosleep
+</entry><entry>
+    rem_uaddr, req_uaddr
+</entry></row>
+<row><entry>
+    compat_ppoll
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    compat_pselect6
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    compat_readahead
+</entry><entry>
+    count, fd, offset
+</entry></row>
+<row><entry>
+    compat_recvmmsg
+</entry><entry>
+    flags, flags_str, mmsg_uaddr, s, timeout_uaddr, vlen
+</entry></row>
+<row><entry>
+    compat_rt_sigprocmask
+</entry><entry>
+    how, how_str, oldset_uaddr, set_uaddr
+</entry></row>
+<row><entry>
+    compat_select
+</entry><entry>
+    exceptfds_uaddr, n, readfds_uaddr, timeout_uaddr, writefds_uaddr
+</entry></row>
+<row><entry>
+    compat_setitimer
+</entry><entry>
+    ovalue_uaddr, value_uaddr, which
+</entry></row>
+<row><entry>
+    compat_signalfd
+</entry><entry>
+    flags
+</entry></row>
+<row><entry>
+    compat_sys_msgctl
+</entry><entry>
+    buf_uaddr, cmd, cmd_str, msqid
+</entry></row>
+<row><entry>
+    compat_sys_msgrcv
+</entry><entry>
+    msgflg, msgflg_str, msgp_uaddr, msgsz, msgtyp, msqid
+</entry></row>
+<row><entry>
+    compat_sys_msgsnd
+</entry><entry>
+    msgflg, msgflg_str, msgp_uaddr, msgsz, msqid
+</entry></row>
+<row><entry>
+    compat_sys_recvmsg
+</entry><entry>
+    flags, flags_str, msg_uaddr, s
+</entry></row>
+<row><entry>
+    compat_sys_semctl
+</entry><entry>
+    arg, cmd, cmdstr, semid, semnum
+</entry></row>
+<row><entry>
+    compat_sys_semtimedop
+</entry><entry>
+    nsops, semid, sops_uaddr, timeout_uaddr
+</entry></row>
+<row><entry>
+    compat_sys_sendmsg
+</entry><entry>
+    flags, flags_str, msg_uaddr, s
+</entry></row>
+<row><entry>
+    compat_sys_shmat
+</entry><entry>
+    shmaddr_uaddr, shmflg, shmid
+</entry></row>
+<row><entry>
+    compat_sys_shmctl
+</entry><entry>
+    buf_uaddr, cmd, cmd_str, shmid
+</entry></row>
+<row><entry>
+    compat_sys_utimes
+</entry><entry>
+    filename
+</entry></row>
+<row><entry>
+    compat_truncate64
+</entry><entry>
+    length, path, path_uaddr
+</entry></row>
+<row><entry>
+    compat_utime
+</entry><entry>
+    actime, buf_uaddr, filename, filename_uaddr, modtime
+</entry></row>
+<row><entry>
+    compat_utimensat
+</entry><entry>
+    dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_uaddr
+</entry></row>
+<row><entry>
+    compat_vmsplice
+</entry><entry>
+    fd, flags, flags_str, iov, nr_segs
+</entry></row>
+<row><entry>
+    connect
+</entry><entry>
+    addrlen, serv_addr_uaddr, sockfd, uaddr_af, uaddr_ip, uaddr_ip_port, uaddr_ipv6_flowinfo, uaddr_ipv6_scope_id
+</entry></row>
+<row><entry>
+    creat
+</entry><entry>
+    mode, pathname
+</entry></row>
+<row><entry>
+    delete_module
+</entry><entry>
+    flags, flags_str, name_user
+</entry></row>
+<row><entry>
+    dup
+</entry><entry>
+    oldfd
+</entry></row>
+<row><entry>
+    dup2
+</entry><entry>
+    flags, newfd, oldfd
+</entry></row>
+<row><entry>
+    dup3
+</entry><entry>
+    flags, newfd, oldfd
+</entry></row>
+<row><entry>
+    epoll_create
+</entry><entry>
+    flags, size
+</entry></row>
+<row><entry>
+    epoll_ctl
+</entry><entry>
+    epfd, event_uaddr, fd, op, op_str
+</entry></row>
+<row><entry>
+    epoll_pwait
+</entry><entry>
+    epfd, events_uaddr, maxevents, sigmask_uaddr, sigsetsize, timeout
+</entry></row>
+<row><entry>
+    epoll_wait
+</entry><entry>
+    epfd, events_uaddr, maxevents, timeout
+</entry></row>
+<row><entry>
+    eventfd
+</entry><entry>
+    count, flags, flags_str
+</entry></row>
+<row><entry>
+    execve
+</entry><entry>
+    args, env_str, filename
+</entry></row>
+<row><entry>
+    execveat
+</entry><entry>
+    args, dirfd, dirfd_str, env_str, fd, fd_str, filename, flags, flags_str
+</entry></row>
+<row><entry>
+    exit
+</entry><entry>
+    status
+</entry></row>
+<row><entry>
+    exit_group
+</entry><entry>
+    status
+</entry></row>
+<row><entry>
+    faccessat
+</entry><entry>
+    dirfd, dirfd_str, mode, mode_str, pathname
+</entry></row>
+<row><entry>
+    fadvise64
+</entry><entry>
+    advice, fd, len, offset
+</entry></row>
+<row><entry>
+    fadvise64_64
+</entry><entry>
+    advice, fd, len, offset
+</entry></row>
+<row><entry>
+    fallocate
+</entry><entry>
+    fd, len, mode, mode_str, offset
+</entry></row>
+<row><entry>
+    fanotify_init
+</entry><entry>
+    event_f_flags, event_f_flags_str, flags, flags_str
+</entry></row>
+<row><entry>
+    fanotify_mark
+</entry><entry>
+    dirfd, dirfd_str, fanotify_fd, flags, flags_str, mask, mask_str, pathname
+</entry></row>
+<row><entry>
+    fchdir
+</entry><entry>
+    fd
+</entry></row>
+<row><entry>
+    fchmod
+</entry><entry>
+    fildes, mode
+</entry></row>
+<row><entry>
+    fchmodat
+</entry><entry>
+    dirfd, dirfd_str, mode, pathname
+</entry></row>
+<row><entry>
+    fchown
+</entry><entry>
+    fd, group, owner
+</entry></row>
+<row><entry>
+    fchown16
+</entry><entry>
+    fd, group, owner
+</entry></row>
+<row><entry>
+    fchownat
+</entry><entry>
+    dirfd, dirfd_str, flags, flags_str, group, owner, pathname
+</entry></row>
+<row><entry>
+    fcntl
+</entry><entry>
+    arg, cmd, cmd_str, fd
+</entry></row>
+<row><entry>
+    fdatasync
+</entry><entry>
+    fd
+</entry></row>
+<row><entry>
+    fgetxattr
+</entry><entry>
+    filedes, name_str, size, value_uaddr
+</entry></row>
+<row><entry>
+    finit_module
+</entry><entry>
+    fd, flags, flags_str, uargs
+</entry></row>
+<row><entry>
+    flistxattr
+</entry><entry>
+    filedes, list_uaddr, size
+</entry></row>
+<row><entry>
+    flock
+</entry><entry>
+    fd, operation
+</entry></row>
+<row><entry>
+    fork
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    fremovexattr
+</entry><entry>
+    filedes, name_str, name_uaddr
+</entry></row>
+<row><entry>
+    fsetxattr
+</entry><entry>
+    filedes, flags, flags_str, name_str, name_uaddr, size, value_str, value_uaddr
+</entry></row>
+<row><entry>
+    fstat
+</entry><entry>
+    buf_uaddr, filedes
+</entry></row>
+<row><entry>
+    fstatat
+</entry><entry>
+    buf_uaddr, dirfd, dirfd_str, flags, flags_str, path
+</entry></row>
+<row><entry>
+    fstatfs
+</entry><entry>
+    buf_uaddr, fd
+</entry></row>
+<row><entry>
+    fstatfs64
+</entry><entry>
+    buf_uaddr, fd, sz
+</entry></row>
+<row><entry>
+    fsync
+</entry><entry>
+    fd
+</entry></row>
+<row><entry>
+    ftruncate
+</entry><entry>
+    fd, length
+</entry></row>
+<row><entry>
+    futex
+</entry><entry>
+    futex_uaddr, op, uaddr2_uaddr, utime_uaddr, val3, val
+</entry></row>
+<row><entry>
+    futimesat
+</entry><entry>
+    dirfd, dirfd_str, filename, filename_uaddr, tvp_uaddr
+</entry></row>
+<row><entry>
+    get_mempolicy
+</entry><entry>
+    addr, flags, flags_str, maxnode, nmask_uaddr, policy_uaddr
+</entry></row>
+<row><entry>
+    get_robust_list
+</entry><entry>
+    len_uaddr, list_head_uaddr, pid
+</entry></row>
+<row><entry>
+    get_thread_area
+</entry><entry>
+    u_info_uaddr
+</entry></row>
+<row><entry>
+    getcpu
+</entry><entry>
+    cpu_uaddr, node_uaddr, tcache_uaddr
+</entry></row>
+<row><entry>
+    getcwd
+</entry><entry>
+    buf_uaddr, size
+</entry></row>
+<row><entry>
+    getdents
+</entry><entry>
+    count, dirp_uaddr, fd
+</entry></row>
+<row><entry>
+    getegid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    geteuid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    getgid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    getgroups
+</entry><entry>
+    list_uaddr, size
+</entry></row>
+<row><entry>
+    gethostname
+</entry><entry>
+    len, name_uaddr
+</entry></row>
+<row><entry>
+    getitimer
+</entry><entry>
+    value_uaddr, which
+</entry></row>
+<row><entry>
+    getpeername
+</entry><entry>
+    name_uaddr, namelen_uaddr, s
+</entry></row>
+<row><entry>
+    getpgid
+</entry><entry>
+    pid
+</entry></row>
+<row><entry>
+    getpgrp
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    getpid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    getppid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    getpriority
+</entry><entry>
+    which, who
+</entry></row>
+<row><entry>
+    getrandom
+</entry><entry>
+    buf, count, flags, flags_str
+</entry></row>
+<row><entry>
+    getresgid
+</entry><entry>
+    egid_uaddr, rgid_uaddr, sgid_uaddr
+</entry></row>
+<row><entry>
+    getresuid
+</entry><entry>
+    euid_uaddr, ruid_uaddr, suid_uaddr
+</entry></row>
+<row><entry>
+    getrlimit
+</entry><entry>
+    resource, rlim_uaddr
+</entry></row>
+<row><entry>
+    getrusage
+</entry><entry>
+    usage_uaddr, who, who_str
+</entry></row>
+<row><entry>
+    getsid
+</entry><entry>
+    pid
+</entry></row>
+<row><entry>
+    getsockname
+</entry><entry>
+    name_uaddr, namelen_uaddr, s
+</entry></row>
+<row><entry>
+    getsockopt
+</entry><entry>
+    fd, level, level_str, optlen_uaddr, optname, optname_str, optval_uaddr
+</entry></row>
+<row><entry>
+    gettid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    gettimeofday
+</entry><entry>
+    tv_uaddr, tz_uaddr
+</entry></row>
+<row><entry>
+    getuid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    getxattr
+</entry><entry>
+    name_str, path, size, value_uaddr
+</entry></row>
+<row><entry>
+    init_module
+</entry><entry>
+    len, uargs, umod_uaddr
+</entry></row>
+<row><entry>
+    inotify_add_watch
+</entry><entry>
+    fd, mask, path, path_uaddr
+</entry></row>
+<row><entry>
+    inotify_init
+</entry><entry>
+    flags
+</entry></row>
+<row><entry>
+    inotify_rm_watch
+</entry><entry>
+    fd, wd
+</entry></row>
+<row><entry>
+    io_cancel
+</entry><entry>
+    ctx_id, iocb_uaddr, result_uaddr
+</entry></row>
+<row><entry>
+    io_destroy
+</entry><entry>
+    ctx
+</entry></row>
+<row><entry>
+    io_getevents
+</entry><entry>
+    ctx_id, events_uaddr, min_nr, nr, timeout_uaddr, timestr
+</entry></row>
+<row><entry>
+    io_setup
+</entry><entry>
+    ctxp_uaddr, maxevents
+</entry></row>
+<row><entry>
+    io_submit
+</entry><entry>
+    ctx_id, iocbpp_uaddr, nr
+</entry></row>
+<row><entry>
+    ioctl
+</entry><entry>
+    argp, fd, request
+</entry></row>
+<row><entry>
+    ioperm
+</entry><entry>
+    from, num, turn_on
+</entry></row>
+<row><entry>
+    iopl
+</entry><entry>
+    level
+</entry></row>
+<row><entry>
+    ioprio_get
+</entry><entry>
+    which, which_str, who
+</entry></row>
+<row><entry>
+    ioprio_set
+</entry><entry>
+    ioprio, ioprio_str, which, which_str, who
+</entry></row>
+<row><entry>
+    kcmp
+</entry><entry>
+    idx1, idx2, pid1, pid2, type, type_str
+</entry></row>
+<row><entry>
+    kexec_file_load
+</entry><entry>
+    cmdline, cmdline_len, flags, flags_str, initrd_fd, kernel_fd
+</entry></row>
+<row><entry>
+    kexec_load
+</entry><entry>
+    entry, flags, flags_str, nr_segments, segments_uaddr
+</entry></row>
+<row><entry>
+    keyctl
+</entry><entry>
+    arg2, arg3, arg4, arg5, option
+</entry></row>
+<row><entry>
+    kill
+</entry><entry>
+    pid, sig
+</entry></row>
+<row><entry>
+    lchown
+</entry><entry>
+    group, owner, path
+</entry></row>
+<row><entry>
+    lchown16
+</entry><entry>
+    group, owner, path
+</entry></row>
+<row><entry>
+    lgetxattr
+</entry><entry>
+    name_str, path, size, value_uaddr
+</entry></row>
+<row><entry>
+    link
+</entry><entry>
+    newpath, oldpath
+</entry></row>
+<row><entry>
+    linkat
+</entry><entry>
+    flags, flags_str, newdirfd, newdirfd_str, newpath, olddirfd, olddirfd_str, oldpath
+</entry></row>
+<row><entry>
+    listen
+</entry><entry>
+    backlog, sockfd
+</entry></row>
+<row><entry>
+    listxattr
+</entry><entry>
+    list_uaddr, path, path_uaddr, size
+</entry></row>
+<row><entry>
+    llistxattr
+</entry><entry>
+    list_uaddr, path, path_uaddr, size
+</entry></row>
+<row><entry>
+    llseek
+</entry><entry>
+    fd, offset_high, offset_low, result_uaddr, whence, whence_str
+</entry></row>
+<row><entry>
+    lookup_dcookie
+</entry><entry>
+    buffer_uaddr, cookie, len
+</entry></row>
+<row><entry>
+    lremovexattr
+</entry><entry>
+    name_str, name_uaddr, path, path_uaddr
+</entry></row>
+<row><entry>
+    lseek
+</entry><entry>
+    fildes, offset, whence, whence_str
+</entry></row>
+<row><entry>
+    lsetxattr
+</entry><entry>
+    flags, flags_str, name_str, name_uaddr, path, path_uaddr, size, value_str, value_uaddr
+</entry></row>
+<row><entry>
+    lstat
+</entry><entry>
+    buf_uaddr, path
+</entry></row>
+<row><entry>
+    madvise
+</entry><entry>
+    advice, advice_str, length, start
+</entry></row>
+<row><entry>
+    mbind
+</entry><entry>
+    flags, flags_str, len, maxnode, mode, mode_str, nmask_uaddr, start
+</entry></row>
+<row><entry>
+    memfd_create
+</entry><entry>
+    flags, flags_str, uname
+</entry></row>
+<row><entry>
+    migrate_pages
+</entry><entry>
+    maxnode, new_nodes, old_nodes, pid
+</entry></row>
+<row><entry>
+    mincore
+</entry><entry>
+    length, start, vec_uaddr
+</entry></row>
+<row><entry>
+    mkdir
+</entry><entry>
+    mode, pathname, pathname_uaddr
+</entry></row>
+<row><entry>
+    mkdirat
+</entry><entry>
+    dirfd, dirfd_str, mode, pathname
+</entry></row>
+<row><entry>
+    mknod
+</entry><entry>
+    dev, mode, pathname
+</entry></row>
+<row><entry>
+    mknodat
+</entry><entry>
+    dev, dirfd, dirfd_str, mode, mode_str, pathname
+</entry></row>
+<row><entry>
+    mlock
+</entry><entry>
+    addr, len
+</entry></row>
+<row><entry>
+    mlockall
+</entry><entry>
+    flags
+</entry></row>
+<row><entry>
+    mmap2
+</entry><entry>
+    fd, flags, length, pgoffset, prot, start
+</entry></row>
+<row><entry>
+    modify_ldt
+</entry><entry>
+    bytecount, func, ptr_uaddr
+</entry></row>
+<row><entry>
+    mount
+</entry><entry>
+    data, filesystemtype, mountflags, mountflags_str, source, target
+</entry></row>
+<row><entry>
+    move_pages
+</entry><entry>
+    flags, flags_str, nodes, nr_pages, pages, pid, status
+</entry></row>
+<row><entry>
+    mprotect
+</entry><entry>
+    addr, len, prot, prot_str
+</entry></row>
+<row><entry>
+    mq_getsetattr
+</entry><entry>
+    mqdes, u_mqstat_uaddr, u_omqstat_uaddr
+</entry></row>
+<row><entry>
+    mq_notify
+</entry><entry>
+    mqdes, notification_uaddr
+</entry></row>
+<row><entry>
+    mq_open
+</entry><entry>
+    filename, mode, name_uaddr, oflag, u_attr_uaddr
+</entry></row>
+<row><entry>
+    mq_timedreceive
+</entry><entry>
+    abs_timeout_uaddr, mqdes, msg_len, msg_prio_uaddr, msg_ptr_uaddr
+</entry></row>
+<row><entry>
+    mq_timedsend
+</entry><entry>
+    abs_timeout_uaddr, mqdes, msg_len, msg_prio, msg_ptr_uaddr
+</entry></row>
+<row><entry>
+    mq_unlink
+</entry><entry>
+    u_name, u_name_uaddr
+</entry></row>
+<row><entry>
+    mremap
+</entry><entry>
+    flags, new_address, new_size, old_address, old_size
+</entry></row>
+<row><entry>
+    msgctl
+</entry><entry>
+    buf_uaddr, cmd, cmd_str, msqid
+</entry></row>
+<row><entry>
+    msgget
+</entry><entry>
+    key, key_str, msgflg, msgflg_str
+</entry></row>
+<row><entry>
+    msgrcv
+</entry><entry>
+    msgflg, msgflg_str, msgp_uaddr, msgsz, msgtyp, msqid
+</entry></row>
+<row><entry>
+    msgsnd
+</entry><entry>
+    msgflg, msgflg_str, msgp_uaddr, msgsz, msqid
+</entry></row>
+<row><entry>
+    msync
+</entry><entry>
+    flags, length, start
+</entry></row>
+<row><entry>
+    munlock
+</entry><entry>
+    addr, len
+</entry></row>
+<row><entry>
+    munlockall
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    munmap
+</entry><entry>
+    length, start
+</entry></row>
+<row><entry>
+    name_to_handle_at
+</entry><entry>
+    dfd, dfd_str, flags, flags_str, handle_uaddr, mnt_id_uaddr, pathname
+</entry></row>
+<row><entry>
+    nanosleep
+</entry><entry>
+    rem_uaddr, req_uaddr
+</entry></row>
+<row><entry>
+    ni_syscall
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    nice
+</entry><entry>
+    inc
+</entry></row>
+<row><entry>
+    open
+</entry><entry>
+    filename, flags, mode
+</entry></row>
+<row><entry>
+    open_by_handle_at
+</entry><entry>
+    flags, flags_str, handle_uaddr, mount_dfd, mount_dfd_str
+</entry></row>
+<row><entry>
+    openat
+</entry><entry>
+    dfd, dfd_str, filename, flags, mode
+</entry></row>
+<row><entry>
+    pause
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    perf_event_open
+</entry><entry>
+    attr_uaddr, cpu, flags, flags_str, group_fd, pid
+</entry></row>
+<row><entry>
+    personality
+</entry><entry>
+    persona
+</entry></row>
+<row><entry>
+    pipe
+</entry><entry>
+    fildes_uaddr, flag_str, flags, pipe0, pipe1
+</entry></row>
+<row><entry>
+    pivot_root
+</entry><entry>
+    new_root_str, old_root_str
+</entry></row>
+<row><entry>
+    poll
+</entry><entry>
+    nfds, timeout, ufds_uaddr
+</entry></row>
+<row><entry>
+    ppoll
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    prctl
+</entry><entry>
+    arg2, arg3, arg4, arg5, option
+</entry></row>
+<row><entry>
+    pread
+</entry><entry>
+    buf_uaddr, count, fd, offset
+</entry></row>
+<row><entry>
+    preadv
+</entry><entry>
+    count, fd, offset, vector_uaddr
+</entry></row>
+<row><entry>
+    prlimit64
+</entry><entry>
+    new_rlim_uaddr, old_rlim_uaddr, pid, resource
+</entry></row>
+<row><entry>
+    process_vm_readv
+</entry><entry>
+    flags, liovcnt, local_iov_uaddr, pid, remote_iov_uaddr, riovcnt
+</entry></row>
+<row><entry>
+    process_vm_writev
+</entry><entry>
+    flags, liovcnt, local_iov_uaddr, pid, remote_iov_uaddr, riovcnt
+</entry></row>
+<row><entry>
+    pselect6
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    ptrace
+</entry><entry>
+    addr, data, pid, request
+</entry></row>
+<row><entry>
+    pwrite
+</entry><entry>
+    buf_uaddr, count, fd, offset
+</entry></row>
+<row><entry>
+    pwritev
+</entry><entry>
+    count, fd, offset, vector_uaddr
+</entry></row>
+<row><entry>
+    quotactl
+</entry><entry>
+    addr_uaddr, cmd, cmd_str, id, special, special_str
+</entry></row>
+<row><entry>
+    read
+</entry><entry>
+    buf_uaddr, count, fd
+</entry></row>
+<row><entry>
+    readahead
+</entry><entry>
+    count, fd, offset
+</entry></row>
+<row><entry>
+    readdir
+</entry><entry>
+    count, dirent, fd
+</entry></row>
+<row><entry>
+    readlink
+</entry><entry>
+    buf_uaddr, bufsiz, path
+</entry></row>
+<row><entry>
+    readlinkat
+</entry><entry>
+    buf_uaddr, bufsiz, dfd, dfd_str, path
+</entry></row>
+<row><entry>
+    readv
+</entry><entry>
+    count, fd, vector_uaddr
+</entry></row>
+<row><entry>
+    reboot
+</entry><entry>
+    arg_uaddr, flag, flag_str, magic2, magic2_str, magic, magic_str
+</entry></row>
+<row><entry>
+    recv
+</entry><entry>
+    buf_uaddr, flags, flags_str, len, s
+</entry></row>
+<row><entry>
+    recvfrom
+</entry><entry>
+    addr_uaddr, addrlen_uaddr, buf_uaddr, flags, flags_str, len, s
+</entry></row>
+<row><entry>
+    recvmmsg
+</entry><entry>
+    flags, flags_str, mmsg_uaddr, s, timeout_uaddr, vlen
+</entry></row>
+<row><entry>
+    recvmsg
+</entry><entry>
+    flags, flags_str, msg_uaddr, s
+</entry></row>
+<row><entry>
+    remap_file_pages
+</entry><entry>
+    flags, pgoff, prot, size, start
+</entry></row>
+<row><entry>
+    removexattr
+</entry><entry>
+    name_str, path
+</entry></row>
+<row><entry>
+    rename
+</entry><entry>
+    newpath, oldpath
+</entry></row>
+<row><entry>
+    renameat
+</entry><entry>
+    newdfd, newdfd_str, newname, newname_str, olddfd, olddfd_str, oldname, oldname_str
+</entry></row>
+<row><entry>
+    renameat2
+</entry><entry>
+    flags, flags_str, newdfd, newdfd_str, newname, newname_str, olddfd, olddfd_str, oldname, oldname_str
+</entry></row>
+<row><entry>
+    request_key
+</entry><entry>
+    callout_info_uaddr, description_uaddr, destringid, type_uaddr
+</entry></row>
+<row><entry>
+    restart_syscall
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    rmdir
+</entry><entry>
+    pathname
+</entry></row>
+<row><entry>
+    rt_sigaction
+</entry><entry>
+    act_uaddr, oact_uaddr, sig, sigsetsize
+</entry></row>
+<row><entry>
+    rt_sigaction32
+</entry><entry>
+    act_uaddr, oact_uaddr, sig, sigsetsize
+</entry></row>
+<row><entry>
+    rt_sigpending
+</entry><entry>
+    set_uaddr, sigsetsize
+</entry></row>
+<row><entry>
+    rt_sigprocmask
+</entry><entry>
+    how, how_str, oldset_uaddr, set_uaddr
+</entry></row>
+<row><entry>
+    rt_sigqueueinfo
+</entry><entry>
+    pid, sig, uinfo_uaddr
+</entry></row>
+<row><entry>
+    rt_sigreturn
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    rt_sigsuspend
+</entry><entry>
+    set_uaddr, sigsetsize
+</entry></row>
+<row><entry>
+    rt_sigtimedwait
+</entry><entry>
+    sigsetsize, uinfo_uaddr, uthese_uaddr, uts_uaddr
+</entry></row>
+<row><entry>
+    rt_tgsigqueueinfo
+</entry><entry>
+    sig, tgid, tid, uinfo_uaddr
+</entry></row>
+<row><entry>
+    sched_get_priority_max
+</entry><entry>
+    policy
+</entry></row>
+<row><entry>
+    sched_get_priority_min
+</entry><entry>
+    policy
+</entry></row>
+<row><entry>
+    sched_getaffinity
+</entry><entry>
+    len, mask_uaddr, pid
+</entry></row>
+<row><entry>
+    sched_getattr
+</entry><entry>
+    flags, pid, sched_attr_str, sched_attr_uaddr, size
+</entry></row>
+<row><entry>
+    sched_getparam
+</entry><entry>
+    p_uaddr, pid
+</entry></row>
+<row><entry>
+    sched_getscheduler
+</entry><entry>
+    pid
+</entry></row>
+<row><entry>
+    sched_rr_get_interval
+</entry><entry>
+    pid, tp_uaddr
+</entry></row>
+<row><entry>
+    sched_setaffinity
+</entry><entry>
+    len, mask_uaddr, pid
+</entry></row>
+<row><entry>
+    sched_setattr
+</entry><entry>
+    flags, pid, sched_attr_str, sched_attr_uaddr
+</entry></row>
+<row><entry>
+    sched_setparam
+</entry><entry>
+    p_uaddr, pid
+</entry></row>
+<row><entry>
+    sched_setscheduler
+</entry><entry>
+    p_uaddr, pid, policy, policy_str
+</entry></row>
+<row><entry>
+    sched_yield
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    seccomp
+</entry><entry>
+    flags, flags_str, op, uargs
+</entry></row>
+<row><entry>
+    select
+</entry><entry>
+    exceptfds_uaddr, n, readfds_uaddr, timeout_uaddr, writefds_uaddr
+</entry></row>
+<row><entry>
+    semctl
+</entry><entry>
+    arg, cmd, cmdstr, semid, semnum
+</entry></row>
+<row><entry>
+    semget
+</entry><entry>
+    key, key_str, nsems, semflg, semflg_str
+</entry></row>
+<row><entry>
+    semop
+</entry><entry>
+    nsops, semid, sops_uaddr
+</entry></row>
+<row><entry>
+    semtimedop
+</entry><entry>
+    nsops, semid, sops_uaddr, timeout_uaddr
+</entry></row>
+<row><entry>
+    send
+</entry><entry>
+    buf_uaddr, flags, flags_str, len, s
+</entry></row>
+<row><entry>
+    sendfile
+</entry><entry>
+    count, in_fd, offset_uaddr, out_fd
+</entry></row>
+<row><entry>
+    sendmmsg
+</entry><entry>
+    flags, flags_str, mmsg_uaddr, s, vlen
+</entry></row>
+<row><entry>
+    sendmsg
+</entry><entry>
+    flags, flags_str, msg_uaddr, s
+</entry></row>
+<row><entry>
+    sendto
+</entry><entry>
+    buf_uaddr, flags, flags_str, len, s, to_uaddr, tolen
+</entry></row>
+<row><entry>
+    set_mempolicy
+</entry><entry>
+    maxnode, mode, mode_str, nmask_uaddr
+</entry></row>
+<row><entry>
+    set_robust_list
+</entry><entry>
+    len, list_head_uaddr
+</entry></row>
+<row><entry>
+    set_thread_area
+</entry><entry>
+    u_info_uaddr
+</entry></row>
+<row><entry>
+    set_tid_address
+</entry><entry>
+    tidptr_uaddr
+</entry></row>
+<row><entry>
+    setdomainname
+</entry><entry>
+    domainname_str, domainname_uaddr, hostname_uaddr, len
+</entry></row>
+<row><entry>
+    setfsgid
+</entry><entry>
+    fsgid
+</entry></row>
+<row><entry>
+    setfsuid
+</entry><entry>
+    fsuid
+</entry></row>
+<row><entry>
+    setgid
+</entry><entry>
+    gid
+</entry></row>
+<row><entry>
+    setgroups
+</entry><entry>
+    list_uaddr, size
+</entry></row>
+<row><entry>
+    sethostname
+</entry><entry>
+    hostname_uaddr, len, name_str
+</entry></row>
+<row><entry>
+    setitimer
+</entry><entry>
+    ovalue_uaddr, value_uaddr, which
+</entry></row>
+<row><entry>
+    setns
+</entry><entry>
+    fd, nstype
+</entry></row>
+<row><entry>
+    setpgid
+</entry><entry>
+    pgid, pid
+</entry></row>
+<row><entry>
+    setpriority
+</entry><entry>
+    prio, which, which_str, who
+</entry></row>
+<row><entry>
+    setregid
+</entry><entry>
+    egid, rgid
+</entry></row>
+<row><entry>
+    setregid16
+</entry><entry>
+    egid, rgid
+</entry></row>
+<row><entry>
+    setresgid
+</entry><entry>
+    egid, rgid, sgid
+</entry></row>
+<row><entry>
+    setresgid16
+</entry><entry>
+    egid, rgid, sgid
+</entry></row>
+<row><entry>
+    setresuid
+</entry><entry>
+    euid, ruid, suid
+</entry></row>
+<row><entry>
+    setresuid16
+</entry><entry>
+    euid, ruid, suid
+</entry></row>
+<row><entry>
+    setreuid
+</entry><entry>
+    euid, ruid
+</entry></row>
+<row><entry>
+    setreuid16
+</entry><entry>
+    euid, ruid
+</entry></row>
+<row><entry>
+    setrlimit
+</entry><entry>
+    resource, rlim_uaddr
+</entry></row>
+<row><entry>
+    setsid
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    setsockopt
+</entry><entry>
+    fd, level, level_str, optlen, optname, optname_str, optval_uaddr
+</entry></row>
+<row><entry>
+    settimeofday
+</entry><entry>
+    tv_uaddr, tz_uaddr
+</entry></row>
+<row><entry>
+    settimeofday32
+</entry><entry>
+    tv_uaddr, tz_uaddr
+</entry></row>
+<row><entry>
+    setuid
+</entry><entry>
+    uid
+</entry></row>
+<row><entry>
+    setxattr
+</entry><entry>
+    flags, flags_str, name_str, name_uaddr, path, path_uaddr, size, value_str, value_uaddr
+</entry></row>
+<row><entry>
+    sgetmask
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    shmat
+</entry><entry>
+    shmaddr_uaddr, shmflg, shmid
+</entry></row>
+<row><entry>
+    shmctl
+</entry><entry>
+    buf_uaddr, cmd, cmd_str, shmid
+</entry></row>
+<row><entry>
+    shmdt
+</entry><entry>
+    shmaddr_uaddr
+</entry></row>
+<row><entry>
+    shmget
+</entry><entry>
+    key, shmflg, shmflg_str, size
+</entry></row>
+<row><entry>
+    shutdown
+</entry><entry>
+    how, how_str, s
+</entry></row>
+<row><entry>
+    sigaction32
+</entry><entry>
+    act_uaddr, oact_uaddr, sig
+</entry></row>
+<row><entry>
+    sigaltstack
+</entry><entry>
+    uoss_uaddr, uss_uaddr
+</entry></row>
+<row><entry>
+    signal
+</entry><entry>
+    handler, sig
+</entry></row>
+<row><entry>
+    signalfd
+</entry><entry>
+    flags
+</entry></row>
+<row><entry>
+    sigpending
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    sigprocmask
+</entry><entry>
+    how, how_str, oldset_uaddr, set_uaddr
+</entry></row>
+<row><entry>
+    sigreturn
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    sigsuspend
+</entry><entry>
+    mask
+</entry></row>
+<row><entry>
+    socket
+</entry><entry>
+    family, protocol, type
+</entry></row>
+<row><entry>
+    socketpair
+</entry><entry>
+    family, protocol, sv_uaddr, type
+</entry></row>
+<row><entry>
+    splice
+</entry><entry>
+    fd_in, fd_out, flags, flags_str, len, off_in, off_out
+</entry></row>
+<row><entry>
+    ssetmask
+</entry><entry>
+    newmask, newmask_str
+</entry></row>
+<row><entry>
+    stat
+</entry><entry>
+    buf_uaddr, filename, filename_uaddr
+</entry></row>
+<row><entry>
+    statfs
+</entry><entry>
+    buf_uaddr, path
+</entry></row>
+<row><entry>
+    statfs64
+</entry><entry>
+    buf_uaddr, path, sz
+</entry></row>
+<row><entry>
+    stime
+</entry><entry>
+    t_uaddr
+</entry></row>
+<row><entry>
+    swapoff
+</entry><entry>
+    path
+</entry></row>
+<row><entry>
+    swapon
+</entry><entry>
+    path, swapflags, swapflags_str
+</entry></row>
+<row><entry>
+    symlink
+</entry><entry>
+    newpath, oldpath
+</entry></row>
+<row><entry>
+    symlinkat
+</entry><entry>
+    newdfd, newdfd_str, newname, newname_str, oldname, oldname_str
+</entry></row>
+<row><entry>
+    sync
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    sync_file_range
+</entry><entry>
+    fd, flags, flags_str, nbytes, offset
+</entry></row>
+<row><entry>
+    syncfs
+</entry><entry>
+    fd
+</entry></row>
+<row><entry>
+    sysctl
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    sysfs
+</entry><entry>
+    arg1, arg2, option
+</entry></row>
+<row><entry>
+    sysinfo
+</entry><entry>
+    info_uaddr
+</entry></row>
+<row><entry>
+    syslog
+</entry><entry>
+    bufp_uaddr, len, type
+</entry></row>
+<row><entry>
+    tee
+</entry><entry>
+    fdin, fdout, flags, len
+</entry></row>
+<row><entry>
+    tgkill
+</entry><entry>
+    pid, sig, tgid
+</entry></row>
+<row><entry>
+    time
+</entry><entry>
+    t_uaddr
+</entry></row>
+<row><entry>
+    timer_create
+</entry><entry>
+    clockid, clockid_str, evp_uaddr, timerid_uaddr
+</entry></row>
+<row><entry>
+    timer_delete
+</entry><entry>
+    timerid
+</entry></row>
+<row><entry>
+    timer_getoverrun
+</entry><entry>
+    timerid
+</entry></row>
+<row><entry>
+    timer_gettime
+</entry><entry>
+    timerid, value_uaddr
+</entry></row>
+<row><entry>
+    timer_settime
+</entry><entry>
+    flags, ovalue_uaddr, timerid, value_uaddr
+</entry></row>
+<row><entry>
+    timerfd_create
+</entry><entry>
+    clockid, clockid_str, flags, flags_str
+</entry></row>
+<row><entry>
+    timerfd_gettime
+</entry><entry>
+    fd, value_uaddr
+</entry></row>
+<row><entry>
+    timerfd_settime
+</entry><entry>
+    fd, flags, flags_str, ovalue_uaddr, value_uaddr
+</entry></row>
+<row><entry>
+    times
+</entry><entry>
+    buf_uaddr
+</entry></row>
+<row><entry>
+    tkill
+</entry><entry>
+    pid, sig
+</entry></row>
+<row><entry>
+    truncate
+</entry><entry>
+    length, path, path_uaddr
+</entry></row>
+<row><entry>
+    umask
+</entry><entry>
+    mask
+</entry></row>
+<row><entry>
+    umount
+</entry><entry>
+    flags, flags_str, target
+</entry></row>
+<row><entry>
+    uname
+</entry><entry>
+    _func_name
+</entry></row>
+<row><entry>
+    unlink
+</entry><entry>
+    pathname, pathname_uaddr
+</entry></row>
+<row><entry>
+    unlinkat
+</entry><entry>
+    dfd, dfd_str, flag, flag_str, pathname, pathname_str
+</entry></row>
+<row><entry>
+    unshare
+</entry><entry>
+    unshare_flags
+</entry></row>
+<row><entry>
+    ustat
+</entry><entry>
+    dev, ubuf_uaddr
+</entry></row>
+<row><entry>
+    ustat32
+</entry><entry>
+    dev, ubuf_uaddr
+</entry></row>
+<row><entry>
+    utime
+</entry><entry>
+    actime, buf_uaddr, filename, filename_uaddr, modtime
+</entry></row>
+<row><entry>
+    utimensat
+</entry><entry>
+    dfd, dfd_str, filename, filename_uaddr, flags, flags_str, tsp_uaddr
+</entry></row>
+<row><entry>
+    utimes
+</entry><entry>
+    filename, filename_uaddr, tvp_uaddr
+</entry></row>
+<row><entry>
+    vfork
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    vhangup
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    vm86_warning
+</entry><entry>
+    
+</entry></row>
+<row><entry>
+    vmsplice
+</entry><entry>
+    fd, flags, flags_str, iov, nr_segs
+</entry></row>
+<row><entry>
+    wait4
+</entry><entry>
+    options, options_str, pid, rusage_uaddr, status_uaddr
+</entry></row>
+<row><entry>
+    waitid
+</entry><entry>
+    infop_uaddr, options, options_str, pid, rusage_uaddr, which, which_str
+</entry></row>
+<row><entry>
+    waitpid
+</entry><entry>
+    options, options_str, pid, status_uaddr
+</entry></row>
+<row><entry>
+    write
+</entry><entry>
+    buf_uaddr, count, fd
+</entry></row>
+<row><entry>
+    writev
+</entry><entry>
+    count, fd, vector_uaddr
+</entry></row>
+
+    </tbody>
+    </tgroup>
+    </table>
+    </para>
+  </chapter>

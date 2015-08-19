@@ -1,0 +1,111 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import subprocess
+
+SYSCALLS_DESC = """Following is an overview of available syscall probes and
+convenience variables they offer. By default, each syscall probe has name and
+argstr convenience variables, which are not included in the overview in order
+to keep it short. Non dwarf-based nd_syscall probes are supposed to have the
+same convenience variables. """
+
+DESTDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../doc/SystemTap_Tapset_Reference')
+
+def getManContent(body):
+    return """.\" -*- nroff -*-
+.TH tapset::task 3stap --- IBM
+.SH NAME
+tapset::syscalls \- systemtap syscall tapset
+
+.SH DESCRIPTION
+{0}
+.TP
+.P
+.TP
+{1}
+.SH SEE ALSO
+.BR
+.IR \%stap (1),
+.IR \%stapprobes (3stap)
+""".format(SYSCALLS_DESC, body)
+
+def getXmlContent(body):
+    return """
+  <chapter id="syscalls">
+    <title>syscalls</title>
+    <para>
+{0}
+    </para>
+    <para>
+    <table frame='all'><title>Syscalls list</title>
+    <tgroup cols='2' align='left' colsep='1' rowsep='1'>
+    <colspec colname='c1' colwidth='25*' />
+    <colspec colname='c2' colwidth='75*' />
+    <thead>
+    <row>
+      <entry>syscall</entry>
+      <entry>params</entry>
+    </row>
+    </thead>
+    <tbody>
+{1}
+    </tbody>
+    </tgroup>
+    </table>
+    </para>
+  </chapter>
+""".format(SYSCALLS_DESC, body)
+
+def execShellCmd(cmd):
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE)
+    out, err = p.communicate()
+    sys.stderr.write(err)
+    return [line for line in out.split('\n') if line]
+
+def getSyscallsList(output_type):
+    cmd = ['stap', '-L', 'nd_syscall.*']
+    out = execShellCmd(cmd)
+    retval = ""
+    for line in sorted(out):
+        tokens = line.split(' ')
+        tokens.reverse()
+        scname = tokens.pop().replace('nd_syscall.', '')
+        tokens = [t.split(':')[0] for t in sorted(tokens)]
+        tokens = [t for t in tokens if t not in ['argstr', 'name']]
+        tokens = [t for t in tokens if t[:2] != '__']
+        scargs = ", ".join(tokens)
+        if output_type=="xml":
+            retval += """<row><entry>
+    {0}
+</entry><entry>
+    {1}
+</entry></row>
+""".format(scname, scargs)
+        else: # OUTPUT_TYPE=="man"
+            retval += """.P
+.TP
+.B syscall.{0}
+{1}
+""".format(scname, scargs)
+    return retval
+
+def main():
+    xmlfile = os.path.join(DESTDIR, 'syscalls.xmlpart')
+    print "Re-generating {0}...".format(xmlfile)
+    xml = open(xmlfile, 'w')
+    xml.write(getXmlContent(getSyscallsList("xml")))
+    xml.close()
+
+    manfile = os.path.join(DESTDIR, 'syscalls.3stap')
+    print "Re-generating {0}...".format(manfile)
+    man = open(manfile, 'w')
+    man.write(getManContent(getSyscallsList("man")))
+    man.close()
+
+    print "Done."
+
+if __name__ == "__main__":
+    main()
+

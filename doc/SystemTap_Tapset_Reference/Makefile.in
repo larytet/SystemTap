@@ -87,11 +87,12 @@ subdir = doc/SystemTap_Tapset_Reference
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
-	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
-	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
-	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
-	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
+	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
+	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
+	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/nls.m4 \
+	$(top_srcdir)/m4/po.m4 $(top_srcdir)/m4/progtest.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -585,10 +586,10 @@ uninstall-am:
 
 @BUILD_REFDOCS_TRUE@all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
 @BUILD_REFDOCS_TRUE@tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
-@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl | \
-@BUILD_REFDOCS_TRUE@	$(abs_srcdir)/syscalls.py $(abs_srcdir)/../../stap $(abs_srcdir)/../../tapset xml > tapsets.xml.new
+@BUILD_REFDOCS_TRUE@	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
+@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl.new > tapsets.xml.new
 @BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
-@BUILD_REFDOCS_TRUE@	rm tapsets.xml.new
+@BUILD_REFDOCS_TRUE@	rm tapsets.xml.new tapsets.tmpl.new
 @BUILD_REFDOCS_TRUE@	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \
 @BUILD_REFDOCS_TRUE@		echo tapsets.xml unchanged; \
 @BUILD_REFDOCS_TRUE@		rm tapsets.xml.new2; \
@@ -607,8 +608,7 @@ uninstall-am:
 @BUILD_REFDOCS_TRUE@stamp-mandocs: tapsets.xml
 @BUILD_REFDOCS_TRUE@	xmlto $(XMLTOMANPARAMS) man -o man3 tapsets.xml
 @BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(MANPAGER) # generate tapset::* pages
-@BUILD_REFDOCS_TRUE@	$(abs_srcdir)/syscalls.py $(abs_srcdir)/../../stap $(abs_srcdir)/../../tapset man > \
-@BUILD_REFDOCS_TRUE@	man_pages/tapset\:\:syscall.3stap
+@BUILD_REFDOCS_TRUE@	cp $(abs_srcdir)/syscalls.3stap man_pages/tapset\:\:syscalls.3stap
 @BUILD_REFDOCS_TRUE@	touch stamp-mandocs
 
 #FIXME need to figure out where to install things appropriately
