@@ -91,6 +91,7 @@ stringtable_t stringtable;
 // because std::set<> guarantees iterator validity across inserts,
 // which means that our value strings stay put.
 
+// static
 interned_string interned_string::intern(const string& value)
 {
   stringtable_t::iterator it = (stringtable.insert(value)).first; // persistent iterator!

@@ -38,12 +38,19 @@ struct interned_string: public boost::string_ref
   // NB: this is OK because we always use a std::string as a backing
   // store, and as of c++0x, those always store a \0 in their data().
   const char* c_str() const { return this->size() ? (const char*)this->data() : ""; }
+  // NB: the above property holds only if we don't expose the efficient
+  // boost::string_ref substrings.  We can either have efficient
+  // substrings -xor- implicit \0 terminators - not both.
+  interned_string substr(size_t pos = 0, size_t len = npos) const
+  {
+    return interned_string::intern (boost::string_ref::substr(pos, len).to_string());
+  }
 
   // boost oversights
   template <typename F>
   size_t find (const F& f, size_t start_pos)
   {
-    size_t x = this->substr(start_pos).find(f);
+    size_t x = this->boost::string_ref::substr(start_pos).find(f); // don't intern substring unnecessarily
     if (x == boost::string_ref::npos)
       return x;
     else
@@ -63,7 +70,7 @@ struct interned_string: public boost::string_ref
 #endif
   
 private:
-  interned_string intern(const std::string& value);
+  static interned_string intern(const std::string& value);
 };
 #else /* !defined(HAVE_BOOST_UTILITY_STRING_REF_HPP) */
 
