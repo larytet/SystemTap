@@ -11,14 +11,13 @@ global times
 
 function check(t)   # t: elapsed time
 {
-   pf=ppfunc()
-   if (@count(times[pf]) >= mincount
-       && t >= @max(times[pf]) * note_percent / 100) {   # also consider @avg()
+   if (@count(times[ppfunc()]) >= mincount
+       && t >= @max(times[ppfunc()]) * note_percent / 100) {   # also consider @avg()
      printf("function %s well over %s time (%d vs %d)\n",
-            pf, "maximum", t, @max(times[pf]))
+            ppfunc(), "maximum", t, @max(times[ppfunc()]))
      # also consider: print_backtrace()
    }
-   times[pf] <<< t  # (increments @count, updates @max)
+   times[ppfunc()] <<< t  # (increments @count, updates @max)
 }
 
 probe $1.return { check(time()-@entry(time())) }

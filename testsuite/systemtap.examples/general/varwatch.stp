@@ -3,14 +3,13 @@
 global var, varerr
 
 probe $1 {
-  t=tid() # or t=0 for thread-agnostic checking
   if (@defined($2)) {
      try {
          newvar = $2;
-         if (var[t] != newvar) {
-            printf("%s[%d] %s %s:\n", execname(), t, pp(), @2);
+         if (var[tid()] != newvar) {
+            printf("%s[%d] %s %s:\n", execname(), tid(), pp(), @2);
             println(newvar);
-            var[t] = newvar;
+            var[tid()] = newvar;
          }
      } catch { varerr ++ }  # error during $2 resolution or perhaps var[] assignment
   }

@@ -1,5 +1,19 @@
 * What's new in version 2.9
 
+- The [nd_]syscall tapset got autodocumented. Related paragraph got added to PDF
+  and HTML tapset reference. Also a new tapset::syscall 3stap man page got added.
+
+- Embedded-C functions with parameter arity-0 can now be marked with
+  the /* stable */ /* pure */ pragmas, if (roughly speaking) the
+  function is side-effect-free and idempotent.  The translator may
+  execute these speculatively and have their results memoized.  This
+  lets probes with multiple calls to such functions run faster. 
+  
+  Context variable ($foo) getter functions (in non-guru mode), and
+  numerous tapset functions are now marked as /* stable */ /* pure */.
+  Several example scripts have been modified to eschew explicit
+  memoization.
+
 - Callee probe points now support '.return' and '.call' suffix.
   For example,
 
@@ -17,6 +31,13 @@
     new '__compat_long' library macro.
   - The 'uargs' convenience variable of the 'seccomp' syscall probe
     got deprecated in favor of new 'uargs_uaddr' variable.
+
+- SystemTap has reduced its memory consumption by using interned_strings (a
+  wrapper for boost::string_ref) in place of std::string instances. The change
+  is to reduce the number of duplicate strings created by replacing them with
+  interned_strings which act like pointers to existing strings.
+
+  For the implementation of interned_string, see stringtable.h
 
 * What's new in version 2.8, 2015-06-17
 

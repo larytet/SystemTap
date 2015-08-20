@@ -119,9 +119,31 @@ Pass 4 - compilation
 - write out C code in a temporary directory
 - call into kbuild makefile to build module
 
+------------------------------------------------------------------------
 Pass 5 - running
 
 - run "staprun"
 - clean up temporary directory
 
 - nothing to it!
+
+------------------------------------------------------------------------
+Peculiarities
+
+- We tend to use visitor idioms for polymorphic traversals of parse
+  trees, in preference to dynamic_cast<> et al.  The former is a
+  little more future-proof and harder to break accidentally.
+  {reinterpret,static}_cast<> should definitely be avoided.
+
+- We use our interned_string type (a derivative of boost::string_ref)
+  to use shareable references to strings that may be used in duplicate
+  many times.  It can slide in for std::string most of the time.  It
+  can save RAM and maybe even CPU, if used judiciously: such as for
+  frequently duplicated strings, duplicated strings, duplicated strings,
+  duplicated.
+  
+  OTOH, it costs CPU (for management of the interned string set, or if
+  copied between std::string and interned_string unnecessarily), and
+  RAM (2 pointers when empty, vs. 1 for std::string), and its
+  instances are not modifiable, so tradeoffs must be confirmed with
+  tools like memusage, massif, perf-stat, etc.

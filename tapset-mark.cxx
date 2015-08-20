@@ -92,7 +92,7 @@ struct mark_var_expanding_visitor: public var_expanding_visitor
 void
 mark_var_expanding_visitor::visit_target_symbol_arg (target_symbol* e)
 {
-  string argnum_s = e->name.substr(4,e->name.length()-4);
+  string argnum_s = (string)e->name.substr(4,e->name.length()-4);
   int argnum = atoi (argnum_s.c_str());
 
   if (argnum < 1 || argnum > (int)mark_args.size())
@@ -625,9 +625,9 @@ mark_builder::build(systemtap_session & sess,
 		    literal_map_t const & parameters,
 		    vector<derived_probe *> & finished_results)
 {
-  string mark_str_val;
+  interned_string mark_str_val;
   bool has_mark_str = get_param (parameters, TOK_MARK, mark_str_val);
-  string mark_format_val;
+  interned_string mark_format_val;
   bool has_mark_format = get_param (parameters, TOK_FORMAT, mark_format_val);
   assert (has_mark_str);
   (void) has_mark_str;

@@ -45,9 +45,8 @@ probe syscall.wait4 {
 }
 
 probe syscall.wait4.return {
-  t = tid()
   elapsed_time = gettimeofday_us() - @entry(gettimeofday_us())
   printf("%d %s wait4: %d %d\n",  timestamp(), proc(), elapsed_time,
-         wait4_pid[t])
-  delete wait4_pid[t]
+         wait4_pid[tid()])
+  delete wait4_pid[tid()]
 }

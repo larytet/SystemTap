@@ -22,6 +22,7 @@
 #include "cmdline.h"
 #include "git_version.h"
 #include "version.h"
+#include "stringtable.h"
 #include "tapsets.h"
 
 #include <cerrno>
@@ -464,26 +465,11 @@ systemtap_session::version ()
 #ifdef HAVE_AVAHI
        << " AVAHI"
 #endif
-#ifdef HAVE_LIBRPM
-       << " LIBRPM"
-#endif
-#ifdef HAVE_LIBSQLITE3
-       << " LIBSQLITE3"
-#endif
-#ifdef HAVE_NSS
-       << " NSS"
-#endif
 #ifdef HAVE_BOOST_SHARED_PTR_HPP
        << " BOOST_SHARED_PTR"
 #endif
-#ifdef HAVE_TR1_UNORDERED_MAP
-       << " TR1_UNORDERED_MAP"
-#endif
-#ifdef ENABLE_PROLOGUES
-       << " PROLOGUES"
-#endif
-#ifdef ENABLE_NLS
-       << " NLS"
+#ifdef HAVE_BOOST_UTILITY_STRING_REF_HPP
+       << " BOOST_STRING_REF"
 #endif
 #ifdef HAVE_DYNINST
        << " DYNINST"
@@ -491,11 +477,29 @@ systemtap_session::version ()
 #ifdef HAVE_JAVA
        << " JAVA"
 #endif
+#ifdef HAVE_LIBRPM
+       << " LIBRPM"
+#endif
+#ifdef HAVE_LIBSQLITE3
+       << " LIBSQLITE3"
+#endif
 #ifdef HAVE_LIBVIRT
        << " LIBVIRT"
 #endif
 #ifdef HAVE_LIBXML2
        << " LIBXML2"
+#endif
+#ifdef ENABLE_NLS
+       << " NLS"
+#endif
+#ifdef HAVE_NSS
+       << " NSS"
+#endif
+#ifdef ENABLE_PROLOGUES
+       << " PROLOGUES"
+#endif
+#ifdef HAVE_TR1_UNORDERED_MAP
+       << " TR1_UNORDERED_MAP"
 #endif
        << endl;
 }
@@ -1821,11 +1825,11 @@ systemtap_session::parse_kernel_functions ()
         }
     }
 
-  string address, type, name;
   while (system_map.good())
     {
       assert_no_interrupts();
 
+      string address, type, name;
       system_map >> address >> type >> name;
 
       if (verbose > 3)
@@ -2139,7 +2143,7 @@ systemtap_session::print_error_source (std::ostream& message,
 
   unsigned line = tok->location.line;
   unsigned col = tok->location.column;
-  const string &file_contents = tok->location.file->file_contents;
+  interned_string file_contents = tok->location.file->file_contents;
 
   size_t start_pos = 0, end_pos = 0;
   //Navigate to the appropriate line
@@ -2151,7 +2155,7 @@ systemtap_session::print_error_source (std::ostream& message,
     }
   //TRANSLATORS: Here we are printing the source string of the error
   message << align << _("source: ");
-  string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
+  interned_string srcline = file_contents.substr(start_pos, end_pos-start_pos-1);
   if (color_errors) {
       // before token:
       message << srcline.substr(0, col-1);
@@ -2161,8 +2165,8 @@ systemtap_session::print_error_source (std::ostream& message,
       // or expanded from a $@ command line argument, or ...
       // so tok->content may have nothing in common with the
       // contents of srcline at the same point.
-      string srcline_rest = srcline.substr(col-1);
-      string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
+      interned_string srcline_rest = srcline.substr(col-1);
+      interned_string srcline_tokenish = srcline_rest.substr(0, tok->content.size());
       if (srcline_tokenish == tok->content) { // oh good
         message << colorize(tok->content, "token");
         message << srcline_rest.substr(tok->content.size());
@@ -2280,17 +2284,17 @@ systemtap_session::build_error_msg (const parse_error& pe,
 
   if (pe.tok || found_junk)
     {
-      message << _("\tat: ") << colorize(tok) << endl;
+      message << align_parse_error << _("    at: ") << colorize(tok) << endl;
       print_error_source (message, align_parse_error, tok);
     }
   else if (tok) // "expected" type error
     {
-      message << _("\tsaw: ") << colorize(tok) << endl;
+      message << align_parse_error << _("   saw: ") << colorize(tok) << endl;
       print_error_source (message, align_parse_error, tok);
     }
   else
     {
-      message << _("\tsaw: ") << input_name << " EOF" << endl;
+      message << align_parse_error << _("   saw: ") << input_name << " EOF" << endl;
     }
   message << endl;
 

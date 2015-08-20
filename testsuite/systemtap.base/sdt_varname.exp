@@ -5,6 +5,10 @@ if {![installtest_p]} {
    untested "$test"
    return
 }
+if {![uprobes_p]} {
+   untested "$test"
+   return
+}
 
 # In this testcase, we verify that stap can parse SDT operands of the type
 # [off+]varname[+off][(reg)]. These occur when the operands refer to STB_GLOBAL

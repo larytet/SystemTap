@@ -7,6 +7,7 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/uio.h>
+#include <sys/wait.h>
 
 char child_buffer[1024];
 

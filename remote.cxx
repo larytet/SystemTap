@@ -1,5 +1,5 @@
 // systemtap remote execution
-// Copyright (C) 2010-2011 Red Hat Inc.
+// Copyright (C) 2010-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -1176,7 +1176,11 @@ ssh_remote::create(systemtap_session& s, const string& target)
       host.erase(i);
     }
 
+#if __cplusplus >= 201103L /* -std=c++11 */
+  unique_ptr<ssh_remote> p (new ssh_remote(s));
+#else
   auto_ptr<ssh_remote> p (new ssh_remote(s));
+#endif
   int rc = p->connect(host, port);
   if (rc == 0)
     return p.release();

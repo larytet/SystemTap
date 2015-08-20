@@ -1595,6 +1595,12 @@ and safety properties.
 means that the C code has no side effects and may be elided entirely if its
 value is not used by script code.
 .TP
+.I /* stable */
+means that the C code always has the same value (in any given probe handler
+invocation), so repeated calls may be automatically replaced by memoized
+values.  Such functions must take no parameters, and also be
+.IR pure .
+.TP
 .I /* unprivileged */
 means that the C code is so safe that even unprivileged users are permitted
 to use it.

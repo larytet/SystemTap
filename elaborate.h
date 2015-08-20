@@ -1,5 +1,5 @@
 // -*- C++ -*-
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -11,6 +11,8 @@
 
 #include "staptree.h"
 #include "parse.h"
+#include "stringtable.h"
+
 #include <string>
 #include <vector>
 //#include <iostream>
@@ -51,7 +53,7 @@ public:
   derived_probe* current_probe;
   symresolution_info (systemtap_session& s);
 
-  vardecl* find_var (const std::string& name, int arity, const token *tok);
+  vardecl* find_var (interned_string name, int arity, const token *tok);
   functiondecl* find_function (const std::string& name, unsigned arity, const token *tok);
   std::set<std::string> collect_functions(void);
 
@@ -316,7 +318,7 @@ struct derived_probe_group
 
 // ------------------------------------------------------------------------
 
-typedef std::map<std::string, literal*> literal_map_t;
+typedef std::map<interned_string, literal*> literal_map_t;
 
 struct derived_probe_builder
 {
@@ -328,8 +330,7 @@ struct derived_probe_builder
   virtual void build_with_suffix(systemtap_session & sess,
                                  probe * use,
                                  probe_point * location,
-                                 std::map<std::string, literal *>
-                                   const & parameters,
+                                 literal_map_t const & parameters,
                                  std::vector<derived_probe *>
                                    & finished_results,
                                  std::vector<probe_point::component *>
@@ -339,24 +340,24 @@ struct derived_probe_builder
   virtual bool is_alias () const { return false; }
 
   static bool has_null_param (literal_map_t const & parameters,
-                              const std::string& key);
+                              interned_string key);
   static bool get_param (literal_map_t const & parameters,
-                         const std::string& key, std::string& value);
+                         interned_string key, interned_string& value);
   static bool get_param (literal_map_t const & parameters,
-                         const std::string& key, int64_t& value);
+                         interned_string key, int64_t& value);
   static bool has_param (literal_map_t const & parameters,
-                          const std::string& key);
+                         interned_string key);
 };
 
 
 struct
 match_key
 {
-  std::string name;
+  interned_string name;
   bool have_parameter;
   exp_type parameter_type;
 
-  match_key(std::string const & n);
+  match_key(interned_string n);
   match_key(probe_point::component const & c);
 
   match_key & with_number();
@@ -389,7 +390,7 @@ match_node
   void dump (systemtap_session &s, const std::string &name = "");
 
   match_node* bind(match_key const & k);
-  match_node* bind(std::string const & k);
+  match_node* bind(interned_string k);
   match_node* bind_str(std::string const & k);
   match_node* bind_num(std::string const & k);
   match_node* bind_privilege(privilege_t p = privilege_t (pr_stapdev | pr_stapsys));
@@ -414,13 +415,12 @@ alias_expansion_builder
   virtual void build(systemtap_session & sess,
 		     probe * use,
 		     probe_point * location,
-		     std::map<std::string, literal *> const &,
+		     literal_map_t const &,
 		     std::vector<derived_probe *> & finished_results);
   virtual void build_with_suffix(systemtap_session & sess,
                                  probe * use,
                                  probe_point * location,
-                                 std::map<std::string, literal *>
-                                   const &,
+                                 literal_map_t const &,
                                  std::vector<derived_probe *>
                                    & finished_results,
                                  std::vector<probe_point::component *>

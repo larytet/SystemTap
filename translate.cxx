@@ -21,6 +21,7 @@
 #include "runtime/k_syms.h"
 #include "dwflpp.h"
 #include "stapregex.h"
+#include "stringtable.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -54,6 +55,7 @@ extern "C" {
 #define STAP_T_05 _("\"aggregation overflow in ")
 #define STAP_T_06 _("\"empty aggregate\";")
 #define STAP_T_07 _("\"histogram index out of range\";")
+
 using namespace std;
 
 class var;
@@ -264,17 +266,17 @@ struct c_unparser_assignment:
   public throwing_visitor
 {
   c_unparser* parent;
-  string op;
+  interned_string op;
   expression* rvalue;
   bool post; // true == value saved before modify operator
-  c_unparser_assignment (c_unparser* p, const string& o, expression* e):
+  c_unparser_assignment (c_unparser* p, interned_string o, expression* e):
     throwing_visitor ("invalid lvalue type"),
     parent (p), op (o), rvalue (e), post (false) {}
-  c_unparser_assignment (c_unparser* p, const string& o, bool pp):
+  c_unparser_assignment (c_unparser* p, interned_string o, bool pp):
     throwing_visitor ("invalid lvalue type"),
     parent (p), op (o), rvalue (0), post (pp) {}
 
-  void prepare_rvalue (string const & op,
+  void prepare_rvalue (interned_string op,
 		       tmpvar & rval,
 		       token const*  tok);
 
@@ -294,10 +296,10 @@ struct c_tmpcounter_assignment:
 // leave throwing for illegal lvalues to the c_unparser_assignment instance
 {
   c_tmpcounter* parent;
-  const string& op;
+  interned_string op;
   expression* rvalue;
   bool post; // true == value saved before modify operator
-  c_tmpcounter_assignment (c_tmpcounter* p, const string& o, expression* e, bool pp = false):
+  c_tmpcounter_assignment (c_tmpcounter* p, interned_string o, expression* e, bool pp = false):
     parent (p), op (o), rvalue (e), post (pp) {}
 
   void prepare_rvalue (tmpvar & rval);
@@ -3337,7 +3339,7 @@ c_unparser::is_local(vardecl const *r, token const *tok)
   if (tok)
     throw SEMANTIC_ERROR (_("unresolved symbol"), tok);
   else
-    throw SEMANTIC_ERROR (_("unresolved symbol: ") + r->name);
+    throw SEMANTIC_ERROR (_("unresolved symbol: ") + (string)r->name);
 }
 
 
@@ -3363,7 +3365,7 @@ c_unparser::getvar(vardecl *v, token const *tok)
   else
     {
       statistic_decl sd;
-      std::map<std::string, statistic_decl>::const_iterator i;
+      std::map<interned_string, statistic_decl>::const_iterator i;
       i = session->stat_decls.find(v->name);
       if (i != session->stat_decls.end())
 	sd = i->second;
@@ -3378,7 +3380,7 @@ c_unparser::getmap(vardecl *v, token const *tok)
   if (v->arity < 1)
     throw SEMANTIC_ERROR(_("attempt to use scalar where map expected"), tok);
   statistic_decl sd;
-  std::map<std::string, statistic_decl>::const_iterator i;
+  std::map<interned_string, statistic_decl>::const_iterator i;
   i = session->stat_decls.find(v->name);
   if (i != session->stat_decls.end())
     sd = i->second;
@@ -4480,7 +4482,7 @@ c_unparser::visit_continue_statement (continue_statement* s)
 void
 c_unparser::visit_literal_string (literal_string* e)
 {
-  const string& v = e->value;
+  interned_string v = e->value;
   o->line() << '"';
   for (unsigned i=0; i<v.size(); i++)
     // NB: The backslash character is specifically passed through as is.
@@ -5156,7 +5158,7 @@ c_tmpcounter_assignment::visit_symbol (symbol *e)
 
 
 void
-c_unparser_assignment::prepare_rvalue (string const & op,
+c_unparser_assignment::prepare_rvalue (interned_string op,
 				       tmpvar & rval,
 				       token const * tok)
 {
@@ -5831,8 +5833,8 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
       if (e->print_with_delim)
 	{
 	  stringstream escaped_delim;
-	  const string& dstr = e->delimiter.literal_string;
-	  for (string::const_iterator i = dstr.begin();
+	  interned_string dstr = e->delimiter.literal_string;
+	  for (interned_string::const_iterator i = dstr.begin();
 	       i != dstr.end(); ++i)
 	    {
 	      if (*i == '%')

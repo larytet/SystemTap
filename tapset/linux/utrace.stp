@@ -4,7 +4,7 @@
 #include "syscall.h"
 %}
 
-function _utrace_syscall_nr:long () %{		/* pure */ /* myproc-unprivileged */
+function _utrace_syscall_nr:long () %{		/* pure */ /* stable */ /* myproc-unprivileged */
     if (! CONTEXT->uregs || ! CONTEXT->user_mode_p) {
        CONTEXT->last_error = "invalid call without context registers";
     } else {
@@ -22,7 +22,7 @@ function _utrace_syscall_arg:long (n:long) %{	/* pure */ /* myproc-unprivileged 
     STAP_RETVALUE = arg;
 %}
 
-function _utrace_syscall_return:long () %{	/* pure */ /* myproc-unprivileged */
+function _utrace_syscall_return:long () %{	/* pure */ /* stable */ /* myproc-unprivileged */
     /*
      * Here's the reason for the "unsigned long" cast.  Since all
      * values inside systemtap are 64-bit numbers, return values were

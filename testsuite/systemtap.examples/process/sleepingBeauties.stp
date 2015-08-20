@@ -17,28 +17,25 @@ global name, back, backtime, bored
 
 probe kernel.function("wait_for_completion").return
 {
-  t=tid()
-
-  if ([t] in bored) {
-    patience = time() - backtime[t]
+  if ([tid()] in bored) {
+    patience = time() - backtime[tid()]
     printf ("thread %d (%s) bored for %d %s\n", 
-            t, name[t], patience, time_name)
+            tid(), name[tid()], patience, time_name)
   }
 
-  delete bored[t]
-  delete back[t]
-  delete name[t]
-  delete backtime[t]
+  delete bored[tid()]
+  delete back[tid()]
+  delete name[tid()]
+  delete backtime[tid()]
 }
 
 
 probe kernel.function("wait_for_completion").call
 { 
-  t=tid()
-  back[t]=backtrace()
-  name[t]=execname()
-  backtime[t]=time()
-  delete bored[t]
+  back[tid()]=backtrace()
+  name[tid()]=execname()
+  backtime[tid()]=time()
+  delete bored[tid()]
 }
 
 

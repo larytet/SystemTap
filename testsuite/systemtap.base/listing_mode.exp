@@ -336,6 +336,8 @@ proc report_untested_probes {} {
          module(string).function(string) -
          module(string).function(string).call -
          module(string).function(string).callee(string) -
+         module(string).function(string).callee(string).call -
+         module(string).function(string).callee(string).return -
          module(string).function(string).callees -
          module(string).function(string).callees(number) -
          module(string).function(string).exported -
@@ -591,6 +593,16 @@ if {[callee_probes_p]} {
    stap_list {kernel.function("vfs_read").callee("*")} \
       {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\)} {-1}
 
+   testing_probe {kernel.function(string).callee(string).return}
+
+   stap_list {kernel.function("vfs_read").callee("*").return} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\).return} {-1}
+
+   testing_probe {kernel.function(string).callee(string).call}
+
+   stap_list {kernel.function("vfs_read").callee("*").call} \
+      {re:kernel.function\("vfs_read@[^:]+:[0-9]+"\).callee\("[^@]+@[^:]+:[0-9]+"\).call} {-1}
+
    testing_probe {kernel.function(string).callees}
 
    stap_list {kernel.function("vfs_read").callees} \
@@ -796,6 +808,16 @@ if {$exepath != ""} {
       stap_list_cmd "process.function(\"foo\").callee(\"bar\")" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
 
+      testing_probe {process.function(string).callee(string).call}
+
+      stap_list_cmd "process.function(\"foo\").callee(\"bar\").call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)\\\.call"
+
+      testing_probe {process.function(string).callee(string).return}
+
+      stap_list_cmd "process.function(\"foo\").callee(\"bar\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)\\\.return"
+
       testing_probe {process.function(string).callees}
 
       stap_list_cmd "process.function(\"foo\").callees" \
@@ -881,6 +903,16 @@ if {$exepath != ""} {
 
       stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\")" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)"
+
+      testing_probe {process.library(string).function(string).callee(string).call}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\").call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)\\\.call"
+
+      testing_probe {process.library(string).function(string).callee(string).return}
+
+      stap_list_cmd_lib "process.library(\"sopath\").function(\"libfoo\").callee(\"libbar\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.library\\\(\"$sofullpath\"\\\)\\\.function\\\(\"libfoo@\[^:\]+:55\"\\\)\\\.callee\\\(\"libbar@\[^:\]+:48\"\\\)\\\.return"
 
       testing_probe {process.library(string).function(string).callees}
 
@@ -1196,6 +1228,16 @@ if {$exepath != ""} {
 
       stap_list "process($valid_pid).function(\"foo\").callee(\"bar\")" \
          "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)"
+
+      testing_probe {process(number).function(string).callee(string).call}
+
+      stap_list "process($valid_pid).function(\"foo\").callee(\"bar\").call" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)\\\.call"
+
+      testing_probe {process(number).function(string).callee(string).return}
+
+      stap_list "process($valid_pid).function(\"foo\").callee(\"bar\").return" \
+         "re:process\\\(\"$exefullpath\"\\\)\\\.function\\\(\"foo@\[^:\]+:23\"\\\)\\\.callee\\\(\"bar@\[^:\]+:16\"\\\)\\\.return"
 
       testing_probe {process(number).function(string).callees}
 

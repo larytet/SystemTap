@@ -107,7 +107,7 @@ has_table(sqlite3 *db, const char * table)
 			 &results, &rows, &columns, &errmsg);
 
   if(rc != SQLITE_OK) {
-    cerr << _("Error in statement: ") << command << " [" << errmsg << "]."
+    cerr << _("Error in statement: ") << command.str() << " [" << errmsg << "]."
 				 << endl;
   }
   sqlite3_free_table(results);
@@ -130,7 +130,7 @@ has_index(sqlite3 *db, const char * index)
 			 &results, &rows, &columns, &errmsg);
 
   if(rc != SQLITE_OK) {
-    cerr << _("Error in statement: ") << command << " [" << errmsg << "]."
+    cerr << _("Error in statement: ") << command.str() << " [" << errmsg << "]."
 				 << endl;
   }
   sqlite3_free_table(results);

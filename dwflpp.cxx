@@ -74,6 +74,21 @@ using namespace __gnu_cxx;
 static string TOK_KERNEL("kernel");
 
 
+// RAII style tracker for obstack pool, used because of complex exception flows
+#define obstack_chunk_alloc malloc
+#define obstack_chunk_free free
+struct obstack_tracker
+{
+  struct obstack* p;
+  obstack_tracker(struct obstack*p): p(p) {
+    obstack_init (p);
+  }
+  ~obstack_tracker() {
+    obstack_free (this->p, 0);
+  }
+};
+
+
 dwflpp::dwflpp(systemtap_session & session, const string& name, bool kernel_p):
   sess(session), module(NULL), module_bias(0), mod_info(NULL),
   module_start(0), module_end(0), cu(NULL), dwfl(NULL),
@@ -949,7 +964,7 @@ dwflpp::cu_function_caching_callback (Dwarf_Die* func, cu_function_cache_t *v)
   if (!name)
     return DWARF_CB_OK;
 
-  v->insert(make_pair(string(name), *func));
+  v->insert(make_pair(name, *func));
   return DWARF_CB_OK;
 }
 
@@ -1811,7 +1826,7 @@ get_funcs_in_srcfile(base_func_info_map_t& funcs,
   base_func_info_map_t matching_funcs;
   for (base_func_info_map_t::iterator func  = funcs.begin();
                                       func != funcs.end(); ++func)
-    if (strcmp(srcfile, func->decl_file) == 0)
+    if (func->decl_file == string(srcfile))
       matching_funcs.push_back(*func);
   return matching_funcs;
 }
@@ -2213,7 +2228,7 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                    ".callee probe may not fire. Try placing the probe "
                                    "directly on the callee function instead.",
                                    callee.name.c_str(), caller.name.c_str()));
-
+          
           // For .callees(N) probes, we recurse on this callee. Note that we
           // pass the callee we just found as the caller arg for this recursion,
           // since it (the callee we just found) will be the caller of whatever
@@ -2365,8 +2380,6 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
       DWFL_ASSERT ("dwarf_highpc", dwarf_highpc (& it->die,
                                                  & highpc));
 
-      if (it->decl_file == 0) it->decl_file = "";
-
       unsigned entrypc_srcline_idx = 0;
       Dwarf_Line *entrypc_srcline = NULL;
       {
@@ -2401,8 +2414,8 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       if (sess.verbose>2)
         clog << _F("searching for prologue of function '%s' %#" PRIx64 "-%#" PRIx64 
-                   "@%s:%d\n", it->name.c_str(), entrypc, highpc, it->decl_file,
-                   it->decl_line);
+                   "@%s:%d\n", it->name.c_str(), entrypc, highpc,
+                   it->decl_file.c_str(), it->decl_line);
 
       // For each function, we look for the prologue-end marker (e.g. clang
       // outputs one). If there is no explicit marker (e.g. GCC does not), we
@@ -2440,7 +2453,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
           if (lineprologue_end)
             break;
           // is it a different file?
-          if (strcmp(linesrc, it->decl_file))
+          if (it->decl_file != string(linesrc))
             break;
           // OK, it's the same file, but is it a different line?
           if (lineno != entrypc_srcline_lineno)
@@ -3864,12 +3877,9 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 		   local.c_str(), cu_name().c_str());
     }
 
-
-#define obstack_chunk_alloc malloc
-#define obstack_chunk_free free
-
   struct obstack pool;
-  obstack_init (&pool);
+  obstack_tracker p (&pool);
+
   struct location *tail = NULL;
 
   /* Given $foo->bar->baz[NN], translate the location of foo. */
@@ -3933,7 +3943,6 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
-  obstack_free (&pool, 0);
   return result;
 }
 
@@ -3969,7 +3978,7 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
                 (dwarf_diename(scope_die) ?: "<unknown>"), (dwarf_diename(cu) ?: "<unknown>"));
 
   struct obstack pool;
-  obstack_init (&pool);
+  obstack_tracker p (&pool);
   struct location *tail = NULL;
 
   /* Given $return->bar->baz[NN], translate the location of return. */
@@ -3977,18 +3986,14 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
   int nlocops = dwfl_module_return_value_location (module, scope_die,
                                                    &locops);
   if (nlocops < 0)
-    {
-      throw SEMANTIC_ERROR(_F("failed to retrieve return value location for %s [man error::dwarf] (%s)",
-                          (dwarf_diename(scope_die) ?: "<unknown>"),
-                          (dwarf_diename(cu) ?: "<unknown>")), e->tok);
-    }
+    throw SEMANTIC_ERROR(_F("failed to retrieve return value location for %s [man error::dwarf] (%s)",
+                            (dwarf_diename(scope_die) ?: "<unknown>"),
+                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
   // the function has no return value (e.g. "void" in C)
   else if (nlocops == 0)
-    {
-      throw SEMANTIC_ERROR(_F("function %s (%s) has no return value",
-                             (dwarf_diename(scope_die) ?: "<unknown>"),
-                             (dwarf_diename(cu) ?: "<unknown>")), e->tok);
-    }
+    throw SEMANTIC_ERROR(_F("function %s (%s) has no return value",
+                            (dwarf_diename(scope_die) ?: "<unknown>"),
+                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
 
   l2c_ctx.pc = pc;
   l2c_ctx.die = scope_die;
@@ -4003,9 +4008,9 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
   Dwarf_Die vardie = *scope_die, typedie;
   if (dwarf_attr_die (&vardie, DW_AT_type, &typedie) == NULL)
     throw SEMANTIC_ERROR(_F("failed to retrieve return value type attribute for %s [man error::dwarf] (%s)",
-                           (dwarf_diename(&vardie) ?: "<unknown>"),
-                           (dwarf_diename(cu) ?: "<unknown>")), e->tok);
-
+                            (dwarf_diename(&vardie) ?: "<unknown>"),
+                            (dwarf_diename(cu) ?: "<unknown>")), e->tok);
+  
   translate_components (&pool, &tail, pc, e, &vardie, &typedie);
 
   /* Translate the assignment part, either
@@ -4021,7 +4026,6 @@ dwflpp::literal_stmt_for_return (Dwarf_Die *scope_die,
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
-  obstack_free (&pool, 0);
   return result;
 }
 
@@ -4053,7 +4057,7 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
                   dwarf_type_name(start_typedie).c_str(), (dwarf_diename(cu) ?: "<unknown>"));
 
   struct obstack pool;
-  obstack_init (&pool);
+  obstack_tracker p (&pool);
   l2c_ctx.pc = 1;
   l2c_ctx.die = start_typedie;
   struct location *head = c_translate_argument (&pool, &loc2c_error, this,
@@ -4105,7 +4109,6 @@ dwflpp::literal_stmt_for_pointer (Dwarf_Die *start_typedie,
 
   /* Write the translation to a string. */
   string result = express_as_string(prelude, postlude, head);
-  obstack_free (&pool, 0);
   return result;
 }
 
@@ -4151,10 +4154,10 @@ in_kprobes_function(systemtap_session& sess, Dwarf_Addr addr)
 
 
 enum dwflpp::blacklisted_type
-dwflpp::blacklisted_p(const string& funcname,
-                      const string& filename,
+dwflpp::blacklisted_p(interned_string funcname,
+                      interned_string filename,
                       int,
-                      const string& module,
+                      interned_string module,
                       Dwarf_Addr addr,
                       bool has_return)
 {
@@ -4457,7 +4460,7 @@ dwflpp::get_blacklist_section(Dwarf_Addr addr)
           if (! (offset >= start && offset < end))
             continue;
 
-          blacklist_section =  elf_strptr (elf, shstrndx, shdr->sh_name);
+          blacklist_section = elf_strptr (elf, shstrndx, shdr->sh_name);
           break;
         }
     }
@@ -4526,7 +4529,7 @@ dwflpp::get_section(string section_name, GElf_Shdr *shdr_mem, Elf **elf_ret)
 
 
 Dwarf_Addr
-dwflpp::relocate_address(Dwarf_Addr dw_addr, string& reloc_section)
+dwflpp::relocate_address(Dwarf_Addr dw_addr, interned_string& reloc_section)
 {
   // PR10273
   // libdw address, so adjust for bias gotten from dwfl_module_getdwarf

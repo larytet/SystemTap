@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <string.h>
 
-#if defined __NR_signalfd && defined __NR_signalfd4
+#if defined(__NR_signalfd) || defined(__NR_signalfd4)
 #include <sys/signalfd.h>
 
 int main()

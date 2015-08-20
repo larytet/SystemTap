@@ -773,14 +773,10 @@ exit 0
 
 %if %{with_java}
 
-%triggerin runtime-java -- java-1.7.0-openjdk, java-1.6.0-openjdk
+%triggerin runtime-java -- java-1.8.0-openjdk, java-1.7.0-openjdk, java-1.6.0-openjdk
 for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
-    %ifarch %{ix86} ppc64 ppc64le
-        %ifarch ppc64 ppc64le
-            arch=ppc64
-	%else
-	    arch=i386
-	%endif
+    %ifarch %{ix86}
+	arch=i386
     %else
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
@@ -792,14 +788,10 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
     done
 done
 
-%triggerun runtime-java -- java-1.7.0-openjdk, java-1.6.0-openjdk
+%triggerun runtime-java -- java-1.8.0-openjdk, java-1.7.0-openjdk, java-1.6.0-openjdk
 for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
-    %ifarch %{ix86} ppc64 ppc64le
-        %ifarch ppc64 ppc64le
-            arch=ppc64
-	%else
-	    arch=i386
-	%endif
+    %ifarch %{ix86}
+	arch=i386
     %else
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif
@@ -809,15 +801,11 @@ for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
     done
 done
 
-%triggerpostun runtime-java -- java-1.7.0-openjdk, java-1.6.0-openjdk
+%triggerpostun runtime-java -- java-1.8.0-openjdk, java-1.7.0-openjdk, java-1.6.0-openjdk
 # Restore links for any JDKs remaining after a package removal:
 for f in %{_libexecdir}/systemtap/libHelperSDT_*.so; do
-    %ifarch %{ix86} ppc64 ppc64le
-        %ifarch ppc64 ppc64le
-            arch=ppc64
-	%else
-	    arch=i386
-	%endif
+    %ifarch %{ix86}
+	arch=i386
     %else
         arch=`basename $f | cut -f2 -d_ | cut -f1 -d.`
     %endif

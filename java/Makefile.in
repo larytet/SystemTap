@@ -101,11 +101,12 @@ subdir = java
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(srcdir)/stapbm.in $(top_srcdir)/depcomp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
-	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
-	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
-	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
-	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
+	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
+	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
+	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/nls.m4 \
+	$(top_srcdir)/m4/po.m4 $(top_srcdir)/m4/progtest.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 mkinstalldirs = $(install_sh) -d
@@ -306,6 +307,7 @@ build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
 builddir = @builddir@
+cxx11 = @cxx11@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
@@ -347,6 +349,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+python = @python@
 sbindir = @sbindir@
 selinux_CFLAGS = @selinux_CFLAGS@
 selinux_LIBS = @selinux_LIBS@
@@ -625,8 +628,8 @@ maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-@HAVE_JAVA_FALSE@uninstall-local:
 @HAVE_JAVA_FALSE@install-exec-local:
+@HAVE_JAVA_FALSE@uninstall-local:
 @HAVE_JAVA_FALSE@install-data-local:
 clean: clean-am
 
@@ -725,6 +728,7 @@ override JAVA_ARCH:=$(JAVA_ARCH:i%86=i386)
 override JAVA_ARCH:=$(JAVA_ARCH:sparcv9=sparc)
 override JAVA_ARCH:=$(JAVA_ARCH:sparc64=sparcv9)
 override JAVA_ARCH:=$(JAVA_ARCH:arm%=arm)
+override JAVA_ARCH:=$(JAVA_ARCH:powerpc64le%=ppc64le)
 override JAVA_ARCH:=$(JAVA_ARCH:powerpc64%=ppc64)
 @HAVE_JAVA_TRUE@$(HELPERSDT).class: $(srcdir)/$(HELPERSDT).java
 @HAVE_JAVA_TRUE@	$(JAVAC) -d . $(srcdir)/$(HELPERSDT).java

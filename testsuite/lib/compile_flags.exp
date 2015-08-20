@@ -33,7 +33,7 @@ proc arch_compile_flag { INDEX } {
 proc arch_compile_flag_name { INDEX } {
   if { [arch_compile_flags] == 1 } {
     switch -regexp $::tcl_platform(machine) {
-      {^(ia64|aarch64)$} { return "m64" }
+      {^(ia64|aarch64|ppc64le)$} { return "m64" }
       {^s390$} { return "m31" }
       default { return "m32" }
     }
@@ -61,7 +61,7 @@ proc arch_compile_flag_bits { INDEX } {
   # Notice that even though s390/s390x is 31 bits, we'll call it 32.
   if { [arch_compile_flags] == 1 } {
     switch -regexp $::tcl_platform(machine) {
-      {^(ia64|aarch64)$} { return 64 }
+      {^(ia64|aarch64|ppc64le)$} { return 64 }
       default { return 32 }
     }
   }

@@ -21,6 +21,8 @@ set myproc_probe_types [list \
   "process.function(string).return" \
   "process.function(string).exported" \
   "process.function(string).callee(string)" \
+  "process.function(string).callee(string).call" \
+  "process.function(string).callee(string).return" \
   "process.function(string).callees" \
   "process.function(string).callees(number)" \
   "process.plt" \
@@ -39,6 +41,8 @@ set myproc_probe_types [list \
   "process.library(string).function(string).exported" \
   "process.library(string).function(string).label(string)" \
   "process.library(string).function(string).callee(string)" \
+  "process.library(string).function(string).callee(string).call" \
+  "process.library(string).function(string).callee(string).return" \
   "process.library(string).function(string).callees" \
   "process.library(string).function(string).callees(number)" \
   "process.library(string).plt" \
@@ -78,6 +82,8 @@ set myproc_probe_types [list \
   "process(number).function(string)" \
   "process(number).function(string).call" \
   "process(number).function(string).callee(string)" \
+  "process(number).function(string).callee(string).call" \
+  "process(number).function(string).callee(string).return" \
   "process(number).function(string).callees" \
   "process(number).function(string).callees(number)" \
   "process(number).function(string).exported" \
@@ -107,6 +113,8 @@ set myproc_probe_types [list \
   "process(string).function(string).return" \
   "process(string).function(string).exported" \
   "process(string).function(string).callee(string)" \
+  "process(string).function(string).callee(string).call" \
+  "process(string).function(string).callee(string).return" \
   "process(string).function(string).callees" \
   "process(string).function(string).callees(number)" \
   "process(string).insn" \
@@ -123,6 +131,8 @@ set myproc_probe_types [list \
   "process(string).library(string).function(string).exported" \
   "process(string).library(string).function(string).label(string)" \
   "process(string).library(string).function(string).callee(string)" \
+  "process(string).library(string).function(string).callee(string).call" \
+  "process(string).library(string).function(string).callee(string).return" \
   "process(string).library(string).function(string).callees" \
   "process(string).library(string).function(string).callees(number)" \
   "process(string).library(string).mark(string)" \
@@ -318,6 +328,13 @@ proc test_probes { privilege } {
 	    process(number).thread.end
 	    {
 		# Impossible to predict the task_id of a thread
+		untested "$test: $option $probe_type"
+		set tested($probe_type) 1
+		continue
+	    }
+	    process.library(string).function(string).callee(string).return -
+	    process(string).library(string).function(string).callee(string).return
+	    {
 		untested "$test: $option $probe_type"
 		set tested($probe_type) 1
 		continue

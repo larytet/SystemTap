@@ -1,0 +1,39 @@
+set test "stable_function"
+set testpath "$srcdir/$subdir"
+
+if {![installtest_p]} {untested $test; return}
+
+# check output is same after optimization
+proc run_test {test exp hits} {
+  global testpath
+  set success 0
+  eval spawn stap -g $testpath/$test.stp
+  expect {
+    -timeout 30
+    -re "^$exp $hits\r\n$" {
+      if { $success == 0 } {
+        verbose -log "match with optimized version\n"
+        set success 1 
+      }
+    }
+  }
+
+  eval spawn stap -u -g $testpath/$test.stp
+  expect {
+    -timeout 30
+    -re "^$exp" {
+      if { $success == 1 } {
+        verbose -log "match with unoptimized version\n"
+        set success 2
+      }
+    }
+  }
+
+  if { $success == 2 } { pass $test }  { fail $test  }
+}
+
+run_test stable_function_single "100" "1"
+run_test stable_function_multi "400 400" "1"
+run_test stable_function_mix "300 300 100" "3 2"
+run_test stable_function_loop "18000" "1"
+run_test stable_function_branch "102 101 100 101" "1 2 1"

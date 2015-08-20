@@ -12,80 +12,72 @@ probe syscall.poll, syscall.epoll_wait {
 }
 
 probe syscall.poll.return {
-  p = pid()
-  if ($return == 0 && to[p] > 0 ) {
-    poll_timeout[p]++
-    timeout_count[p]++
-    process[p] = execname()
-    delete to[p]
+  if ($return == 0 && to[pid()] > 0 ) {
+    poll_timeout[pid()]++
+    timeout_count[pid()]++
+    process[pid()] = execname()
+    delete to[pid()]
   }
 }
 
 probe syscall.epoll_wait.return {
-  p = pid()
-  if ($return == 0 && to[p] > 0 ) {
-    epoll_timeout[p]++
-    timeout_count[p]++
+  if ($return == 0 && to[pid()] > 0 ) {
+    epoll_timeout[pid()]++
+    timeout_count[pid()]++
     process[p] = execname()
-    delete to[p]
+    delete to[pid()]
   }
 }
 
 probe syscall.select.return {
   if ($return == 0) {
-    p = pid()
-    select_timeout[p]++
-    timeout_count[p]++
-    process[p] = execname()
+    select_timeout[pid()]++
+    timeout_count[pid()]++
+    process[pid()] = execname()
   }
 }
 
 probe syscall.futex.return {
   if (errno_str($return) == "ETIMEDOUT") {
-    p = pid()
-    futex_timeout[p]++
-    timeout_count[p]++
-    process[p] = execname()
+    futex_timeout[pid()]++
+    timeout_count[pid()]++
+    process[pid()] = execname()
   }
 }
 
 probe syscall.nanosleep.return {
   if ($return == 0) {
-    p = pid()
-    nanosleep_timeout[p]++
-    timeout_count[p]++
-    process[p] = execname()
+    nanosleep_timeout[pid()]++
+    timeout_count[pid()]++
+    process[pid()] = execname()
   }
 }
 
 probe kernel.function("it_real_fn") {
-  p = pid()
-  itimer_timeout[p]++
-  timeout_count[p]++
-  process[p] = execname()
+  itimer_timeout[pid()]++
+  timeout_count[pid()]++
+  process[pid()] = execname()
 }
 
 probe syscall.rt_sigtimedwait.return {
   if (errno_str($return) == "EAGAIN") {
-    p = pid()
-    signal_timeout[p]++
-    timeout_count[p]++
-    process[p] = execname()
+    signal_timeout[pid()]++
+    timeout_count[pid()]++
+    process[pid()] = execname()
   }
 }
 
 probe syscall.exit {
-  p = pid()
-  if (p in process) {
-    delete process[p]
-    delete timeout_count[p]
-    delete poll_timeout[p]
-    delete epoll_timeout[p]
-    delete select_timeout[p]
-    delete itimer_timeout[p]
-    delete futex_timeout[p]
-    delete nanosleep_timeout[p]
-    delete signal_timeout[p]
+  if (pid() in process) {
+    delete process[pid()]
+    delete timeout_count[pid()]
+    delete poll_timeout[pid()]
+    delete epoll_timeout[pid()]
+    delete select_timeout[pid()]
+    delete itimer_timeout[pid()]
+    delete futex_timeout[pid()]
+    delete nanosleep_timeout[pid()]
+    delete signal_timeout[pid()]
   }
 }
 

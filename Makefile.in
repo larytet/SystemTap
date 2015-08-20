@@ -128,11 +128,12 @@ DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/staprun/guest/stapsh@.service.in depcomp \
 	$(am__noinst_HEADERS_DIST) $(oldinclude_HEADERS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
-am__aclocal_m4_deps = $(top_srcdir)/m4/gettext.m4 \
-	$(top_srcdir)/m4/iconv.m4 $(top_srcdir)/m4/lib-ld.m4 \
-	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
-	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
-	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
+am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
+	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
+	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
+	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/nls.m4 \
+	$(top_srcdir)/m4/po.m4 $(top_srcdir)/m4/progtest.m4 \
+	$(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -212,6 +213,7 @@ loc2c_test_LINK = $(CCLD) $(loc2c_test_CFLAGS) $(CFLAGS) \
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-tree.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-parse.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-stapregex-dfa.$(OBJEXT) \
+@BUILD_TRANSLATOR_TRUE@	stap-stringtable.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	stap-interactive.$(OBJEXT) \
 @BUILD_TRANSLATOR_TRUE@	$(am__objects_1)
 stap_OBJECTS = $(am_stap_OBJECTS)
@@ -485,6 +487,7 @@ build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
 builddir = @builddir@
+cxx11 = @cxx11@
 datadir = @datadir@
 datarootdir = @datarootdir@
 docdir = @docdir@
@@ -577,8 +580,8 @@ oldinclude_HEADERS = includes/sys/sdt.h includes/sys/sdt-config.h
 @BUILD_TRANSLATOR_TRUE@	tapset-dynprobe.cxx tapset-method.cxx \
 @BUILD_TRANSLATOR_TRUE@	translator-output.cxx stapregex.cxx \
 @BUILD_TRANSLATOR_TRUE@	stapregex-tree.cxx stapregex-parse.cxx \
-@BUILD_TRANSLATOR_TRUE@	stapregex-dfa.cxx interactive.cxx \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_11)
+@BUILD_TRANSLATOR_TRUE@	stapregex-dfa.cxx stringtable.cxx \
+@BUILD_TRANSLATOR_TRUE@	interactive.cxx $(am__append_11)
 @BUILD_TRANSLATOR_TRUE@noinst_HEADERS = sdt_types.h
 # FIXME: We'll need some configure changes to check for readline/ncurses.
 @BUILD_TRANSLATOR_TRUE@stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ \
@@ -610,7 +613,8 @@ PHONIES = $(am__append_16) $(am__append_22) runcheck update-po \
 @BUILD_TRANSLATOR_TRUE@stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@ \
 @BUILD_TRANSLATOR_TRUE@	$(am__append_12)
 @BUILD_TRANSLATOR_TRUE@stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ \
-@BUILD_TRANSLATOR_TRUE@	$(am__append_8) $(am__append_13)
+@BUILD_TRANSLATOR_TRUE@	@cxx11@ $(am__append_8) \
+@BUILD_TRANSLATOR_TRUE@	$(am__append_13)
 @BUILD_TRANSLATOR_TRUE@stap_CPPFLAGS = $(AM_CPPFLAGS) -DSTAP_SDT_V2 \
 @BUILD_TRANSLATOR_TRUE@	$(am__append_9) $(am__append_14) \
 @BUILD_TRANSLATOR_TRUE@	$(am__append_17)
@@ -966,6 +970,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-stapregex-tree.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-stapregex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-staptree.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-stringtable.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-tapset-been.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-tapset-dynprobe.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap-tapset-itrace.Po@am__quote@
@@ -1585,6 +1590,20 @@ stap-stapregex-dfa.obj: stapregex-dfa.cxx
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stapregex-dfa.cxx' object='stap-stapregex-dfa.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-stapregex-dfa.obj `if test -f 'stapregex-dfa.cxx'; then $(CYGPATH_W) 'stapregex-dfa.cxx'; else $(CYGPATH_W) '$(srcdir)/stapregex-dfa.cxx'; fi`
+
+stap-stringtable.o: stringtable.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-stringtable.o -MD -MP -MF $(DEPDIR)/stap-stringtable.Tpo -c -o stap-stringtable.o `test -f 'stringtable.cxx' || echo '$(srcdir)/'`stringtable.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-stringtable.Tpo $(DEPDIR)/stap-stringtable.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stringtable.cxx' object='stap-stringtable.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-stringtable.o `test -f 'stringtable.cxx' || echo '$(srcdir)/'`stringtable.cxx
+
+stap-stringtable.obj: stringtable.cxx
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-stringtable.obj -MD -MP -MF $(DEPDIR)/stap-stringtable.Tpo -c -o stap-stringtable.obj `if test -f 'stringtable.cxx'; then $(CYGPATH_W) 'stringtable.cxx'; else $(CYGPATH_W) '$(srcdir)/stringtable.cxx'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/stap-stringtable.Tpo $(DEPDIR)/stap-stringtable.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='stringtable.cxx' object='stap-stringtable.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -c -o stap-stringtable.obj `if test -f 'stringtable.cxx'; then $(CYGPATH_W) 'stringtable.cxx'; else $(CYGPATH_W) '$(srcdir)/stringtable.cxx'; fi`
 
 stap-interactive.o: interactive.cxx
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(stap_CPPFLAGS) $(CPPFLAGS) $(stap_CXXFLAGS) $(CXXFLAGS) -MT stap-interactive.o -MD -MP -MF $(DEPDIR)/stap-interactive.Tpo -c -o stap-interactive.o `test -f 'interactive.cxx' || echo '$(srcdir)/'`interactive.cxx

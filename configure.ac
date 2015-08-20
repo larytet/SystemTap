@@ -477,6 +477,7 @@ AC_LANG_PUSH(C++)
 AC_CHECK_HEADERS([tr1/unordered_map])
 AC_CHECK_HEADERS([tr1/memory])
 AC_CHECK_HEADERS([boost/shared_ptr.hpp])
+AC_CHECK_HEADERS([boost/utility/string_ref.hpp])
 AC_LANG_POP(C++)
 
 
@@ -683,6 +684,12 @@ AS_IF([test "x$with_extra_version" != "xno"], [
     stap_extra_version=""])
 AC_DEFINE_UNQUOTED(STAP_EXTRA_VERSION, "$stap_extra_version", [extra stap version code])
 AC_SUBST(STAP_EXTRA_VERSION, "$stap_extra_version")
+
+dnl The stap translator stringtable benefits performance-wise from c++11 constructs.
+AX_CHECK_COMPILE_FLAG([-std=c++11],[cxx11="-std=c++11"],[cxx11=""])
+AS_IF([test "x$cxx11" != "x"],[
+        AC_MSG_NOTICE([Compiling parts of systemtap with -std=c++11])])
+AC_SUBST(cxx11)
 
 dnl This is here mainly to make sure that configure --prefix=... changes
 dnl the config.h files so files depending on it are recompiled

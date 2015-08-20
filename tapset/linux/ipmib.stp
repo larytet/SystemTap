@@ -149,47 +149,47 @@ function _plunge_into_tcphdr:long (skb:long)
 %}
 
 function _ehostunreach:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = EHOSTUNREACH;
 %}
 
 function _enetunreach:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ENETUNREACH;
 %}
 
 function _icmp_dest_unreach:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_DEST_UNREACH;
 %}
 
 function _icmp_prot_unreach:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_PROT_UNREACH;
 %}
 
 function _net_rx_drop:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = NET_RX_DROP;
 %}
 
 function _icmp_time_exceeded:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_TIME_EXCEEDED;
 %}
 
 function _icmp_exc_fragtime:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_EXC_FRAGTIME;
 %}
 
 function _rtn_multicast:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = RTN_MULTICAST;
 %}
 
 function _rtn_broadcast:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = RTN_BROADCAST;
 %}
 
@@ -425,7 +425,7 @@ probe ipmib.FragFails=kernel.function("ip_fragment").return
 }
 
 function _rtn_unspec:long ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = RTN_UNSPEC;
 %}
 

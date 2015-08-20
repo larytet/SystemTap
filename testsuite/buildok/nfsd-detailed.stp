@@ -229,12 +229,12 @@ probe nfsd.open.return
 # nfsd.close tests
 #
 
-probe nfsd.close
+probe nfsd.close ?
 {
 	printf("%s(%s)\n", name, argstr)
 	printf("%s\n", client_ip)
 }
-probe nfsd.close.return
+probe nfsd.close.return ?
 {
 	printf("%s(%s)\n", name, retstr)
 }

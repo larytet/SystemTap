@@ -31,6 +31,7 @@ error (emsg)
 
 void
 makenull (s)
+     int s;
 {
   stack[s] = 0;
 }

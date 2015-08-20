@@ -3,3 +3,8 @@
 %(
 	%{ /* pure */ /* unprivileged */ MAXSTRINGLEN %}
 %)
+
+@define __compat_task
+%(
+	%{ /* pure */ _stp_is_compat_task() %}
+%)

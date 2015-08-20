@@ -17,6 +17,7 @@
 #include "session.h"
 #include "unordered.h"
 #include "setupdwfl.h"
+#include "stringtable.h"
 
 #include <cstring>
 #include <iostream>
@@ -61,7 +62,7 @@ typedef unordered_map<std::string, Dwarf_Die> cu_type_cache_t;
 typedef unordered_map<void*, cu_type_cache_t*> mod_cu_type_cache_t;
 
 // function -> die
-typedef unordered_multimap<std::string, Dwarf_Die> cu_function_cache_t;
+typedef unordered_multimap<interned_string, Dwarf_Die> cu_function_cache_t;
 typedef std::pair<cu_function_cache_t::iterator,
                   cu_function_cache_t::iterator>
         cu_function_cache_range_t;
@@ -110,8 +111,8 @@ module_info
   info_status dwarf_status;     // module has dwarf info?
   info_status symtab_status;    // symbol table cached?
 
-  std::set<std::string> inlined_funcs;
-  std::set<std::string> plt_funcs;
+  std::set<interned_string> inlined_funcs;
+  std::set<interned_string> plt_funcs;
   std::set<std::pair<std::string,std::string> > marks; /* <provider,name> */
 
   void get_symtab();
@@ -146,12 +147,12 @@ module_cache
 struct base_func_info
 {
   base_func_info()
-    : decl_file(NULL), decl_line(-1), entrypc(0)
+  : decl_line(-1), entrypc(0)
   {
     std::memset(&die, 0, sizeof(die));
   }
-  std::string name;
-  char const * decl_file;
+  interned_string name;
+  interned_string decl_file;
   int decl_line;
   Dwarf_Die die;
   Dwarf_Addr entrypc;
@@ -472,14 +473,14 @@ struct dwflpp
        blacklisted_file
     };
 
-  blacklisted_type blacklisted_p(const std::string& funcname,
-                                 const std::string& filename,
+  blacklisted_type blacklisted_p(interned_string funcname,
+                                 interned_string filename,
                                  int line,
-                                 const std::string& module,
+                                 interned_string module,
                                  Dwarf_Addr addr,
                                  bool has_return);
 
-  Dwarf_Addr relocate_address(Dwarf_Addr addr, std::string& reloc_section);
+  Dwarf_Addr relocate_address(Dwarf_Addr addr, interned_string& reloc_section);
 
   void resolve_unqualified_inner_typedie (Dwarf_Die *typedie,
                                           Dwarf_Die *innerdie,

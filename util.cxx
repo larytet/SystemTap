@@ -1286,6 +1286,23 @@ levenshtein_suggest(const string& target,        // string to match against
   return suggestions;
 }
 
+string
+levenshtein_suggest(const string& target,        // string to match against
+                    const set<interned_string>& elems,// elements to suggest from
+                    unsigned max,                // max elements to print
+                    unsigned threshold)          // max leven score to print
+{
+  set<string> elems2;
+  for (set<interned_string>::const_iterator it = elems.begin();
+       it != elems.end();
+       it++)
+    elems2.insert(it->to_string());
+  
+  return levenshtein_suggest (target, elems2, max, threshold);
+  
+}
+
+
 #ifndef HAVE_PPOLL
 // This is a poor-man's ppoll, only used carefully by readers that need to be
 // interruptible, like remote::run and mutator::run.  It does not provide the

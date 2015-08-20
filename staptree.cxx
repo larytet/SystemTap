@@ -1,5 +1,5 @@
 // parse tree functions
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -11,6 +11,7 @@
 #include "parse.h"
 #include "util.h"
 #include "session.h"
+#include "stringtable.h"
 
 #include <iostream>
 #include <typeinfo>
@@ -22,8 +23,6 @@
 #include <cstring>
 
 using namespace std;
-
-
 
 visitable::~visitable ()
 {
@@ -154,7 +153,7 @@ probe_point::component::component ():
 }
 
 
-probe_point::component::component (std::string const & f,
+probe_point::component::component (interned_string f,
   literal * a, bool from_glob):
     functor(f), arg(a), from_glob(from_glob), tok(0)
 {
@@ -235,6 +234,12 @@ literal_number::literal_number (int64_t v, bool hex)
   type = pe_long;
 }
 
+
+literal_string::literal_string (interned_string v)
+{
+  value = v;
+  type = pe_string;
+}
 
 literal_string::literal_string (const string& v)
 {
@@ -328,7 +333,7 @@ void target_symbol::chain (const semantic_error &er)
 
 string target_symbol::sym_name ()
 {
-  return name.substr(1);
+  return (string)name.substr(1);
 }
 
 
@@ -337,7 +342,7 @@ string atvar_op::sym_name ()
   if (cu_name == "")
     return target_name;
   else
-    return target_name.substr(0, target_name.length() - cu_name.length() - 1);
+    return (string)target_name.substr(0, target_name.length() - cu_name.length() - 1);
 }
 
 
@@ -590,6 +595,7 @@ embedded_tags_visitor::embedded_tags_visitor(bool all_tags)
       available_tags.insert("/* pure */");
       available_tags.insert("/* unmangled */");
       available_tags.insert("/* unmodified-fnargs */");
+      available_tags.insert("/* stable */");
     }
 }
 
@@ -724,7 +730,7 @@ print_format::components_to_string(vector<format_component> const & components)
       if (i->type == conv_literal)
 	{
 	  assert(!i->literal_string.empty());
-	  for (string::const_iterator j = i->literal_string.begin();
+	  for (interned_string::const_iterator j = i->literal_string.begin();
 	       j != i->literal_string.end(); ++j)
 	    {
               // See also: c_unparser::visit_literal_string and lex_cast_qstring
@@ -815,22 +821,23 @@ print_format::components_to_string(vector<format_component> const & components)
 }
 
 vector<print_format::format_component>
-print_format::string_to_components(string const & str)
+print_format::string_to_components(interned_string str)
 {
   format_component curr;
   vector<format_component> res;
 
   curr.clear();
 
-  string::const_iterator i = str.begin();
-
+  interned_string::const_iterator i = str.begin();
+  string literal_str;
+  
   while (i != str.end())
     {
       if (*i != '%')
 	{
 	  assert (curr.type == conv_unspecified || curr.type == conv_literal);
 	  curr.type = conv_literal;
-	  curr.literal_string += *i;
+          literal_str += *i;
 	  ++i;
 	  continue;
 	}
@@ -840,7 +847,7 @@ print_format::string_to_components(string const & str)
 	  // *i == '%' and *(i+1) == '%'; append only one '%' to the literal string
 	  assert (curr.type == conv_unspecified || curr.type == conv_literal);
 	  curr.type = conv_literal;
-	  curr.literal_string += '%';
+	  literal_str += '%';
           i += 2;
 	  continue;
 	}
@@ -851,7 +858,9 @@ print_format::string_to_components(string const & str)
 	    {
 	      // Flush any component we were previously accumulating
 	      assert (curr.type == conv_literal);
-	      res.push_back(curr);
+              curr.literal_string = literal_str;
+              res.push_back(curr);
+              literal_str.clear();
 	      curr.clear();
 	    }
 	}
@@ -1018,7 +1027,9 @@ print_format::string_to_components(string const & str)
 	throw PARSE_ERROR(_("invalid or missing conversion specifier"));
 
       ++i;
+      curr.literal_string = literal_str;
       res.push_back(curr);
+      literal_str.clear();
       curr.clear();
     }
 
@@ -1026,7 +1037,11 @@ print_format::string_to_components(string const & str)
   if (!curr.is_empty())
     {
       if (curr.type == conv_literal)
-	res.push_back(curr);
+        {
+          curr.literal_string = literal_str;
+          res.push_back(curr);
+          // no need to clear curr / literal_str; we're leaving
+        }
       else
 	throw PARSE_ERROR(_("trailing incomplete print format conversion"));
     }

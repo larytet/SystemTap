@@ -80,50 +80,8 @@ public:
 	      probe_point * location,
 	      literal_map_t const & parameters,
 	      vector <derived_probe *> & finished_results);
-
-  bool has_null_param (literal_map_t const & params,
-		       string const & k);
-
-  bool get_number_param (literal_map_t const & params,
-			 string const & k, int & v);
-  bool get_param (std::map<std::string, literal*> const & params,
-		  const std::string& key,
-		  std::string& value);
   std::string mark_param(int i);
-
 };
-
-bool
-java_builder::has_null_param(literal_map_t const & params,
-			   string const & k)
-{
-  return derived_probe_builder::has_null_param(params, k);
-}
-
-bool
-java_builder::get_number_param (literal_map_t const & params,
-				string const & k, int & v)
-{
-  int64_t value;
-  bool present = derived_probe_builder::get_param (params, k, value);
-  v = (int) value;
-  return present;
-}
-
-bool
-java_builder::get_param (std::map<std::string, literal*> const & params,
-                                  const std::string& key,
-                                  std::string& value)
-{
-  map<string, literal *>::const_iterator i = params.find (key);
-  if (i == params.end())
-    return false;
-  literal_string * ls = dynamic_cast<literal_string *>(i->second);
-  if (!ls)
-    return false;
-  value = ls->value;
-  return true;
-}
 
 std::string
 java_builder::mark_param(int i)
@@ -163,8 +121,8 @@ java_builder::build (systemtap_session & sess,
 		     literal_map_t const & parameters,
 		     vector <derived_probe *> & finished_results)
 {
-  string method_str_val = "";
-  string method_line_val = "";
+  interned_string method_str_val;
+  interned_string method_line_val;
   bool has_method_str = get_param (parameters, TOK_METHOD, method_str_val);
   int short_method_pos = method_str_val.find ('(');
   //only if it exists, run check
@@ -176,12 +134,12 @@ java_builder::build (systemtap_session & sess,
       if ((second_method_pos - short_method_pos) > 1)
 	one_arg = true;
     }
-  int _java_pid = 0;
-  string _java_proc_class = "";
-  string short_method_str = method_str_val.substr (0, short_method_pos);
-  string class_str_val; // fully qualified class string
+  int64_t _java_pid = 0;
+  interned_string _java_proc_class = "";
+  // interned_string short_method_str = method_str_val.substr (0, short_method_pos);
+  interned_string class_str_val; // fully qualified class string
   bool has_class_str = get_param (parameters, TOK_CLASS, class_str_val);
-  bool has_pid_int = get_number_param (parameters, TOK_JAVA, _java_pid);
+  bool has_pid_int = get_param (parameters, TOK_JAVA, _java_pid);
   bool has_pid_str = get_param (parameters, TOK_JAVA, _java_proc_class);
   bool has_return = has_null_param (parameters, TOK_RETURN);
   bool has_line_number = false;
@@ -223,7 +181,7 @@ java_builder::build (systemtap_session & sess,
   assert (has_class_str);
   (void) has_class_str;
 
-  string java_pid_str = "";
+  interned_string java_pid_str = "";
   if(has_pid_int)
     java_pid_str = lex_cast(_java_pid);
   else
@@ -366,7 +324,7 @@ java_builder::build (systemtap_session & sess,
     " " + lex_cast(method_params_count) +
     " " + ((!has_return && !has_line_number) ? string("entry") :
            ((has_return && !has_line_number) ? string("exit") :
-            method_line_val)) +
+            (string)method_line_val)) +
     " " + (jdi.java_backtrace ? string("1") : string("0"));
 
   begin_code << "system(" << literal_string(leftbits) << " . " << rule_name

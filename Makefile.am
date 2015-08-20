@@ -47,9 +47,9 @@ stap_SOURCES = main.cxx session.cxx \
 	tapset-perfmon.cxx tapset-mark.cxx tapset-itrace.cxx \
 	tapset-utrace.cxx task_finder.cxx dwflpp.cxx rpm_finder.cxx \
 	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
-	tapset-dynprobe.cxx tapset-method.cxx translator-output.cxx
-stap_SOURCES += stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
-	stapregex-dfa.cxx interactive.cxx
+	tapset-dynprobe.cxx tapset-method.cxx translator-output.cxx \
+        stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
+	stapregex-dfa.cxx stringtable.cxx interactive.cxx
 noinst_HEADERS = sdt_types.h
 # FIXME: We'll need some configure changes to check for readline/ncurses.
 stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread -lreadline -lncurses
@@ -111,7 +111,7 @@ cscope:
 PHONIES =
 if BUILD_TRANSLATOR
 stap_CFLAGS = $(AM_CFLAGS) @PIECFLAGS@
-stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@
+stap_CXXFLAGS = $(AM_CXXFLAGS) @PIECXXFLAGS@ @cxx11@
 stap_CPPFLAGS = $(AM_CPPFLAGS) -DSTAP_SDT_V2
 stap_LDFLAGS = $(AM_LDFLAGS) @PIELDFLAGS@
 

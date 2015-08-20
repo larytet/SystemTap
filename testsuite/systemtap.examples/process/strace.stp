@@ -37,10 +37,9 @@ probe nd_syscall.*
 
     if (filter_p()) next;
 
-    t=tid()
-    thread_argstr[t]=argstr
+    thread_argstr[tid()]=argstr
     if (timestamp || elapsed_time)
-      thread_time[t]=gettimeofday_us()
+      thread_time[tid()]=gettimeofday_us()
 
     if (name in syscalls_nonreturn)
       report(name,argstr,"")
@@ -57,12 +56,10 @@ probe nd_syscall.*.return
 
 function report(syscall_name, syscall_argstr, syscall_retstr)
   {
-    t=tid()
-
     if (timestamp || elapsed_time)
       {
         now = gettimeofday_us()
-        then = thread_time[t]
+        then = thread_time[tid()]
 
         if (timestamp)
           prefix=sprintf("%s.%06d ", ctime(then/1000000), then%1000000)
@@ -72,13 +69,13 @@ function report(syscall_name, syscall_argstr, syscall_retstr)
           suffix=sprintf(" <%d.%06d>", diff/1000000, diff%1000000)
         }
 
-        delete thread_time[t]
+        delete thread_time[tid()]
       }
 
     /* add a thread-id string in lots of cases, except if
        stap strace.stp -c SINGLE_THREADED_CMD */
     if (tid() != target()) {
-      prefix .= sprintf("%s[%d] ", execname(), t)
+      prefix .= sprintf("%s[%d] ", execname(), tid())
     }
 
     printf("%s%s(%s) = %s%s\n",
@@ -86,5 +83,5 @@ function report(syscall_name, syscall_argstr, syscall_retstr)
            syscall_name, syscall_argstr, syscall_retstr,
            suffix)
     
-    delete thread_argstr[t]
+    delete thread_argstr[tid()]
   }

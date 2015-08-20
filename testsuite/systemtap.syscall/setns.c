@@ -1,6 +1,8 @@
 /* COVERAGE: setns */
 
 #define _GNU_SOURCE
+#include <sys/types.h>
+#include <unistd.h>
 #include <sys/syscall.h>
 #include <stdlib.h>
 #include <stdio.h>

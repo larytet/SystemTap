@@ -10,6 +10,7 @@ override JAVA_ARCH:=$(JAVA_ARCH:i%86=i386)
 override JAVA_ARCH:=$(JAVA_ARCH:sparcv9=sparc)
 override JAVA_ARCH:=$(JAVA_ARCH:sparc64=sparcv9)
 override JAVA_ARCH:=$(JAVA_ARCH:arm%=arm)
+override JAVA_ARCH:=$(JAVA_ARCH:powerpc64le%=ppc64le)
 override JAVA_ARCH:=$(JAVA_ARCH:powerpc64%=ppc64)
 
 # XXX: perhaps autoconfigure the following?

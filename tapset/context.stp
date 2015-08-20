@@ -34,7 +34,7 @@ function print_regs ()
  * and wild-card expansion effects. Context: The current probe point.
  */
 function pp:string ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* stable */
 	strlcpy (STAP_RETVALUE, CONTEXT->probe_point, MAXSTRINGLEN);
 %}
 
@@ -45,7 +45,7 @@ function pp:string ()
  * Not all pp() have functions in them, in which case "" is returned.
  */
 function ppfunc:string ()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* stable */
 	char *ptr, *start;
 
 	/* This is based on the pre-2.0 behavior of probefunc(), but without
@@ -84,7 +84,7 @@ function ppfunc:string ()
  * probes (depending on systemtap version and/or kernel used).
  */
 function probe_type:string()
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* stable */
   switch (CONTEXT->probe_type)
   {
     case stp_probe_type_been:

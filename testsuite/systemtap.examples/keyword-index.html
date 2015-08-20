@@ -262,7 +262,7 @@ keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-inde
 <p>Run the tcp_init_cwnd.stp script in the background to override a kernel&#39;s default tcp cwnd value to 10, which has been found to improve latency for web server type workloads.  The script prints a count of cwnd value changes when it is stopped.</p><p><font size="-2"><pre># stap -g tcp_init_cwnd.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="process/noptrace.stp">process/noptrace.stp</a> - Disable ptrace from Hierarchies of Processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
-<p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls || true&#39;</pre></font></p>
+<p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><i><a href="process/noptrace.txt">sample usage in process/noptrace.txt</i></font></p>
 </li><li><a href="process/threadstacks.stp">process/threadstacks.stp</a> - Override default new-pthread stack sizes<br>
 keywords: <a href="keyword-index.html#THREAD">THREAD</a> <a href="keyword-index.html#GURU">GURU</a> <br>
 <p>Overrides default NPTL pthread_create stack size for all new threads created by target processes.  Reports one line per process when the related glibc variable __default_stacksize is updated.  Moot for glibc versions that support $LIBC_PTHREAD_DEFAULT_STACKSIZE_NP.</p><p><font size="-2"><pre># stap -g threadstacks.stp -Gsize=65536 -c &quot;sleep 1&quot; -d `which stap`</pre></font></p>
@@ -608,7 +608,7 @@ keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <br>
 <p>The ltrace.stp script lists calls that the designated process makes through PLTs (procedure linkage tables), generally into shared libraries.</p><p><font size="-2"><pre># stap ltrace.stp -c ls || echo PR14738</pre></font></p>
 </li><li><a href="process/noptrace.stp">process/noptrace.stp</a> - Disable ptrace from Hierarchies of Processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
-<p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls || true&#39;</pre></font></p>
+<p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><i><a href="process/noptrace.txt">sample usage in process/noptrace.txt</i></font></p>
 </li><li><a href="process/pfiles.stp">process/pfiles.stp</a> - Print Process File Descriptors<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#FILE">FILE</a> <br>
 <p>Run pfiles.stp to produce a human-readable summary of all open file descriptors of a given process.  Specify the process-id as -x PID for fastest performance.</p><p><font size="-2"><pre># stap -g pfiles.stp -x $$</pre></font></p>
@@ -768,7 +768,7 @@ keywords: <a href="keyword-index.html#MONITORING">MONITORING</a> <a href="keywor
 <p>Attaches to the kernel audit-log paths (also used by libaudit), and log every record being sent, along with a user-space backtrace of the process that caused it.</p><p><font size="-2"><pre># stap auditbt.stp -d /usr/bin/sudo --ldd -c &quot;sudo true&quot;</pre></font></p>
 </li><li><a href="process/noptrace.stp">process/noptrace.stp</a> - Disable ptrace from Hierarchies of Processes<br>
 keywords: <a href="keyword-index.html#PROCESS">PROCESS</a> <a href="keyword-index.html#SECURITY">SECURITY</a> <a href="keyword-index.html#GURU">GURU</a> <br>
-<p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><font size="-2"><pre># stap -g noptrace.stp -c &#39;strace ls || true&#39;</pre></font></p>
+<p>Blocks ptrace(2) attempts from processes identified by stap -c/-x, as also specifiable from /proc/systemtap/stap_XXX/ control files.  Processes may be added or removed from the blocked list.</p><p><i><a href="process/noptrace.txt">sample usage in process/noptrace.txt</i></font></p>
 </li></ul>
 <h3><a name="SIGNALS"><a href="#SIGNALS">&para;</a> SIGNALS</a></h3>
 <ul>
