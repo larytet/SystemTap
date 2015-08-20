@@ -49,11 +49,15 @@ stap_SOURCES = main.cxx session.cxx \
 	setupdwfl.cxx remote.cxx privilege.cxx cmdline.cxx \
 	tapset-dynprobe.cxx tapset-method.cxx translator-output.cxx \
         stapregex.cxx stapregex-tree.cxx stapregex-parse.cxx \
-	stapregex-dfa.cxx stringtable.cxx interactive.cxx
+	stapregex-dfa.cxx stringtable.cxx
 noinst_HEADERS = sdt_types.h
-# FIXME: We'll need some configure changes to check for readline/ncurses.
-stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread -lreadline -lncurses
+stap_LDADD = @stap_LIBS@ @sqlite3_LIBS@ @LIBINTL@ -lpthread
 stap_DEPENDENCIES =
+
+if HAVE_LIBREADLINE
+stap_SOURCES += interactive.cxx
+stap_LDADD += @READLINE_LIBS@
+endif
 
 if BUILD_VIRT
 bin_PROGRAMS += stapvirt

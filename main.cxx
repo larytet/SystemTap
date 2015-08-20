@@ -25,7 +25,9 @@
 #include "remote.h"
 #include "tapsets.h"
 #include "setupdwfl.h"
+#ifdef HAVE_LIBREADLINE
 #include "interactive.h"
+#endif
 
 #if ENABLE_NLS
 #include <libintl.h>
@@ -1193,7 +1195,9 @@ main (int argc, char * const argv [])
     // FIXME: For now, only attempt local interactive use.
     if (s.interactive_mode && fake_remote)
       {
+#ifdef HAVE_LIBREADLINE
 	rc = interactive_mode (s, targets);
+#endif
       }
     else
       {

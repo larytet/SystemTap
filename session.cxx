@@ -546,13 +546,18 @@ systemtap_session::usage (int exitcode)
      "   -g         guru mode %s\n"
      "   -P         prologue-searching for function probes %s\n"
      "   -b         bulk (percpu file) mode %s\n"
+#ifdef HAVE_LIBREADLINE
      "   -i         interactive mode %s\n"
+#endif
      "   -s NUM     buffer size in megabytes, instead of %d\n"
      "   -I DIR     look in DIR for additional .stp script files", (unoptimized ? _(" [set]") : ""),
          (suppress_warnings ? _(" [set]") : ""), (panic_warnings ? _(" [set]") : ""),
          (guru_mode ? _(" [set]") : ""), (prologue_searching ? _(" [set]") : ""),
-         (bulk_mode ? _(" [set]") : ""), (interactive_mode ? _(" [set]") : ""),
-         buffer_size);
+         (bulk_mode ? _(" [set]") : ""),
+#ifdef HAVE_LIBREADLINE
+         (interactive_mode ? _(" [set]") : ""),
+#endif
+	 buffer_size);
   if (include_path.size() == 0)
     cout << endl;
   else
@@ -860,9 +865,11 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           break;
 
 	case 'i':
+#ifdef HAVE_LIBREADLINE
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-i", "--client-options") << endl; return 1; } 
 	  server_args.push_back (string ("-") + (char)grc);
 	  interactive_mode = true;
+#endif
 	  break;
 
         case 'P':
