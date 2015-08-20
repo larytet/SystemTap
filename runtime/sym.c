@@ -519,6 +519,8 @@ unsigned long _stp_linenumber_lookup(unsigned long addr, struct task_struct *tas
               switch (subopcode)
                 {
                   case DW_LNE_end_sequence:
+                    // NB: we don't clear "curr" values until after the row is compared.
+                    op_index = 0;
                     skip_to_seq_end = 0;
                     end_sequence = 1;
                     commit_row = 1;
