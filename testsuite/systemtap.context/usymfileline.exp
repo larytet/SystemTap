@@ -6,8 +6,9 @@ set testname usymfileline
 
 if {![installtest_p]} { untested $test; return }
 
-# compile the c program
-set compile_result [target_compile $srcdir/$subdir/$testname.c  ./$testname executable "additional_flags=-g [sdt_includes]"]
+# compile the c++ program
+set compile_flags "additional_flags=-g compiler=g++"
+set compile_result [target_compile $srcdir/$subdir/$testname.cxx ./$testname executable $compile_flags]
 if {$compile_result != ""} {
     verbose -log "target_compile failed: $compile_result" 2
     fail "$testname - unable to compile, $compile_result"
@@ -30,7 +31,7 @@ probe process("usymfileline").function("test_method") {\
 }
 
 set tests {usymfileline usymline usymfile}
-set expectedoutput {".*usymfileline.c:\[1-3]" "\[1-3]" ".*usymfileline.c"}
+set expectedoutput {".*usymfileline.cxx:\[4-5]" "\[4-5]" ".*usymfileline.cxx"}
 
 foreach test $tests eoutput $expectedoutput {
   set testscript [string map "TAPSETFUNCTION $test" $script]
