@@ -211,6 +211,7 @@ probe nfsd.proc.entries = nfsd.proc.lookup,
 probe nfsd.proc.return = nfsd.proc.lookup.return,
                          nfsd.proc.read.return,
                          nfsd.proc.write.return,
+                         nfsd.proc.commit.return,
                          nfsd.proc.remove.return,
                          nfsd.proc.rename.return,
                          nfsd.proc.create.return
@@ -1064,7 +1065,7 @@ probe nfsd.entries = nfsd.open,
                      nfsd.createv3,
                      nfsd.unlink,
                      nfsd.rename,
-                     nfsd.close
+                     nfsd.close ?
 {}
 
 probe nfsd.return = nfsd.open.return,
@@ -1075,7 +1076,8 @@ probe nfsd.return = nfsd.open.return,
                     nfsd.create.return,
                     nfsd.createv3.return,
                     nfsd.unlink.return,
-                    nfsd.rename.return
+                    nfsd.rename.return,
+		    nfsd.close.return ?
 {}
 
 /**
@@ -1113,6 +1115,8 @@ probe nfsd.open.return = kernel.function("nfsd_open").return !,
  * probe nfsd.close - NFS server closing a file for client
  *
  * @filename: file name
+ *
+ * This probe point does not exist in kernels starting with 4.2.
  */
 probe nfsd.close = __nfsd.call_close ?, __nfsd.inlined_close ?
 {
