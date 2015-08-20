@@ -12,14 +12,14 @@
 // our own.
 
 #ifdef SYS_sgetmask
-inline long __sgetmask(void)
+static inline long __sgetmask(void)
 {
     return syscall(SYS_sgetmask);
 }
 #endif
 
 #ifdef SYS_ssetmask
-inline long __ssetmask(long newmask)
+static inline long __ssetmask(long newmask)
 {
     return syscall(SYS_ssetmask, newmask);
 }

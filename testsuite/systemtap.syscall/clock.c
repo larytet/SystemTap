@@ -184,7 +184,7 @@ int main()
   tx.modes = ADJ_FREQUENCY;
 
   syscall(__NR_clock_adjtime, CLOCK_REALTIME, &tx);
-  //staptest// clock_adjtime (CLOCK_REALTIME, \{ADJ_FREQUENCY, constant=NNNN, esterror=NNNN, freq=NNNN, maxerror=NNNN, offset=NNNN, precision=NNNN, status=NNNN, tick=NNNN, tolerance=NNNN\}) = 0
+  //staptest// clock_adjtime (CLOCK_REALTIME, \{ADJ_FREQUENCY, constant=NNNN, esterror=NNNN, freq=NNNN, maxerror=NNNN, offset=NNNN, precision=NNNN, status=NNNN, tick=NNNN, tolerance=NNNN\}) = NNNN
 
   syscall(__NR_clock_adjtime, (int)-1, &tx);
   //staptest// clock_adjtime (0xffffffff, \{[^\}]*\}) = -NNNN

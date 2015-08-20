@@ -3,6 +3,9 @@
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
+#ifdef __NR_ioperm
+#include <sys/io.h>
+#endif
 
 // ENOSYS expected on s390 (31-on-64) and on powerpc
 

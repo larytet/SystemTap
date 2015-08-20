@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <sys/xattr.h>
 #include <endian.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 
 #define PATH "foobar"

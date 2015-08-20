@@ -2,6 +2,7 @@
 
 #define _BSD_SOURCE
 #define _DEFAULT_SOURCE
+#include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>

@@ -29,7 +29,7 @@ static inline int __seccomp(unsigned int operation, unsigned int flags, void *ar
 int main()
 {
     __seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog);
-    //staptest// seccomp (SECCOMP_SET_MODE_FILTER, 0x0, XXXX) = 0
+    //staptest// seccomp (SECCOMP_SET_MODE_FILTER, 0x0, XXXX) = NNNN
 
     // Limit testing
 
