@@ -279,6 +279,7 @@ procfs_derived_probe_group::emit_module_decls (systemtap_session& s)
 
       s.op->newline() << "pdata.buffer = spp->buffer;";
       s.op->newline() << "pdata.bufsize = spp->bufsize;";
+      s.op->newline() << "pdata.count = spp->count;";
       s.op->newline() << "if (c->ips.procfs_data == NULL)";
       s.op->newline(1) << "c->ips.procfs_data = &pdata;";
       s.op->newline(-1) << "else {";
@@ -472,6 +473,9 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
               fname = "_procfs_value_set";
               ec->code = string("struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
                 + string("    strlcpy(data->buffer, STAP_ARG_value, data->bufsize);\n")
+                + string("    if (strlen(STAP_ARG_value) > data->bufsize-1)\n")
+                + string("      STAP_ERROR(\"buffer size exceeded, consider .maxsize(%lu).\", "
+                                            "strlen(STAP_ARG_value) + 1);\n")
                 + string("    data->count = strlen(data->buffer);\n");
             }
           else if (*op == ".=")
@@ -479,6 +483,9 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
               fname = "_procfs_value_append";
               ec->code = string("struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
                 + string("    strlcat(data->buffer, STAP_ARG_value, data->bufsize);\n")
+                + string("    if (data->count + strlen(STAP_ARG_value) > data->bufsize-1)\n")
+                + string("      STAP_ERROR(\"buffer size exceeded, consider .maxsize(%lu).\", "
+                                            "data->count + strlen(STAP_ARG_value) + 1);\n")
                 + string("    data->count = strlen(data->buffer);\n");
             }
           else
