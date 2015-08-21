@@ -44,6 +44,8 @@ static ssize_t _stp_ctl_write_cmd(struct file *file, const char __user *buf, siz
 #endif
 #endif
 
+	_stp_pid = current->pid;
+
 	if (count < sizeof(u32))
 		return 0;
 
