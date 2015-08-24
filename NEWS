@@ -1,5 +1,8 @@
 * What's new in version 2.9
 
+- New tapset function switch_file() allows control over rotation
+  of output files.
+
 - The [nd_]syscall tapset got autodocumented. Related paragraph got added to PDF
   and HTML tapset reference. Also a new tapset::syscall 3stap man page got added.
 
