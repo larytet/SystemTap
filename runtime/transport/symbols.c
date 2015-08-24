@@ -218,7 +218,11 @@ static int _stp_module_update_self (void)
 		}
 		else if (!strcmp(".text", attr->name)) {
 			_stp_module_self.sections[1].static_addr = attr->address;
+#ifdef STAPCONF_GRSECURITY
+                        _stp_module_self.sections[1].size = mod->core_size_rx;
+#else
 			_stp_module_self.sections[1].size = mod->core_text_size;
+#endif
 		}
 	}
 
