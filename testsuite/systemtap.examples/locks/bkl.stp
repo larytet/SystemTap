@@ -14,7 +14,7 @@
  * Description: displays which task is holding big kernel lock (BKL) when the 
  *              number of waiting processes reaches a certain number.
  *
- * Run: stap bkl.stp [backtrace=<usecs>] <number_of_processes_waiting>
+ * Run: stap bkl.stp [-G backtrace=<usecs>] <number_of_processes_waiting>
  *
  * Author: Flavio Leitner <fbl@redhat.com>
  * Modified by Jose Castillo <jcastillo@redhat.com> by adding
@@ -32,48 +32,8 @@ global holder_time
 # are we printing backtraces?
 global backtrace = -1
 
-# limit of waiters necessary to start logging
-global waiting_limit = 1
-
 probe begin { 
-  process_cmdline();
   printf("stap ready\n"); 
-}
-
-/* All command line arguments other than the address rules are processed
- * first and must be placed on the command line prior to any address rules.
- */
-function process_cmdline()
-{
-        if ( ( argc < 1 ) || (argc > 2) )
-                usage("Error: Incorrect number of arguments")
-
-        for (i=1; i <= argc; i++) {
-                argument = tokenize(argv[i], "=")
-
-                if (argument == "help"){
-                        backtrace=1
-                        usage("")
-                }
-
-                if ( argument == "backtrace" ){
-                        argv[i]=""
-                        backtrace=strtol(tokenize(argv[i], "="),10)
-                        continue;
-                }
-                /* Anything on the command line after this point must
-                 * be the user defined limit of waiters. 
-                 */
-                waiting_limit = strtol(argv[i],10)
-                argv[i] = ""
-        }
-}
-
-function usage (msg:string)
-{
-        printf("\nUsage:\n");
-        printf("\tblk.stp [backtrace=<usecs>] <limit>\n\n");
-        error(msg);
 }
 
 probe kernel.function("_lock_kernel").call!,
@@ -95,10 +55,10 @@ probe kernel.function("_unlock_kernel")!,
 {
   # under biglock
   backtrace_enabled = 0
-  if (waiting >= waiting_limit) {
+  if (waiting >= $1) {
     if (holder_time != 0) {
        waiting_time = gettimeofday_us() - holder_time
-       if ( waiting_time >= backtrace ) {
+       if ( backtrace != -1 && waiting_time >= backtrace ) {
                 backtrace_enabled = 1
        }
     }
