@@ -419,12 +419,13 @@ for libtermcap in "" tinfo ncursesw ncurses curses termcap; do
 done
 if test "$have_libreadline" = "no"; then
   AC_MSG_RESULT([none])
+  READLINE_LIBS=""
 else
   AC_MSG_RESULT([$READLINE_LIBS])
-  AC_SUBST([READLINE_LIBS])
   AC_DEFINE(HAVE_LIBREADLINE, [1],
 	    [Define if you have the readline library (-lreadline).])
 fi
+AC_SUBST([READLINE_LIBS])
 AM_CONDITIONAL([HAVE_LIBREADLINE], [test "$have_libreadline" == "yes"])
 
 dnl End of readline checks: restore LIBS

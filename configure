@@ -10483,14 +10483,15 @@ done
 if test "$have_libreadline" = "no"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: none" >&5
 $as_echo "none" >&6; }
+  READLINE_LIBS=""
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: $READLINE_LIBS" >&5
 $as_echo "$READLINE_LIBS" >&6; }
 
-
 $as_echo "#define HAVE_LIBREADLINE 1" >>confdefs.h
 
 fi
+
  if test "$have_libreadline" == "yes"; then
   HAVE_LIBREADLINE_TRUE=
   HAVE_LIBREADLINE_FALSE='#'
