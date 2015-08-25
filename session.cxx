@@ -2623,65 +2623,92 @@ systemtap_session::is_primary_probe (derived_probe *dp)
 void
 systemtap_session::clear_script_data()
 {
-    delete pattern_root;
-    pattern_root = new match_node;
+  delete pattern_root;
+  pattern_root = new match_node;
 
-    // Notice we're not clearing 'library_macros' or
-    // 'library_files'. We're trying to parse the tapset library once,
-    // and keep the result for reuse.
-    //
-    // FIXME: Sigh, it looks like we *do* need to clear the pass 1a
-    // data, otherwise globals don't get initialized properly. Odd.
-    if (! pass_1a_complete) {
-	library_macros.clear();
-	library_files.clear();
-    }
-
-    user_files.clear();
-    files.clear();
-    globals.clear();
-    functions.clear();
-    perf_counters.clear();
-    probes.clear();
-    embeds.clear();
-    stat_decls.clear();
-    unused_globals.clear();
-    unused_probes.clear();
-    unused_functions.clear();
-    delete_map(subsessions);
-    auxiliary_outputs.clear();
-
-    // Delete all the derived probe groups.
-    vector<derived_probe_group*> g = all_session_groups (*this);
-    for (unsigned i=0; i<g.size(); i++)
+  // Notice we're keeping the value of 'library_macros' and restoring
+  // the 'library_files' (once pass 1a has been done). We're trying to
+  // parse the tapset library once, and keep the results for reuse.
+  if (! pass_1a_complete)
     {
-	delete g[i];
+      library_macros.clear();
+      library_files.clear();
     }
-    be_derived_probes = NULL;
-    dwarf_derived_probes = NULL;
-    kprobe_derived_probes = NULL;
-    hwbkpt_derived_probes = NULL;
-    perf_derived_probes = NULL;
-    uprobe_derived_probes = NULL;
-    utrace_derived_probes = NULL;
-    itrace_derived_probes = NULL;
-    task_finder_derived_probes = NULL;
-    timer_derived_probes = NULL;
-    netfilter_derived_probes = NULL;
-    profile_derived_probes = NULL;
-    mark_derived_probes = NULL;
-    tracepoint_derived_probes = NULL;
-    hrtimer_derived_probes = NULL;
-    procfs_derived_probes = NULL;
-    dynprobe_derived_probes = NULL;
+  else
+    {
+      library_files.clear();
+      vector<stapfile*>::iterator file_it;
+      for (file_it = saved_library_files.begin();
+	   file_it != saved_library_files.end(); ++file_it)
+        {
+	  stapfile *f = new stapfile(*(*file_it));
+	  library_files.push_back(f);
+	}
+    }
 
-    // We need to be sure to reset all our error counts, so that an
-    // error on one script won't be counted against the next script.
-    seen_warnings.clear();
-    suppressed_warnings = 0;
-    seen_errors.clear();
-    suppressed_errors = 0;
-    warningerr_count = 0;
+  user_files.clear();
+  code_filters.clear();
+  files.clear();
+  globals.clear();
+  functions.clear();
+  perf_counters.clear();
+  probes.clear();
+  embeds.clear();
+  stat_decls.clear();
+  unused_globals.clear();
+  unused_probes.clear();
+  unused_functions.clear();
+  subsessions.clear();
+
+  // Delete all the derived probe groups.
+  vector<derived_probe_group*> g = all_session_groups (*this);
+  for (unsigned i=0; i<g.size(); i++)
+    {
+      delete g[i];
+    }
+  be_derived_probes = NULL;
+  dwarf_derived_probes = NULL;
+  kprobe_derived_probes = NULL;
+  hwbkpt_derived_probes = NULL;
+  perf_derived_probes = NULL;
+  uprobe_derived_probes = NULL;
+  utrace_derived_probes = NULL;
+  itrace_derived_probes = NULL;
+  task_finder_derived_probes = NULL;
+  timer_derived_probes = NULL;
+  netfilter_derived_probes = NULL;
+  profile_derived_probes = NULL;
+  mark_derived_probes = NULL;
+  tracepoint_derived_probes = NULL;
+  hrtimer_derived_probes = NULL;
+  procfs_derived_probes = NULL;
+  dynprobe_derived_probes = NULL;
+
+  // Note that we do need to remove the translator outputs. They have
+  // internal counters that must be reset.
+  delete op;
+  op = NULL;
+  auxiliary_outputs.clear();
+
+  // We need to be sure to reset all our error counts, so that an
+  // error on one script won't be counted against the next script.
+  seen_warnings.clear();
+  suppressed_warnings = 0;
+  seen_errors.clear();
+  suppressed_errors = 0;
+  warningerr_count = 0;
+}
+
+void
+systemtap_session::save_data()
+{
+  vector<stapfile*>::const_iterator file_it;
+  for (file_it = library_files.begin(); file_it != library_files.end();
+       ++file_it)
+    {
+      stapfile *f = new stapfile(*(*file_it));
+      saved_library_files.push_back(f);
+    }
 }
 
 // --------------------------------------------------------------------------

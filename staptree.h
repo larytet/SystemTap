@@ -629,6 +629,7 @@ struct functiondecl: public symboldecl
   bool synthetic;
   bool mangle_oldstyle;
   functiondecl ();
+  functiondecl (const functiondecl& other);
   void print (std::ostream& o) const;
   void printsig (std::ostream& o) const;
   void printsigtags (std::ostream& o, bool all_tags) const;
@@ -789,6 +790,7 @@ struct stapfile
   bool synthetic; // via parse_synthetic_*
   stapfile ():
     privileged (false), synthetic (false) {}
+  stapfile (const stapfile& other);
   void print (std::ostream& o) const;
 };
 

@@ -324,6 +324,7 @@ public:
   // parse trees for the various script files
   std::vector<stapfile*> user_files;
   std::vector<stapfile*> library_files;
+  std::vector<stapfile*> saved_library_files;
 
   // filters to run over all code before symbol resolution
   //   e.g. @cast expansion
@@ -450,6 +451,7 @@ public:
   bool is_primary_probe (derived_probe *dp);
 
   void clear_script_data();
+  void save_data();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
