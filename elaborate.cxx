@@ -3728,6 +3728,17 @@ const_folder::visit_binary_expression (binary_expression* e)
           return;
         }
 
+      // if other is a symbol, we'll pass on type=pe_long to the vardecl to avoid
+      // any issue with an unresolved type if the symbol is not used elsewhere
+      // dont need to set the other's type since it'll be ignored in future
+      // visitors
+      symbol* other_sym = NULL;
+      other->is_symbol(other_sym);
+      if (other_sym && other->type == pe_unknown)
+        {
+          other_sym->referent->type = pe_long;
+        }
+
       if (left)
         value = left->value;
       else if (e->op == "%")
@@ -3751,7 +3762,12 @@ const_folder::visit_binary_expression (binary_expression* e)
         clog << _("Collapsing constant-identity binary operator ") << *e->tok << endl;
       relaxed_p = false;
 
-      provide (left ? e->right : e->left);
+      // we'll pass on type=pe_long to the expression
+      expression* other = left ? e->right : e->left;
+      if (other->type == pe_unknown)
+        other->type = pe_long;
+
+      provide (other);
       return;
     }
 
