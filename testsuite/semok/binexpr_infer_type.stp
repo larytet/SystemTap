@@ -1,0 +1,8 @@
+#! stap -uwp2
+
+probe begin {
+  println(h-0)
+  println(i*0)
+  println(0+j)
+  println(0*k)
+}
