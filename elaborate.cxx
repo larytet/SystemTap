@@ -3728,16 +3728,9 @@ const_folder::visit_binary_expression (binary_expression* e)
           return;
         }
 
-      // if other is a symbol, we'll pass on type=pe_long to the vardecl to avoid
-      // any issue with an unresolved type if the symbol is not used elsewhere
-      // dont need to set the other's type since it'll be ignored in future
-      // visitors
-      symbol* other_sym = NULL;
-      other->is_symbol(other_sym);
-      if (other_sym && other->type == pe_unknown)
-        {
-          other_sym->referent->type = pe_long;
-        }
+      // we'll pass on type=pe_long inference to the expression
+      if (other->type == pe_unknown)
+        other->type = pe_long;
 
       if (left)
         value = left->value;
@@ -3762,7 +3755,7 @@ const_folder::visit_binary_expression (binary_expression* e)
         clog << _("Collapsing constant-identity binary operator ") << *e->tok << endl;
       relaxed_p = false;
 
-      // we'll pass on type=pe_long to the expression
+      // we'll pass on type=pe_long inference to the expression
       expression* other = left ? e->right : e->left;
       if (other->type == pe_unknown)
         other->type = pe_long;
@@ -4070,10 +4063,15 @@ const_folder::visit_target_symbol (target_symbol* e)
     update_visitor::visit_target_symbol (e);
 }
 
+static void initial_typeres_pass(systemtap_session& s);
 static void semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
 {
-  // Let's simplify statements with constant values.
+  // attempt an initial type resolution pass to see if there are any type
+  // mismatches before we starting whisking away vars that get switched out
+  // with a const.
+  initial_typeres_pass(s);
 
+  // Let's simplify statements with constant values.
   const_folder cf (s, relaxed_p);
   // This instance may be reused for multiple probe/function body trims.
 
@@ -4772,6 +4770,57 @@ struct autocast_expanding_visitor: public var_expanding_visitor
       var_expanding_visitor::visit_autocast_op (e);
     }
 };
+
+static void initial_typeres_pass(systemtap_session& s)
+{
+  // an initial type analysis pass. just go over the functions
+  // and probe bodies with doing too much
+  typeresolution_info ti(s);
+      ti.assert_resolvability = false;
+  while (1)
+    {
+      assert_no_interrupts();
+
+      ti.num_newly_resolved = 0;
+      ti.mismatch_complexity = 0;
+      ti.num_still_unresolved = 0;
+      ti.num_available_autocasts = 0;
+
+      for (map<string,functiondecl*>::iterator it = s.functions.begin();
+                                               it != s.functions.end(); it++)
+        {
+          assert_no_interrupts();
+
+          functiondecl* fd = it->second;
+          ti.current_probe = 0;
+          ti.current_function = fd;
+          ti.t = pe_unknown;
+          fd->body->visit (& ti);
+        }
+
+      for (unsigned j=0; j<s.probes.size(); j++)
+        {
+          assert_no_interrupts();
+
+          derived_probe* pn = s.probes[j];
+          ti.current_function = 0;
+          ti.current_probe = pn;
+          ti.t = pe_unknown;
+          pn->body->visit (& ti);
+
+          probe_point* pp = pn->sole_location();
+          if (pp->condition)
+            {
+              ti.current_function = 0;
+              ti.current_probe = 0;
+              ti.t = pe_long; // NB: expected type
+              pp->condition->visit (& ti);
+            }
+        }
+      if (ti.num_newly_resolved == 0) // converged
+        break;
+    }
+}
 
 static int
 semantic_pass_types (systemtap_session& s)
