@@ -8,6 +8,22 @@ function _stp_sign_extend32:long (value:long) {
 	return value
 }
 
+function probing_32bit_app:long() %{ /* pure */
+	STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
+%}
+
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  if (!user_mode()) {
+    error("requires user mode")
+    return 0
+  } else
+    return probing_32bit_app() ? 4 : 8
+}
+
 /*
  * Return the value of function arg #argnum (1=first arg). If
  * truncate=1, mask off the top 32 bits. If sign_extend=1 and

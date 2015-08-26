@@ -1,5 +1,8 @@
 * What's new in version 2.9
 
+- New tapset functions arch_bytes() and uarch_bytes() to obtain address size
+  for kernel and user space respectively.
+
 - New tapset function switch_file() allows control over rotation
   of output files.
 

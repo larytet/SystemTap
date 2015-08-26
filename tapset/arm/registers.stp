@@ -95,6 +95,18 @@ function _stp_probing_kernel:long () {
 	return !user_mode();
 }
 
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  if (!user_mode()) {
+    error("requires user mode")
+    return 0
+  } else
+    return 4
+}
+
 /* Return the named register value as a signed value. */
 function register:long (name:string) {
 	if (!registers_valid()) {

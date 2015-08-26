@@ -46,6 +46,18 @@ function probing_32bit_app:long() %{ /* pure */
         STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
 %}
 
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  if (!user_mode()) {
+    error("requires user mode")
+    return 0
+  } else
+    return probing_32bit_app() ? 4 : 8
+}
+
 function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
 	long value;
 	struct pt_regs *regs;

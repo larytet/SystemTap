@@ -69,7 +69,7 @@ function get_sequence_item (tuple, i, seq_type) {
     else if (seq_type == "list")
 	ob_items = @cast (tuple, "PyListObject", @PYTHON2_LIBRARY)->ob_item;
 
-    ob_item = user_long (ob_items + (i * %{ sizeof (intptr_t) %}))
+    ob_item = user_long (ob_items + (i * uarch_bytes()))
     return ob_item
 }
 
@@ -292,7 +292,7 @@ function python2_backtrace_one_frame (frame, skip_name)
     for (i = 0; i < co_argcount; i++) {
 	if (i == 0) print ("(");
 	arg_name_str = user_string (@cast (get_sequence_item (co_varnames, i, "tuple"), "PyStringObject", @PYTHON2_LIBRARY)->ob_sval)
-	arg_value = user_long (f_localsplus + (i * %{ sizeof (intptr_t) %}))
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
 	arg_type_name_str = get_type (arg_value)
 	printf ("%s:%s ", arg_name_str, arg_type_name_str)
     }
@@ -337,7 +337,7 @@ function python2_getvar_one_frame (frame, match_args, variable, skip_name)
 	arg_name_str = user_string (@cast (get_sequence_item (co_varnames, i, "tuple"), "PyStringObject", @PYTHON2_LIBRARY)->ob_sval)
 	if (! wildcard_match (arg_name_str, variable))
 	    continue
-	arg_value = user_long (f_localsplus + (i * %{ sizeof (intptr_t) %}))
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
 	arg_type_name_str = get_type (arg_value)
 	next_var = 0
 	foreach ([var, file] in python2_vars_seen)
