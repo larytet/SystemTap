@@ -1247,7 +1247,7 @@ there constitute mere initialization, not a macro substitution.
 An alias is used just like a built-in probe type.
 .SAMPLE
 probe syscall.read {
-  printf("reading fd=%d\n", fildes)
+  printf("reading fd=%d\\n", fildes)
   if (fildes > 10) tracethis = 1
 }
 .ESAMPLE

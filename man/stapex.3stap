@@ -40,10 +40,10 @@ probe begin {
 
 probe end {
   foreach (x+ in odds) {
-    printf ("odds[%d] = %d\n", x, odds[x])
+    printf ("odds[%d] = %d\\n", x, odds[x])
   }
   foreach (x in evens\-) {
-    printf ("evens[%d] = %d\n", x, evens[x])
+    printf ("evens[%d] = %d\\n", x, evens[x])
   }
 }
 .ESAMPLE
@@ -74,7 +74,7 @@ function isprime (x) {
 }
 probe begin {
   for (i=0; i<50; i++)
-    if (isprime (i)) printf("%d\n", i)
+    if (isprime (i)) printf("%d\\n", i)
   exit()
 }
 .ESAMPLE
@@ -89,7 +89,7 @@ function fibonacci(i) {
   return fibonacci (i\-1) + fibonacci (i\-2)
 }
 probe begin {
-  printf ("11th fibonacci number: %d\n", fibonacci (11))
+  printf ("11th fibonacci number: %d\\n", fibonacci (11))
   exit ()
 }
 .ESAMPLE
