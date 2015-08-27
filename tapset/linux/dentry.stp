@@ -1,5 +1,5 @@
 // dentry tapset
-// Copyright (c) 2009-2010, 2012 Red Hat Inc.
+// Copyright (c) 2009-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -257,3 +257,32 @@ function d_path:string(nd:long)
 	return sprintf("%s/", task_dentry_path(task_current(), dentry, vfsmnt))
 }
 
+
+
+/**
+ *   sfunction fullpath_struct_nameidata - get the full nameidata path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel (and systemtap-tapset) d_path function, with a "/".
+ *   @nd: Pointer to "struct nameidata".
+ */
+function fullpath_struct_nameidata(nd)
+{
+  return d_path(nd)
+}
+
+
+/**
+ *   sfunction fullpath_struct_path - get the full path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @nd: Pointer to "struct path".
+ */
+function fullpath_struct_path(path)
+{
+  
+  return task_dentry_path(task_current(),
+                          @cast(path,"path","kernel:<linux/path.h>")->dentry,
+                          @cast(path,"path","kernel:<linux/path.h>")->mnt)
+}

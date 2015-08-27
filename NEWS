@@ -3,6 +3,9 @@
 - Embedded-C functions may now use the new STAP_PRINTF(fmt, ...)
   macro for output.
 
+- New tapset functions fullname_struct_path and fullname_struct_nameidata
+  resolve full path names from internal kernel struct pointers.
+  
 - New tapset functions arch_bytes() and uarch_bytes() to obtain address size
   for kernel and user space respectively.
 

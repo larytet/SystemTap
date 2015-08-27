@@ -18,7 +18,8 @@ probe module("autofs4").function("autofs4_lookup")
         if (!isinstr(execname(), "automount")) {
                 printf("%s process %s[%d] looking up %s%s\n",
                        ctime(gettimeofday_s()), execname(), pid(),
-                       d_path($nd), d_name($dentry));
+                       fullpath_struct_nameidata($nd),
+                       d_name($dentry));
         }
 }
 
