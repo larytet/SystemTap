@@ -10,40 +10,34 @@ probe begin {
 }
 
 probe process($1).function("*") {
-  if ($1 != pid())
-    error("failed in process(PID).function(\"*\")");
+  assert($1 == pid(), "failed in process(PID).function(\"*\")")
   probed["function"] ++;
 }
 
 probe process($1).function("main").label("marker_here") ? {
-  if ($1 != pid())
-    error("failed in process(PID).function(main).label(marker_here)");
+  assert($1 == pid(), "failed in process(PID).function(main).label(marker_here)")
   // gcc may not provide enough information to for stap to see this point, hence
   // why it's optional. since it's optional, don't keep track of whether it's
   // been seen.
 }
 
 probe process($1).statement("*") {
-  if ($1 != pid())
-    error("failed in process(PID).statement\"*\")");
+  assert($1 == pid(), "failed in process(PID).statement\"*\")")
   probed["statement"]++;
 }
 
 probe process($1).plt {
-  if ($1 != pid())
-    error("failed in process(PID).plt");
+  assert($1 == pid(), "failed in process(PID).plt")
   probed["plt"] ++;
 }
 
 probe process($1).provider("*").mark("*") {
-  if ($1 != pid())
-    error("failed in process(PID).provider(\"*\").mark(\"*\")");
+  assert($1 == pid(), "failed in process(PID).provider(\"*\").mark(\"*\")")
   probed["provider"] ++;
 }
 
 probe process($1).mark("*") {
-  if ($1 != pid())
-    error("failed in process(PID).mark(\"*\")");
+  assert($1 == pid(), "failed in process(PID).mark(\"*\")")
   probed["mark"] ++;
 }
 

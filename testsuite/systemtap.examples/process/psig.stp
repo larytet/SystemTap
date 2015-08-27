@@ -119,19 +119,16 @@ probe begin {
 %)
         # if (pid == 0) error ("Please provide valid target process-id as $1 or -x PID");
 	task = pid2task(pid)
-	if (!task)
-		error("pid2task: process not found. exiting.\n")
+  assert(task, "pid2task: process not found. exiting.\n")
 
 	task_info = get_task_info(task)
-	if (isinstr(task_info, "NULL"))
-		error("get_task_info: invalid task_struct. exiting.\n")
+  assert(!isinstr(task_info, "NULL"), "get_task_info: invalid task_struct. exiting.\n")
 	printf("%s\n", task_info)
 
 	for (i = 0; i < _NSIG; ++i) {
 		handler_status = ""
 		act = get_k_sigaction(task, i)
-		if (!act)
-			error("get_k_sigaction: invalid k_sigaction pointer. exiting.\n")
+    assert(act, "get_k_sigaction: invalid k_sigaction pointer. exiting.\n")
 		sig = signal_str(i+1)
 
 		handler = sa_handler_str(get_sa_handler(act))

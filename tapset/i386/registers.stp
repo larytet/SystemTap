@@ -78,11 +78,8 @@ function arch_bytes:long() %{ /* pure */
 %}
 
 function uarch_bytes:long() {
-  if (!user_mode()) {
-    error("requires user mode")
-    return 0
-  } else
-    return 4
+  assert(user_mode(), "requires user mode")
+  return 4
 }
 
 /*
@@ -109,15 +106,9 @@ function _stp_kernel_ss:long () %{ /* pure */
 
 /* Return the named register value as a signed value. */
 function register:long (name:string) {
-	if (!registers_valid()) {
-		error("cannot access CPU registers in this context")
-		return 0
-	}
+  assert(registers_valid(), "cannot access CPU registers in this context")
 	offset = _reg_offsets[name]
-	if (offset == 0 && !(name in _reg_offsets)) {
-		error("Unknown register: " . name)
-		return 0
-	}
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
 	if (_stp_probing_kernel()) {
 		if (offset == _sp_offset)
 			return _stp_kernel_sp(_sp_offset)

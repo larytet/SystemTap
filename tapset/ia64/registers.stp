@@ -17,11 +17,8 @@ function arch_bytes:long() %{ /* pure */
 %}
 
 function uarch_bytes:long() {
-  if (!user_mode()) {
-    error("requires user mode")
-    return 0
-  } else
-    return probing_32bit_app() ? 4 : 8
+  assert(user_mode(), "requires user mode")
+  return probing_32bit_app() ? 4 : 8
 }
 
 /*
