@@ -1,5 +1,8 @@
 * What's new in version 2.9
 
+- Embedded-C functions may now use the new STAP_PRINTF(fmt, ...)
+  macro for output.
+
 - New tapset functions arch_bytes() and uarch_bytes() to obtain address size
   for kernel and user space respectively.
 

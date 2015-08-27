@@ -20,7 +20,7 @@
  * messages. 
  */
 function log (msg:string) %{ /* unprivileged */
-	_stp_printf ("%s\n", STAP_ARG_msg);
+	STAP_PRINTF ("%s\n", STAP_ARG_msg);
 %}
 
 
