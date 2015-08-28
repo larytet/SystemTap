@@ -26,6 +26,7 @@ extern "C" {
 #include <string.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <ctype.h>
 }
 
 // FIXME: these declarations don't really belong here.
@@ -33,6 +34,96 @@ extern int
 passes_0_4 (systemtap_session &s);
 extern int
 pass_5 (systemtap_session &s, vector<remote*> targets);
+
+// Ask user a y-or-n question and return 1 iff answer is yes.  The
+// prompt argument should end in "? ". Note that this is a simplified
+// version of gdb's defaulted_query() function.
+
+enum query_default { no_default,	// There isn't a default.
+		     default_yes,	// The default is "yes".
+		     default_no };	// THe default is "no".
+
+int
+query (const char *prompt, query_default qdefault)
+{
+  int def_value;
+  char def_answer, not_def_answer;
+  const char *y_string, *n_string;
+  int retval;
+    
+  // Set up according to which answer is the default.
+  if (qdefault == no_default)
+    {
+      def_value = 1;
+      def_answer = 'Y';
+      not_def_answer = 'N';
+      y_string = "y";
+      n_string = "n";
+    }
+  else if (qdefault == default_yes)
+    {
+      def_value = 1;
+      def_answer = 'Y';
+      not_def_answer = 'N';
+      y_string = "[y]";
+      n_string = "n";
+    }
+  else
+    {
+      def_value = 0;
+      def_answer = 'N';
+      not_def_answer = 'Y';
+      y_string = "y";
+      n_string = "[n]";
+    }
+
+  // If input isn't coming from the user directly, just say what
+  // question we're asking, and then answer the default automatically.
+  if (! isatty(fileno(stdin)))
+    {
+      clog << prompt
+	   << _F("(%s or %s) [answered %c; input not from terminal]\n", 
+		 y_string, n_string, def_answer);
+      return def_value;
+    }
+
+  while (1)
+    {
+      char *response, answer;
+
+      response = readline(_F("%s(%s or %s) ", prompt, y_string,
+			     n_string).c_str());
+      if (response == NULL)		// C-d
+	{
+	  clog << _F("EOF [assumed %c]\n", def_answer);
+	  retval = def_value;
+	  break;
+	}
+
+      answer = toupper(response[0]);
+      free (response);
+
+      // Check answer.  For the non-default, the user must specify the
+      // non-default explicitly.
+      if (answer == not_def_answer)
+	{
+	  retval = !def_value;
+	  break;
+	}
+      // Otherwise, if a default was specified, the user may either
+      // specify the required input or have it default by entering
+      // nothing.
+      if (answer == def_answer
+	  || (qdefault != no_default && answer == '\0'))
+	{
+	  retval = def_value;
+	  break;
+	}
+      // Invalid entries are not defaulted and require another selection.
+      clog << _F("Please answer %s or %s.\n", y_string, n_string);
+    }
+  return retval;
+}
 
 // Class that describes an interactive command or an option for the
 // set/show commands.
@@ -270,7 +361,18 @@ public:
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
     bool option_found = false;
-    if (tokens.size() != 2)
+
+    if (tokens.size() == 1)
+      {
+        // Show all options.
+	for (cmdopt_vector_iterator it = option_vec.begin();
+	     it != option_vec.end(); ++it)
+	  {
+	    (*it)->handler(s, tokens);
+	  }
+	return false;
+      }
+    else if (tokens.size() != 2)
       {
 	cout << endl << "Invalid command" << endl;
 	interactive_usage();
@@ -349,9 +451,6 @@ public:
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
-    // FIXME: Should "delete" with no arguments ask to delete all
-    // probes/functions?
-
     // FIXME 2: Unlike gdb, our numbers get rearranged after a
     // delete. Example:
     //
@@ -365,7 +464,16 @@ public:
     // We could fix this if we stored the numbers along with the
     // probe/function. 
 
-    if (tokens.size() != 2)
+    if (tokens.size() == 1)
+      {
+	if (query("Delete entire script? ", no_default))
+	  {
+	    // Delete all probes/functions.
+	    script_vec.clear();
+	  }
+	return false;
+      }
+    else if (tokens.size() != 2)
       {
 	cout << endl << "Invalid command" << endl;
 	interactive_usage();
