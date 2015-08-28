@@ -76,6 +76,9 @@ function error (msg:string) %{ /* unprivileged */
 /**
  * sfunction assert - evaluate assertion
  *
+ * @expression: The expression to evaluate
+ * @msg: The formatted message string
+ *
  * Description: This function checks the expression and aborts the
  * current running probe if expression evaluates to zero. Uses error()
  * and may be caught by try{} catch{}.
