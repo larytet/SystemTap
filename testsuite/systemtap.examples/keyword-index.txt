@@ -906,6 +906,25 @@ keywords: io profiling
   # stap nfs_func_users.stp -c "sleep 1"
 
 
+io/slowvfs.stp - Trace slow vfs opens.
+keywords: io
+
+  This script prints a line for every kernel vfs_open operation that
+  takes longer than a configurable number of microseconds.  Highly
+  contended or remote filesystems are likelier to hit this.
+
+  # stap slowvfs.stp -G sloth=10 -c 'find /proc >/dev/null'
+
+
+io/switchfile.stp - Switch log files
+keywords: io
+
+  Every second print a log message and switch log files every 5
+  seconds.
+
+  # stap -o switchfile.stp.out switchfile.stp -c "sleep 8"
+
+
 io/traceio.stp - Track Cumulative IO Activity by Process Name
 keywords: io
 
@@ -1143,12 +1162,16 @@ keywords: locking
 
   The bkl.stp script can help determine whether the Big Kernel Lock
   (BKL) is causing serialization on a multiprocessor system due to
-  excessive contention of the BKL. The bkl.stp script takes one
-  argument which is the number of processes waiting for the Big Kernel
+  excessive contention of the BKL. The bkl.stp script takes two
+  arguments. The first one is optional, and used to enable backtraces,
+  and print them once a process has been holding the BKL for a user
+  specified number of nseconds is reached. The second option is
+  compulsory and is the number of processes waiting for the Big Kernel
   Lock (BKL). When the number of processes waiting for the BKL is
   reached or exceeded, the script will print a time stamp, the number
   of processes waiting for the BKL, the holder of the BKL, and the
-  amount of time the BKL was held.
+  amount of time the BKL was held. If backtraces are enabled, a
+  backtrace will be printed as well.
 
   # stap bkl.stp -c "sleep 1" 1
 

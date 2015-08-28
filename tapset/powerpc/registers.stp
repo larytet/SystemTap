@@ -61,6 +61,15 @@ function probing_32bit_app:long() %{ /* pure */
         STAP_RETVALUE = (CONTEXT->user_mode_p && _stp_is_compat_task());
 %}
 
+function arch_bytes:long() %{ /* pure */
+  STAP_RETVALUE = sizeof(long);
+%}
+
+function uarch_bytes:long() {
+  assert(user_mode(), "requires user mode")
+  return probing_32bit_app() ? 4 : 8
+}
+
 function _stp_get_register_by_offset:long (offset:long) %{ /* pure */
 	long value;
 	struct pt_regs *regs;
@@ -87,15 +96,9 @@ function _stp_sign_extend32:long (value:long) {
 }
 
 function _stp_register:long (name:string, sign_extend:long) {
-	if (!registers_valid()) {
-		error("cannot access CPU registers in this context")
-		return 0
-	}
+  assert(registers_valid(), "cannot access CPU registers in this context")
 	offset = _reg_offsets[name]
-	if (offset == 0 && !(name in _reg_offsets)) {
-		error("Unknown register: " . name)
-		return 0
-	}
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
 	value = _stp_get_register_by_offset(offset)
 	if (probing_32bit_app()) {
 		if (sign_extend)
@@ -134,10 +137,7 @@ function _stp_arg2:long (argnum:long, sign_extend:long, truncate:long,
 			 force64:long)
 {
 	val = 0
-	if (argnum < 1 || argnum > 8) {
-		error(sprintf("Cannot access arg(%d)", argnum))
-		return 0
-	}
+  assert(!(argnum < 1 || argnum > 8), sprintf("Cannot access arg(%d)", argnum))
 
 	if (argnum == 1)
 		val = u_register("r3")

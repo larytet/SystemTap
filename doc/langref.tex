@@ -714,11 +714,13 @@ The memory locations reserved for input and output values are provided
 to a function using macros named
 \texttt{STAP\_ARG\_foo}\index{STAP_ARG_} (for arguments named
 \texttt{foo}) and \texttt{STAP\_RETVALUE}\index{STAP_RETVALUE}.
-Errors may be signalled with \texttt{STAP\_ERROR}.  The function may return                       early with \texttt{STAP\_RETURN}.  Here are some examples:
+Errors may be signalled with \texttt{STAP\_ERROR}. Output may be written
+with \texttt{STAP\_PRINTF}. The function may return                       early with \texttt{STAP\_RETURN}.  Here are some examples:
 
 \begin{vindent}
 \begin{verbatim}
 function integer_ops:long (val) %{
+  STAP_PRINTF("%d\n", STAP_ARG_val);
   STAP_RETVALUE = STAP_ARG_val + 1;
   if (STAP_RETVALUE == 4)
       STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);

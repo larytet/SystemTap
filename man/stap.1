@@ -1247,7 +1247,7 @@ there constitute mere initialization, not a macro substitution.
 An alias is used just like a built-in probe type.
 .SAMPLE
 probe syscall.read {
-  printf("reading fd=%d\n", fildes)
+  printf("reading fd=%d\\n", fildes)
   if (fildes > 10) tracethis = 1
 }
 .ESAMPLE
@@ -1546,10 +1546,12 @@ are made available to it using macros
 .IR STAP_ARG_*
 and
 .IR STAP_RETVALUE .
-Errors may be signalled with STAP_ERROR.  The function may return
-early with STAP_RETURN.  Here are some examples:
+Errors may be signalled with STAP_ERROR. Output may be written with
+STAP_PRINTF. The function may return early with STAP_RETURN.
+Here are some examples:
 .SAMPLE
 function integer_ops (val) %{
+  STAP_PRINTF("%d\\n", STAP_ARG_val);
   STAP_RETVALUE = STAP_ARG_val + 1;
   if (STAP_RETVALUE == 4)
       STAP_ERROR("wrong guess: %d", (int) STAP_RETVALUE);

@@ -101,7 +101,7 @@ function p3_get_sequence_item (tuple, i, seq_type) {
     else if (seq_type == "list")
 	ob_items = @cast (tuple, "PyListObject", @PYTHON3_LIBRARY)->ob_item;
 
-    ob_item = user_long (ob_items + (i * %{ sizeof (intptr_t) %}))
+    ob_item = user_long (ob_items + (i * uarch_bytes()))
     return ob_item
 }
 
@@ -291,7 +291,7 @@ function python3_backtrace_one_frame (frame, match_filename)
     for (i = 0; i < co_argcount; i++) {
 	if (i == 0) print ("(");
 	arg_name_str = get_unicode (p3_get_sequence_item (co_varnames, i, "tuple"))
-	arg_value = user_long (f_localsplus + (i * %{ sizeof (intptr_t) %}))
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
 	arg_type_name_str = p3_get_type (arg_value)
 	printf ("%s:%s ", arg_name_str, arg_type_name_str)
     }
@@ -336,7 +336,7 @@ function python3_getvar_one_frame (frame, match_args, variable, match_filename)
 	arg_name_str = get_unicode (p3_get_sequence_item (co_varnames, i, "tuple"))
 	if (! wildcard_match (arg_name_str, variable))
 	    continue
-	arg_value = user_long (f_localsplus + (i * %{ sizeof (intptr_t) %}))
+	arg_value = user_long (f_localsplus + (i * uarch_bytes()))
 	arg_type_name_str = p3_get_type (arg_value)
 	next_var = 0
 	foreach ([var, file] in python3_vars_seen)

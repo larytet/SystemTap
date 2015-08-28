@@ -2,7 +2,7 @@
 // Copyright (C) 2006-2007 IBM Corp.
 // Copyright (C) 2007 Intel Corporation.
 // Copyright (C) 2007 Bull S.A.S
-// Copyright (c) 2008, 2010 Red Hat Inc.
+// Copyright (c) 2008-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -1178,4 +1178,28 @@ probe _vfs.block_write_end.return = kernel.function("block_write_end").return ?
 	page = $page
 	_inode = __address_inode($mapping)
 	ret = $return
+}
+
+
+probe vfs.open = kernel.function("vfs_open") ?
+{
+        name = "vfs.open"
+        path = $path
+        cred = $cred
+        pathname = fullpath_struct_path($path)
+        argstr = sprintf("%s, %p", pathname, $cred)
+}
+
+probe vfs.open.return = kernel.function("vfs_open").return ?
+{
+        name = "vfs.open"
+        retstr = sprintf("%d", $return)
+
+        ret = $return
+	error = $return < 0 ? $return : 0
+	error_str = error ? errno_str(error) : ""
+
+        path = $path
+        cred = $cred
+        pathname = fullpath_struct_path($path)
 }

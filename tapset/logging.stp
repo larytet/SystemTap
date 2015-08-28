@@ -20,7 +20,7 @@
  * messages. 
  */
 function log (msg:string) %{ /* unprivileged */
-	_stp_printf ("%s\n", STAP_ARG_msg);
+	STAP_PRINTF ("%s\n", STAP_ARG_msg);
 %}
 
 
@@ -72,6 +72,22 @@ function error (msg:string) %{ /* unprivileged */
     CONTEXT->last_error = STAP_ARG_msg;
     CONTEXT->last_stmt = NULL;
 %}
+
+/**
+ * sfunction assert - evaluate assertion
+ *
+ * @expression: The expression to evaluate
+ * @msg: The formatted message string
+ *
+ * Description: This function checks the expression and aborts the
+ * current running probe if expression evaluates to zero. Uses error()
+ * and may be caught by try{} catch{}.
+ */
+function assert(expression, msg) {
+    if (!expression) {
+        error(msg)
+    }
+}
 
 function stp_print_binary(n:long, arg1:long, arg2:long, arg3:long, arg4:long) %{
 	_stp_print_binary (STAP_ARG_n, STAP_ARG_arg1, STAP_ARG_arg2, STAP_ARG_arg3, STAP_ARG_arg4);

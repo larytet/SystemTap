@@ -587,7 +587,7 @@ uninstall-am:
 @BUILD_REFDOCS_TRUE@all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
 @BUILD_REFDOCS_TRUE@tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 @BUILD_REFDOCS_TRUE@	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
-@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl.new > tapsets.xml.new
+@BUILD_REFDOCS_TRUE@	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
 @BUILD_REFDOCS_TRUE@	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
 @BUILD_REFDOCS_TRUE@	rm tapsets.xml.new tapsets.tmpl.new
 @BUILD_REFDOCS_TRUE@	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \

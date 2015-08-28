@@ -41,7 +41,7 @@ MANPAGER=$(abs_srcdir)/manpager
 all: $(PDFDOCS) stamp-htmldocs stamp-mandocs
 tapsets.xml: docproc $(shell find $(SRCTREE)/tapset -name '*.stp')
 	sed -e '/^!Syscalls/{r $(abs_srcdir)/syscalls.xmlpart' -e 'd}' $(abs_srcdir)/tapsets.tmpl > tapsets.tmpl.new
-	SRCTREE=$(SRCTREE) $(DOCPROC) doc $(abs_srcdir)/tapsets.tmpl.new > tapsets.xml.new
+	SRCTREE=$(SRCTREE) $(DOCPROC) doc tapsets.tmpl.new > tapsets.xml.new
 	xsltproc $(srcdir)/sort-tapsets.xslt tapsets.xml.new > tapsets.xml.new2
 	rm tapsets.xml.new tapsets.tmpl.new
 	if test -s tapsets.xml && cmp tapsets.xml.new2 tapsets.xml >/dev/null ; then \

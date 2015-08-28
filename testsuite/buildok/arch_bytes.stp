@@ -1,0 +1,6 @@
+#! stap -p4
+
+probe begin {
+  println(arch_bytes())
+  println(uarch_bytes())
+}

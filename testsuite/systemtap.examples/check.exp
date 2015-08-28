@@ -129,6 +129,12 @@ foreach file $meta_files {
              untested "$test run" 
          }
     }
+
+    set output_type [extract_tag "$meta_data" "output"]
+    if {$output_type == "file"} {
+      regexp {\-o\s+([A-Za-z0-9_\-\.]+)} $command match outfile
+      eval exec /bin/rm -f $dir/[glob -nocomplain $outfile*]
+    }
 }
 
 # get back to starting point

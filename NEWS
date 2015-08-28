@@ -1,5 +1,19 @@
 * What's new in version 2.9
 
+- New tapset function assert(expression, msg) has been added.
+
+- Embedded-C functions may now use the new STAP_PRINTF(fmt, ...)
+  macro for output.
+
+- New tapset functions fullname_struct_path and fullname_struct_nameidata
+  resolve full path names from internal kernel struct pointers.
+  
+- New tapset functions arch_bytes() and uarch_bytes() to obtain address size
+  for kernel and user space respectively.
+
+- New tapset function switch_file() allows control over rotation
+  of output files.
+
 - The [nd_]syscall tapset got autodocumented. Related paragraph got added to PDF
   and HTML tapset reference. Also a new tapset::syscall 3stap man page got added.
 

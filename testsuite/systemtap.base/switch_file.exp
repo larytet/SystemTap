@@ -1,0 +1,24 @@
+set test "switch_file"
+if {![installtest_p]} { untested $test; return }
+
+# clean existing files
+catch {exec rm -f $test.out*}
+
+spawn stap -o $test.out -we {probe begin {switch_file()}}
+
+# check output file
+exec sleep 5
+if {[catch {exec rm $test.out}]} {
+  fail "$test (no output file)"
+  return -1
+} else {
+  pass "$test (output file)"
+}
+
+# check switched output file
+if {[catch {exec rm $test.out.1}]} {
+  fail "$test (failed to switch output file)"
+  return -1
+} else {
+  pass "$test (switch output file)"
+}
