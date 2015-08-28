@@ -108,7 +108,7 @@ function uarch_bytes:long() {
 function register:long (name:string) {
   assert(registers_valid(), "cannot access CPU registers in this context")
 	offset = _reg_offsets[name]
-  assert(offset != 0 && (name in _reg_offsets), "Unknown register: " . name)
+  assert(offset != 0 || (name in _reg_offsets), "Unknown register: " . name)
 	return _stp_get_register_by_offset(offset)
 }
 
