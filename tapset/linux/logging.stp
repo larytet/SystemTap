@@ -16,7 +16,7 @@
  * see /debugfs/tracing/trace for the message.  Otherwise, the
  * message may be quietly dropped.  An implicit end-of-line is added.
  */
-function ftrace (msg:string) %{
+function ftrace (msg:string) %{ /* unmodified-fnargs */
 #ifdef STAPCONF_TRACE_PRINTK
        static char *fmt = "%s\n";
        trace_printk (fmt, STAP_ARG_msg);
@@ -41,7 +41,7 @@ function ftrace (msg:string) %{
  * not be safely called from all kernel probe contexts, so is restricted
  * to guru mode only.
  */
-function printk (level:long,msg:string) %{ /* guru */
+function printk (level:long,msg:string) %{ /* guru */ /* unmodified-fnargs */
          printk (STAP_ARG_level == 0 ? KERN_EMERG "%s\n":
                  STAP_ARG_level == 1 ? KERN_ALERT "%s\n":
                  STAP_ARG_level == 2 ? KERN_CRIT "%s\n":

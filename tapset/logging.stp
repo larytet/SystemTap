@@ -19,7 +19,7 @@
  * as efficient as printf and should be used only for urgent
  * messages. 
  */
-function log (msg:string) %{ /* unprivileged */
+function log (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
 	STAP_PRINTF ("%s\n", STAP_ARG_msg);
 %}
 
@@ -33,7 +33,7 @@ function log (msg:string) %{ /* unprivileged */
  * staprun. It is also sent over the bulk transport (relayfs) if it is
  * being used. If the last characater is not a newline, the one is added.
  */
-function warn (msg:string) %{ /* unprivileged */
+function warn (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
     _stp_warn ("%s", STAP_ARG_msg);
 %}
 
@@ -62,7 +62,7 @@ function exit () %{ /* unprivileged */
  * running probe.  Depending on the MAXERRORS parameter, it may
  * trigger an exit().
  */
-function error (msg:string) %{ /* unprivileged */
+function error (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
     /* This is an assignment of a local char[] to a global char*.
        It would normally be just as unsafe as returning a pointer to
        a local variable from a function.  However, the translated
