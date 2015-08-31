@@ -78,6 +78,8 @@ private:
                       expression*& lvalue, expression*& rvalue);
 };
 
+void save_standard_tapset_counters();
+void reset_standard_tapset_counters();
 #endif // TAPSETS_H
 
 /* vim: set sw=2 ts=8 cino=>4,n-2,{2,^-2,t0,(0,u0,w1,M1 : */

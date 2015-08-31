@@ -324,7 +324,6 @@ public:
   // parse trees for the various script files
   std::vector<stapfile*> user_files;
   std::vector<stapfile*> library_files;
-  std::vector<stapfile*> saved_library_files;
 
   // filters to run over all code before symbol resolution
   //   e.g. @cast expansion

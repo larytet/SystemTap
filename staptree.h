@@ -629,7 +629,6 @@ struct functiondecl: public symboldecl
   bool synthetic;
   bool mangle_oldstyle;
   functiondecl ();
-  functiondecl (const functiondecl& other);
   void print (std::ostream& o) const;
   void printsig (std::ostream& o) const;
   void printsigtags (std::ostream& o, bool all_tags) const;
@@ -781,16 +780,19 @@ struct stapfile
 {
   std::string name;
   std::vector<probe*> probes;
+  unsigned probe_cnt;
   std::vector<probe_alias*> aliases;
+  unsigned alias_cnt;
   std::vector<functiondecl*> functions;
+  unsigned function_cnt;
   std::vector<vardecl*> globals;
+  unsigned global_cnt;
   std::vector<embeddedcode*> embeds;
   interned_string file_contents;
   bool privileged;
   bool synthetic; // via parse_synthetic_*
   stapfile ():
-    privileged (false), synthetic (false) {}
-  stapfile (const stapfile& other);
+      probe_cnt(0), alias_cnt(0), function_cnt(0), global_cnt(0), privileged (false), synthetic (false) {}
   void print (std::ostream& o) const;
 };
 

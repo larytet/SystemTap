@@ -215,33 +215,6 @@ functiondecl::functiondecl ():
 {
 }
 
-
-functiondecl::functiondecl (const functiondecl& other) : symboldecl(other)
-{
-  vector<vardecl*>::const_iterator var_it;
-  for (var_it = other.formal_args.begin(); var_it != other.formal_args.end();
-       ++var_it)
-    {
-      vardecl *var = new vardecl(**var_it);
-      formal_args.push_back(var);
-    }
-  for (var_it = other.locals.begin(); var_it != other.locals.end(); ++var_it)
-    {
-      vardecl *var = new vardecl(**var_it);
-      locals.push_back(var);
-    }
-  for (var_it = other.unused_locals.begin();
-       var_it != other.unused_locals.end(); ++var_it)
-    {
-      vardecl *var = new vardecl(**var_it);
-      unused_locals.push_back(var);
-    }
-  body = deep_copy_visitor::deep_copy(other.body);
-  synthetic = other.synthetic;
-  mangle_oldstyle = other.mangle_oldstyle;
-}
-
-
 void
 functiondecl::join (systemtap_session& s)
 {
@@ -1312,31 +1285,6 @@ void if_statement::print (ostream& o) const
     << *thenblock << endl;
   if (elseblock)
     o << "else " << *elseblock << endl;
-}
-
-
-stapfile::stapfile (const stapfile& other)
-{
-  name = other.name;
-  probes = other.probes;
-  aliases = other.aliases;
-
-  // Depending on the script, library functions can get modified by
-  // compiling a script. So, we need to copy the functions instead of
-  // just reusing pointers.
-  vector<functiondecl*>::const_iterator func_it;
-  for (func_it = other.functions.begin();
-       func_it != other.functions.end(); ++func_it)
-    {
-      functiondecl *func = new functiondecl(**func_it);
-      functions.push_back(func);
-    }
-
-  globals = other.globals;
-  embeds = other.embeds;
-  file_contents = other.file_contents;
-  privileged = other.privileged;
-  synthetic = other.synthetic;
 }
 
 

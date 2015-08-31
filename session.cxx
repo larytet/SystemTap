@@ -2636,16 +2636,85 @@ systemtap_session::clear_script_data()
     }
   else
     {
-      library_files.clear();
+      // Instead of copying the library files from a backup copy,
+      // we're going to try to "reset" the library files to their
+      // pristine state.
       vector<stapfile*>::iterator file_it;
-      for (file_it = saved_library_files.begin();
-	   file_it != saved_library_files.end(); ++file_it)
+      for (file_it = library_files.begin();
+	   file_it != library_files.end(); ++file_it)
         {
-	  stapfile *f = new stapfile(*(*file_it));
-	  library_files.push_back(f);
+	  // At this point, the library files shouldn't have any
+	  // additional probes, aliases, or functions.
+	  if ((*file_it)->probes.size() != (*file_it)->probe_cnt)
+	    {
+	      if (verbose > 2)
+		clog << "clearing extra probes from "
+		     << basename((*file_it)->name.c_str())
+		     << ": " << (*file_it)->probe_cnt << " vs. "
+		     << (*file_it)->probes.size() << endl;
+	      (*file_it)->probes.erase((*file_it)->probes.begin()
+				       + (*file_it)->probe_cnt,
+				       (*file_it)->probes.end());
+	    }
+	  if ((*file_it)->aliases.size() != (*file_it)->alias_cnt)
+	    {
+	      if (verbose > 2)
+		clog << "clearing extra aliases from "
+		     << basename((*file_it)->name.c_str())
+		     << ": " << (*file_it)->alias_cnt << " vs. "
+		     << (*file_it)->aliases.size() << endl;
+	      (*file_it)->aliases.erase((*file_it)->aliases.begin()
+					+ (*file_it)->alias_cnt,
+					(*file_it)->aliases.end());
+	    }
+	  if ((*file_it)->functions.size() != (*file_it)->function_cnt)
+	    {
+	      if (verbose > 2)
+		clog << "clearing extra functions from "
+		     << basename((*file_it)->name.c_str())
+		     << ": " << (*file_it)->function_cnt << " vs. "
+		     << (*file_it)->functions.size() << endl;
+	      (*file_it)->functions.erase((*file_it)->functions.begin()
+					  + (*file_it)->function_cnt,
+					  (*file_it)->functions.end());
+	    }
+	  if ((*file_it)->globals.size() != (*file_it)->global_cnt)
+	    {
+	      if (verbose > 2)
+		clog << "clearing extra globals from "
+		     << basename((*file_it)->name.c_str())
+		     << ": " << (*file_it)->global_cnt << " vs. "
+		     << (*file_it)->globals.size() << endl;
+	      (*file_it)->globals.erase((*file_it)->globals.begin()
+					  + (*file_it)->global_cnt,
+					  (*file_it)->globals.end());
+	    }
+
+	  // Also functions shouldn't have locals or unused_locals
+	  // set.
+	  vector<functiondecl*>::iterator func_it;
+	  for (func_it = (*file_it)->functions.begin();
+	       func_it != (*file_it)->functions.end(); ++func_it)
+	    {
+	      if ((*func_it)->locals.size())
+	        {
+		  if (verbose > 2)
+		    clog << "clearing locals from "
+			 << basename((*file_it)->name.c_str())
+			 << ": " << (*func_it)->name << endl;
+		  (*func_it)->locals.clear();
+		}
+	      if ((*func_it)->unused_locals.size())
+	        {
+		  if (verbose > 2)
+		    clog << "clearing unused locals from "
+			 << basename((*file_it)->name.c_str())
+			 << ": " << (*func_it)->name << endl;
+		  (*func_it)->unused_locals.clear();
+		}
+	    }
 	}
     }
-
   user_files.clear();
   code_filters.clear();
   files.clear();
@@ -2690,6 +2759,10 @@ systemtap_session::clear_script_data()
   op = NULL;
   auxiliary_outputs.clear();
 
+  // We need to clear the build ids, since build ids get added to the
+  // hash.
+  build_ids.clear();
+
   // We need to be sure to reset all our error counts, so that an
   // error on one script won't be counted against the next script.
   seen_warnings.clear();
@@ -2697,18 +2770,28 @@ systemtap_session::clear_script_data()
   seen_errors.clear();
   suppressed_errors = 0;
   warningerr_count = 0;
+
+  // Restore the internal counters.
+  reset_standard_tapset_counters();
 }
 
 void
 systemtap_session::save_data()
 {
+  // So we can "reset" the library files, we need to remember their
+  // current state.
   vector<stapfile*>::const_iterator file_it;
   for (file_it = library_files.begin(); file_it != library_files.end();
        ++file_it)
     {
-      stapfile *f = new stapfile(*(*file_it));
-      saved_library_files.push_back(f);
+      (*file_it)->probe_cnt = (*file_it)->probes.size();
+      (*file_it)->alias_cnt = (*file_it)->aliases.size();
+      (*file_it)->function_cnt = (*file_it)->functions.size();
+      (*file_it)->global_cnt = (*file_it)->globals.size();
     }
+
+  // We also need to save the state of the internal counters.
+  save_standard_tapset_counters();
 }
 
 // --------------------------------------------------------------------------
