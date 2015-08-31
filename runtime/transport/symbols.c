@@ -1,7 +1,7 @@
-/* -*- linux-c -*- 
+/* -*- linux-c -*-
  * symbols.c - stp symbol and module functions
  *
- * Copyright (C) Red Hat Inc, 2006-2012
+ * Copyright (C) Red Hat Inc, 2006-2015
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -121,10 +121,26 @@ static unsigned _stp_module_nsections (struct module_sect_attrs *attrs)
 static int _stp_module_notifier (struct notifier_block * nb,
                                  unsigned long val, void *data)
 {
+        struct module *mod = data;
+        struct module_sect_attrs *attrs;
+        unsigned i, nsections;
+
+        (void) attrs;
+        (void) i;
+        (void) nsections;
+
+        if (!mod) { // so as to avoid null pointer checks later
+                WARN_ON (!mod);
+                return NOTIFY_DONE;
+        }
+
+        dbug_sym(1, "module notify %lu %s attrs %p\n",
+                 val, mod->name, mod->sect_attrs);
+
         /* Prior to 2.6.11, struct module contained a module_sections
            attribute vector rather than module_sect_attrs.  Prior to
            2.6.19, module_sect_attrs lacked a number-of-sections
-           field.  Past 3.8, MODULE_STATE_COMING is sent too early to 
+           field.  Past 3.8, MODULE_STATE_COMING is sent too early to
            let us probe module init functions.
 
            Without CONFIG_KALLSYMS, we don't get any of the
@@ -132,11 +148,6 @@ static int _stp_module_notifier (struct notifier_block * nb,
            that directly? */
 
 #if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
-        struct module *mod = data;
-        struct module_sect_attrs *attrs;
-        unsigned i, nsections;
-        WARN_ON (!mod);
-
         if (val == MODULE_STATE_COMING ||
             val == MODULE_STATE_LIVE) {
                 /* A module is arriving or has arrived.  Register all
@@ -145,6 +156,7 @@ static int _stp_module_notifier (struct notifier_block * nb,
                    did the fishie go? */
 
                 attrs = mod->sect_attrs;
+                dbug_sym(1, "module_sect_attrs: %p\n", attrs);
                 if (attrs == NULL) // until add_sect_attrs(), may be zero
                         return NOTIFY_DONE; // remain ignorant
 
@@ -153,7 +165,7 @@ static int _stp_module_notifier (struct notifier_block * nb,
                         int init_p = (strstr(attrs->attrs[i].name, "init.") != NULL);
                         int init_gone_p = (val == MODULE_STATE_LIVE); // likely already unloaded
 
-                        _stp_kmodule_update_address(mod->name, 
+                        _stp_kmodule_update_address(mod->name,
                                                     attrs->attrs[i].name,
                                                     ((init_p && init_gone_p) ? 0 : attrs->attrs[i].address));
                 }
@@ -161,7 +173,7 @@ static int _stp_module_notifier (struct notifier_block * nb,
                 /* Verify build-id. */
                 if (_stp_kmodule_check (mod->name))
                    _stp_kmodule_update_address(mod->name, NULL, 0); /* Pretend it was never here. */
-        }        
+        }
         else if (val == MODULE_STATE_GOING) {
                 /* Unregister all sections. */
                 _stp_kmodule_update_address(mod->name, NULL, 0);

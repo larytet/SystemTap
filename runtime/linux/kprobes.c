@@ -567,6 +567,8 @@ stapkp_refresh(const char *modname,
 {
    size_t i;
 
+   dbug_stapkp("refresh %lu probes with module %s\n", nprobes, modname ?: "?");
+
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
