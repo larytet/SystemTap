@@ -74,7 +74,7 @@ def getSyscallsList(output_type):
         scname = tokens.pop().replace('nd_syscall.', '')
         tokens = [t.split(':')[0] for t in sorted(tokens)]
         tokens = [t for t in tokens if t not in ['argstr', 'name']]
-        tokens = [t for t in tokens if t[:2] != '__']
+        tokens = [t for t in tokens if t[:1] != '_']
         scargs = ", ".join(tokens)
         if output_type=="xml":
             retval += """<row><entry>

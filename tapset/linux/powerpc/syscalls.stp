@@ -184,16 +184,7 @@ probe syscall.sys32_getdents.return = kernel.function("sys32_getdents").return ?
 #
 # long compat_sys_sysctl(struct __sysctl_args32 __user *args)
 #
-# To match the ia64/s390/x86_64 versions, the 'syscall.compat_sysctl'
-# probe name is deprecated and 'syscall.sysctl32' should be used
-# instead.  To use the old name without changing your script, use
-# the '--compatible 1.4' stap option.
-probe
-%( systemtap_v <= "1.4"
-	%? syscall.compat_sysctl %: syscall.sysctl32
-%) =
-
-	kernel.function("compat_sys_sysctl") ?
+probe syscall.sysctl32 = kernel.function("compat_sys_sysctl") ?
 {
 	name = "sysctl"
 	argstr = sprintf("%p", $args)

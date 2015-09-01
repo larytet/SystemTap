@@ -4027,7 +4027,7 @@ probe __syscall.mq_timedreceive.return = kernel.function("sys_mq_timedreceive").
 #
 probe syscall.mq_timedsend =
 	__syscall.mq_timedsend,
-	kernel.function("compat_sys_mq_timedsend").return ?
+	kernel.function("compat_sys_mq_timedsend").call ?
 {
 	name = "mq_timedsend"
 	mqdes = __int32($mqdes)

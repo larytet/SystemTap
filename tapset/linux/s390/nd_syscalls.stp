@@ -8,9 +8,11 @@
 probe nd_syscall.getresgid16 = kprobe.function("sys32_getresgid16") ?
 {
 	name = "getresgid"
-	// argstr = sprintf("%p, %p, %p", $rgid, $egid, $sgid)
 	asmlinkage()
-	argstr = sprintf("%p, %p, %p", pointer_arg(1), pointer_arg(2), pointer_arg(3))
+	rgid_uaddr = pointer_arg(1)
+	egid_uaddr = pointer_arg(2)
+	sgid_uaddr = pointer_arg(3)
+	argstr = sprintf("%p, %p, %p", rgid_uaddr, egid_uaddr, sgid_uaddr)
 }
 probe nd_syscall.getresgid16.return = kprobe.function("sys32_getresgid16").return ?
 {
@@ -24,9 +26,11 @@ probe nd_syscall.getresgid16.return = kprobe.function("sys32_getresgid16").retur
 probe nd_syscall.getresuid16 = kprobe.function("sys32_getresuid16") ?
 {
 	name = "getresuid"
-	// argstr = sprintf("%p, %p, %p", $ruid, $euid, $suid)
 	asmlinkage()
-	argstr = sprintf("%p, %p, %p", pointer_arg(1), pointer_arg(2), pointer_arg(3))
+	ruid_uaddr = pointer_arg(1)
+	euid_uaddr = pointer_arg(2)
+	suid_uaddr = pointer_arg(3)
+	argstr = sprintf("%p, %p, %p", ruid_uaddr, euid_uaddr, suid_uaddr)
 }
 probe nd_syscall.getresuid16.return = kprobe.function("sys32_getresuid16").return ?
 {
@@ -379,10 +383,10 @@ probe nd_syscall.compat_fallocate = kprobe.function("sys_fallocate") ?
 	mode = int_arg(2)
 	# This logic is stolen from _stp_arg (in
 	# tapset/s390/registers.stp).
+	mode_str = _stp_fallocate_mode_str(mode)
 	offset = u_register("r4")
 	len = u_register("r5")
-	argstr = sprintf("%d, %s, %#x, %u", fd, _stp_fallocate_mode_str(mode),
-			 offset, len)
+	argstr = sprintf("%d, %d, %s, %#x, %u", fd, mode, mode_str, offset, len)
 }
 probe nd_syscall.compat_fallocate.return =
 	kprobe.function("sys_fallocate").return ?
