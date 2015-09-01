@@ -155,8 +155,9 @@ Guru mode.  Enable parsing of unsafe expert-level constructs like
 embedded C.
 .TP
 .B \-P
-Prologue-searching mode.  Activate heuristics to work around incorrect
-debugging information for function parameter $context variables.
+Prologue-searching mode.  This is equivalent to \-\-prologue\-searching=always.
+Activate heuristics to work around incorrect debugging information for
+function parameter $context variables.
 .TP
 .B \-u
 Unoptimized mode.  Disable unused code elision and many other optimizations
@@ -293,6 +294,13 @@ output files exceed
 .B \-\-skip\-badvars
 Ignore unresolvable or run-time-inaccessible context variables and
 substitute with 0, without errors.
+
+.TP
+\fB\-\-prologue\-searching\fR[=\fIWHEN\fR]
+Prologue-searching mode. Activate heuristics to work around incorrect debugging
+information  for  function  parameter $context variables. WHEN can be either
+"never", "always", or "auto" (i.e. enabled by heuristic). If WHEN is missing,
+then "always" is assumed. If the option is missing, then "auto" is assumed.
 
 .TP
 .B \-\-suppress\-handler\-errors
