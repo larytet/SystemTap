@@ -205,7 +205,6 @@ public:
   bool suppress_warnings;
   bool panic_warnings;
   int buffer_size;
-  bool prologue_searching;
   bool tapset_compile_coverage;
   bool need_uprobes;
   bool need_unwind;
@@ -240,6 +239,7 @@ public:
   bool pass_1a_complete;
 
   enum { color_never, color_auto, color_always } color_mode;
+  enum { prologue_searching_never, prologue_searching_auto, prologue_searching_always } prologue_searching_mode;
 
   enum { kernel_runtime, dyninst_runtime } runtime_mode;
   bool runtime_usermode_p() const { return runtime_mode == dyninst_runtime; }

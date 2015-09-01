@@ -124,9 +124,9 @@ systemtap_session::systemtap_session ():
   dump_matched_pattern = "";
 
 #ifdef ENABLE_PROLOGUES
-  prologue_searching = true;
+  prologue_searching_mode = prologue_searching_always;
 #else
-  prologue_searching = false;
+  prologue_searching_mode = prologue_searching_auto;
 #endif
 
   buffer_size = 0;
@@ -314,7 +314,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   dump_mode = other.dump_mode;
   dump_matched_pattern = other.dump_matched_pattern;
 
-  prologue_searching = other.prologue_searching;
+  prologue_searching_mode = other.prologue_searching_mode;
 
   buffer_size = other.buffer_size;
   last_pass = other.last_pass;
@@ -552,7 +552,7 @@ systemtap_session::usage (int exitcode)
      "   -s NUM     buffer size in megabytes, instead of %d\n"
      "   -I DIR     look in DIR for additional .stp script files", (unoptimized ? _(" [set]") : ""),
          (suppress_warnings ? _(" [set]") : ""), (panic_warnings ? _(" [set]") : ""),
-         (guru_mode ? _(" [set]") : ""), (prologue_searching ? _(" [set]") : ""),
+         (guru_mode ? _(" [set]") : ""), (prologue_searching_mode == prologue_searching_always ? _(" [set]") : ""),
          (bulk_mode ? _(" [set]") : ""),
 #ifdef HAVE_LIBREADLINE
          (interactive_mode ? _(" [set]") : ""),
@@ -612,6 +612,8 @@ systemtap_session::usage (int exitcode)
     "   --dyninst\n"
     "              shorthand for --runtime=dyninst\n"
 #endif /* HAVE_DYNINST */
+    "   --prologue-searching[=WHEN]\n"
+    "              prologue-searching for function probes\n"
     "   --privilege=PRIVILEGE_LEVEL\n"
     "              check the script for constructs not allowed at the given privilege level\n"
     "   --unprivileged\n"
@@ -874,7 +876,7 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
         case 'P':
 	  server_args.push_back (string ("-") + (char)grc);
-          prologue_searching = true;
+          prologue_searching_mode = prologue_searching_always;
           break;
 
         case 'b':
@@ -1442,6 +1444,20 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
           color_errors = color_mode == color_always
               || (color_mode == color_auto && isatty(STDERR_FILENO) &&
                     strcmp(getenv("TERM") ?: "notdumb", "dumb"));
+          break;
+
+        case LONG_OPT_PROLOGUE_SEARCHING:
+          // --prologue-searching without arg is equivalent to always
+          if (!optarg || !strcmp(optarg, "always"))
+            prologue_searching_mode = prologue_searching_always;
+          else if (!strcmp(optarg, "auto"))
+            prologue_searching_mode = prologue_searching_auto;
+          else if (!strcmp(optarg, "never"))
+            prologue_searching_mode = prologue_searching_never;
+          else {
+            cerr << _F("Invalid argument '%s' for --prologue-searching.", optarg) << endl;
+            return 1;
+          }
           break;
 
         case LONG_OPT_SAVE_UPROBES:

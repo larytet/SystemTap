@@ -1,0 +1,45 @@
+set test "syscall_consistency"
+
+# This test checks if all the syscall probes have respective nd_syscall
+# counterparts and that list of locals of any syscall probe matches
+# respective list of locals of its nd_syscall counterpart.
+
+proc get_syscalls {arr filter} {
+    upvar 1 $arr sca
+    catch {set listing [exec stap -L $filter 2>@1]}
+    set records [split $listing "\n"]
+    foreach rec [lsort -ascii $records] {
+        set fields [split $rec " "]
+        set locals ""
+        foreach token [lsort -ascii $fields] {
+            regexp "\\.(\[^\\.\]+)" $token _ scname
+            if {[regexp "^(\[\^_$\]\[^:\]+):" $token _ arg]} {
+                set locals "$locals $arg"
+            }
+        }
+        set sca($scname) $locals
+    }
+    pass "listing $filter"
+}
+
+get_syscalls syscalls "syscall.*"
+get_syscalls nd_syscalls "nd_syscall.*"
+
+# compare syscalls against nd_syscalls, compare locals
+foreach {key val} [array get syscalls] {
+    if {![info exists nd_syscalls($key)]} {
+        fail "missing nd_syscall $key"
+    } elseif {![string equal $val $nd_syscalls($key)]} {
+        fail "unmatched locals for $key:"
+        verbose -log "syscall.$key: $val"
+        verbose -log "nd_syscall.$key: $nd_syscalls($key)"
+    }
+}
+
+# compare nd_syscalls against syscalls
+foreach {key val} [array get nd_syscalls] {
+    if {![info exists syscalls($key)]} {
+        fail "missing syscall $key"
+    }
+}
+

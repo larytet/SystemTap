@@ -1,5 +1,9 @@
 * What's new in version 2.9
 
+- The powerpc variant of nd_syscall.compat_sysctl got deprecated on favor of
+  nd_syscall.sysctl32. This aligns the nd_syscall to its respective syscall and
+  to ia64/s390/x86_64 variants too.
+
 - New tapset function assert(expression, msg) has been added.
 
 - Embedded-C functions may now use the new STAP_PRINTF(fmt, ...)

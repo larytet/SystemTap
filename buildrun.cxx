@@ -1,5 +1,5 @@
 // build/run probes
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -377,8 +377,10 @@ compile_pass (systemtap_session& s)
   output_exportconf(s, o, "proc_create_data", "STAPCONF_PROC_CREATE_DATA");
   output_exportconf(s, o, "PDE_DATA", "STAPCONF_PDE_DATA");
   output_autoconf(s, o, "autoconf-module-sect-attrs.c", "STAPCONF_MODULE_SECT_ATTRS", NULL);
-
   output_autoconf(s, o, "autoconf-utrace-via-tracepoints.c", "STAPCONF_UTRACE_VIA_TRACEPOINTS", NULL);
+  output_autoconf(s, o, "autoconf-module-tracepoints.c", "STAPCONF_MODULE_TRACEPOINT", NULL);
+  output_exportconf(s, o, "__tracepoint_module_load", "STAPCONF_MODULE_TRACEPOINT_EXPORT_LOAD");
+  output_exportconf(s, o, "__tracepoint_module_free", "STAPCONF_MODULE_TRACEPOINT_EXPORT_FREE");
   output_autoconf(s, o, "autoconf-task_work-struct.c", "STAPCONF_TASK_WORK_STRUCT", NULL);
   output_autoconf(s, o, "autoconf-vm-area-pte.c", "STAPCONF_VM_AREA_PTE", NULL);
   output_autoconf(s, o, "autoconf-relay-umode_t.c", "STAPCONF_RELAY_UMODE_T", NULL);

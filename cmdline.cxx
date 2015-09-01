@@ -61,6 +61,7 @@ struct option stap_long_options[] = {
   { "benchmark-sdt-threads",       required_argument, NULL, LONG_OPT_BENCHMARK_SDT_THREADS },
   { "color",                       optional_argument, NULL, LONG_OPT_COLOR_ERRS },
   { "colour",                      optional_argument, NULL, LONG_OPT_COLOR_ERRS },
+  { "prologue-searching",          optional_argument, NULL, LONG_OPT_PROLOGUE_SEARCHING },
   { "save-uprobes",                no_argument,       NULL, LONG_OPT_SAVE_UPROBES },
   { "target-namespaces",           required_argument, NULL, LONG_OPT_TARGET_NAMESPACES },
   { NULL, 0, NULL, 0 }

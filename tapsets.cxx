@@ -1722,7 +1722,8 @@ query_addr(Dwarf_Addr addr, dwarf_query *q)
       if (!dw.die_entrypc(fnscope, &addr))
         return;
       if (dwarf_tag(fnscope) == DW_TAG_subprogram &&
-          (q->sess.prologue_searching ||
+          q->sess.prologue_searching_mode != systemtap_session::prologue_searching_never &&
+          (q->sess.prologue_searching_mode == systemtap_session::prologue_searching_always ||
            (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
         {
           func_info func;
@@ -2215,7 +2216,8 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
 
       if (!q->filtered_functions.empty() &&
           !q->has_statement_str && // PR 2608
-           (q->sess.prologue_searching ||
+          q->sess.prologue_searching_mode != systemtap_session::prologue_searching_never &&
+           (q->sess.prologue_searching_mode == systemtap_session::prologue_searching_always ||
             (q->has_process && !q->dw.has_valid_locs()))) // PR 6871 && PR 6941
         q->dw.resolve_prologue_endings (q->filtered_functions);
 
