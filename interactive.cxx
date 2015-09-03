@@ -10,6 +10,8 @@
 #include "interactive.h"
 #include "session.h"
 #include "util.h"
+#include "staptree.h"
+#include "parse.h"
 
 #include "stap-probe.h"
 
@@ -506,6 +508,71 @@ public:
   }
 };
 
+class load_cmd : public cmdopt
+{
+public:
+  load_cmd()
+  {
+    name = "load";
+    usage = "load FILE";
+    _help_text = "Load a script from a file into the current session.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    // FIXME: we'd like to turn readline's file completion back on
+    // here, but it is too late at this point.
+    if (tokens.size() != 2)
+      {
+	cout << endl << "FILE must be specified." << endl;
+	interactive_usage();
+	return false;
+      }
+
+    // FIXME: validate FILE?
+    unsigned user_flags = s.guru_mode ? pf_guru : 0;
+    stapfile *f = parse (s, tokens[1], user_flags);
+    if (f)
+      {
+	// This is similar to calling stapfile::print(). We have to
+	// work through adding each type of data.
+	for (unsigned i = 0; i < f->embeds.size(); ++i)
+	  {
+	    ostringstream buffer;
+	    f->embeds[i]->print(buffer);
+	    // FIXME: we may need to remove a trailing newline here...
+	    script_vec.push_back(buffer.str());
+	  }
+	for (unsigned i = 0; i < f->globals.size(); ++i)
+	  {
+	    ostringstream buffer;
+	    buffer << "global ";
+	    f->globals[i]->print(buffer);
+	    script_vec.push_back(buffer.str());
+	  }
+	for (unsigned i = 0; i < f->aliases.size(); ++i)
+	  {
+	    ostringstream buffer;
+	    f->aliases[i]->print(buffer);
+	    script_vec.push_back(buffer.str());
+	  }
+	for (unsigned i = 0; i < f->probes.size(); ++i)
+	  {
+	    ostringstream buffer;
+	    f->probes[i]->print(buffer);
+	    script_vec.push_back(buffer.str());
+	  }
+	for (unsigned i = 0; i < f->functions.size(); ++i)
+	  {
+	    ostringstream buffer;
+	    f->functions[i]->print(buffer);
+	    script_vec.push_back(buffer.str());
+	  }
+	delete f;
+      }
+    return false;
+  }
+};
+
 class run_cmd : public cmdopt
 {
 public:
@@ -620,6 +687,102 @@ public:
       }
     else
       cout << name << ": " << s.verbose << endl;
+    return false;
+  }
+};
+
+class guru_mode_opt: public cmdopt
+{
+public:
+  guru_mode_opt()
+  {
+    name = "guru_mode";
+    _help_text = "Guru mode.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      s.guru_mode = (tokens[2] != "0");
+    else
+      cout << name << ": " << s.guru_mode << endl;
+    return false;
+  }
+};
+
+class suppress_warnings_opt: public cmdopt
+{
+public:
+  suppress_warnings_opt()
+  {
+    name = "suppress_warnings";
+    _help_text = "Suppress warnings.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      s.suppress_warnings = (tokens[2] != "0");
+    else
+      cout << name << ": " << s.suppress_warnings << endl;
+    return false;
+  }
+};
+
+
+class panic_warnings_opt: public cmdopt
+{
+public:
+  panic_warnings_opt()
+  {
+    name = "panic_warnings";
+    _help_text = "Turn warnings into errors.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      s.panic_warnings = (tokens[2] != "0");
+    else
+      cout << name << ": " << s.panic_warnings << endl;
+    return false;
+  }
+};
+
+class timing_opt: public cmdopt
+{
+public:
+  timing_opt()
+  {
+    name = "timing";
+    _help_text = "Collect probe timing information.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      s.timing = (tokens[2] != "0");
+    else
+      cout << name << ": " << s.timing << endl;
+    return false;
+  }
+};
+
+class unoptimized_opt: public cmdopt
+{
+public:
+  unoptimized_opt()
+  {
+    name = "unoptimized";
+    _help_text = "Unoptimized translation.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      s.unoptimized = (tokens[2] != "0");
+    else
+      cout << name << ": " << s.unoptimized << endl;
     return false;
   }
 };
@@ -975,6 +1138,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   command_vec.push_back(new add_cmd);
   command_vec.push_back(new delete_cmd);
   command_vec.push_back(new list_cmd);
+  command_vec.push_back(new load_cmd);
   command_vec.push_back(new run_cmd);
   command_vec.push_back(new set_cmd);
   option_command_vec.push_back(command_vec.back());
@@ -987,6 +1151,11 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   option_vec.push_back(new keep_tmpdir_opt);
   option_vec.push_back(new last_pass_opt);
   option_vec.push_back(new verbose_opt);
+  option_vec.push_back(new guru_mode_opt);
+  option_vec.push_back(new suppress_warnings_opt);
+  option_vec.push_back(new panic_warnings_opt);
+  option_vec.push_back(new timing_opt);
+  option_vec.push_back(new unoptimized_opt);
 
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.
