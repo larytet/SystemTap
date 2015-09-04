@@ -1,0 +1,10 @@
+#! /bin/sh
+
+# Make sure '--prologue-searching[=WHEN]' accepts all valid arguments.
+
+set -e
+
+stap -p1 --prologue-searching=always -e 'probe never {}'
+stap -p1 --prologue-searching=never -e 'probe never {}'
+stap -p1 --prologue-searching=auto -e 'probe never {}'
+stap -p1 --prologue-searching -e 'probe never {}'

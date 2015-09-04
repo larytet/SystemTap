@@ -1,5 +1,11 @@
 * What's new in version 2.9
 
+- New --prologue-searching[=WHEN] option has been added to stap with '-P' being
+  its short counterpart.  Using --prologue-searching=never turns prologue
+  searching deliberately off working around issue of int_arg() returning wrong
+  value when a 32-bit userspace binary having debug info is being probed with
+  active prologue searching (PR18649).
+
 - The powerpc variant of nd_syscall.compat_sysctl got deprecated on favor of
   nd_syscall.sysctl32. This aligns the nd_syscall to its respective syscall and
   to ia64/s390/x86_64 variants too.
