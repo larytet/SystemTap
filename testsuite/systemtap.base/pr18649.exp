@@ -1,0 +1,60 @@
+set test "pr18649"
+
+set test_srcpath "[pwd]/test.c"
+set test_exepath "[pwd]/test"
+set test_stppath "[pwd]/test.stp"
+
+set test_fp [open $test_srcpath "w"]
+puts $test_fp "
+int
+testfc(int arg)
+{
+    return arg;
+}
+
+int
+main()
+{
+    testfc(32767);
+    return 0;
+}
+"
+close $test_fp
+
+set script_fp [open $test_stppath "w"]
+puts $script_fp "
+probe process(\"$test_exepath\").function(\"testfc\")
+{
+    printf(\"%x\\n\", int_arg(1))
+}
+"
+close $script_fp
+
+
+for {set i 0} {$i < [arch_compile_flags]} {incr i} {
+    foreach j { \  -g } {
+        set test_flags "compiler=gcc [arch_compile_flag $i]"
+        set test_flags "$test_flags additional_flags=$j"
+        set res [target_compile $test_srcpath $test_exepath executable $test_flags]
+        if { $res != "" } {
+            fail "compiling test.c $test_flags"
+            catch {exec rm -f $test_srcpath}
+            return
+        } else {
+            pass "compiling test.c $test_flags"
+        }
+
+        set ok 0
+        spawn stap --prologue-searching=never $test_stppath -c $test_exepath
+        expect {
+            -timeout 120
+            -re {^7fff\r\n} { incr ok; exp_continue }
+            timeout { fail "$test (timeout)" }
+            eof { }
+        }
+        catch { close }; catch { wait }
+        if {$ok == 1} { pass "$test ($test_flags)" } { fail "$test" }
+    }
+}
+
+catch {exec rm -f $test_srcpath $test_exepath $test_stppath}

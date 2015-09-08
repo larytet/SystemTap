@@ -1,0 +1,7 @@
+#! /bin/sh
+
+# Make sure '--prologue-searching[=WHEN]' discards invalid arguments.
+
+stap -p1 --prologue-searching=blah -e 'probe never {}' && exit 0
+stap -p1 --prologue-searching= -e 'probe never {}' && exit 0
+
