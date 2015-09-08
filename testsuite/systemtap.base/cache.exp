@@ -14,6 +14,7 @@ set env(SYSTEMTAP_DIR) $local_systemtap_dir
 set basic_script1 "\"probe begin { println(1) }\""
 set basic_script2 "\"probe begin, end { println(2) }\""
 set error_script "\"probe XbeginX { }\""
+set var_script1 {{probe begin { println(@var("jiffies")) }}}
 
 # Check basic functionality.  The 1st compilation of a script won't
 # be cached, the 2nd should be cached.
@@ -60,6 +61,10 @@ cache_compile ERROR2 [F_UNCACHED_NO_COMPILE] $error_script
 # Make sure basic stuff still works.
 cache_compile BASIC3 [F_UNCACHED_COMPILE] $basic_script2
 cache_compile BASIC4 [F_CACHED_COMPILE] $basic_script2
+
+# Make sure vardie_from_symtable caches correctly (PR18936)
+cache_compile VAR1 [F_UNCACHED_COMPILE] $var_script1
+cache_compile VAR2 [F_CACHED_COMPILE] $var_script1
 
 # Cleanup.
 exec /bin/rm -rf $local_systemtap_dir

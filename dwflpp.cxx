@@ -3863,6 +3863,10 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
   Dwarf_Die vardie;
   Dwarf_Attribute fb_attr_mem, *fb_attr = NULL;
 
+  // NB: when addr_loc is used for a synthesized DW_OP_addr below, then it
+  // needs to remain valid until express_as_string() has finished with it.
+  Dwarf_Op addr_loc;
+
   fb_attr = find_variable_and_frame_base (scopes, pc, local, e,
                                           &vardie, &fb_attr_mem);
 
@@ -3890,7 +3894,6 @@ dwflpp::literal_stmt_for_local (vector<Dwarf_Die>& scopes,
   if (dwarf_attr_integrate (&vardie, DW_AT_const_value, &attr_mem) == NULL
       && dwarf_attr_integrate (&vardie, DW_AT_location, &attr_mem) == NULL)
     {
-      Dwarf_Op addr_loc;
       memset(&addr_loc, 0, sizeof(Dwarf_Op));
       addr_loc.atom = DW_OP_addr;
       // If it is an external variable try the symbol table. PR10622.
