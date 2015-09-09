@@ -4808,7 +4808,6 @@ static void initial_typeres_pass(systemtap_session& s)
       assert_no_interrupts();
 
       ti.num_newly_resolved = 0;
-      ti.mismatch_complexity = 0;
       ti.num_still_unresolved = 0;
       ti.num_available_autocasts = 0;
 
@@ -4844,7 +4843,20 @@ static void initial_typeres_pass(systemtap_session& s)
             }
         }
       if (ti.num_newly_resolved == 0) // converged
-        break;
+        {
+          // take into account that if there are mismatches, we'd want to know
+          // about them incase they get whisked away, later in this process
+          if (!ti.assert_resolvability && ti.mismatch_complexity > 0) // found a mismatch!!
+            {
+              ti.assert_resolvability = true; // report errors
+              if (s.verbose > 0)
+                ti.mismatch_complexity = 1; // print out mismatched but not unresolved type mismatches
+            }
+          else
+            break;
+        }
+      else
+        ti.mismatch_complexity = 0;
     }
 }
 
