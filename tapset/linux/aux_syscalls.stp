@@ -966,7 +966,7 @@ function __get_compat_argv:string(argv:long, first:long)
 function __count_envp:string(envp:long)
 {
 %( CONFIG_64BIT == "y" %?
-	argc = 0
+	__argc = 0
 	while (envp) {
 		# We can call 'user_long(envp)' here because we don't
 		# need to know the difference between a bad address
@@ -975,11 +975,11 @@ function __count_envp:string(envp:long)
 		if (vstr == 0)
 			break
 
-		argc++
+		__argc++
 		# 8 == sizeof(long) on a 64-bit OS
 		envp += 8
 	}
-	return sprintf("[/* %d var%s */]", argc, argc != 1 ? "s" : "")
+	return sprintf("[/* %d var%s */]", __argc, __argc != 1 ? "s" : "")
 %:
 	return __count_compat_envp(envp)
 %)
@@ -987,7 +987,7 @@ function __count_envp:string(envp:long)
 
 function __count_compat_envp:string(envp:long)
 {
-	argc = 0
+	__argc = 0
 	while (envp) {
 		# We can call 'user_long(envp)' here because we don't
 		# need to know the difference between a bad address
@@ -996,11 +996,11 @@ function __count_compat_envp:string(envp:long)
 		if (vstr == 0)
 			break
 
-		argc++
+		__argc++
 		# 4 == sizeof(long) on a 32-bit OS
 		envp += 4
 	}
-	return sprintf("[/* %d var%s */]", argc, argc != 1 ? "s" : "")
+	return sprintf("[/* %d var%s */]", __argc, __argc != 1 ? "s" : "")
 }
 
 %(systemtap_v <= "2.7" %?
