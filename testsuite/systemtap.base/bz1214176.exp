@@ -1,0 +1,13 @@
+set test "bz1214176"
+
+proc chk_rc {command} {
+    set rc [catch {eval exec "$command"} msg]
+    if {$rc == 0} { pass "$command" } else { fail "$command" }
+}
+
+chk_rc "stap -p4 -e { probe nfs.proc.read_done { println(server_ip) } }"
+chk_rc "stap -p4 -e { probe nfs.proc.read_setup { println(count) } } "
+chk_rc "stap -p4 -e { probe nfs.proc.rename { println(name) } }"
+
+
+
