@@ -4789,9 +4789,19 @@ struct initial_typeresolution_info : public typeresolution_info
 
 static void initial_typeres_pass(systemtap_session& s)
 {
-  // an initial type analysis pass. just go over the functions
-  // and probe bodies with doing too much
+  // minimal type resolution based off of semantic_pass_types(), without
+  // checking for complete type resolutions or autocast expanding
   initial_typeresolution_info ti(s);
+
+  // Globals never have detailed types.
+  // If we null them now, then all remaining vardecls can be detailed.
+  for (unsigned j=0; j<s.globals.size(); j++)
+    {
+      vardecl* gd = s.globals[j];
+      if (!gd->type_details)
+        gd->type_details = ti.null_type;
+    }
+
   ti.assert_resolvability = false;
   while (1)
     {
