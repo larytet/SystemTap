@@ -353,7 +353,7 @@ probe syscall.compat_fallocate = kernel.function("sys_fallocate").call ?
 	mode_str = _stp_fallocate_mode_str(mode)
 	offset = $offset
 	len = $len
-	argstr = sprintf("%d, %d, %s, %#x, %u", fd, mode, mode_str, offset, len)
+	argstr = sprintf("%d, %s, %#x, %u", fd, mode_str, offset, len)
 }
 probe syscall.compat_fallocate.return =
 	kernel.function("sys_fallocate").return ?
