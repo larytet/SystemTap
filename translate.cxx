@@ -7409,6 +7409,67 @@ dump_unwindsym_cxt (Dwfl_Module *m,
   return DWARF_CB_OK;
 }
 
+static void dump_kallsyms(unwindsym_dump_context *c)
+{
+  ifstream kallsyms("/proc/kallsyms");
+  unsigned stpmod_idx = c->stp_module_index;
+  string line;
+  unsigned size = 0;
+  Dwarf_Addr start = 0;
+  Dwarf_Addr end = 0;
+  Dwarf_Addr prev = 0;
+
+  c->output << "static struct _stp_symbol "
+            << "_stp_module_" << stpmod_idx << "_symbols_" << 0 << "[] = {\n";
+
+  while (getline(kallsyms, line))
+    {
+      Dwarf_Addr addr;
+      string name;
+      string module;
+      char type;
+      istringstream iss(line);
+
+      iss >> hex >> addr >> type >> name >> module;
+
+      if (name == KERNEL_RELOC_SYMBOL)
+        start = addr;
+      else if (name == "_end" || module != "")
+        {
+          end = prev;
+          break;
+        }
+
+      if (!start || addr == 0 || prev == addr)
+        continue;
+
+      c->output << "  { 0x" << hex << addr - start << dec
+			<< ", " << lex_cast_qstring(name) << " },\n";
+
+      size++;
+      prev = addr;
+    }
+
+  c->output << "};\n";
+  c->output << "static struct _stp_section _stp_module_" << stpmod_idx << "_sections[] = {\n";
+  c->output << "{\n"
+            << ".name = " << lex_cast_qstring(KERNEL_RELOC_SYMBOL) << ",\n"
+            << ".size = 0x" << hex << end - start << dec << ",\n"
+            << ".symbols = _stp_module_" << stpmod_idx << "_symbols_" << 0 << ",\n"
+            << ".num_symbols = " << size << ",\n";
+  c->output << "},\n";
+  c->output << "};\n";
+  c->output << "static struct _stp_module _stp_module_" << stpmod_idx << " = {\n";
+  c->output << ".name = " << lex_cast_qstring("kernel") << ",\n";
+  c->output << ".sections = _stp_module_" << stpmod_idx << "_sections" << ",\n";
+  c->output << ".num_sections = sizeof(_stp_module_" << stpmod_idx << "_sections)/"
+            << "sizeof(struct _stp_section),\n";
+  c->output << "};\n\n";
+
+  c->undone_unwindsym_modules.erase("kernel");
+  c->stp_module_index++;
+}
+
 static int
 dump_unwindsyms (Dwfl_Module *m,
                  void **userdata __attribute__ ((unused)),
@@ -7700,6 +7761,10 @@ emit_symbol_data (systemtap_session& s)
         }
       dwfl_end(dwfl);
     }
+
+  // Use /proc/kallsyms if debuginfo not found.
+  if (ctx.undone_unwindsym_modules.find("kernel") != ctx.undone_unwindsym_modules.end())
+    dump_kallsyms(&ctx);
 
   emit_symbol_data_done (&ctx, s);
 }

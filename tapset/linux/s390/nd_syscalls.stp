@@ -386,7 +386,7 @@ probe nd_syscall.compat_fallocate = kprobe.function("sys_fallocate") ?
 	mode_str = _stp_fallocate_mode_str(mode)
 	offset = u_register("r4")
 	len = u_register("r5")
-	argstr = sprintf("%d, %d, %s, %#x, %u", fd, mode, mode_str, offset, len)
+	argstr = sprintf("%d, %s, %#x, %u", fd, mode_str, offset, len)
 }
 probe nd_syscall.compat_fallocate.return =
 	kprobe.function("sys_fallocate").return ?

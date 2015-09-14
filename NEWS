@@ -1,5 +1,8 @@
 * What's new in version 2.9
 
+- SystemTap now uses symbols from /proc/kallsyms when kernel debuginfo is not
+  available.
+
 - New --prologue-searching[=WHEN] option has been added to stap with '-P' being
   its short counterpart.  Using --prologue-searching=never turns prologue
   searching deliberately off working around issue of int_arg() returning wrong

@@ -1,0 +1,24 @@
+set test "kallsyms"
+
+if {![installtest_p]} {untested $test; return}
+
+set script {"probe timer.profile {print_stack(backtrace()); exit()}"}
+set passed 0
+
+setenv SYSTEMTAP_DEBUGINFO_PATH $srcdir
+
+eval spawn stap --all-modules -e $script
+expect {
+  -timeout 30
+  -re "\\\[kernel\\\]" {
+    set passed 1
+  }
+}
+
+if {$passed == 1} {
+  pass $test
+} else {
+  fail $test
+}
+
+unsetenv SYSTEMTAP_DEBUGINFO_PATH

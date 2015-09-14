@@ -1,0 +1,16 @@
+set test "bz1252436"
+
+# Regression test for rhbz1252436 (PR18634).
+
+set am_root [expr 0 == [exec id -u]]
+if {![installtest_p] || !$am_root} {
+    untested "${test}"
+    return
+}
+
+set cmd "stap -e { probe timer.s(1) { exit() } }"
+
+set rc [catch {eval exec "$cmd"}]
+
+if {$rc == 0} { pass "$test" } else { fail "$test" }
+
