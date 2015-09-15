@@ -35,6 +35,7 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
         verbose -log "running the equivalent of 'stap $stap_args $file'"
 	# Parse arguments.
 	set arg_fail 0
+	set last_pass "4"
 	foreach arg $stap_args {
 	    if {[ string index $arg 0 ] != "-" } { break }
 	    set ch_idx 1
@@ -49,7 +50,8 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 			set opt_ch [ string index $arg $ch_idx ]
 			incr ch_idx
 			if { $opt_ch != "4" } {
-			    verbose -log "expected \"p4\", got \"p${opt_ch}\", attempting to compile anyway..."
+			    set last_pass $opt_ch
+			    break
 			}
 			continue
 		    }
@@ -70,6 +72,10 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 	    pass "${full_test} - arg parsing"
 	} else {
 	    fail "${full_test} - arg parsing"
+	    continue
+	}
+	if {$last_pass != "4"} {
+	    untested "$full_test - last pass isn't 4 ($last_pass)"
 	    continue
 	}
     } else {
@@ -181,8 +187,8 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     }
     switch $rc {
 	0 { pass "${full_test} - compile" }
-	1 { fail "${full_test} - compile" }
-	2 { fail "${full_test} - compile: cache used" }
+	1 { fail "${full_test} - compile"; continue }
+	2 { fail "${full_test} - compile: cache used"; continue }
     }
 
     # If we're here, then the previous compilation worked. Compile the

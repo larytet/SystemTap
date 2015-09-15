@@ -175,10 +175,8 @@ proc stapi_run_batch { {use_cache 0} } {
     set eof_seen 0
     expect {
 	-timeout 180
-	-re "semantic error:" {
-	    verbose -log "stapi_run_batch compilation fail"
-	    set error_seen 1
-	}
+	-re "compilation failed" { set error_seen 1; exp_continue } 
+	-re "semantic error:" { set error_seen 1; exp_continue }
 	-re {Pass\ ([1234]):[^\r]*\ in\ ([0-9]+)usr/([0-9]+)sys/([0-9]+)real\ ms\.\r\n} {
 	    incr rc; exp_continue
 	}
