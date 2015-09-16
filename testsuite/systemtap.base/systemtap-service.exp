@@ -27,7 +27,7 @@ set __script_d $__etc_systemtap/script.d
 set __config $__etc_systemtap/config
 set __servicename systemtap
 
-for {set i 2} {$i<4} {incr i} {
+for {set i 2} {$i<9} {incr i} {
     if {! [catch {exec scl_enabled devtoolset-$i}]} {
         set __servicename devtoolset-$i-systemtap
     }
