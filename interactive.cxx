@@ -427,7 +427,7 @@ public:
   add_cmd()
   {
     name = usage = "add";
-    _help_text = "Add a probe or function.";
+    _help_text = "Add a global, probe, or function.";
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
@@ -573,6 +573,40 @@ public:
 	  }
 	delete f;
       }
+    return false;
+  }
+};
+
+class save_cmd : public cmdopt
+{
+public:
+  save_cmd()
+  {
+    name = "save";
+    usage = "save FILE";
+    _help_text = "Save a script to a file from the current session.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    if (tokens.size() != 2)
+      {
+	cout << endl << "FILE must be specified." << endl;
+	interactive_usage();
+	return false;
+      }
+
+    ofstream f(tokens[1], ios::out);
+    if (f.fail())
+      {
+	cout << endl
+	     << _F("File '%s' couldn't be opened for writing.",
+		   tokens[1].c_str()) << endl;
+	return false;
+      }
+
+    string script = join(script_vec, "\n");
+    f << script << endl;
+    f.close();
     return false;
   }
 };
@@ -1198,6 +1232,7 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   command_vec.push_back(new delete_cmd);
   command_vec.push_back(new list_cmd);
   command_vec.push_back(new load_cmd);
+  command_vec.push_back(new save_cmd);
   command_vec.push_back(new run_cmd);
   command_vec.push_back(new set_cmd);
   option_command_vec.push_back(command_vec.back());
