@@ -892,6 +892,48 @@ stap_system_read(int verbose, const vector<string>& args, ostream& out)
 }
 
 
+std::pair<bool,int>
+stap_fork_read(int verbose, ostream& out)
+{
+  int pipefd[2];
+  if (pipe(pipefd) != 0)
+    return make_pair(false, -1);
+
+  fflush(stdout); cout.flush();
+
+  if (verbose > 1)
+    clog << _("Forking subprocess...") << endl;
+
+  pid_t child = fork();
+  PROBE1(stap, stap_system__fork, child);
+  // child < 0: fork failure
+  if (child < 0)
+    {
+      if (verbose > 1)
+        clog << _F("Fork error (%d): %s", child, strerror(errno)) << endl;
+      close(pipefd[0]);
+      close(pipefd[1]);
+      return make_pair(false, -1);
+    }
+  // child == 0: we're the child
+  else if (child == 0)
+    {
+      close(pipefd[0]);
+      fcntl(pipefd[1], F_SETFD, FD_CLOEXEC);
+      return make_pair(true, pipefd[1]);
+    }
+
+  // child > 0: we're the parent
+  spawned_pids.insert(child);
+
+  // read everything from the child
+  close(pipefd[1]);
+  stdio_filebuf<char> in(pipefd[0], ios_base::in);
+  out << &in;
+  return make_pair(false, stap_waitpid(verbose, child));
+}
+
+
 // Send a signal to our spawned commands
 int
 kill_stap_spawn(int sig)

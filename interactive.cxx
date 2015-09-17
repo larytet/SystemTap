@@ -12,6 +12,7 @@
 #include "util.h"
 #include "staptree.h"
 #include "parse.h"
+#include "csclient.h"
 
 #include "stap-probe.h"
 
@@ -19,8 +20,10 @@
 #include <stack>
 #include <sstream>
 #include <iterator>
+#include <ext/stdio_filebuf.h>
 
 using namespace std;
+using namespace __gnu_cxx;
 
 extern "C" {
 #include <unistd.h>
@@ -36,6 +39,9 @@ extern int
 passes_0_4 (systemtap_session &s);
 extern int
 pass_5 (systemtap_session &s, vector<remote*> targets);
+
+static int
+forked_passes_0_4 (systemtap_session &s);
 
 // Ask user a y-or-n question and return 1 iff answer is yes.  The
 // prompt argument should end in "? ". Note that this is a simplified
@@ -591,10 +597,20 @@ public:
     // systemtap_session::clone() here, since it doesn't (usually)
     // create a new session, but returns a cached session. So, we'll
     // just use the current session.
-    s.clear_script_data();
     s.cmdline_script = join(script_vec, "\n");
     s.have_script = true;
-    int rc = passes_0_4(s);
+    int rc = forked_passes_0_4(s);
+#if 0
+    if (rc)
+    {
+	// Compilation failed.
+	// Try again using a server if appropriate.
+	if (s.try_server ())
+	    rc = passes_0_4_again_with_server (s);
+    }
+#endif
+    if (rc || s.perpass_verbose[0] >= 1)
+	s.explain_auto_options ();
 
     // Run pass 5, if passes 0-4 worked.
     if (rc == 0 && s.last_pass >= 5 && !pending_interrupts)
@@ -1118,6 +1134,45 @@ process_probe_list(istream &probe_stream, bool handle_regexps)
     }
 }
 
+// Fork a new process for the dirty work
+static int
+forked_passes_0_4 (systemtap_session &s)
+{
+  stringstream ss;
+  pair<bool,int> ret = stap_fork_read(s.perpass_verbose[0], ss);
+
+  if (ret.first) // Child fork
+    {
+      int rc = 1;
+      try
+        {
+          rc = passes_0_4 (s);
+          stdio_filebuf<char> buf(ret.second, ios_base::out);
+          ostream o(&buf);
+          if (rc == 0 && s.last_pass > 4)
+            {
+              o << s.module_name << endl;
+              o << s.uprobes_path << endl;
+            }
+          o.flush();
+        }
+      catch (...)
+        {
+          // NB: no cleanup from the fork!
+        }
+      // FIXME: what about cleanup(), but only for this session?
+      // i.e. tapset coverage, report_suppression, but not subsessions.
+      exit(rc ? EXIT_FAILURE : EXIT_SUCCESS);
+    }
+
+  // For passes <= 4, everything was written to cout.
+  // For pass 5, we need the module and maybe uprobes for staprun.
+  if (s.last_pass > 4 && ret.second == 0)
+    ss >> s.module_name >> s.uprobes_path;
+
+  return ret.second;
+}
+
 //
 // Interactive mode, passes 0 through 5 and back again.
 //
@@ -1171,9 +1226,19 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
       saved_perpass_verbose[i] = s.perpass_verbose[i];
   int saved_last_pass = s.last_pass;
 
+#if HAVE_NSS
+  // If requested, query server status. This is independent
+  // of other tasks.
+  query_server_status (s);
+
+  // If requested, manage trust of servers. This is
+  // independent of other tasks.
+  manage_server_trust (s);
+#endif
+  s.init_try_server ();
+
   // Get the list of "base" probe types, the same output you'd get
   // from doing 'stap --dump-probe-types'.
-  s.clear_script_data();
   s.verbose = 0;
   for (unsigned i=0; i<5; i++)
       s.perpass_verbose[i] = 0;
@@ -1200,7 +1265,6 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
 
   // Now we'll need to get all the probe aliases ("stap
   // --dump-probe-aliases").
-  s.clear_script_data();
   s.dump_mode = systemtap_session::dump_probe_aliases;
   
   // We want to capture the alias output, which normally goes to
@@ -1217,12 +1281,12 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   // FIXME: We could also complete systemtap function names.
 
   // Restore the original state of the session object.
-  s.clear_script_data();
   s.dump_mode = systemtap_session::dump_none;
   s.verbose = saved_verbose;
   for (unsigned i=0; i<5; i++)
       s.perpass_verbose[i] = saved_perpass_verbose[i];
   s.last_pass = saved_last_pass;
+  s.clear_script_data();
 
 #ifdef DEBUG
   {
