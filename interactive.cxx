@@ -519,8 +519,6 @@ public:
   }
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
-    // FIXME: we'd like to turn readline's file completion back on
-    // here, but it is too late at this point.
     if (tokens.size() != 2)
       {
 	cout << endl << "FILE must be specified." << endl;
@@ -1043,6 +1041,12 @@ interactive_completion(const char *text, int start, int end)
 	  saved_token = "";
 	matches = rl_completion_matches(text, probe_generator);
       }
+    }
+    else if (tokens.size() == 2 && tokens[0] == "load")
+    {
+      // Since the "load" command *does* take a filename, turn
+      // filename completion back on.
+      rl_attempted_completion_over = 0;
     }
   }
   return matches;
