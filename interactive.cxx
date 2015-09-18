@@ -1092,10 +1092,11 @@ interactive_completion(const char *text, int start, int end)
 	matches = rl_completion_matches(text, probe_generator);
       }
     }
-    else if (tokens.size() == 2 && tokens[0] == "load")
+    else if (tokens.size() == 2
+	     && (tokens[0] == "load" || tokens[0] == "save"))
     {
-      // Since the "load" command *does* take a filename, turn
-      // filename completion back on.
+      // Since the "load" and "save" commands *do* take a filename,
+      // turn filename completion back on.
       rl_attempted_completion_over = 0;
     }
   }
