@@ -53,7 +53,7 @@ function _get_kretprobe_string:string(i:long) %{ /* pure */
     }
 %}
 
-function _set_kretprobe_string(i:long, value:string) %{ /* impure */
+function _set_kretprobe_string(i:long, value:string) %{ /* impure */ /* unmodified-fnargs */
     if (CONTEXT->probe_type == stp_probe_type_kretprobe) {
 	size_t offset = CONTEXT->ips.krp.pi_longs * sizeof(int64_t) +
 			STAP_ARG_i * MAXSTRINGLEN;

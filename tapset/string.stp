@@ -14,7 +14,8 @@
  * Description: This function returns the length of the string, which
  * can be zero up to MAXSTRINGLEN.
  */
-function strlen:long(s:string) %{ /* pure */ /* unprivileged */
+function strlen:long(s:string)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	STAP_RETURN(strlen(STAP_ARG_s));
 %}
 
@@ -30,7 +31,8 @@ function strlen:long(s:string) %{ /* pure */ /* unprivileged */
  * original string is less than start + length, or length is bigger than
  * MAXSTRINGLEN).
  */
-function substr:string(str:string,start:long, length:long) %{ /* pure */ /* unprivileged */
+function substr:string(str:string,start:long, length:long)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	int64_t length = clamp_t(int64_t, STAP_ARG_length + 1, 0, MAXSTRINGLEN);
 	if (STAP_ARG_start >= 0 && STAP_ARG_start < strlen(STAP_ARG_str))
 		strlcpy(STAP_RETVALUE, STAP_ARG_str + STAP_ARG_start, length);
@@ -46,7 +48,8 @@ function substr:string(str:string,start:long, length:long) %{ /* pure */ /* unpr
  * the string or zero if the string doesn't have as many characters. Reports
  * an error if pos is out of bounds.
  */
-function stringat:long(str:string, pos:long) %{ /* pure */ /* unprivileged */
+function stringat:long(str:string, pos:long)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	if (STAP_ARG_pos >= 0 && STAP_ARG_pos < strlen(STAP_ARG_str))
                 STAP_RETURN(STAP_ARG_str[STAP_ARG_pos]);
 	else {
@@ -66,7 +69,8 @@ function stringat:long(str:string, pos:long) %{ /* pure */ /* unprivileged */
  * Description: This function returns 1 if string @s1 contains @s2,
  * otherwise zero. 
  */
-function isinstr:long(s1:string,s2:string) %{ /* pure */ /* unprivileged */
+function isinstr:long(s1:string,s2:string)
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	STAP_RETURN (strstr(STAP_ARG_s1,STAP_ARG_s2) != NULL);
 %}
 
@@ -81,7 +85,7 @@ function isinstr:long(s1:string,s2:string) %{ /* pure */ /* unprivileged */
  * returned string.
  */
 function text_str:string(input:string) 
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	if (_stp_text_str(STAP_RETVALUE, STAP_ARG_input, 0, 0, 0, 0) < 0) {
 		STAP_RETVALUE[0] = '\0';
 	}
@@ -101,7 +105,7 @@ function text_str:string(input:string)
  * returned string.
  */
 function text_strn:string(input:string, len:long, quoted:long)
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	int64_t len = clamp_t(int64_t, STAP_ARG_len, 0, MAXSTRINGLEN);
 	if (_stp_text_str(
 			STAP_RETVALUE, STAP_ARG_input, 0, len, STAP_ARG_quoted, 0) < 0) {
@@ -154,7 +158,7 @@ function str_replace:string (prnt_str:string, srch_str:string, rplc_str:string)
  * The @base parameter indicates the number base to assume for the string (eg. 16 for hex, 8 for octal, 2 for binary).
  */
 function strtol:long(str:string, base:long)
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
 	STAP_RETURN(simple_strtol(STAP_ARG_str, NULL, STAP_ARG_base));
 %}
 
@@ -168,6 +172,6 @@ function strtol:long(str:string, base:long)
  * false.
  */
 function isdigit:long(str:string)
-%{ /* pure */ /* unprivileged */
+%{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
  	STAP_RETURN(isdigit(STAP_ARG_str[0]));
 %}

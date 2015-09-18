@@ -150,7 +150,7 @@ function user_string_n:string (addr:long, n:long)
  * address.
  */
 function user_string_n2:string (addr:long, n:long, err_msg:string)
-%{ /* pure */ /* myproc-unprivileged */
+%{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
   int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
   if (_stp_strncpy_from_user(STAP_RETVALUE, 
         (char __user *) (uintptr_t) STAP_ARG_addr, len) < 0)
@@ -191,7 +191,7 @@ function user_string_n_warn:string (addr:long, n:long) {
  * not abort) about the failure.
  */
 function user_string2_n_warn:string (addr:long, n:long, warn_msg:string)
-%{ /* pure */ /* myproc-unprivileged */
+%{ /* pure */ /* myproc-unprivileged */ /* unmodified-fnargs */
 	int64_t len = clamp_t(int64_t, STAP_ARG_n + 1, 1, MAXSTRINGLEN);
 	long rc;
 	rc = _stp_strncpy_from_user(STAP_RETVALUE,

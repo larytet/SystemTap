@@ -26,7 +26,7 @@
  * It requires guru mode.
  */
 function panic(msg:string) %{
-        /* guru */
+        /* guru */ /* unmodified-fnargs */
         panic("%s", STAP_ARG_msg);
 %}
 

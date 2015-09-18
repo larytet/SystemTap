@@ -65,7 +65,7 @@ static int _stp_vscnprintf(char *buf, size_t size, const char *fmt, va_list args
  * in will have "..." after the second quote.
  * @param user Set this to indicate the input string pointer is a userspace pointer.
  */
-static int _stp_text_str(char *outstr, char *in, int inlen, int outlen, int quoted, int user)
+static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen, int quoted, int user)
 {
 	char c = '\0', *out = outstr;
 

@@ -12,7 +12,7 @@
  * -1 for an out-of-range value.
  */
 function rlimit_from_str:long (lim_str:string)
-%{ /* pure */
+%{ /* pure */ /* unmodified-fnargs */
     char *lim_str = (char *)(long)STAP_ARG_lim_str;
 
 #define aux_rlimit(limit_arg) \
