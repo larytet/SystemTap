@@ -68,6 +68,7 @@ function _caller_match:long (user_mode:long, level:long,
                              module:string, section:string, addr:long) %{
    /* pure */ /* myproc-unprivileged */
    /* pragma:unwind */ /* pragma:uprobes */ /* pragma:vma */
+   /* unmodified-fnargs */
    #ifdef STAP_CALLEE_MATCHALL /* Set using -D to have .callee probes fire
                                   regardless of caller */
       STAP_RETVALUE = 1;

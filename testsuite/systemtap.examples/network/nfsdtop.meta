@@ -11,4 +11,4 @@ scope: system-wide
 description: The nfsdtop.stp script gathers and displays NFS lookups,
 reads, writes, etc. totals for an nfs server.
 test_check: stap -p4 nfsdtop.stp
-test_installcheck: stap nfsd_unlink.stp -c "sleep 1"
+test_installcheck: stap nfsdtop.stp -c "sleep 1"
