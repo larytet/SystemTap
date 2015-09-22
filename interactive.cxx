@@ -321,7 +321,7 @@ public:
     for (cmdopt_vector_iterator it = option_vec.begin();
 	 it != option_vec.end(); ++it)
       {
-	buffer << endl << setw(indent + 2) << " ";
+	buffer << endl << setw(4) << " ";
 	buffer << setw(width) << left << (*it)->name << " -- "
 	       << (*it)->help_text(0);
       }
@@ -330,7 +330,7 @@ public:
   bool handler(systemtap_session &s, vector<string> &tokens)
   {
     bool option_found = false;
-    if (tokens.size() != 3)
+    if (tokens.size() < 3)
       {
 	cout << endl << "Invalid command" << endl;
 	interactive_usage();
@@ -835,6 +835,84 @@ public:
   }
 };
 
+class target_pid_opt: public cmdopt
+{
+public:
+  target_pid_opt()
+  {
+    name = "target_pid";
+    _help_text = "Sets target() to PID.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      {
+	char *end;
+	unsigned long val;
+
+	if (s.cmd != "")
+	  {
+	    cerr << _("You can't specify a target pid and a cmd together.")
+		 << endl;
+	    return false;
+	  }
+
+	errno = 0;
+	val = strtoul (tokens[2].c_str(), &end, 10);
+	if (errno != 0 || *end != '\0' || val < 1 || val > 5)
+	  cout << _("Invalid target process ID number.") << endl;
+	else
+	  s.target_pid = val;
+      }
+    else
+      cout << name << ": " << s.target_pid << endl;
+    return false;
+  }
+};
+
+class cmd_opt: public cmdopt
+{
+public:
+  cmd_opt()
+  {
+    name = "cmd";
+    _help_text = "Start the probes, run CMD, and exit when it finishes.";
+  }
+  bool handler(systemtap_session &s, vector<string> &tokens)
+  {
+    bool set = (tokens[0] == "set");
+    if (set)
+      {
+	if (s.target_pid != 0)
+	  {
+	    cerr << _("You can't specify a target pid and a cmd together.")
+		 << endl;
+	    return false;
+	  }
+
+	s.cmd.clear();
+	for (unsigned i = 2; i < tokens.size(); ++i)
+	  {
+	    // Paste the tokens back together.
+	    if (!s.cmd.empty())
+	      s.cmd += " ";
+	    s.cmd += tokens[i];
+	  }
+	// If the string is quoted, remove the outer quotes.
+	if ((s.cmd[0] == '"' || s.cmd[0] == '\'')
+	    && s.cmd[0] == s.cmd[s.cmd.size() - 1])
+	  {
+	    s.cmd.erase(0, 1);
+	    s.cmd.erase(s.cmd.size() - 1, 1);
+	  }
+      }
+    else
+      cout << name << ": \"" << s.cmd << "\"" << endl;
+    return false;
+  }
+};
+
 static void
 interactive_usage ()
 {
@@ -1251,6 +1329,8 @@ interactive_mode (systemtap_session &s, vector<remote*> targets)
   option_vec.push_back(new panic_warnings_opt);
   option_vec.push_back(new timing_opt);
   option_vec.push_back(new unoptimized_opt);
+  option_vec.push_back(new target_pid_opt);
+  option_vec.push_back(new cmd_opt);
 
   // FIXME: It might be better to wait to get the list of probes and
   // aliases until they are needed.

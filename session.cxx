@@ -869,7 +869,6 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	case 'i':
 #ifdef HAVE_LIBREADLINE
           if (client_options) { cerr << _F("ERROR: %s invalid with %s", "-i", "--client-options") << endl; return 1; } 
-	  server_args.push_back (string ("-") + (char)grc);
 	  interactive_mode = true;
 #endif
 	  break;
