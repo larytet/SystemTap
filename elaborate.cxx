@@ -3731,6 +3731,15 @@ const_folder::visit_binary_expression (binary_expression* e)
       // we'll pass on type=pe_long inference to the expression
       if (other->type == pe_unknown)
         other->type = pe_long;
+      else if (other->type != pe_long)
+        {
+          // this mismatch was not caught in the initial type resolution pass,
+          // generate a mismatch (left doesn't match right) error
+          typeresolution_info ti(session);
+          ti.assert_resolvability = true; // need this to get it throw errors
+          ti.mismatch_complexity = 1; // also needed to throw errors
+          ti.mismatch(e);
+        }
 
       if (left)
         value = left->value;
@@ -3759,6 +3768,15 @@ const_folder::visit_binary_expression (binary_expression* e)
       expression* other = left ? e->right : e->left;
       if (other->type == pe_unknown)
         other->type = pe_long;
+      else if (other->type != pe_long)
+        {
+          // this mismatch was not caught in the initial type resolution pass,
+          // generate a mismatch (left doesn't match right) error
+          typeresolution_info ti(session);
+          ti.assert_resolvability = true; // need this to get it throw errors
+          ti.mismatch_complexity = 1; // also needed to throw errors
+          ti.mismatch(e);
+        }
 
       provide (other);
       return;
