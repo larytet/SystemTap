@@ -4081,13 +4081,20 @@ const_folder::visit_target_symbol (target_symbol* e)
     update_visitor::visit_target_symbol (e);
 }
 
-static void initial_typeres_pass(systemtap_session& s);
-static void semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
+static int initial_typeres_pass(systemtap_session& s);
+static int semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
 {
   // attempt an initial type resolution pass to see if there are any type
   // mismatches before we starting whisking away vars that get switched out
   // with a const.
-  initial_typeres_pass(s);
+
+  // return if the initial type resolution pass reported errors (type mismatches)
+  int rc = initial_typeres_pass(s);
+  if (rc)
+    {
+      relaxed_p = true;
+      return rc;
+    }
 
   // Let's simplify statements with constant values.
   const_folder cf (s, relaxed_p);
@@ -4098,6 +4105,7 @@ static void semantic_pass_const_fold (systemtap_session& s, bool& relaxed_p)
   for (map<string,functiondecl*>::iterator it = s.functions.begin();
        it != s.functions.end(); it++)
     cf.replace (it->second->body);
+  return 0;
 }
 
 
@@ -4650,7 +4658,8 @@ semantic_pass_optimize1 (systemtap_session& s)
       // that @defined expressions can be properly resolved.  PR11360
       // We also want it in case variables are used in if/case expressions,
       // so enable always.  PR11366
-      semantic_pass_const_fold (s, relaxed_p);
+      // rc is incremented if there is an error that got reported.
+      rc += semantic_pass_const_fold (s, relaxed_p);
 
       if (!s.unoptimized)
         semantic_pass_dead_control (s, relaxed_p);
@@ -4805,7 +4814,7 @@ struct initial_typeresolution_info : public typeresolution_info
   void visit_cast_op (cast_op* e) {}
 };
 
-static void initial_typeres_pass(systemtap_session& s)
+static int initial_typeres_pass(systemtap_session& s)
 {
   // minimal type resolution based off of semantic_pass_types(), without
   // checking for complete type resolutions or autocast expanding
@@ -4876,6 +4885,8 @@ static void initial_typeres_pass(systemtap_session& s)
       else
         ti.mismatch_complexity = 0;
     }
+
+  return s.num_errors();
 }
 
 static int
