@@ -77,7 +77,8 @@ probe netdev.receive
  */
 // Queue a buffer for transmission to a network device
 probe netdev.transmit
-	=  kernel.function("dev_queue_xmit")
+	= kernel.function("__dev_queue_xmit") !,
+	  kernel.function("dev_queue_xmit")
 {
 	dev_name = kernel_string($skb->dev->name)
 	length = $skb->len
@@ -130,9 +131,9 @@ probe netdev.hard_transmit
 	= kernel.function("dev_hard_start_xmit") ?
 {
 	dev_name = get_netdev_name($dev)
-	protocol = $skb->protocol
-	length = $skb->len
-	truesize = $skb->truesize
+	protocol = @choose_defined($first, $skb)->protocol
+	length = @choose_defined($first, $skb)->len
+	truesize = @choose_defined($first, $skb)->truesize
 }
 
 /**
