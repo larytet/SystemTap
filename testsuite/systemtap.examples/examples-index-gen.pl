@@ -137,7 +137,7 @@ open (FULLHTML, ">$fullhtml")
     || die "couldn't open $fullhtml: $!";
 print "Creating $fullhtml...\n";
 print FULLHTML $HTMLHEADER;
-print FULLHTML "<em>$version</em><br>";
+print FULLHTML "<p><em>$version</em></p>";
 
 print FULLHTML "<h2>Best Examples</h2>\n";
 print FULLHTML "<ul>\n"; 
@@ -196,7 +196,7 @@ open (KEYHTML, ">$keyhtml")
     || die "couldn't open $keyhtml: $!";
 print "Creating $keyhtml...\n";
 print KEYHTML $HTMLHEADER;
-print KEYHTML "<em>$version</em><br>";
+print KEYHTML "<p><em>$version</em></p>";
 
 print KEYHTML "<h2>Examples by Keyword</h2>\n";
 
