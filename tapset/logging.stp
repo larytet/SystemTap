@@ -65,10 +65,7 @@ function exit () %{ /* unprivileged */
 function error (msg:string) %{ /* unprivileged */ /* unmodified-fnargs */
   /* NB: we used to reuse msg[] for an assignment to last_error; this
    is clearer & safer. */
-  if (strlen(STAP_ARG_msg) == 0)
-    strlcpy (CONTEXT->error_buffer, "Unknown error.", MAXSTRINGLEN);
-  else
-    strlcpy (CONTEXT->error_buffer, STAP_ARG_msg, MAXSTRINGLEN);
+  strlcpy (CONTEXT->error_buffer, STAP_ARG_msg, MAXSTRINGLEN);
   CONTEXT->last_error = CONTEXT->error_buffer;
   CONTEXT->last_stmt = NULL;
 %}
