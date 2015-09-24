@@ -421,7 +421,9 @@ probe scheduler.process_wait =
  * @parent_pid: PID of the parent process
  * @child_pid: PID of the child process
  */
-probe __scheduler.process_fork.kp = kernel.function("do_fork").return
+probe __scheduler.process_fork.kp =
+	kernel.function("_do_fork").return !,
+	kernel.function("do_fork").return
 {
 	parent_pid = task_current()->tgid
 	child_pid = $return
