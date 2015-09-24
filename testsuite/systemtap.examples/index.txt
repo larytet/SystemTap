@@ -1,6 +1,9 @@
 SYSTEMTAP EXAMPLES INDEX
 (see also keyword-index.txt)
 
+
+For systemtap version 2.9.
+
 general/alias_suffixes.stp - Count I/O Syscalls using Alias Suffixes
 keywords: io statistics
 
@@ -858,7 +861,7 @@ keywords: nfs statistics
 
   The nfsdtop.stp script gathers and displays NFS lookups,
 
-  # stap nfsd_unlink.stp -c "sleep 1"
+  # stap nfsdtop.stp -c "sleep 1"
 
 
 network/sk_stream_wait_memory.stp - Track Start and Stop of Processes Due to Network Buffer Space

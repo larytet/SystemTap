@@ -38,7 +38,7 @@
            		<li><a href="keyword-index.html">By Keyword</a></li>
          	</ul>
 
-<h2>Examples by Keyword</h2>
+<em>For systemtap version 2.9.</em><br><h2>Examples by Keyword</h2>
 <p><tt><a href="#_BEST">_BEST(18)</a> <a href="#AUDIT">AUDIT(1)</a> <a href="#AUTOFS">AUTOFS(1)</a> <a href="#BACKTRACE">BACKTRACE(8)</a> <a href="#CALLGRAPH">CALLGRAPH(2)</a> <a href="#CPU">CPU(1)</a> <a href="#DEVICE">DEVICE(1)</a> <a href="#DIAGRAM">DIAGRAM(1)</a> <a href="#DISK">DISK(6)</a> <a href="#FILE">FILE(2)</a> <a href="#FILESYSTEM">FILESYSTEM(4)</a> <a href="#FORMAT">FORMAT(2)</a> <a href="#FUNCTION">FUNCTION(4)</a> <a href="#FUTEX">FUTEX(2)</a> <a href="#GURU">GURU(7)</a> <a href="#INTERRUPT">INTERRUPT(3)</a> <a href="#IO">IO(29)</a> <a href="#JSON">JSON(2)</a> <a href="#KVM">KVM(3)</a> <a href="#LIMITS">LIMITS(2)</a> <a href="#LOCKING">LOCKING(6)</a> <a href="#MEMORY">MEMORY(14)</a> <a href="#MONITORING">MONITORING(6)</a> <a href="#NANOSLEEP">NANOSLEEP(1)</a> <a href="#NET">NET(1)</a> <a href="#NETWORK">NETWORK(18)</a> <a href="#NFS">NFS(4)</a> <a href="#NUMA">NUMA(1)</a> <a href="#PACKETS">PACKETS(1)</a> <a href="#PROCESS">PROCESS(23)</a> <a href="#PROFILING">PROFILING(20)</a> <a href="#QEMU">QEMU(2)</a> <a href="#REGEX">REGEX(1)</a> <a href="#SCHEDULER">SCHEDULER(8)</a> <a href="#SCSI">SCSI(1)</a> <a href="#SECURITY">SECURITY(2)</a> <a href="#SIGNALS">SIGNALS(5)</a> <a href="#SIMPLE">SIMPLE(4)</a> <a href="#SLAB">SLAB(1)</a> <a href="#SOCKET">SOCKET(7)</a> <a href="#SPECULATION">SPECULATION(1)</a> <a href="#STAPGAMES">STAPGAMES(5)</a> <a href="#STATISTICS">STATISTICS(9)</a> <a href="#SYSCALL">SYSCALL(12)</a> <a href="#TCP">TCP(3)</a> <a href="#THREAD">THREAD(2)</a> <a href="#TIME">TIME(3)</a> <a href="#TRACE">TRACE(4)</a> <a href="#TRACEPOINT">TRACEPOINT(4)</a> <a href="#TRAFFIC">TRAFFIC(6)</a> <a href="#TTY">TTY(1)</a> <a href="#UTILIZATION">UTILIZATION(1)</a> <a href="#VIRTUALIZATION">VIRTUALIZATION(3)</a> <a href="#WATCHDOG">WATCHDOG(1)</a> <a href="#WATCHPOINT">WATCHPOINT(2)</a> </tt></p>
 <h3><a name="_BEST"><a href="#_BEST">&para;</a> _BEST</a></h3>
 <ul>
@@ -569,7 +569,7 @@ keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#D
 <p>The nfsd_unlink.stp script lists the ip address and file name each time time a file is being removed or unlinked by the nfsd. This script is run on the nfs server.</p><p><font size="-2"><pre># stap nfsd_unlink.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/nfsdtop.stp">network/nfsdtop.stp</a> - Keep track of NFS server statistics<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
-<p>The nfsdtop.stp script gathers and displays NFS lookups,</p><p><font size="-2"><pre># stap nfsd_unlink.stp -c &quot;sleep 1&quot;</pre></font></p>
+<p>The nfsdtop.stp script gathers and displays NFS lookups,</p><p><font size="-2"><pre># stap nfsdtop.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li></ul>
 <h3><a name="NUMA"><a href="#NUMA">&para;</a> NUMA</a></h3>
 <ul>
@@ -889,7 +889,7 @@ keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#S
 <p>This script tracks all nfsd server operations by client_ip address, and periodically lists those clients that have made recent requests.  It&#39;s a way of finding out which nfs clients might be considered still connected.</p><p><font size="-2"><pre># stap nfsd-recent.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/nfsdtop.stp">network/nfsdtop.stp</a> - Keep track of NFS server statistics<br>
 keywords: <a href="keyword-index.html#NFS">NFS</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
-<p>The nfsdtop.stp script gathers and displays NFS lookups,</p><p><font size="-2"><pre># stap nfsd_unlink.stp -c &quot;sleep 1&quot;</pre></font></p>
+<p>The nfsdtop.stp script gathers and displays NFS lookups,</p><p><font size="-2"><pre># stap nfsdtop.stp -c &quot;sleep 1&quot;</pre></font></p>
 </li><li><a href="network/tcpipstat.stp">network/tcpipstat.stp</a> - Display Network Statistics for Individual TCP Sockets<br>
 keywords: <a href="keyword-index.html#NETWORK">NETWORK</a> <a href="keyword-index.html#STATISTICS">STATISTICS</a> <br>
 <p>The tcpipstat script collects and displays network statistics related to individual TCP sockets or groups of sockets.  The statistics that are collected are simular to that of the command netstat -s, only sorted and grouped by individual sockets.</p><p><i><a href="network/tcpipstat.txt">sample usage in network/tcpipstat.txt</i></font></p>
