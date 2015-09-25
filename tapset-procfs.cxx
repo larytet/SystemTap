@@ -475,7 +475,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
                 + string("    strlcpy(data->buffer, STAP_ARG_value, data->bufsize);\n")
                 + string("    if (strlen(STAP_ARG_value) > data->bufsize-1)\n")
                 + string("      STAP_ERROR(\"buffer size exceeded, consider .maxsize(%lu).\", "
-                                            "strlen(STAP_ARG_value) + 1);\n")
+                                            "(unsigned long)(strlen(STAP_ARG_value) + 1));\n")
                 + string("    data->count = strlen(data->buffer);\n");
             }
           else if (*op == ".=")
@@ -485,7 +485,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
                 + string("    strlcat(data->buffer, STAP_ARG_value, data->bufsize);\n")
                 + string("    if (data->count + strlen(STAP_ARG_value) > data->bufsize-1)\n")
                 + string("      STAP_ERROR(\"buffer size exceeded, consider .maxsize(%lu).\", "
-                                            "data->count + strlen(STAP_ARG_value) + 1);\n")
+                                            "(unsigned long)(data->count + strlen(STAP_ARG_value) + 1));\n")
                 + string("    data->count = strlen(data->buffer);\n");
             }
           else
