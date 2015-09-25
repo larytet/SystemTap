@@ -595,7 +595,7 @@ public:
 	return false;
       }
 
-    ofstream f(tokens[1], ios::out);
+    ofstream f(tokens[1].c_str(), ios::out);
     if (f.fail())
       {
 	cout << endl
