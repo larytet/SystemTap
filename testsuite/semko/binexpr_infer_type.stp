@@ -1,0 +1,6 @@
+#! stap -up2
+
+probe begin {
+  i = "asdf" // obviously a string
+  println(i*0);
+}

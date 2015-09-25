@@ -302,7 +302,7 @@ common_probe_entryfn_epilogue (systemtap_session& s,
   s.op->newline() << "c->probe_type = 0;";
 
 
-  s.op->newline() << "if (unlikely (c->last_error && c->last_error[0])) {";
+  s.op->newline() << "if (unlikely (c->last_error)) {";
   s.op->indent(1);
   if (s.suppress_handler_errors) // PR 13306
     {

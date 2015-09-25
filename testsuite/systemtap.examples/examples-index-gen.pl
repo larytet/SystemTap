@@ -25,6 +25,13 @@ if ($#ARGV >= 0) {
 }
 $inputdir = abs_path($inputdir);
 
+# get current stap version
+open(PIPE, " $inputdir/../../configure -V |") or die ("can't find stap version");
+my $version_line = <PIPE>;
+$version_line =~ /systemtap configure (.*)/ or die ("can't parse configure -V");
+my $version = "For systemtap version ${1}.";
+close(PIPE);
+
 my $outputdir;
 if ($#ARGV >= 1) {
     $outputdir = $ARGV[1];
@@ -123,12 +130,14 @@ open (FULLINDEX, ">$fullindex")
     || die "couldn't open $fullindex: $!";
 print "Creating $fullindex...\n";
 print FULLINDEX $HEADER;
-
+print FULLINDEX "\n$version\n\n";
+    
 my $fullhtml = "$outputdir/index.html";
 open (FULLHTML, ">$fullhtml")
     || die "couldn't open $fullhtml: $!";
 print "Creating $fullhtml...\n";
 print FULLHTML $HTMLHEADER;
+print FULLHTML "<p><em>$version</em></p>";
 
 print FULLHTML "<h2>Best Examples</h2>\n";
 print FULLHTML "<ul>\n"; 
@@ -180,12 +189,15 @@ open (KEYINDEX, ">$keyindex")
     || die "couldn't open $keyindex: $!";
 print "Creating $keyindex...\n";
 print KEYINDEX $KEYHEADER;
+print KEYINDEX "\n$version\n\n";
 
 my $keyhtml = "$outputdir/keyword-index.html";
 open (KEYHTML, ">$keyhtml")
     || die "couldn't open $keyhtml: $!";
 print "Creating $keyhtml...\n";
 print KEYHTML $HTMLHEADER;
+print KEYHTML "<p><em>$version</em></p>";
+
 print KEYHTML "<h2>Examples by Keyword</h2>\n";
 
 # On top link list

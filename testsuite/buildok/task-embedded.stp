@@ -1,15 +1,22 @@
-#! stap -p4
+#! stap -gp4
 #
 probe begin {
 	print (task_current () +
 		task_parent (0) +
 		task_state (0) +
 		task_pid (0) +
+		task_ns_pid (0) +
+		pid2task (0) + 
 		task_tid (0) +
+		task_ns_tid (0) +
 		task_gid (0) +
+		task_ns_gid (0) +
 		task_egid (0) +
+		task_ns_egid (0) +
 		task_uid (0) +
+		task_ns_uid (0) +
 		task_euid (0) +
+		task_ns_euid (0) +
 		task_prio (0) +
 		task_nice (0) +
 		task_cpu (0) +

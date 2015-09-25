@@ -221,9 +221,18 @@ function task_pid:long (task:long)
  */
 function task_ns_pid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  int64_t rc = from_target_pid_ns(t, PID);
-  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
-  else STAP_RETURN (rc);
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_pid_ns(t, PID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -291,9 +300,18 @@ function task_tid:long (task:long)
  */
 function task_ns_tid:long (task:long)%{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  int64_t rc = from_target_pid_ns(t, TID);
-  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
-  else STAP_RETURN (rc);
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_pid_ns(t, TID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -307,19 +325,24 @@ function task_gid:long (task:long) %{ /* pure */
     struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->gid));
-    CATCH_DEREF_FAULT();
 #else
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
     /* If task_gid() isn't defined, make our own. */
 #if !defined(task_gid) && defined(task_cred_xxx)
 #define task_gid(task)		(task_cred_xxx((task), gid))
 #endif
-    /* XXX: We can't easily kread this rcu-protected field. */
+
 #if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
     STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_gid(t));
 #else
     STAP_RETVALUE = task_gid (t);
 #endif
 #endif
+    CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -332,9 +355,18 @@ function task_gid:long (task:long) %{ /* pure */
 */
 function task_ns_gid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  int64_t rc = from_target_user_ns(t, GID);
-  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
-  else STAP_RETURN (rc);
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(t, GID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -348,19 +380,24 @@ function task_egid:long (task:long) %{ /* pure */
     struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->egid));
-    CATCH_DEREF_FAULT();
 #else
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
     /* If task_egid() isn't defined, make our own. */
 #if !defined(task_egid) && defined(task_cred_xxx)
 #define task_egid(task)		(task_cred_xxx((task), egid))
 #endif
-    /* XXX: We can't easily kread this rcu-protected field. */
+
 #if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
     STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_egid(t));
 #else
     STAP_RETVALUE = task_egid (t);
 #endif
 #endif
+    CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -372,9 +409,18 @@ function task_egid:long (task:long) %{ /* pure */
  */
 function task_ns_egid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  int64_t rc = from_target_user_ns(current, EGID);
-  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
-  else STAP_RETURN (rc);
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(current, EGID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -388,15 +434,19 @@ function task_uid:long (task:long) %{ /* pure */
     struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->uid));
-    CATCH_DEREF_FAULT();
 #else
-    /* XXX: We can't easily kread this rcu-protected field. */
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
 #if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
     STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_uid(t));
 #else
     STAP_RETVALUE = task_uid (t);
 #endif
 #endif
+    CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -408,9 +458,18 @@ function task_uid:long (task:long) %{ /* pure */
  */
 function task_ns_uid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  int64_t rc = from_target_user_ns(current, UID);
-  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
-  else STAP_RETURN (rc);
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(current, UID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -424,15 +483,19 @@ function task_euid:long (task:long) %{ /* pure */
     struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->euid));
-    CATCH_DEREF_FAULT();
 #else
-    /* XXX: We can't easily kread this rcu-protected field. */
+    /* We can't easily kread the task_struct's rcu-protected
+     * credential fields. So, let's just make sure the entire
+     * task_struct is valid to read. */
+    (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
 #if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
     STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_euid(t));
 #else
     STAP_RETVALUE = task_euid (t);
 #endif
 #endif
+    CATCH_DEREF_FAULT();
 %}
 
 /**
@@ -444,9 +507,18 @@ function task_euid:long (task:long) %{ /* pure */
  */
 function task_ns_euid:long (task:long) %{ /* pure */ /* guru */
   struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
-  int64_t rc = from_target_user_ns(current, EUID);
-  if (rc < 0) STAP_ERROR ("cannot resolve id in namespace");
-  else STAP_RETURN (rc);
+  int64_t rc;
+
+  /* Before using the task_struct pointer, make sure it is valid to
+   * read. */
+  (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+  rc = from_target_user_ns(current, EUID);
+  if (rc < 0)
+    STAP_ERROR ("cannot resolve id in namespace");
+  else
+    STAP_RETURN (rc);
+  CATCH_DEREF_FAULT();
 %}
 
 

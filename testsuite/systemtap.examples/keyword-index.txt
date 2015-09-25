@@ -1,6 +1,9 @@
 SYSTEMTAP EXAMPLES INDEX BY KEYWORD
 (see also index.txt)
 
+
+For systemtap version 2.9.
+
 = _BEST =
 
 general/eventcount.stp - Count Specified Events
@@ -1725,7 +1728,7 @@ keywords: nfs statistics
 
   The nfsdtop.stp script gathers and displays NFS lookups,
 
-  # stap nfsd_unlink.stp -c "sleep 1"
+  # stap nfsdtop.stp -c "sleep 1"
 
 
 = NUMA =
@@ -2756,7 +2759,7 @@ keywords: nfs statistics
 
   The nfsdtop.stp script gathers and displays NFS lookups,
 
-  # stap nfsd_unlink.stp -c "sleep 1"
+  # stap nfsdtop.stp -c "sleep 1"
 
 
 network/tcpipstat.stp - Display Network Statistics for Individual TCP Sockets

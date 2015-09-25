@@ -1,0 +1,5 @@
+#! stap -up2
+
+probe begin {
+  println(0+"foo");
+}

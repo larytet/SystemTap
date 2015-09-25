@@ -6,7 +6,7 @@
 global b
 
 function zoo (x) {
-  return "tada" + x
+  return x
 }
 
 probe begin {
