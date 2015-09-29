@@ -15,7 +15,3 @@ probe kernel.function("__wake_up_common") if (testing)
       testing = 0
     }
 }
-
-probe timer.s(10) { /* hoping that all the above activity is all done now */
-    exit()
-}

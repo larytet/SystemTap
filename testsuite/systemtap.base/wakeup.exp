@@ -4,7 +4,7 @@ if {![installtest_p]} {untested $test; return}
 
 # There have been issues with kernel probes put into the wake_up path.
 # see http://sourceware.org/ml/systemtap/2011-q3/msg00163.html
-spawn stap -DMAXERRORS=999 $srcdir/$subdir/$test.stp -c {ls -laR /dev/* /proc/* > /dev/null 2>&1}
+spawn stap -DMAXERRORS=999 $srcdir/$subdir/$test.stp -c {ls -laR /dev/* /proc/* > /dev/null 2>&1; sleep 5}
 set systems 0
 set warns 0
 set errors 0
@@ -20,5 +20,5 @@ expect {
 }
 wait
 
-# WARNINGs get collapsed, so only 1 expected ... plus the three from staprun re. the ERROR exits.
-if {$systems == 8 && $warns == 4 && $errors == 8 && $prints == 1} { pass "$test" } { fail "$test ($systems,$warns,$errors,$prints)" }
+# WARNINGs get collapsed, so only 1 expected ... plus the two from staprun re. the ERROR exits.
+if {$systems == 8 && $warns == 3 && $errors == 8 && $prints == 1} { pass "$test" } { fail "$test ($systems,$warns,$errors,$prints)" }
