@@ -278,6 +278,8 @@ zenme ()
 #endif
 
 #if defined (NOLIBPLT) || defined (ONLY_MAIN)
+void zenme (void);
+
 int
 main ()
 {
