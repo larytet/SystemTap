@@ -217,7 +217,7 @@ widgets (void)
   printf ("|%35W|\n", &mywidget);
   printf ("|%-35W|\n", &mywidget);
 
-  return;
+  return 0;
 }
 
 
@@ -282,5 +282,6 @@ int
 main ()
 {
   zenme ();
+  return 0;
 }
 #endif
