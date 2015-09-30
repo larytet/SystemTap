@@ -70,6 +70,8 @@ stapsslerr.h
 staptree.cxx
 staptree.h
 stapvirt.c
+stringtable.cxx
+stringtable.h
 tapset-been.cxx
 tapset-dynprobe.cxx
 tapset-dynprobe.h
