@@ -140,32 +140,50 @@ function ftype:string(type:long) %{ /* pure */
 %}
 
 function __rqstp_uid:long(rqstp:long)
-{
-%( CONFIG_USER_NS == "y" %?
-	# Notice we're using the 'init_user_ns' here, not
-	# 'current_user_ns()'. This matches up with the use in
-	# net/sunrpc/auth_generic.c.
-	return %{ /* pure */
-		  from_kuid_munged(&init_user_ns,
-				   ((struct svc_rqst *)(unsigned long)STAP_ARG_rqstp)->rq_cred.cr_uid) %}
-%:
-	return @cast(rqstp, "svc_rqst", "kernel:nfsd")->rq_cred->cr_uid
-%)
-}
+%{ /* pure */
+	// Notice we're using the 'init_user_ns' here, not
+	// 'current_user_ns()'. This matches up with the use in
+	// net/sunrpc/auth_generic.c.
+	struct svc_rqst *rqstp
+		= (struct svc_rqst *)(unsigned long)STAP_ARG_rqstp;
+#ifndef STAPCONF_LINUX_UIDGID_H
+	uid_t cr_uid = KUIDT_INIT(kread(&(rqstp->rq_cred.cr_uid)));
+#else
+	kuid_t cr_uid;
+	/* Make sure the cr_uid struct is valid to read. */
+	(void)kderef_buffer(NULL, &(rqstp->rq_cred.cr_uid), sizeof(kuid_t));
+	cr_uid = KUIDT_INIT(__kuid_val(rqstp->rq_cred.cr_uid));
+#endif
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+	STAP_RETVALUE = from_kuid_munged(&init_user_ns, cr_uid);
+#else
+	STAP_RETVALUE = cr_uid;
+#endif
+	CATCH_DEREF_FAULT();
+%}
 
 function __rqstp_gid:long(rqstp:long)
-{
-%( CONFIG_USER_NS == "y" %?
-	# Notice we're using the 'init_user_ns' here, not
-	# 'current_user_ns()'. This matches up with the use in
-	# net/sunrpc/auth_generic.c.
-	return %{ /* pure */
-		  from_kgid_munged(&init_user_ns,
-				   ((struct svc_rqst *)(unsigned long)STAP_ARG_rqstp)->rq_cred.cr_gid) %}
-%:
-	return @cast(rqstp, "svc_rqst", "kernel:nfsd")->rq_cred->cr_gid
-%)
-}
+%{ /* pure */
+	// Notice we're using the 'init_user_ns' here, not
+	// 'current_user_ns()'. This matches up with the use in
+	// net/sunrpc/auth_generic.c.
+	struct svc_rqst *rqstp
+		= (struct svc_rqst *)(unsigned long)STAP_ARG_rqstp;
+#ifndef STAPCONF_LINUX_UIDGID_H
+	gid_t cr_gid = KGIDT_INIT(kread(&(rqstp->rq_cred.cr_gid)));
+#else
+	kgid_t cr_gid;
+	/* Make sure the cr_gid struct is valid to read. */
+	(void)kderef_buffer(NULL, &(rqstp->rq_cred.cr_gid), sizeof(kgid_t));
+	cr_gid = KGIDT_INIT(__kgid_val(rqstp->rq_cred.cr_gid));
+#endif
+#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
+	STAP_RETVALUE = from_kgid_munged(&init_user_ns, cr_gid);
+#else
+	STAP_RETVALUE = cr_gid;
+#endif
+	CATCH_DEREF_FAULT();
+%}
 
 /**
  * probe nfsd.dispatch - NFS server receives an operation from client 
