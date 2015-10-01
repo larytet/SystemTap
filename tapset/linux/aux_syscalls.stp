@@ -2127,7 +2127,7 @@ static const _stp_val_array const _stp_madvice_advice_list[] = {
 };
 %}
 
-function _madvice_advice_str:string(behavior)
+function _madvice_advice_str:string(behavior:long)
 %{ /* pure */
 	_stp_lookup_str(_stp_madvice_advice_list,
 			(unsigned int)STAP_ARG_behavior, STAP_RETVALUE,
