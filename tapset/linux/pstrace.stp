@@ -18,7 +18,7 @@
  */
 function pstrace:string(task:long)
 {
-  while (task_pid(task) != 1) {
+  while (task_pid(task) > 1) {
     trace = sprintf("%s %s(%d)", trace, task_execname(task), task_pid(task));
     task = task_parent(task);
   }
