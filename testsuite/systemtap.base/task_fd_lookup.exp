@@ -1,0 +1,66 @@
+set test "task_fd_lookup"
+set srcpath "${srcdir}/${subdir}/${test}.c"
+set exepath "[pwd]/${test}"
+
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
+# Compile the test exectuable (which opens several directories, pipes,
+# and a socket).
+set res [target_compile $srcpath $exepath executable "additional_flags=-g"]
+if { $res != "" } {
+    verbose "target_compile failed: $res" 2
+    fail "unable to compile $srcpath"
+    return
+}
+
+# Create a tempory directory.
+if {[catch {exec mktemp -d -t staptestXXXXXX} tmpdir]} {
+    verbose -log "Failed to create temporary directory: $tmpdir"
+    return
+}
+
+# Create a deep directory inside the temporary directory.
+set full_tmpdir "${tmpdir}/a/b/c/d/e/f/g"
+if {[catch {exec mkdir -p ${full_tmpdir}} res]} {
+    verbose -log "Failed to create temporary directory: $tmpdir"
+    catch {exec rm -rf "$tmpdir"}
+    return
+}
+
+spawn stap $srcdir/$subdir/$test.stp -c "$exepath $full_tmpdir"
+verbose -log "stap $srcdir/$subdir/$test.stp -c \"$exepath $full_tmpdir\""
+set found_root 0
+set found_tmpdir 0
+set found_pipe 0
+set found_socket 0
+expect {
+    -timeout 180
+    -re {^[0-9]+: /\r\n} { incr found_root; exp_continue }
+    -re "^\[0-9\]+: ${full_tmpdir}\r\n" { incr found_tmpdir; exp_continue }
+    -re {^[0-9]+: pipe:\[[0-9]+\]\r\n} {
+	# We don't want to count the pipes left open by the testsuite,
+	# so only count pipes after we've seen the root directory.
+	if {$found_root} { incr found_pipe }
+	exp_continue }
+    -re {^[0-9]+: socket:\[[0-9]+\]\r\n} { incr found_socket; exp_continue }
+    -re {^[^\r\n]+\r\n} {
+	# ignore everything else
+	exp_continue }
+    eof { }
+    timeout { fail "$test (timeout)" }
+}
+catch {close}; catch {wait}
+
+# The test executable opens "/", the tmpdir, 2 pipes, and a
+# socket.
+if {$found_root == 1 && $found_tmpdir == 1 && $found_pipe == 2
+    && $found_socket == 1} {
+    pass "$test"
+} else {
+    fail "$test ($found_root, $found_tmpdir, $found_pipe, $found_socket)"
+}
+
+# Cleanup.
+catch {exec rm -rf "$tmpdir $exepath"}
+return

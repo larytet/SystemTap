@@ -322,7 +322,7 @@ function fullpath_struct_nameidata(nd)
  *
  *   Returns the full dirent name (full path to the root), like
  *   the kernel d_path function.
- *   @nd: Pointer to "struct path".
+ *   @path: Pointer to "struct path".
  */
 function fullpath_struct_path(path)
 {
@@ -330,4 +330,21 @@ function fullpath_struct_path(path)
   return task_dentry_path(task_current(),
                           @cast(path,"path","kernel<linux/path.h>:nfs")->dentry,
                           @cast(path,"path","kernel<linux/path.h>:nfs")->mnt)
+}
+
+/**
+ *   sfunction fullpath_struct_file - get the full path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @task: task_struct pointer.
+ *   @file: Pointer to "struct file".
+ */
+function fullpath_struct_file:string(task:long, file:long)
+{
+  return task_dentry_path(task,
+			  @choose_defined(@cast(file, "file")->f_path->dentry,
+					  @cast(file, "file")->f_dentry),
+			  @choose_defined(@cast(file, "file")->f_path->mnt,
+					  @cast(file, "file")->f_vfsmnt))
 }

@@ -1,0 +1,31 @@
+# Why probe syscall.socket.return? The test executable opens several
+# directories, pipes, and a socket. The socket is the last thing to be
+# opened, so in syscall.socket.return everything should be set up. 
+
+probe syscall.socket.return
+{
+    if (pid() != target()) next
+
+    task = task_current()
+
+    # Why are we looping through the first 15 file descriptors instead
+    # of looking for certain file descriptors? The test executable
+    # opens the files in a certain order. When run with systemtap,
+    # that order is preserved. However, when this is run as part of
+    # the testsuite, dejagnu opens several additional files. The
+    # number of these files varies on different systems, probably
+    # based on the dejagnu version. 
+    #
+    # So, we can't be certain of where the files we are interested in
+    # are. That's why we try to print the paths of the first 15 file
+    # descriptors.
+    for (i = 0; i < 15; ++i)
+    {
+	try {
+	    file = task_fd_lookup(task, i)
+	    printf("%d: %s\n", i, fullpath_struct_file(task, file))
+	} catch {
+	    printf("%d: fail reading file\n", i)
+	}
+    }
+}

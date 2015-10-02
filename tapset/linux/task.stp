@@ -633,3 +633,61 @@ function task_max_file_handles:long (task:long)
     if (locked)
         rcu_read_unlock();
 %}
+
+/**
+ *   sfunction task_fd_lookup - get the file struct for a task's fd
+ *
+ *   @task: task_struct pointer.
+ *   @fd: file descriptor number.
+ *
+ *   Description: Returns the file struct pointer for a task's file
+ *   descriptor.
+ */
+function task_fd_lookup:long(task:long, fd:long)
+%{ /* pure */
+	struct task_struct *t = (struct task_struct *)(long)STAP_ARG_task;
+	struct files_struct *files = NULL;
+	unsigned int fd = (unsigned int)(unsigned long)STAP_ARG_fd;
+	struct file *file = NULL;
+	int put_task_struct_needed = 0;
+    
+	/* Before using the task_struct pointer, make sure it is valid
+	 * to read. */
+	(void)kderef_buffer(NULL, t, sizeof(struct task_struct));
+
+	get_task_struct(t);
+
+	// We should be calling get_files_struct() here, but it isn't
+	// exported. This means that we can't lock the
+	// files_struct. So, let's hope keeping the task_struct usage
+	// count increased is enough to keep the files_struct pointer
+	// valid.
+	files = t->files;
+	put_task_struct_needed = 1;
+
+	if (files) {
+		/* Before using the files_struct pointer, make sure it is
+		 * valid to read. */
+		(void)kderef_buffer(NULL, files, sizeof(struct files_struct));
+
+		spin_lock(&files->file_lock);
+		file = fcheck_files(files, fd);
+		spin_unlock(&files->file_lock);
+	}
+
+	if (file) {
+		// Note that we're returning a pointer which isn't
+		// locked or has had its usage count increased. There
+		// is nothing keeping this pointer valid until we use
+		// it. So, before using it, it must be validated by
+		// callers.
+		STAP_RETURN(file);
+	}
+	else {
+		STAP_ERROR ("cannot find file in task");
+	}
+	
+	CATCH_DEREF_FAULT();
+	if (put_task_struct_needed)
+		put_task_struct(t);
+%}
