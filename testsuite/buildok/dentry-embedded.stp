@@ -11,4 +11,5 @@ probe begin
     println(inode_name(0))
     println(inode_path(0))
     println(task_dentry_path(0, 0, 0))
+    println(fullpath_struct_file(0, 0))
 }

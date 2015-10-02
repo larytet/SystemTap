@@ -7,6 +7,25 @@
 // later version.
  
 
+%{
+// Make sure the filesystem "magic" constants we use are defined.
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
+#include <linux/magic.h>
+#endif
+#ifndef PIPEFS_MAGIC
+#define PIPEFS_MAGIC            0x50495045
+#endif
+#ifndef SOCKFS_MAGIC
+#define SOCKFS_MAGIC		0x534F434B
+#endif
+#ifndef ANON_INODE_FS_MAGIC
+#define ANON_INODE_FS_MAGIC	0x09041934
+#endif
+#ifndef NSFS_MAGIC
+#define NSFS_MAGIC		0x6e736673
+#endif
+%}
+
 function __dentry_IS_ROOT:long(dentry:long)
 {
         return (@cast(dentry, "dentry")->d_parent == dentry)
@@ -190,8 +209,30 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 	vfsmnt = & @cast(vfsmnt, "vfsmount")
 	if (@type_member_defined("dentry", d_op->d_dname)
 	    && dentry->d_op && dentry->d_op->d_dname
-	    && (!__dentry_IS_ROOT(dentry) || dentry != vfsmnt->mnt_root))
-	  return sprintf("UNKNOWN:[%p]", dentry)
+	    && (!__dentry_IS_ROOT(dentry) || dentry != vfsmnt->mnt_root)) {
+		// The following code hits the majority of synthetic
+		// filesystems that need special handling. As
+		// mentioned earlier, we'd like to call d_dname()
+		// here, but it isn't safe.
+		if (vfsmnt->mnt_sb->s_magic == %{ /* pure */ SOCKFS_MAGIC %}) {
+			return sprintf("socket:[%lu]", dentry->d_inode->i_ino)
+		}
+		else if (vfsmnt->mnt_sb->s_magic
+			 == %{ /* pure */ PIPEFS_MAGIC %}) {
+			return sprintf("pipe:[%lu]", dentry->d_inode->i_ino)
+		}
+		else if (vfsmnt->mnt_sb->s_magic
+			 == %{ /* pure */ ANON_INODE_FS_MAGIC %}) {
+			return sprintf("ANON_INODE:%s", d_name(dentry))
+		}
+		else if (vfsmnt->mnt_sb->s_magic
+			 == %{ /* pure */ NSFS_MAGIC %}) {
+			ns_ops = &@cast(dentry->d_fsdata, "proc_ns_operations")
+			return sprintf("%s:[%lu]", kernel_string(ns_ops->name),
+				       dentry->d_inode->i_ino)
+		}
+		return sprintf("UNKNOWN:[%p]", dentry)
+	}
 
 	# Handle old-school vs. new-school fs_structs.
 	if (@type_member_defined("fs_struct", rootmnt)) {
@@ -216,7 +257,9 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 
 				/* Global root? */
 				if (mnt->mnt_parent == vfsmnt)
-					return sprintf("/%s", name);
+					return sprintf("%s%s",
+						       d_name(mnt->mnt_mountpoint),
+						       name)
 
 				dentry = mnt->mnt_mountpoint
 				vfsmnt = & mnt->mnt_parent->mnt
@@ -224,7 +267,9 @@ function task_dentry_path:string(task:long,dentry:long,vfsmnt:long)
 			else {
 				/* Global root? */
 				if (vfsmnt->mnt_parent == vfsmnt)
-					return sprintf("/%s", name);
+					return sprintf("%s%s",
+						       d_name(vfsmnt->mnt_mountpoint),
+						       name)
 
 				dentry = vfsmnt->mnt_mountpoint
 				vfsmnt = vfsmnt->mnt_parent
@@ -277,12 +322,29 @@ function fullpath_struct_nameidata(nd)
  *
  *   Returns the full dirent name (full path to the root), like
  *   the kernel d_path function.
- *   @nd: Pointer to "struct path".
+ *   @path: Pointer to "struct path".
  */
 function fullpath_struct_path(path)
 {
   
   return task_dentry_path(task_current(),
-                          @cast(path,"path","kernel:<linux/path.h>")->dentry,
-                          @cast(path,"path","kernel:<linux/path.h>")->mnt)
+                          @cast(path,"path","kernel<linux/path.h>:nfs")->dentry,
+                          @cast(path,"path","kernel<linux/path.h>:nfs")->mnt)
+}
+
+/**
+ *   sfunction fullpath_struct_file - get the full path
+ *
+ *   Returns the full dirent name (full path to the root), like
+ *   the kernel d_path function.
+ *   @task: task_struct pointer.
+ *   @file: Pointer to "struct file".
+ */
+function fullpath_struct_file:string(task:long, file:long)
+{
+  return task_dentry_path(task,
+			  @choose_defined(@cast(file, "file")->f_path->dentry,
+					  @cast(file, "file")->f_dentry),
+			  @choose_defined(@cast(file, "file")->f_path->mnt,
+					  @cast(file, "file")->f_vfsmnt))
 }

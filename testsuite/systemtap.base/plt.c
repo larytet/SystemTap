@@ -217,7 +217,7 @@ widgets (void)
   printf ("|%35W|\n", &mywidget);
   printf ("|%-35W|\n", &mywidget);
 
-  return;
+  return 0;
 }
 
 
@@ -278,9 +278,12 @@ zenme ()
 #endif
 
 #if defined (NOLIBPLT) || defined (ONLY_MAIN)
+void zenme (void);
+
 int
 main ()
 {
   zenme ();
+  return 0;
 }
 #endif

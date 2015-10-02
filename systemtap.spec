@@ -1022,6 +1022,9 @@ done
 #   http://sourceware.org/systemtap/wiki/SystemTapReleases
 
 %changelog
+* Wed Sep 30 2015 Felix Lu <flu@redhat.com> - 2.9-1
+- Upstream release.
+
 * Wed Jun 17 2015 Abegail Jakop <ajakop@redhat.com> - 2.8-1
 - Upstream release.
 

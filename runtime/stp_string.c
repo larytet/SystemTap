@@ -1,6 +1,6 @@
 /* -*- linux-c -*- 
  * String Functions
- * Copyright (C) 2005, 2006, 2007, 2009 Red Hat Inc.
+ * Copyright (C) 2005, 2006, 2007, 2009, 2015 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -65,7 +65,8 @@ static int _stp_vscnprintf(char *buf, size_t size, const char *fmt, va_list args
  * in will have "..." after the second quote.
  * @param user Set this to indicate the input string pointer is a userspace pointer.
  */
-static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen, int quoted, int user)
+static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
+			 int quoted, int user)
 {
 	char c = '\0', *out = outstr;
 
@@ -78,11 +79,8 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen, in
 		*out++ = '"';
 	}
 
-	if (user) {
-		if (_stp_read_address(c, in, USER_DS))
-			goto bad;
-	} else
-		c = *in;
+	if (_stp_read_address(c, in, (user ? USER_DS : KERNEL_DS)))
+		goto bad;
 
 	while (c && inlen > 0 && outlen > 0) {
 		int num = 1;
@@ -149,11 +147,8 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen, in
 		outlen -= num;
 		inlen--;
 		in++;
-		if (user) {
-			if (_stp_read_address(c, in, USER_DS))
-				goto bad;
-		} else
-			c = *in;
+		if (_stp_read_address(c, in, (user ? USER_DS : KERNEL_DS)))
+			goto bad;
 	}
 
 	if (quoted) {

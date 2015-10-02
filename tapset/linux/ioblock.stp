@@ -22,27 +22,32 @@
 function __bio_ino:long(bio:long)
 %{ /* pure */
     struct bio *bio = (struct bio *)(long)STAP_ARG_bio;
-    struct page *bv_page = (bio && bio->bi_vcnt) ? kread(&(bio->bi_io_vec[0].bv_page)) : NULL;
-    struct address_space *mapping;
-    struct inode *host;
+    struct page *bv_page = ((bio && kread(&(bio->bi_vcnt)))
+			    ? kread(&(bio->bi_io_vec[0].bv_page)) : NULL);
+
     STAP_RETVALUE = -1;
-    if (bv_page && !PageSlab(bv_page) && !PageSwapCache(bv_page)) {
-        mapping = kread(&(bv_page->mapping));
-        if (mapping && ((unsigned long)mapping & PAGE_MAPPING_ANON) == 0) {
-            host = kread(&(mapping->host));
-            if (host)
-                STAP_RETVALUE = kread(&(host->i_ino));
-        }
+    if (bv_page) {
+	/* Before calling PageSlab() and PageSwapCache() on bv_page, we
+	 * need to make sure the bv_page struct is valid. */
+	(void)kderef_buffer(NULL, bv_page, sizeof(struct page));
+
+	if (!PageSlab(bv_page) && !PageSwapCache(bv_page)) {
+	    struct address_space *mapping = kread(&(bv_page->mapping));
+	    if (mapping && ((unsigned long)mapping & PAGE_MAPPING_ANON) == 0) {
+		struct inode *host = kread(&(mapping->host));
+		if (host)
+		    STAP_RETVALUE = kread(&(host->i_ino));
+	    }
+	}
     }
     CATCH_DEREF_FAULT();
 %}
 
 /* returns 0 for read, 1 for write */
 function bio_rw_num:long(rw:long)
-%{ /* pure */
-    long rw = (long)STAP_ARG_rw;
-    STAP_RETVALUE = (rw & REQ_WRITE);
-%}
+{
+    STAP_RETVALUE = (rw & %{ /* pure */ REQ_WRITE %})
+}
 
 /* returns R for read, W for write */
 function bio_rw_str(rw:long)
