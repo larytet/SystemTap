@@ -677,22 +677,22 @@ function task_fd_lookup:long(task:long, fd:long)
 	struct files_struct *files = NULL;
 	unsigned int fd = (unsigned int)(unsigned long)STAP_ARG_fd;
 	struct file *file = NULL;
-	int put_task_struct_needed = 0;
     
 	/* Before using the task_struct pointer, make sure it is valid
-	 * to read. */
+	 * to read.
+	 *
+	 * Note that originally we called
+	 * get_task_struct()/put_task_struct() here. However, just
+	 * because the task_struct memory is valid to read, doesn't
+	 * mean it is valid to *write* to this memory, which
+	 * get_task_struct() does. So, we won't bother with
+	 * get_task_struct()/put_task_struct(). */
 	(void)kderef_buffer(NULL, t, sizeof(struct task_struct));
-
-	get_task_struct(t);
 
 	// We should be calling get_files_struct() here, but it isn't
 	// exported. This means that we can't lock the
-	// files_struct. So, let's hope keeping the task_struct usage
-	// count increased is enough to keep the files_struct pointer
-	// valid.
+	// files_struct.
 	files = t->files;
-	put_task_struct_needed = 1;
-
 	if (files) {
 		/* Before using the files_struct pointer, make sure it is
 		 * valid to read. */
@@ -716,6 +716,4 @@ function task_fd_lookup:long(task:long, fd:long)
 	}
 	
 	CATCH_DEREF_FAULT();
-	if (put_task_struct_needed)
-		put_task_struct(t);
 %}
