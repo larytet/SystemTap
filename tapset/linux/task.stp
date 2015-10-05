@@ -326,6 +326,10 @@ function task_gid:long (task:long) %{ /* pure */
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->gid));
 #else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
     /* We can't easily kread the task_struct's rcu-protected
      * credential fields. So, let's just make sure the entire
      * task_struct is valid to read. */
@@ -336,8 +340,11 @@ function task_gid:long (task:long) %{ /* pure */
 #define task_gid(task)		(task_cred_xxx((task), gid))
 #endif
 
-#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_gid(t));
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kgid_munged(user_ns, task_gid(t));
 #else
     STAP_RETVALUE = task_gid (t);
 #endif
@@ -381,6 +388,10 @@ function task_egid:long (task:long) %{ /* pure */
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->egid));
 #else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
     /* We can't easily kread the task_struct's rcu-protected
      * credential fields. So, let's just make sure the entire
      * task_struct is valid to read. */
@@ -391,8 +402,11 @@ function task_egid:long (task:long) %{ /* pure */
 #define task_egid(task)		(task_cred_xxx((task), egid))
 #endif
 
-#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-    STAP_RETVALUE = from_kgid_munged(task_cred_xxx(t, user_ns), task_egid(t));
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kgid_munged(user_ns, task_egid(t));
 #else
     STAP_RETVALUE = task_egid (t);
 #endif
@@ -435,13 +449,20 @@ function task_uid:long (task:long) %{ /* pure */
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->uid));
 #else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
     /* We can't easily kread the task_struct's rcu-protected
      * credential fields. So, let's just make sure the entire
      * task_struct is valid to read. */
     (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
 
-#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_uid(t));
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kuid_munged(user_ns, task_uid(t));
 #else
     STAP_RETVALUE = task_uid (t);
 #endif
@@ -484,13 +505,20 @@ function task_euid:long (task:long) %{ /* pure */
 #ifdef STAPCONF_TASK_UID
     STAP_RETVALUE = kread(&(t->euid));
 #else
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    struct user_namespace *user_ns;
+#endif
+
     /* We can't easily kread the task_struct's rcu-protected
      * credential fields. So, let's just make sure the entire
      * task_struct is valid to read. */
     (void)kderef_buffer(NULL, t, sizeof(struct task_struct));
 
-#if defined(CONFIG_USER_NS) || (LINUX_VERSION_CODE >= KERNEL_VERSION(3,14,0))
-    STAP_RETVALUE = from_kuid_munged(task_cred_xxx(t, user_ns), task_euid(t));
+#ifdef STAPCONF_FROM_KUID_MUNGED
+    /* We also need to validate the namespace structure. */
+    user_ns = task_cred_xxx(t, user_ns);
+    (void)kderef_buffer(NULL, user_ns, sizeof(struct user_namespace));
+    STAP_RETVALUE = from_kuid_munged(user_ns, task_euid(t));
 #else
     STAP_RETVALUE = task_euid (t);
 #endif
