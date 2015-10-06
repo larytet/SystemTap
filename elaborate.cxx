@@ -2013,6 +2013,238 @@ void add_global_var_display (systemtap_session& s)
     }
 }
 
+static void create_monitor_function(systemtap_session& s,
+                                    const string& function_name,
+                                    const string& function_body,
+                                    bool probe = false)
+{
+  functiondecl* fd = new functiondecl;
+  fd->synthetic = true;
+  fd->name = "__monitor_data_function_" + function_name;
+  fd->type = pe_string;
+
+  if (probe)
+    {
+      vardecl *v = new vardecl;
+      v->type = pe_long;
+      v->name = "index";
+      fd->formal_args.push_back(v);
+    }
+
+  embeddedcode* ec = new embeddedcode;
+  string code;
+  code += "/* unprivileged */ /* pure */";
+  code += function_body;
+  ec->code = code;
+  fd->body = ec;
+
+  s.functions[fd->name] = fd;
+}
+
+static void monitor_mode_functions(systemtap_session& s)
+{
+  embeddedcode* ec = new embeddedcode;
+  ec->code = "#define STAP_MONITOR_READ 8192\n"
+             "static char _monitor_buf[STAP_MONITOR_READ];";
+  s.embeds.push_back(ec);
+
+  create_monitor_function(s, "uptime",
+      "unsigned long elapsed = (jiffies-module_start)/HZ;\n"
+      "unsigned long hrs = elapsed/3600;\n"
+      "unsigned long mins = elapsed%3600/60;\n"
+      "unsigned long secs = elapsed%3600%60;\n"
+      "snprintf(_monitor_buf, STAP_MONITOR_READ, \"%luh:%lum:%lus\", hrs,mins,secs);\n"
+      "STAP_RETURN(_monitor_buf);");
+
+  create_monitor_function(s, "memory",
+      "int ctx = num_online_cpus() * sizeof(struct context);\n"
+      "snprintf(_monitor_buf, STAP_MONITOR_READ, \"%ludata/%lutext/%uctx/%unet/%ualloc kb\",\n"
+      "#ifndef STAPCONF_GRSECURITY\n"
+      "(unsigned long) (THIS_MODULE->core_size - THIS_MODULE->core_text_size)/1024,\n"
+      "(unsigned long) (THIS_MODULE->core_text_size)/1024,\n"
+      "#else\n"
+      "(unsigned long) (THIS_MODULE->core_size_rw - THIS_MODULE->core_size_rx)/1024,\n"
+      "(unsigned long) (THIS_MODULE->core_size_rx)/1024,\n"
+      "#endif\n"
+      "ctx/1024, _stp_allocated_net_memory/1024,\n"
+      "(_stp_allocated_memory - _stp_allocated_net_memory - ctx)/1024);\n"
+      "STAP_RETURN(_monitor_buf);\n");
+
+  create_monitor_function(s, "probes",
+      "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
+      "if (likely (probe_timing(STAP_ARG_index))) {\n"
+      "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
+      "if (stats->count) {\n"
+      "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
+      "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+      "\"index: %zu, state: %s, hits: %lld, cycles: %lldmin/%lldavg/%lldmax, \",\n"
+      "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
+      "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
+      "} else {\n"
+      "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+      "\"index: %zu, state: %s, hits: %d, cycles: %dmin/%davg/%dmax, \",\n"
+      "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
+      "STAP_RETURN(_monitor_buf);\n", true);
+}
+
+static void monitor_mode_read(systemtap_session& s)
+{
+  if (!s.monitor) return;
+
+  stringstream code;
+
+  code << "probe procfs(\"monitor_status\").read.maxsize(8192) {" << endl;
+  code << "$value .= sprintf(\"uptime: %s\\n\", __monitor_data_function_uptime())" << endl;
+  code << "$value .= sprintf(\"uid: %d\\n\", uid())" << endl;
+  code << "$value .= sprintf(\"memory: %s\\n\", __monitor_data_function_memory())" << endl;
+  code << "$value .= sprintf(\"module_name: %s\\n\", module_name())" << endl;
+
+  code << "$value .= sprintf(\"globals:\\n\")" << endl;
+  for (vector<vardecl*>::const_iterator it = s.globals.begin();
+      it != s.globals.end(); ++it)
+    {
+      code << "$value .= sprintf(\"%s\", \"" << (*it)->name << "\")" << endl;
+      if ((*it)->arity > 0)
+        code << "$value .= sprintf(\"(%d)\", " << (*it)->maxsize << ")" << endl;
+      code << "$value .= sprint(\"\\n\")" << endl;
+    }
+
+  code << "$value .= sprintf(\"probes: \\n\")" << endl;
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+      it != s.probes.end(); ++it)
+    {
+      // Get first 20 characters of probe point without condition
+      istringstream probe_point((*it)->sole_location()->str());
+      string name;
+      probe_point >> name;
+      std::cout << name << std::endl;
+      name = lex_cast_qstring(name).substr(0, 20);
+
+      code << "$value .= sprintf(\"%s\", __monitor_data_function_probes("
+           << it-s.probes.begin() << "))" << endl;
+      code << "$value .= sprintf(\"probe: %s\\n\", " << name << ")" << endl;
+    }
+
+  code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create procfs probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.push_back (dp);
+  dp->join_group (s);
+
+  // Repopulate symbol and type info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+  semantic_pass_types(s);
+}
+
+static void monitor_mode_write(systemtap_session& s)
+{
+  if (!s.monitor) return;
+
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+      it != s.probes.end(); ++it)
+    {
+      vardecl* v = new vardecl;
+      v->name = "__monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
+      v->tok = (*it)->tok;
+      v->set_arity(0, (*it)->tok);
+      v->type = pe_long;
+      v->init = new literal_number(1);
+      v->synthetic = true;
+      s.globals.push_back(v);
+
+      symbol* sym = new symbol;
+      sym->name = v->name;
+      sym->tok = v->tok;
+      sym->type = pe_long;
+      sym->referent = v;
+
+      if ((*it)->sole_location()->condition)
+        {
+          logical_and_expr *e = new logical_and_expr;
+          e->tok = v->tok;
+          e->left = sym;
+          e->op = "&&";
+          e->type = pe_long;
+          e->right = (*it)->sole_location()->condition;
+          (*it)->sole_location()->condition = e;
+        }
+      else
+        {
+          (*it)->sole_location()->condition = sym;
+        }
+    }
+
+  stringstream code;
+
+  code << "probe procfs(\"monitor_control\").write {" << endl;
+
+  code << "  if ($value == \"exit\\n\") { exit()";
+
+  code << "  } else if ($value == \"reset\\n\") {";
+  for (vector<vardecl*>::const_iterator it = s.globals.begin();
+      it != s.globals.end(); ++it)
+    {
+      vardecl* v = *it;
+      if (v->arity == 0 && v->init)
+        {
+          if (v->type == pe_long)
+            {
+              literal_number* ln = dynamic_cast<literal_number*>(v->init);
+              code << v->name << " = " << ln->value << endl;
+            }
+          else if (v->type == pe_string)
+            {
+              literal_string* ln = dynamic_cast<literal_string*>(v->init);
+              code << v->name << " = " << lex_cast_qstring(ln->value) << endl;
+            }
+        }
+      else
+        {
+          // For scalar elements with no initial values, we reset to 0 or empty as
+          // done with arrays and aggregates.
+          code << "delete " << v->name << endl;
+        }
+    }
+  code << "}" << endl;
+
+  for (vector<derived_probe*>::const_iterator it = s.probes.begin();
+      it != s.probes.end(); ++it)
+    {
+      code << "  if ($value == \"" << it-s.probes.begin() << "\\n\")"
+           << "  __monitor_" << it-s.probes.begin() << "_enabled" << " ^= 1" << endl;
+    }
+
+  code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create procfs probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.push_back (dp);
+  dp->join_group (s);
+
+  // Repopulate symbol and type info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+  semantic_pass_types(s);
+}
+
 int
 semantic_pass (systemtap_session& s)
 {
@@ -2024,6 +2256,9 @@ semantic_pass (systemtap_session& s)
       register_standard_tapsets(s);
 
       if (rc == 0) rc = semantic_pass_symbols (s);
+      if (rc == 0) monitor_mode_functions (s);
+      if (rc == 0) monitor_mode_read (s);
+      if (rc == 0) monitor_mode_write (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
       if (rc == 0) rc = semantic_pass_optimize1 (s);
       if (rc == 0) rc = semantic_pass_types (s);
@@ -2312,6 +2547,12 @@ symresolution_info::visit_functioncall (functioncall* e)
                               sugs.empty() ? "" : (_(" (similar: ") + sugs + ")").c_str()),
                            e->tok);
     }
+
+  // In monitor mode, tapset functions used in the synthetic probe are not resolved and added
+  // to the master list at the same time as the other functions so we must add them here to
+  // allow the translator to generate the functions in the module.
+  if (session.monitor && session.functions.find(e->function) == session.functions.end())
+    session.functions[e->function] = d;
 }
 
 /*find_var will return an argument other than zero if the name matches the var

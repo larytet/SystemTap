@@ -61,6 +61,7 @@ enum {
   LONG_OPT_PROLOGUE_SEARCHING,
   LONG_OPT_SAVE_UPROBES,
   LONG_OPT_TARGET_NAMESPACES,
+  LONG_OPT_MONITOR,
 };
 
 // NB: when adding new options, consider very carefully whether they

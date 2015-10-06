@@ -57,5 +57,6 @@ struct option stap_long_options[] = {
   { "prologue-searching",          optional_argument, NULL, LONG_OPT_PROLOGUE_SEARCHING },
   { "save-uprobes",                no_argument,       NULL, LONG_OPT_SAVE_UPROBES },
   { "target-namespaces",           required_argument, NULL, LONG_OPT_TARGET_NAMESPACES },
+  { "monitor",                     no_argument,       NULL, LONG_OPT_MONITOR },
   { NULL, 0, NULL, 0 }
 };

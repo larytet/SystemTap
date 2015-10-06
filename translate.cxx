@@ -1714,6 +1714,9 @@ c_unparser::emit_kernel_module_init ()
   o->newline(1) << "int rc = 0;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
 
+  if (session->monitor)
+    o->newline() << "module_start = jiffies;";
+
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
     {
@@ -2432,7 +2435,8 @@ c_unparser::emit_function (functiondecl* v)
     o->newline() << "#define STAP_RETVALUE THIS->__retvalue";
 
   // set this, in case embedded-c code sets last_error but doesn't otherwise identify itself
-  o->newline() << "c->last_stmt = " << lex_cast_qstring(*v->tok) << ";";
+  if (v->tok)
+    o->newline() << "c->last_stmt = " << lex_cast_qstring(*v->tok) << ";";
 
   // check/increment nesting level
   // NB: incoming c->nesting level will be -1 (if we're called directly from a probe),
@@ -8020,6 +8024,15 @@ translate_pass (systemtap_session& s)
       if (s.need_lines)
         s.op->newline() << "#define STP_NEED_LINE_DATA 1";
 
+      if (s.monitor)
+        {
+          s.op->newline() << "#include <linux/jiffies.h>";
+          s.op->newline() << "static unsigned long module_start;";
+          s.op->newline() << "#ifndef STP_TIMING";
+          s.op->newline() << "#define STP_TIMING";
+          s.op->newline() << "#endif";
+        }
+
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
 
@@ -8134,13 +8147,6 @@ translate_pass (systemtap_session& s)
 	}
       s.op->assert_0_indent();
 
-      for (map<string,functiondecl*>::iterator it = s.functions.begin(); it != s.functions.end(); it++)
-	{
-          assert_no_interrupts();
-	  s.op->newline();
-	  s.up->emit_function (it->second);
-	}
-      s.op->assert_0_indent();
 
       // Let's find some stats for the embedded pp strings.  Maybe they
       // are small and uniform enough to justify putting char[MAX]'s into
@@ -8249,6 +8255,13 @@ translate_pass (systemtap_session& s)
           s.op->newline(-1) << "return NULL;";
           s.op->newline(-1) << "}";
           s.op->assert_0_indent();
+        }
+
+      for (map<string,functiondecl*>::iterator it = s.functions.begin(); it != s.functions.end(); it++)
+        {
+          assert_no_interrupts();
+          s.op->newline();
+          s.up->emit_function (it->second);
         }
 
       s.op->assert_0_indent();

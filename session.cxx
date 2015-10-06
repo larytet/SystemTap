@@ -134,6 +134,7 @@ systemtap_session::systemtap_session ():
   stapconf_name = "stapconf_" + lex_cast(getpid()) + ".h";
   output_file = ""; // -o FILE
   tmpdir_opt_set = false;
+  monitor = false;
   save_module = false;
   save_uprobes = false;
   modname_given = false;
@@ -318,6 +319,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   stapconf_name = other.stapconf_name;
   output_file = other.output_file; // XXX how should multiple remotes work?
   tmpdir_opt_set = false;
+  monitor = other.monitor;
   save_module = other.save_module;
   save_uprobes = other.save_uprobes;
   modname_given = other.modname_given;
@@ -651,6 +653,8 @@ systemtap_session::usage (int exitcode)
     "              save uprobes.ko to current directory if it is built from source\n"
     "   --target-namesapce=PID\n"
     "              sets the target namespaces pid to PID\n"
+    "   --monitor\n"
+    "              enables monitor interfaces\n"
     , compatible.c_str()) << endl
   ;
 
@@ -1445,6 +1449,10 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
               cerr << _("Invalid process ID number for target namespaces.") << endl;
               return 1;
             }
+          break;
+
+        case LONG_OPT_MONITOR:
+          monitor = true;
           break;
 
 	case '?':

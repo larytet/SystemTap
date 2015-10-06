@@ -217,6 +217,7 @@ public:
   bool privilege_set;
   bool systemtap_v_check;
   bool tmpdir_opt_set;
+  bool monitor;
 
   enum
    { dump_none,               // no dumping requested
