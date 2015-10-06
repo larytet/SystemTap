@@ -1,8 +1,5 @@
 * What's new in version 2.9, 2015-09-30
 
-- The ioscheduler.* tapset functions return a quoted elevator_name string
-  rather than unquoted, since the underlying kernel pointer could be null.
-
 - SystemTap now uses symbols from /proc/kallsyms when kernel debuginfo is not
   available.
 

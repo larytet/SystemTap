@@ -81,6 +81,14 @@ SystemTap language, like access structure fields in some contexts, follow
 linked lists, etc. You can use auxiliary functions defined in other tapsets
 or write your own.
 
+Take care when target variables may have invalid, unavailable, or
+esoteric values, or are passed via pointers.  The a $pointer->field
+dereference can fail, so consider wrapping a try { } catch { } around
+it.  For a char* being converted to a string, use {kernel,user}_string
+only if the pointer is guaranteed valid.  Use {kernel,user}_string2($ptr,"")
+if the pointer might be NULL but should otherwise be good.  Use
+{kernel,user}_string_quoted($ptr) to handle any possible pointer.
+
 In the following example, copy_process() returns a pointer to the
 task_struct for the new process.  Note that the process ID of the new
 process is retrieved by calling task_pid() and passing it the task_struct
@@ -277,6 +285,12 @@ Add the string
 into the body of the embedded-C function, to mark it as /* unprivileged */
 (see above) and to have the systemtap translator automatically add a call to
 assert_is_myproc() to the beginning of the function.
+
+Add the string
+    /* unmodified-fnargs */
+into the body of the embedded-C function to inform the translator
+that any string inputs and return values may be passed by reference
+rather than copy.  This enables optimization.
 
 Add the string
     /* unmangled */
