@@ -709,7 +709,7 @@ function task_fd_lookup:long(task:long, fd:long)
 		// is nothing keeping this pointer valid until we use
 		// it. So, before using it, it must be validated by
 		// callers.
-		STAP_RETURN(file);
+		STAP_RETURN((unsigned long)file);
 	}
 	else {
 		STAP_ERROR ("cannot find file in task");
