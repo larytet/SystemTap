@@ -2638,8 +2638,8 @@ parser::parse_next_statement ()
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "next"))
     throw PARSE_ERROR (_("expected 'next'"));
-  if (context != con_probe)
-    throw PARSE_ERROR (_("found 'next' not in probe context"));
+  if (context != con_probe && context != con_function)
+    throw PARSE_ERROR (_("found 'next' not in probe or function context"));
   next_statement* s = new next_statement;
   s->tok = t;
   return s;
