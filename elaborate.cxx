@@ -2043,18 +2043,39 @@ static void create_monitor_function(systemtap_session& s,
 
 static void monitor_mode_functions(systemtap_session& s)
 {
+  vardecl* v = new vardecl;
+  v->name = "__monitor_module_start";
+  v->set_arity(0, 0);
+  v->type = pe_long;
+  v->synthetic = true;
+  s.globals.push_back(v);
+
+  stringstream code;
+  code << "probe begin {" << endl;
+  code << "__monitor_module_start = jiffies()" << endl;
+  code << "}" << endl;
+
+  probe* p = parse_synthetic_probe(s, code, 0);
+  if (!p)
+    throw SEMANTIC_ERROR (_("can't create begin probe"), 0);
+
+  vector<derived_probe*> dps;
+  derive_probes (s, p, dps);
+
+  derived_probe* dp = dps[0];
+  s.probes.insert (s.probes.begin(), dp);
+  dp->join_group (s);
+
+  // Repopulate symbol info
+  symresolution_info sym (s);
+  sym.current_function = 0;
+  sym.current_probe = dp;
+  dp->body->visit (&sym);
+
   embeddedcode* ec = new embeddedcode;
   ec->code = "#define STAP_MONITOR_READ 8192\n"
              "static char _monitor_buf[STAP_MONITOR_READ];";
   s.embeds.push_back(ec);
-
-  create_monitor_function(s, "uptime",
-      "unsigned long elapsed = (jiffies-module_start)/HZ;\n"
-      "unsigned long hrs = elapsed/3600;\n"
-      "unsigned long mins = elapsed%3600/60;\n"
-      "unsigned long secs = elapsed%3600%60;\n"
-      "snprintf(_monitor_buf, STAP_MONITOR_READ, \"%luh:%lum:%lus\", hrs,mins,secs);\n"
-      "STAP_RETURN(_monitor_buf);");
 
   create_monitor_function(s, "memory",
       "int ctx = num_online_cpus() * sizeof(struct context);\n"
@@ -2094,7 +2115,9 @@ static void monitor_mode_read(systemtap_session& s)
   stringstream code;
 
   code << "probe procfs(\"monitor_status\").read.maxsize(8192) {" << endl;
-  code << "$value .= sprintf(\"uptime: %s\\n\", __monitor_data_function_uptime())" << endl;
+  code << "elapsed = (jiffies()-__monitor_module_start)/HZ()" << endl;
+  code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
+  code << "$value .= sprintf(\"uptime: %dh:%dm:%ds\\n\", hrs, mins, secs)" << endl;
   code << "$value .= sprintf(\"uid: %d\\n\", uid())" << endl;
   code << "$value .= sprintf(\"memory: %s\\n\", __monitor_data_function_memory())" << endl;
   code << "$value .= sprintf(\"module_name: %s\\n\", module_name())" << endl;
@@ -2103,6 +2126,8 @@ static void monitor_mode_read(systemtap_session& s)
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
       it != s.globals.end(); ++it)
     {
+      if ((*it)->synthetic) continue;
+
       code << "$value .= sprintf(\"%s\", \"" << (*it)->name << "\")" << endl;
       if ((*it)->arity > 0)
         code << "$value .= sprintf(\"(%d)\", " << (*it)->maxsize << ")" << endl;
@@ -2195,6 +2220,9 @@ static void monitor_mode_write(systemtap_session& s)
       it != s.globals.end(); ++it)
     {
       vardecl* v = *it;
+
+      if (v->synthetic) continue;
+
       if (v->arity == 0 && v->init)
         {
           if (v->type == pe_long)
@@ -2600,7 +2628,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
             vardecl* v = session.globals[i];
 	    stapfile* f = tok->location.file;
             // clog << "resolved " << *tok << " to global " << *v->tok << endl;
-            if (v->tok->location.file != f && !f->synthetic)
+            if (v->tok && v->tok->location.file != f && !f->synthetic)
               {
                 session.print_warning (_F("cross-file global variable reference to %s from",
                                           lex_cast(*v->tok).c_str()), tok);

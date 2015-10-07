@@ -1714,9 +1714,6 @@ c_unparser::emit_kernel_module_init ()
   o->newline(1) << "int rc = 0;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
 
-  if (session->monitor)
-    o->newline() << "module_start = jiffies;";
-
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
     {
@@ -8015,7 +8012,7 @@ translate_pass (systemtap_session& s)
       if (s.bulk_mode)
 	  s.op->newline() << "#define STP_BULKMODE";
 
-      if (s.timing)
+      if (s.timing || s.monitor)
 	s.op->newline() << "#define STP_TIMING";
 
       if (s.need_unwind)
@@ -8023,15 +8020,6 @@ translate_pass (systemtap_session& s)
 
       if (s.need_lines)
         s.op->newline() << "#define STP_NEED_LINE_DATA 1";
-
-      if (s.monitor)
-        {
-          s.op->newline() << "#include <linux/jiffies.h>";
-          s.op->newline() << "static unsigned long module_start;";
-          s.op->newline() << "#ifndef STP_TIMING";
-          s.op->newline() << "#define STP_TIMING";
-          s.op->newline() << "#endif";
-        }
 
       // Emit the total number of probes (not regarding merged probe handlers)
       s.op->newline() << "#define STP_PROBE_COUNT " << s.probes.size();
