@@ -2013,36 +2013,45 @@ void add_global_var_display (systemtap_session& s)
     }
 }
 
-static void create_monitor_function(systemtap_session& s,
-                                    const string& function_name,
-                                    const string& function_body,
-                                    bool probe = false)
+static void create_monitor_function(systemtap_session& s)
 {
   functiondecl* fd = new functiondecl;
   fd->synthetic = true;
-  fd->name = "__monitor_data_function_" + function_name;
+  fd->name = "__monitor_data_function_probes";
   fd->type = pe_string;
 
-  if (probe)
-    {
-      vardecl *v = new vardecl;
-      v->type = pe_long;
-      v->name = "index";
-      fd->formal_args.push_back(v);
-    }
+  vardecl* v = new vardecl;
+  v->type = pe_long;
+  v->name = "index";
+  fd->formal_args.push_back(v);
 
   embeddedcode* ec = new embeddedcode;
   string code;
-  code += "/* unprivileged */ /* pure */";
-  code += function_body;
+  code = "/* unprivileged */ /* pure */"
+         "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
+         "if (likely (probe_timing(STAP_ARG_index))) {\n"
+         "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
+         "if (stats->count) {\n"
+         "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
+         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+         "\"index: %zu, state: %s, hits: %lld, cycles: %lldmin/%lldavg/%lldmax, \",\n"
+         "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
+         "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
+         "} else {\n"
+         "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
+         "\"index: %zu, state: %s, hits: %d, cycles: %dmin/%davg/%dmax, \",\n"
+         "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
+         "STAP_RETURN(_monitor_buf);\n";
   ec->code = code;
   fd->body = ec;
 
   s.functions[fd->name] = fd;
 }
 
-static void monitor_mode_functions(systemtap_session& s)
+static void monitor_mode_init(systemtap_session& s)
 {
+  if (!s.monitor) return;
+
   vardecl* v = new vardecl;
   v->name = "__monitor_module_start";
   v->set_arity(0, 0);
@@ -2077,21 +2086,7 @@ static void monitor_mode_functions(systemtap_session& s)
              "static char _monitor_buf[STAP_MONITOR_READ];";
   s.embeds.push_back(ec);
 
-  create_monitor_function(s, "probes",
-      "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
-      "if (likely (probe_timing(STAP_ARG_index))) {\n"
-      "struct stat_data *stats = _stp_stat_get (probe_timing(STAP_ARG_index), 0);\n"
-      "if (stats->count) {\n"
-      "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
-      "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-      "\"index: %zu, state: %s, hits: %lld, cycles: %lldmin/%lldavg/%lldmax, \",\n"
-      "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
-      "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
-      "} else {\n"
-      "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-      "\"index: %zu, state: %s, hits: %d, cycles: %dmin/%davg/%dmax, \",\n"
-      "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
-      "STAP_RETURN(_monitor_buf);\n", true);
+  create_monitor_function(s);
 }
 
 static void monitor_mode_read(systemtap_session& s)
@@ -2270,7 +2265,7 @@ semantic_pass (systemtap_session& s)
       register_standard_tapsets(s);
 
       if (rc == 0) rc = semantic_pass_symbols (s);
-      if (rc == 0) monitor_mode_functions (s);
+      if (rc == 0) monitor_mode_init (s);
       if (rc == 0) monitor_mode_read (s);
       if (rc == 0) monitor_mode_write (s);
       if (rc == 0) rc = semantic_pass_conditions (s);
