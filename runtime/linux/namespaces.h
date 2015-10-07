@@ -95,15 +95,57 @@ static struct pid_namespace *get_pid_namespace(int target_ns)
 }
 
 
+// The _stp_task_struct_valid() function ensures that 't' is a valid
+// task by looking for it on the kernel's task list. Returns 1 if the
+// task struct pointer was found, 0 if not found.
+static int _stp_task_struct_valid(struct task_struct *t)
+{
+  struct task_struct *grp, *tsk;
+  int rc = 0;
+
+  rcu_read_lock();
+  do_each_thread(grp, tsk) {
+    if (tsk == t) {
+      rc = 1;
+      goto do_each_thread_out;
+    }
+  } while_each_thread(grp, tsk);
+do_each_thread_out:
+  rcu_read_unlock();
+  return rc;
+}
+
+
 static int from_target_pid_ns(struct task_struct *ts, PIDINFOTYPE type)
 {
 #if defined(CONFIG_PID_NS) &&  LINUX_VERSION_CODE >= KERNEL_VERSION(3, 7, 0)
   struct pid_namespace *target_pid_ns;
   int ret = -1;
 
+  // At this point, the caller above us has determined that the memory
+  // at 'ts' is valid to read. However, we *really* need to know not
+  // only if this memory is valid to read, but is it a real task
+  // struct pointer. Why? For example, the task_tgid_nr_ns() function
+  // calls task_tgid() on 'ts', then passes that result to
+  // pid_nr_ns(). task_tgid() reads
+  // ts->group_leader->pids[N]. pid_nr_ns() reads pid->numbers[N].
+  //
+  // We could try dereferencing all those items (and hope that the
+  // kernel implementation of those functions doesn't change), but at
+  // this point we're getting bogged down in the internals of
+  // task_tgid(), task_tgid_nr_ns() and pid_nr_ns().
+  //
+  // So, instead let's try making sure that 'ts' is a valid task by
+  // looking for it on the task list. We assume that if 'ts' is
+  // actually on the task list, we can call task_*_nr_ns() on it
+  // without accessing invalid memory and causing a kernel crash.
   rcu_read_lock();
-  target_pid_ns = get_pid_namespace(_stp_namespaces_pid);
+  if (! _stp_task_struct_valid(ts)) {
+    rcu_read_unlock();
+    return -1;
+  }
 
+  target_pid_ns = get_pid_namespace(_stp_namespaces_pid);
   if (!target_pid_ns) {
     rcu_read_unlock();
     return -1;
