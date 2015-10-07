@@ -243,6 +243,7 @@ function _is_reset:long (skb:long)
 %{ /* pure */
         struct tcphdr *th;
         struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
+	struct tcphdr th_copy;
 
 	#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,21)
 		th = (struct tcphdr *)kread(&(skb->h.th));
@@ -254,7 +255,14 @@ function _is_reset:long (skb:long)
 		th = (struct tcphdr *)kread(&(skb->network_header));
 	#endif
 	#endif
-        STAP_RETVALUE = th->rst;
+
+	// We'd like to kread the 'rst' field here. But, it is a
+	// bitfield (and you can't take the address of a
+	// bitfield). So, let's kread the entire tcphdr, then grab the
+	// 'rst' field out of the copy. Luckily, the tcphdr is only 20
+	// bytes long.
+	kderef_buffer(((void *)&th_copy), th, sizeof(struct tcphdr));
+	STAP_RETVALUE = th_copy.rst;
         CATCH_DEREF_FAULT();
 %}
 
