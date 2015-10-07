@@ -190,7 +190,7 @@ struct derived_probe: public probe
   void printsig_nested (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list) const;
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &pp_list) const;
-  std::string derived_locations ();
+  std::string derived_locations (bool firstFrom = true);
 
   virtual void print_dupe_stamp(std::ostream&) {}
   // To aid duplication elimination, print a stamp which uniquely identifies
