@@ -2077,20 +2077,6 @@ static void monitor_mode_functions(systemtap_session& s)
              "static char _monitor_buf[STAP_MONITOR_READ];";
   s.embeds.push_back(ec);
 
-  create_monitor_function(s, "memory",
-      "int ctx = num_online_cpus() * sizeof(struct context);\n"
-      "snprintf(_monitor_buf, STAP_MONITOR_READ, \"%ludata/%lutext/%uctx/%unet/%ualloc kb\",\n"
-      "#ifndef STAPCONF_GRSECURITY\n"
-      "(unsigned long) (THIS_MODULE->core_size - THIS_MODULE->core_text_size)/1024,\n"
-      "(unsigned long) (THIS_MODULE->core_text_size)/1024,\n"
-      "#else\n"
-      "(unsigned long) (THIS_MODULE->core_size_rw - THIS_MODULE->core_size_rx)/1024,\n"
-      "(unsigned long) (THIS_MODULE->core_size_rx)/1024,\n"
-      "#endif\n"
-      "ctx/1024, _stp_allocated_net_memory/1024,\n"
-      "(_stp_allocated_memory - _stp_allocated_net_memory - ctx)/1024);\n"
-      "STAP_RETURN(_monitor_buf);\n");
-
   create_monitor_function(s, "probes",
       "const struct stap_probe *const p = &stap_probes[STAP_ARG_index];\n"
       "if (likely (probe_timing(STAP_ARG_index))) {\n"
@@ -2119,7 +2105,7 @@ static void monitor_mode_read(systemtap_session& s)
   code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
   code << "$value .= sprintf(\"uptime: %dh:%dm:%ds\\n\", hrs, mins, secs)" << endl;
   code << "$value .= sprintf(\"uid: %d\\n\", uid())" << endl;
-  code << "$value .= sprintf(\"memory: %s\\n\", __monitor_data_function_memory())" << endl;
+  code << "$value .= sprintf(\"memory: %s\\n\", module_size())" << endl;
   code << "$value .= sprintf(\"module_name: %s\\n\", module_name())" << endl;
 
   code << "$value .= sprintf(\"globals:\\n\")" << endl;
