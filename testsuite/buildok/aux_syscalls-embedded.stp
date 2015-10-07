@@ -210,7 +210,7 @@ probe begin {
 	print (_fanotify_mark_mask_str(0))
 	print (_perf_event_open_flags_str(0))
 	print (_kcmp_type_str(0))
-%( kernel_v >= "3.14" %?
 	print (_struct_sched_attr_u(0))
-%)
+        print (_struct_compat_itimerspec_u(0))
+        print (_struct_compat_timex_u(0))
 }

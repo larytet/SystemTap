@@ -418,6 +418,7 @@ function _struct_itimerspec_u:string(uaddr:long)
 
 function _struct_compat_itimerspec_u:string(uaddr:long)
 %{ /* pure */
+#ifdef CONFIG_COMPAT
 	struct compat_itimerspec its;
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	
@@ -434,7 +435,8 @@ function _struct_compat_itimerspec_u:string(uaddr:long)
 				 (int)its.it_interval.tv_nsec,
 				 (int)its.it_value.tv_sec,
 				 (int)its.it_value.tv_nsec);
-	}	
+	}
+#endif
 %}
 
 function _struct_itimerval_u:string(uaddr:long)
@@ -5086,6 +5088,7 @@ function _struct_timex_u:string(uaddr:long)
 
 function _struct_compat_timex_u:string(uaddr:long)
 %{
+#ifdef CONFIG_COMPAT
 	struct compat_timex ts;
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	int len;
@@ -5113,6 +5116,7 @@ function _struct_compat_timex_u:string(uaddr:long)
 			         (unsigned long)ptr);
 		}
 	}
+#endif
 %}
 
 %{
@@ -5888,6 +5892,8 @@ function _kcmp_type_str:string(type:long)
 
 function _struct_sched_attr_u:string(uaddr:long)
 %{ /* pure */
+/* struct sched_attr introduced in kernel commit d50dde5a10 along with SCHED_ATTR_SIZE_VER0 */
+#ifdef SCHED_ATTR_SIZE_VER0
 	struct sched_attr sa;
 	char *ptr = (char *)(unsigned long)STAP_ARG_uaddr;
 	if (ptr == NULL)
@@ -5911,6 +5917,7 @@ function _struct_sched_attr_u:string(uaddr:long)
 			         (unsigned long)ptr);
 		}
 	}
+#endif
 %}
 
 %{
