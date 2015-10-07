@@ -9680,7 +9680,9 @@ kprobe_derived_probe_group::emit_module_init (systemtap_session& s)
   s.op->newline() << "if (! sdp->address)";
   s.op->newline(1) << "p++;";
   s.op->newline(-2) << "}";
+  s.op->newline() << "rcu_read_lock();";
   s.op->newline() << "kallsyms_on_each_symbol(kprobe_resolve, &p);";
+  s.op->newline() << "rcu_read_unlock();";
   s.op->newline(-1) << "}";
   s.op->newline() << "#endif";
 
