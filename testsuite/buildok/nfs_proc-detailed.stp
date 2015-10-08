@@ -125,11 +125,11 @@ probe nfs.proc.open.return {
 	printf("%s(%s)\n", name, retstr)
 }
 
-probe nfs.proc.release {
+probe nfs.proc.release ? {
 	printf("%s(%s)\n", name, argstr)
 	printf("%d %d %d\n", server_ip, prot, version)
 }
-probe nfs.proc.release.return {
+probe nfs.proc.release.return ? {
 	printf("%s(%s)\n", name, retstr)
 }
 

@@ -137,7 +137,7 @@ probe nfs.proc.entries = nfs.proc.lookup,
 			 nfs.proc.create,
 			 nfs.proc.rename,
 			 nfs.proc.remove,
-			 nfs.proc.release
+			 nfs.proc.release ?
 {
 }
 
@@ -158,7 +158,7 @@ probe nfs.proc.return = nfs.proc.lookup.return,
 			nfs.proc.create.return,
 			nfs.proc.rename.return,
 			nfs.proc.remove.return,
-			nfs.proc.release.return
+			nfs.proc.release.return ?
 {
 }
 
