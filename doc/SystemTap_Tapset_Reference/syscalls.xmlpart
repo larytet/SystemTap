@@ -71,6 +71,11 @@ same convenience variables.
     addrlen, my_addr_uaddr, sockfd, uaddr_af, uaddr_ip, uaddr_ip_port, uaddr_ipv6_flowinfo, uaddr_ipv6_scope_id
 </entry></row>
 <row><entry>
+    bpf
+</entry><entry>
+    attr_uaddr, cmd, cmd_str, size
+</entry></row>
+<row><entry>
     brk
 </entry><entry>
     brk
@@ -163,7 +168,7 @@ same convenience variables.
 <row><entry>
     compat_execveat
 </entry><entry>
-    args, dirfd, dirfd_str, env_str, fd, fd_str, filename, flags, flags_str
+    args, dirfd, dirfd_str, env_str, filename, flags, flags_str
 </entry></row>
 <row><entry>
     compat_fadvise64
@@ -383,7 +388,7 @@ same convenience variables.
 <row><entry>
     execveat
 </entry><entry>
-    args, dirfd, dirfd_str, env_str, fd, fd_str, filename, flags, flags_str
+    args, dirfd, dirfd_str, env_str, filename, flags, flags_str
 </entry></row>
 <row><entry>
     exit
@@ -1338,7 +1343,7 @@ same convenience variables.
 <row><entry>
     seccomp
 </entry><entry>
-    flags, flags_str, op, uargs
+    flags, flags_str, op, op_str, uargs, uargs_uaddr
 </entry></row>
 <row><entry>
     select
@@ -1413,7 +1418,7 @@ same convenience variables.
 <row><entry>
     setdomainname
 </entry><entry>
-    domainname_str, domainname_uaddr, hostname_uaddr, len
+    domainname_str, domainname_uaddr, len
 </entry></row>
 <row><entry>
     setfsgid
@@ -1783,7 +1788,7 @@ same convenience variables.
 <row><entry>
     uname
 </entry><entry>
-    _func_name
+    
 </entry></row>
 <row><entry>
     unlink
@@ -1832,11 +1837,6 @@ same convenience variables.
 </entry></row>
 <row><entry>
     vhangup
-</entry><entry>
-    
-</entry></row>
-<row><entry>
-    vm86_warning
 </entry><entry>
     
 </entry></row>

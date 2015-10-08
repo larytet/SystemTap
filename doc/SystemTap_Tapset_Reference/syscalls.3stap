@@ -54,6 +54,10 @@ data, data_str, func
 addrlen, my_addr_uaddr, sockfd, uaddr_af, uaddr_ip, uaddr_ip_port, uaddr_ipv6_flowinfo, uaddr_ipv6_scope_id
 .P
 .TP
+.B syscall.bpf
+attr_uaddr, cmd, cmd_str, size
+.P
+.TP
 .B syscall.brk
 brk
 .P
@@ -127,7 +131,7 @@ args, env_str, filename
 .P
 .TP
 .B syscall.compat_execveat
-args, dirfd, dirfd_str, env_str, fd, fd_str, filename, flags, flags_str
+args, dirfd, dirfd_str, env_str, filename, flags, flags_str
 .P
 .TP
 .B syscall.compat_fadvise64
@@ -303,7 +307,7 @@ args, env_str, filename
 .P
 .TP
 .B syscall.execveat
-args, dirfd, dirfd_str, env_str, fd, fd_str, filename, flags, flags_str
+args, dirfd, dirfd_str, env_str, filename, flags, flags_str
 .P
 .TP
 .B syscall.exit
@@ -1067,7 +1071,7 @@ p_uaddr, pid, policy, policy_str
 .P
 .TP
 .B syscall.seccomp
-flags, flags_str, op, uargs
+flags, flags_str, op, op_str, uargs, uargs_uaddr
 .P
 .TP
 .B syscall.select
@@ -1127,7 +1131,7 @@ tidptr_uaddr
 .P
 .TP
 .B syscall.setdomainname
-domainname_str, domainname_uaddr, hostname_uaddr, len
+domainname_str, domainname_uaddr, len
 .P
 .TP
 .B syscall.setfsgid
@@ -1423,7 +1427,7 @@ flags, flags_str, target
 .P
 .TP
 .B syscall.uname
-_func_name
+
 .P
 .TP
 .B syscall.unlink
@@ -1463,10 +1467,6 @@ filename, filename_uaddr, tvp_uaddr
 .P
 .TP
 .B syscall.vhangup
-
-.P
-.TP
-.B syscall.vm86_warning
 
 .P
 .TP
