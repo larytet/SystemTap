@@ -157,8 +157,7 @@ proc expect_probe { func callee expout {inlined 0} {return_p 0} {call_p 0} } {
    set script " \
       probe [build_probe $func $callee $return_p $call_p] { \
          printf(\"caller %s callee %s\\n\", $caller, ppfunc()) \
-      } \
-   "
+      }"
 
    # Build the expect regex: callee1caller1|callee2caller2|...
    set n 0
@@ -173,7 +172,7 @@ proc expect_probe { func callee expout {inlined 0} {return_p 0} {call_p 0} } {
    }
 
    # Spawn stap
-   eval spawn stap -we {$script} -c "./$test"
+   spawn stap -e "$script" -c "./$test ; true"
    expect {
       -timeout 30
       -re "$regexp" {
@@ -554,7 +553,7 @@ if {![installtest_p]} {
    "
 
    # Spawn stap
-   eval spawn stap -we {$script} -c "./$subtest"
+   spawn stap -e "$script" -c "./$subtest ; true"
    set failed 1
    expect {
       -timeout 30
