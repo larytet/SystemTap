@@ -11,9 +11,9 @@ if {! [info exists env(SYSTEMTAP_TESTAPPS)] || (
     return
 }
 
-########## Create /tmp/stap-mysql.stp ########## 
+########## Create stap-mysql.stp ########## 
 set msdata "[pwd]/stap-mysql"
-set mysqlrelease "mysql-5.5.24"
+set mysqlrelease "mysql-5.6.26"
 set mysqldir "[pwd]/mysql/install/"
 set testsuite "[pwd]"
 
@@ -235,7 +235,7 @@ probe process(@1).mark(\"net__write__done\")
 "
 close $fp
 
-########## Begin /tmp/stap-mysql.sh ########## 
+########## Begin stap-mysql.sh ########## 
 set fp [open "$testsuite/stap-mysql.sh" "w"]
 puts $fp "
 ##### begin run_tests #####
@@ -274,7 +274,9 @@ OKAY=\$(grep 'All.*tests were successful' $testsuite/stap-mysql.log | wc -l)
 
 echo  ACQUIRE=\$ACQUIRE  RELEASE=\$RELEASE COMMAND=\$COMMAND  QUERY=\$QUERY RDLOCK=\$RDLOCK  SELECT=\$SELECT OKAY=\$OKAY
 # ACQUIRE=10040 RELEASE=10040 COMMAND=11265 QUERY=11167 RDLOCK=5149 SELECT=2895 OKAY=0
-if \[ \$ACQUIRE -gt 10000 -a \$RELEASE -gt 10000 -a \$COMMAND -gt 11200 -a \$QUERY -gt 11100 -a \$RDLOCK -gt 5100 -a \$SELECT -gt 2800 \] ; then
+# ACQUIRE=9055 RELEASE=9055 COMMAND=8129 QUERY=8081 RDLOCK=4913 SELECT=2155 OKAY=0
+
+if \[ \$ACQUIRE -gt 9000 -a \$RELEASE -gt 9000 -a \$COMMAND -gt 8000 -a \$QUERY -gt 8000 -a \$RDLOCK -gt 4900 -a \$SELECT -gt 2000 \] ; then
    echo PASS: mysql markers \$1
 else
    echo FAIL: mysql markers \$1
@@ -297,7 +299,7 @@ kill -9 $testsuite/stap-mysql/mysql.pid
 ##### end run_tests #####
 
 if \[ ! -r $mysqlrelease.tar.gz \] ; then
-wget -q http://downloads.mysql.com/archives/mysql-5.5/$mysqlrelease.tar.gz
+wget -q http://downloads.mysql.com/archives/mysql-5.6/$mysqlrelease.tar.gz
 
 fi
 if \[ ! -r $mysqlrelease.tar.gz \] ; then
@@ -340,10 +342,10 @@ make install
 run_tests uprobe
 
 "
-########## End /tmp/stap-mysql.sh ########## 
+########## End stap-mysql.sh ########## 
 close $fp
 
-########## /tmp/stap-mysql.sh does most of the work ########## 
+########## stap-mysql.sh does most of the work ########## 
 verbose -log Running mysql testsuite
 spawn sh stap-mysql.sh 2>&1
 expect {

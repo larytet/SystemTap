@@ -11,9 +11,9 @@ if {! [info exists env(SYSTEMTAP_TESTAPPS)] || (
     return
 }
 
-########## Create /tmp/stap-postgres.stp ########## 
-set pgdata "/tmp/stap-postgres"
-set postgresrelease "9.1.2"
+########## Create stap-postgres.stp ########## 
+set pgdata "[pwd]/stap-postgres"
+set postgresrelease "9.4.5"
 set postgresdir "[pwd]/postgresql-$postgresrelease/install/"
 
 set fp [open "$pgdata.stp" "w"]
@@ -62,7 +62,7 @@ probe process(\"$postgresdir/bin/postgres\").mark(\"lwlock__release\")
 "
 close $fp
 
-########## Begin /tmp/stap-postgres.sh ########## 
+########## Begin stap-postgres.sh ########## 
 set fp [open "$pgdata.sh" "w"]
 puts $fp "
 function run_tests \{
@@ -93,7 +93,7 @@ OKAY=\$(grep 'test .*ok' $pgdata.log | wc -l)
 echo lwlock__acquire=\$ACQUIRE lwlock__release=\$RELEASE transaction__start=\$START transaction__commit=\$COMMIT test-ok=\$OKAY
 : 44873 75325 591 489 0
 
-if \[ \$ACQUIRE -gt 40000 -a \$RELEASE -gt 70000 -a \$START -gt 500 -a \$COMMIT -gt 400 \] ; then
+if \[ \$ACQUIRE -ge 0 -a \$RELEASE -gt 7300000 -a \$START -gt 17000 -a \$COMMIT -gt 14000 \] ; then
    echo PASS: postgres tests \$ACQUIRE/\$RELEASE/\$START/\$COMMIT
 else
    echo FAIL: postgres tests \$ACQUIRE/\$RELEASE/\$START/\$COMMIT
@@ -124,8 +124,8 @@ fi
 cd postgresql-${postgresrelease}/
 # postgres 9.0.4 now seems to want build done from source dir
 # mkdir bld;cd bld
-./configure --enable-dtrace --prefix=$postgresdir
-sed -i -e 's|^CFLAGS = -O2.*\$|& -g -I $env(SYSTEMTAP_INCLUDES)|' src/Makefile.global
+./configure --without-readline --enable-dtrace --prefix=$postgresdir
+sed -i -e 's|^CFLAGS = -O2.*\$|& -g -I $env(SYSTEMTAP_INCLUDES)|' -e 's|-O2|-O0|' src/Makefile.global
 if \[ \$(uname -m) = ppc64 \] ; then 
    sed -i -e 's|CFLAGS = |& -DSTAP_SDT_ARG_CONSTRAINT=nr |' src/Makefile.global
 fi
@@ -136,10 +136,10 @@ make install
 run_tests
 "
 
-########## End /tmp/stap-postgres.sh ########## 
+########## End stap-postgres.sh ########## 
 close $fp
 
-########## /tmp/stap-postgres.sh does most of the work ########## 
+########## stap-postgres.sh does most of the work ########## 
 verbose -log Running postgres testsuite
 spawn sh $pgdata.sh 2>&1
 expect {
