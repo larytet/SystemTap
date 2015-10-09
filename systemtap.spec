@@ -57,7 +57,7 @@
 %define dracutstap %{_prefix}/lib/dracut/modules.d/99stap
 
 Name: systemtap
-Version: 2.9
+Version: 3.0
 Release: 1%{?dist}
 # for version, see also configure.ac
 
