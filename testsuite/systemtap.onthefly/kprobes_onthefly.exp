@@ -30,17 +30,17 @@ proc run_stap {subtest args script} {
    set echo_loop "while \[ true \]; do /bin/echo 1>/dev/null; done"
    set echo_pid [exec sh -c $echo_loop &]
 
-   # We always need the DEBUG and -g flags
-   set args "$args -D DEBUG_STP_ON_THE_FLY -g"
+   # We always need the DEBUG flag
+   set args "$args -DDEBUG_STP_ON_THE_FLY"
 
    # The script we use uses @entry(), which uses maps underneath. Since we will
    # be stressing the system, we need to ensure we will have enough space for
    # many map items.
-   set args "$args -D MAXMAPENTRIES=100000"
+   set args "$args -DMAXMAPENTRIES=100000"
 
    # This test seems especially prone to exceeding the default overhead
    # threshold in the harder subtests. Disable overload checking.
-   set args "$args -D STP_NO_OVERLOAD"
+   set args "$args -DSTP_NO_OVERLOAD"
 
    # Run stap and catch any errors (we will rethrow it later)
    set err [catch {eval exec stap -e {$script} $args} out]
@@ -179,9 +179,9 @@ proc make_pattern {subtest start_enabled maxtoggles} {
    # If we're not starting as enabled, then the kprobes will be registered as
    # disabled.
    if {!$start_enabled} {
-      lappend pattern "* registering as disabled (kprobe) pidx ?"
-      lappend pattern "* registering as disabled (kprobe) pidx ?"
-      lappend pattern "* registering as disabled (kretprobe) pidx ?"
+      lappend pattern "* registering as disabled (k*probe) pidx ?"
+      lappend pattern "* registering as disabled (k*probe) pidx ?"
+      lappend pattern "* registering as disabled (k*probe) pidx ?"
    }
 
    # For each toggle:
@@ -197,15 +197,15 @@ proc make_pattern {subtest start_enabled maxtoggles} {
          lappend pattern "toggling"
          if {$start_enabled} {
             set start_enabled 0
-            lappend pattern "* disabling (kprobe) pidx ?"
-            lappend pattern "* disabling (kprobe) pidx ?"
-            lappend pattern "* disabling (kretprobe) pidx ?"
+            lappend pattern "* disabling (k*probe) pidx ?"
+            lappend pattern "* disabling (k*probe) pidx ?"
+            lappend pattern "* disabling (k*probe) pidx ?"
          } else {
             set start_enabled 1
             if {$i < $maxtoggles} {
-               lappend pattern "* enabling (kprobe) pidx ?"
-               lappend pattern "* enabling (kprobe) pidx ?"
-               lappend pattern "* enabling (kretprobe) pidx ?"
+               lappend pattern "* enabling (k*probe) pidx ?"
+               lappend pattern "* enabling (k*probe) pidx ?"
+               lappend pattern "* enabling (k*probe) pidx ?"
             }
          }
       }

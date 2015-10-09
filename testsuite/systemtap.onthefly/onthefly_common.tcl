@@ -24,11 +24,10 @@ proc is_valid_output {output patterns} {
       set next_pattern [lindex $patterns [expr $i + 1]]
       if {[string match $next_pattern $line]} {
          incr i
-
       } else {
-         verbose -log "expected: $next_pattern"
-         verbose -log "received: $line"
-         return 0
+          verbose -log "expected: $next_pattern"
+          verbose -log "received: $line"
+          # continue; $i will be too small, but we can see more errors
       }
    }
 
@@ -36,8 +35,6 @@ proc is_valid_output {output patterns} {
    if {$i >= [expr [llength $patterns] - 1]} {
       return 1
    } else {
-      verbose -log "expected more patterns"
-      verbose -log "got to pattern index $i, but there are [llength $patterns] patterns"
       return 0
    }
 }
