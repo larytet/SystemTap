@@ -142,6 +142,7 @@ function _ptrace_return_arch_prctl_addr:long(request:long, addr:long, data:long)
 	return 0
 }
 
+%( systemtap_v <= "3.0" %?
 function get_32mmap_args:string(args:long)
 %{ /* pure */
 	struct mmap_arg_struct_emu31 {
@@ -171,3 +172,4 @@ function get_32mmap_args:string(args:long)
 		strlcpy (STAP_RETVALUE, "UNKNOWN", MAXSTRINGLEN);
 	}
 %}
+%)

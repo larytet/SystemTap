@@ -72,19 +72,32 @@ probe nd_syscall.ipc.return = kprobe.function("sys32_ipc").return ?
 probe nd_syscall.mmap = __nd_syscall.mmap ?, __nd_syscall.mmap32 ?
 {
 	name = "mmap"
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, len,
+	                 _mprotect_prot_str(prot), _mmap_flags(flags),
+	                 fd, offset)
 }
 probe __nd_syscall.mmap = kprobe.function("old_mmap") ?,
 			  kprobe.function("SyS_s390_old_mmap") ?
 {
-	// argstr = get_mmap_args($arg)
 	asmlinkage()
-	argstr = get_mmap_args(pointer_arg(1))
+	__args = &@cast(pointer_arg(1), "ulong", "kernel<linux/types.h>")
+	start = user_ulong(&(__args)[0])
+	len = user_ulong(&(__args)[1])
+	prot = user_ulong(&(__args)[2])
+	flags = user_ulong(&(__args)[3])
+	fd = user_long(&(__args)[4])
+	offset = user_ulong(&(__args)[5])
 }
 probe __nd_syscall.mmap32 = kprobe.function("old32_mmap")
 {
-	// argstr = get_32mmap_args($arg)
 	asmlinkage()
-	argstr = get_32mmap_args(pointer_arg(1))
+	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	start = user_uint32(&(__args)[0])
+	len = user_uint32(&(__args)[1])
+	prot = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
+	fd = user_int(&(__args)[4])
+	offset = user_uint32(&(__args)[5])
 }
 probe nd_syscall.mmap.return = kprobe.function("old_mmap").return ?,
                                kprobe.function("old32_mmap").return ?,
@@ -102,18 +115,31 @@ probe nd_syscall.mmap.return = kprobe.function("old_mmap").return ?,
 probe nd_syscall.mmap2 = __nd_syscall.mmap2 ?, __nd_syscall.mmap2_32 ?
 {
 	name = "mmap2"
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
+	                 _mprotect_prot_str(prot), _mmap_flags(flags),
+	                 fd, pgoffset)
 }
 probe __nd_syscall.mmap2 = kprobe.function("sys_mmap2")
 {
-	// argstr = get_mmap_args($arg)
 	asmlinkage()
-	argstr = get_mmap_args(pointer_arg(1))
+	__args = &@cast(pointer_arg(1), "ulong", "kernel<linux/types.h>")
+	start = user_ulong(&(__args)[0])
+	length = user_ulong(&(__args)[1])
+	prot = user_ulong(&(__args)[2])
+	flags = user_ulong(&(__args)[3])
+	fd = user_long(&(__args)[4])
+	pgoffset = user_ulong(&(__args)[5])
 }
 probe __nd_syscall.mmap2_32 = kprobe.function("sys32_mmap2")
 {
-	// argstr = get_32mmap_args($arg)
 	asmlinkage()
-	argstr = get_32mmap_args(pointer_arg(1))
+	__args = &@cast(pointer_arg(1), "unsigned int", "kernel<linux/types.h>")
+	start = user_uint32(&(__args)[0])
+	length = user_uint32(&(__args)[1])
+	prot = user_uint32(&(__args)[2])
+	flags = user_uint32(&(__args)[3])
+	fd = user_int(&(__args)[4])
+	pgoffset = user_uint32(&(__args)[5])
 }
 
 probe nd_syscall.mmap2.return = kprobe.function("sys_mmap2").return ?,

@@ -3278,6 +3278,7 @@ function _mmap_flags:string(flags:long)
 	_stp_lookup_or_str(_stp_mmap_list, STAP_ARG_flags, STAP_RETVALUE, MAXSTRINGLEN);
 %}
 
+%( systemtap_v <= "3.0" %?
 # old mmap functions passed in a struct like this.
 #
 function get_mmap_args:string (args:long)
@@ -3316,6 +3317,7 @@ function get_mmap_args:string (args:long)
 		snprintf(STAP_RETVALUE, MAXSTRINGLEN, "0x%lx",
 			 (unsigned long)STAP_ARG_args);
 %}
+%)
 
 
 function _sighandler_str:string(uaddr:long)
