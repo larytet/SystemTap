@@ -7,6 +7,7 @@ subsystem: none
 status: production
 exit: fixed
 output: trace
+requires: python-debuginfo
 scope: system-wide
 description: A python support tapset that displays backtraces and variable values 
 test_support: stap -I tapset -l 'python2.function_entry'
