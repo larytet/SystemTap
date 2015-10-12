@@ -1,0 +1,46 @@
+set test "task_paths"
+set stapio_path $env(PKGLIBDIR)/stapio
+
+# Only run on make installcheck
+if {! [installtest_p]} { untested "$test"; return }
+
+# Run the test script on 'whoami'
+spawn stap $srcdir/$subdir/$test.stp -c whoami
+verbose -log "stap $srcdir/$subdir/$test.stp -c whoami"
+
+set pwd "[pwd]"
+set found_cwd 0
+set found_stapio 0
+set found_whoami 0
+set found_error 0
+expect {
+    -timeout 180
+    -re "^current cwd: $pwd\r\n" { incr found_cwd; exp_continue }
+    -re "^current exe: $stapio_path\r\n" { incr found_stapio; exp_continue }
+    -re "^target cwd: $pwd\r\n" { incr found_cwd; exp_continue }
+    -re "^target exe: $stapio_path\r\n" { incr found_stapio; exp_continue }
+    -re {^ERROR: [^\r\n]+\r\n} { incr found_error;
+	exp_continue }
+    -re {^current exe: /[^\r\n]+/whoami\r\n} { incr found_whoami; exp_continue }
+
+    -re {^[^\r\n]+\r\n} {
+	# ignore everything else
+	exp_continue }
+    eof { }
+    timeout { fail "$test (timeout)" }
+}
+catch {close}; catch {wait}
+
+# On older kernels, we can't get the cwd.
+if {$found_cwd == 0 && ![min_kernel_vers_p 2.6.25]} {
+    setup_kfail NO_CWD *-*-*
+}
+
+if {$found_cwd == 3 && $found_stapio == 2 && $found_error == 4
+    && $found_whoami == 1} {
+    pass "$test"
+} else {
+    fail "$test ($found_cwd, $found_stapio, $found_error, $found_whoami)"
+}
+
+return

@@ -23,7 +23,9 @@ probe begin {
 		task_open_file_handles (0) +
 		task_max_file_handles (0) +
 		pid2task(0) +
-	        task_fd_lookup(0, 0))
+	        task_fd_lookup(0, 0) +
+		task_cwd_path(0) +
+		task_exe_file(0))
 	print (task_execname (0))
 	print (pid2execname (0))
 }

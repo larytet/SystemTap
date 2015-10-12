@@ -1,0 +1,109 @@
+probe begin
+{
+    # First we'll print the value of cwd/exe for the current task.
+    try
+    {
+	task = task_current()
+	path = task_cwd_path(task)
+	printf("current cwd: %s\n", fullpath_struct_path(path))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+    try
+    {
+	file = task_exe_file(task)
+	printf("current exe: %s\n", fullpath_struct_file(task, file))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+
+    # Now print the value of cwd/exe for our target pid. Note that at
+    # this point, the target exe path will still be stapio - the exec
+    # hasn't happened yet.
+    try
+    {
+	task = pid2task(target())
+	path = task_cwd_path(task)
+	printf("target cwd: %s\n", fullpath_struct_path(path))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+    try
+    {
+	file = task_exe_file(task)
+	printf("target exe: %s\n", fullpath_struct_file(task, file))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+
+    # Let's try using a task pointer of 0, which should fail.
+    try
+    {
+	task = 0
+	path = task_cwd_path(task)
+	printf("path: %p\n", path)
+	printf("%s\n", fullpath_struct_path(path))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+    try
+    {
+	file = task_exe_file(task)
+	printf("file: %p\n", file)
+	printf("%s\n", fullpath_struct_file(task, file))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+
+    # Now let's try using a task pointer of -1, which should also
+    # fail.
+    try
+    {
+	task = -1
+	path = task_cwd_path(task)
+	printf("%s\n", fullpath_struct_path(path))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+    try
+    {
+	file = task_exe_file(task)
+	printf("%s\n", fullpath_struct_file(task, file))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+}
+
+probe syscall.geteuid, syscall.getuid
+{
+    # Now print the value of cwd/exe for our target pid. At this
+    # point, we should be executing 'whoami', since stapio should have
+    # forked, then exec'ed 'whoami'.
+    if (pid() != target()) next
+    try
+    {
+	task = task_current()
+	path = task_cwd_path(task)
+	printf("current cwd: %s\n", fullpath_struct_path(path))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+    try
+    {
+	file = task_exe_file(task)
+	printf("current exe: %s\n", fullpath_struct_file(task, file))
+    }
+    catch (msg) {
+	printf("ERROR: %s\n", msg)
+    }
+    exit()
+}
