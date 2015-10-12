@@ -438,7 +438,6 @@ static bool null_die(Dwarf_Die *die)
 
 struct exp_type_dwarf : public exp_type_details
 {
-  static unsigned tick;
   // NB: We don't own this dwflpp, so don't use it after build_no_more!
   // A shared_ptr might help, but expressions are currently so leaky
   // that we'd probably never clear all references... :/
@@ -2947,8 +2946,6 @@ var_expanding_visitor::visit_defined_op (defined_op* e)
 
 struct dwarf_pretty_print
 {
-  static unsigned expand_tick;
-  static unsigned deref_tick;
   dwarf_pretty_print (dwflpp& dw, vector<Dwarf_Die>& scopes, Dwarf_Addr pc,
                       const string& local, bool userspace_p,
                       const target_symbol& e):
@@ -3034,12 +3031,11 @@ dwarf_pretty_print::init_ts (const target_symbol& e)
 }
 
 
-unsigned dwarf_pretty_print::expand_tick = 0;
-
-
 functioncall*
 dwarf_pretty_print::expand ()
 {
+  static unsigned tick = 0;
+
   // function pretty_print_X([pointer], [arg1, arg2, ...]) {
   //   try {
   //     return sprintf("{.foo=...}", (ts)->foo, ...)
@@ -3053,7 +3049,7 @@ dwarf_pretty_print::expand ()
   functiondecl *fdecl = new functiondecl;
   fdecl->tok = ts->tok;
   fdecl->synthetic = true;
-  fdecl->name = "_dwarf_pretty_print_" + lex_cast(expand_tick++);
+  fdecl->name = "_dwarf_pretty_print_" + lex_cast(tick++);
   fdecl->type = pe_string;
 
   functioncall* fcall = new functioncall;
@@ -3616,11 +3612,11 @@ synthetic_embedded_deref_call(dwflpp& dw,
   return fcall;
 }
 
-unsigned dwarf_pretty_print::deref_tick = 0;
-
 expression*
 dwarf_pretty_print::deref (target_symbol* e)
 {
+  static unsigned tick = 0;
+
   if (!deref_p)
     {
       assert (pointer && e->components.empty());
@@ -3628,7 +3624,7 @@ dwarf_pretty_print::deref (target_symbol* e)
     }
 
   bool lvalue_p = false;
-  string name = "_dwarf_pretty_print_deref_" + lex_cast(deref_tick++);
+  string name = "_dwarf_pretty_print_deref_" + lex_cast(tick++);
 
   string code;
   Dwarf_Die endtype;
@@ -3721,16 +3717,14 @@ dwarf_var_expanding_visitor::visit_target_symbol_saved_return (target_symbol* e)
   return_ts_map[ts_name] = exp;
 }
 
-
-static unsigned saved_return_tick = 0;
-
-
 static expression*
 gen_mapped_saved_return(systemtap_session &sess, expression* e,
 			const string& name,
 			block *& add_block, bool& add_block_tid,
 			block *& add_call_probe, bool& add_call_probe_tid)
 {
+  static unsigned tick = 0;
+
   // We've got to do several things here to handle target
   // variables in return probes.
 
@@ -3744,7 +3738,7 @@ gen_mapped_saved_return(systemtap_session &sess, expression* e,
 
   string aname = (string("_entry_tvar_")
                   + name
-                  + "_" + lex_cast(saved_return_tick++));
+                  + "_" + lex_cast(tick++));
   vardecl* vd = new vardecl;
   vd->name = aname;
   vd->tok = e->tok;
@@ -4416,7 +4410,6 @@ struct dwarf_cast_expanding_visitor: public var_expanding_visitor
 
 struct dwarf_cast_query : public base_query
 {
-  static unsigned tick;
   cast_op& e;
   const bool lvalue;
   const bool userspace_p;
@@ -4433,11 +4426,11 @@ struct dwarf_cast_query : public base_query
 };
 
 
-unsigned dwarf_cast_query::tick = 0;
-
 void
 dwarf_cast_query::handle_query_module()
 {
+  static unsigned tick = 0;
+
   if (result)
     return;
 
@@ -4637,11 +4630,12 @@ exp_type_dwarf::exp_type_dwarf(dwflpp* dw, Dwarf_Die* die,
     resolve_pointer_type(this->die, is_pointer);
 }
 
-unsigned exp_type_dwarf::tick = 0;
 
 functioncall *
 exp_type_dwarf::expand(autocast_op* e, bool lvalue)
 {
+  static unsigned tick = 0;
+
   try
     {
       // make sure we're not dereferencing base types or void
@@ -5878,7 +5872,6 @@ static void sdt_v3_tokenize(const string& str, vector<string>& tokens)
 
 struct sdt_uprobe_var_expanding_visitor: public var_expanding_visitor
 {
-  static unsigned tick;
   enum regwidths {QI, QIh, HI, SI, DI};
   sdt_uprobe_var_expanding_visitor(systemtap_session& s,
                                    dwflpp& dw,
@@ -6557,13 +6550,12 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_effective_addr (target_symbol *e
   return argexpr;
 }
 
-unsigned sdt_uprobe_var_expanding_visitor::tick = 0;
-
 expression*
 sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
                                                          const string& asmarg,
                                                          long precision)
 {
+  static unsigned tick = 0;
   expression *argexpr = NULL;
 
   // test for [OFF+]VARNAME[+OFF][(REGISTER)], where VARNAME is a variable
@@ -11645,35 +11637,6 @@ tracepoint_builder::build(systemtap_session& s,
                                   sugs.find(',') == string::npos,
                                   sugs.c_str()));
     }
-}
-
-// NB: The order of saved counters must match between
-// save_standard_tapset_counters() and
-// reset_standard_tapset_counters().
-static unsigned counters[8] = {0};
-
-void save_standard_tapset_counters()
-{
-    counters[0] = saved_return_tick;
-    counters[1] = var_expanding_visitor::tick;
-    counters[2] = dwarf_pretty_print::expand_tick;
-    counters[3] = dwarf_pretty_print::deref_tick;
-    counters[4] = dwarf_cast_query::tick;
-    counters[5] = exp_type_dwarf::tick;
-    counters[6] = sdt_uprobe_var_expanding_visitor::tick;
-    counters[7] = probe::last_probeidx;
-}
-
-void reset_standard_tapset_counters()
-{
-    saved_return_tick = counters[0];
-    var_expanding_visitor::tick = counters[1];
-    dwarf_pretty_print::expand_tick = counters[2];
-    dwarf_pretty_print::deref_tick = counters[3];
-    dwarf_cast_query::tick = counters[4];
-    exp_type_dwarf::tick = counters[5];
-    sdt_uprobe_var_expanding_visitor::tick = counters[6];
-    probe::last_probeidx = counters[7];
 }
 
 

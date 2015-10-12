@@ -695,11 +695,6 @@ passes_0_4 (systemtap_session &s)
       // don't have to do this again in interactive mode. This doesn't
       // effect non-interactive mode.
       s.pass_1a_complete = true;
-
-      // If we are in interactive mode, be sure to save the data we
-      // just generated, for reuse.
-      if (s.interactive_mode)
-	s.save_data();
   }
 
   // PASS 1b: PARSING USER SCRIPT

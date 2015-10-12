@@ -162,6 +162,7 @@ proc stapi_test_question { command question response {message ""} } {
 #    1 if the script couldn't be compiled.
 #    0 if the test passes.
 #   -1 if there was an internal error.
+#   -2 if there was a timeout error.
 
 proc stapi_run_batch { {use_cache 0} } {
     global stapi_prompt
@@ -173,8 +174,9 @@ proc stapi_run_batch { {use_cache 0} } {
     set error_seen 0
     set cache_used 0
     set eof_seen 0
+    set timeout_seen 0
     expect {
-	-timeout 180
+	-timeout 600
 	-re "compilation failed" { set error_seen 1; exp_continue } 
 	-re "semantic error:" { set error_seen 1; exp_continue }
 	-re {Pass\ ([1234]):[^\r]*\ in\ ([0-9]+)usr/([0-9]+)sys/([0-9]+)real\ ms\.\r\n} {
@@ -198,11 +200,14 @@ proc stapi_run_batch { {use_cache 0} } {
 	    }
 	}
         eof { verbose -log "stapi_run_batch EOF"; set eof_seen 1 }
-	timeout { verbose -log "stapi_run_batch timeout" }
+	timeout { verbose -log "stapi_run_batch timeout"
+	    set timeout_seen 1 }
     }
 
     if {$eof_seen} {
 	return -1
+    } elseif {$timeout_seen} {
+	return -2
     } elseif {$rc != 5 || $error_seen} {
 	return 1
     }

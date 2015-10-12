@@ -15,6 +15,7 @@ set env(SYSTEMTAP_DIR) $local_systemtap_dir
 set rc [stapi_start "-vp4"]
 if {$rc} { return }
 
+set effective_uid [exec /usr/bin/id -u]
 foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     set test "${self}/[file tail $file]"
     set full_test "${test} ${test_suffix}"
@@ -118,7 +119,11 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
     verbose -log "Running $file"
     set rc [stapi_run_batch]
     if {$rc < 0} {
-	fail "${full_test} - compile: crashed"
+	switch $rc {
+	    -1 { fail "${full_test} - compile: crashed" }
+	    -2 { fail "${full_test} - compile timeout" }
+	    default { fail "${full_test} - unknown error" }
+	}
 	break
     }
 
@@ -184,6 +189,20 @@ foreach file [lsort [glob -nocomplain $srcdir/$self/*.stp]] {
 
 	buildok/fortyseven.stp {
 	    if {$rc == 1} { setup_kfail 15065 *-*-* } }
+
+	buildok/stap_staticmarkers-detailed.stp {
+	    # Use setup_kfail ROOT_ONLY for tests that must be run as
+	    # root.
+	    #
+	    # In the case of stap_staticmarkers-detailed.stp, it
+	    # probes "staprun", which is only readable by root.
+	    if {$rc != 0 && $effective_uid != 0} {
+		setup_kfail ROOT_ONLY *-*-* }
+
+	    # Use setup_kfail UPROBES <target triplet> for systems
+	    # without uprobes. (ia64 has utrace, but not uprobes.)
+	    if {$rc != 0 && ![uprobes_p]} { setup_kfail UPROBES *-*-* }
+	}
     }
     switch $rc {
 	0 { pass "${full_test} - compile" }

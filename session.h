@@ -450,7 +450,6 @@ public:
   bool is_primary_probe (derived_probe *dp);
 
   void clear_script_data();
-  void save_data();
 
   // NB: It is very important for all of the above (and below) fields
   // to be cleared in the systemtap_session ctor (session.cxx).
