@@ -129,14 +129,18 @@ derived_probe::collect_derivation_pp_chain (std::vector<probe_point*> &pp_list) 
 
 
 string
-derived_probe::derived_locations ()
+derived_probe::derived_locations (bool firstFrom)
 {
   ostringstream o;
   vector<probe_point*> reference_point;
   collect_derivation_pp_chain(reference_point);
   if (reference_point.size() > 0)
     for(unsigned i=1; i<reference_point.size(); ++i)
-      o << " from: " << reference_point[i]->str(false); // no ?,!,etc
+      {
+        if (firstFrom || i>1)
+          o << " from: ";
+        o << reference_point[i]->str(false); // no ?,!,etc
+      }
   return o.str();
 }
 
@@ -4912,7 +4916,6 @@ semantic_pass_types (systemtap_session& s)
     }
 
   ti.assert_resolvability = false;
-  // XXX: maybe convert to exception-based error signalling
   while (1)
     {
       assert_no_interrupts();
@@ -4924,62 +4927,74 @@ semantic_pass_types (systemtap_session& s)
 
       for (map<string,functiondecl*>::iterator it = s.functions.begin();
                                                it != s.functions.end(); it++)
-        {
-          assert_no_interrupts();
-
-          functiondecl* fd = it->second;
-          ti.current_probe = 0;
-          ti.current_function = fd;
-          ti.t = pe_unknown;
-          fd->body->visit (& ti);
-	  // NB: we don't have to assert a known type for
-	  // functions here, to permit a "void" function.
-	  // The translator phase will omit the "retvalue".
-	  //
-          // if (fd->type == pe_unknown)
-          //   ti.unresolved (fd->tok);
-          for (unsigned i=0; i < fd->locals.size(); ++i)
-            ti.check_local (fd->locals[i]);
-
-          // Check and run the autocast expanding visitor.
-          if (ti.num_available_autocasts > 0)
-            {
-              autocast_expanding_visitor aev (ti);
-              aev.replace (fd->body);
-              ti.num_available_autocasts = 0;
-            }
-        }
-
+        try
+          {
+            assert_no_interrupts();
+            
+            functiondecl* fd = it->second;
+            ti.current_probe = 0;
+            ti.current_function = fd;
+            ti.t = pe_unknown;
+            fd->body->visit (& ti);
+            // NB: we don't have to assert a known type for
+            // functions here, to permit a "void" function.
+            // The translator phase will omit the "retvalue".
+            //
+            // if (fd->type == pe_unknown)
+            //   ti.unresolved (fd->tok);
+            for (unsigned i=0; i < fd->locals.size(); ++i)
+              ti.check_local (fd->locals[i]);
+            
+            // Check and run the autocast expanding visitor.
+            if (ti.num_available_autocasts > 0)
+              {
+                autocast_expanding_visitor aev (ti);
+                aev.replace (fd->body);
+                ti.num_available_autocasts = 0;
+              }
+          }
+        catch (const semantic_error& e)
+          {
+            throw SEMANTIC_ERROR(_F("while processing function %s",
+                                    it->second->name.c_str())).set_chain(e);
+          }
+      
       for (unsigned j=0; j<s.probes.size(); j++)
-        {
-          assert_no_interrupts();
-
-          derived_probe* pn = s.probes[j];
-          ti.current_function = 0;
-          ti.current_probe = pn;
-          ti.t = pe_unknown;
-          pn->body->visit (& ti);
-          for (unsigned i=0; i < pn->locals.size(); ++i)
-            ti.check_local (pn->locals[i]);
-
-          // Check and run the autocast expanding visitor.
-          if (ti.num_available_autocasts > 0)
-            {
-              autocast_expanding_visitor aev (ti);
-              aev.replace (pn->body);
-              ti.num_available_autocasts = 0;
-            }
-
-          probe_point* pp = pn->sole_location();
-          if (pp->condition)
-            {
-              ti.current_function = 0;
-              ti.current_probe = 0;
-              ti.t = pe_long; // NB: expected type
-              pp->condition->visit (& ti);
-            }
-        }
-
+        try
+          {
+            assert_no_interrupts();
+            
+            derived_probe* pn = s.probes[j];
+            ti.current_function = 0;
+            ti.current_probe = pn;
+            ti.t = pe_unknown;
+            pn->body->visit (& ti);
+            for (unsigned i=0; i < pn->locals.size(); ++i)
+              ti.check_local (pn->locals[i]);
+            
+            // Check and run the autocast expanding visitor.
+            if (ti.num_available_autocasts > 0)
+              {
+                autocast_expanding_visitor aev (ti);
+                aev.replace (pn->body);
+                ti.num_available_autocasts = 0;
+              }
+            
+            probe_point* pp = pn->sole_location();
+            if (pp->condition)
+              {
+                ti.current_function = 0;
+                ti.current_probe = 0;
+                ti.t = pe_long; // NB: expected type
+                pp->condition->visit (& ti);
+              }
+          }
+        catch (const semantic_error& e)
+          {
+            throw SEMANTIC_ERROR(_F("while processing probe %s",
+                                    s.probes[j]->derived_locations(false).c_str())).set_chain(e);
+          }
+  
       for (unsigned j=0; j<s.globals.size(); j++)
         {
           vardecl* gd = s.globals[j];
@@ -4987,7 +5002,7 @@ semantic_pass_types (systemtap_session& s)
             ti.unresolved (gd->tok);
           if(gd->arity == 0 && gd->wrap == true)
             {
-              throw SEMANTIC_ERROR (_("wrapping not supported for scalars"), gd->tok);
+              throw SEMANTIC_ERROR(_("wrapping not supported for scalars"), gd->tok);
             }
         }
 

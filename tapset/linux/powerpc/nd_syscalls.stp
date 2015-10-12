@@ -238,7 +238,9 @@ probe
 	asmlinkage()
 	argstr = sprintf("%p", pointer_arg(1))
 }
-probe nd_syscall.compat_sysctl.return = kprobe.function("compat_sys_sysctl").return ?
+probe %( systemtap_v <= "2.8"
+	%? nd_syscall.compat_sysctl.return %: nd_syscall.sysctl32.return
+%) = kprobe.function("compat_sys_sysctl").return ?
 {
 	name = "sysctl"
 	retstr = returnstr(1)

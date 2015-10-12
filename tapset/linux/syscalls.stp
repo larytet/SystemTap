@@ -1286,7 +1286,9 @@ probe syscall.fadvise64_64.return =
 	@__syscall_gate(%{ __NR_fadvise64_64 %})
 %)
 	name = "fadvise64"
-	retstr = return_str(1, $return)
+        # sys_fadvise64_64 appears to miss dwarf on kernels such as 4.3.0-0.rc3.git4.1.fc24.x86_64
+        # and symbol-table-based .return probes don't resolve $return
+        if (@defined($return)) { retstr = return_str(1, $return) } else { retstr = returnstr(1) }
 }
 
 # fallocate ____________________________________________________

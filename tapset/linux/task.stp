@@ -19,6 +19,8 @@
 #ifndef STAPCONF_TASK_UID
 #include <linux/cred.h>
 #endif
+#include <linux/fs_struct.h>
+#include <linux/mm.h>
 %}
 
 /**
@@ -715,5 +717,116 @@ function task_fd_lookup:long(task:long, fd:long)
 		STAP_ERROR ("cannot find file in task");
 	}
 	
+	CATCH_DEREF_FAULT();
+%}
+
+/**
+ *   sfunction task_cwd_path - get the path struct pointer for a task's current working directory
+ *
+ *   @task: task_struct pointer.
+ */
+function task_cwd_path:long(task:long)
+%{ /* pure */
+	struct task_struct *task
+		= (struct task_struct *)(unsigned long)STAP_ARG_task;
+	int put_task_struct_needed = 0;
+
+	// Before using the task_struct pointer, make sure it is valid
+	// to read.
+	(void)kderef_buffer(NULL, task, sizeof(struct task_struct));
+
+	// OK, we now know it is valid to read. But, is it really a
+	// task struct?
+	if (!_stp_task_struct_valid(task)) {
+		STAP_ERROR ("invalid task struct pointer");
+	}
+
+	get_task_struct(task);
+	put_task_struct_needed = 1;
+
+	// The kernel calls get_fs_pwd() here, which is an inlined
+	// function in include/linux/fs_struct.h. This function
+	// doesn't return a path pointer, but assumes the caller has
+	// allocated storage for the struct path. Instead, we're going
+	// to return a pointer to task->fs->pwd.
+	if (task->fs) {
+		// Sigh. On kernels before 2.6.25, the task->fs->pwd
+		// structure exists, but isn't a 'path'
+		// structure. Instead it is a 'dentry' structure. The
+		// 'pwd' and 'pwdmnt' (which is a 'vfsmount'
+		// structure) variables would both be needed to get a
+		// pathname. However, this function can't return 2
+		// items or really declare a static 'path' structure
+		// to put the 2 pointers in.
+		//
+		// So, on those RHEL5-era kernels, we'll just return
+		// NULL here.
+#ifdef STAPCONF_DPATH_PATH
+		// Before using the task->fs pointer, let's be
+		// paranoid and make sure it is valid to read.
+		(void)kderef_buffer(NULL, task->fs, sizeof(struct fs_struct));
+		STAP_RETURN((unsigned long)&task->fs->pwd);
+#endif
+	}
+	CATCH_DEREF_FAULT();
+	if (put_task_struct_needed)
+		put_task_struct(task);
+%}
+
+/**
+ *   sfunction task_cwd_path - get the file struct pointer for a task's executable file
+ *
+ *   @task: task_struct pointer.
+ */
+function task_exe_file:long(task:long)
+%{ /* pure */
+	struct task_struct *task
+		= (struct task_struct *)(unsigned long)STAP_ARG_task;
+	struct mm_struct *mm = NULL;
+	struct file *exe_file = NULL;
+
+	// Before using the task_struct pointer, make sure it is valid
+	// to read.
+	(void)kderef_buffer(NULL, task, sizeof(struct task_struct));
+
+	// OK, we now know it is valid to read. But, is it really a
+	// task struct?
+	if (!_stp_task_struct_valid(task)) {
+		STAP_ERROR ("invalid task struct pointer");
+	}
+
+	get_task_struct(task);
+	mm = get_task_mm(task);
+	put_task_struct(task);
+	if (mm) {
+		// Before using the mm pointer, let's be paranoid and
+		// make sure it is valid to read.
+		(void)kderef_buffer(NULL, mm, sizeof(struct mm_struct));
+
+#ifdef STAPCONF_GET_MM_EXE_FILE
+		exe_file = get_mm_exe_file(mm);
+#else
+		// When get_mm_exe_file() isn't exported, we'll have
+		// to handle this ourselves.
+
+		// The down_read() function can sleep, so we'll call
+		// down_read_trylock() instead, which can fail.  If if
+		// fails, we'll just pretend this task didn't have a
+		// cwd path.
+		if (down_read_trylock(&mm->mmap_sem)) {
+			exe_file = stap_find_exe_file(mm);
+			if (exe_file) {
+				get_file(exe_file);
+			}
+			up_read(&mm->mmap_sem);
+		}
+#endif
+		mmput(mm);
+	}
+
+	if (exe_file) {
+		STAP_RETURN((unsigned long)exe_file);
+		fput(exe_file);
+	}
 	CATCH_DEREF_FAULT();
 %}

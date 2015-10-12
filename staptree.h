@@ -83,11 +83,12 @@ struct semantic_error: public std::runtime_error
       return errsrc + (chain ? "|" + chain->errsrc_chain() : "");
     }
 
-  void set_chain(const semantic_error& new_chain)
+  semantic_error& set_chain(const semantic_error& new_chain)
     {
       if (chain)
         delete chain;
       chain = new semantic_error(new_chain);
+      return *this;
     }
 
   const semantic_error* get_chain(void) const

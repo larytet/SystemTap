@@ -46,7 +46,7 @@ function __bio_ino:long(bio:long)
 /* returns 0 for read, 1 for write */
 function bio_rw_num:long(rw:long)
 {
-    STAP_RETVALUE = (rw & %{ /* pure */ REQ_WRITE %})
+    return (rw & %{ /* pure */ REQ_WRITE %})
 }
 
 /* returns R for read, W for write */
@@ -158,7 +158,7 @@ probe ioblock.end = kernel.function("bio_endio")
         bytes_done = @choose_defined($bytes_done,
 				     @choose_defined($bio->bi_iter->bi_size,
 						     $bio->bi_size))
-        error = $error
+        error = @choose_defined($error,$bio->bi_error)
 
         sector = @choose_defined($bio->bi_iter->bi_sector, $bio->bi_sector)
         flags = $bio->bi_flags

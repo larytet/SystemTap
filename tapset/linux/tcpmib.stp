@@ -261,6 +261,7 @@ function _is_reset:long (skb:long)
 	// bitfield). So, let's kread the entire tcphdr, then grab the
 	// 'rst' field out of the copy. Luckily, the tcphdr is only 20
 	// bytes long.
+        memset (((void*)&th_copy), 0, sizeof(th_copy));
 	kderef_buffer(((void *)&th_copy), th, sizeof(struct tcphdr));
 	STAP_RETVALUE = th_copy.rst;
         CATCH_DEREF_FAULT();

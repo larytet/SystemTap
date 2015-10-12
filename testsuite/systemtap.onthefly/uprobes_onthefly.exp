@@ -19,13 +19,17 @@ proc run_stap {subtest args script} {
    # Now start the application
    set pid [exec ./$test.x &]
 
-   # We always need the DEBUG and -g flags
-   set args "$args -D DEBUG_STP_ON_THE_FLY -g"
+   # We always need the DEBUG flags
+   set args "$args -DDEBUG_STP_ON_THE_FLY"
 
    # The script we use uses @entry(), which uses maps underneath. Since we will
    # be stressing the system, we need to ensure we will have enough space for
    # many map items.
-   set args "$args -D MAXMAPENTRIES=100000"
+   set args "$args -DMAXMAPENTRIES=100000"
+
+   # This test seems especially prone to exceeding the default overhead
+   # threshold in the harder subtests. Disable overload checking.
+   set args "$args -DSTP_NO_OVERLOAD"
 
    # Run stap and catch any errors (we will rethrow it later)
    set err [catch {eval exec stap -e {$script} $args} out]

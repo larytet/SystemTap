@@ -1,0 +1,280 @@
+set test "tapset_functions_stress"
+
+# This test tries to pass invalid inputs to tapset functions and checks,
+# whether they crash the kernel or not. List of functions to test is generated
+# dynamically based on `stap --dump-functions -v` output.
+
+# This test is not a furzzer, but tries to cycle through following lists of
+# testing values instead:
+
+set my_longs {1 0 -1}
+set my_strings {{"tst"} {""}}
+
+# Test cycles through aformentioned testing values so that each one gets tested.
+# An example of how e.g. qsq_wait_queue_length:long (qname:string, scale:long)
+# gets tested follows:
+
+#        qsq_wait_queue_length("",1)
+#        qsq_wait_queue_length("tst",0)
+#        qsq_wait_queue_length("tst",-1)
+
+# The test can run in two modes: Default non-debug mode works with one single
+# kernel module and thus is fast, just a few seconds of run time. The non-debug
+# mode log is not very helpful for debugging though. One can see a failure, but
+# usually not its cause.
+
+# The other, debug mode, runs each function test in a separate kernel module.
+# This is great for debugging, but in this mode the test can run 2 hours or more.
+
+set debugmode 0
+
+# Blacklist. Following functions must not be tested:
+set blacklist {}
+lappend blacklist mdelay
+lappend blacklist udelay
+# ^ These would cause 'sof lockup' (PR19001).
+lappend blacklist panic
+# ^ This would panic the kernel.
+lappend blacklist raise
+# ^ This would terminate the test.
+lappend blacklist commit
+# ^ It only makes sense to test this one along with others from speculate.stp
+#   tapset. If called alone 'counter' type can't be resolved. But it also doesn't
+#   make much sense to call commit() alone, just like that. Covered by speculate.exp.
+lappend blacklist discard
+# ^ Ditto; standalone call to discard() will cause unresolved type : identifier
+#   '_spec_buff' test-covered by speculate.exp.
+lappend blacklist start_stopwatch
+lappend blacklist delete_stopwatch
+# ^ Similar to the above. The *stapwatch functions come from tapset/stopwatch.stp
+#   and are being tested within buildok/stopwatches.stp. standalone call to
+#   delete_stopwatch() will cause unresolved type : identifier
+#   '_stopwatch_starttime' covered by buildok/stopwatches.stp.
+lappend blacklist qsq_start
+# ^ Ditto; Test-covered in buildok/queue_stats-embedded.stp.
+#   Standalone call to qsq_start() results in unresolved type : identifier 'qs_rtime'.
+
+
+# Returns "default" value (per above test desc) for given argtype.
+proc default_value { argtype } {
+    global test my_longs my_strings
+    switch $argtype {
+        long { return [lindex $my_longs 0] }
+        string { return [lindex $my_strings 0] }
+        default { fail "$test (default_value($argtype))" }
+    }
+}
+
+# Returns list of "values to test" (per above test desc) for given argtype.
+proc list_values { argtype } {
+    global test my_longs my_strings
+    switch $argtype {
+        long { return $my_longs }
+        string { return $my_strings }
+        default { fail "$test (list_values($argtype))" }
+    }
+}
+
+# Get list of functions to test.
+if {[catch {exec bash -c "stap --dump-functions -v" 2>/dev/null} outputv]} {
+    fail "$test (can't get output of stap -v --dump-functions)"
+    return
+} else {
+    pass "$test (got output of stap -v --dump-functions)"
+}
+
+# Get function name from line, e.g. 'AF_INET' for
+# AF_INET:long () /* pure */ /* unprivileged */
+proc get_fnname { line } {
+    set tokens [split $line ":"]
+    return [lindex $tokens 0]
+}
+
+# Get function retval type. E.g. return 'unknown' for following input:
+# warn:unknown (msg:string) /* unmodified-fnargs */ /* unprivileged */
+# where 'unknown' stands for 'void' effectively
+proc get_retval_type { line } {
+    set tokens [split $line ":"]
+    set tmpstr [lindex $tokens 1]
+    set tokens [split $tmpstr " "]
+    set tmpstr [lindex $tokens 0]
+    return $tmpstr
+}
+
+# Get function argument types, e.g. "long long" for
+# MKDEV:long (major:long, minor:long) /* pure */
+proc get_fnargtypes { line } {
+    set retval {}
+    set line [string map { ")" " " "," " " } $line]
+    set tokens [split $line ":"]
+    for { set i 2 } { $i < [llength $tokens] } { incr i } {
+        lappend retval [lindex [split [lindex $tokens $i] " "] 0]
+    }
+    return $retval
+}
+
+# Write a probe into a test script
+proc write_probe { fname rtype fargs } {
+    upvar whitelist __whitelist
+    global debugmode
+    global probeorder
+    global testscript
+    set content "${fname}(${fargs})"
+    if { $rtype != "unknown" } {
+        set content "println($content)"
+    }
+    set content "try \{ $content \}"
+    set content "$content catch \{ println(\"CATCH\") \}"
+
+    puts $testscript "probe begin($probeorder) {"
+    set escontent [string map { "\"" "\\\""  } $content]
+    puts $testscript "\tprintln(\"testing $escontent\")"
+    puts $testscript "\t$content"
+    puts $testscript "}"
+    if { $debugmode } {
+        incr probeorder
+        puts $testscript "probe begin($probeorder) { exit() }"
+    }
+    incr probeorder
+}
+
+# Create a reference dmesg snapshot
+proc dmesg_snap {} {
+    global test
+    if {[catch {exec bash -c "dmesg > dmesg1"}]} {
+        fail "$test (dmesg_check - tare)"
+    }
+}
+
+# Compare dmesg to the reference snapshot created by dmesg_snap{}.
+# Error strings to look for are taken from beaker-project.org, particularly from
+# https://git.fedorahosted.org/cgit/rhts.git/tree/share For evaluation refer to
+# https://git.fedorahosted.org/cgit/rhts.git/tree/bin/rhts-db-submit-result
+proc dmesg_check {} {
+    global test
+    set errcnt 0
+    # https://git.fedorahosted.org/cgit/rhts.git/tree/share/failurestrings
+    set failurestrings {}
+    lappend failurestrings "Oops"
+    lappend failurestrings "BUG"
+    lappend failurestrings "NMI appears to be stuck"
+    lappend failurestrings "cut here"
+    lappend failurestrings "Badness at"
+
+    # https://git.fedorahosted.org/cgit/rhts.git/tree/share/falsestrings
+    set falsestrings {}
+    lappend falsestrings "BIOS BUG"
+    lappend falsestrings "DEBUG"
+
+    if {[catch {exec bash -c "dmesg > dmesg2"}]} {
+        fail "$test (dmesg_check - record)"
+    }
+    if {[catch {exec bash -c "diff dmesg1 dmesg2 | grep '^>' || true"} diffout]} {
+        fail "$test (dmesg_check - diff)"
+    }
+    foreach line [split $diffout "\n"] {
+        verbose -log "DMESGENTRY: $line"
+        if { [lsearch $failurestrings $line] >= 0 && [lsearch $falsestrings $line] == 0 } {
+            fail "$test (dmesg_check - check)"
+            incr errcnt
+        }
+    }
+    if { $errcnt == 0 } {
+        pass "dmesg check"
+    }
+}
+
+# Show contents of the errors.txt file
+proc show_errors {} {
+    if {[catch {exec bash -c "cat errors.txt"} output]} {
+        fail "$test (can't read errors.txt)"
+    }
+    verbose -log $output
+}
+
+# Setup
+file mkdir "$test"
+cd "$test"
+
+if { !$debugmode } {
+    set testscript [open "testscript.stp" w]
+}
+
+# Generate the test script
+set probeorder 0
+foreach line [split $outputv "\n"] {
+    #puts $line
+    set fname [get_fnname $line]
+    set rtype [get_retval_type $line]
+    set fnargtypes [get_fnargtypes $line]
+    set fnargcount [llength $fnargtypes]
+    if { $fnargcount == 0 } { continue }
+    if { [lsearch $blacklist $fname] >= 0 } {
+        untested "$test (${fname}() blacklisted)"
+        continue
+    }
+    for { set i 0 } { $i < $fnargcount } { incr i } {
+        # prefix
+        set prefix ""
+        for { set j 0 } { $j < $i } { incr j } {
+            append prefix [default_value [lindex $fnargtypes $j]]
+            append prefix ","
+        }
+        # suffix
+        set suffix ""
+        if { $i < [expr $fnargcount - 1 ] } { append suffix "," }
+        for { set j [expr $i + 1] } { $j < $fnargcount } { incr j } {
+            append suffix [default_value [lindex $fnargtypes $j]]
+            if { $j < [ expr $fnargcount - 1 ] } { append suffix "," }
+        }
+        # infix
+        set testvalues [list_values [lindex $fnargtypes $i]]
+        if { $fnargcount > 1 } {
+            # remove the "default" value
+            set testvalues [lreplace $testvalues 0 0]
+        }
+        for { set j 0 } { $j < [llength $testvalues] } { incr j } {
+            set infix [lindex $testvalues $j]
+            set fargs "${prefix}${infix}${suffix}"
+            if { $debugmode } {
+                dmesg_snap
+                set testscript [open "testscript.stp" w]
+                write_probe $fname $rtype $fargs
+                close $testscript
+                # Debug-mode test
+                verbose -log "testing ${fname}(${fargs})"
+                set rc [as_root "stap -g testscript.stp 2>errors.txt"]
+                if {$rc == 0} {
+                    pass "testscript (${fname}(${fargs}))"
+                } else {
+                    show_errors
+                    fail "testscript (${fname}(${fargs}))"
+                }
+                dmesg_check
+            } else {
+                write_probe $fname $rtype $fargs
+            }
+        }
+    }
+}
+
+if { !$debugmode } {
+    puts $testscript "probe begin($probeorder) { exit() }"
+    close $testscript
+    # Non-debug-mode test
+    dmesg_snap
+    set rc [as_root "stap -g testscript.stp 2>errors.txt"]
+    if {$rc == 0} {
+        pass "testscript"
+    } else {
+        show_errors
+        fail "testscript"
+    }
+    dmesg_check
+}
+
+# Cleanup
+cd ..
+file delete -force "$test"
+
+

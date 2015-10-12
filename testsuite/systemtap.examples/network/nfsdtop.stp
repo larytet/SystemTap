@@ -21,7 +21,22 @@ global nfsd_write_clients
 probe nfsd.proc.lookup {
 	nfsd_lookups <<< 1
 	nfsd_lookup_clients[client_ip] <<< 1
-	nfsd_lookup_clients_last_file[client_ip] = filename
+
+	# If no command line argument is provided, remember the last
+	# directory name and filename ('foo/bar.c') of the lookup. If
+	# a command line argument was provided, remember the full
+	# pathname of the last lookup ('/home/user/foo/bar.c').
+%( $# == 0 %?
+ 	nfsd_lookup_clients_last_file[client_ip]
+ 		= sprintf("%s/%s", d_name(fh->fh_dentry), filename)
+%:
+ 	nfsd_lookup_clients_last_file[client_ip]
+ 		= sprintf("%s/%s",
+ 			  task_dentry_path(task_current(),
+ 					   fh->fh_dentry,
+ 					   fh->fh_export->ex_path->mnt),
+ 			  filename)
+%)
 }
 
 # Accumulate read stats

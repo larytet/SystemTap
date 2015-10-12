@@ -128,7 +128,9 @@ done
 close $fp
 
 ########## /tmp/stap-python.sh does most of the work ########## 
-verbose -log Running python testsuite
+untested "replaced by example suite python test"
+return
+
 spawn sh stap-python.sh $srcdir/$subdir/ 2>&1
 expect {
     -timeout 1000

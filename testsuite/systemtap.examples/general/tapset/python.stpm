@@ -7,5 +7,5 @@
 # Set this to the location of the python 3 .so
 @define PYTHON3_LIBRARY
 %(
-  "/usr/lib64/libpython3.3m.so.1.0"
+  "/usr/lib64/libpython3.4m.so.1.0"
 %)

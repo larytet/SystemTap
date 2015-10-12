@@ -201,16 +201,18 @@ probe syscall.mmap2 = __syscall.mmap2 ?, __syscall.mmap_pgoff ?
 {
 	@__syscall_compat_gate(%{ __NR_mmap2 %}, %{ __NR_ia32_mmap2 %})
 	name = "mmap2"
-        start = $addr
-        length = $len
-        prot = $prot
-        flags = $flags
+	start = $addr
+	length = $len
+	prot = $prot
+	prot_str = _mprotect_prot_str(prot)
+	flags = $flags
+	flags_str = _mmap_flags(flags)
+	fd = __int32($fd)
 	# Although the kernel gets an unsigned long fd, on the
 	# user-side it is a signed int.  Fix this.
-        fd = __int32($fd)
-	argstr = sprintf("%p, %u, %s, %s, %d, %d", $addr, $len,
-		_mprotect_prot_str($prot), _mmap_flags($flags),
-		__int32($fd), pgoffset)
+	fd = __int32($fd)
+	argstr = sprintf("%p, %u, %s, %s, %d, %d", start, length,
+	                 prot_str, flags_str, fd, pgoffset)
 }
 probe __syscall.mmap2 = kernel.function("sys32_mmap2")
 {

@@ -1,4 +1,8 @@
-* What's new in version 2.9, 2015-09-30
+* What's new in version 3.0, 2015-10-08
+
+- Functions get_mmap_args() and get_32mmap_args() got deprecated.
+
+* What's new in version 2.9, 2015-10-08
 
 - SystemTap now uses symbols from /proc/kallsyms when kernel debuginfo is not
   available.

@@ -12,7 +12,7 @@ if {! [info exists env(SYSTEMTAP_TESTAPPS)] || (
 }
 
 ########## Create /tmp/stap-xul.stp ########## 
-set xulrelease "1.9.2rc1"
+set xulrelease "41.0.1"
 set xuldir "[pwd]/xul/"
 set testsuite "[pwd]"
 
@@ -81,16 +81,16 @@ fi
 \}
 ##### end run_tests #####
 
-if \[ ! -r xulrunner-$xulrelease.source.tar.bz2 \] ; then
-wget -q ftp://ftp.mozilla.org/pub/mozilla.org/xulrunner/releases/$xulrelease/source/xulrunner-$xulrelease.source.tar.bz2
+if \[ ! -r xulrunner-$xulrelease.source.tar.xz \] ; then
+wget -q http://ftp.mozilla.org/pub/mozilla.org/xulrunner/releases/latest/source/xulrunner-$xulrelease.source.tar.xz
 fi
-if \[ ! -r xulrunner-$xulrelease.source.tar.bz2 \] ; then
-   echo FAIL: wget xulrunner-$xulrelease.source.tar.bz2
+if \[ ! -r xulrunner-$xulrelease.source.tar.xz \] ; then
+   echo UNTESTED: wget xulrunner-$xulrelease.source.tar.xz
    exit
 fi
 
 if \[ ! -d xul/src \] ; then
-bunzip2 xulrunner-$xulrelease.source.tar.bz2
+unxz xulrunner-$xulrelease.source.tar.xz
 tar -x -f xulrunner-$xulrelease.source.tar
 mkdir xul
 mv mozilla-* xul/src
@@ -100,9 +100,9 @@ if \[ ! -f xul/bld/js/src/js \] ; then
 mkdir xul/bld
 cd xul/bld
 JAVA=`yum info available 'java*openjdk' |& awk '/Name/ {print \$3}'`
-for P in glib-devel ORBit-devel \$JAVA ; do 
+for P in glib-devel gtk+ ORBit-devel \$JAVA ; do 
     if rpm -q \$P ; then :
-    else echo FAIL: Need to: yum install \$P
+    else echo UNTESTED: Need to: dnf install \$P
          exit
     fi
 done
@@ -113,6 +113,11 @@ PATH=$env(SYSTEMTAP_PATH)/:\$PATH \
 ../src/configure --prefix=$xuldir --enable-dtrace \
 --enable-application=xulrunner \
 --disable-necko-wifi
+if \[ \$\? -eq 0 \] ; then true ; else
+   # configure failure possibly due to gtk+-2.0 requirement
+   echo UNTESTED: xulrunner configure failed
+   exit
+fi
 sed -i '/include.*rules.mk/a\\
 ifdef HAVE_DTRACE\\
 PROGOBJS += ../mozjs-dtrace.\$(OBJ_SUFFIX)\\
@@ -125,6 +130,10 @@ endif\\
 ' js/src/jsapi-tests/Makefile
 J=\$(getconf _NPROCESSORS_CONF)
 make
+if \[ \$\? -eq 0 \] ; then true ; else
+   echo UNTESTED: xulrunner build failed
+   exit
+fi
 fi
 
 run_tests uprobe
@@ -137,6 +146,8 @@ verbose -log Running xul testsuite
 spawn sh stap-xul.sh 2>&1
 expect {
     -timeout 10000
+    -re {UNTESTED: [a-z_ ]+} { regexp " .*$" $expect_out(0,string) s; 
+	untested "$s"; exp_continue }
     -re {FAIL: [a-z_ ]+} { regexp " .*$" $expect_out(0,string) s; 
 	fail "$s"; exp_continue }
     -re {PASS: [a-z_ ]+} { regexp " .*$" $expect_out(0,string) s; 

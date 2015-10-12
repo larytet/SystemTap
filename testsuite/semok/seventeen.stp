@@ -4,9 +4,9 @@ global foo
 probe kernel.function(
 %( kernel_v < "2.6.19" %? "pipe_writev" %: "pipe_write" %) )
 {
-   a = $nr_segs
+   a = @choose_defined($nr_segs,$iocb)
    foo [a] = 1
    # $nr_segs is not an lvalue here (foo is), so this should compile
    # even in non-guru mode
-   foo [$nr_segs] ++
+   foo [@choose_defined($nr_segs,$iocb)] ++
 }
