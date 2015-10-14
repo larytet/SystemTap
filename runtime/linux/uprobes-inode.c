@@ -1,6 +1,6 @@
 /* -*- linux-c -*-
  * Common functions for using inode-based uprobes
- * Copyright (C) 2011-2013 Red Hat Inc.
+ * Copyright (C) 2011-2013,2015 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -698,12 +698,12 @@ stapiu_get_task_inode(struct task_struct *task)
 		return NULL;
 	}
 
-	down_read(&mm->mmap_sem);
 	vm_file = stap_find_exe_file(mm);
-	if (vm_file && vm_file->f_path.dentry)
-		inode = vm_file->f_path.dentry->d_inode;
-
-	up_read(&mm->mmap_sem);
+	if (vm_file) {
+		if (vm_file->f_path.dentry)
+			inode = vm_file->f_path.dentry->d_inode;
+		fput(vm_file);
+	}
 	return inode;
 }
 
