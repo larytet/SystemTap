@@ -2123,7 +2123,6 @@ static void monitor_mode_read(systemtap_session& s)
       istringstream probe_point((*it)->sole_location()->str());
       string name;
       probe_point >> name;
-      std::cout << name << std::endl;
       name = lex_cast_qstring(name).substr(0, 20);
 
       code << "$value .= sprintf(\"%s\", __monitor_data_function_probes("
