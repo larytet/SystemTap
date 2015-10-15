@@ -564,6 +564,8 @@ int stp_main_loop(void)
   int res;
   int rc;
   struct timeval tv;
+  struct timespec ts;
+  struct timespec *timeout;
   fd_set fds;
   sigset_t blockset, mainset;
 
@@ -599,6 +601,12 @@ int stp_main_loop(void)
     sigaddset(&blockset, SIGURG);
     pthread_sigmask(SIG_BLOCK, &blockset, &mainset);
   }
+
+  /* In monitor mode, we must timeout pselect to poll the monitor
+   * interface. */
+  ts.tv_sec = 5;
+  ts.tv_nsec = 0;
+  timeout = monitor ? &ts : NULL;
 
 
   /* handle messages from control channel */
@@ -637,7 +645,7 @@ int stp_main_loop(void)
       } else {
 	FD_ZERO(&fds);
 	FD_SET(control_channel, &fds);
-	res = pselect(control_channel + 1, &fds, NULL, NULL, NULL, &mainset);
+	res = pselect(control_channel + 1, &fds, NULL, NULL, timeout, &mainset);
 	if (res < 0 && errno != EINTR)
 	  {
 	    _perr(_("Unexpected error in select"));

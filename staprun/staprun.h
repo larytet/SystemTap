@@ -255,6 +255,7 @@ extern int remote_id;
 extern const char *remote_uri;
 extern int relay_basedir_fd;
 extern int color_errors;
+extern int monitor;
 
 typedef enum {color_never, color_auto, color_always} color_modes;
 extern color_modes color_mode;
