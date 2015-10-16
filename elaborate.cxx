@@ -2098,7 +2098,7 @@ static void monitor_mode_read(systemtap_session& s)
   code << "probe procfs(\"monitor_status\").read.maxsize(8192) {" << endl;
   code << "elapsed = (jiffies()-__monitor_module_start)/HZ()" << endl;
   code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
-  code << "$value .= sprintf(\"uptime: %dh:%dm:%ds\\n\", hrs, mins, secs)" << endl;
+  code << "$value .= sprintf(\"uptime: %d:%d:%d\\n\", hrs, mins, secs)" << endl;
   code << "$value .= sprintf(\"uid: %d\\n\", uid())" << endl;
   code << "$value .= sprintf(\"memory: %s\\n\", module_size())" << endl;
   code << "$value .= sprintf(\"module_name: %s\\n\", module_name())" << endl;
@@ -2109,8 +2109,10 @@ static void monitor_mode_read(systemtap_session& s)
     {
       if ((*it)->synthetic) continue;
 
-      code << "$value .= sprintf(\"%s\", \"" << (*it)->name << "\")" << endl;
-      if ((*it)->arity > 0)
+      code << "$value .= sprintf(\"global %s\", \"" << (*it)->name << "\")" << endl;
+      if ((*it)->arity == 0)
+        code << "$value .= sprint(\": \", " << (*it)->name << ")" << endl;
+      else if ((*it)->arity > 0)
         code << "$value .= sprintf(\"(%d)\", " << (*it)->maxsize << ")" << endl;
       code << "$value .= sprint(\"\\n\")" << endl;
     }
