@@ -565,7 +565,7 @@ int stp_main_loop(void)
   int rc;
   struct timeval tv;
   struct timespec ts;
-  struct timespec *timeout;
+  struct timespec *timeout = NULL;
   fd_set fds;
   sigset_t blockset, mainset;
 
@@ -606,11 +606,31 @@ int stp_main_loop(void)
    * interface. */
   ts.tv_sec = 5;
   ts.tv_nsec = 0;
-  timeout = monitor ? &ts : NULL;
+  if (monitor)
+    timeout = &ts;
 
 
   /* handle messages from control channel */
   while (1) {
+    if (monitor)
+      {
+        char ch;
+        char buf[PATH_MAX];
+        FILE *monitor_fp;
+
+        if (sprintf_chk(buf, "/proc/systemtap/%s/monitor_status", modname))
+          cleanup_and_exit (1, 0);
+
+        monitor_fp = fopen(buf, "r");
+
+        if (monitor_fp)
+          {
+            while ((ch = getc(monitor_fp)) != EOF)
+              printf("%c", ch);
+            fclose(monitor_fp);
+          }
+      }
+
     if (pending_interrupts) {
          int btype = STP_EXIT;
          int rc = write(control_channel, &btype, sizeof(btype));
