@@ -799,28 +799,7 @@ function task_exe_file:long(task:long)
 	mm = get_task_mm(task);
 	put_task_struct(task);
 	if (mm) {
-		// Before using the mm pointer, let's be paranoid and
-		// make sure it is valid to read.
-		(void)kderef_buffer(NULL, mm, sizeof(struct mm_struct));
-
-#ifdef STAPCONF_GET_MM_EXE_FILE
-		exe_file = get_mm_exe_file(mm);
-#else
-		// When get_mm_exe_file() isn't exported, we'll have
-		// to handle this ourselves.
-
-		// The down_read() function can sleep, so we'll call
-		// down_read_trylock() instead, which can fail.  If if
-		// fails, we'll just pretend this task didn't have a
-		// cwd path.
-		if (down_read_trylock(&mm->mmap_sem)) {
-			exe_file = stap_find_exe_file(mm);
-			if (exe_file) {
-				get_file(exe_file);
-			}
-			up_read(&mm->mmap_sem);
-		}
-#endif
+		exe_file = stap_find_exe_file(mm);
 		mmput(mm);
 	}
 

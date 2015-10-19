@@ -421,18 +421,9 @@ stap_utrace_detach_ops(struct utrace_engine_ops *ops)
 static char *
 __stp_get_mm_path(struct mm_struct *mm, char *buf, int buflen)
 {
-	struct file *vm_file;
+	struct file *vm_file = stap_find_exe_file(mm);
 	char *rc = NULL;
 
-	// The down_read() function can sleep, so we'll call
-	// down_read_trylock() instead, which can fail.  If if fails,
-	// we'll just pretend this task didn't have a path.
-	if (!mm || ! down_read_trylock(&mm->mmap_sem)) {
-		*buf = '\0';
-		return ERR_PTR(-ENOENT);
-	}
-
-	vm_file = stap_find_exe_file(mm);
 	if (vm_file) {
 #ifdef STAPCONF_DPATH_PATH
 		rc = d_path(&(vm_file->f_path), buf, buflen);
@@ -440,12 +431,12 @@ __stp_get_mm_path(struct mm_struct *mm, char *buf, int buflen)
 		rc = d_path(vm_file->f_dentry, vm_file->f_vfsmnt,
 			    buf, buflen);
 #endif
+		fput(vm_file);
 	}
 	else {
 		*buf = '\0';
 		rc = ERR_PTR(-ENOENT);
 	}
-	up_read(&mm->mmap_sem);
 	return rc;
 }
 

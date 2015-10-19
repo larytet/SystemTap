@@ -1,6 +1,7 @@
 #ifndef TASK_FINDER_VMA_C
 #define TASK_FINDER_VMA_C
 
+#include <linux/file.h>
 #include <linux/list.h>
 #include <linux/jhash.h>
 
@@ -376,21 +377,65 @@ stap_drop_vma_maps(struct task_struct *tsk)
 	return 0;
 }
 
-/* Find the main executable for this mm.
- * NB: mmap_sem should be held already. */
+/*
+ * stap_find_exe_file - acquire a reference to the mm's executable file
+ *
+ * Returns NULL if mm has no associated executable file.  User must
+ * release file via fput().
+ */
 static struct file*
 stap_find_exe_file(struct mm_struct* mm)
 {
-	/* VM_EXECUTABLE was killed in kernel commit e9714acf, but in kernels
-	 * that new we can just use mm->exe_file anyway.  (PR14712)  */
-#ifdef VM_EXECUTABLE
-	struct vm_area_struct *vma;
-	for (vma = mm->mmap; vma; vma = vma->vm_next)
-		if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file)
-			return vma->vm_file;
-	return NULL;
+	// The following kernel commit changed the way the exported
+	// get_mm_exe_file() works. This commit first appears in the
+	// 4.1 kernel:
+	//
+	// commit 90f31d0ea88880f780574f3d0bb1a227c4c66ca3
+	// Author: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+	// Date:   Thu Apr 16 12:47:56 2015 -0700
+	// 
+	//     mm: rcu-protected get_mm_exe_file()
+	//     
+	//     This patch removes mm->mmap_sem from mm->exe_file read side.
+	//     Also it kills dup_mm_exe_file() and moves exe_file
+	//     duplication into dup_mmap() where both mmap_sems are
+	//     locked.
+	//
+	// So, for kernels >= 4.1, we'll use get_mm_exe_file(). For
+	// kernels < 4.1 but with get_mm_exe_file() exported, we'll
+	// still use our own code. The original get_mm_exe_file() can
+	// sleep (since it calls down_read()), so we'll have to roll
+	// our own.
+#if defined(STAPCONF_DPATH_PATH) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4,1,0))
+	return get_mm_exe_file(mm);
 #else
-	return mm->exe_file;
+	struct file *exe_file = NULL;
+
+	// The down_read() function can sleep, so we'll call
+	// down_read_trylock() instead, which can fail.  If it
+	// fails, we'll just pretend this task didn't have a
+	// exe file.
+	if (mm && down_read_trylock(&mm->mmap_sem)) {
+
+		// VM_EXECUTABLE was killed in kernel commit e9714acf,
+		// but in kernels that new we can just use
+		// mm->exe_file anyway. (PR14712)
+#ifdef VM_EXECUTABLE
+		struct vm_area_struct *vma;
+		for (vma = mm->mmap; vma; vma = vma->vm_next) {
+			if ((vma->vm_flags & VM_EXECUTABLE) && vma->vm_file) {
+				exe_file = vma->vm_file;
+				break;
+			}
+		}
+#else
+		exe_file = mm->exe_file;
+#endif
+		if (exe_file)
+			get_file(exe_file);
+		up_read(&mm->mmap_sem);
+	}
+	return exe_file;
 #endif
 }
 
