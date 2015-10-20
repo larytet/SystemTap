@@ -315,6 +315,10 @@ Requires: /usr/lib/libc.so
 %if 0%{?fedora} >= 18
 Requires: stress
 %endif
+# The following "meta" files for the systemtap examples run "perf":
+#   testsuite/systemtap.examples/hw_watch_addr.meta
+#   testsuite/systemtap.examples/memory/hw_watch_sym.meta
+Requires: perf
 
 %description testsuite
 This package includes the dejagnu-based systemtap stress self-testing
