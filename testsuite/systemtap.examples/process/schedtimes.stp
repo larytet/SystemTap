@@ -125,7 +125,7 @@ probe kernel.trace("sched_switch")
 probe kernel.trace("sched_wakeup")
 {
   // Task $p is awakened
-  if ($success && task_targeted($p)) {
+  if (@choose_defined($success, 1) && task_targeted($p)) {
     pid = $p->pid
     delta = update_times(pid, timestamp())
     if (pid_state[pid] == SLEEPING && @in_iowait($p)) {

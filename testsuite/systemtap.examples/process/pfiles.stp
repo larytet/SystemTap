@@ -1,5 +1,6 @@
 # pfiles.stp
-# Copyright (C) 2007-2010, 2012 Red Hat, Inc., Eugene Teo <eteo@redhat.com>
+# Copyright (C) 2007-2010, 2012, 2015 Red Hat, Inc., Eugene Teo
+# <eteo@redhat.com>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as
@@ -79,6 +80,8 @@
 #include <linux/tcp.h>
 #ifdef CONFIG_USER_NS
 #include <linux/user_namespace.h>
+#endif
+#ifdef STAPCONF_LINUX_UIDGID_H
 #include <linux/uidgid.h>
 #endif
 %}
@@ -125,7 +128,11 @@ function task_file_handle_i_mode:long (task:long, fd:long) %{ /* pure */
 	rcu_read_lock();
 	if ((files = kread(&p->files)) &&
 	    (filp = fcheck_files(files, STAP_ARG_fd)) &&
+#ifdef STAPCONF_DPATH_PATH
+	    (dentry = kread(&filp->f_path.dentry)) &&
+#else
 	    (dentry = kread(&filp->f_dentry)) &&
+#endif
 	    (inode = kread(&dentry->d_inode))) {
 		STAP_RETVALUE = kread(&inode->i_mode);
 	}
@@ -146,7 +153,11 @@ function task_file_handle_majmin_dev:string (task:long, fd:long) %{ /* pure */
 	rcu_read_lock();
 	if ((files = kread(&p->files)) &&
 	    (filp = fcheck_files(files, STAP_ARG_fd)) &&
+#ifdef STAPCONF_DPATH_PATH
+	    (dentry = kread(&filp->f_path.dentry)) &&
+#else
 	    (dentry = kread(&filp->f_dentry)) &&
+#endif
 	    (inode = kread(&dentry->d_inode)) &&
 	    (sb = kread(&inode->i_sb))) {
 		dev_nr = kread(&sb->s_dev);
@@ -169,7 +180,11 @@ function task_file_handle_majmin_rdev:string (task:long, fd:long) %{ /* pure */
 	rcu_read_lock();
 	if ((files = kread(&p->files)) &&
 	    (filp = fcheck_files(files, STAP_ARG_fd)) &&
+#ifdef STAPCONF_DPATH_PATH
+	    (dentry = kread(&filp->f_path.dentry)) &&
+#else
 	    (dentry = kread(&filp->f_dentry)) &&
+#endif
 	    (inode = kread(&dentry->d_inode))) {
 		rdev_nr = kread(&inode->i_rdev);
 		snprintf(STAP_RETVALUE, MAXSTRINGLEN,
@@ -190,7 +205,11 @@ function task_file_handle_i_node:long (task:long, fd:long) %{ /* pure */
 	rcu_read_lock();
 	if ((files = kread(&p->files)) &&
 	    (filp = fcheck_files(files, STAP_ARG_fd)) &&
+#ifdef STAPCONF_DPATH_PATH
+	    (dentry = kread(&filp->f_path.dentry)) &&
+#else
 	    (dentry = kread(&filp->f_dentry)) &&
+#endif
 	    (inode = kread(&dentry->d_inode))) {
 		STAP_RETVALUE = kread(&inode->i_ino);
 	}
@@ -215,8 +234,17 @@ function task_file_handle_uid:long (task:long, fd:long) %{ /* pure */
 		const struct cred *cred;
 		if ((cred = kread(&filp->f_cred))) {
 #ifdef CONFIG_USER_NS
-			ns = get_user_ns(task_cred_xxx(p, user_ns));
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
+			ns = p->nsproxy->user_ns;
+#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)
+			ns = (task_cred_xxx(p, user))->user_ns;
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39) */
+			ns = task_cred_xxx(p, user_ns);
+#endif
+#endif
 			if (ns) {
+				get_user_ns(ns);
 				// We call kderef_buffer() here to
 				// ensure the memory at the kuid_t
 				// location is valid to read. We can't
@@ -224,8 +252,9 @@ function task_file_handle_uid:long (task:long, fd:long) %{ /* pure */
 				// only handle data with a size of 1,
 				// 2, 4, or 8 bytes.
 				kderef_buffer(NULL,  &cred->fsuid,
-					      sizeof(kuid_t));
-				STAP_RETVALUE = from_kuid(ns, cred->fsuid);
+					      sizeof(cred->fsuid));
+				STAP_RETVALUE = from_kuid_munged(ns,
+								 cred->fsuid);
 			}
 			else
 				STAP_RETVALUE = -1;
@@ -263,8 +292,17 @@ function task_file_handle_gid:long (task:long, fd:long) %{ /* pure */
 		const struct cred *cred;
 		if ((cred = kread(&filp->f_cred))) {
 #ifdef CONFIG_USER_NS
-			ns = get_user_ns(task_cred_xxx(p, user_ns));
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 29)
+			ns = p->nsproxy->user_ns;
+#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 39)
+			ns = (task_cred_xxx(p, user))->user_ns;
+#else /* LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 39) */
+			ns = task_cred_xxx(p, user_ns);
+#endif
+#endif
 			if (ns) {
+				get_user_ns(ns);
 				// We call kderef_buffer() here to
 				// ensure the memory at the kgid_t
 				// location is valid to read. We can't
@@ -272,8 +310,9 @@ function task_file_handle_gid:long (task:long, fd:long) %{ /* pure */
 				// only handle data with a size of 1,
 				// 2, 4, or 8 bytes.
 				kderef_buffer(NULL,  &cred->fsgid,
-					      sizeof(kgid_t));
-				STAP_RETVALUE = from_kgid(ns, cred->fsgid);
+					      sizeof(cred->fsgid));
+				STAP_RETVALUE = from_kgid_munged(ns,
+								 cred->fsgid);
 			}
 			else
 				STAP_RETVALUE = -1;
@@ -335,23 +374,51 @@ function task_file_handle_flock:string (task:long, fd:long) %{ /* pure */
 	struct task_struct *p = (struct task_struct *)((long)STAP_ARG_task);
 	struct files_struct *files;
 	struct file_lock *flock;
-	int fl_type, fl_pid;
+	int fl_type = -1;
+	int fl_pid = -1;
 	struct file *filp;
 	struct dentry *dentry;
 	struct inode *inode;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+	struct file_lock_context *ctx;
+	int flc_lock_set = 0;
+#endif
 
 	rcu_read_lock();
 	if ((files = kread(&p->files)) &&
 	    (filp = fcheck_files(files, STAP_ARG_fd)) &&
+#ifdef STAPCONF_DPATH_PATH
+	    (dentry = kread(&filp->f_path.dentry)) &&
+#else
 	    (dentry = kread(&filp->f_dentry)) &&
+#endif
 	    (inode = kread(&dentry->d_inode))) {
+// In kernels >= 4.0, we've now got a list of file_lock structures.
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+		if ((ctx = kread(&inode->i_flctx))) {
+			struct file_lock *lock;
+
+			// Make sure the file_lock_context struct is valid.
+			kderef_buffer(NULL, ctx,
+				      sizeof(struct file_lock_context));
+
+			// We'll just look at the first lock.
+			spin_lock(&ctx->flc_lock);
+			flc_lock_set = 1;
+			list_for_each_entry(lock, &ctx->flc_flock, fl_list) {
+				fl_type = kread(&lock->fl_type);
+				fl_pid = kread(&lock->fl_pid);
+				break;
+			}
+			spin_unlock(&ctx->flc_lock);
+			flc_lock_set = 0;
+		}
+#else
 		if ((flock = kread(&inode->i_flock))) {
 			fl_type = kread(&flock->fl_type);
 			fl_pid = kread(&flock->fl_pid);
-		} else {
-			fl_type = -1;
-			fl_pid = -1;
 		}
+#endif
 
 		if (fl_type != -1) { /* !flock */
 			snprintf(STAP_RETVALUE, MAXSTRINGLEN,
@@ -363,6 +430,10 @@ function task_file_handle_flock:string (task:long, fd:long) %{ /* pure */
 	}
 
 	CATCH_DEREF_FAULT();
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,0,0)
+	if (flc_lock_set)
+		spin_unlock(&ctx->flc_lock);
+#endif
 	rcu_read_unlock();
 %}
 
@@ -414,8 +485,12 @@ function task_file_handle_socket:long (task:long, fd:long) %{ /* pure */
 	rcu_read_lock();
 	if ((files = kread(&p->files)) &&
 	    (filp = fcheck_files(files, STAP_ARG_fd)) &&
+#ifdef STAPCONF_DPATH_PATH
+	    (dentry = kread(&filp->f_path.dentry)) &&
+#else
 	    (dentry = kread(&filp->f_dentry)) &&
-	    (inode = kread(&filp->f_dentry->d_inode))) {
+#endif
+	    (inode = kread(&dentry->d_inode))) {
 		if (S_ISSOCK(kread(&inode->i_mode)))
 			STAP_RETVALUE = (long)SOCKET_I(inode);
 	}

@@ -24,6 +24,9 @@ function dot_escape(str)
 }
 
 global depth
+global exe_name
+global exe_name_ctr
+
 probe process.begin
 {
   if (!(pid() in depth)) {
@@ -35,15 +38,31 @@ probe process.begin
   }
 }
 
+probe syscall.execve
+{
+  # Save value of filename. Note that filename is quoted, but we'll
+  # strip these quotes in syscall.execve.return.
+  exe_name[tid(), ++exe_name_ctr[tid()]] = filename
+}
+
 probe syscall.execve.return
 {
+  # We'd like to use '@entry(user_string($filename))' here, but we
+  # can't. On kernels < 3.7, sys_execve was in arch-specific code and
+  # had wildly varying variable names for the filename argument. So,
+  # we'll mimic @entry() here.
+  saved_exe_name = exe_name[tid(), exe_name_ctr[tid()]]
+  delete exe_name[tid(), (exe_name_ctr[tid()])--]
+  if (!(exe_name_ctr[tid()]))
+    delete exe_name_ctr[tid()]
+  
   if ($return == 0 && pid() in depth) {
     d = ++depth[pid()]
     printf("PID%d_%d -> PID%d_%d [ style=\"dashed\" ];\n",
            pid(), d-1, pid(), d)
     printf("PID%d_%d [ label=\"(%d) %s\" tooltip=\"%s\" ];\n",
            pid(), d, pid(),
-           dot_escape(@entry(user_string($filename))),
+           str_replace(saved_exe_name, "\"", ""),
            dot_escape(cmdline_str()))
   }
 }

@@ -1,6 +1,12 @@
 #! /usr/bin/env stap
 
+%( CONFIG_64BIT == "y" %?
 global profile%[20000], pcount
+%:
+# On a 32-bit platform, the profile array must be smaller, otherwise
+# its allocation will fail on module startup.
+global profile%[5000], pcount
+%)
 
 probe timer.profile
       # or perf.type(0).config(0).sample(NNNN) for apprx. every NNNN tsc ticks
