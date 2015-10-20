@@ -327,8 +327,8 @@ function fullpath_struct_nameidata(nd)
 function fullpath_struct_path:string(path:long)
 {
   return task_dentry_path(task_current(),
-                          @cast(path,"path","kernel:nfs:<linux/path.h>")->dentry,
-                          @cast(path,"path","kernel:nfs:<linux/path.h>")->mnt)
+                          @cast(path,"path","kernel:nfs:kernel<linux/path.h>")->dentry,
+                          @cast(path,"path","kernel:nfs:kernel<linux/path.h>")->mnt)
 }
 
 /**
