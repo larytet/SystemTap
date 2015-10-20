@@ -77,6 +77,7 @@ bool is_fully_resolved(const std::string& name,
                        const std::map<std::string,std::string>& sysenv,
                        const std::string& env_path = "PATH");
 const std::string cmdstr_quoted(const std::string& cmd);
+const std::string path_hash(const std::string& str);
 const std::string cmdstr_join(const std::vector<std::string>& cmds);
 int stap_waitpid(int verbose, pid_t pid);
 pid_t stap_spawn(int verbose, const std::vector<std::string>& args);

@@ -613,6 +613,7 @@ struct vardecl: public symboldecl
   bool synthetic; // for probe locals only, don't init on entry
   bool wrap;
   bool char_ptr_arg; // set in ::emit_common_header(), only used if a formal_arg
+  //bool priv = false;
 };
 
 

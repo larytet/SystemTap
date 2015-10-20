@@ -167,7 +167,7 @@ private:
 
 private: // nonterminals
   void parse_probe (vector<probe*>&, vector<probe_alias*>&);
-  void parse_global (vector<vardecl*>&, vector<probe*>&);
+  void parse_global (vector<vardecl*>&, vector<probe*>&, string & fname);
   void parse_functiondecl (vector<functiondecl*>&);
   embeddedcode* parse_embeddedcode ();
   probe_point* parse_probe_point ();
@@ -1388,6 +1388,7 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
       // and broadly advertised.
       keywords.insert("probe");
       keywords.insert("global");
+      keywords.insert("private");
       keywords.insert("function");
       keywords.insert("if");
       keywords.insert("else");
@@ -1861,10 +1862,10 @@ parser::parse ()
 	      context = con_probe;
 	      parse_probe (f->probes, f->aliases);
 	    }
-	  else if (t->type == tok_keyword && t->content == "global")
+	  else if (t->type == tok_keyword && (t->content == "global" || t->content == "private"))
 	    {
 	      context = con_global;
-	      parse_global (f->globals, f->probes);
+	      parse_global (f->globals, f->probes, f->name);
 	    }
 	  else if (t->type == tok_keyword && t->content == "function")
 	    {
@@ -2175,11 +2176,12 @@ parser::parse_statement ()
 
 
 void
-parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
+parser::parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fname)
 {
   const token* t0 = next ();
-  if (! (t0->type == tok_keyword && t0->content == "global"))
-    throw PARSE_ERROR (_("expected 'global'"));
+  bool priv = t0->content == "private";
+  if (! (t0->type == tok_keyword && (t0->content == "global" || t0->content == "private")))
+    throw PARSE_ERROR (_("expected 'global' or 'private'"));
   swallow ();
 
   while (1)
@@ -2193,7 +2195,7 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
 	  throw PARSE_ERROR (_("duplicate global name"));
 
       vardecl* d = new vardecl;
-      d->name = t->content;
+      d->name = priv ? string(t->content) + path_hash(fname) : string(t->content);
       d->tok = t;
       d->systemtap_v_conditional = systemtap_v_seen;
       globals.push_back (d);
@@ -2245,7 +2247,6 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
 	break;
     }
 }
-
 
 void
 parser::parse_functiondecl (vector<functiondecl*>& functions)

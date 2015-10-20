@@ -2332,8 +2332,10 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 	}
 
   // search processed globals
+  string mangle = path_hash(tok->location.file->name);
   for (unsigned i=0; i<session.globals.size(); i++)
-    if (session.globals[i]->name == name)
+    if ((session.globals[i]->name == name) ||
+        (session.globals[i]->name == string(name) + mangle))
       {
         if (! session.suppress_warnings)
           {
