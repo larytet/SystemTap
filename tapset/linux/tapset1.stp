@@ -1,0 +1,7 @@
+
+private mypriv = 3
+
+function get_mypriv_1()
+{
+    return mypriv
+}
