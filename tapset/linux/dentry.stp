@@ -324,12 +324,11 @@ function fullpath_struct_nameidata(nd)
  *   the kernel d_path function.
  *   @path: Pointer to "struct path".
  */
-function fullpath_struct_path(path)
+function fullpath_struct_path:string(path:long)
 {
-  
   return task_dentry_path(task_current(),
-                          @cast(path,"path","kernel<linux/path.h>:nfs")->dentry,
-                          @cast(path,"path","kernel<linux/path.h>:nfs")->mnt)
+                          @cast(path,"path","kernel:nfs:kernel<linux/path.h>")->dentry,
+                          @cast(path,"path","kernel:nfs:kernel<linux/path.h>")->mnt)
 }
 
 /**

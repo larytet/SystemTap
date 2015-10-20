@@ -29,7 +29,8 @@ probe kernel.trace("sched_process_exit")
 
 # This is exactly point where all the fun happens
 # This function returns only EMFILE errno.
-probe kernel.function("__alloc_fd@fs/file.c").return
+probe kernel.function("__alloc_fd@fs/file.c").return !,
+      kernel.function("alloc_fd").return
 {
     if (errno_str($return) == "EMFILE")
     {

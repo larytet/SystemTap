@@ -1,6 +1,8 @@
 #! /usr/bin/env stap
 /*
  *	Copyright (C) 2009 IBM Corp.
+ *	Copyright (C) 2015 Red Hat, Inc.
+ *
  *	This file is part of systemtap, and is free software.  You can
  *	redistribute it and/or modify it under the terms of the GNU General
  *	Public License (GPL); either version 2, or (at your option) any
@@ -439,7 +441,8 @@ function is_packet_updated:long ( key:long, sk:long )
 	}
 
 	if ( srtt_flg ) {
-		new_srtt = @cast(sk, "tcp_sock")->srtt
+		new_srtt = @choose_defined(@cast(sk, "tcp_sock")->srtt_us,
+					   @cast(sk, "tcp_sock")->srtt)
 		if( always_update || (srtt[key] != new_srtt) ){
 			srtt[key] = new_srtt
 			packet_updated = 1
