@@ -1,0 +1,8 @@
+set test "string_quoted"
+if {![installtest_p]} { untested $test; return }
+
+set ::result_string {""
+"hello world"
+"hello\nworld"
+"\"hello\nworld\""}
+stap_run2 $srcdir/$subdir/$test.stp

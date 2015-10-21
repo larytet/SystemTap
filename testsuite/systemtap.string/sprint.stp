@@ -1,7 +1,4 @@
 # Test of sprint() to 
-#
-# Use of this function is probably never a good idea
-# and is discouraged. Nevertheless, we still support it.
 
 probe begin {
 	a = "hello"

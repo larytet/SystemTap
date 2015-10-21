@@ -1,5 +1,5 @@
 // Standard string functions tapset.
-// Copyright (C) 2009-2014 Red Hat, Inc.
+// Copyright (C) 2009-2015 Red Hat, Inc.
 //
 // This file is part of systemtap, and is free software.  You can
 // redistribute it and/or modify it under the terms of the GNU General
@@ -174,4 +174,22 @@ function strtol:long(str:string, base:long)
 function isdigit:long(str:string)
 %{ /* pure */ /* unprivileged */ /* unmodified-fnargs */
  	STAP_RETURN(isdigit(STAP_ARG_str[0]));
+%}
+
+
+/**
+ * sfunction string_quoted - Quotes a given string
+ * @str: The kernel address to retrieve the string from
+ *
+ * Description: Returns the quoted string version of the given string,
+ * with characters where any ASCII characters that are not printable
+ * are replaced by the corresponding escape sequence in the returned
+ * string. Note that the string will be surrounded by double quotes.
+ */
+function string_quoted:string (str:string)
+%{ /* pure */ /* unmodified-fnargs */
+  /* This can't fail, since the input string is already in stap context space. */
+  (void) _stp_text_str(STAP_RETVALUE,
+                       (char *)(uintptr_t)STAP_ARG_str,
+                       MAXSTRINGLEN, MAXSTRINGLEN, 1, 0);
 %}

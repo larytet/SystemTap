@@ -1,4 +1,8 @@
-* What's new in version 3.0, 2015-10-08
+* What's new in version 3.0
+
+- New tapset function string_quoted() to quote and \-escape general strings.
+  String $context variables that are pretty-printed are now processed with
+  such a quotation engine, falling back to a 0x%x (hex pointer) on errors.
 
 - Functions get_mmap_args() and get_32mmap_args() got deprecated.
 

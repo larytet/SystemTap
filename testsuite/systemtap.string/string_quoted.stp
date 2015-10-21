@@ -1,0 +1,7 @@
+probe oneshot {
+  println(string_quoted(""));
+  println(string_quoted("hello world"));
+  println(string_quoted("hello\nworld"));
+  println(string_quoted("\"hello\nworld\""));
+}
+
