@@ -2112,7 +2112,10 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
 	{
 	  vardecl* d = find_var (array->name, e->indexes.size (), array->tok);
 	  if (d)
+          {
 	    array->referent = d;
+            array->name = d->name;
+          }
 	  else
 	    {
 	      stringstream msg;
@@ -2195,7 +2198,10 @@ symresolution_info::visit_symbol (symbol* e)
 
   vardecl* d = find_var (e->name, 0, e->tok);
   if (d)
+  {
     e->referent = d;
+    e->name = d->name;
+  }
   else
     {
       // new local
@@ -2247,7 +2253,10 @@ symresolution_info::visit_arrayindex (arrayindex* e, bool wildcard_ok)
 
       vardecl* d = find_var (array->name, e->indexes.size (), array->tok);
       if (d)
+      {
 	array->referent = d;
+        array->name = d->name;
+      }
       else
 	{
 	  stringstream msg;
@@ -2332,10 +2341,10 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 	}
 
   // search processed globals
-  string mangle = path_hash(tok->location.file->name);
+  string mname = detox_path(tok->location.file->name) + string(name);
   for (unsigned i=0; i<session.globals.size(); i++)
     if ((session.globals[i]->name == name) ||
-        (session.globals[i]->name == string(name) + mangle))
+        (session.globals[i]->name == mname))
       {
         if (! session.suppress_warnings)
           {

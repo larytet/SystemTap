@@ -538,13 +538,18 @@ const string cmdstr_quoted(const string& cmd)
 }
 
 const string
-path_hash(const string& str)
+detox_path(const string& str)
 {
-  // maybe use http://en.cppreference.com/w/cpp/utility/hash?
   ostringstream hash;
-  hash << hex << "_";
+  hash << hex << "__private_";
   for (int i=0; i<int(str.length()); i++)
-    hash << int(str[i]);
+    if (isalnum(str[i]))
+      hash << str[i];
+    else if (string("-./_").find(str[i]) != string::npos)
+      hash << "_";
+    else
+      hash << int(str[i]);
+    hash << "_";
   return hash.str();
 }
 

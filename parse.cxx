@@ -2194,8 +2194,12 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fnam
 	if (globals[i]->name == t->content)
 	  throw PARSE_ERROR (_("duplicate global name"));
 
+      string name = t->content;
+      if (priv)
+        name = detox_path(fname) + string(t->content);
+
       vardecl* d = new vardecl;
-      d->name = priv ? string(t->content) + path_hash(fname) : string(t->content);
+      d->name = name;
       d->tok = t;
       d->systemtap_v_conditional = systemtap_v_seen;
       globals.push_back (d);
