@@ -5,3 +5,13 @@ function get_mypriv_1()
 {
     return mypriv
 }
+
+private function nine()
+{
+    return 9
+}
+
+function ninegetter()
+{
+    return nine()
+}

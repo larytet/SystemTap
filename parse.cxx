@@ -167,8 +167,11 @@ private:
 
 private: // nonterminals
   void parse_probe (vector<probe*>&, vector<probe_alias*>&);
-  void parse_global (vector<vardecl*>&, vector<probe*>&, string & fname);
-  void parse_functiondecl (vector<functiondecl*>&);
+  void parse_private (vector<vardecl*>&, vector<probe*>&, string&, vector<functiondecl*>&);
+  void parse_global (vector<vardecl*>&, vector<probe*>&, string&);
+  void do_parse_global (vector<vardecl*>&, vector<probe*>&, string&, const token*, bool);
+  void parse_functiondecl (vector<functiondecl*>&, string&);
+  void do_parse_functiondecl (vector<functiondecl*>&, const token*, string&, bool);
   embeddedcode* parse_embeddedcode ();
   probe_point* parse_probe_point ();
   literal_string* consume_string_literals (const token*);
@@ -1862,7 +1865,12 @@ parser::parse ()
 	      context = con_probe;
 	      parse_probe (f->probes, f->aliases);
 	    }
-	  else if (t->type == tok_keyword && (t->content == "global" || t->content == "private"))
+	  else if (t->type == tok_keyword && t->content == "private")
+	    {
+	      context = con_unknown;
+	      parse_private (f->globals, f->probes, f->name, f->functions);
+	    }
+	  else if (t->type == tok_keyword && t->content == "global")
 	    {
 	      context = con_global;
 	      parse_global (f->globals, f->probes, f->name);
@@ -1870,7 +1878,7 @@ parser::parse ()
 	  else if (t->type == tok_keyword && t->content == "function")
 	    {
 	      context = con_function;
-	      parse_functiondecl (f->functions);
+	      parse_functiondecl (f->functions, f->name);
 	    }
           else if (t->type == tok_embedded)
 	    {
@@ -2174,19 +2182,53 @@ parser::parse_statement ()
   return ret;
 }
 
+void
+parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, string & fname, vector<functiondecl*>& functions)
+{
+  const token* t = next ();
+  if (! t->type == tok_keyword && t->content == "private")
+    throw PARSE_ERROR (_("expected 'private'"));
+  swallow ();
+  t = next ();
+  if (t->type == tok_keyword && t->content == "function")
+  {
+    swallow ();
+    context = con_function;
+    do_parse_functiondecl(functions, t, fname, true);
+  }
+  else if (t->type == tok_identifier)
+  {
+    context = con_global;
+    do_parse_global(globals, probes, fname, t, true);
+  }
+  else
+    throw PARSE_ERROR (_("expected 'function' or identifier"));
+}
 
 void
-parser::parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fname)
+parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes, string & fname)
 {
   const token* t0 = next ();
-  bool priv = t0->content == "private";
-  if (! (t0->type == tok_keyword && (t0->content == "global" || t0->content == "private")))
+  if (! (t0->type == tok_keyword && t0->content == "global"))
     throw PARSE_ERROR (_("expected 'global' or 'private'"));
   swallow ();
+  do_parse_global(globals, probes, fname, 0, false);
+}
 
+void
+parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fname, const token* t0, bool priv)
+{
+  bool iter0 = true;
+  const token* t;
   while (1)
     {
-      const token* t = next ();
+      if (iter0 && priv)
+        t = t0;
+      else
+      {
+        t = next ();
+        iter0 = false;
+      }
       if (! (t->type == tok_identifier))
         throw PARSE_ERROR (_("expected identifier"));
 
@@ -2253,13 +2295,18 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fnam
 }
 
 void
-parser::parse_functiondecl (vector<functiondecl*>& functions)
+parser::parse_functiondecl (vector<functiondecl*>& functions, string & fname)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "function"))
     throw PARSE_ERROR (_("expected 'function'"));
   swallow ();
+  do_parse_functiondecl(functions, t, fname, false);
+}
 
+void
+parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t, string & fname, bool priv)
+{
   t = next ();
   if (! (t->type == tok_identifier)
       && ! (t->type == tok_keyword
@@ -2270,8 +2317,12 @@ parser::parse_functiondecl (vector<functiondecl*>& functions)
     if (functions[i]->name == t->content)
       throw PARSE_ERROR (_("duplicate function name"));
 
+  string name = t->content;
+  if (priv)
+    name = detox_path(fname) + string(t->content);
+
   functiondecl *fd = new functiondecl ();
-  fd->name = t->content;
+  fd->name = name;
   fd->tok = t;
 
   t = next ();

@@ -2406,7 +2406,10 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
     {
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
-        if (f->functions[j]->name == name)
+      {
+        string mname = detox_path(tok->location.file->name) + string(name);
+        if ((f->functions[j]->name == name) ||
+            (f->functions[j]->name == mname))
           {
             if (f->functions[j]->formal_args.size() == arity)
               {
@@ -2427,6 +2430,7 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
                                     name.c_str(), f->functions[j]->formal_args.size()),
                                     tok, f->functions[j]->tok);
           }
+      }
     }
 
   return 0;
