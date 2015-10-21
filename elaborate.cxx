@@ -2034,12 +2034,14 @@ static void create_monitor_function(systemtap_session& s)
          "if (stats->count) {\n"
          "int64_t avg = _stp_div64 (NULL, stats->sum, stats->count);\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-         "\"index: %zu, state: %s, hits: %lld, cycles: %lldmin/%lldavg/%lldmax, \",\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
+         "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
          "p->index, p->cond_enabled ? \"on\" : \"off\", (long long) stats->count,\n"
          "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
          "} else {\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-         "\"index: %zu, state: %s, hits: %d, cycles: %dmin/%davg/%dmax, \",\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
+         "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
          "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
          "STAP_RETURN(_monitor_buf);\n";
   ec->code = code;
@@ -2098,39 +2100,49 @@ static void monitor_mode_read(systemtap_session& s)
   code << "probe procfs(\"monitor_status\").read.maxsize(8192) {" << endl;
   code << "elapsed = (jiffies()-__monitor_module_start)/HZ()" << endl;
   code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
-  code << "$value .= sprintf(\"uptime: %d:%d:%d\\n\", hrs, mins, secs)" << endl;
-  code << "$value .= sprintf(\"uid: %d\\n\", uid())" << endl;
-  code << "$value .= sprintf(\"memory: %s\\n\", module_size())" << endl;
-  code << "$value .= sprintf(\"module_name: %s\\n\", module_name())" << endl;
+  code << "$value .= sprintf(\"{\\n\")" << endl;
+  code << "$value .= sprintf(\"\\\"uptime\\\": \\\"%d:%d:%d\\\",\\n\", hrs, mins, secs)" << endl;
+  code << "$value .= sprintf(\"\\\"uid\\\": \\\"%d\\\",\\n\", uid())" << endl;
+  code << "$value .= sprintf(\"\\\"memory\\\": \\\"%s\\\",\\n\", module_size())" << endl;
+  code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
 
-  code << "$value .= sprintf(\"globals:\\n\")" << endl;
+  code << "$value .= sprintf(\"\\\"globals\\\": [\\n\")" << endl;
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
       it != s.globals.end(); ++it)
     {
       if ((*it)->synthetic) continue;
 
-      code << "$value .= sprintf(\"global %s\", \"" << (*it)->name << "\")" << endl;
+      if (it != s.globals.begin())
+        code << "$value .= sprintf(\",\\n\")" << endl;
+
+      code << "$value .= sprintf(\"{\\\"%s\\\"\", \"" << (*it)->name << "\")" << endl;
       if ((*it)->arity == 0)
-        code << "$value .= sprint(\": \", " << (*it)->name << ")" << endl;
+        code << "$value .= sprint(\": \", " << (*it)->name << ", \"}\")" << endl;
       else if ((*it)->arity > 0)
         code << "$value .= sprintf(\"(%d)\", " << (*it)->maxsize << ")" << endl;
-      code << "$value .= sprint(\"\\n\")" << endl;
     }
+  code << "$value .= sprintf(\"\\n],\\n\")" << endl;
 
-  code << "$value .= sprintf(\"probes: \\n\")" << endl;
+  code << "$value .= sprintf(\"\\\"probes\\\": [\\n\")" << endl;
   for (vector<derived_probe*>::const_iterator it = s.probes.begin();
       it != s.probes.end(); ++it)
     {
+      if (it != s.probes.begin())
+        code << "$value .= sprintf(\",\\n\")" << endl;
+
       // Get first 20 characters of probe point without condition
       istringstream probe_point((*it)->sole_location()->str());
       string name;
       probe_point >> name;
       name = lex_cast_qstring(name).substr(0, 20);
 
-      code << "$value .= sprintf(\"%s\", __monitor_data_function_probes("
+      code << "$value .= sprintf(\"{%s\", __monitor_data_function_probes("
            << it-s.probes.begin() << "))" << endl;
-      code << "$value .= sprintf(\"probe: %s\\n\", " << name << ")" << endl;
+      code << "$value .= sprintf(\"\\\"probe\\\": \\\"%s\\\"}\", " << name << ")" << endl;
     }
+  code << "$value .= sprintf(\"\\n]\\n\")" << endl;
+
+  code << "$value .= sprintf(\"}\\n\")" << endl;
 
   code << "}" << endl;
 
