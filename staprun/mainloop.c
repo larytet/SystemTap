@@ -16,6 +16,7 @@
 #include <sys/select.h>
 #include <search.h>
 #include <wordexp.h>
+#include <json-c/json.h>
 
 
 #define WORKAROUND_BZ467568 1  /* PR 6964; XXX: autoconf when able */
@@ -30,6 +31,36 @@ static int target_pid_failed_p = 0;
 /* Setup by setup_main_signals, used by signal_thread to notify the
    main thread of interruptable events. */
 static pthread_t main_thread;
+
+static int comp_avg(const void *p1, const void *p2)
+{
+  json_object *j1 = *(json_object**)p1;
+  json_object *j2 = *(json_object**)p2;
+  json_object *avg1, *avg2;
+  json_object_object_get_ex(j1, "avg", &avg1);
+  json_object_object_get_ex(j2, "avg", &avg2);
+  return json_object_get_int(avg1) - json_object_get_int(avg2);
+}
+
+/*static int comp_name(const void *p1, const void *p2)*/
+/*{*/
+  /*json_object *j1 = *(json_object**)p1;*/
+  /*json_object *j2 = *(json_object**)p2;*/
+  /*json_object *avg1, *avg2;*/
+  /*json_object_object_get_ex(j1, "probe", &avg1);*/
+  /*json_object_object_get_ex(j2, "probe", &avg2);*/
+  /*return strcmp(json_object_get_string(avg1), json_object_get_string(avg2));*/
+/*}*/
+
+/*static int comp_hits(const void *p1, const void *p2)*/
+/*{*/
+  /*json_object *j1 = *(json_object**)p1;*/
+  /*json_object *j2 = *(json_object**)p2;*/
+  /*json_object *avg1, *avg2;*/
+  /*json_object_object_get_ex(j1, "hits", &avg1);*/
+  /*json_object_object_get_ex(j2, "hits", &avg2);*/
+  /*return json_object_get_int(avg1) - json_object_get_int(avg2);*/
+/*}*/
 
 static void *signal_thread(void *arg)
 {
@@ -604,30 +635,41 @@ int stp_main_loop(void)
 
   /* In monitor mode, we must timeout pselect to poll the monitor
    * interface. */
-  ts.tv_sec = 5;
-  ts.tv_nsec = 0;
   if (monitor)
-    timeout = &ts;
+    {
+      ts.tv_sec = 5;
+      ts.tv_nsec = 0;
+      timeout = &ts;
+    }
 
 
   /* handle messages from control channel */
   while (1) {
     if (monitor)
       {
-        char ch;
-        char buf[PATH_MAX];
+        char json[8192];
+        char path[PATH_MAX];
         FILE *monitor_fp;
+        size_t nb;
 
-        if (sprintf_chk(buf, "/proc/systemtap/%s/monitor_status", modname))
+        if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
           cleanup_and_exit (1, 0);
 
-        monitor_fp = fopen(buf, "r");
+        monitor_fp = fopen(path, "r");
 
         if (monitor_fp)
           {
-            while ((ch = getc(monitor_fp)) != EOF)
-              printf("%c", ch);
+            nb = fread(json, sizeof(char), 8192, monitor_fp);
+            if (!nb)
+              cleanup_and_exit (1, 0);
+
             fclose(monitor_fp);
+            json_object *jso = json_tokener_parse(json);
+            json_object *probes;
+            json_object_object_get_ex(jso, "probes", &probes);
+            json_object_array_sort(probes, comp_avg);
+            printf("%s\n", json_object_get_string(probes));
+            json_object_put(jso); // Free allocated memory
           }
       }
 
