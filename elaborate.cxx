@@ -2040,8 +2040,8 @@ static void create_monitor_function(systemtap_session& s)
          "(long long) stats->min, (long long) avg, (long long) stats->max);\n"
          "} else {\n"
          "snprintf(_monitor_buf, STAP_MONITOR_READ,\n"
-         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %lld, "
-         "\\\"min\\\": %lld, \\\"avg\\\": %lld, \\\"max\\\": %lld, \",\n"
+         "\"\\\"index\\\": %zu, \\\"state\\\": \\\"%s\\\", \\\"hits\\\": %d, "
+         "\\\"min\\\": %d, \\\"avg\\\": %d, \\\"max\\\": %d, \",\n"
          "p->index, p->cond_enabled ? \"on\" : \"off\", 0, 0, 0, 0);}}\n"
          "STAP_RETURN(_monitor_buf);\n";
   ec->code = code;
