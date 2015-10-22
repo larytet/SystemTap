@@ -541,7 +541,6 @@ const string
 detox_path(const string& str)
 {
   ostringstream hash;
-  hash << hex << "__private_";
   for (int i=0; i<int(str.length()); i++)
     if (isalnum(str[i]))
       hash << str[i];

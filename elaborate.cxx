@@ -2341,10 +2341,12 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 	}
 
   // search processed globals
-  string mname = detox_path(tok->location.file->name) + string(name);
+  string gname = "__global_" + string(name);
+  string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
   for (unsigned i=0; i<session.globals.size(); i++)
-    if ((session.globals[i]->name == name) ||
-        (session.globals[i]->name == mname))
+  {
+    if ((session.globals[i]->name == gname) ||
+        (session.globals[i]->name == pname))
       {
         if (! session.suppress_warnings)
           {
@@ -2360,6 +2362,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
         session.globals[i]->set_arity (arity, tok);
         return session.globals[i];
       }
+  }
 
   // search library globals
   for (unsigned i=0; i<session.library_files.size(); i++)
@@ -2368,7 +2371,8 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       for (unsigned j=0; j<f->globals.size(); j++)
         {
           vardecl* g = f->globals[j];
-          if (g->name == name)
+          /*if (g->name == name)*/
+          if (g->name == gname)
             {
 	      g->set_arity (arity, tok);
 
@@ -2407,9 +2411,9 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
       {
-        string mname = detox_path(tok->location.file->name) + string(name);
+        string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
         if ((f->functions[j]->name == name) ||
-            (f->functions[j]->name == mname))
+            (f->functions[j]->name == pname))
           {
             if (f->functions[j]->formal_args.size() == arity)
               {

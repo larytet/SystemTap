@@ -2247,9 +2247,9 @@ parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & f
 	if (globals[i]->name == t->content)
 	  throw PARSE_ERROR (_("duplicate global name"));
 
-      string name = t->content;
+      string name = "__global_" + string(t->content);
       if (priv)
-        name = detox_path(fname) + string(t->content);
+        name = "__private_" + detox_path(fname) + string(t->content);
 
       vardecl* d = new vardecl;
       d->name = name;
@@ -2330,7 +2330,7 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
 
   string name = t->content;
   if (priv)
-    name = detox_path(fname) + string(t->content);
+    name = "__private_" + detox_path(fname) + string(t->content);
 
   functiondecl *fd = new functiondecl ();
   fd->name = name;
