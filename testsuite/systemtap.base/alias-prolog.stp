@@ -1,0 +1,23 @@
+/*
+ * alias-prolog.stp
+ *
+ * Check prologue style alias
+ */
+
+probe foo = begin { }
+
+probe begin
+{
+    println("systemtap starting probe")
+    exit()
+}
+
+probe end1 = end
+{
+    println("systemtap ending probe")
+}
+
+probe end1
+{
+    println("systemtap test success")
+}
