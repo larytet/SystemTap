@@ -184,11 +184,11 @@ static int _stp_convert_utf32(char* buf, int size, u32 c)
 	int i, n;
 
 	/* 0xxxxxxx */
-	if (c < 0x7F)
+	if (c <= 0x7F)
 		n = 1;
 
 	/* 110xxxxx 10xxxxxx */
-	else if (c < 0x7FF)
+	else if (c <= 0x7FF)
 		n = 2;
 
 	/* UTF-16 surrogates are not valid by themselves.
@@ -198,11 +198,11 @@ static int _stp_convert_utf32(char* buf, int size, u32 c)
 		return -EINVAL;
 
 	/* 1110xxxx 10xxxxxx 10xxxxxx */
-	else if (c < 0xFFFF)
+	else if (c <= 0xFFFF)
 		n = 3;
 
 	/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
-	else if (c < 0x10FFFF)
+	else if (c <= 0x10FFFF)
 		n = 4;
 
 	/* The original UTF-8 design could go up to 0x7FFFFFFF, but RFC 3629
