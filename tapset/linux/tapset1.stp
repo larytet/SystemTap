@@ -15,3 +15,14 @@ function ninegetter()
 {
     return nine()
 }
+
+private global eleven = 11
+
+function elevengetter()
+{
+    return eleven
+}
+
+global twenty = 20
+
+

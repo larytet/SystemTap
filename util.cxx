@@ -545,11 +545,9 @@ detox_path(const string& str)
   for (int i=0; i<int(str.length()); i++)
     if (isalnum(str[i]))
       hash << str[i];
-    else if (string("-./_").find(str[i]) != string::npos)
-      hash << "_";
     else
-      hash << int(str[i]);
-    hash << "_";
+      hash << "_";
+  hash << "_";
   return hash.str();
 }
 

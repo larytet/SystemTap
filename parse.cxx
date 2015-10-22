@@ -2196,6 +2196,17 @@ parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, strin
     context = con_function;
     do_parse_functiondecl(functions, t, fname, true);
   }
+  else if (t->type == tok_keyword && t->content == "global")
+  {
+    swallow ();
+    context = con_global;
+    t = next ();
+    if (! t->type == tok_identifier)
+      throw PARSE_ERROR (_("expected identifier"));
+    do_parse_global(globals, probes, fname, t, true);
+  }
+  // The `private <identifier>` is an acceptable shorthand
+  // for `private global <identifier>` per above.
   else if (t->type == tok_identifier)
   {
     context = con_global;
