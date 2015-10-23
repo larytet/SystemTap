@@ -2345,7 +2345,8 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
   string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
   for (unsigned i=0; i<session.globals.size(); i++)
   {
-    if ((session.globals[i]->name == gname) ||
+    if ((session.globals[i]->name == name) ||
+        (session.globals[i]->name == gname) ||
         (session.globals[i]->name == pname))
       {
         if (! session.suppress_warnings)
