@@ -551,6 +551,13 @@ detox_path(const string& str)
 }
 
 const string
+strip_global(const string& str)
+{
+  string s = string(str);
+  return s.substr(0, 9) == "__global_" ? s.erase(0, 9) : s;
+}
+
+const string
 cmdstr_join(const vector<string>& cmds)
 {
   if (cmds.empty())

@@ -1908,7 +1908,7 @@ void add_global_var_display (systemtap_session& s)
       stringstream code;
       code << "probe end {" << endl;
 
-      string format = l->name;
+      string format = strip_global(l->name);
 
       string indexes;
       string foreach_value;
@@ -1944,8 +1944,8 @@ void add_global_var_display (systemtap_session& s)
       else if (l->type == pe_stats)
 	{
 	  // PR7053: Check scalar globals for empty aggregate
-	  code << "if (@count(" << l->name << ") == 0)" << endl;
-	  code << "printf(\"" << l->name << " @count=0x0\\n\")" << endl;
+	  code << "if (@count(" << strip_global(l->name) << ") == 0)" << endl;
+	  code << "printf(\"" << strip_global(l->name) << " @count=0x0\\n\")" << endl;
 	  code << "else" << endl;
 	}
 
@@ -1967,7 +1967,8 @@ void add_global_var_display (systemtap_session& s)
       code << "printf (\"" << format << "\"";
 
       // Feed indexes to the printf, and include them in the value
-      string value = !foreach_value.empty() ? foreach_value : (string)l->name;
+      /*string value = !foreach_value.empty() ? foreach_value : (string)l->name;*/
+      string value = !foreach_value.empty() ? foreach_value : strip_global(l->name);
       if (!l->index_types.empty())
 	{
 	  code << "," << indexes;
