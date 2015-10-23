@@ -58,7 +58,7 @@ probe kernel.trace("net_dev_queue") {
   skb_queue_start_t[$skb] = gettimeofday_ns();
 }
 
-probe kernel.trace("net_dev_start_xmit"), kernel.trace("net_dev_xmit") {
+probe kernel.trace("net_dev_start_xmit") ?, kernel.trace("net_dev_xmit") {
   t = gettimeofday_ns();
   st = skb_queue_start_t[$skb]
   if (st){
