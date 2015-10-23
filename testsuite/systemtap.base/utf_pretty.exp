@@ -3,7 +3,7 @@ set test "utf_pretty"
 if {! [installtest_p]} { untested "$test"; return }
 if {! [uprobes_p]} { untested "$test"; return }
 
-set ::result_string {{.c8='s', .c16='t', .c32='p', .s8="stapΑΩ☺😈", .s16="stapΑΩ☺😈", .s32="stapΑΩ☺😈"}}
+set ::result_string {{.c8='s', .c16='t', .c32='p', .s8="stap\u0391\u03A9\u263A\U0001F608", .s16="stap\u0391\u03A9\u263A\U0001F608", .s32="stap\u0391\u03A9\u263A\U0001F608"}}
 
 set srcfile "$srcdir/$subdir/$test.cxx"
 set stpfile "$srcdir/$subdir/$test.stp"

@@ -48,8 +48,10 @@ if { $res != "" } {
 
 foreach runtime [get_runtime_list] {
   if {$runtime != ""} {
+    # use module name of 10 chars + \0 to fit in MAXSTRINGLEN
+    set module [string range $test 0 9]
     stap_run3 "$test ($runtime)" "$stpfile" -c "$exefile" \
-      -DMAXSTRINGLEN=11 --runtime=$runtime
+      -DMAXSTRINGLEN=11 --runtime=$runtime -m$module
   } else {
     stap_run3 $test "$stpfile" -c "$exefile" -DMAXSTRINGLEN=11
   }
