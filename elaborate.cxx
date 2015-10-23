@@ -1939,7 +1939,7 @@ void add_global_var_display (systemtap_session& s)
               foreach_value = "__val";
               code << foreach_value << " = ";
             }
-	  code << "[" << indexes << "] in " << l->name << "-)" << endl;
+	  code << "[" << indexes << "] in " << strip_global(l->name) << "-)" << endl;
 	}
       else if (l->type == pe_stats)
 	{
