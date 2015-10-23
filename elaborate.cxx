@@ -1967,7 +1967,6 @@ void add_global_var_display (systemtap_session& s)
       code << "printf (\"" << format << "\"";
 
       // Feed indexes to the printf, and include them in the value
-      /*string value = !foreach_value.empty() ? foreach_value : (string)l->name;*/
       string value = !foreach_value.empty() ? foreach_value : strip_global(l->name);
       if (!l->index_types.empty())
 	{
