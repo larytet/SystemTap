@@ -1,0 +1,13 @@
+# Check prologue style alias
+
+set test "alias-prolog"
+if {![installtest_p]} { untested "$test"; return }
+
+foreach runtime [get_runtime_list] {
+    if {$runtime != ""} {
+	stap_run $srcdir/$subdir/$test.stp no_load $all_pass_string \
+	    --runtime=$runtime
+    } else {
+	stap_run $srcdir/$subdir/$test.stp no_load $all_pass_string
+    }
+}

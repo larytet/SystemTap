@@ -109,6 +109,9 @@ static int stp_pthread_cond_init_shared(pthread_cond_t *cond);
 #define preempt_disable() 0
 #define preempt_enable_no_resched() 0
 
+/* stapdyn doesn't deal with mixed-architectures yet.  */
+#define _stp_is_compat_task() 0
+
 static int _stp_sched_getcpu(void)
 {
     /* We prefer sched_getcpu directly, of course.  It wasn't added until glibc

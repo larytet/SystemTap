@@ -1,0 +1,5 @@
+#! stap -gp4
+
+function foo (a) %{ /* stable */ /* pure */ /* unmodified-fnargs */ STAP_RETURN(STAP_ARG_a); %}
+function foo2() %{ /* stable */ /* pure */ /* unmodified-fnargs */ STAP_RETURN("hi"); %}
+probe begin { log(foo("hello")) log(foo2()) }

@@ -4591,7 +4591,7 @@ void semantic_pass_opt7(systemtap_session& s)
       functiondecl* fn = (*it).second;
       stable_analysis sa;
       fn->body->visit(&sa);
-      if (sa.stable)
+      if (sa.stable && fn->formal_args.size() == 0)
         stable_fcs.insert(fn->name);
     }
 

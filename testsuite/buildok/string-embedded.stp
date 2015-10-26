@@ -12,4 +12,5 @@ probe begin
     println(str_replace("abc", "a", "A"))
     println(strtol("123", 10))
     println(isdigit("123"))
+    println(string_quoted(""))
 }

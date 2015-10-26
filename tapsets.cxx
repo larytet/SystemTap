@@ -3464,7 +3464,7 @@ dwarf_pretty_print::print_chars (Dwarf_Die* start_type, target_symbol* e,
       return false;
     }
 
-  string function = userspace_p ? "user_string2" : "kernel_string2";
+  string function = userspace_p ? "user_string_quoted" : "kernel_string_quoted";
   Dwarf_Word size = (Dwarf_Word) -1;
   dwarf_formudata (dwarf_attr_integrate (&type, DW_AT_byte_size, &attr), &size);
   switch (size)
@@ -3481,7 +3481,7 @@ dwarf_pretty_print::print_chars (Dwarf_Die* start_type, target_symbol* e,
       return false;
     }
 
-  if (push_deref (pf, "\"%s\"", e))
+  if (push_deref (pf, "%s", e))
     {
       // steal the last arg for a string access
       assert (!pf->args.empty());
@@ -3489,9 +3489,6 @@ dwarf_pretty_print::print_chars (Dwarf_Die* start_type, target_symbol* e,
       fcall->tok = e->tok;
       fcall->function = function;
       fcall->args.push_back (pf->args.back());
-      expression *err_msg = new literal_string (string("<unknown>"));
-      err_msg->tok = e->tok;
-      fcall->args.push_back (err_msg);
       pf->args.back() = fcall;
     }
   return true;

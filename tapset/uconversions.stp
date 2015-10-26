@@ -1,5 +1,5 @@
 // userspace conversions tapset
-// Copyright (C) 2005-2014 Red Hat Inc.
+// Copyright (C) 2005-2015 Red Hat Inc.
 // Copyright (C) 2007 Intel Corporation.
 //
 // This file is part of systemtap, and is free software.  You can
@@ -104,8 +104,11 @@ function user_string2_warn:string (addr:long, warn_msg:string) {
  * returned as a string, without double quotes.
  */
 function user_string_quoted:string (addr:long) {
-	return user_string_n2_quoted(addr, @MAXSTRINGLEN, @MAXSTRINGLEN)
+  try { return string_quoted(user_string(addr)) } catch { return sprintf("0x%x", addr) }
 }
+
+
+
 
 /**
  * sfunction user_string_n - Retrieves string of given length from user space
@@ -325,6 +328,20 @@ function user_string2_utf32:string (addr:long, err_msg:string) {
   try { return user_string_utf32(addr) } catch { return err_msg }
 }
 
+
+/**
+ * sfunction user_string_quoted_utf32 - Quote given user UTF-32 string.
+ * @addr: The user address to retrieve the string from
+ *
+ * Description: This function combines quoting as per @string_quoted
+ * and UTF-32 decoding as per @user_string_utf32.
+ */
+function user_string_quoted_utf32:string (addr:long) {
+  try { return string_quoted(user_string_utf32(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
+
+
 /**
  * sfunction user_string_utf16 - Retrieves UTF-16 string from user memory
  * @addr: The user address to retrieve the string from
@@ -387,6 +404,19 @@ deref_fault: /* branched to from deref_string() */
 function user_string2_utf16:string (addr:long, err_msg:string) {
   try { return user_string_utf16(addr) } catch { return err_msg }
 }
+
+
+/**
+ * sfunction user_string_quoted_utf16 - Quote given user UTF-16 string.
+ * @addr: The user address to retrieve the string from
+ *
+ * Description: This function combines quoting as per @string_quoted
+ * and UTF-16 decoding as per @user_string_utf16.
+ */
+function user_string_quoted_utf16:string (addr:long) {
+  try { return string_quoted(user_string_utf16(addr)) } catch { return sprintf("0x%x", addr) }
+}
+
 
 /**
  * sfunction user_char - Retrieves a char value stored in user space

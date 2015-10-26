@@ -50,6 +50,80 @@ static int _stp_vscnprintf(char *buf, size_t size, const char *fmt, va_list args
 }
 
 
+/**
+ * Decode a UTF-8 sequence into its codepoint.
+ *
+ * @param buf The input buffer.
+ * @param size The size of the input buffer.
+ * @param user Flag to mark user memory, vs kernel.
+ * @param c_ret The return pointer for the codepoint.
+ *
+ * @return The number of bytes consumed,
+ * 	   or -EFAULT for unreadable memory address.
+ */
+static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
+{
+	int c;
+	char b;
+	int i, n;
+
+	if (size <= 0)
+		return -EFAULT;
+
+	if (_stp_read_address(b, buf, (user ? USER_DS : KERNEL_DS)))
+		return -EFAULT;
+	++buf;
+	--size;
+
+	if ((b & 0xE0) == 0xC0 && size >= 1) {
+		/* 110xxxxx 10xxxxxx */
+		/* Two-byte UTF-8, one more byte to read.  */
+		n = 1;
+		c = b & 0x1F;
+	} else if ((b & 0xF0) == 0xE0 && size >= 2) {
+		/* 1110xxxx 10xxxxxx 10xxxxxx */
+		/* Three-byte UTF-8, two more bytes to read.  */
+		n = 2;
+		c = b & 0xF;
+	} else if ((b & 0xF8) == 0xF0 && size >= 3) {
+		/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
+		/* Four-byte UTF-8, three more bytes to read.  */
+		n = 3;
+		c = b & 0x7;
+	} else {
+		/* Return everything else verbatim, whether it's ASCII, longer
+		 * UTF-8 (against RFC 3629), invalid UTF-8, or just not enough
+		 * bytes left in the input buffer.  */
+		goto verbatim;
+	}
+
+	for (i = 0; i < n; ++i) {
+		char b2;
+		if (_stp_read_address(b2, buf, (user ? USER_DS : KERNEL_DS)))
+			return -EFAULT;
+		++buf;
+		--size;
+
+		if ((b2 & 0xC0) != 0x80) /* Bad continuation.  */
+			goto verbatim;
+
+		c = (c << 6) | (b2 & 0x3F);
+	}
+
+	if (0xD800 <= c && c <= 0xDFFF) /* UTF-16 surrogates.  */
+		goto verbatim;
+	if (c > 0x10FFFF) /* Exceeds RFC 3629.  */
+		goto verbatim;
+
+	/* Successfully consumed the continuation bytes.  */
+	*c_ret = c;
+	return 1 + n;
+
+verbatim:
+	*c_ret = (unsigned char) b;
+	return 1;
+}
+
 /** Return a printable text string.
  *
  * Takes a string, and any ASCII characters that are not printable are
@@ -68,7 +142,8 @@ static int _stp_vscnprintf(char *buf, size_t size, const char *fmt, va_list args
 static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			 int quoted, int user)
 {
-	char c = '\0', *out = outstr;
+	int c = 0, i;
+	char *out = outstr;
 
 	if (inlen <= 0 || inlen > MAXSTRINGLEN-1)
 		inlen = MAXSTRINGLEN-1;
@@ -79,14 +154,41 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 		*out++ = '"';
 	}
 
-	if (_stp_read_address(c, in, (user ? USER_DS : KERNEL_DS)))
-		goto bad;
-
-	while (c && inlen > 0 && outlen > 0) {
+	while (inlen > 0) {
 		int num = 1;
-		if (isprint(c) && isascii(c)
+
+		int n = _stp_decode_utf8(in, inlen, user, &c);
+		if (n <= 0)
+			goto bad;
+		if (c == 0 || outlen <= 0)
+			break;
+		in += n;
+		inlen -= n;
+
+		if (n == 1 && isprint(c) && isascii(c)
                     && c != '"' && c != '\\') /* quoteworthy characters */
                   *out++ = c;
+
+		else if (c > 0xFFFF) {
+			/* high unicode, print \UXXXXXXXX */
+			num = 10;
+			if (outlen < num)
+				break;
+			*out++ = '\\';
+			*out++ = 'U';
+			for (i = 7; i >= 0; --i)
+				*out++ = to_hex_digit((c >> (i * 4)) & 0xF);
+		}
+		else if (c > 0xFF || (n > 1 && c > 0x7F)) {
+			/* basic unicode, print \uXXXX */
+			num = 6;
+			if (outlen < num)
+				break;
+			*out++ = '\\';
+			*out++ = 'u';
+			for (i = 3; i >= 0; --i)
+				*out++ = to_hex_digit((c >> (i * 4)) & 0xF);
+		}
 		else {
 			switch (c) {
 			case '\a':
@@ -98,10 +200,10 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			case '\v':
 			case '"':
 			case '\\':
-				num = 2;
+				num = 2; // "\c"
 				break;
 			default:
-				num = 4;
+				num = 4; // "\ooo"
 				break;
 			}
 			
@@ -145,10 +247,6 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			}
 		}
 		outlen -= num;
-		inlen--;
-		in++;
-		if (_stp_read_address(c, in, (user ? USER_DS : KERNEL_DS)))
-			goto bad;
 	}
 
 	if (quoted) {
@@ -184,11 +282,11 @@ static int _stp_convert_utf32(char* buf, int size, u32 c)
 	int i, n;
 
 	/* 0xxxxxxx */
-	if (c < 0x7F)
+	if (c <= 0x7F)
 		n = 1;
 
 	/* 110xxxxx 10xxxxxx */
-	else if (c < 0x7FF)
+	else if (c <= 0x7FF)
 		n = 2;
 
 	/* UTF-16 surrogates are not valid by themselves.
@@ -198,11 +296,11 @@ static int _stp_convert_utf32(char* buf, int size, u32 c)
 		return -EINVAL;
 
 	/* 1110xxxx 10xxxxxx 10xxxxxx */
-	else if (c < 0xFFFF)
+	else if (c <= 0xFFFF)
 		n = 3;
 
 	/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
-	else if (c < 0x10FFFF)
+	else if (c <= 0x10FFFF)
 		n = 4;
 
 	/* The original UTF-8 design could go up to 0x7FFFFFFF, but RFC 3629
