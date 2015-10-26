@@ -35,12 +35,14 @@ probe begin
     printf("%X ", i)
   println(":")
   println(kernel_string_utf16(s))
+  println(kernel_string_quoted_utf16(s))
 
   s = utf32_addr();
   for (p = s; i = kernel_int(p) & 0xffffffff; p += 4)
     printf("%X ", i)
   println(":")
   println(kernel_string_utf32(s))
+  println(kernel_string_quoted_utf32(s))
 
   exit()
 }

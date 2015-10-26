@@ -3,10 +3,12 @@ set test "utf_user"
 if {! [installtest_p]} { untested "$test"; return }
 if {! [uprobes_p]} { untested "$test"; return }
 
-set ::result_string {73 74 61 70 391 3A9 263A D83D DE08 :
-stapΑΩ☺😈
-73 74 61 70 391 3A9 263A 1F608 :
-stapΑΩ☺😈}
+set utf16_chars {73 74 61 70 7F 80 391 3A9 7FF 800 263A FFFF D800 DC00 D83D DE08 DBFF DFFF}
+set utf32_chars {73 74 61 70 7F 80 391 3A9 7FF 800 263A FFFF 10000 1F608 10FFFF}
+set raw_result {stapΑΩ߿ࠀ☺￿𐀀😈􏿿}
+set quoted_result {"stap\177\u0080\u0391\u03A9\u07FF\u0800\u263A\uFFFF\U00010000\U0001F608\U0010FFFF"}
+
+set ::result_string "$utf16_chars :\n$raw_result\n$quoted_result\n$utf32_chars :\n$raw_result\n$quoted_result"
 
 set srcfile "$srcdir/$subdir/$test.c"
 set stpfile "$srcdir/$subdir/$test.stp"

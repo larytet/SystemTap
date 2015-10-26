@@ -5,11 +5,13 @@ probe process.function("main")
     printf("%X ", i)
   println(":")
   println(user_string_utf16(s))
+  println(user_string_quoted_utf16(s))
 
   s = $utf32_string;
   for (p = s; i = user_int(p) & 0xffffffff; p += 4)
     printf("%X ", i)
   println(":")
   println(user_string_utf32(s))
+  println(user_string_quoted_utf32(s))
 }
 
