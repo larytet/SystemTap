@@ -2,7 +2,7 @@ SYSTEMTAP EXAMPLES INDEX BY KEYWORD
 (see also index.txt)
 
 
-For systemtap version 2.9.
+For systemtap version 3.0.
 
 = _BEST =
 
@@ -338,6 +338,16 @@ keywords: _best profiling backtrace
 
 
 = CALLGRAPH =
+
+general/callgraph.stp - Callgraph Tracing
+keywords: simple trace callgraph
+
+  Print a timed per-thread microsecond-timed nested callgraph.	The
+  first parameter names the function probe points to trace.
+
+  # stap callgraph.stp 'kernel.function("*@fs/proc*.c")' -c "cat \
+  /proc/sys/vm/* || true"
+
 
 general/para-callgraph-verbose.stp - Callgraph Tracing with Verbose Arguments
 keywords: trace callgraph
@@ -2487,6 +2497,16 @@ keywords: signals
 
 = SIMPLE =
 
+general/callgraph.stp - Callgraph Tracing
+keywords: simple trace callgraph
+
+  Print a timed per-thread microsecond-timed nested callgraph.	The
+  first parameter names the function probe points to trace.
+
+  # stap callgraph.stp 'kernel.function("*@fs/proc*.c")' -c "cat \
+  /proc/sys/vm/* || true"
+
+
 general/helloworld.stp - SystemTap "Hello World" Program
 keywords: _best simple
 
@@ -3016,6 +3036,16 @@ keywords: process scheduler time tracepoint
 
 
 = TRACE =
+
+general/callgraph.stp - Callgraph Tracing
+keywords: simple trace callgraph
+
+  Print a timed per-thread microsecond-timed nested callgraph.	The
+  first parameter names the function probe points to trace.
+
+  # stap callgraph.stp 'kernel.function("*@fs/proc*.c")' -c "cat \
+  /proc/sys/vm/* || true"
+
 
 general/para-callgraph-verbose.stp - Callgraph Tracing with Verbose Arguments
 keywords: trace callgraph
