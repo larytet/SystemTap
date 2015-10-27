@@ -38,9 +38,9 @@ int main()
 
   chmod((char *)-1, 0644);
 #ifdef __s390__
-  //staptest// chmod ([7]?[f]+, 0644) = -NNNN (EFAULT)
+  //staptest// chmod (0x[7]?[f]+, 0644) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[chmod (!!!!fchmodat (AT_FDCWD, ]]]][f]+, 0644[[[[, 0x0]]]]?) = -NNNN (EFAULT)
+  //staptest// [[[[chmod (!!!!fchmodat (AT_FDCWD, ]]]]0x[f]+, 0644[[[[, 0x0]]]]?) = -NNNN (EFAULT)
 #endif
 
   fchmod(-1, 0644);
@@ -49,9 +49,9 @@ int main()
 #if GLIBC_SUPPORT
   fchmodat(AT_FDCWD, (char *)-1, 0644, 0);
 #ifdef __s390__
-  //staptest// fchmodat (AT_FDCWD, [7]?[f]+, 0644) = -NNNN (EFAULT)
+  //staptest// fchmodat (AT_FDCWD, 0x[7]?[f]+, 0644) = -NNNN (EFAULT)
 #else
-  //staptest// fchmodat (AT_FDCWD, [f]+, 0644) = -NNNN (EFAULT)
+  //staptest// fchmodat (AT_FDCWD, 0x[f]+, 0644) = -NNNN (EFAULT)
 #endif
 #endif
 
@@ -72,9 +72,9 @@ int main()
 
   chown((char *)-1, 5000, 5001);
 #ifdef __s390__
-  //staptest// chown ([7]?[f]+, 5000, 5001) = -NNNN (EFAULT)
+  //staptest// chown (0x[7]?[f]+, 5000, 5001) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[chown (!!!!fchownat (AT_FDCWD, ]]]][f]+, 5000, 5001[[[[, 0x0]]]]?) = -NNNN (EFAULT)
+  //staptest// [[[[chown (!!!!fchownat (AT_FDCWD, ]]]]0x[f]+, 5000, 5001[[[[, 0x0]]]]?) = -NNNN (EFAULT)
 #endif
 
   chown("foobar", 5000, -1);
@@ -95,9 +95,9 @@ int main()
 
   fchownat(AT_FDCWD, (char *)-1, 5002, -1, 0);
 #ifdef __s390__
-  //staptest// fchownat (AT_FDCWD, [7]?[f]+, 5002, -1, 0x0) = -NNNN (EFAULT)
+  //staptest// fchownat (AT_FDCWD, 0x[7]?[f]+, 5002, -1, 0x0) = -NNNN (EFAULT)
 #else
-  //staptest// fchownat (AT_FDCWD, [f]+, 5002, -1, 0x0) = -NNNN (EFAULT)
+  //staptest// fchownat (AT_FDCWD, 0x[f]+, 5002, -1, 0x0) = -NNNN (EFAULT)
 #endif
 
   fchownat(AT_FDCWD, "foobar", -1, 5000, 0);
@@ -118,9 +118,9 @@ int main()
 
   lchown((char *)-1, 5005, 5006);
 #ifdef __s390__
-  //staptest// lchown ([7]?[f]+, 5005, 5006) = -NNNN (EFAULT)
+  //staptest// lchown (0x[7]?[f]+, 5005, 5006) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[lchown (!!!!fchownat (AT_FDCWD, ]]]][f]+, 5005, 5006[[[[, AT_SYMLINK_NOFOLLOW]]]]?) = -NNNN (EFAULT)
+  //staptest// [[[[lchown (!!!!fchownat (AT_FDCWD, ]]]]0x[f]+, 5005, 5006[[[[, AT_SYMLINK_NOFOLLOW]]]]?) = -NNNN (EFAULT)
 #endif
 
 #if __WORDSIZE != 64

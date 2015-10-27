@@ -27,9 +27,9 @@ int main()
 
   creat((char *)-1, S_IREAD|S_IWRITE);
 #ifdef __s390__
-  //staptest// [[[[open ([7]?[f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ([7]?[f]+]]]], 0600) = NNNN
+  //staptest// [[[[open (0x[7]?[f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat (0x[7]?[f]+]]]], 0600) = NNNN
 #else
-  //staptest// [[[[[[[[open (!!!!openat (AT_FDCWD, ]]]][f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat ([f]+]]]], 0600) = NNNN
+  //staptest// [[[[[[[[open (!!!!openat (AT_FDCWD, ]]]]0x[f]+, O_WRONLY|O_CREAT[[[[.O_LARGEFILE]]]]?|O_TRUNC!!!!creat (0x[f]+]]]], 0600) = NNNN
 #endif
 
   creat("foobarX", -1);
@@ -130,9 +130,9 @@ int main()
 
   open((char *)-1, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU);
 #ifdef __s390__
-  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]][7]?[f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]0x[7]?[f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
 #else
-  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]][f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
+  //staptest// [[[[open (!!!!openat (AT_FDCWD, ]]]]0x[f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
 #endif
 
 #if GLIBC_SUPPORT
@@ -141,9 +141,9 @@ int main()
 
   openat(AT_FDCWD, (char *)-1, O_WRONLY|O_CREAT|O_EXCL, S_IRWXU);
 #ifdef __s390__
-  //staptest// openat (AT_FDCWD, [7]?[f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
+  //staptest// openat (AT_FDCWD, 0x[7]?[f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
 #else
-  //staptest// openat (AT_FDCWD, [f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
+  //staptest// openat (AT_FDCWD, 0x[f]+, O_WRONLY|O_CREAT|O_EXCL[[[[.O_LARGEFILE]]]]?, 0700) =
 #endif
 #endif
 

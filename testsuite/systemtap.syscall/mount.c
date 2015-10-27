@@ -34,23 +34,23 @@ int main()
   // Limits testing.
   mount ((char *)-1, "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments");
 #ifdef __s390__
-  //staptest// mount ([7]?[f]+, "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
+  //staptest// mount (0x[7]?[f]+, "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
 #else
-  //staptest// mount ([f]+, "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
+  //staptest// mount (0x[f]+, "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
 #endif
 
   mount ("mount_source", (char *)-1, "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments");
 #ifdef __s390__
-  //staptest// mount ("mount_source", [7]?[f]+, "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
+  //staptest// mount ("mount_source", 0x[7]?[f]+, "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
 #else
-  //staptest// mount ("mount_source", [f]+, "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
+  //staptest// mount ("mount_source", 0x[f]+, "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
 #endif
   
   mount ("mount_source", "mount_target", (char *)-1, MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments");
 #ifdef __s390__
-  //staptest// mount ("mount_source", "mount_target", [7]?[f]+, MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
+  //staptest// mount ("mount_source", "mount_target", 0x[7]?[f]+, MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
 #else
-  //staptest// mount ("mount_source", "mount_target", [f]+, MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
+  //staptest// mount ("mount_source", "mount_target", 0x[f]+, MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, "some arguments") = NNNN
 #endif
 
   mount ("mount_source", "mount_target", "ext2", (unsigned long)-1, "some arguments");
@@ -64,16 +64,16 @@ int main()
 
   mount ("mount_source", "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, (void *)-1);
 #ifdef __s390__
-  //staptest// mount ("mount_source", "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, [7]?[f]+) = NNNN
+  //staptest// mount ("mount_source", "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, 0x[7]?[f]+) = NNNN
 #else
-  //staptest// mount ("mount_source", "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, [f]+) = NNNN
+  //staptest// mount ("mount_source", "mount_target", "ext2", MS_NOSUID|MS_NOATIME|MS_NODIRATIME|MS_BIND, 0x[f]+) = NNNN
 #endif
 
   umount2((char *)-1, MNT_FORCE);
 #ifdef __s390__
-  //staptest// umount ([7]?[f]+, MNT_FORCE) = NNNN
+  //staptest// umount (0x[7]?[f]+, MNT_FORCE) = NNNN
 #else
-  //staptest// umount ([f]+, MNT_FORCE) = NNNN
+  //staptest// umount (0x[f]+, MNT_FORCE) = NNNN
 #endif
 
   umount2("umount2_target", -1);

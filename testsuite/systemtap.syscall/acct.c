@@ -8,9 +8,9 @@ int main()
 
   acct((char *)-1);
 #ifdef __s390__
-  //staptest// acct ([7]?[f]+) = -NNNN
+  //staptest// acct (0x[7]?[f]+) = -NNNN
 #else
-  //staptest// acct ([f]+) = -NNNN
+  //staptest// acct (0x[f]+) = -NNNN
 #endif
 
   return 0;

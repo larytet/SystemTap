@@ -33,17 +33,17 @@ int main()
 
   write(fd, (void *)-1, 11);
 #ifdef __s390__
-  //staptest// write (NNNN, [7]?[f]+, 11) = NNNN
+  //staptest// write (NNNN, 0x[7]?[f]+, 11) = NNNN
 #else
-  //staptest// write (NNNN, [f]+, 11) = NNNN
+  //staptest// write (NNNN, 0x[f]+, 11) = NNNN
 #endif
 
   /* We need to be careful when writing -1 bytes. */
   write(-1, NULL, -1);
 #if __WORDSIZE == 64
-  //staptest// write (-1, *(null), 18446744073709551615) = -NNNN
+  //staptest// write (-1, *0x0, 18446744073709551615) = -NNNN
 #else
-  //staptest// write (-1, *(null), 4294967295) = -NNNN
+  //staptest// write (-1, *0x0, 4294967295) = -NNNN
 #endif
 
   close (fd);

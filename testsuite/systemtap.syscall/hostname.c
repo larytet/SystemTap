@@ -43,13 +43,13 @@ int main()
 
     sethostname((char *)-1, sizeof(new_hname));
 #ifdef __s390__
-    //staptest// sethostname ([7]?[f]+, NNNN) = -NNNN
+    //staptest// sethostname (0x[7]?[f]+, NNNN) = -NNNN
 #else
-    //staptest// sethostname ([f]+, NNNN) = -NNNN
+    //staptest// sethostname (0x[f]+, NNNN) = -NNNN
 #endif
 
     sethostname(NULL, -1);
-    //staptest// sethostname ( *(null), -1) = -NNNN
+    //staptest// sethostname (0x0, -1) = -NNNN
 
     // Notice we aren't calling sethostname() so that it will
     // succeed. This is on purpose, since we can't guarentee that

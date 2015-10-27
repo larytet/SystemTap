@@ -15,16 +15,16 @@ int main()
 
     syscall(__NR_pivot_root, (const char *)-1, "/tmp");
 #ifdef __s390__
-    //staptest// pivot_root ([7]?[f]+, "/tmp") = NNNN
+    //staptest// pivot_root (0x[7]?[f]+, "/tmp") = NNNN
 #else
-    //staptest// pivot_root ([f]+, "/tmp") = NNNN
+    //staptest// pivot_root (0x[f]+, "/tmp") = NNNN
 #endif
 
     syscall(__NR_pivot_root, "/tmp", (const char *)-1);
 #ifdef __s390__
-    //staptest// pivot_root ("/tmp", [7]?[f]+) = NNNN
+    //staptest// pivot_root ("/tmp", 0x[7]?[f]+) = NNNN
 #else
-    //staptest// pivot_root ("/tmp", [f]+) = NNNN
+    //staptest// pivot_root ("/tmp", 0x[f]+) = NNNN
 #endif
 
     return 0;

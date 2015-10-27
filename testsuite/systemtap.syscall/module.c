@@ -86,9 +86,9 @@ int main()
 
     __init_module(NULL, 0, (char *)-1);
 #ifdef __s390__
-    //staptest// init_module (0x0, 0, [7]?[f]+) = -NNNN
+    //staptest// init_module (0x0, 0, 0x[7]?[f]+) = -NNNN
 #else
-    //staptest// init_module (0x0, 0, [f]+) = -NNNN
+    //staptest// init_module (0x0, 0, 0x[f]+) = -NNNN
 #endif
 
 #ifdef SYS_finit_module
@@ -96,9 +96,9 @@ int main()
     //staptest// finit_module (-1, "foo=bar", MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
     __finit_module(fd_null, (char *)-1, MODULE_INIT_IGNORE_MODVERSIONS);
 #ifdef __s390__
-    //staptest// finit_module (NNNN, [7]?[f]+, MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
+    //staptest// finit_module (NNNN, 0x[7]?[f]+, MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
 #else
-    //staptest// finit_module (NNNN, [f]+, MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
+    //staptest// finit_module (NNNN, 0x[f]+, MODULE_INIT_IGNORE_MODVERSIONS) = -NNNN
 #endif
     __finit_module(fd_null, "foo=bar", -1);
     //staptest// finit_module (NNNN, "foo=bar", MODULE_INIT_[^ ]+|XXXX) = -NNNN
@@ -106,9 +106,9 @@ int main()
 
     __delete_module((char *)-1, O_TRUNC);
 #ifdef __s390__
-    //staptest// delete_module ([7]?[f]+, O_TRUNC) = -NNNN
+    //staptest// delete_module (0x[7]?[f]+, O_TRUNC) = -NNNN
 #else
-    //staptest// delete_module ([f]+, O_TRUNC) = -NNNN
+    //staptest// delete_module (0x[f]+, O_TRUNC) = -NNNN
 #endif
 
     __delete_module("__fAkE__sTaP__mOdUlE__", -1);

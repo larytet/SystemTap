@@ -52,9 +52,9 @@ int main()
 
     name_to_handle_at(AT_FDCWD, (char *)-1, fhp, &mount_id, AT_SYMLINK_FOLLOW);
 #ifdef __s390__
-    //staptest// name_to_handle_at (AT_FDCWD, [7]?[f]+, XXXX, XXXX, AT_SYMLINK_FOLLOW) = NNNN
+    //staptest// name_to_handle_at (AT_FDCWD, 0x[7]?[f]+, XXXX, XXXX, AT_SYMLINK_FOLLOW) = NNNN
 #else
-    //staptest// name_to_handle_at (AT_FDCWD, [f]+, XXXX, XXXX, AT_SYMLINK_FOLLOW) = NNNN
+    //staptest// name_to_handle_at (AT_FDCWD, 0x[f]+, XXXX, XXXX, AT_SYMLINK_FOLLOW) = NNNN
 #endif
 
     name_to_handle_at(AT_FDCWD, "foobar", (struct file_handle *)-1, &mount_id, 0);

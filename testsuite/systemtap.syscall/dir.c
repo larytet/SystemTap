@@ -15,9 +15,9 @@ int main()
 
   mkdir((char *)-1, 0765);
 #ifdef __s390__
-  //staptest// mkdir ([7]?[f]+, 0765) = -NNNN
+  //staptest// mkdir (0x[7]?[f]+, 0765) = -NNNN
 #else
-  //staptest// [[[[mkdir (!!!!mkdirat (AT_FDCWD, ]]]][f]+, 0765) = -NNNN
+  //staptest// [[[[mkdir (!!!!mkdirat (AT_FDCWD, ]]]]0x[f]+, 0765) = -NNNN
 #endif
 
   mkdir("foobar2", (mode_t)-1);
@@ -31,9 +31,9 @@ int main()
 
   chdir((char *)-1);
 #ifdef __s390__
-  //staptest// chdir ([7]?[f]+) = -NNNN
+  //staptest// chdir (0x[7]?[f]+) = -NNNN
 #else
-  //staptest// chdir ([f]+) = -NNNN
+  //staptest// chdir (0x[f]+) = -NNNN
 #endif
 
   fd = open("foobar", O_RDONLY);
@@ -56,9 +56,9 @@ int main()
 
   rmdir((char *)-1);
 #ifdef __s390__
-  //staptest// rmdir ([7]?[f]+) = -NNNN
+  //staptest// rmdir (0x[7]?[f]+) = -NNNN
 #else
-  //staptest// [[[[rmdir ([f]+!!!!unlinkat (AT_FDCWD, [f]+, AT_REMOVEDIR]]]]) = -NNNN
+  //staptest// [[[[rmdir (0x[f]+!!!!unlinkat (AT_FDCWD, 0x[f]+, AT_REMOVEDIR]]]]) = -NNNN
 #endif
 
   fd = open(".", O_RDONLY);
@@ -73,9 +73,9 @@ int main()
 
   mkdirat(fd, (char *)-1, 0765);
 #ifdef __s390__
-  //staptest// mkdirat (NNNN, [7]?[f]+, 0765) = -NNNN
+  //staptest// mkdirat (NNNN, 0x[7]?[f]+, 0765) = -NNNN
 #else
-  //staptest// mkdirat (NNNN, [f]+, 0765) = -NNNN
+  //staptest// mkdirat (NNNN, 0x[f]+, 0765) = -NNNN
 #endif
 
   mkdirat(fd, "xyzzy2", (mode_t)-1);

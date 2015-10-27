@@ -73,9 +73,9 @@ int main()
 
   access((char *)-1, F_OK);
 #ifdef __s390__
-  //staptest// access ([7]?[f]+, F_OK) = -NNNN (EFAULT)
+  //staptest// access (0x[7]?[f]+, F_OK) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]][f]+, F_OK) = -NNNN (EFAULT)
+  //staptest// [[[[access (!!!!faccessat (AT_FDCWD, ]]]]0x[f]+, F_OK) = -NNNN (EFAULT)
 #endif
 
   access("foobar1", -1);
@@ -87,9 +87,9 @@ int main()
 
   faccessat(AT_FDCWD, (char *)-1, F_OK, 0);
 #ifdef __s390__
-  //staptest// faccessat (AT_FDCWD, [7]?[f]+, F_OK) = -NNNN (EFAULT)
+  //staptest// faccessat (AT_FDCWD, 0x[7]?[f]+, F_OK) = -NNNN (EFAULT)
 #else
-  //staptest// faccessat (AT_FDCWD, [f]+, F_OK) = -NNNN (EFAULT)
+  //staptest// faccessat (AT_FDCWD, 0x[f]+, F_OK) = -NNNN (EFAULT)
 #endif
 
   faccessat(AT_FDCWD, "foobar1", -1, 0);

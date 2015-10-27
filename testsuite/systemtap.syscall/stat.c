@@ -59,9 +59,9 @@ int main()
 
   stat((char *)-1, &sbuf);
 #if defined(__s390__)
-  //staptest// stat ([7]?[f]+, XXXX) = -NNNN
+  //staptest// stat (0x[7]?[f]+, XXXX) = -NNNN
 #else
-  //staptest// [[[[stat ([f]+, XXXX!!!!fstatat (AT_FDCWD, [f]+, XXXX, 0x0]]]]) = -NNNN
+  //staptest// [[[[stat (0x[f]+, XXXX!!!!fstatat (AT_FDCWD, 0x[f]+, XXXX, 0x0]]]]) = -NNNN
 #endif
 
   // Here we specify -1 to both arguments, to avoid a SIGSEGV.
@@ -70,9 +70,9 @@ int main()
   // Notice we're not checking for 0x[f]+ here for the 2nd
   // argument. On RHEL[67] {x86_64,s390x}, for a 32-bit exe, glibc
   // substituted a real structure address (verified with strace).
-  //staptest// stat ([7]?[f]+, XXXX) = -NNNN
+  //staptest// stat (0x[7]?[f]+, XXXX) = -NNNN
 #else
-  //staptest// [[[[stat ([f]+, 0x[f]+!!!!fstatat (AT_FDCWD, [f]+, 0x[f]+, 0x0]]]]) = -NNNN
+  //staptest// [[[[stat (0x[f]+, 0x[f]+!!!!fstatat (AT_FDCWD, 0x[f]+, 0x[f]+, 0x0]]]]) = -NNNN
 #endif
 
   lstat("foobar", &sbuf);
@@ -80,9 +80,9 @@ int main()
 
   lstat((char *)-1, &sbuf);
 #if defined(__s390__)
-  //staptest// lstat ([7]?[f]+, XXXX) = -NNNN (EFAULT)
+  //staptest// lstat (0x[7]?[f]+, XXXX) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[lstat ([f]+, XXXX!!!!fstatat (AT_FDCWD, [f]+, XXXX, AT_SYMLINK_NOFOLLOW]]]]) = -NNNN (EFAULT)
+  //staptest// [[[[lstat (0x[f]+, XXXX!!!!fstatat (AT_FDCWD, 0x[f]+, XXXX, AT_SYMLINK_NOFOLLOW]]]]) = -NNNN (EFAULT)
 #endif
 
   // Here we specify -1 to both arguments, to avoid a SIGSEGV.
@@ -91,9 +91,9 @@ int main()
   // Notice we're not checking for 0x[f]+ here for the 2nd
   // argument. On RHEL[67] {x86_64,s390x}, for a 32-bit exe, glibc
   // substituted a real structure address (verified with strace).
-  //staptest// lstat ([7]?[f]+, XXXX) = -NNNN
+  //staptest// lstat (0x[7]?[f]+, XXXX) = -NNNN
 #else
-  //staptest// [[[[lstat ([f]+, 0x[f]+!!!!fstatat (AT_FDCWD, [f]+, 0x[f]+, AT_SYMLINK_NOFOLLOW]]]]) = -NNNN
+  //staptest// [[[[lstat (0x[f]+, 0x[f]+!!!!fstatat (AT_FDCWD, 0x[f]+, 0x[f]+, AT_SYMLINK_NOFOLLOW]]]]) = -NNNN
 #endif
 
 #if GLIBC_SUPPORT
@@ -105,9 +105,9 @@ int main()
 
   fstatat(AT_FDCWD, (char *)-1, &sbuf, AT_SYMLINK_NOFOLLOW);
 #if defined(__s390__)
-  //staptest// fstatat (AT_FDCWD, [7]?[f]+, XXXX, AT_SYMLINK_NOFOLLOW) = -NNNN (EFAULT)
+  //staptest// fstatat (AT_FDCWD, 0x[7]?[f]+, XXXX, AT_SYMLINK_NOFOLLOW) = -NNNN (EFAULT)
 #else
-  //staptest// fstatat (AT_FDCWD, [f]+, XXXX, AT_SYMLINK_NOFOLLOW) = -NNNN (EFAULT)
+  //staptest// fstatat (AT_FDCWD, 0x[f]+, XXXX, AT_SYMLINK_NOFOLLOW) = -NNNN (EFAULT)
 #endif
 
   // Try to avoid a SIGSEGV.
@@ -151,13 +151,13 @@ int main()
   ubuf.modtime = 1135641600;
   utime((char *)-1, &ubuf);
 #if defined(__aarch64__)
-  //staptest// utimensat (AT_FDCWD, [f]+, \[1.[0]+\]\[1135641600.[0]+\], 0x0) = -NNNN
+  //staptest// utimensat (AT_FDCWD, 0x[f]+, \[1.[0]+\]\[1135641600.[0]+\], 0x0) = -NNNN
 #elif defined(__ia64__) || defined(__arm__)
-  //staptest// utimes ([f]+, \[1.000000\]\[1135641600.000000\]) = -NNNN
+  //staptest// utimes (0x[f]+, \[1.000000\]\[1135641600.000000\]) = -NNNN
 #elif defined(__s390__)
-  //staptest// utime ([7]?[f]+, \[Thu Jan  1 00:00:01 1970, Tue Dec 27 00:00:00 2005\]) = -NNNN
+  //staptest// utime (0x[7]?[f]+, \[Thu Jan  1 00:00:01 1970, Tue Dec 27 00:00:00 2005\]) = -NNNN
 #else
-  //staptest// utime ([f]+, \[Thu Jan  1 00:00:01 1970, Tue Dec 27 00:00:00 2005\]) = -NNNN
+  //staptest// utime (0x[f]+, \[Thu Jan  1 00:00:01 1970, Tue Dec 27 00:00:00 2005\]) = -NNNN
 #endif
 
 #if defined(__ia64__) || defined(__arm__) || defined(__aarch64__)

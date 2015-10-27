@@ -50,16 +50,16 @@ main()
     setxattr((char *)-1, XATTR_NAME, XATTR_VALUE, sizeof(XATTR_VALUE),
 	     XATTR_CREATE);
 #ifdef __s390__
-    //staptest// setxattr ([7]?[f]+, "user.systemtap.test", "testing", 8, XATTR_CREATE) = NNNN
+    //staptest// setxattr (0x[7]?[f]+, "user.systemtap.test", "testing", 8, XATTR_CREATE) = NNNN
 #else
-    //staptest// setxattr ([f]+, "user.systemtap.test", "testing", 8, XATTR_CREATE) = NNNN
+    //staptest// setxattr (0x[f]+, "user.systemtap.test", "testing", 8, XATTR_CREATE) = NNNN
 #endif
 
     setxattr(PATH, (char *)-1, XATTR_VALUE, sizeof(XATTR_VALUE), XATTR_CREATE);
 #ifdef __s390__
-    //staptest// setxattr ("foobar", [7]?[f]+, "testing", 8, XATTR_CREATE) = NNNN
+    //staptest// setxattr ("foobar", 0x[7]?[f]+, "testing", 8, XATTR_CREATE) = NNNN
 #else
-    //staptest// setxattr ("foobar", [f]+, "testing", 8, XATTR_CREATE) = NNNN
+    //staptest// setxattr ("foobar", 0x[f]+, "testing", 8, XATTR_CREATE) = NNNN
 #endif
 
     setxattr(PATH, XATTR_NAME, (void *)-1, sizeof(XATTR_VALUE), XATTR_CREATE);
@@ -81,16 +81,16 @@ main()
 
     getxattr((char *)-1, XATTR_NAME, buffer, sizeof(buffer));
 #ifdef __s390__
-    //staptest// getxattr ([7]?[f]+, "user.systemtap.test", XXXX, 1024) = NNNN
+    //staptest// getxattr (0x[7]?[f]+, "user.systemtap.test", XXXX, 1024) = NNNN
 #else
-    //staptest// getxattr ([f]+, "user.systemtap.test", XXXX, 1024) = NNNN
+    //staptest// getxattr (0x[f]+, "user.systemtap.test", XXXX, 1024) = NNNN
 #endif
 
     getxattr(PATH, (char *)-1, buffer, sizeof(buffer));
 #ifdef __s390__
-    //staptest// getxattr ("foobar", [7]?[f]+, XXXX, 1024) = NNNN
+    //staptest// getxattr ("foobar", 0x[7]?[f]+, XXXX, 1024) = NNNN
 #else
-    //staptest// getxattr ("foobar", [f]+, XXXX, 1024) = NNNN
+    //staptest// getxattr ("foobar", 0x[f]+, XXXX, 1024) = NNNN
 #endif
 
     getxattr(PATH, XATTR_NAME, (void *)-1, sizeof(buffer));
@@ -109,9 +109,9 @@ main()
 
     listxattr((char *)-1, buffer, sizeof(buffer));
 #ifdef __s390__
-    //staptest// listxattr ([7]?[f]+, XXXX, 1024) = NNNN
+    //staptest// listxattr (0x[7]?[f]+, XXXX, 1024) = NNNN
 #else
-    //staptest// listxattr ([f]+, XXXX, 1024) = NNNN
+    //staptest// listxattr (0x[f]+, XXXX, 1024) = NNNN
 #endif
 
     listxattr(PATH, (char *)-1, sizeof(buffer));
@@ -130,16 +130,16 @@ main()
 
     removexattr((char *)-1, XATTR_NAME);
 #ifdef __s390__
-    //staptest// removexattr ([7]?[f]+, "user.systemtap.test") = NNNN
+    //staptest// removexattr (0x[7]?[f]+, "user.systemtap.test") = NNNN
 #else
-    //staptest// removexattr ([f]+, "user.systemtap.test") = NNNN
+    //staptest// removexattr (0x[f]+, "user.systemtap.test") = NNNN
 #endif
 
     removexattr(PATH, (char *)-1);
 #ifdef __s390__
-    //staptest// removexattr ("foobar", [7]?[f]+) = NNNN
+    //staptest// removexattr ("foobar", 0x[7]?[f]+) = NNNN
 #else
-    //staptest// removexattr ("foobar", [f]+) = NNNN
+    //staptest// removexattr ("foobar", 0x[f]+) = NNNN
 #endif
 
     return 0;

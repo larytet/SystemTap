@@ -37,9 +37,9 @@ int main()
 
   inotify_add_watch(fd, (char *)-1, IN_MODIFY);
 #ifdef __s390__
-  //staptest// inotify_add_watch (NNNN, [7]?[f]+, IN_MODIFY) = -NNNN (EFAULT)
+  //staptest// inotify_add_watch (NNNN, 0x[7]?[f]+, IN_MODIFY) = -NNNN (EFAULT)
 #else
-  //staptest// inotify_add_watch (NNNN, [f]+, IN_MODIFY) = -NNNN (EFAULT)
+  //staptest// inotify_add_watch (NNNN, 0x[f]+, IN_MODIFY) = -NNNN (EFAULT)
 #endif
 
   // We've got a problem here. On a 32-bit kernel (i686 for instance),

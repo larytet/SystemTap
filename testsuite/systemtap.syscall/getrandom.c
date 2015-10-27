@@ -26,9 +26,9 @@ int main()
 
   syscall(__NR_getrandom, (size_t)-1, 5, GRND_RANDOM);
 #if __WORDSIZE == 64
-  //staptest// [[[[getrandom ([16]?[f]+, 5, GRND_RANDOM)!!!!ni_syscall ()]]]] = -NNNN
+  //staptest// [[[[getrandom (0x[16]?[f]+, 5, GRND_RANDOM)!!!!ni_syscall ()]]]] = -NNNN
 #else
-  //staptest// [[[[getrandom ([8]?[f]+, 5, GRND_RANDOM)!!!!ni_syscall ()]]]] = -NNNN
+  //staptest// [[[[getrandom (0x[8]?[f]+, 5, GRND_RANDOM)!!!!ni_syscall ()]]]] = -NNNN
 #endif
 
   syscall(__NR_getrandom, j, -1, GRND_RANDOM);

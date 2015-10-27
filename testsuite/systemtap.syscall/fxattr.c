@@ -51,9 +51,9 @@ main()
 
     fsetxattr(fd, (char *)-1, XATTR_VALUE, sizeof(XATTR_VALUE), XATTR_CREATE);
 #ifdef __s390__
-    //staptest// fsetxattr (NNNN, [7]?[f]+, "testing", 8, XATTR_CREATE) = NNNN
+    //staptest// fsetxattr (NNNN, 0x[7]?[f]+, "testing", 8, XATTR_CREATE) = NNNN
 #else
-    //staptest// fsetxattr (NNNN, [f]+, "testing", 8, XATTR_CREATE) = NNNN
+    //staptest// fsetxattr (NNNN, 0x[f]+, "testing", 8, XATTR_CREATE) = NNNN
 #endif
 
     fsetxattr(fd, XATTR_NAME, (void *)-1, sizeof(XATTR_VALUE), XATTR_CREATE);
@@ -78,9 +78,9 @@ main()
 
     fgetxattr(fd, (char *)-1, buffer, sizeof(buffer));
 #ifdef __s390__
-    //staptest// fgetxattr (NNNN, [7]?[f]+, XXXX, 1024) = NNNN
+    //staptest// fgetxattr (NNNN, 0x[7]?[f]+, XXXX, 1024) = NNNN
 #else
-    //staptest// fgetxattr (NNNN, [f]+, XXXX, 1024) = NNNN
+    //staptest// fgetxattr (NNNN, 0x[f]+, XXXX, 1024) = NNNN
 #endif
 
     fgetxattr(fd, XATTR_NAME, (void *)-1, sizeof(buffer));
@@ -119,9 +119,9 @@ main()
 
     fremovexattr(fd, (char *)-1);
 #ifdef __s390__
-    //staptest// fremovexattr (NNNN, [7]?[f]+) = NNNN
+    //staptest// fremovexattr (NNNN, 0x[7]?[f]+) = NNNN
 #else
-    //staptest// fremovexattr (NNNN, [f]+) = NNNN
+    //staptest// fremovexattr (NNNN, 0x[f]+) = NNNN
 #endif
 
     close(fd);
