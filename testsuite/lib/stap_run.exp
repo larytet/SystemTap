@@ -129,8 +129,8 @@ proc wait_n_secs {N_SECS} {
 	if {$ncpu > 2} {
 	    set ncpu [expr $ncpu - 2]
 	}
-	send_log "executing: $STRESS -c $ncpu -t $N_SECS"
-	exec $STRESS -c $ncpu -t $N_SECS
+	send_log "executing: timeout $N_SECS*2 -k 1 $STRESS -c $ncpu -t $N_SECS"
+	exec timeout --kill=1 [expr $N_SECS * 2] $STRESS -c $ncpu -t $N_SECS
     } else {
 	# fallback method
 	# Tcl_Sleep does not always handle the system clock jumping, 
