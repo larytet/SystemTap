@@ -3736,7 +3736,7 @@ gen_mapped_saved_return(systemtap_session &sess, expression* e,
   //   _entry_tvar_{name}_{num}
   //   _entry_tvar_{name}_{num}_ctr
 
-  string aname = (string("_entry_tvar_")
+  string aname = (string("__global_entry_tvar_")
                   + name
                   + "_" + lex_cast(tick++));
   vardecl* vd = new vardecl;
