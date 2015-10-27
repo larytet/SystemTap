@@ -64,7 +64,7 @@ static int _stp_vscnprintf(char *buf, size_t size, const char *fmt, va_list args
 static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 {
 	int c;
-	char b;
+	char b = '\0';
 	int i, n;
 
 	if (size <= 0)
@@ -98,7 +98,7 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 	}
 
 	for (i = 0; i < n; ++i) {
-		char b2;
+		char b2 = '\0';
 		if (_stp_read_address(b2, buf, (user ? USER_DS : KERNEL_DS)))
 			return -EFAULT;
 		++buf;
