@@ -2,7 +2,7 @@ SYSTEMTAP EXAMPLES INDEX
 (see also keyword-index.txt)
 
 
-For systemtap version 2.9.
+For systemtap version 3.0.
 
 general/alias_suffixes.stp - Count I/O Syscalls using Alias Suffixes
 keywords: io statistics
@@ -46,6 +46,16 @@ keywords: filesystem guru
 
   # stap -g badname.stp -c "touch /tmp/myXXXbadnameXXXfile.$$ 2>&1 | grep \
   denied"
+
+
+general/callgraph.stp - Callgraph Tracing
+keywords: simple trace callgraph
+
+  Print a timed per-thread microsecond-timed nested callgraph.	The
+  first parameter names the function probe points to trace.
+
+  # stap callgraph.stp 'kernel.function("*@fs/proc*.c")' -c "cat \
+  /proc/sys/vm/* || true"
 
 
 general/eventcount.stp - Count Specified Events
