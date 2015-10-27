@@ -1294,6 +1294,13 @@ Functions may call others or themselves
 recursively, up to a fixed nesting limit.  This limit is defined by
 a macro in the translated C code and is in the neighbourhood of 10.
 
+Functions may be marked private using the private keyword to limit their scope
+to the tapset or user script file they are defined in. An example definition of
+a private function follows:
+.SAMPLE
+private function three:long () { return 3 }
+.ESAMPLE
+
 .SS PRINTING
 There are a set of function names that are specially treated by the
 translator.  They format values for printing to the standard systemtap

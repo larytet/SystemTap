@@ -641,6 +641,15 @@ function thatfn:string(arg1:long, arg2) {
 Functions may call others or themselves recursively, up to a fixed nesting
 limit. See Section~\ref{sub:SystemTap-safety}.
 
+Functions may be marked private using the private keyword to limit their scope
+to the tapset or user script file they are defined in. An example definition of
+a private function follows:
+
+\begin{vindent}
+\begin{verbatim}
+private function three:long () { return 3 }
+\end{verbatim}
+\end{vindent}
 
 \subsection{Embedded C\label{sub:Embedded-C}}
 \index{embedded C}
