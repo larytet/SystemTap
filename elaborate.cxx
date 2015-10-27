@@ -2106,7 +2106,7 @@ static void monitor_mode_read(systemtap_session& s)
   code << "$value .= sprintf(\"\\\"memory\\\": \\\"%s\\\",\\n\", module_size())" << endl;
   code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
 
-  code << "$value .= sprintf(\"\\\"globals\\\": [\\n\")" << endl;
+  code << "$value .= sprintf(\"\\\"globals\\\": {\\n\")" << endl;
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
       it != s.globals.end(); ++it)
     {
@@ -2115,13 +2115,13 @@ static void monitor_mode_read(systemtap_session& s)
       if (it != s.globals.begin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
-      code << "$value .= sprintf(\"{\\\"%s\\\"\", \"" << (*it)->name << "\")" << endl;
+      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->name << "\")" << endl;
       if ((*it)->arity == 0)
-        code << "$value .= sprint(\": \", " << (*it)->name << ", \"}\")" << endl;
+        code << "$value .= sprint(\": \", " << (*it)->name << ", \"\")" << endl;
       else if ((*it)->arity > 0)
         code << "$value .= sprintf(\"(%d)\", " << (*it)->maxsize << ")" << endl;
     }
-  code << "$value .= sprintf(\"\\n],\\n\")" << endl;
+  code << "$value .= sprintf(\"\\n},\\n\")" << endl;
 
   code << "$value .= sprintf(\"\\\"probes\\\": [\\n\")" << endl;
   for (vector<derived_probe*>::const_iterator it = s.probes.begin();
@@ -2130,15 +2130,14 @@ static void monitor_mode_read(systemtap_session& s)
       if (it != s.probes.begin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
-      // Get first 20 characters of probe point without condition
       istringstream probe_point((*it)->sole_location()->str());
       string name;
       probe_point >> name;
-      name = lex_cast_qstring(name).substr(0, 20);
+      name = lex_cast_qstring(name);
 
       code << "$value .= sprintf(\"{%s\", __monitor_data_function_probes("
            << it-s.probes.begin() << "))" << endl;
-      code << "$value .= sprintf(\"\\\"probe\\\": \\\"%s\\\"}\", " << name << ")" << endl;
+      code << "$value .= sprintf(\"\\\"name\\\": \\\"%s\\\"}\", " << name << ")" << endl;
     }
   code << "$value .= sprintf(\"\\n]\\n\")" << endl;
 
@@ -2207,9 +2206,9 @@ static void monitor_mode_write(systemtap_session& s)
 
   code << "probe procfs(\"monitor_control\").write {" << endl;
 
-  code << "  if ($value == \"exit\\n\") { exit()";
+  code << "  if ($value == \"exit\") { exit()";
 
-  code << "  } else if ($value == \"reset\\n\") {";
+  code << "  } else if ($value == \"reset\") {";
   for (vector<vardecl*>::const_iterator it = s.globals.begin();
       it != s.globals.end(); ++it)
     {
@@ -2242,7 +2241,7 @@ static void monitor_mode_write(systemtap_session& s)
   for (vector<derived_probe*>::const_iterator it = s.probes.begin();
       it != s.probes.end(); ++it)
     {
-      code << "  if ($value == \"" << it-s.probes.begin() << "\\n\")"
+      code << "  if ($value == \"" << it-s.probes.begin() << "\")"
            << "  __monitor_" << it-s.probes.begin() << "_enabled" << " ^= 1" << endl;
     }
 
