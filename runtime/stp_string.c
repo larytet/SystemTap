@@ -78,17 +78,17 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 	if ((b & 0xE0) == 0xC0 && size >= 1) {
 		/* 110xxxxx 10xxxxxx */
 		/* Two-byte UTF-8, one more byte to read.  */
-		n = 1;
+		n = 2;
 		c = b & 0x1F;
 	} else if ((b & 0xF0) == 0xE0 && size >= 2) {
 		/* 1110xxxx 10xxxxxx 10xxxxxx */
 		/* Three-byte UTF-8, two more bytes to read.  */
-		n = 2;
+		n = 3;
 		c = b & 0xF;
 	} else if ((b & 0xF8) == 0xF0 && size >= 3) {
 		/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
 		/* Four-byte UTF-8, three more bytes to read.  */
-		n = 3;
+		n = 4;
 		c = b & 0x7;
 	} else {
 		/* Return everything else verbatim, whether it's ASCII, longer
@@ -97,7 +97,8 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 		goto verbatim;
 	}
 
-	for (i = 0; i < n; ++i) {
+	/* Mix in the UTF-8 continuation bytes.  */
+	for (i = 1; i < n; ++i) {
 		char b2 = '\0';
 		if (_stp_read_address(b2, buf, (user ? USER_DS : KERNEL_DS)))
 			return -EFAULT;
@@ -117,7 +118,7 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 
 	/* Successfully consumed the continuation bytes.  */
 	*c_ret = c;
-	return 1 + n;
+	return n;
 
 verbatim:
 	*c_ret = (unsigned char) b;
