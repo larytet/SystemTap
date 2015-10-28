@@ -111,9 +111,18 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 		c = (c << 6) | (b2 & 0x3F);
 	}
 
-	if (0xD800 <= c && c <= 0xDFFF) /* UTF-16 surrogates.  */
+
+	/* Reject UTF-16 surrogates.  */
+	if (0xD800 <= c && c <= 0xDFFF)
 		goto verbatim;
-	if (c > 0x10FFFF) /* Exceeds RFC 3629.  */
+
+	/* Reject values that exceed RFC 3629.  */
+	if (c > 0x10FFFF)
+		goto verbatim;
+
+	/* Reject values that were encoded longer than necessary, so we don't
+	 * hide that fact in our output.  (e.g. 0xC0 0x80 -> 0!)  */
+	if (c < 0x80 || (n == 3 && c < 0x800) || (n == 4 && c < 0x10000))
 		goto verbatim;
 
 	/* Successfully consumed the continuation bytes.  */
