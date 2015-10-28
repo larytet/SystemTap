@@ -1714,6 +1714,12 @@ c_unparser::emit_kernel_module_init ()
   o->newline(1) << "int rc = 0;";
   o->newline() << "int i=0, j=0;"; // for derived_probe_group use
 
+  if (session->monitor)
+    {
+      o->newline() << "_stp_mkdir_proc_module();";
+      o->newline() << "_stp_create_procfs(\"monitor_stp_out\", 1, &_stp_monitor_fops, 0400, NULL);";
+    }
+
   vector<derived_probe_group*> g = all_session_groups (*session);
   for (unsigned i=0; i<g.size(); i++)
     {
@@ -8014,6 +8020,9 @@ translate_pass (systemtap_session& s)
 
       if (s.timing || s.monitor)
 	s.op->newline() << "#define STP_TIMING";
+
+      if (s.monitor)
+        s.op->newline() << "#define STP_MONITOR";
 
       if (s.need_unwind)
 	s.op->newline() << "#define STP_NEED_UNWIND_DATA 1";

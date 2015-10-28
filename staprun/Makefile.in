@@ -136,9 +136,9 @@ stap_merge_OBJECTS = $(am_stap_merge_OBJECTS)
 stap_merge_DEPENDENCIES =
 stap_merge_LINK = $(CCLD) $(stap_merge_CFLAGS) $(CFLAGS) \
 	$(stap_merge_LDFLAGS) $(LDFLAGS) -o $@
-am_stapio_OBJECTS = stapio.$(OBJEXT) mainloop.$(OBJEXT) \
-	common.$(OBJEXT) ctl.$(OBJEXT) relay.$(OBJEXT) \
-	relay_old.$(OBJEXT)
+am_stapio_OBJECTS = monitor.$(OBJEXT) stapio.$(OBJEXT) \
+	mainloop.$(OBJEXT) common.$(OBJEXT) ctl.$(OBJEXT) \
+	relay.$(OBJEXT) relay_old.$(OBJEXT)
 stapio_OBJECTS = $(am_stapio_OBJECTS)
 stapio_DEPENDENCIES = libstrfloctime.a
 am__dirstamp = $(am__leading_dot)dirstamp
@@ -428,7 +428,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
-AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 @PIECFLAGS@
+AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 -ljson-c -lcurses \
+	@PIECFLAGS@ $(am__empty)
 AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2 @PIECXXFLAGS@
 AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-I$(builddir)/../includes/sys -DBINDIR='"$(bindir)"' \
@@ -449,7 +450,7 @@ staprun_CXXFLAGS = $(AM_CXXFLAGS) -DSINGLE_THREADED $(am__append_5)
 staprun_CPPFLAGS = $(AM_CPPFLAGS) $(am__append_1)
 staprun_LDADD = libstrfloctime.a $(staprun_LIBS) $(am__append_6)
 staprun_LDFLAGS = $(AM_LDFLAGS) $(am__append_2)
-stapio_SOURCES = stapio.c mainloop.c common.c ctl.c relay.c relay_old.c
+stapio_SOURCES = monitor.c stapio.c mainloop.c common.c ctl.c relay.c relay_old.c
 stapio_LDADD = libstrfloctime.a -lpthread
 man_MANS = staprun.8
 stap_merge_SOURCES = stap_merge.c
@@ -635,6 +636,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ctl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/libstrfloctime_a-strfloctime.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/mainloop.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/monitor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relay.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/relay_old.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/stap_merge-stap_merge.Po@am__quote@

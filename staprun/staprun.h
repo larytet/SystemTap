@@ -221,6 +221,12 @@ void parse_modpath(const char *);
 void setup_signals(void);
 int set_clexec(int fd);
 
+/* monitor.c function */
+void monitor_setup(void);
+void monitor_cleanup(void);
+void monitor_render(void);
+void monitor_input(void);
+
 /*
  * variables
  */

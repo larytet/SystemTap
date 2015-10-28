@@ -17,6 +17,7 @@
 #include <search.h>
 #include <wordexp.h>
 #include <json-c/json.h>
+#include <curses.h>
 
 
 #define WORKAROUND_BZ467568 1  /* PR 6964; XXX: autoconf when able */
@@ -31,36 +32,6 @@ static int target_pid_failed_p = 0;
 /* Setup by setup_main_signals, used by signal_thread to notify the
    main thread of interruptable events. */
 static pthread_t main_thread;
-
-static int comp_avg(const void *p1, const void *p2)
-{
-  json_object *j1 = *(json_object**)p1;
-  json_object *j2 = *(json_object**)p2;
-  json_object *avg1, *avg2;
-  json_object_object_get_ex(j1, "avg", &avg1);
-  json_object_object_get_ex(j2, "avg", &avg2);
-  return json_object_get_int(avg1) - json_object_get_int(avg2);
-}
-
-/*static int comp_name(const void *p1, const void *p2)*/
-/*{*/
-  /*json_object *j1 = *(json_object**)p1;*/
-  /*json_object *j2 = *(json_object**)p2;*/
-  /*json_object *avg1, *avg2;*/
-  /*json_object_object_get_ex(j1, "probe", &avg1);*/
-  /*json_object_object_get_ex(j2, "probe", &avg2);*/
-  /*return strcmp(json_object_get_string(avg1), json_object_get_string(avg2));*/
-/*}*/
-
-/*static int comp_hits(const void *p1, const void *p2)*/
-/*{*/
-  /*json_object *j1 = *(json_object**)p1;*/
-  /*json_object *j2 = *(json_object**)p2;*/
-  /*json_object *avg1, *avg2;*/
-  /*json_object_object_get_ex(j1, "hits", &avg1);*/
-  /*json_object_object_get_ex(j2, "hits", &avg2);*/
-  /*return json_object_get_int(avg1) - json_object_get_int(avg2);*/
-/*}*/
 
 static void *signal_thread(void *arg)
 {
@@ -479,6 +450,9 @@ void cleanup_and_exit(int detach, int rc)
   int rstatus;
   struct sigaction sa;
 
+  if (monitor)
+    monitor_cleanup();
+
   if (exiting)
     return;
   exiting = 1;
@@ -637,7 +611,8 @@ int stp_main_loop(void)
    * interface. */
   if (monitor)
     {
-      ts.tv_sec = 5;
+      monitor_setup();
+      ts.tv_sec = 1;
       ts.tv_nsec = 0;
       timeout = &ts;
     }
@@ -647,30 +622,8 @@ int stp_main_loop(void)
   while (1) {
     if (monitor)
       {
-        char json[8192];
-        char path[PATH_MAX];
-        FILE *monitor_fp;
-        size_t nb;
-
-        if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
-          cleanup_and_exit (1, 0);
-
-        monitor_fp = fopen(path, "r");
-
-        if (monitor_fp)
-          {
-            nb = fread(json, sizeof(char), 8192, monitor_fp);
-            if (!nb)
-              cleanup_and_exit (1, 0);
-
-            fclose(monitor_fp);
-            json_object *jso = json_tokener_parse(json);
-            json_object *probes;
-            json_object_object_get_ex(jso, "probes", &probes);
-            json_object_array_sort(probes, comp_avg);
-            printf("%s\n", json_object_get_string(probes));
-            json_object_put(jso); // Free allocated memory
-          }
+        monitor_input();
+        monitor_render();
       }
 
     if (pending_interrupts) {
