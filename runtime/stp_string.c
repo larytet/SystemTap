@@ -142,7 +142,7 @@ verbatim:
 static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			 int quoted, int user)
 {
-	int c = 0, i;
+	int c = 0;
 	char *out = outstr;
 
 	if (inlen <= 0 || inlen > MAXSTRINGLEN-1)
@@ -165,30 +165,24 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 		in += n;
 		inlen -= n;
 
-		if (n == 1 && isprint(c) && isascii(c)
-                    && c != '"' && c != '\\') /* quoteworthy characters */
-                  *out++ = c;
+		if (n > 1) {
+			/* UTF-8, print \uXXXX or \UXXXXXXXX */
+			int i;
+			num = (c <= 0xFFFF) ? 6 : 10;
+			if (outlen < num)
+				break;
 
-		else if (c > 0xFFFF) {
-			/* high unicode, print \UXXXXXXXX */
-			num = 10;
-			if (outlen < num)
-				break;
 			*out++ = '\\';
-			*out++ = 'U';
-			for (i = 7; i >= 0; --i)
-				*out++ = to_hex_digit((c >> (i * 4)) & 0xF);
+			*out++ = (c <= 0xFFFF) ? 'u' : 'U';
+			for (i = num - 3; i >= 0; --i) {
+				char nibble = (c >> (i * 4)) & 0xF;
+				*out++ = to_hex_digit(nibble);
+			}
+
 		}
-		else if (c > 0xFF || (n > 1 && c > 0x7F)) {
-			/* basic unicode, print \uXXXX */
-			num = 6;
-			if (outlen < num)
-				break;
-			*out++ = '\\';
-			*out++ = 'u';
-			for (i = 3; i >= 0; --i)
-				*out++ = to_hex_digit((c >> (i * 4)) & 0xF);
-		}
+		else if (isascii(c) && isprint(c)
+				&& c != '"' && c != '\\') /* quoteworthy characters */
+			*out++ = c;
 		else {
 			switch (c) {
 			case '\a':
