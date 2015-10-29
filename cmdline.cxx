@@ -15,13 +15,6 @@ struct option stap_long_options[] = {
   { "skip-badvars",                no_argument,       NULL, LONG_OPT_SKIP_BADVARS },
   { "vp",                          required_argument, NULL, LONG_OPT_VERBOSE_PASS },
   { "unprivileged",                no_argument,       NULL, LONG_OPT_UNPRIVILEGED },
-#define OWE5 "tter"
-#define OWE1 "uild-"
-#define OWE6 "fu-kb"
-#define OWE2 "i-kno"
-#define OWE4 "st"
-#define OWE3 "w-be"
-  { OWE4 OWE6 OWE1 OWE2 OWE3 OWE5, no_argument,       NULL, LONG_OPT_OMIT_WERROR },
   { "client-options",              no_argument,       NULL, LONG_OPT_CLIENT_OPTIONS },
   { "help",                        no_argument,       NULL, LONG_OPT_HELP },
   { "disable-cache",               no_argument,       NULL, LONG_OPT_DISABLE_CACHE },

@@ -30,6 +30,10 @@ extern "C" {
 #include <sys/resource.h>
 }
 
+// A bit of obfuscation for Gentoo's sake.
+// We *need* -Werror for stapconf to work correctly.
+// https://bugs.gentoo.org/show_bug.cgi?id=562578
+#define WERROR ("-W" "error")
 
 using namespace std;
 
@@ -210,7 +214,7 @@ compile_dyninst (systemtap_session& s)
   cmd.push_back("gcc");
   cmd.push_back("--std=gnu99");
   cmd.push_back("-Wall");
-  cmd.push_back("-Werror");
+  cmd.push_back(WERROR);
   cmd.push_back("-Wno-unused");
   cmd.push_back("-Wno-strict-aliasing");
 
@@ -279,9 +283,15 @@ compile_pass (systemtap_session& s)
   // Support O= (or KBUILD_OUTPUT) option
   o << "_KBUILD_CFLAGS := $(call flags,KBUILD_CFLAGS)" << endl;
 
-  o << "stap_check_gcc = $(shell " << superverbose << " if $(CC) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then echo \"$(1)\"; else echo \"$(2)\"; fi)" << endl;
-  o << "CHECK_BUILD := $(CC) $(NOSTDINC_FLAGS) $(KBUILD_CPPFLAGS) $(CPPFLAGS) $(LINUXINCLUDE) $(_KBUILD_CFLAGS) $(CFLAGS_KERNEL) $(EXTRA_CFLAGS) $(CFLAGS) -DKBUILD_BASENAME=\\\"" << s.module_name << "\\\"" << (s.omit_werror ? "" : " -Werror") << " -S -o /dev/null -xc " << endl;
-  o << "stap_check_build = $(shell " << superverbose << " if $(CHECK_BUILD) $(1) " << redirecterrors << " ; then echo \"$(2)\"; else echo \"$(3)\"; fi)" << endl;
+  o << "stap_check_gcc = $(shell " << superverbose
+    << " if $(CC) $(1) -S -o /dev/null -xc /dev/null > /dev/null 2>&1; then "
+    << "echo \"$(1)\"; else echo \"$(2)\"; fi)" << endl;
+  o << "CHECK_BUILD := $(CC) $(NOSTDINC_FLAGS) $(KBUILD_CPPFLAGS) $(CPPFLAGS) "
+    << "$(LINUXINCLUDE) $(_KBUILD_CFLAGS) $(CFLAGS_KERNEL) $(EXTRA_CFLAGS) "
+    << "$(CFLAGS) -DKBUILD_BASENAME=\\\"" << s.module_name << "\\\" "
+    << WERROR << " -S -o /dev/null -xc " << endl;
+  o << "stap_check_build = $(shell " << superverbose << " if $(CHECK_BUILD) $(1) "
+    << redirecterrors << " ; then echo \"$(2)\"; else echo \"$(3)\"; fi)" << endl;
 
   o << "SYSTEMTAP_RUNTIME = \"" << s.runtime_path << "\"" << endl;
 
@@ -466,7 +476,7 @@ compile_pass (systemtap_session& s)
   o << "EXTRA_CFLAGS += $(call cc-option,-fno-ipa-icf)" << endl;
 
   // Assumes linux 2.6 kbuild
-  o << "EXTRA_CFLAGS += -Wno-unused" << (s.omit_werror ? "" : " -Werror") << endl;
+  o << "EXTRA_CFLAGS += -Wno-unused " << WERROR << endl;
   #if CHECK_POINTER_ARITH_PR5947
   o << "EXTRA_CFLAGS += -Wpointer-arith" << endl;
   #endif
@@ -859,7 +869,7 @@ make_tracequeries(systemtap_session& s, const map<string,string>& contents)
   string makefile(dir + "/Makefile");
   ofstream omf(makefile.c_str());
   // force debuginfo generation, and relax implicit functions
-  omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration" << (s.omit_werror ? "" : " -Werror") << endl;
+  omf << "EXTRA_CFLAGS := -g -Wno-implicit-function-declaration " << WERROR << endl;
   // RHBZ 655231: later rhel6 kernels' module-signing kbuild logic breaks out-of-tree modules
   omf << "CONFIG_MODULE_SIG := n" << endl;
 

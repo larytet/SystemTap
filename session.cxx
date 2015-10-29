@@ -153,7 +153,6 @@ systemtap_session::systemtap_session ():
   skip_badvars = false;
   privilege = pr_stapdev;
   privilege_set = false;
-  omit_werror = false;
   compatible = VERSION; // XXX: perhaps also process GIT_SHAID if available?
   unwindsym_ldd = false;
   client_options = false;
@@ -338,7 +337,6 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   skip_badvars = other.skip_badvars;
   privilege = other.privilege;
   privilege_set = other.privilege_set;
-  omit_werror = other.omit_werror;
   compatible = other.compatible;
   unwindsym_ldd = other.unwindsym_ldd;
   client_options = other.client_options;
@@ -1048,11 +1046,6 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 	  server_args.push_back ("--unprivileged");
 	  /* NB: for server security, it is essential that once this flag is
 	     set, no future flag be able to unset it. */
-	  break;
-
-	case LONG_OPT_OMIT_WERROR:
-	  server_args.push_back (OMIT_WERROR_NAME);
-	  omit_werror = true;
 	  break;
 
 	case LONG_OPT_CLIENT_OPTIONS:
