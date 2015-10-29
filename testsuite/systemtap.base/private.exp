@@ -2,14 +2,9 @@
 
 set test "private"
 
-proc tapset_write {text} {
-    set file [open "tapset.stp" w]
-    puts $file $text
-    close $file
-}   
-
 # Setup
 file mkdir "$test"
+file copy "$srcdir/$subdir/${test}.stp" "$test"
 cd "$test"
 
 foreach runtime [get_runtime_list] {
@@ -17,12 +12,6 @@ foreach runtime [get_runtime_list] {
 
     # Subtest
     set subtest "$test private-variable-basic"
-    tapset_write "
-    private global gtest1 = 3
-    private gtest2 = 7
-    function gtest1_getter() { return gtest1 }
-    function gtest2_getter() { return gtest2 }
-    "
     set __counter 0
     eval spawn "stap --runtime=$runtime -I . -e {probe oneshot \{println(gtest1_getter(), \",\", gtest2_getter())\}}"
     expect {
@@ -57,10 +46,6 @@ foreach runtime [get_runtime_list] {
 
     # Subtest
     set subtest "$test private-function-basic"
-    tapset_write "
-    private function three() { return 3 }
-    function getthree() { return three() }
-    "
     set __counter 0
     eval spawn "stap --runtime=$runtime -I . -e {probe oneshot \{println(getthree())\}}"
     expect {
@@ -94,9 +79,6 @@ foreach runtime [get_runtime_list] {
 
     # Subtest
     set subtest "$test global-variable-access"
-    tapset_write "
-    global myglobal=11
-    "
     set __counter 0
     eval spawn "stap --runtime=$runtime -I . -e {probe oneshot \{println(myglobal)\}}"
     expect {
@@ -112,9 +94,6 @@ foreach runtime [get_runtime_list] {
 
     # Subtest
     set subtest "$test global-variable-access-override"
-    tapset_write "
-    global myglobal=11
-    "
     set __counter 0
     eval spawn "stap --runtime=$runtime -G myglobal=12 -I . -e {probe oneshot \{println(myglobal)\}}"
     expect {
