@@ -124,7 +124,7 @@ BuildRequires: m4
 BuildRequires: elfutils-devel >= %{elfutils_version}
 %endif
 %if %{with_docs}
-BuildRequires: /usr/bin/latex /usr/bin/dvips /usr/bin/ps2pdf latex2html
+BuildRequires: /usr/bin/latex /usr/bin/dvips /usr/bin/ps2pdf
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 7
 BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm)
 %endif
