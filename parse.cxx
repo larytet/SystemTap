@@ -1391,7 +1391,8 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
       // and broadly advertised.
       keywords.insert("probe");
       keywords.insert("global");
-      keywords.insert("private");
+      if (has_version("3.0"))
+        keywords.insert("private");
       keywords.insert("function");
       keywords.insert("if");
       keywords.insert("else");
