@@ -1,5 +1,8 @@
 * What's new in version 3.0, 2015-10-08
 
+- Added support for private global variables and private functions. The scope
+  of these is limited to the tapset file they are defined in (PR19136).
+
 - Functions get_mmap_args() and get_32mmap_args() got deprecated.
 
 * What's new in version 2.9, 2015-10-08
