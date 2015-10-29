@@ -32,7 +32,7 @@ extern "C" {
 
 // A bit of obfuscation for Gentoo's sake.
 // We *need* -Werror for stapconf to work correctly.
-// https://bugs.gentoo.org/show_bug.cgi?id=562578
+// https://bugs.gentoo.org/show_bug.cgi?id=522908
 #define WERROR ("-W" "error")
 
 using namespace std;
