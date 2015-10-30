@@ -49,7 +49,7 @@ public:
   void set_current_file (stapfile* f);
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
-  inline bool kw_gate(const char* v) const;
+  inline bool kw_gate (const char* v) const;
 
   set<string> keywords;
   static set<string> atwords;
