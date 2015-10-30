@@ -84,14 +84,14 @@ int insert_module(
 		return -1;
 	}
 	for (i = 0; options[i] != NULL; i++) {
-		opts = realloc(opts, strlen(opts) + strlen(options[i]) + 2);
+		opts = realloc(opts, strlen(opts) + strlen(options[i]) + 11);
 		if (opts == NULL) {
 			_perr("[re]allocating memory failed");
 			return -1;
 		}
 		/* Note that these strcat() calls are OK, since we just
 		 * allocated space for the resulting string. */
-		strcat(opts, " ");
+		strcat(opts, " __global_");
 		strcat(opts, options[i]);
 	}
 	dbug(2, "module options: %s\n", opts);

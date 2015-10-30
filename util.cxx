@@ -24,6 +24,7 @@
 #include <fstream>
 #include <cassert>
 #include <ext/stdio_filebuf.h>
+#include <algorithm>
 
 extern "C" {
 #include <elf.h>
@@ -536,6 +537,18 @@ const string cmdstr_quoted(const string& cmd)
 	return quoted_cmd;
 }
 
+const string
+detox_path(const string& str)
+{
+  ostringstream hash;
+  for (int i=0; i<int(str.length()); i++)
+    if (isalnum(str[i]))
+      hash << str[i];
+    else
+      hash << "_";
+  hash << "_";
+  return hash.str();
+}
 
 const string
 cmdstr_join(const vector<string>& cmds)

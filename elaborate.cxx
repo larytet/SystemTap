@@ -1908,7 +1908,7 @@ void add_global_var_display (systemtap_session& s)
       stringstream code;
       code << "probe end {" << endl;
 
-      string format = l->name;
+      string format = l->tok->content;
 
       string indexes;
       string foreach_value;
@@ -1939,13 +1939,13 @@ void add_global_var_display (systemtap_session& s)
               foreach_value = "__val";
               code << foreach_value << " = ";
             }
-	  code << "[" << indexes << "] in " << l->name << "-)" << endl;
+	  code << "[" << indexes << "] in " << l->tok->content << "-)" << endl;
 	}
       else if (l->type == pe_stats)
 	{
 	  // PR7053: Check scalar globals for empty aggregate
-	  code << "if (@count(" << l->name << ") == 0)" << endl;
-	  code << "printf(\"" << l->name << " @count=0x0\\n\")" << endl;
+	  code << "if (@count(" << l->tok->content << ") == 0)" << endl;
+	  code << "printf(\"" << l->tok->content << " @count=0x0\\n\")" << endl;
 	  code << "else" << endl;
 	}
 
@@ -1967,7 +1967,7 @@ void add_global_var_display (systemtap_session& s)
       code << "printf (\"" << format << "\"";
 
       // Feed indexes to the printf, and include them in the value
-      string value = !foreach_value.empty() ? foreach_value : (string)l->name;
+      string value = !foreach_value.empty() ? foreach_value : string(l->tok->content);
       if (!l->index_types.empty())
 	{
 	  code << "," << indexes;
@@ -2112,7 +2112,10 @@ symresolution_info::visit_foreach_loop (foreach_loop* e)
 	{
 	  vardecl* d = find_var (array->name, e->indexes.size (), array->tok);
 	  if (d)
+          {
 	    array->referent = d;
+            array->name = d->name;
+          }
 	  else
 	    {
 	      stringstream msg;
@@ -2195,7 +2198,10 @@ symresolution_info::visit_symbol (symbol* e)
 
   vardecl* d = find_var (e->name, 0, e->tok);
   if (d)
+  {
     e->referent = d;
+    e->name = d->name;
+  }
   else
     {
       // new local
@@ -2247,7 +2253,10 @@ symresolution_info::visit_arrayindex (arrayindex* e, bool wildcard_ok)
 
       vardecl* d = find_var (array->name, e->indexes.size (), array->tok);
       if (d)
+      {
 	array->referent = d;
+        array->name = d->name;
+      }
       else
 	{
 	  stringstream msg;
@@ -2332,8 +2341,13 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 	}
 
   // search processed globals
+  string gname = "__global_" + string(name);
+  string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
   for (unsigned i=0; i<session.globals.size(); i++)
-    if (session.globals[i]->name == name)
+  {
+    if ((session.globals[i]->name == name && name.substr(0, 9) == "__global_") ||
+        (session.globals[i]->name == gname) ||
+        (session.globals[i]->name == pname))
       {
         if (! session.suppress_warnings)
           {
@@ -2349,6 +2363,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
         session.globals[i]->set_arity (arity, tok);
         return session.globals[i];
       }
+  }
 
   // search library globals
   for (unsigned i=0; i<session.library_files.size(); i++)
@@ -2357,7 +2372,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
       for (unsigned j=0; j<f->globals.size(); j++)
         {
           vardecl* g = f->globals[j];
-          if (g->name == name)
+          if (g->name == gname)
             {
 	      g->set_arity (arity, tok);
 
@@ -2395,7 +2410,10 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
     {
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
-        if (f->functions[j]->name == name)
+      {
+        string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
+        if ((f->functions[j]->name == name) ||
+            (f->functions[j]->name == pname))
           {
             if (f->functions[j]->formal_args.size() == arity)
               {
@@ -2416,6 +2434,7 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
                                     name.c_str(), f->functions[j]->formal_args.size()),
                                     tok, f->functions[j]->tok);
           }
+      }
     }
 
   return 0;

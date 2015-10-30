@@ -330,7 +330,7 @@ mutator::init_modoptions()
           staperror() << "Could not parse module option '" << modoption << "'" << endl;
           return false; // XXX: perhaps ignore the option instead?
         }
-      string name = modoption.substr(0, separator);
+      string name = "__global_" + modoption.substr(0, separator);
       string value = modoption.substr(separator+1);
 
       int rc = global_setter(name.c_str(), value.c_str());
