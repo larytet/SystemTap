@@ -49,8 +49,9 @@ public:
   void set_current_file (stapfile* f);
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
+  inline bool kw_gate(const char* v) const;
 
-  static set<string> keywords;
+  set<string> keywords;
   static set<string> atwords;
 private:
   inline int input_get ();
@@ -1391,7 +1392,7 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
       // and broadly advertised.
       keywords.insert("probe");
       keywords.insert("global");
-      if (has_version("3.0"))
+      if (kw_gate("3.0"))
         keywords.insert("private");
       keywords.insert("function");
       keywords.insert("if");
@@ -1433,7 +1434,6 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
     }
 }
 
-set<string> lexer::keywords;
 set<string> lexer::atwords;
 
 void
@@ -1470,6 +1470,14 @@ lexer::has_version (const char* v) const
     : true;
 }
 
+bool
+lexer::kw_gate (const char* v) const
+{
+  for (unsigned i=0; i<session.include_path.size(); i++)
+    if (input_name.find(session.include_path[i].c_str()) == 0)
+      return true;
+  return has_version(v);
+}
 
 int
 lexer::input_get ()
