@@ -5,14 +5,26 @@ set am_root [expr 0 == [exec id -u]]
 # We do this by first compiling our very own kernel module and then
 # listing and probing it.
 
-file mkdir "$test"
-cd "$test"
+# Create the temporary directory.
+if {[catch {exec mktemp -d -t staptestXXXXXX} tmpdir]} {
+    verbose -log "Failed to create temporary directory: $tmpdir"
+    return
+}
+
+# Save the current directory and switch to our temporary directory.
+set curdir [pwd]
+cd ${tmpdir}
 
 proc test_cleanup {} {
-   global test
+   global curdir
+   global verbose
+   global tmpdir
 
-   cd ..
-   file delete -force "$test"
+   # Restore current directory
+   cd ${curdir}
+
+   # Cleanup (if we're not verbose)
+   if { $verbose == 0 } { catch { exec rm -f ${tmpdir} } }
 }
 
 proc write_to_file {file data} {
@@ -49,20 +61,19 @@ write_to_file "Makefile" {
 	make -C /lib/modules/$(shell uname -r)/build M=$$PWD
 }
 
-set modpath [pwd]/stap_$test
+set modpath ${tmpdir}/stap_$test
 
 set subtest "compilation"
-if {[catch {exec make} err] || ![file exists $modpath.ko]} {
+if {[catch {exec make} err] || ![file exists ${modpath}.ko]} {
    fail "$test ($subtest)"
    test_cleanup
    return
-} else {
-   pass "$test ($subtest)"
 }
+pass "$test ($subtest)"
 
-set pp "module(\"$modpath.ko\").function(\"stap_${test}_init\")"
-set reg "^module\\\(\"$modpath.ko\"\\\)"
-set reg "$reg\\\.function\\\(\"stap_${test}_init@$modpath.c:8\"\\\)$"
+set pp "module(\"${modpath}.ko\").function(\"stap_${test}_init\")"
+set reg "^module\\\(\"${modpath}.ko\"\\\)"
+set reg "$reg\\\.function\\\(\"stap_${test}_init@${modpath}.c:8\"\\\)$"
 
 # Let's try listing a function first
 set subtest "listing"
@@ -70,9 +81,8 @@ if {[catch {exec stap -l $pp} out] || ![regexp $reg $out]} {
    fail "$test ($subtest)"
    test_cleanup
    return
-} else {
-   pass "$test ($subtest)"
 }
+pass "$test ($subtest)"
 
 # OK now let's actually go for a run
 set subtest "probing"
@@ -84,7 +94,7 @@ if {![installtest_p] || !$am_root || ![module_refresh_p]} {
 }
 
 set script "probe $pp { println(\"hit\") }"
-set command "insmod $modpath.ko && rmmod $modpath.ko"
+set command "insmod ${modpath}.ko && rmmod ${modpath}.ko"
 
 # Spawn stap
 set failed 1
@@ -103,11 +113,8 @@ catch {close}; catch {wait}
 
 if {$failed} {
    fail "$test ($subtest)"
-   test_cleanup
-   return
 } else {
    pass "$test ($subtest)"
 }
 
 test_cleanup
-
