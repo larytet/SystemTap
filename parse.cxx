@@ -2185,7 +2185,7 @@ void
 parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, string & fname, vector<functiondecl*>& functions)
 {
   const token* t = next ();
-  if (! t->type == tok_keyword && t->content == "private")
+  if (! (t->type == tok_keyword && t->content == "private"))
     throw PARSE_ERROR (_("expected 'private'"));
   swallow ();
   t = next ();
@@ -2200,7 +2200,7 @@ parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, strin
     swallow ();
     context = con_global;
     t = next ();
-    if (! t->type == tok_identifier)
+    if (! (t->type == tok_identifier))
       throw PARSE_ERROR (_("expected identifier"));
     do_parse_global(globals, probes, fname, t, true);
   }
