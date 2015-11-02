@@ -612,8 +612,8 @@ int stp_main_loop(void)
   if (monitor)
     {
       monitor_setup();
-      ts.tv_sec = 1;
-      ts.tv_nsec = 0;
+      ts.tv_sec = 0;
+      ts.tv_nsec = 50;
       timeout = &ts;
     }
 

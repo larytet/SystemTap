@@ -43,6 +43,7 @@ int relay_basedir_fd;
 int color_errors;
 color_modes color_mode;
 int monitor;
+int monitor_interval;
 
 /* module variables */
 char *modname = NULL;
@@ -120,7 +121,8 @@ void parse_args(int argc, char **argv)
 	daemon_mode = 0;
 	fsize_max = 0;
 	fnum_max = 0;
-    monitor = 0;
+	monitor = 0;
+        monitor_interval = 1;
         remote_id = -1;
         remote_uri = NULL;
         relay_basedir_fd = -1;
@@ -128,7 +130,7 @@ void parse_args(int argc, char **argv)
         color_errors = isatty(STDERR_FILENO)
                 && strcmp(getenv("TERM") ?: "notdumb", "dumb");
 
-	while ((c = getopt(argc, argv, "ALu::vhb:t:dc:o:x:N:S:DwRr:VT:C:M"
+	while ((c = getopt(argc, argv, "ALu::vhb:t:dc:o:x:N:S:DwRr:VT:C:M:"
 #ifdef HAVE_OPENAT
                            "F:"
 #endif
@@ -249,9 +251,13 @@ void parse_args(int argc, char **argv)
 				|| (color_mode == color_auto && isatty(STDERR_FILENO)
 						&& strcmp(getenv("TERM") ?: "notdumb", "dumb"));
 			break;
-        case 'M':
-            monitor = 1;
-            break;
+		case 'M':
+			monitor = 1;
+			monitor_interval = atoi(optarg);
+			if (monitor_interval < 1) {
+				err(_("Invalid monitor interval\n"));
+			}
+			break;
 		default:
 			usage(argv[0],1);
 		}
@@ -347,7 +353,7 @@ void usage(char *prog, int rc)
 	"-A              Attach to loaded systemtap module.\n"
 	"-C WHEN         Enable colored errors. WHEN must be either 'auto',\n"
 	"                'never', or 'always'. Set to 'auto' by default.\n"
-	"-M              Enable monitor mode.\n"
+	"-M INTERVAL     Enable monitor mode.\n"
 	"-d              Delete a module.  Only detached or unused modules\n"
 	"                the user has permission to access will be deleted. Use \"*\"\n"
 	"                (quoted) to delete all unused modules.\n"

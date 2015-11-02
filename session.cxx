@@ -135,6 +135,7 @@ systemtap_session::systemtap_session ():
   output_file = ""; // -o FILE
   tmpdir_opt_set = false;
   monitor = false;
+  monitor_interval = 1;
   save_module = false;
   save_uprobes = false;
   modname_given = false;
@@ -320,6 +321,7 @@ systemtap_session::systemtap_session (const systemtap_session& other,
   output_file = other.output_file; // XXX how should multiple remotes work?
   tmpdir_opt_set = false;
   monitor = other.monitor;
+  monitor_interval = other.monitor_interval;
   save_module = other.save_module;
   save_uprobes = other.save_uprobes;
   modname_given = other.modname_given;
@@ -653,7 +655,7 @@ systemtap_session::usage (int exitcode)
     "              save uprobes.ko to current directory if it is built from source\n"
     "   --target-namesapce=PID\n"
     "              sets the target namespaces pid to PID\n"
-    "   --monitor\n"
+    "   --monitor=INTERVAL\n"
     "              enables monitor interfaces\n"
     , compatible.c_str()) << endl
   ;
@@ -1453,6 +1455,15 @@ systemtap_session::parse_cmdline (int argc, char * const argv [])
 
         case LONG_OPT_MONITOR:
           monitor = true;
+          if (optarg)
+            {
+              monitor_interval = (int) strtoul(optarg, &num_endptr, 10);
+              if (*num_endptr != '\0' || monitor_interval < 1)
+                {
+                  cerr << _("Invalid monitor interval.") << endl;
+                  return 1;
+                }
+            }
           break;
 
 	case '?':

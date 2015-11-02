@@ -837,6 +837,7 @@ make_run_command (systemtap_session& s, const string& remotedir,
   if (s.monitor)
     {
       staprun_cmd.push_back("-M");
+      staprun_cmd.push_back(lex_cast(s.monitor_interval));
     }
 
   staprun_cmd.push_back((remotedir.empty() ? s.tmpdir : remotedir)

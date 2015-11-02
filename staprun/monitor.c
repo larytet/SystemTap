@@ -1,6 +1,7 @@
 #include "staprun.h"
 #include <json-c/json.h>
 #include <curses.h>
+#include <time.h>
 
 #define COMP_FNS 5
 #define MAX_INDEX 5
@@ -32,6 +33,8 @@ static enum state
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
+static time_t elapsed_time = 0;
+static time_t start_time = 0;
 
 /* Forward declarations */
 static int comp_index(const void *p1, const void *p2);
@@ -113,6 +116,7 @@ static void write_command(const char *msg, const int len)
 
 void monitor_setup(void)
 {
+  start_time = time(NULL);
   initscr();
   curs_set(0);
   cbreak();
@@ -132,22 +136,41 @@ void monitor_cleanup(void)
 
 void monitor_render(void)
 {
+  static int init = 0;
   FILE *monitor_fp;
   FILE *output_fp;
   char path[PATH_MAX];
-
-  if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
-    cleanup_and_exit (0, 1);
-  monitor_fp = fopen(path, "r");
+  time_t current_time = time(NULL);
 
   if (sprintf_chk(path, "/proc/systemtap/%s/monitor_stp_out", modname))
     cleanup_and_exit (0, 1);
   output_fp = fopen(path, "r");
 
-  if (monitor_fp && output_fp)
+  if (output_fp)
+    {
+      char stp_out[MAX_DATA];
+      int bytes;
+      if ((bytes = fread(stp_out, sizeof(char), MAX_DATA, output_fp)) > 0)
+        {
+          stp_out[bytes] = '\0';
+          wprintw(monitor_output, "%s", stp_out);
+          wrefresh(monitor_output);
+        }
+      fclose(output_fp);
+    }
+
+  if (init && (elapsed_time = current_time - start_time) < monitor_interval)
+    return;
+  else
+    start_time = current_time;
+
+  if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
+    cleanup_and_exit (0, 1);
+  monitor_fp = fopen(path, "r");
+
+  if (monitor_fp)
     {
       char json[MAX_DATA];
-      char stp_out[MAX_DATA];
       char monitor_str[MAX_COLS];
       char monitor_out[MAX_COLS];
       int monitor_x, monitor_y, max_cols, max_rows;
@@ -160,13 +183,12 @@ void monitor_render(void)
                   *jso_name, *jso_globals, *jso_probes;
       struct json_object_iterator it, it_end;
 
+      init = 1;
+
       bytes = fread(json, sizeof(char), MAX_DATA, monitor_fp);
       if (!bytes)
         cleanup_and_exit (0, 1);
-      bytes = fread(stp_out, sizeof(char), MAX_DATA, output_fp);
-      stp_out[bytes] = '\0';
       fclose(monitor_fp);
-      fclose(output_fp);
 
       wclear(monitor_status);
       getmaxyx(monitor_status, monitor_y, monitor_x);
@@ -280,9 +302,7 @@ void monitor_render(void)
           wprintw(monitor_status, "\n");
         }
 
-      wprintw(monitor_output, "%s\n", stp_out);
       wrefresh(monitor_status);
-      wrefresh(monitor_output);
 
       /* Free allocated memory */
       json_object_put(jso);

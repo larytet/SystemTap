@@ -218,6 +218,7 @@ public:
   bool systemtap_v_check;
   bool tmpdir_opt_set;
   bool monitor;
+  int monitor_interval;
 
   enum
    { dump_none,               // no dumping requested

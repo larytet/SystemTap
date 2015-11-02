@@ -262,6 +262,7 @@ extern const char *remote_uri;
 extern int relay_basedir_fd;
 extern int color_errors;
 extern int monitor;
+extern int monitor_interval;
 
 typedef enum {color_never, color_auto, color_always} color_modes;
 extern color_modes color_mode;
