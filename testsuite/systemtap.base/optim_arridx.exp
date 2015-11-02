@@ -2,12 +2,12 @@
 
 set test "optim_arridx"
 set ::result_string {# globals
-arr1:long [long, long]
-arr2:long [long]
-arr3:long [long]
-elide_idx1:long
-elide_global_a:long
-elide_global_b:long
+__global_arr1:long [long, long]
+__global_arr2:long [long]
+__global_arr3:long [long]
+__global_elide_idx1:long
+__global_elide_global_a:long
+__global_elide_global_b:long
 # functions
 exit:unknown ()
 %{ /* unprivileged */
@@ -32,22 +32,22 @@ begin /* <- begin */
   dd:long
   ee:long
 {
-(arr2[(elide_idx1) = (1)]) = (10);
-(arr2[(idx2) = (2)]) = (20);
-(arr2[3]) = (30);
-(arr2[(j) = (4)]) = (40);
-(arr1[fna((k) = (0)), k]) = (1);
-(arr1[(b) = (1), b]) = (2);
-(arr1[2, 2]) = (3);
-(arr3[0]) = (4);
+(__global_arr2[(__global_elide_idx1) = (1)]) = (10);
+(__global_arr2[(idx2) = (2)]) = (20);
+(__global_arr2[3]) = (30);
+(__global_arr2[(j) = (4)]) = (40);
+(__global_arr1[fna((k) = (0)), k]) = (1);
+(__global_arr1[(b) = (1), b]) = (2);
+(__global_arr1[2, 2]) = (3);
+(__global_arr3[0]) = (4);
 (m) = (1);
-for (2; (m) <= (10); (m)++) (arr2[m]) = ((m) * (10));
-printf("%d %d %d %d\\n", arr1[0, 0], arr2[0], idx2, j);
+for (2; (m) <= (10); (m)++) (__global_arr2[m]) = ((m) * (10));
+printf("%d %d %d %d\\n", __global_arr1[0, 0], __global_arr2[0], idx2, j);
 (aa) = (fna(1));
-(bb) = (fnb((cc) = (1), (elide_global_a) = (2)));
+(bb) = (fnb((cc) = (1), (__global_elide_global_a) = (2)));
 for (1; (bb) < (10); (bb)++) (cc) += (bb);
 for ((dd) = (1); (dd) < (10); 1) (dd) += (1);
-if ((elide_global_b) = (1)) (ee) = (1)
+if ((__global_elide_global_b) = (1)) (ee) = (1);
 ;
 (cc) = ((dd) = (5));
 (cc) = ((4) + ((cc) = (1)));
@@ -59,19 +59,19 @@ end /* <- end */
   __idx0:long
   __val:long
 {
-foreach (__val = [__idx0] in arr3-) printf("arr3[%#d]=%#x\\n", __idx0, __val);
+foreach (__val = [__idx0] in __global_arr3-) printf("arr3[%#d]=%#x\\n", __idx0, __val);
 }
 end /* <- end */
 {
-printf("elide_idx1=%#x\\n", elide_idx1);
+printf("elide_idx1=%#x\\n", __global_elide_idx1);
 }
 end /* <- end */
 {
-printf("elide_global_a=%#x\\n", elide_global_a);
+printf("elide_global_a=%#x\\n", __global_elide_global_a);
 }
 end /* <- end */
 {
-printf("elide_global_b=%#x\\n", elide_global_b);
+printf("elide_global_b=%#x\\n", __global_elide_global_b);
 }
 }
 

@@ -1,0 +1,21 @@
+probe begin
+{
+  // Each string is manually encoded with overlong UTF-8 for 0 and MIN-1,
+  // followed by good MIN and MAX values for that length.  string_quoted should
+  // write raw octal for the former and \u-escapes for the latter.
+
+  //      <.....0> <....7F> <....80> <...7FF>
+  twos = "\300\200 \301\277 \302\200 \337\277"
+  println(string_quoted(twos))
+
+  //        <.........0> <.......7FF> <.......800> <......FFFF>
+  threes = "\340\200\200 \340\237\277 \340\240\200 \357\277\277"
+  println(string_quoted(threes))
+
+  //       <.............0> <..........FFFF> <.........10000> <........10FFFF>
+  fours = "\360\200\200\200 \360\217\277\277 \360\220\200\200 \364\217\277\277"
+  println(string_quoted(fours))
+
+  exit()
+}
+

@@ -71,16 +71,16 @@ int main()
 
   rename("file2", (char *)-1);
 #ifdef __s390__
-  //staptest// rename ("file2", [7]?[f]+) = -NNNN (EFAULT)
+  //staptest// rename ("file2", 0x[7]?[f]+) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[rename ("file2", [f]+!!!!renameat (AT_FDCWD, "file2", AT_FDCWD, [f]+]]]]) = -NNNN (EFAULT)
+  //staptest// [[[[rename ("file2", 0x[f]+!!!!renameat (AT_FDCWD, "file2", AT_FDCWD, 0x[f]+]]]]) = -NNNN (EFAULT)
 #endif
 
   rename((char *)-1, "file2");
 #ifdef __s390__
-  //staptest// rename ([7]?[f]+, "file2") = -NNNN (EFAULT)
+  //staptest// rename (0x[7]?[f]+, "file2") = -NNNN (EFAULT)
 #else
-  //staptest// [[[[rename ([f]+, "file2"!!!!renameat (AT_FDCWD, [f]+, AT_FDCWD, "file2"]]]]) = -NNNN (EFAULT)
+  //staptest// [[[[rename (0x[f]+, "file2"!!!!renameat (AT_FDCWD, 0x[f]+, AT_FDCWD, "file2"]]]]) = -NNNN (EFAULT)
 #endif
 
 #if GLIBC_SUPPORT
@@ -111,9 +111,9 @@ int main()
 
   renameat(AT_FDCWD, (char *)-1, AT_FDCWD, "file1");
 #ifdef __s390__
-  //staptest// renameat (AT_FDCWD, [7]?[f]+, AT_FDCWD, "file1") = -NNNN
+  //staptest// renameat (AT_FDCWD, 0x[7]?[f]+, AT_FDCWD, "file1") = -NNNN
 #else
-  //staptest// renameat (AT_FDCWD, [f]+, AT_FDCWD, "file1") = -NNNN
+  //staptest// renameat (AT_FDCWD, 0x[f]+, AT_FDCWD, "file1") = -NNNN
 #endif
 
   renameat(AT_FDCWD, "dir1", -1, "file1");
@@ -121,9 +121,9 @@ int main()
 
   renameat(AT_FDCWD, "file1", AT_FDCWD, (char *)-1);
 #ifdef __s390__
-  //staptest// renameat (AT_FDCWD, "file1", AT_FDCWD, [7]?[f]+) = -NNNN (EFAULT)
+  //staptest// renameat (AT_FDCWD, "file1", AT_FDCWD, 0x[7]?[f]+) = -NNNN (EFAULT)
 #else
-  //staptest// renameat (AT_FDCWD, "file1", AT_FDCWD, [f]+) = -NNNN (EFAULT)
+  //staptest// renameat (AT_FDCWD, "file1", AT_FDCWD, 0x[f]+) = -NNNN (EFAULT)
 #endif
 #endif
 
@@ -177,9 +177,9 @@ int main()
 
   __renameat2(AT_FDCWD, (char *)-1, AT_FDCWD, "file4", 0);
 #ifdef __s390__
-  //staptest// renameat2 (AT_FDCWD, [7]?[f]+, AT_FDCWD, "file4", 0x0) = -NNNN
+  //staptest// renameat2 (AT_FDCWD, 0x[7]?[f]+, AT_FDCWD, "file4", 0x0) = -NNNN
 #else
-  //staptest// [[[[renameat2 (AT_FDCWD, [f]+, AT_FDCWD, "file4", 0x0)!!!!ni_syscall ()]]]] = -NNNN
+  //staptest// [[[[renameat2 (AT_FDCWD, 0x[f]+, AT_FDCWD, "file4", 0x0)!!!!ni_syscall ()]]]] = -NNNN
 #endif
 
   __renameat2(AT_FDCWD, "dir6", -1, "file4", 0);
@@ -187,9 +187,9 @@ int main()
 
   __renameat2(AT_FDCWD, "file4", AT_FDCWD, (char *)-1, 0);
 #ifdef __s390__
-  //staptest// renameat2 (AT_FDCWD, "file4", AT_FDCWD, [7]?[f]+, 0x0) = -NNNN (EFAULT)
+  //staptest// renameat2 (AT_FDCWD, "file4", AT_FDCWD, 0x[7]?[f]+, 0x0) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[renameat2 (AT_FDCWD, "file4", AT_FDCWD, [f]+, 0x0)!!!!ni_syscall ()]]]] = -NNNN (EFAULT!!!!ENOSYS)
+  //staptest// [[[[renameat2 (AT_FDCWD, "file4", AT_FDCWD, 0x[f]+, 0x0)!!!!ni_syscall ()]]]] = -NNNN (EFAULT!!!!ENOSYS)
 #endif
 
   __renameat2(AT_FDCWD, "dir6", AT_FDCWD, "file4", -1);

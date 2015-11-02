@@ -45,16 +45,16 @@ int main()
 
   link((char *)-1, "foo");
 #ifdef __s390__
-  //staptest// link ([7]?[f]+, "foo") = -NNNN (EFAULT)
+  //staptest// link (0x[7]?[f]+, "foo") = -NNNN (EFAULT)
 #else
-  //staptest// [[[[link ([f]+, "foo"!!!!linkat (AT_FDCWD, [f]+, AT_FDCWD, "foo", 0x0]]]]) = -NNNN (EFAULT)
+  //staptest// [[[[link (0x[f]+, "foo"!!!!linkat (AT_FDCWD, 0x[f]+, AT_FDCWD, "foo", 0x0]]]]) = -NNNN (EFAULT)
 #endif
 
   link("nonexist", (char *)-1);
 #ifdef __s390__
-  //staptest// link ("nonexist", [7]?[f]+) = -NNNN
+  //staptest// link ("nonexist", 0x[7]?[f]+) = -NNNN
 #else
-  //staptest// [[[[link ("nonexist", [f]+!!!!linkat (AT_FDCWD, "nonexist", AT_FDCWD, [f]+, 0x0]]]]) = -NNNN
+  //staptest// [[[[link ("nonexist", 0x[f]+!!!!linkat (AT_FDCWD, "nonexist", AT_FDCWD, 0x[f]+, 0x0]]]]) = -NNNN
 #endif
 
 #if GLIBC_SUPPORT
@@ -66,9 +66,9 @@ int main()
 
   linkat(AT_FDCWD, (char *)-1, AT_FDCWD, "foo", 0);
 #ifdef __s390__
-  //staptest// linkat (AT_FDCWD, [7]?[f]+, AT_FDCWD, "foo", 0x0) = -NNNN (EFAULT)
+  //staptest// linkat (AT_FDCWD, 0x[7]?[f]+, AT_FDCWD, "foo", 0x0) = -NNNN (EFAULT)
 #else
-  //staptest// linkat (AT_FDCWD, [f]+, AT_FDCWD, "foo", 0x0) = -NNNN (EFAULT)
+  //staptest// linkat (AT_FDCWD, 0x[f]+, AT_FDCWD, "foo", 0x0) = -NNNN (EFAULT)
 #endif
 
   linkat(AT_FDCWD, "nonexist", -1, "foo", 0);
@@ -76,9 +76,9 @@ int main()
 
   linkat(AT_FDCWD, "nonexist", AT_FDCWD, (char *)-1, 0);
 #ifdef __s390__
-  //staptest// linkat (AT_FDCWD, "nonexist", AT_FDCWD, [7]?[f]+, 0x0) = -NNNN
+  //staptest// linkat (AT_FDCWD, "nonexist", AT_FDCWD, 0x[7]?[f]+, 0x0) = -NNNN
 #else
-  //staptest// linkat (AT_FDCWD, "nonexist", AT_FDCWD, [f]+, 0x0) = -NNNN
+  //staptest// linkat (AT_FDCWD, "nonexist", AT_FDCWD, 0x[f]+, 0x0) = -NNNN
 #endif
 
   linkat(AT_FDCWD, "nonexist", AT_FDCWD, "foo", -1);
@@ -90,16 +90,16 @@ int main()
 
   symlink((char *)-1, "Sfoobar");
 #ifdef __s390__
-  //staptest// symlink ([7]?[f]+, "Sfoobar") = -NNNN (EFAULT)
+  //staptest// symlink (0x[7]?[f]+, "Sfoobar") = -NNNN (EFAULT)
 #else
-  //staptest// [[[[symlink ([f]+, !!!!symlinkat ([f]+, AT_FDCWD, ]]]]"Sfoobar") = -NNNN (EFAULT)
+  //staptest// [[[[symlink (0x[f]+, !!!!symlinkat (0x[f]+, AT_FDCWD, ]]]]"Sfoobar") = -NNNN (EFAULT)
 #endif
 
   symlink("foobar", (char *)-1);
 #ifdef __s390__
-  //staptest// symlink ("foobar", [7]?[f]+) = -NNNN (EFAULT)
+  //staptest// symlink ("foobar", 0x[7]?[f]+) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[symlink ("foobar", !!!!symlinkat ("foobar", AT_FDCWD, ]]]][f]+) = -NNNN (EFAULT)
+  //staptest// [[[[symlink ("foobar", !!!!symlinkat ("foobar", AT_FDCWD, ]]]]0x[f]+) = -NNNN (EFAULT)
 #endif
 
 #if GLIBC_SUPPORT
@@ -108,9 +108,9 @@ int main()
 
   symlinkat((char *)-1, AT_FDCWD, "Sfoobar2");
 #ifdef __s390__
-  //staptest// symlinkat ([7]?[f]+, AT_FDCWD, "Sfoobar2") = -NNNN (EFAULT)
+  //staptest// symlinkat (0x[7]?[f]+, AT_FDCWD, "Sfoobar2") = -NNNN (EFAULT)
 #else
-  //staptest// symlinkat ([f]+, AT_FDCWD, "Sfoobar2") = -NNNN (EFAULT)
+  //staptest// symlinkat (0x[f]+, AT_FDCWD, "Sfoobar2") = -NNNN (EFAULT)
 #endif
 
   symlinkat("foobar", -1, "Sfoobar2");
@@ -118,9 +118,9 @@ int main()
 
   symlinkat("foobar", AT_FDCWD, (char *)-1);
 #ifdef __s390__
-  //staptest// symlinkat ("foobar", AT_FDCWD, [7]?[f]+) = -NNNN (EFAULT)
+  //staptest// symlinkat ("foobar", AT_FDCWD, 0x[7]?[f]+) = -NNNN (EFAULT)
 #else
-  //staptest// symlinkat ("foobar", AT_FDCWD, [f]+) = -NNNN (EFAULT)
+  //staptest// symlinkat ("foobar", AT_FDCWD, 0x[f]+) = -NNNN (EFAULT)
 #endif
 #endif
 
@@ -129,9 +129,9 @@ int main()
 
   readlink((char *)-1, buf, sizeof(buf));
 #ifdef __s390__
-  //staptest// [[[[readlink (!!!!readlinkat (AT_FDCWD, ]]]][7]?[f]+, XXXX, 128) = -NNNN (EFAULT)
+  //staptest// [[[[readlink (!!!!readlinkat (AT_FDCWD, ]]]]0x[7]?[f]+, XXXX, 128) = -NNNN (EFAULT)
 #else
-  //staptest// [[[[readlink (!!!!readlinkat (AT_FDCWD, ]]]][f]+, XXXX, 128) = -NNNN (EFAULT)
+  //staptest// [[[[readlink (!!!!readlinkat (AT_FDCWD, ]]]]0x[f]+, XXXX, 128) = -NNNN (EFAULT)
 #endif
 
   readlink("Sfoobar", (char *)-1, sizeof(buf));
@@ -153,9 +153,9 @@ int main()
 
   readlinkat(AT_FDCWD, (char *)-1, buf, sizeof(buf));
 #ifdef __s390__
-  //staptest// readlinkat (AT_FDCWD, [7]?[f]+, XXXX, 128) = -NNNN (EFAULT)
+  //staptest// readlinkat (AT_FDCWD, 0x[7]?[f]+, XXXX, 128) = -NNNN (EFAULT)
 #else
-  //staptest// readlinkat (AT_FDCWD, [f]+, XXXX, 128) = -NNNN (EFAULT)
+  //staptest// readlinkat (AT_FDCWD, 0x[f]+, XXXX, 128) = -NNNN (EFAULT)
 #endif
 
   readlinkat(AT_FDCWD, "Sfoobar", (char *)-1, sizeof(buf));

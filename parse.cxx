@@ -45,12 +45,12 @@ public:
   bool check_compatible; // whether to gate features on session.compatible
 
   token* scan ();
-  lexer (istream&, const string&, systemtap_session&);
+  lexer (istream&, const string&, systemtap_session&, bool);
   void set_current_file (stapfile* f);
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
 
-  static set<string> keywords;
+  set<string> keywords;
   static set<string> atwords;
 private:
   inline int input_get ();
@@ -167,8 +167,11 @@ private:
 
 private: // nonterminals
   void parse_probe (vector<probe*>&, vector<probe_alias*>&);
-  void parse_global (vector<vardecl*>&, vector<probe*>&);
-  void parse_functiondecl (vector<functiondecl*>&);
+  void parse_private (vector<vardecl*>&, vector<probe*>&, string&, vector<functiondecl*>&);
+  void parse_global (vector<vardecl*>&, vector<probe*>&, string&);
+  void do_parse_global (vector<vardecl*>&, vector<probe*>&, string&, const token*, bool);
+  void parse_functiondecl (vector<functiondecl*>&, string&);
+  void do_parse_functiondecl (vector<functiondecl*>&, const token*, string&, bool);
   embeddedcode* parse_embeddedcode ();
   probe_point* parse_probe_point ();
   literal_string* consume_string_literals (const token*);
@@ -272,13 +275,11 @@ parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 
 // ------------------------------------------------------------------------
 
-
 parser::parser (systemtap_session& s, const string &n, istream& i, unsigned flags):
-  session (s), input_name (n), input (i, input_name, s),
+  session (s), input_name (n), input (i, input_name, s, !(flags & pf_no_compatible)),
   errs_as_warnings(flags & pf_squash_errors), privileged (flags & pf_guru),
   context(con_unknown), systemtap_v_seen(0), last_t (0), next_t (0), num_errors (0)
 {
-  input.check_compatible = !(flags & pf_no_compatible);
 }
 
 parser::~parser()
@@ -1369,8 +1370,8 @@ parser::peek_kw (string const & kw)
 
 
 
-lexer::lexer (istream& input, const string& in, systemtap_session& s):
-  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(true),
+lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
+  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(cc),
   input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
   cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
   cursor_column (1), session(s), current_file (0), current_token_chain (0)
@@ -1388,6 +1389,8 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
       // and broadly advertised.
       keywords.insert("probe");
       keywords.insert("global");
+      if (has_version("3.0"))
+        keywords.insert("private");
       keywords.insert("function");
       keywords.insert("if");
       keywords.insert("else");
@@ -1428,7 +1431,6 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s):
     }
 }
 
-set<string> lexer::keywords;
 set<string> lexer::atwords;
 
 void
@@ -1464,7 +1466,6 @@ lexer::has_version (const char* v) const
     ? strverscmp(session.compatible.c_str(), v) >= 0
     : true;
 }
-
 
 int
 lexer::input_get ()
@@ -1861,15 +1862,20 @@ parser::parse ()
 	      context = con_probe;
 	      parse_probe (f->probes, f->aliases);
 	    }
+	  else if (t->type == tok_keyword && t->content == "private")
+	    {
+	      context = con_unknown;
+	      parse_private (f->globals, f->probes, f->name, f->functions);
+	    }
 	  else if (t->type == tok_keyword && t->content == "global")
 	    {
 	      context = con_global;
-	      parse_global (f->globals, f->probes);
+	      parse_global (f->globals, f->probes, f->name);
 	    }
 	  else if (t->type == tok_keyword && t->content == "function")
 	    {
 	      context = con_function;
-	      parse_functiondecl (f->functions);
+	      parse_functiondecl (f->functions, f->name);
 	    }
           else if (t->type == tok_embedded)
 	    {
@@ -2173,18 +2179,64 @@ parser::parse_statement ()
   return ret;
 }
 
+void
+parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, string & fname, vector<functiondecl*>& functions)
+{
+  const token* t = next ();
+  if (! (t->type == tok_keyword && t->content == "private"))
+    throw PARSE_ERROR (_("expected 'private'"));
+  swallow ();
+  t = next ();
+  if (t->type == tok_keyword && t->content == "function")
+  {
+    swallow ();
+    context = con_function;
+    do_parse_functiondecl(functions, t, fname, true);
+  }
+  else if (t->type == tok_keyword && t->content == "global")
+  {
+    swallow ();
+    context = con_global;
+    t = next ();
+    if (! (t->type == tok_identifier))
+      throw PARSE_ERROR (_("expected identifier"));
+    do_parse_global(globals, probes, fname, t, true);
+  }
+  // The `private <identifier>` is an acceptable shorthand
+  // for `private global <identifier>` per above.
+  else if (t->type == tok_identifier)
+  {
+    context = con_global;
+    do_parse_global(globals, probes, fname, t, true);
+  }
+  else
+    throw PARSE_ERROR (_("expected 'function' or identifier"));
+}
 
 void
-parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
+parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes, string & fname)
 {
   const token* t0 = next ();
   if (! (t0->type == tok_keyword && t0->content == "global"))
-    throw PARSE_ERROR (_("expected 'global'"));
+    throw PARSE_ERROR (_("expected 'global' or 'private'"));
   swallow ();
+  do_parse_global(globals, probes, fname, 0, false);
+}
 
+void
+parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fname, const token* t0, bool priv)
+{
+  bool iter0 = true;
+  const token* t;
   while (1)
     {
-      const token* t = next ();
+      if (iter0 && priv)
+        t = t0;
+      else
+      {
+        t = next ();
+        iter0 = false;
+      }
       if (! (t->type == tok_identifier))
         throw PARSE_ERROR (_("expected identifier"));
 
@@ -2192,8 +2244,12 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
 	if (globals[i]->name == t->content)
 	  throw PARSE_ERROR (_("duplicate global name"));
 
+      string name = "__global_" + string(t->content);
+      if (priv)
+        name = "__private_" + detox_path(fname) + string(t->content);
+
       vardecl* d = new vardecl;
-      d->name = t->content;
+      d->name = name;
       d->tok = t;
       d->systemtap_v_conditional = systemtap_v_seen;
       globals.push_back (d);
@@ -2246,15 +2302,19 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>&)
     }
 }
 
-
 void
-parser::parse_functiondecl (vector<functiondecl*>& functions)
+parser::parse_functiondecl (vector<functiondecl*>& functions, string & fname)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "function"))
     throw PARSE_ERROR (_("expected 'function'"));
   swallow ();
+  do_parse_functiondecl(functions, t, fname, false);
+}
 
+void
+parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t, string & fname, bool priv)
+{
   t = next ();
   if (! (t->type == tok_identifier)
       && ! (t->type == tok_keyword
@@ -2265,8 +2325,12 @@ parser::parse_functiondecl (vector<functiondecl*>& functions)
     if (functions[i]->name == t->content)
       throw PARSE_ERROR (_("duplicate function name"));
 
+  string name = t->content;
+  if (priv)
+    name = "__private_" + detox_path(fname) + string(t->content);
+
   functiondecl *fd = new functiondecl ();
-  fd->name = t->content;
+  fd->name = name;
   fd->tok = t;
 
   t = next ();

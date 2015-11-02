@@ -227,7 +227,6 @@ find_script_hash (systemtap_session& s, const string& script)
   h.add("Skip Badvars (--skip-badvars): ", s.skip_badvars);
   h.add("Privilege (--privilege): ", s.privilege);
   h.add("Compatible (--compatible): ", s.compatible);
-  h.add("Omit Werror (undocumented): ", s.omit_werror);
   h.add("Error suppression (--suppress-handler-errors): ", s.suppress_handler_errors);
   h.add("Suppress Time Limits (--suppress-time-limits): ", s.suppress_time_limits);
   h.add("Prologue Searching (--prologue-searching[=WHEN]): ", int(s.prologue_searching_mode));

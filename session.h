@@ -213,7 +213,6 @@ public:
   std::string uprobes_path;
   std::string uprobes_hash;
   bool load_only; // flight recorder mode
-  bool omit_werror;
   privilege_t privilege;
   bool privilege_set;
   bool systemtap_v_check;

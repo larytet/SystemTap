@@ -21,7 +21,7 @@ int main()
   //staptest// swapon ("foobar_swap", SWAP_FLAG_PREFER|7) = -NNNN
 
   swapon(0, 0);
-  //staptest// swapon ( *(null), 0x0) =
+  //staptest// swapon ( *0x0, 0x0) =
 
 #ifdef SWAP_FLAG_DISCARD
   swapon("foobar_swap", SWAP_FLAG_DISCARD);
@@ -33,22 +33,22 @@ int main()
 
   swapon((char *)-1, SWAP_FLAG_PREFER);
 #ifdef __s390__
-  //staptest// swapon ([7]?[f]+, SWAP_FLAG_PREFER|0) = -NNNN
+  //staptest// swapon (0x[7]?[f]+, SWAP_FLAG_PREFER|0) = -NNNN
 #else
-  //staptest// swapon ([f]+, SWAP_FLAG_PREFER|0) = -NNNN
+  //staptest// swapon (0x[f]+, SWAP_FLAG_PREFER|0) = -NNNN
 #endif
 
   swapoff("foobar_swap");
   //staptest// swapoff ("foobar_swap") = -NNNN
 
   swapoff(0);
-  //staptest// swapoff ( *(null)) = -NNNN
+  //staptest// swapoff ( *0x0) = -NNNN
 
   swapoff((char *)-1);
 #ifdef __s390__
-  //staptest// swapoff ([7]?[f]+) = -NNNN
+  //staptest// swapoff (0x[7]?[f]+) = -NNNN
 #else
-  //staptest// swapoff ([f]+) = -NNNN
+  //staptest// swapoff (0x[f]+) = -NNNN
 #endif
 
   return 0;

@@ -1,0 +1,14 @@
+set test "utf_overlong"
+
+set ::result_string {"\300\200 \301\277 \u0080 \u07FF"
+"\340\200\200 \340\237\277 \u0800 \uFFFF"
+"\360\200\200\200 \360\217\277\277 \U00010000 \U0010FFFF"}
+
+set stpfile "$srcdir/$subdir/$test.stp"
+foreach runtime [get_runtime_list] {
+  if {$runtime != ""} {
+    stap_run3 "$test ($runtime)" --runtime=$runtime $stpfile
+  } else {
+    stap_run3 $test $stpfile
+  }
+}

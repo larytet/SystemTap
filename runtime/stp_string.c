@@ -78,17 +78,17 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 	if ((b & 0xE0) == 0xC0 && size >= 1) {
 		/* 110xxxxx 10xxxxxx */
 		/* Two-byte UTF-8, one more byte to read.  */
-		n = 1;
+		n = 2;
 		c = b & 0x1F;
 	} else if ((b & 0xF0) == 0xE0 && size >= 2) {
 		/* 1110xxxx 10xxxxxx 10xxxxxx */
 		/* Three-byte UTF-8, two more bytes to read.  */
-		n = 2;
+		n = 3;
 		c = b & 0xF;
 	} else if ((b & 0xF8) == 0xF0 && size >= 3) {
 		/* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
 		/* Four-byte UTF-8, three more bytes to read.  */
-		n = 3;
+		n = 4;
 		c = b & 0x7;
 	} else {
 		/* Return everything else verbatim, whether it's ASCII, longer
@@ -97,7 +97,8 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 		goto verbatim;
 	}
 
-	for (i = 0; i < n; ++i) {
+	/* Mix in the UTF-8 continuation bytes.  */
+	for (i = 1; i < n; ++i) {
 		char b2 = '\0';
 		if (_stp_read_address(b2, buf, (user ? USER_DS : KERNEL_DS)))
 			return -EFAULT;
@@ -110,14 +111,23 @@ static int _stp_decode_utf8(const char* buf, int size, int user, int* c_ret)
 		c = (c << 6) | (b2 & 0x3F);
 	}
 
-	if (0xD800 <= c && c <= 0xDFFF) /* UTF-16 surrogates.  */
+
+	/* Reject UTF-16 surrogates.  */
+	if (0xD800 <= c && c <= 0xDFFF)
 		goto verbatim;
-	if (c > 0x10FFFF) /* Exceeds RFC 3629.  */
+
+	/* Reject values that exceed RFC 3629.  */
+	if (c > 0x10FFFF)
+		goto verbatim;
+
+	/* Reject values that were encoded longer than necessary, so we don't
+	 * hide that fact in our output.  (e.g. 0xC0 0x80 -> 0!)  */
+	if (c < 0x80 || (n == 3 && c < 0x800) || (n == 4 && c < 0x10000))
 		goto verbatim;
 
 	/* Successfully consumed the continuation bytes.  */
 	*c_ret = c;
-	return 1 + n;
+	return n;
 
 verbatim:
 	*c_ret = (unsigned char) b;
@@ -142,7 +152,7 @@ verbatim:
 static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 			 int quoted, int user)
 {
-	int c = 0, i;
+	int c = 0;
 	char *out = outstr;
 
 	if (inlen <= 0 || inlen > MAXSTRINGLEN-1)
@@ -165,30 +175,24 @@ static int _stp_text_str(char *outstr, const char *in, int inlen, int outlen,
 		in += n;
 		inlen -= n;
 
-		if (n == 1 && isprint(c) && isascii(c)
-                    && c != '"' && c != '\\') /* quoteworthy characters */
-                  *out++ = c;
+		if (n > 1) {
+			/* UTF-8, print \uXXXX or \UXXXXXXXX */
+			int i;
+			num = (c <= 0xFFFF) ? 6 : 10;
+			if (outlen < num)
+				break;
 
-		else if (c > 0xFFFF) {
-			/* high unicode, print \UXXXXXXXX */
-			num = 10;
-			if (outlen < num)
-				break;
 			*out++ = '\\';
-			*out++ = 'U';
-			for (i = 7; i >= 0; --i)
-				*out++ = to_hex_digit((c >> (i * 4)) & 0xF);
+			*out++ = (c <= 0xFFFF) ? 'u' : 'U';
+			for (i = num - 3; i >= 0; --i) {
+				char nibble = (c >> (i * 4)) & 0xF;
+				*out++ = to_hex_digit(nibble);
+			}
+
 		}
-		else if (c > 0xFF || (n > 1 && c > 0x7F)) {
-			/* basic unicode, print \uXXXX */
-			num = 6;
-			if (outlen < num)
-				break;
-			*out++ = '\\';
-			*out++ = 'u';
-			for (i = 3; i >= 0; --i)
-				*out++ = to_hex_digit((c >> (i * 4)) & 0xF);
-		}
+		else if (isascii(c) && isprint(c)
+				&& c != '"' && c != '\\') /* quoteworthy characters */
+			*out++ = c;
 		else {
 			switch (c) {
 			case '\a':

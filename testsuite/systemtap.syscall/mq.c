@@ -258,9 +258,9 @@ int main() {
     // so we use syscall():
     syscall(__NR_mq_unlink, (const char *)-1);
 #ifdef __s390__
-    //staptest// mq_unlink ([7]?[f]+) = NNNN
+    //staptest// mq_unlink (0x[7]?[f]+) = NNNN
 #else
-    //staptest// mq_unlink ([f]+) = NNNN
+    //staptest// mq_unlink (0x[f]+) = NNNN
 #endif
 
     mq_server = mq_server_valid;

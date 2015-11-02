@@ -24,7 +24,7 @@ int main()
 
     /* Limit testing */
     __execveat(-1, (char *)-1, NULL, NULL, 0);
-    //staptest// [[[[execveat (-1, [f]+, \[\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN
+    //staptest// [[[[execveat (-1, 0x[f]+, \[\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN
 
     __execveat(-1, "/bin/true", (char **)-1, NULL, 0);
     //staptest// [[[[execveat (-1, "/bin/true", \[0x[f]+\], \[/\* 0 vars \*/\], 0x0)!!!!ni_syscall ()]]]] = -NNNN

@@ -31,9 +31,9 @@ int main()
 
     mknod((const char *)-1, S_IFREG | 0644, 0);
 #ifdef __s390__
-    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]][7]?[f]+, S_IFREG|0644, 0) = NNNN
+    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]]0x[7]?[f]+, S_IFREG|0644, 0) = NNNN
 #else
-    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]][f]+, S_IFREG|0644, 0) = NNNN
+    //staptest// [[[[mknod (!!!!mknodat (AT_FDCWD, ]]]]0x[f]+, S_IFREG|0644, 0) = NNNN
 #endif
 
     mknod("testfile1", -1, 0);
@@ -62,9 +62,9 @@ int main()
 
     __mknodat(AT_FDCWD, (const char *)-1, S_IFREG | 0644, 0);
 #ifdef __s390__
-    //staptest// mknodat (AT_FDCWD, [7]?[f]+, S_IFREG|0644, 0) = NNNN
+    //staptest// mknodat (AT_FDCWD, 0x[7]?[f]+, S_IFREG|0644, 0) = NNNN
 #else
-    //staptest// mknodat (AT_FDCWD, [f]+, S_IFREG|0644, 0) = NNNN
+    //staptest// mknodat (AT_FDCWD, 0x[f]+, S_IFREG|0644, 0) = NNNN
 #endif
 
     __mknodat(AT_FDCWD, "testfile2", -1, 0);

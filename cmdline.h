@@ -20,7 +20,6 @@ enum {
   LONG_OPT_VERBOSE_PASS = 256,
   LONG_OPT_SKIP_BADVARS,
   LONG_OPT_UNPRIVILEGED,
-  LONG_OPT_OMIT_WERROR,
   LONG_OPT_CLIENT_OPTIONS,
   LONG_OPT_HELP,
   LONG_OPT_DISABLE_CACHE,
@@ -67,14 +66,6 @@ enum {
 // NB: when adding new options, consider very carefully whether they
 // should be restricted from stap clients (after --client-options)!
 #define STAP_SHORT_OPTIONS "hVvtp:I:e:E:o:R:r:a:m:kgPc:x:D:bs:uqiwl:d:L:FS:B:J:jWG:"
-
-#define OWE5 "tter"
-#define OWE1 "uild-"
-#define OWE6 "fu-kb"
-#define OWE2 "i-kno"
-#define OWE4 "st"
-#define OWE3 "w-be"
-#define OMIT_WERROR_NAME OWE4 OWE6 OWE1 OWE2 OWE3 OWE5
 
 extern struct option stap_long_options[];
 

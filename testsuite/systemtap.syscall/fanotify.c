@@ -87,9 +87,9 @@ int main()
 
     fanotify_mark(-1, FAN_MARK_ADD|FAN_MARK_MOUNT, FAN_CLOSE_NOWRITE, AT_FDCWD, (char *)-1);
 #ifdef __s390__
-    //staptest// fanotify_mark (-1, FAN_MARK_ADD|FAN_MARK_MOUNT, FAN_CLOSE_NOWRITE, AT_FDCWD, [7]?[f]+) = -NNNN
+    //staptest// fanotify_mark (-1, FAN_MARK_ADD|FAN_MARK_MOUNT, FAN_CLOSE_NOWRITE, AT_FDCWD, 0x[7]?[f]+) = -NNNN
 #else
-    //staptest// fanotify_mark (-1, FAN_MARK_ADD|FAN_MARK_MOUNT, FAN_CLOSE_NOWRITE, AT_FDCWD, [f]+) = -NNNN
+    //staptest// fanotify_mark (-1, FAN_MARK_ADD|FAN_MARK_MOUNT, FAN_CLOSE_NOWRITE, AT_FDCWD, 0x[f]+) = -NNNN
 #endif
 
     return 0;

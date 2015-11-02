@@ -130,7 +130,7 @@ int main()
 #endif
 
     __kexec_file_load(fd, fd, strlen(cmdline), (char *)-1, KEXEC_FILE_ON_CRASH);
-    //staptest// kexec_file_load (NNNN, NNNN, NNNN, [f]+, KEXEC_FILE_ON_CRASH) = -NNNN
+    //staptest// kexec_file_load (NNNN, NNNN, NNNN, 0x[f]+, KEXEC_FILE_ON_CRASH) = -NNNN
 
     __kexec_file_load(fd, fd, strlen(cmdline), cmdline, -1);
     //staptest// kexec_file_load (NNNN, NNNN, NNNN, "KEYTABLE=us LANG=en_US.UTF-8", KEXEC_FILE_[^ ]+|XXXX) = -NNNN

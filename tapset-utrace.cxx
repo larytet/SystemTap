@@ -298,7 +298,7 @@ utrace_var_expanding_visitor::visit_target_symbol_cached (target_symbol* e)
       // calls at a time. The array will look like this:
       //
       //   _utrace_tvar_{name}_{num}
-      string aname = (string("_utrace_tvar_")
+      string aname = (string("__global_utrace_tvar_")
 		      + e->sym_name()
 		      + "_" + lex_cast(tick++));
       vardecl* vd = new vardecl;

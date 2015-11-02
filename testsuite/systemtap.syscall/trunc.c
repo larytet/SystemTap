@@ -38,9 +38,9 @@ int main()
 
   truncate((char *)-1, 2048);
 #ifdef __s390__
-  //staptest// truncate ([7]?[f]+, 2048) = -NNNN (EFAULT)
+  //staptest// truncate (0x[7]?[f]+, 2048) = -NNNN (EFAULT)
 #else
-  //staptest// truncate ([f]+, 2048) = -NNNN (EFAULT)
+  //staptest// truncate (0x[f]+, 2048) = -NNNN (EFAULT)
 #endif
 
   truncate("foobar", -1);
@@ -52,9 +52,9 @@ int main()
 
   truncate64((char *)-1, (off64_t)0x7FFFFFFFFFFFFFFFLL);
 #ifdef __s390__
-  //staptest// truncate ([7]?[f]+, 9223372036854775807) = NNNN
+  //staptest// truncate (0x[7]?[f]+, 9223372036854775807) = NNNN
 #else
-  //staptest// truncate ([f]+, 9223372036854775807) = NNNN
+  //staptest// truncate (0x[f]+, 9223372036854775807) = NNNN
 #endif
 
   truncate64("foobar", (off64_t)-1LL);

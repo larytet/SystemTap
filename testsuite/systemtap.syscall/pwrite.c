@@ -35,17 +35,17 @@ int main()
 
   pwrite(fd, (void *)-1, 11, 12);
 #ifdef __s390__
-  //staptest// pwrite (NNNN, [7]?[f]+, 11, 12) = NNNN
+  //staptest// pwrite (NNNN, 0x[7]?[f]+, 11, 12) = NNNN
 #else
-  //staptest// pwrite (NNNN, [f]+, 11, 12) = NNNN
+  //staptest// pwrite (NNNN, 0x[f]+, 11, 12) = NNNN
 #endif
 
   /* We need to be careful when writing -1 bytes. */
   pwrite(-1, NULL, -1, 12);
 #if __WORDSIZE == 64
-  //staptest// pwrite (-1, *(null), 18446744073709551615, 12) = NNNN
+  //staptest// pwrite (-1, *0x0, 18446744073709551615, 12) = NNNN
 #else
-  //staptest// pwrite (-1, *(null), 4294967295, 12) = NNNN
+  //staptest// pwrite (-1, *0x0, 4294967295, 12) = NNNN
 #endif
 
   pwrite(fd, "Hello Again", 11, -1);

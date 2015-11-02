@@ -1,0 +1,7 @@
+private global gtest1 = 3
+private gtest2 = 7
+function gtest1_getter() { return gtest1 }
+function gtest2_getter() { return gtest2 }
+private function three() { return 3 }
+function getthree() { return three() }
+global myglobal=11

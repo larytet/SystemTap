@@ -71,7 +71,7 @@ proc run_subtest {subtest expected_affection expected_locking script} {
 
 # No affection
 # NB: the [list 0 {enabled[rw]}] means "probe 0 locks var enabled for rw"
-run_subtest "none" "" [list 0 {enabled[rw]}] {
+run_subtest "none" "" [list 0 {__global_enabled[rw]}] {
    global enabled = 0 // NB: we try not just 0/1 but other integral values too
    probe timer.s(5) {
        enabled = enabled ? 0 : 100;
@@ -79,8 +79,8 @@ run_subtest "none" "" [list 0 {enabled[rw]}] {
 }
 
 # NB: the [list 1 0] means "probe 1 affects condition of probe 0"
-run_subtest "simple1" [list 1 0] [list 0 {enabled[r]} \
-                                       1 {enabled[rw]}] {
+run_subtest "simple1" [list 1 0] [list 0 {__global_enabled[r]} \
+                                       1 {__global_enabled[rw]}] {
    global enabled = 0
    probe timer.s(1) if (enabled != 0) {
       next
@@ -90,8 +90,8 @@ run_subtest "simple1" [list 1 0] [list 0 {enabled[r]} \
    }
 }
 
-run_subtest "simple2" [list 0 1] [list 0 {enabled[rw]} \
-                                       1 {enabled[r]}] {
+run_subtest "simple2" [list 0 1] [list 0 {__global_enabled[rw]} \
+                                       1 {__global_enabled[r]}] {
    global enabled = 0
    probe timer.s(5) {
       enabled = enabled ? 0 : -9999
@@ -101,7 +101,7 @@ run_subtest "simple2" [list 0 1] [list 0 {enabled[rw]} \
    }
 }
 
-run_subtest "self1" [list 0 0] [list 0 {enabled[rw]}] {
+run_subtest "self1" [list 0 0] [list 0 {__global_enabled[rw]}] {
    global enabled = 0
    probe timer.s(1) if (enabled) {
       enabled = !enabled
@@ -110,8 +110,8 @@ run_subtest "self1" [list 0 0] [list 0 {enabled[rw]}] {
 
 run_subtest "self2" [list 0 1 \
                           1 1] \
-                    [list 0 {enabled[rw]} \
-                          1 {enabled[rw]}] {
+                    [list 0 {__global_enabled[rw]} \
+                          1 {__global_enabled[rw]}] {
    global enabled = 0
    probe timer.s(5) {
       enabled = !enabled
@@ -121,8 +121,8 @@ run_subtest "self2" [list 0 1 \
    }
 }
 
-run_subtest "many_vars_1" [list 1 0] [list 0 {var1[r] var2[r] var3[r]} \
-                                           1 {var1[rw] var2[rw] var3[rw]}] {
+run_subtest "many_vars_1" [list 1 0] [list 0 {__global_var1[r] __global_var2[r] __global_var3[r]} \
+                                           1 {__global_var1[rw] __global_var2[rw] __global_var3[rw]}] {
    global var1 = 0
    global var2 = 1
    global var3
@@ -139,10 +139,10 @@ run_subtest "many_vars_1" [list 1 0] [list 0 {var1[r] var2[r] var3[r]} \
 run_subtest "many_vars_2" [list 0 3 \
                                 1 3 \
                                 2 3] \
-                          [list 0 {var1[rw] var2[r] var3[r]} \
-                                1 {var1[r] var2[rw] var3[r]} \
-                                2 {var1[r] var2[r] var3[rw]} \
-                                3 {var1[r] var2[r] var3[r]}] {
+                          [list 0 {__global_var1[rw] __global_var2[r] __global_var3[r]} \
+                                1 {__global_var1[r] __global_var2[rw] __global_var3[r]} \
+                                2 {__global_var1[r] __global_var2[r] __global_var3[rw]} \
+                                3 {__global_var1[r] __global_var2[r] __global_var3[r]}] {
    global var1 = 0
    global var2 = -1
    global var3
@@ -165,9 +165,9 @@ run_subtest "many_vars_2" [list 0 3 \
 # 0's condition in the epilogue of probe 1.
 run_subtest "many_vars_3" [list 1 0 \
                                 2 0] \
-                          [list 0 {var1[r] var2[r]} \
-                                1 {var1[rw] var2[r]} \
-                                2 {var1[r] var2[rw]}] {
+                          [list 0 {__global_var1[r] __global_var2[r]} \
+                                1 {__global_var1[rw] __global_var2[r]} \
+                                2 {__global_var1[r] __global_var2[rw]}] {
    global var1 = 29
    global var2 = -0x123
    probe timer.s(1) if (var1 || var2) {
@@ -183,9 +183,9 @@ run_subtest "many_vars_3" [list 1 0 \
 
 run_subtest "many_probes_1" [list 2 0 \
                                   2 1] \
-                            [list 0 {var1[r]} \
-                                  1 {var1[r]} \
-                                  2 {var1[rw]}] {
+                            [list 0 {__global_var1[r]} \
+                                  1 {__global_var1[r]} \
+                                  2 {__global_var1[rw]}] {
    global var1 = 0
    probe timer.s(5) if (var1) {
       next
@@ -204,10 +204,10 @@ run_subtest "many_probes_2" [list 0 0 \
                                   1 3 \
                                   2 1 \
                                   2 3] \
-                            [list 0 {var1[rw] var2[r] var3[r]} \
-                                  1 {var1[r] var2[rw] var3[r]} \
-                                  2 {var1[r] var2[r] var3[rw]} \
-                                  3 {var1[r] var2[r] var3[r]}] {
+                            [list 0 {__global_var1[rw] __global_var2[r] __global_var3[r]} \
+                                  1 {__global_var1[r] __global_var2[rw] __global_var3[r]} \
+                                  2 {__global_var1[r] __global_var2[r] __global_var3[rw]} \
+                                  3 {__global_var1[r] __global_var2[r] __global_var3[r]}] {
    global var1 = 0
    global var2 = 1
    global var3
@@ -226,8 +226,8 @@ run_subtest "many_probes_2" [list 0 0 \
 }
 
 run_subtest "functions_1" [list 1 0] \
-                          [list 0 {enabled[r]} \
-                                1 {enabled[rw]}] {
+                          [list 0 {__global_enabled[r]} \
+                                1 {__global_enabled[rw]}] {
    global enabled = 0
    probe timer.s(1) if (enabled) {
       next
@@ -241,8 +241,8 @@ run_subtest "functions_1" [list 1 0] \
 }
 
 run_subtest "functions_2" [list 1 0] \
-                          [list 0 {enabled[r]} \
-                                1 {enabled[rw]}] {
+                          [list 0 {__global_enabled[r]} \
+                                1 {__global_enabled[rw]}] {
    global enabled = 0
    probe timer.s(1) if (enabled) {
       next
@@ -263,9 +263,9 @@ run_subtest "functions_3" [list 0 1 \
                                 1 1 \
                                 2 0 \
                                 2 1] \
-                          [list 0 {var1[r] var2[rw]} \
-                                1 {var1[rw] var2[r]} \
-                                2 {var1[rw] var2[rw]}] {
+                          [list 0 {__global_var1[r] __global_var2[rw]} \
+                                1 {__global_var1[rw] __global_var2[r]} \
+                                2 {__global_var1[rw] __global_var2[rw]}] {
    global var1 = 0
    global var2 = 1
    function toggler1() {

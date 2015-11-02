@@ -45,7 +45,7 @@ int main() {
 
     // (*) Create a keyring
     ring_id_2 = __add_key("keyring", "newring2", NULL, 0, ring_id);
-    //staptest// add_key ("keyring", "newring2",\ +(null), 0, NNNN) = NNNN
+    //staptest// add_key ("keyring", "newring2",\ +0x0, 0, NNNN) = NNNN
 
     // (*) Get persistent keyring
 #ifdef KEYCTL_GET_PERSISTENT
@@ -207,23 +207,23 @@ int main() {
     __add_key((const char *)-1, (const char *)-1, (const char *)-1, -1, -1);
 #ifdef __s390__
 #if __WORDSIZE == 64
-    //staptest// add_key ([7]?[f]+, [7]?[f]+, [7]?[f]+, 18446744073709551615, -1) = NNNN (EINVAL)
+    //staptest// add_key (0x[7]?[f]+, 0x[7]?[f]+, 0x[7]?[f]+, 18446744073709551615, -1) = NNNN (EINVAL)
 #else
-    //staptest// add_key ([7]?[f]+, [7]?[f]+, [7]?[f]+, 4294967295, -1) = NNNN (EINVAL)
+    //staptest// add_key (0x[7]?[f]+, 0x[7]?[f]+, 0x[7]?[f]+, 4294967295, -1) = NNNN (EINVAL)
 #endif
 #else
 #if __WORDSIZE == 64
-    //staptest// add_key ([f]+, [f]+, [f]+, 18446744073709551615, -1) = NNNN (EINVAL)
+    //staptest// add_key (0x[f]+, 0x[f]+, 0x[f]+, 18446744073709551615, -1) = NNNN (EINVAL)
 #else
-    //staptest// add_key ([f]+, [f]+, [f]+, 4294967295, -1) = NNNN (EINVAL)
+    //staptest// add_key (0x[f]+, 0x[f]+, 0x[f]+, 4294967295, -1) = NNNN (EINVAL)
 #endif
 #endif
 
     __request_key((const char *)-1, (const char *)-1, (const char *)-1, -1);
 #ifdef __s390__
-    //staptest// request_key ([7]?[f]+, [7]?[f]+, 0x[7]?[f]+, -1) = -14 (EFAULT)
+    //staptest// request_key (0x[7]?[f]+, 0x[7]?[f]+, 0x[7]?[f]+, -1) = -14 (EFAULT)
 #else
-    //staptest// request_key ([7]?[f]+, [7]?[f]+, 0x[f]+, -1) = -14 (EFAULT)
+    //staptest// request_key (0x[7]?[f]+, 0x[7]?[f]+, 0x[f]+, -1) = -14 (EFAULT)
 #endif
 
     return 0;

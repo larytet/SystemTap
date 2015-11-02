@@ -56,19 +56,19 @@ int main()
 
     quotactl(QCMD(Q_GETQUOTA, USRQUOTA), (char *)-1, uid, (caddr_t)&dqblk);
 #ifdef __s390__
-    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, [7]?[f]+, NNNN, {dqb_bhardlimit=NNNN, dqb_bsoftlimit=NNNN, dqb_curspace=NNNN, dqb_ihardlimit=NNNN, dqb_isoftlimit=NNNN, ...}) = -NNNN
+    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, 0x[7]?[f]+, NNNN, {dqb_bhardlimit=NNNN, dqb_bsoftlimit=NNNN, dqb_curspace=NNNN, dqb_ihardlimit=NNNN, dqb_isoftlimit=NNNN, ...}) = -NNNN
 #else
-    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, [f]+, NNNN, {dqb_bhardlimit=NNNN, dqb_bsoftlimit=NNNN, dqb_curspace=NNNN, dqb_ihardlimit=NNNN, dqb_isoftlimit=NNNN, ...}) = -NNNN
+    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, 0x[f]+, NNNN, {dqb_bhardlimit=NNNN, dqb_bsoftlimit=NNNN, dqb_curspace=NNNN, dqb_ihardlimit=NNNN, dqb_isoftlimit=NNNN, ...}) = -NNNN
 #endif
 
     quotactl(QCMD(Q_GETQUOTA, USRQUOTA), NULL, -1, (caddr_t)&dqblk);
-    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, *(null), -1, {dqb_bhardlimit=NNNN, dqb_bsoftlimit=NNNN, dqb_curspace=NNNN, dqb_ihardlimit=NNNN, dqb_isoftlimit=NNNN, ...}) = -NNNN
+    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, *0x0, -1, {dqb_bhardlimit=NNNN, dqb_bsoftlimit=NNNN, dqb_curspace=NNNN, dqb_ihardlimit=NNNN, dqb_isoftlimit=NNNN, ...}) = -NNNN
 
     quotactl(QCMD(Q_GETQUOTA, USRQUOTA), NULL, uid, (caddr_t)-1);
 #ifdef __s390__
-    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, *(null), NNNN, 0x[7]?[f]+) = -NNNN
+    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, *0x0, NNNN, 0x[7]?[f]+) = -NNNN
 #else
-    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, *(null), NNNN, 0x[f]+) = -NNNN
+    //staptest// quotactl (Q_GETQUOTA|USRQUOTA, *0x0, NNNN, 0x[f]+) = -NNNN
 #endif
 
     return 0;

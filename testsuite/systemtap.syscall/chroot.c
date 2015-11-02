@@ -9,9 +9,9 @@ int main()
 
     chroot((const char *)-1);
 #ifdef __s390__
-    //staptest// chroot ([7]?[f]+) = NNNN
+    //staptest// chroot (0x[7]?[f]+) = NNNN
 #else
-    //staptest// chroot ([f]+) = NNNN
+    //staptest// chroot (0x[f]+) = NNNN
 #endif
 
     return 0;

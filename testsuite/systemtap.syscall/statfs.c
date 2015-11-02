@@ -103,9 +103,9 @@ int main()
 
     statfs((char *)-1, &buf);
 #ifdef __s390__
-    //staptest// statfs ([7]?[f]+, XXXX) = NNNN
+    //staptest// statfs (0x[7]?[f]+, XXXX) = NNNN
 #else
-    //staptest// statfs ([f]+, XXXX) = NNNN
+    //staptest// statfs (0x[f]+, XXXX) = NNNN
 #endif
 
     statfs("abc", (struct statfs *)-1);
@@ -128,9 +128,9 @@ int main()
 #ifdef __NR_statfs64
     __statfs64((char *)-1, sizeof(buf64), &buf64);
 #ifdef __s390__
-    //staptest// statfs64 ([7]?[f]+, NNNN, XXXX) = NNNN
+    //staptest// statfs64 (0x[7]?[f]+, NNNN, XXXX) = NNNN
 #else
-    //staptest// statfs64 ([f]+, NNNN, XXXX) = NNNN
+    //staptest// statfs64 (0x[f]+, NNNN, XXXX) = NNNN
 #endif
 
     __statfs64("abc", (size_t)-1, NULL);

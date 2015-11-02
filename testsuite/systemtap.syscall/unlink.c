@@ -54,11 +54,11 @@ int main()
 #endif
 
   unlink(0);
-  //staptest// [[[[unlink ( *(null)!!!!unlinkat (AT_FDCWD,  *(null), 0x0]]]]) = -NNNN (EFAULT)
+  //staptest// [[[[unlink ( *0x0!!!!unlinkat (AT_FDCWD,  *0x0, 0x0]]]]) = -NNNN (EFAULT)
 
 #if GLIBC_SUPPORT
   unlinkat(AT_FDCWD, 0, 0);
-  //staptest// unlinkat (AT_FDCWD, *(null), 0x0) = -NNNN (EFAULT)
+  //staptest// unlinkat (AT_FDCWD, *0x0, 0x0) = -NNNN (EFAULT)
 #endif
 
   unlink("..");
@@ -81,9 +81,9 @@ int main()
 
   unlink((char *)-1);
 #ifdef __s390__
-  //staptest// [[[[unlink ([7]?[f]+!!!!unlinkat (AT_FDCWD, [7]?[f]+, 0x0]]]]) = -NNNN
+  //staptest// [[[[unlink (0x[7]?[f]+!!!!unlinkat (AT_FDCWD, 0x[7]?[f]+, 0x0]]]]) = -NNNN
 #else
-  //staptest// [[[[unlink ([f]+!!!!unlinkat (AT_FDCWD, [f]+, 0x0]]]]) = -NNNN
+  //staptest// [[[[unlink (0x[f]+!!!!unlinkat (AT_FDCWD, 0x[f]+, 0x0]]]]) = -NNNN
 #endif
 
 #if GLIBC_SUPPORT
@@ -92,9 +92,9 @@ int main()
 
   unlinkat(AT_FDCWD, (char *)-1, 0);
 #ifdef __s390__
-  //staptest// unlinkat (AT_FDCWD, [7]?[f]+, 0x0) = -NNNN
+  //staptest// unlinkat (AT_FDCWD, 0x[7]?[f]+, 0x0) = -NNNN
 #else
-  //staptest// unlinkat (AT_FDCWD, [f]+, 0x0) = -NNNN
+  //staptest// unlinkat (AT_FDCWD, 0x[f]+, 0x0) = -NNNN
 #endif
 
   unlinkat(AT_FDCWD, "foobar2", -1);

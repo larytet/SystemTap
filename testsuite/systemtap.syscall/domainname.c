@@ -21,9 +21,9 @@ int main() {
 
     setdomainname((const char *)-1, sizeof(domain_name));
 #ifdef __s390__
-    //staptest// setdomainname ([7]?[f]+, NNNN) = -NNNN
+    //staptest// setdomainname (0x[7]?[f]+, NNNN) = -NNNN
 #else
-    //staptest// setdomainname ([f]+, NNNN) = -NNNN
+    //staptest// setdomainname (0x[f]+, NNNN) = -NNNN
 #endif
 
     setdomainname(domain_name, -1);
