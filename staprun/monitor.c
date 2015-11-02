@@ -30,6 +30,7 @@ static enum state
   insert
 } monitor_state; 
 
+static char probe[MAX_INDEX];
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
@@ -116,6 +117,7 @@ static void write_command(const char *msg, const int len)
 
 void monitor_setup(void)
 {
+  probe[0] = '\0';
   start_time = time(NULL);
   initscr();
   curs_set(0);
@@ -195,7 +197,7 @@ void monitor_render(void)
       max_rows = monitor_y;
       max_cols = MIN(MAX_COLS, monitor_x);
       if (monitor_state == insert)
-        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index:\n");
+        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
       else
         mvwprintw(monitor_status, max_rows-1, 0,
                   "q (quit), r (reset globals), s (switch sort attribute), "
@@ -243,7 +245,6 @@ void monitor_render(void)
             {
               wprintw(monitor_status, "%s\n", monitor_out);
               col = 0;
-              continue;
             }
         }
       if (col != 0)
@@ -312,7 +313,6 @@ void monitor_render(void)
 void monitor_input(void)
 {
   static int i = 0;
-  static char probe[MAX_INDEX];
   char ch;
 
   switch (monitor_state)
@@ -343,10 +343,12 @@ void monitor_input(void)
             write_command(probe, i);
             monitor_state = normal;
             i = 0;
+            probe[0] = '\0';
           }
         else if (ch != ERR)
           {
             probe[i++] = ch;
+            probe[i] = '\0';
           }
         break;
     }
