@@ -99,6 +99,18 @@ static int comp_name(const void *p1, const void *p2)
   return strcmp(json_object_get_string(name1), json_object_get_string(name2));
 }
 
+static void write_command(const char *msg, const int len)
+{
+  char path[PATH_MAX];
+  FILE* fp;
+
+  if (sprintf_chk(path, "/proc/systemtap/%s/monitor_control", modname))
+    cleanup_and_exit (0, 1);
+  fp = fopen(path, "w");
+  fwrite(msg, len, 1, fp);
+  fclose(fp);
+}
+
 void monitor_setup(void)
 {
   initscr();
@@ -161,11 +173,11 @@ void monitor_render(void)
       max_rows = monitor_y;
       max_cols = MIN(MAX_COLS, monitor_x);
       if (monitor_state == insert)
-        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index to toggle:\n");
+        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index:\n");
       else
         mvwprintw(monitor_status, max_rows-1, 0,
-                  "press q to quit, r to reset globals, s to toggle sort column, "
-                  "i for insert mode\n");
+                  "q (quit), r (reset globals), s (switch sort attribute), "
+                  "i (toggle probe)\n");
       wmove(monitor_status, 0, 0);
 
       jso = json_tokener_parse(json);
@@ -281,9 +293,7 @@ void monitor_input(void)
 {
   static int i = 0;
   static char probe[MAX_INDEX];
-  FILE* fp;
   char ch;
-  char path[PATH_MAX];
 
   switch (monitor_state)
     {
@@ -292,7 +302,7 @@ void monitor_input(void)
         switch (ch)
           {
             case 'q':
-              cleanup_and_exit(0,0);
+              cleanup_and_exit (0, 0);
               break;
             case 's':
               comp_fn_index++;
@@ -300,12 +310,7 @@ void monitor_input(void)
                 comp_fn_index = 0;
               break;
             case 'r':
-              if (sprintf_chk(path, "/proc/systemtap/%s/monitor_control", modname))
-                cleanup_and_exit (0, 1);
-              fp = fopen(path, "w");
-              fwrite("reset", 5, 1, fp);
-              fflush(fp);
-              fclose(fp);
+              write_command("reset", 5);
               break;
             case 'i':
               monitor_state = insert;
@@ -315,12 +320,7 @@ void monitor_input(void)
         ch = getch();
         if (ch == '\n' || i == MAX_INDEX)
           {
-            if (sprintf_chk(path, "/proc/systemtap/%s/monitor_control", modname))
-              cleanup_and_exit (0, 1);
-            fp = fopen(path, "w");
-            fwrite(probe, i, 1, fp);
-            fflush(fp);
-            fclose(fp);
+            write_command(probe, i);
             monitor_state = normal;
             i = 0;
           }
