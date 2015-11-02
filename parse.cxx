@@ -45,7 +45,7 @@ public:
   bool check_compatible; // whether to gate features on session.compatible
 
   token* scan ();
-  lexer (istream&, const string&, systemtap_session&);
+  lexer (istream&, const string&, systemtap_session&, bool);
   void set_current_file (stapfile* f);
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
@@ -275,13 +275,11 @@ parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 
 // ------------------------------------------------------------------------
 
-
 parser::parser (systemtap_session& s, const string &n, istream& i, unsigned flags):
-  session (s), input_name (n), input (i, input_name, s),
+  session (s), input_name (n), input (i, input_name, s, !(flags & pf_no_compatible)),
   errs_as_warnings(flags & pf_squash_errors), privileged (flags & pf_guru),
   context(con_unknown), systemtap_v_seen(0), last_t (0), next_t (0), num_errors (0)
 {
-  input.check_compatible = !(flags & pf_no_compatible);
 }
 
 parser::~parser()
@@ -1372,8 +1370,8 @@ parser::peek_kw (string const & kw)
 
 
 
-lexer::lexer (istream& input, const string& in, systemtap_session& s):
-  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(true),
+lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
+  ate_comment(false), ate_whitespace(false), saw_tokens(false), check_compatible(cc),
   input_name (in), input_pointer (0), input_end (0), cursor_suspend_count(0),
   cursor_suspend_line (1), cursor_suspend_column (1), cursor_line (1),
   cursor_column (1), session(s), current_file (0), current_token_chain (0)
