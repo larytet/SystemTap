@@ -106,27 +106,6 @@ foreach runtime [get_runtime_list] {
     }
     catch {close}; catch {wait}
     if {$__counter == 1} {pass $subtest} else {fail $subtest}
-
-    # Subtest
-    #
-    # Note that here the tapset does use the "private" keyword, whereas in the
-    # user script "private" gets treated as a regular identifier due to the
-    # --compatible setting.
-    #
-    set subtest "$test version-compat"
-    set __counter 0
-    eval spawn "stap --compatible=2.9 --runtime=$runtime -I . -e {global private = 321;
-                probe oneshot \{println(gtest1_getter(), \",\", private)\}}"
-    expect {
-        -timeout 160
-        -re {^3,321\r\n} {
-            incr __counter
-            exp_continue
-        }
-        timeout {fail "$subtest (timeout)"}
-    }
-    catch {close}; catch {wait}
-    if {$__counter == 1} {pass $subtest} else {fail $subtest}
 }
 
 # Cleanup
