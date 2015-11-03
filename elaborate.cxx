@@ -2299,7 +2299,10 @@ symresolution_info::visit_functioncall (functioncall* e)
 
   functiondecl* d = find_function (e->function, e->args.size (), e->tok);
   if (d)
+  {
     e->referent = d;
+    e->function = d->name;
+  }
   else
     {
       string sugs = levenshtein_suggest(e->function, collect_functions(), 5); // print 5 funcs
