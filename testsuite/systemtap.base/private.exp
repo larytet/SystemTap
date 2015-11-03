@@ -106,6 +106,28 @@ foreach runtime [get_runtime_list] {
     }
     catch {close}; catch {wait}
     if {$__counter == 1} {pass $subtest} else {fail $subtest}
+
+    # Subtest
+    set subtest "$test private-variable-override-denied"
+    set __counter 0
+    eval spawn "stap --runtime=$runtime -G pt=12 -e {private pt=13; probe oneshot \{println(pt)\}}"
+    expect {
+        -timeout 160
+        -re {^ERROR: Couldn't insert module[^\r\n]+Unknown symbol in module\r\n} {
+            incr __counter
+            exp_continue
+        }
+        -re {^stapdyn: WARNING: Ignoring unknown module option '__global_pt'\r\n} {
+            incr __counter
+            exp_continue
+        }
+        -re {^[^\r\n]+\r\n} {
+            exp_continue
+        }
+        timeout {fail "$subtest (timeout)"}
+    }
+    catch {close}; catch {wait}
+    if {$__counter == 1} {pass $subtest} else {fail $subtest}
 }
 
 # Cleanup
