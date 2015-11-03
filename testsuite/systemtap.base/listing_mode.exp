@@ -25,11 +25,12 @@ if {[info exists ::env(LISTING_MODE_SUBTEST)]} {
 # of it is treated as a regular expression.  If $nlines_exp is not -1, then
 # exactly $nlines_exp lines are expected.
 proc stap_list {pp {exp ""} {nlines_exp 1} {arguments ""}} {
-   global test TARGET_SUBTEST exefullpath sofullpath
+   global test TARGET_SUBTEST exefullpath sofullpath valid_pid
 
    set subtest "$test ($pp $arguments)"
    set subtest [regsub -all $exefullpath $subtest EXEFULLPATH]
    set subtest [regsub -all $sofullpath $subtest SOFULLPATH]
+   set subtest [regsub -all $valid_pid $subtest VALIDPID]
 
    if {$TARGET_SUBTEST != ""} {
       if {![string match $TARGET_SUBTEST $pp]} {

@@ -18,5 +18,5 @@ foreach runtime [get_runtime_list] {
 	eof { }
     }
     catch { close }; catch { wait }
-    if {$ok >= 18} { pass "$test ($ok)" } { fail "$test ($ok)" }
+    if {$ok >= 18} { pass "$test" } { fail "$test ($ok)" }
 }
