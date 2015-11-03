@@ -138,8 +138,11 @@ static void setup_main_signals(void)
   sa.sa_handler = chld_proc;
   sigaction(SIGCHLD, &sa, NULL);
 
-  sa.sa_handler = monitor_winch;
-  sigaction(SIGWINCH, &sa, NULL);
+  if (monitor)
+    {
+      sa.sa_handler = monitor_winch;
+      sigaction(SIGWINCH, &sa, NULL);
+    }
 
   /* This signal handler is notified from the signal_thread
      whenever a interruptable event is detected. It will
@@ -619,7 +622,6 @@ int stp_main_loop(void)
       ts.tv_nsec = 100;
       timeout = &ts;
     }
-
 
   /* handle messages from control channel */
   while (1) {
