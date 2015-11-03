@@ -2101,7 +2101,7 @@ static void monitor_mode_read(systemtap_session& s)
   code << "elapsed = (jiffies()-__monitor_module_start)/HZ()" << endl;
   code << "hrs = elapsed/3600; mins = elapsed%3600/60; secs = elapsed%3600%60;" << endl;
   code << "$value .= sprintf(\"{\\n\")" << endl;
-  code << "$value .= sprintf(\"\\\"uptime\\\": \\\"%d:%d:%d\\\",\\n\", hrs, mins, secs)" << endl;
+  code << "$value .= sprintf(\"\\\"uptime\\\": \\\"%02d:%02d:%02d\\\",\\n\", hrs, mins, secs)" << endl;
   code << "$value .= sprintf(\"\\\"uid\\\": \\\"%d\\\",\\n\", uid())" << endl;
   code << "$value .= sprintf(\"\\\"memory\\\": \\\"%s\\\",\\n\", module_size())" << endl;
   code << "$value .= sprintf(\"\\\"module_name\\\": \\\"%s\\\",\\n\", module_name())" << endl;
