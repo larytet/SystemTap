@@ -665,6 +665,8 @@ int stp_main_loop(void)
       } else {
 	FD_ZERO(&fds);
 	FD_SET(control_channel, &fds);
+	if (monitor)
+	  FD_SET(STDIN_FILENO, &fds);
 	res = pselect(control_channel + 1, &fds, NULL, NULL, timeout, &mainset);
 	if (res < 0 && errno != EINTR)
 	  {
