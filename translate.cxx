@@ -1547,7 +1547,11 @@ c_unparser::emit_compiled_printfs ()
 void
 c_unparser::emit_global_param (vardecl *v)
 {
-  string vn = c_globalname (v->name);
+  // Only true globals can be params, not private variables.
+  if (!v->name.starts_with("__global_")) return;
+
+  string global = c_globalname (v->name);
+  interned_string param = v->name.substr(sizeof("__global_") - 1);
 
   // For dyninst, use the emit_global_init_* functionality instead.
   assert (!session->runtime_usermode_p());
@@ -1562,14 +1566,14 @@ c_unparser::emit_global_param (vardecl *v)
   // Emit module_params for this global, if its type is convenient.
   if (v->arity == 0 && v->type == pe_long)
     {
-      o->newline() << "module_param_named (" << v->name << ", "
-                   << "global(" << vn << "), int64_t, 0);";
+      o->newline() << "module_param_named (" << param << ", "
+                   << "global(" << global << "), int64_t, 0);";
     }
   else if (v->arity == 0 && v->type == pe_string)
     {
       // NB: no special copying is needed.
-      o->newline() << "module_param_string (" << v->name << ", "
-                   << "global(" << vn << "), MAXSTRINGLEN, 0);";
+      o->newline() << "module_param_string (" << param << ", "
+                   << "global(" << global << "), MAXSTRINGLEN, 0);";
     }
 }
 
@@ -1587,18 +1591,24 @@ c_unparser::emit_global_init_setters ()
       if (v->arity > 0) continue;
       if (v->type != pe_string && v->type != pe_long) continue;
 
+      // Only true globals can be params, not private variables.
+      if (!v->name.starts_with("__global_")) continue;
+
+      string global = c_globalname (v->name);
+      interned_string param = v->name.substr(sizeof("__global_") - 1);
+
       // Do not mangle v->name for the comparison!
-      o->line() << "if (0 == strcmp(name,\"" << v->name << "\"))" << " {";
+      o->line() << "if (0 == strcmp(name,\"" << param << "\"))" << " {";
 
       o->indent(1);
       if (v->type == pe_string)
         {
-          c_assign("stp_global_init." + c_globalname(v->name), "value", pe_string, "BUG: global module param", v->tok);
+          c_assign("stp_global_init." + global, "value", pe_string, "BUG: global module param", v->tok);
           o->newline() << "return 0;";
         }
       else
         {
-          o->newline() << "return set_int64_t(value, &stp_global_init." << c_globalname(v->name) << ");";
+          o->newline() << "return set_int64_t(value, &stp_global_init." << global << ");";
         }
 
       o->newline(-1) << "} else ";
