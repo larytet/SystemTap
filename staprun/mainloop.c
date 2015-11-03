@@ -138,6 +138,9 @@ static void setup_main_signals(void)
   sa.sa_handler = chld_proc;
   sigaction(SIGCHLD, &sa, NULL);
 
+  sa.sa_handler = monitor_winch;
+  sigaction(SIGWINCH, &sa, NULL);
+
   /* This signal handler is notified from the signal_thread
      whenever a interruptable event is detected. It will
      result in an EINTR event for select or sleep. */
@@ -613,7 +616,7 @@ int stp_main_loop(void)
     {
       monitor_setup();
       ts.tv_sec = 0;
-      ts.tv_nsec = 50;
+      ts.tv_nsec = 100;
       timeout = &ts;
     }
 

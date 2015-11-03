@@ -4,7 +4,7 @@
 #include <time.h>
 
 #define COMP_FNS 5
-#define MAX_INDEX 5
+#define MAX_INDEX_LEN 5
 
 #define MAX_COLS 256
 #define MAX_DATA 8192
@@ -30,7 +30,7 @@ static enum state
   insert
 } monitor_state; 
 
-static char probe[MAX_INDEX];
+static char probe[MAX_INDEX_LEN];
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
@@ -113,6 +113,25 @@ static void write_command(const char *msg, const int len)
   fp = fopen(path, "w");
   fwrite(msg, len, 1, fp);
   fclose(fp);
+}
+
+void monitor_winch(int signum)
+{
+  usleep (500*1000); /* prevent too many allocations */
+  endwin();
+  refresh();
+  if (monitor_status)
+    {
+      delwin(monitor_status);
+      monitor_status = newwin(LINES/2,COLS,0,0);
+    }
+  if (monitor_output)
+    {
+      delwin(monitor_output);
+      monitor_output = newwin(LINES/2,COLS,LINES/2,0);
+      scrollok(monitor_output, TRUE);
+    }
+  dbug(2, "winch_handler %d (%s)\n", signum, strsignal(signum));
 }
 
 void monitor_setup(void)
@@ -338,7 +357,7 @@ void monitor_input(void)
           }
       case insert:
         ch = getch();
-        if (ch == '\n' || i == MAX_INDEX)
+        if (ch == '\n' || i == MAX_INDEX_LEN)
           {
             write_command(probe, i);
             monitor_state = normal;

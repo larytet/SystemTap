@@ -222,6 +222,7 @@ void setup_signals(void);
 int set_clexec(int fd);
 
 /* monitor.c function */
+void monitor_winch(int signum);
 void monitor_setup(void);
 void monitor_cleanup(void);
 void monitor_render(void);
