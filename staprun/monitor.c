@@ -36,6 +36,7 @@ static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
 static time_t elapsed_time = 0;
 static time_t start_time = 0;
+static int resized = 0;
 
 /* Forward declarations */
 static int comp_index(const void *p1, const void *p2);
@@ -115,7 +116,7 @@ static void write_command(const char *msg, const int len)
   fclose(fp);
 }
 
-void monitor_winch(int signum)
+static void handle_resize()
 {
   usleep (500*1000); /* prevent too many allocations */
   endwin();
@@ -131,6 +132,12 @@ void monitor_winch(int signum)
       monitor_output = newwin(LINES/2,COLS,LINES/2,0);
       scrollok(monitor_output, TRUE);
     }
+  resized = 0;
+}
+
+void monitor_winch(int signum)
+{
+  resized = 1;
   dbug(2, "winch_handler %d (%s)\n", signum, strsignal(signum));
 }
 
@@ -162,6 +169,9 @@ void monitor_render(void)
   FILE *output_fp;
   char path[PATH_MAX];
   time_t current_time = time(NULL);
+
+  if (resized)
+    handle_resize();
 
   if (sprintf_chk(path, "/proc/systemtap/%s/monitor_stp_out", modname))
     cleanup_and_exit (0, 1);
