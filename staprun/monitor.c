@@ -34,6 +34,7 @@ static char probe[MAX_INDEX_LEN];
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
+static int probe_scroll = 0;
 static time_t elapsed_time = 0;
 static time_t start_time = 0;
 static int resized = 0;
@@ -203,7 +204,7 @@ void monitor_render(void)
       char json[MAX_DATA];
       char monitor_str[MAX_COLS];
       char monitor_out[MAX_COLS];
-      int monitor_x, monitor_y, max_cols, max_rows;
+      int monitor_x, monitor_y, max_cols, max_rows, cur_y, cur_x;
       int printed;
       int col;
       int i;
@@ -228,8 +229,8 @@ void monitor_render(void)
         mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
       else
         mvwprintw(monitor_status, max_rows-1, 0,
-                  "q (quit), r (reset globals), s (switch sort attribute), "
-                  "i (toggle probe)\n");
+                  "q (quit), r (reset), s (sort), "
+                  "i (toggle probe), j/k (scroll)\n");
       wmove(monitor_status, 0, 0);
 
       jso = json_tokener_parse(json);
@@ -310,7 +311,10 @@ void monitor_render(void)
               width[p_avg], "avg",
               width[p_max], "max",
               width[p_name], "name");
-      for (i = 0; i < json_object_array_length(jso_probes); i++)
+      getyx(monitor_status, cur_y, cur_x);
+      (void) cur_x; /* Unused */
+      for (i = probe_scroll; i < MIN(json_object_array_length(jso_probes),
+            probe_scroll+max_rows-cur_y-2); i++)
         {
           json_object *probe, *field;
           probe = json_object_array_get_idx(jso_probes, i);
@@ -349,6 +353,13 @@ void monitor_input(void)
         ch = getch();
         switch (ch)
           {
+            case 'j':
+              probe_scroll++;
+              break;
+            case 'k':
+              probe_scroll--;
+              probe_scroll = MAX(0, probe_scroll);
+              break;
             case 'q':
               cleanup_and_exit (0, 0);
               break;
@@ -364,6 +375,7 @@ void monitor_input(void)
               monitor_state = insert;
               break;
           }
+        break;
       case insert:
         ch = getch();
         if (ch == '\n' || i == MAX_INDEX_LEN)
