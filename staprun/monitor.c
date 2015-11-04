@@ -135,10 +135,9 @@ static void handle_resize()
   resized = 0;
 }
 
-void monitor_winch(int signum)
+void monitor_winch(__attribute__((unused)) int signum)
 {
   resized = 1;
-  dbug(2, "winch_handler %d (%s)\n", signum, strsignal(signum));
 }
 
 void monitor_setup(void)

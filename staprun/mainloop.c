@@ -619,7 +619,7 @@ int stp_main_loop(void)
     {
       monitor_setup();
       ts.tv_sec = 0;
-      ts.tv_nsec = 100;
+      ts.tv_nsec = 500*1000*1000;
       timeout = &ts;
     }
 
