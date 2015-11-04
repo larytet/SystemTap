@@ -2262,6 +2262,22 @@ systemtap with the
 flag will output a warning if any possible incompatible elements have
 been parsed.  Deprecation historical details may be found in the NEWS file.
 
+The purpose of deprecation facility is to improve the experience of
+scripts written for newer versions of systemtap (by adding better
+alternatives and removing conflicting or messy older alternatives),
+while at the same time permitting scripts written for older versions
+of systemtap to continue running.  Deprecation is thus intended a
+.I service to users
+(and an inconvenience to systemtap's developers), rather than the
+other way around.
+
+Please note that underscore-prefixed identifiers in the tapset
+sometimes undergo such changes that are difficult to preserve
+compatibility for, even with the deprecation mechanisms.  Avoid
+relying on these in your scripts; instead propose them for promotion
+to non-underscored status.
+
+
 .SH FILES
 .TP
 Important files and their corresponding paths can be located in the 
