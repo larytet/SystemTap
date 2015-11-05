@@ -2348,7 +2348,7 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
   string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
   for (unsigned i=0; i<session.globals.size(); i++)
   {
-    if ((session.globals[i]->name == name && name.substr(0, 9) == "__global_") ||
+    if ((session.globals[i]->name == name && startswith(name, "__global_")) ||
         (session.globals[i]->name == gname) ||
         (session.globals[i]->name == pname))
       {
@@ -2396,11 +2396,40 @@ symresolution_info::find_var (interned_string name, int arity, const token* tok)
 functiondecl*
 symresolution_info::find_function (const string& name, unsigned arity, const token *tok)
 {
+  string gname = "__global_" + string(name);
+  string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
+
   // the common path
-  if (session.functions.find(name) != session.functions.end())
+
+  // internal global functions bypassing the parser, such as __global_dwarf_tvar_[gs]et
+  if ((session.functions.find(name) != session.functions.end()) && startswith(name, "__private_"))
     {
       functiondecl* fd = session.functions[name];
       assert (fd->name == name);
+      if (fd->formal_args.size() == arity)
+        return fd;
+
+      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
+                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
+    }
+
+  // tapset or user script global functions coming from the parser
+  if (session.functions.find(gname) != session.functions.end())
+    {
+      functiondecl* fd = session.functions[gname];
+      assert (fd->name == gname);
+      if (fd->formal_args.size() == arity)
+        return fd;
+
+      throw SEMANTIC_ERROR(_F("arity mismatch found (function '%s' takes %zu args)",
+                              name.c_str(), fd->formal_args.size()), tok, fd->tok);
+    }
+
+  // tapset or user script private functions coming from the parser
+  if (session.functions.find(pname) != session.functions.end())
+    {
+      functiondecl* fd = session.functions[pname];
+      assert (fd->name == pname);
       if (fd->formal_args.size() == arity)
         return fd;
 
@@ -2414,8 +2443,7 @@ symresolution_info::find_function (const string& name, unsigned arity, const tok
       stapfile* f = session.library_files[i];
       for (unsigned j=0; j<f->functions.size(); j++)
       {
-        string pname = "__private_" + detox_path(tok->location.file->name) + string(name);
-        if ((f->functions[j]->name == name) ||
+        if ((f->functions[j]->name == gname) ||
             (f->functions[j]->name == pname))
           {
             if (f->functions[j]->formal_args.size() == arity)

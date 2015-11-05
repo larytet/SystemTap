@@ -3527,10 +3527,11 @@ synthetic_embedded_deref_call(dwflpp& dw,
                               expression* pointer=NULL)
 {
   // Synthesize a functiondecl for the given embedded code string.
+  string fhash = detox_path(string(e->tok->location.file->name));
   functiondecl *fdecl = new functiondecl;
   fdecl->synthetic = true;
   fdecl->tok = e->tok;
-  fdecl->name = function_name;
+  fdecl->name = "__private_" + fhash + function_name;
   // The fdecl type is generic, but we'll be detailed on the fcall below.
   fdecl->type = pe_long;
   fdecl->type_details.reset(new exp_type_dwarf(&dw, function_type,
@@ -6619,10 +6620,11 @@ sdt_uprobe_var_expanding_visitor::try_parse_arg_varname (target_symbol *e,
               user_int_call->function = precision_to_function(precision);
               user_int_call->tok = e->tok;
 
+              string fhash = detox_path(string(e->tok->location.file->name));
               functiondecl *get_addr_decl = new functiondecl;
               get_addr_decl->tok = e->tok;
               get_addr_decl->synthetic = true;
-              get_addr_decl->name = "_sdt_arg_get_addr_" + lex_cast(tick++);
+              get_addr_decl->name = "__private_" + fhash + "_sdt_arg_get_addr_" + lex_cast(tick++);
               get_addr_decl->type = pe_long;
 
               // build _stp_umodule_relocate(module, addr, current)

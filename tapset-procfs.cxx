@@ -453,12 +453,12 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
       embeddedcode *ec = new embeddedcode;
       ec->tok = e->tok;
 
-      string fname;
+      string fname = "__private_" + detox_path(string(e->tok->location.file->name));
       string locvalue = "CONTEXT->ips.procfs_data";
 
       if (! lvalue)
         {
-          fname = "_procfs_value_get";
+          fname += "_procfs_value_get";
           ec->code = string("    struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string("); /* pure */\n")
 
             + string("    if (!_stp_copy_from_user(STAP_RETVALUE, data->buffer, data->count))\n")
@@ -470,7 +470,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
         {
           if (*op == "=")
             {
-              fname = "_procfs_value_set";
+              fname += "_procfs_value_set";
               ec->code = string("struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
                 + string("    strlcpy(data->buffer, STAP_ARG_value, data->bufsize);\n")
                 + string("    if (strlen(STAP_ARG_value) > data->bufsize-1)\n")
@@ -480,7 +480,7 @@ procfs_var_expanding_visitor::visit_target_symbol (target_symbol* e)
             }
           else if (*op == ".=")
             {
-              fname = "_procfs_value_append";
+              fname += "_procfs_value_append";
               ec->code = string("struct _stp_procfs_data *data = (struct _stp_procfs_data *)(") + locvalue + string(");\n")
                 + string("    strlcat(data->buffer, STAP_ARG_value, data->bufsize);\n")
                 + string("    if (data->count + strlen(STAP_ARG_value) > data->bufsize-1)\n")

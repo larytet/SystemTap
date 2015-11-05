@@ -575,7 +575,7 @@ void functiondecl::print (ostream& o) const
 
 void functiondecl::printsig (ostream& o) const
 {
-  o << name << ":" << type << " (";
+  o << tok->content << ":" << type << " (";
   for (unsigned i=0; i<formal_args.size(); i++)
     o << (i>0 ? ", " : "")
       << *formal_args[i]

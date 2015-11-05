@@ -2325,7 +2325,7 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
     if (functions[i]->name == t->content)
       throw PARSE_ERROR (_("duplicate function name"));
 
-  string name = t->content;
+  string name = "__global_" + string(t->content);
   if (priv)
     name = "__private_" + detox_path(fname) + string(t->content);
 
