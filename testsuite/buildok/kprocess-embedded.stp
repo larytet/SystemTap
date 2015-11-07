@@ -1,4 +1,4 @@
-#! stap -p4
+#! stap -p4 --compatible=2.9
 
 probe begin
 {

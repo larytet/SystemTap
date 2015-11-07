@@ -85,7 +85,7 @@ function __tcp_sock_dport:long (sock:long)
 }
 
 /* returns the TCP header for recent (<2.6.21) kernel */
-function __get_skb_tcphdr_new:long(skb:long)
+@__private30 function __get_skb_tcphdr_new:long(skb:long)
 %{ /* pure */
 	struct sk_buff *skb;
 	skb = (struct sk_buff *)(long)STAP_ARG_skb;

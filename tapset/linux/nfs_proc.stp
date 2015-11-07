@@ -35,7 +35,7 @@ function NFS_I:long(inode:long)
 	return (inode - offset)
 }
 
-function NFS_FH:long(inode:long)
+@__private30 function NFS_FH:long(inode:long)
 {
 	return &@cast(NFS_I(inode), "nfs_inode", "kernel:nfs")->fh
 }
@@ -45,7 +45,7 @@ function NFS_SERVER:long(inode:long)
 	return @cast(inode, "inode")->i_sb->s_fs_info
 }
 
-function NFS_CLIENT:long(inode:long)
+@__private30 function NFS_CLIENT:long(inode:long)
 {
 	return @cast(NFS_SERVER(inode), "nfs_server", "kernel:nfs")->client
 }
@@ -104,7 +104,7 @@ function get_prot:long(task:long)
 	return get_prot_from_client(clnt)
 }
 
-function __nfsv4_bitmask:long(dir:long, i:long)
+@__private30 function __nfsv4_bitmask:long(dir:long, i:long)
 {
 %( CONFIG_NFS_V4 == "[ym]" %?
 	return @cast(NFS_SERVER(dir), "nfs_server", "kernel:nfs")->attr_bitmask[i]

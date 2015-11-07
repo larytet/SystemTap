@@ -13,7 +13,7 @@ static const _stp_val_array const _stp_arch_prctl_list[] = {
 	{0, NULL}
 };
 %}
-function _arch_ptrace_prctl_str:string(f:long)
+@__private30 function _arch_ptrace_prctl_str:string(f:long)
 %{
 	_stp_lookup_str(_stp_arch_prctl_list, (unsigned int)STAP_ARG_f,
 			STAP_RETVALUE, MAXSTRINGLEN);

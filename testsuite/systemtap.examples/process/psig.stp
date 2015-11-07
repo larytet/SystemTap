@@ -142,7 +142,7 @@ probe begin {
 			handler_status = handler
 
 		flags = sa_flags_str2(sa_flags_str(get_sa_flags(act)))
-		mask = sigset_mask_str(__get_action_mask(act))
+		mask = sigset_mask_str(get_sigaction_mask(act))
 
 		printf("%-8s %-8s ", sig, handler_status);
 		if (isinstr(handler_status, "caught"))

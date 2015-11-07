@@ -128,7 +128,7 @@ function ipmib_get_proto:long (skb:long)
  * has been updated, so we must calculate the value from the network_header.
  * The caller must verify the skb is for a tcpip packet.
  */
-function _plunge_into_tcphdr:long (skb:long)
+@__private30 function _plunge_into_tcphdr:long (skb:long)
 %{
 	struct sk_buff *skb = (struct sk_buff *)(long)STAP_ARG_skb;
 	/* as done by skb_network_header() */
@@ -148,47 +148,47 @@ function _plunge_into_tcphdr:long (skb:long)
 	CATCH_DEREF_FAULT();
 %}
 
-function _ehostunreach:long ()
+@__private30 function _ehostunreach:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = EHOSTUNREACH;
 %}
 
-function _enetunreach:long ()
+@__private30 function _enetunreach:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ENETUNREACH;
 %}
 
-function _icmp_dest_unreach:long ()
+@__private30 function _icmp_dest_unreach:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_DEST_UNREACH;
 %}
 
-function _icmp_prot_unreach:long ()
+@__private30 function _icmp_prot_unreach:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_PROT_UNREACH;
 %}
 
-function _net_rx_drop:long ()
+@__private30 function _net_rx_drop:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = NET_RX_DROP;
 %}
 
-function _icmp_time_exceeded:long ()
+@__private30 function _icmp_time_exceeded:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_TIME_EXCEEDED;
 %}
 
-function _icmp_exc_fragtime:long ()
+@__private30 function _icmp_exc_fragtime:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = ICMP_EXC_FRAGTIME;
 %}
 
-function _rtn_multicast:long ()
+@__private30 function _rtn_multicast:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = RTN_MULTICAST;
 %}
 
-function _rtn_broadcast:long ()
+@__private30 function _rtn_broadcast:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = RTN_BROADCAST;
 %}
@@ -424,7 +424,7 @@ probe ipmib.FragFails=kernel.function("ip_fragment").return
 	if ( key ) FragFails [key] += op;
 }
 
-function _rtn_unspec:long ()
+@__private30 function _rtn_unspec:long ()
 %{ /* pure */ /* stable */ /* unprivileged */
 	STAP_RETVALUE = RTN_UNSPEC;
 %}
@@ -436,7 +436,7 @@ function _input_route_type:long (skb:long)
 	return rt ? @cast(rt, "rtable")->rt_type : _rtn_unspec()
 }
 
-function _output_route_type:long (skb:long)
+@__private30 function _output_route_type:long (skb:long)
 {
 	rt = @choose_defined(@cast(skb, "sk_buff")->_skb_dst,
 		@choose_defined(@cast(skb, "sk_buff")->dst, 0))

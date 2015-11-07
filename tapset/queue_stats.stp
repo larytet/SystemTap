@@ -33,7 +33,7 @@ global qs_stime, qs_utime, qs_dcount
 
 # ------------------------------------------------------------------------
 
-function _qs_update (qname) {
+@__private30 function _qs_update (qname) {
   now = qs_time ()
   then = qs_utime[qname]; if (! then) { then = now }
   delta = now-then

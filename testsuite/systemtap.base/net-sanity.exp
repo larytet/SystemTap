@@ -17,7 +17,10 @@ foreach value {0 0xffffffff 0xffffffffffffffff} {
 	    }
 	}
 
-        spawn stap $file $value $ix
+        # The systemtap.stress/tapset_functions.exp covers this scenario too.
+        # The --compatible=2.9 option makes 'private' tapset functions accessible
+        # from user script.
+        spawn stap --compatible=2.9 $file $value $ix
         set errs 0
         verbose -log "exp $test $errs"
         expect {

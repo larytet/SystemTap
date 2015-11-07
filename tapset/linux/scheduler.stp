@@ -9,7 +9,7 @@
 // later version.
 
 
-function __is_idle:long()
+@__private30 function __is_idle:long()
 %{ /* pure */ /* stable */
     /* Ways to detect idle-ness:
      * - pid() or tid() == 0

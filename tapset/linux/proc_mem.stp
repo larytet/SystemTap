@@ -47,7 +47,7 @@ enum {
 
 /* Try to be slightly paranoid. Only returns 1 if the task isn't
    starting, exiting or (coopted by) a kernel thread. */
-function _stp_valid_task:long(tsk:long)
+@__private30 function _stp_valid_task:long(tsk:long)
 %{
   struct task_struct *tsk = (struct task_struct *)(long)STAP_ARG_tsk;
 
@@ -61,17 +61,17 @@ function _stp_valid_task:long(tsk:long)
   CATCH_DEREF_FAULT();
 %}
 
-function _MM_FILEPAGES:long()
+@__private30 function _MM_FILEPAGES:long()
 %{ /* pure */ /* stable */ /* unprivileged */
   STAP_RETVALUE = MM_FILEPAGES;
 %}
 
-function _MM_ANONPAGES:long()
+@__private30 function _MM_ANONPAGES:long()
 %{ /* pure */ /* stable */ /* unprivileged */
   STAP_RETVALUE = MM_ANONPAGES;
 %}
 
-function _stp_get_mm_counter:long(mm_ptr:long, member:long)
+@__private30 function _stp_get_mm_counter:long(mm_ptr:long, member:long)
 {
     mm = & @mm(mm_ptr)
     /* kernels >= 2.6.34, 3.0 (2.6.40 fedora) and later always use atomics */
@@ -227,7 +227,7 @@ function proc_mem_shr_pid:long (pid:long)
   return 0
 }
 
-function _stp_mem_txt_adjust:long (start_code:long, end_code:long)
+@__private30 function _stp_mem_txt_adjust:long (start_code:long, end_code:long)
 %{ /* pure */
   unsigned long start_code = (unsigned long) STAP_ARG_start_code;
   unsigned long end_code = (unsigned long) STAP_ARG_end_code;
@@ -332,7 +332,7 @@ function mem_page_size:long ()
 %}
 
 // Return a 5 character wide string " x.yyp", " xx.yp", " xxxp", "xxxxp".
-function _stp_number_to_string_postfix:string (x:long, y:long, p:string)
+@__private30 function _stp_number_to_string_postfix:string (x:long, y:long, p:string)
 {
   if (x < 10)
     return sprintf("%d.%.2d%s", x, y * 100 / 1024, p);

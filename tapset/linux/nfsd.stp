@@ -39,7 +39,7 @@
  */
 
 /* Get file handle data from struct svc_fh. */
-function __svc_fh:string(fhp:long)
+@__private30 function __svc_fh:string(fhp:long)
 {
 	svc_fh = &@cast(fhp, "svc_fh", "kernel:nfsd")->fh_handle
 	return sprintf("%d: %08x %08x %08x %08x %08x %08x", svc_fh->fh_size,
@@ -139,7 +139,7 @@ function ftype:string(type:long) %{ /* pure */
 	}
 %}
 
-function __rqstp_uid:long(rqstp:long)
+@__private30 function __rqstp_uid:long(rqstp:long)
 %{ /* pure */
 	// Notice we're using the 'init_user_ns' here, not
 	// 'current_user_ns()'. This matches up with the use in
@@ -162,7 +162,7 @@ function __rqstp_uid:long(rqstp:long)
 	CATCH_DEREF_FAULT();
 %}
 
-function __rqstp_gid:long(rqstp:long)
+@__private30 function __rqstp_gid:long(rqstp:long)
 %{ /* pure */
 	// Notice we're using the 'init_user_ns' here, not
 	// 'current_user_ns()'. This matches up with the use in

@@ -22,25 +22,25 @@
   # ... currently we use a hideous copypasta hack which defines them as
   # locals in each probe alias. Blegh
 
-function __mac_addr_to_string:string(addr:long) {
+@__private30 function __mac_addr_to_string:string(addr:long) {
          return sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
                         kernel_char(addr)&255, kernel_char(addr+1)&255,
                         kernel_char(addr+2)&255, kernel_char(addr+3)&255,
                         kernel_char(addr+4)&255, kernel_char(addr+5)&255)
 }
 
-function __get_mac_addr:string(addr:long) {
+@__private30 function __get_mac_addr:string(addr:long) {
          return __mac_addr_to_string(@cast(addr, "struct net_device", "kernel<linux/netdevice.h>")->dev_addr)
 }
 
-function __get_skb_arphdr:long(addr:long)
+@__private30 function __get_skb_arphdr:long(addr:long)
 {
         // The method is exactly the same as for an IP header:
         return __get_skb_iphdr(addr)
 }
 
 /* returns the bridge header for kernel >= 2.6.21 */
-function __get_skb_brhdr_new:long(skb:long)
+@__private30 function __get_skb_brhdr_new:long(skb:long)
 %{ /* pure */
     struct sk_buff *skb;
     skb = (struct sk_buff *)(long)STAP_ARG_skb;
@@ -54,7 +54,7 @@ function __get_skb_brhdr_new:long(skb:long)
 %}
 
 /* returns the bridge header for a given sk_buff structure */
-function __get_skb_brhdr:long(skb:long)
+@__private30 function __get_skb_brhdr:long(skb:long)
 {
 %( kernel_v < "2.6.21" %?
 	brhdr = @cast(skb, "sk_buff")->mac->raw + %{ /* pure */ sizeof(struct llc_pdu_un) %}
@@ -65,7 +65,7 @@ function __get_skb_brhdr:long(skb:long)
 }
 
 /* returns llc_pdu_un for a given sk_buff structure */
-function __get_skb_llc:long(skb:long)
+@__private30 function __get_skb_llc:long(skb:long)
 %{ /* pure */
     struct sk_buff *skb;
     skb = (struct sk_buff *)(long)STAP_ARG_skb;
@@ -78,7 +78,7 @@ function __get_skb_llc:long(skb:long)
     CATCH_DEREF_FAULT();
 %}
 
-function __ip6_skb_proto:long(addr:long)
+@__private30 function __ip6_skb_proto:long(addr:long)
 %{ /* pure */
    struct sk_buff *skb = (struct sk_buff *)(uintptr_t)STAP_ARG_addr;
    struct ipv6hdr *hdr;

@@ -1086,7 +1086,7 @@ probe init
 # INTERNAL FUNCTIONS #
 ######################
 
-function _get_sock_addr:long(file:long)
+@__private30 function _get_sock_addr:long(file:long)
 %{ /* pure */
 	struct file *filep = (struct file *)(long)(STAP_ARG_file);
 	struct socket *sockp;
@@ -1110,7 +1110,7 @@ function _get_sock_addr:long(file:long)
 	CATCH_DEREF_FAULT();
 %}
 
-function _get_sock_size:long(iov:long, nr_segs:long)
+@__private30 function _get_sock_size:long(iov:long, nr_segs:long)
 %{ /* pure */
 	struct iovec *iovp = (struct iovec *)(long)(STAP_ARG_iov);
 	if (iovp == NULL)

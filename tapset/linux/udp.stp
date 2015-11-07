@@ -11,12 +11,12 @@
 // </tapsetdescription>
 
 /* Helper functions analogous (or even identical) those in tcp.stp */
-function __get_skb_udphdr:long (skb:long) { return __get_skb_tcphdr(skb) }
-function __udp_sock_sport (sock) { return __tcp_sock_sport (sock) }
-function __udp_sock_dport (sock) { return __tcp_sock_dport (sock) }
+@__private30 function __get_skb_udphdr:long (skb:long) { return __get_skb_tcphdr(skb) }
+@__private30 function __udp_sock_sport (sock) { return __tcp_sock_sport (sock) }
+@__private30 function __udp_sock_dport (sock) { return __tcp_sock_dport (sock) }
 
-function __udp_skb_dport(udphdr) { return ntohs(@cast(udphdr, "udphdr")->dest) }
-function __udp_skb_sport(udphdr) { return ntohs(@cast(udphdr, "udphdr")->source) }
+@__private30 function __udp_skb_dport(udphdr) { return ntohs(@cast(udphdr, "udphdr")->dest) }
+@__private30 function __udp_skb_sport(udphdr) { return ntohs(@cast(udphdr, "udphdr")->source) }
 
 
 

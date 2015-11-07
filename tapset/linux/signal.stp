@@ -746,7 +746,12 @@ probe signal.do_action.return = kernel.function("do_sigaction").return
     retstr = return_str(1, $return)
 }
 
-function __get_action_mask:long(act:long) %{ /* pure */
+function get_sigaction_mask:long(act:long)
+{
+    return __get_action_mask(act)
+}
+
+@__private30 function __get_action_mask:long(act:long) %{ /* pure */
     int i;
     struct k_sigaction *act = (struct k_sigaction *)((long)STAP_ARG_act);
     sigset_t *sigset = &act->sa.sa_mask;
