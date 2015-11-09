@@ -5,26 +5,23 @@
 
 #define COMP_FNS 7
 #define MAX_INDEX_LEN 5
-#define MAX_HISTORY 128
-
 #define MAX_COLS 256
 #define MAX_DATA 8192
+#define MAX_HISTORY 8192
 
 #define MIN(X,Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X,Y) (((X) > (Y)) ? (X) : (Y))
 
 #define HIGHLIGHT(NAME,IDX,CUR) (((IDX == CUR)) ? (NAME "*") : (NAME))
 
-typedef struct HistoryQueue
+typedef struct History_Queue
 {
   char *buf[MAX_HISTORY];
   size_t allocated[MAX_HISTORY];
   int front;
   int back;
   int count;
-} HistoryQueue;
-
-static HistoryQueue h_queue;
+} History_Queue;
 
 enum probe_attributes
 {
@@ -44,6 +41,7 @@ static enum state
   insert
 } monitor_state; 
 
+static History_Queue h_queue;
 static char probe[MAX_INDEX_LEN];
 static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
@@ -189,6 +187,7 @@ void monitor_setup(void)
   curs_set(0);
   cbreak();
   noecho();
+  keypad(stdscr, TRUE);
   nodelay(stdscr, TRUE);
   monitor_status = newwin(LINES/2,COLS,0,0);
   monitor_output = newwin(LINES/2,COLS,LINES/2,0);
@@ -293,7 +292,7 @@ void monitor_render(void)
         mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
       else
         mvwprintw(monitor_status, max_rows-1, 0,
-                  "q(quit) r(reset) s(sort) t(toggle) j/k(probes) u/d(output)\n");
+                  "q(quit) r(reset) s(sort) t(toggle)\n");
       wmove(monitor_status, 0, 0);
 
       wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
@@ -400,7 +399,7 @@ void monitor_render(void)
 void monitor_input(void)
 {
   static int i = 0;
-  char ch;
+  int ch;
   int max_rows, max_cols;
 
   switch (monitor_state)
@@ -409,18 +408,22 @@ void monitor_input(void)
         ch = getch();
         switch (ch)
           {
-            case 'j':
+            case 'j': /* Fallthrough */
+            case KEY_DOWN:
               probe_scroll++;
               break;
-            case 'k':
+            case 'k': /* Fallthrough */
+            case KEY_UP:
               probe_scroll--;
               probe_scroll = MAX(0, probe_scroll);
               break;
-            case 'd':
+            case 'd': /* Fallthrough */
+            case KEY_NPAGE:
               output_scroll--;
               output_scroll = MAX(0, output_scroll);
               break;
-            case 'u':
+            case 'u': /* Fallthrough */
+            case KEY_PPAGE:
               getmaxyx(monitor_status, max_rows, max_cols);
               (void) max_cols; /* Unused */
               if ((h_queue.count-output_scroll) >= max_rows)
