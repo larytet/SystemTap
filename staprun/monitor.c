@@ -3,14 +3,28 @@
 #include <curses.h>
 #include <time.h>
 
-#define COMP_FNS 5
+#define COMP_FNS 7
 #define MAX_INDEX_LEN 5
+#define MAX_HISTORY 128
 
 #define MAX_COLS 256
 #define MAX_DATA 8192
 
 #define MIN(X,Y) (((X) < (Y)) ? (X) : (Y))
 #define MAX(X,Y) (((X) > (Y)) ? (X) : (Y))
+
+#define HIGHLIGHT(NAME,IDX,CUR) (((IDX == CUR)) ? (NAME "*") : (NAME))
+
+typedef struct HistoryQueue
+{
+  char *buf[MAX_HISTORY];
+  size_t allocated[MAX_HISTORY];
+  int front;
+  int back;
+  int count;
+} HistoryQueue;
+
+static HistoryQueue h_queue;
 
 enum probe_attributes
 {
@@ -35,15 +49,19 @@ static WINDOW *monitor_status = NULL;
 static WINDOW *monitor_output = NULL;
 static int comp_fn_index = 0;
 static int probe_scroll = 0;
+static int output_scroll = 0;
 static time_t elapsed_time = 0;
 static time_t start_time = 0;
 static int resized = 0;
+static int input = 0;
 
 /* Forward declarations */
 static int comp_index(const void *p1, const void *p2);
 static int comp_state(const void *p1, const void *p2);
 static int comp_hits(const void *p1, const void *p2);
+static int comp_min(const void *p1, const void *p2);
 static int comp_avg(const void *p1, const void *p2);
+static int comp_max(const void *p1, const void *p2);
 static int comp_name(const void *p1, const void *p2);
 
 static int (*comp_fn[COMP_FNS])(const void *p1, const void *p2) =
@@ -51,7 +69,9 @@ static int (*comp_fn[COMP_FNS])(const void *p1, const void *p2) =
   comp_index,
   comp_state,
   comp_hits,
+  comp_min,
   comp_avg,
+  comp_max,
   comp_name
 };
 
@@ -85,6 +105,16 @@ static int comp_hits(const void *p1, const void *p2)
   return json_object_get_int(hits2) - json_object_get_int(hits1);
 }
 
+static int comp_min(const void *p1, const void *p2)
+{
+  json_object *j1 = *(json_object**)p1;
+  json_object *j2 = *(json_object**)p2;
+  json_object *min1, *min2;
+  json_object_object_get_ex(j1, "min", &min1);
+  json_object_object_get_ex(j2, "min", &min2);
+  return json_object_get_int(min2) - json_object_get_int(min1);
+}
+
 static int comp_avg(const void *p1, const void *p2)
 {
   json_object *j1 = *(json_object**)p1;
@@ -93,6 +123,16 @@ static int comp_avg(const void *p1, const void *p2)
   json_object_object_get_ex(j1, "avg", &avg1);
   json_object_object_get_ex(j2, "avg", &avg2);
   return json_object_get_int(avg2) - json_object_get_int(avg1);
+}
+
+static int comp_max(const void *p1, const void *p2)
+{
+  json_object *j1 = *(json_object**)p1;
+  json_object *j2 = *(json_object**)p2;
+  json_object *max1, *max2;
+  json_object_object_get_ex(j1, "max", &max1);
+  json_object_object_get_ex(j2, "max", &max2);
+  return json_object_get_int(max2) - json_object_get_int(max1);
 }
 
 static int comp_name(const void *p1, const void *p2)
@@ -177,28 +217,42 @@ void monitor_render(void)
     cleanup_and_exit (0, 1);
   output_fp = fopen(path, "r");
 
+  /* Render normal systemtap output */
   if (output_fp)
     {
-      char stp_out[MAX_DATA];
+      int i;
       int bytes;
-      if ((bytes = fread(stp_out, sizeof(char), MAX_DATA, output_fp)) > 0)
+
+      while ((bytes = getline(&h_queue.buf[h_queue.back],
+              &h_queue.allocated[h_queue.back], output_fp)) != -1)
         {
-          stp_out[bytes] = '\0';
-          wprintw(monitor_output, "%s", stp_out);
-          wrefresh(monitor_output);
+          h_queue.back = (h_queue.back+1) % MAX_HISTORY;
+          if (h_queue.count < MAX_HISTORY)
+            h_queue.count++;
+          else
+            h_queue.front = (h_queue.front+1) % MAX_HISTORY;
         }
       fclose(output_fp);
+
+      wclear(monitor_output);
+
+      for (i = 0; i < h_queue.count-output_scroll; i++)
+        wprintw(monitor_output, "%s", h_queue.buf[(h_queue.front+i) % MAX_HISTORY]);
+
+      wrefresh(monitor_output);
     }
 
-  if (init && (elapsed_time = current_time - start_time) < monitor_interval)
+  if (!input && init && (elapsed_time = current_time - start_time) < monitor_interval)
     return;
-  else
-    start_time = current_time;
+
+  start_time = current_time;
+  input = 0;
 
   if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
     cleanup_and_exit (0, 1);
   monitor_fp = fopen(path, "r");
 
+  /* Render monitor mode statistics */
   if (monitor_fp)
     {
       char json[MAX_DATA];
@@ -221,17 +275,9 @@ void monitor_render(void)
         cleanup_and_exit (0, 1);
       fclose(monitor_fp);
 
-      wclear(monitor_status);
       getmaxyx(monitor_status, monitor_y, monitor_x);
       max_rows = monitor_y;
       max_cols = MIN(MAX_COLS, monitor_x);
-      if (monitor_state == insert)
-        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
-      else
-        mvwprintw(monitor_status, max_rows-1, 0,
-                  "q (quit), r (reset), s (sort), "
-                  "i (toggle probe), j/k (scroll)\n");
-      wmove(monitor_status, 0, 0);
 
       jso = json_tokener_parse(json);
       json_object_object_get_ex(jso, "uptime", &jso_uptime);
@@ -240,6 +286,15 @@ void monitor_render(void)
       json_object_object_get_ex(jso, "module_name", &jso_name);
       json_object_object_get_ex(jso, "globals", &jso_globals);
       json_object_object_get_ex(jso, "probes", &jso_probes);
+
+      wclear(monitor_status);
+
+      if (monitor_state == insert)
+        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
+      else
+        mvwprintw(monitor_status, max_rows-1, 0,
+                  "q(quit) r(reset) s(sort) t(toggle) j/k(probes) u/d(output)\n");
+      wmove(monitor_status, 0, 0);
 
       wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
               json_object_get_string(jso_uptime),
@@ -304,13 +359,13 @@ void monitor_render(void)
       json_object_array_sort(jso_probes, comp_fn[comp_fn_index]);
 
       wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s %*s\n",
-              width[p_index], "index",
-              width[p_state], "state",
-              width[p_hits], "hits",
-              width[p_min], "min",
-              width[p_avg], "avg",
-              width[p_max], "max",
-              width[p_name], "name");
+              width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
+              width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
+              width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
+              width[p_min], HIGHLIGHT("min", p_min, comp_fn_index),
+              width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
+              width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
+              width[p_name], HIGHLIGHT("name", p_name, comp_fn_index));
       getyx(monitor_status, cur_y, cur_x);
       (void) cur_x; /* Unused */
       for (i = probe_scroll; i < MIN(json_object_array_length(jso_probes),
@@ -346,6 +401,7 @@ void monitor_input(void)
 {
   static int i = 0;
   char ch;
+  int max_rows, max_cols;
 
   switch (monitor_state)
     {
@@ -360,6 +416,16 @@ void monitor_input(void)
               probe_scroll--;
               probe_scroll = MAX(0, probe_scroll);
               break;
+            case 'd':
+              output_scroll--;
+              output_scroll = MAX(0, output_scroll);
+              break;
+            case 'u':
+              getmaxyx(monitor_status, max_rows, max_cols);
+              (void) max_cols; /* Unused */
+              if ((h_queue.count-output_scroll) >= max_rows)
+                output_scroll++;
+              break;
             case 'q':
               cleanup_and_exit (0, 0);
               break;
@@ -371,10 +437,12 @@ void monitor_input(void)
             case 'r':
               write_command("reset", 5);
               break;
-            case 'i':
+            case 't':
               monitor_state = insert;
               break;
           }
+        if (ch != ERR)
+          input = 1;
         break;
       case insert:
         ch = getch();
@@ -389,6 +457,7 @@ void monitor_input(void)
           {
             probe[i++] = ch;
             probe[i] = '\0';
+            input = 1;
           }
         break;
     }
