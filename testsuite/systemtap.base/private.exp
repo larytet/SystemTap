@@ -150,6 +150,21 @@ foreach runtime [get_runtime_list] {
     }
     catch {close}; catch {wait}
     if {$__counter == 1} {pass $subtest} else {fail $subtest}
+
+    # Subtest
+    set subtest "$test multiple-private-global-var-decl"
+    set __counter 0
+    eval spawn "stap --runtime=$runtime -e {private varA = 41, varB = 42 probe oneshot \{ println(varA, varB) \}}"
+    expect {
+        -timeout 160
+        -re {^4142\r\n} {
+            incr __counter
+            exp_continue
+        }
+        timeout {fail "$subtest (timeout)"}
+    }
+    catch {close}; catch {wait}
+    if {$__counter == 1} {pass $subtest} else {fail $subtest}
 }
 
 # Cleanup

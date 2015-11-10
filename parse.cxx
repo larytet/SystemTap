@@ -1885,7 +1885,7 @@ parser::parse ()
 	  else
 	    {
 	      context = con_unknown;
-	      throw PARSE_ERROR (_("expected 'probe', 'global', 'function', or '%{'"));
+	      throw PARSE_ERROR (_("expected 'probe', 'global', 'private', 'function', or '%{'"));
 	    }
 	}
       catch (parse_error& pe)
@@ -1903,6 +1903,7 @@ parser::parse ()
                     if (! t)
                       break;
                     if (t->type == tok_keyword && t->content == "probe") break;
+                    else if (t->type == tok_keyword && t->content == "private") break;
                     else if (t->type == tok_keyword && t->content == "global") break;
                     else if (t->type == tok_keyword && t->content == "function") break;
                     else if (t->type == tok_embedded) break;
@@ -2230,13 +2231,8 @@ parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & f
   const token* t;
   while (1)
     {
-      if (iter0 && priv)
-        t = t0;
-      else
-      {
-        t = next ();
-        iter0 = false;
-      }
+      t = (iter0 && priv) ? t0 : next ();
+      iter0 = false;
       if (! (t->type == tok_identifier))
         throw PARSE_ERROR (_("expected identifier"));
 
