@@ -4426,7 +4426,7 @@ struct stable_functioncall_visitor: public update_visitor
   block* curr_scope;
   stable_functioncall_visitor(systemtap_session& s, set<string>& sfc):
     session(s), current_function(0), current_probe(0), stable_fcs(sfc),
-    loop_depth(0), top_scope(0) {};
+    loop_depth(0), top_scope(0), curr_scope(0) {};
 
   statement* convert_stmt(statement* s);
   void visit_block (block* s);

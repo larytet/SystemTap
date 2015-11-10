@@ -2949,7 +2949,8 @@ struct dwarf_pretty_print
   dwarf_pretty_print (dwflpp& dw, vector<Dwarf_Die>& scopes, Dwarf_Addr pc,
                       const string& local, bool userspace_p,
                       const target_symbol& e):
-    dw(dw), local(local), scopes(scopes), pc(pc), pointer(NULL),
+    dw(dw), local(local), scopes(scopes), pc(pc),
+    pointer(NULL), pointer_type(),
     userspace_p(userspace_p), deref_p(true)
   {
     init_ts (e);
@@ -2958,7 +2959,8 @@ struct dwarf_pretty_print
 
   dwarf_pretty_print (dwflpp& dw, Dwarf_Die *scope_die, Dwarf_Addr pc,
                       bool userspace_p, const target_symbol& e):
-    dw(dw), scopes(1, *scope_die), pc(pc), pointer(NULL),
+    dw(dw), scopes(1, *scope_die), pc(pc),
+    pointer(NULL), pointer_type(),
     userspace_p(userspace_p), deref_p(true)
   {
     init_ts (e);
@@ -6902,7 +6904,7 @@ sdt_query::sdt_query(probe * base_probe, probe_point * base_loc,
   base_query(dw, params), resolved_library(false),
   probe_type(unknown_probe_type), probe_loc(unknown_section),
   base_probe(base_probe), base_loc(base_loc), params(params), results(results),
-  user_lib(user_lib), probe_scn_offset(0), probe_scn_addr(0), arg_count(0),
+  user_lib(user_lib), pdata(0), probe_scn_offset(0), probe_scn_addr(0), arg_count(0),
   base(0), pc(0), semaphore_load_offset(0), semaphore(0)
 {
   assert(get_string_param(params, TOK_MARK, pp_mark));
@@ -10365,7 +10367,7 @@ struct tracepoint_arg
   string name, c_type, typecast;
   bool usable, used, isptr;
   Dwarf_Die type_die;
-  tracepoint_arg(): usable(false), used(false), isptr(false) {}
+  tracepoint_arg(): usable(false), used(false), isptr(false), type_die() {}
 };
 
 struct tracepoint_derived_probe: public derived_probe
