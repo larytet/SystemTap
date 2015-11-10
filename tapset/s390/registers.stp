@@ -1,6 +1,6 @@
 /* Dwarfless register access for s390x */
 
-global _reg_offsets[22]
+@__private30 global _reg_offsets[22]
 
 %{
 #include <asm/ptrace.h>

@@ -11,7 +11,7 @@
  * we also remember the start_time in __task_ancestry_times to check for expired
  * memo entries.
  */
-global __task_ancestry_memo, __task_ancestry_times
+@__private30 global __task_ancestry_memo, __task_ancestry_times
 
 /**
  * sfunction task_ancestry - The ancestry of the given task

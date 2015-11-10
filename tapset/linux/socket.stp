@@ -876,10 +876,10 @@ function msg_flags_num2str:string(flags:long)
 # INTERNAL MAPPING ARRAYS #
 ###########################
 
-global _prot_num2str[138], _prot_str2num[138]
-global _fam_num2str[34],   _fam_str2num[34]
-global _state_num2str[5],  _state_str2num[5]
-global _type_num2str[11],  _type_str2num[11]
+@__private30 global _prot_num2str[138], _prot_str2num[138]
+@__private30 global _fam_num2str[34],   _fam_str2num[34]
+@__private30 global _state_num2str[5],  _state_str2num[5]
+@__private30 global _type_num2str[11],  _type_str2num[11]
 
 probe init
 {

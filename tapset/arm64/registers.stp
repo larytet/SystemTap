@@ -1,7 +1,7 @@
 /* Dwarfless register access for arm64 */
 /* TODO: handle 32-bit access of registers */
 
-global _reg_offsets[37]
+@__private30 global _reg_offsets[37]
 
 probe init {
 	/* Same order as pt_regs */

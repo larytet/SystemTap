@@ -165,7 +165,7 @@ function __tcp_sock_sport:long (sock:long)
     return ntohs(port)
 }
 
-global sockstate[12]
+@__private30 global sockstate[12]
 probe init {
 	sockstate[1] = "TCP_ESTABLISHED"
 	sockstate[2] = "TCP_SYN_SENT"
@@ -237,7 +237,7 @@ function tcp_ts_get_info_rcv_mss:long(sock:long)
 #endif
 %}
 
-global __sockopt[18]
+@__private30 global __sockopt[18]
 probe init {
 	__sockopt[%{/* pure */TCP_NODELAY%}] = "TCP_NODELAY"
 	__sockopt[%{/* pure */TCP_MAXSEG%}] = "TCP_MAXSEG"
@@ -338,7 +338,7 @@ function tcp_sockopt_str:string (optname:long)
 #endif
 %}
 
-global __ipv6_sockopt[55]
+@__private30 global __ipv6_sockopt[55]
 probe init {
 	__ipv6_sockopt[%{/* pure */IPV6_ADDRFORM%}] = "IPV6_ADDRFORM"
 	if (%{/* pure */IPV6_2292PKTINFO%} > 0)

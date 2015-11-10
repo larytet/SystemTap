@@ -1,4 +1,4 @@
-global java_backtrace_string
+@__private30 global java_backtrace_string
 
 /**
  * sfunction sprint_java_backtrace - returns the java backtrace as a single string

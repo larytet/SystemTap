@@ -7,7 +7,7 @@
  * </tapsetdescription>
  */
 
-global _indent_counters, _indent_timestamps
+@__private30 global _indent_counters, _indent_timestamps
 
 @__private30 function _generic_indent_depth:long (idx, delta)
 {

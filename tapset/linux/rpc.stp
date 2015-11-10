@@ -110,7 +110,7 @@ probe sunrpc.clnt.create_client =
  * have the real arguments to that inline function).
  */
 
-global __rpc_create_args
+@__private30 global __rpc_create_args
 
 probe kernel.function("rpc_create").call !,
 	module("sunrpc").function("rpc_create").call ?

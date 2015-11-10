@@ -948,7 +948,7 @@ function sa_handler_str(handler) {
 
 // Signals start from 1 not 0.
 
-global __sig[64]
+@__private30 global __sig[64]
 
 probe init {
 	__sig[1] = "HUP"

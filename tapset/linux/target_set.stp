@@ -1,5 +1,5 @@
 
-global _target_set # map: target-set-pid -> ancestor-pid
+@__private30 global _target_set # map: target-set-pid -> ancestor-pid
 
 /**
  * sfunction target_set_pid - Does pid descend from target process?
