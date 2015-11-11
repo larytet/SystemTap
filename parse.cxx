@@ -269,7 +269,7 @@ parse_library_macros (systemtap_session& s, const string& name)
 probe*
 parse_synthetic_probe (systemtap_session &s, istream& i, const token* tok)
 {
-  parser p (s, "<synthetic>", i);
+  parser p (s, tok->location.file->name, i);
   return p.parse_synthetic_probe (tok);
 }
 
