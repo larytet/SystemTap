@@ -1,19 +1,26 @@
-global gs0_save
-global gs0 = 41
-global gs1 = 1
-global gs2 = 2
-global gs3 = 3
-global gs4 = 4
-global gs5 = 5
-global gs6 = 6
-global gs7 = 7
-global gs8 = 8
-global gs9 = 9
-global gs10 = 10
-global gs11 = 11
-global ga1
-global ga2
-global gtemp
+@define __emitpriv
+%(
+    %( $1 == 1 %?
+        private
+    %)
+%)
+
+@__emitpriv global gs0_save
+@__emitpriv global gs0 = 41
+@__emitpriv global gs1 = 1
+@__emitpriv global gs2 = 2
+@__emitpriv global gs3 = 3
+@__emitpriv global gs4 = 4
+@__emitpriv global gs5 = 5
+@__emitpriv global gs6 = 6
+@__emitpriv global gs7 = 7
+@__emitpriv global gs8 = 8
+@__emitpriv global gs9 = 9
+@__emitpriv global gs10 = 10
+@__emitpriv global gs11 = 11
+@__emitpriv global ga1
+@__emitpriv global ga2
+@__emitpriv global gtemp
 
 function fna(a:long) {return a}
 
