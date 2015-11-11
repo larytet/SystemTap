@@ -2098,7 +2098,7 @@ dwflpp::external_function_func_callback (Dwarf_Die* func, external_function_quer
 template<> void
 dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
                                    const string& sym,
-                                   long recursion_depth,
+                                   int64_t recursion_depth,
                                    void *data,
                                    void (* callback)(base_func_info&,
                                                      base_func_info&,

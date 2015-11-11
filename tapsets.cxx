@@ -489,7 +489,7 @@ struct dwarf_derived_probe: public derived_probe
   bool has_return;
   bool has_maxactive;
   bool has_library;
-  long maxactive_val;
+  int64_t maxactive_val;
   // dwarf_derived_probe_group::emit_module_decls uses this to emit sdt kprobe definition
   interned_string user_path;
   interned_string user_lib;
@@ -614,9 +614,7 @@ struct base_query
   static bool get_string_param(literal_map_t const & params,
 			       interned_string k, interned_string &v);
   static bool get_number_param(literal_map_t const & params,
-			       interned_string k, long & v);
-  static bool get_number_param(literal_map_t const & params,
-			       interned_string k, long long & v);
+			       interned_string k, int64_t & v);
   static bool get_number_param(literal_map_t const & params,
 			       interned_string k, Dwarf_Addr & v);
   static void query_library_callback (base_query *me, const char *data);
@@ -641,7 +639,9 @@ struct base_query
 };
 
 base_query::base_query(dwflpp & dw, literal_map_t const & params):
-  sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
+  sess(dw.sess), dw(dw),
+  has_kernel(false), has_module(false), has_process(false),
+  has_library(false), has_plt(false), has_statement(false),
   pid_val(0)
 {
   has_kernel = has_null_param (params, TOK_KERNEL);
@@ -654,7 +654,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
   else
     {
       interned_string library_name;
-      long statement_num_val;
+      Dwarf_Addr statement_num_val;
       has_process =  derived_probe_builder::has_param(params, TOK_PROCESS);
       has_library = get_string_param (params, TOK_LIBRARY, library_name);
       if ((has_plt = has_null_param (params, TOK_PLT)))
@@ -701,7 +701,9 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
 }
 
 base_query::base_query(dwflpp & dw, interned_string module_val)
-  : sess(dw.sess), dw(dw), has_library(false), has_plt(false), has_statement(false),
+  : sess(dw.sess), dw(dw),
+    has_kernel(false), has_module(false), has_process(false),
+    has_library(false), has_plt(false), has_statement(false),
     module_val(module_val), pid_val(0)
 {
   // NB: This uses '/' to distinguish between kernel modules and userspace,
@@ -737,23 +739,9 @@ base_query::get_string_param(literal_map_t const & params,
 
 bool
 base_query::get_number_param(literal_map_t const & params,
-			     interned_string k, long & v)
+			     interned_string k, int64_t & v)
 {
-  int64_t value;
-  bool present = derived_probe_builder::get_param (params, k, value);
-  v = (long) value;
-  return present;
-}
-
-
-bool
-base_query::get_number_param(literal_map_t const & params,
-			     interned_string k, long long & v)
-{
-  int64_t value;
-  bool present = derived_probe_builder::get_param (params, k, value);
-  v = (long) value;
-  return present;
+  return derived_probe_builder::get_param (params, k, v);
 }
 
 
@@ -761,9 +749,10 @@ bool
 base_query::get_number_param(literal_map_t const & params,
 			     interned_string k, Dwarf_Addr & v)
 {
-  int64_t value;
+  int64_t value = 0;
   bool present = derived_probe_builder::get_param (params, k, value);
-  v = (Dwarf_Addr) value;
+  if (present)
+    v = (Dwarf_Addr) value;
   return present;
 }
 
@@ -848,7 +837,7 @@ struct dwarf_query : public base_query
   bool has_nearest;
 
   bool has_maxactive;
-  long maxactive_val;
+  int64_t maxactive_val;
 
   bool has_label;
   interned_string label_val;
@@ -857,10 +846,7 @@ struct dwarf_query : public base_query
   interned_string callee_val;
 
   bool has_callees_num;
-  long callees_num_val;
-
-  bool has_relative;
-  long relative_val;
+  int64_t callees_num_val;
 
   bool has_absolute;
 
@@ -978,8 +964,20 @@ dwarf_query::dwarf_query(probe * base_probe,
 			 interned_string user_lib)
   : base_query(dw, params), results(results), base_probe(base_probe),
     base_loc(base_loc), user_path(user_path), user_lib(user_lib),
-    resolved_library(false), callers(NULL), has_relative(false),
-    relative_val(0), prologue_end(0)
+    resolved_library(false), callers(NULL),
+    has_function_str(false), has_statement_str(false),
+    has_function_num(false), has_statement_num(false),
+    statement_num_val(0), function_num_val(0),
+    has_call(false), has_exported(false), has_inline(false),
+    has_return(false), has_nearest(false),
+    has_maxactive(false), maxactive_val(0),
+    has_label(false), has_callee(false),
+    has_callees_num(false), callees_num_val(0),
+    has_absolute(false), has_mark(false),
+    dbinfo_reqt(dbr_unknown),
+    spec_type(function_alone),
+    lineno_type(ABSOLUTE),
+    query_done(false), prologue_end(0)
 {
   // Reduce the query to more reasonable semantic values (booleans,
   // extracted strings, numbers, etc).
@@ -2235,7 +2233,7 @@ query_cu (Dwarf_Die * cudie, dwarf_query * q)
         {
           // .callee(str) --> str, .callees[(N)] --> "*"
           string callee_val = q->has_callee ? q->callee_val : "*";
-          long callees_num_val = q->has_callees_num ? q->callees_num_val : 1;
+          int64_t callees_num_val = q->has_callees_num ? q->callees_num_val : 1;
 
           // NB: We filter functions that do not match the file here rather than
           // in query_callee because we only want the filtering to apply to the
@@ -9301,7 +9299,7 @@ struct kprobe_derived_probe: public derived_probe
 			bool has_maxactive,
 			bool has_path,
 			bool has_library,
-			long maxactive_val,
+			int64_t maxactive_val,
 			const string& path,
 			const string& library
 			);
@@ -9313,7 +9311,7 @@ struct kprobe_derived_probe: public derived_probe
   bool has_maxactive;
   bool has_path;
   bool has_library;
-  long maxactive_val;
+  int64_t maxactive_val;
   string path;
   string library;
   bool access_var;
@@ -9363,7 +9361,7 @@ kprobe_derived_probe::kprobe_derived_probe (systemtap_session& sess,
 					    bool has_maxactive,
 					    bool has_path,
 					    bool has_library,
-					    long maxactive_val,
+					    int64_t maxactive_val,
 					    const string& path,
 					    const string& library
 					    ):
