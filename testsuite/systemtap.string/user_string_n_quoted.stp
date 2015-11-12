@@ -8,11 +8,11 @@ probe syscall.write {
 		printf("%s\n", user_string_n_quoted(buf_uaddr, 15))
 		printf("%s\n", user_string_n_quoted(buf_uaddr, 14))
 		printf("%s\n", user_string_n_quoted(buf_uaddr, 13))
+		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 20))
+		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 19))
 		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 18))
 		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 17))
 		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 16))
-		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 15))
-		printf("%s\n", user_string_n2_quoted(buf_uaddr, 99, 14))
 		exit()
 	}
 }
