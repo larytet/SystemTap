@@ -222,7 +222,7 @@ functiondecl::join (systemtap_session& s)
     throw SEMANTIC_ERROR (_("internal error, joining a non-synthetic function"), tok);
   if (!s.functions.insert (make_pair (name, this)).second)
     throw SEMANTIC_ERROR (_F("synthetic function '%s' conflicts with an existing function",
-                             name.c_str()), tok);
+                             name.to_string().c_str()), tok);
   tok->location.file->functions.push_back (this);
 }
 
@@ -269,6 +269,7 @@ target_symbol::assert_no_components(const std::string& tapset, bool pretty_ok)
   if (components.empty())
     return;
 
+  const string& name = this->name;
   switch (components[0].type)
     {
     case comp_literal_array_index:
@@ -666,7 +667,12 @@ print_format*
 print_format::create(const token *t, const char *n)
 {
   bool stream, format, delim, newline, _char;
-  if (n == NULL) n = t->content.c_str();
+  string content;
+  if (n == NULL)
+    {
+      content = t->content;
+      n = content.c_str();
+    }
   const char *o = n;
 
   stream = true;

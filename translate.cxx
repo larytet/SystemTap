@@ -1097,7 +1097,7 @@ c_unparser::emit_common_header ()
 
               if (v->char_ptr_arg && session->verbose > 2)
                 clog << _F("variable %s for function %s will be passed by reference (char *)",
-                           v->name.c_str(), fd->name.c_str()) << endl;
+                           v->name.to_string().c_str(), fd->name.to_string().c_str()) << endl;
 
               if (fd->mangle_oldstyle)
                 {
@@ -1127,7 +1127,7 @@ c_unparser::emit_common_header ()
 	{
           if (!session->unoptimized && fd->type == pe_string&& session->verbose > 2)
             clog << _F("return value for function %s will be passed by reference (char *)",
-                       fd->name.c_str()) << endl;
+                       fd->name.to_string().c_str()) << endl;
 	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
                        << " __retvalue;";
 	}
@@ -2578,7 +2578,8 @@ c_unparser::emit_probe (derived_probe* v)
       // NB: Elision of context variable structs is a separate
       // operation which has already taken place by now.
       if (session->verbose > 1)
-        clog << _F("%s elided, duplicates %s\n", v->name.c_str(), dupe.c_str());
+        clog << _F("%s elided, duplicates %s\n",
+		   v->name.to_string().c_str(), dupe.c_str());
 
 #if DUPMETHOD_CALL
       // This one emits a direct call to the first copy.
@@ -2679,7 +2680,8 @@ c_unparser::emit_probe (derived_probe* v)
       max_action_info mai (*session);
       v->body->visit (&mai);
       if (session->verbose > 1)
-        clog << _F("%d statements for probe %s", mai.statement_count, v->name.c_str()) << endl;
+        clog << _F("%d statements for probe %s", mai.statement_count,
+		   v->name.to_string().c_str()) << endl;
 
       if (mai.statement_count_finite() && !session->suppress_time_limits
           && !session->unoptimized) // this is a finite-statement-count probe
@@ -3188,7 +3190,8 @@ c_unparser_assignment::c_assignop(tmpvar & res,
 	  res = lval;
 	}
       else
-        throw SEMANTIC_ERROR (_F("string assignment operator %s unsupported", op.c_str()), tok);
+        throw SEMANTIC_ERROR (_F("string assignment operator %s unsupported",
+				 op.to_string().c_str()), tok);
     }
   else if (op == "<<<")
     {
@@ -7865,7 +7868,7 @@ struct recursion_info: public traversing_visitor
       {
         if (sess.verbose > 3)
           clog << _F("identified max-nested function: %s (%d)",
-                     e->referent->name.c_str(), nesting_depth) << endl;
+                     e->referent->name.to_string().c_str(), nesting_depth) << endl;
         nesting_max = nesting_depth;
       }
 
@@ -7875,7 +7878,8 @@ struct recursion_info: public traversing_visitor
         {
           recursive = true;
           if (sess.verbose > 3)
-            clog << _F("identified recursive function: %s", e->referent->name.c_str()) << endl;
+            clog << _F("identified recursive function: %s",
+		       e->referent->name.to_string().c_str()) << endl;
           return;
         }
 

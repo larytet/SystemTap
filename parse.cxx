@@ -546,7 +546,7 @@ parser::scan_pp1 (bool ignore_macros = false)
       // (potential) macro invocation
       if (t->type == tok_operator && t->content[0] == '@')
         {
-          interned_string name = t->content.substr(1); // strip initial '@'
+          const string& name = t->content.substr(1); // strip initial '@'
 
           // check if name refers to a real parameter or macro
           macrodecl* decl;
@@ -962,7 +962,8 @@ bool eval_pp_conditional (systemtap_session& s,
 	}
       else if (r->type == tok_number)
 	{
-          const char* startp = s.kernel_config[l->content].c_str ();
+          const string& lhs_string = s.kernel_config[l->content];
+          const char* startp = lhs_string.c_str ();
           char* endp = (char*) startp;
           errno = 0;
           int64_t lhs = (int64_t) strtoll (startp, & endp, 0);
@@ -977,14 +978,16 @@ bool eval_pp_conditional (systemtap_session& s,
 	{
 	  // First try to convert both to numbers,
 	  // otherwise threat both as strings.
-          const char* startp = s.kernel_config[l->content].c_str ();
+          const string& lhs_string = s.kernel_config[l->content];
+          const string& rhs_string = s.kernel_config[r->content];
+          const char* startp = lhs_string.c_str ();
           char* endp = (char*) startp;
           errno = 0;
           int64_t val = (int64_t) strtoll (startp, & endp, 0);
           if (errno != ERANGE && errno != EINVAL && *endp == '\0')
 	    {
 	      int64_t lhs = val;
-	      startp = s.kernel_config[r->content].c_str ();
+              startp = rhs_string.c_str ();
 	      endp = (char*) startp;
 	      errno = 0;
 	      int64_t rhs = (int64_t) strtoll (startp, & endp, 0);
@@ -992,9 +995,7 @@ bool eval_pp_conditional (systemtap_session& s,
 		return eval_comparison (lhs, op, rhs);
 	    }
 
-	  string lhs = s.kernel_config[l->content];
-	  string rhs = s.kernel_config[r->content];
-	  return eval_comparison (lhs, op, rhs);
+	  return eval_comparison (lhs_string, op, rhs_string);
 	}
       else
 	throw PARSE_ERROR (_("expected string, number literal or other CONFIG_... as right side operand"), r);
@@ -1309,7 +1310,8 @@ parser::expect_number (int64_t & value)
   if (!(t && t->type == tok_number))
     throw PARSE_ERROR (_("expected number"));
 
-  const char* startp = t->content.c_str ();
+  const string& s = t->content;
+  const char* startp = s.c_str ();
   char* endp = (char*) startp;
 
   // NB: we allow controlled overflow from LLONG_MIN .. ULLONG_MAX
@@ -2585,7 +2587,8 @@ parser::parse_literal ()
 
       if (t->type == tok_number)
 	{
-	  const char* startp = t->content.c_str ();
+          const string& s = t->content;
+	  const char* startp = s.c_str ();
 	  char* endp = (char*) startp;
 
 	  // NB: we allow controlled overflow from LLONG_MIN .. ULLONG_MAX

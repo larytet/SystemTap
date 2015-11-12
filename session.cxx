@@ -2011,7 +2011,7 @@ systemtap_session::register_library_aliases()
                       // XXX: alias parameters
                       if (comp->arg)
                         throw SEMANTIC_ERROR(_F("alias component %s contains illegal parameter",
-                                                comp->functor.c_str()));
+                                                comp->functor.to_string().c_str()));
                       mn = mn->bind(comp->functor);
                     }
 		  // PR 12916: All probe aliases are OK for all users. The actual

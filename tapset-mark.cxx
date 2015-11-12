@@ -700,17 +700,19 @@ mark_builder::build(systemtap_session & sess,
   unsigned results_pre = finished_results.size();
 
   // Search marker list for matching markers
+  const string& str_val = mark_str_val;
+  const string& format_val = mark_format_val;
   for (mark_cache_const_iterator_t it = mark_cache.begin();
        it != mark_cache.end(); it++)
     {
       // Below, "rc" has negative polarity: zero iff matching.
-      int rc = fnmatch(mark_str_val.c_str(), it->first.c_str(), 0);
+      int rc = fnmatch(str_val.c_str(), it->first.c_str(), 0);
       if (! rc)
         {
 	  bool add_result = true;
 
 	  // Match format strings (if the user specified one)
-	  if (has_mark_format && fnmatch(mark_format_val.c_str(),
+	  if (has_mark_format && fnmatch(format_val.c_str(),
 					 it->second.c_str(), 0))
 	    add_result = false;
 

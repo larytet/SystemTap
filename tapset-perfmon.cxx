@@ -349,7 +349,7 @@ perf_builder::build(systemtap_session & sess,
 
   if (sess.verbose > 1)
     clog << _F("perf probe type=%" PRId64 " config=%" PRId64 " period=%" PRId64 " process=%s counter=%s",
-	       type, config, period, proc_n.c_str(), var.c_str()) << endl;
+	       type, config, period, proc_n.to_string().c_str(), var.to_string().c_str()) << endl;
 
   // The user-provided pp is already well-formed. Let's add a copy on the chain
   // and set it as the new base

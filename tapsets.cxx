@@ -683,7 +683,7 @@ base_query::base_query(dwflpp & dw, literal_map_t const & params):
           module_val = find_executable (module_val, sess.sysroot, sess.sysenv);
           if (!is_fully_resolved(module_val, sess.sysroot, sess.sysenv))
             throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
-                                    module_val.c_str()));
+                                    module_val.to_string().c_str()));
         }
 
       // Library probe? Let's target that instead if it is fully resolved (such
@@ -1401,24 +1401,24 @@ dwarf_query::add_probe_point(interned_string dw_funcname,
         {
         case dwflpp::blacklisted_section:
           sess.print_warning(_F("function %s is in blacklisted section",
-                                funcname.c_str()), base_probe->tok);
+                                funcname.to_string().c_str()), base_probe->tok);
           break;
         case dwflpp::blacklisted_kprobes:
           sess.print_warning(_F("kprobes function %s is blacklisted",
-                                funcname.c_str()), base_probe->tok);
+                                funcname.to_string().c_str()), base_probe->tok);
           break;
         case dwflpp::blacklisted_function_return:
           sess.print_warning(_F("function %s return probe is blacklisted",
-                                funcname.c_str()), base_probe->tok);
+                                funcname.to_string().c_str()), base_probe->tok);
           break;
         case dwflpp::blacklisted_file:
           sess.print_warning(_F("function %s is in blacklisted file",
-                                funcname.c_str()), base_probe->tok);
+                                funcname.to_string().c_str()), base_probe->tok);
           break;
         case dwflpp::blacklisted_function:
         default:
           sess.print_warning(_F("function %s is blacklisted",
-                                funcname.c_str()), base_probe->tok);
+                                funcname.to_string().c_str()), base_probe->tok);
           break;
         }
     }
@@ -1894,7 +1894,7 @@ query_inline_instance_info (inline_instance_info & ii,
       
       if (q->sess.verbose>2)
         clog << _F("querying entrypc %#" PRIx64 " of instance of inline '%s'\n",
-                   ii.entrypc, ii.name.c_str());
+                   ii.entrypc, ii.name.to_string().c_str());
 
       interned_string canon_func = q->final_function_name(ii.name, ii.decl_file,
                                                           ii.decl_line);
@@ -5180,7 +5180,8 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
   if ((q.has_callee || q.has_callees_num) && q.callers && !q.callers->empty())
     {
       if (q.sess.verbose > 2)
-        clog << _F("adding caller checks for callee %s\n", funcname.c_str());
+        clog << _F("adding caller checks for callee %s\n",
+                   funcname.to_string().c_str());
 
       // Copy the stack and empty it out
       stack<Dwarf_Addr> callers(*q.callers);
@@ -6821,7 +6822,7 @@ plt_expanding_visitor::visit_target_symbol (target_symbol *e)
       // (only to be caught right away, but this may be more complex later...)
       string alternatives = "$$name";
       throw SEMANTIC_ERROR(_F("unable to find plt variable '%s' (alternatives: %s)",
-                              e->name.c_str(), alternatives.c_str()), e->tok);
+                              e->name.to_string().c_str(), alternatives.c_str()), e->tok);
     }
   catch (const semantic_error &er)
     {
@@ -7403,7 +7404,7 @@ sdt_query::convert_location ()
 	      break;
 	    default:
               clog << _F("probe_type == use_uprobe_no_dwarf, use label name: _stapprobe1_%s",
-                         pp_mark.c_str()) << endl;
+                         pp_mark.to_string().c_str()) << endl;
           }
 
         switch (probe_type)
@@ -7686,7 +7687,7 @@ resolve_library_by_path(base_query & q,
               const string& globbed = *it;
               if (sess.verbose > 1)
                 clog << _F("Expanded library(\"%s\") to library(\"%s\")",
-                           lib.c_str(), globbed.c_str()) << endl;
+                           lib.to_string().c_str(), globbed.c_str()) << endl;
 
               probe *new_base = build_library_probe(dw, globbed,
                                                     base, location);
@@ -7862,7 +7863,7 @@ dwarf_builder::build(systemtap_session & sess,
 
               if (sess.verbose > 1)
                 clog << _F("Expanded process(\"%s\") to process(\"%s\")",
-                           module_name.c_str(), eglobbed.c_str()) << endl;
+                           module_name.to_string().c_str(), eglobbed.c_str()) << endl;
               string eglobbed_tgt = path_remove_sysroot(sess, eglobbed);
 
               probe_point::component* ppc
@@ -7940,11 +7941,11 @@ dwarf_builder::build(systemtap_session & sess,
       user_path = find_executable (module_name, "", sess.sysenv); // canonicalize it
       if (!is_fully_resolved(user_path, "", sess.sysenv))
         throw SEMANTIC_ERROR(_F("cannot find executable '%s'",
-                                user_path.c_str()));
+                                user_path.to_string().c_str()));
 
       // if the executable starts with "#!", we look for the interpreter of the script
       {
-         ifstream script_file (user_path.c_str () );
+         ifstream script_file (user_path.to_string().c_str());
 
          if (script_file.good ())
          {
@@ -7997,13 +7998,14 @@ dwarf_builder::build(systemtap_session & sess,
 
                 struct stat st;
 
-                if (access (user_path.c_str(), X_OK) == 0
-                  && stat (user_path.c_str(), &st) == 0
+                const string& new_path = user_path;
+                if (access (new_path.c_str(), X_OK) == 0
+                  && stat (new_path.c_str(), &st) == 0
                   && S_ISREG (st.st_mode)) // see find_executable()
                 {
                   if (sess.verbose > 1)
                     clog << _F("Expanded process(\"%s\") to process(\"%s\")",
-                               module_name.c_str(), user_path.c_str()) << endl;
+                               module_name.to_string().c_str(), new_path.c_str()) << endl;
 
                   assert (location->components.size() > 0);
                   assert (location->components[0]->functor == TOK_PROCESS);
@@ -8013,7 +8015,7 @@ dwarf_builder::build(systemtap_session & sess,
 
                   // synthesize a new probe_point, with the expanded string
                   probe_point *pp = new probe_point (*location);
-                  string user_path_tgt = path_remove_sysroot(sess, user_path);
+                  string user_path_tgt = path_remove_sysroot(sess, new_path);
                   probe_point::component* ppc = new probe_point::component (TOK_PROCESS,
                                                                             new literal_string (user_path_tgt));
                   ppc->tok = location->components[0]->tok; // overwrite [0] slot, pattern matched above
@@ -8068,7 +8070,8 @@ dwarf_builder::build(systemtap_session & sess,
   unsigned results_pre = finished_results.size();
 
   if (sess.verbose > 3)
-    clog << _F("dwarf_builder::build for %s", module_name.c_str()) << endl;
+    clog << _F("dwarf_builder::build for %s",
+               module_name.to_string().c_str()) << endl;
 
   interned_string dummy_mark_name; // NB: PR10245: dummy value, need not substitute - => __
   if (get_param(parameters, TOK_MARK, dummy_mark_name))
@@ -9911,11 +9914,12 @@ kprobe_builder::build(systemtap_session & sess,
             }
           else // Search function name list for matching names
             {
+              const string& val = function_string_val;
               for (set<interned_string>::const_iterator it = sess.kernel_functions.begin();
                    it != sess.kernel_functions.end(); it++)
                 {
                   // fnmatch returns zero for matching.
-                  if (fnmatch(function_string_val.c_str(), it->c_str(), 0) == 0)
+                  if (fnmatch(val.c_str(), it->to_string().c_str(), 0) == 0)
                     matches.push_back(*it);
                 }
             }
@@ -10514,7 +10518,8 @@ tracepoint_var_expanding_visitor::visit_target_symbol_context (target_symbol* e)
     throw SEMANTIC_ERROR(_("cannot take address of context variable"), e->tok);
 
   if (is_active_lvalue (e))
-    throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted", e->name.c_str()), e->tok);
+    throw SEMANTIC_ERROR(_F("write to tracepoint '%s' not permitted",
+                            e->name.to_string().c_str()), e->tok);
 
   if (e->name == "$$name" || e->name == "$$system")
     {

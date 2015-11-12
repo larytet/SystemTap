@@ -2227,7 +2227,8 @@ dwflpp::iterate_over_callees<void>(Dwarf_Die *begin_die,
             sess.print_warning (_F("Callee \"%s\" in function \"%s\" is a tail call: "
                                    ".callee probe may not fire. Try placing the probe "
                                    "directly on the callee function instead.",
-                                   callee.name.c_str(), caller.name.c_str()));
+                                   callee.name.to_string().c_str(),
+                                   caller.name.to_string().c_str()));
           
           // For .callees(N) probes, we recurse on this callee. Note that we
           // pass the callee we just found as the caller arg for this recursion,
@@ -2396,7 +2397,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         {
           if (sess.verbose > 2)
             clog << _F("missing entrypc dwarf line record for function '%s'\n",
-                       it->name.c_str());
+                       it->name.to_string().c_str());
           // This is probably an inlined function.  We'll end up using
           // its lowpc as a probe address.
           continue;
@@ -2406,7 +2407,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
         {
           if (sess.verbose > 2)
             clog << _F("null entrypc dwarf line record for function '%s'\n",
-                       it->name.c_str());
+                       it->name.to_string().c_str());
           // This is probably an inlined function.  We'll skip this instance;
           // it is messed up. 
           continue;
@@ -2414,8 +2415,8 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       if (sess.verbose>2)
         clog << _F("searching for prologue of function '%s' %#" PRIx64 "-%#" PRIx64 
-                   "@%s:%d\n", it->name.c_str(), entrypc, highpc,
-                   it->decl_file.c_str(), it->decl_line);
+                   "@%s:%d\n", it->name.to_string().c_str(), entrypc, highpc,
+                   it->decl_file.to_string().c_str(), it->decl_line);
 
       // For each function, we look for the prologue-end marker (e.g. clang
       // outputs one). If there is no explicit marker (e.g. GCC does not), we
@@ -2484,7 +2485,7 @@ dwflpp::resolve_prologue_endings (func_info_map_t & funcs)
 
       if (sess.verbose>2)
         {
-          clog << _F("prologue found function '%s'", it->name.c_str());
+          clog << _F("prologue found function '%s'", it->name.to_string().c_str());
           // Add a little classification datum
           //TRANSLATORS: Here we're adding some classification datum (ie Prologue Free)
           if (postprologue_addr == entrypc)
@@ -4181,15 +4182,15 @@ dwflpp::blacklisted_p(interned_string funcname,
     blacklisted = dwflpp::blacklisted_kprobes;
 
   // Check probe point against function blacklist
-  else if (!regexec(&blacklist_func, funcname.c_str(), 0, NULL, 0))
+  else if (!regexec(&blacklist_func, funcname.to_string().c_str(), 0, NULL, 0))
     blacklisted = dwflpp::blacklisted_function;
 
   // Check probe point against function return blacklist
-  else if (has_return && !regexec(&blacklist_func_ret, funcname.c_str(), 0, NULL, 0))
+  else if (has_return && !regexec(&blacklist_func_ret, funcname.to_string().c_str(), 0, NULL, 0))
     blacklisted = dwflpp::blacklisted_function_return;
 
   // Check probe point against file blacklist
-  else if (!regexec(&blacklist_file, filename.c_str(), 0, NULL, 0))
+  else if (!regexec(&blacklist_file, filename.to_string().c_str(), 0, NULL, 0))
     blacklisted = dwflpp::blacklisted_file;
 
   if (blacklisted)
