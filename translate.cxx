@@ -1561,7 +1561,7 @@ c_unparser::emit_global_param (vardecl *v)
   // #undef is spit out at the end of the C file, so that removing the
   // definition won't affect any other embedded-C or generated code.
   // XXX: better not have a global variable named module_param_named etc.!
-  o->newline() << "#undef " << v->name; // avoid colliding with non-mangled name
+  o->newline() << "#undef " << param; // avoid colliding with non-mangled name
 
   // Emit module_params for this global, if its type is convenient.
   if (v->arity == 0 && v->type == pe_long)
