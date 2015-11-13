@@ -15,6 +15,7 @@
 int out_fd[NR_CPUS];
 static pthread_t reader[NR_CPUS];
 static int relay_fd[NR_CPUS];
+static int avail_cpus[NR_CPUS];
 static int switch_file[NR_CPUS];
 static int bulkmode = 0;
 static volatile int stop_threads = 0;
@@ -215,14 +216,14 @@ static void switchfile_handler(int sig)
 	if (stop_threads)
 		return;
 	for (i = 0; i < ncpus; i++)
-		if (reader[i] && switch_file[i]) {
+		if (reader[avail_cpus[i]] && switch_file[avail_cpus[i]]) {
 			dbug(2, "file switching is progressing, signal ignored.\n", sig);
 			return;
 		}
 	for (i = 0; i < ncpus; i++) {
-		if (reader[i]) {
-			switch_file[i] = 1;
-			pthread_kill(reader[i], SIGUSR2);
+		if (reader[avail_cpus[i]]) {
+			switch_file[avail_cpus[i]] = 1;
+			pthread_kill(reader[avail_cpus[i]], SIGUSR2);
 		} else
 			break;
 	}
@@ -236,6 +237,7 @@ static void switchfile_handler(int sig)
 int init_relayfs(void)
 {
 	int i, len;
+	int cpui = 0;
 	char rqbuf[128];
         char buf[PATH_MAX];
         struct sigaction sa;
@@ -250,10 +252,11 @@ int init_relayfs(void)
 	if (send_request(STP_BULK, rqbuf, sizeof(rqbuf)) == 0)
 		bulkmode = 1;
 
-        /* Try to open a slew of per-cpu trace%d files.  This will fail early;
-           for !bulkmode, it should pass only for "trace0"; for bulkmode,
-           it will fail at some actual-number-of-CPUs that we XXX hope is less
-           than NR_CPUS. */
+	/* Try to open a slew of per-cpu trace%d files.  Per PR19241, we
+	   need to go through all potentially present CPUs up to NR_CPUS, that
+	   we hope is a reasonable limit.  For !bulknode, "trace0" will be
+	   typically used. */
+
 	for (i = 0; i < NR_CPUS; i++) {
                 relay_fd[i] = -1;
 
@@ -272,11 +275,18 @@ int init_relayfs(void)
                         dbug(2, "attempting to open %s\n", buf);
                         relay_fd[i] = open(buf, O_RDONLY | O_NONBLOCK);
                 }
-		if (relay_fd[i] < 0 || set_clexec(relay_fd[i]) < 0)
-			break;
+		if (relay_fd[i] >= 0) {
+			avail_cpus[cpui++] = i;
+			if (set_clexec(relay_fd[i]) < 0) {
+				_err("failed to set FD_CLOEXEC on fd %d\n", i);
+				return -1;
+			}
+		}
 	}
-	ncpus = i;
+	ncpus = cpui;
 	dbug(2, "ncpus=%d, bulkmode = %d\n", ncpus, bulkmode);
+	for (i = 0; i < ncpus; i++)
+		dbug(2, "cpui=%d, relayfd=%d\n", i, avail_cpus[i]);
 
 	if (ncpus == 0) {
 		_err("couldn't open %s.\n", buf);
@@ -295,9 +305,9 @@ int init_relayfs(void)
 	if (fsize_max) {
 		/* switch file mode */
 		for (i = 0; i < ncpus; i++) {
-			if (init_backlog(i) < 0)
+			if (init_backlog(avail_cpus[i]) < 0)
 				return -1;
-  			if (open_outfile(0, i, 0) < 0)
+			if (open_outfile(0, avail_cpus[i], 0) < 0)
   				return -1;
 		}
 	} else if (bulkmode) {
@@ -317,20 +327,20 @@ int init_relayfs(void)
 						return -1;
 					}
 					if (snprintf_chk(&buf[len],
-						PATH_MAX - len, "_%d", i))
+						PATH_MAX - len, "_%d", avail_cpus[i]))
 						return -1;
 				}
 			} else {
-				if (sprintf_chk(buf, "stpd_cpu%d", i))
+				if (sprintf_chk(buf, "stpd_cpu%d", avail_cpus[i]))
 					return -1;
 			}
 			
-			out_fd[i] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
-			if (out_fd[i] < 0) {
+			out_fd[avail_cpus[i]] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+			if (out_fd[avail_cpus[i]] < 0) {
 				perr("Couldn't open output file %s", buf);
 				return -1;
 			}
-			if (set_clexec(out_fd[i]) < 0)
+			if (set_clexec(out_fd[avail_cpus[i]]) < 0)
 				return -1;
 		}
 	} else {
@@ -347,7 +357,7 @@ int init_relayfs(void)
 				perr("Couldn't open output file %s", buf);
 				return -1;
 			}
-			if (set_clexec(out_fd[i]) < 0)
+			if (set_clexec(out_fd[avail_cpus[i]]) < 0)
 				return -1;
 		} else
 			out_fd[0] = STDOUT_FILENO;
@@ -361,8 +371,8 @@ int init_relayfs(void)
         sigaction(SIGUSR2, &sa, NULL);
         dbug(2, "starting threads\n");
         for (i = 0; i < ncpus; i++) {
-                if (pthread_create(&reader[i], NULL, reader_thread,
-                                   (void *)(long)i) < 0) {
+                if (pthread_create(&reader[avail_cpus[i]], NULL, reader_thread,
+                                   (void *)(long)avail_cpus[i]) < 0) {
                         _perr("failed to create thread");
                         return -1;
                 }
@@ -377,20 +387,20 @@ void close_relayfs(void)
 	stop_threads = 1;
 	dbug(2, "closing\n");
 	for (i = 0; i < ncpus; i++) {
-		if (reader[i])
-			pthread_kill(reader[i], SIGUSR2);
+		if (reader[avail_cpus[i]])
+			pthread_kill(reader[avail_cpus[i]], SIGUSR2);
 		else
 			break;
 	}
 	for (i = 0; i < ncpus; i++) {
-		if (reader[i])
-			pthread_join(reader[i], NULL);
+		if (reader[avail_cpus[i]])
+			pthread_join(reader[avail_cpus[i]], NULL);
 		else
 			break;
 	}
 	for (i = 0; i < ncpus; i++) {
-		if (relay_fd[i] >= 0)
-			close(relay_fd[i]);
+		if (relay_fd[avail_cpus[i]] >= 0)
+			close(relay_fd[avail_cpus[i]]);
 		else
 			break;
 	}
