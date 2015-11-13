@@ -253,10 +253,10 @@ function user_string_n2_quoted:string (addr:long, inlen:long, outlen:long)
    {
      try
        {
-         str = string_quoted(user_string_n(addr, inlen))
-         if (strlen(str) > outlen-2) // room for the double-quotes plus \ldots
-           str = (substr(str,0,outlen-4) . "\"...")
-         return str
+         __str = string_quoted(user_string_n(addr, inlen))
+         if (strlen(__str) > outlen-2) // room for the double-quotes plus \ldots
+           __str = (substr(__str,0,outlen-4) . "\"...")
+         return __str
        }
      catch
        {
