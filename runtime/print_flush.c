@@ -8,11 +8,6 @@
  * later version.
  */
 
-#ifdef STP_MONITOR
-#include "procfs.c"
-#include "monitor.c"
-#endif
-
 /** Send the print buffer to the transport now.
  * Output accumulates in the print buffer until it
  * is filled, or this is called. This MUST be called before returning
@@ -39,9 +34,6 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 
 	dbug_trans(1, "len = %zu\n", len);
 
-#ifdef STP_MONITOR
-        _monitor_fill_printf_buf(pb->buf, len);
-#else
 #ifdef STP_BULKMODE
 #ifdef NO_PERCPU_HEADERS
 	{
@@ -160,5 +152,4 @@ void EXPORT_FN(stp_print_flush)(_stp_pbuf *pb)
 	}
 #endif /* STP_TRANSPORT_VERSION != 1 */
 #endif /* !STP_BULKMODE */
-#endif /* STP_MONITOR */
 }

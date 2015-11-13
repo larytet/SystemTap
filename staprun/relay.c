@@ -13,6 +13,8 @@
 #include "staprun.h"
 
 int out_fd[NR_CPUS];
+int monitor_pfd[2];
+int monitor_set = 0;
 static pthread_t reader[NR_CPUS];
 static int relay_fd[NR_CPUS];
 static int avail_cpus[NR_CPUS];
@@ -360,8 +362,16 @@ int init_relayfs(void)
 			if (set_clexec(out_fd[avail_cpus[0]]) < 0)
 				return -1;
 		} else
-			out_fd[avail_cpus[0]] = STDOUT_FILENO;
-		
+			if (monitor) {
+				if (pipe2(monitor_pfd, O_NONBLOCK)) {
+					perr("Couldn't create pipe");
+					return -1;
+				}
+				monitor_set = 1;
+				out_fd[avail_cpus[0]] = monitor_pfd[1];
+			} else {
+				out_fd[avail_cpus[0]] = STDOUT_FILENO;
+			}
 	}
 
         memset(&sa, 0, sizeof(sa));

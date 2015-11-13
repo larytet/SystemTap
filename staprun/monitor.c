@@ -212,12 +212,10 @@ void monitor_render(void)
   if (resized)
     handle_resize();
 
-  if (sprintf_chk(path, "/proc/systemtap/%s/monitor_stp_out", modname))
-    cleanup_and_exit (0, 1);
-  output_fp = fopen(path, "r");
+  output_fp = fdopen(monitor_pfd[0], "r");
 
   /* Render normal systemtap output */
-  if (output_fp)
+  if (output_fp && monitor_set)
     {
       int i;
       int bytes;
@@ -231,10 +229,8 @@ void monitor_render(void)
           else
             h_queue.front = (h_queue.front+1) % MAX_HISTORY;
         }
-      fclose(output_fp);
 
       wclear(monitor_output);
-
       for (i = 0; i < h_queue.count-output_scroll; i++)
         wprintw(monitor_output, "%s", h_queue.buf[(h_queue.front+i) % MAX_HISTORY]);
 
