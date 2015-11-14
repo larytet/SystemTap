@@ -525,7 +525,7 @@ struct print_format: public expression
   hist_op *hist;
 
   static std::string components_to_string(std::vector<format_component> const & components);
-  static std::vector<format_component> string_to_components(interned_string str);
+  static std::vector<format_component> string_to_components(std::string const & str);
   static print_format* create(const token *t, const char *n = NULL);
 
   void print (std::ostream& o) const;

@@ -821,14 +821,14 @@ print_format::components_to_string(vector<format_component> const & components)
 }
 
 vector<print_format::format_component>
-print_format::string_to_components(interned_string str)
+print_format::string_to_components(string const & str)
 {
   format_component curr;
   vector<format_component> res;
 
   curr.clear();
 
-  interned_string::const_iterator i = str.begin();
+  string::const_iterator i = str.begin();
   string literal_str;
   
   while (i != str.end())
