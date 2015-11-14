@@ -170,7 +170,6 @@ struct literal_string: public literal
 {
   interned_string value;
   literal_string (interned_string v);
-  literal_string (const std::string& v);
   void print (std::ostream& o) const;
   void visit (visitor* u);
 };

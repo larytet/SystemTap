@@ -241,12 +241,6 @@ literal_string::literal_string (interned_string v)
   type = pe_string;
 }
 
-literal_string::literal_string (const string& v)
-{
-  value = v;
-  type = pe_string;
-}
-
 
 ostream&
 operator << (ostream& o, const exp_type& e)
