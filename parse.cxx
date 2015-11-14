@@ -2517,22 +2517,30 @@ parser::parse_probe_point ()
 literal_string*
 parser::consume_string_literals(const token *t)
 {
-  literal_string *ls = new literal_string (string(""));
+  literal_string *ls = new literal_string (t->content);
 
   // PR11208: check if the next token is also a string literal;
   // auto-concatenate it.  This is complicated to the extent that we
   // need to skip intermediate whitespace.
   //
   // NB for versions prior to 2.0: but don't skip over intervening comments
+  string concat;
+  bool p_concat = false;
   const token *n = peek();
-  string token_str = t->content;
   while (n != NULL && n->type == tok_string
          && ! (!input.has_version("2.0") && input.ate_comment))
     {
-      token_str.append(next()->content); // consume and append the token
+      if (!p_concat)
+        {
+          concat = t->content;
+          p_concat = true;
+        }
+      concat.append(n->content.data(), n->content.size());
+      next(); // consume the token
       n = peek();
     }
-  ls->value = token_str;
+  if (p_concat)
+    ls->value = concat;
   return ls;
 }
 
