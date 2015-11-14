@@ -661,13 +661,17 @@ print_format*
 print_format::create(const token *t, const char *n)
 {
   bool stream, format, delim, newline, _char;
-  string content;
+  interned_string type;
+  string str_type;
+
   if (n == NULL)
     {
-      content = t->content;
-      n = content.c_str();
+      type = t->content;
+      str_type = type;
+      n = str_type.c_str();
     }
-  const char *o = n;
+  else
+    type = n;
 
   stream = true;
   format = delim = newline = _char = false;
@@ -710,7 +714,7 @@ print_format::create(const token *t, const char *n)
 	return NULL;
     }
 
-  print_format *pf = new print_format(stream, format, delim, newline, _char, o);
+  print_format *pf = new print_format(stream, format, delim, newline, _char, type);
   pf->tok = t;
   return pf;
 }

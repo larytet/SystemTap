@@ -533,7 +533,7 @@ struct print_format: public expression
 
 private:
   interned_string print_format_type;
-  print_format(bool stream, bool format, bool delim, bool newline, bool _char, std::string type):
+  print_format(bool stream, bool format, bool delim, bool newline, bool _char, interned_string type):
     print_to_stream(stream), print_with_format(format),
     print_with_delim(delim), print_with_newline(newline),
     print_char(_char), hist(NULL), print_format_type(type)
