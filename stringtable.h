@@ -94,6 +94,7 @@ struct interned_string: public boost::string_ref
   
 private:
   static interned_string intern(const std::string& value);
+  static interned_string intern(const char* value);
 
   // This is private so we can be sure of ownership, from our interned string table.
   interned_string(const boost::string_ref& value): boost::string_ref(value) {}

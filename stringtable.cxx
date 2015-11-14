@@ -96,6 +96,9 @@ stringtable_t stringtable;
 // static
 interned_string interned_string::intern(const string& value)
 {
+  if (value.empty())
+    return interned_string ();
+
   pair<stringtable_t::iterator,bool> result = stringtable.insert(value);
   PROBE2(stap, intern_string, value.c_str(), result.second);
   stringtable_t::iterator it = result.first; // persistent iterator!
@@ -108,8 +111,17 @@ interned_string interned_string::intern(const string& value)
   // mucho CPU.
 }
 
+// static
+interned_string interned_string::intern(const char* value)
+{
+  if (!value || !value[0])
+    return interned_string ();
 
-interned_string::interned_string(const char* value): string_ref(intern(value ?: ""))
+  return intern(string(value));
+}
+
+
+interned_string::interned_string(const char* value): string_ref(intern(value))
 {
 }
                                                                 
@@ -125,7 +137,7 @@ interned_string& interned_string::operator = (const std::string& value)
 
 interned_string& interned_string::operator = (const char* value)
 {
-  *this = intern(value ?: "");
+  *this = intern(value);
   return *this;
 }
 
