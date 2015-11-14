@@ -144,15 +144,13 @@ private:
   // expectations, these swallow the token
   void expect_known (token_type tt, string const & expected);
   void expect_unknown (token_type tt, interned_string & target);
-  void expect_unknown (token_type tt, string & target);
-  void expect_unknown2 (token_type tt1, token_type tt2, string & target);
   void expect_unknown2 (token_type tt1, token_type tt2, interned_string & target);
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
   void expect_kw (string const & expected);
   void expect_number (int64_t & expected);
-  void expect_ident_or_keyword (string & target);
+  void expect_ident_or_keyword (interned_string & target);
 
   // convenience forms, which return true or false, these don't swallow token
   bool peek_op (string const & op);
@@ -160,7 +158,7 @@ private:
 
   // convenience forms, which return the token
   const token* expect_kw_token (string const & expected);
-  const token* expect_ident_or_atword (string & target);
+  const token* expect_ident_or_atword (interned_string & target);
 
   void print_error (const parse_error& pe, bool errs_as_warnings = false);
   unsigned num_errors;
@@ -195,7 +193,7 @@ private: // nonterminals
   break_statement* parse_break_statement ();
   continue_statement* parse_continue_statement ();
   indexable* parse_indexable ();
-  const token *parse_hist_op_or_bare_name (hist_op *&hop, string &name);
+  const token *parse_hist_op_or_bare_name (hist_op *&hop, interned_string &name);
   target_symbol *parse_target_symbol ();
   cast_op *parse_cast_op ();
   atvar_op *parse_atvar_op ();
@@ -1246,29 +1244,9 @@ parser::expect_unknown (token_type tt, interned_string & target)
   swallow (); // We are done with it, content was copied.
 }
 
-void
-parser::expect_unknown (token_type tt, string & target)
-{
-  const token *t = next();
-  if (!(t && t->type == tt))
-    throw PARSE_ERROR (_("expected ") + tt2str(tt));
-  target = t->content;
-  swallow (); // We are done with it, content was copied.
-}
-
 
 void
 parser::expect_unknown2 (token_type tt1, token_type tt2, interned_string & target)
-{
-  const token *t = next();
-  if (!(t && (t->type == tt1 || t->type == tt2)))
-    throw PARSE_ERROR (_F("expected %s or %s", tt2str(tt1).c_str(), tt2str(tt2).c_str()));
-  target = t->content;
-  swallow (); // We are done with it, content was copied.
-}
-
-void
-parser::expect_unknown2 (token_type tt1, token_type tt2, string & target)
 {
   const token *t = next();
   if (!(t && (t->type == tt1 || t->type == tt2)))
@@ -1338,7 +1316,7 @@ parser::expect_number (int64_t & value)
 
 
 const token*
-parser::expect_ident_or_atword (string & target)
+parser::expect_ident_or_atword (interned_string & target)
 {
   const token *t = next();
 
@@ -1355,7 +1333,7 @@ parser::expect_ident_or_atword (string & target)
 
 
 void
-parser::expect_ident_or_keyword (string & target)
+parser::expect_ident_or_keyword (interned_string & target)
 {
   expect_unknown2 (tok_identifier, tok_keyword, target);
 }
@@ -3576,7 +3554,7 @@ parser::parse_value ()
 
 
 const token *
-parser::parse_hist_op_or_bare_name (hist_op *&hop, string &name)
+parser::parse_hist_op_or_bare_name (hist_op *&hop, interned_string &name)
 {
   hop = NULL;
   const token* t = expect_ident_or_atword (name);
@@ -3610,7 +3588,7 @@ indexable*
 parser::parse_indexable ()
 {
   hist_op *hop = NULL;
-  string name;
+  interned_string name;
   const token *tok = parse_hist_op_or_bare_name(hop, name);
   if (hop)
     return hop;
@@ -3630,7 +3608,7 @@ expression* parser::parse_symbol ()
 {
   hist_op *hop = NULL;
   symbol *sym = NULL;
-  string name;
+  interned_string name;
   const token *t = parse_hist_op_or_bare_name(hop, name);
 
   if (!hop)
@@ -3664,7 +3642,8 @@ expression* parser::parse_symbol ()
 	  else if (name == "@max")
 	    sop->ctype = sc_max;
 	  else
-	    throw PARSE_ERROR(_("unknown operator ") + name);
+	    throw PARSE_ERROR(_F("unknown operator %s",
+                                 name.to_string().c_str()));
 	  expect_op("(");
 	  sop->tok = t;
 	  sop->stat = parse_expression ();
@@ -4012,16 +3991,16 @@ parser::parse_target_symbol_components (target_symbol* e)
       if (peek_op ("->"))
         {
           const token* t = next();
-          string member;
+          interned_string member;
           expect_ident_or_keyword (member);
 
           // check for pretty-print in the form $foo->$ or $foo->bar$
           pprint_pos = member.find_last_not_of('$');
-          string pprint_val;
+          interned_string pprint_val;
           if (pprint_pos == string::npos || pprint_pos < member.length() - 1)
             {
               pprint_val = member.substr(pprint_pos + 1);
-              member.erase(pprint_pos + 1);
+              member = member.substr(0, pprint_pos + 1);
               pprint = true;
             }
 
