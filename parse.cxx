@@ -2238,13 +2238,17 @@ parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & f
       if (! (t->type == tok_identifier))
         throw PARSE_ERROR (_("expected identifier"));
 
-      for (unsigned i=0; i<globals.size(); i++)
-	if (globals[i]->name == t->content)
-	  throw PARSE_ERROR (_("duplicate global name"));
+      string gname = "__global_" + string(t->content);
+      string pname = "__private_" + detox_path(fname) + string(t->content);
+      string name = priv ? pname : gname;
 
-      string name = "__global_" + string(t->content);
-      if (priv)
-        name = "__private_" + detox_path(fname) + string(t->content);
+      for (unsigned i=0; i<globals.size(); i++)
+      {
+	if (globals[i]->name == name)
+	  throw PARSE_ERROR (_("duplicate global name"));
+        if ((globals[i]->name == gname) || (globals[i]->name == pname))
+          throw PARSE_ERROR (_("global versus private variable declaration conflict"));
+      }
 
       vardecl* d = new vardecl;
       d->name = name;
@@ -2319,13 +2323,17 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
 	    && (t->content == "string" || t->content == "long")))
     throw PARSE_ERROR (_("expected identifier"));
 
-  for (unsigned i=0; i<functions.size(); i++)
-    if (functions[i]->name == t->content)
-      throw PARSE_ERROR (_("duplicate function name"));
+  string gname = "__global_" + string(t->content);
+  string pname = "__private_" + detox_path(fname) + string(t->content);
+  string name = priv ? pname : gname;
 
-  string name = "__global_" + string(t->content);
-  if (priv)
-    name = "__private_" + detox_path(fname) + string(t->content);
+  for (unsigned i=0; i<functions.size(); i++)
+  {
+    if (functions[i]->name == name)
+      throw PARSE_ERROR (_("duplicate function name"));
+    if ((functions[i]->name == gname) || (functions[i]->name == pname))
+      throw PARSE_ERROR (_("global versus private function declaration conflict"));
+  }
 
   functiondecl *fd = new functiondecl ();
   fd->name = name;
