@@ -10,6 +10,8 @@
 #include "stringtable.h"
 #include "unordered.h"
 
+#include "stap-probe.h"
+
 #include <string>
 #include <cstring>
 #include <fstream>
@@ -94,8 +96,10 @@ stringtable_t stringtable;
 // static
 interned_string interned_string::intern(const string& value)
 {
-  stringtable_t::iterator it = (stringtable.insert(value)).first; // persistent iterator!
-  return interned_string (string_ref (it->data(), it->length())); // hope for RVO/elision
+  pair<stringtable_t::iterator,bool> result = stringtable.insert(value);
+  PROBE2(stap, intern_string, value.c_str(), result.second);
+  stringtable_t::iterator it = result.first; // persistent iterator!
+  return string_ref (it->data(), it->length()); // hope for RVO/elision
 
   // XXX: for future consideration, consider searching the stringtable
   // for instances where 'value' is a substring.  We could string_ref
