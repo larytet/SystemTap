@@ -167,11 +167,15 @@ private:
 
 private: // nonterminals
   void parse_probe (vector<probe*>&, vector<probe_alias*>&);
-  void parse_private (vector<vardecl*>&, vector<probe*>&, string&, vector<functiondecl*>&);
-  void parse_global (vector<vardecl*>&, vector<probe*>&, string&);
-  void do_parse_global (vector<vardecl*>&, vector<probe*>&, string&, const token*, bool);
-  void parse_functiondecl (vector<functiondecl*>&, string&);
-  void do_parse_functiondecl (vector<functiondecl*>&, const token*, string&, bool);
+  void parse_private (vector<vardecl*>&, vector<probe*>&,
+                      string const&, vector<functiondecl*>&);
+  void parse_global (vector<vardecl*>&, vector<probe*>&,
+                     string const&);
+  void do_parse_global (vector<vardecl*>&, vector<probe*>&,
+                        string const&, const token*, bool);
+  void parse_functiondecl (vector<functiondecl*>&, string const&);
+  void do_parse_functiondecl (vector<functiondecl*>&, const token*,
+                              string const&, bool);
   embeddedcode* parse_embeddedcode ();
   probe_point* parse_probe_point ();
   literal_string* consume_string_literals (const token*);
@@ -2183,7 +2187,8 @@ parser::parse_statement ()
 }
 
 void
-parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, string & fname, vector<functiondecl*>& functions)
+parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes,
+                       string const & fname, vector<functiondecl*>& functions)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "private"))
@@ -2217,7 +2222,8 @@ parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, strin
 }
 
 void
-parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes, string & fname)
+parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes,
+                      string const & fname)
 {
   const token* t0 = next ();
   if (! (t0->type == tok_keyword && t0->content == "global"))
@@ -2227,7 +2233,8 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes, string
 }
 
 void
-parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fname, const token* t0, bool priv)
+parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&,
+                         string const & fname, const token* t0, bool priv)
 {
   bool iter0 = true;
   const token* t;
@@ -2301,7 +2308,8 @@ parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & f
 }
 
 void
-parser::parse_functiondecl (vector<functiondecl*>& functions, string & fname)
+parser::parse_functiondecl (vector<functiondecl*>& functions,
+                            string const & fname)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "function"))
@@ -2311,7 +2319,8 @@ parser::parse_functiondecl (vector<functiondecl*>& functions, string & fname)
 }
 
 void
-parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t, string & fname, bool priv)
+parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
+                               string const & fname, bool priv)
 {
   t = next ();
   if (! (t->type == tok_identifier)
