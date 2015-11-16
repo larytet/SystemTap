@@ -712,6 +712,31 @@ given PID is in. This is for namespace\-aware tapset functions. If the target
 namespaces was not set, the target defaults to the stap process'
 namespaces.
 
+.TP
+.BI \-\-monitor "=INTERVAL"
+Enables an interface to display status information about the module(uptime,
+module name, invoker uid, memory sizes, global variables, list of probes with
+their statistics). An optional argument INTERVAL can be supplied to set the
+refresh rate of the status window. The module can also be controlled by a list
+of commands using the following keys:
+.RS
+.TP
+.BI r
+resets all global variables to their initial values or zeroes them if they
+did not have an initial value.
+.TP
+.BI s
+rotates the attribute used to sort the list of probes.
+.TP
+.BI t
+brings up a prompt to allow toggling(on/off) of probes by index.
+.TP
+.BI navigation-keys
+the j/k/ArrowDown/ArrowUp keys can be used to scroll through the probe
+list and the d/u/PageDown/PageUp keys can be used to scroll through the
+module output.
+.RE
+
 .SH ARGUMENTS
 
 Any additional arguments on the command line are passed to the script
