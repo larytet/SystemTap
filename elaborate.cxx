@@ -2119,7 +2119,7 @@ static void monitor_mode_read(systemtap_session& s)
       if ((*it)->arity == 0)
         code << "$value .= sprint(\": \", " << (*it)->name << ", \"\")" << endl;
       else if ((*it)->arity > 0)
-        code << "$value .= sprintf(\"(%d)\", " << (*it)->maxsize << ")" << endl;
+        code << "$value .= sprintf(\": \\\"(%d)\\\"\", " << (*it)->maxsize << ")" << endl;
     }
   code << "$value .= sprintf(\"\\n},\\n\")" << endl;
 
