@@ -38,7 +38,8 @@ enum probe_attributes
 static enum state
 {
   normal,
-  insert
+  insert,
+  help
 } monitor_state; 
 
 static History_Queue h_queue;
@@ -52,6 +53,7 @@ static time_t elapsed_time = 0;
 static time_t start_time = 0;
 static int resized = 0;
 static int input = 0;
+static int rendered = 0;
 
 /* Forward declarations */
 static int comp_index(const void *p1, const void *p2);
@@ -203,11 +205,11 @@ void monitor_cleanup(void)
 
 void monitor_render(void)
 {
-  static int init = 0;
   FILE *monitor_fp;
   FILE *output_fp;
   char path[PATH_MAX];
   time_t current_time = time(NULL);
+  int monitor_x, monitor_y, max_cols, max_rows, cur_y, cur_x;
 
   if (resized)
     handle_resize();
@@ -237,160 +239,178 @@ void monitor_render(void)
       wrefresh(monitor_output);
     }
 
-  if (!input && init && (elapsed_time = current_time - start_time) < monitor_interval)
+  if (!input && rendered && (elapsed_time = current_time - start_time) < monitor_interval)
     return;
 
   start_time = current_time;
   input = 0;
 
-  if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
-    cleanup_and_exit (0, 1);
-  monitor_fp = fopen(path, "r");
+  getmaxyx(monitor_status, monitor_y, monitor_x);
+  max_rows = monitor_y;
+  max_cols = MIN(MAX_COLS, monitor_x);
 
-  /* Render monitor mode statistics */
-  if (monitor_fp)
+  if (monitor_state != help)
     {
-      char json[MAX_DATA];
-      char monitor_str[MAX_COLS];
-      char monitor_out[MAX_COLS];
-      int monitor_x, monitor_y, max_cols, max_rows, cur_y, cur_x;
-      int printed;
-      int col;
-      int i;
-      size_t bytes;
-      size_t width[num_attributes] = {0};
-      json_object *jso, *jso_uptime, *jso_uid, *jso_mem,
-                  *jso_name, *jso_globals, *jso_probes;
-      struct json_object_iterator it, it_end;
-
-      init = 1;
-
-      bytes = fread(json, sizeof(char), MAX_DATA, monitor_fp);
-      if (!bytes)
+      if (sprintf_chk(path, "/proc/systemtap/%s/monitor_status", modname))
         cleanup_and_exit (0, 1);
-      fclose(monitor_fp);
+      monitor_fp = fopen(path, "r");
 
-      getmaxyx(monitor_status, monitor_y, monitor_x);
-      max_rows = monitor_y;
-      max_cols = MIN(MAX_COLS, monitor_x);
-
-      jso = json_tokener_parse(json);
-      if (!jso)
-        cleanup_and_exit(0, 1);
-      json_object_object_get_ex(jso, "uptime", &jso_uptime);
-      json_object_object_get_ex(jso, "uid", &jso_uid);
-      json_object_object_get_ex(jso, "memory", &jso_mem);
-      json_object_object_get_ex(jso, "module_name", &jso_name);
-      json_object_object_get_ex(jso, "globals", &jso_globals);
-      json_object_object_get_ex(jso, "probes", &jso_probes);
-
-      wclear(monitor_status);
-
-      if (monitor_state == insert)
-        mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
-      else
-        mvwprintw(monitor_status, max_rows-1, 0,
-                  "q(quit) r(reset) s(sort) t(toggle)\n");
-      wmove(monitor_status, 0, 0);
-
-      wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
-              json_object_get_string(jso_uptime),
-              json_object_get_string(jso_uid),
-              json_object_get_string(jso_mem));
-
-      wprintw(monitor_status, "module_name: %s\n",
-              json_object_get_string(jso_name));
-
-      col = 0;
-      col += snprintf(monitor_out, max_cols, "globals: ");
-      it = json_object_iter_begin(jso_globals);
-      it_end = json_object_iter_end(jso_globals);
-      while (!json_object_iter_equal(&it, &it_end))
+      /* Render monitor mode statistics */
+      if (monitor_fp)
         {
-          printed = snprintf(monitor_str, max_cols, "%s: %s ",
-                             json_object_iter_peek_name(&it),
-                             json_object_get_string(json_object_iter_peek_value(&it))) + 1;
+          char json[MAX_DATA];
+          char monitor_str[MAX_COLS];
+          char monitor_out[MAX_COLS];
+          int printed;
+          int col;
+          int i;
+          size_t bytes;
+          size_t width[num_attributes] = {0};
+          json_object *jso, *jso_uptime, *jso_uid, *jso_mem,
+                      *jso_name, *jso_globals, *jso_probes;
+          struct json_object_iterator it, it_end;
 
-          /* Prevent line folding for globals */
-          if ((max_cols - (col + printed)) >= 0)
-            {
-              col += snprintf(monitor_out+col, printed, "%s", monitor_str);
-              json_object_iter_next(&it);
-            }
-          else if (printed > max_cols)
-            {
-              /* Skip globals that do not fit on one line */
-              json_object_iter_next(&it);
-            }
+          rendered = 1;
+
+          bytes = fread(json, sizeof(char), MAX_DATA, monitor_fp);
+          if (!bytes)
+            cleanup_and_exit (0, 1);
+          fclose(monitor_fp);
+
+          jso = json_tokener_parse(json);
+          if (!jso)
+            cleanup_and_exit(0, 1);
+          json_object_object_get_ex(jso, "uptime", &jso_uptime);
+          json_object_object_get_ex(jso, "uid", &jso_uid);
+          json_object_object_get_ex(jso, "memory", &jso_mem);
+          json_object_object_get_ex(jso, "module_name", &jso_name);
+          json_object_object_get_ex(jso, "globals", &jso_globals);
+          json_object_object_get_ex(jso, "probes", &jso_probes);
+
+          wclear(monitor_status);
+
+          if (monitor_state == insert)
+            mvwprintw(monitor_status, max_rows-1, 0, "enter probe index: %s\n", probe);
           else
+            mvwprintw(monitor_status, max_rows-1, 0,
+                      "press h for help, q to quit\n");
+          wmove(monitor_status, 0, 0);
+
+          wprintw(monitor_status, "uptime: %s uid: %s memory: %s\n",
+                  json_object_get_string(jso_uptime),
+                  json_object_get_string(jso_uid),
+                  json_object_get_string(jso_mem));
+
+          wprintw(monitor_status, "module_name: %s\n",
+                  json_object_get_string(jso_name));
+
+          col = 0;
+          col += snprintf(monitor_out, max_cols, "globals: ");
+          it = json_object_iter_begin(jso_globals);
+          it_end = json_object_iter_end(jso_globals);
+          while (!json_object_iter_equal(&it, &it_end))
             {
-              wprintw(monitor_status, "%s\n", monitor_out);
-              col = 0;
+              printed = snprintf(monitor_str, max_cols, "%s: %s ",
+                                 json_object_iter_peek_name(&it),
+                                 json_object_get_string(json_object_iter_peek_value(&it))) + 1;
+
+              /* Prevent line folding for globals */
+              if ((max_cols - (col + printed)) >= 0)
+                {
+                  col += snprintf(monitor_out+col, printed, "%s", monitor_str);
+                  json_object_iter_next(&it);
+                }
+              else if (printed > max_cols)
+                {
+                  /* Skip globals that do not fit on one line */
+                  json_object_iter_next(&it);
+                }
+              else
+                {
+                  wprintw(monitor_status, "%s\n", monitor_out);
+                  col = 0;
+                }
             }
+          if (col != 0)
+            wprintw(monitor_status, "%s\n", monitor_out);
+
+          /* Find max width of each field for alignment uses */
+          for (i = 0; i < json_object_array_length(jso_probes); i++)
+            {
+              json_object *probe, *field;
+              probe = json_object_array_get_idx(jso_probes, i);
+
+              json_object_object_get_ex(probe, "index", &field);
+              width[p_index] = MAX(width[p_index], strlen(json_object_get_string(field)));
+              json_object_object_get_ex(probe, "state", &field);
+              width[p_state] = MAX(width[p_state], strlen(json_object_get_string(field)));
+              json_object_object_get_ex(probe, "hits", &field);
+              width[p_hits] = MAX(width[p_hits], strlen(json_object_get_string(field)));
+              json_object_object_get_ex(probe, "min", &field);
+              width[p_min] = MAX(width[p_min], strlen(json_object_get_string(field)));
+              json_object_object_get_ex(probe, "avg", &field);
+              width[p_avg] = MAX(width[p_avg], strlen(json_object_get_string(field)));
+              json_object_object_get_ex(probe, "max", &field);
+              width[p_max] = MAX(width[p_max], strlen(json_object_get_string(field)));
+              json_object_object_get_ex(probe, "name", &field);
+              width[p_name] = MAX(width[p_name], strlen(json_object_get_string(field)));
+            }
+
+          json_object_array_sort(jso_probes, comp_fn[comp_fn_index]);
+
+          wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s %*s\n",
+                  width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
+                  width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
+                  width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
+                  width[p_min], HIGHLIGHT("min", p_min, comp_fn_index),
+                  width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
+                  width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
+                  width[p_name], HIGHLIGHT("name", p_name, comp_fn_index));
+          getyx(monitor_status, cur_y, cur_x);
+          (void) cur_x; /* Unused */
+          for (i = probe_scroll; i < MIN(json_object_array_length(jso_probes),
+                probe_scroll+max_rows-cur_y-2); i++)
+            {
+              json_object *probe, *field;
+              probe = json_object_array_get_idx(jso_probes, i);
+              json_object_object_get_ex(probe, "index", &field);
+              wprintw(monitor_status, "%*s\t", width[p_index], json_object_get_string(field));
+              json_object_object_get_ex(probe, "state", &field);
+              wprintw(monitor_status, "%*s\t", width[p_state], json_object_get_string(field));
+              json_object_object_get_ex(probe, "hits", &field);
+              wprintw(monitor_status, "%*s\t", width[p_hits], json_object_get_string(field));
+              json_object_object_get_ex(probe, "min", &field);
+              wprintw(monitor_status, "%*s\t", width[p_min], json_object_get_string(field));
+              json_object_object_get_ex(probe, "avg", &field);
+              wprintw(monitor_status, "%*s\t", width[p_avg], json_object_get_string(field));
+              json_object_object_get_ex(probe, "max", &field);
+              wprintw(monitor_status, "%*s ", width[p_max], json_object_get_string(field));
+              json_object_object_get_ex(probe, "name", &field);
+              wprintw(monitor_status, "%*s", width[p_name], json_object_get_string(field));
+              wprintw(monitor_status, "\n");
+            }
+
+          wrefresh(monitor_status);
+
+          /* Free allocated memory */
+          json_object_put(jso);
         }
-      if (col != 0)
-        wprintw(monitor_status, "%s\n", monitor_out);
-
-      /* Find max width of each field for alignment uses */
-      for (i = 0; i < json_object_array_length(jso_probes); i++)
-        {
-          json_object *probe, *field;
-          probe = json_object_array_get_idx(jso_probes, i);
-
-          json_object_object_get_ex(probe, "index", &field);
-          width[p_index] = MAX(width[p_index], strlen(json_object_get_string(field)));
-          json_object_object_get_ex(probe, "state", &field);
-          width[p_state] = MAX(width[p_state], strlen(json_object_get_string(field)));
-          json_object_object_get_ex(probe, "hits", &field);
-          width[p_hits] = MAX(width[p_hits], strlen(json_object_get_string(field)));
-          json_object_object_get_ex(probe, "min", &field);
-          width[p_min] = MAX(width[p_min], strlen(json_object_get_string(field)));
-          json_object_object_get_ex(probe, "avg", &field);
-          width[p_avg] = MAX(width[p_avg], strlen(json_object_get_string(field)));
-          json_object_object_get_ex(probe, "max", &field);
-          width[p_max] = MAX(width[p_max], strlen(json_object_get_string(field)));
-          json_object_object_get_ex(probe, "name", &field);
-          width[p_name] = MAX(width[p_name], strlen(json_object_get_string(field)));
-        }
-
-      json_object_array_sort(jso_probes, comp_fn[comp_fn_index]);
-
-      wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s %*s\n",
-              width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
-              width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
-              width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
-              width[p_min], HIGHLIGHT("min", p_min, comp_fn_index),
-              width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
-              width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
-              width[p_name], HIGHLIGHT("name", p_name, comp_fn_index));
-      getyx(monitor_status, cur_y, cur_x);
-      (void) cur_x; /* Unused */
-      for (i = probe_scroll; i < MIN(json_object_array_length(jso_probes),
-            probe_scroll+max_rows-cur_y-2); i++)
-        {
-          json_object *probe, *field;
-          probe = json_object_array_get_idx(jso_probes, i);
-          json_object_object_get_ex(probe, "index", &field);
-          wprintw(monitor_status, "%*s\t", width[p_index], json_object_get_string(field));
-          json_object_object_get_ex(probe, "state", &field);
-          wprintw(monitor_status, "%*s\t", width[p_state], json_object_get_string(field));
-          json_object_object_get_ex(probe, "hits", &field);
-          wprintw(monitor_status, "%*s\t", width[p_hits], json_object_get_string(field));
-          json_object_object_get_ex(probe, "min", &field);
-          wprintw(monitor_status, "%*s\t", width[p_min], json_object_get_string(field));
-          json_object_object_get_ex(probe, "avg", &field);
-          wprintw(monitor_status, "%*s\t", width[p_avg], json_object_get_string(field));
-          json_object_object_get_ex(probe, "max", &field);
-          wprintw(monitor_status, "%*s ", width[p_max], json_object_get_string(field));
-          json_object_object_get_ex(probe, "name", &field);
-          wprintw(monitor_status, "%*s", width[p_name], json_object_get_string(field));
-          wprintw(monitor_status, "\n");
-        }
-
+    } else {
+      /* Render help page */
+      rendered = 0;
+      wclear(monitor_status);
+      wprintw(monitor_status, "MONITOR MODE COMMANDS\n");
+      wprintw(monitor_status, "h - Display help page.\n");
+      wprintw(monitor_status, "r - Reset global variables to initial state, zeroes if unset.\n");
+      wprintw(monitor_status, "s - Rotate sort columns for probes.\n");
+      wprintw(monitor_status, "t - Open prompt to enter a probe index to toggle.\n");
+      wprintw(monitor_status, "q - Quit monitor mode/go back to status from help page.\n");
+      wprintw(monitor_status, "j/DownArrow - Scroll down the probe list.\n");
+      wprintw(monitor_status, "k/UpArrow - Scroll up the probe list.\n");
+      wprintw(monitor_status, "d/PageDown - Scroll down the output by one page.\n");
+      wprintw(monitor_status, "u/PageUp - Scroll up the probe list by one page.\n");
+      mvwprintw(monitor_status, max_rows-1, 0, "press q to go back\n");
       wrefresh(monitor_status);
-
-      /* Free allocated memory */
-      json_object_put(jso);
     }
 }
 
@@ -417,15 +437,17 @@ void monitor_input(void)
               break;
             case 'd': /* Fallthrough */
             case KEY_NPAGE:
-              output_scroll--;
+              getmaxyx(monitor_status, max_rows, max_cols);
+              (void) max_cols; /* Unused */
+              output_scroll -= max_rows-1;
               output_scroll = MAX(0, output_scroll);
               break;
             case 'u': /* Fallthrough */
             case KEY_PPAGE:
               getmaxyx(monitor_status, max_rows, max_cols);
               (void) max_cols; /* Unused */
-              if ((h_queue.count-output_scroll) >= max_rows)
-                output_scroll++;
+              output_scroll += max_rows-1;
+              output_scroll = MIN(MAX(0, h_queue.count-max_rows+1), output_scroll);
               break;
             case 'q':
               cleanup_and_exit (0, 0);
@@ -441,6 +463,9 @@ void monitor_input(void)
             case 't':
               monitor_state = insert;
               break;
+            case 'h':
+              monitor_state = help;
+              break;
           }
         if (ch != ERR)
           input = 1;
@@ -453,6 +478,7 @@ void monitor_input(void)
             monitor_state = normal;
             i = 0;
             probe[0] = '\0';
+            rendered = 0;
           }
         else if (ch != ERR)
           {
@@ -460,6 +486,11 @@ void monitor_input(void)
             probe[i] = '\0';
             input = 1;
           }
+        break;
+      case help:
+        ch = getch();
+        if(ch == 'q')
+          monitor_state = normal;
         break;
     }
 }
