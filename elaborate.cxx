@@ -2133,11 +2133,12 @@ static void monitor_mode_read(systemtap_session& s)
       istringstream probe_point((*it)->sole_location()->str());
       string name;
       probe_point >> name;
-      name = lex_cast_qstring(name);
+      /* Escape quotes once for systemtap parser and once more for json parser */
+      name = lex_cast_qstring(lex_cast_qstring(name));
 
       code << "$value .= sprintf(\"{%s\", __monitor_data_function_probes("
            << it-s.probes.begin() << "))" << endl;
-      code << "$value .= sprintf(\"\\\"name\\\": \\\"%s\\\"}\", " << name << ")" << endl;
+      code << "$value .= sprintf(\"\\\"name\\\": %s}\", " << name << ")" << endl;
     }
   code << "$value .= sprintf(\"\\n]\\n\")" << endl;
 
@@ -2161,7 +2162,6 @@ static void monitor_mode_read(systemtap_session& s)
   sym.current_function = 0;
   sym.current_probe = dp;
   dp->body->visit (&sym);
-  semantic_pass_types(s);
 }
 
 static void monitor_mode_write(systemtap_session& s)
@@ -2263,7 +2263,6 @@ static void monitor_mode_write(systemtap_session& s)
   sym.current_function = 0;
   sym.current_probe = dp;
   dp->body->visit (&sym);
-  semantic_pass_types(s);
 }
 
 int

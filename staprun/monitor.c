@@ -275,6 +275,8 @@ void monitor_render(void)
       max_cols = MIN(MAX_COLS, monitor_x);
 
       jso = json_tokener_parse(json);
+      if (!jso)
+        cleanup_and_exit(0, 1);
       json_object_object_get_ex(jso, "uptime", &jso_uptime);
       json_object_object_get_ex(jso, "uid", &jso_uid);
       json_object_object_get_ex(jso, "memory", &jso_mem);
