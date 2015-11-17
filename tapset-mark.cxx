@@ -234,7 +234,7 @@ mark_derived_probe::mark_derived_probe (systemtap_session &s,
       }
 
   if (sess.verbose > 2)
-    clog << "marker-based " << name << " mark=" << probe_name << " fmt='" << probe_format
+    clog << "marker-based " << name() << " mark=" << probe_name << " fmt='" << probe_format
          << "'" << endl;
 }
 

@@ -309,7 +309,7 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
 
       // Copy or pretend-to-touch each incoming parameter.
 
-      string c_p = "c->probe_locals." + lex_cast(np->name); // this is where the $context vars show up
+      string c_p = "c->probe_locals." + lex_cast(np->name()); // this is where the $context vars show up
       // NB: PR14137: this should be the potentially shared name,
       // since the generated probe handler body refers to that name.
 

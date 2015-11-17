@@ -10663,7 +10663,7 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
       }
 
   if (sess.verbose > 2)
-    clog << "tracepoint-based " << name << " tracepoint='" << tracepoint_name << "'" << endl;
+    clog << "tracepoint-based " << name() << " tracepoint='" << tracepoint_name << "'" << endl;
 }
 
 
@@ -10980,7 +10980,7 @@ tracepoint_derived_probe_group::emit_module_decls (systemtap_session& s)
                       << ";";
       for (unsigned j = 0; j < used_args.size(); ++j)
         {
-          s.op->newline() << "c->probe_locals." << p->name
+          s.op->newline() << "c->probe_locals." << p->name()
                           << "." + s.up->c_localname("__tracepoint_arg_" + used_args[j]->name)
                           << " = __tracepoint_arg_" << used_args[j]->name << ";";
         }

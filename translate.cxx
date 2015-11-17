@@ -78,7 +78,7 @@ struct c_unparser: public unparser, public visitor
 
   varuse_collecting_visitor vcv_needs_global_locks;
 
-  map<string, string> probe_contents;
+  map<string, probe*> probe_contents;
 
   map<pair<bool, string>, string> compiled_printfs;
 
@@ -995,7 +995,7 @@ c_unparser::emit_common_header ()
   // To elide context variables for probe handler functions that
   // themselves are about to get duplicate-eliminated, we XXX
   // duplicate the parse-tree-hash method from ::emit_probe().
-  map<string, string> tmp_probe_contents;
+  set<string> tmp_probe_contents;
   // The reason we don't use c_unparser::probe_contents itself
   // for this is that we don't want to muck up the data for
   // that later routine.
@@ -1013,11 +1013,9 @@ c_unparser::emit_common_header ()
       // That's because they're only dependent on the probe body, which is already
       // "hashed" in above.
 
-      if (session->unoptimized || tmp_probe_contents.count(oss.str()) == 0) // unique
+      if (session->unoptimized || tmp_probe_contents.insert(oss.str()).second) // unique
         {
-          tmp_probe_contents[oss.str()] = dp->name; // save it
-
-          o->newline() << "struct " << dp->name << "_locals {";
+          o->newline() << "struct " << dp->name() << "_locals {";
           o->indent(1);
           for (unsigned j=0; j<dp->locals.size(); j++)
             {
@@ -1048,7 +1046,7 @@ c_unparser::emit_common_header ()
                 (*it)->sole_location()->condition->visit(& ct);
             }
 
-          o->newline(-1) << "} " << dp->name << ";";
+          o->newline(-1) << "} " << dp->name() << ";";
         }
     }
   o->newline(-1) << "} probe_locals;";
@@ -2573,18 +2571,18 @@ c_unparser::emit_probe (derived_probe* v)
   // one.
   if (!session->unoptimized && probe_contents.count(oss.str()) != 0)
     {
-      string dupe = probe_contents[oss.str()];
+      probe* dupe = probe_contents[oss.str()];
 
       // NB: Elision of context variable structs is a separate
       // operation which has already taken place by now.
       if (session->verbose > 1)
         clog << _F("%s elided, duplicates %s\n",
-		   v->name.to_string().c_str(), dupe.c_str());
+		   v->name().c_str(), dupe->name().c_str());
 
 #if DUPMETHOD_CALL
       // This one emits a direct call to the first copy.
       o->newline();
-      o->newline() << "static void " << v->name << " (struct context * __restrict__ c) ";
+      o->newline() << "static void " << v->name() << " (struct context * __restrict__ c) ";
       o->newline() << "{ " << dupe << " (c); }";
 #elif DUPMETHOD_ALIAS
       // This one defines a function alias, arranging gcc to emit
@@ -2592,13 +2590,13 @@ c_unparser::emit_probe (derived_probe* v)
       // For some reason, on gcc 4.1, this is twice as slow as
       // the CALL option.
       o->newline();
-      o->newline() << "static void " << v->name << " (struct context * __restrict__ c) ";
+      o->newline() << "static void " << v->name() << " (struct context * __restrict__ c) ";
       o->line() << "__attribute__ ((alias (\"" << dupe << "\")));";
 #elif DUPMETHOD_RENAME
       // This one is sneaky.  It emits nothing for duplicate probe
       // handlers.  It instead redirects subsequent references to the
       // probe handler function to the first copy, *by name*.
-      v->name = dupe;
+      v->id = dupe->id;
 #else
 #error "Unknown duplicate elimination method"
 #endif
@@ -2606,11 +2604,11 @@ c_unparser::emit_probe (derived_probe* v)
   else // This probe is unique.  Remember it and output it.
     {
       o->newline();
-      o->newline() << "static void " << v->name << " (struct context * __restrict__ c) ";
+      o->newline() << "static void " << v->name() << " (struct context * __restrict__ c) ";
       o->line () << "{";
       o->indent (1);
 
-      probe_contents[oss.str()] = v->name;
+      probe_contents[oss.str()] = v;
 
       o->newline() << "__label__ out;";
 
@@ -2639,8 +2637,8 @@ c_unparser::emit_probe (derived_probe* v)
         }
 
       // initialize frame pointer
-      o->newline() << "struct " << v->name << "_locals * __restrict__ l = "
-                   << "& c->probe_locals." << v->name << ";";
+      o->newline() << "struct " << v->name() << "_locals * __restrict__ l = "
+                   << "& c->probe_locals." << v->name() << ";";
       o->newline() << "(void) l;"; // make sure "l" is marked used
 
       // Emit runtime safety net for unprivileged mode.
@@ -2681,7 +2679,7 @@ c_unparser::emit_probe (derived_probe* v)
       v->body->visit (&mai);
       if (session->verbose > 1)
         clog << _F("%d statements for probe %s", mai.statement_count,
-		   v->name.to_string().c_str()) << endl;
+		   v->name().c_str()) << endl;
 
       if (mai.statement_count_finite() && !session->suppress_time_limits
           && !session->unoptimized) // this is a finite-statement-count probe
@@ -8233,7 +8231,7 @@ translate_pass (systemtap_session& s)
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
           derived_probe* p = s.probes[i];
-          s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name << ", "
+          s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name() << ", "
                           << lex_cast_qstring (*p->sole_location()) << ", "
                           << lex_cast_qstring (*p->script_location()) << ", "
                           << lex_cast_qstring (p->tok->location) << ", "

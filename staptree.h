@@ -822,6 +822,8 @@ std::ostream& operator << (std::ostream& o, const probe_point& k);
 
 struct probe
 {
+  static unsigned last_probeidx;
+
   std::vector<probe_point*> locations;
   statement* body;
   struct probe* base;
@@ -829,18 +831,24 @@ struct probe
   const token* systemtap_v_conditional; //checking systemtap compatibility
   std::vector<vardecl*> locals;
   std::vector<vardecl*> unused_locals;
-  static unsigned last_probeidx;
+  bool privileged;
+  unsigned id;
+
   probe ();
   probe (probe* p, probe_point *l);
   void print (std::ostream& o) const;
+  std::string name () const;
   virtual void printsig (std::ostream &o) const;
   virtual void collect_derivation_chain (std::vector<probe*> &probes_list) const;
   virtual void collect_derivation_pp_chain (std::vector<probe_point*> &) const;
   virtual const probe_alias *get_alias () const { return 0; }
   virtual probe_point *get_alias_loc () const { return 0; }
   virtual ~probe() {}
-  bool privileged;
-  interned_string name;
+
+private:
+
+  probe (const probe&);
+  probe& operator = (const probe&);
 };
 
 struct probe_alias: public probe
