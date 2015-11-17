@@ -79,11 +79,10 @@ public:
 
 struct procfs_var_expanding_visitor: public var_expanding_visitor
 {
-  procfs_var_expanding_visitor(systemtap_session& s, const string& pn,
+  procfs_var_expanding_visitor(systemtap_session& s,
                                string path, bool write_probe);
 
   systemtap_session& sess;
-  string probe_name;
   string path;
   bool write_probe;
   bool target_symbol_seen;
@@ -99,7 +98,7 @@ procfs_derived_probe::procfs_derived_probe (systemtap_session &s, probe* p,
     maxsize_val(m), umask(umask) 
 {
   // Expand local variables in the probe body
-  procfs_var_expanding_visitor v (s, name, path, write); 
+  procfs_var_expanding_visitor v (s, path, write); 
   v.replace (this->body);
   target_symbol_seen = v.target_symbol_seen;
 }
@@ -410,10 +409,9 @@ procfs_derived_probe_group::emit_module_exit (systemtap_session& s)
 
 
 procfs_var_expanding_visitor::procfs_var_expanding_visitor (systemtap_session& s,
-							    const string& pn,
 							    string path,
 							    bool write_probe):
-  sess (s), probe_name (pn), path (path), write_probe (write_probe),
+  sess (s), path (path), write_probe (write_probe),
   target_symbol_seen (false)
 {
   // procfs probes can also handle '.='.

@@ -74,12 +74,11 @@ public:
 
 struct mark_var_expanding_visitor: public var_expanding_visitor
 {
-  mark_var_expanding_visitor(systemtap_session& s, const string& pn,
+  mark_var_expanding_visitor(systemtap_session& s,
                              vector <struct mark_arg *> &mark_args):
-    sess (s), probe_name (pn), mark_args (mark_args),
+    sess (s), mark_args (mark_args),
     target_symbol_seen (false) {}
   systemtap_session& sess;
-  string probe_name;
   vector <struct mark_arg *> &mark_args;
   bool target_symbol_seen;
 
@@ -219,7 +218,7 @@ mark_derived_probe::mark_derived_probe (systemtap_session &s,
   parse_probe_format();
 
   // Now expand the local variables in the probe body
-  mark_var_expanding_visitor v (sess, name, mark_args);
+  mark_var_expanding_visitor v (sess, mark_args);
   v.replace (this->body);
   target_symbol_seen = v.target_symbol_seen;
   if (target_symbol_seen)

@@ -10401,11 +10401,10 @@ struct tracepoint_derived_probe_group: public generic_dpg<tracepoint_derived_pro
 
 struct tracepoint_var_expanding_visitor: public var_expanding_visitor
 {
-  tracepoint_var_expanding_visitor(dwflpp& dw, const string& probe_name,
+  tracepoint_var_expanding_visitor(dwflpp& dw,
                                    vector <struct tracepoint_arg>& args):
-    dw (dw), probe_name (probe_name), args (args) {}
+    dw (dw), args (args) {}
   dwflpp& dw;
-  const string& probe_name;
   vector <struct tracepoint_arg>& args;
 
   void visit_target_symbol (target_symbol* e);
@@ -10649,7 +10648,7 @@ tracepoint_derived_probe::tracepoint_derived_probe (systemtap_session& s,
     header.erase(header_pos, 12);
 
   // Now expand the local variables in the probe body
-  tracepoint_var_expanding_visitor v (dw, name, args);
+  tracepoint_var_expanding_visitor v (dw, args);
   v.replace (this->body);
   for (unsigned i = 0; i < args.size(); i++)
     if (args[i].used)

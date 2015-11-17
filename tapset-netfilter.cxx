@@ -54,10 +54,9 @@ public:
 
 struct netfilter_var_expanding_visitor: public var_expanding_visitor
 {
-  netfilter_var_expanding_visitor(systemtap_session& s, const string& pn);
+  netfilter_var_expanding_visitor(systemtap_session& s);
 
   systemtap_session& sess;
-  string probe_name;
   set<string> context_vars;
 
   void visit_target_symbol (target_symbol* e);
@@ -205,7 +204,7 @@ netfilter_derived_probe::netfilter_derived_probe (systemtap_session &s, probe* p
     }
 
   // Expand local variables in the probe body
-  netfilter_var_expanding_visitor v (s, name);
+  netfilter_var_expanding_visitor v (s);
   v.replace (this->body);
 
   // Create probe-local vardecls, before symbol resolution might make
@@ -406,9 +405,8 @@ netfilter_derived_probe_group::emit_module_exit (systemtap_session& s)
 }
 
 
-netfilter_var_expanding_visitor::netfilter_var_expanding_visitor (systemtap_session& s,
-                                                                  const string& pn):
-  sess (s), probe_name (pn)
+netfilter_var_expanding_visitor::netfilter_var_expanding_visitor (systemtap_session& s):
+  sess (s)
 {
 }
 
