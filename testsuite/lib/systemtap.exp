@@ -227,14 +227,9 @@ proc setup_systemtap_environment {} {
 
     # All hail the prophet lockdep
     set chan [open $env(SYSTEMTAP_DIR)/rc w]
-    # 32-bit arm machines are quite slow. Let them run for longer than
-    # bigger machines, otherwise systemtap.syscall/syscall.exp (among
-    # other tests) will fail.
-    if {[string match arm* $::tcl_platform(machine)]} {
-	puts $chan "--rlimit-cpu=600"
-    } else {
-	puts $chan "--rlimit-cpu=300"
-    }
+    # Set the --rlimit-cpu just slightly under the 15 minutes, so that following
+    # two independent timeout mechanisms do not coincide.
+    puts $chan "--rlimit-cpu=850"
     puts $chan "-E 'probe timer.s(900){error(\"probe timeout after 15 minutes\")}'"
     close $chan
 
@@ -603,9 +598,9 @@ proc stap_run_batch {filename args} {
         verbose -log "spawn2 $filename $args"
         # Make sure we don't accidentially add an extra empty argument.
         if {$args == ""} {
-            spawn $filename
+            eval spawn $filename
         } else {
-            spawn $filename $args
+            eval spawn $filename $args
         }
     }
 
