@@ -18,6 +18,7 @@
 #include "stringtable.h"
 
 
+struct systemtap_session;
 struct stapfile;
 struct probe;
 
@@ -44,23 +45,35 @@ enum token_type
     tok_embedded, tok_keyword
   };
 
+// detailed tok_junk
+enum token_junk_type
+  {
+    tok_junk_unknown,
+    tok_junk_nested_arg,
+    tok_junk_invalid_arg,
+    tok_junk_unclosed_quote,
+    tok_junk_unclosed_embedded,
+  };
+
 
 struct token
 {
   source_loc location;
   interned_string content;
-  std::string msg; // for tok_junk, more efficient than interned_string if empty
   const token* chain; // macro invocation that produced this token
   token_type type;
+  token_junk_type junk_type;
+
+  std::string junk_message(systemtap_session& session) const;
   
-  void make_junk (const std::string& msg);
   friend class parser;
   friend class lexer;
 private:
-  token(): chain(0), type(tok_junk) {}
+  void make_junk (token_junk_type);
+  token(): chain(0), type(tok_junk), junk_type(tok_junk_unknown) {}
   token(const token& other):
     location(other.location), content(other.content),
-    msg(other.msg), chain(other.chain), type(other.type) {}
+    chain(other.chain), type(other.type), junk_type(other.junk_type) {}
 };
 
 
@@ -70,7 +83,6 @@ std::ostream& operator << (std::ostream& o, const token& t);
 typedef enum { ctx_library, ctx_local } macro_ctx;
 
 /* structs from session.h: */
-struct systemtap_session;
 struct macrodecl {
   const token* tok; // NB: macrodecl owns its token
   std::string name;

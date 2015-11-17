@@ -1552,7 +1552,7 @@ skip:
 
       if (suspended)
         {
-          n->make_junk(_("invalid nested substitution of command line arguments"));
+          n->make_junk(tok_junk_nested_arg);
           return n;
         }
       size_t num_args = session.args.size ();
@@ -1575,14 +1575,13 @@ skip:
                  idx <= session.args.size()); // prevent overflow
       if (suspended) 
         {
-          n->make_junk(_("invalid nested substitution of command line arguments"));
+          n->make_junk(tok_junk_nested_arg);
           return n;
         }
       if (idx == 0 ||
           idx-1 >= session.args.size())
         {
-          n->make_junk(_F("command line argument index %lu out of range [1-%lu]",
-                          (unsigned long) idx, (unsigned long) session.args.size()));
+          n->make_junk(tok_junk_invalid_arg);
           return n;
         }
       const string& arg = session.args[idx-1];
@@ -1641,7 +1640,7 @@ skip:
 
 	  if (c < 0 || c == '\n')
 	    {
-              n->make_junk(_("Could not find matching closing quote"));
+              n->make_junk(tok_junk_unclosed_quote);
               return n;
 	    }
 	  if (c == '\"') // closing double-quotes
@@ -1746,7 +1745,7 @@ skip:
               c2 = input_get();
             }
 
-            n->make_junk(_("Could not find matching '%}' to close embedded function block"));
+            n->make_junk(tok_junk_unclosed_embedded);
             return n;
         }
 
@@ -1807,7 +1806,8 @@ skip:
       ostringstream s;
       s << "\\x" << hex << setw(2) << setfill('0') << c;
       n->content = s.str();
-      n->msg = ""; // signal parser to emit "expected X, found junk" type error
+      // signal parser to emit "expected X, found junk" type error
+      n->make_junk(tok_junk_unknown);
       return n;
     }
 }
@@ -1815,10 +1815,35 @@ skip:
 // ------------------------------------------------------------------------
 
 void
-token::make_junk (const string& new_msg)
+token::make_junk (token_junk_type junk)
 {
   type = tok_junk;
-  msg = new_msg;
+  junk_type = junk;
+}
+
+// ------------------------------------------------------------------------
+
+string
+token::junk_message(systemtap_session& session) const
+{
+  switch (junk_type)
+    {
+    case tok_junk_nested_arg:
+      return _("invalid nested substitution of command line arguments");
+
+    case tok_junk_invalid_arg:
+      return _F("command line argument out of range [1-%lu]",
+                (unsigned long) session.args.size());
+
+    case tok_junk_unclosed_quote:
+      return _("Could not find matching closing quote");
+
+    case tok_junk_unclosed_embedded:
+      return _("Could not find matching '%}' to close embedded function block");
+
+    default:
+      return _("unknown junk token");
+    }
 }
 
 // ------------------------------------------------------------------------

@@ -2257,10 +2257,11 @@ systemtap_session::build_error_msg (const parse_error& pe,
 
   // print either pe.what() or a deferred error from the lexer
   bool found_junk = false;
-  if (tok && tok->type == tok_junk && tok->msg != "")
+  if (tok && tok->type == tok_junk && tok->junk_type != tok_junk_unknown)
     {
       found_junk = true;
-      message << colorize(_("parse error:"), "error") << ' ' << tok->msg << endl;
+      message << colorize(_("parse error:"), "error") << ' '
+              << tok->junk_message(*this) << endl;
     }
   else
     {
