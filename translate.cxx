@@ -5846,7 +5846,7 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
       if (e->print_with_delim)
 	{
 	  stringstream escaped_delim;
-	  interned_string dstr = e->delimiter.literal_string;
+	  interned_string dstr = e->delimiter;
 	  for (interned_string::const_iterator i = dstr.begin();
 	       i != dstr.end(); ++i)
 	    {

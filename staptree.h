@@ -486,13 +486,13 @@ struct print_format: public expression
 
   struct format_component
   {
-    unsigned long flags;
     unsigned base;
     unsigned width;
     unsigned precision;
-    width_type widthtype;
-    precision_type prectype;
-    conversion_type type;
+    unsigned flags : 8;
+    width_type widthtype : 8;
+    precision_type prectype : 8;
+    conversion_type type : 8;
     interned_string literal_string;
     bool is_empty() const
     {
@@ -520,7 +520,7 @@ struct print_format: public expression
 
   std::string raw_components;
   std::vector<format_component> components;
-  format_component delimiter;
+  interned_string delimiter;
   std::vector<expression*> args;
   hist_op *hist;
 

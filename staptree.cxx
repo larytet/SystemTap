@@ -1064,7 +1064,7 @@ void print_format::print (ostream& o) const
   if (print_with_format)
     o << lex_cast_qstring (raw_components);
   if (print_with_delim)
-    o << lex_cast_qstring (delimiter.literal_string);
+    o << lex_cast_qstring (delimiter);
   if (hist)
     hist->print(o);
   for (vector<expression*>::const_iterator i = args.begin();

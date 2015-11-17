@@ -3760,10 +3760,8 @@ expression* parser::parse_symbol ()
 	      else if (fmt->print_with_delim)
 		{
 		  // Consume a delimiter to separate arguments.
-		  fmt->delimiter.clear();
-		  fmt->delimiter.type = print_format::conv_literal;
                   literal_string* ls = parse_literal_string();
-		  fmt->delimiter.literal_string = ls->value;
+		  fmt->delimiter = ls->value;
                   delete ls;
 		  consumed_arg = true;
 		  min_args = 2; // so that the delim is used at least once
