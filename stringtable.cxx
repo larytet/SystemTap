@@ -140,27 +140,6 @@ interned_string interned_string::intern(char value)
   return string_ref (&chartable[i], 1);
 }
 
-
-interned_string::interned_string(const char* value): string_ref(intern(value))
-{
-}
-                                                                
-interned_string::interned_string(const string& value): string_ref(intern(value))
-{
-}
-
-interned_string& interned_string::operator = (const std::string& value)
-{
-  *this = intern(value);
-  return *this;
-}
-
-interned_string& interned_string::operator = (const char* value)
-{
-  *this = intern(value);
-  return *this;
-}
-
 #if INTERNED_STRING_FIND_MEMMEM
 size_t interned_string::find (const boost::string_ref& f) const
 {

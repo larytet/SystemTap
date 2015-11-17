@@ -26,10 +26,14 @@ struct interned_string: public boost::string_ref
 {
   // all these construction operations intern the incoming string
   interned_string(): boost::string_ref() {}
-  interned_string(const char* value);
-  interned_string(const std::string& value);
-  interned_string& operator = (const std::string& value);
-  interned_string& operator = (const char* value);
+  interned_string(const char* value):
+    boost::string_ref(intern(value)) {}
+  interned_string(const std::string& value):
+    boost::string_ref(intern(value)) {}
+  interned_string& operator = (const std::string& value)
+    { return *this = intern(value); }
+  interned_string& operator = (const char* value)
+    { return *this = intern(value); }
 
 #if BOOST_VERSION < 105400
   std::string to_string () const { return std::string(this->data(), this->size()); }
