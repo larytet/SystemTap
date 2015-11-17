@@ -574,6 +574,7 @@ int stp_main_loop(void)
   int flags;
   int res;
   int rc;
+  int maxfd;
   struct timeval tv;
   struct timespec ts;
   struct timespec *timeout = NULL;
@@ -665,9 +666,14 @@ int stp_main_loop(void)
       } else {
 	FD_ZERO(&fds);
 	FD_SET(control_channel, &fds);
-	if (monitor)
+        maxfd = control_channel;
+	if (monitor) {
 	  FD_SET(STDIN_FILENO, &fds);
-	res = pselect(control_channel + 1, &fds, NULL, NULL, timeout, &mainset);
+	  FD_SET(monitor_pfd[0], &fds);
+	  if (monitor_pfd[0] > maxfd)
+	    maxfd = monitor_pfd[0];
+	}
+	res = pselect(maxfd + 1, &fds, NULL, NULL, timeout, &mainset);
 	if (res < 0 && errno != EINTR)
 	  {
 	    _perr(_("Unexpected error in select"));

@@ -198,6 +198,7 @@ void monitor_setup(void)
 
 void monitor_cleanup(void)
 {
+  monitor_end = 1;
   if (monitor_status) delwin(monitor_status);
   if (monitor_output) delwin(monitor_output);
   endwin();
@@ -358,16 +359,15 @@ void monitor_render(void)
 
           json_object_array_sort(jso_probes, comp_fn[comp_fn_index]);
 
-          wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s %*s\n",
+          wprintw(monitor_status, "\n%*s\t%*s\t%*s\t%*s\t%*s\t%*s\t%s\n",
                   width[p_index], HIGHLIGHT("index", p_index, comp_fn_index),
                   width[p_state], HIGHLIGHT("state", p_state, comp_fn_index),
                   width[p_hits], HIGHLIGHT("hits", p_hits, comp_fn_index),
                   width[p_min], HIGHLIGHT("min", p_min, comp_fn_index),
                   width[p_avg], HIGHLIGHT("avg", p_avg, comp_fn_index),
                   width[p_max], HIGHLIGHT("max", p_max, comp_fn_index),
-                  width[p_name], HIGHLIGHT("name", p_name, comp_fn_index));
+                  HIGHLIGHT("name", p_name, comp_fn_index));
           getyx(monitor_status, cur_y, cur_x);
-          (void) cur_x; /* Unused */
           for (i = probe_scroll; i < MIN(json_object_array_length(jso_probes),
                 probe_scroll+max_rows-cur_y-2); i++)
             {
@@ -384,9 +384,10 @@ void monitor_render(void)
               json_object_object_get_ex(probe, "avg", &field);
               wprintw(monitor_status, "%*s\t", width[p_avg], json_object_get_string(field));
               json_object_object_get_ex(probe, "max", &field);
-              wprintw(monitor_status, "%*s ", width[p_max], json_object_get_string(field));
+              wprintw(monitor_status, "%*s\t", width[p_max], json_object_get_string(field));
+              getyx(monitor_status, cur_y, cur_x);
               json_object_object_get_ex(probe, "name", &field);
-              wprintw(monitor_status, "%*s", width[p_name], json_object_get_string(field));
+              wprintw(monitor_status, "%.*s", max_cols-cur_x-1, json_object_get_string(field));
               wprintw(monitor_status, "\n");
             }
 

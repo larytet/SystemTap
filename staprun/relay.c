@@ -15,6 +15,7 @@
 int out_fd[NR_CPUS];
 int monitor_pfd[2];
 int monitor_set = 0;
+int monitor_end = 0;
 static pthread_t reader[NR_CPUS];
 static int relay_fd[NR_CPUS];
 static int avail_cpus[NR_CPUS];
@@ -194,6 +195,9 @@ static void *reader_thread(void *data)
 				switch_file[cpu] = 0;
 				wsize = 0;
 			}
+			/* Prevent pipe overflow after closing */
+			if (monitor && monitor_end)
+				return 0;
 			if (write(out_fd[cpu], buf, rc) != rc) {
 				if (errno != EPIPE)
 					perr("Couldn't write to output %d for cpu %d, exiting.", out_fd[cpu], cpu);
@@ -367,6 +371,7 @@ int init_relayfs(void)
 					perr("Couldn't create pipe");
 					return -1;
 				}
+				fcntl(monitor_pfd[1], F_SETPIPE_SZ, 1048576);
 				monitor_set = 1;
 				out_fd[avail_cpus[0]] = monitor_pfd[1];
 			} else {
