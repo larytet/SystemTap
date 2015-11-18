@@ -147,7 +147,29 @@ static int _stp_module_notifier (struct notifier_block * nb,
            related fields at all in struct module.  XXX: autoconf for
            that directly? */
 
-#if defined(CONFIG_KALLSYMS) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
+#if defined(CONFIG_KALLSYMS)
+	// After kernel commit 4982223e51, module notifiers are being
+	// called too early to get module section info. So, we have to
+	// switch to using symbol+offset probing for modules.
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)
+	// The module refresh code (in systemtap_module_refresh)
+	// assumes the 1st call is on module load and the 2nd is on
+	// module unload. So, we can't call systemtap_module_refresh()
+	// twice for module load (once for MODULE_STATE_COMING and
+	// once for MODULE_STATE_LIVE). In the MODULE_STATE_COMING
+	// state, the module's init function hasn't fired yet and we
+	// can register symbol+offset probes. In the MODULE_STATE_LIVE
+	// state, the module's init function has already been run (and
+	// the init section has been discarded). So, we'll ignore
+	// MODULE_STATE_LIVE.
+        if (val == MODULE_STATE_COMING) {
+		/* Verify build-id. */
+		_stp_kmodule_check (mod->name);
+        }
+        else if (val != MODULE_STATE_GOING) {
+		return NOTIFY_DONE;
+        }
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11)
         if (val == MODULE_STATE_COMING ||
             val == MODULE_STATE_LIVE) {
                 /* A module is arriving or has arrived.  Register all
@@ -178,6 +200,9 @@ static int _stp_module_notifier (struct notifier_block * nb,
                 /* Unregister all sections. */
                 _stp_kmodule_update_address(mod->name, NULL, 0);
         }
+	else
+		return NOTIFY_DONE;
+#endif
 
         /* Give the probes a chance to update themselves. */
         /* Proper kprobes support for this appears to be relatively

@@ -479,7 +479,9 @@ struct dwarf_derived_probe: public derived_probe
 		       Dwarf_Addr dwfl_addr,
 		       Dwarf_Addr addr,
 		       dwarf_query & q,
-                       Dwarf_Die* scope_die);
+                       Dwarf_Die* scope_die,
+		       interned_string symbol_name = "",
+		       Dwarf_Addr offset = 0);
 
   interned_string module;
   interned_string section;
@@ -494,6 +496,13 @@ struct dwarf_derived_probe: public derived_probe
   interned_string user_path;
   interned_string user_lib;
   bool access_vars;
+
+  // PR18889: For modules, we have to probe using "symbol+offset"
+  // instead of using an address, otherwise we can't probe the init
+  // section. 'symbol_name' is the closest known symbol to 'addr' and
+  // 'offset' is the offset from the symbol.
+  interned_string symbol_name;
+  Dwarf_Addr offset;
 
   unsigned saved_longs, saved_strings;
   dwarf_derived_probe* entry_handler;
@@ -1390,9 +1399,38 @@ dwarf_query::add_probe_point(interned_string dw_funcname,
       else
         {
           assert (has_kernel || has_module);
-          results.push_back (new dwarf_derived_probe(funcname, filename, line,
-                                                     module, reloc_section, addr, reloc_addr,
-                                                     *this, scope_die));
+
+	  // We could only convert probes in the module's .init
+	  // section to symbol+offset probes. However, the module
+	  // refresh code only expects to be called once on a module
+	  // load, so we'll go ahead and convert them all.
+	  if (has_module)
+	    {
+	      module_info *mi = dw.mod_info;
+
+	      if (mi->symtab_status == info_unknown)
+		mi->get_symtab();
+	      if (mi->symtab_status == info_absent)
+		throw SEMANTIC_ERROR(_F("can't retrieve symbol table for function %s",
+					module_val.to_string().c_str()));
+
+	      symbol_table *sym_table = mi->sym_table;
+	      func_info *symbol = sym_table->get_func_containing_address(addr);
+	      Dwarf_Addr offset = addr - symbol->addr;
+	      results.push_back (new dwarf_derived_probe(funcname, filename,
+							 line, module,
+							 reloc_section, addr,
+							 reloc_addr,
+							 *this, scope_die,
+							 symbol->name,
+							 offset));
+	    }
+	  else
+	    results.push_back (new dwarf_derived_probe(funcname, filename,
+						       line, module,
+						       reloc_section, addr,
+						       reloc_addr,
+						       *this, scope_die));
         }
     }
   else
@@ -4861,7 +4899,10 @@ dwarf_derived_probe::printsig (ostream& o) const
   // function instances.  This is distinct from the verbose/clog
   // output, since this part goes into the cache hash calculations.
   sole_location()->print (o);
-  o << " /* pc=" << section << "+0x" << hex << addr << dec << " */";
+  if (symbol_name != "")
+    o << " /* pc=<" << symbol_name << "+" << offset << "> */";
+  else
+    o << " /* pc=" << section << "+0x" << hex << addr << dec << " */";
   printsig_nested (o);
 }
 
@@ -4950,7 +4991,9 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
                                          // actual relocation.
                                          Dwarf_Addr addr,
                                          dwarf_query& q,
-                                         Dwarf_Die* scope_die /* may be null */)
+                                         Dwarf_Die* scope_die /* may be null */,
+					 interned_string symbol_name,
+					 Dwarf_Addr offset)
   : derived_probe (q.base_probe, q.base_loc, true /* .components soon rewritten */ ),
     module (module), section (section), addr (addr),
     path (q.path),
@@ -4962,12 +5005,16 @@ dwarf_derived_probe::dwarf_derived_probe(interned_string funcname,
     user_path (q.user_path),
     user_lib (q.user_lib),
     access_vars(false),
+    offset(offset),
     saved_longs(0), saved_strings(0),
     entry_handler(0)
 {
   // If we were given a fullpath to a kernel module, then get the simple name
   if (q.has_module && is_fully_resolved(module, q.dw.sess.sysroot, q.dw.sess.sysenv))
     this->module = modname_from_path(module);
+
+  if (q.has_module && symbol_name != "")
+    this->symbol_name = lex_cast(this->module) + ":" + lex_cast(symbol_name);
 
   if (user_lib.size() != 0)
     has_library = true;
@@ -5617,6 +5664,9 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 
   s.op->newline() << "/* ---- dwarf probes ---- */";
 
+  // FIXME: we could do the same thing (finding stats for the embedded
+  // strings) for 'symbol_name'...
+
   // Let's find some stats for the embedded strings.  Maybe they
   // are small and uniform enough to justify putting char[MAX]'s into
   // the array instead of relocated char*'s.
@@ -5711,6 +5761,17 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->line() << " .section=\"" << p->section << "\",";
       s.op->line() << " .probe=" << common_probe_init (p) << ",";
       s.op->line() << " .kprobe=&stap_dwarf_kprobes[" << stap_dwarf_kprobe_idx++ << "],";
+      if (p->symbol_name != "")
+        {
+	  // After kernel commit 4982223e51, module notifiers are
+	  // being called too early. So, we have to switch to using
+	  // symbol+offset probing for modules.
+	  s.op->newline(-1) << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)";
+	  s.op->newline() << " .symbol_name=\"" << p->symbol_name << "\",";
+	  s.op->line() << " .offset=(unsigned int)" << p->offset << ",";
+	  s.op->newline() << "#endif";
+	  s.op->newline(1);
+	}	  
       s.op->line() << " },";
     }
 

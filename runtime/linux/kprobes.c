@@ -1,6 +1,6 @@
 /* -*- linux-c -*-
  * Common functions for using kprobes
- * Copyright (C) 2014 Red Hat Inc.
+ * Copyright (C) 2014-2015 Red Hat Inc.
  *
  * This file is part of systemtap, and is free software.  You can
  * redistribute it and/or modify it under the terms of the GNU General
@@ -27,8 +27,8 @@
 			dbug_stapkp(args);				\
 	} while (0)
 #else
-#define dbug_stapkp(args...) ;
-#define dbug_stapkp_cond(cond, args...) ;
+#define dbug_stapkp(args...) do { } while (0)
+#define dbug_stapkp_cond(cond, args...)  do { } while (0)
 #endif
 
 #ifndef KRETACTIVE
@@ -74,7 +74,16 @@ struct stap_dwarf_probe {
    STAP_DWARF_PROBE_STR_module;
    STAP_DWARF_PROBE_STR_section;
 
+   // For the majority of dwarf-based kprobes, we'll use address-based
+   // probing. But, for dwarf-based kprobes in modules, we need to
+   // switch to using symbol_name+offset (on kernels that support
+   // symbol_name+offset probing).
    const unsigned long address;
+   // Note we can't really check for STAPCONF_KPROBE_SYMBOL_NAME here,
+   // since that complicates the init logic too much.
+   const char * const symbol_name;
+   unsigned int offset;
+
    const struct stap_probe * const probe;
    const struct stap_probe * const entry_probe;
    struct stap_dwarf_kprobe * const kprobe;
@@ -116,9 +125,21 @@ static int
 stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp)
 {
    struct kprobe *kp = &sdp->kprobe->u.kp;
-   unsigned long addr = stapkp_relocate_addr(sdp);
-   if (addr == 0)
-      return 1;
+   unsigned long addr = 0;
+
+   if (! sdp->symbol_name) {
+      addr = stapkp_relocate_addr(sdp);
+      if (addr == 0)
+	 return 1;
+   }
+   else {
+      // If we're doing symbolic name + offset probing, it doesn't
+      // really matter if the symbol is in a module and the module
+      // isn't loaded right now. The registration will fail, but will
+      // get tried again when the module is loaded.
+      kp->symbol_name = (typeof(kp->symbol_name))sdp->symbol_name;
+      kp->offset = sdp->offset;
+   }
 
    kp->addr = (void *) addr;
    kp->pre_handler = &enter_kprobe_probe;
@@ -148,7 +169,12 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp)
 
 #ifndef __ia64__
    ret = register_kprobe(kp);
-   dbug_stapkp_cond(ret == 0, "+kprobe %p\n", kp->addr);
+   if (ret == 0) {
+      if (sdp->symbol_name)
+	 dbug_stapkp("+kprobe %s+%u\n", kp->symbol_name, kp->offset);
+      else
+	 dbug_stapkp_cond("+kprobe %p\n", kp->addr);
+   }
 #else // PR6028
    ret = register_kprobe(&sdp->kprobe->dummy);
    if (ret == 0) {
@@ -180,9 +206,17 @@ static int
 stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp)
 {
    struct kretprobe *krp = &sdp->kprobe->u.krp;
-   unsigned long addr = stapkp_relocate_addr(sdp);
-   if (addr == 0)
-      return 1;
+   unsigned long addr = 0;
+
+   if (! sdp->symbol_name) {
+      addr = stapkp_relocate_addr(sdp);
+      if (addr == 0)
+	 return 1;
+   }
+   else {
+      krp->kp.symbol_name = (typeof(krp->kp.symbol_name))sdp->symbol_name;
+      krp->kp.offset = sdp->offset;
+   }
 
    krp->kp.addr = (void *) addr;
 
@@ -310,10 +344,18 @@ stapkp_unregister_probe(struct stap_dwarf_probe *sdp)
 
    if (sdp->return_p) {
       unregister_kretprobe (&sdk->u.krp);
-      dbug_stapkp("-kretprobe %p\n", sdk->u.krp.kp.addr);
+      if (sdp->symbol_name)
+	 dbug_stapkp("-kretprobe %s:%d\n", sdk->u.krp.kp.symbol_name,
+		     sdk->u.krp.kp.offset);
+      else
+	 dbug_stapkp("-kretprobe %p\n", sdk->u.krp.kp.addr);
    } else {
       unregister_kprobe (&sdk->u.kp);
-      dbug_stapkp("-kprobe %p\n", sdk->u.kp.addr);
+      if (sdp->symbol_name)
+	 dbug_stapkp("-kprobe %s:%u\n", sdk->u.kp.symbol_name,
+		     sdk->u.kp.offset);
+      else
+	 dbug_stapkp("-kprobe %p\n", sdk->u.kp.addr);
    }
 
 #if defined(__ia64__)
@@ -546,10 +588,15 @@ stapkp_init(struct stap_dwarf_probe *probes,
          continue; // don't fuss about it, module probably not loaded
 
       // NB: We keep going even if a probe failed to register (PR6749). We only
-      // warn about it if it wasn't optional.
-      if (rc && !sdp->optional_p) {
-         _stp_warn("probe %s (address 0x%lx) registration error (rc %d)",
-                   sdp->probe->pp, stapkp_relocate_addr(sdp), rc);
+      // warn about it if it wasn't optional and isn't in a module.
+      if (rc && !sdp->optional_p
+	  && (!sdp->module || strcmp(sdp->module, "kernel") == 0)) {
+	 if (sdp->symbol_name)
+	    _stp_warn("probe %s (%s+%u) registration error (rc %d)",
+		      sdp->probe->pp, sdp->symbol_name, sdp->offset, rc);
+	 else
+	    _stp_warn("probe %s (address 0x%lx) registration error (rc %d)",
+		      sdp->probe->pp, stapkp_relocate_addr(sdp), rc);
       }
    }
 
@@ -577,10 +624,11 @@ stapkp_refresh(const char *modname,
       if (modname && sdp->module
             && strcmp(modname, sdp->module) == 0) {
          int rc;
-         unsigned long addr = stapkp_relocate_addr(sdp);
+         unsigned long addr = (! sdp->symbol_name
+			       ? stapkp_relocate_addr(sdp) : 0);
 
          // module being loaded?
-         if (sdp->registered_p == 0 && addr != 0)
+         if (sdp->registered_p == 0 && (addr != 0 || sdp->symbol_name))
             stapkp_register_probe(sdp);
          // module/section being unloaded?
          else if (sdp->registered_p == 1 && addr == 0)
