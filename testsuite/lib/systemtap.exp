@@ -598,9 +598,9 @@ proc stap_run_batch {filename args} {
         verbose -log "spawn2 $filename $args"
         # Make sure we don't accidentially add an extra empty argument.
         if {$args == ""} {
-            eval spawn $filename
+            spawn $filename
         } else {
-            eval spawn $filename $args
+            spawn $filename $args
         }
     }
 
