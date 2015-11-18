@@ -125,7 +125,6 @@ static int _stp_module_notifier (struct notifier_block * nb,
         struct module_sect_attrs *attrs;
         unsigned i, nsections;
 
-        (void) nb;
         (void) attrs;
         (void) i;
         (void) nsections;
@@ -191,21 +190,6 @@ static int _stp_module_notifier (struct notifier_block * nb,
 
         return NOTIFY_DONE;
 }
-
-
-#ifdef STAPCONF_MODULE_TRACEPOINT
-/* We just delegate to the canonical notifier function */
-static void _stp_module_load_tp(void *data, struct module* mod)
-{
-        (void) _stp_module_notifier (NULL, MODULE_STATE_COMING, mod);
-        
-}
-static void _stp_module_free_tp(void *data, struct module* mod)
-{
-        (void) _stp_module_notifier (NULL, MODULE_STATE_GOING, mod);
-}
-#endif
-
 
 static int _stp_module_update_self (void)
 {
