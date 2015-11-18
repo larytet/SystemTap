@@ -1,8 +1,8 @@
-/* -*- linux-c -*-
+/* -*- linux-c -*- 
  * transport.c - stp transport functions
  *
  * Copyright (C) IBM Corporation, 2005
- * Copyright (C) Red Hat Inc, 2005-2015
+ * Copyright (C) Red Hat Inc, 2005-2014
  * Copyright (C) Intel Corporation, 2006
  *
  * This file is part of systemtap, and is free software.  You can
@@ -23,7 +23,19 @@
 #include "../uidgid_compatibility.h"
 #ifdef STAPCONF_MODULE_TRACEPOINT
 #include <trace/events/module.h>
-#include "../linux/stp_tracepoint.h"
+#endif
+
+/* PR18889: After 3.17, commit #de7b2973903c6, tracepoints are
+   attached by symbol-address rather than by name string.  That means
+   they must be EXPORT_TRACEPOINT_SYMBOL_GPL'd for a tracepoint
+   [un]register operation.  On RHEL7 kernels with out that commit
+   backported, we can do a tracepoint attach even without the exports.  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,17,0)
+#if defined(STAPCONF_MODULE_TRACEPOINT) && defined(STAPCONF_MODULE_TRACEPOINT_EXPORT_LOAD) && defined(STAPCONF_MODULE_TRACEPOINT_EXPORT_FREE)
+#define STAP_USE_MODULE_TRACEPOINTS
+#endif
+#elif defined(STAPCONF_MODULE_TRACEPOINT)
+#define STAP_USE_MODULE_TRACEPOINTS
 #endif
 
 
@@ -137,7 +149,7 @@ static void _stp_handle_start(struct _stp_msg_start *st)
         // protect against excessive or premature startup
 	handle_startup = (! _stp_start_called && ! _stp_exit_called);
 	_stp_start_called = 1;
-
+	
 	if (handle_startup) {
 		dbug_trans(1, "stp_handle_start\n");
 
@@ -168,15 +180,15 @@ static void _stp_handle_start(struct _stp_msg_start *st)
                            failed: something nasty has happened, and
                            we want no further probing started.  PR16766 */
                         if (!_stp_module_notifier_active) {
-#ifdef STAPCONF_MODULE_TRACEPOINT
-                                int rc0 = STP_TRACE_REGISTER(module_load, & _stp_module_load_tp);
+#ifdef STAP_USE_MODULE_TRACEPOINTS
+                                int rc0 = register_trace_module_load (& _stp_module_load_tp, NULL);
                                 if (rc0)
                                         _stp_warn ("Cannot register module load tracepoint (%d)\n", rc0);
                                 else {
-                                        int rc1 = STP_TRACE_REGISTER(module_free, & _stp_module_free_tp);
+                                        int rc1 = register_trace_module_free (& _stp_module_free_tp, NULL);
                                         if (rc1) {
                                                 _stp_warn ("Cannot register module free tracepoint (%d)\n", rc1);
-                                                STP_TRACE_UNREGISTER(module_load, & _stp_module_load_tp);
+                                                unregister_trace_module_load(& _stp_module_load_tp, NULL);
                                         } else {
 #endif
                                                 int rc = register_module_notifier(& _stp_module_notifier_nb);
@@ -184,9 +196,10 @@ static void _stp_handle_start(struct _stp_msg_start *st)
                                                         _stp_module_notifier_active = 1;
                                                 else {
                                                         _stp_warn ("Cannot register module notifier (%d)\n", rc);
-#ifdef STAPCONF_MODULE_TRACEPOINT
-                                                        STP_TRACE_UNREGISTER(module_load, & _stp_module_load_tp);
-                                                        STP_TRACE_UNREGISTER(module_free, & _stp_module_free_tp);
+#ifdef STAP_USE_MODULE_TRACEPOINTS
+                                                        unregister_trace_module_load(& _stp_module_load_tp, NULL);
+                                                        unregister_trace_module_free(& _stp_module_free_tp, NULL);
+                                                        
                                                 }
                                         }
 #endif
@@ -227,9 +240,9 @@ static void _stp_cleanup_and_exit(int send_exit)
 	        /* Unregister the module notifier. */
 	        if (_stp_module_notifier_active) {
                         int rc;
-#ifdef STAPCONF_MODULE_TRACEPOINT
-                        STP_TRACE_UNREGISTER(module_load, & _stp_module_load_tp);
-                        STP_TRACE_UNREGISTER(module_free, & _stp_module_free_tp);
+#ifdef STAP_USE_MODULE_TRACEPOINTS
+                        unregister_trace_module_load(& _stp_module_load_tp, NULL);
+                        unregister_trace_module_free(& _stp_module_free_tp, NULL);
 #endif
                         rc = unregister_module_notifier(& _stp_module_notifier_nb);
                         if (rc)
@@ -367,7 +380,7 @@ static void _stp_ctl_work_callback(unsigned long val)
  *	_stp_transport_close - close ctl and relayfs channels
  *
  *	This is called automatically when the module is unloaded.
- *
+ *     
  */
 static void _stp_transport_close(void)
 {
@@ -384,7 +397,7 @@ static void _stp_transport_close(void)
 
 /**
  * _stp_transport_init() is called from the module initialization.
- *   It does the bare minimum to exchange commands with staprun
+ *   It does the bare minimum to exchange commands with staprun 
  */
 static int _stp_transport_init(void)
 {
@@ -644,7 +657,7 @@ static struct dentry *_stp_get_module_dir(void)
 static int _stp_transport_fs_init(const char *module_name)
 {
 	struct dentry *root_dir;
-
+    
 	dbug_trans(1, "entry\n");
 	if (module_name == NULL)
 		return -1;
