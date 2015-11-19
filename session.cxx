@@ -655,8 +655,10 @@ systemtap_session::usage (int exitcode)
     "              save uprobes.ko to current directory if it is built from source\n"
     "   --target-namesapce=PID\n"
     "              sets the target namespaces pid to PID\n"
+#if HAVE_MONITOR_LIBS
     "   --monitor=INTERVAL\n"
     "              enables monitor interfaces\n"
+#endif
     , compatible.c_str()) << endl
   ;
 
@@ -1584,6 +1586,14 @@ systemtap_session::check_options (int argc, char * const argv [])
     {
       print_warning("--trust-servers is not supported by this version of systemtap");
       server_trust_spec.clear ();
+    }
+#endif
+
+#if ! HAVE_MONITOR_LIBS
+  if (monitor)
+    {
+      print_warning("Monitor mode is not supported by this version of systemtap");
+      exit(1);
     }
 #endif
 

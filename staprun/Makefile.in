@@ -102,14 +102,16 @@ pkglibexec_PROGRAMS = stapio$(EXEEXT)
 @HAVE_NSS_TRUE@am__append_4 = $(nss_CFLAGS)
 @HAVE_NSS_TRUE@am__append_5 = $(nss_CFLAGS)
 @HAVE_NSS_TRUE@am__append_6 = $(nss_LIBS)
+@HAVE_MONITOR_LIBS_TRUE@am__append_7 = $(jsonc_LIBS) $(ncurses_LIBS)
+@HAVE_MONITOR_LIBS_TRUE@am__append_8 = monitor.c
 subdir = staprun
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/gettext.m4 $(top_srcdir)/m4/iconv.m4 \
-	$(top_srcdir)/m4/lib-ld.m4 $(top_srcdir)/m4/lib-link.m4 \
-	$(top_srcdir)/m4/lib-prefix.m4 $(top_srcdir)/m4/nls.m4 \
-	$(top_srcdir)/m4/po.m4 $(top_srcdir)/m4/progtest.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/m4/intlmacosx.m4 $(top_srcdir)/m4/lib-ld.m4 \
+	$(top_srcdir)/m4/lib-link.m4 $(top_srcdir)/m4/lib-prefix.m4 \
+	$(top_srcdir)/m4/nls.m4 $(top_srcdir)/m4/po.m4 \
+	$(top_srcdir)/m4/progtest.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 DIST_COMMON = $(srcdir)/Makefile.am
@@ -136,18 +138,19 @@ stap_merge_OBJECTS = $(am_stap_merge_OBJECTS)
 stap_merge_DEPENDENCIES =
 stap_merge_LINK = $(CCLD) $(stap_merge_CFLAGS) $(CFLAGS) \
 	$(stap_merge_LDFLAGS) $(LDFLAGS) -o $@
-am_stapio_OBJECTS = monitor.$(OBJEXT) stapio.$(OBJEXT) \
-	mainloop.$(OBJEXT) common.$(OBJEXT) ctl.$(OBJEXT) \
-	relay.$(OBJEXT) relay_old.$(OBJEXT)
+@HAVE_MONITOR_LIBS_TRUE@am__objects_1 = monitor.$(OBJEXT)
+am_stapio_OBJECTS = stapio.$(OBJEXT) mainloop.$(OBJEXT) \
+	common.$(OBJEXT) ctl.$(OBJEXT) relay.$(OBJEXT) \
+	relay_old.$(OBJEXT) $(am__objects_1)
 stapio_OBJECTS = $(am_stapio_OBJECTS)
 stapio_DEPENDENCIES = libstrfloctime.a
 am__dirstamp = $(am__leading_dot)dirstamp
-@HAVE_NSS_TRUE@am__objects_1 = staprun-modverify.$(OBJEXT) \
+@HAVE_NSS_TRUE@am__objects_2 = staprun-modverify.$(OBJEXT) \
 @HAVE_NSS_TRUE@	../staprun-nsscommon.$(OBJEXT)
 am_staprun_OBJECTS = staprun-staprun.$(OBJEXT) \
 	staprun-staprun_funcs.$(OBJEXT) staprun-ctl.$(OBJEXT) \
 	staprun-common.$(OBJEXT) ../staprun-privilege.$(OBJEXT) \
-	../staprun-util.$(OBJEXT) $(am__objects_1)
+	../staprun-util.$(OBJEXT) $(am__objects_2)
 staprun_OBJECTS = $(am_staprun_OBJECTS)
 am__DEPENDENCIES_1 =
 @HAVE_NSS_TRUE@am__DEPENDENCIES_2 = $(am__DEPENDENCIES_1)
@@ -389,6 +392,8 @@ htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
+jsonc_CFLAGS = @jsonc_CFLAGS@
+jsonc_LIBS = @jsonc_LIBS@
 libdir = @libdir@
 libexecdir = @libexecdir@
 libvirt_CFLAGS = @libvirt_CFLAGS@
@@ -399,6 +404,8 @@ localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
+ncurses_CFLAGS = @ncurses_CFLAGS@
+ncurses_LIBS = @ncurses_LIBS@
 nss_CFLAGS = @nss_CFLAGS@
 nss_LIBS = @nss_LIBS@
 oldincludedir = @oldincludedir@
@@ -428,8 +435,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = subdir-objects
-AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 -ljson-c -lcurses \
-	@PIECFLAGS@ $(am__empty)
+AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 @PIECFLAGS@ \
+	$(am__append_7)
 AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2 @PIECXXFLAGS@
 AM_CPPFLAGS = -D_GNU_SOURCE -I$(srcdir)/../includes \
 	-I$(builddir)/../includes/sys -DBINDIR='"$(bindir)"' \
@@ -450,7 +457,8 @@ staprun_CXXFLAGS = $(AM_CXXFLAGS) -DSINGLE_THREADED $(am__append_5)
 staprun_CPPFLAGS = $(AM_CPPFLAGS) $(am__append_1)
 staprun_LDADD = libstrfloctime.a $(staprun_LIBS) $(am__append_6)
 staprun_LDFLAGS = $(AM_LDFLAGS) $(am__append_2)
-stapio_SOURCES = monitor.c stapio.c mainloop.c common.c ctl.c relay.c relay_old.c
+stapio_SOURCES = stapio.c mainloop.c common.c ctl.c relay.c \
+	relay_old.c $(am__append_8)
 stapio_LDADD = libstrfloctime.a -lpthread
 man_MANS = staprun.8
 stap_merge_SOURCES = stap_merge.c

@@ -2,7 +2,7 @@
 
 AUTOMAKE_OPTIONS = subdir-objects
 
-AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2 -ljson-c -lcurses
+AM_CFLAGS = -Wall -Werror -Wunused -W -Wformat=2
 AM_CXXFLAGS = -Wall -Werror -Wunused -W -Wformat=2
 AM_CPPFLAGS = -D_GNU_SOURCE
 AM_CPPFLAGS += -I$(srcdir)/../includes
@@ -42,8 +42,16 @@ staprun_CXXFLAGS += $(nss_CFLAGS)
 staprun_LDADD += $(nss_LIBS)
 endif
 
-stapio_SOURCES = monitor.c stapio.c mainloop.c common.c ctl.c relay.c relay_old.c
+if HAVE_MONITOR_LIBS
+AM_CFLAGS += $(jsonc_LIBS) $(ncurses_LIBS)
+endif
+
+stapio_SOURCES = stapio.c mainloop.c common.c ctl.c relay.c relay_old.c
 stapio_LDADD = libstrfloctime.a -lpthread
+
+if HAVE_MONITOR_LIBS
+stapio_SOURCES += monitor.c
+endif
 
 man_MANS = staprun.8
 
