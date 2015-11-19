@@ -1,5 +1,6 @@
 %{!?with_sqlite: %global with_sqlite 1}
 %{!?with_docs: %global with_docs 1}
+%{!?with_monitor: %global with_monitor 1}
 # crash is not available
 %ifarch ppc ppc64 %{sparc} aarch64 ppc64le
 %{!?with_crash: %global with_crash 0}
@@ -104,6 +105,9 @@ BuildRequires: libselinux-devel
 %endif
 %if %{with_sqlite}
 BuildRequires: sqlite-devel
+%endif
+%if %{with_monitor}
+BuildRequires: json-c-devel ncurses-devel
 %endif
 # Needed for libstd++ < 4.0, without <tr1/memory>
 %if %{with_boost}
