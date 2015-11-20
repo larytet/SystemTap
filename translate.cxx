@@ -235,7 +235,7 @@ struct c_unparser: public unparser, public visitor
 // A shadow visitor, meant to generate temporary variable declarations
 // for function or probe bodies.  The output is discarded, but we now do
 // real work in var_declare().
-struct c_tmpcounter: public c_unparser
+struct c_tmpcounter cxx_final: public c_unparser
 {
   c_unparser* parent;
   set<string> declared_vars;
