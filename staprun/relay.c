@@ -352,15 +352,15 @@ int init_relayfs(void)
 				err("Invalid FILE name format\n");
 				return -1;
 			}
-			out_fd[0] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
-			if (out_fd[0] < 0) {
+			out_fd[avail_cpus[0]] = open (buf, O_CREAT|O_TRUNC|O_WRONLY, 0666);
+			if (out_fd[avail_cpus[0]] < 0) {
 				perr("Couldn't open output file %s", buf);
 				return -1;
 			}
-			if (set_clexec(out_fd[avail_cpus[i]]) < 0)
+			if (set_clexec(out_fd[avail_cpus[0]]) < 0)
 				return -1;
 		} else
-			out_fd[0] = STDOUT_FILENO;
+			out_fd[avail_cpus[0]] = STDOUT_FILENO;
 		
 	}
 
