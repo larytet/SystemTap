@@ -1,5 +1,14 @@
 * What's new in version 3.0
 
+- New --monitor[=INTERVAL] option similar to unix "top". This allows users to
+  see statistics about the running module(uptime, module name, invoker uid,
+  memory sizes, global variables, and the current probe list along with
+  their statistics).
+
+  An interface is also provided to allow control over the running
+  module(resetting global variables, sorting the list of probes, deactivating
+  and reactivating probes).
+
 - Added support for private global variables and private functions. The scope
   of these is limited to the tapset file they are defined in (PR19136).
 
