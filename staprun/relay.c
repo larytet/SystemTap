@@ -371,7 +371,6 @@ int init_relayfs(void)
 					perr("Couldn't create pipe");
 					return -1;
 				}
-				fcntl(monitor_pfd[1], F_SETPIPE_SZ, 1048576);
 				monitor_set = 1;
 				out_fd[avail_cpus[0]] = monitor_pfd[1];
 			} else {
