@@ -1,4 +1,4 @@
-#! stap -wp4
+#! stap -wp4 --compatible=2.9
 
 // Tests if all probes in rpc.stp are resolvable.
 
