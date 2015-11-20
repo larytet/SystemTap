@@ -22,16 +22,22 @@ probe end(-1) { endstr .= "w" }
 probe end(0) { endstr .= "x" }
 probe end(9223372036854775807) {
   endstr .= "z"
+  rc = 0
 
   if (beginstr == "abccde")
-    println("systemtap test success")
+    rc += 1
   else
     printf("systemtap test failure - beginstr:%s != abccde\n", beginstr)
 
   if (endstr == "vwxxyz")
-    println("systemtap test success")
+    rc += 1
   else
     printf("systemtap test failure - endstr:%s != vwxxyz\n", endstr)
+
+  if (rc == 2)
+    println("systemtap test success")
+  else
+    printf("systemtap test failure (%d passes)\n", rc)
 }
 probe end(-9223372036854775808) { endstr .= "v" }
 

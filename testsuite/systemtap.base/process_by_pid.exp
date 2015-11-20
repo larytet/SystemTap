@@ -14,7 +14,7 @@ proc sleep_twenty_secs {} {
 }
 
 # expected output
-set output_string "pass"
+set output_string "pass\r\n"
 
 # running multiple instances of the test program
 # the idea behind this is that in the stap script, it will check the pid it is

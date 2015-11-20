@@ -17,7 +17,7 @@ if {$compile_result != ""} {
 }
 
 # Expected output
-set output_string "Encountered \[0-4\] functions, and \[0-2\] marks"
+set output_string "Encountered \[0-4\] functions, and \[0-2\] marks\r\n"
 
 # Running the test program and script
 foreach runtime [get_runtime_list] {

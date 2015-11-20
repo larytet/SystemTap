@@ -31,12 +31,12 @@ probe process("usymfileline").function("test_method") {\
 }
 
 set tests {usymfileline usymline usymfile}
-set expectedoutput {".*usymfileline.cxx:\[4-5]" "\[4-5]" ".*usymfileline.cxx"}
+set expectedoutput {".*usymfileline.cxx:\[4-5]\r\n" "\[4-5]\r\n" ".*usymfileline.cxx\r\n"}
 
 foreach test $tests eoutput $expectedoutput {
   set testscript [string map "TAPSETFUNCTION $test" $script]
   # test with an invalid address. the expected output is the same for all cases
-  stap_run "$test ()" no_load "0x0" -e $testscript 0 -c ./usymfileline
+  stap_run "$test ()" no_load "0x0\r\n" -e $testscript 0 -c ./usymfileline
   # test with uaddr()
   stap_run "$test ()" no_load $eoutput -e $testscript uaddr() -c ./usymfileline
 }
@@ -56,7 +56,7 @@ probe process("usymfileline").statement("*@*:*"){\
 }\
 probe end { if (failed == 0) println("passed") }\
 }
-stap_run "pp == usymfileline" no_load "passed" -e $script -c ./usymfileline
+stap_run "pp == usymfileline" no_load "passed\r\n" -e $script -c ./usymfileline
 
 eval exec objcopy -R .debug_line $testname
 
@@ -72,7 +72,7 @@ probe process("usymfileline").begin {\
 foreach test $tests {
   set testscript [string map "TAPSETFUNCTION $test" $script]
   # test with uaddr(). check that it can still fail gracefully.
-  stap_run "$test (no debug_line)" no_load "0x\[0-9,a-f]*" -e $testscript uaddr() -c ./usymfileline 
+  stap_run "$test (no debug_line)" no_load "0x\[0-9,a-f]*\r\n" -e $testscript uaddr() -c ./usymfileline 
 }
 
 exec rm -f ./$testname

@@ -8,15 +8,21 @@ probe begin { println("systemtap starting probe") }
 
 probe end
 {
+	rc = 0
 	println("systemtap ending probe")
 	if (1) {
-		println("systemtap test success");
+		rc += 1
 	} else {
 		println("systemtap test failure");
 	}
 	if (0) {
 		println("systemtap test failure");
 	} else {
-		println("systemtap test success");
+		rc += 1
 	}
+
+	if (rc == 2)
+		println("systemtap test success")
+	else
+		printf("systemtap test failure (%d passes)\n", rc)
 }

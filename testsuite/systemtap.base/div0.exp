@@ -2,7 +2,7 @@
 
 set test "div0"
 
-set output_string "(.*)division by 0 near(.*)"
+set output_string {ERROR: division by 0 near[^\r\n]+\r\n}
 
 foreach runtime [get_runtime_list] {
     if {$runtime != ""} {

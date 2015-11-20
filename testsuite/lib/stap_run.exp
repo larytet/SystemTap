@@ -90,7 +90,13 @@ proc stap_run { TEST_NAME {LOAD_GEN_FUNCTION ""} {OUTPUT_CHECK_STRING ""} args }
 			-re $warning_regexp {
 			    set probe_errors $expect_out(1,string)
 			    set skipped_probes $expect_out(2,string)}
+			default {
+			    fail "$TEST_NAME unexpected output (after passing output)"
+			}
 		    }
+		}
+		default {
+		    fail "$TEST_NAME unexpected output"
 		}
 		timeout { 
                     fail "$TEST_NAME shutdown (timeout)"
@@ -166,4 +172,4 @@ print_system_info
 # BZ692445 was fixed by removing the '$' at the end of
 # all_pass_string. Yet another expect regular expression oddity. The
 # '\r\n' is good enough at finding the EOL.
-set all_pass_string "(systemtap test success\r\n)+"
+set all_pass_string "systemtap test success\r\n"

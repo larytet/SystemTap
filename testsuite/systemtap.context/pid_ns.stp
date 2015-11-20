@@ -15,13 +15,15 @@ probe process("sleep").begin{
   // all that we can really do is make a comparison between the original
   // and the namespace aware versions.
   // need to check all the conditionals otherwise this test case will fail when it should just be untested
-  if (check_for_pid_ns() && !hit_pp){
-    hit_pp = 1;
-    if (pid()  == ns_pid())  println("FAIL: pid() matches ns_pid()");;
-    if (tid()  == ns_tid())  println("FAIL: tid() matches ns_tid()");
-    if (ppid() == ns_ppid()) println("FAIL: ppid() matches ns_ppid()");
-    if (sid()  == ns_sid())  println("FAIL: sid() matches ns_sid()");
-    if (pgrp() == ns_pgrp()) println("FAIL: pgrp() matches ns_pgrp()");
+  if (check_for_pid_ns()) {
+    if (!hit_pp) {
+      hit_pp = 1;
+      if (pid()  == ns_pid())  println("FAIL: pid() matches ns_pid()");;
+      if (tid()  == ns_tid())  println("FAIL: tid() matches ns_tid()");
+      if (ppid() == ns_ppid()) println("FAIL: ppid() matches ns_ppid()");
+      if (sid()  == ns_sid())  println("FAIL: sid() matches ns_sid()");
+      if (pgrp() == ns_pgrp()) println("FAIL: pgrp() matches ns_pgrp()");
+    }
   } else {
     // this test case is kind of skipped. this should be checked in the tcl file
     println("FAIL: not configured for pid namespaces");
