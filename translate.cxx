@@ -222,6 +222,14 @@ struct c_unparser: public unparser, public visitor
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
+
+  // start/close statements with multiple independent child visits
+  virtual void start_compound_statement (const char*, statement*) { }
+  virtual void close_compound_statement (const char*, statement*) { }
+
+  // wrap one child visit of a compound statement
+  virtual void wrap_compound_visit (expression *e) { if (e) e->visit (this); }
+  virtual void wrap_compound_visit (statement *s) { if (s) s->visit (this); }
 };
 
 // A shadow visitor, meant to generate temporary variable declarations
@@ -246,21 +254,16 @@ struct c_tmpcounter: public c_unparser
   const string& get_compiled_printf (bool print_to_stream,
 				     const string& format) cxx_override;
 
-  void visit_block (block *s);
-  void visit_try_block (try_block* s);
-  void visit_if_statement (if_statement* s);
-  void visit_for_loop (for_loop* s);
+  void start_compound_statement (const char*, statement*) cxx_override;
+  void close_compound_statement (const char*, statement*) cxx_override;
 
-  void wrap_visit_in_struct (expression *e);
-  void wrap_visit_in_struct (statement *s);
+  void wrap_compound_visit (expression *e) cxx_override;
+  void wrap_compound_visit (statement *s) cxx_override;
 
   void start_struct_def (std::ostream::pos_type &before,
                          std::ostream::pos_type &after, const token* tok);
   void close_struct_def (std::ostream::pos_type before,
                          std::ostream::pos_type after);
-
-  void start_union_def (const char* tag, const token* tok);
-  void close_union_def ();
 };
 
 struct c_unparser_assignment:
@@ -3489,23 +3492,14 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
 
 
 void
-c_tmpcounter::visit_block (block *s)
+c_unparser::visit_block (block *s)
 {
   // Key insight: individual statements of a block can reuse
   // temporary variable slots, since temporaries don't survive
   // statement boundaries.  So we use gcc's anonymous union/struct
   // facility to explicitly overlay the temporaries.
-  start_union_def ("block_statement", s->tok);
+  start_compound_statement ("block_statement", s);
 
-  for (unsigned i=0; i<s->statements.size(); i++)
-    wrap_visit_in_struct(s->statements[i]);
-
-  close_union_def ();
-}
-
-void
-c_unparser::visit_block (block *s)
-{
   o->newline() << "{";
   o->indent (1);
 
@@ -3513,7 +3507,7 @@ c_unparser::visit_block (block *s)
     {
       try
         {
-          s->statements[i]->visit (this);
+          wrap_compound_visit (s->statements[i]);
 	  o->newline();
         }
       catch (const semantic_error& e)
@@ -3522,22 +3516,16 @@ c_unparser::visit_block (block *s)
         }
     }
   o->newline(-1) << "}";
+
+  close_compound_statement ("block_statement", s);
 }
 
 
-void c_tmpcounter::visit_try_block (try_block *s)
-{
-  start_union_def ("try_block", s->tok);
-
-  wrap_visit_in_struct(s->try_block);
-  wrap_visit_in_struct(s->catch_error_var);
-  wrap_visit_in_struct(s->catch_block);
-
-  close_union_def ();
-}
 void c_unparser::visit_try_block (try_block *s)
 {
   record_actions(0, s->tok, true); // flush prior actions
+
+  start_compound_statement ("try_block", s);
 
   o->newline() << "{";
   o->newline(1) << "__label__ normal_fallthrough;";
@@ -3547,7 +3535,7 @@ void c_unparser::visit_try_block (try_block *s)
   assert (!session->unoptimized || s->try_block); // dead_stmtexpr_remover would zap it
   if (s->try_block)
     {
-      s->try_block->visit (this);
+      wrap_compound_visit (s->try_block);
       record_actions(0, s->try_block->tok, true); // flush accumulated actions
     }
   o->newline() << "goto normal_fallthrough;";
@@ -3576,13 +3564,15 @@ void c_unparser::visit_try_block (try_block *s)
 
   if (s->catch_block)
     {
-      s->catch_block->visit (this);
+      wrap_compound_visit (s->catch_block);
       record_actions(0, s->catch_block->tok, true); // flush accumulated actions
     }
 
   o->newline() << "normal_fallthrough:";
   o->newline() << ";"; // to have _some_ statement
   o->newline(-1) << "}";
+
+  close_compound_statement ("try_block", s);
 }
 
 
@@ -3617,7 +3607,7 @@ c_unparser::visit_expr_statement (expr_statement *s)
 
 
 void
-c_tmpcounter::wrap_visit_in_struct (statement *s)
+c_tmpcounter::wrap_compound_visit (statement *s)
 {
   if (!s) return;
 
@@ -3625,12 +3615,12 @@ c_tmpcounter::wrap_visit_in_struct (statement *s)
   std::ostream::pos_type after_struct_pos;
 
   start_struct_def(before_struct_pos, after_struct_pos, s->tok);
-  s->visit (this);
+  c_unparser::wrap_compound_visit (s);
   close_struct_def(before_struct_pos, after_struct_pos);
 }
 
 void
-c_tmpcounter::wrap_visit_in_struct (expression *e)
+c_tmpcounter::wrap_compound_visit (expression *e)
 {
   if (!e) return;
 
@@ -3638,7 +3628,7 @@ c_tmpcounter::wrap_visit_in_struct (expression *e)
   std::ostream::pos_type after_struct_pos;
 
   start_struct_def(before_struct_pos, after_struct_pos, e->tok);
-  e->visit (this);
+  c_unparser::wrap_compound_visit (e);
   close_struct_def(before_struct_pos, after_struct_pos);
 }
 
@@ -3673,80 +3663,50 @@ c_tmpcounter::close_struct_def (std::ostream::pos_type before,
 }
 
 void
-c_tmpcounter::start_union_def (const char* tag, const token* tok)
+c_tmpcounter::start_compound_statement (const char* tag, statement *s)
 {
+  const source_loc& loc = s->tok->location;
   translator_output *o = parent->o;
   o->newline() << "union { /* " << tag << ": "
-               << tok->location.file->name << ":"
-               << lex_cast(tok->location.line) << " */";
+               << loc.file->name << ":"
+               << lex_cast(loc.line) << " */";
   o->indent(1);
 }
 
 void
-c_tmpcounter::close_union_def ()
+c_tmpcounter::close_compound_statement (const char*, statement *)
 {
   translator_output *o = parent->o;
   o->newline(-1) << "};";
 }
 
-void
-c_tmpcounter::visit_if_statement (if_statement *s)
-{
-  start_union_def ("if_statement", s->tok);
-
-  wrap_visit_in_struct(s->condition);
-  wrap_visit_in_struct(s->thenblock);
-  wrap_visit_in_struct(s->elseblock);
-
-  close_union_def ();
-}
 
 void
 c_unparser::visit_if_statement (if_statement *s)
 {
   record_actions(1, s->tok, true);
+
+  start_compound_statement ("if_statement", s);
+
   o->newline() << "if (";
   o->indent (1);
-  s->condition->visit (this);
+  wrap_compound_visit (s->condition);
   o->indent (-1);
   o->line() << ") {";
   o->indent (1);
-  s->thenblock->visit (this);
+  wrap_compound_visit (s->thenblock);
   record_actions(0, s->thenblock->tok, true);
   o->newline(-1) << "}";
   if (s->elseblock)
     {
       o->newline() << "else {";
       o->indent (1);
-      s->elseblock->visit (this);
+      wrap_compound_visit (s->elseblock);
       record_actions(0, s->elseblock->tok, true);
       o->newline(-1) << "}";
     }
-}
 
-
-void
-c_tmpcounter::visit_for_loop (for_loop *s)
-{
-  string ctr = lex_cast (label_counter++);
-  string toplabel = "top_" + ctr;
-  string contlabel = "continue_" + ctr;
-  string breaklabel = "break_" + ctr;
-
-  start_union_def ("for_loop", s->tok);
-
-  wrap_visit_in_struct(s->init);
-  wrap_visit_in_struct(s->cond);
-
-  loop_break_labels.push_back (breaklabel);
-  loop_continue_labels.push_back (contlabel);
-  wrap_visit_in_struct(s->block);
-  loop_break_labels.pop_back ();
-  loop_continue_labels.pop_back ();
-
-  wrap_visit_in_struct(s->incr);
-
-  close_union_def ();
+  close_compound_statement ("if_statement", s);
 }
 
 
@@ -3758,8 +3718,10 @@ c_unparser::visit_for_loop (for_loop *s)
   string contlabel = "continue_" + ctr;
   string breaklabel = "break_" + ctr;
 
+  start_compound_statement ("for_loop", s);
+
   // initialization
-  if (s->init) s->init->visit (this);
+  wrap_compound_visit (s->init);
   record_actions(1, s->tok, true);
 
   // condition
@@ -3774,13 +3736,13 @@ c_unparser::visit_for_loop (for_loop *s)
   o->newline() << "if (! (";
   if (s->cond->type != pe_long)
     throw SEMANTIC_ERROR (_("expected numeric type"), s->cond->tok);
-  s->cond->visit (this);
+  wrap_compound_visit (s->cond);
   o->line() << ")) goto " << breaklabel << ";";
 
   // body
   loop_break_labels.push_back (breaklabel);
   loop_continue_labels.push_back (contlabel);
-  s->block->visit (this);
+  wrap_compound_visit (s->block);
   record_actions(0, s->block->tok, true);
   loop_break_labels.pop_back ();
   loop_continue_labels.pop_back ();
@@ -3788,12 +3750,14 @@ c_unparser::visit_for_loop (for_loop *s)
   // iteration
   o->newline(-1) << contlabel << ":";
   o->indent(1);
-  if (s->incr) s->incr->visit (this);
+  wrap_compound_visit (s->incr);
   o->newline() << "goto " << toplabel << ";";
 
   // exit
   o->newline(-1) << breaklabel << ":";
   o->newline(1) << "; /* dummy statement */";
+
+  close_compound_statement ("for_loop", s);
 }
 
 
