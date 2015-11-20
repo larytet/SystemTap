@@ -12,6 +12,7 @@ set file $srcdir/$subdir/pp.stp
 set output_string "(kernel\\.function\[^\r\n]*\r\n)+systemtap test success\r\n"
 stap_run $test opener $output_string $file $test
 
+# NB: we may hit one or both, open and openat, depending on other system activity
 set test "pn"
-set output_string "syscall\\.open(at)?\r\nsystemtap test success\r\n"
+set output_string "(syscall\\.open(at)?\r\n){1,2}systemtap test success\r\n"
 stap_run $test opener $output_string $file $test
