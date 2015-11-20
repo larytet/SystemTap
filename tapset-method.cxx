@@ -214,7 +214,7 @@ java_builder::build (systemtap_session & sess,
 
   // the wildcard is deliberate to catch all architectures
   string libhelper = string(PKGLIBDIR) + "/libHelperSDT_*.so";
-  string rule_name = "module_name() . " + lex_cast_qstring(base->name);
+  string rule_name = "module_name() . " + lex_cast_qstring(base->name());
   const token* tok = base->body->tok;
 
   if (jdi.java_backtrace)

@@ -64,6 +64,11 @@ struct aggvar;
 struct mapvar;
 class itervar;
 
+// A null-sink output stream, similar to /dev/null
+// (no buffer -> badbit -> quietly suppressed output)
+static ostream nullstream(NULL);
+static translator_output null_o(nullstream);
+
 struct c_unparser: public unparser, public visitor
 {
   systemtap_session* session;
@@ -78,15 +83,22 @@ struct c_unparser: public unparser, public visitor
 
   varuse_collecting_visitor vcv_needs_global_locks;
 
-  map<string, string> probe_contents;
+  map<string, probe*> probe_contents;
 
   map<pair<bool, string>, string> compiled_printfs;
 
-  c_unparser (systemtap_session* ss):
-    session (ss), o (ss->op), current_probe(0), current_function (0),
+  c_unparser (systemtap_session* ss, translator_output* op=NULL):
+    session (ss), o (op ?: ss->op), current_probe(0), current_function (0),
     tmpvar_counter (0), label_counter (0), action_counter(0),
     already_checked_action_count(false), vcv_needs_global_locks (*ss) {}
   ~c_unparser () {}
+
+  // The main c_unparser doesn't write declarations as it traverses,
+  // but the c_tmpcounter subclass will.
+  virtual void var_declare(string const&, var const&) {}
+
+  // If we've seen a dupe, return it; else remember this and return NULL.
+  probe *get_probe_dupe (derived_probe *dp);
 
   void emit_map_type_instantiations ();
   void emit_common_header ();
@@ -111,15 +123,15 @@ struct c_unparser: public unparser, public visitor
   void emit_compiled_printfs ();
   void emit_compiled_printf_locals ();
   void declare_compiled_printf (bool print_to_stream, const string& format);
-  const string& get_compiled_printf (bool print_to_stream, const string& format);
+  virtual const string& get_compiled_printf (bool print_to_stream,
+					     const string& format);
 
   // for use by stats (pmap) foreach
   set<string> aggregations_active;
 
   // values immediately available in foreach_loop iterations
   map<string, string> foreach_loop_values;
-  void visit_foreach_loop_value (visitor* vis, foreach_loop* s,
-                                 const string& value="");
+  void visit_foreach_loop_value (foreach_loop* s, const string& value="");
   bool get_foreach_loop_value (arrayindex* ai, string& value);
 
   // for use by looping constructs
@@ -210,52 +222,44 @@ struct c_unparser: public unparser, public visitor
   void visit_defined_op (defined_op* e);
   void visit_entry_op (entry_op* e);
   void visit_perf_op (perf_op* e);
+
+  // start/close statements with multiple independent child visits
+  virtual void start_compound_statement (const char*, statement*) { }
+  virtual void close_compound_statement (const char*, statement*) { }
+
+  // wrap one child visit of a compound statement
+  virtual void wrap_compound_visit (expression *e) { if (e) e->visit (this); }
+  virtual void wrap_compound_visit (statement *s) { if (s) s->visit (this); }
 };
 
 // A shadow visitor, meant to generate temporary variable declarations
-// for function or probe bodies.  Member functions should exactly match
-// the corresponding c_unparser logic and traversal sequence,
-// to ensure interlocking naming and declaration of temp variables.
-struct c_tmpcounter:
-  public traversing_visitor
+// for function or probe bodies.  The output is discarded, but we now do
+// real work in var_declare().
+struct c_tmpcounter cxx_final: public c_unparser
 {
   c_unparser* parent;
+  set<string> declared_vars;
+
   c_tmpcounter (c_unparser* p):
-    parent (p)
-  {
-    parent->tmpvar_counter = 0;
-  }
+    c_unparser(p->session, &null_o), parent (p)
+  { }
 
-  void load_map_indices(arrayindex* e);
-  void load_aggregate (expression *e);
+  // When vars are created *and used* (i.e. not overridden tmpvars) they call
+  // var_declare(), which will forward to the parent c_unparser for output;
+  void var_declare(string const&, var const& v) cxx_override;
 
-  void visit_block (block *s);
-  void visit_try_block (try_block* s);
-  void visit_if_statement (if_statement* s);
-  void visit_for_loop (for_loop* s);
-  void visit_foreach_loop (foreach_loop* s);
-  // void visit_return_statement (return_statement* s);
-  void visit_delete_statement (delete_statement* s);
-  // void visit_embedded_expr (embedded_expr* e);
-  void visit_binary_expression (binary_expression* e);
-  // void visit_unary_expression (unary_expression* e);
-  void visit_pre_crement (pre_crement* e);
-  void visit_post_crement (post_crement* e);
-  // void visit_logical_or_expr (logical_or_expr* e);
-  // void visit_logical_and_expr (logical_and_expr* e);
-  void visit_array_in (array_in* e);
-  void visit_regex_query (regex_query* e);
-  void visit_comparison (comparison* e);
-  void visit_concatenation (concatenation* e);
-  // void visit_ternary_expression (ternary_expression* e);
-  void visit_assignment (assignment* e);
-  void visit_arrayindex (arrayindex* e);
-  void visit_functioncall (functioncall* e);
-  void visit_print_format (print_format* e);
-  void visit_stat_op (stat_op* e);
+  void emit_function (functiondecl* fd);
+  void emit_probe (derived_probe* dp);
 
-  void wrap_visit_in_struct (expression *e);
-  void wrap_visit_in_struct (statement *s);
+  const string& get_compiled_printf (bool print_to_stream,
+				     const string& format) cxx_override;
+
+  void start_compound_statement (const char*, statement*) cxx_override;
+  void close_compound_statement (const char*, statement*) cxx_override;
+
+  void wrap_compound_visit (expression *e) cxx_override;
+  void wrap_compound_visit (statement *s) cxx_override;
+
   void start_struct_def (std::ostream::pos_type &before,
                          std::ostream::pos_type &after, const token* tok);
   void close_struct_def (std::ostream::pos_type before,
@@ -284,27 +288,6 @@ struct c_unparser_assignment:
 		  var const & lvar,
 		  tmpvar const & tmp,
 		  token const*  tok);
-
-  // only symbols and arrayindex nodes are possible lvalues
-  void visit_symbol (symbol* e);
-  void visit_arrayindex (arrayindex* e);
-};
-
-
-struct c_tmpcounter_assignment:
-  public traversing_visitor
-// leave throwing for illegal lvalues to the c_unparser_assignment instance
-{
-  c_tmpcounter* parent;
-  interned_string op;
-  expression* rvalue;
-  bool post; // true == value saved before modify operator
-  c_tmpcounter_assignment (c_tmpcounter* p, interned_string o, expression* e, bool pp = false):
-    parent (p), op (o), rvalue (e), post (pp) {}
-
-  void prepare_rvalue (tmpvar & rval);
-
-  void c_assignop(tmpvar & res);
 
   // only symbols and arrayindex nodes are possible lvalues
   void visit_symbol (symbol* e);
@@ -360,20 +343,31 @@ protected:
   string name;
   bool do_mangle;
 
+private:
+  mutable bool declaration_needed;
+
 public:
 
   var(c_unparser *u, bool local, exp_type ty,
       statistic_decl const & sd, string const & name)
-    : u(u), local(local), ty(ty), sd(sd), name(name), do_mangle(true)
+    : u(u), local(local), ty(ty), sd(sd), name(name),
+      do_mangle(true), declaration_needed(false)
   {}
 
   var(c_unparser *u, bool local, exp_type ty, string const & name)
-    : u(u), local(local), ty(ty), name(name), do_mangle(true)
+    : u(u), local(local), ty(ty), name(name),
+      do_mangle(true), declaration_needed(false)
   {}
 
   var(c_unparser *u, bool local, exp_type ty,
       string const & name, bool do_mangle)
-    : u(u), local(local), ty(ty), name(name), do_mangle(do_mangle)
+    : u(u), local(local), ty(ty), name(name),
+      do_mangle(do_mangle), declaration_needed(false)
+  {}
+
+  var(c_unparser *u, bool local, exp_type ty, unsigned & counter)
+    : u(u), local(local), ty(ty), name("__tmp" + lex_cast(counter++)),
+      do_mangle(false), declaration_needed(true)
   {}
 
   virtual ~var() {}
@@ -427,6 +421,12 @@ public:
 
   string value() const
   {
+    if (declaration_needed)
+      {
+	u->var_declare (name, *this);
+	declaration_needed = false;
+      }
+
     if (local)
       return "l->" + c_name();
     else
@@ -516,7 +516,7 @@ public:
       }
   }
 
-  void declare(c_unparser &c) const
+  virtual void declare(c_unparser &c) const
   {
     c.c_declare(ty, c_name());
   }
@@ -525,6 +525,13 @@ public:
 ostream & operator<<(ostream & o, var const & v)
 {
   return o << v.value();
+}
+
+void
+c_tmpcounter::var_declare (string const& name, var const& v)
+{
+  if (declared_vars.insert(name).second)
+    v.declare (*parent);
 }
 
 struct stmt_expr
@@ -551,7 +558,7 @@ protected:
 
 public:
   tmpvar(c_unparser *u, exp_type ty, unsigned & counter)
-    : var(u, true, ty, ("__tmp" + lex_cast(counter++)), false),
+    : var(u, true, ty, counter),
       overridden(false)
   {}
 
@@ -583,7 +590,7 @@ struct aggvar
   : public var
 {
   aggvar(c_unparser *u, unsigned & counter)
-    : var(u, true, pe_stats, ("__tmp" + lex_cast(counter++)), false)
+    : var(u, true, pe_stats, counter)
   {}
 
   string init() const
@@ -592,7 +599,7 @@ struct aggvar
     return value() + " = NULL;";
   }
 
-  void declare(c_unparser &c) const
+  void declare(c_unparser &c) const cxx_override
   {
     assert (type() == pe_stats);
     c.o->newline() << "struct stat_data *" << name << ";";
@@ -835,30 +842,27 @@ struct mapvar
 
 
 class itervar
+  : public var
 {
-  exp_type referent_ty;
-  string name;
-
 public:
 
-  itervar (symbol* e, unsigned & counter)
-    : referent_ty(e->referent->type),
-      name("__tmp" + lex_cast(counter++))
+  itervar (c_unparser *u, symbol* e, unsigned & counter)
+    : var(u, true, e->referent->type, counter)
   {
-    if (referent_ty == pe_unknown)
+    if (type() == pe_unknown)
       throw SEMANTIC_ERROR(_("iterating over unknown reference type"), e->tok);
   }
 
-  string declare () const
+  void declare(c_unparser &c) const cxx_override
   {
-    return "struct map_node *" + name + ";";
+    c.o->newline() << "struct map_node *" << name << ";";
   }
 
   string start (mapvar const & mv) const
   {
     string res;
 
-    if (mv.type() != referent_ty)
+    if (mv.type() != type())
       throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::start()"));
 
     if (mv.is_parallel())
@@ -869,7 +873,7 @@ public:
 
   string next (mapvar const & mv) const
   {
-    if (mv.type() != referent_ty)
+    if (mv.type() != type())
       throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
 
     if (mv.is_parallel())
@@ -881,18 +885,13 @@ public:
   // Cannot handle deleting and iterating on pmaps
   string del_next (mapvar const & mv) const
   {
-    if (mv.type() != referent_ty)
+    if (mv.type() != type())
       throw SEMANTIC_ERROR(_("inconsistent iterator type in itervar::next()"));
 
     if (mv.is_parallel())
       throw SEMANTIC_ERROR(_("deleting a value of an unsupported map type"));
     else
       return "_stp_map_iterdel (" + mv.value() + ", " + value() + ")";
-  }
-
-  string value () const
-  {
-    return "l->" + name;
   }
 
   string get_key (mapvar const& mv, exp_type ty, unsigned i) const
@@ -915,7 +914,7 @@ public:
 
   string get_value (mapvar const& mv, exp_type ty) const
   {
-    if (ty != referent_ty)
+    if (ty != type())
       throw SEMANTIC_ERROR(_("inconsistent iterator value in itervar::get_value()"));
 
     switch (ty)
@@ -975,9 +974,50 @@ is_unmodified_string_fnarg (systemtap_session* sess, functiondecl* fd, vardecl* 
   return (find(vut.written.begin(), vut.written.end(), v) == vut.written.end());
 }
 
+// If we've seen a dupe, return it; else remember this and return NULL.
+probe *
+c_unparser::get_probe_dupe (derived_probe *dp)
+{
+  if (session->unoptimized)
+    return NULL;
+
+  // Notice we're using the probe body itself instead of the emitted C
+  // probe body to compare probes.  We need to do this because the
+  // emitted C probe body has stuff in it like:
+  //   c->last_stmt = "identifier 'printf' at foo.stp:<line>:<column>";
+  //
+  // which would make comparisons impossible.
+
+  ostringstream oss;
+
+  dp->print_dupe_stamp (oss);
+  dp->body->print(oss);
+
+  // Since the generated C changes based on whether or not the probe
+  // needs locks around global variables, this needs to be reflected
+  // here.  We don't want to treat as duplicate the handlers of
+  // begin/end and normal probes that differ only in need_global_locks.
+  oss << "# needs_global_locks: " << dp->needs_global_locks () << endl;
+
+  // NB: dependent probe conditions *could* be listed here, but don't need to
+  // be.  That's because they're only dependent on the probe body, which is
+  // already "hashed" in above.
+
+  pair<map<string, probe*>::iterator, bool> const& inserted =
+    probe_contents.insert(make_pair(oss.str(), dp));
+
+  if (inserted.second)
+    return NULL; // it's new!
+
+  // Already seen it; here's the old one:
+  return inserted.first->second;
+}
+
 void
 c_unparser::emit_common_header ()
 {
+  c_tmpcounter ct (this);
+
   o->newline();
 
   // Per CPU context for probes. Includes common shared state held for
@@ -992,147 +1032,19 @@ c_unparser::emit_common_header ()
   o->newline() << "union {";
   o->indent(1);
 
-  // To elide context variables for probe handler functions that
-  // themselves are about to get duplicate-eliminated, we XXX
-  // duplicate the parse-tree-hash method from ::emit_probe().
-  map<string, string> tmp_probe_contents;
-  // The reason we don't use c_unparser::probe_contents itself
-  // for this is that we don't want to muck up the data for
-  // that later routine.
-
   for (unsigned i=0; i<session->probes.size(); i++)
-    {
-      derived_probe* dp = session->probes[i];
+    ct.emit_probe (session->probes[i]);
 
-      // NB: see c_unparser::emit_probe() for original copy of duplicate-hashing logic.
-      ostringstream oss;
-      oss << "# needs_global_locks: " << dp->needs_global_locks () << endl;
-      dp->print_dupe_stamp (oss);
-      dp->body->print(oss);
-      // NB: dependent probe conditions *could* be listed here, but don't need to be.
-      // That's because they're only dependent on the probe body, which is already
-      // "hashed" in above.
-
-      if (session->unoptimized || tmp_probe_contents.count(oss.str()) == 0) // unique
-        {
-          tmp_probe_contents[oss.str()] = dp->name; // save it
-
-          o->newline() << "struct " << dp->name << "_locals {";
-          o->indent(1);
-          for (unsigned j=0; j<dp->locals.size(); j++)
-            {
-              vardecl* v = dp->locals[j];
-              try
-                {
-                  o->newline() << c_typename (v->type) << " "
-                               << c_localname (v->name) << ";";
-                } catch (const semantic_error& e) {
-                semantic_error e2 (e);
-                if (e2.tok1 == 0) e2.tok1 = v->tok;
-                throw e2;
-              }
-            }
-
-          // NB: This part is finicky.  The logic here must
-          // match up with
-          c_tmpcounter ct (this);
-          dp->body->visit (& ct);
-
-          // finish by visiting conditions of affected probes to match
-          // c_unparser::emit_probe()
-          if (!dp->probes_with_affected_conditions.empty())
-            {
-              for (set<derived_probe*>::const_iterator
-                    it  = dp->probes_with_affected_conditions.begin();
-                    it != dp->probes_with_affected_conditions.end(); ++it)
-                (*it)->sole_location()->condition->visit(& ct);
-            }
-
-          o->newline(-1) << "} " << dp->name << ";";
-        }
-    }
   o->newline(-1) << "} probe_locals;";
 
   // PR10516: function locals
   o->newline() << "union {";
   o->indent(1);
 
-  for (map<string,functiondecl*>::iterator it = session->functions.begin(); it != session->functions.end(); it++)
-    {
-      functiondecl* fd = it->second;
-      o->newline()
-        << "struct " << c_funcname (fd->name) << "_locals {";
-      o->indent(1);
-      for (unsigned j=0; j<fd->locals.size(); j++)
-        {
-	  vardecl* v = fd->locals[j];
-	  try
-	    {
-              if (fd->mangle_oldstyle)
-                {
-                  // PR14524: retain old way of referring to the locals
-                  o->newline() << "union { "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name) << "; "
-                               << c_typename (v->type) << " "
-                               << c_localname (v->name, true) << "; };";
-                }
-              else
-                {
-                  o->newline() << c_typename (v->type) << " "
-                               << c_localname (v->name) << ";";
-                }
-	    } catch (const semantic_error& e) {
-	      semantic_error e2 (e);
-	      if (e2.tok1 == 0) e2.tok1 = v->tok;
-	      throw e2;
-	    }
-        }
-      for (unsigned j=0; j<fd->formal_args.size(); j++)
-        {
-          vardecl* v = fd->formal_args[j];
-	  try
-	    {
-              v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
+  for (map<string,functiondecl*>::iterator it = session->functions.begin();
+       it != session->functions.end(); it++)
+    ct.emit_function (it->second);
 
-              if (v->char_ptr_arg && session->verbose > 2)
-                clog << _F("variable %s for function %s will be passed by reference (char *)",
-                           v->name.to_string().c_str(), fd->name.to_string().c_str()) << endl;
-
-              if (fd->mangle_oldstyle)
-                {
-                  // PR14524: retain old way of referring to the locals
-                  o->newline() << "union { "
-                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
-                               << " " << c_localname (v->name) << "; "
-                               << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
-                               << " " << c_localname (v->name, true) << "; };";
-                }
-              else
-                {
-                  o->newline() << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
-                               << " " << c_localname (v->name) << ";";
-                }
-	    } catch (const semantic_error& e) {
-	      semantic_error e2 (e);
-	      if (e2.tok1 == 0) e2.tok1 = v->tok;
-	      throw e2;
-	    }
-        }
-      c_tmpcounter ct (this);
-      fd->body->visit (& ct);
-      if (fd->type == pe_unknown)
-	o->newline() << "/* no return value */";
-      else
-	{
-          if (!session->unoptimized && fd->type == pe_string&& session->verbose > 2)
-            clog << _F("return value for function %s will be passed by reference (char *)",
-                       fd->name.to_string().c_str()) << endl;
-	  o->newline() << (!session->unoptimized && fd->type == pe_string ? "char *" : c_typename (fd->type))
-                       << " __retvalue;";
-	}
-      o->newline(-1) << "} " << c_funcname (fd->name) << ";";
-    }
   o->newline(-1) << "} locals [MAXNESTING+1];"; 
 
   // NB: The +1 above for extra room for outgoing arguments of next nested function.
@@ -1223,6 +1135,13 @@ c_unparser::get_compiled_printf (bool print_to_stream, const string& format)
   if (it == compiled_printfs.end())
     throw SEMANTIC_ERROR (_("internal error translating printf"));
   return it->second;
+}
+
+const string&
+c_tmpcounter::get_compiled_printf (bool print_to_stream, const string& format)
+{
+  parent->declare_compiled_printf (print_to_stream, format);
+  return parent->get_compiled_printf (print_to_stream, format);
 }
 
 void
@@ -2401,16 +2320,117 @@ struct max_action_info: public functioncall_traversing_visitor
 };
 
 void
+c_tmpcounter::emit_function (functiondecl* fd)
+{
+  this->current_probe = 0;
+  this->current_function = fd;
+  this->tmpvar_counter = 0;
+  this->action_counter = 0;
+  this->already_checked_action_count = false;
+  declared_vars.clear();
+
+  translator_output *o = parent->o;
+
+  // indent the dummy output as if we were already in a block
+  this->o->indent (1);
+
+  o->newline() << "struct " << c_funcname (fd->name) << "_locals {";
+  o->indent(1);
+
+  for (unsigned j=0; j<fd->locals.size(); j++)
+    {
+      vardecl* v = fd->locals[j];
+      try
+	{
+	  if (fd->mangle_oldstyle)
+	    {
+	      // PR14524: retain old way of referring to the locals
+	      o->newline() << "union { "
+			   << c_typename (v->type) << " "
+			   << c_localname (v->name) << "; "
+			   << c_typename (v->type) << " "
+			   << c_localname (v->name, true) << "; };";
+	    }
+	  else
+	    {
+	      o->newline() << c_typename (v->type) << " "
+			   << c_localname (v->name) << ";";
+	    }
+	} catch (const semantic_error& e) {
+	  semantic_error e2 (e);
+	  if (e2.tok1 == 0) e2.tok1 = v->tok;
+	  throw e2;
+	}
+    }
+
+  for (unsigned j=0; j<fd->formal_args.size(); j++)
+    {
+      vardecl* v = fd->formal_args[j];
+      try
+	{
+	  v->char_ptr_arg = (is_unmodified_string_fnarg (session, fd, v));
+
+	  if (v->char_ptr_arg && session->verbose > 2)
+	    clog << _F("variable %s for function %s will be passed by reference (char *)",
+		       v->name.to_string().c_str(), fd->name.to_string().c_str()) << endl;
+
+	  if (fd->mangle_oldstyle)
+	    {
+	      // PR14524: retain old way of referring to the locals
+	      o->newline() << "union { "
+			   << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+			   << " " << c_localname (v->name) << "; "
+			   << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+			   << " " << c_localname (v->name, true) << "; };";
+	    }
+	  else
+	    {
+	      o->newline() << (v->char_ptr_arg ? "const char *" : c_typename (v->type))
+			   << " " << c_localname (v->name) << ";";
+	    }
+	} catch (const semantic_error& e) {
+	  semantic_error e2 (e);
+	  if (e2.tok1 == 0) e2.tok1 = v->tok;
+	  throw e2;
+	}
+    }
+
+  fd->body->visit (this);
+
+  if (fd->type == pe_unknown)
+    o->newline() << "/* no return value */";
+  else
+    {
+      bool as_charp = !session->unoptimized && fd->type == pe_string;
+      if (as_charp && session->verbose > 2)
+	clog << _F("return value for function %s will be passed by reference (char *)",
+		   fd->name.to_string().c_str()) << endl;
+      o->newline() << (as_charp ? "char *" : c_typename (fd->type))
+		   << " __retvalue;";
+    }
+  o->newline(-1) << "} " << c_funcname (fd->name) << ";";
+
+  // finish dummy indentation
+  this->o->indent (-1);
+  this->o->assert_0_indent ();
+
+  declared_vars.clear();
+  this->current_function = 0;
+  this->already_checked_action_count = false;
+}
+
+void
 c_unparser::emit_function (functiondecl* v)
 {
-  o->newline() << "static void " << c_funcname (v->name)
-            << " (struct context* __restrict__ c) {";
-  o->indent(1);
   this->current_probe = 0;
   this->current_function = v;
   this->tmpvar_counter = 0;
   this->action_counter = 0;
   this->already_checked_action_count = false;
+
+  o->newline() << "static void " << c_funcname (v->name)
+            << " (struct context* __restrict__ c) {";
+  o->indent(1);
 
   o->newline() << "__label__ out;";
   o->newline()
@@ -2527,12 +2547,71 @@ c_unparser::emit_function (functiondecl* v)
   o->newline() << "#undef STAP_RETVALUE";
   o->newline(-1) << "}\n";
 
+  this->current_function = 0;
+  this->already_checked_action_count = false;
+}
+
+void
+c_tmpcounter::emit_probe (derived_probe* dp)
+{
+  this->current_function = 0;
+  this->current_probe = dp;
+  this->tmpvar_counter = 0;
+  this->action_counter = 0;
+  this->already_checked_action_count = false;
+  declared_vars.clear();
+
+  if (get_probe_dupe (dp) == NULL)
+    {
+      translator_output *o = parent->o;
+
+      // indent the dummy output as if we were already in a block
+      this->o->indent (1);
+
+      o->newline() << "struct " << dp->name() << "_locals {";
+      o->indent(1);
+      for (unsigned j=0; j<dp->locals.size(); j++)
+	{
+	  vardecl* v = dp->locals[j];
+	  try
+	    {
+	      o->newline() << c_typename (v->type) << " "
+			   << c_localname (v->name) << ";";
+	    } catch (const semantic_error& e) {
+	    semantic_error e2 (e);
+	    if (e2.tok1 == 0) e2.tok1 = v->tok;
+	    throw e2;
+	  }
+	}
+
+      dp->body->visit (this);
+
+      // finish by visiting conditions of affected probes to match
+      // c_unparser::emit_probe()
+      if (!dp->probes_with_affected_conditions.empty())
+	{
+	  for (set<derived_probe*>::const_iterator
+		it  = dp->probes_with_affected_conditions.begin();
+		it != dp->probes_with_affected_conditions.end(); ++it)
+	    (*it)->sole_location()->condition->visit(this);
+	}
+
+      o->newline(-1) << "} " << dp->name() << ";";
+
+      // finish dummy indentation
+      this->o->indent (-1);
+      this->o->assert_0_indent ();
+    }
+
+  declared_vars.clear();
+  this->current_probe = 0;
   this->already_checked_action_count = false;
 }
 
 #define DUPMETHOD_CALL 0
 #define DUPMETHOD_ALIAS 0
 #define DUPMETHOD_RENAME 1
+
 
 void
 c_unparser::emit_probe (derived_probe* v)
@@ -2546,60 +2625,33 @@ c_unparser::emit_probe (derived_probe* v)
   // If we about to emit a probe that is exactly the same as another
   // probe previously emitted, make the second probe just call the
   // first one.
-  //
-  // Notice we're using the probe body itself instead of the emitted C
-  // probe body to compare probes.  We need to do this because the
-  // emitted C probe body has stuff in it like:
-  //   c->last_stmt = "identifier 'printf' at foo.stp:<line>:<column>";
-  //
-  // which would make comparisons impossible.
-  //
-  // --------------------------------------------------------------------------
-  // NB: see also c_unparser:emit_common_header(), which deliberately but sadly
-  // duplicates this calculation.
-  // --------------------------------------------------------------------------
-  //
-  ostringstream oss;
-
-  v->print_dupe_stamp (oss);
-  v->body->print(oss);
-
-  // Since the generated C changes based on whether or not the probe
-  // needs locks around global variables, this needs to be reflected
-  // here.  We don't want to treat as duplicate the handlers of
-  // begin/end and normal probes that differ only in need_global_locks.
-  oss << "# needs_global_locks: " << v->needs_global_locks () << endl;
-
-  // If an identical probe has already been emitted, just call that
-  // one.
-  if (!session->unoptimized && probe_contents.count(oss.str()) != 0)
+  probe *dupe = get_probe_dupe (v);
+  if (dupe != NULL)
     {
-      string dupe = probe_contents[oss.str()];
-
       // NB: Elision of context variable structs is a separate
       // operation which has already taken place by now.
       if (session->verbose > 1)
         clog << _F("%s elided, duplicates %s\n",
-		   v->name.to_string().c_str(), dupe.c_str());
+		   v->name().c_str(), dupe->name().c_str());
 
 #if DUPMETHOD_CALL
       // This one emits a direct call to the first copy.
       o->newline();
-      o->newline() << "static void " << v->name << " (struct context * __restrict__ c) ";
-      o->newline() << "{ " << dupe << " (c); }";
+      o->newline() << "static void " << v->name() << " (struct context * __restrict__ c) ";
+      o->newline() << "{ " << dupe->name() << " (c); }";
 #elif DUPMETHOD_ALIAS
       // This one defines a function alias, arranging gcc to emit
       // several equivalent symbols for the same function body.
       // For some reason, on gcc 4.1, this is twice as slow as
       // the CALL option.
       o->newline();
-      o->newline() << "static void " << v->name << " (struct context * __restrict__ c) ";
-      o->line() << "__attribute__ ((alias (\"" << dupe << "\")));";
+      o->newline() << "static void " << v->name() << " (struct context * __restrict__ c) ";
+      o->line() << "__attribute__ ((alias (\"" << dupe->name() << "\")));";
 #elif DUPMETHOD_RENAME
       // This one is sneaky.  It emits nothing for duplicate probe
       // handlers.  It instead redirects subsequent references to the
       // probe handler function to the first copy, *by name*.
-      v->name = dupe;
+      v->id = dupe->id;
 #else
 #error "Unknown duplicate elimination method"
 #endif
@@ -2607,11 +2659,9 @@ c_unparser::emit_probe (derived_probe* v)
   else // This probe is unique.  Remember it and output it.
     {
       o->newline();
-      o->newline() << "static void " << v->name << " (struct context * __restrict__ c) ";
+      o->newline() << "static void " << v->name() << " (struct context * __restrict__ c) ";
       o->line () << "{";
       o->indent (1);
-
-      probe_contents[oss.str()] = v->name;
 
       o->newline() << "__label__ out;";
 
@@ -2640,8 +2690,8 @@ c_unparser::emit_probe (derived_probe* v)
         }
 
       // initialize frame pointer
-      o->newline() << "struct " << v->name << "_locals * __restrict__ l = "
-                   << "& c->probe_locals." << v->name << ";";
+      o->newline() << "struct " << v->name() << "_locals * __restrict__ l = "
+                   << "& c->probe_locals." << v->name() << ";";
       o->newline() << "(void) l;"; // make sure "l" is marked used
 
       // Emit runtime safety net for unprivileged mode.
@@ -2682,7 +2732,7 @@ c_unparser::emit_probe (derived_probe* v)
       v->body->visit (&mai);
       if (session->verbose > 1)
         clog << _F("%d statements for probe %s", mai.statement_count,
-		   v->name.to_string().c_str()) << endl;
+		   v->name().c_str()) << endl;
 
       if (mai.statement_count_finite() && !session->suppress_time_limits
           && !session->unoptimized) // this is a finite-statement-count probe
@@ -2719,7 +2769,6 @@ c_unparser::emit_probe (derived_probe* v)
       o->newline() << "_stp_print_flush();";
       o->newline(-1) << "}\n";
     }
-
 
   this->current_probe = 0;
   this->already_checked_action_count = false;
@@ -3408,7 +3457,7 @@ c_unparser::getmap(vardecl *v, token const *tok)
 itervar
 c_unparser::getiter(symbol *s)
 {
-  return itervar (s, tmpvar_counter);
+  return itervar (this, s, tmpvar_counter);
 }
 
 
@@ -3446,6 +3495,12 @@ c_unparser::record_actions (unsigned actions, const token* tok, bool update)
 void
 c_unparser::visit_block (block *s)
 {
+  // Key insight: individual statements of a block can reuse
+  // temporary variable slots, since temporaries don't survive
+  // statement boundaries.  So we use gcc's anonymous union/struct
+  // facility to explicitly overlay the temporaries.
+  start_compound_statement ("block_statement", s);
+
   o->newline() << "{";
   o->indent (1);
 
@@ -3453,7 +3508,7 @@ c_unparser::visit_block (block *s)
     {
       try
         {
-          s->statements[i]->visit (this);
+          wrap_compound_visit (s->statements[i]);
 	  o->newline();
         }
       catch (const semantic_error& e)
@@ -3462,28 +3517,16 @@ c_unparser::visit_block (block *s)
         }
     }
   o->newline(-1) << "}";
+
+  close_compound_statement ("block_statement", s);
 }
 
 
-void c_tmpcounter::visit_try_block (try_block *s)
-{
-  parent->o->newline() << "union { /* try_block: "
-                       << s->tok->location.file->name << ":"
-                       << lex_cast(s->tok->location.line) << " */";
-  parent->o->indent(1);
-
-  if (s->try_block)
-    wrap_visit_in_struct(s->try_block);
-  if (s->catch_error_var)
-    wrap_visit_in_struct(s->catch_error_var);
-  if (s->catch_block)
-    wrap_visit_in_struct(s->catch_block);
-
-  parent->o->newline(-1) << "};";
-}
 void c_unparser::visit_try_block (try_block *s)
 {
   record_actions(0, s->tok, true); // flush prior actions
+
+  start_compound_statement ("try_block", s);
 
   o->newline() << "{";
   o->newline(1) << "__label__ normal_fallthrough;";
@@ -3493,7 +3536,7 @@ void c_unparser::visit_try_block (try_block *s)
   assert (!session->unoptimized || s->try_block); // dead_stmtexpr_remover would zap it
   if (s->try_block)
     {
-      s->try_block->visit (this);
+      wrap_compound_visit (s->try_block);
       record_actions(0, s->try_block->tok, true); // flush accumulated actions
     }
   o->newline() << "goto normal_fallthrough;";
@@ -3522,13 +3565,15 @@ void c_unparser::visit_try_block (try_block *s)
 
   if (s->catch_block)
     {
-      s->catch_block->visit (this);
+      wrap_compound_visit (s->catch_block);
       record_actions(0, s->catch_block->tok, true); // flush accumulated actions
     }
 
   o->newline() << "normal_fallthrough:";
   o->newline() << ";"; // to have _some_ statement
   o->newline(-1) << "}";
+
+  close_compound_statement ("try_block", s);
 }
 
 
@@ -3563,24 +3608,28 @@ c_unparser::visit_expr_statement (expr_statement *s)
 
 
 void
-c_tmpcounter::wrap_visit_in_struct (statement *s)
+c_tmpcounter::wrap_compound_visit (statement *s)
 {
+  if (!s) return;
+
   std::ostream::pos_type before_struct_pos;
   std::ostream::pos_type after_struct_pos;
 
   start_struct_def(before_struct_pos, after_struct_pos, s->tok);
-  s->visit (this);
+  c_unparser::wrap_compound_visit (s);
   close_struct_def(before_struct_pos, after_struct_pos);
 }
 
 void
-c_tmpcounter::wrap_visit_in_struct (expression *e)
+c_tmpcounter::wrap_compound_visit (expression *e)
 {
+  if (!e) return;
+
   std::ostream::pos_type before_struct_pos;
   std::ostream::pos_type after_struct_pos;
 
   start_struct_def(before_struct_pos, after_struct_pos, e->tok);
-  e->visit (this);
+  c_unparser::wrap_compound_visit (e);
   close_struct_def(before_struct_pos, after_struct_pos);
 }
 
@@ -3593,11 +3642,12 @@ c_tmpcounter::start_struct_def (std::ostream::pos_type &before,
   // done with the statement we haven't moved, then we don't really need
   // the struct.  To get rid of the struct start we output, we'll seek back
   // to where we were before we output the struct (done in ::close_struct_def).
-  before = parent->o->tellp();
-  parent->o->newline() << "struct { /* source: " << tok->location.file->name
-                         << ":" << lex_cast(tok->location.line) << " */";
-  parent->o->indent(1);
-  after = parent->o->tellp();
+  translator_output *o = parent->o;
+  before = o->tellp();
+  o->newline() << "struct { /* source: " << tok->location.file->name
+               << ":" << lex_cast(tok->location.line) << " */";
+  o->indent(1);
+  after = o->tellp();
 }
 
 void
@@ -3605,84 +3655,59 @@ c_tmpcounter::close_struct_def (std::ostream::pos_type before,
                                 std::ostream::pos_type after)
 {
   // meant to be used with ::start_struct_def. remove the struct if empty.
-  parent->o->indent(-1);
-  if (after == parent->o->tellp())
-    parent->o->seekp(before);
+  translator_output *o = parent->o;
+  o->indent(-1);
+  if (after == o->tellp())
+    o->seekp(before);
   else
-    parent->o->newline() << "};";
+    o->newline() << "};";
 }
 
 void
-c_tmpcounter::visit_if_statement (if_statement *s)
+c_tmpcounter::start_compound_statement (const char* tag, statement *s)
 {
-  parent->o->newline() << "union { /* if_statement: "
-                       << s->tok->location.file->name << ":"
-                       << lex_cast(s->tok->location.line) << " */";
-  parent->o->indent(1);
-
-  wrap_visit_in_struct(s->condition);
-  wrap_visit_in_struct(s->thenblock);
-
-  if (s->elseblock)
-    wrap_visit_in_struct(s->elseblock);
-
-  parent->o->newline(-1) << "};";
+  const source_loc& loc = s->tok->location;
+  translator_output *o = parent->o;
+  o->newline() << "union { /* " << tag << ": "
+               << loc.file->name << ":"
+               << lex_cast(loc.line) << " */";
+  o->indent(1);
 }
+
+void
+c_tmpcounter::close_compound_statement (const char*, statement *)
+{
+  translator_output *o = parent->o;
+  o->newline(-1) << "};";
+}
+
 
 void
 c_unparser::visit_if_statement (if_statement *s)
 {
   record_actions(1, s->tok, true);
+
+  start_compound_statement ("if_statement", s);
+
   o->newline() << "if (";
   o->indent (1);
-  s->condition->visit (this);
+  wrap_compound_visit (s->condition);
   o->indent (-1);
   o->line() << ") {";
   o->indent (1);
-  s->thenblock->visit (this);
+  wrap_compound_visit (s->thenblock);
   record_actions(0, s->thenblock->tok, true);
   o->newline(-1) << "}";
   if (s->elseblock)
     {
       o->newline() << "else {";
       o->indent (1);
-      s->elseblock->visit (this);
+      wrap_compound_visit (s->elseblock);
       record_actions(0, s->elseblock->tok, true);
       o->newline(-1) << "}";
     }
-}
 
-
-void
-c_tmpcounter::visit_block (block *s)
-{
-  // Key insight: individual statements of a block can reuse
-  // temporary variable slots, since temporaries don't survive
-  // statement boundaries.  So we use gcc's anonymous union/struct
-  // facility to explicitly overlay the temporaries.
-  parent->o->newline() << "union { /* block_statement: "
-                       << s->tok->location.file->name << ":"
-                       << lex_cast(s->tok->location.line) << " */";
-  parent->o->indent(1);
-  for (unsigned i=0; i<s->statements.size(); i++)
-    wrap_visit_in_struct(s->statements[i]);
-  parent->o->newline(-1) << "};";
-}
-
-void
-c_tmpcounter::visit_for_loop (for_loop *s)
-{
-  parent->o->newline() << "union { /* for_loop: "
-                       << s->tok->location.file->name << ":"
-                       << lex_cast(s->tok->location.line) << " */";
-  parent->o->indent(1);
-
-  if (s->init) wrap_visit_in_struct(s->init);
-  wrap_visit_in_struct(s->cond);
-  wrap_visit_in_struct(s->block);
-  if (s->incr) wrap_visit_in_struct(s->incr);
-
-  parent->o->newline(-1) << "};";
+  close_compound_statement ("if_statement", s);
 }
 
 
@@ -3694,8 +3719,10 @@ c_unparser::visit_for_loop (for_loop *s)
   string contlabel = "continue_" + ctr;
   string breaklabel = "break_" + ctr;
 
+  start_compound_statement ("for_loop", s);
+
   // initialization
-  if (s->init) s->init->visit (this);
+  wrap_compound_visit (s->init);
   record_actions(1, s->tok, true);
 
   // condition
@@ -3710,13 +3737,13 @@ c_unparser::visit_for_loop (for_loop *s)
   o->newline() << "if (! (";
   if (s->cond->type != pe_long)
     throw SEMANTIC_ERROR (_("expected numeric type"), s->cond->tok);
-  s->cond->visit (this);
+  wrap_compound_visit (s->cond);
   o->line() << ")) goto " << breaklabel << ";";
 
   // body
   loop_break_labels.push_back (breaklabel);
   loop_continue_labels.push_back (contlabel);
-  s->block->visit (this);
+  wrap_compound_visit (s->block);
   record_actions(0, s->block->tok, true);
   loop_break_labels.pop_back ();
   loop_continue_labels.pop_back ();
@@ -3724,12 +3751,14 @@ c_unparser::visit_for_loop (for_loop *s)
   // iteration
   o->newline(-1) << contlabel << ":";
   o->indent(1);
-  if (s->incr) s->incr->visit (this);
+  wrap_compound_visit (s->incr);
   o->newline() << "goto " << toplabel << ";";
 
   // exit
   o->newline(-1) << breaklabel << ":";
   o->newline(1) << "; /* dummy statement */";
+
+  close_compound_statement ("for_loop", s);
 }
 
 
@@ -3767,8 +3796,7 @@ expression_is_arrayindex (expression *e,
 
 // Look for opportunities to used a saved value at the beginning of the loop
 void
-c_unparser::visit_foreach_loop_value (visitor* vis, foreach_loop* s,
-                                      const string& value)
+c_unparser::visit_foreach_loop_value (foreach_loop* s, const string& value)
 {
   bool stable_value = false;
 
@@ -3811,11 +3839,11 @@ c_unparser::visit_foreach_loop_value (visitor* vis, foreach_loop* s,
         ai.indexes.push_back(s->indexes[i]);
       string loopai = lex_cast(ai);
       foreach_loop_values[loopai] = value;
-      s->block->visit (vis);
+      s->block->visit (this);
       foreach_loop_values.erase(loopai);
     }
   else
-    s->block->visit (vis);
+    s->block->visit (this);
 }
 
 
@@ -3831,73 +3859,6 @@ c_unparser::get_foreach_loop_value (arrayindex* ai, string& value)
   return true;
 }
 
-
-void
-c_tmpcounter::visit_foreach_loop (foreach_loop *s)
-{
-  symbol *array;
-  hist_op *hist;
-  classify_indexable (s->base, array, hist);
-
-  // tmpvar mem usage can't be optimized by wrapping the tmp declarations
-  // in a union like in ::visit_for_loop. this is because the tmps for
-  // the limit, and the mapvar+indexes (or aggvar) are used in multiple
-  // areas, such that they would need to be declared outside of the
-  // union. that leaves the body, which would need to be encased in a
-  // struct decl rendering the union useless.
-
-  // Create a temporary for the loop limit counter and the limit
-  // expression result.
-  if (s->limit)
-    {
-      tmpvar res_limit = parent->gensym (pe_long);
-      res_limit.declare(*parent);
-
-      s->limit->visit (this);
-
-      tmpvar limitv = parent->gensym (pe_long);
-      limitv.declare(*parent);
-    }
-
-  if (array)
-    {
-      itervar iv = parent->getiter (array);
-      parent->o->newline() << iv.declare();
-
-      // Create temporaries for the array slice indexes that aren't wildcards
-      for (unsigned i=0; i<s->array_slice.size(); i++)
-        {
-          if (s->array_slice[i])
-            {
-              tmpvar slice_index = parent->gensym (s->array_slice[i]->type);
-              slice_index.declare(*parent);
-              s->array_slice[i]->visit (this);
-            }
-        }
-    }
-  else
-   {
-     // See commentary in c_tmpcounter::visit_arrayindex for
-     // discussion of tmpvars required to look into @hist_op(...)
-     // expressions.
-
-     // First make sure we have exactly one pe_long variable to use as
-     // our bucket index.
-
-     if (s->indexes.size() != 1 || s->indexes[0]->referent->type != pe_long)
-       throw SEMANTIC_ERROR(_("Invalid indexing of histogram"), s->tok);
-
-      // Then declare what we need to form the aggregate we're
-      // iterating over, and all the tmpvars needed by our call to
-      // load_aggregate().
-
-      aggvar agg = parent->gensym_aggregate ();
-      agg.declare(*(this->parent));
-      load_aggregate (hist->stat);
-    }
-
-  parent->visit_foreach_loop_value(this, s);
-}
 
 void
 c_unparser::visit_foreach_loop (foreach_loop *s)
@@ -4108,7 +4069,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
 	  c_assign (v, iv.get_value (mv, v.type()), s->tok);
         }
 
-      visit_foreach_loop_value(this, s, iv.get_value(mv, array->type));
+      visit_foreach_loop_value(s, iv.get_value(mv, array->type));
       record_actions(0, s->block->tok, true);
       o->newline(-1) << "}";
       loop_break_labels.pop_back ();
@@ -4129,8 +4090,11 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
   else
     {
       // Iterating over buckets in a histogram.
-      assert(s->indexes.size() == 1);
-      assert(s->indexes[0]->referent->type == pe_long);
+
+      // First make sure we have exactly one pe_long variable to use as
+      // our bucket index.
+      if (s->indexes.size() != 1 || s->indexes[0]->referent->type != pe_long)
+	throw SEMANTIC_ERROR(_("Invalid indexing of histogram"), s->tok);
 
       tmpvar *res_limit = NULL;
       tmpvar *limitv = NULL;
@@ -4177,7 +4141,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
           c_assign (v, agg.get_hist (bucketvar), s->tok);
         }
 
-      visit_foreach_loop_value(this, s, agg.get_hist(bucketvar));
+      visit_foreach_loop_value(s, agg.get_hist(bucketvar));
       record_actions(1, s->block->tok, true);
 
       o->newline(-1) << contlabel << ":";
@@ -4220,18 +4184,6 @@ c_unparser::visit_next_statement (next_statement* s)
 }
 
 
-struct delete_statement_operand_tmp_visitor:
-  public traversing_visitor
-{
-  c_tmpcounter *parent;
-  delete_statement_operand_tmp_visitor (c_tmpcounter *p):
-    parent (p)
-  {}
-  //void visit_symbol (symbol* e);
-  void visit_arrayindex (arrayindex* e);
-};
-
-
 struct delete_statement_operand_visitor:
   public throwing_visitor
 {
@@ -4247,19 +4199,20 @@ struct delete_statement_operand_visitor:
 void
 delete_statement_operand_visitor::visit_symbol (symbol* e)
 {
+  translator_output* o = parent->o;
   assert (e->referent != 0);
   if (e->referent->arity > 0)
     {
       mapvar mvar = parent->getmap(e->referent, e->tok);
       /* NB: Memory deallocation/allocation operations
        are not generally safe.
-      parent->o->newline() << mvar.fini ();
-      parent->o->newline() << mvar.init ();
+      o->newline() << mvar.fini ();
+      o->newline() << mvar.init ();
       */
       if (mvar.is_parallel())
-	parent->o->newline() << "_stp_pmap_clear (" << mvar.value() << ");";
+	o->newline() << "_stp_pmap_clear (" << mvar.value() << ");";
       else
-	parent->o->newline() << "_stp_map_clear (" << mvar.value() << ");";
+	o->newline() << "_stp_map_clear (" << mvar.value() << ");";
     }
   else
     {
@@ -4267,13 +4220,13 @@ delete_statement_operand_visitor::visit_symbol (symbol* e)
       switch (e->type)
 	{
 	case pe_stats:
-	  parent->o->newline() << "_stp_stat_clear (" << v.value() << ");";
+	  o->newline() << "_stp_stat_clear (" << v.value() << ");";
 	  break;
 	case pe_long:
-	  parent->o->newline() << v.value() << " = 0;";
+	  o->newline() << v.value() << " = 0;";
 	  break;
 	case pe_string:
-	  parent->o->newline() << v.value() << "[0] = '\\0';";
+	  o->newline() << v.value() << "[0] = '\\0';";
 	  break;
 	case pe_unknown:
 	default:
@@ -4283,55 +4236,12 @@ delete_statement_operand_visitor::visit_symbol (symbol* e)
 }
 
 void
-delete_statement_operand_tmp_visitor::visit_arrayindex (arrayindex* e)
-{
-  symbol *array;
-  hist_op *hist;
-  classify_indexable (e->base, array, hist);
-
-  if (array)
-    {
-      assert (array->referent != 0);
-      vardecl* r = array->referent;
-      bool array_slice = false;
-
-      for (unsigned i = 0; i < e->indexes.size(); i ++)
-        if (e->indexes[i] == NULL)
-          {
-            array_slice = true;
-            break;
-          }
-
-      if (array_slice)
-        {
-          itervar iv = parent->parent->getiter(array);
-          parent->parent->o->newline() << iv.declare();
-        }
-
-      // One temporary per index dimension.
-      for (unsigned i=0; i<r->index_types.size(); i++)
-	{
-          if (array->referent->type  == pe_stats || !array_slice || e->indexes[i])
-            {
-	      tmpvar ix = parent->parent->gensym (r->index_types[i]);
-	      ix.declare (*(parent->parent));
-              if (e->indexes[i])
-	        e->indexes[i]->visit(parent);
-            }
-	}
-    }
-  else
-    {
-      throw SEMANTIC_ERROR(_("cannot delete histogram bucket entries\n"), e->tok);
-    }
-}
-
-void
 delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
 {
   symbol *array;
   hist_op *hist;
   classify_indexable (e->base, array, hist);
+  translator_output* o = parent->o;
 
   if (array)
     {
@@ -4348,7 +4258,7 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
           vector<tmpvar> idx;
           parent->load_map_indices (e, idx);
           mapvar mvar = parent->getmap (array->referent, e->tok);
-          parent->o->newline() << mvar.del (idx) << ";";
+          o->newline() << mvar.del (idx) << ";";
         }
       else // delete elements if they match the array slice.
         {
@@ -4383,14 +4293,14 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
 
           if (mvar.is_parallel())
             {
-              parent->o->newline() << "if (unlikely(NULL == "
-                                   << mvar.calculate_aggregate() << ")) {";
-              parent->o->newline(1) << "c->last_error = ";
-              parent->o->line() << STAP_T_05 << mvar << "\";";
-              parent->o->newline() << "c->last_stmt = "
-                                   << lex_cast_qstring(*e->tok) << ";";
-              parent->o->newline() << "goto out;";
-              parent->o->newline(-1) << "}";
+              o->newline() << "if (unlikely(NULL == "
+                           << mvar.calculate_aggregate() << ")) {";
+              o->newline(1) << "c->last_error = ";
+              o->line() << STAP_T_05 << mvar << "\";";
+              o->newline() << "c->last_stmt = "
+                           << lex_cast_qstring(*e->tok) << ";";
+              o->newline() << "goto out;";
+              o->newline(-1) << "}";
             }
 
           // iterate through the map, deleting elements that match the array slice
@@ -4398,68 +4308,60 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
           string toplabel = "top_" + ctr;
           string breaklabel = "break_" + ctr;
 
-          parent->o->newline() << iv << " = " << iv.start(mvar) << ";";
-          parent->o->newline() << toplabel << ":";
+          o->newline() << iv << " = " << iv.start(mvar) << ";";
+          o->newline() << toplabel << ":";
 
-          parent->o->newline(1) << "if (!(" << iv << ")){";
-          parent->o->newline(1) << "goto " << breaklabel << ";}";
+          o->newline(1) << "if (!(" << iv << ")){";
+          o->newline(1) << "goto " << breaklabel << ";}";
 
           // insert the comparison for keys that aren't wildcards
-          parent->o->newline(-1) << "if (1"; // in case all are wildcards
+          o->newline(-1) << "if (1"; // in case all are wildcards
           for (unsigned i=0; i<array_slice_vars.size(); i++)
             if (array_slice_vars[i] != NULL)
               {
               if (array_slice_vars[i]->type() == pe_long)
-                parent->o->line() << " && " << *array_slice_vars[i] << " == "
-                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i);
+                o->line() << " && " << *array_slice_vars[i] << " == "
+                          << iv.get_key(mvar, array_slice_vars[i]->type(), i);
               else if (array_slice_vars[i]->type() == pe_string)
-                parent->o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
-                                  << iv.get_key(mvar, array_slice_vars[i]->type(), i)
-                                  << ", MAXSTRINGLEN) == 0";
+                o->line() << " && strncmp(" << *array_slice_vars[i] << ", "
+                          << iv.get_key(mvar, array_slice_vars[i]->type(), i)
+                          << ", MAXSTRINGLEN) == 0";
               else
                 throw SEMANTIC_ERROR (_("unexpected type"), e->tok);
               }
 
-          parent->o->line() <<  ") {";
+          o->line() <<  ") {";
 
           // conditional is true, so delete item and go to the next item
           if (mvar.is_parallel())
             {
-              parent->o->indent(1);
+              o->indent(1);
               // fills in the wildcards with the current iteration's (map) indexes
               for (unsigned i = 0; i<array_slice_vars.size(); i++)
                 if (array_slice_vars[i] == NULL)
                   parent->c_assign (idx[i].value(),
                                     iv.get_key(mvar, r->index_types[i], i),
                                     r->index_types[i], "tmpvar", e->tok);
-              parent->o->newline() << iv << " = " << iv.next(mvar) << ";";
-              parent->o->newline() << mvar.del(idx) << ";";
+              o->newline() << iv << " = " << iv.next(mvar) << ";";
+              o->newline() << mvar.del(idx) << ";";
             }
           else
-            parent->o->newline(1) << iv << " = " << iv.del_next(mvar) << ";";
+            o->newline(1) << iv << " = " << iv.del_next(mvar) << ";";
 
-          parent->o->newline(-1) << "} else";
-          parent->o->newline(1) << iv << " = " << iv.next(mvar) << ";";
+          o->newline(-1) << "} else";
+          o->newline(1) << iv << " = " << iv.next(mvar) << ";";
 
-          parent->o->newline(-1) << "goto " << toplabel << ";";
+          o->newline(-1) << "goto " << toplabel << ";";
 
-          parent->o->newline(-1) << breaklabel<< ":";
-          parent->o->newline(1) << "; /* dummy statement */";
-          parent->o->indent(-1);
+          o->newline(-1) << breaklabel<< ":";
+          o->newline(1) << "; /* dummy statement */";
+          o->indent(-1);
         }
     }
   else
     {
       throw SEMANTIC_ERROR(_("cannot delete histogram bucket entries\n"), e->tok);
     }
-}
-
-
-void
-c_tmpcounter::visit_delete_statement (delete_statement* s)
-{
-  delete_statement_operand_tmp_visitor dv (this);
-  s->value->visit (&dv);
 }
 
 
@@ -4525,24 +4427,6 @@ c_unparser::visit_literal_number (literal_number* e)
     o->line() << "((int64_t)" << (unsigned long long) e->value << "ULL)";
   else
     o->line() << "((int64_t)" << e->value << "LL)";
-}
-
-
-void
-c_tmpcounter::visit_binary_expression (binary_expression* e)
-{
-  if (e->op == "/" || e->op == "%")
-    {
-      tmpvar left = parent->gensym (pe_long);
-      tmpvar right = parent->gensym (pe_long);
-      if (e->left->tok->type != tok_number)
-        left.declare (*parent);
-      if (e->right->tok->type != tok_number)
-	right.declare (*parent);
-    }
-
-  e->left->visit (this);
-  e->right->visit (this);
 }
 
 
@@ -4703,61 +4587,6 @@ c_unparser::visit_logical_and_expr (logical_and_expr* e)
 
 
 void
-c_tmpcounter::visit_array_in (array_in* e)
-{
-  symbol *array;
-  hist_op *hist;
-  classify_indexable (e->operand->base, array, hist);
-
-  if (array)
-    {
-      assert (array->referent != 0);
-      vardecl* r = array->referent;
-      bool array_slice = false;
-
-      // A boolean result.
-      tmpvar res = parent->gensym (e->type);
-      res.declare (*parent);
-
-      for (unsigned i = 0; i < e->operand->indexes.size(); i ++)
-        if (e->operand->indexes[i] == NULL)
-          {
-            array_slice = true;
-            break;
-          }
-
-      // One temporary per index dimension.
-      for (unsigned i=0; i<r->index_types.size(); i++)
-	{
-	  if (!array_slice || e->operand->indexes[i])
-            {
-              tmpvar ix = parent->gensym (r->index_types[i]);
-              ix.declare (*parent);
-              e->operand->indexes[i]->visit(this);
-            }
-	}
-
-      if (array_slice)
-        {
-          itervar iv = parent->getiter(array);
-          parent->o->newline() << iv.declare();
-        }
-    }
-  else
-    {
-      // By definition:
-      //
-      // 'foo in @hist_op(...)'  is true iff
-      // '@hist_op(...)[foo]'    is nonzero
-      //
-      // so we just delegate to the latter call, since int64_t is also
-      // our boolean type.
-      e->operand->visit(this);
-    }
-}
-
-
-void
 c_unparser::visit_array_in (array_in* e)
 {
   symbol *array;
@@ -4885,13 +4714,6 @@ c_unparser::visit_array_in (array_in* e)
 }
 
 void
-c_tmpcounter::visit_regex_query (regex_query* e)
-{
-  e->left->visit(this);
-  e->right->visit(this);
-}
-
-void
 c_unparser::visit_regex_query (regex_query* e)
 {
   o->line() << "(";
@@ -4903,22 +4725,6 @@ c_unparser::visit_regex_query (regex_query* e)
   e->left->visit(this);
   dfa->emit_matchop_end (o);
   o->newline(-1) << ")";
-}
-
-void
-c_tmpcounter::visit_comparison (comparison* e)
-{
-  // When computing string operands, their results may be in overlapping
-  // __retvalue memory, so we need to save at least one in a tmpvar.
-  if (e->left->type == pe_string)
-    {
-      tmpvar left = parent->gensym (pe_string);
-      if (e->left->tok->type != tok_string)
-        left.declare (*parent);
-    }
-
-  e->left->visit (this);
-  e->right->visit (this);
 }
 
 void
@@ -4960,16 +4766,6 @@ c_unparser::visit_comparison (comparison* e)
     throw SEMANTIC_ERROR (_("unexpected type"), e->left->tok);
 
   o->line() << ")";
-}
-
-
-void
-c_tmpcounter::visit_concatenation (concatenation* e)
-{
-  tmpvar t = parent->gensym (e->type);
-  t.declare (*parent);
-  e->left->visit (this);
-  e->right->visit (this);
 }
 
 
@@ -5018,14 +4814,6 @@ c_unparser::visit_ternary_expression (ternary_expression* e)
 
 
 void
-c_tmpcounter::visit_assignment (assignment *e)
-{
-  c_tmpcounter_assignment tav (this, e->op, e->right);
-  e->left->visit (& tav);
-}
-
-
-void
 c_unparser::visit_assignment (assignment* e)
 {
   if (e->op == "<<<")
@@ -5054,14 +4842,6 @@ c_unparser::visit_assignment (assignment* e)
 
 
 void
-c_tmpcounter::visit_pre_crement (pre_crement* e)
-{
-  c_tmpcounter_assignment tav (this, e->op, 0);
-  e->operand->visit (& tav);
-}
-
-
-void
 c_unparser::visit_pre_crement (pre_crement* e)
 {
   if (e->type != pe_long ||
@@ -5069,14 +4849,6 @@ c_unparser::visit_pre_crement (pre_crement* e)
     throw SEMANTIC_ERROR (_("expected numeric type"), e->tok);
 
   c_unparser_assignment tav (this, e->op, false);
-  e->operand->visit (& tav);
-}
-
-
-void
-c_tmpcounter::visit_post_crement (post_crement* e)
-{
-  c_tmpcounter_assignment tav (this, e->op, 0, true);
   e->operand->visit (& tav);
 }
 
@@ -5107,36 +4879,6 @@ c_unparser::visit_symbol (symbol* e)
 }
 
 
-void
-c_tmpcounter_assignment::prepare_rvalue (tmpvar & rval)
-{
-  if (rvalue)
-    {
-      // literal number and strings don't need any temporaries declared
-      if (rvalue->tok->type != tok_number && rvalue->tok->type != tok_string)
-	rval.declare (*(parent->parent));
-
-      rvalue->visit (parent);
-    }
-}
-
-void
-c_tmpcounter_assignment::c_assignop(tmpvar & res)
-{
-  if (res.type() == pe_string)
-    {
-      // string assignment doesn't need any temporaries declared
-    }
-  else if (op == "<<<")
-    res.declare (*(parent->parent));
-  else if (res.type() == pe_long)
-    {
-      // Only the 'post' operators ('x++') need a temporary declared.
-      if (post)
-	res.declare (*(parent->parent));
-    }
-}
-
 // Assignment expansion is tricky.
 //
 // Because assignments are nestable expressions, we have
@@ -5159,19 +4901,6 @@ c_tmpcounter_assignment::c_assignop(tmpvar & res)
 // index, which are expanded before the "tmp=B" expression, in order
 // to consistently order evaluation of lhs before rhs.
 //
-
-void
-c_tmpcounter_assignment::visit_symbol (symbol *e)
-{
-  exp_type ty = rvalue ? rvalue->type : e->type;
-  tmpvar rval = parent->parent->gensym (ty);
-  tmpvar res = parent->parent->gensym (ty);
-
-  prepare_rvalue(rval);
-
-  c_assignop (res);
-}
-
 
 void
 c_unparser_assignment::prepare_rvalue (interned_string op,
@@ -5203,12 +4932,13 @@ void
 c_unparser_assignment::visit_symbol (symbol *e)
 {
   stmt_expr block(*parent);
+  translator_output* o = parent->o;
 
   assert (e->referent != 0);
   if (e->referent->index_types.size() != 0)
     throw SEMANTIC_ERROR (_("unexpected reference to array"), e->tok);
 
-  // parent->o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+  // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
   exp_type ty = rvalue ? rvalue->type : e->type;
   tmpvar rval = parent->gensym (ty);
   tmpvar res = parent->gensym (ty);
@@ -5218,7 +4948,7 @@ c_unparser_assignment::visit_symbol (symbol *e)
   var lvar = parent->getvar (e->referent, e->tok);
   c_assignop (res, lvar, rval, e->tok);
 
-  parent->o->newline() << res << ";";
+  o->newline() << res << ";";
 }
 
 
@@ -5268,36 +4998,6 @@ void
 c_unparser::visit_perf_op (perf_op* e)
 {
   throw SEMANTIC_ERROR(_("cannot translate general @perf expression"), e->tok);
-}
-
-
-void
-c_tmpcounter::load_map_indices(arrayindex *e)
-{
-  symbol *array;
-  hist_op *hist;
-  classify_indexable (e->base, array, hist);
-
-  if (array)
-    {
-      assert (array->referent != 0);
-      vardecl* r = array->referent;
-
-      // One temporary per index dimension, except in the case of
-      // number or string constants.
-      for (unsigned i=0; i<r->index_types.size(); i++)
-	{
-	  tmpvar ix = parent->gensym (r->index_types[i]);
-	  if (e->indexes[i]->tok->type == tok_number
-	      || e->indexes[i]->tok->type == tok_string)
-	    {
-	      // Do nothing
-	    }
-	  else
-	    ix.declare (*parent);
-	  e->indexes[i]->visit(this);
-	}
-    }
 }
 
 
@@ -5354,25 +5054,6 @@ c_unparser::load_map_indices(arrayindex *e,
 }
 
 
-void
-c_tmpcounter::load_aggregate (expression *e)
-{
-  symbol *sym = get_symbol_within_expression (e);
-  string agg_value;
-  arrayindex* arr = NULL;
-  expression_is_arrayindex (e, arr);
-
-  // If we have a foreach_loop value, we don't need tmps for indexes
-  if (sym->referent->arity != 0 &&
-      !parent->get_foreach_loop_value(arr, agg_value))
-    {
-      if (!arr)
-	throw SEMANTIC_ERROR(_("expected arrayindex expression"), e->tok);
-      load_map_indices (arr);
-    }
-}
-
-
 var*
 c_unparser::load_aggregate (expression *e, aggvar & agg)
 {
@@ -5424,12 +5105,15 @@ c_unparser::histogram_index_check(var & base, tmpvar & idx) const
 
 
 void
-c_tmpcounter::visit_arrayindex (arrayindex *e)
+c_unparser::visit_arrayindex (arrayindex* e)
 {
-  // If we have a foreach_loop value, no other tmps are needed
+  // If we have a foreach_loop value, use it and call it a day!
   string ai_value;
-  if (parent->get_foreach_loop_value(e, ai_value))
-    return;
+  if (get_foreach_loop_value(e, ai_value))
+    {
+      o->line() << ai_value;
+      return;
+    }
 
   symbol *array;
   hist_op *hist;
@@ -5437,17 +5121,24 @@ c_tmpcounter::visit_arrayindex (arrayindex *e)
 
   if (array)
     {
-      load_map_indices(e);
+      // Visiting an statistic-valued array in a non-lvalue context is prohibited.
+      if (array->referent->type == pe_stats)
+	throw SEMANTIC_ERROR (_("statistic-valued array in rvalue context"), e->tok);
 
-      // The index-expression result.
-      tmpvar res = parent->gensym (e->type);
-      res.declare (*parent);
+      stmt_expr block(*this);
+
+      vector<tmpvar> idx;
+      load_map_indices (e, idx);
+      tmpvar res = gensym (e->type);
+
+      mapvar mvar = getmap (array->referent, e->tok);
+      // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
+      c_assign (res, mvar.get(idx), e->tok);
+
+      o->newline() << res << ";";
     }
   else
     {
-
-      assert(hist);
-
       // Note: this is a slightly tricker-than-it-looks allocation of
       // temporaries. The reason is that we're in the branch handling
       // histogram-indexing, and the histogram might be build over an
@@ -5473,84 +5164,18 @@ c_tmpcounter::visit_arrayindex (arrayindex *e)
       // (bucket) tmpvar, then all the index tmpvars of our
       // pe_stat-valued subexpression, then our result.
 
-
-      // First all the stuff related to indexing into the histogram
-
-      if (e->indexes.size() != 1)
-	throw SEMANTIC_ERROR(_("Invalid indexing of histogram"), e->tok);
-      tmpvar ix = parent->gensym (pe_long);
-      ix.declare (*parent);
-      e->indexes[0]->visit(this);
-      tmpvar res = parent->gensym (pe_long);
-      res.declare (*parent);
-
-      // Then the aggregate, and all the tmpvars needed by our call to
-      // load_aggregate().
-
-      aggvar agg = parent->gensym_aggregate ();
-      agg.declare(*(this->parent));
-      load_aggregate (hist->stat);
-    }
-}
-
-
-void
-c_unparser::visit_arrayindex (arrayindex* e)
-{
-  // If we have a foreach_loop value, use it and call it a day!
-  string ai_value;
-  if (get_foreach_loop_value(e, ai_value))
-    {
-      o->line() << ai_value;
-      return;
-    }
-
-  symbol *array;
-  hist_op *hist;
-  classify_indexable (e->base, array, hist);
-
-  if (array)
-    {
-      // Visiting an statistic-valued array in a non-lvalue context is prohibited.
-      if (array->referent->type == pe_stats)
-	throw SEMANTIC_ERROR (_("statistic-valued array in rvalue context"), e->tok);
-
-      stmt_expr block(*this);
-
-      // NB: Do not adjust the order of the next few lines; the tmpvar
-      // allocation order must remain the same between
-      // c_unparser::visit_arrayindex and c_tmpcounter::visit_arrayindex
-
-      vector<tmpvar> idx;
-      load_map_indices (e, idx);
-      tmpvar res = gensym (e->type);
-
-      mapvar mvar = getmap (array->referent, e->tok);
-      // o->newline() << "c->last_stmt = " << lex_cast_qstring(*e->tok) << ";";
-      c_assign (res, mvar.get(idx), e->tok);
-
-      o->newline() << res << ";";
-    }
-  else
-    {
-      // See commentary in c_tmpcounter::visit_arrayindex
-
       assert(hist);
       stmt_expr block(*this);
 
-      // NB: Do not adjust the order of the next few lines; the tmpvar
-      // allocation order must remain the same between
-      // c_unparser::visit_arrayindex and c_tmpcounter::visit_arrayindex
+      aggvar agg = gensym_aggregate ();
 
       vector<tmpvar> idx;
       load_map_indices (e, idx);
       tmpvar res = gensym (e->type);
 
-      aggvar agg = gensym_aggregate ();
-
       // These should have faulted during elaboration if not true.
-      assert(idx.size() == 1);
-      assert(idx[0].type() == pe_long);
+      if (idx.size() != 1 || idx[0].type() != pe_long)
+	throw SEMANTIC_ERROR(_("Invalid indexing of histogram"), e->tok);
 
       var *v = load_aggregate(hist->stat, agg);
       v->assert_hist_compatible(*hist);
@@ -5581,38 +5206,6 @@ c_unparser::visit_arrayindex (arrayindex* e)
 
 
 void
-c_tmpcounter_assignment::visit_arrayindex (arrayindex *e)
-{
-  symbol *array;
-  hist_op *hist;
-  classify_indexable (e->base, array, hist);
-
-  if (array)
-    {
-      parent->load_map_indices(e);
-
-      // The expression rval, lval, and result.
-      exp_type ty = rvalue ? rvalue->type : e->type;
-      tmpvar rval = parent->parent->gensym (ty);
-      tmpvar lval = parent->parent->gensym (ty);
-      tmpvar res = parent->parent->gensym (ty);
-
-      prepare_rvalue(rval);
-      lval.declare (*(parent->parent));
-
-      if (op == "<<<")
-	res.declare (*(parent->parent));
-      else
-	c_assignop(res);
-    }
-  else
-    {
-      throw SEMANTIC_ERROR(_("cannot assign to histogram buckets"), e->tok);
-    }
-}
-
-
-void
 c_unparser_assignment::visit_arrayindex (arrayindex *e)
 {
   symbol *array;
@@ -5628,11 +5221,6 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
 
       if (array->referent->index_types.size() == 0)
 	throw SEMANTIC_ERROR (_("unexpected reference to scalar"), e->tok);
-
-      // nb: Do not adjust the order of the next few lines; the tmpvar
-      // allocation order must remain the same between
-      // c_unparser_assignment::visit_arrayindex and
-      // c_tmpcounter_assignment::visit_arrayindex
 
       vector<tmpvar> idx;
       parent->load_map_indices (e, idx);
@@ -5700,28 +5288,6 @@ c_unparser_assignment::visit_arrayindex (arrayindex *e)
     {
       throw SEMANTIC_ERROR(_("cannot assign to histogram buckets"), e->tok);
     }
-}
-
-
-void
-c_tmpcounter::visit_functioncall (functioncall *e)
-{
-  assert (e->referent != 0);
-  functiondecl* r = e->referent;
-
-  // one temporary per argument, unless literal numbers or strings
-  for (unsigned i=0; i<r->formal_args.size(); i++)
-    {
-      tmpvar t = parent->gensym (r->formal_args[i]->type);
-      if (e->args[i]->tok->type != tok_number
-	  && e->args[i]->tok->type != tok_string)
-	t.declare (*parent);
-      e->args[i]->visit (this);
-    }
-
-  tmpvar t = parent->gensym (e->type);
-  if (!parent->session->unoptimized && e->type == pe_string && e->var_assigned_to_retval.empty())
-    t.declare(*parent);
 }
 
 
@@ -5849,7 +5415,7 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
       if (e->print_with_delim)
 	{
 	  stringstream escaped_delim;
-	  interned_string dstr = e->delimiter.literal_string;
+	  interned_string dstr = e->delimiter;
 	  for (interned_string::const_iterator i = dstr.begin();
 	       i != dstr.end(); ++i)
 	    {
@@ -5903,60 +5469,6 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
     }
 
   return use_print;
-}
-
-void
-c_tmpcounter::visit_print_format (print_format* e)
-{
-  if (e->hist)
-    {
-      aggvar agg = parent->gensym_aggregate ();
-      agg.declare(*(this->parent));
-      load_aggregate (e->hist->stat);
-
-      // And the result for sprint[ln](@hist_*)
-      if (!e->print_to_stream)
-        {
-          exp_type ty = pe_string;
-          tmpvar res = parent->gensym(ty);
-          res.declare(*parent);
-        }
-    }
-  else
-    {
-      // One temporary per argument
-      vector<tmpvar> tmp;
-      for (unsigned i=0; i < e->args.size(); i++)
-	{
-	  tmpvar t = parent->gensym (e->args[i]->type);
-	  tmp.push_back(t);
-	  if (e->args[i]->type == pe_unknown)
-	    {
-	      throw SEMANTIC_ERROR(_("unknown type of arg to print operator"),
-				   e->args[i]->tok);
-	    }
-
-	  if (e->args[i]->tok->type != tok_number
-	      && e->args[i]->tok->type != tok_string)
-	    t.declare (*parent);
-	  e->args[i]->visit (this);
-	}
-
-      // And the result
-      exp_type ty = e->print_to_stream ? pe_long : pe_string;
-      tmpvar res = parent->gensym (ty);
-      if (ty == pe_string)
-	res.declare (*parent);
-
-      // Munge so we can find our compiled printf
-      vector<print_format::format_component> components;
-      string format_string;
-      int use_print = preprocess_print_format(e, tmp, components, format_string);
-
-      // If not in a shortcut case, declare the compiled printf
-      if (!(e->print_to_stream && (e->print_char || use_print)))
-	parent->declare_compiled_printf(e->print_to_stream, format_string);
-    }
 }
 
 
@@ -6172,19 +5684,6 @@ c_unparser::visit_print_format (print_format* e)
       o->newline() << "if (unlikely(c->last_error)) goto out;";
       o->newline() << res.value() << ";";
     }
-}
-
-
-void
-c_tmpcounter::visit_stat_op (stat_op* e)
-{
-  aggvar agg = parent->gensym_aggregate ();
-  tmpvar res = parent->gensym (pe_long);
-
-  agg.declare(*(this->parent));
-  res.declare(*(this->parent));
-
-  load_aggregate (e->stat);
 }
 
 void
@@ -8227,7 +7726,7 @@ translate_pass (systemtap_session& s)
       for (unsigned i=0; i<s.probes.size(); ++i)
         {
           derived_probe* p = s.probes[i];
-          s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name << ", "
+          s.op->newline() << "STAP_PROBE_INIT(" << i << ", &" << p->name() << ", "
                           << lex_cast_qstring (*p->sole_location()) << ", "
                           << lex_cast_qstring (*p->script_location()) << ", "
                           << lex_cast_qstring (p->tok->location) << ", "

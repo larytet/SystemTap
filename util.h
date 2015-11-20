@@ -29,6 +29,17 @@ extern "C" {
 #include <poll.h>
 }
 
+// NB: GCC didn't add C++11 final/override until 4.7, but until then it also
+// only had __cplusplus=1 regardless of -std (GCC PR1773).  So checking new
+// __cplusplus is probably good enough here; otherwise we should autoconf it.
+#if __cplusplus >= 201103L
+#define cxx_final final
+#define cxx_override override
+#else
+#define cxx_final
+#define cxx_override
+#endif
+
 #include "privilege.h"
 #include "stringtable.h"
 

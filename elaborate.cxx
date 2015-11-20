@@ -3368,7 +3368,7 @@ void semantic_pass_opt4 (systemtap_session& s, bool& relaxed_p)
           if (! s.timing && // PR10070
               !(p->base->tok->location.file->synthetic)) // don't warn for synthetic probes
             s.print_warning (_F("side-effect-free probe '%s'",
-                                p->name.to_string().c_str()), p->tok);
+                                p->name().c_str()), p->tok);
 
           p->body = new null_statement(p->tok);
 

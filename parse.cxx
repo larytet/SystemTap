@@ -144,15 +144,13 @@ private:
   // expectations, these swallow the token
   void expect_known (token_type tt, string const & expected);
   void expect_unknown (token_type tt, interned_string & target);
-  void expect_unknown (token_type tt, string & target);
-  void expect_unknown2 (token_type tt1, token_type tt2, string & target);
   void expect_unknown2 (token_type tt1, token_type tt2, interned_string & target);
 
   // convenience forms, these also swallow the token
   void expect_op (string const & expected);
   void expect_kw (string const & expected);
   void expect_number (int64_t & expected);
-  void expect_ident_or_keyword (string & target);
+  void expect_ident_or_keyword (interned_string & target);
 
   // convenience forms, which return true or false, these don't swallow token
   bool peek_op (string const & op);
@@ -160,18 +158,22 @@ private:
 
   // convenience forms, which return the token
   const token* expect_kw_token (string const & expected);
-  const token* expect_ident_or_atword (string & target);
+  const token* expect_ident_or_atword (interned_string & target);
 
   void print_error (const parse_error& pe, bool errs_as_warnings = false);
   unsigned num_errors;
 
 private: // nonterminals
   void parse_probe (vector<probe*>&, vector<probe_alias*>&);
-  void parse_private (vector<vardecl*>&, vector<probe*>&, string&, vector<functiondecl*>&);
-  void parse_global (vector<vardecl*>&, vector<probe*>&, string&);
-  void do_parse_global (vector<vardecl*>&, vector<probe*>&, string&, const token*, bool);
-  void parse_functiondecl (vector<functiondecl*>&, string&);
-  void do_parse_functiondecl (vector<functiondecl*>&, const token*, string&, bool);
+  void parse_private (vector<vardecl*>&, vector<probe*>&,
+                      string const&, vector<functiondecl*>&);
+  void parse_global (vector<vardecl*>&, vector<probe*>&,
+                     string const&);
+  void do_parse_global (vector<vardecl*>&, vector<probe*>&,
+                        string const&, const token*, bool);
+  void parse_functiondecl (vector<functiondecl*>&, string const&);
+  void do_parse_functiondecl (vector<functiondecl*>&, const token*,
+                              string const&, bool);
   embeddedcode* parse_embeddedcode ();
   probe_point* parse_probe_point ();
   literal_string* consume_string_literals (const token*);
@@ -191,7 +193,7 @@ private: // nonterminals
   break_statement* parse_break_statement ();
   continue_statement* parse_continue_statement ();
   indexable* parse_indexable ();
-  const token *parse_hist_op_or_bare_name (hist_op *&hop, string &name);
+  const token *parse_hist_op_or_bare_name (hist_op *&hop, interned_string &name);
   target_symbol *parse_target_symbol ();
   cast_op *parse_cast_op ();
   atvar_op *parse_atvar_op ();
@@ -1242,29 +1244,9 @@ parser::expect_unknown (token_type tt, interned_string & target)
   swallow (); // We are done with it, content was copied.
 }
 
-void
-parser::expect_unknown (token_type tt, string & target)
-{
-  const token *t = next();
-  if (!(t && t->type == tt))
-    throw PARSE_ERROR (_("expected ") + tt2str(tt));
-  target = t->content;
-  swallow (); // We are done with it, content was copied.
-}
-
 
 void
 parser::expect_unknown2 (token_type tt1, token_type tt2, interned_string & target)
-{
-  const token *t = next();
-  if (!(t && (t->type == tt1 || t->type == tt2)))
-    throw PARSE_ERROR (_F("expected %s or %s", tt2str(tt1).c_str(), tt2str(tt2).c_str()));
-  target = t->content;
-  swallow (); // We are done with it, content was copied.
-}
-
-void
-parser::expect_unknown2 (token_type tt1, token_type tt2, string & target)
 {
   const token *t = next();
   if (!(t && (t->type == tt1 || t->type == tt2)))
@@ -1334,7 +1316,7 @@ parser::expect_number (int64_t & value)
 
 
 const token*
-parser::expect_ident_or_atword (string & target)
+parser::expect_ident_or_atword (interned_string & target)
 {
   const token *t = next();
 
@@ -1351,7 +1333,7 @@ parser::expect_ident_or_atword (string & target)
 
 
 void
-parser::expect_ident_or_keyword (string & target)
+parser::expect_ident_or_keyword (interned_string & target)
 {
   expect_unknown2 (tok_identifier, tok_keyword, target);
 }
@@ -1570,7 +1552,7 @@ skip:
 
       if (suspended)
         {
-          n->make_junk(_("invalid nested substitution of command line arguments"));
+          n->make_junk(tok_junk_nested_arg);
           return n;
         }
       size_t num_args = session.args.size ();
@@ -1593,14 +1575,13 @@ skip:
                  idx <= session.args.size()); // prevent overflow
       if (suspended) 
         {
-          n->make_junk(_("invalid nested substitution of command line arguments"));
+          n->make_junk(tok_junk_nested_arg);
           return n;
         }
       if (idx == 0 ||
           idx-1 >= session.args.size())
         {
-          n->make_junk(_F("command line argument index %lu out of range [1-%lu]",
-                          (unsigned long) idx, (unsigned long) session.args.size()));
+          n->make_junk(tok_junk_invalid_arg);
           return n;
         }
       const string& arg = session.args[idx-1];
@@ -1659,7 +1640,7 @@ skip:
 
 	  if (c < 0 || c == '\n')
 	    {
-              n->make_junk(_("Could not find matching closing quote"));
+              n->make_junk(tok_junk_unclosed_quote);
               return n;
 	    }
 	  if (c == '\"') // closing double-quotes
@@ -1764,7 +1745,7 @@ skip:
               c2 = input_get();
             }
 
-            n->make_junk(_("Could not find matching '%}' to close embedded function block"));
+            n->make_junk(tok_junk_unclosed_embedded);
             return n;
         }
 
@@ -1825,7 +1806,8 @@ skip:
       ostringstream s;
       s << "\\x" << hex << setw(2) << setfill('0') << c;
       n->content = s.str();
-      n->msg = ""; // signal parser to emit "expected X, found junk" type error
+      // signal parser to emit "expected X, found junk" type error
+      n->make_junk(tok_junk_unknown);
       return n;
     }
 }
@@ -1833,10 +1815,35 @@ skip:
 // ------------------------------------------------------------------------
 
 void
-token::make_junk (const string& new_msg)
+token::make_junk (token_junk_type junk)
 {
   type = tok_junk;
-  msg = new_msg;
+  junk_type = junk;
+}
+
+// ------------------------------------------------------------------------
+
+string
+token::junk_message(systemtap_session& session) const
+{
+  switch (junk_type)
+    {
+    case tok_junk_nested_arg:
+      return _("invalid nested substitution of command line arguments");
+
+    case tok_junk_invalid_arg:
+      return _F("command line argument out of range [1-%lu]",
+                (unsigned long) session.args.size());
+
+    case tok_junk_unclosed_quote:
+      return _("Could not find matching closing quote");
+
+    case tok_junk_unclosed_embedded:
+      return _("Could not find matching '%}' to close embedded function block");
+
+    default:
+      return _("unknown junk token");
+    }
 }
 
 // ------------------------------------------------------------------------
@@ -2183,7 +2190,8 @@ parser::parse_statement ()
 }
 
 void
-parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, string & fname, vector<functiondecl*>& functions)
+parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes,
+                       string const & fname, vector<functiondecl*>& functions)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "private"))
@@ -2217,7 +2225,8 @@ parser::parse_private (vector <vardecl*>& globals, vector<probe*>& probes, strin
 }
 
 void
-parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes, string & fname)
+parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes,
+                      string const & fname)
 {
   const token* t0 = next ();
   if (! (t0->type == tok_keyword && t0->content == "global"))
@@ -2227,7 +2236,8 @@ parser::parse_global (vector <vardecl*>& globals, vector<probe*>& probes, string
 }
 
 void
-parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & fname, const token* t0, bool priv)
+parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&,
+                         string const & fname, const token* t0, bool priv)
 {
   bool iter0 = true;
   const token* t;
@@ -2305,7 +2315,8 @@ parser::do_parse_global (vector <vardecl*>& globals, vector<probe*>&, string & f
 }
 
 void
-parser::parse_functiondecl (vector<functiondecl*>& functions, string & fname)
+parser::parse_functiondecl (vector<functiondecl*>& functions,
+                            string const & fname)
 {
   const token* t = next ();
   if (! (t->type == tok_keyword && t->content == "function"))
@@ -2315,7 +2326,8 @@ parser::parse_functiondecl (vector<functiondecl*>& functions, string & fname)
 }
 
 void
-parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t, string & fname, bool priv)
+parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
+                               string const & fname, bool priv)
 {
   t = next ();
   if (! (t->type == tok_identifier)
@@ -2538,22 +2550,30 @@ parser::parse_probe_point ()
 literal_string*
 parser::consume_string_literals(const token *t)
 {
-  literal_string *ls = new literal_string (string(""));
+  literal_string *ls = new literal_string (t->content);
 
   // PR11208: check if the next token is also a string literal;
   // auto-concatenate it.  This is complicated to the extent that we
   // need to skip intermediate whitespace.
   //
   // NB for versions prior to 2.0: but don't skip over intervening comments
+  string concat;
+  bool p_concat = false;
   const token *n = peek();
-  string token_str = t->content;
   while (n != NULL && n->type == tok_string
          && ! (!input.has_version("2.0") && input.ate_comment))
     {
-      token_str.append(next()->content); // consume and append the token
+      if (!p_concat)
+        {
+          concat = t->content;
+          p_concat = true;
+        }
+      concat.append(n->content.data(), n->content.size());
+      next(); // consume the token
       n = peek();
     }
-  ls->value = token_str;
+  if (p_concat)
+    ls->value = concat;
   return ls;
 }
 
@@ -3575,7 +3595,7 @@ parser::parse_value ()
 
 
 const token *
-parser::parse_hist_op_or_bare_name (hist_op *&hop, string &name)
+parser::parse_hist_op_or_bare_name (hist_op *&hop, interned_string &name)
 {
   hop = NULL;
   const token* t = expect_ident_or_atword (name);
@@ -3609,7 +3629,7 @@ indexable*
 parser::parse_indexable ()
 {
   hist_op *hop = NULL;
-  string name;
+  interned_string name;
   const token *tok = parse_hist_op_or_bare_name(hop, name);
   if (hop)
     return hop;
@@ -3629,7 +3649,7 @@ expression* parser::parse_symbol ()
 {
   hist_op *hop = NULL;
   symbol *sym = NULL;
-  string name;
+  interned_string name;
   const token *t = parse_hist_op_or_bare_name(hop, name);
 
   if (!hop)
@@ -3663,7 +3683,8 @@ expression* parser::parse_symbol ()
 	  else if (name == "@max")
 	    sop->ctype = sc_max;
 	  else
-	    throw PARSE_ERROR(_("unknown operator ") + name);
+	    throw PARSE_ERROR(_F("unknown operator %s",
+                                 name.to_string().c_str()));
 	  expect_op("(");
 	  sop->tok = t;
 	  sop->stat = parse_expression ();
@@ -3739,10 +3760,8 @@ expression* parser::parse_symbol ()
 	      else if (fmt->print_with_delim)
 		{
 		  // Consume a delimiter to separate arguments.
-		  fmt->delimiter.clear();
-		  fmt->delimiter.type = print_format::conv_literal;
                   literal_string* ls = parse_literal_string();
-		  fmt->delimiter.literal_string = ls->value;
+		  fmt->delimiter = ls->value;
                   delete ls;
 		  consumed_arg = true;
 		  min_args = 2; // so that the delim is used at least once
@@ -4011,16 +4030,16 @@ parser::parse_target_symbol_components (target_symbol* e)
       if (peek_op ("->"))
         {
           const token* t = next();
-          string member;
+          interned_string member;
           expect_ident_or_keyword (member);
 
           // check for pretty-print in the form $foo->$ or $foo->bar$
           pprint_pos = member.find_last_not_of('$');
-          string pprint_val;
+          interned_string pprint_val;
           if (pprint_pos == string::npos || pprint_pos < member.length() - 1)
             {
               pprint_val = member.substr(pprint_pos + 1);
-              member.erase(pprint_pos + 1);
+              member = member.substr(0, pprint_pos + 1);
               pprint = true;
             }
 
