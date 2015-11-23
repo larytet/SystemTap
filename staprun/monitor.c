@@ -483,7 +483,12 @@ void monitor_input(void)
             probe[0] = '\0';
             rendered = 0;
           }
-        else if (ch != ERR)
+        else if (ch == KEY_BACKSPACE && i > 0)
+          {
+            probe[--i] = '\0';
+            input = 1;
+          }
+        else if (ch != ERR && ch != KEY_BACKSPACE)
           {
             probe[i++] = ch;
             probe[i] = '\0';
