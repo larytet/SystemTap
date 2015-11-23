@@ -154,7 +154,7 @@ static void write_command(const char *msg, const unsigned len)
     cleanup_and_exit (0, 1);
   if (!(fp = fopen(path, "w")))
     cleanup_and_exit (0, 1);
-  if (fwrite(msg, len, 1, fp) != len)
+  if (fwrite(msg, 1, len, fp) != len)
     cleanup_and_exit (0, 1);
   fclose(fp);
 }
