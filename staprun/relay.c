@@ -367,10 +367,12 @@ int init_relayfs(void)
 				return -1;
 		} else
 			if (monitor) {
-				if (pipe2(monitor_pfd, O_NONBLOCK)) {
+				if (pipe(monitor_pfd)) {
 					perr("Couldn't create pipe");
 					return -1;
 				}
+                                fcntl(monitor_pfd[0], F_SETFL, O_NONBLOCK);
+                                fcntl(monitor_pfd[1], F_SETFL, O_NONBLOCK);
 				monitor_set = 1;
 				out_fd[avail_cpus[0]] = monitor_pfd[1];
 			} else {
