@@ -2017,7 +2017,7 @@ static void create_monitor_function(systemtap_session& s)
 {
   functiondecl* fd = new functiondecl;
   fd->synthetic = true;
-  fd->name = "__monitor_data_function_probes";
+  fd->name = "__global___monitor_data_function_probes";
   fd->type = pe_string;
 
   vardecl* v = new vardecl;
@@ -2055,7 +2055,7 @@ static void monitor_mode_init(systemtap_session& s)
   if (!s.monitor) return;
 
   vardecl* v = new vardecl;
-  v->name = "__monitor_module_start";
+  v->name = "__global___monitor_module_start";
   v->set_arity(0, 0);
   v->type = pe_long;
   v->synthetic = true;
@@ -2115,7 +2115,7 @@ static void monitor_mode_read(systemtap_session& s)
       if (it != s.globals.begin())
         code << "$value .= sprintf(\",\\n\")" << endl;
 
-      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->name << "\")" << endl;
+      code << "$value .= sprintf(\"\\\"%s\\\"\", \"" << (*it)->tok->content << "\")" << endl;
       if ((*it)->arity == 0)
         code << "$value .= sprint(\": \", " << (*it)->name << ", \"\")" << endl;
       else if ((*it)->arity > 0)
@@ -2172,7 +2172,7 @@ static void monitor_mode_write(systemtap_session& s)
       it != s.probes.end(); ++it)
     {
       vardecl* v = new vardecl;
-      v->name = "__monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
+      v->name = "__global___monitor_" + lex_cast(it-s.probes.begin()) + "_enabled";
       v->tok = (*it)->tok;
       v->set_arity(0, (*it)->tok);
       v->type = pe_long;

@@ -145,15 +145,17 @@ static int comp_name(const void *p1, const void *p2)
   return strcmp(json_object_get_string(name1), json_object_get_string(name2));
 }
 
-static void write_command(const char *msg, const int len)
+static void write_command(const char *msg, const unsigned len)
 {
   char path[PATH_MAX];
   FILE* fp;
 
   if (sprintf_chk(path, "/proc/systemtap/%s/monitor_control", modname))
     cleanup_and_exit (0, 1);
-  fp = fopen(path, "w");
-  fwrite(msg, len, 1, fp);
+  if (!(fp = fopen(path, "w")))
+    cleanup_and_exit (0, 1);
+  if (fwrite(msg, len, 1, fp) != len)
+    cleanup_and_exit (0, 1);
   fclose(fp);
 }
 
