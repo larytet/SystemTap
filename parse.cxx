@@ -51,7 +51,7 @@ public:
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
 
-  unordered_set<string> keywords;
+  unordered_set<interned_string> keywords;
   static unordered_set<string> atwords;
 private:
   inline int input_get ();
@@ -1596,7 +1596,6 @@ skip:
 
   else if (isalpha (c) || c == '$' || c == '@' || c == '_')
     {
-      n->type = tok_identifier;
       token_str = (char) c;
       while (isalnum (c2) || c2 == '_' || c2 == '$')
 	{
@@ -1604,14 +1603,16 @@ skip:
           token_str.push_back (c2);
           c2 = input_peek ();
         }
+      n->content = token_str;
 
-      if (keywords.count(token_str))
-        n->type = tok_keyword;
-      else if (token_str[0] == '@')
+      if (n->content[0] == '@')
         // makes it easier to detect illegal use of @words:
         n->type = tok_operator;
+      else if (keywords.count(n->content))
+        n->type = tok_keyword;
+      else
+        n->type = tok_identifier;
 
-      n->content = token_str;
       return n;
     }
 
