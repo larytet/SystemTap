@@ -486,7 +486,7 @@ parser::scan_pp1 (bool ignore_macros = false)
           // macros.....)
           if (name == "define")
             throw PARSE_ERROR (_("attempt to redefine '@define'"), t);
-          if (input.atwords.count("@" + name))
+          if (input.atwords.count(name))
             session.print_warning (_F("macro redefines built-in operator '@%s'", name.c_str()), t);
 
           macrodecl* decl = (pp1_namespace[name] = new macrodecl);
@@ -1401,18 +1401,21 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
       // scripts that define macros with the same name, but not
       // really. The user will merely receive a warning that they are
       // redefining an existing operator.
-      atwords.insert("@cast");
-      atwords.insert("@defined");
-      atwords.insert("@entry");
-      atwords.insert("@perf");
-      atwords.insert("@var");
-      atwords.insert("@avg");
-      atwords.insert("@count");
-      atwords.insert("@sum");
-      atwords.insert("@min");
-      atwords.insert("@max");
-      atwords.insert("@hist_linear");
-      atwords.insert("@hist_log");
+
+      // These are inserted without the actual '@', so we can directly check
+      // proposed macro names without building a string with that prefix.
+      atwords.insert("cast");
+      atwords.insert("defined");
+      atwords.insert("entry");
+      atwords.insert("perf");
+      atwords.insert("var");
+      atwords.insert("avg");
+      atwords.insert("count");
+      atwords.insert("sum");
+      atwords.insert("min");
+      atwords.insert("max");
+      atwords.insert("hist_linear");
+      atwords.insert("hist_log");
     }
 }
 
