@@ -15,6 +15,7 @@
 #include "session.h"
 #include "util.h"
 #include "stringtable.h"
+#include "unordered.h"
 
 #include <iostream>
 
@@ -50,8 +51,8 @@ public:
   void set_current_token_chain (const token* tok);
   inline bool has_version (const char* v) const;
 
-  set<string> keywords;
-  static set<string> atwords;
+  unordered_set<string> keywords;
+  static unordered_set<string> atwords;
 private:
   inline int input_get ();
   inline int input_peek (unsigned n=0);
@@ -1415,7 +1416,7 @@ lexer::lexer (istream& input, const string& in, systemtap_session& s, bool cc):
     }
 }
 
-set<string> lexer::atwords;
+unordered_set<string> lexer::atwords;
 
 void
 lexer::set_current_file (stapfile* f)
