@@ -5397,13 +5397,12 @@ c_unparser::visit_functioncall (functioncall* e)
 }
 
 
-static int
+// returns true if it should print directly to a stream
+static bool
 preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
                         vector<print_format::format_component>& components,
                         string& format_string)
 {
-  int use_print = 0;
-
   if (e->print_with_format)
     {
       format_string = e->raw_components;
@@ -5457,18 +5456,26 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
     }
 
 
-  if ((tmp.size() == 0 && format_string.find("%%") == string::npos)
-      || (tmp.size() == 1 && format_string == "%s"))
-    use_print = 1;
-  else if (tmp.size() == 1
-	   && e->args[0]->tok->type == tok_string
-	   && format_string == "%s\\n")
+  // optimize simple string prints
+  if (e->print_to_stream && tmp.size() <= 1
+      && format_string.find("%%") == string::npos)
     {
-      use_print = 1;
-      tmp[0].override(tmp[0].value() + "\"\\n\"");
+      // just a plain format string itself, or
+      // simply formatting a string verbatim.
+      if (tmp.empty() || format_string == "%s")
+	return true;
+
+      // just a string without formatting plus newline, and it's been
+      // overridden with a literal, then we can token-paste the newline.
+      // TODO could allow any prefix and suffix around "%s", C-escaped.
+      if (e->args[0]->tok->type == tok_string && format_string == "%s\\n")
+	{
+	  tmp[0].override(tmp[0].value() + "\"\\n\"");
+	  return true;
+	}
     }
 
-  return use_print;
+  return false;
 }
 
 
@@ -5552,7 +5559,7 @@ c_unparser::visit_print_format (print_format* e)
       // Munge so we can find our compiled printf
       vector<print_format::format_component> components;
       string format_string, format_string_out;
-      int use_print = preprocess_print_format(e, tmp, components, format_string);
+      bool use_print = preprocess_print_format(e, tmp, components, format_string);
       format_string_out = print_format::components_to_string(components);
 
       // Make the [s]printf call...

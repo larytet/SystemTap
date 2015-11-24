@@ -1,4 +1,4 @@
-set test "sprint"
+set test "sprintln"
 set ::result_string {hello
 helloworld
 12345678
