@@ -3883,7 +3883,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
         {
 	  // Evaluate the limit expression once.
 	  res_limit = new tmpvar(gensym(pe_long));
-	  c_assign (res_limit->value(), s->limit, "foreach limit");
+	  c_assign (*res_limit, s->limit, "foreach limit");
 	}
 
       // aggregate array if required
@@ -3980,7 +3980,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
               if (s->array_slice[i])
                 {
                   tmpvar *asvar = new tmpvar(gensym(s->array_slice[i]->type));
-                  c_assign(asvar->value(), s->array_slice[i], "array slice index");
+                  c_assign(*asvar, s->array_slice[i], "array slice index");
                   array_slice_vars.push_back(asvar);
                 }
               else
@@ -4099,7 +4099,7 @@ c_unparser::visit_foreach_loop (foreach_loop *s)
         {
 	  // Evaluate the limit expression once.
 	  res_limit = new tmpvar(gensym(pe_long));
-	  c_assign (res_limit->value(), s->limit, "foreach limit");
+	  c_assign (*res_limit, s->limit, "foreach limit");
 
 	  // Create the loop limit variable here and initialize it.
 	  limitv = new tmpvar(gensym (pe_long));
@@ -4272,7 +4272,7 @@ delete_statement_operand_visitor::visit_arrayindex (arrayindex* e)
               if (e->indexes[i])
                 {
                   tmpvar *asvar = new tmpvar(parent->gensym(e->indexes[i]->type));
-                  parent->c_assign (asvar->value(), e->indexes[i], "tmp var");
+                  parent->c_assign (*asvar, e->indexes[i], "tmp var");
                   array_slice_vars.push_back(asvar);
                   if (mvar.is_parallel())
                     idx.push_back(*asvar);
@@ -4611,7 +4611,7 @@ c_unparser::visit_array_in (array_in* e)
               if (e->operand->indexes[i])
                 {
                   tmpvar *asvar = new tmpvar(gensym(e->operand->indexes[i]->type));
-                  c_assign (asvar->value(), e->operand->indexes[i], "tmp var");
+                  c_assign (*asvar, e->operand->indexes[i], "tmp var");
                   array_slice_vars.push_back(asvar);
                 }
               else
