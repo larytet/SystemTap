@@ -76,6 +76,10 @@ struct c_unparser: public unparser, public visitor
 
   derived_probe* current_probe;
   functiondecl* current_function;
+
+  const functioncall* assigned_functioncall;
+  const string* assigned_functioncall_retval;
+
   unsigned tmpvar_counter;
   unsigned label_counter;
   unsigned action_counter;
@@ -89,6 +93,7 @@ struct c_unparser: public unparser, public visitor
 
   c_unparser (systemtap_session* ss, translator_output* op=NULL):
     session (ss), o (op ?: ss->op), current_probe(0), current_function (0),
+    assigned_functioncall (0), assigned_functioncall_retval (0),
     tmpvar_counter (0), label_counter (0), action_counter(0),
     already_checked_action_count(false), vcv_needs_global_locks (*ss) {}
   ~c_unparser () {}
@@ -3159,12 +3164,19 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
       rvalue->visit(& eif);
       if (!session->unoptimized && eif.fncall)
         {
+	  const functioncall* saved_fncall = assigned_functioncall;
+	  const string* saved_retval = assigned_functioncall_retval;
+
           // let the functioncall know that the return value is being saved/used
           // and keep track of the lvalue, so that the retval assignment can
           // happen in ::visit_functioncall, to avoid complications with nesting.
-          eif.fncall->var_assigned_to_retval = lvalue;
+	  assigned_functioncall = eif.fncall;
+	  assigned_functioncall_retval = &lvalue;
           eif.fncall->visit (this);
           o->line() << ";";
+
+	  assigned_functioncall = saved_fncall;
+	  assigned_functioncall_retval = saved_retval;
         }
       else
         {
@@ -5306,16 +5318,19 @@ c_unparser::visit_functioncall (functioncall* e)
                   e->args[i]->tok);
     }
 
-  tmpvar tmp_ret = gensym (e->type);
   // store the return value after the function arguments have been worked out
   // to avoid problems that may occure with nesting.
-  if (!e->var_assigned_to_retval.empty())
-    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
-                 << ".__retvalue = &" << e->var_assigned_to_retval << "[0];";
-  // store the return value into a tmpvar in case the return is never used/assigned
-  else if (!session->unoptimized && e->type == pe_string)
-    o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
-                 << ".__retvalue = &" << tmp_ret.value() << "[0];";
+  tmpvar tmp_ret = gensym (e->type);
+
+  // optimized string returns need a local storage pointer.
+  bool pointer_ret = (e->type == pe_string && !session->unoptimized);
+  if (pointer_ret)
+    {
+      if (e == assigned_functioncall)
+	tmp_ret.override (*assigned_functioncall_retval);
+      o->newline() << "c->locals[c->nesting+1]." << c_funcname(r->name)
+		   << ".__retvalue = &" << tmp_ret.value() << "[0];";
+    }
 
   // call function
   o->newline() << c_funcname (r->name) << " (c);";
@@ -5338,11 +5353,11 @@ c_unparser::visit_functioncall (functioncall* e)
   if (r->type == pe_unknown)
     // If we passed typechecking, then nothing will use this return value
     o->newline() << "(void) 0;";
-  else if (session->unoptimized || r->type != pe_string)
+  else if (!pointer_ret)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
-  else if (e->var_assigned_to_retval.empty())
+  else if (!tmp_ret.is_overridden())
     o->newline() << tmp_ret.value() << ";";
 
 }

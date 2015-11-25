@@ -432,7 +432,6 @@ struct functioncall: public expression
   functioncall ();
   void print (std::ostream& o) const;
   void visit (visitor* u);
-  interned_string var_assigned_to_retval;
 };
 
 
