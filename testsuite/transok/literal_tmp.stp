@@ -1,0 +1,11 @@
+#! /bin/bash
+
+# PR18884 const-folded literals get unnecessary tmp storage
+
+# Since the second version with two literals will be const-folded, it should
+# result in the *exact* same generated source as with one literal.
+
+script='probe oneshot { println($1) }'
+
+diff <(stap -p3 -e "$script" '"foobar"') \
+     <(stap -p3 -e "$script" '"foo" . "bar"')

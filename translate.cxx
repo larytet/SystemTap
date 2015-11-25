@@ -142,15 +142,15 @@ struct c_unparser: public unparser, public visitor
   virtual string c_localname (const string& e, bool mangle_oldstyle = false);
   virtual string c_globalname (const string &e);
   virtual string c_funcname (const string &e);
-  string c_expression (expression* e);
 
   string c_arg_define (const string& e);
   string c_arg_undef (const string& e);
 
   void c_assign (var& lvalue, const string& rvalue, const token* tok);
-  void c_assign (const string& lvalue, expression* rvalue, const string& msg);
+  void c_assign (tmpvar& lvalue, expression* rvalue, const char* msg);
+  void c_assign (const string& lvalue, expression* rvalue, const char* msg);
   void c_assign (const string& lvalue, const string& rvalue, exp_type type,
-                 const string& msg, const token* tok);
+                 const char* msg, const token* tok);
 
   void c_declare(exp_type ty, const string &ident);
   void c_declare_static(exp_type ty, const string &ident);
@@ -570,6 +570,11 @@ public:
   {
     overridden = true;
     override_value = value;
+  }
+
+  bool is_overridden()
+  {
+    return overridden;
   }
 
   string value() const
@@ -3070,46 +3075,6 @@ c_unparser::c_arg_undef (const string& e)
 }
 
 
-string
-c_unparser::c_expression (expression *e)
-{
-  // We want to evaluate expression 'e' and return its value as a
-  // string.  In the case of expressions that are just numeric
-  // constants, if we just print the value into a string, it won't
-  // have the same value as being visited by c_unparser.  For
-  // instance, a numeric constant evaluated using print() would return
-  // "5", while c_unparser::visit_literal_number() would
-  // return "((int64_t)5LL)".  String constants evaluated using
-  // print() would just return the string, while
-  // c_unparser::visit_literal_string() would return the string with
-  // escaped double quote characters.  So, we need to "visit" the
-  // expression.
-
-  // However, we have to be careful of side effects.  Currently this
-  // code is only being used for evaluating literal numbers and
-  // strings, which currently have no side effects.  Until needed
-  // otherwise, limit the use of this function to literal numbers and
-  // strings.
-  if (e->tok->type != tok_number && e->tok->type != tok_string)
-    throw SEMANTIC_ERROR(_("unsupported c_expression token type"));
-
-  // Create a fake output stream so we can grab the string output.
-  ostringstream oss;
-  translator_output tmp_o(oss);
-
-  // Temporarily swap out the real translator_output stream with our
-  // fake one.
-  translator_output *saved_o = o;
-  o = &tmp_o;
-
-  // Visit the expression then restore the original output stream
-  e->visit (this);
-  o = saved_o;
-
-  return (oss.str());
-}
-
-
 void
 c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
 {
@@ -3124,6 +3089,38 @@ c_unparser::c_assign (var& lvalue, const string& rvalue, const token *tok)
     default:
       throw SEMANTIC_ERROR (_("unknown lvalue type in assignment"), tok);
     }
+}
+
+
+void
+c_unparser::c_assign(tmpvar& t, expression *e, const char* msg)
+{
+  // We don't really need a tmpvar if the expression is a literal.
+  // (NB: determined by the expression itself, not tok->type!)
+
+  if (dynamic_cast<literal*>(e))
+    {
+      // We need to use the visitors to get proper C values, like
+      // "((int64_t)5LL)" for numbers and escaped characters in strings.
+
+      // Create a fake output stream so we can grab the string output.
+      ostringstream oss;
+      translator_output tmp_o(oss);
+
+      // Temporarily swap out the real translator_output stream with our
+      // fake one.
+      translator_output *saved_o = o;
+      o = &tmp_o;
+
+      // Visit the expression then restore the original output stream
+      e->visit (this);
+      o = saved_o;
+
+      // All instances of this tmpvar will use the literal value.
+      t.override (oss.str());
+    }
+  else
+    c_assign (t.value(), e, msg);
 }
 
 
@@ -3148,7 +3145,7 @@ struct expression_is_functioncall : public expression_visitor
 
 void
 c_unparser::c_assign (const string& lvalue, expression* rvalue,
-		      const string& msg)
+		      const char* msg)
 {
   if (rvalue->type == pe_long)
     {
@@ -3177,7 +3174,7 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else
     {
-      string fullmsg = msg + _(" type unsupported");
+      string fullmsg = string(msg) + _(" type unsupported");
       throw SEMANTIC_ERROR (fullmsg, rvalue->tok);
     }
 }
@@ -3185,7 +3182,7 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
 
 void
 c_unparser::c_assign (const string& lvalue, const string& rvalue,
-		      exp_type type, const string& msg, const token* tok)
+		      exp_type type, const char* msg, const token* tok)
 {
   if (type == pe_long)
     {
@@ -3197,7 +3194,7 @@ c_unparser::c_assign (const string& lvalue, const string& rvalue,
     }
   else
     {
-      string fullmsg = msg + _(" type unsupported");
+      string fullmsg = string(msg) + _(" type unsupported");
       throw SEMANTIC_ERROR (fullmsg, tok);
     }
 }
@@ -4492,23 +4489,8 @@ c_unparser::visit_binary_expression (binary_expression* e)
       o->line() << "({";
       o->indent(1);
 
-      if (e->left->tok->type == tok_number)
-	left.override(c_expression(e->left));
-      else
-        {
-	  o->newline() << left << " = ";
-	  e->left->visit (this);
-	  o->line() << ";";
-	}
-
-      if (e->right->tok->type == tok_number)
-	right.override(c_expression(e->right));
-      else
-        {
-	  o->newline() << right << " = ";
-	  e->right->visit (this);
-	  o->line() << ";";
-	}
+      c_assign (left, e->left, "division");
+      c_assign (right, e->right, "division");
 
       o->newline() << "if (unlikely(!" << right << ")) {";
       o->newline(1) << "c->last_error = ";
@@ -4741,10 +4723,7 @@ c_unparser::visit_comparison (comparison* e)
       o->indent(1);
 
       tmpvar left = gensym (pe_string);
-      if (e->left->tok->type == tok_string)
-        left.override(c_expression(e->left));
-      else
-        c_assign (left.value(), e->left, "assignment");
+      c_assign (left, e->left, "assignment");
 
       o->newline() << "strncmp (" << left << ", ";
       e->right->visit (this);
@@ -4908,15 +4887,7 @@ c_unparser_assignment::prepare_rvalue (interned_string op,
 				       token const * tok)
 {
   if (rvalue)
-    {
-      if (rvalue->tok->type == tok_number || rvalue->tok->type == tok_string)
-	// Instead of assigning the numeric or string constant to a
-	// temporary, then assigning the temporary to the final, let's
-	// just override the temporary with the constant.
-	rval.override(parent->c_expression(rvalue));
-      else
-	parent->c_assign (rval.value(), rvalue, "assignment");
-    }
+    parent->c_assign (rval, rvalue, "assignment");
   else
     {
       if (op == "++" || op == "--")
@@ -5026,18 +4997,7 @@ c_unparser::load_map_indices(arrayindex *e,
 	    throw SEMANTIC_ERROR (_("array index type mismatch"), e->indexes[i]->tok);
 
 	  tmpvar ix = gensym (r->index_types[i]);
-	  if (e->indexes[i]->tok->type == tok_number
-	      || e->indexes[i]->tok->type == tok_string)
-	    // Instead of assigning the numeric or string constant to a
-	    // temporary, then using the temporary, let's just
-	    // override the temporary with the constant.
-	    ix.override(c_expression(e->indexes[i]));
-	  else
-	    {
-	      // o->newline() << "c->last_stmt = "
-              // << lex_cast_qstring(*e->indexes[i]->tok) << ";";
-	      c_assign (ix.value(), e->indexes[i], "array index copy");
-	    }
+	  c_assign (ix, e->indexes[i], "array index copy");
 	  idx.push_back (ix);
 	}
     }
@@ -5046,9 +5006,7 @@ c_unparser::load_map_indices(arrayindex *e,
       assert (e->indexes.size() == 1);
       assert (e->indexes[0]->type == pe_long);
       tmpvar ix = gensym (pe_long);
-      // o->newline() << "c->last_stmt = "
-      //	   << lex_cast_qstring(*e->indexes[0]->tok) << ";";
-      c_assign (ix.value(), e->indexes[0], "array index copy");
+      c_assign (ix, e->indexes[0], "array index copy");
       idx.push_back(ix);
     }
 }
@@ -5318,19 +5276,12 @@ c_unparser::visit_functioncall (functioncall* e)
 			      e->args[i]->tok, r->formal_args[i]->tok);
 
       symbol *sym_out;
-      if (e->args[i]->tok->type == tok_number
-	  || e->args[i]->tok->type == tok_string)
-	t.override(c_expression(e->args[i]));
-      else if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
-               && is_local(sym_out->referent, sym_out->tok))
-        t.override(getvar(sym_out->referent, e->args[i]->tok).value());
+      if (r->formal_args[i]->char_ptr_arg && e->args[i]->is_symbol(sym_out)
+	  && is_local(sym_out->referent, sym_out->tok))
+	t.override(getvar(sym_out->referent, sym_out->tok).value());
       else
-        {
-	  // o->newline() << "c->last_stmt = "
-          // << lex_cast_qstring(*e->args[i]->tok) << ";";
-	  c_assign (t.value(), e->args[i],
-		    _("function actual argument evaluation"));
-	}
+	c_assign (t, e->args[i],
+		  _("function actual argument evaluation"));
       tmp.push_back(t);
     }
 
@@ -5468,7 +5419,7 @@ preprocess_print_format(print_format* e, vector<tmpvar>& tmp,
       // just a string without formatting plus newline, and it's been
       // overridden with a literal, then we can token-paste the newline.
       // TODO could allow any prefix and suffix around "%s", C-escaped.
-      if (e->args[0]->tok->type == tok_string && format_string == "%s\\n")
+      if (tmp[0].is_overridden() && format_string == "%s\\n")
 	{
 	  tmp[0].override(tmp[0].value() + "\"\\n\"");
 	  return true;
@@ -5535,21 +5486,9 @@ c_unparser::visit_print_format (print_format* e)
       for (unsigned i=0; i<e->args.size(); i++)
 	{
 	  tmpvar t = gensym(e->args[i]->type);
+	  c_assign (t, e->args[i],
+		    "print format actual argument evaluation");
 	  tmp.push_back(t);
-
-	  // o->newline() << "c->last_stmt = "
-          //	       << lex_cast_qstring(*e->args[i]->tok) << ";";
-
-	  // If we've got a numeric or string constant, instead of
-	  // assigning the numeric or string constant to a temporary,
-	  // then passing the temporary to _stp_printf/_stp_snprintf,
-	  // let's just override the temporary with the constant.
-	  if (e->args[i]->tok->type == tok_number
-	      || e->args[i]->tok->type == tok_string)
-	    tmp[i].override(c_expression(e->args[i]));
-	  else
-	    c_assign (t.value(), e->args[i],
-		      "print format actual argument evaluation");
 	}
 
       // Allocate the result
