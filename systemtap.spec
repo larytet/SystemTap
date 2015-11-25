@@ -130,7 +130,7 @@ BuildRequires: elfutils-devel >= %{elfutils_version}
 %if %{with_docs}
 BuildRequires: /usr/bin/latex /usr/bin/dvips /usr/bin/ps2pdf
 %if 0%{?fedora} >= 18 || 0%{?rhel} >= 7
-BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm) tex(nomencl.sty) tex(graphicx.sty)
+BuildRequires: tex(fullpage.sty) tex(fancybox.sty) tex(bchr7t.tfm) tex(graphicx.sty)
 %endif
 # For the html.sty mentioned in the .tex files, even though latex2html is
 # not run during the build, only during manual scripts/update-docs runs:
