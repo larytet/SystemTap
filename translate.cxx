@@ -3129,19 +3129,12 @@ c_unparser::c_assign(tmpvar& t, expression *e, const char* msg)
 }
 
 
-struct expression_is_functioncall : public expression_visitor
+struct expression_is_functioncall : public nop_visitor
 {
-  c_unparser* parent;
   functioncall* fncall;
-  expression_is_functioncall (c_unparser* p)
-    : parent(p), fncall(NULL) {}
+  expression_is_functioncall ()
+    : fncall(NULL) {}
 
-  void visit_expression (expression* e)
-    {
-      // works on the basis that every expression will, by default, call this
-      // function, except for functioncall, as the visitor is overwritten
-      fncall = NULL;
-    }
   void visit_functioncall (functioncall* e)
     {
       fncall = e;
@@ -3160,7 +3153,7 @@ c_unparser::c_assign (const string& lvalue, expression* rvalue,
     }
   else if (rvalue->type == pe_string)
     {
-      expression_is_functioncall eif (this);
+      expression_is_functioncall eif;
       rvalue->visit(& eif);
       if (!session->unoptimized && eif.fncall)
         {
@@ -5350,14 +5343,15 @@ c_unparser::visit_functioncall (functioncall* e)
 
   // return result from retvalue slot NB: this must be last, for the
   // enclosing statement-expression ({ ... }) to carry this value.
-  if (r->type == pe_unknown)
-    // If we passed typechecking, then nothing will use this return value
+  if (r->type == pe_unknown || tmp_ret.is_overridden())
+    // If we passed typechecking with pe_unknown, or if we directly assigned
+    // the functioncall retval, then nothing will use this return value
     o->newline() << "(void) 0;";
   else if (!pointer_ret)
     o->newline() << "c->locals[c->nesting+1]"
                  << "." << c_funcname (r->name)
                  << ".__retvalue;";
-  else if (!tmp_ret.is_overridden())
+  else
     o->newline() << tmp_ret.value() << ";";
 
 }

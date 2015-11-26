@@ -914,6 +914,55 @@ struct visitor
 };
 
 
+// A NOP visitor doesn't do anything.  It's a useful base class if you need to
+// take action only for specific types, without even traversing the rest.
+struct nop_visitor: public visitor
+{
+  virtual ~nop_visitor () {}
+  virtual void visit_block (block *s) {};
+  virtual void visit_try_block (try_block *s) {};
+  virtual void visit_embeddedcode (embeddedcode *s) {};
+  virtual void visit_null_statement (null_statement *s) {};
+  virtual void visit_expr_statement (expr_statement *s) {};
+  virtual void visit_if_statement (if_statement* s) {};
+  virtual void visit_for_loop (for_loop* s) {};
+  virtual void visit_foreach_loop (foreach_loop* s) {};
+  virtual void visit_return_statement (return_statement* s) {};
+  virtual void visit_delete_statement (delete_statement* s) {};
+  virtual void visit_next_statement (next_statement* s) {};
+  virtual void visit_break_statement (break_statement* s) {};
+  virtual void visit_continue_statement (continue_statement* s) {};
+  virtual void visit_literal_string (literal_string* e) {};
+  virtual void visit_literal_number (literal_number* e) {};
+  virtual void visit_embedded_expr (embedded_expr* e) {};
+  virtual void visit_binary_expression (binary_expression* e) {};
+  virtual void visit_unary_expression (unary_expression* e) {};
+  virtual void visit_pre_crement (pre_crement* e) {};
+  virtual void visit_post_crement (post_crement* e) {};
+  virtual void visit_logical_or_expr (logical_or_expr* e) {};
+  virtual void visit_logical_and_expr (logical_and_expr* e) {};
+  virtual void visit_array_in (array_in* e) {};
+  virtual void visit_regex_query (regex_query* e) {};
+  virtual void visit_comparison (comparison* e) {};
+  virtual void visit_concatenation (concatenation* e) {};
+  virtual void visit_ternary_expression (ternary_expression* e) {};
+  virtual void visit_assignment (assignment* e) {};
+  virtual void visit_symbol (symbol* e) {};
+  virtual void visit_target_symbol (target_symbol* e) {};
+  virtual void visit_arrayindex (arrayindex* e) {};
+  virtual void visit_functioncall (functioncall* e) {};
+  virtual void visit_print_format (print_format* e) {};
+  virtual void visit_stat_op (stat_op* e) {};
+  virtual void visit_hist_op (hist_op* e) {};
+  virtual void visit_cast_op (cast_op* e) {};
+  virtual void visit_autocast_op (autocast_op* e) {};
+  virtual void visit_atvar_op (atvar_op* e) {};
+  virtual void visit_defined_op (defined_op* e) {};
+  virtual void visit_entry_op (entry_op* e) {};
+  virtual void visit_perf_op (perf_op* e) {};
+};
+
+
 // A simple kind of visitor, which travels down to the leaves of the
 // statement/expression tree, up to but excluding following vardecls
 // and functioncalls.
