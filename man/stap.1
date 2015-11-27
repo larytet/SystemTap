@@ -1092,12 +1092,12 @@ Same as above, where iterations are limited to elements in the array where
 the keys match the index values specified. The symbol * can be used to specify
 an index and will be treated as a wildcard.
 .TP
-.BR foreach " (VALUE = VAR " in " ARRAY [ "limit " EXP ]) STMT"
-This variant of foreach saves current value into VALUE on each
+.BR foreach " (VAR0 = VAR " in " ARRAY [ "limit " EXP ]) STMT"
+This variant of foreach saves current value into VAR0 on each
 iteration, so it is the same as ARRAY[VAR].  This also works with a
-tuple of keys.  Sorting suffixes on VALUE have the same effect as on ARRAY.
+tuple of keys.  Sorting suffixes on VAR0 have the same effect as on ARRAY.
 .TP
-.BR foreach " (VALUE = VAR " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
+.BR foreach " (VAR0 = VAR " in " ARRAY [INDEX1, INDEX2, ...] [ "limit " EXP ]) STMT"
 Same as above, where iterations are limited to elements in the array where the
 keys match the index values specified. The symbol * can be used to specify
 an index and will be treated as a wildcard.
