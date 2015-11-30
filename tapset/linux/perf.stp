@@ -1,11 +1,11 @@
 // pcl aka perf aka perf-events tapset
-// Copyright (C) 2010 Red Hat Inc.
+// Copyright (C) 2010-2015 Red Hat Inc.
 //
 // This file is free software.  You can redistribute it and/or modify it under
 // the terms of the GNU General Public License (GPL), version 2.
 
 // The type and config values are part of the sys_perf_event_open() ABI,
-// 'perf_event_attr' struct.  See <include/linux/perf_event.h>.
+// 'perf_event_attr' struct.  See <include/uapi/linux/perf_event.h>.
 
 // PERF_TYPE_HW
 probe perf.hw.cpu_cycles          = perf.type(0).config(0) { }
@@ -15,6 +15,9 @@ probe perf.hw.cache_misses        = perf.type(0).config(3) { }
 probe perf.hw.branch_instructions = perf.type(0).config(4) { }
 probe perf.hw.branch_misses       = perf.type(0).config(5) { }
 probe perf.hw.bus_cycles          = perf.type(0).config(6) { }
+probe perf.hw.stalled_cycles_frontend = perf.type(0).config(7) { }
+probe perf.hw.stalled_cycles_backend = perf.type(0).config(8) { }
+probe perf.hw.ref_cpu_cycles      = perf.type(0).config(9) { }
 
 // PERF_TYPE_SOFTWARE
 probe perf.sw.cpu_clock           = perf.type(1).config(0) { }
@@ -75,3 +78,11 @@ probe perf.hw_cache.bpu.read.miss        = perf.type(3).config(0x010005) {}
 //probe perf.hw_cache.bpu.write.miss       = perf.type(3).config(0x010105) {}
 //probe perf.hw_cache.bpu.prefetch.access  = perf.type(3).config(0x000205) {}
 //probe perf.hw_cache.bpu.prefetch.miss    = perf.type(3).config(0x010205) {}
+
+probe perf.hw_cache.node.read.access      = perf.type(3).config(0x000006) {}
+probe perf.hw_cache.node.read.miss        = perf.type(3).config(0x010006) {}
+probe perf.hw_cache.node.write.access     = perf.type(3).config(0x000106) {}
+probe perf.hw_cache.ndoe.write.miss       = perf.type(3).config(0x010106) {}
+//probe perf.hw_cache.node.prefetch.access  = perf.type(3).config(0x000206) {}
+//probe perf.hw_cache.node.prefetch.miss    = perf.type(3).config(0x010206) {}
+  
