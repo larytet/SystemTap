@@ -1,0 +1,8 @@
+#! stap -p1
+
+# Variable names can't start with a numeric digit.
+probe begin
+{
+	0var=2015
+	exit()
+}
