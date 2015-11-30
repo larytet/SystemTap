@@ -1,0 +1,6 @@
+#! stap -p2
+
+probe timer.hz(1000).randomize(500) {
+	printf("%s\n", "timer_hz")
+	exit()
+}
