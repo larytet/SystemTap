@@ -5,8 +5,9 @@
  */
 
 global p
-global j1, j2, jmax
-global ms1, ms500, msmax
+global j1, j2, jmax, jr
+global ms1, ms500, msmax, msr
+global sec, secr, us, usr, ns, nsr, hz
 
 probe begin
 {
@@ -18,12 +19,25 @@ probe timer.profile { ++p }
 probe timer.jiffies(1) { ++j1 }
 probe timer.jiffies(2) { ++j2 }
 probe timer.jiffies(1000000) { ++jmax }
+probe timer.jiffies(1000).randomize(500) { ++jr }
 
 /* as long as HZ>2, ms(1) and ms(500) 
  * will produce different counts */
 probe timer.ms(1) { ++ms1 }
 probe timer.ms(500) { ++ms500 }
 probe timer.ms(1000000) { ++msmax }
+probe timer.ms(1000).randomize(500) { ++msr }
+
+probe timer.sec(5) { ++sec }
+probe timer.sec(5).randomize(4) { ++secr }
+
+probe timer.us(1000) { ++us }
+probe timer.us(1000).randomize(500) { ++usr }
+
+probe timer.ns(1000000) { ++ns }
+probe timer.ns(1000000).randomize(500000) { ++nsr }
+
+probe timer.hz(1000) { ++hz }
 
 probe end
 {
@@ -31,10 +45,20 @@ probe end
 	printf("p = %d\n", p)
 	printf("j1 = %d\n", j1)
 	printf("j2 = %d\n", j2)
+	printf("jr = %d\n", jr)
 	printf("jmax = %d\n", jmax)
 	printf("ms1 = %d\n", ms1)
 	printf("ms500 = %d\n", ms500)
 	printf("msmax = %d\n", msmax)
+	printf("msr = %d\n", msr)
+
+	printf("sec = %d\n", sec)
+	printf("secr = %d\n", secr)
+	printf("us = %d\n", us)
+	printf("usr = %d\n", usr)
+	printf("ns = %d\n", nsr)
+	printf("nsr = %d\n", nsr)
+	printf("hz = %d\n", hz)
 
 	/* profile counter should be non-zero, and at
 	 * least as many as the jiffies(1) counter */
@@ -69,6 +93,41 @@ probe end
 		printf("systemtap test success\n")
 	} else {
 		printf("unexpected count on 'infinite' interval\n")
+		printf("systemtap test failure\n");
+	}
+
+	if (jr * msr * secr * usr * nsr > 0) {
+		printf("systemtap test success\n")
+	} else {
+		printf("unexpected randomize count\n")
+		printf("systemtap test failure\n");
+	}
+
+	if (sec > 0) {
+		printf("systemtap test success\n")
+	} else {
+		printf("unexpected sec count\n")
+		printf("systemtap test failure\n");
+	}
+
+	if (us > 0) {
+		printf("systemtap test success\n")
+	} else {
+		printf("unexpected us count\n")
+		printf("systemtap test failure\n");
+	}
+
+	if (ns > 0) {
+		printf("systemtap test success\n")
+	} else {
+		printf("unexpected ns count\n")
+		printf("systemtap test failure\n");
+	}
+
+	if (hz > 0) {
+		printf("systemtap test success\n")
+	} else {
+		printf("unexpected hz count\n")
 		printf("systemtap test failure\n");
 	}
 }
