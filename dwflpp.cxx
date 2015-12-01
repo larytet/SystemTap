@@ -3110,16 +3110,22 @@ dwflpp::die_location_as_string(Dwarf_Addr pc, Dwarf_Die *die)
   locstr += lex_cast_hex(dwarf_dieoffset(die));
 
   /* DWARF file */
-  const char *debugfile;
+  const char *mainfile, *debugfile;
   locstr += _(" from ");
-  if (dwfl_module_info (module, NULL, NULL, NULL, NULL, NULL, NULL,
-			&debugfile) == NULL || debugfile == NULL)
+  if (dwfl_module_info (module, NULL, NULL, NULL, NULL, NULL, &mainfile,
+			&debugfile) == NULL
+      || (mainfile == NULL && debugfile == NULL))
     {
       locstr += _("unknown debug file for ");
       locstr += module_name;
     }
   else
-    locstr += debugfile;
+    {
+      if (debugfile != NULL)
+	locstr += debugfile;
+      else
+	locstr += mainfile;
+    }
 
   return locstr;
 }
