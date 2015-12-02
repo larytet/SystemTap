@@ -1,5 +1,12 @@
 * What's new in version 3.0
 
+- Profiling timers at arbitrary frequencies are now provided.
+
+  probe timer.profile.freq.hz(N)
+
+  The specified frequency is only accurate up to around 100hz. You may
+  need to provide a higher value to achieve the desired rate.
+
 - New --monitor[=INTERVAL] option similar to unix "top". This allows users to
   see statistics about the running module(uptime, module name, invoker uid,
   memory sizes, global variables, and the current probe list along with

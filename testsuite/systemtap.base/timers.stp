@@ -5,6 +5,7 @@
  */
 
 global p
+global phz
 global j1, j2, jmax, jr
 global ms1, ms500, msmax, msr
 global sec, secr, us, usr, ns, nsr, hz
@@ -15,6 +16,7 @@ probe begin
 }
 
 probe timer.profile { ++p }
+probe timer.profile.freq.hz(10) { ++phz }
 
 probe timer.jiffies(1) { ++j1 }
 probe timer.jiffies(2) { ++j2 }
@@ -43,6 +45,7 @@ probe end
 {
 	printf("systemtap ending probe\n")
 	printf("p = %d\n", p)
+	printf("phz = %d\n", phz)
 	printf("j1 = %d\n", j1)
 	printf("j2 = %d\n", j2)
 	printf("jr = %d\n", jr)
@@ -76,6 +79,15 @@ probe end
 		printf("systemtap test success\n")
 	} else {
 		printf("unexpected jiffies count\n")
+		printf("systemtap test failure\n");
+	}
+
+	/* timer.profile.freq.hz(10) should be more than
+	 * ms(500) and less than ms(1). */
+	if ((phz > ms500) && (phz < ms1)) {
+		printf("systemtap test success\n")
+	} else {
+		printf("unexpected ms count\n")
 		printf("systemtap test failure\n");
 	}
 

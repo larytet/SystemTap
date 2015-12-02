@@ -331,13 +331,14 @@ component is given, then the random value will be added to the interval
 before any rounding occurs.
 .PP
 Profiling timers are also available to provide probes that execute on
-all CPUs at the rate of the system tick (CONFIG_HZ).  This probe takes
-no parameters.  On some kernels, this is a one-concurrent-user-only or
+all CPUs at the rate of the system tick (CONFIG_HZ) or at a given
+frequency (hz). On some kernels, this is a one-concurrent-user-only or
 disabled facility, resulting in error \-16 (EBUSY) during probe
 registration.
 
 .SAMPLE
 timer.profile.tick
+timer.profile.freq.hz(N)
 .ESAMPLE
 
 Full context information of the interrupted process is available, making
@@ -349,6 +350,10 @@ rather than timer.profile.tick. This probe point behaves identically
 to timer.profile.tick when the underlying functionality is available,
 and falls back to using perf.sw.cpu_clock on some recent kernels which
 lack the corresponding profile timer facility.
+.PP
+Profiling timers with specified frequencies are only accurate up to around
+100 hz. You may need to provide a larger value to achieve the desired
+rate.
 
 .SS DWARF
 
@@ -1317,6 +1322,7 @@ These fields are made available to systemtap scripts using
 the following syntax:
 .SAMPLE
 probe perf.type(NN).config(MM).sample(XX)
+probe perf.type(NN).config(MM).hz(XX)
 probe perf.type(NN).config(MM)
 probe perf.type(NN).config(MM).process("PROC")
 probe perf.type(NN).config(MM).counter("COUNTER")

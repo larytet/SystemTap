@@ -360,7 +360,8 @@ proc report_untested_probes {} {
          perf.type(number).config(number).process -
          perf.type(number).config(number).process(string) -
          perf.type(number).config(number).process(string).counter(string) -
-         perf.type(number).config(number).sample(number)
+         perf.type(number).config(number).sample(number) -
+         perf.type(number).config(number).hz(number)
          {
             if {![perf_probes_p]} {
                setup_kfail PERF *-*-*
@@ -757,6 +758,10 @@ if {[perf_probes_p]} {
    testing_probe {perf.type(number).config(number).sample(number)}
 
    stap_list {perf.type(1).config(1).sample(1000)}
+
+   testing_probe {perf.type(number).config(number).hz(number)}
+
+   stap_list {perf.type(1).config(1).hz(1000)}
 }
 
 testing_probe {process.begin}

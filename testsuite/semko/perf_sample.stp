@@ -1,0 +1,6 @@
+#! stap -p2
+
+probe perf.type(0).config(0).sample(100).hz(100) {
+  println(1)
+  exit()
+}
