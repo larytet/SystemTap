@@ -1,8 +1,10 @@
 * What's new in version 3.0
 
-- Profiling timers at arbitrary frequencies are now provided.
+- Profiling timers at arbitrary frequencies are now provided and perf probes
+  now support a frequency field as an alternative to sampling counts.
 
   probe timer.profile.freq.hz(N)
+  probe perf.type(N).config(M).hz(X)
 
   The specified frequency is only accurate up to around 100hz. You may
   need to provide a higher value to achieve the desired rate.

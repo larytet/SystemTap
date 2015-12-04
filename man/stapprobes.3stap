@@ -1316,7 +1316,7 @@ The events being attached to are described by the "type",
 "config" fields of the 
 .IR perf_event_attr
 structure, and are sampled at an interval governed by the
-"sample_period" field.
+"sample_period" and "sample_freq" fields.
 
 These fields are made available to systemtap scripts using
 the following syntax:
@@ -1329,8 +1329,9 @@ probe perf.type(NN).config(MM).counter("COUNTER")
 probe perf.type(NN).config(MM).process("PROC").counter("COUNTER")
 .ESAMPLE
 The systemtap probe handler is called once per XX increments
-of the underlying performance counter.  The default sampling
-count is 1000000.
+of the underlying performance counter when using the .sample field
+or at a frequency in hertz when using the .hz field. When not specified,
+the default behavior is to sample at a count of 1000000.
 The range of valid type/config is described by the 
 .IR perf_event_open (2)
 system call, and/or the 
