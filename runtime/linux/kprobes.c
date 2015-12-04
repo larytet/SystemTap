@@ -17,6 +17,7 @@
 #endif
 
 #include <linux/kprobes.h>
+#include <linux/module.h>
 
 #ifdef DEBUG_KPROBES
 #define dbug_stapkp(args...) do {					\
@@ -79,9 +80,10 @@ struct stap_dwarf_probe {
    // switch to using symbol_name+offset (on kernels that support
    // symbol_name+offset probing).
    const unsigned long address;
+
    // Note we can't really check for STAPCONF_KPROBE_SYMBOL_NAME here,
    // since that complicates the init logic too much.
-   const char * const symbol_name;
+   const char *symbol_name;
    unsigned int offset;
 
    const struct stap_probe * const probe;
@@ -131,17 +133,46 @@ stapkp_prepare_kprobe(struct stap_dwarf_probe *sdp)
       addr = stapkp_relocate_addr(sdp);
       if (addr == 0)
 	 return 1;
+      kp->addr = (void *) addr;
    }
    else {
-      // If we're doing symbolic name + offset probing, it doesn't
-      // really matter if the symbol is in a module and the module
-      // isn't loaded right now. The registration will fail, but will
-      // get tried again when the module is loaded.
+#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL
+      // If we're doing symbolic name + offset probing (that gets
+      // converted to an address), it doesn't really matter if the
+      // symbol is in a module and the module isn't loaded right
+      // now. The registration will fail, but will get tried again
+      // when the module is loaded.
+      if (kp->addr == 0)
+	 return 1;
+#else
+      // If we don't have kallsyms_on_each_symbol(), we'll use
+      // symbol_name+offset probing and let
+      // register_kprobe()/register_kretprobe() call
+      // kallsyms_lookup_name() for us. However, on kernels < 3.11,
+      // module_kallsyms_lookup_name() (called from
+      // kallsyms_lookup_name()) has a bug where it modifies its
+      // argument. So, for those kernels we'll workaround the bug by
+      // duplicating the string (so we go from read-only memory in the
+      // initialized struct data to read-write allocated memory). The
+      // memory gets freed when the probe is unregistered.
+      //
+      // This bug was fixed in kernel 3.11+ by the following commit:
+      //
+      //   commit 4f6de4d51f4a3ab06a85e91e708cc89a513ef30c
+      //      Author: Mathias Krause <minipli@googlemail.com>
+      //      Date:   Tue Jul 2 15:35:11 2013 +0930
+      //
+      //      module: don't modify argument of module_kallsyms_lookup_name()
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+      if (kp->symbol_name == NULL)
+	 kp->symbol_name = kstrdup(sdp->symbol_name, STP_ALLOC_FLAGS);
+#else
       kp->symbol_name = (typeof(kp->symbol_name))sdp->symbol_name;
+#endif
       kp->offset = sdp->offset;
+#endif
    }
 
-   kp->addr = (void *) addr;
    kp->pre_handler = &enter_kprobe_probe;
 
 #ifdef __ia64__ // PR6028
@@ -173,7 +204,7 @@ stapkp_arch_register_kprobe(struct stap_dwarf_probe *sdp)
       if (sdp->symbol_name)
 	 dbug_stapkp("+kprobe %s+%u\n", kp->symbol_name, kp->offset);
       else
-	 dbug_stapkp_cond("+kprobe %p\n", kp->addr);
+	 dbug_stapkp("+kprobe %p\n", kp->addr);
    }
 #else // PR6028
    ret = register_kprobe(&sdp->kprobe->dummy);
@@ -212,13 +243,22 @@ stapkp_prepare_kretprobe(struct stap_dwarf_probe *sdp)
       addr = stapkp_relocate_addr(sdp);
       if (addr == 0)
 	 return 1;
+      krp->kp.addr = (void *) addr;
    }
    else {
+#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL
+      if (krp->kp.addr == 0)
+	 return 1;
+#else
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+      if (krp->kp.symbol_name == NULL)
+	 krp->kp.symbol_name = kstrdup(sdp->symbol_name, STP_ALLOC_FLAGS);
+#else
       krp->kp.symbol_name = (typeof(krp->kp.symbol_name))sdp->symbol_name;
+#endif
       krp->kp.offset = sdp->offset;
+#endif
    }
-
-   krp->kp.addr = (void *) addr;
 
    if (sdp->maxactive_p)
       krp->maxactive = sdp->maxactive_val;
@@ -367,6 +407,19 @@ stapkp_unregister_probe(struct stap_dwarf_probe *sdp)
 
    stapkp_add_missed(sdp);
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+   if (sdp->symbol_name != NULL) {
+      if (sdp->return_p) {
+	 if (sdk->u.krp.kp.symbol_name != NULL)
+	    kfree(sdk->u.krp.kp.symbol_name);
+      }
+      else {
+	 if (sdk->u.kp.symbol_name != NULL)
+	    kfree(sdk->u.kp.symbol_name);
+      }
+   }
+#endif
+
    // PR16861: kprobes may have left some things in the k[ret]probe struct.
    // Let's reset it to be sure it's safe for re-use.
    memset(sdk, 0, sizeof(struct stap_dwarf_kprobe));
@@ -450,6 +503,19 @@ stapkp_batch_unregister_probes(struct stap_dwarf_probe *probes,
       sdp->registered_p = 0;
 
       stapkp_add_missed(sdp);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,11,0)
+      if (sdp->symbol_name != NULL) {
+	 if (sdp->return_p) {
+	    if (sdp->kprobe->u.krp.kp.symbol_name != NULL)
+	       kfree(sdp->kprobe->u.krp.kp.symbol_name);
+	 }
+	 else {
+	    if (sdp->kprobe->u.kp.symbol_name != NULL)
+	       kfree(sdp->kprobe->u.kp.symbol_name);
+	 }
+      }
+#endif
 
       // PR16861: kprobes may have left some things in the k[ret]probe struct.
       // Let's reset it to be sure it's safe for re-use.
@@ -573,13 +639,89 @@ stapkp_refresh_probe(struct stap_dwarf_probe *sdp)
 #endif /* LINUX_VERSION_CODE >= 2.6.30 */
 
 
+#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL
+struct stapkp_symbol_data {
+   struct stap_dwarf_probe *probes;
+   size_t nprobes;			/* number of probes in "probes" */
+   size_t probe_max;			/* number of probes to process */
+   const char *modname;
+};
+
+
+static int
+stapkp_symbol_callback(void *data, const char *name,
+		       struct module *mod, unsigned long addr)
+{
+   struct stapkp_symbol_data *sd = data;
+   size_t i;
+
+   // Right now, all the symbol_name+offset probes are in modules, so
+   // if we aren't looking at a module symbol we're done.
+   if (!mod)
+      return 0;
+
+   for (i = 0; i < sd->nprobes; i++) {
+      struct stap_dwarf_probe *sdp = &sd->probes[i];
+      char *colon;
+
+      if (! sdp->symbol_name)
+	 continue;
+      if (sd->modname && strcmp(mod->name, sd->modname) != 0)
+	 continue;
+      colon = strchr(sdp->symbol_name, ':');
+      if (colon != NULL && strcmp(mod->name, sdp->module) == 0
+	  && strcmp(name, colon+1) == 0) {
+	 if (sdp->return_p)
+	    sdp->kprobe->u.krp.kp.addr = (void *)(addr + sdp->offset);
+	 else
+	    sdp->kprobe->u.kp.addr = (void *)(addr + sdp->offset);
+	 // Note that we could have more than 1 probe at the same
+	 // symbol (with the same or differing offsets), so we can't
+	 // return here.
+	 //
+	 // But we can quit if we've processed all the needed probes.
+	 --sd->probe_max;
+	 if (sd->probe_max == 0)
+	    return -1;
+      }
+   }
+   return 0;
+}
+#endif
+
+
 static int
 stapkp_init(struct stap_dwarf_probe *probes,
             size_t nprobes)
 {
    size_t i;
-   for (i = 0; i < nprobes; i++) {
 
+#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL
+   // If we have any symbol_name+offset probes, we need to try to
+   // convert those into address-based probes.
+   size_t probe_max = 0;
+   for (i = 0; i < nprobes; i++) {
+      struct stap_dwarf_probe *sdp = &probes[i];
+
+      if (! sdp->symbol_name)
+	 continue;
+      ++probe_max;
+   }
+   if (probe_max > 0) {
+      // Here we're going to try to convert any symbol_name+offset
+      // probes into address probes.
+      struct stapkp_symbol_data sd;
+      sd.probes = probes;
+      sd.nprobes = nprobes;
+      sd.probe_max = probe_max;
+      sd.modname = NULL;
+      mutex_lock(&module_mutex);
+      kallsyms_on_each_symbol(stapkp_symbol_callback, &sd);
+      mutex_unlock(&module_mutex);
+   }
+#endif
+
+   for (i = 0; i < nprobes; i++) {
       struct stap_dwarf_probe *sdp = &probes[i];
       int rc = 0;
 
@@ -616,6 +758,34 @@ stapkp_refresh(const char *modname,
 
    dbug_stapkp("refresh %lu probes with module %s\n", nprobes, modname ?: "?");
 
+#ifdef STAPCONF_KALLSYMS_ON_EACH_SYMBOL
+   if (modname) {
+      size_t probe_max = 0;
+      for (i = 0; i < nprobes; i++) {
+	 struct stap_dwarf_probe *sdp = &probes[i];
+
+	 // If this probe is in the same module that is being
+	 // loaded/unloaded and the probe is symbol_name+offset based
+	 // and it isn't registered (so the module must be loaded),
+	 // try to convert all probes in the same module to
+	 // address-based probes.
+	 if (sdp->module && strcmp(modname, sdp->module) == 0
+	     && sdp->symbol_name && sdp->registered_p == 0)
+	    ++probe_max;
+      }
+      if (probe_max > 0) {
+	 struct stapkp_symbol_data sd;
+	 sd.probes = probes;
+	 sd.nprobes = nprobes;
+	 sd.probe_max = probe_max;
+	 sd.modname = modname;
+	 mutex_lock(&module_mutex);
+	 kallsyms_on_each_symbol(stapkp_symbol_callback, &sd);
+	 mutex_unlock(&module_mutex);
+      }
+   }
+#endif
+
    for (i = 0; i < nprobes; i++) {
 
       struct stap_dwarf_probe *sdp = &probes[i];
@@ -634,12 +804,13 @@ stapkp_refresh(const char *modname,
          else if (sdp->registered_p == 1 && addr == 0)
             stapkp_unregister_probe(sdp);
 
+      }
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,30)
-      } else if (stapkp_should_enable_probe(sdp)
+      else if (stapkp_should_enable_probe(sdp)
               || stapkp_should_disable_probe(sdp)) {
          stapkp_refresh_probe(sdp);
-#endif
       }
+#endif
    }
 }
 

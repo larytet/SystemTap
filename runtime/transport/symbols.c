@@ -151,7 +151,7 @@ static int _stp_module_notifier (struct notifier_block * nb,
 	// After kernel commit 4982223e51, module notifiers are being
 	// called too early to get module section info. So, we have to
 	// switch to using symbol+offset probing for modules.
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)
 	// The module refresh code (in systemtap_module_refresh)
 	// assumes the 1st call is on module load and the 2nd is on
 	// module unload. So, we can't call systemtap_module_refresh()

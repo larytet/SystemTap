@@ -5766,7 +5766,7 @@ dwarf_derived_probe_group::emit_module_decls (systemtap_session& s)
 	  // After kernel commit 4982223e51, module notifiers are
 	  // being called too early. So, we have to switch to using
 	  // symbol+offset probing for modules.
-	  s.op->newline(-1) << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,16,0)";
+	  s.op->newline(-1) << "#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,10,0)";
 	  s.op->newline() << " .symbol_name=\"" << p->symbol_name << "\",";
 	  s.op->line() << " .offset=(unsigned int)" << p->offset << ",";
 	  s.op->newline() << "#endif";

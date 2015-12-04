@@ -2,6 +2,7 @@
 # function, install it, and get some output.
 
 set test "kmodule"
+set test2 "kprobe_module"
 if {![installtest_p]} {
     untested $test
     return
@@ -110,20 +111,27 @@ if {[build_and_install_module] == 0} {
 stap_run $srcdir/$subdir/$test.stp kmodule_load $output_string
 
 # Test 'kprobe.module("foo").function("bar")
-stap_run $srcdir/$subdir/kprobe_module.stp kmodule_load $output_string
+stap_run $srcdir/$subdir/$test2.stp kmodule_load $output_string
 
 # Now let's test and see if the same scripts work when the test module
 # is loaded *after* the systemtap script starts.
+set test_suffix "(loaded after)"
+if {![module_refresh_p]} {
+    untested "$subdir/$test.stp $test_suffix"
+    untested "$subdir/$test2.stp $test_suffix"
+    cleanup_module
+    return
+}
 as_root [list /sbin/rmmod stap_kmodule]
 
 # Test 'module("foo").function("bar")
 set test_file "$subdir/$test.stp"
-stap_run "$test_file (loaded after)" kmodule_load2 \
+stap_run "$test_file $test_suffix" kmodule_load2 \
     $output_string $srcdir/$test_file
 
 # Test 'kprobe.module("foo").function("bar")
-set test_file "$subdir/kprobe_module.stp"
-stap_run "$test_file (loaded after)" kmodule_load2 \
+set test_file "$subdir/$test2.stp"
+stap_run "$test_file $test_suffix" kmodule_load2 \
     $output_string $srcdir/$test_file
 
 cleanup_module
