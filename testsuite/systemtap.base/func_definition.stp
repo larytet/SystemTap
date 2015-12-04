@@ -1,0 +1,60 @@
+/*
+ * func_definition.stp
+ *
+ * Check function definitions
+ */
+probe begin {
+    println("systemtap starting probe")
+}
+
+
+function f1(arg:long)
+{
+    if (arg == 2015)
+        println("systemtap test success")
+    else
+        printf("systemtap test failure - arg of f1:%d != 2015\n", arg)
+}
+
+function f2(arg)
+{
+    if (arg == 2015)
+        println("systemtap test success")
+    else
+        printf("systemtap test failure - arg of f2:%d != 2015\n", arg)
+}
+
+function f3:long()
+{
+    return 2015
+}
+
+function f4()
+{
+    return 2015
+}
+
+function f5()
+{
+    println("systemtap test success")
+}
+
+probe end {
+    println("systemtap ending probe")
+
+    f1(2015)
+
+    f2(2015)
+
+    if (f3() == 2015)
+        println("systemtap test success")
+    else
+        printf("systemtap test failure - return_value of f3:%d != 2015\n", f3())
+
+    if (f4() == 2015)
+        println("systemtap test success")
+    else
+        printf("systemtap test failure - return_value of f4:%d != 2015\n", f4())
+
+    f5()
+}
