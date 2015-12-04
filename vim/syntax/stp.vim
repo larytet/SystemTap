@@ -1,7 +1,7 @@
 " Vim syntax file
 " Language:     SystemTap
 " Maintainer:   SystemTap Developers <systemtap@sourceware.org>
-" Last Change:  2011 Aug 4
+" Last Change:  2015 Dec 4
 
 " For version 5.x: Clear all syntax items
 " For version 6.x: Quit when a syntax file was already loaded
@@ -17,6 +17,7 @@ syn keyword stapStatement contained break continue return next delete try catch 
 syn keyword stapRepeat contained while for foreach in limit containedin=stapBlock
 syn keyword stapConditional contained if else containedin=stapBlock
 syn keyword stapDeclaration global probe function
+syn keyword stapModifier private
 syn match stapDeclaration "@define\>"
 syn keyword stapType string long
 
@@ -107,6 +108,7 @@ if version >= 508 || !exists("did_stap_syn_inits")
   HiLink stapPreProcCond Special
   HiLink stapDeclaration Typedef
   HiLink stapTarget Special
+  HiLink stapModifier Keyword
 
   delcommand HiLink
 endif
