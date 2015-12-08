@@ -1,0 +1,3 @@
+#! stap -p2
+
+probe begin { foo = "zoo" ; foo <<< 2 ; print(foo) }
