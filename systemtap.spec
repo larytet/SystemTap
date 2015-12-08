@@ -476,7 +476,7 @@ cd ..
 %if %{with_dracut}
 %global dracut_config --with-dracutstap=%{dracutstap}
 %else
-%global dracut_config
+%global dracut_config %{nil}
 %endif
 
 %if %{with_python3}
