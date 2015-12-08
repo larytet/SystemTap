@@ -55,6 +55,7 @@ staprun/ctl.c
 staprun/mainloop.c
 staprun/modverify.c
 staprun/modverify.h
+staprun/monitor.c
 staprun/relay.c
 staprun/relay_old.c
 staprun/stapio.c
