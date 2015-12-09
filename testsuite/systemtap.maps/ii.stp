@@ -9,6 +9,12 @@ probe begin {
 	foreach (i in foo)
 	 	printf("foo[%d] = %d\n", i, foo[i])
 
+	# delete out of the index
+	delete foo[11]
+	printf("\n")
+	foreach (i in foo)
+	 	printf("foo[%d] = %d\n", i, foo[i])
+
 	# delete out of the middle
 	delete foo[5]
 	printf("\n")
