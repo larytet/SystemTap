@@ -1,4 +1,4 @@
-/* COVERAGE: getcwd fstat stat lstat fstatat utime */
+/* COVERAGE: getcwd fstat stat lstat fstatat fstatat64 utime */
 /* COVERAGE: fstat64 stat64 lstat64 */
 /* COVERAGE: newfstat newfstatat newlstat newstat */
 #define _GNU_SOURCE

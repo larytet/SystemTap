@@ -12,11 +12,12 @@
 # - rt_sigreturn: rt_sigreturn is a syscall that you don't call
 #		  directly, so we can't really test it. glibc calls it
 #		  in signal handlers. 
+# - sigreturn: Ditto.
 # - socketcall: common entry point for other socket syscalls
 # - tux: obsolete
 set badlist {
     bdflush dmi_field_show dmi_modalias_show copyarea fillrect
-    imageblit ni_syscall rt_sigreturn socketcall tux
+    imageblit ni_syscall rt_sigreturn sigreturn socketcall tux
 }
 
 foreach f $badlist {
@@ -31,7 +32,10 @@ if {[catch {eval exec $cmd} output]} {
 }
 foreach line [split $output "\n"] {
     if {[regexp {^kernel.function\(\"[Ss]y[Ss]_([^@\"]+)} $line match fn]} {
-	if {![info exists funcname($fn)]} {
+	# arm (and perhaps other platforms) has assembly language
+	# syscall wrappers like "sigreturn_wrapper". Notice we're
+	# ignoring these.
+	if {![info exists funcname($fn)] && ![regexp {_wrapper$} $fn]} {
 	    set funcname($fn) 0
 	}
     }
