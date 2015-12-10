@@ -19,7 +19,7 @@ probe nd_syscall.execve = kprobe.function("sys_execve").call
 	env_str = __count_envp(pointer_arg(3))
 	argstr = sprintf("%s, %s, %s", filename, args, env_str)
 }
-probe syscall.execve.return = kernel.function("sys_execve").return
+probe nd_syscall.execve.return = kprobe.function("sys_execve").return
 {
 	name = "execve"
 	retstr = returnstr(1)
