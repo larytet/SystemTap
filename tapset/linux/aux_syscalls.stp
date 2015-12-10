@@ -4332,6 +4332,7 @@ function _stp_keyctl_default_keyrings_str:string(id:long)
 #include <linux/key.h>
 
 static const _stp_val_array const _stp_keyctl_perm_list[] = {
+#if defined(CONFIG_KEYS)
 	V(KEY_POS_VIEW),
 	V(KEY_POS_READ),
 	V(KEY_POS_WRITE),
@@ -4360,6 +4361,7 @@ static const _stp_val_array const _stp_keyctl_perm_list[] = {
 	V(KEY_OTH_LINK),
 	V(KEY_OTH_SETATTR),
 	V(KEY_OTH_ALL),
+#endif /* CONFIG_KEYS */
 	{0, NULL}
 };
 %}
@@ -5603,6 +5605,7 @@ function _struct_sysinfo_u:string(uaddr:long)
 %{
 #include <linux/kexec.h>
 static const _stp_val_array const _stp_kexec_flags_list[] = {
+#if defined(CONFIG_KEXEC)
 	V(KEXEC_ON_CRASH),
 #ifdef KEXEC_PRESERVE_CONTEXT
 	V(KEXEC_PRESERVE_CONTEXT),
@@ -5624,6 +5627,7 @@ static const _stp_val_array const _stp_kexec_flags_list[] = {
 #ifdef KEXEC_ARCH_MIPS
 	V(KEXEC_ARCH_MIPS),
 #endif
+#endif /* CONFIG_KEXEC */
 	{0, NULL}
 };
 
