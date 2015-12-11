@@ -97,7 +97,7 @@ class mutator {
     // Callback to respond to dynamically loaded libraries.
     // Check if it matches our targets, and instrument accordingly.
     void dynamic_library_callback(BPatch_thread *thread,
-                                  BPatch_module *module,
+                                  BPatch_object *object,
                                   bool load);
 
     // Callback to respond to post fork events.  Check if it matches

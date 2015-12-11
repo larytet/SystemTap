@@ -35,12 +35,23 @@ static vector<mutator*> g_mutators;
 
 static void
 g_dynamic_library_callback(BPatch_thread *thread,
-                           BPatch_module *module,
+                           BPatch_object *object,
                            bool load)
 {
   for (size_t i = 0; i < g_mutators.size(); ++i)
-    g_mutators[i]->dynamic_library_callback(thread, module, load);
+    g_mutators[i]->dynamic_library_callback(thread, object, load);
 }
+
+#if DYNINST_MAJOR < 9 || (DYNINST_MAJOR == 9 && DYNINST_MINOR < 1)
+static void
+g_dynamic_module_callback(BPatch_thread *thread,
+                          BPatch_module *module,
+                          bool load)
+{
+  g_dynamic_library_callback(thread, module->getObject(), load);
+}
+#define g_dynamic_library_callback g_dynamic_module_callback
+#endif
 
 
 static void
@@ -672,18 +683,18 @@ mutator::find_mutatee(BPatch_process* process)
 // Check if it matches our targets, and instrument accordingly.
 void
 mutator::dynamic_library_callback(BPatch_thread *thread,
-                                  BPatch_module *module,
+                                  BPatch_object *object,
                                   bool load)
 {
-  if (!load || !thread || !module)
+  if (!load || !thread || !object)
     return;
 
   BPatch_process* process = thread->getProcess();
-  staplog(1) << "dlopen \"" << module->libraryName()
+  staplog(1) << "dlopen \"" << object->name()
              << "\", pid = " << process->getPid() << endl;
   boost::shared_ptr<mutatee> mut = find_mutatee(process);
   if (mut)
-    mut->instrument_object_dynprobes(module->getObject(), targets);
+    mut->instrument_object_dynprobes(object, targets);
 }
 
 
