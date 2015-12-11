@@ -585,16 +585,22 @@ mutator::run ()
       // mask signals while we're preparing to poll
       stap_sigmasker masked(g_signal_mask);
 
+      pollfd pfd;
+      pfd.fd = patch.getNotificationFD();
+      pfd.events = POLLIN;
+      pfd.revents = 0;
+
       // Polling with a notification FD lets us wait on Dyninst while still
       // letting signals break us out of the loop.
       while (update_mutatees())
         {
-          pollfd pfd;
-          pfd.fd = patch.getNotificationFD();
-          pfd.events = POLLIN;
-          pfd.revents = 0;
-
           struct timespec timeout = { 10, 0 };
+
+          // When a mutatee exits, the cleanup may cause dyninstAPI to dequeue
+          // other events from proccontrol (which clears the poll FD), without
+          // actually processing those events yet.  Check before we sleep...
+          if (patch.pollForStatusChange())
+            continue;
 
           int rc = ppoll (&pfd, 1, &timeout, &masked.old);
           if (rc < 0 && errno != EINTR)
