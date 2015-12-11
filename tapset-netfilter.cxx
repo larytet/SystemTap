@@ -268,7 +268,10 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
       // a struct sk_buff **skb, whereas currently it uses a *skb. We
       // need emit the right version so this will compile on RHEL5,
       // for example.
-      s.op->newline() << "#ifdef STAPCONF_NETFILTER_V41";
+      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V44)";
+      s.op->newline() << "(void *priv, struct sk_buff *nf_skb, const struct nf_hook_state *nf_state)";
+      s.op->newline() << "{";
+      s.op->newline() << "#elif defined(STAPCONF_NETFILTER_V41)";
       s.op->newline() << "(const struct nf_hook_ops *nf_ops, struct sk_buff *nf_skb, const struct nf_hook_state *nf_state)";
       s.op->newline() << "{";
       s.op->newline() << "#elif defined(STAPCONF_NETFILTER_V313)";
@@ -295,12 +298,18 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
       s.op->newline(-1) << "#endif";
       s.op->newline(1) << "const struct stap_probe * const stp = & stap_probes[" << np->session_index << "];";
       s.op->newline() << "int nf_verdict = NF_ACCEPT;"; // default NF_ACCEPT, to be used by $verdict context var
-      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V313) || defined(STAPCONF_NETFILTER_V313B) || defined(STAPCONF_NETFILTER_V41)";
+      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V44)";
+      s.op->newline() << "unsigned int nf_hooknum = nf_state->hook;";
+      s.op->newline() << "#elif defined(STAPCONF_NETFILTER_V313) || defined(STAPCONF_NETFILTER_V313B) || defined(STAPCONF_NETFILTER_V41)";
       s.op->newline() << "unsigned int nf_hooknum = nf_ops->hooknum;";
       s.op->newline() << "#endif";
-      s.op->newline() << "#ifdef STAPCONF_NETFILTER_V41";
+      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V41) || defined(STAPCONF_NETFILTER_V44)";
       s.op->newline() << "struct net_device *nf_in = nf_state->in;";
       s.op->newline() << "struct net_device *nf_out = nf_state->out;";
+      s.op->newline() << "#endif";
+      s.op->newline() << "#if defined(STAPCONF_NETFILTER_V44)";
+      s.op->newline() << "int (*nf_okfn)(struct net *, struct sock *, struct sk_buff *) = nf_state->okfn;";
+      s.op->newline() << "#elif defined(STAPCONF_NETFILTER_V41)";
       s.op->newline() << "int (*nf_okfn)(struct sock *, struct sk_buff *) = nf_state->okfn;";
       s.op->newline() << "#endif";
       common_probe_entryfn_prologue (s, "STAP_SESSION_RUNNING", "stp",
@@ -348,7 +357,9 @@ netfilter_derived_probe_group::emit_module_decls (systemtap_session& s)
       // now emit the nf_hook_ops struct for this probe.
       s.op->newline() << "static struct nf_hook_ops netfilter_opts_" << np->nf_index << " = {";
       s.op->newline() << ".hook = enter_netfilter_probe_" << np->nf_index << ",";
+      s.op->newline() << "#ifndef STAPCONF_NETFILTER_V44";
       s.op->newline() << ".owner = THIS_MODULE,";
+      s.op->newline() << "#endif";
 
       // XXX: if these strings/numbers are not range-limited / validated before we get here,
       // ie during the netfilter_derived_probe ctor, then we will emit potential trash here,
