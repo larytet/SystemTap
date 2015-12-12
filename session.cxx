@@ -589,7 +589,7 @@ systemtap_session::usage (int exitcode)
       cout << "              " << syms[i].c_str() << endl;
   }
   cout
-    << _F("   --ldd      add unwind/symbol data for all referenced object files.\n"
+    << _F("   --ldd      add unwind/symbol data for referenced user-space objects.\n"
     "   --all-modules\n"
     "              add unwind/symbol data for all loaded kernel objects.\n"
     "   -t         collect probe timing information\n"

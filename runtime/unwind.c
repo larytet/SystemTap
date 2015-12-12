@@ -1507,10 +1507,13 @@ static int unwind(struct unwind_context *context, int user)
           }
 
 	if (unlikely(m == NULL)) {
-                if (module_name)
-                        _stp_warn ("Missing unwind data for module, rerun with 'stap -d %s'\n",
-                                   module_name);
-		// Don't _stp_warn about this, will use fallback unwinder.
+                // some heuristics for the module name; we can't call
+                // kernel_text_address or friends from this context.
+                if (! module_name && (unsigned long)pc > PAGE_OFFSET)
+                        module_name = "kernel";
+                _stp_warn ("Missing unwind data for a module, rerun with 'stap -d %s'\n",
+                           module_name ?: "(unknown; retry witn -DDEBUG_UNWIND)");
+		// Don't _stp_warn including the pc#, since it'll defeat warning deduplicator
 		dbug_unwind(1, "No module found for pc=%lx", pc);
 		return -EINVAL;
 	}

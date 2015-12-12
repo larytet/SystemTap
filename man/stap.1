@@ -237,10 +237,11 @@ module.  This may enable symbolic tracebacks from those modules/programs,
 even if they do not have an explicit probe placed into them.
 .TP
 .BI \-\-ldd
-Add symbol/unwind information for all shared libraries suspected by
-ldd to be necessary for user-space binaries being probe or listed with
+Add symbol/unwind information for all user-space shared libraries suspected
+by ldd to be necessary for user-space binaries being probe or listed with
 the \-d option.  Caution: this can make the probe modules considerably
-larger.
+larger.  Note that this option does not deal with kernel-space modules:
+see instead \-\-all\-modules below.
 .TP
 .BI \-\-all\-modules
 Equivalent to specifying "\-dkernel" and a "\-d" for each kernel module that is
@@ -575,7 +576,7 @@ Dumps a list of all functions found in library files and exits. Also includes
 their parameters and types. A function of type 'unknown' indicates a function
 that does not return a value. Note that not all function/parameter types may be
 resolved (these are also shown by 'unknown'). This features is very
-memory-intensive and thus may not work properly with \fI--use-server\fR if the
+memory-intensive and thus may not work properly with \fI\-\-use-server\fR if the
 target server imposes an rlimit on process memory (i.e. through the
 \fI~stap-server/.systemtap/rc\fR configuration file, see \fIstap-server\fR(8)).
 
@@ -598,7 +599,7 @@ libvirt. Optionally, LIBVIRT_URI may be specified to connect to a specific
 driver and/or a remote host. For example, to connect to the local privileged
 QEMU driver, use:
 .SAMPLE
---remote libvirt://MyDomain/qemu:///system
+\-\-remote libvirt://MyDomain/qemu:///system
 .ESAMPLE
 See the page at
 .nh
