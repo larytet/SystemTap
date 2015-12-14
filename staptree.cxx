@@ -138,7 +138,6 @@ probe::probe(probe* p, probe_point* l):
   base (p), tok (p->tok), systemtap_v_conditional (p->systemtap_v_conditional),
   privileged (p->privileged), id (last_probeidx ++)
 {
-  this->locations.push_back(l);
   assert (p->locals.size() == 0);
   assert (p->unused_locals.size() == 0);
 }
