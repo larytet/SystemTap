@@ -871,6 +871,32 @@ kernel.function("no_such_function") ?
 \end{verbatim}
 \end{vindent}
 
+\subsubsection{Brace expansion}
+\index{braceexpansion}
+Brace expansion is a mechanism which allows a list of probe points to be
+generated. It is very similar to shell expansion. A component may be surrounded
+by a pair of curly braces to indicate that the comma-separated sequence of
+one or more subcomponents will each constitute a new probe point. The braces
+may be arbitrarily nested. The ordering of expanded results is based on
+product order.
+
+The question mark (?), exclamation mark (!) indicators and probe point conditions
+may not be placed in any expansions that are before the last component.
+
+The following is an example of brace expansion.
+
+\begin{vindent}
+\begin{verbatim}
+syscall.{write,read}
+# Expands to
+syscall.write, syscall.read
+
+{kernel,module("nfs")}.function("nfs*")!
+# Expands to
+kernel.function("nfs*")!, module("nfs").function("nfs*")!
+\end{verbatim}
+\end{vindent}
+
 \subsection{Built-in probe point types (DWARF probes)}
 \index{built-in probes}
 \index{dwarf probes}

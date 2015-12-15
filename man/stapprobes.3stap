@@ -99,6 +99,7 @@ process("/bin/vi").statement(0x2222)
 end
 syscall.*
 syscall.*.return.maxactive(10)
+syscall.{open,close}
 sys**open
 kernel.function("no_such_function") ?
 module("awol").function("no_such_function") !
@@ -117,6 +118,28 @@ point specification may match multiple locations (for example, using
 wildcards or aliases), and all them are then probed.  A probe
 declaration may also contain several comma-separated specifications,
 all of which are probed.
+
+Brace expansion is a mechanism which allows a list of probe points to be
+generated. It is very similar to shell expansion. A component may be surrounded
+by a pair of curly braces to indicate that the comma-separated sequence of
+one or more subcomponents will each constitute a new probe point. The braces
+may be arbitrarily nested. The ordering of expanded results is based on
+product order.
+
+The question mark (?), exclamation mark (!) indicators and probe point conditions
+may not be placed in any expansions that are before the last component.
+
+The following is an example of brace expansion.
+
+.SAMPLE
+syscall.{write,read}
+# Expands to
+syscall.write, syscall.read
+
+{kernel,module("nfs")}.function("nfs*")!
+# Expands to
+kernel.function("nfs*")!, module("nfs").function("nfs*")!
+.ESAMPLE
 
 .SH DWARF DEBUGINFO
 

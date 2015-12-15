@@ -1,0 +1,20 @@
+set test "probe_point_expansion"
+
+if {![installtest_p]} {untested $test; return}
+
+proc run_test {test pp expected} {
+    set success 0
+    spawn stap -p1 -e "probe $pp {}"
+    expect {
+	-timeout 30
+        -re $expected { incr success }
+    }
+    if {$success == 1} { pass $test } { fail $test }
+}
+
+run_test noexpand "a.b.c" "a.b.c"
+run_test single "{a,b}" "a,b"
+run_test singlechained1 "{a,b}.c" "a.c,b.c"
+run_test singlechained2 "a.{b,c}" "a.b,a.c"
+run_test multi "{a,b}.{c,d}" "a.c,a.d,b.c,b.d"
+run_test nested "{a,b}.{c,d,{e.f,g}}" "a.c,a.d,a.e.f,a.g,b.c,b.d,b.e.f,b.g"

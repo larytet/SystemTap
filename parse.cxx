@@ -176,7 +176,9 @@ private: // nonterminals
   void do_parse_functiondecl (vector<functiondecl*>&, const token*,
                               string const&, bool);
   embeddedcode* parse_embeddedcode ();
-  probe_point* parse_probe_point ();
+  vector<probe_point*> parse_probe_points ();
+  vector<probe_point*> parse_components ();
+  vector<probe_point*> parse_component ();
   literal_string* consume_string_literals (const token*);
   literal_string* parse_literal_string ();
   literal* parse_literal ();
@@ -1996,44 +1998,35 @@ parser::parse_probe (vector<probe *> & probe_ret,
   vector<probe_point *> aliases;
   vector<probe_point *> locations;
 
-  bool equals_ok = true;
-
   int epilogue_alias = 0;
 
   while (1)
     {
-      probe_point * pp = parse_probe_point ();
+      vector<probe_point*> pps = parse_probe_points();
 
       const token* t = peek ();
-      if (equals_ok && t
+      if (pps.size() == 1 && t
           && t->type == tok_operator && t->content == "=")
         {
-          if (pp->optional || pp->sufficient)
-            throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pp->components.front()->tok);
-          aliases.push_back(pp);
+          if (pps[0]->optional || pps[0]->sufficient)
+            throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pps[0]->components.front()->tok);
+          aliases.push_back(pps[0]);
           swallow ();
           continue;
         }
-      else if (equals_ok && t
+      else if (pps.size() == 1 && t
           && t->type == tok_operator && t->content == "+=")
         {
-          if (pp->optional || pp->sufficient)
-            throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pp->components.front()->tok);
-          aliases.push_back(pp);
+          if (pps[0]->optional || pps[0]->sufficient)
+            throw PARSE_ERROR (_("probe point alias name cannot be optional nor sufficient"), pps[0]->components.front()->tok);
+          aliases.push_back(pps[0]);
           epilogue_alias = 1;
-          swallow ();
-          continue;
-        }
-      else if (t && t->type == tok_operator && t->content == ",")
-        {
-          locations.push_back(pp);
-          equals_ok = false;
           swallow ();
           continue;
         }
       else if (t && t->type == tok_operator && t->content == "{")
         {
-          locations.push_back(pp);
+          locations.insert(locations.end(), pps.begin(), pps.end());
           break;
         }
       else
@@ -2429,22 +2422,146 @@ parser::do_parse_functiondecl (vector<functiondecl*>& functions, const token* t,
   functions.push_back (fd);
 }
 
-
-probe_point*
-parser::parse_probe_point ()
+vector<probe_point*>
+parser::parse_probe_points()
 {
-  probe_point* pl = new probe_point;
-
+  vector<probe_point*> pps;
   while (1)
     {
-      const token* t = next ();
-      if (! (t->type == tok_identifier
-	     // we must allow ".return" and ".function", which are keywords
-	     || t->type == tok_keyword
-             // we must allow "*", due to being an operator
-             || (t->type == tok_operator && t->content == "*")))
-        throw PARSE_ERROR (_("expected identifier or '*'"));
+      vector<probe_point*> tail = parse_components();
+      pps.insert(pps.end(), tail.begin(), tail.end());
 
+      const token* t = peek();
+      if (t && t->type == tok_operator && t->content == ",")
+        {
+          swallow();
+          continue;
+        }
+
+      if (t && t->type == tok_operator
+          && (t->content == "{" || t->content == "=" ||
+              t->content == "+="|| t->content == "}"))
+        break;
+
+      throw PARSE_ERROR (_("expected one of ', { } = +='"));
+    }
+  return pps;
+}
+
+vector<probe_point*>
+parser::parse_components()
+{
+  vector<probe_point*> pps;
+  while (1)
+    {
+      vector<probe_point*> suffix = parse_component();
+
+      // Cartesian product of components
+      if (pps.empty())
+        pps = suffix;
+      else
+        {
+          assert(!suffix.empty());
+          vector<probe_point*> product;
+          for (unsigned i = 0; i < pps.size(); i++)
+            {
+              if (pps[i]->optional || pps[i]->sufficient || pps[i]->condition)
+                throw PARSE_ERROR (_("'?', '!' or condition must only be specified in suffix"),
+                                   pps[i]->components[0]->tok);
+              for (unsigned j = 0; j < suffix.size(); j++)
+                {
+                  probe_point* pp = new probe_point;
+                  pp->components.insert(pp->components.end(),
+                                        pps[i]->components.begin(), pps[i]->components.end());
+                  pp->components.insert(pp->components.end(),
+                                        suffix[j]->components.begin(), suffix[j]->components.end());
+                  pp->optional = suffix[j]->optional;
+                  pp->sufficient = suffix[j]->sufficient;
+                  pp->condition = suffix[j]->condition;
+                  product.push_back(pp);
+                }
+            }
+          for (unsigned i = 0; i < pps.size(); i++) delete pps[i];
+          for (unsigned i = 0; i < suffix.size(); i++) delete suffix[i];
+          pps = product;
+        }
+
+      const token* t = peek();
+      if (t && t->type == tok_operator && t->content == ".")
+        {
+          swallow ();
+          continue;
+        }
+
+      // We only fall through here at the end of 	a probe point (past
+      // all the dotted/parametrized components).
+
+      if (t && t->type == tok_operator &&
+          (t->content == "?" || t->content == "!"))
+        {
+          for (unsigned i = 0; i < pps.size(); i++)
+            {
+              if (pps[i]->optional || pps[i]->sufficient)
+                throw PARSE_ERROR (_("'?' or '!' respecified"));
+              pps[i]->optional = true;
+              if (t->content == "!") pps[i]->sufficient = true;
+            }
+          // NB: sufficient implies optional
+          swallow ();
+          t = peek ();
+          // fall through
+        }
+
+      if (t && t->type == tok_keyword && t->content == "if")
+        {
+          swallow ();
+          t = peek ();
+          if (!(t && t->type == tok_operator && t->content == "("))
+            throw PARSE_ERROR (_("expected '('"));
+          swallow ();
+
+          expression* e = parse_expression();
+          for (unsigned i = 0; i < pps.size(); i++)
+            {
+              if (pps[i]->condition != 0)
+                throw PARSE_ERROR (_("condition respecified"));
+              pps[i]->condition = e;
+            }
+
+          t = peek ();
+          if (!(t && t->type == tok_operator && t->content == ")"))
+            throw PARSE_ERROR (_("expected ')'"));
+          swallow ();
+        }
+
+      break;
+    }
+  return pps;
+}
+
+vector<probe_point*>
+parser::parse_component()
+{
+  const token* t = next ();
+  if (! (t->type == tok_identifier
+         // we must allow ".return" and ".function", which are keywords
+         || t->type == tok_keyword
+         // we must allow "*", due to being an operator
+         || (t->type == tok_operator && (t->content == "*" || t->content == "{"))))
+    throw PARSE_ERROR (_("expected identifier or '*' or '{'"));
+
+  if (t && t->type == tok_operator && t->content == "{")
+    {
+      swallow();
+      vector<probe_point*> pps = parse_probe_points();
+      t = peek();
+      if (!(t && t->type == tok_operator && t->content == "}"))
+        throw PARSE_ERROR (_("expected '}'"));
+      swallow();
+      return pps;
+    }
+  else
+    {
       // loop which reconstitutes an identifier with wildcards
       string content = t->content;
       bool changed_p = false;
@@ -2467,7 +2584,7 @@ parser::parse_probe_point ()
           // append u to t
           content = content + (string)u->content;
           changed_p = true;
-          
+
           // consume u
           swallow ();
         }
@@ -2483,7 +2600,10 @@ parser::parse_probe_point ()
       probe_point::component* c = new probe_point::component;
       c->functor = t->content;
       c->tok = t;
-      pl->components.push_back (c);
+      vector<probe_point*> pps;
+      probe_point* pp = new probe_point;
+      pp->components.push_back(c);
+      pps.push_back(pp);
       // NB we may add c->arg soon
 
       t = peek ();
@@ -2498,59 +2618,10 @@ parser::parse_probe_point ()
           if (! (t->type == tok_operator && t->content == ")"))
             throw PARSE_ERROR (_("expected ')'"));
           swallow ();
-
-          t = peek ();
         }
-
-      if (t && t->type == tok_operator && t->content == ".")
-        {
-          swallow ();
-          continue;
-        }
-
-      // We only fall through here at the end of 	a probe point (past
-      // all the dotted/parametrized components).
-
-      if (t && t->type == tok_operator &&
-          (t->content == "?" || t->content == "!"))
-        {
-          pl->optional = true;
-          if (t->content == "!") pl->sufficient = true;
-          // NB: sufficient implies optional
-          swallow ();
-          t = peek ();
-          // fall through
-        }
-
-      if (t && t->type == tok_keyword && t->content == "if")
-        {
-          swallow ();
-          t = peek ();
-          if (!(t && t->type == tok_operator && t->content == "("))
-            throw PARSE_ERROR (_("expected '('"));
-          swallow ();
-
-          pl->condition = parse_expression ();
-
-          t = peek ();
-          if (!(t && t->type == tok_operator && t->content == ")"))
-            throw PARSE_ERROR (_("expected ')'"));
-          swallow ();
-          t = peek ();
-          // fall through
-        }
-
-      if (t && t->type == tok_operator
-          && (t->content == "{" || t->content == "," ||
-              t->content == "=" || t->content == "+=" ))
-        break;
-
-      throw PARSE_ERROR (_("expected one of '. , ( ? ! { = +='"));
+      return pps;
     }
-
-  return pl;
 }
-
 
 literal_string*
 parser::consume_string_literals(const token *t)

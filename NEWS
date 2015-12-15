@@ -1,5 +1,17 @@
 * What's new in version 3.0
 
+- Probe point brace expansion is now supported to improve brevity in
+  specifying probe points. For example,
+
+  process.{function("a"), function("b").{call,return}}
+  => process.function("a"), process.function("b").call, process.function("b").return
+
+  process.{function("*").callees,plt}?
+  => process.function("*").callees?, process.plt?
+
+  {kernel,module("nfs")}.function("nfs*")!
+  => kernel.function("nfs*")!, module("nfs").function("nfs*")!
+
 - Profiling timers at arbitrary frequencies are now provided and perf probes
   now support a frequency field as an alternative to sampling counts.
 
