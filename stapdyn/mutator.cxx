@@ -42,7 +42,7 @@ g_dynamic_library_callback(BPatch_thread *thread,
     g_mutators[i]->dynamic_library_callback(thread, object, load);
 }
 
-#if DYNINST_MAJOR < 9 || (DYNINST_MAJOR == 9 && DYNINST_MINOR < 1)
+#ifndef DYNINST_9_1
 static void
 g_dynamic_module_callback(BPatch_thread *thread,
                           BPatch_module *module,
