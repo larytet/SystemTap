@@ -8,7 +8,7 @@
 global dummy_fd = -1 # invalid filehandle; to try stdout, run with -G dummy_fd=1
 global guilt, agony, piety
 
-probe syscall.fsync, syscall.fdatasync { 
+probe syscall.{fsync,fdatasync} {
   # We can't actually disable the syscall from here, but can try to
   # weaken it by redirecting the work toward a dummy file descriptor
   if (pid() == target())
@@ -21,7 +21,7 @@ probe syscall.fsync, syscall.fdatasync {
   else
      piety ++
 }
-probe syscall.fsync.return, syscall.fdatasync.return {
+probe syscall.{fsync,fdatasync}.return {
   # override result code, just in case kernel sent back -EINVAL or somesuch
   if (pid() == target())
       try { $return = 0 } catch { }

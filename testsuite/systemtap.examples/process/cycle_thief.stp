@@ -39,8 +39,7 @@ probe kernel.trace("sched_switch") {
 }
 
 /* what interrupts occur while process is running */
-probe kernel.trace("irq_handler_entry")!,
-      kernel.trace("irq_entry")
+probe kernel.{trace("irq_handler_entry")!, trace("irq_entry")}
 {
   t = gettimeofday_us(); c = cpu();
   i = @defined($irq) ? $irq : $id;
@@ -51,8 +50,7 @@ probe kernel.trace("irq_handler_entry")!,
 }
 
 
-probe kernel.trace("irq_handler_exit")!,
-      kernel.trace("irq_exit")
+probe kernel.{trace("irq_handler_exit")!, trace("irq_exit")}
 {
   i = @defined($irq) ? $irq : $id;
   t = gettimeofday_us(); c = cpu(); irqt=irq_entry[i]

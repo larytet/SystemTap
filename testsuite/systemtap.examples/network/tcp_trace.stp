@@ -179,8 +179,8 @@ function timer_info_num2str:string ( timer:long )
 	return (timer in timer_info ? timer_info[timer] : "UNDEF")
 }
 
-probe	kernel.function("tcp_rcv_established"),
-	kernel.function("tcp_rcv_state_process")
+probe kernel.{function("tcp_rcv_established"),
+              function("tcp_rcv_state_process")}
 {
 	sk = $sk
 	key = filter_key(sk)

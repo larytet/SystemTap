@@ -6,7 +6,7 @@
 global start, intervals
 
 # We can apply a suffix to multiple probe points designated by one alias:
-probe miscellany = syscall.open, syscall.close, syscall.read, syscall.write { }
+probe miscellany = syscall.{open,close,read,write} { }
 
 probe miscellany {
       start[name, tid()] = gettimeofday_us()
