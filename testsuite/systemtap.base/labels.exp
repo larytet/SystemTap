@@ -8,8 +8,7 @@ set label_exepath "[pwd]/labels.x"
 set label_sopath "[pwd]/labels.so"
 set label_flags "additional_flags=-g"
 set fp [open $label_srcpath "w"]
-puts $fp "
-#include <unistd.h>
+puts $fp "#include <unistd.h>
 int
 foo ()
 {
